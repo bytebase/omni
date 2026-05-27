@@ -129,18 +129,22 @@ func (p *Parser) parseCreateIndexStmt(start int) (*nodes.CreateIndexStmt, error)
 		}
 	}
 
-	if p.cur.Type == '(' {
-		p.advance()
-		var parseErr416 error
-		stmt.Columns, parseErr416 = p.parseIndexColumnList()
-		if parseErr416 != nil {
-			return nil, parseErr416
-		}
-		if p.cur.Type != ')' {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
+	var parseErr416 error
+	stmt.Columns, parseErr416 = p.parseIndexColumnList()
+	if parseErr416 != nil {
+		return nil, parseErr416
+	}
+	if stmt.Columns == nil || stmt.Columns.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
 
 	// Check for bitmap_join_index_clause: FROM ... WHERE ...
 	if p.cur.Type == kwFROM {
@@ -505,6 +509,9 @@ func (p *Parser) parseIndexColumnList() (*nodes.List, error) {
 			break
 		}
 		p.advance() // consume ','
+		if p.cur.Type == ')' || p.cur.Type == tokEOF {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 	return list, nil
 }

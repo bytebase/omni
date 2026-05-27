@@ -48,7 +48,7 @@ func (p *Parser) parseLockTableStmt() (nodes.StmtNode, error) {
 			Loc: nodes.Loc{Start: itemStart},
 		}
 		var parseErr1151 error
-		item.Table, parseErr1151 = p.parseObjectName()
+		item.Table, parseErr1151 = p.parseReservedCheckedObjectName()
 		if parseErr1151 !=
 
 			// Optional partition_extension_clause:
@@ -58,6 +58,9 @@ func (p *Parser) parseLockTableStmt() (nodes.StmtNode, error) {
 			//   SUBPARTITION FOR ( subpartition_key_value )
 			nil {
 			return nil, parseErr1151
+		}
+		if item.Table == nil || item.Table.Name == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
@@ -99,9 +102,10 @@ func (p *Parser) parseLockTableStmt() (nodes.StmtNode, error) {
 	}
 
 	// IN
-	if p.cur.Type == kwIN {
-		p.advance()
+	if p.cur.Type != kwIN {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	// Lock mode: collect words until MODE
 	mode := ""
@@ -121,11 +125,15 @@ func (p *Parser) parseLockTableStmt() (nodes.StmtNode, error) {
 		p.advance()
 	}
 	stmt.LockMode = mode
+	if stmt.LockMode == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// MODE
-	if p.cur.Type == kwMODE {
-		p.advance()
+	if p.cur.Type != kwMODE {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	// NOWAIT or WAIT n
 	if p.cur.Type == kwNOWAIT {
@@ -288,37 +296,48 @@ func (p *Parser) parseTruncateStmt() (nodes.StmtNode, error) {
 		if p.cur.Type == kwPURGE {
 			// PURGE MATERIALIZED VIEW LOG
 			p.advance()
-			if p.cur.Type == kwMATERIALIZED {
-				stmt.PurgeMVLog = true
-				p.advance() // consume MATERIALIZED
-				if p.cur.Type == kwVIEW {
-					p.advance()
-				}
-				if p.cur.Type == kwLOG {
-					p.advance()
-				}
+			if p.cur.Type != kwMATERIALIZED {
+				return nil, p.syntaxErrorAtCur()
 			}
+			stmt.PurgeMVLog = true
+			p.advance() // consume MATERIALIZED
+			if p.cur.Type != kwVIEW {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if p.cur.Type != kwLOG {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
 		} else if p.cur.Type == kwCASCADE {
 			stmt.Cascade = true
 			p.advance()
 		} else if p.cur.Type == kwDROP || p.isIdentLike() && p.cur.Str == "REUSE" {
 			// DROP STORAGE or REUSE STORAGE
+			isDrop := p.cur.Type == kwDROP
 			p.advance()
-			if p.cur.Type == kwSTORAGE {
+			if isDrop && p.cur.Type == kwALL {
 				p.advance()
 			}
+			if p.cur.Type != kwSTORAGE {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
 		} else if p.isIdentLike() && p.cur.Str == "PRESERVE" {
 			// PRESERVE MATERIALIZED VIEW LOG
 			p.advance()
-			if p.cur.Type == kwMATERIALIZED {
-				p.advance()
-				if p.cur.Type == kwVIEW {
-					p.advance()
-				}
-				if p.cur.Type == kwLOG {
-					p.advance()
-				}
+			if p.cur.Type != kwMATERIALIZED {
+				return nil, p.syntaxErrorAtCur()
 			}
+			p.advance()
+			if p.cur.Type != kwVIEW {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if p.cur.Type != kwLOG {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
 		} else {
 			break
 		}
@@ -386,6 +405,9 @@ func (p *Parser) parseAnalyzeStmt() (nodes.StmtNode, error) {
 		//   PARTITION ( name ) | SUBPARTITION ( name )
 		nil {
 		return nil, parseErr1159
+	}
+	if stmt.Table == nil || stmt.Table.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.isIdentLike() && (p.cur.Str == "PARTITION" || p.cur.Str == "SUBPARTITION") {
@@ -554,6 +576,9 @@ func (p *Parser) parseAnalyzeStmt() (nodes.StmtNode, error) {
 	}
 
 	stmt.Loc.End = p.prev.End
+	if stmt.Action == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 	return stmt, nil
 }
 
@@ -647,6 +672,9 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 	if parseErr1167 != nil {
 		return nil, parseErr1167
 	}
+	if first == nil || first.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 	stmt.Tables = append(stmt.Tables, first)
 	stmt.Table = first
 	for p.cur.Type == ',' {
@@ -659,16 +687,19 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 	}
 
 	// TO
-	if p.cur.Type == kwTO {
-		p.advance()
+	if p.cur.Type != kwTO {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	// BEFORE variant or RESTORE POINT or SCN expr | TIMESTAMP expr
+	hasTarget := false
 	if p.cur.Type == kwBEFORE {
 		p.advance() // consume BEFORE
 		if p.cur.Type == kwDROP {
 			p.advance() // consume DROP
 			stmt.ToBeforeDrop = true
+			hasTarget = true
 			// Optional RENAME TO name
 			if p.cur.Type == kwRENAME {
 				p.advance() // consume RENAME
@@ -695,12 +726,18 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 				if parseErr1170 != nil {
 					return nil, parseErr1170
 				}
+				if stmt.ToSCN != nil {
+					hasTarget = true
+				}
 			case kwTIMESTAMP:
 				p.advance()
 				var parseErr1171 error
 				stmt.ToTimestamp, parseErr1171 = p.parseExpr()
 				if parseErr1171 != nil {
 					return nil, parseErr1171
+				}
+				if stmt.ToTimestamp != nil {
+					hasTarget = true
 				}
 			}
 		}
@@ -713,6 +750,9 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 			if parseErr1172 != nil {
 				return nil, parseErr1172
 			}
+			if stmt.ToSCN != nil {
+				hasTarget = true
+			}
 		case kwTIMESTAMP:
 			p.advance()
 			var parseErr1173 error
@@ -722,6 +762,9 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 				// TO RESTORE POINT restore_point_name
 				nil {
 				return nil, parseErr1173
+			}
+			if stmt.ToTimestamp != nil {
+				hasTarget = true
 			}
 		default:
 
@@ -733,9 +776,13 @@ func (p *Parser) parseFlashbackTableStmt() (nodes.StmtNode, error) {
 				if p.isIdentLike() {
 					stmt.ToRestorePoint = p.cur.Str
 					p.advance()
+					hasTarget = true
 				}
 			}
 		}
+	}
+	if !hasTarget {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// Optional { ENABLE | DISABLE } TRIGGERS
@@ -882,6 +929,9 @@ func (p *Parser) parsePurgeStmt() (nodes.StmtNode, error) {
 		if parseErr1177 != nil {
 			return nil, parseErr1177
 		}
+		if stmt.Name == nil || stmt.Name.Name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
 	case kwINDEX:
 		stmt.ObjectType = nodes.OBJECT_INDEX
 		p.advance()
@@ -889,6 +939,9 @@ func (p *Parser) parsePurgeStmt() (nodes.StmtNode, error) {
 		stmt.Name, parseErr1178 = p.parseObjectName()
 		if parseErr1178 != nil {
 			return nil, parseErr1178
+		}
+		if stmt.Name == nil || stmt.Name.Name == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 	case kwTABLESPACE:
 		stmt.ObjectType = nodes.OBJECT_TABLESPACE
@@ -901,6 +954,9 @@ func (p *Parser) parsePurgeStmt() (nodes.StmtNode, error) {
 			nil {
 			return nil, parseErr1179
 		}
+		if stmt.Name == nil || stmt.Name.Name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
 	default:
 
 		if p.isIdentLike() {
@@ -911,6 +967,9 @@ func (p *Parser) parsePurgeStmt() (nodes.StmtNode, error) {
 				Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			}
 		}
+	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -980,6 +1039,9 @@ func (p *Parser) parseAuditStmt() (nodes.StmtNode, error) {
 		if p.isIdentLike() {
 			stmt.Policy = p.cur.Str
 			p.advance()
+		}
+		if stmt.Policy == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 		// [ { BY | EXCEPT } user [, user]... ]
 		// [ { BY | EXCEPT } USERS WITH ROLE role [, role]... ]

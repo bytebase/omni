@@ -541,9 +541,10 @@ func (p *Parser) parsePLSQLIf() (*nodes.PLSQLIf, error) {
 		return nil, parseErr853
 	}
 
-	if p.cur.Type == kwTHEN {
-		p.advance()
+	if p.cur.Type != kwTHEN {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 	var parseErr854 error
 
 	// Then body
@@ -568,9 +569,10 @@ func (p *Parser) parsePLSQLIf() (*nodes.PLSQLIf, error) {
 			return nil, parseErr855
 		}
 
-		if p.cur.Type == kwTHEN {
-			p.advance()
+		if p.cur.Type != kwTHEN {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		var parseErr856 error
 
 		elsif.Then, parseErr856 = p.parsePLSQLStatements()
@@ -658,9 +660,10 @@ func (p *Parser) parsePLSQLWhileLoop() (*nodes.PLSQLLoop, error) {
 		return nil, parseErr859
 	}
 
-	if p.cur.Type == kwLOOP {
-		p.advance()
+	if p.cur.Type != kwLOOP {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 	var parseErr860 error
 
 	loop.Statements, parseErr860 = p.parsePLSQLStatements()
@@ -754,9 +757,10 @@ func (p *Parser) parsePLSQLForLoop() (*nodes.PLSQLLoop, error) {
 		}
 	}
 
-	if p.cur.Type == kwLOOP {
-		p.advance()
+	if p.cur.Type != kwLOOP {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 	var parseErr865 error
 
 	loop.Statements, parseErr865 = p.parsePLSQLStatements()
@@ -902,6 +906,9 @@ func (p *Parser) parsePLSQLExecImmediate() (*nodes.PLSQLExecImmediate, error) {
 		nil {
 		return nil, parseErr868
 	}
+	if stmt.SQL == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	if p.cur.Type == kwINTO {
 		p.advance()
@@ -948,6 +955,9 @@ func (p *Parser) parsePLSQLOpen() (*nodes.PLSQLOpen, error) {
 		// Optional arguments
 		nil {
 		return nil, parseErr871
+	}
+	if o.Cursor == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.cur.Type == '(' {
@@ -997,6 +1007,9 @@ func (p *Parser) parsePLSQLFetch() (*nodes.PLSQLFetch, error) {
 		nil {
 		return nil, parseErr874
 	}
+	if f.Cursor == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	if p.cur.Type == kwBULK {
 		f.Bulk = true
@@ -1017,6 +1030,8 @@ func (p *Parser) parsePLSQLFetch() (*nodes.PLSQLFetch, error) {
 			nil {
 			return nil, parseErr875
 		}
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.cur.Type == kwLIMIT {
@@ -1049,6 +1064,9 @@ func (p *Parser) parsePLSQLClose() (*nodes.PLSQLClose, error) {
 		Cursor: parseValue83,
 		Loc:    nodes.Loc{Start: start},
 	}
+	if c.Cursor == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	if p.cur.Type == ';' {
 		p.advance()
@@ -1074,9 +1092,15 @@ func (p *Parser) parsePLSQLExceptionHandlers() (*nodes.List, error) {
 		}
 
 		// Exception name(s)
+		if p.cur.Type == kwTHEN {
+			return nil, p.syntaxErrorAtCur()
+		}
 		name, parseErr877 := p.parseIdentifier()
 		if parseErr877 != nil {
 			return nil, parseErr877
+		}
+		if name == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 		handler.Exceptions.Items = append(handler.Exceptions.Items, &nodes.String{Str: name})
 
@@ -1087,6 +1111,9 @@ func (p *Parser) parsePLSQLExceptionHandlers() (*nodes.List, error) {
 			name, parseErr878 = p.parseIdentifier()
 			if parseErr878 != nil {
 				return nil, parseErr878
+			}
+			if name == "" {
+				return nil, p.syntaxErrorAtCur()
 			}
 			handler.Exceptions.Items = append(handler.Exceptions.Items, &nodes.String{Str: name})
 		}
@@ -1211,6 +1238,9 @@ func (p *Parser) parsePLSQLContinue() (nodes.StmtNode, error) {
 		stmt.Condition, parseErr883 = p.parseExpr()
 		if parseErr883 != nil {
 			return nil, parseErr883
+		}
+		if stmt.Condition == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
@@ -1418,9 +1448,10 @@ func (p *Parser) parsePLSQLCaseStmt() (nodes.StmtNode, error) {
 		if parseErr891 != nil {
 			return nil, parseErr891
 		}
-		if p.cur.Type == kwTHEN {
-			p.advance()
+		if p.cur.Type != kwTHEN {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		// Statements until next WHEN, ELSE, or END
 		for p.cur.Type != kwWHEN && p.cur.Type != kwELSE && p.cur.Type != kwEND && p.cur.Type != tokEOF {
 			s, parseErr892 := p.parsePLSQLStatement()
@@ -1506,6 +1537,9 @@ func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
 			nil {
 			return nil, parseErr894
 		}
+		if decl.ElementType == nil || decl.ElementType.Names.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
 
 		if p.cur.Type == kwINDEX {
 			p.advance()
@@ -1545,6 +1579,9 @@ func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
 		decl.ElementType, parseErr897 = p.parseTypeName()
 		if parseErr897 != nil {
 			return nil, parseErr897
+		}
+		if decl.ElementType == nil || decl.ElementType.Names.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 	case p.isIdentLike() && p.cur.Str == "RECORD":

@@ -34,6 +34,9 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 		nil {
 		return nil, parseErr564
 	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	switch p.cur.Type {
 	case kwBEFORE:
@@ -71,24 +74,31 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 			return nil, parseErr566
 		}
 	}
+	if stmt.Events.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
 
-	if p.cur.Type == kwON {
-		p.advance() // consume ON
-		if p.cur.Type == kwDATABASE {
-			stmt.Table = &nodes.ObjectName{Name: "DATABASE"}
-			p.advance()
-		} else if p.isIdentLikeStr("SCHEMA") {
-			stmt.Table = &nodes.ObjectName{Name: "SCHEMA"}
-			p.advance()
-		} else {
-			var parseErr567 error
-			stmt.Table, parseErr567 = p.parseObjectName()
-			if parseErr567 !=
+	if p.cur.Type != kwON {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume ON
+	if p.cur.Type == kwDATABASE {
+		stmt.Table = &nodes.ObjectName{Name: "DATABASE"}
+		p.advance()
+	} else if p.isIdentLikeStr("SCHEMA") {
+		stmt.Table = &nodes.ObjectName{Name: "SCHEMA"}
+		p.advance()
+	} else {
+		var parseErr567 error
+		stmt.Table, parseErr567 = p.parseObjectName()
+		if parseErr567 !=
 
-				// Optional: FOR EACH ROW
-				nil {
-				return nil, parseErr567
-			}
+			// Optional: FOR EACH ROW
+			nil {
+			return nil, parseErr567
+		}
+		if stmt.Table == nil || stmt.Table.Name == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
@@ -216,6 +226,9 @@ func (p *Parser) parseTriggerEvent(stmt *nodes.CreateTriggerStmt) error {
 		p.advance()
 		stmt.Events.Items = append(stmt.Events.Items, &nodes.Integer{Ival: int64(nodes.TRIGGER_DELETE)})
 	default:
+		if p.cur.Type == kwON || p.cur.Type == kwBEGIN || p.cur.Type == kwDECLARE || p.cur.Type == tokEOF {
+			return p.syntaxErrorAtCur()
+		}
 		// DDL/database events: CREATE, ALTER, DROP, TRUNCATE, GRANT, REVOKE, etc.
 		// Store as a string in a ColumnRef node for now.
 		if p.isIdentLike() || p.cur.Type == kwCREATE || p.cur.Type == kwALTER ||

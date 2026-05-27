@@ -1226,6 +1226,9 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) (nodes.StmtNode, erro
 		nil {
 		return nil, parseErr26
 	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	switch {
 	case p.isIdentLikeStr("COMPILE"):
@@ -1242,6 +1245,9 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) (nodes.StmtNode, erro
 	case p.cur.Type == kwREFRESH:
 		stmt.Action = "REFRESH"
 		p.advance()
+		if p.cur.Type == ';' || p.cur.Type == tokEOF {
+			return nil, p.syntaxErrorAtCur()
+		}
 		parseErr27 := // consume REFRESH
 			p.parseAlterMViewRefreshClause(stmt)
 		if parseErr27 != nil {
@@ -1618,6 +1624,9 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) (nodes.StmtNode, erro
 	default:
 		// Fallback for truly unrecognized clauses
 		p.consumeToStatementBoundary()
+	}
+	if stmt.Action == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -2819,6 +2828,9 @@ func (p *Parser) parseAlterViewStmt(start int) (nodes.StmtNode, error) {
 		nil {
 		return nil, parseErr80
 	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	switch {
 	case p.isIdentLikeStr("COMPILE"), p.isIdentLikeStr("RECOMPILE"):
@@ -2912,6 +2924,8 @@ func (p *Parser) parseAlterViewStmt(start int) (nodes.StmtNode, error) {
 		} else if p.cur.Type == kwWRITE {
 			stmt.Action = "READ_WRITE"
 			p.advance()
+		} else {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 	case p.isIdentLikeStr("EDITIONABLE"):
@@ -2923,7 +2937,7 @@ func (p *Parser) parseAlterViewStmt(start int) (nodes.StmtNode, error) {
 		p.advance()
 
 	default:
-		p.consumeToStatementBoundary()
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// Skip optional trailing clauses (DISABLE NOVALIDATE on constraints, etc.)
@@ -2936,6 +2950,9 @@ func (p *Parser) parseAlterViewStmt(start int) (nodes.StmtNode, error) {
 				break
 			}
 		}
+	}
+	if p.cur.Type != ';' && p.cur.Type != tokEOF {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -2984,6 +3001,9 @@ func (p *Parser) parseAlterSequenceStmt(start int) (nodes.StmtNode, error) {
 		nil {
 		return nil, parseErr84
 	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		switch {
@@ -2997,6 +3017,9 @@ func (p *Parser) parseAlterSequenceStmt(start int) (nodes.StmtNode, error) {
 			if parseErr85 != nil {
 				return nil, parseErr85
 			}
+			if stmt.IncrementBy == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 
 		case p.cur.Type == kwMAXVALUE:
 			p.advance()
@@ -3005,6 +3028,9 @@ func (p *Parser) parseAlterSequenceStmt(start int) (nodes.StmtNode, error) {
 			stmt.MaxValue, parseErr86 = p.parseExpr()
 			if parseErr86 != nil {
 				return nil, parseErr86
+			}
+			if stmt.MaxValue == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 
 		case p.cur.Type == kwNOMAXVALUE:
@@ -3018,6 +3044,9 @@ func (p *Parser) parseAlterSequenceStmt(start int) (nodes.StmtNode, error) {
 			stmt.MinValue, parseErr87 = p.parseExpr()
 			if parseErr87 != nil {
 				return nil, parseErr87
+			}
+			if stmt.MinValue == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 
 		case p.cur.Type == kwNOMINVALUE:
@@ -3039,6 +3068,9 @@ func (p *Parser) parseAlterSequenceStmt(start int) (nodes.StmtNode, error) {
 			stmt.Cache, parseErr88 = p.parseExpr()
 			if parseErr88 != nil {
 				return nil, parseErr88
+			}
+			if stmt.Cache == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 
 		case p.cur.Type == kwNOCACHE:

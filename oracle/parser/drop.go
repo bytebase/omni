@@ -173,9 +173,16 @@ func (p *Parser) parseDropStmt() (nodes.StmtNode, error) {
 	}
 
 	// Parse object name
+	if p.cur.Type == kwCASCADE || p.cur.Type == kwPURGE || p.cur.Type == kwFORCE ||
+		p.cur.Type == kwONLINE || p.cur.Type == kwDEFERRED || p.cur.Type == kwIMMEDIATE {
+		return nil, p.syntaxErrorAtCur()
+	}
 	name, parseErr692 := p.parseObjectName()
 	if parseErr692 != nil {
 		return nil, parseErr692
+	}
+	if name == nil || name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Names.Items = append(stmt.Names.Items, name)
 
@@ -184,8 +191,13 @@ func (p *Parser) parseDropStmt() (nodes.StmtNode, error) {
 		if p.cur.Type == kwCASCADE {
 			p.advance() // consume CASCADE
 			stmt.Cascade = true
-			if p.cur.Type == kwCONSTRAINTS {
+			if stmt.ObjectType == nodes.OBJECT_TABLE {
+				if p.cur.Type != kwCONSTRAINTS {
+					return nil, p.syntaxErrorAtCur()
+				}
 				p.advance() // consume CONSTRAINTS
+			} else if p.cur.Type == kwCONSTRAINTS {
+				p.advance()
 			}
 		} else if p.cur.Type == kwPURGE {
 			p.advance()
@@ -282,14 +294,18 @@ func (p *Parser) parseDropMaterializedViewLogStmt(start int) (*nodes.DropStmt, e
 	}
 
 	// ON keyword
-	if p.cur.Type == kwON {
-		p.advance() // consume ON
+	if p.cur.Type != kwON {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance() // consume ON
 
 	// Parse table name
 	name, parseErr694 := p.parseObjectName()
 	if parseErr694 != nil {
 		return nil, parseErr694
+	}
+	if name == nil || name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Names.Items = append(stmt.Names.Items, name)
 

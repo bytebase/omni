@@ -194,17 +194,22 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 	switch {
 	case p.cur.Type == kwVALUES:
 		p.advance()
-		if p.cur.Type == '(' {
-			p.advance()
-			var parseErr780 error
-			stmt.Values, parseErr780 = p.parseExprList()
-			if parseErr780 != nil {
-				return nil, parseErr780
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
+		var parseErr780 error
+		stmt.Values, parseErr780 = p.parseExprList()
+		if parseErr780 != nil {
+			return nil, parseErr780
+		}
+		if stmt.Values == nil || stmt.Values.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
 	case p.cur.Type == kwSET:
 		// INSERT ... SET col = expr, ...
 		p.advance()
@@ -290,6 +295,8 @@ func (p *Parser) parseMultiTableInsert(stmt *nodes.InsertStmt, insertType nodes.
 		if parseErr787 != nil {
 			return nil, parseErr787
 		}
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -316,14 +323,22 @@ func (p *Parser) parseConditionalInsert(stmt *nodes.InsertStmt, insertType nodes
 
 	for p.cur.Type == kwWHEN {
 		p.advance() // consume WHEN
+		if p.cur.Type == kwTHEN {
+			return nil, p.syntaxErrorAtCur()
+		}
 		cond, parseErr788 := p.parseExpr()
 		if parseErr788 != nil {
 			return nil, parseErr788
 		}
-		if p.cur.Type == kwTHEN {
-			p.advance()
+		if cond == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
+		if p.cur.Type != kwTHEN {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
 		// One or more INTO clauses after THEN
+		intoCount := 0
 		for p.cur.Type == kwINTO {
 			clause, parseErr789 := p.parseInsertIntoClause()
 			if parseErr789 != nil {
@@ -331,6 +346,10 @@ func (p *Parser) parseConditionalInsert(stmt *nodes.InsertStmt, insertType nodes
 			}
 			clause.When = cond
 			stmt.MultiTable.Items = append(stmt.MultiTable.Items, clause)
+			intoCount++
+		}
+		if intoCount == 0 {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 	// ELSE
@@ -355,6 +374,8 @@ func (p *Parser) parseConditionalInsert(stmt *nodes.InsertStmt, insertType nodes
 		if parseErr791 != nil {
 			return nil, parseErr791
 		}
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -398,17 +419,22 @@ func (p *Parser) parseInsertIntoClause() (*nodes.InsertIntoClause, error) {
 
 	if p.cur.Type == kwVALUES {
 		p.advance()
-		if p.cur.Type == '(' {
-			p.advance()
-			var parseErr794 error
-			clause.Values, parseErr794 = p.parseExprList()
-			if parseErr794 != nil {
-				return nil, parseErr794
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
+		var parseErr794 error
+		clause.Values, parseErr794 = p.parseExprList()
+		if parseErr794 != nil {
+			return nil, parseErr794
+		}
+		if clause.Values == nil || clause.Values.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
 	}
 
 	clause.Loc.End = p.prev.End
@@ -421,7 +447,7 @@ func (p *Parser) parseParenColumnList() (*nodes.List, error) {
 	list := &nodes.List{}
 	for {
 		if !p.isIdentLike() {
-			break
+			return nil, p.syntaxErrorAtCur()
 		}
 		colStart := p.pos()
 		name, parseErr795 := p.parseIdentifier()
@@ -437,9 +463,13 @@ func (p *Parser) parseParenColumnList() (*nodes.List, error) {
 		}
 		p.advance()
 	}
-	if p.cur.Type == ')' {
-		p.advance()
+	if list.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
 	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
 	return list, nil
 }
 

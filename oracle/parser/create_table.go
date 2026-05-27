@@ -333,15 +333,14 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sha
 	}
 
 	// IF NOT EXISTS (Oracle 23c)
-	if p.cur.Type == kwIF {
+	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
 		p.advance() // consume IF
-		if p.cur.Type == kwNOT {
-			p.advance() // consume NOT
-			if p.cur.Type == kwEXISTS {
-				p.advance() // consume EXISTS
-				stmt.IfNotExists = true
-			}
+		p.advance() // consume NOT
+		if p.cur.Type != kwEXISTS {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance() // consume EXISTS
+		stmt.IfNotExists = true
 	}
 
 	// Table name
@@ -355,6 +354,9 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sha
 		// SHARING = { METADATA | DATA | EXTENDED DATA | NONE }
 		nil {
 		return nil, parseErr487
+	}
+	if stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.isIdentLikeStr("SHARING") {
@@ -390,6 +392,9 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sha
 		if parseErr488 != nil {
 			return nil, parseErr488
 		}
+		if !selectStmtHasTargets(stmt.AsQuery) {
+			return nil, p.syntaxErrorAtCur()
+		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
@@ -402,9 +407,10 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sha
 		if parseErr489 != nil {
 			return nil, parseErr489
 		}
-		if p.cur.Type == ')' {
-			p.advance() // consume ')'
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance() // consume ')'
 	}
 	parseErr490 :=
 
@@ -493,10 +499,16 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sha
 	return stmt, nil
 }
 
+func selectStmtHasTargets(stmt nodes.StmtNode) bool {
+	selectStmt, ok := stmt.(*nodes.SelectStmt)
+	return ok && selectStmt.TargetList != nil && selectStmt.TargetList.Len() > 0
+}
+
 // parseColumnDefsAndConstraints parses the contents inside the parentheses of a CREATE TABLE.
 // It handles both column definitions and table-level constraints.
 func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) error {
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		before := stmt.Columns.Len() + stmt.Constraints.Len()
 		// Check if this is a table-level constraint
 		if p.isTableConstraintStart() {
 			tc, parseErr495 := p.parseTableConstraint()
@@ -516,11 +528,17 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 				stmt.Columns.Items = append(stmt.Columns.Items, col)
 			}
 		}
+		if stmt.Columns.Len()+stmt.Constraints.Len() == before {
+			return p.syntaxErrorAtCur()
+		}
 
 		if p.cur.Type != ',' {
 			break
 		}
 		p.advance() // consume ','
+		if p.cur.Type == ')' || p.cur.Type == tokEOF {
+			return p.syntaxErrorAtCur()
+		}
 	}
 	return nil
 }
@@ -529,7 +547,8 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 func (p *Parser) isTableConstraintStart() bool {
 	switch p.cur.Type {
 	case kwCONSTRAINT:
-		return true
+		next := p.peekNext()
+		return !isOracleTypeToken(next.Type)
 	case kwPRIMARY:
 		return true
 	case kwFOREIGN:
@@ -565,7 +584,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		Loc:         nodes.Loc{Start: start},
 	}
 
-	if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+	if err := p.syntaxErrorIfReservedColumnIdentifier(); err != nil {
 		return nil, err
 	}
 	var parseErr497 error
@@ -603,6 +622,9 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 	if parseErr500 != nil {
 		return nil, parseErr500
 	}
+	if col.Domain == nil && col.TypeName == nil && !columnDefHasProperties(col) {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	col.Loc.End = p.prev.End
 	return col, nil
@@ -610,12 +632,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 
 // isTypeName returns true if the current token can begin a type name.
 func (p *Parser) isTypeName() bool {
-	switch p.cur.Type {
-	case kwNUMBER, kwINTEGER, kwSMALLINT, kwDECIMAL, kwFLOAT,
-		kwCHAR, kwVARCHAR2, kwVARCHAR, kwNCHAR, kwNVARCHAR2,
-		kwCLOB, kwBLOB, kwNCLOB,
-		kwDATE, kwTIMESTAMP, kwINTERVAL,
-		kwRAW, kwLONG, kwROWID:
+	if isOracleTypeToken(p.cur.Type) {
 		return true
 	}
 	// User-defined type: identifier that is NOT a constraint keyword
@@ -623,6 +640,26 @@ func (p *Parser) isTypeName() bool {
 		return true
 	}
 	return false
+}
+
+func isOracleTypeToken(tokenType int) bool {
+	switch tokenType {
+	case kwNUMBER, kwINTEGER, kwSMALLINT, kwDECIMAL, kwFLOAT,
+		kwCHAR, kwVARCHAR2, kwVARCHAR, kwNCHAR, kwNVARCHAR2,
+		kwCLOB, kwBLOB, kwNCLOB,
+		kwDATE, kwTIMESTAMP, kwINTERVAL,
+		kwRAW, kwLONG, kwROWID:
+		return true
+	default:
+		return false
+	}
+}
+
+func columnDefHasProperties(col *nodes.ColumnDef) bool {
+	return col.Sort || col.Visible || col.Invisible || col.Default != nil ||
+		col.Identity != nil || col.Virtual != nil || col.NotNull || col.Null ||
+		col.DropIdentity || col.Encrypt != "" || col.Collation != "" ||
+		(col.Constraints != nil && col.Constraints.Len() > 0)
 }
 
 // parseColumnProperties parses the properties after the column type:
@@ -996,6 +1033,9 @@ func (p *Parser) parseColumnConstraint() (*nodes.ColumnConstraint, error) {
 	if parseErr523 != nil {
 		return nil, parseErr523
 	}
+	if name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	cc, parseErr524 := p.parseColumnConstraintInline()
 	if parseErr524 != nil {
@@ -1030,18 +1070,19 @@ func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) 
 
 	case kwCHECK:
 		p.advance() // consume CHECK
-		if p.cur.Type == '(' {
-			p.advance()
-			var // consume '('
-			parseErr525 error
-			cc.Expr, parseErr525 = p.parseExpr()
-			if parseErr525 != nil {
-				return nil, parseErr525
-			}
-			if p.cur.Type == ')' {
-				p.advance() // consume ')'
-			}
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
+		var parseErr525 error
+		cc.Expr, parseErr525 = p.parseExpr()
+		if parseErr525 != nil {
+			return nil, parseErr525
+		}
+		if cc.Expr == nil || p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume ')'
 		cc.Type = nodes.CONSTRAINT_CHECK
 
 	case kwREFERENCES:
@@ -1051,6 +1092,9 @@ func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) 
 		cc.RefTable, parseErr526 = p.parseObjectName()
 		if parseErr526 != nil {
 			return nil, parseErr526
+		}
+		if cc.RefTable == nil || cc.RefTable.Name == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if p.cur.Type == '(' {
 			p.advance()
@@ -1131,6 +1175,9 @@ func (p *Parser) parseTableConstraint() (*nodes.TableConstraint, error) {
 		if parseErr529 != nil {
 			return nil, parseErr529
 		}
+		if tc.Name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	switch p.cur.Type {
@@ -1140,47 +1187,53 @@ func (p *Parser) parseTableConstraint() (*nodes.TableConstraint, error) {
 			p.advance() // consume KEY
 		}
 		tc.Type = nodes.CONSTRAINT_PRIMARY
-		if p.cur.Type == '(' {
-			p.advance()
-			var parseErr530 error
-			tc.Columns, parseErr530 = p.parseIdentifierListAsStrings()
-			if parseErr530 != nil {
-				return nil, parseErr530
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
+		var parseErr530 error
+		tc.Columns, parseErr530 = p.parseIdentifierListAsStrings()
+		if parseErr530 != nil {
+			return nil, parseErr530
+		}
+		if tc.Columns.Len() == 0 || p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
 
 	case kwUNIQUE:
 		p.advance() // consume UNIQUE
 		tc.Type = nodes.CONSTRAINT_UNIQUE
-		if p.cur.Type == '(' {
-			p.advance()
-			var parseErr531 error
-			tc.Columns, parseErr531 = p.parseIdentifierListAsStrings()
-			if parseErr531 != nil {
-				return nil, parseErr531
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
+		var parseErr531 error
+		tc.Columns, parseErr531 = p.parseIdentifierListAsStrings()
+		if parseErr531 != nil {
+			return nil, parseErr531
+		}
+		if tc.Columns.Len() == 0 || p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
 
 	case kwCHECK:
 		p.advance() // consume CHECK
 		tc.Type = nodes.CONSTRAINT_CHECK
-		if p.cur.Type == '(' {
-			p.advance()
-			var parseErr532 error
-			tc.Expr, parseErr532 = p.parseExpr()
-			if parseErr532 != nil {
-				return nil, parseErr532
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
+		var parseErr532 error
+		tc.Expr, parseErr532 = p.parseExpr()
+		if parseErr532 != nil {
+			return nil, parseErr532
+		}
+		if tc.Expr == nil || p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
 
 	case kwFOREIGN:
 		p.advance() // consume FOREIGN
@@ -1188,36 +1241,42 @@ func (p *Parser) parseTableConstraint() (*nodes.TableConstraint, error) {
 			p.advance() // consume KEY
 		}
 		tc.Type = nodes.CONSTRAINT_FOREIGN
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		var parseErr533 error
+		tc.Columns, parseErr533 = p.parseIdentifierListAsStrings()
+		if parseErr533 != nil {
+			return nil, parseErr533
+		}
+		if tc.Columns.Len() == 0 || p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if p.cur.Type != kwREFERENCES {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		var parseErr534 error
+		tc.RefTable, parseErr534 = p.parseObjectName()
+		if parseErr534 != nil {
+			return nil, parseErr534
+		}
+		if tc.RefTable == nil || tc.RefTable.Name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if p.cur.Type == '(' {
 			p.advance()
-			var parseErr533 error
-			tc.Columns, parseErr533 = p.parseIdentifierListAsStrings()
-			if parseErr533 != nil {
-				return nil, parseErr533
+			var parseErr535 error
+			tc.RefColumns, parseErr535 = p.parseIdentifierListAsStrings()
+			if parseErr535 != nil {
+				return nil, parseErr535
 			}
-			if p.cur.Type == ')' {
-				p.advance()
+			if tc.RefColumns.Len() == 0 || p.cur.Type != ')' {
+				return nil, p.syntaxErrorAtCur()
 			}
-		}
-		if p.cur.Type == kwREFERENCES {
 			p.advance()
-			var // consume REFERENCES
-			parseErr534 error
-			tc.RefTable, parseErr534 = p.parseObjectName()
-			if parseErr534 != nil {
-				return nil, parseErr534
-			}
-			if p.cur.Type == '(' {
-				p.advance()
-				var parseErr535 error
-				tc.RefColumns, parseErr535 = p.parseIdentifierListAsStrings()
-				if parseErr535 != nil {
-					return nil, parseErr535
-				}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
-			}
 		}
 		// ON DELETE
 		if p.cur.Type == kwON {
@@ -1237,7 +1296,7 @@ func (p *Parser) parseTableConstraint() (*nodes.TableConstraint, error) {
 		}
 
 	default:
-		return nil, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.cur.Type == kwDEFERRABLE {
@@ -2046,6 +2105,16 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			p.advance()
 		}
 	}
+	if clause.Type == nodes.PARTITION_HASH && p.isIdentLikeStr("PARTITIONS") {
+		p.advance()
+		partitionCount, parseErr560 := p.parseExpr()
+		if parseErr560 != nil {
+			return nil, parseErr560
+		}
+		if partitionCount == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
 
 	// Optional INTERVAL (expr) for range-interval partitioned tables.
 	if p.cur.Type == kwINTERVAL {
@@ -2092,6 +2161,9 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 				return nil, parseErr561
 			}
 			if pDef != nil {
+				if clause.Type != nodes.PARTITION_HASH && pDef.Values.Len() == 0 {
+					return nil, p.syntaxErrorAtCur()
+				}
 				clause.Partitions.Items = append(clause.Partitions.Items, pDef)
 			}
 			if p.cur.Type != ',' {

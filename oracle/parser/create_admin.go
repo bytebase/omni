@@ -1956,53 +1956,72 @@ func (p *Parser) parseCreateClusterStmt(start int) (*nodes.CreateClusterStmt, er
 		nil {
 		return nil, parseErr234
 	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
-	if p.cur.Type == '(' {
-		p.advance()
-		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			col := &nodes.ClusterColumn{
-				Loc: nodes.Loc{Start: p.pos()},
-			}
-			var parseErr235 error
-			col.Name, parseErr235 = p.parseIdentifier()
-			if parseErr235 != nil {
-				return nil, parseErr235
-			}
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type == ')' || p.cur.Type == tokEOF {
+		return nil, p.syntaxErrorAtCur()
+	}
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		col := &nodes.ClusterColumn{
+			Loc: nodes.Loc{Start: p.pos()},
+		}
+		var parseErr235 error
+		col.Name, parseErr235 = p.parseIdentifier()
+		if parseErr235 != nil {
+			return nil, parseErr235
+		}
+		if col.Name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
 
-			// Optional COLLATE
-			var parseErr236 error
-			col.DataType, parseErr236 = p.parseTypeName()
-			if parseErr236 != nil {
-				return nil, parseErr236
-			}
+		// Optional COLLATE
+		var parseErr236 error
+		col.DataType, parseErr236 = p.parseTypeName()
+		if parseErr236 != nil {
+			return nil, parseErr236
+		}
+		if col.DataType == nil || col.DataType.Names.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
 
-			if p.isIdentLike() && p.cur.Str == "COLLATE" {
-				p.advance()
-				parseDiscard238, parseErr237 := p.parseIdentifier()
-				_ = // collation name
-					parseDiscard238
-				if parseErr237 !=
+		if p.isIdentLike() && p.cur.Str == "COLLATE" {
+			p.advance()
+			parseDiscard238, parseErr237 := p.parseIdentifier()
+			_ = // collation name
+				parseDiscard238
+			if parseErr237 !=
 
-					// Optional SORT
-					nil {
-					return nil, parseErr237
-				}
-			}
-
-			if p.cur.Type == kwORDER || (p.isIdentLike() && p.cur.Str == "SORT") {
-				p.advance()
-				col.Sort = true
-			}
-			col.Loc.End = p.prev.End
-			stmt.Columns = append(stmt.Columns, col)
-			if p.cur.Type == ',' {
-				p.advance()
+				// Optional SORT
+				nil {
+				return nil, parseErr237
 			}
 		}
-		if p.cur.Type == ')' {
+
+		if p.cur.Type == kwORDER || (p.isIdentLike() && p.cur.Str == "SORT") {
 			p.advance()
+			col.Sort = true
+		}
+		col.Loc.End = p.prev.End
+		stmt.Columns = append(stmt.Columns, col)
+		if p.cur.Type == ',' {
+			p.advance()
+			if p.cur.Type == ')' || p.cur.Type == tokEOF {
+				return nil, p.syntaxErrorAtCur()
+			}
+		} else if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
 
 	// Parse options until ; or EOF
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
@@ -2552,6 +2571,9 @@ func (p *Parser) parseAlterClusterStmt(start int) (*nodes.AlterClusterStmt, erro
 		nil {
 		return nil, parseErr254
 	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		switch {
@@ -2680,6 +2702,9 @@ func (p *Parser) parseAlterClusterStmt(start int) (*nodes.AlterClusterStmt, erro
 		default:
 			p.advance()
 		}
+	}
+	if stmt.Action == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End

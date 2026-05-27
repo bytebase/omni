@@ -311,6 +311,9 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		if parseErr138 != nil {
 			return nil, parseErr138
 		}
+		if col == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		cols.Items = append(cols.Items, col)
 		for p.cur.Type == ',' {
 			p.advance()
@@ -319,6 +322,9 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 			col, parseErr139 = p.parseColumnDef()
 			if parseErr139 != nil {
 				return nil, parseErr139
+			}
+			if col == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 			cols.Items = append(cols.Items, col)
 		}
@@ -345,6 +351,9 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 	col, parseErr140 := p.parseColumnDef()
 	if parseErr140 != nil {
 		return nil, parseErr140
+	}
+	if col == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 	return &nodes.AlterTableCmd{
 		Action:    nodes.AT_ADD_COLUMN,
@@ -602,6 +611,9 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 		if parseErr149 != nil {
 			return nil, parseErr149
 		}
+		if col == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		cols.Items = append(cols.Items, col)
 		for p.cur.Type == ',' {
 			p.advance()
@@ -610,6 +622,9 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 			col, parseErr150 = p.parseColumnDef()
 			if parseErr150 != nil {
 				return nil, parseErr150
+			}
+			if col == nil {
+				return nil, p.syntaxErrorAtCur()
 			}
 			cols.Items = append(cols.Items, col)
 		}
@@ -634,6 +649,9 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 	col, parseErr151 := p.parseColumnDef()
 	if parseErr151 != nil {
 		return nil, parseErr151
+	}
+	if col == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 	return &nodes.AlterTableCmd{
 		Action:    nodes.AT_MODIFY_COLUMN,
@@ -671,6 +689,9 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 			// Optional CASCADE CONSTRAINTS | INVALIDATE
 			nil {
 			return nil, parseErr152
+		}
+		if name == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		p.skipDropColumnTrailing()
@@ -922,12 +943,19 @@ func (p *Parser) parseAlterTableRename() (*nodes.AlterTableCmd, error) {
 		if parseErr165 != nil {
 			return nil, parseErr165
 		}
-		if p.cur.Type == kwTO {
-			p.advance() // consume TO
+		if oldName == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
+		if p.cur.Type != kwTO {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume TO
 		newName, parseErr166 := p.parseIdentifier()
 		if parseErr166 != nil {
 			return nil, parseErr166
+		}
+		if newName == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 		return &nodes.AlterTableCmd{
 			Action:     nodes.AT_RENAME_COLUMN,
@@ -942,12 +970,19 @@ func (p *Parser) parseAlterTableRename() (*nodes.AlterTableCmd, error) {
 		if parseErr167 != nil {
 			return nil, parseErr167
 		}
-		if p.cur.Type == kwTO {
-			p.advance() // consume TO
+		if oldName == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
+		if p.cur.Type != kwTO {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume TO
 		newName, parseErr168 := p.parseIdentifier()
 		if parseErr168 != nil {
 			return nil, parseErr168
+		}
+		if newName == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 		return &nodes.AlterTableCmd{
 			Action:     nodes.AT_RENAME_CONSTRAINT,
@@ -962,12 +997,19 @@ func (p *Parser) parseAlterTableRename() (*nodes.AlterTableCmd, error) {
 		if parseErr169 != nil {
 			return nil, parseErr169
 		}
-		if p.cur.Type == kwTO {
-			p.advance() // consume TO
+		if oldName == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
+		if p.cur.Type != kwTO {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume TO
 		newName, parseErr170 := p.parseIdentifier()
 		if parseErr170 != nil {
 			return nil, parseErr170
+		}
+		if newName == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 		return &nodes.AlterTableCmd{
 			Action:     nodes.AT_RENAME_PARTITION,
@@ -983,12 +1025,19 @@ func (p *Parser) parseAlterTableRename() (*nodes.AlterTableCmd, error) {
 		if parseErr171 != nil {
 			return nil, parseErr171
 		}
-		if p.cur.Type == kwTO {
-			p.advance() // consume TO
+		if oldName == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
+		if p.cur.Type != kwTO {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume TO
 		newName, parseErr172 := p.parseIdentifier()
 		if parseErr172 != nil {
 			return nil, parseErr172
+		}
+		if newName == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 		return &nodes.AlterTableCmd{
 			Action:     nodes.AT_RENAME_PARTITION,

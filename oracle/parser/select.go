@@ -1496,6 +1496,8 @@ func (p *Parser) parseSortBy() (*nodes.SortBy, error) {
 		case kwLAST:
 			sb.NullOrder = nodes.SORTBY_NULLS_LAST
 			p.advance()
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
@@ -1569,6 +1571,9 @@ func (p *Parser) parseFetchFirstClause() (*nodes.FetchFirstClause, error) {
 	// OFFSET n ROWS
 	if p.cur.Type == kwOFFSET {
 		p.advance()
+		if p.cur.Type == kwROW || p.cur.Type == kwROWS {
+			return nil, p.syntaxErrorAtCur()
+		}
 		var parseErr1016 error
 		fc.Offset, parseErr1016 = p.parseExpr()
 		if parseErr1016 !=

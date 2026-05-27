@@ -1,0 +1,609 @@
+id	phase	family	bnf_file	oracle_mode	expect	reference_class	sql	setup	cleanup	min_version	notes
+compat_select_001	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT 1 FROM dual	none	none	23ai	basic projection
+compat_select_002	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT 'x' AS c FROM dual	none	none	23ai	string literal alias
+compat_select_003	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT DATE '2020-01-01' FROM dual	none	none	23ai	date literal
+compat_select_004	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT TIMESTAMP '2020-01-01 10:20:30' FROM dual	none	none	23ai	timestamp literal
+compat_select_005	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT NULL FROM dual	none	none	23ai	null expression
+compat_select_006	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT ROWNUM FROM dual	none	none	23ai	pseudocolumn
+compat_select_007	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT LEVEL FROM dual CONNECT BY LEVEL <= 3	none	none	23ai	level pseudocolumn
+compat_select_008	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT 1 + 2 * 3 FROM dual	none	none	23ai	operator precedence
+compat_select_009	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT -1 FROM dual	none	none	23ai	unary minus
+compat_select_010	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT 'a' || 'b' FROM dual	none	none	23ai	concat
+compat_select_011	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT CASE WHEN 1 = 1 THEN 'Y' ELSE 'N' END FROM dual	none	none	23ai	case expression
+compat_select_012	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT DECODE(1, 1, 'one', 'other') FROM dual	none	none	23ai	decode call
+compat_select_013	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT CAST(1 AS NUMBER) FROM dual	none	none	23ai	cast expression
+compat_select_014	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT EXTRACT(YEAR FROM DATE '2020-01-01') FROM dual	none	none	23ai	extract expression
+compat_select_015	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT NVL(NULL, 1) FROM dual	none	none	23ai	function call
+compat_select_016	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT COUNT(*) FROM employees	none	none	23ai	aggregate
+compat_select_017	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT department_id, COUNT(*) FROM employees GROUP BY department_id	none	none	23ai	group by
+compat_select_018	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT department_id, COUNT(*) FROM employees GROUP BY department_id HAVING COUNT(*) > 1	none	none	23ai	having
+compat_select_019	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT employee_id FROM employees ORDER BY employee_id DESC NULLS LAST	none	none	23ai	order by nulls
+compat_select_020	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT employee_id FROM employees FETCH FIRST 5 ROWS ONLY	none	none	23ai	fetch first
+compat_select_021	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT employee_id FROM employees OFFSET 1 ROWS FETCH NEXT 5 ROWS ONLY	none	none	23ai	offset fetch
+compat_select_022	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees WHERE salary BETWEEN 1000 AND 5000	none	none	23ai	between predicate
+compat_select_023	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees WHERE department_id IN (10, 20)	none	none	23ai	in list
+compat_select_024	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees WHERE last_name LIKE 'S%'	none	none	23ai	like predicate
+compat_select_025	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees WHERE commission_pct IS NOT NULL	none	none	23ai	is not null
+compat_select_026	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees e JOIN departments d ON e.department_id = d.department_id	none	none	23ai	ansi join
+compat_select_027	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees e LEFT OUTER JOIN departments d ON e.department_id = d.department_id	none	none	23ai	left outer join
+compat_select_028	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees e, departments d WHERE e.department_id = d.department_id(+)	none	none	23ai	oracle outer join
+compat_select_029	A	select	SELECT.bnf	parse_only	accept	syntax	WITH q AS (SELECT 1 a FROM dual) SELECT a FROM q	none	none	23ai	with query
+compat_select_030	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM (SELECT employee_id FROM employees) q	none	none	23ai	inline view
+compat_select_031	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees WHERE EXISTS (SELECT 1 FROM departments)	none	none	23ai	exists
+compat_select_032	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT employee_id, SUM(salary) OVER (PARTITION BY department_id ORDER BY employee_id) FROM employees	none	none	23ai	analytic over
+compat_select_033	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT employee_id, RANK() OVER (ORDER BY salary DESC) FROM employees	none	none	23ai	rank analytic
+compat_select_034	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT /*+ FULL(e) */ * FROM employees e	none	none	23ai	hint
+compat_select_035	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees SAMPLE (10)	none	none	23ai	sample clause
+compat_select_036	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees AS OF TIMESTAMP SYSTIMESTAMP	none	none	23ai	flashback query
+compat_select_037	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT department_id, SUM(salary) FROM employees GROUP BY ROLLUP(department_id)	none	none	23ai	rollup
+compat_select_038	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT department_id, SUM(salary) FROM employees GROUP BY CUBE(department_id)	none	none	23ai	cube
+compat_select_039	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT department_id, SUM(salary) FROM employees GROUP BY GROUPING SETS ((department_id), ())	none	none	23ai	grouping sets
+compat_select_040	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM JSON_TABLE('{"id":1}', '$' COLUMNS (id NUMBER PATH '$.id')) jt	none	none	23ai	json_table
+compat_select_041	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM XMLTABLE('/r' PASSING XMLTYPE('<r><id>1</id></r>') COLUMNS id NUMBER PATH 'id') xt	none	none	23ai	xmltable
+compat_select_042	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT	none	none	23ai	missing select list
+compat_select_043	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT FROM dual	none	none	23ai	missing select expression
+compat_select_044	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT 1 + FROM dual	none	none	23ai	missing rhs expression
+compat_select_045	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM	none	none	23ai	missing table
+compat_select_046	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM WHERE	none	none	23ai	illegal table token
+compat_select_047	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees WHERE	none	none	23ai	missing predicate
+compat_select_048	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees WHERE salary BETWEEN 1 AND	none	none	23ai	missing between upper
+compat_select_049	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees WHERE department_id IN (10,	none	none	23ai	unclosed in list
+compat_select_050	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees WHERE last_name LIKE	none	none	23ai	missing like pattern
+compat_select_051	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees GROUP BY	none	none	23ai	missing group expr
+compat_select_052	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees ORDER BY	none	none	23ai	missing order expr
+compat_select_053	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees FETCH FIRST 5	none	none	23ai	malformed fetch
+compat_select_054	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees JOIN departments ON	none	none	23ai	missing join predicate
+compat_select_055	A	select	SELECT.bnf	parse_only	reject	syntax	WITH q AS SELECT 1 FROM dual SELECT * FROM q	none	none	23ai	malformed with
+compat_setop_001	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT 1 FROM dual UNION SELECT 2 FROM dual	none	none	23ai	union
+compat_setop_002	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT 1 FROM dual UNION ALL SELECT 2 FROM dual	none	none	23ai	union all
+compat_setop_003	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT 1 FROM dual INTERSECT SELECT 1 FROM dual	none	none	23ai	intersect
+compat_setop_004	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT 1 FROM dual MINUS SELECT 2 FROM dual	none	none	23ai	minus
+compat_setop_005	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT 1 FROM dual UNION	none	none	23ai	trailing union
+compat_setop_006	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT 1 FROM dual INTERSECT	none	none	23ai	trailing intersect
+compat_dml_001	A	dml	INSERT.bnf	parse_only	accept	syntax	INSERT INTO t (a) VALUES (1)	none	none	23ai	insert values
+compat_dml_002	A	dml	INSERT.bnf	parse_only	accept	syntax	INSERT INTO t (a, b) VALUES (1, 2)	none	none	23ai	insert multiple values
+compat_dml_003	A	dml	INSERT.bnf	parse_only	accept	syntax	INSERT INTO t (a) SELECT employee_id FROM employees	none	none	23ai	insert select
+compat_dml_004	A	dml	INSERT.bnf	parse_only	accept	syntax	INSERT INTO t (a) VALUES (:id)	none	none	23ai	insert bind
+compat_dml_005	A	dml	INSERT.bnf	parse_only	accept	syntax	INSERT ALL INTO t (a) VALUES (1) INTO t (a) VALUES (2) SELECT 1 FROM dual	none	none	23ai	insert all
+compat_dml_006	A	dml	INSERT.bnf	parse_only	accept	syntax	INSERT FIRST WHEN 1 = 1 THEN INTO t (a) VALUES (1) SELECT 1 FROM dual	none	none	23ai	insert first
+compat_dml_007	A	dml	UPDATE.bnf	parse_only	accept	syntax	UPDATE t SET a = 1	none	none	23ai	update set
+compat_dml_008	A	dml	UPDATE.bnf	parse_only	accept	syntax	UPDATE t SET a = 1, b = 2 WHERE id = 3	none	none	23ai	update multiple
+compat_dml_009	A	dml	UPDATE.bnf	parse_only	accept	syntax	UPDATE t SET a = (SELECT 1 FROM dual) WHERE id = 1	none	none	23ai	update subquery
+compat_dml_010	A	dml	DELETE.bnf	parse_only	accept	syntax	DELETE FROM t WHERE id = 1	none	none	23ai	delete where
+compat_dml_011	A	dml	DELETE.bnf	parse_only	accept	syntax	DELETE FROM t WHERE EXISTS (SELECT 1 FROM s WHERE s.id = t.id)	none	none	23ai	delete exists
+compat_dml_012	A	dml	INSERT.bnf	parse_only	reject	syntax	INSERT INTO t (a) VALUES (1,	none	none	23ai	malformed values
+compat_dml_013	A	dml	INSERT.bnf	parse_only	reject	syntax	INSERT INTO t (a VALUES (1)	none	none	23ai	missing close paren
+compat_dml_014	A	dml	INSERT.bnf	parse_only	reject	syntax	INSERT INTO t VALUES	none	none	23ai	missing value source
+compat_dml_015	A	dml	UPDATE.bnf	parse_only	reject	syntax	UPDATE t SET	none	none	23ai	missing assignment
+compat_dml_016	A	dml	UPDATE.bnf	parse_only	reject	syntax	UPDATE t SET a =	none	none	23ai	missing update expr
+compat_dml_017	A	dml	UPDATE.bnf	parse_only	reject	syntax	UPDATE SET a = 1	none	none	23ai	missing update target
+compat_dml_018	A	dml	DELETE.bnf	parse_only	reject	syntax	DELETE FROM	none	none	23ai	missing delete target
+compat_dml_019	A	dml	DELETE.bnf	parse_only	reject	syntax	DELETE FROM t WHERE	none	none	23ai	missing delete predicate
+compat_merge_001	A	merge	MERGE.bnf	parse_only	accept	syntax	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x	none	none	23ai	merge update
+compat_merge_002	A	merge	MERGE.bnf	parse_only	accept	syntax	MERGE INTO t USING s ON (t.id = s.id) WHEN NOT MATCHED THEN INSERT (id, x) VALUES (s.id, s.x)	none	none	23ai	merge insert
+compat_merge_003	A	merge	MERGE.bnf	parse_only	accept	syntax	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x DELETE WHERE t.x = 0	none	none	23ai	merge update delete
+compat_merge_004	A	merge	MERGE.bnf	parse_only	reject	syntax	MERGE INTO t USING s	none	none	23ai	missing on
+compat_merge_005	A	merge	MERGE.bnf	parse_only	reject	syntax	MERGE INTO t USING s ON (t.id = s.id) WHEN	none	none	23ai	missing when branch
+compat_merge_006	A	merge	MERGE.bnf	parse_only	reject	syntax	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN	none	none	23ai	missing action
+compat_select_056	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT DISTINCT department_id FROM employees	none	none	23ai	distinct projection
+compat_select_057	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT ALL department_id FROM employees	none	none	23ai	all projection
+compat_select_058	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT salary sal FROM employees	none	none	23ai	implicit alias
+compat_select_059	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT salary "SALARY ALIAS" FROM employees	none	none	23ai	quoted alias
+compat_select_060	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT (1 + 2) * 3 FROM dual	none	none	23ai	parenthesized arithmetic
+compat_select_061	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees WHERE salary <= 5000	none	none	23ai	less equal predicate
+compat_select_062	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees WHERE last_name NOT LIKE 'S%'	none	none	23ai	not like predicate
+compat_select_063	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees WHERE commission_pct IS NULL	none	none	23ai	is null predicate
+compat_select_064	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees WHERE department_id NOT IN (SELECT department_id FROM departments)	none	none	23ai	not in subquery
+compat_select_065	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees WHERE salary > ANY (SELECT salary FROM employees)	none	none	23ai	any subquery
+compat_select_066	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees WHERE salary >= ALL (SELECT salary FROM employees)	none	none	23ai	all subquery
+compat_select_067	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT (SELECT COUNT(*) FROM employees) FROM dual	none	none	23ai	scalar subquery
+compat_select_068	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees e WHERE EXISTS (SELECT 1 FROM departments d WHERE d.department_id = e.department_id)	none	none	23ai	correlated exists
+compat_select_069	A	select	SELECT.bnf	parse_only	accept	syntax	WITH q1 AS (SELECT 1 a FROM dual), q2 AS (SELECT a + 1 b FROM q1) SELECT b FROM q2	none	none	23ai	multiple cte
+compat_select_070	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT 1 FROM dual WHERE 1 = 1	none	none	23ai	where without from object
+compat_select_071	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees CROSS JOIN departments	none	none	23ai	cross join
+compat_select_072	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees e RIGHT OUTER JOIN departments d ON e.department_id = d.department_id	none	none	23ai	right outer join
+compat_select_073	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees e FULL OUTER JOIN departments d ON e.department_id = d.department_id	none	none	23ai	full outer join
+compat_select_074	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees JOIN departments USING (department_id)	none	none	23ai	join using
+compat_select_075	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees NATURAL JOIN departments	none	none	23ai	natural join
+compat_select_076	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT employee_id FROM employees WHERE department_id = (SELECT department_id FROM departments WHERE department_id = 10)	none	none	23ai	scalar subquery predicate
+compat_select_077	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT department_id, SUM(salary) FROM employees GROUP BY department_id ORDER BY department_id	none	none	23ai	group order
+compat_select_078	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT COUNT(DISTINCT department_id) FROM employees	none	none	23ai	distinct aggregate
+compat_select_079	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT MIN(salary) KEEP (DENSE_RANK FIRST ORDER BY employee_id) FROM employees	none	none	23ai	keep dense rank
+compat_select_080	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT LISTAGG(last_name, ',') WITHIN GROUP (ORDER BY last_name) FROM employees	none	none	23ai	listagg
+compat_select_081	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT ROW_NUMBER() OVER (ORDER BY employee_id) FROM employees	none	none	23ai	row number analytic
+compat_select_082	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT LAG(salary, 1) OVER (ORDER BY employee_id) FROM employees	none	none	23ai	lag analytic
+compat_select_083	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT LEAD(salary, 1) OVER (ORDER BY employee_id) FROM employees	none	none	23ai	lead analytic
+compat_select_084	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT FIRST_VALUE(salary) OVER (ORDER BY employee_id) FROM employees	none	none	23ai	first value analytic
+compat_select_085	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT SUM(salary) OVER (ORDER BY employee_id ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) FROM employees	none	none	23ai	window frame
+compat_select_086	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT employee_id FROM employees ORDER BY employee_id FETCH FIRST 10 PERCENT ROWS ONLY	none	none	23ai	fetch percent
+compat_select_087	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT employee_id FROM employees ORDER BY employee_id FETCH FIRST 5 ROWS WITH TIES	none	none	23ai	fetch with ties
+compat_select_088	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT employee_id FROM employees ORDER BY employee_id OFFSET 5 ROWS	none	none	23ai	offset only
+compat_select_089	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees FOR UPDATE	none	none	23ai	for update
+compat_select_090	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees FOR UPDATE NOWAIT	none	none	23ai	for update nowait
+compat_select_091	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees FOR UPDATE SKIP LOCKED	none	none	23ai	for update skip locked
+compat_select_092	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT employee_id FROM employees START WITH manager_id IS NULL CONNECT BY PRIOR employee_id = manager_id	none	none	23ai	hierarchical query
+compat_select_093	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT LEVEL FROM dual CONNECT BY PRIOR 1 = 1	none	none	23ai	prior connect by expression
+compat_select_094	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT department_id, job_id, SUM(salary) FROM employees GROUP BY ROLLUP(department_id, job_id)	none	none	23ai	multi rollup
+compat_select_095	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT department_id, job_id, SUM(salary) FROM employees GROUP BY CUBE(department_id, job_id)	none	none	23ai	multi cube
+compat_select_096	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT GROUPING(department_id), SUM(salary) FROM employees GROUP BY ROLLUP(department_id)	none	none	23ai	grouping function
+compat_select_097	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT department_id, SUM(salary) FROM employees GROUP BY department_id HAVING SUM(salary) > 1000	none	none	23ai	having aggregate expression
+compat_select_098	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT employee_id FROM employees START WITH manager_id IS NULL CONNECT BY PRIOR employee_id = manager_id ORDER SIBLINGS BY employee_id	none	none	23ai	order siblings
+compat_select_099	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees SAMPLE BLOCK (5)	none	none	23ai	sample block
+compat_select_100	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees SAMPLE BLOCK (5) SEED (42)	none	none	23ai	sample seed
+compat_select_101	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT JSON_VALUE('{"id":1}', '$.id') FROM dual	none	none	23ai	json_value
+compat_select_102	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT JSON_QUERY('{"id":1}', '$') FROM dual	none	none	23ai	json_query
+compat_select_103	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT JSON_EXISTS('{"id":1}', '$.id') FROM dual	none	none	23ai	json_exists
+compat_select_104	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT XMLCAST(XMLQUERY('/r/id' PASSING XMLTYPE('<r><id>1</id></r>') RETURNING CONTENT) AS NUMBER) FROM dual	none	none	23ai	xmlquery xmlcast
+compat_select_105	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees PIVOT (SUM(salary) FOR department_id IN (10 AS d10, 20 AS d20))	none	none	23ai	pivot
+compat_select_106	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM (SELECT 1 id, 10 d10, 20 d20 FROM dual) UNPIVOT (amount FOR dept IN (d10 AS '10', d20 AS '20'))	none	none	23ai	unpivot
+compat_select_107	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees MATCH_RECOGNIZE (ORDER BY employee_id MEASURES employee_id AS id PATTERN (A) DEFINE A AS salary > 0)	none	none	23ai	match recognize
+compat_select_108	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees e CROSS APPLY (SELECT e.employee_id id FROM dual) x	none	none	23ai	cross apply
+compat_select_109	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees e OUTER APPLY (SELECT e.employee_id id FROM dual) x	none	none	23ai	outer apply
+compat_select_110	A	select	SELECT.bnf	parse_only	accept	semantic_catalog	SELECT employee_id, salary FROM employees MODEL DIMENSION BY (employee_id) MEASURES (salary) RULES (salary[employee_id] = salary[employee_id])	none	none	23ai	model clause semantic validation
+compat_select_111	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees WHERE salary =	none	none	23ai	missing equality rhs
+compat_select_112	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees ORDER BY employee_id NULLS	none	none	23ai	missing nulls direction
+compat_select_113	A	select	SELECT.bnf	parse_only	accept	syntax	SELECT * FROM employees FETCH NEXT ROWS ONLY	none	none	23ai	fetch next default count
+compat_select_114	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees OFFSET ROWS	none	none	23ai	missing offset count
+compat_select_115	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees GROUP BY ROLLUP(	none	none	23ai	unclosed rollup
+compat_select_116	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees PIVOT (	none	none	23ai	missing pivot body
+compat_select_117	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees FOR UPDATE OF	none	none	23ai	missing for update columns
+compat_select_118	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees CONNECT BY PRIOR	none	none	23ai	missing prior expression
+compat_select_119	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees WHERE EXISTS	none	none	23ai	missing exists subquery
+compat_select_120	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees WHERE department_id NOT IN (	none	none	23ai	unclosed not in
+compat_select_121	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT 1 FROM dual UNION ALL	none	none	23ai	trailing union all
+compat_select_122	A	select	SELECT.bnf	parse_only	reject	syntax	SELECT * FROM employees WHERE last_name LIKE 'S%' ESCAPE	none	none	23ai	missing escape expression
+compat_dml_020	A	dml	INSERT.bnf	parse_only	accept	syntax	INSERT INTO t VALUES (1, 2, 3, 4, 5, '{}')	none	none	23ai	insert all columns
+compat_dml_021	A	dml	INSERT.bnf	parse_only	accept	syntax	INSERT INTO t (a, b) SELECT 1, 2 FROM dual	none	none	23ai	insert select multiple
+compat_dml_022	A	dml	INSERT.bnf	parse_only	accept	syntax	INSERT INTO t (a) WITH q AS (SELECT 1 a FROM dual) SELECT a FROM q	none	none	23ai	insert with select
+compat_dml_023	A	dml	INSERT.bnf	parse_only	accept	syntax	INSERT INTO t (a) VALUES (DEFAULT)	none	none	23ai	insert default expression
+compat_dml_024	A	dml	UPDATE.bnf	parse_only	accept	syntax	UPDATE t SET a = DEFAULT WHERE id = 1	none	none	23ai	update default
+compat_dml_025	A	dml	UPDATE.bnf	parse_only	accept	syntax	UPDATE t SET (a, b) = (SELECT 1, 2 FROM dual) WHERE id = 1	none	none	23ai	update row subquery
+compat_dml_026	A	dml	UPDATE.bnf	parse_only	accept	syntax	UPDATE (SELECT a FROM t) SET a = 1	none	none	23ai	update inline view
+compat_dml_027	A	dml	DELETE.bnf	parse_only	accept	syntax	DELETE t WHERE id = 1	none	none	23ai	delete without from
+compat_dml_028	A	dml	DELETE.bnf	parse_only	accept	syntax	DELETE FROM (SELECT * FROM t) WHERE id = 1	none	none	23ai	delete inline view
+compat_dml_029	A	dml	INSERT.bnf	parse_only	accept	syntax	INSERT ALL WHEN 1 = 1 THEN INTO t(a) VALUES(1) SELECT 1 FROM dual	none	none	23ai	insert all conditional
+compat_dml_030	A	dml	INSERT.bnf	parse_only	accept	syntax	INSERT ALL INTO t(a) VALUES(1) SELECT 1 FROM dual	none	none	23ai	insert all single branch
+compat_dml_031	A	dml	INSERT.bnf	parse_only	accept	syntax	INSERT FIRST WHEN 1 = 0 THEN INTO t(a) VALUES(1) ELSE INTO t(a) VALUES(2) SELECT 1 FROM dual	none	none	23ai	insert first else
+compat_dml_032	A	dml	UPDATE.bnf	parse_only	accept	syntax	UPDATE t SET a = a + 1 RETURNING a INTO :out_a	none	none	23ai	update returning
+compat_dml_033	A	dml	DELETE.bnf	parse_only	accept	syntax	DELETE FROM t WHERE id = :id RETURNING id INTO :out_id	none	none	23ai	delete returning
+compat_dml_034	A	dml	INSERT.bnf	parse_only	accept	syntax	INSERT INTO t(a) VALUES(1) RETURNING a INTO :out_a	none	none	23ai	insert returning
+compat_dml_035	A	dml	INSERT.bnf	parse_only	reject	syntax	INSERT INTO t (a,) VALUES (1)	none	none	23ai	trailing insert column comma
+compat_dml_036	A	dml	INSERT.bnf	parse_only	reject	syntax	INSERT INTO t (a) VALUES ()	none	none	23ai	empty values
+compat_dml_037	A	dml	INSERT.bnf	parse_only	reject	syntax	INSERT INTO t (a) SELECT FROM dual	none	none	23ai	insert select missing expression
+compat_dml_038	A	dml	INSERT.bnf	parse_only	reject	syntax	INSERT ALL INTO t(a) VALUES(1)	none	none	23ai	insert all missing select
+compat_dml_039	A	dml	UPDATE.bnf	parse_only	reject	syntax	UPDATE t SET a = 1 WHERE	none	none	23ai	update missing predicate
+compat_dml_040	A	dml	UPDATE.bnf	parse_only	reject	syntax	UPDATE t SET a = , b = 2	none	none	23ai	update missing assignment expr
+compat_dml_041	A	dml	UPDATE.bnf	parse_only	reject	syntax	UPDATE t SET (a, b) = (SELECT 1 FROM dual)	none	none	23ai	update row subquery arity
+compat_dml_042	A	dml	DELETE.bnf	parse_only	reject	syntax	DELETE t WHERE	none	none	23ai	delete missing predicate without from
+compat_dml_043	A	dml	DELETE.bnf	parse_only	reject	syntax	DELETE FROM t RETURNING INTO :x	none	none	23ai	delete returning missing expr
+compat_dml_044	A	dml	INSERT.bnf	parse_only	reject	syntax	INSERT FIRST WHEN THEN INTO t(a) VALUES(1) SELECT 1 FROM dual	none	none	23ai	insert first missing condition
+compat_merge_007	A	merge	MERGE.bnf	parse_only	accept	syntax	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x WHEN NOT MATCHED THEN INSERT (id, x) VALUES (s.id, s.x)	none	none	23ai	merge matched and not matched
+compat_merge_008	A	merge	MERGE.bnf	parse_only	accept	syntax	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x WHERE s.x > 0	none	none	23ai	merge update where
+compat_merge_009	A	merge	MERGE.bnf	parse_only	accept	syntax	MERGE INTO t USING s ON (t.id = s.id) WHEN NOT MATCHED THEN INSERT (id, x) VALUES (s.id, s.x) WHERE s.x > 0	none	none	23ai	merge insert where
+compat_merge_010	A	merge	MERGE.bnf	parse_only	accept	syntax	MERGE INTO t USING (SELECT id, x FROM s) s2 ON (t.id = s2.id) WHEN MATCHED THEN UPDATE SET t.x = s2.x	none	none	23ai	merge using subquery
+compat_merge_011	A	merge	MERGE.bnf	parse_only	accept	syntax	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.a = s.x, t.b = s.id	none	none	23ai	merge multiple assignments
+compat_merge_012	A	merge	MERGE.bnf	parse_only	accept	syntax	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x WHERE s.x > 0 DELETE WHERE t.x = 0	none	none	23ai	merge update where delete
+compat_merge_013	A	merge	MERGE.bnf	parse_only	reject	syntax	MERGE INTO USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x	none	none	23ai	missing merge target
+compat_merge_014	A	merge	MERGE.bnf	parse_only	reject	syntax	MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET t.x = s.x	none	none	23ai	missing on parentheses
+compat_merge_015	A	merge	MERGE.bnf	parse_only	reject	syntax	MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET	none	none	23ai	merge missing set assignments
+compat_merge_016	A	merge	MERGE.bnf	parse_only	reject	syntax	MERGE INTO t USING s ON (t.id = s.id) WHEN NOT MATCHED THEN INSERT VALUES	none	none	23ai	merge insert missing values
+compat_ddl_001	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_t_{run} (a NUMBER)	none	DROP TABLE compat_t_{run} PURGE	23ai	create table
+compat_ddl_002	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE GLOBAL TEMPORARY TABLE compat_gtt_{run} (a NUMBER) ON COMMIT DELETE ROWS	none	DROP TABLE compat_gtt_{run} PURGE	23ai	global temporary table
+compat_ddl_003	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_ctas_{run} AS SELECT 1 a FROM dual	none	DROP TABLE compat_ctas_{run} PURGE	23ai	create table as select
+compat_ddl_004	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_cons_{run} (a NUMBER CONSTRAINT compat_nn_{run} NOT NULL, CONSTRAINT compat_pk_{run} PRIMARY KEY (a))	none	DROP TABLE compat_cons_{run} PURGE	23ai	table constraints
+compat_ddl_005	B	ddl	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE (a NUMBER)	none	none	23ai	missing table name
+compat_ddl_006	B	ddl	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_bad_{run} (a NUMBER	none	none	23ai	missing close paren
+compat_ddl_007	B	ddl	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_bad_{run} (SELECT NUMBER)	none	none	23ai	reserved column name
+compat_ddl_008	B	ddl	CREATE-INDEX.bnf	parse_only	accept	syntax	CREATE INDEX compat_idx_{run} ON t(a)	none	DROP INDEX compat_idx_{run}	23ai	create index
+compat_ddl_009	B	ddl	CREATE-INDEX.bnf	parse_only	accept	syntax	CREATE UNIQUE INDEX compat_uidx_{run} ON t(b)	none	DROP INDEX compat_uidx_{run}	23ai	unique index
+compat_ddl_010	B	ddl	CREATE-INDEX.bnf	parse_only	reject	syntax	CREATE INDEX compat_bad_idx_{run} ON	none	none	23ai	missing index target
+compat_ddl_011	B	ddl	CREATE-VIEW.bnf	parse_only	accept	syntax	CREATE VIEW compat_v_{run} AS SELECT 1 a FROM dual	none	DROP VIEW compat_v_{run}	23ai	create view
+compat_ddl_012	B	ddl	CREATE-VIEW.bnf	parse_only	accept	syntax	CREATE OR REPLACE VIEW compat_v_{run} AS SELECT 1 a FROM dual	none	DROP VIEW compat_v_{run}	23ai	create or replace view
+compat_ddl_013	B	ddl	CREATE-VIEW.bnf	parse_only	reject	syntax	CREATE VIEW compat_bad_v_{run} SELECT 1 FROM dual	none	none	23ai	missing as
+compat_ddl_014	B	ddl	CREATE-SEQUENCE.bnf	parse_only	accept	syntax	CREATE SEQUENCE compat_seq_{run} START WITH 1 INCREMENT BY 1	none	DROP SEQUENCE compat_seq_{run}	23ai	create sequence
+compat_ddl_015	B	ddl	CREATE-SEQUENCE.bnf	parse_only	reject	syntax	CREATE SEQUENCE START WITH 1	none	none	23ai	missing sequence name
+compat_ddl_016	B	ddl	CREATE-SYNONYM.bnf	parse_only	accept	syntax	CREATE SYNONYM compat_syn_{run} FOR t	none	DROP SYNONYM compat_syn_{run}	23ai	create synonym
+compat_ddl_017	B	ddl	CREATE-SYNONYM.bnf	parse_only	reject	syntax	CREATE SYNONYM FOR t	none	none	23ai	missing synonym name
+compat_ddl_018	B	ddl	COMMENT.bnf	parse_only	accept	syntax	COMMENT ON TABLE t IS 'compat'	none	none	23ai	comment table
+compat_ddl_019	B	ddl	TRUNCATE-TABLE.bnf	parse_only	accept	syntax	TRUNCATE TABLE t	none	none	23ai	truncate table
+compat_ddl_020	B	ddl	DROP-TABLE.bnf	parse_only	reject	syntax	DROP TABLE	none	none	23ai	missing drop table name
+compat_ddl_021	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_types_{run} (n NUMBER(10,2), v VARCHAR2(100), d DATE, ts TIMESTAMP, c CLOB)	none	DROP TABLE compat_types_{run} PURGE	23ai	common column datatypes
+compat_ddl_022	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_ident_{run} (id NUMBER GENERATED ALWAYS AS IDENTITY, name VARCHAR2(30))	none	DROP TABLE compat_ident_{run} PURGE	23ai	identity column
+compat_ddl_023	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_defaults_{run} (id NUMBER DEFAULT 1, created_at DATE DEFAULT SYSDATE)	none	DROP TABLE compat_defaults_{run} PURGE	23ai	default expressions
+compat_ddl_024	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_check_{run} (a NUMBER CHECK (a > 0))	none	DROP TABLE compat_check_{run} PURGE	23ai	inline check constraint
+compat_ddl_025	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_fk_{run} (department_id NUMBER REFERENCES departments(department_id))	none	DROP TABLE compat_fk_{run} PURGE	23ai	inline foreign key
+compat_ddl_026	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_tblsp_{run} (a NUMBER) TABLESPACE users	none	DROP TABLE compat_tblsp_{run} PURGE	23ai	table tablespace
+compat_ddl_027	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_part_range_{run} (a NUMBER) PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (10), PARTITION pmax VALUES LESS THAN (MAXVALUE))	none	DROP TABLE compat_part_range_{run} PURGE	23ai	range partition
+compat_ddl_028	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_part_list_{run} (region VARCHAR2(10)) PARTITION BY LIST (region) (PARTITION p1 VALUES ('E'), PARTITION p2 VALUES ('W'))	none	DROP TABLE compat_part_list_{run} PURGE	23ai	list partition
+compat_ddl_029	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_part_hash_{run} (a NUMBER) PARTITION BY HASH (a) PARTITIONS 4	none	DROP TABLE compat_part_hash_{run} PURGE	23ai	hash partition
+compat_ddl_030	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_lob_{run} (id NUMBER, doc CLOB) LOB (doc) STORE AS (TABLESPACE users)	none	DROP TABLE compat_lob_{run} PURGE	23ai	lob storage clause
+compat_ddl_031	B	ddl	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_bad_cols_{run} (a NUMBER,)	none	none	23ai	trailing table column comma
+compat_ddl_032	B	ddl	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_bad_col_{run} (a)	none	none	23ai	column missing datatype
+compat_ddl_033	B	ddl	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_bad_ctas_{run} AS	none	none	23ai	ctas missing query
+compat_ddl_034	B	ddl	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_bad_part_{run} (a NUMBER) PARTITION BY RANGE (a) (PARTITION p1)	none	none	23ai	partition missing values
+compat_ddl_035	B	ddl	CREATE-INDEX.bnf	parse_only	accept	syntax	CREATE BITMAP INDEX compat_bidx_{run} ON t(a)	none	DROP INDEX compat_bidx_{run}	23ai	bitmap index
+compat_ddl_036	B	ddl	CREATE-INDEX.bnf	parse_only	accept	syntax	CREATE INDEX compat_fidx_{run} ON employees(UPPER(last_name))	none	DROP INDEX compat_fidx_{run}	23ai	function based index
+compat_ddl_037	B	ddl	CREATE-INDEX.bnf	parse_only	accept	syntax	CREATE INDEX compat_ridx_{run} ON t(a) REVERSE	none	DROP INDEX compat_ridx_{run}	23ai	reverse index
+compat_ddl_038	B	ddl	CREATE-INDEX.bnf	parse_only	accept	syntax	CREATE INDEX compat_oidx_{run} ON t(a) ONLINE	none	DROP INDEX compat_oidx_{run}	23ai	online index
+compat_ddl_039	B	ddl	CREATE-INDEX.bnf	parse_only	accept	syntax	CREATE INDEX compat_cidx_{run} ON t(a) COMPRESS	none	DROP INDEX compat_cidx_{run}	23ai	compressed index
+compat_ddl_040	B	ddl	CREATE-INDEX.bnf	parse_only	reject	syntax	CREATE INDEX compat_bad_idx_{run} ON t()	none	none	23ai	empty index column list
+compat_ddl_041	B	ddl	CREATE-INDEX.bnf	parse_only	reject	syntax	CREATE INDEX compat_bad_idx_{run} ON t(a,)	none	none	23ai	trailing index column comma
+compat_ddl_042	B	ddl	CREATE-INDEX.bnf	parse_only	reject	syntax	CREATE INDEX compat_bad_idx_{run} ON t	none	none	23ai	missing index column list
+compat_ddl_043	B	ddl	CREATE-VIEW.bnf	parse_only	accept	syntax	CREATE VIEW compat_vcols_{run} (a, b) AS SELECT 1 a, 2 b FROM dual	none	DROP VIEW compat_vcols_{run}	23ai	view column aliases
+compat_ddl_044	B	ddl	CREATE-VIEW.bnf	parse_only	accept	syntax	CREATE FORCE VIEW compat_force_v_{run} AS SELECT * FROM t	none	DROP VIEW compat_force_v_{run}	23ai	force view
+compat_ddl_045	B	ddl	CREATE-VIEW.bnf	parse_only	accept	syntax	CREATE VIEW compat_ro_v_{run} AS SELECT 1 a FROM dual WITH READ ONLY	none	DROP VIEW compat_ro_v_{run}	23ai	view read only
+compat_ddl_046	B	ddl	CREATE-VIEW.bnf	parse_only	accept	syntax	CREATE VIEW compat_ck_v_{run} AS SELECT 1 a FROM dual WITH CHECK OPTION	none	DROP VIEW compat_ck_v_{run}	23ai	view check option
+compat_ddl_047	B	ddl	CREATE-VIEW.bnf	parse_only	reject	syntax	CREATE VIEW compat_bad_v_{run} AS	none	none	23ai	view missing query
+compat_ddl_048	B	ddl	CREATE-VIEW.bnf	parse_only	reject	syntax	CREATE VIEW compat_bad_v_{run} () AS SELECT 1 FROM dual	none	none	23ai	empty view column aliases
+compat_ddl_049	B	ddl	CREATE-SEQUENCE.bnf	parse_only	accept	syntax	CREATE SEQUENCE compat_seq_minmax_{run} MINVALUE 1 MAXVALUE 999999	none	DROP SEQUENCE compat_seq_minmax_{run}	23ai	sequence min max
+compat_ddl_050	B	ddl	CREATE-SEQUENCE.bnf	parse_only	accept	syntax	CREATE SEQUENCE compat_seq_cache_{run} MAXVALUE 999999 CYCLE CACHE 20 ORDER	none	DROP SEQUENCE compat_seq_cache_{run}	23ai	sequence cycle cache order
+compat_ddl_051	B	ddl	CREATE-SEQUENCE.bnf	parse_only	accept	syntax	CREATE SEQUENCE compat_seq_nocache_{run} NOCACHE NOORDER NOCYCLE	none	DROP SEQUENCE compat_seq_nocache_{run}	23ai	sequence no cache no order
+compat_ddl_052	B	ddl	CREATE-SEQUENCE.bnf	parse_only	accept	syntax	CREATE SEQUENCE compat_seq_nomax_{run} NOMINVALUE NOMAXVALUE	none	DROP SEQUENCE compat_seq_nomax_{run}	23ai	sequence nomin nomax
+compat_ddl_053	B	ddl	CREATE-SEQUENCE.bnf	parse_only	reject	syntax	CREATE SEQUENCE compat_bad_seq_{run} CACHE	none	none	23ai	sequence cache missing value
+compat_ddl_054	B	ddl	CREATE-SEQUENCE.bnf	parse_only	reject	syntax	CREATE SEQUENCE compat_bad_seq_{run} INCREMENT BY	none	none	23ai	sequence increment missing value
+compat_ddl_055	B	ddl	CREATE-SYNONYM.bnf	parse_only	accept	syntax	CREATE OR REPLACE SYNONYM compat_syn_replace_{run} FOR t	none	DROP SYNONYM compat_syn_replace_{run}	23ai	create or replace synonym
+compat_ddl_056	B	ddl	CREATE-SYNONYM.bnf	parse_only	accept	syntax	CREATE SYNONYM compat_syn_schema_{run} FOR testuser.t	none	DROP SYNONYM compat_syn_schema_{run}	23ai	synonym schema target
+compat_ddl_057	B	ddl	CREATE-SYNONYM.bnf	parse_only	reject	syntax	CREATE SYNONYM compat_bad_syn_{run} FOR	none	none	23ai	synonym missing target
+compat_ddl_058	B	ddl	CREATE-SYNONYM.bnf	parse_only	reject	syntax	CREATE SYNONYM compat_bad_syn_{run} t	none	none	23ai	synonym missing for
+compat_ddl_059	B	ddl	DROP-TABLE.bnf	parse_only	accept	syntax	DROP TABLE compat_drop_{run} CASCADE CONSTRAINTS PURGE	CREATE TABLE compat_drop_{run} (a NUMBER)	none	23ai	drop table cascade purge
+compat_ddl_060	B	ddl	DROP-TABLE.bnf	parse_only	accept	syntax	DROP TABLE IF EXISTS compat_missing_{run} PURGE	none	none	23ai	drop table if exists
+compat_ddl_061	B	ddl	DROP-VIEW.bnf	parse_only	accept	syntax	DROP VIEW compat_drop_v_{run}	CREATE VIEW compat_drop_v_{run} AS SELECT 1 a FROM dual	none	23ai	drop view
+compat_ddl_062	B	ddl	DROP-INDEX.bnf	parse_only	accept	syntax	DROP INDEX compat_drop_idx_{run} ONLINE	CREATE INDEX compat_drop_idx_{run} ON t(c)	none	23ai	drop index online
+compat_ddl_063	B	ddl	DROP-SEQUENCE.bnf	parse_only	accept	syntax	DROP SEQUENCE compat_drop_seq_{run}	CREATE SEQUENCE compat_drop_seq_{run}	none	23ai	drop sequence
+compat_ddl_064	B	ddl	DROP-SYNONYM.bnf	parse_only	accept	syntax	DROP SYNONYM compat_drop_syn_{run} FORCE	CREATE SYNONYM compat_drop_syn_{run} FOR t	none	23ai	drop synonym force
+compat_ddl_065	B	ddl	DROP-TABLE.bnf	parse_only	reject	syntax	DROP TABLE t CASCADE PURGE	none	none	23ai	drop table malformed cascade
+compat_ddl_066	B	ddl	DROP-INDEX.bnf	parse_only	reject	syntax	DROP INDEX ONLINE	none	none	23ai	drop index missing name
+compat_ddl_067	B	ddl	ALTER-TABLE.bnf	parse_only	accept	syntax	ALTER TABLE compat_alt_addp_{run} ADD (z NUMBER)	CREATE TABLE compat_alt_addp_{run} (a NUMBER)	DROP TABLE compat_alt_addp_{run} PURGE	23ai	alter add column parens
+compat_ddl_068	B	ddl	ALTER-TABLE.bnf	parse_only	accept	syntax	ALTER TABLE compat_alt_add_{run} ADD z NUMBER	CREATE TABLE compat_alt_add_{run} (a NUMBER)	DROP TABLE compat_alt_add_{run} PURGE	23ai	alter add column no parens
+compat_ddl_069	B	ddl	ALTER-TABLE.bnf	parse_only	accept	syntax	ALTER TABLE compat_alt_mod_{run} MODIFY (a NUMBER(10))	CREATE TABLE compat_alt_mod_{run} (a NUMBER)	DROP TABLE compat_alt_mod_{run} PURGE	23ai	alter modify column
+compat_ddl_070	B	ddl	ALTER-TABLE.bnf	parse_only	accept	syntax	ALTER TABLE compat_alt_drop_{run} DROP COLUMN c	CREATE TABLE compat_alt_drop_{run} (a NUMBER, c NUMBER)	DROP TABLE compat_alt_drop_{run} PURGE	23ai	alter drop column
+compat_ddl_071	B	ddl	ALTER-TABLE.bnf	parse_only	accept	syntax	ALTER TABLE compat_alt_rename_col_{run} RENAME COLUMN a TO aa	CREATE TABLE compat_alt_rename_col_{run} (a NUMBER)	DROP TABLE compat_alt_rename_col_{run} PURGE	23ai	alter rename column
+compat_ddl_072	B	ddl	ALTER-TABLE.bnf	parse_only	accept	syntax	ALTER TABLE compat_alt_rename_tab_{run} RENAME TO compat_renamed_{run}	CREATE TABLE compat_alt_rename_tab_{run} (a NUMBER)	DROP TABLE compat_renamed_{run} PURGE	23ai	alter rename table
+compat_ddl_073	B	ddl	ALTER-TABLE.bnf	parse_only	accept	syntax	ALTER TABLE compat_alt_chk_{run} ADD CONSTRAINT compat_chk_{run} CHECK (a > 0)	CREATE TABLE compat_alt_chk_{run} (a NUMBER)	DROP TABLE compat_alt_chk_{run} PURGE	23ai	alter add check constraint
+compat_ddl_074	B	ddl	ALTER-TABLE.bnf	parse_only	accept	syntax	ALTER TABLE compat_alt_drop_chk_{run} DROP CONSTRAINT compat_chk_drop_{run}	CREATE TABLE compat_alt_drop_chk_{run} (a NUMBER, CONSTRAINT compat_chk_drop_{run} CHECK (a > 0))	DROP TABLE compat_alt_drop_chk_{run} PURGE	23ai	alter drop constraint
+compat_ddl_075	B	ddl	ALTER-TABLE.bnf	parse_only	accept	syntax	ALTER TABLE compat_alt_read_{run} READ ONLY	CREATE TABLE compat_alt_read_{run} (a NUMBER)	DROP TABLE compat_alt_read_{run} PURGE	23ai	alter read only
+compat_ddl_076	B	ddl	ALTER-TABLE.bnf	parse_only	accept	syntax	ALTER TABLE compat_alt_nolog_{run} NOLOGGING	CREATE TABLE compat_alt_nolog_{run} (a NUMBER)	DROP TABLE compat_alt_nolog_{run} PURGE	23ai	alter nologging
+compat_ddl_077	B	ddl	ALTER-TABLE.bnf	parse_only	accept	syntax	ALTER TABLE compat_alt_move_{run} MOVE	CREATE TABLE compat_alt_move_{run} (a NUMBER)	DROP TABLE compat_alt_move_{run} PURGE	23ai	alter move
+compat_ddl_078	B	ddl	ALTER-TABLE.bnf	parse_only	reject	syntax	ALTER TABLE t ADD	none	none	23ai	alter add missing definition
+compat_ddl_079	B	ddl	ALTER-TABLE.bnf	parse_only	reject	syntax	ALTER TABLE t RENAME COLUMN a	none	none	23ai	alter rename column missing target
+compat_ddl_080	B	ddl	ALTER-TABLE.bnf	parse_only	reject	syntax	ALTER TABLE ADD (a NUMBER)	none	none	23ai	alter table missing name
+compat_ddl_081	B	ddl	COMMENT.bnf	parse_only	accept	syntax	COMMENT ON COLUMN compat_comment_{run}.a IS 'compat column'	CREATE TABLE compat_comment_{run} (a NUMBER)	DROP TABLE compat_comment_{run} PURGE	23ai	comment column
+compat_ddl_082	B	ddl	COMMENT.bnf	parse_only	reject	syntax	COMMENT ON TABLE t IS NULL	none	none	23ai	comment null is invalid
+compat_ddl_083	B	ddl	COMMENT.bnf	parse_only	reject	syntax	COMMENT ON TABLE t	none	none	23ai	comment missing is
+compat_ddl_084	B	ddl	COMMENT.bnf	parse_only	reject	syntax	COMMENT ON COLUMN t.a IS	none	none	23ai	comment missing text
+compat_ddl_085	B	ddl	TRUNCATE-TABLE.bnf	parse_only	accept	syntax	TRUNCATE TABLE compat_trunc_drop_{run} DROP STORAGE	CREATE TABLE compat_trunc_drop_{run} (a NUMBER)	DROP TABLE compat_trunc_drop_{run} PURGE	23ai	truncate drop storage
+compat_ddl_086	B	ddl	TRUNCATE-TABLE.bnf	parse_only	accept	syntax	TRUNCATE TABLE compat_trunc_reuse_{run} REUSE STORAGE	CREATE TABLE compat_trunc_reuse_{run} (a NUMBER)	DROP TABLE compat_trunc_reuse_{run} PURGE	23ai	truncate reuse storage
+compat_ddl_087	B	ddl	TRUNCATE-TABLE.bnf	parse_only	accept	syntax	TRUNCATE TABLE compat_trunc_cascade_{run} CASCADE	CREATE TABLE compat_trunc_cascade_{run} (a NUMBER)	DROP TABLE compat_trunc_cascade_{run} PURGE	23ai	truncate cascade
+compat_ddl_088	B	ddl	TRUNCATE-TABLE.bnf	parse_only	accept	syntax	TRUNCATE TABLE compat_trunc_mvlog_{run} PURGE MATERIALIZED VIEW LOG	CREATE TABLE compat_trunc_mvlog_{run} (a NUMBER)	DROP TABLE compat_trunc_mvlog_{run} PURGE	23ai	truncate purge mv log
+compat_ddl_089	B	ddl	TRUNCATE-TABLE.bnf	parse_only	reject	syntax	TRUNCATE TABLE	none	none	23ai	truncate missing table
+compat_ddl_090	B	ddl	TRUNCATE-TABLE.bnf	parse_only	reject	syntax	TRUNCATE TABLE t DROP	none	none	23ai	truncate drop missing storage
+compat_ddl_091	B	ddl	CREATE-MATERIALIZED-VIEW.bnf	parse_only	accept	syntax	CREATE MATERIALIZED VIEW compat_mv_{run} AS SELECT 1 a FROM dual	none	DROP MATERIALIZED VIEW compat_mv_{run}	23ai	basic materialized view
+compat_ddl_092	B	ddl	CREATE-MATERIALIZED-VIEW.bnf	parse_only	accept	syntax	CREATE MATERIALIZED VIEW compat_mv_def_{run} BUILD DEFERRED AS SELECT 1 a FROM dual	none	DROP MATERIALIZED VIEW compat_mv_def_{run}	23ai	materialized view build deferred
+compat_ddl_093	B	ddl	CREATE-MATERIALIZED-VIEW.bnf	parse_only	accept	syntax	CREATE MATERIALIZED VIEW compat_mv_comp_{run} REFRESH COMPLETE ON DEMAND AS SELECT 1 a FROM dual	none	DROP MATERIALIZED VIEW compat_mv_comp_{run}	23ai	materialized view complete refresh
+compat_ddl_094	B	ddl	CREATE-MATERIALIZED-VIEW.bnf	parse_only	accept	syntax	CREATE MATERIALIZED VIEW compat_mv_force_{run} REFRESH FORCE WITH PRIMARY KEY AS SELECT a FROM t	none	DROP MATERIALIZED VIEW compat_mv_force_{run}	23ai	materialized view force refresh primary key
+compat_ddl_095	B	ddl	CREATE-MATERIALIZED-VIEW.bnf	parse_only	accept	syntax	CREATE MATERIALIZED VIEW compat_mv_never_{run} NEVER REFRESH AS SELECT 1 a FROM dual	none	DROP MATERIALIZED VIEW compat_mv_never_{run}	23ai	materialized view never refresh
+compat_ddl_096	B	ddl	CREATE-MATERIALIZED-VIEW.bnf	parse_only	accept	syntax	CREATE MATERIALIZED VIEW compat_mv_cache_{run} CACHE PARALLEL 2 AS SELECT 1 a FROM dual	none	DROP MATERIALIZED VIEW compat_mv_cache_{run}	23ai	materialized view cache parallel
+compat_ddl_097	B	ddl	CREATE-MATERIALIZED-VIEW.bnf	parse_only	reject	syntax	CREATE MATERIALIZED VIEW compat_bad_mv_{run} AS	none	none	23ai	materialized view missing query
+compat_ddl_098	B	ddl	CREATE-MATERIALIZED-VIEW.bnf	parse_only	reject	syntax	CREATE MATERIALIZED VIEW AS SELECT 1 FROM dual	none	none	23ai	materialized view missing name
+compat_ddl_099	B	ddl	CREATE-MATERIALIZED-VIEW.bnf	parse_only	reject	syntax	CREATE MATERIALIZED VIEW compat_bad_mv_{run} REFRESH FAST AS	none	none	23ai	materialized view refresh missing query
+compat_ddl_100	B	ddl	CREATE-MATERIALIZED-VIEW-LOG.bnf	parse_only	accept	syntax	CREATE MATERIALIZED VIEW LOG ON compat_mlog_t_{run}	CREATE TABLE compat_mlog_t_{run} (a NUMBER PRIMARY KEY)	DROP MATERIALIZED VIEW LOG ON compat_mlog_t_{run}; DROP TABLE compat_mlog_t_{run} PURGE	23ai	basic materialized view log
+compat_ddl_101	B	ddl	CREATE-MATERIALIZED-VIEW-LOG.bnf	parse_only	accept	syntax	CREATE MATERIALIZED VIEW LOG ON compat_mlog_pk_{run} WITH PRIMARY KEY INCLUDING NEW VALUES	CREATE TABLE compat_mlog_pk_{run} (a NUMBER PRIMARY KEY)	DROP MATERIALIZED VIEW LOG ON compat_mlog_pk_{run}; DROP TABLE compat_mlog_pk_{run} PURGE	23ai	materialized view log primary key
+compat_ddl_102	B	ddl	CREATE-MATERIALIZED-VIEW-LOG.bnf	parse_only	accept	syntax	CREATE MATERIALIZED VIEW LOG ON compat_mlog_rowid_{run} WITH ROWID, SEQUENCE (a) INCLUDING NEW VALUES	CREATE TABLE compat_mlog_rowid_{run} (a NUMBER)	DROP MATERIALIZED VIEW LOG ON compat_mlog_rowid_{run}; DROP TABLE compat_mlog_rowid_{run} PURGE	23ai	materialized view log rowid sequence columns
+compat_ddl_103	B	ddl	CREATE-MATERIALIZED-VIEW-LOG.bnf	parse_only	accept	syntax	CREATE MATERIALIZED VIEW LOG ON compat_mlog_purge_{run} WITH ROWID PURGE IMMEDIATE SYNCHRONOUS	CREATE TABLE compat_mlog_purge_{run} (a NUMBER)	DROP MATERIALIZED VIEW LOG ON compat_mlog_purge_{run}; DROP TABLE compat_mlog_purge_{run} PURGE	23ai	materialized view log purge immediate
+compat_ddl_104	B	ddl	CREATE-MATERIALIZED-VIEW-LOG.bnf	parse_only	reject	syntax	CREATE MATERIALIZED VIEW LOG ON	none	none	23ai	materialized view log missing table
+compat_ddl_105	B	ddl	CREATE-MATERIALIZED-VIEW-LOG.bnf	parse_only	reject	syntax	CREATE MATERIALIZED VIEW LOG compat_bad_mlog_{run}	none	none	23ai	materialized view log missing on
+compat_ddl_106	B	ddl	CREATE-MATERIALIZED-VIEW-LOG.bnf	parse_only	reject	syntax	CREATE MATERIALIZED VIEW LOG ON compat_bad_mlog_{run} WITH (	none	none	23ai	materialized view log malformed column list
+compat_ddl_107	B	ddl	ALTER-MATERIALIZED-VIEW.bnf	parse_only	accept	syntax	ALTER MATERIALIZED VIEW compat_alt_mv_{run} COMPILE	CREATE MATERIALIZED VIEW compat_alt_mv_{run} AS SELECT 1 a FROM dual	DROP MATERIALIZED VIEW compat_alt_mv_{run}	23ai	alter materialized view compile
+compat_ddl_108	B	ddl	ALTER-MATERIALIZED-VIEW.bnf	parse_only	accept	syntax	ALTER MATERIALIZED VIEW compat_alt_mv_cache_{run} CACHE	CREATE MATERIALIZED VIEW compat_alt_mv_cache_{run} AS SELECT 1 a FROM dual	DROP MATERIALIZED VIEW compat_alt_mv_cache_{run}	23ai	alter materialized view cache
+compat_ddl_109	B	ddl	ALTER-MATERIALIZED-VIEW.bnf	parse_only	accept	syntax	ALTER MATERIALIZED VIEW compat_alt_mv_refresh_{run} REFRESH COMPLETE ON DEMAND	CREATE MATERIALIZED VIEW compat_alt_mv_refresh_{run} AS SELECT 1 a FROM dual	DROP MATERIALIZED VIEW compat_alt_mv_refresh_{run}	23ai	alter materialized view refresh complete
+compat_ddl_110	B	ddl	ALTER-MATERIALIZED-VIEW.bnf	parse_only	reject	syntax	ALTER MATERIALIZED VIEW compat_bad_mv_{run}	none	none	23ai	alter materialized view missing action
+compat_ddl_111	B	ddl	ALTER-MATERIALIZED-VIEW.bnf	parse_only	reject	syntax	ALTER MATERIALIZED VIEW compat_bad_mv_{run} REFRESH	none	none	23ai	alter materialized view refresh missing method
+compat_ddl_112	B	ddl	DROP-MATERIALIZED-VIEW.bnf	parse_only	accept	syntax	DROP MATERIALIZED VIEW compat_drop_mv_{run}	CREATE MATERIALIZED VIEW compat_drop_mv_{run} AS SELECT 1 a FROM dual	none	23ai	drop materialized view
+compat_ddl_113	B	ddl	DROP-MATERIALIZED-VIEW-LOG.bnf	parse_only	accept	syntax	DROP MATERIALIZED VIEW LOG ON compat_drop_mlog_t_{run}	CREATE TABLE compat_drop_mlog_t_{run} (a NUMBER PRIMARY KEY); CREATE MATERIALIZED VIEW LOG ON compat_drop_mlog_t_{run}	DROP TABLE compat_drop_mlog_t_{run} PURGE	23ai	drop materialized view log
+compat_ddl_114	B	ddl	DROP-MATERIALIZED-VIEW-LOG.bnf	parse_only	reject	syntax	DROP MATERIALIZED VIEW LOG	none	none	23ai	drop materialized view log missing on
+compat_ddl_115	B	ddl	DROP-MATERIALIZED-VIEW-LOG.bnf	parse_only	reject	syntax	DROP MATERIALIZED VIEW LOG ON	none	none	23ai	drop materialized view log missing table
+compat_ddl_116	B	ddl	DROP-MATERIALIZED-VIEW-LOG.bnf	parse_only	reject	syntax	DROP MATERIALIZED VIEW LOG compat_bad_mlog_{run}	none	none	23ai	drop materialized view log missing on keyword
+compat_ddl_117	B	ddl	COMMENT.bnf	parse_only	accept	syntax	COMMENT ON MATERIALIZED VIEW compat_comment_mv_{run} IS 'compat mv'	CREATE MATERIALIZED VIEW compat_comment_mv_{run} AS SELECT 1 a FROM dual	DROP MATERIALIZED VIEW compat_comment_mv_{run}	23ai	comment on materialized view
+compat_ddl_118	B	ddl	CREATE-CLUSTER.bnf	parse_only	accept	privilege_catalog	CREATE CLUSTER compat_cluster_{run} (id NUMBER)	none	DROP CLUSTER compat_cluster_{run}	23ai	basic cluster
+compat_ddl_119	B	ddl	CREATE-CLUSTER.bnf	parse_only	accept	privilege_catalog	CREATE CLUSTER compat_cluster_hash_{run} (id NUMBER) HASHKEYS 10	none	DROP CLUSTER compat_cluster_hash_{run}	23ai	hash cluster
+compat_ddl_120	B	ddl	CREATE-CLUSTER.bnf	parse_only	accept	privilege_catalog	CREATE CLUSTER compat_cluster_size_{run} (id NUMBER) SIZE 512 CACHE	none	DROP CLUSTER compat_cluster_size_{run}	23ai	cluster size cache
+compat_ddl_121	B	ddl	CREATE-CLUSTER.bnf	parse_only	reject	syntax	CREATE CLUSTER compat_bad_cluster_{run}	none	none	23ai	cluster missing column list
+compat_ddl_122	B	ddl	CREATE-CLUSTER.bnf	parse_only	reject	syntax	CREATE CLUSTER compat_bad_cluster_{run} ()	none	none	23ai	cluster empty column list
+compat_ddl_123	B	ddl	ALTER-CLUSTER.bnf	parse_only	accept	privilege_catalog	ALTER CLUSTER compat_alt_cluster_{run} SIZE 1024	CREATE CLUSTER compat_alt_cluster_{run} (id NUMBER)	DROP CLUSTER compat_alt_cluster_{run}	23ai	alter cluster size
+compat_ddl_124	B	ddl	ALTER-CLUSTER.bnf	parse_only	reject	syntax	ALTER CLUSTER compat_bad_cluster_{run}	none	none	23ai	alter cluster missing action
+compat_ddl_125	B	ddl	TRUNCATE-CLUSTER.bnf	parse_only	accept	privilege_catalog	TRUNCATE CLUSTER compat_trunc_cluster_{run}	CREATE CLUSTER compat_trunc_cluster_{run} (id NUMBER)	DROP CLUSTER compat_trunc_cluster_{run}	23ai	truncate cluster
+compat_ddl_126	B	ddl	TRUNCATE-CLUSTER.bnf	parse_only	accept	privilege_catalog	TRUNCATE CLUSTER compat_trunc_cluster2_{run} REUSE STORAGE	CREATE CLUSTER compat_trunc_cluster2_{run} (id NUMBER)	DROP CLUSTER compat_trunc_cluster2_{run}	23ai	truncate cluster reuse storage
+compat_ddl_127	B	ddl	DROP-CLUSTER.bnf	parse_only	accept	privilege_catalog	DROP CLUSTER compat_drop_cluster_{run}	CREATE CLUSTER compat_drop_cluster_{run} (id NUMBER)	none	23ai	drop cluster
+compat_ddl_128	B	ddl	DROP-CLUSTER.bnf	parse_only	reject	syntax	DROP CLUSTER	none	none	23ai	drop cluster missing name
+compat_ddl_129	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_pk_{run} (id NUMBER PRIMARY KEY)	none	DROP TABLE compat_pk_{run} PURGE	23ai	inline primary key
+compat_ddl_130	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_nn_uq_{run} (email VARCHAR2(100) NOT NULL UNIQUE)	none	DROP TABLE compat_nn_uq_{run} PURGE	23ai	inline not null unique
+compat_ddl_131	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_def_null_{run} (status VARCHAR2(10) DEFAULT ON NULL 'ACTIVE')	none	DROP TABLE compat_def_null_{run} PURGE	23ai	default on null
+compat_ddl_132	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_tbl_chk_{run} (a NUMBER, CONSTRAINT compat_tbl_chk_{run} CHECK (a >= 0))	none	DROP TABLE compat_tbl_chk_{run} PURGE	23ai	table check constraint
+compat_ddl_133	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_fk_child_{run} (pid NUMBER REFERENCES compat_fk_parent_{run}(id))	CREATE TABLE compat_fk_parent_{run} (id NUMBER PRIMARY KEY)	DROP TABLE compat_fk_child_{run} PURGE; DROP TABLE compat_fk_parent_{run} PURGE	23ai	inline foreign key
+compat_ddl_134	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_ctas_where_{run} AS SELECT employee_id id FROM employees WHERE 1 = 0	none	DROP TABLE compat_ctas_where_{run} PURGE	23ai	ctas with where
+compat_ddl_135	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE GLOBAL TEMPORARY TABLE compat_gtt_del_{run} (id NUMBER) ON COMMIT DELETE ROWS	none	DROP TABLE compat_gtt_del_{run} PURGE	23ai	global temporary delete rows
+compat_ddl_136	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE GLOBAL TEMPORARY TABLE compat_gtt_pres_{run} (id NUMBER) ON COMMIT PRESERVE ROWS	none	DROP TABLE compat_gtt_pres_{run} PURGE	23ai	global temporary preserve rows
+compat_ddl_137	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_ident_{run} (id NUMBER GENERATED ALWAYS AS IDENTITY, name VARCHAR2(30))	none	DROP TABLE compat_ident_{run} PURGE	23ai	identity column
+compat_ddl_138	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_virtual_{run} (price NUMBER, qty NUMBER, total NUMBER GENERATED ALWAYS AS (price * qty) VIRTUAL)	none	DROP TABLE compat_virtual_{run} PURGE	23ai	virtual column
+compat_ddl_139	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_invis_{run} (id NUMBER, secret VARCHAR2(30) INVISIBLE)	none	DROP TABLE compat_invis_{run} PURGE	23ai	invisible column
+compat_ddl_140	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_iot_{run} (id NUMBER PRIMARY KEY, name VARCHAR2(30)) ORGANIZATION INDEX	none	DROP TABLE compat_iot_{run} PURGE	23ai	index organized table
+compat_ddl_141	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_segment_{run} (id NUMBER) SEGMENT CREATION IMMEDIATE	none	DROP TABLE compat_segment_{run} PURGE	23ai	segment creation immediate
+compat_ddl_142	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_compress_{run} (id NUMBER) COMPRESS	none	DROP TABLE compat_compress_{run} PURGE	23ai	table compress
+compat_ddl_143	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_rowdep_{run} (id NUMBER) ROWDEPENDENCIES	none	DROP TABLE compat_rowdep_{run} PURGE	23ai	rowdependencies
+compat_ddl_144	B	ddl	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_rowmove_{run} (id NUMBER) ENABLE ROW MOVEMENT	none	DROP TABLE compat_rowmove_{run} PURGE	23ai	enable row movement
+compat_ddl_145	B	ddl	ALTER-TABLE.bnf	parse_only	accept	syntax	ALTER TABLE compat_alt_uq_{run} ADD CONSTRAINT compat_alt_uq_{run} UNIQUE (email)	CREATE TABLE compat_alt_uq_{run} (email VARCHAR2(100))	DROP TABLE compat_alt_uq_{run} PURGE	23ai	alter add unique constraint
+compat_ddl_146	B	ddl	ALTER-TABLE.bnf	parse_only	accept	syntax	ALTER TABLE compat_alt_rw_{run} READ WRITE	CREATE TABLE compat_alt_rw_{run} (a NUMBER)	DROP TABLE compat_alt_rw_{run} PURGE	23ai	alter read write
+compat_ddl_147	B	ddl	ALTER-TABLE.bnf	parse_only	accept	syntax	ALTER TABLE compat_alt_rencon_{run} RENAME CONSTRAINT compat_old_con_{run} TO compat_new_con_{run}	CREATE TABLE compat_alt_rencon_{run} (a NUMBER, CONSTRAINT compat_old_con_{run} CHECK (a > 0))	DROP TABLE compat_alt_rencon_{run} PURGE	23ai	alter rename constraint
+compat_ddl_148	B	ddl	ALTER-TABLE.bnf	parse_only	accept	syntax	ALTER TABLE compat_alt_droppk_{run} DROP PRIMARY KEY	CREATE TABLE compat_alt_droppk_{run} (id NUMBER PRIMARY KEY)	DROP TABLE compat_alt_droppk_{run} PURGE	23ai	alter drop primary key
+compat_ddl_149	B	ddl	ALTER-SEQUENCE.bnf	parse_only	accept	syntax	ALTER SEQUENCE compat_alt_seq_inc_{run} INCREMENT BY 2	CREATE SEQUENCE compat_alt_seq_inc_{run}	DROP SEQUENCE compat_alt_seq_inc_{run}	23ai	alter sequence increment
+compat_ddl_150	B	ddl	ALTER-SEQUENCE.bnf	parse_only	accept	syntax	ALTER SEQUENCE compat_alt_seq_max_{run} MAXVALUE 999999	CREATE SEQUENCE compat_alt_seq_max_{run}	DROP SEQUENCE compat_alt_seq_max_{run}	23ai	alter sequence maxvalue
+compat_ddl_151	B	ddl	ALTER-SEQUENCE.bnf	parse_only	accept	syntax	ALTER SEQUENCE compat_alt_seq_cache_{run} CACHE 30	CREATE SEQUENCE compat_alt_seq_cache_{run}	DROP SEQUENCE compat_alt_seq_cache_{run}	23ai	alter sequence cache
+compat_ddl_152	B	ddl	ALTER-SEQUENCE.bnf	parse_only	accept	syntax	ALTER SEQUENCE compat_alt_seq_cycle_{run} MAXVALUE 999999 CYCLE	CREATE SEQUENCE compat_alt_seq_cycle_{run}	DROP SEQUENCE compat_alt_seq_cycle_{run}	23ai	alter sequence cycle
+compat_ddl_153	B	ddl	ALTER-VIEW.bnf	parse_only	accept	syntax	ALTER VIEW compat_alt_view_{run} COMPILE	CREATE VIEW compat_alt_view_{run} AS SELECT 1 a FROM dual	DROP VIEW compat_alt_view_{run}	23ai	alter view compile
+compat_ddl_154	B	ddl	ALTER-VIEW.bnf	parse_only	accept	semantic_catalog	ALTER VIEW compat_alt_view_ro_{run} READ ONLY	CREATE VIEW compat_alt_view_ro_{run} AS SELECT 1 a FROM dual	DROP VIEW compat_alt_view_ro_{run}	23ai	alter view read only requires editioning view in Oracle execution
+compat_ddl_155	B	ddl	CREATE-DATABASE-LINK.bnf	parse_only	accept	privilege_catalog	CREATE DATABASE LINK compat_dblink_{run} CONNECT TO remote_user IDENTIFIED BY remote_pass USING 'remote_tns'	none	none	23ai	create database link
+compat_ddl_156	B	ddl	DROP-VIEW.bnf	parse_only	accept	syntax	DROP VIEW IF EXISTS compat_missing_view_{run}	none	none	23ai	drop missing view if exists
+compat_ddl_157	B	ddl	CREATE-SYNONYM.bnf	parse_only	accept	syntax	CREATE OR REPLACE SYNONYM compat_syn_or_{run} FOR employees	none	DROP SYNONYM compat_syn_or_{run}	23ai	create or replace synonym for fixture
+compat_ddl_158	B	ddl	DROP-TABLE.bnf	parse_only	accept	syntax	DROP TABLE IF EXISTS compat_never_there_{run} PURGE	none	none	23ai	drop missing table if exists
+compat_ddl_159	B	ddl	CREATE-INDEX.bnf	parse_only	accept	syntax	CREATE UNIQUE INDEX compat_uidx_{run} ON compat_idx_uq_{run}(email)	CREATE TABLE compat_idx_uq_{run} (email VARCHAR2(100))	DROP INDEX compat_uidx_{run}; DROP TABLE compat_idx_uq_{run} PURGE	23ai	unique index
+compat_ddl_160	B	ddl	CREATE-INDEX.bnf	parse_only	accept	syntax	CREATE INDEX compat_desc_idx_{run} ON employees(last_name DESC)	none	DROP INDEX compat_desc_idx_{run}	23ai	descending index column
+compat_ddl_161	B	ddl	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_bad_default_{run} (a NUMBER DEFAULT)	none	none	23ai	column default missing expression
+compat_ddl_162	B	ddl	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_bad_comma_{run} (a NUMBER,, b NUMBER)	none	none	23ai	double comma in column list
+compat_ddl_163	B	ddl	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_bad_check_{run} (a NUMBER CHECK)	none	none	23ai	check missing condition
+compat_ddl_164	B	ddl	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_bad_ref_{run} (a NUMBER REFERENCES)	none	none	23ai	references missing target
+compat_ddl_165	B	ddl	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_bad_pk_{run} (a NUMBER, CONSTRAINT compat_bad_pk_{run} PRIMARY KEY)	none	none	23ai	primary key missing columns
+compat_ddl_166	B	ddl	ALTER-TABLE.bnf	parse_only	reject	syntax	ALTER TABLE t ADD CONSTRAINT	none	none	23ai	alter add constraint missing body
+compat_ddl_167	B	ddl	ALTER-TABLE.bnf	parse_only	reject	syntax	ALTER TABLE t DROP COLUMN	none	none	23ai	alter drop column missing name
+compat_ddl_168	B	ddl	ALTER-TABLE.bnf	parse_only	reject	syntax	ALTER TABLE t MODIFY	none	none	23ai	alter modify missing definition
+compat_ddl_169	B	ddl	ALTER-SEQUENCE.bnf	parse_only	reject	syntax	ALTER SEQUENCE	none	none	23ai	alter sequence missing name
+compat_ddl_170	B	ddl	ALTER-SEQUENCE.bnf	parse_only	reject	syntax	ALTER SEQUENCE compat_bad_seq_{run} CACHE	none	none	23ai	alter sequence cache missing value
+compat_ddl_171	B	ddl	ALTER-VIEW.bnf	parse_only	reject	syntax	ALTER VIEW	none	none	23ai	alter view missing name
+compat_ddl_172	B	ddl	ALTER-VIEW.bnf	parse_only	reject	syntax	ALTER VIEW compat_bad_view_{run} COMPILE EXTRA	none	none	23ai	alter view trailing junk
+compat_ddl_173	B	ddl	CREATE-DATABASE-LINK.bnf	parse_only	reject	syntax	CREATE DATABASE LINK	none	none	23ai	create database link missing name
+compat_ddl_174	B	ddl	CREATE-DATABASE-LINK.bnf	parse_only	reject	syntax	CREATE DATABASE LINK compat_bad_link_{run} CONNECT TO	none	none	23ai	create database link missing credentials
+compat_ddl_175	B	ddl	DROP-DATABASE-LINK.bnf	parse_only	reject	syntax	DROP DATABASE LINK	none	none	23ai	drop database link missing name
+compat_ddl_176	B	ddl	CREATE-VIEW.bnf	parse_only	reject	syntax	CREATE VIEW compat_bad_select_v_{run} AS SELECT	none	none	23ai	create view select missing target
+compat_ddl_177	B	ddl	CREATE-SYNONYM.bnf	parse_only	reject	syntax	CREATE SYNONYM compat_bad_syn2_{run} FOR	none	none	23ai	create synonym for missing target
+compat_ddl_178	B	ddl	COMMENT.bnf	parse_only	reject	syntax	COMMENT ON MATERIALIZED VIEW compat_bad_mv_{run} IS	none	none	23ai	comment on materialized view missing text
+compat_ddl_179	B	ddl	CREATE-INDEX.bnf	parse_only	reject	syntax	CREATE INDEX compat_bad_idx2_{run} ON	none	none	23ai	create index missing table
+compat_ddl_180	B	ddl	CREATE-INDEX.bnf	parse_only	reject	syntax	CREATE INDEX compat_bad_idx3_{run} ON t(UPPER(	none	none	23ai	create function index unclosed expression
+compat_plsql_001	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	CREATE PROCEDURE compat_p_{run} IS BEGIN NULL; END;	none	DROP PROCEDURE compat_p_{run}	23ai	create procedure
+compat_plsql_002	C	plsql	CREATE-FUNCTION.bnf	parse_only	accept	syntax	CREATE FUNCTION compat_f_{run} RETURN NUMBER IS BEGIN RETURN 1; END;	none	DROP FUNCTION compat_f_{run}	23ai	create function
+compat_plsql_003	C	plsql	CREATE-PACKAGE.bnf	parse_only	accept	syntax	CREATE PACKAGE compat_pkg_{run} IS PROCEDURE p; END;	none	DROP PACKAGE compat_pkg_{run}	23ai	create package
+compat_plsql_004	C	plsql	CREATE-TRIGGER.bnf	parse_only	accept	syntax	CREATE TRIGGER compat_tr_{run} BEFORE INSERT ON t BEGIN NULL; END;	none	DROP TRIGGER compat_tr_{run}	23ai	create trigger
+compat_plsql_005	C	plsql	CREATE-TYPE.bnf	parse_only	accept	syntax	CREATE TYPE compat_obj_{run} AS OBJECT (a NUMBER)	none	DROP TYPE compat_obj_{run}	23ai	create object type
+compat_plsql_006	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	CREATE PROCEDURE compat_bad_p_{run} IS BEGIN NULL;	none	none	23ai	procedure missing end
+compat_plsql_007	C	plsql	CREATE-FUNCTION.bnf	parse_only	reject	syntax	CREATE FUNCTION compat_bad_f_{run} RETURN NUMBER IS BEGIN RETURN;	none	none	23ai	function missing end
+compat_plsql_008	C	plsql	CREATE-PACKAGE.bnf	parse_only	reject	syntax	CREATE PACKAGE compat_bad_pkg_{run} IS PROCEDURE p	none	none	23ai	package missing end
+compat_plsql_009	C	plsql	CREATE-TRIGGER.bnf	parse_only	reject	syntax	CREATE TRIGGER compat_bad_tr_{run} BEFORE INSERT ON t BEGIN	none	none	23ai	trigger missing body end
+compat_plsql_010	C	plsql	CREATE-TYPE.bnf	parse_only	reject	syntax	CREATE TYPE compat_bad_obj_{run} AS OBJECT	none	none	23ai	type missing body
+compat_block_001	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN NULL; END;	none	none	23ai	anonymous block
+compat_block_002	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	DECLARE x NUMBER; BEGIN x := 1; END;	none	none	23ai	declare block
+compat_block_003	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN IF 1 = 1 THEN NULL; END IF; END;	none	none	23ai	if block
+compat_block_004	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN LOOP EXIT; END LOOP; END;	none	none	23ai	loop block
+compat_block_005	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	BEGIN NULL;	none	none	23ai	block missing end
+compat_block_006	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	DECLARE x NUMBER;	none	none	23ai	declare missing begin
+compat_plsql_011	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	CREATE OR REPLACE PROCEDURE compat_p_or_{run} IS BEGIN NULL; END;	none	DROP PROCEDURE compat_p_or_{run}	23ai	create or replace procedure
+compat_plsql_012	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	CREATE PROCEDURE compat_p_param_{run} (p_id IN NUMBER) IS BEGIN NULL; END;	none	DROP PROCEDURE compat_p_param_{run}	23ai	procedure input parameter
+compat_plsql_013	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	CREATE PROCEDURE compat_p_out_{run} (p_id IN OUT NUMBER, p_name OUT VARCHAR2) IS BEGIN p_id := NVL(p_id, 0); END;	none	DROP PROCEDURE compat_p_out_{run}	23ai	procedure in out parameters
+compat_plsql_014	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	CREATE PROCEDURE compat_p_decl_{run} IS v NUMBER := 1; BEGIN v := v + 1; END;	none	DROP PROCEDURE compat_p_decl_{run}	23ai	procedure local declaration
+compat_plsql_015	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	CREATE PROCEDURE compat_p_if_{run} IS BEGIN IF 1 = 1 THEN NULL; ELSE NULL; END IF; END;	none	DROP PROCEDURE compat_p_if_{run}	23ai	procedure if else
+compat_plsql_016	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	CREATE PROCEDURE compat_p_loop_{run} IS v NUMBER := 0; BEGIN LOOP v := v + 1; EXIT WHEN v > 1; END LOOP; END;	none	DROP PROCEDURE compat_p_loop_{run}	23ai	procedure loop exit when
+compat_plsql_017	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	CREATE PROCEDURE compat_p_exc_{run} IS BEGIN NULL; EXCEPTION WHEN OTHERS THEN NULL; END;	none	DROP PROCEDURE compat_p_exc_{run}	23ai	procedure exception handler
+compat_plsql_018	C	plsql	CREATE-FUNCTION.bnf	parse_only	accept	syntax	CREATE FUNCTION compat_f_param_{run} (p_id NUMBER) RETURN NUMBER IS BEGIN RETURN p_id + 1; END;	none	DROP FUNCTION compat_f_param_{run}	23ai	function parameter
+compat_plsql_019	C	plsql	CREATE-FUNCTION.bnf	parse_only	accept	syntax	CREATE FUNCTION compat_f_det_{run} RETURN NUMBER DETERMINISTIC IS BEGIN RETURN 1; END;	none	DROP FUNCTION compat_f_det_{run}	23ai	deterministic function
+compat_plsql_020	C	plsql	CREATE-FUNCTION.bnf	parse_only	accept	syntax	CREATE FUNCTION compat_f_auth_{run} RETURN NUMBER AUTHID CURRENT_USER IS BEGIN RETURN 1; END;	none	DROP FUNCTION compat_f_auth_{run}	23ai	function authid current user
+compat_plsql_021	C	plsql	CREATE-FUNCTION.bnf	parse_only	accept	syntax	CREATE FUNCTION compat_f_cache_{run} RETURN NUMBER RESULT_CACHE IS BEGIN RETURN 1; END;	none	DROP FUNCTION compat_f_cache_{run}	23ai	function result cache
+compat_plsql_022	C	plsql	CREATE-PACKAGE.bnf	parse_only	accept	syntax	CREATE PACKAGE compat_pkg_auth_{run} AUTHID CURRENT_USER IS PROCEDURE p; FUNCTION f RETURN NUMBER; END;	none	DROP PACKAGE compat_pkg_auth_{run}	23ai	package authid with declarations
+compat_plsql_023	C	plsql	CREATE-PACKAGE.bnf	parse_only	accept	syntax	CREATE PACKAGE compat_pkg_vars_{run} IS g_value CONSTANT NUMBER := 1; TYPE t_tab IS TABLE OF NUMBER; END;	none	DROP PACKAGE compat_pkg_vars_{run}	23ai	package constants and type
+compat_plsql_024	C	plsql	CREATE-TRIGGER.bnf	parse_only	accept	syntax	CREATE TRIGGER compat_tr_after_{run} AFTER UPDATE ON t BEGIN NULL; END;	none	DROP TRIGGER compat_tr_after_{run}	23ai	after update trigger
+compat_plsql_025	C	plsql	CREATE-TRIGGER.bnf	parse_only	accept	syntax	CREATE TRIGGER compat_tr_row_{run} BEFORE INSERT ON t FOR EACH ROW BEGIN :NEW.a := NVL(:NEW.a, 0); END;	none	DROP TRIGGER compat_tr_row_{run}	23ai	row trigger with new bind
+compat_plsql_026	C	plsql	CREATE-TRIGGER.bnf	parse_only	accept	syntax	CREATE TRIGGER compat_tr_when_{run} BEFORE UPDATE OF a ON t FOR EACH ROW WHEN (NEW.a > 0) BEGIN NULL; END;	none	DROP TRIGGER compat_tr_when_{run}	23ai	trigger update of when
+compat_plsql_027	C	plsql	CREATE-TRIGGER.bnf	parse_only	accept	syntax	CREATE TRIGGER compat_tr_schema_{run} AFTER CREATE ON SCHEMA BEGIN NULL; END;	none	DROP TRIGGER compat_tr_schema_{run}	23ai	schema ddl trigger
+compat_plsql_028	C	plsql	CREATE-TYPE.bnf	parse_only	accept	syntax	CREATE TYPE compat_varray_{run} AS VARRAY(5) OF NUMBER	none	DROP TYPE compat_varray_{run}	23ai	create varray type
+compat_plsql_029	C	plsql	CREATE-TYPE.bnf	parse_only	accept	syntax	CREATE TYPE compat_nt_{run} AS TABLE OF NUMBER	none	DROP TYPE compat_nt_{run}	23ai	create nested table type
+compat_plsql_030	C	plsql	CREATE-TYPE.bnf	parse_only	accept	syntax	CREATE TYPE compat_obj_m_{run} AS OBJECT (a NUMBER, b VARCHAR2(10))	none	DROP TYPE compat_obj_m_{run}	23ai	object type multiple attributes
+compat_plsql_031	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	CREATE PROCEDURE IS BEGIN NULL; END;	none	none	23ai	procedure missing name
+compat_plsql_032	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	CREATE PROCEDURE compat_bad_p_param_{run} (p_id) IS BEGIN NULL; END;	none	none	23ai	procedure parameter missing type
+compat_plsql_033	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	CREATE PROCEDURE compat_bad_p_empty_{run} IS	none	none	23ai	procedure missing block
+compat_plsql_034	C	plsql	CREATE-FUNCTION.bnf	parse_only	reject	syntax	CREATE FUNCTION compat_bad_f_ret_{run} IS BEGIN RETURN 1; END;	none	none	23ai	function missing return clause
+compat_plsql_035	C	plsql	CREATE-FUNCTION.bnf	parse_only	reject	syntax	CREATE FUNCTION compat_bad_f_type_{run} RETURN IS BEGIN RETURN 1; END;	none	none	23ai	function return missing type
+compat_plsql_036	C	plsql	CREATE-PACKAGE.bnf	parse_only	reject	syntax	CREATE PACKAGE compat_bad_pkg2_{run} END;	none	none	23ai	package missing is
+compat_plsql_037	C	plsql	CREATE-PACKAGE.bnf	parse_only	reject	syntax	CREATE PACKAGE compat_bad_pkg3_{run} IS FUNCTION f RETURN; END;	none	none	23ai	package function return missing type
+compat_plsql_038	C	plsql	CREATE-TRIGGER.bnf	parse_only	reject	syntax	CREATE TRIGGER compat_bad_tr2_{run} BEFORE INSERT BEGIN NULL; END;	none	none	23ai	trigger missing on target
+compat_plsql_039	C	plsql	CREATE-TRIGGER.bnf	parse_only	reject	syntax	CREATE TRIGGER compat_bad_tr3_{run} BEFORE ON t BEGIN NULL; END;	none	none	23ai	trigger missing event
+compat_plsql_040	C	plsql	CREATE-TYPE.bnf	parse_only	reject	syntax	CREATE TYPE compat_bad_type2_{run} AS VARRAY OF NUMBER	none	none	23ai	varray missing size
+compat_plsql_041	C	plsql	CREATE-TYPE.bnf	parse_only	reject	syntax	CREATE TYPE compat_bad_type3_{run} AS TABLE OF	none	none	23ai	nested table missing element type
+compat_plsql_042	C	plsql	CREATE-TYPE.bnf	parse_only	reject	syntax	CREATE TYPE compat_bad_type4_{run} AS OBJECT (a)	none	none	23ai	object attribute missing type
+compat_block_007	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	DECLARE x NUMBER := 1; BEGIN x := x + 1; END;	none	none	23ai	block assignment
+compat_block_008	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN IF 1 = 0 THEN NULL; ELSIF 1 = 1 THEN NULL; ELSE NULL; END IF; END;	none	none	23ai	block if elsif else
+compat_block_009	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	DECLARE x NUMBER := 0; BEGIN WHILE x < 2 LOOP x := x + 1; END LOOP; END;	none	none	23ai	while loop
+compat_block_010	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN FOR i IN 1..3 LOOP NULL; END LOOP; END;	none	none	23ai	numeric for loop
+compat_block_011	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN FOR i IN REVERSE 1..3 LOOP NULL; END LOOP; END;	none	none	23ai	reverse numeric for loop
+compat_block_012	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN BEGIN NULL; END; END;	none	none	23ai	nested block
+compat_block_013	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN NULL; EXCEPTION WHEN OTHERS THEN NULL; END;	none	none	23ai	block exception handler
+compat_block_014	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN EXECUTE IMMEDIATE 'CREATE TABLE compat_dyn_{run} (a NUMBER)'; END;	none	none	23ai	execute immediate statement
+compat_block_015	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	DECLARE CURSOR c IS SELECT 1 a FROM dual; v NUMBER; BEGIN OPEN c; FETCH c INTO v; CLOSE c; END;	none	none	23ai	cursor open fetch close
+compat_block_016	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN CASE WHEN 1 = 1 THEN NULL; ELSE NULL; END CASE; END;	none	none	23ai	searched case statement
+compat_block_017	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	DECLARE x NUMBER := 1; BEGIN CASE x WHEN 1 THEN NULL; ELSE NULL; END CASE; END;	none	none	23ai	simple case statement
+compat_block_018	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN LOOP CONTINUE WHEN 1 = 0; EXIT WHEN 1 = 1; END LOOP; END;	none	none	23ai	continue and exit when
+compat_block_019	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN NULL; NULL; END;	none	none	23ai	multiple statements in block
+compat_block_020	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	DECLARE TYPE t_rec IS RECORD (a NUMBER, b VARCHAR2(10)); r t_rec; BEGIN r.a := 1; END;	none	none	23ai	record type declaration
+compat_block_021	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	DECLARE TYPE t_tab IS TABLE OF NUMBER INDEX BY PLS_INTEGER; x t_tab; BEGIN x(1) := 1; END;	none	none	23ai	associative array type
+compat_block_022	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	DECLARE PRAGMA AUTONOMOUS_TRANSACTION; BEGIN NULL; END;	none	none	23ai	autonomous transaction pragma
+compat_block_023	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	DECLARE e EXCEPTION; PRAGMA EXCEPTION_INIT(e, -20001); BEGIN RAISE e; EXCEPTION WHEN e THEN NULL; END;	none	none	23ai	exception init pragma
+compat_block_024	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN INSERT INTO t(a) VALUES (1); UPDATE t SET a = 2 WHERE a = 1; DELETE FROM t WHERE a = 2; END;	none	none	23ai	dml in block
+compat_block_025	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN MERGE INTO t USING s ON (t.id = s.id) WHEN MATCHED THEN UPDATE SET t.x = s.x; END;	none	none	23ai	merge in block
+compat_block_026	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	BEGIN IF 1 = 1 NULL; END IF; END;	none	none	23ai	if missing then
+compat_block_027	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	BEGIN WHILE 1 = 1 NULL; END LOOP; END;	none	none	23ai	while missing loop
+compat_block_028	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	BEGIN FOR i IN 1..3 NULL; END LOOP; END;	none	none	23ai	for missing loop
+compat_block_029	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	BEGIN CASE WHEN 1 = 1 NULL; END CASE; END;	none	none	23ai	case missing then
+compat_block_030	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	BEGIN EXECUTE IMMEDIATE; END;	none	none	23ai	execute immediate missing expression
+compat_block_031	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	BEGIN OPEN; END;	none	none	23ai	open missing cursor
+compat_block_032	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	BEGIN FETCH c; END;	none	none	23ai	fetch missing into
+compat_block_033	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	BEGIN CLOSE; END;	none	none	23ai	close missing cursor
+compat_block_034	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	DECLARE TYPE t_bad IS TABLE OF; BEGIN NULL; END;	none	none	23ai	table type missing element
+compat_block_035	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	BEGIN LOOP CONTINUE WHEN; END LOOP; END;	none	none	23ai	continue when missing condition
+compat_block_036	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	DECLARE v NUMBER; BEGIN SELECT 1 INTO v FROM dual; END;	none	none	23ai	select into in block
+compat_block_037	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN RAISE NO_DATA_FOUND; EXCEPTION WHEN NO_DATA_FOUND THEN NULL; END;	none	none	23ai	raise named exception and handler
+compat_block_038	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	BEGIN RAISE ; EXCEPTION WHEN THEN NULL; END;	none	none	23ai	exception handler missing name
+compat_keyword_001	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE SELECT (a NUMBER)	none	none	23ai	reserved table name
+compat_keyword_002	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE "SELECT" (a NUMBER)	none	DROP TABLE "SELECT" PURGE	23ai	quoted reserved table name
+compat_keyword_003	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_kw_{run} (SELECT NUMBER)	none	none	23ai	reserved column name
+compat_keyword_004	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_kw_{run} ("SELECT" NUMBER)	none	DROP TABLE compat_kw_{run} PURGE	23ai	quoted reserved column name
+compat_keyword_005	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT 1 value FROM dual	none	none	23ai	nonquoted alias
+compat_keyword_006	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT 1 "FROM" FROM dual	none	none	23ai	quoted alias
+compat_keyword_007	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE FROM (a NUMBER)	none	none	23ai	reserved FROM table name
+compat_keyword_008	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE WHERE (a NUMBER)	none	none	23ai	reserved WHERE table name
+compat_keyword_009	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE DATE (a NUMBER)	none	none	23ai	reserved DATE table name
+compat_keyword_010	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE NUMBER (a NUMBER)	none	none	23ai	reserved NUMBER table name
+compat_keyword_011	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE ROWID (a NUMBER)	none	none	23ai	reserved ROWID table name
+compat_keyword_012	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE USER (a NUMBER)	none	none	23ai	reserved USER table name
+compat_keyword_013	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE TABLE (a NUMBER)	none	none	23ai	reserved TABLE table name
+compat_keyword_014	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE GROUP (a NUMBER)	none	none	23ai	reserved GROUP table name
+compat_keyword_015	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE "FROM" (a NUMBER)	none	DROP TABLE "FROM" PURGE	23ai	quoted FROM table name
+compat_keyword_016	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE "WHERE" (a NUMBER)	none	DROP TABLE "WHERE" PURGE	23ai	quoted WHERE table name
+compat_keyword_017	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE "DATE" (a NUMBER)	none	DROP TABLE "DATE" PURGE	23ai	quoted DATE table name
+compat_keyword_018	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE "NUMBER" (a NUMBER)	none	DROP TABLE "NUMBER" PURGE	23ai	quoted NUMBER table name
+compat_keyword_019	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE "ROWID" (a NUMBER)	none	DROP TABLE "ROWID" PURGE	23ai	quoted ROWID table name
+compat_keyword_020	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE "USER" (a NUMBER)	none	DROP TABLE "USER" PURGE	23ai	quoted USER table name
+compat_keyword_021	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE "TABLE" (a NUMBER)	none	DROP TABLE "TABLE" PURGE	23ai	quoted TABLE table name
+compat_keyword_022	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE "GROUP" (a NUMBER)	none	DROP TABLE "GROUP" PURGE	23ai	quoted GROUP table name
+compat_keyword_023	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_kw_from_{run} (FROM NUMBER)	none	none	23ai	reserved FROM column name
+compat_keyword_024	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_kw_where_{run} (WHERE NUMBER)	none	none	23ai	reserved WHERE column name
+compat_keyword_025	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_kw_date_{run} (DATE NUMBER)	none	none	23ai	reserved DATE column name
+compat_keyword_026	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_kw_number_{run} (NUMBER NUMBER)	none	none	23ai	reserved NUMBER column name
+compat_keyword_027	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_kw_rowid_{run} (ROWID NUMBER)	none	none	23ai	reserved ROWID column name
+compat_keyword_028	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_kw_user_{run} (USER NUMBER)	none	none	23ai	reserved USER column name
+compat_keyword_029	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_kw_group_{run} (GROUP NUMBER)	none	none	23ai	reserved GROUP column name
+compat_keyword_030	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_kw_order_{run} (ORDER NUMBER)	none	none	23ai	reserved ORDER column name
+compat_keyword_031	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_kw_qfrom_{run} ("FROM" NUMBER)	none	DROP TABLE compat_kw_qfrom_{run} PURGE	23ai	quoted FROM column name
+compat_keyword_032	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_kw_qwhere_{run} ("WHERE" NUMBER)	none	DROP TABLE compat_kw_qwhere_{run} PURGE	23ai	quoted WHERE column name
+compat_keyword_033	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_kw_qdate_{run} ("DATE" NUMBER)	none	DROP TABLE compat_kw_qdate_{run} PURGE	23ai	quoted DATE column name
+compat_keyword_034	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_kw_qnumber_{run} ("NUMBER" NUMBER)	none	DROP TABLE compat_kw_qnumber_{run} PURGE	23ai	quoted NUMBER column name
+compat_keyword_035	D	keyword	CREATE-TABLE.bnf	parse_only	reject	syntax	CREATE TABLE compat_kw_qrowid_{run} ("ROWID" NUMBER)	none	none	23ai	uppercase quoted ROWID column name remains reserved
+compat_keyword_036	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_kw_quser_{run} ("USER" NUMBER)	none	DROP TABLE compat_kw_quser_{run} PURGE	23ai	quoted USER column name
+compat_keyword_037	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_kw_qgroup_{run} ("GROUP" NUMBER)	none	DROP TABLE compat_kw_qgroup_{run} PURGE	23ai	quoted GROUP column name
+compat_keyword_038	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_kw_qorder_{run} ("ORDER" NUMBER)	none	DROP TABLE compat_kw_qorder_{run} PURGE	23ai	quoted ORDER column name
+compat_keyword_039	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_ctx_generated_{run} (GENERATED NUMBER)	none	DROP TABLE compat_ctx_generated_{run} PURGE	23ai	context GENERATED column name
+compat_keyword_040	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_ctx_identity_{run} (IDENTITY NUMBER)	none	DROP TABLE compat_ctx_identity_{run} PURGE	23ai	context IDENTITY column name
+compat_keyword_041	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_ctx_json_{run} (JSON NUMBER)	none	DROP TABLE compat_ctx_json_{run} PURGE	23ai	context JSON column name
+compat_keyword_042	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_ctx_lateral_{run} (LATERAL NUMBER)	none	DROP TABLE compat_ctx_lateral_{run} PURGE	23ai	context LATERAL column name
+compat_keyword_043	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_ctx_xmltable_{run} (XMLTABLE NUMBER)	none	DROP TABLE compat_ctx_xmltable_{run} PURGE	23ai	context XMLTABLE column name
+compat_keyword_044	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_ctx_versions_{run} (VERSIONS NUMBER)	none	DROP TABLE compat_ctx_versions_{run} PURGE	23ai	context VERSIONS column name
+compat_keyword_045	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_ctx_measures_{run} (MEASURES NUMBER)	none	DROP TABLE compat_ctx_measures_{run} PURGE	23ai	context MEASURES column name
+compat_keyword_046	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE compat_ctx_path_{run} (PATH NUMBER)	none	DROP TABLE compat_ctx_path_{run} PURGE	23ai	context PATH column name
+compat_keyword_047	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE GENERATED (a NUMBER)	none	DROP TABLE GENERATED PURGE	23ai	context GENERATED table name
+compat_keyword_048	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE IDENTITY (a NUMBER)	none	DROP TABLE IDENTITY PURGE	23ai	context IDENTITY table name
+compat_keyword_049	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE JSON (a NUMBER)	none	DROP TABLE JSON PURGE	23ai	context JSON table name
+compat_keyword_050	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE LATERAL (a NUMBER)	none	DROP TABLE LATERAL PURGE	23ai	context LATERAL table name
+compat_keyword_051	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE XMLTABLE (a NUMBER)	none	DROP TABLE XMLTABLE PURGE	23ai	context XMLTABLE table name
+compat_keyword_052	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE VERSIONS (a NUMBER)	none	DROP TABLE VERSIONS PURGE	23ai	context VERSIONS table name
+compat_keyword_053	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE MEASURES (a NUMBER)	none	DROP TABLE MEASURES PURGE	23ai	context MEASURES table name
+compat_keyword_054	D	keyword	CREATE-TABLE.bnf	parse_only	accept	syntax	CREATE TABLE PATH (a NUMBER)	none	DROP TABLE PATH PURGE	23ai	context PATH table name
+compat_keyword_055	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT ROWNUM FROM dual	none	none	23ai	ROWNUM pseudo-column expression
+compat_keyword_056	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT SYSDATE FROM dual	none	none	23ai	SYSDATE pseudo-column expression
+compat_keyword_057	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT USER FROM dual	none	none	23ai	USER pseudo-column expression
+compat_keyword_058	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT CAST(1 AS NUMBER) FROM dual	none	none	23ai	NUMBER type keyword in cast
+compat_keyword_059	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT CAST('x' AS VARCHAR2(10)) FROM dual	none	none	23ai	VARCHAR2 type keyword in cast
+compat_keyword_060	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT COUNT(*) FROM dual	none	none	23ai	COUNT function keyword call
+compat_keyword_061	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT NVL(NULL, 1) FROM dual	none	none	23ai	NVL function keyword call
+compat_keyword_062	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT DECODE(1, 1, 'Y', 'N') FROM dual	none	none	23ai	DECODE function keyword call
+compat_keyword_063	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT 1 "SELECT" FROM dual	none	none	23ai	quoted SELECT alias
+compat_keyword_064	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT 1 "WHERE" FROM dual	none	none	23ai	quoted WHERE alias
+compat_keyword_065	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT 1 "GROUP" FROM dual	none	none	23ai	quoted GROUP alias
+compat_keyword_066	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT 1 "ORDER" FROM dual	none	none	23ai	quoted ORDER alias
+compat_keyword_067	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT 1 "DATE" FROM dual	none	none	23ai	quoted DATE alias
+compat_keyword_068	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT 1 "NUMBER" FROM dual	none	none	23ai	quoted NUMBER alias
+compat_keyword_069	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT 1 "ROWID" FROM dual	none	none	23ai	quoted ROWID alias
+compat_keyword_070	D	keyword	SELECT.bnf	parse_only	accept	syntax	SELECT 1 "USER" FROM dual	none	none	23ai	quoted USER alias
+compat_keyword_071	D	keyword	CREATE-INDEX.bnf	parse_only	reject	syntax	CREATE INDEX SELECT ON compat_kw_idx_{run}(a)	CREATE TABLE compat_kw_idx_{run} (a NUMBER)	DROP TABLE compat_kw_idx_{run} PURGE	23ai	reserved index name
+compat_keyword_072	D	keyword	CREATE-INDEX.bnf	parse_only	accept	syntax	CREATE INDEX "SELECT" ON compat_kw_iq_{run}(a)	CREATE TABLE compat_kw_iq_{run} (a NUMBER)	DROP INDEX "SELECT"; DROP TABLE compat_kw_iq_{run} PURGE	23ai	quoted reserved index name
+compat_keyword_073	D	keyword	CREATE-SEQUENCE.bnf	parse_only	reject	syntax	CREATE SEQUENCE SELECT	none	none	23ai	reserved sequence name
+compat_keyword_074	D	keyword	CREATE-SEQUENCE.bnf	parse_only	accept	syntax	CREATE SEQUENCE "SELECT"	none	DROP SEQUENCE "SELECT"	23ai	quoted reserved sequence name
+compat_keyword_075	D	keyword	CREATE-VIEW.bnf	parse_only	reject	syntax	CREATE VIEW SELECT AS SELECT 1 a FROM dual	none	none	23ai	reserved view name
+compat_keyword_076	D	keyword	CREATE-VIEW.bnf	parse_only	accept	syntax	CREATE VIEW "SELECT" AS SELECT 1 a FROM dual	none	DROP VIEW "SELECT"	23ai	quoted reserved view name
+compat_keyword_077	D	keyword	CREATE-SYNONYM.bnf	parse_only	reject	syntax	CREATE SYNONYM SELECT FOR compat_missing_{run}	none	none	23ai	reserved synonym name
+compat_keyword_078	D	keyword	CREATE-SYNONYM.bnf	parse_only	accept	syntax	CREATE SYNONYM "SELECT" FOR compat_missing_{run}	none	DROP SYNONYM "SELECT"	23ai	quoted reserved synonym name
+compat_keyword_079	D	keyword	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	CREATE PROCEDURE SELECT AS BEGIN NULL; END;	none	none	23ai	reserved procedure name
+compat_keyword_080	D	keyword	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	CREATE PROCEDURE "SELECT" AS BEGIN NULL; END;	none	DROP PROCEDURE "SELECT"	23ai	quoted reserved procedure name
+compat_admin_001	E	admin	CREATE-USER.bnf	parse_only	accept	privilege_catalog	CREATE USER compat_user_{run} IDENTIFIED BY pass123	none	DROP USER compat_user_{run} CASCADE	23ai	create user with password
+compat_admin_002	E	admin	CREATE-USER.bnf	parse_only	accept	privilege_catalog	CREATE USER compat_user_noauth_{run} NO AUTHENTICATION	none	DROP USER compat_user_noauth_{run} CASCADE	23ai	create user no authentication
+compat_admin_003	E	admin	CREATE-USER.bnf	parse_only	accept	privilege_catalog	CREATE USER compat_user_ext_{run} IDENTIFIED EXTERNALLY	none	DROP USER compat_user_ext_{run} CASCADE	23ai	create externally identified user
+compat_admin_004	E	admin	CREATE-USER.bnf	parse_only	accept	privilege_catalog	CREATE USER compat_user_opts_{run} IDENTIFIED BY pass123 DEFAULT TABLESPACE users TEMPORARY TABLESPACE temp QUOTA 1M ON users PROFILE DEFAULT PASSWORD EXPIRE ACCOUNT LOCK	none	DROP USER compat_user_opts_{run} CASCADE	23ai	create user with storage and account options
+compat_admin_005	E	admin	ALTER-USER.bnf	parse_only	accept	privilege_catalog	ALTER USER compat_user_{run} IDENTIFIED BY pass456 ACCOUNT UNLOCK PASSWORD EXPIRE	none	none	23ai	alter user password and account options
+compat_admin_006	E	admin	ALTER-USER.bnf	parse_only	accept	privilege_catalog	ALTER USER compat_user_{run} DEFAULT ROLE ALL	none	none	23ai	alter user default role all
+compat_admin_007	E	admin	ALTER-USER.bnf	parse_only	accept	privilege_catalog	ALTER USER compat_user_{run} QUOTA UNLIMITED ON users	none	none	23ai	alter user quota
+compat_admin_008	E	admin	DROP-USER.bnf	parse_only	accept	privilege_catalog	DROP USER compat_user_{run} CASCADE	none	none	23ai	drop user cascade
+compat_admin_009	E	admin	CREATE-ROLE.bnf	parse_only	accept	privilege_catalog	CREATE ROLE compat_role_{run}	none	DROP ROLE compat_role_{run}	23ai	create role
+compat_admin_010	E	admin	CREATE-ROLE.bnf	parse_only	accept	privilege_catalog	CREATE ROLE compat_role_pwd_{run} IDENTIFIED BY pass123	none	DROP ROLE compat_role_pwd_{run}	23ai	create password role
+compat_admin_011	E	admin	CREATE-ROLE.bnf	parse_only	accept	privilege_catalog	CREATE ROLE compat_role_ext_{run} IDENTIFIED EXTERNALLY	none	DROP ROLE compat_role_ext_{run}	23ai	create externally identified role
+compat_admin_012	E	admin	ALTER-ROLE.bnf	parse_only	accept	privilege_catalog	ALTER ROLE compat_role_{run} NOT IDENTIFIED	none	none	23ai	alter role not identified
+compat_admin_013	E	admin	ALTER-ROLE.bnf	parse_only	accept	privilege_catalog	ALTER ROLE compat_role_{run} IDENTIFIED BY pass456	none	none	23ai	alter role identified by password
+compat_admin_014	E	admin	DROP-ROLE.bnf	parse_only	accept	privilege_catalog	DROP ROLE compat_role_{run}	none	none	23ai	drop role
+compat_admin_015	E	admin	CREATE-PROFILE.bnf	parse_only	accept	privilege_catalog	CREATE PROFILE compat_profile_{run} LIMIT SESSIONS_PER_USER 2 FAILED_LOGIN_ATTEMPTS 3 PASSWORD_LIFE_TIME 30	none	DROP PROFILE compat_profile_{run} CASCADE	23ai	create profile limits
+compat_admin_016	E	admin	ALTER-PROFILE.bnf	parse_only	accept	privilege_catalog	ALTER PROFILE compat_profile_{run} LIMIT IDLE_TIME 10 PASSWORD_LOCK_TIME 1	none	none	23ai	alter profile limits
+compat_admin_017	E	admin	DROP-PROFILE.bnf	parse_only	accept	privilege_catalog	DROP PROFILE compat_profile_{run} CASCADE	none	none	23ai	drop profile cascade
+compat_admin_018	E	admin	GRANT.bnf	parse_only	accept	privilege_catalog	GRANT CREATE SESSION TO compat_user_{run}	none	none	23ai	grant system privilege
+compat_admin_019	E	admin	GRANT.bnf	parse_only	accept	privilege_catalog	GRANT SELECT ON t TO compat_user_{run}	none	none	23ai	grant object privilege
+compat_admin_020	E	admin	GRANT.bnf	parse_only	accept	privilege_catalog	GRANT SELECT, INSERT ON t TO compat_user_{run} WITH GRANT OPTION	none	none	23ai	grant multiple object privileges
+compat_admin_021	E	admin	GRANT.bnf	parse_only	accept	privilege_catalog	GRANT compat_role_{run} TO compat_user_{run} WITH ADMIN OPTION	none	none	23ai	grant role with admin option
+compat_admin_022	E	admin	GRANT.bnf	parse_only	accept	privilege_catalog	GRANT ALL PRIVILEGES TO compat_user_{run}	none	none	23ai	grant all privileges
+compat_admin_023	E	admin	GRANT.bnf	parse_only	accept	privilege_catalog	GRANT READ ON DIRECTORY compat_dir_{run} TO compat_user_{run}	none	none	23ai	grant directory privilege
+compat_admin_024	E	admin	REVOKE.bnf	parse_only	accept	privilege_catalog	REVOKE CREATE SESSION FROM compat_user_{run}	none	none	23ai	revoke system privilege
+compat_admin_025	E	admin	REVOKE.bnf	parse_only	accept	privilege_catalog	REVOKE SELECT ON t FROM compat_user_{run}	none	none	23ai	revoke object privilege
+compat_admin_026	E	admin	REVOKE.bnf	parse_only	accept	privilege_catalog	REVOKE compat_role_{run} FROM compat_user_{run}	none	none	23ai	revoke role
+compat_admin_027	E	admin	REVOKE.bnf	parse_only	accept	privilege_catalog	REVOKE ALL PRIVILEGES FROM compat_user_{run}	none	none	23ai	revoke all privileges
+compat_admin_028	E	admin	GRANT.bnf	parse_only	reject	syntax	GRANT TO compat_user_{run}	none	none	23ai	grant missing privilege
+compat_admin_029	E	admin	REVOKE.bnf	parse_only	reject	syntax	REVOKE FROM compat_user_{run}	none	none	23ai	revoke missing privilege
+compat_admin_030	E	admin	GRANT.bnf	parse_only	reject	syntax	GRANT SELECT ON t	none	none	23ai	grant missing grantee
+compat_admin_031	E	admin	CREATE-AUDIT-POLICY-Unified-Auditing.bnf	parse_only	accept	privilege_catalog	CREATE AUDIT POLICY compat_audit_pol_{run} PRIVILEGES CREATE SESSION	none	DROP AUDIT POLICY compat_audit_pol_{run}	23ai	create audit policy privileges
+compat_admin_032	E	admin	CREATE-AUDIT-POLICY-Unified-Auditing.bnf	parse_only	accept	privilege_catalog	CREATE AUDIT POLICY compat_audit_act_{run} ACTIONS SELECT ON t	none	DROP AUDIT POLICY compat_audit_act_{run}	23ai	create audit policy actions
+compat_admin_033	E	admin	ALTER-AUDIT-POLICY-Unified-Auditing.bnf	parse_only	accept	privilege_catalog	ALTER AUDIT POLICY compat_audit_pol_{run} ADD PRIVILEGES CREATE TABLE	none	none	23ai	alter audit policy add privilege
+compat_admin_034	E	admin	DROP-AUDIT-POLICY-Unified-Auditing.bnf	parse_only	accept	privilege_catalog	DROP AUDIT POLICY compat_audit_pol_{run}	none	none	23ai	drop audit policy
+compat_admin_035	E	admin	AUDIT-Unified-Auditing.bnf	parse_only	accept	privilege_catalog	AUDIT POLICY compat_audit_pol_{run} BY compat_user_{run} WHENEVER SUCCESSFUL	none	none	23ai	audit unified policy by user
+compat_admin_036	E	admin	NOAUDIT-Unified-Auditing.bnf	parse_only	accept	privilege_catalog	NOAUDIT POLICY compat_audit_pol_{run} BY compat_user_{run}	none	none	23ai	noaudit unified policy by user
+compat_admin_037	E	admin	AUDIT-Traditional-Auditing.bnf	parse_only	accept	privilege_catalog	AUDIT SELECT ON t BY ACCESS WHENEVER NOT SUCCESSFUL	none	none	23ai	traditional audit object
+compat_admin_038	E	admin	NOAUDIT-Traditional-Auditing.bnf	parse_only	accept	privilege_catalog	NOAUDIT SELECT ON t WHENEVER NOT SUCCESSFUL	none	none	23ai	traditional noaudit object
+compat_admin_039	E	admin	AUDIT-Unified-Auditing.bnf	parse_only	reject	syntax	AUDIT POLICY	none	none	23ai	audit policy missing name
+compat_admin_040	E	admin	CREATE-AUDIT-POLICY-Unified-Auditing.bnf	parse_only	reject	syntax	CREATE AUDIT POLICY compat_bad_audit_{run} PRIVILEGES	none	none	23ai	create audit policy missing privilege list
+compat_admin_041	E	admin	CREATE-TABLESPACE.bnf	parse_only	unsafe	syntax	CREATE TABLESPACE compat_ts_{run} DATAFILE 'compat_ts_{run}.dbf' SIZE 1M	none	none	23ai	create tablespace writes datafile
+compat_admin_042	E	admin	CREATE-TABLESPACE.bnf	parse_only	unsafe	syntax	CREATE BIGFILE TABLESPACE compat_big_ts_{run} DATAFILE 'compat_big_ts_{run}.dbf' SIZE 1M AUTOEXTEND OFF	none	none	23ai	create bigfile tablespace writes datafile
+compat_admin_043	E	admin	CREATE-TABLESPACE.bnf	parse_only	unsafe	syntax	CREATE TEMPORARY TABLESPACE compat_temp_ts_{run} TEMPFILE 'compat_temp_ts_{run}.dbf' SIZE 1M	none	none	23ai	create temporary tablespace writes tempfile
+compat_admin_044	E	admin	CREATE-TABLESPACE.bnf	parse_only	unsafe	syntax	CREATE UNDO TABLESPACE compat_undo_ts_{run} DATAFILE 'compat_undo_ts_{run}.dbf' SIZE 1M	none	none	23ai	create undo tablespace writes datafile
+compat_admin_045	E	admin	ALTER-TABLESPACE.bnf	parse_only	unsafe	syntax	ALTER TABLESPACE users OFFLINE	none	none	23ai	alter tablespace offline is unsafe
+compat_admin_046	E	admin	ALTER-TABLESPACE.bnf	parse_only	unsafe	syntax	ALTER TABLESPACE users ONLINE	none	none	23ai	alter tablespace online is unsafe
+compat_admin_047	E	admin	ALTER-TABLESPACE.bnf	parse_only	unsafe	syntax	ALTER TABLESPACE users READ ONLY	none	none	23ai	alter tablespace read only is unsafe
+compat_admin_048	E	admin	DROP-TABLESPACE.bnf	parse_only	unsafe	syntax	DROP TABLESPACE compat_ts_{run} INCLUDING CONTENTS AND DATAFILES	none	none	23ai	drop tablespace and datafiles is unsafe
+compat_admin_049	E	admin	CREATE-DATABASE.bnf	parse_only	unsafe	syntax	CREATE DATABASE compatdb USER SYS IDENTIFIED BY pass USER SYSTEM IDENTIFIED BY pass	none	none	23ai	create database unsafe
+compat_admin_050	E	admin	ALTER-DATABASE.bnf	parse_only	unsafe	syntax	ALTER DATABASE OPEN	none	none	23ai	alter database open unsafe
+compat_admin_051	E	admin	ALTER-DATABASE.bnf	parse_only	unsafe	syntax	ALTER DATABASE MOUNT	none	none	23ai	alter database mount unsafe
+compat_admin_052	E	admin	ALTER-DATABASE.bnf	parse_only	unsafe	syntax	ALTER DATABASE BACKUP CONTROLFILE TO TRACE	none	none	23ai	alter database backup controlfile unsafe
+compat_admin_053	E	admin	FLASHBACK-DATABASE.bnf	parse_only	unsafe	syntax	FLASHBACK DATABASE TO SCN 100	none	none	23ai	flashback database unsafe
+compat_admin_054	E	admin	FLASHBACK-DATABASE.bnf	parse_only	unsafe	syntax	FLASHBACK PLUGGABLE DATABASE pdb1 TO RESTORE POINT rp1	none	none	23ai	flashback pluggable database unsafe
+compat_admin_055	E	admin	CREATE-PLUGGABLE-DATABASE.bnf	parse_only	unsafe	syntax	CREATE PLUGGABLE DATABASE compat_pdb_{run} ADMIN USER pdbadmin IDENTIFIED BY pass	none	none	23ai	create pluggable database unsafe
+compat_admin_056	E	admin	ALTER-PLUGGABLE-DATABASE.bnf	parse_only	unsafe	syntax	ALTER PLUGGABLE DATABASE compat_pdb_{run} OPEN	none	none	23ai	alter pluggable database open unsafe
+compat_admin_057	E	admin	DROP-PLUGGABLE-DATABASE.bnf	parse_only	unsafe	syntax	DROP PLUGGABLE DATABASE compat_pdb_{run} INCLUDING DATAFILES	none	none	23ai	drop pluggable database unsafe
+compat_admin_058	E	admin	DROP-DATABASE.bnf	parse_only	unsafe	syntax	DROP DATABASE	none	none	23ai	drop database unsafe
+compat_admin_059	E	admin	CREATE-DIRECTORY.bnf	parse_only	accept	privilege_catalog	CREATE DIRECTORY compat_dir_{run} AS '/tmp'	none	DROP DIRECTORY compat_dir_{run}	23ai	create directory
+compat_admin_060	E	admin	CREATE-CONTEXT.bnf	parse_only	accept	privilege_catalog	CREATE CONTEXT compat_ctx_{run} USING compat_pkg_{run}	none	DROP CONTEXT compat_ctx_{run}	23ai	create context
+compat_admin_061	E	admin	CREATE-LIBRARY.bnf	parse_only	accept	privilege_catalog	CREATE LIBRARY compat_lib_{run} AS '/tmp/libcompat.so'	none	DROP LIBRARY compat_lib_{run}	23ai	create library
+compat_admin_062	E	admin	CREATE-EDITION.bnf	parse_only	accept	privilege_catalog	CREATE EDITION compat_edition_{run}	none	DROP EDITION compat_edition_{run}	23ai	create edition
+compat_admin_063	E	utility	LOCK-TABLE.bnf	parse_only	accept	syntax	LOCK TABLE t IN SHARE MODE NOWAIT	none	none	23ai	lock table share mode
+compat_admin_064	E	utility	LOCK-TABLE.bnf	parse_only	accept	syntax	LOCK TABLE t IN ROW EXCLUSIVE MODE WAIT 1	none	none	23ai	lock table row exclusive wait
+compat_admin_065	E	utility	ANALYZE.bnf	parse_only	accept	syntax	ANALYZE TABLE t VALIDATE STRUCTURE CASCADE	none	none	23ai	analyze table validate structure
+compat_admin_066	E	utility	ANALYZE.bnf	parse_only	accept	syntax	ANALYZE INDEX compat_desc_idx_{run} VALIDATE STRUCTURE	CREATE INDEX compat_desc_idx_{run} ON t(a)	DROP INDEX compat_desc_idx_{run}	23ai	analyze index validate structure
+compat_admin_067	E	utility	ANALYZE.bnf	parse_only	accept	syntax	ANALYZE TABLE t DELETE STATISTICS	none	none	23ai	analyze table delete statistics
+compat_admin_068	E	utility	ANALYZE.bnf	parse_only	accept	syntax	ANALYZE TABLE t COMPUTE STATISTICS FOR ALL COLUMNS	none	none	23ai	analyze compute statistics
+compat_admin_069	E	utility	FLASHBACK-TABLE.bnf	parse_only	accept	privilege_catalog	FLASHBACK TABLE t TO SCN 100 ENABLE TRIGGERS	none	none	23ai	flashback table to scn
+compat_admin_070	E	utility	FLASHBACK-TABLE.bnf	parse_only	accept	privilege_catalog	FLASHBACK TABLE t TO TIMESTAMP SYSTIMESTAMP DISABLE TRIGGERS	none	none	23ai	flashback table to timestamp
+compat_admin_071	E	utility	FLASHBACK-TABLE.bnf	parse_only	accept	privilege_catalog	FLASHBACK TABLE t TO BEFORE DROP RENAME TO t_old	none	none	23ai	flashback table before drop rename
+compat_admin_072	E	utility	PURGE.bnf	parse_only	accept	privilege_catalog	PURGE TABLE compat_purged_{run}	none	none	23ai	purge table
+compat_admin_073	E	utility	PURGE.bnf	parse_only	accept	privilege_catalog	PURGE INDEX compat_purged_idx_{run}	none	none	23ai	purge index
+compat_admin_074	E	utility	PURGE.bnf	parse_only	accept	privilege_catalog	PURGE RECYCLEBIN	none	none	23ai	purge recyclebin
+compat_admin_075	E	utility	PURGE.bnf	parse_only	accept	privilege_catalog	PURGE DBA_RECYCLEBIN	none	none	23ai	purge dba recyclebin
+compat_admin_076	E	utility	LOCK-TABLE.bnf	parse_only	reject	syntax	LOCK TABLE t SHARE MODE	none	none	23ai	lock table missing IN
+compat_admin_077	E	utility	LOCK-TABLE.bnf	parse_only	reject	syntax	LOCK TABLE IN SHARE MODE	none	none	23ai	lock table missing table name
+compat_admin_078	E	utility	ANALYZE.bnf	parse_only	reject	syntax	ANALYZE TABLE VALIDATE STRUCTURE	none	none	23ai	analyze missing table name
+compat_admin_079	E	utility	FLASHBACK-TABLE.bnf	parse_only	reject	syntax	FLASHBACK TABLE t TO	none	none	23ai	flashback table missing target
+compat_admin_080	E	utility	PURGE.bnf	parse_only	reject	syntax	PURGE TABLE	none	none	23ai	purge table missing name

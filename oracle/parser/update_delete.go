@@ -93,13 +93,19 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 	}
 	var parseErr1127 error
 
-	// Table name
-	stmt.Table, parseErr1127 = p.parseObjectName()
-	if parseErr1127 !=
+	// Table name or inline view target.
+	if p.cur.Type == '(' {
+		if parseErr1127 = p.parseDMLSubqueryTarget(); parseErr1127 != nil {
+			return nil, parseErr1127
+		}
+	} else {
+		stmt.Table, parseErr1127 = p.parseObjectName()
+		if parseErr1127 !=
 
-		// Optional alias (before partition clause, matching BNF order for UPDATE)
-		nil {
-		return nil, parseErr1127
+			// Optional alias (before partition clause, matching BNF order for UPDATE)
+			nil {
+			return nil, parseErr1127
+		}
 	}
 
 	if p.cur.Type == kwAS {
@@ -143,16 +149,20 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 		}
 	}
 
-	if p.cur.Type == kwSET {
-		p.advance()
-		var parseErr1132 error
-		stmt.SetClauses, parseErr1132 = p.parseSetClauses()
-		if parseErr1132 !=
+	if p.cur.Type != kwSET {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	var parseErr1132 error
+	stmt.SetClauses, parseErr1132 = p.parseSetClauses()
+	if parseErr1132 !=
 
-			// FROM clause (Oracle 23c+)
-			nil {
-			return nil, parseErr1132
-		}
+		// FROM clause (Oracle 23c+)
+		nil {
+		return nil, parseErr1132
+	}
+	if stmt.SetClauses == nil || stmt.SetClauses.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.cur.Type == kwFROM {
@@ -176,6 +186,9 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 			// RETURNING / RETURN ... INTO ...
 			nil {
 			return nil, parseErr1134
+		}
+		if stmt.WhereClause == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
@@ -232,6 +245,9 @@ func (p *Parser) parseSetClauses() (*nodes.List, error) {
 			return nil, parseErr1138
 		}
 		if sc == nil {
+			if list.Len() > 0 {
+				return nil, p.syntaxErrorAtCur()
+			}
 			break
 		}
 		list.Items = append(list.Items, sc)
@@ -256,11 +272,14 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 			Loc:     nodes.Loc{Start: start},
 		}
 		for {
+			if !p.isIdentLike() {
+				return nil, p.syntaxErrorAtCur()
+			}
 			col, parseErr1139 := p.parseColumnRef()
 			if parseErr1139 != nil {
 				return nil, parseErr1139
 			}
-			if col != nil {
+			if col != nil && col.Column != "" {
 				sc.Columns.Items = append(sc.Columns.Items, col)
 			}
 			if p.cur.Type != ',' {
@@ -268,16 +287,27 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 			}
 			p.advance()
 		}
-		if p.cur.Type == ')' {
-			p.advance()
+		if sc.Columns.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
 		}
-		if p.cur.Type == '=' {
-			p.advance()
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
+		if p.cur.Type != '=' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
 		var parseErr1140 error
 		sc.Value, parseErr1140 = p.parseExpr()
 		if parseErr1140 != nil {
 			return nil, parseErr1140
+		}
+		if sc.Value == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if targetCount, valueCount, ok := countSubquerySetArity(sc); ok && targetCount != valueCount {
+			return nil, p.syntaxErrorAtCur()
 		}
 		sc.Loc.End = p.prev.End
 		return sc, nil
@@ -297,9 +327,10 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 		Loc:    nodes.Loc{Start: start},
 	}
 
-	if p.cur.Type == '=' {
-		p.advance()
+	if p.cur.Type != '=' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	// DEFAULT keyword or expression
 	if p.cur.Type == kwDEFAULT {
@@ -314,9 +345,67 @@ func (p *Parser) parseSetClause() (*nodes.SetClause, error) {
 		if parseErr1142 != nil {
 			return nil, parseErr1142
 		}
+		if sc.Value == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 	sc.Loc.End = p.prev.End
 	return sc, nil
+}
+
+func (p *Parser) parseDMLSubqueryTarget() error {
+	p.advance() // consume '('
+	if p.cur.Type != kwSELECT && p.cur.Type != kwWITH {
+		return p.syntaxErrorAtCur()
+	}
+	parsedSubquery, parseErr1151 := p.parseSelectStmt()
+	if parseErr1151 != nil {
+		return parseErr1151
+	}
+	if parsedSubquery == nil {
+		return p.syntaxErrorAtCur()
+	}
+	if p.cur.Type != ')' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type == kwAS {
+		p.advance()
+		parsedAlias, parseErr1152 := p.parseAlias()
+		if parseErr1152 != nil {
+			return parseErr1152
+		}
+		if parsedAlias == nil {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	}
+	if p.isTableAliasCandidate() {
+		parsedAlias, parseErr1153 := p.parseAlias()
+		if parseErr1153 != nil {
+			return parseErr1153
+		}
+		if parsedAlias == nil {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	}
+	return nil
+}
+
+func countSubquerySetArity(sc *nodes.SetClause) (targetCount int, valueCount int, ok bool) {
+	if sc == nil || sc.Columns == nil {
+		return 0, 0, false
+	}
+	subquery, ok := sc.Value.(*nodes.SubqueryExpr)
+	if !ok {
+		return 0, 0, false
+	}
+	selectStmt, ok := subquery.Subquery.(*nodes.SelectStmt)
+	if !ok || selectStmt.TargetList == nil {
+		return 0, 0, false
+	}
+	return sc.Columns.Len(), selectStmt.TargetList.Len(), true
 }
 
 // parseDeleteStmt parses a DELETE statement.
@@ -391,13 +480,19 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 	}
 	var parseErr1143 error
 
-	// Table name
-	stmt.Table, parseErr1143 = p.parseObjectName()
-	if parseErr1143 !=
+	// Table name or inline view target.
+	if p.cur.Type == '(' {
+		if parseErr1143 = p.parseDMLSubqueryTarget(); parseErr1143 != nil {
+			return nil, parseErr1143
+		}
+	} else {
+		stmt.Table, parseErr1143 = p.parseObjectName()
+		if parseErr1143 !=
 
-		// Partition extension clause
-		nil {
-		return nil, parseErr1143
+			// Partition extension clause
+			nil {
+			return nil, parseErr1143
+		}
 	}
 
 	if p.cur.Type == kwPARTITION || p.cur.Type == kwSUBPARTITION {
@@ -450,6 +545,9 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 			// RETURNING / RETURN ... INTO ...
 			nil {
 			return nil, parseErr1148
+		}
+		if stmt.WhereClause == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
