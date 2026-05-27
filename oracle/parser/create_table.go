@@ -646,7 +646,7 @@ func isOracleTypeToken(tokenType int) bool {
 	switch tokenType {
 	case kwNUMBER, kwINTEGER, kwSMALLINT, kwDECIMAL, kwFLOAT,
 		kwCHAR, kwVARCHAR2, kwVARCHAR, kwNCHAR, kwNVARCHAR2,
-		kwCLOB, kwBLOB, kwNCLOB,
+		kwCLOB, kwBLOB, kwNCLOB, kwJSON,
 		kwDATE, kwTIMESTAMP, kwINTERVAL,
 		kwRAW, kwLONG, kwROWID:
 		return true

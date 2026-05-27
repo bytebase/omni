@@ -85,7 +85,7 @@ func TestParseTypeChar(t *testing.T) {
 
 // TestParseTypeLOB tests CLOB, BLOB, NCLOB.
 func TestParseTypeLOB(t *testing.T) {
-	for _, input := range []string{"CLOB", "BLOB", "NCLOB"} {
+	for _, input := range []string{"CLOB", "BLOB", "NCLOB", "JSON"} {
 		t.Run(input, func(t *testing.T) {
 			p := newTestParser(input)
 			tn, parseErr3 := p.parseTypeName()

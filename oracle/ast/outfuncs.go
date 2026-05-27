@@ -159,6 +159,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeTableRef(sb, n)
 	case *SubqueryRef:
 		writeSubqueryRef(sb, n)
+	case *SubqueryRestrictionClause:
+		writeSubqueryRestrictionClause(sb, n)
 	case *LateralRef:
 		writeLateralRef(sb, n)
 	case *XmlTableRef:
@@ -1123,9 +1125,29 @@ func writeSubqueryRef(sb *strings.Builder, n *SubqueryRef) {
 		sb.WriteString(" :subquery ")
 		writeNode(sb, n.Subquery)
 	}
+	if n.Restriction != nil {
+		sb.WriteString(" :restriction ")
+		writeNode(sb, n.Restriction)
+	}
 	if n.Alias != nil {
 		sb.WriteString(" :alias ")
 		writeNode(sb, n.Alias)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeSubqueryRestrictionClause(sb *strings.Builder, n *SubqueryRestrictionClause) {
+	sb.WriteString("{SUBQUERYRESTRICTION")
+	if n.ReadOnly {
+		sb.WriteString(" :readOnly true")
+	}
+	if n.CheckOption {
+		sb.WriteString(" :checkOption true")
+	}
+	if n.ConstraintName != nil {
+		sb.WriteString(" :constraintName ")
+		writeNode(sb, n.ConstraintName)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -2346,20 +2368,25 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 
 func writeUpdateStmt(sb *strings.Builder, n *UpdateStmt) {
 	sb.WriteString("{UPDATE")
-	if n.Table != nil {
-		sb.WriteString(" :table ")
-		writeNode(sb, n.Table)
-	}
-	if n.PartitionExt != nil {
-		sb.WriteString(" :partitionExt ")
-		writeNode(sb, n.PartitionExt)
-	}
-	if n.Dblink != "" {
-		sb.WriteString(fmt.Sprintf(" :dblink %q", n.Dblink))
-	}
-	if n.Alias != nil {
-		sb.WriteString(" :alias ")
-		writeNode(sb, n.Alias)
+	if n.Target != nil {
+		sb.WriteString(" :target ")
+		writeNode(sb, n.Target)
+	} else {
+		if n.Table != nil {
+			sb.WriteString(" :table ")
+			writeNode(sb, n.Table)
+		}
+		if n.PartitionExt != nil {
+			sb.WriteString(" :partitionExt ")
+			writeNode(sb, n.PartitionExt)
+		}
+		if n.Dblink != "" {
+			sb.WriteString(fmt.Sprintf(" :dblink %q", n.Dblink))
+		}
+		if n.Alias != nil {
+			sb.WriteString(" :alias ")
+			writeNode(sb, n.Alias)
+		}
 	}
 	if n.SetClauses != nil {
 		sb.WriteString(" :setClauses ")
@@ -2391,20 +2418,25 @@ func writeUpdateStmt(sb *strings.Builder, n *UpdateStmt) {
 
 func writeDeleteStmt(sb *strings.Builder, n *DeleteStmt) {
 	sb.WriteString("{DELETE")
-	if n.Table != nil {
-		sb.WriteString(" :table ")
-		writeNode(sb, n.Table)
-	}
-	if n.PartitionExt != nil {
-		sb.WriteString(" :partitionExt ")
-		writeNode(sb, n.PartitionExt)
-	}
-	if n.Dblink != "" {
-		sb.WriteString(fmt.Sprintf(" :dblink %q", n.Dblink))
-	}
-	if n.Alias != nil {
-		sb.WriteString(" :alias ")
-		writeNode(sb, n.Alias)
+	if n.Target != nil {
+		sb.WriteString(" :target ")
+		writeNode(sb, n.Target)
+	} else {
+		if n.Table != nil {
+			sb.WriteString(" :table ")
+			writeNode(sb, n.Table)
+		}
+		if n.PartitionExt != nil {
+			sb.WriteString(" :partitionExt ")
+			writeNode(sb, n.PartitionExt)
+		}
+		if n.Dblink != "" {
+			sb.WriteString(fmt.Sprintf(" :dblink %q", n.Dblink))
+		}
+		if n.Alias != nil {
+			sb.WriteString(" :alias ")
+			writeNode(sb, n.Alias)
+		}
 	}
 	if n.WhereClause != nil {
 		sb.WriteString(" :whereClause ")

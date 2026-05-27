@@ -52,7 +52,7 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 			return nil, parseErr1117
 		}
 
-	case kwCLOB, kwBLOB, kwNCLOB:
+	case kwCLOB, kwBLOB, kwNCLOB, kwJSON:
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 		p.advance()
 

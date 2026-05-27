@@ -748,14 +748,18 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 	case *DeleteStmt:
-		if n.Table != nil {
-			Walk(v, n.Table)
-		}
-		if n.PartitionExt != nil {
-			Walk(v, n.PartitionExt)
-		}
-		if n.Alias != nil {
-			Walk(v, n.Alias)
+		if n.Target != nil {
+			Walk(v, n.Target)
+		} else {
+			if n.Table != nil {
+				Walk(v, n.Table)
+			}
+			if n.PartitionExt != nil {
+				Walk(v, n.PartitionExt)
+			}
+			if n.Alias != nil {
+				Walk(v, n.Alias)
+			}
 		}
 		Walk(v, n.WhereClause)
 		walkList(v, n.Returning)
@@ -1308,8 +1312,15 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Subquery)
 	case *SubqueryRef:
 		Walk(v, n.Subquery)
+		if n.Restriction != nil {
+			Walk(v, n.Restriction)
+		}
 		if n.Alias != nil {
 			Walk(v, n.Alias)
+		}
+	case *SubqueryRestrictionClause:
+		if n.ConstraintName != nil {
+			Walk(v, n.ConstraintName)
 		}
 	case *TableCollectionExpr:
 		Walk(v, n.Expr)
@@ -1368,14 +1379,18 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Alias)
 		}
 	case *UpdateStmt:
-		if n.Table != nil {
-			Walk(v, n.Table)
-		}
-		if n.PartitionExt != nil {
-			Walk(v, n.PartitionExt)
-		}
-		if n.Alias != nil {
-			Walk(v, n.Alias)
+		if n.Target != nil {
+			Walk(v, n.Target)
+		} else {
+			if n.Table != nil {
+				Walk(v, n.Table)
+			}
+			if n.PartitionExt != nil {
+				Walk(v, n.PartitionExt)
+			}
+			if n.Alias != nil {
+				Walk(v, n.Alias)
+			}
 		}
 		walkList(v, n.SetClauses)
 		walkList(v, n.FromClause)

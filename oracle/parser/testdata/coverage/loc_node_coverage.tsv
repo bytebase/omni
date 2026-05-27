@@ -141,6 +141,7 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.Hint	ast	covered	SELECT /*+ INDEX(t idx) */ * FROM t	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.TableRef	clause	covered	SELECT * FROM t	table ref span	none	covered	keep_regression_guard
 *nodes.SubqueryRef	ast	covered	SELECT * FROM (SELECT 1 a FROM dual) q	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.SubqueryRestrictionClause	clause	covered	UPDATE (SELECT a FROM t WITH CHECK OPTION CONSTRAINT ck_v) v SET a = 1	DML inline-view subquery restriction span	none	covered	keep_regression_guard
 *nodes.LateralRef	ast	covered	SELECT * FROM t, LATERAL (SELECT 1 a FROM dual) q	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.JoinClause	clause	covered	SELECT * FROM t JOIN u ON t.id = u.id	join clause span	none	covered	keep_regression_guard
 *nodes.WithClause	clause	covered	WITH q AS (SELECT 1 a FROM dual) SELECT a FROM q	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
