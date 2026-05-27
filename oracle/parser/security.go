@@ -1527,6 +1527,9 @@ func (p *Parser) parseCreateAuditPolicyStmt(start int) (nodes.StmtNode, error) {
 		stmt.Name = p.cur.Str
 		p.advance()
 	}
+	if stmt.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// Parse clauses in any order
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
@@ -1538,6 +1541,9 @@ func (p *Parser) parseCreateAuditPolicyStmt(start int) (nodes.StmtNode, error) {
 			stmt.Privileges, parseErr929 = p.parseAuditPrivilegeList()
 			if parseErr929 != nil {
 				return nil, parseErr929
+			}
+			if len(stmt.Privileges) == 0 {
+				return nil, p.syntaxErrorAtCur()
 			}
 
 		case p.isIdentLikeStr("ACTIONS"):

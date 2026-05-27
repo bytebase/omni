@@ -148,6 +148,21 @@ func (p *Parser) parseBinaryInfix(left nodes.ExprNode, prec int, op string) (nod
 	locStart := p.pos()
 	p.advance() // consume operator
 
+	var right nodes.ExprNode
+	if p.cur.Type == kwANY || p.cur.Type == kwALL {
+		var parseErr702 error
+		right, parseErr702 = p.parseQuantifiedComparisonOperand()
+		if parseErr702 != nil {
+			return nil, parseErr702
+		}
+		return &nodes.BinaryExpr{
+			Op:    op,
+			Left:  left,
+			Right: right,
+			Loc:   nodes.Loc{Start: locStart, End: p.prev.End},
+		}, nil
+	}
+
 	// Right-associative for exponentiation
 	nextPrec := prec + 1
 	if op == "**" {
@@ -169,6 +184,44 @@ func (p *Parser) parseBinaryInfix(left nodes.ExprNode, prec int, op string) (nod
 		Right: right,
 		Loc:   nodes.Loc{Start: locStart, End: p.prev.End},
 	}, nil
+}
+
+func (p *Parser) parseQuantifiedComparisonOperand() (nodes.ExprNode, error) {
+	start := p.pos()
+	quantifier := p.advance()
+	fc := &nodes.FuncCallExpr{
+		FuncName: &nodes.ObjectName{Name: quantifier.Str, Loc: nodes.Loc{Start: start, End: p.prev.End}},
+		Args:     &nodes.List{},
+		Loc:      nodes.Loc{Start: start},
+	}
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+		subquery, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+		fc.Args.Items = append(fc.Args.Items, &nodes.SubqueryExpr{
+			Subquery: subquery,
+			Loc:      nodes.Loc{Start: start, End: p.prev.End},
+		})
+	} else {
+		args, err := p.parseExprList()
+		if err != nil {
+			return nil, err
+		}
+		if args != nil {
+			fc.Args.Items = append(fc.Args.Items, args.Items...)
+		}
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	fc.Loc.End = p.prev.End
+	return fc, nil
 }
 
 // parseBoolInfix parses AND/OR boolean expressions.
@@ -411,6 +464,9 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		}
 
 		// Identifier — could be column ref, function call, or keyword-as-identifier
+		if isOracleClauseStarterKeyword(p.cur.Type) {
+			return nil, nil
+		}
 		if p.isIdentLike() {
 			return p.parseIdentExpr()
 		}
@@ -532,6 +588,12 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 		}
 		if name1 == "EXTRACT" {
 			return p.parseExtractExpr(start)
+		}
+		if name1 == "XMLQUERY" {
+			return p.parseXMLQueryExpr(start)
+		}
+		if name1 == "XMLCAST" {
+			return p.parseXMLCastExpr(start)
 		}
 		// But first check if this looks like a schema-qualified function: name.name(
 		// No — just name( is the function call case
@@ -661,6 +723,41 @@ func (p *Parser) parseExtractExpr(start int) (nodes.ExprNode, error) {
 		Expr:  expr,
 		Loc:   nodes.Loc{Start: start, End: p.prev.End},
 	}, nil
+}
+
+func (p *Parser) parseXMLQueryExpr(start int) (nodes.ExprNode, error) {
+	return p.parseXMLSpecialFunc("XMLQUERY", start)
+}
+
+func (p *Parser) parseXMLCastExpr(start int) (nodes.ExprNode, error) {
+	return p.parseXMLSpecialFunc("XMLCAST", start)
+}
+
+func (p *Parser) parseXMLSpecialFunc(name string, start int) (nodes.ExprNode, error) {
+	fc := &nodes.FuncCallExpr{
+		FuncName: &nodes.ObjectName{Name: name, Loc: nodes.Loc{Start: start, End: p.prev.End}},
+		Args:     &nodes.List{},
+		Loc:      nodes.Loc{Start: start},
+	}
+	p.advance() // consume '('
+	depth := 0
+	for p.cur.Type != tokEOF {
+		if p.cur.Type == '(' {
+			depth++
+		} else if p.cur.Type == ')' {
+			if depth == 0 {
+				break
+			}
+			depth--
+		}
+		p.advance()
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	fc.Loc.End = p.prev.End
+	return p.parseFuncCallPostfix(fc)
 }
 
 // parseSubscriptIfPresent checks if the current token is '[' and parses a

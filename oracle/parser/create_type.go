@@ -68,27 +68,33 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 	switch {
 	case p.isIdentLikeStr("OBJECT"):
 		p.advance()
-		if p.cur.Type == '(' {
-			p.advance()
-			var parseErr574 error
-			stmt.Attributes, parseErr574 = p.parseTypeAttributeList()
-			if parseErr574 != nil {
-				return nil, parseErr574
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
+		var parseErr574 error
+		stmt.Attributes, parseErr574 = p.parseTypeAttributeList()
+		if parseErr574 != nil {
+			return nil, parseErr574
+		}
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
 
 	case p.cur.Type == kwTABLE:
 		p.advance()
-		if p.cur.Type == kwOF {
-			p.advance()
+		if p.cur.Type != kwOF {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		var parseErr575 error
 		stmt.AsTable, parseErr575 = p.parseTypeName()
 		if parseErr575 != nil {
 			return nil, parseErr575
+		}
+		if stmt.AsTable == nil || stmt.AsTable.Names.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 	case p.cur.Type == kwVARRAY || p.isIdentLikeStr("VARYING"):
@@ -98,20 +104,23 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 			p.advance()
 		}
 		// ( size_limit )
-		if p.cur.Type == '(' {
-			p.advance()
-			var parseErr576 error
-			stmt.VarraySize, parseErr576 = p.parseExpr()
-			if parseErr576 != nil {
-				return nil, parseErr576
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
 		}
-		if p.cur.Type == kwOF {
-			p.advance()
+		p.advance()
+		var parseErr576 error
+		stmt.VarraySize, parseErr576 = p.parseExpr()
+		if parseErr576 != nil {
+			return nil, parseErr576
 		}
+		if stmt.VarraySize == nil || p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if p.cur.Type != kwOF {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
 		var parseErr577 error
 		stmt.AsVarray, parseErr577 = p.parseTypeName()
 		if parseErr577 !=
@@ -119,6 +128,9 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 			// For TYPE BODY, parse structured members.
 			nil {
 			return nil, parseErr577
+		}
+		if stmt.AsVarray == nil || stmt.AsVarray.Names.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 	default:
@@ -417,6 +429,9 @@ func (p *Parser) parseTypeAttributeList() (*nodes.List, error) {
 		typeName, parseErr591 := p.parseTypeName()
 		if parseErr591 != nil {
 			return nil, parseErr591
+		}
+		if typeName == nil || typeName.Names.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		colDef := &nodes.ColumnDef{

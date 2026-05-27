@@ -110,12 +110,10 @@ func (p *Parser) parseMergeStmt() (*nodes.MergeStmt, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	// The condition may or may not be wrapped in parens.
-	wrappedOn := false
-	if p.cur.Type == '(' {
-		wrappedOn = true
-		p.advance()
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 	var parseErr805 error
 	stmt.On, parseErr805 = p.parseExpr()
 	if parseErr805 != nil {
@@ -124,12 +122,10 @@ func (p *Parser) parseMergeStmt() (*nodes.MergeStmt, error) {
 	if stmt.On == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
-	if wrappedOn {
-		if p.cur.Type != ')' {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	stmt.Clauses = &nodes.List{}
 	for p.cur.Type == kwWHEN {
@@ -344,9 +340,10 @@ func (p *Parser) parseMergeSetClause() (*nodes.SetClause, error) {
 	}
 
 	// =
-	if p.cur.Type == '=' {
-		p.advance()
+	if p.cur.Type != '=' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	// DEFAULT or expression
 	if p.cur.Type == kwDEFAULT {
@@ -360,6 +357,9 @@ func (p *Parser) parseMergeSetClause() (*nodes.SetClause, error) {
 		sc.Value, parseErr818 = p.parseExpr()
 		if parseErr818 != nil {
 			return nil, parseErr818
+		}
+		if sc.Value == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 	sc.Loc.End = p.prev.End

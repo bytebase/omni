@@ -35,7 +35,7 @@ func (p *Parser) parseCreateSequenceStmt(start int) (*nodes.CreateSequenceStmt, 
 	var parseErr1098 error
 
 	// Sequence name
-	stmt.Name, parseErr1098 = p.parseObjectName()
+	stmt.Name, parseErr1098 = p.parseReservedCheckedObjectName()
 	if parseErr1098 !=
 
 		// Parse sequence options
@@ -68,6 +68,9 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 			if parseErr1100 != nil {
 				return parseErr1100
 			}
+			if stmt.IncrementBy == nil {
+				return p.syntaxErrorAtCur()
+			}
 		case kwSTART:
 			p.advance()
 			if p.cur.Type == kwWITH {
@@ -78,12 +81,18 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 			if parseErr1101 != nil {
 				return parseErr1101
 			}
+			if stmt.StartWith == nil {
+				return p.syntaxErrorAtCur()
+			}
 		case kwMAXVALUE:
 			p.advance()
 			var parseErr1102 error
 			stmt.MaxValue, parseErr1102 = p.parseExpr()
 			if parseErr1102 != nil {
 				return parseErr1102
+			}
+			if stmt.MaxValue == nil {
+				return p.syntaxErrorAtCur()
 			}
 		case kwNOMAXVALUE:
 			stmt.NoMaxValue = true
@@ -94,6 +103,9 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 			stmt.MinValue, parseErr1103 = p.parseExpr()
 			if parseErr1103 != nil {
 				return parseErr1103
+			}
+			if stmt.MinValue == nil {
+				return p.syntaxErrorAtCur()
 			}
 		case kwNOMINVALUE:
 			stmt.NoMinValue = true
@@ -110,6 +122,9 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 			stmt.Cache, parseErr1104 = p.parseExpr()
 			if parseErr1104 != nil {
 				return parseErr1104
+			}
+			if stmt.Cache == nil {
+				return p.syntaxErrorAtCur()
 			}
 		case kwNOCACHE:
 			stmt.NoCache = true
@@ -152,7 +167,7 @@ func (p *Parser) parseCreateSynonymStmt(start int, orReplace, public bool) (*nod
 	var parseErr1105 error
 
 	// Synonym name
-	stmt.Name, parseErr1105 = p.parseObjectName()
+	stmt.Name, parseErr1105 = p.parseReservedCheckedObjectName()
 	if parseErr1105 !=
 
 		// FOR target
@@ -223,6 +238,9 @@ func (p *Parser) parseCreateDatabaseLinkStmt(start int, public bool) (*nodes.Cre
 		nil {
 		return nil, parseErr1107
 	}
+	if stmt.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	if p.cur.Type == kwCONNECT {
 		p.advance()
@@ -233,6 +251,9 @@ func (p *Parser) parseCreateDatabaseLinkStmt(start int, public bool) (*nodes.Cre
 		stmt.ConnectTo, parseErr1108 = p.parseIdentifier()
 		if parseErr1108 != nil {
 			return nil, parseErr1108
+		}
+		if stmt.ConnectTo == "" {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		if p.cur.Type == kwIDENTIFIED {
@@ -247,6 +268,9 @@ func (p *Parser) parseCreateDatabaseLinkStmt(start int, public bool) (*nodes.Cre
 				// USING 'connect_string'
 				nil {
 				return nil, parseErr1109
+			}
+			if stmt.Identified == "" {
+				return nil, p.syntaxErrorAtCur()
 			}
 		}
 	}

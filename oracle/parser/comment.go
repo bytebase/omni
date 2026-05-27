@@ -111,12 +111,10 @@ parseIs:
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if p.cur.Type != tokSCONST && p.cur.Type != kwNULL {
+	if p.cur.Type != tokSCONST {
 		return nil, p.syntaxErrorAtCur()
 	}
-	if p.cur.Type == tokSCONST {
-		stmt.Comment = p.cur.Str
-	}
+	stmt.Comment = p.cur.Str
 	p.advance()
 
 	stmt.Loc.End = p.prev.End

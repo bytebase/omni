@@ -159,3 +159,10 @@ func (p *Parser) syntaxErrorIfReservedIdentifier() error {
 	}
 	return nil
 }
+
+func (p *Parser) syntaxErrorIfReservedColumnIdentifier() error {
+	if p.cur.Type == tokQIDENT && p.cur.Str == "ROWID" {
+		return p.syntaxErrorAtCur()
+	}
+	return p.syntaxErrorIfReservedIdentifier()
+}

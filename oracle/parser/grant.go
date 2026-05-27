@@ -79,6 +79,9 @@ func (p *Parser) parseGrantStmt() (nodes.StmtNode, error) {
 		nil {
 		return nil, parseErr763
 	}
+	if !stmt.AllPriv && stmt.Privileges.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	if p.cur.Type == kwON {
 		p.advance()
@@ -102,19 +105,25 @@ func (p *Parser) parseGrantStmt() (nodes.StmtNode, error) {
 			nil {
 			return nil, parseErr765
 		}
+		if stmt.OnObject == nil || stmt.OnObject.Name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
-	if p.cur.Type == kwTO {
-		p.advance()
-		var // consume TO
-		parseErr766 error
-		stmt.Grantees, parseErr766 = p.parseIdentList()
-		if parseErr766 !=
+	if p.cur.Type != kwTO {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	var parseErr766 error
+	stmt.Grantees, parseErr766 = p.parseIdentList()
+	if parseErr766 !=
 
-			// WITH GRANT OPTION / WITH ADMIN OPTION
-			nil {
-			return nil, parseErr766
-		}
+		// WITH GRANT OPTION / WITH ADMIN OPTION
+		nil {
+		return nil, parseErr766
+	}
+	if stmt.Grantees.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.cur.Type == kwWITH {
@@ -201,6 +210,9 @@ func (p *Parser) parseRevokeStmt() (nodes.StmtNode, error) {
 		nil {
 		return nil, parseErr767
 	}
+	if !stmt.AllPriv && stmt.Privileges.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	if p.cur.Type == kwON {
 		p.advance()
@@ -229,17 +241,17 @@ func (p *Parser) parseRevokeStmt() (nodes.StmtNode, error) {
 		}
 	}
 
-	if p.cur.Type == kwFROM {
-		p.advance()
-		var // consume FROM
-		parseErr770 error
-		stmt.Grantees, parseErr770 = p.parseIdentList()
-		if parseErr770 != nil {
-			return nil, parseErr770
-		}
-		if stmt.Grantees.Len() == 0 {
-			return nil, p.syntaxErrorAtCur()
-		}
+	if p.cur.Type != kwFROM {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	var parseErr770 error
+	stmt.Grantees, parseErr770 = p.parseIdentList()
+	if parseErr770 != nil {
+		return nil, parseErr770
+	}
+	if stmt.Grantees.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -353,6 +365,10 @@ func (p *Parser) parseOptionalObjectType() (nodes.ObjectType, error) {
 		p.advance()
 		return nodes.OBJECT_INDEX, nil
 	default:
+		if p.isIdentLikeStr("DIRECTORY") {
+			p.advance()
+			return nodes.OBJECT_DIRECTORY, nil
+		}
 		// No explicit object type — default to TABLE for object privileges.
 		return nodes.OBJECT_TABLE, nil
 	}

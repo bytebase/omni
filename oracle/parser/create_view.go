@@ -102,9 +102,12 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.Create
 
 	// View name
 	var err error
-	stmt.Name, err = p.parseObjectName()
+	stmt.Name, err = p.parseReservedCheckedObjectName()
 	if err != nil {
 		return nil, err
+	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// SHARING = { METADATA | DATA | EXTENDED DATA | NONE }
@@ -137,14 +140,14 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.Create
 		stmt.Columns = &nodes.List{}
 		for {
 			if p.cur.Type == ')' || p.cur.Type == tokEOF {
-				break
+				return nil, p.syntaxErrorAtCur()
 			}
 			name, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
 			}
 			if name == "" {
-				break
+				return nil, p.syntaxErrorAtCur()
 			}
 			stmt.Columns.Items = append(stmt.Columns.Items, &nodes.String{Str: name})
 			// consume VISIBLE/INVISIBLE and inline constraints
@@ -169,9 +172,13 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.Create
 			}
 			p.advance()
 		}
-		if p.cur.Type == ')' {
-			p.advance()
+		if stmt.Columns.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
 		}
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
 	}
 
 	// DEFAULT COLLATION collation_name
@@ -226,6 +233,9 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.Create
 		stmt.Query, err = p.parseSelectStmt()
 		if err != nil {
 			return nil, err
+		}
+		if !selectStmtHasTargets(stmt.Query) {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
@@ -547,16 +557,17 @@ func (p *Parser) parseCreateMviewLogStmt(start int) (*nodes.CreateMviewLogStmt, 
 	}
 
 	// ON table
-	if p.cur.Type == kwON {
-		p.advance()
-		var parseErr594 error
-		stmt.OnTable, parseErr594 = p.parseObjectName()
-		if parseErr594 !=
-
-			// SHARING = { METADATA | NONE }
-			nil {
-			return nil, parseErr594
-		}
+	if p.cur.Type != kwON {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	var parseErr594 error
+	stmt.OnTable, parseErr594 = p.parseObjectName()
+	if parseErr594 != nil {
+		return nil, parseErr594
+	}
+	if stmt.OnTable == nil || stmt.OnTable.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.isIdentLike() && p.cur.Str == "SHARING" {

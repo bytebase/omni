@@ -26,12 +26,15 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 	var parseErr454 error
 
 	// Procedure name
-	stmt.Name, parseErr454 = p.parseObjectName()
+	stmt.Name, parseErr454 = p.parseReservedCheckedObjectName()
 	if parseErr454 !=
 
 		// Optional SHARING = { METADATA | NONE }
 		nil {
 		return nil, parseErr454
+	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.isIdentLikeStr("SHARING") {
@@ -57,9 +60,10 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 		}
 	}
 
-	if p.cur.Type == kwIS || p.cur.Type == kwAS {
-		p.advance()
+	if p.cur.Type != kwIS && p.cur.Type != kwAS {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 	var parseErr456 error
 
 	// PL/SQL block body (BEGIN ... END)
@@ -117,12 +121,15 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 	var parseErr457 error
 
 	// Function name
-	stmt.Name, parseErr457 = p.parseObjectName()
+	stmt.Name, parseErr457 = p.parseReservedCheckedObjectName()
 	if parseErr457 !=
 
 		// Optional parameter list
 		nil {
 		return nil, parseErr457
+	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.cur.Type == '(' {
@@ -136,17 +143,17 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 		}
 	}
 
-	if p.cur.Type == kwRETURN {
-		p.advance()
-		var // consume RETURN
-		parseErr459 error
-		stmt.ReturnType, parseErr459 = p.parseTypeName()
-		if parseErr459 !=
-
-			// Optional SHARING = { METADATA | NONE }
-			nil {
-			return nil, parseErr459
-		}
+	if p.cur.Type != kwRETURN {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	var parseErr459 error
+	stmt.ReturnType, parseErr459 = p.parseTypeName()
+	if parseErr459 != nil {
+		return nil, parseErr459
+	}
+	if stmt.ReturnType == nil || stmt.ReturnType.Names.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.isIdentLikeStr("SHARING") {
@@ -170,9 +177,10 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 		return nil, parseErr460
 	}
 
-	if p.cur.Type == kwIS || p.cur.Type == kwAS {
-		p.advance()
+	if p.cur.Type != kwIS && p.cur.Type != kwAS {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 	var parseErr461 error
 
 	// PL/SQL block body (BEGIN ... END)
@@ -317,6 +325,9 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 		nil {
 		return nil, parseErr466
 	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	if p.isIdentLikeStr("SHARING") {
 		p.advance() // consume SHARING
@@ -365,9 +376,10 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 	}
 
 	// IS | AS
-	if p.cur.Type == kwIS || p.cur.Type == kwAS {
-		p.advance()
+	if p.cur.Type != kwIS && p.cur.Type != kwAS {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 	var parseErr469 error
 
 	// Package declarations/body - collect everything until END
@@ -379,9 +391,10 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 		return nil, parseErr469
 	}
 
-	if p.cur.Type == kwEND {
-		p.advance() // consume END
+	if p.cur.Type != kwEND {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance() // consume END
 	// Optional package name after END
 	if p.isIdentLike() && p.cur.Type != ';' && p.cur.Type != tokEOF {
 		p.advance() // consume name
@@ -495,6 +508,8 @@ func (p *Parser) parsePackageProcDecl() (*nodes.CreateProcedureStmt, error) {
 		}
 	} else if p.cur.Type == ';' {
 		p.advance()
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -543,6 +558,11 @@ func (p *Parser) parsePackageFuncDecl() (*nodes.CreateFunctionStmt, error) {
 			nil {
 			return nil, parseErr478
 		}
+		if stmt.ReturnType == nil || stmt.ReturnType.Names.Len() == 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 	parseErr479 := p.parseFunctionProperties(stmt)
 	if parseErr479 !=
@@ -561,6 +581,8 @@ func (p *Parser) parsePackageFuncDecl() (*nodes.CreateFunctionStmt, error) {
 		}
 	} else if p.cur.Type == ';' {
 		p.advance()
+	} else {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -630,6 +652,9 @@ func (p *Parser) parseParameter() (*nodes.Parameter, error) {
 		// Optional default value: := expr or DEFAULT expr
 		nil {
 		return nil, parseErr484
+	}
+	if param.TypeName == nil || param.TypeName.Names.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.cur.Type == tokASSIGN {

@@ -277,6 +277,95 @@ func TestStrictReservedKeywordIdentifiers(t *testing.T) {
 	}
 }
 
+func TestStrictOracleCompatibilityGaps(t *testing.T) {
+	cases := []struct {
+		sql  string
+		near string
+	}{
+		{"SELECT 1 + FROM dual", `syntax error at or near "FROM"`},
+		{"CREATE TABLE (a NUMBER)", `syntax error at or near "("`},
+		{"CREATE PACKAGE compat_bad_pkg IS PROCEDURE p", "syntax error at end of input"},
+		{"CREATE TYPE compat_bad_obj AS OBJECT", "syntax error at end of input"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.sql, func(t *testing.T) {
+			assertParseErrorContains(t, tc.sql, tc.near)
+		})
+	}
+}
+
+func TestStrictOracleCompatibilityPhaseAGaps(t *testing.T) {
+	cases := []struct {
+		sql  string
+		near string
+	}{
+		{"SELECT * FROM employees ORDER BY employee_id NULLS", `syntax error at end of input`},
+		{"SELECT * FROM employees OFFSET ROWS", `syntax error at or near "ROWS"`},
+		{"INSERT INTO t (a,) VALUES (1)", `syntax error at or near ")"`},
+		{"INSERT ALL INTO t(a) VALUES(1)", `syntax error at end of input`},
+		{"UPDATE t SET a = , b = 2", `syntax error at or near ","`},
+		{"UPDATE t SET (a, b) = (SELECT 1 FROM dual)", `syntax error`},
+		{"INSERT FIRST WHEN THEN INTO t(a) VALUES(1) SELECT 1 FROM dual", `syntax error at or near "THEN"`},
+		{"MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET t.x = s.x", `syntax error at or near "t"`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.sql, func(t *testing.T) {
+			assertParseErrorContains(t, tc.sql, tc.near)
+		})
+	}
+}
+
+func TestOracleCompatibilityPhaseAAccepts(t *testing.T) {
+	cases := []string{
+		"SELECT * FROM employees WHERE salary > ANY (SELECT salary FROM employees)",
+		"SELECT * FROM employees WHERE salary >= ALL (SELECT salary FROM employees)",
+		"SELECT XMLCAST(XMLQUERY('/r/id' PASSING XMLTYPE('<r><id>1</id></r>') RETURNING CONTENT) AS NUMBER) FROM dual",
+		"UPDATE (SELECT a FROM t) SET a = 1",
+		"DELETE FROM (SELECT * FROM t) WHERE id = 1",
+	}
+	for _, sql := range cases {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestStrictOracleCompatibilityPhaseBGaps(t *testing.T) {
+	cases := []string{
+		"CREATE TABLE compat_bad_cols (a NUMBER,)",
+		"CREATE TABLE compat_bad_col (a)",
+		"CREATE TABLE compat_bad_ctas AS",
+		"CREATE TABLE compat_bad_part (a NUMBER) PARTITION BY RANGE (a) (PARTITION p1)",
+		"CREATE INDEX compat_bad_idx ON t()",
+		"CREATE INDEX compat_bad_idx ON t(a,)",
+		"CREATE INDEX compat_bad_idx ON t",
+		"CREATE VIEW compat_bad_v () AS SELECT 1 FROM dual",
+		"CREATE SEQUENCE compat_bad_seq CACHE",
+		"CREATE SEQUENCE compat_bad_seq INCREMENT BY",
+		"DROP TABLE t CASCADE PURGE",
+		"DROP INDEX ONLINE",
+		"ALTER TABLE t RENAME COLUMN a",
+		"COMMENT ON TABLE t IS NULL",
+		"TRUNCATE TABLE t DROP",
+		"CREATE MATERIALIZED VIEW LOG ON",
+		"ALTER MATERIALIZED VIEW compat_bad_mv",
+		"ALTER MATERIALIZED VIEW compat_bad_mv REFRESH",
+		"DROP MATERIALIZED VIEW LOG compat_bad_mlog",
+		"CREATE CLUSTER compat_bad_cluster",
+		"CREATE CLUSTER compat_bad_cluster ()",
+		"ALTER CLUSTER compat_bad_cluster",
+	}
+	for _, sql := range cases {
+		t.Run(sql, func(t *testing.T) {
+			assertParseErrorContains(t, sql, "syntax error")
+		})
+	}
+}
+
+func TestOracleCompatibilityPhaseBAccepts(t *testing.T) {
+	ParseAndCheck(t, "CREATE TABLE compat_part_hash (a NUMBER) PARTITION BY HASH (a) PARTITIONS 4")
+}
+
 func TestStrictV2CoverageMatrix(t *testing.T) {
 	rows, _ := readCoverageTSV(t, filepath.Join("testdata", "coverage", "strictness_v2.tsv"))
 	var scenarios int

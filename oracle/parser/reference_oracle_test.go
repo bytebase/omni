@@ -139,6 +139,44 @@ func openOracleReservedWordsDB(t *testing.T) (context.Context, *sql.DB) {
 	return openOracleReferenceDB(t)
 }
 
+func openOraclePrivilegedReferenceDB(t *testing.T) (context.Context, *sql.DB) {
+	t.Helper()
+	if dsn := os.Getenv("ORACLE_PARSER_REF_PRIVILEGED_DSN"); dsn != "" {
+		db, err := sql.Open("oracle", dsn)
+		if err != nil {
+			t.Fatalf("open Oracle privileged reference connection: %v", err)
+		}
+		t.Cleanup(func() { _ = db.Close() })
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		t.Cleanup(cancel)
+		if err := db.PingContext(ctx); err != nil {
+			t.Fatalf("ping Oracle privileged reference connection: %v", err)
+		}
+		return ctx, db
+	}
+	if dsn := os.Getenv("ORACLE_PARSER_REF_ADMIN_DSN"); dsn != "" {
+		db, err := sql.Open("oracle", dsn)
+		if err != nil {
+			t.Fatalf("open Oracle admin reference connection: %v", err)
+		}
+		t.Cleanup(func() { _ = db.Close() })
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		t.Cleanup(cancel)
+		if err := db.PingContext(ctx); err != nil {
+			t.Fatalf("ping Oracle admin reference connection: %v", err)
+		}
+		return ctx, db
+	}
+	if os.Getenv("ORACLE_PARSER_REF_CONTAINER") == "1" {
+		oracle := startOracleDB(t)
+		return oracle.ctx, oracle.adminDB
+	}
+	t.Skip("Oracle privileged reference DSN is not set; set ORACLE_PARSER_REF_PRIVILEGED_DSN, ORACLE_PARSER_REF_ADMIN_DSN, or ORACLE_PARSER_REF_CONTAINER=1")
+	return nil, nil
+}
+
 func oracleReferenceSQL(sqlText, runID string) string {
 	return strings.ReplaceAll(sqlText, "{run}", runID)
 }
