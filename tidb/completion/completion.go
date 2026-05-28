@@ -1,4 +1,4 @@
-// Package completion provides parser-native C3-style SQL completion for MySQL.
+// Package completion provides parser-native C3-style SQL completion for TiDB.
 package completion
 
 import (

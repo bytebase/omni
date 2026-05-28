@@ -130,6 +130,35 @@ type DeleteStmt struct {
 func (s *DeleteStmt) nodeTag()  {}
 func (s *DeleteStmt) stmtNode() {}
 
+// BatchDryRunMode enumerates TiDB BATCH non-transactional DML dry-run modes.
+// Numeric values mirror pingcap ast (dml.go: NoDryRun=0, DryRunQuery=1,
+// DryRunSplitDml=2). DRY RUN → SplitDML; DRY RUN QUERY → Query.
+type BatchDryRunMode int
+
+const (
+	BatchDryRunNone     BatchDryRunMode = iota // 0: execute the split DMLs
+	BatchDryRunQuery                           // 1: DRY RUN QUERY — show the SELECT that splits
+	BatchDryRunSplitDML                        // 2: DRY RUN — show the split DML jobs
+)
+
+// BatchStmt represents a TiDB non-transactional DML statement:
+//
+//	BATCH [ON <col>] LIMIT <n> [DRY RUN [QUERY]] {DELETE | UPDATE | INSERT | REPLACE}
+//
+// Ref: pingcap parser.y NonTransactionalDMLStmt (production "BATCH"
+// OptionalShardColumn "LIMIT" NUM DryRunOptions ShardableStmt). REPLACE is
+// surfaced as *InsertStmt with IsReplace=true (omni unifies INSERT/REPLACE).
+type BatchStmt struct {
+	Loc         Loc
+	ShardColumn *ColumnRef // ON <col>; nil → TiDB auto-selects the handle column
+	Limit       uint64     // LIMIT <n>; grammar is NUM (integer literal), not an expression
+	DryRun      BatchDryRunMode
+	DML         StmtNode // *DeleteStmt | *UpdateStmt | *InsertStmt
+}
+
+func (s *BatchStmt) nodeTag()  {}
+func (s *BatchStmt) stmtNode() {}
+
 // CreateTableStmt represents a CREATE TABLE statement.
 type CreateTableStmt struct {
 	Loc         Loc

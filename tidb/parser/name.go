@@ -507,6 +507,13 @@ var keywordCategories = map[int]keywordCategory{
 
 	// MASTER_LOG_FILE — legacy MySQL replication alias, unreserved.
 	kwMASTER_LOG_FILE: kwCatUnambiguous,
+
+	// TiDB non-transactional DML keywords (BATCH = parser.y:7355;
+	// DRY/RUN = parser.y:7397-7398) — all unreserved upstream, usable as
+	// identifiers/labels/roles/lvalues.
+	kwBATCH: kwCatUnambiguous,
+	kwDRY:   kwCatUnambiguous,
+	kwRUN:   kwCatUnambiguous,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot

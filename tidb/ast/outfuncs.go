@@ -39,6 +39,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeUpdateStmt(sb, n)
 	case *DeleteStmt:
 		writeDeleteStmt(sb, n)
+	case *BatchStmt:
+		writeBatchStmt(sb, n)
 	case *CreateTableStmt:
 		writeCreateTableStmt(sb, n)
 	case *AlterTableStmt:
@@ -783,6 +785,28 @@ func writeDeleteStmt(sb *strings.Builder, n *DeleteStmt) {
 	if n.Limit != nil {
 		sb.WriteString(" :limit ")
 		writeNode(sb, n.Limit)
+	}
+	sb.WriteString("}")
+}
+
+func writeBatchStmt(sb *strings.Builder, n *BatchStmt) {
+	sb.WriteString("{BATCH")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.ShardColumn != nil {
+		sb.WriteString(" :shard_column ")
+		writeNode(sb, n.ShardColumn)
+	}
+	fmt.Fprintf(sb, " :limit %d", n.Limit)
+	switch n.DryRun {
+	case BatchDryRunQuery:
+		sb.WriteString(" :dry_run query")
+	case BatchDryRunSplitDML:
+		sb.WriteString(" :dry_run split_dml")
+	case BatchDryRunNone:
+	}
+	if n.DML != nil {
+		sb.WriteString(" :dml ")
+		writeNode(sb, n.DML)
 	}
 	sb.WriteString("}")
 }
