@@ -1793,8 +1793,15 @@ func writeInlineExternalTable(sb *strings.Builder, n *InlineExternalTable) {
 	if n.Directory != "" {
 		sb.WriteString(fmt.Sprintf(" :directory %q", n.Directory))
 	}
+	if n.AccessParams != "" {
+		sb.WriteString(fmt.Sprintf(" :accessParams %q", n.AccessParams))
+	}
 	if n.Location != "" {
 		sb.WriteString(fmt.Sprintf(" :location %q", n.Location))
+	}
+	if n.RejectLimit != nil {
+		sb.WriteString(" :rejectLimit ")
+		writeNode(sb, n.RejectLimit)
 	}
 	if n.Alias != nil {
 		sb.WriteString(" :alias ")
