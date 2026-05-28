@@ -645,6 +645,11 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		return p.parseTableCollectionExpr(start)
 	}
 
+	// EXTERNAL ((columns) TYPE ... DEFAULT DIRECTORY ... LOCATION ...)
+	if p.isIdentLikeStr("EXTERNAL") && p.peekNext().Type == '(' {
+		return p.parseInlineExternalTable(start)
+	}
+
 	// CONTAINERS(table) or SHARDS(table)
 	if p.isIdentLikeStr("CONTAINERS") && p.peekNext().Type == '(' {
 		return p.parseContainersOrShards(start, false)
@@ -815,6 +820,218 @@ func (p *Parser) parseSubqueryRef(start int) (nodes.TableExpr, error) {
 
 	ref.Loc.End = p.prev.End
 	return ref, nil
+}
+
+// parseInlineExternalTable parses Oracle's inline external table source.
+//
+//	inline_external_table:
+//	    EXTERNAL ( ( column_definition [, column_definition ]... )
+//	      TYPE external_table_type
+//	      DEFAULT DIRECTORY directory
+//	      [ ACCESS PARAMETERS { ( opaque_format_spec ) | USING CLOB subquery } ]
+//	      LOCATION ( 'file_uri_list' )
+//	      [ REJECT LIMIT { integer | UNLIMITED } ] ) [ alias ]
+func (p *Parser) parseInlineExternalTable(start int) (nodes.TableExpr, error) {
+	p.advance() // consume EXTERNAL
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume outer '('
+
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume column-definition '('
+
+	ref := &nodes.InlineExternalTable{
+		Columns: &nodes.List{},
+		Loc:     nodes.Loc{Start: start},
+	}
+	for {
+		col, err := p.parseColumnDef()
+		if err != nil {
+			return nil, err
+		}
+		if col == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		ref.Columns.Items = append(ref.Columns.Items, col)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume column-definition ')'
+
+	if p.cur.Type != kwTYPE {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	var err error
+	ref.Type, err = p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	if ref.Type == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	if p.cur.Type != kwDEFAULT {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type != kwDIRECTORY {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	ref.Directory, err = p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	if ref.Directory == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	if p.cur.Type == kwACCESS {
+		p.advance()
+		if !p.isIdentLikeStr("PARAMETERS") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		ref.AccessParams, err = p.parseInlineExternalAccessParams()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if !p.isIdentLikeStr("LOCATION") {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	ref.Location, err = p.parseInlineExternalLocation()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.cur.Type == kwREJECT {
+		p.advance()
+		if p.cur.Type != kwLIMIT {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		ref.RejectLimit, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if ref.RejectLimit == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume outer ')'
+
+	if p.cur.Type == kwAS {
+		p.advance()
+		ref.Alias, err = p.parseAlias()
+		if err != nil {
+			return nil, err
+		}
+	} else if p.isTableAliasCandidate() {
+		ref.Alias, err = p.parseAlias()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	ref.Loc.End = p.prev.End
+	return ref, nil
+}
+
+func (p *Parser) parseInlineExternalAccessParams() (string, error) {
+	if p.cur.Type == '(' {
+		return p.collectBalancedRaw()
+	}
+	start := p.pos()
+	depth := 0
+	for p.cur.Type != tokEOF {
+		if depth == 0 && p.isIdentLikeStr("LOCATION") {
+			break
+		}
+		switch p.cur.Type {
+		case '(':
+			depth++
+		case ')':
+			if depth == 0 {
+				return "", p.syntaxErrorAtCur()
+			}
+			depth--
+		}
+		p.advance()
+	}
+	if p.cur.Type == tokEOF {
+		return "", p.syntaxErrorAtCur()
+	}
+	return strings.TrimSpace(p.source[start:p.cur.Loc]), nil
+}
+
+func (p *Parser) parseInlineExternalLocation() (string, error) {
+	if p.cur.Type != '(' {
+		return "", p.syntaxErrorAtCur()
+	}
+	p.advance()
+	start := p.pos()
+	var files []string
+	depth := 0
+	for p.cur.Type != tokEOF {
+		if depth == 0 && p.cur.Type == ')' {
+			raw := strings.TrimSpace(p.source[start:p.cur.Loc])
+			p.advance()
+			if len(files) == 1 {
+				return files[0], nil
+			}
+			return raw, nil
+		}
+		if p.cur.Type == tokSCONST {
+			files = append(files, p.cur.Str)
+		}
+		switch p.cur.Type {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		}
+		p.advance()
+	}
+	return "", p.syntaxErrorAtCur()
+}
+
+func (p *Parser) collectBalancedRaw() (string, error) {
+	if p.cur.Type != '(' {
+		return "", p.syntaxErrorAtCur()
+	}
+	p.advance()
+	start := p.pos()
+	depth := 1
+	for p.cur.Type != tokEOF {
+		if p.cur.Type == '(' {
+			depth++
+		} else if p.cur.Type == ')' {
+			depth--
+			if depth == 0 {
+				raw := strings.TrimSpace(p.source[start:p.cur.Loc])
+				p.advance()
+				return raw, nil
+			}
+		}
+		p.advance()
+	}
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseLateralRef parses a LATERAL inline view.
