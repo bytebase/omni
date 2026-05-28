@@ -4,6 +4,14 @@ import (
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
+func exprLocStart(expr nodes.ExprNode, fallback int) int {
+	loc := nodes.NodeLoc(expr)
+	if loc.Start >= 0 {
+		return loc.Start
+	}
+	return fallback
+}
+
 // Precedence levels for Pratt parsing.
 const (
 	precNone    = 0
@@ -62,6 +70,15 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 	}
 
 	for {
+		if prec, ok := p.postfixInfo(); ok && prec >= minPrec {
+			var err error
+			left, err = p.parsePostfix(left)
+			if err != nil {
+				return nil, err
+			}
+			continue
+		}
+
 		prec, op, isBool := p.infixInfo()
 		if prec < minPrec {
 			break
@@ -84,16 +101,6 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 			}
 		}
 	}
-	var parseErr700 error
-
-	left, parseErr700 = p.parsePostfix(left)
-	if parseErr700 !=
-
-		// MULTISET UNION/INTERSECT/EXCEPT
-		nil {
-		return nil, parseErr700
-	}
-
 	if p.cur.Type == kwMULTISET {
 		var parseErr701 error
 		left, parseErr701 = p.parseMultisetOp(left)
@@ -141,6 +148,21 @@ func (p *Parser) infixInfo() (int, string, bool) {
 		return precExpon, "**", false
 	}
 	return precNone, "", false
+}
+
+func (p *Parser) postfixInfo() (int, bool) {
+	switch p.cur.Type {
+	case kwIS:
+		return precIs, true
+	case kwBETWEEN, kwIN, kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4:
+		return precLike, true
+	case kwNOT:
+		switch p.peekNext().Type {
+		case kwBETWEEN, kwIN, kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4:
+			return precLike, true
+		}
+	}
+	return precNone, false
 }
 
 // parseBinaryInfix parses a binary infix expression.
@@ -1659,7 +1681,7 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, not bool) (nodes.ExprNode, err
 //
 //	expr [NOT] LIKE pattern [ ESCAPE escape_char ]
 func (p *Parser) parseLikeExpr(left nodes.ExprNode, not bool, likeType nodes.LikeType) (nodes.ExprNode, error) {
-	start := p.pos()
+	start := exprLocStart(left, p.pos())
 	p.advance() // consume LIKE/LIKEC/LIKE2/LIKE4
 
 	pattern, parseErr744 := p.parseExprPrec(precConcat)

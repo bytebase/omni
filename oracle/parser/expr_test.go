@@ -336,6 +336,22 @@ func TestParseExprLikeEscape(t *testing.T) {
 	}
 }
 
+func TestParseExprLikeLocCoversLeftOperand(t *testing.T) {
+	input := "email LIKE '%@%.%'"
+	p := newTestParser(input)
+	e, err := p.parseExpr()
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if _, ok := e.(*ast.LikeExpr); !ok {
+		t.Fatalf("expected LikeExpr, got %T", e)
+	}
+	loc := ast.NodeLoc(e)
+	if loc.Start != 0 || loc.End != len(input) {
+		t.Fatalf("LikeExpr Loc = [%d,%d], want [0,%d]", loc.Start, loc.End, len(input))
+	}
+}
+
 // TestParseExprIsNull tests IS NULL and IS NOT NULL.
 func TestParseExprIsNull(t *testing.T) {
 	tests := []struct {
