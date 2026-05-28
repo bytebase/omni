@@ -12,7 +12,7 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	if p.collectMode() {
 		// Add all top-level statement-starting keywords as candidates.
 		stmtTokens := []int{
-			kwSELECT, kwINSERT, kwUPDATE, kwDELETE,
+			kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwBATCH,
 			kwCREATE, kwALTER, kwDROP, kwTRUNCATE, kwRENAME,
 			kwWITH, kwTABLE, kwVALUES, kwREPLACE,
 			kwSET, kwSHOW, kwUSE,
@@ -55,6 +55,9 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 
 	case kwDELETE:
 		return p.parseDeleteStmt()
+
+	case kwBATCH:
+		return p.parseBatchStmt()
 
 	case kwCREATE:
 		return p.parseCreateDispatch()

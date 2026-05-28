@@ -110,6 +110,11 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Column)
 		}
 		Walk(v, n.Value)
+	case *BatchStmt:
+		if n.ShardColumn != nil {
+			Walk(v, n.ShardColumn)
+		}
+		Walk(v, n.DML)
 	case *BeginEndBlock:
 		for _, item := range n.Stmts {
 			Walk(v, item)

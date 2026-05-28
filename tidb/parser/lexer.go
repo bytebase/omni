@@ -911,6 +911,13 @@ const (
 	// replication.go check the token directly instead of eqFold on
 	// the identifier string.
 	kwMASTER_LOG_FILE
+
+	// TiDB non-transactional DML (BATCH ... LIMIT n DELETE/UPDATE/INSERT).
+	// BATCH/DRY/RUN are TiDBKeyword upstream — all unreserved
+	// (parser.y:7355, 7397-7398). QUERY (kwQUERY) already exists.
+	kwBATCH
+	kwDRY
+	kwRUN
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1751,6 +1758,11 @@ var keywords = map[string]int{
 
 	// Legacy MySQL replication alias (superseded by SOURCE_LOG_FILE).
 	"master_log_file": kwMASTER_LOG_FILE,
+
+	// TiDB non-transactional DML (BATCH ... LIMIT n DELETE/UPDATE/INSERT).
+	"batch": kwBATCH,
+	"dry":   kwDRY,
+	"run":   kwRUN,
 }
 
 // Token represents a lexical token.
