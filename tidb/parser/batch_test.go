@@ -69,6 +69,12 @@ var batchCases = []batchCase{
 	{"DRY RUN junk modifier", "BATCH ON id LIMIT 100 DRY RUN FOO DELETE FROM t WHERE 1=1", false},
 	{"no DML statement", "BATCH ON id LIMIT 100", false},
 	{"bare BATCH", "BATCH", false},
+
+	// Shard column must be a (qualified) column name, not a wildcard:
+	// pingcap OptionalShardColumn is "ON ColumnName", which has no star form.
+	{"bare star shard col", "BATCH ON * LIMIT 100 DELETE FROM t WHERE 1=1", false},
+	{"wildcard shard col table.*", "BATCH ON t.* LIMIT 100 DELETE FROM t WHERE 1=1", false},
+	{"wildcard shard col db.table.*", "BATCH ON db.t.* LIMIT 100 DELETE FROM t WHERE 1=1", false},
 }
 
 // TestBatchParse locks BATCH grammar acceptance in the pure parser (no Docker).

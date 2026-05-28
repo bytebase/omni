@@ -27,11 +27,16 @@ func (p *Parser) parseBatchStmt() (*nodes.BatchStmt, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// OptionalShardColumn: [ON ColumnName]
+	// OptionalShardColumn: [ON ColumnName]. Upstream is a plain (optionally
+	// qualified) column name — parseColumnRef also accepts wildcard forms
+	// (t.* / db.t.*), which TiDB rejects here, so disallow them.
 	if _, ok := p.match(kwON); ok {
 		col, err := p.parseColumnRef()
 		if err != nil {
 			return nil, err
+		}
+		if col.Star {
+			return nil, &ParseError{Message: "BATCH shard column must be a column name, not a wildcard", Position: col.Loc.Start}
 		}
 		stmt.ShardColumn = col
 	}
