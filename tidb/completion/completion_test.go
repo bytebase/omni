@@ -81,6 +81,20 @@ func TestComplete_QualifiedColumnScopedToQualifier(t *testing.T) {
 	if !containsCandidate(got, "a1", CandidateColumn) || !containsCandidate(got, "b1", CandidateColumn) {
 		t.Errorf("unqualified column ref should offer all in-scope columns; got %v", got)
 	}
+
+	// A fully-qualified db.table. must scope by database too, when the same table
+	// name exists in more than one database in scope.
+	xdb := catalog.New()
+	if _, err := xdb.Exec("CREATE DATABASE `db1`; CREATE TABLE `db1`.`t` (`a1` int); CREATE DATABASE `db2`; CREATE TABLE `db2`.`t` (`b1` int); USE `db1`;", &catalog.ExecOptions{ContinueOnError: true}); err != nil {
+		t.Fatal(err)
+	}
+	got = Complete("SELECT db1.t. FROM db1.t JOIN db2.t", len("SELECT db1.t."), xdb)
+	if !containsCandidate(got, "a1", CandidateColumn) {
+		t.Errorf("db1.t. should offer db1.t column a1; got %v", got)
+	}
+	if containsCandidate(got, "b1", CandidateColumn) {
+		t.Errorf("db1.t. must NOT offer db2.t column b1; got %v", got)
+	}
 }
 
 func TestComplete_2_1_CompleteReturnsSlice(t *testing.T) {

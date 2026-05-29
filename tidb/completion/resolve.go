@@ -188,16 +188,29 @@ func resolveColumnRefScoped(cat *catalog.Catalog, sql string, cursorOffset int) 
 		return resolveColumnRef(cat)
 	}
 
-	// A qualified column reference (e.g. `a.col` or `t1.col`) is restricted to the
-	// table whose alias or name matches the qualifier before the dot; an
-	// unqualified reference uses every in-scope table.
-	qualifier := columnQualifier(sql, cursorOffset)
+	// A qualified column reference (e.g. `a.col`, `t1.col`, or `db1.t1.col`) is
+	// restricted to the table whose alias or name matches the qualifier before the
+	// dot — and, when the qualifier names a database, whose database matches too
+	// (so `db1.t.` is not satisfied by `db2.t`). An unqualified reference uses
+	// every in-scope table.
+	qDB, qName := columnQualifier(sql, cursorOffset)
 
 	seen := make(map[string]bool)
 	var result []Candidate
 	for _, ref := range refs {
-		if qualifier != "" && !strings.EqualFold(ref.Alias, qualifier) && !strings.EqualFold(ref.Table, qualifier) {
-			continue
+		if qName != "" {
+			if !strings.EqualFold(ref.Alias, qName) && !strings.EqualFold(ref.Table, qName) {
+				continue
+			}
+			if qDB != "" {
+				refDB := ref.Database
+				if refDB == "" {
+					refDB = cat.CurrentDatabase()
+				}
+				if !strings.EqualFold(refDB, qDB) {
+					continue
+				}
+			}
 		}
 		// Resolve table in the appropriate database.
 		targetDB := db
@@ -462,30 +475,28 @@ func currentDB(cat *catalog.Catalog) *catalog.Database {
 	return cat.GetDatabase(name)
 }
 
-// columnQualifier returns the table/alias qualifier that immediately precedes
-// the dot at the cursor (e.g. "a" for `a.col` or `a . col`), or "" if the column
-// reference is unqualified. The caller passes the collect offset, which sits at
-// the start of the partial column name, so the byte before it (after optional
-// whitespace) is the qualifier dot.
-func columnQualifier(sql string, offset int) string {
-	if offset > len(sql) {
-		offset = len(sql)
+// identBeforeDot scans left from pos expecting (optional whitespace) '.'
+// (optional whitespace) <identifier>, returning the identifier text, the index
+// where it starts, and whether the pattern matched. The identifier may be bare
+// or backtick-quoted.
+func identBeforeDot(sql string, pos int) (ident string, start int, ok bool) {
+	if pos > len(sql) {
+		pos = len(sql)
 	}
-	i := offset
+	i := pos
 	for i > 0 && isSpaceByte(sql[i-1]) {
 		i--
 	}
 	if i == 0 || sql[i-1] != '.' {
-		return ""
+		return "", pos, false
 	}
 	i-- // consume the dot
 	for i > 0 && isSpaceByte(sql[i-1]) {
 		i--
 	}
 	if i == 0 {
-		return ""
+		return "", pos, false
 	}
-	// Backtick-quoted qualifier.
 	if sql[i-1] == '`' {
 		end := i - 1
 		j := end - 1
@@ -493,16 +504,34 @@ func columnQualifier(sql string, offset int) string {
 			j--
 		}
 		if j < 0 {
-			return ""
+			return "", pos, false
 		}
-		return sql[j+1 : end]
+		return sql[j+1 : end], j, true
 	}
-	// Bare identifier.
 	end := i
 	for i > 0 && isIdentByte(sql[i-1]) {
 		i--
 	}
-	return sql[i:end]
+	if i == end {
+		return "", pos, false
+	}
+	return sql[i:end], i, true
+}
+
+// columnQualifier returns the optional database part and the table/alias part of
+// the qualifier preceding the dot at the cursor: `db1.t.` -> ("db1","t"),
+// `t.`/`a.` -> ("","t")/("","a"), and ("","") when the reference is unqualified.
+// The caller passes the collect offset, which sits at the start of the partial
+// column name.
+func columnQualifier(sql string, offset int) (db, name string) {
+	n, start, ok := identBeforeDot(sql, offset)
+	if !ok {
+		return "", ""
+	}
+	if d, _, ok2 := identBeforeDot(sql, start); ok2 {
+		db = d
+	}
+	return db, n
 }
 
 func isSpaceByte(b byte) bool {
