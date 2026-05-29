@@ -481,6 +481,27 @@ func TestParseCreateTableTableConstraints(t *testing.T) {
 	}
 }
 
+func TestParseCreateTableCheckConstraintWithOr(t *testing.T) {
+	sql := `CREATE TABLE orders (
+		order_date DATE,
+		ship_date DATE,
+		CONSTRAINT chk_ship_after_order CHECK (ship_date IS NULL OR ship_date >= order_date)
+	)`
+	result := ParseAndCheck(t, sql)
+	raw := result.Items[0].(*ast.RawStmt)
+	ct := raw.Stmt.(*ast.CreateTableStmt)
+	if ct.Constraints == nil || ct.Constraints.Len() != 1 {
+		t.Fatalf("expected 1 table constraint, got %d", ct.Constraints.Len())
+	}
+	tc := ct.Constraints.Items[0].(*ast.TableConstraint)
+	if tc.Type != ast.CONSTRAINT_CHECK {
+		t.Fatalf("expected CHECK constraint, got %d", tc.Type)
+	}
+	if _, ok := tc.Expr.(*ast.BoolExpr); !ok {
+		t.Fatalf("expected CHECK expression to parse as BoolExpr, got %T", tc.Expr)
+	}
+}
+
 // TestParseCreateTableOrReplace tests CREATE OR REPLACE TABLE (23c).
 func TestParseCreateTableOrReplace(t *testing.T) {
 	sql := `CREATE OR REPLACE TABLE t (id NUMBER)`
