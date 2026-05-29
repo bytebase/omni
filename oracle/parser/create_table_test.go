@@ -91,6 +91,48 @@ func TestCreateTableJsonKeywordStillAllowedAsIdentifier(t *testing.T) {
 	}
 }
 
+func TestCreateTableVirtualColumnShorthand(t *testing.T) {
+	tests := []struct {
+		name     string
+		sql      string
+		wantType bool
+	}{
+		{
+			name:     "without_type",
+			sql:      "CREATE TABLE t (price NUMBER, qty NUMBER, total AS (price * qty))",
+			wantType: false,
+		},
+		{
+			name:     "with_type",
+			sql:      "CREATE TABLE t (price NUMBER, qty NUMBER, total NUMBER AS (price * qty))",
+			wantType: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stmt := parseCreateTableForP2(t, tt.sql)
+			if stmt.Columns.Len() != 3 {
+				t.Fatalf("expected 3 columns, got %d", stmt.Columns.Len())
+			}
+			col := stmt.Columns.Items[2].(*ast.ColumnDef)
+			if col.Name != "TOTAL" {
+				t.Fatalf("expected third column TOTAL, got %q", col.Name)
+			}
+			if (col.TypeName != nil) != tt.wantType {
+				t.Fatalf("TypeName presence = %v, want %v", col.TypeName != nil, tt.wantType)
+			}
+			expr, ok := col.Virtual.(*ast.BinaryExpr)
+			if !ok {
+				t.Fatalf("expected BinaryExpr virtual expression, got %T", col.Virtual)
+			}
+			if expr.Op != "*" {
+				t.Fatalf("expected multiplication virtual expression, got op %q", expr.Op)
+			}
+		})
+	}
+}
+
 func TestCreateTableIntervalPartitioning(t *testing.T) {
 	ParseAndCheck(t, `CREATE TABLE t_interval_full (d DATE)
 PARTITION BY RANGE (d)
