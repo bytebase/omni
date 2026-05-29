@@ -171,9 +171,11 @@ func resolveTableRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveColumnRefScoped returns columns scoped to the tables referenced in
-// the SQL statement. If no table refs are found, falls back to all columns
-// in the current database.
+// resolveColumnRefScoped returns columns scoped to the tables referenced in the
+// SQL statement. An unqualified reference falls back to all columns in the
+// current database when nothing else resolves; a qualified reference (e.g.
+// `a.col`) is restricted to the matching table and returns no columns when the
+// qualifier matches no in-scope table.
 func resolveColumnRefScoped(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
 	if cat == nil {
 		return nil
