@@ -1,6 +1,8 @@
 package completion
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/tidb/catalog"
 	"github.com/bytebase/omni/tidb/parser"
 )
@@ -186,9 +188,17 @@ func resolveColumnRefScoped(cat *catalog.Catalog, sql string, cursorOffset int) 
 		return resolveColumnRef(cat)
 	}
 
+	// A qualified column reference (e.g. `a.col` or `t1.col`) is restricted to the
+	// table whose alias or name matches the qualifier before the dot; an
+	// unqualified reference uses every in-scope table.
+	qualifier := columnQualifier(sql, cursorOffset)
+
 	seen := make(map[string]bool)
 	var result []Candidate
 	for _, ref := range refs {
+		if qualifier != "" && !strings.EqualFold(ref.Alias, qualifier) && !strings.EqualFold(ref.Table, qualifier) {
+			continue
+		}
 		// Resolve table in the appropriate database.
 		targetDB := db
 		if ref.Database != "" {
@@ -450,4 +460,56 @@ func currentDB(cat *catalog.Catalog) *catalog.Database {
 		return nil
 	}
 	return cat.GetDatabase(name)
+}
+
+// columnQualifier returns the table/alias qualifier that immediately precedes
+// the dot at the cursor (e.g. "a" for `a.col` or `a . col`), or "" if the column
+// reference is unqualified. The caller passes the collect offset, which sits at
+// the start of the partial column name, so the byte before it (after optional
+// whitespace) is the qualifier dot.
+func columnQualifier(sql string, offset int) string {
+	if offset > len(sql) {
+		offset = len(sql)
+	}
+	i := offset
+	for i > 0 && isSpaceByte(sql[i-1]) {
+		i--
+	}
+	if i == 0 || sql[i-1] != '.' {
+		return ""
+	}
+	i-- // consume the dot
+	for i > 0 && isSpaceByte(sql[i-1]) {
+		i--
+	}
+	if i == 0 {
+		return ""
+	}
+	// Backtick-quoted qualifier.
+	if sql[i-1] == '`' {
+		end := i - 1
+		j := end - 1
+		for j >= 0 && sql[j] != '`' {
+			j--
+		}
+		if j < 0 {
+			return ""
+		}
+		return sql[j+1 : end]
+	}
+	// Bare identifier.
+	end := i
+	for i > 0 && isIdentByte(sql[i-1]) {
+		i--
+	}
+	return sql[i:end]
+}
+
+func isSpaceByte(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+}
+
+func isIdentByte(b byte) bool {
+	return b == '_' || b == '$' ||
+		(b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
 }

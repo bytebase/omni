@@ -43,6 +43,46 @@ func hasDuplicates(candidates []Candidate) bool {
 	return false
 }
 
+func TestComplete_QualifiedColumnScopedToQualifier(t *testing.T) {
+	cat := catalog.New()
+	if _, err := cat.Exec("CREATE DATABASE `db`; USE `db`; CREATE TABLE `t1` (`a1` int, `a2` int); CREATE TABLE `t2` (`b1` int, `b2` int);", &catalog.ExecOptions{ContinueOnError: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	// `a.` (alias for t1) must offer only t1's columns.
+	got := Complete("SELECT a. FROM t1 AS a JOIN t2 AS b", len("SELECT a."), cat)
+	if !containsCandidate(got, "a1", CandidateColumn) || !containsCandidate(got, "a2", CandidateColumn) {
+		t.Errorf("a. should offer t1 columns a1,a2; got %v", got)
+	}
+	if containsCandidate(got, "b1", CandidateColumn) || containsCandidate(got, "b2", CandidateColumn) {
+		t.Errorf("a. must NOT offer t2 columns b1,b2; got %v", got)
+	}
+
+	// `b.` (alias for t2) must offer only t2's columns.
+	got = Complete("SELECT b. FROM t1 AS a JOIN t2 AS b", len("SELECT b."), cat)
+	if !containsCandidate(got, "b1", CandidateColumn) || !containsCandidate(got, "b2", CandidateColumn) {
+		t.Errorf("b. should offer t2 columns b1,b2; got %v", got)
+	}
+	if containsCandidate(got, "a1", CandidateColumn) || containsCandidate(got, "a2", CandidateColumn) {
+		t.Errorf("b. must NOT offer t1 columns a1,a2; got %v", got)
+	}
+
+	// Qualifying by table name in a JOIN restricts to that table.
+	got = Complete("SELECT t1. FROM t1 JOIN t2", len("SELECT t1."), cat)
+	if !containsCandidate(got, "a1", CandidateColumn) {
+		t.Errorf("t1. should offer t1 columns; got %v", got)
+	}
+	if containsCandidate(got, "b1", CandidateColumn) {
+		t.Errorf("t1. must NOT offer t2 columns; got %v", got)
+	}
+
+	// An unqualified column reference still offers all in-scope columns.
+	got = Complete("SELECT  FROM t1 JOIN t2", len("SELECT "), cat)
+	if !containsCandidate(got, "a1", CandidateColumn) || !containsCandidate(got, "b1", CandidateColumn) {
+		t.Errorf("unqualified column ref should offer all in-scope columns; got %v", got)
+	}
+}
+
 func TestComplete_2_1_CompleteReturnsSlice(t *testing.T) {
 	// Scenario: Complete(sql, cursorOffset, catalog) returns []Candidate
 	cat := catalog.New()
