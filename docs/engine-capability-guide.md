@@ -186,11 +186,13 @@ This is the most complex layer, comprising four subsystems.
 - CandidateSet collection: keywords, table names, column names, function names, schema names, type names
 - Table reference extraction: extract visible tables from FROM/JOIN clauses in the current query
 - Tricky completion fallback: when the parser can't determine context due to truncation, fall back to heuristic completion
+- Bytebase integration boundary: omni emits parser-native token/rule/scope/intent signals; Bytebase resolves live metadata into product `Candidate` values.
 
 **Lessons from PG**:
 - Completion has hard dependencies on L2 (Loc End) and L3 (Soft-fail). **If either is incomplete, Completion cannot function**
 - Recursive CTE self-references, materialized view context filtering, and similar scenarios are very difficult — these can be marked as partial
 - Integration tests verifying real completion behavior across multi-table schemas are essential
+- Oracle showed that replacing ANTLR/C3 safely needs both parser-native intent/scope tests in omni and unchanged Bytebase YAML completion tests against real metadata adapter behavior.
 
 ### L7 Bytebase Integration
 
@@ -331,8 +333,8 @@ PROGRESS_SUMMARY.json                  # Progress summary
 | L3 Keyword | ✅ Parser keyword matrix complete | 344-row exhaustive manifest plus Oracle 26ai SQL reserved-word audit |
 | L4 Strict/Soft-fail/Coverage | ⚠️ Strict accounting, partial grammar support | 62 soft-fail, 121 strictness, 171 BNF rows classified, high-value BNF gaps closed, non-covered BNF rows require approval metadata |
 | L5 Corpus | ✅ Current corpus clean | 128 statements, 125 parser accepts, 3 expected rejects, 0 parse violations, 0 Loc violations, 0 crashes |
-| L6 Completion | ❌ Scoped, not implemented | Scope plan: `docs/plans/2026-04-28-oracle-completion-scope.md` |
-| L7 Integration | ❌ Not started | Catalog/migration not in parser-layer scope |
+| L6 Completion | ✅ Bytebase production set complete | Parser-native API, SELECT/CTE/DML/DDL signals, keyword candidates, adapter cutover, object-kind filtering, and quoted/reserved/case-sensitive metadata behavior covered |
+| L7 Integration | 🚧 Parser integration started | Completion adapter now uses omni locally; catalog/migration remain outside parser-layer scope |
 
 ---
 

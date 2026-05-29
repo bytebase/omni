@@ -122,7 +122,7 @@ Every SQL parser in omni needs a systematic suite of defensive tests to ensure c
 PG          Done       --         --         Partial    --         Done       Partial
 MySQL       Partial*   Partial*   Done       Done       Done       Done       Done
 MSSQL       Done       Partial    Done       --         --         Done*      Done
-Oracle      Done       Done       Done       Partial*   Done       --         Done
+Oracle      Done       Done       Done       Partial*   Done       Partial*   Done
 CosmosDB    --         --         N/A        --         --         --         --
 MongoDB     Partial    --         N/A        --         --         --         --
 ```
@@ -135,6 +135,7 @@ Legend: `Done` = complete, `Partial` = in progress, `--` = not started, `N/A` = 
 - MSSQL L2: 14 oracle mismatches remaining (12 option validation + 2 multi-statement). Option validation is the L2 Strict core work.
 - MSSQL L6: Core instrumentation complete (9 phases, 3659 tests), but 4 secondary CREATE statements uninstrumented + catalog resolution stubbed
 - Oracle L4: Parser coverage accounting is strict but not full grammar support. 171 BNF rows are classified with 0 unknown rows, high-value statement families have no missing/unknown rows, and every non-covered BNF row carries explicit approval/debt metadata. 47 deferred and 86 partial rows remain approved feature debt.
+- Oracle L6: Parser-native completion API, SELECT/CTE/subquery/DML/DDL rule signals, keyword-driven candidates, Bytebase adapter cutover, DDL object-kind filtering, and quoted/reserved/case-sensitive metadata hardening are implemented for the tracked production scenario set.
 
 ### PG
 - **L1 Soft-Fail**: Dual-return migration and soft-fail fixes complete
@@ -180,7 +181,7 @@ Legend: `Done` = complete, `Partial` = in progress, `--` = not started, `N/A` = 
 - **L3 Keyword**: **Done for declared Oracle lexer set plus SQL reserved-word audit.** `TestOracleKeyword*` covers all 344 entries in the local Oracle lexer keyword table across reserved, nonreserved, context, type, function-like, pseudo-column, clause-starter, quoted identifier, keyword-as-expression, and reserved-identifier guard behavior. `TestOracleKeywordOfficialSQLReserved26aiAudit` pins the Oracle 26ai SQL reserved-word list and prevents official SQL reserved words from being missing or lexed as plain identifiers. `TestOracleVReservedWordsKeywordAudit` passed against Oracle Free and checked 107 word-like reserved/context entries.
 - **L4 Coverage**: **Partial for full grammar support, strict for accounting.** `TestOracleBNFCoverageManifestCompleteness` classifies all 171 BNF files with 0 unknown rows, `TestOracleHighValueBNFGapsClosed` keeps high-value statement families free of missing/unknown rows, `TestOracleBNFImplementationDebtRequiresApproval` requires approval metadata on every non-covered row, and `TestOracleCoverage` enforces the soft-fail, strictness, keyword, BNF, Loc-node, and reference-oracle gates. The explicit Oracle Free reference run passed all 20 rows.
 - **L5 Corpus**: **Done for current corpus.** `TestVerifyCorpus` reports 128 total statements, 125 parser accepts, 3 expected parser rejects, 0 parse violations, 0 Loc violations, and 0 crashes; Loc violations are fatal.
-- **L6 Completion**: Not implemented. Parser readiness gates are in place; completion scope is tracked in `docs/plans/2026-04-28-oracle-completion-scope.md`.
+- **L6 Completion**: **Done for the tracked Bytebase production scenario set.** `Collect`, `CollectCompletion`, token/rule candidates, visible scope, CTE/subquery references, DML/DDL/utility intents, datatype/function/pseudo-column keyword candidates, and Bytebase metadata-backed adapter integration are implemented. Bytebase Oracle completion no longer imports ANTLR/C3, existing YAML completion tests pass unchanged, DDL object-kind filtering is covered, and quoted/reserved/case-sensitive metadata behavior is tested.
 - **L7 Loc**: **Done for parser layer, with fixture debt tracked.** `NoLoc()`/`Loc.IsUnknown()` enforce `{-1,-1}` as the only unknown sentinel, mixed sentinels are rejected, synthetic/corpus Loc contracts pass, and `TestOracleLocNodeCoverage` classifies 249 Loc-bearing node rows with 0 unknown rows. Direct SQL fixture coverage is 152 rows; the remaining 97 deferred rows carry approval metadata.
 
 ### CosmosDB / MongoDB
@@ -234,7 +235,7 @@ Ordered by dependency chain. Within each tier, sorted by impact.
 |--------|-------|-----------|
 | MSSQL | L2 Strict | MySQL already found extensive "too lenient" issues; MSSQL very likely has the same (blocked by L1 cleanup) |
 | PG | L2 Strict | Largest engine with no systematic strictness testing |
-| Oracle | L6 Completion | Only major engine without a completion engine |
+| Oracle | L6 Completion expansion | Add future Oracle editor scenarios beyond the current Bytebase production set as product needs surface |
 
 ### Tier 3: Verification (Global Regression Safety Net)
 
