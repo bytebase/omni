@@ -36,6 +36,7 @@ const (
 	ObjectKindTrigger
 	ObjectKindConstraint
 	ObjectKindSynonym
+	ObjectKindSequenceMember
 	ObjectKindPackageMember
 	ObjectKindDatabaseLink
 	ObjectKindVariable

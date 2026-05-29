@@ -174,7 +174,7 @@ func TestOracleCompletionOracleSpecificSignals(t *testing.T) {
 		qualifier MultipartName
 		tokens    []int
 	}{
-		{name: "sequence nextval member", input: "SELECT seq.| FROM dual", rule: "sequence_member_ref", kind: ObjectKindSequence, qualifier: MultipartName{Object: "seq"}},
+		{name: "sequence nextval member", input: "SELECT seq.| FROM dual", rule: "sequence_member_ref", kind: ObjectKindSequenceMember, qualifier: MultipartName{Object: "seq"}},
 		{name: "schema package member", input: "SELECT pkg.| FROM dual", rule: "package_member_ref", kind: ObjectKindPackageMember, qualifier: MultipartName{Object: "pkg"}},
 		{name: "package procedure call", input: "BEGIN pkg.|; END;", rule: "package_member_ref", kind: ObjectKindPackageMember, qualifier: MultipartName{Object: "pkg"}},
 		{name: "table db link", input: "SELECT * FROM employees@|", rule: "database_link_ref", kind: ObjectKindDatabaseLink},

@@ -223,6 +223,7 @@ func addRulesForOracleIntent(cs *CandidateSet, intent *CompletionIntent) {
 			cs.addRule("schema_ref")
 		case ObjectKindSequence:
 			cs.addRule("sequence_ref")
+		case ObjectKindSequenceMember:
 			cs.addRule("sequence_member_ref")
 		case ObjectKindProcedure:
 			cs.addRule("proc_ref")
@@ -346,7 +347,7 @@ func inferOracleCompletionIntent(allTokens []Token, before []Token, collectOffse
 			intent.Qualifier.Schema = q
 			return intent
 		}
-		intent.ObjectKinds = []ObjectKind{ObjectKindColumn, ObjectKindPackageMember, ObjectKindSequence}
+		intent.ObjectKinds = []ObjectKind{ObjectKindColumn, ObjectKindPackageMember, ObjectKindSequenceMember}
 		intent.Qualifier.Object = q
 		return intent
 	}
