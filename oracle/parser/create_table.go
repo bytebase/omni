@@ -709,6 +709,17 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 				return p.syntaxErrorAtCur()
 			}
 
+		case kwAS:
+			// GENERATED ALWAYS is optional for Oracle virtual columns.
+			next := p.peekNext()
+			if next.Type != '(' {
+				return nil
+			}
+			p.advance() // consume AS
+			if err := p.parseVirtualColumnExpression(col); err != nil {
+				return err
+			}
+
 		case kwGENERATED:
 			// identity_clause: GENERATED { ALWAYS | BY DEFAULT [ ON NULL ] } AS IDENTITY [ ( options ) ]
 			// virtual_column:  GENERATED ALWAYS AS ( expr ) [ VIRTUAL ]
@@ -758,18 +769,8 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 					col.Identity = identity
 				} else if p.cur.Type == '(' {
 					// virtual column: AS (expr) [VIRTUAL]
-					p.advance()
-					var // consume '('
-					parseErr503 error
-					col.Virtual, parseErr503 = p.parseExpr()
-					if parseErr503 != nil {
-						return parseErr503
-					}
-					if p.cur.Type == ')' {
-						p.advance()
-					}
-					if p.cur.Type == kwVIRTUAL {
-						p.advance() // consume VIRTUAL
+					if err := p.parseVirtualColumnExpression(col); err != nil {
+						return err
 					}
 				}
 			}
@@ -886,6 +887,25 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 				return nil
 			}
 		}
+	}
+	return nil
+}
+
+func (p *Parser) parseVirtualColumnExpression(col *nodes.ColumnDef) error {
+	p.advance() // consume '('
+	expr, err := p.parseExpr()
+	if err != nil {
+		return err
+	}
+	if expr == nil {
+		return p.syntaxErrorAtCur()
+	}
+	col.Virtual = expr
+	if p.cur.Type == ')' {
+		p.advance()
+	}
+	if p.cur.Type == kwVIRTUAL {
+		p.advance() // consume VIRTUAL
 	}
 	return nil
 }
