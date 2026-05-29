@@ -95,6 +95,21 @@ func TestComplete_QualifiedColumnScopedToQualifier(t *testing.T) {
 	if containsCandidate(got, "b1", CandidateColumn) {
 		t.Errorf("db1.t. must NOT offer db2.t column b1; got %v", got)
 	}
+
+	// An unknown / unmatched qualifier must narrow to no columns, not broaden to
+	// all in-scope columns.
+	got = Complete("SELECT x. FROM t1 AS a JOIN t2 AS b", len("SELECT x."), cat)
+	if containsCandidate(got, "a1", CandidateColumn) || containsCandidate(got, "b1", CandidateColumn) {
+		t.Errorf("unknown alias x. must offer no columns; got %v", got)
+	}
+	got = Complete("SELECT t3. FROM t1 JOIN t2", len("SELECT t3."), cat)
+	if containsCandidate(got, "a1", CandidateColumn) || containsCandidate(got, "b1", CandidateColumn) {
+		t.Errorf("unknown table t3. must offer no columns; got %v", got)
+	}
+	got = Complete("SELECT ghost.t. FROM db1.t JOIN db2.t", len("SELECT ghost.t."), xdb)
+	if containsCandidate(got, "a1", CandidateColumn) || containsCandidate(got, "b1", CandidateColumn) {
+		t.Errorf("unknown database ghost.t. must offer no columns; got %v", got)
+	}
 }
 
 func TestComplete_2_1_CompleteReturnsSlice(t *testing.T) {

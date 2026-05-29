@@ -171,9 +171,11 @@ func resolveTableRef(cat *catalog.Catalog) []Candidate {
 	return result
 }
 
-// resolveColumnRefScoped returns columns scoped to the tables referenced in
-// the SQL statement. If no table refs are found, falls back to all columns
-// in the current database.
+// resolveColumnRefScoped returns columns scoped to the tables referenced in the
+// SQL statement. An unqualified reference falls back to all columns in the
+// current database when nothing else resolves; a qualified reference (e.g.
+// `a.col`) is restricted to the matching table and returns no columns when the
+// qualifier matches no in-scope table.
 func resolveColumnRefScoped(cat *catalog.Catalog, sql string, cursorOffset int) []Candidate {
 	if cat == nil {
 		return nil
@@ -183,17 +185,22 @@ func resolveColumnRefScoped(cat *catalog.Catalog, sql string, cursorOffset int) 
 		return nil
 	}
 
-	refs := extractTableRefs(sql, cursorOffset)
-	if len(refs) == 0 {
-		return resolveColumnRef(cat)
-	}
-
 	// A qualified column reference (e.g. `a.col`, `t1.col`, or `db1.t1.col`) is
 	// restricted to the table whose alias or name matches the qualifier before the
 	// dot — and, when the qualifier names a database, whose database matches too
 	// (so `db1.t.` is not satisfied by `db2.t`). An unqualified reference uses
 	// every in-scope table.
 	qDB, qName := columnQualifier(sql, cursorOffset)
+
+	refs := extractTableRefs(sql, cursorOffset)
+	if len(refs) == 0 {
+		// With no table refs in scope, an unqualified reference falls back to all
+		// columns; a qualified one has nothing to resolve against.
+		if qName != "" {
+			return nil
+		}
+		return resolveColumnRef(cat)
+	}
 
 	seen := make(map[string]bool)
 	var result []Candidate
@@ -245,9 +252,10 @@ func resolveColumnRefScoped(cat *catalog.Catalog, sql string, cursorOffset int) 
 			}
 		}
 	}
-	// If we found refs but couldn't resolve any columns (e.g. CTE name not
-	// matching any catalog table), fall back to all columns.
-	if len(result) == 0 {
+	// An unqualified reference that resolved nothing (e.g. a CTE name with no
+	// catalog match) falls back to all columns; a qualified reference that matched
+	// no table returns no columns rather than broadening to everything.
+	if len(result) == 0 && qName == "" {
 		return resolveColumnRef(cat)
 	}
 	return result
