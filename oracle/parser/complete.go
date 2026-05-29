@@ -200,10 +200,12 @@ func collectOracleCandidates(_ string, allTokens []Token, collectOffset int, pre
 	}
 	if ddlIntent, handled := inferOracleDDLCompletionIntent(cs, allTokens, tokens, collectOffset); handled {
 		addRulesForOracleIntent(cs, ddlIntent)
+		addOracleStructuralTokenCandidates(cs, allTokens, tokens, collectOffset)
 		return cs, ddlIntent
 	}
 	intent := inferOracleCompletionIntent(allTokens, tokens, collectOffset)
 	addRulesForOracleIntent(cs, intent)
+	addOracleStructuralTokenCandidates(cs, allTokens, tokens, collectOffset)
 	return cs, intent
 }
 
@@ -221,12 +223,29 @@ func addRulesForOracleIntent(cs *CandidateSet, intent *CompletionIntent) {
 			cs.addRule("schema_ref")
 		case ObjectKindSequence:
 			cs.addRule("sequence_ref")
+			cs.addRule("sequence_member_ref")
+		case ObjectKindProcedure:
+			cs.addRule("proc_ref")
 		case ObjectKindFunction:
 			cs.addRule("func_name")
 			addOracleKeywordCandidatesBy(cs, isOracleFunctionKeyword)
 		case ObjectKindType:
 			cs.addRule("type_name")
 			addOracleKeywordCandidatesBy(cs, isOracleTypeKeyword)
+		case ObjectKindIndex:
+			cs.addRule("index_ref")
+		case ObjectKindTrigger:
+			cs.addRule("trigger_ref")
+		case ObjectKindConstraint:
+			cs.addRule("constraint_ref")
+		case ObjectKindSynonym:
+			cs.addRule("synonym_ref")
+		case ObjectKindPackageMember:
+			cs.addRule("package_member_ref")
+		case ObjectKindDatabaseLink:
+			cs.addRule("database_link_ref")
+		case ObjectKindVariable:
+			cs.addRule("variable_ref")
 		}
 		if kind == ObjectKindColumn {
 			addOracleKeywordCandidatesBy(cs, isOraclePseudoColumnKeyword)
@@ -312,6 +331,11 @@ func inferOracleCompletionIntent(allTokens []Token, before []Token, collectOffse
 		return intent
 	}
 
+	if before[len(before)-1].Type == '@' {
+		intent.ObjectKinds = []ObjectKind{ObjectKindDatabaseLink}
+		return intent
+	}
+
 	if dmlIntent := inferOracleDMLCompletionIntent(allTokens, before, collectOffset); len(dmlIntent.ObjectKinds) > 0 {
 		return dmlIntent
 	}
@@ -322,26 +346,47 @@ func inferOracleCompletionIntent(allTokens []Token, before []Token, collectOffse
 			intent.Qualifier.Schema = q
 			return intent
 		}
-		intent.ObjectKinds = []ObjectKind{ObjectKindColumn}
+		intent.ObjectKinds = []ObjectKind{ObjectKindColumn, ObjectKindPackageMember, ObjectKindSequence}
 		intent.Qualifier.Object = q
 		return intent
 	}
 
 	prev := previousNonPunctuation(before)
+	if oracleCursorInPLSQLDeclarationType(allTokens, collectOffset) {
+		intent.ObjectKinds = []ObjectKind{ObjectKindType}
+		return intent
+	}
+	if prev.Type == kwBEGIN || prev.Type == kwTHEN || prev.Type == kwELSE {
+		intent.ObjectKinds = []ObjectKind{ObjectKindUnknown}
+		return intent
+	}
 	if prev.Type == kwFROM || prev.Type == kwJOIN {
 		intent.ObjectKinds = []ObjectKind{ObjectKindTable, ObjectKindView}
 		return intent
 	}
-	if prev.Type == kwWHERE || prev.Type == kwON || prev.Type == kwBY {
+	if prev.Type == kwWHERE || prev.Type == kwON || prev.Type == kwBY || prev.Type == kwUSING {
 		intent.ObjectKinds = []ObjectKind{ObjectKindColumn}
+		return intent
+	}
+	if prev.Type == kwINTO && oracleCursorInSelectInto(allTokens, collectOffset) {
+		intent.ObjectKinds = []ObjectKind{ObjectKindVariable}
+		return intent
+	}
+	if prev.Type == kwEXISTS {
+		intent.ObjectKinds = []ObjectKind{ObjectKindUnknown}
 		return intent
 	}
 	if prev.Type == kwSELECT {
 		intent.ObjectKinds = []ObjectKind{ObjectKindColumn, ObjectKindFunction}
 		return intent
 	}
+	if oracleTokenStartsExpression(prev.Type) {
+		intent.ObjectKinds = []ObjectKind{ObjectKindColumn, ObjectKindFunction}
+		return intent
+	}
 	if oracleCursorInSelectTarget(allTokens, collectOffset) ||
-		oracleCursorInExpressionClause(allTokens, collectOffset) {
+		oracleCursorInExpressionClause(allTokens, collectOffset) ||
+		oracleCursorInOrderingExpression(allTokens, collectOffset) {
 		intent.ObjectKinds = []ObjectKind{ObjectKindColumn, ObjectKindFunction}
 		return intent
 	}
@@ -368,13 +413,51 @@ func inferOracleDDLCompletionIntent(cs *CandidateSet, allTokens []Token, before 
 			}
 			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindUnknown}}, true
 		}
+		if oracleCreateIndexTableContext(allTokens[stmtStart:], collectOffset) {
+			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindTable, ObjectKindView}}, true
+		}
+		if q, ok := oracleCreateIndexColumnContext(allTokens[stmtStart:], collectOffset); ok {
+			return &CompletionIntent{
+				ObjectKinds: []ObjectKind{ObjectKindColumn},
+				Qualifier:   MultipartName{Object: q},
+			}, true
+		}
 		if prev.Type == kwREFERENCES {
 			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindTable, ObjectKindView}}, true
+		}
+		if q, ok := oracleCreateTableColumnReferenceContext(allTokens[stmtStart:], collectOffset); ok {
+			return &CompletionIntent{
+				ObjectKinds: []ObjectKind{ObjectKindColumn},
+				Qualifier:   MultipartName{Object: q},
+			}, true
+		}
+		if oracleCreateTableConstraintColumnContext(allTokens[stmtStart:], collectOffset) {
+			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindColumn}}, true
+		}
+		if oracleCreateTableColumnStartContext(allTokens[stmtStart:], collectOffset) {
+			for _, tok := range []int{kwCONSTRAINT, kwPRIMARY, kwUNIQUE, kwFOREIGN, kwCHECK} {
+				cs.addToken(tok)
+			}
+			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindUnknown}}, true
+		}
+		if oracleCreateTableColumnOptionContext(allTokens[stmtStart:], collectOffset) {
+			for _, tok := range []int{kwNOT, kwNULL, kwDEFAULT, kwPRIMARY, kwUNIQUE, kwREFERENCES, kwCHECK} {
+				cs.addToken(tok)
+			}
+			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindUnknown}}, true
 		}
 		if oracleCreateTableTypeContext(allTokens[stmtStart:], collectOffset) {
 			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindType}}, true
 		}
 	case kwALTER:
+		switch prev.Type {
+		case kwSEQUENCE:
+			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindSequence}}, true
+		case kwVIEW:
+			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindView}}, true
+		case kwPROCEDURE:
+			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindProcedure}}, true
+		}
 		if prev.Type == kwTABLE {
 			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindTable}}, true
 		}
@@ -386,6 +469,12 @@ func inferOracleDDLCompletionIntent(cs *CandidateSet, allTokens []Token, before 
 		}
 		if oracleSeenToken(before[stmtStart:], kwTABLE) && oracleSeenToken(before[stmtStart:], kwDROP) && prev.Type == kwCOLUMN {
 			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindColumn}}, true
+		}
+		if oracleSeenToken(before[stmtStart:], kwTABLE) && prev.Type == kwMODIFY {
+			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindColumn}}, true
+		}
+		if oracleSeenToken(before[stmtStart:], kwTABLE) && oracleSeenToken(before[stmtStart:], kwDROP) && prev.Type == kwCONSTRAINT {
+			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindConstraint}}, true
 		}
 	case kwDROP:
 		switch prev.Type {
@@ -399,6 +488,12 @@ func inferOracleDDLCompletionIntent(cs *CandidateSet, allTokens []Token, before 
 			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindProcedure}}, true
 		case kwFUNCTION:
 			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindFunction}}, true
+		case kwINDEX:
+			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindIndex}}, true
+		case kwSYNONYM:
+			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindSynonym}}, true
+		case kwTRIGGER:
+			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindTrigger}}, true
 		}
 	case kwTRUNCATE:
 		if prev.Type == kwTABLE {
@@ -436,6 +531,98 @@ func oracleCreateTableTypeContext(tokens []Token, offset int) bool {
 		}
 	}
 	return false
+}
+
+func oracleCreateTableColumnStartContext(tokens []Token, offset int) bool {
+	if !oracleCreateTableOpenBefore(tokens, offset) {
+		return false
+	}
+	return lastTokenBeforeOffset(tokens, offset).Type == ','
+}
+
+func oracleCreateTableColumnOptionContext(tokens []Token, offset int) bool {
+	if !oracleCreateTableOpenBefore(tokens, offset) {
+		return false
+	}
+	prev := previousNonPunctuation(tokensBeforeOffset(tokens, offset))
+	return isOracleTypeKeyword(prev.Type) || prev.Type == tokICONST || prev.Type == ')'
+}
+
+func oracleCreateTableConstraintColumnContext(tokens []Token, offset int) bool {
+	if !oracleCreateTableOpenBefore(tokens, offset) {
+		return false
+	}
+	before := tokensBeforeOffset(tokens, offset)
+	openIdx := lastUnclosedParenBeforeOffset(tokens, offset)
+	if openIdx < 0 || openIdx >= len(before) {
+		return false
+	}
+	for i := openIdx - 1; i >= 0; i-- {
+		switch before[i].Type {
+		case kwPRIMARY, kwFOREIGN:
+			return true
+		case kwREFERENCES, kwCHECK, ',':
+			return false
+		}
+	}
+	return false
+}
+
+func oracleCreateTableColumnReferenceContext(tokens []Token, offset int) (string, bool) {
+	if !oracleCreateTableOpenBefore(tokens, offset) {
+		return "", false
+	}
+	openIdx := lastUnclosedParenBeforeOffset(tokens, offset)
+	if openIdx < 2 {
+		return "", false
+	}
+	tableTok := tokens[openIdx-1]
+	if !isOracleCompletionIdent(tableTok) {
+		return "", false
+	}
+	for i := openIdx - 2; i >= 0; i-- {
+		if tokens[i].Type == kwREFERENCES {
+			return tableTok.Str, true
+		}
+		if tokens[i].Type == ',' || tokens[i].Type == kwPRIMARY || tokens[i].Type == kwFOREIGN {
+			return "", false
+		}
+	}
+	return "", false
+}
+
+func oracleCreateIndexTableContext(tokens []Token, offset int) bool {
+	if len(tokens) < 2 || tokens[0].Type != kwCREATE || !oracleSeenToken(tokensBeforeOffset(tokens, offset), kwINDEX) {
+		return false
+	}
+	return previousNonPunctuation(tokensBeforeOffset(tokens, offset)).Type == kwON
+}
+
+func oracleCreateIndexColumnContext(tokens []Token, offset int) (string, bool) {
+	if len(tokens) < 2 || tokens[0].Type != kwCREATE || !oracleSeenToken(tokensBeforeOffset(tokens, offset), kwINDEX) {
+		return "", false
+	}
+	openIdx := lastUnclosedParenBeforeOffset(tokens, offset)
+	if openIdx < 1 {
+		return "", false
+	}
+	tableTok := tokens[openIdx-1]
+	if !isOracleCompletionIdent(tableTok) {
+		return "", false
+	}
+	for i := openIdx - 2; i >= 0; i-- {
+		if tokens[i].Type == kwON {
+			return tableTok.Str, true
+		}
+	}
+	return "", false
+}
+
+func oracleCreateTableOpenBefore(tokens []Token, offset int) bool {
+	if len(tokens) < 2 || tokens[0].Type != kwCREATE || tokens[1].Type != kwTABLE {
+		return false
+	}
+	return lastUnclosedParenBeforeOffset(tokens, offset) >= 0
 }
 
 func inferOracleDMLCompletionIntent(allTokens []Token, before []Token, collectOffset int) *CompletionIntent {
@@ -526,6 +713,15 @@ func oracleSeenToken(tokens []Token, tokenType int) bool {
 	return false
 }
 
+func lastTokenBeforeOffset(tokens []Token, offset int) Token {
+	for i := len(tokens) - 1; i >= 0; i-- {
+		if tokens[i].Loc < offset {
+			return tokens[i]
+		}
+	}
+	return Token{}
+}
+
 func previousNonPunctuation(tokens []Token) Token {
 	for i := len(tokens) - 1; i >= 0; i-- {
 		switch tokens[i].Type {
@@ -536,6 +732,15 @@ func previousNonPunctuation(tokens []Token) Token {
 		}
 	}
 	return Token{}
+}
+
+func oracleTokenStartsExpression(tokenType int) bool {
+	switch tokenType {
+	case kwAND, kwOR, kwBETWEEN, kwIN, kwTHEN, kwELSE, '+', '-', '*', '/', '=', '<', '>', '|':
+		return true
+	default:
+		return false
+	}
 }
 
 func oracleDottedQualifierBefore(tokens []Token) (string, bool) {
@@ -595,6 +800,54 @@ func oracleCursorInExpressionClause(tokens []Token, offset int) bool {
 	return false
 }
 
+func oracleCursorInOrderingExpression(tokens []Token, offset int) bool {
+	stmtStart, _ := oracleStatementTokenBounds(tokens, offset)
+	before := tokensBeforeOffset(tokens[stmtStart:], offset)
+	for i := len(before) - 1; i >= 0; i-- {
+		switch before[i].Type {
+		case kwGROUP, kwORDER:
+			return i+1 < len(before) && before[i+1].Type == kwBY
+		case kwWHERE, kwFROM, kwJOIN, kwHAVING, kwON, kwUNION, kwINTERSECT, kwMINUS:
+			return false
+		}
+	}
+	return false
+}
+
+func oracleCursorInSelectInto(tokens []Token, offset int) bool {
+	stmtStart, stmtEnd := oracleStatementTokenBounds(tokens, offset)
+	seenSelect := false
+	for i := stmtStart; i < stmtEnd; i++ {
+		if tokens[i].Loc >= offset {
+			break
+		}
+		switch tokens[i].Type {
+		case kwSELECT:
+			seenSelect = true
+		case kwFROM:
+			return false
+		case kwINTO:
+			return seenSelect
+		}
+	}
+	return false
+}
+
+func oracleCursorInPLSQLDeclarationType(tokens []Token, offset int) bool {
+	stmtStart, stmtEnd := oracleStatementTokenBounds(tokens, offset)
+	if stmtStart >= stmtEnd || tokens[stmtStart].Type != kwDECLARE {
+		return false
+	}
+	before := tokensBeforeOffset(tokens[stmtStart:stmtEnd], offset)
+	for _, tok := range before {
+		if tok.Type == kwBEGIN {
+			return false
+		}
+	}
+	prev := previousNonPunctuation(before)
+	return isOracleCompletionIdent(prev)
+}
+
 func oracleCursorInTableRef(tokens []Token, offset int) bool {
 	stmtStart, stmtEnd := oracleStatementTokenBounds(tokens, offset)
 	depth := 0
@@ -625,4 +878,79 @@ func oracleCursorInTableRef(tokens []Token, offset int) bool {
 		}
 	}
 	return lastClause == kwFROM || lastClause == kwJOIN
+}
+
+func addOracleStructuralTokenCandidates(cs *CandidateSet, allTokens []Token, before []Token, offset int) {
+	prev := previousNonPunctuation(before)
+	switch prev.Type {
+	case kwEXISTS:
+		cs.addToken(kwSELECT)
+	case kwBEGIN, kwTHEN, kwELSE:
+		for _, tok := range []int{kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwMERGE, kwNULL, kwBEGIN} {
+			cs.addToken(tok)
+		}
+	}
+	if oracleCursorAfterFromRelation(allTokens, offset) {
+		for _, tok := range []int{kwWHERE, kwJOIN, kwGROUP, kwORDER, kwHAVING} {
+			cs.addToken(tok)
+		}
+	}
+}
+
+func oracleCursorAfterFromRelation(tokens []Token, offset int) bool {
+	stmtStart, stmtEnd := oracleStatementTokenBounds(tokens, offset)
+	depth := 0
+	lastFromOrJoin := -1
+	lastBoundary := -1
+	for i := stmtStart; i < stmtEnd; i++ {
+		if tokens[i].Loc >= offset {
+			break
+		}
+		switch tokens[i].Type {
+		case '(':
+			depth++
+			continue
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+			continue
+		}
+		if depth != 0 {
+			continue
+		}
+		switch tokens[i].Type {
+		case kwFROM, kwJOIN:
+			lastFromOrJoin = i
+			lastBoundary = -1
+		case kwWHERE, kwON, kwUSING, kwGROUP, kwHAVING, kwORDER, kwUNION, kwINTERSECT, kwMINUS:
+			lastBoundary = i
+		}
+	}
+	if lastFromOrJoin < 0 || lastBoundary > lastFromOrJoin {
+		return false
+	}
+	_, _, ok := parseOracleRangeReference(tokens, lastFromOrJoin+1)
+	return ok
+}
+
+func lastUnclosedParenBeforeOffset(tokens []Token, offset int) int {
+	var stack []int
+	for i, tok := range tokens {
+		if tok.Loc >= offset {
+			break
+		}
+		switch tok.Type {
+		case '(':
+			stack = append(stack, i)
+		case ')':
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
+		}
+	}
+	if len(stack) == 0 {
+		return -1
+	}
+	return stack[len(stack)-1]
 }

@@ -34,6 +34,11 @@ const (
 	ObjectKindColumn
 	ObjectKindIndex
 	ObjectKindTrigger
+	ObjectKindConstraint
+	ObjectKindSynonym
+	ObjectKindPackageMember
+	ObjectKindDatabaseLink
+	ObjectKindVariable
 	ObjectKindUser
 	ObjectKindRole
 )
@@ -113,9 +118,17 @@ func collectOracleScopeAndCTEs(tokens []Token, cursorOffset int) (*ScopeSnapshot
 	refs = append(refs, collectOracleDMLRefs(stmtTokens)...)
 	refs = append(refs, collectOracleDDLRefs(stmtTokens)...)
 	refs = append(append([]RangeReference{}, ctes...), refs...)
+	localRefs := refs
+	outerRefs := [][]RangeReference(nil)
+	if selectIdx, selectDepth, ok := innermostOracleSelectBeforeCursor(stmtTokens, cursorOffset); ok {
+		armStart, armEnd := oracleSelectArmBounds(stmtTokens, selectIdx, selectDepth)
+		localRefs = collectOracleSelectRefsInRange(stmtTokens, armStart, armEnd, selectDepth)
+		outerRefs = collectOracleOuterSelectRefs(stmtTokens, cursorOffset, selectDepth)
+	}
 	return &ScopeSnapshot{
 		References:      refs,
-		LocalReferences: refs,
+		LocalReferences: localRefs,
+		OuterReferences: outerRefs,
 	}, ctes
 }
 
@@ -125,6 +138,29 @@ func collectOracleDDLRefs(tokens []Token) []RangeReference {
 		return nil
 	}
 	switch tokens[first].Type {
+	case kwCREATE:
+		var refs []RangeReference
+		if first+2 < len(tokens) && tokens[first+1].Type == kwTABLE {
+			_, ref, ok := parseOracleRangeReference(tokens, first+2)
+			if ok {
+				refs = append(refs, ref)
+			}
+		}
+		for i := first + 1; i < len(tokens); i++ {
+			if tokens[i].Type == kwON {
+				_, ref, ok := parseOracleRangeReference(tokens, i+1)
+				if ok {
+					refs = append(refs, ref)
+				}
+			}
+			if tokens[i].Type == kwREFERENCES {
+				_, ref, ok := parseOracleRangeReference(tokens, i+1)
+				if ok {
+					refs = append(refs, ref)
+				}
+			}
+		}
+		return refs
 	case kwALTER:
 		for i := first + 1; i < len(tokens); i++ {
 			if tokens[i].Type == kwTABLE {
@@ -234,8 +270,33 @@ func oracleStatementTokenBounds(tokens []Token, cursorOffset int) (int, int) {
 }
 
 func collectOracleSelectRefs(tokens []Token) []RangeReference {
+	return collectOracleSelectRefsAtDepth(tokens, -1)
+}
+
+func collectOracleSelectRefsAtDepth(tokens []Token, wantDepth int) []RangeReference {
+	return collectOracleSelectRefsInRange(tokens, 0, len(tokens), wantDepth)
+}
+
+func collectOracleSelectRefsInRange(tokens []Token, start int, end int, wantDepth int) []RangeReference {
 	var refs []RangeReference
+	depth := 0
 	for i := 0; i < len(tokens); i++ {
+		switch tokens[i].Type {
+		case '(':
+			depth++
+			continue
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+			continue
+		}
+		if wantDepth >= 0 && depth != wantDepth {
+			continue
+		}
+		if i < start || i >= end {
+			continue
+		}
 		switch tokens[i].Type {
 		case kwFROM, kwJOIN:
 			next, ref, ok := parseOracleRangeReference(tokens, i+1)
@@ -246,6 +307,125 @@ func collectOracleSelectRefs(tokens []Token) []RangeReference {
 		}
 	}
 	return refs
+}
+
+func innermostOracleSelectBeforeCursor(tokens []Token, cursorOffset int) (int, int, bool) {
+	depth := 0
+	bestIdx := -1
+	bestDepth := -1
+	for i, tok := range tokens {
+		if tok.Loc >= cursorOffset {
+			break
+		}
+		switch tok.Type {
+		case '(':
+			depth++
+			continue
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+			continue
+		case kwSELECT:
+			bestIdx = i
+			bestDepth = depth
+		}
+	}
+	if bestIdx < 0 {
+		return 0, 0, false
+	}
+	return bestIdx, bestDepth, true
+}
+
+func oracleSelectArmBounds(tokens []Token, selectIdx int, selectDepth int) (int, int) {
+	start := selectIdx
+	depth := 0
+	for i := 0; i < len(tokens); i++ {
+		if i >= selectIdx {
+			break
+		}
+		switch tokens[i].Type {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case kwUNION, kwINTERSECT, kwMINUS:
+			if depth == selectDepth {
+				start = i + 1
+			}
+		}
+	}
+	end := len(tokens)
+	depth = 0
+	for i := 0; i < len(tokens); i++ {
+		tok := tokens[i]
+		if i > selectIdx && depth < selectDepth {
+			end = i
+			break
+		}
+		if i > selectIdx && depth == selectDepth {
+			switch tok.Type {
+			case kwUNION, kwINTERSECT, kwMINUS:
+				end = i
+				return start, end
+			}
+		}
+		switch tok.Type {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		}
+	}
+	return start, end
+}
+
+func collectOracleOuterSelectRefs(tokens []Token, cursorOffset int, innerDepth int) [][]RangeReference {
+	if innerDepth <= 0 {
+		return nil
+	}
+	type selectAtDepth struct {
+		idx   int
+		depth int
+	}
+	latest := make(map[int]selectAtDepth)
+	depth := 0
+	for i, tok := range tokens {
+		if tok.Loc >= cursorOffset {
+			break
+		}
+		switch tok.Type {
+		case '(':
+			depth++
+			continue
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+			continue
+		case kwSELECT:
+			if depth < innerDepth {
+				latest[depth] = selectAtDepth{idx: i, depth: depth}
+			}
+		}
+	}
+	var levels [][]RangeReference
+	for d := innerDepth - 1; d >= 0; d-- {
+		sel, ok := latest[d]
+		if !ok {
+			continue
+		}
+		start, end := oracleSelectArmBounds(tokens, sel.idx, sel.depth)
+		refs := collectOracleSelectRefsInRange(tokens, start, end, sel.depth)
+		if len(refs) > 0 {
+			levels = append(levels, refs)
+		}
+	}
+	return levels
 }
 
 func parseOracleRangeReference(tokens []Token, i int) (int, RangeReference, bool) {
