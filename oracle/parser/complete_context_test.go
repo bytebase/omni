@@ -400,6 +400,8 @@ func TestOracleCompletionSchemaQualifiedObjectIntent(t *testing.T) {
 		{name: "drop table", input: "DROP TABLE hr.|", rules: []string{"table_ref"}, kinds: []ObjectKind{ObjectKindTable}, qualifier: MultipartName{Schema: "hr"}},
 		{name: "drop view", input: "DROP VIEW hr.|", rules: []string{"table_ref"}, kinds: []ObjectKind{ObjectKindView}, qualifier: MultipartName{Schema: "hr"}},
 		{name: "drop sequence", input: "DROP SEQUENCE hr.|", rules: []string{"sequence_ref"}, kinds: []ObjectKind{ObjectKindSequence}, qualifier: MultipartName{Schema: "hr"}},
+		{name: "alter table", input: "ALTER TABLE hr.|", rules: []string{"table_ref"}, kinds: []ObjectKind{ObjectKindTable}, qualifier: MultipartName{Schema: "hr"}},
+		{name: "truncate table", input: "TRUNCATE TABLE hr.|", rules: []string{"table_ref"}, kinds: []ObjectKind{ObjectKindTable}, qualifier: MultipartName{Schema: "hr"}},
 		{name: "insert target", input: "INSERT INTO hr.|", rules: []string{"table_ref"}, kinds: []ObjectKind{ObjectKindTable}, qualifier: MultipartName{Schema: "hr"}},
 		{name: "update target", input: "UPDATE hr.| SET name = 'x'", rules: []string{"table_ref"}, kinds: []ObjectKind{ObjectKindTable}, qualifier: MultipartName{Schema: "hr"}},
 		{name: "delete target", input: "DELETE FROM hr.| WHERE id = 1", rules: []string{"table_ref"}, kinds: []ObjectKind{ObjectKindTable}, qualifier: MultipartName{Schema: "hr"}},
