@@ -1,6 +1,10 @@
 package parser
 
-import nodes "github.com/bytebase/omni/oracle/ast"
+import (
+	"strings"
+
+	nodes "github.com/bytebase/omni/oracle/ast"
+)
 
 // CompletionContext is Oracle parser-native completion state.
 type CompletionContext struct {
@@ -50,11 +54,16 @@ type MultipartName struct {
 	Object string
 }
 
-// ScopeSnapshot describes relation scope visible at the cursor.
+// ScopeSnapshot describes parser-known relation scope visible at the cursor.
 type ScopeSnapshot struct {
-	References      []RangeReference
+	// LocalReferences is the current query block's visible FROM/JOIN scope.
 	LocalReferences []RangeReference
+	// OuterReferences contains correlated outer query-block scopes, nearest first.
 	OuterReferences [][]RangeReference
+	// References contains all statement references for debugging/backward
+	// compatibility. Callers should not use it for column completion because it
+	// can include CTE body tables and other refs outside the cursor query block.
+	References []RangeReference
 }
 
 // RangeReferenceKind classifies a range-table entry visible to completion.
@@ -115,21 +124,29 @@ func collectOracleScopeAndCTEs(tokens []Token, cursorOffset int) (*ScopeSnapshot
 	start, end := oracleStatementTokenBounds(tokens, cursorOffset)
 	stmtTokens := tokens[start:end]
 	ctes := collectOracleCTEs(stmtTokens)
-	refs := collectOracleSelectRefs(stmtTokens)
-	refs = append(refs, collectOracleDMLRefs(stmtTokens)...)
-	refs = append(refs, collectOracleDDLRefs(stmtTokens)...)
+	cteMap := oracleRangeReferenceMap(ctes)
+	selectRefs := collectOracleSelectRefs(stmtTokens, cteMap)
+	dmlRefs := collectOracleDMLRefs(stmtTokens)
+	ddlRefs := collectOracleDDLRefs(stmtTokens)
+	refs := append([]RangeReference{}, selectRefs...)
+	refs = append(refs, dmlRefs...)
+	refs = append(refs, ddlRefs...)
 	refs = append(append([]RangeReference{}, ctes...), refs...)
 	localRefs := refs
 	outerRefs := [][]RangeReference(nil)
 	if selectIdx, selectDepth, ok := innermostOracleSelectBeforeCursor(stmtTokens, cursorOffset); ok {
 		armStart, armEnd := oracleSelectArmBounds(stmtTokens, selectIdx, selectDepth)
-		localRefs = collectOracleSelectRefsInRange(stmtTokens, armStart, armEnd, selectDepth)
-		outerRefs = collectOracleOuterSelectRefs(stmtTokens, cursorOffset, selectDepth)
+		localRefs = collectOracleSelectRefsInRange(stmtTokens, armStart, armEnd, selectDepth, cteMap)
+		outerRefs = collectOracleOuterSelectRefs(stmtTokens, cursorOffset, selectDepth, cteMap)
+	} else if len(dmlRefs) > 0 {
+		localRefs = dmlRefs
+	} else if len(ddlRefs) > 0 {
+		localRefs = ddlRefs
 	}
 	return &ScopeSnapshot{
-		References:      refs,
 		LocalReferences: localRefs,
 		OuterReferences: outerRefs,
+		References:      refs,
 	}, ctes
 }
 
@@ -270,15 +287,37 @@ func oracleStatementTokenBounds(tokens []Token, cursorOffset int) (int, int) {
 	return start, end
 }
 
-func collectOracleSelectRefs(tokens []Token) []RangeReference {
-	return collectOracleSelectRefsAtDepth(tokens, -1)
+func collectOracleSelectRefs(tokens []Token, ctes map[string]RangeReference) []RangeReference {
+	return collectOracleSelectRefsAtDepth(tokens, -1, ctes)
 }
 
-func collectOracleSelectRefsAtDepth(tokens []Token, wantDepth int) []RangeReference {
-	return collectOracleSelectRefsInRange(tokens, 0, len(tokens), wantDepth)
+func collectOracleSelectRefsAtDepth(tokens []Token, wantDepth int, ctes map[string]RangeReference) []RangeReference {
+	var refs []RangeReference
+	depth := 0
+	for i, tok := range tokens {
+		switch tok.Type {
+		case '(':
+			depth++
+			continue
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+			continue
+		}
+		if tok.Type != kwSELECT {
+			continue
+		}
+		if wantDepth >= 0 && depth != wantDepth {
+			continue
+		}
+		start, end := oracleSelectArmBounds(tokens, i, depth)
+		refs = append(refs, collectOracleSelectRefsInRange(tokens, start, end, depth, ctes)...)
+	}
+	return refs
 }
 
-func collectOracleSelectRefsInRange(tokens []Token, start int, end int, wantDepth int) []RangeReference {
+func collectOracleSelectRefsInRange(tokens []Token, start int, end int, wantDepth int, ctes map[string]RangeReference) []RangeReference {
 	var refs []RangeReference
 	depth := 0
 	for i := 0; i < len(tokens); i++ {
@@ -302,6 +341,7 @@ func collectOracleSelectRefsInRange(tokens []Token, start int, end int, wantDept
 		case kwFROM, kwJOIN:
 			next, ref, ok := parseOracleRangeReference(tokens, i+1)
 			if ok {
+				ref = resolveOracleCTEReference(ref, ctes)
 				refs = append(refs, ref)
 				i = next - 1
 			}
@@ -385,7 +425,7 @@ func oracleSelectArmBounds(tokens []Token, selectIdx int, selectDepth int) (int,
 	return start, end
 }
 
-func collectOracleOuterSelectRefs(tokens []Token, cursorOffset int, innerDepth int) [][]RangeReference {
+func collectOracleOuterSelectRefs(tokens []Token, cursorOffset int, innerDepth int, ctes map[string]RangeReference) [][]RangeReference {
 	if innerDepth <= 0 {
 		return nil
 	}
@@ -421,12 +461,39 @@ func collectOracleOuterSelectRefs(tokens []Token, cursorOffset int, innerDepth i
 			continue
 		}
 		start, end := oracleSelectArmBounds(tokens, sel.idx, sel.depth)
-		refs := collectOracleSelectRefsInRange(tokens, start, end, sel.depth)
+		refs := collectOracleSelectRefsInRange(tokens, start, end, sel.depth, ctes)
 		if len(refs) > 0 {
 			levels = append(levels, refs)
 		}
 	}
 	return levels
+}
+
+func oracleRangeReferenceMap(refs []RangeReference) map[string]RangeReference {
+	if len(refs) == 0 {
+		return nil
+	}
+	result := make(map[string]RangeReference, len(refs))
+	for _, ref := range refs {
+		if ref.Name != "" {
+			result[strings.ToLower(ref.Name)] = ref
+		}
+	}
+	return result
+}
+
+func resolveOracleCTEReference(ref RangeReference, ctes map[string]RangeReference) RangeReference {
+	if ref.Kind != RangeReferenceRelation || ref.Schema != "" || ref.Name == "" {
+		return ref
+	}
+	cte, ok := ctes[strings.ToLower(ref.Name)]
+	if !ok {
+		return ref
+	}
+	ref.Kind = RangeReferenceCTE
+	ref.Columns = append([]string{}, cte.Columns...)
+	ref.BodyLoc = cte.BodyLoc
+	return ref
 }
 
 func parseOracleRangeReference(tokens []Token, i int) (int, RangeReference, bool) {

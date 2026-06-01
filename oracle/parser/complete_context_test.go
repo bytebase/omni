@@ -3,6 +3,8 @@ package parser
 import (
 	"strings"
 	"testing"
+
+	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
 func TestOracleCompletionSelectTableReferenceSignals(t *testing.T) {
@@ -96,6 +98,109 @@ func TestOracleCompletionCTEAndSubqueryScope(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestOracleCompletionScopeSnapshotMatrix(t *testing.T) {
+	t.Run("select list scans right side from scope", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			input     string
+			localRefs []string
+			qualifier MultipartName
+		}{
+			{name: "simple", input: "SELECT | FROM t", localRefs: []string{"t"}},
+			{name: "alias", input: "SELECT | FROM t x", localRefs: []string{"x"}},
+			{name: "qualified alias", input: "SELECT x.| FROM t x", localRefs: []string{"x"}, qualifier: MultipartName{Object: "x"}},
+			{name: "schema qualified", input: "SELECT | FROM schema1.t", localRefs: []string{"t"}},
+			{name: "join", input: "SELECT | FROM t1 JOIN t2 ON t1.id = t2.id", localRefs: []string{"t1", "t2"}},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				ctx := collectCompletionMarked(t, tt.input)
+				requireObjectKind(t, ctx.Intent, ObjectKindColumn)
+				if tt.qualifier != (MultipartName{}) && !equalMultipartNameFold(ctx.Intent.Qualifier, tt.qualifier) {
+					t.Fatalf("qualifier = %+v, want %+v", ctx.Intent.Qualifier, tt.qualifier)
+				}
+				requireLocalReferenceNames(t, ctx.Scope, tt.localRefs)
+			})
+		}
+	})
+
+	t.Run("cte local scope does not leak body tables", func(t *testing.T) {
+		ctx := collectCompletionMarked(t, "WITH x AS (SELECT c1 FROM t) SELECT | FROM x")
+		requireLocalReferenceNames(t, ctx.Scope, []string{"x"})
+		ref := requireLocalRangeReference(t, ctx.Scope, "x")
+		if ref.Kind != RangeReferenceCTE {
+			t.Fatalf("local ref kind = %v, want CTE", ref.Kind)
+		}
+		if got := lowerStrings(ref.Columns); len(got) != 1 || got[0] != "c1" {
+			t.Fatalf("cte columns = %v, want [c1]", ref.Columns)
+		}
+		requireBodyLocText(t, "WITH x AS (SELECT c1 FROM t) SELECT  FROM x", ref.BodyLoc, "SELECT c1 FROM t")
+	})
+
+	t.Run("cte explicit columns and star body", func(t *testing.T) {
+		ctx := collectCompletionMarked(t, "WITH x(c1,c2) AS (SELECT * FROM t) SELECT x.| FROM x")
+		requireLocalReferenceNames(t, ctx.Scope, []string{"x"})
+		ref := requireLocalRangeReference(t, ctx.Scope, "x")
+		if ref.Kind != RangeReferenceCTE {
+			t.Fatalf("local ref kind = %v, want CTE", ref.Kind)
+		}
+		requireColumns(t, ref.Columns, []string{"c1", "c2"})
+		requireBodyLocText(t, "WITH x(c1,c2) AS (SELECT * FROM t) SELECT x. FROM x", ref.BodyLoc, "SELECT * FROM t")
+	})
+
+	t.Run("derived table explicit aliases", func(t *testing.T) {
+		ctx := collectCompletionMarked(t, "SELECT x.| FROM (SELECT c1, c2 FROM t) x")
+		requireLocalReferenceNames(t, ctx.Scope, []string{"x"})
+		ref := requireLocalRangeReference(t, ctx.Scope, "x")
+		if ref.Kind != RangeReferenceSubquery {
+			t.Fatalf("local ref kind = %v, want Subquery", ref.Kind)
+		}
+		requireColumns(t, ref.Columns, []string{"c1", "c2"})
+		requireBodyLocText(t, "SELECT x. FROM (SELECT c1, c2 FROM t) x", ref.BodyLoc, "SELECT c1, c2 FROM t")
+		requireLocText(t, "SELECT x. FROM (SELECT c1, c2 FROM t) x", ref.Loc, "(SELECT c1, c2 FROM t) x")
+	})
+
+	t.Run("derived table star keeps body loc without metadata columns", func(t *testing.T) {
+		ctx := collectCompletionMarked(t, "SELECT x.| FROM (SELECT * FROM t) x")
+		ref := requireLocalRangeReference(t, ctx.Scope, "x")
+		if len(ref.Columns) != 0 {
+			t.Fatalf("columns = %v, want none for star-only derived table", ref.Columns)
+		}
+		requireBodyLocText(t, "SELECT x. FROM (SELECT * FROM t) x", ref.BodyLoc, "SELECT * FROM t")
+	})
+
+	t.Run("correlated subquery separates local and outer refs", func(t *testing.T) {
+		ctx := collectCompletionMarked(t, "SELECT * FROM t e WHERE EXISTS (SELECT | FROM d WHERE d.id = e.id)")
+		requireLocalReferenceNames(t, ctx.Scope, []string{"d"})
+		if got, want := len(ctx.Scope.OuterReferences), 1; got != want {
+			t.Fatalf("outer reference levels = %d, want %d", got, want)
+		}
+		if got, want := oracleRefNames(ctx.Scope.OuterReferences[0]), []string{"e"}; !sameStringSlice(got, want) {
+			t.Fatalf("outer refs = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("dml and merge syntax refs", func(t *testing.T) {
+		tests := []struct {
+			name      string
+			input     string
+			localRefs []string
+		}{
+			{name: "update set", input: "UPDATE t SET |", localRefs: []string{"t"}},
+			{name: "delete where", input: "DELETE FROM t WHERE |", localRefs: []string{"t"}},
+			{name: "insert select", input: "INSERT INTO t (c1) SELECT | FROM s", localRefs: []string{"s"}},
+			{name: "merge on", input: "MERGE INTO t USING s ON |", localRefs: []string{"t", "s"}},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				ctx := collectCompletionMarked(t, tt.input)
+				requireObjectKind(t, ctx.Intent, ObjectKindColumn)
+				requireLocalReferenceNames(t, ctx.Scope, tt.localRefs)
+			})
+		}
+	})
 }
 
 func TestOracleCompletionDMLSignals(t *testing.T) {
@@ -296,6 +401,24 @@ func findRangeReference(t *testing.T, scope *ScopeSnapshot, aliasOrName string) 
 	return RangeReference{}
 }
 
+func requireLocalRangeReference(t *testing.T, scope *ScopeSnapshot, aliasOrName string) RangeReference {
+	t.Helper()
+	for _, ref := range scope.LocalReferences {
+		if strings.EqualFold(ref.Alias, aliasOrName) || strings.EqualFold(ref.Name, aliasOrName) {
+			return ref
+		}
+	}
+	t.Fatalf("missing local range reference %q in %#v", aliasOrName, scope.LocalReferences)
+	return RangeReference{}
+}
+
+func requireLocalReferenceNames(t *testing.T, scope *ScopeSnapshot, want []string) {
+	t.Helper()
+	if got := oracleRefNames(scope.LocalReferences); !sameStringSlice(got, lowerStrings(want)) {
+		t.Fatalf("local refs = %v, want %v", got, lowerStrings(want))
+	}
+}
+
 func requireColumnName(t *testing.T, columns []string, want string) {
 	t.Helper()
 	for _, got := range columns {
@@ -304,4 +427,46 @@ func requireColumnName(t *testing.T, columns []string, want string) {
 		}
 	}
 	t.Fatalf("missing column %q in %v", want, columns)
+}
+
+func requireColumns(t *testing.T, got []string, want []string) {
+	t.Helper()
+	if !sameStringSlice(lowerStrings(got), lowerStrings(want)) {
+		t.Fatalf("columns = %v, want %v", got, want)
+	}
+}
+
+func requireBodyLocText(t *testing.T, sql string, loc nodes.Loc, want string) {
+	t.Helper()
+	requireLocText(t, sql, loc, want)
+}
+
+func requireLocText(t *testing.T, sql string, loc nodes.Loc, want string) {
+	t.Helper()
+	if loc.Start < 0 || loc.End < loc.Start || loc.End > len(sql) {
+		t.Fatalf("invalid loc %+v for sql length %d", loc, len(sql))
+	}
+	if got := sql[loc.Start:loc.End]; got != want {
+		t.Fatalf("loc text = %q, want %q", got, want)
+	}
+}
+
+func lowerStrings(values []string) []string {
+	lowered := make([]string, 0, len(values))
+	for _, value := range values {
+		lowered = append(lowered, strings.ToLower(value))
+	}
+	return lowered
+}
+
+func sameStringSlice(a []string, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
