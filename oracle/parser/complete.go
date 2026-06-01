@@ -441,6 +441,14 @@ func inferOracleDDLCompletionIntent(cs *CandidateSet, allTokens []Token, before 
 			if context.Type == kwON {
 				return &CompletionIntent{ObjectKinds: oracleGrantRevokeObjectKinds(before[stmtStart:]), Qualifier: MultipartName{Schema: q}}, true
 			}
+		case kwALTER:
+			if context.Type == kwTABLE {
+				return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindTable}, Qualifier: MultipartName{Schema: q}}, true
+			}
+		case kwTRUNCATE:
+			if context.Type == kwTABLE {
+				return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindTable}, Qualifier: MultipartName{Schema: q}}, true
+			}
 		}
 	}
 	switch first.Type {
