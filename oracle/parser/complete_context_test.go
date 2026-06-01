@@ -162,6 +162,24 @@ func TestOracleCompletionScopeSnapshotMatrix(t *testing.T) {
 		requireLocText(t, "SELECT x. FROM (SELECT c1, c2 FROM t) x", ref.Loc, "(SELECT c1, c2 FROM t) x")
 	})
 
+	t.Run("derived table select aliases", func(t *testing.T) {
+		ctx := collectCompletionMarked(t, "SELECT x.| FROM (SELECT c1 AS renamed, c2 plain_alias FROM t) x")
+		ref := requireLocalRangeReference(t, ctx.Scope, "x")
+		requireColumns(t, ref.Columns, []string{"renamed", "plain_alias"})
+	})
+
+	t.Run("cte star through known derived table columns", func(t *testing.T) {
+		ctx := collectCompletionMarked(t, "WITH cte(c1,c2) AS (SELECT * FROM t) SELECT x.| FROM (SELECT * FROM cte) x")
+		ref := requireLocalRangeReference(t, ctx.Scope, "x")
+		requireColumns(t, ref.Columns, []string{"c1", "c2"})
+	})
+
+	t.Run("set operation uses first arm positional columns", func(t *testing.T) {
+		ctx := collectCompletionMarked(t, "SELECT x.| FROM (SELECT c1 AS left_name FROM t UNION SELECT c2 AS right_name FROM u) x")
+		ref := requireLocalRangeReference(t, ctx.Scope, "x")
+		requireColumns(t, ref.Columns, []string{"left_name"})
+	})
+
 	t.Run("derived table star keeps body loc without metadata columns", func(t *testing.T) {
 		ctx := collectCompletionMarked(t, "SELECT x.| FROM (SELECT * FROM t) x")
 		ref := requireLocalRangeReference(t, ctx.Scope, "x")
@@ -285,30 +303,35 @@ func TestOracleCompletionP2UnsupportedTransformsDoNotInventColumns(t *testing.T)
 		input string
 		refs  []string
 		ref   string
+		tag   string
 	}{
 		{
 			name:  "table function alias is visible without columns",
 			input: "SELECT x.| FROM TABLE(pkg.values()) x",
 			refs:  []string{"x"},
 			ref:   "x",
+			tag:   "table_collection",
 		},
 		{
 			name:  "pivot keeps base table ref",
 			input: "SELECT | FROM sales PIVOT (SUM(amount) FOR quarter IN ('Q1' AS q1, 'Q2' AS q2))",
 			refs:  []string{"sales"},
 			ref:   "sales",
+			tag:   "pivot",
 		},
 		{
 			name:  "unpivot keeps base table ref",
 			input: "SELECT | FROM quarterly_sales UNPIVOT (sales FOR quarter IN (q1, q2, q3, q4))",
 			refs:  []string{"quarterly_sales"},
 			ref:   "quarterly_sales",
+			tag:   "unpivot",
 		},
 		{
 			name:  "model keeps base table ref",
 			input: "SELECT | FROM sales MODEL DIMENSION BY (product) MEASURES (amount) RULES (amount[product] = amount[product])",
 			refs:  []string{"sales"},
 			ref:   "sales",
+			tag:   "model",
 		},
 	}
 
@@ -319,6 +342,9 @@ func TestOracleCompletionP2UnsupportedTransformsDoNotInventColumns(t *testing.T)
 			ref := requireLocalRangeReference(t, ctx.Scope, tt.ref)
 			if len(ref.Columns) != 0 {
 				t.Fatalf("columns = %v, want none for unsupported transform", ref.Columns)
+			}
+			if !ref.Unsupported || ref.UnsupportedReason != tt.tag {
+				t.Fatalf("unsupported = %v reason %q, want true reason %q", ref.Unsupported, ref.UnsupportedReason, tt.tag)
 			}
 		})
 	}
@@ -357,6 +383,71 @@ func TestOracleCompletionDMLSignals(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestOracleCompletionSchemaQualifiedObjectIntent(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		rules     []string
+		kinds     []ObjectKind
+		qualifier MultipartName
+	}{
+		{name: "grant object", input: "GRANT SELECT ON hr.|", rules: []string{"table_ref", "sequence_ref"}, kinds: []ObjectKind{ObjectKindTable, ObjectKindSequence}, qualifier: MultipartName{Schema: "hr"}},
+		{name: "revoke object", input: "REVOKE SELECT ON hr.|", rules: []string{"table_ref", "sequence_ref"}, kinds: []ObjectKind{ObjectKindTable, ObjectKindSequence}, qualifier: MultipartName{Schema: "hr"}},
+		{name: "grant execute object", input: "GRANT EXECUTE ON hr.|", rules: []string{"proc_ref", "func_name", "package_ref", "type_name"}, kinds: []ObjectKind{ObjectKindProcedure, ObjectKindFunction, ObjectKindPackage, ObjectKindType}, qualifier: MultipartName{Schema: "hr"}},
+		{name: "comment table", input: "COMMENT ON TABLE hr.|", rules: []string{"table_ref"}, kinds: []ObjectKind{ObjectKindTable, ObjectKindView}, qualifier: MultipartName{Schema: "hr"}},
+		{name: "drop table", input: "DROP TABLE hr.|", rules: []string{"table_ref"}, kinds: []ObjectKind{ObjectKindTable}, qualifier: MultipartName{Schema: "hr"}},
+		{name: "drop view", input: "DROP VIEW hr.|", rules: []string{"table_ref"}, kinds: []ObjectKind{ObjectKindView}, qualifier: MultipartName{Schema: "hr"}},
+		{name: "drop sequence", input: "DROP SEQUENCE hr.|", rules: []string{"sequence_ref"}, kinds: []ObjectKind{ObjectKindSequence}, qualifier: MultipartName{Schema: "hr"}},
+		{name: "insert target", input: "INSERT INTO hr.|", rules: []string{"table_ref"}, kinds: []ObjectKind{ObjectKindTable}, qualifier: MultipartName{Schema: "hr"}},
+		{name: "update target", input: "UPDATE hr.| SET name = 'x'", rules: []string{"table_ref"}, kinds: []ObjectKind{ObjectKindTable}, qualifier: MultipartName{Schema: "hr"}},
+		{name: "delete target", input: "DELETE FROM hr.| WHERE id = 1", rules: []string{"table_ref"}, kinds: []ObjectKind{ObjectKindTable}, qualifier: MultipartName{Schema: "hr"}},
+		{name: "merge target", input: "MERGE INTO hr.| USING src s ON s.id = t.id", rules: []string{"table_ref"}, kinds: []ObjectKind{ObjectKindTable}, qualifier: MultipartName{Schema: "hr"}},
+		{name: "merge source", input: "MERGE INTO dst d USING hr.| ON d.id = s.id", rules: []string{"table_ref"}, kinds: []ObjectKind{ObjectKindTable}, qualifier: MultipartName{Schema: "hr"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := collectCompletionMarked(t, tt.input)
+			for _, rule := range tt.rules {
+				requireCompletionRule(t, ctx.Candidates, rule)
+			}
+			for _, kind := range tt.kinds {
+				requireObjectKind(t, ctx.Intent, kind)
+			}
+			if !equalMultipartNameFold(ctx.Intent.Qualifier, tt.qualifier) {
+				t.Fatalf("qualifier = %+v, want %+v", ctx.Intent.Qualifier, tt.qualifier)
+			}
+			if hasObjectKind(ctx.Intent, ObjectKindColumn) {
+				t.Fatalf("intent kinds = %v, should not include column intent", ctx.Intent.ObjectKinds)
+			}
+		})
+	}
+}
+
+func TestOracleCompletionHierarchicalExpressionIntent(t *testing.T) {
+	tests := []string{
+		"SELECT * FROM employees e START WITH | CONNECT BY PRIOR e.employee_id = e.manager_id",
+		"SELECT * FROM employees e START WITH e.manager_id IS NULL CONNECT BY |",
+	}
+	for _, input := range tests {
+		t.Run(input, func(t *testing.T) {
+			ctx := collectCompletionMarked(t, input)
+			requireCompletionRule(t, ctx.Candidates, "columnref")
+			requireObjectKind(t, ctx.Intent, ObjectKindColumn)
+			requireLocalReferenceNames(t, ctx.Scope, []string{"e"})
+		})
+	}
+}
+
+func TestOracleCompletionStatementBoundarySignal(t *testing.T) {
+	input := "SELECT * FROM broken; SELECT | FROM employees; SELECT * FROM departments"
+	ctx := collectCompletionMarked(t, input)
+	sql := strings.Replace(input, "|", "", 1)
+	requireLocText(t, sql, ctx.StatementLoc, "SELECT  FROM employees")
+	requireLocalReferenceNames(t, ctx.Scope, []string{"employees"})
+	requireObjectKind(t, ctx.Intent, ObjectKindColumn)
 }
 
 func TestOracleCompletionDDLAndUtilitySignals(t *testing.T) {

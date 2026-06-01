@@ -230,6 +230,8 @@ func addRulesForOracleIntent(cs *CandidateSet, intent *CompletionIntent) {
 		case ObjectKindFunction:
 			cs.addRule("func_name")
 			addOracleKeywordCandidatesBy(cs, isOracleFunctionKeyword)
+		case ObjectKindPackage:
+			cs.addRule("package_ref")
 		case ObjectKindType:
 			cs.addRule("type_name")
 			addOracleKeywordCandidatesBy(cs, isOracleTypeKeyword)
@@ -406,6 +408,41 @@ func inferOracleDDLCompletionIntent(cs *CandidateSet, allTokens []Token, before 
 	}
 	first := allTokens[stmtStart]
 	prev := previousNonPunctuation(before)
+	if q, ok := oracleDottedQualifierBefore(before); ok {
+		context := oracleKeywordBeforeDottedQualifier(before)
+		switch first.Type {
+		case kwDROP:
+			switch context.Type {
+			case kwTABLE:
+				return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindTable, ObjectKindView}, Qualifier: MultipartName{Schema: q}}, true
+			case kwVIEW:
+				return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindView}, Qualifier: MultipartName{Schema: q}}, true
+			case kwSEQUENCE:
+				return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindSequence}, Qualifier: MultipartName{Schema: q}}, true
+			case kwPROCEDURE:
+				return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindProcedure}, Qualifier: MultipartName{Schema: q}}, true
+			case kwFUNCTION:
+				return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindFunction}, Qualifier: MultipartName{Schema: q}}, true
+			case kwINDEX:
+				return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindIndex}, Qualifier: MultipartName{Schema: q}}, true
+			case kwSYNONYM:
+				return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindSynonym}, Qualifier: MultipartName{Schema: q}}, true
+			case kwTRIGGER:
+				return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindTrigger}, Qualifier: MultipartName{Schema: q}}, true
+			}
+		case kwCOMMENT:
+			switch context.Type {
+			case kwCOLUMN:
+				return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindColumn}, Qualifier: MultipartName{Object: q}}, true
+			case kwTABLE:
+				return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindTable, ObjectKindView}, Qualifier: MultipartName{Schema: q}}, true
+			}
+		case kwGRANT, kwREVOKE:
+			if context.Type == kwON {
+				return &CompletionIntent{ObjectKinds: oracleGrantRevokeObjectKinds(before[stmtStart:]), Qualifier: MultipartName{Schema: q}}, true
+			}
+		}
+	}
 	switch first.Type {
 	case kwCREATE:
 		if prev.Type == kwCREATE {
@@ -512,10 +549,26 @@ func inferOracleDDLCompletionIntent(cs *CandidateSet, allTokens []Token, before 
 		}
 	case kwGRANT, kwREVOKE:
 		if prev.Type == kwON {
-			return &CompletionIntent{ObjectKinds: []ObjectKind{ObjectKindTable, ObjectKindView}}, true
+			return &CompletionIntent{ObjectKinds: oracleGrantRevokeObjectKinds(before[stmtStart:])}, true
 		}
 	}
 	return intent, false
+}
+
+func oracleGrantRevokeObjectKinds(tokens []Token) []ObjectKind {
+	kinds := []ObjectKind{ObjectKindTable, ObjectKindView}
+	for _, tok := range tokens {
+		if tok.Type == kwON {
+			break
+		}
+		switch tok.Type {
+		case kwSELECT:
+			return append(kinds, ObjectKindSequence)
+		case kwEXECUTE:
+			return []ObjectKind{ObjectKindProcedure, ObjectKindFunction, ObjectKindPackage, ObjectKindType}
+		}
+	}
+	return kinds
 }
 
 func oracleCreateTableTypeContext(tokens []Token, offset int) bool {
@@ -634,6 +687,35 @@ func inferOracleDMLCompletionIntent(allTokens []Token, before []Token, collectOf
 	}
 	first := allTokens[stmtStart]
 	prev := previousNonPunctuation(before)
+	if q, ok := oracleDottedQualifierBefore(before); ok {
+		context := oracleKeywordBeforeDottedQualifier(before)
+		switch first.Type {
+		case kwINSERT:
+			if context.Type == kwINTO {
+				intent.ObjectKinds = []ObjectKind{ObjectKindTable, ObjectKindView}
+				intent.Qualifier = MultipartName{Schema: q}
+				return intent
+			}
+		case kwUPDATE:
+			if context.Type == kwUPDATE {
+				intent.ObjectKinds = []ObjectKind{ObjectKindTable, ObjectKindView}
+				intent.Qualifier = MultipartName{Schema: q}
+				return intent
+			}
+		case kwDELETE:
+			if context.Type == kwFROM {
+				intent.ObjectKinds = []ObjectKind{ObjectKindTable, ObjectKindView}
+				intent.Qualifier = MultipartName{Schema: q}
+				return intent
+			}
+		case kwMERGE:
+			if context.Type == kwINTO || context.Type == kwUSING {
+				intent.ObjectKinds = []ObjectKind{ObjectKindTable, ObjectKindView}
+				intent.Qualifier = MultipartName{Schema: q}
+				return intent
+			}
+		}
+	}
 	switch first.Type {
 	case kwINSERT:
 		if prev.Type == kwINTO {
@@ -755,6 +837,21 @@ func oracleDottedQualifierBefore(tokens []Token) (string, bool) {
 	return qualifier.Str, true
 }
 
+func oracleKeywordBeforeDottedQualifier(tokens []Token) Token {
+	if _, ok := oracleDottedQualifierBefore(tokens); !ok {
+		return Token{}
+	}
+	for i := len(tokens) - 3; i >= 0; i-- {
+		switch tokens[i].Type {
+		case ',', '(', ')', '.':
+			continue
+		default:
+			return tokens[i]
+		}
+	}
+	return Token{}
+}
+
 func oracleCursorInSelectTarget(tokens []Token, offset int) bool {
 	stmtStart, stmtEnd := oracleStatementTokenBounds(tokens, offset)
 	selectIdx := -1
@@ -793,6 +890,8 @@ func oracleCursorInExpressionClause(tokens []Token, offset int) bool {
 		}
 		switch tokens[i].Type {
 		case kwWHERE, kwON, kwHAVING:
+			return true
+		case kwSTART, kwCONNECT:
 			return true
 		case kwFROM, kwJOIN, kwGROUP, kwORDER:
 			return false
@@ -931,7 +1030,7 @@ func oracleCursorAfterFromRelation(tokens []Token, offset int) bool {
 	if lastFromOrJoin < 0 || lastBoundary > lastFromOrJoin {
 		return false
 	}
-	_, _, ok := parseOracleRangeReference(tokens, lastFromOrJoin+1)
+	_, _, ok := parseOracleRangeReference(tokens, lastFromOrJoin+1, nil)
 	return ok
 }
 
