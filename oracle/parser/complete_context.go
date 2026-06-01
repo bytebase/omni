@@ -13,6 +13,8 @@ type CompletionContext struct {
 	CTEs       []RangeReference
 	Prefix     string
 	Intent     *CompletionIntent
+
+	StatementLoc nodes.Loc
 }
 
 // CompletionIntent describes the object class and qualifier implied by the
@@ -90,6 +92,9 @@ type RangeReference struct {
 
 	Loc     nodes.Loc
 	BodyLoc nodes.Loc
+
+	Unsupported       bool
+	UnsupportedReason string
 }
 
 // CollectCompletion returns parser candidates plus best-effort visible scope
@@ -106,12 +111,14 @@ func CollectCompletion(sql string, cursorOffset int) *CompletionContext {
 	tokens := Tokenize(sql)
 	candidates, intent := collectOracleCandidates(sql, tokens, collectOffset, prefix)
 	scope, ctes := collectOracleScopeAndCTEs(tokens, cursorOffset)
+	stmtLoc := oracleCompletionStatementLoc(sql, tokens, cursorOffset)
 	return &CompletionContext{
-		Candidates: candidates,
-		Scope:      scope,
-		CTEs:       ctes,
-		Prefix:     prefix,
-		Intent:     intent,
+		Candidates:   candidates,
+		Scope:        scope,
+		CTEs:         ctes,
+		Prefix:       prefix,
+		Intent:       intent,
+		StatementLoc: stmtLoc,
 	}
 }
 
@@ -159,20 +166,20 @@ func collectOracleDDLRefs(tokens []Token) []RangeReference {
 	case kwCREATE:
 		var refs []RangeReference
 		if first+2 < len(tokens) && tokens[first+1].Type == kwTABLE {
-			_, ref, ok := parseOracleRangeReference(tokens, first+2)
+			_, ref, ok := parseOracleRangeReference(tokens, first+2, nil)
 			if ok {
 				refs = append(refs, ref)
 			}
 		}
 		for i := first + 1; i < len(tokens); i++ {
 			if tokens[i].Type == kwON {
-				_, ref, ok := parseOracleRangeReference(tokens, i+1)
+				_, ref, ok := parseOracleRangeReference(tokens, i+1, nil)
 				if ok {
 					refs = append(refs, ref)
 				}
 			}
 			if tokens[i].Type == kwREFERENCES {
-				_, ref, ok := parseOracleRangeReference(tokens, i+1)
+				_, ref, ok := parseOracleRangeReference(tokens, i+1, nil)
 				if ok {
 					refs = append(refs, ref)
 				}
@@ -182,7 +189,7 @@ func collectOracleDDLRefs(tokens []Token) []RangeReference {
 	case kwALTER:
 		for i := first + 1; i < len(tokens); i++ {
 			if tokens[i].Type == kwTABLE {
-				_, ref, ok := parseOracleRangeReference(tokens, i+1)
+				_, ref, ok := parseOracleRangeReference(tokens, i+1, nil)
 				if ok {
 					return []RangeReference{ref}
 				}
@@ -212,7 +219,7 @@ func collectOracleDMLRefs(tokens []Token) []RangeReference {
 	}
 	switch tokens[first].Type {
 	case kwUPDATE:
-		_, ref, ok := parseOracleRangeReference(tokens, first+1)
+		_, ref, ok := parseOracleRangeReference(tokens, first+1, nil)
 		if ok {
 			ref.Kind = RangeReferenceDMLTarget
 			return []RangeReference{ref}
@@ -220,7 +227,7 @@ func collectOracleDMLRefs(tokens []Token) []RangeReference {
 	case kwINSERT:
 		for i := first + 1; i < len(tokens); i++ {
 			if tokens[i].Type == kwINTO {
-				_, ref, ok := parseOracleRangeReference(tokens, i+1)
+				_, ref, ok := parseOracleRangeReference(tokens, i+1, nil)
 				if ok {
 					ref.Kind = RangeReferenceDMLTarget
 					return []RangeReference{ref}
@@ -231,7 +238,7 @@ func collectOracleDMLRefs(tokens []Token) []RangeReference {
 	case kwDELETE:
 		for i := first + 1; i < len(tokens); i++ {
 			if tokens[i].Type == kwFROM {
-				_, ref, ok := parseOracleRangeReference(tokens, i+1)
+				_, ref, ok := parseOracleRangeReference(tokens, i+1, nil)
 				if ok {
 					ref.Kind = RangeReferenceDMLTarget
 					return []RangeReference{ref}
@@ -244,14 +251,14 @@ func collectOracleDMLRefs(tokens []Token) []RangeReference {
 		for i := first + 1; i < len(tokens); i++ {
 			switch tokens[i].Type {
 			case kwINTO:
-				next, ref, ok := parseOracleRangeReference(tokens, i+1)
+				next, ref, ok := parseOracleRangeReference(tokens, i+1, nil)
 				if ok {
 					ref.Kind = RangeReferenceDMLTarget
 					refs = append(refs, ref)
 					i = next - 1
 				}
 			case kwUSING:
-				next, ref, ok := parseOracleRangeReference(tokens, i+1)
+				next, ref, ok := parseOracleRangeReference(tokens, i+1, nil)
 				if ok {
 					ref.Kind = RangeReferenceMergeSource
 					refs = append(refs, ref)
@@ -285,6 +292,32 @@ func oracleStatementTokenBounds(tokens []Token, cursorOffset int) (int, int) {
 		}
 	}
 	return start, end
+}
+
+func oracleCompletionStatementLoc(sql string, tokens []Token, cursorOffset int) nodes.Loc {
+	start, end := oracleStatementTokenBounds(tokens, cursorOffset)
+	loc := nodes.Loc{Start: cursorOffset, End: cursorOffset}
+	if start < len(tokens) {
+		loc.Start = tokens[start].Loc
+	} else {
+		for loc.Start > 0 && sql[loc.Start-1] != ';' {
+			loc.Start--
+		}
+	}
+	if end < len(tokens) {
+		loc.End = tokens[end].Loc
+	} else {
+		loc.End = len(sql)
+	}
+	for loc.Start < loc.End {
+		switch sql[loc.Start] {
+		case ' ', '\t', '\n', '\r':
+			loc.Start++
+		default:
+			return loc
+		}
+	}
+	return loc
 }
 
 func collectOracleSelectRefs(tokens []Token, ctes map[string]RangeReference) []RangeReference {
@@ -381,9 +414,10 @@ func collectOracleFromReferences(tokens []Token, start int, end int, wantDepth i
 			continue
 		}
 		if expectingRef {
-			next, ref, ok := parseOracleRangeReference(tokens, i)
+			next, ref, ok := parseOracleRangeReference(tokens, i, ctes)
 			if ok && next <= end {
 				ref = resolveOracleCTEReference(ref, ctes)
+				ref = markOracleUnsupportedTransform(tokens, ref, next, end, wantDepth, depths)
 				refs = append(refs, ref)
 				i = next
 				expectingRef = false
@@ -407,6 +441,35 @@ func skipOracleJoinPredicate(tokens []Token, start int, end int, wantDepth int, 
 		}
 	}
 	return end
+}
+
+func markOracleUnsupportedTransform(tokens []Token, ref RangeReference, start int, end int, wantDepth int, depths []int) RangeReference {
+	if ref.Unsupported {
+		return ref
+	}
+	for i := start; i < end; i++ {
+		if depths[i] != wantDepth {
+			continue
+		}
+		switch tokens[i].Type {
+		case kwPIVOT:
+			ref.Unsupported = true
+			ref.UnsupportedReason = "pivot"
+			return ref
+		case kwUNPIVOT:
+			ref.Unsupported = true
+			ref.UnsupportedReason = "unpivot"
+			return ref
+		case kwMODEL:
+			ref.Unsupported = true
+			ref.UnsupportedReason = "model"
+			return ref
+		case ',', kwJOIN, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwCONNECT, kwSTART,
+			kwUNION, kwINTERSECT, kwMINUS, kwOFFSET, kwFETCH:
+			return ref
+		}
+	}
+	return ref
 }
 
 func innermostOracleSelectBeforeCursor(tokens []Token, cursorOffset int) (int, int, bool) {
@@ -561,7 +624,7 @@ func resolveOracleCTEReference(ref RangeReference, ctes map[string]RangeReferenc
 	return ref
 }
 
-func parseOracleRangeReference(tokens []Token, i int) (int, RangeReference, bool) {
+func parseOracleRangeReference(tokens []Token, i int, ctes map[string]RangeReference) (int, RangeReference, bool) {
 	for i < len(tokens) && tokens[i].Type == ',' {
 		i++
 	}
@@ -569,7 +632,7 @@ func parseOracleRangeReference(tokens []Token, i int) (int, RangeReference, bool
 		return i, RangeReference{}, false
 	}
 	if tokens[i].Type == kwLATERAL {
-		return parseOracleLateralRangeReference(tokens, i)
+		return parseOracleLateralRangeReference(tokens, i, ctes)
 	}
 	if tokens[i].Type == kwXMLTABLE || tokens[i].Type == kwJSON_TABLE {
 		return parseOracleStructuredFunctionRangeReference(tokens, i)
@@ -585,7 +648,7 @@ func parseOracleRangeReference(tokens []Token, i int) (int, RangeReference, bool
 		return parseOracleContainersRangeReference(tokens, i)
 	}
 	if tokens[i].Type == '(' {
-		return parseOracleSubqueryRangeReference(tokens, i)
+		return parseOracleSubqueryRangeReference(tokens, i, ctes)
 	}
 	if !isOracleCompletionIdent(tokens[i]) {
 		return i, RangeReference{}, false
@@ -625,7 +688,7 @@ func parseOracleRangeReference(tokens []Token, i int) (int, RangeReference, bool
 	return i, ref, true
 }
 
-func parseOracleLateralRangeReference(tokens []Token, i int) (int, RangeReference, bool) {
+func parseOracleLateralRangeReference(tokens []Token, i int, ctes map[string]RangeReference) (int, RangeReference, bool) {
 	if i+1 >= len(tokens) || tokens[i+1].Type != '(' {
 		return i, RangeReference{}, false
 	}
@@ -641,7 +704,7 @@ func parseOracleLateralRangeReference(tokens []Token, i int) (int, RangeReferenc
 		Kind:    RangeReferenceSubquery,
 		Name:    alias.Str,
 		Alias:   alias.Str,
-		Columns: extractOracleSelectListColumns(tokens[i+2 : closeIdx]),
+		Columns: extractOracleSelectListColumns(tokens[i+2:closeIdx], ctes),
 		Loc:     nodes.Loc{Start: tokens[i].Loc, End: alias.End},
 		BodyLoc: nodes.Loc{Start: tokens[i+1].End, End: tokens[closeIdx].Loc},
 	}
@@ -743,16 +806,18 @@ func parseOracleTableCollectionRangeReference(tokens []Token, i int) (int, Range
 		return nextIdx, RangeReference{}, false
 	}
 	ref := RangeReference{
-		Kind:    RangeReferenceSubquery,
-		Name:    alias.Str,
-		Alias:   alias.Str,
-		Loc:     nodes.Loc{Start: tokens[i].Loc, End: alias.End},
-		BodyLoc: nodes.Loc{Start: tokens[i+1].End, End: tokens[closeIdx].Loc},
+		Kind:              RangeReferenceSubquery,
+		Name:              alias.Str,
+		Alias:             alias.Str,
+		Unsupported:       true,
+		UnsupportedReason: "table_collection",
+		Loc:               nodes.Loc{Start: tokens[i].Loc, End: alias.End},
+		BodyLoc:           nodes.Loc{Start: tokens[i+1].End, End: tokens[closeIdx].Loc},
 	}
 	return next, ref, true
 }
 
-func parseOracleSubqueryRangeReference(tokens []Token, i int) (int, RangeReference, bool) {
+func parseOracleSubqueryRangeReference(tokens []Token, i int, ctes map[string]RangeReference) (int, RangeReference, bool) {
 	closeIdx := oracleMatchingParen(tokens, i)
 	if closeIdx < 0 {
 		return i, RangeReference{}, false
@@ -768,7 +833,7 @@ func parseOracleSubqueryRangeReference(tokens []Token, i int) (int, RangeReferen
 		Kind:    RangeReferenceSubquery,
 		Name:    tokens[aliasIdx].Str,
 		Alias:   tokens[aliasIdx].Str,
-		Columns: extractOracleSelectListColumns(tokens[i+1 : closeIdx]),
+		Columns: extractOracleSelectListColumns(tokens[i+1:closeIdx], ctes),
 		Loc:     nodes.Loc{Start: tokens[i].Loc, End: tokens[aliasIdx].End},
 		BodyLoc: nodes.Loc{Start: tokens[i].End, End: tokens[closeIdx].Loc},
 	}
@@ -781,6 +846,7 @@ func collectOracleCTEs(tokens []Token) []RangeReference {
 		return nil
 	}
 	var refs []RangeReference
+	seen := make(map[string]RangeReference)
 	i := first + 1
 	for i < len(tokens) {
 		if !isOracleCompletionIdent(tokens[i]) {
@@ -815,11 +881,12 @@ func collectOracleCTEs(tokens []Token) []RangeReference {
 			break
 		}
 		if len(ref.Columns) == 0 {
-			ref.Columns = extractOracleSelectListColumns(tokens[i+1 : closeIdx])
+			ref.Columns = extractOracleSelectListColumns(tokens[i+1:closeIdx], seen)
 		}
 		ref.BodyLoc = nodes.Loc{Start: tokens[i].End, End: tokens[closeIdx].Loc}
 		ref.Loc.End = tokens[closeIdx].End
 		refs = append(refs, ref)
+		seen[strings.ToLower(ref.Name)] = ref
 		i = closeIdx + 1
 		if i < len(tokens) && tokens[i].Type == ',' {
 			i++
@@ -995,10 +1062,21 @@ func extractOracleNameList(tokens []Token) []string {
 	return names
 }
 
-func extractOracleSelectListColumns(tokens []Token) []string {
+func extractOracleSelectListColumns(tokens []Token, ctes map[string]RangeReference) []string {
 	selectIdx := -1
+	depth := 0
 	for i, tok := range tokens {
-		if tok.Type == kwSELECT {
+		switch tok.Type {
+		case '(':
+			depth++
+			continue
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+			continue
+		}
+		if depth == 0 && tok.Type == kwSELECT {
 			selectIdx = i
 			break
 		}
@@ -1007,7 +1085,9 @@ func extractOracleSelectListColumns(tokens []Token) []string {
 		return nil
 	}
 	var names []string
-	depth := 0
+	targetStart := selectIdx + 1
+	depth = 0
+	closedTargetList := false
 	for i := selectIdx + 1; i < len(tokens); i++ {
 		tok := tokens[i]
 		switch tok.Type {
@@ -1020,15 +1100,111 @@ func extractOracleSelectListColumns(tokens []Token) []string {
 			}
 			continue
 		}
-		if depth == 0 && tok.Type == kwFROM {
+		if depth == 0 && (tok.Type == kwFROM || tok.Type == kwUNION || tok.Type == kwINTERSECT || tok.Type == kwMINUS) {
+			names = append(names, extractOracleTargetColumn(tokens[targetStart:i], tokens, selectIdx, ctes)...)
+			closedTargetList = true
 			break
 		}
-		if depth == 0 && isOracleCompletionIdent(tok) {
-			names = append(names, tok.Str)
-			for i+1 < len(tokens) && tokens[i+1].Type != ',' && tokens[i+1].Type != kwFROM {
-				i++
-			}
+		if depth == 0 && tok.Type == ',' {
+			names = append(names, extractOracleTargetColumn(tokens[targetStart:i], tokens, selectIdx, ctes)...)
+			targetStart = i + 1
 		}
+	}
+	if !closedTargetList && targetStart < len(tokens) {
+		names = append(names, extractOracleTargetColumn(tokens[targetStart:], tokens, selectIdx, ctes)...)
+	}
+	return names
+}
+
+func extractOracleTargetColumn(target []Token, selectTokens []Token, selectIdx int, ctes map[string]RangeReference) []string {
+	target = trimOracleTargetTokens(target)
+	if len(target) == 0 {
+		return nil
+	}
+	if len(target) == 1 && target[0].Type == '*' {
+		return expandOracleStarColumns(selectTokens, selectIdx, "", ctes)
+	}
+	if len(target) == 3 && isOracleCompletionIdent(target[0]) && target[1].Type == '.' && target[2].Type == '*' {
+		return expandOracleStarColumns(selectTokens, selectIdx, target[0].Str, ctes)
+	}
+	if alias, ok := oracleExplicitSelectAlias(target); ok {
+		return []string{alias}
+	}
+	if name, ok := oracleBareSelectColumnName(target); ok {
+		return []string{name}
+	}
+	return nil
+}
+
+func trimOracleTargetTokens(tokens []Token) []Token {
+	start := 0
+	for start < len(tokens) && tokens[start].Type == ',' {
+		start++
+	}
+	end := len(tokens)
+	for end > start && tokens[end-1].Type == ',' {
+		end--
+	}
+	return tokens[start:end]
+}
+
+func oracleExplicitSelectAlias(tokens []Token) (string, bool) {
+	depth := 0
+	for i := len(tokens) - 1; i >= 0; i-- {
+		switch tokens[i].Type {
+		case ')':
+			depth++
+			continue
+		case '(':
+			if depth > 0 {
+				depth--
+			}
+			continue
+		}
+		if depth != 0 {
+			continue
+		}
+		if i > 0 && tokens[i-1].Type == kwAS && isOracleCompletionIdent(tokens[i]) {
+			return tokens[i].Str, true
+		}
+		if i > 0 && isOracleCompletionIdent(tokens[i]) && tokens[i-1].Type != '.' && !oracleTargetEndsWithPlainQualifiedName(tokens[:i+1]) {
+			return tokens[i].Str, true
+		}
+		break
+	}
+	return "", false
+}
+
+func oracleBareSelectColumnName(tokens []Token) (string, bool) {
+	if len(tokens) == 1 && isOracleCompletionIdent(tokens[0]) {
+		return tokens[0].Str, true
+	}
+	if len(tokens) >= 3 && isOracleCompletionIdent(tokens[len(tokens)-1]) && tokens[len(tokens)-2].Type == '.' {
+		return tokens[len(tokens)-1].Str, true
+	}
+	return "", false
+}
+
+func oracleTargetEndsWithPlainQualifiedName(tokens []Token) bool {
+	if len(tokens) == 1 && isOracleCompletionIdent(tokens[0]) {
+		return true
+	}
+	if len(tokens) >= 3 && isOracleCompletionIdent(tokens[len(tokens)-1]) && tokens[len(tokens)-2].Type == '.' {
+		return true
+	}
+	return false
+}
+
+func expandOracleStarColumns(tokens []Token, selectIdx int, qualifier string, ctes map[string]RangeReference) []string {
+	_, armEnd := oracleSelectArmBounds(tokens, selectIdx, 0)
+	refs := collectOracleSelectRefsInRange(tokens, selectIdx, armEnd, 0, ctes)
+	var names []string
+	for _, ref := range refs {
+		ref = resolveOracleCTEReference(ref, ctes)
+		if qualifier != "" && !strings.EqualFold(ref.Alias, qualifier) && !strings.EqualFold(ref.Name, qualifier) {
+			continue
+		}
+		names = append(names, ref.Columns...)
 	}
 	return names
 }
