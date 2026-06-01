@@ -203,6 +203,127 @@ func TestOracleCompletionScopeSnapshotMatrix(t *testing.T) {
 	})
 }
 
+func TestOracleCompletionP2LongTailTableSources(t *testing.T) {
+	t.Run("json table exposes alias and explicit columns", func(t *testing.T) {
+		input := "SELECT jt.| FROM t, JSON_TABLE(t.doc, '$.rows[*]' COLUMNS (id NUMBER PATH '$.id', name VARCHAR2(100) PATH '$.name')) jt"
+		sql := strings.ReplaceAll(input, "|", "")
+		ctx := collectCompletionMarked(t, input)
+		requireLocalReferenceNames(t, ctx.Scope, []string{"t", "jt"})
+		ref := requireLocalRangeReference(t, ctx.Scope, "jt")
+		requireColumns(t, ref.Columns, []string{"id", "name"})
+		requireLocText(t, sql, ref.Loc, "JSON_TABLE(t.doc, '$.rows[*]' COLUMNS (id NUMBER PATH '$.id', name VARCHAR2(100) PATH '$.name')) jt")
+		requireBodyLocText(t, sql, ref.BodyLoc, "t.doc, '$.rows[*]' COLUMNS (id NUMBER PATH '$.id', name VARCHAR2(100) PATH '$.name')")
+	})
+
+	t.Run("xmltable exposes alias and explicit columns", func(t *testing.T) {
+		input := "SELECT xt.| FROM x, XMLTABLE('/root/row' PASSING x.doc COLUMNS id NUMBER PATH 'id', name VARCHAR2(100) PATH 'name') xt"
+		sql := strings.ReplaceAll(input, "|", "")
+		ctx := collectCompletionMarked(t, input)
+		requireLocalReferenceNames(t, ctx.Scope, []string{"x", "xt"})
+		ref := requireLocalRangeReference(t, ctx.Scope, "xt")
+		requireColumns(t, ref.Columns, []string{"id", "name"})
+		requireLocText(t, sql, ref.Loc, "XMLTABLE('/root/row' PASSING x.doc COLUMNS id NUMBER PATH 'id', name VARCHAR2(100) PATH 'name') xt")
+		requireBodyLocText(t, sql, ref.BodyLoc, "'/root/row' PASSING x.doc COLUMNS id NUMBER PATH 'id', name VARCHAR2(100) PATH 'name'")
+	})
+
+	t.Run("inline external exposes alias and declared columns", func(t *testing.T) {
+		input := "SELECT ext.| FROM EXTERNAL ((a NUMBER, b VARCHAR2(10)) TYPE ORACLE_LOADER DEFAULT DIRECTORY data_dir LOCATION ('x.csv')) ext"
+		sql := strings.ReplaceAll(input, "|", "")
+		ctx := collectCompletionMarked(t, input)
+		requireLocalReferenceNames(t, ctx.Scope, []string{"ext"})
+		ref := requireLocalRangeReference(t, ctx.Scope, "ext")
+		requireColumns(t, ref.Columns, []string{"a", "b"})
+		requireLocText(t, sql, ref.Loc, "EXTERNAL ((a NUMBER, b VARCHAR2(10)) TYPE ORACLE_LOADER DEFAULT DIRECTORY data_dir LOCATION ('x.csv')) ext")
+		requireBodyLocText(t, sql, ref.BodyLoc, "(a NUMBER, b VARCHAR2(10)) TYPE ORACLE_LOADER DEFAULT DIRECTORY data_dir LOCATION ('x.csv')")
+	})
+
+	t.Run("containers uses alias when present", func(t *testing.T) {
+		ctx := collectCompletionMarked(t, "SELECT c.| FROM CONTAINERS(hr.employees) c")
+		requireLocalReferenceNames(t, ctx.Scope, []string{"c"})
+		ref := requireLocalRangeReference(t, ctx.Scope, "c")
+		if !strings.EqualFold(ref.Schema, "hr") || !strings.EqualFold(ref.Name, "employees") {
+			t.Fatalf("containers base object = %q.%q, want hr.employees", ref.Schema, ref.Name)
+		}
+	})
+
+	t.Run("containers without alias exposes base object name", func(t *testing.T) {
+		ctx := collectCompletionMarked(t, "SELECT | FROM CONTAINERS(hr.employees)")
+		requireLocalReferenceNames(t, ctx.Scope, []string{"employees"})
+	})
+
+	t.Run("lateral exposes alias columns and left refs to lateral body", func(t *testing.T) {
+		ctx := collectCompletionMarked(t, "SELECT l.| FROM employees e, LATERAL (SELECT employee_id, dept_name FROM departments d WHERE d.id = e.department_id) l")
+		requireLocalReferenceNames(t, ctx.Scope, []string{"e", "l"})
+		ref := requireLocalRangeReference(t, ctx.Scope, "l")
+		requireColumns(t, ref.Columns, []string{"employee_id", "dept_name"})
+
+		inner := collectCompletionMarked(t, "SELECT * FROM employees e, LATERAL (SELECT | FROM departments d WHERE d.id = e.department_id) l")
+		requireLocalReferenceNames(t, inner.Scope, []string{"d"})
+		if got, want := len(inner.Scope.OuterReferences), 1; got != want {
+			t.Fatalf("outer reference levels = %d, want %d", got, want)
+		}
+		if got, want := oracleRefNames(inner.Scope.OuterReferences[0]), []string{"e"}; !sameStringSlice(got, want) {
+			t.Fatalf("lateral outer refs = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("hierarchical clauses keep from scope", func(t *testing.T) {
+		tests := []string{
+			"SELECT * FROM employees e START WITH | CONNECT BY PRIOR e.employee_id = e.manager_id",
+			"SELECT * FROM employees e START WITH e.manager_id IS NULL CONNECT BY |",
+		}
+		for _, input := range tests {
+			ctx := collectCompletionMarked(t, input)
+			requireLocalReferenceNames(t, ctx.Scope, []string{"e"})
+		}
+	})
+}
+
+func TestOracleCompletionP2UnsupportedTransformsDoNotInventColumns(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		refs  []string
+		ref   string
+	}{
+		{
+			name:  "table function alias is visible without columns",
+			input: "SELECT x.| FROM TABLE(pkg.values()) x",
+			refs:  []string{"x"},
+			ref:   "x",
+		},
+		{
+			name:  "pivot keeps base table ref",
+			input: "SELECT | FROM sales PIVOT (SUM(amount) FOR quarter IN ('Q1' AS q1, 'Q2' AS q2))",
+			refs:  []string{"sales"},
+			ref:   "sales",
+		},
+		{
+			name:  "unpivot keeps base table ref",
+			input: "SELECT | FROM quarterly_sales UNPIVOT (sales FOR quarter IN (q1, q2, q3, q4))",
+			refs:  []string{"quarterly_sales"},
+			ref:   "quarterly_sales",
+		},
+		{
+			name:  "model keeps base table ref",
+			input: "SELECT | FROM sales MODEL DIMENSION BY (product) MEASURES (amount) RULES (amount[product] = amount[product])",
+			refs:  []string{"sales"},
+			ref:   "sales",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := collectCompletionMarked(t, tt.input)
+			requireLocalReferenceNames(t, ctx.Scope, tt.refs)
+			ref := requireLocalRangeReference(t, ctx.Scope, tt.ref)
+			if len(ref.Columns) != 0 {
+				t.Fatalf("columns = %v, want none for unsupported transform", ref.Columns)
+			}
+		})
+	}
+}
+
 func TestOracleCompletionDMLSignals(t *testing.T) {
 	tests := []struct {
 		name  string
