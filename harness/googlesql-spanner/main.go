@@ -306,11 +306,14 @@ func (o *oracle) validateDDL(ctx context.Context, sql string) error {
 // silent false-accept would mask real parser bugs (or fabricate divergences)
 // in every grammar node that trusts this verdict.
 //
-// The discriminator is kind-aware and keys on the gRPC CODE wherever possible,
-// not on exact message text (the emulator's strings float with its image):
-//   - DDL: the emulator returns a PARSE failure as InvalidArgument and a
-//     SEMANTIC failure as FailedPrecondition / NotFound / Internal, so the code
-//     alone decides — robust to message drift.
+// The discriminator is kind-aware. InvalidArgument is OVERLOADED in both kinds
+// (it covers semantic failures too), so a parse reject keys on the message
+// PREFIX, not the code:
+//   - DDL: a PARSE failure is InvalidArgument + "Error parsing Spanner DDL
+//     statement:"; semantic failures are ALSO InvalidArgument without that
+//     prefix (bad index col, type change, generated/check/default expr) — or
+//     FailedPrecondition / NotFound / Internal. (Drift in the prefix is
+//     mitigated by pinning the emulator digest + a required-green live test.)
 //   - query/DML: parse failures are InvalidArgument with a "Syntax error:"
 //     message; every OTHER InvalidArgument is a semantic result (Table not
 //     found, Unrecognized name, "X is not supported") => grammar parsed.
@@ -399,9 +402,12 @@ func classify(kind string, err error) verdict {
 // scratch database/instance/session lifecycle (infra) rather than a per-
 // statement object reference.
 func isResourceLevel(msg string) bool {
+	// Match the colon-terminated lifecycle phrases the emulator emits ("Database
+	// not found: <name>") so a per-statement object whose name merely contains
+	// these words can't trip the guard.
 	for _, p := range []string{
-		"Database not found", "Instance not found", "Session not found",
-		"Database already exists", "Instance already exists",
+		"Database not found:", "Instance not found:", "Session not found:",
+		"Database already exists:", "Instance already exists:",
 	} {
 		if strings.Contains(msg, p) {
 			return true

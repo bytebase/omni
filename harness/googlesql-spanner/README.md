@@ -95,7 +95,8 @@ docs corpus + the legacy `.g4`.
 A future `googlesql/parser` diff test (build-tagged, like
 `mssql/parser/scriptdom_harness_test.go`) will:
 
-1. base64-encode each corpus statement, pipe the batch to this harness;
+1. base64-encode each corpus statement (one statement, no trailing `;` — the
+   DDL path rejects a terminator), pipe the batch to this harness;
 2. parse the same statement with omni's googlesql parser;
 3. on `verdict == "error"`, **fail loudly** (the oracle didn't decide — fix the
    emulator / fixture, don't proceed) — never treat it as accept or reject;

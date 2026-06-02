@@ -26,9 +26,13 @@ docker run -d --name spanner-emulator -p 9010:9010 -p 9020:9020 \
 
 Bootstrap (once per emulator process; state is in-memory and lost on container restart). Done via the Go admin client or REST :9020 *for setup only*:
 - project `test-project`, instance config `emulator-config`
-- instance `test-instance`, database `testdb`
+- instance `test-instance`, database `googlesql_harness` (the harness drops + recreates it each run)
 
-The differential harness owns this bootstrap and a scratch table for query/DML probes.
+The differential harness owns this bootstrap.
+
+### Harness input contract (verified gotchas)
+- **One statement per input, no terminator.** `UpdateDatabaseDdl` rejects a trailing `;` (`CREATE TABLE t (...) PRIMARY KEY (x);` → "Expecting 'EOF' but found ';'"). Callers must strip statement terminators before feeding the harness, or DDL fixtures will show spurious `reject`s.
+- **Unknown OPTION *names* verdict `reject`, not accept.** The emulator validates option-name vocabulary inside its DDL parser and reports an unknown name via the canonical parse prefix (`ALTER TABLE t SET OPTIONS (bogus_opt=true)` → reject "Option: bogus_opt is unknown"). The GoogleSQL grammar accepts arbitrary option keys, so this is an *over-reject* — option-bearing DDL falls under the dialect caveat below and must be triangulated, not trusted from the emulator.
 
 ## ⚠️ REST gateway (:9020) cannot report errors
 
