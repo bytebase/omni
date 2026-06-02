@@ -1,0 +1,1 @@
+CastExpr{Kind:CAN_LOSSLESS_CAST Expr:VarRef{Name:x} AsType:TypeRef{Name:DECIMAL Args:[10,2]}}

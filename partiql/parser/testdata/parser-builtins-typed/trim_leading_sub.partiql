@@ -1,0 +1,1 @@
+TRIM(LEADING '0' FROM acct)

@@ -1,0 +1,1 @@
+NULLIF(status, 'active')

@@ -1,0 +1,1 @@
+COALESCE(NULLIF(a, b), c)

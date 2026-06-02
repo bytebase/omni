@@ -1,0 +1,1 @@
+CastExpr{Kind:CAN_CAST Expr:VarRef{Name:x} AsType:TypeRef{Name:INT}}

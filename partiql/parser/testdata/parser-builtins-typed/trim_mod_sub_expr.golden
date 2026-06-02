@@ -1,0 +1,1 @@
+TrimExpr{Spec:LEADING Sub:VarRef{Name:x} From:VarRef{Name:s}}

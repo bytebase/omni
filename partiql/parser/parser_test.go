@@ -629,26 +629,10 @@ func TestParser_Errors(t *testing.T) {
 			input:     "COUNT(x)",
 			wantErrIn: "COUNT() aggregate is deferred to parser-aggregates (DAG node 14)",
 		},
-		{
-			name:      "cast_stub",
-			input:     "CAST(x AS INT)",
-			wantErrIn: "CAST is deferred to parser-builtins (DAG node 15)",
-		},
-		{
-			name:      "substring_stub",
-			input:     "SUBSTRING(s, 1, 2)",
-			wantErrIn: "SUBSTRING is deferred to parser-builtins (DAG node 15)",
-		},
-		{
-			name:      "coalesce_stub",
-			input:     "COALESCE(a, b)",
-			wantErrIn: "COALESCE is deferred to parser-builtins (DAG node 15)",
-		},
-		{
-			name:      "list_constructor_stub",
-			input:     "LIST(1, 2, 3)",
-			wantErrIn: "LIST() constructor is deferred to parser-builtins (DAG node 15)",
-		},
+		// Note: the CAST/SUBSTRING/COALESCE/LIST deferred-stub cases that
+		// previously lived here were removed when DAG node 15b
+		// (parser-builtins-typed) implemented those forms. Their positive
+		// and negative coverage now lives in builtins_typed_test.go.
 		{
 			name:      "graph_match_stub",
 			input:     "(a MATCH (b))",

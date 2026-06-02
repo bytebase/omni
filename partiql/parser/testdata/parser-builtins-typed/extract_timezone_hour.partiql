@@ -1,0 +1,1 @@
+EXTRACT(timezone_hour FROM ts)
