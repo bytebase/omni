@@ -219,6 +219,33 @@ func TestParser_BuiltinsTyped(t *testing.T) {
 			input: "TRIM(col)",
 			want:  "TrimExpr{From:VarRef{Name:col}}",
 		},
+		// A trim-keyword spelling that is actually a FUNCTION CALL is the
+		// target: there is no FROM, so `both(x)` is the call both(x). The
+		// '(' after BOTH must NOT be mistaken for the start of a removal
+		// char that would commit BOTH as the modifier (Codex re-review).
+		{
+			name:  "trim_keyword_funccall_target",
+			input: "TRIM(both(x))",
+			want:  "TrimExpr{From:FuncCall{Name:both Args:[VarRef{Name:x}]}}",
+		},
+		// A bare trim keyword as the sole target, no FROM anywhere.
+		{
+			name:  "trim_keyword_bare_leading",
+			input: "TRIM(leading)",
+			want:  "TrimExpr{From:VarRef{Name:leading}}",
+		},
+		// A trim keyword that begins an arithmetic target expression.
+		{
+			name:  "trim_keyword_arith_target",
+			input: "TRIM(trailing + 1)",
+			want:  "TrimExpr{From:BinaryExpr{Op:+ Left:VarRef{Name:trailing} Right:NumberLit{Val:1}}}",
+		},
+		// Plain non-keyword target (control case from the finding).
+		{
+			name:  "trim_plain_target",
+			input: "TRIM(x)",
+			want:  "TrimExpr{From:VarRef{Name:x}}",
+		},
 
 		// ----------------------------------------------------------------
 		// SUBSTRING — both the FROM/FOR keyword form and the comma form.
@@ -447,10 +474,33 @@ func TestParser_BuiltinsTyped_Errors(t *testing.T) {
 			input:     "TRIM()",
 			wantErrIn: "unexpected token",
 		},
+		// A modifier + removal char with no terminating FROM is not the
+		// prefix form, so the speculative prefix parse backtracks and the
+		// argument is re-parsed as a plain target. `LEADING` parses as a
+		// complete var-ref target, leaving `'0' acct` with no home — the
+		// closing paren is then expected where `'0'` appears. Still a
+		// syntax rejection (ANTLR rejects it too: `mod sub FROM` needs the
+		// FROM, and `target=expr` matches only the single `LEADING`).
 		{
 			name:      "trim_mod_sub_no_from",
 			input:     "TRIM(LEADING '0' acct)",
-			wantErrIn: "expected FROM",
+			wantErrIn: "expected PAREN_RIGHT",
+		},
+		// FROM is present (so the spec/sub prefix matched) but the target
+		// expression after FROM is missing — must reject, not fall back to
+		// the plain-target form.
+		{
+			name:      "trim_spec_from_no_target",
+			input:     "TRIM(BOTH FROM)",
+			wantErrIn: "unexpected token",
+		},
+		// Two adjacent identifiers (BOTH x) is not a single target
+		// expression and there is no FROM, so the trailing identifier has
+		// no home — reject at the closing paren.
+		{
+			name:      "trim_keyword_then_ident_no_from",
+			input:     "TRIM(BOTH x)",
+			wantErrIn: "expected PAREN_RIGHT",
 		},
 
 		// --- SUBSTRING: cannot mix comma and FROM/FOR ---
