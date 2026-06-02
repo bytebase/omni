@@ -132,6 +132,39 @@ func isDigit(ch byte) bool {
 	return ch >= '0' && ch <= '9'
 }
 
+// isHexDigit reports whether ch is an Ion HEX_DIGIT (g4 533-534: [0-9A-F]).
+// caseInsensitive=true means lowercase a-f match as well.
+func isHexDigit(ch byte) bool {
+	return (ch >= '0' && ch <= '9') ||
+		(ch >= 'a' && ch <= 'f') ||
+		(ch >= 'A' && ch <= 'F')
+}
+
+// hasHexRun reports whether the n bytes of l-input starting at index `at`
+// are all HEX_DIGITs and in range. Used to validate the fixed-width hex
+// runs in Ion HEX_ESCAPE / UNICODE_ESCAPE.
+func hasHexRun(s string, at, n int) bool {
+	if at+n > len(s) {
+		return false
+	}
+	for i := 0; i < n; i++ {
+		if !isHexDigit(s[at+i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// lowerASCII folds an ASCII letter to lowercase, leaving other bytes
+// unchanged. Mirrors the grammar's caseInsensitive=true handling for the
+// single-letter escape codes.
+func lowerASCII(ch byte) byte {
+	if ch >= 'A' && ch <= 'Z' {
+		return ch + ('a' - 'A')
+	}
+	return ch
+}
+
 // ============================================================================
 // Token location helper.
 // ============================================================================
@@ -391,39 +424,561 @@ func (l *Lexer) scanOperator() Token {
 	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
 }
 
-// scanIonLiteral consumes a backtick-delimited Ion blob: `...`.
+// scanIonLiteral consumes a backtick-delimited inline Ion value: `…`.
 //
-// SIMPLIFIED BASE BEHAVIOR: scans byte-to-byte from the opening
-// backtick to the next backtick. The captured Token.Str is the
-// verbatim inner content (no decoding); Token.Loc covers the entire
-// `...` range including both backticks.
+// On the opening backtick the lexer enters a dedicated Ion sub-mode
+// (the hand-written analogue of PartiQLLexer.g4's `pushMode(ION)`):
+// it consumes an Ion value verbatim until a *standalone* backtick —
+// the ION_CLOSURE that pops the mode (g4 line 428) — and emits one
+// tokION_LITERAL. Token.Str is the verbatim inner content between the
+// backticks (no Ion parsing, no decoding); Token.Loc covers the entire
+// `…` range including both backticks.
 //
-// KNOWN LIMITATION: Ion mode in PartiQLLexer.g4 has special handling
-// for backticks inside Ion strings (single-quoted symbols, double-quoted
-// short strings, triple-quoted long strings) that prevents premature
-// literal closure. This naive scan does NOT respect those rules. The
-// full Ion-mode-aware implementation is deferred to DAG node 17
-// (parser-ion-literals).
+// The whole point of the sub-mode is that a backtick appearing INSIDE
+// an Ion sub-token does not terminate the literal. Per the ION mode
+// grammar (g4 lines 406-430), the sub-tokens that may legally contain a
+// backtick — and therefore must be consumed whole — are:
 //
-// The AWS DynamoDB PartiQL corpus has zero real Ion literals; the
-// only 2 backtick uses are in select-001.partiql and insert-002.partiql
-// (syntax skeletons with placeholder backticks), both filtered out
-// of the corpus smoke test.
+//   - // line comment           (ION_INLINE_COMMENT, g4 408-409; EOF-terminable)
+//   - /* ... */ block comment   (ION_BLOCK_COMMENT,  g4 411-412)
+//   - "..." short string        (SHORT_QUOTED_STRING, g4 417-419)
+//   - triple-quoted long string (LONG_QUOTED_STRING,  g4 421-423)
+//   - '...' quoted symbol       (QUOTED_SYMBOL,       g4 425-426)
+//
+// Any other byte is consumed verbatim (ION_ANY, g4 430).
+//
+// ANTLR lexer rules are maximal-munch WITH FALLBACK: a construct only
+// consumes its bytes if it can reach an accept state. A double-quote,
+// single-quote, triple-quote, or block-comment opener that never finds its
+// closer does NOT match its multi-byte rule; instead each of those bytes
+// degrades to the single-byte ION_ANY rule and scanning continues.
+// Concretely, the input backtick + "abc + backtick lexes as ION_ANY for the
+// '"' then 'a','b','c' then ION_CLOSURE — a *complete* literal with inner
+// content "abc, not an error. We mirror that by rewinding to one byte past
+// the opener and continuing on any sub-scanner failure. The literal is
+// unterminated only when EOF is reached with no standalone closing backtick
+// (e.g. backtick + abc with no closing backtick). This was verified
+// differentially against the generated ANTLR lexer
+// (github.com/bytebase/parser/partiql) used as the oracle; see the lob note.
+//
+// Note on Ion blobs/clobs (ION_BLOB, g4 414-415): the grammar's ION_BLOB
+// rule matches base64 + whitespace only, and base64 contains no backtick.
+// A clob such as {{ "}}" }} is therefore NOT a single ION_BLOB token in
+// this grammar — ANTLR tokenizes it as ION_ANY '{', ION_ANY '{', a
+// SHORT_QUOTED_STRING for "}}", then ION_ANY for the trailing }}, and a
+// standalone backtick closes. The }} inside the quoted string is protected
+// by the string rule, and the braces are plain ION_ANY. Hence there is no
+// lob special case here: '{' and '}' are ION_ANY, and the quoted-string
+// scanners (invoked anywhere a quote appears, including between braces)
+// consume any }} inside a string as content for free.
+//
+// The AWS DynamoDB PartiQL corpus has zero real Ion literals (the only
+// two backtick uses are placeholder skeletons filtered out of the corpus
+// smoke tests), so these forms come from the PartiQL/Ion specs.
 func (l *Lexer) scanIonLiteral() Token {
-	l.pos++ // skip opening backtick
-	contentStart := l.pos
-	for l.pos < len(l.input) {
-		if l.input[l.pos] == '`' {
-			content := l.input[contentStart:l.pos]
-			l.pos++ // skip closing backtick
-			return Token{
-				Type: tokION_LITERAL,
-				Str:  content,
-				Loc:  l.loc(),
-			}
-		}
-		l.pos++
+	// Delegate the Ion sub-mode scan to the shared, package-level scanner so
+	// the lexer and the statement splitter (partiql.Split) agree byte-for-byte
+	// on where an Ion literal ends. l.pos is AT the opening backtick; the
+	// shared scanner takes the position just past it.
+	end, closed := ScanIonLiteral(l.input, l.pos+1)
+	if !closed {
+		// EOF reached with no standalone closing backtick: unterminated.
+		l.Err = fmt.Errorf("unterminated Ion literal at position %d", l.start)
+		return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
 	}
-	l.Err = fmt.Errorf("unterminated Ion literal at position %d", l.start)
-	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
+	content := l.input[l.pos+1 : end-1] // inner content, excluding both backticks
+	l.pos = end
+	return Token{Type: tokION_LITERAL, Str: content, Loc: l.loc()}
+}
+
+// ScanIonLiteral scans one backtick-delimited inline Ion value and reports
+// where it ends. `pos` must be the byte offset of the first byte AFTER the
+// opening backtick. On success it returns `end` (the offset just past the
+// standalone closing backtick — the ION_CLOSURE) and closed=true; the inner
+// content is input[pos:end-1]. If end-of-input is reached with no standalone
+// closing backtick the Ion literal is unterminated: it returns end=len(input)
+// and closed=false.
+//
+// This is the single source of truth for Ion-literal boundaries, shared by the
+// lexer's scanIonLiteral and the statement splitter (partiql.Split) so they can
+// never disagree on where a backtick literal ends (e.g. when a ';' or backtick
+// sits inside an Ion // line comment, /* */ block comment, short/long string,
+// quoted symbol, or base64 blob). See ionScanner for the per-construct rules
+// and their differential-oracle provenance.
+func ScanIonLiteral(input string, pos int) (end int, closed bool) {
+	s := ionScanner{input: input, pos: pos}
+	return s.scan()
+}
+
+// ionScanner walks the body of one Ion sub-mode literal (the bytes after the
+// opening backtick) and finds the standalone closing backtick. It holds only
+// the input and a cursor — no error/token state — so the same logic backs both
+// the Lexer.scanIonLiteral method and the package-level ScanIonLiteral helper
+// the splitter uses.
+//
+// The whole point of the sub-mode is that a backtick appearing INSIDE an Ion
+// sub-token does not terminate the literal. Per the ION mode grammar
+// (PartiQLLexer.g4 lines 406-430), the sub-tokens that may legally contain a
+// backtick — and therefore must be consumed whole — are:
+//
+//   - // line comment           (ION_INLINE_COMMENT, g4 408-409; EOF-terminable)
+//   - /* ... */ block comment   (ION_BLOCK_COMMENT,  g4 411-412)
+//   - "..." short string        (SHORT_QUOTED_STRING, g4 417-419)
+//   - triple-quoted long string (LONG_QUOTED_STRING,  g4 421-423)
+//   - '...' quoted symbol       (QUOTED_SYMBOL,       g4 425-426)
+//   - {{ base64 }} blob/clob    (ION_BLOB,            g4 414-415)
+//
+// Any other byte is consumed verbatim (ION_ANY, g4 430).
+//
+// ANTLR lexer rules are maximal-munch WITH FALLBACK: a construct only consumes
+// its bytes if it can reach an accept state. A double-quote, single-quote,
+// triple-quote, block-comment opener, or {{ that never finds its closer does
+// NOT match its multi-byte rule; instead each of those bytes degrades to the
+// single-byte ION_ANY rule and scanning continues. Concretely, the input
+// backtick + "abc + backtick lexes as ION_ANY for the '"' then 'a','b','c'
+// then ION_CLOSURE — a *complete* literal with inner content "abc, not an
+// error. We mirror that by rewinding to one byte past the opener and continuing
+// on any sub-scanner failure. The literal is unterminated only when EOF is
+// reached with no standalone closing backtick. This was verified differentially
+// against the generated ANTLR lexer (github.com/bytebase/parser/partiql) used
+// as the oracle; see the lob and long-string notes below.
+//
+// Note on Ion blobs/clobs (ION_BLOB, g4 414-415): the grammar's ION_BLOB rule
+// matches base64 + whitespace only, and base64 contains no backtick. A clob
+// such as {{ "}}" }} is therefore NOT a single ION_BLOB token in this grammar —
+// ANTLR tokenizes it as ION_ANY '{', ION_ANY '{', a SHORT_QUOTED_STRING for
+// "}}", then ION_ANY for the trailing }}, and a standalone backtick closes. The
+// }} inside the quoted string is protected by the string rule, and the braces
+// are plain ION_ANY. Hence there is no lob special case beyond the base64 form:
+// '{' and '}' are ION_ANY, and the quoted-string scanners (invoked anywhere a
+// quote appears, including between braces) consume any }} inside a string as
+// content for free.
+//
+// The AWS DynamoDB PartiQL corpus has zero real Ion literals (the only two
+// backtick uses are placeholder skeletons filtered out of the corpus smoke
+// tests), so these forms come from the PartiQL/Ion specs.
+type ionScanner struct {
+	input string
+	pos   int
+}
+
+// scan walks from s.pos (just past the opening backtick) to the standalone
+// closing backtick. See ScanIonLiteral for the returned-value contract.
+func (s *ionScanner) scan() (end int, closed bool) {
+	for s.pos < len(s.input) {
+		ch := s.input[s.pos]
+		// save marks the opener of any multi-byte construct so we can
+		// rewind to one byte past it on a failed match (ION_ANY fallback).
+		save := s.pos
+		switch {
+		case ch == '`':
+			// Standalone backtick — ION_CLOSURE. Pop the sub-mode.
+			s.pos++ // skip closing backtick
+			return s.pos, true
+
+		case ch == '{' && s.pos+1 < len(s.input) && s.input[s.pos+1] == '{':
+			// Possible ION_BLOB: {{ base64 }} (g4 414-415). ANTLR matches
+			// this whole region as ONE maximal-munch token, so any byte
+			// inside it — including '//' or '/*', which base64 may legally
+			// contain ('/' is a BASE_64_CHAR) — is blob CONTENT and never a
+			// comment. Only a *valid* base64 lob matches; if it does, consume
+			// it whole. Otherwise the '{' degrades to ION_ANY (so '{{' alone,
+			// a clob whose content is a quoted string, '{{//}}', etc. fall
+			// through to the per-byte handling that mirrors ANTLR).
+			if !s.scanBlob() {
+				s.pos = save + 1 // the leading '{' is ION_ANY
+			}
+
+		case ch == '/' && s.pos+1 < len(s.input) && s.input[s.pos+1] == '/':
+			// Line comment to newline or EOF. If it reaches EOF it
+			// swallows the closing backtick; the loop then exits and the
+			// literal is reported unterminated — matching ANTLR, where
+			// ION_INLINE_COMMENT consumes through EOF and the mode is
+			// never popped.
+			s.scanLineComment()
+
+		case ch == '/' && s.pos+1 < len(s.input) && s.input[s.pos+1] == '*':
+			if !s.scanBlockComment() {
+				// No closing */: /* does not match ION_BLOCK_COMMENT;
+				// degrade the '/' to ION_ANY and continue.
+				s.pos = save + 1
+			}
+
+		case ch == '"':
+			if !s.scanQuoted('"') {
+				// No closing ": the '"' is ION_ANY, not a string opener.
+				s.pos = save + 1
+			}
+
+		case ch == '\'' && s.matchesTripleQuote():
+			// A '''-prefixed run is a long string only if it actually
+			// closes with another '''. On failure, ANTLR maximal-munch
+			// falls back to QUOTED_SYMBOL (the quotes scan as (possibly
+			// empty) single-quoted symbols), and a symbol that itself
+			// cannot close degrades to ION_ANY. Rewind down that ladder
+			// rather than erroring.
+			if !s.scanLongString() {
+				s.pos = save
+				if !s.scanQuoted('\'') {
+					s.pos = save + 1 // the leading "'" is ION_ANY
+				}
+			}
+
+		case ch == '\'':
+			if !s.scanQuoted('\'') {
+				// No closing ': the "'" is ION_ANY, not a symbol opener.
+				s.pos = save + 1
+			}
+
+		default:
+			s.pos++ // ION_ANY
+		}
+	}
+	return len(s.input), false
+}
+
+// scanBlob attempts to match a complete Ion BLOB starting at s.pos and,
+// on success, advances s.pos past the closing '}}' and returns true. On any
+// failure s.pos is left unchanged and it returns false. s.pos must point at
+// the first '{' of a '{{'.
+//
+// Grammar (g4 414-415, 468-489), with caseInsensitive=true:
+//
+//	ION_BLOB        : '{{' (BASE_64_QUARTET | WS)* BASE_64_PAD? WS* '}}'
+//	BASE_64_QUARTET : C WS* C WS* C WS* C
+//	BASE_64_PAD     : C WS* C WS* C WS* '='   |   C WS* C WS* '=' WS* '='
+//	C (BASE_64_CHAR): [0-9A-Za-z+/]
+//	WS              : [ \r\n\t]
+//
+// Because base64 chars, '=', and '}' are pairwise disjoint and WS is allowed
+// freely between the significant characters, a valid lob body is exactly:
+// some base64 chars whose count is a multiple of four (the quartets),
+// followed by an optional pad contributing three chars + one '=' or two
+// chars + two '=', then '}}'. This matcher consumes base64 chars and WS,
+// counts the base64 chars, validates the trailing pad shape, and requires
+// the closing '}}'. ANTLR matches ION_BLOB maximally only when it can reach
+// '}}'; if it cannot, the caller treats the leading '{' as ION_ANY.
+func (s *ionScanner) scanBlob() bool {
+	p := s.pos + 2 // past '{{'
+	chars := 0     // count of base64 chars seen so far (excludes '=')
+	eq := 0        // count of '=' padding chars seen (only valid at the end)
+	for p < len(s.input) {
+		c := s.input[p]
+		switch {
+		case c == ' ' || c == '\t' || c == '\r' || c == '\n':
+			p++ // WS, allowed anywhere between significant chars
+		case c == '}':
+			// Candidate LOB_END. Require the second '}' and a structurally
+			// valid character count: the base64 chars must form whole
+			// quartets, adjusted for the pad ('=' count).
+			if p+1 < len(s.input) && s.input[p+1] == '}' && validBase64Counts(chars, eq) {
+				s.pos = p + 2 // consume through '}}'
+				return true
+			}
+			return false
+		case c == '=':
+			eq++
+			if eq > 2 {
+				return false // a pad has at most two '='
+			}
+			p++
+		case isBase64Char(c):
+			if eq > 0 {
+				return false // base64 char after '=' is not a valid pad
+			}
+			chars++
+			p++
+		default:
+			return false // anything else (incl. a backtick or quote) breaks the lob
+		}
+	}
+	return false // reached EOF without a closing '}}'
+}
+
+// validBase64Counts reports whether `chars` base64 characters followed by
+// `eq` '=' padding characters form a valid Ion base64 lob body:
+//   - no padding: chars is a non-negative multiple of 4 (quartets only);
+//   - one '=' (BASE_64_PAD1: C C C '='): the three pad chars complete a
+//     quartet, so chars ≡ 3 (mod 4) and chars >= 3;
+//   - two '=' (BASE_64_PAD2: C C '=' '='): chars ≡ 2 (mod 4) and chars >= 2.
+func validBase64Counts(chars, eq int) bool {
+	switch eq {
+	case 0:
+		return chars%4 == 0
+	case 1:
+		return chars >= 3 && chars%4 == 3
+	case 2:
+		return chars >= 2 && chars%4 == 2
+	default:
+		return false
+	}
+}
+
+// isBase64Char reports whether ch is an Ion BASE_64_CHAR (g4 488-489:
+// [0-9A-Z+/]); caseInsensitive=true also admits a-z.
+func isBase64Char(ch byte) bool {
+	return (ch >= '0' && ch <= '9') ||
+		(ch >= 'A' && ch <= 'Z') ||
+		(ch >= 'a' && ch <= 'z') ||
+		ch == '+' || ch == '/'
+}
+
+// scanLineComment consumes an Ion // line comment (g4 408-409).
+// The comment runs to the next newline or to EOF — EOF is a legal
+// terminator for a line comment, so s.pos may land at len(s.input).
+// Positioned at the first '/'.
+func (s *ionScanner) scanLineComment() {
+	s.pos += 2 // skip //
+	for s.pos < len(s.input) && s.input[s.pos] != '\n' && s.input[s.pos] != '\r' {
+		s.pos++
+	}
+}
+
+// scanBlockComment consumes an Ion /* … */ block comment (g4 411-412)
+// and reports whether the closing */ was found. Positioned at the first
+// '/'. Returns false if EOF is reached before */.
+func (s *ionScanner) scanBlockComment() bool {
+	s.pos += 2 // skip /*
+	for s.pos+1 < len(s.input) {
+		if s.input[s.pos] == '*' && s.input[s.pos+1] == '/' {
+			s.pos += 2
+			return true
+		}
+		s.pos++
+	}
+	s.pos = len(s.input)
+	return false
+}
+
+// escapeLen reports the byte length consumed by a valid Ion TEXT_ESCAPE
+// beginning at s.input[at] (including the leading backslash), or 0 if the
+// bytes at `at` are not a valid escape. s.input[at] must be a backslash.
+//
+// TEXT_ESCAPE = COMMON_ESCAPE | HEX_ESCAPE | UNICODE_ESCAPE (g4 465-466):
+//
+//   - COMMON_ESCAPE  '\' [abtnfrv?0'"/\] | '\' ION_NEWLINE  (g4 501-519)
+//   - HEX_ESCAPE     '\x' HEX_DIGIT HEX_DIGIT                (g4 521-522)
+//   - UNICODE_ESCAPE '\u' HHHH | '\U000' HHHH H | '\U0010' HHHH (g4 524-528)
+//
+// caseInsensitive=true (g4 line 4) applies to every literal char in these
+// rules, so the escape letters (a,b,t,n,f,r,v,x,u) and HEX_DIGIT [0-9A-F]
+// all match either case. In particular '\u' and '\U' are the SAME prefix:
+// the generated lexer accepts '\U' HHHH as the 6-byte short UNICODE_ESCAPE
+// (verified differentially against the antlr_fallback oracle).
+//
+// The two longer '\U000…' / '\U0010…' (10-byte) UNICODE_ESCAPE alternatives
+// are NOT distinguished here: they only ever differ from the 6-byte short
+// form by absorbing four extra HEX_DIGIT bytes, and a backtick (the sole
+// byte that can close an Ion literal) is never a HEX_DIGIT — so whether
+// those four bytes are part of the escape or are plain string content, the
+// surrounding string stays open across them identically and the literal's
+// boundary is byte-for-byte the same. Token.Str is verbatim (we never decode
+// the escape), so reporting 6 here is observationally equivalent to 10.
+//
+// A backslash that does NOT begin one of these is not an escape at all: the
+// surrounding string/symbol rule cannot match (the backslash is excluded
+// from every *_TEXT_ALLOWED set), so the token fails and the caller degrades
+// the opener to ION_ANY.
+func (s *ionScanner) escapeLen(at int) int {
+	if at+1 >= len(s.input) {
+		return 0 // dangling backslash at EOF: not a complete escape
+	}
+	c := s.input[at+1]
+	switch lowerASCII(c) {
+	case 'a', 'b', 't', 'n', 'f', 'r', 'v', '?', '0', '\'', '"', '/', '\\':
+		return 2 // COMMON_ESCAPE single-character code
+	case 'x':
+		// HEX_ESCAPE: '\x' HEX_DIGIT HEX_DIGIT.
+		if hasHexRun(s.input, at+2, 2) {
+			return 4
+		}
+		return 0
+	case 'u':
+		// UNICODE_ESCAPE: '\u' / '\U' followed by a HEX_DIGIT_QUARTET.
+		if hasHexRun(s.input, at+2, 4) {
+			return 6
+		}
+		return 0
+	case '\r':
+		// '\' ION_NEWLINE line continuation: \r\n counts as one newline.
+		if at+2 < len(s.input) && s.input[at+2] == '\n' {
+			return 3
+		}
+		return 2
+	case '\n':
+		return 2
+	}
+	return 0
+}
+
+// ionShortTextDisallowsRaw reports whether b is a raw byte that the Ion
+// SHORT string / quoted symbol grammars exclude from their content sets
+// (STRING_SHORT_TEXT_ALLOWED g4 451-456, SYMBOL_TEXT_ALLOWED g4 494-499).
+// Both rules allow U+0020..U+FFFF (minus the delimiter and backslash,
+// handled by the caller) plus exactly the WS_NOT_NL bytes below U+0020 —
+// U+0009 tab, U+000B vertical tab, U+000C form feed (g4 536-541).
+// Every OTHER C0 control byte (U+0000..U+0008, U+000A LF, U+000D CR,
+// U+000E..U+001F) is excluded; a raw occurrence makes the rule fail to
+// match (it must be written as an escape instead), so the caller degrades
+// the opener to ION_ANY. Bytes >= 0x20 — including UTF-8 lead/continuation
+// bytes (>= 0x80) and DEL/C1 (which the g4 ranges admit) — are content.
+// This is byte-for-byte the same boundary as the generated ANTLR lexer
+// (verified differentially against the antlr_fallback oracle). LONG strings
+// use a DIFFERENT (wider) allowed set — they additionally admit raw newlines
+// LF/CR — see ionLongTextDisallowsRaw / ionScanner.scanLongString.
+func ionShortTextDisallowsRaw(b byte) bool {
+	if b >= 0x20 {
+		return false
+	}
+	switch b {
+	case '\t', '\v', '\f': // U+0009, U+000B, U+000C — WS_NOT_NL, allowed
+		return false
+	default:
+		return true
+	}
+}
+
+// ionLongTextDisallowsRaw reports whether b is a raw byte that the Ion LONG
+// string grammar (STRING_LONG_TEXT_ALLOWED, g4 459-463) excludes from its
+// content set. A long string admits U+0020..U+FFFF (minus the delimiter and
+// backslash, handled by the caller) plus WS = [space CR LF tab] (the
+// WHITESPACE fragment, g4 390-391). Unlike the SHORT set (ionShortTextDisallowsRaw),
+// the long set DOES admit raw newlines (U+000A LF, U+000D CR) — long strings
+// span lines by design. Below U+0020 the allowed bytes are therefore
+// U+0009 tab, U+000A LF, U+000B vtab, U+000C form feed, U+000D CR; every OTHER
+// C0 control (U+0000 NUL, U+0001..U+0008, U+000E..U+001F) is excluded.
+//
+// IMPORTANT: U+000B (vtab) and U+000C (form feed) ARE admitted here, even
+// though the g4 *text* (WS = [ \r\n\t]) would exclude them. The GENERATED
+// ANTLR lexer — the executable oracle (correctness-protocol.md: the oracle
+// decides, antlr's own grammar-text is only a hint) — accepts both as long
+// string content, mirroring the SHORT set (where they are WS_NOT_NL). This
+// was confirmed byte-for-byte differentially against the generated lexer at
+// github.com/bytebase/parser/partiql: a long string carrying a raw VT/FF
+// before an inner backtick keeps the long string open across that backtick
+// (the literal spans it), whereas a raw NUL/US/etc. fails the rule and the
+// backtick closes the literal. See the divergence note in ionScanner.scanLongString.
+// Bytes >= 0x20 — including UTF-8 lead/continuation bytes (>= 0x80) and DEL/C1
+// — are content.
+func ionLongTextDisallowsRaw(b byte) bool {
+	if b >= 0x20 {
+		return false
+	}
+	switch b {
+	case '\t', '\n', '\v', '\f', '\r': // U+0009,000A,000B,000C,000D — allowed
+		return false
+	default:
+		return true
+	}
+}
+
+// scanQuoted consumes a single-character-delimited Ion text token —
+// a double-quoted short string (g4 417-419) or a single-quoted symbol
+// (g4 425-426) — and reports whether the closing quote was found. A
+// backslash escapes the following byte ONLY when it forms a valid Ion
+// TEXT_ESCAPE (g4 465-466); an invalid escape (e.g. '\q') means the token
+// cannot match and the caller degrades the opener to ION_ANY. A raw
+// newline or other disallowed control byte (ionShortTextDisallowsRaw) is
+// likewise NOT permitted as content — it must be escaped — so encountering
+// one is a match failure, not content (this prevents a stray raw newline
+// from holding the string open across a backtick and swallowing the SQL
+// that follows). Positioned at the opening quote. Returns false if EOF is
+// reached before the closer, on a dangling/invalid backslash, or on a
+// disallowed raw control byte — in every such case the opener is ION_ANY.
+func (s *ionScanner) scanQuoted(quote byte) bool {
+	s.pos++ // skip opening quote
+	for s.pos < len(s.input) {
+		ch := s.input[s.pos]
+		switch {
+		case ch == '\\':
+			// Escape: only a valid TEXT_ESCAPE keeps the token going. An
+			// invalid or dangling escape means this is not a string/symbol
+			// at all (the '\' is excluded from the allowed set), so report
+			// failure and let the caller treat the opener as ION_ANY.
+			n := s.escapeLen(s.pos)
+			if n == 0 {
+				return false
+			}
+			s.pos += n
+		case ch == quote:
+			s.pos++ // skip closing quote
+			return true
+		case ionShortTextDisallowsRaw(ch):
+			// Raw newline / disallowed control byte: not valid SHORT-string
+			// or symbol content, so the rule cannot match. Fail and let the
+			// caller degrade the opener to ION_ANY (so a later quote does
+			// NOT close this token across an intervening backtick).
+			return false
+		default:
+			s.pos++
+		}
+	}
+	return false
+}
+
+// scanLongString consumes an Ion triple-quoted long string (g4 421-423)
+// and reports whether the closing triple-quote was found. Long strings may
+// span newlines and honor backslash escapes, but only VALID Ion TEXT_ESCAPEs
+// (g4 447-448, 465-466); an invalid escape means the long-string rule cannot
+// match (STRING_LONG_TEXT_ALLOWED excludes the backslash), so the caller
+// degrades the opener. A raw C0 control byte outside the long-string allowed
+// set (ionLongTextDisallowsRaw — NUL etc.; raw LF/CR/VT/FF ARE allowed) is
+// likewise NOT valid content: it must be escaped, so encountering one is a
+// match failure, not content. Without this, a long string carrying a raw NUL
+// before an inner backtick would stay open ACROSS that backtick and close
+// only at a LATER ”' — hiding the standalone backtick (the real ION_CLOSURE)
+// and swallowing the SQL that follows (Codex round-4 P2). On failure the
+// caller degrades the opening quotes through QUOTED_SYMBOL to ION_ANY (the
+// same maximal-munch fallback ANTLR applies), so the first standalone backtick
+// closes the literal. Positioned at the first of the three opening quotes.
+// Returns false if EOF is reached before the closing triple-quote, on an
+// invalid/dangling escape, or on a disallowed raw control byte.
+//
+// Round-5 oracle settlement (VT/FF): Codex argued the grammar text
+// (STRING_LONG_TEXT_ALLOWED / WS = [space \r \n \t]) should make raw vertical
+// tab (0x0B) and form feed (0x0C) REJECTED here. The executable oracle — the
+// generated ANTLR PartiQLLexer at github.com/bytebase/parser/partiql, which is
+// authoritative over grammar text per correctness-protocol.md — was queried
+// differentially with a long string carrying a raw VT (and FF) before a
+// standalone backtick. In BOTH cases the single ION_CLOSURE token spans to the
+// LATER ”'+backtick (e.g. for VT: ION_CLOSURE text `”'\vX`Y”' `), i.e. the
+// long string KEEPS VT/FF as content — identical to the indisputably-allowed
+// CR (0x0D) and OPPOSITE the indisputably-disallowed NUL (0x00), whose
+// ION_CLOSURE ends at the FIRST backtick. So ionLongTextDisallowsRaw correctly
+// admits VT/FF; Codex's grammar-text reading is rebutted by the oracle.
+func (s *ionScanner) scanLongString() bool {
+	s.pos += 3 // skip opening '''
+	for s.pos < len(s.input) {
+		ch := s.input[s.pos]
+		switch {
+		case ch == '\\':
+			n := s.escapeLen(s.pos)
+			if n == 0 {
+				return false
+			}
+			s.pos += n
+		case ch == '\'' && s.matchesTripleQuote():
+			s.pos += 3 // skip closing '''
+			return true
+		case ionLongTextDisallowsRaw(ch):
+			// Disallowed raw C0 control byte (e.g. NUL): not valid long-string
+			// content, so the rule cannot match. Fail and let the caller
+			// degrade the opener (so a later ''' does NOT close this token
+			// across an intervening standalone backtick).
+			return false
+		default:
+			s.pos++
+		}
+	}
+	return false
+}
+
+// matchesTripleQuote reports whether the three bytes at s.pos are three
+// single-quotes (the Ion long-string delimiter).
+// Caller must ensure s.pos+3 <= len(s.input) for the read to be in range.
+func (s *ionScanner) matchesTripleQuote() bool {
+	return s.pos+3 <= len(s.input) &&
+		s.input[s.pos] == '\'' &&
+		s.input[s.pos+1] == '\'' &&
+		s.input[s.pos+2] == '\''
 }

@@ -2,6 +2,8 @@
 // (AWS DynamoDB, Azure Cosmos DB).
 package partiql
 
+import "github.com/bytebase/omni/partiql/parser"
+
 // Segment represents a portion of PartiQL text delimited by top-level
 // semicolons. Produced by Split.
 type Segment struct {
@@ -122,14 +124,20 @@ func Split(input string) []Segment {
 			}
 
 		case ch == '`':
-			// Ion literal: scan with awareness of Ion-mode strings and
-			// comments so that backticks inside them don't prematurely
-			// close the literal. Matches PartiQLLexer.g4's ION mode
-			// (lines 408-428): Ion short strings ("..."), Ion symbols
-			// ('...'), Ion long strings ('''...'''), and Ion inline
-			// comments (/*...*/) can all contain backticks.
-			i++ // skip opening `
-			scanIon(input, &i)
+			// Ion literal: delegate to the parser package's shared Ion-literal
+			// scanner so the splitter's literal boundary is byte-for-byte
+			// identical to the lexer's. The shared scanner mirrors
+			// PartiQLLexer.g4's ION mode (lines 406-430): Ion short strings
+			// ("..."), symbols ('...'), long strings ('''...'''), base64 blobs
+			// ({{...}}), and BOTH Ion // line comments and /* */ block comments
+			// can contain backticks (and ';') without terminating the literal,
+			// with ANTLR's maximal-munch ION_ANY fallback for any opener that
+			// fails to close. ScanIonLiteral takes the offset just past the
+			// opening backtick and returns the offset just past the closing one
+			// (or len(input) when the literal is unterminated — the splitter
+			// then flushes the rest as one segment).
+			end, _ := parser.ScanIonLiteral(input, i+1)
+			i = end
 
 		case ch == '-' && i+1 < n && input[i+1] == '-':
 			// Line comment: skip to end of line.
@@ -160,75 +168,4 @@ func Split(input string) []Segment {
 	}
 
 	return segs
-}
-
-// scanIon advances *pos past an Ion literal body (after the opening
-// backtick has been consumed). It handles Ion short strings ("..."),
-// Ion symbols ('...'), Ion long strings (”'...”'), and Ion inline
-// comments (/*...*/) — all of which can contain backticks without
-// terminating the literal. Matches PartiQLLexer.g4's ION mode.
-func scanIon(input string, pos *int) {
-	n := len(input)
-	i := *pos
-	for i < n {
-		switch input[i] {
-		case '`':
-			i++ // closing backtick
-			*pos = i
-			return
-		case '"':
-			// Ion short string: "..." with backslash escapes.
-			i++
-			for i < n && input[i] != '"' {
-				if input[i] == '\\' && i+1 < n {
-					i++ // skip escaped char
-				}
-				i++
-			}
-			if i < n {
-				i++ // closing "
-			}
-		case '\'':
-			// Check for triple-quote Ion long string '''...'''.
-			if i+2 < n && input[i+1] == '\'' && input[i+2] == '\'' {
-				i += 3
-				for i+2 < n {
-					if input[i] == '\'' && input[i+1] == '\'' && input[i+2] == '\'' {
-						i += 3
-						break
-					}
-					i++
-				}
-			} else {
-				// Ion symbol: '...' with backslash escapes.
-				i++
-				for i < n && input[i] != '\'' {
-					if input[i] == '\\' && i+1 < n {
-						i++
-					}
-					i++
-				}
-				if i < n {
-					i++ // closing '
-				}
-			}
-		case '/':
-			// Ion inline comment: /*...*/ (non-nesting per Ion spec).
-			if i+1 < n && input[i+1] == '*' {
-				i += 2
-				for i+1 < n {
-					if input[i] == '*' && input[i+1] == '/' {
-						i += 2
-						break
-					}
-					i++
-				}
-			} else {
-				i++
-			}
-		default:
-			i++
-		}
-	}
-	*pos = i
 }

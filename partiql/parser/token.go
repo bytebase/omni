@@ -44,7 +44,7 @@ const (
 	tokFCONST                     // decimal/float literal: 3.14, 1e10, .5
 	tokIDENT                      // unquoted identifier (case-insensitive lookup)
 	tokIDENT_QUOTED               // double-quoted identifier (case-sensitive): "Foo"
-	tokION_LITERAL                // backtick-delimited Ion blob (body deferred to DAG node 17)
+	tokION_LITERAL                // backtick-delimited inline Ion value: `{a: 1}`
 )
 
 // ===========================================================================
