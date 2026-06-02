@@ -573,7 +573,10 @@ func (p *Parser) parseSelectExpr() (ast.ExprNode, error) {
 	case tokSELECT:
 		return p.parseSFWQuery()
 	case tokPIVOT:
-		return nil, p.deferredFeature("PIVOT", "parser-let-pivot (DAG node 12)")
+		// PIVOT begins a SELECT-replacement query (selectClause#SelectPivot);
+		// parseSFWQuery -> parseSelectClause consumes the PIVOT projection and
+		// the trailing FROM/LET/WHERE/... clauses, exactly like a SELECT query.
+		return p.parseSFWQuery()
 	case tokINSERT:
 		return nil, p.deferredFeature("INSERT", "parser-dml (DAG node 6)")
 	case tokUPDATE:

@@ -1,0 +1,1 @@
+SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:x}}] From:VarRef{Name:t} Let:[LetBinding{Expr:VarRef{Name:a} Alias:x}] Where:BinaryExpr{Op:> Left:VarRef{Name:x} Right:NumberLit{Val:1}}}

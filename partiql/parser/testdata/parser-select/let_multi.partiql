@@ -1,0 +1,1 @@
+SELECT x, y FROM t LET a AS x, b AS y

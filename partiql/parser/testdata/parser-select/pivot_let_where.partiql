@@ -1,0 +1,1 @@
+PIVOT v AT k FROM t LET a AS v WHERE k > 1

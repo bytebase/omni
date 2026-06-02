@@ -785,15 +785,71 @@ func TestParser_SelectErrors(t *testing.T) {
 			input:     "SELECT * FROM t ORDER BY a NULLS MAYBE",
 			wantErrIn: "expected FIRST or LAST after NULLS",
 		},
+		// LET clause rejects (letBinding requires `expr AS symbolPrimitive`;
+		// AS is mandatory, the alias must be an identifier).
 		{
-			name:      "let_deferred",
-			input:     "SELECT * FROM t LET x AS y",
-			wantErrIn: "LET is deferred to parser-let-pivot (DAG node 12)",
+			name:      "let_missing_binding",
+			input:     "SELECT x FROM t LET",
+			wantErrIn: "unexpected token",
 		},
 		{
-			name:      "pivot_deferred",
-			input:     "PIVOT v AT k FROM t",
-			wantErrIn: "PIVOT is deferred to parser-let-pivot (DAG node 12)",
+			name:      "let_missing_as",
+			input:     "SELECT x FROM t LET a x",
+			wantErrIn: "expected AS",
+		},
+		{
+			name:      "let_missing_alias",
+			input:     "SELECT x FROM t LET a AS",
+			wantErrIn: "expected identifier",
+		},
+		{
+			name:      "let_alias_not_identifier",
+			input:     "SELECT x FROM t LET a AS 1",
+			wantErrIn: "expected identifier",
+		},
+		{
+			name:      "let_trailing_comma",
+			input:     "SELECT x FROM t LET a AS x,",
+			wantErrIn: "unexpected token",
+		},
+		// PIVOT projection rejects (PIVOT expr AT expr; AT is mandatory, and
+		// PIVOT is a SELECT-replacement so a FROM clause is still required).
+		{
+			name:      "pivot_missing_at",
+			input:     "PIVOT v FROM t",
+			wantErrIn: "expected AT",
+		},
+		{
+			name:      "pivot_missing_value",
+			input:     "PIVOT AT k FROM t",
+			wantErrIn: "unexpected token",
+		},
+		{
+			name:      "pivot_missing_at_expr",
+			input:     "PIVOT v AT FROM t",
+			wantErrIn: "unexpected token",
+		},
+		{
+			name:      "pivot_missing_from",
+			input:     "PIVOT v AT k",
+			wantErrIn: "expected FROM",
+		},
+		// UNPIVOT rejects (UNPIVOT expr asIdent? atIdent? byIdent?; the source
+		// expression is mandatory and a bare alias without AS is not allowed).
+		{
+			name:      "unpivot_missing_expr",
+			input:     "SELECT * FROM UNPIVOT",
+			wantErrIn: "unexpected token",
+		},
+		{
+			name:      "unpivot_bare_alias",
+			input:     "SELECT * FROM UNPIVOT t v",
+			wantErrIn: "unexpected token",
+		},
+		{
+			name:      "unpivot_missing_alias_after_as",
+			input:     "SELECT * FROM UNPIVOT t AS",
+			wantErrIn: "expected identifier",
 		},
 	}
 

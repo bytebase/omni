@@ -44,9 +44,14 @@ func (p *Parser) parseSFWQuery() (ast.ExprNode, error) {
 	}
 	stmt.From = from
 
-	// LET clause (optional, deferred).
+	// LET clause (optional).
+	// Grammar: letClause (lines 238-242).
 	if p.cur.Type == tokLET {
-		return nil, p.deferredFeature("LET", "parser-let-pivot (DAG node 12)")
+		lets, err := p.parseLetClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Let = lets
 	}
 
 	// WHERE clause (optional).
@@ -137,9 +142,16 @@ func (p *Parser) parseSFWQuery() (ast.ExprNode, error) {
 //	SELECT setQuantifierStrategy? VALUE expr      # SelectValue
 //	PIVOT pivot=expr AT at=expr                   # SelectPivot
 func (p *Parser) parseSelectClause(stmt *ast.SelectStmt) error {
-	// PIVOT is a separate production (no SELECT keyword).
+	// PIVOT is a separate production (no SELECT keyword); it stands in for
+	// the whole selectClause as a SELECT-replacement projection.
+	// Grammar: selectClause#SelectPivot (line 221): PIVOT pivot=expr AT at=expr
 	if p.cur.Type == tokPIVOT {
-		return p.deferredFeature("PIVOT", "parser-let-pivot (DAG node 12)")
+		pivot, err := p.parsePivotProjection()
+		if err != nil {
+			return err
+		}
+		stmt.Pivot = pivot
+		return nil
 	}
 
 	if p.cur.Type != tokSELECT {
@@ -252,6 +264,93 @@ func (p *Parser) parseProjectionItem() (*ast.TargetEntry, error) {
 	}
 
 	return te, nil
+}
+
+// parsePivotProjection parses `PIVOT pivot=expr AT at=expr`.
+//
+// PIVOT is used in lieu of SELECT (or SELECT VALUE): it constructs a single
+// tuple whose attribute names come from the `AT` expression and whose values
+// come from the `pivot` expression, across the FROM-clause bindings.
+// PartiQL-unique. The current token must be PIVOT.
+//
+// Grammar: selectClause#SelectPivot (line 221):
+//
+//	PIVOT pivot=expr AT at=expr
+func (p *Parser) parsePivotProjection() (*ast.PivotProjection, error) {
+	start := p.cur.Loc.Start
+	p.advance() // consume PIVOT
+
+	value, err := p.parseExprTop()
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := p.expect(tokAT); err != nil {
+		return nil, err
+	}
+
+	at, err := p.parseExprTop()
+	if err != nil {
+		return nil, err
+	}
+
+	return &ast.PivotProjection{
+		Value: value,
+		At:    at,
+		Loc:   ast.Loc{Start: start, End: at.GetLoc().End},
+	}, nil
+}
+
+// parseLetClause parses LET letBinding (COMMA letBinding)*.
+//
+// The LET clause introduces intermediate variable bindings, evaluated in
+// the FROM-clause environment and available to later clauses. PartiQL-unique.
+//
+// Grammar: letClause (lines 238-239):
+//
+//	LET letBinding (COMMA letBinding)*
+func (p *Parser) parseLetClause() ([]*ast.LetBinding, error) {
+	p.advance() // consume LET
+	var bindings []*ast.LetBinding
+	for {
+		binding, err := p.parseLetBinding()
+		if err != nil {
+			return nil, err
+		}
+		bindings = append(bindings, binding)
+		if p.cur.Type != tokCOMMA {
+			break
+		}
+		p.advance() // consume ,
+	}
+	return bindings, nil
+}
+
+// parseLetBinding parses a single `expr AS symbolPrimitive` binding.
+//
+// Unlike a projection item, the AS keyword is REQUIRED here (the grammar
+// rule has no `AS?`); a bare `expr alias` form is a syntax error.
+//
+// Grammar: letBinding (lines 241-242):
+//
+//	expr AS symbolPrimitive
+func (p *Parser) parseLetBinding() (*ast.LetBinding, error) {
+	expr, err := p.parseExprTop()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(tokAS); err != nil {
+		return nil, err
+	}
+	name, _, nameLoc, err := p.parseSymbolPrimitive()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.LetBinding{
+		Expr:  expr,
+		Alias: name,
+		Loc:   ast.Loc{Start: expr.GetLoc().Start, End: nameLoc.End},
+	}, nil
 }
 
 // parseOrderByClause parses ORDER BY with one or more sort specs.

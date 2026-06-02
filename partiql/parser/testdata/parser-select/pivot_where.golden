@@ -1,0 +1,1 @@
+SelectStmt{Pivot:PivotProjection{Value:VarRef{Name:v} At:VarRef{Name:k}} From:VarRef{Name:t} Where:BinaryExpr{Op:> Left:VarRef{Name:k} Right:NumberLit{Val:1}}}

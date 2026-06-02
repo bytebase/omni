@@ -1,0 +1,1 @@
+SELECT g FROM t LET a AS g GROUP BY g ORDER BY g

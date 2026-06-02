@@ -1,0 +1,1 @@
+PIVOT x.v AT x.a FROM data AS x
