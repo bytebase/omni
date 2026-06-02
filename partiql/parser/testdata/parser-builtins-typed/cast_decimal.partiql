@@ -1,0 +1,1 @@
+CAST(Price AS DECIMAL(10,2))

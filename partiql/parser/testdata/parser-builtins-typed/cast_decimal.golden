@@ -1,0 +1,1 @@
+CastExpr{Kind:CAST Expr:VarRef{Name:Price} AsType:TypeRef{Name:DECIMAL Args:[10,2]}}

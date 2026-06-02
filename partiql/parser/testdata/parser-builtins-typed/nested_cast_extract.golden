@@ -1,0 +1,1 @@
+CastExpr{Kind:CAST Expr:ExtractExpr{Field:YEAR From:VarRef{Name:ts}} AsType:TypeRef{Name:INT}}

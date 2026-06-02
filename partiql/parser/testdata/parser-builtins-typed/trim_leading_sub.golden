@@ -1,0 +1,1 @@
+TrimExpr{Spec:LEADING Sub:StringLit{Val:"0"} From:VarRef{Name:acct}}

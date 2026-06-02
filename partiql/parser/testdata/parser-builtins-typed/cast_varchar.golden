@@ -1,0 +1,1 @@
+CastExpr{Kind:CAST Expr:VarRef{Name:x} AsType:TypeRef{Name:VARCHAR Args:[255]}}

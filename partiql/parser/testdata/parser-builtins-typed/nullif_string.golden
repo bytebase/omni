@@ -1,0 +1,1 @@
+NullIfExpr{Left:VarRef{Name:status} Right:StringLit{Val:"active"}}

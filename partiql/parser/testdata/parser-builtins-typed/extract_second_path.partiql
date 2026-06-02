@@ -1,0 +1,1 @@
+EXTRACT(SECOND FROM t.created)

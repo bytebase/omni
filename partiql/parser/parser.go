@@ -82,6 +82,53 @@ func (p *Parser) peek() Token {
 	return p.cur
 }
 
+// parserState is a snapshot of the full mutable parse position: the
+// parser's token-buffer slots plus the lexer's scan cursor. It is the
+// minimal state needed to rewind the parser to an earlier point so a
+// production can be attempted speculatively and abandoned on failure.
+//
+// The lexer reads forward-only from an immutable input string, so its
+// entire mutable state is (pos, start, Err); capturing those alongside
+// the parser's (cur, prev, nextBuf, hasNext) makes save/restore exact.
+type parserState struct {
+	cur      Token
+	prev     Token
+	nextBuf  Token
+	hasNext  bool
+	lexPos   int
+	lexStart int
+	lexErr   error
+}
+
+// save captures the current parse position for later restore. Use it to
+// bound a speculative parse: snapshot, attempt the optional production,
+// and restore on failure to retry an alternative. The returned value is
+// a by-value copy — no aliasing with the live parser/lexer.
+func (p *Parser) save() parserState {
+	return parserState{
+		cur:      p.cur,
+		prev:     p.prev,
+		nextBuf:  p.nextBuf,
+		hasNext:  p.hasNext,
+		lexPos:   p.lexer.pos,
+		lexStart: p.lexer.start,
+		lexErr:   p.lexer.Err,
+	}
+}
+
+// restore rewinds the parser and lexer to a position captured by save.
+// After restore, the next token the parser sees is exactly the one it
+// saw when save was called.
+func (p *Parser) restore(s parserState) {
+	p.cur = s.cur
+	p.prev = s.prev
+	p.nextBuf = s.nextBuf
+	p.hasNext = s.hasNext
+	p.lexer.pos = s.lexPos
+	p.lexer.start = s.lexStart
+	p.lexer.Err = s.lexErr
+}
+
 // peekNext returns the token AFTER cur without consuming either cur or
 // the returned token. Uses the nextBuf slot; subsequent calls are
 // idempotent until advance() is called.

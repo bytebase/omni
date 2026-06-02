@@ -1,0 +1,1 @@
+SUBSTRING(name FROM start FOR len)
