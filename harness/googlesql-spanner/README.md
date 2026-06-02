@@ -48,23 +48,34 @@ echo 'CREATE TABL x' | SPANNER_EMULATOR_HOST=localhost:9010 GOOGLESQL_HARNESS_LI
 {"verdict":"accept|reject|error","kind":"query|dml|ddl","reason":"ok|syntax|semantic","code":"<grpc code>","message":"<truncated>"}
 ```
 
-- `verdict` — the grammar verdict: did Spanner's parser accept the input?
+- `verdict` — `accept` / `reject` (the grammar verdict) or **`error`** (the
+  oracle could not decide).
 - `kind` — how the statement was routed (by leading keyword): query → executed
   (first row only); dml → run in an aborted read-write txn (no mutation);
   ddl → submitted to `UpdateDatabaseDdl` on the scratch db.
 - `reason` — `ok` (clean parse), `syntax` (grammar reject), `semantic` (parsed
-  fine, failed later: unknown table/column, "X is not supported", etc.).
+  fine, failed later: unknown table/column, "X is not supported", etc.), or for
+  `error`: `infra` (emulator down/slow/crashed, timeout, cancellation), `empty`
+  (blank or comment/hint-only input), `blank line`, `bad base64`.
+
+> **`error` is fail-closed.** Consumers MUST treat `error` as "no verdict" —
+> fail the test / drop the fixture — and **never** fold it into accept or
+> reject. An infra blip that silently became `accept` would mask real parser
+> bugs in every node that trusts this oracle.
 
 ## Classification (see oracle.md for the verified evidence)
 
 The gRPC **code is not a discriminator** (syntax and semantic are both
-`InvalidArgument`). The message **prefix** is:
+`InvalidArgument`). The message **prefix** decides accept-vs-reject; codes that
+aren't a parser/semantic result become `error`:
 
-| prefix | verdict |
+| outcome | verdict |
 |---|---|
-| `Syntax error:` (query/DML) | **reject** |
-| `Error parsing Spanner DDL statement:` (DDL) | **reject** |
-| anything else (`Table not found`, `Unrecognized name`, `… is not supported`, `FailedPrecondition`, `Internal`) | **accept** (grammar parsed) |
+| `InvalidArgument` + msg `Syntax error:` (query/DML) | **reject** |
+| `InvalidArgument` + msg `Error parsing Spanner DDL statement:` (DDL) | **reject** |
+| `InvalidArgument` / `FailedPrecondition` / `NotFound` / `AlreadyExists` (other msgs: `Table not found`, `Unrecognized name`, `… is not supported`, `Duplicate name`) | **accept** (grammar parsed) |
+| `Internal` + msg contains `GOOGLESQL_RET_CHECK` (emulator quirk on unknown type) | **accept** (parsed) |
+| `Unavailable` / `DeadlineExceeded` / `Canceled` / `Aborted` / `ResourceExhausted` / `Unknown` / generic `Internal` / non-gRPC error | **error** (infra — fail closed) |
 
 ## ⚠️ Spanner is a SUBSET of GoogleSQL
 
@@ -83,10 +94,12 @@ A future `googlesql/parser` diff test (build-tagged, like
 
 1. base64-encode each corpus statement, pipe the batch to this harness;
 2. parse the same statement with omni's googlesql parser;
-3. assert `omniAccepts == (verdict == "accept")` — **except** for statements
-   tagged BigQuery-only, where a harness `reject` is ignored and the docs/`.g4`
-   triangulation is authoritative;
-4. record any genuine disagreement in the divergence ledger.
+3. on `verdict == "error"`, **fail loudly** (the oracle didn't decide — fix the
+   emulator / fixture, don't proceed) — never treat it as accept or reject;
+4. otherwise assert `omniAccepts == (verdict == "accept")` — **except** for
+   statements tagged BigQuery-only, where a harness `reject` is ignored and the
+   docs/`.g4` triangulation is authoritative;
+5. record any genuine disagreement in the divergence ledger.
 
 ## Tests
 

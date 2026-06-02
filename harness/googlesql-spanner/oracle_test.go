@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 
@@ -23,7 +24,19 @@ func TestClassify(t *testing.T) {
 		{"unknown column", status.Error(codes.InvalidArgument, "Unrecognized name: bogus [at 1:8]"), "accept", "semantic"},
 		{"unsupported feature", status.Error(codes.InvalidArgument, "QUALIFY is not supported [at 1:18]"), "accept", "semantic"},
 		{"dup name (precondition)", status.Error(codes.FailedPrecondition, "Duplicate name in schema: T."), "accept", "semantic"},
-		{"bad type (internal)", status.Error(codes.Internal, "GOOGLESQL_RET_CHECK failure"), "accept", "semantic"},
+		{"missing interleave parent (notfound)", status.Error(codes.NotFound, "Table not found: p"), "accept", "semantic"},
+		{"already exists", status.Error(codes.AlreadyExists, "Database already exists: testdb"), "accept", "semantic"},
+		{"bad type (internal ret_check quirk)", status.Error(codes.Internal, "GOOGLESQL_RET_CHECK failure (ddl_type_conversion.cc)"), "accept", "semantic"},
+		// Fail-closed: infra/non-grammar errors must NOT become a grammar accept.
+		{"emulator down (unavailable)", status.Error(codes.Unavailable, "connection refused"), "error", "infra"},
+		{"deadline exceeded (grpc)", status.Error(codes.DeadlineExceeded, "context deadline exceeded"), "error", "infra"},
+		{"canceled (grpc)", status.Error(codes.Canceled, "context canceled"), "error", "infra"},
+		{"aborted txn retry-exhausted", status.Error(codes.Aborted, "transaction was aborted"), "error", "infra"},
+		{"resource exhausted", status.Error(codes.ResourceExhausted, "quota exceeded"), "error", "infra"},
+		{"generic internal (not ret_check)", status.Error(codes.Internal, "internal emulator crash"), "error", "infra"},
+		{"context.DeadlineExceeded (non-status)", context.DeadlineExceeded, "error", "infra"},
+		{"context.Canceled (non-status)", context.Canceled, "error", "infra"},
+		{"plain dial error (non-status)", errors.New("dial tcp 127.0.0.1:9010: connection refused"), "error", "infra"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -55,6 +68,9 @@ func TestKindOf(t *testing.T) {
 		{"# hash comment\nINSERT INTO t VALUES (1)", "dml"},
 		{"/* block */ CREATE TABLE t (x INT64) PRIMARY KEY (x)", "ddl"},
 		{"@{OPTIMIZER_VERSION=1} SELECT 1", "query"},
+		// Documented limitation: WITH-led DML routes to the query path (verdict
+		// is still preserved). Pinned so a future change is intentional.
+		{"WITH x AS (SELECT 1 n) INSERT INTO t (id) SELECT n FROM x", "query"},
 	}
 	for _, c := range cases {
 		if got := kindOf(c.sql); got != c.want {

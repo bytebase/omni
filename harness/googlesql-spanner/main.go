@@ -53,9 +53,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
@@ -96,34 +98,49 @@ func main() {
 	defer o.close()
 
 	enc := json.NewEncoder(os.Stdout)
+	emit := func(v verdict) {
+		if err := enc.Encode(v); err != nil {
+			// stdout is broken; nothing useful left to do — fail loudly rather
+			// than silently produce a truncated verdict stream.
+			fmt.Fprintf(os.Stderr, "googlesql-spanner-harness: stdout write failed: %v\n", err)
+			os.Exit(1)
+		}
+	}
 
 	if os.Getenv("GOOGLESQL_HARNESS_LINE") == "0" {
-		// Single mode: all of stdin is one statement.
-		var sb strings.Builder
-		sc := bufio.NewScanner(os.Stdin)
-		sc.Buffer(make([]byte, 0, 1<<20), 1<<24)
-		for sc.Scan() {
-			sb.WriteString(sc.Text())
-			sb.WriteByte('\n')
+		// Single mode: all of stdin is one statement. Read raw (no line cap).
+		data, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "googlesql-spanner-harness: stdin read failed: %v\n", err)
+			os.Exit(1)
 		}
-		_ = enc.Encode(o.evaluate(ctx, strings.TrimSpace(sb.String())))
+		emit(o.evaluate(ctx, strings.TrimSpace(string(data))))
 		return
 	}
 
-	// Batch line mode: one base64 SQL per line.
+	// Batch line mode: one base64 SQL per line, one verdict line out per input
+	// line. The output-line-N <-> input-line-N contract is load-bearing for
+	// callers that zip verdicts to fixtures, so EVERY input line (incl. blank
+	// and undecodable) emits exactly one verdict, and a scanner error fails the
+	// process rather than silently dropping the tail.
 	sc := bufio.NewScanner(os.Stdin)
-	sc.Buffer(make([]byte, 0, 1<<20), 1<<24)
+	sc.Buffer(make([]byte, 0, 1<<20), 64<<20) // 64 MiB cap (base64 inflates 4/3)
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
 		if line == "" {
+			emit(verdict{Verdict: "error", Reason: "blank line"})
 			continue
 		}
 		raw, err := base64.StdEncoding.DecodeString(line)
 		if err != nil {
-			_ = enc.Encode(verdict{Verdict: "error", Reason: "bad base64", Message: err.Error()})
+			emit(verdict{Verdict: "error", Reason: "bad base64", Message: err.Error()})
 			continue
 		}
-		_ = enc.Encode(o.evaluate(ctx, string(raw)))
+		emit(o.evaluate(ctx, string(raw)))
+	}
+	if err := sc.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "googlesql-spanner-harness: stdin read failed (line over 64MiB cap?): %v\n", err)
+		os.Exit(1)
 	}
 }
 
@@ -198,7 +215,10 @@ func (o *oracle) close() {
 // evaluate routes a statement to the right Spanner API by its leading keyword
 // and classifies the result.
 func (o *oracle) evaluate(ctx context.Context, sql string) verdict {
-	if strings.TrimSpace(sql) == "" {
+	// Blank, or comment/hint-only (stripLeading reduces it to nothing): there is
+	// no statement to give a grammar verdict on. Return "error", not a verdict,
+	// rather than shipping a bare comment to the emulator (which would reject it).
+	if strings.TrimSpace(stripLeading(sql)) == "" {
 		return verdict{Verdict: "error", Reason: "empty"}
 	}
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
@@ -251,8 +271,11 @@ func (o *oracle) validateDML(ctx context.Context, sql string) error {
 }
 
 // validateDDL submits to UpdateDatabaseDdl against the scratch database. DDL
-// does mutate schema, but only the syntax verdict (message prefix) matters;
-// semantic outcomes (Duplicate name, missing parent, ...) classify as accept.
+// does mutate schema and state accumulates across a batch, but parse happens
+// before schema validation, so the accept/reject syntax VERDICT is order-stable
+// (only the semantic `reason` — ok vs Duplicate-name/NotFound — can vary with
+// prior DDL in the same run). Verdict correctness, the thing callers diff on,
+// is unaffected.
 func (o *oracle) validateDDL(ctx context.Context, sql string) error {
 	op, err := o.dbAdmin.UpdateDatabaseDdl(ctx, &databasepb.UpdateDatabaseDdlRequest{
 		Database:   dbPath,
@@ -265,22 +288,58 @@ func (o *oracle) validateDDL(ctx context.Context, sql string) error {
 }
 
 // classify maps a Spanner error to a grammar verdict. See oracle.md.
+//
+// It is FAIL-CLOSED: only outcomes that are genuinely a parser/semantic result
+// of the emulator yield a grammar verdict (accept/reject). Anything that means
+// "the oracle could not decide" — transport failures, timeouts, cancellation,
+// transaction-abort retry exhaustion, a non-gRPC error — returns verdict
+// "error". An oracle must NEVER let an infra failure masquerade as accept: a
+// silent false-accept would mask real parser bugs (or fabricate divergences)
+// in every grammar node that trusts this verdict.
 func classify(err error) verdict {
 	if err == nil {
 		return verdict{Verdict: "accept", Reason: "ok", Code: codes.OK.String()}
 	}
-	st, _ := status.FromError(err)
-	msg := st.Message()
-	v := verdict{Code: st.Code().String(), Message: oneLine(msg)}
-	switch {
-	case strings.HasPrefix(msg, "Syntax error:"),
-		strings.HasPrefix(msg, "Error parsing Spanner DDL statement"):
-		v.Verdict, v.Reason = "reject", "syntax"
-	default:
-		// Table not found / Unrecognized name / "X is not supported" /
-		// FailedPrecondition / Internal => the grammar accepted the input.
-		v.Verdict, v.Reason = "accept", "semantic"
+	st, ok := status.FromError(err)
+	if !ok {
+		// Not a gRPC status (dial failure, context.DeadlineExceeded/Canceled,
+		// wrapped I/O error, ...). The oracle cannot decide.
+		return verdict{Verdict: "error", Reason: "infra", Code: "non-status", Message: oneLine(err.Error())}
 	}
+	code := st.Code()
+	msg := st.Message()
+	v := verdict{Code: code.String(), Message: oneLine(msg)}
+
+	// Grammar REJECT — a parse error. The emulator reports both query/DML and
+	// DDL parse failures as InvalidArgument; the message PREFIX is the only
+	// discriminator (the code is shared with semantic failures).
+	if code == codes.InvalidArgument &&
+		(strings.HasPrefix(msg, "Syntax error:") ||
+			strings.HasPrefix(msg, "Error parsing Spanner DDL statement:")) {
+		v.Verdict, v.Reason = "reject", "syntax"
+		return v
+	}
+
+	// Grammar ACCEPT — parsed, then a semantic/feature outcome. Verified codes:
+	//   InvalidArgument   — Table not found / Unrecognized name / "X is not supported"
+	//   FailedPrecondition — Duplicate name / bad INTERLEAVE
+	//   NotFound          — referenced object missing (e.g. INTERLEAVE parent)
+	//   AlreadyExists     — duplicate object (parsed fine)
+	//   Internal + "GOOGLESQL_RET_CHECK" — emulator quirk on an unknown type (parsed)
+	switch code {
+	case codes.InvalidArgument, codes.FailedPrecondition, codes.NotFound, codes.AlreadyExists:
+		v.Verdict, v.Reason = "accept", "semantic"
+		return v
+	case codes.Internal:
+		if strings.Contains(msg, "GOOGLESQL_RET_CHECK") {
+			v.Verdict, v.Reason = "accept", "semantic"
+			return v
+		}
+	}
+
+	// Unavailable / DeadlineExceeded / Canceled / Aborted / ResourceExhausted /
+	// Unknown / generic Internal — infrastructure, not a grammar verdict.
+	v.Verdict, v.Reason = "error", "infra"
 	return v
 }
 
@@ -288,7 +347,11 @@ func oneLine(s string) string {
 	s = strings.ReplaceAll(s, "\n", " ")
 	s = strings.ReplaceAll(s, "\t", " ")
 	if len(s) > 200 {
-		s = s[:200] + "…"
+		cut := 200
+		for cut > 0 && !utf8.RuneStart(s[cut]) { // back up to a rune boundary
+			cut--
+		}
+		s = s[:cut] + "…"
 	}
 	return s
 }
@@ -307,6 +370,14 @@ func kindOf(sql string) string {
 		// SELECT, WITH, VALUES, FROM, TABLE, "(", and everything else
 		// (incl. BigQuery scripting/other) route through the query path,
 		// which still yields a Spanner verdict.
+		//
+		// Known limitation: a WITH-led DML (`WITH cte AS (...) INSERT/UPDATE/
+		// DELETE ...`) routes here, not through the DML abort path. The
+		// accept/reject verdict is still preserved — a malformed statement emits
+		// "Syntax error:" at parse time (before the read-only-execution-mode
+		// check), and a valid one is accepted — but the `reason` may read
+		// semantic instead of ok. Cheap to live with; revisit if WITH-DML shows
+		// up in the differential corpus.
 		return "query"
 	}
 }

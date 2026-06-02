@@ -47,16 +47,24 @@ The gRPC **code is NOT a sufficient discriminator** — both syntax and semantic
 | Query / DML | `ExecuteSql` (gRPC) | `InvalidArgument` + msg starts `Syntax error:` | `InvalidArgument` `Table not found:` · `Unrecognized name:` · `Column X is not present` · `QUALIFY is not supported` |
 | DDL | `UpdateDatabaseDdl` (gRPC) | `InvalidArgument` + msg starts `Error parsing Spanner DDL statement:` | `FailedPrecondition` (`Duplicate name in schema`, `does not reference parent key column`) · `Internal` (`GOOGLESQL_RET_CHECK failure` on unknown type — emulator quirk) |
 
-Decision rule the harness uses:
+Decision rule the harness uses (**fail-closed** — an oracle must never let an
+infra failure masquerade as ACCEPT, or it silently corrupts every grammar
+node's differential):
 
 ```
 classify(err):
-  if err == nil:                                  ACCEPT
-  msg = grpcStatus(err).Message()
-  if msg startswith "Syntax error:":              REJECT   # query/DML parse failure
-  if msg startswith "Error parsing Spanner DDL":  REJECT   # DDL parse failure
-  else:                                           ACCEPT   # semantic / unsupported / emulator-internal => grammar parsed fine
+  if err == nil:                                       ACCEPT (ok)
+  if err is not a gRPC status (dial/context error):    ERROR  (infra)   # cannot decide
+  code, msg = grpcStatus(err)
+  if code==InvalidArgument and msg startswith "Syntax error:":               REJECT (syntax)
+  if code==InvalidArgument and msg startswith "Error parsing Spanner DDL statement:": REJECT (syntax)
+  if code in {InvalidArgument, FailedPrecondition, NotFound, AlreadyExists}: ACCEPT (semantic)  # parsed, then a semantic/feature result
+  if code==Internal and msg contains "GOOGLESQL_RET_CHECK":                  ACCEPT (semantic)  # emulator quirk on unknown type (parsed)
+  else:  # Unavailable / DeadlineExceeded / Canceled / Aborted / ResourceExhausted / Unknown / generic Internal
+                                                                            ERROR  (infra)   # emulator down/slow/crashed => NOT a grammar verdict
 ```
+
+Consumers MUST treat a verdict of `error` as "the oracle could not decide" — fail the test / drop the fixture, **never** fold it into accept or reject.
 
 Verified probes (2026-06-02, against emulator @ above digest):
 

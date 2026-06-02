@@ -1,0 +1,2 @@
+# compiled harness binary (build artifact; `go build` names it after the dir)
+/googlesql-spanner
