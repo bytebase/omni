@@ -941,6 +941,70 @@ func TestLexer_IonMode(t *testing.T) {
 				{tokIDENT, "x", ast.Loc{Start: 15, End: 16}},
 			},
 		},
+		// --- ROUND-5 DISPUTED-SHAPE settlement (VT/FF). Codex argued VT (0x0B)
+		//     and FF (0x0C) should be REJECTED from the long-string content set
+		//     (grammar text WS=[space \r \n \t]). The EXECUTABLE ORACLE (generated
+		//     ANTLR PartiQLLexer, authoritative over grammar text) was queried
+		//     differentially with the EXACT disputed shape below — a long string
+		//     carrying a raw control byte before a standalone backtick, then a
+		//     LATER ''' and the closing backtick, with a trailing identifier:
+		//       in: `'''<ctrl>X`Y''' ` TAIL
+		//     Oracle result per control byte (the single ION_CLOSURE token text):
+		//       CR  0x0D (allowed)    -> `'''\rX`Y''' `  (HELD; spans inner `)
+		//       NUL 0x00 (disallowed) -> `'''\x00X`      (FAILED; first ` closes)
+		//       VT  0x0B (disputed)   -> `'''\vX`Y''' `  (HELD; spans inner `)
+		//       FF  0x0C (disputed)   -> `'''\fX`Y''' `  (HELD; spans inner `)
+		//     VT/FF behave EXACTLY like the indisputably-allowed CR and OPPOSITE
+		//     the disallowed NUL: the long string KEEPS them as content and spans
+		//     the inner backtick, closing at the LATER '''+backtick. So omni's
+		//     round-4 code is CORRECT and Codex's reading is REBUTTED. These cases
+		//     pin that oracle verdict in code. (Note: the inner "Y''' " yields,
+		//     after the closing backtick, an IDENTIFIER "Y" then an EMPTY symbol
+		//     literal `''' ` — three quotes = one empty long string with a leading
+		//     WS — then the standalone backtick; we assert only through the held
+		//     ION_LITERAL, which is the disputed boundary.)
+		// VT held: literal spans to the LATER '''+backtick (content is
+		// input[1:12] = "'''<VT>X`Y''' "; closing backtick at index 12).
+		{
+			"ion_round5_vtab_disputed_shape_held",
+			"`'''\vX`Y''' `Z",
+			[]Token{
+				{tokION_LITERAL, "'''\vX`Y''' ", ast.Loc{Start: 0, End: 13}},
+				{tokIDENT, "Z", ast.Loc{Start: 13, End: 14}},
+			},
+		},
+		// FF held: literal spans to the LATER '''+backtick.
+		{
+			"ion_round5_formfeed_disputed_shape_held",
+			"`'''\fX`Y''' `Z",
+			[]Token{
+				{tokION_LITERAL, "'''\fX`Y''' ", ast.Loc{Start: 0, End: 13}},
+				{tokIDENT, "Z", ast.Loc{Start: 13, End: 14}},
+			},
+		},
+		// CR (indisputably allowed) bracket: same shape, also HELD — confirms the
+		// disputed-shape harness logic, not just VT/FF.
+		{
+			"ion_round5_cr_bracket_held",
+			"`'''\rX`Y''' `Z",
+			[]Token{
+				{tokION_LITERAL, "'''\rX`Y''' ", ast.Loc{Start: 0, End: 13}},
+				{tokIDENT, "Z", ast.Loc{Start: 13, End: 14}},
+			},
+		},
+		// NUL (indisputably disallowed) bracket: same shape, but FAILED — the
+		// FIRST standalone backtick (index 6) closes the literal (content
+		// input[1:6] = "'''<NUL>X"); the contrast that proves VT/FF/CR genuinely
+		// HELD above rather than the scanner being permissive. After the close
+		// the trailing 'Y' is a top-level IDENTIFIER.
+		{
+			"ion_round5_nul_bracket_closes_first_backtick",
+			"`'''\x00X`Y",
+			[]Token{
+				{tokION_LITERAL, "'''\x00X", ast.Loc{Start: 0, End: 7}},
+				{tokIDENT, "Y", ast.Loc{Start: 7, End: 8}},
+			},
+		},
 		// --- a real Ion timestamp value (PartiQL spec example) ---
 		{
 			"ion_timestamp",
