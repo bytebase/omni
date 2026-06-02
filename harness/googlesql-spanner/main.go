@@ -13,13 +13,15 @@
 //
 //	docs/migration/googlesql/oracle.md
 //
-// In short: the gRPC error CODE is not a discriminator (syntax and semantic
-// failures are both InvalidArgument); the message PREFIX is:
+// In short, classification is FAIL-CLOSED and kind-aware (see classify):
 //
-//	"Syntax error:"                        -> grammar REJECT (queries / DML)
-//	"Error parsing Spanner DDL statement:" -> grammar REJECT (DDL)
-//	anything else (Table not found, Unrecognized name, "X is not supported",
-//	FailedPrecondition, Internal)          -> grammar ACCEPT (semantic)
+//	query/DML: InvalidArgument + "Syntax error:" -> REJECT; other InvalidArgument
+//	           (Table not found, Unrecognized name, "X is not supported") -> ACCEPT.
+//	DDL:       InvalidArgument -> REJECT (parse); FailedPrecondition/NotFound and
+//	           the Internal GOOGLESQL_RET_CHECK quirk -> ACCEPT (semantic).
+//	anything else (Unavailable, DeadlineExceeded, Canceled, Aborted, a resource-
+//	level miss, a generic Internal, a non-gRPC error) -> verdict "error": the
+//	oracle could not decide. It NEVER returns ACCEPT for an infra failure.
 //
 // CAVEAT: the emulator speaks Spanner's GoogleSQL, a SUBSET of the BigQuery +
 // Spanner union the omni parser must accept. A reject of a BigQuery-only form
@@ -147,8 +149,8 @@ func main() {
 type verdict struct {
 	Verdict string `json:"verdict"`           // accept | reject | error
 	Kind    string `json:"kind,omitempty"`    // query | dml | ddl
-	Reason  string `json:"reason,omitempty"`  // ok | syntax | semantic
-	Code    string `json:"code,omitempty"`    // gRPC status code
+	Reason  string `json:"reason,omitempty"`  // accept/reject: ok|syntax|semantic; error: infra|empty|"blank line"|"bad base64"
+	Code    string `json:"code,omitempty"`    // gRPC status code (or "non-status")
 	Message string `json:"message,omitempty"` // truncated, single-line
 }
 
@@ -234,7 +236,7 @@ func (o *oracle) evaluate(ctx context.Context, sql string) verdict {
 	default: // query
 		err = o.validateQuery(ctx, sql)
 	}
-	v := classify(err)
+	v := classify(kind, err)
 	v.Kind = kind
 	return v
 }
@@ -287,16 +289,27 @@ func (o *oracle) validateDDL(ctx context.Context, sql string) error {
 	return op.Wait(ctx)
 }
 
-// classify maps a Spanner error to a grammar verdict. See oracle.md.
+// classify maps a Spanner error to a grammar verdict for a statement of the
+// given kind ("query" | "dml" | "ddl"). See oracle.md.
 //
-// It is FAIL-CLOSED: only outcomes that are genuinely a parser/semantic result
-// of the emulator yield a grammar verdict (accept/reject). Anything that means
-// "the oracle could not decide" — transport failures, timeouts, cancellation,
-// transaction-abort retry exhaustion, a non-gRPC error — returns verdict
+// FAIL-CLOSED: only outcomes that are genuinely a parser/semantic result of the
+// emulator yield a grammar verdict (accept/reject). Anything that means "the
+// oracle could not decide" — transport failures, timeouts, cancellation,
+// transaction-abort retry exhaustion, a resource-level (database/instance/
+// session) miss, a generic Internal, a non-gRPC error — returns verdict
 // "error". An oracle must NEVER let an infra failure masquerade as accept: a
 // silent false-accept would mask real parser bugs (or fabricate divergences)
 // in every grammar node that trusts this verdict.
-func classify(err error) verdict {
+//
+// The discriminator is kind-aware and keys on the gRPC CODE wherever possible,
+// not on exact message text (the emulator's strings float with its image):
+//   - DDL: the emulator returns a PARSE failure as InvalidArgument and a
+//     SEMANTIC failure as FailedPrecondition / NotFound / Internal, so the code
+//     alone decides — robust to message drift.
+//   - query/DML: parse failures are InvalidArgument with a "Syntax error:"
+//     message; every OTHER InvalidArgument is a semantic result (Table not
+//     found, Unrecognized name, "X is not supported") => grammar parsed.
+func classify(kind string, err error) verdict {
 	if err == nil {
 		return verdict{Verdict: "accept", Reason: "ok", Code: codes.OK.String()}
 	}
@@ -310,35 +323,52 @@ func classify(err error) verdict {
 	msg := st.Message()
 	v := verdict{Code: code.String(), Message: oneLine(msg)}
 
-	// Grammar REJECT — a parse error. The emulator reports both query/DML and
-	// DDL parse failures as InvalidArgument; the message PREFIX is the only
-	// discriminator (the code is shared with semantic failures).
-	if code == codes.InvalidArgument &&
-		(strings.HasPrefix(msg, "Syntax error:") ||
-			strings.HasPrefix(msg, "Error parsing Spanner DDL statement:")) {
-		v.Verdict, v.Reason = "reject", "syntax"
-		return v
-	}
-
-	// Grammar ACCEPT — parsed, then a semantic/feature outcome. Verified codes:
-	//   InvalidArgument   — Table not found / Unrecognized name / "X is not supported"
-	//   FailedPrecondition — Duplicate name / bad INTERLEAVE
-	//   NotFound          — referenced object missing (e.g. INTERLEAVE parent)
-	//   AlreadyExists     — duplicate object (parsed fine)
-	//   Internal + "GOOGLESQL_RET_CHECK" — emulator quirk on an unknown type (parsed)
+	// Transport / availability / lifecycle codes are never a grammar verdict,
+	// regardless of kind.
 	switch code {
-	case codes.InvalidArgument, codes.FailedPrecondition, codes.NotFound, codes.AlreadyExists:
-		v.Verdict, v.Reason = "accept", "semantic"
+	case codes.Unavailable, codes.DeadlineExceeded, codes.Canceled,
+		codes.Aborted, codes.ResourceExhausted, codes.Unknown,
+		codes.Unauthenticated, codes.PermissionDenied:
+		v.Verdict, v.Reason = "error", "infra"
 		return v
-	case codes.Internal:
-		if strings.Contains(msg, "GOOGLESQL_RET_CHECK") {
-			v.Verdict, v.Reason = "accept", "semantic"
-			return v
-		}
+	}
+	// A resource-level NotFound/AlreadyExists (the scratch database/instance/
+	// session is gone — e.g. after an emulator restart) is infra, NOT a
+	// per-statement semantic result. Distinguish from "Table/Column not found".
+	if (code == codes.NotFound || code == codes.AlreadyExists) &&
+		(strings.Contains(msg, "Database") || strings.Contains(msg, "Instance") || strings.Contains(msg, "Session")) {
+		v.Verdict, v.Reason = "error", "infra"
+		return v
 	}
 
-	// Unavailable / DeadlineExceeded / Canceled / Aborted / ResourceExhausted /
-	// Unknown / generic Internal — infrastructure, not a grammar verdict.
+	if kind == "ddl" {
+		switch code {
+		case codes.InvalidArgument: // "Error parsing Spanner DDL statement: ..."
+			v.Verdict, v.Reason = "reject", "syntax"
+		case codes.FailedPrecondition, codes.NotFound: // Duplicate name / missing INTERLEAVE parent
+			v.Verdict, v.Reason = "accept", "semantic"
+		case codes.Internal:
+			if strings.Contains(msg, "GOOGLESQL_RET_CHECK") { // emulator quirk on unknown type (parsed)
+				v.Verdict, v.Reason = "accept", "semantic"
+			} else {
+				v.Verdict, v.Reason = "error", "infra"
+			}
+		default:
+			v.Verdict, v.Reason = "error", "infra"
+		}
+		return v
+	}
+
+	// query / dml
+	if code == codes.InvalidArgument {
+		if strings.HasPrefix(msg, "Syntax error:") {
+			v.Verdict, v.Reason = "reject", "syntax"
+		} else {
+			v.Verdict, v.Reason = "accept", "semantic" // Table not found / Unrecognized name / "X is not supported"
+		}
+		return v
+	}
+	// Any other code for a query/DML (incl. generic Internal) is infra.
 	v.Verdict, v.Reason = "error", "infra"
 	return v
 }

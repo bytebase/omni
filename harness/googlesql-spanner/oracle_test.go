@@ -13,36 +13,46 @@ import (
 func TestClassify(t *testing.T) {
 	cases := []struct {
 		name        string
+		kind        string
 		err         error
 		wantVerdict string
 		wantReason  string
 	}{
-		{"nil", nil, "accept", "ok"},
-		{"query syntax", status.Error(codes.InvalidArgument, `Syntax error: Unexpected identifier "SELEC" [at 1:1]`), "reject", "syntax"},
-		{"ddl syntax", status.Error(codes.InvalidArgument, "Error parsing Spanner DDL statement: CREATE TABL ... : Syntax error on line 1"), "reject", "syntax"},
-		{"unknown table", status.Error(codes.InvalidArgument, "Table not found: no_such_table [at 1:15]"), "accept", "semantic"},
-		{"unknown column", status.Error(codes.InvalidArgument, "Unrecognized name: bogus [at 1:8]"), "accept", "semantic"},
-		{"unsupported feature", status.Error(codes.InvalidArgument, "QUALIFY is not supported [at 1:18]"), "accept", "semantic"},
-		{"dup name (precondition)", status.Error(codes.FailedPrecondition, "Duplicate name in schema: T."), "accept", "semantic"},
-		{"missing interleave parent (notfound)", status.Error(codes.NotFound, "Table not found: p"), "accept", "semantic"},
-		{"already exists", status.Error(codes.AlreadyExists, "Database already exists: testdb"), "accept", "semantic"},
-		{"bad type (internal ret_check quirk)", status.Error(codes.Internal, "GOOGLESQL_RET_CHECK failure (ddl_type_conversion.cc)"), "accept", "semantic"},
-		// Fail-closed: infra/non-grammar errors must NOT become a grammar accept.
-		{"emulator down (unavailable)", status.Error(codes.Unavailable, "connection refused"), "error", "infra"},
-		{"deadline exceeded (grpc)", status.Error(codes.DeadlineExceeded, "context deadline exceeded"), "error", "infra"},
-		{"canceled (grpc)", status.Error(codes.Canceled, "context canceled"), "error", "infra"},
-		{"aborted txn retry-exhausted", status.Error(codes.Aborted, "transaction was aborted"), "error", "infra"},
-		{"resource exhausted", status.Error(codes.ResourceExhausted, "quota exceeded"), "error", "infra"},
-		{"generic internal (not ret_check)", status.Error(codes.Internal, "internal emulator crash"), "error", "infra"},
-		{"context.DeadlineExceeded (non-status)", context.DeadlineExceeded, "error", "infra"},
-		{"context.Canceled (non-status)", context.Canceled, "error", "infra"},
-		{"plain dial error (non-status)", errors.New("dial tcp 127.0.0.1:9010: connection refused"), "error", "infra"},
+		{"nil", "query", nil, "accept", "ok"},
+		// query / DML: InvalidArgument + "Syntax error:" => reject; other InvalidArgument => semantic accept.
+		{"query syntax", "query", status.Error(codes.InvalidArgument, `Syntax error: Unexpected identifier "SELEC" [at 1:1]`), "reject", "syntax"},
+		{"query unknown table", "query", status.Error(codes.InvalidArgument, "Table not found: no_such_table [at 1:15]"), "accept", "semantic"},
+		{"query unrecognized name", "query", status.Error(codes.InvalidArgument, "Unrecognized name: bogus [at 1:8]"), "accept", "semantic"},
+		{"query unsupported feature", "query", status.Error(codes.InvalidArgument, "QUALIFY is not supported [at 1:18]"), "accept", "semantic"},
+		{"dml syntax", "dml", status.Error(codes.InvalidArgument, "Syntax error: Unexpected keyword VALUE [at 1:25]"), "reject", "syntax"},
+		{"query FailedPrecondition is not a grammar verdict", "query", status.Error(codes.FailedPrecondition, "some precondition"), "error", "infra"},
+		{"query generic Internal", "query", status.Error(codes.Internal, "internal emulator crash"), "error", "infra"},
+		// DDL: keyed on CODE (robust to message drift). InvalidArgument => parse reject.
+		{"ddl syntax (canonical message)", "ddl", status.Error(codes.InvalidArgument, "Error parsing Spanner DDL statement: CREATE TABL ... : Syntax error on line 1"), "reject", "syntax"},
+		{"ddl syntax (drifted message, code-based)", "ddl", status.Error(codes.InvalidArgument, "Error parsing Spanner DDL statement [at 1:8]: bogus"), "reject", "syntax"},
+		{"ddl dup name", "ddl", status.Error(codes.FailedPrecondition, "Duplicate name in schema: T."), "accept", "semantic"},
+		{"ddl missing interleave parent", "ddl", status.Error(codes.NotFound, "Table not found: p"), "accept", "semantic"},
+		{"ddl bad type (ret_check quirk)", "ddl", status.Error(codes.Internal, "GOOGLESQL_RET_CHECK failure (ddl_type_conversion.cc)"), "accept", "semantic"},
+		{"ddl generic Internal", "ddl", status.Error(codes.Internal, "internal emulator crash"), "error", "infra"},
+		// Resource-level lifecycle misses (scratch DB/session gone) are infra, NOT a grammar verdict.
+		{"database gone (notfound)", "ddl", status.Error(codes.NotFound, "Database not found: projects/p/instances/i/databases/testdb"), "error", "infra"},
+		{"database already exists", "ddl", status.Error(codes.AlreadyExists, "Database already exists: testdb"), "error", "infra"},
+		{"session gone (notfound)", "query", status.Error(codes.NotFound, "Session not found: ..."), "error", "infra"},
+		// Transport / availability — fail closed regardless of kind.
+		{"emulator down (unavailable)", "query", status.Error(codes.Unavailable, "connection refused"), "error", "infra"},
+		{"deadline exceeded (grpc)", "ddl", status.Error(codes.DeadlineExceeded, "context deadline exceeded"), "error", "infra"},
+		{"canceled (grpc)", "query", status.Error(codes.Canceled, "context canceled"), "error", "infra"},
+		{"aborted txn retry-exhausted", "dml", status.Error(codes.Aborted, "transaction was aborted"), "error", "infra"},
+		{"resource exhausted", "query", status.Error(codes.ResourceExhausted, "quota exceeded"), "error", "infra"},
+		{"context.DeadlineExceeded (non-status)", "query", context.DeadlineExceeded, "error", "infra"},
+		{"context.Canceled (non-status)", "dml", context.Canceled, "error", "infra"},
+		{"plain dial error (non-status)", "ddl", errors.New("dial tcp 127.0.0.1:9010: connection refused"), "error", "infra"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			got := classify(c.err)
+			got := classify(c.kind, c.err)
 			if got.Verdict != c.wantVerdict || got.Reason != c.wantReason {
-				t.Fatalf("classify(%q) = {%s,%s}, want {%s,%s}", c.name, got.Verdict, got.Reason, c.wantVerdict, c.wantReason)
+				t.Fatalf("classify(%q, %q) = {%s,%s}, want {%s,%s}", c.kind, c.name, got.Verdict, got.Reason, c.wantVerdict, c.wantReason)
 			}
 		})
 	}

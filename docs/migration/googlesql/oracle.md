@@ -18,8 +18,10 @@ Empirically established 2026-06-02. The oracle converts grammar correctness from
 ## Standing it up
 
 ```bash
+# Pinned by digest so the message-format assumptions stay valid; on a bump,
+# re-run the harness `go test` (live TestOracleLive) before trusting verdicts.
 docker run -d --name spanner-emulator -p 9010:9010 -p 9020:9020 \
-  gcr.io/cloud-spanner-emulator/emulator
+  gcr.io/cloud-spanner-emulator/emulator@sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2
 ```
 
 Bootstrap (once per emulator process; state is in-memory and lost on container restart). Done via the Go admin client or REST :9020 *for setup only*:
@@ -51,17 +53,29 @@ Decision rule the harness uses (**fail-closed** — an oracle must never let an
 infra failure masquerade as ACCEPT, or it silently corrupts every grammar
 node's differential):
 
+The harness keys on the gRPC **code** wherever possible (message text floats
+with the emulator image): for **DDL**, a parse failure is `InvalidArgument`
+while semantic failures are `FailedPrecondition`/`NotFound`/`Internal`, so the
+code alone decides; only query/DML reject still needs the `Syntax error:`
+message prefix.
+
 ```
-classify(err):
-  if err == nil:                                       ACCEPT (ok)
-  if err is not a gRPC status (dial/context error):    ERROR  (infra)   # cannot decide
+classify(kind, err):
+  if err == nil:                                    ACCEPT (ok)
+  if err is not a gRPC status (dial/context error): ERROR  (infra)
   code, msg = grpcStatus(err)
-  if code==InvalidArgument and msg startswith "Syntax error:":               REJECT (syntax)
-  if code==InvalidArgument and msg startswith "Error parsing Spanner DDL statement:": REJECT (syntax)
-  if code in {InvalidArgument, FailedPrecondition, NotFound, AlreadyExists}: ACCEPT (semantic)  # parsed, then a semantic/feature result
-  if code==Internal and msg contains "GOOGLESQL_RET_CHECK":                  ACCEPT (semantic)  # emulator quirk on unknown type (parsed)
-  else:  # Unavailable / DeadlineExceeded / Canceled / Aborted / ResourceExhausted / Unknown / generic Internal
-                                                                            ERROR  (infra)   # emulator down/slow/crashed => NOT a grammar verdict
+  if code in {Unavailable, DeadlineExceeded, Canceled, Aborted,
+              ResourceExhausted, Unknown, Unauthenticated, PermissionDenied}: ERROR (infra)
+  if code in {NotFound, AlreadyExists} and msg mentions Database/Instance/Session: ERROR (infra)  # scratch resource gone
+  if kind == "ddl":
+     InvalidArgument                  -> REJECT (syntax)    # DDL parse failure
+     FailedPrecondition | NotFound     -> ACCEPT (semantic)  # Duplicate name / missing INTERLEAVE parent
+     Internal + "GOOGLESQL_RET_CHECK"  -> ACCEPT (semantic)  # emulator quirk on unknown type (parsed)
+     else                              -> ERROR  (infra)
+  else:  # query / dml
+     InvalidArgument + "Syntax error:" -> REJECT (syntax)
+     InvalidArgument (other)           -> ACCEPT (semantic)  # Table not found / Unrecognized name / "X is not supported"
+     else                              -> ERROR  (infra)
 ```
 
 Consumers MUST treat a verdict of `error` as "the oracle could not decide" — fail the test / drop the fixture, **never** fold it into accept or reject.
@@ -86,7 +100,10 @@ CREATE TABLE T (id INT64) PRIMARY KEY (id) -> ACCEPT  (semantic: Duplicate name 
 
 ## Non-mutating validation (harness note)
 
-To validate queries/DML without side effects, use **`QueryMode = PLAN`** (Go: `tx.AnalyzeQuery` for SELECT; the low-level `ExecuteSqlRequest{QueryMode: PLAN}` for DML inside a read-write txn). PLAN runs parse + semantic analysis and returns the query plan or the same `Syntax error:`/semantic error, but does not execute or mutate. DDL is validated by submitting to `UpdateDatabaseDdl` against a scratch database (it does mutate schema — the harness uses throwaway table names or a fresh database per batch).
+PLAN mode (`AnalyzeQuery`) returns `Internal: "query plan unavailable"` for ordinary statements on the emulator, so it is unusable here. The harness instead validates by kind:
+- **query** — execute via `Single().Query` and read only the first row. SELECT/WITH/VALUES have no side effects; a syntax error surfaces before any row.
+- **DML** — run inside a `ReadWriteTransaction` that returns a sentinel error right after `Update` parses, aborting the txn so no rows are mutated.
+- **DDL** — submit to `UpdateDatabaseDdl` on the scratch database. This mutates schema and state accumulates across a batch, but parse precedes schema validation, so the accept/reject verdict is order-stable (only the semantic `reason` varies).
 
 ## ⚠️ Dialect caveat — Spanner is a SUBSET of GoogleSQL
 

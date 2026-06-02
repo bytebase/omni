@@ -20,8 +20,11 @@ live in [`docs/migration/googlesql/oracle.md`](../../docs/migration/googlesql/or
 ## Prerequisite: the emulator
 
 ```bash
+# Pinned by digest: classification keys mostly on the gRPC code, but the
+# query/DML "Syntax error:" prefix is message-based, so bumping the image
+# requires a green `go test` (live TestOracleLive) to re-validate the format.
 docker run -d --name spanner-emulator -p 9010:9010 -p 9020:9020 \
-  gcr.io/cloud-spanner-emulator/emulator
+  gcr.io/cloud-spanner-emulator/emulator@sha256:caf1bd24c081e005837b5977bae5a250e25cb4da9f25ec1abc91936ad67e4de2
 ```
 
 State is in-memory; the harness creates a fresh scratch instance+database on
