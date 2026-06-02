@@ -1,0 +1,1 @@
+SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:g}}] From:VarRef{Name:t} Let:[LetBinding{Expr:VarRef{Name:a} Alias:g}] GroupBy:GroupByClause{Items:[GroupByItem{Expr:VarRef{Name:g}}]} OrderBy:[OrderByItem{Expr:VarRef{Name:g} Desc:false}]}

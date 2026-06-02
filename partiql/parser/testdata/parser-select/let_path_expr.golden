@@ -1,0 +1,1 @@
+SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:v}}] From:VarRef{Name:t} Let:[LetBinding{Expr:PathExpr{Root:VarRef{Name:t} Steps:[DotStep{Field:a} DotStep{Field:b}]} Alias:v}]}

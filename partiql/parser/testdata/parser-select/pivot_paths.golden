@@ -1,0 +1,1 @@
+SelectStmt{Pivot:PivotProjection{Value:PathExpr{Root:VarRef{Name:x} Steps:[DotStep{Field:v}]} At:PathExpr{Root:VarRef{Name:x} Steps:[DotStep{Field:a}]}} From:AliasedSource{Source:VarRef{Name:data} As:x}}
