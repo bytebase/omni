@@ -857,11 +857,36 @@ type PivotClause struct {
 	ForCols  *List    // FOR (col1, col2, ...) multi-column
 	InList   *List    // IN list
 	Alias    *Alias   // optional alias
-	Loc      Loc
+	Source   TableExpr
+
+	// Typed fields for query span/lineage consumers. These mirror the legacy
+	// fields above but avoid ad hoc ResTarget/FuncCall tuple encodings.
+	Aggregates *List // list of *PivotAggregate
+	ForColumns *List // list of ExprNode
+	InItems    *List // list of *PivotInItem
+	Loc        Loc
 }
 
 func (n *PivotClause) nodeTag()   {}
 func (n *PivotClause) tableExpr() {}
+
+// PivotAggregate represents one aggregate item in a PIVOT clause.
+type PivotAggregate struct {
+	Expr  ExprNode
+	Alias string
+	Loc   Loc
+}
+
+func (n *PivotAggregate) nodeTag() {}
+
+// PivotInItem represents one item in a PIVOT IN list.
+type PivotInItem struct {
+	Values *List // list of ExprNode
+	Alias  string
+	Loc    Loc
+}
+
+func (n *PivotInItem) nodeTag() {}
 
 // UnpivotClause represents an UNPIVOT clause.
 type UnpivotClause struct {
@@ -870,11 +895,27 @@ type UnpivotClause struct {
 	InList       *List    // IN list
 	IncludeNulls bool     // INCLUDE NULLS
 	Alias        *Alias   // optional alias
-	Loc          Loc      // start location
+	Source       TableExpr
+
+	// Typed fields for query span/lineage consumers.
+	ValueColumns  *List    // list of ExprNode
+	PivotColumn   ExprNode // FOR label column
+	InputMappings *List    // list of *UnpivotInItem
+	Loc           Loc      // start location
 }
 
 func (n *UnpivotClause) nodeTag()   {}
 func (n *UnpivotClause) tableExpr() {}
+
+// UnpivotInItem represents one source-column to label mapping in UNPIVOT.
+type UnpivotInItem struct {
+	InputColumns *List // list of ExprNode
+	Label        ExprNode
+	Alias        string
+	Loc          Loc
+}
+
+func (n *UnpivotInItem) nodeTag() {}
 
 // ---------------------------------------------------------------------------
 // WITH clause (subquery factoring)
@@ -1082,11 +1123,21 @@ func (n *ModelRulesClause) nodeTag() {}
 //	    measure_column [ dimension_conditions ] = expr
 type ModelRule struct {
 	CellRef ExprNode // left side (cell reference with dimension subscripts)
+	Cell    *ModelCellReference
 	Expr    ExprNode // right side value expression
 	Loc     Loc
 }
 
 func (n *ModelRule) nodeTag() {}
+
+// ModelCellReference represents a typed MODEL cell reference.
+type ModelCellReference struct {
+	Measure    string
+	Dimensions *List // list of ExprNode
+	Loc        Loc
+}
+
+func (n *ModelCellReference) nodeTag() {}
 
 // ModelForLoop represents FOR loop in model cell assignment.
 //
@@ -1198,10 +1249,14 @@ func (n *PartitionExtClause) nodeTag() {}
 
 // TableCollectionExpr represents TABLE(collection_expression) [(+)] in FROM.
 type TableCollectionExpr struct {
-	Expr      ExprNode // collection expression
-	OuterJoin bool     // (+) specified
-	Alias     *Alias   // optional alias
-	Loc       Loc
+	Expr           ExprNode // collection expression
+	FunctionCall   *FuncCallExpr
+	CollectionExpr ExprNode
+	ColumnAliases  *List       // optional table column aliases
+	ReturnType     *ObjectName // optional externally-populated return type
+	OuterJoin      bool        // (+) specified
+	Alias          *Alias      // optional alias
+	Loc            Loc
 }
 
 func (n *TableCollectionExpr) nodeTag()   {}
@@ -1213,6 +1268,7 @@ func (n *TableCollectionExpr) tableExpr() {}
 
 // MatchRecognizeClause represents a MATCH_RECOGNIZE clause on a table reference.
 type MatchRecognizeClause struct {
+	Source       TableExpr
 	PartitionBy  *List  // PARTITION BY columns
 	OrderBy      *List  // ORDER BY columns (list of *SortBy)
 	Measures     *List  // MEASURES (list of *ResTarget)
@@ -1692,6 +1748,10 @@ type CreateIndexStmt struct {
 	// Indexing clause
 	IndexingFull    bool // INDEXING FULL
 	IndexingPartial bool // INDEXING PARTIAL
+	LocalPartition  string
+	GlobalPartition string
+	StorageSpec     string
+	AnnotationsSpec string
 	Options         *List
 	Loc             Loc // start location
 }
@@ -1956,16 +2016,27 @@ type CreateTriggerStmt struct {
 	Timing         TriggerTiming // BEFORE/AFTER/INSTEAD OF
 	Events         *List         // trigger events (list of TriggerEvent)
 	Table          *ObjectName   // ON table
-	ForEachRow     bool          // FOR EACH ROW
-	When           ExprNode      // WHEN condition
-	Body           StmtNode      // trigger body
-	Compound       bool          // COMPOUND TRIGGER
-	Enable         bool          // ENABLE (default true)
-	Loc            Loc           // start location
+	Referencing    *TriggerReferencingClause
+	ForEachRow     bool     // FOR EACH ROW
+	When           ExprNode // WHEN condition
+	Body           StmtNode // trigger body
+	Compound       bool     // COMPOUND TRIGGER
+	Enable         bool     // ENABLE (default true)
+	Loc            Loc      // start location
 }
 
 func (n *CreateTriggerStmt) nodeTag()  {}
 func (n *CreateTriggerStmt) stmtNode() {}
+
+// TriggerReferencingClause represents REFERENCING OLD/NEW/PARENT aliases.
+type TriggerReferencingClause struct {
+	OldAlias    string
+	NewAlias    string
+	ParentAlias string
+	Loc         Loc
+}
+
+func (n *TriggerReferencingClause) nodeTag() {}
 
 // ---------------------------------------------------------------------------
 // TRUNCATE statement

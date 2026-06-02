@@ -268,12 +268,14 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) error {
 			stmt.Local = true
 			p.advance()
 			value := p.collectCreateIndexOptionValue()
+			stmt.LocalPartition = value
 			appendCreateIndexOption(stmt, "LOCAL", value, nodes.Loc{Start: optStart, End: p.prev.End})
 		case kwGLOBAL:
 			optStart := p.pos()
 			stmt.Global = true
 			p.advance()
 			value := p.collectCreateIndexOptionValue()
+			stmt.GlobalPartition = value
 			appendCreateIndexOption(stmt, "GLOBAL", value, nodes.Loc{Start: optStart, End: p.prev.End})
 		case kwONLINE:
 			stmt.Online = true
@@ -369,6 +371,7 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) error {
 					stmt.Local = true
 					p.advance()
 					value := p.collectCreateIndexOptionValue()
+					stmt.LocalPartition = value
 					appendCreateIndexOption(stmt, "LOCAL", value, nodes.Loc{Start: optStart, End: p.prev.End})
 				}
 				// Optional parallel_clause
@@ -426,11 +429,13 @@ func (p *Parser) parseCreateIndexAttributes(stmt *nodes.CreateIndexStmt) error {
 					return p.syntaxErrorAtCur()
 				}
 				value := p.collectCreateIndexOptionValue()
+				stmt.StorageSpec = value
 				appendCreateIndexOption(stmt, "STORAGE", value, nodes.Loc{Start: optStart, End: p.prev.End})
 			} else if p.isIdentLikeStr("ANNOTATIONS") {
 				optStart := p.pos()
 				p.advance()
 				value := p.collectCreateIndexOptionValue()
+				stmt.AnnotationsSpec = value
 				appendCreateIndexOption(stmt, "ANNOTATIONS", value, nodes.Loc{Start: optStart, End: p.prev.End})
 			} else {
 				return nil

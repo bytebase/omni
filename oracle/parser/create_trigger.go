@@ -102,6 +102,14 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 		}
 	}
 
+	if p.isIdentLikeStr("REFERENCING") {
+		var parseErr568 error
+		stmt.Referencing, parseErr568 = p.parseTriggerReferencingClause()
+		if parseErr568 != nil {
+			return nil, parseErr568
+		}
+	}
+
 	if p.cur.Type == kwFOR {
 		p.advance() // consume FOR
 		if p.cur.Type == kwEACH {
@@ -119,10 +127,10 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 		if p.cur.Type == '(' {
 			p.advance()
 			var // consume '('
-			parseErr568 error
-			stmt.When, parseErr568 = p.parseExpr()
-			if parseErr568 != nil {
-				return nil, parseErr568
+			parseErr569 error
+			stmt.When, parseErr569 = p.parseExpr()
+			if parseErr569 != nil {
+				return nil, parseErr569
 			}
 			if p.cur.Type == ')' {
 				p.advance() // consume ')'
@@ -174,24 +182,67 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 	if p.isIdentLikeStr("CALL") {
 		p.advance() // consume CALL
 		// Parse the routine name as an object name, wrap as a simple expression
-		callName, parseErr569 := p.parseObjectName()
-		if parseErr569 != nil {
-			return nil, parseErr569
+		callName, parseErr570 := p.parseObjectName()
+		if parseErr570 != nil {
+			return nil, parseErr570
 		}
 		stmt.Body = &nodes.PLSQLBlock{
 			Label: "CALL:" + callName.Name,
 			Loc:   callName.Loc,
 		}
 	} else if p.cur.Type == kwDECLARE || p.cur.Type == kwBEGIN || p.cur.Type == tokLABELOPEN {
-		var parseErr570 error
-		stmt.Body, parseErr570 = p.parsePLSQLBlock()
-		if parseErr570 != nil {
-			return nil, parseErr570
+		var parseErr571 error
+		stmt.Body, parseErr571 = p.parsePLSQLBlock()
+		if parseErr571 != nil {
+			return nil, parseErr571
 		}
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+func (p *Parser) parseTriggerReferencingClause() (*nodes.TriggerReferencingClause, error) {
+	start := p.pos()
+	p.advance() // consume REFERENCING
+	clause := &nodes.TriggerReferencingClause{Loc: nodes.Loc{Start: start}}
+	for {
+		if p.isIdentLikeStr("OLD") {
+			p.advance()
+			if p.cur.Type == kwAS {
+				p.advance()
+			}
+			name, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			clause.OldAlias = name
+		} else if p.isIdentLikeStr("NEW") {
+			p.advance()
+			if p.cur.Type == kwAS {
+				p.advance()
+			}
+			name, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			clause.NewAlias = name
+		} else if p.isIdentLikeStr("PARENT") {
+			p.advance()
+			if p.cur.Type == kwAS {
+				p.advance()
+			}
+			name, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			clause.ParentAlias = name
+		} else {
+			break
+		}
+	}
+	clause.Loc.End = p.prev.End
+	return clause, nil
 }
 
 // parseTriggerEvent parses a single trigger event:

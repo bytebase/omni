@@ -681,6 +681,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Table != nil {
 			Walk(v, n.Table)
 		}
+		if n.Referencing != nil {
+			Walk(v, n.Referencing)
+		}
 		Walk(v, n.When)
 		Walk(v, n.Body)
 	case *CreateTypeStmt:
@@ -748,18 +751,15 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 	case *DeleteStmt:
-		if n.Target != nil {
-			Walk(v, n.Target)
-		} else {
-			if n.Table != nil {
-				Walk(v, n.Table)
-			}
-			if n.PartitionExt != nil {
-				Walk(v, n.PartitionExt)
-			}
-			if n.Alias != nil {
-				Walk(v, n.Alias)
-			}
+		Walk(v, n.Target)
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		if n.PartitionExt != nil {
+			Walk(v, n.PartitionExt)
+		}
+		if n.Alias != nil {
+			Walk(v, n.Alias)
 		}
 		Walk(v, n.WhereClause)
 		walkList(v, n.Returning)
@@ -1003,6 +1003,7 @@ func walkChildren(v Visitor, node Node) {
 		}
 		Walk(v, n.Wait)
 	case *MatchRecognizeClause:
+		Walk(v, n.Source)
 		walkList(v, n.PartitionBy)
 		walkList(v, n.OrderBy)
 		walkList(v, n.Measures)
@@ -1036,6 +1037,8 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.ErrorLog)
 		}
 		walkList(v, n.Hints)
+	case *ModelCellReference:
+		walkList(v, n.Dimensions)
 	case *ModelClause:
 		if n.CellRefOptions != nil {
 			Walk(v, n.CellRefOptions)
@@ -1083,6 +1086,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *ModelRule:
 		Walk(v, n.CellRef)
+		if n.Cell != nil {
+			Walk(v, n.Cell)
+		}
 		Walk(v, n.Expr)
 	case *ModelRulesClause:
 		Walk(v, n.Iterate)
@@ -1202,6 +1208,8 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.Values)
 	case *PartitionExtClause:
 		walkList(v, n.Keys)
+	case *PivotAggregate:
+		Walk(v, n.Expr)
 	case *PivotClause:
 		walkList(v, n.AggFuncs)
 		Walk(v, n.ForCol)
@@ -1210,6 +1218,12 @@ func walkChildren(v Visitor, node Node) {
 		if n.Alias != nil {
 			Walk(v, n.Alias)
 		}
+		Walk(v, n.Source)
+		walkList(v, n.Aggregates)
+		walkList(v, n.ForColumns)
+		walkList(v, n.InItems)
+	case *PivotInItem:
+		walkList(v, n.Values)
 	case *PurgeStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -1324,6 +1338,14 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *TableCollectionExpr:
 		Walk(v, n.Expr)
+		if n.FunctionCall != nil {
+			Walk(v, n.FunctionCall)
+		}
+		Walk(v, n.CollectionExpr)
+		walkList(v, n.ColumnAliases)
+		if n.ReturnType != nil {
+			Walk(v, n.ReturnType)
+		}
 		if n.Alias != nil {
 			Walk(v, n.Alias)
 		}
@@ -1378,19 +1400,23 @@ func walkChildren(v Visitor, node Node) {
 		if n.Alias != nil {
 			Walk(v, n.Alias)
 		}
+		Walk(v, n.Source)
+		walkList(v, n.ValueColumns)
+		Walk(v, n.PivotColumn)
+		walkList(v, n.InputMappings)
+	case *UnpivotInItem:
+		walkList(v, n.InputColumns)
+		Walk(v, n.Label)
 	case *UpdateStmt:
-		if n.Target != nil {
-			Walk(v, n.Target)
-		} else {
-			if n.Table != nil {
-				Walk(v, n.Table)
-			}
-			if n.PartitionExt != nil {
-				Walk(v, n.PartitionExt)
-			}
-			if n.Alias != nil {
-				Walk(v, n.Alias)
-			}
+		Walk(v, n.Target)
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		if n.PartitionExt != nil {
+			Walk(v, n.PartitionExt)
+		}
+		if n.Alias != nil {
+			Walk(v, n.Alias)
 		}
 		walkList(v, n.SetClauses)
 		walkList(v, n.FromClause)
