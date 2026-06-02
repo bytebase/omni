@@ -111,7 +111,7 @@ func (p *Parser) parsePrimaryBase() (ast.ExprNode, error) {
 	case tokEXTRACT:
 		return p.parseExtractExpr()
 	case tokDATE_ADD, tokDATE_DIFF:
-		return p.parseKeywordFuncCall()
+		return p.parseDateFunction()
 
 	// ------------------------------------------------------------------
 	// Reserved-name scalar functions — FunctionCallReserved
@@ -450,36 +450,94 @@ func (p *Parser) parseReservedFuncCall() (ast.ExprNode, error) {
 // token. It uppercases the keyword name, advances past it, and delegates
 // to parseFuncCallArgs.
 //
-// Used for DATE_ADD/DATE_DIFF (PartiQLParser.g4:608-609 dateFunction —
-// the date-part is an IDENTIFIER argument, so it falls out as a VarRef
-// in the arg list) and for the LIST/SEXP sequence constructors
-// (PartiQLParser.g4:569-570 sequenceConstructor). All produce an
-// *ast.FuncCall, matching the AST guidance that built-ins with ordinary
-// name(arg, …) syntax use the generic node.
+// Used for the LIST/SEXP sequence constructors (PartiQLParser.g4:569-570
+// sequenceConstructor). Both produce an *ast.FuncCall, matching the AST
+// guidance that built-ins with ordinary name(arg, …) syntax use the
+// generic node.
 //
-// Note: arity is intentionally NOT enforced here for LIST/SEXP (any
-// count, including zero, is valid). DATE_ADD/DATE_DIFF require exactly
-// three arguments per the grammar; that check is applied below.
+// Note: arity is intentionally NOT enforced here — LIST/SEXP accept any
+// count, including zero. DATE_ADD/DATE_DIFF do NOT use this path: their
+// first argument is a constrained date-part identifier rather than a
+// general expression, so they have a dedicated parser (parseDateFunction).
 func (p *Parser) parseKeywordFuncCall() (ast.ExprNode, error) {
 	start := p.cur.Loc.Start
-	tokType := p.cur.Type
 	name := strings.ToUpper(p.cur.Str)
 	p.advance() // consume the keyword
 	args, endOff, err := p.parseFuncCallArgs()
 	if err != nil {
 		return nil, err
 	}
-	// dateFunction requires exactly three arguments: part, expr, expr.
-	if (tokType == tokDATE_ADD || tokType == tokDATE_DIFF) && len(args) != 3 {
-		return nil, &ParseError{
-			Message: fmt.Sprintf("%s expects exactly 3 arguments, got %d", name, len(args)),
-			Loc:     ast.Loc{Start: start, End: endOff},
-		}
-	}
 	return &ast.FuncCall{
 		Name: name,
 		Args: args,
 		Loc:  ast.Loc{Start: start, End: endOff},
+	}, nil
+}
+
+// parseDateFunction parses DATE_ADD / DATE_DIFF (PartiQLParser.g4:608-609):
+//
+//	dateFunction
+//	    : func=(DATE_ADD|DATE_DIFF)
+//	        PAREN_LEFT dt=IDENTIFIER COMMA expr COMMA expr PAREN_RIGHT;
+//
+// Unlike an ordinary function call, the FIRST argument is a constrained
+// date-part — `dt=IDENTIFIER`, a bare unquoted identifier (year, month,
+// day, hour, minute, second, timezone_hour, timezone_minute). It is NOT a
+// general expression: a quoted string, a double-quoted identifier, an
+// arithmetic/path expression, or a numeric literal in that position is a
+// parse error. Arguments two and three remain general expressions. This
+// mirrors the EXTRACT field handling (see parseExtractExpr) where the
+// grammar likewise pins the leading position to an unquoted IDENTIFIER.
+//
+// truth1 (PartiQL spec) and the partiql-lang-kotlin reference impl both
+// document the part as a bare keyword — e.g. `DATE_ADD(year, 5, ts)` —
+// corroborating the grammar.
+//
+// The AST shape is the generic *ast.FuncCall (Name=DATE_ADD/DATE_DIFF,
+// Args=[partRef, expr, expr]); the part lands as a VarRef so the node
+// stays identical to its previously-shipped form — only the now-rejected
+// over-permissive inputs change behavior.
+func (p *Parser) parseDateFunction() (ast.ExprNode, error) {
+	start := p.cur.Loc.Start
+	name := strings.ToUpper(p.cur.Str)
+	p.advance() // consume DATE_ADD / DATE_DIFF
+	if _, err := p.expect(tokPAREN_LEFT); err != nil {
+		return nil, err
+	}
+
+	// First argument: the date-part. dt=IDENTIFIER — a bare unquoted
+	// identifier only. Reject quoted identifiers, string literals,
+	// expressions, paths, and any other non-identifier token here.
+	if p.cur.Type != tokIDENT {
+		return nil, &ParseError{
+			Message: fmt.Sprintf("%s date part must be an unquoted identifier, got %q", name, p.cur.Str),
+			Loc:     p.cur.Loc,
+		}
+	}
+	part := &ast.VarRef{Name: p.cur.Str, Loc: p.cur.Loc}
+	p.advance() // consume the date-part identifier
+	args := []ast.ExprNode{part}
+
+	// Arguments two and three: general expressions, comma-separated.
+	for i := 0; i < 2; i++ {
+		if _, err := p.expect(tokCOMMA); err != nil {
+			return nil, err
+		}
+		arg, err := p.parseExprTop()
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, arg)
+	}
+
+	rp, err := p.expect(tokPAREN_RIGHT)
+	if err != nil {
+		return nil, err
+	}
+	return &ast.FuncCall{
+		Name: name,
+		Args: args,
+		Loc:  ast.Loc{Start: start, End: rp.Loc.End},
 	}, nil
 }
 

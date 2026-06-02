@@ -268,6 +268,13 @@ func TestParser_BuiltinsTyped(t *testing.T) {
 			input: "DATE_DIFF(month, t1, t2)",
 			want:  "FuncCall{Name:DATE_DIFF Args:[VarRef{Name:month} VarRef{Name:t1} VarRef{Name:t2}]}",
 		},
+		// Only the date-part (arg 1) is constrained; args 2 and 3 are
+		// general expressions (here an arithmetic expr and a path).
+		{
+			name:  "date_add_expr_value_args",
+			input: "DATE_ADD(day, n + 1, t.created)",
+			want:  "FuncCall{Name:DATE_ADD Args:[VarRef{Name:day} BinaryExpr{Op:+ Left:VarRef{Name:n} Right:NumberLit{Val:1}} PathExpr{Root:VarRef{Name:t} Steps:[DotStep{Field:created}]}]}",
+		},
 
 		// ----------------------------------------------------------------
 		// COALESCE (1+ args) and NULLIF (exactly 2).
@@ -474,20 +481,60 @@ func TestParser_BuiltinsTyped_Errors(t *testing.T) {
 		},
 
 		// --- DATE_ADD / DATE_DIFF: part IDENTIFIER then 2 exprs ---
+		// Too few args: after the second arg the third COMMA is required.
 		{
 			name:      "date_add_too_few_args",
 			input:     "DATE_ADD(year, 5)",
-			wantErrIn: "DATE_ADD",
+			wantErrIn: "expected COMMA",
 		},
+		// Too many args: after the third arg the closing paren is required.
 		{
 			name:      "date_diff_too_many_args",
 			input:     "DATE_DIFF(year, a, b, c)",
-			wantErrIn: "DATE_DIFF",
+			wantErrIn: "expected PAREN_RIGHT",
 		},
 		{
 			name:      "date_add_unclosed",
 			input:     "DATE_ADD(year, 5, ts",
 			wantErrIn: "expected PAREN_RIGHT",
+		},
+		// The date-part (dt=IDENTIFIER in the dateFunction rule) must be a
+		// bare unquoted identifier — reject a quoted string, an expression,
+		// or a path in the first-argument position.
+		{
+			name:      "date_add_quoted_part",
+			input:     `DATE_ADD('year', 5, ts)`,
+			wantErrIn: "date part must be an unquoted identifier",
+		},
+		{
+			name:      "date_add_double_quoted_part",
+			input:     `DATE_ADD("year", 5, ts)`,
+			wantErrIn: "date part must be an unquoted identifier",
+		},
+		// The date-part is `dt=IDENTIFIER COMMA` — a single bare identifier
+		// immediately followed by a comma. An expression (year + 1) or a
+		// path (a.b) starts with an identifier but is then followed by an
+		// operator/dot instead of the required comma, so it is rejected
+		// there rather than being consumed as a compound part.
+		{
+			name:      "date_add_expr_part",
+			input:     "DATE_ADD(year + 1, 5, ts)",
+			wantErrIn: "expected COMMA",
+		},
+		{
+			name:      "date_diff_path_part",
+			input:     "DATE_DIFF(a.b, x, y)",
+			wantErrIn: "expected COMMA",
+		},
+		{
+			name:      "date_add_numeric_part",
+			input:     "DATE_ADD(1, 5, ts)",
+			wantErrIn: "date part must be an unquoted identifier",
+		},
+		{
+			name:      "date_add_missing_part",
+			input:     "DATE_ADD(, 5, ts)",
+			wantErrIn: "date part must be an unquoted identifier",
 		},
 
 		// --- NULLIF: exactly 2 args ---
