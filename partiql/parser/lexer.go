@@ -132,6 +132,39 @@ func isDigit(ch byte) bool {
 	return ch >= '0' && ch <= '9'
 }
 
+// isHexDigit reports whether ch is an Ion HEX_DIGIT (g4 533-534: [0-9A-F]).
+// caseInsensitive=true means lowercase a-f match as well.
+func isHexDigit(ch byte) bool {
+	return (ch >= '0' && ch <= '9') ||
+		(ch >= 'a' && ch <= 'f') ||
+		(ch >= 'A' && ch <= 'F')
+}
+
+// hasHexRun reports whether the n bytes of l-input starting at index `at`
+// are all HEX_DIGITs and in range. Used to validate the fixed-width hex
+// runs in Ion HEX_ESCAPE / UNICODE_ESCAPE.
+func hasHexRun(s string, at, n int) bool {
+	if at+n > len(s) {
+		return false
+	}
+	for i := 0; i < n; i++ {
+		if !isHexDigit(s[at+i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// lowerASCII folds an ASCII letter to lowercase, leaving other bytes
+// unchanged. Mirrors the grammar's caseInsensitive=true handling for the
+// single-letter escape codes.
+func lowerASCII(ch byte) byte {
+	if ch >= 'A' && ch <= 'Z' {
+		return ch + ('a' - 'A')
+	}
+	return ch
+}
+
 // ============================================================================
 // Token location helper.
 // ============================================================================
@@ -457,6 +490,19 @@ func (l *Lexer) scanIonLiteral() Token {
 			l.pos++ // skip closing backtick
 			return Token{Type: tokION_LITERAL, Str: content, Loc: l.loc()}
 
+		case ch == '{' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '{':
+			// Possible ION_BLOB: {{ base64 }} (g4 414-415). ANTLR matches
+			// this whole region as ONE maximal-munch token, so any byte
+			// inside it — including '//' or '/*', which base64 may legally
+			// contain ('/' is a BASE_64_CHAR) — is blob CONTENT and never a
+			// comment. Only a *valid* base64 lob matches; if it does, consume
+			// it whole. Otherwise the '{' degrades to ION_ANY (so '{{' alone,
+			// a clob whose content is a quoted string, '{{//}}', etc. fall
+			// through to the per-byte handling that mirrors ANTLR).
+			if !l.scanIonBlob() {
+				l.pos = save + 1 // the leading '{' is ION_ANY
+			}
+
 		case ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/':
 			// Line comment to newline or EOF. If it reaches EOF it
 			// swallows the closing backtick; the loop then exits and the
@@ -512,6 +558,92 @@ func (l *Lexer) unterminatedIon() Token {
 	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
 }
 
+// scanIonBlob attempts to match a complete Ion BLOB starting at l.pos and,
+// on success, advances l.pos past the closing '}}' and returns true. On any
+// failure l.pos is left unchanged and it returns false. l.pos must point at
+// the first '{' of a '{{'.
+//
+// Grammar (g4 414-415, 468-489), with caseInsensitive=true:
+//
+//	ION_BLOB        : '{{' (BASE_64_QUARTET | WS)* BASE_64_PAD? WS* '}}'
+//	BASE_64_QUARTET : C WS* C WS* C WS* C
+//	BASE_64_PAD     : C WS* C WS* C WS* '='   |   C WS* C WS* '=' WS* '='
+//	C (BASE_64_CHAR): [0-9A-Za-z+/]
+//	WS              : [ \r\n\t]
+//
+// Because base64 chars, '=', and '}' are pairwise disjoint and WS is allowed
+// freely between the significant characters, a valid lob body is exactly:
+// some base64 chars whose count is a multiple of four (the quartets),
+// followed by an optional pad contributing three chars + one '=' or two
+// chars + two '=', then '}}'. This matcher consumes base64 chars and WS,
+// counts the base64 chars, validates the trailing pad shape, and requires
+// the closing '}}'. ANTLR matches ION_BLOB maximally only when it can reach
+// '}}'; if it cannot, the caller treats the leading '{' as ION_ANY.
+func (l *Lexer) scanIonBlob() bool {
+	p := l.pos + 2 // past '{{'
+	chars := 0     // count of base64 chars seen so far (excludes '=')
+	eq := 0        // count of '=' padding chars seen (only valid at the end)
+	for p < len(l.input) {
+		c := l.input[p]
+		switch {
+		case c == ' ' || c == '\t' || c == '\r' || c == '\n':
+			p++ // WS, allowed anywhere between significant chars
+		case c == '}':
+			// Candidate LOB_END. Require the second '}' and a structurally
+			// valid character count: the base64 chars must form whole
+			// quartets, adjusted for the pad ('=' count).
+			if p+1 < len(l.input) && l.input[p+1] == '}' && validBase64Counts(chars, eq) {
+				l.pos = p + 2 // consume through '}}'
+				return true
+			}
+			return false
+		case c == '=':
+			eq++
+			if eq > 2 {
+				return false // a pad has at most two '='
+			}
+			p++
+		case isBase64Char(c):
+			if eq > 0 {
+				return false // base64 char after '=' is not a valid pad
+			}
+			chars++
+			p++
+		default:
+			return false // anything else (incl. a backtick or quote) breaks the lob
+		}
+	}
+	return false // reached EOF without a closing '}}'
+}
+
+// validBase64Counts reports whether `chars` base64 characters followed by
+// `eq` '=' padding characters form a valid Ion base64 lob body:
+//   - no padding: chars is a non-negative multiple of 4 (quartets only);
+//   - one '=' (BASE_64_PAD1: C C C '='): the three pad chars complete a
+//     quartet, so chars ≡ 3 (mod 4) and chars >= 3;
+//   - two '=' (BASE_64_PAD2: C C '=' '='): chars ≡ 2 (mod 4) and chars >= 2.
+func validBase64Counts(chars, eq int) bool {
+	switch eq {
+	case 0:
+		return chars%4 == 0
+	case 1:
+		return chars >= 3 && chars%4 == 3
+	case 2:
+		return chars >= 2 && chars%4 == 2
+	default:
+		return false
+	}
+}
+
+// isBase64Char reports whether ch is an Ion BASE_64_CHAR (g4 488-489:
+// [0-9A-Z+/]); caseInsensitive=true also admits a-z.
+func isBase64Char(ch byte) bool {
+	return (ch >= '0' && ch <= '9') ||
+		(ch >= 'A' && ch <= 'Z') ||
+		(ch >= 'a' && ch <= 'z') ||
+		ch == '+' || ch == '/'
+}
+
 // scanIonLineComment consumes an Ion // line comment (g4 408-409).
 // The comment runs to the next newline or to EOF — EOF is a legal
 // terminator for a line comment, so l.pos may land at len(l.input).
@@ -539,26 +671,91 @@ func (l *Lexer) scanIonBlockComment() bool {
 	return false
 }
 
+// ionEscapeLen reports the byte length consumed by a valid Ion TEXT_ESCAPE
+// beginning at l.input[at] (including the leading backslash), or 0 if the
+// bytes at `at` are not a valid escape. l.input[at] must be a backslash.
+//
+// TEXT_ESCAPE = COMMON_ESCAPE | HEX_ESCAPE | UNICODE_ESCAPE (g4 465-466):
+//
+//   - COMMON_ESCAPE  '\' [abtnfrv?0'"/\] | '\' ION_NEWLINE  (g4 501-519)
+//   - HEX_ESCAPE     '\x' HEX_DIGIT HEX_DIGIT                (g4 521-522)
+//   - UNICODE_ESCAPE '\u' HHHH | '\U000' HHHH H | '\U0010' HHHH (g4 524-528)
+//
+// caseInsensitive=true (g4 line 4) applies to every literal char in these
+// rules, so the escape letters (a,b,t,n,f,r,v,x,u) and HEX_DIGIT [0-9A-F]
+// all match either case. In particular '\u' and '\U' are the SAME prefix:
+// the generated lexer accepts '\U' HHHH as the 6-byte short UNICODE_ESCAPE
+// (verified differentially against the antlr_fallback oracle).
+//
+// The two longer '\U000…' / '\U0010…' (10-byte) UNICODE_ESCAPE alternatives
+// are NOT distinguished here: they only ever differ from the 6-byte short
+// form by absorbing four extra HEX_DIGIT bytes, and a backtick (the sole
+// byte that can close an Ion literal) is never a HEX_DIGIT — so whether
+// those four bytes are part of the escape or are plain string content, the
+// surrounding string stays open across them identically and the literal's
+// boundary is byte-for-byte the same. Token.Str is verbatim (we never decode
+// the escape), so reporting 6 here is observationally equivalent to 10.
+//
+// A backslash that does NOT begin one of these is not an escape at all: the
+// surrounding string/symbol rule cannot match (the backslash is excluded
+// from every *_TEXT_ALLOWED set), so the token fails and the caller degrades
+// the opener to ION_ANY.
+func (l *Lexer) ionEscapeLen(at int) int {
+	if at+1 >= len(l.input) {
+		return 0 // dangling backslash at EOF: not a complete escape
+	}
+	c := l.input[at+1]
+	switch lowerASCII(c) {
+	case 'a', 'b', 't', 'n', 'f', 'r', 'v', '?', '0', '\'', '"', '/', '\\':
+		return 2 // COMMON_ESCAPE single-character code
+	case 'x':
+		// HEX_ESCAPE: '\x' HEX_DIGIT HEX_DIGIT.
+		if hasHexRun(l.input, at+2, 2) {
+			return 4
+		}
+		return 0
+	case 'u':
+		// UNICODE_ESCAPE: '\u' / '\U' followed by a HEX_DIGIT_QUARTET.
+		if hasHexRun(l.input, at+2, 4) {
+			return 6
+		}
+		return 0
+	case '\r':
+		// '\' ION_NEWLINE line continuation: \r\n counts as one newline.
+		if at+2 < len(l.input) && l.input[at+2] == '\n' {
+			return 3
+		}
+		return 2
+	case '\n':
+		return 2
+	}
+	return 0
+}
+
 // scanIonQuoted consumes a single-character-delimited Ion text token —
 // a double-quoted short string (g4 417-419) or a single-quoted symbol
 // (g4 425-426) — and reports whether the closing quote was found. A
-// backslash escapes the following byte (Ion TEXT_ESCAPE, g4 465-466),
-// so an escaped quote does not close the token. Positioned at the
-// opening quote. Returns false if EOF is reached before the closer
-// (including a dangling trailing backslash).
+// backslash escapes the following byte ONLY when it forms a valid Ion
+// TEXT_ESCAPE (g4 465-466); an invalid escape (e.g. '\q') means the token
+// cannot match and the caller degrades the opener to ION_ANY. Positioned
+// at the opening quote. Returns false if EOF is reached before the closer,
+// if a dangling/invalid backslash is hit, or on a bare control character
+// the grammar excludes — in every such case the opener is ION_ANY.
 func (l *Lexer) scanIonQuoted(quote byte) bool {
 	l.pos++ // skip opening quote
 	for l.pos < len(l.input) {
 		ch := l.input[l.pos]
 		switch ch {
 		case '\\':
-			// Escape: consume the backslash and the escaped byte. A
-			// backslash at EOF is unterminated.
-			if l.pos+1 >= len(l.input) {
-				l.pos = len(l.input)
+			// Escape: only a valid TEXT_ESCAPE keeps the token going. An
+			// invalid or dangling escape means this is not a string/symbol
+			// at all (the '\' is excluded from the allowed set), so report
+			// failure and let the caller treat the opener as ION_ANY.
+			n := l.ionEscapeLen(l.pos)
+			if n == 0 {
 				return false
 			}
-			l.pos += 2
+			l.pos += n
 		case quote:
 			l.pos++ // skip closing quote
 			return true
@@ -570,21 +767,24 @@ func (l *Lexer) scanIonQuoted(quote byte) bool {
 }
 
 // scanIonLongString consumes an Ion triple-quoted long string (g4 421-423)
-// and reports whether the closing triple-quote was found. Long strings may span
-// newlines and honor backslash escapes (g4 447-448, 465-466). Positioned
-// at the first of the three opening quotes. Returns false if EOF is
-// reached before the closing triple-quote.
+// and reports whether the closing triple-quote was found. Long strings may
+// span newlines and honor backslash escapes, but only VALID Ion TEXT_ESCAPEs
+// (g4 447-448, 465-466); an invalid escape means the long-string rule cannot
+// match (STRING_LONG_TEXT_ALLOWED excludes the backslash), so the caller
+// degrades the opener. Positioned at the first of the three opening quotes.
+// Returns false if EOF is reached before the closing triple-quote or on an
+// invalid/dangling escape.
 func (l *Lexer) scanIonLongString() bool {
 	l.pos += 3 // skip opening '''
 	for l.pos < len(l.input) {
 		ch := l.input[l.pos]
 		switch {
 		case ch == '\\':
-			if l.pos+1 >= len(l.input) {
-				l.pos = len(l.input)
+			n := l.ionEscapeLen(l.pos)
+			if n == 0 {
 				return false
 			}
-			l.pos += 2
+			l.pos += n
 		case ch == '\'' && l.matchesTripleQuote():
 			l.pos += 3 // skip closing '''
 			return true

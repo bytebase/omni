@@ -488,12 +488,58 @@ func TestLexer_IonMode(t *testing.T) {
 			"`/* c`c */1`",
 			[]Token{{tokION_LITERAL, "/* c`c */1", ast.Loc{Start: 0, End: 12}}},
 		},
-		// --- a lob blob: {{ base64 }}. Braces are plain ION_ANY; the
-		//     backtick after the base64 closes the literal. ---
+		// --- a lob blob: {{ base64 }}. A valid ION_BLOB (g4 414-415:
+		//     LOB_START (BASE_64_QUARTET | WS)* BASE_64_PAD? WS* LOB_END) is
+		//     matched whole, so the closing backtick after the }} closes the
+		//     literal. ---
 		{
 			"ion_lob_blob",
 			"`{{ aGVsbG8= }}`",
 			[]Token{{tokION_LITERAL, "{{ aGVsbG8= }}", ast.Loc{Start: 0, End: 16}}},
+		},
+		// --- a BLOB whose base64 content contains '//'. Because the whole
+		//     {{ //// }} matches ION_BLOB as a single maximal-munch token
+		//     (base64 INCLUDES '/', and '////' is a valid BASE_64_QUARTET),
+		//     the '//' is base64 CONTENT, never an ION_INLINE_COMMENT. The
+		//     backtick after the }} closes the literal. Codex P2 regression
+		//     case; verified against the generated ANTLR lexer oracle:
+		//       `{{ //// }}`  ->  one ION_CLOSURE spanning the whole input.
+		{
+			"ion_blob_double_slash_is_content",
+			"`{{ //// }}`",
+			[]Token{{tokION_LITERAL, "{{ //// }}", ast.Loc{Start: 0, End: 12}}},
+		},
+		// --- a BLOB with '=' padding (BASE_64_PAD2: '//==' is CHAR CHAR '=' '=')
+		//     and interior whitespace between quartets. Still one ION_BLOB. ---
+		{
+			"ion_blob_slash_with_padding",
+			"`{{ //// //// //// //== }}`",
+			[]Token{{tokION_LITERAL, "{{ //// //// //// //== }}", ast.Loc{Start: 0, End: 27}}},
+		},
+		// --- a BLOB with no surrounding whitespace: {{////}} is a valid
+		//     ION_BLOB ('////' = one quartet, no WS, immediate LOB_END). ---
+		{
+			"ion_blob_slash_tight",
+			"`{{////}}`",
+			[]Token{{tokION_LITERAL, "{{////}}", ast.Loc{Start: 0, End: 10}}},
+		},
+		// --- two adjacent BLOBs are each matched as ION_BLOB, then the
+		//     backtick closes. ---
+		{
+			"ion_two_blobs_adjacent",
+			"`{{////}}{{////}}`",
+			[]Token{{tokION_LITERAL, "{{////}}{{////}}", ast.Loc{Start: 0, End: 18}}},
+		},
+		// --- a CLOB whose quoted string contains '//': the '{{ ... }}' is NOT
+		//     a valid ION_BLOB (the '"' is not base64), so the braces are
+		//     ION_ANY and the '"a//b"' is a SHORT_QUOTED_STRING in which '//'
+		//     is plain content (not a comment). The trailing backtick closes.
+		//     Confirms the blob and string scanners compose. Oracle: single
+		//     literal. ---
+		{
+			"ion_clob_double_slash_in_string",
+			"`{{ \"a//b\" }}`",
+			[]Token{{tokION_LITERAL, "{{ \"a//b\" }}", ast.Loc{Start: 0, End: 14}}},
 		},
 		// --- a backtick in a {{ }} region is NOT protected: braces are
 		//     ION_ANY (the grammar's ION_BLOB matches base64 only, which
@@ -577,6 +623,97 @@ func TestLexer_IonMode(t *testing.T) {
 			"ion_escaped_quote_in_short_string",
 			"`\"a\\\"`b\"`",
 			[]Token{{tokION_LITERAL, "\"a\\\"`b\"", ast.Loc{Start: 0, End: 9}}},
+		},
+		// --- INVALID escape does not protect the following byte. Per
+		//     PartiQLLexer.g4 TEXT_ESCAPE (g4 465-466) only COMMON_ESCAPE /
+		//     HEX_ESCAPE / UNICODE_ESCAPE are escapes; '\q' is none of these.
+		//     So inside a short string, '"\q' cannot be SHORT_QUOTED_STRING
+		//     content, the '"' degrades to ION_ANY, and the backtick after
+		//     '\q' is a standalone ION_CLOSURE that ends the literal. The
+		//     trailing 'x' is an ordinary identifier. Codex P2 regression
+		//     case; oracle: `"\q` -> ION_CLOSURE (content "\q); x -> IDENT.
+		{
+			"ion_invalid_escape_short_string_closes",
+			"`\"\\q`x",
+			[]Token{
+				{tokION_LITERAL, "\"\\q", ast.Loc{Start: 0, End: 5}},
+				{tokIDENT, "x", ast.Loc{Start: 5, End: 6}},
+			},
+		},
+		// --- same for a single-quoted symbol: '\q' is not a valid escape,
+		//     the "'" degrades to ION_ANY, and the backtick closes. ---
+		{
+			"ion_invalid_escape_symbol_closes",
+			"`'\\q`x",
+			[]Token{
+				{tokION_LITERAL, "'\\q", ast.Loc{Start: 0, End: 5}},
+				{tokIDENT, "x", ast.Loc{Start: 5, End: 6}},
+			},
+		},
+		// --- INVALID escape with a LATER quote. This is the exact Codex P2
+		//     shape: a short string with '\q', then a backtick, then a later
+		//     '"'. A buggy scanner that treats '\q' as a protected escape
+		//     would keep the string open, close it at the LATER '"', and thus
+		//     swallow the first backtick — emitting the wrong content (or
+		//     erroring). The grammar forbids this: '\q' is not a TEXT_ESCAPE,
+		//     so the '"' is ION_ANY and the first backtick closes the literal.
+		//     The trailing '"z"' is then an ordinary quoted identifier. Oracle:
+		//       `"\q` -> ION_CLOSURE (content "\q); "z" -> IDENTIFIER_QUOTED.
+		{
+			"ion_invalid_escape_short_string_later_quote",
+			"`\"\\q` \"z\"",
+			[]Token{
+				{tokION_LITERAL, "\"\\q", ast.Loc{Start: 0, End: 5}},
+				{tokIDENT_QUOTED, "z", ast.Loc{Start: 6, End: 9}},
+			},
+		},
+		// --- same shape for a single-quoted symbol with a later "'". A buggy
+		//     escape would close the symbol at the later quote; the grammar
+		//     closes the literal at the first backtick. The trailing "'z'" is
+		//     an ordinary single-quoted string. Oracle: `'\q` -> ION_CLOSURE;
+		//     'z' -> LITERAL_STRING. ---
+		{
+			"ion_invalid_escape_symbol_later_quote",
+			"`'\\q` 'z'",
+			[]Token{
+				{tokION_LITERAL, "'\\q", ast.Loc{Start: 0, End: 5}},
+				{tokSCONST, "z", ast.Loc{Start: 6, End: 9}},
+			},
+		},
+		// --- a backslash immediately before a backtick is NOT an escape: the
+		//     backtick is not a COMMON_ESCAPE_CODE (g4 504-519). So '\`' does
+		//     not protect the backtick; the '"' and '\' are ION_ANY and the
+		//     backtick closes. Oracle: `"\` -> ION_CLOSURE (content "\); x ->
+		//     IDENT. ---
+		{
+			"ion_backslash_then_backtick_closes",
+			"`\"\\`x",
+			[]Token{
+				{tokION_LITERAL, "\"\\", ast.Loc{Start: 0, End: 4}},
+				{tokIDENT, "x", ast.Loc{Start: 4, End: 5}},
+			},
+		},
+		// --- a VALID escape DOES protect the following backtick (regression
+		//     guard for the fix above). '\n' is a COMMON_ESCAPE, so the short
+		//     string "\n`" stays open across the inner backtick and the literal
+		//     closes only at the final backtick. ---
+		{
+			"ion_valid_escape_protects_backtick",
+			"`\"\\n`\"`",
+			[]Token{{tokION_LITERAL, "\"\\n`\"", ast.Loc{Start: 0, End: 7}}},
+		},
+		// --- a VALID escape spelled uppercase still protects: caseInsensitive
+		//     (g4 line 4) makes '\N' == '\n' a COMMON_ESCAPE. ---
+		{
+			"ion_valid_escape_uppercase_protects",
+			"`\"\\N`\"`",
+			[]Token{{tokION_LITERAL, "\"\\N`\"", ast.Loc{Start: 0, End: 7}}},
+		},
+		// --- a valid HEX_ESCAPE (\xNN, g4 521-522) protects the backtick. ---
+		{
+			"ion_valid_hex_escape_protects",
+			"`\"\\x41`\"`",
+			[]Token{{tokION_LITERAL, "\"\\x41`\"", ast.Loc{Start: 0, End: 9}}},
 		},
 		// --- a real Ion timestamp value (PartiQL spec example) ---
 		{
@@ -738,6 +875,35 @@ func TestLexer_IonMode_Errors(t *testing.T) {
 			input:     "`a//b",
 			wantErrIn: "unterminated Ion literal",
 		},
+		{
+			// '{{ //// ' is NOT a valid ION_BLOB (no closing '}}' LOB_END), so
+			// the braces are ION_ANY and the '//' starts an ION_INLINE_COMMENT
+			// that runs to EOF, swallowing the closing backtick. Distinguishes
+			// "valid blob shields '//'" from "invalid blob leaves '//' a
+			// comment". Oracle: zero tokens (mode never popped).
+			name:      "unterminated_invalid_blob_slash_comment",
+			input:     "`{{ //// ",
+			wantErrIn: "unterminated Ion literal",
+		},
+		{
+			// '{{//}}' is NOT a valid ION_BLOB ('//' is only two base64 chars,
+			// not a BASE_64_QUARTET and not a BASE_64_PAD), so the '//' begins
+			// an ION_INLINE_COMMENT that eats '}}' + the backtick to EOF.
+			// Oracle: zero tokens.
+			name:      "unterminated_short_blob_slash_comment",
+			input:     "`{{//}}`",
+			wantErrIn: "unterminated Ion literal",
+		},
+		{
+			// A valid ION_BLOB is consumed whole, but a '//' that appears
+			// AFTER the lob is an ordinary ION_INLINE_COMMENT: it runs to EOF
+			// and swallows the closing backtick. Confirms the blob matcher
+			// only shields '//' that is base64 CONTENT, not '//' outside the
+			// lob. Oracle: zero tokens.
+			name:      "unterminated_comment_after_blob",
+			input:     "`{{ //// }} // c",
+			wantErrIn: "unterminated Ion literal",
+		},
 	}
 
 	for _, tc := range cases {
@@ -780,6 +946,9 @@ func TestLexer_IonMode_RoundTrip(t *testing.T) {
 		"`// c`omment\n42`",
 		"`/* c`c */1`",
 		"`{{ aGVsbG8= }}`",
+		"`{{ //// }}`",
+		"`{{////}}`",
+		"`{{ \"a//b\" }}`",
 		"`{{ \"}}\" }}`",
 		"`{{ '''}}''' }}`",
 		"`'a\\'`b'`",
