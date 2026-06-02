@@ -24,11 +24,15 @@ type Table struct {
 func (t *Table) Schema() *Schema { return t.schema }
 
 // addColumn appends a column, recording its index by its (already-normalized)
-// name. A duplicate name keeps the first column's position but updates the
-// index to point at the latest definition; callers loading a metadata snapshot
-// should not supply duplicates.
+// name. A duplicate name replaces the existing column in place (last definition
+// wins) so the ordinal column list never contains duplicates; callers loading a
+// metadata snapshot should not supply duplicates.
 func (t *Table) addColumn(col *Column) {
 	if col == nil {
+		return
+	}
+	if idx, ok := t.colByName[col.Name]; ok {
+		t.columns[idx] = col
 		return
 	}
 	t.colByName[col.Name] = len(t.columns)

@@ -71,7 +71,11 @@ func (s *Schema) Tables() []string {
 // is replaced.
 func (s *Schema) AddView(name string, columns ...*Column) *View {
 	v := &View{Name: name, schema: s}
-	v.columns = append(v.columns, columns...)
+	for _, col := range columns {
+		if col != nil {
+			v.columns = append(v.columns, col)
+		}
+	}
 	s.views[name] = v
 	return v
 }
