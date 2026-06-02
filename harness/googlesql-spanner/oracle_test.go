@@ -27,9 +27,14 @@ func TestClassify(t *testing.T) {
 		{"dml syntax", "dml", status.Error(codes.InvalidArgument, "Syntax error: Unexpected keyword VALUE [at 1:25]"), "reject", "syntax"},
 		{"query FailedPrecondition is not a grammar verdict", "query", status.Error(codes.FailedPrecondition, "some precondition"), "error", "infra"},
 		{"query generic Internal", "query", status.Error(codes.Internal, "internal emulator crash"), "error", "infra"},
-		// DDL: keyed on CODE (robust to message drift). InvalidArgument => parse reject.
-		{"ddl syntax (canonical message)", "ddl", status.Error(codes.InvalidArgument, "Error parsing Spanner DDL statement: CREATE TABL ... : Syntax error on line 1"), "reject", "syntax"},
-		{"ddl syntax (drifted message, code-based)", "ddl", status.Error(codes.InvalidArgument, "Error parsing Spanner DDL statement [at 1:8]: bogus"), "reject", "syntax"},
+		{"query RET_CHECK is NOT accepted (DDL-scoped)", "query", status.Error(codes.Internal, "GOOGLESQL_RET_CHECK failure"), "error", "infra"},
+		{"query runtime out-of-range (e.g. div by zero) => parsed", "query", status.Error(codes.OutOfRange, "Division by zero: 1 / 0"), "accept", "semantic"},
+		// DDL: parse failure carries the exact prefix => reject; semantic InvalidArgument (NO prefix) => accept.
+		{"ddl syntax (canonical prefix)", "ddl", status.Error(codes.InvalidArgument, "Error parsing Spanner DDL statement: CREATE TABL ... : Syntax error on line 1"), "reject", "syntax"},
+		{"ddl semantic: bad index column", "ddl", status.Error(codes.InvalidArgument, "Index ix specifies key column nope which does not exist in the base table base"), "accept", "semantic"},
+		{"ddl semantic: column type change", "ddl", status.Error(codes.InvalidArgument, "Cannot change type of column id from INT64 to STRING(10)"), "accept", "semantic"},
+		{"ddl semantic: generated-column expr (starts 'Error parsing ' but not the prefix)", "ddl", status.Error(codes.InvalidArgument, "Error parsing the definition of generated column g: Unrecognized name: nope"), "accept", "semantic"},
+		{"ddl semantic: bad length", "ddl", status.Error(codes.InvalidArgument, "Bad length for column a: 99999999"), "accept", "semantic"},
 		{"ddl dup name", "ddl", status.Error(codes.FailedPrecondition, "Duplicate name in schema: T."), "accept", "semantic"},
 		{"ddl missing interleave parent", "ddl", status.Error(codes.NotFound, "Table not found: p"), "accept", "semantic"},
 		{"ddl bad type (ret_check quirk)", "ddl", status.Error(codes.Internal, "GOOGLESQL_RET_CHECK failure (ddl_type_conversion.cc)"), "accept", "semantic"},
@@ -37,7 +42,8 @@ func TestClassify(t *testing.T) {
 		// Resource-level lifecycle misses (scratch DB/session gone) are infra, NOT a grammar verdict.
 		{"database gone (notfound)", "ddl", status.Error(codes.NotFound, "Database not found: projects/p/instances/i/databases/testdb"), "error", "infra"},
 		{"database already exists", "ddl", status.Error(codes.AlreadyExists, "Database already exists: testdb"), "error", "infra"},
-		{"session gone (notfound)", "query", status.Error(codes.NotFound, "Session not found: ..."), "error", "infra"},
+		{"session gone (notfound)", "query", status.Error(codes.NotFound, "Session not found: projects/p/.../sessions/0"), "error", "infra"},
+		{"table literally named Session is NOT misrouted to infra", "ddl", status.Error(codes.NotFound, "Table not found: Session"), "accept", "semantic"},
 		// Transport / availability — fail closed regardless of kind.
 		{"emulator down (unavailable)", "query", status.Error(codes.Unavailable, "connection refused"), "error", "infra"},
 		{"deadline exceeded (grpc)", "ddl", status.Error(codes.DeadlineExceeded, "context deadline exceeded"), "error", "infra"},

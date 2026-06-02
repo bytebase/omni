@@ -13,12 +13,17 @@
 //
 //	docs/migration/googlesql/oracle.md
 //
-// In short, classification is FAIL-CLOSED and kind-aware (see classify):
+// In short, classification is FAIL-CLOSED and kind-aware (see classify); parse
+// rejects key on the error-message PREFIX (InvalidArgument is overloaded by
+// semantic failures in both kinds):
 //
 //	query/DML: InvalidArgument + "Syntax error:" -> REJECT; other InvalidArgument
-//	           (Table not found, Unrecognized name, "X is not supported") -> ACCEPT.
-//	DDL:       InvalidArgument -> REJECT (parse); FailedPrecondition/NotFound and
-//	           the Internal GOOGLESQL_RET_CHECK quirk -> ACCEPT (semantic).
+//	           (Table not found, Unrecognized name, "X is not supported") and a
+//	           runtime OutOfRange -> ACCEPT.
+//	DDL:       InvalidArgument + "Error parsing Spanner DDL statement:" -> REJECT;
+//	           other InvalidArgument (bad index col, type change, generated/check/
+//	           default expr), FailedPrecondition/NotFound, and the Internal
+//	           GOOGLESQL_RET_CHECK quirk -> ACCEPT (semantic).
 //	anything else (Unavailable, DeadlineExceeded, Canceled, Aborted, a resource-
 //	level miss, a generic Internal, a non-gRPC error) -> verdict "error": the
 //	oracle could not decide. It NEVER returns ACCEPT for an infra failure.
@@ -334,17 +339,29 @@ func classify(kind string, err error) verdict {
 	}
 	// A resource-level NotFound/AlreadyExists (the scratch database/instance/
 	// session is gone — e.g. after an emulator restart) is infra, NOT a
-	// per-statement semantic result. Distinguish from "Table/Column not found".
-	if (code == codes.NotFound || code == codes.AlreadyExists) &&
-		(strings.Contains(msg, "Database") || strings.Contains(msg, "Instance") || strings.Contains(msg, "Session")) {
+	// per-statement semantic result. Match the specific lifecycle phrases so a
+	// table/column literally named "Session" (msg "Table not found: Session")
+	// is NOT misrouted here.
+	if (code == codes.NotFound || code == codes.AlreadyExists) && isResourceLevel(msg) {
 		v.Verdict, v.Reason = "error", "infra"
 		return v
 	}
 
 	if kind == "ddl" {
+		// DDL PARSE failures (InvalidArgument) carry the exact prefix below;
+		// DDL SEMANTIC failures are ALSO InvalidArgument but do NOT (verified:
+		// bad index column, column type change, bad length, generated/CHECK/
+		// DEFAULT expression errors — the latter start "Error parsing " but
+		// diverge before "...statement:"). So the prefix, not the code, is the
+		// discriminator. (Drift risk is mitigated by pinning the emulator
+		// digest + a required-green live TestOracleLive; see oracle.md.)
 		switch code {
-		case codes.InvalidArgument: // "Error parsing Spanner DDL statement: ..."
-			v.Verdict, v.Reason = "reject", "syntax"
+		case codes.InvalidArgument:
+			if strings.HasPrefix(msg, "Error parsing Spanner DDL statement:") {
+				v.Verdict, v.Reason = "reject", "syntax"
+			} else {
+				v.Verdict, v.Reason = "accept", "semantic" // semantic InvalidArgument => grammar parsed
+			}
 		case codes.FailedPrecondition, codes.NotFound: // Duplicate name / missing INTERLEAVE parent
 			v.Verdict, v.Reason = "accept", "semantic"
 		case codes.Internal:
@@ -360,17 +377,37 @@ func classify(kind string, err error) verdict {
 	}
 
 	// query / dml
-	if code == codes.InvalidArgument {
+	switch code {
+	case codes.InvalidArgument:
 		if strings.HasPrefix(msg, "Syntax error:") {
 			v.Verdict, v.Reason = "reject", "syntax"
 		} else {
 			v.Verdict, v.Reason = "accept", "semantic" // Table not found / Unrecognized name / "X is not supported"
 		}
-		return v
+	case codes.OutOfRange:
+		// A first-row runtime error (e.g. division by zero) means the statement
+		// parsed and analyzed fine — grammar ACCEPT.
+		v.Verdict, v.Reason = "accept", "semantic"
+	default:
+		// generic Internal and anything else: the oracle cannot decide.
+		v.Verdict, v.Reason = "error", "infra"
 	}
-	// Any other code for a query/DML (incl. generic Internal) is infra.
-	v.Verdict, v.Reason = "error", "infra"
 	return v
+}
+
+// isResourceLevel reports whether a NotFound/AlreadyExists message is about the
+// scratch database/instance/session lifecycle (infra) rather than a per-
+// statement object reference.
+func isResourceLevel(msg string) bool {
+	for _, p := range []string{
+		"Database not found", "Instance not found", "Session not found",
+		"Database already exists", "Instance already exists",
+	} {
+		if strings.Contains(msg, p) {
+			return true
+		}
+	}
+	return false
 }
 
 func oneLine(s string) string {
@@ -402,12 +439,11 @@ func kindOf(sql string) string {
 		// which still yields a Spanner verdict.
 		//
 		// Known limitation: a WITH-led DML (`WITH cte AS (...) INSERT/UPDATE/
-		// DELETE ...`) routes here, not through the DML abort path. The
-		// accept/reject verdict is still preserved — a malformed statement emits
-		// "Syntax error:" at parse time (before the read-only-execution-mode
-		// check), and a valid one is accepted — but the `reason` may read
-		// semantic instead of ok. Cheap to live with; revisit if WITH-DML shows
-		// up in the differential corpus.
+		// DELETE ...`) routes here, not through the DML abort path. In practice
+		// Spanner does not support WITH-led DML at all (it returns
+		// "Syntax error: Unexpected keyword INSERT"), so this routes to a
+		// deterministic `reject` — non-authoritative for the BigQuery+Spanner
+		// union, so such forms should be triangulated, not trusted from here.
 		return "query"
 	}
 }

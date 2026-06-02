@@ -53,11 +53,14 @@ Decision rule the harness uses (**fail-closed** — an oracle must never let an
 infra failure masquerade as ACCEPT, or it silently corrupts every grammar
 node's differential):
 
-The harness keys on the gRPC **code** wherever possible (message text floats
-with the emulator image): for **DDL**, a parse failure is `InvalidArgument`
-while semantic failures are `FailedPrecondition`/`NotFound`/`Internal`, so the
-code alone decides; only query/DML reject still needs the `Syntax error:`
-message prefix.
+Both query/DML **and DDL** parse rejects are keyed on the error-message
+**prefix** — `InvalidArgument` is overloaded (it covers semantic failures too:
+for DDL, e.g. a bad index column, a column type change, a bad length, or a
+generated/CHECK/DEFAULT expression error — all grammatically valid). A genuine
+DDL *parse* error always carries `Error parsing Spanner DDL statement:`; DDL
+*semantic* `InvalidArgument` never does (some start `Error parsing ` but diverge
+before `...statement:`). The prefix is the discriminator; drift is mitigated by
+pinning the emulator digest + a required-green live `TestOracleLive`.
 
 ```
 classify(kind, err):
@@ -66,15 +69,19 @@ classify(kind, err):
   code, msg = grpcStatus(err)
   if code in {Unavailable, DeadlineExceeded, Canceled, Aborted,
               ResourceExhausted, Unknown, Unauthenticated, PermissionDenied}: ERROR (infra)
-  if code in {NotFound, AlreadyExists} and msg mentions Database/Instance/Session: ERROR (infra)  # scratch resource gone
+  if code in {NotFound, AlreadyExists} and msg has a lifecycle phrase
+     ("Database not found", "Instance not found", "Session not found",
+      "Database already exists"):                                            ERROR (infra)  # scratch resource gone
   if kind == "ddl":
-     InvalidArgument                  -> REJECT (syntax)    # DDL parse failure
+     InvalidArgument + "Error parsing Spanner DDL statement:" -> REJECT (syntax)  # DDL parse failure
+     InvalidArgument (other)           -> ACCEPT (semantic)  # bad index col / type change / length / generated|check|default expr
      FailedPrecondition | NotFound     -> ACCEPT (semantic)  # Duplicate name / missing INTERLEAVE parent
      Internal + "GOOGLESQL_RET_CHECK"  -> ACCEPT (semantic)  # emulator quirk on unknown type (parsed)
      else                              -> ERROR  (infra)
   else:  # query / dml
      InvalidArgument + "Syntax error:" -> REJECT (syntax)
      InvalidArgument (other)           -> ACCEPT (semantic)  # Table not found / Unrecognized name / "X is not supported"
+     OutOfRange                        -> ACCEPT (semantic)  # runtime eval error (e.g. div by zero) => parsed
      else                              -> ERROR  (infra)
 ```
 
