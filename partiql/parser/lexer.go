@@ -732,21 +732,51 @@ func (l *Lexer) ionEscapeLen(at int) int {
 	return 0
 }
 
+// ionShortTextDisallowsRaw reports whether b is a raw byte that the Ion
+// SHORT string / quoted symbol grammars exclude from their content sets
+// (STRING_SHORT_TEXT_ALLOWED g4 451-456, SYMBOL_TEXT_ALLOWED g4 494-499).
+// Both rules allow U+0020..U+FFFF (minus the delimiter and backslash,
+// handled by the caller) plus exactly the WS_NOT_NL bytes below U+0020 —
+// U+0009 tab, U+000B vertical tab, U+000C form feed (g4 536-541).
+// Every OTHER C0 control byte (U+0000..U+0008, U+000A LF, U+000D CR,
+// U+000E..U+001F) is excluded; a raw occurrence makes the rule fail to
+// match (it must be written as an escape instead), so the caller degrades
+// the opener to ION_ANY. Bytes >= 0x20 — including UTF-8 lead/continuation
+// bytes (>= 0x80) and DEL/C1 (which the g4 ranges admit) — are content.
+// This is byte-for-byte the same boundary as the generated ANTLR lexer
+// (verified differentially against the antlr_fallback oracle). LONG strings
+// are NOT subject to this: their WS allows raw newlines (see scanIonLongString).
+func ionShortTextDisallowsRaw(b byte) bool {
+	if b >= 0x20 {
+		return false
+	}
+	switch b {
+	case '\t', '\v', '\f': // U+0009, U+000B, U+000C — WS_NOT_NL, allowed
+		return false
+	default:
+		return true
+	}
+}
+
 // scanIonQuoted consumes a single-character-delimited Ion text token —
 // a double-quoted short string (g4 417-419) or a single-quoted symbol
 // (g4 425-426) — and reports whether the closing quote was found. A
 // backslash escapes the following byte ONLY when it forms a valid Ion
 // TEXT_ESCAPE (g4 465-466); an invalid escape (e.g. '\q') means the token
-// cannot match and the caller degrades the opener to ION_ANY. Positioned
-// at the opening quote. Returns false if EOF is reached before the closer,
-// if a dangling/invalid backslash is hit, or on a bare control character
-// the grammar excludes — in every such case the opener is ION_ANY.
+// cannot match and the caller degrades the opener to ION_ANY. A raw
+// newline or other disallowed control byte (ionShortTextDisallowsRaw) is
+// likewise NOT permitted as content — it must be escaped — so encountering
+// one is a match failure, not content (this prevents a stray raw newline
+// from holding the string open across a backtick and swallowing the SQL
+// that follows). Positioned at the opening quote. Returns false if EOF is
+// reached before the closer, on a dangling/invalid backslash, or on a
+// disallowed raw control byte — in every such case the opener is ION_ANY.
 func (l *Lexer) scanIonQuoted(quote byte) bool {
 	l.pos++ // skip opening quote
 	for l.pos < len(l.input) {
 		ch := l.input[l.pos]
-		switch ch {
-		case '\\':
+		switch {
+		case ch == '\\':
 			// Escape: only a valid TEXT_ESCAPE keeps the token going. An
 			// invalid or dangling escape means this is not a string/symbol
 			// at all (the '\' is excluded from the allowed set), so report
@@ -756,9 +786,15 @@ func (l *Lexer) scanIonQuoted(quote byte) bool {
 				return false
 			}
 			l.pos += n
-		case quote:
+		case ch == quote:
 			l.pos++ // skip closing quote
 			return true
+		case ionShortTextDisallowsRaw(ch):
+			// Raw newline / disallowed control byte: not valid SHORT-string
+			// or symbol content, so the rule cannot match. Fail and let the
+			// caller degrade the opener to ION_ANY (so a later quote does
+			// NOT close this token across an intervening backtick).
+			return false
 		default:
 			l.pos++
 		}

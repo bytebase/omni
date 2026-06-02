@@ -715,6 +715,137 @@ func TestLexer_IonMode(t *testing.T) {
 			"`\"\\x41`\"`",
 			[]Token{{tokION_LITERAL, "\"\\x41`\"", ast.Loc{Start: 0, End: 9}}},
 		},
+		// --- RAW NEWLINE inside a SHORT string is NOT valid content. Per
+		//     PartiQLLexer.g4 STRING_SHORT_TEXT_ALLOWED (g4 451-456), the
+		//     content set starts at U+0020 plus only WS_NOT_NL (tab / vtab /
+		//     form-feed, g4 536-541); a raw U+000A (LF) must be escaped. So a
+		//     SHORT string carrying a raw newline cannot match: the '"' degrades
+		//     to ION_ANY, the raw bytes are ION_ANY, and the FIRST backtick is a
+		//     standalone ION_CLOSURE that ends the literal. A buggy scanner that
+		//     accepted the newline as content would keep the string open across
+		//     the backtick and close at the LATER '"', swallowing the trailing
+		//     SQL. Codex round-3 P2 case; verified against the generated ANTLR
+		//     lexer oracle: `"a\nb` -> ION_CLOSURE (content "a\nb); "z" ->
+		//     IDENTIFIER_QUOTED.
+		{
+			"ion_raw_newline_short_string_later_quote",
+			"`\"a\nb` \"z\"",
+			[]Token{
+				{tokION_LITERAL, "\"a\nb", ast.Loc{Start: 0, End: 6}},
+				{tokIDENT_QUOTED, "z", ast.Loc{Start: 7, End: 10}},
+			},
+		},
+		// --- same shape for a single-quoted SYMBOL: SYMBOL_TEXT_ALLOWED
+		//     (g4 494-499) excludes raw newline too, so the "'" degrades to
+		//     ION_ANY and the first backtick closes; the trailing "'z'" is an
+		//     ordinary single-quoted string. Oracle: `'a\nb` -> ION_CLOSURE;
+		//     'z' -> LITERAL_STRING. ---
+		{
+			"ion_raw_newline_symbol_later_quote",
+			"`'a\nb` 'z'",
+			[]Token{
+				{tokION_LITERAL, "'a\nb", ast.Loc{Start: 0, End: 6}},
+				{tokSCONST, "z", ast.Loc{Start: 7, End: 10}},
+			},
+		},
+		// --- raw newline in a SHORT string, simple close (no later quote): the
+		//     '"' is ION_ANY and the backtick closes; trailing 'x' is an
+		//     identifier. Oracle: `"a\nb` -> ION_CLOSURE; x -> IDENTIFIER. ---
+		{
+			"ion_raw_newline_short_string_closes",
+			"`\"a\nb`x",
+			[]Token{
+				{tokION_LITERAL, "\"a\nb", ast.Loc{Start: 0, End: 6}},
+				{tokIDENT, "x", ast.Loc{Start: 6, End: 7}},
+			},
+		},
+		// --- raw newline in a SYMBOL, simple close. ---
+		{
+			"ion_raw_newline_symbol_closes",
+			"`'a\nb`x",
+			[]Token{
+				{tokION_LITERAL, "'a\nb", ast.Loc{Start: 0, End: 6}},
+				{tokIDENT, "x", ast.Loc{Start: 6, End: 7}},
+			},
+		},
+		// --- raw CARRIAGE RETURN (U+000D) is excluded from the SHORT set
+		//     exactly like LF (both are ION_NEWLINE, g4 432-436, not in
+		//     WS_NOT_NL). The '"' degrades and the backtick closes. ---
+		{
+			"ion_raw_cr_short_string_closes",
+			"`\"a\rb`x",
+			[]Token{
+				{tokION_LITERAL, "\"a\rb", ast.Loc{Start: 0, End: 6}},
+				{tokIDENT, "x", ast.Loc{Start: 6, End: 7}},
+			},
+		},
+		// --- a raw NUL (U+0000), a C0 control byte excluded from the SHORT set,
+		//     also fails the match; the '"' degrades and the backtick closes. ---
+		{
+			"ion_raw_nul_short_string_closes",
+			"`\"a\x00b`x",
+			[]Token{
+				{tokION_LITERAL, "\"a\x00b", ast.Loc{Start: 0, End: 6}},
+				{tokIDENT, "x", ast.Loc{Start: 6, End: 7}},
+			},
+		},
+		// --- a raw U+001F (unit separator), the highest excluded C0 control
+		//     byte, fails the match too. Boundary guard just below U+0020. ---
+		{
+			"ion_raw_us_short_string_closes",
+			"`\"a\x1fb`x",
+			[]Token{
+				{tokION_LITERAL, "\"a\x1fb", ast.Loc{Start: 0, End: 6}},
+				{tokIDENT, "x", ast.Loc{Start: 6, End: 7}},
+			},
+		},
+		// --- a raw TAB (U+0009) IS valid SHORT content: it is in WS_NOT_NL
+		//     (g4 536-541). So the string stays open ACROSS the inner backtick
+		//     and closes only at the final '"'+backtick. Regression guard that
+		//     the control-byte rejection does NOT over-reject the allowed
+		//     whitespace. Oracle: `"a\tb`"` -> one ION_CLOSURE (content
+		//     "a\tb`"). ---
+		{
+			"ion_raw_tab_short_string_is_content",
+			"`\"a\tb`\"`",
+			[]Token{{tokION_LITERAL, "\"a\tb`\"", ast.Loc{Start: 0, End: 8}}},
+		},
+		// --- a raw VERTICAL TAB (U+000B) is WS_NOT_NL too -> content. ---
+		{
+			"ion_raw_vtab_short_string_is_content",
+			"`\"a\vb`\"`",
+			[]Token{{tokION_LITERAL, "\"a\vb`\"", ast.Loc{Start: 0, End: 8}}},
+		},
+		// --- a raw FORM FEED (U+000C) is WS_NOT_NL too -> content. ---
+		{
+			"ion_raw_formfeed_short_string_is_content",
+			"`\"a\fb`\"`",
+			[]Token{{tokION_LITERAL, "\"a\fb`\"", ast.Loc{Start: 0, End: 8}}},
+		},
+		// --- a raw TAB inside a SYMBOL is likewise WS_NOT_NL content; the
+		//     symbol spans the backtick and closes at the final "'"+backtick. ---
+		{
+			"ion_raw_tab_symbol_is_content",
+			"`'a\tb`'`",
+			[]Token{{tokION_LITERAL, "'a\tb`'", ast.Loc{Start: 0, End: 8}}},
+		},
+		// --- a LONG string (''' ''') legitimately SPANS raw newlines: its
+		//     STRING_LONG_TEXT_ALLOWED (g4 459-462) admits WS = [ \r\n\t]
+		//     (g4 390-391). So a raw newline inside a long string is content,
+		//     NOT a match failure — the control-byte rejection must not touch
+		//     long strings. Regression guard. (Mirrors ion_long_string_multiline
+		//     above; pinned here next to the short-string cases for contrast.) ---
+		{
+			"ion_raw_newline_long_string_is_content",
+			"`'''a\nb'''`",
+			[]Token{{tokION_LITERAL, "'''a\nb'''", ast.Loc{Start: 0, End: 11}}},
+		},
+		// --- a raw CR inside a LONG string is also content (WS includes \r). ---
+		{
+			"ion_raw_cr_long_string_is_content",
+			"`'''a\rb'''`",
+			[]Token{{tokION_LITERAL, "'''a\rb'''", ast.Loc{Start: 0, End: 11}}},
+		},
 		// --- a real Ion timestamp value (PartiQL spec example) ---
 		{
 			"ion_timestamp",
