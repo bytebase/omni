@@ -1,0 +1,100 @@
+package main
+
+import (
+	"context"
+	"os"
+	"testing"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
+
+func TestClassify(t *testing.T) {
+	cases := []struct {
+		name        string
+		err         error
+		wantVerdict string
+		wantReason  string
+	}{
+		{"nil", nil, "accept", "ok"},
+		{"query syntax", status.Error(codes.InvalidArgument, `Syntax error: Unexpected identifier "SELEC" [at 1:1]`), "reject", "syntax"},
+		{"ddl syntax", status.Error(codes.InvalidArgument, "Error parsing Spanner DDL statement: CREATE TABL ... : Syntax error on line 1"), "reject", "syntax"},
+		{"unknown table", status.Error(codes.InvalidArgument, "Table not found: no_such_table [at 1:15]"), "accept", "semantic"},
+		{"unknown column", status.Error(codes.InvalidArgument, "Unrecognized name: bogus [at 1:8]"), "accept", "semantic"},
+		{"unsupported feature", status.Error(codes.InvalidArgument, "QUALIFY is not supported [at 1:18]"), "accept", "semantic"},
+		{"dup name (precondition)", status.Error(codes.FailedPrecondition, "Duplicate name in schema: T."), "accept", "semantic"},
+		{"bad type (internal)", status.Error(codes.Internal, "GOOGLESQL_RET_CHECK failure"), "accept", "semantic"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := classify(c.err)
+			if got.Verdict != c.wantVerdict || got.Reason != c.wantReason {
+				t.Fatalf("classify(%q) = {%s,%s}, want {%s,%s}", c.name, got.Verdict, got.Reason, c.wantVerdict, c.wantReason)
+			}
+		})
+	}
+}
+
+func TestKindOf(t *testing.T) {
+	cases := []struct {
+		sql  string
+		want string
+	}{
+		{"SELECT 1", "query"},
+		{"  with a as (select 1) select * from a", "query"},
+		{"VALUES (1,2)", "query"},
+		{"INSERT INTO t VALUES (1)", "dml"},
+		{"update t set x=1", "dml"},
+		{"DELETE FROM t", "dml"},
+		{"MERGE INTO t USING s ON t.id=s.id WHEN MATCHED THEN DELETE", "dml"},
+		{"CREATE TABLE t (x INT64) PRIMARY KEY (x)", "ddl"},
+		{"  alter table t add column y INT64", "ddl"},
+		{"DROP TABLE t", "ddl"},
+		{"GRANT SELECT ON TABLE t TO ROLE r", "ddl"},
+		{"-- leading comment\nSELECT 1", "query"},
+		{"# hash comment\nINSERT INTO t VALUES (1)", "dml"},
+		{"/* block */ CREATE TABLE t (x INT64) PRIMARY KEY (x)", "ddl"},
+		{"@{OPTIMIZER_VERSION=1} SELECT 1", "query"},
+	}
+	for _, c := range cases {
+		if got := kindOf(c.sql); got != c.want {
+			t.Errorf("kindOf(%q) = %q, want %q", c.sql, got, c.want)
+		}
+	}
+}
+
+// TestOracleLive exercises the full path against a running emulator. It skips
+// when SPANNER_EMULATOR_HOST is unset or the emulator is unreachable.
+func TestOracleLive(t *testing.T) {
+	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		t.Skip("SPANNER_EMULATOR_HOST unset; skipping live oracle test")
+	}
+	ctx := context.Background()
+	o, err := newOracle(ctx)
+	if err != nil {
+		t.Skipf("emulator bootstrap failed (is it running?): %v", err)
+	}
+	defer o.close()
+
+	cases := []struct {
+		sql         string
+		wantVerdict string
+		wantKind    string
+	}{
+		{"SELECT 1", "accept", "query"},
+		{"SELEC 1", "reject", "query"},
+		{"@@@ garbage !!", "reject", "query"},
+		{"SELECT * FROM no_such_table", "accept", "query"},
+		{"INSERT INTO no_such (id) VALUES (1)", "accept", "dml"},
+		{"INSERT INTO t (id) VALUE (1)", "reject", "dml"},
+		{"CREATE TABLE live_t (x INT64) PRIMARY KEY (x)", "accept", "ddl"},
+		{"CREATE TABL live_bad (x INT64) PRIMARY KEY (x)", "reject", "ddl"},
+	}
+	for _, c := range cases {
+		v := o.evaluate(ctx, c.sql)
+		if v.Verdict != c.wantVerdict || v.Kind != c.wantKind {
+			t.Errorf("evaluate(%q) = {%s,%s,%s}, want verdict=%s kind=%s (msg=%q)",
+				c.sql, v.Verdict, v.Kind, v.Reason, c.wantVerdict, c.wantKind, v.Message)
+		}
+	}
+}
