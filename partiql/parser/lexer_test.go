@@ -488,11 +488,83 @@ func TestLexer_IonMode(t *testing.T) {
 			"`/* c`c */1`",
 			[]Token{{tokION_LITERAL, "/* c`c */1", ast.Loc{Start: 0, End: 12}}},
 		},
-		// --- backtick inside a {{ }} lob (blob/clob) ---
+		// --- a lob blob: {{ base64 }}. Braces are plain ION_ANY; the
+		//     backtick after the base64 closes the literal. ---
 		{
-			"ion_backtick_in_lob",
-			"`{{ ab`cd }}`",
-			[]Token{{tokION_LITERAL, "{{ ab`cd }}", ast.Loc{Start: 0, End: 13}}},
+			"ion_lob_blob",
+			"`{{ aGVsbG8= }}`",
+			[]Token{{tokION_LITERAL, "{{ aGVsbG8= }}", ast.Loc{Start: 0, End: 16}}},
+		},
+		// --- a backtick in a {{ }} region is NOT protected: braces are
+		//     ION_ANY (the grammar's ION_BLOB matches base64 only, which
+		//     contains no backtick), so the backtick after "x" is a
+		//     standalone ION_CLOSURE and the literal ends there. The rest
+		//     (`y`) lexes as an ordinary identifier. Verified against the
+		//     generated ANTLR lexer oracle:
+		//       `{{ x`  -> ION_CLOSURE; y -> IDENTIFIER.
+		{
+			"ion_backtick_in_lob_region_closes",
+			"`{{ x`y",
+			[]Token{
+				{tokION_LITERAL, "{{ x", ast.Loc{Start: 0, End: 6}},
+				{tokIDENT, "y", ast.Loc{Start: 6, End: 7}},
+			},
+		},
+		// --- CLOB with }} inside a double-quoted short string: the }} is
+		//     protected by SHORT_QUOTED_STRING, so the lob does not end
+		//     early; only the trailing backtick (after the real }}) closes.
+		//     This is the Codex P2 regression case. Oracle: single literal. ---
+		{
+			"ion_clob_double_brace_in_short_string",
+			"`{{ \"}}\" }}`",
+			[]Token{{tokION_LITERAL, "{{ \"}}\" }}", ast.Loc{Start: 0, End: 12}}},
+		},
+		// --- CLOB with }} mid short string then trailing content ---
+		{
+			"ion_clob_double_brace_midstring",
+			"`{{ \"a}}b\" }}`",
+			[]Token{{tokION_LITERAL, "{{ \"a}}b\" }}", ast.Loc{Start: 0, End: 14}}},
+		},
+		// --- CLOB with }} inside a triple-quoted long string ---
+		{
+			"ion_clob_double_brace_in_long_string",
+			"`{{ '''}}''' }}`",
+			[]Token{{tokION_LITERAL, "{{ '''}}''' }}", ast.Loc{Start: 0, End: 16}}},
+		},
+		// --- }} inside a single-quoted symbol within the lob region ---
+		{
+			"ion_clob_double_brace_in_symbol",
+			"`{{ '}}' }}`",
+			[]Token{{tokION_LITERAL, "{{ '}}' }}", ast.Loc{Start: 0, End: 12}}},
+		},
+		// --- escaped quote then }} inside a short string in the lob region;
+		//     the backslash escape keeps the string open across the inner
+		//     quote, so the }} is still string content. ---
+		{
+			"ion_clob_escaped_quote_then_double_brace",
+			"`{{ \"a\\\"}}\" }}`",
+			[]Token{{tokION_LITERAL, "{{ \"a\\\"}}\" }}", ast.Loc{Start: 0, End: 15}}},
+		},
+		// --- bare {{ with no base64 and no closer is just two ION_ANY
+		//     braces; the backtick closes. ---
+		{
+			"ion_bare_double_open_brace",
+			"`{{`",
+			[]Token{{tokION_LITERAL, "{{", ast.Loc{Start: 0, End: 4}}},
+		},
+		// --- bare }} is two ION_ANY braces, then the backtick closes. ---
+		{
+			"ion_bare_double_close_brace",
+			"`}}`",
+			[]Token{{tokION_LITERAL, "}}", ast.Loc{Start: 0, End: 4}}},
+		},
+		// --- an unclosed " inside the lob region degrades to ION_ANY (no
+		//     closing "), so the }} after it is ordinary content and the
+		//     backtick closes. Oracle: single literal `{{ "unclosed }}`. ---
+		{
+			"ion_lob_unclosed_string_degrades",
+			"`{{ \"unclosed }}`",
+			[]Token{{tokION_LITERAL, "{{ \"unclosed }}", ast.Loc{Start: 0, End: 17}}},
 		},
 		// --- escaped quote inside a symbol must not end the symbol ---
 		{
@@ -559,6 +631,45 @@ func TestLexer_IonMode(t *testing.T) {
 			"`a // c\n`",
 			[]Token{{tokION_LITERAL, "a // c\n", ast.Loc{Start: 0, End: 9}}},
 		},
+		// --- ANTLR maximal-munch FALLBACK to ION_ANY. A quote/comment
+		//     opener that never finds its closer does NOT match its
+		//     multi-byte rule; the opener degrades to a single-byte
+		//     ION_ANY and the next standalone backtick still closes the
+		//     literal. These were previously (incorrectly) treated as
+		//     unterminated errors; the generated ANTLR lexer oracle accepts
+		//     each as a single literal. ---
+		// open " with no closing " before the backtick: '"' is ION_ANY.
+		{
+			"ion_unclosed_short_string_falls_back",
+			"`\"abc`",
+			[]Token{{tokION_LITERAL, "\"abc", ast.Loc{Start: 0, End: 6}}},
+		},
+		// open ' with no closing ' before the backtick: "'" is ION_ANY.
+		{
+			"ion_unclosed_symbol_falls_back",
+			"`'abc`",
+			[]Token{{tokION_LITERAL, "'abc", ast.Loc{Start: 0, End: 6}}},
+		},
+		// open ''' with no closing ''': degrades through symbol to ION_ANY;
+		// the backtick closes. Oracle content: '''abc.
+		{
+			"ion_unclosed_long_string_falls_back",
+			"`'''abc`",
+			[]Token{{tokION_LITERAL, "'''abc", ast.Loc{Start: 0, End: 8}}},
+		},
+		// open /* with no closing */: '/' is ION_ANY; the backtick closes.
+		{
+			"ion_unclosed_block_comment_falls_back",
+			"`/* abc`",
+			[]Token{{tokION_LITERAL, "/* abc", ast.Loc{Start: 0, End: 8}}},
+		},
+		// open {{ with no closing }} (and no quote): braces are ION_ANY; the
+		// backtick closes. (ION_BLOB needs base64 + }}, which is absent.)
+		{
+			"ion_unclosed_lob_falls_back",
+			"`{{ abc`",
+			[]Token{{tokION_LITERAL, "{{ abc", ast.Loc{Start: 0, End: 8}}},
+		},
 	}
 
 	for _, tc := range cases {
@@ -568,11 +679,18 @@ func TestLexer_IonMode(t *testing.T) {
 	}
 }
 
-// TestLexer_IonMode_Errors covers the reject forms: an Ion literal
-// whose closing backtick never arrives because an inner sub-token
-// (string, symbol, lob, block comment) ran to EOF, or because the
-// literal itself was simply never closed. The legacy ANTLR grammar
-// rejects all of these (the ION mode is never popped).
+// TestLexer_IonMode_Errors covers the reject forms: an Ion literal that
+// runs to EOF with no standalone closing backtick. This happens either
+// because there simply is no further backtick, or because an inner
+// construct that DID match (a closing-quote-less string is NOT such a
+// construct — see TestLexer_IonMode fallbacks) swallowed the backtick:
+// a // line comment running to EOF, or a trailing backslash escape inside
+// a string. The generated ANTLR lexer oracle produces zero tokens for
+// each of these (the ION mode is never popped). NOTE: an unclosed string
+// / symbol / block-comment / lob whose opener is followed by a later
+// standalone backtick is NOT an error — ANTLR maximal-munch degrades the
+// opener to ION_ANY and the backtick closes; those accept cases live in
+// TestLexer_IonMode.
 func TestLexer_IonMode_Errors(t *testing.T) {
 	cases := []struct {
 		name      string
@@ -585,52 +703,38 @@ func TestLexer_IonMode_Errors(t *testing.T) {
 			wantErrIn: "unterminated Ion literal",
 		},
 		{
-			name:      "unterminated_open_symbol_eats_closer",
-			input:     "`'abc`",
-			wantErrIn: "unterminated Ion literal",
-		},
-		{
-			name:      "unterminated_open_short_string_eats_closer",
-			input:     "`\"abc`",
-			wantErrIn: "unterminated Ion literal",
-		},
-		{
-			name:      "unterminated_open_long_string_eats_closer",
-			input:     "`'''abc`",
-			wantErrIn: "unterminated Ion literal",
-		},
-		{
-			name:      "unterminated_open_lob_eats_closer",
-			input:     "`{{ abc`",
-			wantErrIn: "unterminated Ion literal",
-		},
-		{
-			name:      "unterminated_open_block_comment_eats_closer",
-			input:     "`/* abc`",
-			wantErrIn: "unterminated Ion literal",
-		},
-		{
+			// A trailing backslash inside an open symbol consumes the EOF
+			// boundary; no closing ' and no later backtick, so the literal
+			// never closes. Oracle: zero tokens.
 			name:      "unterminated_trailing_escape",
 			input:     "`'abc\\",
 			wantErrIn: "unterminated Ion literal",
 		},
 		{
-			// '''  opens a long string; the closing backtick is consumed
-			// as long-string content, so the literal never closes.
+			// '''  with nothing after it: no closing ''', no later
+			// backtick anywhere, so the literal runs to EOF unterminated.
 			name:      "unterminated_open_triple_quote",
 			input:     "`'''",
 			wantErrIn: "unterminated Ion literal",
 		},
 		{
-			// '  opens a symbol; the backtick is consumed as symbol text.
+			// '  with nothing after it: no closing ' and no later backtick,
+			// so the literal runs to EOF unterminated.
 			name:      "unterminated_open_single_quote",
 			input:     "`'",
 			wantErrIn: "unterminated Ion literal",
 		},
 		{
-			// A // line comment with no trailing newline runs to EOF and
-			// swallows the closing backtick (g4 408-409: '//' .*? (NL|EOF)).
+			// A // line comment with no trailing newline runs to EOF,
+			// swallowing the backtick that would otherwise have closed the
+			// literal (g4 408-409: '//' .*? (NL|EOF)). Oracle: zero tokens.
 			name:      "unterminated_line_comment_eats_closer",
+			input:     "`a // c`",
+			wantErrIn: "unterminated Ion literal",
+		},
+		{
+			// // comment to EOF with no backtick at all: also unterminated.
+			name:      "unterminated_line_comment_no_closer",
 			input:     "`a//b",
 			wantErrIn: "unterminated Ion literal",
 		},
@@ -675,7 +779,9 @@ func TestLexer_IonMode_RoundTrip(t *testing.T) {
 		"`'''a\nb'''`",
 		"`// c`omment\n42`",
 		"`/* c`c */1`",
-		"`{{ ab`cd }}`",
+		"`{{ aGVsbG8= }}`",
+		"`{{ \"}}\" }}`",
+		"`{{ '''}}''' }}`",
 		"`'a\\'`b'`",
 		"`2017-09-14T`",
 		"`{a: \"x`y\"}`",

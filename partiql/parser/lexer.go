@@ -408,15 +408,36 @@ func (l *Lexer) scanOperator() Token {
 //
 //   - // line comment           (ION_INLINE_COMMENT, g4 408-409; EOF-terminable)
 //   - /* ... */ block comment   (ION_BLOCK_COMMENT,  g4 411-412)
-//   - {{ ... }} blob/clob lob   (ION_BLOB,           g4 414-415)
 //   - "..." short string        (SHORT_QUOTED_STRING, g4 417-419)
 //   - triple-quoted long string (LONG_QUOTED_STRING,  g4 421-423)
 //   - '...' quoted symbol       (QUOTED_SYMBOL,       g4 425-426)
 //
-// Any other byte is consumed verbatim (ION_ANY, g4 430). If an inner
-// sub-token or the literal itself runs to EOF without its closer, the
-// ION mode is never popped — a syntax error, surfaced as "unterminated
-// Ion literal", matching the grammar (which would reach EOF in ION mode).
+// Any other byte is consumed verbatim (ION_ANY, g4 430).
+//
+// ANTLR lexer rules are maximal-munch WITH FALLBACK: a construct only
+// consumes its bytes if it can reach an accept state. A double-quote,
+// single-quote, triple-quote, or block-comment opener that never finds its
+// closer does NOT match its multi-byte rule; instead each of those bytes
+// degrades to the single-byte ION_ANY rule and scanning continues.
+// Concretely, the input backtick + "abc + backtick lexes as ION_ANY for the
+// '"' then 'a','b','c' then ION_CLOSURE — a *complete* literal with inner
+// content "abc, not an error. We mirror that by rewinding to one byte past
+// the opener and continuing on any sub-scanner failure. The literal is
+// unterminated only when EOF is reached with no standalone closing backtick
+// (e.g. backtick + abc with no closing backtick). This was verified
+// differentially against the generated ANTLR lexer
+// (github.com/bytebase/parser/partiql) used as the oracle; see the lob note.
+//
+// Note on Ion blobs/clobs (ION_BLOB, g4 414-415): the grammar's ION_BLOB
+// rule matches base64 + whitespace only, and base64 contains no backtick.
+// A clob such as {{ "}}" }} is therefore NOT a single ION_BLOB token in
+// this grammar — ANTLR tokenizes it as ION_ANY '{', ION_ANY '{', a
+// SHORT_QUOTED_STRING for "}}", then ION_ANY for the trailing }}, and a
+// standalone backtick closes. The }} inside the quoted string is protected
+// by the string rule, and the braces are plain ION_ANY. Hence there is no
+// lob special case here: '{' and '}' are ION_ANY, and the quoted-string
+// scanners (invoked anywhere a quote appears, including between braces)
+// consume any }} inside a string as content for free.
 //
 // The AWS DynamoDB PartiQL corpus has zero real Ion literals (the only
 // two backtick uses are placeholder skeletons filtered out of the corpus
@@ -426,6 +447,9 @@ func (l *Lexer) scanIonLiteral() Token {
 	contentStart := l.pos
 	for l.pos < len(l.input) {
 		ch := l.input[l.pos]
+		// save marks the opener of any multi-byte construct so we can
+		// rewind to one byte past it on a failed match (ION_ANY fallback).
+		save := l.pos
 		switch {
 		case ch == '`':
 			// Standalone backtick — ION_CLOSURE. Pop the sub-mode.
@@ -434,42 +458,44 @@ func (l *Lexer) scanIonLiteral() Token {
 			return Token{Type: tokION_LITERAL, Str: content, Loc: l.loc()}
 
 		case ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/':
+			// Line comment to newline or EOF. If it reaches EOF it
+			// swallows the closing backtick; the loop then exits and the
+			// literal is reported unterminated — matching ANTLR, where
+			// ION_INLINE_COMMENT consumes through EOF and the mode is
+			// never popped.
 			l.scanIonLineComment()
 
 		case ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*':
 			if !l.scanIonBlockComment() {
-				return l.unterminatedIon()
-			}
-
-		case ch == '{' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '{':
-			if !l.scanIonLob() {
-				return l.unterminatedIon()
+				// No closing */: /* does not match ION_BLOCK_COMMENT;
+				// degrade the '/' to ION_ANY and continue.
+				l.pos = save + 1
 			}
 
 		case ch == '"':
 			if !l.scanIonQuoted('"') {
-				return l.unterminatedIon()
+				// No closing ": the '"' is ION_ANY, not a string opener.
+				l.pos = save + 1
 			}
 
 		case ch == '\'' && l.matchesTripleQuote():
 			// A '''-prefixed run is a long string only if it actually
-			// closes with another '''. ANTLR lexer rules are maximal-
-			// munch: when LONG_QUOTED_STRING cannot match (no closing
-			// '''), the tokenizer falls back to QUOTED_SYMBOL, so the
-			// quotes are scanned as (possibly empty) single-quoted
-			// symbols instead. Mirror that by rewinding on failure and
-			// retrying as a symbol rather than erroring outright.
-			save := l.pos
+			// closes with another '''. On failure, ANTLR maximal-munch
+			// falls back to QUOTED_SYMBOL (the quotes scan as (possibly
+			// empty) single-quoted symbols), and a symbol that itself
+			// cannot close degrades to ION_ANY. Rewind down that ladder
+			// rather than erroring.
 			if !l.scanIonLongString() {
 				l.pos = save
 				if !l.scanIonQuoted('\'') {
-					return l.unterminatedIon()
+					l.pos = save + 1 // the leading "'" is ION_ANY
 				}
 			}
 
 		case ch == '\'':
 			if !l.scanIonQuoted('\'') {
-				return l.unterminatedIon()
+				// No closing ': the "'" is ION_ANY, not a symbol opener.
+				l.pos = save + 1
 			}
 
 		default:
@@ -504,23 +530,6 @@ func (l *Lexer) scanIonBlockComment() bool {
 	l.pos += 2 // skip /*
 	for l.pos+1 < len(l.input) {
 		if l.input[l.pos] == '*' && l.input[l.pos+1] == '/' {
-			l.pos += 2
-			return true
-		}
-		l.pos++
-	}
-	l.pos = len(l.input)
-	return false
-}
-
-// scanIonLob consumes an Ion {{ … }} blob/clob (g4 414-415) and reports
-// whether the closing }} was found. The body is captured verbatim — we
-// do not validate base64 or the inner string, only locate the closer.
-// Positioned at the first '{'. Returns false if EOF is reached first.
-func (l *Lexer) scanIonLob() bool {
-	l.pos += 2 // skip {{
-	for l.pos+1 < len(l.input) {
-		if l.input[l.pos] == '}' && l.input[l.pos+1] == '}' {
 			l.pos += 2
 			return true
 		}
