@@ -830,11 +830,12 @@ func TestLexer_IonMode(t *testing.T) {
 			[]Token{{tokION_LITERAL, "'a\tb`'", ast.Loc{Start: 0, End: 8}}},
 		},
 		// --- a LONG string (''' ''') legitimately SPANS raw newlines: its
-		//     STRING_LONG_TEXT_ALLOWED (g4 459-462) admits WS = [ \r\n\t]
+		//     STRING_LONG_TEXT_ALLOWED (g4 459-463) admits WS = [ \r\n\t]
 		//     (g4 390-391). So a raw newline inside a long string is content,
-		//     NOT a match failure — the control-byte rejection must not touch
-		//     long strings. Regression guard. (Mirrors ion_long_string_multiline
-		//     above; pinned here next to the short-string cases for contrast.) ---
+		//     NOT a match failure — long strings span lines by design. The
+		//     long-string control-byte rejection (ion_raw_*_long_string_closes
+		//     below) deliberately exempts LF/CR. Regression guard. (Mirrors
+		//     ion_long_string_multiline above; pinned here for contrast.) ---
 		{
 			"ion_raw_newline_long_string_is_content",
 			"`'''a\nb'''`",
@@ -845,6 +846,100 @@ func TestLexer_IonMode(t *testing.T) {
 			"ion_raw_cr_long_string_is_content",
 			"`'''a\rb'''`",
 			[]Token{{tokION_LITERAL, "'''a\rb'''", ast.Loc{Start: 0, End: 11}}},
+		},
+		// --- LONG-STRING raw C0 control rejection (Codex round-4 P2). A
+		//     triple-quoted long string carrying a raw C0 control byte OUTSIDE
+		//     its allowed set must NOT match: the rule fails, ANTLR maximal-munch
+		//     degrades the opening quotes through QUOTED_SYMBOL to ION_ANY, and
+		//     the FIRST standalone backtick is the ION_CLOSURE. A buggy scanner
+		//     that swallowed the control byte as content would keep the long
+		//     string open ACROSS that backtick and close only at a LATER '''',
+		//     hiding the standalone backtick and swallowing the following SQL.
+		//     The long-string allowed set DIFFERS from the SHORT set: long DOES
+		//     admit raw LF/CR (newlines, above) and — per the generated ANTLR
+		//     lexer oracle — VT/FF too (below), but rejects NUL and the other C0
+		//     controls. All boundaries verified byte-for-byte against the
+		//     generated ANTLR lexer (github.com/bytebase/parser/partiql).
+		// raw NUL (U+0000) inside the long string, simple close: the long-string
+		// rule fails on the NUL, the opening quotes degrade through QUOTED_SYMBOL
+		// to ION_ANY, and the backtick closes the literal; trailing 'x' is an
+		// identifier. Oracle: `'''a\x00b` -> ION_CLOSURE; x -> IDENTIFIER. (The
+		// later-'''' variant is the next case.)
+		{
+			"ion_raw_nul_long_string_closes",
+			"`'''a\x00b`x",
+			[]Token{
+				{tokION_LITERAL, "'''a\x00b", ast.Loc{Start: 0, End: 8}},
+				{tokIDENT, "x", ast.Loc{Start: 8, End: 9}},
+			},
+		},
+		// raw NUL with a LATER '''' present: a buggy span would close at that
+		// later '''' (inside the second literal below), hiding the standalone
+		// backtick; the correct close is the FIRST backtick. This is the exact
+		// finding shape — the standalone backtick must NOT be swallowed. After
+		// the close: '+' is an operator and `'''x'''` is a SEPARATE, complete
+		// Ion literal. Oracle: ION_CLOSURE[0:8], PLUS, ION_CLOSURE[9:18].
+		{
+			"ion_raw_nul_long_string_later_triple_quote",
+			"`'''a\x00b`+`'''x'''`",
+			[]Token{
+				{tokION_LITERAL, "'''a\x00b", ast.Loc{Start: 0, End: 8}},
+				{tokPLUS, "+", ast.Loc{Start: 8, End: 9}},
+				{tokION_LITERAL, "'''x'''", ast.Loc{Start: 9, End: 18}},
+			},
+		},
+		// raw FORM FEED (U+000C) variant: FF IS allowed long-string content
+		// (oracle), so the long string SPANS the inner backtick and closes at
+		// the LATER ''''+backtick — the opposite outcome from NUL. This is the
+		// form-feed contrast case requested in the finding; it guards that the
+		// rejection does NOT over-reject FF.
+		{
+			"ion_raw_formfeed_long_string_is_content",
+			"`'''a\x0cb`'''`x",
+			[]Token{
+				{tokION_LITERAL, "'''a\x0cb`'''", ast.Loc{Start: 0, End: 12}},
+				{tokIDENT, "x", ast.Loc{Start: 12, End: 13}},
+			},
+		},
+		// raw VERTICAL TAB (U+000B) is likewise allowed (oracle) -> spans. ---
+		{
+			"ion_raw_vtab_long_string_is_content",
+			"`'''a\vb`'''`x",
+			[]Token{
+				{tokION_LITERAL, "'''a\vb`'''", ast.Loc{Start: 0, End: 12}},
+				{tokIDENT, "x", ast.Loc{Start: 12, End: 13}},
+			},
+		},
+		// raw U+001F (unit separator), the highest disallowed C0 control byte —
+		// boundary guard just below U+0020. Closes at the first backtick. ---
+		{
+			"ion_raw_us_long_string_closes",
+			"`'''a\x1fb`x",
+			[]Token{
+				{tokION_LITERAL, "'''a\x1fb", ast.Loc{Start: 0, End: 8}},
+				{tokIDENT, "x", ast.Loc{Start: 8, End: 9}},
+			},
+		},
+		// raw U+0001 (start of heading), the lowest disallowed C0 control byte
+		// above NUL — other boundary guard. Closes at the first backtick. ---
+		{
+			"ion_raw_soh_long_string_closes",
+			"`'''a\x01b`x",
+			[]Token{
+				{tokION_LITERAL, "'''a\x01b", ast.Loc{Start: 0, End: 8}},
+				{tokIDENT, "x", ast.Loc{Start: 8, End: 9}},
+			},
+		},
+		// a normal multi-line long string carrying \r \n \t together still
+		// closes at its OWN trailing '''' (one literal), unaffected by the
+		// rejection — the core regression guard for spanning newlines. ---
+		{
+			"ion_multiline_long_string_crlf_tab",
+			"`'''l1\r\n\tl2'''`x",
+			[]Token{
+				{tokION_LITERAL, "'''l1\r\n\tl2'''", ast.Loc{Start: 0, End: 15}},
+				{tokIDENT, "x", ast.Loc{Start: 15, End: 16}},
+			},
 		},
 		// --- a real Ion timestamp value (PartiQL spec example) ---
 		{

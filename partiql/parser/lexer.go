@@ -745,13 +745,48 @@ func (l *Lexer) ionEscapeLen(at int) int {
 // bytes (>= 0x80) and DEL/C1 (which the g4 ranges admit) — are content.
 // This is byte-for-byte the same boundary as the generated ANTLR lexer
 // (verified differentially against the antlr_fallback oracle). LONG strings
-// are NOT subject to this: their WS allows raw newlines (see scanIonLongString).
+// use a DIFFERENT (wider) allowed set — they additionally admit raw newlines
+// LF/CR — see ionLongTextDisallowsRaw / scanIonLongString.
 func ionShortTextDisallowsRaw(b byte) bool {
 	if b >= 0x20 {
 		return false
 	}
 	switch b {
 	case '\t', '\v', '\f': // U+0009, U+000B, U+000C — WS_NOT_NL, allowed
+		return false
+	default:
+		return true
+	}
+}
+
+// ionLongTextDisallowsRaw reports whether b is a raw byte that the Ion LONG
+// string grammar (STRING_LONG_TEXT_ALLOWED, g4 459-463) excludes from its
+// content set. A long string admits U+0020..U+FFFF (minus the delimiter and
+// backslash, handled by the caller) plus WS = [space CR LF tab] (the
+// WHITESPACE fragment, g4 390-391). Unlike the SHORT set (ionShortTextDisallowsRaw),
+// the long set DOES admit raw newlines (U+000A LF, U+000D CR) — long strings
+// span lines by design. Below U+0020 the allowed bytes are therefore
+// U+0009 tab, U+000A LF, U+000B vtab, U+000C form feed, U+000D CR; every OTHER
+// C0 control (U+0000 NUL, U+0001..U+0008, U+000E..U+001F) is excluded.
+//
+// IMPORTANT: U+000B (vtab) and U+000C (form feed) ARE admitted here, even
+// though the g4 *text* (WS = [ \r\n\t]) would exclude them. The GENERATED
+// ANTLR lexer — the executable oracle (correctness-protocol.md: the oracle
+// decides, antlr's own grammar-text is only a hint) — accepts both as long
+// string content, mirroring the SHORT set (where they are WS_NOT_NL). This
+// was confirmed byte-for-byte differentially against the generated lexer at
+// github.com/bytebase/parser/partiql: a long string carrying a raw VT/FF
+// before an inner backtick keeps the long string open across that backtick
+// (the literal spans it), whereas a raw NUL/US/etc. fails the rule and the
+// backtick closes the literal. See the divergence note in scanIonLongString.
+// Bytes >= 0x20 — including UTF-8 lead/continuation bytes (>= 0x80) and DEL/C1
+// — are content.
+func ionLongTextDisallowsRaw(b byte) bool {
+	if b >= 0x20 {
+		return false
+	}
+	switch b {
+	case '\t', '\n', '\v', '\f', '\r': // U+0009,000A,000B,000C,000D — allowed
 		return false
 	default:
 		return true
@@ -807,9 +842,18 @@ func (l *Lexer) scanIonQuoted(quote byte) bool {
 // span newlines and honor backslash escapes, but only VALID Ion TEXT_ESCAPEs
 // (g4 447-448, 465-466); an invalid escape means the long-string rule cannot
 // match (STRING_LONG_TEXT_ALLOWED excludes the backslash), so the caller
-// degrades the opener. Positioned at the first of the three opening quotes.
-// Returns false if EOF is reached before the closing triple-quote or on an
-// invalid/dangling escape.
+// degrades the opener. A raw C0 control byte outside the long-string allowed
+// set (ionLongTextDisallowsRaw — NUL etc.; raw LF/CR/VT/FF ARE allowed) is
+// likewise NOT valid content: it must be escaped, so encountering one is a
+// match failure, not content. Without this, a long string carrying a raw NUL
+// before an inner backtick would stay open ACROSS that backtick and close
+// only at a LATER ''' — hiding the standalone backtick (the real ION_CLOSURE)
+// and swallowing the SQL that follows (Codex round-4 P2). On failure the
+// caller degrades the opening quotes through QUOTED_SYMBOL to ION_ANY (the
+// same maximal-munch fallback ANTLR applies), so the first standalone backtick
+// closes the literal. Positioned at the first of the three opening quotes.
+// Returns false if EOF is reached before the closing triple-quote, on an
+// invalid/dangling escape, or on a disallowed raw control byte.
 func (l *Lexer) scanIonLongString() bool {
 	l.pos += 3 // skip opening '''
 	for l.pos < len(l.input) {
@@ -824,6 +868,12 @@ func (l *Lexer) scanIonLongString() bool {
 		case ch == '\'' && l.matchesTripleQuote():
 			l.pos += 3 // skip closing '''
 			return true
+		case ionLongTextDisallowsRaw(ch):
+			// Disallowed raw C0 control byte (e.g. NUL): not valid long-string
+			// content, so the rule cannot match. Fail and let the caller
+			// degrade the opener (so a later ''' does NOT close this token
+			// across an intervening standalone backtick).
+			return false
 		default:
 			l.pos++
 		}
