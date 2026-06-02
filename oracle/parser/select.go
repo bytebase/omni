@@ -144,6 +144,11 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		if parseErr945 != nil {
 			return nil, parseErr945
 		}
+		if sel.FromClause != nil && sel.FromClause.Len() > 0 {
+			if src, ok := sel.FromClause.Items[sel.FromClause.Len()-1].(nodes.TableExpr); ok {
+				sel.Pivot.Source = src
+			}
+		}
 	} else if p.cur.Type == kwUNPIVOT {
 		var parseErr946 error
 		sel.Unpivot, parseErr946 = p.parseUnpivotClause()
@@ -152,6 +157,11 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 			// WHERE
 			nil {
 			return nil, parseErr946
+		}
+		if sel.FromClause != nil && sel.FromClause.Len() > 0 {
+			if src, ok := sel.FromClause.Items[sel.FromClause.Len()-1].(nodes.TableExpr); ok {
+				sel.Unpivot.Source = src
+			}
 		}
 	}
 
@@ -740,7 +750,7 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		if mrClause, ok := mrRef.(*nodes.MatchRecognizeClause); ok {
 			// Wrap: the table ref becomes the left side of a join-like construct
 			// For simplicity, return the MATCH_RECOGNIZE with the table ref embedded
-			_ = mrClause // MATCH_RECOGNIZE is returned directly
+			mrClause.Source = tr
 			return mrRef, nil
 		}
 	}
@@ -2134,6 +2144,7 @@ func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
 
 	// Parse aggregate function list (before FOR keyword)
 	pc.AggFuncs = &nodes.List{}
+	pc.Aggregates = &nodes.List{}
 	for {
 		agg, parseErr1030 := p.parseResTarget()
 		if parseErr1030 != nil {
@@ -2141,6 +2152,11 @@ func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
 		}
 		if agg != nil {
 			pc.AggFuncs.Items = append(pc.AggFuncs.Items, agg)
+			pc.Aggregates.Items = append(pc.Aggregates.Items, &nodes.PivotAggregate{
+				Expr:  agg.Expr,
+				Alias: agg.Name,
+				Loc:   agg.Loc,
+			})
 		}
 		if p.cur.Type != ',' {
 			break
@@ -2161,6 +2177,7 @@ func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
 	// FOR column | ( column, column, ... )
 	if p.cur.Type == kwFOR {
 		p.advance() // consume FOR
+		pc.ForColumns = &nodes.List{}
 		if p.cur.Type == '(' {
 			// Multi-column: ( col1, col2, ... )
 			p.advance() // consume '('
@@ -2172,6 +2189,7 @@ func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
 				}
 				if col != nil {
 					colList.Items = append(colList.Items, col)
+					pc.ForColumns.Items = append(pc.ForColumns.Items, col)
 				}
 				if p.cur.Type != ',' {
 					break
@@ -2197,6 +2215,9 @@ func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
 				// IN ( ... )
 				nil {
 				return nil, parseErr1032
+			}
+			if pc.ForCol != nil {
+				pc.ForColumns.Items = append(pc.ForColumns.Items, pc.ForCol)
 			}
 		}
 	}
@@ -2231,7 +2252,7 @@ func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
 				p.advance()
 				var // consume '('
 				parseErr1034 error
-				pc.InList, parseErr1034 = p.parsePivotInList()
+				pc.InList, pc.InItems, parseErr1034 = p.parsePivotInList()
 				if parseErr1034 != nil {
 					return nil, parseErr1034
 				}
@@ -2252,18 +2273,20 @@ func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
 
 // parsePivotInList parses the IN list of a PIVOT clause.
 // Each item is: expr [ [ AS ] c_alias ] | ( expr, expr, ... ) [ [ AS ] c_alias ]
-func (p *Parser) parsePivotInList() (*nodes.List, error) {
+func (p *Parser) parsePivotInList() (*nodes.List, *nodes.List, error) {
 	list := &nodes.List{}
+	items := &nodes.List{}
 	for {
 		start := p.pos()
 		var expr nodes.ExprNode
+		values := &nodes.List{}
 
 		if p.cur.Type == '(' {
 			// Tuple value: ( expr, expr, ... )
 			p.advance() // consume '('
 			tupleList, parseErr1035 := p.parseExprList()
 			if parseErr1035 != nil {
-				return nil, parseErr1035
+				return nil, nil, parseErr1035
 			}
 			if p.cur.Type == ')' {
 				p.advance()
@@ -2273,6 +2296,7 @@ func (p *Parser) parsePivotInList() (*nodes.List, error) {
 			if tupleList.Len() == 1 {
 				if e, ok := tupleList.Items[0].(nodes.ExprNode); ok {
 					expr = &nodes.ParenExpr{Expr: e, Loc: nodes.Loc{Start: start, End: p.prev.End}}
+					values.Items = append(values.Items, e)
 				}
 			} else {
 				// Use a FuncCallExpr with empty name to represent a row/tuple
@@ -2282,12 +2306,16 @@ func (p *Parser) parsePivotInList() (*nodes.List, error) {
 					Args:     args,
 					Loc:      nodes.Loc{Start: start, End: p.prev.End},
 				}
+				values.Items = append(values.Items, tupleList.Items...)
 			}
 		} else {
 			var parseErr1036 error
 			expr, parseErr1036 = p.parseExpr()
 			if parseErr1036 != nil {
-				return nil, parseErr1036
+				return nil, nil, parseErr1036
+			}
+			if expr != nil {
+				values.Items = append(values.Items, expr)
 			}
 		}
 
@@ -2306,22 +2334,76 @@ func (p *Parser) parsePivotInList() (*nodes.List, error) {
 			var parseErr1037 error
 			rt.Name, parseErr1037 = p.parseIdentifier()
 			if parseErr1037 != nil {
-				return nil, parseErr1037
+				return nil, nil, parseErr1037
 			}
 		} else if p.isAliasCandidate() {
 			var parseErr1038 error
 			rt.Name, parseErr1038 = p.parseIdentifier()
 			if parseErr1038 != nil {
-				return nil, parseErr1038
+				return nil, nil, parseErr1038
 			}
 		}
 
 		rt.Loc.End = p.prev.End
 		list.Items = append(list.Items, rt)
+		items.Items = append(items.Items, &nodes.PivotInItem{
+			Values: values,
+			Alias:  rt.Name,
+			Loc:    rt.Loc,
+		})
 
 		if p.cur.Type != ',' {
 			break
 		}
+		p.advance()
+	}
+	return list, items, nil
+}
+
+func (p *Parser) parseColumnRefListInOptionalParens() (*nodes.List, error) {
+	list := &nodes.List{}
+	hasParens := p.cur.Type == '('
+	if hasParens {
+		p.advance()
+	}
+	for {
+		col, err := p.parseColumnRef()
+		if err != nil {
+			return nil, err
+		}
+		if col == nil || col.Column == "" {
+			break
+		}
+		list.Items = append(list.Items, col)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if hasParens && p.cur.Type == ')' {
+		p.advance()
+	}
+	return list, nil
+}
+
+func (p *Parser) parseIdentifierListInParens() (*nodes.List, error) {
+	list := &nodes.List{}
+	if p.cur.Type != '(' {
+		return list, nil
+	}
+	p.advance()
+	for {
+		name, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		list.Items = append(list.Items, &nodes.String{Str: name})
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if p.cur.Type == ')' {
 		p.advance()
 	}
 	return list, nil
@@ -2370,24 +2452,25 @@ func (p *Parser) parseUnpivotClause() (*nodes.UnpivotClause, error) {
 	parseErr1039 error
 
 	// Value column(s)
-	uc.ValueCol, parseErr1039 = p.parseColumnRef()
-	if parseErr1039 !=
-
-		// FOR pivot_column(s)
-		nil {
+	uc.ValueColumns, parseErr1039 = p.parseColumnRefListInOptionalParens()
+	if parseErr1039 != nil {
 		return nil, parseErr1039
+	}
+	if uc.ValueColumns != nil && uc.ValueColumns.Len() > 0 {
+		uc.ValueCol, _ = uc.ValueColumns.Items[0].(nodes.ExprNode)
 	}
 
 	if p.cur.Type == kwFOR {
 		p.advance()
 		var parseErr1040 error
-		uc.PivotCol, parseErr1040 = p.parseColumnRef()
+		uc.PivotColumn, parseErr1040 = p.parseColumnRef()
 		if parseErr1040 !=
 
 			// IN ( column [ AS literal ], ... )
 			nil {
 			return nil, parseErr1040
 		}
+		uc.PivotCol = uc.PivotColumn
 	}
 
 	if p.cur.Type == kwIN {
@@ -2395,24 +2478,35 @@ func (p *Parser) parseUnpivotClause() (*nodes.UnpivotClause, error) {
 		if p.cur.Type == '(' {
 			p.advance()
 			uc.InList = &nodes.List{}
+			uc.InputMappings = &nodes.List{}
 			for {
 				start := p.pos()
-				col, parseErr1041 := p.parseColumnRef()
+				inputCols, parseErr1041 := p.parseColumnRefListInOptionalParens()
 				if parseErr1041 != nil {
 					return nil, parseErr1041
 				}
-				if col == nil || col.Column == "" {
+				if inputCols == nil || inputCols.Len() == 0 {
 					break
 				}
+				col, _ := inputCols.Items[0].(nodes.ExprNode)
 				rt := &nodes.ResTarget{
 					Expr: col,
 					Loc:  nodes.Loc{Start: start},
+				}
+				item := &nodes.UnpivotInItem{
+					InputColumns: inputCols,
+					Loc:          nodes.Loc{Start: start},
 				}
 				// Optional AS alias (can be identifier or string literal)
 				if p.cur.Type == kwAS {
 					p.advance()
 					if p.cur.Type == tokSCONST {
 						rt.Name = p.cur.Str
+						item.Alias = p.cur.Str
+						item.Label = &nodes.StringLiteral{
+							Val: p.cur.Str,
+							Loc: nodes.Loc{Start: p.pos(), End: p.cur.End},
+						}
 						p.advance()
 					} else {
 						var parseErr1042 error
@@ -2420,10 +2514,14 @@ func (p *Parser) parseUnpivotClause() (*nodes.UnpivotClause, error) {
 						if parseErr1042 != nil {
 							return nil, parseErr1042
 						}
+						item.Alias = rt.Name
+						item.Label = &nodes.ColumnRef{Column: rt.Name, Loc: nodes.Loc{Start: start, End: p.prev.End}}
 					}
 				}
 				rt.Loc.End = p.prev.End
+				item.Loc.End = p.prev.End
 				uc.InList.Items = append(uc.InList.Items, rt)
+				uc.InputMappings.Items = append(uc.InputMappings.Items, item)
 				if p.cur.Type != ',' {
 					break
 				}
@@ -2894,7 +2992,7 @@ func (p *Parser) parseModelRule() (*nodes.ModelRule, error) {
 
 	// Parse the left side: measure_column [ dim_subscripts ]
 	// The left side is an identifier (possibly qualified) followed by [ subscripts ]
-	cellRef, parseErr1061 := p.parseModelCellRef()
+	cellRef, cell, parseErr1061 := p.parseModelCellRef()
 	if parseErr1061 != nil {
 		return nil, parseErr1061
 	}
@@ -2904,6 +3002,7 @@ func (p *Parser) parseModelRule() (*nodes.ModelRule, error) {
 
 	rule := &nodes.ModelRule{
 		CellRef: cellRef,
+		Cell:    cell,
 		Loc:     nodes.Loc{Start: start},
 	}
 
@@ -2923,16 +3022,16 @@ func (p *Parser) parseModelRule() (*nodes.ModelRule, error) {
 
 // parseModelCellRef parses a model cell reference: measure[dim1, dim2, ...].
 // Dimension subscripts can be expressions, ANY, or FOR loops (single/multi column).
-func (p *Parser) parseModelCellRef() (nodes.ExprNode, error) {
+func (p *Parser) parseModelCellRef() (nodes.ExprNode, *nodes.ModelCellReference, error) {
 	start := p.pos()
 
 	// Parse the measure column name as a column reference
 	if !p.isIdentLike() {
-		return nil, nil
+		return nil, nil, nil
 	}
 	name, parseErr1063 := p.parseIdentifier()
 	if parseErr1063 != nil {
-		return nil, parseErr1063
+		return nil, nil, parseErr1063
 	}
 	col := &nodes.ColumnRef{
 		Column: name,
@@ -2941,7 +3040,11 @@ func (p *Parser) parseModelCellRef() (nodes.ExprNode, error) {
 
 	// [ dim_subscripts ]
 	if p.cur.Type != '[' {
-		return col, nil
+		return col, &nodes.ModelCellReference{
+			Measure:    name,
+			Dimensions: &nodes.List{},
+			Loc:        col.Loc,
+		}, nil
 	}
 	p.advance() // consume '['
 
@@ -2953,7 +3056,7 @@ func (p *Parser) parseModelCellRef() (nodes.ExprNode, error) {
 		}
 		expr, parseErr1064 := p.parseExpr()
 		if parseErr1064 != nil {
-			return nil, parseErr1064
+			return nil, nil, parseErr1064
 		}
 		if expr == nil {
 			break
@@ -2970,10 +3073,15 @@ func (p *Parser) parseModelCellRef() (nodes.ExprNode, error) {
 	}
 
 	// Represent as a FuncCallExpr with the column name and subscript args
-	return &nodes.FuncCallExpr{
+	fn := &nodes.FuncCallExpr{
 		FuncName: &nodes.ObjectName{Name: name, Loc: nodes.Loc{Start: start, End: p.prev.End}},
 		Args:     args,
 		Loc:      nodes.Loc{Start: start, End: p.prev.End},
+	}
+	return fn, &nodes.ModelCellReference{
+		Measure:    name,
+		Dimensions: args,
+		Loc:        fn.Loc,
 	}, nil
 }
 
@@ -3342,6 +3450,11 @@ func (p *Parser) parseTableCollectionExpr(start int) (nodes.TableExpr, error) {
 		if parseErr1080 != nil {
 			return nil, parseErr1080
 		}
+		if fn, ok := tc.Expr.(*nodes.FuncCallExpr); ok {
+			tc.FunctionCall = fn
+		} else {
+			tc.CollectionExpr = tc.Expr
+		}
 		if p.cur.Type == ')' {
 			p.advance()
 		}
@@ -3370,6 +3483,16 @@ func (p *Parser) parseTableCollectionExpr(start int) (nodes.TableExpr, error) {
 		tc.Alias, parseErr1082 = p.parseAlias()
 		if parseErr1082 != nil {
 			return nil, parseErr1082
+		}
+	}
+	if p.cur.Type == '(' {
+		cols, parseErr1083 := p.parseIdentifierListInParens()
+		if parseErr1083 != nil {
+			return nil, parseErr1083
+		}
+		tc.ColumnAliases = cols
+		if tc.Alias != nil {
+			tc.Alias.Cols = cols
 		}
 	}
 
