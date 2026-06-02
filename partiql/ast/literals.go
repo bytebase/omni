@@ -99,8 +99,14 @@ func (n *TimeLit) GetLoc() Loc { return n.Loc }
 func (*TimeLit) exprNode()     {}
 
 // IonLit represents a backtick-delimited inline Ion value: `…`.
-// Text holds the verbatim contents between the backticks (no parsing,
-// no normalization). PartiQL-unique.
+//
+// Text holds the verbatim source between the backticks exactly as
+// written — no Ion parsing, no decoding, no normalization. The lexer
+// produces it via a dedicated Ion sub-mode (PartiQLLexer.g4 ION mode,
+// lines 406-430) that consumes the Ion value up to the standalone
+// closing backtick, so backticks nested inside Ion strings, symbols,
+// lobs, or comments are preserved in Text rather than ending the value.
+// PartiQL-unique.
 //
 // Grammar: literal#LiteralIon (ION_CLOSURE)
 type IonLit struct {

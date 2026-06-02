@@ -381,7 +381,7 @@ func TestLexer_Tokens(t *testing.T) {
 		},
 
 		// =============================================================
-		// Ion literals — base lexer (Task 10)
+		// Ion literals — base forms (no inner backtick)
 		// =============================================================
 		{
 			"ion_simple",
@@ -398,13 +398,10 @@ func TestLexer_Tokens(t *testing.T) {
 			"`  abc  `",
 			[]Token{{tokION_LITERAL, "  abc  ", ast.Loc{Start: 0, End: 9}}},
 		},
-		// Pins the simplified scanner's behavior on Ion content containing
-		// a single quote. Once Ion-mode-aware scanning lands (DAG node 17),
-		// this case will continue to pass — the inner ' characters are not
-		// the literal terminator. Documents the current behavior in
-		// executable form for the future refactor.
+		// A single-quoted Ion symbol with no inner backtick. The closing
+		// backtick after the symbol terminates the literal.
 		{
-			"ion_with_single_quote_known_limitation",
+			"ion_quoted_symbol_plain",
 			"`'hello'`",
 			[]Token{{tokION_LITERAL, "'hello'", ast.Loc{Start: 0, End: 9}}},
 		},
@@ -413,6 +410,306 @@ func TestLexer_Tokens(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			runTokenStreamCase(t, tc)
+		})
+	}
+}
+
+// TestLexer_IonMode pins the Ion-mode-aware backtick scanner
+// (node parser-ion-literals). On a backtick the lexer enters Ion
+// sub-mode and consumes an Ion value verbatim up to a *standalone*
+// closing backtick, emitting one tokION_LITERAL. Crucially, a
+// backtick that appears INSIDE an Ion sub-token — single-quoted
+// symbol, double-quoted short string, triple-quoted long string,
+// {{ }} lob, // line comment, or /* */ block comment — does NOT
+// terminate the literal.
+//
+// Grammar: PartiQLLexer.g4 ION mode (lines 406-430). Token.Str is
+// the verbatim inner content (no decoding); Token.Loc covers the
+// full `...` range including both backticks.
+func TestLexer_IonMode(t *testing.T) {
+	cases := []tokenStreamCase{
+		// --- backtick inside a single-quoted symbol ---
+		{
+			"ion_backtick_in_symbol",
+			"`'a`b'`",
+			[]Token{{tokION_LITERAL, "'a`b'", ast.Loc{Start: 0, End: 7}}},
+		},
+		// --- backtick inside a double-quoted short string ---
+		{
+			"ion_backtick_in_short_string",
+			"`\"x`y\"`",
+			[]Token{{tokION_LITERAL, "\"x`y\"", ast.Loc{Start: 0, End: 7}}},
+		},
+		// --- backtick inside a triple-quoted long string ---
+		{
+			"ion_backtick_in_long_string",
+			"`'''a`b'''`",
+			[]Token{{tokION_LITERAL, "'''a`b'''", ast.Loc{Start: 0, End: 11}}},
+		},
+		// --- long string spanning a newline (no inner backtick) ---
+		{
+			"ion_long_string_multiline",
+			"`'''a\nb'''`",
+			[]Token{{tokION_LITERAL, "'''a\nb'''", ast.Loc{Start: 0, End: 11}}},
+		},
+		// --- four single-quotes: ANTLR maximal-munch can't match a
+		//     triple-quoted long string (no closing '''), so the quotes
+		//     are two empty symbols ('' then ''), then the backtick
+		//     closes. This is the lexer-grammar fallback, not a long
+		//     string. ---
+		{
+			"ion_four_quotes_are_two_empty_symbols",
+			"`''''`",
+			[]Token{{tokION_LITERAL, "''''", ast.Loc{Start: 0, End: 6}}},
+		},
+		// --- six single-quotes IS an empty long string (open + close) ---
+		{
+			"ion_six_quotes_empty_long_string",
+			"`''''''`",
+			[]Token{{tokION_LITERAL, "''''''", ast.Loc{Start: 0, End: 8}}},
+		},
+		// --- a long string whose body contains a backtick, closes with
+		//     the triple-quote, then trailing content before the literal
+		//     closes. The inner backtick is captured, not a terminator. ---
+		{
+			"ion_long_string_with_backtick_then_more",
+			"`'''a`b''' x`",
+			[]Token{{tokION_LITERAL, "'''a`b''' x", ast.Loc{Start: 0, End: 13}}},
+		},
+		// --- backtick inside a // line comment ---
+		{
+			"ion_backtick_in_line_comment",
+			"`// c`omment\n42`",
+			[]Token{{tokION_LITERAL, "// c`omment\n42", ast.Loc{Start: 0, End: 16}}},
+		},
+		// --- backtick inside a /* */ block comment ---
+		{
+			"ion_backtick_in_block_comment",
+			"`/* c`c */1`",
+			[]Token{{tokION_LITERAL, "/* c`c */1", ast.Loc{Start: 0, End: 12}}},
+		},
+		// --- backtick inside a {{ }} lob (blob/clob) ---
+		{
+			"ion_backtick_in_lob",
+			"`{{ ab`cd }}`",
+			[]Token{{tokION_LITERAL, "{{ ab`cd }}", ast.Loc{Start: 0, End: 13}}},
+		},
+		// --- escaped quote inside a symbol must not end the symbol ---
+		{
+			"ion_escaped_quote_in_symbol",
+			"`'a\\'`b'`",
+			[]Token{{tokION_LITERAL, "'a\\'`b'", ast.Loc{Start: 0, End: 9}}},
+		},
+		// --- escaped quote inside a short string ---
+		{
+			"ion_escaped_quote_in_short_string",
+			"`\"a\\\"`b\"`",
+			[]Token{{tokION_LITERAL, "\"a\\\"`b\"", ast.Loc{Start: 0, End: 9}}},
+		},
+		// --- a real Ion timestamp value (PartiQL spec example) ---
+		{
+			"ion_timestamp",
+			"`2017-09-14T`",
+			[]Token{{tokION_LITERAL, "2017-09-14T", ast.Loc{Start: 0, End: 13}}},
+		},
+		// --- adjacent backtick after a closed symbol opens a new literal ---
+		{
+			"ion_two_literals_back_to_back",
+			"`'a'``'b'`",
+			[]Token{
+				{tokION_LITERAL, "'a'", ast.Loc{Start: 0, End: 5}},
+				{tokION_LITERAL, "'b'", ast.Loc{Start: 5, End: 10}},
+			},
+		},
+		// --- a struct with a string field containing a backtick ---
+		{
+			"ion_struct_with_backtick_string",
+			"`{a: \"x`y\"}`",
+			[]Token{{tokION_LITERAL, "{a: \"x`y\"}", ast.Loc{Start: 0, End: 12}}},
+		},
+		// --- empty quoted symbol then close ---
+		{
+			"ion_empty_symbol",
+			"`''`",
+			[]Token{{tokION_LITERAL, "''", ast.Loc{Start: 0, End: 4}}},
+		},
+		// --- empty short string then close ---
+		{
+			"ion_empty_short_string",
+			"`\"\"`",
+			[]Token{{tokION_LITERAL, "\"\"", ast.Loc{Start: 0, End: 4}}},
+		},
+		// --- single { is not a lob; struct braces pass through as ION_ANY ---
+		{
+			"ion_single_brace_struct",
+			"`{ }`",
+			[]Token{{tokION_LITERAL, "{ }", ast.Loc{Start: 0, End: 5}}},
+		},
+		// --- a lone '/' (not // or /*) is just ION_ANY content ---
+		{
+			"ion_lone_slash",
+			"`a/b`",
+			[]Token{{tokION_LITERAL, "a/b", ast.Loc{Start: 0, End: 5}}},
+		},
+		// --- a // line comment terminated by a newline; the backtick on
+		//     the following line closes the literal. Grammar: the inline
+		//     comment ends at ION_NEWLINE (g4 408-409). ---
+		{
+			"ion_line_comment_then_newline_then_close",
+			"`a // c\n`",
+			[]Token{{tokION_LITERAL, "a // c\n", ast.Loc{Start: 0, End: 9}}},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			runTokenStreamCase(t, tc)
+		})
+	}
+}
+
+// TestLexer_IonMode_Errors covers the reject forms: an Ion literal
+// whose closing backtick never arrives because an inner sub-token
+// (string, symbol, lob, block comment) ran to EOF, or because the
+// literal itself was simply never closed. The legacy ANTLR grammar
+// rejects all of these (the ION mode is never popped).
+func TestLexer_IonMode_Errors(t *testing.T) {
+	cases := []struct {
+		name      string
+		input     string
+		wantErrIn string
+	}{
+		{
+			name:      "unterminated_bare",
+			input:     "`abc",
+			wantErrIn: "unterminated Ion literal",
+		},
+		{
+			name:      "unterminated_open_symbol_eats_closer",
+			input:     "`'abc`",
+			wantErrIn: "unterminated Ion literal",
+		},
+		{
+			name:      "unterminated_open_short_string_eats_closer",
+			input:     "`\"abc`",
+			wantErrIn: "unterminated Ion literal",
+		},
+		{
+			name:      "unterminated_open_long_string_eats_closer",
+			input:     "`'''abc`",
+			wantErrIn: "unterminated Ion literal",
+		},
+		{
+			name:      "unterminated_open_lob_eats_closer",
+			input:     "`{{ abc`",
+			wantErrIn: "unterminated Ion literal",
+		},
+		{
+			name:      "unterminated_open_block_comment_eats_closer",
+			input:     "`/* abc`",
+			wantErrIn: "unterminated Ion literal",
+		},
+		{
+			name:      "unterminated_trailing_escape",
+			input:     "`'abc\\",
+			wantErrIn: "unterminated Ion literal",
+		},
+		{
+			// '''  opens a long string; the closing backtick is consumed
+			// as long-string content, so the literal never closes.
+			name:      "unterminated_open_triple_quote",
+			input:     "`'''",
+			wantErrIn: "unterminated Ion literal",
+		},
+		{
+			// '  opens a symbol; the backtick is consumed as symbol text.
+			name:      "unterminated_open_single_quote",
+			input:     "`'",
+			wantErrIn: "unterminated Ion literal",
+		},
+		{
+			// A // line comment with no trailing newline runs to EOF and
+			// swallows the closing backtick (g4 408-409: '//' .*? (NL|EOF)).
+			name:      "unterminated_line_comment_eats_closer",
+			input:     "`a//b",
+			wantErrIn: "unterminated Ion literal",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			l := NewLexer(tc.input)
+			for {
+				tok := l.Next()
+				if tok.Type == tokEOF {
+					break
+				}
+			}
+			if l.Err == nil {
+				t.Errorf("expected error, got nil")
+				return
+			}
+			if !strings.Contains(l.Err.Error(), tc.wantErrIn) {
+				t.Errorf("error mismatch\n got: %v\nwant substring: %q", l.Err, tc.wantErrIn)
+			}
+		})
+	}
+}
+
+// TestLexer_IonMode_RoundTrip is the structural gate for the Ion
+// literal scanner. No reference parser exists for partiql, so it relies
+// on source-reconstruction stability: for any accepted Ion literal,
+// wrapping Token.Str back in backticks must reproduce the exact original
+// source, and re-lexing that reconstruction must yield an identical
+// token. This catches off-by-one slicing and any silent content
+// mutation in the sub-mode scanners.
+func TestLexer_IonMode_RoundTrip(t *testing.T) {
+	inputs := []string{
+		"`{a: 1}`",
+		"``",
+		"`  abc  `",
+		"`'hello'`",
+		"`'a`b'`",
+		"`\"x`y\"`",
+		"`'''a`b'''`",
+		"`'''a\nb'''`",
+		"`// c`omment\n42`",
+		"`/* c`c */1`",
+		"`{{ ab`cd }}`",
+		"`'a\\'`b'`",
+		"`2017-09-14T`",
+		"`{a: \"x`y\"}`",
+	}
+	for _, in := range inputs {
+		t.Run(in, func(t *testing.T) {
+			l := NewLexer(in)
+			tok := l.Next()
+			if l.Err != nil {
+				t.Fatalf("unexpected error: %v", l.Err)
+			}
+			if tok.Type != tokION_LITERAL {
+				t.Fatalf("token type = %s, want ION_LITERAL", tokenName(tok.Type))
+			}
+			// The token must span the whole input and reconstruct it.
+			if got := in[tok.Loc.Start:tok.Loc.End]; got != in {
+				t.Errorf("loc slice = %q, want full input %q", got, in)
+			}
+			recon := "`" + tok.Str + "`"
+			if recon != in {
+				t.Errorf("reconstruction = %q, want %q", recon, in)
+			}
+			// Re-lex the reconstruction: it must yield an identical token.
+			l2 := NewLexer(recon)
+			tok2 := l2.Next()
+			if l2.Err != nil {
+				t.Fatalf("re-lex error: %v", l2.Err)
+			}
+			if tok2 != tok {
+				t.Errorf("re-lex token mismatch\n got: %+v\nwant: %+v", tok2, tok)
+			}
+			if next := l2.Next(); next.Type != tokEOF {
+				t.Errorf("expected EOF after re-lexed literal, got %s", tokenName(next.Type))
+			}
 		})
 	}
 }

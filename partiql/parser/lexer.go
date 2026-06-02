@@ -391,39 +391,207 @@ func (l *Lexer) scanOperator() Token {
 	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
 }
 
-// scanIonLiteral consumes a backtick-delimited Ion blob: `...`.
+// scanIonLiteral consumes a backtick-delimited inline Ion value: `…`.
 //
-// SIMPLIFIED BASE BEHAVIOR: scans byte-to-byte from the opening
-// backtick to the next backtick. The captured Token.Str is the
-// verbatim inner content (no decoding); Token.Loc covers the entire
-// `...` range including both backticks.
+// On the opening backtick the lexer enters a dedicated Ion sub-mode
+// (the hand-written analogue of PartiQLLexer.g4's `pushMode(ION)`):
+// it consumes an Ion value verbatim until a *standalone* backtick —
+// the ION_CLOSURE that pops the mode (g4 line 428) — and emits one
+// tokION_LITERAL. Token.Str is the verbatim inner content between the
+// backticks (no Ion parsing, no decoding); Token.Loc covers the entire
+// `…` range including both backticks.
 //
-// KNOWN LIMITATION: Ion mode in PartiQLLexer.g4 has special handling
-// for backticks inside Ion strings (single-quoted symbols, double-quoted
-// short strings, triple-quoted long strings) that prevents premature
-// literal closure. This naive scan does NOT respect those rules. The
-// full Ion-mode-aware implementation is deferred to DAG node 17
-// (parser-ion-literals).
+// The whole point of the sub-mode is that a backtick appearing INSIDE
+// an Ion sub-token does not terminate the literal. Per the ION mode
+// grammar (g4 lines 406-430), the sub-tokens that may legally contain a
+// backtick — and therefore must be consumed whole — are:
 //
-// The AWS DynamoDB PartiQL corpus has zero real Ion literals; the
-// only 2 backtick uses are in select-001.partiql and insert-002.partiql
-// (syntax skeletons with placeholder backticks), both filtered out
-// of the corpus smoke test.
+//   - // line comment           (ION_INLINE_COMMENT, g4 408-409; EOF-terminable)
+//   - /* ... */ block comment   (ION_BLOCK_COMMENT,  g4 411-412)
+//   - {{ ... }} blob/clob lob   (ION_BLOB,           g4 414-415)
+//   - "..." short string        (SHORT_QUOTED_STRING, g4 417-419)
+//   - triple-quoted long string (LONG_QUOTED_STRING,  g4 421-423)
+//   - '...' quoted symbol       (QUOTED_SYMBOL,       g4 425-426)
+//
+// Any other byte is consumed verbatim (ION_ANY, g4 430). If an inner
+// sub-token or the literal itself runs to EOF without its closer, the
+// ION mode is never popped — a syntax error, surfaced as "unterminated
+// Ion literal", matching the grammar (which would reach EOF in ION mode).
+//
+// The AWS DynamoDB PartiQL corpus has zero real Ion literals (the only
+// two backtick uses are placeholder skeletons filtered out of the corpus
+// smoke tests), so these forms come from the PartiQL/Ion specs.
 func (l *Lexer) scanIonLiteral() Token {
 	l.pos++ // skip opening backtick
 	contentStart := l.pos
 	for l.pos < len(l.input) {
-		if l.input[l.pos] == '`' {
+		ch := l.input[l.pos]
+		switch {
+		case ch == '`':
+			// Standalone backtick — ION_CLOSURE. Pop the sub-mode.
 			content := l.input[contentStart:l.pos]
 			l.pos++ // skip closing backtick
-			return Token{
-				Type: tokION_LITERAL,
-				Str:  content,
-				Loc:  l.loc(),
+			return Token{Type: tokION_LITERAL, Str: content, Loc: l.loc()}
+
+		case ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/':
+			l.scanIonLineComment()
+
+		case ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*':
+			if !l.scanIonBlockComment() {
+				return l.unterminatedIon()
 			}
+
+		case ch == '{' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '{':
+			if !l.scanIonLob() {
+				return l.unterminatedIon()
+			}
+
+		case ch == '"':
+			if !l.scanIonQuoted('"') {
+				return l.unterminatedIon()
+			}
+
+		case ch == '\'' && l.matchesTripleQuote():
+			// A '''-prefixed run is a long string only if it actually
+			// closes with another '''. ANTLR lexer rules are maximal-
+			// munch: when LONG_QUOTED_STRING cannot match (no closing
+			// '''), the tokenizer falls back to QUOTED_SYMBOL, so the
+			// quotes are scanned as (possibly empty) single-quoted
+			// symbols instead. Mirror that by rewinding on failure and
+			// retrying as a symbol rather than erroring outright.
+			save := l.pos
+			if !l.scanIonLongString() {
+				l.pos = save
+				if !l.scanIonQuoted('\'') {
+					return l.unterminatedIon()
+				}
+			}
+
+		case ch == '\'':
+			if !l.scanIonQuoted('\'') {
+				return l.unterminatedIon()
+			}
+
+		default:
+			l.pos++ // ION_ANY
+		}
+	}
+	return l.unterminatedIon()
+}
+
+// unterminatedIon records the unterminated-Ion-literal error (anchored
+// to the opening backtick at l.start) and returns the EOF sentinel.
+func (l *Lexer) unterminatedIon() Token {
+	l.Err = fmt.Errorf("unterminated Ion literal at position %d", l.start)
+	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
+}
+
+// scanIonLineComment consumes an Ion // line comment (g4 408-409).
+// The comment runs to the next newline or to EOF — EOF is a legal
+// terminator for a line comment, so l.pos may land at len(l.input).
+// Positioned at the first '/'.
+func (l *Lexer) scanIonLineComment() {
+	l.pos += 2 // skip //
+	for l.pos < len(l.input) && l.input[l.pos] != '\n' && l.input[l.pos] != '\r' {
+		l.pos++
+	}
+}
+
+// scanIonBlockComment consumes an Ion /* … */ block comment (g4 411-412)
+// and reports whether the closing */ was found. Positioned at the first
+// '/'. Returns false if EOF is reached before */.
+func (l *Lexer) scanIonBlockComment() bool {
+	l.pos += 2 // skip /*
+	for l.pos+1 < len(l.input) {
+		if l.input[l.pos] == '*' && l.input[l.pos+1] == '/' {
+			l.pos += 2
+			return true
 		}
 		l.pos++
 	}
-	l.Err = fmt.Errorf("unterminated Ion literal at position %d", l.start)
-	return Token{Type: tokEOF, Loc: ast.Loc{Start: l.start, End: l.start}}
+	l.pos = len(l.input)
+	return false
+}
+
+// scanIonLob consumes an Ion {{ … }} blob/clob (g4 414-415) and reports
+// whether the closing }} was found. The body is captured verbatim — we
+// do not validate base64 or the inner string, only locate the closer.
+// Positioned at the first '{'. Returns false if EOF is reached first.
+func (l *Lexer) scanIonLob() bool {
+	l.pos += 2 // skip {{
+	for l.pos+1 < len(l.input) {
+		if l.input[l.pos] == '}' && l.input[l.pos+1] == '}' {
+			l.pos += 2
+			return true
+		}
+		l.pos++
+	}
+	l.pos = len(l.input)
+	return false
+}
+
+// scanIonQuoted consumes a single-character-delimited Ion text token —
+// a double-quoted short string (g4 417-419) or a single-quoted symbol
+// (g4 425-426) — and reports whether the closing quote was found. A
+// backslash escapes the following byte (Ion TEXT_ESCAPE, g4 465-466),
+// so an escaped quote does not close the token. Positioned at the
+// opening quote. Returns false if EOF is reached before the closer
+// (including a dangling trailing backslash).
+func (l *Lexer) scanIonQuoted(quote byte) bool {
+	l.pos++ // skip opening quote
+	for l.pos < len(l.input) {
+		ch := l.input[l.pos]
+		switch ch {
+		case '\\':
+			// Escape: consume the backslash and the escaped byte. A
+			// backslash at EOF is unterminated.
+			if l.pos+1 >= len(l.input) {
+				l.pos = len(l.input)
+				return false
+			}
+			l.pos += 2
+		case quote:
+			l.pos++ // skip closing quote
+			return true
+		default:
+			l.pos++
+		}
+	}
+	return false
+}
+
+// scanIonLongString consumes an Ion triple-quoted long string (g4 421-423)
+// and reports whether the closing triple-quote was found. Long strings may span
+// newlines and honor backslash escapes (g4 447-448, 465-466). Positioned
+// at the first of the three opening quotes. Returns false if EOF is
+// reached before the closing triple-quote.
+func (l *Lexer) scanIonLongString() bool {
+	l.pos += 3 // skip opening '''
+	for l.pos < len(l.input) {
+		ch := l.input[l.pos]
+		switch {
+		case ch == '\\':
+			if l.pos+1 >= len(l.input) {
+				l.pos = len(l.input)
+				return false
+			}
+			l.pos += 2
+		case ch == '\'' && l.matchesTripleQuote():
+			l.pos += 3 // skip closing '''
+			return true
+		default:
+			l.pos++
+		}
+	}
+	return false
+}
+
+// matchesTripleQuote reports whether the three bytes at l.pos are three
+// single-quotes (the Ion long-string delimiter).
+// Caller must ensure l.pos+3 <= len(l.input) for the read to be in range.
+func (l *Lexer) matchesTripleQuote() bool {
+	return l.pos+3 <= len(l.input) &&
+		l.input[l.pos] == '\'' &&
+		l.input[l.pos+1] == '\'' &&
+		l.input[l.pos+2] == '\''
 }
