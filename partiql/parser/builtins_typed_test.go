@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bytebase/omni/partiql/ast"
 )
@@ -246,6 +247,31 @@ func TestParser_BuiltinsTyped(t *testing.T) {
 			input: "TRIM(x)",
 			want:  "TrimExpr{From:VarRef{Name:x}}",
 		},
+		// Top-level-FROM detection must track nesting: the FROM inside a
+		// parenthesized subquery is at paren depth 1, so it is NOT the
+		// prefix delimiter — only the depth-0 FROM separating sub from
+		// target selects the spec form. (Guards the linear lookahead's
+		// depth tracking; a naive "first FROM" scan would mis-split here.)
+		{
+			name:  "trim_sub_with_nested_from",
+			input: "TRIM((SELECT a FROM t) FROM s)",
+			want:  "TrimExpr{Sub:SubLink{Stmt:SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:a}}] From:VarRef{Name:t}}} From:VarRef{Name:s}}",
+		},
+		// A nested TRIM in the removal-char (sub) position: the inner
+		// TRIM's parens nest the depth, so the outer depth-0 FROM is the
+		// one that splits sub from target.
+		{
+			name:  "trim_nested_trim_sub",
+			input: "TRIM(TRIM(x) FROM s)",
+			want:  "TrimExpr{Sub:TrimExpr{From:VarRef{Name:x}} From:VarRef{Name:s}}",
+		},
+		// A nested TRIM as the bare target (no top-level FROM): the whole
+		// argument is one target expression.
+		{
+			name:  "trim_nested_trim_bare",
+			input: "TRIM(TRIM(x))",
+			want:  "TrimExpr{From:TrimExpr{From:VarRef{Name:x}}}",
+		},
 
 		// ----------------------------------------------------------------
 		// SUBSTRING — both the FROM/FOR keyword form and the comma form.
@@ -475,8 +501,8 @@ func TestParser_BuiltinsTyped_Errors(t *testing.T) {
 			wantErrIn: "unexpected token",
 		},
 		// A modifier + removal char with no terminating FROM is not the
-		// prefix form, so the speculative prefix parse backtracks and the
-		// argument is re-parsed as a plain target. `LEADING` parses as a
+		// prefix form: the linear lookahead finds no top-level FROM, so the
+		// argument is parsed as a plain target. `LEADING` parses as a
 		// complete var-ref target, leaving `'0' acct` with no home — the
 		// closing paren is then expected where `'0'` appears. Still a
 		// syntax rejection (ANTLR rejects it too: `mod sub FROM` needs the
@@ -676,5 +702,55 @@ func TestParser_BuiltinsTyped_RoundTrip(t *testing.T) {
 				t.Errorf("re-parse instability\nfirst:  %s\nsecond: %s", s1, s2)
 			}
 		})
+	}
+}
+
+// TestParser_Trim_DeepNestingLinear guards against the exponential-time
+// TRIM regression. An earlier revision disambiguated the optional
+// `( mod? sub? FROM )` prefix by speculatively parsing the WHOLE argument
+// via parseExprTop, discarding it, then re-parsing the same argument as
+// the bare target. For a nested bare target like TRIM(TRIM(...TRIM(x)...))
+// that doubled the work at every level — O(2^n) — so even ~30 levels hung
+// the parser for seconds on live SQL-editor input (a DoS-class risk).
+//
+// The form is now decided by a bounded linear token scan
+// (trimHasTopLevelFrom), parsing each part exactly once, so a 64-deep nest
+// parses in microseconds. We bound the parse with a wall-clock deadline so
+// a reintroduced blowup fails fast (hangs) instead of stalling the suite,
+// and we assert the AST is the correct 64-deep chain of TrimExprs.
+func TestParser_Trim_DeepNestingLinear(t *testing.T) {
+	const depth = 64
+	input := strings.Repeat("TRIM(", depth) + "x" + strings.Repeat(")", depth)
+
+	type result struct {
+		got string
+		err error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		p := NewParser(input)
+		expr, err := p.ParseExpr()
+		if err != nil {
+			ch <- result{err: err}
+			return
+		}
+		ch <- result{got: ast.NodeToString(expr)}
+	}()
+
+	// Generous ceiling: the linear parse finishes in well under a
+	// millisecond; the pre-fix exponential parse blew past seconds by
+	// depth ~30, so any value this small reliably catches a regression.
+	const budget = 2 * time.Second
+	select {
+	case r := <-ch:
+		if r.err != nil {
+			t.Fatalf("parse error at depth %d: %v", depth, r.err)
+		}
+		want := strings.Repeat("TrimExpr{From:", depth) + "VarRef{Name:x}" + strings.Repeat("}", depth)
+		if r.got != want {
+			t.Errorf("AST mismatch at depth %d\ngot:  %s\nwant: %s", depth, r.got, want)
+		}
+	case <-time.After(budget):
+		t.Fatalf("TRIM nested %d deep did not parse within %s — exponential-time regression", depth, budget)
 	}
 }

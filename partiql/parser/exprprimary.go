@@ -634,30 +634,40 @@ func (p *Parser) parseExtractExpr() (ast.ExprNode, error) {
 //	trimFunction : TRIM '(' ( mod=IDENTIFIER? sub=expr? FROM )? target=expr ')'
 //
 // The optional `( mod? sub? FROM )` prefix is matched ONLY when a FROM
-// keyword can be reached after the (optional) modifier and removal char.
-// Everything between the parens that is NOT terminated by such a FROM is
-// the bare `target=expr`. `mod` is an IDENTIFIER constrained semantically
-// to LEADING / TRAILING / BOTH (the official spec header is
-// `TRIM([[LEADING|TRAILING|BOTH] removalChar FROM] str)`); we map it to
-// the TrimSpec enum. The grammar's broader `mod=IDENTIFIER` cannot be
-// faithfully represented by the TrimSpec enum for arbitrary identifiers,
-// and treating non-LEADING/TRAILING/BOTH identifiers as part of the
-// target is the only spec-consistent reading.
+// keyword appears at the top level of the argument list (before TRIM's
+// matching close paren). Everything between the parens that is NOT
+// terminated by such a FROM is the bare `target=expr`. `mod` is an
+// IDENTIFIER constrained semantically to LEADING / TRAILING / BOTH (the
+// official spec header is `TRIM([[LEADING|TRAILING|BOTH] removalChar FROM]
+// str)`); we map it to the TrimSpec enum. The grammar's broader
+// `mod=IDENTIFIER` cannot be faithfully represented by the TrimSpec enum
+// for arbitrary identifiers, and treating non-LEADING/TRAILING/BOTH
+// identifiers as part of the target is the only spec-consistent reading.
 //
-// Disambiguation is SPECULATIVE with backtracking, mirroring ANTLR's
-// optional-group resolution: the parser snapshots its position at the
-// open paren, tentatively consumes `mod? sub? FROM`, and only commits to
-// the prefix form if it reaches FROM. If FROM is not reached — because
-// there is no FROM at all, or because the speculative parse of `sub`
-// fails — the parser restores the snapshot and parses the entire
-// argument as a plain `target=expr`. This is what makes
+// Form disambiguation uses a BOUNDED, LINEAR token lookahead
+// (trimHasTopLevelFrom): from the open paren we scan forward tracking
+// paren depth and report whether a depth-0 FROM precedes the matching
+// close paren. The scan touches each token at most once and parses no
+// sub-expression, so it is O(n) in the argument length; an earlier
+// revision instead speculatively parsed the WHOLE argument via
+// parseExprTop, discarded it, then re-parsed it, which made nested bare
+// targets (TRIM(TRIM(...TRIM(x)...))) re-parse at every level — O(2^n),
+// a DoS-class blowup on live editor input. With the lookahead each part
+// (mod / sub / target) is parsed EXACTLY ONCE per TRIM.
+//
+// A top-level FROM is exactly equivalent to the prefix form for every
+// VALID input: a bare target `parseExprTop` consumes the entire argument
+// and lands on the close paren only when no top-level FROM exists (FROM is
+// never an infix operator, so it always terminates expression parsing).
+// For INVALID inputs both readings reject; the verdict (accept/reject) is
+// preserved either way.
 //
 //	TRIM(both(x))     => target is the function call both(x)
 //	TRIM(leading)     => target is the var ref `leading`
 //	TRIM(trailing+1)  => target is the expression trailing + 1
 //
 // parse correctly even though BOTH / LEADING / TRAILING are non-reserved
-// identifiers: the single-token lookahead that an earlier revision used
+// identifiers: a single-token lookahead that an earlier revision used
 // could not tell `BOTH FROM` (modifier) from `both(x)` (call target).
 //
 // Forms handled:
@@ -676,11 +686,32 @@ func (p *Parser) parseTrimExpr() (ast.ExprNode, error) {
 		return nil, err
 	}
 
-	// Speculatively try the `( mod? sub? FROM )` prefix. On success it
-	// returns the spec/sub and leaves cur positioned just after FROM; on
-	// failure it has restored the parser to the open-paren position and
-	// the whole argument is parsed as the bare target below.
-	if spec, sub, ok := p.tryParseTrimPrefix(); ok {
+	// Decide the form with a bounded linear lookahead rather than a
+	// speculative full-expression parse: a top-level FROM selects the
+	// `( mod? sub? FROM ) target` prefix form, its absence the bare
+	// `target` form.
+	if p.trimHasTopLevelFrom() {
+		spec := ast.TrimSpecNone
+		// Optional modifier: a LEADING / TRAILING / BOTH keyword. ANTLR
+		// binds `mod=IDENTIFIER` greedily, so consume it when present.
+		if s, isSpec := trimSpecFor(p.cur); isSpec {
+			spec = s
+			p.advance() // consume the modifier identifier
+		}
+		// Optional removal char `sub=expr`, present iff the next token is
+		// not yet the FROM. Parsed exactly once. (When no modifier was
+		// consumed this also covers the `( sub FROM )` form.)
+		var sub ast.ExprNode
+		if p.cur.Type != tokFROM {
+			var err error
+			sub, err = p.parseExprTop()
+			if err != nil {
+				return nil, err
+			}
+		}
+		if _, err := p.expect(tokFROM); err != nil {
+			return nil, err
+		}
 		target, err := p.parseExprTop()
 		if err != nil {
 			return nil, err
@@ -688,7 +719,7 @@ func (p *Parser) parseTrimExpr() (ast.ExprNode, error) {
 		return p.finishTrim(start, spec, sub, target)
 	}
 
-	// No prefix: the entire argument is the target expression
+	// No top-level FROM: the entire argument is the target expression
 	// (e.g. TRIM(s), TRIM(both), TRIM(both(x)), TRIM(leading || x)).
 	// Spec is None and there is no removal char in this form.
 	target, err := p.parseExprTop()
@@ -698,58 +729,57 @@ func (p *Parser) parseTrimExpr() (ast.ExprNode, error) {
 	return p.finishTrim(start, ast.TrimSpecNone, nil, target)
 }
 
-// tryParseTrimPrefix speculatively parses the optional TRIM prefix
-// `mod=IDENTIFIER? sub=expr? FROM` (PartiQLParser.g4:606). It returns
-// the recognized trim spec and removal-char expression together with ok=
-// true when a FROM was reached; cur is then positioned immediately after
-// FROM, ready for the target expression.
+// trimHasTopLevelFrom reports whether TRIM's argument list contains a FROM
+// keyword at the top level — paren depth 0 relative to the open paren the
+// caller has already consumed — before that paren's matching close. It is
+// the linear disambiguator for the optional `( mod? sub? FROM )` prefix
+// (PartiQLParser.g4:606).
 //
-// When the prefix does not match — no FROM follows, or the speculative
-// `sub` expression fails to parse — the parser is restored to exactly the
-// position it held on entry (the token after TRIM's open paren) and ok is
-// false. Errors during the speculative `sub` parse are intentionally
-// swallowed: a failure there simply means this is not the prefix form, so
-// the caller re-parses the argument as a plain target (and surfaces any
-// genuine error from that parse instead).
+// The scan is bounded and side-effect free: it snapshots the parse
+// position, advances token-by-token tracking the nesting of every paired
+// delimiter — () [] {} <<>> — and returns at the first depth-0 FROM, or
+// when the matching close paren / EOF ends the argument list. It then
+// restores the snapshot, leaving cur exactly where the caller left it.
+// Because it consumes each token at most once and never recurses into a
+// sub-expression, it is O(n) in the number of tokens before the matching
+// close paren.
 //
-// On ok=false the parser is fully restored and the returned spec/sub are
-// the zero values (TrimSpecNone / nil), which the caller ignores.
-func (p *Parser) tryParseTrimPrefix() (spec ast.TrimSpec, sub ast.ExprNode, ok bool) {
+// Depth tracking means a FROM nested inside a subquery or collection
+// literal — e.g. TRIM((SELECT a FROM t) FROM s) — is NOT mistaken for the
+// prefix delimiter: only the depth-0 FROM (the one separating sub from
+// target) selects the prefix form.
+func (p *Parser) trimHasTopLevelFrom() bool {
 	snapshot := p.save()
-	spec = ast.TrimSpecNone
+	defer p.restore(snapshot)
 
-	// A leading FROM is the `( FROM )` form: no modifier, no removal char.
-	if p.cur.Type == tokFROM {
-		p.advance() // consume FROM
-		return spec, nil, true
+	depth := 0
+	for {
+		switch p.cur.Type {
+		case tokEOF:
+			// Unterminated argument list (also the lexer-error sentinel):
+			// no top-level FROM was found. The bare-target parse below
+			// surfaces the real syntax/lexer error.
+			return false
+		case tokFROM:
+			if depth == 0 {
+				return true
+			}
+		case tokPAREN_LEFT, tokBRACKET_LEFT, tokBRACE_LEFT, tokANGLE_DOUBLE_LEFT:
+			depth++
+		case tokPAREN_RIGHT:
+			if depth == 0 {
+				// TRIM's own matching close paren: argument list ended
+				// without a top-level FROM.
+				return false
+			}
+			depth--
+		case tokBRACKET_RIGHT, tokBRACE_RIGHT, tokANGLE_DOUBLE_RIGHT:
+			if depth > 0 {
+				depth--
+			}
+		}
+		p.advance()
 	}
-
-	// Optional modifier: a LEADING / TRAILING / BOTH keyword. ANTLR binds
-	// `mod=IDENTIFIER` greedily, so when one of these keywords appears we
-	// tentatively take it as the modifier; if no FROM ultimately follows
-	// we backtrack and it becomes (part of) the target instead.
-	if s, isSpec := trimSpecFor(p.cur); isSpec {
-		spec = s
-		p.advance() // consume the modifier identifier
-	}
-
-	// `( mod FROM )` form: modifier consumed, no removal char.
-	if p.cur.Type == tokFROM {
-		p.advance() // consume FROM
-		return spec, nil, true
-	}
-
-	// Optional removal char `sub=expr`, which must then be followed by
-	// FROM. Parse it speculatively; any error means this is not the
-	// prefix form. Note: when no modifier was consumed, this also covers
-	// the `( sub FROM )` form (a bare removal char).
-	sub, err := p.parseExprTop()
-	if err != nil || p.cur.Type != tokFROM {
-		p.restore(snapshot)
-		return ast.TrimSpecNone, nil, false
-	}
-	p.advance() // consume FROM
-	return spec, sub, true
 }
 
 // finishTrim consumes the closing paren and builds the TrimExpr.
