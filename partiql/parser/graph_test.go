@@ -158,9 +158,12 @@ func TestParseGraphMatch_Accept(t *testing.T) {
 		},
 		// ---- selectors ---------------------------------------------------
 		{
+			// Bare ANY (no count): K is 0. The printer shows K for every ANY/
+			// SHORTEST_K selector (the two kinds with a count slot), so a bare
+			// ANY renders `K:0`, distinct from `ANY 3`.
 			name:  "selector_any",
 			input: "(g MATCH ANY (a)-[e]->(b))",
-			want:  "MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Selector:PatternSelector{Kind:ANY} Parts:[NodePattern{Variable:VarRef{Name:a}} EdgePattern{Direction:-> Variable:VarRef{Name:e}} NodePattern{Variable:VarRef{Name:b}}]}]}",
+			want:  "MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Selector:PatternSelector{Kind:ANY K:0} Parts:[NodePattern{Variable:VarRef{Name:a}} EdgePattern{Direction:-> Variable:VarRef{Name:e}} NodePattern{Variable:VarRef{Name:b}}]}]}",
 		},
 		{
 			// matchSelector#SelectorAny: `ANY k=LITERAL_INTEGER?` — the count k
@@ -430,6 +433,22 @@ func TestParseGraphMatch_FromClause_Accept(t *testing.T) {
 			name:  "from_match_empty_pattern_alias",
 			input: "SELECT * FROM g MATCH AS r",
 			want:  "SelectStmt{Star:true From:AliasedSource{Source:MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[]}]} As:r}}",
+		},
+		{
+			// A graph match as the RHS of a join (joinRhs -> tableNonJoin ->
+			// tableBaseReference#TableBaseRefMatch): the match lands in
+			// JoinExpr.Right.
+			name:  "from_match_join_rhs",
+			input: "SELECT * FROM t CROSS JOIN g MATCH (a)",
+			want:  "SelectStmt{Star:true From:JoinExpr{Kind:CROSS Left:VarRef{Name:t} Right:MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:a}}]}]}}}",
+		},
+		{
+			// The top-level WHERE must NOT be swallowed into the FROM pattern:
+			// after the single pattern ends, WHERE is the statement WHERE clause
+			// (top-level graphPart parsing stops at WHERE).
+			name:  "from_match_then_statement_where",
+			input: "SELECT * FROM g MATCH (a)-[e]->(b) WHERE b.x > 1",
+			want:  "SelectStmt{Star:true From:MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:a}} EdgePattern{Direction:-> Variable:VarRef{Name:e}} NodePattern{Variable:VarRef{Name:b}}]}]} Where:BinaryExpr{Op:> Left:PathExpr{Root:VarRef{Name:b} Steps:[DotStep{Field:x}]} Right:NumberLit{Val:1}}}",
 		},
 	}
 
