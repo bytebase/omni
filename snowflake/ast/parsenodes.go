@@ -2054,3 +2054,314 @@ var (
 	_ Node = (*Grantee)(nil)
 	_ Node = (*GrantTarget)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// Utility / introspection — SHOW / DESCRIBE / USE / SET / UNSET / COMMENT /
+// TRUNCATE (T6.3)
+// ---------------------------------------------------------------------------
+//
+// Like GRANT/REVOKE, the SHOW and DESCRIBE/DESC surfaces are large and grow
+// continuously: Snowflake documents 50+ SHOW object classes (DATABASES, TABLES,
+// STREAMS, SEMANTIC VIEWS, GIT REPOSITORIES, ...) and 30+ DESCRIBE object types,
+// and ships new ones (e.g. SEMANTIC VIEWS, DATASETS, CORTEX SEARCH SERVICE) over
+// time. Rather than mirror the legacy ANTLR grammar's per-object rule
+// enumerations — which the official documentation corpus already exceeds —
+// these nodes model the object class/type as an open-ended uppercased token run
+// (free-form ObjectClass / ObjectType string). Structural keywords (TERSE,
+// HISTORY, LIKE, IN, STARTS WITH, LIMIT, WITH, IS, TYPE) anchor the grammar;
+// validating that a given class/type is a real Snowflake object is the
+// catalog/semantic layer's job, not the parser's. New object classes therefore
+// parse without code changes.
+
+// ShowFilterKind discriminates the IN scope qualifier of a SHOW statement
+// (the noun after IN, e.g. ACCOUNT, DATABASE, SCHEMA).
+type ShowFilterKind int
+
+const (
+	// ShowScopeNone means no IN clause was present.
+	ShowScopeNone ShowFilterKind = iota
+	// ShowScopeAccount is IN ACCOUNT.
+	ShowScopeAccount
+	// ShowScopeDatabase is IN DATABASE [<name>].
+	ShowScopeDatabase
+	// ShowScopeSchema is IN SCHEMA [<name>] or a bare IN <schema-name>.
+	ShowScopeSchema
+	// ShowScopeTable is IN TABLE [<name>] (SHOW COLUMNS / PARAMETERS).
+	ShowScopeTable
+	// ShowScopeView is IN VIEW [<name>] (SHOW COLUMNS).
+	ShowScopeView
+	// ShowScopeOther is any other IN/FOR scope keyword run captured verbatim
+	// (e.g. IN APPLICATION, FOR SESSION, IN FAILOVER GROUP). The keyword run is
+	// stored in ScopeText and the optional trailing name (if any) in ScopeName.
+	ShowScopeOther
+)
+
+// String returns a human-readable name for the scope kind.
+func (k ShowFilterKind) String() string {
+	switch k {
+	case ShowScopeNone:
+		return "None"
+	case ShowScopeAccount:
+		return "Account"
+	case ShowScopeDatabase:
+		return "Database"
+	case ShowScopeSchema:
+		return "Schema"
+	case ShowScopeTable:
+		return "Table"
+	case ShowScopeView:
+		return "View"
+	case ShowScopeOther:
+		return "Other"
+	default:
+		return "Unknown"
+	}
+}
+
+// ShowStmt represents a SHOW statement:
+//
+//	SHOW [TERSE] <object_class> [HISTORY] [LIKE '<pat>']
+//	     [IN <scope>] [STARTS WITH '<s>'] [LIMIT <n> [FROM '<s>']]
+//	     [WITH PRIVILEGES <priv> [, ...]]
+//	SHOW GRANTS [ON <target> | TO <grantee> | OF <grantee>]
+//	SHOW FUTURE GRANTS IN { DATABASE <db> | SCHEMA <schema> }
+//
+// ObjectClass is the open-ended, uppercased object-class token run (e.g.
+// "DATABASES", "TABLES", "MATERIALIZED VIEWS", "SEMANTIC VIEWS",
+// "GIT REPOSITORIES"). For SHOW GRANTS, IsGrants is true and the grant-specific
+// fields (GrantsOn / GrantsTo / Future) are populated instead of the generic
+// filter fields.
+//
+// A trailing `->> <query>` "result pipe" (SHOW ... ->> SELECT ...) is captured
+// in Pipe as the piped statement Node.
+//
+// ShowStmt is a Node; the walker descends into LikeName? No — Like/StartsWith
+// are literals stored as strings. The walker visits the structured child Nodes:
+// ScopeName, GrantsOn, GrantsTo, and Pipe.
+type ShowStmt struct {
+	Terse       bool   // SHOW TERSE ...
+	ObjectClass string // open-ended uppercased class run, e.g. "TABLES", "MATERIALIZED VIEWS"
+	History     bool   // ... HISTORY
+
+	// Generic filter options (mutually exclusive with the GRANTS fields).
+	Like       string // LIKE '<pat>' raw source text incl. quotes; "" if absent
+	HasLike    bool   // whether a LIKE clause was present
+	Scope      ShowFilterKind
+	ScopeText  string      // verbatim scope keyword run for ShowScopeOther (e.g. "FAILOVER GROUP")
+	ScopeName  *ObjectName // optional name after the scope keyword (db/schema/table name)
+	StartsWith string      // STARTS WITH '<s>' raw text; "" if absent
+	HasStarts  bool
+	Limit      string // LIMIT <n> raw integer text; "" if absent
+	HasLimit   bool
+	LimitFrom  string       // LIMIT n FROM '<s>' raw text; "" if absent
+	Privileges []*Privilege // WITH PRIVILEGES <list>; nil if absent
+
+	// SHOW GRANTS specifics.
+	IsGrants bool         // SHOW GRANTS ...
+	Future   bool         // SHOW FUTURE GRANTS ...
+	GrantsOn *GrantTarget // ON <target> (SHOW GRANTS ON ... / SHOW FUTURE GRANTS IN ...)
+	GrantsTo *Grantee     // TO/OF <grantee> (SHOW GRANTS TO/OF ...)
+
+	// Result pipe: SHOW ... ->> <query>.
+	Pipe Node // the piped statement (e.g. a SELECT), or nil if no ->> present
+
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *ShowStmt) Tag() NodeTag { return T_ShowStmt }
+
+// DescribeStmt represents a DESCRIBE | DESC statement:
+//
+//	{ DESCRIBE | DESC } <object_type> <name> [ ( <signature> ) ] [ TYPE = <kw> ]
+//	{ DESCRIBE | DESC } SEARCH OPTIMIZATION ON <name>
+//	{ DESCRIBE | DESC } RESULT { '<query_id>' | LAST_QUERY_ID() }
+//
+// ObjectType is the open-ended, uppercased object-type token run (e.g. "TABLE",
+// "MATERIALIZED VIEW", "SEARCH OPTIMIZATION", "ROW ACCESS POLICY"). The name
+// may be a qualified identifier (Name) or a literal (NameLiteral, for
+// DESCRIBE RESULT '<id>' / DESCRIBE TRANSACTION <num>). On is set for the
+// SEARCH OPTIMIZATION ON <name> form. Signature holds an optional
+// FUNCTION/PROCEDURE argument-type list. TypeOption holds the trailing
+// TYPE = <kw> value (e.g. "COLUMNS", "STAGE") uppercased, "" if absent.
+//
+// DescribeStmt is a Node; the walker descends into Name (an *ObjectName).
+type DescribeStmt struct {
+	Short       bool        // true if spelled DESC, false if DESCRIBE
+	ObjectType  string      // open-ended uppercased type run
+	Name        *ObjectName // the object's qualified name; nil if NameLiteral set
+	NameLiteral *Literal    // literal name (DESCRIBE RESULT '<id>' / TRANSACTION <num>); nil otherwise
+	Signature   []*TypeName // FUNCTION/PROCEDURE arg-type list; nil if no ( ... )
+	TypeOption  string      // trailing TYPE = <kw>, uppercased; "" if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *DescribeStmt) Tag() NodeTag { return T_DescribeStmt }
+
+// UseTargetKind discriminates the object kind in a USE statement.
+type UseTargetKind int
+
+const (
+	// UseDefault is USE <name> with no object keyword (defaults to database in
+	// Snowflake, but the parser does not assume — it records the bare form).
+	UseDefault UseTargetKind = iota
+	// UseRole is USE ROLE <name>.
+	UseRole
+	// UseWarehouse is USE WAREHOUSE <name>.
+	UseWarehouse
+	// UseDatabase is USE DATABASE <name>.
+	UseDatabase
+	// UseSchema is USE [SCHEMA] <name>.
+	UseSchema
+	// UseSecondaryRoles is USE SECONDARY ROLES { ALL | NONE | <roles> }.
+	UseSecondaryRoles
+)
+
+// String returns a human-readable name for the kind.
+func (k UseTargetKind) String() string {
+	switch k {
+	case UseDefault:
+		return "Default"
+	case UseRole:
+		return "Role"
+	case UseWarehouse:
+		return "Warehouse"
+	case UseDatabase:
+		return "Database"
+	case UseSchema:
+		return "Schema"
+	case UseSecondaryRoles:
+		return "SecondaryRoles"
+	default:
+		return "Unknown"
+	}
+}
+
+// UseStmt represents a USE statement:
+//
+//	USE [DATABASE] <name>
+//	USE ROLE <name>
+//	USE [SCHEMA] <name>
+//	USE WAREHOUSE <name>
+//	USE SECONDARY ROLES { ALL | NONE | <role> [, ...] }
+//
+// For USE SECONDARY ROLES, SecondaryRoles holds the uppercased option
+// ("ALL" / "NONE") or a comma-joined role-name list; Name is nil.
+//
+// UseStmt is a Node; the walker descends into Name (an *ObjectName).
+type UseStmt struct {
+	Kind           UseTargetKind
+	Name           *ObjectName // the target name; nil for SecondaryRoles
+	SecondaryRoles string      // USE SECONDARY ROLES <this>; "" otherwise
+	Loc            Loc
+}
+
+// Tag implements Node.
+func (n *UseStmt) Tag() NodeTag { return T_UseStmt }
+
+// SetVar pairs a session-variable name with its assigned value expression in a
+// SET statement. SetVar is NOT a Node; it is owned by SetStmt.
+type SetVar struct {
+	Name  Ident
+	Value Node // the assigned expression
+	Loc   Loc
+}
+
+// SetStmt represents a SET session-variable assignment:
+//
+//	SET <var> = <expr>
+//	SET ( <var> [, ...] ) = ( <expr> [, ...] )
+//
+// Single-variable form has exactly one Vars entry. The parenthesized
+// multi-variable form pairs each variable with the value at the same position.
+//
+// SetStmt is a Node; the walker descends into each Vars[i].Value.
+type SetStmt struct {
+	Vars  []*SetVar
+	Paren bool // true for the SET (...) = (...) parenthesized form
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *SetStmt) Tag() NodeTag { return T_SetStmt }
+
+// UnsetStmt represents UNSET of one or more session variables:
+//
+//	UNSET <var>
+//	UNSET ( <var> [, ...] )
+//
+// UnsetStmt is a Node but has no child Nodes (variable names are value Idents).
+type UnsetStmt struct {
+	Names []Ident
+	Paren bool // true for the UNSET (...) parenthesized form
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *UnsetStmt) Tag() NodeTag { return T_UnsetStmt }
+
+// CommentStmt represents a COMMENT statement attaching a comment string to an
+// object or a column:
+//
+//	COMMENT [IF EXISTS] ON <object_type> <name> [ ( <signature> ) ] IS '<string>'
+//	COMMENT [IF EXISTS] ON COLUMN <column_name> IS '<string>'
+//
+// ObjectType is the open-ended, uppercased object-type token run (e.g.
+// "TABLE", "MASKING POLICY", "ROW ACCESS POLICY"). For the object form, Name
+// holds the 1/2/3-part object name. For the COLUMN form, IsColumn is true,
+// ObjectType is "COLUMN", and Column holds the 1- to 4-part column reference —
+// Snowflake's full_column_name allows db.schema.table.column, which exceeds
+// ObjectName's 3-part shape, so a ColumnRef is used. Comment holds the raw
+// quoted string source.
+//
+// CommentStmt is a Node; the walker descends into Name (an *ObjectName) and
+// Column (a *ColumnRef).
+type CommentStmt struct {
+	IfExists   bool
+	IsColumn   bool        // COMMENT ON COLUMN <name> ...
+	ObjectType string      // open-ended uppercased type run ("COLUMN" for the column form)
+	Name       *ObjectName // object form: the 1/2/3-part object name; nil for the column form
+	Column     *ColumnRef  // column form: the 1- to 4-part column reference; nil for the object form
+	Signature  []*TypeName // FUNCTION/PROCEDURE arg-type list; nil if no ( ... )
+	Comment    string      // IS '<string>' raw source text incl. quotes
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *CommentStmt) Tag() NodeTag { return T_CommentStmt }
+
+// TruncateStmt represents a TRUNCATE statement:
+//
+//	TRUNCATE [TABLE] [IF EXISTS] <name>
+//	TRUNCATE [TABLE] [IF EXISTS] ERROR_TABLE( <base_table_name> )
+//	TRUNCATE MATERIALIZED VIEW <name>
+//
+// MaterializedView is true for the TRUNCATE MATERIALIZED VIEW form (which has
+// no IF EXISTS in the legacy grammar). ErrorTable is true for the
+// ERROR_TABLE(<base>) form (an iceberg/error-table truncate documented by
+// Snowflake but absent from the legacy grammar); Name then holds the base table
+// name. Otherwise it is a plain table truncate; the TABLE keyword is optional.
+//
+// TruncateStmt is a Node; the walker descends into Name (an *ObjectName).
+type TruncateStmt struct {
+	MaterializedView bool        // TRUNCATE MATERIALIZED VIEW <name>
+	ErrorTable       bool        // TRUNCATE [TABLE] [IF EXISTS] ERROR_TABLE(<name>)
+	IfExists         bool        // TRUNCATE [TABLE] IF EXISTS <name>
+	Name             *ObjectName // the target name (or ERROR_TABLE base table name)
+	Loc              Loc
+}
+
+// Tag implements Node.
+func (n *TruncateStmt) Tag() NodeTag { return T_TruncateStmt }
+
+// Compile-time assertions for utility nodes.
+var (
+	_ Node = (*ShowStmt)(nil)
+	_ Node = (*DescribeStmt)(nil)
+	_ Node = (*UseStmt)(nil)
+	_ Node = (*SetStmt)(nil)
+	_ Node = (*UnsetStmt)(nil)
+	_ Node = (*CommentStmt)(nil)
+	_ Node = (*TruncateStmt)(nil)
+)

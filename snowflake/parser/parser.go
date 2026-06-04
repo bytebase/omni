@@ -191,9 +191,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwUNDROP:
 		return p.parseUndropStmt()
 	case kwTRUNCATE:
-		return p.unsupported("TRUNCATE")
+		return p.parseTruncateStmt()
 	case kwCOMMENT:
-		return p.unsupported("COMMENT")
+		return p.parseCommentStmt()
 
 	// DML (12 cases)
 	case kwSELECT:
@@ -243,21 +243,21 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// Info / inspection (5 cases)
 	case kwSHOW:
-		return p.unsupported("SHOW")
+		return p.parseShowStmt()
 	case kwDESCRIBE:
-		return p.unsupported("DESCRIBE")
+		return p.parseDescribeStmt(false)
 	case kwDESC:
-		return p.unsupported("DESC")
+		return p.parseDescribeStmt(true)
 	case kwEXPLAIN:
 		return p.unsupported("EXPLAIN")
 	case kwUSE:
-		return p.unsupported("USE")
+		return p.parseUseStmt()
 
 	// Session (2 cases)
 	case kwSET:
-		return p.unsupported("SET")
+		return p.parseSetStmt()
 	case kwUNSET:
-		return p.unsupported("UNSET")
+		return p.parseUnsetStmt()
 
 	// Snowflake Scripting (subset available as F2 keywords — 6 cases)
 	case kwDECLARE:
