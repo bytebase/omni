@@ -175,6 +175,10 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwSTAGE:
 		// ALTER STAGE ... (T4.1).
 		return p.parseAlterStageStmt()
+	case kwFILE_FORMAT, kwFILE:
+		// ALTER FILE FORMAT ... (T4.2). FILE FORMAT lexes as one FILE_FORMAT token
+		// or two FILE+FORMAT tokens; both dispatch here.
+		return p.parseAlterFileFormatStmt()
 	default:
 		return p.unsupported("ALTER")
 	}

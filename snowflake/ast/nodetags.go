@@ -108,6 +108,10 @@ const (
 	// Stage DDL tags (T4.1)
 	T_CreateStageStmt
 	T_AlterStageStmt
+
+	// File-format DDL tags (T4.2)
+	T_CreateFileFormatStmt
+	T_AlterFileFormatStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -259,6 +263,10 @@ func (t NodeTag) String() string {
 		return "CreateStageStmt"
 	case T_AlterStageStmt:
 		return "AlterStageStmt"
+	case T_CreateFileFormatStmt:
+		return "CreateFileFormatStmt"
+	case T_AlterFileFormatStmt:
+		return "AlterFileFormatStmt"
 	default:
 		return "Unknown"
 	}
