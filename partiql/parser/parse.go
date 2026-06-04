@@ -56,6 +56,17 @@ func (p *Parser) parseScript() (*ast.List, error) {
 		stmts = append(stmts, stmt)
 	}
 
+	// Surface trailing garbage that lexed to a LEXER error before the EOF
+	// check below (see Parser.ParseExpr for the first-error-and-stop
+	// rationale): a trailing '#' or unterminated '/*' after the final
+	// statement sets p.lexer.Err and makes advance() yield tokEOF, so the
+	// cur==tokEOF check would otherwise pass and drop the pending lexer
+	// error. This entry point backs the public Parse function consumed by
+	// partiql/analysis, so the gap is reachable from bytebase.
+	if err := p.checkLexerErr(); err != nil {
+		return nil, err
+	}
+
 	if p.cur.Type != tokEOF {
 		return nil, &ParseError{
 			Message: "unexpected token after statement",
