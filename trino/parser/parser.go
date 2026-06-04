@@ -196,19 +196,12 @@ func (p *Parser) unknownStatementError() *ParseError {
 func (p *Parser) parseStmt() (ast.Node, error) {
 	switch p.cur.Kind {
 	// --- Query (rootQuery / queryPrimary leading tokens) ---
-	case kwSELECT:
-		return p.unsupported("SELECT")
-	case kwWITH:
-		// WITH cte... query  OR  WITH FUNCTION ... query (inline routine).
-		return p.unsupported("WITH")
-	case kwTABLE:
-		// TABLE qualifiedName — a query primary, e.g. `TABLE t`.
-		return p.unsupported("TABLE")
-	case kwVALUES:
-		return p.unsupported("VALUES")
-	case int('('):
-		// Parenthesized query expression at top level, e.g. (SELECT 1) UNION (SELECT 2).
-		return p.unsupported("query")
+	// SELECT / WITH / TABLE / VALUES / '(' all begin a query; parser-select's
+	// parseQueryStmt parses the whole query layer. (A leading `WITH FUNCTION`
+	// inline routine is the parser-routines node; parseQuery reports it as
+	// unsupported until that node lands.)
+	case kwSELECT, kwWITH, kwTABLE, kwVALUES, int('('):
+		return p.parseQueryStmt()
 
 	// --- Session / catalog context ---
 	case kwUSE:
@@ -389,13 +382,10 @@ func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
 				})
 			}
 		} else if p.cur.Kind != tokEOF {
-			// A successful parse must consume the entire segment. Trailing
-			// tokens mean the statement parser stopped early on input the
-			// grammar does not accept (e.g. a misplaced clause like
-			// `GRANT bar TO foo WITH GRANT OPTION`, or `... CASCADE` where
-			// Trino has no such option). Report it so Diagnose flags it and
-			// the oracle differential agrees. (Stubbed statements always
-			// return a non-nil error, so they never reach this branch.)
+			// A statement parsed cleanly but did not consume the whole segment:
+			// the leftover tokens are a syntax error (e.g. `SELECT a a a`,
+			// `SELECT 1 garbage`). Each segment holds exactly one top-level
+			// statement (Split cut on ';'), so any trailing token is invalid here.
 			p.errors = append(p.errors, *p.syntaxErrorAtCur())
 		}
 		result = node

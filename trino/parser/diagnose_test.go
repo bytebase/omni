@@ -6,12 +6,13 @@ import (
 )
 
 // TestDiagnose_CleanInputNoStubNoise verifies the wiring shape: Diagnose runs
-// Parse and surfaces ParseErrors as Diagnostics. While statement bodies are
-// stubbed, even valid SQL yields a "not yet supported" diagnostic — those
-// vanish as later DAG nodes implement real parsing. This test asserts the
-// count/shape relationship, not zero diagnostics.
+// Parse and surfaces ParseErrors as Diagnostics. While a statement body is still
+// stubbed (no DAG node has implemented it), even valid SQL of that form yields a
+// "not yet supported" diagnostic — those vanish as later nodes implement real
+// parsing. INSERT (parser-dml's job) is still stubbed; SELECT is now implemented
+// by parser-select, so this test uses a still-stubbed form.
 func TestDiagnose_StubbedStatementProducesDiagnostic(t *testing.T) {
-	diags := Diagnose("SELECT 1")
+	diags := Diagnose("INSERT INTO t VALUES (1)")
 	if len(diags) != 1 {
 		t.Fatalf("got %d diagnostics, want 1: %+v", len(diags), diags)
 	}
@@ -49,11 +50,12 @@ func TestDiagnose_EmptyInput(t *testing.T) {
 }
 
 // TestDiagnose_MultipleStatements verifies diagnostics are collected across all
-// segments (each stubbed statement yields its own).
+// segments. A valid SELECT (now implemented by parser-select) yields none, while
+// the two still-stubbed DML statements (INSERT, DELETE) each yield one.
 func TestDiagnose_MultipleStatements(t *testing.T) {
 	diags := Diagnose("SELECT 1; INSERT INTO t VALUES (1); DELETE FROM t")
-	if len(diags) != 3 {
-		t.Fatalf("got %d diagnostics, want 3: %+v", len(diags), diags)
+	if len(diags) != 2 {
+		t.Fatalf("got %d diagnostics, want 2 (INSERT + DELETE stubs; SELECT now parses): %+v", len(diags), diags)
 	}
 }
 

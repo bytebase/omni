@@ -341,6 +341,55 @@ func TestInspectNoNilCallback(t *testing.T) {
 	}
 }
 
+// TestWalkSliceOfPointerNodeFields is the regression test for the genwalker
+// []*<NodeStruct> traversal gap (PR #195 review, finding 2). GrantStmt and
+// RevokeStmt carry []*Privilege and []*Grantee fields — full Node types — but
+// before the fix genwalker's isChildType recognized only Node, []Node, and
+// *<NodeStruct>, so it emitted no walk case for slice-of-pointer-to-Node fields.
+// As a result Walk/Inspect over a GrantStmt visited only the GrantStmt itself,
+// reaching 0 of its Privilege and Grantee children. This is latent for DCL but
+// expressions/parser-select define []*Expr / []*SelectItem fields and query-span
+// walks the AST, so the generator had to descend into []*T node fields. The test
+// asserts the children are now reached for both statement kinds.
+func TestWalkSliceOfPointerNodeFields(t *testing.T) {
+	mk := func() (privs []*Privilege, grantees []*Grantee) {
+		privs = []*Privilege{
+			{Name: "select", Loc: Loc{0, 6}},
+			{Name: "insert", Loc: Loc{8, 14}},
+		}
+		grantees = []*Grantee{
+			{Kind: GranteeString, Value: "x", Loc: Loc{20, 23}},
+			{Kind: GranteeNamedParameter, Value: "p", Loc: Loc{25, 27}},
+		}
+		return
+	}
+
+	cases := []struct {
+		name string
+		node Node
+	}{
+		{"GrantStmt", func() Node { p, g := mk(); return &GrantStmt{Privileges: p, Grantees: g} }()},
+		{"RevokeStmt", func() Node { p, g := mk(); return &RevokeStmt{Privileges: p, Grantees: g} }()},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			seen := map[NodeTag]int{}
+			Inspect(c.node, func(n Node) bool {
+				if n != nil {
+					seen[n.Tag()]++
+				}
+				return true
+			})
+			if seen[T_Privilege] != 2 {
+				t.Errorf("Inspect reached %d Privilege nodes, want 2 (slice-of-pointer field not walked)", seen[T_Privilege])
+			}
+			if seen[T_Grantee] != 2 {
+				t.Errorf("Inspect reached %d Grantee nodes, want 2 (slice-of-pointer field not walked)", seen[T_Grantee])
+			}
+		})
+	}
+}
+
 // -----------------------------------------------------------------------
 // NodeTag tests
 // -----------------------------------------------------------------------

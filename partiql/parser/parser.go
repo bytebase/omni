@@ -247,6 +247,16 @@ func (p *Parser) ParseExpr() (ast.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Surface trailing garbage that lexed to a LEXER error before the EOF
+	// check below. The lexer is first-error-and-stop: trailing garbage such
+	// as a stray UNRECOGNIZED character ('#') or an unterminated block
+	// comment ('/*') sets p.lexer.Err and makes advance() yield tokEOF, so
+	// the cur==tokEOF check would otherwise pass and silently drop the
+	// pending lexer error. checkLexerErr() must run first so the lexer
+	// diagnostic wins over the generic "unexpected token" message.
+	if err := p.checkLexerErr(); err != nil {
+		return nil, err
+	}
 	if p.cur.Type != tokEOF {
 		return nil, &ParseError{
 			Message: fmt.Sprintf("unexpected token %q after expression", p.cur.Str),
@@ -722,6 +732,14 @@ func (p *Parser) ParseStatement() (ast.StmtNode, error) {
 		}
 	}
 	if err != nil {
+		return nil, err
+	}
+	// Surface trailing garbage that lexed to a LEXER error before the EOF
+	// check below (see ParseExpr for the first-error-and-stop rationale): a
+	// trailing '#' or unterminated '/*' sets p.lexer.Err and makes advance()
+	// yield tokEOF, so the cur==tokEOF check would otherwise pass and drop
+	// the pending lexer error.
+	if err := p.checkLexerErr(); err != nil {
 		return nil, err
 	}
 	if p.cur.Type != tokEOF {

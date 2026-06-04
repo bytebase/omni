@@ -217,3 +217,93 @@ func TestParseStatement_Exec(t *testing.T) {
 		})
 	}
 }
+
+// TestParse_TrailingLexerError verifies that the script-level entry point
+// (Parse -> parseScript) surfaces trailing garbage that lexes to a LEXER error
+// rather than silently dropping it. parseScript calls checkLexerErr() at entry
+// but, before the fix, never after: once the trailing '#' / unterminated '/*'
+// set p.lexer.Err, advance() yields tokEOF, the post-parse `cur==tokEOF` check
+// passes, and the pending lexer error was lost. Oracle (antlr_fallback,
+// PartiQLLexer.g4): '#' matches only UNRECOGNIZED (default channel) and an
+// unterminated '/*' cannot match COMMENT_BLOCK, so ANTLR rejects both; closed
+// comments and whitespace are HIDDEN-channel and must still be accepted.
+func TestParse_TrailingLexerError(t *testing.T) {
+	bases := []string{
+		"SELECT a FROM t",
+		"CREATE TABLE t",
+		"DROP TABLE t",
+		"INSERT INTO t VALUE 1",
+		"UPDATE t SET x = 1",
+		"DELETE FROM t",
+	}
+	for _, base := range bases {
+		t.Run(base+" #", func(t *testing.T) {
+			input := base + " #"
+			_, err := Parse(input)
+			if err == nil {
+				t.Fatalf("Parse(%q) = nil error, want trailing-lexer-error rejection", input)
+			}
+			if !strings.Contains(err.Error(), "unexpected character") {
+				t.Errorf("Parse(%q) error = %q, want to contain %q", input, err.Error(), "unexpected character")
+			}
+		})
+		t.Run(base+" /*", func(t *testing.T) {
+			input := base + " /*"
+			_, err := Parse(input)
+			if err == nil {
+				t.Fatalf("Parse(%q) = nil error, want trailing-lexer-error rejection", input)
+			}
+			if !strings.Contains(err.Error(), "unterminated block comment") {
+				t.Errorf("Parse(%q) error = %q, want to contain %q", input, err.Error(), "unterminated block comment")
+			}
+		})
+	}
+
+	// A lexer error on a trailing statement AFTER a semicolon must also surface
+	// (the multi-root loop path), not just on the first statement.
+	t.Run("trailing_stmt_after_semicolon", func(t *testing.T) {
+		input := "SELECT a FROM t; SELECT b FROM u #"
+		_, err := Parse(input)
+		if err == nil {
+			t.Fatalf("Parse(%q) = nil error, want trailing-lexer-error rejection", input)
+		}
+		if !strings.Contains(err.Error(), "unexpected character") {
+			t.Errorf("Parse(%q) error = %q, want to contain %q", input, err.Error(), "unexpected character")
+		}
+	})
+
+	// Garbage IMMEDIATELY after a semicolon exercises the loop's
+	// trailing-semicolon `break` path (the lexer error is set while scanning
+	// for the next root, which yields tokEOF and breaks the loop): the
+	// post-loop checkLexerErr must still surface it.
+	t.Run("garbage_immediately_after_semicolon", func(t *testing.T) {
+		for _, tc := range []struct{ input, want string }{
+			{"SELECT a FROM t ; #", "unexpected character"},
+			{"SELECT a FROM t ; /*", "unterminated block comment"},
+		} {
+			_, err := Parse(tc.input)
+			if err == nil {
+				t.Fatalf("Parse(%q) = nil error, want trailing-lexer-error rejection", tc.input)
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("Parse(%q) error = %q, want to contain %q", tc.input, err.Error(), tc.want)
+			}
+		}
+	})
+
+	// Valid trailing whitespace / closed comments and a trailing semicolon must
+	// STILL parse cleanly (HIDDEN-channel content must not regress).
+	t.Run("valid_trailing_accepted", func(t *testing.T) {
+		for _, input := range []string{
+			"SELECT a FROM t -- ok",
+			"SELECT a FROM t /* closed */",
+			"SELECT a FROM t;",
+			"SELECT a FROM t; -- ok",
+			"SELECT a FROM t   ",
+		} {
+			if _, err := Parse(input); err != nil {
+				t.Errorf("Parse(%q) unexpected error: %v", input, err)
+			}
+		}
+	})
+}

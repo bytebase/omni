@@ -985,3 +985,147 @@ func TestParser_FuncCall(t *testing.T) {
 		})
 	}
 }
+
+// TestParseExpr_TrailingLexerError verifies that trailing garbage which lexes
+// to a LEXER error (an UNRECOGNIZED character like '#', or an unterminated
+// block comment '/*') after an otherwise-complete expression is surfaced as a
+// parse error rather than silently swallowed. The lexer uses first-error-and-
+// stop: once the trailing garbage sets p.lexer.Err, advance() yields tokEOF,
+// so the post-parse `cur==tokEOF` check passes and the pending lexer error
+// would be dropped without an explicit post-parse checkLexerErr().
+//
+// Oracle (antlr_fallback, PartiQLLexer.g4): '#' matches only UNRECOGNIZED
+// (line 372-373, default channel — a real token the parser sees, never hidden),
+// and an unterminated '/*' cannot match COMMENT_BLOCK (line 369-370, which
+// requires a closing '*/'). ANTLR therefore rejects both trailing forms; the
+// valid HIDDEN-channel forms (closed block comment, line comment, whitespace)
+// are invisible to the parser and must still be accepted.
+func TestParseExpr_TrailingLexerError(t *testing.T) {
+	// Each base expression is paired with trailing garbage that produces a
+	// lexer error. Both the '#' (UNRECOGNIZED) and the unterminated '/*'
+	// (unterminated block comment) forms must be rejected.
+	bases := []struct {
+		name string
+		expr string
+	}{
+		{"int_literal", "42"},
+		{"string_literal", "'str'"},
+		{"identifier", "foo"},
+		{"select", "SELECT a FROM t"},
+		{"funccall", "f(x)"},
+		{"path", "a.b.c"},
+	}
+	for _, b := range bases {
+		t.Run(b.name+"_trailing_hash", func(t *testing.T) {
+			input := b.expr + " #"
+			p := NewParser(input)
+			_, err := p.ParseExpr()
+			if err == nil {
+				t.Fatalf("ParseExpr(%q) = nil error, want trailing-lexer-error rejection", input)
+			}
+			if !strings.Contains(err.Error(), "unexpected character") {
+				t.Errorf("ParseExpr(%q) error = %q, want to contain %q", input, err.Error(), "unexpected character")
+			}
+		})
+		t.Run(b.name+"_trailing_unterminated_block", func(t *testing.T) {
+			input := b.expr + " /*"
+			p := NewParser(input)
+			_, err := p.ParseExpr()
+			if err == nil {
+				t.Fatalf("ParseExpr(%q) = nil error, want trailing-lexer-error rejection", input)
+			}
+			if !strings.Contains(err.Error(), "unterminated block comment") {
+				t.Errorf("ParseExpr(%q) error = %q, want to contain %q", input, err.Error(), "unterminated block comment")
+			}
+		})
+	}
+
+	// Trailing VALID tokens are already rejected by the existing EOF
+	// "unexpected token after expression" check — verify the fix does not
+	// disturb that path.
+	t.Run("trailing_valid_token_still_rejected", func(t *testing.T) {
+		for _, input := range []string{"42 99", "foo bar"} {
+			p := NewParser(input)
+			_, err := p.ParseExpr()
+			if err == nil {
+				t.Fatalf("ParseExpr(%q) = nil error, want rejection", input)
+			}
+			if !strings.Contains(err.Error(), "unexpected token") {
+				t.Errorf("ParseExpr(%q) error = %q, want to contain %q", input, err.Error(), "unexpected token")
+			}
+		}
+	})
+
+	// Valid trailing whitespace and CLOSED comments must STILL be accepted —
+	// they are HIDDEN-channel in the grammar and must not regress.
+	t.Run("valid_trailing_accepted", func(t *testing.T) {
+		for _, input := range []string{
+			"42 -- ok",
+			"42 /* closed */",
+			"42   ",
+			"42\t\n",
+			"foo /* a */",
+		} {
+			p := NewParser(input)
+			if _, err := p.ParseExpr(); err != nil {
+				t.Errorf("ParseExpr(%q) unexpected error: %v", input, err)
+			}
+		}
+	})
+}
+
+// TestParseStatement_TrailingLexerError mirrors TestParseExpr_TrailingLexerError
+// for the statement entry point. Every fully-parsed statement form (DQL/DDL/DML)
+// followed by lexer-error trailing garbage must be rejected, while valid hidden
+// trailing content (closed comments, whitespace) is still accepted.
+func TestParseStatement_TrailingLexerError(t *testing.T) {
+	bases := []struct {
+		name string
+		stmt string
+	}{
+		{"select", "SELECT a FROM t"},
+		{"create_table", "CREATE TABLE t"},
+		{"drop_table", "DROP TABLE t"},
+		{"insert", "INSERT INTO t VALUE 1"},
+		{"update", "UPDATE t SET x = 1"},
+		{"delete", "DELETE FROM t"},
+	}
+	for _, b := range bases {
+		t.Run(b.name+"_trailing_hash", func(t *testing.T) {
+			input := b.stmt + " #"
+			p := NewParser(input)
+			_, err := p.ParseStatement()
+			if err == nil {
+				t.Fatalf("ParseStatement(%q) = nil error, want trailing-lexer-error rejection", input)
+			}
+			if !strings.Contains(err.Error(), "unexpected character") {
+				t.Errorf("ParseStatement(%q) error = %q, want to contain %q", input, err.Error(), "unexpected character")
+			}
+		})
+		t.Run(b.name+"_trailing_unterminated_block", func(t *testing.T) {
+			input := b.stmt + " /*"
+			p := NewParser(input)
+			_, err := p.ParseStatement()
+			if err == nil {
+				t.Fatalf("ParseStatement(%q) = nil error, want trailing-lexer-error rejection", input)
+			}
+			if !strings.Contains(err.Error(), "unterminated block comment") {
+				t.Errorf("ParseStatement(%q) error = %q, want to contain %q", input, err.Error(), "unterminated block comment")
+			}
+		})
+	}
+
+	t.Run("valid_trailing_accepted", func(t *testing.T) {
+		for _, input := range []string{
+			"SELECT a FROM t -- ok",
+			"SELECT a FROM t /* closed */",
+			"CREATE TABLE t   ",
+			"INSERT INTO t VALUE 1 /* c */",
+		} {
+			p := NewParser(input)
+			if _, err := p.ParseStatement(); err != nil {
+				t.Errorf("ParseStatement(%q) unexpected error: %v", input, err)
+			}
+		}
+	})
+}
