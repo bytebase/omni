@@ -499,12 +499,21 @@ func (p *Parser) parseJoinCriteria(join *Join) error {
 // sampledRelation / aliasedRelation
 // ---------------------------------------------------------------------------
 
-// parseSampledRelation parses a `sampledRelation`: an aliasedRelation with an
-// optional trailing `TABLESAMPLE (BERNOULLI|SYSTEM) ( percentage )`. (The
-// MATCH_RECOGNIZE patternRecognition layer between them is the
-// parser-match-recognize node, D4.)
+// parseSampledRelation parses a `sampledRelation`: a patternRecognition with an
+// optional trailing `TABLESAMPLE (BERNOULLI|SYSTEM) ( percentage )`. The
+// patternRecognition rule is an aliasedRelation followed by an optional
+// MATCH_RECOGNIZE clause; the MATCH_RECOGNIZE layer is the parser-match-recognize
+// node (D4 / match_recognize.go's parsePatternRecognitionSuffix). Because
+// sampledRelation wraps patternRecognition (not the other way round),
+// MATCH_RECOGNIZE binds tighter than TABLESAMPLE.
 func (p *Parser) parseSampledRelation() (Relation, error) {
 	rel, err := p.parseAliasedRelation()
+	if err != nil {
+		return nil, err
+	}
+	// patternRecognition: an optional MATCH_RECOGNIZE clause on the aliasedRelation
+	// (parser-match-recognize node). A no-op when MATCH_RECOGNIZE is absent.
+	rel, err = p.parsePatternRecognitionSuffix(rel)
 	if err != nil {
 		return nil, err
 	}
@@ -626,15 +635,24 @@ func (p *Parser) tryParseRelationAlias() (alias *ast.Identifier, cols []*ast.Ide
 // keyword that, here, introduces a clause rather than naming a relation alias —
 // disambiguated by the token that follows it (matching Trino 481, probed):
 //
-//	WINDOW      + identifier      → the querySpecification WINDOW clause
-//	LIMIT       + (ALL|int|?)     → the queryNoWith LIMIT clause
-//	OFFSET      + (int|?)         → the queryNoWith OFFSET clause
-//	FETCH       + (FIRST|NEXT)    → the queryNoWith FETCH clause
-//	TABLESAMPLE + (BERNOULLI|SYSTEM) → the sampledRelation TABLESAMPLE clause
+//	WINDOW           + identifier         → the querySpecification WINDOW clause
+//	LIMIT            + (ALL|int|?)        → the queryNoWith LIMIT clause
+//	OFFSET           + (int|?)            → the queryNoWith OFFSET clause
+//	FETCH            + (FIRST|NEXT)       → the queryNoWith FETCH clause
+//	TABLESAMPLE      + (BERNOULLI|SYSTEM) → the sampledRelation TABLESAMPLE clause
+//	MATCH_RECOGNIZE  + (                  → the patternRecognition MATCH_RECOGNIZE clause
 //
-// A bare occurrence (e.g. `FROM t window`, `FROM t limit`) does NOT match and is
-// taken as an alias by the caller. The reserved clause/join keywords need no
-// guard (isIdentifierStart already rejects them).
+// A bare occurrence (e.g. `FROM t window`, `FROM t limit`, `FROM t match_recognize`)
+// does NOT match and is taken as an alias by the caller — oracle-confirmed for
+// MATCH_RECOGNIZE (`FROM t MATCH_RECOGNIZE` resolves to a table aliased
+// "match_recognize"). The reserved clause/join keywords need no guard
+// (isIdentifierStart already rejects them).
+//
+// MATCH_RECOGNIZE belongs to the parser-match-recognize node
+// (match_recognize.go's parsePatternRecognitionSuffix); the guard lives here
+// because the alias decision (tryParseRelationAlias) is made before that hook
+// runs — without it, a non-reserved MATCH_RECOGNIZE keyword would be swallowed
+// as the aliasedRelation's alias and the clause never reached.
 func (p *Parser) atRelationClauseStart() bool {
 	switch p.cur.Kind {
 	case kwWINDOW:
@@ -651,6 +669,8 @@ func (p *Parser) atRelationClauseStart() bool {
 	case kwTABLESAMPLE:
 		nk := p.peekNext().Kind
 		return nk == kwBERNOULLI || nk == kwSYSTEM
+	case kwMATCH_RECOGNIZE:
+		return p.peekNext().Kind == int('(')
 	default:
 		return false
 	}

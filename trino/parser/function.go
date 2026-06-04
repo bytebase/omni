@@ -241,12 +241,16 @@ type WindowSpec struct {
 
 // WindowFrame is the common frame `frameType [BETWEEN start AND end] | frameType
 // start` (frameExtent). FrameType is ROWS/RANGE/GROUPS. End is nil for the
-// single-bound form. The pattern-recognition frame additions are deferred to
-// parser-match-recognize (B2).
+// single-bound form. Pattern carries the row-pattern-recognition additions a
+// windowFrame may wrap around the frameExtent (MEASURES / PATTERN / SUBSET /
+// DEFINE / AFTER MATCH / INITIAL|SEEK); it is nil for an ordinary frame and is
+// owned by parser-match-recognize (B2 — see MatchRecognizeFrame in
+// match_recognize.go).
 type WindowFrame struct {
 	FrameType string
 	Start     WindowBound
-	End       *WindowBound // nil for the single-bound form
+	End       *WindowBound         // nil for the single-bound form
+	Pattern   *MatchRecognizeFrame // row-pattern additions, nil for an ordinary frame
 	Loc       ast.Loc
 }
 
@@ -658,9 +662,12 @@ func (p *Parser) parseWindowSpecification(startOffset int) (*WindowSpec, error) 
 	spec := &WindowSpec{Loc: ast.Loc{Start: startOffset}}
 
 	// Optional existing window name: a leading identifier that is NOT the start
-	// of PARTITION/ORDER/a frame keyword or ')'.
+	// of PARTITION/ORDER/a frame keyword or ')'. MEASURES is excluded only when it
+	// begins a pattern-recognition MEASURES clause (parser-match-recognize); a
+	// leading MEASURES followed by a clause keyword is an ordinary window name
+	// (atMeasuresClause, B2).
 	if isIdentifierStart(p.cur.Kind) && p.cur.Kind != kwPARTITION && p.cur.Kind != kwORDER &&
-		!isFrameTypeKeyword(p.cur.Kind) {
+		!isFrameTypeKeyword(p.cur.Kind) && !p.atMeasuresClause() {
 		spec.ExistingName = identFromToken(p.advance())
 	}
 
@@ -692,7 +699,11 @@ func (p *Parser) parseWindowSpecification(startOffset int) (*WindowSpec, error) 
 		spec.OrderBy = items
 	}
 
-	if isFrameTypeKeyword(p.cur.Kind) {
+	// A window frame leads with its frameExtent keyword (ROWS/RANGE/GROUPS) or,
+	// for a pattern-recognition frame, with MEASURES (the windowFrame rule's
+	// leading MEASURES clause precedes the frameExtent — parser-match-recognize,
+	// B2).
+	if isFrameTypeKeyword(p.cur.Kind) || p.cur.Kind == kwMEASURES {
 		frame, err := p.parseWindowFrame()
 		if err != nil {
 			return nil, err
@@ -714,40 +725,83 @@ func isFrameTypeKeyword(kind TokenKind) bool {
 	return kind == kwROWS || kind == kwRANGE || kind == kwGROUPS
 }
 
-// parseWindowFrame parses the common frame `frameType (BETWEEN start AND end |
-// start)` (frameExtent + frameBound). The pattern-recognition frame additions
-// (MEASURES/PATTERN/DEFINE/…) are deferred to parser-match-recognize (B2); this
-// node implements only the standard frame.
+// parseWindowFrame parses a windowFrame: the common `frameType (BETWEEN start
+// AND end | start)` (frameExtent + frameBound), optionally surrounded by the
+// row-pattern-recognition additions `(MEASURES …)? frameExtent (AFTER MATCH …)?
+// (INITIAL|SEEK)? (PATTERN …)? (SUBSET …)? (DEFINE …)?`. The MEASURES clause
+// (when present) leads the frame, before the frameExtent; the remaining
+// additions follow it. The pattern additions are owned by parser-match-recognize
+// (B2): this function parses the standard frameExtent and delegates the
+// pattern parts to the match-recognize helpers, attaching the result to
+// frame.Pattern (nil for an ordinary frame).
 func (p *Parser) parseWindowFrame() (*WindowFrame, error) {
+	start := p.cur.Loc.Start
+
+	// Leading MEASURES (parser-match-recognize, B2). Precedes the frameExtent.
+	leadingMeasures, _, err := p.parseLeadingFrameMeasures()
+	if err != nil {
+		return nil, err
+	}
+
+	frame, err := p.parseFrameExtent(start)
+	if err != nil {
+		return nil, err
+	}
+
+	// Trailing pattern-recognition additions (AFTER MATCH / INITIAL|SEEK /
+	// PATTERN / SUBSET / DEFINE), plus the leading MEASURES if any.
+	mrf, err := p.parseTrailingFramePattern(leadingMeasures)
+	if err != nil {
+		return nil, err
+	}
+	frame.Pattern = mrf
+	// Extend the frame span over any trailing pattern clauses just consumed so the
+	// WindowFrame location covers the whole `[MEASURES] frameExtent [AFTER MATCH …]
+	// [PATTERN …] [SUBSET …] [DEFINE …]`, not just the frameExtent. p.prev is the
+	// last token consumed by parseTrailingFramePattern (or the frameExtent's last
+	// token when there were no trailing clauses).
+	if mrf != nil {
+		frame.Loc.End = p.prev.Loc.End
+	}
+	return frame, nil
+}
+
+// parseFrameExtent parses the `frameType (BETWEEN start AND end | start)`
+// frameExtent (the ROWS/RANGE/GROUPS keyword is current). start is the frame's
+// origin offset (the leading MEASURES start, or the frameType offset).
+func (p *Parser) parseFrameExtent(start int) (*WindowFrame, error) {
+	if !isFrameTypeKeyword(p.cur.Kind) {
+		return nil, p.exprErrorAt("expected ROWS, RANGE, or GROUPS frame type")
+	}
 	typeTok := p.advance() // ROWS / RANGE / GROUPS
 	frame := &WindowFrame{
 		FrameType: typeTok.Str,
-		Loc:       ast.Loc{Start: typeTok.Loc.Start},
+		Loc:       ast.Loc{Start: start},
 	}
 	if p.cur.Kind == kwBETWEEN {
 		p.advance() // consume BETWEEN
-		start, err := p.parseFrameBound()
+		lo, err := p.parseFrameBound()
 		if err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(kwAND); err != nil {
 			return nil, err
 		}
-		end, err := p.parseFrameBound()
+		hi, err := p.parseFrameBound()
 		if err != nil {
 			return nil, err
 		}
-		frame.Start = start
-		frame.End = &end
-		frame.Loc.End = end.Loc.End
+		frame.Start = lo
+		frame.End = &hi
+		frame.Loc.End = hi.Loc.End
 		return frame, nil
 	}
-	start, err := p.parseFrameBound()
+	lo, err := p.parseFrameBound()
 	if err != nil {
 		return nil, err
 	}
-	frame.Start = start
-	frame.Loc.End = start.Loc.End
+	frame.Start = lo
+	frame.Loc.End = lo.Loc.End
 	return frame, nil
 }
 
