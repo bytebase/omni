@@ -73,6 +73,9 @@ func TestRoutineGrammarRejected(t *testing.T) {
 		`ALTER FUNCTION foo COMMENT 'x'`,
 		`ALTER PROCEDURE foo COMMENT 'x'`,
 		`CREATE OR REPLACE PROCEDURE p() BEGIN SELECT 1; END`,
+		`SHOW CREATE FUNCTION foo`,
+		`SHOW CREATE TRIGGER foo`,
+		`SHOW CREATE EVENT foo`,
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {

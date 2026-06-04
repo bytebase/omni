@@ -554,36 +554,10 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				return nil, err
 			}
 			stmt.From = ref
-		case kwFUNCTION:
-			stmt.Type = "CREATE FUNCTION"
-			p.advance()
-			// Completion: after SHOW CREATE FUNCTION, offer function_ref.
-			p.checkCursor()
-			if p.collectMode() {
-				p.addRuleCandidate("function_ref")
-				return nil, &ParseError{Message: "collecting"}
-			}
-			ref, err := p.parseTableRef()
-			if err != nil {
-				return nil, err
-			}
-			stmt.From = ref
-		case kwTRIGGER:
-			stmt.Type = "CREATE TRIGGER"
-			p.advance()
-			ref, err := p.parseTableRef()
-			if err != nil {
-				return nil, err
-			}
-			stmt.From = ref
-		case kwEVENT:
-			stmt.Type = "CREATE EVENT"
-			p.advance()
-			ref, err := p.parseTableRef()
-			if err != nil {
-				return nil, err
-			}
-			stmt.From = ref
+		case kwFUNCTION, kwTRIGGER, kwEVENT:
+			// TiDB v8.5.0 has no functions/triggers/events — SHOW CREATE
+			// {FUNCTION,TRIGGER,EVENT} rejects at the object keyword.
+			return nil, p.syntaxErrorAtCur()
 		case kwUSER:
 			stmt.Type = "CREATE USER"
 			p.advance()

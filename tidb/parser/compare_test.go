@@ -4705,35 +4705,8 @@ func TestParseShow(t *testing.T) {
 		}
 	})
 
-	t.Run("create function", func(t *testing.T) {
-		stmt := parseShow(t, "SHOW CREATE FUNCTION myfunc")
-		if stmt.Type != "CREATE FUNCTION" {
-			t.Errorf("Type = %s, want CREATE FUNCTION", stmt.Type)
-		}
-		if stmt.From == nil || stmt.From.Name != "myfunc" {
-			t.Errorf("From = %v, want myfunc", stmt.From)
-		}
-	})
-
-	t.Run("create trigger", func(t *testing.T) {
-		stmt := parseShow(t, "SHOW CREATE TRIGGER mytrigger")
-		if stmt.Type != "CREATE TRIGGER" {
-			t.Errorf("Type = %s, want CREATE TRIGGER", stmt.Type)
-		}
-		if stmt.From == nil || stmt.From.Name != "mytrigger" {
-			t.Errorf("From = %v, want mytrigger", stmt.From)
-		}
-	})
-
-	t.Run("create event", func(t *testing.T) {
-		stmt := parseShow(t, "SHOW CREATE EVENT myevent")
-		if stmt.Type != "CREATE EVENT" {
-			t.Errorf("Type = %s, want CREATE EVENT", stmt.Type)
-		}
-		if stmt.From == nil || stmt.From.Name != "myevent" {
-			t.Errorf("From = %v, want myevent", stmt.From)
-		}
-	})
+	// SHOW CREATE FUNCTION/TRIGGER/EVENT reject — TiDB has no such objects
+	// (pinned in routine_body_test.go TestRoutineGrammarRejected).
 
 	t.Run("open tables", func(t *testing.T) {
 		stmt := parseShow(t, "SHOW OPEN TABLES")
