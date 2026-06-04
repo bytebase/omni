@@ -23,6 +23,18 @@ type Candidate struct {
 // after SELECT/WHERE/etc → suggest columns and keywords, default →
 // suggest keywords).
 func Complete(input string, pos int, cat *catalog.Catalog) []Candidate {
+	// Clamp the cursor position into [0, len(input)] before any slicing.
+	// Complete is exported, so a caller may pass a position past the end of
+	// the input (e.g. a stale cursor). extractPrefix clamps internally, but
+	// the input[:pos-len(prefix)] slice below uses pos directly, so without
+	// this clamp an out-of-range pos panics with "slice bounds out of range".
+	if pos > len(input) {
+		pos = len(input)
+	}
+	if pos < 0 {
+		pos = 0
+	}
+
 	// Get the partial word at cursor position
 	prefix := extractPrefix(input, pos)
 
@@ -101,5 +113,5 @@ var keywords = []string{
 	"UNION", "INTERSECT", "EXCEPT", "DISTINCT", "ALL",
 	"NULL", "MISSING", "TRUE", "FALSE",
 	"CAST", "CASE", "WHEN", "THEN", "ELSE", "END",
-	"EXISTS", "NOT", "ASC", "DESC",
+	"EXISTS", "ASC", "DESC",
 }
