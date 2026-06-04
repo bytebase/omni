@@ -80,6 +80,28 @@ const (
 	T_OrderItem
 	T_HavingModifier
 	T_ClampedModifier
+
+	// Query / SELECT core (googlesql/parser-select node).
+	//
+	// The query stack: the QueryStmt wrapper (WITH + body + trailing ORDER BY/
+	// LIMIT/FOR UPDATE), the SELECT block, set operations, CTEs, FROM sources
+	// (table / subquery / TVF / UNNEST), joins, GROUP BY (incl. ROLLUP/CUBE/
+	// GROUPING SETS), and named WINDOW definitions. These mirror the legacy
+	// ANTLR query grammar (GoogleSQLParser.g4 §2.13-§2.16), a hand-port of
+	// ZetaSQL.
+	T_QueryStmt
+	T_WithClause
+	T_CTE
+	T_RecursionDepth
+	T_SelectStmt
+	T_SelectItem
+	T_SetOperation
+	T_TableExpr
+	T_UnnestExpr
+	T_JoinExpr
+	T_GroupByClause
+	T_GroupingItem
+	T_WindowDef
 )
 
 // String returns a human-readable representation of the tag.
@@ -185,6 +207,32 @@ func (t NodeTag) String() string {
 		return "HavingModifier"
 	case T_ClampedModifier:
 		return "ClampedModifier"
+	case T_QueryStmt:
+		return "QueryStmt"
+	case T_WithClause:
+		return "WithClause"
+	case T_CTE:
+		return "CTE"
+	case T_RecursionDepth:
+		return "RecursionDepth"
+	case T_SelectStmt:
+		return "SelectStmt"
+	case T_SelectItem:
+		return "SelectItem"
+	case T_SetOperation:
+		return "SetOperation"
+	case T_TableExpr:
+		return "TableExpr"
+	case T_UnnestExpr:
+		return "UnnestExpr"
+	case T_JoinExpr:
+		return "JoinExpr"
+	case T_GroupByClause:
+		return "GroupByClause"
+	case T_GroupingItem:
+		return "GroupingItem"
+	case T_WindowDef:
+		return "WindowDef"
 	default:
 		return "Unknown"
 	}

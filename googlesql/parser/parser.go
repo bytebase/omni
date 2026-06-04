@@ -321,26 +321,26 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	switch p.cur.Type {
 	// --- Query (query_statement / GQL) ---
 	case kwSELECT:
-		return p.unsupported("SELECT")
+		return p.parseQueryStatement()
 	case kwWITH:
-		// WITH cte... query  (also WITH RECURSIVE, and the WITH-pipe error alt).
-		return p.unsupported("WITH")
+		// WITH cte... query  (also WITH RECURSIVE). The query-leading WITH is an
+		// aliased-query CTE list, distinct from the inline WITH(...) expression
+		// (owned by the expressions node in expression position).
+		return p.parseQueryStatement()
 	case kwGRAPH:
-		// GQL graph query: GRAPH <name> <gql ops>.
+		// GQL graph query: GRAPH <name> <gql ops>. Owned by the parser-gql node.
 		return p.unsupported("GRAPH")
 	case int('('):
 		// Parenthesized query at top level, e.g. (SELECT 1) UNION ALL (SELECT 2).
-		return p.unsupported("query")
+		return p.parseQueryStatement()
 	case kwFROM:
 		// FROM-first query head. The legacy grammar recognizes a leading FROM as
 		// a query (query_without_pipe_operators' `with_clause? from_clause` alt)
 		// and then emits "Syntax error: Unexpected FROM" — i.e. FROM is a query-
 		// statement head that the query rule itself rejects (oracle-confirmed:
-		// Spanner rejects `FROM t` as a syntax error). Recognizing it here (vs the
-		// unknown branch) keeps the head with the query family; the precise
-		// "Unexpected FROM" rejection is produced by the query node that replaces
-		// this case. See the parser-foundation divergence ledger.
-		return p.unsupported("FROM")
+		// Spanner rejects `FROM t` as a syntax error). parseQuery routes a leading
+		// FROM to parseQueryPrimary, which produces exactly that rejection.
+		return p.parseQueryStatement()
 
 	// --- DDL ---
 	case kwCREATE:
@@ -458,6 +458,107 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	default:
 		return nil, p.unknownStatementError()
 	}
+}
+
+// parseQueryStatement is the dispatch entry for a query_statement (SELECT /
+// WITH / parenthesized-query / FROM-first head). It parses the full query via
+// parseQuery (select.go + companions), then fills in the inner Query of every
+// expression-embedded subquery node (SubqueryExpr / ExistsExpr /
+// ArraySubqueryExpr) that the expressions node left as RawText-only.
+//
+// The subquery seam: the expressions node (a dependency, frozen) captures
+// `(SELECT …)`, `EXISTS(…)`, and `ARRAY(…)` subqueries as RawText with Query nil
+// (it does not own the query grammar). parser-select owns the query grammar, so
+// after the top-level query parses, fillSubqueries walks the produced tree and
+// re-parses each subquery's RawText into a real *QueryStmt, attaching it to the
+// node's Query field. This is done as a post-pass (rather than inline) because
+// the expressions parser already consumed those tokens; re-parsing RawText is
+// the only seam available without editing the frozen expressions node, and it
+// yields a complete tree for the downstream query-span extractor. Subquery
+// RawText is a balanced parenthesized query (the expressions node scanned it
+// with bracket balancing), so it always re-parses cleanly; a re-parse error is
+// surfaced as a diagnostic but does not discard the outer statement.
+func (p *Parser) parseQueryStatement() (ast.Node, error) {
+	q, err := p.parseQuery()
+	if err != nil {
+		return nil, err
+	}
+	p.fillSubqueries(q)
+	return q, nil
+}
+
+// fillSubqueries walks node and re-parses the RawText of every SubqueryExpr /
+// ExistsExpr / ArraySubqueryExpr whose Query is still nil, attaching the parsed
+// *QueryStmt. Re-parse errors are appended to the parser's error list (so
+// Diagnose still surfaces a malformed embedded subquery) but never abort the
+// outer parse. The walk descends into the filled subqueries too, so arbitrarily
+// nested subqueries are completed.
+func (p *Parser) fillSubqueries(node ast.Node) {
+	ast.Inspect(node, func(n ast.Node) bool {
+		switch sq := n.(type) {
+		case *ast.SubqueryExpr:
+			if sq.Query == nil && sq.RawText != "" {
+				sq.Query = p.reparseSubquery(sq.RawText, sq.Loc)
+			}
+		case *ast.ExistsExpr:
+			if sq.Query == nil && sq.RawText != "" {
+				sq.Query = p.reparseSubquery(sq.RawText, sq.Loc)
+			}
+		case *ast.ArraySubqueryExpr:
+			if sq.Query == nil && sq.RawText != "" {
+				sq.Query = p.reparseSubquery(sq.RawText, sq.Loc)
+			}
+		}
+		return true
+	})
+}
+
+// reparseSubquery parses a captured subquery body (the RawText between the outer
+// parens) into a *QueryStmt. It runs a nested Parser over the raw text; lexing
+// uses a best-effort base offset (the node's start) so positions stay close to
+// the original source. A parse failure records the error and returns nil (the
+// node keeps RawText, so round-trip still works). The returned QueryStmt's own
+// embedded subqueries are filled recursively.
+func (p *Parser) reparseSubquery(raw string, loc ast.Loc) ast.Node {
+	base := 0
+	if loc.Start >= 0 {
+		// Anchor near the original site. The exact column of RawText within the
+		// parens is approximate (leading '(' + whitespace was trimmed), but this
+		// keeps offsets monotonic and close, which is all the query-span / Diagnose
+		// consumers need for an embedded subquery.
+		base = loc.Start
+	}
+	sub := &Parser{
+		lexer:      NewLexerWithOffset(raw, base),
+		input:      raw,
+		baseOffset: base,
+	}
+	sub.advance()
+	if sub.cur.Type == tokEOF {
+		return nil
+	}
+	q, err := sub.parseQuery()
+	if err != nil {
+		if pe, ok := err.(*ParseError); ok {
+			p.errors = append(p.errors, *pe)
+		} else {
+			p.errors = append(p.errors, ParseError{Loc: loc, Msg: err.Error()})
+		}
+		return nil
+	}
+	// The subquery body must consume its entire RawText: a subquery is a complete
+	// `query` and any token left over is trailing junk that makes the embedding
+	// statement invalid (oracle: `SELECT (SELECT 1 FROM t a b)` rejects on the
+	// stray `b`). The expressions node captured the balanced parens but did not
+	// validate the interior; we surface that reject here so the outer statement is
+	// diagnosed rather than silently accepting a partial subquery parse.
+	if sub.cur.Type != tokEOF {
+		p.errors = append(p.errors, *sub.syntaxErrorAtCur())
+		return nil
+	}
+	// Recurse into the freshly-parsed subquery to fill its own nested subqueries.
+	p.fillSubqueries(q)
+	return q
 }
 
 // ParseResult holds the outcome of a best-effort parse. File contains every

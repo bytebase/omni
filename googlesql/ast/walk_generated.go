@@ -25,6 +25,11 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Type)
 		}
 		walkNodes(v, n.Fields)
+	case *CTE:
+		Walk(v, n.Query)
+		if n.Depth != nil {
+			Walk(v, n.Depth)
+		}
 	case *CaseExpr:
 		Walk(v, n.Operand)
 		for _, c := range n.Whens {
@@ -85,6 +90,13 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Grantees {
 			Walk(v, c)
 		}
+	case *GroupByClause:
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+	case *GroupingItem:
+		Walk(v, n.Expr)
+		walkNodes(v, n.Items)
 	case *HavingModifier:
 		Walk(v, n.Expr)
 	case *InExpr:
@@ -100,6 +112,10 @@ func walkChildren(v Visitor, node Node) {
 	case *IsExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.DistinctFrom)
+	case *JoinExpr:
+		Walk(v, n.Left)
+		Walk(v, n.Right)
+		Walk(v, n.On)
 	case *LambdaExpr:
 		Walk(v, n.Body)
 	case *LikeExpr:
@@ -125,6 +141,20 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Collate)
 	case *ParenExpr:
 		Walk(v, n.Expr)
+	case *QueryStmt:
+		if n.With != nil {
+			Walk(v, n.With)
+		}
+		Walk(v, n.Body)
+		for _, c := range n.OrderBy {
+			Walk(v, c)
+		}
+		Walk(v, n.Limit)
+		Walk(v, n.Offset)
+	case *RecursionDepth:
+		Walk(v, n.Lower)
+		Walk(v, n.Upper)
+		Walk(v, n.Max)
 	case *ReplaceFieldsExpr:
 		Walk(v, n.Expr)
 		for _, c := range n.Items {
@@ -137,10 +167,35 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Grantees {
 			Walk(v, c)
 		}
+	case *SelectItem:
+		Walk(v, n.Expr)
+		if n.Modifiers != nil {
+			Walk(v, n.Modifiers)
+		}
+	case *SelectStmt:
+		if n.AsTypeName != nil {
+			Walk(v, n.AsTypeName)
+		}
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+		walkNodes(v, n.From)
+		Walk(v, n.Where)
+		if n.GroupBy != nil {
+			Walk(v, n.GroupBy)
+		}
+		Walk(v, n.Having)
+		Walk(v, n.Qualify)
+		for _, c := range n.Window {
+			Walk(v, c)
+		}
 	case *SequenceArg:
 		if n.Path != nil {
 			Walk(v, n.Path)
 		}
+	case *SetOperation:
+		Walk(v, n.Left)
+		Walk(v, n.Right)
 	case *StarExpr:
 		if n.Modifiers != nil {
 			Walk(v, n.Modifiers)
@@ -160,11 +215,26 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Value)
 	case *SubqueryExpr:
 		Walk(v, n.Query)
+	case *TableExpr:
+		if n.Path != nil {
+			Walk(v, n.Path)
+		}
+		Walk(v, n.Subquery)
+		if n.Func != nil {
+			Walk(v, n.Func)
+		}
+		Walk(v, n.SystemTime)
 	case *UnaryExpr:
 		Walk(v, n.Expr)
+	case *UnnestExpr:
+		Walk(v, n.Array)
 	case *WhenClause:
 		Walk(v, n.Cond)
 		Walk(v, n.Result)
+	case *WindowDef:
+		if n.Spec != nil {
+			Walk(v, n.Spec)
+		}
 	case *WindowSpec:
 		walkNodes(v, n.PartitionBy)
 		for _, c := range n.OrderBy {
@@ -172,6 +242,10 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.Frame != nil {
 			Walk(v, n.Frame)
+		}
+	case *WithClause:
+		for _, c := range n.CTEs {
+			Walk(v, c)
 		}
 	case *WithExpr:
 		for _, c := range n.Vars {
