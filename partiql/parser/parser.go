@@ -711,6 +711,12 @@ func (p *Parser) ParseStatement() (ast.StmtNode, error) {
 		stmt, err = p.parseUpsertStmt()
 	case tokREMOVE:
 		stmt, err = p.parseRemoveStmt()
+	case tokFROM:
+		// FROM-led DML: `FROM fromClause whereClause? dmlBaseCommand+
+		// returningClause?` (dml#DmlBaseWrapper 2nd alt). A leading FROM at
+		// statement position is always DML — SELECT begins with SELECT, and
+		// a bare expression cannot start with FROM.
+		stmt, err = p.parseFromLedDml()
 	case tokEXEC, tokEXECUTE:
 		p.advance() // consume EXEC/EXECUTE
 		stmt, err = p.parseExecCommand()
