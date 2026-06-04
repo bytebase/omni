@@ -160,7 +160,7 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 //	    [ORDER BY {col_name | expr | position} [ASC | DESC], ...]
 //	    [LIMIT {[offset,] row_count | row_count OFFSET offset}]
 //	    [FOR {UPDATE | SHARE} [OF tbl_name [, tbl_name] ...] [NOWAIT | SKIP LOCKED]]
-//	    [INTO OUTFILE 'file_name' | INTO DUMPFILE 'file_name' | INTO var_name [, var_name]]
+//	    [INTO OUTFILE 'file_name']  (TiDB v8.5.0: only OUTFILE; no DUMPFILE / var targets)
 func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 	start := p.pos()
 
@@ -1610,7 +1610,8 @@ func (p *Parser) parseLockInShareMode() (*nodes.ForUpdate, error) {
 	}, nil
 }
 
-// parseIntoClause parses INTO OUTFILE / DUMPFILE / var_list.
+// parseIntoClause parses the SELECT/TABLE INTO clause. TiDB v8.5.0 supports
+// only INTO OUTFILE; INTO DUMPFILE and INTO var_list are rejected.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/select.html
 //
@@ -1725,29 +1726,12 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 			}
 		}
 
-	case kwDUMPFILE:
-		p.advance()
-		if p.cur.Type == tokSCONST {
-			into.Dumpfile = p.cur.Str
-			p.advance()
-		}
 	default:
-		// INTO var_name [, var_name ...]
-		for {
-			if p.isVariableRef() {
-				v, err := p.parseVariableRef()
-				if err != nil {
-					return nil, err
-				}
-				into.Vars = append(into.Vars, v)
-			} else {
-				break
-			}
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
+		// TiDB v8.5.0 supports only SELECT ... INTO OUTFILE. Unlike MySQL it
+		// rejects INTO DUMPFILE and INTO @user_var / INTO local_var; the same
+		// applies to the TABLE statement's INTO clause (verified on
+		// pingcap/tidb:v8.5.0). Reject everything except OUTFILE.
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	into.Loc.End = p.pos()
