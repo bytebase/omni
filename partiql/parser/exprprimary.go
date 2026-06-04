@@ -39,7 +39,7 @@ func (p *Parser) parsePrimaryBase() (ast.ExprNode, error) {
 	// ------------------------------------------------------------------
 	case tokNULL, tokMISSING, tokTRUE, tokFALSE,
 		tokSCONST, tokICONST, tokFCONST, tokION_LITERAL,
-		tokDATE, tokTIME:
+		tokDATE, tokTIME, tokTIMESTAMP:
 		return p.parseLiteral()
 
 	// ------------------------------------------------------------------
