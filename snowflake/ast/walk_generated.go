@@ -41,6 +41,13 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *AlterRoutineStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
 	case *AlterSchemaStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -165,6 +172,13 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Name)
 		}
 		Walk(v, n.Copy)
+	case *CreateRoutineStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.ReturnType != nil {
+			Walk(v, n.ReturnType)
+		}
 	case *CreateSchemaStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)

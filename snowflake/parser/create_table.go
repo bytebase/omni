@@ -23,8 +23,9 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		}
 	}
 
-	// Optional SECURE modifier (VIEW-only — must be checked before temporary modifiers
-	// since SECURE can appear before MATERIALIZED VIEW too).
+	// Optional SECURE modifier. SECURE applies to VIEW / MATERIALIZED VIEW
+	// (T2.4) and to FUNCTION / EXTERNAL FUNCTION / PROCEDURE (T4.5). It is
+	// checked before the temporary modifiers since it precedes the object type.
 	secure := false
 	if p.cur.Type == kwSECURE {
 		p.advance()
@@ -38,8 +39,9 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		recursive = true
 	}
 
-	// If SECURE or RECURSIVE were consumed, the next token must be VIEW or MATERIALIZED VIEW.
-	// Dispatch early before checking temporary modifiers.
+	// If SECURE or RECURSIVE were consumed, dispatch early on the object type.
+	// RECURSIVE pairs only with VIEW; SECURE additionally precedes
+	// FUNCTION / EXTERNAL FUNCTION / PROCEDURE.
 	if secure || recursive {
 		switch p.cur.Type {
 		case kwVIEW:
@@ -47,6 +49,29 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		case kwMATERIALIZED:
 			p.advance() // consume MATERIALIZED
 			return p.parseCreateMaterializedViewStmt(start, orReplace, secure)
+		case kwFUNCTION:
+			if recursive {
+				return p.unsupported("CREATE")
+			}
+			// CREATE [OR REPLACE] SECURE FUNCTION ... (T4.5).
+			return p.parseCreateFunctionStmt(start, orReplace, true, false)
+		case kwPROCEDURE:
+			if recursive {
+				return p.unsupported("CREATE")
+			}
+			// CREATE [OR REPLACE] SECURE PROCEDURE ... (T4.5).
+			return p.parseCreateProcedureStmt(start, orReplace, true)
+		case kwEXTERNAL:
+			if recursive {
+				return p.unsupported("CREATE")
+			}
+			// CREATE [OR REPLACE] SECURE EXTERNAL FUNCTION ... (T4.5).
+			p.advance() // consume EXTERNAL
+			if p.cur.Type != kwFUNCTION {
+				// EXTERNAL TABLE (and any other EXTERNAL object) is owned by another node.
+				return p.unsupported("CREATE")
+			}
+			return p.parseCreateExternalFunctionStmt(start, orReplace, true)
 		default:
 			return p.unsupported("CREATE")
 		}
@@ -107,6 +132,20 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	case kwALERT:
 		// CREATE [OR REPLACE] ALERT ... (T4.3).
 		return p.parseCreateAlertStmt(start, orReplace)
+	case kwFUNCTION:
+		// CREATE [OR REPLACE] [TEMP|TEMPORARY] FUNCTION ... (T4.5).
+		return p.parseCreateFunctionStmt(start, orReplace, false, temporary)
+	case kwPROCEDURE:
+		// CREATE [OR REPLACE] PROCEDURE ... (T4.5).
+		return p.parseCreateProcedureStmt(start, orReplace, false)
+	case kwEXTERNAL:
+		// CREATE [OR REPLACE] EXTERNAL FUNCTION ... (T4.5). EXTERNAL TABLE (and
+		// any other EXTERNAL object) is owned by another node.
+		p.advance() // consume EXTERNAL
+		if p.cur.Type != kwFUNCTION {
+			return p.unsupported("CREATE")
+		}
+		return p.parseCreateExternalFunctionStmt(start, orReplace, false)
 	default:
 		return p.unsupported("CREATE")
 	}

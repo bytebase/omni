@@ -191,6 +191,12 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwALERT:
 		// ALTER ALERT ... (T4.3).
 		return p.parseAlterAlertStmt()
+	case kwFUNCTION:
+		// ALTER FUNCTION ... (T4.5).
+		return p.parseAlterFunctionStmt()
+	case kwPROCEDURE:
+		// ALTER PROCEDURE ... (T4.5).
+		return p.parseAlterProcedureStmt()
 	default:
 		return p.unsupported("ALTER")
 	}
