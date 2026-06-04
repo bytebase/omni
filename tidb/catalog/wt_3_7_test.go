@@ -52,27 +52,6 @@ DELIMITER ;`)
 	}
 }
 
-func TestWalkThrough_3_7_AlterProcedure(t *testing.T) {
-	c := wtSetup(t)
-	wtExec(t, c, `DELIMITER ;;
-CREATE PROCEDURE my_proc()
-BEGIN
-  SELECT 1;
-END;;
-DELIMITER ;`)
-
-	wtExec(t, c, "ALTER PROCEDURE my_proc COMMENT 'updated comment'")
-
-	db := c.GetDatabase("testdb")
-	proc := db.Procedures[toLower("my_proc")]
-	if proc == nil {
-		t.Fatal("procedure my_proc not found")
-	}
-	if proc.Characteristics["COMMENT"] != "updated comment" {
-		t.Errorf("expected COMMENT 'updated comment', got %q", proc.Characteristics["COMMENT"])
-	}
-}
-
 func TestWalkThrough_3_7_DropProcedure(t *testing.T) {
 	c := wtSetup(t)
 	wtExec(t, c, `DELIMITER ;;

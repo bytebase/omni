@@ -484,6 +484,10 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return nil, p.syntaxErrorAtCur()
 
 	case kwPROCEDURE:
+		if orReplace {
+			// TiDB v8.5.0 has no CREATE OR REPLACE PROCEDURE.
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseCreateFunctionStmt(true)
 
 	case kwTRIGGER:
@@ -659,11 +663,9 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 		// TiDB v8.5.0 has no events (no ALTER EVENT).
 		return nil, p.syntaxErrorAtCur()
 
-	case kwFUNCTION:
-		return p.parseAlterRoutineStmt(false)
-
-	case kwPROCEDURE:
-		return p.parseAlterRoutineStmt(true)
+	case kwFUNCTION, kwPROCEDURE:
+		// TiDB v8.5.0 has no ALTER FUNCTION / ALTER PROCEDURE.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwLOGFILE:
 		return p.parseAlterLogfileGroupStmt(start)
@@ -739,16 +741,19 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		return p.parseDropRoleStmt()
 
 	case kwFUNCTION:
-		return p.parseDropRoutineStmt(false)
+		// TiDB v8.5.0 has no stored functions — DROP FUNCTION rejects.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwPROCEDURE:
 		return p.parseDropRoutineStmt(true)
 
 	case kwTRIGGER:
-		return p.parseDropTriggerStmt()
+		// TiDB v8.5.0 has no triggers — DROP TRIGGER rejects.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwEVENT:
-		return p.parseDropEventStmt()
+		// TiDB v8.5.0 has no events — DROP EVENT rejects.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwTABLESPACE:
 		return p.parseDropTablespaceStmt(start, false)

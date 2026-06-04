@@ -23,58 +23,9 @@ func TestWalkThrough_2_6_DropProcedureUnknown(t *testing.T) {
 	assertError(t, results[0].Error, ErrNoSuchProcedure)
 }
 
-func TestWalkThrough_2_6_DropFunctionUnknown(t *testing.T) {
-	c := wtSetup(t)
-	results, err := c.Exec("DROP FUNCTION no_such_func", nil)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	assertError(t, results[0].Error, ErrNoSuchFunction)
-}
-
 func TestWalkThrough_2_6_DropProcedureIfExistsUnknown(t *testing.T) {
 	c := wtSetup(t)
 	results, err := c.Exec("DROP PROCEDURE IF EXISTS no_such_proc", nil)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	assertNoError(t, results[0].Error)
-}
-
-// --- Trigger errors ---
-
-func TestWalkThrough_2_6_DropTriggerUnknown(t *testing.T) {
-	c := wtSetup(t)
-	results, err := c.Exec("DROP TRIGGER no_such_trigger", nil)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	assertError(t, results[0].Error, ErrNoSuchTrigger)
-}
-
-func TestWalkThrough_2_6_DropTriggerIfExistsUnknown(t *testing.T) {
-	c := wtSetup(t)
-	results, err := c.Exec("DROP TRIGGER IF EXISTS no_such_trigger", nil)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	assertNoError(t, results[0].Error)
-}
-
-// --- Event errors ---
-
-func TestWalkThrough_2_6_DropEventUnknown(t *testing.T) {
-	c := wtSetup(t)
-	results, err := c.Exec("DROP EVENT no_such_event", nil)
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	assertError(t, results[0].Error, ErrNoSuchEvent)
-}
-
-func TestWalkThrough_2_6_DropEventIfExistsUnknown(t *testing.T) {
-	c := wtSetup(t)
-	results, err := c.Exec("DROP EVENT IF EXISTS no_such_event", nil)
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}

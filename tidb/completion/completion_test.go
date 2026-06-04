@@ -2151,14 +2151,6 @@ func TestComplete_6_1_FunctionsAndProcedures(t *testing.T) {
 			t.Errorf("missing procedure 'my_proc'; got %v", candidates)
 		}
 	})
-
-	// Scenario 3: ALTER PROCEDURE | → procedure_ref
-	t.Run("alter_procedure_ref", func(t *testing.T) {
-		candidates := Complete("ALTER PROCEDURE ", 16, cat)
-		if !containsCandidate(candidates, "my_proc", CandidateProcedure) {
-			t.Errorf("missing procedure 'my_proc'; got %v", candidates)
-		}
-	})
 }
 
 func TestComplete_6_3_TransactionLockMaintenance(t *testing.T) {

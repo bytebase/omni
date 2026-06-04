@@ -5565,10 +5565,7 @@ func TestParseStmtDispatchDropVariants(t *testing.T) {
 		"DROP VIEW v",
 		"DROP DATABASE mydb",
 		"DROP USER 'user'@'localhost'",
-		"DROP FUNCTION IF EXISTS f",
 		"DROP PROCEDURE IF EXISTS p",
-		"DROP TRIGGER IF EXISTS tr",
-		"DROP EVENT IF EXISTS ev",
 	}
 
 	for _, sql := range tests {
@@ -7444,77 +7441,14 @@ func TestParseAlterViewParseAndCheck(t *testing.T) {
 	}
 }
 
-func TestParseAlterRoutine(t *testing.T) {
-	tests := []string{
-		"ALTER FUNCTION f1 COMMENT 'test'",
-		"ALTER PROCEDURE p1 COMMENT 'test'",
-		"ALTER FUNCTION f1 SQL SECURITY INVOKER",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
 func TestParseDropRoutineStmt(t *testing.T) {
 	tests := []struct {
 		sql  string
 		want string
 	}{
 		{
-			sql:  "DROP FUNCTION f1",
-			want: "{DROP_ROUTINE :loc 5 :name {TABLEREF :loc 14 :name f1}}",
-		},
-		{
-			sql:  "DROP FUNCTION IF EXISTS f1",
-			want: "{DROP_ROUTINE :loc 5 :if_exists true :name {TABLEREF :loc 24 :name f1}}",
-		},
-		{
 			sql:  "DROP PROCEDURE p1",
 			want: "{DROP_ROUTINE :loc 5 :is_procedure true :name {TABLEREF :loc 15 :name p1}}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
-func TestParseDropTriggerStmtBatch39(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "DROP TRIGGER tr1",
-			want: "{DROP_TRIGGER :loc 5 :name {TABLEREF :loc 13 :name tr1}}",
-		},
-		{
-			sql:  "DROP TRIGGER IF EXISTS mydb.tr1",
-			want: "{DROP_TRIGGER :loc 5 :if_exists true :name {TABLEREF :loc 23 :schema mydb :name tr1}}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
-func TestParseDropEventStmtBatch39(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "DROP EVENT ev1",
-			want: "{DROP_EVENT :loc 5 :name ev1}",
-		},
-		{
-			sql:  "DROP EVENT IF EXISTS ev1",
-			want: "{DROP_EVENT :loc 5 :if_exists true :name ev1}",
 		},
 	}
 	for _, tt := range tests {
@@ -7690,12 +7624,7 @@ func TestParsePhase2Dispatch(t *testing.T) {
 
 		// ALTER/DROP misc (batch 39)
 		"ALTER VIEW v AS SELECT 1",
-		"ALTER FUNCTION f1 COMMENT 'test'",
-		"ALTER PROCEDURE p1 COMMENT 'test'",
-		"DROP FUNCTION f1",
 		"DROP PROCEDURE p1",
-		"DROP TRIGGER tr1",
-		"DROP EVENT ev1",
 
 		// EXPLAIN (batch 40)
 		"EXPLAIN SELECT 1",
@@ -10439,19 +10368,6 @@ func TestBatch102_DropViewFull(t *testing.T) {
 		"DROP VIEW v1, v2, v3",
 		"DROP VIEW IF EXISTS v1 RESTRICT",
 		"DROP VIEW IF EXISTS v1 CASCADE",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestBatch102_DropTriggerFull(t *testing.T) {
-	tests := []string{
-		"DROP TRIGGER trg1",
-		"DROP TRIGGER IF EXISTS trg1",
-		"DROP TRIGGER IF EXISTS mydb.trg1",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {

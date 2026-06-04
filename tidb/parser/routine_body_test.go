@@ -65,6 +65,14 @@ func TestRoutineGrammarRejected(t *testing.T) {
 		`CREATE DEFINER='admin'@'localhost' TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET @x=1`,
 		// TiDB has no stored-program SELECT ... INTO <local var> form.
 		`CREATE PROCEDURE p() BEGIN DECLARE y INT; SELECT 1 INTO y; END`,
+		// TiDB has no functions/triggers/events — DROP and ALTER of them reject
+		// too (DROP PROCEDURE is accepted; ALTER PROCEDURE is not).
+		`DROP FUNCTION foo`,
+		`DROP TRIGGER foo`,
+		`DROP EVENT foo`,
+		`ALTER FUNCTION foo COMMENT 'x'`,
+		`ALTER PROCEDURE foo COMMENT 'x'`,
+		`CREATE OR REPLACE PROCEDURE p() BEGIN SELECT 1; END`,
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {

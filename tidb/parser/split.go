@@ -353,7 +353,10 @@ func Split(sql string) []Segment {
 			atStmtStart = true
 		case (b == 'd' || b == 'D') && matchWord(sql, i, "DO"):
 			i = skipToEndOfWord(sql, i)
-			atStmtStart = true
+			// A loop-body DO (WHILE ... DO, inside a compound block) starts a
+			// statement list; a top-level `DO expr` statement starts an
+			// expression (so `DO IF(...)` is the IF() function, not a compound).
+			atStmtStart = depth > 0
 		case (b == 'u' || b == 'U') && matchWord(sql, i, "UNTIL"):
 			i = skipToEndOfWord(sql, i)
 			atStmtStart = false
