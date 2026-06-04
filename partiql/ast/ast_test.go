@@ -102,6 +102,7 @@ var _ Node = (*ReturningItem)(nil)
 
 // Graph patterns (patterns.go).
 var _ ExprNode = (*MatchExpr)(nil)
+var _ TableExpr = (*MatchExpr)(nil) // FROM g MATCH ... — tableBaseReference#TableBaseRefMatch
 var _ PatternNode = (*GraphPattern)(nil)
 var _ PatternNode = (*NodePattern)(nil)
 var _ PatternNode = (*EdgePattern)(nil)

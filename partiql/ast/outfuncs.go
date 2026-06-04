@@ -686,7 +686,10 @@ func writeNode(sb *strings.Builder, n Node) {
 		fmt.Fprintf(sb, "PatternQuantifier{Min:%d Max:%d}", v.Min, v.Max)
 	case *PatternSelector:
 		fmt.Fprintf(sb, "PatternSelector{Kind:%s", v.Kind)
-		if v.Kind == SelectorKindShortestK {
+		// K is meaningful for SHORTEST k (required) and ANY k (optional count,
+		// matchSelector#SelectorAny). It is absent (zero) for ALL_SHORTEST and a
+		// bare ANY, so guard on K != 0 rather than on Kind.
+		if v.K != 0 {
 			fmt.Fprintf(sb, " K:%d", v.K)
 		}
 		sb.WriteString("}")

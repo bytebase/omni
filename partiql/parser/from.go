@@ -168,6 +168,23 @@ func (p *Parser) parseTableBaseReference() (ast.TableExpr, error) {
 		return nil, err
 	}
 
+	// FROM-clause graph match (tableBaseReference#TableBaseRefMatch, g4:405):
+	//   source=exprGraphMatchOne asIdent? atIdent? byIdent?
+	// where exprGraphMatchOne is `exprPrimary MATCH gpmlPattern` (g4:628-629) —
+	// the unparenthesised single-pattern form, e.g. `FROM g MATCH (a)-[e]->(b)`.
+	// parseSelectExpr above parses just the `exprPrimary` (the graph source) and
+	// leaves MATCH unconsumed, so we dispatch here. The resulting MatchExpr is a
+	// TableExpr, so it flows through the alias handling below like any other FROM
+	// source (the parenthesised many-pattern form is instead parsed inside
+	// parseParenExpr -> parseGraphMatch and arrives here already as a MatchExpr).
+	if p.cur.Type == tokMATCH {
+		match, matchErr := p.parseGraphMatchOne(source)
+		if matchErr != nil {
+			return nil, matchErr
+		}
+		source = match
+	}
+
 	// Try to parse optional aliases. We detect bare alias (implicit AS)
 	// by checking if the current token is an identifier that is NOT a
 	// keyword that starts a clause. The grammar rule

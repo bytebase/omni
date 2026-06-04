@@ -163,9 +163,12 @@ func TestParseGraphMatch_Accept(t *testing.T) {
 			want:  "MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Selector:PatternSelector{Kind:ANY} Parts:[NodePattern{Variable:VarRef{Name:a}} EdgePattern{Direction:-> Variable:VarRef{Name:e}} NodePattern{Variable:VarRef{Name:b}}]}]}",
 		},
 		{
+			// matchSelector#SelectorAny: `ANY k=LITERAL_INTEGER?` — the count k
+			// is preserved on PatternSelector.K (Codex finding: it was previously
+			// consumed and discarded).
 			name:  "selector_any_k",
 			input: "(g MATCH ANY 3 (a)-[e]->(b))",
-			want:  "MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Selector:PatternSelector{Kind:ANY} Parts:[NodePattern{Variable:VarRef{Name:a}} EdgePattern{Direction:-> Variable:VarRef{Name:e}} NodePattern{Variable:VarRef{Name:b}}]}]}",
+			want:  "MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Selector:PatternSelector{Kind:ANY K:3} Parts:[NodePattern{Variable:VarRef{Name:a}} EdgePattern{Direction:-> Variable:VarRef{Name:e}} NodePattern{Variable:VarRef{Name:b}}]}]}",
 		},
 		{
 			name:  "selector_all_shortest",
@@ -332,6 +335,163 @@ func TestParseGraphMatch_Reject(t *testing.T) {
 			// syntax error.
 			if strings.Contains(err.Error(), "deferred to") {
 				t.Fatalf("got deferred-feature stub for %q (graph MATCH must be implemented): %v", tc.input, err)
+			}
+		})
+	}
+}
+
+// TestParseGraphMatch_FromClause_Accept exercises the FROM-position graph match
+// (tableBaseReference#TableBaseRefMatch, g4:405 — source=exprGraphMatchOne).
+// This is the PRIMARY GPML usage. The full statement is parsed so the asserted
+// AST shows where the MatchExpr lands in the SelectStmt.From — the whole point
+// of these cases is that the match is REALLY CARRIED in the AST (the prior bug
+// silently dropped it, yielding From:AliasedSource{Source:nil}), so each `want`
+// pins the MatchExpr (and any alias) present under From.
+//
+// Two source forms both reach a MatchExpr-in-FROM:
+//   - unparenthesised:  FROM g MATCH (a)         (exprGraphMatchOne, this fix)
+//   - parenthesised:    FROM (g MATCH (a))       (exprGraphMatchMany via parens)
+//
+// The grammar makes the unparenthesised form a SINGLE pattern: a COMMA after the
+// pattern belongs to the FROM tableReference comma-join, not to the pattern
+// list, so `FROM g MATCH (a), h` is a cross-join of the match with `h` — covered
+// below to lock that boundary in.
+func TestParseGraphMatch_FromClause_Accept(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			// Unparenthesised single-node FROM match: the match must be the
+			// From source, NOT a nil-source AliasedSource.
+			name:  "from_unparenthesised_node",
+			input: "SELECT * FROM g MATCH (a)",
+			want:  "SelectStmt{Star:true From:MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:a}}]}]}}",
+		},
+		{
+			// Parenthesised FROM match (exprGraphMatchMany shape) — also lands
+			// as a real MatchExpr in From, alias-free.
+			name:  "from_parenthesised_node",
+			input: "SELECT * FROM (g MATCH (a))",
+			want:  "SelectStmt{Star:true From:MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:a}}]}]}}",
+		},
+		{
+			name:  "from_unparenthesised_edge",
+			input: "SELECT * FROM g MATCH (a)-[e]->(b)",
+			want:  "SelectStmt{Star:true From:MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:a}} EdgePattern{Direction:-> Variable:VarRef{Name:e}} NodePattern{Variable:VarRef{Name:b}}]}]}}",
+		},
+		{
+			// AS alias on a FROM match must be preserved around the MatchExpr.
+			name:  "from_match_as_alias",
+			input: "SELECT * FROM g MATCH (a)-[e]->(b) AS r",
+			want:  "SelectStmt{Star:true From:AliasedSource{Source:MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:a}} EdgePattern{Direction:-> Variable:VarRef{Name:e}} NodePattern{Variable:VarRef{Name:b}}]}]} As:r}}",
+		},
+		{
+			// AS + AT alias chain (TableBaseRefMatch: asIdent? atIdent? byIdent?).
+			name:  "from_match_as_at_alias",
+			input: "SELECT a FROM g MATCH (x)-[e]->(y) AS r AT pos",
+			want:  "SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:a}}] From:AliasedSource{Source:MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:x}} EdgePattern{Direction:-> Variable:VarRef{Name:e}} NodePattern{Variable:VarRef{Name:y}}]}]} As:r At:pos}}",
+		},
+		{
+			// Selector with a count on an unparenthesised FROM match
+			// (exprGraphMatchOne -> gpmlPattern -> matchSelector#SelectorAny);
+			// K is preserved.
+			name:  "from_match_selector_any_k",
+			input: "SELECT * FROM g MATCH ANY 3 (a)-[e]->(b)",
+			want:  "SelectStmt{Star:true From:MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Selector:PatternSelector{Kind:ANY K:3} Parts:[NodePattern{Variable:VarRef{Name:a}} EdgePattern{Direction:-> Variable:VarRef{Name:e}} NodePattern{Variable:VarRef{Name:b}}]}]}}",
+		},
+		{
+			// Boundary: a COMMA after the unparenthesised single pattern is the
+			// FROM comma-join, NOT a second pattern. `FROM g MATCH (a), h` ==
+			// (g MATCH (a)) CROSS JOIN h.
+			name:  "from_match_then_comma_join",
+			input: "SELECT * FROM g MATCH (a), h",
+			want:  "SelectStmt{Star:true From:JoinExpr{Kind:CROSS Left:MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:a}}]}]} Right:VarRef{Name:h}}}",
+		},
+		{
+			// A path-expression graph source, unparenthesised.
+			name:  "from_match_path_source",
+			input: "SELECT * FROM mygraph.field MATCH (a)",
+			want:  "SelectStmt{Star:true From:MatchExpr{Expr:PathExpr{Root:VarRef{Name:mygraph} Steps:[DotStep{Field:field}]} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:a}}]}]}}",
+		},
+		{
+			// ANTLR-permissive (oracle = antlr_fallback): matchPattern is
+			// `restrictor? variable? graphPart*`, so an empty pattern is valid.
+			// This is the FROM-position analog of the `empty_pattern` accept
+			// case and the documented divergence #3; `FROM g MATCH` is accepted
+			// as an empty-pattern match, NOT a syntax error.
+			name:  "from_match_empty_pattern",
+			input: "SELECT * FROM g MATCH",
+			want:  "SelectStmt{Star:true From:MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[]}]}}",
+		},
+		{
+			// The empty-pattern FROM match still accepts an alias chain.
+			name:  "from_match_empty_pattern_alias",
+			input: "SELECT * FROM g MATCH AS r",
+			want:  "SelectStmt{Star:true From:AliasedSource{Source:MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[]}]} As:r}}",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewParser(tc.input)
+			stmts, err := p.parseScript()
+			if err != nil {
+				t.Fatalf("parse error for %q: %v", tc.input, err)
+			}
+			if len(stmts.Items) != 1 {
+				t.Fatalf("expected 1 statement for %q, got %d", tc.input, len(stmts.Items))
+			}
+			got := ast.NodeToString(stmts.Items[0])
+			if got != tc.want {
+				t.Errorf("AST mismatch for %q\n got: %s\nwant: %s", tc.input, got, tc.want)
+			}
+			// Guard against regressing the silent-drop bug: the rendered AST
+			// must contain a MatchExpr and must NOT contain a nil source.
+			if !strings.Contains(got, "MatchExpr{") {
+				t.Errorf("FROM match dropped from AST for %q: %s", tc.input, got)
+			}
+			if strings.Contains(got, "Source:}") || strings.Contains(got, "Source:nil") {
+				t.Errorf("FROM match produced a nil-source AliasedSource for %q: %s", tc.input, got)
+			}
+		})
+	}
+}
+
+// TestParseGraphMatch_FromClause_Reject feeds malformed FROM-position graph
+// matches and asserts a real parse error (not a panic, not a silent accept, not
+// a deferred-feature stub).
+func TestParseGraphMatch_FromClause_Reject(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+	}{
+		// NOTE: `FROM g MATCH` (no graphPart) is NOT here — per the
+		// antlr_fallback oracle an empty pattern is accepted (divergence #3);
+		// it is covered as an accept case above.
+		//
+		// A leading edge with no source node is rejected in pattern position.
+		{"from_match_leading_edge", "SELECT * FROM g MATCH -[e]->(b)"},
+		// Unclosed node in the FROM pattern.
+		{"from_match_node_unclosed", "SELECT * FROM g MATCH (a"},
+		// Unclosed edge spec.
+		{"from_match_edge_spec_unclosed", "SELECT * FROM g MATCH (a)-[e->(b)"},
+		// Bad quantifier (single value, no comma) — follows ANTLR {m,n}/{m,}.
+		{"from_match_quantifier_no_comma", "SELECT * FROM g MATCH (a)-[e]->{3}(b)"},
+		// SHORTEST requires a count.
+		{"from_match_shortest_no_k", "SELECT * FROM g MATCH SHORTEST (a)"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewParser(tc.input)
+			_, err := p.parseScript()
+			if err == nil {
+				t.Fatalf("expected parse error for %q, got nil", tc.input)
+			}
+			if strings.Contains(err.Error(), "deferred to") {
+				t.Fatalf("got deferred-feature stub for %q (FROM graph MATCH must be implemented): %v", tc.input, err)
 			}
 		})
 	}

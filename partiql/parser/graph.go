@@ -122,13 +122,56 @@ func (p *Parser) parseGraphMatch(lhs ast.ExprNode) (ast.ExprNode, error) {
 	}, nil
 }
 
+// parseGraphMatchOne parses the unparenthesised FROM-clause graph match
+//
+//	exprGraphMatchOne : exprPrimary MATCH gpmlPattern   (PartiQLParser.g4:628-629)
+//
+// where gpmlPattern is `selector=matchSelector? matchPattern` (g4:315-316) — a
+// SINGLE pattern, with NO comma-separated list and NO enclosing parentheses (in
+// contrast to exprGraphMatchMany / parseGraphMatch). It is referenced only by
+// tableBaseReference#TableBaseRefMatch (g4:405), i.e. `FROM g MATCH (a)-[e]->(b)`,
+// optionally followed by AS/AT/BY aliases (handled by the FROM caller).
+//
+// On entry p.cur is tokMATCH and `lhs` is the already-parsed FROM source
+// expression. On return p.cur is the token after the pattern (the alias chain,
+// a join keyword, or EOF) — this method consumes exactly `MATCH gpmlPattern`
+// and nothing more, leaving the surrounding FROM grammar to the caller.
+//
+// The official PartiQL docs allow dropping the mandatory MATCH parentheses "in a
+// FROM clause when its pattern consists of a single path pattern"; the
+// multi-pattern (comma) form still requires the parenthesised exprGraphMatchMany
+// shape, which is parsed by parseParenExpr -> parseGraphMatch.
+func (p *Parser) parseGraphMatchOne(lhs ast.ExprNode) (*ast.MatchExpr, error) {
+	start := lhs.GetLoc().Start
+	if _, err := p.expect(tokMATCH); err != nil {
+		return nil, err
+	}
+
+	// gpmlPattern: selector=matchSelector? matchPattern (exactly one pattern).
+	selector, err := p.parseMatchSelector()
+	if err != nil {
+		return nil, err
+	}
+	pattern, err := p.parseMatchPattern()
+	if err != nil {
+		return nil, err
+	}
+	pattern.Selector = selector
+
+	return &ast.MatchExpr{
+		Expr:     lhs,
+		Patterns: []*ast.GraphPattern{pattern},
+		Loc:      ast.Loc{Start: start, End: pattern.Loc.End},
+	}, nil
+}
+
 // parseMatchSelector parses the optional matchSelector that may precede a
 // pattern list. Returns nil when no selector is present.
 //
 // Grammar: matchSelector (PartiQLParser.g4:330-334):
 //
 //	mod=(ANY|ALL) SHORTEST              # SelectorBasic   -> ALL_SHORTEST
-//	ANY k=LITERAL_INTEGER?              # SelectorAny     -> ANY (k ignored when present)
+//	ANY k=LITERAL_INTEGER?              # SelectorAny     -> ANY (K preserved when present)
 //	SHORTEST k=LITERAL_INTEGER GROUP?   # SelectorShortest-> SHORTEST_K
 func (p *Parser) parseMatchSelector() (*ast.PatternSelector, error) {
 	startLoc := p.cur.Loc
@@ -143,16 +186,21 @@ func (p *Parser) parseMatchSelector() (*ast.PatternSelector, error) {
 				Loc:  ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End},
 			}, nil
 		}
-		// ANY k=LITERAL_INTEGER? — the integer is part of the selector but the
-		// AST PatternSelector carries K only for SHORTEST_K; for ANY it is a
-		// count that does not change the kind, so we consume and discard it.
+		// ANY k=LITERAL_INTEGER? — the integer count is part of the selector
+		// (matchSelector#SelectorAny). It is optional; when present we store it
+		// on PatternSelector.K so it round-trips. K==0 means "absent" (no
+		// PartiQL `ANY 0` form is meaningful, and 0 is the zero value).
+		sel := &ast.PatternSelector{Kind: ast.SelectorKindAny}
 		if p.cur.Type == tokICONST {
+			k, err := parseIntLiteral(p.cur.Str)
+			if err != nil {
+				return nil, &ParseError{Message: err.Error(), Loc: p.cur.Loc}
+			}
+			sel.K = k
 			p.advance()
 		}
-		return &ast.PatternSelector{
-			Kind: ast.SelectorKindAny,
-			Loc:  ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End},
-		}, nil
+		sel.Loc = ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End}
+		return sel, nil
 
 	case tokALL:
 		// ALL is only valid as `ALL SHORTEST` (SelectorBasic). A bare ALL is a
