@@ -235,17 +235,17 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwREFRESH:
 		return p.unsupported("REFRESH")
 
-	// --- DML ---
+	// --- DML --- [parser-dml node: insert.go, update_delete.go, merge.go]
 	case kwINSERT:
-		return p.unsupported("INSERT")
+		return p.parseInsertStmt()
 	case kwDELETE:
-		return p.unsupported("DELETE")
+		return p.parseDeleteStmt()
 	case kwUPDATE:
-		return p.unsupported("UPDATE")
+		return p.parseUpdateStmt()
 	case kwMERGE:
-		return p.unsupported("MERGE")
+		return p.parseMergeStmt()
 	case kwTRUNCATE:
-		return p.unsupported("TRUNCATE")
+		return p.parseTruncateStmt()
 
 	// --- Procedures ---
 	case kwCALL:
