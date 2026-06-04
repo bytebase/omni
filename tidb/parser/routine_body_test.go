@@ -104,6 +104,10 @@ func TestFindCompoundBodyEnd(t *testing.T) {
 		// compound openers, so the scan stops at the body's top-level ';'.
 		{"if_function_comment_before_paren", `BEGIN SELECT IF /*c*/ (1,2,3); END; SELECT 4`, `BEGIN SELECT IF /*c*/ (1,2,3); END`},
 		{"repeat_function_comment_before_paren", `BEGIN SELECT REPEAT /*c*/ ('a',2); END; SELECT 4`, `BEGIN SELECT REPEAT /*c*/ ('a',2); END`},
+		// Conditional comment before the function paren — a no-op version gate,
+		// still a function call, so the scan stops at the body's top-level ';'.
+		{"if_function_conditional_comment", `BEGIN SELECT IF /*!50000*/ (1,2,3); END; SELECT 4`, `BEGIN SELECT IF /*!50000*/ (1,2,3); END`},
+		{"repeat_function_conditional_comment", `BEGIN SELECT REPEAT /*!50000*/ ('a',2); END; SELECT 4`, `BEGIN SELECT REPEAT /*!50000*/ ('a',2); END`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -203,6 +207,10 @@ func TestRoutineBodyDoesNotSwallowTrailingStatement(t *testing.T) {
 		// SELECT IF /*c*/ (1,2,3) and SELECT REPEAT /*c*/ ('a',2).
 		{"if_function_comment_before_paren", `CREATE PROCEDURE p() BEGIN SELECT IF /*c*/ (1,2,3); END; SELECT 4`},
 		{"repeat_function_comment_before_paren", `CREATE PROCEDURE p() BEGIN SELECT REPEAT /*c*/ ('a',2); END; SELECT 4`},
+		// A conditional comment (/*!...*/) is a no-op version gate before the
+		// function paren — still a function call, not a compound opener.
+		{"if_function_conditional_comment", `CREATE PROCEDURE p() BEGIN SELECT IF /*!50000*/ (1,2,3); END; SELECT 4`},
+		{"repeat_function_conditional_comment", `CREATE PROCEDURE p() BEGIN SELECT REPEAT /*!50000*/ ('a',2); END; SELECT 4`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

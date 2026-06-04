@@ -169,10 +169,13 @@ func matchDelimiter(sql string, i int, delim string) bool {
 
 // nextSignificantChar returns the next character after pos, skipping whitespace
 // and comments, or 0 if none. Used for keyword lookahead (e.g. distinguishing
-// the IF(...) / REPEAT(...) functions from the compound IF / REPEAT statements),
-// where a comment may sit between the keyword and the following token.
-func nextSignificantChar(sql string, pos int) byte {
-	j := skipSpaceAndComments(sql, pos)
+// the IF(...) / REPEAT(...) functions from the compound IF / REPEAT statements).
+// skipConditional controls handling of conditional comments — see
+// skipSpaceAndComments: pass true for "is the next token '(' ?" (a version-gate
+// comment does not change a function call), false where conditional-comment SQL
+// is significant content (the BEGIN transaction check).
+func nextSignificantChar(sql string, pos int, skipConditional bool) byte {
+	j := skipSpaceAndComments(sql, pos, skipConditional)
 	if j >= len(sql) {
 		return 0
 	}
@@ -181,19 +184,22 @@ func nextSignificantChar(sql string, pos int) byte {
 
 // skipSpaceAndComments advances past whitespace and comments (block /* */,
 // line -- and #) starting at position i. Conditional comments (/*!...*/ and
-// /*T!...*/) are NOT skipped: they contain executable SQL and are significant
-// (same treatment as Segment.Empty).
-func skipSpaceAndComments(sql string, i int) int {
+// /*T!...*/) hold executable SQL: skipConditional=true skips them like any
+// comment, false treats them as significant and stops the scan (matching
+// Segment.Empty).
+func skipSpaceAndComments(sql string, i int, skipConditional bool) int {
 	for i < len(sql) {
 		switch {
 		case sql[i] == ' ' || sql[i] == '\t' || sql[i] == '\n' || sql[i] == '\r':
 			i++
 		case sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*':
-			if i+2 < len(sql) && sql[i+2] == '!' {
-				return i // /*!...*/ conditional comment — executable SQL.
-			}
-			if i+3 < len(sql) && sql[i+2] == 'T' && sql[i+3] == '!' {
-				return i // /*T!...*/ TiDB-specific comment — executable SQL.
+			if !skipConditional {
+				if i+2 < len(sql) && sql[i+2] == '!' {
+					return i // /*!...*/ conditional comment — executable SQL.
+				}
+				if i+3 < len(sql) && sql[i+2] == 'T' && sql[i+3] == '!' {
+					return i // /*T!...*/ TiDB-specific comment — executable SQL.
+				}
 			}
 			i = skipBlockCommentMySQL(sql, i)
 		case isDashComment(sql, i):
@@ -214,14 +220,14 @@ func skipSpaceAndComments(sql string, i int) int {
 // because EXISTS is followed by '('. Shared by Split and findCompoundBodyEnd so
 // they classify IF the same way.
 func isIfExistsModifier(sql string, ifEnd int) bool {
-	p := skipSpaceAndComments(sql, ifEnd)
+	p := skipSpaceAndComments(sql, ifEnd, true)
 	if matchWord(sql, p, "NOT") {
-		p = skipSpaceAndComments(sql, skipToEndOfWord(sql, p))
+		p = skipSpaceAndComments(sql, skipToEndOfWord(sql, p), true)
 	}
 	if !matchWord(sql, p, "EXISTS") {
 		return false
 	}
-	p = skipSpaceAndComments(sql, skipToEndOfWord(sql, p))
+	p = skipSpaceAndComments(sql, skipToEndOfWord(sql, p), true)
 	return p >= len(sql) || sql[p] != '('
 }
 
@@ -305,7 +311,7 @@ func Split(sql string) []Segment {
 			// BEGIN WORK => transaction, not compound.
 			// BEGIN at EOF or followed by ; => transaction.
 			// XA BEGIN => transaction.
-			if next != "WORK" && prev != "XA" && nextSignificantChar(sql, endOfWord) != ';' && nextSignificantChar(sql, endOfWord) != 0 {
+			if next != "WORK" && prev != "XA" && nextSignificantChar(sql, endOfWord, false) != ';' && nextSignificantChar(sql, endOfWord, false) != 0 {
 				depth++
 			}
 			i = endOfWord
@@ -314,7 +320,7 @@ func Split(sql string) []Segment {
 		// modifier, or an IF(...) function call.
 		case (b == 'i' || b == 'I') && matchWord(sql, i, "IF"):
 			endOfWord := skipToEndOfWord(sql, i)
-			if prevWord(sql, i) != "END" && !isIfExistsModifier(sql, endOfWord) && nextSignificantChar(sql, endOfWord) != '(' {
+			if prevWord(sql, i) != "END" && !isIfExistsModifier(sql, endOfWord) && nextSignificantChar(sql, endOfWord, true) != '(' {
 				depth++
 			}
 			i = endOfWord
@@ -347,7 +353,7 @@ func Split(sql string) []Segment {
 		case (b == 'r' || b == 'R') && matchWord(sql, i, "REPEAT"):
 			endOfWord := skipToEndOfWord(sql, i)
 			prev := prevWord(sql, i)
-			if prev != "END" && nextSignificantChar(sql, endOfWord) != '(' {
+			if prev != "END" && nextSignificantChar(sql, endOfWord, true) != '(' {
 				depth++
 			}
 			i = endOfWord
@@ -441,7 +447,7 @@ func findCompoundBodyEnd(sql string, start int) int {
 			endOfWord := skipToEndOfWord(sql, i)
 			next := nextWordAfter(sql, endOfWord)
 			prev := prevWord(sql, i)
-			if next != "WORK" && prev != "XA" && nextSignificantChar(sql, endOfWord) != ';' && nextSignificantChar(sql, endOfWord) != 0 {
+			if next != "WORK" && prev != "XA" && nextSignificantChar(sql, endOfWord, false) != ';' && nextSignificantChar(sql, endOfWord, false) != 0 {
 				depth++
 			}
 			i = endOfWord
@@ -454,7 +460,7 @@ func findCompoundBodyEnd(sql string, start int) int {
 		// and swallow a following statement in a custom-delimiter segment).
 		case (b == 'i' || b == 'I') && matchWord(sql, i, "IF"):
 			endOfWord := skipToEndOfWord(sql, i)
-			if prevWord(sql, i) != "END" && !isIfExistsModifier(sql, endOfWord) && nextSignificantChar(sql, endOfWord) != '(' {
+			if prevWord(sql, i) != "END" && !isIfExistsModifier(sql, endOfWord) && nextSignificantChar(sql, endOfWord, true) != '(' {
 				depth++
 			}
 			i = endOfWord
@@ -487,7 +493,7 @@ func findCompoundBodyEnd(sql string, start int) int {
 		case (b == 'r' || b == 'R') && matchWord(sql, i, "REPEAT"):
 			endOfWord := skipToEndOfWord(sql, i)
 			prev := prevWord(sql, i)
-			if prev != "END" && nextSignificantChar(sql, endOfWord) != '(' {
+			if prev != "END" && nextSignificantChar(sql, endOfWord, true) != '(' {
 				depth++
 			}
 			i = endOfWord
