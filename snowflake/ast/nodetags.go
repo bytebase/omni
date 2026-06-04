@@ -126,6 +126,11 @@ const (
 	// Routine DDL tags (T4.5)
 	T_CreateRoutineStmt
 	T_AlterRoutineStmt
+
+	// TCL (transaction control) tags (T6.2)
+	T_BeginStmt
+	T_CommitStmt
+	T_RollbackStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -301,6 +306,12 @@ func (t NodeTag) String() string {
 		return "CreateRoutineStmt"
 	case T_AlterRoutineStmt:
 		return "AlterRoutineStmt"
+	case T_BeginStmt:
+		return "BeginStmt"
+	case T_CommitStmt:
+		return "CommitStmt"
+	case T_RollbackStmt:
+		return "RollbackStmt"
 	default:
 		return "Unknown"
 	}

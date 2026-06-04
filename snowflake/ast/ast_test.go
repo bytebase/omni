@@ -313,11 +313,85 @@ func TestNodeTagString(t *testing.T) {
 	}{
 		{T_Invalid, "Invalid"},
 		{T_File, "File"},
+		{T_BeginStmt, "BeginStmt"},
+		{T_CommitStmt, "CommitStmt"},
+		{T_RollbackStmt, "RollbackStmt"},
 		{NodeTag(9999), "Unknown"},
 	}
 	for _, c := range cases {
 		if got := c.tag.String(); got != c.want {
 			t.Errorf("NodeTag(%d).String() = %q, want %q", c.tag, got, c.want)
+		}
+	}
+}
+
+// -----------------------------------------------------------------------
+// TCL (transaction control) node tests (T6.2)
+// -----------------------------------------------------------------------
+
+func TestTCLNodeTags(t *testing.T) {
+	cases := []struct {
+		node Node
+		want NodeTag
+	}{
+		{&BeginStmt{}, T_BeginStmt},
+		{&CommitStmt{}, T_CommitStmt},
+		{&RollbackStmt{}, T_RollbackStmt},
+	}
+	for _, c := range cases {
+		if got := c.node.Tag(); got != c.want {
+			t.Errorf("%T.Tag() = %v, want %v", c.node, got, c.want)
+		}
+	}
+}
+
+func TestBeginKindString(t *testing.T) {
+	cases := []struct {
+		kind BeginKind
+		want string
+	}{
+		{BeginBare, "BEGIN"},
+		{BeginWork, "BEGIN WORK"},
+		{BeginTransaction, "BEGIN TRANSACTION"},
+		{BeginStartTransaction, "START TRANSACTION"},
+		{BeginKind(9999), "UNKNOWN"},
+	}
+	for _, c := range cases {
+		if got := c.kind.String(); got != c.want {
+			t.Errorf("BeginKind(%d).String() = %q, want %q", c.kind, got, c.want)
+		}
+	}
+}
+
+// TestTCLNodesWalkNoChildren verifies the generated walker visits each TCL node
+// itself but descends into no children (their only "name" field is an Ident
+// value, not a Node — matching ObjectName's embedded Idents).
+func TestTCLNodesWalkNoChildren(t *testing.T) {
+	cases := []struct {
+		node Node
+		tag  NodeTag
+	}{
+		{&BeginStmt{Name: Ident{Name: "t1"}}, T_BeginStmt},
+		{&CommitStmt{Work: true}, T_CommitStmt},
+		{&RollbackStmt{Work: true}, T_RollbackStmt},
+	}
+	for _, c := range cases {
+		var events []recordEvent
+		Walk(&recorder{events: &events}, c.node)
+		// A leaf node yields exactly two events: the pre-order visit (tag set)
+		// and the post-order Visit(nil). No child pre-visits.
+		var preVisits []NodeTag
+		for _, e := range events {
+			if !e.post {
+				preVisits = append(preVisits, e.tag)
+			}
+		}
+		if len(preVisits) != 1 {
+			t.Errorf("%T: walk pre-visited %d nodes, want 1 (self only): %+v", c.node, len(preVisits), preVisits)
+			continue
+		}
+		if preVisits[0] != c.tag {
+			t.Errorf("%T: pre-visit tag = %v, want %v", c.node, preVisits[0], c.tag)
 		}
 	}
 }
