@@ -76,6 +76,8 @@ func TestRoutineGrammarRejected(t *testing.T) {
 		`SHOW CREATE FUNCTION foo`,
 		`SHOW CREATE TRIGGER foo`,
 		`SHOW CREATE EVENT foo`,
+		`SHOW FUNCTION CODE foo`,
+		`SHOW PROCEDURE CODE foo`,
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {

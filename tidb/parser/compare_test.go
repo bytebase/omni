@@ -8075,17 +8075,8 @@ func TestParseShowProfileLimitOffset(t *testing.T) {
 	}
 }
 
-func TestParseShowFunctionCode(t *testing.T) {
-	tests := []string{
-		"SHOW FUNCTION CODE my_func",
-		"SHOW FUNCTION CODE db1.my_func",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
+// SHOW FUNCTION CODE rejects (TiDB v8.5.0 has none) — pinned in
+// routine_body_test.go TestRoutineGrammarRejected.
 
 // ============================================================================
 // Batch 52: WITH CHECK OPTION depth fix
@@ -8117,17 +8108,8 @@ func TestParseAlterViewWithCheckOption(t *testing.T) {
 	}
 }
 
-func TestParseShowProcedureCode(t *testing.T) {
-	tests := []string{
-		"SHOW PROCEDURE CODE my_proc",
-		"SHOW PROCEDURE CODE db1.my_proc",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
+// SHOW PROCEDURE CODE rejects (TiDB v8.5.0 has none) — pinned in
+// routine_body_test.go TestRoutineGrammarRejected.
 
 func TestParseChangeMasterTo(t *testing.T) {
 	tests := []string{

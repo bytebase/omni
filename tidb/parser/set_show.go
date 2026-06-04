@@ -984,13 +984,8 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				return nil, err
 			}
 		} else if p.cur.Type == kwCODE {
-			stmt.Type = "PROCEDURE CODE"
-			p.advance() // consume CODE
-			ref, err := p.parseTableRef()
-			if err != nil {
-				return nil, err
-			}
-			stmt.From = ref
+			// TiDB v8.5.0 has no SHOW PROCEDURE CODE.
+			return nil, p.syntaxErrorAtCur()
 		}
 
 	case kwFUNCTION:
@@ -1002,13 +997,8 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 				return nil, err
 			}
 		} else if p.cur.Type == kwCODE {
-			stmt.Type = "FUNCTION CODE"
-			p.advance() // consume CODE
-			ref, err := p.parseTableRef()
-			if err != nil {
-				return nil, err
-			}
-			stmt.From = ref
+			// TiDB v8.5.0 has no SHOW FUNCTION CODE.
+			return nil, p.syntaxErrorAtCur()
 		}
 
 	case kwOPEN:
