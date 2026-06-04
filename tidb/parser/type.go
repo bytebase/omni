@@ -430,25 +430,64 @@ func (p *Parser) parseUnsignedZerofill(dt *nodes.DataType) {
 	}
 }
 
-// parseCharsetCollate parses optional CHARACTER SET and COLLATE clauses.
+// parseCharsetCollate parses optional CHARACTER SET / CHARSET clauses, the
+// standalone BINARY modifier (e.g. CHAR(10) BINARY), and an optional COLLATE.
+// CHARACTER SET and BINARY may appear in any order, but COLLATE comes LAST:
+// TiDB accepts `CHARACTER SET x BINARY COLLATE y` and `BINARY COLLATE y` but
+// REJECTS `COLLATE y BINARY` and `CHARACTER SET x COLLATE y BINARY` (BINARY
+// after COLLATE). So charset/BINARY are consumed in a loop, then a single
+// trailing COLLATE — a BINARY after COLLATE is left for the caller to reject.
+//
+// Only the character types (CHAR/VARCHAR/TEXT/ENUM/SET/NCHAR/...) call this, so
+// BINARY is naturally not accepted on BLOB/VARBINARY, matching TiDB.
+//
+// charset/collation names can be `binary`, which is a reserved keyword, so we
+// use parseKeywordOrIdent to accept keyword tokens as names.
 func (p *Parser) parseCharsetCollate(dt *nodes.DataType) {
-	// CHARACTER SET charset_name | CHARSET charset_name
-	// charset/collation names can be `binary`, which is a reserved keyword,
-	// so we use parseKeywordOrIdent to accept keyword tokens as names.
-	if _, ok := p.match(kwCHARSET); ok {
-		if p.isIdentToken() || p.cur.Type == kwBINARY {
-			dt.Charset, _, _ = p.parseKeywordOrIdent()
-		}
-	} else if p.cur.Type == kwCHARACTER {
-		p.advance()
-		if _, ok := p.match(kwSET); ok {
+	// Each of CHARACTER SET and the standalone BINARY modifier may appear at most
+	// once; a repeat is left for the caller to reject (TiDB rejects e.g.
+	// `BINARY BINARY` and `CHARACTER SET x CHARACTER SET y`). Note that
+	// `CHARACTER SET binary BINARY` is still valid — the first `binary` is the
+	// charset name (consumed by parseKeywordOrIdent), the second is the modifier.
+	charsetSeen := false
+	binarySeen := false
+charsetBinary:
+	for {
+		switch p.cur.Type {
+		case kwCHARSET:
+			if charsetSeen {
+				break charsetBinary
+			}
+			charsetSeen = true
+			p.advance()
 			if p.isIdentToken() || p.cur.Type == kwBINARY {
 				dt.Charset, _, _ = p.parseKeywordOrIdent()
 			}
+		case kwCHARACTER:
+			if charsetSeen {
+				break charsetBinary
+			}
+			p.advance()
+			if _, ok := p.match(kwSET); !ok {
+				return
+			}
+			charsetSeen = true
+			if p.isIdentToken() || p.cur.Type == kwBINARY {
+				dt.Charset, _, _ = p.parseKeywordOrIdent()
+			}
+		case kwBINARY:
+			if binarySeen {
+				break charsetBinary
+			}
+			binarySeen = true
+			p.advance()
+			dt.Binary = true
+		default:
+			break charsetBinary
 		}
 	}
 
-	// COLLATE collation_name
+	// COLLATE collation_name — must come after any CHARACTER SET / BINARY.
 	if _, ok := p.match(kwCOLLATE); ok {
 		if p.isIdentToken() || p.cur.Type == kwBINARY {
 			dt.Collate, _, _ = p.parseKeywordOrIdent()
