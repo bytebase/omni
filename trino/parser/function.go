@@ -26,9 +26,9 @@ import "github.com/bytebase/omni/trino/ast"
 //
 // The SQL/JSON functions (JSON_EXISTS/JSON_VALUE/JSON_QUERY/JSON_OBJECT/
 // JSON_ARRAY and the json-path subsystem) are the SEPARATE expr-json DAG node
-// (json.go); parsePrimaryAtom routes them here to a thin parseJSONFunction stub
-// that records a "not yet supported" error until that node lands. This keeps the
-// expressions node's writes scoped to expr/function/predicate.go.
+// (json.go); parsePrimaryAtom routes them to parseJSONFunction, which lives in
+// json.go. (During the expressions node this was a thin "not yet supported"
+// stub here; the expr-json node replaced it with the real parser in json.go.)
 //
 // Oracle-confirmed reservation nuance baked into the dispatch: among the
 // special built-ins, SUBSTRING and POSITION are NON-RESERVED keywords, so beyond
@@ -1381,20 +1381,5 @@ func (p *Parser) parseDoublePrecisionConstructor() (Expr, error) {
 	}, nil
 }
 
-// parseJSONFunction is the dispatch stub for the SQL/JSON functions
-// (JSON_EXISTS / JSON_VALUE / JSON_QUERY / JSON_OBJECT / JSON_ARRAY). The bodies,
-// and the json-path subsystem, are the SEPARATE expr-json DAG node (json.go);
-// until it lands, this records a "not yet supported" error so callers get an
-// actionable diagnostic rather than a wrong parse. The keyword is the current
-// token.
-func (p *Parser) parseJSONFunction() (Expr, error) {
-	tok := p.cur
-	name := tok.Str
-	if name == "" {
-		name = TokenName(tok.Kind)
-	}
-	return nil, &ParseError{
-		Loc: tok.Loc,
-		Msg: "SQL/JSON function " + name + " is not yet supported",
-	}
-}
+// parseJSONFunction (the SQL/JSON function dispatcher) lives in json.go (the
+// expr-json DAG node). parsePrimaryAtom's JSON_* dispatch calls it from there.
