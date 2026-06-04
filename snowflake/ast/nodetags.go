@@ -94,6 +94,16 @@ const (
 	T_UnsetStmt
 	T_CommentStmt
 	T_TruncateStmt
+
+	// Bulk data movement tags (T5.2)
+	T_StageLocation
+	T_CopyOption
+	T_CopyIntoTableStmt
+	T_CopyIntoLocationStmt
+	T_PutStmt
+	T_GetStmt
+	T_ListStmt
+	T_RemoveStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -225,6 +235,22 @@ func (t NodeTag) String() string {
 		return "CommentStmt"
 	case T_TruncateStmt:
 		return "TruncateStmt"
+	case T_StageLocation:
+		return "StageLocation"
+	case T_CopyOption:
+		return "CopyOption"
+	case T_CopyIntoTableStmt:
+		return "CopyIntoTableStmt"
+	case T_CopyIntoLocationStmt:
+		return "CopyIntoLocationStmt"
+	case T_PutStmt:
+		return "PutStmt"
+	case T_GetStmt:
+		return "GetStmt"
+	case T_ListStmt:
+		return "ListStmt"
+	case T_RemoveStmt:
+		return "RemoveStmt"
 	default:
 		return "Unknown"
 	}

@@ -12,6 +12,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/snowflake/ast"
 )
 
@@ -20,8 +22,10 @@ import (
 // F3's Split) at a time; callers should use Parse or ParseBestEffort
 // instead of constructing Parsers directly.
 type Parser struct {
-	lexer   *Lexer
-	input   string       // the segment text (used for error reporting)
+	lexer *Lexer
+	input string // the segment text (used for error reporting and raw-source slicing)
+	base  int    // byte offset of input within the original source; absolute token
+	// Locs are input-relative + base. Used to slice input by Loc.
 	cur     Token        // current token
 	prev    Token        // previous token (for error context)
 	nextBuf Token        // buffered lookahead token
@@ -213,15 +217,15 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwMERGE:
 		return p.parseMergeStmt()
 	case kwCOPY:
-		return p.unsupported("COPY")
+		return p.parseCopyStmt()
 	case kwPUT:
-		return p.unsupported("PUT")
+		return p.parsePutStmt()
 	case kwGET:
-		return p.unsupported("GET")
+		return p.parseGetStmt()
 	case kwLIST:
-		return p.unsupported("LIST")
+		return p.parseListStmt(false)
 	case kwREMOVE:
-		return p.unsupported("REMOVE")
+		return p.parseRemoveStmt(false)
 	case kwCALL:
 		return p.unsupported("CALL")
 
@@ -274,6 +278,17 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return p.unsupported("CONTINUE")
 
 	default:
+		// LS and RM are the documented aliases of LIST and REMOVE. Snowflake's
+		// lexer (and omni's) does not reserve them, so they arrive as plain
+		// identifiers and are dispatched here by their uppercased text.
+		if p.cur.Type == tokIdent {
+			switch strings.ToUpper(p.cur.Str) {
+			case "LS":
+				return p.parseListStmt(true)
+			case "RM":
+				return p.parseRemoveStmt(true)
+			}
+		}
 		return nil, p.unknownStatementError()
 	}
 }
@@ -337,6 +352,7 @@ func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
 	p := &Parser{
 		lexer: NewLexerWithOffset(segText, baseOffset),
 		input: segText,
+		base:  baseOffset,
 	}
 	p.advance() // prime cur with the first token
 
