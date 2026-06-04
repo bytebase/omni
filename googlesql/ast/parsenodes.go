@@ -1106,3 +1106,404 @@ var (
 	_ Node = (*ExistsExpr)(nil)
 	_ Node = (*ArraySubqueryExpr)(nil)
 )
+
+// ===========================================================================
+// Query / SELECT core (googlesql/parser-select node)
+// ===========================================================================
+//
+// These node types model the legacy ANTLR query grammar (GoogleSQLParser.g4
+// §2.13-§2.16 — query / query_without_pipe_operators / select / from_clause /
+// joins / set-ops / with_clause), itself a hand-port of Google's open-source
+// ZetaSQL reference and the grammar bytebase consumes today. The parser
+// (parser/select.go, from_join.go, set_ops.go, cte.go) builds these.
+//
+// One omni parser serves both BigQuery and Spanner; this is the UNION grammar.
+// The live Cloud Spanner emulator (oracle.md) decides accept/reject for shared
+// + Spanner-only query forms; BigQuery-only forms (QUALIFY, WITH RECURSIVE,
+// SELECT AS VALUE in some positions) parse in the union grammar even though the
+// Spanner emulator *feature-rejects* them — the emulator's feature-reject is
+// NON-AUTHORITATIVE for grammar verdicts (divergence ledger #9, #11).
+//
+// Grammar-faithful tree shape (a key ZetaSQL nuance): ORDER BY / LIMIT-OFFSET /
+// FOR UPDATE are properties of the whole `query_without_pipe_operators`, NOT of
+// the inner SELECT. So a *QueryStmt wraps the set-op/select Body and carries the
+// trailing ORDER BY/LIMIT/FOR UPDATE; the inner *SelectStmt holds only
+// SELECT…FROM…WHERE…GROUP BY…HAVING…QUALIFY…WINDOW. This makes
+// `SELECT 1 UNION ALL SELECT 2 ORDER BY x` bind ORDER BY to the union (correct),
+// not to the second SELECT.
+
+// QueryStmt is a complete query (grammar: query / query_without_pipe_operators):
+//
+//	[WITH [RECURSIVE] cte, …] <body> [ORDER BY …] [LIMIT n [OFFSET m]] [FOR UPDATE]
+//
+// With is the optional leading WITH clause (nil if absent). Body is the query
+// body — a *SelectStmt, a *SetOperation, or a nested *QueryStmt (a parenthesized
+// `( query )` query_primary). OrderBy / Limit / Offset are the trailing
+// query-level modifiers (nil/absent when not present). ForUpdate records a
+// trailing `FOR UPDATE` (Spanner row-locking; parses in the union grammar).
+type QueryStmt struct {
+	With      *WithClause  // leading WITH clause; nil if absent
+	Body      Node         // *SelectStmt | *SetOperation | *QueryStmt
+	OrderBy   []*OrderItem // trailing query-level ORDER BY; nil if absent
+	Limit     Node         // trailing LIMIT count; nil if absent
+	Offset    Node         // trailing OFFSET (only with Limit); nil if absent
+	ForUpdate bool         // trailing FOR UPDATE (Spanner)
+	Parens    bool         // true if this query was wrapped in `( … )` as a query_primary
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *QueryStmt) Tag() NodeTag { return T_QueryStmt }
+
+// WithClause is the leading `WITH [RECURSIVE] aliased_query (, aliased_query)*`
+// CTE clause (with_clause). Recursive flags the RECURSIVE keyword (parses in the
+// union grammar; Spanner feature-rejects — divergence #11). CTEs has >= 1 entry.
+type WithClause struct {
+	Recursive bool
+	CTEs      []*CTE // >= 1
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *WithClause) Tag() NodeTag { return T_WithClause }
+
+// CTE is one named subquery in a WITH clause (aliased_query):
+//
+//	name [( column, … )] AS ( query ) [WITH DEPTH …]
+//
+// Name is the CTE name (normalized). Columns is the optional explicit
+// column-name list (Spanner's `cte_name ( column_name, … )` form; nil if
+// absent). Query is the parsed CTE body (a *QueryStmt). Depth carries the
+// optional recursion-depth modifier (`WITH DEPTH [AS alias] [BETWEEN n AND m |
+// MAX n]`); nil if absent.
+type CTE struct {
+	Name    string
+	Columns []string // explicit column list (Spanner form); nil if absent
+	Query   Node     // *QueryStmt
+	Depth   *RecursionDepth
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *CTE) Tag() NodeTag { return T_CTE }
+
+// RecursionDepth is the recursion-depth modifier on a recursive CTE
+// (recursion_depth_modifier): `WITH DEPTH [AS alias] [BETWEEN low AND high |
+// MAX n]`. Alias is the optional depth-column alias ("" if absent). Lower/Upper
+// are the BETWEEN bounds (nil if the BETWEEN form was not used); Max is the
+// `MAX n` bound (nil if not used). At most one of {Lower/Upper} or Max is set.
+type RecursionDepth struct {
+	Alias string
+	Lower Node // BETWEEN low …; nil if absent
+	Upper Node // … AND high; nil if absent
+	Max   Node // MAX n; nil if absent
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *RecursionDepth) Tag() NodeTag { return T_RecursionDepth }
+
+// SelectAsKind enumerates the `SELECT AS …` modifier (opt_select_as_clause).
+type SelectAsKind int
+
+const (
+	// SelectAsNone is no AS modifier.
+	SelectAsNone SelectAsKind = iota
+	// SelectAsStruct is `SELECT AS STRUCT`.
+	SelectAsStruct
+	// SelectAsValue is `SELECT AS VALUE`.
+	SelectAsValue
+	// SelectAsTypeName is `SELECT AS <path>` (a proto/type name); the name is in
+	// SelectStmt.AsTypeName.
+	SelectAsTypeName
+)
+
+// SelectStmt is a single SELECT block (grammar: select):
+//
+//	SELECT [hint] [WITH <dp/agg-threshold>] [ALL|DISTINCT] [AS STRUCT|VALUE|path]
+//	  <select_list>
+//	  [FROM <from>] [WHERE …] [GROUP BY …] [HAVING …] [QUALIFY …] [WINDOW …]
+//
+// ORDER BY / LIMIT / FOR UPDATE are NOT here — they belong to the enclosing
+// QueryStmt (see that type). Distinct/All select the set quantifier. As selects
+// the `AS STRUCT|VALUE|path` modifier; AsTypeName holds the path for
+// SelectAsTypeName. SelectWith records a leading `WITH <name> [OPTIONS(…)]`
+// differential-privacy / aggregation-threshold clause (its body is not retained
+// beyond the name; the clause's presence + name is the load-bearing fact).
+type SelectStmt struct {
+	Distinct   bool
+	All        bool
+	As         SelectAsKind
+	AsTypeName *PathExpr      // for SelectAsTypeName; nil otherwise
+	SelectWith string         // leading WITH <name> clause name ("" if absent)
+	Items      []*SelectItem  // the select list (>= 1)
+	From       []Node         // FROM items: *TableExpr / *JoinExpr / *UnnestExpr; nil if no FROM
+	Where      Node           // WHERE expr; nil if absent
+	GroupBy    *GroupByClause // nil if absent
+	Having     Node           // HAVING expr; nil if absent
+	Qualify    Node           // QUALIFY expr; nil if absent
+	Window     []*WindowDef   // WINDOW named windows; nil if absent
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *SelectStmt) Tag() NodeTag { return T_SelectStmt }
+
+// SelectItem is one entry of a select_list (select_list_item). Three shapes:
+//   - expression:  Expr set, Star false. Alias is the optional `[AS] name`.
+//   - bare star:   `*` with optional modifiers. Star true, Expr nil.
+//   - dot star:    `expr.*` with optional modifiers. Star true, Expr set.
+//
+// Modifiers carries the EXCEPT/REPLACE star_modifiers (nil for the expression
+// form and for a star with no modifiers).
+type SelectItem struct {
+	Expr      Node           // the expression, or the dot-star qualifier; nil for bare `*`
+	Star      bool           // true for `*` or `expr.*`
+	Modifiers *StarModifiers // EXCEPT/REPLACE; nil if none
+	Alias     string         // `[AS] alias` (expression form only); "" if absent
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *SelectItem) Tag() NodeTag { return T_SelectItem }
+
+// SetOp enumerates the set-operation kind (query_set_operation_type).
+type SetOp int
+
+const (
+	SetOpUnion     SetOp = iota // UNION
+	SetOpIntersect              // INTERSECT
+	SetOpExcept                 // EXCEPT
+)
+
+// String returns the operator keyword.
+func (op SetOp) String() string {
+	switch op {
+	case SetOpUnion:
+		return "UNION"
+	case SetOpIntersect:
+		return "INTERSECT"
+	case SetOpExcept:
+		return "EXCEPT"
+	default:
+		return "?"
+	}
+}
+
+// SetOperation is a set-operation node (query_set_operation):
+//
+//	<left> [corresponding-outer] <UNION|INTERSECT|EXCEPT> {ALL|DISTINCT}
+//	   [STRICT] [CORRESPONDING [BY]] <right>
+//
+// Left-associative: `a UNION b UNION c` nests as
+// SetOperation{Left: SetOperation{Left: a, Right: b}, Right: c}. Left and Right
+// are query_primary nodes (*SelectStmt or a parenthesized *QueryStmt). Op is the
+// operator; All flags ALL (vs DISTINCT). OuterMode records an optional
+// corresponding-outer prefix ("" / "FULL" / "OUTER" / "LEFT"); Strict flags
+// STRICT; Corresponding flags a trailing CORRESPONDING [BY]. The all-or-distinct
+// choice is required by the grammar, so AllOrDistinctSet is always true for a
+// well-formed node (kept explicit so a deparser can round-trip).
+type SetOperation struct {
+	Op            SetOp
+	All           bool   // ALL (vs DISTINCT)
+	OuterMode     string // "" | "FULL" | "OUTER" | "LEFT"
+	Strict        bool
+	Corresponding bool
+	Left          Node // *SelectStmt | *QueryStmt
+	Right         Node // *SelectStmt | *QueryStmt
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *SetOperation) Tag() NodeTag { return T_SetOperation }
+
+// ---------------------------------------------------------------------------
+// FROM clause / table sources / joins
+// ---------------------------------------------------------------------------
+
+// TableExpr is a non-join FROM source (table_primary minus the join cases):
+// a table path reference, a parenthesized subquery, a TVF call, or an implicit
+// array-path source. Exactly one of {Path, Subquery, Func} is set.
+//
+//   - Path:     a (possibly dashed/slashed/dotted) table path, or a correlated
+//     array field path (`t.array_col`). Held as a *PathExpr.
+//   - Subquery: a parenthesized `( query )` table_subquery. Held as a *QueryStmt.
+//   - Func:     a table-valued function call `name(args)`. Held as a *FuncCall.
+//
+// Alias is the optional `[AS] name` (alias text; "" if absent). WithOffset
+// records a trailing `WITH OFFSET [[AS] name]` (the offset companion column);
+// WithOffsetAlias is its optional alias. SystemTime captures a trailing
+// `FOR SYSTEM[_TIME] AS OF expr` time-travel expression (nil if absent).
+type TableExpr struct {
+	Path            *PathExpr // table / array-field path; nil for subquery / TVF
+	Subquery        Node      // ( query ) subquery; nil otherwise (*QueryStmt)
+	Func            *FuncCall // table-valued function call; nil otherwise
+	Alias           string    // [AS] alias; "" if absent
+	WithOffset      bool      // trailing WITH OFFSET
+	WithOffsetAlias string    // alias for WITH OFFSET; "" if absent or unaliased
+	SystemTime      Node      // FOR SYSTEM_TIME AS OF expr; nil if absent
+	Loc             Loc
+}
+
+// Tag implements Node.
+func (n *TableExpr) Tag() NodeTag { return T_TableExpr }
+
+// UnnestExpr is an `UNNEST(array_expr [, …]) [[AS] alias] [WITH OFFSET [[AS] name]]`
+// FROM source (unnest_expression as a table_path_expression_base). Array is the
+// UNNEST(...) call (a *FuncCall named UNNEST, as the expressions node builds it).
+// Alias / WithOffset / WithOffsetAlias mirror TableExpr.
+type UnnestExpr struct {
+	Array           Node   // the UNNEST(...) call (*FuncCall); the array argument(s)
+	Alias           string // [AS] alias; "" if absent
+	WithOffset      bool   // trailing WITH OFFSET
+	WithOffsetAlias string // alias for WITH OFFSET; "" if absent or unaliased
+	Loc             Loc
+}
+
+// Tag implements Node.
+func (n *UnnestExpr) Tag() NodeTag { return T_UnnestExpr }
+
+// JoinType enumerates the join kind (join_type / opt_natural).
+type JoinType int
+
+const (
+	JoinComma JoinType = iota // `,` (implicit cross join)
+	JoinInner                 // [INNER] JOIN
+	JoinCross                 // CROSS JOIN
+	JoinFull                  // FULL [OUTER] JOIN
+	JoinLeft                  // LEFT [OUTER] JOIN
+	JoinRight                 // RIGHT [OUTER] JOIN
+)
+
+// String returns a human-readable name for the join type.
+func (t JoinType) String() string {
+	switch t {
+	case JoinComma:
+		return "COMMA"
+	case JoinInner:
+		return "INNER"
+	case JoinCross:
+		return "CROSS"
+	case JoinFull:
+		return "FULL"
+	case JoinLeft:
+		return "LEFT"
+	case JoinRight:
+		return "RIGHT"
+	default:
+		return "?"
+	}
+}
+
+// JoinExpr is a join between two FROM sources (from_clause_contents_suffix /
+// join_item). Left and Right are FROM sources (*TableExpr / *UnnestExpr /
+// nested *JoinExpr / a parenthesized join). Type is the join kind. Natural flags
+// a NATURAL prefix. JoinHint records the `HASH | LOOKUP` algorithm hint ("" if
+// none). On is the ON condition (nil if USING/NATURAL/CROSS/comma). Using is the
+// USING column list (nil if ON/NATURAL/CROSS/comma).
+type JoinExpr struct {
+	Type     JoinType
+	Natural  bool
+	JoinHint string // "HASH" | "LOOKUP"; "" if none
+	Left     Node
+	Right    Node
+	On       Node     // ON expr; nil otherwise
+	Using    []string // USING (col, …); nil otherwise
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *JoinExpr) Tag() NodeTag { return T_JoinExpr }
+
+// ---------------------------------------------------------------------------
+// GROUP BY / WINDOW
+// ---------------------------------------------------------------------------
+
+// GroupByKind enumerates the GROUP BY shape (group_by_clause).
+type GroupByKind int
+
+const (
+	// GroupByItems is `GROUP BY <grouping items>` (the general form; each item
+	// is a GroupingItem).
+	GroupByItems GroupByKind = iota
+	// GroupByAll is `GROUP BY ALL`.
+	GroupByAll
+)
+
+// GroupByClause is a GROUP BY clause (group_by_clause): either `GROUP BY ALL`
+// (Kind == GroupByAll, Items nil) or `GROUP BY <grouping items>` (Kind ==
+// GroupByItems, Items >= 1). AndOrder flags the `AND ORDER` infix
+// (`GROUP AND ORDER BY`). Each item is a GroupingItem (a plain expression, the
+// empty grouping `()`, or ROLLUP/CUBE/GROUPING SETS).
+type GroupByClause struct {
+	Kind     GroupByKind
+	AndOrder bool            // GROUP AND ORDER BY
+	Items    []*GroupingItem // nil for GROUP BY ALL
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *GroupByClause) Tag() NodeTag { return T_GroupByClause }
+
+// GroupingKind enumerates a grouping_item shape.
+type GroupingKind int
+
+const (
+	// GroupingExpr is a plain `expr [AS alias] [ASC|DESC]` grouping item.
+	GroupingExpr GroupingKind = iota
+	// GroupingEmpty is the empty grouping `()`.
+	GroupingEmpty
+	// GroupingRollup is `ROLLUP ( expr, … )`.
+	GroupingRollup
+	// GroupingCube is `CUBE ( expr, … )`.
+	GroupingCube
+	// GroupingSets is `GROUPING SETS ( <set>, … )`.
+	GroupingSets
+)
+
+// GroupingItem is one entry of a GROUP BY list (grouping_item). For
+// GroupingExpr, Expr is the expression (Alias the optional `AS name`). For
+// GroupingRollup / GroupingCube / GroupingSets, Items holds the parenthesized
+// expression list (for GROUPING SETS the items may themselves be nested
+// rollup/cube/empty sets, captured as their inner expressions for walking). For
+// GroupingEmpty all are zero.
+type GroupingItem struct {
+	Kind  GroupingKind
+	Expr  Node   // for GroupingExpr; nil otherwise
+	Alias string // GroupingExpr `AS alias`; "" if absent
+	Items []Node // for ROLLUP/CUBE/GROUPING SETS; nil otherwise
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *GroupingItem) Tag() NodeTag { return T_GroupingItem }
+
+// WindowDef is one named-window definition in a WINDOW clause (window_definition):
+// `name AS <window_specification>`. Name is the window name; Spec is the
+// specification (a *WindowSpec, reused from the expressions node — it may itself
+// reference a base window by name).
+type WindowDef struct {
+	Name string
+	Spec *WindowSpec
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *WindowDef) Tag() NodeTag { return T_WindowDef }
+
+// Compile-time assertions that the query node types satisfy Node.
+var (
+	_ Node = (*QueryStmt)(nil)
+	_ Node = (*WithClause)(nil)
+	_ Node = (*CTE)(nil)
+	_ Node = (*RecursionDepth)(nil)
+	_ Node = (*SelectStmt)(nil)
+	_ Node = (*SelectItem)(nil)
+	_ Node = (*SetOperation)(nil)
+	_ Node = (*TableExpr)(nil)
+	_ Node = (*UnnestExpr)(nil)
+	_ Node = (*JoinExpr)(nil)
+	_ Node = (*GroupByClause)(nil)
+	_ Node = (*GroupingItem)(nil)
+	_ Node = (*WindowDef)(nil)
+)

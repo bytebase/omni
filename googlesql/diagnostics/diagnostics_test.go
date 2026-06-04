@@ -54,9 +54,12 @@ func TestSeverity_String(t *testing.T) {
 }
 
 func TestAnalyze_StubbedStatementShape(t *testing.T) {
-	// In the parser-foundation a valid statement still produces a "not yet
-	// supported" diagnostic (the body is stubbed). Assert the diagnostic shape.
-	diags := Analyze("SELECT 1")
+	// A statement whose body is still stubbed (INSERT — the DML node has not
+	// landed) produces a "not yet supported" diagnostic. Assert the diagnostic
+	// shape. (The query family — SELECT/WITH — is now implemented by
+	// parser-select and produces zero diagnostics for valid input; see
+	// TestAnalyze_ValidQueryNoDiagnostics.)
+	diags := Analyze("INSERT INTO t VALUES (1)")
 	if len(diags) != 1 {
 		t.Fatalf("expected 1 diagnostic, got %d: %+v", len(diags), diags)
 	}
@@ -70,9 +73,27 @@ func TestAnalyze_StubbedStatementShape(t *testing.T) {
 	if !strings.Contains(d.Message, "not yet supported") {
 		t.Errorf("message = %q, want it to mention 'not yet supported'", d.Message)
 	}
-	// SELECT starts at byte 0 => line 1, col 1.
+	// INSERT starts at byte 0 => line 1, col 1.
 	if d.Range.Start.Line != 1 || d.Range.Start.Column != 1 {
 		t.Errorf("start = (%d, %d), want (1, 1)", d.Range.Start.Line, d.Range.Start.Column)
+	}
+}
+
+// TestAnalyze_ValidQueryNoDiagnostics confirms that, with the parser-select node
+// landed, a syntactically valid query produces zero diagnostics (no more "not
+// yet supported" for the query family). This is the bytebase Diagnose contract:
+// a valid BigQuery/Spanner query must not draw a false syntax diagnostic.
+func TestAnalyze_ValidQueryNoDiagnostics(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT 1",
+		"SELECT a, b FROM t WHERE a > 1 ORDER BY b LIMIT 10",
+		"WITH c AS (SELECT 1 AS n) SELECT n FROM c",
+		"SELECT * FROM a JOIN b USING (id)",
+		"SELECT * FROM t1 UNION ALL SELECT * FROM t2",
+	} {
+		if diags := Analyze(sql); len(diags) != 0 {
+			t.Errorf("Analyze(%q): got %d diagnostics, want 0: %+v", sql, len(diags), diags)
+		}
 	}
 }
 
