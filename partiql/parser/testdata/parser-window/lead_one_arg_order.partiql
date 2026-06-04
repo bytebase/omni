@@ -1,0 +1,1 @@
+LEAD(x) OVER (ORDER BY y)

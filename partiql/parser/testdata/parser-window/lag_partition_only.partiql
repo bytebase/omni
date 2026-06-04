@@ -1,0 +1,1 @@
+LAG(x) OVER (PARTITION BY a)

@@ -1,0 +1,1 @@
+LAG(x, 1, 0) OVER (PARTITION BY a ORDER BY b)

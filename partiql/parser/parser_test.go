@@ -619,11 +619,12 @@ func TestParser_Errors(t *testing.T) {
 			input:     "(1, 2, 3)",
 			wantErrIn: "valueList is deferred to parser-dml (DAG node 6)",
 		},
-		{
-			name:      "lag_stub",
-			input:     "LAG(x)",
-			wantErrIn: "LAG() window is deferred to parser-window (DAG node 13)",
-		},
+		// Note: the LAG/LEAD window-function deferred-stub case that
+		// previously lived here was removed when DAG node 13 (parser-window)
+		// implemented those forms. Their positive, negative, golden, and
+		// round-trip coverage now lives in window_test.go. (`LAG(x)` without
+		// OVER is now a real parse error — "expected OVER" — since the
+		// windowFunction grammar makes the OVER clause mandatory.)
 		// Note: the CAST/SUBSTRING/COALESCE/LIST deferred-stub cases that
 		// previously lived here were removed when DAG node 15b
 		// (parser-builtins-typed) implemented those forms. Their positive
