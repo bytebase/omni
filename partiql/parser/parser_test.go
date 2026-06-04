@@ -638,16 +638,12 @@ func TestParser_Errors(t *testing.T) {
 			input:     "(a MATCH (b))",
 			wantErrIn: "graph MATCH expression is deferred to parser-graph (DAG node 16)",
 		},
-		{
-			name:      "date_literal_stub",
-			input:     "DATE '2026-01-01'",
-			wantErrIn: "DATE literal is deferred to parser-datetime-literals (DAG node 18)",
-		},
-		{
-			name:      "time_literal_stub",
-			input:     "TIME '12:00:00'",
-			wantErrIn: "TIME literal is deferred to parser-datetime-literals (DAG node 18)",
-		},
+		// Note: the DATE/TIME deferred-stub cases that previously lived
+		// here were removed when DAG node 18 (parser-datetime-literals)
+		// implemented those forms. Their positive, negative, and golden
+		// coverage now lives in datetime_literals_test.go. The TIMESTAMP
+		// literal form is rejected (not a PartiQL literal) — covered by
+		// TestDateTimeLiteral_Reject/timestamp_literal there.
 
 		// --- Real syntax errors ---
 		{
