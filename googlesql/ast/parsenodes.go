@@ -1517,3 +1517,522 @@ var (
 	_ Node = (*GroupingItem)(nil)
 	_ Node = (*WindowDef)(nil)
 )
+
+// ===========================================================================
+// Core DDL (googlesql/parser-ddl node)
+//
+// AST nodes for the CREATE / ALTER / DROP statements over the table-like
+// objects bytebase consumes for BigQuery + Spanner: TABLE, VIEW, INDEX,
+// SCHEMA, DATABASE. These mirror the legacy ANTLR DDL grammar
+// (GoogleSQLParser.g4 §2.2-§2.6 — create_table_statement, create_view_statement,
+// create_index_statement, create_schema_statement, create_database_statement,
+// alter_statement/alter_action, drop_statement), a hand-port of ZetaSQL, serving
+// the UNION of both dialects through one grammar.
+//
+// Dialect-specific object DDL (BigQuery FUNCTION / PROCEDURE / MATERIALIZED VIEW
+// / SEARCH+VECTOR INDEX / SNAPSHOT / ROW ACCESS POLICY / CAPACITY; Spanner CHANGE
+// STREAM / SEQUENCE / named-schema role DDL / LOCALITY GROUP / PROTO BUNDLE) is
+// owned by the parser-ddl-bigquery and parser-ddl-spanner nodes, which depend on
+// this one.
+//
+// Design: object names are *PathExpr (a Node — the walker descends so the
+// query-span extractor finds the referenced table), and every expression /
+// embedded-query child (column DEFAULT / generated / CHECK exprs, OPTIONS values,
+// CTAS and VIEW bodies, partition/cluster exprs, index key exprs) is an ast.Node
+// field so the code-generated walker traverses it. Structural sub-nodes
+// (ColumnDef, TableConstraint, ColumnOption, …) implement Node so the walk
+// reaches their expression children. Keyword-set choices (foreign-key actions,
+// SQL SECURITY kind, generated mode) are kept as small enums/strings — the
+// query-span path never inspects them and the package carries no deparser.
+
+// ---------------------------------------------------------------------------
+// Shared DDL leaves
+// ---------------------------------------------------------------------------
+
+// OptionsEntry is one `name <op> value` entry of an OPTIONS(...) list
+// (options_entry). Name is the option key (identifier_in_hints, normalized);
+// Op is the assignment operator spelling ("=", "+=", "-="); Value is the
+// option value expression (an ast.Node — usually a Literal, but the grammar
+// allows any expression, plus the bare PROTO keyword which is captured as a
+// Literal with the value "PROTO"). The GoogleSQL grammar accepts arbitrary
+// option keys, so the parser does not validate the vocabulary (the Spanner
+// emulator does, which is why option-name rejects are a non-authoritative
+// over-reject — see oracle.md).
+type OptionsEntry struct {
+	Name  string
+	Op    string
+	Value Node
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *OptionsEntry) Tag() NodeTag { return T_OptionsEntry }
+
+// ColumnOption mirrors OptionsEntry but is the per-column / per-element form;
+// it is structurally identical and exists only so the two option contexts read
+// distinctly at call sites. (The grammar uses the same options_entry rule.)
+//
+// Kept as an alias-shaped distinct type rather than reusing OptionsEntry so a
+// future column-option-specific field can be added without touching the
+// table-level option node.
+type ColumnOption = OptionsEntry
+
+// KeyPart is one element of a PRIMARY KEY / index key list (primary_key_element
+// / column_ordering_and_options_expr): a column name with an optional
+// ASC/DESC direction and NULLS FIRST/LAST order. For an index key the element
+// is a general expression in the grammar; the common case is a column path,
+// captured in Expr (an ast.Node so the walker descends). Name is the plain
+// identifier when the element is a bare column (the PRIMARY KEY case, which is
+// identifier-only); it is "" for a general index expression.
+type KeyPart struct {
+	Name      string          // column name (PK element / bare-column index key); "" if Expr is a non-column expression
+	Expr      Node            // index key expression (general column_ordering_and_options_expr); nil for a PK element
+	Collate   string          // index key COLLATE spelling; "" if absent
+	Direction string          // "ASC" | "DESC" | "" (none)
+	NullOrder string          // "FIRST" | "LAST" | "" (none)
+	Options   []*OptionsEntry // per-index-key OPTIONS(...); nil if absent
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *KeyPart) Tag() NodeTag { return T_KeyPart }
+
+// ---------------------------------------------------------------------------
+// CREATE TABLE
+// ---------------------------------------------------------------------------
+
+// ForeignKeyAction enumerates a foreign_key_action (ON UPDATE / ON DELETE):
+// NO ACTION, RESTRICT, CASCADE, SET NULL, or the unset (no action specified)
+// state.
+type ForeignKeyAction int
+
+const (
+	FKActionNone     ForeignKeyAction = iota // no action specified
+	FKActionNoAction                         // NO ACTION
+	FKActionRestrict                         // RESTRICT
+	FKActionCascade                          // CASCADE
+	FKActionSetNull                          // SET NULL
+)
+
+// String returns the SQL spelling of the action ("" for FKActionNone).
+func (a ForeignKeyAction) String() string {
+	switch a {
+	case FKActionNoAction:
+		return "NO ACTION"
+	case FKActionRestrict:
+		return "RESTRICT"
+	case FKActionCascade:
+		return "CASCADE"
+	case FKActionSetNull:
+		return "SET NULL"
+	default:
+		return ""
+	}
+}
+
+// GeneratedMode enumerates the generated_mode prefix of a generated column:
+// `AS`, `GENERATED AS`, `GENERATED ALWAYS AS`, or `GENERATED BY DEFAULT AS`.
+type GeneratedMode int
+
+const (
+	GenModeAs                 GeneratedMode = iota // AS (expr)  (the Spanner spelling)
+	GenModeGeneratedAs                             // GENERATED AS
+	GenModeGeneratedAlways                         // GENERATED ALWAYS AS
+	GenModeGeneratedByDefault                      // GENERATED BY DEFAULT AS
+)
+
+// ForeignKeyRef is a REFERENCES clause (foreign_key_reference): the referenced
+// table path, its referenced columns, an optional MATCH mode, and the optional
+// ON UPDATE / ON DELETE actions.
+type ForeignKeyRef struct {
+	Table    *PathExpr // referenced table (a Node; walked for query-span)
+	Columns  []string  // referenced column names
+	Match    string    // "SIMPLE" | "FULL" | "NOT DISTINCT" | "" (none)
+	OnUpdate ForeignKeyAction
+	OnDelete ForeignKeyAction
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *ForeignKeyRef) Tag() NodeTag { return T_ForeignKeyRef }
+
+// ColumnDef is one column definition (table_column_definition): a name, a type,
+// optional collation, optional NOT NULL / HIDDEN / inline PRIMARY KEY / inline
+// FOREIGN KEY attributes, an optional DEFAULT or generated-column clause, and an
+// optional per-column OPTIONS list.
+//
+// Exactly one of Default / Generated is set (the grammar rejects both with a
+// dedicated error). For a generated column Generated holds the expression and
+// GenMode/Stored describe the mode; for a DEFAULT column Default holds the
+// expression. Type is a TypeRef (rendered type text + span) built from the
+// parsed GoogleSQL type, matching the CAST-target convention.
+type ColumnDef struct {
+	Name       string
+	Type       *TypeRef       // column type (column_schema_inner); nil only for a generated-without-type column (rare)
+	Collate    string         // trailing COLLATE spelling on the type; "" if absent
+	NotNull    bool           // NOT NULL attribute
+	Hidden     bool           // HIDDEN attribute (Spanner)
+	PrimaryKey bool           // inline PRIMARY KEY column attribute
+	Enforced   string         // "ENFORCED" | "NOT ENFORCED" | "" — constraint_enforcement after the attributes
+	ForeignKey *ForeignKeyRef // inline foreign_key_column_attribute REFERENCES …; nil if absent
+	FKName     string         // CONSTRAINT name preceding an inline FK; "" if absent
+	Default    Node           // DEFAULT (expr); nil if absent
+	Generated  Node           // generated-column AS (expr) body; nil if not generated
+	GenMode    GeneratedMode  // the generated_mode prefix (valid only when Generated != nil)
+	Stored     string         // "STORED" | "STORED VOLATILE" | "VIRTUAL" | "" — stored_mode (valid only when Generated != nil)
+	Options    []*OptionsEntry
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *ColumnDef) Tag() NodeTag { return T_ColumnDef }
+
+// TableConstraintKind discriminates a table_constraint_definition.
+type TableConstraintKind int
+
+const (
+	ConstraintPrimaryKey TableConstraintKind = iota // PRIMARY KEY ( … )
+	ConstraintForeignKey                            // FOREIGN KEY ( … ) REFERENCES …
+	ConstraintCheck                                 // CHECK ( expr )
+)
+
+// TableConstraint is a table-level constraint (table_constraint_definition): a
+// PRIMARY KEY, FOREIGN KEY, or CHECK constraint, with an optional leading
+// CONSTRAINT name and trailing enforcement / OPTIONS.
+type TableConstraint struct {
+	Kind       TableConstraintKind
+	Name       string         // CONSTRAINT name; "" if anonymous
+	KeyParts   []*KeyPart     // PRIMARY KEY element list (ConstraintPrimaryKey)
+	Columns    []string       // FOREIGN KEY column list (ConstraintForeignKey)
+	ForeignKey *ForeignKeyRef // REFERENCES clause (ConstraintForeignKey)
+	Check      Node           // CHECK expression (ConstraintCheck)
+	Enforced   string         // "ENFORCED" | "NOT ENFORCED" | ""
+	Options    []*OptionsEntry
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *TableConstraint) Tag() NodeTag { return T_TableConstraint }
+
+// InterleaveClause is the Spanner INTERLEAVE IN PARENT clause on CREATE TABLE
+// (opt_spanner_interleave_in_parent_clause): the parent table and the
+// ON DELETE action.
+type InterleaveClause struct {
+	Parent   *PathExpr // parent table (a Node; walked)
+	OnDelete ForeignKeyAction
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *InterleaveClause) Tag() NodeTag { return T_InterleaveClause }
+
+// CreateTableStmt is a CREATE TABLE statement (create_table_statement) for the
+// BigQuery + Spanner union. It carries every documented sub-clause of both
+// dialects; a given statement uses the subset its dialect permits (the parser
+// accepts the union — the Spanner emulator's rejects of BigQuery-only clauses
+// are non-authoritative, see oracle.md).
+type CreateTableStmt struct {
+	OrReplace   bool      // OR REPLACE (BigQuery)
+	Scope       string    // "TEMP" | "TEMPORARY" | "PUBLIC" | "PRIVATE" | "" — opt_create_scope
+	IfNotExists bool      // IF NOT EXISTS
+	Name        *PathExpr // table name (maybe_dashed_path_expression)
+	Columns     []*ColumnDef
+	Constraints []*TableConstraint
+	// Spanner trailing PRIMARY KEY ( … ) after the element list
+	// (opt_spanner_table_options). PrimaryKey holds its key parts; HasPrimaryKey
+	// distinguishes a present-but-empty `PRIMARY KEY ()` from an absent clause.
+	PrimaryKey     []*KeyPart
+	HasPrimaryKey  bool
+	Interleave     *InterleaveClause // Spanner INTERLEAVE IN PARENT; nil if absent
+	RowDeletion    Node              // Spanner ROW DELETION POLICY (expr); nil if absent (opt_ttl_clause)
+	Like           *PathExpr         // LIKE source table (BigQuery); nil if absent
+	Clone          *PathExpr         // CLONE source table (BigQuery); nil if absent
+	Copy           *PathExpr         // COPY source table (BigQuery); nil if absent
+	DefaultCollate string            // DEFAULT COLLATE spelling; "" if absent
+	PartitionBy    []Node            // PARTITION BY expressions (BigQuery); nil if absent
+	ClusterBy      []Node            // CLUSTER BY expressions (BigQuery); nil if absent
+	Options        []*OptionsEntry
+	AsQuery        Node // AS query (CTAS); nil if absent (*QueryStmt)
+	Loc            Loc
+}
+
+// Tag implements Node.
+func (n *CreateTableStmt) Tag() NodeTag { return T_CreateTableStmt }
+
+// ---------------------------------------------------------------------------
+// CREATE VIEW
+// ---------------------------------------------------------------------------
+
+// ViewColumn is one entry of a view's column_with_options_list (BigQuery view
+// column list): a column name with optional per-column OPTIONS.
+type ViewColumn struct {
+	Name    string
+	Options []*OptionsEntry
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ViewColumn) Tag() NodeTag { return T_ViewColumn }
+
+// CreateViewStmt is a CREATE VIEW statement (the plain-view alternative of
+// create_view_statement). MATERIALIZED / APPROX views are owned by
+// parser-ddl-bigquery; this node covers the standard view both dialects share,
+// plus Spanner's SQL SECURITY clause and BigQuery's column list + OPTIONS.
+type CreateViewStmt struct {
+	OrReplace   bool
+	Scope       string // opt_create_scope (BigQuery); "" if absent
+	Recursive   bool   // RECURSIVE
+	IfNotExists bool
+	Name        *PathExpr
+	Columns     []*ViewColumn // column_with_options_list; nil if absent
+	SQLSecurity string        // "INVOKER" | "DEFINER" | "" — opt_sql_security_clause
+	Options     []*OptionsEntry
+	AsQuery     Node // AS query (required); *QueryStmt
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateViewStmt) Tag() NodeTag { return T_CreateViewStmt }
+
+// ---------------------------------------------------------------------------
+// CREATE INDEX
+// ---------------------------------------------------------------------------
+
+// CreateIndexStmt is a CREATE INDEX statement (create_index_statement). The
+// plain / UNIQUE / NULL_FILTERED forms are covered here; the SEARCH / VECTOR
+// index_type forms are owned by parser-ddl-{bigquery,spanner} (the IndexType
+// field carries the SEARCH/VECTOR token when this node is reused, but the
+// core node leaves it "").
+type CreateIndexStmt struct {
+	OrReplace    bool
+	Unique       bool
+	NullFiltered bool   // NULL_FILTERED (Spanner)
+	IndexType    string // "SEARCH" | "VECTOR" | "" (plain) — index_type
+	IfNotExists  bool
+	Name         *PathExpr  // index name
+	Table        *PathExpr  // ON <table> (a Node; walked)
+	Keys         []*KeyPart // index key list (index_order_by_and_options)
+	AllColumns   bool       // ( ALL COLUMNS ) form (BigQuery SEARCH index)
+	Storing      []Node     // STORING ( expr, … ); nil if absent
+	PartitionBy  []Node     // PARTITION BY ( … ) suffix (BigQuery); nil if absent
+	Interleave   *PathExpr  // , INTERLEAVE IN <table> (Spanner); nil if absent
+	Where        Node       // WHERE filter (Spanner partial index); nil if absent
+	Options      []*OptionsEntry
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *CreateIndexStmt) Tag() NodeTag { return T_CreateIndexStmt }
+
+// ---------------------------------------------------------------------------
+// CREATE SCHEMA / DATABASE
+// ---------------------------------------------------------------------------
+
+// CreateSchemaStmt is a CREATE SCHEMA statement (create_schema_statement),
+// shared by both dialects. BigQuery adds DEFAULT COLLATE and OPTIONS.
+type CreateSchemaStmt struct {
+	OrReplace      bool
+	IfNotExists    bool
+	Name           *PathExpr
+	DefaultCollate string // "" if absent
+	Options        []*OptionsEntry
+	Loc            Loc
+}
+
+// Tag implements Node.
+func (n *CreateSchemaStmt) Tag() NodeTag { return T_CreateSchemaStmt }
+
+// CreateDatabaseStmt is a CREATE DATABASE statement (create_database_statement;
+// Spanner). It carries the database name and optional OPTIONS.
+type CreateDatabaseStmt struct {
+	Name    *PathExpr
+	Options []*OptionsEntry
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *CreateDatabaseStmt) Tag() NodeTag { return T_CreateDatabaseStmt }
+
+// ---------------------------------------------------------------------------
+// ALTER
+// ---------------------------------------------------------------------------
+
+// AlterObjectKind discriminates the object an ALTER statement targets (the
+// subset this node owns: TABLE, VIEW, INDEX, SCHEMA, DATABASE).
+type AlterObjectKind int
+
+const (
+	AlterTable AlterObjectKind = iota
+	AlterView
+	AlterIndex
+	AlterSchema
+	AlterDatabase
+)
+
+// String returns the object keyword.
+func (k AlterObjectKind) String() string {
+	switch k {
+	case AlterTable:
+		return "TABLE"
+	case AlterView:
+		return "VIEW"
+	case AlterIndex:
+		return "INDEX"
+	case AlterSchema:
+		return "SCHEMA"
+	case AlterDatabase:
+		return "DATABASE"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// AlterStmt is an ALTER statement over a table-like object (alter_statement
+// alternatives for TABLE / schema-object). Object selects the kind; IfExists
+// flags `IF EXISTS`; Name is the object path; Actions is the comma-separated
+// alter_action list (>= 1).
+type AlterStmt struct {
+	Object   AlterObjectKind
+	IfExists bool
+	Name     *PathExpr
+	Actions  []*AlterAction
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *AlterStmt) Tag() NodeTag { return T_AlterStmt }
+
+// AlterActionKind enumerates the alter_action variants this node supports.
+// (Generic-entity / row-access-policy / privilege-restriction actions are out
+// of scope — owned by the dialect-specific DDL nodes.)
+type AlterActionKind int
+
+const (
+	AlterSetOptions               AlterActionKind = iota // SET OPTIONS ( … )
+	AlterAddColumn                                       // ADD COLUMN [IF NOT EXISTS] column_def [position] [FILL USING expr]
+	AlterDropColumn                                      // DROP COLUMN [IF EXISTS] name
+	AlterRenameColumn                                    // RENAME COLUMN [IF EXISTS] name TO name
+	AlterAlterColumnType                                 // ALTER COLUMN [IF EXISTS] name SET DATA TYPE field_schema  (BigQuery)
+	AlterAlterColumnOptions                              // ALTER COLUMN [IF EXISTS] name SET OPTIONS ( … )
+	AlterAlterColumnSetDefault                           // ALTER COLUMN [IF EXISTS] name SET DEFAULT expr
+	AlterAlterColumnDropDefault                          // ALTER COLUMN [IF EXISTS] name DROP DEFAULT
+	AlterAlterColumnDropNotNull                          // ALTER COLUMN [IF EXISTS] name DROP NOT NULL  (BigQuery)
+	AlterAlterColumnDropGenerated                        // ALTER COLUMN [IF EXISTS] name DROP GENERATED
+	AlterSpannerAlterColumn                              // Spanner ALTER COLUMN name <schema> [NOT NULL] [generated/default] [OPTIONS]
+	AlterAddConstraint                                   // ADD [CONSTRAINT [IF NOT EXISTS] name] {PK | FK | CHECK}
+	AlterDropConstraint                                  // DROP CONSTRAINT [IF EXISTS] name
+	AlterDropPrimaryKey                                  // DROP PRIMARY KEY [IF EXISTS]
+	AlterAlterConstraintEnforce                          // ALTER CONSTRAINT [IF EXISTS] name {ENFORCED|NOT ENFORCED}
+	AlterAlterConstraintOptions                          // ALTER CONSTRAINT [IF EXISTS] name SET OPTIONS ( … )
+	AlterRenameTo                                        // RENAME TO path
+	AlterSetDefaultCollate                               // SET DEFAULT collate_clause
+	AlterAddRowDeletionPolicy                            // ADD ROW DELETION POLICY [IF NOT EXISTS] ( expr )
+	AlterReplaceRowDeletionPolicy                        // REPLACE ROW DELETION POLICY [IF EXISTS] ( expr )
+	AlterDropRowDeletionPolicy                           // DROP ROW DELETION POLICY [IF EXISTS]
+	AlterSetOnDelete                                     // Spanner SET ON DELETE foreign_key_action
+	AlterAddStoredColumn                                 // ALTER INDEX … ADD STORED COLUMN name
+	AlterDropStoredColumn                                // ALTER INDEX … DROP STORED COLUMN name
+)
+
+// AlterAction is one action of an alter_action_list. Kind selects the variant;
+// the relevant fields below carry its payload. Expression children (Default,
+// Check, RowDeletion) and the embedded column/constraint are ast.Node-typed so
+// the walker descends.
+type AlterAction struct {
+	Kind           AlterActionKind
+	IfExists       bool             // for the column/constraint/policy variants that allow IF EXISTS
+	IfNotExists    bool             // for ADD COLUMN / ADD CONSTRAINT / ADD ROW DELETION POLICY
+	Column         *ColumnDef       // ADD COLUMN / Spanner ALTER COLUMN target definition
+	ColumnName     string           // DROP/RENAME/ALTER COLUMN target name
+	NewName        string           // RENAME COLUMN … TO <NewName>
+	Position       string           // ADD COLUMN position: "PRECEDING <id>" | "FOLLOWING <id>" | ""
+	FillUsing      Node             // ADD COLUMN … FILL USING expr; nil if absent
+	Constraint     *TableConstraint // ADD constraint payload
+	ConstraintName string           // DROP/ALTER CONSTRAINT name; ADD CONSTRAINT name
+	Enforced       string           // ALTER CONSTRAINT enforcement / column SET DATA TYPE trailing enforcement: "ENFORCED"|"NOT ENFORCED"|""
+	NewType        *TypeRef         // SET DATA TYPE / Spanner ALTER COLUMN new type; nil if absent
+	NotNull        bool             // Spanner ALTER COLUMN inline NOT NULL
+	Generated      Node             // Spanner ALTER COLUMN generated AS (expr) STORED body; nil if absent
+	Default        Node             // SET DEFAULT expr; nil if absent
+	RowDeletion    Node             // ADD/REPLACE ROW DELETION POLICY ( expr ); nil if absent
+	Collate        string           // SET DEFAULT COLLATE spelling; "" if absent
+	OnDelete       ForeignKeyAction // SET ON DELETE action
+	RenameTo       *PathExpr        // RENAME TO target (a Node; walked)
+	StoredColumn   string           // ALTER INDEX ADD/DROP STORED COLUMN name
+	Options        []*OptionsEntry  // SET OPTIONS / column SET OPTIONS payload
+	Loc            Loc
+}
+
+// Tag implements Node.
+func (n *AlterAction) Tag() NodeTag { return T_AlterAction }
+
+// ---------------------------------------------------------------------------
+// DROP
+// ---------------------------------------------------------------------------
+
+// DropObjectKind discriminates the object a DROP statement targets (the subset
+// this node owns).
+type DropObjectKind int
+
+const (
+	DropTable DropObjectKind = iota
+	DropView
+	DropIndex
+	DropSchema
+	DropDatabase
+)
+
+// String returns the object keyword(s).
+func (k DropObjectKind) String() string {
+	switch k {
+	case DropTable:
+		return "TABLE"
+	case DropView:
+		return "VIEW"
+	case DropIndex:
+		return "INDEX"
+	case DropSchema:
+		return "SCHEMA"
+	case DropDatabase:
+		return "DATABASE"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// DropStmt is a DROP statement over a table-like object (drop_statement
+// alternatives for INDEX / TABLE / schema-object). Object selects the kind;
+// IfExists flags `IF EXISTS`; Name is the object path. DropMode carries the
+// trailing RESTRICT / CASCADE (BigQuery DROP SCHEMA); OnTable holds the
+// `ON <table>` of a DROP {SEARCH|VECTOR} INDEX (BigQuery), nil otherwise.
+type DropStmt struct {
+	Object   DropObjectKind
+	External bool // DROP EXTERNAL SCHEMA (BigQuery)
+	IfExists bool
+	Name     *PathExpr
+	OnTable  *PathExpr // DROP {SEARCH|VECTOR} INDEX … ON <table>; nil if absent
+	DropMode string    // "RESTRICT" | "CASCADE" | "" — opt_drop_mode
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropStmt) Tag() NodeTag { return T_DropStmt }
+
+// Compile-time assertions that the DDL node types satisfy Node.
+var (
+	_ Node = (*OptionsEntry)(nil)
+	_ Node = (*KeyPart)(nil)
+	_ Node = (*ForeignKeyRef)(nil)
+	_ Node = (*ColumnDef)(nil)
+	_ Node = (*TableConstraint)(nil)
+	_ Node = (*InterleaveClause)(nil)
+	_ Node = (*CreateTableStmt)(nil)
+	_ Node = (*ViewColumn)(nil)
+	_ Node = (*CreateViewStmt)(nil)
+	_ Node = (*CreateIndexStmt)(nil)
+	_ Node = (*CreateSchemaStmt)(nil)
+	_ Node = (*CreateDatabaseStmt)(nil)
+	_ Node = (*AlterStmt)(nil)
+	_ Node = (*AlterAction)(nil)
+	_ Node = (*DropStmt)(nil)
+)

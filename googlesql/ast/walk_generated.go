@@ -6,6 +6,33 @@ package ast
 // for each child. This function is generated from parsenodes.go and node.go.
 func walkChildren(v Visitor, node Node) {
 	switch n := node.(type) {
+	case *AlterAction:
+		if n.Column != nil {
+			Walk(v, n.Column)
+		}
+		Walk(v, n.FillUsing)
+		if n.Constraint != nil {
+			Walk(v, n.Constraint)
+		}
+		if n.NewType != nil {
+			Walk(v, n.NewType)
+		}
+		Walk(v, n.Generated)
+		Walk(v, n.Default)
+		Walk(v, n.RowDeletion)
+		if n.RenameTo != nil {
+			Walk(v, n.RenameTo)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *AlterStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Actions {
+			Walk(v, c)
+		}
 	case *ArrayExpr:
 		walkNodes(v, n.Elements)
 		if n.ElemType != nil {
@@ -46,9 +73,104 @@ func walkChildren(v Visitor, node Node) {
 	case *ClampedModifier:
 		Walk(v, n.Low)
 		Walk(v, n.High)
+	case *ColumnDef:
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		if n.ForeignKey != nil {
+			Walk(v, n.ForeignKey)
+		}
+		Walk(v, n.Default)
+		Walk(v, n.Generated)
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *CompareExpr:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
+	case *CreateDatabaseStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *CreateIndexStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		for _, c := range n.Keys {
+			Walk(v, c)
+		}
+		walkNodes(v, n.Storing)
+		walkNodes(v, n.PartitionBy)
+		if n.Interleave != nil {
+			Walk(v, n.Interleave)
+		}
+		Walk(v, n.Where)
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *CreateSchemaStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *CreateTableStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Columns {
+			Walk(v, c)
+		}
+		for _, c := range n.Constraints {
+			Walk(v, c)
+		}
+		for _, c := range n.PrimaryKey {
+			Walk(v, c)
+		}
+		if n.Interleave != nil {
+			Walk(v, n.Interleave)
+		}
+		Walk(v, n.RowDeletion)
+		if n.Like != nil {
+			Walk(v, n.Like)
+		}
+		if n.Clone != nil {
+			Walk(v, n.Clone)
+		}
+		if n.Copy != nil {
+			Walk(v, n.Copy)
+		}
+		walkNodes(v, n.PartitionBy)
+		walkNodes(v, n.ClusterBy)
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+		Walk(v, n.AsQuery)
+	case *CreateViewStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Columns {
+			Walk(v, c)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+		Walk(v, n.AsQuery)
+	case *DropStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.OnTable != nil {
+			Walk(v, n.OnTable)
+		}
 	case *ExistsExpr:
 		Walk(v, n.Query)
 	case *ExtensionAccess:
@@ -64,6 +186,10 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Expr)
 	case *File:
 		walkNodes(v, n.Stmts)
+	case *ForeignKeyRef:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
 	case *FuncCall:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -107,6 +233,10 @@ func walkChildren(v Visitor, node Node) {
 	case *IndexAccess:
 		Walk(v, n.Expr)
 		Walk(v, n.Index)
+	case *InterleaveClause:
+		if n.Parent != nil {
+			Walk(v, n.Parent)
+		}
 	case *IntervalExpr:
 		Walk(v, n.Value)
 	case *IsExpr:
@@ -116,6 +246,11 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Left)
 		Walk(v, n.Right)
 		Walk(v, n.On)
+	case *KeyPart:
+		Walk(v, n.Expr)
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *LambdaExpr:
 		Walk(v, n.Body)
 	case *LikeExpr:
@@ -136,6 +271,8 @@ func walkChildren(v Visitor, node Node) {
 		if n.Braced != nil {
 			Walk(v, n.Braced)
 		}
+	case *OptionsEntry:
+		Walk(v, n.Value)
 	case *OrderItem:
 		Walk(v, n.Expr)
 		Walk(v, n.Collate)
@@ -215,6 +352,17 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Value)
 	case *SubqueryExpr:
 		Walk(v, n.Query)
+	case *TableConstraint:
+		for _, c := range n.KeyParts {
+			Walk(v, c)
+		}
+		if n.ForeignKey != nil {
+			Walk(v, n.ForeignKey)
+		}
+		Walk(v, n.Check)
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *TableExpr:
 		if n.Path != nil {
 			Walk(v, n.Path)
@@ -228,6 +376,10 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Expr)
 	case *UnnestExpr:
 		Walk(v, n.Array)
+	case *ViewColumn:
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *WhenClause:
 		Walk(v, n.Cond)
 		Walk(v, n.Result)

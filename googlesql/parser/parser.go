@@ -344,11 +344,15 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// --- DDL ---
 	case kwCREATE:
-		return p.unsupported("CREATE")
+		// CREATE TABLE/VIEW/INDEX/SCHEMA/DATABASE are owned by the parser-ddl node
+		// (create_table.go / view.go / create_index.go / database_schema.go); other
+		// object kinds (FUNCTION/PROCEDURE/MODEL/MATERIALIZED VIEW/…) route to the
+		// unsupported stub from parseCreateStmt.
+		return p.parseCreateStmt()
 	case kwALTER:
-		return p.unsupported("ALTER")
+		return p.parseAlterStmt()
 	case kwDROP:
-		return p.unsupported("DROP")
+		return p.parseDropStmt()
 	case kwRENAME:
 		return p.unsupported("RENAME")
 	case kwUNDROP:
