@@ -983,8 +983,9 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
 				return nil, err
 			}
-		} else if p.cur.Type == kwCODE {
-			// TiDB v8.5.0 has no SHOW PROCEDURE CODE.
+		} else {
+			// TiDB v8.5.0 accepts only SHOW PROCEDURE STATUS — not CODE, not
+			// the bare form.
 			return nil, p.syntaxErrorAtCur()
 		}
 
@@ -996,8 +997,9 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err := p.parseShowLikeOrWhere(stmt); err != nil {
 				return nil, err
 			}
-		} else if p.cur.Type == kwCODE {
-			// TiDB v8.5.0 has no SHOW FUNCTION CODE.
+		} else {
+			// TiDB v8.5.0 accepts only SHOW FUNCTION STATUS — not CODE, not
+			// the bare form.
 			return nil, p.syntaxErrorAtCur()
 		}
 

@@ -33,9 +33,9 @@ Status legend: `[ ]` pending, `[x]` passing, `[~]` partial
 [x] Empty input → keyword candidates for all top-level statements
 [x] After semicolon → keyword candidates for new statement
 [x] `SELECT |` → keyword candidates for select expressions (DISTINCT, ALL) + rule candidates (columnref, func_name)
-[x] `CREATE |` → keyword candidates for object types (TABLE, INDEX, VIEW, DATABASE, FUNCTION, PROCEDURE, TRIGGER, EVENT)
-[x] `ALTER |` → keyword candidates (TABLE, DATABASE, VIEW, FUNCTION, PROCEDURE, EVENT)
-[x] `DROP |` → keyword candidates (TABLE, INDEX, VIEW, DATABASE, FUNCTION, PROCEDURE, TRIGGER, EVENT, IF)
+[x] `CREATE |` → keyword candidates for object types (TABLE, INDEX, VIEW, DATABASE, PROCEDURE) — TiDB has no FUNCTION/TRIGGER/EVENT
+[x] `ALTER |` → keyword candidates (TABLE, DATABASE, VIEW) — TiDB has no ALTER FUNCTION/PROCEDURE/EVENT
+[x] `DROP |` → keyword candidates (TABLE, INDEX, VIEW, DATABASE, PROCEDURE, IF) — TiDB has no DROP FUNCTION/TRIGGER/EVENT
 ```
 
 ## Phase 2: Completion Module (API & Resolution)
@@ -294,6 +294,11 @@ so that Phase 3+ instrumentation can be tested end-to-end.
 ```
 
 ## Phase 6: Routine/Trigger/Event Instrumentation
+
+> **TiDB v8.5.0 alignment:** TiDB has no functions, triggers, or events. The
+> FUNCTION/TRIGGER/EVENT scenarios below (incl. `SHOW CREATE FUNCTION`) are
+> retained for reference only — the parser now rejects those statements and
+> completion no longer offers them. Only the PROCEDURE scenarios are live.
 
 ### 6.1 Functions & Procedures
 
