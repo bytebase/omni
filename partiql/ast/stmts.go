@@ -231,13 +231,43 @@ func (*InsertStmt) nodeTag()      {}
 func (n *InsertStmt) GetLoc() Loc { return n.Loc }
 func (*InsertStmt) stmtNode()     {}
 
-// UpdateStmt represents `UPDATE source SET ... [WHERE ...] [RETURNING ...]`
-// and the equivalent `FROM source SET ...` form.
+// UpdateStmt represents the two surface forms of the dml#DmlBaseWrapper
+// grammar rule:
 //
-// Grammar: updateClause, dml#DmlBaseWrapper (with dmlBaseCommand containing setCommand)
+//	UPDATE source dmlBaseCommand+ [WHERE ...] [RETURNING ...]   (From == false)
+//	FROM   source [WHERE ...] dmlBaseCommand+ [RETURNING ...]   (From == true)
+//
+// where `source` is a tableBaseReference (UPDATE form) or a full
+// tableReference / join (FROM form), and each `dmlBaseCommand` is one of
+// setCommand, insertCommand, replaceCommand, removeCommand, upsertCommand.
+//
+// Field semantics:
+//   - From distinguishes the two surface forms (they share the
+//     DmlBaseWrapper label in the grammar but differ in clause order: the
+//     FROM form's WHERE precedes the commands; the UPDATE form's WHERE
+//     follows them).
+//   - Sets holds every assignment from every setCommand, flattened in
+//     order (so `SET a=1, b=2` and `SET a=1 SET b=2` are represented
+//     identically — the grammar accepts both equivalently). This is the
+//     dominant case and matches the original single-SET shape.
+//   - Commands holds the non-SET dmlBaseCommands
+//     (*InsertStmt/*ReplaceStmt/*RemoveStmt/*UpsertStmt) in order. It is nil
+//     for the common SET-only statement, so plain UPDATE…SET parses to the
+//     same shape as before this multi-command support was added.
+//
+// The relative interleaving of SET vs non-SET commands is not retained
+// (e.g. `UPDATE t REMOVE a SET b=1` and `UPDATE t SET b=1 REMOVE a` produce
+// equal ASTs). The executable oracle decides only parse accept/reject, and
+// no consumer in this repo executes these multi-command DMLs, so the split
+// representation is spec-correct for parsing; this modeling simplification
+// is recorded in the migration divergence ledger.
+//
+// Grammar: updateClause, dml#DmlBaseWrapper, dmlBaseCommand
 type UpdateStmt struct {
 	Source    TableExpr
+	From      bool
 	Sets      []*SetAssignment
+	Commands  []Node
 	Where     ExprNode
 	Returning *ReturningClause
 	Loc       Loc

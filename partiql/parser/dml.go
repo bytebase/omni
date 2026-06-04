@@ -171,19 +171,22 @@ func (p *Parser) parseDeleteStmt() (*ast.DeleteStmt, error) {
 	}, nil
 }
 
-// parseUpdateStmt parses:
+// parseUpdateStmt parses the UPDATE form of dml#DmlBaseWrapper (1st alt):
 //
-//	UPDATE tableBaseReference SET assignment, ... [WHERE expr] [RETURNING ...]
+//	updateClause dmlBaseCommand+ whereClause? returningClause?
 //
-// For the `UPDATE ... SET ...` form, the grammar specifies
-// `updateClause dmlBaseCommand+ whereClause? returningClause?` where
-// updateClause is `UPDATE tableBaseReference` and dmlBaseCommand includes
-// setCommand. We simplify to the common pattern:
+// where updateClause is `UPDATE tableBaseReference` and dmlBaseCommand is
+// one of setCommand / insertCommand / replaceCommand / removeCommand /
+// upsertCommand. All of `UPDATE t SET a=1`, `UPDATE t REMOVE a.b`,
+// `UPDATE t SET a=1 REMOVE b`, `UPDATE t INSERT INTO a VALUE 1`, … are
+// accepted by the grammar (confirmed against the generated ANTLR parser).
 //
-//	UPDATE source (SET assignment, ... | REMOVE pathSimple)+ [WHERE ...] [RETURNING ...]
+// Note the clause order: in this alt the optional whereClause follows the
+// commands (`UPDATE t SET a=1 WHERE x=1`), unlike the FROM-led alt where
+// WHERE precedes them.
 //
-// The source is parsed as a pathSimple with optional aliases since we
-// do not yet have the full FROM parser (node 5 adds it). For cases like
+// The source is parsed as a pathSimple with optional aliases since this
+// branch does not use the full FROM parser. For cases like
 // `UPDATE "Music" SET ...`, pathSimple + aliases is sufficient.
 //
 // Grammar: updateClause + dml#DmlBaseWrapper (PartiQLParser.g4 lines 94-96, 182-183).
@@ -200,39 +203,13 @@ func (p *Parser) parseUpdateStmt() (*ast.UpdateStmt, error) {
 		return nil, err
 	}
 
-	// Parse one or more DML base commands (SET, REMOVE, INSERT, etc.)
-	// In practice the common form is one or more SET commands.
-	var sets []*ast.SetAssignment
-	for {
-		switch p.cur.Type {
-		case tokSET:
-			s, err := p.parseSetCommand()
-			if err != nil {
-				return nil, err
-			}
-			sets = append(sets, s...)
-		case tokREMOVE:
-			// UPDATE ... REMOVE path is a DML base command (removeCommand).
-			// We model it as a SET assignment with nil value. Actually,
-			// the grammar treats REMOVE as a separate dmlBaseCommand.
-			// For now we return an error since UpdateStmt only has Sets.
-			return nil, &ParseError{
-				Message: "REMOVE inside UPDATE is not yet supported; use a standalone REMOVE statement",
-				Loc:     p.cur.Loc,
-			}
-		default:
-			goto doneCommands
-		}
-	}
-doneCommands:
-
-	if len(sets) == 0 {
-		return nil, &ParseError{
-			Message: "expected SET after UPDATE source",
-			Loc:     p.cur.Loc,
-		}
+	// dmlBaseCommand+ : at least one command is required.
+	sets, commands, err := p.parseDmlBaseCommands()
+	if err != nil {
+		return nil, err
 	}
 
+	// whereClause? — AFTER the commands in this alternative.
 	var where ast.ExprNode
 	if p.cur.Type == tokWHERE {
 		p.advance() // consume WHERE
@@ -242,6 +219,7 @@ doneCommands:
 		}
 	}
 
+	// returningClause?
 	var ret *ast.ReturningClause
 	if p.cur.Type == tokRETURNING {
 		ret, err = p.parseReturningClause()
@@ -254,10 +232,139 @@ doneCommands:
 	return &ast.UpdateStmt{
 		Source:    source,
 		Sets:      sets,
+		Commands:  commands,
 		Where:     where,
 		Returning: ret,
 		Loc:       ast.Loc{Start: start, End: end},
 	}, nil
+}
+
+// parseFromLedDml parses the FROM-led form of dml#DmlBaseWrapper (2nd alt):
+//
+//	fromClause whereClause? dmlBaseCommand+ returningClause?
+//
+// e.g. `FROM t SET a=1`, `FROM t WHERE x=1 SET a=1`, `FROM t REMOVE a.b`,
+// `FROM a, b SET x=1` (joins). The source is a full tableReference (handled
+// by parseFromClause), so joins / paths / parenthesised sources all work.
+//
+// Note the clause order differs from the UPDATE alt: here the optional
+// whereClause PRECEDES the commands, and there is no trailing whereClause
+// (a trailing WHERE is a syntax error, matching the ANTLR oracle).
+//
+// The result is represented as an UpdateStmt with From=true.
+//
+// Grammar: fromClause + dml#DmlBaseWrapper (PartiQLParser.g4 lines 94-97, 297-298).
+func (p *Parser) parseFromLedDml() (*ast.UpdateStmt, error) {
+	start := p.cur.Loc.Start
+
+	// fromClause : FROM tableReference (parseFromClause consumes FROM).
+	source, err := p.parseFromClause()
+	if err != nil {
+		return nil, err
+	}
+
+	// whereClause? — BEFORE the commands in this alternative.
+	var where ast.ExprNode
+	if p.cur.Type == tokWHERE {
+		p.advance() // consume WHERE
+		where, err = p.parseExprTop()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// dmlBaseCommand+ : at least one command is required.
+	sets, commands, err := p.parseDmlBaseCommands()
+	if err != nil {
+		return nil, err
+	}
+
+	// returningClause?
+	var ret *ast.ReturningClause
+	if p.cur.Type == tokRETURNING {
+		ret, err = p.parseReturningClause()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	end := p.prev.Loc.End
+	return &ast.UpdateStmt{
+		Source:    source,
+		From:      true,
+		Sets:      sets,
+		Commands:  commands,
+		Where:     where,
+		Returning: ret,
+		Loc:       ast.Loc{Start: start, End: end},
+	}, nil
+}
+
+// parseDmlBaseCommands parses the shared `dmlBaseCommand+` sequence used by
+// both alternatives of dml#DmlBaseWrapper. It requires at least one command
+// and stops at the first token that does not start a dmlBaseCommand.
+//
+// It returns:
+//   - sets: every SET assignment, flattened in order (the dominant case);
+//   - commands: the non-SET commands (*InsertStmt/*ReplaceStmt/*RemoveStmt/
+//     *UpsertStmt) in order, nil when the statement only has SET assignments.
+//
+// At least one command (SET or otherwise) must be present, so a statement
+// that has neither is a syntax error — the ANTLR oracle rejects such input.
+//
+// Grammar: dmlBaseCommand (g4 lines 102-108) =
+// insertCommand | setCommand | replaceCommand | removeCommand | upsertCommand.
+func (p *Parser) parseDmlBaseCommands() (sets []*ast.SetAssignment, commands []ast.Node, err error) {
+	seen := false
+	for {
+		switch p.cur.Type {
+		case tokSET:
+			s, serr := p.parseSetCommand()
+			if serr != nil {
+				return nil, nil, serr
+			}
+			sets = append(sets, s...)
+			seen = true
+		case tokINSERT:
+			ins, ierr := p.parseInsertStmt()
+			if ierr != nil {
+				return nil, nil, ierr
+			}
+			commands = append(commands, ins)
+			seen = true
+		case tokREPLACE:
+			rep, rerr := p.parseReplaceStmt()
+			if rerr != nil {
+				return nil, nil, rerr
+			}
+			commands = append(commands, rep)
+			seen = true
+		case tokREMOVE:
+			rem, rerr := p.parseRemoveStmt()
+			if rerr != nil {
+				return nil, nil, rerr
+			}
+			commands = append(commands, rem)
+			seen = true
+		case tokUPSERT:
+			ups, uerr := p.parseUpsertStmt()
+			if uerr != nil {
+				return nil, nil, uerr
+			}
+			commands = append(commands, ups)
+			seen = true
+		default:
+			if !seen {
+				return nil, nil, &ParseError{
+					// "expected SET" leads the message because SET is the
+					// dominant DML command; the parenthetical lists the rest.
+					Message: fmt.Sprintf("expected SET or another DML command (INSERT, REPLACE, REMOVE, UPSERT), got %q", p.cur.Str),
+					Loc:     p.cur.Loc,
+				}
+			}
+			return sets, commands, nil
+		}
+	}
 }
 
 // parseUpdateSource parses the table reference after UPDATE. This is

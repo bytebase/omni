@@ -418,7 +418,11 @@ func writeNode(sb *strings.Builder, n Node) {
 	case *InsertStmt:
 		writeDmlStmt(sb, "InsertStmt", v.Target, v.AsAlias, v.Value, v.Pos, v.OnConflict, v.Returning)
 	case *UpdateStmt:
-		sb.WriteString("UpdateStmt{Source:")
+		sb.WriteString("UpdateStmt{")
+		if v.From {
+			sb.WriteString("From:true ")
+		}
+		sb.WriteString("Source:")
 		writeNode(sb, v.Source)
 		sb.WriteString(" Sets:[")
 		for i, s := range v.Sets {
@@ -428,6 +432,16 @@ func writeNode(sb *strings.Builder, n Node) {
 			writeNode(sb, s)
 		}
 		sb.WriteString("]")
+		if len(v.Commands) > 0 {
+			sb.WriteString(" Commands:[")
+			for i, c := range v.Commands {
+				if i > 0 {
+					sb.WriteString(" ")
+				}
+				writeNode(sb, c)
+			}
+			sb.WriteString("]")
+		}
 		if v.Where != nil {
 			sb.WriteString(" Where:")
 			writeNode(sb, v.Where)
