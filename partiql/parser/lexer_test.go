@@ -285,6 +285,135 @@ func TestLexer_Tokens(t *testing.T) {
 		},
 
 		// =============================================================
+		// Incomplete scientific exponent — the [eE][+-]? must NOT be
+		// consumed unless >=1 digit follows. The mantissa lexes as its
+		// own number token and the bare 'e'/'E' rewinds to become an
+		// IDENTIFIER (greedily extended), with any '+'/'-' left as a
+		// separate operator. Verified differentially against the
+		// generated ANTLR PartiQLLexer (antlr_fallback oracle); the g4
+		// LITERAL_DECIMAL exponent alt is ([e][+-]? DIGIT+)?.
+		// =============================================================
+		{
+			// "1e": INTEGER 1 then IDENT e (no exponent digits).
+			"sci_incomplete_int_e",
+			"1e",
+			[]Token{
+				{tokICONST, "1", ast.Loc{Start: 0, End: 1}},
+				{tokIDENT, "e", ast.Loc{Start: 1, End: 2}},
+			},
+		},
+		{
+			// "1E": uppercase variant, same shape.
+			"sci_incomplete_int_E",
+			"1E",
+			[]Token{
+				{tokICONST, "1", ast.Loc{Start: 0, End: 1}},
+				{tokIDENT, "E", ast.Loc{Start: 1, End: 2}},
+			},
+		},
+		{
+			// "1e+": the '+' is NOT part of the number; it is its own
+			// operator token after INTEGER 1 and IDENT e.
+			"sci_incomplete_int_e_plus",
+			"1e+",
+			[]Token{
+				{tokICONST, "1", ast.Loc{Start: 0, End: 1}},
+				{tokIDENT, "e", ast.Loc{Start: 1, End: 2}},
+				{tokPLUS, "+", ast.Loc{Start: 2, End: 3}},
+			},
+		},
+		{
+			// "1e-": '-' is its own operator token (not a line comment —
+			// a single '-' is MINUS).
+			"sci_incomplete_int_e_minus",
+			"1e-",
+			[]Token{
+				{tokICONST, "1", ast.Loc{Start: 0, End: 1}},
+				{tokIDENT, "e", ast.Loc{Start: 1, End: 2}},
+				{tokMINUS, "-", ast.Loc{Start: 2, End: 3}},
+			},
+		},
+		{
+			// "1.5e": DECIMAL 1.5 (the fraction is complete) then IDENT e.
+			"sci_incomplete_frac_e",
+			"1.5e",
+			[]Token{
+				{tokFCONST, "1.5", ast.Loc{Start: 0, End: 3}},
+				{tokIDENT, "e", ast.Loc{Start: 3, End: 4}},
+			},
+		},
+		{
+			// ".5e": leading-dot DECIMAL .5 then IDENT e.
+			"sci_incomplete_leading_dot_e",
+			".5e",
+			[]Token{
+				{tokFCONST, ".5", ast.Loc{Start: 0, End: 2}},
+				{tokIDENT, "e", ast.Loc{Start: 2, End: 3}},
+			},
+		},
+		{
+			// "42.e": trailing-dot DECIMAL 42. then IDENT e.
+			"sci_incomplete_trailing_dot_e",
+			"42.e",
+			[]Token{
+				{tokFCONST, "42.", ast.Loc{Start: 0, End: 3}},
+				{tokIDENT, "e", ast.Loc{Start: 3, End: 4}},
+			},
+		},
+		{
+			// "1eX": after rewinding the bare 'e', the identifier scanner
+			// greedily consumes "eX" as ONE identifier (matching ANTLR,
+			// which does not split it into e + X).
+			"sci_incomplete_e_then_ident",
+			"1eX",
+			[]Token{
+				{tokICONST, "1", ast.Loc{Start: 0, End: 1}},
+				{tokIDENT, "eX", ast.Loc{Start: 1, End: 3}},
+			},
+		},
+		{
+			// "1e+X": INTEGER 1, IDENT e, PLUS, IDENT X — the sign breaks
+			// the identifier run so X is a separate identifier.
+			"sci_incomplete_e_plus_ident",
+			"1e+X",
+			[]Token{
+				{tokICONST, "1", ast.Loc{Start: 0, End: 1}},
+				{tokIDENT, "e", ast.Loc{Start: 1, End: 2}},
+				{tokPLUS, "+", ast.Loc{Start: 2, End: 3}},
+				{tokIDENT, "X", ast.Loc{Start: 3, End: 4}},
+			},
+		},
+		{
+			// "1e5e": a COMPLETE exponent 1e5 (DECIMAL) followed by a
+			// trailing IDENT e — the rewind only triggers when zero
+			// digits follow, so the valid 1e5 is preserved.
+			"sci_complete_then_trailing_e",
+			"1e5e",
+			[]Token{
+				{tokFCONST, "1e5", ast.Loc{Start: 0, End: 3}},
+				{tokIDENT, "e", ast.Loc{Start: 3, End: 4}},
+			},
+		},
+		{
+			// Sanity: a complete exponent with explicit sign still lexes
+			// as a single DECIMAL (guards against over-eager rewind).
+			"sci_complete_signed_exp",
+			"1e+5",
+			[]Token{{tokFCONST, "1e+5", ast.Loc{Start: 0, End: 4}}},
+		},
+		{
+			// "1e" then a separator: the rewound 'e' must not swallow the
+			// following ')' (it is an operator, not an ident char).
+			"sci_incomplete_int_e_paren",
+			"1e)",
+			[]Token{
+				{tokICONST, "1", ast.Loc{Start: 0, End: 1}},
+				{tokIDENT, "e", ast.Loc{Start: 1, End: 2}},
+				{tokPAREN_RIGHT, ")", ast.Loc{Start: 2, End: 3}},
+			},
+		},
+
+		// =============================================================
 		// Single-character operators (Task 9)
 		// =============================================================
 		{"op_plus", "+", []Token{{tokPLUS, "+", ast.Loc{Start: 0, End: 1}}}},
@@ -1478,14 +1607,20 @@ func TestTokenName_AllCovered(t *testing.T) {
 }
 
 // TestKeywords_LenMatchesConstants asserts that the keywords map in
-// keywords.go has exactly 266 entries — the same number as the keyword
-// constants in token.go — and that every map value resolves to a
-// non-empty tokenName. The length check catches add/remove drift; the
-// per-value check catches the case where a keyword maps to a deleted
+// keywords.go has exactly 265 entries and that every map value resolves
+// to a non-empty tokenName. The length check catches add/remove drift;
+// the per-value check catches the case where a keyword maps to a deleted
 // or renamed constant (which leaves the lengths equal but the mapping
 // stale).
+//
+// 265 = 266 keyword constants in token.go minus tokEND_EXEC, which has no
+// map entry on purpose: its grammar spelling 'END-EXEC' contains a hyphen
+// the lexer can never lex into a single identifier, so the "end-exec" key
+// was unreachable dead code (see keywords.go). tokEND_EXEC is still a real
+// constant covered by TestTokenName_AllCovered, so that test's count is
+// unaffected.
 func TestKeywords_LenMatchesConstants(t *testing.T) {
-	const expectedKeywordCount = 266
+	const expectedKeywordCount = 265
 	if got := len(keywords); got != expectedKeywordCount {
 		t.Errorf("len(keywords) = %d, want %d — did a tok* keyword constant get added or removed without updating the keywords map?", got, expectedKeywordCount)
 	}

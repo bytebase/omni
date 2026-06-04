@@ -313,16 +313,30 @@ func (l *Lexer) scanNumber() Token {
 		}
 	}
 
-	// Optional scientific exponent.
+	// Optional scientific exponent. The grammar's exponent alternative is
+	// ([e] [+-]? DIGIT+) — the DIGIT+ is mandatory, so the whole
+	// [eE][+-]? prefix is only part of the number when at least one digit
+	// follows it. We look ahead WITHOUT committing l.pos: if no digit
+	// follows the (optional) sign, we leave l.pos at the start of the 'e'
+	// so it rewinds — the bare 'e'/'E' then lexes as an IDENTIFIER and any
+	// '+'/'-' as its own operator, exactly as the generated ANTLR lexer
+	// does (e.g. "1e" -> INTEGER 1 + IDENT e; "1e+" -> 1 + e + '+'). A
+	// premature commit here would emit a single bogus FCONST "1e".
 	if l.pos < len(l.input) && (l.input[l.pos] == 'e' || l.input[l.pos] == 'E') {
-		isFloat = true
-		l.pos++
-		if l.pos < len(l.input) && (l.input[l.pos] == '+' || l.input[l.pos] == '-') {
-			l.pos++
+		p := l.pos + 1 // past the 'e'/'E'
+		if p < len(l.input) && (l.input[p] == '+' || l.input[p] == '-') {
+			p++ // past the optional sign
 		}
-		for l.pos < len(l.input) && isDigit(l.input[l.pos]) {
-			l.pos++
+		if p < len(l.input) && isDigit(l.input[p]) {
+			// At least one exponent digit: commit the exponent.
+			isFloat = true
+			l.pos = p
+			for l.pos < len(l.input) && isDigit(l.input[l.pos]) {
+				l.pos++
+			}
 		}
+		// else: no digits follow — do not consume 'e'/'E'; leave l.pos so
+		// the mantissa stands alone and the 'e' rewinds to an identifier.
 	}
 
 	tt := tokICONST
