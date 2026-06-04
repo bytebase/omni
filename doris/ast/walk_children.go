@@ -86,6 +86,20 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.OrderBy {
 			Walk(v, item)
 		}
+		if n.Over != nil {
+			walkNodes(v, n.Over.PartitionBy)
+			for _, item := range n.Over.OrderBy {
+				Walk(v, item)
+			}
+			if n.Over.Frame != nil {
+				if n.Over.Frame.StartExpr != nil {
+					Walk(v, n.Over.Frame.StartExpr)
+				}
+				if n.Over.Frame.EndExpr != nil {
+					Walk(v, n.Over.Frame.EndExpr)
+				}
+			}
+		}
 	case *CastExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.TypeName)

@@ -1738,3 +1738,319 @@ func (n *AlterTableStmt) Tag() NodeTag { return T_AlterTableStmt }
 
 // Compile-time assertion.
 var _ Node = (*AlterTableStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// DCL — GRANT / REVOKE (roles, privileges, ownership, shares) [T6.1]
+// ---------------------------------------------------------------------------
+//
+// Snowflake's GRANT/REVOKE surface is large and grows continuously: new
+// privileges (e.g. CREATE PROVISIONED THROUGHPUT, CREATE SNOWFLAKE.CORE.BUDGET)
+// and new object types (e.g. NOTEBOOK, WORKSPACE, COMPUTE POOL, SEMANTIC VIEW)
+// are added over time. Rather than hard-coding the legacy ANTLR grammar's
+// finite privilege/object enumerations — which the official documentation
+// corpus already exceeds — these nodes model privileges and object types as
+// open-ended token runs (free-form uppercased names). This keeps the parser
+// faithful to the docs (truth1) and resilient to Snowflake's additions; the
+// catalog/semantic layer, not the parser, is responsible for validating that
+// a given privilege is legal for a given object.
+
+// GrantKind discriminates the three structural shapes of a GRANT statement.
+type GrantKind int
+
+const (
+	// GrantPrivileges is GRANT <privileges> ON <target> TO <grantee>.
+	GrantPrivileges GrantKind = iota
+	// GrantRole is GRANT [DATABASE | APPLICATION] ROLE <name> TO <grantee>.
+	GrantRole
+	// GrantOwnership is GRANT OWNERSHIP ON <target> TO <grantee> [...CURRENT GRANTS].
+	GrantOwnership
+)
+
+// GrantedRoleKind discriminates the kind of role being granted/revoked in a
+// role-grant statement (the noun after GRANT/REVOKE).
+type GrantedRoleKind int
+
+const (
+	// GrantedAccountRole is GRANT ROLE <name> ... (account-level role).
+	GrantedAccountRole GrantedRoleKind = iota
+	// GrantedDatabaseRole is GRANT DATABASE ROLE <name> ...
+	GrantedDatabaseRole
+	// GrantedApplicationRole is GRANT APPLICATION ROLE <name> ...
+	GrantedApplicationRole
+)
+
+// String returns a human-readable name for the kind.
+func (k GrantedRoleKind) String() string {
+	switch k {
+	case GrantedAccountRole:
+		return "Role"
+	case GrantedDatabaseRole:
+		return "DatabaseRole"
+	case GrantedApplicationRole:
+		return "ApplicationRole"
+	default:
+		return "Unknown"
+	}
+}
+
+// String returns a human-readable name for the kind.
+func (k GrantKind) String() string {
+	switch k {
+	case GrantPrivileges:
+		return "Privileges"
+	case GrantRole:
+		return "Role"
+	case GrantOwnership:
+		return "Ownership"
+	default:
+		return "Unknown"
+	}
+}
+
+// RevokeKind discriminates the two structural shapes of a REVOKE statement.
+// (There is no REVOKE OWNERSHIP — ownership is transferred, never revoked.)
+type RevokeKind int
+
+const (
+	// RevokePrivileges is REVOKE [GRANT OPTION FOR] <privileges> ON <target> FROM <grantee>.
+	RevokePrivileges RevokeKind = iota
+	// RevokeRole is REVOKE [DATABASE] ROLE <name> FROM <grantee>.
+	RevokeRole
+)
+
+// String returns a human-readable name for the kind.
+func (k RevokeKind) String() string {
+	switch k {
+	case RevokePrivileges:
+		return "Privileges"
+	case RevokeRole:
+		return "Role"
+	default:
+		return "Unknown"
+	}
+}
+
+// Privilege is a single privilege in a GRANT/REVOKE privilege list. Name holds
+// the uppercased source text of the privilege, which may be multiple words
+// (e.g. "SELECT", "CREATE MATERIALIZED VIEW", "CREATE PROVISIONED THROUGHPUT",
+// "READ", "CREATE SNOWFLAKE.CORE.BUDGET").
+//
+// Privilege is NOT a Node; it is owned by GrantStmt / RevokeStmt.
+type Privilege struct {
+	Name string
+	Loc  Loc
+}
+
+// GranteeKind discriminates the recipient type following TO/FROM in a GRANT or
+// REVOKE statement.
+type GranteeKind int
+
+const (
+	GranteeRole            GranteeKind = iota // [TO|FROM] [ROLE] <name>
+	GranteeDatabaseRole                       // [TO|FROM] DATABASE ROLE <name>
+	GranteeUser                               // [TO|FROM] USER <name>
+	GranteeShare                              // [TO|FROM] SHARE <name>
+	GranteeApplication                        // TO APPLICATION <name>
+	GranteeApplicationRole                    // TO APPLICATION ROLE <name>
+)
+
+// String returns the SQL keyword(s) for the grantee kind.
+func (k GranteeKind) String() string {
+	switch k {
+	case GranteeRole:
+		return "ROLE"
+	case GranteeDatabaseRole:
+		return "DATABASE ROLE"
+	case GranteeUser:
+		return "USER"
+	case GranteeShare:
+		return "SHARE"
+	case GranteeApplication:
+		return "APPLICATION"
+	case GranteeApplicationRole:
+		return "APPLICATION ROLE"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// Grantee is the recipient of a GRANT (after TO) or the subject of a REVOKE
+// (after FROM). Name is the (possibly qualified) role/user/share name.
+//
+// Grantee is a Node so the walker visits its Name. (Name is itself an
+// *ObjectName Node.)
+type Grantee struct {
+	Kind GranteeKind
+	Name *ObjectName
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *Grantee) Tag() NodeTag { return T_Grantee }
+
+// GrantTargetKind discriminates the shape of the ON clause in a privilege or
+// ownership GRANT/REVOKE.
+type GrantTargetKind int
+
+const (
+	// GrantTargetAccount is ON ACCOUNT.
+	GrantTargetAccount GrantTargetKind = iota
+	// GrantTargetObject is ON <object_type> <name> [ ( signature ) ].
+	GrantTargetObject
+	// GrantTargetAllIn is ON ALL <object_type_plural> IN { DATABASE <db> | SCHEMA <schema> }.
+	GrantTargetAllIn
+	// GrantTargetFutureIn is ON FUTURE <object_type_plural> IN { DATABASE <db> | SCHEMA <schema> }.
+	GrantTargetFutureIn
+)
+
+// String returns a human-readable name for the kind.
+func (k GrantTargetKind) String() string {
+	switch k {
+	case GrantTargetAccount:
+		return "Account"
+	case GrantTargetObject:
+		return "Object"
+	case GrantTargetAllIn:
+		return "AllIn"
+	case GrantTargetFutureIn:
+		return "FutureIn"
+	default:
+		return "Unknown"
+	}
+}
+
+// GrantContainerKind discriminates the IN container of ALL/FUTURE ... IN forms.
+type GrantContainerKind int
+
+const (
+	GrantContainerNone     GrantContainerKind = iota // not an ALL/FUTURE form
+	GrantContainerDatabase                           // IN DATABASE <db>
+	GrantContainerSchema                             // IN SCHEMA <schema>
+)
+
+// GrantTarget is the object the privileges/ownership apply to (the ON clause).
+//
+// Field population by Kind:
+//   - GrantTargetAccount:  no other fields set.
+//   - GrantTargetObject:   ObjectType + Name (+ optional Signature).
+//   - GrantTargetAllIn / GrantTargetFutureIn: ObjectTypePlural + Container + ContainerName.
+//
+// ObjectType / ObjectTypePlural are uppercased free-form names (possibly
+// multi-word, e.g. "MATERIALIZED VIEW", "EXTERNAL TABLE", "CORTEX SEARCH
+// SERVICE", "STORAGE LIFECYCLE POLICY").
+//
+// GrantTarget is a Node so the walker visits Name and ContainerName. The
+// Signature TypeName slice is not walker-visited (mirroring how
+// CreateTableStmt.Columns is handled).
+type GrantTarget struct {
+	Kind GrantTargetKind
+
+	// GrantTargetObject:
+	ObjectType string      // e.g. "TABLE", "FUNCTION", "MATERIALIZED VIEW", "NOTEBOOK", "CORTEX SEARCH SERVICE"
+	Name       *ObjectName // the object's qualified name
+	Signature  []*TypeName // FUNCTION/PROCEDURE arg-type list; nil if no ( ... ) present, non-nil (maybe empty) if ()
+
+	// GrantTargetAllIn / GrantTargetFutureIn:
+	ObjectTypePlural string             // e.g. "TABLES", "VIEWS", "SCHEMAS"
+	Container        GrantContainerKind // DATABASE or SCHEMA
+	ContainerName    *ObjectName        // the database/schema name
+
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *GrantTarget) Tag() NodeTag { return T_GrantTarget }
+
+// CurrentGrantsAction is the trailing { REVOKE | COPY } CURRENT GRANTS option
+// on GRANT OWNERSHIP.
+type CurrentGrantsAction int
+
+const (
+	CurrentGrantsNone   CurrentGrantsAction = iota // no trailing clause
+	CurrentGrantsRevoke                            // REVOKE CURRENT GRANTS
+	CurrentGrantsCopy                              // COPY CURRENT GRANTS
+)
+
+// String returns a human-readable name for the action.
+func (a CurrentGrantsAction) String() string {
+	switch a {
+	case CurrentGrantsNone:
+		return "None"
+	case CurrentGrantsRevoke:
+		return "RevokeCurrentGrants"
+	case CurrentGrantsCopy:
+		return "CopyCurrentGrants"
+	default:
+		return "Unknown"
+	}
+}
+
+// GrantStmt represents a GRANT statement in any of its three shapes
+// (privileges, role, ownership). See GrantKind.
+//
+//	GRANT { <privileges> | ALL [PRIVILEGES] } ON <target> TO <grantee> [WITH GRANT OPTION]
+//	GRANT [DATABASE | APPLICATION] ROLE <name> TO <grantee>
+//	GRANT OWNERSHIP ON <target> TO <grantee> [{REVOKE|COPY} CURRENT GRANTS]
+type GrantStmt struct {
+	Kind GrantKind
+
+	// --- GrantPrivileges ---
+	Privileges    []*Privilege // explicit privilege list; nil when AllPrivileges is true
+	AllPrivileges bool         // ALL [PRIVILEGES]
+	GrantOption   bool         // WITH GRANT OPTION
+
+	// --- GrantRole ---
+	Role     *ObjectName     // the role being granted (GrantRole)
+	RoleKind GrantedRoleKind // account / database / application role
+
+	// --- GrantOwnership ---
+	CurrentGrants CurrentGrantsAction // trailing CURRENT GRANTS option
+
+	// --- GrantPrivileges + GrantOwnership ---
+	On *GrantTarget // the ON clause target; nil for GrantRole
+
+	// --- all kinds ---
+	Grantee *Grantee // the TO recipient
+
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *GrantStmt) Tag() NodeTag { return T_GrantStmt }
+
+// RevokeStmt represents a REVOKE statement in either of its shapes
+// (privileges, role). See RevokeKind.
+//
+//	REVOKE [GRANT OPTION FOR] { <privileges> | ALL [PRIVILEGES] } ON <target> FROM <grantee> [CASCADE|RESTRICT]
+//	REVOKE [DATABASE | APPLICATION] ROLE <name> FROM <grantee>
+type RevokeStmt struct {
+	Kind RevokeKind
+
+	// --- RevokePrivileges ---
+	GrantOptionFor bool         // REVOKE GRANT OPTION FOR ...
+	Privileges     []*Privilege // explicit privilege list; nil when AllPrivileges is true
+	AllPrivileges  bool         // ALL [PRIVILEGES]
+	On             *GrantTarget // the ON clause target; nil for RevokeRole
+	Cascade        bool         // trailing CASCADE
+	Restrict       bool         // trailing RESTRICT
+
+	// --- RevokeRole ---
+	Role     *ObjectName     // the role being revoked (RevokeRole)
+	RoleKind GrantedRoleKind // account / database / application role
+
+	// --- all kinds ---
+	Grantee *Grantee // the FROM subject
+
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *RevokeStmt) Tag() NodeTag { return T_RevokeStmt }
+
+// Compile-time assertions for DCL nodes.
+var (
+	_ Node = (*GrantStmt)(nil)
+	_ Node = (*RevokeStmt)(nil)
+	_ Node = (*Grantee)(nil)
+	_ Node = (*GrantTarget)(nil)
+)

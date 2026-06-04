@@ -624,18 +624,16 @@ func TestParser_Errors(t *testing.T) {
 			input:     "LAG(x)",
 			wantErrIn: "LAG() window is deferred to parser-window (DAG node 13)",
 		},
-		{
-			name:      "count_stub",
-			input:     "COUNT(x)",
-			wantErrIn: "COUNT() aggregate is deferred to parser-aggregates (DAG node 14)",
-		},
 		// Note: the CAST/SUBSTRING/COALESCE/LIST deferred-stub cases that
 		// previously lived here were removed when DAG node 15b
 		// (parser-builtins-typed) implemented those forms. Their positive
 		// and negative coverage now lives in builtins_typed_test.go.
-		// Note: the graph_match_stub case that previously lived here was
-		// removed when DAG node 16 (parser-graph) implemented GPML MATCH.
-		// Its positive and negative coverage now lives in graph_test.go.
+		// Likewise the COUNT/SUM/AVG/MIN/MAX aggregate stub case was removed
+		// when DAG node 14 (parser-aggregates) implemented those forms;
+		// coverage now lives in aggregate_test.go.
+		// And the graph_match_stub case was removed when DAG node 16
+		// (parser-graph) implemented GPML MATCH; its positive and negative
+		// coverage now lives in graph_test.go.
 		{
 			name:      "date_literal_stub",
 			input:     "DATE '2026-01-01'",

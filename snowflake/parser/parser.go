@@ -227,9 +227,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// DCL (2 cases)
 	case kwGRANT:
-		return p.unsupported("GRANT")
+		return p.parseGrantStmt()
 	case kwREVOKE:
-		return p.unsupported("REVOKE")
+		return p.parseRevokeStmt()
 
 	// TCL (4 cases)
 	case kwBEGIN:

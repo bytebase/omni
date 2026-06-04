@@ -1,0 +1,1 @@
+FuncCall{Name:COUNT Quantifier:DISTINCT Args:[PathExpr{Root:VarRef{Name:t} Steps:[DotStep{Field:items} IndexStep{Index:NumberLit{Val:0}} DotStep{Field:id}]}]}

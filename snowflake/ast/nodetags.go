@@ -79,6 +79,12 @@ const (
 
 	// ALTER TABLE tag (T2.3)
 	T_AlterTableStmt
+
+	// DCL: GRANT / REVOKE tags (T6.1)
+	T_GrantStmt
+	T_RevokeStmt
+	T_Grantee
+	T_GrantTarget
 )
 
 // String returns a human-readable representation of the tag.
@@ -188,6 +194,14 @@ func (t NodeTag) String() string {
 		return "AlterMaterializedViewStmt"
 	case T_AlterTableStmt:
 		return "AlterTableStmt"
+	case T_GrantStmt:
+		return "GrantStmt"
+	case T_RevokeStmt:
+		return "RevokeStmt"
+	case T_Grantee:
+		return "Grantee"
+	case T_GrantTarget:
+		return "GrantTarget"
 	default:
 		return "Unknown"
 	}

@@ -1,0 +1,1 @@
+FuncCall{Name:SUM Quantifier:DISTINCT Args:[BinaryExpr{Op:+ Left:VarRef{Name:a} Right:VarRef{Name:b}}]}
