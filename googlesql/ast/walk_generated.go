@@ -8,5 +8,19 @@ func walkChildren(v Visitor, node Node) {
 	switch n := node.(type) {
 	case *File:
 		walkNodes(v, n.Stmts)
+	case *GrantStmt:
+		for _, c := range n.Privileges {
+			Walk(v, c)
+		}
+		for _, c := range n.Grantees {
+			Walk(v, c)
+		}
+	case *RevokeStmt:
+		for _, c := range n.Privileges {
+			Walk(v, c)
+		}
+		for _, c := range n.Grantees {
+			Walk(v, c)
+		}
 	}
 }

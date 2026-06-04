@@ -18,6 +18,16 @@ const (
 	// T_File is the tag for *File, the root statement-list container
 	// returned by the parser entry point.
 	T_File
+
+	// DCL — GRANT / REVOKE (parser-dcl node).
+	//
+	// These mirror the legacy ANTLR grant_statement / revoke_statement family
+	// (GoogleSQLParser.g4): one statement node per verb plus the shared
+	// privilege and grantee leaf nodes.
+	T_GrantStmt
+	T_RevokeStmt
+	T_Privilege
+	T_Grantee
 )
 
 // String returns a human-readable representation of the tag.
@@ -27,6 +37,14 @@ func (t NodeTag) String() string {
 		return "Invalid"
 	case T_File:
 		return "File"
+	case T_GrantStmt:
+		return "GrantStmt"
+	case T_RevokeStmt:
+		return "RevokeStmt"
+	case T_Privilege:
+		return "Privilege"
+	case T_Grantee:
+		return "Grantee"
 	default:
 		return "Unknown"
 	}
