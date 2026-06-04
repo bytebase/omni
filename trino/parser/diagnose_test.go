@@ -9,10 +9,11 @@ import (
 // Parse and surfaces ParseErrors as Diagnostics. While a statement body is still
 // stubbed (no DAG node has implemented it), even valid SQL of that form yields a
 // "not yet supported" diagnostic — those vanish as later nodes implement real
-// parsing. INSERT (parser-dml's job) is still stubbed; SELECT is now implemented
-// by parser-select, so this test uses a still-stubbed form.
+// parsing. DML (INSERT/DELETE/UPDATE/MERGE/TRUNCATE) is now implemented by
+// parser-dml, so this test uses a DDL form (ALTER TABLE) that remains a
+// foundation stub until the parser-ddl node lands.
 func TestDiagnose_StubbedStatementProducesDiagnostic(t *testing.T) {
-	diags := Diagnose("INSERT INTO t VALUES (1)")
+	diags := Diagnose("ALTER TABLE t ADD COLUMN c integer")
 	if len(diags) != 1 {
 		t.Fatalf("got %d diagnostics, want 1: %+v", len(diags), diags)
 	}
@@ -50,12 +51,13 @@ func TestDiagnose_EmptyInput(t *testing.T) {
 }
 
 // TestDiagnose_MultipleStatements verifies diagnostics are collected across all
-// segments. A valid SELECT (now implemented by parser-select) yields none, while
-// the two still-stubbed DML statements (INSERT, DELETE) each yield one.
+// segments. A valid SELECT and a valid INSERT (both now implemented, by
+// parser-select and parser-dml) yield none, while the two still-stubbed DDL
+// statements (ALTER, COMMENT — parser-ddl's job) each yield one.
 func TestDiagnose_MultipleStatements(t *testing.T) {
-	diags := Diagnose("SELECT 1; INSERT INTO t VALUES (1); DELETE FROM t")
+	diags := Diagnose("SELECT 1; INSERT INTO t VALUES (1); ALTER TABLE t ADD COLUMN c integer; COMMENT ON TABLE t IS 'x'")
 	if len(diags) != 2 {
-		t.Fatalf("got %d diagnostics, want 2 (INSERT + DELETE stubs; SELECT now parses): %+v", len(diags), diags)
+		t.Fatalf("got %d diagnostics, want 2 (ALTER + COMMENT stubs; SELECT and INSERT now parse): %+v", len(diags), diags)
 	}
 }
 
