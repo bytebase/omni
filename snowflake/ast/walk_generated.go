@@ -128,6 +128,27 @@ func walkChildren(v Visitor, node Node) {
 		walkNodes(v, n.Stmts)
 	case *FuncCallExpr:
 		walkNodes(v, n.Args)
+	case *GrantStmt:
+		if n.Role != nil {
+			Walk(v, n.Role)
+		}
+		if n.On != nil {
+			Walk(v, n.On)
+		}
+		if n.Grantee != nil {
+			Walk(v, n.Grantee)
+		}
+	case *GrantTarget:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.ContainerName != nil {
+			Walk(v, n.ContainerName)
+		}
+	case *Grantee:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *IffExpr:
 		Walk(v, n.Cond)
 		Walk(v, n.Then)
@@ -165,6 +186,16 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.On)
 	case *ParenExpr:
 		Walk(v, n.Expr)
+	case *RevokeStmt:
+		if n.On != nil {
+			Walk(v, n.On)
+		}
+		if n.Role != nil {
+			Walk(v, n.Role)
+		}
+		if n.Grantee != nil {
+			Walk(v, n.Grantee)
+		}
 	case *SelectStmt:
 		Walk(v, n.Top)
 		walkNodes(v, n.From)
