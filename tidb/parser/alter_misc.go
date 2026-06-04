@@ -240,32 +240,7 @@ func (p *Parser) parseAlterEventStmt() (*nodes.AlterEventStmt, error) {
 	// Optional: DO event_body
 	if p.cur.Type == kwDO {
 		p.advance()
-		bodyStart := p.pos()
-		depth := 0
-		for p.cur.Type != tokEOF {
-			if p.cur.Type == ';' && depth == 0 {
-				break
-			}
-			if p.cur.Type == kwBEGIN {
-				depth++
-			}
-			if p.cur.Type == kwEND {
-				if depth > 0 {
-					depth--
-					if depth == 0 {
-						p.advance()
-						break
-					}
-				} else {
-					break
-				}
-			}
-			p.advance()
-		}
-		bodyEnd := p.pos()
-		if bodyEnd > bodyStart {
-			stmt.Body = p.inputText(bodyStart, bodyEnd)
-		}
+		stmt.Body = p.consumeRoutineBody()
 	}
 
 	stmt.Loc.End = p.pos()

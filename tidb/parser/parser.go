@@ -178,6 +178,30 @@ func (p *Parser) inputText(start, end int) string {
 	return p.lexer.input[start:end]
 }
 
+// consumeRoutineBody captures a routine/trigger/event compound body as raw text,
+// advancing the token stream past it. It balances all compound openers against
+// END (via findCompoundBodyEnd) so an inner END IF / END CASE / END WHILE /
+// END LOOP / END REPEAT does not truncate the body at the inner block's END.
+// Returns the body text from the current position up to (but excluding) the
+// first top-level ';' or end of input.
+func (p *Parser) consumeRoutineBody() string {
+	bodyStartAbs := p.pos()
+	bodyStartLocal := bodyStartAbs - p.lexer.baseOffset
+	if bodyStartLocal < 0 {
+		bodyStartLocal = 0
+	}
+	bodyEndAbs := findCompoundBodyEnd(p.lexer.input, bodyStartLocal) + p.lexer.baseOffset
+	for p.cur.Type != tokEOF && p.cur.Loc < bodyEndAbs {
+		p.advance()
+	}
+	// Capture via inputText, not a direct lexer.input slice: tokenizing the body
+	// above can rewrite lexer.input in place (conditional comments /*! ... */),
+	// so the body offset computed before the loop would be stale against the
+	// shrunken buffer. inputText reads the post-advance buffer with the current
+	// p.pos() and clamps to its length, matching the original scanner's slice.
+	return p.inputText(bodyStartAbs, p.pos())
+}
+
 // ParseError represents a parse error with position information.
 type ParseError struct {
 	Message     string

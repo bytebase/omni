@@ -261,12 +261,31 @@ func Split(sql string) []Segment {
 			}
 			i = endOfWord
 
-		// IF — increment depth unless preceded by END, followed by EXISTS, or followed by '('.
+		// IF — increment depth unless preceded by END, an IF [NOT] EXISTS DDL
+		// modifier, or an IF(...) function call.
 		case (b == 'i' || b == 'I') && matchWord(sql, i, "IF"):
 			endOfWord := skipToEndOfWord(sql, i)
 			prev := prevWord(sql, i)
 			next := nextWordAfter(sql, endOfWord)
-			isExistsClause := next == "EXISTS" || (next == "NOT" && nextWordAfter(sql, skipToEndOfWord(sql, skipWhitespace(sql, endOfWord))) == "EXISTS")
+			// Treat "IF [NOT] EXISTS" as a DDL modifier only when EXISTS is
+			// followed by a bare identifier (e.g. DROP TABLE IF EXISTS t).
+			// When EXISTS is followed by '(' (e.g. IF EXISTS (subquery) THEN),
+			// it is the EXISTS subquery predicate inside a compound IF.
+			isExistsClause := false
+			if next == "EXISTS" {
+				existsEnd := skipToEndOfWord(sql, skipWhitespace(sql, endOfWord))
+				if nextNonSpaceChar(sql, existsEnd) != '(' {
+					isExistsClause = true
+				}
+			} else if next == "NOT" {
+				notEnd := skipToEndOfWord(sql, skipWhitespace(sql, endOfWord))
+				if nextWordAfter(sql, notEnd) == "EXISTS" {
+					existsEnd := skipToEndOfWord(sql, skipWhitespace(sql, notEnd))
+					if nextNonSpaceChar(sql, existsEnd) != '(' {
+						isExistsClause = true
+					}
+				}
+			}
 			if prev != "END" && !isExistsClause && nextNonSpaceChar(sql, endOfWord) != '(' {
 				depth++
 			}
@@ -348,6 +367,122 @@ func Split(sql string) []Segment {
 		return nil
 	}
 	return segments
+}
+
+// findCompoundBodyEnd scans a routine/trigger/event body starting at byte offset
+// start and returns the offset of the first top-level (depth 0) ';', or len(sql)
+// if none is found. It balances every compound opener (BEGIN/IF/CASE/WHILE/LOOP/
+// REPEAT) against END using the same heuristics as Split, so an inner block
+// terminator like END IF / END CASE / END WHILE / END LOOP / END REPEAT does not
+// prematurely close the enclosing BEGIN block. This is the body-capture analogue
+// of Split's depth tracking; a naive BEGIN/END-only counter mis-reads the END of
+// an inner block as closing the routine and truncates the body.
+func findCompoundBodyEnd(sql string, start int) int {
+	i := start
+	depth := 0
+	for i < len(sql) {
+		b := sql[i]
+		switch {
+		// Single-quoted string.
+		case b == '\'':
+			i = skipSingleQuoteMySQL(sql, i)
+
+		// Double-quoted string (MySQL treats as string literal).
+		case b == '"':
+			i = skipDoubleQuoteMySQL(sql, i)
+
+		// Backtick-quoted identifier.
+		case b == '`':
+			i = skipBacktick(sql, i)
+
+		// Block comment.
+		case b == '/' && i+1 < len(sql) && sql[i+1] == '*':
+			i = skipBlockCommentMySQL(sql, i)
+
+		// Dash line comment.
+		case isDashComment(sql, i):
+			i = skipDashComment(sql, i)
+
+		// Hash line comment.
+		case b == '#':
+			i = skipHashComment(sql, i)
+
+		// BEGIN — increment depth unless it's a transaction (BEGIN WORK, lone
+		// BEGIN at ';'/EOF, XA BEGIN).
+		case (b == 'b' || b == 'B') && matchWord(sql, i, "BEGIN"):
+			endOfWord := skipToEndOfWord(sql, i)
+			next := nextWordAfter(sql, endOfWord)
+			prev := prevWord(sql, i)
+			if next != "WORK" && prev != "XA" && nextNonSpaceChar(sql, endOfWord) != ';' && nextNonSpaceChar(sql, endOfWord) != 0 {
+				depth++
+			}
+			i = endOfWord
+
+		// IF — increment depth unless preceded by END or used as the IF(...)
+		// function (next char '('). "IF EXISTS (subquery) THEN ... END IF" flow
+		// control is counted (EXISTS is followed by '(', matching Split's
+		// tightened IF arm). We do not replicate Split's IF [NOT] EXISTS <ident>
+		// DDL skip: a routine body is a single Split-delimited segment, so this
+		// scan only needs the body's terminating top-level ';' (or EOF), and
+		// over-counting a body-internal DDL IF EXISTS is harmless — depth simply
+		// stays > 0 through the (single-segment) body to its end.
+		case (b == 'i' || b == 'I') && matchWord(sql, i, "IF"):
+			endOfWord := skipToEndOfWord(sql, i)
+			prev := prevWord(sql, i)
+			if prev != "END" && nextNonSpaceChar(sql, endOfWord) != '(' {
+				depth++
+			}
+			i = endOfWord
+
+		// CASE — increment depth unless preceded by END.
+		case (b == 'c' || b == 'C') && matchWord(sql, i, "CASE"):
+			endOfWord := skipToEndOfWord(sql, i)
+			if prevWord(sql, i) != "END" {
+				depth++
+			}
+			i = endOfWord
+
+		// WHILE — increment depth unless preceded by END.
+		case (b == 'w' || b == 'W') && matchWord(sql, i, "WHILE"):
+			endOfWord := skipToEndOfWord(sql, i)
+			if prevWord(sql, i) != "END" {
+				depth++
+			}
+			i = endOfWord
+
+		// LOOP — increment depth unless preceded by END.
+		case (b == 'l' || b == 'L') && matchWord(sql, i, "LOOP"):
+			endOfWord := skipToEndOfWord(sql, i)
+			if prevWord(sql, i) != "END" {
+				depth++
+			}
+			i = endOfWord
+
+		// REPEAT — increment depth unless preceded by END or followed by '('.
+		case (b == 'r' || b == 'R') && matchWord(sql, i, "REPEAT"):
+			endOfWord := skipToEndOfWord(sql, i)
+			prev := prevWord(sql, i)
+			if prev != "END" && nextNonSpaceChar(sql, endOfWord) != '(' {
+				depth++
+			}
+			i = endOfWord
+
+		// END — decrement depth (if > 0), skip if preceded by XA.
+		case (b == 'e' || b == 'E') && matchWord(sql, i, "END"):
+			endOfWord := skipToEndOfWord(sql, i)
+			if depth > 0 && prevWord(sql, i) != "XA" {
+				depth--
+			}
+			i = endOfWord
+
+		default:
+			if depth == 0 && b == ';' {
+				return i
+			}
+			i++
+		}
+	}
+	return i
 }
 
 // skipSingleQuoteMySQL skips a single-quoted string starting at position i.
