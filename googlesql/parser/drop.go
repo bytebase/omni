@@ -69,7 +69,16 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 // parseDropObject parses `DROP <object-keyword> opt_if_exists? path_expression
 // opt_drop_mode?` where the object keyword has already been consumed-by-peek but
 // NOT advanced. It consumes the object keyword, the IF EXISTS, the path, and a
-// trailing RESTRICT|CASCADE (opt_drop_mode — DROP SCHEMA CASCADE/RESTRICT).
+// trailing RESTRICT|CASCADE (opt_drop_mode).
+//
+// opt_drop_mode is attached in the .g4 ONLY to the `schema_object_kind`
+// alternative (VIEW / SCHEMA / DATABASE / INDEX / EXTERNAL SCHEMA / …). A bare
+// DROP TABLE is the separate `table_or_table_function` alternative, which carries
+// NO opt_drop_mode — so `DROP TABLE T CASCADE|RESTRICT` is a syntax error (the
+// live Spanner oracle rejects it; real BigQuery DROP TABLE has no CASCADE/RESTRICT
+// either). We therefore consume opt_drop_mode only when kind != DropTable; for a
+// TABLE, a trailing CASCADE/RESTRICT is left unconsumed and parseSingle's EOF
+// check reports it as the syntax error it is.
 func (p *Parser) parseDropObject(drop Token, kind ast.DropObjectKind, external bool) (ast.Node, error) {
 	p.advance() // consume the object keyword (TABLE / VIEW / SCHEMA / DATABASE)
 
@@ -88,24 +97,34 @@ func (p *Parser) parseDropObject(drop Token, kind ast.DropObjectKind, external b
 	}
 	stmt.Name = name
 
-	// opt_drop_mode?  — RESTRICT | CASCADE (DROP SCHEMA).
-	switch p.cur.Type {
-	case kwRESTRICT:
-		p.advance()
-		stmt.DropMode = "RESTRICT"
-	case kwCASCADE:
-		p.advance()
-		stmt.DropMode = "CASCADE"
+	// opt_drop_mode?  — RESTRICT | CASCADE. Only the schema_object_kind alternative
+	// (everything here EXCEPT a bare TABLE) carries it.
+	if kind != ast.DropTable {
+		switch p.cur.Type {
+		case kwRESTRICT:
+			p.advance()
+			stmt.DropMode = "RESTRICT"
+		case kwCASCADE:
+			p.advance()
+			stmt.DropMode = "CASCADE"
+		}
 	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
 }
 
-// parseDropIndex parses `DROP INDEX opt_if_exists? path_expression
-// on_path_expression?`. The INDEX keyword is the current token. The optional
-// `ON <table>` is the BigQuery search/vector-index form; for a plain Spanner
-// DROP INDEX it is absent.
+// parseDropIndex parses a plain `DROP INDEX opt_if_exists? path_expression`. The
+// INDEX keyword is the current token.
+//
+// A plain DROP INDEX is the `schema_object_kind` (INDEX) alternative, which has
+// NO on_path_expression: the trailing `ON <table>` belongs ONLY to the
+// `DROP index_type INDEX … on_path_expression?` alternative, where index_type is
+// SEARCH | VECTOR (already routed to the dialect stub by parseDropStmt before we
+// get here). So `DROP INDEX idx ON T` is a syntax error (the live Spanner oracle
+// rejects it); a bare ON is left unconsumed and parseSingle's EOF check reports
+// it. The opt_drop_mode (`DROP INDEX idx CASCADE|RESTRICT`) is part of
+// schema_object_kind and is consumed below.
 func (p *Parser) parseDropIndex(drop Token) (ast.Node, error) {
 	p.advance() // consume INDEX
 
@@ -124,14 +143,14 @@ func (p *Parser) parseDropIndex(drop Token) (ast.Node, error) {
 	}
 	stmt.Name = name
 
-	// on_path_expression?  — ON <table>.
-	if p.cur.Type == kwON {
-		p.advance() // ON
-		onTable, err := p.parseTablePath()
-		if err != nil {
-			return nil, err
-		}
-		stmt.OnTable = onTable
+	// opt_drop_mode?  — RESTRICT | CASCADE (schema_object_kind INDEX).
+	switch p.cur.Type {
+	case kwRESTRICT:
+		p.advance()
+		stmt.DropMode = "RESTRICT"
+	case kwCASCADE:
+		p.advance()
+		stmt.DropMode = "CASCADE"
 	}
 
 	stmt.Loc.End = p.prev.Loc.End

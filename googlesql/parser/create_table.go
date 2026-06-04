@@ -475,16 +475,19 @@ func (p *Parser) parseGeneratedColumnInfo(col *ast.ColumnDef) error {
 	}
 	col.GenMode = mode
 
-	// generated_mode identity_column_info — IDENTITY(...) form. IDENTITY is
-	// non-reserved (tokenized as an identifier). Recognized so it parses, with the
-	// body skipped (parenthesized); it carries no expression. This is a rare
-	// BigQuery form; the query-span path does not inspect it.
-	if p.cur.Type == tokIdentifier && p.cur.Str == "IDENTITY" {
-		p.advance() // IDENTITY
-		if p.cur.Type != int('(') {
-			return p.syntaxErrorAtCur()
-		}
-		if err := p.skipBalancedParens(); err != nil {
+	// generated_mode identity_column_info — IDENTITY(...) form. IDENTITY is a
+	// keyword (kwIDENTITY in the keyword table), so the lexer always emits the
+	// keyword token, never tokIdentifier. We parse the body STRUCTURALLY (per the
+	// .g4 identity_column_info) rather than skipping balanced parens, so a malformed
+	// body such as `IDENTITY (FOO BAR)` or `IDENTITY (START WITH)` is rejected
+	// instead of silently accepted. This enables the (BigQuery-valid)
+	// `GENERATED ALWAYS AS IDENTITY(…)` form while still rejecting garbage. An
+	// identity column carries no generated expression and no stored_mode (the
+	// query-span path does not inspect it). The Spanner emulator rejects this
+	// BigQuery-only form (non-authoritative; triangulated from the .g4 +
+	// BigQuery docs).
+	if p.cur.Type == kwIDENTITY {
+		if err := p.parseIdentityColumnInfo(); err != nil {
 			return err
 		}
 		col.Stored = "" // identity columns have no stored_mode
@@ -560,6 +563,119 @@ func (p *Parser) parseGeneratedMode() (ast.GeneratedMode, error) {
 		return ast.GenModeGeneratedByDefault, nil
 	default:
 		return 0, p.syntaxErrorAtCur()
+	}
+}
+
+// parseIdentityColumnInfo parses an identity_column_info (the BigQuery IDENTITY
+// generated-column form). cur is at the IDENTITY keyword:
+//
+//	IDENTITY '(' opt_start_with? opt_increment_by? opt_maxvalue? opt_minvalue?
+//	  opt_cycle? ')'
+//	  opt_start_with   : START WITH signed_numeric_literal
+//	  opt_increment_by : INCREMENT BY signed_numeric_literal
+//	  opt_maxvalue     : MAXVALUE signed_numeric_literal
+//	  opt_minvalue     : MINVALUE signed_numeric_literal
+//	  opt_cycle        : CYCLE | NO CYCLE
+//
+// The clauses are each optional and appear AT MOST ONCE in this fixed order; we
+// consume them sequentially, which enforces both order and at-most-once (an
+// out-of-order or repeated clause falls through to the ')' expectation and is
+// rejected). The body is validated rather than skipped so malformed identity
+// bodies (e.g. `IDENTITY (FOO BAR)`, `IDENTITY (START WITH)`) reject. The parsed
+// values are not retained (the query-span path does not inspect them); only the
+// accept/reject decision is load-bearing.
+func (p *Parser) parseIdentityColumnInfo() error {
+	p.advance() // IDENTITY
+	if _, err := p.expect(int('(')); err != nil {
+		return err
+	}
+
+	if p.cur.Type == kwSTART {
+		p.advance() // START
+		if _, err := p.expect(kwWITH); err != nil {
+			return err
+		}
+		if err := p.parseSignedNumericLiteral(); err != nil {
+			return err
+		}
+	}
+	if p.cur.Type == kwINCREMENT {
+		p.advance() // INCREMENT
+		if _, err := p.expect(kwBY); err != nil {
+			return err
+		}
+		if err := p.parseSignedNumericLiteral(); err != nil {
+			return err
+		}
+	}
+	if p.cur.Type == kwMAXVALUE {
+		p.advance() // MAXVALUE
+		if err := p.parseSignedNumericLiteral(); err != nil {
+			return err
+		}
+	}
+	if p.cur.Type == kwMINVALUE {
+		p.advance() // MINVALUE
+		if err := p.parseSignedNumericLiteral(); err != nil {
+			return err
+		}
+	}
+	// opt_cycle: CYCLE | NO CYCLE.
+	switch p.cur.Type {
+	case kwCYCLE:
+		p.advance()
+	case kwNO:
+		p.advance() // NO
+		if _, err := p.expect(kwCYCLE); err != nil {
+			return err
+		}
+	}
+
+	if _, err := p.expect(int(')')); err != nil {
+		return err
+	}
+	return nil
+}
+
+// parseSignedNumericLiteral consumes a signed_numeric_literal:
+//
+//	integer_literal | numeric_literal | bignumeric_literal | floating_point_literal
+//	| MINUS integer_literal | MINUS floating_point_literal
+//
+// where numeric_literal / bignumeric_literal are the typed-string forms
+// `(NUMERIC|DECIMAL) 'str'` / `(BIGNUMERIC|BIGDECIMAL) 'str'`. A leading sign is
+// allowed only before a plain integer or float (per the grammar). It does not
+// retain the value — it is used only to validate an identity_column_info clause.
+func (p *Parser) parseSignedNumericLiteral() error {
+	if p.cur.Type == int('-') {
+		p.advance() // MINUS — only valid before an integer or float literal
+		switch p.cur.Type {
+		case tokInteger, tokFloat:
+			p.advance()
+			return nil
+		default:
+			return p.syntaxErrorAtCur()
+		}
+	}
+	switch p.cur.Type {
+	case tokInteger, tokFloat:
+		p.advance()
+		return nil
+	case kwNUMERIC, kwDECIMAL, kwBIGNUMERIC, kwBIGDECIMAL:
+		// numeric_literal / bignumeric_literal: a type-keyword prefix + string_literal.
+		// string_literal is one-or-more ADJACENT STRING_LITERAL components (GoogleSQL
+		// concatenates adjacent strings, e.g. NUMERIC '1' '2'), so consume the full
+		// component run via the shared helper rather than a single token.
+		p.advance() // the type-keyword prefix
+		if p.cur.Type != tokString {
+			return p.syntaxErrorAtCur()
+		}
+		if _, err := p.parseStringLiteral(); err != nil {
+			return err
+		}
+		return nil
+	default:
+		return p.syntaxErrorAtCur()
 	}
 }
 
@@ -888,16 +1004,31 @@ func (p *Parser) parseSpannerTableOptions() ([]*ast.KeyPart, *ast.InterleaveClau
 
 	var interleave *ast.InterleaveClause
 	var rowDeletion ast.Node
-	// Comma-led trailing clauses, in any order. Each may appear AT MOST ONCE: the
-	// legacy grammar threads opt_spanner_interleave_in_parent_clause? (zero-or-one)
-	// and a single ROW DELETION POLICY, and the emulator rejects a repeat
-	// (oracle: two INTERLEAVE clauses → syntax error). A duplicate is reported as
-	// a syntax error at the repeated keyword.
+	// Comma-led trailing clauses. Each may appear AT MOST ONCE: the legacy grammar
+	// threads opt_spanner_interleave_in_parent_clause? (zero-or-one) and a single
+	// ROW DELETION POLICY, and the emulator rejects a repeat (oracle: two INTERLEAVE
+	// clauses → syntax error). A duplicate is reported as a syntax error at the
+	// repeated keyword.
+	//
+	// ORDER is fixed: INTERLEAVE must precede ROW DELETION POLICY. The live Spanner
+	// grammar accepts `… , INTERLEAVE …, ROW DELETION POLICY …` but REJECTS the
+	// reverse `… , ROW DELETION POLICY …, INTERLEAVE …` (reproduced both directions
+	// against the emulator; the checked-in .g4 is stale for the comma-led RDP, so
+	// the live oracle is authoritative here). We enforce it by rejecting a
+	// `, INTERLEAVE` once a ROW DELETION POLICY has already been consumed (error
+	// positioned at the out-of-order INTERLEAVE keyword), mirroring the
+	// duplicate-clause guards.
 	for p.cur.Type == int(',') {
 		switch p.peekNext().Type {
 		case kwINTERLEAVE:
 			if interleave != nil {
 				p.advance() // ',' — position the error at the duplicate INTERLEAVE
+				return nil, nil, nil, p.syntaxErrorAtCur()
+			}
+			if rowDeletion != nil {
+				// INTERLEAVE after ROW DELETION POLICY is out of order — reject at the
+				// INTERLEAVE keyword.
+				p.advance() // ','
 				return nil, nil, nil, p.syntaxErrorAtCur()
 			}
 			il, err := p.parseInterleaveInParent()

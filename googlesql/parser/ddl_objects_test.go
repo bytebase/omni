@@ -328,6 +328,45 @@ func TestDrop_Rejects(t *testing.T) {
 	}
 }
 
+// TestDrop_DropModeAndOn pins the opt_drop_mode / on_path_expression attachment
+// per the legacy .g4 drop_statement alternatives (regression for parser-ddl
+// PR #220 findings 1 & 2; the rejects are also in the live-oracle differential).
+//
+//	DROP table_or_table_function …                       -> NO opt_drop_mode
+//	DROP schema_object_kind … opt_drop_mode?             -> RESTRICT|CASCADE OK
+//	DROP index_type INDEX … on_path_expression?          -> ON only for SEARCH|VECTOR
+//	DROP {INDEX(plain)|schema_object_kind} …             -> NO on_path_expression
+func TestDrop_DropModeAndOn(t *testing.T) {
+	// A bare DROP TABLE has no drop-mode → CASCADE/RESTRICT must reject.
+	assertReject(t, "DROP TABLE T CASCADE")
+	assertReject(t, "DROP TABLE T RESTRICT")
+
+	// Plain DROP INDEX has no `ON <table>` → it must reject (SEARCH/VECTOR INDEX,
+	// the only alt with on_path_expression, routes to the dialect stub earlier).
+	assertReject(t, "DROP INDEX idx ON T")
+
+	// schema_object_kind objects DO carry opt_drop_mode (CASCADE/RESTRICT). These
+	// are valid GoogleSQL per the .g4; the Spanner emulator rejects them as a
+	// SUBSET divergence, so they live here (unit) rather than the oracle
+	// differential. The union parser accepts them.
+	for _, sql := range []string{
+		"DROP SCHEMA sch CASCADE",
+		"DROP SCHEMA sch RESTRICT",
+		"DROP VIEW v CASCADE",
+		"DROP DATABASE db CASCADE",
+		"DROP INDEX idx CASCADE",
+		"DROP INDEX idx RESTRICT",
+	} {
+		d := dropOf(t, sql)
+		if d.DropMode == "" {
+			t.Errorf("Parse(%q): DropMode empty, want RESTRICT/CASCADE captured", sql)
+		}
+		if d.OnTable != nil {
+			t.Errorf("Parse(%q): OnTable = %v, want nil", sql, d.OnTable)
+		}
+	}
+}
+
 // --- dialect-node object kinds route to the unsupported stub (not unknown) ---
 
 func TestCreateAndDrop_DialectObjectsStubbed(t *testing.T) {

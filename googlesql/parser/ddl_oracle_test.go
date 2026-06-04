@@ -135,11 +135,17 @@ var ddlFixtures = []ddlFixture{
 	{"DROP TABLE T", true},
 	{"DROP TABLE IF EXISTS T", true},
 
+	// Interleave THEN ROW DELETION POLICY — the standard (accepted) trailing order.
+	{"CREATE TABLE C (p INT64, c INT64, t TIMESTAMP) PRIMARY KEY (p, c), INTERLEAVE IN PARENT P ON DELETE CASCADE, ROW DELETION POLICY (OLDER_THAN(t, INTERVAL 1 DAY))", true},
+
 	// ============================ REJECT (syntax) ============================
 	{"CREATE TABLE", false},                           // missing name
 	{"CREATE TABLE T (x INT64) PRIMARY KEY x", false}, // missing parens on PK
 	{"CREATE TABLE T (x)", false},                     // column missing type
 	{"CREATE TABLE T (x INT64) PRIMARY KEY (x) ROW DELETION POLICY (OLDER_THAN(x, INTERVAL 1 DAY))", false}, // missing comma before ROW DELETION POLICY
+	// ROW DELETION POLICY before INTERLEAVE — out of order; the emulator rejects the
+	// reverse of the accepted order above (regression: parser-ddl PR #220 finding 3).
+	{"CREATE TABLE C (p INT64, c INT64, t TIMESTAMP) PRIMARY KEY (p, c), ROW DELETION POLICY (OLDER_THAN(t, INTERVAL 1 DAY)), INTERLEAVE IN PARENT P ON DELETE CASCADE", false},
 	{"ALTER TABLE T", false},             // missing action list
 	{"ALTER TABLE T DROP COLUMN", false}, // missing column name
 	{"CREATE INDEX idx", false},          // missing ON + keys
@@ -147,6 +153,13 @@ var ddlFixtures = []ddlFixture{
 	{"CREATE VIEW v", false},             // missing AS query
 	{"DROP TABLE", false},                // missing name
 	{"DROP INDEX", false},                // missing name
+	// DROP TABLE has no opt_drop_mode (table_or_table_function alt) — CASCADE/RESTRICT
+	// reject (regression: parser-ddl PR #220 finding 1).
+	{"DROP TABLE T CASCADE", false},
+	{"DROP TABLE T RESTRICT", false},
+	// Plain DROP INDEX (schema_object_kind) has no on_path_expression — a trailing
+	// `ON <table>` rejects (regression: parser-ddl PR #220 finding 2).
+	{"DROP INDEX idx ON T", false},
 }
 
 func TestDDLDifferential(t *testing.T) {

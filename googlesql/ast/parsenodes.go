@@ -1994,14 +1994,17 @@ func (k DropObjectKind) String() string {
 // DropStmt is a DROP statement over a table-like object (drop_statement
 // alternatives for INDEX / TABLE / schema-object). Object selects the kind;
 // IfExists flags `IF EXISTS`; Name is the object path. DropMode carries the
-// trailing RESTRICT / CASCADE (BigQuery DROP SCHEMA); OnTable holds the
-// `ON <table>` of a DROP {SEARCH|VECTOR} INDEX (BigQuery), nil otherwise.
+// trailing RESTRICT / CASCADE (opt_drop_mode — attached to every
+// schema_object_kind object: VIEW / SCHEMA / DATABASE / INDEX; NOT a bare TABLE).
+// OnTable holds the `ON <table>` of a DROP {SEARCH|VECTOR} INDEX (BigQuery); core
+// DDL never sets it (a plain DROP INDEX has no ON), so it is currently always nil
+// — it is reserved for the SEARCH/VECTOR INDEX dialect node.
 type DropStmt struct {
 	Object   DropObjectKind
 	External bool // DROP EXTERNAL SCHEMA (BigQuery)
 	IfExists bool
 	Name     *PathExpr
-	OnTable  *PathExpr // DROP {SEARCH|VECTOR} INDEX … ON <table>; nil if absent
+	OnTable  *PathExpr // DROP {SEARCH|VECTOR} INDEX … ON <table>; reserved (dialect node), nil here
 	DropMode string    // "RESTRICT" | "CASCADE" | "" — opt_drop_mode
 	Loc      Loc
 }
