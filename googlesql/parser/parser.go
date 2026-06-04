@@ -372,9 +372,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// --- DCL ---
 	case kwGRANT:
-		return p.unsupported("GRANT")
+		return p.parseGrantStmt()
 	case kwREVOKE:
-		return p.unsupported("REVOKE")
+		return p.parseRevokeStmt()
 
 	// --- Transactions / batch / session ---
 	case kwBEGIN:
@@ -577,6 +577,20 @@ func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
 					Msg: err.Error(),
 				})
 			}
+		} else if p.cur.Type != tokEOF {
+			// The grammar root is `stmts EOF` (antlr_rules.md §1): a complete
+			// statement must be followed by end-of-input. parseStmt succeeded but
+			// left tokens behind — e.g. `GRANT a ON foo TO 'x' garbage` — so the
+			// segment is NOT a single well-formed statement. Without this check the
+			// trailing junk is silently dropped (stmts=1, errs=0), a false-accept
+			// that yields zero diagnostics for the Diagnose consumer. Report a
+			// syntax error at the first unconsumed token and drop the node: the
+			// segment as a whole does not parse, matching every other reject path
+			// (which all return a nil node). We assert EOF only on the success
+			// path — a parse that already errored left cur mid-statement, so
+			// asserting EOF there would emit a spurious second diagnostic.
+			p.errors = append(p.errors, *p.syntaxErrorAtCur())
+			node = nil
 		}
 		result = node
 	}

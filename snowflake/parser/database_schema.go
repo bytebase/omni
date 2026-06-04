@@ -172,6 +172,25 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwMATERIALIZED:
 		p.advance() // consume MATERIALIZED
 		return p.parseAlterMaterializedViewStmt()
+	case kwSTAGE:
+		// ALTER STAGE ... (T4.1).
+		return p.parseAlterStageStmt()
+	case kwFILE_FORMAT, kwFILE:
+		// ALTER FILE FORMAT ... (T4.2). FILE FORMAT lexes as one FILE_FORMAT token
+		// or two FILE+FORMAT tokens; both dispatch here.
+		return p.parseAlterFileFormatStmt()
+	case kwPIPE:
+		// ALTER PIPE ... (T4.3).
+		return p.parseAlterPipeStmt()
+	case kwSTREAM:
+		// ALTER STREAM ... (T4.3).
+		return p.parseAlterStreamStmt()
+	case kwTASK:
+		// ALTER TASK ... (T4.3).
+		return p.parseAlterTaskStmt()
+	case kwALERT:
+		// ALTER ALERT ... (T4.3).
+		return p.parseAlterAlertStmt()
 	default:
 		return p.unsupported("ALTER")
 	}

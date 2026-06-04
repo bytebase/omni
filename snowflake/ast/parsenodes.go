@@ -2550,3 +2550,528 @@ var (
 	_ Node = (*ListStmt)(nil)
 	_ Node = (*RemoveStmt)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// Stage DDL — CREATE / ALTER STAGE (T4.1)
+// ---------------------------------------------------------------------------
+//
+// Like COPY, the stage grammar carries large, version-growing option
+// vocabularies: the external-stage cloud params (URL, STORAGE_INTEGRATION,
+// CREDENTIALS, ENCRYPTION, ENDPOINT, AWS_ACCESS_POINT_ARN,
+// USE_PRIVATELINK_ENDPOINT, ...), the directory-table params (DIRECTORY = (...)),
+// the file-format params (FILE_FORMAT = (FORMAT_NAME = ... | TYPE = ... ...)) and
+// the copy options (COPY_OPTIONS = (...)). Rather than enumerate them — the
+// legacy ANTLR grammar's finite lists are already stale relative to the docs
+// (they lack AWS_ACCESS_POINT_ARN, USE_PRIVATELINK_ENDPOINT, ENDPOINT, the
+// s3compat:// form, ...) — every such param is captured as an open-ended
+// `KEY = <value>` pair (CopyOption), reusing the merged COPY (T5.2) machinery.
+// Only the structurally-distinct WITH TAG and COMMENT clauses, and the ALTER
+// action keywords (RENAME / SET / UNSET / REFRESH), anchor the grammar. The
+// catalog/semantic layer, not the parser, validates that an option is legal.
+
+// CreateStageStmt represents
+//
+//	CREATE [ OR REPLACE ] [ TEMP | TEMPORARY ] STAGE [ IF NOT EXISTS ] <name>
+//	  <stageParams>            -- internal: ENCRYPTION=(...); external: URL=...,
+//	                              STORAGE_INTEGRATION=..., CREDENTIALS=(...),
+//	                              ENCRYPTION=(...), ...
+//	  [ DIRECTORY = ( ... ) ]
+//	  [ FILE_FORMAT = ( ... ) ]
+//	  [ COPY_OPTIONS = ( ... ) ]
+//	  [ COMMENT = '<string>' ]
+//	  [ [ WITH ] TAG ( <tag> = '<value>' [ , ... ] ) ]
+//
+// All cloud/format/copy/comment params are captured open-ended in Options,
+// preserving source order (an internal stage simply has no URL option). Tags
+// holds the WITH TAG assignments. There is no dedicated External flag: an
+// external stage is exactly one that carries a URL option, which downstream
+// consumers can detect.
+type CreateStageStmt struct {
+	OrReplace   bool
+	Temporary   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Options     []*CopyOption    // URL / STORAGE_INTEGRATION / CREDENTIALS / ENCRYPTION / DIRECTORY / FILE_FORMAT / COPY_OPTIONS / COMMENT / ...
+	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
+	Loc         Loc
+}
+
+func (n *CreateStageStmt) Tag() NodeTag { return T_CreateStageStmt }
+
+// AlterStageAction discriminates the action variants of ALTER STAGE.
+type AlterStageAction int
+
+const (
+	AlterStageRename   AlterStageAction = iota // RENAME TO <new_name>
+	AlterStageSet                              // SET <stageParams|FILE_FORMAT|COPY_OPTIONS|COMMENT|DIRECTORY>
+	AlterStageUnset                            // UNSET <property names> (e.g. DCM PROJECT)
+	AlterStageSetTag                           // SET TAG (...)
+	AlterStageUnsetTag                         // UNSET TAG (...)
+	AlterStageRefresh                          // REFRESH [ SUBPATH = '<relative-path>' ]
+)
+
+// AlterStageStmt represents ALTER STAGE [IF EXISTS] <name> <action>.
+//
+//	RENAME TO <new_name>
+//	SET <options>                       -- open-ended KEY = value params
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
+//	UNSET <property> [ , ... ]          -- e.g. UNSET DCM PROJECT
+//	REFRESH [ SUBPATH = '<relative-path>' ]
+type AlterStageStmt struct {
+	IfExists   bool
+	Name       *ObjectName
+	Action     AlterStageAction
+	NewName    *ObjectName      // RENAME TO target; non-nil for AlterStageRename
+	Options    []*CopyOption    // SET <options>; for AlterStageSet
+	Tags       []*TagAssignment // SET TAG (...) assignments; for AlterStageSetTag
+	UnsetTags  []*ObjectName    // UNSET TAG (...) names; for AlterStageUnsetTag
+	UnsetProps []string         // UNSET <property> names; for AlterStageUnset
+	Subpath    *string          // REFRESH SUBPATH = '...'; nil when absent
+	Loc        Loc
+}
+
+func (n *AlterStageStmt) Tag() NodeTag { return T_AlterStageStmt }
+
+// Compile-time assertions for stage DDL nodes.
+var (
+	_ Node = (*CreateStageStmt)(nil)
+	_ Node = (*AlterStageStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
+// File-format DDL — CREATE / ALTER FILE FORMAT (T4.2)
+// ---------------------------------------------------------------------------
+//
+// A named file format carries a TYPE ({ CSV | JSON | AVRO | ORC | PARQUET |
+// XML }) plus a large, type-dependent and version-growing vocabulary of
+// formatTypeOptions (CSV: FIELD_DELIMITER / SKIP_HEADER /
+// FIELD_OPTIONALLY_ENCLOSED_BY / NULL_IF / ...; JSON: STRIP_OUTER_ARRAY / ...;
+// PARQUET: BINARY_AS_TEXT / USE_VECTORIZED_SCANNER / ...; etc.). Rather than
+// enumerate those options — the legacy ANTLR grammar's format_type_options list
+// is already stale relative to the docs (it lacks USE_VECTORIZED_SCANNER,
+// USE_LOGICAL_TYPE, the per-type COMPRESSION variants, ...) — every option that
+// follows the TYPE clause is captured as an open-ended `KEY = <value>` pair
+// (CopyOption), reusing the merged COPY (T5.2) machinery. The TYPE keyword is
+// the one structural anchor (it selects which options are legal); COMMENT is
+// captured open-ended in Options. The catalog/semantic layer, not the parser,
+// validates that an option is real and legal for the chosen TYPE. This mirrors
+// the merged STAGE (T4.1) / COPY (T5.2) open-ended approach.
+
+// CreateFileFormatStmt represents
+//
+//	CREATE [ OR REPLACE ] [ { TEMP | TEMPORARY | VOLATILE } ]
+//	  FILE FORMAT [ IF NOT EXISTS ] <name>
+//	  [ TYPE = { CSV | JSON | AVRO | ORC | PARQUET | XML } ]
+//	  [ formatTypeOptions ]
+//	  [ COMMENT = '<string_literal>' ]
+//
+// Type holds the uppercased format type word (e.g. "CSV"); it is "" when the
+// TYPE clause is omitted (TYPE is optional per the docs, defaulting to CSV).
+// Options holds the formatTypeOptions and the COMMENT clause, each a CopyOption,
+// preserving source order. There is no dedicated External/Volatile distinction
+// beyond the Temporary flag: VOLATILE is a synonym of TEMPORARY here and sets
+// Temporary.
+type CreateFileFormatStmt struct {
+	OrReplace   bool
+	Temporary   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Type        string        // uppercased TYPE word (CSV/JSON/AVRO/ORC/PARQUET/XML); "" if omitted
+	TypeLoc     Loc           // Loc of the TYPE value word; zero when Type is ""
+	Options     []*CopyOption // formatTypeOptions + COMMENT, preserving source order
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateFileFormatStmt) Tag() NodeTag { return T_CreateFileFormatStmt }
+
+// AlterFileFormatAction discriminates the action variants of ALTER FILE FORMAT.
+type AlterFileFormatAction int
+
+const (
+	AlterFileFormatRename AlterFileFormatAction = iota // RENAME TO <new_name>
+	AlterFileFormatSet                                 // SET <formatTypeOptions> [COMMENT=...]
+)
+
+// AlterFileFormatStmt represents
+//
+//	ALTER FILE FORMAT [ IF EXISTS ] <name> RENAME TO <new_name>
+//	ALTER FILE FORMAT [ IF EXISTS ] <name> SET { [ formatTypeOptions ] [ COMMENT = '<string_literal>' ] }
+//
+// The SET form is unparenthesized (per the docs and the legacy ANTLR grammar):
+// the formatTypeOptions and COMMENT follow SET directly. ALTER FILE FORMAT
+// supports no UNSET, no SET TAG, and no RENAME-plus-SET combination.
+type AlterFileFormatStmt struct {
+	IfExists bool
+	Name     *ObjectName
+	Action   AlterFileFormatAction
+	NewName  *ObjectName   // RENAME TO target; non-nil for AlterFileFormatRename
+	Options  []*CopyOption // SET <formatTypeOptions> [COMMENT=...]; for AlterFileFormatSet
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *AlterFileFormatStmt) Tag() NodeTag { return T_AlterFileFormatStmt }
+
+// Compile-time assertions for file-format DDL nodes.
+var (
+	_ Node = (*CreateFileFormatStmt)(nil)
+	_ Node = (*AlterFileFormatStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
+// Data-pipeline DDL — CREATE / ALTER PIPE / STREAM / TASK / ALERT (T4.3)
+// ---------------------------------------------------------------------------
+//
+// These four objects are Snowflake's data-pipeline primitives. Like STAGE /
+// FILE FORMAT / COPY before them, each carries a large, version-growing
+// configuration vocabulary (PIPE: AUTO_INGEST / INTEGRATION / ERROR_INTEGRATION
+// / AWS_SNS_TOPIC / ...; TASK: WAREHOUSE / SCHEDULE / CONFIG / OVERLAP_POLICY /
+// ERROR_INTEGRATION / SUCCESS_INTEGRATION / LOG_LEVEL / TARGET_COMPLETION_INTERVAL
+// / SERVERLESS_TASK_* / arbitrary session parameters / ...; ALERT: WAREHOUSE /
+// SCHEDULE / COMMENT / CONFIG / RUNBOOK / SUSPEND_ALERT_AFTER_NUM_FAILURES /
+// ...). The legacy ANTLR grammar enumerates a stale subset of each (its
+// create_task lists only task_overlap?/task_timeout?/task_suspend_after_failure;
+// its create_pipe lacks SUCCESS-side options; etc.), so — matching the merged
+// STAGE (T4.1) / FILE FORMAT (T4.2) / COPY (T5.2) approach — every such config
+// parameter is captured as an open-ended `KEY = <value>` pair (CopyOption). Only
+// the structural anchors are modeled as dedicated fields: the embedded statement
+// bodies (PIPE's AS COPY, TASK's AS <sql>, ALERT's IF(EXISTS(...)) THEN <action>),
+// STREAM's ON <source> + AT/BEFORE time-travel, TASK's AFTER predecessor list and
+// WHEN predicate, and the [WITH] TAG / COPY GRANTS clauses.
+//
+// Embedded bodies are handled by REUSING the existing statement parsers rather
+// than reinventing them: PIPE's body is parsed by parseCopyStmt, ALERT's
+// condition by parseQueryExpr, and TASK's body / ALERT's action by the top-level
+// parseStmt. Because a TASK body may be a Snowflake Scripting block
+// (BEGIN…END / DECLARE…BEGIN…END) or any statement parseStmt does not yet
+// support (e.g. CALL), those bodies additionally retain the verbatim source text
+// (BodyRaw / ActionRaw) and tolerate a nil parsed node — the statement is never
+// rejected on account of an unsupported body. (F3's Split already keeps a
+// `... AS BEGIN … END;` body as one segment, so the body text runs to the
+// segment end.)
+
+// PipeOption / StreamOption / TaskOption / AlertOption are all CopyOption — the
+// shared open-ended `KEY = <value>` option type. The aliases below exist only to
+// document intent at the field declarations; no separate type is introduced.
+
+// CreatePipeStmt represents
+//
+//	CREATE [ OR REPLACE ] PIPE [ IF NOT EXISTS ] <name>
+//	  [ AUTO_INGEST = { TRUE | FALSE } ]
+//	  [ ERROR_INTEGRATION = <integration_name> ]
+//	  [ AWS_SNS_TOPIC = '<string>' ]
+//	  [ INTEGRATION = '<string>' ]
+//	  [ COMMENT = '<string_literal>' ]
+//	  AS <copy_statement>
+//
+// Options holds every config parameter that precedes AS (AUTO_INGEST /
+// ERROR_INTEGRATION / AWS_SNS_TOPIC / INTEGRATION / COMMENT / ...), each a
+// CopyOption, preserving source order. Copy holds the parsed `AS COPY INTO`
+// body (a *CopyIntoTableStmt); the AS body is always a COPY INTO, which the
+// parser fully supports, so Copy is non-nil for a well-formed statement. The
+// body may be wrapped in parentheses in the source (`AS (COPY INTO …)`); the
+// parens are not retained.
+type CreatePipeStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Options     []*CopyOption // AUTO_INGEST / ERROR_INTEGRATION / AWS_SNS_TOPIC / INTEGRATION / COMMENT / ...
+	Copy        Node          // the AS <copy_into_table> body (parseCopyStmt result)
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreatePipeStmt) Tag() NodeTag { return T_CreatePipeStmt }
+
+// AlterPipeAction discriminates the action variants of ALTER PIPE.
+type AlterPipeAction int
+
+const (
+	AlterPipeSet      AlterPipeAction = iota // SET <options>
+	AlterPipeUnset                           // UNSET <property> [, ...]
+	AlterPipeSetTag                          // SET TAG <tag> = '<value>' [, ...]
+	AlterPipeUnsetTag                        // UNSET TAG <tag> [, ...]
+	AlterPipeRefresh                         // REFRESH [ PREFIX = '<p>' ] [ MODIFIED_AFTER = '<ts>' ]
+)
+
+// AlterPipeStmt represents ALTER PIPE [ IF EXISTS ] <name> <action>.
+//
+//	SET <options>                                        -- open-ended KEY = value
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
+//	UNSET <property> [ , ... ]                            -- e.g. PIPE_EXECUTION_PAUSED, COMMENT
+//	REFRESH [ PREFIX = '<path>' ] [ MODIFIED_AFTER = '<timestamp>' ]
+type AlterPipeStmt struct {
+	IfExists   bool
+	Name       *ObjectName
+	Action     AlterPipeAction
+	Options    []*CopyOption    // SET <options> / REFRESH PREFIX|MODIFIED_AFTER params
+	Tags       []*TagAssignment // SET TAG assignments; for AlterPipeSetTag
+	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterPipeUnsetTag
+	UnsetProps []string         // UNSET <property> names; for AlterPipeUnset
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterPipeStmt) Tag() NodeTag { return T_AlterPipeStmt }
+
+// StreamSourceKind classifies the object a stream is created ON.
+type StreamSourceKind int
+
+const (
+	StreamOnTable         StreamSourceKind = iota // ON TABLE <name>
+	StreamOnView                                  // ON VIEW <name>
+	StreamOnStage                                 // ON STAGE <name>
+	StreamOnExternalTable                         // ON EXTERNAL TABLE <name>
+)
+
+// StreamTimeTravel holds a stream's { AT | BEFORE } ( <key> => <value> ) clause.
+// Per the docs the key is one of TIMESTAMP / OFFSET / STATEMENT / STREAM and the
+// value is a general expression (the corpus shows function calls like
+// TO_TIMESTAMP(...), arithmetic like -60*5, and string literals). Both the AT/
+// BEFORE selector and the key are captured verbatim (uppercased); Value holds the
+// parsed value expression.
+type StreamTimeTravel struct {
+	AtBefore string // "AT" or "BEFORE"
+	Key      string // "TIMESTAMP" / "OFFSET" / "STATEMENT" / "STREAM" (uppercased)
+	Value    Node   // the => value expression
+	Loc      Loc
+}
+
+// CreateStreamStmt represents
+//
+//	CREATE [ OR REPLACE ] STREAM [ IF NOT EXISTS ] <name>
+//	  [ [ WITH ] TAG ( <tag> = '<value>' [ , ... ] ) ]
+//	  [ COPY GRANTS ]
+//	  ON { TABLE | VIEW | STAGE | EXTERNAL TABLE } <object_name>
+//	  [ { AT | BEFORE } ( { TIMESTAMP => … | OFFSET => … | STATEMENT => … | STREAM => … } ) ]
+//	  [ APPEND_ONLY = { TRUE | FALSE } ]      -- TABLE/VIEW
+//	  [ INSERT_ONLY = TRUE ]                  -- EXTERNAL TABLE
+//	  [ SHOW_INITIAL_ROWS = { TRUE | FALSE } ]
+//	  [ COMMENT = '<string_literal>' ]
+//
+// (plus a CLONE variant: CREATE [OR REPLACE] STREAM <name> CLONE <source> [COPY GRANTS].)
+//
+// SourceKind + Source model the mandatory ON clause. TimeTravel holds the
+// optional AT/BEFORE clause. Options holds every trailing config parameter
+// (APPEND_ONLY / INSERT_ONLY / SHOW_INITIAL_ROWS / COMMENT / ...) open-ended,
+// preserving source order — they are not type-validated against SourceKind here
+// (the catalog/semantic layer does that). Tags holds the [WITH] TAG assignments;
+// CopyGrants records the COPY GRANTS flag. For the CLONE form, Clone is set and
+// SourceKind/Source/Options are zero.
+type CreateStreamStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Tags        []*TagAssignment  // [WITH] TAG (...); nil if absent
+	CopyGrants  bool              // COPY GRANTS
+	SourceKind  StreamSourceKind  // ON { TABLE | VIEW | STAGE | EXTERNAL TABLE }
+	Source      *ObjectName       // the ON <object_name>
+	TimeTravel  *StreamTimeTravel // { AT | BEFORE } (...); nil if absent
+	Options     []*CopyOption     // APPEND_ONLY / INSERT_ONLY / SHOW_INITIAL_ROWS / COMMENT / ...
+	Clone       *ObjectName       // CLONE <source>; non-nil only for the CLONE form
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateStreamStmt) Tag() NodeTag { return T_CreateStreamStmt }
+
+// AlterStreamAction discriminates the action variants of ALTER STREAM.
+type AlterStreamAction int
+
+const (
+	AlterStreamSet      AlterStreamAction = iota // SET <options>
+	AlterStreamUnset                             // UNSET <property> [, ...] (e.g. COMMENT)
+	AlterStreamSetTag                            // SET TAG <tag> = '<value>' [, ...]
+	AlterStreamUnsetTag                          // UNSET TAG <tag> [, ...]
+)
+
+// AlterStreamStmt represents ALTER STREAM [ IF EXISTS ] <name> <action>.
+//
+//	SET <options>                              -- open-ended KEY = value (COMMENT = '…')
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
+//	UNSET <property> [ , ... ]                  -- e.g. COMMENT
+type AlterStreamStmt struct {
+	IfExists   bool
+	Name       *ObjectName
+	Action     AlterStreamAction
+	Options    []*CopyOption    // SET <options>; for AlterStreamSet
+	Tags       []*TagAssignment // SET TAG assignments; for AlterStreamSetTag
+	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterStreamUnsetTag
+	UnsetProps []string         // UNSET <property> names; for AlterStreamUnset
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterStreamStmt) Tag() NodeTag { return T_AlterStreamStmt }
+
+// CreateTaskStmt represents
+//
+//	CREATE [ OR REPLACE ] TASK [ IF NOT EXISTS ] <name>
+//	  [ [ WITH ] TAG ( … ) ]
+//	  [ config parameters: WAREHOUSE | USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE |
+//	    SCHEDULE | CONFIG | OVERLAP_POLICY | <session_parameter> | USER_TASK_TIMEOUT_MS |
+//	    SUSPEND_TASK_AFTER_NUM_FAILURES | ERROR_INTEGRATION | SUCCESS_INTEGRATION |
+//	    LOG_LEVEL | COMMENT | FINALIZE | TASK_AUTO_RETRY_ATTEMPTS | … ]
+//	  [ AFTER <predecessor> [ , <predecessor> , ... ] ]
+//	  [ WHEN <boolean_expr> ]
+//	  AS <sql>
+//
+// Options holds every config parameter that precedes AFTER/WHEN/AS, open-ended,
+// preserving source order. After holds the AFTER predecessor list (object names;
+// the corpus uses bare identifiers while the docs spell them as strings — object
+// names cover both). When holds the optional WHEN predicate expression. Body /
+// BodyRaw hold the AS body: Body is the parsed statement (a SELECT / INSERT /
+// etc.) when parseStmt supports it, and nil for a Snowflake Scripting block
+// (BEGIN…END / DECLARE…BEGIN…END) or any other unsupported body; BodyRaw always
+// holds the verbatim body source text so consumers retain it regardless. Tags
+// holds the [WITH] TAG assignments.
+//
+// CREATE TASK also has a CLONE form (CREATE [OR REPLACE] TASK <name> CLONE
+// <source_task>), recorded via Clone with Options/After/When/Body all zero.
+type CreateTaskStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
+	Options     []*CopyOption    // WAREHOUSE / SCHEDULE / CONFIG / session params / ...
+	After       []*ObjectName    // AFTER <predecessor> [, ...]; nil if absent
+	When        Node             // WHEN <boolean_expr>; nil if absent
+	Body        Node             // AS <sql> parsed statement; nil for an unsupported/scripting body
+	BodyRaw     string           // verbatim AS body source text (always set)
+	Clone       *ObjectName      // CLONE <source_task>; non-nil only for the CLONE form
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateTaskStmt) Tag() NodeTag { return T_CreateTaskStmt }
+
+// AlterTaskAction discriminates the action variants of ALTER TASK.
+type AlterTaskAction int
+
+const (
+	AlterTaskResume      AlterTaskAction = iota // RESUME
+	AlterTaskSuspend                            // SUSPEND
+	AlterTaskAddAfter                           // ADD AFTER <task> [, ...]
+	AlterTaskRemoveAfter                        // REMOVE AFTER <task> [, ...]
+	AlterTaskSet                                // SET <options>
+	AlterTaskUnset                              // UNSET <property> [, ...]
+	AlterTaskSetTag                             // SET TAG <tag> = '<value>' [, ...]
+	AlterTaskUnsetTag                           // UNSET TAG <tag> [, ...]
+	AlterTaskModifyAs                           // MODIFY AS <sql>
+	AlterTaskModifyWhen                         // MODIFY WHEN <boolean_expr>
+)
+
+// AlterTaskStmt represents ALTER TASK [ IF EXISTS ] <name> <action>.
+//
+//	RESUME | SUSPEND
+//	{ ADD | REMOVE } AFTER <task> [ , ... ]
+//	SET <options>                              -- open-ended KEY = value
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
+//	UNSET <property> [ , ... ]
+//	MODIFY AS <sql>
+//	MODIFY WHEN <boolean_expr>
+type AlterTaskStmt struct {
+	IfExists   bool
+	Name       *ObjectName
+	Action     AlterTaskAction
+	After      []*ObjectName    // {ADD|REMOVE} AFTER list; for AlterTaskAddAfter/RemoveAfter
+	Options    []*CopyOption    // SET <options>; for AlterTaskSet
+	Tags       []*TagAssignment // SET TAG assignments; for AlterTaskSetTag
+	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterTaskUnsetTag
+	UnsetProps []string         // UNSET <property> names; for AlterTaskUnset
+	When       Node             // MODIFY WHEN <expr>; for AlterTaskModifyWhen
+	Body       Node             // MODIFY AS <sql> parsed statement; nil for an unsupported/scripting body
+	BodyRaw    string           // verbatim MODIFY AS body source text; set for AlterTaskModifyAs
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterTaskStmt) Tag() NodeTag { return T_AlterTaskStmt }
+
+// CreateAlertStmt represents
+//
+//	CREATE [ OR REPLACE ] ALERT [ IF NOT EXISTS ] <name>
+//	  [ [ WITH ] TAG ( … ) ]
+//	  [ WAREHOUSE = <warehouse_name> ]        -- optional for serverless alerts
+//	  SCHEDULE = '<schedule>'
+//	  [ COMMENT = '…' ] [ CONFIG = '…' ] [ RUNBOOK = '…' ]
+//	  [ SUSPEND_ALERT_AFTER_NUM_FAILURES = <n> ]
+//	  IF ( EXISTS ( <condition> ) )
+//	  THEN <action>
+//
+// Options holds every config parameter that precedes IF (WAREHOUSE / SCHEDULE /
+// COMMENT / CONFIG / RUNBOOK / SUSPEND_ALERT_AFTER_NUM_FAILURES / ...),
+// open-ended, preserving source order — WAREHOUSE and SCHEDULE are NOT lifted out
+// (WAREHOUSE is optional for serverless alerts and SCHEDULE's value vocabulary
+// grows), matching the open-ended philosophy. Condition holds the query inside
+// IF(EXISTS(<condition>)) (a SELECT / SHOW / CALL; parsed via parseQueryExpr for
+// the SELECT case). Action / ActionRaw hold the THEN body: Action is the parsed
+// statement when parseStmt supports it, nil otherwise; ActionRaw always holds the
+// verbatim action source text.
+type CreateAlertStmt struct {
+	OrReplace    bool
+	IfNotExists  bool
+	Name         *ObjectName
+	Tags         []*TagAssignment // [WITH] TAG (...); nil if absent
+	Options      []*CopyOption    // WAREHOUSE / SCHEDULE / COMMENT / CONFIG / RUNBOOK / ...
+	Condition    Node             // IF(EXISTS(<condition>)) query; nil only if unparsed
+	ConditionRaw string           // verbatim condition source text (always set)
+	Action       Node             // THEN <action> parsed statement; nil for an unsupported body
+	ActionRaw    string           // verbatim THEN action source text (always set)
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *CreateAlertStmt) Tag() NodeTag { return T_CreateAlertStmt }
+
+// AlterAlertAction discriminates the action variants of ALTER ALERT.
+type AlterAlertAction int
+
+const (
+	AlterAlertResume          AlterAlertAction = iota // RESUME
+	AlterAlertSuspend                                 // SUSPEND
+	AlterAlertSet                                     // SET <options>
+	AlterAlertUnset                                   // UNSET <property> [, ...]
+	AlterAlertModifyCondition                         // MODIFY CONDITION EXISTS (<query>)
+	AlterAlertModifyAction                            // MODIFY ACTION <action>
+)
+
+// AlterAlertStmt represents ALTER ALERT [ IF EXISTS ] <name> <action>.
+//
+//	RESUME | SUSPEND
+//	SET <options>                              -- WAREHOUSE = … | SCHEDULE = … | COMMENT = …
+//	UNSET <property> [ , ... ]                  -- WAREHOUSE | SCHEDULE | COMMENT
+//	MODIFY CONDITION EXISTS ( <query> )
+//	MODIFY ACTION <action>
+type AlterAlertStmt struct {
+	IfExists     bool
+	Name         *ObjectName
+	Action       AlterAlertAction
+	Options      []*CopyOption // SET <options>; for AlterAlertSet
+	UnsetProps   []string      // UNSET <property> names; for AlterAlertUnset
+	Condition    Node          // MODIFY CONDITION EXISTS (<query>); for AlterAlertModifyCondition
+	ConditionRaw string        // verbatim condition source text; set for AlterAlertModifyCondition
+	ActionBody   Node          // MODIFY ACTION <action> parsed statement; nil for an unsupported body
+	ActionRaw    string        // verbatim MODIFY ACTION source text; set for AlterAlertModifyAction
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *AlterAlertStmt) Tag() NodeTag { return T_AlterAlertStmt }
+
+// Compile-time assertions for data-pipeline DDL nodes.
+var (
+	_ Node = (*CreatePipeStmt)(nil)
+	_ Node = (*AlterPipeStmt)(nil)
+	_ Node = (*CreateStreamStmt)(nil)
+	_ Node = (*AlterStreamStmt)(nil)
+	_ Node = (*CreateTaskStmt)(nil)
+	_ Node = (*AlterTaskStmt)(nil)
+	_ Node = (*CreateAlertStmt)(nil)
+	_ Node = (*AlterAlertStmt)(nil)
+)

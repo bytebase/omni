@@ -39,17 +39,18 @@ func TestParse_UnknownStatement(t *testing.T) {
 }
 
 // TestParse_KnownStatementUnsupported verifies that a statement whose leading
-// keyword IS in the dispatch switch but whose body is stubbed yields a
-// "not yet supported" diagnostic rather than an "unknown statement" one. The
-// foundation node ships dispatch only; concrete statement parsers arrive in
-// later DAG nodes.
+// keyword IS in the dispatch switch but whose body is STILL stubbed (no DAG node
+// has implemented it yet) yields a "not yet supported" diagnostic rather than an
+// "unknown statement" one. INSERT (parser-dml's job) is still stubbed; SELECT and
+// the rest of the query layer are now implemented by parser-select, so this test
+// uses a statement that remains a foundation stub.
 func TestParse_KnownStatementUnsupported(t *testing.T) {
-	file, errs := Parse("SELECT 1")
+	file, errs := Parse("INSERT INTO t VALUES (1)")
 	if file == nil {
 		t.Fatal("Parse: File is nil")
 	}
 	if len(errs) != 1 {
-		t.Fatalf("Parse(\"SELECT 1\"): got %d errors, want 1: %v", len(errs), errs)
+		t.Fatalf("Parse(\"INSERT ...\"): got %d errors, want 1: %v", len(errs), errs)
 	}
 	if !strings.Contains(errs[0].Msg, "not yet supported") {
 		t.Errorf("error = %q, want it to mention 'not yet supported'", errs[0].Msg)
@@ -57,10 +58,11 @@ func TestParse_KnownStatementUnsupported(t *testing.T) {
 }
 
 // TestParse_MultiStatementErrorsCollected verifies that ParseBestEffort
-// collects errors from every segment, not just the first. Two stubbed
-// statements separated by ';' must yield two errors.
+// collects errors from every segment, not just the first. Two still-stubbed
+// statements (INSERT and DELETE, parser-dml's job) separated by ';' must yield
+// two errors.
 func TestParse_MultiStatementErrorsCollected(t *testing.T) {
-	res := ParseBestEffort("SELECT 1; INSERT INTO t VALUES (1)")
+	res := ParseBestEffort("INSERT INTO t VALUES (1); DELETE FROM u")
 	if got := len(res.Errors); got != 2 {
 		t.Fatalf("ParseBestEffort: got %d errors, want 2: %v", got, res.Errors)
 	}

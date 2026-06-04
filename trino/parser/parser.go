@@ -196,19 +196,12 @@ func (p *Parser) unknownStatementError() *ParseError {
 func (p *Parser) parseStmt() (ast.Node, error) {
 	switch p.cur.Kind {
 	// --- Query (rootQuery / queryPrimary leading tokens) ---
-	case kwSELECT:
-		return p.unsupported("SELECT")
-	case kwWITH:
-		// WITH cte... query  OR  WITH FUNCTION ... query (inline routine).
-		return p.unsupported("WITH")
-	case kwTABLE:
-		// TABLE qualifiedName — a query primary, e.g. `TABLE t`.
-		return p.unsupported("TABLE")
-	case kwVALUES:
-		return p.unsupported("VALUES")
-	case int('('):
-		// Parenthesized query expression at top level, e.g. (SELECT 1) UNION (SELECT 2).
-		return p.unsupported("query")
+	// SELECT / WITH / TABLE / VALUES / '(' all begin a query; parser-select's
+	// parseQueryStmt parses the whole query layer. (A leading `WITH FUNCTION`
+	// inline routine is the parser-routines node; parseQuery reports it as
+	// unsupported until that node lands.)
+	case kwSELECT, kwWITH, kwTABLE, kwVALUES, int('('):
+		return p.parseQueryStmt()
 
 	// --- Session / catalog context ---
 	case kwUSE:
@@ -216,8 +209,22 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// --- DDL ---
 	case kwCREATE:
+		// CREATE ROLE belongs to the parser-dcl-tcl node (grant_revoke.go);
+		// every other CREATE object is a parser-ddl concern (still stubbed).
+		if p.peekNext().Kind == kwROLE {
+			createTok := p.advance() // consume CREATE
+			p.advance()              // consume ROLE
+			return p.parseCreateRoleStmt(createTok.Loc.Start)
+		}
 		return p.unsupported("CREATE")
 	case kwDROP:
+		// DROP ROLE belongs to the parser-dcl-tcl node (grant_revoke.go);
+		// every other DROP object is a parser-ddl concern (still stubbed).
+		if p.peekNext().Kind == kwROLE {
+			dropTok := p.advance() // consume DROP
+			p.advance()            // consume ROLE
+			return p.parseDropRoleStmt(dropTok.Loc.Start)
+		}
 		return p.unsupported("DROP")
 	case kwALTER:
 		return p.unsupported("ALTER")
@@ -244,13 +251,13 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwCALL:
 		return p.parseCallStmt()
 
-	// --- DCL (roles / privileges) ---
+	// --- DCL (roles / privileges) --- [parser-dcl-tcl node: grant_revoke.go]
 	case kwGRANT:
-		return p.unsupported("GRANT")
+		return p.parseGrantStmt()
 	case kwREVOKE:
-		return p.unsupported("REVOKE")
+		return p.parseRevokeStmt()
 	case kwDENY:
-		return p.unsupported("DENY")
+		return p.parseDenyStmt()
 
 	// --- Session / path / time zone ---
 	case kwSET:
@@ -269,26 +276,41 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwEXPLAIN:
 		// EXPLAIN / EXPLAIN ANALYZE. See explain_call.go.
 		return p.parseExplainStmt()
-	case kwDESCRIBE, kwDESC:
-		// DESCRIBE/DESC name == SHOW COLUMNS; DESCRIBE INPUT/OUTPUT route to the
-		// prepared-statement node (parser-dcl-tcl). See show.go.
+	case kwDESCRIBE:
+		// DESCRIBE INPUT/OUTPUT <name> are prepared-statement introspection
+		// (parser-dcl-tcl: prepared.go), claimed only when INPUT/OUTPUT is
+		// followed by a statement name. INPUT/OUTPUT are NON-RESERVED, so a
+		// bare `DESCRIBE INPUT` or `DESCRIBE INPUT.col` is the SHOW COLUMNS
+		// alias `DESCRIBE qualifiedName` (INPUT/OUTPUT as the table name).
+		if (p.peekNext().Kind == kwINPUT || p.peekNext().Kind == kwOUTPUT) && p.describeIntrospectionFollows() {
+			descTok := p.advance() // consume DESCRIBE
+			kind := p.advance()    // consume INPUT / OUTPUT
+			if kind.Kind == kwINPUT {
+				return p.parseDescribeInputStmt(descTok.Loc.Start)
+			}
+			return p.parseDescribeOutputStmt(descTok.Loc.Start)
+		}
+		// DESCRIBE name == SHOW COLUMNS (parser-utility). See show.go.
+		return p.parseDescribeStmt()
+	case kwDESC:
+		// DESC name == SHOW COLUMNS; DESC has no prepared form.
 		return p.parseDescribeStmt()
 
-	// --- Transactions ---
+	// --- Transactions --- [parser-dcl-tcl node: transaction.go]
 	case kwSTART:
-		return p.unsupported("START TRANSACTION")
+		return p.parseStartTransactionStmt()
 	case kwCOMMIT:
-		return p.unsupported("COMMIT")
+		return p.parseCommitStmt()
 	case kwROLLBACK:
-		return p.unsupported("ROLLBACK")
+		return p.parseRollbackStmt()
 
-	// --- Prepared statements ---
+	// --- Prepared statements --- [parser-dcl-tcl node: prepared.go]
 	case kwPREPARE:
-		return p.unsupported("PREPARE")
+		return p.parsePrepareStmt()
 	case kwDEALLOCATE:
-		return p.unsupported("DEALLOCATE")
+		return p.parseDeallocateStmt()
 	case kwEXECUTE:
-		return p.unsupported("EXECUTE")
+		return p.parseExecuteStmt()
 
 	default:
 		return nil, p.unknownStatementError()
@@ -365,14 +387,10 @@ func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
 				})
 			}
 		} else if p.cur.Kind != tokEOF {
-			// A statement parsed without error but did not consume the whole
-			// segment: tokens remain after a complete statement. Because Split
-			// already cut the input on statement boundaries (';'), leftover
-			// tokens here mean the statement grammar rejected the tail — e.g.
-			// `SHOW SCHEMAS FROM c.x` (the scope is a single identifier, so `.x`
-			// is extra) or `DESC INPUT a` (DESCRIBE-table takes one name, so `a`
-			// is extra). Trino reports these as SYNTAX_ERRORs, so the parser must
-			// too. Reported as trailing-token rather than swallowed.
+			// A statement parsed cleanly but did not consume the whole segment:
+			// the leftover tokens are a syntax error (e.g. `SELECT a a a`,
+			// `SELECT 1 garbage`). Each segment holds exactly one top-level
+			// statement (Split cut on ';'), so any trailing token is invalid here.
 			p.errors = append(p.errors, *p.syntaxErrorAtCur())
 		}
 		result = node
