@@ -102,6 +102,28 @@ const (
 	T_GroupByClause
 	T_GroupingItem
 	T_WindowDef
+
+	// Core DDL (googlesql/parser-ddl node).
+	//
+	// CREATE / ALTER / DROP over TABLE / VIEW / INDEX / SCHEMA / DATABASE for the
+	// BigQuery + Spanner union, plus their structural sub-nodes (column / option /
+	// constraint / key-part). These mirror the legacy ANTLR DDL grammar
+	// (GoogleSQLParser.g4 §2.2-§2.6), a hand-port of ZetaSQL.
+	T_OptionsEntry
+	T_KeyPart
+	T_ForeignKeyRef
+	T_ColumnDef
+	T_TableConstraint
+	T_InterleaveClause
+	T_CreateTableStmt
+	T_ViewColumn
+	T_CreateViewStmt
+	T_CreateIndexStmt
+	T_CreateSchemaStmt
+	T_CreateDatabaseStmt
+	T_AlterStmt
+	T_AlterAction
+	T_DropStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -233,6 +255,36 @@ func (t NodeTag) String() string {
 		return "GroupingItem"
 	case T_WindowDef:
 		return "WindowDef"
+	case T_OptionsEntry:
+		return "OptionsEntry"
+	case T_KeyPart:
+		return "KeyPart"
+	case T_ForeignKeyRef:
+		return "ForeignKeyRef"
+	case T_ColumnDef:
+		return "ColumnDef"
+	case T_TableConstraint:
+		return "TableConstraint"
+	case T_InterleaveClause:
+		return "InterleaveClause"
+	case T_CreateTableStmt:
+		return "CreateTableStmt"
+	case T_ViewColumn:
+		return "ViewColumn"
+	case T_CreateViewStmt:
+		return "CreateViewStmt"
+	case T_CreateIndexStmt:
+		return "CreateIndexStmt"
+	case T_CreateSchemaStmt:
+		return "CreateSchemaStmt"
+	case T_CreateDatabaseStmt:
+		return "CreateDatabaseStmt"
+	case T_AlterStmt:
+		return "AlterStmt"
+	case T_AlterAction:
+		return "AlterAction"
+	case T_DropStmt:
+		return "DropStmt"
 	default:
 		return "Unknown"
 	}
