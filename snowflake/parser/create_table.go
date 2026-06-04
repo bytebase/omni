@@ -86,6 +86,9 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	case kwMATERIALIZED:
 		p.advance() // consume MATERIALIZED
 		return p.parseCreateMaterializedViewStmt(start, orReplace, false)
+	case kwSTAGE:
+		// CREATE [OR REPLACE] [TEMP|TEMPORARY] STAGE ... (T4.1).
+		return p.parseCreateStageStmt(start, orReplace, temporary)
 	default:
 		return p.unsupported("CREATE")
 	}

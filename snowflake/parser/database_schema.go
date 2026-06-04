@@ -172,6 +172,9 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwMATERIALIZED:
 		p.advance() // consume MATERIALIZED
 		return p.parseAlterMaterializedViewStmt()
+	case kwSTAGE:
+		// ALTER STAGE ... (T4.1).
+		return p.parseAlterStageStmt()
 	default:
 		return p.unsupported("ALTER")
 	}
