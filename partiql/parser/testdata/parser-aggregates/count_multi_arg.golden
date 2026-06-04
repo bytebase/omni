@@ -1,0 +1,1 @@
+FuncCall{Name:COUNT Args:[VarRef{Name:a} VarRef{Name:b}]}

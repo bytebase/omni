@@ -137,18 +137,12 @@ func (p *Parser) parsePrimaryBase() (ast.ExprNode, error) {
 		return p.parseKeywordFuncCall()
 
 	// ------------------------------------------------------------------
-	// Stub: aggregates → parser-aggregates
+	// Real: aggregate functions (DAG node 14, parser-aggregates).
+	// COUNT(*) / COUNT|SUM|AVG|MIN|MAX([DISTINCT|ALL] expr). Logic lives
+	// in aggregate.go.
 	// ------------------------------------------------------------------
-	case tokCOUNT:
-		return nil, p.deferredFeature("COUNT() aggregate", "parser-aggregates (DAG node 14)")
-	case tokMAX:
-		return nil, p.deferredFeature("MAX() aggregate", "parser-aggregates (DAG node 14)")
-	case tokMIN:
-		return nil, p.deferredFeature("MIN() aggregate", "parser-aggregates (DAG node 14)")
-	case tokSUM:
-		return nil, p.deferredFeature("SUM() aggregate", "parser-aggregates (DAG node 14)")
-	case tokAVG:
-		return nil, p.deferredFeature("AVG() aggregate", "parser-aggregates (DAG node 14)")
+	case tokCOUNT, tokSUM, tokAVG, tokMIN, tokMAX:
+		return p.parseAggregateExpr()
 
 	// ------------------------------------------------------------------
 	// Stub: window functions → parser-window

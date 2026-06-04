@@ -1,0 +1,1 @@
+FuncCall{Name:COUNT Quantifier:ALL Args:[VarRef{Name:x}]}
