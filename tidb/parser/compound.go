@@ -181,9 +181,9 @@ func (p *Parser) parseDeclareStmt() (nodes.Node, error) {
 		return nil, err
 	}
 
-	// DECLARE name CONDITION FOR ...
+	// DECLARE name CONDITION FOR ... — TiDB v8.5.0 has no DECLARE ... CONDITION.
 	if p.cur.Type == kwCONDITION {
-		return p.parseDeclareConditionStmt(start, name)
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// DECLARE name CURSOR FOR ...

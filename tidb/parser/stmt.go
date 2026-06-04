@@ -176,11 +176,9 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	case kwHANDLER:
 		return p.parseHandlerStmt()
 
-	case kwSIGNAL:
-		return p.parseSignalStmt()
-
-	case kwRESIGNAL:
-		return p.parseResignalStmt()
+	case kwSIGNAL, kwRESIGNAL:
+		// TiDB v8.5.0 has no SIGNAL / RESIGNAL statement.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwGET:
 		return p.parseGetDiagnosticsStmt()
@@ -682,20 +680,15 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 			}
 			return stmt, nil
 		case kwEVENT:
-			stmt, err := p.parseAlterEventStmt()
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			return stmt, nil
+			// TiDB v8.5.0 has no events (no ALTER EVENT).
+			return nil, p.syntaxErrorAtCur()
 		default:
 			return nil, &ParseError{Message: "unexpected token after DEFINER clause in ALTER", Position: p.cur.Loc}
 		}
 
 	case kwEVENT:
-		return p.parseAlterEventStmt()
+		// TiDB v8.5.0 has no events (no ALTER EVENT).
+		return nil, p.syntaxErrorAtCur()
 
 	case kwFUNCTION:
 		return p.parseAlterRoutineStmt(false)
