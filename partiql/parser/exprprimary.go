@@ -165,7 +165,7 @@ func (p *Parser) parsePrimaryBase() (ast.ExprNode, error) {
 //	(SELECT ...)       → routes through parseSelectExpr, which returns the
 //	                     parser-select (DAG node 5) stub error
 //	(expr, expr, ...)  → STUB: valueList deferred to parser-dml (DAG node 6)
-//	(expr MATCH ...)   → STUB: graph match deferred to parser-graph (DAG node 16)
+//	(expr MATCH ...)   → GPML graph match, parsed by parseGraphMatch (graph.go)
 //
 // Grammar: exprTerm#ExprTermWrappedQuery (line 543) + exprGraphMatchMany
 // (lines 625-626).
@@ -186,9 +186,15 @@ func (p *Parser) parseParenExpr() (ast.ExprNode, error) {
 		return nil, err
 	}
 
-	// Graph match: (expr MATCH ...) — deferred to parser-graph.
+	// Graph match: (expr MATCH ...) — GPML. parseGraphMatch (graph.go) owns
+	// MATCH through the pattern list and stops on the closing paren, which the
+	// PAREN_RIGHT handling below consumes.
 	if p.cur.Type == tokMATCH {
-		return nil, p.deferredFeature("graph MATCH expression", "parser-graph (DAG node 16)")
+		match, err := p.parseGraphMatch(first)
+		if err != nil {
+			return nil, err
+		}
+		first = match
 	}
 
 	// valueList: (expr, expr, ...) — deferred to parser-dml.

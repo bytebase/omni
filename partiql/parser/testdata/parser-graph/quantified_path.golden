@@ -1,0 +1,1 @@
+MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:a}} EdgePattern{Direction:-> Variable:VarRef{Name:e} Labels:[Knows] Quantifier:PatternQuantifier{Min:1 Max:3}} NodePattern{Variable:VarRef{Name:b}}]}]}

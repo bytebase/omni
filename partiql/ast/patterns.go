@@ -116,10 +116,22 @@ func (s SelectorKind) String() string {
 }
 
 // MatchExpr is the top-level graph-match expression: MATCH(graph_expr, pattern, …).
-// Implements ExprNode because PartiQL embeds graph matching in expression
-// position (exprGraphMatchOne / exprGraphMatchMany rules).
 //
-// Grammar: exprGraphMatchOne, exprGraphMatchMany
+// It implements BOTH ExprNode and TableExpr because PartiQL embeds graph
+// matching in two grammatical positions:
+//
+//   - expression position, parenthesised: exprGraphMatchMany
+//     `( exprPrimary MATCH gpmlPatternList )` (g4:625-626) — a MATCH list that
+//     may carry comma-separated patterns. Single (the only Pattern when this is
+//     reached via parseParenExpr; multi when a COMMA follows).
+//   - FROM position, optionally unparenthesised: exprGraphMatchOne
+//     `exprPrimary MATCH gpmlPattern` (g4:628-629), referenced by
+//     tableBaseReference#TableBaseRefMatch (g4:405) as a FROM source that may be
+//     decorated with AS/AT/BY aliases. In that position a MATCH is a real FROM
+//     source, so MatchExpr must satisfy TableExpr — otherwise the FROM parser
+//     would silently drop it (the source would never become a TableExpr).
+//
+// Grammar: exprGraphMatchOne, exprGraphMatchMany, tableBaseReference#TableBaseRefMatch
 type MatchExpr struct {
 	Expr     ExprNode        // the graph-valued expression being matched
 	Patterns []*GraphPattern // one or more pattern alternatives
@@ -129,16 +141,30 @@ type MatchExpr struct {
 func (*MatchExpr) nodeTag()      {}
 func (n *MatchExpr) GetLoc() Loc { return n.Loc }
 func (*MatchExpr) exprNode()     {}
+func (*MatchExpr) tableExpr()    {} // FROM g MATCH ... — tableBaseReference#TableBaseRefMatch
 
 // GraphPattern is one complete pattern: optional selector + restrictor +
 // path variable + a sequence of node/edge pattern parts.
 //
-// Grammar: gpmlPattern
+// A GraphPattern is reused for a grouped/parenthesised sub-pattern (the `pattern`
+// grammar rule), in which case it appears nested inside another GraphPattern's
+// Parts. Two fields are meaningful only in that nested-group role:
+//
+//   - Where:      a `whereClause?` filter over the whole sub-pattern group.
+//   - Quantifier: a `patternQuantifier?` (+, *, {m,n}) on the whole group.
+//
+// At the top level (gpmlPattern / gpmlPatternList) Selector is meaningful and
+// Where/Quantifier are always nil (the grammar attaches no group-level WHERE or
+// quantifier to a top-level matchPattern).
+//
+// Grammar: gpmlPattern (315-316) / matchPattern (321-322) / pattern (350-353)
 type GraphPattern struct {
 	Selector   *PatternSelector
 	Restrictor PatternRestrictor
 	Variable   *VarRef // optional `p = ...` path variable binding
 	Parts      []PatternNode
+	Where      ExprNode           // group-level whereClause (nested sub-pattern only)
+	Quantifier *PatternQuantifier // group-level quantifier (nested sub-pattern only)
 	Loc        Loc
 }
 

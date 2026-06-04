@@ -1,0 +1,1 @@
+MatchExpr{Expr:VarRef{Name:myGraph} Patterns:[GraphPattern{Parts:[NodePattern{Variable:VarRef{Name:a} Labels:[Account]} EdgePattern{Direction:-> Variable:VarRef{Name:t} Labels:[Transfer]} NodePattern{Variable:VarRef{Name:b} Labels:[Account]}]}]}

@@ -630,7 +630,16 @@ func writeNode(sb *strings.Builder, n Node) {
 			}
 			writeNode(sb, p)
 		}
-		sb.WriteString("]}")
+		sb.WriteString("]")
+		if v.Where != nil {
+			sb.WriteString(" Where:")
+			writeNode(sb, v.Where)
+		}
+		if v.Quantifier != nil {
+			sb.WriteString(" Quantifier:")
+			writeNode(sb, v.Quantifier)
+		}
+		sb.WriteString("}")
 	case *NodePattern:
 		sb.WriteString("NodePattern{")
 		first := true
@@ -677,7 +686,12 @@ func writeNode(sb *strings.Builder, n Node) {
 		fmt.Fprintf(sb, "PatternQuantifier{Min:%d Max:%d}", v.Min, v.Max)
 	case *PatternSelector:
 		fmt.Fprintf(sb, "PatternSelector{Kind:%s", v.Kind)
-		if v.Kind == SelectorKindShortestK {
+		// K is a count slot on the two selector kinds that have one: SHORTEST k
+		// (required) and ANY k (optional, matchSelector#SelectorAny). Printing it
+		// for both kinds — rather than guarding on K != 0 — keeps `ANY 0`
+		// distinct from a bare `ANY` in the dump. ALL_SHORTEST has no K and never
+		// prints one.
+		if v.Kind == SelectorKindShortestK || v.Kind == SelectorKindAny {
 			fmt.Fprintf(sb, " K:%d", v.K)
 		}
 		sb.WriteString("}")

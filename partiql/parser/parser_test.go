@@ -631,11 +631,9 @@ func TestParser_Errors(t *testing.T) {
 		// Likewise the COUNT/SUM/AVG/MIN/MAX aggregate stub case was removed
 		// when DAG node 14 (parser-aggregates) implemented those forms;
 		// coverage now lives in aggregate_test.go.
-		{
-			name:      "graph_match_stub",
-			input:     "(a MATCH (b))",
-			wantErrIn: "graph MATCH expression is deferred to parser-graph (DAG node 16)",
-		},
+		// And the graph_match_stub case was removed when DAG node 16
+		// (parser-graph) implemented GPML MATCH; its positive and negative
+		// coverage now lives in graph_test.go.
 		// Note: the DATE/TIME deferred-stub cases that previously lived
 		// here were removed when DAG node 18 (parser-datetime-literals)
 		// implemented those forms. Their positive, negative, and golden
