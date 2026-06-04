@@ -1,0 +1,1 @@
+(myGraph MATCH (a:Account)-[t:Transfer]->(b:Account))

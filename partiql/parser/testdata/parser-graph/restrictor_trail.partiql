@@ -1,0 +1,1 @@
+(g MATCH TRAIL (a WHERE a.kind = 'root')-[e]->(b))

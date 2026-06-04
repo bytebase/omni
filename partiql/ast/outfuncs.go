@@ -630,7 +630,16 @@ func writeNode(sb *strings.Builder, n Node) {
 			}
 			writeNode(sb, p)
 		}
-		sb.WriteString("]}")
+		sb.WriteString("]")
+		if v.Where != nil {
+			sb.WriteString(" Where:")
+			writeNode(sb, v.Where)
+		}
+		if v.Quantifier != nil {
+			sb.WriteString(" Quantifier:")
+			writeNode(sb, v.Quantifier)
+		}
+		sb.WriteString("}")
 	case *NodePattern:
 		sb.WriteString("NodePattern{")
 		first := true

@@ -133,12 +133,25 @@ func (*MatchExpr) exprNode()     {}
 // GraphPattern is one complete pattern: optional selector + restrictor +
 // path variable + a sequence of node/edge pattern parts.
 //
-// Grammar: gpmlPattern
+// A GraphPattern is reused for a grouped/parenthesised sub-pattern (the `pattern`
+// grammar rule), in which case it appears nested inside another GraphPattern's
+// Parts. Two fields are meaningful only in that nested-group role:
+//
+//   - Where:      a `whereClause?` filter over the whole sub-pattern group.
+//   - Quantifier: a `patternQuantifier?` (+, *, {m,n}) on the whole group.
+//
+// At the top level (gpmlPattern / gpmlPatternList) Selector is meaningful and
+// Where/Quantifier are always nil (the grammar attaches no group-level WHERE or
+// quantifier to a top-level matchPattern).
+//
+// Grammar: gpmlPattern (315-316) / matchPattern (321-322) / pattern (350-353)
 type GraphPattern struct {
 	Selector   *PatternSelector
 	Restrictor PatternRestrictor
 	Variable   *VarRef // optional `p = ...` path variable binding
 	Parts      []PatternNode
+	Where      ExprNode           // group-level whereClause (nested sub-pattern only)
+	Quantifier *PatternQuantifier // group-level quantifier (nested sub-pattern only)
 	Loc        Loc
 }
 

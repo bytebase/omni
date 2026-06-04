@@ -1,0 +1,1 @@
+MatchExpr{Expr:VarRef{Name:g} Patterns:[GraphPattern{Restrictor:TRAIL Parts:[NodePattern{Variable:VarRef{Name:a} Where:BinaryExpr{Op:= Left:PathExpr{Root:VarRef{Name:a} Steps:[DotStep{Field:kind}]} Right:StringLit{Val:"root"}}} EdgePattern{Direction:-> Variable:VarRef{Name:e}} NodePattern{Variable:VarRef{Name:b}}]}]}

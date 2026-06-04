@@ -633,11 +633,9 @@ func TestParser_Errors(t *testing.T) {
 		// previously lived here were removed when DAG node 15b
 		// (parser-builtins-typed) implemented those forms. Their positive
 		// and negative coverage now lives in builtins_typed_test.go.
-		{
-			name:      "graph_match_stub",
-			input:     "(a MATCH (b))",
-			wantErrIn: "graph MATCH expression is deferred to parser-graph (DAG node 16)",
-		},
+		// Note: the graph_match_stub case that previously lived here was
+		// removed when DAG node 16 (parser-graph) implemented GPML MATCH.
+		// Its positive and negative coverage now lives in graph_test.go.
 		{
 			name:      "date_literal_stub",
 			input:     "DATE '2026-01-01'",
