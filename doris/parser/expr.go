@@ -479,7 +479,169 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 	}
 	fc.Loc.End = closeTok.Loc.End
 
+	// Optional OVER (...) window specification — turns this call into a window
+	// function. Without consuming OVER here it is left dangling, which breaks
+	// parsing wherever a specific following token is expected (e.g. the ')'
+	// closing a CTE body: WITH x AS (SELECT f() OVER (...) ... ) ...).
+	if p.cur.Kind == kwOVER {
+		over, err := p.parseWindowSpec()
+		if err != nil {
+			return nil, err
+		}
+		fc.Over = over
+		fc.Loc.End = over.Loc.End
+	}
+
 	return fc, nil
+}
+
+// parseWindowSpec parses an OVER clause window specification. The OVER keyword
+// is the current token (not yet consumed):
+//
+//	OVER ( [PARTITION BY expr, ...] [ORDER BY item, ...] [frame] )
+//	OVER window_name
+func (p *Parser) parseWindowSpec() (*ast.WindowSpec, error) {
+	overTok := p.advance() // consume OVER
+	spec := &ast.WindowSpec{Loc: ast.Loc{Start: overTok.Loc.Start}}
+
+	// OVER window_name — a named-window reference (no parentheses).
+	if p.cur.Kind != int('(') {
+		name, nameLoc, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		spec.Name = name
+		spec.Loc.End = nameLoc.End
+		return spec, nil
+	}
+
+	p.advance() // consume '('
+
+	// Optional PARTITION BY.
+	if p.cur.Kind == kwPARTITION {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		exprs, err := p.parseExprList()
+		if err != nil {
+			return nil, err
+		}
+		spec.PartitionBy = exprs
+	}
+
+	// Optional ORDER BY.
+	if p.cur.Kind == kwORDER {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		items, err := p.parseOrderByList()
+		if err != nil {
+			return nil, err
+		}
+		spec.OrderBy = items
+	}
+
+	// Optional frame clause.
+	if p.cur.Kind == kwROWS || p.cur.Kind == kwRANGE {
+		frame, err := p.parseWindowFrame()
+		if err != nil {
+			return nil, err
+		}
+		spec.Frame = frame
+	}
+
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	spec.Loc.End = closeTok.Loc.End
+	return spec, nil
+}
+
+// parseWindowFrame parses a window frame clause. The ROWS/RANGE keyword is the
+// current token (not yet consumed):
+//
+//	(ROWS | RANGE) frame_bound
+//	(ROWS | RANGE) BETWEEN frame_bound AND frame_bound
+func (p *Parser) parseWindowFrame() (*ast.WindowFrame, error) {
+	unitTok := p.advance() // consume ROWS or RANGE
+	frame := &ast.WindowFrame{
+		Unit: strings.ToUpper(unitTok.Str),
+		Loc:  ast.Loc{Start: unitTok.Loc.Start},
+	}
+
+	if p.cur.Kind == kwBETWEEN {
+		p.advance()
+		startType, startExpr, err := p.parseWindowFrameBound()
+		if err != nil {
+			return nil, err
+		}
+		frame.StartType, frame.StartExpr = startType, startExpr
+		if _, err := p.expect(kwAND); err != nil {
+			return nil, err
+		}
+		endType, endExpr, err := p.parseWindowFrameBound()
+		if err != nil {
+			return nil, err
+		}
+		frame.EndType, frame.EndExpr = endType, endExpr
+	} else {
+		startType, startExpr, err := p.parseWindowFrameBound()
+		if err != nil {
+			return nil, err
+		}
+		frame.StartType, frame.StartExpr = startType, startExpr
+	}
+
+	frame.Loc.End = p.prev.Loc.End
+	return frame, nil
+}
+
+// parseWindowFrameBound parses one window frame bound:
+//
+//	UNBOUNDED PRECEDING | UNBOUNDED FOLLOWING | CURRENT ROW
+//	<expr> PRECEDING | <expr> FOLLOWING
+//
+// It returns the bound kind and, for the "<expr> PRECEDING/FOLLOWING" forms,
+// the offset expression (nil otherwise).
+func (p *Parser) parseWindowFrameBound() (string, ast.Node, error) {
+	switch p.cur.Kind {
+	case kwUNBOUNDED:
+		p.advance()
+		switch p.cur.Kind {
+		case kwPRECEDING:
+			p.advance()
+			return "UNBOUNDED PRECEDING", nil, nil
+		case kwFOLLOWING:
+			p.advance()
+			return "UNBOUNDED FOLLOWING", nil, nil
+		default:
+			return "", nil, &ParseError{Loc: p.cur.Loc, Msg: "expected PRECEDING or FOLLOWING after UNBOUNDED"}
+		}
+	case kwCURRENT:
+		p.advance()
+		if _, err := p.expect(kwROW); err != nil {
+			return "", nil, err
+		}
+		return "CURRENT ROW", nil, nil
+	default:
+		expr, err := p.parseExpr()
+		if err != nil {
+			return "", nil, err
+		}
+		switch p.cur.Kind {
+		case kwPRECEDING:
+			p.advance()
+			return "PRECEDING", expr, nil
+		case kwFOLLOWING:
+			p.advance()
+			return "FOLLOWING", expr, nil
+		default:
+			return "", nil, &ParseError{Loc: p.cur.Loc, Msg: "expected PRECEDING or FOLLOWING in window frame bound"}
+		}
+	}
 }
 
 // parseExprList parses a comma-separated list of expressions.
