@@ -2365,3 +2365,188 @@ var (
 	_ Node = (*CommentStmt)(nil)
 	_ Node = (*TruncateStmt)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// Bulk data movement — COPY INTO / PUT / GET / LIST / REMOVE (T5.2)
+// ---------------------------------------------------------------------------
+//
+// These statements move data between Snowflake tables, stages, and external
+// cloud storage. Their option vocabularies (copyOptions, file-format options,
+// PUT/GET transfer options) are large and grow with new Snowflake versions, so
+// — mirroring the merged GRANT/REVOKE and SHOW grammars — option names are NOT
+// enumerated. copyOptions and FILE_FORMAT type-options are captured as
+// open-ended `KEY = <value>` pairs (CopyOption), where the value is a verbatim
+// token run, a literal, a parenthesized group, or a nested option list. The
+// catalog/semantic layer, not the parser, validates that an option is legal.
+
+// StageLocation is a file location that is the source or destination of a bulk
+// data-movement statement. It captures the three syntactic flavors Snowflake
+// accepts wherever a stage/location may appear:
+//
+//   - Stage      — an internal/external stage reference beginning with '@':
+//     @[ns.]name[/path], @[ns.]%table[/path], @~[/path].
+//   - External   — a cloud-storage URI single-quoted string:
+//     's3://...', 'gcs://...', 'azure://...' (any 'scheme://...').
+//   - LocalFile  — a file:// URI (PUT source / GET target) or a bare local path.
+//
+// Exactly one of the kind-specific fields is meaningful per Kind. Raw holds the
+// verbatim source text of the location in every case (e.g. "@mystage/a.csv",
+// "s3://b/p", "file:///tmp/x.csv"), which downstream consumers can use without
+// re-deriving it.
+type StageLocation struct {
+	Kind StageLocationKind
+	Raw  string // verbatim source text of the location
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *StageLocation) Tag() NodeTag { return T_StageLocation }
+
+// StageLocationKind classifies a StageLocation.
+type StageLocationKind int
+
+const (
+	// StageRef is an '@'-prefixed internal or external stage reference.
+	StageRef StageLocationKind = iota
+	// StageExternal is a cloud-storage URI ('s3://...' / 'gcs://...' / 'azure://...').
+	StageExternal
+	// StageLocalFile is a file:// URI or a bare local filesystem path.
+	StageLocalFile
+)
+
+// CopyOption is one open-ended `KEY = <value>` option used by COPY (copyOptions
+// + FILE_FORMAT + FILES + PATTERN + STORAGE_INTEGRATION + CREDENTIALS + ...) and,
+// for transfer statements, PUT/GET (PARALLEL, AUTO_COMPRESS, ...). The option
+// name is uppercased; the value is one of the mutually-exclusive forms below.
+// A bare option (e.g. HEADER, FORCE with no `=`) has Bare=true and no value.
+type CopyOption struct {
+	Name string // uppercased option name (e.g. "ON_ERROR", "FILE_FORMAT")
+	Bare bool   // true for a value-less option (e.g. bare HEADER)
+
+	// Exactly one of the following is set when Bare is false:
+	Words string        // verbatim uppercased token run (e.g. "CASE_INSENSITIVE", "TRUE", "myint")
+	Lit   *Literal      // a string/number literal value (e.g. 'RETURN_ROWS', 32000000)
+	Group []*CopyOption // a nested ( k = v, ... ) group (e.g. FILE_FORMAT, CREDENTIALS, INCLUDE_METADATA)
+	List  []*Literal    // a ( 'a', 'b', ... ) literal list (e.g. FILES = ('f1', 'f2'))
+
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *CopyOption) Tag() NodeTag { return T_CopyOption }
+
+// CopyIntoTableStmt represents COPY INTO <table> (a data load):
+//
+//	COPY INTO [ns.]table [ (cols) ]
+//	  FROM { stage | location | ( SELECT ...$col... FROM stage ) }
+//	  [ FILES = (...) ] [ PATTERN = '...' ] [ FILE_FORMAT = (...) ]
+//	  [ copyOptions ] [ VALIDATION_MODE = ... ]
+//
+// When the source is a transformation query, Transform holds the SELECT and
+// From is nil; otherwise From holds the stage/location source. Options holds
+// every option that followed the source (FILES / PATTERN / FILE_FORMAT /
+// copyOptions / VALIDATION_MODE), each as a CopyOption, preserving source order.
+type CopyIntoTableStmt struct {
+	Target    *ObjectName
+	Columns   []Ident        // optional ( col, ... ) before FROM; nil if absent
+	From      *StageLocation // stage/location source; nil when Transform is set
+	Transform *SelectStmt    // FROM ( SELECT ... ) transformation; nil for the plain form
+	Options   []*CopyOption  // FILES / PATTERN / FILE_FORMAT / copyOptions / VALIDATION_MODE
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *CopyIntoTableStmt) Tag() NodeTag { return T_CopyIntoTableStmt }
+
+// CopyIntoLocationStmt represents COPY INTO <location> (a data unload):
+//
+//	COPY INTO { stage | location }
+//	  FROM { [ns.]table | ( query ) }
+//	  [ PARTITION BY <expr> ] [ FILE_FORMAT = (...) ] [ copyOptions ]
+//	  [ VALIDATION_MODE = RETURN_ROWS ] [ HEADER ]
+//
+// Either FromTable or FromQuery is set (the unload source). Partition holds the
+// PARTITION BY expression (nil if absent). Options holds FILE_FORMAT /
+// copyOptions / VALIDATION_MODE / HEADER, preserving source order.
+type CopyIntoLocationStmt struct {
+	Into      *StageLocation
+	FromTable *ObjectName   // FROM <table>; nil when FromQuery is set
+	FromQuery Node          // FROM ( query ); nil when FromTable is set
+	Partition Node          // PARTITION BY <expr>; nil if absent
+	Options   []*CopyOption // FILE_FORMAT / copyOptions / VALIDATION_MODE / HEADER
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *CopyIntoLocationStmt) Tag() NodeTag { return T_CopyIntoLocationStmt }
+
+// PutStmt represents a PUT statement (upload a local file to an internal stage):
+//
+//	PUT file://<path> <stage> [ PARALLEL = n ] [ AUTO_COMPRESS = b ]
+//	    [ SOURCE_COMPRESSION = kw ] [ OVERWRITE = b ]
+type PutStmt struct {
+	File    *StageLocation // the file:// (or bare local) source
+	Stage   *StageLocation // the internal-stage destination
+	Options []*CopyOption  // PARALLEL / AUTO_COMPRESS / SOURCE_COMPRESSION / OVERWRITE
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *PutStmt) Tag() NodeTag { return T_PutStmt }
+
+// GetStmt represents a GET statement (download files from an internal stage):
+//
+//	GET <stage> file://<dir> [ PARALLEL = n ] [ PATTERN = '...' ]
+//
+// Target is the local destination directory: a file:// URI or a bare path.
+type GetStmt struct {
+	Stage   *StageLocation // the internal-stage source
+	Target  *StageLocation // the local destination directory
+	Options []*CopyOption  // PARALLEL / PATTERN
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *GetStmt) Tag() NodeTag { return T_GetStmt }
+
+// ListStmt represents LIST / LS (enumerate the files in a stage):
+//
+//	{ LIST | LS } <stage> [ PATTERN = '<regex>' ]
+//
+// Short is true when the LS alias was used.
+type ListStmt struct {
+	Short   bool
+	Stage   *StageLocation
+	Pattern *Literal // PATTERN = '<regex>'; nil if absent
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ListStmt) Tag() NodeTag { return T_ListStmt }
+
+// RemoveStmt represents REMOVE / RM (delete files from a stage):
+//
+//	{ REMOVE | RM } <stage> [ PATTERN = '<regex>' ]
+//
+// Short is true when the RM alias was used.
+type RemoveStmt struct {
+	Short   bool
+	Stage   *StageLocation
+	Pattern *Literal // PATTERN = '<regex>'; nil if absent
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *RemoveStmt) Tag() NodeTag { return T_RemoveStmt }
+
+// Compile-time assertions for bulk data-movement nodes.
+var (
+	_ Node = (*StageLocation)(nil)
+	_ Node = (*CopyOption)(nil)
+	_ Node = (*CopyIntoTableStmt)(nil)
+	_ Node = (*CopyIntoLocationStmt)(nil)
+	_ Node = (*PutStmt)(nil)
+	_ Node = (*GetStmt)(nil)
+	_ Node = (*ListStmt)(nil)
+	_ Node = (*RemoveStmt)(nil)
+)

@@ -83,6 +83,29 @@ func walkChildren(v Visitor, node Node) {
 		if n.Column != nil {
 			Walk(v, n.Column)
 		}
+	case *CopyIntoLocationStmt:
+		if n.Into != nil {
+			Walk(v, n.Into)
+		}
+		if n.FromTable != nil {
+			Walk(v, n.FromTable)
+		}
+		Walk(v, n.FromQuery)
+		Walk(v, n.Partition)
+	case *CopyIntoTableStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		if n.From != nil {
+			Walk(v, n.From)
+		}
+		if n.Transform != nil {
+			Walk(v, n.Transform)
+		}
+	case *CopyOption:
+		if n.Lit != nil {
+			Walk(v, n.Lit)
+		}
 	case *CreateDatabaseStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -142,6 +165,13 @@ func walkChildren(v Visitor, node Node) {
 		walkNodes(v, n.Stmts)
 	case *FuncCallExpr:
 		walkNodes(v, n.Args)
+	case *GetStmt:
+		if n.Stage != nil {
+			Walk(v, n.Stage)
+		}
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
 	case *GrantStmt:
 		if n.Role != nil {
 			Walk(v, n.Role)
@@ -192,6 +222,13 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Pattern)
 		Walk(v, n.Escape)
 		walkNodes(v, n.AnyValues)
+	case *ListStmt:
+		if n.Stage != nil {
+			Walk(v, n.Stage)
+		}
+		if n.Pattern != nil {
+			Walk(v, n.Pattern)
+		}
 	case *MergeStmt:
 		if n.Target != nil {
 			Walk(v, n.Target)
@@ -200,6 +237,20 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.On)
 	case *ParenExpr:
 		Walk(v, n.Expr)
+	case *PutStmt:
+		if n.File != nil {
+			Walk(v, n.File)
+		}
+		if n.Stage != nil {
+			Walk(v, n.Stage)
+		}
+	case *RemoveStmt:
+		if n.Stage != nil {
+			Walk(v, n.Stage)
+		}
+		if n.Pattern != nil {
+			Walk(v, n.Pattern)
+		}
 	case *RevokeStmt:
 		if n.On != nil {
 			Walk(v, n.On)
