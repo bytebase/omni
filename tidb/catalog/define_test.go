@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	nodes "github.com/bytebase/omni/tidb/ast"
@@ -187,6 +188,34 @@ func TestDefineProcedure_HappyPath(t *testing.T) {
 	}
 	if got := c.ShowCreateProcedure("mydb", "p"); got == "" {
 		t.Fatal("ShowCreateProcedure empty")
+	}
+}
+
+// TestDefineProcedure_Characteristics protects the deliberately-kept catalog
+// characteristic model. TiDB's parser rejects characteristics on CREATE
+// PROCEDURE (parser.TestRoutineGrammarRejected), so a characteristic-bearing
+// routine can now only be installed via the parser-free Define API. This
+// asserts that path still stores and re-emits them in SHOW CREATE PROCEDURE.
+func TestDefineProcedure_Characteristics(t *testing.T) {
+	c := newCatalogWithDB(t, "mydb")
+	stmt := &nodes.CreateFunctionStmt{
+		IsProcedure: true,
+		Name:        &nodes.TableRef{Name: "p"},
+		BodyText:    "BEGIN SELECT 1; END",
+		Characteristics: []*nodes.RoutineCharacteristic{
+			{Name: "DETERMINISTIC", Value: "YES"},
+			{Name: "SQL SECURITY", Value: "INVOKER"},
+			{Name: "COMMENT", Value: "hi"},
+		},
+	}
+	if err := c.DefineProcedure(stmt); err != nil {
+		t.Fatalf("DefineProcedure: %v", err)
+	}
+	got := c.ShowCreateProcedure("mydb", "p")
+	for _, want := range []string{"DETERMINISTIC", "SQL SECURITY INVOKER", "COMMENT 'hi'"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("ShowCreateProcedure missing %q in:\n%s", want, got)
+		}
 	}
 }
 
