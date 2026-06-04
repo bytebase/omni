@@ -95,6 +95,18 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// both dispatch here. Per the docs VOLATILE is a synonym of TEMPORARY for
 		// a file format, so either modifier sets the statement's Temporary flag.
 		return p.parseCreateFileFormatStmt(start, orReplace, temporary || volatile)
+	case kwPIPE:
+		// CREATE [OR REPLACE] PIPE ... (T4.3).
+		return p.parseCreatePipeStmt(start, orReplace)
+	case kwSTREAM:
+		// CREATE [OR REPLACE] STREAM ... (T4.3).
+		return p.parseCreateStreamStmt(start, orReplace)
+	case kwTASK:
+		// CREATE [OR REPLACE] TASK ... (T4.3).
+		return p.parseCreateTaskStmt(start, orReplace)
+	case kwALERT:
+		// CREATE [OR REPLACE] ALERT ... (T4.3).
+		return p.parseCreateAlertStmt(start, orReplace)
 	default:
 		return p.unsupported("CREATE")
 	}

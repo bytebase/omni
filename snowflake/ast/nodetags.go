@@ -112,6 +112,16 @@ const (
 	// File-format DDL tags (T4.2)
 	T_CreateFileFormatStmt
 	T_AlterFileFormatStmt
+
+	// Data-pipeline DDL tags (T4.3)
+	T_CreatePipeStmt
+	T_AlterPipeStmt
+	T_CreateStreamStmt
+	T_AlterStreamStmt
+	T_CreateTaskStmt
+	T_AlterTaskStmt
+	T_CreateAlertStmt
+	T_AlterAlertStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -267,6 +277,22 @@ func (t NodeTag) String() string {
 		return "CreateFileFormatStmt"
 	case T_AlterFileFormatStmt:
 		return "AlterFileFormatStmt"
+	case T_CreatePipeStmt:
+		return "CreatePipeStmt"
+	case T_AlterPipeStmt:
+		return "AlterPipeStmt"
+	case T_CreateStreamStmt:
+		return "CreateStreamStmt"
+	case T_AlterStreamStmt:
+		return "AlterStreamStmt"
+	case T_CreateTaskStmt:
+		return "CreateTaskStmt"
+	case T_AlterTaskStmt:
+		return "AlterTaskStmt"
+	case T_CreateAlertStmt:
+		return "CreateAlertStmt"
+	case T_AlterAlertStmt:
+		return "AlterAlertStmt"
 	default:
 		return "Unknown"
 	}

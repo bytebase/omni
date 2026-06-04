@@ -9,6 +9,12 @@ func walkChildren(v Visitor, node Node) {
 	case *AccessExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.Index)
+	case *AlterAlertStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		Walk(v, n.Condition)
+		Walk(v, n.ActionBody)
 	case *AlterDatabaseStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -31,6 +37,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.NewName)
 		}
 		walkNodes(v, n.ClusterBy)
+	case *AlterPipeStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *AlterSchemaStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -45,10 +55,20 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+	case *AlterStreamStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *AlterTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *AlterTaskStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		Walk(v, n.When)
+		Walk(v, n.Body)
 	case *AlterViewStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -120,6 +140,12 @@ func walkChildren(v Visitor, node Node) {
 		if n.Lit != nil {
 			Walk(v, n.Lit)
 		}
+	case *CreateAlertStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		Walk(v, n.Condition)
+		Walk(v, n.Action)
 	case *CreateDatabaseStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -134,6 +160,11 @@ func walkChildren(v Visitor, node Node) {
 		}
 		walkNodes(v, n.ClusterBy)
 		Walk(v, n.Query)
+	case *CreatePipeStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		Walk(v, n.Copy)
 	case *CreateSchemaStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -141,6 +172,16 @@ func walkChildren(v Visitor, node Node) {
 	case *CreateStageStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+	case *CreateStreamStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Source != nil {
+			Walk(v, n.Source)
+		}
+		if n.Clone != nil {
+			Walk(v, n.Clone)
 		}
 	case *CreateTableStmt:
 		if n.Name != nil {
@@ -150,6 +191,15 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.AsSelect)
 		if n.Like != nil {
 			Walk(v, n.Like)
+		}
+	case *CreateTaskStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		Walk(v, n.When)
+		Walk(v, n.Body)
+		if n.Clone != nil {
+			Walk(v, n.Clone)
 		}
 	case *CreateViewStmt:
 		if n.Name != nil {
