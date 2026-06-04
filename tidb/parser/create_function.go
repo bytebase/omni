@@ -167,29 +167,12 @@ func (p *Parser) parseCreateFunctionStmt(isProcedure bool) (*nodes.CreateFunctio
 		stmt.Returns = dt
 	}
 
-	// Completion: after parameter list (and optional RETURNS), offer characteristics keywords.
-	p.checkCursor()
-	if p.collectMode() {
-		p.addTokenCandidate(kwDETERMINISTIC)
-		p.addTokenCandidate(kwNO)
-		p.addTokenCandidate(kwSQL)
-		p.addTokenCandidate(kwCOMMENT)
-		p.addTokenCandidate(kwLANGUAGE)
-		p.addTokenCandidate(kwRETURNS)
-		return nil, &ParseError{Message: "collecting"}
-	}
-
-	// Characteristics
-	for {
-		ch, ok, err := p.parseRoutineCharacteristic()
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			break
-		}
-		stmt.Characteristics = append(stmt.Characteristics, ch)
-	}
+	// TiDB v8.5.0 CREATE PROCEDURE takes no characteristics — it rejects
+	// DETERMINISTIC / {NO|CONTAINS|READS|MODIFIES} SQL / SQL SECURITY /
+	// LANGUAGE / COMMENT (verified on pingcap/tidb:v8.5.0). The routine body
+	// follows the parameter list directly; a characteristic keyword here is a
+	// syntax error from the body parser. (FUNCTION, which does take
+	// characteristics in MySQL, is rejected earlier at dispatch.)
 
 	// Routine body — parse via the grammar so the body is disambiguated the
 	// same way TiDB's parser does (statement vs expression context, nested
