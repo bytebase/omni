@@ -289,6 +289,42 @@ func TestGrantRevoke_Rejects(t *testing.T) {
 	}
 }
 
+// TestGrantRevoke_RejectsTrailingTokens is the regression test for the
+// parseSingle EOF assertion (PR #195 review, finding 1). The grammar root is
+// `stmts EOF`: a complete statement must be followed by end-of-input. Before the
+// fix, parseSingle never asserted EOF after a successful parseStmt, so trailing
+// junk after an otherwise-valid GRANT/REVOKE was silently dropped — the parse
+// returned stmts=1, errs=0, a false-accept that yields zero diagnostics for the
+// Diagnose consumer. Each case below is a valid GRANT/REVOKE prefix followed by
+// tokens the grammar cannot continue with; all must now be rejected (error
+// reported) AND produce no statement node (the segment as a whole does not
+// parse).
+func TestGrantRevoke_RejectsTrailingTokens(t *testing.T) {
+	cases := []string{
+		"GRANT `select` ON foo TO 'x' garbage",     // bare trailing identifier
+		"GRANT `select` ON foo TO 'x' 'y'",         // trailing string literal (no comma)
+		"GRANT `select` ON foo TO 'x' ON bar",      // trailing keyword run
+		"REVOKE `select` ON foo FROM 'x' garbage",  // REVOKE trailing junk
+		"REVOKE ALL PRIVILEGES ON foo FROM 'x' 99", // trailing integer literal
+	}
+	for _, sql := range cases {
+		t.Run(sql, func(t *testing.T) {
+			file, errs := Parse(sql)
+			if len(errs) == 0 {
+				t.Errorf("Parse(%q): want a syntax error for trailing tokens, got none", sql)
+			}
+			if len(file.Stmts) != 0 {
+				t.Errorf("Parse(%q): got %d stmts, want 0 (trailing junk makes the segment invalid)", sql, len(file.Stmts))
+			}
+			for _, e := range errs {
+				if strings.Contains(e.Msg, "not yet supported") {
+					t.Errorf("Parse(%q): got 'not yet supported' (unexpected stub path): %v", sql, errs)
+				}
+			}
+		})
+	}
+}
+
 // TestGrantRevoke_RejectsStopAtBoundary asserts a malformed GRANT in a
 // multi-statement input does not swallow the following statement — error
 // recovery stops at the ';' boundary.

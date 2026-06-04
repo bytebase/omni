@@ -160,11 +160,18 @@ func main() {
 		}
 		fmt.Fprintf(&buf, "\tcase *%s:\n", s.Name)
 		for _, f := range s.Fields {
-			switch f.Type {
-			case "Node":
+			switch {
+			case f.Type == "Node":
 				fmt.Fprintf(&buf, "\t\tWalk(v, n.%s)\n", f.Name)
-			case "[]Node":
+			case f.Type == "[]Node":
 				fmt.Fprintf(&buf, "\t\twalkNodes(v, n.%s)\n", f.Name)
+			case strings.HasPrefix(f.Type, "[]*"):
+				// Slice of pointer-to-Node-struct (e.g. []*Privilege): walk each
+				// element. Mirrors the []Node walkNodes loop; the parser never
+				// stores nil pointers in these slices.
+				fmt.Fprintf(&buf, "\t\tfor _, c := range n.%s {\n", f.Name)
+				fmt.Fprintf(&buf, "\t\t\tWalk(v, c)\n")
+				fmt.Fprintf(&buf, "\t\t}\n")
 			default:
 				// Pointer to a known struct type (e.g. *SelectStmt).
 				fmt.Fprintf(&buf, "\t\tif n.%s != nil {\n", f.Name)
@@ -227,15 +234,28 @@ func typeString(expr ast.Expr) string {
 //   - "Node"             — the Node interface
 //   - "[]Node"           — slice of nodes
 //   - "*<NodeStruct>"    — pointer to a struct that implements Node (has Tag() method)
+//   - "[]*<NodeStruct>"  — slice of pointer-to-Node-struct (e.g. []*Privilege,
+//     []*Grantee); each element is walked. Future nodes define []*Expr /
+//     []*SelectItem fields and query-span walks the AST, so these must traverse.
 //
 // Excluded: pointer to "Loc" (Loc is not a node), pointer to non-Node structs
-// (helper types like WindowSpec, etc.), and any other shape.
+// (helper types like WindowSpec, etc.), slice of pointer-to-non-Node-struct, and
+// any other shape.
 func isChildType(typStr string, nodeStructs map[string]bool) bool {
 	if typStr == "Node" {
 		return true
 	}
 	if typStr == "[]Node" {
 		return true
+	}
+	if strings.HasPrefix(typStr, "[]*") {
+		// []*<NodeStruct>: a slice of pointer-to-Node-struct. Element type rules
+		// match the bare-pointer case (Loc excluded; only Node structs qualify).
+		name := typStr[len("[]*"):]
+		if name == "Loc" {
+			return false
+		}
+		return nodeStructs[name]
 	}
 	if strings.HasPrefix(typStr, "*") {
 		name := typStr[1:]
