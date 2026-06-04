@@ -32,6 +32,8 @@ func TestRoutineCompoundBodyAccepted(t *testing.T) {
 		// the IF must be counted so its END IF balances.
 		`CREATE PROCEDURE p() BEGIN IF EXISTS (SELECT 1 FROM t) THEN DELETE FROM t; END IF; END`,
 		`CREATE PROCEDURE p() BEGIN IF NOT EXISTS (SELECT 1 FROM t) THEN INSERT INTO t VALUES (1); END IF; END`,
+		// A comment between EXISTS and '(' must not flip the IF to a DDL modifier.
+		`CREATE PROCEDURE p() BEGIN IF EXISTS /*c*/ (SELECT 1 FROM t) THEN DELETE FROM t; END IF; END`,
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {
@@ -91,6 +93,13 @@ func TestFindCompoundBodyEnd(t *testing.T) {
 		{"comment_with_end_while", `BEGIN SELECT 1; /* END WHILE */ END`, `BEGIN SELECT 1; /* END WHILE */ END`},
 		{"empty", `BEGIN END`, `BEGIN END`},
 		{"top_level_semicolon_terminates", `BEGIN SELECT 1; END; SELECT 2`, `BEGIN SELECT 1; END`},
+		// IF EXISTS (subquery) is a compound IF — counted — even with a comment
+		// between EXISTS and '(', so its END IF balances and the body spans whole.
+		{"if_exists_comment_subquery", `BEGIN IF EXISTS /*c*/ (SELECT 1) THEN SELECT 1; END IF; END`, `BEGIN IF EXISTS /*c*/ (SELECT 1) THEN SELECT 1; END IF; END`},
+		// A body-internal DDL IF EXISTS <ident> is NOT a compound opener, so the
+		// scan stops at the body's top-level ';' instead of over-counting and
+		// swallowing the following statement.
+		{"if_exists_ddl_stops_at_semicolon", `BEGIN DROP TABLE IF EXISTS t; END; SELECT 2`, `BEGIN DROP TABLE IF EXISTS t; END`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -163,5 +172,41 @@ func TestSplitPreservesIfExistsDDL(t *testing.T) {
 			texts = append(texts, s.Text)
 		}
 		t.Fatalf("Split(%q) = %d segments %q, want 3", sql, len(segs), texts)
+	}
+}
+
+// The body capture must not swallow a statement following the routine — the
+// split-first guarantee the over-count analysis relies on. Covers the two body
+// shapes whose scan could mis-balance: a conditional comment, and a
+// body-internal DDL IF EXISTS, each followed by another statement.
+func TestRoutineBodyDoesNotSwallowTrailingStatement(t *testing.T) {
+	cases := []struct {
+		name string
+		sql  string
+	}{
+		// Conditional-comment body + trailing SELECT (default ';' delimiter).
+		// TiDB parses both (procedure 8108, SELECT executes).
+		{"conditional_comment", `CREATE PROCEDURE p() BEGIN /*!50003 SET @x = 1 */; END; SELECT 2`},
+		// DDL IF EXISTS in the body + trailing SELECT, custom delimiter so the
+		// routine and SELECT share ONE segment (this is what exercises
+		// findCompoundBodyEnd's top-level ';' detection). omni text-captures the
+		// body; the point is that the trailing SELECT is not swallowed. TiDB
+		// rejects DDL inside a procedure body, so this pins omni's split
+		// correctness, not TiDB parity.
+		{"ddl_if_exists_custom_delimiter", "DELIMITER //\nCREATE PROCEDURE p() BEGIN DROP TABLE IF EXISTS t; END; SELECT 2//"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			list, err := Parse(c.sql)
+			if err != nil {
+				t.Fatalf("Parse(%q) error: %v", c.sql, err)
+			}
+			if len(list.Items) != 2 {
+				t.Fatalf("Parse(%q) produced %d statements, want 2 (routine + trailing)", c.sql, len(list.Items))
+			}
+			if _, ok := list.Items[0].(*nodes.CreateFunctionStmt); !ok {
+				t.Errorf("first statement is %T, want *nodes.CreateFunctionStmt", list.Items[0])
+			}
+		})
 	}
 }

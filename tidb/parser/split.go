@@ -176,6 +176,44 @@ func nextNonSpaceChar(sql string, pos int) byte {
 	return sql[j]
 }
 
+// skipSpaceAndComments advances past whitespace and comments (block /* */,
+// line -- and #) starting at position i.
+func skipSpaceAndComments(sql string, i int) int {
+	for i < len(sql) {
+		switch {
+		case sql[i] == ' ' || sql[i] == '\t' || sql[i] == '\n' || sql[i] == '\r':
+			i++
+		case sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*':
+			i = skipBlockCommentMySQL(sql, i)
+		case isDashComment(sql, i):
+			i = skipDashComment(sql, i)
+		case sql[i] == '#':
+			i = skipHashComment(sql, i)
+		default:
+			return i
+		}
+	}
+	return i
+}
+
+// isIfExistsModifier reports whether the IF whose word ends at ifEnd is the DDL
+// modifier "IF [NOT] EXISTS <identifier>" (e.g. DROP TABLE IF EXISTS t) rather
+// than a compound IF statement. It is comment-aware: "IF EXISTS /*c*/ (subquery)
+// THEN" is a compound IF (the EXISTS subquery predicate), not a DDL modifier,
+// because EXISTS is followed by '('. Shared by Split and findCompoundBodyEnd so
+// they classify IF the same way.
+func isIfExistsModifier(sql string, ifEnd int) bool {
+	p := skipSpaceAndComments(sql, ifEnd)
+	if matchWord(sql, p, "NOT") {
+		p = skipSpaceAndComments(sql, skipToEndOfWord(sql, p))
+	}
+	if !matchWord(sql, p, "EXISTS") {
+		return false
+	}
+	p = skipSpaceAndComments(sql, skipToEndOfWord(sql, p))
+	return p >= len(sql) || sql[p] != '('
+}
+
 // Split splits SQL text into segments at top-level semicolons.
 // It is a pure lexical scanner that does not parse SQL, so it works
 // on both valid and invalid SQL. Segments do NOT include the trailing
@@ -265,28 +303,7 @@ func Split(sql string) []Segment {
 		// modifier, or an IF(...) function call.
 		case (b == 'i' || b == 'I') && matchWord(sql, i, "IF"):
 			endOfWord := skipToEndOfWord(sql, i)
-			prev := prevWord(sql, i)
-			next := nextWordAfter(sql, endOfWord)
-			// Treat "IF [NOT] EXISTS" as a DDL modifier only when EXISTS is
-			// followed by a bare identifier (e.g. DROP TABLE IF EXISTS t).
-			// When EXISTS is followed by '(' (e.g. IF EXISTS (subquery) THEN),
-			// it is the EXISTS subquery predicate inside a compound IF.
-			isExistsClause := false
-			if next == "EXISTS" {
-				existsEnd := skipToEndOfWord(sql, skipWhitespace(sql, endOfWord))
-				if nextNonSpaceChar(sql, existsEnd) != '(' {
-					isExistsClause = true
-				}
-			} else if next == "NOT" {
-				notEnd := skipToEndOfWord(sql, skipWhitespace(sql, endOfWord))
-				if nextWordAfter(sql, notEnd) == "EXISTS" {
-					existsEnd := skipToEndOfWord(sql, skipWhitespace(sql, notEnd))
-					if nextNonSpaceChar(sql, existsEnd) != '(' {
-						isExistsClause = true
-					}
-				}
-			}
-			if prev != "END" && !isExistsClause && nextNonSpaceChar(sql, endOfWord) != '(' {
+			if prevWord(sql, i) != "END" && !isIfExistsModifier(sql, endOfWord) && nextNonSpaceChar(sql, endOfWord) != '(' {
 				depth++
 			}
 			i = endOfWord
@@ -418,18 +435,15 @@ func findCompoundBodyEnd(sql string, start int) int {
 			}
 			i = endOfWord
 
-		// IF — increment depth unless preceded by END or used as the IF(...)
-		// function (next char '('). "IF EXISTS (subquery) THEN ... END IF" flow
-		// control is counted (EXISTS is followed by '(', matching Split's
-		// tightened IF arm). We do not replicate Split's IF [NOT] EXISTS <ident>
-		// DDL skip: a routine body is a single Split-delimited segment, so this
-		// scan only needs the body's terminating top-level ';' (or EOF), and
-		// over-counting a body-internal DDL IF EXISTS is harmless — depth simply
-		// stays > 0 through the (single-segment) body to its end.
+		// IF — same classification as Split: count it as a compound opener
+		// unless preceded by END, used as the IF(...) function (next char '('),
+		// or a DDL "IF [NOT] EXISTS <ident>" modifier. "IF EXISTS (subquery)
+		// THEN ... END IF" flow control is counted (EXISTS followed by '('); a
+		// body-internal "DROP ... IF EXISTS t" is not (so it does not push depth
+		// and swallow a following statement in a custom-delimiter segment).
 		case (b == 'i' || b == 'I') && matchWord(sql, i, "IF"):
 			endOfWord := skipToEndOfWord(sql, i)
-			prev := prevWord(sql, i)
-			if prev != "END" && nextNonSpaceChar(sql, endOfWord) != '(' {
+			if prevWord(sql, i) != "END" && !isIfExistsModifier(sql, endOfWord) && nextNonSpaceChar(sql, endOfWord) != '(' {
 				depth++
 			}
 			i = endOfWord
