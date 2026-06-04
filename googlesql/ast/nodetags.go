@@ -28,6 +28,58 @@ const (
 	T_RevokeStmt
 	T_Privilege
 	T_Grantee
+
+	// Expressions (googlesql/expressions node).
+	//
+	// The full GoogleSQL expression tree: the precedence chain
+	// (expression / expression_higher_prec_than_and / and_expression), every
+	// primary form, and the operator / predicate / constructor families. These
+	// mirror the legacy ANTLR expression rules (GoogleSQLParser.g4 §2.17-§2.18),
+	// a hand-port of ZetaSQL.
+	T_Identifier
+	T_PathExpr
+	T_TypeRef
+	T_StarExpr
+	T_Literal
+	T_TypedLiteral
+	T_IntervalExpr
+	T_Parameter
+	T_SystemVariable
+	T_ParenExpr
+	T_UnaryExpr
+	T_BinaryExpr
+	T_CompareExpr
+	T_IsExpr
+	T_InExpr
+	T_BetweenExpr
+	T_LikeExpr
+	T_CaseExpr
+	T_WhenClause
+	T_CastExpr
+	T_ExtractExpr
+	T_FuncCall
+	T_NamedArg
+	T_LambdaExpr
+	T_SequenceArg
+	T_StarModifiers
+	T_ArrayExpr
+	T_StructExpr
+	T_StructFieldExpr
+	T_FieldAccess
+	T_IndexAccess
+	T_ExtensionAccess
+	T_SubqueryExpr
+	T_ExistsExpr
+	T_ArraySubqueryExpr
+	T_NewConstructor
+	T_BracedConstructor
+	T_ReplaceFieldsExpr
+	T_WithExpr
+	T_WindowSpec
+	T_WindowFrame
+	T_OrderItem
+	T_HavingModifier
+	T_ClampedModifier
 )
 
 // String returns a human-readable representation of the tag.
@@ -45,6 +97,94 @@ func (t NodeTag) String() string {
 		return "Privilege"
 	case T_Grantee:
 		return "Grantee"
+	case T_Identifier:
+		return "Identifier"
+	case T_PathExpr:
+		return "PathExpr"
+	case T_TypeRef:
+		return "TypeRef"
+	case T_StarExpr:
+		return "StarExpr"
+	case T_Literal:
+		return "Literal"
+	case T_TypedLiteral:
+		return "TypedLiteral"
+	case T_IntervalExpr:
+		return "IntervalExpr"
+	case T_Parameter:
+		return "Parameter"
+	case T_SystemVariable:
+		return "SystemVariable"
+	case T_ParenExpr:
+		return "ParenExpr"
+	case T_UnaryExpr:
+		return "UnaryExpr"
+	case T_BinaryExpr:
+		return "BinaryExpr"
+	case T_CompareExpr:
+		return "CompareExpr"
+	case T_IsExpr:
+		return "IsExpr"
+	case T_InExpr:
+		return "InExpr"
+	case T_BetweenExpr:
+		return "BetweenExpr"
+	case T_LikeExpr:
+		return "LikeExpr"
+	case T_CaseExpr:
+		return "CaseExpr"
+	case T_WhenClause:
+		return "WhenClause"
+	case T_CastExpr:
+		return "CastExpr"
+	case T_ExtractExpr:
+		return "ExtractExpr"
+	case T_FuncCall:
+		return "FuncCall"
+	case T_NamedArg:
+		return "NamedArg"
+	case T_LambdaExpr:
+		return "LambdaExpr"
+	case T_SequenceArg:
+		return "SequenceArg"
+	case T_StarModifiers:
+		return "StarModifiers"
+	case T_ArrayExpr:
+		return "ArrayExpr"
+	case T_StructExpr:
+		return "StructExpr"
+	case T_StructFieldExpr:
+		return "StructFieldExpr"
+	case T_FieldAccess:
+		return "FieldAccess"
+	case T_IndexAccess:
+		return "IndexAccess"
+	case T_ExtensionAccess:
+		return "ExtensionAccess"
+	case T_SubqueryExpr:
+		return "SubqueryExpr"
+	case T_ExistsExpr:
+		return "ExistsExpr"
+	case T_ArraySubqueryExpr:
+		return "ArraySubqueryExpr"
+	case T_NewConstructor:
+		return "NewConstructor"
+	case T_BracedConstructor:
+		return "BracedConstructor"
+	case T_ReplaceFieldsExpr:
+		return "ReplaceFieldsExpr"
+	case T_WithExpr:
+		return "WithExpr"
+	case T_WindowSpec:
+		return "WindowSpec"
+	case T_WindowFrame:
+		return "WindowFrame"
+	case T_OrderItem:
+		return "OrderItem"
+	case T_HavingModifier:
+		return "HavingModifier"
+	case T_ClampedModifier:
+		return "ClampedModifier"
 	default:
 		return "Unknown"
 	}
