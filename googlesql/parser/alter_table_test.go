@@ -286,13 +286,13 @@ func TestAlterIndex_AddDropStoredColumn(t *testing.T) {
 
 func TestAlter_Rejects(t *testing.T) {
 	cases := []string{
-		"ALTER TABLE",                       // missing name + actions
-		"ALTER TABLE T",                     // missing action list
-		"ALTER TABLE T ADD",                 // dangling ADD
-		"ALTER TABLE T DROP COLUMN",         // missing column name
-		"ALTER TABLE T RENAME",              // dangling RENAME
-		"ALTER TABLE T ALTER COLUMN c SET",  // dangling SET
-		"ALTER TABLE T SET ON DELETE",       // missing action
+		"ALTER TABLE",                      // missing name + actions
+		"ALTER TABLE T",                    // missing action list
+		"ALTER TABLE T ADD",                // dangling ADD
+		"ALTER TABLE T DROP COLUMN",        // missing column name
+		"ALTER TABLE T RENAME",             // dangling RENAME
+		"ALTER TABLE T ALTER COLUMN c SET", // dangling SET
+		"ALTER TABLE T SET ON DELETE",      // missing action
 	}
 	for _, sql := range cases {
 		assertReject(t, sql)

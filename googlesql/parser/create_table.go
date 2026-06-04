@@ -888,16 +888,28 @@ func (p *Parser) parseSpannerTableOptions() ([]*ast.KeyPart, *ast.InterleaveClau
 
 	var interleave *ast.InterleaveClause
 	var rowDeletion ast.Node
-	// Comma-led trailing clauses, in any order.
+	// Comma-led trailing clauses, in any order. Each may appear AT MOST ONCE: the
+	// legacy grammar threads opt_spanner_interleave_in_parent_clause? (zero-or-one)
+	// and a single ROW DELETION POLICY, and the emulator rejects a repeat
+	// (oracle: two INTERLEAVE clauses → syntax error). A duplicate is reported as
+	// a syntax error at the repeated keyword.
 	for p.cur.Type == int(',') {
 		switch p.peekNext().Type {
 		case kwINTERLEAVE:
+			if interleave != nil {
+				p.advance() // ',' — position the error at the duplicate INTERLEAVE
+				return nil, nil, nil, p.syntaxErrorAtCur()
+			}
 			il, err := p.parseInterleaveInParent()
 			if err != nil {
 				return nil, nil, nil, err
 			}
 			interleave = il
 		case kwROW:
+			if rowDeletion != nil {
+				p.advance() // ',' — position the error at the duplicate ROW
+				return nil, nil, nil, p.syntaxErrorAtCur()
+			}
 			p.advance() // ','
 			expr, err := p.parseRowDeletionPolicyBody()
 			if err != nil {
@@ -1051,22 +1063,26 @@ func (p *Parser) matchAscDesc() string {
 }
 
 // matchNullOrder consumes a null_order (NULLS FIRST | NULLS LAST) if present and
-// returns "FIRST"/"LAST", or "" when absent.
+// returns "FIRST"/"LAST", or "" when absent. It consumes the NULLS keyword ONLY
+// when it is immediately followed by FIRST or LAST (the grammar's only valid
+// continuations); a bare `NULLS` with no FIRST/LAST is left entirely unconsumed
+// so the caller's next expect surfaces the syntax error (otherwise `NULLS` would
+// be silently swallowed and `PRIMARY KEY (x NULLS)` would wrongly accept).
 func (p *Parser) matchNullOrder() string {
 	if p.cur.Type != kwNULLS {
 		return ""
 	}
-	p.advance() // NULLS
-	switch p.cur.Type {
+	switch p.peekNext().Type {
 	case kwFIRST:
-		p.advance()
+		p.advance() // NULLS
+		p.advance() // FIRST
 		return "FIRST"
 	case kwLAST:
-		p.advance()
+		p.advance() // NULLS
+		p.advance() // LAST
 		return "LAST"
 	}
-	// NULLS not followed by FIRST/LAST: leave it; the caller's next expect will
-	// surface the syntax error. Return "" so we do not silently swallow.
+	// Bare NULLS (no FIRST/LAST): do NOT consume it; leave it for the caller.
 	return ""
 }
 

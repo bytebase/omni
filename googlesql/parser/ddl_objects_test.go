@@ -78,10 +78,10 @@ func TestCreateView_Recursive(t *testing.T) {
 
 func TestCreateView_Rejects(t *testing.T) {
 	cases := []string{
-		"CREATE VIEW v",                              // missing AS query
-		"CREATE VIEW v SQL SECURITY AS SELECT 1",     // missing INVOKER/DEFINER
+		"CREATE VIEW v",                                // missing AS query
+		"CREATE VIEW v SQL SECURITY AS SELECT 1",       // missing INVOKER/DEFINER
 		"CREATE VIEW v SQL SECURITY BOGUS AS SELECT 1", // bad security kind
-		"CREATE VIEW AS SELECT 1",                    // missing name
+		"CREATE VIEW AS SELECT 1",                      // missing name
 	}
 	for _, sql := range cases {
 		assertReject(t, sql)
@@ -318,9 +318,9 @@ func TestDropView(t *testing.T) {
 
 func TestDrop_Rejects(t *testing.T) {
 	cases := []string{
-		"DROP TABLE",      // missing name
-		"DROP INDEX",      // missing name
-		"DROP SCHEMA",     // missing name
+		"DROP TABLE",        // missing name
+		"DROP INDEX",        // missing name
+		"DROP SCHEMA",       // missing name
 		"DROP TABLE T junk", // trailing junk
 	}
 	for _, sql := range cases {

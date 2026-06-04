@@ -348,11 +348,53 @@ func TestCreateTable_StructArrayColumns(t *testing.T) {
 
 // --- CREATE TABLE reject cases ---
 
+func TestCreateTable_BareNullsRejected(t *testing.T) {
+	// Regression (review): matchNullOrder must NOT consume a bare NULLS that is
+	// not followed by FIRST/LAST; `PRIMARY KEY (x NULLS)` must reject (NULLS was
+	// previously swallowed, wrongly accepting). oracle-confirmed reject.
+	assertReject(t, "CREATE TABLE T (x INT64) PRIMARY KEY (x NULLS)")
+}
+
+func TestCreateTable_NullsFirstOnPrimaryKey(t *testing.T) {
+	// The legacy primary_key_element grammar allows `identifier asc_or_desc?
+	// null_order?`, so NULLS FIRST/LAST on a PK element parses (the Spanner
+	// emulator feature-rejects it — non-authoritative for the union).
+	ct := createTableOf(t, "CREATE TABLE T (x INT64) PRIMARY KEY (x NULLS FIRST)")
+	if ct.PrimaryKey[0].NullOrder != "FIRST" {
+		t.Errorf("PK[0].NullOrder = %q, want FIRST", ct.PrimaryKey[0].NullOrder)
+	}
+}
+
+func TestCreateTable_DuplicateInterleaveRejected(t *testing.T) {
+	// Regression (review): the legacy grammar threads at most ONE
+	// opt_spanner_interleave_in_parent_clause; a second INTERLEAVE must reject
+	// (was previously over-accepted, last-wins). oracle-confirmed reject.
+	assertReject(t, "CREATE TABLE T (x INT64) PRIMARY KEY (x), INTERLEAVE IN PARENT A ON DELETE CASCADE, INTERLEAVE IN PARENT B ON DELETE CASCADE")
+}
+
+func TestCreateTable_InterleaveAndRowDeletion(t *testing.T) {
+	// Both comma-led Spanner trailing clauses together (oracle-confirmed accept).
+	ct := createTableOf(t, "CREATE TABLE T (x INT64, c TIMESTAMP) PRIMARY KEY (x), INTERLEAVE IN PARENT P ON DELETE CASCADE, ROW DELETION POLICY (OLDER_THAN(c, INTERVAL 1 DAY))")
+	if ct.Interleave == nil {
+		t.Error("Interleave = nil, want a clause")
+	}
+	if ct.RowDeletion == nil {
+		t.Error("RowDeletion = nil, want the policy")
+	}
+}
+
+func TestCreateTable_RowDeletionPolicyRequiresCommaAfterPK(t *testing.T) {
+	// Regression (review/oracle): after a Spanner trailing PRIMARY KEY, ROW
+	// DELETION POLICY is comma-led; the non-comma form must reject (was
+	// over-accepted via the standalone opt_ttl_clause arm).
+	assertReject(t, "CREATE TABLE T (x INT64, c TIMESTAMP) PRIMARY KEY (x) ROW DELETION POLICY (OLDER_THAN(c, INTERVAL 1 DAY))")
+}
+
 func TestCreateTable_Rejects(t *testing.T) {
 	cases := []string{
-		"CREATE TABLE",                                    // missing name
-		"CREATE TABLE T (x INT64) PRIMARY KEY x",          // missing parens on PK
-		"CREATE TABLE T (x)",                              // column missing type
+		"CREATE TABLE",                                     // missing name
+		"CREATE TABLE T (x INT64) PRIMARY KEY x",           // missing parens on PK
+		"CREATE TABLE T (x)",                               // column missing type
 		"CREATE TABLE T (x INT64) PRIMARY KEY (x) garbage", // trailing junk
 		"CREATE TABLE T (CONSTRAINT FOREIGN KEY (x))",      // CONSTRAINT missing name
 		"CREATE TABLE T (x INT64,,)",                       // double comma in element list

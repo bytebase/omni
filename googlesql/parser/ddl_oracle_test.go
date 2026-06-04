@@ -136,17 +136,17 @@ var ddlFixtures = []ddlFixture{
 	{"DROP TABLE IF EXISTS T", true},
 
 	// ============================ REJECT (syntax) ============================
-	{"CREATE TABLE", false},                                 // missing name
-	{"CREATE TABLE T (x INT64) PRIMARY KEY x", false},        // missing parens on PK
-	{"CREATE TABLE T (x)", false},                            // column missing type
+	{"CREATE TABLE", false},                           // missing name
+	{"CREATE TABLE T (x INT64) PRIMARY KEY x", false}, // missing parens on PK
+	{"CREATE TABLE T (x)", false},                     // column missing type
 	{"CREATE TABLE T (x INT64) PRIMARY KEY (x) ROW DELETION POLICY (OLDER_THAN(x, INTERVAL 1 DAY))", false}, // missing comma before ROW DELETION POLICY
-	{"ALTER TABLE T", false},                                 // missing action list
-	{"ALTER TABLE T DROP COLUMN", false},                     // missing column name
-	{"CREATE INDEX idx", false},                              // missing ON + keys
-	{"CREATE INDEX idx ON T", false},                         // missing key list
-	{"CREATE VIEW v", false},                                 // missing AS query
-	{"DROP TABLE", false},                                    // missing name
-	{"DROP INDEX", false},                                    // missing name
+	{"ALTER TABLE T", false},             // missing action list
+	{"ALTER TABLE T DROP COLUMN", false}, // missing column name
+	{"CREATE INDEX idx", false},          // missing ON + keys
+	{"CREATE INDEX idx ON T", false},     // missing key list
+	{"CREATE VIEW v", false},             // missing AS query
+	{"DROP TABLE", false},                // missing name
+	{"DROP INDEX", false},                // missing name
 }
 
 func TestDDLDifferential(t *testing.T) {

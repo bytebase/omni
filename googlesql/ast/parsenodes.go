@@ -1540,7 +1540,7 @@ var (
 // embedded-query child (column DEFAULT / generated / CHECK exprs, OPTIONS values,
 // CTAS and VIEW bodies, partition/cluster exprs, index key exprs) is an ast.Node
 // field so the code-generated walker traverses it. Structural sub-nodes
-// (ColumnDef, TableConstraint, ColumnOption, …) implement Node so the walk
+// (ColumnDef, TableConstraint, OptionsEntry, …) implement Node so the walk
 // reaches their expression children. Keyword-set choices (foreign-key actions,
 // SQL SECURITY kind, generated mode) are kept as small enums/strings — the
 // query-span path never inspects them and the package carries no deparser.
@@ -1567,15 +1567,6 @@ type OptionsEntry struct {
 
 // Tag implements Node.
 func (n *OptionsEntry) Tag() NodeTag { return T_OptionsEntry }
-
-// ColumnOption mirrors OptionsEntry but is the per-column / per-element form;
-// it is structurally identical and exists only so the two option contexts read
-// distinctly at call sites. (The grammar uses the same options_entry rule.)
-//
-// Kept as an alias-shaped distinct type rather than reusing OptionsEntry so a
-// future column-option-specific field can be added without touching the
-// table-level option node.
-type ColumnOption = OptionsEntry
 
 // KeyPart is one element of a PRIMARY KEY / index key list (primary_key_element
 // / column_ordering_and_options_expr): a column name with an optional
