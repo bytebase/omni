@@ -116,7 +116,15 @@ func TestParse_DispatchKeywordsRecognized(t *testing.T) {
 	}
 	for _, p := range prefixes {
 		// Use a minimal-but-plausible tail so the leading token is the keyword.
+		// EXPLAIN is special: it is now a real parser (parser-utility node) that
+		// recurses into the inner statement, so `EXPLAIN x` would route the inner
+		// bare `x` to the default branch (correctly — Trino also rejects
+		// `EXPLAIN x`). Probe it with an inner keyword that is itself dispatched
+		// so the assertion checks EXPLAIN's own dispatch, not the inner token.
 		sql := p + " x"
+		if p == "EXPLAIN" {
+			sql = "EXPLAIN SELECT 1"
+		}
 		_, errs := Parse(sql)
 		for _, e := range errs {
 			if strings.Contains(e.Msg, "unknown or unsupported statement") {

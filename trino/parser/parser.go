@@ -205,7 +205,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// --- Session / catalog context ---
 	case kwUSE:
-		return p.unsupported("USE")
+		return p.parseUseStmt()
 
 	// --- DDL ---
 	case kwCREATE:
@@ -249,7 +249,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// --- Procedures ---
 	case kwCALL:
-		return p.unsupported("CALL")
+		return p.parseCallStmt()
 
 	// --- DCL (roles / privileges) --- [parser-dcl-tcl node: grant_revoke.go]
 	case kwGRANT:
@@ -261,24 +261,27 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// --- Session / path / time zone ---
 	case kwSET:
-		return p.unsupported("SET")
+		// SET fans out on the second keyword: SESSION (setSession /
+		// setSessionAuthorization), ROLE (setRole), PATH (setPath), TIME
+		// (setTimeZone). See session.go.
+		return p.parseSetStmt()
 	case kwRESET:
-		return p.unsupported("RESET")
+		// RESET SESSION { AUTHORIZATION | name }. See session.go.
+		return p.parseResetStmt()
 
 	// --- Inspection ---
 	case kwSHOW:
-		return p.unsupported("SHOW")
+		// SHOW family + DESCRIBE/DESC aliases. See show.go.
+		return p.parseShowStmt()
 	case kwEXPLAIN:
-		return p.unsupported("EXPLAIN")
+		// EXPLAIN / EXPLAIN ANALYZE. See explain_call.go.
+		return p.parseExplainStmt()
 	case kwDESCRIBE:
-		// DESCRIBE INPUT <name> / DESCRIBE OUTPUT <name> are prepared-statement
-		// introspection (parser-dcl-tcl node: prepared.go). They are claimed
-		// ONLY when INPUT/OUTPUT is followed by a statement-name identifier:
-		// INPUT and OUTPUT are NON-RESERVED keywords, so a bare `DESCRIBE INPUT`
-		// or `DESCRIBE INPUT.col` is the SHOW COLUMNS alias `DESCRIBE
-		// qualifiedName` (INPUT/OUTPUT being the table name), owned by
-		// parser-utility (still stubbed). Trino's own grammar disambiguates the
-		// same way via adaptive prediction.
+		// DESCRIBE INPUT/OUTPUT <name> are prepared-statement introspection
+		// (parser-dcl-tcl: prepared.go), claimed only when INPUT/OUTPUT is
+		// followed by a statement name. INPUT/OUTPUT are NON-RESERVED, so a
+		// bare `DESCRIBE INPUT` or `DESCRIBE INPUT.col` is the SHOW COLUMNS
+		// alias `DESCRIBE qualifiedName` (INPUT/OUTPUT as the table name).
 		if (p.peekNext().Kind == kwINPUT || p.peekNext().Kind == kwOUTPUT) && p.describeIntrospectionFollows() {
 			descTok := p.advance() // consume DESCRIBE
 			kind := p.advance()    // consume INPUT / OUTPUT
@@ -287,9 +290,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			}
 			return p.parseDescribeOutputStmt(descTok.Loc.Start)
 		}
-		return p.unsupported("DESCRIBE")
+		// DESCRIBE name == SHOW COLUMNS (parser-utility). See show.go.
+		return p.parseDescribeStmt()
 	case kwDESC:
-		return p.unsupported("DESC")
+		// DESC name == SHOW COLUMNS; DESC has no prepared form.
+		return p.parseDescribeStmt()
 
 	// --- Transactions --- [parser-dcl-tcl node: transaction.go]
 	case kwSTART:
