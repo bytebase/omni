@@ -114,6 +114,18 @@ func extractTables(te ast.TableExpr) []string {
 		left := extractTables(v.Left)
 		right := extractTables(v.Right)
 		return append(left, right...)
+	case *ast.MatchExpr:
+		// FROM-position graph match: `FROM <source> MATCH <pattern>`. The
+		// relation being matched is MatchExpr.Expr (the left-hand FROM source the
+		// MATCH is applied to), e.g. `g` in `SELECT * FROM g MATCH (n)`. The parser
+		// binds that source to the same node an ordinary FROM source would (a
+		// VarRef for `g`, a PathExpr for `s.g`), both of which satisfy TableExpr,
+		// so recurse to collect it exactly like a plain FROM source. The graph
+		// pattern itself binds no base relations, so only Expr is walked.
+		if src, ok := v.Expr.(ast.TableExpr); ok {
+			return extractTables(src)
+		}
+		return nil
 	case *ast.SubLink:
 		// subquery in FROM — no simple table name
 		return nil

@@ -184,6 +184,69 @@ func TestAnalyze_JoinTables(t *testing.T) {
 	}
 }
 
+// TestAnalyze_MatchSource asserts that a FROM-position graph MATCH collects its
+// underlying source relation just like an ordinary FROM source. In
+// `SELECT * FROM g MATCH (n)` the relation being matched is `g`; the parser
+// models this as a *ast.MatchExpr whose Expr is the source (here VarRef{g}).
+// Before the fix extractTables had no *ast.MatchExpr case and silently dropped
+// the source, yielding an empty Tables slice.
+//
+// Oracle: official PartiQL graph-match docs define `FROM <graph> MATCH <pattern>`
+// where <graph> is the source relation; the parser already binds `g` as a VarRef
+// (the same node an ordinary `FROM g` produces), so collecting it is spec-correct.
+func TestAnalyze_MatchSource(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		// Unparenthesised FROM...MATCH (exprGraphMatchOne):
+		// parser.From is *ast.MatchExpr{Expr: VarRef{g}}.
+		{"unparenthesised", "SELECT * FROM g MATCH (n)", "g"},
+		// Parenthesised single-pattern form (exprGraphMatchMany via
+		// parseParenExpr): also lands as *ast.MatchExpr{Expr: VarRef{g}}.
+		{"parenthesised", "SELECT * FROM (g MATCH (n))", "g"},
+		// A richer pattern (node-edge-node) does not change the source relation.
+		{"with edge pattern", "SELECT * FROM g MATCH (a)-[e]->(b)", "g"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			sel := parseSelect(t, tc.input)
+			qa := Analyze(sel)
+			if len(qa.Tables) != 1 || qa.Tables[0] != tc.want {
+				t.Errorf("Analyze(%q).Tables = %v, want [%s]", tc.input, qa.Tables, tc.want)
+			}
+		})
+	}
+}
+
+// TestAnalyze_MatchSourcePath asserts that a schema-qualified graph source
+// (`s.g MATCH ...`) collects the path root `s`, matching how extractTables
+// already treats an ordinary `FROM s.g` (a PathExpr rooted at VarRef{s}).
+func TestAnalyze_MatchSourcePath(t *testing.T) {
+	sel := parseSelect(t, "SELECT * FROM s.g MATCH (n)")
+	qa := Analyze(sel)
+	if len(qa.Tables) != 1 || qa.Tables[0] != "s" {
+		t.Errorf("Analyze(%q).Tables = %v, want [s]", "SELECT * FROM s.g MATCH (n)", qa.Tables)
+	}
+}
+
+// TestAnalyze_MatchSourceInJoin asserts a FROM...MATCH source on one side of a
+// join is collected alongside the ordinary join source. The parenthesised MATCH
+// keeps it a distinct join arm: `(g MATCH (n))` is *ast.MatchExpr, joined with t.
+func TestAnalyze_MatchSourceInJoin(t *testing.T) {
+	sel := parseSelect(t, "SELECT * FROM (g MATCH (n)), t")
+	qa := Analyze(sel)
+	tableSet := map[string]bool{}
+	for _, tbl := range qa.Tables {
+		tableSet[tbl] = true
+	}
+	if len(qa.Tables) != 2 || !tableSet["g"] || !tableSet["t"] {
+		t.Errorf("Analyze(...).Tables = %v, want [g t]", qa.Tables)
+	}
+}
+
 func TestAnalyze_LiteralProjection(t *testing.T) {
 	sel := parseSelect(t, "SELECT 1 FROM t")
 	qa := Analyze(sel)
