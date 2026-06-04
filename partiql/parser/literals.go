@@ -193,6 +193,20 @@ func (p *Parser) parseTimeLiteral() (ast.ExprNode, error) {
 // expectStringLiteral consumes a required LITERAL_STRING token, returning
 // a descriptive error keyed on the literal kind when the next token is
 // not a string. The returned Token's Str is the already-decoded body.
+//
+// The string body is the FINAL token of every DATE/TIME literal form, so
+// the advance that consumes it is where the lexer first scans whatever
+// follows the literal. If that trailing content is itself un-lexable
+// (an unrecognized character like `#`, an unterminated block comment
+// `/*`, ...), the lexer's first-error-and-stop contract sets Lexer.Err
+// and makes advance() yield tokEOF rather than the offending token.
+// A bare EOF check by the caller would then mistake the malformed input
+// for a clean end and accept the literal, silently dropping the lexer
+// error. We surface it here so e.g. `DATE '2026-01-01' #` and
+// `TIME '12:00:00' /*` become parse errors (matching the antlr oracle,
+// which rejects the same inputs as unexpected trailing input) instead of
+// accepted literals. Clean trailing content — EOF, or a real token the
+// EOF check will catch — leaves Lexer.Err nil and is unaffected.
 func (p *Parser) expectStringLiteral(kind string) (Token, error) {
 	if p.cur.Type != tokSCONST {
 		return Token{}, &ParseError{
@@ -202,5 +216,8 @@ func (p *Parser) expectStringLiteral(kind string) (Token, error) {
 	}
 	tok := p.cur
 	p.advance()
+	if err := p.checkLexerErr(); err != nil {
+		return Token{}, err
+	}
 	return tok, nil
 }

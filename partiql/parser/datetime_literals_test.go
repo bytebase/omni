@@ -156,6 +156,85 @@ func TestDateTimeLiteral_Reject(t *testing.T) {
 	}
 }
 
+// TestDateTimeLiteral_TrailingLexError asserts that a DATE/TIME literal
+// followed by un-lexable trailing content is REJECTED, not silently
+// accepted (Codex review finding on PR #181).
+//
+// Mechanism: the string body is the final token of every DATE/TIME form,
+// so the advance() that consumes it is where the lexer first scans
+// whatever follows. If that trailing content is itself un-lexable — an
+// unrecognized character (`#`) or an unterminated block comment (`/*`) —
+// the lexer's first-error-and-stop contract sets Lexer.Err and yields
+// tokEOF instead of the offending token. Before the fix, ParseExpr's
+// post-parse `cur == tokEOF` check mistook this for a clean end and
+// returned the DateLit/TimeLit as success, dropping the lexer error.
+// parseDateLiteral/parseTimeLiteral now surface the pending lexer error
+// (via expectStringLiteral -> checkLexerErr) so the parse fails.
+//
+// Oracle (antlr_fallback): PartiQLLexer.g4 has no standalone `#` token —
+// `#` matches only the catch-all `UNRECOGNIZED : . ;` rule, and an
+// unterminated `/*` cannot match COMMENT_BLOCK (`'/*' .*? '*/'`). Either
+// way ANTLR yields trailing input the `literal` rule cannot consume, so
+// the canonical grammar likewise REJECTS these inputs. omni surfaces the
+// rejection one layer earlier (lexer error vs ANTLR's extra-token parser
+// error), but the accept/reject verdict matches: both reject.
+func TestDateTimeLiteral_TrailingLexError(t *testing.T) {
+	cases := []struct {
+		name      string
+		input     string
+		wantErrIn string
+	}{
+		// The two exact inputs from the Codex finding.
+		{"date_trailing_hash", "DATE '2026-01-01' #", "unexpected character '#'"},
+		{"time_trailing_block_comment", "TIME '12:00:00' /*", "unterminated block comment"},
+		// Same hazard on the other end (DATE + unterminated comment,
+		// TIME + unrecognized char) and on the precision/with-tz TIME
+		// variants, which all funnel through expectStringLiteral.
+		{"date_trailing_block_comment", "DATE '2026-01-01' /*", "unterminated block comment"},
+		{"time_trailing_hash", "TIME '12:00:00' #", "unexpected character '#'"},
+		{"time_prec_trailing_hash", "TIME (3) '12:00:00.123' #", "unexpected character '#'"},
+		{"time_tz_trailing_block_comment", "TIME WITH TIME ZONE '12:00:00' /*", "unterminated block comment"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := NewParser(tc.input)
+			expr, err := p.ParseExpr()
+			if err == nil {
+				t.Fatalf("ParseExpr(%q) = %T, want error containing %q (trailing lexer error must not be swallowed)", tc.input, expr, tc.wantErrIn)
+			}
+			if !strings.Contains(err.Error(), tc.wantErrIn) {
+				t.Errorf("ParseExpr(%q) error = %q, want substring %q", tc.input, err.Error(), tc.wantErrIn)
+			}
+		})
+	}
+}
+
+// TestDateTimeLiteral_TrailingValidTokenStillRejected guards the
+// neighbouring case so the trailing-lex-error fix is not mistaken for the
+// EOF check: a DATE/TIME literal followed by a WELL-FORMED extra token
+// (which leaves Lexer.Err nil) must still be rejected, by the existing
+// "unexpected token after expression" EOF check rather than by the new
+// lexer-error surfacing. This pins both rejection paths.
+func TestDateTimeLiteral_TrailingValidTokenStillRejected(t *testing.T) {
+	cases := []string{
+		"DATE '2026-01-01' 99",
+		"TIME '12:00:00' foo",
+		"DATE '2026-01-01' @",
+	}
+	for _, in := range cases {
+		t.Run(in, func(t *testing.T) {
+			p := NewParser(in)
+			expr, err := p.ParseExpr()
+			if err == nil {
+				t.Fatalf("ParseExpr(%q) = %T, want error (trailing token after literal)", in, expr)
+			}
+			if !strings.Contains(err.Error(), "after expression") {
+				t.Errorf("ParseExpr(%q) error = %q, want the EOF-check message %q", in, err.Error(), "after expression")
+			}
+		})
+	}
+}
+
 // TestDateTimeLiteral_Goldens iterates every .partiql file under
 // testdata/datetime/ and compares the parser's pretty-printed output
 // (via ast.NodeToString) against the matching .golden file.
