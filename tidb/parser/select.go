@@ -770,7 +770,7 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 	var alias string
 	if _, ok := p.match(kwAS); ok {
 		aliasLoc := p.pos()
-		name, _, err := p.parseIdent()
+		name, _, err := p.parseIdentOrText()
 		if err != nil {
 			return nil, err
 		}
@@ -778,10 +778,10 @@ func (p *Parser) parseSelectExpr() (nodes.ExprNode, error) {
 		if p.completing {
 			p.addSelectAliasPosition(aliasLoc)
 		}
-	} else if p.isIdentToken() && !p.isSelectTerminator() {
-		// Implicit alias (identifier without AS), but not if it's a keyword that starts the next clause
+	} else if (p.isIdentToken() || p.cur.Type == tokSCONST) && !p.isSelectTerminator() {
+		// Implicit alias (identifier or string literal without AS), but not if it's a keyword that starts the next clause
 		aliasLoc := p.pos()
-		alias, _, err = p.parseIdent()
+		alias, _, err = p.parseIdentOrText()
 		if err != nil {
 			return nil, err
 		}
@@ -1101,7 +1101,8 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 			Lateral: true,
 		}
 
-		// Optional alias: [AS] alias
+		// Optional alias: [AS] alias. TiDB does not accept a string-literal
+		// derived-table alias (unlike MySQL), so this uses parseIdent.
 		if _, ok := p.match(kwAS); ok {
 			alias, _, err := p.parseIdent()
 			if err != nil {
@@ -1148,7 +1149,8 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 				Select: sel,
 			}
 
-			// Optional alias: [AS] alias
+			// Optional alias: [AS] alias. TiDB does not accept a string-literal
+			// derived-table alias (unlike MySQL), so this uses parseIdent.
 			if _, ok := p.match(kwAS); ok {
 				alias, _, err := p.parseIdent()
 				if err != nil {
@@ -1275,7 +1277,8 @@ func (p *Parser) parseJsonTable() (nodes.TableExpr, error) {
 		return nil, err
 	}
 
-	// [AS] alias (required for JSON_TABLE)
+	// [AS] alias (required for JSON_TABLE). TiDB requires an identifier here,
+	// not a string literal (unlike MySQL), so this uses parseIdent.
 	p.match(kwAS)
 	alias, _, aErr := p.parseIdent()
 	if aErr != nil {

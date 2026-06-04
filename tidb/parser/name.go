@@ -595,6 +595,17 @@ func (p *Parser) parseIdentifier() (string, int, error) {
 	return p.parseIdent()
 }
 
+// parseIdentOrText parses an identifier OR a string literal, matching MySQL's
+// `ident_or_text` grammar rule. Used for alias positions where MySQL accepts a
+// quoted string as the alias (e.g. SELECT a AS 'x', FROM t AS 'y').
+func (p *Parser) parseIdentOrText() (string, int, error) {
+	if p.cur.Type == tokSCONST {
+		tok := p.advance()
+		return tok.Str, tok.Loc, nil
+	}
+	return p.parseIdent()
+}
+
 // parseLabelIdent parses an identifier matching MySQL's `label_ident` grammar rule.
 // Accepts tokIDENT plus unambiguous, ambiguous_3, and ambiguous_4 keywords.
 // Excludes ambiguous_1 (not label, not role) and ambiguous_2 (not label).
@@ -833,7 +844,9 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 		ref.Loc.End = p.pos()
 	}
 
-	// Optional AS alias
+	// Optional AS alias. Unlike MySQL, TiDB does NOT accept a string literal as
+	// a table alias (ident_or_text applies only to SELECT-list aliases), so this
+	// uses parseIdentifier, not parseIdentOrText.
 	if _, ok := p.match(kwAS); ok {
 		alias, _, err := p.parseIdentifier()
 		if err != nil {
