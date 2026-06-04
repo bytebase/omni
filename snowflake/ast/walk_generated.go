@@ -31,6 +31,13 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+	case *AlterStageStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
 	case *AlterTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -117,6 +124,10 @@ func walkChildren(v Visitor, node Node) {
 		walkNodes(v, n.ClusterBy)
 		Walk(v, n.Query)
 	case *CreateSchemaStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *CreateStageStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}

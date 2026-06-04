@@ -2550,3 +2550,91 @@ var (
 	_ Node = (*ListStmt)(nil)
 	_ Node = (*RemoveStmt)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// Stage DDL — CREATE / ALTER STAGE (T4.1)
+// ---------------------------------------------------------------------------
+//
+// Like COPY, the stage grammar carries large, version-growing option
+// vocabularies: the external-stage cloud params (URL, STORAGE_INTEGRATION,
+// CREDENTIALS, ENCRYPTION, ENDPOINT, AWS_ACCESS_POINT_ARN,
+// USE_PRIVATELINK_ENDPOINT, ...), the directory-table params (DIRECTORY = (...)),
+// the file-format params (FILE_FORMAT = (FORMAT_NAME = ... | TYPE = ... ...)) and
+// the copy options (COPY_OPTIONS = (...)). Rather than enumerate them — the
+// legacy ANTLR grammar's finite lists are already stale relative to the docs
+// (they lack AWS_ACCESS_POINT_ARN, USE_PRIVATELINK_ENDPOINT, ENDPOINT, the
+// s3compat:// form, ...) — every such param is captured as an open-ended
+// `KEY = <value>` pair (CopyOption), reusing the merged COPY (T5.2) machinery.
+// Only the structurally-distinct WITH TAG and COMMENT clauses, and the ALTER
+// action keywords (RENAME / SET / UNSET / REFRESH), anchor the grammar. The
+// catalog/semantic layer, not the parser, validates that an option is legal.
+
+// CreateStageStmt represents
+//
+//	CREATE [ OR REPLACE ] [ TEMP | TEMPORARY ] STAGE [ IF NOT EXISTS ] <name>
+//	  <stageParams>            -- internal: ENCRYPTION=(...); external: URL=...,
+//	                              STORAGE_INTEGRATION=..., CREDENTIALS=(...),
+//	                              ENCRYPTION=(...), ...
+//	  [ DIRECTORY = ( ... ) ]
+//	  [ FILE_FORMAT = ( ... ) ]
+//	  [ COPY_OPTIONS = ( ... ) ]
+//	  [ COMMENT = '<string>' ]
+//	  [ [ WITH ] TAG ( <tag> = '<value>' [ , ... ] ) ]
+//
+// All cloud/format/copy/comment params are captured open-ended in Options,
+// preserving source order (an internal stage simply has no URL option). Tags
+// holds the WITH TAG assignments. There is no dedicated External flag: an
+// external stage is exactly one that carries a URL option, which downstream
+// consumers can detect.
+type CreateStageStmt struct {
+	OrReplace   bool
+	Temporary   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Options     []*CopyOption    // URL / STORAGE_INTEGRATION / CREDENTIALS / ENCRYPTION / DIRECTORY / FILE_FORMAT / COPY_OPTIONS / COMMENT / ...
+	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
+	Loc         Loc
+}
+
+func (n *CreateStageStmt) Tag() NodeTag { return T_CreateStageStmt }
+
+// AlterStageAction discriminates the action variants of ALTER STAGE.
+type AlterStageAction int
+
+const (
+	AlterStageRename   AlterStageAction = iota // RENAME TO <new_name>
+	AlterStageSet                              // SET <stageParams|FILE_FORMAT|COPY_OPTIONS|COMMENT|DIRECTORY>
+	AlterStageUnset                            // UNSET <property names> (e.g. DCM PROJECT)
+	AlterStageSetTag                           // SET TAG (...)
+	AlterStageUnsetTag                         // UNSET TAG (...)
+	AlterStageRefresh                          // REFRESH [ SUBPATH = '<relative-path>' ]
+)
+
+// AlterStageStmt represents ALTER STAGE [IF EXISTS] <name> <action>.
+//
+//	RENAME TO <new_name>
+//	SET <options>                       -- open-ended KEY = value params
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
+//	UNSET <property> [ , ... ]          -- e.g. UNSET DCM PROJECT
+//	REFRESH [ SUBPATH = '<relative-path>' ]
+type AlterStageStmt struct {
+	IfExists   bool
+	Name       *ObjectName
+	Action     AlterStageAction
+	NewName    *ObjectName      // RENAME TO target; non-nil for AlterStageRename
+	Options    []*CopyOption    // SET <options>; for AlterStageSet
+	Tags       []*TagAssignment // SET TAG (...) assignments; for AlterStageSetTag
+	UnsetTags  []*ObjectName    // UNSET TAG (...) names; for AlterStageUnsetTag
+	UnsetProps []string         // UNSET <property> names; for AlterStageUnset
+	Subpath    *string          // REFRESH SUBPATH = '...'; nil when absent
+	Loc        Loc
+}
+
+func (n *AlterStageStmt) Tag() NodeTag { return T_AlterStageStmt }
+
+// Compile-time assertions for stage DDL nodes.
+var (
+	_ Node = (*CreateStageStmt)(nil)
+	_ Node = (*AlterStageStmt)(nil)
+)

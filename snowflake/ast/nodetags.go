@@ -104,6 +104,10 @@ const (
 	T_GetStmt
 	T_ListStmt
 	T_RemoveStmt
+
+	// Stage DDL tags (T4.1)
+	T_CreateStageStmt
+	T_AlterStageStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -251,6 +255,10 @@ func (t NodeTag) String() string {
 		return "ListStmt"
 	case T_RemoveStmt:
 		return "RemoveStmt"
+	case T_CreateStageStmt:
+		return "CreateStageStmt"
+	case T_AlterStageStmt:
+		return "AlterStageStmt"
 	default:
 		return "Unknown"
 	}
