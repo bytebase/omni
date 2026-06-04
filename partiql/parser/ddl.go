@@ -193,9 +193,18 @@ loop:
 		case tokBRACKET_LEFT:
 			stepStart := p.cur.Loc.Start
 			p.advance() // consume [
-			// Try literal first, then symbolPrimitive.
+			// pathSimpleSteps has two bracket alternatives (g4 lines
+			// 114-115): `[ key=literal ]` and `[ key=symbolPrimitive ]`.
+			// A `literal` is the full set NULL | MISSING | TRUE | FALSE |
+			// string | number | Ion | DATE/TIME (g4 lines 661-672), so we
+			// route every literal-start token through parseLiteral —
+			// matching parsePrimaryBase's literal dispatch — and fall back
+			// to symbolPrimitive only for a bare identifier. (TIMESTAMP is
+			// dispatched here but is not a literal; parseLiteral rejects it
+			// precisely, matching the ANTLR oracle which also rejects
+			// `a[TIMESTAMP '...']`.)
 			var idx ast.ExprNode
-			if p.cur.Type == tokSCONST || p.cur.Type == tokICONST || p.cur.Type == tokFCONST {
+			if isLiteralStart(p.cur.Type) {
 				lit, err := p.parseLiteral()
 				if err != nil {
 					return nil, err
@@ -233,4 +242,26 @@ loop:
 		Steps: steps,
 		Loc:   ast.Loc{Start: nameLoc.Start, End: end},
 	}, nil
+}
+
+// isLiteralStart reports whether tok can begin a `literal` (PartiQLParser.g4
+// lines 661-672): NULL, MISSING, TRUE, FALSE, string, integer, decimal, Ion,
+// or a DATE/TIME literal. It mirrors the literal cases of parsePrimaryBase's
+// dispatch (exprprimary.go) so the bracket-key path step in parsePathSimple
+// admits exactly the grammar's `literal` set.
+//
+// tokTIMESTAMP is included so it is routed to parseLiteral, which rejects it
+// with a precise "TIMESTAMP literal is not supported" error rather than the
+// generic "expected identifier" symbolPrimitive failure — TIMESTAMP is a
+// type-name keyword, not a member of the `literal` rule, and the ANTLR oracle
+// likewise rejects `a[TIMESTAMP '...']`.
+func isLiteralStart(tok int) bool {
+	switch tok {
+	case tokNULL, tokMISSING, tokTRUE, tokFALSE,
+		tokSCONST, tokICONST, tokFCONST, tokION_LITERAL,
+		tokDATE, tokTIME, tokTIMESTAMP:
+		return true
+	default:
+		return false
+	}
 }
