@@ -88,9 +88,9 @@ func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
 		return p.parseRepeatStmt("", 0)
 	}
 
-	// LOOP (without label)
+	// LOOP — TiDB v8.5.0 has no LOOP ... END LOOP in stored programs.
 	if p.cur.Type == kwLOOP {
-		return p.parseLoopStmt("", 0)
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// LEAVE
@@ -143,12 +143,12 @@ func (p *Parser) parseCompoundStmtOrStmt() (nodes.Node, error) {
 			if p.cur.Type == kwREPEAT {
 				return p.parseRepeatStmt(name, nameStart)
 			}
-			// Labeled LOOP
+			// Labeled LOOP — TiDB v8.5.0 has no LOOP.
 			if p.cur.Type == kwLOOP {
-				return p.parseLoopStmt(name, nameStart)
+				return nil, p.syntaxErrorAtCur()
 			}
 			return nil, &ParseError{
-				Message:  "expected BEGIN, WHILE, REPEAT, or LOOP after label",
+				Message:  "expected BEGIN, WHILE, or REPEAT after label",
 				Position: p.cur.Loc,
 			}
 		}

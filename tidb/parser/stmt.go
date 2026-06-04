@@ -477,24 +477,24 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return p.parseCreatePlacementPolicyStmt(start, orReplace)
 
 	case kwAGGREGATE:
-		// CREATE AGGREGATE FUNCTION — loadable UDF
-		p.advance() // consume AGGREGATE
-		if p.cur.Type == kwFUNCTION {
-			return p.parseCreateLoadableFunction(true)
-		}
-		return nil, &ParseError{Message: "expected FUNCTION after AGGREGATE", Position: p.cur.Loc}
+		// TiDB v8.5.0 has no CREATE [AGGREGATE] FUNCTION (stored or loadable
+		// UDF); it rejects at the FUNCTION/AGGREGATE keyword.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwFUNCTION:
-		return p.parseCreateFunctionStmt(false)
+		// TiDB v8.5.0 has no CREATE FUNCTION (stored or loadable UDF).
+		return nil, p.syntaxErrorAtCur()
 
 	case kwPROCEDURE:
 		return p.parseCreateFunctionStmt(true)
 
 	case kwTRIGGER:
-		return p.parseCreateTriggerStmt()
+		// TiDB v8.5.0 has no CREATE TRIGGER.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwEVENT:
-		return p.parseCreateEventStmt()
+		// TiDB v8.5.0 has no CREATE EVENT (no event scheduler).
+		return nil, p.syntaxErrorAtCur()
 
 	case kwUSER:
 		return p.parseCreateUserStmt()
