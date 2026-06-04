@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -280,9 +279,9 @@ var exprRejectCorpus = []string{
 	"()",
 	"a IN ()",
 
-	// SQL/JSON functions are the expr-json node (this node rejects them as
-	// "not yet supported" — a deliberate, node-scoped non-acceptance that the
-	// oracle differential treats specially; see TestExpr_JSONDeferred).
+	// SQL/JSON functions (JSON_EXISTS/JSON_VALUE/JSON_QUERY/JSON_OBJECT/
+	// JSON_ARRAY) are the expr-json node; their accept/reject corpus and oracle
+	// differential live in json_test.go (jsonAcceptCorpus / jsonRejectCorpus).
 }
 
 // TestExpr_AcceptCorpusParses verifies omni accepts every form in
@@ -352,29 +351,8 @@ func TestExpr_OracleDifferential(t *testing.T) {
 	})
 }
 
-// TestExpr_JSONDeferred documents the node-scope boundary: the SQL/JSON
-// functions are accepted by Trino but deferred to the expr-json node, so this
-// node rejects them with a "not yet supported" diagnostic. This is a deliberate
-// non-acceptance recorded in the divergence ledger; it is NOT a Trino-disagreement
-// bug. When expr-json lands, these move into the accept corpus.
-func TestExpr_JSONDeferred(t *testing.T) {
-	jsonForms := []string{
-		"JSON_EXISTS(a, 'lax $.b')",
-		"JSON_VALUE(a, 'lax $.b')",
-		"JSON_QUERY(a, 'lax $.b')",
-		"JSON_OBJECT('k' VALUE 1)",
-		"JSON_ARRAY(1, 2)",
-	}
-	for _, expr := range jsonForms {
-		t.Run(truncateName(expr), func(t *testing.T) {
-			_, errs := ParseExpression(expr)
-			if len(errs) == 0 {
-				t.Errorf("expected %q to be rejected as not-yet-supported, but accepted", expr)
-				return
-			}
-			if !strings.Contains(errs[0].Msg, "not yet supported") {
-				t.Errorf("expected a 'not yet supported' diagnostic for %q, got: %v", expr, errs[0].Msg)
-			}
-		})
-	}
-}
+// The SQL/JSON functions (JSON_EXISTS/JSON_VALUE/JSON_QUERY/JSON_OBJECT/
+// JSON_ARRAY) were a deliberate node-scoped non-acceptance in the expressions
+// node (a "not yet supported" stub). The expr-json node (json.go) now parses
+// them; their accept/reject corpus, oracle differential, and structural
+// assertions live in json_test.go.
