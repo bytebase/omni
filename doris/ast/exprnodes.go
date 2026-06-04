@@ -233,12 +233,44 @@ type FuncCallExpr struct {
 	Star     bool   // COUNT(*)
 	OrderBy  []*OrderByItem // optional ORDER BY in aggregate (GROUP_CONCAT)
 	Separator string // optional SEPARATOR value for GROUP_CONCAT
+	Over     *WindowSpec // optional OVER (...) window specification
 	Loc      Loc
 }
 
 func (n *FuncCallExpr) Tag() NodeTag { return T_FuncCallExpr }
 
 var _ Node = (*FuncCallExpr)(nil)
+
+// WindowSpec is the OVER (...) specification attached to a window function
+// call: OVER ( [PARTITION BY ...] [ORDER BY ...] [frame] ), or OVER name for a
+// named window reference. It is a plain sub-node of FuncCallExpr (not a
+// standalone Node); the walker descends into its expression children via the
+// FuncCallExpr case.
+type WindowSpec struct {
+	Name        string         // named window reference (empty for the inline form)
+	PartitionBy []Node         // PARTITION BY expressions
+	OrderBy     []*OrderByItem // ORDER BY items
+	Frame       *WindowFrame   // optional frame clause (ROWS/RANGE ...)
+	Loc         Loc
+}
+
+// WindowFrame is a window frame clause inside an OVER spec:
+//
+//	(ROWS | RANGE) frame_bound
+//	(ROWS | RANGE) BETWEEN frame_bound AND frame_bound
+//
+// A bound is one of: UNBOUNDED PRECEDING, UNBOUNDED FOLLOWING, CURRENT ROW,
+// <expr> PRECEDING, <expr> FOLLOWING. StartExpr/EndExpr are non-nil only for
+// the "<expr> PRECEDING/FOLLOWING" forms; EndType is empty for a single-bound
+// frame (no BETWEEN).
+type WindowFrame struct {
+	Unit      string // "ROWS" or "RANGE"
+	StartType string // bound kind for the start/only bound
+	StartExpr Node
+	EndType   string // bound kind for the end bound; empty if no BETWEEN
+	EndExpr   Node
+	Loc       Loc
+}
 
 // CastExpr represents CAST(expr AS type) or TRY_CAST(expr AS type).
 type CastExpr struct {
