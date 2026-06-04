@@ -57,6 +57,16 @@ var defaultCollationForCharset = map[string]string{
 	"armscii8": "armscii8_general_ci",
 }
 
+// binModifierCollation returns the collation the standalone BINARY modifier
+// resolves to for the given charset: {charset}_bin, except the `binary` charset
+// whose binary collation is `binary` (not `binary_bin`). Matches TiDB.
+func binModifierCollation(charset string) string {
+	if toLower(charset) == "binary" {
+		return "binary"
+	}
+	return toLower(charset) + "_bin"
+}
+
 // ShowCreateTable produces MySQL 8.0-compatible SHOW CREATE TABLE output.
 // Returns "" if the database or table does not exist.
 func (c *Catalog) ShowCreateTable(database, table string) string {

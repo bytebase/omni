@@ -841,6 +841,13 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		if colDef.TypeName.Collate != "" {
 			col.Collation = colDef.TypeName.Collate
 		}
+
+		// MySQL converts non-ENUM/SET string columns with CHARACTER SET binary to
+		// binary types (CHAR->BINARY, VARCHAR->VARBINARY, TEXT->BLOB), like the
+		// CREATE TABLE path. ENUM/SET keep the binary charset annotation.
+		if strings.EqualFold(col.Charset, "binary") && isStringType(col.DataType) && !isEnumSetType(col.DataType) {
+			col = convertToBinaryType(col, colDef.TypeName)
+		}
 	}
 
 	// Default charset/collation for string types.
@@ -859,6 +866,15 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 				col.Collation = tbl.Collation
 			}
 		}
+	}
+
+	// Standalone BINARY modifier (CHAR(10) BINARY) → the effective charset's
+	// binary collation, matching TiDB. Resolved after the charset default above
+	// so a bare CHAR BINARY uses the table/db charset. An explicit COLLATE wins
+	// over BINARY, so only apply when no COLLATE was given.
+	if colDef.TypeName != nil && colDef.TypeName.Binary && isStringType(col.DataType) &&
+		colDef.TypeName.Collate == "" {
+		col.Collation = binModifierCollation(col.Charset)
 	}
 
 	// Top-level column properties.

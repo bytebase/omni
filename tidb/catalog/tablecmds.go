@@ -222,6 +222,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			}
 		}
 
+		// Standalone BINARY modifier (CHAR(10) BINARY) → the effective charset's
+		// binary collation, matching TiDB. Resolved after the charset default
+		// above so a bare CHAR BINARY uses the table/db charset. An explicit
+		// COLLATE wins over BINARY, so only apply when no COLLATE was given.
+		if colDef.TypeName != nil && colDef.TypeName.Binary && isStringType(col.DataType) &&
+			colDef.TypeName.Collate == "" {
+			col.Collation = binModifierCollation(col.Charset)
+		}
+
 		// Top-level column properties.
 		if colDef.TypeName != nil && colDef.TypeName.SRID != 0 {
 			col.SRID = colDef.TypeName.SRID
