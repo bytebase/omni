@@ -165,15 +165,13 @@ CREATE TABLE t3 (id INT NOT NULL);`
 	})
 
 	t.Run("drop_database_cascade", func(t *testing.T) {
-		// Scenario 7: DROP DATABASE cascade — all tables, views, routines, triggers, events removed.
+		// Scenario 7: DROP DATABASE cascade — all tables, views, routines removed.
 		c := wtSetup(t)
 
 		// Create various objects.
 		wtExec(t, c, "CREATE TABLE t1 (id INT NOT NULL, val INT)")
 		wtExec(t, c, "CREATE VIEW v1 AS SELECT id FROM t1")
-		wtExec(t, c, "CREATE FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 1")
-		wtExec(t, c, "CREATE TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW SET NEW.val = 0")
-		wtExec(t, c, "CREATE EVENT ev1 ON SCHEDULE EVERY 1 HOUR DO SELECT 1")
+		wtExec(t, c, "CREATE PROCEDURE p1() BEGIN SELECT 1; END")
 
 		// Verify objects exist.
 		db := c.GetDatabase("testdb")
@@ -186,14 +184,8 @@ CREATE TABLE t3 (id INT NOT NULL);`
 		if db.Views[toLower("v1")] == nil {
 			t.Fatal("v1 should exist before DROP DATABASE")
 		}
-		if db.Functions[toLower("f1")] == nil {
-			t.Fatal("f1 should exist before DROP DATABASE")
-		}
-		if db.Triggers[toLower("tr1")] == nil {
-			t.Fatal("tr1 should exist before DROP DATABASE")
-		}
-		if db.Events[toLower("ev1")] == nil {
-			t.Fatal("ev1 should exist before DROP DATABASE")
+		if db.Procedures[toLower("p1")] == nil {
+			t.Fatal("p1 should exist before DROP DATABASE")
 		}
 
 		// DROP DATABASE removes everything.

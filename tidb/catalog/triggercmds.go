@@ -53,7 +53,7 @@ func (c *Catalog) createTrigger(stmt *nodes.CreateTriggerStmt) error {
 		Timing:   stmt.Timing,
 		Event:    stmt.Event,
 		Definer:  definer,
-		Body:     strings.TrimSpace(stmt.Body),
+		Body:     strings.TrimSpace(stmt.BodyText),
 	}
 
 	if stmt.Order != nil {

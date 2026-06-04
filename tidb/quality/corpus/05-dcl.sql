@@ -74,22 +74,26 @@ DROP ROLE app_role
 SET PASSWORD FOR 'testuser'@'localhost' = 'newpass'
 
 -- @name: create trigger before insert
--- @valid: true
+-- @valid: false
+-- @note: TiDB v8.5.0 has no CREATE TRIGGER (rejects at the TRIGGER keyword).
 -- @source: MySQL 8.0 Reference Manual
 CREATE TRIGGER trg_audit BEFORE INSERT ON employees FOR EACH ROW SET NEW.created_at = NOW()
 
 -- @name: create trigger after update
--- @valid: true
+-- @valid: false
+-- @note: TiDB v8.5.0 has no CREATE TRIGGER (rejects at the TRIGGER keyword).
 -- @source: MySQL 8.0 Reference Manual
 CREATE TRIGGER trg_update AFTER UPDATE ON employees FOR EACH ROW SET NEW.updated_at = NOW()
 
 -- @name: drop trigger
--- @valid: true
+-- @valid: false
+-- @note: TiDB v8.5.0 has no DROP TRIGGER (rejects at the TRIGGER keyword).
 -- @source: MySQL 8.0 Reference Manual
 DROP TRIGGER trg_audit
 
 -- @name: drop trigger if exists
--- @valid: true
+-- @valid: false
+-- @note: TiDB v8.5.0 has no DROP TRIGGER (rejects at the TRIGGER keyword).
 -- @source: MySQL 8.0 Reference Manual
 DROP TRIGGER IF EXISTS trg_audit
 
@@ -99,7 +103,8 @@ DROP TRIGGER IF EXISTS trg_audit
 DROP PROCEDURE IF EXISTS my_proc
 
 -- @name: drop function
--- @valid: true
+-- @valid: false
+-- @note: TiDB v8.5.0 has no DROP FUNCTION (rejects at the FUNCTION keyword).
 -- @source: MySQL 8.0 Reference Manual
 DROP FUNCTION IF EXISTS my_func
 

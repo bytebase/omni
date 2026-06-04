@@ -189,8 +189,16 @@ func Split(sql string) []Segment {
 	var segments []Segment
 	stmtStart := 0
 	i := 0
-	depth := 0  // compound block nesting depth
+	depth := 0   // compound block nesting depth
 	delim := ";" // active delimiter
+	// atStmtStart tracks whether the next keyword/token would appear at a
+	// statement-start position (after ';', after BEGIN/THEN/ELSE/DO/UNTIL,
+	// after a label ':', at start of input, across whitespace/comments). Used
+	// to disambiguate IF-as-compound from IF-as-function-call / DDL-modifier,
+	// mirroring the parser's grammar-position disambiguation at the text-scan
+	// level (so IF (expr) THEN, SELECT IF(...), DROP TABLE IF EXISTS all read
+	// correctly regardless of comments between the keyword and what follows).
+	atStmtStart := true
 
 	for i < len(sql) {
 		// Check for DELIMITER directive.
@@ -216,102 +224,142 @@ func Split(sql string) []Segment {
 			}
 			i = j
 			stmtStart = i
+			atStmtStart = true
 			continue
 		}
 
 		b := sql[i]
 
 		switch {
-		// Single-quoted string.
+		// Single-quoted string — non-stmt-start after.
 		case b == '\'':
 			i = skipSingleQuoteMySQL(sql, i)
+			atStmtStart = false
 
 		// Double-quoted string (MySQL treats as string literal).
 		case b == '"':
 			i = skipDoubleQuoteMySQL(sql, i)
+			atStmtStart = false
 
 		// Backtick-quoted identifier.
 		case b == '`':
 			i = skipBacktick(sql, i)
+			atStmtStart = false
 
-		// Block comment (including conditional comments /*!...*/)).
+		// Block comment (including conditional /*!...*/): transparent to atStmtStart.
 		case b == '/' && i+1 < len(sql) && sql[i+1] == '*':
 			i = skipBlockCommentMySQL(sql, i)
 
-		// Dash line comment (-- followed by space/tab/newline/EOF).
+		// Dash line comment: transparent to atStmtStart.
 		case isDashComment(sql, i):
 			i = skipDashComment(sql, i)
 
-		// Hash line comment.
+		// Hash line comment: transparent to atStmtStart.
 		case b == '#':
 			i = skipHashComment(sql, i)
 
-		// BEGIN — increment depth unless it's a transaction (BEGIN WORK, BEGIN alone, XA BEGIN).
-		// Note: "BEGIN" without semicolon followed by another statement is invalid MySQL
-		// syntax, so we don't need to handle that case.
+		// BEGIN — compound block opener (depth++) unless it's a transaction
+		// (BEGIN WORK, lone BEGIN, XA BEGIN). After a compound BEGIN the next
+		// token is at stmt-start; after a transaction BEGIN it is not.
 		case (b == 'b' || b == 'B') && matchWord(sql, i, "BEGIN"):
 			endOfWord := skipToEndOfWord(sql, i)
 			next := nextWordAfter(sql, endOfWord)
 			prev := prevWord(sql, i)
-			// BEGIN WORK => transaction, not compound.
-			// BEGIN at EOF or followed by ; => transaction.
-			// XA BEGIN => transaction.
-			if next != "WORK" && prev != "XA" && nextNonSpaceChar(sql, endOfWord) != ';' && nextNonSpaceChar(sql, endOfWord) != 0 {
+			isCompound := next != "WORK" && prev != "XA" && nextNonSpaceChar(sql, endOfWord) != ';' && nextNonSpaceChar(sql, endOfWord) != 0
+			if isCompound {
 				depth++
+				atStmtStart = true
+			} else {
+				atStmtStart = false
 			}
 			i = endOfWord
 
-		// IF — increment depth unless preceded by END, followed by EXISTS, or followed by '('.
+		// IF — compound flow-control iff at stmt-start and not preceded by END.
+		// atStmtStart encodes grammar-position disambiguation: IF in expression
+		// context (after SELECT/SET/'='/',' /'(' or as DROP ... IF EXISTS) is a
+		// function or DDL modifier, not a compound opener.
 		case (b == 'i' || b == 'I') && matchWord(sql, i, "IF"):
 			endOfWord := skipToEndOfWord(sql, i)
 			prev := prevWord(sql, i)
-			next := nextWordAfter(sql, endOfWord)
-			isExistsClause := next == "EXISTS" || (next == "NOT" && nextWordAfter(sql, skipToEndOfWord(sql, skipWhitespace(sql, endOfWord))) == "EXISTS")
-			if prev != "END" && !isExistsClause && nextNonSpaceChar(sql, endOfWord) != '(' {
+			if prev != "END" && atStmtStart {
 				depth++
 			}
+			atStmtStart = false
 			i = endOfWord
 
-		// CASE — increment depth unless preceded by END.
+		// CASE — opener unless preceded by END (expr form ends with END, stmt
+		// form with END CASE).
 		case (b == 'c' || b == 'C') && matchWord(sql, i, "CASE"):
 			endOfWord := skipToEndOfWord(sql, i)
 			if prevWord(sql, i) != "END" {
 				depth++
 			}
+			atStmtStart = false
 			i = endOfWord
 
-		// WHILE — increment depth unless preceded by END.
+		// WHILE — opener unless preceded by END.
 		case (b == 'w' || b == 'W') && matchWord(sql, i, "WHILE"):
 			endOfWord := skipToEndOfWord(sql, i)
 			if prevWord(sql, i) != "END" {
 				depth++
 			}
+			atStmtStart = false
 			i = endOfWord
 
-		// LOOP — increment depth unless preceded by END.
+		// LOOP — opener unless preceded by END or used as a function.
 		case (b == 'l' || b == 'L') && matchWord(sql, i, "LOOP"):
 			endOfWord := skipToEndOfWord(sql, i)
 			if prevWord(sql, i) != "END" {
 				depth++
 			}
+			if prevWord(sql, i) != "END" && nextNonSpaceChar(sql, endOfWord) != '(' {
+				atStmtStart = true
+			} else {
+				atStmtStart = false
+			}
 			i = endOfWord
 
-		// REPEAT — increment depth unless preceded by END or followed by '('.
+		// REPEAT — opener unless preceded by END or followed by '(' (function).
 		case (b == 'r' || b == 'R') && matchWord(sql, i, "REPEAT"):
 			endOfWord := skipToEndOfWord(sql, i)
 			prev := prevWord(sql, i)
 			if prev != "END" && nextNonSpaceChar(sql, endOfWord) != '(' {
 				depth++
+				atStmtStart = true
+			} else {
+				atStmtStart = false
 			}
 			i = endOfWord
 
-		// END — decrement depth (if > 0), skip if preceded by XA.
+		// END — close a compound opener.
 		case (b == 'e' || b == 'E') && matchWord(sql, i, "END"):
 			endOfWord := skipToEndOfWord(sql, i)
 			if depth > 0 && prevWord(sql, i) != "XA" {
 				depth--
 			}
+			atStmtStart = false
 			i = endOfWord
+
+		// THEN / ELSE / DO introduce statement lists; UNTIL / ELSEIF introduce
+		// their own predicate/condition expression.
+		case (b == 't' || b == 'T') && matchWord(sql, i, "THEN"):
+			i = skipToEndOfWord(sql, i)
+			atStmtStart = true
+		case (b == 'e' || b == 'E') && matchWord(sql, i, "ELSEIF"):
+			i = skipToEndOfWord(sql, i)
+			atStmtStart = false
+		case (b == 'e' || b == 'E') && matchWord(sql, i, "ELSE"):
+			i = skipToEndOfWord(sql, i)
+			atStmtStart = true
+		case (b == 'd' || b == 'D') && matchWord(sql, i, "DO"):
+			i = skipToEndOfWord(sql, i)
+			// A loop-body DO (WHILE ... DO, inside a compound block) starts a
+			// statement list; a top-level `DO expr` statement starts an
+			// expression (so `DO IF(...)` is the IF() function, not a compound).
+			atStmtStart = depth > 0
+		case (b == 'u' || b == 'U') && matchWord(sql, i, "UNTIL"):
+			i = skipToEndOfWord(sql, i)
+			atStmtStart = false
 
 		default:
 			// Check for delimiter match at current position (only at top level).
@@ -326,9 +374,18 @@ func Split(sql string) []Segment {
 				}
 				i += len(delim)
 				stmtStart = i
-			} else {
-				i++
+				atStmtStart = true
+				continue
 			}
+			switch b {
+			case ';', ':':
+				atStmtStart = true
+			case ' ', '\t', '\r', '\n':
+				// whitespace — transparent to atStmtStart.
+			default:
+				atStmtStart = false
+			}
+			i++
 		}
 	}
 

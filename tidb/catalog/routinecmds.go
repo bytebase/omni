@@ -66,7 +66,7 @@ func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
 		Definer:         definer,
 		Params:          params,
 		Returns:         returns,
-		Body:            strings.TrimSpace(stmt.Body),
+		Body:            strings.TrimSpace(stmt.BodyText),
 		Characteristics: chars,
 	}
 

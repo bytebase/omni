@@ -43,7 +43,7 @@ func (c *Catalog) createEvent(stmt *nodes.CreateEventStmt) error {
 		OnCompletion: stmt.OnCompletion,
 		Enable:       stmt.Enable,
 		Comment:      stmt.Comment,
-		Body:         strings.TrimSpace(stmt.Body),
+		Body:         strings.TrimSpace(stmt.BodyText),
 	}
 
 	db.Events[key] = event
@@ -90,8 +90,8 @@ func (c *Catalog) alterEvent(stmt *nodes.AlterEventStmt) error {
 	}
 
 	// Update body if specified.
-	if stmt.Body != "" {
-		event.Body = strings.TrimSpace(stmt.Body)
+	if stmt.BodyText != "" {
+		event.Body = strings.TrimSpace(stmt.BodyText)
 	}
 
 	// Handle RENAME TO.

@@ -1523,7 +1523,8 @@ type CreateFunctionStmt struct {
 	Params          []*FuncParam
 	Returns         *DataType
 	Soname          string // SONAME 'shared_library' (loadable UDF)
-	Body            string
+	Body            Node   // parsed sp_proc_stmt (compound or simple); nil for loadable UDFs.
+	BodyText        string // body text as tokenized (the lexer expands conditional comments).
 	Characteristics []*RoutineCharacteristic
 }
 
@@ -1559,7 +1560,8 @@ type CreateTriggerStmt struct {
 	Event       string // INSERT, UPDATE, DELETE
 	Table       *TableRef
 	Order       *TriggerOrder
-	Body        string
+	Body        Node   // parsed sp_proc_stmt (compound or simple).
+	BodyText    string // body text as tokenized (the lexer expands conditional comments).
 }
 
 func (s *CreateTriggerStmt) nodeTag()  {}
@@ -1584,7 +1586,8 @@ type CreateEventStmt struct {
 	OnCompletion string
 	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE
 	Comment      string
-	Body         string
+	Body         Node   // parsed sp_proc_stmt (compound or simple); nil when no DO body.
+	BodyText     string // body text as tokenized (the lexer expands conditional comments).
 }
 
 func (s *CreateEventStmt) nodeTag()  {}
@@ -2603,7 +2606,8 @@ type AlterEventStmt struct {
 	RenameTo     string
 	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE
 	Comment      string
-	Body         string
+	Body         Node   // parsed sp_proc_stmt (compound or simple); nil when no DO body.
+	BodyText     string // body text as tokenized (the lexer expands conditional comments).
 }
 
 func (s *AlterEventStmt) nodeTag()  {}

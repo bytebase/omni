@@ -150,10 +150,10 @@ func TestParseError_Section_1_3_DDLIgnoredErrors(t *testing.T) {
 		sql      string
 		contains string
 	}{
-		// create_function.go: LANGUAGE identifier
-		{"func_language_trunc", "CREATE FUNCTION f() RETURNS INT LANGUAGE", "at end of input"},
-		// create_function.go: SQL SECURITY identifier
-		{"func_sql_security_trunc", "CREATE FUNCTION f() RETURNS INT SQL SECURITY", "at end of input"},
+		// CREATE FUNCTION is rejected outright (TiDB v8.5.0 subset): the FUNCTION
+		// keyword fails before any LANGUAGE / SQL SECURITY clause is reached.
+		{"func_language_trunc", "CREATE FUNCTION f() RETURNS INT LANGUAGE", `at or near "FUNCTION"`},
+		{"func_sql_security_trunc", "CREATE FUNCTION f() RETURNS INT SQL SECURITY", `at or near "FUNCTION"`},
 		// create_table.go: column COLLATE identifier
 		{"col_collate_trunc", "CREATE TABLE t (a INT COLLATE)", "expected identifier"},
 		// create_database.go: CHARACTER SET identifier

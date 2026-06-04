@@ -176,11 +176,9 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 	case kwHANDLER:
 		return p.parseHandlerStmt()
 
-	case kwSIGNAL:
-		return p.parseSignalStmt()
-
-	case kwRESIGNAL:
-		return p.parseResignalStmt()
+	case kwSIGNAL, kwRESIGNAL:
+		// TiDB v8.5.0 has no SIGNAL / RESIGNAL statement.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwGET:
 		return p.parseGetDiagnosticsStmt()
@@ -406,7 +404,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	p.checkCursor()
 	if p.collectMode() {
 		for _, t := range []int{
-			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT,
+			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwPROCEDURE, // TiDB has no CREATE FUNCTION/TRIGGER/EVENT
 			kwPLACEMENT, // TiDB: CREATE PLACEMENT POLICY
 		} {
 			p.addTokenCandidate(t)
@@ -477,24 +475,28 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return p.parseCreatePlacementPolicyStmt(start, orReplace)
 
 	case kwAGGREGATE:
-		// CREATE AGGREGATE FUNCTION — loadable UDF
-		p.advance() // consume AGGREGATE
-		if p.cur.Type == kwFUNCTION {
-			return p.parseCreateLoadableFunction(true)
-		}
-		return nil, &ParseError{Message: "expected FUNCTION after AGGREGATE", Position: p.cur.Loc}
+		// TiDB v8.5.0 has no CREATE [AGGREGATE] FUNCTION (stored or loadable
+		// UDF); it rejects at the FUNCTION/AGGREGATE keyword.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwFUNCTION:
-		return p.parseCreateFunctionStmt(false)
+		// TiDB v8.5.0 has no CREATE FUNCTION (stored or loadable UDF).
+		return nil, p.syntaxErrorAtCur()
 
 	case kwPROCEDURE:
+		if orReplace {
+			// TiDB v8.5.0 has no CREATE OR REPLACE PROCEDURE.
+			return nil, p.syntaxErrorAtCur()
+		}
 		return p.parseCreateFunctionStmt(true)
 
 	case kwTRIGGER:
-		return p.parseCreateTriggerStmt()
+		// TiDB v8.5.0 has no CREATE TRIGGER.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwEVENT:
-		return p.parseCreateEventStmt()
+		// TiDB v8.5.0 has no CREATE EVENT (no event scheduler).
+		return nil, p.syntaxErrorAtCur()
 
 	case kwUSER:
 		return p.parseCreateUserStmt()
@@ -546,42 +548,11 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 				stmt.SqlSecurity = sqlSecurity
 			}
 			return stmt, nil
-		case kwFUNCTION:
-			stmt, err := p.parseCreateFunctionStmt(false)
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			return stmt, nil
-		case kwPROCEDURE:
-			stmt, err := p.parseCreateFunctionStmt(true)
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			return stmt, nil
-		case kwTRIGGER:
-			stmt, err := p.parseCreateTriggerStmt()
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			return stmt, nil
-		case kwEVENT:
-			stmt, err := p.parseCreateEventStmt()
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			return stmt, nil
+		case kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT:
+			// TiDB v8.5.0 accepts a DEFINER clause only on CREATE VIEW. It has
+			// no FUNCTION/TRIGGER/EVENT, and CREATE PROCEDURE takes no DEFINER
+			// clause — all four reject at the object keyword.
+			return nil, p.syntaxErrorAtCur()
 		default:
 			return nil, &ParseError{Message: "unexpected token after DEFINER clause", Position: p.cur.Loc}
 		}
@@ -607,7 +578,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	p.checkCursor()
 	if p.collectMode() {
 		for _, t := range []int{
-			kwTABLE, kwDATABASE, kwVIEW, kwFUNCTION, kwPROCEDURE, kwEVENT,
+			kwTABLE, kwDATABASE, kwVIEW, // TiDB has no ALTER FUNCTION/PROCEDURE/EVENT
 			kwPLACEMENT, // TiDB: ALTER PLACEMENT POLICY
 		} {
 			p.addTokenCandidate(t)
@@ -682,26 +653,19 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 			}
 			return stmt, nil
 		case kwEVENT:
-			stmt, err := p.parseAlterEventStmt()
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			return stmt, nil
+			// TiDB v8.5.0 has no events (no ALTER EVENT).
+			return nil, p.syntaxErrorAtCur()
 		default:
 			return nil, &ParseError{Message: "unexpected token after DEFINER clause in ALTER", Position: p.cur.Loc}
 		}
 
 	case kwEVENT:
-		return p.parseAlterEventStmt()
+		// TiDB v8.5.0 has no events (no ALTER EVENT).
+		return nil, p.syntaxErrorAtCur()
 
-	case kwFUNCTION:
-		return p.parseAlterRoutineStmt(false)
-
-	case kwPROCEDURE:
-		return p.parseAlterRoutineStmt(true)
+	case kwFUNCTION, kwPROCEDURE:
+		// TiDB v8.5.0 has no ALTER FUNCTION / ALTER PROCEDURE.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwLOGFILE:
 		return p.parseAlterLogfileGroupStmt(start)
@@ -730,7 +694,7 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	p.checkCursor()
 	if p.collectMode() {
 		for _, t := range []int{
-			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT, kwIF,
+			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwPROCEDURE, kwIF, // TiDB has no DROP FUNCTION/TRIGGER/EVENT
 			kwPLACEMENT, // TiDB: DROP PLACEMENT POLICY
 		} {
 			p.addTokenCandidate(t)
@@ -777,16 +741,19 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 		return p.parseDropRoleStmt()
 
 	case kwFUNCTION:
-		return p.parseDropRoutineStmt(false)
+		// TiDB v8.5.0 has no stored functions — DROP FUNCTION rejects.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwPROCEDURE:
 		return p.parseDropRoutineStmt(true)
 
 	case kwTRIGGER:
-		return p.parseDropTriggerStmt()
+		// TiDB v8.5.0 has no triggers — DROP TRIGGER rejects.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwEVENT:
-		return p.parseDropEventStmt()
+		// TiDB v8.5.0 has no events — DROP EVENT rejects.
+		return nil, p.syntaxErrorAtCur()
 
 	case kwTABLESPACE:
 		return p.parseDropTablespaceStmt(start, false)

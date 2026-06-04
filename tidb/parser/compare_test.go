@@ -4705,35 +4705,8 @@ func TestParseShow(t *testing.T) {
 		}
 	})
 
-	t.Run("create function", func(t *testing.T) {
-		stmt := parseShow(t, "SHOW CREATE FUNCTION myfunc")
-		if stmt.Type != "CREATE FUNCTION" {
-			t.Errorf("Type = %s, want CREATE FUNCTION", stmt.Type)
-		}
-		if stmt.From == nil || stmt.From.Name != "myfunc" {
-			t.Errorf("From = %v, want myfunc", stmt.From)
-		}
-	})
-
-	t.Run("create trigger", func(t *testing.T) {
-		stmt := parseShow(t, "SHOW CREATE TRIGGER mytrigger")
-		if stmt.Type != "CREATE TRIGGER" {
-			t.Errorf("Type = %s, want CREATE TRIGGER", stmt.Type)
-		}
-		if stmt.From == nil || stmt.From.Name != "mytrigger" {
-			t.Errorf("From = %v, want mytrigger", stmt.From)
-		}
-	})
-
-	t.Run("create event", func(t *testing.T) {
-		stmt := parseShow(t, "SHOW CREATE EVENT myevent")
-		if stmt.Type != "CREATE EVENT" {
-			t.Errorf("Type = %s, want CREATE EVENT", stmt.Type)
-		}
-		if stmt.From == nil || stmt.From.Name != "myevent" {
-			t.Errorf("From = %v, want myevent", stmt.From)
-		}
-	})
+	// SHOW CREATE FUNCTION/TRIGGER/EVENT reject — TiDB has no such objects
+	// (pinned in routine_body_test.go TestRoutineGrammarRejected).
 
 	t.Run("open tables", func(t *testing.T) {
 		stmt := parseShow(t, "SHOW OPEN TABLES")
@@ -5189,7 +5162,8 @@ func TestParseCreateFunction(t *testing.T) {
 
 func TestParseCreateProcedure(t *testing.T) {
 	t.Run("simple procedure", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("CREATE PROCEDURE myproc(IN x INT, OUT y INT) BEGIN SELECT x INTO y; END")}
+		const body = "BEGIN SET y = x; END"
+		p := &Parser{lexer: NewLexer("CREATE PROCEDURE myproc(IN x INT, OUT y INT) " + body)}
 		p.advance()
 		p.advance() // skip CREATE
 		stmt, err := p.parseCreateFunctionStmt(true)
@@ -5208,83 +5182,19 @@ func TestParseCreateProcedure(t *testing.T) {
 		if stmt.Params[1].Direction != "OUT" {
 			t.Errorf("Param[1].Direction = %s, want OUT", stmt.Params[1].Direction)
 		}
+		// Body is now a parsed AST node; BodyText holds the raw body text.
+		if stmt.Body == nil {
+			t.Errorf("Body = nil, want a parsed body node")
+		}
+		if stmt.BodyText != body {
+			t.Errorf("BodyText = %q, want %q", stmt.BodyText, body)
+		}
 	})
 }
 
 // ============================================================================
 // Batch 17: CREATE TRIGGER, CREATE EVENT
 // ============================================================================
-
-func TestParseCreateTrigger(t *testing.T) {
-	t.Run("simple trigger", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET @a = 1")}
-		p.advance()
-		p.advance() // skip CREATE
-		stmt, err := p.parseCreateTriggerStmt()
-		if err != nil {
-			t.Fatalf("error: %v", err)
-		}
-		if stmt.Name != "trg" {
-			t.Errorf("Name = %s, want trg", stmt.Name)
-		}
-		if stmt.Timing != "BEFORE" {
-			t.Errorf("Timing = %s, want BEFORE", stmt.Timing)
-		}
-		if stmt.Event != "INSERT" {
-			t.Errorf("Event = %s, want INSERT", stmt.Event)
-		}
-		if stmt.Table == nil || stmt.Table.Name != "t" {
-			t.Errorf("Table = %v, want t", stmt.Table)
-		}
-	})
-
-	t.Run("after update", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("CREATE TRIGGER trg AFTER UPDATE ON t FOR EACH ROW SET @a = 1")}
-		p.advance()
-		p.advance()
-		stmt, err := p.parseCreateTriggerStmt()
-		if err != nil {
-			t.Fatalf("error: %v", err)
-		}
-		if stmt.Timing != "AFTER" {
-			t.Errorf("Timing = %s, want AFTER", stmt.Timing)
-		}
-		if stmt.Event != "UPDATE" {
-			t.Errorf("Event = %s, want UPDATE", stmt.Event)
-		}
-	})
-}
-
-func TestParseCreateEvent(t *testing.T) {
-	t.Run("at schedule", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("CREATE EVENT myevent ON SCHEDULE AT '2025-01-01 00:00:00' DO SELECT 1")}
-		p.advance()
-		p.advance() // skip CREATE
-		stmt, err := p.parseCreateEventStmt()
-		if err != nil {
-			t.Fatalf("error: %v", err)
-		}
-		if stmt.Name != "myevent" {
-			t.Errorf("Name = %s, want myevent", stmt.Name)
-		}
-		if stmt.Schedule == nil {
-			t.Fatal("Schedule is nil")
-		}
-	})
-
-	t.Run("if not exists", func(t *testing.T) {
-		p := &Parser{lexer: NewLexer("CREATE EVENT IF NOT EXISTS myevent ON SCHEDULE AT '2025-01-01' DO SELECT 1")}
-		p.advance()
-		p.advance()
-		stmt, err := p.parseCreateEventStmt()
-		if err != nil {
-			t.Fatalf("error: %v", err)
-		}
-		if !stmt.IfNotExists {
-			t.Errorf("IfNotExists = false, want true")
-		}
-	})
-}
 
 // ============================================================================
 // Batch 18: LOAD DATA
@@ -5608,10 +5518,7 @@ func TestParseStmtDispatchCreateVariants(t *testing.T) {
 		"CREATE OR REPLACE VIEW v AS SELECT 1",
 		"CREATE DATABASE mydb",
 		"CREATE SCHEMA mydb",
-		"CREATE FUNCTION f() RETURNS INT BEGIN RETURN 1; END",
 		"CREATE PROCEDURE p() BEGIN SELECT 1; END",
-		"CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET @a = 1",
-		"CREATE EVENT ev ON SCHEDULE AT CURRENT_TIMESTAMP DO SELECT 1",
 		"CREATE USER 'user'@'localhost'",
 	}
 
@@ -5631,10 +5538,7 @@ func TestParseStmtDispatchDropVariants(t *testing.T) {
 		"DROP VIEW v",
 		"DROP DATABASE mydb",
 		"DROP USER 'user'@'localhost'",
-		"DROP FUNCTION IF EXISTS f",
 		"DROP PROCEDURE IF EXISTS p",
-		"DROP TRIGGER IF EXISTS tr",
-		"DROP EVENT IF EXISTS ev",
 	}
 
 	for _, sql := range tests {
@@ -6059,108 +5963,6 @@ func TestParseHandlerClose(t *testing.T) {
 	}
 }
 
-func TestParseSignal(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "SIGNAL SQLSTATE '45000'",
-			want: "{SIGNAL :loc 0 :condition 45000}",
-		},
-		{
-			sql:  "SIGNAL SQLSTATE VALUE '45000'",
-			want: "{SIGNAL :loc 0 :condition 45000}",
-		},
-		{
-			sql:  "SIGNAL my_error",
-			want: "{SIGNAL :loc 0 :condition my_error}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			p := &Parser{lexer: NewLexer(tt.sql)}
-			p.advance()
-			stmt, err := p.parseSignalStmt()
-			if err != nil {
-				t.Fatalf("error: %v", err)
-			}
-			got := ast.NodeToString(stmt)
-			if got != tt.want {
-				t.Errorf("got:  %s\nwant: %s", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestParseSignalSet(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'An error occurred'",
-			want: "{SIGNAL :loc 0 :condition 45000 :set {SIGNAL_INFO :loc 28 :name MESSAGE_TEXT :val {STRING_LIT :val \"An error occurred\" :loc 43}}}",
-		},
-		{
-			sql:  "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'oops', MYSQL_ERRNO = 1234",
-			want: "{SIGNAL :loc 0 :condition 45000 :set {SIGNAL_INFO :loc 28 :name MESSAGE_TEXT :val {STRING_LIT :val \"oops\" :loc 43}} {SIGNAL_INFO :loc 51 :name MYSQL_ERRNO :val {INT_LIT :val 1234 :loc 65}}}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			p := &Parser{lexer: NewLexer(tt.sql)}
-			p.advance()
-			stmt, err := p.parseSignalStmt()
-			if err != nil {
-				t.Fatalf("error: %v", err)
-			}
-			got := ast.NodeToString(stmt)
-			if got != tt.want {
-				t.Errorf("got:  %s\nwant: %s", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestParseResignal(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "RESIGNAL",
-			want: "{RESIGNAL :loc 0}",
-		},
-		{
-			sql:  "RESIGNAL SQLSTATE '45000'",
-			want: "{RESIGNAL :loc 0 :condition 45000}",
-		},
-		{
-			sql:  "RESIGNAL SET MESSAGE_TEXT = 'Error handled'",
-			want: "{RESIGNAL :loc 0 :set {SIGNAL_INFO :loc 13 :name MESSAGE_TEXT :val {STRING_LIT :val \"Error handled\" :loc 28}}}",
-		},
-		{
-			sql:  "RESIGNAL SQLSTATE '45000' SET MYSQL_ERRNO = 5678",
-			want: "{RESIGNAL :loc 0 :condition 45000 :set {SIGNAL_INFO :loc 30 :name MYSQL_ERRNO :val {INT_LIT :val 5678 :loc 44}}}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			p := &Parser{lexer: NewLexer(tt.sql)}
-			p.advance()
-			stmt, err := p.parseResignalStmt()
-			if err != nil {
-				t.Fatalf("error: %v", err)
-			}
-			got := ast.NodeToString(stmt)
-			if got != tt.want {
-				t.Errorf("got:  %s\nwant: %s", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestParseGetDiagnostics(t *testing.T) {
 	tests := []struct {
 		sql  string
@@ -6335,40 +6137,6 @@ func TestParseDeclareVar(t *testing.T) {
 		{
 			sql:  "DECLARE msg VARCHAR(255) DEFAULT 'hello'",
 			want: "{DECLARE_VAR :loc 0 :names msg :type {DATATYPE :loc 12 :name VARCHAR :len 255} :default {STRING_LIT :val \"hello\" :loc 33}}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			p := &Parser{lexer: NewLexer(tt.sql)}
-			p.advance()
-			stmt, err := p.parseDeclareStmt()
-			if err != nil {
-				t.Fatalf("error: %v", err)
-			}
-			got := ast.NodeToString(stmt)
-			if got != tt.want {
-				t.Errorf("got:  %s\nwant: %s", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestParseDeclareCondition(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "DECLARE my_error CONDITION FOR SQLSTATE '45000'",
-			want: "{DECLARE_CONDITION :loc 0 :name my_error :value 45000}",
-		},
-		{
-			sql:  "DECLARE my_error CONDITION FOR SQLSTATE VALUE '45000'",
-			want: "{DECLARE_CONDITION :loc 0 :name my_error :value 45000}",
-		},
-		{
-			sql:  "DECLARE my_error CONDITION FOR 1051",
-			want: "{DECLARE_CONDITION :loc 0 :name my_error :value 1051}",
 		},
 	}
 	for _, tt := range tests {
@@ -6977,36 +6745,6 @@ func TestParseRepeat(t *testing.T) {
 		{
 			sql:  "lbl: REPEAT SELECT 1; UNTIL x > 0 END REPEAT lbl",
 			want: "{REPEAT :loc 0 :label lbl :end_label lbl :stmts ({SELECT :loc 12 :targets ({INT_LIT :val 1 :loc 19})}) :until {BINEXPR :op > :loc 30 :left {COLREF :loc 28 :col x} :right {INT_LIT :val 0 :loc 32}}}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			p := &Parser{lexer: NewLexer(tt.sql)}
-			p.advance()
-			stmt, err := p.parseCompoundStmtOrStmt()
-			if err != nil {
-				t.Fatalf("error: %v", err)
-			}
-			got := ast.NodeToString(stmt)
-			if got != tt.want {
-				t.Errorf("got:  %s\nwant: %s", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestParseLoop(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "LOOP SELECT 1; END LOOP",
-			want: "{LOOP :loc 0 :stmts ({SELECT :loc 5 :targets ({INT_LIT :val 1 :loc 12})})}",
-		},
-		{
-			sql:  "lbl: LOOP SELECT 1; END LOOP lbl",
-			want: "{LOOP :loc 0 :label lbl :end_label lbl :stmts ({SELECT :loc 10 :targets ({INT_LIT :val 1 :loc 17})})}",
 		},
 	}
 	for _, tt := range tests {
@@ -7676,91 +7414,14 @@ func TestParseAlterViewParseAndCheck(t *testing.T) {
 	}
 }
 
-func TestParseAlterEvent(t *testing.T) {
-	tests := []string{
-		"ALTER EVENT ev1 ENABLE",
-		"ALTER EVENT ev1 DISABLE",
-		"ALTER EVENT ev1 RENAME TO ev2",
-		"ALTER EVENT ev1 COMMENT 'test'",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseAlterRoutine(t *testing.T) {
-	tests := []string{
-		"ALTER FUNCTION f1 COMMENT 'test'",
-		"ALTER PROCEDURE p1 COMMENT 'test'",
-		"ALTER FUNCTION f1 SQL SECURITY INVOKER",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
 func TestParseDropRoutineStmt(t *testing.T) {
 	tests := []struct {
 		sql  string
 		want string
 	}{
 		{
-			sql:  "DROP FUNCTION f1",
-			want: "{DROP_ROUTINE :loc 5 :name {TABLEREF :loc 14 :name f1}}",
-		},
-		{
-			sql:  "DROP FUNCTION IF EXISTS f1",
-			want: "{DROP_ROUTINE :loc 5 :if_exists true :name {TABLEREF :loc 24 :name f1}}",
-		},
-		{
 			sql:  "DROP PROCEDURE p1",
 			want: "{DROP_ROUTINE :loc 5 :is_procedure true :name {TABLEREF :loc 15 :name p1}}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
-func TestParseDropTriggerStmtBatch39(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "DROP TRIGGER tr1",
-			want: "{DROP_TRIGGER :loc 5 :name {TABLEREF :loc 13 :name tr1}}",
-		},
-		{
-			sql:  "DROP TRIGGER IF EXISTS mydb.tr1",
-			want: "{DROP_TRIGGER :loc 5 :if_exists true :name {TABLEREF :loc 23 :schema mydb :name tr1}}",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.sql, func(t *testing.T) {
-			ParseAndCompare(t, tt.sql, tt.want)
-		})
-	}
-}
-
-func TestParseDropEventStmtBatch39(t *testing.T) {
-	tests := []struct {
-		sql  string
-		want string
-	}{
-		{
-			sql:  "DROP EVENT ev1",
-			want: "{DROP_EVENT :loc 5 :name ev1}",
-		},
-		{
-			sql:  "DROP EVENT IF EXISTS ev1",
-			want: "{DROP_EVENT :loc 5 :if_exists true :name ev1}",
 		},
 	}
 	for _, tt := range tests {
@@ -7894,9 +7555,7 @@ func TestParseLateralDerivedTable(t *testing.T) {
 
 func TestParsePhase2Dispatch(t *testing.T) {
 	tests := []string{
-		// Signal/Resignal/Get Diagnostics (batch 28)
-		"SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'error'",
-		"RESIGNAL",
+		// Get Diagnostics (batch 28)
 		"GET DIAGNOSTICS @p1 = ROW_COUNT",
 
 		// Compound statements (batches 29, 30) tested separately with delimiter-aware parsing
@@ -7938,13 +7597,7 @@ func TestParsePhase2Dispatch(t *testing.T) {
 
 		// ALTER/DROP misc (batch 39)
 		"ALTER VIEW v AS SELECT 1",
-		"ALTER EVENT ev1 ENABLE",
-		"ALTER FUNCTION f1 COMMENT 'test'",
-		"ALTER PROCEDURE p1 COMMENT 'test'",
-		"DROP FUNCTION f1",
 		"DROP PROCEDURE p1",
-		"DROP TRIGGER tr1",
-		"DROP EVENT ev1",
 
 		// EXPLAIN (batch 40)
 		"EXPLAIN SELECT 1",
@@ -8422,17 +8075,8 @@ func TestParseShowProfileLimitOffset(t *testing.T) {
 	}
 }
 
-func TestParseShowFunctionCode(t *testing.T) {
-	tests := []string{
-		"SHOW FUNCTION CODE my_func",
-		"SHOW FUNCTION CODE db1.my_func",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
+// SHOW FUNCTION CODE rejects (TiDB v8.5.0 has none) — pinned in
+// routine_body_test.go TestRoutineGrammarRejected.
 
 // ============================================================================
 // Batch 52: WITH CHECK OPTION depth fix
@@ -8464,17 +8108,8 @@ func TestParseAlterViewWithCheckOption(t *testing.T) {
 	}
 }
 
-func TestParseShowProcedureCode(t *testing.T) {
-	tests := []string{
-		"SHOW PROCEDURE CODE my_proc",
-		"SHOW PROCEDURE CODE db1.my_proc",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
+// SHOW PROCEDURE CODE rejects (TiDB v8.5.0 has none) — pinned in
+// routine_body_test.go TestRoutineGrammarRejected.
 
 func TestParseChangeMasterTo(t *testing.T) {
 	tests := []string{
@@ -8878,34 +8513,6 @@ func TestParseSelectDistinctrow(t *testing.T) {
 		"SELECT DISTINCTROW a FROM t",
 		"SELECT DISTINCTROW a, b, c FROM t WHERE a > 1",
 		"SELECT DISTINCTROW * FROM t ORDER BY a",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseCreateLoadableFunction(t *testing.T) {
-	tests := []string{
-		"CREATE FUNCTION myfunc RETURNS STRING SONAME 'mylib.so'",
-		"CREATE FUNCTION myfunc RETURNS INTEGER SONAME 'mylib.so'",
-		"CREATE FUNCTION myfunc RETURNS REAL SONAME 'mylib.so'",
-		"CREATE FUNCTION myfunc RETURNS DECIMAL SONAME 'mylib.so'",
-		"CREATE FUNCTION IF NOT EXISTS myfunc RETURNS STRING SONAME 'mylib.so'",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseCreateAggregateFunction(t *testing.T) {
-	tests := []string{
-		"CREATE AGGREGATE FUNCTION myagg RETURNS STRING SONAME 'myagg.so'",
-		"CREATE AGGREGATE FUNCTION myagg RETURNS INTEGER SONAME 'myagg.so'",
-		"CREATE AGGREGATE FUNCTION IF NOT EXISTS myagg RETURNS REAL SONAME 'myagg.so'",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -10645,18 +10252,6 @@ func TestParseAlterTableSecondaryUnload(t *testing.T) {
 
 // Batch 102: BNF review — CREATE/DROP INDEX, CREATE/ALTER/DROP VIEW, CREATE/DROP TRIGGER
 
-func TestBatch102_CreateTriggerIfNotExists(t *testing.T) {
-	tests := []string{
-		"CREATE TRIGGER IF NOT EXISTS trg BEFORE INSERT ON t FOR EACH ROW SET @a = 1",
-		"CREATE TRIGGER IF NOT EXISTS trg2 AFTER DELETE ON t FOR EACH ROW SET @b = 2",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
 func TestBatch102_CreateIndexFull(t *testing.T) {
 	tests := []string{
 		"CREATE UNIQUE INDEX idx1 ON t (col1)",
@@ -10736,38 +10331,11 @@ func TestBatch102_DropViewFull(t *testing.T) {
 	}
 }
 
-func TestBatch102_DropTriggerFull(t *testing.T) {
-	tests := []string{
-		"DROP TRIGGER trg1",
-		"DROP TRIGGER IF EXISTS trg1",
-		"DROP TRIGGER IF EXISTS mydb.trg1",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
 // Batch 103: BNF review — routines and events
 func TestBatch103_CreateProcedureIfNotExists(t *testing.T) {
 	tests := []string{
 		"CREATE PROCEDURE IF NOT EXISTS myproc() SELECT 1",
 		"CREATE PROCEDURE IF NOT EXISTS mydb.myproc(IN x INT) SELECT x",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestBatch103_CreateEventEnableDisable(t *testing.T) {
-	tests := []string{
-		"CREATE EVENT ev1 ON SCHEDULE AT '2024-01-01 00:00:00' ENABLE DO SELECT 1",
-		"CREATE EVENT ev1 ON SCHEDULE AT '2024-01-01 00:00:00' DISABLE DO SELECT 1",
-		"CREATE EVENT ev1 ON SCHEDULE AT '2024-01-01 00:00:00' DISABLE ON SLAVE DO SELECT 1",
-		"CREATE EVENT ev1 ON SCHEDULE EVERY 1 DAY ENABLE COMMENT 'daily' DO DELETE FROM t WHERE created < NOW() - INTERVAL 30 DAY",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -11397,24 +10965,9 @@ func TestDefinerPropagation(t *testing.T) {
 		// CREATE VIEW with DEFINER + SQL SECURITY at dispatch layer
 		"CREATE DEFINER = 'admin'@'localhost' SQL SECURITY INVOKER VIEW v1 AS SELECT 1",
 		"CREATE DEFINER = root@localhost SQL SECURITY DEFINER VIEW v1 AS SELECT 1",
-		// CREATE FUNCTION with DEFINER at dispatch layer
-		"CREATE DEFINER = 'admin'@'localhost' FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 1",
-		"CREATE DEFINER = CURRENT_USER FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 1",
-		// CREATE PROCEDURE with DEFINER at dispatch layer
-		"CREATE DEFINER = 'admin'@'localhost' PROCEDURE p1() SELECT 1",
-		"CREATE DEFINER = CURRENT_USER() PROCEDURE p1() SELECT 1",
-		// CREATE TRIGGER with DEFINER at dispatch layer
-		"CREATE DEFINER = 'admin'@'localhost' TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW SET @x = 1",
-		"CREATE DEFINER = CURRENT_USER TRIGGER tr1 AFTER UPDATE ON t1 FOR EACH ROW SET @x = 1",
-		// CREATE EVENT with DEFINER at dispatch layer
-		"CREATE DEFINER = 'admin'@'localhost' EVENT ev1 ON SCHEDULE EVERY 1 HOUR DO SELECT 1",
-		"CREATE DEFINER = CURRENT_USER EVENT ev1 ON SCHEDULE AT '2026-01-01 00:00:00' DO SELECT 1",
 		// ALTER VIEW with DEFINER at dispatch layer
 		"ALTER DEFINER = 'admin'@'localhost' VIEW v1 AS SELECT 2",
 		"ALTER DEFINER = CURRENT_USER() SQL SECURITY INVOKER VIEW v1 AS SELECT 2",
-		// ALTER EVENT with DEFINER at dispatch layer
-		"ALTER DEFINER = 'admin'@'localhost' EVENT ev1 ENABLE",
-		"ALTER DEFINER = CURRENT_USER EVENT ev1 ENABLE",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -11451,45 +11004,6 @@ func TestDefinerPropagation_Values(t *testing.T) {
 	}
 	if stmt2.SqlSecurity != "INVOKER" && stmt2.SqlSecurity != "invoker" {
 		t.Errorf("expected SqlSecurity=INVOKER, got %q", stmt2.SqlSecurity)
-	}
-
-	// Verify DEFINER on CREATE TRIGGER
-	result3, err := Parse("CREATE DEFINER = 'admin'@'%' TRIGGER tr1 BEFORE INSERT ON t1 FOR EACH ROW SET @x = 1")
-	if err != nil {
-		t.Fatalf("Parse error: %v", err)
-	}
-	stmt3, ok := result3.Items[0].(*ast.CreateTriggerStmt)
-	if !ok {
-		t.Fatalf("expected CreateTriggerStmt, got %T", result3.Items[0])
-	}
-	if stmt3.Definer != "'admin'@'%'" {
-		t.Errorf("expected Definer='admin'@'%%', got %q", stmt3.Definer)
-	}
-
-	// Verify DEFINER on ALTER EVENT
-	result4, err := Parse("ALTER DEFINER = 'root'@'localhost' EVENT ev1 ENABLE")
-	if err != nil {
-		t.Fatalf("Parse error: %v", err)
-	}
-	stmt4, ok := result4.Items[0].(*ast.AlterEventStmt)
-	if !ok {
-		t.Fatalf("expected AlterEventStmt, got %T", result4.Items[0])
-	}
-	if stmt4.Definer != "'root'@'localhost'" {
-		t.Errorf("expected Definer='root'@'localhost', got %q", stmt4.Definer)
-	}
-
-	// Verify CURRENT_USER()
-	result5, err := Parse("CREATE DEFINER = CURRENT_USER() FUNCTION f1() RETURNS INT DETERMINISTIC RETURN 1")
-	if err != nil {
-		t.Fatalf("Parse error: %v", err)
-	}
-	stmt5, ok := result5.Items[0].(*ast.CreateFunctionStmt)
-	if !ok {
-		t.Fatalf("expected CreateFunctionStmt, got %T", result5.Items[0])
-	}
-	if stmt5.Definer != "CURRENT_USER()" {
-		t.Errorf("expected Definer=CURRENT_USER(), got %q", stmt5.Definer)
 	}
 }
 
