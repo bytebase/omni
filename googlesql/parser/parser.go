@@ -372,9 +372,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// --- DCL ---
 	case kwGRANT:
-		return p.unsupported("GRANT")
+		return p.parseGrantStmt()
 	case kwREVOKE:
-		return p.unsupported("REVOKE")
+		return p.parseRevokeStmt()
 
 	// --- Transactions / batch / session ---
 	case kwBEGIN:
