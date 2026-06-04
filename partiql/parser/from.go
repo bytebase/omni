@@ -106,15 +106,53 @@ func (p *Parser) parseTableReference() (ast.TableExpr, error) {
 }
 
 // parseTablePrimary parses a non-join table reference: a base table
-// reference, UNPIVOT, or parenthesized table reference.
+// reference, UNPIVOT, or a parenthesized table reference.
+//
+// A leading '(' is grammatically ambiguous between two productions:
+//
+//	tableReference#TableRefBase  whose source is a parenthesized
+//	    value expression / subquery — e.g. (t1), (SELECT ...), ((t1)).
+//	    This reading DOES accept a trailing AS/AT/BY alias chain, so it
+//	    is what the bare-/aliased cases resolve to.
+//	tableReference#TableWrapped  — `( tableReference )` (PartiQLParser.g4
+//	    line 394), where the parenthesized content is a join, comma
+//	    cross-join, or inner-aliased table that the value-expression
+//	    grammar cannot consume up to the matching ')'. The parentheses
+//	    are purely structural (the inner table expression is returned
+//	    directly), and this reading does NOT accept a trailing (outer)
+//	    alias.
+//
+// The generated ANTLR parser resolves this with unbounded lookahead,
+// preferring TableRefBase whenever the value-expression reading reaches
+// the closing ')'. We reproduce that faithfully by trying the base
+// reference first and, only if it fails, rewinding and parsing the
+// TableWrapped form. Bug B6: an earlier version always routed '(' through
+// the base/value-expression path, so a wrapped join such as
+// "(t1 CROSS JOIN t2)" was rejected at the first join keyword.
 func (p *Parser) parseTablePrimary() (ast.TableExpr, error) {
-	// Parenthesized table reference: (tableReference) or (SELECT ...)
-	// followed by optional aliases.
 	if p.cur.Type == tokPAREN_LEFT {
-		// Use parseSelectExpr which handles (SELECT...) as SubLink.
-		// This means the expression-level parseParenExpr will be called,
-		// which properly handles both (expr) and (SELECT...).
-		return p.parseTableBaseReference()
+		// First attempt: '(' begins a value expression / subquery used as
+		// a base table reference (handles (expr), (SELECT...), and a
+		// trailing AS/AT/BY alias). parseTableBaseReference -> parseSelectExpr
+		// -> the expression-level parseParenExpr.
+		start := p.save()
+		base, err := p.parseTableBaseReference()
+		if err == nil {
+			return base, nil
+		}
+		// The value-expression reading failed (e.g. the content is a join
+		// or carries an inner alias). Rewind and try the wrapped
+		// table-reference form `( tableReference )`.
+		p.restore(start)
+		wrapped, werr := p.parseWrappedTableReference()
+		if werr != nil {
+			// Neither reading applies. Surface the wrapped-form error: at
+			// this point we know the content was not a plain value
+			// expression, so the table-reference-oriented diagnostic is the
+			// more relevant one.
+			return nil, werr
+		}
+		return wrapped, nil
 	}
 
 	// UNPIVOT.
@@ -124,6 +162,28 @@ func (p *Parser) parseTablePrimary() (ast.TableExpr, error) {
 
 	// Base table reference: source expression + optional aliases.
 	return p.parseTableBaseReference()
+}
+
+// parseWrappedTableReference parses the TableWrapped form
+// `( tableReference )` (PartiQLParser.g4 line 394). The parentheses are
+// purely structural: the inner table expression is returned directly with
+// no wrapper node and no outer alias (matching how parseJoinRhs unwraps the
+// JoinRhsTableJoined form). A trailing alias is deliberately left
+// unconsumed so the caller rejects it at the next-token / EOF check, which
+// is what the generated ANTLR grammar does ("(t1 CROSS JOIN t2) AS x" is a
+// syntax error).
+func (p *Parser) parseWrappedTableReference() (ast.TableExpr, error) {
+	if _, err := p.expect(tokPAREN_LEFT); err != nil {
+		return nil, err
+	}
+	inner, err := p.parseTableReference()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(tokPAREN_RIGHT); err != nil {
+		return nil, err
+	}
+	return inner, nil
 }
 
 // parseJoinRhs parses the right-hand side of a JOIN: either a
@@ -351,8 +411,20 @@ func (p *Parser) parseTableUnpivot() (*ast.UnpivotExpr, error) {
 }
 
 // tryParseJoinType attempts to parse a join type. Returns the JoinKind
-// and true if a join keyword sequence was found, or (Invalid, false)
-// if the current token does not start a join.
+// and true if a complete join keyword sequence (a modifier and/or CROSS
+// followed by JOIN, or a bare JOIN) was found, or (Invalid, false) if the
+// current token does not start a join.
+//
+// IMPORTANT: when a join *modifier* (LEFT/RIGHT/FULL/INNER/OUTER, with an
+// optional trailing OUTER, or CROSS) is present but is NOT followed by the
+// required JOIN keyword, this is NOT a join — and the consumed modifier
+// token(s) are rewound (save/restore) so they remain in the token stream.
+// The caller then breaks out of the join loop with the modifier still
+// pending, which makes a dangling modifier ("FROM t1 LEFT") fail at the
+// next-token / EOF check rather than being silently swallowed. Bug B5: an
+// earlier version returned (Invalid, false) here WITHOUT restoring, which
+// dropped the keyword and wrongly accepted dangling-modifier inputs that
+// the generated ANTLR grammar rejects.
 //
 // Grammar: joinType (lines 419-425):
 //
@@ -364,11 +436,15 @@ func (p *Parser) parseTableUnpivot() (*ast.UnpivotExpr, error) {
 //
 // Plus the CROSS JOIN form (line 390).
 func (p *Parser) tryParseJoinType() (ast.JoinKind, bool) {
+	// Snapshot so a modifier not followed by JOIN can be fully rewound.
+	start := p.save()
+
 	switch p.cur.Type {
 	case tokCROSS:
 		p.advance() // consume CROSS
 		if p.cur.Type != tokJOIN {
 			// CROSS must be followed by JOIN.
+			p.restore(start)
 			return ast.JoinKindInvalid, false
 		}
 		p.advance() // consume JOIN
@@ -377,6 +453,7 @@ func (p *Parser) tryParseJoinType() (ast.JoinKind, bool) {
 	case tokINNER:
 		p.advance() // consume INNER
 		if p.cur.Type != tokJOIN {
+			p.restore(start)
 			return ast.JoinKindInvalid, false
 		}
 		p.advance() // consume JOIN
@@ -386,6 +463,7 @@ func (p *Parser) tryParseJoinType() (ast.JoinKind, bool) {
 		p.advance() // consume LEFT
 		p.match(tokOUTER)
 		if p.cur.Type != tokJOIN {
+			p.restore(start)
 			return ast.JoinKindInvalid, false
 		}
 		p.advance() // consume JOIN
@@ -395,6 +473,7 @@ func (p *Parser) tryParseJoinType() (ast.JoinKind, bool) {
 		p.advance() // consume RIGHT
 		p.match(tokOUTER)
 		if p.cur.Type != tokJOIN {
+			p.restore(start)
 			return ast.JoinKindInvalid, false
 		}
 		p.advance() // consume JOIN
@@ -404,6 +483,7 @@ func (p *Parser) tryParseJoinType() (ast.JoinKind, bool) {
 		p.advance() // consume FULL
 		p.match(tokOUTER)
 		if p.cur.Type != tokJOIN {
+			p.restore(start)
 			return ast.JoinKindInvalid, false
 		}
 		p.advance() // consume JOIN
@@ -412,6 +492,7 @@ func (p *Parser) tryParseJoinType() (ast.JoinKind, bool) {
 	case tokOUTER:
 		p.advance() // consume OUTER
 		if p.cur.Type != tokJOIN {
+			p.restore(start)
 			return ast.JoinKindInvalid, false
 		}
 		p.advance() // consume JOIN
