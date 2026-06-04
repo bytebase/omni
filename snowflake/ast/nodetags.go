@@ -122,6 +122,10 @@ const (
 	T_AlterTaskStmt
 	T_CreateAlertStmt
 	T_AlterAlertStmt
+
+	// Routine DDL tags (T4.5)
+	T_CreateRoutineStmt
+	T_AlterRoutineStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -293,6 +297,10 @@ func (t NodeTag) String() string {
 		return "CreateAlertStmt"
 	case T_AlterAlertStmt:
 		return "AlterAlertStmt"
+	case T_CreateRoutineStmt:
+		return "CreateRoutineStmt"
+	case T_AlterRoutineStmt:
+		return "AlterRoutineStmt"
 	default:
 		return "Unknown"
 	}

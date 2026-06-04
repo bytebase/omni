@@ -3075,3 +3075,163 @@ var (
 	_ Node = (*CreateAlertStmt)(nil)
 	_ Node = (*AlterAlertStmt)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// Routine DDL — CREATE / ALTER FUNCTION & PROCEDURE (T4.5)
+// ---------------------------------------------------------------------------
+//
+// A UDF / UDTF / stored procedure / external function carries a large,
+// version-growing vocabulary of property clauses: LANGUAGE, RUNTIME_VERSION,
+// HANDLER, PACKAGES, IMPORTS, TARGET_PATH, EXTERNAL_ACCESS_INTEGRATIONS,
+// SECRETS, COMMENT, the volatility / null-handling modifiers (VOLATILE,
+// IMMUTABLE, STRICT, MEMOIZABLE, CALLED ON NULL INPUT, RETURNS NULL ON NULL
+// INPUT), and the external-function cloud params (API_INTEGRATION, HEADERS,
+// CONTEXT_HEADERS, MAX_BATCH_ROWS, COMPRESSION, REQUEST_TRANSLATOR,
+// RESPONSE_TRANSLATOR). Rather than mirror the legacy ANTLR grammar's finite,
+// already-stale enumerations (its create_function rule lacks TARGET_PATH,
+// EXTERNAL_ACCESS_INTEGRATIONS, SECRETS, the SCALA / JAVA-scala runtimes, ...
+// all of which appear in the official docs corpus), every property is captured
+// as an open-ended `KEY = <value>` pair or a bare modifier word (CopyOption),
+// reusing the merged STAGE (T4.1) / FILE FORMAT (T4.2) / PIPE (T4.3) / COPY
+// (T5.2) machinery. Only the structural anchors are modeled explicitly: the
+// argument list, the RETURNS clause (a scalar data type or a TABLE (...) column
+// list), the EXECUTE AS {CALLER|OWNER} clause, and the AS <body> clause. The
+// body is OPAQUE — its language is SQL-scripting / JavaScript / Python / Java /
+// Scala, never parsed here — and is captured verbatim including its delimiters,
+// whether single-quoted ('...') or dollar-quoted ($$...$$). The catalog /
+// semantic layer, not the parser, validates that a property is real and legal.
+
+// RoutineArg is one argument of a function / procedure signature:
+//
+//	<arg_name> <data_type> [ DEFAULT <expr> ]
+//
+// It is a helper struct (not a Node); the walker does not descend into it,
+// mirroring TagAssignment / CloneSource / ForeignKeyRef.
+type RoutineArg struct {
+	Name    Ident
+	Type    *TypeName
+	Default Node // DEFAULT <expr>; nil if absent
+	Loc     Loc
+}
+
+// RoutineTableColumn is one column of a RETURNS TABLE ( ... ) result spec:
+//
+//	<column_name> <data_type>
+//
+// It is a helper struct (not a Node).
+type RoutineTableColumn struct {
+	Name Ident
+	Type *TypeName
+	Loc  Loc
+}
+
+// RoutineKind discriminates the object a routine statement targets.
+type RoutineKind int
+
+const (
+	RoutineFunction         RoutineKind = iota // FUNCTION (UDF / UDTF)
+	RoutineExternalFunction                    // EXTERNAL FUNCTION
+	RoutineProcedure                           // PROCEDURE
+)
+
+// ExecuteAs discriminates the EXECUTE AS clause of a procedure.
+type ExecuteAs int
+
+const (
+	ExecuteAsUnset  ExecuteAs = iota // no EXECUTE AS clause
+	ExecuteAsCaller                  // EXECUTE AS CALLER
+	ExecuteAsOwner                   // EXECUTE AS OWNER
+)
+
+// CreateRoutineStmt represents CREATE [OR REPLACE] [SECURE] [TEMP|TEMPORARY]
+// FUNCTION / EXTERNAL FUNCTION / PROCEDURE.
+//
+//	CREATE [ OR REPLACE ] [ SECURE ] [ TEMP | TEMPORARY ]
+//	  FUNCTION [ IF NOT EXISTS ] <name> ( [ <arg> [, ...] ] )
+//	  RETURNS { <data_type> | TABLE ( <col> <type> [, ...] ) } [ [ NOT ] NULL ]
+//	  [ <property clauses> ]                     -- open-ended KEY = value / bare words
+//	  AS { '<body>' | $$<body>$$ }
+//
+//	CREATE [ OR REPLACE ] [ SECURE ] EXTERNAL FUNCTION <name> ( [ <arg> [, ...] ] )
+//	  RETURNS <data_type> [ [ NOT ] NULL ]
+//	  [ <property clauses> ] API_INTEGRATION = <id> [ <property clauses> ]
+//	  AS '<url>'
+//
+//	CREATE [ OR REPLACE ] [ SECURE ] PROCEDURE <name> ( [ <arg> [, ...] ] )
+//	  RETURNS <data_type> [ [ NOT ] NULL ]
+//	  [ <property clauses> ] [ EXECUTE AS { CALLER | OWNER } ] [ <property clauses> ]
+//	  AS { '<body>' | $$<body>$$ }
+//
+// ReturnTable is non-nil for the RETURNS TABLE ( ... ) form, in which case
+// ReturnType is nil; otherwise ReturnType holds the scalar return type. Options
+// holds every property clause (LANGUAGE / RUNTIME_VERSION / HANDLER / PACKAGES /
+// IMPORTS / API_INTEGRATION / the volatility & null-handling modifiers / ...),
+// open-ended, preserving source order. Body holds the verbatim body text WITH
+// its delimiters ('...' or $$...$$); BodyDollar reports whether the
+// dollar-quoted form was used. Body is "" only for the no-body external/SQL UDF
+// forms the docs permit (e.g. a function defined entirely by its handler).
+type CreateRoutineStmt struct {
+	Kind          RoutineKind
+	OrReplace     bool
+	Secure        bool
+	Temporary     bool
+	IfNotExists   bool
+	Name          *ObjectName
+	Args          []*RoutineArg         // ( <arg> [, ...] ); nil for an empty arg list
+	ReturnType    *TypeName             // scalar RETURNS type; nil for the TABLE form
+	ReturnTable   []*RoutineTableColumn // RETURNS TABLE ( ... ) columns; non-nil for the TABLE form
+	ReturnNotNull bool                  // RETURNS ... NOT NULL
+	ReturnNull    bool                  // RETURNS ... NULL (explicit nullable)
+	Options       []*CopyOption         // property clauses (LANGUAGE / HANDLER / volatility / ...)
+	ExecuteAs     ExecuteAs             // procedure EXECUTE AS {CALLER|OWNER}; ExecuteAsUnset otherwise
+	Body          string                // verbatim body incl. delimiters ('...' or $$...$$); "" if no body
+	BodyDollar    bool                  // true when the $$...$$ form was used
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *CreateRoutineStmt) Tag() NodeTag { return T_CreateRoutineStmt }
+
+// AlterRoutineAction discriminates the action variants of ALTER FUNCTION /
+// PROCEDURE.
+type AlterRoutineAction int
+
+const (
+	AlterRoutineRename    AlterRoutineAction = iota // RENAME TO <new_name>
+	AlterRoutineSet                                 // SET <options> (SECURE / COMMENT / LOG_LEVEL / ...)
+	AlterRoutineUnset                               // UNSET <property> [, ...] (SECURE / COMMENT / ...)
+	AlterRoutineExecuteAs                           // EXECUTE AS {CALLER|OWNER} (procedure only)
+)
+
+// AlterRoutineStmt represents
+//
+//	ALTER { FUNCTION | PROCEDURE } [ IF EXISTS ] <name> ( [ <argtype> [, ...] ] ) <action>
+//
+//	RENAME TO <new_name>
+//	SET <options>                              -- open-ended (SECURE / COMMENT / LOG_LEVEL / ...)
+//	UNSET <property> [ , ... ]                  -- SECURE / COMMENT / ...
+//	EXECUTE AS { CALLER | OWNER }               -- procedure only
+//
+// The ALTER signature carries argument TYPES only (no names), captured in
+// ArgTypes. Procedure is true for ALTER PROCEDURE, false for ALTER FUNCTION.
+type AlterRoutineStmt struct {
+	Procedure  bool // true for ALTER PROCEDURE, false for ALTER FUNCTION
+	IfExists   bool
+	Name       *ObjectName
+	ArgTypes   []*TypeName // ( <argtype> [, ...] ) signature; nil for an empty list
+	Action     AlterRoutineAction
+	NewName    *ObjectName   // RENAME TO target; non-nil for AlterRoutineRename
+	Options    []*CopyOption // SET <options>; for AlterRoutineSet
+	UnsetProps []string      // UNSET <property> names; for AlterRoutineUnset
+	ExecuteAs  ExecuteAs     // EXECUTE AS {CALLER|OWNER}; for AlterRoutineExecuteAs
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterRoutineStmt) Tag() NodeTag { return T_AlterRoutineStmt }
+
+// Compile-time assertions for routine DDL nodes.
+var (
+	_ Node = (*CreateRoutineStmt)(nil)
+	_ Node = (*AlterRoutineStmt)(nil)
+)
