@@ -2638,3 +2638,84 @@ var (
 	_ Node = (*CreateStageStmt)(nil)
 	_ Node = (*AlterStageStmt)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// File-format DDL — CREATE / ALTER FILE FORMAT (T4.2)
+// ---------------------------------------------------------------------------
+//
+// A named file format carries a TYPE ({ CSV | JSON | AVRO | ORC | PARQUET |
+// XML }) plus a large, type-dependent and version-growing vocabulary of
+// formatTypeOptions (CSV: FIELD_DELIMITER / SKIP_HEADER /
+// FIELD_OPTIONALLY_ENCLOSED_BY / NULL_IF / ...; JSON: STRIP_OUTER_ARRAY / ...;
+// PARQUET: BINARY_AS_TEXT / USE_VECTORIZED_SCANNER / ...; etc.). Rather than
+// enumerate those options — the legacy ANTLR grammar's format_type_options list
+// is already stale relative to the docs (it lacks USE_VECTORIZED_SCANNER,
+// USE_LOGICAL_TYPE, the per-type COMPRESSION variants, ...) — every option that
+// follows the TYPE clause is captured as an open-ended `KEY = <value>` pair
+// (CopyOption), reusing the merged COPY (T5.2) machinery. The TYPE keyword is
+// the one structural anchor (it selects which options are legal); COMMENT is
+// captured open-ended in Options. The catalog/semantic layer, not the parser,
+// validates that an option is real and legal for the chosen TYPE. This mirrors
+// the merged STAGE (T4.1) / COPY (T5.2) open-ended approach.
+
+// CreateFileFormatStmt represents
+//
+//	CREATE [ OR REPLACE ] [ { TEMP | TEMPORARY | VOLATILE } ]
+//	  FILE FORMAT [ IF NOT EXISTS ] <name>
+//	  [ TYPE = { CSV | JSON | AVRO | ORC | PARQUET | XML } ]
+//	  [ formatTypeOptions ]
+//	  [ COMMENT = '<string_literal>' ]
+//
+// Type holds the uppercased format type word (e.g. "CSV"); it is "" when the
+// TYPE clause is omitted (TYPE is optional per the docs, defaulting to CSV).
+// Options holds the formatTypeOptions and the COMMENT clause, each a CopyOption,
+// preserving source order. There is no dedicated External/Volatile distinction
+// beyond the Temporary flag: VOLATILE is a synonym of TEMPORARY here and sets
+// Temporary.
+type CreateFileFormatStmt struct {
+	OrReplace   bool
+	Temporary   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Type        string        // uppercased TYPE word (CSV/JSON/AVRO/ORC/PARQUET/XML); "" if omitted
+	TypeLoc     Loc           // Loc of the TYPE value word; zero when Type is ""
+	Options     []*CopyOption // formatTypeOptions + COMMENT, preserving source order
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateFileFormatStmt) Tag() NodeTag { return T_CreateFileFormatStmt }
+
+// AlterFileFormatAction discriminates the action variants of ALTER FILE FORMAT.
+type AlterFileFormatAction int
+
+const (
+	AlterFileFormatRename AlterFileFormatAction = iota // RENAME TO <new_name>
+	AlterFileFormatSet                                 // SET <formatTypeOptions> [COMMENT=...]
+)
+
+// AlterFileFormatStmt represents
+//
+//	ALTER FILE FORMAT [ IF EXISTS ] <name> RENAME TO <new_name>
+//	ALTER FILE FORMAT [ IF EXISTS ] <name> SET { [ formatTypeOptions ] [ COMMENT = '<string_literal>' ] }
+//
+// The SET form is unparenthesized (per the docs and the legacy ANTLR grammar):
+// the formatTypeOptions and COMMENT follow SET directly. ALTER FILE FORMAT
+// supports no UNSET, no SET TAG, and no RENAME-plus-SET combination.
+type AlterFileFormatStmt struct {
+	IfExists bool
+	Name     *ObjectName
+	Action   AlterFileFormatAction
+	NewName  *ObjectName   // RENAME TO target; non-nil for AlterFileFormatRename
+	Options  []*CopyOption // SET <formatTypeOptions> [COMMENT=...]; for AlterFileFormatSet
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *AlterFileFormatStmt) Tag() NodeTag { return T_AlterFileFormatStmt }
+
+// Compile-time assertions for file-format DDL nodes.
+var (
+	_ Node = (*CreateFileFormatStmt)(nil)
+	_ Node = (*AlterFileFormatStmt)(nil)
+)

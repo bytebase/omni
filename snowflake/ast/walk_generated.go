@@ -16,6 +16,13 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+	case *AlterFileFormatStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
 	case *AlterMaterializedViewStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -114,6 +121,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Lit)
 		}
 	case *CreateDatabaseStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *CreateFileFormatStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}

@@ -89,6 +89,12 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	case kwSTAGE:
 		// CREATE [OR REPLACE] [TEMP|TEMPORARY] STAGE ... (T4.1).
 		return p.parseCreateStageStmt(start, orReplace, temporary)
+	case kwFILE_FORMAT, kwFILE:
+		// CREATE [OR REPLACE] [TEMP|TEMPORARY|VOLATILE] FILE FORMAT ... (T4.2).
+		// FILE FORMAT lexes as one FILE_FORMAT token or two FILE+FORMAT tokens;
+		// both dispatch here. Per the docs VOLATILE is a synonym of TEMPORARY for
+		// a file format, so either modifier sets the statement's Temporary flag.
+		return p.parseCreateFileFormatStmt(start, orReplace, temporary || volatile)
 	default:
 		return p.unsupported("CREATE")
 	}
