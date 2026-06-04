@@ -212,7 +212,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// --- Session / catalog context ---
 	case kwUSE:
-		return p.unsupported("USE")
+		return p.parseUseStmt()
 
 	// --- DDL ---
 	case kwCREATE:
@@ -242,7 +242,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// --- Procedures ---
 	case kwCALL:
-		return p.unsupported("CALL")
+		return p.parseCallStmt()
 
 	// --- DCL (roles / privileges) ---
 	case kwGRANT:
@@ -254,19 +254,25 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// --- Session / path / time zone ---
 	case kwSET:
-		return p.unsupported("SET")
+		// SET fans out on the second keyword: SESSION (setSession /
+		// setSessionAuthorization), ROLE (setRole), PATH (setPath), TIME
+		// (setTimeZone). See session.go.
+		return p.parseSetStmt()
 	case kwRESET:
-		return p.unsupported("RESET")
+		// RESET SESSION { AUTHORIZATION | name }. See session.go.
+		return p.parseResetStmt()
 
 	// --- Inspection ---
 	case kwSHOW:
-		return p.unsupported("SHOW")
+		// SHOW family + DESCRIBE/DESC aliases. See show.go.
+		return p.parseShowStmt()
 	case kwEXPLAIN:
-		return p.unsupported("EXPLAIN")
-	case kwDESCRIBE:
-		return p.unsupported("DESCRIBE")
-	case kwDESC:
-		return p.unsupported("DESC")
+		// EXPLAIN / EXPLAIN ANALYZE. See explain_call.go.
+		return p.parseExplainStmt()
+	case kwDESCRIBE, kwDESC:
+		// DESCRIBE/DESC name == SHOW COLUMNS; DESCRIBE INPUT/OUTPUT route to the
+		// prepared-statement node (parser-dcl-tcl). See show.go.
+		return p.parseDescribeStmt()
 
 	// --- Transactions ---
 	case kwSTART:
@@ -358,6 +364,16 @@ func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
 					Msg: err.Error(),
 				})
 			}
+		} else if p.cur.Kind != tokEOF {
+			// A statement parsed without error but did not consume the whole
+			// segment: tokens remain after a complete statement. Because Split
+			// already cut the input on statement boundaries (';'), leftover
+			// tokens here mean the statement grammar rejected the tail — e.g.
+			// `SHOW SCHEMAS FROM c.x` (the scope is a single identifier, so `.x`
+			// is extra) or `DESC INPUT a` (DESCRIBE-table takes one name, so `a`
+			// is extra). Trino reports these as SYNTAX_ERRORs, so the parser must
+			// too. Reported as trailing-token rather than swallowed.
+			p.errors = append(p.errors, *p.syntaxErrorAtCur())
 		}
 		result = node
 	}
