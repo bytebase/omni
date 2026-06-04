@@ -6,14 +6,14 @@ import (
 )
 
 // TestDiagnose_CleanInputNoStubNoise verifies the wiring shape: Diagnose runs
-// Parse and surfaces ParseErrors as Diagnostics. While a statement body is still
-// stubbed (no DAG node has implemented it), even valid SQL of that form yields a
-// "not yet supported" diagnostic — those vanish as later nodes implement real
-// parsing. DML (INSERT/DELETE/UPDATE/MERGE/TRUNCATE) is now implemented by
-// parser-dml, so this test uses a DDL form (ALTER TABLE) that remains a
-// foundation stub until the parser-ddl node lands.
+// Parse and surfaces ParseErrors as Diagnostics. The CREATE/DROP/ALTER dispatch
+// recognizes the leading keyword but routes an UNRECOGNIZED object keyword to
+// the `unsupported` stub (e.g. `CREATE INDEX` / `ALTER INDEX`, which Trino has
+// no statement form for and also rejects). That stub path is what this test
+// exercises. (Every real Trino DDL/DML/query/admin form is now implemented by
+// the parser-* nodes, so a valid statement no longer hits the stub.)
 func TestDiagnose_StubbedStatementProducesDiagnostic(t *testing.T) {
-	diags := Diagnose("ALTER TABLE t ADD COLUMN c integer")
+	diags := Diagnose("ALTER INDEX i RENAME TO j")
 	if len(diags) != 1 {
 		t.Fatalf("got %d diagnostics, want 1: %+v", len(diags), diags)
 	}
@@ -51,13 +51,14 @@ func TestDiagnose_EmptyInput(t *testing.T) {
 }
 
 // TestDiagnose_MultipleStatements verifies diagnostics are collected across all
-// segments. A valid SELECT and a valid INSERT (both now implemented, by
-// parser-select and parser-dml) yield none, while the two still-stubbed DDL
-// statements (ALTER, COMMENT — parser-ddl's job) each yield one.
+// segments. A valid SELECT, a valid INSERT, a valid ALTER TABLE, and a valid
+// COMMENT (all now implemented by parser-select / parser-dml / parser-ddl)
+// yield none, while the two unrecognized-object stubs (CREATE INDEX, ALTER
+// INDEX — no Trino statement form) each yield one.
 func TestDiagnose_MultipleStatements(t *testing.T) {
-	diags := Diagnose("SELECT 1; INSERT INTO t VALUES (1); ALTER TABLE t ADD COLUMN c integer; COMMENT ON TABLE t IS 'x'")
+	diags := Diagnose("SELECT 1; INSERT INTO t VALUES (1); CREATE INDEX i ON t (a); ALTER INDEX i RENAME TO j")
 	if len(diags) != 2 {
-		t.Fatalf("got %d diagnostics, want 2 (ALTER + COMMENT stubs; SELECT and INSERT now parse): %+v", len(diags), diags)
+		t.Fatalf("got %d diagnostics, want 2 (CREATE INDEX + ALTER INDEX stubs; SELECT and INSERT parse): %+v", len(diags), diags)
 	}
 }
 

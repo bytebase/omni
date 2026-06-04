@@ -39,18 +39,18 @@ func TestParse_UnknownStatement(t *testing.T) {
 }
 
 // TestParse_KnownStatementUnsupported verifies that a statement whose leading
-// keyword IS in the dispatch switch but whose body is STILL stubbed (no DAG node
-// has implemented it yet) yields a "not yet supported" diagnostic rather than an
-// "unknown statement" one. DML (parser-dml) and the query layer (parser-select)
-// are now implemented; ALTER (parser-ddl's job) remains a foundation stub, so
-// this test uses it.
+// keyword IS in the dispatch switch but whose object keyword is unrecognized
+// (no Trino statement form) routes to the `unsupported` stub — a "not yet
+// supported" error rather than an "unknown statement" one. Every real Trino
+// DDL/DML/query/admin form is now implemented, so the stub is reached only by
+// such non-forms; `CREATE INDEX` (Trino has no CREATE INDEX) exercises it.
 func TestParse_KnownStatementUnsupported(t *testing.T) {
-	file, errs := Parse("ALTER TABLE t ADD COLUMN c integer")
+	file, errs := Parse("CREATE INDEX idx ON t (a)")
 	if file == nil {
 		t.Fatal("Parse: File is nil")
 	}
 	if len(errs) != 1 {
-		t.Fatalf("Parse(\"ALTER ...\"): got %d errors, want 1: %v", len(errs), errs)
+		t.Fatalf("Parse(\"CREATE INDEX ...\"): got %d errors, want 1: %v", len(errs), errs)
 	}
 	if !strings.Contains(errs[0].Msg, "not yet supported") {
 		t.Errorf("error = %q, want it to mention 'not yet supported'", errs[0].Msg)
@@ -58,11 +58,11 @@ func TestParse_KnownStatementUnsupported(t *testing.T) {
 }
 
 // TestParse_MultiStatementErrorsCollected verifies that ParseBestEffort
-// collects errors from every segment, not just the first. Two still-stubbed
-// statements (ALTER and COMMENT, parser-ddl's job) separated by ';' must yield
+// collects errors from every segment, not just the first. Two unrecognized
+// object-keyword stubs (CREATE INDEX, ALTER INDEX) separated by ';' must yield
 // two errors.
 func TestParse_MultiStatementErrorsCollected(t *testing.T) {
-	res := ParseBestEffort("ALTER TABLE t ADD COLUMN c integer; COMMENT ON TABLE u IS 'x'")
+	res := ParseBestEffort("CREATE INDEX i ON t (a); ALTER INDEX i RENAME TO j")
 	if got := len(res.Errors); got != 2 {
 		t.Fatalf("ParseBestEffort: got %d errors, want 2: %v", got, res.Errors)
 	}

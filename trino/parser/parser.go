@@ -238,6 +238,23 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			createTok := p.advance() // consume CREATE
 			return p.parseCreateFunctionStmt(createTok.Loc.Start)
 		}
+		// Every other CREATE object is a parser-ddl concern. The object keyword
+		// follows CREATE directly, except after the optional OR REPLACE prefix
+		// (CREATE OR REPLACE { TABLE | VIEW | MATERIALIZED VIEW }), which the
+		// per-object parsers handle. createObjectKeyword peeks past an
+		// OR REPLACE without consuming so dispatch can route on the object word.
+		switch p.createObjectKeyword() {
+		case kwTABLE:
+			return p.parseCreateTableStmt(p.cur.Loc.Start)
+		case kwSCHEMA:
+			return p.parseCreateSchemaStmt(p.cur.Loc.Start)
+		case kwVIEW:
+			return p.parseCreateViewStmt(p.cur.Loc.Start)
+		case kwMATERIALIZED:
+			return p.parseCreateMaterializedViewStmt(p.cur.Loc.Start)
+		case kwCATALOG:
+			return p.parseCreateCatalogStmt(p.cur.Loc.Start)
+		}
 		return p.unsupported("CREATE")
 	case kwDROP:
 		// DROP ROLE belongs to the parser-dcl-tcl node (grant_revoke.go);
@@ -253,15 +270,35 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			p.advance()            // consume FUNCTION
 			return p.parseDropFunctionStmt(dropTok.Loc.Start)
 		}
+		// DROP CATALOG has its own parser (catalog_ddl.go); every other DROP
+		// object (TABLE / SCHEMA / VIEW / MATERIALIZED VIEW) is parseDropStmt.
+		if p.peekNext().Kind == kwCATALOG {
+			return p.parseDropCatalogStmt(p.cur.Loc.Start)
+		}
+		switch p.peekNext().Kind {
+		case kwTABLE, kwSCHEMA, kwVIEW, kwMATERIALIZED:
+			return p.parseDropStmt(p.cur.Loc.Start)
+		}
 		return p.unsupported("DROP")
 	case kwALTER:
+		// ALTER fans out on the object keyword (second token).
+		switch p.peekNext().Kind {
+		case kwTABLE:
+			return p.parseAlterTableStmt(p.cur.Loc.Start)
+		case kwSCHEMA:
+			return p.parseAlterSchemaStmt(p.cur.Loc.Start)
+		case kwVIEW:
+			return p.parseAlterViewStmt(p.cur.Loc.Start)
+		case kwMATERIALIZED:
+			return p.parseAlterMaterializedViewStmt(p.cur.Loc.Start)
+		}
 		return p.unsupported("ALTER")
 	case kwCOMMENT:
-		return p.unsupported("COMMENT")
+		return p.parseCommentStmt(p.cur.Loc.Start)
 	case kwANALYZE:
-		return p.unsupported("ANALYZE")
+		return p.parseAnalyzeStmt(p.cur.Loc.Start)
 	case kwREFRESH:
-		return p.unsupported("REFRESH")
+		return p.parseRefreshMaterializedViewStmt(p.cur.Loc.Start)
 
 	// --- DML --- [parser-dml node: insert.go, update_delete.go, merge.go]
 	case kwINSERT:
