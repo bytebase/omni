@@ -73,4 +73,3 @@ DELIMITER ;`)
 		t.Error("procedure my_proc should be removed after DROP PROCEDURE")
 	}
 }
-

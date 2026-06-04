@@ -62,10 +62,16 @@ func TestCollect_1_2_CreateCursor(t *testing.T) {
 	if cs == nil {
 		t.Fatal("Collect returned nil")
 	}
-	want := []int{kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT}
+	// TiDB has no CREATE FUNCTION/TRIGGER/EVENT — only PROCEDURE among routines.
+	want := []int{kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwPROCEDURE}
 	for _, tok := range want {
 		if !cs.HasToken(tok) {
 			t.Errorf("missing expected token %d after CREATE", tok)
+		}
+	}
+	for _, tok := range []int{kwFUNCTION, kwTRIGGER, kwEVENT} {
+		if cs.HasToken(tok) {
+			t.Errorf("CREATE offered %d, but TiDB has no CREATE FUNCTION/TRIGGER/EVENT", tok)
 		}
 	}
 }
@@ -76,7 +82,8 @@ func TestCollect_1_2_AlterCursor(t *testing.T) {
 	if cs == nil {
 		t.Fatal("Collect returned nil")
 	}
-	want := []int{kwTABLE, kwDATABASE, kwVIEW, kwFUNCTION, kwPROCEDURE, kwEVENT}
+	// TiDB has no ALTER FUNCTION/PROCEDURE/EVENT.
+	want := []int{kwTABLE, kwDATABASE, kwVIEW}
 	for _, tok := range want {
 		if !cs.HasToken(tok) {
 			t.Errorf("missing expected token %d after ALTER", tok)
@@ -90,7 +97,8 @@ func TestCollect_1_2_DropCursor(t *testing.T) {
 	if cs == nil {
 		t.Fatal("Collect returned nil")
 	}
-	want := []int{kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT, kwIF}
+	// TiDB has no DROP FUNCTION/TRIGGER/EVENT — only DROP PROCEDURE among routines.
+	want := []int{kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwPROCEDURE, kwIF}
 	for _, tok := range want {
 		if !cs.HasToken(tok) {
 			t.Errorf("missing expected token %d after DROP", tok)

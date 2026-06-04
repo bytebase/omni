@@ -404,7 +404,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	p.checkCursor()
 	if p.collectMode() {
 		for _, t := range []int{
-			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT,
+			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwPROCEDURE, // TiDB has no CREATE FUNCTION/TRIGGER/EVENT
 			kwPLACEMENT, // TiDB: CREATE PLACEMENT POLICY
 		} {
 			p.addTokenCandidate(t)
@@ -578,7 +578,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	p.checkCursor()
 	if p.collectMode() {
 		for _, t := range []int{
-			kwTABLE, kwDATABASE, kwVIEW, kwFUNCTION, kwPROCEDURE, kwEVENT,
+			kwTABLE, kwDATABASE, kwVIEW, // TiDB has no ALTER FUNCTION/PROCEDURE/EVENT
 			kwPLACEMENT, // TiDB: ALTER PLACEMENT POLICY
 		} {
 			p.addTokenCandidate(t)
@@ -694,7 +694,7 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	p.checkCursor()
 	if p.collectMode() {
 		for _, t := range []int{
-			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT, kwIF,
+			kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwPROCEDURE, kwIF, // TiDB has no DROP FUNCTION/TRIGGER/EVENT
 			kwPLACEMENT, // TiDB: DROP PLACEMENT POLICY
 		} {
 			p.addTokenCandidate(t)
