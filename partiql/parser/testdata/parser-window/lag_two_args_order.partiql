@@ -1,0 +1,1 @@
+LAG(x, 1) OVER (ORDER BY y)

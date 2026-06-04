@@ -1,0 +1,1 @@
+LAG(t.a[0]) OVER (PARTITION BY t.k ORDER BY t.b)

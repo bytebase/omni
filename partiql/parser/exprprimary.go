@@ -145,12 +145,12 @@ func (p *Parser) parsePrimaryBase() (ast.ExprNode, error) {
 		return p.parseAggregateExpr()
 
 	// ------------------------------------------------------------------
-	// Stub: window functions → parser-window
+	// Real: window functions LAG / LEAD (DAG node 13, parser-window).
+	// LAG|LEAD(expr[, offset[, default]]) OVER (...). Logic lives in
+	// window.go.
 	// ------------------------------------------------------------------
-	case tokLAG:
-		return nil, p.deferredFeature("LAG() window", "parser-window (DAG node 13)")
-	case tokLEAD:
-		return nil, p.deferredFeature("LEAD() window", "parser-window (DAG node 13)")
+	case tokLAG, tokLEAD:
+		return p.parseWindowFuncExpr()
 	}
 
 	return nil, &ParseError{

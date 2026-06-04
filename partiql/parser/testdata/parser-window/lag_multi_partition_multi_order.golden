@@ -1,0 +1,1 @@
+FuncCall{Name:LAG Args:[VarRef{Name:x}] Over:WindowSpec{PartitionBy:[VarRef{Name:a} VarRef{Name:b}] OrderBy:[OrderByItem{Expr:VarRef{Name:c} Desc:false} OrderByItem{Expr:VarRef{Name:d} Desc:true}]}}

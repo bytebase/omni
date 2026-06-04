@@ -1,0 +1,1 @@
+FuncCall{Name:LAG Args:[PathExpr{Root:VarRef{Name:t} Steps:[DotStep{Field:a} IndexStep{Index:NumberLit{Val:0}}]}] Over:WindowSpec{PartitionBy:[PathExpr{Root:VarRef{Name:t} Steps:[DotStep{Field:k}]}] OrderBy:[OrderByItem{Expr:PathExpr{Root:VarRef{Name:t} Steps:[DotStep{Field:b}]} Desc:false}]}}
