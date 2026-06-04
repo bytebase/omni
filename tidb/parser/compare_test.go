@@ -8523,6 +8523,31 @@ func TestParseSelectDistinctrow(t *testing.T) {
 
 // --- Batch 65: depth_fix_select_into_outfile ---
 
+// TestSelectIntoTiDBRejectsNonOutfile pins TiDB v8.5.0 parity (BYT-9650):
+// only SELECT/TABLE ... INTO OUTFILE is accepted. INTO DUMPFILE and INTO
+// into user/local variables are rejected (1064), unlike MySQL which accepts
+// all three. Verified on pingcap/tidb:v8.5.0.
+func TestSelectIntoTiDBRejectsNonOutfile(t *testing.T) {
+	cases := []string{
+		// INTO DUMPFILE (both statements, multiple clause positions)
+		"SELECT * INTO DUMPFILE '/tmp/d' FROM t",
+		"SELECT a FROM t GROUP BY a HAVING a > 0 INTO DUMPFILE '/tmp/d' ORDER BY a",
+		"TABLE t INTO DUMPFILE '/tmp/d'",
+		// INTO user variable
+		"SELECT a INTO @x FROM t",
+		"SELECT a, b INTO @x, @y FROM t",
+		"SELECT a, b FROM t GROUP BY a HAVING a > 0 INTO @x, @y ORDER BY a",
+		"TABLE t INTO @v1, @v2",
+		// INTO local variable (the SELECT clause backs routine-body INTO too)
+		"SELECT 1 INTO v",
+	}
+	for _, sql := range cases {
+		t.Run(sql, func(t *testing.T) {
+			ParseExpectError(t, sql)
+		})
+	}
+}
+
 func TestParseSelectIntoOutfileFields(t *testing.T) {
 	tests := []string{
 		"SELECT * FROM t INTO OUTFILE '/tmp/data.csv' FIELDS TERMINATED BY ','",
@@ -8555,8 +8580,6 @@ func TestParseSelectIntoOutfileCharset(t *testing.T) {
 func TestParseSelectIntoBeforeFrom(t *testing.T) {
 	tests := []string{
 		"SELECT * INTO OUTFILE '/tmp/data.csv' FROM t",
-		"SELECT * INTO DUMPFILE '/tmp/data.bin' FROM t",
-		"SELECT a, b INTO @x, @y FROM t",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -9368,13 +9391,9 @@ func TestParseSelectIntoAfterHaving(t *testing.T) {
 
 func TestParseSelectIntoAfterHavingBeforeOrderBy(t *testing.T) {
 	tests := []string{
-		// INTO with DUMPFILE at position 2
-		"SELECT a FROM t GROUP BY a HAVING a > 0 INTO DUMPFILE '/tmp/dump.dat' ORDER BY a",
-		// INTO with variable at position 2
-		"SELECT a, b FROM t GROUP BY a HAVING a > 0 INTO @x, @y ORDER BY a",
-		// Regression: INTO at position 1 still works
-		"SELECT a INTO @x FROM t",
-		// Regression: INTO at position 3 still works
+		// Regression: INTO OUTFILE at position 3 (after the locking clause)
+		// still works. The DUMPFILE / @var forms at positions 1-2 are rejected
+		// by TiDB v8.5.0 — see TestSelectIntoTiDBRejectsNonOutfile.
 		"SELECT a FROM t FOR UPDATE INTO OUTFILE '/tmp/result.txt'",
 	}
 	for _, sql := range tests {
@@ -10724,11 +10743,13 @@ func TestReviewBatch110_TableIntoOutfile(t *testing.T) {
 }
 
 func TestReviewBatch110_TableIntoDumpfile(t *testing.T) {
-	ParseAndCheck(t, "TABLE t1 INTO DUMPFILE '/tmp/out.dat'")
+	// TiDB v8.5.0 rejects INTO DUMPFILE (only INTO OUTFILE is supported).
+	ParseExpectError(t, "TABLE t1 INTO DUMPFILE '/tmp/out.dat'")
 }
 
 func TestReviewBatch110_TableIntoVar(t *testing.T) {
-	ParseAndCheck(t, "TABLE t1 INTO @v1, @v2")
+	// TiDB v8.5.0 rejects INTO @var (only INTO OUTFILE is supported).
+	ParseExpectError(t, "TABLE t1 INTO @v1, @v2")
 }
 
 func TestReviewBatch110_ValuesBasic(t *testing.T) {
