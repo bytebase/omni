@@ -100,6 +100,10 @@ func TestFindCompoundBodyEnd(t *testing.T) {
 		// scan stops at the body's top-level ';' instead of over-counting and
 		// swallowing the following statement.
 		{"if_exists_ddl_stops_at_semicolon", `BEGIN DROP TABLE IF EXISTS t; END; SELECT 2`, `BEGIN DROP TABLE IF EXISTS t; END`},
+		// IF(...) / REPEAT(...) functions with a comment before '(' are not
+		// compound openers, so the scan stops at the body's top-level ';'.
+		{"if_function_comment_before_paren", `BEGIN SELECT IF /*c*/ (1,2,3); END; SELECT 4`, `BEGIN SELECT IF /*c*/ (1,2,3); END`},
+		{"repeat_function_comment_before_paren", `BEGIN SELECT REPEAT /*c*/ ('a',2); END; SELECT 4`, `BEGIN SELECT REPEAT /*c*/ ('a',2); END`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -194,6 +198,11 @@ func TestRoutineBodyDoesNotSwallowTrailingStatement(t *testing.T) {
 		// rejects DDL inside a procedure body, so this pins omni's split
 		// correctness, not TiDB parity.
 		{"ddl_if_exists_custom_delimiter", "DELIMITER //\nCREATE PROCEDURE p() BEGIN DROP TABLE IF EXISTS t; END; SELECT 2//"},
+		// IF(...) / REPEAT(...) are built-in functions, not compound openers,
+		// even with a comment between the keyword and '('. TiDB v8.5.0 accepts
+		// SELECT IF /*c*/ (1,2,3) and SELECT REPEAT /*c*/ ('a',2).
+		{"if_function_comment_before_paren", `CREATE PROCEDURE p() BEGIN SELECT IF /*c*/ (1,2,3); END; SELECT 4`},
+		{"repeat_function_comment_before_paren", `CREATE PROCEDURE p() BEGIN SELECT REPEAT /*c*/ ('a',2); END; SELECT 4`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
