@@ -200,3 +200,909 @@ var (
 	_ Node = (*Privilege)(nil)
 	_ Node = (*Grantee)(nil)
 )
+
+// ===========================================================================
+// Expressions (googlesql/expressions node)
+// ===========================================================================
+//
+// The GoogleSQL expression tree. These node types model the legacy ANTLR
+// expression grammar (GoogleSQLParser.g4 §2.17 precedence chain, §2.18
+// constructors/CASE/CAST/EXTRACT/function calls), itself a hand-port of
+// Google's open-source ZetaSQL reference and the grammar bytebase consumes
+// today. The parser (parser/expr.go) builds these via precedence climbing.
+//
+// Adjudication: the LIVE Cloud Spanner emulator oracle (oracle.md) decides
+// accept/reject for every shared GoogleSQL-core expression form; the ZetaSQL
+// .g4 is the structural hint. Two oracle-confirmed precedence facts are baked
+// into the parser and reflected in these shapes:
+//
+//	P1 (comparison non-associativity). The whole comparison family —
+//	   comparative operators (= != <> < <= > >=), [NOT] LIKE, [NOT] IN,
+//	   [NOT] BETWEEN, IS [NOT] {NULL|TRUE|FALSE|UNKNOWN}, and IS [NOT] DISTINCT
+//	   FROM — is NON-ASSOCIATIVE: `a = b = c`, `1 < 2 < 3`, `x IN (1) IN (2)`,
+//	   `1 IS NULL IS NULL`, `x LIKE 'a' LIKE 'b'`, `1 BETWEEN 0 AND 2 BETWEEN ..`
+//	   all REJECT (oracle: "Syntax error: ..." / "Expression to the left of IS
+//	   must be parenthesized"). The operands of these nodes are therefore the
+//	   next-higher precedence level, never another comparison.
+//
+//	P2 (NOT binds looser than comparison). `NOT a = b` parses as `NOT (a = b)`
+//	   and `NOT a IS NULL` as `NOT (a IS NULL)` (oracle: both accept). Prefix
+//	   NOT's operand spans the whole comparison level (it sits between the
+//	   comparison family and AND in precedence).
+//
+// Subquery seam: GoogleSQL subquery-bearing expressions — `(SELECT …)`,
+// `EXISTS(…)`, `ARRAY(…)`, and IN/comparison RHS subqueries — are recognized
+// here so the expression grammar accepts every oracle-accepted form, but the
+// INNER query is NOT parsed by this node: the query/SELECT grammar belongs to
+// the downstream parser-select node (which depends on this one). The subquery
+// nodes (SubqueryExpr / ExistsExpr / ArraySubqueryExpr) capture the balanced
+// parenthesized source span in RawText and leave Query nil; parser-select fills
+// Query when it lands. See parser/expr.go parseParenOrSubquery.
+
+// BinaryOp enumerates GoogleSQL binary operators that build a left-associative
+// BinaryExpr (arithmetic, bitwise, shift, logical, concat). The comparison
+// family is modeled separately (CompareExpr / IsExpr / InExpr / BetweenExpr /
+// LikeExpr) because it is non-associative (P1).
+type BinaryOp int
+
+const (
+	BinAdd        BinaryOp = iota // +
+	BinSub                        // -
+	BinMul                        // *
+	BinDiv                        // /
+	BinConcat                     // || (BOOL_OR_SYMBOL — string concat / logical-or-style)
+	BinBitOr                      // |  (STROKE_SYMBOL)
+	BinBitXor                     // ^  (CIRCUMFLEX_SYMBOL)
+	BinBitAnd                     // &  (BIT_AND_SYMBOL)
+	BinShiftLeft                  // <<
+	BinShiftRight                 // >>
+	BinAnd                        // AND
+	BinOr                         // OR
+)
+
+// String returns the operator symbol/keyword.
+func (op BinaryOp) String() string {
+	switch op {
+	case BinAdd:
+		return "+"
+	case BinSub:
+		return "-"
+	case BinMul:
+		return "*"
+	case BinDiv:
+		return "/"
+	case BinConcat:
+		return "||"
+	case BinBitOr:
+		return "|"
+	case BinBitXor:
+		return "^"
+	case BinBitAnd:
+		return "&"
+	case BinShiftLeft:
+		return "<<"
+	case BinShiftRight:
+		return ">>"
+	case BinAnd:
+		return "AND"
+	case BinOr:
+		return "OR"
+	default:
+		return "?"
+	}
+}
+
+// UnaryOp enumerates GoogleSQL prefix unary operators (unary_operator + NOT).
+type UnaryOp int
+
+const (
+	UnaryPlus   UnaryOp = iota // +
+	UnaryMinus                 // -
+	UnaryBitNot                // ~ (BITWISE_NOT_OPERATOR)
+	UnaryNot                   // NOT
+)
+
+// String returns the operator symbol/keyword.
+func (op UnaryOp) String() string {
+	switch op {
+	case UnaryPlus:
+		return "+"
+	case UnaryMinus:
+		return "-"
+	case UnaryBitNot:
+		return "~"
+	case UnaryNot:
+		return "NOT"
+	default:
+		return "?"
+	}
+}
+
+// CompareOp enumerates the comparative operators (comparative_operator). These
+// build a non-associative CompareExpr.
+type CompareOp int
+
+const (
+	CmpEq CompareOp = iota // =
+	CmpNe                  // != or <>
+	CmpLt                  // <
+	CmpLe                  // <=
+	CmpGt                  // >
+	CmpGe                  // >=
+)
+
+// String returns the operator symbol.
+func (op CompareOp) String() string {
+	switch op {
+	case CmpEq:
+		return "="
+	case CmpNe:
+		return "!="
+	case CmpLt:
+		return "<"
+	case CmpLe:
+		return "<="
+	case CmpGt:
+		return ">"
+	case CmpGe:
+		return ">="
+	default:
+		return "?"
+	}
+}
+
+// LiteralKind classifies a Literal's value type, mirroring the grammar's
+// literal alternatives (§2.21) that carry no type keyword. Typed-prefix
+// literals (NUMERIC '…', DATE '…', JSON '…', RANGE<…> '…') are modeled by
+// TypedLiteral, not Literal.
+type LiteralKind int
+
+const (
+	// LitNull is the NULL literal (null_literal).
+	LitNull LiteralKind = iota
+	// LitBool is TRUE / FALSE (boolean_literal). Value is the source spelling.
+	LitBool
+	// LitInt is an INTEGER_LITERAL (decimal or 0x-hex). Ival holds the value
+	// (0 on int64 overflow — Value preserves the exact spelling).
+	LitInt
+	// LitFloat is a FLOATING_POINT_LITERAL. Value holds the source spelling.
+	LitFloat
+	// LitString is a STRING_LITERAL (one or more adjacent components, already
+	// concatenated by the parser). Value holds the unquoted content.
+	LitString
+	// LitBytes is a BYTES_LITERAL. Value holds the unquoted, un-prefixed bytes.
+	LitBytes
+)
+
+// String returns a human-readable name for the kind.
+func (k LiteralKind) String() string {
+	switch k {
+	case LitNull:
+		return "NULL"
+	case LitBool:
+		return "BOOL"
+	case LitInt:
+		return "INT"
+	case LitFloat:
+		return "FLOAT"
+	case LitString:
+		return "STRING"
+	case LitBytes:
+		return "BYTES"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Primary / leaf expression nodes
+// ---------------------------------------------------------------------------
+
+// Identifier is a single GoogleSQL identifier used as an expression (the
+// grammar's identifier as a primary expression — a column / variable / name
+// reference). Name is the normalized text: a backtick-quoted identifier has its
+// backticks stripped by the lexer; an unquoted identifier or keyword-as-
+// identifier is its source word.
+//
+// A multi-part dotted name (`a.b.c`) is a PathExpr, not an Identifier — but a
+// dotted continuation in an expression is built as repeated FieldAccess over a
+// leading Identifier (matching the grammar's `EHP . identifier` left-recursion),
+// so a bare Identifier is always a single component here.
+type Identifier struct {
+	Name string
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *Identifier) Tag() NodeTag { return T_Identifier }
+
+// PathExpr is a dotted identifier path used where the grammar requires a
+// path_expression as a whole (function names, sequence args, generalized-
+// extension `(path)`, system-variable paths). Parts holds each normalized
+// component (>= 1). General dotted field access on an arbitrary expression is
+// FieldAccess, not PathExpr; PathExpr is used only in the grammar positions that
+// take a path_expression token-sequence directly.
+type PathExpr struct {
+	Parts []string
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *PathExpr) Tag() NodeTag { return T_PathExpr }
+
+// String renders the path by joining its normalized parts with '.'. It does NOT
+// re-quote; it is a debug/representation helper, not a deparser.
+func (n *PathExpr) String() string {
+	out := ""
+	for i, part := range n.Parts {
+		if i > 0 {
+			out += "."
+		}
+		out += part
+	}
+	return out
+}
+
+// TypeRef is a reference to a parsed GoogleSQL data type in an expression
+// position (CAST target, ARRAY<T>[…] element type, STRUCT<…>(…) / NEW type /
+// braced-struct type). The `type` grammar itself is owned by the parser's
+// `types` node (parser.DataType), which is a parser-package value type and not
+// an ast.Node — so to keep the ast package free of a parser dependency, TypeRef
+// stores only the rendered type text (parser.DataType.String(), which
+// round-trips) plus its source span. Downstream consumers that need the
+// structured type re-parse Text via parser.ParseDataType; bytebase's query-span
+// path does not inspect types, so the rendered text is sufficient here.
+type TypeRef struct {
+	Text string // rendered type (e.g. "INT64", "ARRAY<STRUCT<x INT64>>")
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *TypeRef) Tag() NodeTag { return T_TypeRef }
+
+// StarExpr is a `*` used as an expression — only valid as a bare function
+// argument (the grammar's MULTIPLY_OPERATOR alternative in
+// function_call_expression_with_clauses_suffix, e.g. COUNT(*)). It is NOT a
+// general expression primary; the parser admits it only in argument position.
+// Modifiers carries an optional EXCEPT/REPLACE star_modifiers (rare in
+// argument position; nil normally).
+type StarExpr struct {
+	Modifiers *StarModifiers // optional; nil for a bare *
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *StarExpr) Tag() NodeTag { return T_StarExpr }
+
+// StarModifiers carries the EXCEPT(...) / REPLACE(...) suffixes that can follow
+// a star (star_modifiers). Except holds the EXCEPT column names; Replace holds
+// the REPLACE items (each `expr AS name`). This node is defined here for the
+// argument-position StarExpr; the SELECT-list star reuses it.
+type StarModifiers struct {
+	Except  []string           // EXCEPT (a, b, ...) column names
+	Replace []*StructFieldExpr // REPLACE (expr AS name, ...) — reuses the aliased-expr shape
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *StarModifiers) Tag() NodeTag { return T_StarModifiers }
+
+// Literal is a NULL / boolean / integer / float / string / bytes literal that
+// carries no type-name prefix (§2.21). Value is the source spelling (unquoted
+// for string/bytes); Ival is the integer value for LitInt.
+type Literal struct {
+	Kind  LiteralKind
+	Value string
+	Ival  int64 // for LitInt
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *Literal) Tag() NodeTag { return T_Literal }
+
+// TypedLiteral is a type-prefixed literal: NUMERIC/DECIMAL/BIGNUMERIC/BIGDECIMAL
+// '…', JSON '…', DATE/TIME/DATETIME/TIMESTAMP '…', or RANGE<type> '…'
+// (numeric_literal / bignumeric_literal / json_literal / date_or_time_literal /
+// range_literal). TypeKeyword is the leading type word (e.g. "NUMERIC", "DATE",
+// "RANGE"); RangeType is the parsed element type for a RANGE literal (nil
+// otherwise); Value is the unquoted string body.
+type TypedLiteral struct {
+	TypeKeyword string
+	Value       string // the unquoted string-literal body
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *TypedLiteral) Tag() NodeTag { return T_TypedLiteral }
+
+// IntervalExpr is an interval value expression:
+// `INTERVAL expr datepart [TO datepart]` (interval_expression). Value is the
+// magnitude expression; From / To are the date-part identifier spellings (To is
+// "" for the single-part form).
+type IntervalExpr struct {
+	Value Node
+	From  string // leading datepart (e.g. "DAY", "YEAR")
+	To    string // trailing datepart for `… TO …`; "" if absent
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *IntervalExpr) Tag() NodeTag { return T_IntervalExpr }
+
+// Parameter is a query parameter: a named parameter `@name`
+// (named_parameter_expression) or a positional `?` (QUESTION_SYMBOL). Name holds
+// the parameter name for the named form, "" for positional.
+type Parameter struct {
+	Name       string // "" for positional '?'
+	Positional bool   // true for '?'
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *Parameter) Tag() NodeTag { return T_Parameter }
+
+// SystemVariable is a system-variable reference `@@path`
+// (system_variable_expression: ATAT path_expression). Parts holds the dotted
+// path components after the `@@` (>= 1).
+type SystemVariable struct {
+	Parts []string
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *SystemVariable) Tag() NodeTag { return T_SystemVariable }
+
+// ParenExpr is a parenthesized expression `( expr )`
+// (parenthesized_expression_not_a_query). A parenthesized QUERY is a
+// SubqueryExpr instead; the parser disambiguates by the token after '('.
+type ParenExpr struct {
+	Expr Node
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *ParenExpr) Tag() NodeTag { return T_ParenExpr }
+
+// ---------------------------------------------------------------------------
+// Operator nodes
+// ---------------------------------------------------------------------------
+
+// UnaryExpr is a prefix unary operation `op expr` (unary_operator EHP, or
+// NOT EHP). For NOT, Expr spans the whole comparison level (P2).
+type UnaryExpr struct {
+	Op   UnaryOp
+	Expr Node
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *UnaryExpr) Tag() NodeTag { return T_UnaryExpr }
+
+// BinaryExpr is a left-associative binary operation `left op right` for the
+// arithmetic / bitwise / shift / logical / concat operators. (The comparison
+// family is non-associative and uses CompareExpr/IsExpr/etc., not BinaryExpr.)
+type BinaryExpr struct {
+	Op    BinaryOp
+	Left  Node
+	Right Node
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *BinaryExpr) Tag() NodeTag { return T_BinaryExpr }
+
+// CompareExpr is a single comparative operation `left op right` for
+// = != <> < <= > >= (comparative_operator). NON-ASSOCIATIVE (P1): Left and
+// Right are both the next-higher precedence level, never another comparison.
+type CompareExpr struct {
+	Op    CompareOp
+	Left  Node
+	Right Node
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *CompareExpr) Tag() NodeTag { return T_CompareExpr }
+
+// IsExpr is `expr IS [NOT] {NULL | TRUE | FALSE | UNKNOWN}` or
+// `expr IS [NOT] DISTINCT FROM expr` (is_operator / distinct_operator). Not
+// flags the NOT. For the IS-predicate form, Pred holds the predicate keyword
+// ("NULL", "TRUE", "FALSE", "UNKNOWN") and DistinctFrom is nil. For the DISTINCT
+// FROM form, DistinctFrom is the right operand and Pred is "".
+type IsExpr struct {
+	Expr         Node
+	Not          bool
+	Pred         string // "NULL" | "TRUE" | "FALSE" | "UNKNOWN"; "" for DISTINCT FROM
+	DistinctFrom Node   // non-nil for IS [NOT] DISTINCT FROM expr
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *IsExpr) Tag() NodeTag { return T_IsExpr }
+
+// InExpr is `expr [NOT] IN <rhs>` (in_operator). Exactly one RHS form is set:
+// Values (a parenthesized expression list — one or more), Unnest (an
+// UNNEST(...) call), or Subquery (a parenthesized query). Hint carries an
+// optional `@{...}` between IN and a non-UNNEST RHS (the grammar rejects a hint
+// before UNNEST).
+type InExpr struct {
+	Expr     Node
+	Not      bool
+	Values   []Node // parenthesized expression list (>= 1); nil for the other forms
+	Unnest   Node   // UNNEST(...) RHS; nil otherwise
+	Subquery Node   // parenthesized-query RHS (SubqueryExpr); nil otherwise
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *InExpr) Tag() NodeTag { return T_InExpr }
+
+// BetweenExpr is `expr [NOT] BETWEEN low AND high` (between_operator). low and
+// high are at the EHP (higher-than-AND) level, so a bare OR inside is rejected
+// (the grammar's "Expression in BETWEEN must be parenthesized" alt).
+type BetweenExpr struct {
+	Expr Node
+	Low  Node
+	High Node
+	Not  bool
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *BetweenExpr) Tag() NodeTag { return T_BetweenExpr }
+
+// LikeExpr is `expr [NOT] LIKE <rhs>` (like_operator). The plain form sets
+// Pattern. The quantified form (`LIKE ANY|SOME|ALL ...`) sets Quantifier and one
+// of QuantValues (parenthesized list), QuantUnnest (UNNEST), or QuantSubquery.
+type LikeExpr struct {
+	Expr          Node
+	Not           bool
+	Pattern       Node   // plain `LIKE pattern`; nil for the quantified form
+	Quantifier    string // "ANY" | "SOME" | "ALL"; "" for the plain form
+	QuantValues   []Node // quantified list RHS
+	QuantUnnest   Node   // quantified UNNEST RHS
+	QuantSubquery Node   // quantified parenthesized-query RHS
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *LikeExpr) Tag() NodeTag { return T_LikeExpr }
+
+// ---------------------------------------------------------------------------
+// CASE / CAST / EXTRACT
+// ---------------------------------------------------------------------------
+
+// CaseExpr is a CASE expression (case_expression). Operand is non-nil for the
+// simple form (`CASE x WHEN …`) and nil for the searched form (`CASE WHEN …`).
+// Whens has one or more branches; Else is the optional ELSE result (nil if
+// absent).
+type CaseExpr struct {
+	Operand Node          // nil for searched CASE
+	Whens   []*WhenClause // >= 1
+	Else    Node          // nil if no ELSE
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *CaseExpr) Tag() NodeTag { return T_CaseExpr }
+
+// WhenClause is one `WHEN cond THEN result` branch of a CaseExpr. For a simple
+// CASE, Cond is the value compared against the operand.
+type WhenClause struct {
+	Cond   Node
+	Result Node
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *WhenClause) Tag() NodeTag { return T_WhenClause }
+
+// CastExpr is `CAST(expr AS type [FORMAT fmt [AT TIME ZONE tz]])` or the
+// `SAFE_CAST(...)` variant (cast_expression). Safe flags SAFE_CAST. Type is the
+// target type. Format / TimeZone are the optional FORMAT and AT TIME ZONE
+// expressions (nil if absent). Type is carried as a Node wrapper produced by the
+// parser (the parser embeds its *DataType in a typeNode); downstream consumers
+// read the rendered type via the parser, so Type is opaque here.
+type CastExpr struct {
+	Expr     Node
+	Type     *TypeRef // the target type (rendered); nil only on a malformed parse
+	Safe     bool     // SAFE_CAST
+	Format   Node     // optional FORMAT expr; nil if absent
+	TimeZone Node     // optional AT TIME ZONE expr (only with FORMAT); nil if absent
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *CastExpr) Tag() NodeTag { return T_CastExpr }
+
+// ExtractExpr is `EXTRACT(part FROM expr [AT TIME ZONE tz])`
+// (extract_expression). Part is the part expression (e.g. YEAR, or
+// DATE(...)); From is the source; TimeZone is the optional AT TIME ZONE expr.
+type ExtractExpr struct {
+	Part     Node
+	From     Node
+	TimeZone Node // optional; nil if absent
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *ExtractExpr) Tag() NodeTag { return T_ExtractExpr }
+
+// ---------------------------------------------------------------------------
+// Function calls, arguments, window
+// ---------------------------------------------------------------------------
+
+// FuncCall is a function-call expression with all its clauses
+// (function_call_expression_with_clauses + suffix). Name is the function name
+// (a path, or a keyword-as-function-name like IF/GROUPING/LEFT/RIGHT/COLLATE/
+// RANGE rendered into Name.Parts). The modifier fields mirror the suffix grammar.
+type FuncCall struct {
+	Name          *PathExpr        // function name path
+	Args          []Node           // positional / named / lambda / sequence args; a bare '*' is a StarExpr
+	Distinct      bool             // DISTINCT before the args
+	NullHandling  string           // "IGNORE NULLS" | "RESPECT NULLS"; "" if absent
+	Having        *HavingModifier  // HAVING MAX/MIN expr [group-by]; nil if absent
+	Clamped       *ClampedModifier // CLAMPED BETWEEN low AND high; nil if absent
+	WithReport    bool             // WITH REPORT (...) present
+	OrderBy       []*OrderItem     // trailing ORDER BY inside the call (aggregate ordering)
+	Limit         Node             // trailing LIMIT expr; nil if absent
+	LimitOffset   Node             // trailing OFFSET expr (only with Limit); nil if absent
+	WithGroupRows bool             // WITH GROUP ROWS present
+	Over          *WindowSpec      // OVER window; nil if not a window call
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *FuncCall) Tag() NodeTag { return T_FuncCall }
+
+// HavingModifier is the aggregate `HAVING MAX expr` / `HAVING MIN expr <group>`
+// modifier (opt_having_or_group_by_modifier). IsMax selects MAX vs MIN; Expr is
+// the having expression. (The MIN form's trailing group-by is rare and its items
+// are not retained beyond Expr in this node — the modifier's presence is the
+// load-bearing fact for parse parity.)
+type HavingModifier struct {
+	IsMax bool
+	Expr  Node
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *HavingModifier) Tag() NodeTag { return T_HavingModifier }
+
+// ClampedModifier is the differential-privacy `CLAMPED BETWEEN low AND high`
+// modifier (clamped_between_modifier).
+type ClampedModifier struct {
+	Low  Node
+	High Node
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *ClampedModifier) Tag() NodeTag { return T_ClampedModifier }
+
+// NamedArg is a named function argument `name => value` (named_argument). Value
+// is the argument expression (which may itself be a LambdaExpr).
+type NamedArg struct {
+	Name  string
+	Value Node
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *NamedArg) Tag() NodeTag { return T_NamedArg }
+
+// LambdaExpr is a lambda function argument `params -> body` (lambda_argument).
+// Params holds the parameter identifier spellings (empty for the `() -> body`
+// form). Body is the lambda body expression.
+type LambdaExpr struct {
+	Params []string
+	Body   Node
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *LambdaExpr) Tag() NodeTag { return T_LambdaExpr }
+
+// SequenceArg is the `SEQUENCE path` function argument (sequence_arg). Path is
+// the sequence name path.
+type SequenceArg struct {
+	Path *PathExpr
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *SequenceArg) Tag() NodeTag { return T_SequenceArg }
+
+// WindowSpec is an OVER window specification (over_clause + window_specification):
+// either a named window reference (Name set, all else empty) or an inline spec
+// `( [name] [PARTITION BY …] [ORDER BY …] [frame] )`.
+type WindowSpec struct {
+	Name        string       // named window reference, or the leading name of an inline spec; "" if none
+	PartitionBy []Node       // PARTITION BY expressions
+	OrderBy     []*OrderItem // ORDER BY items
+	Frame       *WindowFrame // window frame; nil if absent
+	Inline      bool         // true if the spec was a parenthesized inline spec (vs a bare name reference)
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *WindowSpec) Tag() NodeTag { return T_WindowSpec }
+
+// OrderItem is one `expr [COLLATE c] [ASC|DESC] [NULLS FIRST|LAST]` ordering
+// element (ordering_expression), used in window ORDER BY and aggregate ORDER BY.
+type OrderItem struct {
+	Expr       Node
+	Collate    Node  // optional COLLATE expr; nil if absent
+	Desc       bool  // true for DESC
+	HasDir     bool  // true if ASC or DESC was given explicitly
+	NullsFirst *bool // nil = unspecified, true = NULLS FIRST, false = NULLS LAST
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *OrderItem) Tag() NodeTag { return T_OrderItem }
+
+// WindowFrameKind enumerates the frame unit (frame_unit).
+type WindowFrameKind int
+
+const (
+	FrameRows  WindowFrameKind = iota // ROWS
+	FrameRange                        // RANGE
+)
+
+// WindowBoundKind enumerates a frame bound shape (window_frame_bound).
+type WindowBoundKind int
+
+const (
+	BoundUnboundedPreceding WindowBoundKind = iota // UNBOUNDED PRECEDING
+	BoundUnboundedFollowing                        // UNBOUNDED FOLLOWING
+	BoundCurrentRow                                // CURRENT ROW
+	BoundPreceding                                 // expr PRECEDING
+	BoundFollowing                                 // expr FOLLOWING
+)
+
+// WindowFrame is a `ROWS|RANGE { <bound> | BETWEEN <bound> AND <bound> }` clause
+// (opt_window_frame_clause). Between is true for the BETWEEN form (Start + End);
+// for the single-bound form only Start is meaningful.
+type WindowFrame struct {
+	Kind    WindowFrameKind
+	Between bool
+	Start   WindowBound
+	End     WindowBound // meaningful only when Between
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *WindowFrame) Tag() NodeTag { return T_WindowFrame }
+
+// WindowBound is one end of a frame (window_frame_bound). Offset is the `expr`
+// for BoundPreceding/BoundFollowing (nil otherwise). Not a Node.
+type WindowBound struct {
+	Kind   WindowBoundKind
+	Offset Node // for BoundPreceding/BoundFollowing
+}
+
+// ---------------------------------------------------------------------------
+// Constructors: array / struct / new / braced / replace-fields / with
+// ---------------------------------------------------------------------------
+
+// ArrayExpr is an array constructor: `[…]`, `ARRAY[…]`, or `ARRAY<T>[…]`
+// (array_constructor). Elements holds zero or more element expressions; ElemType
+// is the optional explicit element type (the T in ARRAY<T>[…]), wrapped as a
+// Node by the parser (nil if absent). HasArrayKeyword records whether the ARRAY
+// keyword was present (vs the bare `[…]` form).
+type ArrayExpr struct {
+	Elements        []Node
+	ElemType        *TypeRef // explicit element type (ARRAY<T>[…]); nil otherwise
+	HasArrayKeyword bool
+	Loc             Loc
+}
+
+// Tag implements Node.
+func (n *ArrayExpr) Tag() NodeTag { return T_ArrayExpr }
+
+// StructExpr is a struct constructor (struct_constructor). Three source forms map
+// here: the keyword form `STRUCT(args)` / `STRUCT<…>(args)` (HasStruct true,
+// Type optionally set), and the bare tuple form `(e1, e2, …)` with two or more
+// elements (HasStruct false, Type nil). Fields holds each `expr [AS alias]` arg.
+type StructExpr struct {
+	HasStruct bool               // STRUCT keyword present
+	Type      *TypeRef           // explicit STRUCT<…> type; nil otherwise
+	Fields    []*StructFieldExpr // the constructor args (>= 0 for STRUCT(), >= 2 for the bare tuple)
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *StructExpr) Tag() NodeTag { return T_StructExpr }
+
+// StructFieldExpr is one `expr [AS alias]` constructor argument
+// (struct_constructor_arg) — reused for array/struct REPLACE items. Alias is ""
+// when no `AS name` was given.
+type StructFieldExpr struct {
+	Value Node
+	Alias string // "" if no AS alias
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *StructFieldExpr) Tag() NodeTag { return T_StructFieldExpr }
+
+// NewConstructor is a proto constructor `NEW type ( args )` (new_constructor) or
+// the braced form `NEW type { … }` (braced_new_constructor). Type is the proto
+// type name (wraps a parsed type_name as a Node). Args holds the parenthesized
+// args; Braced holds the braced constructor (one of Args/Braced is set).
+type NewConstructor struct {
+	Type   *TypeRef           // the proto type_name (rendered)
+	Args   []*StructFieldExpr // parenthesized form args (each `expr [AS id | AS (path)]`)
+	Braced *BracedConstructor // braced form; nil for the parenthesized form
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *NewConstructor) Tag() NodeTag { return T_NewConstructor }
+
+// BracedConstructor is a proto braced constructor `{ field… }` (braced_constructor
+// / struct_braced_constructor). Type is the optional leading STRUCT<…> / struct
+// type for struct_braced_constructor (nil for the proto braced_constructor and
+// the bare `STRUCT {…}` no-type form). The field internals are retained as raw
+// field expressions in Fields (each a `path : value` or `path {…}`); the exact
+// proto-field shape is not consumed by bytebase, so fields capture the value
+// expressions for walk/coverage without a bespoke per-field node.
+type BracedConstructor struct {
+	Type   *TypeRef // optional struct type (struct_braced_constructor); nil otherwise
+	Fields []Node   // field value expressions (best-effort capture for walking)
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *BracedConstructor) Tag() NodeTag { return T_BracedConstructor }
+
+// ReplaceFieldsExpr is `REPLACE_FIELDS(expr, value AS path, …)`
+// (replace_fields_expression). Expr is the base; Items holds each replacement
+// (`expr AS generalized-path`).
+type ReplaceFieldsExpr struct {
+	Expr  Node
+	Items []*StructFieldExpr // each `value AS path` (Alias holds the rendered path)
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ReplaceFieldsExpr) Tag() NodeTag { return T_ReplaceFieldsExpr }
+
+// WithExpr is the inline `WITH(name AS expr, …, body)` expression
+// (with_expression). Vars holds the `name AS expr` bindings; Body is the final
+// result expression.
+type WithExpr struct {
+	Vars []*StructFieldExpr // each `name AS expr` (Alias holds the var name, Value the bound expr)
+	Body Node
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *WithExpr) Tag() NodeTag { return T_WithExpr }
+
+// ---------------------------------------------------------------------------
+// Access (field / index / extension) and subqueries
+// ---------------------------------------------------------------------------
+
+// FieldAccess is dotted field access on an expression `expr . field`
+// (EHP DOT identifier). Field is the accessed field name (normalized).
+type FieldAccess struct {
+	Expr  Node
+	Field string
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *FieldAccess) Tag() NodeTag { return T_FieldAccess }
+
+// IndexAccess is array/struct subscript access `expr [ index ]`
+// (EHP LS_BRACKET expression RS_BRACKET). Index is the subscript expression
+// (which may itself be an OFFSET(...)/ORDINAL(...)/SAFE_OFFSET/SAFE_ORDINAL
+// function call — those are ordinary FuncCall nodes, not special syntax).
+type IndexAccess struct {
+	Expr  Node
+	Index Node
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *IndexAccess) Tag() NodeTag { return T_IndexAccess }
+
+// ExtensionAccess is proto-extension field access `expr . ( path )`
+// (EHP DOT '(' path_expression ')'). Path is the parenthesized extension path.
+type ExtensionAccess struct {
+	Expr Node
+	Path *PathExpr
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *ExtensionAccess) Tag() NodeTag { return T_ExtensionAccess }
+
+// SubqueryExpr is a parenthesized query used as a scalar expression
+// `( SELECT … )` (parenthesized_query in expression position). Query is the
+// parsed inner query — left nil by the expressions node (the query grammar is
+// owned by parser-select); RawText holds the inner query source (without the
+// outer parens) so parser-select can fill Query later and so deparse/round-trip
+// works in the interim.
+type SubqueryExpr struct {
+	Query   Node   // nil until parser-select wires the query grammar
+	RawText string // inner query source (between the parens)
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *SubqueryExpr) Tag() NodeTag { return T_SubqueryExpr }
+
+// ExistsExpr is `EXISTS [hint] ( query )` (expression_subquery_with_keyword).
+// Query is the parsed inner query (nil until parser-select); RawText holds the
+// inner source.
+type ExistsExpr struct {
+	Query   Node
+	RawText string
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ExistsExpr) Tag() NodeTag { return T_ExistsExpr }
+
+// ArraySubqueryExpr is `ARRAY ( query )` (expression_subquery_with_keyword).
+// Query is the parsed inner query (nil until parser-select); RawText holds the
+// inner source.
+type ArraySubqueryExpr struct {
+	Query   Node
+	RawText string
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ArraySubqueryExpr) Tag() NodeTag { return T_ArraySubqueryExpr }
+
+// Compile-time assertions that the expression node types satisfy Node.
+var (
+	_ Node = (*Identifier)(nil)
+	_ Node = (*PathExpr)(nil)
+	_ Node = (*TypeRef)(nil)
+	_ Node = (*StarExpr)(nil)
+	_ Node = (*StarModifiers)(nil)
+	_ Node = (*Literal)(nil)
+	_ Node = (*TypedLiteral)(nil)
+	_ Node = (*IntervalExpr)(nil)
+	_ Node = (*Parameter)(nil)
+	_ Node = (*SystemVariable)(nil)
+	_ Node = (*ParenExpr)(nil)
+	_ Node = (*UnaryExpr)(nil)
+	_ Node = (*BinaryExpr)(nil)
+	_ Node = (*CompareExpr)(nil)
+	_ Node = (*IsExpr)(nil)
+	_ Node = (*InExpr)(nil)
+	_ Node = (*BetweenExpr)(nil)
+	_ Node = (*LikeExpr)(nil)
+	_ Node = (*CaseExpr)(nil)
+	_ Node = (*WhenClause)(nil)
+	_ Node = (*CastExpr)(nil)
+	_ Node = (*ExtractExpr)(nil)
+	_ Node = (*FuncCall)(nil)
+	_ Node = (*NamedArg)(nil)
+	_ Node = (*LambdaExpr)(nil)
+	_ Node = (*SequenceArg)(nil)
+	_ Node = (*WindowSpec)(nil)
+	_ Node = (*WindowFrame)(nil)
+	_ Node = (*OrderItem)(nil)
+	_ Node = (*HavingModifier)(nil)
+	_ Node = (*ClampedModifier)(nil)
+	_ Node = (*ArrayExpr)(nil)
+	_ Node = (*StructExpr)(nil)
+	_ Node = (*StructFieldExpr)(nil)
+	_ Node = (*NewConstructor)(nil)
+	_ Node = (*BracedConstructor)(nil)
+	_ Node = (*ReplaceFieldsExpr)(nil)
+	_ Node = (*WithExpr)(nil)
+	_ Node = (*FieldAccess)(nil)
+	_ Node = (*IndexAccess)(nil)
+	_ Node = (*ExtensionAccess)(nil)
+	_ Node = (*SubqueryExpr)(nil)
+	_ Node = (*ExistsExpr)(nil)
+	_ Node = (*ArraySubqueryExpr)(nil)
+)

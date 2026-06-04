@@ -6,13 +6,128 @@ package ast
 // for each child. This function is generated from parsenodes.go and node.go.
 func walkChildren(v Visitor, node Node) {
 	switch n := node.(type) {
+	case *ArrayExpr:
+		walkNodes(v, n.Elements)
+		if n.ElemType != nil {
+			Walk(v, n.ElemType)
+		}
+	case *ArraySubqueryExpr:
+		Walk(v, n.Query)
+	case *BetweenExpr:
+		Walk(v, n.Expr)
+		Walk(v, n.Low)
+		Walk(v, n.High)
+	case *BinaryExpr:
+		Walk(v, n.Left)
+		Walk(v, n.Right)
+	case *BracedConstructor:
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		walkNodes(v, n.Fields)
+	case *CaseExpr:
+		Walk(v, n.Operand)
+		for _, c := range n.Whens {
+			Walk(v, c)
+		}
+		Walk(v, n.Else)
+	case *CastExpr:
+		Walk(v, n.Expr)
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		Walk(v, n.Format)
+		Walk(v, n.TimeZone)
+	case *ClampedModifier:
+		Walk(v, n.Low)
+		Walk(v, n.High)
+	case *CompareExpr:
+		Walk(v, n.Left)
+		Walk(v, n.Right)
+	case *ExistsExpr:
+		Walk(v, n.Query)
+	case *ExtensionAccess:
+		Walk(v, n.Expr)
+		if n.Path != nil {
+			Walk(v, n.Path)
+		}
+	case *ExtractExpr:
+		Walk(v, n.Part)
+		Walk(v, n.From)
+		Walk(v, n.TimeZone)
+	case *FieldAccess:
+		Walk(v, n.Expr)
 	case *File:
 		walkNodes(v, n.Stmts)
+	case *FuncCall:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		walkNodes(v, n.Args)
+		if n.Having != nil {
+			Walk(v, n.Having)
+		}
+		if n.Clamped != nil {
+			Walk(v, n.Clamped)
+		}
+		for _, c := range n.OrderBy {
+			Walk(v, c)
+		}
+		Walk(v, n.Limit)
+		Walk(v, n.LimitOffset)
+		if n.Over != nil {
+			Walk(v, n.Over)
+		}
 	case *GrantStmt:
 		for _, c := range n.Privileges {
 			Walk(v, c)
 		}
 		for _, c := range n.Grantees {
+			Walk(v, c)
+		}
+	case *HavingModifier:
+		Walk(v, n.Expr)
+	case *InExpr:
+		Walk(v, n.Expr)
+		walkNodes(v, n.Values)
+		Walk(v, n.Unnest)
+		Walk(v, n.Subquery)
+	case *IndexAccess:
+		Walk(v, n.Expr)
+		Walk(v, n.Index)
+	case *IntervalExpr:
+		Walk(v, n.Value)
+	case *IsExpr:
+		Walk(v, n.Expr)
+		Walk(v, n.DistinctFrom)
+	case *LambdaExpr:
+		Walk(v, n.Body)
+	case *LikeExpr:
+		Walk(v, n.Expr)
+		Walk(v, n.Pattern)
+		walkNodes(v, n.QuantValues)
+		Walk(v, n.QuantUnnest)
+		Walk(v, n.QuantSubquery)
+	case *NamedArg:
+		Walk(v, n.Value)
+	case *NewConstructor:
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		for _, c := range n.Args {
+			Walk(v, c)
+		}
+		if n.Braced != nil {
+			Walk(v, n.Braced)
+		}
+	case *OrderItem:
+		Walk(v, n.Expr)
+		Walk(v, n.Collate)
+	case *ParenExpr:
+		Walk(v, n.Expr)
+	case *ReplaceFieldsExpr:
+		Walk(v, n.Expr)
+		for _, c := range n.Items {
 			Walk(v, c)
 		}
 	case *RevokeStmt:
@@ -22,5 +137,46 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Grantees {
 			Walk(v, c)
 		}
+	case *SequenceArg:
+		if n.Path != nil {
+			Walk(v, n.Path)
+		}
+	case *StarExpr:
+		if n.Modifiers != nil {
+			Walk(v, n.Modifiers)
+		}
+	case *StarModifiers:
+		for _, c := range n.Replace {
+			Walk(v, c)
+		}
+	case *StructExpr:
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		for _, c := range n.Fields {
+			Walk(v, c)
+		}
+	case *StructFieldExpr:
+		Walk(v, n.Value)
+	case *SubqueryExpr:
+		Walk(v, n.Query)
+	case *UnaryExpr:
+		Walk(v, n.Expr)
+	case *WhenClause:
+		Walk(v, n.Cond)
+		Walk(v, n.Result)
+	case *WindowSpec:
+		walkNodes(v, n.PartitionBy)
+		for _, c := range n.OrderBy {
+			Walk(v, c)
+		}
+		if n.Frame != nil {
+			Walk(v, n.Frame)
+		}
+	case *WithExpr:
+		for _, c := range n.Vars {
+			Walk(v, c)
+		}
+		Walk(v, n.Body)
 	}
 }
