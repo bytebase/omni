@@ -162,17 +162,19 @@ func tokToComparisonOp(t int) ast.BinOp {
 // alternatives plus the NOT-prefix form for IN/LIKE/BETWEEN:
 //
 //	comparison (=, <>, <, <=, >, >=)
-//	IS [NOT] {NULL|MISSING|TRUE|FALSE}
+//	IS [NOT] <type>
 //	[NOT] IN (expr, expr, ...)
 //	[NOT] LIKE mathOp00 [ESCAPE expr]
 //	[NOT] BETWEEN mathOp00 AND mathOp00
 //
 // Grammar: exprPredicate (lines 484-492).
 //
-// IS type support is RESTRICTED to the 4 values the AST supports
-// (NULL/MISSING/TRUE/FALSE). The grammar allows `IS <any type>` but
-// ast.IsExpr.Type is a 4-value enum. Any other IS form returns a
-// syntax error.
+// The IS predicate's RHS is the full `type` production (g4:486 —
+// `lhs IS NOT? type`), which includes NULL and MISSING as atomic types.
+// `x IS NULL`, `x IS MISSING`, `x IS INT`, `x IS DECIMAL(10,2)`, and
+// `a IS NOT STRUCT` are therefore all valid. `x IS TRUE` / `x IS FALSE`
+// are rejected — TRUE/FALSE are not types (the legacy grammar marks the
+// SQL-92 `IS TRUE/FALSE` form "Not yet implemented", g4:437-438).
 func (p *Parser) parsePredicate() (ast.ExprNode, error) {
 	left, err := p.parseMathOp00()
 	if err != nil {
@@ -247,32 +249,26 @@ func (p *Parser) parsePredicate() (ast.ExprNode, error) {
 	}
 }
 
-// parseIsBody parses the RHS of `expr IS [NOT] {NULL|MISSING|TRUE|FALSE}`.
-// The caller has already consumed the IS token and optionally NOT.
+// parseIsBody parses the RHS of `expr IS [NOT] <type>`. The caller has
+// already consumed the IS token and optionally NOT.
+//
+// The RHS is the full `type` production (PartiQLParser.g4:674-686) — the
+// same one CAST consumes via parseType. NULL and MISSING are atomic types
+// in that production, so `IS NULL` / `IS MISSING` flow through here as
+// types; there is no separate keyword branch. TRUE / FALSE / UNKNOWN are
+// not types, so parseType rejects them with "expected type" — matching the
+// generated ANTLR parser, which yields `mismatched input 'TRUE' expecting
+// { <type first-set> }`.
 func (p *Parser) parseIsBody(left ast.ExprNode, not bool, startLoc int) (*ast.IsExpr, error) {
-	var isType ast.IsType
-	switch p.cur.Type {
-	case tokNULL:
-		isType = ast.IsTypeNull
-	case tokMISSING:
-		isType = ast.IsTypeMissing
-	case tokTRUE:
-		isType = ast.IsTypeTrue
-	case tokFALSE:
-		isType = ast.IsTypeFalse
-	default:
-		return nil, &ParseError{
-			Message: "IS predicate requires NULL, MISSING, TRUE, or FALSE",
-			Loc:     p.cur.Loc,
-		}
+	typeRef, err := p.parseType()
+	if err != nil {
+		return nil, err
 	}
-	end := p.cur.Loc.End
-	p.advance()
 	return &ast.IsExpr{
 		Expr: left,
-		Type: isType,
+		Type: typeRef,
 		Not:  not,
-		Loc:  ast.Loc{Start: startLoc, End: end},
+		Loc:  ast.Loc{Start: startLoc, End: typeRef.GetLoc().End},
 	}, nil
 }
 
@@ -291,19 +287,27 @@ func (p *Parser) parseInBody(left ast.ExprNode, not bool, startLoc int) (*ast.In
 	// Parenthesized form: IN (expr, expr, ...)
 	if p.cur.Type == tokPAREN_LEFT {
 		p.advance() // consume (
-		var list []ast.ExprNode
-		if p.cur.Type != tokPAREN_RIGHT {
-			for {
-				item, err := p.parseMathOp00()
-				if err != nil {
-					return nil, err
-				}
-				list = append(list, item)
-				if p.cur.Type != tokCOMMA {
-					break
-				}
-				p.advance() // consume ,
+		// The grammar requires at least one expr inside the parens
+		// (g4:487 — `NOT? IN PAREN_LEFT expr PAREN_RIGHT`). An empty list
+		// `IN ()` is rejected: the generated ANTLR parser reports
+		// "no viable alternative at input 'IN ()'".
+		if p.cur.Type == tokPAREN_RIGHT {
+			return nil, &ParseError{
+				Message: "IN list requires at least one expression",
+				Loc:     p.cur.Loc,
 			}
+		}
+		var list []ast.ExprNode
+		for {
+			item, err := p.parseMathOp00()
+			if err != nil {
+				return nil, err
+			}
+			list = append(list, item)
+			if p.cur.Type != tokCOMMA {
+				break
+			}
+			p.advance() // consume ,
 		}
 		rp, err := p.expect(tokPAREN_RIGHT)
 		if err != nil {

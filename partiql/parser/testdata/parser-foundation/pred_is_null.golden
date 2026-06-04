@@ -1,1 +1,1 @@
-IsExpr{Expr:VarRef{Name:a} Type:NULL Not:false}
+IsExpr{Expr:VarRef{Name:a} Type:TypeRef{Name:NULL} Not:false}
