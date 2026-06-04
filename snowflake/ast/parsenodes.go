@@ -1296,6 +1296,91 @@ var (
 )
 
 // ---------------------------------------------------------------------------
+// TCL (transaction control) statement nodes (T6.2)
+// ---------------------------------------------------------------------------
+
+// BeginKind distinguishes the surface form that opened a transaction.
+//
+// Snowflake treats START TRANSACTION as a synonym for BEGIN, and the optional
+// WORK / TRANSACTION modifier after BEGIN is purely for cross-database
+// compatibility. The kind preserves the original keyword(s) so deparse and
+// tooling can round-trip the exact form the user wrote.
+type BeginKind int
+
+const (
+	// BeginBare is `BEGIN` with no WORK/TRANSACTION modifier.
+	BeginBare BeginKind = iota
+	// BeginWork is `BEGIN WORK`.
+	BeginWork
+	// BeginTransaction is `BEGIN TRANSACTION`.
+	BeginTransaction
+	// BeginStartTransaction is `START TRANSACTION`.
+	BeginStartTransaction
+)
+
+// String returns the keyword(s) that introduced the transaction.
+func (k BeginKind) String() string {
+	switch k {
+	case BeginBare:
+		return "BEGIN"
+	case BeginWork:
+		return "BEGIN WORK"
+	case BeginTransaction:
+		return "BEGIN TRANSACTION"
+	case BeginStartTransaction:
+		return "START TRANSACTION"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// BeginStmt represents the transaction-opening statement, covering both
+// surface forms documented by Snowflake:
+//
+//	BEGIN [ { WORK | TRANSACTION } ] [ NAME <name> ]
+//	START TRANSACTION [ NAME <name> ]
+//
+// Kind records which form/modifier was used. Name is the optional transaction
+// name following the NAME keyword; it is the zero Ident (IsEmpty) when absent.
+// Name is an Ident value (not a Node) and is therefore not visited by the
+// walker, matching how ObjectName embeds its Ident parts.
+type BeginStmt struct {
+	Kind BeginKind
+	Name Ident // optional; zero Ident (IsEmpty) when no NAME clause
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *BeginStmt) Tag() NodeTag { return T_BeginStmt }
+
+// CommitStmt represents `COMMIT [ WORK ]`. Work records whether the optional
+// WORK keyword (a cross-database-compatibility no-op) was present.
+type CommitStmt struct {
+	Work bool
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *CommitStmt) Tag() NodeTag { return T_CommitStmt }
+
+// RollbackStmt represents `ROLLBACK [ WORK ]`. Work records whether the
+// optional WORK keyword (a cross-database-compatibility no-op) was present.
+type RollbackStmt struct {
+	Work bool
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *RollbackStmt) Tag() NodeTag { return T_RollbackStmt }
+
+// Compile-time assertions.
+var (
+	_ Node = (*BeginStmt)(nil)
+	_ Node = (*CommitStmt)(nil)
+	_ Node = (*RollbackStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
 // DML statement nodes
 // ---------------------------------------------------------------------------
 

@@ -131,24 +131,39 @@ func TestParse_LexErrorPropagated(t *testing.T) {
 	}
 }
 
-func TestParse_BeginEndBlockOneError(t *testing.T) {
-	// F3's Split treats "BEGIN SELECT 1; END;" as ONE segment, so parseSingle
-	// sees the whole block as one statement starting with BEGIN. The BEGIN
-	// stub emits ONE ParseError for the whole block.
-	runParseBestEffortCase(t, parseCase{
-		name:        "BEGIN..END block",
-		input:       "BEGIN SELECT 1; END;",
-		wantStmtCnt: 0,
-		wantErrCnt:  1,
-		wantErrMsgs: []string{"BEGIN statement parsing is not yet supported"},
-		wantErrLocs: []int{0},
-	})
+func TestParse_BeginEndBlockOneSegment(t *testing.T) {
+	// F3's Split treats "BEGIN SELECT 1; END;" as ONE segment (it recognizes
+	// BEGIN..END scripting blocks and does not split on the inner ';'), so
+	// parseSingle sees the whole block as one statement starting with BEGIN.
+	//
+	// As of T6.2, BEGIN is a real transaction-control statement: parseBeginStmt
+	// consumes the leading BEGIN and produces a *ast.BeginStmt. The remaining
+	// "SELECT 1; END" tail is left unconsumed without error (the engine-wide
+	// trailing-token convention shared with DROP/TRUNCATE/USE). Full Snowflake
+	// Scripting BEGIN..END block parsing is a separate Tier 7 feature; until it
+	// lands, a script block opener is captured as a bare BeginStmt.
+	result := ParseBestEffort("BEGIN SELECT 1; END;")
+	if len(result.Errors) != 0 {
+		t.Fatalf("error count = %d, want 0: %+v", len(result.Errors), result.Errors)
+	}
+	if len(result.File.Stmts) != 1 {
+		t.Fatalf("stmt count = %d, want 1", len(result.File.Stmts))
+	}
+	begin, ok := result.File.Stmts[0].(*ast.BeginStmt)
+	if !ok {
+		t.Fatalf("stmt[0] = %T, want *ast.BeginStmt", result.File.Stmts[0])
+	}
+	if begin.Kind != ast.BeginBare {
+		t.Errorf("kind = %v, want BeginBare", begin.Kind)
+	}
 }
 
 func TestParse_StrictVsBestEffort(t *testing.T) {
-	// INSERT now parses successfully — both statements in the input succeed.
-	// Use a BEGIN statement (still unsupported) to produce an error.
-	input := "SELECT 1; BEGIN TRANSACTION;"
+	// SELECT now parses successfully; BEGIN is now a real TCL statement too.
+	// Use a CALL statement (still unsupported) to produce the error that
+	// distinguishes strict Parse (returns first error) from ParseBestEffort
+	// (collects all errors).
+	input := "SELECT 1; CALL p();"
 
 	file, err := Parse(input)
 	if err == nil {
@@ -157,8 +172,8 @@ func TestParse_StrictVsBestEffort(t *testing.T) {
 		pe, ok := err.(*ParseError)
 		if !ok {
 			t.Errorf("Parse: expected *ParseError, got %T", err)
-		} else if !strings.Contains(pe.Msg, "BEGIN") {
-			t.Errorf("Parse: first error Msg = %q, want to contain BEGIN", pe.Msg)
+		} else if !strings.Contains(pe.Msg, "CALL") {
+			t.Errorf("Parse: first error Msg = %q, want to contain CALL", pe.Msg)
 		}
 	}
 	if file == nil {

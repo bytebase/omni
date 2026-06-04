@@ -237,13 +237,13 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// TCL (4 cases)
 	case kwBEGIN:
-		return p.unsupported("BEGIN")
+		return p.parseBeginStmt()
 	case kwSTART:
-		return p.unsupported("START")
+		return p.parseStartTransactionStmt()
 	case kwCOMMIT:
-		return p.unsupported("COMMIT")
+		return p.parseCommitStmt()
 	case kwROLLBACK:
-		return p.unsupported("ROLLBACK")
+		return p.parseRollbackStmt()
 
 	// Info / inspection (5 cases)
 	case kwSHOW:
