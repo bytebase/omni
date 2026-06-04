@@ -128,6 +128,24 @@ const (
 	T_DescribeInputStmt
 	// T_DescribeOutputStmt tags a DESCRIBE OUTPUT <name> statement.
 	T_DescribeOutputStmt
+
+	// --- SQL routine statement nodes (parser-routines node) ---
+	//
+	// These concrete statement types live in package parser (function_def.go) —
+	// matching the Trino convention that parser-package node types (Expr,
+	// DataType, the other statement shells) are defined where they are built —
+	// but they are returned from parseStmt / parseQuery as ast.Node, so they need
+	// a tag here. The routine-body control statements (RoutineStatement in
+	// routine_body.go) are a parser-local interface like Expr and get NO tag.
+
+	// T_CreateFunctionStmt tags a CREATE [OR REPLACE] FUNCTION statement (an
+	// inline SQL routine definition).
+	T_CreateFunctionStmt
+	// T_DropFunctionStmt tags a DROP FUNCTION [IF EXISTS] statement.
+	T_DropFunctionStmt
+	// T_WithFunctionStmt tags a WITH FUNCTION ... <query> statement (inline SQL
+	// routines preceding a query — the rootQuery withFunction form).
+	T_WithFunctionStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -195,6 +213,12 @@ func (t NodeTag) String() string {
 		return "DescribeInputStmt"
 	case T_DescribeOutputStmt:
 		return "DescribeOutputStmt"
+	case T_CreateFunctionStmt:
+		return "CreateFunctionStmt"
+	case T_DropFunctionStmt:
+		return "DropFunctionStmt"
+	case T_WithFunctionStmt:
+		return "WithFunctionStmt"
 	default:
 		return "Unknown"
 	}

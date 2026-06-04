@@ -197,10 +197,20 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	switch p.cur.Kind {
 	// --- Query (rootQuery / queryPrimary leading tokens) ---
 	// SELECT / WITH / TABLE / VALUES / '(' all begin a query; parser-select's
-	// parseQueryStmt parses the whole query layer. (A leading `WITH FUNCTION`
-	// inline routine is the parser-routines node; parseQuery reports it as
-	// unsupported until that node lands.)
-	case kwSELECT, kwWITH, kwTABLE, kwVALUES, int('('):
+	// parseQueryStmt parses the whole query layer.
+	//
+	// A leading `WITH FUNCTION` is the rootQuery inline-routine prefix
+	// (parser-routines node, function_def.go), NOT a CTE. It is valid only at
+	// the statement level (and after EXPLAIN, which recurses into parseStmt) —
+	// Trino 481 REJECTS `WITH FUNCTION …` inside a subquery — so it is detected
+	// HERE and routed to parseWithFunctionQuery, while the subquery parseQuery
+	// path keeps rejecting it.
+	case kwWITH:
+		if p.peekNext().Kind == kwFUNCTION {
+			return p.parseWithFunctionQuery()
+		}
+		return p.parseQueryStmt()
+	case kwSELECT, kwTABLE, kwVALUES, int('('):
 		return p.parseQueryStmt()
 
 	// --- Session / catalog context ---
@@ -210,20 +220,38 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// --- DDL ---
 	case kwCREATE:
 		// CREATE ROLE belongs to the parser-dcl-tcl node (grant_revoke.go);
-		// every other CREATE object is a parser-ddl concern (still stubbed).
+		// CREATE [OR REPLACE] FUNCTION is the parser-routines node
+		// (function_def.go); every other CREATE object is a parser-ddl concern
+		// (still stubbed).
 		if p.peekNext().Kind == kwROLE {
 			createTok := p.advance() // consume CREATE
 			p.advance()              // consume ROLE
 			return p.parseCreateRoleStmt(createTok.Loc.Start)
 		}
+		// CREATE FUNCTION (peekNext == FUNCTION) is this node's. CREATE OR
+		// REPLACE FUNCTION needs three-token lookahead (past OR REPLACE) to
+		// distinguish from CREATE OR REPLACE TABLE/VIEW/MATERIALIZED VIEW
+		// (parser-ddl), which exceeds the parser's two-token window; it is
+		// detected by createOrReplaceFunctionFollows, which peeks the raw input
+		// for the keyword after OR REPLACE without consuming.
+		if p.peekNext().Kind == kwFUNCTION || (p.peekNext().Kind == kwOR && p.createOrReplaceFunctionFollows()) {
+			createTok := p.advance() // consume CREATE
+			return p.parseCreateFunctionStmt(createTok.Loc.Start)
+		}
 		return p.unsupported("CREATE")
 	case kwDROP:
 		// DROP ROLE belongs to the parser-dcl-tcl node (grant_revoke.go);
-		// every other DROP object is a parser-ddl concern (still stubbed).
+		// DROP FUNCTION is the parser-routines node (function_def.go); every
+		// other DROP object is a parser-ddl concern (still stubbed).
 		if p.peekNext().Kind == kwROLE {
 			dropTok := p.advance() // consume DROP
 			p.advance()            // consume ROLE
 			return p.parseDropRoleStmt(dropTok.Loc.Start)
+		}
+		if p.peekNext().Kind == kwFUNCTION {
+			dropTok := p.advance() // consume DROP
+			p.advance()            // consume FUNCTION
+			return p.parseDropFunctionStmt(dropTok.Loc.Start)
 		}
 		return p.unsupported("DROP")
 	case kwALTER:
