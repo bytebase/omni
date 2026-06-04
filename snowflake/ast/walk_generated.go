@@ -76,6 +76,13 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.MaskingPolicy)
 		}
 		Walk(v, n.VirtualExpr)
+	case *CommentStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Column != nil {
+			Walk(v, n.Column)
+		}
 	case *CreateDatabaseStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -110,6 +117,13 @@ func walkChildren(v Visitor, node Node) {
 		}
 		walkNodes(v, n.Using)
 		Walk(v, n.Where)
+	case *DescribeStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NameLiteral != nil {
+			Walk(v, n.NameLiteral)
+		}
 	case *DropDatabaseStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -207,6 +221,17 @@ func walkChildren(v Visitor, node Node) {
 	case *SetOperationStmt:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
+	case *ShowStmt:
+		if n.ScopeName != nil {
+			Walk(v, n.ScopeName)
+		}
+		if n.GrantsOn != nil {
+			Walk(v, n.GrantsOn)
+		}
+		if n.GrantsTo != nil {
+			Walk(v, n.GrantsTo)
+		}
+		Walk(v, n.Pipe)
 	case *StarExpr:
 		if n.Qualifier != nil {
 			Walk(v, n.Qualifier)
@@ -220,6 +245,10 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Subquery)
 		if n.FuncCall != nil {
 			Walk(v, n.FuncCall)
+		}
+	case *TruncateStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 	case *TypeName:
 		if n.ElementType != nil {
@@ -245,5 +274,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 		walkNodes(v, n.From)
 		Walk(v, n.Where)
+	case *UseStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	}
 }

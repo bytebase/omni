@@ -85,6 +85,15 @@ const (
 	T_RevokeStmt
 	T_Grantee
 	T_GrantTarget
+
+	// Utility / introspection tags (T6.3)
+	T_ShowStmt
+	T_DescribeStmt
+	T_UseStmt
+	T_SetStmt
+	T_UnsetStmt
+	T_CommentStmt
+	T_TruncateStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -202,6 +211,20 @@ func (t NodeTag) String() string {
 		return "Grantee"
 	case T_GrantTarget:
 		return "GrantTarget"
+	case T_ShowStmt:
+		return "ShowStmt"
+	case T_DescribeStmt:
+		return "DescribeStmt"
+	case T_UseStmt:
+		return "UseStmt"
+	case T_SetStmt:
+		return "SetStmt"
+	case T_UnsetStmt:
+		return "UnsetStmt"
+	case T_CommentStmt:
+		return "CommentStmt"
+	case T_TruncateStmt:
+		return "TruncateStmt"
 	default:
 		return "Unknown"
 	}
