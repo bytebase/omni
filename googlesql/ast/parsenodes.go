@@ -1300,17 +1300,27 @@ func (op SetOp) String() string {
 // are query_primary nodes (*SelectStmt or a parenthesized *QueryStmt). Op is the
 // operator; All flags ALL (vs DISTINCT). OuterMode records an optional
 // corresponding-outer prefix ("" / "FULL" / "OUTER" / "LEFT"); Strict flags
-// STRICT; Corresponding flags a trailing CORRESPONDING [BY]. The all-or-distinct
-// choice is required by the grammar, so AllOrDistinctSet is always true for a
-// well-formed node (kept explicit so a deparser can round-trip).
+// STRICT.
+//
+// Column-match suffix (one of, mutually exclusive with each other):
+//   - ByName: `BY NAME [ON (cols)]` — ByName true, MatchColumns holds the
+//     optional ON column list.
+//   - Corresponding: `[STRICT] CORRESPONDING [BY (cols)]` — Corresponding true,
+//     MatchColumns holds the optional BY column list.
+//
+// All these column-match forms are BigQuery-valid but Spanner feature-rejects
+// them; they parse in the union grammar (oracle: "BY NAME ... is not supported"
+// / "CORRESPONDING ... is not supported", both classified accept).
 type SetOperation struct {
 	Op            SetOp
 	All           bool   // ALL (vs DISTINCT)
 	OuterMode     string // "" | "FULL" | "OUTER" | "LEFT"
 	Strict        bool
-	Corresponding bool
-	Left          Node // *SelectStmt | *QueryStmt
-	Right         Node // *SelectStmt | *QueryStmt
+	Corresponding bool     // [STRICT] CORRESPONDING [BY (cols)]
+	ByName        bool     // BY NAME [ON (cols)]
+	MatchColumns  []string // ON/BY column list for ByName/Corresponding; nil if absent
+	Left          Node     // *SelectStmt | *QueryStmt
+	Right         Node     // *SelectStmt | *QueryStmt
 	Loc           Loc
 }
 

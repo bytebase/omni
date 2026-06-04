@@ -546,6 +546,16 @@ func (p *Parser) reparseSubquery(raw string, loc ast.Loc) ast.Node {
 		}
 		return nil
 	}
+	// The subquery body must consume its entire RawText: a subquery is a complete
+	// `query` and any token left over is trailing junk that makes the embedding
+	// statement invalid (oracle: `SELECT (SELECT 1 FROM t a b)` rejects on the
+	// stray `b`). The expressions node captured the balanced parens but did not
+	// validate the interior; we surface that reject here so the outer statement is
+	// diagnosed rather than silently accepting a partial subquery parse.
+	if sub.cur.Type != tokEOF {
+		p.errors = append(p.errors, *sub.syntaxErrorAtCur())
+		return nil
+	}
 	// Recurse into the freshly-parsed subquery to fill its own nested subqueries.
 	p.fillSubqueries(q)
 	return q

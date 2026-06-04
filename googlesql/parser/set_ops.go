@@ -146,23 +146,102 @@ func (p *Parser) tryParseSetOpMetadata() (*ast.SetOperation, bool, error) {
 		return nil, false, &ParseError{Loc: p.cur.Loc, Msg: "syntax error: expected ALL or DISTINCT after set operator"}
 	}
 
-	// Optional STRICT.
-	if p.cur.Type == kwSTRICT {
-		p.advance()
-		so.Strict = true
-	}
-
-	// Optional CORRESPONDING [BY]. (Spanner feature-rejects CORRESPONDING; it
-	// parses in the union grammar — BigQuery supports it.)
-	if p.cur.Type == kwCORRESPONDING {
-		p.advance()
-		so.Corresponding = true
-		if p.cur.Type == kwBY {
-			p.advance()
-		}
+	// Optional column-match suffix (opt_column_match_suffix + the BigQuery
+	// BY NAME form). It is one of two mutually-exclusive branches (truth1/bigquery
+	// QUERY-033):
+	//
+	//	BY NAME [ON (column_list)]
+	//	[STRICT] CORRESPONDING [BY (column_list)]
+	//
+	// All are BigQuery-valid; Spanner feature-rejects them (oracle: "... is not
+	// supported", classified accept), so they parse in the union grammar.
+	if err := p.parseColumnMatchSuffix(so); err != nil {
+		return nil, false, err
 	}
 
 	return so, true, nil
+}
+
+// parseColumnMatchSuffix parses the optional set-operation column-match suffix
+// into so: either `BY NAME [ON (cols)]` or `[STRICT] CORRESPONDING [BY (cols)]`.
+// The current token is just past the ALL/DISTINCT quantifier. STRICT belongs only
+// to the CORRESPONDING branch. The `ON (...)` / `BY (...)` column lists REQUIRE
+// parentheses (oracle: `BY NAME ON` / `CORRESPONDING BY` without parens reject).
+func (p *Parser) parseColumnMatchSuffix(so *ast.SetOperation) error {
+	switch p.cur.Type {
+	case kwBY:
+		// BY NAME [ON (cols)].
+		p.advance() // BY
+		// BY must be followed by NAME (oracle: bare `BY <query>` rejects).
+		if !p.curIsWord("NAME") {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance() // NAME
+		so.ByName = true
+		if p.cur.Type == kwON {
+			p.advance()
+			cols, err := p.parseParenColumnList()
+			if err != nil {
+				return err
+			}
+			so.MatchColumns = cols
+		}
+		return nil
+	case kwSTRICT:
+		// STRICT CORRESPONDING [BY (cols)].
+		p.advance() // STRICT
+		so.Strict = true
+		if p.cur.Type != kwCORRESPONDING {
+			return p.syntaxErrorAtCur()
+		}
+		return p.parseCorrespondingTail(so)
+	case kwCORRESPONDING:
+		return p.parseCorrespondingTail(so)
+	}
+	return nil
+}
+
+// parseCorrespondingTail parses `CORRESPONDING [BY (cols)]` into so. CORRESPONDING
+// is the current token. The `BY (...)` column list requires parentheses.
+func (p *Parser) parseCorrespondingTail(so *ast.SetOperation) error {
+	p.advance() // CORRESPONDING
+	so.Corresponding = true
+	if p.cur.Type == kwBY {
+		p.advance()
+		cols, err := p.parseParenColumnList()
+		if err != nil {
+			return err
+		}
+		so.MatchColumns = cols
+	}
+	return nil
+}
+
+// parseParenColumnList parses `( column (, column)* )`. The current token is '('.
+func (p *Parser) parseParenColumnList() ([]string, error) {
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	var cols []string
+	for {
+		colTok, err := p.expectIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		col, err := p.identifierText(colTok)
+		if err != nil {
+			return nil, err
+		}
+		cols = append(cols, col)
+		if p.cur.Type != int(',') {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return cols, nil
 }
 
 // setOpFollowsOuterMode reports whether a leading FULL/LEFT (with an optional

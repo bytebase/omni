@@ -290,7 +290,10 @@ func (p *Parser) parseParenTableSource() (ast.Node, error) {
 			return nil, err
 		}
 		te := &ast.TableExpr{Subquery: query, Loc: ast.Loc{Start: openTok.Loc.Start, End: closeTok.Loc.End}}
-		if err := p.parseTableSuffixes(te); err != nil {
+		// A subquery source takes only an `[AS] alias` — NOT WITH OFFSET /
+		// FOR SYSTEM_TIME (oracle: `SELECT * FROM (SELECT 1) FOR SYSTEM_TIME …`
+		// rejects).
+		if err := p.parseTableAliasOnly(te); err != nil {
 			return nil, err
 		}
 		return te, nil
@@ -333,10 +336,12 @@ func (p *Parser) parseUnnestTableSource() (ast.Node, error) {
 	}
 	ue := &ast.UnnestExpr{Array: arr, Loc: ast.Loc{Start: start, End: nodeLoc(arr).End}}
 
-	// Optional alias and WITH OFFSET. Reuse the shared suffix parser via a
-	// TableExpr-shaped staging then copy, but UnnestExpr has its own fields; do
-	// it inline.
-	if alias, ok := p.tryParseTableAlias(); ok {
+	// Optional `[AS] alias` then `WITH OFFSET [[AS] name]` (UNNEST supports the
+	// offset companion column). UnnestExpr has its own fields, so it is done
+	// inline rather than via the path-source suffix parser.
+	if alias, ok, err := p.tryParseTableAlias(); err != nil {
+		return nil, err
+	} else if ok {
 		ue.Alias = alias
 		ue.Loc.End = p.prev.Loc.End
 	}
@@ -345,7 +350,9 @@ func (p *Parser) parseUnnestTableSource() (ast.Node, error) {
 		offTok := p.advance() // OFFSET
 		ue.WithOffset = true
 		ue.Loc.End = offTok.Loc.End
-		if alias, ok := p.tryParseTableAlias(); ok {
+		if alias, ok, err := p.tryParseTableAlias(); err != nil {
+			return nil, err
+		} else if ok {
 			ue.WithOffsetAlias = alias
 			ue.Loc.End = p.prev.Loc.End
 		}
@@ -365,14 +372,16 @@ func (p *Parser) parsePathTableSource() (ast.Node, error) {
 		return nil, err
 	}
 
-	// Table-valued function call: `path ( args )`.
+	// Table-valued function call: `path ( args )`. A TVF source takes only an
+	// `[AS] alias` — NOT WITH OFFSET / FOR SYSTEM_TIME (those are path-source
+	// suffixes; oracle: `SELECT * FROM f() WITH OFFSET` rejects).
 	if p.cur.Type == int('(') {
 		fc, err := p.parseFuncCallSuffix(path)
 		if err != nil {
 			return nil, err
 		}
 		te := &ast.TableExpr{Func: fc.(*ast.FuncCall), Loc: nodeLoc(fc)}
-		if err := p.parseTableSuffixes(te); err != nil {
+		if err := p.parseTableAliasOnly(te); err != nil {
 			return nil, err
 		}
 		return te, nil
@@ -461,10 +470,34 @@ func (p *Parser) tokenSource(tok Token) string {
 	return TokenName(tok.Type)
 }
 
-// parseTableSuffixes parses the optional trailing suffixes of a table source:
-// `[AS] alias`, `WITH OFFSET [[AS] name]`, and `FOR SYSTEM_TIME AS OF expr`. It
-// fills the corresponding TableExpr fields. (PIVOT/UNPIVOT/TABLESAMPLE/
-// MATCH_RECOGNIZE are NOT handled — they belong to parser-query-clauses.)
+// parseTableAliasOnly parses ONLY the optional `[AS] alias` suffix of a table
+// source, filling te.Alias. It is used for subquery and TVF sources, which
+// (unlike path / UNNEST sources) take NO WITH OFFSET or FOR SYSTEM_TIME suffix
+// (oracle: those reject on subqueries/TVFs). A per-source `@{...}` hint may
+// precede the alias.
+func (p *Parser) parseTableAliasOnly(te *ast.TableExpr) error {
+	if p.cur.Type == int('@') {
+		if herr := p.skipHint(); herr != nil {
+			return herr
+		}
+	}
+	alias, ok, err := p.tryParseTableAlias()
+	if err != nil {
+		return err
+	}
+	if ok {
+		te.Alias = alias
+		te.Loc.End = p.prev.Loc.End
+	}
+	return nil
+}
+
+// parseTableSuffixes parses the optional trailing suffixes of a PATH table
+// source: `[AS] alias`, `WITH OFFSET [[AS] name]`, and `FOR SYSTEM_TIME AS OF
+// expr`. It fills the corresponding TableExpr fields. (PIVOT/UNPIVOT/TABLESAMPLE/
+// MATCH_RECOGNIZE are NOT handled — they belong to parser-query-clauses. Subquery
+// and TVF sources use parseTableAliasOnly instead, since the offset / time-travel
+// suffixes are path-source-only.)
 func (p *Parser) parseTableSuffixes(te *ast.TableExpr) error {
 	// Per-source hint @{...} (table_hint_expr) may precede the alias.
 	if p.cur.Type == int('@') {
@@ -476,13 +509,15 @@ func (p *Parser) parseTableSuffixes(te *ast.TableExpr) error {
 	// FOR SYSTEM_TIME AS OF expr (opt_at_system_time). Recognized here because it
 	// is a shared path-source time-travel suffix; the more exotic AT SYSTEM TIME
 	// variants are parser-query-clauses' concern.
-	if p.cur.Type == kwFOR && (p.peekNext().Type == kwSYSTEM_TIME || p.peekNext().Type == kwSYSTEM) {
+	if p.atForSystemTime() {
 		if err := p.parseForSystemTime(te); err != nil {
 			return err
 		}
 	}
 
-	if alias, ok := p.tryParseTableAlias(); ok {
+	if alias, ok, err := p.tryParseTableAlias(); err != nil {
+		return err
+	} else if ok {
 		te.Alias = alias
 		te.Loc.End = p.prev.Loc.End
 	}
@@ -492,7 +527,9 @@ func (p *Parser) parseTableSuffixes(te *ast.TableExpr) error {
 		offTok := p.advance() // OFFSET
 		te.WithOffset = true
 		te.Loc.End = offTok.Loc.End
-		if alias, ok := p.tryParseTableAlias(); ok {
+		if alias, ok, err := p.tryParseTableAlias(); err != nil {
+			return err
+		} else if ok {
 			te.WithOffsetAlias = alias
 			te.Loc.End = p.prev.Loc.End
 		}
@@ -500,7 +537,7 @@ func (p *Parser) parseTableSuffixes(te *ast.TableExpr) error {
 
 	// FOR SYSTEM_TIME may also appear after the alias in some doc forms; accept
 	// it post-alias too.
-	if te.SystemTime == nil && p.cur.Type == kwFOR && (p.peekNext().Type == kwSYSTEM_TIME || p.peekNext().Type == kwSYSTEM) {
+	if te.SystemTime == nil && p.atForSystemTime() {
 		if err := p.parseForSystemTime(te); err != nil {
 			return err
 		}
@@ -508,20 +545,29 @@ func (p *Parser) parseTableSuffixes(te *ast.TableExpr) error {
 	return nil
 }
 
+// atForSystemTime reports whether the current position begins a time-travel
+// suffix: `FOR SYSTEM_TIME …` (single token) or `FOR SYSTEM TIME …` (two-word).
+// It must NOT match `FOR UPDATE` (the query-level row-lock, handled by
+// parseQuery), so it requires SYSTEM/SYSTEM_TIME after FOR.
+func (p *Parser) atForSystemTime() bool {
+	return p.cur.Type == kwFOR && (p.peekNext().Type == kwSYSTEM_TIME || p.peekNext().Type == kwSYSTEM)
+}
+
 // parseForSystemTime parses `FOR SYSTEM_TIME AS OF expr` (and the `FOR SYSTEM
-// TIME` two-word spelling). FOR is the current token.
+// TIME` two-word spelling). FOR is the current token. The TIME word is REQUIRED
+// in the two-word form (oracle: `FOR SYSTEM AS OF …` rejects with "Expected
+// keyword TIME").
 func (p *Parser) parseForSystemTime(te *ast.TableExpr) error {
 	p.advance() // FOR
-	// SYSTEM_TIME (single token) or SYSTEM TIME (two tokens).
+	// SYSTEM_TIME (single token) or SYSTEM TIME (two tokens, TIME required).
 	if p.cur.Type == kwSYSTEM_TIME {
 		p.advance()
 	} else {
 		if _, err := p.expect(kwSYSTEM); err != nil {
 			return err
 		}
-		// optional TIME word
-		if p.cur.Type == kwTIME {
-			p.advance()
+		if _, err := p.expect(kwTIME); err != nil {
+			return err
 		}
 	}
 	if _, err := p.expect(kwAS); err != nil {
@@ -540,37 +586,40 @@ func (p *Parser) parseForSystemTime(te *ast.TableExpr) error {
 }
 
 // tryParseTableAlias parses an optional table alias `[AS] identifier`
-// (as_alias). It returns (alias, true) when an alias is present. A bare alias is
-// only consumed when the current token is an identifier-start that does NOT
-// begin a following clause/join keyword (so `FROM a JOIN b` does not read JOIN
-// as an alias of a, and `FROM a WHERE …` does not read WHERE as an alias).
-// isIdentifierStart already excludes reserved keywords (JOIN/WHERE/ON/etc are
-// reserved), so a bare non-reserved word is a valid implicit alias.
-func (p *Parser) tryParseTableAlias() (string, bool) {
+// (as_alias). It returns (alias, true, nil) when an alias is present,
+// ("", false, nil) when none, and ("", false, err) when an explicit AS is given
+// without a following identifier — that is a hard syntax error (oracle:
+// `SELECT * FROM t AS` rejects), NOT an absent alias: the explicit AS commits to
+// an alias, so a missing name must be diagnosed rather than silently dropped. A
+// bare (AS-less) alias is consumed only when the current token is an
+// identifier-start that does NOT begin a following clause/join keyword (so
+// `FROM a JOIN b` does not read JOIN as an alias of a, and `FROM a WHERE …` does
+// not read WHERE as an alias). isIdentifierStart already excludes reserved
+// keywords (JOIN/WHERE/ON/etc are reserved), so a bare non-reserved word is a
+// valid implicit alias.
+func (p *Parser) tryParseTableAlias() (string, bool, error) {
 	if p.cur.Type == kwAS {
 		p.advance()
 		aliasTok, err := p.expectIdentifier()
 		if err != nil {
-			// AS with no following identifier: leave it; the caller's next expect
-			// will surface a clear error. Return no-alias so we don't lose the AS.
-			return "", false
+			return "", false, err
 		}
 		alias, err := p.identifierText(aliasTok)
 		if err != nil {
-			return "", false
+			return "", false, err
 		}
-		return alias, true
+		return alias, true, nil
 	}
 	// Implicit alias: a bare identifier that is not a clause/join continuation.
 	if isIdentifierStart(p.cur.Type) && !p.atTableAliasStop() {
 		aliasTok := p.advance()
 		alias, err := p.identifierText(aliasTok)
 		if err != nil {
-			return "", false
+			return "", false, err
 		}
-		return alias, true
+		return alias, true, nil
 	}
-	return "", false
+	return "", false, nil
 }
 
 // atTableAliasStop reports whether the current (identifier-start) token must NOT

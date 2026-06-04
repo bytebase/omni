@@ -189,26 +189,26 @@ func TestSelect_BigQueryOnlyForms(t *testing.T) {
 // and no statement produced). Without negatives a parser drifts over-permissive.
 func TestSelect_RejectForms(t *testing.T) {
 	reject := []string{
-		"SELECT",                       // empty select list
-		"SELECT FROM t",                // empty list before FROM
-		"SELECT 1 2 3",                 // two implicit aliases
-		"SELECT * FROM",                // FROM with no source
-		"SELECT * FROM t WHERE",        // WHERE with no expr
-		"SELECT * FROM t GROUP BY",     // GROUP BY with no items
-		"SELECT * FROM a JOIN",         // JOIN with no right source
-		"SELECT * FROM a CROSS b",      // CROSS without JOIN
-		"SELECT * FROM a USING (x)",    // USING with no join
-		"FROM t",                       // FROM-first query (oracle rejects)
-		"SELECT * FROM t UNION",        // set-op with no right query
-		"SELECT * FROM t UNION SELECT 1", // UNION without ALL/DISTINCT
-		"WITH c SELECT 1",              // CTE missing AS (query)
-		"WITH c AS SELECT 1",           // CTE body not parenthesized
-		"WITH c AS (SELECT 1)",         // WITH with no trailing query body
-		"SELECT * FROM t ORDER",        // ORDER without BY
-		"SELECT * FROM t LIMIT",        // LIMIT with no count
+		"SELECT",                          // empty select list
+		"SELECT FROM t",                   // empty list before FROM
+		"SELECT 1 2 3",                    // two implicit aliases
+		"SELECT * FROM",                   // FROM with no source
+		"SELECT * FROM t WHERE",           // WHERE with no expr
+		"SELECT * FROM t GROUP BY",        // GROUP BY with no items
+		"SELECT * FROM a JOIN",            // JOIN with no right source
+		"SELECT * FROM a CROSS b",         // CROSS without JOIN
+		"SELECT * FROM a USING (x)",       // USING with no join
+		"FROM t",                          // FROM-first query (oracle rejects)
+		"SELECT * FROM t UNION",           // set-op with no right query
+		"SELECT * FROM t UNION SELECT 1",  // UNION without ALL/DISTINCT
+		"WITH c SELECT 1",                 // CTE missing AS (query)
+		"WITH c AS SELECT 1",              // CTE body not parenthesized
+		"WITH c AS (SELECT 1)",            // WITH with no trailing query body
+		"SELECT * FROM t ORDER",           // ORDER without BY
+		"SELECT * FROM t LIMIT",           // LIMIT with no count
 		"SELECT * FROM t GROUP BY ROLLUP", // ROLLUP with no parens
-		"SELECT a, FROM",               // trailing comma then nothing
-		"(SELECT 1",                    // unbalanced paren
+		"SELECT a, FROM",                  // trailing comma then nothing
+		"(SELECT 1",                       // unbalanced paren
 	}
 	for _, sql := range reject {
 		t.Run(sql, func(t *testing.T) {
@@ -720,6 +720,128 @@ func TestSelect_DiagnoseNoFalsePositive(t *testing.T) {
 		_, errs := Parse(sql)
 		if len(errs) != 0 {
 			t.Errorf("Parse(%q): want 0 diagnostics, got %v", sql, errs)
+		}
+	}
+}
+
+// --- regression tests for review-gate (Codex lens) findings ----------------
+
+// TestSelect_MalformedAliasRejected is the regression for the finding that a
+// bare `AS` with no following identifier was silently swallowed. An explicit AS
+// commits to an alias; a missing name must be a syntax error (oracle-confirmed:
+// `SELECT * FROM t AS` and `SELECT * FROM t AS WHERE TRUE` both reject).
+func TestSelect_MalformedAliasRejected(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT * FROM t AS",
+		"SELECT * FROM t AS WHERE TRUE",
+		"SELECT * FROM UNNEST([1]) AS",
+		"SELECT * FROM (SELECT 1) AS",
+	} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q): want reject (AS without identifier), got accept", sql)
+		}
+	}
+	// A well-formed alias still parses.
+	if _, errs := Parse("SELECT * FROM t AS x"); len(errs) != 0 {
+		t.Errorf("Parse(valid AS alias): unexpected errors: %v", errs)
+	}
+}
+
+// TestSelect_SubqueryTrailingTokenRejected is the regression for the finding
+// that a re-parsed expression subquery did not require EOF — trailing junk
+// inside the subquery was silently dropped (oracle: `SELECT (SELECT 1 FROM t a
+// b)` rejects on the stray `b`).
+func TestSelect_SubqueryTrailingTokenRejected(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT (SELECT 1 FROM t a b)",
+		"SELECT EXISTS(SELECT 1 FROM t a b)",
+		"SELECT ARRAY(SELECT x FROM t a b)",
+	} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q): want reject (trailing token in subquery), got accept", sql)
+		}
+	}
+	// A clean subquery still parses and is filled.
+	if _, errs := Parse("SELECT (SELECT 1 FROM t)"); len(errs) != 0 {
+		t.Errorf("Parse(clean subquery): unexpected errors: %v", errs)
+	}
+}
+
+// TestSelect_ColumnMatchSuffix is the regression for the finding that the
+// BigQuery `BY NAME [ON (cols)]` and `[STRICT] CORRESPONDING [BY (cols)]`
+// set-operation column-match suffixes were not implemented. They are
+// BigQuery-valid (Spanner feature-rejects them; oracle classifies accept).
+func TestSelect_ColumnMatchSuffix(t *testing.T) {
+	// BY NAME with optional ON (cols).
+	q := parseQ(t, "SELECT 1 AS a UNION ALL BY NAME SELECT 2 AS a")
+	so := q.Body.(*ast.SetOperation)
+	if !so.ByName || len(so.MatchColumns) != 0 {
+		t.Errorf("BY NAME: ByName=%v cols=%v, want true / none", so.ByName, so.MatchColumns)
+	}
+	q = parseQ(t, "SELECT 1 AS a UNION ALL BY NAME ON (a, b) SELECT 2 AS a")
+	so = q.Body.(*ast.SetOperation)
+	if !so.ByName || len(so.MatchColumns) != 2 {
+		t.Errorf("BY NAME ON (a,b): ByName=%v cols=%v, want true / 2", so.ByName, so.MatchColumns)
+	}
+	// CORRESPONDING with optional BY (cols), and STRICT.
+	q = parseQ(t, "SELECT 1 AS a UNION ALL CORRESPONDING SELECT 2 AS a")
+	so = q.Body.(*ast.SetOperation)
+	if !so.Corresponding {
+		t.Error("CORRESPONDING: not captured")
+	}
+	q = parseQ(t, "SELECT 1 AS a UNION ALL CORRESPONDING BY (a) SELECT 2 AS a")
+	so = q.Body.(*ast.SetOperation)
+	if !so.Corresponding || len(so.MatchColumns) != 1 {
+		t.Errorf("CORRESPONDING BY (a): corr=%v cols=%v, want true / 1", so.Corresponding, so.MatchColumns)
+	}
+	q = parseQ(t, "SELECT 1 AS a UNION ALL STRICT CORRESPONDING SELECT 2 AS a")
+	so = q.Body.(*ast.SetOperation)
+	if !so.Strict || !so.Corresponding {
+		t.Errorf("STRICT CORRESPONDING: strict=%v corr=%v, want both", so.Strict, so.Corresponding)
+	}
+
+	// Malformed forms reject: bare BY (no NAME); ON / BY without parens.
+	for _, sql := range []string{
+		"SELECT 1 AS a UNION ALL BY SELECT 2 AS a",
+		"SELECT 1 AS a UNION ALL BY NAME ON SELECT 2 AS a",
+		"SELECT 1 AS a UNION ALL CORRESPONDING BY SELECT 2 AS a",
+	} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q): want reject (malformed column-match suffix), got accept", sql)
+		}
+	}
+}
+
+// TestSelect_PathOnlySuffixesRejectedOnSubqueryTVF is the regression for the
+// finding that WITH OFFSET / FOR SYSTEM_TIME (path-source-only suffixes) were
+// wrongly accepted on subquery and TVF sources (oracle rejects both).
+func TestSelect_PathOnlySuffixesRejectedOnSubqueryTVF(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT * FROM (SELECT 1) FOR SYSTEM_TIME AS OF '2020-01-01'",
+		"SELECT * FROM f() WITH OFFSET",
+		"SELECT * FROM (SELECT 1) WITH OFFSET",
+		"SELECT * FROM f() FOR SYSTEM_TIME AS OF '2020-01-01'",
+	} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q): want reject (path-only suffix on subquery/TVF), got accept", sql)
+		}
+	}
+}
+
+// TestSelect_ForSystemTimeRequiresTime is the regression for the finding that
+// the two-word `FOR SYSTEM TIME` spelling treated TIME as optional, wrongly
+// accepting `FOR SYSTEM AS OF …` (oracle: "Expected keyword TIME").
+func TestSelect_ForSystemTimeRequiresTime(t *testing.T) {
+	if _, errs := Parse("SELECT * FROM t FOR SYSTEM AS OF '2020-01-01'"); len(errs) == 0 {
+		t.Error("Parse(FOR SYSTEM AS OF): want reject (TIME required), got accept")
+	}
+	// Both valid spellings parse.
+	for _, sql := range []string{
+		"SELECT * FROM t FOR SYSTEM_TIME AS OF '2020-01-01'",
+		"SELECT * FROM t FOR SYSTEM TIME AS OF '2020-01-01'",
+	} {
+		if _, errs := Parse(sql); len(errs) != 0 {
+			t.Errorf("Parse(%q): unexpected errors: %v", sql, errs)
 		}
 	}
 }

@@ -64,7 +64,7 @@ var selectFixtures = []selectFixture{
 	{"SELECT 1 AS n", true},
 	{"SELECT a, b FROM t", true},
 	{"SELECT * FROM t", true},
-	{"SELECT a AS x, b y FROM t", true},     // explicit + implicit alias
+	{"SELECT a AS x, b y FROM t", true}, // explicit + implicit alias
 	{"SELECT DISTINCT a FROM t", true},
 	{"SELECT ALL a FROM t", true},
 	{"SELECT AS STRUCT a, b FROM t", true},
@@ -146,28 +146,38 @@ var selectFixtures = []selectFixture{
 	{"WITH RECURSIVE c AS ((SELECT 1 AS n) UNION ALL (SELECT n + 1 FROM c WHERE n < 3)) SELECT * FROM c", true},
 	{"SELECT 1 AS a UNION ALL STRICT CORRESPONDING SELECT 2 AS a", true},
 	{"SELECT 1 AS a FULL OUTER UNION ALL SELECT 2 AS a", true},
+	{"SELECT 1 AS a UNION ALL BY NAME SELECT 2 AS a", true},
+	{"SELECT 1 AS a UNION ALL BY NAME ON (a) SELECT 2 AS a", true},
+	{"SELECT 1 AS a UNION ALL CORRESPONDING SELECT 2 AS a", true},
+	{"SELECT 1 AS a UNION ALL CORRESPONDING BY (a) SELECT 2 AS a", true},
 
 	// ===================== NEGATIVES — syntax reject ====================
-	{"SELECT", false},                          // empty select list
-	{"SELECT FROM t", false},                   // empty list before FROM
-	{"SELECT 1 2 3", false},                    // double implicit alias
-	{"SELECT * FROM", false},                   // FROM with no source
-	{"SELECT * FROM t WHERE", false},           // WHERE with no expr
-	{"SELECT * FROM a JOIN", false},            // JOIN with no right source
-	{"SELECT * FROM a CROSS b", false},         // CROSS without JOIN
-	{"SELECT * FROM a USING (x)", false},       // USING with no join
-	{"SELECT * FROM t UNION SELECT 1", false},  // set-op missing ALL/DISTINCT
-	{"SELECT * FROM t UNION", false},           // set-op with no right query
+	{"SELECT", false},                         // empty select list
+	{"SELECT FROM t", false},                  // empty list before FROM
+	{"SELECT 1 2 3", false},                   // double implicit alias
+	{"SELECT * FROM", false},                  // FROM with no source
+	{"SELECT * FROM t WHERE", false},          // WHERE with no expr
+	{"SELECT * FROM a JOIN", false},           // JOIN with no right source
+	{"SELECT * FROM a CROSS b", false},        // CROSS without JOIN
+	{"SELECT * FROM a USING (x)", false},      // USING with no join
+	{"SELECT * FROM t UNION SELECT 1", false}, // set-op missing ALL/DISTINCT
+	{"SELECT * FROM t UNION", false},          // set-op with no right query
 	// Mixed set operations in a flat chain require parentheses.
 	{"SELECT 1 AS a UNION ALL SELECT 2 AS a INTERSECT DISTINCT SELECT 3 AS a", false},
 	{"SELECT 1 AS a UNION ALL SELECT 2 AS a UNION DISTINCT SELECT 3 AS a", false},
-	{"FROM t", false},                          // FROM-first query
-	{"WITH c AS (SELECT 1)", false},            // WITH with no trailing body
-	{"WITH c SELECT 1", false},                 // CTE missing AS (query)
-	{"SELECT a, FROM", false},                  // trailing comma then nothing
-	{"SELECT * FROM t ORDER", false},           // ORDER without BY
-	{"SELECT * FROM t GROUP BY", false},        // GROUP BY with no items
-	{"SELECT item OVER (w) FROM t", false},     // OVER must follow a function call
+	{"FROM t", false},                                                      // FROM-first query
+	{"WITH c AS (SELECT 1)", false},                                        // WITH with no trailing body
+	{"WITH c SELECT 1", false},                                             // CTE missing AS (query)
+	{"SELECT a, FROM", false},                                              // trailing comma then nothing
+	{"SELECT * FROM t ORDER", false},                                       // ORDER without BY
+	{"SELECT * FROM t GROUP BY", false},                                    // GROUP BY with no items
+	{"SELECT item OVER (w) FROM t", false},                                 // OVER must follow a function call
+	{"SELECT * FROM t AS", false},                                          // AS with no alias identifier
+	{"SELECT * FROM t FOR SYSTEM AS OF '2020-01-01'", false},               // two-word FOR SYSTEM requires TIME
+	{"SELECT * FROM (SELECT 1) FOR SYSTEM_TIME AS OF '2020-01-01'", false}, // path-only suffix on subquery
+	{"SELECT * FROM f() WITH OFFSET", false},                               // path-only suffix on TVF
+	{"SELECT (SELECT 1 FROM t a b)", false},                                // trailing token in expression subquery
+	{"SELECT 1 AS a UNION ALL BY SELECT 2 AS a", false},                    // BY without NAME
 }
 
 func TestSelectDifferential(t *testing.T) {
