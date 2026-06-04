@@ -108,6 +108,10 @@ func TestFindCompoundBodyEnd(t *testing.T) {
 		// still a function call, so the scan stops at the body's top-level ';'.
 		{"if_function_conditional_comment", `BEGIN SELECT IF /*!50000*/ (1,2,3); END; SELECT 4`, `BEGIN SELECT IF /*!50000*/ (1,2,3); END`},
 		{"repeat_function_conditional_comment", `BEGIN SELECT REPEAT /*!50000*/ ('a',2); END; SELECT 4`, `BEGIN SELECT REPEAT /*!50000*/ ('a',2); END`},
+		// Non-empty conditional comment = executable SQL: IF /*!... EXISTS */ (...)
+		// is a compound IF (counted), so its END IF balances and the scan stops
+		// at the body's top-level ';'.
+		{"if_compound_conditional_comment", `BEGIN IF /*!50000 EXISTS */ (SELECT 1 FROM t) THEN SELECT 1; END IF; END; SELECT 2`, `BEGIN IF /*!50000 EXISTS */ (SELECT 1 FROM t) THEN SELECT 1; END IF; END`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -211,6 +215,10 @@ func TestRoutineBodyDoesNotSwallowTrailingStatement(t *testing.T) {
 		// function paren — still a function call, not a compound opener.
 		{"if_function_conditional_comment", `CREATE PROCEDURE p() BEGIN SELECT IF /*!50000*/ (1,2,3); END; SELECT 4`},
 		{"repeat_function_conditional_comment", `CREATE PROCEDURE p() BEGIN SELECT REPEAT /*!50000*/ ('a',2); END; SELECT 4`},
+		// A NON-empty conditional comment holds executable SQL: `IF /*!50000 EXISTS */ (...)`
+		// expands to `IF EXISTS (...)`, a compound IF, so the IF must be counted
+		// and its END IF balances (it is not the IF(...) function).
+		{"if_compound_conditional_comment", `CREATE PROCEDURE p() BEGIN IF /*!50000 EXISTS */ (SELECT 1 FROM t) THEN SELECT 1; END IF; END; SELECT 2`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
