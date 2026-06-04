@@ -273,11 +273,7 @@ func setupCatalog(t *testing.T) *catalog.Catalog {
 	mustExec(t, cat, "CREATE INDEX idx_name ON users (name)")
 	mustExec(t, cat, "CREATE INDEX idx_user_id ON orders (user_id)")
 	mustExec(t, cat, "CREATE VIEW active_users AS SELECT * FROM users WHERE id > 0")
-	mustExec(t, cat, "CREATE FUNCTION my_func() RETURNS INT DETERMINISTIC RETURN 1")
 	mustExec(t, cat, "CREATE PROCEDURE my_proc() BEGIN SELECT 1; END")
-	mustExec(t, cat, "CREATE TRIGGER my_trig BEFORE INSERT ON users FOR EACH ROW SET NEW.name = UPPER(NEW.name)")
-	// Event creation requires schedule — use Exec directly.
-	mustExec(t, cat, "CREATE EVENT my_event ON SCHEDULE EVERY 1 HOUR DO SELECT 1")
 	return cat
 }
 
@@ -356,28 +352,6 @@ func TestResolve_2_2_DatabaseRef(t *testing.T) {
 	}
 }
 
-func TestResolve_2_2_FunctionRef(t *testing.T) {
-	// Scenario: "function_ref" / "func_name" rule -> catalog functions + built-in names
-	cat := setupCatalog(t)
-	for _, rule := range []string{"function_ref", "func_name"} {
-		candidates := resolveRule(rule, cat, "", 0)
-		// Should include built-in functions.
-		if !containsCandidate(candidates, "COUNT", CandidateFunction) {
-			t.Errorf("[%s] missing built-in function COUNT", rule)
-		}
-		if !containsCandidate(candidates, "CONCAT", CandidateFunction) {
-			t.Errorf("[%s] missing built-in function CONCAT", rule)
-		}
-		if !containsCandidate(candidates, "NOW", CandidateFunction) {
-			t.Errorf("[%s] missing built-in function NOW", rule)
-		}
-		// Should include catalog function.
-		if !containsCandidate(candidates, "my_func", CandidateFunction) {
-			t.Errorf("[%s] missing catalog function 'my_func'", rule)
-		}
-	}
-}
-
 func TestResolve_2_2_ProcedureRef(t *testing.T) {
 	// Scenario: "procedure_ref" rule -> catalog procedures
 	cat := setupCatalog(t)
@@ -396,24 +370,6 @@ func TestResolve_2_2_IndexRef(t *testing.T) {
 	}
 	if !containsCandidate(candidates, "idx_user_id", CandidateIndex) {
 		t.Error("missing index 'idx_user_id'")
-	}
-}
-
-func TestResolve_2_2_TriggerRef(t *testing.T) {
-	// Scenario: "trigger_ref" rule -> catalog triggers
-	cat := setupCatalog(t)
-	candidates := resolveRule("trigger_ref", cat, "", 0)
-	if !containsCandidate(candidates, "my_trig", CandidateTrigger) {
-		t.Error("missing trigger 'my_trig'")
-	}
-}
-
-func TestResolve_2_2_EventRef(t *testing.T) {
-	// Scenario: "event_ref" rule -> catalog events
-	cat := setupCatalog(t)
-	candidates := resolveRule("event_ref", cat, "", 0)
-	if !containsCandidate(candidates, "my_event", CandidateEvent) {
-		t.Error("missing event 'my_event'")
 	}
 }
 
@@ -2180,71 +2136,7 @@ func TestComplete_5_3_CreateDropMisc(t *testing.T) {
 func TestComplete_6_1_FunctionsAndProcedures(t *testing.T) {
 	cat := setupCatalog(t)
 
-	// Scenario 1: CREATE FUNCTION | → identifier context (no specific candidates)
-	t.Run("create_function_identifier", func(t *testing.T) {
-		candidates := Complete("CREATE FUNCTION ", 16, cat)
-		// Should not suggest existing functions — user defines a new name
-		if containsCandidate(candidates, "my_func", CandidateFunction) {
-			t.Errorf("should not suggest existing function for new function name; got %v", candidates)
-		}
-	})
-
-	// Scenario 2: CREATE FUNCTION f(|) → param direction keywords + type context
-	t.Run("create_function_params", func(t *testing.T) {
-		candidates := Complete("CREATE FUNCTION f(", 18, cat)
-		if !containsCandidate(candidates, "IN", CandidateKeyword) {
-			t.Errorf("missing keyword 'IN'; got %v", candidates)
-		}
-		if !containsCandidate(candidates, "OUT", CandidateKeyword) {
-			t.Errorf("missing keyword 'OUT'; got %v", candidates)
-		}
-		if !containsCandidate(candidates, "INOUT", CandidateKeyword) {
-			t.Errorf("missing keyword 'INOUT'; got %v", candidates)
-		}
-	})
-
-	// Scenario 3: CREATE FUNCTION f() RETURNS | → type candidates
-	t.Run("create_function_returns_type", func(t *testing.T) {
-		candidates := Complete("CREATE FUNCTION f() RETURNS ", 28, cat)
-		if !containsCandidate(candidates, "INT", CandidateType_) {
-			t.Errorf("missing type 'INT'; got %v", candidates)
-		}
-		if !containsCandidate(candidates, "VARCHAR", CandidateType_) {
-			t.Errorf("missing type 'VARCHAR'; got %v", candidates)
-		}
-	})
-
-	// Scenario 4: CREATE FUNCTION f() | → characteristic keywords
-	t.Run("create_function_characteristics", func(t *testing.T) {
-		candidates := Complete("CREATE FUNCTION f() ", 20, cat)
-		if !containsCandidate(candidates, "DETERMINISTIC", CandidateKeyword) {
-			t.Errorf("missing keyword 'DETERMINISTIC'; got %v", candidates)
-		}
-		if !containsCandidate(candidates, "COMMENT", CandidateKeyword) {
-			t.Errorf("missing keyword 'COMMENT'; got %v", candidates)
-		}
-		if !containsCandidate(candidates, "LANGUAGE", CandidateKeyword) {
-			t.Errorf("missing keyword 'LANGUAGE'; got %v", candidates)
-		}
-	})
-
-	// Scenario 5: DROP FUNCTION | → function_ref
-	t.Run("drop_function_ref", func(t *testing.T) {
-		candidates := Complete("DROP FUNCTION ", 14, cat)
-		if !containsCandidate(candidates, "my_func", CandidateFunction) {
-			t.Errorf("missing function 'my_func'; got %v", candidates)
-		}
-	})
-
-	// Scenario 6: DROP FUNCTION IF EXISTS | → function_ref
-	t.Run("drop_function_if_exists_ref", func(t *testing.T) {
-		candidates := Complete("DROP FUNCTION IF EXISTS ", 24, cat)
-		if !containsCandidate(candidates, "my_func", CandidateFunction) {
-			t.Errorf("missing function 'my_func'; got %v", candidates)
-		}
-	})
-
-	// Scenario 7: CREATE PROCEDURE | → identifier context
+	// Scenario 1: CREATE PROCEDURE | → identifier context
 	t.Run("create_procedure_identifier", func(t *testing.T) {
 		candidates := Complete("CREATE PROCEDURE ", 17, cat)
 		if containsCandidate(candidates, "my_proc", CandidateProcedure) {
@@ -2252,7 +2144,7 @@ func TestComplete_6_1_FunctionsAndProcedures(t *testing.T) {
 		}
 	})
 
-	// Scenario 8: DROP PROCEDURE | → procedure_ref
+	// Scenario 2: DROP PROCEDURE | → procedure_ref
 	t.Run("drop_procedure_ref", func(t *testing.T) {
 		candidates := Complete("DROP PROCEDURE ", 15, cat)
 		if !containsCandidate(candidates, "my_proc", CandidateProcedure) {
@@ -2260,104 +2152,11 @@ func TestComplete_6_1_FunctionsAndProcedures(t *testing.T) {
 		}
 	})
 
-	// Scenario 9: ALTER FUNCTION | → function_ref
-	t.Run("alter_function_ref", func(t *testing.T) {
-		candidates := Complete("ALTER FUNCTION ", 15, cat)
-		if !containsCandidate(candidates, "my_func", CandidateFunction) {
-			t.Errorf("missing function 'my_func'; got %v", candidates)
-		}
-	})
-
-	// Scenario 10: ALTER PROCEDURE | → procedure_ref
+	// Scenario 3: ALTER PROCEDURE | → procedure_ref
 	t.Run("alter_procedure_ref", func(t *testing.T) {
 		candidates := Complete("ALTER PROCEDURE ", 16, cat)
 		if !containsCandidate(candidates, "my_proc", CandidateProcedure) {
 			t.Errorf("missing procedure 'my_proc'; got %v", candidates)
-		}
-	})
-}
-
-func TestComplete_6_2_TriggersAndEvents(t *testing.T) {
-	cat := setupCatalog(t)
-
-	// Scenario 1: CREATE TRIGGER | → identifier context
-	t.Run("create_trigger_identifier", func(t *testing.T) {
-		candidates := Complete("CREATE TRIGGER ", 15, cat)
-		if containsCandidate(candidates, "my_trig", CandidateTrigger) {
-			t.Errorf("should not suggest existing trigger for new trigger name; got %v", candidates)
-		}
-	})
-
-	// Scenario 2: CREATE TRIGGER trg | → BEFORE/AFTER keywords
-	t.Run("create_trigger_timing", func(t *testing.T) {
-		candidates := Complete("CREATE TRIGGER trg ", 19, cat)
-		if !containsCandidate(candidates, "BEFORE", CandidateKeyword) {
-			t.Errorf("missing keyword 'BEFORE'; got %v", candidates)
-		}
-		if !containsCandidate(candidates, "AFTER", CandidateKeyword) {
-			t.Errorf("missing keyword 'AFTER'; got %v", candidates)
-		}
-	})
-
-	// Scenario 3: CREATE TRIGGER trg BEFORE | → INSERT/UPDATE/DELETE
-	t.Run("create_trigger_event", func(t *testing.T) {
-		candidates := Complete("CREATE TRIGGER trg BEFORE ", 26, cat)
-		if !containsCandidate(candidates, "INSERT", CandidateKeyword) {
-			t.Errorf("missing keyword 'INSERT'; got %v", candidates)
-		}
-		if !containsCandidate(candidates, "UPDATE", CandidateKeyword) {
-			t.Errorf("missing keyword 'UPDATE'; got %v", candidates)
-		}
-		if !containsCandidate(candidates, "DELETE", CandidateKeyword) {
-			t.Errorf("missing keyword 'DELETE'; got %v", candidates)
-		}
-	})
-
-	// Scenario 4: CREATE TRIGGER trg BEFORE INSERT ON | → table_ref
-	t.Run("create_trigger_on_table", func(t *testing.T) {
-		candidates := Complete("CREATE TRIGGER trg BEFORE INSERT ON ", 36, cat)
-		if !containsCandidate(candidates, "users", CandidateTable) {
-			t.Errorf("missing table 'users'; got %v", candidates)
-		}
-	})
-
-	// Scenario 5: DROP TRIGGER | → trigger_ref
-	t.Run("drop_trigger_ref", func(t *testing.T) {
-		candidates := Complete("DROP TRIGGER ", 13, cat)
-		if !containsCandidate(candidates, "my_trig", CandidateTrigger) {
-			t.Errorf("missing trigger 'my_trig'; got %v", candidates)
-		}
-	})
-
-	// Scenario 6: CREATE EVENT | → identifier context
-	t.Run("create_event_identifier", func(t *testing.T) {
-		candidates := Complete("CREATE EVENT ", 13, cat)
-		if containsCandidate(candidates, "my_event", CandidateEvent) {
-			t.Errorf("should not suggest existing event for new event name; got %v", candidates)
-		}
-	})
-
-	// Scenario 7: CREATE EVENT ev ON SCHEDULE | → AT/EVERY keywords
-	t.Run("create_event_on_schedule", func(t *testing.T) {
-		candidates := Complete("CREATE EVENT ev ON SCHEDULE ", 28, cat)
-		if !containsCandidate(candidates, "AT", CandidateKeyword) {
-			t.Errorf("missing keyword 'AT'; got %v", candidates)
-		}
-	})
-
-	// Scenario 8: DROP EVENT | → event_ref
-	t.Run("drop_event_ref", func(t *testing.T) {
-		candidates := Complete("DROP EVENT ", 11, cat)
-		if !containsCandidate(candidates, "my_event", CandidateEvent) {
-			t.Errorf("missing event 'my_event'; got %v", candidates)
-		}
-	})
-
-	// Scenario 9: ALTER EVENT | → event_ref
-	t.Run("alter_event_ref", func(t *testing.T) {
-		candidates := Complete("ALTER EVENT ", 12, cat)
-		if !containsCandidate(candidates, "my_event", CandidateEvent) {
-			t.Errorf("missing event 'my_event'; got %v", candidates)
 		}
 	})
 }
@@ -2588,14 +2387,6 @@ func TestComplete_7_1_SetAndShow(t *testing.T) {
 		candidates := Complete("SHOW CREATE VIEW ", 17, cat)
 		if !containsCandidate(candidates, "active_users", CandidateView) {
 			t.Errorf("missing view 'active_users'; got %v", candidates)
-		}
-	})
-
-	// Scenario 9: SHOW CREATE FUNCTION | → function_ref
-	t.Run("show_create_function_ref", func(t *testing.T) {
-		candidates := Complete("SHOW CREATE FUNCTION ", 21, cat)
-		if !containsCandidate(candidates, "my_func", CandidateFunction) {
-			t.Errorf("missing function 'my_func'; got %v", candidates)
 		}
 	})
 

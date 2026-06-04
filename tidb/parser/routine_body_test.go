@@ -59,6 +59,12 @@ func TestRoutineGrammarRejected(t *testing.T) {
 		`CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SELECT 1`,
 		`ALTER EVENT e ON SCHEDULE EVERY 2 DAY`,
 		`SIGNAL SQLSTATE '45000'`,
+		// TiDB accepts a DEFINER clause only on CREATE VIEW — not on procedures
+		// (no DEFINER clause) nor FUNCTION/TRIGGER/EVENT (which don't exist).
+		`CREATE DEFINER=CURRENT_USER PROCEDURE p() BEGIN SELECT 1; END`,
+		`CREATE DEFINER='admin'@'localhost' TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET @x=1`,
+		// TiDB has no stored-program SELECT ... INTO <local var> form.
+		`CREATE PROCEDURE p() BEGIN DECLARE y INT; SELECT 1 INTO y; END`,
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {

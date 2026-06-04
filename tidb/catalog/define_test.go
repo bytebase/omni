@@ -179,17 +179,6 @@ func TestDefineIndex_HappyPath(t *testing.T) {
 	}
 }
 
-func TestDefineFunction_HappyPath(t *testing.T) {
-	c := newCatalogWithDB(t, "mydb")
-	stmt := mustParseRoutine(t, "CREATE FUNCTION f() RETURNS INT RETURN 1")
-	if err := c.DefineFunction(stmt); err != nil {
-		t.Fatalf("DefineFunction: %v", err)
-	}
-	if got := c.ShowCreateFunction("mydb", "f"); got == "" {
-		t.Fatal("ShowCreateFunction empty")
-	}
-}
-
 func TestDefineProcedure_HappyPath(t *testing.T) {
 	c := newCatalogWithDB(t, "mydb")
 	stmt := mustParseRoutine(t, "CREATE PROCEDURE p() BEGIN END")
@@ -198,49 +187,6 @@ func TestDefineProcedure_HappyPath(t *testing.T) {
 	}
 	if got := c.ShowCreateProcedure("mydb", "p"); got == "" {
 		t.Fatal("ShowCreateProcedure empty")
-	}
-}
-
-func TestDefineRoutine_FunctionRoutesToFunctions(t *testing.T) {
-	c := newCatalogWithDB(t, "mydb")
-	stmt := mustParseRoutine(t, "CREATE FUNCTION f() RETURNS INT RETURN 1")
-	if stmt.IsProcedure {
-		t.Fatalf("expected IsProcedure=false for CREATE FUNCTION")
-	}
-	if err := c.DefineRoutine(stmt); err != nil {
-		t.Fatal(err)
-	}
-	db := c.GetDatabase("mydb")
-	if _, ok := db.Functions["f"]; !ok {
-		t.Fatal("f not in db.Functions")
-	}
-	if _, ok := db.Procedures["f"]; ok {
-		t.Fatal("f should not be in db.Procedures")
-	}
-}
-
-func TestDefineTrigger_HappyPath(t *testing.T) {
-	c := newCatalogWithDB(t, "mydb")
-	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE t (id INT PRIMARY KEY)")); err != nil {
-		t.Fatal(err)
-	}
-	stmt := mustParseTrigger(t, "CREATE TRIGGER trg_ins BEFORE INSERT ON t FOR EACH ROW BEGIN END")
-	if err := c.DefineTrigger(stmt); err != nil {
-		t.Fatalf("DefineTrigger: %v", err)
-	}
-	if got := c.ShowCreateTrigger("mydb", "trg_ins"); got == "" {
-		t.Fatal("ShowCreateTrigger empty")
-	}
-}
-
-func TestDefineEvent_HappyPath(t *testing.T) {
-	c := newCatalogWithDB(t, "mydb")
-	stmt := mustParseEvent(t, "CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SELECT 1")
-	if err := c.DefineEvent(stmt); err != nil {
-		t.Fatalf("DefineEvent: %v", err)
-	}
-	if got := c.ShowCreateEvent("mydb", "e"); got == "" {
-		t.Fatal("ShowCreateEvent empty")
 	}
 }
 
@@ -264,50 +210,11 @@ func TestDefineTable_Duplicate(t *testing.T) {
 	assertErrCode(t, err, ErrDupTable)
 }
 
-func TestDefineFunction_Duplicate(t *testing.T) {
-	c := newCatalogWithDB(t, "mydb")
-	stmt := mustParseRoutine(t, "CREATE FUNCTION f() RETURNS INT RETURN 1")
-	if err := c.DefineFunction(stmt); err != nil {
-		t.Fatal(err)
-	}
-	err := c.DefineFunction(mustParseRoutine(t, "CREATE FUNCTION f() RETURNS INT RETURN 1"))
-	assertErrCode(t, err, ErrDupFunction)
-}
-
-func TestDefineTrigger_Duplicate(t *testing.T) {
-	c := newCatalogWithDB(t, "mydb")
-	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE t (id INT)")); err != nil {
-		t.Fatal(err)
-	}
-	stmt := mustParseTrigger(t, "CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW BEGIN END")
-	if err := c.DefineTrigger(stmt); err != nil {
-		t.Fatal(err)
-	}
-	err := c.DefineTrigger(mustParseTrigger(t, "CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW BEGIN END"))
-	assertErrCode(t, err, ErrDupTrigger)
-}
-
-func TestDefineEvent_Duplicate(t *testing.T) {
-	c := newCatalogWithDB(t, "mydb")
-	stmt := mustParseEvent(t, "CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SELECT 1")
-	if err := c.DefineEvent(stmt); err != nil {
-		t.Fatal(err)
-	}
-	err := c.DefineEvent(mustParseEvent(t, "CREATE EVENT e ON SCHEDULE EVERY 1 DAY DO SELECT 1"))
-	assertErrCode(t, err, ErrDupEvent)
-}
-
 // -- §6.3 Missing currentDB ----------------------------------------------
 
 func TestDefineTable_NoCurrentDatabase(t *testing.T) {
 	c := New()
 	err := c.DefineTable(mustParseTable(t, "CREATE TABLE t (id INT)"))
-	assertErrCode(t, err, ErrNoDatabaseSelected)
-}
-
-func TestDefineFunction_NoCurrentDatabase(t *testing.T) {
-	c := New()
-	err := c.DefineFunction(mustParseRoutine(t, "CREATE FUNCTION f() RETURNS INT RETURN 1"))
 	assertErrCode(t, err, ErrNoDatabaseSelected)
 }
 
@@ -410,26 +317,6 @@ func TestDefineTable_FKForwardRefWithChecksOn(t *testing.T) {
 		)`)
 	err := c.DefineTable(child)
 	assertErrCode(t, err, ErrFKNoRefTable)
-}
-
-// -- §6.7 Trigger ordering (both directions) ----------------------------
-
-func TestDefineTrigger_BeforeTable(t *testing.T) {
-	c := newCatalogWithDB(t, "mydb")
-	stmt := mustParseTrigger(t, "CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW BEGIN END")
-	err := c.DefineTrigger(stmt)
-	assertErrCode(t, err, ErrNoSuchTable)
-}
-
-func TestDefineTrigger_AfterTable(t *testing.T) {
-	c := newCatalogWithDB(t, "mydb")
-	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE t (id INT)")); err != nil {
-		t.Fatal(err)
-	}
-	stmt := mustParseTrigger(t, "CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW BEGIN END")
-	if err := c.DefineTrigger(stmt); err != nil {
-		t.Fatalf("DefineTrigger after table install should succeed: %v", err)
-	}
 }
 
 // -- §6.8 View forward reference — loader contract ----------------------

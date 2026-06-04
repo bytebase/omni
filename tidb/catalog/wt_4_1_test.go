@@ -325,7 +325,7 @@ CREATE TABLE t2 (
 }
 
 // TestWalkThrough_4_1_MysqldumpStyle tests a mysqldump-style output with SET vars,
-// DELIMITER, procedures, triggers, and tables.
+// DELIMITER, procedures, and tables.
 func TestWalkThrough_4_1_MysqldumpStyle(t *testing.T) {
 	c := New()
 
@@ -364,12 +364,6 @@ DELIMITER ;;
 CREATE PROCEDURE get_user_orders(IN p_user_id INT)
 BEGIN
     SELECT * FROM orders WHERE user_id = p_user_id;
-END;;
-
-CREATE TRIGGER trg_order_after_insert AFTER INSERT ON orders
-FOR EACH ROW
-BEGIN
-    UPDATE users SET email = email WHERE id = NEW.user_id;
 END;;
 
 DELIMITER ;
@@ -431,18 +425,6 @@ SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION;
 	proc := db.Procedures[toLower("get_user_orders")]
 	if proc == nil {
 		t.Fatal("procedure 'get_user_orders' not found")
-	}
-
-	// Verify trigger.
-	trg := db.Triggers[toLower("trg_order_after_insert")]
-	if trg == nil {
-		t.Fatal("trigger 'trg_order_after_insert' not found")
-	}
-	if trg.Timing != "AFTER" {
-		t.Errorf("trigger timing: expected 'AFTER', got %q", trg.Timing)
-	}
-	if trg.Event != "INSERT" {
-		t.Errorf("trigger event: expected 'INSERT', got %q", trg.Event)
 	}
 
 	// Verify FK checks were re-enabled at the end.

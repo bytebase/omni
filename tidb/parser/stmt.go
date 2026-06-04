@@ -544,42 +544,11 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 				stmt.SqlSecurity = sqlSecurity
 			}
 			return stmt, nil
-		case kwFUNCTION:
-			stmt, err := p.parseCreateFunctionStmt(false)
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			return stmt, nil
-		case kwPROCEDURE:
-			stmt, err := p.parseCreateFunctionStmt(true)
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			return stmt, nil
-		case kwTRIGGER:
-			stmt, err := p.parseCreateTriggerStmt()
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			return stmt, nil
-		case kwEVENT:
-			stmt, err := p.parseCreateEventStmt()
-			if err != nil {
-				return nil, err
-			}
-			if stmt.Definer == "" {
-				stmt.Definer = definer
-			}
-			return stmt, nil
+		case kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT:
+			// TiDB v8.5.0 accepts a DEFINER clause only on CREATE VIEW. It has
+			// no FUNCTION/TRIGGER/EVENT, and CREATE PROCEDURE takes no DEFINER
+			// clause — all four reject at the object keyword.
+			return nil, p.syntaxErrorAtCur()
 		default:
 			return nil, &ParseError{Message: "unexpected token after DEFINER clause", Position: p.cur.Loc}
 		}
