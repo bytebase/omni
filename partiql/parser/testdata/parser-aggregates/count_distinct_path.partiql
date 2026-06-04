@@ -1,0 +1,1 @@
+COUNT(DISTINCT t.items[0].id)

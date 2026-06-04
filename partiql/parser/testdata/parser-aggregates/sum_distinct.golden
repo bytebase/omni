@@ -1,0 +1,1 @@
+FuncCall{Name:SUM Quantifier:DISTINCT Args:[VarRef{Name:amount}]}
