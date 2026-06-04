@@ -120,32 +120,6 @@ func (op UnOp) String() string {
 	}
 }
 
-// IsType identifies the right-hand side of an `IS [NOT] X` predicate.
-type IsType int
-
-const (
-	IsTypeInvalid IsType = iota
-	IsTypeNull
-	IsTypeMissing
-	IsTypeTrue
-	IsTypeFalse
-)
-
-func (t IsType) String() string {
-	switch t {
-	case IsTypeNull:
-		return "NULL"
-	case IsTypeMissing:
-		return "MISSING"
-	case IsTypeTrue:
-		return "TRUE"
-	case IsTypeFalse:
-		return "FALSE"
-	default:
-		return "INVALID"
-	}
-}
-
 // ===========================================================================
 // Operator nodes
 // ===========================================================================
@@ -229,12 +203,20 @@ func (*LikeExpr) nodeTag()      {}
 func (n *LikeExpr) GetLoc() Loc { return n.Loc }
 func (*LikeExpr) exprNode()     {}
 
-// IsExpr represents `expr IS [NOT] (NULL|MISSING|TRUE|FALSE)`.
+// IsExpr represents `expr IS [NOT] <type>`.
 //
-// Grammar: exprPredicate#PredicateIs
+// Type is the full PartiQL `type` production (PartiQLParser.g4:674-686),
+// the same one CAST uses. The grammar's `type` rule includes NULL and
+// MISSING as atomic types, so `x IS NULL` / `x IS MISSING` are modeled
+// here as `IS <type>` with Type = TypeRef{Name:"NULL"} / {Name:"MISSING"}
+// — there is no separate keyword form. `x IS TRUE` / `x IS FALSE` are NOT
+// valid: TRUE/FALSE are not types, and the legacy grammar marks them "Not
+// yet implemented" (PartiQLParser.g4:437-438); the parser rejects them.
+//
+// Grammar: exprPredicate#PredicateIs (g4:486 — `lhs IS NOT? type`).
 type IsExpr struct {
 	Expr ExprNode
-	Type IsType
+	Type TypeName
 	Not  bool
 	Loc  Loc
 }

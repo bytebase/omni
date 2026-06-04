@@ -688,11 +688,12 @@ func TestParser_Errors(t *testing.T) {
 			input:     "a BETWEEN 1 10",
 			wantErrIn: "expected AND",
 		},
-		{
-			name:      "is_invalid_type",
-			input:     "a IS INT",
-			wantErrIn: "IS predicate requires NULL, MISSING, TRUE, or FALSE",
-		},
+		// Note: the former "is_invalid_type" case asserted `a IS INT` must
+		// error ("IS predicate requires NULL, MISSING, TRUE, or FALSE"). That
+		// was wrong — g4:486 is `lhs IS NOT? type` and the generated ANTLR
+		// parser ACCEPTS `a IS INT` (INT is a type). The corrected accept/reject
+		// coverage for the IS <type> predicate now lives in
+		// is_in_predicate_test.go (TestIsPredicate_Accept / _Reject).
 		{
 			name:      "bare_comma",
 			input:     ",",

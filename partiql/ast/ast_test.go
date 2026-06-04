@@ -251,10 +251,10 @@ func TestNodeToString(t *testing.T) {
 			name: "is_missing_predicate",
 			node: &IsExpr{
 				Expr: &VarRef{Name: "y"},
-				Type: IsTypeMissing,
+				Type: &TypeRef{Name: "MISSING"},
 				Not:  false,
 			},
-			want: `IsExpr{Expr:VarRef{Name:y} Type:MISSING Not:false}`,
+			want: `IsExpr{Expr:VarRef{Name:y} Type:TypeRef{Name:MISSING} Not:false}`,
 		},
 		{
 			name: "func_call_count_distinct",

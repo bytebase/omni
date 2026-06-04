@@ -134,7 +134,9 @@ func writeNode(sb *strings.Builder, n Node) {
 	case *IsExpr:
 		sb.WriteString("IsExpr{Expr:")
 		writeNode(sb, v.Expr)
-		fmt.Fprintf(sb, " Type:%s Not:%t}", v.Type, v.Not)
+		sb.WriteString(" Type:")
+		writeNode(sb, v.Type)
+		fmt.Fprintf(sb, " Not:%t}", v.Not)
 
 	// -----------------------------------------------------------------------
 	// exprs.go — special-form expressions
