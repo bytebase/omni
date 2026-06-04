@@ -209,8 +209,22 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// --- DDL ---
 	case kwCREATE:
+		// CREATE ROLE belongs to the parser-dcl-tcl node (grant_revoke.go);
+		// every other CREATE object is a parser-ddl concern (still stubbed).
+		if p.peekNext().Kind == kwROLE {
+			createTok := p.advance() // consume CREATE
+			p.advance()              // consume ROLE
+			return p.parseCreateRoleStmt(createTok.Loc.Start)
+		}
 		return p.unsupported("CREATE")
 	case kwDROP:
+		// DROP ROLE belongs to the parser-dcl-tcl node (grant_revoke.go);
+		// every other DROP object is a parser-ddl concern (still stubbed).
+		if p.peekNext().Kind == kwROLE {
+			dropTok := p.advance() // consume DROP
+			p.advance()            // consume ROLE
+			return p.parseDropRoleStmt(dropTok.Loc.Start)
+		}
 		return p.unsupported("DROP")
 	case kwALTER:
 		return p.unsupported("ALTER")
@@ -237,13 +251,13 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwCALL:
 		return p.unsupported("CALL")
 
-	// --- DCL (roles / privileges) ---
+	// --- DCL (roles / privileges) --- [parser-dcl-tcl node: grant_revoke.go]
 	case kwGRANT:
-		return p.unsupported("GRANT")
+		return p.parseGrantStmt()
 	case kwREVOKE:
-		return p.unsupported("REVOKE")
+		return p.parseRevokeStmt()
 	case kwDENY:
-		return p.unsupported("DENY")
+		return p.parseDenyStmt()
 
 	// --- Session / path / time zone ---
 	case kwSET:
@@ -257,25 +271,41 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwEXPLAIN:
 		return p.unsupported("EXPLAIN")
 	case kwDESCRIBE:
+		// DESCRIBE INPUT <name> / DESCRIBE OUTPUT <name> are prepared-statement
+		// introspection (parser-dcl-tcl node: prepared.go). They are claimed
+		// ONLY when INPUT/OUTPUT is followed by a statement-name identifier:
+		// INPUT and OUTPUT are NON-RESERVED keywords, so a bare `DESCRIBE INPUT`
+		// or `DESCRIBE INPUT.col` is the SHOW COLUMNS alias `DESCRIBE
+		// qualifiedName` (INPUT/OUTPUT being the table name), owned by
+		// parser-utility (still stubbed). Trino's own grammar disambiguates the
+		// same way via adaptive prediction.
+		if (p.peekNext().Kind == kwINPUT || p.peekNext().Kind == kwOUTPUT) && p.describeIntrospectionFollows() {
+			descTok := p.advance() // consume DESCRIBE
+			kind := p.advance()    // consume INPUT / OUTPUT
+			if kind.Kind == kwINPUT {
+				return p.parseDescribeInputStmt(descTok.Loc.Start)
+			}
+			return p.parseDescribeOutputStmt(descTok.Loc.Start)
+		}
 		return p.unsupported("DESCRIBE")
 	case kwDESC:
 		return p.unsupported("DESC")
 
-	// --- Transactions ---
+	// --- Transactions --- [parser-dcl-tcl node: transaction.go]
 	case kwSTART:
-		return p.unsupported("START TRANSACTION")
+		return p.parseStartTransactionStmt()
 	case kwCOMMIT:
-		return p.unsupported("COMMIT")
+		return p.parseCommitStmt()
 	case kwROLLBACK:
-		return p.unsupported("ROLLBACK")
+		return p.parseRollbackStmt()
 
-	// --- Prepared statements ---
+	// --- Prepared statements --- [parser-dcl-tcl node: prepared.go]
 	case kwPREPARE:
-		return p.unsupported("PREPARE")
+		return p.parsePrepareStmt()
 	case kwDEALLOCATE:
-		return p.unsupported("DEALLOCATE")
+		return p.parseDeallocateStmt()
 	case kwEXECUTE:
-		return p.unsupported("EXECUTE")
+		return p.parseExecuteStmt()
 
 	default:
 		return nil, p.unknownStatementError()
