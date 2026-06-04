@@ -5,16 +5,26 @@ package parser
 // `options { caseInsensitive = true; }`. The lexer lowercases the
 // identifier text before lookup.
 //
-// Built once at package init via a literal map. The 266 entries here
-// must stay in 1:1 correspondence with the 266 tokKEYWORD constants in
-// token.go (group 3000) — TestKeywords_LenMatchesConstants asserts
-// len(keywords) == 266.
+// Built once at package init via a literal map. The 265 entries here
+// each map to a distinct tokKEYWORD constant in token.go (group 3000) —
+// TestKeywords_LenMatchesConstants asserts len(keywords) == 265.
 //
 // Source: every uppercase rule in PartiQLLexer.g4 from line 13 (ABSOLUTE)
 // through line 295 (BAG), generated via:
 //
 //	grep -E "^[A-Z][A-Z0-9_]*: '[A-Z]" PartiQLLexer.g4 |
 //	  sed -E "s/^([A-Z][A-Z0-9_]*):.*/\1/" | sort
+//
+// One grammar keyword token is intentionally absent here: END_EXEC
+// (PartiQLLexer.g4:85, `END_EXEC: 'END-EXEC'`). Its spelling contains a
+// hyphen, but this hand-written lexer's scanIdentOrKeyword stops at '-'
+// (it is not an identifier character), so the lookup key "end-exec" can
+// never be produced — the entry was unreachable dead code. Matching the
+// generated ANTLR lexer, "END-EXEC" tokenizes here as END '-' EXEC, and
+// END_EXEC is referenced by no PartiQLParser.g4 rule, so its omission has
+// no parser-observable effect. The tokEND_EXEC constant is retained in
+// token.go as a vestigial token type (the ANTLR grammar likewise defines
+// END_EXEC as a token no rule consumes).
 var keywords = map[string]int{
 	"absolute":          tokABSOLUTE,
 	"action":            tokACTION,
@@ -100,7 +110,6 @@ var keywords = map[string]int{
 	"drop":              tokDROP,
 	"else":              tokELSE,
 	"end":               tokEND,
-	"end-exec":          tokEND_EXEC,
 	"escape":            tokESCAPE,
 	"except":            tokEXCEPT,
 	"exception":         tokEXCEPTION,
