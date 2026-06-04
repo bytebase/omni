@@ -283,6 +283,84 @@ func TestSplit_TopLevelTypedCloserDoesNotReopen(t *testing.T) {
 	}
 }
 
+// A control-flow keyword (IF / CASE / LOOP / WHILE / REPEAT / FOR) that appears
+// MID-statement — as a function call (IF(...)), a query clause (FOR UPDATE), a
+// guard (IF NOT EXISTS), or an expression (CASE … END) — must NOT be mistaken
+// for a procedural block opener. Only a STATEMENT-LEADING occurrence opens a
+// block. Otherwise the splitter flips into block mode and swallows the next
+// statement's terminating ';'. These are all common valid forms and SplitSQL is
+// P0 for both BigQuery and Spanner, so a misread here mis-splits real input.
+// (Oracle-confirmed against the Spanner emulator: `SELECT IF(x,1,2)`,
+// `SELECT a FROM t FOR UPDATE`, `CREATE SCHEMA IF NOT EXISTS s`, and
+// `SELECT CASE WHEN x THEN 1 ELSE 2 END` each parse as ONE statement.)
+func TestSplit_MidStatementControlKeywordIsNotBlock(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{"if_function_call", "SELECT IF(x, 1, 2) AS c; SELECT 1"},
+		{"for_update_clause", "SELECT a FROM t FOR UPDATE; SELECT 1"},
+		{"if_not_exists_guard", "CREATE SCHEMA IF NOT EXISTS s; SELECT 1"},
+		{"case_expression", "SELECT CASE WHEN x THEN 1 ELSE 2 END; SELECT 1"},
+		{"while_as_alias", "SELECT 1 AS while; SELECT 2"},
+		{"if_in_where", "SELECT 1 WHERE IF(a, b, c); SELECT 2"},
+		// A CASE-expression branch may itself contain a control-flow keyword used
+		// as an expression (an IF(...) call, a nested CASE). Neither the inner
+		// keyword nor the CASE's own END is statement-leading, so the whole CASE
+		// expression stays one statement. (Oracle-confirmed: both parse as a
+		// single accepted query.) These guard against over-eagerly treating a
+		// CASE branch's THEN/ELSE as a procedural statement-list introducer.
+		{"if_call_in_case_branch", "SELECT CASE WHEN x THEN IF(a, b, c) ELSE 0 END; SELECT 1"},
+		{"nested_case_expression", "SELECT CASE WHEN x THEN CASE WHEN y THEN 1 END END; SELECT 1"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := Split(c.input)
+			if len(got) != 2 {
+				t.Fatalf("Split(%q) = %d segments, want 2 (mid-statement control keyword opened a block): %+v", c.input, len(got), got)
+			}
+			if strings.TrimSpace(got[1].Text) != "SELECT 1" && strings.TrimSpace(got[1].Text) != "SELECT 2" {
+				t.Errorf("segment[1] = %q, want the trailing SELECT", got[1].Text)
+			}
+			// Split must agree with the flat lexer split here: there is no real
+			// procedural block, so both see exactly two top-level statements.
+			if flat := SplitFlat(c.input); len(flat) != 2 {
+				t.Errorf("SplitFlat(%q) = %d segments, want 2: %+v", c.input, len(flat), flat)
+			}
+		})
+	}
+}
+
+// A stray top-level typed closer (`END IF` / `END WHILE` / …) that opens no
+// preceding block must NOT itself reopen a block and swallow the next
+// statement's ';'. (Invalid GoogleSQL, but the splitter is documented
+// best-effort/infallible and must never drop a following statement.) This is the
+// statement-position rule applied to the closer-suffix keyword: `IF` after a
+// stray top-level `END` is not statement-leading, so it cannot open a block.
+func TestSplit_StrayTopLevelCloserDoesNotSwallow(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{"end_if", "END IF; SELECT 1"},
+		{"end_while", "END WHILE; SELECT 1"},
+		{"end_loop", "END LOOP; SELECT 1"},
+		{"end_for", "END FOR; SELECT 1"},
+		{"bare_end", "END; SELECT 1"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := Split(c.input)
+			if len(got) != 2 {
+				t.Fatalf("Split(%q) = %d segments, want 2 (stray closer swallowed the next statement): %+v", c.input, len(got), got)
+			}
+			if strings.TrimSpace(got[1].Text) != "SELECT 1" {
+				t.Errorf("segment[1] = %q, want ' SELECT 1'", got[1].Text)
+			}
+		})
+	}
+}
+
 // Every block kind's typed closer (END IF / END WHILE / END LOOP / END REPEAT /
 // END FOR / bare END) must be recognized so the closer's trailing keyword is not
 // miscounted as a NEW block opener (which would desync depth and swallow the

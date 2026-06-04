@@ -199,6 +199,43 @@ func TestParse_UnterminatedHintReported(t *testing.T) {
 	}
 }
 
+// TestParse_EmptyHintReported verifies a balanced but EMPTY statement-level hint
+// body (`@{}`, or whitespace/comment-only between the braces) draws a diagnostic
+// rather than being silently consumed. GoogleSQL requires at least one hint
+// entry: oracle-confirmed against the Spanner emulator, `@{} SELECT 1` rejects
+// with `Syntax error: Unexpected "}"`. Without this check the empty hint is
+// skipped, parseSingle reaches EOF, and the (invalid) input draws no diagnostic
+// at all — which bytebase's Diagnose must not allow.
+func TestParse_EmptyHintReported(t *testing.T) {
+	// Empty hint bodies — must be flagged.
+	bad := []string{"@{}", "@{} SELECT 1", "@{   }", "@{ /* c */ } SELECT 1", "@[5@]{}", "@[5@]{} SELECT 1"}
+	for _, in := range bad {
+		t.Run("empty/"+in, func(t *testing.T) {
+			_, errs := Parse(in)
+			if len(errs) == 0 || !strings.Contains(errs[0].Msg, "empty statement hint") {
+				t.Errorf("Parse(%q): want an empty-hint diagnostic, got %v", in, errs)
+			}
+		})
+	}
+	// A hint with content between the braces is NOT empty: the foundation only
+	// SKIPS the hint to reach the statement keyword (validating the entry's
+	// internal `key=value` shape is the hint-parsing node's job). So `@{k} …`
+	// must dispatch to the statement, not draw an empty-hint diagnostic. (The
+	// oracle does ultimately reject `@{k}` for a missing `=value`, but that is a
+	// deeper hint-body parse the foundation deliberately defers.)
+	nonEmpty := []string{"@{k} SELECT 1", "@{k=1} SELECT 1", "@{USE_ADDITIONAL_PARALLELISM=TRUE} SELECT 1"}
+	for _, in := range nonEmpty {
+		t.Run("nonempty/"+in, func(t *testing.T) {
+			_, errs := Parse(in)
+			for _, e := range errs {
+				if strings.Contains(e.Msg, "empty statement hint") {
+					t.Errorf("Parse(%q): non-empty hint wrongly flagged as empty: %v", in, errs)
+				}
+			}
+		})
+	}
+}
+
 // dispatchPrefix is one representative leading token sequence per documented
 // GoogleSQL top-level statement kind (antlr_rules.md §4: sql_statement_body
 // alternatives + the procedural-script forms recognized at top level). The body

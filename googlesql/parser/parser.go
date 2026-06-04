@@ -205,13 +205,19 @@ func (p *Parser) unknownStatementError() *ParseError {
 // statement). skipStatementLevelHint only advances over a well-formed-looking
 // prefix and otherwise leaves cur untouched.
 //
-// It returns a *ParseError when the hint body is UNTERMINATED — an `@{` (or
-// `@[…@]{`) whose closing '}' never arrives before EOF. Without this, an
-// unterminated hint would be silently consumed to EOF and the (invalid)
-// statement would draw no diagnostic at all, which bytebase's Diagnose must not
-// allow (oracle: Spanner rejects a malformed hint such as `@{}` / `@` with a
-// syntax error). Returns nil when there is no hint or the hint body closes
-// cleanly.
+// It returns a *ParseError when the hint body is malformed in a way that would
+// otherwise be silently swallowed to EOF, leaving the (invalid) statement with
+// no diagnostic at all — which bytebase's Diagnose must not allow:
+//   - UNTERMINATED — an `@{` (or `@[…@]{`) whose closing '}' never arrives
+//     before EOF.
+//   - EMPTY — a balanced but entry-less `@{}` (or `@[…@]{}`). GoogleSQL requires
+//     at least one hint entry (oracle: the Spanner emulator rejects `@{}` with
+//     `Syntax error: Unexpected "}"`).
+//
+// Returns nil when there is no hint or the hint body is non-empty and closes
+// cleanly. (The body's internal `key=value` entry shape is NOT validated here —
+// that is the later hint-parsing node's job; the foundation only enforces
+// termination and non-emptiness so dispatch can safely reach the statement.)
 func (p *Parser) skipStatementLevelHint() *ParseError {
 	if p.cur.Type != int('@') {
 		return nil
@@ -248,12 +254,31 @@ func (p *Parser) skipStatementLevelHint() *ParseError {
 }
 
 // skipBalancedBraces consumes a '{' ... '}' run with balanced nesting starting
-// at the current token (which must be '{'). Returns a *ParseError anchored at
-// hintStart if EOF is reached before the matching '}' (unterminated hint);
-// returns nil on a clean close or when cur is not '{'.
+// at the current token (which must be '{'). It returns a *ParseError anchored at
+// hintStart when:
+//   - EOF is reached before the matching '}' (an unterminated hint), or
+//   - the body is EMPTY — the closing '}' immediately follows the opening '{'
+//     with nothing but whitespace/comments between (the lexer drops both). A
+//     GoogleSQL hint requires at least one entry, so `@{}` is a syntax error
+//     (oracle: the Spanner emulator rejects `@{} SELECT 1` with
+//     `Syntax error: Unexpected "}"`). Without this guard the empty hint is
+//     skipped, dispatch reaches EOF, and the invalid input draws no diagnostic.
+//
+// It returns nil on a clean close of a non-empty body, or when cur is not '{'.
+// Validating the body's internal `key=value` entry shape is deferred to the
+// later hint-parsing node; this only enforces non-emptiness and termination.
 func (p *Parser) skipBalancedBraces(hintStart ast.Loc) *ParseError {
 	if p.cur.Type != int('{') {
 		return nil
+	}
+	// Empty body: the closing '}' immediately follows the opening '{' (the lexer
+	// has already dropped any whitespace/comments between them). Detect it by the
+	// token right after '{' rather than by counting interior tokens, so a body
+	// that merely STARTS with a brace (e.g. `@{{…}}`) is treated as non-empty —
+	// its malformed `key=value` shape is the later hint node's concern, not an
+	// emptiness error.
+	if p.peekNext().Type == int('}') {
+		return &ParseError{Loc: hintStart, Msg: "empty statement hint"}
 	}
 	depth := 0
 	for p.cur.Type != tokEOF {

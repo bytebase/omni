@@ -111,15 +111,24 @@ func SplitFlat(input string) []Segment {
 //     (END IF / END CASE / END LOOP / END WHILE / END REPEAT / END FOR).
 //   - Blocks nest; an inner block's END only closes that inner block.
 //
-// A top-level BEGIN is ambiguous: BEGIN [TRANSACTION|WORK] is a transaction
-// start (TCL), while BEGIN ... END is a procedural block. One-token lookahead
-// after BEGIN disambiguates: a TCL follower (';', EOF, TRANSACTION) keeps the
-// statement flat; anything else opens a block. (CASE is doubly ambiguous — it
-// is also an expression; but a CASE expression's END never carries a trailing
-// ';' issue at top level because the surrounding query splits on its own ';'.
-// The block-aware closer counting is harmless for the expression form: a CASE
-// expression with no internal ';' splits identically either way, which the
-// legacy split_begin_end_test.go relies on.)
+// CRITICAL — a block opener is recognized only at a STATEMENT-LEADING position.
+// IF/CASE/LOOP/WHILE/REPEAT/FOR are ordinary syntax mid-statement (a function
+// call `IF(x,1,2)`, a query clause `FOR UPDATE`, a guard `IF NOT EXISTS`, a
+// keyword-as-alias, or a CASE expression), so opening a block on ANY occurrence
+// would flip a plain `SELECT IF(x,1,2); SELECT 1` into block mode and absorb the
+// next statement's ';'. These keywords therefore open a block only when they
+// begin a statement (input start, or right after a top-level ';'); everywhere
+// else they stay flat. This also keeps a stray top-level closer suffix (the IF
+// in `END IF`) from reopening a block, since it is never statement-leading.
+//
+// BEGIN is the exception: it opens a block position-INDEPENDENTLY because the
+// canonical `CREATE PROCEDURE … BEGIN` is mid-statement. A top-level BEGIN is
+// still ambiguous (BEGIN [TRANSACTION|WORK] is a TCL transaction start, BEGIN …
+// END is a block), so one-token lookahead after BEGIN disambiguates: a TCL
+// follower (';', EOF, TRANSACTION, READ, ISOLATION) keeps it flat; anything else
+// opens a block. (CASE, which is also an expression, no longer needs the
+// "harmless closer-counting" argument the legacy split_begin_end_test.go relied
+// on — a mid-statement CASE expression simply never opens a block now.)
 func Split(input string) []Segment {
 	if len(input) == 0 {
 		return nil
@@ -131,11 +140,38 @@ func Split(input string) []Segment {
 	state := stateTop
 	depth := 0 // block-nesting depth while in stateInBlock
 
-	// prevWasEnd is set immediately after an END token so a block keyword that
-	// completes a typed closer — END IF / END CASE / END LOOP / END WHILE /
-	// END REPEAT / END FOR — is recognized as the closer's suffix rather than
-	// miscounted as a NEW block opener (which would desync depth and swallow
-	// the statement-terminating ';' after the block).
+	// atStmtStart reports whether the next TOP-LEVEL token begins a new
+	// statement — true at input start and immediately after a top-level ';'. It
+	// is the gate for the control-flow block OPENERS at the top level: IF / CASE
+	// / LOOP / WHILE / REPEAT / FOR open a procedural block ONLY when they are
+	// statement-leading. Mid-statement the SAME keywords are ordinary syntax — a
+	// function call (IF(x,1,2)), a query clause (FOR UPDATE), a guard (IF NOT
+	// EXISTS), a keyword-as-alias, or a CASE/IF expression — and must NOT flip
+	// the splitter into block mode (which would absorb the next statement's
+	// terminating ';'). It also makes a stray top-level closer suffix (the IF in
+	// `END IF`) a no-op, since that suffix is never statement-leading.
+	//
+	// NOTE the scope: atStmtStart gates only the TOP-LEVEL openers. Inside an
+	// already-open block body (stateInBlock) every BEGIN/IF/CASE/LOOP/WHILE/
+	// REPEAT/FOR still counts as a nesting opener and every END as a closer (the
+	// classic balanced count). That counting is correct for well-formed nesting
+	// and self-balances for a CASE expression (CASE … END), which is all the
+	// Spanner consumer of block-aware Split needs — Spanner has no stored
+	// procedures, so a procedure body with a bare mid-statement IF(...)/FOR
+	// clause is invalid Spanner input and out of scope here. Applying the
+	// statement-position rule INSIDE a block is unsafe without full parsing,
+	// because THEN/ELSE introduce a statement list in a procedural IF/CASE but a
+	// value expression in a CASE *expression* (e.g. the IF(...) in
+	// `CASE WHEN x THEN IF(a,b,c) ELSE 0 END` must NOT open a block).
+	atStmtStart := true
+
+	// prevWasEnd is set immediately after an END token INSIDE a block so a block
+	// keyword that completes a typed closer — END IF / END CASE / END LOOP /
+	// END WHILE / END REPEAT / END FOR — is recognized as the closer's suffix
+	// rather than miscounted as a NEW (nested) block opener, which would desync
+	// depth and swallow the statement-terminating ';' after the block. (At the
+	// TOP level the statement-position gate above already prevents a closer
+	// suffix from reopening, so prevWasEnd is purely a stateInBlock concern.)
 	prevWasEnd := false
 
 	// We need one-token lookahead after a top-level BEGIN to tell a
@@ -174,32 +210,41 @@ func Split(input string) []Segment {
 		switch state {
 		case stateTop:
 			switch tok.Type {
-			case kwBEGIN, kwIF, kwCASE, kwLOOP, kwWHILE, kwREPEAT, kwFOR:
-				switch {
-				case prevWasEnd:
-					// This block keyword immediately follows the END that closed
-					// the OUTERMOST block (depth 1→0), so it is the suffix of a
-					// typed closer (END IF / END CASE / END LOOP / …), not a new
-					// opener. Consume it without reopening. Without this, a typed
-					// closer at the top level would re-enter a block and swallow
-					// the statement-terminating ';' that follows.
-					prevWasEnd = false
-				case tok.Type == kwBEGIN && isTCLBeginFollower(peekToken()):
-					// BEGIN [TRANSACTION] is a transaction start — stay flat. The
-					// buffered follower is returned by the next nextToken() and
-					// handled normally (including the ';' emission path).
-				default:
-					// A top-level control-flow opener begins a procedural block
-					// body whose internal ';' must be kept whole.
+			case kwBEGIN:
+				// BEGIN opens a procedural block whenever the following token is
+				// not a TCL follower — this is position-INDEPENDENT, because
+				// `CREATE PROCEDURE … BEGIN` is mid-statement yet must open a
+				// block, while a top-level `BEGIN [TRANSACTION]` is a flat
+				// transaction start. (A bare kwBEGIN never appears mid-statement
+				// except as a block opener; an identifier spelled `begin` lexes
+				// to tokIdentifier, not kwBEGIN.) The buffered follower is
+				// returned by the next nextToken() and handled normally.
+				if !isTCLBeginFollower(peekToken()) {
 					state = stateInBlock
 					depth = 1
+					prevWasEnd = false
 				}
+				atStmtStart = false
+			case kwIF, kwCASE, kwLOOP, kwWHILE, kwREPEAT, kwFOR:
+				// A control-flow keyword opens a procedural block ONLY when it is
+				// statement-leading. Mid-statement the same keyword is ordinary
+				// syntax (IF(...) call, FOR UPDATE clause, IF NOT EXISTS guard,
+				// keyword-as-alias, CASE expression) and must stay flat so the
+				// next ';' still splits. A stray top-level closer suffix (the IF
+				// in `END IF`) is likewise not statement-leading, so it cannot
+				// reopen a block.
+				if atStmtStart {
+					state = stateInBlock
+					depth = 1
+					prevWasEnd = false
+				}
+				atStmtStart = false
 			case int(';'):
-				prevWasEnd = false
 				emit(tok.Loc.Start)
 				stmtStart = tok.Loc.End
+				atStmtStart = true
 			default:
-				prevWasEnd = false
+				atStmtStart = false
 			}
 
 		case stateInBlock:
@@ -217,10 +262,13 @@ func Split(input string) []Segment {
 				if depth > 0 {
 					depth--
 					if depth == 0 {
-						// Return to stateTop but KEEP prevWasEnd set: a typed
-						// closer's suffix keyword (END IF / END WHILE / …) may
-						// follow and must be recognized as the suffix by the
-						// stateTop arm above, not mistaken for a new opener.
+						// Return to stateTop. atStmtStart is still false (it was
+						// cleared when this block opened and stateInBlock never
+						// sets it), so a typed closer's suffix keyword that
+						// follows (END IF / END WHILE / …) is correctly seen as
+						// non-statement-leading by the stateTop arm above and
+						// cannot reopen a block. The next top-level ';' is the
+						// only thing that re-arms atStmtStart.
 						state = stateTop
 					}
 				}
