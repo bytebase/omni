@@ -164,6 +164,12 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwTABLE:
 		return p.parseAlterTableStmt()
 	case kwDATABASE:
+		// ALTER DATABASE ROLE ... (T4.6) vs ALTER DATABASE ... (T2.1). DATABASE ROLE
+		// is disambiguated by the ROLE keyword following DATABASE.
+		if p.peekNext().Type == kwROLE {
+			p.advance() // consume DATABASE
+			return p.parseAlterRoleStmt(true)
+		}
 		return p.parseAlterDatabaseStmt()
 	case kwSCHEMA:
 		return p.parseAlterSchemaStmt()
@@ -222,9 +228,41 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		// CONNECTION, GIT REPOSITORY. A bare ALTER INTEGRATION (qualifier omitted)
 		// dispatches here too. parseAlterIntegrationStmt consumes the keyword(s).
 		return p.parseAlterIntegrationStmt()
+	case kwROLE:
+		// ALTER ROLE ... (T4.6). DATABASE ROLE is dispatched by the kwDATABASE case.
+		return p.parseAlterRoleStmt(false)
+	case kwUSER:
+		// ALTER USER ... (T4.6).
+		return p.parseAlterUserStmt()
+	case kwMASKING, kwSESSION, kwPASSWORD, kwNETWORK, kwROW:
+		// ALTER { MASKING | ROW ACCESS | SESSION | PASSWORD | NETWORK } POLICY ...
+		// (T4.6). Only routed to the policy parser when the kind keyword is actually
+		// followed by POLICY (and, for ROW, ACCESS POLICY); otherwise a same-prefix
+		// non-policy statement (e.g. ALTER SESSION SET ...) is left unsupported here.
+		if p.startsPolicyKeyword() {
+			return p.parseAlterPolicyDispatch()
+		}
+		return p.unsupported("ALTER")
 	default:
+		// AUTHENTICATION is not a reserved keyword, so ALTER AUTHENTICATION POLICY
+		// lexes as an "AUTHENTICATION" identifier followed by POLICY (T4.6).
+		if p.startsPolicyKeyword() {
+			return p.parseAlterPolicyDispatch()
+		}
 		return p.unsupported("ALTER")
 	}
+}
+
+// parseAlterPolicyDispatch consumes the policy-kind keyword(s) + the POLICY
+// keyword and delegates to parseAlterPolicyStmt (T4.6). On entry cur is the
+// first policy-kind word; the caller has confirmed startsPolicyKeyword.
+func (p *Parser) parseAlterPolicyDispatch() (ast.Node, error) {
+	startLoc := p.cur.Loc // policy-kind keyword anchors Loc.Start (ALTER convention)
+	kind, err := p.consumePolicyKeywords()
+	if err != nil {
+		return nil, err
+	}
+	return p.parseAlterPolicyStmt(startLoc, kind)
 }
 
 // ---------------------------------------------------------------------------

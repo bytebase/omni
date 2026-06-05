@@ -3352,6 +3352,276 @@ var (
 )
 
 // ---------------------------------------------------------------------------
+// Access-control DDL — CREATE / ALTER ROLE / USER / { MASKING | ROW ACCESS |
+// SESSION | PASSWORD | NETWORK | AUTHENTICATION } POLICY (T4.6)
+// ---------------------------------------------------------------------------
+//
+// Roles, users, and the six policy objects share the open-ended `KEY = <value>`
+// option-bag approach already merged for STAGE (T4.1) / FILE FORMAT (T4.2) /
+// COPY (T5.2) / pipeline (T4.3): every option a CREATE/ALTER USER or
+// SESSION/PASSWORD/NETWORK/AUTHENTICATION POLICY carries is a version-growing
+// vocabulary the catalog/semantic layer — not the parser — validates, so each
+// option is captured as a CopyOption rather than enumerated against the
+// already-stale legacy ANTLR rules (which lack, e.g., the network policy's
+// ALLOWED_NETWORK_RULE_LIST, the user's TYPE / RSA_PUBLIC_KEY_2, and the whole
+// AUTHENTICATION POLICY object). The two structurally distinct objects —
+// MASKING POLICY and ROW ACCESS POLICY — carry a typed argument list, a RETURNS
+// type, and an expression body after `->`; those are modeled as dedicated fields
+// (Args / Returns / Body), with the body reusing the expression parser so it
+// participates in walks / query-span / analysis. COMMENT and other trailing
+// `KEY = value` options after the body are captured open-ended in Options.
+
+// PolicyKind discriminates the six access-control policy object types.
+type PolicyKind int
+
+const (
+	PolicyMasking        PolicyKind = iota // MASKING POLICY
+	PolicyRowAccess                        // ROW ACCESS POLICY
+	PolicySession                          // SESSION POLICY
+	PolicyPassword                         // PASSWORD POLICY
+	PolicyNetwork                          // NETWORK POLICY
+	PolicyAuthentication                   // AUTHENTICATION POLICY
+)
+
+// String returns the SQL spelling of a PolicyKind (without the trailing POLICY).
+func (k PolicyKind) String() string {
+	switch k {
+	case PolicyMasking:
+		return "MASKING"
+	case PolicyRowAccess:
+		return "ROW ACCESS"
+	case PolicySession:
+		return "SESSION"
+	case PolicyPassword:
+		return "PASSWORD"
+	case PolicyNetwork:
+		return "NETWORK"
+	case PolicyAuthentication:
+		return "AUTHENTICATION"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// PolicyArg is one `<arg_name> <arg_type>` entry in a MASKING / ROW ACCESS
+// policy's signature: AS ( <arg_name> <arg_type> [ , ... ] ).
+type PolicyArg struct {
+	Name     Ident
+	DataType *TypeName
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *PolicyArg) Tag() NodeTag { return T_PolicyArg }
+
+// CreateRoleStmt represents
+//
+//	CREATE [ OR REPLACE ] [ DATABASE ] ROLE [ IF NOT EXISTS ] <name>
+//	  [ COMMENT = '<string_literal>' ]
+//	  [ [ WITH ] TAG ( <tag_name> = '<tag_value>' [ , ... ] ) ]
+//
+// Database is true for the CREATE DATABASE ROLE form (its <name> may be
+// db-qualified, db_name.role_name). Account roles take an unqualified name.
+type CreateRoleStmt struct {
+	OrReplace   bool
+	Database    bool // CREATE DATABASE ROLE
+	IfNotExists bool
+	Name        *ObjectName
+	Comment     *string          // COMMENT = '...'; nil if absent
+	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateRoleStmt) Tag() NodeTag { return T_CreateRoleStmt }
+
+// CreateUserStmt represents
+//
+//	CREATE [ OR REPLACE ] USER [ IF NOT EXISTS ] <name>
+//	  [ objectProperties ] [ objectParams ] [ sessionParams ]
+//	  [ [ WITH ] TAG ( <tag_name> = '<tag_value>' [ , ... ] ) ]
+//
+// Every property/parameter (PASSWORD / LOGIN_NAME / DISPLAY_NAME / DEFAULT_ROLE
+// / DEFAULT_WAREHOUSE / RSA_PUBLIC_KEY / DEFAULT_SECONDARY_ROLES / TYPE /
+// MUST_CHANGE_PASSWORD / network-policy / session params / ...) is captured
+// open-ended as a CopyOption, preserving source order.
+type CreateUserStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Options     []*CopyOption    // open-ended objectProperties / objectParams / sessionParams
+	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateUserStmt) Tag() NodeTag { return T_CreateUserStmt }
+
+// CreatePolicyStmt represents the CREATE form of the six access-control policy
+// objects (one node, discriminated by Kind):
+//
+//	CREATE [ OR REPLACE ] MASKING POLICY [ IF NOT EXISTS ] <name>
+//	  AS ( <arg> <type> [ , ... ] ) RETURNS <type> -> <body>
+//	  [ COMMENT = '...' ] [ EXEMPT_OTHER_POLICIES = { TRUE | FALSE } ]
+//
+//	CREATE [ OR REPLACE ] ROW ACCESS POLICY [ IF NOT EXISTS ] <name>
+//	  AS ( <arg> <type> [ , ... ] ) RETURNS BOOLEAN -> <body> [ COMMENT = '...' ]
+//
+//	CREATE [ OR REPLACE ] { SESSION | PASSWORD | NETWORK | AUTHENTICATION } POLICY
+//	  [ IF NOT EXISTS ] <name> [ <option> ... ]
+//
+// For MASKING / ROW ACCESS policies Args holds the typed signature, Returns the
+// RETURNS type, and Body the `-> <expr>` body (an expression node). For the
+// SESSION / PASSWORD / NETWORK / AUTHENTICATION policies Args/Returns/Body are
+// nil and Options holds the open-ended option bag. Trailing options after a
+// MASKING / ROW ACCESS body (COMMENT / EXEMPT_OTHER_POLICIES) are also captured
+// in Options.
+type CreatePolicyStmt struct {
+	Kind        PolicyKind
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Args        []*PolicyArg  // MASKING / ROW ACCESS signature; nil for option-bag policies
+	Returns     *TypeName     // RETURNS <type>; nil for option-bag policies
+	Body        Node          // `-> <expr>` body; nil for option-bag policies
+	Options     []*CopyOption // option bag + trailing COMMENT / EXEMPT_OTHER_POLICIES
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreatePolicyStmt) Tag() NodeTag { return T_CreatePolicyStmt }
+
+// AlterRoleAction discriminates the action variants of ALTER ROLE.
+type AlterRoleAction int
+
+const (
+	AlterRoleRename     AlterRoleAction = iota // RENAME TO <new_name>
+	AlterRoleSetComment                        // SET COMMENT = '...'
+	AlterRoleUnset                             // UNSET COMMENT
+	AlterRoleSetTag                            // SET TAG <tag> = '<value>' [ , ... ]
+	AlterRoleUnsetTag                          // UNSET TAG <tag> [ , ... ]
+)
+
+// AlterRoleStmt represents ALTER [ DATABASE ] ROLE [ IF EXISTS ] <name> <action>.
+//
+//	RENAME TO <new_name>
+//	SET COMMENT = '<string>'
+//	UNSET COMMENT
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
+//
+// Database is true for ALTER DATABASE ROLE.
+type AlterRoleStmt struct {
+	Database  bool
+	IfExists  bool
+	Name      *ObjectName
+	Action    AlterRoleAction
+	NewName   *ObjectName      // RENAME TO target; for AlterRoleRename
+	Comment   *string          // SET COMMENT = '...'; for AlterRoleSetComment
+	Tags      []*TagAssignment // SET TAG (...) assignments; for AlterRoleSetTag
+	UnsetTags []*ObjectName    // UNSET TAG names; for AlterRoleUnsetTag
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *AlterRoleStmt) Tag() NodeTag { return T_AlterRoleStmt }
+
+// AlterUserAction discriminates the action variants of ALTER USER.
+type AlterUserAction int
+
+const (
+	AlterUserRename          AlterUserAction = iota // RENAME TO <new_name>
+	AlterUserResetPassword                          // RESET PASSWORD
+	AlterUserAbortQueries                           // ABORT ALL QUERIES
+	AlterUserSet                                    // SET <options>
+	AlterUserUnset                                  // UNSET <property> [ , ... ]
+	AlterUserSetTag                                 // SET TAG <tag> = '<value>' [ , ... ]
+	AlterUserUnsetTag                               // UNSET TAG <tag> [ , ... ]
+	AlterUserAddDelegated                           // ADD DELEGATED AUTHORIZATION ...
+	AlterUserRemoveDelegated                        // REMOVE DELEGATED ... FROM SECURITY INTEGRATION ...
+)
+
+// AlterUserStmt represents ALTER USER [ IF EXISTS ] <name> <action>.
+//
+//	RENAME TO <new_name>
+//	RESET PASSWORD
+//	ABORT ALL QUERIES
+//	SET <options>                                  -- open-ended KEY = value
+//	UNSET <property> [ , ... ]
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
+//	ADD DELEGATED AUTHORIZATION OF ROLE <r> TO SECURITY INTEGRATION <i>
+//	REMOVE DELEGATED { AUTHORIZATION OF ROLE <r> | AUTHORIZATIONS } FROM SECURITY INTEGRATION <i>
+//
+// The ADD / REMOVE DELEGATED forms are captured structurally only by Action
+// (their body identifiers are consumed but not modeled), matching the
+// open-ended philosophy; Raw holds their verbatim source for round-tripping.
+type AlterUserStmt struct {
+	IfExists   bool
+	Name       *ObjectName
+	Action     AlterUserAction
+	NewName    *ObjectName      // RENAME TO target; for AlterUserRename
+	Options    []*CopyOption    // SET <options>; for AlterUserSet
+	UnsetProps []string         // UNSET <property> names; for AlterUserUnset
+	Tags       []*TagAssignment // SET TAG (...) assignments; for AlterUserSetTag
+	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterUserUnsetTag
+	Raw        string           // verbatim tail for ADD / REMOVE DELEGATED forms
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterUserStmt) Tag() NodeTag { return T_AlterUserStmt }
+
+// AlterPolicyAction discriminates the action variants of ALTER <...> POLICY.
+type AlterPolicyAction int
+
+const (
+	AlterPolicyRename   AlterPolicyAction = iota // RENAME TO <new_name>
+	AlterPolicySetBody                           // SET BODY -> <expr> (MASKING / ROW ACCESS)
+	AlterPolicySet                               // SET <options> (COMMENT / option bag)
+	AlterPolicyUnset                             // UNSET <property> [ , ... ]
+	AlterPolicySetTag                            // SET TAG <tag> = '<value>' [ , ... ]
+	AlterPolicyUnsetTag                          // UNSET TAG <tag> [ , ... ]
+)
+
+// AlterPolicyStmt represents the ALTER form of the six access-control policy
+// objects (one node, discriminated by Kind):
+//
+//	RENAME TO <new_name>
+//	SET BODY -> <expr>                  -- MASKING / ROW ACCESS only
+//	SET { COMMENT = '...' | <options> }
+//	UNSET { COMMENT | <property> } [ , ... ]
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
+type AlterPolicyStmt struct {
+	Kind       PolicyKind
+	IfExists   bool
+	Name       *ObjectName
+	Action     AlterPolicyAction
+	NewName    *ObjectName      // RENAME TO target; for AlterPolicyRename
+	Body       Node             // SET BODY -> <expr>; for AlterPolicySetBody
+	Options    []*CopyOption    // SET <options>; for AlterPolicySet
+	UnsetProps []string         // UNSET <property> names; for AlterPolicyUnset
+	Tags       []*TagAssignment // SET TAG (...) assignments; for AlterPolicySetTag
+	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterPolicyUnsetTag
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterPolicyStmt) Tag() NodeTag { return T_AlterPolicyStmt }
+
+// Compile-time assertions for access-control DDL nodes.
+var (
+	_ Node = (*PolicyArg)(nil)
+	_ Node = (*CreateRoleStmt)(nil)
+	_ Node = (*CreateUserStmt)(nil)
+	_ Node = (*CreatePolicyStmt)(nil)
+	_ Node = (*AlterRoleStmt)(nil)
+	_ Node = (*AlterUserStmt)(nil)
+	_ Node = (*AlterPolicyStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
 // Routine DDL — CREATE / ALTER FUNCTION & PROCEDURE (T4.5)
 // ---------------------------------------------------------------------------
 //
