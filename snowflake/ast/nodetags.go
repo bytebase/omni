@@ -131,6 +131,16 @@ const (
 	T_BeginStmt
 	T_CommitStmt
 	T_RollbackStmt
+
+	// Table-variant + sequence DDL tags (T4.4)
+	T_CreateDynamicTableStmt
+	T_AlterDynamicTableStmt
+	T_ExternalColumnDef
+	T_CreateExternalTableStmt
+	T_AlterExternalTableStmt
+	T_CreateEventTableStmt
+	T_CreateSequenceStmt
+	T_AlterSequenceStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -312,6 +322,22 @@ func (t NodeTag) String() string {
 		return "CommitStmt"
 	case T_RollbackStmt:
 		return "RollbackStmt"
+	case T_CreateDynamicTableStmt:
+		return "CreateDynamicTableStmt"
+	case T_AlterDynamicTableStmt:
+		return "AlterDynamicTableStmt"
+	case T_ExternalColumnDef:
+		return "ExternalColumnDef"
+	case T_CreateExternalTableStmt:
+		return "CreateExternalTableStmt"
+	case T_AlterExternalTableStmt:
+		return "AlterExternalTableStmt"
+	case T_CreateEventTableStmt:
+		return "CreateEventTableStmt"
+	case T_CreateSequenceStmt:
+		return "CreateSequenceStmt"
+	case T_AlterSequenceStmt:
+		return "AlterSequenceStmt"
 	default:
 		return "Unknown"
 	}

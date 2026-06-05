@@ -197,6 +197,19 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwPROCEDURE:
 		// ALTER PROCEDURE ... (T4.5).
 		return p.parseAlterProcedureStmt()
+	case kwDYNAMIC:
+		// ALTER DYNAMIC TABLE ... (T4.4). The sub-parser consumes DYNAMIC + TABLE.
+		return p.parseAlterDynamicTableStmt()
+	case kwEXTERNAL:
+		// ALTER EXTERNAL TABLE ... (T4.4). The sub-parser consumes EXTERNAL +
+		// TABLE; any other EXTERNAL object is unsupported here.
+		if p.peekNext().Type == kwTABLE {
+			return p.parseAlterExternalTableStmt()
+		}
+		return p.unsupported("ALTER")
+	case kwSEQUENCE:
+		// ALTER SEQUENCE ... (T4.4). (ALTER EVENT TABLE goes through ALTER TABLE.)
+		return p.parseAlterSequenceStmt()
 	default:
 		return p.unsupported("ALTER")
 	}
