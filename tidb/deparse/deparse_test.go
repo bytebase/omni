@@ -942,6 +942,34 @@ func TestDeparseSelect_Section_5_1_NilStmt(t *testing.T) {
 	}
 }
 
+// TestDeparseSelect_WithClauseOnSetOp guards that a query-expression WITH on a
+// set operation round-trips. The parser attaches it to the set-op root node;
+// deparse must read CTEs off the root (not the leftmost leaf), else the WITH is
+// silently dropped and the output references an undefined CTE. A CTE that lives
+// INSIDE a parenthesized operand must stay inside its parens (not hoisted).
+func TestDeparseSelect_WithClauseOnSetOp(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"bare", "WITH cte AS (SELECT 1 AS x) SELECT x FROM cte UNION SELECT x FROM cte",
+			"with `cte` as (select 1 AS `x`) select `x` AS `x` from `cte` union select `x` AS `x` from `cte`"},
+		{"paren_operands", "WITH cte AS (SELECT 1 AS x) (SELECT x FROM cte) UNION (SELECT x FROM cte)",
+			"with `cte` as (select 1 AS `x`) (select `x` AS `x` from `cte`) union (select `x` AS `x` from `cte`)"},
+		{"cte_inside_operand", "(WITH a AS (SELECT 1 AS x) SELECT x FROM a) UNION (SELECT 2)",
+			"(with `a` as (select 1 AS `x`) select `x` AS `x` from `a`) union (select 2 AS `2`)"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := DeparseSelect(parseSelect(t, tc.input))
+			if got != tc.expected {
+				t.Errorf("DeparseSelect(%q) =\n  %q\nwant:\n  %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
 // TestDeparseSelect_ParenthesizedQuery is the load-bearing round-trip guard for
 // the ParenSource wrapper: a consumer that silently drops ParenSource parses
 // fine but deparses wrong. Each case proves BOTH the inner and the OUTER scope

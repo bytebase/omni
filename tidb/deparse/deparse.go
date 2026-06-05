@@ -323,18 +323,15 @@ func deparseSetOperation(stmt *ast.SelectStmt) string {
 	return b.String()
 }
 
-// extractCTEs walks down the left spine of a set operation tree and extracts
-// CTEs from the leftmost leaf SelectStmt, clearing them so they aren't emitted
-// again by deparseSelectStmt.
+// extractCTEs returns the WITH clause of a set-operation query expression. The
+// parser attaches a query-expression-level WITH to the set-op ROOT node (the
+// WITH applies to the whole UNION, not just the leftmost operand — a
+// parenthesized operand's own WITH stays inside its parens). The CTEs are
+// cleared so deparseSelectStmt doesn't emit them again.
 func extractCTEs(stmt *ast.SelectStmt) []*ast.CommonTableExpr {
-	// Walk to the leftmost leaf
-	cur := stmt
-	for cur.SetOp != ast.SetOpNone && cur.Left != nil {
-		cur = cur.Left
-	}
-	if len(cur.CTEs) > 0 {
-		ctes := cur.CTEs
-		cur.CTEs = nil // prevent double emission
+	if len(stmt.CTEs) > 0 {
+		ctes := stmt.CTEs
+		stmt.CTEs = nil // prevent double emission
 		return ctes
 	}
 	return nil

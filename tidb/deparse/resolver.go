@@ -121,11 +121,11 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 	}
 	// Handle set operations recursively
 	if stmt.SetOp != ast.SetOpNone {
-		// Before recursing, hoist CTEs from the leftmost leaf so they are
-		// visible to both sides of the set operation (matching MySQL semantics
-		// where WITH ... applies to the entire UNION).
+		// The query-expression WITH lives on the set-op root node; register it
+		// so it is visible to both sides of the set operation (matching MySQL
+		// semantics where WITH ... applies to the entire UNION).
 		mergedCTETables := cteTables
-		if leftCTEs := collectLeftmostCTEs(stmt); len(leftCTEs) > 0 {
+		if leftCTEs := collectSetOpCTEs(stmt); len(leftCTEs) > 0 {
 			mergedCTETables = make(map[string]*ResolverTable)
 			if cteTables != nil {
 				for k, v := range cteTables {
@@ -823,18 +823,14 @@ func (r *Resolver) withCTELookup(cteTables map[string]*ResolverTable) TableLooku
 	}
 }
 
-// collectLeftmostCTEs walks down the left spine of a set operation tree and
-// returns CTEs from the leftmost leaf. Unlike extractCTEs in the deparser,
-// this does NOT clear the CTEs — they must remain in the AST for the deparser
-// to emit the WITH clause later. Instead, it marks them as already-resolved
-// by removing them from a copy so the resolver doesn't double-process.
-func collectLeftmostCTEs(stmt *ast.SelectStmt) []*ast.CommonTableExpr {
-	cur := stmt
-	for cur.SetOp != ast.SetOpNone && cur.Left != nil {
-		cur = cur.Left
-	}
-	if len(cur.CTEs) > 0 {
-		return cur.CTEs
+// collectSetOpCTEs returns the WITH clause of a set-operation query expression.
+// The parser attaches a query-expression-level WITH to the set-op ROOT node, so
+// both operands can see it (matching MySQL, where WITH applies to the whole
+// UNION). A parenthesized operand's own WITH lives inside its parens and is
+// resolved when that operand is recursed into.
+func collectSetOpCTEs(stmt *ast.SelectStmt) []*ast.CommonTableExpr {
+	if len(stmt.CTEs) > 0 {
+		return stmt.CTEs
 	}
 	return nil
 }

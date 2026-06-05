@@ -2466,27 +2466,54 @@ func TestAnalyze_12_5_RecursiveCTE(t *testing.T) {
 func TestAnalyze_ParenthesizedQuery(t *testing.T) {
 	c := setupJoinTables(t)
 
-	t.Run("paren_select_outer_order", func(t *testing.T) {
-		sel := parseSelect(t, `(SELECT name FROM employees) ORDER BY name`)
-		q, err := c.AnalyzeSelectStmt(sel)
+	// nonJunk returns the output (non-junk) column names of an analyzed query.
+	nonJunk := func(q *Query) []string {
+		var names []string
+		for _, te := range q.TargetList {
+			if !te.ResJunk {
+				names = append(names, te.ResName)
+			}
+		}
+		return names
+	}
+
+	t.Run("outer_order_applied", func(t *testing.T) {
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, `(SELECT name FROM employees) ORDER BY name`))
 		assertNoError(t, err)
-		if len(q.TargetList) != 1 || q.TargetList[0].ResName != "name" {
-			t.Fatalf("TargetList: want [name], got %+v", q.TargetList)
+		if cols := nonJunk(q); len(cols) != 1 || cols[0] != "name" {
+			t.Fatalf("columns: want [name], got %v", cols)
+		}
+		if len(q.SortClause) == 0 {
+			t.Error("outer ORDER BY not applied to analyzed query (SortClause empty)")
 		}
 	})
 
-	t.Run("two_scope_limit", func(t *testing.T) {
-		sel := parseSelect(t, `(SELECT name FROM employees LIMIT 5) LIMIT 2`)
-		q, err := c.AnalyzeSelectStmt(sel)
+	t.Run("outer_limit_applied", func(t *testing.T) {
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, `(SELECT name FROM employees) LIMIT 2`))
 		assertNoError(t, err)
-		if len(q.TargetList) != 1 || q.TargetList[0].ResName != "name" {
-			t.Fatalf("TargetList: want [name], got %+v", q.TargetList)
+		if cols := nonJunk(q); len(cols) != 1 || cols[0] != "name" {
+			t.Fatalf("columns: want [name], got %v", cols)
+		}
+		if q.LimitCount == nil {
+			t.Error("outer LIMIT not applied to analyzed query (LimitCount nil)")
+		}
+	})
+
+	t.Run("two_scope_limit_keeps_inner", func(t *testing.T) {
+		// Inner LIMIT 5 and outer LIMIT 2 cannot both live on the flat Query IR;
+		// the inner is kept (the AST / stored Definition path preserves both).
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, `(SELECT name FROM employees LIMIT 5) LIMIT 2`))
+		assertNoError(t, err)
+		if cols := nonJunk(q); len(cols) != 1 || cols[0] != "name" {
+			t.Fatalf("columns: want [name], got %v", cols)
+		}
+		if q.LimitCount == nil {
+			t.Error("inner LIMIT lost (LimitCount nil)")
 		}
 	})
 
 	t.Run("paren_union", func(t *testing.T) {
-		sel := parseSelect(t, `(SELECT name FROM employees) UNION (SELECT name FROM departments)`)
-		q, err := c.AnalyzeSelectStmt(sel)
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, `(SELECT name FROM employees) UNION (SELECT name FROM departments)`))
 		assertNoError(t, err)
 		if q.SetOp != SetOpUnion {
 			t.Errorf("SetOp: want SetOpUnion, got %d", q.SetOp)
@@ -2494,8 +2521,8 @@ func TestAnalyze_ParenthesizedQuery(t *testing.T) {
 		if q.LArg == nil || q.RArg == nil {
 			t.Fatal("LArg/RArg: want non-nil")
 		}
-		if len(q.TargetList) != 1 || q.TargetList[0].ResName != "name" {
-			t.Fatalf("TargetList: want [name], got %+v", q.TargetList)
+		if cols := nonJunk(q); len(cols) != 1 || cols[0] != "name" {
+			t.Fatalf("columns: want [name], got %v", cols)
 		}
 	})
 }

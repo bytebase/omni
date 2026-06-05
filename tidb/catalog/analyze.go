@@ -1000,11 +1000,10 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 	return q, nil
 }
 
-// analyzeParenSourceWithCTEs analyzes a parenthesized query expression. A
-// parenthesized query exposes exactly the inner query's columns and command
-// type; the wrapper's OUTER ORDER BY / LIMIT are presentation and do not change
-// the column set, so the inner analysis is returned directly. The wrapper's own
-// CTEs are made visible to the inner query.
+// analyzeParenSourceWithCTEs analyzes a parenthesized query expression. Its
+// result columns and command type come from the inner query; the wrapper's own
+// CTEs are made visible to the inner query, and its OUTER ORDER BY / LIMIT are
+// applied to the analyzed query (validated against the inner result columns).
 func (c *Catalog) analyzeParenSourceWithCTEs(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
 	cteHolder := &Query{CommandType: CmdSelect, JoinTree: &JoinTreeQ{}}
 	cteMap, err := c.analyzeCTEs(stmt.CTEs, cteHolder, parentScope)
@@ -1022,7 +1021,42 @@ func (c *Catalog) analyzeParenSourceWithCTEs(stmt *nodes.SelectStmt, parentScope
 		}
 	}
 
-	return c.analyzeSelectStmtWithCTEs(stmt.ParenSource, parentScope, cteMap)
+	q, err := c.analyzeSelectStmtWithCTEs(stmt.ParenSource, parentScope, cteMap)
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply the wrapper's OUTER ORDER BY / LIMIT onto the analyzed query when the
+	// inner query does not already carry that clause (the common case, e.g.
+	// "(SELECT a) LIMIT 2" / "(SELECT a) ORDER BY a"). The flat Query IR cannot
+	// hold two scopes of the same clause, so for "(SELECT a LIMIT 5) LIMIT 2" the
+	// inner clause is kept and the outer is not copied here — the AST / stored
+	// view Definition (deparsed via DeparseSelect) still preserves both scopes.
+	needsOrder := len(stmt.OrderBy) > 0 && len(q.SortClause) == 0
+	needsLimit := stmt.Limit != nil && q.LimitCount == nil && q.LimitOffset == nil
+	if !needsOrder && !needsLimit {
+		return q, nil
+	}
+	scope := newScope()
+	var cols []*Column
+	for _, te := range q.TargetList {
+		if te.ResJunk {
+			continue
+		}
+		cols = append(cols, &Column{Position: len(cols) + 1, Name: te.ResName})
+	}
+	scope.add("__paren__", 0, cols)
+	if needsOrder {
+		if err := c.analyzeOrderBy(stmt.OrderBy, q, scope); err != nil {
+			return nil, err
+		}
+	}
+	if needsLimit {
+		if err := c.analyzeLimitOffset(stmt.Limit, q, scope); err != nil {
+			return nil, err
+		}
+	}
+	return q, nil
 }
 
 // AnalyzeStandaloneExpr analyzes an expression in the context of a single table.
