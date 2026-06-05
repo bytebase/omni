@@ -1010,6 +1010,6 @@ func TestATAddColumnOverLimit(t *testing.T) {
 
 	// Try to add one more column — should fail.
 	err := c.AlterTableStmt(makeAlterTableStmt("", "big_t",
-		makeATAddColumn(ColumnDef{Name: "extra", Type: TypeName{Name: "int4", TypeMod: -1}})))
+		makeATAddColumn(ColumnDef{Name: "extra", Type: TypeName{Name: "int4", TypeMod: -1}}, false)))
 	assertErrorCode(t, err, CodeTooManyColumns)
 }
