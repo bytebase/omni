@@ -167,6 +167,25 @@ func TestDefineView_ParenthesizedBodyColumns(t *testing.T) {
 	}
 }
 
+// TestDefineView_CTEParenthesizedSetOpBody guards SELECT * expansion when a CTE
+// body is a parenthesized (set-op) query. The CTE virtual table must derive its
+// columns from the inner leftmost SELECT — if the resolver reads the empty
+// ParenSource wrapper, SELECT * FROM cte expands to nothing.
+func TestDefineView_CTEParenthesizedSetOpBody(t *testing.T) {
+	c := newCatalogWithDB(t, "mydb")
+	ddl := "CREATE VIEW v AS WITH cte AS ((SELECT 1 AS a) UNION (SELECT 2 AS a)) SELECT * FROM cte"
+	if err := c.DefineView(mustParseView(t, ddl)); err != nil {
+		t.Fatalf("DefineView: %v", err)
+	}
+	view := c.GetDatabase("mydb").Views["v"]
+	if view == nil {
+		t.Fatal("view not registered")
+	}
+	if len(view.Columns) != 1 || view.Columns[0] != "a" {
+		t.Errorf("Columns = %v, want [a] (SELECT * FROM cte must expand the CTE column)", view.Columns)
+	}
+}
+
 func TestDefineView_HappyPath(t *testing.T) {
 	c := newCatalogWithDB(t, "mydb")
 	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE t (id INT PRIMARY KEY)")); err != nil {
