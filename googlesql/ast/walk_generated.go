@@ -26,6 +26,30 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Options {
 			Walk(v, c)
 		}
+	case *AlterChangeStreamStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.ForTables {
+			Walk(v, c)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *AlterLocalityGroupStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.SetOptions {
+			Walk(v, c)
+		}
+	case *AlterSequenceStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.SetOptions {
+			Walk(v, c)
+		}
 	case *AlterStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -106,6 +130,10 @@ func walkChildren(v Visitor, node Node) {
 		}
 		Walk(v, n.Format)
 		Walk(v, n.TimeZone)
+	case *ChangeStreamTrackedTable:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *ClampedModifier:
 		Walk(v, n.Low)
 		Walk(v, n.High)
@@ -124,6 +152,16 @@ func walkChildren(v Visitor, node Node) {
 	case *CompareExpr:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
+	case *CreateChangeStreamStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.ForTables {
+			Walk(v, c)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *CreateDatabaseStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -175,6 +213,13 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Options {
 			Walk(v, c)
 		}
+	case *CreateLocalityGroupStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *CreateMaterializedViewStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -201,6 +246,10 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Options {
 			Walk(v, c)
 		}
+	case *CreateRoleStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *CreateRowAccessPolicyStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
@@ -210,6 +259,13 @@ func walkChildren(v Visitor, node Node) {
 		}
 		Walk(v, n.Filter)
 	case *CreateSchemaStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *CreateSequenceStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
@@ -290,6 +346,22 @@ func walkChildren(v Visitor, node Node) {
 	case *DropAllRowAccessPoliciesStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
+		}
+	case *DropChangeStreamStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *DropLocalityGroupStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *DropRoleStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *DropSequenceStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 	case *DropStmt:
 		if n.Name != nil {

@@ -133,7 +133,33 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		return p.parseCreateRowAccessPolicy(create, orReplace)
+	// --- Spanner-only object CREATEs (parser-ddl-spanner node) ---
+	case kwSEQUENCE:
+		// CREATE SEQUENCE [IF NOT EXISTS] name [OPTIONS …] (spanner_sequence.go).
+		return p.parseCreateSequence(create, orReplace, scope)
+	case kwPROTO:
+		// CREATE PROTO BUNDLE ( … ) (spanner_sequence.go). PROTO is a reserved
+		// keyword; BUNDLE follows as a bare identifier.
+		if p.tokIsWord(p.peekNext(), "BUNDLE") {
+			return p.parseCreateProtoBundle(create, orReplace, scope)
+		}
+		return p.unsupported("CREATE")
 	default:
+		// Spanner objects whose leading word lexes as a BARE IDENTIFIER (CHANGE
+		// STREAM, LOCALITY GROUP) and ROLE — matched by spelling before the
+		// generic-entity fallback below, since the entity path would otherwise
+		// misparse the two-word object type.
+		if p.tokIsWord(p.cur, "CHANGE") && p.tokIsWord(p.peekNext(), "STREAM") {
+			return p.parseCreateChangeStream(create, orReplace, scope) // spanner_change_stream.go
+		}
+		if p.tokIsWord(p.cur, "LOCALITY") && p.tokIsWord(p.peekNext(), "GROUP") {
+			return p.parseCreateLocalityGroup(create, orReplace, scope) // spanner_sequence.go
+		}
+		if p.curIsRoleKeyword() {
+			// CREATE ROLE name (spanner_schema_role.go). First-class — supersedes the
+			// generic-entity parse the bare `ROLE` identifier would otherwise get.
+			return p.parseCreateRole(create, orReplace, scope)
+		}
 		// A generic-entity object kind whose keyword lexes as a bare identifier
 		// (BigQuery CAPACITY / RESERVATION / ASSIGNMENT, or PROJECT) is handled by
 		// the create_entity_statement path (bq_capacity.go). MODEL / EXTERNAL /
@@ -1123,22 +1149,29 @@ func (p *Parser) parseInterleaveInParent() (*ast.InterleaveClause, error) {
 	if err != nil {
 		return nil, err
 	}
-	// foreign_key_on_delete: ON DELETE action (required by the grammar here).
-	if _, err := p.expect(kwON); err != nil {
-		return nil, err
+	il := &ast.InterleaveClause{Parent: parent}
+	// foreign_key_on_delete is OPTIONAL on a Spanner INTERLEAVE IN PARENT clause:
+	// `INTERLEAVE IN PARENT p` (no ON DELETE) defaults to ON DELETE NO ACTION. The
+	// live emulator ACCEPTS the bare form and the explicit ON DELETE CASCADE/NO
+	// ACTION forms, but REJECTS a dangling `ON DELETE` with no action — so ON
+	// must be followed by DELETE <action> when present. (Owned divergence #112:
+	// the original parser-ddl port wrongly REQUIRED ON DELETE, over-rejecting the
+	// documented default — DDL-007 "NO ACTION (default)" — and the emulator-accepted
+	// `INTERLEAVE IN PARENT p`. This closes that over-reject; verified in
+	// spanner_ddl_oracle_test.go.)
+	if p.cur.Type == kwON {
+		p.advance() // ON
+		if _, err := p.expect(kwDELETE); err != nil {
+			return nil, err
+		}
+		act, err := p.parseForeignKeyAction()
+		if err != nil {
+			return nil, err
+		}
+		il.OnDelete = act
 	}
-	if _, err := p.expect(kwDELETE); err != nil {
-		return nil, err
-	}
-	act, err := p.parseForeignKeyAction()
-	if err != nil {
-		return nil, err
-	}
-	return &ast.InterleaveClause{
-		Parent:   parent,
-		OnDelete: act,
-		Loc:      ast.Loc{Start: start.Start, End: p.prev.Loc.End},
-	}, nil
+	il.Loc = ast.Loc{Start: start.Start, End: p.prev.Loc.End}
+	return il, nil
 }
 
 // parseKeyPartList parses a parenthesized key-part list. When pkElement is true

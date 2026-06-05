@@ -272,7 +272,11 @@ func TestGrantRevoke_Rejects(t *testing.T) {
 		"REVOKE ON table foo FROM 'x'",        // missing privileges
 		"REVOKE `select` ON table foo TO 'x'", // REVOKE uses FROM, not TO
 		"REVOKE `select` ON table foo",        // missing FROM
-		"GRANT ROLE analyst TO ROLE senior",   // Spanner role form: NOT in the ZetaSQL grammar
+		// NOTE: `GRANT ROLE analyst TO ROLE senior` is NO LONGER a reject — the
+		// parser-ddl-spanner node added the Spanner role-to-role grant to the union
+		// (emulator-authoritative: it ACCEPTS that form). See TestGrant_RoleToRole /
+		// spanner_ddl_test.go. The grantee must still not be a bare identifier
+		// (covered by `… TO foo` above), and `TO 'string'` is the legacy dialect.
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {

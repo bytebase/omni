@@ -148,7 +148,15 @@ func Classify(node ast.Node, dialect Dialect) QueryType {
 		*ast.CreateMaterializedViewStmt, *ast.CreateSnapshotStmt,
 		*ast.SearchVectorIndexStmt, *ast.CreateRowAccessPolicyStmt,
 		*ast.CreateEntityStmt, *ast.BQAlterStmt, *ast.BQDropStmt,
-		*ast.DropAllRowAccessPoliciesStmt:
+		*ast.DropAllRowAccessPoliciesStmt,
+		// Spanner-only object DDL (parser-ddl-spanner node): CHANGE STREAM,
+		// SEQUENCE, ROLE, LOCALITY GROUP, PROTO BUNDLE. Same DDL classification as
+		// every other CREATE/ALTER/DROP form.
+		*ast.CreateChangeStreamStmt, *ast.AlterChangeStreamStmt, *ast.DropChangeStreamStmt,
+		*ast.CreateSequenceStmt, *ast.AlterSequenceStmt, *ast.DropSequenceStmt,
+		*ast.CreateRoleStmt, *ast.DropRoleStmt,
+		*ast.CreateLocalityGroupStmt, *ast.AlterLocalityGroupStmt, *ast.DropLocalityGroupStmt,
+		*ast.CreateProtoBundleStmt, *ast.AlterProtoBundleStmt:
 		return DDL
 
 	// DCL — GRANT / REVOKE are DDL in the legacy listener (its rule list groups
