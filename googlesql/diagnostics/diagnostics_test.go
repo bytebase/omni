@@ -54,13 +54,14 @@ func TestSeverity_String(t *testing.T) {
 }
 
 func TestAnalyze_StubbedStatementShape(t *testing.T) {
-	// A statement whose body is still stubbed (CALL — its parser node has not
-	// landed) produces a "not yet supported" diagnostic. Assert the diagnostic
-	// shape. (The query family — SELECT/WITH — is implemented by parser-select
-	// and the DML family — INSERT/UPDATE/DELETE/MERGE/TRUNCATE — by parser-dml;
-	// both produce zero diagnostics for valid input. See
+	// A statement whose body is still stubbed (EXPORT DATA — its parser node has
+	// not landed) produces a "not yet supported" diagnostic. Assert the diagnostic
+	// shape. (The query family — SELECT/WITH — is implemented by parser-select,
+	// the DML family by parser-dml, and the transaction / utility family —
+	// BEGIN/COMMIT/ROLLBACK/ASSERT/ANALYZE/DESCRIBE/RENAME/CALL — by
+	// parser-utility; all produce zero diagnostics for valid input. See
 	// TestAnalyze_ValidQueryNoDiagnostics.)
-	diags := Analyze("CALL my_proc()")
+	diags := Analyze("EXPORT DATA AS SELECT 1")
 	if len(diags) != 1 {
 		t.Fatalf("expected 1 diagnostic, got %d: %+v", len(diags), diags)
 	}
@@ -74,7 +75,7 @@ func TestAnalyze_StubbedStatementShape(t *testing.T) {
 	if !strings.Contains(d.Message, "not yet supported") {
 		t.Errorf("message = %q, want it to mention 'not yet supported'", d.Message)
 	}
-	// CALL starts at byte 0 => line 1, col 1.
+	// EXPORT starts at byte 0 => line 1, col 1.
 	if d.Range.Start.Line != 1 || d.Range.Start.Column != 1 {
 		t.Errorf("start = (%d, %d), want (1, 1)", d.Range.Start.Line, d.Range.Start.Column)
 	}

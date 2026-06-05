@@ -33,6 +33,13 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Actions {
 			Walk(v, c)
 		}
+	case *AnalyzeStmt:
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+		for _, c := range n.Targets {
+			Walk(v, c)
+		}
 	case *ArrayExpr:
 		walkNodes(v, n.Elements)
 		if n.ElemType != nil {
@@ -40,6 +47,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *ArraySubqueryExpr:
 		Walk(v, n.Query)
+	case *AssertStmt:
+		Walk(v, n.Expr)
+		Walk(v, n.Description)
 	case *BetweenExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.Low)
@@ -57,6 +67,15 @@ func walkChildren(v Visitor, node Node) {
 		if n.Depth != nil {
 			Walk(v, n.Depth)
 		}
+	case *CallArg:
+		if n.Path != nil {
+			Walk(v, n.Path)
+		}
+	case *CallStmt:
+		if n.Proc != nil {
+			Walk(v, n.Proc)
+		}
+		walkNodes(v, n.Args)
 	case *CaseExpr:
 		Walk(v, n.Operand)
 		for _, c := range n.Whens {
@@ -172,6 +191,13 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.AssertRows)
 		if n.Returning != nil {
 			Walk(v, n.Returning)
+		}
+	case *DescribeStmt:
+		if n.Path != nil {
+			Walk(v, n.Path)
+		}
+		if n.FromPath != nil {
+			Walk(v, n.FromPath)
 		}
 	case *DropStmt:
 		if n.Name != nil {
@@ -355,6 +381,13 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Lower)
 		Walk(v, n.Upper)
 		Walk(v, n.Max)
+	case *RenameStmt:
+		if n.From != nil {
+			Walk(v, n.From)
+		}
+		if n.To != nil {
+			Walk(v, n.To)
+		}
 	case *ReplaceFieldsExpr:
 		Walk(v, n.Expr)
 		for _, c := range n.Items {
@@ -419,6 +452,10 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Value)
 	case *SubqueryExpr:
 		Walk(v, n.Query)
+	case *TableAndColumnInfo:
+		if n.Path != nil {
+			Walk(v, n.Path)
+		}
 	case *TableConstraint:
 		for _, c := range n.KeyParts {
 			Walk(v, c)
@@ -439,6 +476,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Func)
 		}
 		Walk(v, n.SystemTime)
+	case *TransactionStmt:
+		for _, c := range n.Modes {
+			Walk(v, c)
+		}
 	case *TruncateStmt:
 		if n.Target != nil {
 			Walk(v, n.Target)

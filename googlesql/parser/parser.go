@@ -354,12 +354,12 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwDROP:
 		return p.parseDropStmt()
 	case kwRENAME:
-		return p.unsupported("RENAME")
+		return p.parseRenameStmt()
 	case kwUNDROP:
 		return p.unsupported("UNDROP")
 	case kwTRUNCATE:
 		// TRUNCATE TABLE (a BigQuery DML statement; the .g4 groups it under DDL).
-		return p.parseDMLStatement(p.parseTruncateStmt)
+		return p.parseStmtWithSubqueries(p.parseTruncateStmt)
 	case kwDEFINE:
 		// DEFINE TABLE (DEFINE MACRO is intentionally unimplemented — a
 		// reserved error alt in the legacy grammar).
@@ -367,13 +367,13 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// --- DML ---
 	case kwINSERT:
-		return p.parseDMLStatement(p.parseInsertStmt)
+		return p.parseStmtWithSubqueries(p.parseInsertStmt)
 	case kwUPDATE:
-		return p.parseDMLStatement(p.parseUpdateStmt)
+		return p.parseStmtWithSubqueries(p.parseUpdateStmt)
 	case kwDELETE:
-		return p.parseDMLStatement(p.parseDeleteStmt)
+		return p.parseStmtWithSubqueries(p.parseDeleteStmt)
 	case kwMERGE:
-		return p.parseDMLStatement(p.parseMergeStmt)
+		return p.parseStmtWithSubqueries(p.parseMergeStmt)
 
 	// --- DCL ---
 	case kwGRANT:
@@ -383,37 +383,50 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// --- Transactions / batch / session ---
 	case kwBEGIN:
-		// BEGIN [TRANSACTION] (TCL) OR a procedural BEGIN…END block.
-		return p.unsupported("BEGIN")
+		// A top-level BEGIN is ambiguous: `BEGIN [TRANSACTION] [modes]` is a TCL
+		// transaction (begin_statement); `BEGIN … END` is a procedural block (owned
+		// by parser-scripting). Disambiguate with the SAME predicate the splitter
+		// uses (isTCLBeginFollower): a TCL follower (';' / EOF / TRANSACTION / READ /
+		// ISOLATION) means a transaction; anything else means a BEGIN…END block.
+		if isTCLBeginFollower(p.peekNext()) {
+			return p.parseBeginStmt()
+		}
+		return p.unsupported("BEGIN...END block")
 	case kwSTART:
-		// START TRANSACTION | START BATCH.
-		return p.unsupported("START")
+		// START TRANSACTION (begin_statement) | START BATCH (start_batch_statement).
+		return p.parseStartStmt()
 	case kwCOMMIT:
-		return p.unsupported("COMMIT")
+		return p.parseCommitStmt()
 	case kwROLLBACK:
-		return p.unsupported("ROLLBACK")
+		return p.parseRollbackStmt()
 	case kwSET:
+		// SET TRANSACTION / SET variable / SET system-var (set_statement) — owned by
+		// a separate node (not parser-utility).
 		return p.unsupported("SET")
 	case kwRUN:
-		return p.unsupported("RUN BATCH")
+		return p.parseRunBatchStmt()
 	case kwABORT:
-		return p.unsupported("ABORT BATCH")
+		return p.parseAbortBatchStmt()
 
 	// --- Utility / metadata ---
 	case kwEXPLAIN:
 		return p.unsupported("EXPLAIN")
 	case kwDESCRIBE:
-		return p.unsupported("DESCRIBE")
+		return p.parseDescribeStmt()
 	case kwDESC:
-		return p.unsupported("DESC")
+		return p.parseDescribeStmt()
 	case kwSHOW:
 		return p.unsupported("SHOW")
 	case kwANALYZE:
-		return p.unsupported("ANALYZE")
+		return p.parseAnalyzeStmt()
 	case kwASSERT:
-		return p.unsupported("ASSERT")
+		// ASSERT carries a full expression that may embed subqueries; wrap so they
+		// are re-parsed (fillSubqueries) for the query-span / lineage extractor.
+		return p.parseStmtWithSubqueries(p.parseAssertStmt)
 	case kwCALL:
-		return p.unsupported("CALL")
+		// CALL arguments are full expressions that may embed subqueries; wrap so
+		// they are re-parsed (fillSubqueries) like the query / DML paths.
+		return p.parseStmtWithSubqueries(p.parseCallStmt)
 	case kwEXECUTE:
 		// EXECUTE IMMEDIATE.
 		return p.unsupported("EXECUTE")
@@ -492,17 +505,21 @@ func (p *Parser) parseQueryStatement() (ast.Node, error) {
 	return q, nil
 }
 
-// parseDMLStatement runs a DML parse function and then fills every
-// expression-embedded subquery the way parseQueryStatement does. DML statements
-// carry expressions (VALUES rows, SET / merge-action values, WHERE / ON / merge
-// conditions, ASSERT_ROWS_MODIFIED, THEN RETURN items) that may contain
-// SubqueryExpr / ExistsExpr / ArraySubqueryExpr captured as RawText with
-// Query==nil by the frozen expressions node. fillSubqueries re-parses each into
-// a real *QueryStmt — which both (a) completes the tree for the downstream
-// query-span / lineage extractor and (b) surfaces a malformed embedded subquery
-// (e.g. `UPDATE t SET x = (SELECT 1 FROM s a b)`, which the oracle rejects on
-// the stray `b`) as a diagnostic, matching the query-statement path.
-func (p *Parser) parseDMLStatement(parse func() (ast.Node, error)) (ast.Node, error) {
+// parseStmtWithSubqueries runs a statement parse function and then fills every
+// expression-embedded subquery the way parseQueryStatement does. It wraps every
+// non-query statement that can carry full expressions: the DML family (VALUES
+// rows, SET / merge-action values, WHERE / ON / merge conditions,
+// ASSERT_ROWS_MODIFIED, THEN RETURN items) AND the utility statements that embed
+// expressions — ASSERT (`ASSERT expression`) and CALL (`CALL p(expr, …)`). Those
+// expressions may contain SubqueryExpr / ExistsExpr / ArraySubqueryExpr captured
+// as RawText with Query==nil by the frozen expressions node. fillSubqueries
+// re-parses each into a real *QueryStmt — which both (a) completes the tree for
+// the downstream query-span / lineage extractor (which walks the AST and needs
+// the inner *QueryStmt to resolve a subquery's tables/columns) and (b) surfaces
+// a malformed embedded subquery (e.g. `UPDATE t SET x = (SELECT 1 FROM s a b)` /
+// `ASSERT (SELECT 1 FROM s a b) = 1`, which the oracle rejects on the stray `b`)
+// as a diagnostic, matching the query-statement path.
+func (p *Parser) parseStmtWithSubqueries(parse func() (ast.Node, error)) (ast.Node, error) {
 	n, err := parse()
 	if err != nil {
 		return nil, err
