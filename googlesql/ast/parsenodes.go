@@ -2030,3 +2030,334 @@ var (
 	_ Node = (*AlterAction)(nil)
 	_ Node = (*DropStmt)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// DML — INSERT / UPDATE / DELETE / MERGE / TRUNCATE (parser-dml node)
+// ---------------------------------------------------------------------------
+//
+// These node types model the legacy ANTLR DML family (GoogleSQLParser.g4 §2.7),
+// a hand-port of Google's open-source ZetaSQL reference and the grammar bytebase
+// consumes today. One omni parser serves the BigQuery + Spanner union; the
+// dialect deltas are FEATURE rejections layered on top of a shared grammar (the
+// grammar parses MERGE, ON CONFLICT, THEN RETURN, INSERT OR UPDATE/IGNORE for
+// both, and the engine rejects the unsupported ones at execution). The
+// authoritative accept/reject oracle is the canonical ZetaSQL corpus
+// (parser/googlesql/examples/.../dml_*.sql) plus the live Spanner emulator for
+// the shared + Spanner-only forms (BigQuery-only forms — MERGE, TRUNCATE,
+// dashed paths — are triangulated against the docs + the .g4; the emulator's
+// verdict on them is NON-authoritative; see the divergence ledger).
+//
+// The grammar is (abbreviated):
+//
+//	insert_statement: insert_statement_prefix column_list? insert_values_or_query           opt_assert? opt_returning?
+//	                | insert_statement_prefix column_list? insert_values_list_or_table_clause on_conflict opt_assert? opt_returning?
+//	                | insert_statement_prefix column_list? '(' query ')'                       on_conflict opt_assert? opt_returning?
+//	insert_statement_prefix: INSERT opt_or_ignore_replace_update? INTO? <target> hint?
+//	opt_or_ignore_replace_update: [OR] IGNORE | [OR] REPLACE | [OR] UPDATE
+//	update_statement: UPDATE <target> hint? as_alias? with_offset? SET update_item_list from_clause? where? assert? returning?
+//	delete_statement: DELETE FROM? <target> hint? as_alias? with_offset? where? assert? returning?
+//	merge_statement:  MERGE INTO? <target> as_alias? USING merge_source ON expr (merge_when_clause)+
+//	truncate_statement: TRUNCATE TABLE <path> where?
+//
+// <target> is maybe_dashed_generalized_path_expression — a dotted/dashed path
+// optionally extended by generalized accessors (`.field`, `.(extension)`,
+// `[index]`) for nested/array DML targets (oracle: `UPDATE t.a[0].b SET …`
+// parses; the nested-target rejection is semantic, not syntactic).
+
+// DefaultExpr is the `DEFAULT` keyword used where an expression is expected
+// (expression_or_default's DEFAULT alternative): a VALUES row element, an
+// update_set_value RHS, or a merge INSERT value. It carries no payload beyond
+// its source position — the engine fills the column default at execution.
+type DefaultExpr struct {
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *DefaultExpr) Tag() NodeTag { return T_DefaultExpr }
+
+// InsertStmt is an INSERT statement (insert_statement). Exactly one of
+// {Rows, Query, TableClause} carries the inserted data:
+//   - Rows:        a VALUES list — one InsertRow per parenthesized row.
+//   - Query:       an `INSERT … <query>` or `INSERT … ( query )` source (a
+//     *QueryStmt). The parenthesized form is recorded with Query set and
+//     QueryParens true (it is the on-conflict-eligible alternative).
+//   - TableClause: an `INSERT … TABLE <path-or-tvf> [WHERE …]` source
+//     (insert_values_list_or_table_clause's table_clause alt; on-conflict only).
+//
+// OrAction is the upsert modifier (opt_or_ignore_replace_update) — one of "",
+// "OR IGNORE", "IGNORE", "OR REPLACE", "REPLACE", "OR UPDATE", "UPDATE" (Spanner
+// upserts; the bare IGNORE/REPLACE/UPDATE forms drop the OR and the emulator
+// accepts them). Into records whether the optional INTO keyword was present.
+// Target is the table path (maybe_dashed_generalized_path_expression). Columns
+// is the optional explicit column_list (nil if absent). OnConflict is the
+// ON CONFLICT clause (only valid with the VALUES / TABLE / `( query )` forms;
+// nil otherwise). AssertRows is the ASSERT_ROWS_MODIFIED count expression (nil
+// if absent). Returning is the THEN RETURN clause (nil if absent).
+type InsertStmt struct {
+	OrAction    string       // "" | "OR IGNORE" | "IGNORE" | "OR REPLACE" | "REPLACE" | "OR UPDATE" | "UPDATE"
+	Into        bool         // INTO keyword present
+	Target      *PathExpr    // table path
+	Columns     []string     // explicit column list; nil if absent
+	Rows        []*InsertRow // VALUES rows; nil unless the VALUES form
+	Query       Node         // INSERT … SELECT / ( query ) source (*QueryStmt); nil unless the query form
+	QueryParens bool         // the query source was written as `( query )` (on-conflict-eligible)
+	TableClause *InsertTable // INSERT … TABLE source; nil unless the table-clause form
+	OnConflict  *OnConflict  // ON CONFLICT clause; nil if absent
+	AssertRows  Node         // ASSERT_ROWS_MODIFIED count; nil if absent
+	Returning   *Returning   // THEN RETURN clause; nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *InsertStmt) Tag() NodeTag { return T_InsertStmt }
+
+// InsertRow is one parenthesized row of an INSERT … VALUES list
+// (insert_values_row): a list of expression_or_default values (a DEFAULT value
+// is a *DefaultExpr element).
+type InsertRow struct {
+	Values []Node // expression_or_default elements (>= 1)
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *InsertRow) Tag() NodeTag { return T_InsertRow }
+
+// InsertTable is the `TABLE <path-or-tvf> [WHERE expr]` insert source
+// (table_clause_unreversed → table_clause_no_keyword). Path is the source table
+// path or TVF name; Func, when set, makes it a TVF call. Where is the optional
+// trailing WHERE filter. This form is on-conflict-only in the grammar.
+type InsertTable struct {
+	Path  *PathExpr // source table path / TVF name
+	Func  *FuncCall // table-valued function call; nil for a plain table
+	Where Node      // trailing WHERE expr; nil if absent
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *InsertTable) Tag() NodeTag { return T_InsertTable }
+
+// OnConflict is an ON CONFLICT clause on an INSERT (on_conflict_clause):
+//
+//	ON CONFLICT [conflict_target] DO NOTHING
+//	ON CONFLICT [conflict_target] DO UPDATE SET update_item_list [WHERE expr]
+//
+// Target is the optional conflict target: either an explicit Columns list
+// (`( col, … )`) or a named unique constraint (ConstraintName, from
+// `ON UNIQUE CONSTRAINT id`). DoNothing selects the DO NOTHING action; when
+// false the action is DO UPDATE with SetItems (and optional Where). At most one
+// of Columns / ConstraintName is set; both empty means no conflict target.
+type OnConflict struct {
+	Columns        []string      // ON CONFLICT ( col, … ); nil if none / constraint form
+	ConstraintName string        // ON CONFLICT ON UNIQUE CONSTRAINT <id>; "" if none / columns form
+	DoNothing      bool          // DO NOTHING (true) vs DO UPDATE (false)
+	SetItems       []*UpdateItem // DO UPDATE SET items; nil for DO NOTHING
+	Where          Node          // DO UPDATE … WHERE expr; nil if absent
+	Loc            Loc
+}
+
+// Tag implements Node.
+func (n *OnConflict) Tag() NodeTag { return T_OnConflict }
+
+// UpdateStmt is an UPDATE statement (update_statement):
+//
+//	UPDATE <target> [hint] [[AS] alias] [WITH OFFSET [[AS] name]]
+//	  SET <update_item_list> [FROM <from>] [WHERE expr]
+//	  [ASSERT_ROWS_MODIFIED count] [THEN RETURN …]
+//
+// Target is the table path. Alias is the optional `[AS] alias` ("" if absent).
+// WithOffset / WithOffsetAlias record the Spanner `WITH OFFSET [[AS] name]`
+// companion column. Items is the non-empty SET list. From is the optional
+// join-update FROM source list (nil if absent). Where / AssertRows / Returning
+// mirror the other DML nodes. A leading statement `@{…}` hint and a per-target
+// `@{…}` hint are skipped (not retained) like elsewhere in the parser.
+type UpdateStmt struct {
+	Target          *PathExpr     // table path
+	Alias           string        // [AS] alias; "" if absent
+	WithOffset      bool          // WITH OFFSET
+	WithOffsetAlias string        // alias for WITH OFFSET; "" if absent / unaliased
+	Items           []*UpdateItem // SET items (>= 1)
+	From            []Node        // FROM sources (*TableExpr / *JoinExpr / *UnnestExpr); nil if absent
+	Where           Node          // WHERE expr; nil if absent
+	AssertRows      Node          // ASSERT_ROWS_MODIFIED count; nil if absent
+	Returning       *Returning    // THEN RETURN clause; nil if absent
+	Loc             Loc
+}
+
+// Tag implements Node.
+func (n *UpdateStmt) Tag() NodeTag { return T_UpdateStmt }
+
+// UpdateItem is one entry of a SET clause (update_item). Two shapes:
+//   - assignment:  `generalized_path = expression_or_default`. Path holds the
+//     LHS generalized path spelling (`a`, `a.b.c`, `id.(pkg.ext)`, `id[0]`);
+//     Value is the RHS (an expression or a *DefaultExpr). Nested is nil.
+//   - nested DML:  `( insert | update | delete )` — a nested statement run
+//     against an array-valued column (Spanner). Nested holds the inner DML
+//     node (*InsertStmt / *UpdateStmt / *DeleteStmt); Path is "" and Value nil.
+type UpdateItem struct {
+	Path   string // LHS generalized path; "" for the nested-DML form
+	Value  Node   // RHS expression or *DefaultExpr; nil for the nested-DML form
+	Nested Node   // nested ( dml ) statement; nil for the assignment form
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *UpdateItem) Tag() NodeTag { return T_UpdateItem }
+
+// DeleteStmt is a DELETE statement (delete_statement):
+//
+//	DELETE [FROM] <target> [hint] [[AS] alias] [WITH OFFSET [[AS] name]]
+//	  [WHERE expr] [ASSERT_ROWS_MODIFIED count] [THEN RETURN …]
+//
+// The FROM keyword is optional (ZetaSQL: `DELETE T WHERE …` parses). Target /
+// Alias / WithOffset / WithOffsetAlias / Where / AssertRows / Returning mirror
+// UpdateStmt. From records whether the optional FROM keyword was present (it has
+// no structural effect, but is retained for faithful round-trip).
+type DeleteStmt struct {
+	From            bool       // FROM keyword present
+	Target          *PathExpr  // table path
+	Alias           string     // [AS] alias; "" if absent
+	WithOffset      bool       // WITH OFFSET
+	WithOffsetAlias string     // alias for WITH OFFSET; "" if absent / unaliased
+	Where           Node       // WHERE expr; nil if absent
+	AssertRows      Node       // ASSERT_ROWS_MODIFIED count; nil if absent
+	Returning       *Returning // THEN RETURN clause; nil if absent
+	Loc             Loc
+}
+
+// Tag implements Node.
+func (n *DeleteStmt) Tag() NodeTag { return T_DeleteStmt }
+
+// MergeStmt is a MERGE statement (merge_statement):
+//
+//	MERGE [INTO] <target> [[AS] alias] USING <source> ON <expr> <when_clause>+
+//
+// Target is the merge target path; Alias the optional `[AS] alias`. Source is
+// the USING source (a *TableExpr — a table path or a `( query )` subquery, per
+// merge_source). On is the merge condition expression. Whens is the non-empty
+// list of WHEN clauses. MERGE is BigQuery-only among the bytebase consumers
+// (Spanner feature-rejects it after parse); the grammar — and therefore omni —
+// parses it for both. The emulator gives NO authoritative syntax verdict on
+// MERGE bodies (it rejects at statement dispatch), so MERGE forms are oracled
+// against the ZetaSQL corpus + the docs, not the emulator.
+type MergeStmt struct {
+	Target *PathExpr    // merge target path
+	Alias  string       // [AS] alias; "" if absent
+	Source Node         // USING source (*TableExpr: path or ( query ))
+	On     Node         // ON merge condition
+	Whens  []*MergeWhen // WHEN clauses (>= 1)
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *MergeStmt) Tag() NodeTag { return T_MergeStmt }
+
+// MergeWhen is one WHEN clause of a MERGE (merge_when_clause):
+//
+//	WHEN MATCHED [AND expr] THEN <action>
+//	WHEN NOT MATCHED [BY TARGET] [AND expr] THEN <action>
+//	WHEN NOT MATCHED BY SOURCE [AND expr] THEN <action>
+//
+// Matched is true for `WHEN MATCHED`; NotMatched true for `WHEN NOT MATCHED`
+// (exactly one holds). For the NOT MATCHED forms, BySource distinguishes
+// `BY SOURCE` from the default/`BY TARGET`; ByTarget records whether the
+// explicit `BY TARGET` words were present (default when neither). And is the
+// optional `AND search_condition` (nil if absent). Action is the THEN action.
+type MergeWhen struct {
+	Matched    bool         // WHEN MATCHED
+	NotMatched bool         // WHEN NOT MATCHED
+	ByTarget   bool         // explicit BY TARGET (NOT MATCHED only)
+	BySource   bool         // BY SOURCE (NOT MATCHED only)
+	And        Node         // AND search_condition; nil if absent
+	Action     *MergeAction // THEN action
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *MergeWhen) Tag() NodeTag { return T_MergeWhen }
+
+// MergeActionKind enumerates the THEN action of a MERGE WHEN clause.
+type MergeActionKind int
+
+const (
+	// MergeInsert is `INSERT [(cols)] (VALUES (row) | ROW)`.
+	MergeInsert MergeActionKind = iota
+	// MergeUpdate is `UPDATE SET update_item_list`.
+	MergeUpdate
+	// MergeDelete is `DELETE`.
+	MergeDelete
+)
+
+// MergeAction is the THEN action of a MERGE WHEN clause (merge_action):
+//
+//	INSERT [column_list] (VALUES insert_values_row | ROW)
+//	UPDATE SET update_item_list
+//	DELETE
+//
+// Kind selects the action. For MergeInsert: Columns is the optional column list;
+// InsertRow holds the VALUES row (nil when the bare `ROW` form was used), and
+// SourceRow is true for `ROW`. For MergeUpdate: SetItems is the SET list.
+// DELETE carries no payload.
+type MergeAction struct {
+	Kind      MergeActionKind
+	Columns   []string      // INSERT column list; nil if absent
+	InsertRow *InsertRow    // INSERT VALUES row; nil for `ROW` / non-insert
+	SourceRow bool          // INSERT ... ROW (source-row insert)
+	SetItems  []*UpdateItem // UPDATE SET items; nil for non-update
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *MergeAction) Tag() NodeTag { return T_MergeAction }
+
+// TruncateStmt is a TRUNCATE TABLE statement (truncate_statement):
+//
+//	TRUNCATE TABLE <path> [WHERE expr]
+//
+// Target is the table path (maybe_dashed_path_expression). Where is the optional
+// filter (ZetaSQL accepts `TRUNCATE TABLE foo WHERE bar > 3`). TRUNCATE is a
+// BigQuery DML statement; Spanner has no TRUNCATE (its DDL path syntax-rejects
+// it — non-authoritative), so TRUNCATE forms are oracled against the ZetaSQL
+// corpus + the BigQuery docs.
+type TruncateStmt struct {
+	Target *PathExpr // table path
+	Where  Node      // WHERE expr; nil if absent
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *TruncateStmt) Tag() NodeTag { return T_TruncateStmt }
+
+// Returning is a THEN RETURN clause on a DML statement (opt_returning_clause):
+//
+//	THEN RETURN [WITH ACTION [AS action_alias]] <select_list>
+//
+// WithAction records the `WITH ACTION` modifier (the returned action column);
+// ActionAlias is its optional `AS alias` ("" if absent / no WITH ACTION). Items
+// is the returned select_list (the same SelectItem shape as a SELECT list, so
+// `*`, `* EXCEPT (…)`, `expr AS x` are all supported).
+type Returning struct {
+	WithAction  bool          // WITH ACTION
+	ActionAlias string        // AS action_alias; "" if absent
+	Items       []*SelectItem // returned select list
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *Returning) Tag() NodeTag { return T_Returning }
+
+// Compile-time assertions that the DML node types satisfy Node.
+var (
+	_ Node = (*DefaultExpr)(nil)
+	_ Node = (*InsertStmt)(nil)
+	_ Node = (*InsertRow)(nil)
+	_ Node = (*InsertTable)(nil)
+	_ Node = (*OnConflict)(nil)
+	_ Node = (*UpdateStmt)(nil)
+	_ Node = (*UpdateItem)(nil)
+	_ Node = (*DeleteStmt)(nil)
+	_ Node = (*MergeStmt)(nil)
+	_ Node = (*MergeWhen)(nil)
+	_ Node = (*MergeAction)(nil)
+	_ Node = (*TruncateStmt)(nil)
+	_ Node = (*Returning)(nil)
+)
