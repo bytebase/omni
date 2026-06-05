@@ -313,14 +313,11 @@ func TestCompletePathStepNotFromKeyword(t *testing.T) {
 	got := Complete(input, len(input), cat)
 	tabs := negTables(got)
 
-	// CORRECT contract (oracle): no table suggestions — `from` is a path key.
-	// If omni currently violates it (suggests tables), skip with a divergence
-	// note rather than failing or encoding the wrong expectation.
+	// CORRECT contract (oracle): no table suggestions — `from` after `.` is a
+	// path key (member access x.from), not a FROM clause.
 	if len(tabs) != 0 {
-		t.Skip("DIVERGENCE: omni suggests tables after path step `x.from ` (isInFromContext " +
-			"HasSuffix match in completion.go ignores the '.' path separator); ANTLR/grammar " +
-			"parses `from` as a pathStep key (member access x.from), so it is NOT a FROM clause " +
-			"and tables must not be suggested")
+		t.Errorf("Complete(%q): `from` after `.` is a path step, not a FROM clause; "+
+			"expected no table suggestions, got %v", input, tabs)
 	}
 	// Reached only if/when the divergence is fixed: the contract holds.
 }
