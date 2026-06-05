@@ -435,14 +435,20 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwMODULE:
 		return p.unsupported("MODULE")
 	case kwEXPORT:
-		// EXPORT DATA | EXPORT MODEL | EXPORT … METADATA.
-		return p.unsupported("EXPORT")
+		// EXPORT DATA (AS query) | EXPORT MODEL | EXPORT … METADATA (parser-utility,
+		// still a stub). DATA/MODEL carry expressions (the AS query; OPTIONS values)
+		// that may embed subqueries, so parseExportStmt wraps them for fillSubqueries.
+		return p.parseExportStmt()
 	case kwLOAD:
-		// LOAD DATA FROM FILES.
-		return p.unsupported("LOAD")
+		// LOAD DATA (INTO|OVERWRITE) … FROM FILES (…). The OPTIONS / FROM FILES /
+		// PARTITIONS / PARTITION BY / CLUSTER BY clauses parse full expressions that
+		// can embed subqueries, so wrap for fillSubqueries like the DML family.
+		return p.parseStmtWithSubqueries(p.parseLoadData)
 	case kwCLONE:
-		// CLONE DATA.
-		return p.unsupported("CLONE")
+		// CLONE DATA INTO … FROM source (UNION ALL source)*. Each source can carry a
+		// FOR SYSTEM_TIME AS OF expr and a WHERE expr that may embed subqueries, so
+		// wrap for fillSubqueries.
+		return p.parseStmtWithSubqueries(p.parseCloneData)
 
 	// --- Procedural / scripting (legal inside a script body; recognized at
 	// top level so a script fragment is reported as unsupported, not unknown) ---

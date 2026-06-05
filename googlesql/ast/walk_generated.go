@@ -137,6 +137,19 @@ func walkChildren(v Visitor, node Node) {
 	case *ClampedModifier:
 		Walk(v, n.Low)
 		Walk(v, n.High)
+	case *CloneDataSource:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		Walk(v, n.ForSystemTime)
+		Walk(v, n.Where)
+	case *CloneDataStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Sources {
+			Walk(v, c)
+		}
 	case *ColumnDef:
 		if n.Type != nil {
 			Walk(v, n.Type)
@@ -372,6 +385,18 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *ExistsExpr:
 		Walk(v, n.Query)
+	case *ExportDataStmt:
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+		Walk(v, n.Query)
+	case *ExportModelStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *ExtensionAccess:
 		Walk(v, n.Expr)
 		if n.Path != nil {
@@ -491,6 +516,28 @@ func walkChildren(v Visitor, node Node) {
 		walkNodes(v, n.QuantValues)
 		Walk(v, n.QuantUnnest)
 		Walk(v, n.QuantSubquery)
+	case *LoadDataStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Columns {
+			Walk(v, c)
+		}
+		for _, c := range n.Constraints {
+			Walk(v, c)
+		}
+		Walk(v, n.Partitions)
+		walkNodes(v, n.PartitionBy)
+		walkNodes(v, n.ClusterBy)
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+		for _, c := range n.FromFiles {
+			Walk(v, c)
+		}
+		for _, c := range n.PartitionColumns {
+			Walk(v, c)
+		}
 	case *MergeAction:
 		if n.InsertRow != nil {
 			Walk(v, n.InsertRow)
