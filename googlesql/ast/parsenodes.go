@@ -2361,3 +2361,323 @@ var (
 	_ Node = (*TruncateStmt)(nil)
 	_ Node = (*Returning)(nil)
 )
+
+// ===========================================================================
+// Transactions / batch (parser-utility node)
+// ===========================================================================
+//
+// These node types model the legacy ANTLR transaction / batch statement family
+// (GoogleSQLParser.g4 §2.9), itself a hand-port of Google's open-source ZetaSQL
+// reference and the grammar bytebase consumes today:
+//
+//	begin_statement:        begin_transaction_keywords transaction_mode_list?
+//	begin_transaction_keywords: START TRANSACTION | BEGIN TRANSACTION?
+//	commit_statement:       COMMIT TRANSACTION?
+//	rollback_statement:     ROLLBACK TRANSACTION?
+//	transaction_mode:       READ ONLY | READ WRITE
+//	                        | ISOLATION LEVEL id | ISOLATION LEVEL id id
+//	start_batch_statement:  START BATCH identifier?
+//	run_batch_statement:    RUN BATCH
+//	abort_batch_statement:  ABORT BATCH
+//
+// Adjudication — the live Cloud Spanner emulator (oracle.md) parses every one of
+// these (it accepts the leading form, then feature-rejects with "Statement not
+// supported: BeginStatement / CommitStatement / …"), so the LEADING-FORM accept
+// is oracle-authoritative. The PRECISE trailing grammar, however, is NOT: the
+// emulator's recognizer for these keywords swallows arbitrary trailing tokens
+// (it accepts `COMMIT WORK`, `START BATCH a b`, even `COMMIT garbage !!!`). These
+// nodes therefore follow the ZetaSQL .g4 (the grammar bytebase consumes), which
+// caps the tail at the documented forms; `COMMIT WORK` and a multi-word
+// `START BATCH a b` are syntax errors here (divergence ledger: Spanner's shallow
+// recognizer is non-authoritative for the trailing tokens of these statements).
+
+// TransactionStmtKind discriminates the four BEGIN/COMMIT/ROLLBACK shapes that
+// share TransactionStmt.
+type TransactionStmtKind int
+
+const (
+	// TransactionBegin is `BEGIN [TRANSACTION]` (the begin_transaction_keywords
+	// BEGIN alternative).
+	TransactionBegin TransactionStmtKind = iota
+	// TransactionStart is `START TRANSACTION` (the begin_transaction_keywords
+	// START alternative). Modeled distinctly from BEGIN so the source verb
+	// round-trips, even though both are begin_statement.
+	TransactionStart
+	// TransactionCommit is `COMMIT [TRANSACTION]`.
+	TransactionCommit
+	// TransactionRollback is `ROLLBACK [TRANSACTION]`.
+	TransactionRollback
+)
+
+// String returns a human-readable name for the transaction-statement kind.
+func (k TransactionStmtKind) String() string {
+	switch k {
+	case TransactionBegin:
+		return "BEGIN"
+	case TransactionStart:
+		return "START TRANSACTION"
+	case TransactionCommit:
+		return "COMMIT"
+	case TransactionRollback:
+		return "ROLLBACK"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// TransactionModeKind discriminates the transaction_mode alternatives.
+type TransactionModeKind int
+
+const (
+	// TransactionModeReadOnly is `READ ONLY`.
+	TransactionModeReadOnly TransactionModeKind = iota
+	// TransactionModeReadWrite is `READ WRITE`.
+	TransactionModeReadWrite
+	// TransactionModeIsolationLevel is `ISOLATION LEVEL <id> [<id>]` — the
+	// isolation-level words are kept verbatim in TransactionMode.Levels (1 or 2
+	// identifiers, e.g. ["SERIALIZABLE"] or ["REPEATABLE","READ"]).
+	TransactionModeIsolationLevel
+)
+
+// TransactionMode is one entry of a transaction_mode_list — the READ ONLY /
+// READ WRITE / ISOLATION LEVEL modes that may follow BEGIN / START TRANSACTION.
+// For the ISOLATION LEVEL kind, Levels holds the 1-or-2 isolation-level words
+// (the grammar's `identifier` / `identifier identifier`); it is empty for the
+// READ modes.
+type TransactionMode struct {
+	Kind   TransactionModeKind
+	Levels []string // ISOLATION LEVEL words (1 or 2); empty otherwise
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *TransactionMode) Tag() NodeTag { return T_TransactionMode }
+
+// TransactionStmt is a BEGIN / START TRANSACTION / COMMIT / ROLLBACK statement
+// (grammar: begin_statement / commit_statement / rollback_statement). Kind
+// selects the verb; Transaction records whether the optional TRANSACTION keyword
+// was present (it is always implied for START TRANSACTION); Modes is the
+// transaction_mode_list (only ever non-empty for BEGIN / START TRANSACTION).
+type TransactionStmt struct {
+	Kind        TransactionStmtKind
+	Transaction bool               // the TRANSACTION keyword was present
+	Modes       []*TransactionMode // transaction_mode_list; nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *TransactionStmt) Tag() NodeTag { return T_TransactionStmt }
+
+// BatchStmtKind discriminates the three batch statements.
+type BatchStmtKind int
+
+const (
+	// BatchStart is `START BATCH [identifier]`.
+	BatchStart BatchStmtKind = iota
+	// BatchRun is `RUN BATCH`.
+	BatchRun
+	// BatchAbort is `ABORT BATCH`.
+	BatchAbort
+)
+
+// String returns a human-readable name for the batch-statement kind.
+func (k BatchStmtKind) String() string {
+	switch k {
+	case BatchStart:
+		return "START BATCH"
+	case BatchRun:
+		return "RUN BATCH"
+	case BatchAbort:
+		return "ABORT BATCH"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// BatchStmt is a START BATCH / RUN BATCH / ABORT BATCH statement (grammar:
+// start_batch_statement / run_batch_statement / abort_batch_statement). Kind
+// selects the verb; Name is the optional batch-type identifier of START BATCH
+// (e.g. `ddl`), "" for RUN/ABORT or a bare START BATCH.
+type BatchStmt struct {
+	Kind BatchStmtKind
+	Name string // START BATCH <id>; "" otherwise
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *BatchStmt) Tag() NodeTag { return T_BatchStmt }
+
+// ===========================================================================
+// Utility / metadata statements (parser-utility node)
+// ===========================================================================
+//
+// ASSERT / ANALYZE / DESCRIBE / RENAME / CALL — the legacy ANTLR utility
+// statement family (GoogleSQLParser.g4 §2.10 + the §2.3 rename_statement),
+// itself a hand-port of Google's open-source ZetaSQL reference:
+//
+//	assert_statement:   ASSERT expression opt_description?       (opt_description: AS string_literal)
+//	analyze_statement:  ANALYZE opt_options_list? table_and_column_info_list?
+//	table_and_column_info: maybe_dashed_path_expression column_list?
+//	describe_statement: describe_keyword describe_info
+//	describe_info:      identifier? maybe_slashed_or_dashed_path_expression opt_from_path_expression?
+//	rename_statement:   RENAME identifier path_expression TO path_expression
+//	call_statement:     CALL path_expression '(' (tvf_argument (',' tvf_argument)*)? ')'
+//
+// Adjudication (oracle.md): the Spanner emulator parses ASSERT / DESCRIBE via its
+// shallow recognizer (LEADING-FORM accept authoritative; trailing tokens
+// swallowed → non-authoritative, follow the .g4); RENAME and bare ANALYZE go
+// through its real DDL parser (authoritative — `RENAME TABLE a TO b` accepts,
+// bare `ANALYZE` accepts). CALL is parsed in full by the emulator (authoritative
+// — it validates the argument list: `CALL p(1 => 2)` and `CALL p(,)` reject).
+// Spanner-specific narrowings vs the union grammar are flagged divergences:
+//   - ANALYZE with targets (`ANALYZE t`) — Spanner rejects (its ANALYZE is the
+//     bare whole-database form); the .g4 + BigQuery union accept the targets.
+//   - RENAME with a non-TABLE object kind — Spanner only allows `RENAME TABLE`;
+//     the .g4 allows any object-kind identifier.
+
+// AssertStmt is an ASSERT statement (grammar: assert_statement):
+//
+//	ASSERT <expression> [AS <description-string>]
+//
+// Expr is the asserted boolean expression. Description is the optional `AS
+// 'message'` string-literal content (opt_description: AS string_literal); it is
+// nil when no AS clause is present. Per the .g4 the description MUST be a string
+// literal (the live emulator's shallow recognizer accepts a non-string there, but
+// that is the non-authoritative trailing-token behavior — see the node header).
+type AssertStmt struct {
+	Expr        Node // the asserted expression
+	Description Node // AS string_literal; nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *AssertStmt) Tag() NodeTag { return T_AssertStmt }
+
+// TableAndColumnInfo is one target of an ANALYZE statement (grammar:
+// table_and_column_info: maybe_dashed_path_expression column_list?). Path is the
+// (possibly dashed) table path; Columns is the optional parenthesized column
+// list, nil when absent.
+type TableAndColumnInfo struct {
+	Path    *PathExpr // table path
+	Columns []string  // optional column_list; nil if no '(' ... ')'
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *TableAndColumnInfo) Tag() NodeTag { return T_TableAndColumnInfo }
+
+// AnalyzeStmt is an ANALYZE statement (grammar: analyze_statement):
+//
+//	ANALYZE [OPTIONS (...)] [target [, target ...]]
+//
+// Options is the optional OPTIONS(...) list (nil if absent). Targets is the
+// optional table_and_column_info_list (nil for a bare `ANALYZE`, which analyzes
+// the whole database — the only form the Spanner emulator accepts; targets are a
+// BigQuery-union form, see the node header).
+type AnalyzeStmt struct {
+	Options []*OptionsEntry       // OPTIONS(...); nil if absent
+	Targets []*TableAndColumnInfo // table_and_column_info_list; nil if absent
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *AnalyzeStmt) Tag() NodeTag { return T_AnalyzeStmt }
+
+// DescribeStmt is a DESCRIBE / DESC statement (grammar: describe_statement +
+// describe_info):
+//
+//	{ DESCRIBE | DESC } [<object-type>] <path> [FROM <path>]
+//
+// IsDesc records whether the abbreviated DESC keyword was used (vs DESCRIBE).
+// ObjectType is the optional leading object-type identifier (describe_info's
+// `identifier?`, e.g. `TABLE` / `INDEX`), "" if absent. Path is the described
+// object's (possibly slashed/dashed) path. FromPath is the optional
+// `FROM <path>` qualifier (opt_from_path_expression), nil if absent.
+type DescribeStmt struct {
+	IsDesc     bool      // DESC (true) vs DESCRIBE (false)
+	ObjectType string    // optional leading object-type word; "" if absent
+	Path       *PathExpr // the described object path
+	FromPath   *PathExpr // FROM <path>; nil if absent
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *DescribeStmt) Tag() NodeTag { return T_DescribeStmt }
+
+// RenameStmt is a RENAME statement (grammar: rename_statement):
+//
+//	RENAME <object-kind> <path> TO <path>
+//
+// ObjectType is the object-kind identifier (the grammar's `identifier`, e.g.
+// `TABLE`). From is the current name path; To is the new name path.
+type RenameStmt struct {
+	ObjectType string    // object-kind word (e.g. TABLE)
+	From       *PathExpr // current name
+	To         *PathExpr // new name
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *RenameStmt) Tag() NodeTag { return T_RenameStmt }
+
+// CallArgKind discriminates the non-expression shapes of a CALL argument
+// (tvf_argument). A plain expression / named argument is carried directly as the
+// argument Node (an expression or *NamedArg); the table / model / connection /
+// descriptor clauses are wrapped in a CallArg so the kind is explicit.
+type CallArgKind int
+
+const (
+	// CallArgTable is `TABLE <path>` (table_clause).
+	CallArgTable CallArgKind = iota
+	// CallArgModel is `MODEL <path>` (model_clause).
+	CallArgModel
+	// CallArgConnection is `CONNECTION <path>|DEFAULT` (connection_clause).
+	CallArgConnection
+	// CallArgDescriptor is `DESCRIPTOR (col, ...)` (descriptor_argument).
+	CallArgDescriptor
+)
+
+// CallArg wraps a non-expression CALL argument (the table / model / connection /
+// descriptor clauses of tvf_argument). Kind selects the shape; Path carries the
+// referenced path for TABLE / MODEL / CONNECTION (nil for the CONNECTION DEFAULT
+// form); Columns carries the descriptor column names for DESCRIPTOR.
+type CallArg struct {
+	Kind    CallArgKind
+	Path    *PathExpr // TABLE/MODEL/CONNECTION path; nil for CONNECTION DEFAULT or DESCRIPTOR
+	Default bool      // CONNECTION DEFAULT
+	Columns []string  // DESCRIPTOR column names
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *CallArg) Tag() NodeTag { return T_CallArg }
+
+// CallStmt is a CALL statement (grammar: call_statement):
+//
+//	CALL <path> ( [arg [, arg ...]] )
+//
+// Proc is the procedure name path. Args is the (possibly empty) argument list;
+// each entry is a plain expression, a *NamedArg (`name => value`), or a *CallArg
+// (the TABLE / MODEL / CONNECTION / DESCRIPTOR clauses).
+type CallStmt struct {
+	Proc *PathExpr // procedure name path
+	Args []Node    // tvf_argument list (expression | *NamedArg | *CallArg); may be empty
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *CallStmt) Tag() NodeTag { return T_CallStmt }
+
+// Compile-time assertions that the transaction / utility node types satisfy Node.
+var (
+	_ Node = (*TransactionStmt)(nil)
+	_ Node = (*TransactionMode)(nil)
+	_ Node = (*BatchStmt)(nil)
+	_ Node = (*AssertStmt)(nil)
+	_ Node = (*AnalyzeStmt)(nil)
+	_ Node = (*TableAndColumnInfo)(nil)
+	_ Node = (*DescribeStmt)(nil)
+	_ Node = (*RenameStmt)(nil)
+	_ Node = (*CallArg)(nil)
+	_ Node = (*CallStmt)(nil)
+)

@@ -144,6 +144,23 @@ const (
 	T_MergeAction
 	T_TruncateStmt
 	T_Returning
+
+	// Transactions / batch + utility statements (parser-utility node).
+	//
+	// The §2.9 transaction/batch family (BEGIN/START TRANSACTION/COMMIT/ROLLBACK,
+	// START/RUN/ABORT BATCH) and the §2.10 + §2.3 utility statements (ASSERT,
+	// ANALYZE, DESCRIBE, RENAME, CALL). These mirror the legacy ANTLR grammar
+	// (GoogleSQLParser.g4), a hand-port of ZetaSQL.
+	T_TransactionStmt
+	T_TransactionMode
+	T_BatchStmt
+	T_AssertStmt
+	T_AnalyzeStmt
+	T_TableAndColumnInfo
+	T_DescribeStmt
+	T_RenameStmt
+	T_CallArg
+	T_CallStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -331,6 +348,26 @@ func (t NodeTag) String() string {
 		return "TruncateStmt"
 	case T_Returning:
 		return "Returning"
+	case T_TransactionStmt:
+		return "TransactionStmt"
+	case T_TransactionMode:
+		return "TransactionMode"
+	case T_BatchStmt:
+		return "BatchStmt"
+	case T_AssertStmt:
+		return "AssertStmt"
+	case T_AnalyzeStmt:
+		return "AnalyzeStmt"
+	case T_TableAndColumnInfo:
+		return "TableAndColumnInfo"
+	case T_DescribeStmt:
+		return "DescribeStmt"
+	case T_RenameStmt:
+		return "RenameStmt"
+	case T_CallArg:
+		return "CallArg"
+	case T_CallStmt:
+		return "CallStmt"
 	default:
 		return "Unknown"
 	}
