@@ -283,7 +283,7 @@ but those are flag checks, not parser calls.
 | SQL Editor read-only validation | `ValidateSQLForEditor` (QueryValidator) | DQL vs not-DQL boolean | **Required** |
 | SQL Editor auto-complete | `Completion` (CompleteFunc) | Table/column/keyword candidates by cursor scope | **Required** |
 | Generic statement parsing | `ParseStatements` (ParseStatementsFunc) | Parse tree + tokens | **Required (pipeline plumbing)** |
-| Schema sync | — | — | Not implemented |
+| Schema sync | — (driver-native) | — | N/A — the DynamoDB driver syncs schema via the AWS SDK (`backend/plugin/db/dynamodb/sync.go`), not via the parser |
 | Query span / lineage | — | — | Not implemented |
 | Masking | — | — | Not implemented |
 | Diagnostics / lint advisors | — | — | Not implemented |
@@ -359,8 +359,10 @@ Migration order, derived from bytebase consumption first then legacy parser pari
 
 ### Tier P2 — Nice-to-have / future
 
-24. Schema sync, query span, masking, diagnostics — register stubs only when bytebase
-    decides to add them; not required for the import switch
+24. Query span, masking, diagnostics — register stubs only when bytebase decides to
+    add them; not required for the import switch. (Schema sync already exists for
+    DynamoDB as a driver-native feature via the AWS SDK — `backend/plugin/db/dynamodb/sync.go`
+    — and does not go through the parser.)
 
 ## Full Coverage Target
 
@@ -403,7 +405,7 @@ Migration order, derived from bytebase consumption first then legacy parser pari
 | Date/time literals | `DATE 'Y-M-D'`, `TIME [(p)] [WITH TIME ZONE] '…'`, `TIMESTAMP '…'` | **P1** |
 | Analysis | Query validator (DQL-only) | **P0** |
 | Completion | Table/column/keyword candidates with FROM-scope and SELECT-scope rules | **P0** |
-| Catalog | DynamoDB-style metadata (tables = collections, columns = inferred fields) | **P2** (only when bytebase wires schema sync) |
+| Catalog | DynamoDB-style metadata: table names only (DynamoDB is schema-on-read — non-key attributes vary per item, so there is no fixed column list to catalog) | **P2** (completion/analysis feed; separate from the driver-native schema sync) |
 | Semantic / quality / deparse | — | **P2** (no consumer today) |
 
 ## Notes for Planning
