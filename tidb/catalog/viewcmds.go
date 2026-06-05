@@ -182,12 +182,11 @@ func extractViewColumns(sel *nodes.SelectStmt) []string {
 	if sel == nil {
 		return nil
 	}
-	// A parenthesized query body — CREATE VIEW v AS (SELECT a, b FROM t) — exposes
-	// the inner query's columns; unwrap the ParenSource wrapper(s) to reach the
-	// SELECT whose target list defines them.
-	for sel.ParenSource != nil {
-		sel = sel.ParenSource
-	}
+	// The result columns live on the leftmost output SELECT. Unwrap any
+	// parenthesized-query wrappers and walk set-operation left arms to reach it,
+	// so a parenthesized or set-op view body (CREATE VIEW v AS (SELECT a, b) or
+	// (SELECT 1 AS a) UNION (SELECT 2 AS a)) derives columns from that SELECT.
+	sel = nodes.LeftmostQueryLeaf(sel)
 	var cols []string
 	for _, target := range sel.TargetList {
 		rt, ok := target.(*nodes.ResTarget)

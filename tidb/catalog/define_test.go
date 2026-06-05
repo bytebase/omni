@@ -186,6 +186,34 @@ func TestDefineView_CTEParenthesizedSetOpBody(t *testing.T) {
 	}
 }
 
+// TestDefineView_SetOpBodyColumns guards derived column names for a set-op view
+// body — bare, parenthesized operands, and a parenthesized set-op. The columns
+// live on the leftmost output SELECT, so extractViewColumns must unwrap parens
+// AND walk set-op left arms (not read the empty set-op / wrapper root).
+func TestDefineView_SetOpBodyColumns(t *testing.T) {
+	c := newCatalogWithDB(t, "mydb")
+	cases := []struct{ view, ddl string }{
+		{"v1", "CREATE VIEW v1 AS SELECT 1 AS a UNION SELECT 2 AS a"},
+		{"v2", "CREATE VIEW v2 AS (SELECT 1 AS a) UNION (SELECT 2 AS a)"},
+		{"v3", "CREATE VIEW v3 AS ((SELECT 1 AS a) UNION (SELECT 2 AS a))"},
+	}
+	for _, tc := range cases {
+		if err := c.DefineView(mustParseView(t, tc.ddl)); err != nil {
+			t.Fatalf("%s: DefineView: %v", tc.view, err)
+		}
+	}
+	db := c.GetDatabase("mydb")
+	for _, tc := range cases {
+		view := db.Views[tc.view]
+		if view == nil {
+			t.Fatalf("view %s not registered", tc.view)
+		}
+		if len(view.Columns) != 1 || view.Columns[0] != "a" {
+			t.Errorf("view %s (%s) Columns = %v, want [a]", tc.view, tc.ddl, view.Columns)
+		}
+	}
+}
+
 func TestDefineView_HappyPath(t *testing.T) {
 	c := newCatalogWithDB(t, "mydb")
 	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE t (id INT PRIMARY KEY)")); err != nil {

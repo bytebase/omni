@@ -66,6 +66,26 @@ func UnwrapParenSource(s *SelectStmt) *SelectStmt {
 	return s
 }
 
+// LeftmostQueryLeaf returns the leftmost output SELECT of a query expression: it
+// unwraps ParenSource wrappers and walks set-operation left arms until it
+// reaches the SELECT whose target list defines the result columns. For a bare
+// SELECT it returns the input unchanged. Use this wherever a leftmost-leaf walk
+// reads a target list (view columns, CTE / derived virtual tables, ORDER BY
+// ordinals); UnwrapParenSource is the variant that stops at a set-op.
+func LeftmostQueryLeaf(s *SelectStmt) *SelectStmt {
+	for s != nil {
+		switch {
+		case s.ParenSource != nil:
+			s = s.ParenSource
+		case s.SetOp != SetOpNone && s.Left != nil:
+			s = s.Left
+		default:
+			return s
+		}
+	}
+	return s
+}
+
 // DistinctKind enumerates DISTINCT modes.
 type DistinctKind int
 

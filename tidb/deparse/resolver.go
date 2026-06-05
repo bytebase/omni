@@ -101,7 +101,7 @@ func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string
 		return
 	}
 	// Outer ORDER BY ordinals resolve against the inner's leftmost output SELECT.
-	resolveOrderByOrdinals(stmt.OrderBy, leftmostQueryLeaf(stmt.ParenSource))
+	resolveOrderByOrdinals(stmt.OrderBy, ast.LeftmostQueryLeaf(stmt.ParenSource))
 }
 
 func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable) *ast.SelectStmt {
@@ -142,7 +142,7 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		// Resolve ORDER BY ordinals (e.g., ORDER BY 1) to column aliases
 		// from the leftmost SELECT's target list, matching MySQL 8.0 behavior.
 		if len(stmt.OrderBy) > 0 {
-			resolveOrderByOrdinals(stmt.OrderBy, leftmostQueryLeaf(stmt))
+			resolveOrderByOrdinals(stmt.OrderBy, ast.LeftmostQueryLeaf(stmt))
 		}
 		return stmt
 	}
@@ -821,25 +821,6 @@ func collectSetOpCTEs(stmt *ast.SelectStmt) []*ast.CommonTableExpr {
 	return nil
 }
 
-// leftmostQueryLeaf returns the leftmost output SELECT of a query expression:
-// it unwraps ParenSource wrappers and walks set-operation left arms until it
-// reaches the SELECT whose target list defines the result columns. For a bare
-// SELECT it returns the input unchanged. Used by every leftmost-leaf walk that
-// reads a target list (CTE / derived virtual tables, ORDER BY ordinals).
-func leftmostQueryLeaf(sel *ast.SelectStmt) *ast.SelectStmt {
-	for sel != nil {
-		switch {
-		case sel.ParenSource != nil:
-			sel = sel.ParenSource
-		case sel.SetOp != ast.SetOpNone && sel.Left != nil:
-			sel = sel.Left
-		default:
-			return sel
-		}
-	}
-	return sel
-}
-
 // buildCTEVirtualTableFromSelect constructs a ResolverTable from a specific SELECT branch.
 // Used for recursive CTEs where we need to build the virtual table from the non-recursive
 // (left) branch before resolving the recursive (right) branch.
@@ -858,7 +839,7 @@ func buildCTEVirtualTableFromSelect(cteName string, cteColumns []string, sel *as
 	}
 
 	// Resolve to the leftmost output SELECT (unwrap parens, walk set-op left arms).
-	sel = leftmostQueryLeaf(sel)
+	sel = ast.LeftmostQueryLeaf(sel)
 
 	var cols []ResolverColumn
 	for i, target := range sel.TargetList {
@@ -890,7 +871,7 @@ func buildCTEVirtualTable(cte *ast.CommonTableExpr) *ResolverTable {
 	// Otherwise, derive columns from the CTE's SELECT target list
 	sel := cte.Select
 	// Resolve to the leftmost output SELECT (unwrap parens, walk set-op left arms).
-	sel = leftmostQueryLeaf(sel)
+	sel = ast.LeftmostQueryLeaf(sel)
 
 	var cols []ResolverColumn
 	for i, target := range sel.TargetList {
@@ -930,7 +911,7 @@ func buildDerivedVirtualTable(sub *ast.SubqueryExpr) *ResolverTable {
 
 	sel := sub.Select
 	// Resolve to the leftmost output SELECT (unwrap parens, walk set-op left arms).
-	sel = leftmostQueryLeaf(sel)
+	sel = ast.LeftmostQueryLeaf(sel)
 
 	var cols []ResolverColumn
 	for i, target := range sel.TargetList {
