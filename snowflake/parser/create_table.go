@@ -148,18 +148,30 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// CREATE [OR REPLACE] SEQUENCE ... (T4.4).
 		return p.parseCreateSequenceStmt(start, orReplace)
 	case kwEXTERNAL:
-		// CREATE [OR REPLACE] EXTERNAL { FUNCTION (T4.5) | TABLE (T4.4) }. The
-		// object is disambiguated by the keyword that follows EXTERNAL. EXTERNAL
-		// TABLE keeps cur on the EXTERNAL keyword (its sub-parser consumes both
-		// EXTERNAL and TABLE), matching the DYNAMIC/EVENT two-keyword handling.
+		// CREATE [OR REPLACE] EXTERNAL { FUNCTION (T4.5) | TABLE (T4.4) | VOLUME (T4.7) }.
+		// The object is disambiguated by what follows EXTERNAL. EXTERNAL TABLE keeps
+		// cur on the EXTERNAL keyword (its sub-parser consumes both EXTERNAL and
+		// TABLE), matching the DYNAMIC/EVENT two-keyword handling. VOLUME is not a
+		// reserved keyword, so EXTERNAL VOLUME lexes as kwEXTERNAL followed by a
+		// "VOLUME" identifier; that branch is taken here.
 		if p.peekNext().Type == kwTABLE {
 			return p.parseCreateExternalTableStmt(start, orReplace)
 		}
 		p.advance() // consume EXTERNAL
+		if p.curIsWord("VOLUME") {
+			p.advance() // consume VOLUME (a plain identifier; not a reserved keyword)
+			return p.parseCreateExternalVolumeStmt(start, orReplace)
+		}
 		if p.cur.Type != kwFUNCTION {
 			return p.unsupported("CREATE")
 		}
 		return p.parseCreateExternalFunctionStmt(start, orReplace, false)
+	case kwSTORAGE, kwAPI, kwNOTIFICATION, kwSECURITY, kwRESOURCE, kwSECRET, kwCONNECTION, kwGIT:
+		// CREATE [OR REPLACE] account-level integration objects (T4.7):
+		// { STORAGE | API | NOTIFICATION | SECURITY } INTEGRATION, RESOURCE MONITOR,
+		// SECRET, CONNECTION, GIT REPOSITORY. parseCreateIntegrationStmt consumes the
+		// object-type keyword(s).
+		return p.parseCreateIntegrationStmt(start, orReplace)
 	default:
 		return p.unsupported("CREATE")
 	}

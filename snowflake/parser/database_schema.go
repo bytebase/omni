@@ -201,15 +201,27 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		// ALTER DYNAMIC TABLE ... (T4.4). The sub-parser consumes DYNAMIC + TABLE.
 		return p.parseAlterDynamicTableStmt()
 	case kwEXTERNAL:
-		// ALTER EXTERNAL TABLE ... (T4.4). The sub-parser consumes EXTERNAL +
-		// TABLE; any other EXTERNAL object is unsupported here.
+		// ALTER EXTERNAL { TABLE (T4.4) | VOLUME (T4.7) }. The TABLE sub-parser
+		// consumes EXTERNAL + TABLE. VOLUME is not a reserved keyword, so EXTERNAL
+		// VOLUME lexes as kwEXTERNAL followed by a "VOLUME" identifier.
 		if p.peekNext().Type == kwTABLE {
 			return p.parseAlterExternalTableStmt()
+		}
+		extTok := p.advance() // consume EXTERNAL (anchors Loc.Start)
+		if p.curIsWord("VOLUME") {
+			p.advance() // consume VOLUME
+			return p.parseAlterExternalVolumeStmt(extTok.Loc)
 		}
 		return p.unsupported("ALTER")
 	case kwSEQUENCE:
 		// ALTER SEQUENCE ... (T4.4). (ALTER EVENT TABLE goes through ALTER TABLE.)
 		return p.parseAlterSequenceStmt()
+	case kwSTORAGE, kwAPI, kwNOTIFICATION, kwSECURITY, kwINTEGRATION, kwRESOURCE, kwSECRET, kwCONNECTION, kwGIT:
+		// ALTER account-level integration objects (T4.7): { [STORAGE] | API |
+		// NOTIFICATION | SECURITY } INTEGRATION, RESOURCE MONITOR, SECRET,
+		// CONNECTION, GIT REPOSITORY. A bare ALTER INTEGRATION (qualifier omitted)
+		// dispatches here too. parseAlterIntegrationStmt consumes the keyword(s).
+		return p.parseAlterIntegrationStmt()
 	default:
 		return p.unsupported("ALTER")
 	}

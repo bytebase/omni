@@ -41,6 +41,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+	case *AlterIntegrationStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *AlterMaterializedViewStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -143,6 +147,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.Column != nil {
 			Walk(v, n.Column)
 		}
+	case *ConnectionReplica:
+		if n.Source != nil {
+			Walk(v, n.Source)
+		}
 	case *CopyIntoLocationStmt:
 		if n.Into != nil {
 			Walk(v, n.Into)
@@ -201,6 +209,13 @@ func walkChildren(v Visitor, node Node) {
 	case *CreateFileFormatStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+	case *CreateIntegrationStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Replica != nil {
+			Walk(v, n.Replica)
 		}
 	case *CreateMaterializedViewStmt:
 		if n.Name != nil {
