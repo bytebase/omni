@@ -64,40 +64,90 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	switch p.cur.Type {
 	case kwTABLE:
 		// CREATE TABLE — but CREATE TABLE FUNCTION (TVF) is a BigQuery-only object
-		// owned by parser-ddl-bigquery; route it to the stub.
+		// owned by parser-ddl-bigquery (bq_function_procedure.go).
 		if p.peekNext().Type == kwFUNCTION {
-			return p.unsupported("CREATE TABLE FUNCTION")
+			return p.parseCreateFunction(create, orReplace, scope, false /*aggregate*/, true /*isTableFunc*/)
 		}
 		return p.parseCreateTable(create, orReplace, scope)
 	case kwVIEW:
 		return p.parseCreateView(create, orReplace, scope, false /*recursive*/)
 	case kwRECURSIVE:
 		// RECURSIVE VIEW (the plain-view alt with RECURSIVE). MATERIALIZED/APPROX
-		// RECURSIVE views are dialect-node territory; a bare RECURSIVE followed by
-		// VIEW is the plain recursive view this node owns.
+		// RECURSIVE views are owned by parser-ddl-bigquery (bq_materialized_view.go);
+		// a bare RECURSIVE followed by VIEW is the plain recursive view this node
+		// owns.
 		if p.peekNext().Type == kwVIEW {
 			p.advance() // RECURSIVE
 			return p.parseCreateView(create, orReplace, scope, true /*recursive*/)
 		}
+		if p.peekNext().Type == kwMATERIALIZED || p.peekNext().Type == kwAPPROX {
+			// CREATE RECURSIVE MATERIALIZED|APPROX VIEW is not a grammar form (the
+			// RECURSIVE keyword follows MATERIALIZED/APPROX, not precedes it); leave
+			// it as an unknown CREATE.
+			return p.unsupported("CREATE")
+		}
 		return p.unsupported("CREATE")
+	case kwMATERIALIZED, kwAPPROX:
+		// CREATE MATERIALIZED|APPROX [RECURSIVE] VIEW — BigQuery-only
+		// (bq_materialized_view.go).
+		return p.parseCreateMaterializedView(create, orReplace, scope)
 	case kwUNIQUE, kwNULL_FILTERED, kwINDEX:
 		// CREATE [UNIQUE] [NULL_FILTERED] INDEX. The SEARCH/VECTOR index_type
 		// variants are dialect-node territory; parseCreateIndex rejects a
 		// SEARCH/VECTOR token after the qualifiers by routing to the stub.
 		return p.parseCreateIndex(create, orReplace, scope)
 	case kwSEARCH, kwVECTOR:
-		// CREATE SEARCH|VECTOR INDEX — dialect-specific (parser-ddl-{bigquery,
-		// spanner}).
-		return p.unsupported("CREATE " + p.cur.Str)
+		// CREATE SEARCH|VECTOR INDEX — BigQuery-only (bq_search_vector_index.go).
+		return p.parseCreateSearchVectorIndex(create, orReplace, scope)
 	case kwSCHEMA:
 		return p.parseCreateSchema(create, orReplace)
 	case kwDATABASE:
 		return p.parseCreateDatabase(create, orReplace, scope)
+	case kwAGGREGATE:
+		// CREATE [OR REPLACE] [scope] AGGREGATE FUNCTION — BigQuery-only
+		// (bq_function_procedure.go). opt_aggregate precedes FUNCTION.
+		if p.peekNext().Type == kwFUNCTION {
+			p.advance() // AGGREGATE
+			return p.parseCreateFunction(create, orReplace, scope, true /*aggregate*/, false /*isTableFunc*/)
+		}
+		return p.unsupported("CREATE")
+	case kwFUNCTION:
+		// CREATE [OR REPLACE] [scope] FUNCTION — BigQuery-only (bq_function_procedure.go).
+		return p.parseCreateFunction(create, orReplace, scope, false /*aggregate*/, false /*isTableFunc*/)
+	case kwPROCEDURE:
+		// CREATE [OR REPLACE] [scope] PROCEDURE — BigQuery-only (bq_function_procedure.go).
+		return p.parseCreateProcedure(create, orReplace, scope)
+	case kwSNAPSHOT:
+		// CREATE [OR REPLACE] SNAPSHOT TABLE … CLONE — BigQuery-only
+		// (bq_snapshot_clone.go). create_snapshot_statement has NO opt_create_scope,
+		// so a leading TEMP/TEMPORARY/PUBLIC/PRIVATE is a syntax error.
+		if scope != "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseCreateSnapshot(create, orReplace)
+	case kwROW:
+		// CREATE [OR REPLACE] ROW ACCESS POLICY — BigQuery-only
+		// (bq_row_access_policy.go). create_row_access_policy_statement has NO
+		// opt_create_scope, so a leading scope is a syntax error.
+		if scope != "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseCreateRowAccessPolicy(create, orReplace)
 	default:
-		// Any other object kind (FUNCTION / PROCEDURE / MODEL / EXTERNAL /
-		// MATERIALIZED|APPROX VIEW / SNAPSHOT / generic entity / a bare identifier
-		// such as the dispatch-coverage `CREATE x` probe) is not owned here; emit
-		// a "CREATE …" not-yet-supported diagnostic.
+		// A generic-entity object kind whose keyword lexes as a bare identifier
+		// (BigQuery CAPACITY / RESERVATION / ASSIGNMENT, or PROJECT) is handled by
+		// the create_entity_statement path (bq_capacity.go). MODEL / EXTERNAL /
+		// CONNECTION / CONSTANT / PROPERTY GRAPH and the dispatch-coverage `CREATE x`
+		// probe are not owned here; the entity parser rejects a leading reserved
+		// keyword (it requires an identifier entity-type) and otherwise emits the
+		// not-yet-supported diagnostic.
+		if isGenericEntityType(p.cur.Type) {
+			// create_entity_statement has NO opt_create_scope; a leading scope rejects.
+			if scope != "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			return p.parseCreateEntity(create, orReplace)
+		}
 		return p.unsupported("CREATE")
 	}
 }

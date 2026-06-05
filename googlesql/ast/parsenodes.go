@@ -2031,6 +2031,403 @@ var (
 	_ Node = (*DropStmt)(nil)
 )
 
+// ===========================================================================
+// BigQuery-specific DDL (parser-ddl-bigquery node)
+// ===========================================================================
+//
+// These node types model the BigQuery-only object DDL the core parser-ddl node
+// routes to a stub: CREATE [AGGREGATE] FUNCTION / CREATE TABLE FUNCTION (TVF) /
+// CREATE PROCEDURE, CREATE [MATERIALIZED|APPROX] VIEW, CREATE [SEARCH|VECTOR]
+// INDEX, CREATE SNAPSHOT TABLE, CREATE ROW ACCESS POLICY, and the generic-entity
+// CREATE/ALTER/DROP path (CAPACITY / RESERVATION / ASSIGNMENT and any other
+// extensible object), plus their ALTER (ALTER MATERIALIZED VIEW SET OPTIONS,
+// ALTER VECTOR INDEX … REBUILD) and DROP (DROP {SEARCH|VECTOR} INDEX … ON,
+// DROP SNAPSHOT TABLE, DROP TABLE FUNCTION, DROP ALL ROW ACCESS POLICIES) forms.
+//
+// They are a hand-port of the legacy ANTLR GoogleSQLParser.g4 rules
+// (create_function_statement, create_procedure_statement,
+// create_table_function_statement, create_view_statement materialized/approx
+// alternatives, create_index_statement SEARCH/VECTOR index_type,
+// create_snapshot_statement, create_row_access_policy_statement,
+// create_entity_statement, the generic-entity alter/drop alternatives), the same
+// ZetaSQL lineage the rest of the grammar follows.
+//
+// ORACLE NOTE — every form here is BigQuery-only at the GoogleSQL UNION level:
+// the Spanner emulator (the differential harness) either lacks the form entirely
+// (TABLE FUNCTION, PROCEDURE, MATERIALIZED VIEW, SEARCH index ALL COLUMNS,
+// SNAPSHOT, ROW ACCESS POLICY, CAPACITY/RESERVATION/ASSIGNMENT, ALTER VECTOR
+// INDEX REBUILD, DROP {SEARCH|VECTOR} INDEX … ON, DROP TABLE FUNCTION) or
+// supports only a NARROWER shape (a bare `CREATE FUNCTION … AS (expr)` and
+// `DROP FUNCTION` parse, but TEMP / AGGREGATE / LANGUAGE / DETERMINISTIC / REMOTE
+// reject). So the Spanner verdict is NON-authoritative for these and they are
+// triangulated against the legacy .g4 + the BigQuery truth1 corpus (oracle.md);
+// the unit tests in bq_*_test.go are the structural/accept-reject gate.
+
+// FunctionParamMode is the IN / OUT / INOUT mode prefix of a procedure parameter
+// (opt_procedure_parameter_mode). Function parameters carry no mode.
+type FunctionParamMode int
+
+const (
+	ParamModeNone  FunctionParamMode = iota // no mode (function parameter)
+	ParamModeIn                             // IN
+	ParamModeOut                            // OUT
+	ParamModeInout                          // INOUT
+)
+
+// String returns the mode keyword, or "" for ParamModeNone.
+func (m FunctionParamMode) String() string {
+	switch m {
+	case ParamModeIn:
+		return "IN"
+	case ParamModeOut:
+		return "OUT"
+	case ParamModeInout:
+		return "INOUT"
+	default:
+		return ""
+	}
+}
+
+// FunctionParam is one parameter of a CREATE FUNCTION / TABLE FUNCTION /
+// PROCEDURE parameter list (function_parameter / procedure_parameter). It models
+// the union of both grammars:
+//
+//   - function_parameter: identifier type_or_tvf_schema [AS alias]
+//     [DEFAULT expr] [NOT AGGREGATE]  — or a bare type_or_tvf_schema (no name).
+//   - procedure_parameter: [IN|OUT|INOUT] identifier type_or_tvf_schema.
+//
+// Type holds the rendered parameter type (a simple type, ANY TYPE templated
+// type, or a TVF `TABLE<…>` schema — all captured via Type.Text). For a bare
+// unnamed function parameter, Name is "" and Type still carries the type.
+type FunctionParam struct {
+	Mode         FunctionParamMode // procedure mode; ParamModeNone for functions / unset
+	Name         string            // parameter name; "" for a bare unnamed function parameter
+	Type         *TypeRef          // parameter type (type_or_tvf_schema); rendered text
+	Alias        string            // AS alias (function_parameter opt_as_alias_with_required_as); "" if absent
+	Default      Node              // DEFAULT expr (function_parameter); nil if absent
+	NotAggregate bool              // NOT AGGREGATE (function_parameter)
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *FunctionParam) Tag() NodeTag { return T_FunctionParam }
+
+// CreateFunctionStmt is a CREATE [AGGREGATE] FUNCTION or CREATE TABLE FUNCTION
+// statement (create_function_statement / create_table_function_statement). The
+// IsTableFunc flag selects the TVF shape (CREATE TABLE FUNCTION … RETURNS TABLE<…>
+// AS query) from the scalar/aggregate shape (CREATE [AGGREGATE] FUNCTION … RETURNS
+// type AS (expr)|string).
+type CreateFunctionStmt struct {
+	OrReplace   bool
+	Scope       string // opt_create_scope: "TEMP" | "TEMPORARY" | "" (PUBLIC/PRIVATE rare)
+	Aggregate   bool   // AGGREGATE (scalar aggregate function)
+	IsTableFunc bool   // CREATE TABLE FUNCTION (TVF)
+	IfNotExists bool
+	Name        *PathExpr
+	Params      []*FunctionParam // function_parameters / opt_function_parameters
+	Returns     *TypeRef         // RETURNS type (scalar) — rendered text; nil if absent
+	// RETURNS TABLE<col …> (TVF): the column declarations. ReturnsTable is true when
+	// a TVF declares an explicit RETURNS TABLE<…>; ReturnColumns holds the columns.
+	ReturnsTable   bool
+	ReturnColumns  []*ColumnDef
+	SQLSecurity    string // SQL SECURITY {INVOKER|DEFINER}; "" if absent
+	Determinism    string // DETERMINISTIC | NOT DETERMINISTIC | IMMUTABLE | STABLE | VOLATILE; "" if absent
+	Language       string // LANGUAGE <id> (js/python/…); "" if absent
+	Remote         bool   // REMOTE [WITH CONNECTION …]
+	HasConnection  bool   // a WITH CONNECTION clause was present (the connection path is captured as text only)
+	ConnectionName string // the connection path text, if any
+	Options        []*OptionsEntry
+	Body           Node   // scalar/aggregate AS (expr) body; nil if absent or string/TVF
+	BodyString     string // AS string body (JS/Python code or quoted SQL); "" if absent
+	HasBodyString  bool   // distinguishes an empty AS '' from an absent string body
+	AsQuery        Node   // TVF AS query body; nil if absent (*QueryStmt)
+	Loc            Loc
+}
+
+// Tag implements Node.
+func (n *CreateFunctionStmt) Tag() NodeTag { return T_CreateFunctionStmt }
+
+// CreateProcedureStmt is a CREATE PROCEDURE statement (create_procedure_statement):
+// a parameter list, optional EXTERNAL SECURITY / WITH CONNECTION / OPTIONS, then
+// either a BEGIN…END block body or a LANGUAGE <id> [AS code] body.
+type CreateProcedureStmt struct {
+	OrReplace        bool
+	Scope            string // opt_create_scope
+	IfNotExists      bool
+	Name             *PathExpr
+	Params           []*FunctionParam // procedure_parameters
+	ExternalSecurity string           // EXTERNAL SECURITY {INVOKER|DEFINER}; "" if absent
+	HasConnection    bool             // WITH CONNECTION present
+	ConnectionName   string           // connection path text, if any
+	Options          []*OptionsEntry
+	// Body: a BEGIN…END block is captured as raw text (the procedural script
+	// statement_list is owned by the parser-scripting node; this node records the
+	// block text so the procedure round-trips and the consumer sees a body). For a
+	// LANGUAGE body, Language is set and BodyString holds the AS code.
+	BodyText      string // BEGIN…END block text (verbatim, incl. the BEGIN/END keywords); "" for a LANGUAGE body
+	Language      string // LANGUAGE <id>; "" for a BEGIN…END body
+	BodyString    string // LANGUAGE … AS <code>; "" if absent
+	HasBodyString bool
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *CreateProcedureStmt) Tag() NodeTag { return T_CreateProcedureStmt }
+
+// ViewKind discriminates a CREATE VIEW variant: a plain view (owned by the core
+// parser-ddl node, not produced here) vs the BigQuery MATERIALIZED / APPROX
+// variants this node owns.
+type ViewKind int
+
+const (
+	ViewPlain        ViewKind = iota // plain VIEW (core node)
+	ViewMaterialized                 // MATERIALIZED VIEW
+	ViewApprox                       // APPROX VIEW
+)
+
+// String returns the view-kind keyword phrase.
+func (k ViewKind) String() string {
+	switch k {
+	case ViewMaterialized:
+		return "MATERIALIZED VIEW"
+	case ViewApprox:
+		return "APPROX VIEW"
+	default:
+		return "VIEW"
+	}
+}
+
+// CreateMaterializedViewStmt is a CREATE MATERIALIZED|APPROX VIEW statement (the
+// materialized / approx alternatives of create_view_statement). It adds, over a
+// plain view, PARTITION BY / CLUSTER BY (materialized only) and the
+// `AS REPLICA OF <source>` body alternative (query_or_replica_source).
+type CreateMaterializedViewStmt struct {
+	Kind        ViewKind // ViewMaterialized | ViewApprox
+	OrReplace   bool
+	Recursive   bool // RECURSIVE
+	IfNotExists bool
+	Name        *PathExpr
+	Columns     []*ViewColumn // column_with_options_list; nil if absent
+	SQLSecurity string        // SQL SECURITY {INVOKER|DEFINER}; "" if absent
+	PartitionBy []Node        // PARTITION BY exprs (materialized only); nil if absent
+	ClusterBy   []Node        // CLUSTER BY exprs (materialized only); nil if absent
+	Options     []*OptionsEntry
+	AsQuery     Node      // AS query body; nil when ReplicaOf is set (*QueryStmt)
+	ReplicaOf   *PathExpr // AS REPLICA OF <source> (materialized); nil if a query body
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateMaterializedViewStmt) Tag() NodeTag { return T_CreateMaterializedViewStmt }
+
+// CreateSnapshotStmt is a CREATE SNAPSHOT TABLE statement (create_snapshot_statement):
+//
+//	CREATE [OR REPLACE] SNAPSHOT TABLE [IF NOT EXISTS] <name>
+//	  CLONE <source> [FOR SYSTEM_TIME AS OF expr] [OPTIONS(…)]
+type CreateSnapshotStmt struct {
+	OrReplace     bool
+	IfNotExists   bool
+	Name          *PathExpr
+	CloneSource   *PathExpr // CLONE <source>
+	ForSystemTime Node      // FOR SYSTEM_TIME AS OF expr; nil if absent
+	Where         Node      // optional WHERE filter on the clone source; nil if absent
+	Options       []*OptionsEntry
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *CreateSnapshotStmt) Tag() NodeTag { return T_CreateSnapshotStmt }
+
+// SearchVectorIndexStmt is a CREATE [SEARCH|VECTOR] INDEX statement (the
+// SEARCH/VECTOR index_type variants of create_index_statement). It carries the
+// index name, target table, the column list or ALL COLUMNS, STORING list,
+// PARTITION BY (vector), and OPTIONS.
+type SearchVectorIndexStmt struct {
+	IsVector    bool // VECTOR (vs SEARCH)
+	OrReplace   bool // OR REPLACE (vector)
+	IfNotExists bool
+	Name        *PathExpr  // index name
+	Table       *PathExpr  // ON <table>
+	Keys        []*KeyPart // column list (index_order_by_and_options); nil for ALL COLUMNS
+	AllColumns  bool       // ( ALL COLUMNS [WITH COLUMN OPTIONS(…)] ) — SEARCH index
+	Storing     []Node     // STORING ( col, … ) — vector index; nil if absent
+	PartitionBy []Node     // PARTITION BY expr — vector index; nil if absent
+	Options     []*OptionsEntry
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *SearchVectorIndexStmt) Tag() NodeTag { return T_SearchVectorIndexStmt }
+
+// CreateRowAccessPolicyStmt is a CREATE ROW ACCESS POLICY statement
+// (create_row_access_policy_statement):
+//
+//	CREATE [OR REPLACE] ROW ACCESS POLICY [IF NOT EXISTS] [name]
+//	  ON <table> [GRANT TO (grantees) | TO grantees] [FILTER] USING (expr)
+type CreateRowAccessPolicyStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        string     // policy name (identifier?); "" if absent
+	Table       *PathExpr  // ON <table>
+	Grantees    []*Grantee // GRANT TO (…) / TO …; nil if absent
+	HasGrantTo  bool       // a grant-to clause was present (distinguishes empty list)
+	Filter      Node       // [FILTER] USING (expr) — required; the filter expression
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateRowAccessPolicyStmt) Tag() NodeTag { return T_CreateRowAccessPolicyStmt }
+
+// CreateEntityStmt is a CREATE <generic-entity> statement (create_entity_statement):
+//
+//	CREATE [OR REPLACE] <entity_type> [IF NOT EXISTS] <name> [OPTIONS(…)] [AS <body>]
+//
+// The generic-entity mechanism is how the legacy grammar parses extensible
+// object kinds whose keyword is a bare identifier — including BigQuery
+// CAPACITY / RESERVATION / ASSIGNMENT (DDL-024/025/026: `CREATE CAPACITY
+// \`p.l.c\` OPTIONS(…)`). EntityType holds the entity keyword spelling.
+type CreateEntityStmt struct {
+	OrReplace   bool
+	EntityType  string // the generic_entity_type identifier (e.g. "CAPACITY", "RESERVATION", "ASSIGNMENT", "PROJECT")
+	IfNotExists bool
+	Name        *PathExpr
+	Options     []*OptionsEntry
+	// BodyText: the AS <generic_entity_body> tail, captured as raw text (the body
+	// is a free-form JSON/string in the grammar). "" if absent.
+	BodyText string
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *CreateEntityStmt) Tag() NodeTag { return T_CreateEntityStmt }
+
+// BQAlterObjectKind discriminates the object kind of a BigQuery-only ALTER
+// statement this node owns (the kinds the core parser-ddl node routes away).
+type BQAlterObjectKind int
+
+const (
+	BQAlterMaterializedView BQAlterObjectKind = iota // ALTER MATERIALIZED VIEW
+	BQAlterApproxView                                // ALTER APPROX VIEW
+	BQAlterVectorIndex                               // ALTER VECTOR INDEX … REBUILD
+	BQAlterEntity                                    // ALTER <generic-entity> (CAPACITY/RESERVATION/…)
+)
+
+// String returns the object keyword phrase.
+func (k BQAlterObjectKind) String() string {
+	switch k {
+	case BQAlterMaterializedView:
+		return "MATERIALIZED VIEW"
+	case BQAlterApproxView:
+		return "APPROX VIEW"
+	case BQAlterVectorIndex:
+		return "VECTOR INDEX"
+	default:
+		return "ENTITY"
+	}
+}
+
+// BQAlterStmt is a BigQuery-only ALTER statement: ALTER MATERIALIZED|APPROX VIEW
+// SET OPTIONS, ALTER VECTOR INDEX … ON <table> REBUILD [OPTIONS(…)], or ALTER
+// <generic-entity> SET OPTIONS / SET AS <body>.
+type BQAlterStmt struct {
+	Object     BQAlterObjectKind
+	EntityType string // generic_entity_type spelling when Object==BQAlterEntity
+	IfExists   bool
+	Name       *PathExpr
+	OnTable    *PathExpr       // ON <table> for ALTER VECTOR INDEX; nil otherwise
+	Rebuild    bool            // REBUILD (vector index)
+	SetOptions []*OptionsEntry // SET OPTIONS(…); nil if absent
+	SetAsBody  string          // SET AS <generic_entity_body> text (entity); "" if absent
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *BQAlterStmt) Tag() NodeTag { return T_BQAlterStmt }
+
+// BQDropObjectKind discriminates the object kind of a BigQuery-only DROP
+// statement this node owns.
+type BQDropObjectKind int
+
+const (
+	BQDropFunction         BQDropObjectKind = iota // DROP FUNCTION
+	BQDropTableFunction                            // DROP TABLE FUNCTION
+	BQDropProcedure                                // DROP PROCEDURE
+	BQDropMaterializedView                         // DROP MATERIALIZED VIEW
+	BQDropApproxView                               // DROP APPROX VIEW
+	BQDropSnapshotTable                            // DROP SNAPSHOT TABLE
+	BQDropSearchIndex                              // DROP SEARCH INDEX … ON <table>
+	BQDropVectorIndex                              // DROP VECTOR INDEX … ON <table>
+	BQDropRowAccessPolicy                          // DROP ROW ACCESS POLICY … ON <table>
+	BQDropEntity                                   // DROP <generic-entity> (CAPACITY/RESERVATION/…)
+)
+
+// String returns the object keyword phrase.
+func (k BQDropObjectKind) String() string {
+	switch k {
+	case BQDropFunction:
+		return "FUNCTION"
+	case BQDropTableFunction:
+		return "TABLE FUNCTION"
+	case BQDropProcedure:
+		return "PROCEDURE"
+	case BQDropMaterializedView:
+		return "MATERIALIZED VIEW"
+	case BQDropApproxView:
+		return "APPROX VIEW"
+	case BQDropSnapshotTable:
+		return "SNAPSHOT TABLE"
+	case BQDropSearchIndex:
+		return "SEARCH INDEX"
+	case BQDropVectorIndex:
+		return "VECTOR INDEX"
+	case BQDropRowAccessPolicy:
+		return "ROW ACCESS POLICY"
+	default:
+		return "ENTITY"
+	}
+}
+
+// BQDropStmt is a BigQuery-only DROP statement: DROP FUNCTION / TABLE FUNCTION /
+// PROCEDURE / MATERIALIZED VIEW / APPROX VIEW / SNAPSHOT TABLE / {SEARCH|VECTOR}
+// INDEX … ON <table> / ROW ACCESS POLICY … ON <table> / generic-entity.
+type BQDropStmt struct {
+	Object     BQDropObjectKind
+	EntityType string // generic_entity_type spelling when Object==BQDropEntity
+	IfExists   bool
+	Name       *PathExpr // object path; for ROW ACCESS POLICY this is the policy name path
+	OnTable    *PathExpr // ON <table> for {SEARCH|VECTOR} INDEX / ROW ACCESS POLICY; nil otherwise
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *BQDropStmt) Tag() NodeTag { return T_BQDropStmt }
+
+// DropAllRowAccessPoliciesStmt is a DROP ALL ROW ACCESS POLICIES statement
+// (drop_all_row_access_policies_statement): `DROP ALL ROW ACCESS POLICIES ON
+// <table>`.
+type DropAllRowAccessPoliciesStmt struct {
+	Table *PathExpr // ON <table>
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *DropAllRowAccessPoliciesStmt) Tag() NodeTag { return T_DropAllRowAccessPoliciesStmt }
+
+// Compile-time assertions that the BigQuery DDL node types satisfy Node.
+var (
+	_ Node = (*FunctionParam)(nil)
+	_ Node = (*CreateFunctionStmt)(nil)
+	_ Node = (*CreateProcedureStmt)(nil)
+	_ Node = (*CreateMaterializedViewStmt)(nil)
+	_ Node = (*CreateSnapshotStmt)(nil)
+	_ Node = (*SearchVectorIndexStmt)(nil)
+	_ Node = (*CreateRowAccessPolicyStmt)(nil)
+	_ Node = (*CreateEntityStmt)(nil)
+	_ Node = (*BQAlterStmt)(nil)
+	_ Node = (*BQDropStmt)(nil)
+	_ Node = (*DropAllRowAccessPoliciesStmt)(nil)
+)
+
 // ---------------------------------------------------------------------------
 // DML — INSERT / UPDATE / DELETE / MERGE / TRUNCATE (parser-dml node)
 // ---------------------------------------------------------------------------

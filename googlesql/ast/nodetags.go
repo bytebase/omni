@@ -125,6 +125,23 @@ const (
 	T_AlterAction
 	T_DropStmt
 
+	// BigQuery-specific DDL (parser-ddl-bigquery node): CREATE [AGGREGATE]
+	// FUNCTION / TABLE FUNCTION / PROCEDURE, CREATE MATERIALIZED|APPROX VIEW,
+	// CREATE [SEARCH|VECTOR] INDEX, CREATE SNAPSHOT TABLE, CREATE ROW ACCESS
+	// POLICY, the generic-entity CREATE/ALTER/DROP path
+	// (CAPACITY/RESERVATION/ASSIGNMENT), and their BigQuery-only ALTER/DROP forms.
+	T_FunctionParam
+	T_CreateFunctionStmt
+	T_CreateProcedureStmt
+	T_CreateMaterializedViewStmt
+	T_CreateSnapshotStmt
+	T_SearchVectorIndexStmt
+	T_CreateRowAccessPolicyStmt
+	T_CreateEntityStmt
+	T_BQAlterStmt
+	T_BQDropStmt
+	T_DropAllRowAccessPoliciesStmt
+
 	// DML — INSERT / UPDATE / DELETE / MERGE / TRUNCATE (parser-dml node).
 	//
 	// The data-manipulation family for the BigQuery + Spanner union, plus their
@@ -322,6 +339,28 @@ func (t NodeTag) String() string {
 		return "AlterAction"
 	case T_DropStmt:
 		return "DropStmt"
+	case T_FunctionParam:
+		return "FunctionParam"
+	case T_CreateFunctionStmt:
+		return "CreateFunctionStmt"
+	case T_CreateProcedureStmt:
+		return "CreateProcedureStmt"
+	case T_CreateMaterializedViewStmt:
+		return "CreateMaterializedViewStmt"
+	case T_CreateSnapshotStmt:
+		return "CreateSnapshotStmt"
+	case T_SearchVectorIndexStmt:
+		return "SearchVectorIndexStmt"
+	case T_CreateRowAccessPolicyStmt:
+		return "CreateRowAccessPolicyStmt"
+	case T_CreateEntityStmt:
+		return "CreateEntityStmt"
+	case T_BQAlterStmt:
+		return "BQAlterStmt"
+	case T_BQDropStmt:
+		return "BQDropStmt"
+	case T_DropAllRowAccessPoliciesStmt:
+		return "DropAllRowAccessPoliciesStmt"
 	case T_DefaultExpr:
 		return "DefaultExpr"
 	case T_InsertStmt:
