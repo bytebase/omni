@@ -436,11 +436,14 @@ func (p *Parser) parseTableUnpivot() (*ast.UnpivotExpr, error) {
 //
 // Plus the CROSS JOIN form (line 390).
 func (p *Parser) tryParseJoinType() (ast.JoinKind, bool) {
-	// Snapshot so a modifier not followed by JOIN can be fully rewound.
+	// Snapshot so a modifier not followed by JOIN / CROSS JOIN can be fully
+	// rewound (a dangling modifier must reject, not be silently consumed).
 	start := p.save()
 
+	// Bare forms carrying no joinType modifier.
 	switch p.cur.Type {
 	case tokCROSS:
+		// CROSS JOIN with no modifier.
 		p.advance() // consume CROSS
 		if p.cur.Type != tokJOIN {
 			// CROSS must be followed by JOIN.
@@ -450,60 +453,58 @@ func (p *Parser) tryParseJoinType() (ast.JoinKind, bool) {
 		p.advance() // consume JOIN
 		return ast.JoinKindCross, true
 
-	case tokINNER:
-		p.advance() // consume INNER
-		if p.cur.Type != tokJOIN {
-			p.restore(start)
-			return ast.JoinKindInvalid, false
-		}
-		p.advance() // consume JOIN
-		return ast.JoinKindInner, true
-
-	case tokLEFT:
-		p.advance() // consume LEFT
-		p.match(tokOUTER)
-		if p.cur.Type != tokJOIN {
-			p.restore(start)
-			return ast.JoinKindInvalid, false
-		}
-		p.advance() // consume JOIN
-		return ast.JoinKindLeft, true
-
-	case tokRIGHT:
-		p.advance() // consume RIGHT
-		p.match(tokOUTER)
-		if p.cur.Type != tokJOIN {
-			p.restore(start)
-			return ast.JoinKindInvalid, false
-		}
-		p.advance() // consume JOIN
-		return ast.JoinKindRight, true
-
-	case tokFULL:
-		p.advance() // consume FULL
-		p.match(tokOUTER)
-		if p.cur.Type != tokJOIN {
-			p.restore(start)
-			return ast.JoinKindInvalid, false
-		}
-		p.advance() // consume JOIN
-		return ast.JoinKindFull, true
-
-	case tokOUTER:
-		p.advance() // consume OUTER
-		if p.cur.Type != tokJOIN {
-			p.restore(start)
-			return ast.JoinKindInvalid, false
-		}
-		p.advance() // consume JOIN
-		return ast.JoinKindOuter, true
-
 	case tokJOIN:
 		// Bare JOIN => defaults to INNER.
 		p.advance() // consume JOIN
 		return ast.JoinKindInner, true
+	}
 
+	// joinType modifier (PartiQLParser.g4:419-425):
+	//   INNER | LEFT OUTER? | RIGHT OUTER? | FULL OUTER? | OUTER
+	var kind ast.JoinKind
+	switch p.cur.Type {
+	case tokINNER:
+		p.advance() // consume INNER
+		kind = ast.JoinKindInner
+	case tokLEFT:
+		p.advance() // consume LEFT
+		p.match(tokOUTER)
+		kind = ast.JoinKindLeft
+	case tokRIGHT:
+		p.advance() // consume RIGHT
+		p.match(tokOUTER)
+		kind = ast.JoinKindRight
+	case tokFULL:
+		p.advance() // consume FULL
+		p.match(tokOUTER)
+		kind = ast.JoinKindFull
+	case tokOUTER:
+		p.advance() // consume OUTER
+		kind = ast.JoinKindOuter
 	default:
+		return ast.JoinKindInvalid, false
+	}
+
+	// After a joinType modifier the grammar permits either form:
+	//   joinType JOIN  rhs joinSpec   (#TableQualifiedJoin)        -> kind
+	//   joinType CROSS JOIN rhs       (#TableCrossJoin, g4:390)    -> CROSS
+	// A modifier preceding CROSS JOIN is grammar-legal; the result is a cross
+	// join (the modifier is discarded — a cross join carries no ON). Anything
+	// else is a dangling modifier and must rewind so the caller rejects it.
+	switch p.cur.Type {
+	case tokJOIN:
+		p.advance() // consume JOIN
+		return kind, true
+	case tokCROSS:
+		p.advance() // consume CROSS
+		if p.cur.Type != tokJOIN {
+			p.restore(start)
+			return ast.JoinKindInvalid, false
+		}
+		p.advance() // consume JOIN
+		return ast.JoinKindCross, true
+	default:
+		p.restore(start)
 		return ast.JoinKindInvalid, false
 	}
 }

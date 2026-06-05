@@ -164,12 +164,31 @@ func TestSelectCoverage_ModifierCrossJoin(t *testing.T) {
 		{"right_outer_cross", "SELECT a FROM t RIGHT OUTER CROSS JOIN t2"},
 		{"full_outer_cross", "SELECT a FROM t FULL OUTER CROSS JOIN t2"},
 	}
+	// A joinType modifier before CROSS JOIN is grammar-legal and yields a cross
+	// join (the modifier is discarded — a cross join has no ON), so every input
+	// parses to the SAME AST as the bare `CROSS JOIN` form (see
+	// TestSelectCoverage_CrossJoinSpec for the bare golden).
+	const wantCross = "SelectStmt{Targets:[TargetEntry{Expr:VarRef{Name:a}}] From:JoinExpr{Kind:CROSS Left:VarRef{Name:t} Right:VarRef{Name:t2}}}"
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Skip("DIVERGENCE: omni rejects `<joinType> CROSS JOIN` " +
-				"(tryParseJoinType in from.go handles only bare CROSS JOIN); " +
-				"ANTLR/PartiQLParser.g4:390 TableCrossJoin `lhs joinType? CROSS JOIN rhs` accepts it. " +
-				"Residual omni bug; input: " + tc.input)
+			runAcceptGolden(t, tc.input, wantCross)
+		})
+	}
+}
+
+// TestSelectCoverage_ModifierCrossJoinReject locks the reject branch of the
+// `joinType? CROSS JOIN` form: even with a modifier, CROSS must be followed by
+// JOIN. Oracle (ANTLR/PartiQLParser.g4:390): `<mod> CROSS` not followed by JOIN
+// is a syntax error (the modifier rewinds and the leftover token fails at EOF).
+func TestSelectCoverage_ModifierCrossJoinReject(t *testing.T) {
+	cases := []struct{ name, input string }{
+		{"full_cross_no_join", "SELECT a FROM t FULL CROSS t2"},
+		{"left_cross_eof", "SELECT a FROM t LEFT CROSS"},
+		{"inner_cross_no_join", "SELECT a FROM t INNER CROSS t2"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			runReject(t, tc.input)
 		})
 	}
 }

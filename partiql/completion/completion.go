@@ -87,11 +87,35 @@ func isIdentChar(ch byte) bool {
 }
 
 func isInFromContext(upper string) bool {
-	// Simple heuristic: last SQL keyword before cursor is FROM
+	// The cursor is in a table-name position when the last completed clause
+	// keyword is FROM / JOIN / INTO. Each must match as a STANDALONE keyword:
+	// a dotted path step such as "x.from" (member access) also ends in "FROM",
+	// but `from` after a '.' is a path key, not a FROM clause, so it must NOT
+	// trigger table suggestions.
 	upper = strings.TrimRight(upper, " \t\n\r")
-	return strings.HasSuffix(upper, "FROM") ||
-		strings.HasSuffix(upper, "JOIN") ||
-		strings.HasSuffix(upper, "INTO")
+	return endsWithKeyword(upper, "FROM") ||
+		endsWithKeyword(upper, "JOIN") ||
+		endsWithKeyword(upper, "INTO")
+}
+
+// endsWithKeyword reports whether s ends with kw as a standalone keyword: kw is
+// a suffix of s, and either kw is the whole string or the character immediately
+// before it is whitespace (a real clause boundary). This rejects a keyword that
+// is merely the tail of a larger token — most importantly a '.'-prefixed path
+// step like "X.FROM" (member access x.from), which is not a FROM clause.
+func endsWithKeyword(s, kw string) bool {
+	if !strings.HasSuffix(s, kw) {
+		return false
+	}
+	if len(s) == len(kw) {
+		return true
+	}
+	switch s[len(s)-len(kw)-1] {
+	case ' ', '\t', '\n', '\r':
+		return true
+	default:
+		return false
+	}
 }
 
 func matchesPrefix(text, prefix string) bool {
