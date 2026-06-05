@@ -259,6 +259,19 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Options {
 			Walk(v, c)
 		}
+	case *CreatePropertyGraphStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+		for _, c := range n.NodeTables {
+			Walk(v, c)
+		}
+		for _, c := range n.EdgeTables {
+			Walk(v, c)
+		}
 	case *CreateRoleStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -349,6 +362,8 @@ func walkChildren(v Visitor, node Node) {
 		if n.Returning != nil {
 			Walk(v, n.Returning)
 		}
+	case *DerivedProperty:
+		Walk(v, n.Expr)
 	case *DescribeStmt:
 		if n.Path != nil {
 			Walk(v, n.Path)
@@ -382,6 +397,13 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.OnTable != nil {
 			Walk(v, n.OnTable)
+		}
+	case *ElementTableDef:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Labels {
+			Walk(v, c)
 		}
 	case *ExistsExpr:
 		Walk(v, n.Query)
@@ -438,12 +460,110 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Type)
 		}
 		Walk(v, n.Default)
+	case *GQLStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		walkNodes(v, n.Blocks)
 	case *GrantStmt:
 		for _, c := range n.Privileges {
 			Walk(v, c)
 		}
 		for _, c := range n.Grantees {
 			Walk(v, c)
+		}
+	case *GraphEdgePattern:
+		if n.Filler != nil {
+			Walk(v, n.Filler)
+		}
+	case *GraphFilterOp:
+		Walk(v, n.Expr)
+	case *GraphForOp:
+		Walk(v, n.Expr)
+	case *GraphLabelExpr:
+		if n.Operand != nil {
+			Walk(v, n.Operand)
+		}
+		if n.Left != nil {
+			Walk(v, n.Left)
+		}
+		if n.Right != nil {
+			Walk(v, n.Right)
+		}
+	case *GraphLetOp:
+		for _, c := range n.Vars {
+			Walk(v, c)
+		}
+	case *GraphLetVar:
+		Walk(v, n.Expr)
+	case *GraphLinearQuery:
+		walkNodes(v, n.Operators)
+		if n.Return != nil {
+			Walk(v, n.Return)
+		}
+	case *GraphMatchOp:
+		if n.Pattern != nil {
+			Walk(v, n.Pattern)
+		}
+	case *GraphNodePattern:
+		if n.Filler != nil {
+			Walk(v, n.Filler)
+		}
+	case *GraphOrderByOp:
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+	case *GraphPageOp:
+		Walk(v, n.Skip)
+		Walk(v, n.Limit)
+	case *GraphPathPattern:
+		walkNodes(v, n.Factors)
+		Walk(v, n.Where)
+	case *GraphPattern:
+		for _, c := range n.Paths {
+			Walk(v, c)
+		}
+		Walk(v, n.Where)
+	case *GraphPatternFiller:
+		if n.Label != nil {
+			Walk(v, n.Label)
+		}
+		if n.Properties != nil {
+			Walk(v, n.Properties)
+		}
+		Walk(v, n.Where)
+	case *GraphPropertyNameValue:
+		Walk(v, n.Expr)
+	case *GraphPropertySpec:
+		for _, c := range n.Properties {
+			Walk(v, c)
+		}
+	case *GraphReturnItem:
+		Walk(v, n.Expr)
+	case *GraphReturnOp:
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+		if n.GroupBy != nil {
+			Walk(v, n.GroupBy)
+		}
+		for _, c := range n.OrderBy {
+			Walk(v, c)
+		}
+		if n.Page != nil {
+			Walk(v, n.Page)
+		}
+	case *GraphSampleOp:
+		Walk(v, n.Size)
+		Walk(v, n.Repeatable)
+	case *GraphSetOp:
+		walkNodes(v, n.Ops)
+	case *GraphWithOp:
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+		if n.GroupBy != nil {
+			Walk(v, n.GroupBy)
 		}
 	case *GroupByClause:
 		for _, c := range n.Items {
@@ -506,6 +626,10 @@ func walkChildren(v Visitor, node Node) {
 	case *KeyPart:
 		Walk(v, n.Expr)
 		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *LabelAndProperties:
+		for _, c := range n.PropsList {
 			Walk(v, c)
 		}
 	case *LambdaExpr:

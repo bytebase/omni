@@ -99,6 +99,15 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	case kwSEARCH, kwVECTOR:
 		// CREATE SEARCH|VECTOR INDEX — BigQuery-only (bq_search_vector_index.go).
 		return p.parseCreateSearchVectorIndex(create, orReplace, scope)
+	case kwPROPERTY:
+		// CREATE [OR REPLACE] PROPERTY GRAPH [IF NOT EXISTS] … NODE TABLES (…)
+		// (create_property_graph_statement, parser-gql node →
+		// create_property_graph.go). PROPERTY GRAPH has NO opt_create_scope, so a
+		// leading TEMP/TEMPORARY/PUBLIC/PRIVATE is a syntax error.
+		if scope != "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseCreatePropertyGraph(create, orReplace)
 	case kwSCHEMA:
 		return p.parseCreateSchema(create, orReplace)
 	case kwDATABASE:
