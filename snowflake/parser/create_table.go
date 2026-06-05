@@ -103,6 +103,12 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	case kwTABLE:
 		return p.parseCreateTableStmt(start, orReplace, transient, temporary, volatile)
 	case kwDATABASE:
+		// CREATE [OR REPLACE] DATABASE ROLE ... (T4.6) vs CREATE DATABASE ... (T2.1).
+		// DATABASE ROLE is disambiguated by the ROLE keyword following DATABASE.
+		if p.peekNext().Type == kwROLE {
+			p.advance() // consume DATABASE
+			return p.parseCreateRoleStmt(start, orReplace, true)
+		}
 		return p.parseCreateDatabaseStmt(start, orReplace, transient)
 	case kwSCHEMA:
 		return p.parseCreateSchemaStmt(start, orReplace, transient)
@@ -172,9 +178,46 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// SECRET, CONNECTION, GIT REPOSITORY. parseCreateIntegrationStmt consumes the
 		// object-type keyword(s).
 		return p.parseCreateIntegrationStmt(start, orReplace)
+	case kwROLE:
+		// CREATE [OR REPLACE] ROLE ... (T4.6). DATABASE ROLE is dispatched by the
+		// kwDATABASE case above.
+		return p.parseCreateRoleStmt(start, orReplace, false)
+	case kwUSER:
+		// CREATE [OR REPLACE] USER ... (T4.6).
+		return p.parseCreateUserStmt(start, orReplace)
+	case kwMASKING, kwSESSION, kwPASSWORD, kwNETWORK, kwROW:
+		// CREATE [OR REPLACE] { MASKING | ROW ACCESS | SESSION | PASSWORD | NETWORK }
+		// POLICY ... (T4.6). parseCreatePolicyDispatch consumes the kind keyword(s)
+		// and the POLICY keyword, then delegates. A leading keyword not followed by
+		// the expected POLICY (or ACCESS POLICY, for ROW) is not a policy statement.
+		return p.parseCreatePolicyDispatch(start, orReplace)
 	default:
+		// AUTHENTICATION is not a reserved keyword, so CREATE AUTHENTICATION POLICY
+		// lexes as an "AUTHENTICATION" identifier followed by the POLICY keyword;
+		// that form is dispatched here (T4.6).
+		if p.curIsWord("AUTHENTICATION") && p.peekNext().Type == kwPOLICY {
+			return p.parseCreatePolicyDispatch(start, orReplace)
+		}
 		return p.unsupported("CREATE")
 	}
+}
+
+// parseCreatePolicyDispatch identifies which policy object follows and consumes
+// the policy-kind keyword(s) and the POLICY keyword, then delegates to
+// parseCreatePolicyStmt. On entry cur is the first policy-kind word:
+//
+//	MASKING POLICY            -> PolicyMasking
+//	ROW ACCESS POLICY         -> PolicyRowAccess
+//	SESSION POLICY            -> PolicySession
+//	PASSWORD POLICY           -> PolicyPassword
+//	NETWORK POLICY            -> PolicyNetwork
+//	AUTHENTICATION POLICY     -> PolicyAuthentication  (AUTHENTICATION is an identifier)
+func (p *Parser) parseCreatePolicyDispatch(start ast.Loc, orReplace bool) (ast.Node, error) {
+	kind, err := p.consumePolicyKeywords()
+	if err != nil {
+		return nil, err
+	}
+	return p.parseCreatePolicyStmt(start, orReplace, kind)
 }
 
 // ---------------------------------------------------------------------------

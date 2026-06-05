@@ -147,6 +147,15 @@ const (
 	T_CreateEventTableStmt
 	T_CreateSequenceStmt
 	T_AlterSequenceStmt
+
+	// Access-control DDL tags (T4.6)
+	T_PolicyArg
+	T_CreateRoleStmt
+	T_CreateUserStmt
+	T_CreatePolicyStmt
+	T_AlterRoleStmt
+	T_AlterUserStmt
+	T_AlterPolicyStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -352,6 +361,20 @@ func (t NodeTag) String() string {
 		return "CreateSequenceStmt"
 	case T_AlterSequenceStmt:
 		return "AlterSequenceStmt"
+	case T_PolicyArg:
+		return "PolicyArg"
+	case T_CreateRoleStmt:
+		return "CreateRoleStmt"
+	case T_CreateUserStmt:
+		return "CreateUserStmt"
+	case T_CreatePolicyStmt:
+		return "CreatePolicyStmt"
+	case T_AlterRoleStmt:
+		return "AlterRoleStmt"
+	case T_AlterUserStmt:
+		return "AlterUserStmt"
+	case T_AlterPolicyStmt:
+		return "AlterPolicyStmt"
 	default:
 		return "Unknown"
 	}

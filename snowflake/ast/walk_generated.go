@@ -57,6 +57,21 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *AlterPolicyStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
+		Walk(v, n.Body)
+	case *AlterRoleStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
 	case *AlterRoutineStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -99,6 +114,13 @@ func walkChildren(v Visitor, node Node) {
 		}
 		Walk(v, n.When)
 		Walk(v, n.Body)
+	case *AlterUserStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
 	case *AlterViewStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -228,6 +250,18 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Name)
 		}
 		Walk(v, n.Copy)
+	case *CreatePolicyStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Returns != nil {
+			Walk(v, n.Returns)
+		}
+		Walk(v, n.Body)
+	case *CreateRoleStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *CreateRoutineStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -274,6 +308,10 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Body)
 		if n.Clone != nil {
 			Walk(v, n.Clone)
+		}
+	case *CreateUserStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 	case *CreateViewStmt:
 		if n.Name != nil {
@@ -388,6 +426,10 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.On)
 	case *ParenExpr:
 		Walk(v, n.Expr)
+	case *PolicyArg:
+		if n.DataType != nil {
+			Walk(v, n.DataType)
+		}
 	case *PutStmt:
 		if n.File != nil {
 			Walk(v, n.File)
