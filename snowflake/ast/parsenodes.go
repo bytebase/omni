@@ -3320,3 +3320,334 @@ var (
 	_ Node = (*CreateRoutineStmt)(nil)
 	_ Node = (*AlterRoutineStmt)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// Table-variant + sequence DDL — CREATE / ALTER DYNAMIC / EXTERNAL / EVENT
+// TABLE + SEQUENCE (T4.4)
+// ---------------------------------------------------------------------------
+//
+// DYNAMIC / EXTERNAL / EVENT tables and SEQUENCEs each carry a large,
+// version-growing configuration vocabulary that the legacy ANTLR grammar
+// enumerates as an already-stale subset (its create_dynamic_table lacks
+// REFRESH_MODE = ADAPTIVE | CUSTOM_INCREMENTAL, SCHEDULER, INITIALIZATION_WAREHOUSE,
+// EXTERNAL_VOLUME / CATALOG / BASE_LOCATION / ICEBERG_VERSION for the ICEBERG
+// variant, the REQUIRE USER and IMMUTABLE/FROZEN WHERE clauses, the REFRESH USING
+// body, ...; its create_external_table lacks the USING TEMPLATE form). Matching
+// the merged STAGE (T4.1) / FILE FORMAT (T4.2) / COPY (T5.2) / pipeline (T4.3)
+// approach, every such config parameter that is a `KEY = <value>` pair is captured
+// open-ended (CopyOption), and only the structurally distinct anchors are modeled
+// as dedicated fields: the optional ICEBERG modifier, the column list, the
+// CLUSTER BY clause, the CLONE source, the REQUIRE USER flag, the IMMUTABLE/FROZEN
+// WHERE predicate, the LOCATION = @stage / PARTITION BY / USING TEMPLATE clauses,
+// and the terminal AS <query> / REFRESH USING (<dml>) body. The catalog/semantic
+// layer, not the parser, validates that an option is real and legal.
+
+// CreateDynamicTableStmt represents
+//
+//	CREATE [ OR REPLACE ] [ TRANSIENT ] DYNAMIC [ ICEBERG ] TABLE [ IF NOT EXISTS ] <name>
+//	  [ ( <col_name> [ <col_type> ] [ , ... ] ) ]
+//	  [ TARGET_LAG = { '<dur>' | DOWNSTREAM } ] [ WAREHOUSE = <wh> ]
+//	  [ REFRESH_MODE = ... ] [ INITIALIZE = ... ] [ CLUSTER BY ( ... ) ]
+//	  [ DATA_RETENTION_TIME_IN_DAYS = <n> ] [ EXTERNAL_VOLUME = ... ]
+//	  [ CATALOG = ... ] [ BASE_LOCATION = ... ] [ <other options> ]
+//	  [ REQUIRE USER ] [ { IMMUTABLE | FROZEN } WHERE ( <expr> ) ]
+//	  { AS <query> | REFRESH USING ( <dml_statement> ) }
+//
+//	CREATE [ OR REPLACE ] [ TRANSIENT ] DYNAMIC [ ICEBERG ] TABLE <name>
+//	  CLONE <source> [ { AT | BEFORE } ( ... ) ]
+//
+// Iceberg records the optional ICEBERG modifier. Columns holds the optional
+// column list (materialized columns: a name with an optional type, no full
+// constraint vocabulary). Options holds every open-ended KEY = value parameter
+// (TARGET_LAG / WAREHOUSE / REFRESH_MODE / INITIALIZE / DATA_RETENTION_TIME_IN_DAYS
+// / EXTERNAL_VOLUME / CATALOG / BASE_LOCATION / ICEBERG_VERSION / SCHEDULER /
+// INITIALIZATION_WAREHOUSE / COMMENT / ...), preserving source order. ClusterBy /
+// Linear model the CLUSTER BY [LINEAR] (...) clause. RequireUser records REQUIRE
+// USER. ImmutableWhere holds the IMMUTABLE/FROZEN WHERE (<expr>) predicate;
+// ImmutableKind is "IMMUTABLE" or "FROZEN". AsQuery holds the AS <query> body;
+// RefreshUsing holds the REFRESH USING (<dml>) body (one of the two is set for a
+// non-CLONE statement). Clone holds the CLONE source for the CLONE form (with the
+// other body fields zero).
+type CreateDynamicTableStmt struct {
+	OrReplace      bool
+	Transient      bool
+	Iceberg        bool
+	IfNotExists    bool
+	Name           *ObjectName
+	Columns        []*ColumnDef  // optional materialized column list; nil if absent
+	Options        []*CopyOption // TARGET_LAG / WAREHOUSE / REFRESH_MODE / INITIALIZE / ...
+	ClusterBy      []Node        // CLUSTER BY ( exprs ); nil if absent
+	Linear         bool          // CLUSTER BY LINEAR modifier
+	RequireUser    bool          // REQUIRE USER
+	ImmutableKind  string        // "IMMUTABLE" or "FROZEN"; empty if no WHERE clause
+	ImmutableWhere Node          // { IMMUTABLE | FROZEN } WHERE ( <expr> ); nil if absent
+	AsQuery        Node          // AS <query>; nil for the CLONE / REFRESH USING forms
+	RefreshUsing   Node          // REFRESH USING ( <dml_statement> ); nil otherwise
+	Clone          *CloneSource  // CLONE <source>; non-nil only for the CLONE form
+	Loc            Loc
+}
+
+// Tag implements Node.
+func (n *CreateDynamicTableStmt) Tag() NodeTag { return T_CreateDynamicTableStmt }
+
+// AlterDynamicTableAction discriminates the action variants of ALTER DYNAMIC TABLE.
+type AlterDynamicTableAction int
+
+const (
+	AlterDynamicTableSuspend           AlterDynamicTableAction = iota // SUSPEND
+	AlterDynamicTableResume                                           // RESUME
+	AlterDynamicTableRefresh                                          // REFRESH [ COPY SESSION ]
+	AlterDynamicTableRename                                           // RENAME TO <new_name>
+	AlterDynamicTableSwap                                             // SWAP WITH <other_name>
+	AlterDynamicTableSet                                              // SET <settable params>
+	AlterDynamicTableUnset                                            // UNSET <property> [, ...]
+	AlterDynamicTableSetTag                                           // SET TAG <tag> = '<value>' [, ...]
+	AlterDynamicTableUnsetTag                                         // UNSET TAG <tag> [, ...]
+	AlterDynamicTableClusterBy                                        // CLUSTER BY ( exprs )
+	AlterDynamicTableDropClusteringKey                                // DROP CLUSTERING KEY
+)
+
+// AlterDynamicTableStmt represents ALTER DYNAMIC TABLE [ IF EXISTS ] <name> <action>.
+//
+//	{ SUSPEND | RESUME }
+//	REFRESH [ COPY SESSION ]
+//	RENAME TO <new_name>
+//	SWAP WITH <target_dynamic_table_name>
+//	SET <settable params>                      -- open-ended KEY = value
+//	UNSET <property> [ , ... ]
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
+//	CLUSTER BY ( <expr> [ , ... ] )
+//	DROP CLUSTERING KEY
+//
+// RefreshCopySession records the optional COPY SESSION on the REFRESH action.
+type AlterDynamicTableStmt struct {
+	IfExists           bool
+	Name               *ObjectName
+	Action             AlterDynamicTableAction
+	NewName            *ObjectName      // RENAME TO / SWAP WITH target
+	Options            []*CopyOption    // SET <settable params>; for AlterDynamicTableSet
+	Tags               []*TagAssignment // SET TAG assignments; for AlterDynamicTableSetTag
+	UnsetTags          []*ObjectName    // UNSET TAG names; for AlterDynamicTableUnsetTag
+	UnsetProps         []string         // UNSET <property> names; for AlterDynamicTableUnset
+	ClusterBy          []Node           // CLUSTER BY exprs; for AlterDynamicTableClusterBy
+	Linear             bool             // CLUSTER BY LINEAR modifier
+	RefreshCopySession bool             // REFRESH COPY SESSION; for AlterDynamicTableRefresh
+	Loc                Loc
+}
+
+// Tag implements Node.
+func (n *AlterDynamicTableStmt) Tag() NodeTag { return T_AlterDynamicTableStmt }
+
+// ExternalColumnDef represents one column of a CREATE EXTERNAL TABLE column list:
+//
+//	<col_name> <col_type> AS ( <expr> | <id> ) [ inlineConstraint ]
+//
+// Unlike an ordinary ColumnDef, an external-table column's value is always derived
+// from an AS expression over the staged file (the data type is required, and the
+// AS clause is mandatory). Expr holds the AS expression (parenthesized or not).
+type ExternalColumnDef struct {
+	Name       Ident
+	DataType   *TypeName         // required (per the docs / legacy grammar)
+	Expr       Node              // AS ( <expr> ) | AS <id>; the partition/derivation expression
+	NotNull    bool              // inline NOT NULL
+	Constraint *InlineConstraint // inline PRIMARY KEY / UNIQUE / FOREIGN KEY; nil if absent
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *ExternalColumnDef) Tag() NodeTag { return T_ExternalColumnDef }
+
+// CreateExternalTableStmt represents
+//
+//	CREATE [ OR REPLACE ] EXTERNAL TABLE [ IF NOT EXISTS ] <name>
+//	  ( <col_name> <col_type> AS ( <expr> ) [ inlineConstraint ] [ , ... ] )
+//	  [ INTEGRATION = '<integration>' ] [ PARTITION BY ( <expr> [ , ... ] ) ]
+//	  [ WITH ] LOCATION = @<stage>[/<path>]
+//	  [ REFRESH_ON_CREATE = { TRUE | FALSE } ] [ AUTO_REFRESH = { TRUE | FALSE } ]
+//	  [ PATTERN = '<regex>' ] [ PARTITION_TYPE = USER_SPECIFIED ]
+//	  FILE_FORMAT = ( ... ) [ TABLE_FORMAT = DELTA ] [ AWS_SNS_TOPIC = '...' ]
+//	  [ COPY GRANTS ] [ <with_row_access_policy> ] [ [ WITH ] TAG ( ... ) ]
+//	  [ COMMENT = '...' ]
+//
+//	CREATE [ OR REPLACE ] EXTERNAL TABLE [ IF NOT EXISTS ] <name>
+//	  USING TEMPLATE ( <query> )
+//	  [ WITH ] LOCATION = @<stage> [ <other options> ]
+//
+// Columns holds the explicit column list (nil for the USING TEMPLATE form).
+// UsingTemplate holds the USING TEMPLATE ( <query> ) body (nil for the explicit
+// column-list form). PartitionBy holds the PARTITION BY ( <expr> [, ...] ) clause.
+// Location holds the mandatory LOCATION = @stage reference. Options holds every
+// open-ended KEY = value parameter (REFRESH_ON_CREATE / AUTO_REFRESH / PATTERN /
+// PARTITION_TYPE / FILE_FORMAT / TABLE_FORMAT / AWS_SNS_TOPIC / INTEGRATION /
+// FILE_FORMAT / COMMENT / ...), preserving source order. CopyGrants records COPY
+// GRANTS; Tags holds the [WITH] TAG assignments.
+type CreateExternalTableStmt struct {
+	OrReplace     bool
+	IfNotExists   bool
+	Name          *ObjectName
+	Columns       []*ExternalColumnDef // explicit column list; nil for USING TEMPLATE
+	UsingTemplate Node                 // USING TEMPLATE ( <query> ); nil for the column-list form
+	PartitionBy   []Node               // PARTITION BY ( exprs ); nil if absent
+	Location      *StageLocation       // LOCATION = @stage; non-nil for a well-formed statement
+	Options       []*CopyOption        // REFRESH_ON_CREATE / AUTO_REFRESH / PATTERN / FILE_FORMAT / ...
+	CopyGrants    bool                 // COPY GRANTS
+	Tags          []*TagAssignment     // [WITH] TAG (...); nil if absent
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *CreateExternalTableStmt) Tag() NodeTag { return T_CreateExternalTableStmt }
+
+// ExternalTablePartition is one `<col> = '<value>'` pair in an ALTER EXTERNAL
+// TABLE ADD PARTITION (...) clause.
+type ExternalTablePartition struct {
+	Column Ident
+	Value  string // the '<string>' partition value
+}
+
+// AlterExternalTableAction discriminates the action variants of ALTER EXTERNAL TABLE.
+type AlterExternalTableAction int
+
+const (
+	AlterExternalTableRefresh       AlterExternalTableAction = iota // REFRESH [ '<path>' ]
+	AlterExternalTableAddFiles                                      // ADD FILES ( '<f>' [, ...] )
+	AlterExternalTableRemoveFiles                                   // REMOVE FILES ( '<f>' [, ...] )
+	AlterExternalTableSet                                           // SET [ AUTO_REFRESH = ... ] [ TAG ... ]
+	AlterExternalTableUnsetTag                                      // UNSET TAG <tag> [, ...]
+	AlterExternalTableAddPartition                                  // ADD PARTITION ( col=val,... ) LOCATION '<path>'
+	AlterExternalTableDropPartition                                 // DROP PARTITION LOCATION '<path>'
+)
+
+// AlterExternalTableStmt represents ALTER EXTERNAL TABLE [ IF EXISTS ] <name> <action>.
+//
+//	REFRESH [ '<relative-path>' ]
+//	ADD FILES ( '<path>/<file>' [ , ... ] )
+//	REMOVE FILES ( '<path>/<file>' [ , ... ] )
+//	SET [ AUTO_REFRESH = { TRUE | FALSE } ] [ TAG <tag> = '<value>' [ , ... ] ]
+//	UNSET TAG <tag> [ , ... ]
+//	ADD PARTITION ( <col> = '<val>' [ , ... ] ) LOCATION '<path>'
+//	DROP PARTITION LOCATION '<path>'
+//
+// RefreshPath holds the optional REFRESH path; Files holds the ADD/REMOVE FILES
+// list; Options/Tags hold the SET params/tags; Partitions + Location hold the
+// ADD PARTITION pairs and path; DropLocation holds the DROP PARTITION path.
+type AlterExternalTableStmt struct {
+	IfExists     bool
+	Name         *ObjectName
+	Action       AlterExternalTableAction
+	RefreshPath  *string                   // REFRESH '<path>'; nil if bare REFRESH
+	Files        []*Literal                // ADD/REMOVE FILES list
+	Options      []*CopyOption             // SET [ AUTO_REFRESH = ... ]; for AlterExternalTableSet
+	Tags         []*TagAssignment          // SET ... TAG / for AlterExternalTableSet
+	UnsetTags    []*ObjectName             // UNSET TAG names; for AlterExternalTableUnsetTag
+	Partitions   []*ExternalTablePartition // ADD PARTITION pairs; for AlterExternalTableAddPartition
+	Location     *string                   // ADD PARTITION ... LOCATION '<path>'
+	DropLocation *string                   // DROP PARTITION LOCATION '<path>'
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *AlterExternalTableStmt) Tag() NodeTag { return T_AlterExternalTableStmt }
+
+// CreateEventTableStmt represents
+//
+//	CREATE [ OR REPLACE ] EVENT TABLE [ IF NOT EXISTS ] <name>
+//	  [ CLUSTER BY ( <expr> [ , ... ] ) ]
+//	  [ DATA_RETENTION_TIME_IN_DAYS = <n> ] [ MAX_DATA_EXTENSION_TIME_IN_DAYS = <n> ]
+//	  [ CHANGE_TRACKING = { TRUE | FALSE } ] [ DEFAULT_DDL_COLLATION = '<collation>' ]
+//	  [ COPY GRANTS ] [ <with_row_access_policy> ] [ [ WITH ] TAG ( ... ) ]
+//	  [ [ WITH ] COMMENT = '<string_literal>' ]
+//
+// An EVENT TABLE has a fixed, system-defined schema (no user column list).
+// ClusterBy / Linear model the optional CLUSTER BY [LINEAR] (...) clause. Options
+// holds every open-ended KEY = value parameter (DATA_RETENTION_TIME_IN_DAYS /
+// MAX_DATA_EXTENSION_TIME_IN_DAYS / CHANGE_TRACKING / DEFAULT_DDL_COLLATION /
+// COMMENT / ...), preserving source order. CopyGrants records COPY GRANTS; Tags
+// holds the [WITH] TAG assignments.
+type CreateEventTableStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	ClusterBy   []Node           // CLUSTER BY ( exprs ); nil if absent
+	Linear      bool             // CLUSTER BY LINEAR modifier
+	Options     []*CopyOption    // DATA_RETENTION_TIME_IN_DAYS / CHANGE_TRACKING / COMMENT / ...
+	CopyGrants  bool             // COPY GRANTS
+	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateEventTableStmt) Tag() NodeTag { return T_CreateEventTableStmt }
+
+// CreateSequenceStmt represents
+//
+//	CREATE [ OR REPLACE ] SEQUENCE [ IF NOT EXISTS ] <name>
+//	  [ WITH ]
+//	  [ START [ WITH ] [ = ] <initial_value> ]
+//	  [ INCREMENT [ BY ] [ = ] <sequence_interval> ]
+//	  [ { ORDER | NOORDER } ]
+//	  [ COMMENT = '<string_literal>' ]
+//
+// Start / Increment hold the optional START / INCREMENT integer values (each may
+// be negative; nil when the clause is omitted). Order is true for ORDER, false
+// for NOORDER, nil when unspecified. Comment holds the COMMENT clause text.
+type CreateSequenceStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Start       *int64  // START [WITH] [=] <n>; nil if absent
+	Increment   *int64  // INCREMENT [BY] [=] <n>; nil if absent
+	Order       *bool   // true=ORDER, false=NOORDER, nil=unspecified
+	Comment     *string // COMMENT = '<text>'; nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateSequenceStmt) Tag() NodeTag { return T_CreateSequenceStmt }
+
+// AlterSequenceAction discriminates the action variants of ALTER SEQUENCE.
+type AlterSequenceAction int
+
+const (
+	AlterSequenceRename       AlterSequenceAction = iota // RENAME TO <new_name>
+	AlterSequenceSetIncrement                            // [ SET ] INCREMENT [ BY ] [ = ] <n>
+	AlterSequenceSet                                     // SET [ { ORDER | NOORDER } ] [ COMMENT = '...' ]
+	AlterSequenceUnsetComment                            // UNSET COMMENT
+)
+
+// AlterSequenceStmt represents ALTER SEQUENCE [ IF EXISTS ] <name> <action>.
+//
+//	RENAME TO <new_name>
+//	[ SET ] INCREMENT [ BY ] [ = ] <sequence_interval>
+//	SET [ { ORDER | NOORDER } ] [ COMMENT = '<string_literal>' ]
+//	UNSET COMMENT
+//
+// NewName holds the RENAME target. Increment holds the new interval (may be
+// negative) for the SET INCREMENT action. Order / Comment hold the SET
+// ORDER|NOORDER / COMMENT values.
+type AlterSequenceStmt struct {
+	IfExists  bool
+	Name      *ObjectName
+	Action    AlterSequenceAction
+	NewName   *ObjectName // RENAME TO target
+	Increment *int64      // SET INCREMENT value; for AlterSequenceSetIncrement
+	Order     *bool       // SET ORDER|NOORDER; for AlterSequenceSet
+	Comment   *string     // SET COMMENT value; for AlterSequenceSet
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *AlterSequenceStmt) Tag() NodeTag { return T_AlterSequenceStmt }
+
+// Compile-time assertions for table-variant + sequence DDL nodes.
+var (
+	_ Node = (*CreateDynamicTableStmt)(nil)
+	_ Node = (*AlterDynamicTableStmt)(nil)
+	_ Node = (*ExternalColumnDef)(nil)
+	_ Node = (*CreateExternalTableStmt)(nil)
+	_ Node = (*AlterExternalTableStmt)(nil)
+	_ Node = (*CreateEventTableStmt)(nil)
+	_ Node = (*CreateSequenceStmt)(nil)
+	_ Node = (*AlterSequenceStmt)(nil)
+)

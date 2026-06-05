@@ -138,9 +138,23 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	case kwPROCEDURE:
 		// CREATE [OR REPLACE] PROCEDURE ... (T4.5).
 		return p.parseCreateProcedureStmt(start, orReplace, false)
+	case kwDYNAMIC:
+		// CREATE [OR REPLACE] [TRANSIENT] DYNAMIC [ICEBERG] TABLE ... (T4.4).
+		return p.parseCreateDynamicTableStmt(start, orReplace, transient)
+	case kwEVENT:
+		// CREATE [OR REPLACE] EVENT TABLE ... (T4.4).
+		return p.parseCreateEventTableStmt(start, orReplace)
+	case kwSEQUENCE:
+		// CREATE [OR REPLACE] SEQUENCE ... (T4.4).
+		return p.parseCreateSequenceStmt(start, orReplace)
 	case kwEXTERNAL:
-		// CREATE [OR REPLACE] EXTERNAL FUNCTION ... (T4.5). EXTERNAL TABLE (and
-		// any other EXTERNAL object) is owned by another node.
+		// CREATE [OR REPLACE] EXTERNAL { FUNCTION (T4.5) | TABLE (T4.4) }. The
+		// object is disambiguated by the keyword that follows EXTERNAL. EXTERNAL
+		// TABLE keeps cur on the EXTERNAL keyword (its sub-parser consumes both
+		// EXTERNAL and TABLE), matching the DYNAMIC/EVENT two-keyword handling.
+		if p.peekNext().Type == kwTABLE {
+			return p.parseCreateExternalTableStmt(start, orReplace)
+		}
 		p.advance() // consume EXTERNAL
 		if p.cur.Type != kwFUNCTION {
 			return p.unsupported("CREATE")

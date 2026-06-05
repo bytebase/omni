@@ -22,6 +22,18 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+	case *AlterDynamicTableStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
+		walkNodes(v, n.ClusterBy)
+	case *AlterExternalTableStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *AlterFileFormatStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -49,6 +61,13 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.NewName)
 		}
 	case *AlterSchemaStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
+	case *AlterSequenceStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
@@ -157,6 +176,28 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *CreateDynamicTableStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		walkNodes(v, n.ClusterBy)
+		Walk(v, n.ImmutableWhere)
+		Walk(v, n.AsQuery)
+		Walk(v, n.RefreshUsing)
+	case *CreateEventTableStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		walkNodes(v, n.ClusterBy)
+	case *CreateExternalTableStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		Walk(v, n.UsingTemplate)
+		walkNodes(v, n.PartitionBy)
+		if n.Location != nil {
+			Walk(v, n.Location)
+		}
 	case *CreateFileFormatStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -180,6 +221,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.ReturnType)
 		}
 	case *CreateSchemaStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *CreateSequenceStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
@@ -247,6 +292,11 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *ExistsExpr:
 		Walk(v, n.Query)
+	case *ExternalColumnDef:
+		if n.DataType != nil {
+			Walk(v, n.DataType)
+		}
+		Walk(v, n.Expr)
 	case *File:
 		walkNodes(v, n.Stmts)
 	case *FuncCallExpr:
