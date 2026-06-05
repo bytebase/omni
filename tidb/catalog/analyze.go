@@ -1027,6 +1027,19 @@ func (c *Catalog) analyzeParenSourceWithCTEs(stmt *nodes.SelectStmt, parentScope
 		return nil, err
 	}
 
+	// The wrapper-level WITH (WITH cte AS (...) (SELECT ... FROM cte)) was
+	// analyzed into cteHolder; its CTE definitions and recursion flag belong on
+	// the returned query so the inner range table's RTECTE references resolve
+	// into q.CTEList (the inner analysis fell back to CTEIndex 0 because its own
+	// CTEList was empty). Prepend so the outer CTEs precede any the inner query
+	// declared itself.
+	if len(cteHolder.CTEList) > 0 {
+		q.CTEList = append(cteHolder.CTEList, q.CTEList...)
+	}
+	if cteHolder.IsRecursive {
+		q.IsRecursive = true
+	}
+
 	// Apply the wrapper's OUTER ORDER BY / LIMIT onto the analyzed query when the
 	// inner query does not already carry that clause (the common case, e.g.
 	// "(SELECT a) LIMIT 2" / "(SELECT a) ORDER BY a"). The flat Query IR cannot

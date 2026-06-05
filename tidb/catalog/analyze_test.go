@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"strings"
 	"testing"
 
 	nodes "github.com/bytebase/omni/tidb/ast"
@@ -2497,6 +2498,24 @@ func TestAnalyze_RecursiveCTEParenthesizedBody(t *testing.T) {
 	t.Run("parenthesized", func(t *testing.T) {
 		check(t, "WITH RECURSIVE cte(n) AS ((SELECT 1) UNION ALL (SELECT n + 1 FROM cte WHERE n < 3)) SELECT * FROM cte")
 	})
+}
+
+// TestAnalyze_WithClauseOnParenthesizedBody guards a WITH clause attached to a
+// parenthesized query body — WITH cte AS (...) (SELECT ... FROM cte). The
+// wrapper-level CTE definitions must land on the returned query's CTEList so the
+// inner range table's RTECTE references resolve (CTEIndex must not dangle).
+func TestAnalyze_WithClauseOnParenthesizedBody(t *testing.T) {
+	c := setupJoinTables(t)
+	q, err := c.AnalyzeSelectStmt(parseSelect(t, "WITH cte AS (SELECT name FROM employees) (SELECT name FROM cte)"))
+	assertNoError(t, err)
+	if len(q.CTEList) != 1 || q.CTEList[0].Name != "cte" {
+		t.Fatalf("CTEList: want [cte], got %+v", q.CTEList)
+	}
+	// The CTE must survive into analyzed-query deparse — a dangling CTEIndex
+	// would drop the WITH and leave the body referencing an undefined cte.
+	if got := DeparseQuery(q); !strings.Contains(got, "with `cte`") {
+		t.Errorf("DeparseQuery lost the WITH clause: %q", got)
+	}
 }
 
 func TestAnalyze_ParenthesizedQuery(t *testing.T) {
