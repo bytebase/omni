@@ -201,7 +201,7 @@ func TestRecursiveAddColumn(t *testing.T) {
 
 	// ADD COLUMN on parent should propagate to child.
 	err := c.AlterTableStmt(makeAlterTableStmt("", "parent",
-		makeATAddColumn(ColumnDef{Name: "b", Type: TypeName{Name: "text", TypeMod: -1}}),
+		makeATAddColumn(ColumnDef{Name: "b", Type: TypeName{Name: "text", TypeMod: -1}}, false),
 	))
 	if err != nil {
 		t.Fatal(err)
@@ -318,7 +318,7 @@ func TestPassOrderDropBeforeAdd(t *testing.T) {
 	// ADD COLUMN 'c', then DROP COLUMN 'b' in statement order.
 	// Pass ordering: DROP (pass 0) before ADD (pass 3).
 	stmt := makeAlterTableStmt("", "t",
-		makeATAddColumn(ColumnDef{Name: "c", Type: TypeName{Name: "int8", TypeMod: -1}}),
+		makeATAddColumn(ColumnDef{Name: "c", Type: TypeName{Name: "int8", TypeMod: -1}}, false),
 		makeATDropColumn("b", false, false),
 	)
 	err := c.AlterTableStmt(stmt)

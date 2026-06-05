@@ -336,7 +336,7 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 			return &Error{Code: CodeInvalidTableDefinition,
 				Message: "cannot recursively add identity column to table that has child tables"}
 		}
-		if err := c.atAddColumn(schema, rel, relName, colDef, recursing); err != nil {
+		if err := c.atAddColumn(schema, rel, relName, colDef, atc.Missing_ok, recursing); err != nil {
 			return err
 		}
 		// Analyze column default after column is added to the relation.
@@ -1100,13 +1100,17 @@ func (c *Catalog) renameAttribute(stmt *nodes.RenameStmt) error {
 	return c.atRenameColumn(rel, stmt.Subname, stmt.Newname)
 }
 
-func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, colDef ColumnDef, recursing bool) error {
+func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, colDef ColumnDef, missingOk, recursing bool) error {
 	// pg: src/backend/commands/tablecmds.c — ATExecAddColumn (MaxHeapAttributeNumber check)
 	if len(rel.Columns) >= MaxHeapAttributeNumber {
 		return &Error{Code: CodeTooManyColumns, Message: fmt.Sprintf("tables can have at most %d columns", MaxHeapAttributeNumber)}
 	}
 
 	if _, exists := rel.colByName[colDef.Name]; exists {
+		// ALTER TABLE ... ADD COLUMN IF NOT EXISTS: an already-present column is a no-op, not an error.
+		if missingOk {
+			return nil
+		}
 		return errDuplicateColumn(colDef.Name)
 	}
 
