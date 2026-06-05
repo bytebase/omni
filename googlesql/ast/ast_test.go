@@ -390,6 +390,92 @@ func TestWalkSliceOfPointerNodeFields(t *testing.T) {
 	}
 }
 
+// TestWalkValueStructNodeFields is the regression test for the genwalker
+// value-struct traversal gap. WindowFrame holds `Start WindowBound` and
+// `End WindowBound` — value (non-pointer, non-Node) struct fields — and
+// WindowBound carries an `Offset Node` (the `expr` in `5 PRECEDING` /
+// `@p FOLLOWING`). Before the fix genwalker's isChildType recognized only Node,
+// []Node, *<NodeStruct> and []*<NodeStruct>, so it emitted NO case for
+// WindowFrame at all and the bound offset expressions were unreachable by any
+// AST pass (query-span / lineage would miss frame-bound subexpressions). The
+// fix teaches the generator to descend into Node fields nested inside value
+// struct fields. This test asserts both bound offsets are now visited by Walk
+// (with the post-order Visit(nil)) and Inspect.
+func TestWalkValueStructNodeFields(t *testing.T) {
+	// A BETWEEN frame `ROWS BETWEEN <startOffset> PRECEDING AND <endOffset>
+	// FOLLOWING` with a distinct leaf Literal at each bound offset.
+	startOffset := &Literal{Kind: LitInt, Ival: 5, Loc: Loc{0, 1}}
+	endOffset := &Literal{Kind: LitInt, Ival: 10, Loc: Loc{2, 4}}
+	frame := &WindowFrame{
+		Kind:    FrameRows,
+		Between: true,
+		Start:   WindowBound{Kind: BoundPreceding, Offset: startOffset},
+		End:     WindowBound{Kind: BoundFollowing, Offset: endOffset},
+	}
+
+	// Walk must reach the frame, both bound offset literals, and the matching
+	// post-order Visit(nil) for each visited node.
+	var events []recordEvent
+	Walk(&recorder{events: &events}, frame)
+	want := []recordEvent{
+		{tag: T_WindowFrame}, // pre-order frame
+		{tag: T_Literal},     // pre-order Start.Offset
+		{post: true},         // post-order Start.Offset
+		{tag: T_Literal},     // pre-order End.Offset
+		{post: true},         // post-order End.Offset
+		{post: true},         // post-order frame
+	}
+	if !reflect.DeepEqual(events, want) {
+		t.Errorf("Walk over WindowFrame visit order mismatch:\n got: %+v\nwant: %+v", events, want)
+	}
+
+	// Inspect must reach the frame and both offset literals (no post-order).
+	var visited []Node
+	Inspect(frame, func(n Node) bool {
+		visited = append(visited, n)
+		return true
+	})
+	if len(visited) != 3 {
+		t.Fatalf("Inspect visited %d nodes, want 3 (frame + 2 bound offsets); value-struct field not walked", len(visited))
+	}
+	if visited[0] != Node(frame) {
+		t.Errorf("Inspect[0] = %v, want the WindowFrame", visited[0])
+	}
+	// Identity check: the exact offset Node pointers must be the ones reached,
+	// proving Walk descended into n.Start.Offset / n.End.Offset specifically.
+	if visited[1] != Node(startOffset) {
+		t.Errorf("Inspect[1] = %v, want Start.Offset literal %p", visited[1], startOffset)
+	}
+	if visited[2] != Node(endOffset) {
+		t.Errorf("Inspect[2] = %v, want End.Offset literal %p", visited[2], endOffset)
+	}
+}
+
+// TestWalkValueStructNilOffsets verifies the value-struct walk is nil-safe: a
+// frame whose bounds carry no offset (UNBOUNDED PRECEDING / CURRENT ROW leave
+// WindowBound.Offset nil) must not panic and must visit only the frame itself.
+func TestWalkValueStructNilOffsets(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Errorf("Walk over WindowFrame with nil bound offsets panicked: %v", r)
+		}
+	}()
+	frame := &WindowFrame{
+		Kind:    FrameRows,
+		Between: true,
+		Start:   WindowBound{Kind: BoundUnboundedPreceding}, // Offset nil
+		End:     WindowBound{Kind: BoundCurrentRow},         // Offset nil
+	}
+	var visited []NodeTag
+	Inspect(frame, func(n Node) bool {
+		visited = append(visited, n.Tag())
+		return true
+	})
+	if len(visited) != 1 || visited[0] != T_WindowFrame {
+		t.Errorf("Inspect over nil-offset frame visited %v, want [T_WindowFrame] only", visited)
+	}
+}
+
 // -----------------------------------------------------------------------
 // NodeTag tests
 // -----------------------------------------------------------------------
