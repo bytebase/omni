@@ -136,10 +136,19 @@ func Classify(node ast.Node, dialect Dialect) QueryType {
 		*ast.MergeStmt, *ast.TruncateStmt:
 		return DML
 
-	// DDL — CREATE / ALTER / DROP over table-like objects.
+	// DDL — CREATE / ALTER / DROP over table-like objects, plus the BigQuery-only
+	// object DDL (FUNCTION / TABLE FUNCTION / PROCEDURE, MATERIALIZED|APPROX VIEW,
+	// SEARCH|VECTOR INDEX, SNAPSHOT TABLE, generic-entity CAPACITY/RESERVATION/
+	// ASSIGNMENT, ROW ACCESS POLICY). The legacy listener groups every CREATE/
+	// ALTER/DROP form under DDL, so these classify as DDL too.
 	case *ast.CreateTableStmt, *ast.CreateViewStmt, *ast.CreateIndexStmt,
 		*ast.CreateSchemaStmt, *ast.CreateDatabaseStmt,
-		*ast.AlterStmt, *ast.DropStmt:
+		*ast.AlterStmt, *ast.DropStmt,
+		*ast.CreateFunctionStmt, *ast.CreateProcedureStmt,
+		*ast.CreateMaterializedViewStmt, *ast.CreateSnapshotStmt,
+		*ast.SearchVectorIndexStmt, *ast.CreateRowAccessPolicyStmt,
+		*ast.CreateEntityStmt, *ast.BQAlterStmt, *ast.BQDropStmt,
+		*ast.DropAllRowAccessPoliciesStmt:
 		return DDL
 
 	// DCL — GRANT / REVOKE are DDL in the legacy listener (its rule list groups

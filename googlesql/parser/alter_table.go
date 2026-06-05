@@ -57,10 +57,22 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		kind = ast.AlterSchema
 	case kwDATABASE:
 		kind = ast.AlterDatabase
+	// --- BigQuery-only ALTER objects (parser-ddl-bigquery node) ---
+	case kwMATERIALIZED, kwAPPROX:
+		// ALTER MATERIALIZED|APPROX VIEW SET OPTIONS (bq_materialized_view.go).
+		return p.parseBQAlterMaterializedView(alter)
+	case kwVECTOR:
+		// ALTER VECTOR INDEX … ON … REBUILD (bq_search_vector_index.go).
+		return p.parseBQAlterVectorIndex(alter)
 	default:
-		// ALTER FUNCTION / PROCEDURE / MODEL / MATERIALIZED VIEW / generic entity /
-		// PRIVILEGE RESTRICTION / ROW ACCESS POLICY / ALL ROW ACCESS POLICIES — not
-		// owned here.
+		// ALTER <generic-entity> (CAPACITY / RESERVATION / ASSIGNMENT — the keyword
+		// lexes as an identifier) routes to the generic-entity alter
+		// (bq_capacity.go). ALTER FUNCTION / PROCEDURE / MODEL / PRIVILEGE
+		// RESTRICTION / ROW ACCESS POLICY / ALL ROW ACCESS POLICIES are not owned
+		// here.
+		if isGenericEntityType(p.cur.Type) {
+			return p.parseBQAlterEntity(alter)
+		}
 		return p.unsupported("ALTER")
 	}
 	p.advance() // consume the object keyword

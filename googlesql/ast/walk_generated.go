@@ -50,6 +50,23 @@ func walkChildren(v Visitor, node Node) {
 	case *AssertStmt:
 		Walk(v, n.Expr)
 		Walk(v, n.Description)
+	case *BQAlterStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.OnTable != nil {
+			Walk(v, n.OnTable)
+		}
+		for _, c := range n.SetOptions {
+			Walk(v, c)
+		}
+	case *BQDropStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.OnTable != nil {
+			Walk(v, n.OnTable)
+		}
 	case *BetweenExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.Low)
@@ -114,6 +131,31 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Options {
 			Walk(v, c)
 		}
+	case *CreateEntityStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *CreateFunctionStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Params {
+			Walk(v, c)
+		}
+		if n.Returns != nil {
+			Walk(v, n.Returns)
+		}
+		for _, c := range n.ReturnColumns {
+			Walk(v, c)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+		Walk(v, n.Body)
+		Walk(v, n.AsQuery)
 	case *CreateIndexStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -133,10 +175,56 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Options {
 			Walk(v, c)
 		}
+	case *CreateMaterializedViewStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Columns {
+			Walk(v, c)
+		}
+		walkNodes(v, n.PartitionBy)
+		walkNodes(v, n.ClusterBy)
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+		Walk(v, n.AsQuery)
+		if n.ReplicaOf != nil {
+			Walk(v, n.ReplicaOf)
+		}
+	case *CreateProcedureStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Params {
+			Walk(v, c)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *CreateRowAccessPolicyStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		for _, c := range n.Grantees {
+			Walk(v, c)
+		}
+		Walk(v, n.Filter)
 	case *CreateSchemaStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *CreateSnapshotStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.CloneSource != nil {
+			Walk(v, n.CloneSource)
+		}
+		Walk(v, n.ForSystemTime)
+		Walk(v, n.Where)
 		for _, c := range n.Options {
 			Walk(v, c)
 		}
@@ -199,6 +287,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.FromPath != nil {
 			Walk(v, n.FromPath)
 		}
+	case *DropAllRowAccessPoliciesStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
 	case *DropStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -244,6 +336,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Over != nil {
 			Walk(v, n.Over)
 		}
+	case *FunctionParam:
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		Walk(v, n.Default)
 	case *GrantStmt:
 		for _, c := range n.Privileges {
 			Walk(v, c)
@@ -402,6 +499,21 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, c)
 		}
 		for _, c := range n.Grantees {
+			Walk(v, c)
+		}
+	case *SearchVectorIndexStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		for _, c := range n.Keys {
+			Walk(v, c)
+		}
+		walkNodes(v, n.Storing)
+		walkNodes(v, n.PartitionBy)
+		for _, c := range n.Options {
 			Walk(v, c)
 		}
 	case *SelectItem:

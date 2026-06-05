@@ -41,6 +41,26 @@ func TestClassifySQL(t *testing.T) {
 		{"grant", "GRANT SELECT ON t TO 'user@example.com'", DDL},
 		{"revoke", "REVOKE SELECT ON t FROM 'user@example.com'", DDL},
 
+		// --- DDL — BigQuery-only objects (parser-ddl-bigquery node) ---
+		{"create function", "CREATE FUNCTION ds.f(x INT64) RETURNS INT64 AS (x + 1)", DDL},
+		{"create table function", "CREATE TABLE FUNCTION ds.f(y INT64) AS SELECT 1 AS n", DDL},
+		{"create procedure", "CREATE PROCEDURE ds.p() BEGIN SELECT 1; END", DDL},
+		{"create materialized view", "CREATE MATERIALIZED VIEW ds.mv AS SELECT 1 AS n", DDL},
+		{"create search index", "CREATE SEARCH INDEX i ON ds.t(ALL COLUMNS)", DDL},
+		{"create vector index", "CREATE VECTOR INDEX i ON ds.t(c) OPTIONS(distance_type='COSINE')", DDL},
+		{"create snapshot table", "CREATE SNAPSHOT TABLE ds.s CLONE ds.t", DDL},
+		{"create row access policy", "CREATE ROW ACCESS POLICY p ON ds.t FILTER USING (TRUE)", DDL},
+		{"create capacity (generic entity)", "CREATE CAPACITY `p.r.c` OPTIONS(slot_count=100)", DDL},
+		{"alter materialized view", "ALTER MATERIALIZED VIEW ds.mv SET OPTIONS(x=1)", DDL},
+		{"alter vector index rebuild", "ALTER VECTOR INDEX i ON ds.t REBUILD", DDL},
+		{"drop function", "DROP FUNCTION ds.f", DDL},
+		{"drop materialized view", "DROP MATERIALIZED VIEW ds.mv", DDL},
+		{"drop snapshot table", "DROP SNAPSHOT TABLE ds.s", DDL},
+		{"drop search index", "DROP SEARCH INDEX i ON ds.t", DDL},
+		{"drop row access policy", "DROP ROW ACCESS POLICY p ON ds.t", DDL},
+		{"drop all row access policies", "DROP ALL ROW ACCESS POLICIES ON ds.t", DDL},
+		{"drop capacity (generic entity)", "DROP CAPACITY `p.r.c`", DDL},
+
 		// --- Unknown / empty ---
 		{"empty", "", Unknown},
 		{"whitespace only", "   \n  ", Unknown},

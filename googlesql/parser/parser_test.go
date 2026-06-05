@@ -3,6 +3,8 @@ package parser
 import (
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/googlesql/ast"
 )
 
 // TestParse_EmptyInput verifies that parsing empty or whitespace/comment-only
@@ -329,15 +331,22 @@ func TestParse_QueryStatementsParse(t *testing.T) {
 }
 
 // TestParse_ProceduralBodyParsedAsOneSegment verifies the parse driver feeds a
-// procedural BEGIN/END body to a single parseSingle call (block-aware Split),
-// so a stored procedure yields exactly one "not yet supported" error, not one
-// per inner statement.
+// procedural BEGIN/END body to a single parseSingle call (block-aware Split): a
+// stored procedure whose body has an inner ';' must be ONE segment, not split at
+// the inner statement boundary. Now that the parser-ddl-bigquery node parses
+// CREATE PROCEDURE, the whole block parses to exactly ONE statement with no
+// errors — had Split cut at the inner ';', the trailing fragments
+// (`SELECT 2`, `END`) would have failed to parse, so a clean single-statement
+// parse is the proof the block stayed whole.
 func TestParse_ProceduralBodyParsedAsOneSegment(t *testing.T) {
 	res := ParseBestEffort("CREATE PROCEDURE p() BEGIN SELECT 1; SELECT 2; END")
-	if len(res.Errors) != 1 {
-		t.Fatalf("got %d errors, want 1 (block is one segment): %v", len(res.Errors), res.Errors)
+	if len(res.Errors) != 0 {
+		t.Fatalf("got %d errors, want 0 (block is one segment, CREATE PROCEDURE parses): %v", len(res.Errors), res.Errors)
 	}
-	if !strings.HasPrefix(res.Errors[0].Msg, "CREATE ") {
-		t.Errorf("error = %q, want it to dispatch on CREATE", res.Errors[0].Msg)
+	if len(res.File.Stmts) != 1 {
+		t.Fatalf("got %d statements, want 1 (the whole procedure)", len(res.File.Stmts))
+	}
+	if _, ok := res.File.Stmts[0].(*ast.CreateProcedureStmt); !ok {
+		t.Errorf("statement is %T, want *ast.CreateProcedureStmt", res.File.Stmts[0])
 	}
 }
