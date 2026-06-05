@@ -113,6 +113,12 @@ const (
 	T_CreateFileFormatStmt
 	T_AlterFileFormatStmt
 
+	// Integration-object DDL tags (T4.7)
+	T_ResourceMonitorTrigger
+	T_ConnectionReplica
+	T_CreateIntegrationStmt
+	T_AlterIntegrationStmt
+
 	// Data-pipeline DDL tags (T4.3)
 	T_CreatePipeStmt
 	T_AlterPipeStmt
@@ -312,6 +318,14 @@ func (t NodeTag) String() string {
 		return "CreateAlertStmt"
 	case T_AlterAlertStmt:
 		return "AlterAlertStmt"
+	case T_ResourceMonitorTrigger:
+		return "ResourceMonitorTrigger"
+	case T_ConnectionReplica:
+		return "ConnectionReplica"
+	case T_CreateIntegrationStmt:
+		return "CreateIntegrationStmt"
+	case T_AlterIntegrationStmt:
+		return "AlterIntegrationStmt"
 	case T_CreateRoutineStmt:
 		return "CreateRoutineStmt"
 	case T_AlterRoutineStmt:

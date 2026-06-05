@@ -2806,6 +2806,196 @@ var (
 )
 
 // ---------------------------------------------------------------------------
+// Account-level integration-object DDL — CREATE / ALTER for STORAGE / API /
+// NOTIFICATION / SECURITY INTEGRATION, RESOURCE MONITOR, SECRET, CONNECTION,
+// EXTERNAL VOLUME, GIT REPOSITORY (T4.7)
+// ---------------------------------------------------------------------------
+//
+// These account/schema-level objects all configure an external resource through
+// a large, version-growing vocabulary of `KEY = <value>` parameters: a STORAGE
+// INTEGRATION carries STORAGE_PROVIDER / STORAGE_AWS_ROLE_ARN /
+// STORAGE_ALLOWED_LOCATIONS / ...; an API INTEGRATION API_PROVIDER /
+// API_ALLOWED_PREFIXES / ...; a SECRET TYPE / OAUTH_SCOPES / SECRET_STRING / ...;
+// a GIT REPOSITORY ORIGIN / API_INTEGRATION / GIT_CREDENTIALS; an EXTERNAL VOLUME
+// STORAGE_LOCATIONS / ALLOW_WRITES; and so on. Rather than mirror the legacy
+// ANTLR grammar's finite, already-stale per-type enumerations (its
+// create_*_integration rules pin a fixed option order and lack newer params, and
+// it has no rule for CREATE EXTERNAL VOLUME at all), every parameter that follows
+// the object name is captured as an open-ended `KEY = <value>` pair (CopyOption),
+// reusing the merged COPY (T5.2) / STAGE (T4.1) / FILE FORMAT (T4.2) machinery.
+// Only the structural anchors are modeled as dedicated fields: the object Kind,
+// the RESOURCE MONITOR WITH keyword + its TRIGGERS clause, the GIT REPOSITORY
+// [WITH] TAG clause, and (on ALTER) the action keyword and EXTERNAL VOLUME's
+// ADD/REMOVE/UPDATE STORAGE_LOCATION actions. The catalog/semantic layer, not the
+// parser, validates that an option is real and legal for the chosen Kind.
+
+// IntegrationObjectKind discriminates the account-level object types handled by
+// the T4.7 CREATE / ALTER parsers.
+type IntegrationObjectKind int
+
+const (
+	StorageIntegration      IntegrationObjectKind = iota // [STORAGE] INTEGRATION
+	APIIntegration                                       // API INTEGRATION
+	NotificationIntegration                              // NOTIFICATION INTEGRATION
+	SecurityIntegration                                  // SECURITY INTEGRATION
+	ResourceMonitor                                      // RESOURCE MONITOR
+	Secret                                               // SECRET
+	Connection                                           // CONNECTION
+	ExternalVolume                                       // EXTERNAL VOLUME
+	GitRepository                                        // GIT REPOSITORY
+)
+
+// String returns the SQL object keyword(s) for the kind (uppercased), used for
+// diagnostics and deparse.
+func (k IntegrationObjectKind) String() string {
+	switch k {
+	case StorageIntegration:
+		return "STORAGE INTEGRATION"
+	case APIIntegration:
+		return "API INTEGRATION"
+	case NotificationIntegration:
+		return "NOTIFICATION INTEGRATION"
+	case SecurityIntegration:
+		return "SECURITY INTEGRATION"
+	case ResourceMonitor:
+		return "RESOURCE MONITOR"
+	case Secret:
+		return "SECRET"
+	case Connection:
+		return "CONNECTION"
+	case ExternalVolume:
+		return "EXTERNAL VOLUME"
+	case GitRepository:
+		return "GIT REPOSITORY"
+	default:
+		return "INTEGRATION OBJECT"
+	}
+}
+
+// ResourceMonitorTrigger is one RESOURCE MONITOR trigger definition:
+//
+//	ON <threshold> PERCENT DO { SUSPEND | SUSPEND_IMMEDIATE | NOTIFY }
+//
+// Triggers are space-separated in the source (no comma). Action is the uppercased
+// action keyword.
+type ResourceMonitorTrigger struct {
+	Threshold int64  // the ON <threshold> PERCENT value
+	Action    string // "SUSPEND" | "SUSPEND_IMMEDIATE" | "NOTIFY"
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *ResourceMonitorTrigger) Tag() NodeTag { return T_ResourceMonitorTrigger }
+
+// ConnectionReplica holds a CREATE CONNECTION ... AS REPLICA OF
+// <organization>.<account>.<connection> clause. The three parts are captured as
+// an ObjectName (so quoting / dotted-name handling is shared with every other
+// name in the AST).
+type ConnectionReplica struct {
+	Source *ObjectName // organization_name.account_name.connection_name
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ConnectionReplica) Tag() NodeTag { return T_ConnectionReplica }
+
+// CreateIntegrationStmt represents the CREATE form of every T4.7 object:
+//
+//	CREATE [ OR REPLACE ] { STORAGE | API | NOTIFICATION | SECURITY } INTEGRATION [ IF NOT EXISTS ] <name> <options...>
+//	CREATE [ OR REPLACE ] RESOURCE MONITOR [ IF NOT EXISTS ] <name> WITH <options...> [ TRIGGERS <trigger>... ]
+//	CREATE [ OR REPLACE ] SECRET [ IF NOT EXISTS ] <name> <options...>
+//	CREATE CONNECTION [ IF NOT EXISTS ] <name> [ AS REPLICA OF <a.b.c> ] [ COMMENT = '...' ]
+//	CREATE [ OR REPLACE ] EXTERNAL VOLUME [ IF NOT EXISTS ] <name> STORAGE_LOCATIONS = (...) [ ALLOW_WRITES = ... ] [ COMMENT = '...' ]
+//	CREATE [ OR REPLACE ] GIT REPOSITORY [ IF NOT EXISTS ] <name> <options...> [ [ WITH ] TAG (...) ]
+//
+// All configuration parameters are captured open-ended in Options, preserving
+// source order. The structural anchors are modeled separately: With records the
+// RESOURCE MONITOR WITH keyword; Triggers holds its TRIGGERS clause; Tags holds a
+// GIT REPOSITORY [WITH] TAG clause; Replica holds a CONNECTION AS REPLICA OF
+// clause. Per the docs OR REPLACE and IF NOT EXISTS are mutually exclusive for
+// every kind, and CONNECTION supports neither OR REPLACE nor SECURE — the parser
+// accepts the open-ended combination and the semantic layer enforces the
+// exclusions (matching the rest of this engine's parse-permissively philosophy).
+type CreateIntegrationStmt struct {
+	Kind        IntegrationObjectKind
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	With        bool                      // RESOURCE MONITOR's mandatory WITH keyword was present
+	Options     []*CopyOption             // open-ended KEY = value parameters, source order
+	Tags        []*TagAssignment          // GIT REPOSITORY [WITH] TAG (...); nil if absent
+	Triggers    []*ResourceMonitorTrigger // RESOURCE MONITOR TRIGGERS ...; nil if absent
+	Replica     *ConnectionReplica        // CONNECTION AS REPLICA OF a.b.c; nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateIntegrationStmt) Tag() NodeTag { return T_CreateIntegrationStmt }
+
+// AlterIntegrationAction discriminates the action variants of the T4.7 ALTER
+// parsers. Most objects share the SET / UNSET / SET TAG / UNSET TAG quartet;
+// EXTERNAL VOLUME instead uses the storage-location actions, GIT REPOSITORY adds
+// FETCH, RESOURCE MONITOR's SET carries NOTIFY_USERS + TRIGGERS, and CONNECTION
+// adds the failover/primary actions.
+type AlterIntegrationAction int
+
+const (
+	AlterIntegrationSet             AlterIntegrationAction = iota // SET <options> [ NOTIFY_USERS / TRIGGERS for RESOURCE MONITOR ]
+	AlterIntegrationUnset                                         // UNSET <property> [ , ... ]
+	AlterIntegrationSetTag                                        // SET TAG <tag> = '<value>' [ , ... ]
+	AlterIntegrationUnsetTag                                      // UNSET TAG <tag> [ , ... ]
+	AlterIntegrationFetch                                         // GIT REPOSITORY FETCH
+	AlterIntegrationAddLocation                                   // EXTERNAL VOLUME ADD STORAGE_LOCATION = (...)
+	AlterIntegrationRemoveLocation                                // EXTERNAL VOLUME REMOVE STORAGE_LOCATION '<name>'
+	AlterIntegrationUpdateLocation                                // EXTERNAL VOLUME UPDATE STORAGE_LOCATION = '<name>' CREDENTIALS = (...)
+	AlterIntegrationEnableFailover                                // CONNECTION ENABLE FAILOVER TO ACCOUNTS ...
+	AlterIntegrationDisableFailover                               // CONNECTION DISABLE FAILOVER [ TO ACCOUNTS ... ]
+	AlterIntegrationPrimary                                       // CONNECTION PRIMARY
+)
+
+// AlterIntegrationStmt represents the ALTER form of every T4.7 object. The set of
+// legal actions depends on Kind (validated by the semantic layer, not here):
+//
+//	ALTER [STORAGE] INTEGRATION [ IF EXISTS ] <name> SET <options>
+//	ALTER {API|NOTIFICATION|SECURITY} INTEGRATION [ IF EXISTS ] <name> SET <options>
+//	ALTER ... INTEGRATION [ IF EXISTS ] <name> UNSET <property> [ , ... ]
+//	ALTER ... INTEGRATION <name> { SET | UNSET } TAG ...
+//	ALTER RESOURCE MONITOR [ IF EXISTS ] <name> SET <options> [ NOTIFY_USERS = (...) ] [ TRIGGERS <trigger>... ]
+//	ALTER SECRET [ IF EXISTS ] <name> { SET <options> | UNSET COMMENT }
+//	ALTER CONNECTION [ IF EXISTS ] <name> { SET <options> | UNSET COMMENT }
+//	ALTER CONNECTION <name> { ENABLE FAILOVER TO ACCOUNTS a.b [,...] | DISABLE FAILOVER [ TO ACCOUNTS a.b [,...] ] | PRIMARY }
+//	ALTER EXTERNAL VOLUME [ IF EXISTS ] <name> ADD STORAGE_LOCATION = (...)
+//	ALTER EXTERNAL VOLUME [ IF EXISTS ] <name> REMOVE STORAGE_LOCATION '<name>'
+//	ALTER EXTERNAL VOLUME [ IF EXISTS ] <name> UPDATE STORAGE_LOCATION = '<name>' CREDENTIALS = (...)
+//	ALTER EXTERNAL VOLUME [ IF EXISTS ] <name> SET { ALLOW_WRITES | COMMENT } = ...
+//	ALTER GIT REPOSITORY <name> { SET <options> | UNSET <property> [ , ... ] | FETCH }
+type AlterIntegrationStmt struct {
+	Kind       IntegrationObjectKind
+	IfExists   bool
+	Name       *ObjectName
+	Action     AlterIntegrationAction
+	Options    []*CopyOption             // SET <options>; for AlterIntegrationSet / Add / Update (the STORAGE_LOCATION + CREDENTIALS params)
+	Tags       []*TagAssignment          // SET TAG assignments; for AlterIntegrationSetTag
+	UnsetTags  []*ObjectName             // UNSET TAG names; for AlterIntegrationUnsetTag
+	UnsetProps []string                  // UNSET <property> names; for AlterIntegrationUnset
+	Triggers   []*ResourceMonitorTrigger // RESOURCE MONITOR SET ... TRIGGERS ...; nil if absent
+	Location   string                    // EXTERNAL VOLUME REMOVE/UPDATE STORAGE_LOCATION '<name>'; "" otherwise
+	Accounts   []*ObjectName             // CONNECTION {ENABLE|DISABLE} FAILOVER TO ACCOUNTS <a.b> [,...]; nil if absent
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterIntegrationStmt) Tag() NodeTag { return T_AlterIntegrationStmt }
+
+// Compile-time assertions for integration-object DDL nodes.
+var (
+	_ Node = (*ResourceMonitorTrigger)(nil)
+	_ Node = (*ConnectionReplica)(nil)
+	_ Node = (*CreateIntegrationStmt)(nil)
+	_ Node = (*AlterIntegrationStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
 // Data-pipeline DDL — CREATE / ALTER PIPE / STREAM / TASK / ALERT (T4.3)
 // ---------------------------------------------------------------------------
 //
