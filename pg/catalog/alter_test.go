@@ -189,6 +189,31 @@ func TestAlterTableAddColumnIfNotExistsOnNew(t *testing.T) {
 	}
 }
 
+func TestAddColumnIfNotExistsExistingDoesNotCorruptLastColumn(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE TABLE t (id int, counter int)", nil); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	// 'id' already exists, so ADD COLUMN IF NOT EXISTS is a no-op. The DEFAULT meant
+	// for the not-added column must not leak onto the table's last column ('counter').
+	results, err := c.Exec("ALTER TABLE t ADD COLUMN IF NOT EXISTS id int DEFAULT 99", nil)
+	if err != nil {
+		t.Fatalf("exec: %v", err)
+	}
+	if len(results) != 1 || results[0].Error != nil {
+		t.Fatalf("ADD COLUMN IF NOT EXISTS on existing column should be a no-op, got %+v", results)
+	}
+
+	r := c.GetRelation("", "t")
+	if r == nil || len(r.Columns) != 2 {
+		t.Fatalf("want 2 columns intact, got %+v", r)
+	}
+	if last := r.Columns[1]; last.Name != "counter" || last.HasDefault || last.Default != "" {
+		t.Errorf("no-op must not mutate last column: name=%q HasDefault=%v Default=%q", last.Name, last.HasDefault, last.Default)
+	}
+}
+
 func TestAlterTableDropColumn(t *testing.T) {
 	c := New()
 	c.DefineRelation(makeCreateTableStmt("", "t", []ColumnDef{
