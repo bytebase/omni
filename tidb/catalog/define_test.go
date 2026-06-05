@@ -136,6 +136,37 @@ func TestDefineTable_HappyPath(t *testing.T) {
 	}
 }
 
+// TestDefineView_ParenthesizedBodyColumns guards the derived column list for a
+// parenthesized view body: CREATE VIEW v AS (SELECT a, b FROM t) must derive the
+// same columns as the unparenthesized form. The ParenSource wrapper has an empty
+// target list, so extractViewColumns must unwrap to the inner SELECT.
+func TestDefineView_ParenthesizedBodyColumns(t *testing.T) {
+	c := newCatalogWithDB(t, "mydb")
+	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE t (a INT, b INT)")); err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct{ view, ddl string }{
+		{"v1", "CREATE VIEW v1 AS SELECT a, b FROM t"},
+		{"v2", "CREATE VIEW v2 AS (SELECT a, b FROM t)"},
+		{"v3", "CREATE VIEW v3 AS ((SELECT a, b FROM t))"},
+	}
+	for _, tc := range cases {
+		if err := c.DefineView(mustParseView(t, tc.ddl)); err != nil {
+			t.Fatalf("%s: DefineView: %v", tc.view, err)
+		}
+	}
+	db := c.GetDatabase("mydb")
+	for _, tc := range cases {
+		view := db.Views[tc.view]
+		if view == nil {
+			t.Fatalf("view %s not registered", tc.view)
+		}
+		if len(view.Columns) != 2 || view.Columns[0] != "a" || view.Columns[1] != "b" {
+			t.Errorf("view %s (%s) Columns = %v, want [a b]", tc.view, tc.ddl, view.Columns)
+		}
+	}
+}
+
 func TestDefineView_HappyPath(t *testing.T) {
 	c := newCatalogWithDB(t, "mydb")
 	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE t (id INT PRIMARY KEY)")); err != nil {

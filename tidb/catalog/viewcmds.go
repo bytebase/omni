@@ -182,6 +182,12 @@ func extractViewColumns(sel *nodes.SelectStmt) []string {
 	if sel == nil {
 		return nil
 	}
+	// A parenthesized query body — CREATE VIEW v AS (SELECT a, b FROM t) — exposes
+	// the inner query's columns; unwrap the ParenSource wrapper(s) to reach the
+	// SELECT whose target list defines them.
+	for sel.ParenSource != nil {
+		sel = sel.ParenSource
+	}
 	var cols []string
 	for _, target := range sel.TargetList {
 		rt, ok := target.(*nodes.ResTarget)

@@ -72,6 +72,33 @@ func TestParenthesizedQueryDelegatedContexts(t *testing.T) {
 	}
 }
 
+// TestParenthesizedQueryInsertSource pins INSERT / REPLACE with a parenthesized
+// query source, including a preceding explicit column list and a parenthesized
+// set-op source — all container-verified accepted on pingcap/tidb:v8.5.0. A
+// column list never starts with SELECT / WITH / '(', so the source is
+// unambiguous after a one-token peek.
+func TestParenthesizedQueryInsertSource(t *testing.T) {
+	for _, sql := range []string{
+		"INSERT INTO t ((SELECT 1) UNION (SELECT 2))",
+		"INSERT INTO t (a) (SELECT 1)",
+		"INSERT INTO t (a) ((SELECT 1) UNION (SELECT 2))",
+		"INSERT INTO t (a, b) ((SELECT 1, 2))",
+		"INSERT INTO t (a) (((SELECT 1)))",
+		"INSERT INTO t (a) (SELECT 1) UNION (SELECT 2)",
+		"REPLACE INTO t (a) ((SELECT 1) UNION (SELECT 2))",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// Deferred (separate follow-up, not yet supported): a parenthesized TABLE or
+// VALUES table-value constructor as a query primary — "(TABLE t)",
+// "(VALUES ROW(1))", "(SELECT 1) UNION (TABLE t)". TiDB v8.5.0 parses these;
+// omni only models a SELECT as a parenthesizable primary. Tracked with the
+// derived-table / IN-subquery contexts above.
+
 // TestParenthesizedQueryRejected pins malformed parenthesized queries that TiDB
 // v8.5.0 rejects (1064), so the new leading-'(' handling does not over-accept.
 func TestParenthesizedQueryRejected(t *testing.T) {
