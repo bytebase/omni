@@ -599,29 +599,25 @@ func TestExpr_BigQueryOnly(t *testing.T) {
 	}
 }
 
-// TestExpr_KeywordPathCaseFolding documents a pre-existing, KNOWN behavior of
-// the shared identifierText helper (datatypes.go / the types+foundation nodes,
-// out of this node's writes-scope): a dotted path/type component that happens to
-// be a GoogleSQL word-keyword (e.g. TYPE, PATH, VALUE) renders in UPPER case,
-// because keyword tokens carry no source spelling and identifierText substitutes
-// the canonical keyword name. Non-keyword components preserve source case.
-//
-// This does NOT affect accept/reject parity (the live oracle accepts the form
-// regardless of case — see expr_oracle_test.go `foo.bar.Baz`), but it loses case
-// for keyword-named proto/enum path parts, which ARE case-sensitive in GoogleSQL
-// for resolution. It is flagged to the divergence ledger as an
-// identifierText/foundation issue (googlesql/expressions: "keyword-as-identifier
-// path-part case folding") for a follow-up at the lexer/foundation layer; this
-// test pins the current behavior so the fix is observed when it lands.
+// TestExpr_KeywordPathCaseFolding locks in that the shared identifierText helper
+// (datatypes.go) PRESERVES the source casing of a dotted path/type component
+// that happens to be a GoogleSQL word-keyword (e.g. Type, Path, Value). It used
+// to fold such a part to the canonical UPPER-case keyword name (`pkg.Type` →
+// `pkg.TYPE`) on the false premise that keyword tokens carry no source spelling;
+// in fact the lexer records the verbatim text in Token.Str (lexer.go
+// scanIdentOrKeyword), so identifierText now returns it. This matters because
+// keyword-named proto/enum path parts ARE case-sensitive for GoogleSQL
+// resolution — folding them silently corrupted the name (and PathExpr shares the
+// same helper, so the fix lands here too). Accept/reject parity is unaffected
+// (the oracle accepts the form regardless of case — see expr_oracle_test.go).
 func TestExpr_KeywordPathCaseFolding(t *testing.T) {
-	// Non-keyword parts keep their source case.
+	// Non-keyword parts keep their source case (unchanged).
 	if pe := mustParse(t, "Foo.Bar.Baz").(*ast.PathExpr); pe.String() != "Foo.Bar.Baz" {
 		t.Errorf("non-keyword path case: got %q, want Foo.Bar.Baz", pe.String())
 	}
-	// A keyword-named part folds to upper case (KNOWN; documents the behavior).
-	if pe := mustParse(t, "pkg.Type").(*ast.PathExpr); pe.String() != "pkg.TYPE" {
-		t.Errorf("keyword path-part folding changed: got %q (was pkg.TYPE) — "+
-			"if identifierText now preserves case, update this test and resolve the divergence", pe.String())
+	// A keyword-named part now ALSO keeps its source case (the fix).
+	if pe := mustParse(t, "pkg.Type").(*ast.PathExpr); pe.String() != "pkg.Type" {
+		t.Errorf("keyword path-part case: got %q, want pkg.Type (source casing must be preserved)", pe.String())
 	}
 }
 

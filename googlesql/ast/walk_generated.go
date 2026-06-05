@@ -475,6 +475,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Spec != nil {
 			Walk(v, n.Spec)
 		}
+	case *WindowFrame:
+		Walk(v, n.Start.Offset)
+		Walk(v, n.End.Offset)
 	case *WindowSpec:
 		walkNodes(v, n.PartitionBy)
 		for _, c := range n.OrderBy {

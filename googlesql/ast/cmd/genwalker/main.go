@@ -56,6 +56,14 @@ func main() {
 
 	var structs []structInfo
 
+	// allFields records EVERY field of EVERY struct (name+type), keyed by struct
+	// name. Unlike `structs` below (which keeps only walkable child fields), this
+	// is the raw view used to look INSIDE value-typed struct fields: when a field
+	// is a value struct (e.g. WindowFrame.Start of type WindowBound), the walker
+	// must reach the Node fields nested inside that value (WindowBound.Offset).
+	// We need the full field list of the referenced struct to find those.
+	allFields := map[string][]rawField{}
+
 	// nodeStructs tracks which structs implement the Node interface (have a Tag() method).
 	// Only these structs get their own case in the walkChildren switch, and only
 	// pointer-to-Node-struct fields generate Walk calls.
@@ -120,18 +128,23 @@ func main() {
 				}
 
 				var fields []field
+				var raw []rawField
 				for _, fld := range st.Fields.List {
 					if len(fld.Names) == 0 {
 						continue // embedded
 					}
 					typStr := typeString(fld.Type)
-					if isChildType(typStr, nodeStructs) {
+					for _, name := range fld.Names {
+						raw = append(raw, rawField{Name: name.Name, Type: typStr})
+					}
+					if isChildType(typStr, structNames, nodeStructs) {
 						for _, name := range fld.Names {
 							fields = append(fields, field{Name: name.Name, Type: typStr})
 						}
 					}
 				}
 				structs = append(structs, structInfo{Name: ts.Name.Name, Fields: fields})
+				allFields[ts.Name.Name] = raw
 			}
 		}
 	}
@@ -150,6 +163,11 @@ func main() {
 	buf.WriteString("func walkChildren(v Visitor, node Node) {\n")
 	buf.WriteString("\tswitch n := node.(type) {\n")
 
+	// cases / fields count what is ACTUALLY emitted (a retained field can emit
+	// nothing — a value struct with no Node descendants like NamePath — so these
+	// are tallied from real output, not from len(s.Fields)).
+	cases := 0
+	fields := 0
 	for _, s := range structs {
 		if len(s.Fields) == 0 {
 			continue
@@ -158,27 +176,26 @@ func main() {
 		if !nodeStructs[s.Name] {
 			continue
 		}
-		fmt.Fprintf(&buf, "\tcase *%s:\n", s.Name)
+		// Build the case body into a scratch buffer first: a field may turn out
+		// to contribute nothing (a value-struct field whose target has no Node
+		// descendants, e.g. NamePath). If the whole body is empty we skip the
+		// `case` header entirely so the generated switch stays clean.
+		var body bytes.Buffer
+		emittedFields := 0
 		for _, f := range s.Fields {
-			switch {
-			case f.Type == "Node":
-				fmt.Fprintf(&buf, "\t\tWalk(v, n.%s)\n", f.Name)
-			case f.Type == "[]Node":
-				fmt.Fprintf(&buf, "\t\twalkNodes(v, n.%s)\n", f.Name)
-			case strings.HasPrefix(f.Type, "[]*"):
-				// Slice of pointer-to-Node-struct (e.g. []*Privilege): walk each
-				// element. Mirrors the []Node walkNodes loop; the parser never
-				// stores nil pointers in these slices.
-				fmt.Fprintf(&buf, "\t\tfor _, c := range n.%s {\n", f.Name)
-				fmt.Fprintf(&buf, "\t\t\tWalk(v, c)\n")
-				fmt.Fprintf(&buf, "\t\t}\n")
-			default:
-				// Pointer to a known struct type (e.g. *SelectStmt).
-				fmt.Fprintf(&buf, "\t\tif n.%s != nil {\n", f.Name)
-				fmt.Fprintf(&buf, "\t\t\tWalk(v, n.%s)\n", f.Name)
-				fmt.Fprintf(&buf, "\t\t}\n")
+			before := body.Len()
+			emitFieldWalk(&body, "n."+f.Name, f.Type, "\t\t", structNames, nodeStructs, allFields, nil)
+			if body.Len() > before {
+				emittedFields++
 			}
 		}
+		if body.Len() == 0 {
+			continue
+		}
+		cases++
+		fields += emittedFields
+		fmt.Fprintf(&buf, "\tcase *%s:\n", s.Name)
+		buf.Write(body.Bytes())
 	}
 
 	buf.WriteString("\t}\n")
@@ -198,16 +215,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Stats.
-	cases := 0
-	fields := 0
-	for _, s := range structs {
-		if len(s.Fields) > 0 && nodeStructs[s.Name] {
-			cases++
-			fields += len(s.Fields)
-		}
-	}
 	fmt.Printf("Generated walk_generated.go: %d cases, %d child fields\n", cases, fields)
+}
+
+// rawField is one struct field (name + textual type). The package keeps the
+// raw field list of every struct so the emitter can look inside value-typed
+// struct fields and reach the Node fields nested within them.
+type rawField struct {
+	Name string
+	Type string
 }
 
 // typeString returns the string representation of a Go type expression.
@@ -227,6 +243,148 @@ func typeString(expr ast.Expr) string {
 	}
 }
 
+// emitFieldWalk writes the walk statements for one field of type typStr,
+// reachable via the Go expression accessor (e.g. "n.Start" or "n.Start.Offset"),
+// indented by indent. It handles every shape isChildType accepts:
+//
+//   - Node / []Node                 → Walk / walkNodes
+//   - *<NodeStruct> / []*<NodeStruct> → nil-checked Walk / range-Walk
+//   - <ValueStruct> / *<ValueStruct> / []<ValueStruct> → recurse into the
+//     value's own Node-bearing fields (nil-checked for the pointer form,
+//     range-iterated for the slice form), so e.g. WindowBound.Offset is reached.
+//
+// A value struct with no Node descendants emits nothing. seen guards against
+// type cycles among value structs.
+func emitFieldWalk(buf *bytes.Buffer, accessor, typStr, indent string, structNames, nodeStructs map[string]bool, allFields map[string][]rawField, seen map[string]bool) {
+	switch {
+	case typStr == "Node":
+		fmt.Fprintf(buf, "%sWalk(v, %s)\n", indent, accessor)
+		return
+	case typStr == "[]Node":
+		fmt.Fprintf(buf, "%swalkNodes(v, %s)\n", indent, accessor)
+		return
+	case strings.HasPrefix(typStr, "[]*"):
+		// Slice of pointer-to-Node-struct (e.g. []*Privilege): walk each element.
+		// Mirrors the []Node walkNodes loop; the parser never stores nil pointers
+		// in these slices.
+		name := typStr[len("[]*"):]
+		if nodeStructs[name] {
+			fmt.Fprintf(buf, "%sfor _, c := range %s {\n", indent, accessor)
+			fmt.Fprintf(buf, "%s\tWalk(v, c)\n", indent)
+			fmt.Fprintf(buf, "%s}\n", indent)
+			return
+		}
+		// []*<ValueStruct>: range, nil-check each element, then recurse into it.
+		emitValueStructSlice(buf, accessor, name, indent, structNames, nodeStructs, allFields, seen, true)
+		return
+	case strings.HasPrefix(typStr, "[]"):
+		name := typStr[len("[]"):]
+		if nodeStructs[name] {
+			// []<NodeStruct>: a slice of Node structs held BY VALUE. Walk the
+			// address of each element so the Node itself is visited. (No such
+			// field exists today — Nodes are pointer-held — but handle it so the
+			// generator is correct if one is ever added.)
+			fmt.Fprintf(buf, "%sfor i := range %s {\n", indent, accessor)
+			fmt.Fprintf(buf, "%s\tWalk(v, &%s[i])\n", indent, accessor)
+			fmt.Fprintf(buf, "%s}\n", indent)
+			return
+		}
+		// []<ValueStruct>: range and recurse into each element value.
+		emitValueStructSlice(buf, accessor, name, indent, structNames, nodeStructs, allFields, seen, false)
+		return
+	case strings.HasPrefix(typStr, "*"):
+		name := typStr[1:]
+		if nodeStructs[name] {
+			// Pointer to a Node struct (e.g. *SelectStmt).
+			fmt.Fprintf(buf, "%sif %s != nil {\n", indent, accessor)
+			fmt.Fprintf(buf, "%s\tWalk(v, %s)\n", indent, accessor)
+			fmt.Fprintf(buf, "%s}\n", indent)
+			return
+		}
+		// Pointer to a non-Node value struct: nil-check, then recurse into the
+		// pointee's Node-bearing fields.
+		if !valueStructHasNodes(name, structNames, nodeStructs, allFields, map[string]bool{}) {
+			return
+		}
+		var inner bytes.Buffer
+		emitValueStructBody(&inner, accessor, name, indent+"\t", structNames, nodeStructs, allFields, seen)
+		if inner.Len() == 0 {
+			return
+		}
+		fmt.Fprintf(buf, "%sif %s != nil {\n", indent, accessor)
+		buf.Write(inner.Bytes())
+		fmt.Fprintf(buf, "%s}\n", indent)
+		return
+	default:
+		if nodeStructs[typStr] {
+			// A Node struct held BY VALUE (e.g. `Foo Bar` where Bar has Tag()).
+			// Walk its address so the Node itself is visited rather than only its
+			// children. (No such field exists today — Nodes are pointer-held — but
+			// handle it for generality.)
+			fmt.Fprintf(buf, "%sWalk(v, &%s)\n", indent, accessor)
+			return
+		}
+		// Bare value struct (e.g. WindowFrame.Start of type WindowBound): recurse
+		// directly into its Node-bearing fields.
+		emitValueStructBody(buf, accessor, typStr, indent, structNames, nodeStructs, allFields, seen)
+		return
+	}
+}
+
+// emitValueStructBody emits walks for every Node-bearing field of the value
+// struct named structType, reached via accessor (e.g. "n.Start" →
+// "n.Start.Offset"). Cycles among value structs are broken via seen.
+func emitValueStructBody(buf *bytes.Buffer, accessor, structType, indent string, structNames, nodeStructs map[string]bool, allFields map[string][]rawField, seen map[string]bool) {
+	if seen[structType] {
+		return // type cycle guard
+	}
+	next := map[string]bool{structType: true}
+	for k := range seen {
+		next[k] = true
+	}
+	for _, f := range allFields[structType] {
+		if !isChildType(f.Type, structNames, nodeStructs) {
+			continue
+		}
+		emitFieldWalk(buf, accessor+"."+f.Name, f.Type, indent, structNames, nodeStructs, allFields, next)
+	}
+}
+
+// emitValueStructSlice emits a range loop over a slice of value structs (or
+// pointers to them) named elem, recursing into each element. In both forms the
+// loop variable c ends up as *elem (an addressable pointer into the slice for
+// the value form; the slice element itself for the pointer form), so the body
+// accesses c.Field uniformly. ptr selects the []*Elem form, whose elements are
+// nil-checked. (No []*ValueStruct field exists today; this path is defensive.)
+func emitValueStructSlice(buf *bytes.Buffer, accessor, elem, indent string, structNames, nodeStructs map[string]bool, allFields map[string][]rawField, seen map[string]bool, ptr bool) {
+	if !valueStructHasNodes(elem, structNames, nodeStructs, allFields, map[string]bool{}) {
+		return
+	}
+	bodyIndent := indent + "\t"
+	if ptr {
+		bodyIndent = indent + "\t\t"
+	}
+	var inner bytes.Buffer
+	emitValueStructBody(&inner, "c", elem, bodyIndent, structNames, nodeStructs, allFields, seen)
+	if inner.Len() == 0 {
+		return
+	}
+	if ptr {
+		// []*Elem: each element is already a *Elem; range by value and nil-check.
+		fmt.Fprintf(buf, "%sfor _, c := range %s {\n", indent, accessor)
+		fmt.Fprintf(buf, "%s\tif c != nil {\n", indent)
+		buf.Write(inner.Bytes())
+		fmt.Fprintf(buf, "%s\t}\n", indent)
+		fmt.Fprintf(buf, "%s}\n", indent)
+		return
+	}
+	// []Elem: take the address of each element so c is an addressable *Elem.
+	fmt.Fprintf(buf, "%sfor i := range %s {\n", indent, accessor)
+	fmt.Fprintf(buf, "%s\tc := &%s[i]\n", indent, accessor)
+	buf.Write(inner.Bytes())
+	fmt.Fprintf(buf, "%s}\n", indent)
+}
+
 // isChildType reports whether typStr represents a field that walkChildren
 // should descend into.
 //
@@ -237,11 +395,18 @@ func typeString(expr ast.Expr) string {
 //   - "[]*<NodeStruct>"  — slice of pointer-to-Node-struct (e.g. []*Privilege,
 //     []*Grantee); each element is walked. Future nodes define []*Expr /
 //     []*SelectItem fields and query-span walks the AST, so these must traverse.
+//   - "<ValueStruct>", "*<ValueStruct>", "[]<ValueStruct>" — a value-typed struct
+//     field whose struct is NOT itself a Node (no Tag() method) but transitively
+//     carries Node fields. The canonical case is WindowFrame.Start/End of type
+//     WindowBound, which holds `Offset Node`: without descending into the value,
+//     frame-bound expressions (`5 PRECEDING`, `@p FOLLOWING`) are unreachable by
+//     any AST pass. Whether such a field actually contributes a walk is decided
+//     at emission time (emitFieldWalk) against the referenced struct's fields, so
+//     a value struct with no Node descendants (e.g. NamePath) yields nothing.
 //
-// Excluded: pointer to "Loc" (Loc is not a node), pointer to non-Node structs
-// (helper types like WindowSpec, etc.), slice of pointer-to-non-Node-struct, and
-// any other shape.
-func isChildType(typStr string, nodeStructs map[string]bool) bool {
+// Excluded: pointer to "Loc" (Loc is not a node), pointer/slice of plain helper
+// structs that carry no Node fields, and any other shape.
+func isChildType(typStr string, structNames, nodeStructs map[string]bool) bool {
 	if typStr == "Node" {
 		return true
 	}
@@ -255,14 +420,63 @@ func isChildType(typStr string, nodeStructs map[string]bool) bool {
 		if name == "Loc" {
 			return false
 		}
-		return nodeStructs[name]
-	}
-	if strings.HasPrefix(typStr, "*") {
-		name := typStr[1:]
-		if name == "Loc" {
-			return false
+		if nodeStructs[name] {
+			return true
 		}
-		return nodeStructs[name]
+		// []*<ValueStruct>: slice of pointer-to-non-Node-struct. Retain it so
+		// emitFieldWalk can look inside; it emits nothing if the element has no
+		// Node descendants.
+		return structNames[name]
+	}
+	// Strip a single leading "[]" (slice of value structs) before the pointer
+	// check so "[]WindowBound" is classified by its element type.
+	bare := strings.TrimPrefix(typStr, "[]")
+	name := strings.TrimPrefix(bare, "*")
+	if name == "Loc" {
+		return false
+	}
+	if !structNames[name] {
+		return false
+	}
+	// Pointer-to-Node-struct (e.g. *SelectStmt) is the common case.
+	if strings.HasPrefix(bare, "*") && nodeStructs[name] {
+		return true
+	}
+	// Otherwise it is a value-struct shape (bare, *, or [] of a non-Node helper
+	// struct). Retain it; emitFieldWalk decides whether it carries Node fields.
+	return structNames[name]
+}
+
+// valueStructHasNodes reports whether the named struct transitively contains a
+// field that walkChildren would descend into (a Node / []Node / pointer- or
+// slice-of-Node-struct field, or a nested value-struct that itself qualifies).
+// It guards against type cycles via seen. Used to decide whether a value-struct
+// field is worth emitting at all.
+func valueStructHasNodes(name string, structNames, nodeStructs map[string]bool, allFields map[string][]rawField, seen map[string]bool) bool {
+	if seen[name] {
+		return false
+	}
+	seen[name] = true
+	for _, f := range allFields[name] {
+		t := f.Type
+		if t == "Node" || t == "[]Node" {
+			return true
+		}
+		elem := strings.TrimPrefix(strings.TrimPrefix(t, "[]"), "*")
+		if elem == "Loc" || !structNames[elem] {
+			continue
+		}
+		if nodeStructs[elem] {
+			// A pointer/slice-of-pointer to a Node struct is walkable; a *bare*
+			// value field whose type is itself a Node is malformed (Nodes are
+			// pointer-held) and never occurs, but treating it as walkable here is
+			// harmless since emitFieldWalk only descends value structs.
+			return true
+		}
+		// Nested non-Node value struct: recurse.
+		if valueStructHasNodes(elem, structNames, nodeStructs, allFields, seen) {
+			return true
+		}
 	}
 	return false
 }
