@@ -61,6 +61,25 @@ func TestClassifySQL(t *testing.T) {
 		{"drop all row access policies", "DROP ALL ROW ACCESS POLICIES ON ds.t", DDL},
 		{"drop capacity (generic entity)", "DROP CAPACITY `p.r.c`", DDL},
 
+		// --- DDL — Spanner-only objects (parser-ddl-spanner node). These now PARSE
+		// (previously over-rejected), so classification must report DDL, not Unknown. ---
+		{"create change stream", "CREATE CHANGE STREAM s FOR ALL", DDL},
+		{"alter change stream", "ALTER CHANGE STREAM s SET FOR ALL", DDL},
+		{"drop change stream", "DROP CHANGE STREAM s", DDL},
+		{"create sequence", "CREATE SEQUENCE q", DDL},
+		{"alter sequence", "ALTER SEQUENCE q SET OPTIONS (start_with_counter=1)", DDL},
+		{"drop sequence", "DROP SEQUENCE q", DDL},
+		{"create role", "CREATE ROLE analyst", DDL},
+		{"drop role", "DROP ROLE analyst", DDL},
+		{"create locality group", "CREATE LOCALITY GROUP g OPTIONS (storage='ssd')", DDL},
+		{"alter locality group", "ALTER LOCALITY GROUP g SET OPTIONS (storage='hdd')", DDL},
+		{"drop locality group", "DROP LOCALITY GROUP g", DDL},
+		{"create proto bundle", "CREATE PROTO BUNDLE (`a.b.C`)", DDL},
+		{"alter proto bundle", "ALTER PROTO BUNDLE INSERT (`a.b.C`)", DDL},
+		{"grant to role", "GRANT SELECT ON TABLE t TO ROLE r", DDL},
+		{"grant role to role", "GRANT ROLE a TO ROLE b", DDL},
+		{"revoke role from role", "REVOKE ROLE a FROM ROLE b", DDL},
+
 		// --- Unknown / empty ---
 		{"empty", "", Unknown},
 		{"whitespace only", "   \n  ", Unknown},

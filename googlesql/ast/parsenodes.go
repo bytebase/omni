@@ -100,6 +100,13 @@ const (
 	// system_variable_expression: '@@' path_expression). Value holds the
 	// dotted variable path without the leading '@@'.
 	GranteeSystemVariable
+	// GranteeRole is a Spanner role grantee, e.g. `TO ROLE analyst`. The legacy
+	// ZetaSQL grammar's grantee_list is string_literal_or_parameter only and has
+	// no role form; Spanner GRANT/REVOKE instead names roles via a single `ROLE`
+	// keyword followed by a comma-separated role-name list. Value holds the role
+	// name. (Authoritative oracle: the live Spanner emulator — `TO 'string'`
+	// REJECTS, `TO ROLE name [, name]` ACCEPTS.)
+	GranteeRole
 )
 
 // String returns a human-readable name for the grantee kind.
@@ -113,6 +120,8 @@ func (k GranteeKind) String() string {
 		return "POSITIONAL_PARAMETER"
 	case GranteeSystemVariable:
 		return "SYSTEM_VARIABLE"
+	case GranteeRole:
+		return "ROLE"
 	default:
 		return "UNKNOWN"
 	}
@@ -167,9 +176,19 @@ type GrantStmt struct {
 	AllPrivileges bool         // ALL [PRIVILEGES]
 	Privileges    []*Privilege // explicit privilege list; nil when AllPrivileges
 	ObjectType    []string     // 0, 1, or 2 object-type words
-	Path          NamePath     // the ON object name
-	Grantees      []*Grantee   // the TO recipients (>= 1)
-	Loc           Loc
+	Path          NamePath     // the ON object name (the FIRST object; == Paths[0])
+	// Paths is the full ON object list. The legacy ZetaSQL grant names a single
+	// object (len 1); the Spanner role grant allows a comma-separated list
+	// (`ON TABLE t1, t2 TO ROLE r`, emulator-verified). Path mirrors Paths[0] for
+	// the common single-object case.
+	Paths    []NamePath
+	Grantees []*Grantee // the TO recipients (>= 1)
+	// Roles is the Spanner role-to-role grant subject list: `GRANT ROLE r [, ...]
+	// TO ROLE …`. When non-nil this is the role-grant form (a Spanner extension,
+	// emulator-verified), and Privileges/AllPrivileges/ObjectType/Path are unset;
+	// Grantees holds the target roles. Nil for an ordinary privilege grant.
+	Roles []NamePath
+	Loc   Loc
 }
 
 // Tag implements Node.
@@ -185,9 +204,13 @@ type RevokeStmt struct {
 	AllPrivileges bool         // ALL [PRIVILEGES]
 	Privileges    []*Privilege // explicit privilege list; nil when AllPrivileges
 	ObjectType    []string     // 0, 1, or 2 object-type words
-	Path          NamePath     // the ON object name
+	Path          NamePath     // the ON object name (the FIRST object; == Paths[0])
+	Paths         []NamePath   // full ON object list (Spanner allows a comma list); Path == Paths[0]
 	Grantees      []*Grantee   // the FROM subjects (>= 1)
-	Loc           Loc
+	// Roles is the Spanner role-to-role revoke subject list: `REVOKE ROLE r [,
+	// ...] FROM ROLE …` (mirrors GrantStmt.Roles). Non-nil ⇒ role-revoke form.
+	Roles []NamePath
+	Loc   Loc
 }
 
 // Tag implements Node.
@@ -3077,4 +3100,259 @@ var (
 	_ Node = (*RenameStmt)(nil)
 	_ Node = (*CallArg)(nil)
 	_ Node = (*CallStmt)(nil)
+)
+
+// ===========================================================================
+// Spanner-specific DDL (googlesql/parser-ddl-spanner node)
+// ===========================================================================
+//
+// Cloud Spanner extends GoogleSQL with object kinds that the legacy ANTLR
+// GoogleSQLParser.g4 does NOT model as first-class rules — it rides them on the
+// generic-entity mechanism (or rejects them outright). The omni parser, whose
+// authoritative oracle for Spanner DDL is the live Cloud Spanner emulator
+// (oracle.md), parses these as dedicated statements so bytebase's Spanner
+// consumers (Diagnose / GetQuerySpan / SplitSQL) see a real tree instead of a
+// false "syntax error". The forms (all emulator-accept-verified) are:
+//
+//	CHANGE STREAM  — CREATE / ALTER / DROP CHANGE STREAM       (DDL-024/025/026)
+//	SEQUENCE       — CREATE / ALTER / DROP SEQUENCE            (DDL-027/028/029)
+//	ROLE           — CREATE / DROP ROLE                        (DDL-032/033)
+//	role GRANT     — GRANT/REVOKE … TO/FROM ROLE; GRANT/REVOKE ROLE … (DDL-034-037)
+//	LOCALITY GROUP — CREATE / ALTER / DROP LOCALITY GROUP      (DDL-041/042/043)
+//	PROTO BUNDLE   — CREATE / ALTER PROTO BUNDLE               (DDL-046/047)
+//
+// These DIVERGE from the legacy grammar (which over-rejects them); the divergence
+// is oracle-backed and recorded in the ledger. The role-based GRANT/REVOKE adds a
+// GranteeRole grantee kind to the shared Grantee node and role-list fields to the
+// shared GrantStmt/RevokeStmt (see those types), so the one union parser accepts
+// both the legacy ZetaSQL string-grantee dialect and the Spanner role dialect.
+
+// ChangeStreamTrackedTable is one entry of a CREATE/ALTER CHANGE STREAM's
+// `FOR table_and_column` list (grammar truth1 DDL-024):
+//
+//	table_name                       -> AllColumns=false, Columns=nil (whole table, all columns)
+//	table_name ( )                   -> ExplicitColumns=true, Columns=nil (track no non-key columns)
+//	table_name ( col [, col ...] )   -> ExplicitColumns=true, Columns=[…]
+//
+// The empty `()` form is distinct from omitting the parens entirely (the former
+// tracks only the primary key; the latter tracks the whole table), so a bare
+// ExplicitColumns flag disambiguates `t` from `t()`.
+type ChangeStreamTrackedTable struct {
+	Name            *PathExpr // the tracked table name
+	ExplicitColumns bool      // true when a `( … )` column list was given (even if empty)
+	Columns         []string  // the listed column names (nil for `t` or `t()`)
+	Loc             Loc
+}
+
+// Tag implements Node.
+func (n *ChangeStreamTrackedTable) Tag() NodeTag { return T_ChangeStreamTrackedTable }
+
+// CreateChangeStreamStmt is a CREATE CHANGE STREAM statement (Spanner; truth1
+// DDL-024):
+//
+//	CREATE CHANGE STREAM name { FOR ALL | FOR table_and_column [, ...] }?
+//	  [OPTIONS ( option [, ...] )]
+//
+// Exactly one of ForAll / ForTables describes the watched set when a FOR clause
+// is present; a CHANGE STREAM created with neither (just OPTIONS, or nothing)
+// watches nothing until ALTERed. HasFor records whether a FOR clause was present
+// at all (to distinguish `FOR ALL` from "no FOR").
+type CreateChangeStreamStmt struct {
+	Name      *PathExpr
+	HasFor    bool                        // a FOR clause was present
+	ForAll    bool                        // FOR ALL
+	ForTables []*ChangeStreamTrackedTable // FOR table_and_column [, ...]
+	Options   []*OptionsEntry
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *CreateChangeStreamStmt) Tag() NodeTag { return T_CreateChangeStreamStmt }
+
+// AlterChangeStreamStmt is an ALTER CHANGE STREAM statement (Spanner; truth1
+// DDL-025):
+//
+//	ALTER CHANGE STREAM name
+//	  { SET FOR { ALL | table_and_column [, ...] }
+//	  | DROP FOR ALL
+//	  | SET OPTIONS ( option [, ...] )
+//	  }
+//
+// Action selects which of the three forms this is.
+type AlterChangeStreamStmt struct {
+	Name      *PathExpr
+	Action    ChangeStreamAlterAction
+	ForAll    bool                        // for SetFor: SET FOR ALL
+	ForTables []*ChangeStreamTrackedTable // for SetFor: SET FOR table_and_column [, ...]
+	Options   []*OptionsEntry             // for SetOptions
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *AlterChangeStreamStmt) Tag() NodeTag { return T_AlterChangeStreamStmt }
+
+// ChangeStreamAlterAction discriminates the three ALTER CHANGE STREAM forms.
+type ChangeStreamAlterAction int
+
+const (
+	// ChangeStreamSetFor is `SET FOR { ALL | table_and_column [, ...] }`.
+	ChangeStreamSetFor ChangeStreamAlterAction = iota
+	// ChangeStreamDropForAll is `DROP FOR ALL`.
+	ChangeStreamDropForAll
+	// ChangeStreamSetOptions is `SET OPTIONS ( … )`.
+	ChangeStreamSetOptions
+)
+
+// DropChangeStreamStmt is a DROP CHANGE STREAM statement (Spanner; truth1
+// DDL-026): `DROP CHANGE STREAM name`.
+type DropChangeStreamStmt struct {
+	Name *PathExpr
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *DropChangeStreamStmt) Tag() NodeTag { return T_DropChangeStreamStmt }
+
+// CreateSequenceStmt is a CREATE SEQUENCE statement (Spanner; truth1 DDL-027):
+//
+//	CREATE SEQUENCE [IF NOT EXISTS] name [OPTIONS ( option [, ...] )]
+type CreateSequenceStmt struct {
+	Name        *PathExpr
+	IfNotExists bool
+	Options     []*OptionsEntry
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateSequenceStmt) Tag() NodeTag { return T_CreateSequenceStmt }
+
+// AlterSequenceStmt is an ALTER SEQUENCE statement (Spanner; truth1 DDL-028):
+//
+//	ALTER SEQUENCE [IF EXISTS] name SET OPTIONS ( option [, ...] )
+type AlterSequenceStmt struct {
+	Name       *PathExpr
+	IfExists   bool
+	SetOptions []*OptionsEntry
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterSequenceStmt) Tag() NodeTag { return T_AlterSequenceStmt }
+
+// DropSequenceStmt is a DROP SEQUENCE statement (Spanner; truth1 DDL-029):
+//
+//	DROP SEQUENCE [IF EXISTS] name
+type DropSequenceStmt struct {
+	Name     *PathExpr
+	IfExists bool
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *DropSequenceStmt) Tag() NodeTag { return T_DropSequenceStmt }
+
+// CreateRoleStmt is a CREATE ROLE statement (Spanner; truth1 DDL-032):
+// `CREATE ROLE role_name`. role_name is a single identifier in the grammar.
+type CreateRoleStmt struct {
+	Name *PathExpr
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *CreateRoleStmt) Tag() NodeTag { return T_CreateRoleStmt }
+
+// DropRoleStmt is a DROP ROLE statement (Spanner; truth1 DDL-033):
+// `DROP ROLE role_name`.
+type DropRoleStmt struct {
+	Name *PathExpr
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *DropRoleStmt) Tag() NodeTag { return T_DropRoleStmt }
+
+// CreateLocalityGroupStmt is a CREATE LOCALITY GROUP statement (Spanner; truth1
+// DDL-041):
+//
+//	CREATE LOCALITY GROUP name [OPTIONS ( storage_option [, ...] )]
+type CreateLocalityGroupStmt struct {
+	Name    *PathExpr
+	Options []*OptionsEntry
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *CreateLocalityGroupStmt) Tag() NodeTag { return T_CreateLocalityGroupStmt }
+
+// AlterLocalityGroupStmt is an ALTER LOCALITY GROUP statement (Spanner; truth1
+// DDL-042):
+//
+//	ALTER LOCALITY GROUP name SET OPTIONS ( storage_option [, ...] )
+type AlterLocalityGroupStmt struct {
+	Name       *PathExpr
+	SetOptions []*OptionsEntry
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterLocalityGroupStmt) Tag() NodeTag { return T_AlterLocalityGroupStmt }
+
+// DropLocalityGroupStmt is a DROP LOCALITY GROUP statement (Spanner; truth1
+// DDL-043): `DROP LOCALITY GROUP name`.
+type DropLocalityGroupStmt struct {
+	Name *PathExpr
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *DropLocalityGroupStmt) Tag() NodeTag { return T_DropLocalityGroupStmt }
+
+// CreateProtoBundleStmt is a CREATE PROTO BUNDLE statement (Spanner; truth1
+// DDL-046):
+//
+//	CREATE PROTO BUNDLE ( proto_type_name [, ...] )
+//
+// Each proto_type_name is a (usually backtick-quoted, dotted) fully-qualified
+// proto message name; captured as a NamePath so the dotted form survives.
+type CreateProtoBundleStmt struct {
+	Types []NamePath // the bundled proto type names (>= 1)
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *CreateProtoBundleStmt) Tag() NodeTag { return T_CreateProtoBundleStmt }
+
+// AlterProtoBundleStmt is an ALTER PROTO BUNDLE statement (Spanner; truth1
+// DDL-047):
+//
+//	ALTER PROTO BUNDLE { INSERT ( … ) | UPDATE ( … ) | DELETE ( … ) } [, ...]
+//
+// The grammar allows any combination of INSERT/UPDATE/DELETE groups in one
+// statement; each group's type list is collected here. An absent group is nil.
+type AlterProtoBundleStmt struct {
+	Insert []NamePath // INSERT ( proto_type_name [, ...] )
+	Update []NamePath // UPDATE ( proto_type_name [, ...] )
+	Delete []NamePath // DELETE ( proto_type_name [, ...] )
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *AlterProtoBundleStmt) Tag() NodeTag { return T_AlterProtoBundleStmt }
+
+// Compile-time assertions that the Spanner-DDL node types satisfy Node.
+var (
+	_ Node = (*ChangeStreamTrackedTable)(nil)
+	_ Node = (*CreateChangeStreamStmt)(nil)
+	_ Node = (*AlterChangeStreamStmt)(nil)
+	_ Node = (*DropChangeStreamStmt)(nil)
+	_ Node = (*CreateSequenceStmt)(nil)
+	_ Node = (*AlterSequenceStmt)(nil)
+	_ Node = (*DropSequenceStmt)(nil)
+	_ Node = (*CreateRoleStmt)(nil)
+	_ Node = (*DropRoleStmt)(nil)
+	_ Node = (*CreateLocalityGroupStmt)(nil)
+	_ Node = (*AlterLocalityGroupStmt)(nil)
+	_ Node = (*DropLocalityGroupStmt)(nil)
+	_ Node = (*CreateProtoBundleStmt)(nil)
+	_ Node = (*AlterProtoBundleStmt)(nil)
 )

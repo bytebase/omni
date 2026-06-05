@@ -142,6 +142,27 @@ const (
 	T_BQDropStmt
 	T_DropAllRowAccessPoliciesStmt
 
+	// Spanner-specific DDL (parser-ddl-spanner node): CHANGE STREAM, SEQUENCE,
+	// ROLE, LOCALITY GROUP, and PROTO BUNDLE CREATE/ALTER/DROP forms. These have
+	// no first-class rule in the legacy ANTLR grammar (it rides them on the
+	// generic-entity hook or rejects them); the omni parser models them directly,
+	// authoritatively verified against the live Cloud Spanner emulator. (Role-based
+	// GRANT/REVOKE reuses T_GrantStmt/T_RevokeStmt with the GranteeRole kind.)
+	T_ChangeStreamTrackedTable
+	T_CreateChangeStreamStmt
+	T_AlterChangeStreamStmt
+	T_DropChangeStreamStmt
+	T_CreateSequenceStmt
+	T_AlterSequenceStmt
+	T_DropSequenceStmt
+	T_CreateRoleStmt
+	T_DropRoleStmt
+	T_CreateLocalityGroupStmt
+	T_AlterLocalityGroupStmt
+	T_DropLocalityGroupStmt
+	T_CreateProtoBundleStmt
+	T_AlterProtoBundleStmt
+
 	// DML — INSERT / UPDATE / DELETE / MERGE / TRUNCATE (parser-dml node).
 	//
 	// The data-manipulation family for the BigQuery + Spanner union, plus their
@@ -361,6 +382,34 @@ func (t NodeTag) String() string {
 		return "BQDropStmt"
 	case T_DropAllRowAccessPoliciesStmt:
 		return "DropAllRowAccessPoliciesStmt"
+	case T_ChangeStreamTrackedTable:
+		return "ChangeStreamTrackedTable"
+	case T_CreateChangeStreamStmt:
+		return "CreateChangeStreamStmt"
+	case T_AlterChangeStreamStmt:
+		return "AlterChangeStreamStmt"
+	case T_DropChangeStreamStmt:
+		return "DropChangeStreamStmt"
+	case T_CreateSequenceStmt:
+		return "CreateSequenceStmt"
+	case T_AlterSequenceStmt:
+		return "AlterSequenceStmt"
+	case T_DropSequenceStmt:
+		return "DropSequenceStmt"
+	case T_CreateRoleStmt:
+		return "CreateRoleStmt"
+	case T_DropRoleStmt:
+		return "DropRoleStmt"
+	case T_CreateLocalityGroupStmt:
+		return "CreateLocalityGroupStmt"
+	case T_AlterLocalityGroupStmt:
+		return "AlterLocalityGroupStmt"
+	case T_DropLocalityGroupStmt:
+		return "DropLocalityGroupStmt"
+	case T_CreateProtoBundleStmt:
+		return "CreateProtoBundleStmt"
+	case T_AlterProtoBundleStmt:
+		return "AlterProtoBundleStmt"
 	case T_DefaultExpr:
 		return "DefaultExpr"
 	case T_InsertStmt:

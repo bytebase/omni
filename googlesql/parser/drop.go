@@ -76,7 +76,25 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		// DROP ALL ROW ACCESS POLICIES ON table
 		// (drop_all_row_access_policies_statement; bq_row_access_policy.go).
 		return p.parseDropRowAccessPolicy(drop)
+	// --- Spanner-only object DROPs (parser-ddl-spanner node) ---
+	case kwSEQUENCE:
+		// DROP SEQUENCE [IF EXISTS] name (spanner_sequence.go).
+		return p.parseDropSequence(drop)
 	default:
+		// Spanner objects whose leading word lexes as a BARE IDENTIFIER (CHANGE
+		// STREAM, LOCALITY GROUP) and ROLE — matched by spelling before the
+		// generic-entity fallback (parser-ddl-spanner node).
+		if p.tokIsWord(p.cur, "CHANGE") && p.tokIsWord(p.peekNext(), "STREAM") {
+			return p.parseDropChangeStream(drop) // spanner_change_stream.go
+		}
+		if p.tokIsWord(p.cur, "LOCALITY") && p.tokIsWord(p.peekNext(), "GROUP") {
+			return p.parseDropLocalityGroup(drop) // spanner_sequence.go
+		}
+		if p.curIsWord("ROLE") {
+			// DROP ROLE name (spanner_schema_role.go). First-class — supersedes the
+			// generic-entity drop the bare `ROLE` identifier would otherwise get.
+			return p.parseDropRole(drop)
+		}
 		// DROP <generic-entity> (CAPACITY / RESERVATION / ASSIGNMENT — DDL-053; the
 		// keyword lexes as an identifier) routes to the generic-entity drop
 		// (bq_capacity.go). DROP MODEL / CONNECTION / CONSTANT / PRIVILEGE

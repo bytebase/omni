@@ -38,10 +38,42 @@ import (
 
 // parseGrantStmt parses a GRANT statement. The GRANT keyword has NOT yet been
 // consumed when this is called (dispatch peeks it).
+//
+// It serves BOTH dialects (oracle.md, "one grammar for both"): the legacy ZetaSQL
+// privilege grant with string/parameter grantees AND the Spanner forms — a
+// privilege grant `… TO ROLE role [, ...]` and the role-to-role grant `GRANT ROLE
+// role [, ...] TO ROLE role [, ...]`. The Spanner role surface is added by the
+// parser-ddl-spanner node (spanner_schema_role.go) and is authoritative against
+// the live emulator; the grantee list (parseGranteeList) absorbs `ROLE …` as the
+// recipient.
 func (p *Parser) parseGrantStmt() (ast.Node, error) {
 	grant := p.advance() // consume GRANT
 
-	allPrivs, privs, objType, path, err := p.parseGrantRevokeHead()
+	// Spanner role-to-role grant: `GRANT ROLE role [, ...] TO ROLE role [, ...]`.
+	// Taken ONLY when the head is unambiguously a role list (`ROLE <name> …`), so a
+	// legacy privilege grant whose first privilege is named `ROLE` (`GRANT ROLE ON
+	// foo TO 'x'`) still falls through to the privilege path below. The target must
+	// itself be a `ROLE` list (the emulator REJECTS `GRANT ROLE a TO 'x'`).
+	if p.atRoleToRoleGrant() {
+		roles, err := p.parseRoleNameList()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
+		grantees, err := p.parseRoleGranteeList()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.GrantStmt{
+			Roles:    roles,
+			Grantees: grantees,
+			Loc:      ast.Loc{Start: grant.Loc.Start, End: p.prev.Loc.End},
+		}, nil
+	}
+
+	allPrivs, privs, objType, paths, err := p.parseGrantRevokeHead()
 	if err != nil {
 		return nil, err
 	}
@@ -52,23 +84,50 @@ func (p *Parser) parseGrantStmt() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := p.checkObjectListGrantees(paths, grantees); err != nil {
+		return nil, err
+	}
 
 	return &ast.GrantStmt{
 		AllPrivileges: allPrivs,
 		Privileges:    privs,
 		ObjectType:    objType,
-		Path:          path,
+		Path:          paths[0],
+		Paths:         paths,
 		Grantees:      grantees,
 		Loc:           ast.Loc{Start: grant.Loc.Start, End: p.prev.Loc.End},
 	}, nil
 }
 
 // parseRevokeStmt parses a REVOKE statement. The REVOKE keyword has NOT yet been
-// consumed when this is called.
+// consumed when this is called. Like GRANT it serves both dialects, including the
+// Spanner role-from-role form `REVOKE ROLE role [, ...] FROM ROLE role [, ...]`
+// and `… FROM ROLE role [, ...]` grantees.
 func (p *Parser) parseRevokeStmt() (ast.Node, error) {
 	revoke := p.advance() // consume REVOKE
 
-	allPrivs, privs, objType, path, err := p.parseGrantRevokeHead()
+	// Spanner role-from-role revoke: `REVOKE ROLE role [, ...] FROM ROLE …` (same
+	// disambiguation + strict ROLE target as the GRANT branch above).
+	if p.atRoleToRoleGrant() {
+		roles, err := p.parseRoleNameList()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwFROM); err != nil {
+			return nil, err
+		}
+		grantees, err := p.parseRoleGranteeList()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.RevokeStmt{
+			Roles:    roles,
+			Grantees: grantees,
+			Loc:      ast.Loc{Start: revoke.Loc.Start, End: p.prev.Loc.End},
+		}, nil
+	}
+
+	allPrivs, privs, objType, paths, err := p.parseGrantRevokeHead()
 	if err != nil {
 		return nil, err
 	}
@@ -79,38 +138,81 @@ func (p *Parser) parseRevokeStmt() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := p.checkObjectListGrantees(paths, grantees); err != nil {
+		return nil, err
+	}
 
 	return &ast.RevokeStmt{
 		AllPrivileges: allPrivs,
 		Privileges:    privs,
 		ObjectType:    objType,
-		Path:          path,
+		Path:          paths[0],
+		Paths:         paths,
 		Grantees:      grantees,
 		Loc:           ast.Loc{Start: revoke.Loc.Start, End: p.prev.Loc.End},
 	}, nil
 }
 
+// checkObjectListGrantees enforces the union constraint that a comma-separated
+// object list (>1 object) is a SPANNER-only form, which requires ROLE grantees.
+// The legacy ZetaSQL grant names exactly one object, so a multi-object grant with
+// a non-ROLE (string/parameter) grantee belongs to NEITHER dialect — the emulator
+// REJECTS `GRANT SELECT ON TABLE t1, t2 TO 'user'`. A single-object grant is
+// unconstrained (either dialect). Cross-model review surfaced the original
+// over-acceptance.
+func (p *Parser) checkObjectListGrantees(paths []ast.NamePath, grantees []*ast.Grantee) error {
+	if len(paths) <= 1 {
+		return nil
+	}
+	for _, g := range grantees {
+		if g.Kind != ast.GranteeRole {
+			return &ParseError{
+				Loc: g.Loc,
+				Msg: "syntax error: a GRANT/REVOKE over multiple objects requires ROLE grantees",
+			}
+		}
+	}
+	return nil
+}
+
+// parseRoleGranteeList parses the target of a role-to-role grant/revoke, which
+// MUST be a `ROLE role_name [, ...]` list (the emulator REJECTS a string/parameter
+// target there — `GRANT ROLE a TO 'x'` fails with "Expecting 'ROLE'"). cur is at
+// the target `ROLE` keyword.
+func (p *Parser) parseRoleGranteeList() ([]*ast.Grantee, error) {
+	if !p.curIsRoleKeyword() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	roles, err := p.parseRoleNameList()
+	if err != nil {
+		return nil, err
+	}
+	return roleNamesToGrantees(roles), nil
+}
+
 // parseGrantRevokeHead parses the shared GRANT/REVOKE prefix up to (but not
 // including) the TO / FROM keyword:
 //
-//	privileges ON (identifier identifier?)? path_expression
+//	privileges ON (identifier identifier?)? path_expression (',' path_expression)*
 //
-// It returns (allPrivileges, privileges, objectType, path, err). The verb keyword
-// has already been consumed; on success cur is positioned at TO (GRANT) or FROM
-// (REVOKE).
-func (p *Parser) parseGrantRevokeHead() (bool, []*ast.Privilege, []string, ast.NamePath, error) {
+// It returns (allPrivileges, privileges, objectType, paths, err) where paths is
+// the (>= 1) ON object list. The legacy ZetaSQL grant names a single object; the
+// Spanner role grant allows a comma-separated object list (`ON TABLE t1, t2 TO
+// ROLE r`, emulator-verified). The verb keyword has already been consumed; on
+// success cur is positioned at TO (GRANT) or FROM (REVOKE).
+func (p *Parser) parseGrantRevokeHead() (bool, []*ast.Privilege, []string, []ast.NamePath, error) {
 	allPrivs, privs, err := p.parsePrivileges()
 	if err != nil {
-		return false, nil, nil, ast.NamePath{}, err
+		return false, nil, nil, nil, err
 	}
 	if _, err := p.expect(kwON); err != nil {
-		return false, nil, nil, ast.NamePath{}, err
+		return false, nil, nil, nil, err
 	}
-	objType, path, err := p.parseObjectTypeAndPath()
+	objType, paths, err := p.parseObjectTypeAndPathList()
 	if err != nil {
-		return false, nil, nil, ast.NamePath{}, err
+		return false, nil, nil, nil, err
 	}
-	return allPrivs, privs, objType, path, nil
+	return allPrivs, privs, objType, paths, nil
 }
 
 // parsePrivileges parses the grammar's `privileges`:
@@ -216,34 +318,69 @@ func (p *Parser) parsePathExpressionListWithParens() ([]ast.NamePath, error) {
 	return paths, nil
 }
 
-// parseObjectTypeAndPath parses the grammar's `(identifier identifier?)?
-// path_expression` — the optional 0/1/2-word object type followed by the
-// required object path. The verb keyword and ON have already been consumed; on
-// success cur is at TO/FROM.
+// parseObjectTypeAndPathList parses the grammar's object-type + object-path list.
+// The verb keyword and ON have already been consumed; on success cur is at
+// TO/FROM. Returns (objType, paths, err) with len(paths) >= 1.
 //
-// Disambiguation (matching ANTLR's longest-type-then-backtrack over this rule):
-// the object type words are SINGLE (non-dotted) identifiers and the path is one
-// dotted path_expression, then TO/FROM. So:
+// TWO dialect shapes share this position:
+//   - legacy ZetaSQL — `(identifier identifier?)? path_expression`: an OPTIONAL
+//     0/1/2-word object type and EXACTLY ONE object path. `GRANT SELECT ON foo TO
+//     'x'` (no type) is valid here.
+//   - Spanner — `target_type path (',' path)*`: a comma-separated object list,
+//     which REQUIRES a leading type keyword (TABLE/VIEW/CHANGE STREAM/TABLE
+//     FUNCTION). `GRANT SELECT ON TABLE t1, t2 TO ROLE r` is valid; `ON foo, bar`
+//     (no type) is NOT (the emulator: "Encountered 'foo' while parsing:
+//     target_type").
 //
-//   - Parse a path_expression P1 (greedy on dots).
-//   - If TO/FROM follows, there is NO object type and P1 is the path.
-//     (e.g. `ON datascape.foo TO`, `ON foo TO`)
-//   - Otherwise another identifier follows, so P1 was the FIRST type word and
-//     must be a single (non-dotted) identifier. Parse the next path_expression
-//     P2 and repeat once more for an optional SECOND type word.
-//     (e.g. `ON table foo TO` => type [table], path foo;
-//     `ON materialized view foo TO` => type [materialized, view], path foo)
+// Therefore a comma-separated list is accepted ONLY when an object type was
+// present. With no type keyword, exactly one path is allowed (the legacy form) and
+// a trailing comma is a syntax error. (The complementary "multi-object ⇒ ROLE
+// grantee" rule is enforced by checkObjectListGrantees after the grantee list.)
 //
-// A would-be type word that is actually dotted (e.g. `ON a.b c TO`) has no valid
-// parse in the grammar (type words are single identifiers) and is reported as a
-// syntax error.
-func (p *Parser) parseObjectTypeAndPath() ([]string, ast.NamePath, error) {
+// Object-type disambiguation (type words and the first path are all bare
+// identifiers): a leading word is a TYPE word only when followed by ANOTHER
+// path-expression-start — NOT by `,` and NOT by TO/FROM:
+//
+//   - `ON foo TO`                 => no type,  paths [foo]
+//   - `ON table foo TO`           => type [table], paths [foo]
+//   - `ON table t1, t2 TO`        => type [table], paths [t1, t2]
+//   - `ON materialized view v TO` => type [materialized, view], paths [v]
+func (p *Parser) parseObjectTypeAndPathList() ([]string, []ast.NamePath, error) {
+	objType, first, err := p.parseObjectTypeAndFirstPath()
+	if err != nil {
+		return nil, nil, err
+	}
+	paths := []ast.NamePath{first}
+
+	// A comma-separated object list is the Spanner form, which requires a leading
+	// object-type keyword. Without one, only the single legacy object is allowed,
+	// so a comma here is a syntax error (left for the caller's expect(TO/FROM), or
+	// reported directly so the diagnostic points at the comma).
+	if p.cur.Type == int(',') && len(objType) == 0 {
+		return nil, nil, p.syntaxErrorAtCur()
+	}
+	for p.cur.Type == int(',') {
+		p.advance() // ','
+		next, err := p.parsePathExpression()
+		if err != nil {
+			return nil, nil, err
+		}
+		paths = append(paths, next)
+	}
+	return objType, paths, nil
+}
+
+// parseObjectTypeAndFirstPath consumes the optional 0/1/2-word object type and the
+// FIRST object path. A word is a type word only when followed by another bare
+// identifier (not ',' and not TO/FROM); see parseObjectTypeAndPathList.
+func (p *Parser) parseObjectTypeAndFirstPath() ([]string, ast.NamePath, error) {
 	first, err := p.parsePathExpression()
 	if err != nil {
 		return nil, ast.NamePath{}, err
 	}
-	// No object type: the first path_expression is the object name.
-	if p.atGranteeIntro() {
+	// `first` is the object path when the run ends here — at TO/FROM (no more
+	// objects) or at ',' (more objects follow, so `first` is path #1, not a type).
+	if p.atPathRunBoundary() {
 		return nil, first, nil
 	}
 
@@ -259,7 +396,7 @@ func (p *Parser) parseObjectTypeAndPath() ([]string, ast.NamePath, error) {
 	if err != nil {
 		return nil, ast.NamePath{}, err
 	}
-	if p.atGranteeIntro() {
+	if p.atPathRunBoundary() {
 		return objType, path, nil
 	}
 
@@ -274,10 +411,17 @@ func (p *Parser) parseObjectTypeAndPath() ([]string, ast.NamePath, error) {
 	if err != nil {
 		return nil, ast.NamePath{}, err
 	}
-	// After at most two type words the grammar requires the grantee intro next;
+	// After at most two type words the grammar requires the path-run boundary next;
 	// anything else (e.g. a third bare word) is a syntax error, surfaced by the
-	// caller's expect(TO/FROM).
+	// caller's expect(TO/FROM) once the comma loop (if any) finishes.
 	return objType, path, nil
+}
+
+// atPathRunBoundary reports whether cur ends the object-type/path run: a comma
+// (the next comma-separated object path) or the TO/FROM grantee intro. A word
+// before one of these is an object PATH, not an object-type word.
+func (p *Parser) atPathRunBoundary() bool {
+	return p.cur.Type == int(',') || p.atGranteeIntro()
 }
 
 // singleIdentName returns the single component of a path that must be a lone
@@ -325,10 +469,29 @@ func (p *Parser) parsePathExpression() (ast.NamePath, error) {
 	return ast.NamePath{Parts: parts, Loc: ast.Loc{Start: start.Start, End: end.End}}, nil
 }
 
-// parseGranteeList parses the grammar's `grantee_list: string_literal_or_parameter
-// (',' string_literal_or_parameter)*`. Requires at least one grantee; a
-// trailing/leading comma is a syntax error.
+// parseGranteeList parses the recipients after TO (GRANT) / FROM (REVOKE). It
+// accepts the UNION of both dialects:
+//
+//   - legacy ZetaSQL `grantee_list: string_literal_or_parameter (',' …)*`
+//     (string / @param / '?' / @@sysvar grantees), and
+//   - the Spanner `ROLE role_name (',' role_name)*` form — a single `ROLE`
+//     keyword introduces a comma-separated role-name list (parser-ddl-spanner;
+//     emulator-authoritative). The two are NOT mixable: a list either starts with
+//     `ROLE` (all role grantees) or with a string/parameter (all legacy grantees),
+//     matching the emulator (`TO ROLE r1, ROLE r2` REJECTS — the `ROLE` keyword
+//     appears once).
+//
+// Requires at least one grantee; a trailing/leading comma is a syntax error.
 func (p *Parser) parseGranteeList() ([]*ast.Grantee, error) {
+	// Spanner role grantee list: `ROLE role_name [, role_name ...]`.
+	if p.curIsRoleKeyword() {
+		roles, err := p.parseRoleNameList()
+		if err != nil {
+			return nil, err
+		}
+		return roleNamesToGrantees(roles), nil
+	}
+
 	var grantees []*ast.Grantee
 	for {
 		g, err := p.parseGrantee()
