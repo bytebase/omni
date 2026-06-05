@@ -40,6 +40,81 @@ func (r *Resolver) Resolve(stmt *ast.SelectStmt) *ast.SelectStmt {
 // resolveWithCTEs resolves a SelectStmt with optional CTE virtual tables
 // available in scope. cteTables maps CTE names to virtual ResolverTables
 // built from their SELECT target lists.
+// resolveOrderByOrdinals rewrites positional ORDER BY items (ORDER BY 1) to the
+// matching column alias from the leftmost SELECT's target list, matching MySQL
+// 8.0 behavior.
+func resolveOrderByOrdinals(orderBy []*ast.OrderByItem, leftmost *ast.SelectStmt) {
+	if leftmost == nil {
+		return
+	}
+	for _, item := range orderBy {
+		lit, ok := item.Expr.(*ast.IntLit)
+		if !ok {
+			continue
+		}
+		idx := int(lit.Value) - 1 // 1-based to 0-based
+		if idx < 0 || idx >= len(leftmost.TargetList) {
+			continue
+		}
+		rt, ok := leftmost.TargetList[idx].(*ast.ResTarget)
+		if !ok {
+			continue
+		}
+		alias := rt.Name
+		if alias == "" {
+			// Derive alias from a bare column ref.
+			if cr, ok := rt.Val.(*ast.ColumnRef); ok {
+				alias = cr.Column
+			}
+		}
+		if alias != "" {
+			item.Expr = &ast.ColumnRef{Column: alias}
+		}
+	}
+}
+
+// resolveParenSource resolves a parenthesized query expression: the inner query
+// (with the wrapper's CTEs visible), then any OUTER ORDER BY ordinals against
+// the inner's leftmost SELECT target list.
+func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable) {
+	mergedCTETables := cteTables
+	if len(stmt.CTEs) > 0 {
+		mergedCTETables = make(map[string]*ResolverTable)
+		for k, v := range cteTables {
+			mergedCTETables[k] = v
+		}
+		for _, cte := range stmt.CTEs {
+			cteResolver := &Resolver{
+				Lookup:         r.withCTELookup(mergedCTETables),
+				DefaultCharset: r.DefaultCharset,
+			}
+			cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
+			if vt := buildCTEVirtualTable(cte); vt != nil {
+				mergedCTETables[strings.ToLower(cte.Name)] = vt
+			}
+		}
+	}
+
+	r.resolveWithCTEs(stmt.ParenSource, mergedCTETables)
+
+	if len(stmt.OrderBy) == 0 {
+		return
+	}
+	// Outer ORDER BY ordinals resolve against the inner's leftmost SELECT leaf
+	// (descend both set-op left arms and nested parentheses).
+	leftmost := stmt.ParenSource
+	for leftmost != nil {
+		if leftmost.SetOp != ast.SetOpNone && leftmost.Left != nil {
+			leftmost = leftmost.Left
+		} else if leftmost.ParenSource != nil {
+			leftmost = leftmost.ParenSource
+		} else {
+			break
+		}
+	}
+	resolveOrderByOrdinals(stmt.OrderBy, leftmost)
+}
+
 func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable) *ast.SelectStmt {
 	if stmt == nil {
 		return nil
@@ -82,26 +157,15 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 			for leftmost.SetOp != ast.SetOpNone && leftmost.Left != nil {
 				leftmost = leftmost.Left
 			}
-			for _, item := range stmt.OrderBy {
-				if lit, ok := item.Expr.(*ast.IntLit); ok {
-					idx := int(lit.Value) - 1 // 1-based to 0-based
-					if idx >= 0 && idx < len(leftmost.TargetList) {
-						if rt, ok := leftmost.TargetList[idx].(*ast.ResTarget); ok {
-							alias := rt.Name
-							if alias == "" {
-								// Derive alias from column ref
-								if cr, ok := rt.Val.(*ast.ColumnRef); ok {
-									alias = cr.Column
-								}
-							}
-							if alias != "" {
-								item.Expr = &ast.ColumnRef{Column: alias}
-							}
-						}
-					}
-				}
-			}
+			resolveOrderByOrdinals(stmt.OrderBy, leftmost)
 		}
+		return stmt
+	}
+
+	// Parenthesized query expression: resolve the inner query (with the
+	// wrapper's CTEs visible) and the outer ORDER BY ordinals.
+	if stmt.ParenSource != nil {
+		r.resolveParenSource(stmt, cteTables)
 		return stmt
 	}
 

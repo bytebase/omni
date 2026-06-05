@@ -2459,6 +2459,47 @@ func TestAnalyze_12_5_RecursiveCTE(t *testing.T) {
 
 // --- Batch 13: Set operations ---
 
+// TestAnalyze_ParenthesizedQuery analyzes parenthesized query expressions: a
+// bare parenthesized SELECT with an outer ORDER BY, a two-scope LIMIT, and a
+// parenthesized set operation whose operands reach analyze as ParenSource
+// wrappers. Each must resolve to the inner query's columns.
+func TestAnalyze_ParenthesizedQuery(t *testing.T) {
+	c := setupJoinTables(t)
+
+	t.Run("paren_select_outer_order", func(t *testing.T) {
+		sel := parseSelect(t, `(SELECT name FROM employees) ORDER BY name`)
+		q, err := c.AnalyzeSelectStmt(sel)
+		assertNoError(t, err)
+		if len(q.TargetList) != 1 || q.TargetList[0].ResName != "name" {
+			t.Fatalf("TargetList: want [name], got %+v", q.TargetList)
+		}
+	})
+
+	t.Run("two_scope_limit", func(t *testing.T) {
+		sel := parseSelect(t, `(SELECT name FROM employees LIMIT 5) LIMIT 2`)
+		q, err := c.AnalyzeSelectStmt(sel)
+		assertNoError(t, err)
+		if len(q.TargetList) != 1 || q.TargetList[0].ResName != "name" {
+			t.Fatalf("TargetList: want [name], got %+v", q.TargetList)
+		}
+	})
+
+	t.Run("paren_union", func(t *testing.T) {
+		sel := parseSelect(t, `(SELECT name FROM employees) UNION (SELECT name FROM departments)`)
+		q, err := c.AnalyzeSelectStmt(sel)
+		assertNoError(t, err)
+		if q.SetOp != SetOpUnion {
+			t.Errorf("SetOp: want SetOpUnion, got %d", q.SetOp)
+		}
+		if q.LArg == nil || q.RArg == nil {
+			t.Fatal("LArg/RArg: want non-nil")
+		}
+		if len(q.TargetList) != 1 || q.TargetList[0].ResName != "name" {
+			t.Fatalf("TargetList: want [name], got %+v", q.TargetList)
+		}
+	})
+}
+
 // TestAnalyze_13_1_Union tests UNION (without ALL).
 func TestAnalyze_13_1_Union(t *testing.T) {
 	c := setupJoinTables(t)

@@ -23,6 +23,12 @@ func (c *Catalog) analyzeSelectStmtInternal(stmt *nodes.SelectStmt, parentScope 
 // inheritedCTEMap provides CTE definitions inherited from an enclosing context
 // (e.g., a recursive CTE body referencing itself).
 func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
+	// Parenthesized query expression: result columns and command type come from
+	// the inner query; outer ORDER BY / LIMIT are validated against its result.
+	if stmt.ParenSource != nil {
+		return c.analyzeParenSourceWithCTEs(stmt, parentScope, inheritedCTEMap)
+	}
+
 	// Handle set operations (UNION/INTERSECT/EXCEPT).
 	if stmt.SetOp != nodes.SetOpNone {
 		return c.analyzeSetOpWithCTEs(stmt, parentScope, inheritedCTEMap)
@@ -992,6 +998,31 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 	}
 
 	return q, nil
+}
+
+// analyzeParenSourceWithCTEs analyzes a parenthesized query expression. A
+// parenthesized query exposes exactly the inner query's columns and command
+// type; the wrapper's OUTER ORDER BY / LIMIT are presentation and do not change
+// the column set, so the inner analysis is returned directly. The wrapper's own
+// CTEs are made visible to the inner query.
+func (c *Catalog) analyzeParenSourceWithCTEs(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
+	cteHolder := &Query{CommandType: CmdSelect, JoinTree: &JoinTreeQ{}}
+	cteMap, err := c.analyzeCTEs(stmt.CTEs, cteHolder, parentScope)
+	if err != nil {
+		return nil, err
+	}
+	if inheritedCTEMap != nil {
+		if cteMap == nil {
+			cteMap = make(map[string]*CommonTableExprQ)
+		}
+		for k, v := range inheritedCTEMap {
+			if _, exists := cteMap[k]; !exists {
+				cteMap[k] = v
+			}
+		}
+	}
+
+	return c.analyzeSelectStmtWithCTEs(stmt.ParenSource, parentScope, cteMap)
 }
 
 // AnalyzeStandaloneExpr analyzes an expression in the context of a single table.

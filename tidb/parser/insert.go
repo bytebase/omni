@@ -107,13 +107,13 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		// If the next token after '(' is SELECT, this is INSERT ... (SELECT ...)
 		next := p.peekNext()
 		if next.Type == kwSELECT {
-			// This is INSERT ... (SELECT ...)
-			p.advance() // consume '('
+			// INSERT ... (SELECT ...) — a parenthesized query source, possibly the
+			// left operand of a set operation, e.g. (SELECT 1) UNION (SELECT 2).
+			// parseSelectStmt (parseSelectNoParens) consumes the parentheses and
+			// any trailing set-op / ORDER BY / LIMIT, so the '(' is NOT consumed
+			// here.
 			sel, err := p.parseSelectStmt()
 			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
 			stmt.Select = sel

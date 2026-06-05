@@ -768,6 +768,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Right != nil {
 			Walk(v, n.Right)
 		}
+		if n.ParenSource != nil {
+			Walk(v, n.ParenSource)
+		}
 	case *SetPasswordStmt:
 		if n.User != nil {
 			Walk(v, n.User)

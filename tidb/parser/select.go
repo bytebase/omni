@@ -93,22 +93,18 @@ func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
 
 // parseWithStmt parses a statement starting with WITH: WITH ... SELECT, WITH ... UPDATE, WITH ... DELETE.
 func (p *Parser) parseWithStmt() (nodes.Node, error) {
+	start := p.pos()
 	ctes, err := p.parseWithClause()
 	if err != nil {
 		return nil, err
 	}
 
 	switch p.cur.Type {
-	case kwSELECT:
-		stmt, err := p.parseSelectStmt()
-		if err != nil {
-			return nil, err
-		}
-		stmt.CTEs = ctes
-		if len(ctes) > 0 {
-			stmt.Loc.Start = ctes[0].Loc.Start
-		}
-		return stmt, nil
+	case kwSELECT, '(':
+		// A SELECT leaf or a parenthesized query body:
+		//   WITH ... SELECT ...
+		//   WITH ... (SELECT ...) [set-op] [ORDER BY / LIMIT]
+		return p.parseSelectClauseAndTrailing(start, ctes)
 
 	case kwINSERT, kwREPLACE:
 		isReplace := p.cur.Type == kwREPLACE
@@ -134,37 +130,30 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 
 	default:
 		return nil, &ParseError{
-			Message:  "expected SELECT, INSERT, UPDATE, or DELETE after WITH clause",
+			Message:  "expected SELECT, INSERT, UPDATE, DELETE, or '(' after WITH clause",
 			Position: p.cur.Loc,
 		}
 	}
 }
 
-// parseSelectStmt parses a SELECT statement, optionally preceded by a WITH clause.
-//
-// Ref: https://dev.mysql.com/doc/refman/8.0/en/select.html
-//
-//	[WITH [RECURSIVE]
-//	    cte_name [(col_name [, col_name] ...)] AS (subquery)
-//	    [, cte_name [(col_name [, col_name] ...)] AS (subquery)] ...]
-//	SELECT
-//	    [ALL | DISTINCT | DISTINCTROW]
-//	    [HIGH_PRIORITY]
-//	    [STRAIGHT_JOIN]
-//	    [SQL_CALC_FOUND_ROWS]
-//	    select_expr [, select_expr] ...
-//	    [FROM table_references]
-//	    [WHERE where_condition]
-//	    [GROUP BY {col_name | expr | position} [ASC | DESC], ... [WITH ROLLUP]]
-//	    [HAVING where_condition]
-//	    [ORDER BY {col_name | expr | position} [ASC | DESC], ...]
-//	    [LIMIT {[offset,] row_count | row_count OFFSET offset}]
-//	    [FOR {UPDATE | SHARE} [OF tbl_name [, tbl_name] ...] [NOWAIT | SKIP LOCKED]]
-//	    [INTO OUTFILE 'file_name']  (TiDB v8.5.0: only OUTFILE; no DUMPFILE / var targets)
+// parseSelectStmt parses a complete query expression as a statement: an
+// optional WITH clause, a query-expression body (a SELECT leaf, a parenthesized
+// query, or a UNION/INTERSECT/EXCEPT chain), and any trailing ORDER BY / LIMIT.
+// It is the entry point every query-bearing context uses (statement level,
+// subqueries, INSERT/CTAS/VIEW sources, routine bodies).
 func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
+	return p.parseSelectNoParens()
+}
+
+// parseSelectNoParens parses a query expression that is not itself wrapped in
+// parentheses (PostgreSQL's select_no_parens): [WITH] select_clause
+// [ORDER BY] [LIMIT/OFFSET]. The trailing ORDER BY / LIMIT bind at this OUTER
+// level, which is what gives a parenthesized inner query and an outer clause
+// distinct scopes.
+func (p *Parser) parseSelectNoParens() (*nodes.SelectStmt, error) {
 	start := p.pos()
 
-	// Parse optional WITH clause
+	// Optional WITH clause (applies to the whole query expression).
 	var ctes []*nodes.CommonTableExpr
 	if p.cur.Type == kwWITH {
 		var err error
@@ -173,6 +162,231 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 			return nil, err
 		}
 	}
+
+	return p.parseSelectClauseAndTrailing(start, ctes)
+}
+
+// parseSelectClauseAndTrailing parses a select_clause followed by the trailing
+// ORDER BY / LIMIT that applies to a parenthesized query or set-operation
+// result. ctes (already parsed by the caller) and start (the position of the
+// leading WITH / '(' / SELECT) are attached to the resulting node.
+func (p *Parser) parseSelectClauseAndTrailing(start int, ctes []*nodes.CommonTableExpr) (*nodes.SelectStmt, error) {
+	body, err := p.parseSelectClause(0)
+	if err != nil {
+		return nil, err
+	}
+	if body == nil { // collecting completion candidates
+		return nil, nil
+	}
+	if len(ctes) > 0 {
+		body.CTEs = ctes
+	}
+	body.Loc.Start = start
+
+	// A trailing ORDER BY / LIMIT after a parenthesized query or a set operation
+	// (i.e. after a ')') applies to the whole result. A bare SELECT leaf has
+	// already consumed its own ORDER BY / LIMIT / locking greedily, so it is
+	// skipped here (a second ORDER BY on a leaf is a duplicate the leaf rejects).
+	if body.ParenSource != nil || body.SetOp != nodes.SetOpNone {
+		if err := p.parseOuterOrderByLimit(body); err != nil {
+			return nil, err
+		}
+	}
+
+	body.Loc.End = p.pos()
+	return body, nil
+}
+
+// parseOuterOrderByLimit parses a trailing ORDER BY and/or LIMIT/OFFSET applying
+// to a parenthesized query or set-operation result, onto stmt's own
+// OrderBy/Limit. No locking clause is parsed here: TiDB binds FOR UPDATE to a
+// naked SELECT leaf, so a trailing FOR/LOCK after a ')' is left for the caller
+// to reject (container-verified: "(SELECT 1) FOR UPDATE" and
+// "(S) UNION (S) FOR UPDATE" are syntax errors).
+func (p *Parser) parseOuterOrderByLimit(stmt *nodes.SelectStmt) error {
+	if p.cur.Type == kwORDER {
+		p.advance()
+		if _, err := p.expect(kwBY); err != nil {
+			return err
+		}
+		orderBy, err := p.parseOrderByList()
+		if err != nil {
+			return err
+		}
+		stmt.OrderBy = orderBy
+		if p.cur.Type == kwORDER {
+			return &ParseError{Message: "duplicate ORDER BY clause", Position: p.cur.Loc}
+		}
+	}
+	if _, ok := p.match(kwLIMIT); ok {
+		limit, err := p.parseLimitClause()
+		if err != nil {
+			return err
+		}
+		stmt.Limit = limit
+		if p.cur.Type == kwLIMIT {
+			return &ParseError{Message: "duplicate LIMIT clause", Position: p.cur.Loc}
+		}
+	}
+	return nil
+}
+
+// parseSelectClause parses a select_clause: a query primary optionally combined
+// with others via UNION / INTERSECT / EXCEPT, using precedence climbing
+// (INTERSECT binds tighter than UNION/EXCEPT). minPrec is the minimum operator
+// precedence this call will consume; the top-level no_parens call passes 0.
+func (p *Parser) parseSelectClause(minPrec int) (*nodes.SelectStmt, error) {
+	left, err := p.parseSelectClausePrimary()
+	if err != nil {
+		return nil, err
+	}
+	if left == nil { // collecting completion candidates
+		return nil, nil
+	}
+
+	for {
+		prec := setOpPrecedence(p.cur.Type)
+		if prec == 0 || prec < minPrec {
+			return left, nil
+		}
+
+		var op nodes.SetOperation
+		switch p.cur.Type {
+		case kwUNION:
+			op = nodes.SetOpUnion
+		case kwEXCEPT:
+			op = nodes.SetOpExcept
+		case kwINTERSECT:
+			op = nodes.SetOpIntersect
+		}
+		p.advance() // consume UNION/INTERSECT/EXCEPT
+
+		// Completion: after the set-op keyword, offer ALL, DISTINCT, SELECT.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwALL)
+			p.addTokenCandidate(kwDISTINCT)
+			p.addTokenCandidate(kwSELECT)
+			return nil, &ParseError{Message: "collecting"}
+		}
+
+		all := false
+		if _, ok := p.match(kwALL); ok {
+			all = true
+		} else {
+			p.match(kwDISTINCT)
+		}
+
+		// Completion: after ALL/DISTINCT, offer SELECT.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwSELECT)
+			return nil, &ParseError{Message: "collecting"}
+		}
+
+		// Right operand binds higher-precedence operators first; prec+1 keeps
+		// same-precedence chains left-associative.
+		right, err := p.parseSelectClause(prec + 1)
+		if err != nil {
+			return nil, err
+		}
+
+		// Hoist a trailing ORDER BY / LIMIT off an UNPARENTHESIZED last operand
+		// onto the set-operation node: in MySQL/TiDB they apply to the whole
+		// combined result. A parenthesized operand is a ParenSource wrapper whose
+		// own OrderBy/Limit are the OUTER scope, so the walk stops at it and its
+		// inner clauses stay in place — e.g. "SELECT 1 UNION (SELECT 2 LIMIT 1)"
+		// keeps LIMIT 1 on operand 2.
+		var orderBy []*nodes.OrderByItem
+		var limit *nodes.Limit
+		rightLeaf := right
+		for rightLeaf.SetOp != nodes.SetOpNone && rightLeaf.Right != nil {
+			rightLeaf = rightLeaf.Right
+		}
+		if rightLeaf.ParenSource == nil {
+			if len(rightLeaf.OrderBy) > 0 {
+				orderBy = rightLeaf.OrderBy
+				rightLeaf.OrderBy = nil
+			}
+			if rightLeaf.Limit != nil {
+				limit = rightLeaf.Limit
+				rightLeaf.Limit = nil
+			}
+		}
+
+		left = &nodes.SelectStmt{
+			Loc:     nodes.Loc{Start: left.Loc.Start, End: right.Loc.End},
+			SetOp:   op,
+			SetAll:  all,
+			Left:    left,
+			Right:   right,
+			OrderBy: orderBy,
+			Limit:   limit,
+		}
+	}
+}
+
+// parseSelectClausePrimary parses a single query primary: a parenthesized query
+// (select_with_parens) or a simple SELECT leaf.
+func (p *Parser) parseSelectClausePrimary() (*nodes.SelectStmt, error) {
+	if p.cur.Type == '(' {
+		return p.parseSelectWithParens()
+	}
+	if p.cur.Type == kwSELECT {
+		return p.parseSimpleSelect()
+	}
+	if p.cur.Type == tokEOF {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return nil, &ParseError{
+		Message:  "expected SELECT or '('",
+		Position: p.cur.Loc,
+	}
+}
+
+// parseSelectWithParens parses a parenthesized query expression (PostgreSQL's
+// select_with_parens): '(' select_no_parens ')'. It returns a WRAPPER node
+// whose ParenSource is the inner query; the wrapper's own ORDER BY / LIMIT hold
+// any OUTER trailing clauses attached by the enclosing no_parens. Unlike
+// PostgreSQL (which unwraps the inner query and would overwrite its clause),
+// TiDB accepts and must preserve BOTH scopes — e.g. "(SELECT 1 LIMIT 5) LIMIT 2"
+// — so the parens materialize as a real node. The unconditional delegation to
+// parseSelectNoParens left-factors the grammar so a nested "((...))" and a
+// parenthesized set-op operand are parsed by the same path.
+func (p *Parser) parseSelectWithParens() (*nodes.SelectStmt, error) {
+	start := p.pos()
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	inner, err := p.parseSelectNoParens()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.SelectStmt{
+		Loc:         nodes.Loc{Start: start, End: p.pos()},
+		ParenSource: inner,
+	}, nil
+}
+
+// parseSimpleSelect parses a single SELECT query primary (no leading WITH, no
+// trailing set operation). It greedily consumes its own ORDER BY / LIMIT /
+// locking; the enclosing select_clause hoists an unparenthesized last operand's
+// ORDER BY / LIMIT onto the set-op node.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/select.html
+//
+//	SELECT
+//	    [ALL | DISTINCT | DISTINCTROW] [HIGH_PRIORITY] [STRAIGHT_JOIN]
+//	    [SQL_CALC_FOUND_ROWS] select_expr [, select_expr] ...
+//	    [FROM table_references] [WHERE where_condition]
+//	    [GROUP BY ... [WITH ROLLUP]] [HAVING ...] [WINDOW ...]
+//	    [ORDER BY ...] [LIMIT {[offset,] row_count | row_count OFFSET offset}]
+//	    [FOR {UPDATE | SHARE} ...] [INTO OUTFILE 'file_name']
+func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
+	start := p.pos()
 
 	p.advance() // consume SELECT
 
@@ -186,7 +400,7 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	stmt := &nodes.SelectStmt{Loc: nodes.Loc{Start: start}, CTEs: ctes}
+	stmt := &nodes.SelectStmt{Loc: nodes.Loc{Start: start}}
 
 	// Parse SELECT options
 	for {
@@ -340,294 +554,6 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 	}
 
 	// WINDOW clause: WINDOW window_name AS (window_spec) [, ...]
-	if p.cur.Type == kwWINDOW {
-		p.advance()
-		defs, err := p.parseNamedWindowList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.WindowClause = defs
-	}
-
-	// INTO clause (position 2: after HAVING/WINDOW, before ORDER BY)
-	if p.cur.Type == kwINTO && stmt.Into == nil {
-		p.advance()
-		into, err := p.parseIntoClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Into = into
-	}
-
-	// ORDER BY clause
-	if p.cur.Type == kwORDER {
-		p.advance()
-		if _, err := p.expect(kwBY); err != nil {
-			return nil, err
-		}
-		orderBy, err := p.parseOrderByList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.OrderBy = orderBy
-
-		// WITH ROLLUP (MySQL 8.0.12+)
-		if p.cur.Type == kwWITH {
-			next := p.peekNext()
-			if next.Type == kwROLLUP {
-				p.advance() // consume WITH
-				p.advance() // consume ROLLUP
-				stmt.OrderByWithRollup = true
-			}
-		}
-
-		// Reject duplicate ORDER BY
-		if p.cur.Type == kwORDER {
-			return nil, &ParseError{
-				Message:  "duplicate ORDER BY clause",
-				Position: p.cur.Loc,
-			}
-		}
-	}
-
-	// LIMIT clause
-	if _, ok := p.match(kwLIMIT); ok {
-		limit, err := p.parseLimitClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Limit = limit
-	}
-
-	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
-	if p.cur.Type == kwFOR {
-		fu, err := p.parseForUpdateClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.ForUpdate = fu
-	} else if p.cur.Type == kwLOCK {
-		fu, err := p.parseLockInShareMode()
-		if err != nil {
-			return nil, err
-		}
-		stmt.ForUpdate = fu
-	}
-
-	// INTO clause (position 3: after locking clause)
-	if p.cur.Type == kwINTO && stmt.Into == nil {
-		p.advance()
-		into, err := p.parseIntoClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Into = into
-	}
-
-	stmt.Loc.End = p.pos()
-
-	// Check for set operations: UNION, INTERSECT, EXCEPT
-	if p.cur.Type == kwUNION || p.cur.Type == kwINTERSECT || p.cur.Type == kwEXCEPT {
-		return p.parseSetOperation(stmt)
-	}
-
-	return stmt, nil
-}
-
-// parseSelectStmtBase parses a single SELECT (no set operations consumed).
-// Used by the set operation precedence parser to get the right-hand operand.
-func (p *Parser) parseSelectStmtBase() (*nodes.SelectStmt, error) {
-	// Handle parenthesized select: (SELECT ...)
-	if p.cur.Type == '(' {
-		p.advance()
-		inner, err := p.parseSelectStmt()
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(')'); err != nil {
-			return nil, err
-		}
-		return inner, nil
-	}
-
-	start := p.pos()
-
-	// Parse optional WITH clause
-	var ctes []*nodes.CommonTableExpr
-	if p.cur.Type == kwWITH {
-		var err error
-		ctes, err = p.parseWithClause()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	p.advance() // consume SELECT
-
-	// Completion: after SELECT keyword, offer select-expression candidates.
-	p.checkCursor()
-	if p.collectMode() {
-		p.addTokenCandidate(kwDISTINCT)
-		p.addTokenCandidate(kwALL)
-		p.addRuleCandidate("columnref")
-		p.addRuleCandidate("func_name")
-		return nil, &ParseError{Message: "collecting"}
-	}
-
-	stmt := &nodes.SelectStmt{Loc: nodes.Loc{Start: start}, CTEs: ctes}
-
-	// Parse SELECT options
-	for {
-		switch p.cur.Type {
-		case kwALL:
-			stmt.DistinctKind = nodes.DistinctAll
-			p.advance()
-			continue
-		case kwDISTINCT, kwDISTINCTROW:
-			stmt.DistinctKind = nodes.DistinctOn
-			p.advance()
-			continue
-		case kwHIGH_PRIORITY:
-			stmt.HighPriority = true
-			p.advance()
-			continue
-		case kwSTRAIGHT_JOIN:
-			stmt.StraightJoin = true
-			p.advance()
-			continue
-		case kwSQL_CALC_FOUND_ROWS:
-			stmt.CalcFoundRows = true
-			p.advance()
-			continue
-		case kwSQL_SMALL_RESULT:
-			stmt.SmallResult = true
-			p.advance()
-			continue
-		case kwSQL_BIG_RESULT:
-			stmt.BigResult = true
-			p.advance()
-			continue
-		case kwSQL_BUFFER_RESULT:
-			stmt.BufferResult = true
-			p.advance()
-			continue
-		case kwSQL_NO_CACHE:
-			stmt.NoCache = true
-			p.advance()
-			continue
-		}
-		break
-	}
-
-	// Parse select expression list
-	targets, err := p.parseSelectExprList()
-	if err != nil {
-		return nil, err
-	}
-	stmt.TargetList = targets
-
-	// Completion: after select target list, offer clause keywords.
-	p.checkCursor()
-	if p.collectMode() {
-		for _, tok := range []int{kwINTO, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwFOR} {
-			p.addTokenCandidate(tok)
-		}
-		return nil, &ParseError{Message: "collecting"}
-	}
-
-	// INTO clause (position 1: after select_expr, before FROM)
-	if p.cur.Type == kwINTO {
-		p.advance()
-		into, err := p.parseIntoClause()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Into = into
-	}
-
-	// FROM clause
-	if _, ok := p.match(kwFROM); ok {
-		from, err := p.parseTableReferenceList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.From = from
-	}
-
-	// WHERE clause — MySQL allows WHERE without FROM (e.g., SELECT 1 WHERE 1=1)
-	if p.cur.Type == kwWHERE {
-		p.advance()
-		where, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		if !p.collectMode() && where == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-		stmt.Where = where
-
-		// Reject duplicate WHERE
-		if p.cur.Type == kwWHERE {
-			return nil, &ParseError{
-				Message:  "duplicate WHERE clause",
-				Position: p.cur.Loc,
-			}
-		}
-	}
-
-	// GROUP BY clause — MySQL allows GROUP BY without FROM
-	if p.cur.Type == kwGROUP {
-		p.advance()
-		if _, err := p.expect(kwBY); err != nil {
-			return nil, err
-		}
-		groupBy, err := p.parseExprList()
-		if err != nil {
-			return nil, err
-		}
-		stmt.GroupBy = groupBy
-
-		// Completion: after GROUP BY list, offer follow-set keywords.
-		p.checkCursor()
-		if p.collectMode() {
-			p.addTokenCandidate(kwHAVING)
-			p.addTokenCandidate(kwORDER)
-			p.addTokenCandidate(kwLIMIT)
-			p.addTokenCandidate(kwWITH)
-			return nil, &ParseError{Message: "collecting"}
-		}
-
-		// WITH ROLLUP
-		if p.cur.Type == kwWITH {
-			p.advance()
-			if _, ok := p.match(kwROLLUP); ok {
-				stmt.WithRollup = true
-			}
-		}
-
-		// Reject duplicate GROUP BY
-		if p.cur.Type == kwGROUP {
-			return nil, &ParseError{
-				Message:  "duplicate GROUP BY clause",
-				Position: p.cur.Loc,
-			}
-		}
-	}
-
-	// HAVING clause — MySQL allows HAVING without FROM
-	if p.cur.Type == kwHAVING {
-		p.advance()
-		having, err := p.parseExpr()
-		if err != nil {
-			return nil, err
-		}
-		if !p.collectMode() && having == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-		stmt.Having = having
-	}
-
-	// WINDOW clause
 	if p.cur.Type == kwWINDOW {
 		p.advance()
 		defs, err := p.parseNamedWindowList()
@@ -1748,114 +1674,6 @@ func setOpPrecedence(tokType int) int {
 		return 1
 	}
 	return 0
-}
-
-// parseSetOperation parses UNION/INTERSECT/EXCEPT [ALL|DISTINCT] SELECT chains
-// with INTERSECT binding tighter than UNION/EXCEPT.
-func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, error) {
-	return p.parseSetOpWithPrecedence(left, 1)
-}
-
-// parseSetOpWithPrecedence implements precedence climbing for set operations.
-func (p *Parser) parseSetOpWithPrecedence(left *nodes.SelectStmt, minPrec int) (*nodes.SelectStmt, error) {
-	for {
-		prec := setOpPrecedence(p.cur.Type)
-		if prec < minPrec {
-			break
-		}
-
-		var op nodes.SetOperation
-		switch p.cur.Type {
-		case kwUNION:
-			op = nodes.SetOpUnion
-		case kwINTERSECT:
-			op = nodes.SetOpIntersect
-		case kwEXCEPT:
-			op = nodes.SetOpExcept
-		}
-		p.advance()
-
-		// Completion: after UNION/INTERSECT/EXCEPT keyword, offer ALL, DISTINCT, SELECT.
-		p.checkCursor()
-		if p.collectMode() {
-			p.addTokenCandidate(kwALL)
-			p.addTokenCandidate(kwDISTINCT)
-			p.addTokenCandidate(kwSELECT)
-			return nil, &ParseError{Message: "collecting"}
-		}
-
-		all := false
-		if _, ok := p.match(kwALL); ok {
-			all = true
-		} else {
-			p.match(kwDISTINCT)
-		}
-
-		// Completion: after ALL/DISTINCT, offer SELECT.
-		p.checkCursor()
-		if p.collectMode() {
-			p.addTokenCandidate(kwSELECT)
-			return nil, &ParseError{Message: "collecting"}
-		}
-
-		if p.cur.Type != kwSELECT && p.cur.Type != '(' {
-			if p.cur.Type == tokEOF {
-				return nil, p.syntaxErrorAtCur()
-			}
-			return nil, &ParseError{
-				Message:  "expected SELECT after set operation",
-				Position: p.cur.Loc,
-			}
-		}
-
-		right, err := p.parseSelectStmtBase()
-		if err != nil {
-			return nil, err
-		}
-
-		// If next op has higher precedence, recurse to consume it first
-		for {
-			nextPrec := setOpPrecedence(p.cur.Type)
-			if nextPrec <= prec {
-				break
-			}
-			right, err = p.parseSetOpWithPrecedence(right, nextPrec)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		// Hoist trailing ORDER BY / LIMIT from the right-hand SELECT to the
-		// set-operation node. In MySQL, ORDER BY and LIMIT after a set
-		// operation (without parentheses) apply to the entire combined result,
-		// not just the last SELECT.
-		var orderBy []*nodes.OrderByItem
-		var limit *nodes.Limit
-		rightLeaf := right
-		for rightLeaf.SetOp != nodes.SetOpNone && rightLeaf.Right != nil {
-			rightLeaf = rightLeaf.Right
-		}
-		if len(rightLeaf.OrderBy) > 0 {
-			orderBy = rightLeaf.OrderBy
-			rightLeaf.OrderBy = nil
-		}
-		if rightLeaf.Limit != nil {
-			limit = rightLeaf.Limit
-			rightLeaf.Limit = nil
-		}
-
-		left = &nodes.SelectStmt{
-			Loc:     nodes.Loc{Start: left.Loc.Start, End: right.Loc.End},
-			SetOp:   op,
-			SetAll:  all,
-			Left:    left,
-			Right:   right,
-			OrderBy: orderBy,
-			Limit:   limit,
-		}
-	}
-
-	return left, nil
 }
 
 // parseParenIdentList parses a parenthesized comma-separated list of identifiers.

@@ -942,6 +942,35 @@ func TestDeparseSelect_Section_5_1_NilStmt(t *testing.T) {
 	}
 }
 
+// TestDeparseSelect_ParenthesizedQuery is the load-bearing round-trip guard for
+// the ParenSource wrapper: a consumer that silently drops ParenSource parses
+// fine but deparses wrong. Each case proves BOTH the inner and the OUTER scope
+// survive parse → deparse — e.g. "(SELECT 1 LIMIT 5) LIMIT 2" must keep both
+// limits, which a flat (overwriting) representation cannot.
+func TestDeparseSelect_ParenthesizedQuery(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"two_scope_limit", "(SELECT 1 LIMIT 5) LIMIT 2", "(select 1 AS `1` limit 5) limit 2"},
+		{"two_scope_order", "(SELECT a FROM t ORDER BY a) ORDER BY a", "(select `a` AS `a` from `t` order by `a`) order by `a`"},
+		{"paren_union", "(SELECT 1) UNION (SELECT 2)", "(select 1 AS `1`) union (select 2 AS `2`)"},
+		{"paren_query_order", "(SELECT a FROM t) ORDER BY a", "(select `a` AS `a` from `t`) order by `a`"},
+		{"union_outer_limit", "((SELECT 1) UNION (SELECT 2)) LIMIT 1", "((select 1 AS `1`) union (select 2 AS `2`)) limit 1"},
+		{"nested", "((SELECT 1))", "((select 1 AS `1`))"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sel := parseSelect(t, tc.input)
+			got := DeparseSelect(sel)
+			if got != tc.expected {
+				t.Errorf("DeparseSelect(%q) =\n  %q\nwant:\n  %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
 func TestDeparseSelect_Section_5_2_FromClause(t *testing.T) {
 	cases := []struct {
 		name     string

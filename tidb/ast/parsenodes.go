@@ -32,6 +32,12 @@ type SelectStmt struct {
 	SetAll            bool               // ALL modifier for set operations
 	Left              *SelectStmt        // left side of set operation
 	Right             *SelectStmt        // right side of set operation
+	// ParenSource is the inner query of a parenthesized query expression
+	// ( SELECT ... ). When non-nil this node is a parentheses wrapper: its own
+	// OrderBy/Limit hold the OUTER trailing clauses, while ParenSource carries
+	// the inner query (which may have its own OrderBy/Limit). This keeps the two
+	// scopes of "(SELECT 1 LIMIT 5) LIMIT 2" distinct.
+	ParenSource *SelectStmt
 }
 
 // CommonTableExpr represents a single CTE in a WITH clause.
