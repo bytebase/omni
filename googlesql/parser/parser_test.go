@@ -46,28 +46,29 @@ func TestParse_UnknownStatement(t *testing.T) {
 
 // TestParse_KnownStatementUnsupported verifies a statement whose leading
 // keyword IS in the dispatch switch but whose body is still stubbed yields a
-// "not yet supported" diagnostic rather than an "unknown statement" one. INSERT
-// is used because the DML node has not landed yet; the query family (SELECT /
-// WITH) is now implemented by the parser-select node and no longer stubbed.
+// "not yet supported" diagnostic rather than an "unknown statement" one. CALL is
+// used because it is still stubbed; the query family (SELECT / WITH,
+// parser-select) and the DML family (INSERT/UPDATE/DELETE/MERGE/TRUNCATE,
+// parser-dml) are now implemented and no longer stubbed.
 func TestParse_KnownStatementUnsupported(t *testing.T) {
-	_, errs := Parse("INSERT INTO t VALUES (1)")
+	_, errs := Parse("CALL my_proc()")
 	if len(errs) != 1 {
-		t.Fatalf("Parse(\"INSERT ...\"): got %d errors, want 1: %v", len(errs), errs)
+		t.Fatalf("Parse(\"CALL ...\"): got %d errors, want 1: %v", len(errs), errs)
 	}
 	if !strings.Contains(errs[0].Msg, "not yet supported") {
 		t.Errorf("error = %q, want 'not yet supported'", errs[0].Msg)
 	}
-	if !strings.HasPrefix(errs[0].Msg, "INSERT ") {
-		t.Errorf("error = %q, want it to name the INSERT statement", errs[0].Msg)
+	if !strings.HasPrefix(errs[0].Msg, "CALL ") {
+		t.Errorf("error = %q, want it to name the CALL statement", errs[0].Msg)
 	}
 }
 
 // TestParse_MultiStatementErrorsCollected verifies ParseBestEffort collects
 // errors from every segment, not just the first. The leading `SELECT 1` now
-// parses cleanly (parser-select), so only the two stubbed DML segments
-// contribute errors.
+// parses cleanly (parser-select) and the INSERT now parses cleanly
+// (parser-dml), so only the two still-stubbed CALL segments contribute errors.
 func TestParse_MultiStatementErrorsCollected(t *testing.T) {
-	res := ParseBestEffort("SELECT 1; INSERT INTO t VALUES (1); UPDATE t SET x=1")
+	res := ParseBestEffort("SELECT 1; INSERT INTO t VALUES (1); CALL a(); CALL b()")
 	if got := len(res.Errors); got != 2 {
 		t.Fatalf("ParseBestEffort: got %d errors, want 2: %v", got, res.Errors)
 	}
@@ -311,18 +312,18 @@ func TestParse_StatementLevelHintSkipped(t *testing.T) {
 	}
 }
 
-// TestParse_QueryStatementsParse documents that the parser-select node flips the
-// foundation's "all bodies stubbed" invariant for the query family: a valid
-// SELECT now parses to a real AST node, while a still-stubbed DML segment
-// (INSERT) yields its "not yet supported" diagnostic. (Pre-parser-select this
-// test asserted File.Stmts stayed empty for SELECT.)
+// TestParse_QueryStatementsParse documents that the parser-select and parser-dml
+// nodes flip the foundation's "all bodies stubbed" invariant: a valid SELECT and
+// a valid INSERT both now parse to real AST nodes, while a still-stubbed segment
+// (CALL) yields its "not yet supported" diagnostic. (Pre-parser-select this test
+// asserted File.Stmts stayed empty for SELECT.)
 func TestParse_QueryStatementsParse(t *testing.T) {
-	file, errs := Parse("SELECT 1; INSERT INTO t VALUES (1)")
-	if len(file.Stmts) != 1 {
-		t.Errorf("File.Stmts = %d, want 1 (the SELECT parses; INSERT is still stubbed)", len(file.Stmts))
+	file, errs := Parse("SELECT 1; INSERT INTO t VALUES (1); CALL p()")
+	if len(file.Stmts) != 2 {
+		t.Errorf("File.Stmts = %d, want 2 (SELECT + INSERT parse; CALL is still stubbed)", len(file.Stmts))
 	}
 	if len(errs) != 1 {
-		t.Errorf("errors = %d, want 1 (the stubbed INSERT): %v", len(errs), errs)
+		t.Errorf("errors = %d, want 1 (the stubbed CALL): %v", len(errs), errs)
 	}
 }
 

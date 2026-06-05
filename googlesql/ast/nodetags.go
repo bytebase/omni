@@ -124,6 +124,26 @@ const (
 	T_AlterStmt
 	T_AlterAction
 	T_DropStmt
+
+	// DML — INSERT / UPDATE / DELETE / MERGE / TRUNCATE (parser-dml node).
+	//
+	// The data-manipulation family for the BigQuery + Spanner union, plus their
+	// structural sub-nodes (VALUES row, SET item, ON CONFLICT, MERGE WHEN/action,
+	// THEN RETURN). These mirror the legacy ANTLR DML grammar
+	// (GoogleSQLParser.g4 §2.7), a hand-port of ZetaSQL.
+	T_DefaultExpr
+	T_InsertStmt
+	T_InsertRow
+	T_InsertTable
+	T_OnConflict
+	T_UpdateStmt
+	T_UpdateItem
+	T_DeleteStmt
+	T_MergeStmt
+	T_MergeWhen
+	T_MergeAction
+	T_TruncateStmt
+	T_Returning
 )
 
 // String returns a human-readable representation of the tag.
@@ -285,6 +305,32 @@ func (t NodeTag) String() string {
 		return "AlterAction"
 	case T_DropStmt:
 		return "DropStmt"
+	case T_DefaultExpr:
+		return "DefaultExpr"
+	case T_InsertStmt:
+		return "InsertStmt"
+	case T_InsertRow:
+		return "InsertRow"
+	case T_InsertTable:
+		return "InsertTable"
+	case T_OnConflict:
+		return "OnConflict"
+	case T_UpdateStmt:
+		return "UpdateStmt"
+	case T_UpdateItem:
+		return "UpdateItem"
+	case T_DeleteStmt:
+		return "DeleteStmt"
+	case T_MergeStmt:
+		return "MergeStmt"
+	case T_MergeWhen:
+		return "MergeWhen"
+	case T_MergeAction:
+		return "MergeAction"
+	case T_TruncateStmt:
+		return "TruncateStmt"
+	case T_Returning:
+		return "Returning"
 	default:
 		return "Unknown"
 	}

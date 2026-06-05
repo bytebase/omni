@@ -358,7 +358,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwUNDROP:
 		return p.unsupported("UNDROP")
 	case kwTRUNCATE:
-		return p.unsupported("TRUNCATE")
+		// TRUNCATE TABLE (a BigQuery DML statement; the .g4 groups it under DDL).
+		return p.parseDMLStatement(p.parseTruncateStmt)
 	case kwDEFINE:
 		// DEFINE TABLE (DEFINE MACRO is intentionally unimplemented — a
 		// reserved error alt in the legacy grammar).
@@ -366,13 +367,13 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// --- DML ---
 	case kwINSERT:
-		return p.unsupported("INSERT")
+		return p.parseDMLStatement(p.parseInsertStmt)
 	case kwUPDATE:
-		return p.unsupported("UPDATE")
+		return p.parseDMLStatement(p.parseUpdateStmt)
 	case kwDELETE:
-		return p.unsupported("DELETE")
+		return p.parseDMLStatement(p.parseDeleteStmt)
 	case kwMERGE:
-		return p.unsupported("MERGE")
+		return p.parseDMLStatement(p.parseMergeStmt)
 
 	// --- DCL ---
 	case kwGRANT:
@@ -489,6 +490,25 @@ func (p *Parser) parseQueryStatement() (ast.Node, error) {
 	}
 	p.fillSubqueries(q)
 	return q, nil
+}
+
+// parseDMLStatement runs a DML parse function and then fills every
+// expression-embedded subquery the way parseQueryStatement does. DML statements
+// carry expressions (VALUES rows, SET / merge-action values, WHERE / ON / merge
+// conditions, ASSERT_ROWS_MODIFIED, THEN RETURN items) that may contain
+// SubqueryExpr / ExistsExpr / ArraySubqueryExpr captured as RawText with
+// Query==nil by the frozen expressions node. fillSubqueries re-parses each into
+// a real *QueryStmt — which both (a) completes the tree for the downstream
+// query-span / lineage extractor and (b) surfaces a malformed embedded subquery
+// (e.g. `UPDATE t SET x = (SELECT 1 FROM s a b)`, which the oracle rejects on
+// the stray `b`) as a diagnostic, matching the query-statement path.
+func (p *Parser) parseDMLStatement(parse func() (ast.Node, error)) (ast.Node, error) {
+	n, err := parse()
+	if err != nil {
+		return nil, err
+	}
+	p.fillSubqueries(n)
+	return n, nil
 }
 
 // fillSubqueries walks node and re-parses the RawText of every SubqueryExpr /

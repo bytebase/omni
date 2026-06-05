@@ -164,6 +164,15 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, c)
 		}
 		Walk(v, n.AsQuery)
+	case *DeleteStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		Walk(v, n.Where)
+		Walk(v, n.AssertRows)
+		if n.Returning != nil {
+			Walk(v, n.Returning)
+		}
 	case *DropStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -233,6 +242,34 @@ func walkChildren(v Visitor, node Node) {
 	case *IndexAccess:
 		Walk(v, n.Expr)
 		Walk(v, n.Index)
+	case *InsertRow:
+		walkNodes(v, n.Values)
+	case *InsertStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		for _, c := range n.Rows {
+			Walk(v, c)
+		}
+		Walk(v, n.Query)
+		if n.TableClause != nil {
+			Walk(v, n.TableClause)
+		}
+		if n.OnConflict != nil {
+			Walk(v, n.OnConflict)
+		}
+		Walk(v, n.AssertRows)
+		if n.Returning != nil {
+			Walk(v, n.Returning)
+		}
+	case *InsertTable:
+		if n.Path != nil {
+			Walk(v, n.Path)
+		}
+		if n.Func != nil {
+			Walk(v, n.Func)
+		}
+		Walk(v, n.Where)
 	case *InterleaveClause:
 		if n.Parent != nil {
 			Walk(v, n.Parent)
@@ -259,6 +296,27 @@ func walkChildren(v Visitor, node Node) {
 		walkNodes(v, n.QuantValues)
 		Walk(v, n.QuantUnnest)
 		Walk(v, n.QuantSubquery)
+	case *MergeAction:
+		if n.InsertRow != nil {
+			Walk(v, n.InsertRow)
+		}
+		for _, c := range n.SetItems {
+			Walk(v, c)
+		}
+	case *MergeStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		Walk(v, n.Source)
+		Walk(v, n.On)
+		for _, c := range n.Whens {
+			Walk(v, c)
+		}
+	case *MergeWhen:
+		Walk(v, n.And)
+		if n.Action != nil {
+			Walk(v, n.Action)
+		}
 	case *NamedArg:
 		Walk(v, n.Value)
 	case *NewConstructor:
@@ -271,6 +329,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Braced != nil {
 			Walk(v, n.Braced)
 		}
+	case *OnConflict:
+		for _, c := range n.SetItems {
+			Walk(v, c)
+		}
+		Walk(v, n.Where)
 	case *OptionsEntry:
 		Walk(v, n.Value)
 	case *OrderItem:
@@ -294,6 +357,10 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Max)
 	case *ReplaceFieldsExpr:
 		Walk(v, n.Expr)
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+	case *Returning:
 		for _, c := range n.Items {
 			Walk(v, c)
 		}
@@ -372,10 +439,31 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Func)
 		}
 		Walk(v, n.SystemTime)
+	case *TruncateStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		Walk(v, n.Where)
 	case *UnaryExpr:
 		Walk(v, n.Expr)
 	case *UnnestExpr:
 		Walk(v, n.Array)
+	case *UpdateItem:
+		Walk(v, n.Value)
+		Walk(v, n.Nested)
+	case *UpdateStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+		walkNodes(v, n.From)
+		Walk(v, n.Where)
+		Walk(v, n.AssertRows)
+		if n.Returning != nil {
+			Walk(v, n.Returning)
+		}
 	case *ViewColumn:
 		for _, c := range n.Options {
 			Walk(v, c)
