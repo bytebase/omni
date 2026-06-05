@@ -48,30 +48,32 @@ func TestParse_UnknownStatement(t *testing.T) {
 
 // TestParse_KnownStatementUnsupported verifies a statement whose leading
 // keyword IS in the dispatch switch but whose body is still stubbed yields a
-// "not yet supported" diagnostic rather than an "unknown statement" one. EXPORT
-// is used because it is still stubbed; the query family (SELECT / WITH,
-// parser-select), the DML family (parser-dml), and the transaction / utility
-// family (BEGIN/COMMIT/ROLLBACK/ASSERT/ANALYZE/DESCRIBE/RENAME/CALL,
-// parser-utility) are now implemented and no longer stubbed.
+// "not yet supported" diagnostic rather than an "unknown statement" one. IMPORT
+// is used because it is still stubbed (parser-scripting, pending); the query
+// family (SELECT / WITH, parser-select), the DML family (parser-dml), the
+// transaction / utility family (BEGIN/COMMIT/ROLLBACK/ASSERT/ANALYZE/DESCRIBE/
+// RENAME/CALL, parser-utility) and the data-movement family (EXPORT DATA / MODEL,
+// LOAD DATA, CLONE DATA, parser-dml-ext) are now implemented and no longer
+// stubbed.
 func TestParse_KnownStatementUnsupported(t *testing.T) {
-	_, errs := Parse("EXPORT DATA OPTIONS(uri='x') AS SELECT 1")
+	_, errs := Parse("IMPORT MODULE foo.bar")
 	if len(errs) != 1 {
-		t.Fatalf("Parse(\"EXPORT ...\"): got %d errors, want 1: %v", len(errs), errs)
+		t.Fatalf("Parse(\"IMPORT ...\"): got %d errors, want 1: %v", len(errs), errs)
 	}
 	if !strings.Contains(errs[0].Msg, "not yet supported") {
 		t.Errorf("error = %q, want 'not yet supported'", errs[0].Msg)
 	}
-	if !strings.HasPrefix(errs[0].Msg, "EXPORT ") {
-		t.Errorf("error = %q, want it to name the EXPORT statement", errs[0].Msg)
+	if !strings.HasPrefix(errs[0].Msg, "IMPORT ") {
+		t.Errorf("error = %q, want it to name the IMPORT statement", errs[0].Msg)
 	}
 }
 
 // TestParse_MultiStatementErrorsCollected verifies ParseBestEffort collects
 // errors from every segment, not just the first. The leading `SELECT 1` now
 // parses cleanly (parser-select) and the INSERT now parses cleanly
-// (parser-dml), so only the two still-stubbed EXPORT segments contribute errors.
+// (parser-dml), so only the two still-stubbed IMPORT segments contribute errors.
 func TestParse_MultiStatementErrorsCollected(t *testing.T) {
-	res := ParseBestEffort("SELECT 1; INSERT INTO t VALUES (1); EXPORT DATA AS SELECT 1; EXPORT DATA AS SELECT 2")
+	res := ParseBestEffort("SELECT 1; INSERT INTO t VALUES (1); IMPORT MODULE a.b; IMPORT MODULE c.d")
 	if got := len(res.Errors); got != 2 {
 		t.Fatalf("ParseBestEffort: got %d errors, want 2: %v", got, res.Errors)
 	}
@@ -318,15 +320,16 @@ func TestParse_StatementLevelHintSkipped(t *testing.T) {
 // TestParse_QueryStatementsParse documents that the parser-select, parser-dml,
 // and parser-utility nodes flip the foundation's "all bodies stubbed" invariant:
 // a valid SELECT, INSERT, and CALL all now parse to real AST nodes, while a
-// still-stubbed segment (EXPORT DATA) yields its "not yet supported" diagnostic.
-// (Pre-parser-select this test asserted File.Stmts stayed empty for SELECT.)
+// still-stubbed segment (IMPORT MODULE) yields its "not yet supported"
+// diagnostic. (Pre-parser-select this test asserted File.Stmts stayed empty for
+// SELECT.)
 func TestParse_QueryStatementsParse(t *testing.T) {
-	file, errs := Parse("SELECT 1; INSERT INTO t VALUES (1); CALL p(); EXPORT DATA AS SELECT 1")
+	file, errs := Parse("SELECT 1; INSERT INTO t VALUES (1); CALL p(); IMPORT MODULE a.b")
 	if len(file.Stmts) != 3 {
-		t.Errorf("File.Stmts = %d, want 3 (SELECT + INSERT + CALL parse; EXPORT is still stubbed)", len(file.Stmts))
+		t.Errorf("File.Stmts = %d, want 3 (SELECT + INSERT + CALL parse; IMPORT is still stubbed)", len(file.Stmts))
 	}
 	if len(errs) != 1 {
-		t.Errorf("errors = %d, want 1 (the stubbed EXPORT): %v", len(errs), errs)
+		t.Errorf("errors = %d, want 1 (the stubbed IMPORT): %v", len(errs), errs)
 	}
 }
 

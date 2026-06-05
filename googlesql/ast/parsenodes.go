@@ -3103,6 +3103,121 @@ var (
 )
 
 // ===========================================================================
+// BigQuery EXPORT / LOAD / CLONE DATA (googlesql/parser-dml-ext node)
+// ===========================================================================
+//
+// The §2.8 data-movement statements of the legacy ANTLR GoogleSQLParser.g4
+// (a hand-port of ZetaSQL):
+//
+//	export_data_statement:  EXPORT DATA with_connection_clause? opt_options_list? AS query
+//	export_model_statement: EXPORT MODEL path_expression with_connection_clause? opt_options_list?
+//	aux_load_data_statement: LOAD DATA (INTO|OVERWRITE) maybe_dashed_path_expression_with_scope
+//	    table_element_list? load_data_partitions_clause? collate_clause?
+//	    partition_by_clause_prefix_no_hint? cluster_by_clause_prefix_no_hint? opt_options_list?
+//	    aux_load_data_from_files_options_list opt_external_table_with_clauses?
+//	clone_data_statement:   CLONE DATA INTO maybe_dashed_path_expression FROM clone_data_source_list
+//
+// All four are BigQuery-ONLY at the GoogleSQL union level (oracle.md): the
+// Spanner emulator hard-syntax-rejects them, so the union parser accepts them on
+// the authority of the legacy .g4 + the BigQuery truth1 corpus (OTHER-001 EXPORT
+// DATA, OTHER-003 LOAD DATA). bytebase does not consume these today (P1 parity),
+// but the parser must accept-and-model them so Diagnose reports them as valid
+// rather than a false syntax error, and GetQuerySpan can reach the embedded
+// query of EXPORT DATA / the table targets of LOAD/CLONE.
+
+// ExportDataStmt is `EXPORT DATA [WITH CONNECTION conn] [OPTIONS(...)] AS query`
+// (export_data_statement). The query is required (export_data_statement =
+// export_data_no_query as_query; there is no no-query form at statement level).
+type ExportDataStmt struct {
+	HasConnection  bool   // a WITH CONNECTION clause was present
+	ConnectionName string // connection path text, or "DEFAULT"; "" if absent
+	Options        []*OptionsEntry
+	Query          Node // AS query (required); *QueryStmt
+	Loc            Loc
+}
+
+// Tag implements Node.
+func (n *ExportDataStmt) Tag() NodeTag { return T_ExportDataStmt }
+
+// ExportModelStmt is `EXPORT MODEL <path> [WITH CONNECTION conn] [OPTIONS(...)]`
+// (export_model_statement).
+type ExportModelStmt struct {
+	Name           *PathExpr // model path (path_expression)
+	HasConnection  bool
+	ConnectionName string // connection path text, or "DEFAULT"; "" if absent
+	Options        []*OptionsEntry
+	Loc            Loc
+}
+
+// Tag implements Node.
+func (n *ExportModelStmt) Tag() NodeTag { return T_ExportModelStmt }
+
+// LoadDataStmt is a `LOAD DATA { INTO | OVERWRITE } …` statement
+// (aux_load_data_statement). It loads external files (FROM FILES (options)) into
+// a destination table, which may be a TEMP/TEMPORARY table.
+type LoadDataStmt struct {
+	Overwrite   bool      // true => OVERWRITE; false => INTO (append_or_overwrite)
+	Temp        bool      // a TEMP / TEMPORARY TABLE scope prefix was present
+	TempKeyword string    // "TEMP" | "TEMPORARY" | "" — the source spelling of the scope keyword
+	Name        *PathExpr // destination table (maybe_dashed_path_expression)
+	// Optional explicit table schema (table_element_list). The grammar admits both
+	// column definitions and table constraints; we keep them in two slices like
+	// CreateTableStmt (the original interleaving is not load-bearing here).
+	Columns             []*ColumnDef
+	Constraints         []*TableConstraint
+	PartitionsOverwrite bool   // OVERWRITE inside the load_data_partitions_clause
+	Partitions          Node   // OVERWRITE? PARTITIONS ( expr ); nil if absent
+	Collate             string // collate_clause spelling; "" if absent
+	PartitionBy         []Node // PARTITION BY expr (, expr)*; nil if absent
+	ClusterBy           []Node // CLUSTER BY expr (, expr)*; nil if absent
+	Options             []*OptionsEntry
+	FromFiles           []*OptionsEntry // FROM FILES ( options_list ) — required
+	// opt_external_table_with_clauses: WITH PARTITION COLUMNS [(cols)] and/or
+	// WITH CONNECTION conn.
+	HasPartitionColumns bool         // a WITH PARTITION COLUMNS clause was present
+	PartitionColumns    []*ColumnDef // its optional explicit column list; nil = inferred
+	HasConnection       bool         // a WITH CONNECTION clause was present
+	ConnectionName      string       // connection path text, or "DEFAULT"; "" if absent
+	Loc                 Loc
+}
+
+// Tag implements Node.
+func (n *LoadDataStmt) Tag() NodeTag { return T_LoadDataStmt }
+
+// CloneDataStmt is `CLONE DATA INTO <path> FROM <source> (UNION ALL <source>)*`
+// (clone_data_statement). It copies rows from one or more source tables (each
+// optionally at a system-time / filtered by WHERE) into the destination.
+type CloneDataStmt struct {
+	Name    *PathExpr // destination table (maybe_dashed_path_expression)
+	Sources []*CloneDataSource
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *CloneDataStmt) Tag() NodeTag { return T_CloneDataStmt }
+
+// CloneDataSource is one entry of a clone_data_source_list:
+// `maybe_dashed_path_expression opt_at_system_time? where_clause?`.
+type CloneDataSource struct {
+	Name          *PathExpr // source table
+	ForSystemTime Node      // FOR SYSTEM_TIME AS OF expr; nil if absent
+	Where         Node      // WHERE expr filter; nil if absent
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *CloneDataSource) Tag() NodeTag { return T_CloneDataSource }
+
+// Compile-time assertions that the data-movement node types satisfy Node.
+var (
+	_ Node = (*ExportDataStmt)(nil)
+	_ Node = (*ExportModelStmt)(nil)
+	_ Node = (*LoadDataStmt)(nil)
+	_ Node = (*CloneDataStmt)(nil)
+	_ Node = (*CloneDataSource)(nil)
+)
+
+// ===========================================================================
 // Spanner-specific DDL (googlesql/parser-ddl-spanner node)
 // ===========================================================================
 //

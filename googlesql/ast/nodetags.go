@@ -199,6 +199,20 @@ const (
 	T_RenameStmt
 	T_CallArg
 	T_CallStmt
+
+	// BigQuery EXPORT / LOAD / CLONE DATA (parser-dml-ext node).
+	//
+	// The §2.8 data-movement family from the legacy ANTLR grammar
+	// (GoogleSQLParser.g4): export_data_statement / export_model_statement /
+	// aux_load_data_statement / clone_data_statement, plus the CloneDataSource
+	// leaf. BigQuery-only at the GoogleSQL union level (the Spanner emulator
+	// rejects all four); triangulated against the legacy .g4 + the BigQuery
+	// truth1 corpus (OTHER-001/OTHER-003).
+	T_ExportDataStmt
+	T_ExportModelStmt
+	T_LoadDataStmt
+	T_CloneDataStmt
+	T_CloneDataSource
 )
 
 // String returns a human-readable representation of the tag.
@@ -456,6 +470,16 @@ func (t NodeTag) String() string {
 		return "CallArg"
 	case T_CallStmt:
 		return "CallStmt"
+	case T_ExportDataStmt:
+		return "ExportDataStmt"
+	case T_ExportModelStmt:
+		return "ExportModelStmt"
+	case T_LoadDataStmt:
+		return "LoadDataStmt"
+	case T_CloneDataStmt:
+		return "CloneDataStmt"
+	case T_CloneDataSource:
+		return "CloneDataSource"
 	default:
 		return "Unknown"
 	}
