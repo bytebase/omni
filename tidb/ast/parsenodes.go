@@ -54,6 +54,18 @@ func (c *CommonTableExpr) nodeTag() {}
 func (s *SelectStmt) nodeTag()  {}
 func (s *SelectStmt) stmtNode() {}
 
+// UnwrapParenSource unwraps parenthesized-query wrappers (ParenSource) and
+// returns the underlying query node — a SELECT leaf or a set-operation node.
+// Unlike walking to the leftmost leaf, it stops at a set-op so callers can
+// inspect SetOp / Left / Right (e.g. recursive-CTE detection). Returns the
+// input unchanged when it is not a wrapper.
+func UnwrapParenSource(s *SelectStmt) *SelectStmt {
+	for s != nil && s.ParenSource != nil {
+		s = s.ParenSource
+	}
+	return s
+}
+
 // DistinctKind enumerates DISTINCT modes.
 type DistinctKind int
 

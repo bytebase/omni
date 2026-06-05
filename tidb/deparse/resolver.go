@@ -163,10 +163,11 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		}
 	}
 	for _, cte := range stmt.CTEs {
-		if cte.Recursive && cte.Select != nil && cte.Select.SetOp != ast.SetOpNone {
+		if cte.Recursive && cte.Select != nil && ast.UnwrapParenSource(cte.Select).SetOp != ast.SetOpNone {
 			// Recursive CTE: resolve left (non-recursive) branch first to get column info,
-			// then add CTE to scope, then resolve right (recursive) branch.
-			sel := cte.Select
+			// then add CTE to scope, then resolve right (recursive) branch. The body
+			// may be a parenthesized set operation, so unwrap ParenSource first.
+			sel := ast.UnwrapParenSource(cte.Select)
 
 			// Step 1: Resolve the non-recursive (left) branch
 			leftResolver := &Resolver{

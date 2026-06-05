@@ -2463,6 +2463,42 @@ func TestAnalyze_12_5_RecursiveCTE(t *testing.T) {
 // bare parenthesized SELECT with an outer ORDER BY, a two-scope LIMIT, and a
 // parenthesized set operation whose operands reach analyze as ParenSource
 // wrappers. Each must resolve to the inner query's columns.
+// TestAnalyze_RecursiveCTEParenthesizedBody guards recursive-CTE detection when
+// the CTE body is a parenthesized set operation. The recursive arm references
+// the CTE itself, so the CTE must be registered (via analyzeRecursiveCTE) before
+// the right arm is analyzed — which only happens if ParenSource is unwrapped
+// before the set-operation check. TiDB v8.5.0 accepts both the bare and
+// parenthesized forms (container-verified, returns 1,2,3). The parenthesized
+// form must analyze with the same recursive-CTE structure as the bare form.
+func TestAnalyze_RecursiveCTEParenthesizedBody(t *testing.T) {
+	c := setupJoinTables(t)
+	check := func(t *testing.T, sql string) {
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, sql))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(q.CTEList) != 1 {
+			t.Fatalf("CTEList: want 1, got %d", len(q.CTEList))
+		}
+		cte := q.CTEList[0]
+		if !cte.Recursive {
+			t.Error("CTE not marked recursive")
+		}
+		if len(cte.ColumnNames) != 1 || cte.ColumnNames[0] != "n" {
+			t.Errorf("CTE columns: want [n], got %v", cte.ColumnNames)
+		}
+		if cte.Query == nil || cte.Query.SetOp != SetOpUnion {
+			t.Errorf("CTE body: want a UNION set-op query, got %+v", cte.Query)
+		}
+	}
+	t.Run("bare", func(t *testing.T) {
+		check(t, "WITH RECURSIVE cte(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM cte WHERE n < 3) SELECT * FROM cte")
+	})
+	t.Run("parenthesized", func(t *testing.T) {
+		check(t, "WITH RECURSIVE cte(n) AS ((SELECT 1) UNION ALL (SELECT n + 1 FROM cte WHERE n < 3)) SELECT * FROM cte")
+	})
+}
+
 func TestAnalyze_ParenthesizedQuery(t *testing.T) {
 	c := setupJoinTables(t)
 
