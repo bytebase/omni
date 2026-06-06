@@ -42,7 +42,7 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 	scope := newScopeWithParent(parentScope)
 
 	// Step 0: Process CTEs (WITH clause).
-	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope)
+	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, inheritedCTEMap)
 	if err != nil {
 		return nil, err
 	}
@@ -739,12 +739,19 @@ func (c *Catalog) analyzeLimitOffset(limit *nodes.Limit, q *Query, scope *analyz
 }
 
 // analyzeCTEs processes WITH clause CTEs, returning a map for CTE name lookup.
-func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentScope *analyzerScope) (map[string]*CommonTableExprQ, error) {
+func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (map[string]*CommonTableExprQ, error) {
 	if len(ctes) == 0 {
 		return nil, nil
 	}
 
 	cteMap := make(map[string]*CommonTableExprQ)
+	// Seed CTEs inherited from an enclosing WITH so a CTE body can reference them,
+	// and so a later CTE can chain off an earlier one in this same list. A local
+	// CTE of the same name shadows the inherited one (it overwrites the entry when
+	// registered below).
+	for k, v := range inheritedCTEMap {
+		cteMap[k] = v
+	}
 	for i, cte := range ctes {
 		if cte.Recursive {
 			q.IsRecursive = true
@@ -759,7 +766,9 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 			// a parenthesized set operation, so unwrap ParenSource first.
 			innerQ, err = c.analyzeRecursiveCTE(cte, parentScope, cteMap)
 		} else {
-			innerQ, err = c.analyzeSelectStmtInternal(cte.Select, parentScope)
+			// Pass the running cteMap so this CTE body can reference inherited and
+			// earlier sibling CTEs (chained CTEs).
+			innerQ, err = c.analyzeSelectStmtWithCTEs(cte.Select, parentScope, cteMap)
 		}
 		if err != nil {
 			return nil, err
@@ -919,7 +928,7 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 		JoinTree:    &JoinTreeQ{},
 	}
 
-	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope)
+	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, inheritedCTEMap)
 	if err != nil {
 		return nil, err
 	}
@@ -1003,55 +1012,108 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 	return q, nil
 }
 
-// analyzeParenSourceWithCTEs analyzes a parenthesized query expression. Its
-// result columns and command type come from the inner query; the wrapper's own
-// CTEs are made visible to the inner query, and its OUTER ORDER BY / LIMIT are
-// applied to the analyzed query (validated against the inner result columns).
+// analyzeParenSourceWithCTEs analyzes a parenthesized query expression
+// "WITH ctes ( body ) [ORDER BY] [LIMIT]". The parentheses are pure grouping, so
+// when folding the wrapper CTEs / outer ORDER BY / LIMIT onto the body cannot
+// collide with a clause the body already carries, it is analyzed as the
+// equivalent flat query "WITH ctes body [ORDER BY] [LIMIT]" — which keeps CTE
+// references at same-level indices and resolves an outer ORDER BY against the
+// body's real FROM scope. When folding WOULD collide — an outer ORDER BY/LIMIT
+// meeting one the body already has, or a wrapper CTE shadowing a same-named body
+// CTE — the body is analyzed as a derived-table subquery so both scopes survive.
 func (c *Catalog) analyzeParenSourceWithCTEs(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
-	// A wrapper-level WITH — WITH cte AS (...) ( body ) — belongs to the body's
-	// query expression (the parentheses are grouping). Fold the wrapper CTEs in
-	// front of the body's own and analyze the body directly, so the CTEs land on
-	// the returned query and the body's RTECTE references resolve to correct
-	// CTEList indices (a separate holder + post-hoc merge leaves CTEIndex stale
-	// for nested / multiple CTEs).
-	inner := stmt.ParenSource
-	if len(stmt.CTEs) > 0 {
-		combined := *inner
-		combined.CTEs = append(append([]*nodes.CommonTableExpr{}, stmt.CTEs...), inner.CTEs...)
-		inner = &combined
+	body := stmt.ParenSource
+
+	// Transparent grouping: nothing on the wrapper, so the parens have no effect.
+	if len(stmt.CTEs) == 0 && len(stmt.OrderBy) == 0 && stmt.Limit == nil {
+		return c.analyzeSelectStmtWithCTEs(body, parentScope, inheritedCTEMap)
 	}
 
-	q, err := c.analyzeSelectStmtWithCTEs(inner, parentScope, inheritedCTEMap)
+	orderConflict := len(stmt.OrderBy) > 0 && len(body.OrderBy) > 0
+	limitConflict := stmt.Limit != nil && body.Limit != nil
+	cteShadow := false
+	if len(stmt.CTEs) > 0 && len(body.CTEs) > 0 {
+		bodyNames := make(map[string]bool, len(body.CTEs))
+		for _, cte := range body.CTEs {
+			bodyNames[strings.ToLower(cte.Name)] = true
+		}
+		for _, cte := range stmt.CTEs {
+			if bodyNames[strings.ToLower(cte.Name)] {
+				cteShadow = true
+				break
+			}
+		}
+	}
+
+	// No collision: fold the wrapper CTEs / outer clauses onto the body and
+	// analyze the equivalent flat query.
+	if !orderConflict && !limitConflict && !cteShadow {
+		combined := *body
+		if len(stmt.CTEs) > 0 {
+			combined.CTEs = append(append([]*nodes.CommonTableExpr{}, stmt.CTEs...), body.CTEs...)
+		}
+		if len(stmt.OrderBy) > 0 {
+			combined.OrderBy = stmt.OrderBy
+			combined.OrderByWithRollup = stmt.OrderByWithRollup
+		}
+		if stmt.Limit != nil {
+			combined.Limit = stmt.Limit
+		}
+		return c.analyzeSelectStmtWithCTEs(&combined, parentScope, inheritedCTEMap)
+	}
+
+	// Collision: model "WITH ctes ( body ) [outer clauses]" as
+	// "WITH ctes SELECT <cols> FROM ( body ) [outer clauses]". The wrapper CTEs
+	// live on this OUTER query; the body's own CTEs stay nested inside the
+	// subquery (so same-named CTEs never share a list), and the outer ORDER BY /
+	// LIMIT resolve against the derived-table output (rtindex 0), not the body's
+	// base tables.
+	q := &Query{CommandType: CmdSelect, JoinTree: &JoinTreeQ{}}
+	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, inheritedCTEMap)
+	if err != nil {
+		return nil, err
+	}
+	if cteMap == nil {
+		cteMap = inheritedCTEMap
+	}
+	bodyQ, err := c.analyzeSelectStmtWithCTEs(body, parentScope, cteMap)
 	if err != nil {
 		return nil, err
 	}
 
-	// Apply the wrapper's OUTER ORDER BY / LIMIT onto the analyzed query when the
-	// inner query does not already carry that clause (the common case, e.g.
-	// "(SELECT a) LIMIT 2" / "(SELECT a) ORDER BY a"). The flat Query IR cannot
-	// hold two scopes of the same clause, so for "(SELECT a LIMIT 5) LIMIT 2" the
-	// inner clause is kept and the outer is not copied here — the AST / stored
-	// view Definition (deparsed via DeparseSelect) still preserves both scopes.
-	needsOrder := len(stmt.OrderBy) > 0 && len(q.SortClause) == 0
-	needsLimit := stmt.Limit != nil && q.LimitCount == nil && q.LimitOffset == nil
-	if !needsOrder && !needsLimit {
-		return q, nil
-	}
-	scope := newScope()
-	var cols []*Column
-	for _, te := range q.TargetList {
-		if te.ResJunk {
-			continue
+	var colNames []string
+	for _, te := range bodyQ.TargetList {
+		if !te.ResJunk {
+			colNames = append(colNames, te.ResName)
 		}
-		cols = append(cols, &Column{Position: len(cols) + 1, Name: te.ResName})
 	}
+	q.RangeTable = append(q.RangeTable, &RangeTableEntryQ{
+		Kind:     RTESubquery,
+		Alias:    "__paren__",
+		ERef:     "__paren__",
+		ColNames: colNames,
+		Subquery: bodyQ,
+	})
+	q.JoinTree.FromList = append(q.JoinTree.FromList, &RangeTableRefQ{RTIndex: 0})
+
+	cols := make([]*Column, len(colNames))
+	for i, name := range colNames {
+		cols[i] = &Column{Position: i + 1, Name: name}
+		q.TargetList = append(q.TargetList, &TargetEntryQ{
+			Expr:    &VarExprQ{RangeIdx: 0, AttNum: i + 1},
+			ResNo:   i + 1,
+			ResName: name,
+		})
+	}
+
+	scope := newScope()
 	scope.add("__paren__", 0, cols)
-	if needsOrder {
+	if len(stmt.OrderBy) > 0 {
 		if err := c.analyzeOrderBy(stmt.OrderBy, q, scope); err != nil {
 			return nil, err
 		}
 	}
-	if needsLimit {
+	if stmt.Limit != nil {
 		if err := c.analyzeLimitOffset(stmt.Limit, q, scope); err != nil {
 			return nil, err
 		}

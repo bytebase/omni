@@ -2525,8 +2525,15 @@ func TestAnalyze_WithClauseOnParenthesizedBody(t *testing.T) {
 // body is analyzed instead of being folded onto it.
 func TestAnalyze_WithClauseOnParenthesizedBody_Indices(t *testing.T) {
 	c := setupJoinTables(t)
-	checkInvariant := func(t *testing.T, q *Query) {
+	var checkInvariant func(t *testing.T, q *Query)
+	checkInvariant = func(t *testing.T, q *Query) {
 		for _, rte := range q.RangeTable {
+			// Descend into a derived-table subquery (the collision path nests the
+			// parenthesized body there, so RTECTEs can live one level down).
+			if rte.Kind == RTESubquery && rte.Subquery != nil {
+				checkInvariant(t, rte.Subquery)
+				continue
+			}
 			if rte.Kind != RTECTE {
 				continue
 			}
@@ -2563,6 +2570,39 @@ func TestAnalyze_WithClauseOnParenthesizedBody_Indices(t *testing.T) {
 	})
 }
 
+// TestAnalyze_ChainedAndInheritedCTE guards that a CTE body can reference an
+// earlier sibling CTE or an inherited (wrapper) CTE. analyzeCTEs previously
+// analyzed CTE bodies with a nil cteMap, so these failed with table-not-found.
+func TestAnalyze_ChainedAndInheritedCTE(t *testing.T) {
+	c := setupJoinTables(t)
+	for _, tc := range []struct{ name, sql string }{
+		{"chained_sibling", "WITH a AS (SELECT name FROM employees), b AS (SELECT name FROM a) SELECT name FROM b"},
+		{"inherited_into_paren_body", "WITH outer_cte AS (SELECT name FROM employees) (WITH inner_cte AS (SELECT name FROM outer_cte) SELECT name FROM inner_cte)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := c.AnalyzeSelectStmt(parseSelect(t, tc.sql)); err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+// TestAnalyze_ParenBodyShadowingDeparse guards that a body WITH shadowing a
+// same-named wrapper WITH does NOT collapse into two same-level CTEs (invalid
+// SQL); the shadowing body is nested as a derived-table subquery instead.
+func TestAnalyze_ParenBodyShadowingDeparse(t *testing.T) {
+	c := setupJoinTables(t)
+	q, err := c.AnalyzeSelectStmt(parseSelect(t, "WITH cte AS (SELECT name FROM employees) (WITH cte AS (SELECT name FROM departments) SELECT name FROM cte)"))
+	assertNoError(t, err)
+	got := DeparseQuery(q)
+	if strings.Contains(got, ") , `cte`") {
+		t.Errorf("two same-level CTEs named cte (invalid SQL): %q", got)
+	}
+	if !strings.Contains(got, "as `__paren__`") {
+		t.Errorf("expected the shadowing body to be nested as a derived-table subquery: %q", got)
+	}
+}
+
 func TestAnalyze_ParenthesizedQuery(t *testing.T) {
 	c := setupJoinTables(t)
 
@@ -2585,6 +2625,11 @@ func TestAnalyze_ParenthesizedQuery(t *testing.T) {
 		}
 		if len(q.SortClause) == 0 {
 			t.Error("outer ORDER BY not applied to analyzed query (SortClause empty)")
+		}
+		// The outer ORDER BY must resolve to the real column, not a wrong one
+		// (a synthetic scope colliding with the body's RTE produced employees.id).
+		if got := DeparseQuery(q); !strings.Contains(got, "order by `employees`.`name`") {
+			t.Errorf("outer ORDER BY resolved to the wrong column: %q", got)
 		}
 	})
 
