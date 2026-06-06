@@ -2788,3 +2788,40 @@ func TestAnalyze_15_5_ViewFunctionTypeFlow(t *testing.T) {
 		t.Errorf("TargetList[2].ResName: want cnt, got %s", q.TargetList[2].ResName)
 	}
 }
+
+// TestAnalyze_ChainedCTE verifies that a CTE body can reference an earlier CTE
+// in the same WITH clause: WITH a AS (...), b AS (SELECT ... FROM a) ... .
+// TiDB accepts this; the analyzer must resolve `a` inside b's body as a CTE
+// reference (RTECTE pointing at a's body), not fail to find a base table.
+func TestAnalyze_ChainedCTE(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x), b AS (SELECT x FROM a) SELECT x FROM b")
+
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// Two CTEs declared at the top level: a (index 0), b (index 1).
+	if len(q.CTEList) != 2 {
+		t.Fatalf("CTEList: want 2 entries, got %d", len(q.CTEList))
+	}
+
+	// b's body (SELECT x FROM a) must resolve `a` as a CTE reference.
+	bBody := q.CTEList[1].Query
+	if len(bBody.RangeTable) != 1 {
+		t.Fatalf("b body RangeTable: want 1 entry, got %d", len(bBody.RangeTable))
+	}
+	rte := bBody.RangeTable[0]
+	if rte.Kind != RTECTE {
+		t.Fatalf("b body RTE.Kind: want RTECTE (chained CTE ref), got %v", rte.Kind)
+	}
+	if rte.CTEName != "a" {
+		t.Errorf("b body RTE.CTEName: want %q, got %q", "a", rte.CTEName)
+	}
+	// Strongest check: the reference points at the actual `a` CTE body.
+	if rte.Subquery != q.CTEList[0].Query {
+		t.Errorf("b body RTE.Subquery: want identity of CTE a's Query, got a different node")
+	}
+	if len(rte.ColNames) != 1 || rte.ColNames[0] != "x" {
+		t.Errorf("b body RTE.ColNames: want [x], got %v", rte.ColNames)
+	}
+}

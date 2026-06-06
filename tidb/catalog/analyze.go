@@ -752,7 +752,12 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 			// then register the CTE, then analyze the right arm.
 			innerQ, err = c.analyzeRecursiveCTE(cte, parentScope, cteMap)
 		} else {
-			innerQ, err = c.analyzeSelectStmtInternal(cte.Select, parentScope)
+			// Pass the CTEs built so far as inherited definitions so a later
+			// CTE body can reference an earlier sibling in the same WITH clause
+			// (WITH a AS (...), b AS (SELECT ... FROM a) ...). cteMap holds only
+			// CTEs 0..i-1 at this point, so forward and self references still
+			// correctly fall through to base-table resolution.
+			innerQ, err = c.analyzeSelectStmtWithCTEs(cte.Select, parentScope, cteMap)
 		}
 		if err != nil {
 			return nil, err
