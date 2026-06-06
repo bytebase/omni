@@ -1006,38 +1006,22 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 // CTEs are made visible to the inner query, and its OUTER ORDER BY / LIMIT are
 // applied to the analyzed query (validated against the inner result columns).
 func (c *Catalog) analyzeParenSourceWithCTEs(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
-	cteHolder := &Query{CommandType: CmdSelect, JoinTree: &JoinTreeQ{}}
-	cteMap, err := c.analyzeCTEs(stmt.CTEs, cteHolder, parentScope)
-	if err != nil {
-		return nil, err
-	}
-	if inheritedCTEMap != nil {
-		if cteMap == nil {
-			cteMap = make(map[string]*CommonTableExprQ)
-		}
-		for k, v := range inheritedCTEMap {
-			if _, exists := cteMap[k]; !exists {
-				cteMap[k] = v
-			}
-		}
+	// A wrapper-level WITH — WITH cte AS (...) ( body ) — belongs to the body's
+	// query expression (the parentheses are grouping). Fold the wrapper CTEs in
+	// front of the body's own and analyze the body directly, so the CTEs land on
+	// the returned query and the body's RTECTE references resolve to correct
+	// CTEList indices (a separate holder + post-hoc merge leaves CTEIndex stale
+	// for nested / multiple CTEs).
+	inner := stmt.ParenSource
+	if len(stmt.CTEs) > 0 {
+		combined := *inner
+		combined.CTEs = append(append([]*nodes.CommonTableExpr{}, stmt.CTEs...), inner.CTEs...)
+		inner = &combined
 	}
 
-	q, err := c.analyzeSelectStmtWithCTEs(stmt.ParenSource, parentScope, cteMap)
+	q, err := c.analyzeSelectStmtWithCTEs(inner, parentScope, inheritedCTEMap)
 	if err != nil {
 		return nil, err
-	}
-
-	// The wrapper-level WITH (WITH cte AS (...) (SELECT ... FROM cte)) was
-	// analyzed into cteHolder; its CTE definitions and recursion flag belong on
-	// the returned query so the inner range table's RTECTE references resolve
-	// into q.CTEList (the inner analysis fell back to CTEIndex 0 because its own
-	// CTEList was empty). Prepend so the outer CTEs precede any the inner query
-	// declared itself.
-	if len(cteHolder.CTEList) > 0 {
-		q.CTEList = append(cteHolder.CTEList, q.CTEList...)
-	}
-	if cteHolder.IsRecursive {
-		q.IsRecursive = true
 	}
 
 	// Apply the wrapper's OUTER ORDER BY / LIMIT onto the analyzed query when the

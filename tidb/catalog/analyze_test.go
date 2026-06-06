@@ -2518,6 +2518,38 @@ func TestAnalyze_WithClauseOnParenthesizedBody(t *testing.T) {
 	}
 }
 
+// TestAnalyze_WithClauseOnParenthesizedBody_Indices guards the Query invariant
+// for mixed/multiple CTEs on a parenthesized body: every RTECTE.CTEIndex must
+// point to the matching CTEList entry. A nested inner WITH or a second wrapper
+// CTE exposes a stale/fallback index if the wrapper CTEs are merged after the
+// body is analyzed instead of being folded onto it.
+func TestAnalyze_WithClauseOnParenthesizedBody_Indices(t *testing.T) {
+	c := setupJoinTables(t)
+	checkInvariant := func(t *testing.T, q *Query) {
+		for _, rte := range q.RangeTable {
+			if rte.Kind != RTECTE {
+				continue
+			}
+			if rte.CTEIndex < 0 || rte.CTEIndex >= len(q.CTEList) {
+				t.Fatalf("RTECTE %q: CTEIndex %d out of range (CTEList len %d)", rte.CTEName, rte.CTEIndex, len(q.CTEList))
+			}
+			if !strings.EqualFold(q.CTEList[rte.CTEIndex].Name, rte.CTEName) {
+				t.Errorf("RTECTE %q: CTEIndex %d points to CTE %q", rte.CTEName, rte.CTEIndex, q.CTEList[rte.CTEIndex].Name)
+			}
+		}
+	}
+	t.Run("nested_inner_with", func(t *testing.T) {
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, "WITH outer_cte AS (SELECT name FROM employees) (WITH inner_cte AS (SELECT name FROM departments) SELECT name FROM inner_cte)"))
+		assertNoError(t, err)
+		checkInvariant(t, q)
+	})
+	t.Run("multiple_wrapper_ctes", func(t *testing.T) {
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, "WITH a AS (SELECT name FROM employees), b AS (SELECT name FROM departments) (SELECT name FROM b)"))
+		assertNoError(t, err)
+		checkInvariant(t, q)
+	})
+}
+
 func TestAnalyze_ParenthesizedQuery(t *testing.T) {
 	c := setupJoinTables(t)
 
