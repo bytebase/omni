@@ -2536,6 +2536,12 @@ func TestAnalyze_WithClauseOnParenthesizedBody_Indices(t *testing.T) {
 			if !strings.EqualFold(q.CTEList[rte.CTEIndex].Name, rte.CTEName) {
 				t.Errorf("RTECTE %q: CTEIndex %d points to CTE %q", rte.CTEName, rte.CTEIndex, q.CTEList[rte.CTEIndex].Name)
 			}
+			// CTEIndex must point to the SAME CTE the reference resolved to, not
+			// just a same-named one (shadowing: an inner CTE wins over a same-named
+			// outer CTE).
+			if q.CTEList[rte.CTEIndex].Query != rte.Subquery {
+				t.Errorf("RTECTE %q: CTEIndex %d points to a different CTE query than the reference resolved to (shadowing mismatch)", rte.CTEName, rte.CTEIndex)
+			}
 		}
 	}
 	t.Run("nested_inner_with", func(t *testing.T) {
@@ -2545,6 +2551,13 @@ func TestAnalyze_WithClauseOnParenthesizedBody_Indices(t *testing.T) {
 	})
 	t.Run("multiple_wrapper_ctes", func(t *testing.T) {
 		q, err := c.AnalyzeSelectStmt(parseSelect(t, "WITH a AS (SELECT name FROM employees), b AS (SELECT name FROM departments) (SELECT name FROM b)"))
+		assertNoError(t, err)
+		checkInvariant(t, q)
+	})
+	t.Run("shadowed_same_name", func(t *testing.T) {
+		// The inner cte (departments) shadows the outer cte (employees); the body
+		// reference must point at the inner one.
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, "WITH cte AS (SELECT name FROM employees) (WITH cte AS (SELECT name FROM departments) SELECT name FROM cte)"))
 		assertNoError(t, err)
 		checkInvariant(t, q)
 	})

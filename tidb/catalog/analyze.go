@@ -867,10 +867,12 @@ func analyzeCTERef(ref *nodes.TableRef, cteQ *CommonTableExprQ, q *Query, scope 
 		eref = ref.Alias
 	}
 
-	// Find the CTE's index in the current query's CTEList.
+	// Find the CTE's index in the current query's CTEList by identity (the
+	// resolved CTE), so an inner CTE that shadows a same-named outer CTE resolves
+	// to the correct entry rather than the first name match.
 	cteIndex := -1
 	for i, c := range q.CTEList {
-		if strings.EqualFold(c.Name, cteQ.Name) {
+		if c == cteQ {
 			cteIndex = i
 			break
 		}
