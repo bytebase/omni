@@ -36,7 +36,7 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 	scope := newScopeWithParent(parentScope)
 
 	// Step 0: Process CTEs (WITH clause).
-	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope)
+	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, inheritedCTEMap)
 	if err != nil {
 		return nil, err
 	}
@@ -733,12 +733,19 @@ func (c *Catalog) analyzeLimitOffset(limit *nodes.Limit, q *Query, scope *analyz
 }
 
 // analyzeCTEs processes WITH clause CTEs, returning a map for CTE name lookup.
-func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentScope *analyzerScope) (map[string]*CommonTableExprQ, error) {
+func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (map[string]*CommonTableExprQ, error) {
 	if len(ctes) == 0 {
 		return nil, nil
 	}
 
 	cteMap := make(map[string]*CommonTableExprQ)
+	// Seed CTEs inherited from an enclosing WITH so a CTE body can reference them,
+	// and so a later CTE can chain off an earlier one in this same list. A local
+	// CTE of the same name shadows the inherited one (it overwrites the entry when
+	// registered below).
+	for k, v := range inheritedCTEMap {
+		cteMap[k] = v
+	}
 	for i, cte := range ctes {
 		if cte.Recursive {
 			q.IsRecursive = true
@@ -752,11 +759,8 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 			// then register the CTE, then analyze the right arm.
 			innerQ, err = c.analyzeRecursiveCTE(cte, parentScope, cteMap)
 		} else {
-			// Pass the CTEs built so far as inherited definitions so a later
-			// CTE body can reference an earlier sibling in the same WITH clause
-			// (WITH a AS (...), b AS (SELECT ... FROM a) ...). cteMap holds only
-			// CTEs 0..i-1 at this point, so forward and self references still
-			// correctly fall through to base-table resolution.
+			// Pass the running cteMap so this CTE body can reference inherited and
+			// earlier sibling CTEs (chained CTEs).
 			innerQ, err = c.analyzeSelectStmtWithCTEs(cte.Select, parentScope, cteMap)
 		}
 		if err != nil {
@@ -792,8 +796,10 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *analyzerScope, cteMap map[string]*CommonTableExprQ) (*Query, error) {
 	stmt := cte.Select
 
-	// Analyze left arm to establish base columns.
-	larg, err := c.analyzeSelectStmtInternal(stmt.Left, parentScope)
+	// Analyze left arm to establish base columns. Pass cteMap so the base arm
+	// can reference earlier sibling CTEs in the same WITH clause; the recursive
+	// CTE itself is not yet registered, so the base case correctly cannot see it.
+	larg, err := c.analyzeSelectStmtWithCTEs(stmt.Left, parentScope, cteMap)
 	if err != nil {
 		return nil, err
 	}
@@ -865,7 +871,10 @@ func analyzeCTERef(ref *nodes.TableRef, cteQ *CommonTableExprQ, q *Query, scope 
 		eref = ref.Alias
 	}
 
-	// Find the CTE's index in the current query's CTEList.
+	// Find the CTE's index in the current query's CTEList. A CTE inherited from
+	// an enclosing WITH (or an earlier sibling, or a recursive self-reference
+	// being built) is not in this query's CTEList; CTEIndex stays -1 and the body
+	// is reachable only via Subquery (set below).
 	cteIndex := -1
 	for i, c := range q.CTEList {
 		if strings.EqualFold(c.Name, cteQ.Name) {
@@ -873,10 +882,6 @@ func analyzeCTERef(ref *nodes.TableRef, cteQ *CommonTableExprQ, q *Query, scope 
 			break
 		}
 	}
-	if cteIndex < 0 {
-		cteIndex = 0 // fallback for recursive self-ref during analysis
-	}
-
 	colNames := cteQ.ColumnNames
 
 	rte := &RangeTableEntryQ{
@@ -915,7 +920,7 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 		JoinTree:    &JoinTreeQ{},
 	}
 
-	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope)
+	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, inheritedCTEMap)
 	if err != nil {
 		return nil, err
 	}

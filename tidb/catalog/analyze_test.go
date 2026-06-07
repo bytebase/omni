@@ -2824,4 +2824,97 @@ func TestAnalyze_ChainedCTE(t *testing.T) {
 	if len(rte.ColNames) != 1 || rte.ColNames[0] != "x" {
 		t.Errorf("b body RTE.ColNames: want [x], got %v", rte.ColNames)
 	}
+	// `a` is inherited from the outer WITH, not declared in b's body, so it is
+	// not in bBody.CTEList. CTEIndex must be the -1 sentinel (use Subquery),
+	// never a fake 0 that would index out of an empty CTEList.
+	if len(bBody.CTEList) != 0 {
+		t.Errorf("b body CTEList: want 0 (a is inherited, not local), got %d", len(bBody.CTEList))
+	}
+	if rte.CTEIndex != -1 {
+		t.Errorf("b body RTE.CTEIndex: want -1 (inherited CTE sentinel), got %d", rte.CTEIndex)
+	}
+}
+
+// TestAnalyze_RecursiveCTEChainedSibling verifies that the base arm of a
+// recursive CTE can reference an earlier sibling CTE in the same WITH clause:
+//
+//	WITH RECURSIVE seed AS (...), r(n) AS (SELECT n FROM seed UNION ALL ...) ...
+//
+// TiDB v8.5.0 accepts this. The recursive CTE's base (left) arm must see the
+// sibling `seed`; the recursive arm references `r` itself.
+func TestAnalyze_RecursiveCTEChainedSibling(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH RECURSIVE seed AS (SELECT 1 AS n), r(n) AS (SELECT n FROM seed UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r")
+
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.CTEList) != 2 {
+		t.Fatalf("CTEList: want 2 entries (seed, r), got %d", len(q.CTEList))
+	}
+	r := q.CTEList[1]
+	if !r.Recursive {
+		t.Errorf("r.Recursive: want true, got false")
+	}
+	if r.Query.SetOp != SetOpUnion {
+		t.Fatalf("r body SetOp: want SetOpUnion, got %d", r.Query.SetOp)
+	}
+
+	// The base (left) arm `SELECT n FROM seed` must resolve `seed` as the
+	// earlier sibling CTE, not a missing base table.
+	base := r.Query.LArg
+	if base == nil || len(base.RangeTable) != 1 {
+		t.Fatalf("r base arm RangeTable: want 1 entry, got %v", base)
+	}
+	brte := base.RangeTable[0]
+	if brte.Kind != RTECTE {
+		t.Fatalf("r base arm RTE.Kind: want RTECTE (sibling seed), got %v", brte.Kind)
+	}
+	if brte.CTEName != "seed" {
+		t.Errorf("r base arm RTE.CTEName: want %q, got %q", "seed", brte.CTEName)
+	}
+	if brte.Subquery != q.CTEList[0].Query {
+		t.Errorf("r base arm RTE.Subquery: want identity of CTE seed's Query, got a different node")
+	}
+}
+
+// TestAnalyze_NestedWithInLaterCTE verifies that a nested WITH inside a later
+// CTE body can reference an earlier sibling from the enclosing WITH:
+//
+//	WITH a AS (...), b AS (WITH c AS (SELECT x FROM a) SELECT x FROM c) ...
+//
+// TiDB accepts this. The inherited `a` must reach `c`'s body, which lives two
+// scopes in (inside b's WITH).
+func TestAnalyze_NestedWithInLaterCTE(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x), b AS (WITH c AS (SELECT x FROM a) SELECT x FROM c) SELECT x FROM b")
+
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.CTEList) != 2 {
+		t.Fatalf("CTEList: want 2 entries (a, b), got %d", len(q.CTEList))
+	}
+
+	// b's body declares its own CTE c.
+	bBody := q.CTEList[1].Query
+	if len(bBody.CTEList) != 1 {
+		t.Fatalf("b body CTEList: want 1 entry (c), got %d", len(bBody.CTEList))
+	}
+
+	// c's body (SELECT x FROM a) must resolve the inherited sibling `a`.
+	cBody := bBody.CTEList[0].Query
+	if len(cBody.RangeTable) != 1 {
+		t.Fatalf("c body RangeTable: want 1 entry, got %d", len(cBody.RangeTable))
+	}
+	crte := cBody.RangeTable[0]
+	if crte.Kind != RTECTE {
+		t.Fatalf("c body RTE.Kind: want RTECTE (inherited a), got %v", crte.Kind)
+	}
+	if crte.CTEName != "a" {
+		t.Errorf("c body RTE.CTEName: want %q, got %q", "a", crte.CTEName)
+	}
+	if crte.Subquery != q.CTEList[0].Query {
+		t.Errorf("c body RTE.Subquery: want identity of outer CTE a's Query, got a different node")
+	}
 }
