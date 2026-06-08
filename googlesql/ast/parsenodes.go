@@ -3471,3 +3471,550 @@ var (
 	_ Node = (*CreateProtoBundleStmt)(nil)
 	_ Node = (*AlterProtoBundleStmt)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// GQL — graph query language + CREATE PROPERTY GRAPH (parser-gql node)
+// ---------------------------------------------------------------------------
+//
+// The §2.12 GQL sub-language and create_property_graph_statement from the
+// legacy ANTLR grammar (GoogleSQLParser.g4) — a hand-port of ZetaSQL's
+// GoogleSQL graph extension (BigQuery / Spanner Graph). One omni AST serves
+// both dialects: the production accepts the BigQuery+Spanner union.
+//
+// ORACLE NOTE — GQL is BigQuery/Spanner-Graph syntax. The Spanner emulator's
+// accept/reject is recorded by the differential harness and used where it does
+// not disagree with the legacy .g4; the authoritative reference for the GQL
+// grammar shape is the pinned legacy GoogleSQLParser.g4 itself (the truth1
+// BigQuery corpus explicitly scopes GQL out — INDEX.md). See
+// graph_query_oracle_test.go.
+
+// GQLStmt is a top-level GQL graph query (gql_statement):
+//
+//	GRAPH <path> <graph_operation_block>
+//
+// Name is the graph name (path_expression). Blocks is the NEXT-separated list
+// of composite query blocks (graph_operation_block: block (NEXT block)*); it has
+// >= 1 entry. Each block is a *GraphLinearQuery or a *GraphSetOp.
+type GQLStmt struct {
+	Name   *PathExpr
+	Blocks []Node // *GraphLinearQuery | *GraphSetOp; >= 1
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *GQLStmt) Tag() NodeTag { return T_GQLStmt }
+
+// GraphSetOp is a set-operation-joined chain of linear query operations
+// (graph_composite_query_prefix): a sequence of >= 2 linear queries separated by
+// set-operation metadata. Ops holds the linear queries (each a
+// *GraphLinearQuery), and Metas holds the set-operation metadata BETWEEN them
+// (len(Metas) == len(Ops)-1): Metas[i] joins Ops[i] and Ops[i+1].
+type GraphSetOp struct {
+	Ops   []Node            // *GraphLinearQuery; >= 2
+	Metas []*GraphSetOpMeta // set-op between consecutive Ops; len == len(Ops)-1
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *GraphSetOp) Tag() NodeTag { return T_GraphSetOp }
+
+// GraphSetOpMeta is one set-operation metadata token pair
+// (graph_set_operation_metadata: query_set_operation_type all_or_distinct).
+// Op is "UNION" | "EXCEPT" | "INTERSECT"; Quantifier is "ALL" | "DISTINCT"
+// (both are REQUIRED by the grammar). It is a plain value type, not a Node.
+type GraphSetOpMeta struct {
+	Op         string // "UNION" | "EXCEPT" | "INTERSECT"
+	Quantifier string // "ALL" | "DISTINCT"
+	Loc        Loc
+}
+
+// GraphLinearQuery is a graph_linear_query_operation:
+//
+//	[graph_linear_operator …] <graph_return_operator>
+//
+// Operators is the leading sequence of linear operators (MATCH / OPTIONAL MATCH
+// / LET / FILTER / ORDER BY / PAGE / WITH / FOR / TABLESAMPLE), each a Node of
+// the corresponding Graph*Op type; nil if there were none. Return is the
+// trailing RETURN operator (required by the grammar) — a *GraphReturnOp.
+type GraphLinearQuery struct {
+	Operators []Node // Graph*Op operators; may be empty
+	Return    *GraphReturnOp
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *GraphLinearQuery) Tag() NodeTag { return T_GraphLinearQuery }
+
+// GraphMatchOp is a (graph_match_operator / graph_optional_match_operator):
+//
+//	[OPTIONAL] MATCH [hint] <graph_pattern>
+//
+// Optional flags the OPTIONAL prefix. Pattern is the graph pattern matched.
+type GraphMatchOp struct {
+	Optional bool
+	Pattern  *GraphPattern
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *GraphMatchOp) Tag() NodeTag { return T_GraphMatchOp }
+
+// GraphLetOp is a graph_let_operator (`LET <var defs>`). Vars has >= 1 entry.
+type GraphLetOp struct {
+	Vars []*GraphLetVar // >= 1
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *GraphLetOp) Tag() NodeTag { return T_GraphLetOp }
+
+// GraphLetVar is one variable definition of a LET operator
+// (graph_let_variable_definition: identifier = expression).
+type GraphLetVar struct {
+	Name string
+	Expr Node
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *GraphLetVar) Tag() NodeTag { return T_GraphLetVar }
+
+// GraphFilterOp is a graph_filter_operator:
+//
+//	FILTER WHERE <expr>   |   FILTER <expr>
+//
+// HasWhere records whether the WHERE keyword was present (`FILTER WHERE expr`)
+// vs the bare `FILTER expr` form. Expr is the filter predicate.
+type GraphFilterOp struct {
+	HasWhere bool
+	Expr     Node
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *GraphFilterOp) Tag() NodeTag { return T_GraphFilterOp }
+
+// GraphOrderByOp is a graph_order_by_operator (graph_order_by_clause):
+//
+//	ORDER [hint] BY <ordering_expression> (, …)
+//
+// Items reuses OrderItem (the shared `expr [COLLATE] [ASC|DESC|ASCENDING|
+// DESCENDING] [NULLS …]` ordering element); >= 1 entry.
+type GraphOrderByOp struct {
+	Items []*OrderItem // >= 1
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *GraphOrderByOp) Tag() NodeTag { return T_GraphOrderByOp }
+
+// GraphPageOp is a graph_page_operator (graph_page_clause):
+//
+//	(OFFSET|SKIP) <n> [LIMIT <n>]   |   LIMIT <n>
+//
+// Skip records `OFFSET <n>` / `SKIP <n>` (nil if the bare-LIMIT form was used).
+// SkipIsSkip distinguishes the SKIP spelling from OFFSET. Limit is the LIMIT
+// count (nil if a bare OFFSET/SKIP with no LIMIT).
+type GraphPageOp struct {
+	Skip       Node // OFFSET/SKIP count; nil if bare LIMIT
+	SkipIsSkip bool // true if the SKIP keyword was used (vs OFFSET)
+	Limit      Node // LIMIT count; nil if bare OFFSET/SKIP
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *GraphPageOp) Tag() NodeTag { return T_GraphPageOp }
+
+// GraphWithOp is a graph_with_operator:
+//
+//	WITH [ALL|DISTINCT] [hint] <return_item_list> [GROUP BY …]
+//
+// Quantifier is "ALL" | "DISTINCT" | "" (absent). Items is the projected return
+// items (>= 1). GroupBy is the optional trailing GROUP BY clause (nil if absent)
+// — it reuses the shared GroupByClause.
+type GraphWithOp struct {
+	Quantifier string             // "ALL" | "DISTINCT" | ""
+	Items      []*GraphReturnItem // >= 1
+	GroupBy    *GroupByClause     // nil if absent
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *GraphWithOp) Tag() NodeTag { return T_GraphWithOp }
+
+// GraphForOp is a graph_for_operator:
+//
+//	FOR <id> IN <expr> [WITH OFFSET [AS alias]]
+//
+// Name is the loop variable. Expr is the iterated expression. WithOffset records
+// the `WITH OFFSET` suffix; OffsetAlias is its optional `AS alias` ("" if absent
+// or no WITH OFFSET).
+type GraphForOp struct {
+	Name        string
+	Expr        Node
+	WithOffset  bool
+	OffsetAlias string
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *GraphForOp) Tag() NodeTag { return T_GraphForOp }
+
+// GraphSampleOp is a graph_sample_clause:
+//
+//	TABLESAMPLE <method> ( <size> (ROWS|PERCENT) ) [WITH WEIGHT [AS id]] [REPEATABLE(n)]
+//
+// Method is the sampling method identifier (e.g. RESERVOIR / BERNOULLI). Size is
+// the sample size expression; Unit is "ROWS" | "PERCENT". WithWeight records the
+// `WITH WEIGHT` suffix; WeightAlias its optional `AS id` ("" if absent).
+// Repeatable holds the REPEATABLE(n) seed expression (nil if absent).
+type GraphSampleOp struct {
+	Method      string
+	Size        Node
+	Unit        string // "ROWS" | "PERCENT"
+	WithWeight  bool
+	WeightAlias string
+	Repeatable  Node // REPEATABLE(n); nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *GraphSampleOp) Tag() NodeTag { return T_GraphSampleOp }
+
+// GraphReturnOp is a graph_return_operator:
+//
+//	RETURN [hint] [ALL|DISTINCT] <return_item_list> [GROUP BY] [ORDER BY] [PAGE]
+//
+// Quantifier is "ALL" | "DISTINCT" | "". Items is the return list (>= 1). GroupBy
+// / OrderBy / Page are the optional trailing clauses (nil/absent if not present).
+type GraphReturnOp struct {
+	Quantifier string             // "ALL" | "DISTINCT" | ""
+	Items      []*GraphReturnItem // >= 1
+	GroupBy    *GroupByClause     // nil if absent
+	OrderBy    []*OrderItem       // nil if absent
+	Page       *GraphPageOp       // nil if absent
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *GraphReturnOp) Tag() NodeTag { return T_GraphReturnOp }
+
+// GraphReturnItem is one entry of a graph_return_item_list (graph_return_item):
+//
+//	<expr> [AS alias]   |   *
+//
+// Star is true for the bare `*` form (Expr nil). Otherwise Expr is the projected
+// expression and Alias the optional `AS name` ("" if absent).
+type GraphReturnItem struct {
+	Expr  Node   // nil for `*`
+	Star  bool   // true for `*`
+	Alias string // `AS alias`; "" if absent
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *GraphReturnItem) Tag() NodeTag { return T_GraphReturnItem }
+
+// GraphPattern is a graph_pattern (`<path_pattern_list> [WHERE]`). Paths has
+// >= 1 path pattern; Where is the optional trailing WHERE predicate (nil if
+// absent).
+type GraphPattern struct {
+	Paths []*GraphPathPattern // >= 1
+	Where Node                // nil if absent
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *GraphPattern) Tag() NodeTag { return T_GraphPattern }
+
+// GraphPathPattern is a graph_path_pattern:
+//
+//	[<var> =] [(ANY|ALL) [SHORTEST]] [<mode> [PATH|PATHS]] <path_pattern_expr>
+//
+// PathVar is the optional `<id> =` path-variable assignment ("" if absent).
+// Search is the optional search prefix ("ANY" | "ALL" | "ANY SHORTEST" |
+// "ALL SHORTEST" | ""). Mode is the optional path-mode prefix ("WALK" | "TRAIL"
+// | "SIMPLE" | "ACYCLIC", optionally suffixed " PATH"/" PATHS"; "" if absent).
+// Factors is the sequence of path factors (node/edge/parenthesized patterns,
+// each a Node) that make up the path expression (>= 1).
+type GraphPathPattern struct {
+	PathVar string // path-variable assignment id; "" if absent
+	Search  string // "ANY" | "ALL" | "ANY SHORTEST" | "ALL SHORTEST" | ""
+	Mode    string // "WALK"/"TRAIL"/"SIMPLE"/"ACYCLIC" [PATH|PATHS]; "" if absent
+	Factors []Node // *GraphNodePattern | *GraphEdgePattern | *GraphPathPattern (parenthesized); >= 1
+	// Where is the trailing `WHERE <expr>` of a parenthesized path pattern
+	// (graph_parenthesized_path_pattern: '(' … graph_path_pattern where_clause? ')').
+	// It is nil for a top-level (non-parenthesized) path pattern, whose WHERE
+	// belongs to the enclosing graph_pattern instead.
+	Where Node // parenthesized-path trailing WHERE; nil if absent
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *GraphPathPattern) Tag() NodeTag { return T_GraphPathPattern }
+
+// GraphNodePattern is a graph_node_pattern (`( <filler> )`). Filler carries the
+// optional variable / label expression / property spec / inline WHERE.
+type GraphNodePattern struct {
+	Filler *GraphPatternFiller
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *GraphNodePattern) Tag() NodeTag { return T_GraphNodePattern }
+
+// GraphEdgeDirection enumerates the six graph_edge_pattern shapes (three
+// abbreviated — EdgeAny / EdgeLeft / EdgeRight — and three full forms —
+// EdgeLeftFull / EdgeRightFull / EdgeUndirectedFull).
+type GraphEdgeDirection int
+
+const (
+	// EdgeAny is the undirected abbreviated edge `-` (MINUS_OPERATOR).
+	EdgeAny GraphEdgeDirection = iota
+	// EdgeLeft is the left-directed abbreviated edge `<-` (LT MINUS).
+	EdgeLeft
+	// EdgeRight is the right-directed abbreviated edge `->` (SUB_GT_BRACKET).
+	EdgeRight
+	// EdgeLeftFull is the left-directed full edge `<-[ filler ]-`.
+	EdgeLeftFull
+	// EdgeRightFull is the right-directed full edge `-[ filler ]->`.
+	EdgeRightFull
+	// EdgeUndirectedFull is the undirected full edge `-[ filler ]-` (the legacy
+	// graph_edge_pattern's first alternative `LT_OPERATOR? MINUS … MINUS` with the
+	// leading `<` ABSENT — distinct from EdgeLeftFull, which has it present).
+	EdgeUndirectedFull
+)
+
+// GraphEdgePattern is a graph_edge_pattern. Direction selects the arrow shape;
+// Filler is the bracketed `[ … ]` filler for the three full forms (EdgeLeftFull
+// / EdgeRightFull / EdgeUndirectedFull) and nil for the three abbreviated forms
+// (EdgeAny / EdgeLeft / EdgeRight).
+type GraphEdgePattern struct {
+	Direction GraphEdgeDirection
+	Filler    *GraphPatternFiller // nil for abbreviated edges
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *GraphEdgePattern) Tag() NodeTag { return T_GraphEdgePattern }
+
+// GraphPatternFiller is a graph_element_pattern_filler — the shared interior of
+// a node `( … )` or full-edge `[ … ]` pattern:
+//
+//	[hint] [<var>] [(IS|:) <label_expr>] [{ prop : expr, … }] [WHERE]
+//
+// Var is the optional element variable ("" if absent). Label is the optional
+// label expression (nil if absent); LabelColon records whether the `:` spelling
+// (vs `IS`) introduced it. Properties is the optional `{ … }` property
+// specification (nil if absent). Where is the optional inline WHERE predicate
+// (nil if absent).
+type GraphPatternFiller struct {
+	Var        string
+	Label      *GraphLabelExpr // nil if absent
+	LabelColon bool            // true if `:` spelling, false if `IS`
+	Properties *GraphPropertySpec
+	Where      Node // inline WHERE; nil if absent
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *GraphPatternFiller) Tag() NodeTag { return T_GraphPatternFiller }
+
+// GraphLabelKind enumerates a label_expression / label_primary shape.
+type GraphLabelKind int
+
+const (
+	// LabelName is a bare label identifier (label_primary: identifier).
+	LabelName GraphLabelKind = iota
+	// LabelWildcard is the `%` any-label primary (MODULO_OPERATOR).
+	LabelWildcard
+	// LabelNot is `! <label>` (EXCLAMATION_OPERATOR label_expression).
+	LabelNot
+	// LabelAnd is `<label> & <label>` (BIT_AND_SYMBOL).
+	LabelAnd
+	// LabelOr is `<label> | <label>` (STROKE_SYMBOL).
+	LabelOr
+)
+
+// GraphLabelExpr is a node of the label algebra (label_expression /
+// label_primary): a bare label, the `%` wildcard, negation `!`, or the binary
+// `&` / `|` combinators. Parens are dropped (parenthesized_label_expression is
+// transparent — associativity is captured by the tree shape).
+//
+// For LabelName, Name holds the label identifier. For LabelNot, Operand is the
+// negated sub-expression. For LabelAnd / LabelOr, Left and Right are the
+// operands. LabelWildcard carries no children.
+type GraphLabelExpr struct {
+	Kind    GraphLabelKind
+	Name    string          // for LabelName
+	Operand *GraphLabelExpr // for LabelNot
+	Left    *GraphLabelExpr // for LabelAnd / LabelOr
+	Right   *GraphLabelExpr // for LabelAnd / LabelOr
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *GraphLabelExpr) Tag() NodeTag { return T_GraphLabelExpr }
+
+// GraphPropertySpec is a graph_property_specification (`{ id : expr, … }`).
+// Properties has >= 1 entry.
+type GraphPropertySpec struct {
+	Properties []*GraphPropertyNameValue // >= 1
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *GraphPropertySpec) Tag() NodeTag { return T_GraphPropertySpec }
+
+// GraphPropertyNameValue is one entry of a property specification
+// (graph_property_name_and_value: identifier : expression).
+type GraphPropertyNameValue struct {
+	Name string
+	Expr Node
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *GraphPropertyNameValue) Tag() NodeTag { return T_GraphPropertyNameValue }
+
+// CreatePropertyGraphStmt is a CREATE PROPERTY GRAPH statement
+// (create_property_graph_statement):
+//
+//	CREATE [OR REPLACE] PROPERTY GRAPH [IF NOT EXISTS] <path>
+//	  [OPTIONS(…)] NODE TABLES ( <element_table>, … ) [EDGE TABLES ( … )]
+//
+// OrReplace / IfNotExists flag the prefixes. Name is the graph name. Options is
+// the optional OPTIONS list. NodeTables is the required NODE TABLES element
+// list (>= 1). EdgeTables is the optional EDGE TABLES element list (nil if
+// absent).
+type CreatePropertyGraphStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *PathExpr
+	Options     []*OptionsEntry
+	NodeTables  []*ElementTableDef // >= 1
+	EdgeTables  []*ElementTableDef // nil if no EDGE TABLES clause
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreatePropertyGraphStmt) Tag() NodeTag { return T_CreatePropertyGraphStmt }
+
+// ElementTableDef is one entry of a NODE/EDGE TABLES list
+// (element_table_definition):
+//
+//	<path> [AS alias] [KEY ( cols )]
+//	  [SOURCE KEY ( cols ) REFERENCES <node> [( cols )]]
+//	  [DESTINATION KEY ( cols ) REFERENCES <node> [( cols )]]
+//	  [<label-and-properties> | <properties-clause>]
+//
+// Name is the underlying table path. Alias is the optional `AS alias` ("" if
+// absent). Key is the optional `KEY ( … )` column list (nil if absent). Source /
+// Dest are the optional SOURCE / DESTINATION node-table references (edge tables;
+// nil if absent). Labels is the label-and-properties list (the
+// opt_label_and_properties_clause); nil if absent.
+type ElementTableDef struct {
+	Name   *PathExpr
+	Alias  string
+	Key    []string         // KEY ( cols ); nil if absent
+	Source *ElementTableRef // SOURCE KEY … REFERENCES …; nil if absent
+	Dest   *ElementTableRef // DESTINATION KEY … REFERENCES …; nil if absent
+	Labels []*LabelAndProperties
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ElementTableDef) Tag() NodeTag { return T_ElementTableDef }
+
+// ElementTableRef is a SOURCE / DESTINATION node-table reference of an edge
+// table (opt_source_node_table_clause / opt_dest_node_table_clause):
+//
+//	(SOURCE|DESTINATION) KEY ( cols ) REFERENCES <node> [( cols )]
+//
+// Columns is the local edge-table key column list. Node is the referenced node
+// table name. RefColumns is the optional referenced-column list (nil if absent).
+// It is a plain value type, not a Node.
+type ElementTableRef struct {
+	Columns    []string // KEY ( cols )
+	Node       string   // REFERENCES <node>
+	RefColumns []string // optional ( cols ) after the node; nil if absent
+	Loc        Loc
+}
+
+// LabelKind discriminates a properties_clause shape inside a label-and-properties
+// or a bare element-table properties clause.
+type LabelKind int
+
+const (
+	// LabelPropsAllColumns is `PROPERTIES [ARE] ALL COLUMNS [EXCEPT ( cols )]`.
+	LabelPropsAllColumns LabelKind = iota
+	// LabelPropsNone is `NO PROPERTIES`.
+	LabelPropsNone
+	// LabelPropsList is `PROPERTIES ( <derived_property>, … )`.
+	LabelPropsList
+	// LabelPropsDefault is no properties clause on this label entry.
+	LabelPropsDefault
+)
+
+// LabelAndProperties is one entry of a label_and_properties_list, OR the bare
+// properties_clause form of opt_label_and_properties_clause (in which case
+// LabelName is "" and Default is false):
+//
+//	[DEFAULT] LABEL <id> [<properties_clause>]
+//
+// Default flags the `DEFAULT LABEL` form. LabelName is the label identifier (""
+// for the bare-properties form). Kind selects the properties_clause shape;
+// PropsList holds the derived properties for LabelPropsList; ExceptColumns holds
+// the `EXCEPT ( cols )` list for LabelPropsAllColumns (nil if none).
+type LabelAndProperties struct {
+	Default       bool
+	LabelName     string // "" for the bare opt_label_and_properties_clause properties form
+	Kind          LabelKind
+	PropsList     []*DerivedProperty // for LabelPropsList
+	ExceptColumns []string           // EXCEPT ( cols ) for LabelPropsAllColumns; nil if none
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *LabelAndProperties) Tag() NodeTag { return T_LabelAndProperties }
+
+// DerivedProperty is one entry of a derived_property_list
+// (derived_property: expression [AS alias]).
+type DerivedProperty struct {
+	Expr  Node
+	Alias string // `AS alias`; "" if absent
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *DerivedProperty) Tag() NodeTag { return T_DerivedProperty }
+
+// Compile-time assertions that the GQL / property-graph node types satisfy Node.
+var (
+	_ Node = (*GQLStmt)(nil)
+	_ Node = (*GraphSetOp)(nil)
+	_ Node = (*GraphLinearQuery)(nil)
+	_ Node = (*GraphMatchOp)(nil)
+	_ Node = (*GraphLetOp)(nil)
+	_ Node = (*GraphLetVar)(nil)
+	_ Node = (*GraphFilterOp)(nil)
+	_ Node = (*GraphOrderByOp)(nil)
+	_ Node = (*GraphPageOp)(nil)
+	_ Node = (*GraphWithOp)(nil)
+	_ Node = (*GraphForOp)(nil)
+	_ Node = (*GraphSampleOp)(nil)
+	_ Node = (*GraphReturnOp)(nil)
+	_ Node = (*GraphReturnItem)(nil)
+	_ Node = (*GraphPattern)(nil)
+	_ Node = (*GraphPathPattern)(nil)
+	_ Node = (*GraphNodePattern)(nil)
+	_ Node = (*GraphEdgePattern)(nil)
+	_ Node = (*GraphPatternFiller)(nil)
+	_ Node = (*GraphPropertySpec)(nil)
+	_ Node = (*GraphPropertyNameValue)(nil)
+	_ Node = (*GraphLabelExpr)(nil)
+	_ Node = (*CreatePropertyGraphStmt)(nil)
+	_ Node = (*ElementTableDef)(nil)
+	_ Node = (*LabelAndProperties)(nil)
+	_ Node = (*DerivedProperty)(nil)
+)

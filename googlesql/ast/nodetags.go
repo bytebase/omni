@@ -213,6 +213,43 @@ const (
 	T_LoadDataStmt
 	T_CloneDataStmt
 	T_CloneDataSource
+
+	// GQL / property-graph (parser-gql node).
+	//
+	// The §2.12 graph query language and the create_property_graph_statement
+	// DDL from the legacy ANTLR grammar (GoogleSQLParser.g4) — a hand-port of
+	// ZetaSQL's GoogleSQL graph extension (BigQuery / Spanner Graph). The
+	// top-level GQL statement (`GRAPH <path> <ops>`), its linear/composite query
+	// blocks, the GQL operators (MATCH / LET / FILTER / ORDER BY / PAGE / WITH /
+	// FOR / RETURN / TABLESAMPLE), the graph-pattern tree (path / node / edge
+	// patterns, the element-pattern filler, label algebra, property specs), and
+	// the CREATE PROPERTY GRAPH element-table definitions.
+	T_GQLStmt
+	T_GraphSetOp
+	T_GraphLinearQuery
+	T_GraphMatchOp
+	T_GraphLetOp
+	T_GraphLetVar
+	T_GraphFilterOp
+	T_GraphOrderByOp
+	T_GraphPageOp
+	T_GraphWithOp
+	T_GraphForOp
+	T_GraphSampleOp
+	T_GraphReturnOp
+	T_GraphReturnItem
+	T_GraphPattern
+	T_GraphPathPattern
+	T_GraphNodePattern
+	T_GraphEdgePattern
+	T_GraphPatternFiller
+	T_GraphPropertySpec
+	T_GraphPropertyNameValue
+	T_GraphLabelExpr
+	T_CreatePropertyGraphStmt
+	T_ElementTableDef
+	T_LabelAndProperties
+	T_DerivedProperty
 )
 
 // String returns a human-readable representation of the tag.
@@ -480,6 +517,58 @@ func (t NodeTag) String() string {
 		return "CloneDataStmt"
 	case T_CloneDataSource:
 		return "CloneDataSource"
+	case T_GQLStmt:
+		return "GQLStmt"
+	case T_GraphSetOp:
+		return "GraphSetOp"
+	case T_GraphLinearQuery:
+		return "GraphLinearQuery"
+	case T_GraphMatchOp:
+		return "GraphMatchOp"
+	case T_GraphLetOp:
+		return "GraphLetOp"
+	case T_GraphLetVar:
+		return "GraphLetVar"
+	case T_GraphFilterOp:
+		return "GraphFilterOp"
+	case T_GraphOrderByOp:
+		return "GraphOrderByOp"
+	case T_GraphPageOp:
+		return "GraphPageOp"
+	case T_GraphWithOp:
+		return "GraphWithOp"
+	case T_GraphForOp:
+		return "GraphForOp"
+	case T_GraphSampleOp:
+		return "GraphSampleOp"
+	case T_GraphReturnOp:
+		return "GraphReturnOp"
+	case T_GraphReturnItem:
+		return "GraphReturnItem"
+	case T_GraphPattern:
+		return "GraphPattern"
+	case T_GraphPathPattern:
+		return "GraphPathPattern"
+	case T_GraphNodePattern:
+		return "GraphNodePattern"
+	case T_GraphEdgePattern:
+		return "GraphEdgePattern"
+	case T_GraphPatternFiller:
+		return "GraphPatternFiller"
+	case T_GraphPropertySpec:
+		return "GraphPropertySpec"
+	case T_GraphPropertyNameValue:
+		return "GraphPropertyNameValue"
+	case T_GraphLabelExpr:
+		return "GraphLabelExpr"
+	case T_CreatePropertyGraphStmt:
+		return "CreatePropertyGraphStmt"
+	case T_ElementTableDef:
+		return "ElementTableDef"
+	case T_LabelAndProperties:
+		return "LabelAndProperties"
+	case T_DerivedProperty:
+		return "DerivedProperty"
 	default:
 		return "Unknown"
 	}

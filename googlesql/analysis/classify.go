@@ -156,13 +156,31 @@ func Classify(node ast.Node, dialect Dialect) QueryType {
 		*ast.CreateSequenceStmt, *ast.AlterSequenceStmt, *ast.DropSequenceStmt,
 		*ast.CreateRoleStmt, *ast.DropRoleStmt,
 		*ast.CreateLocalityGroupStmt, *ast.AlterLocalityGroupStmt, *ast.DropLocalityGroupStmt,
-		*ast.CreateProtoBundleStmt, *ast.AlterProtoBundleStmt:
+		*ast.CreateProtoBundleStmt, *ast.AlterProtoBundleStmt,
+		// CREATE PROPERTY GRAPH (parser-gql node) is DDL — the legacy
+		// queryTypeListener lists create_property_graph_statement directly among the
+		// DDL forms (plugin/parser/{bigquery,spanner}/query_type.go), same as every
+		// other CREATE.
+		*ast.CreatePropertyGraphStmt:
 		return DDL
 
 	// DCL — GRANT / REVOKE are DDL in the legacy listener (its rule list groups
 	// privilege statements under DDL alongside CREATE/ALTER/DROP).
 	case *ast.GrantStmt, *ast.RevokeStmt:
 		return DDL
+
+	// GQL graph query (parser-gql node: `GRAPH <name> <ops>`). The legacy
+	// queryTypeListener has NO case for gql_statement, so it falls through its
+	// switch to `default: base.QueryTypeUnknown` — a bare GQL graph read is
+	// classified Unknown, NOT Select, in BOTH dialects
+	// (plugin/parser/{bigquery,spanner}/query_type.go). We mirror that exactly:
+	// query-type parity with bytebase means Unknown here (the legacy GetQuerySpan
+	// then short-circuits a non-Select to an empty span — see query_span.go's
+	// GQLStmt handling, divergence-ledger note). An explicit case (rather than
+	// relying on the default) documents this is a deliberate, evidence-backed
+	// parity choice, not an oversight.
+	case *ast.GQLStmt:
+		return Unknown
 
 	default:
 		return Unknown

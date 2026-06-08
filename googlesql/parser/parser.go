@@ -328,8 +328,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		// (owned by the expressions node in expression position).
 		return p.parseQueryStatement()
 	case kwGRAPH:
-		// GQL graph query: GRAPH <name> <gql ops>. Owned by the parser-gql node.
-		return p.unsupported("GRAPH")
+		// GQL graph query: GRAPH <name> <gql ops> (gql_statement). Owned by the
+		// parser-gql node (graph_query.go).
+		return p.parseGQLStmt()
 	case int('('):
 		// Parenthesized query at top level, e.g. (SELECT 1) UNION ALL (SELECT 2).
 		return p.parseQueryStatement()
