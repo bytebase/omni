@@ -181,6 +181,13 @@ func walkChildren(v Visitor, node Node) {
 	case *BinaryExpr:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
+	case *CallArg:
+		Walk(v, n.Value)
+	case *CallStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		walkNodes(v, n.Args)
 	case *CaseExpr:
 		Walk(v, n.Operand)
 		Walk(v, n.Else)
@@ -408,8 +415,14 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *ExecuteTaskStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *ExistsExpr:
 		Walk(v, n.Query)
+	case *ExplainStmt:
+		Walk(v, n.Stmt)
 	case *ExternalColumnDef:
 		if n.DataType != nil {
 			Walk(v, n.DataType)

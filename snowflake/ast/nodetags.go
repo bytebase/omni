@@ -173,6 +173,13 @@ const (
 	T_AlterRoleStmt
 	T_AlterUserStmt
 	T_AlterPolicyStmt
+
+	// CALL / EXECUTE IMMEDIATE / EXECUTE TASK / EXPLAIN tags (T5.4)
+	T_CallArg
+	T_CallStmt
+	T_ExecuteImmediateStmt
+	T_ExecuteTaskStmt
+	T_ExplainStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -418,6 +425,16 @@ func (t NodeTag) String() string {
 		return "AlterSemanticViewStmt"
 	case T_CreateDatasetStmt:
 		return "CreateDatasetStmt"
+	case T_CallArg:
+		return "CallArg"
+	case T_CallStmt:
+		return "CallStmt"
+	case T_ExecuteImmediateStmt:
+		return "ExecuteImmediateStmt"
+	case T_ExecuteTaskStmt:
+		return "ExecuteTaskStmt"
+	case T_ExplainStmt:
+		return "ExplainStmt"
 	default:
 		return "Unknown"
 	}

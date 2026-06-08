@@ -178,11 +178,15 @@ func (p *Parser) unknownStatementError() *ParseError {
 // The dispatch switch itself is not expected to change — only the
 // bodies of individual case branches.
 //
-// Keywords NOT in this switch (SAVEPOINT, EXECUTE, WHILE, REPEAT, LET,
-// LOOP, BREAK) are currently absent from F2's keyword table because
-// they're either missing from the legacy grammar or defined via
-// non-standard ANTLR rule forms. When Tier 7 Snowflake Scripting support
-// lands, F2 gains those constants and this switch gains matching cases.
+// EXECUTE (IMMEDIATE / TASK) is absent from F2's keyword table, so it is
+// dispatched from the default branch by its uppercased identifier text
+// (alongside LS / RM) rather than from a keyword case here.
+//
+// Other keywords NOT in this switch (SAVEPOINT, WHILE, REPEAT, LET, LOOP,
+// BREAK) are currently absent from F2's keyword table because they're either
+// missing from the legacy grammar or defined via non-standard ANTLR rule forms.
+// When Tier 7 Snowflake Scripting support lands, F2 gains those constants and
+// this switch gains matching cases.
 func (p *Parser) parseStmt() (ast.Node, error) {
 	switch p.cur.Type {
 	// DDL (6 cases)
@@ -227,7 +231,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwREMOVE:
 		return p.parseRemoveStmt(false)
 	case kwCALL:
-		return p.unsupported("CALL")
+		return p.parseCallStmt()
 
 	// DCL (2 cases)
 	case kwGRANT:
@@ -253,7 +257,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwDESC:
 		return p.parseDescribeStmt(true)
 	case kwEXPLAIN:
-		return p.unsupported("EXPLAIN")
+		return p.parseExplainStmt()
 	case kwUSE:
 		return p.parseUseStmt()
 
@@ -278,15 +282,18 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return p.unsupported("CONTINUE")
 
 	default:
-		// LS and RM are the documented aliases of LIST and REMOVE. Snowflake's
-		// lexer (and omni's) does not reserve them, so they arrive as plain
-		// identifiers and are dispatched here by their uppercased text.
+		// LS and RM are the documented aliases of LIST and REMOVE. EXECUTE
+		// (IMMEDIATE / TASK) is likewise absent from the keyword table.
+		// Snowflake's lexer (and omni's) does not reserve any of them, so they
+		// arrive as plain identifiers and are dispatched here by uppercased text.
 		if p.cur.Type == tokIdent {
 			switch strings.ToUpper(p.cur.Str) {
 			case "LS":
 				return p.parseListStmt(true)
 			case "RM":
 				return p.parseRemoveStmt(true)
+			case "EXECUTE":
+				return p.parseExecuteStmt()
 			}
 		}
 		return nil, p.unknownStatementError()
