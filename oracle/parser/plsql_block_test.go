@@ -67,6 +67,45 @@ func TestPLSQLDeclareBlock(t *testing.T) {
 	}
 }
 
+// TestPLSQLCollectionElementFieldAssignment tests collection(index).field assignment.
+func TestPLSQLCollectionElementFieldAssignment(t *testing.T) {
+	sql := `BEGIN
+		rows(i).status := 'READY';
+	END;`
+	result := ParseAndCheck(t, sql)
+	raw := result.Items[0].(*ast.RawStmt)
+	block := raw.Stmt.(*ast.PLSQLBlock)
+
+	assign := block.Statements.Items[0].(*ast.PLSQLAssign)
+	field, ok := assign.Target.(*ast.FieldAccessExpr)
+	if !ok {
+		t.Fatalf("expected FieldAccessExpr target, got %T", assign.Target)
+	}
+	if field.Field != "STATUS" {
+		t.Errorf("expected STATUS field, got %q", field.Field)
+	}
+}
+
+// TestPLSQLCursorAttributes tests cursor%ROWCOUNT and cursor%NOTFOUND expressions.
+func TestPLSQLCursorAttributes(t *testing.T) {
+	sql := `BEGIN
+		count_rows := c%ROWCOUNT;
+		EXIT WHEN c%NOTFOUND;
+	END;`
+	result := ParseAndCheck(t, sql)
+	raw := result.Items[0].(*ast.RawStmt)
+	block := raw.Stmt.(*ast.PLSQLBlock)
+
+	assign := block.Statements.Items[0].(*ast.PLSQLAssign)
+	attr, ok := assign.Value.(*ast.CursorAttributeExpr)
+	if !ok {
+		t.Fatalf("expected CursorAttributeExpr value, got %T", assign.Value)
+	}
+	if attr.Attribute != "ROWCOUNT" {
+		t.Errorf("expected ROWCOUNT, got %q", attr.Attribute)
+	}
+}
+
 // TestPLSQLIfElsifElse tests IF/ELSIF/ELSE/END IF.
 func TestPLSQLIfElsifElse(t *testing.T) {
 	sql := `BEGIN
@@ -191,6 +230,28 @@ func TestPLSQLForLoopReverse(t *testing.T) {
 	loop := block.Statements.Items[0].(*ast.PLSQLLoop)
 	if !loop.Reverse {
 		t.Error("expected REVERSE to be true")
+	}
+}
+
+func TestPLSQLCursorForLoopSubquery(t *testing.T) {
+	sql := `BEGIN
+		FOR rec IN (SELECT id, name FROM employees WHERE active = 1) LOOP
+			NULL;
+		END LOOP;
+	END;`
+	result := ParseAndCheck(t, sql)
+	raw := result.Items[0].(*ast.RawStmt)
+	block := raw.Stmt.(*ast.PLSQLBlock)
+
+	loop, ok := block.Statements.Items[0].(*ast.PLSQLLoop)
+	if !ok {
+		t.Fatalf("expected PLSQLLoop, got %T", block.Statements.Items[0])
+	}
+	if loop.Type != ast.LOOP_CURSOR_FOR {
+		t.Fatalf("expected LOOP_CURSOR_FOR, got %d", loop.Type)
+	}
+	if loop.CursorQuery == nil {
+		t.Fatal("expected cursor query")
 	}
 }
 
@@ -479,6 +540,22 @@ func TestPLSQLCursorDecl(t *testing.T) {
 	}
 }
 
+func TestPLSQLCursorDeclParenthesizedQuery(t *testing.T) {
+	sql := `DECLARE
+		CURSOR emp_cur IS (SELECT id, name FROM employees);
+	BEGIN
+		NULL;
+	END;`
+	result := ParseAndCheck(t, sql)
+	raw := result.Items[0].(*ast.RawStmt)
+	block := raw.Stmt.(*ast.PLSQLBlock)
+
+	cursor := block.Declarations.Items[0].(*ast.PLSQLCursorDecl)
+	if cursor.Query == nil {
+		t.Fatal("expected cursor query")
+	}
+}
+
 // TestPLSQLLabeledBlock tests a labeled block.
 func TestPLSQLLabeledBlock(t *testing.T) {
 	sql := `<<my_block>> BEGIN NULL; END my_block;`
@@ -529,6 +606,27 @@ func TestPLSQLExceptionOrHandler(t *testing.T) {
 	}
 }
 
+func TestPLSQLQualifiedExceptionOrHandler(t *testing.T) {
+	sql := `BEGIN
+		NULL;
+	EXCEPTION
+		WHEN err_pkg.e_transient OR other_pkg.e_retry THEN
+			NULL;
+	END;`
+	result := ParseAndCheck(t, sql)
+	raw := result.Items[0].(*ast.RawStmt)
+	block := raw.Stmt.(*ast.PLSQLBlock)
+
+	handler := block.Exceptions.Items[0].(*ast.ExceptionHandler)
+	if handler.Exceptions.Len() != 2 {
+		t.Fatalf("expected 2 exception names, got %d", handler.Exceptions.Len())
+	}
+	first := handler.Exceptions.Items[0].(*ast.String)
+	if first.Str != "ERR_PKG.E_TRANSIENT" {
+		t.Fatalf("expected qualified exception ERR_PKG.E_TRANSIENT, got %q", first.Str)
+	}
+}
+
 // TestPLSQLDeclareDefault tests DEFAULT keyword in declarations.
 func TestPLSQLDeclareDefault(t *testing.T) {
 	sql := `DECLARE
@@ -561,6 +659,27 @@ func TestPLSQLOpenFor(t *testing.T) {
 	}
 	if openStmt.ForQuery == nil {
 		t.Error("expected FOR query")
+	}
+}
+
+// TestPLSQLOpenForDynamicSQLUsing tests OPEN cursor FOR dynamic SQL USING binds.
+func TestPLSQLOpenForDynamicSQLUsing(t *testing.T) {
+	sql := `BEGIN
+		OPEN rc FOR stmt USING emp_id, NVL(emp_name, 'unknown'), salary + 1;
+	END;`
+	result := ParseAndCheck(t, sql)
+	raw := result.Items[0].(*ast.RawStmt)
+	block := raw.Stmt.(*ast.PLSQLBlock)
+
+	openStmt := block.Statements.Items[0].(*ast.PLSQLOpen)
+	if openStmt.Cursor != "RC" {
+		t.Errorf("expected RC, got %q", openStmt.Cursor)
+	}
+	if openStmt.ForExpr == nil {
+		t.Error("expected dynamic SQL expression")
+	}
+	if openStmt.UsingArgs == nil || openStmt.UsingArgs.Len() != 3 {
+		t.Fatalf("expected 3 USING args, got %#v", openStmt.UsingArgs)
 	}
 }
 

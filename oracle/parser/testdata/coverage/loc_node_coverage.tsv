@@ -105,6 +105,9 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.BoolExpr	expression	covered	SELECT 1 FROM dual WHERE NOT (a = 1 AND b = 2)	boolean expression span	none	covered	keep_regression_guard
 *nodes.ColumnRef	expression	covered	SELECT a FROM t	column reference span	none	covered	keep_regression_guard
 *nodes.FuncCallExpr	expression	covered	SELECT f(1) FROM dual	function call span	none	covered	keep_regression_guard
+*nodes.NamedArgExpr	expression	covered	SELECT f(p => 1) FROM dual	named function argument span	none	covered	keep_regression_guard
+*nodes.FieldAccessExpr	expression	covered	BEGIN rows(i).status := 'READY'; END;	field access expression span	none	covered	keep_regression_guard
+*nodes.CursorAttributeExpr	expression	covered	BEGIN count_rows := c%ROWCOUNT; END;	cursor attribute expression span	none	covered	keep_regression_guard
 *nodes.ExtractExpr	expression	covered	SELECT EXTRACT(YEAR FROM d) FROM t	EXTRACT datetime expression span	none	covered	keep_regression_guard
 *nodes.CaseExpr	expression	covered	SELECT CASE WHEN a = 1 THEN 2 ELSE 3 END FROM dual	case expression span	none	covered	keep_regression_guard
 *nodes.CaseWhen	ast	covered	SELECT CASE WHEN a = 1 THEN 2 ELSE 3 END FROM dual	case expression span	none	covered	keep_regression_guard

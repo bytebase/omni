@@ -21,6 +21,7 @@ func TestParseTypeNumber(t *testing.T) {
 		{"FLOAT", []string{"FLOAT"}, 0},
 		{"FLOAT(53)", []string{"FLOAT"}, 1},
 		{"DECIMAL(10,2)", []string{"DECIMAL"}, 2},
+		{"NUMERIC(10,2)", []string{"NUMERIC"}, 2},
 	}
 	for _, tc := range tests {
 		t.Run(tc.input, func(t *testing.T) {

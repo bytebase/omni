@@ -118,11 +118,20 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 		p.advance()
 
 	default:
-		parseErr1121 :=
-			// User-defined type or %TYPE/%ROWTYPE reference
-			p.parseUserDefinedType(tn)
-		if parseErr1121 != nil {
-			return nil, parseErr1121
+		if p.isIdentLikeStr("NUMERIC") {
+			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
+			p.advance()
+			parseErr1121 := p.parseOptionalPrecisionScale(tn)
+			if parseErr1121 != nil {
+				return nil, parseErr1121
+			}
+		} else {
+			parseErr1121 :=
+				// User-defined type or %TYPE/%ROWTYPE reference
+				p.parseUserDefinedType(tn)
+			if parseErr1121 != nil {
+				return nil, parseErr1121
+			}
 		}
 	}
 

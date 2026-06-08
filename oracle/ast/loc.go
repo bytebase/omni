@@ -221,6 +221,12 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *FuncCallExpr:
 		return v.Loc
+	case *NamedArgExpr:
+		return v.Loc
+	case *FieldAccessExpr:
+		return v.Loc
+	case *CursorAttributeExpr:
+		return v.Loc
 	case *ExtractExpr:
 		return v.Loc
 	case *CaseExpr:

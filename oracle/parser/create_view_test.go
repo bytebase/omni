@@ -30,6 +30,22 @@ func TestParseCreateView(t *testing.T) {
 	}
 }
 
+func TestParseCreateViewWithSoftKeywordAliases(t *testing.T) {
+	result := ParseAndCheck(t, "CREATE VIEW v AS SELECT wait.name wait FROM jobs wait")
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt := raw.Stmt.(*ast.CreateViewStmt)
+	sel := stmt.Query.(*ast.SelectStmt)
+
+	target := sel.TargetList.Items[0].(*ast.ResTarget)
+	if target.Name != "WAIT" {
+		t.Fatalf("expected select alias WAIT, got %q", target.Name)
+	}
+	from := sel.FromClause.Items[0].(*ast.TableRef)
+	if from.Alias == nil || from.Alias.Name != "WAIT" {
+		t.Fatalf("expected table alias WAIT, got %#v", from.Alias)
+	}
+}
+
 func TestParseCreateOrReplaceView(t *testing.T) {
 	p := newTestParser("VIEW emp_view AS SELECT 1 FROM dual")
 	stmt, parseErr2 := p.parseCreateViewStmt(0, true)
