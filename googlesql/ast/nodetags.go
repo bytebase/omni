@@ -250,6 +250,19 @@ const (
 	T_ElementTableDef
 	T_LabelAndProperties
 	T_DerivedProperty
+
+	// Query clauses — PIVOT / UNPIVOT / TABLESAMPLE table-source operators
+	// (parser-query-clauses node). These are table-source suffixes attached to a
+	// FROM source (TableExpr.Pivot/Unpivot/Sample), mirroring the legacy ANTLR
+	// pivot_clause / unpivot_clause / sample_clause (GoogleSQLParser.g4 §2.14),
+	// a hand-port of ZetaSQL. AT SYSTEM TIME (FOR SYSTEM_TIME AS OF) and the
+	// SELECT-level differential-privacy clause carry no dedicated node — they are
+	// recorded on TableExpr.SystemTime and SelectStmt.SelectWith respectively.
+	T_PivotClause
+	T_PivotExpr
+	T_UnpivotClause
+	T_UnpivotInItem
+	T_SampleClause
 )
 
 // String returns a human-readable representation of the tag.
@@ -569,6 +582,16 @@ func (t NodeTag) String() string {
 		return "LabelAndProperties"
 	case T_DerivedProperty:
 		return "DerivedProperty"
+	case T_PivotClause:
+		return "PivotClause"
+	case T_PivotExpr:
+		return "PivotExpr"
+	case T_UnpivotClause:
+		return "UnpivotClause"
+	case T_UnpivotInItem:
+		return "UnpivotInItem"
+	case T_SampleClause:
+		return "SampleClause"
 	default:
 		return "Unknown"
 	}

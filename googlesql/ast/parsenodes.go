@@ -1367,14 +1367,25 @@ func (n *SetOperation) Tag() NodeTag { return T_SetOperation }
 // records a trailing `WITH OFFSET [[AS] name]` (the offset companion column);
 // WithOffsetAlias is its optional alias. SystemTime captures a trailing
 // `FOR SYSTEM[_TIME] AS OF expr` time-travel expression (nil if absent).
+//
+// Pivot / Unpivot / Sample carry the optional table-source operators
+// (parser-query-clauses): a PIVOT(...), an UNPIVOT(...), or a TABLESAMPLE. The
+// grammar attaches at most one pivot/unpivot per source and a sample is a
+// distinct suffix, so at most one of {Pivot, Unpivot, Sample} is set (a PIVOT
+// and a TABLESAMPLE never combine on one source — oracle-verified). The
+// pivot/unpivot operator's own trailing alias is carried on the operator node;
+// Alias is the alias preceding the operator (the table's own `[AS] name`).
 type TableExpr struct {
-	Path            *PathExpr // table / array-field path; nil for subquery / TVF
-	Subquery        Node      // ( query ) subquery; nil otherwise (*QueryStmt)
-	Func            *FuncCall // table-valued function call; nil otherwise
-	Alias           string    // [AS] alias; "" if absent
-	WithOffset      bool      // trailing WITH OFFSET
-	WithOffsetAlias string    // alias for WITH OFFSET; "" if absent or unaliased
-	SystemTime      Node      // FOR SYSTEM_TIME AS OF expr; nil if absent
+	Path            *PathExpr      // table / array-field path; nil for subquery / TVF
+	Subquery        Node           // ( query ) subquery; nil otherwise (*QueryStmt)
+	Func            *FuncCall      // table-valued function call; nil otherwise
+	Alias           string         // [AS] alias; "" if absent
+	WithOffset      bool           // trailing WITH OFFSET
+	WithOffsetAlias string         // alias for WITH OFFSET; "" if absent or unaliased
+	SystemTime      Node           // FOR SYSTEM_TIME AS OF expr; nil if absent
+	Pivot           *PivotClause   // PIVOT(...); nil if absent
+	Unpivot         *UnpivotClause // UNPIVOT(...); nil if absent
+	Sample          *SampleClause  // TABLESAMPLE …; nil if absent
 	Loc             Loc
 }
 
@@ -1385,11 +1396,22 @@ func (n *TableExpr) Tag() NodeTag { return T_TableExpr }
 // FROM source (unnest_expression as a table_path_expression_base). Array is the
 // UNNEST(...) call (a *FuncCall named UNNEST, as the expressions node builds it).
 // Alias / WithOffset / WithOffsetAlias mirror TableExpr.
+//
+// Pivot / Unpivot / Sample mirror TableExpr: the legacy grammar threads an
+// unnest_expression through table_path_expression, which carries
+// opt_pivot_or_unpivot_clause_and_alias, and through `table_primary
+// sample_clause`. These operators are always SEMANTICALLY invalid on an array
+// scan (the emulator rejects "PIVOT/TABLESAMPLE is not allowed with array
+// scans"), but the union grammar PARSES them, so they are retained for parse
+// parity. At most one of {Pivot, Unpivot, Sample} is set.
 type UnnestExpr struct {
-	Array           Node   // the UNNEST(...) call (*FuncCall); the array argument(s)
-	Alias           string // [AS] alias; "" if absent
-	WithOffset      bool   // trailing WITH OFFSET
-	WithOffsetAlias string // alias for WITH OFFSET; "" if absent or unaliased
+	Array           Node           // the UNNEST(...) call (*FuncCall); the array argument(s)
+	Alias           string         // [AS] alias; "" if absent
+	WithOffset      bool           // trailing WITH OFFSET
+	WithOffsetAlias string         // alias for WITH OFFSET; "" if absent or unaliased
+	Pivot           *PivotClause   // PIVOT(...); nil if absent
+	Unpivot         *UnpivotClause // UNPIVOT(...); nil if absent
+	Sample          *SampleClause  // TABLESAMPLE …; nil if absent
 	Loc             Loc
 }
 
@@ -1447,6 +1469,154 @@ type JoinExpr struct {
 
 // Tag implements Node.
 func (n *JoinExpr) Tag() NodeTag { return T_JoinExpr }
+
+// ---------------------------------------------------------------------------
+// PIVOT / UNPIVOT / TABLESAMPLE table-source operators (parser-query-clauses)
+// ---------------------------------------------------------------------------
+
+// PivotClause is a PIVOT operator applied to a FROM source (pivot_clause):
+//
+//	PIVOT ( <agg> [[AS] alias][, …] FOR <for_expr> IN ( <value> [[AS] alias][, …] ) )
+//	  [ [AS] alias ]
+//
+// Aggregates is the comma-separated list of aggregate expressions (each an
+// expression with an optional alias). For is the pivot input column/expression
+// (parsed at higher-than-AND precedence so the trailing `IN (...)` is the pivot
+// value list, NOT an `x IN (...)` predicate). Values is the IN (...) value list
+// (each a value expression with an optional alias). Alias is the trailing
+// `[AS] name` for the pivot result ("" if absent).
+type PivotClause struct {
+	Aggregates []*PivotExpr // aggregate expressions (>= 1)
+	For        Node         // the FOR input column/expression
+	Values     []*PivotExpr // IN (...) value list (>= 1)
+	Alias      string       // trailing [AS] alias; "" if absent
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *PivotClause) Tag() NodeTag { return T_PivotClause }
+
+// PivotExpr is one `expression [[AS] alias]` entry of a PIVOT aggregate list or
+// IN value list (pivot_expression / pivot_value). Expr is the expression; Alias
+// is the optional `[AS] name` ("" if absent).
+type PivotExpr struct {
+	Expr  Node
+	Alias string
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *PivotExpr) Tag() NodeTag { return T_PivotExpr }
+
+// UnpivotNullsMode encodes the optional {INCLUDE|EXCLUDE} NULLS modifier on an
+// UNPIVOT (unpivot_nulls_filter).
+type UnpivotNullsMode int
+
+const (
+	// UnpivotNullsUnspecified is no modifier (the grammar default).
+	UnpivotNullsUnspecified UnpivotNullsMode = iota
+	// UnpivotIncludeNulls is INCLUDE NULLS.
+	UnpivotIncludeNulls
+	// UnpivotExcludeNulls is EXCLUDE NULLS.
+	UnpivotExcludeNulls
+)
+
+// String returns the modifier keyword phrase ("" for unspecified).
+func (m UnpivotNullsMode) String() string {
+	switch m {
+	case UnpivotIncludeNulls:
+		return "INCLUDE NULLS"
+	case UnpivotExcludeNulls:
+		return "EXCLUDE NULLS"
+	default:
+		return ""
+	}
+}
+
+// UnpivotClause is an UNPIVOT operator applied to a FROM source (unpivot_clause):
+//
+//	UNPIVOT [ {INCLUDE|EXCLUDE} NULLS ]
+//	  ( <value_col(s)> FOR <name_col> IN ( <in_item>[, …] ) ) [ [AS] alias ]
+//
+// NullsMode is the optional INCLUDE/EXCLUDE NULLS. ValueColumns is the value
+// column list: a single column for single-column UNPIVOT, or several for the
+// parenthesized multi-column form (`(c1, c2)`). NameColumn is the FOR name
+// column. Items is the IN (...) list (each an UnpivotInItem). Alias is the
+// trailing `[AS] name` ("" if absent).
+type UnpivotClause struct {
+	NullsMode    UnpivotNullsMode // INCLUDE / EXCLUDE NULLS; default unspecified
+	ValueColumns []*PathExpr      // value column(s): 1 (single) or >1 (multi-column)
+	NameColumn   *PathExpr        // FOR <name_col>
+	Items        []*UnpivotInItem // IN (...) source items (>= 1)
+	Alias        string           // trailing [AS] alias; "" if absent
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *UnpivotClause) Tag() NodeTag { return T_UnpivotClause }
+
+// UnpivotInItem is one entry of an UNPIVOT … IN ( … ) list (unpivot_in_item):
+// a column or parenthesized column group, with an optional `[AS] string|int`
+// row-value alias. Columns holds the column path(s) (one for the single-column
+// form, several for a parenthesized group). AliasString / AliasInt carry the
+// optional `AS 'name'` / `AS 1` literal alias (HasAlias flags its presence;
+// AliasIsInt selects which literal field is meaningful).
+type UnpivotInItem struct {
+	Columns     []*PathExpr // column path(s): 1 (single) or >1 (parenthesized group)
+	HasAlias    bool        // an `[AS] string|int` alias is present
+	AliasIsInt  bool        // true if the alias is an integer literal (else a string)
+	AliasString string      // the string-literal alias (when HasAlias && !AliasIsInt)
+	AliasInt    string      // the integer-literal alias spelling (when HasAlias && AliasIsInt)
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *UnpivotInItem) Tag() NodeTag { return T_UnpivotInItem }
+
+// SampleSizeUnit selects the TABLESAMPLE size unit (sample_size_unit).
+type SampleSizeUnit int
+
+const (
+	// SampleUnitPercent is PERCENT.
+	SampleUnitPercent SampleSizeUnit = iota
+	// SampleUnitRows is ROWS.
+	SampleUnitRows
+)
+
+// String returns the unit keyword.
+func (u SampleSizeUnit) String() string {
+	if u == SampleUnitRows {
+		return "ROWS"
+	}
+	return "PERCENT"
+}
+
+// SampleClause is a TABLESAMPLE operator applied to a FROM source (sample_clause):
+//
+//	TABLESAMPLE <method> ( <size> { PERCENT | ROWS } [ PARTITION BY <expr>[, …] ] )
+//	  [ REPEATABLE ( <seed> ) | WITH WEIGHT [[AS] alias] [ REPEATABLE ( <seed> ) ] ]
+//
+// Method is the sampling method identifier (SYSTEM / BERNOULLI / RESERVOIR — the
+// grammar reads it as a bare identifier, so any method name is accepted). Size
+// is the sample-size expression; Unit is PERCENT or ROWS. PartitionBy carries an
+// optional `PARTITION BY` list inside the size clause (nil if absent).
+//
+// The suffix is one of: nothing; a REPEATABLE(seed) (Repeatable set, WithWeight
+// false); or WITH WEIGHT [[AS] alias] [REPEATABLE(seed)] (WithWeight true,
+// WeightAlias the optional alias, Repeatable the optional trailing seed).
+type SampleClause struct {
+	Method      string // sampling method identifier (SYSTEM / BERNOULLI / RESERVOIR / …)
+	Size        Node   // sample-size expression
+	Unit        SampleSizeUnit
+	PartitionBy []Node // PARTITION BY exprs inside the size clause; nil if absent
+	WithWeight  bool   // a WITH WEIGHT suffix is present
+	WeightAlias string // WITH WEIGHT [AS] alias; "" if absent / unaliased
+	Repeatable  Node   // REPEATABLE ( seed ) seed expression; nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *SampleClause) Tag() NodeTag { return T_SampleClause }
 
 // ---------------------------------------------------------------------------
 // GROUP BY / WINDOW
