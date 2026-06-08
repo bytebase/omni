@@ -1236,6 +1236,45 @@ func TestDeparseSelect_Section_5_5_SetOperations(t *testing.T) {
 	}
 }
 
+func TestDeparseSelect_ParenthesizedQueryExpressions(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "inner_and_outer_limit",
+			input:    "(SELECT 1 LIMIT 5) LIMIT 2",
+			expected: "(select 1 AS `1` limit 5) limit 2",
+		},
+		{
+			name:     "nested_parenthesized_set_op",
+			input:    "((SELECT 1) UNION (SELECT 2)) ORDER BY 1",
+			expected: "((select 1 AS `1`) union (select 2 AS `2`)) order by 1",
+		},
+		{
+			name:     "table_query_primary_operand",
+			input:    "(SELECT 1) UNION (TABLE t)",
+			expected: "(select 1 AS `1`) union (table `t`)",
+		},
+		{
+			name:     "values_query_primary_operand",
+			input:    "(SELECT 1) UNION (VALUES ROW(2))",
+			expected: "(select 1 AS `1`) union (values row(2))",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sel := parseSelect(t, tc.input)
+			got := DeparseSelect(sel)
+			if got != tc.expected {
+				t.Errorf("DeparseSelect(%q) =\n  %q\nwant:\n  %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
 func TestDeparseSelect_Section_5_7_CTE(t *testing.T) {
 	cases := []struct {
 		name     string

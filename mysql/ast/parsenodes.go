@@ -32,6 +32,14 @@ type SelectStmt struct {
 	SetAll            bool               // ALL modifier for set operations
 	Left              *SelectStmt        // left side of set operation
 	Right             *SelectStmt        // right side of set operation
+	TableSource       *TableStmt         // TABLE query primary
+	ValuesSource      *ValuesStmt        // VALUES query primary
+	// ParenSource is the inner query of a parenthesized query expression
+	// ( SELECT ... ). When non-nil this node is a parentheses wrapper: its own
+	// OrderBy/Limit hold the OUTER trailing clauses, while ParenSource carries
+	// the inner query (which may have its own OrderBy/Limit). This keeps the two
+	// scopes of "(SELECT 1 LIMIT 5) LIMIT 2" distinct.
+	ParenSource *SelectStmt
 }
 
 // CommonTableExpr represents a single CTE in a WITH clause.
@@ -47,6 +55,38 @@ func (c *CommonTableExpr) nodeTag() {}
 
 func (s *SelectStmt) nodeTag()  {}
 func (s *SelectStmt) stmtNode() {}
+
+// UnwrapParenSource unwraps parenthesized-query wrappers (ParenSource) and
+// returns the underlying query node — a SELECT leaf or a set-operation node.
+// Unlike walking to the leftmost leaf, it stops at a set-op so callers can
+// inspect SetOp / Left / Right (e.g. recursive-CTE detection). Returns the
+// input unchanged when it is not a wrapper.
+func UnwrapParenSource(s *SelectStmt) *SelectStmt {
+	for s != nil && s.ParenSource != nil {
+		s = s.ParenSource
+	}
+	return s
+}
+
+// LeftmostQueryLeaf returns the leftmost output SELECT of a query expression: it
+// unwraps ParenSource wrappers and walks set-operation left arms until it
+// reaches the SELECT whose target list defines the result columns. For a bare
+// SELECT it returns the input unchanged. Use this wherever a leftmost-leaf walk
+// reads a target list (view columns, CTE / derived virtual tables, ORDER BY
+// ordinals); UnwrapParenSource is the variant that stops at a set-op.
+func LeftmostQueryLeaf(s *SelectStmt) *SelectStmt {
+	for s != nil {
+		switch {
+		case s.ParenSource != nil:
+			s = s.ParenSource
+		case s.SetOp != SetOpNone && s.Left != nil:
+			s = s.Left
+		default:
+			return s
+		}
+	}
+	return s
+}
 
 // DistinctKind enumerates DISTINCT modes.
 type DistinctKind int
