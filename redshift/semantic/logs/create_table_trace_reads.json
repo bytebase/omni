@@ -1,0 +1,72 @@
+{
+  "family_id": "create_table",
+  "reads": [
+    {
+      "catalog": "pg_namespace",
+      "lookup_key": "schema name",
+      "purpose": "resolve target schema",
+      "source_path": "../postgres/src/backend/catalog/namespace.c:3358",
+      "chain": [
+        "DefineRelation",
+        "LookupNamespaceNoError"
+      ]
+    },
+    {
+      "catalog": "pg_type",
+      "lookup_key": "type name",
+      "purpose": "resolve column data types",
+      "source_path": "../postgres/src/backend/parser/parse_type.c:291",
+      "chain": [
+        "transformColumnDefinition",
+        "typenameTypeId"
+      ]
+    },
+    {
+      "catalog": "pg_class",
+      "lookup_key": "relation name",
+      "purpose": "detect existing relations",
+      "source_path": "../postgres/src/backend/parser/parse_relation.c:370",
+      "chain": [
+        "transformCreateStmt",
+        "RangeVarGetRelid"
+      ]
+    },
+    {
+      "catalog": "pg_authid",
+      "lookup_key": "current user",
+      "purpose": "ownership and permission checks",
+      "source_path": "../postgres/src/backend/utils/misc/guc_funcs.c:43",
+      "chain": [
+        "ProcessUtility",
+        "GetUserId"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/catalog/namespace.c:3358",
+      "symbol": "resolve target schema",
+      "reason": "semantic read from pg_namespace"
+    },
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/parser/parse_type.c:291",
+      "symbol": "resolve column data types",
+      "reason": "semantic read from pg_type"
+    },
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/parser/parse_relation.c:370",
+      "symbol": "detect existing relations",
+      "reason": "semantic read from pg_class"
+    },
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/utils/misc/guc_funcs.c:43",
+      "symbol": "pg_authid",
+      "reason": "semantic read from pg_authid"
+    }
+  ],
+  "executor": "local"
+}

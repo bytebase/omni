@@ -1,0 +1,195 @@
+{
+  "version": 1,
+  "source_root": "../postgres",
+  "families": [
+    {
+      "id": "create_table",
+      "slug": "create-table",
+      "category": "ddl",
+      "statements": ["CREATE TABLE", "CREATE TABLE AS", "SELECT INTO"],
+      "entry_ast_nodes": ["CreateStmt", "CreateTableAsStmt"],
+      "dispatch_roots": ["ProcessUtility", "transformOptionalSelectInto"],
+      "status": "active"
+    },
+    {
+      "id": "alter_table",
+      "slug": "alter-table",
+      "category": "ddl",
+      "statements": ["ALTER TABLE"],
+      "entry_ast_nodes": ["AlterTableStmt"],
+      "dispatch_roots": ["ProcessUtility"],
+      "status": "active"
+    },
+    {
+      "id": "drop",
+      "slug": "drop",
+      "category": "ddl",
+      "statements": ["DROP"],
+      "entry_ast_nodes": ["DropStmt"],
+      "dispatch_roots": ["ProcessUtility"],
+      "status": "active"
+    },
+    {
+      "id": "create_index",
+      "slug": "create-index",
+      "category": "ddl",
+      "statements": ["CREATE INDEX"],
+      "entry_ast_nodes": ["IndexStmt"],
+      "dispatch_roots": ["ProcessUtility"],
+      "status": "active"
+    },
+    {
+      "id": "create_view",
+      "slug": "create-view",
+      "category": "object_control",
+      "statements": ["CREATE VIEW", "CREATE MATERIALIZED VIEW"],
+      "entry_ast_nodes": ["ViewStmt", "CreateTableAsStmt"],
+      "dispatch_roots": ["ProcessUtility"],
+      "status": "active"
+    },
+    {
+      "id": "create_schema",
+      "slug": "create-schema",
+      "category": "object_control",
+      "statements": ["CREATE SCHEMA"],
+      "entry_ast_nodes": ["CreateSchemaStmt"],
+      "dispatch_roots": ["ProcessUtility"],
+      "status": "active"
+    },
+    {
+      "id": "create_function",
+      "slug": "create-function",
+      "category": "object_control",
+      "statements": ["CREATE FUNCTION", "CREATE PROCEDURE"],
+      "entry_ast_nodes": ["CreateFunctionStmt"],
+      "dispatch_roots": ["ProcessUtility"],
+      "status": "active"
+    },
+    {
+      "id": "create_type",
+      "slug": "create-type",
+      "category": "object_control",
+      "statements": ["CREATE TYPE", "ALTER TYPE"],
+      "entry_ast_nodes": ["CompositeTypeStmt", "CreateEnumStmt", "AlterEnumStmt"],
+      "dispatch_roots": ["ProcessUtility"],
+      "status": "active"
+    },
+    {
+      "id": "create_extension",
+      "slug": "create-extension",
+      "category": "object_control",
+      "statements": ["CREATE EXTENSION", "ALTER EXTENSION", "DROP EXTENSION"],
+      "entry_ast_nodes": ["CreateExtensionStmt", "AlterExtensionStmt", "DropStmt"],
+      "dispatch_roots": ["ProcessUtility"],
+      "status": "active"
+    },
+    {
+      "id": "create_sequence",
+      "slug": "create-sequence",
+      "category": "object_control",
+      "statements": ["CREATE SEQUENCE", "ALTER SEQUENCE"],
+      "entry_ast_nodes": ["CreateSeqStmt", "AlterSeqStmt"],
+      "dispatch_roots": ["ProcessUtility"],
+      "status": "active"
+    },
+    {
+      "id": "comment",
+      "slug": "comment",
+      "category": "object_control",
+      "statements": ["COMMENT ON"],
+      "entry_ast_nodes": ["CommentStmt"],
+      "dispatch_roots": ["ProcessUtility"],
+      "status": "active"
+    },
+    {
+      "id": "grant_revoke",
+      "slug": "grant-revoke",
+      "category": "object_control",
+      "statements": ["GRANT", "REVOKE"],
+      "entry_ast_nodes": ["GrantStmt", "GrantRoleStmt"],
+      "dispatch_roots": ["ProcessUtility"],
+      "status": "active"
+    },
+    {
+      "id": "trigger",
+      "slug": "trigger",
+      "category": "object_control",
+      "statements": ["CREATE TRIGGER", "ALTER TRIGGER", "DROP TRIGGER"],
+      "entry_ast_nodes": ["CreateTrigStmt", "DropStmt"],
+      "dispatch_roots": ["ProcessUtility"],
+      "status": "active"
+    },
+    {
+      "id": "policy",
+      "slug": "policy",
+      "category": "object_control",
+      "statements": ["CREATE POLICY", "ALTER POLICY", "DROP POLICY"],
+      "entry_ast_nodes": ["CreatePolicyStmt", "AlterPolicyStmt", "DropStmt"],
+      "dispatch_roots": ["ProcessUtility"],
+      "status": "active"
+    },
+    {
+      "id": "select",
+      "slug": "select",
+      "category": "query",
+      "statements": ["SELECT", "WITH", "VALUES", "TABLE"],
+      "entry_ast_nodes": ["SelectStmt"],
+      "dispatch_roots": ["parse_analyze_fixedparams", "transformSelectStmt"],
+      "status": "active"
+    },
+    {
+      "id": "insert",
+      "slug": "insert",
+      "category": "dml",
+      "statements": ["INSERT"],
+      "entry_ast_nodes": ["InsertStmt"],
+      "dispatch_roots": ["parse_analyze_fixedparams", "transformInsertStmt"],
+      "status": "active"
+    },
+    {
+      "id": "update",
+      "slug": "update",
+      "category": "dml",
+      "statements": ["UPDATE"],
+      "entry_ast_nodes": ["UpdateStmt"],
+      "dispatch_roots": ["parse_analyze_fixedparams", "transformUpdateStmt"],
+      "status": "active"
+    },
+    {
+      "id": "delete",
+      "slug": "delete",
+      "category": "dml",
+      "statements": ["DELETE"],
+      "entry_ast_nodes": ["DeleteStmt"],
+      "dispatch_roots": ["parse_analyze_fixedparams", "transformDeleteStmt"],
+      "status": "active"
+    },
+    {
+      "id": "merge",
+      "slug": "merge",
+      "category": "dml",
+      "statements": ["MERGE"],
+      "entry_ast_nodes": ["MergeStmt"],
+      "dispatch_roots": ["parse_analyze_fixedparams", "transformMergeStmt"],
+      "status": "active"
+    },
+    {
+      "id": "set",
+      "slug": "set",
+      "category": "set",
+      "statements": ["SET", "RESET", "SET TRANSACTION", "SET ROLE", "SET SESSION AUTHORIZATION"],
+      "entry_ast_nodes": ["VariableSetStmt", "VariableShowStmt", "TransactionStmt"],
+      "dispatch_roots": ["ProcessUtility"],
+      "status": "active"
+    },
+    {
+      "id": "show",
+      "slug": "show",
+      "category": "set",
+      "statements": ["SHOW"],
+      "entry_ast_nodes": ["VariableShowStmt"],
+      "dispatch_roots": ["ProcessUtility"],
+      "status": "active"
+    }
+  ]
+}

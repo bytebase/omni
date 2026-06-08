@@ -1,0 +1,37 @@
+{
+  "family_id": "set",
+  "scenarios": [
+    {
+      "id": "guc_assignment",
+      "summary": "GUC assignment and RESET semantics",
+      "manual_review": false
+    },
+    {
+      "id": "role_assignment",
+      "summary": "SET ROLE and session auth paths",
+      "manual_review": false
+    }
+  ],
+  "evidence": [
+    {
+      "stage": "discover",
+      "path": "../postgres/src/backend/parser/gram.y:268",
+      "symbol": "VariableSetStmt",
+      "reason": "top-level AST entry node from seed universe"
+    },
+    {
+      "stage": "discover",
+      "path": "../postgres/src/backend/parser/gram.y:314",
+      "symbol": "VariableShowStmt",
+      "reason": "top-level AST entry node from seed universe"
+    },
+    {
+      "stage": "discover",
+      "path": "../postgres/src/backend/parser/gram.y:312",
+      "symbol": "TransactionStmt",
+      "reason": "top-level AST entry node from seed universe"
+    }
+  ],
+  "scenario_count": 2,
+  "executor": "local"
+}

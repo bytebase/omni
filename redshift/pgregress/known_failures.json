@@ -1,0 +1,239 @@
+{
+  "arrays.sql": [
+    211,
+    212,
+    316
+  ],
+  "cluster.sql": [
+    180,
+    189
+  ],
+  "collate.icu.utf8.sql": [
+    115
+  ],
+  "collate.linux.utf8.sql": [
+    123
+  ],
+  "collate.sql": [
+    79
+  ],
+  "collate.windows.win1252.sql": [
+    94
+  ],
+  "constraints.sql": [
+    15
+  ],
+  "copyselect.sql": [
+    18,
+    19
+  ],
+  "create_am.sql": [
+    35,
+    36,
+    37,
+    136
+  ],
+  "create_operator.sql": [
+    10,
+    13
+  ],
+  "create_table.sql": [
+    2
+  ],
+  "create_type.sql": [
+    4
+  ],
+  "domain.sql": [
+    119,
+    120,
+    122,
+    124,
+    125,
+    132,
+    133,
+    135,
+    136,
+    168
+  ],
+  "errors.sql": [
+    10,
+    12,
+    14,
+    27,
+    28,
+    30,
+    32,
+    36,
+    37,
+    39,
+    40,
+    42,
+    43,
+    45,
+    46,
+    47,
+    51,
+    54,
+    55,
+    56,
+    58,
+    59,
+    60,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86
+  ],
+  "event_trigger.sql": [
+    16
+  ],
+  "foreign_data.sql": [
+    199
+  ],
+  "foreign_key.sql": [
+    227
+  ],
+  "json.sql": [
+    65,
+    84,
+    86
+  ],
+  "jsonb.sql": [
+    75,
+    77
+  ],
+  "merge.sql": [
+    20,
+    23,
+    24,
+    25,
+    28,
+    490
+  ],
+  "numerology.sql": [
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    58,
+    62,
+    63
+  ],
+  "plpgsql.sql": [
+    938
+  ],
+  "privileges.sql": [
+    163,
+    164,
+    165
+  ],
+  "psql.sql": [
+    6,
+    7,
+    8,
+    9,
+    11,
+    12,
+    32,
+    40,
+    205,
+    206,
+    207,
+    210,
+    211,
+    216,
+    319
+  ],
+  "publication.sql": [
+    509,
+    526
+  ],
+  "rowsecurity.sql": [
+    36
+  ],
+  "rules.sql": [
+    68
+  ],
+  "sequence.sql": [
+    153
+  ],
+  "stats_ext.sql": [
+    2,
+    3,
+    4,
+    23,
+    24
+  ],
+  "strings.sql": [
+    1,
+    8,
+    9,
+    10,
+    33,
+    34,
+    416
+  ],
+  "subscription.sql": [
+    5,
+    6
+  ],
+  "tablesample.sql": [
+    50
+  ],
+  "tablespace.sql": [
+    70,
+    73
+  ],
+  "temp.sql": [
+    160
+  ],
+  "transactions.sql": [
+    482,
+    485
+  ],
+  "triggers.sql": [
+    183,
+    1041
+  ],
+  "tsearch.sql": [
+    282
+  ],
+  "vacuum.sql": [
+    179
+  ],
+  "window.sql": [
+    133,
+    134
+  ],
+  "with.sql": [
+    128,
+    298,
+    299,
+    300
+  ]
+}

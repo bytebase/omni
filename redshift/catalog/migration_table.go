@@ -1,0 +1,295 @@
+package catalog
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
+
+// quoteIdentAlways unconditionally double-quotes an identifier.
+// Migration DDL always quotes identifiers to avoid keyword collisions.
+func quoteIdentAlways(name string) string {
+	return "\"" + strings.ReplaceAll(name, "\"", "\"\"") + "\""
+}
+
+// migrationQualifiedName returns a schema-qualified, always-quoted identifier for migration DDL.
+func migrationQualifiedName(schema, name string) string {
+	return quoteIdentAlways(schema) + "." + quoteIdentAlways(name)
+}
+
+// generateTableDDL produces CREATE TABLE and DROP TABLE operations from the diff.
+func generateTableDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
+	var ops []MigrationOp
+
+	for _, entry := range diff.Relations {
+		switch entry.Action {
+		case DiffAdd:
+			if entry.To == nil {
+				continue
+			}
+			rk := entry.To.RelKind
+			if rk != 'r' && rk != 'p' {
+				continue
+			}
+			// Skip partition children — handled by generatePartitionDDL.
+			if entry.To.PartitionBound != nil && entry.To.PartitionOf != 0 {
+				continue
+			}
+			ddl := FormatCreateTable(to, entry.SchemaName, entry.To)
+			ops = append(ops, MigrationOp{
+				Type:          OpCreateTable,
+				SchemaName:    entry.SchemaName,
+				ObjectName:    entry.Name,
+				SQL:           ddl,
+				Transactional: true,
+				Phase:         PhaseMain,
+				ObjType:       'r',
+				ObjOID:        entry.To.OID,
+				Priority:      PriorityTable,
+			})
+
+		case DiffDrop:
+			if entry.From == nil {
+				continue
+			}
+			rk := entry.From.RelKind
+			if rk != 'r' && rk != 'p' {
+				continue
+			}
+			qn := migrationQualifiedName(entry.SchemaName, entry.Name)
+			ops = append(ops, MigrationOp{
+				Type:          OpDropTable,
+				SchemaName:    entry.SchemaName,
+				ObjectName:    entry.Name,
+				SQL:           fmt.Sprintf("DROP TABLE %s CASCADE", qn),
+				Transactional: true,
+				Phase:         PhasePre,
+				ObjType:       'r',
+				ObjOID:        entry.From.OID,
+				Priority:      PriorityTable,
+			})
+		}
+	}
+
+	// Deterministic ordering: drops first (sorted), then creates (sorted).
+	sort.Slice(ops, func(i, j int) bool {
+		if ops[i].Type != ops[j].Type {
+			// Drops before creates.
+			if ops[i].Type == OpDropTable {
+				return true
+			}
+			if ops[j].Type == OpDropTable {
+				return false
+			}
+		}
+		if ops[i].SchemaName != ops[j].SchemaName {
+			return ops[i].SchemaName < ops[j].SchemaName
+		}
+		return ops[i].ObjectName < ops[j].ObjectName
+	})
+
+	return ops
+}
+
+// FormatCreateTable generates a full CREATE TABLE DDL statement for a relation.
+// Exported so that section 1.7 (partitions) can reuse it.
+func FormatCreateTable(c *Catalog, schemaName string, rel *Relation) string {
+	var b strings.Builder
+
+	// Persistence prefix.
+	persistence := rel.Persistence
+	if persistence == 0 {
+		persistence = 'p'
+	}
+	switch persistence {
+	case 'u':
+		b.WriteString("CREATE UNLOGGED TABLE ")
+	default:
+		b.WriteString("CREATE TABLE ")
+	}
+
+	b.WriteString(migrationQualifiedName(schemaName, rel.Name))
+	b.WriteString(" (\n")
+
+	// Column definitions.
+	for i, col := range rel.Columns {
+		if i > 0 {
+			b.WriteString(",\n")
+		}
+		b.WriteString("    ")
+		b.WriteString(formatColumnDef(c, col))
+	}
+
+	// Inline constraints: PK, UNIQUE, CHECK (not FK).
+	constraints := c.ConstraintsOf(rel.OID)
+	var inlineConstraints []string
+	for _, con := range constraints {
+		switch con.Type {
+		case ConstraintPK:
+			inlineConstraints = append(inlineConstraints, formatPKConstraint(rel, con))
+		case ConstraintUnique:
+			inlineConstraints = append(inlineConstraints, formatUniqueConstraint(rel, con))
+		case ConstraintCheck:
+			inlineConstraints = append(inlineConstraints, formatCheckConstraint(con))
+		}
+	}
+
+	// Sort inline constraints for determinism.
+	sort.Strings(inlineConstraints)
+
+	for _, cs := range inlineConstraints {
+		b.WriteString(",\n    ")
+		b.WriteString(cs)
+	}
+
+	b.WriteString("\n)")
+
+	// Append PARTITION BY clause for partitioned tables.
+	b.WriteString(formatPartitionByClause(rel))
+
+	// Append INHERITS clause for table inheritance.
+	b.WriteString(formatInheritsClause(c, rel))
+
+	return b.String()
+}
+
+// formatColumnDef formats a single column definition for CREATE TABLE.
+func formatColumnDef(c *Catalog, col *Column) string {
+	var parts []string
+	parts = append(parts, quoteIdentAlways(col.Name))
+
+	// Detect serial pattern: integer/bigint/smallint with nextval default owned by this column.
+	// Output "serial"/"bigserial"/"smallserial" instead of "integer DEFAULT nextval(...)".
+	if serialType := detectSerialType(c, col); serialType != "" {
+		parts = append(parts, serialType)
+		if col.NotNull {
+			parts = append(parts, "NOT NULL")
+		}
+		return strings.Join(parts, " ")
+	}
+
+	parts = append(parts, c.FormatType(col.TypeOID, col.TypeMod))
+
+	if col.NotNull {
+		parts = append(parts, "NOT NULL")
+	}
+
+	if col.HasDefault && col.Default != "" && col.Identity == 0 && col.Generated == 0 {
+		parts = append(parts, "DEFAULT "+col.Default)
+	}
+
+	if col.Identity == 'a' {
+		parts = append(parts, "GENERATED ALWAYS AS IDENTITY")
+	} else if col.Identity == 'd' {
+		parts = append(parts, "GENERATED BY DEFAULT AS IDENTITY")
+	}
+
+	if col.Generated == 's' {
+		expr := col.GenerationExpr
+		if expr == "" {
+			expr = col.Default
+		}
+		if expr != "" {
+			parts = append(parts, "GENERATED ALWAYS AS ("+expr+") STORED")
+		}
+	}
+
+	return strings.Join(parts, " ")
+}
+
+// detectSerialType checks if a column should be output as serial/bigserial/smallserial.
+// A serial column has a nextval default on an owned sequence (OwnerRelOID != 0).
+func detectSerialType(c *Catalog, col *Column) string {
+	if col.Identity != 0 || col.Generated != 0 {
+		return ""
+	}
+	if !col.HasDefault || col.Default == "" {
+		return ""
+	}
+	if !strings.Contains(col.Default, "nextval(") {
+		return ""
+	}
+
+	// Check the type: serial = int4, bigserial = int8, smallserial = int2
+	typeName := c.FormatType(col.TypeOID, col.TypeMod)
+	var serialType string
+	switch typeName {
+	case "integer":
+		serialType = "serial"
+	case "bigint":
+		serialType = "bigserial"
+	case "smallint":
+		serialType = "smallserial"
+	default:
+		return ""
+	}
+
+	// Extract sequence name from nextval('seqname'::regclass) and check if it's owned
+	seqName := extractSeqNameFromDefault(col.Default)
+	if seqName == "" {
+		return ""
+	}
+
+	// Look up the sequence in the catalog — check if it's owned (OwnerRelOID != 0)
+	for _, s := range c.UserSchemas() {
+		if seq, ok := s.Sequences[seqName]; ok && seq.OwnerRelOID != 0 {
+			return serialType
+		}
+	}
+
+	return ""
+}
+
+// extractSeqNameFromDefault extracts a sequence name from "nextval('seqname'::regclass)".
+func extractSeqNameFromDefault(def string) string {
+	// Pattern: nextval('seqname'::regclass)
+	start := strings.Index(def, "nextval('")
+	if start < 0 {
+		return ""
+	}
+	start += len("nextval('")
+	end := strings.Index(def[start:], "'")
+	if end < 0 {
+		return ""
+	}
+	name := def[start : start+end]
+	// Handle schema-qualified: public.seqname -> seqname
+	if dot := strings.LastIndex(name, "."); dot >= 0 {
+		name = name[dot+1:]
+	}
+	return name
+}
+
+// formatPKConstraint formats a PRIMARY KEY constraint clause.
+func formatPKConstraint(rel *Relation, con *Constraint) string {
+	cols := columnAttnumsToQuotedNames(rel, con.Columns)
+	return fmt.Sprintf("CONSTRAINT %s PRIMARY KEY (%s)",
+		quoteIdentAlways(con.Name), strings.Join(cols, ", "))
+}
+
+// formatUniqueConstraint formats a UNIQUE constraint clause.
+func formatUniqueConstraint(rel *Relation, con *Constraint) string {
+	cols := columnAttnumsToQuotedNames(rel, con.Columns)
+	return fmt.Sprintf("CONSTRAINT %s UNIQUE (%s)",
+		quoteIdentAlways(con.Name), strings.Join(cols, ", "))
+}
+
+// formatCheckConstraint formats a CHECK constraint clause.
+func formatCheckConstraint(con *Constraint) string {
+	return fmt.Sprintf("CONSTRAINT %s CHECK (%s)",
+		quoteIdentAlways(con.Name), con.CheckExpr)
+}
+
+// resolveAttnumsToNames converts attnums to quoted column names.
+func columnAttnumsToQuotedNames(rel *Relation, attnums []int16) []string {
+	names := make([]string, 0, len(attnums))
+	for _, attnum := range attnums {
+		for _, col := range rel.Columns {
+			if col.AttNum == attnum {
+				names = append(names, quoteIdentAlways(col.Name))
+				break
+			}
+		}
+	}
+	return names
+}

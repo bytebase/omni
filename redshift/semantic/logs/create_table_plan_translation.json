@@ -1,0 +1,41 @@
+{
+  "family_id": "create_table",
+  "translation_targets": [
+    {
+      "symbol": "ProcessUtility",
+      "path": "../postgres/src/backend/tcop/utility.c:499",
+      "kind": "dispatcher"
+    },
+    {
+      "symbol": "transformCreateStmt",
+      "path": "../postgres/src/backend/parser/parse_utilcmd.c:163",
+      "kind": "transform"
+    },
+    {
+      "symbol": "DefineRelation",
+      "path": "../postgres/src/backend/commands/tablecmds.c:698",
+      "kind": "catalog_writer"
+    }
+  ],
+  "evidence": [
+    {
+      "stage": "plan_translation",
+      "path": "../postgres/src/backend/tcop/utility.c:499",
+      "symbol": "ProcessUtility",
+      "reason": "ordered PG translation target"
+    },
+    {
+      "stage": "plan_translation",
+      "path": "../postgres/src/backend/parser/parse_utilcmd.c:163",
+      "symbol": "transformCreateStmt",
+      "reason": "ordered PG translation target"
+    },
+    {
+      "stage": "plan_translation",
+      "path": "../postgres/src/backend/commands/tablecmds.c:698",
+      "symbol": "DefineRelation",
+      "reason": "ordered PG translation target"
+    }
+  ],
+  "executor": "local"
+}

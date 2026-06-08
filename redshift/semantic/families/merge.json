@@ -1,0 +1,36 @@
+{
+  "family": {
+    "id": "merge",
+    "slug": "merge",
+    "category": "dml"
+  },
+  "scope": {
+    "statements": [
+      "MERGE"
+    ],
+    "entry_ast_nodes": [
+      "MergeStmt"
+    ],
+    "dispatch_roots": [
+      "parse_analyze_fixedparams",
+      "transformMergeStmt"
+    ]
+  },
+  "dispatcher": [],
+  "handlers": [],
+  "writes": [],
+  "reads": [],
+  "regress_files": [],
+  "scenarios": [],
+  "translation_targets": [],
+  "evidence": [],
+  "stage_status": {
+    "discover": "pending",
+    "map": "pending",
+    "trace_writes": "pending",
+    "trace_reads": "pending",
+    "map_tests": "pending",
+    "plan_translation": "pending",
+    "synthesize": "pending"
+  }
+}

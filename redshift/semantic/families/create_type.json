@@ -1,0 +1,38 @@
+{
+  "family": {
+    "id": "create_type",
+    "slug": "create-type",
+    "category": "object_control"
+  },
+  "scope": {
+    "statements": [
+      "CREATE TYPE",
+      "ALTER TYPE"
+    ],
+    "entry_ast_nodes": [
+      "CompositeTypeStmt",
+      "CreateEnumStmt",
+      "AlterEnumStmt"
+    ],
+    "dispatch_roots": [
+      "ProcessUtility"
+    ]
+  },
+  "dispatcher": [],
+  "handlers": [],
+  "writes": [],
+  "reads": [],
+  "regress_files": [],
+  "scenarios": [],
+  "translation_targets": [],
+  "evidence": [],
+  "stage_status": {
+    "discover": "pending",
+    "map": "pending",
+    "trace_writes": "pending",
+    "trace_reads": "pending",
+    "map_tests": "pending",
+    "plan_translation": "pending",
+    "synthesize": "pending"
+  }
+}

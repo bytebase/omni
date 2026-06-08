@@ -1,0 +1,11 @@
+{
+  "family_id": "create_table",
+  "family_status": "done",
+  "scenario_count": 3,
+  "index_entry": {
+    "id": "create_table",
+    "status": "done",
+    "scenario_count": 3
+  },
+  "executor": "local"
+}

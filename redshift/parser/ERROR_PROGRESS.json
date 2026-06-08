@@ -1,0 +1,277 @@
+{
+  "batches": [
+    {
+      "id": 0,
+      "name": "infrastructure",
+      "files": [
+        "parser.go"
+      ],
+      "bare_expect": 20,
+      "return_nil": 10,
+      "status": "done",
+      "steps": {
+        "audit": "done",
+        "pg_ref": "done",
+        "implement": "done",
+        "test": "done",
+        "verify": "done"
+      }
+    },
+    {
+      "id": 1,
+      "name": "name_type",
+      "files": [
+        "name.go",
+        "type.go"
+      ],
+      "bare_expect": 6,
+      "return_nil": 11,
+      "status": "done",
+      "steps": {
+        "audit": "done",
+        "pg_ref": "done",
+        "implement": "done",
+        "test": "done",
+        "verify": "done"
+      }
+    },
+    {
+      "id": 2,
+      "name": "expr",
+      "files": [
+        "expr.go"
+      ],
+      "bare_expect": 89,
+      "return_nil": 28,
+      "status": "pending",
+      "steps": {
+        "audit": "pending",
+        "pg_ref": "pending",
+        "implement": "pending",
+        "test": "pending",
+        "verify": "pending"
+      }
+    },
+    {
+      "id": 3,
+      "name": "func_xml_json",
+      "files": [
+        "func.go",
+        "xml.go",
+        "json.go"
+      ],
+      "bare_expect": 90,
+      "return_nil": 10,
+      "status": "pending",
+      "steps": {
+        "audit": "pending",
+        "pg_ref": "pending",
+        "implement": "pending",
+        "test": "pending",
+        "verify": "pending"
+      }
+    },
+    {
+      "id": 4,
+      "name": "select",
+      "files": [
+        "select.go"
+      ],
+      "bare_expect": 56,
+      "return_nil": 21,
+      "status": "pending",
+      "steps": {
+        "audit": "pending",
+        "pg_ref": "pending",
+        "implement": "pending",
+        "test": "pending",
+        "verify": "pending"
+      }
+    },
+    {
+      "id": 5,
+      "name": "insert_update",
+      "files": [
+        "insert.go",
+        "update.go"
+      ],
+      "bare_expect": 25,
+      "return_nil": 18,
+      "status": "pending",
+      "steps": {
+        "audit": "pending",
+        "pg_ref": "pending",
+        "implement": "pending",
+        "test": "pending",
+        "verify": "pending"
+      }
+    },
+    {
+      "id": 6,
+      "name": "create_table",
+      "files": [
+        "create_table.go"
+      ],
+      "bare_expect": 70,
+      "return_nil": 29,
+      "status": "pending",
+      "steps": {
+        "audit": "pending",
+        "pg_ref": "pending",
+        "implement": "pending",
+        "test": "pending",
+        "verify": "pending"
+      }
+    },
+    {
+      "id": 7,
+      "name": "alter_table",
+      "files": [
+        "alter_table.go"
+      ],
+      "bare_expect": 76,
+      "return_nil": 7,
+      "status": "pending",
+      "steps": {
+        "audit": "pending",
+        "pg_ref": "pending",
+        "implement": "pending",
+        "test": "pending",
+        "verify": "pending"
+      }
+    },
+    {
+      "id": 8,
+      "name": "alter_misc",
+      "files": [
+        "alter_misc.go"
+      ],
+      "bare_expect": 78,
+      "return_nil": 20,
+      "status": "pending",
+      "steps": {
+        "audit": "pending",
+        "pg_ref": "pending",
+        "implement": "pending",
+        "test": "pending",
+        "verify": "pending"
+      }
+    },
+    {
+      "id": 9,
+      "name": "create_others",
+      "files": [
+        "create_index.go",
+        "create_view.go",
+        "create_function.go"
+      ],
+      "bare_expect": 50,
+      "return_nil": 8,
+      "status": "pending",
+      "steps": {
+        "audit": "pending",
+        "pg_ref": "pending",
+        "implement": "pending",
+        "test": "pending",
+        "verify": "pending"
+      }
+    },
+    {
+      "id": 10,
+      "name": "drop_grant",
+      "files": [
+        "drop.go",
+        "grant.go"
+      ],
+      "bare_expect": 51,
+      "return_nil": 31,
+      "status": "pending",
+      "steps": {
+        "audit": "pending",
+        "pg_ref": "pending",
+        "implement": "pending",
+        "test": "pending",
+        "verify": "pending"
+      }
+    },
+    {
+      "id": 11,
+      "name": "define_schema",
+      "files": [
+        "define.go",
+        "schema.go"
+      ],
+      "bare_expect": 131,
+      "return_nil": 15,
+      "status": "pending",
+      "steps": {
+        "audit": "pending",
+        "pg_ref": "pending",
+        "implement": "pending",
+        "test": "pending",
+        "verify": "pending"
+      }
+    },
+    {
+      "id": 12,
+      "name": "trigger_copy_set_txn",
+      "files": [
+        "trigger.go",
+        "copy.go",
+        "set.go",
+        "transaction.go"
+      ],
+      "bare_expect": 67,
+      "return_nil": 24,
+      "status": "pending",
+      "steps": {
+        "audit": "pending",
+        "pg_ref": "pending",
+        "implement": "pending",
+        "test": "pending",
+        "verify": "pending"
+      }
+    },
+    {
+      "id": 13,
+      "name": "small_utils",
+      "files": [
+        "cursor.go",
+        "prepare.go",
+        "maintenance.go",
+        "lock.go",
+        "utility.go"
+      ],
+      "bare_expect": 24,
+      "return_nil": 11,
+      "status": "pending",
+      "steps": {
+        "audit": "pending",
+        "pg_ref": "pending",
+        "implement": "pending",
+        "test": "pending",
+        "verify": "pending"
+      }
+    },
+    {
+      "id": 14,
+      "name": "db_fdw_ext_pub",
+      "files": [
+        "database.go",
+        "fdw.go",
+        "extension.go",
+        "publication.go"
+      ],
+      "bare_expect": 136,
+      "return_nil": 29,
+      "status": "pending",
+      "steps": {
+        "audit": "pending",
+        "pg_ref": "pending",
+        "implement": "pending",
+        "test": "pending",
+        "verify": "pending"
+      }
+    }
+  ]
+}
