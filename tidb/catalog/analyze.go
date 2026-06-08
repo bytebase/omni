@@ -53,6 +53,10 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 		}
 	}
 
+	// Make the visible CTEs reachable from nested subqueries (derived tables,
+	// scalar/IN/EXISTS subqueries), which analyze through this scope.
+	scope.cteMap = cteMap
+
 	// Step 1: Analyze FROM clause → populate RangeTable and scope.
 	if err := analyzeFromClause(c, stmt.From, q, scope, cteMap); err != nil {
 		return nil, err
@@ -348,12 +352,13 @@ func markCoalescedInNode(node JoinNode, q *Query, scope *analyzerScope, usingSet
 // analyzeFromSubquery processes a subquery used as a derived table in FROM.
 func analyzeFromSubquery(c *Catalog, subq *nodes.SubqueryExpr, q *Query, scope *analyzerScope) (JoinNode, error) {
 	// Recursively analyze the inner SELECT. FROM subqueries are not correlated,
-	// so we pass nil as parent scope (unless LATERAL).
+	// so we pass nil as parent scope (unless LATERAL). CTEs from the enclosing
+	// WITH are visible regardless of correlation, so pass them down explicitly.
 	var parentScope *analyzerScope
 	if subq.Lateral {
 		parentScope = scope
 	}
-	innerQ, err := c.analyzeSelectStmtInternal(subq.Select, parentScope)
+	innerQ, err := c.analyzeSelectStmtWithCTEs(subq.Select, parentScope, scope.cteMap)
 	if err != nil {
 		return nil, err
 	}

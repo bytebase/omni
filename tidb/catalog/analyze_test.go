@@ -2918,3 +2918,89 @@ func TestAnalyze_NestedWithInLaterCTE(t *testing.T) {
 		t.Errorf("c body RTE.Subquery: want identity of outer CTE a's Query, got a different node")
 	}
 }
+
+// TestAnalyze_CTEInDerivedTable verifies a WITH CTE is visible inside a derived
+// table (FROM subquery): WITH a AS (...) SELECT x FROM (SELECT x FROM a) s.
+// TiDB v8.5.0 accepts this; the CTE map must reach the derived-table analysis.
+func TestAnalyze_CTEInDerivedTable(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x) SELECT x FROM (SELECT x FROM a) s")
+
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// The FROM item is a derived table (RTESubquery) whose inner query
+	// references the CTE `a`.
+	if len(q.RangeTable) != 1 {
+		t.Fatalf("RangeTable: want 1 entry, got %d", len(q.RangeTable))
+	}
+	derived := q.RangeTable[0]
+	if derived.Kind != RTESubquery {
+		t.Fatalf("RTE.Kind: want RTESubquery, got %v", derived.Kind)
+	}
+	if derived.Subquery == nil || len(derived.Subquery.RangeTable) != 1 {
+		t.Fatalf("derived subquery RangeTable: want 1 entry, got %v", derived.Subquery)
+	}
+	inner := derived.Subquery.RangeTable[0]
+	if inner.Kind != RTECTE {
+		t.Fatalf("derived inner RTE.Kind: want RTECTE (CTE a), got %v", inner.Kind)
+	}
+	if inner.CTEName != "a" {
+		t.Errorf("derived inner RTE.CTEName: want %q, got %q", "a", inner.CTEName)
+	}
+}
+
+// TestAnalyze_CTEInScalarSubquery verifies a WITH CTE is visible inside a scalar
+// subquery: WITH a AS (...) SELECT (SELECT x FROM a) AS x.
+func TestAnalyze_CTEInScalarSubquery(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x) SELECT (SELECT x FROM a) AS x")
+
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.TargetList) != 1 {
+		t.Fatalf("TargetList: want 1 entry, got %d", len(q.TargetList))
+	}
+	sub, ok := q.TargetList[0].Expr.(*SubLinkExprQ)
+	if !ok {
+		t.Fatalf("target Expr: want *SubLinkExprQ, got %T", q.TargetList[0].Expr)
+	}
+	if sub.Subquery == nil || len(sub.Subquery.RangeTable) != 1 {
+		t.Fatalf("scalar subquery RangeTable: want 1 entry, got %v", sub.Subquery)
+	}
+	if sub.Subquery.RangeTable[0].Kind != RTECTE {
+		t.Errorf("scalar subquery inner RTE.Kind: want RTECTE (CTE a), got %v", sub.Subquery.RangeTable[0].Kind)
+	}
+}
+
+// TestAnalyze_CTEInInSubquery verifies a WITH CTE is visible inside an IN
+// subquery: WITH a AS (...) SELECT 1 WHERE 1 IN (SELECT x FROM a).
+func TestAnalyze_CTEInInSubquery(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x) SELECT 1 AS r WHERE 1 IN (SELECT x FROM a)")
+
+	_, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+}
+
+// TestAnalyze_CTEInExistsSubquery verifies a WITH CTE is visible inside an
+// EXISTS subquery: WITH a AS (...) SELECT 1 WHERE EXISTS (SELECT x FROM a).
+func TestAnalyze_CTEInExistsSubquery(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x) SELECT 1 AS r WHERE EXISTS (SELECT x FROM a)")
+
+	_, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+}
+
+// TestAnalyze_CTESiblingThroughSubquery verifies the two fixes compose: an
+// earlier sibling CTE is visible inside a derived table nested in a later CTE's
+// body: WITH a AS (...), b AS (SELECT x FROM (SELECT x FROM a) s) SELECT x FROM b.
+func TestAnalyze_CTESiblingThroughSubquery(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x), b AS (SELECT x FROM (SELECT x FROM a) s) SELECT x FROM b")
+
+	_, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+}

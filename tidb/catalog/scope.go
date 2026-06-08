@@ -14,6 +14,13 @@ type analyzerScope struct {
 	rteMap []int       // parallel to base entries: entry index -> RTE index in Query.RangeTable
 	cols   [][]*Column // parallel to base entries: entry index -> catalog Column pointers
 	parent *analyzerScope
+
+	// cteMap is the set of CTEs visible at this query level (local WITH plus any
+	// inherited from enclosing scopes). Unlike `parent`, which carries column
+	// visibility for correlated subqueries, this carries CTE-name visibility,
+	// which flows into ALL nested subqueries (derived tables, scalar/IN/EXISTS),
+	// correlated or not. Subquery analysis passes it down as inheritedCTEMap.
+	cteMap map[string]*CommonTableExprQ
 }
 
 func newScope() *analyzerScope {
