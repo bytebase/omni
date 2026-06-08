@@ -104,7 +104,7 @@ func rewriteTopClause(edits *[]limitEdit, top *ast.TopClause, limit int) {
 		return
 	}
 	topLimit := extractInt(top.Count)
-	if topLimit > 0 && topLimit <= limit {
+	if !top.Percent && !top.WithTies && topLimit > 0 && topLimit <= limit {
 		return
 	}
 	*edits = append(*edits, limitEdit{
