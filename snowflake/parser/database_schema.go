@@ -228,6 +228,16 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		// CONNECTION, GIT REPOSITORY. A bare ALTER INTEGRATION (qualifier omitted)
 		// dispatches here too. parseAlterIntegrationStmt consumes the keyword(s).
 		return p.parseAlterIntegrationStmt()
+	case kwFAILOVER, kwREPLICATION:
+		// ALTER { FAILOVER | REPLICATION } GROUP ... (T4.8). The sub-parser consumes
+		// the kind keyword + GROUP.
+		return p.parseAlterReplicationGroupStmt()
+	case kwACCOUNT:
+		// ALTER ACCOUNT ... (T4.8). The sub-parser consumes ACCOUNT.
+		return p.parseAlterAccountStmt()
+	case kwSHARE:
+		// ALTER SHARE ... (T4.8).
+		return p.parseAlterShareStmt()
 	case kwROLE:
 		// ALTER ROLE ... (T4.6). DATABASE ROLE is dispatched by the kwDATABASE case.
 		return p.parseAlterRoleStmt(false)
