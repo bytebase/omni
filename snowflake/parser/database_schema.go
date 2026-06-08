@@ -228,6 +228,12 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		// CONNECTION, GIT REPOSITORY. A bare ALTER INTEGRATION (qualifier omitted)
 		// dispatches here too. parseAlterIntegrationStmt consumes the keyword(s).
 		return p.parseAlterIntegrationStmt()
+	case kwTAG:
+		// ALTER TAG ... (T4.9).
+		return p.parseAlterTagStmt()
+	case kwSEMANTIC:
+		// ALTER SEMANTIC VIEW ... (T4.9). The sub-parser consumes SEMANTIC + VIEW.
+		return p.parseAlterSemanticViewStmt()
 	case kwFAILOVER, kwREPLICATION:
 		// ALTER { FAILOVER | REPLICATION } GROUP ... (T4.8). The sub-parser consumes
 		// the kind keyword + GROUP.

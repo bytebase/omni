@@ -106,6 +106,13 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+	case *AlterSemanticViewStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
 	case *AlterSequenceStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -131,6 +138,13 @@ func walkChildren(v Visitor, node Node) {
 	case *AlterTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+	case *AlterTagStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
 		}
 	case *AlterTaskStmt:
 		if n.Name != nil {
@@ -234,6 +248,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *CreateDatasetStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *CreateDynamicTableStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -308,6 +326,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *CreateSemanticViewStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *CreateSequenceStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -338,6 +360,10 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.AsSelect)
 		if n.Like != nil {
 			Walk(v, n.Like)
+		}
+	case *CreateTagStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 	case *CreateTaskStmt:
 		if n.Name != nil {
