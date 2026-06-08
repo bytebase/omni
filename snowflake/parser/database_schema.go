@@ -9,11 +9,12 @@ import "github.com/bytebase/omni/snowflake/ast"
 // parseCreateDatabaseStmt parses CREATE [OR REPLACE] [TRANSIENT] DATABASE ...
 // The CREATE keyword and optional OR REPLACE / TRANSIENT modifiers have already
 // been consumed by parseCreateStmt; start is the Loc of the CREATE token.
-func (p *Parser) parseCreateDatabaseStmt(start ast.Loc, orReplace, transient bool) (ast.Node, error) {
+func (p *Parser) parseCreateDatabaseStmt(start ast.Loc, orReplace, orAlter, transient bool) (ast.Node, error) {
 	p.advance() // consume DATABASE
 
 	stmt := &ast.CreateDatabaseStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Transient: transient,
 		Loc:       ast.Loc{Start: start.Start},
 	}
@@ -76,11 +77,12 @@ func (p *Parser) parseCreateDatabaseStmt(start ast.Loc, orReplace, transient boo
 // ---------------------------------------------------------------------------
 
 // parseCreateSchemaStmt parses CREATE [OR REPLACE] [TRANSIENT] SCHEMA ...
-func (p *Parser) parseCreateSchemaStmt(start ast.Loc, orReplace, transient bool) (ast.Node, error) {
+func (p *Parser) parseCreateSchemaStmt(start ast.Loc, orReplace, orAlter, transient bool) (ast.Node, error) {
 	p.advance() // consume SCHEMA
 
 	stmt := &ast.CreateSchemaStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Transient: transient,
 		Loc:       ast.Loc{Start: start.Start},
 	}
@@ -164,6 +166,12 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwTABLE:
 		return p.parseAlterTableStmt()
 	case kwDATABASE:
+		// ALTER DATABASE ROLE ... (T4.6) vs ALTER DATABASE ... (T2.1). DATABASE ROLE
+		// is disambiguated by the ROLE keyword following DATABASE.
+		if p.peekNext().Type == kwROLE {
+			p.advance() // consume DATABASE
+			return p.parseAlterRoleStmt(true)
+		}
 		return p.parseAlterDatabaseStmt()
 	case kwSCHEMA:
 		return p.parseAlterSchemaStmt()
@@ -201,18 +209,78 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		// ALTER DYNAMIC TABLE ... (T4.4). The sub-parser consumes DYNAMIC + TABLE.
 		return p.parseAlterDynamicTableStmt()
 	case kwEXTERNAL:
-		// ALTER EXTERNAL TABLE ... (T4.4). The sub-parser consumes EXTERNAL +
-		// TABLE; any other EXTERNAL object is unsupported here.
+		// ALTER EXTERNAL { TABLE (T4.4) | VOLUME (T4.7) }. The TABLE sub-parser
+		// consumes EXTERNAL + TABLE. VOLUME is not a reserved keyword, so EXTERNAL
+		// VOLUME lexes as kwEXTERNAL followed by a "VOLUME" identifier.
 		if p.peekNext().Type == kwTABLE {
 			return p.parseAlterExternalTableStmt()
+		}
+		extTok := p.advance() // consume EXTERNAL (anchors Loc.Start)
+		if p.curIsWord("VOLUME") {
+			p.advance() // consume VOLUME
+			return p.parseAlterExternalVolumeStmt(extTok.Loc)
 		}
 		return p.unsupported("ALTER")
 	case kwSEQUENCE:
 		// ALTER SEQUENCE ... (T4.4). (ALTER EVENT TABLE goes through ALTER TABLE.)
 		return p.parseAlterSequenceStmt()
+	case kwSTORAGE, kwAPI, kwNOTIFICATION, kwSECURITY, kwINTEGRATION, kwRESOURCE, kwSECRET, kwCONNECTION, kwGIT:
+		// ALTER account-level integration objects (T4.7): { [STORAGE] | API |
+		// NOTIFICATION | SECURITY } INTEGRATION, RESOURCE MONITOR, SECRET,
+		// CONNECTION, GIT REPOSITORY. A bare ALTER INTEGRATION (qualifier omitted)
+		// dispatches here too. parseAlterIntegrationStmt consumes the keyword(s).
+		return p.parseAlterIntegrationStmt()
+	case kwTAG:
+		// ALTER TAG ... (T4.9).
+		return p.parseAlterTagStmt()
+	case kwSEMANTIC:
+		// ALTER SEMANTIC VIEW ... (T4.9). The sub-parser consumes SEMANTIC + VIEW.
+		return p.parseAlterSemanticViewStmt()
+	case kwFAILOVER, kwREPLICATION:
+		// ALTER { FAILOVER | REPLICATION } GROUP ... (T4.8). The sub-parser consumes
+		// the kind keyword + GROUP.
+		return p.parseAlterReplicationGroupStmt()
+	case kwACCOUNT:
+		// ALTER ACCOUNT ... (T4.8). The sub-parser consumes ACCOUNT.
+		return p.parseAlterAccountStmt()
+	case kwSHARE:
+		// ALTER SHARE ... (T4.8).
+		return p.parseAlterShareStmt()
+	case kwROLE:
+		// ALTER ROLE ... (T4.6). DATABASE ROLE is dispatched by the kwDATABASE case.
+		return p.parseAlterRoleStmt(false)
+	case kwUSER:
+		// ALTER USER ... (T4.6).
+		return p.parseAlterUserStmt()
+	case kwMASKING, kwSESSION, kwPASSWORD, kwNETWORK, kwROW:
+		// ALTER { MASKING | ROW ACCESS | SESSION | PASSWORD | NETWORK } POLICY ...
+		// (T4.6). Only routed to the policy parser when the kind keyword is actually
+		// followed by POLICY (and, for ROW, ACCESS POLICY); otherwise a same-prefix
+		// non-policy statement (e.g. ALTER SESSION SET ...) is left unsupported here.
+		if p.startsPolicyKeyword() {
+			return p.parseAlterPolicyDispatch()
+		}
+		return p.unsupported("ALTER")
 	default:
+		// AUTHENTICATION is not a reserved keyword, so ALTER AUTHENTICATION POLICY
+		// lexes as an "AUTHENTICATION" identifier followed by POLICY (T4.6).
+		if p.startsPolicyKeyword() {
+			return p.parseAlterPolicyDispatch()
+		}
 		return p.unsupported("ALTER")
 	}
+}
+
+// parseAlterPolicyDispatch consumes the policy-kind keyword(s) + the POLICY
+// keyword and delegates to parseAlterPolicyStmt (T4.6). On entry cur is the
+// first policy-kind word; the caller has confirmed startsPolicyKeyword.
+func (p *Parser) parseAlterPolicyDispatch() (ast.Node, error) {
+	startLoc := p.cur.Loc // policy-kind keyword anchors Loc.Start (ALTER convention)
+	kind, err := p.consumePolicyKeywords()
+	if err != nil {
+		return nil, err
+	}
+	return p.parseAlterPolicyStmt(startLoc, kind)
 }
 
 // ---------------------------------------------------------------------------

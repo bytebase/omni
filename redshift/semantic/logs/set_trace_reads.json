@@ -1,0 +1,40 @@
+{
+  "family_id": "set",
+  "reads": [
+    {
+      "catalog": "pg_db_role_setting",
+      "lookup_key": "database and role",
+      "purpose": "database role settings",
+      "source_path": "../postgres/src/backend/catalog/pg_db_role_setting.c:24",
+      "chain": [
+        "ExecSetVariableStmt",
+        "AlterSetting"
+      ]
+    },
+    {
+      "catalog": "pg_authid",
+      "lookup_key": "role name",
+      "purpose": "SET ROLE / session auth validation",
+      "source_path": "../postgres/src/backend/utils/misc/guc_funcs.c:43",
+      "chain": [
+        "ExecSetVariableStmt",
+        "AUTHNAME"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/catalog/pg_db_role_setting.c:24",
+      "symbol": "pg_db_role_setting",
+      "reason": "semantic read from pg_db_role_setting"
+    },
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/utils/misc/guc_funcs.c:43",
+      "symbol": "pg_authid",
+      "reason": "semantic read from pg_authid"
+    }
+  ],
+  "executor": "local"
+}

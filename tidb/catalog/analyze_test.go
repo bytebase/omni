@@ -3001,3 +3001,268 @@ func TestAnalyze_15_5_ViewFunctionTypeFlow(t *testing.T) {
 		t.Errorf("TargetList[2].ResName: want cnt, got %s", q.TargetList[2].ResName)
 	}
 }
+
+// TestAnalyze_ChainedCTE verifies that a CTE body can reference an earlier CTE
+// in the same WITH clause: WITH a AS (...), b AS (SELECT ... FROM a) ... .
+// TiDB accepts this; the analyzer must resolve `a` inside b's body as a CTE
+// reference (RTECTE pointing at a's body), not fail to find a base table.
+func TestAnalyze_ChainedCTE(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x), b AS (SELECT x FROM a) SELECT x FROM b")
+
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// Two CTEs declared at the top level: a (index 0), b (index 1).
+	if len(q.CTEList) != 2 {
+		t.Fatalf("CTEList: want 2 entries, got %d", len(q.CTEList))
+	}
+
+	// b's body (SELECT x FROM a) must resolve `a` as a CTE reference.
+	bBody := q.CTEList[1].Query
+	if len(bBody.RangeTable) != 1 {
+		t.Fatalf("b body RangeTable: want 1 entry, got %d", len(bBody.RangeTable))
+	}
+	rte := bBody.RangeTable[0]
+	if rte.Kind != RTECTE {
+		t.Fatalf("b body RTE.Kind: want RTECTE (chained CTE ref), got %v", rte.Kind)
+	}
+	if rte.CTEName != "a" {
+		t.Errorf("b body RTE.CTEName: want %q, got %q", "a", rte.CTEName)
+	}
+	// Strongest check: the reference points at the actual `a` CTE body.
+	if rte.Subquery != q.CTEList[0].Query {
+		t.Errorf("b body RTE.Subquery: want identity of CTE a's Query, got a different node")
+	}
+	if len(rte.ColNames) != 1 || rte.ColNames[0] != "x" {
+		t.Errorf("b body RTE.ColNames: want [x], got %v", rte.ColNames)
+	}
+	// `a` is inherited from the outer WITH, not declared in b's body, so it is
+	// not in bBody.CTEList. CTEIndex must be the -1 sentinel (use Subquery),
+	// never a fake 0 that would index out of an empty CTEList.
+	if len(bBody.CTEList) != 0 {
+		t.Errorf("b body CTEList: want 0 (a is inherited, not local), got %d", len(bBody.CTEList))
+	}
+	if rte.CTEIndex != -1 {
+		t.Errorf("b body RTE.CTEIndex: want -1 (inherited CTE sentinel), got %d", rte.CTEIndex)
+	}
+}
+
+// TestAnalyze_RecursiveCTEChainedSibling verifies that the base arm of a
+// recursive CTE can reference an earlier sibling CTE in the same WITH clause:
+//
+//	WITH RECURSIVE seed AS (...), r(n) AS (SELECT n FROM seed UNION ALL ...) ...
+//
+// TiDB v8.5.0 accepts this. The recursive CTE's base (left) arm must see the
+// sibling `seed`; the recursive arm references `r` itself.
+func TestAnalyze_RecursiveCTEChainedSibling(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH RECURSIVE seed AS (SELECT 1 AS n), r(n) AS (SELECT n FROM seed UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r")
+
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.CTEList) != 2 {
+		t.Fatalf("CTEList: want 2 entries (seed, r), got %d", len(q.CTEList))
+	}
+	r := q.CTEList[1]
+	if !r.Recursive {
+		t.Errorf("r.Recursive: want true, got false")
+	}
+	if r.Query.SetOp != SetOpUnion {
+		t.Fatalf("r body SetOp: want SetOpUnion, got %d", r.Query.SetOp)
+	}
+
+	// The base (left) arm `SELECT n FROM seed` must resolve `seed` as the
+	// earlier sibling CTE, not a missing base table.
+	base := r.Query.LArg
+	if base == nil || len(base.RangeTable) != 1 {
+		t.Fatalf("r base arm RangeTable: want 1 entry, got %v", base)
+	}
+	brte := base.RangeTable[0]
+	if brte.Kind != RTECTE {
+		t.Fatalf("r base arm RTE.Kind: want RTECTE (sibling seed), got %v", brte.Kind)
+	}
+	if brte.CTEName != "seed" {
+		t.Errorf("r base arm RTE.CTEName: want %q, got %q", "seed", brte.CTEName)
+	}
+	if brte.Subquery != q.CTEList[0].Query {
+		t.Errorf("r base arm RTE.Subquery: want identity of CTE seed's Query, got a different node")
+	}
+}
+
+// TestAnalyze_NestedWithInLaterCTE verifies that a nested WITH inside a later
+// CTE body can reference an earlier sibling from the enclosing WITH:
+//
+//	WITH a AS (...), b AS (WITH c AS (SELECT x FROM a) SELECT x FROM c) ...
+//
+// TiDB accepts this. The inherited `a` must reach `c`'s body, which lives two
+// scopes in (inside b's WITH).
+func TestAnalyze_NestedWithInLaterCTE(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x), b AS (WITH c AS (SELECT x FROM a) SELECT x FROM c) SELECT x FROM b")
+
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.CTEList) != 2 {
+		t.Fatalf("CTEList: want 2 entries (a, b), got %d", len(q.CTEList))
+	}
+
+	// b's body declares its own CTE c.
+	bBody := q.CTEList[1].Query
+	if len(bBody.CTEList) != 1 {
+		t.Fatalf("b body CTEList: want 1 entry (c), got %d", len(bBody.CTEList))
+	}
+
+	// c's body (SELECT x FROM a) must resolve the inherited sibling `a`.
+	cBody := bBody.CTEList[0].Query
+	if len(cBody.RangeTable) != 1 {
+		t.Fatalf("c body RangeTable: want 1 entry, got %d", len(cBody.RangeTable))
+	}
+	crte := cBody.RangeTable[0]
+	if crte.Kind != RTECTE {
+		t.Fatalf("c body RTE.Kind: want RTECTE (inherited a), got %v", crte.Kind)
+	}
+	if crte.CTEName != "a" {
+		t.Errorf("c body RTE.CTEName: want %q, got %q", "a", crte.CTEName)
+	}
+	if crte.Subquery != q.CTEList[0].Query {
+		t.Errorf("c body RTE.Subquery: want identity of outer CTE a's Query, got a different node")
+	}
+}
+
+// TestAnalyze_CTEInDerivedTable verifies a WITH CTE is visible inside a derived
+// table (FROM subquery): WITH a AS (...) SELECT x FROM (SELECT x FROM a) s.
+// TiDB v8.5.0 accepts this; the CTE map must reach the derived-table analysis.
+func TestAnalyze_CTEInDerivedTable(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x) SELECT x FROM (SELECT x FROM a) s")
+
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	// The FROM item is a derived table (RTESubquery) whose inner query
+	// references the CTE `a`.
+	if len(q.RangeTable) != 1 {
+		t.Fatalf("RangeTable: want 1 entry, got %d", len(q.RangeTable))
+	}
+	derived := q.RangeTable[0]
+	if derived.Kind != RTESubquery {
+		t.Fatalf("RTE.Kind: want RTESubquery, got %v", derived.Kind)
+	}
+	if derived.Subquery == nil || len(derived.Subquery.RangeTable) != 1 {
+		t.Fatalf("derived subquery RangeTable: want 1 entry, got %v", derived.Subquery)
+	}
+	inner := derived.Subquery.RangeTable[0]
+	if inner.Kind != RTECTE {
+		t.Fatalf("derived inner RTE.Kind: want RTECTE (CTE a), got %v", inner.Kind)
+	}
+	if inner.CTEName != "a" {
+		t.Errorf("derived inner RTE.CTEName: want %q, got %q", "a", inner.CTEName)
+	}
+}
+
+// TestAnalyze_CTEInScalarSubquery verifies a WITH CTE is visible inside a scalar
+// subquery: WITH a AS (...) SELECT (SELECT x FROM a) AS x.
+func TestAnalyze_CTEInScalarSubquery(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x) SELECT (SELECT x FROM a) AS x")
+
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+
+	if len(q.TargetList) != 1 {
+		t.Fatalf("TargetList: want 1 entry, got %d", len(q.TargetList))
+	}
+	sub, ok := q.TargetList[0].Expr.(*SubLinkExprQ)
+	if !ok {
+		t.Fatalf("target Expr: want *SubLinkExprQ, got %T", q.TargetList[0].Expr)
+	}
+	if sub.Subquery == nil || len(sub.Subquery.RangeTable) != 1 {
+		t.Fatalf("scalar subquery RangeTable: want 1 entry, got %v", sub.Subquery)
+	}
+	if sub.Subquery.RangeTable[0].Kind != RTECTE {
+		t.Errorf("scalar subquery inner RTE.Kind: want RTECTE (CTE a), got %v", sub.Subquery.RangeTable[0].Kind)
+	}
+}
+
+// TestAnalyze_CTEInInSubquery verifies a WITH CTE is visible inside an IN
+// subquery: WITH a AS (...) SELECT 1 WHERE 1 IN (SELECT x FROM a).
+func TestAnalyze_CTEInInSubquery(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x) SELECT 1 AS r WHERE 1 IN (SELECT x FROM a)")
+
+	_, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+}
+
+// TestAnalyze_CTEInExistsSubquery verifies a WITH CTE is visible inside an
+// EXISTS subquery: WITH a AS (...) SELECT 1 WHERE EXISTS (SELECT x FROM a).
+func TestAnalyze_CTEInExistsSubquery(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x) SELECT 1 AS r WHERE EXISTS (SELECT x FROM a)")
+
+	_, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+}
+
+// TestAnalyze_CTESiblingThroughSubquery verifies the two fixes compose: an
+// earlier sibling CTE is visible inside a derived table nested in a later CTE's
+// body: WITH a AS (...), b AS (SELECT x FROM (SELECT x FROM a) s) SELECT x FROM b.
+func TestAnalyze_CTESiblingThroughSubquery(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x), b AS (SELECT x FROM (SELECT x FROM a) s) SELECT x FROM b")
+
+	_, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+}
+
+// TestAnalyze_CTEInSetOpOrderBySubquery verifies a WITH CTE is visible inside a
+// scalar subquery in the ORDER BY of a set operation: the set-op's synthetic
+// ORDER BY/LIMIT scope must carry the CTE map.
+//
+//	WITH a AS (...) SELECT 1 AS r UNION SELECT 2 ORDER BY (SELECT x FROM a)
+func TestAnalyze_CTEInSetOpOrderBySubquery(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x) SELECT 1 AS r UNION SELECT 2 ORDER BY (SELECT x FROM a)")
+
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+	if q.SetOp != SetOpUnion {
+		t.Errorf("SetOp: want SetOpUnion, got %v", q.SetOp)
+	}
+	if len(q.SortClause) == 0 {
+		t.Errorf("SortClause: want non-empty (ORDER BY present), got empty")
+	}
+}
+
+// TestAnalyze_NonLateralDerivedTableNoCorrelation locks the correlation
+// invariant: the CTE map flows into nested subqueries, but it must NOT carry
+// column correlation. A non-LATERAL derived table cannot see a column from a
+// sibling FROM item — TiDB v8.5.0 rejects this (Unknown column 't1.a'). This is
+// the negative guard for the analyzerScope.cteMap channel: a future change that
+// passed `scope` (column visibility) instead of only `scope.cteMap` would
+// silently re-break it, and this test would catch it.
+func TestAnalyze_NonLateralDerivedTableNoCorrelation(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "SELECT a FROM (SELECT 1 AS a) t1, (SELECT t1.a AS b) s")
+
+	if _, err := c.AnalyzeSelectStmt(sel); err == nil {
+		t.Errorf("expected error: non-LATERAL derived table must not resolve sibling column t1.a")
+	}
+}
+
+// TestAnalyze_CTEVisibilityDoesNotLeakCorrelation is the sharper form of the
+// invariant: even when the derived table genuinely references a CTE (so the CTE
+// map is flowing into it), it still must not gain column correlation to a
+// sibling FROM item. TiDB v8.5.0 rejects this (Unknown column 't1.a') despite
+// `cte` resolving fine.
+func TestAnalyze_CTEVisibilityDoesNotLeakCorrelation(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH cte AS (SELECT 1 AS x) SELECT a FROM (SELECT 1 AS a) t1, (SELECT t1.a AS b FROM cte) s")
+
+	if _, err := c.AnalyzeSelectStmt(sel); err == nil {
+		t.Errorf("expected error: CTE visibility must not bring column correlation to sibling t1.a")
+	}
+}

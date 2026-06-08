@@ -136,12 +136,11 @@ func TestParse_BeginEndBlockOneSegment(t *testing.T) {
 	// BEGIN..END scripting blocks and does not split on the inner ';'), so
 	// parseSingle sees the whole block as one statement starting with BEGIN.
 	//
-	// As of T6.2, BEGIN is a real transaction-control statement: parseBeginStmt
-	// consumes the leading BEGIN and produces a *ast.BeginStmt. The remaining
-	// "SELECT 1; END" tail is left unconsumed without error (the engine-wide
-	// trailing-token convention shared with DROP/TRUNCATE/USE). Full Snowflake
-	// Scripting BEGIN..END block parsing is a separate Tier 7 feature; until it
-	// lands, a script block opener is captured as a bare BeginStmt.
+	// As of T7.1 (Snowflake Scripting), a BEGIN not followed by a TCL modifier
+	// (WORK / TRANSACTION / NAME / ; / EOF) opens a scripting BLOCK rather than
+	// a transaction. "BEGIN SELECT 1; END;" therefore parses to a
+	// *ast.ScriptBlockStmt whose single body statement is the SELECT. (The TCL
+	// BEGIN forms remain BeginStmt — see the transaction tests.)
 	result := ParseBestEffort("BEGIN SELECT 1; END;")
 	if len(result.Errors) != 0 {
 		t.Fatalf("error count = %d, want 0: %+v", len(result.Errors), result.Errors)
@@ -149,21 +148,27 @@ func TestParse_BeginEndBlockOneSegment(t *testing.T) {
 	if len(result.File.Stmts) != 1 {
 		t.Fatalf("stmt count = %d, want 1", len(result.File.Stmts))
 	}
-	begin, ok := result.File.Stmts[0].(*ast.BeginStmt)
+	block, ok := result.File.Stmts[0].(*ast.ScriptBlockStmt)
 	if !ok {
-		t.Fatalf("stmt[0] = %T, want *ast.BeginStmt", result.File.Stmts[0])
+		t.Fatalf("stmt[0] = %T, want *ast.ScriptBlockStmt", result.File.Stmts[0])
 	}
-	if begin.Kind != ast.BeginBare {
-		t.Errorf("kind = %v, want BeginBare", begin.Kind)
+	if len(block.Decls) != 0 {
+		t.Errorf("decls = %d, want 0 (no DECLARE section)", len(block.Decls))
+	}
+	if len(block.Body) != 1 {
+		t.Fatalf("body stmt count = %d, want 1", len(block.Body))
+	}
+	if _, ok := block.Body[0].(*ast.SelectStmt); !ok {
+		t.Errorf("body[0] = %T, want *ast.SelectStmt", block.Body[0])
 	}
 }
 
 func TestParse_StrictVsBestEffort(t *testing.T) {
-	// SELECT now parses successfully; BEGIN is now a real TCL statement too.
-	// Use a CALL statement (still unsupported) to produce the error that
-	// distinguishes strict Parse (returns first error) from ParseBestEffort
-	// (collects all errors).
-	input := "SELECT 1; CALL p();"
+	// SELECT now parses successfully; BEGIN and CALL are real statements too.
+	// Use a DECLARE statement (still unsupported — Snowflake Scripting lands in
+	// Tier 7) to produce the error that distinguishes strict Parse (returns first
+	// error) from ParseBestEffort (collects all errors).
+	input := "SELECT 1; DECLARE x INT;"
 
 	file, err := Parse(input)
 	if err == nil {
@@ -172,8 +177,8 @@ func TestParse_StrictVsBestEffort(t *testing.T) {
 		pe, ok := err.(*ParseError)
 		if !ok {
 			t.Errorf("Parse: expected *ParseError, got %T", err)
-		} else if !strings.Contains(pe.Msg, "CALL") {
-			t.Errorf("Parse: first error Msg = %q, want to contain CALL", pe.Msg)
+		} else if !strings.Contains(pe.Msg, "DECLARE") {
+			t.Errorf("Parse: first error Msg = %q, want to contain DECLARE", pe.Msg)
 		}
 	}
 	if file == nil {

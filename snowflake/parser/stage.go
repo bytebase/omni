@@ -40,11 +40,12 @@ import (
 // statement. The CREATE keyword and the optional OR REPLACE / TEMPORARY
 // modifiers have already been consumed by parseCreateStmt; start is the Loc of
 // the CREATE token, and cur is the STAGE keyword.
-func (p *Parser) parseCreateStageStmt(start ast.Loc, orReplace, temporary bool) (ast.Node, error) {
+func (p *Parser) parseCreateStageStmt(start ast.Loc, orReplace, orAlter, temporary bool) (ast.Node, error) {
 	p.advance() // consume STAGE
 
 	stmt := &ast.CreateStageStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Temporary: temporary,
 		Loc:       ast.Loc{Start: start.Start},
 	}

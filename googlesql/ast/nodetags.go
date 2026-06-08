@@ -124,6 +124,145 @@ const (
 	T_AlterStmt
 	T_AlterAction
 	T_DropStmt
+
+	// BigQuery-specific DDL (parser-ddl-bigquery node): CREATE [AGGREGATE]
+	// FUNCTION / TABLE FUNCTION / PROCEDURE, CREATE MATERIALIZED|APPROX VIEW,
+	// CREATE [SEARCH|VECTOR] INDEX, CREATE SNAPSHOT TABLE, CREATE ROW ACCESS
+	// POLICY, the generic-entity CREATE/ALTER/DROP path
+	// (CAPACITY/RESERVATION/ASSIGNMENT), and their BigQuery-only ALTER/DROP forms.
+	T_FunctionParam
+	T_CreateFunctionStmt
+	T_CreateProcedureStmt
+	T_CreateMaterializedViewStmt
+	T_CreateSnapshotStmt
+	T_SearchVectorIndexStmt
+	T_CreateRowAccessPolicyStmt
+	T_CreateEntityStmt
+	T_BQAlterStmt
+	T_BQDropStmt
+	T_DropAllRowAccessPoliciesStmt
+
+	// Spanner-specific DDL (parser-ddl-spanner node): CHANGE STREAM, SEQUENCE,
+	// ROLE, LOCALITY GROUP, and PROTO BUNDLE CREATE/ALTER/DROP forms. These have
+	// no first-class rule in the legacy ANTLR grammar (it rides them on the
+	// generic-entity hook or rejects them); the omni parser models them directly,
+	// authoritatively verified against the live Cloud Spanner emulator. (Role-based
+	// GRANT/REVOKE reuses T_GrantStmt/T_RevokeStmt with the GranteeRole kind.)
+	T_ChangeStreamTrackedTable
+	T_CreateChangeStreamStmt
+	T_AlterChangeStreamStmt
+	T_DropChangeStreamStmt
+	T_CreateSequenceStmt
+	T_AlterSequenceStmt
+	T_DropSequenceStmt
+	T_CreateRoleStmt
+	T_DropRoleStmt
+	T_CreateLocalityGroupStmt
+	T_AlterLocalityGroupStmt
+	T_DropLocalityGroupStmt
+	T_CreateProtoBundleStmt
+	T_AlterProtoBundleStmt
+
+	// DML — INSERT / UPDATE / DELETE / MERGE / TRUNCATE (parser-dml node).
+	//
+	// The data-manipulation family for the BigQuery + Spanner union, plus their
+	// structural sub-nodes (VALUES row, SET item, ON CONFLICT, MERGE WHEN/action,
+	// THEN RETURN). These mirror the legacy ANTLR DML grammar
+	// (GoogleSQLParser.g4 §2.7), a hand-port of ZetaSQL.
+	T_DefaultExpr
+	T_InsertStmt
+	T_InsertRow
+	T_InsertTable
+	T_OnConflict
+	T_UpdateStmt
+	T_UpdateItem
+	T_DeleteStmt
+	T_MergeStmt
+	T_MergeWhen
+	T_MergeAction
+	T_TruncateStmt
+	T_Returning
+
+	// Transactions / batch + utility statements (parser-utility node).
+	//
+	// The §2.9 transaction/batch family (BEGIN/START TRANSACTION/COMMIT/ROLLBACK,
+	// START/RUN/ABORT BATCH) and the §2.10 + §2.3 utility statements (ASSERT,
+	// ANALYZE, DESCRIBE, RENAME, CALL). These mirror the legacy ANTLR grammar
+	// (GoogleSQLParser.g4), a hand-port of ZetaSQL.
+	T_TransactionStmt
+	T_TransactionMode
+	T_BatchStmt
+	T_AssertStmt
+	T_AnalyzeStmt
+	T_TableAndColumnInfo
+	T_DescribeStmt
+	T_RenameStmt
+	T_CallArg
+	T_CallStmt
+
+	// BigQuery EXPORT / LOAD / CLONE DATA (parser-dml-ext node).
+	//
+	// The §2.8 data-movement family from the legacy ANTLR grammar
+	// (GoogleSQLParser.g4): export_data_statement / export_model_statement /
+	// aux_load_data_statement / clone_data_statement, plus the CloneDataSource
+	// leaf. BigQuery-only at the GoogleSQL union level (the Spanner emulator
+	// rejects all four); triangulated against the legacy .g4 + the BigQuery
+	// truth1 corpus (OTHER-001/OTHER-003).
+	T_ExportDataStmt
+	T_ExportModelStmt
+	T_LoadDataStmt
+	T_CloneDataStmt
+	T_CloneDataSource
+
+	// GQL / property-graph (parser-gql node).
+	//
+	// The §2.12 graph query language and the create_property_graph_statement
+	// DDL from the legacy ANTLR grammar (GoogleSQLParser.g4) — a hand-port of
+	// ZetaSQL's GoogleSQL graph extension (BigQuery / Spanner Graph). The
+	// top-level GQL statement (`GRAPH <path> <ops>`), its linear/composite query
+	// blocks, the GQL operators (MATCH / LET / FILTER / ORDER BY / PAGE / WITH /
+	// FOR / RETURN / TABLESAMPLE), the graph-pattern tree (path / node / edge
+	// patterns, the element-pattern filler, label algebra, property specs), and
+	// the CREATE PROPERTY GRAPH element-table definitions.
+	T_GQLStmt
+	T_GraphSetOp
+	T_GraphLinearQuery
+	T_GraphMatchOp
+	T_GraphLetOp
+	T_GraphLetVar
+	T_GraphFilterOp
+	T_GraphOrderByOp
+	T_GraphPageOp
+	T_GraphWithOp
+	T_GraphForOp
+	T_GraphSampleOp
+	T_GraphReturnOp
+	T_GraphReturnItem
+	T_GraphPattern
+	T_GraphPathPattern
+	T_GraphNodePattern
+	T_GraphEdgePattern
+	T_GraphPatternFiller
+	T_GraphPropertySpec
+	T_GraphPropertyNameValue
+	T_GraphLabelExpr
+	T_CreatePropertyGraphStmt
+	T_ElementTableDef
+	T_LabelAndProperties
+	T_DerivedProperty
+
+	// Query clauses — PIVOT / UNPIVOT / TABLESAMPLE table-source operators
+	// (parser-query-clauses node). These are table-source suffixes attached to a
+	// FROM source (TableExpr.Pivot/Unpivot/Sample), mirroring the legacy ANTLR
+	// pivot_clause / unpivot_clause / sample_clause (GoogleSQLParser.g4 §2.14),
+	// a hand-port of ZetaSQL. AT SYSTEM TIME (FOR SYSTEM_TIME AS OF) and the
+	// SELECT-level differential-privacy clause carry no dedicated node — they are
+	// recorded on TableExpr.SystemTime and SelectStmt.SelectWith respectively.
+	T_PivotClause
+	T_PivotExpr
+	T_UnpivotClause
+	T_UnpivotInItem
+	T_SampleClause
 )
 
 // String returns a human-readable representation of the tag.
@@ -285,6 +424,174 @@ func (t NodeTag) String() string {
 		return "AlterAction"
 	case T_DropStmt:
 		return "DropStmt"
+	case T_FunctionParam:
+		return "FunctionParam"
+	case T_CreateFunctionStmt:
+		return "CreateFunctionStmt"
+	case T_CreateProcedureStmt:
+		return "CreateProcedureStmt"
+	case T_CreateMaterializedViewStmt:
+		return "CreateMaterializedViewStmt"
+	case T_CreateSnapshotStmt:
+		return "CreateSnapshotStmt"
+	case T_SearchVectorIndexStmt:
+		return "SearchVectorIndexStmt"
+	case T_CreateRowAccessPolicyStmt:
+		return "CreateRowAccessPolicyStmt"
+	case T_CreateEntityStmt:
+		return "CreateEntityStmt"
+	case T_BQAlterStmt:
+		return "BQAlterStmt"
+	case T_BQDropStmt:
+		return "BQDropStmt"
+	case T_DropAllRowAccessPoliciesStmt:
+		return "DropAllRowAccessPoliciesStmt"
+	case T_ChangeStreamTrackedTable:
+		return "ChangeStreamTrackedTable"
+	case T_CreateChangeStreamStmt:
+		return "CreateChangeStreamStmt"
+	case T_AlterChangeStreamStmt:
+		return "AlterChangeStreamStmt"
+	case T_DropChangeStreamStmt:
+		return "DropChangeStreamStmt"
+	case T_CreateSequenceStmt:
+		return "CreateSequenceStmt"
+	case T_AlterSequenceStmt:
+		return "AlterSequenceStmt"
+	case T_DropSequenceStmt:
+		return "DropSequenceStmt"
+	case T_CreateRoleStmt:
+		return "CreateRoleStmt"
+	case T_DropRoleStmt:
+		return "DropRoleStmt"
+	case T_CreateLocalityGroupStmt:
+		return "CreateLocalityGroupStmt"
+	case T_AlterLocalityGroupStmt:
+		return "AlterLocalityGroupStmt"
+	case T_DropLocalityGroupStmt:
+		return "DropLocalityGroupStmt"
+	case T_CreateProtoBundleStmt:
+		return "CreateProtoBundleStmt"
+	case T_AlterProtoBundleStmt:
+		return "AlterProtoBundleStmt"
+	case T_DefaultExpr:
+		return "DefaultExpr"
+	case T_InsertStmt:
+		return "InsertStmt"
+	case T_InsertRow:
+		return "InsertRow"
+	case T_InsertTable:
+		return "InsertTable"
+	case T_OnConflict:
+		return "OnConflict"
+	case T_UpdateStmt:
+		return "UpdateStmt"
+	case T_UpdateItem:
+		return "UpdateItem"
+	case T_DeleteStmt:
+		return "DeleteStmt"
+	case T_MergeStmt:
+		return "MergeStmt"
+	case T_MergeWhen:
+		return "MergeWhen"
+	case T_MergeAction:
+		return "MergeAction"
+	case T_TruncateStmt:
+		return "TruncateStmt"
+	case T_Returning:
+		return "Returning"
+	case T_TransactionStmt:
+		return "TransactionStmt"
+	case T_TransactionMode:
+		return "TransactionMode"
+	case T_BatchStmt:
+		return "BatchStmt"
+	case T_AssertStmt:
+		return "AssertStmt"
+	case T_AnalyzeStmt:
+		return "AnalyzeStmt"
+	case T_TableAndColumnInfo:
+		return "TableAndColumnInfo"
+	case T_DescribeStmt:
+		return "DescribeStmt"
+	case T_RenameStmt:
+		return "RenameStmt"
+	case T_CallArg:
+		return "CallArg"
+	case T_CallStmt:
+		return "CallStmt"
+	case T_ExportDataStmt:
+		return "ExportDataStmt"
+	case T_ExportModelStmt:
+		return "ExportModelStmt"
+	case T_LoadDataStmt:
+		return "LoadDataStmt"
+	case T_CloneDataStmt:
+		return "CloneDataStmt"
+	case T_CloneDataSource:
+		return "CloneDataSource"
+	case T_GQLStmt:
+		return "GQLStmt"
+	case T_GraphSetOp:
+		return "GraphSetOp"
+	case T_GraphLinearQuery:
+		return "GraphLinearQuery"
+	case T_GraphMatchOp:
+		return "GraphMatchOp"
+	case T_GraphLetOp:
+		return "GraphLetOp"
+	case T_GraphLetVar:
+		return "GraphLetVar"
+	case T_GraphFilterOp:
+		return "GraphFilterOp"
+	case T_GraphOrderByOp:
+		return "GraphOrderByOp"
+	case T_GraphPageOp:
+		return "GraphPageOp"
+	case T_GraphWithOp:
+		return "GraphWithOp"
+	case T_GraphForOp:
+		return "GraphForOp"
+	case T_GraphSampleOp:
+		return "GraphSampleOp"
+	case T_GraphReturnOp:
+		return "GraphReturnOp"
+	case T_GraphReturnItem:
+		return "GraphReturnItem"
+	case T_GraphPattern:
+		return "GraphPattern"
+	case T_GraphPathPattern:
+		return "GraphPathPattern"
+	case T_GraphNodePattern:
+		return "GraphNodePattern"
+	case T_GraphEdgePattern:
+		return "GraphEdgePattern"
+	case T_GraphPatternFiller:
+		return "GraphPatternFiller"
+	case T_GraphPropertySpec:
+		return "GraphPropertySpec"
+	case T_GraphPropertyNameValue:
+		return "GraphPropertyNameValue"
+	case T_GraphLabelExpr:
+		return "GraphLabelExpr"
+	case T_CreatePropertyGraphStmt:
+		return "CreatePropertyGraphStmt"
+	case T_ElementTableDef:
+		return "ElementTableDef"
+	case T_LabelAndProperties:
+		return "LabelAndProperties"
+	case T_DerivedProperty:
+		return "DerivedProperty"
+	case T_PivotClause:
+		return "PivotClause"
+	case T_PivotExpr:
+		return "PivotExpr"
+	case T_UnpivotClause:
+		return "UnpivotClause"
+	case T_UnpivotInItem:
+		return "UnpivotInItem"
+	case T_SampleClause:
+		return "SampleClause"
 	default:
 		return "Unknown"
 	}

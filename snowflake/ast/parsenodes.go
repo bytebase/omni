@@ -339,9 +339,11 @@ func (op BinaryOp) String() string {
 type UnaryOp int
 
 const (
-	UnaryMinus UnaryOp = iota // -
-	UnaryPlus                 // +
-	UnaryNot                  // NOT
+	UnaryMinus         UnaryOp = iota // -
+	UnaryPlus                         // +
+	UnaryNot                          // NOT
+	UnaryPrior                        // PRIOR (CONNECT BY hierarchical queries)
+	UnaryConnectByRoot                // CONNECT_BY_ROOT (CONNECT BY hierarchical queries)
 )
 
 // String returns the operator symbol.
@@ -353,6 +355,10 @@ func (op UnaryOp) String() string {
 		return "+"
 	case UnaryNot:
 		return "NOT"
+	case UnaryPrior:
+		return "PRIOR"
+	case UnaryConnectByRoot:
+		return "CONNECT_BY_ROOT"
 	default:
 		return "?"
 	}
@@ -446,6 +452,27 @@ type StarExpr struct {
 }
 
 func (n *StarExpr) Tag() NodeTag { return T_StarExpr }
+
+// DollarRef represents a Snowflake '$'-reference used as a primary expression:
+//
+//   - $N          positional column reference (Positional=true, Name="N").
+//     Used in COPY-transform / stage queries (SELECT $1, $2 FROM @stage) and
+//     anywhere a column may appear.
+//   - $<name>     session-variable / scripting-variable reference
+//     (Positional=false), e.g. $min, $Variable1.
+//   - <qual>.$N   positional reference qualified by a table alias or name
+//     (e.g. d.$1), with the leading qualifier captured in Qualifier.
+//
+// The lexer strips the leading '$' and emits a single tokVariable whose text is
+// stored in Name; Positional records whether that text is all decimal digits.
+type DollarRef struct {
+	Qualifier  *ObjectName // optional leading qualifier (e.g. d in d.$1); nil when bare
+	Name       string      // text after '$': digits for positional, identifier otherwise
+	Positional bool        // true when Name is all decimal digits ($1, $2, ...)
+	Loc        Loc
+}
+
+func (n *DollarRef) Tag() NodeTag { return T_DollarRef }
 
 // BinaryExpr represents a binary operation: left op right.
 type BinaryExpr struct {
@@ -722,11 +749,18 @@ type SelectStmt struct {
 	GroupBy  *GroupByClause  // GROUP BY; nil if absent
 	Having   Node            // HAVING condition; nil if absent
 	Qualify  Node            // QUALIFY condition; nil if absent (Snowflake-specific)
-	OrderBy  []*OrderItem    // ORDER BY; nil if absent
-	Limit    Node            // LIMIT n; nil if absent
-	Offset   Node            // OFFSET n; nil if absent
-	Fetch    *FetchClause    // FETCH FIRST/NEXT; nil if absent
-	Loc      Loc
+	// StartWith / ConnectBy implement hierarchical queries
+	// (CONNECT BY [, START WITH]). StartWith holds the optional START WITH
+	// condition; ConnectBy holds the comma-separated CONNECT BY conditions
+	// (PRIOR appears as a *UnaryExpr with Op == UnaryPrior inside them).
+	// ConnectBy is non-nil whenever the query has a CONNECT BY clause.
+	StartWith Node         // START WITH condition; nil if absent
+	ConnectBy []Node       // CONNECT BY conditions; nil if absent
+	OrderBy   []*OrderItem // ORDER BY; nil if absent
+	Limit     Node         // LIMIT n; nil if absent
+	Offset    Node         // OFFSET n; nil if absent
+	Fetch     *FetchClause // FETCH FIRST/NEXT; nil if absent
+	Loc       Loc
 }
 
 func (n *SelectStmt) Tag() NodeTag { return T_SelectStmt }
@@ -756,7 +790,16 @@ type TableRef struct {
 	Subquery Node          // (SELECT ...) in FROM; nil for table refs
 	FuncCall *FuncCallExpr // TABLE(func(...)); nil for table refs
 	Lateral  bool          // LATERAL prefix
-	Loc      Loc
+	// Table-attached clauses (Snowflake). Any combination may appear; the
+	// documented source order is AT/BEFORE → CHANGES → MATCH_RECOGNIZE →
+	// PIVOT/UNPIVOT → alias → SAMPLE.
+	TimeTravel     *TimeTravelClause     // AT(...) / BEFORE(...); nil if absent
+	Changes        *ChangesClause        // CHANGES(...) AT|BEFORE(...); nil if absent
+	MatchRecognize *MatchRecognizeClause // MATCH_RECOGNIZE(...); nil if absent
+	Pivot          *PivotClause          // PIVOT(...); nil if absent
+	Unpivot        *UnpivotClause        // UNPIVOT(...); nil if absent
+	Sample         *SampleClause         // SAMPLE/TABLESAMPLE(...); nil if absent
+	Loc            Loc
 }
 
 func (n *TableRef) Tag() NodeTag { return T_TableRef }
@@ -860,6 +903,319 @@ func (n *SetOperationStmt) Tag() NodeTag { return T_SetOperationStmt }
 var _ Node = (*SetOperationStmt)(nil)
 
 // ---------------------------------------------------------------------------
+// Table-attached query clauses (T5.3)
+// ---------------------------------------------------------------------------
+
+// PivotClause represents a PIVOT applied to a table source:
+//
+//	PIVOT ( <agg>(<col>) [AS <alias>]
+//	        FOR <col> IN ( <values> | ANY [ORDER BY …] | <subquery> )
+//	        [DEFAULT ON NULL (<expr>)] ) [ [AS] alias ]
+type PivotClause struct {
+	Agg        *FuncCallExpr // the aggregate, e.g. SUM(amount)
+	AggAlias   Ident         // alias for the aggregate (AS total); zero if absent
+	ForColumn  *ColumnRef    // the FOR pivot column
+	In         *PivotInClause
+	DefaultVal Node  // DEFAULT ON NULL (<expr>); nil if absent
+	Alias      Ident // trailing [AS] alias for the pivot result; zero if absent
+	Loc        Loc
+}
+
+func (n *PivotClause) Tag() NodeTag { return T_PivotClause }
+
+// PivotInKind distinguishes the three forms of the PIVOT … IN (…) list.
+type PivotInKind int
+
+const (
+	PivotInValues   PivotInKind = iota // IN ( v1 [AS a1], v2 [AS a2], … )
+	PivotInAny                         // IN ( ANY [ORDER BY …] )
+	PivotInSubquery                    // IN ( <subquery> )
+)
+
+// PivotInClause is the IN (...) part of a PIVOT.
+type PivotInClause struct {
+	Kind     PivotInKind
+	Values   []*PivotValue // for PivotInValues
+	OrderBy  []*OrderItem  // for PivotInAny: ANY ORDER BY …; nil otherwise
+	Subquery Node          // for PivotInSubquery
+	Loc      Loc
+}
+
+func (n *PivotInClause) Tag() NodeTag { return T_PivotInClause }
+
+// PivotValue is one value in a PIVOT … IN ( v [AS alias], … ) list.
+type PivotValue struct {
+	Value Node  // the value expression (typically a literal)
+	Alias Ident // AS alias; zero if absent
+	Loc   Loc
+}
+
+func (n *PivotValue) Tag() NodeTag { return T_PivotValue }
+
+// UnpivotClause represents an UNPIVOT applied to a table source:
+//
+//	UNPIVOT [ {INCLUDE|EXCLUDE} NULLS ]
+//	  ( <value_col> FOR <name_col> IN ( <col> [AS alias], … ) ) [alias]
+type UnpivotClause struct {
+	NullsMode   UnpivotNullsMode // INCLUDE / EXCLUDE NULLS; default = unspecified
+	ValueColumn Ident            // the new value column name
+	NameColumn  Ident            // the new name column name (FOR <name_col>)
+	Columns     []*UnpivotColumn // the IN (...) source columns
+	Alias       Ident            // trailing alias; zero if absent
+	Loc         Loc
+}
+
+func (n *UnpivotClause) Tag() NodeTag { return T_UnpivotClause }
+
+// UnpivotNullsMode encodes the optional {INCLUDE|EXCLUDE} NULLS modifier.
+type UnpivotNullsMode int
+
+const (
+	UnpivotNullsUnspecified UnpivotNullsMode = iota // no modifier (defaults to EXCLUDE)
+	UnpivotIncludeNulls                             // INCLUDE NULLS
+	UnpivotExcludeNulls                             // EXCLUDE NULLS
+)
+
+// UnpivotColumn is one column in an UNPIVOT … IN ( col [AS alias], … ) list.
+type UnpivotColumn struct {
+	Column Ident // the source column
+	Alias  Ident // AS alias; zero if absent
+	Loc    Loc
+}
+
+func (n *UnpivotColumn) Tag() NodeTag { return T_UnpivotColumn }
+
+// ---------------------------------------------------------------------------
+// MATCH_RECOGNIZE
+// ---------------------------------------------------------------------------
+
+// MatchRecognizeClause represents a MATCH_RECOGNIZE applied to a table source.
+//
+//	MATCH_RECOGNIZE ( [PARTITION BY …] [ORDER BY …] [MEASURES …]
+//	  [{ONE ROW | ALL ROWS} PER MATCH [match-opts]]
+//	  [AFTER MATCH SKIP …] PATTERN ( <row_pattern> )
+//	  [DEFINE <var> AS <cond>, …] ) [ [AS] alias ]
+type MatchRecognizeClause struct {
+	PartitionBy  []Node          // PARTITION BY exprs; nil if absent
+	OrderBy      []*OrderItem    // ORDER BY items; nil if absent
+	Measures     []*MatchMeasure // MEASURES list; nil if absent
+	RowsPerMatch *RowsPerMatch   // ONE ROW / ALL ROWS PER MATCH; nil if absent
+	AfterMatch   *AfterMatchSkip // AFTER MATCH SKIP …; nil if absent
+	Pattern      *RowPattern     // PATTERN ( … ); nil only on malformed input
+	Define       []*MatchDefine  // DEFINE list; nil if absent
+	Alias        Ident           // trailing [AS] alias; zero if absent
+	Loc          Loc
+}
+
+func (n *MatchRecognizeClause) Tag() NodeTag { return T_MatchRecognizeClause }
+
+// MatchMeasure is one item in a MEASURES list: [FINAL|RUNNING] <expr> [AS] <alias>.
+type MatchMeasure struct {
+	Semantics MatchSemantics // FINAL / RUNNING / unspecified
+	Expr      Node           // the measure expression
+	Alias     Ident          // the column alias
+	Loc       Loc
+}
+
+func (n *MatchMeasure) Tag() NodeTag { return T_MatchMeasure }
+
+// MatchSemantics encodes the optional FINAL / RUNNING prefix on a measure.
+type MatchSemantics int
+
+const (
+	MatchSemanticsUnspecified MatchSemantics = iota
+	MatchSemanticsFinal                      // FINAL
+	MatchSemanticsRunning                    // RUNNING
+)
+
+// RowsPerMatchKind selects ONE ROW vs ALL ROWS PER MATCH.
+type RowsPerMatchKind int
+
+const (
+	OneRowPerMatch  RowsPerMatchKind = iota // ONE ROW PER MATCH
+	AllRowsPerMatch                         // ALL ROWS PER MATCH
+)
+
+// RowsPerMatchOpt encodes the optional modifier on ALL ROWS PER MATCH.
+type RowsPerMatchOpt int
+
+const (
+	RowsPerMatchOptNone       RowsPerMatchOpt = iota
+	RowsPerMatchShowEmpty                     // SHOW EMPTY MATCHES
+	RowsPerMatchOmitEmpty                     // OMIT EMPTY MATCHES
+	RowsPerMatchWithUnmatched                 // WITH UNMATCHED ROWS
+)
+
+// RowsPerMatch represents the {ONE ROW | ALL ROWS} PER MATCH [opt] clause.
+type RowsPerMatch struct {
+	Kind RowsPerMatchKind
+	Opt  RowsPerMatchOpt // only meaningful for ALL ROWS PER MATCH
+	Loc  Loc
+}
+
+func (n *RowsPerMatch) Tag() NodeTag { return T_RowsPerMatch }
+
+// AfterMatchKind selects the AFTER MATCH SKIP target.
+type AfterMatchKind int
+
+const (
+	AfterMatchSkipPastLastRow AfterMatchKind = iota // SKIP PAST LAST ROW
+	AfterMatchSkipToNextRow                         // SKIP TO NEXT ROW
+	AfterMatchSkipToFirst                           // SKIP TO FIRST <var>
+	AfterMatchSkipToLast                            // SKIP TO LAST <var>
+	AfterMatchSkipToVar                             // SKIP TO <var>
+)
+
+// AfterMatchSkip represents the AFTER MATCH SKIP … clause.
+type AfterMatchSkip struct {
+	Kind   AfterMatchKind
+	Symbol Ident // the target pattern variable for the TO … forms; zero otherwise
+	Loc    Loc
+}
+
+func (n *AfterMatchSkip) Tag() NodeTag { return T_AfterMatchSkip }
+
+// MatchDefine is one DEFINE entry: <var> AS <condition>.
+type MatchDefine struct {
+	Symbol Ident // the pattern variable being defined
+	Cond   Node  // the boolean condition expression
+	Loc    Loc
+}
+
+func (n *MatchDefine) Tag() NodeTag { return T_MatchDefine }
+
+// RowPattern holds the PATTERN ( … ) body. The body is kept as raw text
+// (Raw, with surrounding parentheses stripped) because the full row-pattern
+// grammar — quantifiers, alternation, PERMUTE, anchors — has no executable
+// oracle to validate a structured tree against; consumers that need the
+// pattern re-lex Raw. RawLoc spans the inner text.
+type RowPattern struct {
+	Raw    string // the verbatim pattern text between the outer parentheses
+	RawLoc Loc    // location of the inner pattern text
+	Loc    Loc    // location spanning PATTERN ( … )
+}
+
+func (n *RowPattern) Tag() NodeTag { return T_RowPattern }
+
+// ---------------------------------------------------------------------------
+// SAMPLE / TABLESAMPLE
+// ---------------------------------------------------------------------------
+
+// SampleKeyword distinguishes the SAMPLE vs TABLESAMPLE spelling.
+type SampleKeyword int
+
+const (
+	SampleKwSample      SampleKeyword = iota // SAMPLE
+	SampleKwTablesample                      // TABLESAMPLE
+)
+
+// SampleMethod is the optional sampling method.
+type SampleMethod int
+
+const (
+	SampleMethodUnspecified SampleMethod = iota
+	SampleMethodBernoulli                // BERNOULLI
+	SampleMethodRow                      // ROW (synonym of BERNOULLI)
+	SampleMethodSystem                   // SYSTEM
+	SampleMethodBlock                    // BLOCK (synonym of SYSTEM)
+)
+
+// SampleClause represents SAMPLE / TABLESAMPLE applied to a table source:
+//
+//	{SAMPLE | TABLESAMPLE} [method] ( <prob> | <n> ROWS ) [{SEED|REPEATABLE} (<n>)]
+type SampleClause struct {
+	Keyword  SampleKeyword
+	Method   SampleMethod
+	Quantity Node // probability or row count expression
+	Rows     bool // true if the quantity is "<n> ROWS"
+	// Seed holds the {SEED|REPEATABLE} (<n>) value; nil if absent.
+	Seed     Node
+	SeedKind SampleSeedKind // which keyword introduced Seed
+	Loc      Loc
+}
+
+func (n *SampleClause) Tag() NodeTag { return T_SampleClause }
+
+// SampleSeedKind records whether the seed used SEED or REPEATABLE.
+type SampleSeedKind int
+
+const (
+	SampleSeedNone       SampleSeedKind = iota
+	SampleSeedSeed                      // SEED (<n>)
+	SampleSeedRepeatable                // REPEATABLE (<n>)
+)
+
+// ---------------------------------------------------------------------------
+// Time travel: AT / BEFORE / CHANGES
+// ---------------------------------------------------------------------------
+
+// TimeTravelKind selects AT vs BEFORE.
+type TimeTravelKind int
+
+const (
+	TimeTravelAt     TimeTravelKind = iota // AT (...)
+	TimeTravelBefore                       // BEFORE (...)
+)
+
+// TimeTravelAnchor selects the parameter name inside AT/BEFORE.
+type TimeTravelAnchor int
+
+const (
+	TimeTravelTimestamp TimeTravelAnchor = iota // TIMESTAMP => expr
+	TimeTravelOffset                            // OFFSET => expr
+	TimeTravelStatement                         // STATEMENT => expr
+	TimeTravelStream                            // STREAM => expr
+)
+
+// TimeTravelClause represents { AT | BEFORE } ( <anchor> => <expr> ).
+type TimeTravelClause struct {
+	Kind   TimeTravelKind
+	Anchor TimeTravelAnchor
+	Expr   Node // the anchor value expression
+	Loc    Loc
+}
+
+func (n *TimeTravelClause) Tag() NodeTag { return T_TimeTravelClause }
+
+// ChangesInfo selects DEFAULT vs APPEND_ONLY for CHANGES(INFORMATION => …).
+type ChangesInfo int
+
+const (
+	ChangesDefault    ChangesInfo = iota // INFORMATION => DEFAULT
+	ChangesAppendOnly                    // INFORMATION => APPEND_ONLY
+)
+
+// ChangesClause represents:
+//
+//	CHANGES ( INFORMATION => {DEFAULT|APPEND_ONLY} ) { AT|BEFORE } (…) [END (…)]
+type ChangesClause struct {
+	Info  ChangesInfo
+	Start *TimeTravelClause // the required AT/BEFORE anchor
+	End   *TimeTravelClause // optional END (…); nil if absent
+	Loc   Loc
+}
+
+func (n *ChangesClause) Tag() NodeTag { return T_ChangesClause }
+
+// Compile-time assertions for the T5.3 clause node types.
+var (
+	_ Node = (*PivotClause)(nil)
+	_ Node = (*PivotInClause)(nil)
+	_ Node = (*PivotValue)(nil)
+	_ Node = (*UnpivotClause)(nil)
+	_ Node = (*UnpivotColumn)(nil)
+	_ Node = (*MatchRecognizeClause)(nil)
+	_ Node = (*MatchMeasure)(nil)
+	_ Node = (*RowsPerMatch)(nil)
+	_ Node = (*AfterMatchSkip)(nil)
+	_ Node = (*MatchDefine)(nil)
+	_ Node = (*RowPattern)(nil)
+	_ Node = (*SampleClause)(nil)
+	_ Node = (*TimeTravelClause)(nil)
+	_ Node = (*ChangesClause)(nil)
+)
+
+// ---------------------------------------------------------------------------
 // Constraint enums
 // ---------------------------------------------------------------------------
 
@@ -947,6 +1303,7 @@ type CloneSource struct {
 // CreateTableStmt represents CREATE [OR REPLACE] [TRANSIENT|TEMPORARY|VOLATILE] TABLE ...
 type CreateTableStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Transient   bool
 	Temporary   bool
 	Volatile    bool
@@ -1058,6 +1415,7 @@ type DBSchemaProps struct {
 // CreateDatabaseStmt represents CREATE [OR REPLACE] [TRANSIENT] DATABASE ...
 type CreateDatabaseStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Transient   bool
 	IfNotExists bool
 	Name        *ObjectName
@@ -1118,6 +1476,7 @@ var _ Node = (*UndropDatabaseStmt)(nil)
 // CreateSchemaStmt represents CREATE [OR REPLACE] [TRANSIENT] SCHEMA ...
 type CreateSchemaStmt struct {
 	OrReplace     bool
+	OrAlter       bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Transient     bool
 	IfNotExists   bool
 	Name          *ObjectName
@@ -1539,6 +1898,7 @@ type RowAccessPolicy struct {
 // CreateViewStmt represents CREATE [OR REPLACE] [SECURE] [RECURSIVE] VIEW ...
 type CreateViewStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Secure      bool
 	Recursive   bool
 	IfNotExists bool
@@ -1565,6 +1925,7 @@ var _ Node = (*CreateViewStmt)(nil)
 // CreateMaterializedViewStmt represents CREATE [OR REPLACE] [SECURE] MATERIALIZED VIEW ...
 type CreateMaterializedViewStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Secure      bool
 	IfNotExists bool
 	Name        *ObjectName
@@ -2673,6 +3034,7 @@ var (
 // consumers can detect.
 type CreateStageStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Temporary   bool
 	IfNotExists bool
 	Name        *ObjectName
@@ -2759,6 +3121,7 @@ var (
 // Temporary.
 type CreateFileFormatStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Temporary   bool
 	IfNotExists bool
 	Name        *ObjectName
@@ -2803,6 +3166,700 @@ func (n *AlterFileFormatStmt) Tag() NodeTag { return T_AlterFileFormatStmt }
 var (
 	_ Node = (*CreateFileFormatStmt)(nil)
 	_ Node = (*AlterFileFormatStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
+// Account-level integration-object DDL — CREATE / ALTER for STORAGE / API /
+// NOTIFICATION / SECURITY INTEGRATION, RESOURCE MONITOR, SECRET, CONNECTION,
+// EXTERNAL VOLUME, GIT REPOSITORY (T4.7)
+// ---------------------------------------------------------------------------
+//
+// These account/schema-level objects all configure an external resource through
+// a large, version-growing vocabulary of `KEY = <value>` parameters: a STORAGE
+// INTEGRATION carries STORAGE_PROVIDER / STORAGE_AWS_ROLE_ARN /
+// STORAGE_ALLOWED_LOCATIONS / ...; an API INTEGRATION API_PROVIDER /
+// API_ALLOWED_PREFIXES / ...; a SECRET TYPE / OAUTH_SCOPES / SECRET_STRING / ...;
+// a GIT REPOSITORY ORIGIN / API_INTEGRATION / GIT_CREDENTIALS; an EXTERNAL VOLUME
+// STORAGE_LOCATIONS / ALLOW_WRITES; and so on. Rather than mirror the legacy
+// ANTLR grammar's finite, already-stale per-type enumerations (its
+// create_*_integration rules pin a fixed option order and lack newer params, and
+// it has no rule for CREATE EXTERNAL VOLUME at all), every parameter that follows
+// the object name is captured as an open-ended `KEY = <value>` pair (CopyOption),
+// reusing the merged COPY (T5.2) / STAGE (T4.1) / FILE FORMAT (T4.2) machinery.
+// Only the structural anchors are modeled as dedicated fields: the object Kind,
+// the RESOURCE MONITOR WITH keyword + its TRIGGERS clause, the GIT REPOSITORY
+// [WITH] TAG clause, and (on ALTER) the action keyword and EXTERNAL VOLUME's
+// ADD/REMOVE/UPDATE STORAGE_LOCATION actions. The catalog/semantic layer, not the
+// parser, validates that an option is real and legal for the chosen Kind.
+
+// IntegrationObjectKind discriminates the account-level object types handled by
+// the T4.7 CREATE / ALTER parsers.
+type IntegrationObjectKind int
+
+const (
+	StorageIntegration      IntegrationObjectKind = iota // [STORAGE] INTEGRATION
+	APIIntegration                                       // API INTEGRATION
+	NotificationIntegration                              // NOTIFICATION INTEGRATION
+	SecurityIntegration                                  // SECURITY INTEGRATION
+	ResourceMonitor                                      // RESOURCE MONITOR
+	Secret                                               // SECRET
+	Connection                                           // CONNECTION
+	ExternalVolume                                       // EXTERNAL VOLUME
+	GitRepository                                        // GIT REPOSITORY
+)
+
+// String returns the SQL object keyword(s) for the kind (uppercased), used for
+// diagnostics and deparse.
+func (k IntegrationObjectKind) String() string {
+	switch k {
+	case StorageIntegration:
+		return "STORAGE INTEGRATION"
+	case APIIntegration:
+		return "API INTEGRATION"
+	case NotificationIntegration:
+		return "NOTIFICATION INTEGRATION"
+	case SecurityIntegration:
+		return "SECURITY INTEGRATION"
+	case ResourceMonitor:
+		return "RESOURCE MONITOR"
+	case Secret:
+		return "SECRET"
+	case Connection:
+		return "CONNECTION"
+	case ExternalVolume:
+		return "EXTERNAL VOLUME"
+	case GitRepository:
+		return "GIT REPOSITORY"
+	default:
+		return "INTEGRATION OBJECT"
+	}
+}
+
+// ResourceMonitorTrigger is one RESOURCE MONITOR trigger definition:
+//
+//	ON <threshold> PERCENT DO { SUSPEND | SUSPEND_IMMEDIATE | NOTIFY }
+//
+// Triggers are space-separated in the source (no comma). Action is the uppercased
+// action keyword.
+type ResourceMonitorTrigger struct {
+	Threshold int64  // the ON <threshold> PERCENT value
+	Action    string // "SUSPEND" | "SUSPEND_IMMEDIATE" | "NOTIFY"
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *ResourceMonitorTrigger) Tag() NodeTag { return T_ResourceMonitorTrigger }
+
+// ConnectionReplica holds a CREATE CONNECTION ... AS REPLICA OF
+// <organization>.<account>.<connection> clause. The three parts are captured as
+// an ObjectName (so quoting / dotted-name handling is shared with every other
+// name in the AST).
+type ConnectionReplica struct {
+	Source *ObjectName // organization_name.account_name.connection_name
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ConnectionReplica) Tag() NodeTag { return T_ConnectionReplica }
+
+// CreateIntegrationStmt represents the CREATE form of every T4.7 object:
+//
+//	CREATE [ OR REPLACE ] { STORAGE | API | NOTIFICATION | SECURITY } INTEGRATION [ IF NOT EXISTS ] <name> <options...>
+//	CREATE [ OR REPLACE ] RESOURCE MONITOR [ IF NOT EXISTS ] <name> WITH <options...> [ TRIGGERS <trigger>... ]
+//	CREATE [ OR REPLACE ] SECRET [ IF NOT EXISTS ] <name> <options...>
+//	CREATE CONNECTION [ IF NOT EXISTS ] <name> [ AS REPLICA OF <a.b.c> ] [ COMMENT = '...' ]
+//	CREATE [ OR REPLACE ] EXTERNAL VOLUME [ IF NOT EXISTS ] <name> STORAGE_LOCATIONS = (...) [ ALLOW_WRITES = ... ] [ COMMENT = '...' ]
+//	CREATE [ OR REPLACE ] GIT REPOSITORY [ IF NOT EXISTS ] <name> <options...> [ [ WITH ] TAG (...) ]
+//
+// All configuration parameters are captured open-ended in Options, preserving
+// source order. The structural anchors are modeled separately: With records the
+// RESOURCE MONITOR WITH keyword; Triggers holds its TRIGGERS clause; Tags holds a
+// GIT REPOSITORY [WITH] TAG clause; Replica holds a CONNECTION AS REPLICA OF
+// clause. Per the docs OR REPLACE and IF NOT EXISTS are mutually exclusive for
+// every kind, and CONNECTION supports neither OR REPLACE nor SECURE — the parser
+// accepts the open-ended combination and the semantic layer enforces the
+// exclusions (matching the rest of this engine's parse-permissively philosophy).
+type CreateIntegrationStmt struct {
+	Kind        IntegrationObjectKind
+	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	IfNotExists bool
+	Name        *ObjectName
+	With        bool                      // RESOURCE MONITOR's mandatory WITH keyword was present
+	Options     []*CopyOption             // open-ended KEY = value parameters, source order
+	Tags        []*TagAssignment          // GIT REPOSITORY [WITH] TAG (...); nil if absent
+	Triggers    []*ResourceMonitorTrigger // RESOURCE MONITOR TRIGGERS ...; nil if absent
+	Replica     *ConnectionReplica        // CONNECTION AS REPLICA OF a.b.c; nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateIntegrationStmt) Tag() NodeTag { return T_CreateIntegrationStmt }
+
+// AlterIntegrationAction discriminates the action variants of the T4.7 ALTER
+// parsers. Most objects share the SET / UNSET / SET TAG / UNSET TAG quartet;
+// EXTERNAL VOLUME instead uses the storage-location actions, GIT REPOSITORY adds
+// FETCH, RESOURCE MONITOR's SET carries NOTIFY_USERS + TRIGGERS, and CONNECTION
+// adds the failover/primary actions.
+type AlterIntegrationAction int
+
+const (
+	AlterIntegrationSet             AlterIntegrationAction = iota // SET <options> [ NOTIFY_USERS / TRIGGERS for RESOURCE MONITOR ]
+	AlterIntegrationUnset                                         // UNSET <property> [ , ... ]
+	AlterIntegrationSetTag                                        // SET TAG <tag> = '<value>' [ , ... ]
+	AlterIntegrationUnsetTag                                      // UNSET TAG <tag> [ , ... ]
+	AlterIntegrationFetch                                         // GIT REPOSITORY FETCH
+	AlterIntegrationAddLocation                                   // EXTERNAL VOLUME ADD STORAGE_LOCATION = (...)
+	AlterIntegrationRemoveLocation                                // EXTERNAL VOLUME REMOVE STORAGE_LOCATION '<name>'
+	AlterIntegrationUpdateLocation                                // EXTERNAL VOLUME UPDATE STORAGE_LOCATION = '<name>' CREDENTIALS = (...)
+	AlterIntegrationEnableFailover                                // CONNECTION ENABLE FAILOVER TO ACCOUNTS ...
+	AlterIntegrationDisableFailover                               // CONNECTION DISABLE FAILOVER [ TO ACCOUNTS ... ]
+	AlterIntegrationPrimary                                       // CONNECTION PRIMARY
+)
+
+// AlterIntegrationStmt represents the ALTER form of every T4.7 object. The set of
+// legal actions depends on Kind (validated by the semantic layer, not here):
+//
+//	ALTER [STORAGE] INTEGRATION [ IF EXISTS ] <name> SET <options>
+//	ALTER {API|NOTIFICATION|SECURITY} INTEGRATION [ IF EXISTS ] <name> SET <options>
+//	ALTER ... INTEGRATION [ IF EXISTS ] <name> UNSET <property> [ , ... ]
+//	ALTER ... INTEGRATION <name> { SET | UNSET } TAG ...
+//	ALTER RESOURCE MONITOR [ IF EXISTS ] <name> SET <options> [ NOTIFY_USERS = (...) ] [ TRIGGERS <trigger>... ]
+//	ALTER SECRET [ IF EXISTS ] <name> { SET <options> | UNSET COMMENT }
+//	ALTER CONNECTION [ IF EXISTS ] <name> { SET <options> | UNSET COMMENT }
+//	ALTER CONNECTION <name> { ENABLE FAILOVER TO ACCOUNTS a.b [,...] | DISABLE FAILOVER [ TO ACCOUNTS a.b [,...] ] | PRIMARY }
+//	ALTER EXTERNAL VOLUME [ IF EXISTS ] <name> ADD STORAGE_LOCATION = (...)
+//	ALTER EXTERNAL VOLUME [ IF EXISTS ] <name> REMOVE STORAGE_LOCATION '<name>'
+//	ALTER EXTERNAL VOLUME [ IF EXISTS ] <name> UPDATE STORAGE_LOCATION = '<name>' CREDENTIALS = (...)
+//	ALTER EXTERNAL VOLUME [ IF EXISTS ] <name> SET { ALLOW_WRITES | COMMENT } = ...
+//	ALTER GIT REPOSITORY <name> { SET <options> | UNSET <property> [ , ... ] | FETCH }
+type AlterIntegrationStmt struct {
+	Kind       IntegrationObjectKind
+	IfExists   bool
+	Name       *ObjectName
+	Action     AlterIntegrationAction
+	Options    []*CopyOption             // SET <options>; for AlterIntegrationSet / Add / Update (the STORAGE_LOCATION + CREDENTIALS params)
+	Tags       []*TagAssignment          // SET TAG assignments; for AlterIntegrationSetTag
+	UnsetTags  []*ObjectName             // UNSET TAG names; for AlterIntegrationUnsetTag
+	UnsetProps []string                  // UNSET <property> names; for AlterIntegrationUnset
+	Triggers   []*ResourceMonitorTrigger // RESOURCE MONITOR SET ... TRIGGERS ...; nil if absent
+	Location   string                    // EXTERNAL VOLUME REMOVE/UPDATE STORAGE_LOCATION '<name>'; "" otherwise
+	Accounts   []*ObjectName             // CONNECTION {ENABLE|DISABLE} FAILOVER TO ACCOUNTS <a.b> [,...]; nil if absent
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterIntegrationStmt) Tag() NodeTag { return T_AlterIntegrationStmt }
+
+// Compile-time assertions for integration-object DDL nodes.
+var (
+	_ Node = (*ResourceMonitorTrigger)(nil)
+	_ Node = (*ConnectionReplica)(nil)
+	_ Node = (*CreateIntegrationStmt)(nil)
+	_ Node = (*AlterIntegrationStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
+// Replication & sharing DDL — CREATE / ALTER FAILOVER GROUP / REPLICATION GROUP
+// / ACCOUNT / SHARE (T4.8)
+// ---------------------------------------------------------------------------
+//
+// These account-level objects drive Snowflake's replication and data-sharing
+// features. They share a distinctive option shape with the rest of this engine's
+// account-level DDL — large, version-growing `KEY = <value>` vocabularies — but
+// with one structural twist the COPY/STAGE option machinery does not cover: the
+// replication/sharing list parameters (OBJECT_TYPES, ALLOWED_DATABASES,
+// ALLOWED_SHARES, ALLOWED_INTEGRATION_TYPES, ALLOWED_ACCOUNTS, ...) are
+// UNPARENTHESIZED comma lists whose elements are multi-word object-type names
+// (e.g. `ACCOUNT PARAMETERS`, `RESOURCE MONITORS`, `NETWORK POLICIES`) or dotted
+// account names (`org.account`). Both the official docs (truth1) and the legacy
+// ANTLR grammar (truth2) agree on the no-parentheses form — the COPY-style
+// `KEY = ( a, b )` reader is therefore NOT reused for them. They are captured as
+// GroupOption (a `KEY = <value-list | literal>` pair). Scalar options
+// (REPLICATION_SCHEDULE = '...', OPTIMIZED_REFRESH = TRUE, ERROR_INTEGRATION =
+// <name>, ...) reuse the same GroupOption type. Only the structural anchors are
+// modeled as dedicated fields: the object discriminator (FAILOVER vs REPLICATION
+// GROUP, MANAGED ACCOUNT), the [WITH] TAG clause, the AS REPLICA OF secondary
+// form, and (on ALTER) the action keyword plus its operands (ADD/REMOVE/MOVE
+// name lists, the ALLOWED_* list target, the MOVE-TO group, RENAME's new name,
+// the account-policy forms, etc.). Per this engine's parse-permissively
+// philosophy the parser accepts the open-ended combination and the
+// catalog/semantic layer validates legality (mutually-exclusive OR REPLACE / IF
+// NOT EXISTS, which options are real for the chosen object, and so on).
+
+// GroupOption is a single `KEY = <value>` parameter of a replication/sharing
+// statement. The value is one of:
+//   - Values: an unparenthesized comma list of items, each a verbatim,
+//     uppercased multi-word token run (OBJECT_TYPES = DATABASES, ROLES;
+//     ALLOWED_DATABASES = db1, db2; ALLOWED_ACCOUNTS = org.acct1, org.acct2) or
+//     a single bareword/identifier value (OPTIMIZED_REFRESH = TRUE,
+//     ERROR_INTEGRATION = my_int, EDITION = STANDARD, ADMIN_NAME = admin).
+//   - Lit: a string or numeric literal (REPLICATION_SCHEDULE = '10 MINUTE',
+//     ADMIN_PASSWORD = 'secret', EMAIL = 'a@b.com').
+//
+// Exactly one of Values / Lit is set. Name is the uppercased option name.
+type GroupOption struct {
+	Name   string   // uppercased option name (e.g. "OBJECT_TYPES", "REPLICATION_SCHEDULE")
+	Values []string // unparenthesized comma-list of verbatim uppercased items; nil when Lit is set
+	Lit    *Literal // a string/number literal value; nil when Values is set
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *GroupOption) Tag() NodeTag { return T_GroupOption }
+
+// ReplicationGroupKind discriminates a FAILOVER GROUP from a REPLICATION GROUP.
+// The two objects share a near-identical CREATE/ALTER grammar (the docs differ
+// only in a handful of options), so they share AST node types and are told apart
+// by this flag.
+type ReplicationGroupKind int
+
+const (
+	ReplicationGroup ReplicationGroupKind = iota // REPLICATION GROUP
+	FailoverGroup                                // FAILOVER GROUP
+)
+
+// String returns the SQL keyword(s) for the kind (uppercased).
+func (k ReplicationGroupKind) String() string {
+	if k == FailoverGroup {
+		return "FAILOVER GROUP"
+	}
+	return "REPLICATION GROUP"
+}
+
+// CreateReplicationGroupStmt represents the CREATE form of a FAILOVER GROUP or
+// REPLICATION GROUP (Failover discriminates):
+//
+//	CREATE [ OR REPLACE ] { FAILOVER | REPLICATION } GROUP [ IF NOT EXISTS ] <name>
+//	  OBJECT_TYPES = <object_type> [ , ... ]
+//	  [ ALLOWED_DATABASES = <db_name> [ , ... ] ]
+//	  [ ALLOWED_EXTERNAL_VOLUMES = <ev_name> [ , ... ] ]
+//	  [ ALLOWED_SHARES = <share_name> [ , ... ] ]
+//	  [ ALLOWED_INTEGRATION_TYPES = <integration_type_name> [ , ... ] ]
+//	  ALLOWED_ACCOUNTS = <org>.<account> [ , ... ]
+//	  [ IGNORE EDITION CHECK ]
+//	  [ REPLICATION_SCHEDULE = '...' ] [ OPTIMIZED_REFRESH = { TRUE | FALSE } ]
+//	  [ [ WITH ] TAG ( <tag> = '<value>' [ , ... ] ) ]
+//	  [ ERROR_INTEGRATION = <integration_name> ]
+//
+//	-- secondary form:
+//	CREATE [ OR REPLACE ] { FAILOVER | REPLICATION } GROUP [ IF NOT EXISTS ] <name>
+//	  AS REPLICA OF <org>.<source_account>.<name>
+//
+// All configuration parameters are captured open-ended in Options, source order.
+// IgnoreEditionCheck records the bare `IGNORE EDITION CHECK` flag, Tags the
+// [WITH] TAG clause, and Replica the AS REPLICA OF secondary-form source (a
+// dotted ObjectName); when Replica is set the primary-form fields are empty.
+type CreateReplicationGroupStmt struct {
+	Failover           bool
+	OrReplace          bool
+	OrAlter            bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	IfNotExists        bool
+	Name               *ObjectName
+	Options            []*GroupOption   // open-ended KEY = value parameters, source order
+	IgnoreEditionCheck bool             // bare IGNORE EDITION CHECK flag
+	Tags               []*TagAssignment // [WITH] TAG (...); nil if absent
+	Replica            *ObjectName      // AS REPLICA OF <org>.<account>.<name>; nil for primary form
+	Loc                Loc
+}
+
+// Tag implements Node.
+func (n *CreateReplicationGroupStmt) Tag() NodeTag { return T_CreateReplicationGroupStmt }
+
+// AlterGroupAction discriminates the action variants of ALTER FAILOVER GROUP /
+// REPLICATION GROUP.
+type AlterGroupAction int
+
+const (
+	AlterGroupRename   AlterGroupAction = iota // RENAME TO <new_name>
+	AlterGroupSet                              // SET <options>
+	AlterGroupUnset                            // UNSET <property> [ , ... ]
+	AlterGroupSetTag                           // SET TAG <tag> = '<value>' [ , ... ]
+	AlterGroupUnsetTag                         // UNSET TAG <tag> [ , ... ]
+	AlterGroupAdd                              // ADD <name-list> TO ALLOWED_{DATABASES|SHARES|ACCOUNTS} [ IGNORE EDITION CHECK ]
+	AlterGroupRemove                           // REMOVE <name-list> FROM ALLOWED_{DATABASES|SHARES|ACCOUNTS}
+	AlterGroupMove                             // MOVE { DATABASES | SHARES } <name-list> TO { FAILOVER | REPLICATION } GROUP <name>
+	AlterGroupRefresh                          // REFRESH
+	AlterGroupPrimary                          // PRIMARY (FAILOVER GROUP only)
+	AlterGroupSuspend                          // SUSPEND [ IMMEDIATE ]
+	AlterGroupResume                           // RESUME
+)
+
+// AlterReplicationGroupStmt represents the ALTER form of a FAILOVER GROUP or
+// REPLICATION GROUP (Failover discriminates). The legal action set depends on
+// the kind (validated by the semantic layer, not here):
+//
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> RENAME TO <new_name>
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> SET <options>
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> UNSET <property> [ , ... ]
+//	ALTER { FAILOVER | REPLICATION } GROUP <name> { SET | UNSET } TAG ...
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> ADD <name-list> TO ALLOWED_{DATABASES|SHARES|ACCOUNTS} [ IGNORE EDITION CHECK ]
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> MOVE { DATABASES | SHARES } <name-list> TO { FAILOVER | REPLICATION } GROUP <name>
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> REMOVE <name-list> FROM ALLOWED_{DATABASES|SHARES|ACCOUNTS}
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> { REFRESH | PRIMARY | SUSPEND [ IMMEDIATE ] | RESUME }
+type AlterReplicationGroupStmt struct {
+	Failover           bool
+	IfExists           bool
+	Name               *ObjectName
+	Action             AlterGroupAction
+	NewName            *ObjectName      // RENAME TO; for AlterGroupRename
+	Options            []*GroupOption   // SET <options>; for AlterGroupSet
+	Tags               []*TagAssignment // SET TAG assignments; for AlterGroupSetTag
+	UnsetTags          []*ObjectName    // UNSET TAG names; for AlterGroupUnsetTag
+	UnsetProps         []string         // UNSET <property> names; for AlterGroupUnset
+	Names              []*ObjectName    // ADD/MOVE/REMOVE name list (databases / shares / org.account)
+	ListTarget         string           // ALLOWED_DATABASES / ALLOWED_SHARES / ALLOWED_ACCOUNTS (ADD/REMOVE) — uppercased
+	MoveKind           string           // MOVE DATABASES | SHARES — uppercased; for AlterGroupMove
+	MoveTo             *ObjectName      // MOVE ... TO { FAILOVER | REPLICATION } GROUP <name>; for AlterGroupMove
+	IgnoreEditionCheck bool             // ADD ... TO ALLOWED_ACCOUNTS IGNORE EDITION CHECK
+	Immediate          bool             // SUSPEND IMMEDIATE
+	Loc                Loc
+}
+
+// Tag implements Node.
+func (n *AlterReplicationGroupStmt) Tag() NodeTag { return T_AlterReplicationGroupStmt }
+
+// CreateAccountStmt represents
+//
+//	CREATE ACCOUNT <name> ADMIN_NAME = '...' { ADMIN_PASSWORD = '...' | ADMIN_RSA_PUBLIC_KEY = '...' }
+//	  [ ADMIN_USER_TYPE = ... ] [ FIRST_NAME = '...' ] [ LAST_NAME = '...' ]
+//	  EMAIL = '...' [ MUST_CHANGE_PASSWORD = { TRUE | FALSE } ]
+//	  EDITION = { STANDARD | ENTERPRISE | BUSINESS_CRITICAL }
+//	  [ REGION_GROUP = <id> ] [ REGION = <id> ] [ COMMENT = '...' ] [ POLARIS = { TRUE | FALSE } ]
+//
+//	CREATE [ OR REPLACE ] MANAGED ACCOUNT <name>
+//	  ADMIN_NAME = <username>, ADMIN_PASSWORD = <password>, TYPE = READER [ , COMMENT = '...' ]
+//
+// Managed discriminates the MANAGED ACCOUNT form. Every parameter is captured
+// open-ended in Options (source order); CREATE ACCOUNT separates them with
+// whitespace, CREATE MANAGED ACCOUNT with commas (the parser tolerates both).
+type CreateAccountStmt struct {
+	Managed   bool
+	OrReplace bool // only MANAGED ACCOUNT accepts OR REPLACE per the docs
+	OrAlter   bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	Name      *ObjectName
+	Options   []*GroupOption // ADMIN_NAME / ADMIN_PASSWORD / EMAIL / EDITION / TYPE / COMMENT / ...
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *CreateAccountStmt) Tag() NodeTag { return T_CreateAccountStmt }
+
+// AlterAccountAction discriminates the action variants of ALTER ACCOUNT.
+type AlterAccountAction int
+
+const (
+	AlterAccountSet         AlterAccountAction = iota // SET <param> = <value> [ , ... ] / SET RESOURCE_MONITOR = <name>
+	AlterAccountUnset                                 // UNSET <param> [ , ... ]
+	AlterAccountSetTag                                // SET TAG <tag> = '<value>' [ , ... ]
+	AlterAccountUnsetTag                              // UNSET TAG <tag> [ , ... ]
+	AlterAccountSetPolicy                             // SET { <policy_kind> } POLICY <name> [ <scope> ] [ FORCE ]
+	AlterAccountUnsetPolicy                           // UNSET { <policy_kind> } POLICY [ <scope> ]
+	AlterAccountRename                                // <name> RENAME TO <new_name> [ SAVE_OLD_URL = ... ]
+	AlterAccountDropURL                               // <name> DROP OLD [ ORGANIZATION ] URL
+)
+
+// AlterAccountStmt represents ALTER ACCOUNT. The current-account forms omit the
+// name (Name is nil); the cross-account forms (org admins) carry a name:
+//
+//	ALTER ACCOUNT SET <param> = <value> [ , ... ]
+//	ALTER ACCOUNT SET RESOURCE_MONITOR = <monitor_name>
+//	ALTER ACCOUNT UNSET <param> [ , ... ]
+//	ALTER ACCOUNT SET TAG <tag> = '<value>' [ , ... ]   |   UNSET TAG <tag> [ , ... ]
+//	ALTER ACCOUNT SET { AUTHENTICATION | SESSION } POLICY <name> [ FOR ALL { PERSON | SERVICE } USERS ] [ FORCE ]
+//	ALTER ACCOUNT SET { PACKAGES | PASSWORD } POLICY <name> [ FORCE ]
+//	ALTER ACCOUNT SET FEATURE POLICY <name> FOR ALL APPLICATIONS [ FORCE ]
+//	ALTER ACCOUNT UNSET { <policy_kind> } POLICY [ <scope> ]
+//	ALTER ACCOUNT <name> SET EDITION = ... | SET IS_ORG_ADMIN = ...
+//	ALTER ACCOUNT <name> RENAME TO <new_name> [ SAVE_OLD_URL = { TRUE | FALSE } ]
+//	ALTER ACCOUNT <name> DROP OLD [ ORGANIZATION ] URL
+type AlterAccountStmt struct {
+	Name         *ObjectName // nil for the current-account forms; set for the cross-account forms
+	Action       AlterAccountAction
+	Options      []*GroupOption   // SET <param> = value list; for AlterAccountSet
+	Tags         []*TagAssignment // SET TAG assignments; for AlterAccountSetTag
+	UnsetTags    []*ObjectName    // UNSET TAG names; for AlterAccountUnsetTag
+	UnsetProps   []string         // UNSET <property> names; for AlterAccountUnset
+	PolicyKind   string           // "{ AUTHENTICATION | SESSION | PACKAGES | PASSWORD | FEATURE } POLICY"; for Set/UnsetPolicy — uppercased
+	PolicyName   *ObjectName      // the policy name; for AlterAccountSetPolicy
+	PolicyScope  string           // the trailing FOR ALL ... clause, verbatim uppercased; "" if absent
+	Force        bool             // trailing FORCE; for AlterAccountSetPolicy
+	NewName      *ObjectName      // RENAME TO; for AlterAccountRename
+	SaveOldURL   *bool            // RENAME ... SAVE_OLD_URL = { TRUE | FALSE }; nil if absent
+	Organization bool             // DROP OLD ORGANIZATION URL (vs DROP OLD URL); for AlterAccountDropURL
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *AlterAccountStmt) Tag() NodeTag { return T_AlterAccountStmt }
+
+// CreateShareStmt represents
+//
+//	CREATE [ OR REPLACE ] SHARE [ IF NOT EXISTS ] <name> [ COMMENT = '<string_literal>' ]
+//
+// COMMENT (the only documented parameter) is captured open-ended in Options.
+type CreateShareStmt struct {
+	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	IfNotExists bool
+	Name        *ObjectName
+	Options     []*GroupOption // COMMENT = '...'; nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateShareStmt) Tag() NodeTag { return T_CreateShareStmt }
+
+// AlterShareAction discriminates the action variants of ALTER SHARE.
+type AlterShareAction int
+
+const (
+	AlterShareAdd      AlterShareAction = iota // ADD ACCOUNTS = <a> [ , ... ] [ SHARE_RESTRICTIONS = ... ]
+	AlterShareRemove                           // REMOVE ACCOUNTS = <a> [ , ... ]
+	AlterShareSet                              // SET [ ACCOUNTS = <a> [ , ... ] ] [ COMMENT = '...' ]
+	AlterShareSetTag                           // SET TAG <tag> = '<value>' [ , ... ]
+	AlterShareUnsetTag                         // UNSET TAG <tag> [ , ... ]
+	AlterShareUnset                            // UNSET COMMENT
+)
+
+// AlterShareStmt represents
+//
+//	ALTER SHARE [ IF EXISTS ] <name> { ADD | REMOVE } ACCOUNTS = <a> [ , ... ] [ SHARE_RESTRICTIONS = { TRUE | FALSE } ]
+//	ALTER SHARE [ IF EXISTS ] <name> SET [ ACCOUNTS = <a> [ , ... ] ] [ COMMENT = '...' ]
+//	ALTER SHARE [ IF EXISTS ] <name> SET TAG <tag> = '<value>' [ , ... ]
+//	ALTER SHARE <name> UNSET TAG <tag> [ , ... ]
+//	ALTER SHARE [ IF EXISTS ] <name> UNSET COMMENT
+//
+// Accounts holds the consumer-account list (ADD/REMOVE/SET ACCOUNTS = ...);
+// ShareRestrictions records the optional SHARE_RESTRICTIONS flag; Options holds
+// the SET COMMENT param; UnsetProps holds the UNSET property names.
+type AlterShareStmt struct {
+	IfExists          bool
+	Name              *ObjectName
+	Action            AlterShareAction
+	Accounts          []*ObjectName    // ACCOUNTS = <a> [ , ... ]; for Add/Remove/Set
+	ShareRestrictions *bool            // SHARE_RESTRICTIONS = { TRUE | FALSE }; nil if absent
+	Options           []*GroupOption   // SET COMMENT = '...'; nil if absent
+	Tags              []*TagAssignment // SET TAG assignments; for AlterShareSetTag
+	UnsetTags         []*ObjectName    // UNSET TAG names; for AlterShareUnsetTag
+	UnsetProps        []string         // UNSET <property> names (e.g. COMMENT); for AlterShareUnset
+	Loc               Loc
+}
+
+// Tag implements Node.
+func (n *AlterShareStmt) Tag() NodeTag { return T_AlterShareStmt }
+
+// Compile-time assertions for replication & sharing DDL nodes.
+var (
+	_ Node = (*GroupOption)(nil)
+	_ Node = (*CreateReplicationGroupStmt)(nil)
+	_ Node = (*AlterReplicationGroupStmt)(nil)
+	_ Node = (*CreateAccountStmt)(nil)
+	_ Node = (*AlterAccountStmt)(nil)
+	_ Node = (*CreateShareStmt)(nil)
+	_ Node = (*AlterShareStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
+// Tag / semantic-view / dataset DDL — CREATE / ALTER (T4.9)
+// ---------------------------------------------------------------------------
+//
+// Three governance / semantic-layer objects:
+//
+//   - TAG: a named label whose CREATE carries an ALLOWED_VALUES string list plus
+//     a small, version-growing option vocabulary (PROPAGATE, ON_CONFLICT,
+//     COMMENT). The legacy ANTLR grammar's create_tag rule modeled only
+//     `tag_allowed_values? comment_clause?` and so lacks PROPAGATE / ON_CONFLICT
+//     (both present in the official docs and the create-tag corpus). To avoid
+//     re-staling, every clause after ALLOWED_VALUES is captured open-ended as a
+//     CopyOption; only ALLOWED_VALUES — the one structural anchor the docs pin
+//     to first position — is lifted into a dedicated field.
+//   - SEMANTIC VIEW: a logical model over tables. Its TABLES / RELATIONSHIPS /
+//     FACTS / DIMENSIONS / METRICS / AI_VERIFIED_QUERIES sections are each a
+//     comma-separated definition list inside a parenthesized group whose inner
+//     grammar is large and version-growing; rather than model each inner
+//     definition, each section's body is captured as a balanced raw group
+//     (SemanticViewSection). The trailing scalar clauses (COMMENT,
+//     AI_SQL_GENERATION, AI_QUESTION_CATEGORIZATION) are open-ended options, and
+//     the [WITH] TAG / COPY GRANTS clauses are the remaining structural anchors.
+//   - DATASET: a newer ML object whose CREATE is, per both the docs and the
+//     legacy grammar, just a name (no options).
+//
+// This mirrors the merged STAGE (T4.1) / FILE FORMAT (T4.2) / integration (T4.7)
+// open-ended philosophy: the catalog/semantic layer, not the parser, validates
+// that an option is real and legal.
+
+// CreateTagStmt represents
+//
+//	CREATE [ OR REPLACE ] TAG [ IF NOT EXISTS ] <name>
+//	  [ ALLOWED_VALUES '<v1>' [ , '<v2>' ... ] ]
+//	  [ PROPAGATE = { ON_DEPENDENCY_AND_DATA_MOVEMENT | ON_DEPENDENCY | ON_DATA_MOVEMENT }
+//	    [ ON_CONFLICT = { '<string>' | ALLOWED_VALUES_SEQUENCE } ] ]
+//	  [ COMMENT = '<string_literal>' ]
+//
+// AllowedValues holds the ALLOWED_VALUES string list (nil when the clause is
+// absent). Options captures the trailing PROPAGATE / ON_CONFLICT / COMMENT
+// clauses open-ended, in source order.
+type CreateTagStmt struct {
+	OrReplace     bool
+	OrAlter       bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	IfNotExists   bool
+	Name          *ObjectName
+	AllowedValues []string      // ALLOWED_VALUES 'v1', 'v2', ...; nil if absent
+	Options       []*CopyOption // PROPAGATE / ON_CONFLICT / COMMENT; source order
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *CreateTagStmt) Tag() NodeTag { return T_CreateTagStmt }
+
+// AlterTagAction discriminates the action variants of ALTER TAG.
+type AlterTagAction int
+
+const (
+	AlterTagRename             AlterTagAction = iota // RENAME TO <new_name>
+	AlterTagAddAllowedValues                         // ADD ALLOWED_VALUES '<v>' [ , ... ]
+	AlterTagDropAllowedValues                        // DROP ALLOWED_VALUES '<v>' [ , ... ]
+	AlterTagSet                                      // SET [ ALLOWED_VALUES ... ] [ PROPAGATE ... ] [ COMMENT ... ]
+	AlterTagUnset                                    // UNSET { ALLOWED_VALUES | PROPAGATE | ON_CONFLICT | COMMENT | DCM PROJECT }
+	AlterTagSetMaskingPolicy                         // SET MASKING POLICY <p> [ , MASKING POLICY <p2> ... ] [ FORCE ]
+	AlterTagUnsetMaskingPolicy                       // UNSET MASKING POLICY <p> [ , MASKING POLICY <p2> ... ]
+)
+
+// AlterTagStmt represents ALTER TAG [ IF EXISTS ] <name> <action>.
+//
+//	RENAME TO <new_name>
+//	{ ADD | DROP } ALLOWED_VALUES '<v>' [ , ... ]
+//	SET [ ALLOWED_VALUES '<v>' [ , ... ] ] [ PROPAGATE = ... [ ON_CONFLICT = ... ] ] [ COMMENT = '...' ]
+//	UNSET { ALLOWED_VALUES | PROPAGATE | ON_CONFLICT | COMMENT | DCM PROJECT }
+//	SET MASKING POLICY <p> [ , MASKING POLICY <p2> ... ] [ FORCE ]
+//	UNSET MASKING POLICY <p> [ , MASKING POLICY <p2> ... ]
+type AlterTagStmt struct {
+	IfExists        bool
+	Name            *ObjectName
+	Action          AlterTagAction
+	NewName         *ObjectName   // RENAME TO target; for AlterTagRename
+	AllowedValues   []string      // ADD/DROP/SET ALLOWED_VALUES list
+	Options         []*CopyOption // SET <options> (ALLOWED_VALUES lives in AllowedValues; PROPAGATE / ON_CONFLICT / COMMENT here)
+	UnsetProps      []string      // UNSET <property> names (ALLOWED_VALUES / PROPAGATE / ON_CONFLICT / COMMENT / DCM PROJECT)
+	MaskingPolicies []*ObjectName // SET/UNSET MASKING POLICY names
+	Force           bool          // SET MASKING POLICY ... FORCE
+	Loc             Loc
+}
+
+// Tag implements Node.
+func (n *AlterTagStmt) Tag() NodeTag { return T_AlterTagStmt }
+
+// SemanticViewSection is one section of a CREATE SEMANTIC VIEW body — a keyword
+// (TABLES / RELATIONSHIPS / FACTS / DIMENSIONS / METRICS / AI_VERIFIED_QUERIES)
+// followed by a parenthesized, comma-separated definition list. The inner
+// grammar of each section is large and version-growing, so the body is captured
+// as the verbatim source text between the section's outer parentheses (the
+// parentheses themselves are not included in Body) rather than fully modeled.
+type SemanticViewSection struct {
+	Keyword string // uppercased section keyword: TABLES, RELATIONSHIPS, FACTS, DIMENSIONS, METRICS, AI_VERIFIED_QUERIES
+	Body    string // verbatim source text inside the section's ( ... ); excludes the parens
+	Loc     Loc    // spans the keyword through the closing ')'
+}
+
+// Tag implements Node.
+func (n *SemanticViewSection) Tag() NodeTag { return T_SemanticViewSection }
+
+// CreateSemanticViewStmt represents
+//
+//	CREATE [ OR REPLACE ] SEMANTIC VIEW [ IF NOT EXISTS ] <name>
+//	  TABLES ( ... )
+//	  [ RELATIONSHIPS ( ... ) ]
+//	  [ FACTS ( ... ) ]
+//	  [ DIMENSIONS ( ... ) ]
+//	  [ METRICS ( ... ) ]
+//	  [ COMMENT = '<string>' ]
+//	  [ AI_SQL_GENERATION '<instructions>' ]
+//	  [ AI_QUESTION_CATEGORIZATION '<instructions>' ]
+//	  [ AI_VERIFIED_QUERIES ( ... ) ]
+//	  [ [ WITH ] TAG ( <tag> = '<value>' [ , ... ] ) ]
+//	  [ COPY GRANTS ]
+//
+// Sections holds the parenthesized definition-list sections (TABLES first, per
+// the docs, then the optional RELATIONSHIPS / FACTS / DIMENSIONS / METRICS /
+// AI_VERIFIED_QUERIES), each as a balanced raw group. Options captures the
+// scalar trailing clauses (COMMENT, AI_SQL_GENERATION, AI_QUESTION_CATEGORIZATION)
+// open-ended. Tags holds a [WITH] TAG clause; CopyGrants records COPY GRANTS.
+type CreateSemanticViewStmt struct {
+	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	IfNotExists bool
+	Name        *ObjectName
+	Sections    []*SemanticViewSection // TABLES / RELATIONSHIPS / FACTS / DIMENSIONS / METRICS / AI_VERIFIED_QUERIES, source order
+	Options     []*CopyOption          // COMMENT / AI_SQL_GENERATION / AI_QUESTION_CATEGORIZATION; source order
+	Tags        []*TagAssignment       // [WITH] TAG (...); nil if absent
+	CopyGrants  bool
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateSemanticViewStmt) Tag() NodeTag { return T_CreateSemanticViewStmt }
+
+// AlterSemanticViewAction discriminates the action variants of ALTER SEMANTIC
+// VIEW.
+type AlterSemanticViewAction int
+
+const (
+	AlterSemanticViewRename   AlterSemanticViewAction = iota // RENAME TO <new_name>
+	AlterSemanticViewSet                                     // SET COMMENT = '...'
+	AlterSemanticViewUnset                                   // UNSET COMMENT
+	AlterSemanticViewSetTag                                  // SET TAG <tag> = '<value>' [ , ... ]
+	AlterSemanticViewUnsetTag                                // UNSET TAG <tag> [ , ... ]
+)
+
+// AlterSemanticViewStmt represents ALTER SEMANTIC VIEW [ IF EXISTS ] <name>
+// <action>.
+//
+//	RENAME TO <new_name>
+//	SET COMMENT = '<string_literal>'
+//	UNSET COMMENT
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
+type AlterSemanticViewStmt struct {
+	IfExists   bool
+	Name       *ObjectName
+	Action     AlterSemanticViewAction
+	NewName    *ObjectName      // RENAME TO target; for AlterSemanticViewRename
+	Options    []*CopyOption    // SET COMMENT; for AlterSemanticViewSet
+	Tags       []*TagAssignment // SET TAG assignments; for AlterSemanticViewSetTag
+	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterSemanticViewUnsetTag
+	UnsetProps []string         // UNSET <property> names (COMMENT); for AlterSemanticViewUnset
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterSemanticViewStmt) Tag() NodeTag { return T_AlterSemanticViewStmt }
+
+// CreateDatasetStmt represents CREATE [ OR REPLACE ] DATASET [ IF NOT EXISTS ]
+// <name>. DATASET is a newer ML object whose CREATE carries no options in either
+// the docs or the legacy grammar — only the name. (The official docs render
+// IF NOT EXISTS before DATASET; the legacy grammar and every other CREATE object
+// in this engine place it after the object keyword. The post-keyword spelling is
+// accepted here for consistency; see the divergence note in semantic_view.go.)
+type CreateDatasetStmt struct {
+	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	IfNotExists bool
+	Name        *ObjectName
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateDatasetStmt) Tag() NodeTag { return T_CreateDatasetStmt }
+
+// Compile-time assertions for tag / semantic-view / dataset DDL nodes.
+var (
+	_ Node = (*CreateTagStmt)(nil)
+	_ Node = (*AlterTagStmt)(nil)
+	_ Node = (*SemanticViewSection)(nil)
+	_ Node = (*CreateSemanticViewStmt)(nil)
+	_ Node = (*AlterSemanticViewStmt)(nil)
+	_ Node = (*CreateDatasetStmt)(nil)
 )
 
 // ---------------------------------------------------------------------------
@@ -2860,6 +3917,7 @@ var (
 // parens are not retained.
 type CreatePipeStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	Options     []*CopyOption // AUTO_INGEST / ERROR_INTEGRATION / AWS_SNS_TOPIC / INTEGRATION / COMMENT / ...
@@ -2948,6 +4006,7 @@ type StreamTimeTravel struct {
 // SourceKind/Source/Options are zero.
 type CreateStreamStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	Tags        []*TagAssignment  // [WITH] TAG (...); nil if absent
@@ -3019,6 +4078,7 @@ func (n *AlterStreamStmt) Tag() NodeTag { return T_AlterStreamStmt }
 // <source_task>), recorded via Clone with Options/After/When/Body all zero.
 type CreateTaskStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
@@ -3100,6 +4160,7 @@ func (n *AlterTaskStmt) Tag() NodeTag { return T_AlterTaskStmt }
 // verbatim action source text.
 type CreateAlertStmt struct {
 	OrReplace    bool
+	OrAlter      bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists  bool
 	Name         *ObjectName
 	Tags         []*TagAssignment // [WITH] TAG (...); nil if absent
@@ -3159,6 +4220,279 @@ var (
 	_ Node = (*AlterTaskStmt)(nil)
 	_ Node = (*CreateAlertStmt)(nil)
 	_ Node = (*AlterAlertStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
+// Access-control DDL — CREATE / ALTER ROLE / USER / { MASKING | ROW ACCESS |
+// SESSION | PASSWORD | NETWORK | AUTHENTICATION } POLICY (T4.6)
+// ---------------------------------------------------------------------------
+//
+// Roles, users, and the six policy objects share the open-ended `KEY = <value>`
+// option-bag approach already merged for STAGE (T4.1) / FILE FORMAT (T4.2) /
+// COPY (T5.2) / pipeline (T4.3): every option a CREATE/ALTER USER or
+// SESSION/PASSWORD/NETWORK/AUTHENTICATION POLICY carries is a version-growing
+// vocabulary the catalog/semantic layer — not the parser — validates, so each
+// option is captured as a CopyOption rather than enumerated against the
+// already-stale legacy ANTLR rules (which lack, e.g., the network policy's
+// ALLOWED_NETWORK_RULE_LIST, the user's TYPE / RSA_PUBLIC_KEY_2, and the whole
+// AUTHENTICATION POLICY object). The two structurally distinct objects —
+// MASKING POLICY and ROW ACCESS POLICY — carry a typed argument list, a RETURNS
+// type, and an expression body after `->`; those are modeled as dedicated fields
+// (Args / Returns / Body), with the body reusing the expression parser so it
+// participates in walks / query-span / analysis. COMMENT and other trailing
+// `KEY = value` options after the body are captured open-ended in Options.
+
+// PolicyKind discriminates the six access-control policy object types.
+type PolicyKind int
+
+const (
+	PolicyMasking        PolicyKind = iota // MASKING POLICY
+	PolicyRowAccess                        // ROW ACCESS POLICY
+	PolicySession                          // SESSION POLICY
+	PolicyPassword                         // PASSWORD POLICY
+	PolicyNetwork                          // NETWORK POLICY
+	PolicyAuthentication                   // AUTHENTICATION POLICY
+)
+
+// String returns the SQL spelling of a PolicyKind (without the trailing POLICY).
+func (k PolicyKind) String() string {
+	switch k {
+	case PolicyMasking:
+		return "MASKING"
+	case PolicyRowAccess:
+		return "ROW ACCESS"
+	case PolicySession:
+		return "SESSION"
+	case PolicyPassword:
+		return "PASSWORD"
+	case PolicyNetwork:
+		return "NETWORK"
+	case PolicyAuthentication:
+		return "AUTHENTICATION"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// PolicyArg is one `<arg_name> <arg_type>` entry in a MASKING / ROW ACCESS
+// policy's signature: AS ( <arg_name> <arg_type> [ , ... ] ).
+type PolicyArg struct {
+	Name     Ident
+	DataType *TypeName
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *PolicyArg) Tag() NodeTag { return T_PolicyArg }
+
+// CreateRoleStmt represents
+//
+//	CREATE [ OR REPLACE ] [ DATABASE ] ROLE [ IF NOT EXISTS ] <name>
+//	  [ COMMENT = '<string_literal>' ]
+//	  [ [ WITH ] TAG ( <tag_name> = '<tag_value>' [ , ... ] ) ]
+//
+// Database is true for the CREATE DATABASE ROLE form (its <name> may be
+// db-qualified, db_name.role_name). Account roles take an unqualified name.
+type CreateRoleStmt struct {
+	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	Database    bool // CREATE DATABASE ROLE
+	IfNotExists bool
+	Name        *ObjectName
+	Comment     *string          // COMMENT = '...'; nil if absent
+	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateRoleStmt) Tag() NodeTag { return T_CreateRoleStmt }
+
+// CreateUserStmt represents
+//
+//	CREATE [ OR REPLACE ] USER [ IF NOT EXISTS ] <name>
+//	  [ objectProperties ] [ objectParams ] [ sessionParams ]
+//	  [ [ WITH ] TAG ( <tag_name> = '<tag_value>' [ , ... ] ) ]
+//
+// Every property/parameter (PASSWORD / LOGIN_NAME / DISPLAY_NAME / DEFAULT_ROLE
+// / DEFAULT_WAREHOUSE / RSA_PUBLIC_KEY / DEFAULT_SECONDARY_ROLES / TYPE /
+// MUST_CHANGE_PASSWORD / network-policy / session params / ...) is captured
+// open-ended as a CopyOption, preserving source order.
+type CreateUserStmt struct {
+	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	IfNotExists bool
+	Name        *ObjectName
+	Options     []*CopyOption    // open-ended objectProperties / objectParams / sessionParams
+	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateUserStmt) Tag() NodeTag { return T_CreateUserStmt }
+
+// CreatePolicyStmt represents the CREATE form of the six access-control policy
+// objects (one node, discriminated by Kind):
+//
+//	CREATE [ OR REPLACE ] MASKING POLICY [ IF NOT EXISTS ] <name>
+//	  AS ( <arg> <type> [ , ... ] ) RETURNS <type> -> <body>
+//	  [ COMMENT = '...' ] [ EXEMPT_OTHER_POLICIES = { TRUE | FALSE } ]
+//
+//	CREATE [ OR REPLACE ] ROW ACCESS POLICY [ IF NOT EXISTS ] <name>
+//	  AS ( <arg> <type> [ , ... ] ) RETURNS BOOLEAN -> <body> [ COMMENT = '...' ]
+//
+//	CREATE [ OR REPLACE ] { SESSION | PASSWORD | NETWORK | AUTHENTICATION } POLICY
+//	  [ IF NOT EXISTS ] <name> [ <option> ... ]
+//
+// For MASKING / ROW ACCESS policies Args holds the typed signature, Returns the
+// RETURNS type, and Body the `-> <expr>` body (an expression node). For the
+// SESSION / PASSWORD / NETWORK / AUTHENTICATION policies Args/Returns/Body are
+// nil and Options holds the open-ended option bag. Trailing options after a
+// MASKING / ROW ACCESS body (COMMENT / EXEMPT_OTHER_POLICIES) are also captured
+// in Options.
+type CreatePolicyStmt struct {
+	Kind        PolicyKind
+	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	IfNotExists bool
+	Name        *ObjectName
+	Args        []*PolicyArg  // MASKING / ROW ACCESS signature; nil for option-bag policies
+	Returns     *TypeName     // RETURNS <type>; nil for option-bag policies
+	Body        Node          // `-> <expr>` body; nil for option-bag policies
+	Options     []*CopyOption // option bag + trailing COMMENT / EXEMPT_OTHER_POLICIES
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreatePolicyStmt) Tag() NodeTag { return T_CreatePolicyStmt }
+
+// AlterRoleAction discriminates the action variants of ALTER ROLE.
+type AlterRoleAction int
+
+const (
+	AlterRoleRename     AlterRoleAction = iota // RENAME TO <new_name>
+	AlterRoleSetComment                        // SET COMMENT = '...'
+	AlterRoleUnset                             // UNSET COMMENT
+	AlterRoleSetTag                            // SET TAG <tag> = '<value>' [ , ... ]
+	AlterRoleUnsetTag                          // UNSET TAG <tag> [ , ... ]
+)
+
+// AlterRoleStmt represents ALTER [ DATABASE ] ROLE [ IF EXISTS ] <name> <action>.
+//
+//	RENAME TO <new_name>
+//	SET COMMENT = '<string>'
+//	UNSET COMMENT
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
+//
+// Database is true for ALTER DATABASE ROLE.
+type AlterRoleStmt struct {
+	Database  bool
+	IfExists  bool
+	Name      *ObjectName
+	Action    AlterRoleAction
+	NewName   *ObjectName      // RENAME TO target; for AlterRoleRename
+	Comment   *string          // SET COMMENT = '...'; for AlterRoleSetComment
+	Tags      []*TagAssignment // SET TAG (...) assignments; for AlterRoleSetTag
+	UnsetTags []*ObjectName    // UNSET TAG names; for AlterRoleUnsetTag
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *AlterRoleStmt) Tag() NodeTag { return T_AlterRoleStmt }
+
+// AlterUserAction discriminates the action variants of ALTER USER.
+type AlterUserAction int
+
+const (
+	AlterUserRename          AlterUserAction = iota // RENAME TO <new_name>
+	AlterUserResetPassword                          // RESET PASSWORD
+	AlterUserAbortQueries                           // ABORT ALL QUERIES
+	AlterUserSet                                    // SET <options>
+	AlterUserUnset                                  // UNSET <property> [ , ... ]
+	AlterUserSetTag                                 // SET TAG <tag> = '<value>' [ , ... ]
+	AlterUserUnsetTag                               // UNSET TAG <tag> [ , ... ]
+	AlterUserAddDelegated                           // ADD DELEGATED AUTHORIZATION ...
+	AlterUserRemoveDelegated                        // REMOVE DELEGATED ... FROM SECURITY INTEGRATION ...
+)
+
+// AlterUserStmt represents ALTER USER [ IF EXISTS ] <name> <action>.
+//
+//	RENAME TO <new_name>
+//	RESET PASSWORD
+//	ABORT ALL QUERIES
+//	SET <options>                                  -- open-ended KEY = value
+//	UNSET <property> [ , ... ]
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
+//	ADD DELEGATED AUTHORIZATION OF ROLE <r> TO SECURITY INTEGRATION <i>
+//	REMOVE DELEGATED { AUTHORIZATION OF ROLE <r> | AUTHORIZATIONS } FROM SECURITY INTEGRATION <i>
+//
+// The ADD / REMOVE DELEGATED forms are captured structurally only by Action
+// (their body identifiers are consumed but not modeled), matching the
+// open-ended philosophy; Raw holds their verbatim source for round-tripping.
+type AlterUserStmt struct {
+	IfExists   bool
+	Name       *ObjectName
+	Action     AlterUserAction
+	NewName    *ObjectName      // RENAME TO target; for AlterUserRename
+	Options    []*CopyOption    // SET <options>; for AlterUserSet
+	UnsetProps []string         // UNSET <property> names; for AlterUserUnset
+	Tags       []*TagAssignment // SET TAG (...) assignments; for AlterUserSetTag
+	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterUserUnsetTag
+	Raw        string           // verbatim tail for ADD / REMOVE DELEGATED forms
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterUserStmt) Tag() NodeTag { return T_AlterUserStmt }
+
+// AlterPolicyAction discriminates the action variants of ALTER <...> POLICY.
+type AlterPolicyAction int
+
+const (
+	AlterPolicyRename   AlterPolicyAction = iota // RENAME TO <new_name>
+	AlterPolicySetBody                           // SET BODY -> <expr> (MASKING / ROW ACCESS)
+	AlterPolicySet                               // SET <options> (COMMENT / option bag)
+	AlterPolicyUnset                             // UNSET <property> [ , ... ]
+	AlterPolicySetTag                            // SET TAG <tag> = '<value>' [ , ... ]
+	AlterPolicyUnsetTag                          // UNSET TAG <tag> [ , ... ]
+)
+
+// AlterPolicyStmt represents the ALTER form of the six access-control policy
+// objects (one node, discriminated by Kind):
+//
+//	RENAME TO <new_name>
+//	SET BODY -> <expr>                  -- MASKING / ROW ACCESS only
+//	SET { COMMENT = '...' | <options> }
+//	UNSET { COMMENT | <property> } [ , ... ]
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
+type AlterPolicyStmt struct {
+	Kind       PolicyKind
+	IfExists   bool
+	Name       *ObjectName
+	Action     AlterPolicyAction
+	NewName    *ObjectName      // RENAME TO target; for AlterPolicyRename
+	Body       Node             // SET BODY -> <expr>; for AlterPolicySetBody
+	Options    []*CopyOption    // SET <options>; for AlterPolicySet
+	UnsetProps []string         // UNSET <property> names; for AlterPolicyUnset
+	Tags       []*TagAssignment // SET TAG (...) assignments; for AlterPolicySetTag
+	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterPolicyUnsetTag
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterPolicyStmt) Tag() NodeTag { return T_AlterPolicyStmt }
+
+// Compile-time assertions for access-control DDL nodes.
+var (
+	_ Node = (*PolicyArg)(nil)
+	_ Node = (*CreateRoleStmt)(nil)
+	_ Node = (*CreateUserStmt)(nil)
+	_ Node = (*CreatePolicyStmt)(nil)
+	_ Node = (*AlterRoleStmt)(nil)
+	_ Node = (*AlterUserStmt)(nil)
+	_ Node = (*AlterPolicyStmt)(nil)
 )
 
 // ---------------------------------------------------------------------------
@@ -3258,6 +4592,7 @@ const (
 type CreateRoutineStmt struct {
 	Kind          RoutineKind
 	OrReplace     bool
+	OrAlter       bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Secure        bool
 	Temporary     bool
 	IfNotExists   bool
@@ -3370,6 +4705,7 @@ var (
 // other body fields zero).
 type CreateDynamicTableStmt struct {
 	OrReplace      bool
+	OrAlter        bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Transient      bool
 	Iceberg        bool
 	IfNotExists    bool
@@ -3484,6 +4820,7 @@ func (n *ExternalColumnDef) Tag() NodeTag { return T_ExternalColumnDef }
 // GRANTS; Tags holds the [WITH] TAG assignments.
 type CreateExternalTableStmt struct {
 	OrReplace     bool
+	OrAlter       bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists   bool
 	Name          *ObjectName
 	Columns       []*ExternalColumnDef // explicit column list; nil for USING TEMPLATE
@@ -3567,6 +4904,7 @@ func (n *AlterExternalTableStmt) Tag() NodeTag { return T_AlterExternalTableStmt
 // holds the [WITH] TAG assignments.
 type CreateEventTableStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	ClusterBy   []Node           // CLUSTER BY ( exprs ); nil if absent
@@ -3594,6 +4932,7 @@ func (n *CreateEventTableStmt) Tag() NodeTag { return T_CreateEventTableStmt }
 // for NOORDER, nil when unspecified. Comment holds the COMMENT clause text.
 type CreateSequenceStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	Start       *int64  // START [WITH] [=] <n>; nil if absent
@@ -3650,4 +4989,526 @@ var (
 	_ Node = (*CreateEventTableStmt)(nil)
 	_ Node = (*CreateSequenceStmt)(nil)
 	_ Node = (*AlterSequenceStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
+// CALL / EXECUTE IMMEDIATE / EXECUTE TASK / EXPLAIN statement nodes (T5.4)
+// ---------------------------------------------------------------------------
+
+// CallArg is one argument of a CALL statement. Snowflake stored procedures
+// accept either positional arguments or named arguments using the `=>` syntax
+// (CALL p(province => 'MB')). For a positional argument Name is the zero Ident
+// (IsEmpty); for a named argument Name carries the parameter name. Value is the
+// argument expression (any expression node; a subquery argument is a
+// SubqueryExpr or, per Snowflake docs, a bare SELECT — see ParenlessQuery).
+type CallArg struct {
+	Name  Ident // optional parameter name for `name => value`; zero Ident when positional
+	Value Node  // the argument expression
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *CallArg) Tag() NodeTag { return T_CallArg }
+
+// CallStmt represents `CALL <proc_name> ( [ <arg> [ , ... ] ] )`.
+//
+// Syntax (docs + legacy .g4):
+//
+//	CALL <procedure_name> ( [ <arg> , ... ] )
+//
+// Args carries the (possibly empty) argument list. Every element is a *CallArg
+// (a positional argument has a zero Name; a named argument records its name).
+// Args is typed []Node so the generated walker descends into each *CallArg —
+// and thence into the argument expression — via walkNodes.
+type CallStmt struct {
+	Name *ObjectName
+	Args []Node // each element is a *CallArg
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *CallStmt) Tag() NodeTag { return T_CallStmt }
+
+// ExecImmSource classifies the input form of an EXECUTE IMMEDIATE statement.
+//
+// Snowflake documents three forms (docs win over the legacy grammar, which adds
+// the equivalent DBL_DOLLAR alternative):
+//
+//	EXECUTE IMMEDIATE '<string_literal>'   -> ExecImmString
+//	EXECUTE IMMEDIATE $$<dollar_body>$$    -> ExecImmDollar
+//	EXECUTE IMMEDIATE <variable>           -> ExecImmVariable  (Snowflake Scripting local var, no $)
+//	EXECUTE IMMEDIATE $<session_variable>  -> ExecImmSessionVar ($-prefixed session variable)
+type ExecImmSource int
+
+const (
+	// ExecImmString is a single-quoted string-literal body.
+	ExecImmString ExecImmSource = iota
+	// ExecImmDollar is a $$...$$ dollar-quoted body.
+	ExecImmDollar
+	// ExecImmVariable is a bare Snowflake Scripting local variable (no $).
+	ExecImmVariable
+	// ExecImmSessionVar is a $-prefixed session variable.
+	ExecImmSessionVar
+)
+
+// String returns a human-readable name for the source kind.
+func (k ExecImmSource) String() string {
+	switch k {
+	case ExecImmString:
+		return "STRING"
+	case ExecImmDollar:
+		return "DOLLAR"
+	case ExecImmVariable:
+		return "VARIABLE"
+	case ExecImmSessionVar:
+		return "SESSION_VARIABLE"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// ExecuteImmediateStmt represents an EXECUTE IMMEDIATE statement.
+//
+// Syntax (docs):
+//
+//	EXECUTE IMMEDIATE { '<string_literal>' | $$<body>$$ | <variable> | $<session_variable> }
+//	  [ USING ( <bind_variable> [ , ... ] ) ]
+//
+// The body of the string / dollar forms is OPAQUE: it is captured VERBATIM
+// (delimiters included for the dollar form; quotes included for the string form)
+// and never parsed as SQL — its contents may be a Snowflake Scripting block, a
+// single SQL statement, or any string the engine evaluates at runtime. Source
+// records which form was used. For the string / dollar forms Body holds the
+// verbatim text; for the variable / session-variable forms Var holds the name
+// (for $<session_variable>, Var.Name excludes the leading $). Using holds the
+// optional bind-variable list (bare identifiers per the legacy grammar and the
+// official corpus).
+type ExecuteImmediateStmt struct {
+	Source ExecImmSource
+	Body   string  // verbatim body for ExecImmString / ExecImmDollar (incl. delimiters); "" otherwise
+	Var    Ident   // variable name for ExecImmVariable / ExecImmSessionVar; zero Ident otherwise
+	Using  []Ident // optional USING ( <bind_variable> , ... ) list
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ExecuteImmediateStmt) Tag() NodeTag { return T_ExecuteImmediateStmt }
+
+// ExecuteTaskStmt represents an EXECUTE TASK statement.
+//
+// Syntax (docs):
+//
+//	EXECUTE TASK <name> [ USING CONFIG = <configuration_string> ]
+//	EXECUTE TASK <name> RETRY LAST
+//
+// RetryLast records the RETRY LAST form. UsingConfig holds the verbatim
+// configuration string (including quotes) when `USING CONFIG = '<...>'` is
+// present, or "" when absent. The two trailing forms are mutually exclusive per
+// the docs.
+type ExecuteTaskStmt struct {
+	Name        *ObjectName
+	RetryLast   bool
+	UsingConfig string // verbatim USING CONFIG = value (incl. quotes); "" when absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *ExecuteTaskStmt) Tag() NodeTag { return T_ExecuteTaskStmt }
+
+// ExplainFormat enumerates the EXPLAIN output format selected by the optional
+// USING clause. ExplainDefault is the bare `EXPLAIN <statement>` form (no USING).
+type ExplainFormat int
+
+const (
+	// ExplainDefault is `EXPLAIN <statement>` with no USING clause.
+	ExplainDefault ExplainFormat = iota
+	// ExplainTabular is `EXPLAIN USING TABULAR <statement>`.
+	ExplainTabular
+	// ExplainJSON is `EXPLAIN USING JSON <statement>`.
+	ExplainJSON
+	// ExplainText is `EXPLAIN USING TEXT <statement>`.
+	ExplainText
+)
+
+// String returns the USING-clause keyword for the format (or "DEFAULT").
+func (f ExplainFormat) String() string {
+	switch f {
+	case ExplainDefault:
+		return "DEFAULT"
+	case ExplainTabular:
+		return "TABULAR"
+	case ExplainJSON:
+		return "JSON"
+	case ExplainText:
+		return "TEXT"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// ExplainStmt represents an EXPLAIN statement.
+//
+// Syntax (docs + legacy .g4):
+//
+//	EXPLAIN [ USING { TABULAR | JSON | TEXT } ] <statement>
+//
+// Format records the optional USING format (ExplainDefault when absent). Stmt is
+// the inner statement, parsed structurally via the top-level statement parser.
+type ExplainStmt struct {
+	Format ExplainFormat
+	Stmt   Node
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ExplainStmt) Tag() NodeTag { return T_ExplainStmt }
+
+// Compile-time assertions for CALL / EXECUTE / EXPLAIN nodes (T5.4).
+var (
+	_ Node = (*CallArg)(nil)
+	_ Node = (*CallStmt)(nil)
+	_ Node = (*ExecuteImmediateStmt)(nil)
+	_ Node = (*ExecuteTaskStmt)(nil)
+	_ Node = (*ExplainStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
+// Snowflake Scripting (T7.1)
+//
+// A Snowflake Scripting block is a structured procedural body that may appear
+// as a top-level statement (an anonymous block) or as the body of a CREATE
+// PROCEDURE / TASK. These nodes model the body STRUCTURALLY: the block, its
+// declarations, its statements, and the control-flow constructs (IF / CASE /
+// FOR / WHILE / REPEAT / LOOP / cursors / exceptions). Expressions and nested
+// SQL are parsed by the engine's existing parseExpr / parseStmt machinery.
+//
+// Grammar (Snowflake Scripting reference; docs are authoritative — the legacy
+// SnowflakeParser.g4 modeled only a thin subset: BEGIN..END, a DECLARE list of
+// `id data_type`, `id := expr`, and `RETURN expr`):
+//
+//	[ DECLARE <declaration>; [ <declaration>; ... ] ]
+//	BEGIN
+//	    <statement>; [ <statement>; ... ]
+//	[ EXCEPTION <handler> ... ]
+//	END [ <label> ] ;
+//
+// Walker note: the structural sub-nodes (ScriptDeclaration, ScriptIfBranch,
+// ScriptCaseWhen, ScriptExceptionHandler) ARE Nodes and are held in []Node
+// slices, so the generated walker descends into the nested bodies and queries
+// they carry. (This deviates from the CaseExpr/WhenClause precedent, whose WHEN
+// bodies are unreachable — a gap an analysis pass over scripting must not have.)
+// ---------------------------------------------------------------------------
+
+// ScriptDeclKind classifies a single entry in a DECLARE section.
+type ScriptDeclKind int
+
+const (
+	// ScriptDeclVar is `<name> [<type>] [ { DEFAULT | := } <expr> ]`.
+	ScriptDeclVar ScriptDeclKind = iota
+	// ScriptDeclCursor is `<name> CURSOR FOR <query>`.
+	ScriptDeclCursor
+	// ScriptDeclResultset is `<name> RESULTSET [ { DEFAULT | := } [ ASYNC ] ( <query> ) ]`.
+	ScriptDeclResultset
+	// ScriptDeclException is `<name> EXCEPTION [ ( <number>, '<message>' ) ]`.
+	ScriptDeclException
+)
+
+// ScriptDeclaration is one entry in a DECLARE section. The active fields depend
+// on Kind:
+//
+//	ScriptDeclVar       — Name, optional Type, optional Default (the := / DEFAULT value)
+//	ScriptDeclCursor    — Name, Query (the SELECT after CURSOR FOR)
+//	ScriptDeclResultset — Name, optional Query (the ( <query> ) after := / DEFAULT), Async
+//	ScriptDeclException — Name, optional ExcArgs (the ( number, 'message' ) expr list)
+type ScriptDeclaration struct {
+	Kind    ScriptDeclKind
+	Name    Ident
+	Type    *TypeName // ScriptDeclVar only; nil when the type is inferred from the value
+	Default Node      // ScriptDeclVar value (DEFAULT / := expr); nil if none
+	Query   Node      // ScriptDeclCursor query; ScriptDeclResultset query; nil otherwise
+	Async   bool      // ScriptDeclResultset: the ASYNC modifier was present
+	ExcArgs []Node    // ScriptDeclException ( number, 'message' ) args; nil if none
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ScriptDeclaration) Tag() NodeTag { return T_ScriptDeclaration }
+
+// ScriptBlockStmt represents a Snowflake Scripting block:
+//
+//	[ DECLARE <decls> ] BEGIN <stmts> [ EXCEPTION <handlers> ] END [ <label> ]
+//
+// Decls is nil when there is no DECLARE section (elements are
+// *ScriptDeclaration). Handlers is nil when there is no EXCEPTION section
+// (elements are *ScriptExceptionHandler). Label is the zero Ident when END
+// carries no label.
+type ScriptBlockStmt struct {
+	Decls    []Node // *ScriptDeclaration entries
+	Body     []Node // BEGIN ... statements
+	Handlers []Node // *ScriptExceptionHandler entries
+	Label    Ident  // optional label after END; zero Ident when absent
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *ScriptBlockStmt) Tag() NodeTag { return T_ScriptBlockStmt }
+
+// ScriptExceptionHandler is one WHEN clause in an EXCEPTION section:
+//
+//	WHEN <exc_name> [ OR <exc_name> ... ] THEN <stmts>
+//	WHEN OTHER THEN <stmts>
+//
+// Other is true for the `WHEN OTHER` catch-all (in which case Names is nil).
+type ScriptExceptionHandler struct {
+	Names []Ident // exception names (OR-separated); nil when Other is true
+	Other bool    // WHEN OTHER catch-all
+	Body  []Node  // statements after THEN
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptExceptionHandler) Tag() NodeTag { return T_ScriptExceptionHandler }
+
+// ScriptAssignStmt represents a scripting assignment `<var> := <expr>`. The
+// target may be a qualified name (e.g. a RESULTSET) but is captured as a plain
+// Ident path component; only single-identifier targets occur in practice.
+type ScriptAssignStmt struct {
+	Target Ident
+	Value  Node
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ScriptAssignStmt) Tag() NodeTag { return T_ScriptAssignStmt }
+
+// ScriptLetStmt represents a LET declaration-statement inside a block:
+//
+//	LET <var> [ <type> ] { DEFAULT | := } <expr>
+//	LET <cursor> CURSOR FOR <query>
+//	LET <resultset> RESULTSET { DEFAULT | := } [ ASYNC ] ( <query> )
+//
+// Kind reuses ScriptDeclKind (LET cannot declare an EXCEPTION; only Var /
+// Cursor / Resultset are valid). The active fields mirror ScriptDeclaration.
+type ScriptLetStmt struct {
+	Kind    ScriptDeclKind
+	Name    Ident
+	Type    *TypeName // Var only; nil when inferred
+	Default Node      // Var value; nil if none (a LET var always has a value, but kept Node-typed)
+	Query   Node      // Cursor / Resultset query
+	Async   bool      // Resultset ASYNC
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ScriptLetStmt) Tag() NodeTag { return T_ScriptLetStmt }
+
+// ScriptIfBranch is one IF / ELSEIF arm: a condition plus its THEN body.
+type ScriptIfBranch struct {
+	Cond Node
+	Body []Node
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *ScriptIfBranch) Tag() NodeTag { return T_ScriptIfBranch }
+
+// ScriptIfStmt represents an IF statement:
+//
+//	IF ( <cond> ) THEN <stmts>
+//	[ ELSEIF ( <cond> ) THEN <stmts> ]*
+//	[ ELSE <stmts> ]
+//	END IF
+//
+// Branches holds the leading IF arm followed by each ELSEIF arm (in order;
+// elements are *ScriptIfBranch). Else holds the optional ELSE body (nil when
+// absent).
+type ScriptIfStmt struct {
+	Branches []Node // *ScriptIfBranch entries
+	Else     []Node
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *ScriptIfStmt) Tag() NodeTag { return T_ScriptIfStmt }
+
+// ScriptCaseWhen is one WHEN arm of a CASE statement: a match/condition
+// expression plus its THEN body.
+type ScriptCaseWhen struct {
+	Match Node // simple form: value to compare; searched form: boolean condition
+	Body  []Node
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptCaseWhen) Tag() NodeTag { return T_ScriptCaseWhen }
+
+// ScriptCaseStmt represents a CASE statement (simple or searched):
+//
+//	CASE [ ( <operand> ) ] WHEN <expr> THEN <stmts> [ WHEN ... ]* [ ELSE <stmts> ] END [ CASE ]
+//
+// Operand is non-nil for the simple form (CASE <expr> WHEN ...) and nil for the
+// searched form (CASE WHEN <cond> ...). Whens elements are *ScriptCaseWhen.
+// Else holds the optional ELSE body.
+type ScriptCaseStmt struct {
+	Operand Node   // nil for searched form
+	Whens   []Node // *ScriptCaseWhen entries
+	Else    []Node
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ScriptCaseStmt) Tag() NodeTag { return T_ScriptCaseStmt }
+
+// ScriptForKind distinguishes the counter and cursor/resultset FOR forms.
+type ScriptForKind int
+
+const (
+	// ScriptForCounter is `FOR <var> IN [ REVERSE ] <start> TO <end> { DO | LOOP } ... END { FOR | LOOP }`.
+	ScriptForCounter ScriptForKind = iota
+	// ScriptForCursor is `FOR <row> IN { <cursor> | <resultset> } DO ... END FOR`.
+	ScriptForCursor
+)
+
+// ScriptForStmt represents a FOR loop in either form.
+//
+// Counter form fields: Var, Reverse, Start, End.
+// Cursor form fields:  Var, Source (the cursor / resultset name).
+type ScriptForStmt struct {
+	Kind    ScriptForKind
+	Var     Ident
+	Reverse bool  // counter form: the REVERSE modifier
+	Start   Node  // counter form: lower bound
+	End     Node  // counter form: upper bound
+	Source  Ident // cursor form: the cursor / resultset name
+	Body    []Node
+	Label   Ident // optional label after END; zero Ident when absent
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ScriptForStmt) Tag() NodeTag { return T_ScriptForStmt }
+
+// ScriptWhileStmt represents `WHILE ( <cond> ) { DO | LOOP } ... END { WHILE | LOOP } [ <label> ]`.
+type ScriptWhileStmt struct {
+	Cond  Node
+	Body  []Node
+	Label Ident // optional label after END; zero Ident when absent
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptWhileStmt) Tag() NodeTag { return T_ScriptWhileStmt }
+
+// ScriptRepeatStmt represents `REPEAT ... UNTIL ( <cond> ) END REPEAT [ <label> ]`.
+type ScriptRepeatStmt struct {
+	Body  []Node
+	Cond  Node  // the UNTIL condition
+	Label Ident // optional label after END; zero Ident when absent
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptRepeatStmt) Tag() NodeTag { return T_ScriptRepeatStmt }
+
+// ScriptLoopStmt represents `LOOP ... END LOOP [ <label> ]`.
+type ScriptLoopStmt struct {
+	Body  []Node
+	Label Ident // optional label after END; zero Ident when absent
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptLoopStmt) Tag() NodeTag { return T_ScriptLoopStmt }
+
+// ScriptBreakStmt represents `BREAK [ <label> ]` (alias EXIT). Label is the
+// zero Ident when no label follows.
+type ScriptBreakStmt struct {
+	Label Ident
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptBreakStmt) Tag() NodeTag { return T_ScriptBreakStmt }
+
+// ScriptContinueStmt represents `CONTINUE [ <label> ]` (alias ITERATE). Label
+// is the zero Ident when no label follows.
+type ScriptContinueStmt struct {
+	Label Ident
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptContinueStmt) Tag() NodeTag { return T_ScriptContinueStmt }
+
+// ScriptReturnStmt represents `RETURN [ <expr> ]`. Value is nil for a bare
+// RETURN.
+type ScriptReturnStmt struct {
+	Value Node
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptReturnStmt) Tag() NodeTag { return T_ScriptReturnStmt }
+
+// ScriptOpenStmt represents `OPEN <cursor> [ USING ( <bind> [ , ... ] ) ]`.
+type ScriptOpenStmt struct {
+	Cursor Ident
+	Using  []Node // optional USING ( ... ) bind expressions; nil when absent
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ScriptOpenStmt) Tag() NodeTag { return T_ScriptOpenStmt }
+
+// ScriptFetchStmt represents `FETCH <cursor> INTO <var> [ , ... ]`.
+type ScriptFetchStmt struct {
+	Cursor Ident
+	Into   []Ident // target variables
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ScriptFetchStmt) Tag() NodeTag { return T_ScriptFetchStmt }
+
+// ScriptCloseStmt represents `CLOSE <cursor>`.
+type ScriptCloseStmt struct {
+	Cursor Ident
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ScriptCloseStmt) Tag() NodeTag { return T_ScriptCloseStmt }
+
+// ScriptRaiseStmt represents `RAISE [ <exc_name> ]`. Name is the zero Ident for
+// a bare `RAISE` (re-raise the current exception inside a handler).
+type ScriptRaiseStmt struct {
+	Name Ident
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *ScriptRaiseStmt) Tag() NodeTag { return T_ScriptRaiseStmt }
+
+// Compile-time assertions for Snowflake Scripting nodes (T7.1).
+var (
+	_ Node = (*ScriptDeclaration)(nil)
+	_ Node = (*ScriptExceptionHandler)(nil)
+	_ Node = (*ScriptIfBranch)(nil)
+	_ Node = (*ScriptCaseWhen)(nil)
+	_ Node = (*ScriptBlockStmt)(nil)
+	_ Node = (*ScriptAssignStmt)(nil)
+	_ Node = (*ScriptLetStmt)(nil)
+	_ Node = (*ScriptIfStmt)(nil)
+	_ Node = (*ScriptCaseStmt)(nil)
+	_ Node = (*ScriptForStmt)(nil)
+	_ Node = (*ScriptWhileStmt)(nil)
+	_ Node = (*ScriptRepeatStmt)(nil)
+	_ Node = (*ScriptLoopStmt)(nil)
+	_ Node = (*ScriptBreakStmt)(nil)
+	_ Node = (*ScriptContinueStmt)(nil)
+	_ Node = (*ScriptReturnStmt)(nil)
+	_ Node = (*ScriptOpenStmt)(nil)
+	_ Node = (*ScriptFetchStmt)(nil)
+	_ Node = (*ScriptCloseStmt)(nil)
+	_ Node = (*ScriptRaiseStmt)(nil)
 )

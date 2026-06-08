@@ -46,7 +46,9 @@ const (
 //   - $$...$$ dollar strings
 //   - X'...' hex literals
 //   - Line comments (-- and //) and block comments (/* */ including nested)
-//   - Snowflake Scripting BEGIN..END blocks (including nested and DECLARE..BEGIN..END)
+//   - Snowflake Scripting BEGIN..END blocks (including nested and DECLARE..BEGIN..END),
+//     including bodies that contain control-flow closers END IF / END FOR / END WHILE /
+//     END LOOP / END REPEAT / END CASE (these do not prematurely close the block)
 //   - Inline procedure bodies (CREATE TASK/PROCEDURE/FUNCTION ... AS BEGIN ... END;)
 //
 // Split does NOT handle:
@@ -63,6 +65,20 @@ func Split(input string) []Segment {
 	stmtStart := 0
 	state := stateTop
 	depth := 0
+	// prevSig is the previous significant token type inside a block, used to
+	// disambiguate a loop FOR from a CURSOR FOR (the latter must not be counted
+	// as a construct opener). awaitBodyDepth records the block depth at which a
+	// FOR/WHILE header was opened and is still waiting for its body opener
+	// (DO / LOOP); it is -1 when no header is pending. Matching the body opener
+	// on depth (rather than a bare flag) keeps a construct nested INSIDE the
+	// loop header — e.g. a CASE expression in a WHILE condition — from clobbering
+	// the pending-body state, so the real body-opener LOOP is not mistaken for a
+	// standalone LOOP construct. afterEnd is set immediately after an END so the
+	// construct keyword of a closer suffix (END IF / END FOR / END WHILE /
+	// END LOOP / END REPEAT / END CASE) is not re-counted as an opener.
+	prevSig := 0
+	awaitBodyDepth := -1
+	afterEnd := false
 
 	// We need one-token lookahead after kwBEGIN to disambiguate TCL from
 	// scripting. Use a one-slot buffered lookahead.
@@ -117,6 +133,8 @@ func Split(input string) []Segment {
 				} else {
 					state = stateInBlock
 					depth = 1
+					prevSig = kwBEGIN
+					awaitBodyDepth = -1
 				}
 			case int(';'):
 				// tok.Loc.Start is the position of the `;`, tok.Loc.End is
@@ -131,21 +149,69 @@ func Split(input string) []Segment {
 			case kwBEGIN:
 				state = stateInBlock
 				depth = 1
+				prevSig = kwBEGIN
+				awaitBodyDepth = -1
 			}
 			// Semicolons and all other tokens are absorbed in stateInDeclare.
 
 		case stateInBlock:
-			switch tok.Type {
-			case kwBEGIN:
+			// Inside a scripting block, segment boundaries are suppressed: the
+			// whole block (and everything nested in it) is one segment. Track
+			// nesting by counting construct OPENERS against their closing END
+			// tokens. Every scripting construct — the BEGIN block itself, IF,
+			// CASE, FOR/WHILE/REPEAT/LOOP — is closed by exactly one END token
+			// (END, END IF, END FOR, END CASE, ...), so a balanced opener/END
+			// count returns to zero precisely at the block's terminating END,
+			// regardless of whether a CASE closes with bare `END` or `END CASE`.
+			//
+			// Two keyword overloads are excluded from the opener count:
+			//   - FOR in `CURSOR FOR <query>` (a declaration clause, not a loop).
+			//   - LOOP / DO acting as a FOR/WHILE body opener (not a standalone
+			//     LOOP construct).
+			switch {
+			case afterEnd && isEndCloserKeyword(tok.Type):
+				// Closer suffix of the just-seen END (END IF / END FOR / ...).
+				// Consume without counting it as an opener.
+				afterEnd = false
+			case tok.Type == kwBEGIN || tok.Type == kwIF || tok.Type == kwCASE ||
+				tok.Type == kwSCRIPT_REPEAT:
 				depth++
-			case kwEND:
+				afterEnd = false
+			case tok.Type == kwSCRIPT_WHILE:
+				depth++
+				awaitBodyDepth = depth // WHILE ( cond ) { DO | LOOP }
+				afterEnd = false
+			case tok.Type == kwFOR:
+				if prevSig != kwSCRIPT_CURSOR {
+					depth++
+					awaitBodyDepth = depth // FOR ... { DO | LOOP }
+				}
+				afterEnd = false
+			case tok.Type == kwSCRIPT_LOOP:
+				if awaitBodyDepth == depth {
+					// Body opener of the FOR/WHILE at this depth — not a construct.
+					awaitBodyDepth = -1
+				} else {
+					depth++ // standalone LOOP ... END LOOP
+				}
+				afterEnd = false
+			case tok.Type == kwDO:
+				if awaitBodyDepth == depth {
+					awaitBodyDepth = -1 // FOR/WHILE body opener
+				}
+				afterEnd = false
+			case tok.Type == kwEND:
 				if depth > 0 {
 					depth--
 					if depth == 0 {
 						state = stateTop
 					}
 				}
+				afterEnd = true
+			default:
+				afterEnd = false
 			}
+			prevSig = tok.Type
 			// Semicolons and all other tokens are absorbed in stateInBlock.
 		}
 	}
@@ -167,6 +233,19 @@ func Split(input string) []Segment {
 func isTCLBeginFollower(tok Token) bool {
 	switch tok.Type {
 	case int(';'), tokEOF, kwTRANSACTION, kwWORK, kwNAME:
+		return true
+	}
+	return false
+}
+
+// isEndCloserKeyword reports whether tokType is a construct keyword that can
+// immediately follow END to form a control-flow closer (END IF / END FOR /
+// END WHILE / END LOOP / END REPEAT / END CASE). When Split sees one of these
+// right after an END, it consumes it as a closer suffix rather than counting it
+// as a new construct opener.
+func isEndCloserKeyword(tokType int) bool {
+	switch tokType {
+	case kwIF, kwFOR, kwCASE, kwSCRIPT_WHILE, kwSCRIPT_LOOP, kwSCRIPT_REPEAT:
 		return true
 	}
 	return false

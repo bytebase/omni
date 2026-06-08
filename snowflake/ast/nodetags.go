@@ -28,6 +28,7 @@ const (
 	T_Literal
 	T_ColumnRef
 	T_StarExpr
+	T_DollarRef
 	T_BinaryExpr
 	T_UnaryExpr
 	T_ParenExpr
@@ -113,6 +114,29 @@ const (
 	T_CreateFileFormatStmt
 	T_AlterFileFormatStmt
 
+	// Integration-object DDL tags (T4.7)
+	T_ResourceMonitorTrigger
+	T_ConnectionReplica
+	T_CreateIntegrationStmt
+	T_AlterIntegrationStmt
+
+	// Replication & sharing DDL tags (T4.8)
+	T_GroupOption
+	T_CreateReplicationGroupStmt
+	T_AlterReplicationGroupStmt
+	T_CreateAccountStmt
+	T_AlterAccountStmt
+	T_CreateShareStmt
+	T_AlterShareStmt
+
+	// Tag / semantic-view / dataset DDL tags (T4.9)
+	T_CreateTagStmt
+	T_AlterTagStmt
+	T_SemanticViewSection
+	T_CreateSemanticViewStmt
+	T_AlterSemanticViewStmt
+	T_CreateDatasetStmt
+
 	// Data-pipeline DDL tags (T4.3)
 	T_CreatePipeStmt
 	T_AlterPipeStmt
@@ -141,6 +165,64 @@ const (
 	T_CreateEventTableStmt
 	T_CreateSequenceStmt
 	T_AlterSequenceStmt
+
+	// Access-control DDL tags (T4.6)
+	T_PolicyArg
+	T_CreateRoleStmt
+	T_CreateUserStmt
+	T_CreatePolicyStmt
+	T_AlterRoleStmt
+	T_AlterUserStmt
+	T_AlterPolicyStmt
+
+	// CALL / EXECUTE IMMEDIATE / EXECUTE TASK / EXPLAIN tags (T5.4)
+	T_CallArg
+	T_CallStmt
+	T_ExecuteImmediateStmt
+	T_ExecuteTaskStmt
+	T_ExplainStmt
+
+	// Table-attached query clause tags (T5.3)
+	T_PivotClause
+	T_PivotInClause
+	T_PivotValue
+	T_UnpivotClause
+	T_UnpivotColumn
+	T_MatchRecognizeClause
+	T_MatchMeasure
+	T_RowsPerMatch
+	T_AfterMatchSkip
+	T_MatchDefine
+	T_RowPattern
+	T_SampleClause
+	T_TimeTravelClause
+	T_ChangesClause
+
+	// Snowflake Scripting (T7.1) — statement nodes plus the structural
+	// sub-nodes (declarations, IF/CASE branches, exception handlers). The
+	// sub-nodes are Nodes (unlike the CaseExpr/WhenClause precedent) so the
+	// generated walker descends into their nested bodies and queries, which an
+	// analysis pass needs to reach.
+	T_ScriptDeclaration
+	T_ScriptExceptionHandler
+	T_ScriptIfBranch
+	T_ScriptCaseWhen
+	T_ScriptBlockStmt
+	T_ScriptAssignStmt
+	T_ScriptLetStmt
+	T_ScriptIfStmt
+	T_ScriptCaseStmt
+	T_ScriptForStmt
+	T_ScriptWhileStmt
+	T_ScriptRepeatStmt
+	T_ScriptLoopStmt
+	T_ScriptBreakStmt
+	T_ScriptContinueStmt
+	T_ScriptReturnStmt
+	T_ScriptOpenStmt
+	T_ScriptFetchStmt
+	T_ScriptCloseStmt
+	T_ScriptRaiseStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -160,6 +242,8 @@ func (t NodeTag) String() string {
 		return "ColumnRef"
 	case T_StarExpr:
 		return "StarExpr"
+	case T_DollarRef:
+		return "DollarRef"
 	case T_BinaryExpr:
 		return "BinaryExpr"
 	case T_UnaryExpr:
@@ -312,6 +396,28 @@ func (t NodeTag) String() string {
 		return "CreateAlertStmt"
 	case T_AlterAlertStmt:
 		return "AlterAlertStmt"
+	case T_ResourceMonitorTrigger:
+		return "ResourceMonitorTrigger"
+	case T_ConnectionReplica:
+		return "ConnectionReplica"
+	case T_CreateIntegrationStmt:
+		return "CreateIntegrationStmt"
+	case T_AlterIntegrationStmt:
+		return "AlterIntegrationStmt"
+	case T_GroupOption:
+		return "GroupOption"
+	case T_CreateReplicationGroupStmt:
+		return "CreateReplicationGroupStmt"
+	case T_AlterReplicationGroupStmt:
+		return "AlterReplicationGroupStmt"
+	case T_CreateAccountStmt:
+		return "CreateAccountStmt"
+	case T_AlterAccountStmt:
+		return "AlterAccountStmt"
+	case T_CreateShareStmt:
+		return "CreateShareStmt"
+	case T_AlterShareStmt:
+		return "AlterShareStmt"
 	case T_CreateRoutineStmt:
 		return "CreateRoutineStmt"
 	case T_AlterRoutineStmt:
@@ -338,6 +444,110 @@ func (t NodeTag) String() string {
 		return "CreateSequenceStmt"
 	case T_AlterSequenceStmt:
 		return "AlterSequenceStmt"
+	case T_PolicyArg:
+		return "PolicyArg"
+	case T_CreateRoleStmt:
+		return "CreateRoleStmt"
+	case T_CreateUserStmt:
+		return "CreateUserStmt"
+	case T_CreatePolicyStmt:
+		return "CreatePolicyStmt"
+	case T_AlterRoleStmt:
+		return "AlterRoleStmt"
+	case T_AlterUserStmt:
+		return "AlterUserStmt"
+	case T_AlterPolicyStmt:
+		return "AlterPolicyStmt"
+	case T_CreateTagStmt:
+		return "CreateTagStmt"
+	case T_AlterTagStmt:
+		return "AlterTagStmt"
+	case T_SemanticViewSection:
+		return "SemanticViewSection"
+	case T_CreateSemanticViewStmt:
+		return "CreateSemanticViewStmt"
+	case T_AlterSemanticViewStmt:
+		return "AlterSemanticViewStmt"
+	case T_CreateDatasetStmt:
+		return "CreateDatasetStmt"
+	case T_CallArg:
+		return "CallArg"
+	case T_CallStmt:
+		return "CallStmt"
+	case T_ExecuteImmediateStmt:
+		return "ExecuteImmediateStmt"
+	case T_ExecuteTaskStmt:
+		return "ExecuteTaskStmt"
+	case T_ExplainStmt:
+		return "ExplainStmt"
+	case T_PivotClause:
+		return "PivotClause"
+	case T_PivotInClause:
+		return "PivotInClause"
+	case T_PivotValue:
+		return "PivotValue"
+	case T_UnpivotClause:
+		return "UnpivotClause"
+	case T_UnpivotColumn:
+		return "UnpivotColumn"
+	case T_MatchRecognizeClause:
+		return "MatchRecognizeClause"
+	case T_MatchMeasure:
+		return "MatchMeasure"
+	case T_RowsPerMatch:
+		return "RowsPerMatch"
+	case T_AfterMatchSkip:
+		return "AfterMatchSkip"
+	case T_MatchDefine:
+		return "MatchDefine"
+	case T_RowPattern:
+		return "RowPattern"
+	case T_SampleClause:
+		return "SampleClause"
+	case T_TimeTravelClause:
+		return "TimeTravelClause"
+	case T_ChangesClause:
+		return "ChangesClause"
+	case T_ScriptDeclaration:
+		return "ScriptDeclaration"
+	case T_ScriptExceptionHandler:
+		return "ScriptExceptionHandler"
+	case T_ScriptIfBranch:
+		return "ScriptIfBranch"
+	case T_ScriptCaseWhen:
+		return "ScriptCaseWhen"
+	case T_ScriptBlockStmt:
+		return "ScriptBlockStmt"
+	case T_ScriptAssignStmt:
+		return "ScriptAssignStmt"
+	case T_ScriptLetStmt:
+		return "ScriptLetStmt"
+	case T_ScriptIfStmt:
+		return "ScriptIfStmt"
+	case T_ScriptCaseStmt:
+		return "ScriptCaseStmt"
+	case T_ScriptForStmt:
+		return "ScriptForStmt"
+	case T_ScriptWhileStmt:
+		return "ScriptWhileStmt"
+	case T_ScriptRepeatStmt:
+		return "ScriptRepeatStmt"
+	case T_ScriptLoopStmt:
+		return "ScriptLoopStmt"
+	case T_ScriptBreakStmt:
+		return "ScriptBreakStmt"
+	case T_ScriptContinueStmt:
+		return "ScriptContinueStmt"
+	case T_ScriptReturnStmt:
+		return "ScriptReturnStmt"
+	case T_ScriptOpenStmt:
+		return "ScriptOpenStmt"
+	case T_ScriptFetchStmt:
+		return "ScriptFetchStmt"
+	case T_ScriptCloseStmt:
+		return "ScriptCloseStmt"
+	case T_ScriptRaiseStmt:
+		return "ScriptRaiseStmt"
 	default:
 		return "Unknown"
 	}

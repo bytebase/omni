@@ -1,0 +1,76 @@
+{
+  "family_id": "create_table",
+  "writes": [
+    {
+      "catalog": "pg_class",
+      "operation": "insert",
+      "trigger": "AddNewRelationTuple",
+      "source_path": "../postgres/src/backend/catalog/heap.c:969",
+      "chain": [
+        "DefineRelation",
+        "heap_create_with_catalog",
+        "AddNewRelationTuple"
+      ]
+    },
+    {
+      "catalog": "pg_attribute",
+      "operation": "insert",
+      "trigger": "AddNewAttributeTuples",
+      "source_path": "../postgres/src/backend/catalog/heap.c:821",
+      "chain": [
+        "DefineRelation",
+        "heap_create_with_catalog",
+        "AddNewAttributeTuples"
+      ]
+    },
+    {
+      "catalog": "pg_type",
+      "operation": "insert",
+      "trigger": "AddNewRelationType",
+      "source_path": "../postgres/src/backend/catalog/heap.c:1027",
+      "chain": [
+        "DefineRelation",
+        "heap_create_with_catalog",
+        "AddNewRelationType"
+      ]
+    },
+    {
+      "catalog": "pg_depend",
+      "operation": "insert",
+      "trigger": "recordDependencyOn",
+      "source_path": "../postgres/src/backend/catalog/pg_depend.c:46",
+      "chain": [
+        "DefineRelation",
+        "AddNewRelationType",
+        "recordDependencyOn"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "stage": "trace_writes",
+      "path": "../postgres/src/backend/catalog/heap.c:969",
+      "symbol": "AddNewRelationTuple",
+      "reason": "catalog write touching pg_class"
+    },
+    {
+      "stage": "trace_writes",
+      "path": "../postgres/src/backend/catalog/heap.c:821",
+      "symbol": "AddNewAttributeTuples",
+      "reason": "catalog write touching pg_attribute"
+    },
+    {
+      "stage": "trace_writes",
+      "path": "../postgres/src/backend/catalog/heap.c:1027",
+      "symbol": "AddNewRelationType",
+      "reason": "catalog write touching pg_type"
+    },
+    {
+      "stage": "trace_writes",
+      "path": "../postgres/src/backend/catalog/pg_depend.c:46",
+      "symbol": "recordDependencyOn",
+      "reason": "catalog write touching pg_depend"
+    }
+  ],
+  "executor": "local"
+}

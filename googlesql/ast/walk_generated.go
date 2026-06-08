@@ -26,11 +26,42 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Options {
 			Walk(v, c)
 		}
+	case *AlterChangeStreamStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.ForTables {
+			Walk(v, c)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *AlterLocalityGroupStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.SetOptions {
+			Walk(v, c)
+		}
+	case *AlterSequenceStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.SetOptions {
+			Walk(v, c)
+		}
 	case *AlterStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
 		for _, c := range n.Actions {
+			Walk(v, c)
+		}
+	case *AnalyzeStmt:
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+		for _, c := range n.Targets {
 			Walk(v, c)
 		}
 	case *ArrayExpr:
@@ -40,6 +71,26 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *ArraySubqueryExpr:
 		Walk(v, n.Query)
+	case *AssertStmt:
+		Walk(v, n.Expr)
+		Walk(v, n.Description)
+	case *BQAlterStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.OnTable != nil {
+			Walk(v, n.OnTable)
+		}
+		for _, c := range n.SetOptions {
+			Walk(v, c)
+		}
+	case *BQDropStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.OnTable != nil {
+			Walk(v, n.OnTable)
+		}
 	case *BetweenExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.Low)
@@ -57,6 +108,15 @@ func walkChildren(v Visitor, node Node) {
 		if n.Depth != nil {
 			Walk(v, n.Depth)
 		}
+	case *CallArg:
+		if n.Path != nil {
+			Walk(v, n.Path)
+		}
+	case *CallStmt:
+		if n.Proc != nil {
+			Walk(v, n.Proc)
+		}
+		walkNodes(v, n.Args)
 	case *CaseExpr:
 		Walk(v, n.Operand)
 		for _, c := range n.Whens {
@@ -70,9 +130,26 @@ func walkChildren(v Visitor, node Node) {
 		}
 		Walk(v, n.Format)
 		Walk(v, n.TimeZone)
+	case *ChangeStreamTrackedTable:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *ClampedModifier:
 		Walk(v, n.Low)
 		Walk(v, n.High)
+	case *CloneDataSource:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		Walk(v, n.ForSystemTime)
+		Walk(v, n.Where)
+	case *CloneDataStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Sources {
+			Walk(v, c)
+		}
 	case *ColumnDef:
 		if n.Type != nil {
 			Walk(v, n.Type)
@@ -88,6 +165,16 @@ func walkChildren(v Visitor, node Node) {
 	case *CompareExpr:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
+	case *CreateChangeStreamStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.ForTables {
+			Walk(v, c)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *CreateDatabaseStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -95,6 +182,31 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Options {
 			Walk(v, c)
 		}
+	case *CreateEntityStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *CreateFunctionStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Params {
+			Walk(v, c)
+		}
+		if n.Returns != nil {
+			Walk(v, n.Returns)
+		}
+		for _, c := range n.ReturnColumns {
+			Walk(v, c)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+		Walk(v, n.Body)
+		Walk(v, n.AsQuery)
 	case *CreateIndexStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -114,10 +226,87 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Options {
 			Walk(v, c)
 		}
+	case *CreateLocalityGroupStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *CreateMaterializedViewStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Columns {
+			Walk(v, c)
+		}
+		walkNodes(v, n.PartitionBy)
+		walkNodes(v, n.ClusterBy)
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+		Walk(v, n.AsQuery)
+		if n.ReplicaOf != nil {
+			Walk(v, n.ReplicaOf)
+		}
+	case *CreateProcedureStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Params {
+			Walk(v, c)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *CreatePropertyGraphStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+		for _, c := range n.NodeTables {
+			Walk(v, c)
+		}
+		for _, c := range n.EdgeTables {
+			Walk(v, c)
+		}
+	case *CreateRoleStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *CreateRowAccessPolicyStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		for _, c := range n.Grantees {
+			Walk(v, c)
+		}
+		Walk(v, n.Filter)
 	case *CreateSchemaStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *CreateSequenceStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+	case *CreateSnapshotStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.CloneSource != nil {
+			Walk(v, n.CloneSource)
+		}
+		Walk(v, n.ForSystemTime)
+		Walk(v, n.Where)
 		for _, c := range n.Options {
 			Walk(v, c)
 		}
@@ -164,6 +353,44 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, c)
 		}
 		Walk(v, n.AsQuery)
+	case *DeleteStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		Walk(v, n.Where)
+		Walk(v, n.AssertRows)
+		if n.Returning != nil {
+			Walk(v, n.Returning)
+		}
+	case *DerivedProperty:
+		Walk(v, n.Expr)
+	case *DescribeStmt:
+		if n.Path != nil {
+			Walk(v, n.Path)
+		}
+		if n.FromPath != nil {
+			Walk(v, n.FromPath)
+		}
+	case *DropAllRowAccessPoliciesStmt:
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+	case *DropChangeStreamStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *DropLocalityGroupStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *DropRoleStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *DropSequenceStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *DropStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -171,8 +398,27 @@ func walkChildren(v Visitor, node Node) {
 		if n.OnTable != nil {
 			Walk(v, n.OnTable)
 		}
+	case *ElementTableDef:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Labels {
+			Walk(v, c)
+		}
 	case *ExistsExpr:
 		Walk(v, n.Query)
+	case *ExportDataStmt:
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+		Walk(v, n.Query)
+	case *ExportModelStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *ExtensionAccess:
 		Walk(v, n.Expr)
 		if n.Path != nil {
@@ -209,12 +455,115 @@ func walkChildren(v Visitor, node Node) {
 		if n.Over != nil {
 			Walk(v, n.Over)
 		}
+	case *FunctionParam:
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		Walk(v, n.Default)
+	case *GQLStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		walkNodes(v, n.Blocks)
 	case *GrantStmt:
 		for _, c := range n.Privileges {
 			Walk(v, c)
 		}
 		for _, c := range n.Grantees {
 			Walk(v, c)
+		}
+	case *GraphEdgePattern:
+		if n.Filler != nil {
+			Walk(v, n.Filler)
+		}
+	case *GraphFilterOp:
+		Walk(v, n.Expr)
+	case *GraphForOp:
+		Walk(v, n.Expr)
+	case *GraphLabelExpr:
+		if n.Operand != nil {
+			Walk(v, n.Operand)
+		}
+		if n.Left != nil {
+			Walk(v, n.Left)
+		}
+		if n.Right != nil {
+			Walk(v, n.Right)
+		}
+	case *GraphLetOp:
+		for _, c := range n.Vars {
+			Walk(v, c)
+		}
+	case *GraphLetVar:
+		Walk(v, n.Expr)
+	case *GraphLinearQuery:
+		walkNodes(v, n.Operators)
+		if n.Return != nil {
+			Walk(v, n.Return)
+		}
+	case *GraphMatchOp:
+		if n.Pattern != nil {
+			Walk(v, n.Pattern)
+		}
+	case *GraphNodePattern:
+		if n.Filler != nil {
+			Walk(v, n.Filler)
+		}
+	case *GraphOrderByOp:
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+	case *GraphPageOp:
+		Walk(v, n.Skip)
+		Walk(v, n.Limit)
+	case *GraphPathPattern:
+		walkNodes(v, n.Factors)
+		Walk(v, n.Where)
+	case *GraphPattern:
+		for _, c := range n.Paths {
+			Walk(v, c)
+		}
+		Walk(v, n.Where)
+	case *GraphPatternFiller:
+		if n.Label != nil {
+			Walk(v, n.Label)
+		}
+		if n.Properties != nil {
+			Walk(v, n.Properties)
+		}
+		Walk(v, n.Where)
+	case *GraphPropertyNameValue:
+		Walk(v, n.Expr)
+	case *GraphPropertySpec:
+		for _, c := range n.Properties {
+			Walk(v, c)
+		}
+	case *GraphReturnItem:
+		Walk(v, n.Expr)
+	case *GraphReturnOp:
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+		if n.GroupBy != nil {
+			Walk(v, n.GroupBy)
+		}
+		for _, c := range n.OrderBy {
+			Walk(v, c)
+		}
+		if n.Page != nil {
+			Walk(v, n.Page)
+		}
+	case *GraphSampleOp:
+		Walk(v, n.Size)
+		Walk(v, n.Repeatable)
+	case *GraphSetOp:
+		walkNodes(v, n.Ops)
+	case *GraphWithOp:
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+		if n.GroupBy != nil {
+			Walk(v, n.GroupBy)
 		}
 	case *GroupByClause:
 		for _, c := range n.Items {
@@ -233,6 +582,34 @@ func walkChildren(v Visitor, node Node) {
 	case *IndexAccess:
 		Walk(v, n.Expr)
 		Walk(v, n.Index)
+	case *InsertRow:
+		walkNodes(v, n.Values)
+	case *InsertStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		for _, c := range n.Rows {
+			Walk(v, c)
+		}
+		Walk(v, n.Query)
+		if n.TableClause != nil {
+			Walk(v, n.TableClause)
+		}
+		if n.OnConflict != nil {
+			Walk(v, n.OnConflict)
+		}
+		Walk(v, n.AssertRows)
+		if n.Returning != nil {
+			Walk(v, n.Returning)
+		}
+	case *InsertTable:
+		if n.Path != nil {
+			Walk(v, n.Path)
+		}
+		if n.Func != nil {
+			Walk(v, n.Func)
+		}
+		Walk(v, n.Where)
 	case *InterleaveClause:
 		if n.Parent != nil {
 			Walk(v, n.Parent)
@@ -251,6 +628,10 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Options {
 			Walk(v, c)
 		}
+	case *LabelAndProperties:
+		for _, c := range n.PropsList {
+			Walk(v, c)
+		}
 	case *LambdaExpr:
 		Walk(v, n.Body)
 	case *LikeExpr:
@@ -259,6 +640,49 @@ func walkChildren(v Visitor, node Node) {
 		walkNodes(v, n.QuantValues)
 		Walk(v, n.QuantUnnest)
 		Walk(v, n.QuantSubquery)
+	case *LoadDataStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Columns {
+			Walk(v, c)
+		}
+		for _, c := range n.Constraints {
+			Walk(v, c)
+		}
+		Walk(v, n.Partitions)
+		walkNodes(v, n.PartitionBy)
+		walkNodes(v, n.ClusterBy)
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
+		for _, c := range n.FromFiles {
+			Walk(v, c)
+		}
+		for _, c := range n.PartitionColumns {
+			Walk(v, c)
+		}
+	case *MergeAction:
+		if n.InsertRow != nil {
+			Walk(v, n.InsertRow)
+		}
+		for _, c := range n.SetItems {
+			Walk(v, c)
+		}
+	case *MergeStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		Walk(v, n.Source)
+		Walk(v, n.On)
+		for _, c := range n.Whens {
+			Walk(v, c)
+		}
+	case *MergeWhen:
+		Walk(v, n.And)
+		if n.Action != nil {
+			Walk(v, n.Action)
+		}
 	case *NamedArg:
 		Walk(v, n.Value)
 	case *NewConstructor:
@@ -271,12 +695,27 @@ func walkChildren(v Visitor, node Node) {
 		if n.Braced != nil {
 			Walk(v, n.Braced)
 		}
+	case *OnConflict:
+		for _, c := range n.SetItems {
+			Walk(v, c)
+		}
+		Walk(v, n.Where)
 	case *OptionsEntry:
 		Walk(v, n.Value)
 	case *OrderItem:
 		Walk(v, n.Expr)
 		Walk(v, n.Collate)
 	case *ParenExpr:
+		Walk(v, n.Expr)
+	case *PivotClause:
+		for _, c := range n.Aggregates {
+			Walk(v, c)
+		}
+		Walk(v, n.For)
+		for _, c := range n.Values {
+			Walk(v, c)
+		}
+	case *PivotExpr:
 		Walk(v, n.Expr)
 	case *QueryStmt:
 		if n.With != nil {
@@ -292,8 +731,19 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Lower)
 		Walk(v, n.Upper)
 		Walk(v, n.Max)
+	case *RenameStmt:
+		if n.From != nil {
+			Walk(v, n.From)
+		}
+		if n.To != nil {
+			Walk(v, n.To)
+		}
 	case *ReplaceFieldsExpr:
 		Walk(v, n.Expr)
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+	case *Returning:
 		for _, c := range n.Items {
 			Walk(v, c)
 		}
@@ -302,6 +752,25 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, c)
 		}
 		for _, c := range n.Grantees {
+			Walk(v, c)
+		}
+	case *SampleClause:
+		Walk(v, n.Size)
+		walkNodes(v, n.PartitionBy)
+		Walk(v, n.Repeatable)
+	case *SearchVectorIndexStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
+		for _, c := range n.Keys {
+			Walk(v, c)
+		}
+		walkNodes(v, n.Storing)
+		walkNodes(v, n.PartitionBy)
+		for _, c := range n.Options {
 			Walk(v, c)
 		}
 	case *SelectItem:
@@ -352,6 +821,10 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Value)
 	case *SubqueryExpr:
 		Walk(v, n.Query)
+	case *TableAndColumnInfo:
+		if n.Path != nil {
+			Walk(v, n.Path)
+		}
 	case *TableConstraint:
 		for _, c := range n.KeyParts {
 			Walk(v, c)
@@ -372,10 +845,67 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Func)
 		}
 		Walk(v, n.SystemTime)
+		if n.Pivot != nil {
+			Walk(v, n.Pivot)
+		}
+		if n.Unpivot != nil {
+			Walk(v, n.Unpivot)
+		}
+		if n.Sample != nil {
+			Walk(v, n.Sample)
+		}
+	case *TransactionStmt:
+		for _, c := range n.Modes {
+			Walk(v, c)
+		}
+	case *TruncateStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		Walk(v, n.Where)
 	case *UnaryExpr:
 		Walk(v, n.Expr)
 	case *UnnestExpr:
 		Walk(v, n.Array)
+		if n.Pivot != nil {
+			Walk(v, n.Pivot)
+		}
+		if n.Unpivot != nil {
+			Walk(v, n.Unpivot)
+		}
+		if n.Sample != nil {
+			Walk(v, n.Sample)
+		}
+	case *UnpivotClause:
+		for _, c := range n.ValueColumns {
+			Walk(v, c)
+		}
+		if n.NameColumn != nil {
+			Walk(v, n.NameColumn)
+		}
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+	case *UnpivotInItem:
+		for _, c := range n.Columns {
+			Walk(v, c)
+		}
+	case *UpdateItem:
+		Walk(v, n.Value)
+		Walk(v, n.Nested)
+	case *UpdateStmt:
+		if n.Target != nil {
+			Walk(v, n.Target)
+		}
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+		walkNodes(v, n.From)
+		Walk(v, n.Where)
+		Walk(v, n.AssertRows)
+		if n.Returning != nil {
+			Walk(v, n.Returning)
+		}
 	case *ViewColumn:
 		for _, c := range n.Options {
 			Walk(v, c)
@@ -387,6 +917,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Spec != nil {
 			Walk(v, n.Spec)
 		}
+	case *WindowFrame:
+		Walk(v, n.Start.Offset)
+		Walk(v, n.End.Offset)
 	case *WindowSpec:
 		walkNodes(v, n.PartitionBy)
 		for _, c := range n.OrderBy {

@@ -9,6 +9,16 @@ func walkChildren(v Visitor, node Node) {
 	case *AccessExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.Index)
+	case *AlterAccountStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.PolicyName != nil {
+			Walk(v, n.PolicyName)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
 	case *AlterAlertStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -41,6 +51,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+	case *AlterIntegrationStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *AlterMaterializedViewStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -52,6 +66,31 @@ func walkChildren(v Visitor, node Node) {
 	case *AlterPipeStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+	case *AlterPolicyStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
+		Walk(v, n.Body)
+	case *AlterReplicationGroupStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
+		if n.MoveTo != nil {
+			Walk(v, n.MoveTo)
+		}
+	case *AlterRoleStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
 		}
 	case *AlterRoutineStmt:
 		if n.Name != nil {
@@ -67,12 +106,23 @@ func walkChildren(v Visitor, node Node) {
 		if n.NewName != nil {
 			Walk(v, n.NewName)
 		}
+	case *AlterSemanticViewStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
 	case *AlterSequenceStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
 		if n.NewName != nil {
 			Walk(v, n.NewName)
+		}
+	case *AlterShareStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 	case *AlterStageStmt:
 		if n.Name != nil {
@@ -89,12 +139,26 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *AlterTagStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
 	case *AlterTaskStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
 		Walk(v, n.When)
 		Walk(v, n.Body)
+	case *AlterUserStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
 	case *AlterViewStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -117,6 +181,13 @@ func walkChildren(v Visitor, node Node) {
 	case *BinaryExpr:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
+	case *CallArg:
+		Walk(v, n.Value)
+	case *CallStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		walkNodes(v, n.Args)
 	case *CaseExpr:
 		Walk(v, n.Operand)
 		Walk(v, n.Else)
@@ -124,6 +195,13 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Expr)
 		if n.TypeName != nil {
 			Walk(v, n.TypeName)
+		}
+	case *ChangesClause:
+		if n.Start != nil {
+			Walk(v, n.Start)
+		}
+		if n.End != nil {
+			Walk(v, n.End)
 		}
 	case *CollateExpr:
 		Walk(v, n.Expr)
@@ -142,6 +220,10 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.Column != nil {
 			Walk(v, n.Column)
+		}
+	case *ConnectionReplica:
+		if n.Source != nil {
+			Walk(v, n.Source)
 		}
 	case *CopyIntoLocationStmt:
 		if n.Into != nil {
@@ -166,6 +248,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.Lit != nil {
 			Walk(v, n.Lit)
 		}
+	case *CreateAccountStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *CreateAlertStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -173,6 +259,10 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Condition)
 		Walk(v, n.Action)
 	case *CreateDatabaseStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *CreateDatasetStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
@@ -202,6 +292,13 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *CreateIntegrationStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Replica != nil {
+			Walk(v, n.Replica)
+		}
 	case *CreateMaterializedViewStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -213,6 +310,25 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Name)
 		}
 		Walk(v, n.Copy)
+	case *CreatePolicyStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Returns != nil {
+			Walk(v, n.Returns)
+		}
+		Walk(v, n.Body)
+	case *CreateReplicationGroupStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Replica != nil {
+			Walk(v, n.Replica)
+		}
+	case *CreateRoleStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *CreateRoutineStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -224,7 +340,15 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *CreateSemanticViewStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *CreateSequenceStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *CreateShareStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
@@ -251,6 +375,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.Like != nil {
 			Walk(v, n.Like)
 		}
+	case *CreateTagStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *CreateTaskStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -259,6 +387,10 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Body)
 		if n.Clone != nil {
 			Walk(v, n.Clone)
+		}
+	case *CreateUserStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 	case *CreateViewStmt:
 		if n.Name != nil {
@@ -278,6 +410,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.NameLiteral != nil {
 			Walk(v, n.NameLiteral)
 		}
+	case *DollarRef:
+		if n.Qualifier != nil {
+			Walk(v, n.Qualifier)
+		}
 	case *DropDatabaseStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -290,8 +426,14 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *ExecuteTaskStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *ExistsExpr:
 		Walk(v, n.Query)
+	case *ExplainStmt:
+		Walk(v, n.Stmt)
 	case *ExternalColumnDef:
 		if n.DataType != nil {
 			Walk(v, n.DataType)
@@ -329,6 +471,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *GroupOption:
+		if n.Lit != nil {
+			Walk(v, n.Lit)
+		}
 	case *IffExpr:
 		Walk(v, n.Cond)
 		Walk(v, n.Then)
@@ -365,6 +511,21 @@ func walkChildren(v Visitor, node Node) {
 		if n.Pattern != nil {
 			Walk(v, n.Pattern)
 		}
+	case *MatchDefine:
+		Walk(v, n.Cond)
+	case *MatchMeasure:
+		Walk(v, n.Expr)
+	case *MatchRecognizeClause:
+		walkNodes(v, n.PartitionBy)
+		if n.RowsPerMatch != nil {
+			Walk(v, n.RowsPerMatch)
+		}
+		if n.AfterMatch != nil {
+			Walk(v, n.AfterMatch)
+		}
+		if n.Pattern != nil {
+			Walk(v, n.Pattern)
+		}
 	case *MergeStmt:
 		if n.Target != nil {
 			Walk(v, n.Target)
@@ -373,6 +534,25 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.On)
 	case *ParenExpr:
 		Walk(v, n.Expr)
+	case *PivotClause:
+		if n.Agg != nil {
+			Walk(v, n.Agg)
+		}
+		if n.ForColumn != nil {
+			Walk(v, n.ForColumn)
+		}
+		if n.In != nil {
+			Walk(v, n.In)
+		}
+		Walk(v, n.DefaultVal)
+	case *PivotInClause:
+		Walk(v, n.Subquery)
+	case *PivotValue:
+		Walk(v, n.Value)
+	case *PolicyArg:
+		if n.DataType != nil {
+			Walk(v, n.DataType)
+		}
 	case *PutStmt:
 		if n.File != nil {
 			Walk(v, n.File)
@@ -397,12 +577,67 @@ func walkChildren(v Visitor, node Node) {
 		if n.Grantee != nil {
 			Walk(v, n.Grantee)
 		}
+	case *SampleClause:
+		Walk(v, n.Quantity)
+		Walk(v, n.Seed)
+	case *ScriptAssignStmt:
+		Walk(v, n.Value)
+	case *ScriptBlockStmt:
+		walkNodes(v, n.Decls)
+		walkNodes(v, n.Body)
+		walkNodes(v, n.Handlers)
+	case *ScriptCaseStmt:
+		Walk(v, n.Operand)
+		walkNodes(v, n.Whens)
+		walkNodes(v, n.Else)
+	case *ScriptCaseWhen:
+		Walk(v, n.Match)
+		walkNodes(v, n.Body)
+	case *ScriptDeclaration:
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		Walk(v, n.Default)
+		Walk(v, n.Query)
+		walkNodes(v, n.ExcArgs)
+	case *ScriptExceptionHandler:
+		walkNodes(v, n.Body)
+	case *ScriptForStmt:
+		Walk(v, n.Start)
+		Walk(v, n.End)
+		walkNodes(v, n.Body)
+	case *ScriptIfBranch:
+		Walk(v, n.Cond)
+		walkNodes(v, n.Body)
+	case *ScriptIfStmt:
+		walkNodes(v, n.Branches)
+		walkNodes(v, n.Else)
+	case *ScriptLetStmt:
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		Walk(v, n.Default)
+		Walk(v, n.Query)
+	case *ScriptLoopStmt:
+		walkNodes(v, n.Body)
+	case *ScriptOpenStmt:
+		walkNodes(v, n.Using)
+	case *ScriptRepeatStmt:
+		walkNodes(v, n.Body)
+		Walk(v, n.Cond)
+	case *ScriptReturnStmt:
+		Walk(v, n.Value)
+	case *ScriptWhileStmt:
+		Walk(v, n.Cond)
+		walkNodes(v, n.Body)
 	case *SelectStmt:
 		Walk(v, n.Top)
 		walkNodes(v, n.From)
 		Walk(v, n.Where)
 		Walk(v, n.Having)
 		Walk(v, n.Qualify)
+		Walk(v, n.StartWith)
+		walkNodes(v, n.ConnectBy)
 		Walk(v, n.Limit)
 		Walk(v, n.Offset)
 	case *SetOperationStmt:
@@ -433,6 +668,26 @@ func walkChildren(v Visitor, node Node) {
 		if n.FuncCall != nil {
 			Walk(v, n.FuncCall)
 		}
+		if n.TimeTravel != nil {
+			Walk(v, n.TimeTravel)
+		}
+		if n.Changes != nil {
+			Walk(v, n.Changes)
+		}
+		if n.MatchRecognize != nil {
+			Walk(v, n.MatchRecognize)
+		}
+		if n.Pivot != nil {
+			Walk(v, n.Pivot)
+		}
+		if n.Unpivot != nil {
+			Walk(v, n.Unpivot)
+		}
+		if n.Sample != nil {
+			Walk(v, n.Sample)
+		}
+	case *TimeTravelClause:
+		Walk(v, n.Expr)
 	case *TruncateStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)

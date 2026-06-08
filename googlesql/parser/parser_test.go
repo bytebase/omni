@@ -3,6 +3,8 @@ package parser
 import (
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/googlesql/ast"
 )
 
 // TestParse_EmptyInput verifies that parsing empty or whitespace/comment-only
@@ -46,28 +48,32 @@ func TestParse_UnknownStatement(t *testing.T) {
 
 // TestParse_KnownStatementUnsupported verifies a statement whose leading
 // keyword IS in the dispatch switch but whose body is still stubbed yields a
-// "not yet supported" diagnostic rather than an "unknown statement" one. INSERT
-// is used because the DML node has not landed yet; the query family (SELECT /
-// WITH) is now implemented by the parser-select node and no longer stubbed.
+// "not yet supported" diagnostic rather than an "unknown statement" one. IMPORT
+// is used because it is still stubbed (parser-scripting, pending); the query
+// family (SELECT / WITH, parser-select), the DML family (parser-dml), the
+// transaction / utility family (BEGIN/COMMIT/ROLLBACK/ASSERT/ANALYZE/DESCRIBE/
+// RENAME/CALL, parser-utility) and the data-movement family (EXPORT DATA / MODEL,
+// LOAD DATA, CLONE DATA, parser-dml-ext) are now implemented and no longer
+// stubbed.
 func TestParse_KnownStatementUnsupported(t *testing.T) {
-	_, errs := Parse("INSERT INTO t VALUES (1)")
+	_, errs := Parse("IMPORT MODULE foo.bar")
 	if len(errs) != 1 {
-		t.Fatalf("Parse(\"INSERT ...\"): got %d errors, want 1: %v", len(errs), errs)
+		t.Fatalf("Parse(\"IMPORT ...\"): got %d errors, want 1: %v", len(errs), errs)
 	}
 	if !strings.Contains(errs[0].Msg, "not yet supported") {
 		t.Errorf("error = %q, want 'not yet supported'", errs[0].Msg)
 	}
-	if !strings.HasPrefix(errs[0].Msg, "INSERT ") {
-		t.Errorf("error = %q, want it to name the INSERT statement", errs[0].Msg)
+	if !strings.HasPrefix(errs[0].Msg, "IMPORT ") {
+		t.Errorf("error = %q, want it to name the IMPORT statement", errs[0].Msg)
 	}
 }
 
 // TestParse_MultiStatementErrorsCollected verifies ParseBestEffort collects
 // errors from every segment, not just the first. The leading `SELECT 1` now
-// parses cleanly (parser-select), so only the two stubbed DML segments
-// contribute errors.
+// parses cleanly (parser-select) and the INSERT now parses cleanly
+// (parser-dml), so only the two still-stubbed IMPORT segments contribute errors.
 func TestParse_MultiStatementErrorsCollected(t *testing.T) {
-	res := ParseBestEffort("SELECT 1; INSERT INTO t VALUES (1); UPDATE t SET x=1")
+	res := ParseBestEffort("SELECT 1; INSERT INTO t VALUES (1); IMPORT MODULE a.b; IMPORT MODULE c.d")
 	if got := len(res.Errors); got != 2 {
 		t.Fatalf("ParseBestEffort: got %d errors, want 2: %v", got, res.Errors)
 	}
@@ -311,31 +317,39 @@ func TestParse_StatementLevelHintSkipped(t *testing.T) {
 	}
 }
 
-// TestParse_QueryStatementsParse documents that the parser-select node flips the
-// foundation's "all bodies stubbed" invariant for the query family: a valid
-// SELECT now parses to a real AST node, while a still-stubbed DML segment
-// (INSERT) yields its "not yet supported" diagnostic. (Pre-parser-select this
-// test asserted File.Stmts stayed empty for SELECT.)
+// TestParse_QueryStatementsParse documents that the parser-select, parser-dml,
+// and parser-utility nodes flip the foundation's "all bodies stubbed" invariant:
+// a valid SELECT, INSERT, and CALL all now parse to real AST nodes, while a
+// still-stubbed segment (IMPORT MODULE) yields its "not yet supported"
+// diagnostic. (Pre-parser-select this test asserted File.Stmts stayed empty for
+// SELECT.)
 func TestParse_QueryStatementsParse(t *testing.T) {
-	file, errs := Parse("SELECT 1; INSERT INTO t VALUES (1)")
-	if len(file.Stmts) != 1 {
-		t.Errorf("File.Stmts = %d, want 1 (the SELECT parses; INSERT is still stubbed)", len(file.Stmts))
+	file, errs := Parse("SELECT 1; INSERT INTO t VALUES (1); CALL p(); IMPORT MODULE a.b")
+	if len(file.Stmts) != 3 {
+		t.Errorf("File.Stmts = %d, want 3 (SELECT + INSERT + CALL parse; IMPORT is still stubbed)", len(file.Stmts))
 	}
 	if len(errs) != 1 {
-		t.Errorf("errors = %d, want 1 (the stubbed INSERT): %v", len(errs), errs)
+		t.Errorf("errors = %d, want 1 (the stubbed IMPORT): %v", len(errs), errs)
 	}
 }
 
 // TestParse_ProceduralBodyParsedAsOneSegment verifies the parse driver feeds a
-// procedural BEGIN/END body to a single parseSingle call (block-aware Split),
-// so a stored procedure yields exactly one "not yet supported" error, not one
-// per inner statement.
+// procedural BEGIN/END body to a single parseSingle call (block-aware Split): a
+// stored procedure whose body has an inner ';' must be ONE segment, not split at
+// the inner statement boundary. Now that the parser-ddl-bigquery node parses
+// CREATE PROCEDURE, the whole block parses to exactly ONE statement with no
+// errors — had Split cut at the inner ';', the trailing fragments
+// (`SELECT 2`, `END`) would have failed to parse, so a clean single-statement
+// parse is the proof the block stayed whole.
 func TestParse_ProceduralBodyParsedAsOneSegment(t *testing.T) {
 	res := ParseBestEffort("CREATE PROCEDURE p() BEGIN SELECT 1; SELECT 2; END")
-	if len(res.Errors) != 1 {
-		t.Fatalf("got %d errors, want 1 (block is one segment): %v", len(res.Errors), res.Errors)
+	if len(res.Errors) != 0 {
+		t.Fatalf("got %d errors, want 0 (block is one segment, CREATE PROCEDURE parses): %v", len(res.Errors), res.Errors)
 	}
-	if !strings.HasPrefix(res.Errors[0].Msg, "CREATE ") {
-		t.Errorf("error = %q, want it to dispatch on CREATE", res.Errors[0].Msg)
+	if len(res.File.Stmts) != 1 {
+		t.Fatalf("got %d statements, want 1 (the whole procedure)", len(res.File.Stmts))
+	}
+	if _, ok := res.File.Stmts[0].(*ast.CreateProcedureStmt); !ok {
+		t.Errorf("statement is %T, want *ast.CreateProcedureStmt", res.File.Stmts[0])
 	}
 }

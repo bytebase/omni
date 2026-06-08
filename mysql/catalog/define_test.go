@@ -154,6 +154,25 @@ func TestDefineView_HappyPath(t *testing.T) {
 	}
 }
 
+func TestDefineView_ParenthesizedSetOpColumns(t *testing.T) {
+	c := newCatalogWithDB(t, "mydb")
+	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE t (a INT)")); err != nil {
+		t.Fatal(err)
+	}
+	stmt := mustParseView(t, "CREATE VIEW v AS (SELECT a FROM t) UNION (SELECT a FROM t)")
+	if err := c.DefineView(stmt); err != nil {
+		t.Fatalf("DefineView: %v", err)
+	}
+	db := c.GetDatabase("mydb")
+	view := db.Views["v"]
+	if view == nil {
+		t.Fatal("view not registered")
+	}
+	if len(view.Columns) != 1 || view.Columns[0] != "a" {
+		t.Fatalf("view columns = %v, want [a]", view.Columns)
+	}
+}
+
 func TestDefineIndex_HappyPath(t *testing.T) {
 	c := newCatalogWithDB(t, "mydb")
 	if err := c.DefineTable(mustParseTable(t, "CREATE TABLE t (id INT, name VARCHAR(50))")); err != nil {

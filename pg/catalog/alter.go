@@ -332,6 +332,14 @@ func (c *Catalog) execAlterTableCmd(schema *Schema, rel *Relation, relName strin
 		if err != nil {
 			return err
 		}
+		// ALTER TABLE ... ADD COLUMN IF NOT EXISTS on an already-present column is a
+		// complete no-op: skip identity validation, the column add, and all of the
+		// default/generated/inline-constraint processing below.
+		if atc.Missing_ok {
+			if _, exists := rel.colByName[colDef.Name]; exists {
+				return nil
+			}
+		}
 		if colDef.Identity != 0 && recurse && !recursing && rel.RelKind != 'p' && len(c.findChildRelations(rel.OID)) > 0 {
 			return &Error{Code: CodeInvalidTableDefinition,
 				Message: "cannot recursively add identity column to table that has child tables"}

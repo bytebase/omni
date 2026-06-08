@@ -1,0 +1,35 @@
+{
+  "family": {
+    "id": "drop",
+    "slug": "drop",
+    "category": "ddl"
+  },
+  "scope": {
+    "statements": [
+      "DROP"
+    ],
+    "entry_ast_nodes": [
+      "DropStmt"
+    ],
+    "dispatch_roots": [
+      "ProcessUtility"
+    ]
+  },
+  "dispatcher": [],
+  "handlers": [],
+  "writes": [],
+  "reads": [],
+  "regress_files": [],
+  "scenarios": [],
+  "translation_targets": [],
+  "evidence": [],
+  "stage_status": {
+    "discover": "pending",
+    "map": "pending",
+    "trace_writes": "pending",
+    "trace_reads": "pending",
+    "map_tests": "pending",
+    "plan_translation": "pending",
+    "synthesize": "pending"
+  }
+}

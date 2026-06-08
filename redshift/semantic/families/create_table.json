@@ -1,0 +1,320 @@
+{
+  "family": {
+    "id": "create_table",
+    "slug": "create-table",
+    "category": "ddl"
+  },
+  "scope": {
+    "statements": [
+      "CREATE TABLE",
+      "CREATE TABLE AS",
+      "SELECT INTO"
+    ],
+    "entry_ast_nodes": [
+      "CreateStmt",
+      "CreateTableAsStmt"
+    ],
+    "dispatch_roots": [
+      "ProcessUtility",
+      "transformOptionalSelectInto"
+    ]
+  },
+  "dispatcher": [
+    {
+      "symbol": "ProcessUtility",
+      "path": "../postgres/src/backend/tcop/utility.c:499",
+      "kind": "dispatcher",
+      "source_path": "../postgres/src/backend/tcop/utility.c:499",
+      "chain": [
+        "ProcessUtility",
+        "transformCreateStmt",
+        "DefineRelation"
+      ]
+    },
+    {
+      "symbol": "transformCreateStmt",
+      "path": "../postgres/src/backend/parser/parse_utilcmd.c:163",
+      "kind": "transform",
+      "source_path": "../postgres/src/backend/parser/parse_utilcmd.c:163",
+      "chain": [
+        "transformCreateStmt",
+        "DefineRelation"
+      ]
+    }
+  ],
+  "handlers": [
+    {
+      "symbol": "DefineRelation",
+      "path": "../postgres/src/backend/commands/tablecmds.c:698",
+      "kind": "catalog_writer",
+      "source_path": "../postgres/src/backend/commands/tablecmds.c:698",
+      "chain": [
+        "DefineRelation",
+        "heap_create_with_catalog"
+      ]
+    }
+  ],
+  "writes": [
+    {
+      "catalog": "pg_class",
+      "operation": "insert",
+      "trigger": "AddNewRelationTuple",
+      "source_path": "../postgres/src/backend/catalog/heap.c:969",
+      "chain": [
+        "DefineRelation",
+        "heap_create_with_catalog",
+        "AddNewRelationTuple"
+      ]
+    },
+    {
+      "catalog": "pg_attribute",
+      "operation": "insert",
+      "trigger": "AddNewAttributeTuples",
+      "source_path": "../postgres/src/backend/catalog/heap.c:821",
+      "chain": [
+        "DefineRelation",
+        "heap_create_with_catalog",
+        "AddNewAttributeTuples"
+      ]
+    },
+    {
+      "catalog": "pg_type",
+      "operation": "insert",
+      "trigger": "AddNewRelationType",
+      "source_path": "../postgres/src/backend/catalog/heap.c:1027",
+      "chain": [
+        "DefineRelation",
+        "heap_create_with_catalog",
+        "AddNewRelationType"
+      ]
+    },
+    {
+      "catalog": "pg_depend",
+      "operation": "insert",
+      "trigger": "recordDependencyOn",
+      "source_path": "../postgres/src/backend/catalog/pg_depend.c:46",
+      "chain": [
+        "DefineRelation",
+        "AddNewRelationType",
+        "recordDependencyOn"
+      ]
+    }
+  ],
+  "reads": [
+    {
+      "catalog": "pg_namespace",
+      "lookup_key": "schema name",
+      "purpose": "resolve target schema",
+      "source_path": "../postgres/src/backend/catalog/namespace.c:3358",
+      "chain": [
+        "DefineRelation",
+        "LookupNamespaceNoError"
+      ]
+    },
+    {
+      "catalog": "pg_type",
+      "lookup_key": "type name",
+      "purpose": "resolve column data types",
+      "source_path": "../postgres/src/backend/parser/parse_type.c:291",
+      "chain": [
+        "transformColumnDefinition",
+        "typenameTypeId"
+      ]
+    },
+    {
+      "catalog": "pg_class",
+      "lookup_key": "relation name",
+      "purpose": "detect existing relations",
+      "source_path": "../postgres/src/backend/parser/parse_relation.c:370",
+      "chain": [
+        "transformCreateStmt",
+        "RangeVarGetRelid"
+      ]
+    },
+    {
+      "catalog": "pg_authid",
+      "lookup_key": "current user",
+      "purpose": "ownership and permission checks",
+      "source_path": "../postgres/src/backend/utils/misc/guc_funcs.c:43",
+      "chain": [
+        "ProcessUtility",
+        "GetUserId"
+      ]
+    }
+  ],
+  "regress_files": [
+    "create_table.sql",
+    "create_table_like.sql",
+    "select_into.sql"
+  ],
+  "scenarios": [
+    {
+      "id": "basic_heap_table",
+      "summary": "Basic heap table creation",
+      "manual_review": false,
+      "regress_files": [
+        "create_table.sql"
+      ]
+    },
+    {
+      "id": "table_as",
+      "summary": "CREATE TABLE AS / SELECT INTO path",
+      "manual_review": false,
+      "regress_files": [
+        "create_table_like.sql"
+      ]
+    },
+    {
+      "id": "partitioned_table",
+      "summary": "Partition-aware table creation",
+      "manual_review": false,
+      "regress_files": [
+        "select_into.sql"
+      ]
+    }
+  ],
+  "translation_targets": [
+    {
+      "symbol": "ProcessUtility",
+      "path": "../postgres/src/backend/tcop/utility.c:499",
+      "kind": "dispatcher"
+    },
+    {
+      "symbol": "transformCreateStmt",
+      "path": "../postgres/src/backend/parser/parse_utilcmd.c:163",
+      "kind": "transform"
+    },
+    {
+      "symbol": "DefineRelation",
+      "path": "../postgres/src/backend/commands/tablecmds.c:698",
+      "kind": "catalog_writer"
+    }
+  ],
+  "evidence": [
+    {
+      "stage": "discover",
+      "path": "../postgres/src/backend/parser/gram.y:297",
+      "symbol": "CreateStmt",
+      "reason": "top-level AST entry node from seed universe"
+    },
+    {
+      "stage": "discover",
+      "path": "../postgres/src/backend/parser/gram.y:4695",
+      "symbol": "CreateTableAsStmt",
+      "reason": "top-level AST entry node from seed universe"
+    },
+    {
+      "stage": "map",
+      "path": "../postgres/src/backend/tcop/utility.c:499",
+      "symbol": "ProcessUtility",
+      "reason": "dispatcher or primary handler for family"
+    },
+    {
+      "stage": "map",
+      "path": "../postgres/src/backend/parser/parse_utilcmd.c:163",
+      "symbol": "transformCreateStmt",
+      "reason": "dispatcher or primary handler for family"
+    },
+    {
+      "stage": "map",
+      "path": "../postgres/src/backend/commands/tablecmds.c:698",
+      "symbol": "DefineRelation",
+      "reason": "dispatcher or primary handler for family"
+    },
+    {
+      "stage": "trace_writes",
+      "path": "../postgres/src/backend/catalog/heap.c:969",
+      "symbol": "AddNewRelationTuple",
+      "reason": "catalog write touching pg_class"
+    },
+    {
+      "stage": "trace_writes",
+      "path": "../postgres/src/backend/catalog/heap.c:821",
+      "symbol": "AddNewAttributeTuples",
+      "reason": "catalog write touching pg_attribute"
+    },
+    {
+      "stage": "trace_writes",
+      "path": "../postgres/src/backend/catalog/heap.c:1027",
+      "symbol": "AddNewRelationType",
+      "reason": "catalog write touching pg_type"
+    },
+    {
+      "stage": "trace_writes",
+      "path": "../postgres/src/backend/catalog/pg_depend.c:46",
+      "symbol": "recordDependencyOn",
+      "reason": "catalog write touching pg_depend"
+    },
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/catalog/namespace.c:3358",
+      "symbol": "resolve target schema",
+      "reason": "semantic read from pg_namespace"
+    },
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/parser/parse_type.c:291",
+      "symbol": "resolve column data types",
+      "reason": "semantic read from pg_type"
+    },
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/parser/parse_relation.c:370",
+      "symbol": "detect existing relations",
+      "reason": "semantic read from pg_class"
+    },
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/utils/misc/guc_funcs.c:43",
+      "symbol": "pg_authid",
+      "reason": "semantic read from pg_authid"
+    },
+    {
+      "stage": "map_tests",
+      "path": "../postgres/src/test/regress/sql/create_table.sql",
+      "symbol": "create_table.sql",
+      "reason": "mapped regression coverage"
+    },
+    {
+      "stage": "map_tests",
+      "path": "../postgres/src/test/regress/sql/create_table_like.sql",
+      "symbol": "create_table_like.sql",
+      "reason": "mapped regression coverage"
+    },
+    {
+      "stage": "map_tests",
+      "path": "../postgres/src/test/regress/sql/select_into.sql",
+      "symbol": "select_into.sql",
+      "reason": "mapped regression coverage"
+    },
+    {
+      "stage": "plan_translation",
+      "path": "../postgres/src/backend/tcop/utility.c:499",
+      "symbol": "ProcessUtility",
+      "reason": "ordered PG translation target"
+    },
+    {
+      "stage": "plan_translation",
+      "path": "../postgres/src/backend/parser/parse_utilcmd.c:163",
+      "symbol": "transformCreateStmt",
+      "reason": "ordered PG translation target"
+    },
+    {
+      "stage": "plan_translation",
+      "path": "../postgres/src/backend/commands/tablecmds.c:698",
+      "symbol": "DefineRelation",
+      "reason": "ordered PG translation target"
+    }
+  ],
+  "stage_status": {
+    "discover": "done",
+    "map": "done",
+    "trace_writes": "done",
+    "trace_reads": "done",
+    "map_tests": "done",
+    "plan_translation": "done",
+    "synthesize": "done"
+  },
+  "status": "done",
+  "updated_at": "2026-03-17T07:07:52.728645+00:00"
+}

@@ -19,10 +19,11 @@ func makeAlterTableStmt(schema, name string, cmds ...*nodes.AlterTableCmd) *node
 	}
 }
 
-func makeATAddColumn(cd ColumnDef) *nodes.AlterTableCmd {
+func makeATAddColumn(cd ColumnDef, ifNotExists bool) *nodes.AlterTableCmd {
 	return &nodes.AlterTableCmd{
-		Subtype: int(nodes.AT_AddColumn),
-		Def:     makeColumnDefNode(cd),
+		Subtype:    int(nodes.AT_AddColumn),
+		Def:        makeColumnDefNode(cd),
+		Missing_ok: ifNotExists,
 	}
 }
 
@@ -115,7 +116,7 @@ func TestAlterTableAddColumn(t *testing.T) {
 	c.DefineRelation(makeCreateTableStmt("", "t", []ColumnDef{{Name: "id", Type: TypeName{Name: "int4", TypeMod: -1}}}, nil, false), 'r')
 
 	err := c.AlterTableStmt(makeAlterTableStmt("", "t",
-		makeATAddColumn(ColumnDef{Name: "name", Type: TypeName{Name: "text", TypeMod: -1}}),
+		makeATAddColumn(ColumnDef{Name: "name", Type: TypeName{Name: "text", TypeMod: -1}}, false),
 	))
 	if err != nil {
 		t.Fatal(err)
@@ -141,9 +142,76 @@ func TestAlterTableAddColumnDuplicate(t *testing.T) {
 	c.DefineRelation(makeCreateTableStmt("", "t", []ColumnDef{{Name: "id", Type: TypeName{Name: "int4", TypeMod: -1}}}, nil, false), 'r')
 
 	err := c.AlterTableStmt(makeAlterTableStmt("", "t",
-		makeATAddColumn(ColumnDef{Name: "id", Type: TypeName{Name: "text", TypeMod: -1}}),
+		makeATAddColumn(ColumnDef{Name: "id", Type: TypeName{Name: "text", TypeMod: -1}}, false),
 	))
 	assertErrorCode(t, err, CodeDuplicateColumn)
+}
+
+func TestAlterTableAddColumnIfNotExistsOnExisting(t *testing.T) {
+	c := New()
+	c.DefineRelation(makeCreateTableStmt("", "t", []ColumnDef{{Name: "id", Type: TypeName{Name: "int4", TypeMod: -1}}}, nil, false), 'r')
+
+	// ADD COLUMN IF NOT EXISTS on a column that already exists must be a no-op, not an error.
+	err := c.AlterTableStmt(makeAlterTableStmt("", "t",
+		makeATAddColumn(ColumnDef{Name: "id", Type: TypeName{Name: "text", TypeMod: -1}}, true),
+	))
+	if err != nil {
+		t.Fatalf("ADD COLUMN IF NOT EXISTS on existing column should be a no-op, got: %v", err)
+	}
+
+	r := c.GetRelation("", "t")
+	if len(r.Columns) != 1 {
+		t.Fatalf("columns: got %d, want 1 (no-op must not add a duplicate)", len(r.Columns))
+	}
+	if r.Columns[0].TypeOID != INT4OID {
+		t.Errorf("existing column type: got %d, want INT4OID (original column must be unchanged)", r.Columns[0].TypeOID)
+	}
+}
+
+func TestAlterTableAddColumnIfNotExistsOnNew(t *testing.T) {
+	c := New()
+	c.DefineRelation(makeCreateTableStmt("", "t", []ColumnDef{{Name: "id", Type: TypeName{Name: "int4", TypeMod: -1}}}, nil, false), 'r')
+
+	// ADD COLUMN IF NOT EXISTS on a column that does not exist still adds it.
+	err := c.AlterTableStmt(makeAlterTableStmt("", "t",
+		makeATAddColumn(ColumnDef{Name: "name", Type: TypeName{Name: "text", TypeMod: -1}}, true),
+	))
+	if err != nil {
+		t.Fatalf("ADD COLUMN IF NOT EXISTS on new column should add it, got: %v", err)
+	}
+
+	r := c.GetRelation("", "t")
+	if len(r.Columns) != 2 {
+		t.Fatalf("columns: got %d, want 2 (new column should be added)", len(r.Columns))
+	}
+	if r.Columns[1].Name != "name" || r.Columns[1].TypeOID != TEXTOID {
+		t.Errorf("added column: got (%q, %d), want (name, TEXTOID)", r.Columns[1].Name, r.Columns[1].TypeOID)
+	}
+}
+
+func TestAddColumnIfNotExistsExistingDoesNotCorruptLastColumn(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE TABLE t (id int, counter int)", nil); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+
+	// 'id' already exists, so ADD COLUMN IF NOT EXISTS is a no-op. The DEFAULT meant
+	// for the not-added column must not leak onto the table's last column ('counter').
+	results, err := c.Exec("ALTER TABLE t ADD COLUMN IF NOT EXISTS id int DEFAULT 99", nil)
+	if err != nil {
+		t.Fatalf("exec: %v", err)
+	}
+	if len(results) != 1 || results[0].Error != nil {
+		t.Fatalf("ADD COLUMN IF NOT EXISTS on existing column should be a no-op, got %+v", results)
+	}
+
+	r := c.GetRelation("", "t")
+	if r == nil || len(r.Columns) != 2 {
+		t.Fatalf("want 2 columns intact, got %+v", r)
+	}
+	if last := r.Columns[1]; last.Name != "counter" || last.HasDefault || last.Default != "" {
+		t.Errorf("no-op must not mutate last column: name=%q HasDefault=%v Default=%q", last.Name, last.HasDefault, last.Default)
+	}
 }
 
 func TestAlterTableDropColumn(t *testing.T) {
@@ -474,7 +542,7 @@ func TestAlterTablePassOrdering(t *testing.T) {
 	// Issue DROP COLUMN b and ADD COLUMN c in statement order.
 	// Pass ordering should execute DROP first (pass 0), then ADD (pass 2).
 	err := c.AlterTableStmt(makeAlterTableStmt("", "t",
-		makeATAddColumn(ColumnDef{Name: "c", Type: TypeName{Name: "int8", TypeMod: -1}}),
+		makeATAddColumn(ColumnDef{Name: "c", Type: TypeName{Name: "int8", TypeMod: -1}}, false),
 		makeATDropColumn("b", false, false),
 	))
 	if err != nil {

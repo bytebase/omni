@@ -1,0 +1,60 @@
+{
+  "family_id": "select",
+  "dispatcher": [
+    {
+      "symbol": "parse_analyze_fixedparams",
+      "path": "../postgres/src/backend/parser/analyze.c:104",
+      "kind": "dispatcher",
+      "source_path": "../postgres/src/backend/parser/analyze.c:104",
+      "chain": [
+        "parse_analyze_fixedparams",
+        "transformSelectStmt"
+      ]
+    },
+    {
+      "symbol": "transformSelectStmt",
+      "path": "../postgres/src/backend/parser/analyze.c:1337",
+      "kind": "analyzer",
+      "source_path": "../postgres/src/backend/parser/analyze.c:1337",
+      "chain": [
+        "transformSelectStmt",
+        "transformFromClause",
+        "transformTargetList"
+      ]
+    }
+  ],
+  "handlers": [
+    {
+      "symbol": "transformSelectStmt",
+      "path": "../postgres/src/backend/parser/analyze.c:1337",
+      "kind": "analyzer",
+      "source_path": "../postgres/src/backend/parser/analyze.c:1337",
+      "chain": [
+        "transformSelectStmt",
+        "transformFromClause",
+        "transformTargetList"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "stage": "map",
+      "path": "../postgres/src/backend/parser/analyze.c:104",
+      "symbol": "parse_analyze_fixedparams",
+      "reason": "dispatcher or primary handler for family"
+    },
+    {
+      "stage": "map",
+      "path": "../postgres/src/backend/parser/analyze.c:1337",
+      "symbol": "transformSelectStmt",
+      "reason": "dispatcher or primary handler for family"
+    },
+    {
+      "stage": "map",
+      "path": "../postgres/src/backend/parser/analyze.c:1337",
+      "symbol": "transformSelectStmt",
+      "reason": "dispatcher or primary handler for family"
+    }
+  ],
+  "executor": "local"
+}

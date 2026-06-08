@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pg/semantic/schema/index.schema.json",
+  "title": "PostgreSQL Semantic Global Index",
+  "type": "object",
+  "required": ["version", "source_root", "generated_at", "families"],
+  "properties": {
+    "version": {
+      "type": "integer"
+    },
+    "source_root": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "families": {
+      "type": "array"
+    }
+  },
+  "additionalProperties": true
+}

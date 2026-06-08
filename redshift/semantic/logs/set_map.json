@@ -1,0 +1,42 @@
+{
+  "family_id": "set",
+  "dispatcher": [
+    {
+      "symbol": "ProcessUtility",
+      "path": "../postgres/src/backend/tcop/utility.c:499",
+      "kind": "dispatcher",
+      "source_path": "../postgres/src/backend/tcop/utility.c:499",
+      "chain": [
+        "ProcessUtility",
+        "ExecSetVariableStmt"
+      ]
+    }
+  ],
+  "handlers": [
+    {
+      "symbol": "ExecSetVariableStmt",
+      "path": "../postgres/src/backend/utils/misc/guc_funcs.c:43",
+      "kind": "validator",
+      "source_path": "../postgres/src/backend/utils/misc/guc_funcs.c:43",
+      "chain": [
+        "ExecSetVariableStmt",
+        "AlterSetting"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "stage": "map",
+      "path": "../postgres/src/backend/tcop/utility.c:499",
+      "symbol": "ProcessUtility",
+      "reason": "dispatcher or primary handler for family"
+    },
+    {
+      "stage": "map",
+      "path": "../postgres/src/backend/utils/misc/guc_funcs.c:43",
+      "symbol": "ExecSetVariableStmt",
+      "reason": "dispatcher or primary handler for family"
+    }
+  ],
+  "executor": "local"
+}

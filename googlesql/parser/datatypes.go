@@ -429,16 +429,27 @@ func (p *Parser) parseTypeName() (*DataType, error) {
 	return dt, nil
 }
 
-// identifierText returns the source text of an identifier-or-keyword token: the
-// raw Str for a token identifier (the lexer already stripped backticks), or the
-// keyword spelling for a keyword-as-identifier (whose Str is empty).
+// identifierText returns the SOURCE text of an identifier-or-keyword token: the
+// raw Str for a token identifier (the lexer already stripped any backticks), and
+// likewise the raw Str for a keyword-as-identifier — preserving the source
+// casing the user wrote.
+//
+// Source casing matters because GoogleSQL identifiers are case-insensitive for
+// *resolution* but the parser preserves the spelling (folding is a downstream
+// metadata concern); collapsing a keyword-spelled name part to its canonical
+// upper-case keyword spelling would corrupt the name. Concretely, when a
+// non-reserved keyword stands in as a name part — `pkg.Type`, `x.value`,
+// `p.Key.Value` — the lexer emits the kw* token but still populates Token.Str
+// with the verbatim source text (lexer.go scanIdentOrKeyword: `Str: text`). So
+// every keyword-as-identifier carries its real spelling and we return it as-is;
+// returning TokenName(tok.Type) here would yield `pkg.TYPE` / `x.VALUE`.
 //
 // An empty `tokIdentifier` (the body of an empty backtick pair “) is rejected
 // as an "invalid empty identifier" — the lexer admits empty backticks without a
 // lex error, but the GoogleSQL grammar rejects them (oracle: `CAST(NULL AS “)`
-// → "Syntax error: Invalid empty identifier"). Keyword tokens legitimately
-// carry an empty Str, so the substitution is keyed on the token TYPE, not on
-// emptiness, to avoid turning an empty identifier into the literal "IDENTIFIER".
+// → "Syntax error: Invalid empty identifier"). The emptiness check stays keyed
+// on tokIdentifier so a (hypothetical) zero-width keyword token can still fall
+// back to its canonical spelling rather than being rejected as empty.
 func (p *Parser) identifierText(tok Token) (string, error) {
 	if tok.Type == tokIdentifier {
 		if tok.Str == "" {
@@ -446,8 +457,21 @@ func (p *Parser) identifierText(tok Token) (string, error) {
 		}
 		return tok.Str, nil
 	}
-	// A keyword-as-identifier: its Str is empty; use the keyword spelling.
-	return TokenName(tok.Type), nil
+	// A keyword-as-identifier: the lexer recorded the source spelling in Str
+	// (case preserved). Use it so casing survives; fall back to the canonical
+	// keyword name only in the defensive case of a missing Str (never produced
+	// by the current lexer for a scanned keyword).
+	if tok.Str != "" {
+		return tok.Str, nil
+	}
+	// Empty Str with a non-identifier token. For a keyword token use its
+	// canonical spelling. Any other token here means a caller fed a non-name
+	// token (an operator/literal) — fail closed rather than fabricate a name
+	// from TokenName (which would yield e.g. "." or "INTEGER").
+	if tok.Type >= keywordBase {
+		return TokenName(tok.Type), nil
+	}
+	return "", &ParseError{Loc: tok.Loc, Msg: "expected an identifier"}
 }
 
 // parseArrayType parses `ARRAY < type >` (caller confirmed the leading ARRAY).

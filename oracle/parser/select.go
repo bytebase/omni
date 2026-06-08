@@ -227,6 +227,21 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		}
 	}
 
+	if p.cur.Type == kwGROUP && (sel.GroupClause == nil || sel.GroupClause.Len() == 0) {
+		p.advance()
+		if p.cur.Type == kwBY {
+			p.advance()
+		}
+		var parseErr951 error
+		sel.GroupClause, parseErr951 = p.parseGroupByList()
+		if parseErr951 != nil {
+			return nil, parseErr951
+		}
+		if sel.GroupClause.Len() == 0 {
+			return sel, p.syntaxErrorAtCur()
+		}
+	}
+
 	if p.cur.Type == kwMODEL {
 		var parseErr951 error
 		sel.ModelClause, parseErr951 = p.parseModelClause()
@@ -441,10 +456,12 @@ func (p *Parser) isAliasCandidate() bool {
 		kwJOIN, kwWHEN, kwTHEN, kwELSE, kwEND, kwAND, kwOR, kwNOT,
 		kwIS, kwIN, kwBETWEEN, kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4,
 		kwINTO, kwVALUES, kwSET, kwRETURNING, kwPIVOT, kwUNPIVOT,
-		kwMODEL, kwWITH, kwKEEP, kwOVER:
+		kwMODEL, kwWITH, kwKEEP, kwOVER, kwUSING:
 		return false
 	}
-	return false
+	return p.cur.Type >= 2000 &&
+		!isOracleSQLReservedKeyword(p.cur) &&
+		!isOracleClauseStarterKeyword(p.cur.Type)
 }
 
 // parseExprList parses a comma-separated list of expressions.
@@ -670,7 +687,11 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 
 	// Subquery: ( SELECT ... )
 	if p.cur.Type == '(' {
-		return p.parseSubqueryRef(start)
+		next := p.peekNext()
+		if next.Type == kwSELECT || next.Type == kwWITH {
+			return p.parseSubqueryRef(start)
+		}
+		return p.parseParenthesizedTableRef(start)
 	}
 
 	// MATCH_RECOGNIZE as standalone (rare, usually post-table)
@@ -791,7 +812,20 @@ func (p *Parser) isTableAliasCandidate() bool {
 		}
 		return true
 	}
-	return false
+	switch p.cur.Type {
+	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwUNION, kwINTERSECT,
+		kwMINUS, kwFOR, kwCONNECT, kwSTART, kwFETCH, kwOFFSET, kwON,
+		kwLEFT, kwRIGHT, kwINNER, kwOUTER, kwCROSS, kwFULL, kwNATURAL,
+		kwJOIN, kwWHEN, kwTHEN, kwELSE, kwEND, kwAND, kwOR, kwNOT,
+		kwIS, kwIN, kwBETWEEN, kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4,
+		kwINTO, kwVALUES, kwSET, kwRETURNING, kwPIVOT, kwUNPIVOT,
+		kwMODEL, kwWITH, kwKEEP, kwOVER, kwUSING,
+		kwPARTITION, kwSUBPARTITION, kwSAMPLE, kwVERSIONS:
+		return false
+	}
+	return p.cur.Type >= 2000 &&
+		!isOracleSQLReservedKeyword(p.cur) &&
+		!isOracleClauseStarterKeyword(p.cur.Type)
 }
 
 // parseSubqueryRef parses a subquery in FROM: ( SELECT ... ) alias.
@@ -830,6 +864,56 @@ func (p *Parser) parseSubqueryRef(start int) (nodes.TableExpr, error) {
 
 	ref.Loc.End = p.prev.End
 	return ref, nil
+}
+
+func (p *Parser) parseParenthesizedTableRef(start int) (nodes.TableExpr, error) {
+	p.advance() // consume '('
+
+	tref, err := p.parseTableRef()
+	if err != nil {
+		return nil, err
+	}
+	if tref == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	tref, err = p.parseJoinContinuation(tref)
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+
+	if aliasable, ok := tref.(*nodes.TableRef); ok {
+		if p.cur.Type == kwAS {
+			p.advance()
+			alias, err := p.parseAlias()
+			if err != nil {
+				return nil, err
+			}
+			aliasable.Alias = alias
+		} else if p.isTableAliasCandidate() {
+			alias, err := p.parseAlias()
+			if err != nil {
+				return nil, err
+			}
+			aliasable.Alias = alias
+		}
+	}
+
+	switch n := tref.(type) {
+	case *nodes.JoinClause:
+		n.Loc.Start = start
+		n.Loc.End = p.prev.End
+	case *nodes.TableRef:
+		n.Loc.Start = start
+		n.Loc.End = p.prev.End
+	case *nodes.SubqueryRef:
+		n.Loc.Start = start
+		n.Loc.End = p.prev.End
+	}
+	return tref, nil
 }
 
 // parseInlineExternalTable parses Oracle's inline external table source.
@@ -1268,16 +1352,19 @@ func (p *Parser) parseJsonTableRef(start int) (nodes.TableExpr, error) {
 
 	if p.cur.Type == ',' {
 		p.advance()
-	}
-	var parseErr996 error
+		var parseErr996 error
 
-	// Path expression (string literal)
-	ref.Path, parseErr996 = p.parseExpr()
-	if parseErr996 !=
-
-		// COLUMNS ( column_def [, ...] )
-		nil {
-		return nil, parseErr996
+		// Path expression (string literal)
+		ref.Path, parseErr996 = p.parseExpr()
+		if parseErr996 != nil {
+			return nil, parseErr996
+		}
+	} else if p.cur.Type != kwCOLUMNS {
+		var parseErr996 error
+		ref.Path, parseErr996 = p.parseExpr()
+		if parseErr996 != nil {
+			return nil, parseErr996
+		}
 	}
 
 	if p.cur.Type == kwCOLUMNS {
@@ -1410,6 +1497,10 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 		return nil, parseErr1004
 	}
 
+	if parseErr1004 = p.parseJsonTableValueColumnModifiers(); parseErr1004 != nil {
+		return nil, parseErr1004
+	}
+
 	if p.cur.Type == kwEXISTS {
 		col.Exists = true
 		p.advance()
@@ -1427,6 +1518,40 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 
 	col.Loc.End = p.prev.End
 	return col, nil
+}
+
+func (p *Parser) parseJsonTableValueColumnModifiers() error {
+	if p.cur.Type == kwFORMAT {
+		p.advance()
+		if p.cur.Type == kwJSON {
+			p.advance()
+		} else {
+			return p.syntaxErrorAtCur()
+		}
+	}
+
+	switch {
+	case p.cur.Type == kwWITH:
+		p.advance()
+		if p.isIdentLikeStr("CONDITIONAL") || p.isIdentLikeStr("UNCONDITIONAL") {
+			p.advance()
+		}
+		if p.isIdentLikeStr("ARRAY") {
+			p.advance()
+		}
+		if p.isIdentLikeStr("WRAPPER") {
+			p.advance()
+		}
+	case p.isIdentLikeStr("WITHOUT"):
+		p.advance()
+		if p.isIdentLikeStr("ARRAY") {
+			p.advance()
+		}
+		if p.isIdentLikeStr("WRAPPER") {
+			p.advance()
+		}
+	}
+	return nil
 }
 
 // parseJoinContinuation parses any JOIN clauses that follow a table reference.

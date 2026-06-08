@@ -16,6 +16,8 @@ func (w *writer) writeCreateTableStmt(n *ast.CreateTableStmt) error {
 	w.buf.WriteString("CREATE")
 	if n.OrReplace {
 		w.buf.WriteString(" OR REPLACE")
+	} else if n.OrAlter {
+		w.buf.WriteString(" OR ALTER")
 	}
 	if n.Transient {
 		w.buf.WriteString(" TRANSIENT")
@@ -353,6 +355,8 @@ func (w *writer) writeCreateDatabaseStmt(n *ast.CreateDatabaseStmt) error {
 	w.buf.WriteString("CREATE")
 	if n.OrReplace {
 		w.buf.WriteString(" OR REPLACE")
+	} else if n.OrAlter {
+		w.buf.WriteString(" OR ALTER")
 	}
 	if n.Transient {
 		w.buf.WriteString(" TRANSIENT")
@@ -454,6 +458,8 @@ func (w *writer) writeCreateSchemaStmt(n *ast.CreateSchemaStmt) error {
 	w.buf.WriteString("CREATE")
 	if n.OrReplace {
 		w.buf.WriteString(" OR REPLACE")
+	} else if n.OrAlter {
+		w.buf.WriteString(" OR ALTER")
 	}
 	if n.Transient {
 		w.buf.WriteString(" TRANSIENT")
@@ -578,6 +584,8 @@ func (w *writer) writeCreateViewStmt(n *ast.CreateViewStmt) error {
 	w.buf.WriteString("CREATE")
 	if n.OrReplace {
 		w.buf.WriteString(" OR REPLACE")
+	} else if n.OrAlter {
+		w.buf.WriteString(" OR ALTER")
 	}
 	if n.Secure {
 		w.buf.WriteString(" SECURE")
@@ -763,6 +771,8 @@ func (w *writer) writeCreateMaterializedViewStmt(n *ast.CreateMaterializedViewSt
 	w.buf.WriteString("CREATE")
 	if n.OrReplace {
 		w.buf.WriteString(" OR REPLACE")
+	} else if n.OrAlter {
+		w.buf.WriteString(" OR ALTER")
 	}
 	if n.Secure {
 		w.buf.WriteString(" SECURE")

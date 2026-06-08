@@ -219,26 +219,16 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	}
 
 	// Optional `WITH <name> [OPTIONS(…)]` differential-privacy / aggregation-
-	// threshold clause (opt_select_with). This is BEFORE ALL/DISTINCT.
-	// Disambiguate from a column named via WITH(...) inline expression: the
-	// select-with clause is `WITH <identifier>` (NOT `WITH (`).
-	if p.cur.Type == kwWITH && p.peekNext().Type != int('(') {
-		p.advance() // WITH
-		nameTok, err := p.expectIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		name, err := p.identifierText(nameTok)
+	// threshold clause (opt_select_with), BEFORE ALL/DISTINCT. Parsed by the
+	// parser-query-clauses node (differential_privacy.go); disambiguated from a
+	// column named via an inline WITH(...) expression by the `WITH <identifier>`
+	// (NOT `WITH (`) shape.
+	if p.atSelectWith() {
+		name, err := p.parseSelectWith()
 		if err != nil {
 			return nil, err
 		}
 		stmt.SelectWith = name
-		if p.cur.Type == kwOPTIONS {
-			p.advance()
-			if err := p.skipOptionsList(); err != nil {
-				return nil, err
-			}
-		}
 	}
 
 	// ALL | DISTINCT set quantifier.

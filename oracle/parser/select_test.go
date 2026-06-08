@@ -78,6 +78,26 @@ func TestParseSelectWhere(t *testing.T) {
 	}
 }
 
+func TestParseSelectWhereRowValueNotInSubquery(t *testing.T) {
+	result := ParseAndCheck(t, "SELECT * FROM t WHERE (a, b, typ) NOT IN (SELECT x, y, typ FROM u)")
+	raw := result.Items[0].(*ast.RawStmt)
+	sel := raw.Stmt.(*ast.SelectStmt)
+	in, ok := sel.WhereClause.(*ast.InExpr)
+	if !ok {
+		t.Fatalf("expected InExpr, got %T", sel.WhereClause)
+	}
+	if !in.Not {
+		t.Fatal("expected NOT IN")
+	}
+	tuple, ok := in.Expr.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected row-value tuple, got %T", in.Expr)
+	}
+	if tuple.Args.Len() != 3 {
+		t.Fatalf("expected 3 tuple args, got %d", tuple.Args.Len())
+	}
+}
+
 // TestParseSelectOrderBy tests SELECT with ORDER BY.
 func TestParseSelectOrderBy(t *testing.T) {
 	result := ParseAndCheck(t, "SELECT * FROM employees ORDER BY salary DESC, name ASC")
@@ -105,6 +125,18 @@ func TestParseSelectGroupBy(t *testing.T) {
 	}
 }
 
+func TestParseSelectHavingBeforeGroupBy(t *testing.T) {
+	result := ParseAndCheck(t, "SELECT department_id, COUNT(*) FROM employees HAVING COUNT(*) > 5 GROUP BY department_id")
+	raw := result.Items[0].(*ast.RawStmt)
+	sel := raw.Stmt.(*ast.SelectStmt)
+	if sel.HavingClause == nil {
+		t.Fatal("expected non-nil HavingClause")
+	}
+	if sel.GroupClause.Len() != 1 {
+		t.Fatalf("expected 1 GROUP BY item, got %d", sel.GroupClause.Len())
+	}
+}
+
 // TestParseSelectJoin tests SELECT with JOIN.
 func TestParseSelectJoin(t *testing.T) {
 	result := ParseAndCheck(t, "SELECT e.name, d.name FROM employees e INNER JOIN departments d ON e.dept_id = d.id")
@@ -119,6 +151,56 @@ func TestParseSelectJoin(t *testing.T) {
 	}
 	if jc.Type != ast.JOIN_INNER {
 		t.Errorf("expected JOIN_INNER, got %d", jc.Type)
+	}
+}
+
+func TestParseSelectParenthesizedJoin(t *testing.T) {
+	result := ParseAndCheck(t, "SELECT o.id FROM (orders o INNER JOIN customers c ON o.customer_id = c.id)")
+	raw := result.Items[0].(*ast.RawStmt)
+	sel := raw.Stmt.(*ast.SelectStmt)
+	if sel.FromClause.Len() != 1 {
+		t.Fatalf("expected 1 FROM item, got %d", sel.FromClause.Len())
+	}
+	if _, ok := sel.FromClause.Items[0].(*ast.JoinClause); !ok {
+		t.Fatalf("expected JoinClause, got %T", sel.FromClause.Items[0])
+	}
+}
+
+func TestParseJsonTableColumnFormatJson(t *testing.T) {
+	result := ParseAndCheck(t, "SELECT jt.payload FROM src s, JSON_TABLE(s.doc, '$' COLUMNS (payload VARCHAR2(4000) FORMAT JSON WITHOUT WRAPPER PATH '$.payload')) jt")
+	raw := result.Items[0].(*ast.RawStmt)
+	sel := raw.Stmt.(*ast.SelectStmt)
+	if sel.FromClause.Len() != 2 {
+		t.Fatalf("expected 2 FROM items, got %d", sel.FromClause.Len())
+	}
+	jt := sel.FromClause.Items[1].(*ast.JsonTableRef)
+	if jt.Alias == nil || jt.Alias.Name != "JT" {
+		t.Fatalf("expected JSON_TABLE alias JT, got %#v", jt.Alias)
+	}
+	if jt.Columns == nil || jt.Columns.Len() != 1 {
+		t.Fatalf("expected 1 JSON_TABLE column, got %#v", jt.Columns)
+	}
+	col := jt.Columns.Items[0].(*ast.JsonTableColumn)
+	if col.Name != "PAYLOAD" {
+		t.Fatalf("expected PAYLOAD column, got %q", col.Name)
+	}
+}
+
+func TestParseJsonTableSimplifiedPathColumns(t *testing.T) {
+	result := ParseAndCheck(t, "SELECT jt.id FROM src s CROSS JOIN JSON_TABLE(s.doc.rows[*] COLUMNS (id NUMBER PATH id)) jt")
+	raw := result.Items[0].(*ast.RawStmt)
+	sel := raw.Stmt.(*ast.SelectStmt)
+	if sel.FromClause.Len() != 1 {
+		t.Fatalf("expected 1 FROM item, got %d", sel.FromClause.Len())
+	}
+	join := sel.FromClause.Items[0].(*ast.JoinClause)
+	jt := join.Right.(*ast.JsonTableRef)
+	if jt.Columns == nil || jt.Columns.Len() != 1 {
+		t.Fatalf("expected 1 JSON_TABLE column, got %#v", jt.Columns)
+	}
+	col := jt.Columns.Items[0].(*ast.JsonTableColumn)
+	if col.Name != "ID" {
+		t.Fatalf("expected ID column, got %q", col.Name)
 	}
 }
 

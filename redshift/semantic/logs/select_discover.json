@@ -1,0 +1,30 @@
+{
+  "family_id": "select",
+  "scenarios": [
+    {
+      "id": "simple_select",
+      "summary": "Plain SELECT query analysis",
+      "manual_review": false
+    },
+    {
+      "id": "cte_select",
+      "summary": "WITH and CTE resolution",
+      "manual_review": false
+    },
+    {
+      "id": "setop_select",
+      "summary": "UNION/INTERSECT/EXCEPT analysis",
+      "manual_review": false
+    }
+  ],
+  "evidence": [
+    {
+      "stage": "discover",
+      "path": "../postgres/src/backend/parser/gram.y:188",
+      "symbol": "SelectStmt",
+      "reason": "top-level AST entry node from seed universe"
+    }
+  ],
+  "scenario_count": 3,
+  "executor": "local"
+}

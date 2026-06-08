@@ -39,6 +39,21 @@ func deparseSelectStmtNoAlias(stmt *ast.SelectStmt) string {
 }
 
 func deparseSelectStmtCtx(stmt *ast.SelectStmt, suppressAlias bool) string {
+	// Parenthesized query expression: ( inner ) with optional OUTER ORDER BY /
+	// LIMIT held on the wrapper. Materialize the parens — a dropped ParenSource
+	// silently loses the inner query.
+	if stmt.ParenSource != nil {
+		return deparseParenSource(stmt)
+	}
+
+	if stmt.TableSource != nil {
+		return deparseTableQueryPrimary(stmt)
+	}
+
+	if stmt.ValuesSource != nil {
+		return deparseValuesQueryPrimary(stmt)
+	}
+
 	// Handle set operations: UNION / UNION ALL / INTERSECT / EXCEPT
 	if stmt.SetOp != ast.SetOpNone {
 		return deparseSetOperation(stmt)
@@ -206,6 +221,114 @@ func deparseForUpdate(fu *ast.ForUpdate) string {
 // deparseSetOperation formats a set operation (UNION, INTERSECT, EXCEPT).
 // MySQL 8.0 format: select ... union [all] select ... (flat, no parens around sub-selects)
 // CTEs from the leftmost child are hoisted and emitted before the entire set operation.
+// deparseParenSource formats a parenthesized query expression: an optional WITH,
+// '(' inner ')', and the OUTER trailing ORDER BY / LIMIT held on the wrapper.
+// The inner query keeps its own clauses, so both scopes round-trip (e.g.
+// "(select 1 limit 5) limit 2").
+func deparseParenSource(stmt *ast.SelectStmt) string {
+	var b strings.Builder
+
+	if len(stmt.CTEs) > 0 {
+		b.WriteString(deparseCTEs(stmt.CTEs))
+		b.WriteString(" ")
+	}
+
+	b.WriteString("(")
+	b.WriteString(deparseSelectStmt(stmt.ParenSource))
+	b.WriteString(")")
+
+	// Outer ORDER BY (applies to the parenthesized result).
+	if len(stmt.OrderBy) > 0 {
+		b.WriteString(" order by ")
+		for i, item := range stmt.OrderBy {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString(deparseExpr(item.Expr))
+			if item.Desc {
+				b.WriteString(" desc")
+			}
+		}
+	}
+
+	// Outer LIMIT (applies to the parenthesized result).
+	if stmt.Limit != nil {
+		b.WriteString(" limit ")
+		if stmt.Limit.Offset != nil {
+			b.WriteString(deparseExpr(stmt.Limit.Offset))
+			b.WriteString(",")
+		}
+		b.WriteString(deparseExpr(stmt.Limit.Count))
+	}
+
+	return b.String()
+}
+
+func deparseTableQueryPrimary(stmt *ast.SelectStmt) string {
+	var b strings.Builder
+
+	if len(stmt.CTEs) > 0 {
+		b.WriteString(deparseCTEs(stmt.CTEs))
+		b.WriteString(" ")
+	}
+
+	b.WriteString("table ")
+	if stmt.TableSource.Table != nil {
+		b.WriteString(deparseTableRef(stmt.TableSource.Table))
+	}
+	appendOrderByLimit(&b, stmt.OrderBy, stmt.Limit)
+	return b.String()
+}
+
+func deparseValuesQueryPrimary(stmt *ast.SelectStmt) string {
+	var b strings.Builder
+
+	if len(stmt.CTEs) > 0 {
+		b.WriteString(deparseCTEs(stmt.CTEs))
+		b.WriteString(" ")
+	}
+
+	b.WriteString("values ")
+	for i, row := range stmt.ValuesSource.Rows {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		b.WriteString("row(")
+		for j, expr := range row {
+			if j > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString(deparseExpr(expr))
+		}
+		b.WriteString(")")
+	}
+	appendOrderByLimit(&b, stmt.OrderBy, stmt.Limit)
+	return b.String()
+}
+
+func appendOrderByLimit(b *strings.Builder, orderBy []*ast.OrderByItem, limit *ast.Limit) {
+	if len(orderBy) > 0 {
+		b.WriteString(" order by ")
+		for i, item := range orderBy {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString(deparseExpr(item.Expr))
+			if item.Desc {
+				b.WriteString(" desc")
+			}
+		}
+	}
+	if limit != nil {
+		b.WriteString(" limit ")
+		if limit.Offset != nil {
+			b.WriteString(deparseExpr(limit.Offset))
+			b.WriteString(",")
+		}
+		b.WriteString(deparseExpr(limit.Count))
+	}
+}
+
 func deparseSetOperation(stmt *ast.SelectStmt) string {
 	// Hoist CTEs from the leftmost descendant
 	var ctePrefix string
@@ -273,18 +396,15 @@ func deparseSetOperation(stmt *ast.SelectStmt) string {
 	return b.String()
 }
 
-// extractCTEs walks down the left spine of a set operation tree and extracts
-// CTEs from the leftmost leaf SelectStmt, clearing them so they aren't emitted
-// again by deparseSelectStmt.
+// extractCTEs returns the WITH clause of a set-operation query expression. The
+// parser attaches a query-expression-level WITH to the set-op ROOT node (the
+// WITH applies to the whole UNION, not just the leftmost operand — a
+// parenthesized operand's own WITH stays inside its parens). The CTEs are
+// cleared so deparseSelectStmt doesn't emit them again.
 func extractCTEs(stmt *ast.SelectStmt) []*ast.CommonTableExpr {
-	// Walk to the leftmost leaf
-	cur := stmt
-	for cur.SetOp != ast.SetOpNone && cur.Left != nil {
-		cur = cur.Left
-	}
-	if len(cur.CTEs) > 0 {
-		ctes := cur.CTEs
-		cur.CTEs = nil // prevent double emission
+	if len(stmt.CTEs) > 0 {
+		ctes := stmt.CTEs
+		stmt.CTEs = nil // prevent double emission
 		return ctes
 	}
 	return nil

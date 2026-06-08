@@ -1,0 +1,136 @@
+-- DROP IDENTITY PROVIDER command test cases
+-- Reference: https://docs.aws.amazon.com/redshift/latest/dg/r_DROP_IDENTITY_PROVIDER.html
+
+-- Basic DROP IDENTITY PROVIDER syntax from AWS documentation
+DROP IDENTITY PROVIDER oauth_provider;
+
+-- DROP IDENTITY PROVIDER with CASCADE clause
+DROP IDENTITY PROVIDER oauth_provider CASCADE;
+
+-- DROP IDENTITY PROVIDER with various provider names
+DROP IDENTITY PROVIDER azure_ad_provider;
+DROP IDENTITY PROVIDER saml_provider;
+DROP IDENTITY PROVIDER okta_provider;
+DROP IDENTITY PROVIDER google_oauth;
+DROP IDENTITY PROVIDER microsoft_provider;
+
+-- DROP IDENTITY PROVIDER with CASCADE for various providers
+DROP IDENTITY PROVIDER azure_ad_provider CASCADE;
+DROP IDENTITY PROVIDER saml_provider CASCADE;
+DROP IDENTITY PROVIDER okta_provider CASCADE;
+DROP IDENTITY PROVIDER google_oauth CASCADE;
+DROP IDENTITY PROVIDER microsoft_provider CASCADE;
+
+-- DROP IDENTITY PROVIDER with quoted identifiers
+DROP IDENTITY PROVIDER "OAuth Provider";
+DROP IDENTITY PROVIDER "Azure-AD-Provider";
+DROP IDENTITY PROVIDER "My SAML Provider";
+DROP IDENTITY PROVIDER "Corporate SSO";
+
+-- DROP IDENTITY PROVIDER with quoted identifiers and CASCADE
+DROP IDENTITY PROVIDER "OAuth Provider" CASCADE;
+DROP IDENTITY PROVIDER "Azure-AD-Provider" CASCADE;
+DROP IDENTITY PROVIDER "My SAML Provider" CASCADE;
+DROP IDENTITY PROVIDER "Corporate SSO" CASCADE;
+
+-- DROP IDENTITY PROVIDER with common provider naming patterns
+DROP IDENTITY PROVIDER company_sso;
+DROP IDENTITY PROVIDER corporate_auth;
+DROP IDENTITY PROVIDER employee_login;
+DROP IDENTITY PROVIDER external_users;
+DROP IDENTITY PROVIDER partner_access;
+DROP IDENTITY PROVIDER customer_portal;
+
+-- DROP IDENTITY PROVIDER with common patterns and CASCADE
+DROP IDENTITY PROVIDER company_sso CASCADE;
+DROP IDENTITY PROVIDER corporate_auth CASCADE;
+DROP IDENTITY PROVIDER employee_login CASCADE;
+DROP IDENTITY PROVIDER external_users CASCADE;
+DROP IDENTITY PROVIDER partner_access CASCADE;
+DROP IDENTITY PROVIDER customer_portal CASCADE;
+
+-- DROP IDENTITY PROVIDER with mixed case names
+DROP IDENTITY PROVIDER AzureProvider;
+DROP IDENTITY PROVIDER OAuthProvider;
+DROP IDENTITY PROVIDER SamlProvider;
+DROP IDENTITY PROVIDER GoogleAuth;
+DROP IDENTITY PROVIDER MicrosoftSSO;
+
+-- DROP IDENTITY PROVIDER with mixed case names and CASCADE
+DROP IDENTITY PROVIDER AzureProvider CASCADE;
+DROP IDENTITY PROVIDER OAuthProvider CASCADE;
+DROP IDENTITY PROVIDER SamlProvider CASCADE;
+DROP IDENTITY PROVIDER GoogleAuth CASCADE;
+DROP IDENTITY PROVIDER MicrosoftSSO CASCADE;
+
+-- DROP IDENTITY PROVIDER with underscored names
+DROP IDENTITY PROVIDER oauth_2_provider;
+DROP IDENTITY PROVIDER saml_2_0_provider;
+DROP IDENTITY PROVIDER azure_ad_b2c;
+DROP IDENTITY PROVIDER google_workspace_sso;
+DROP IDENTITY PROVIDER okta_universal_directory;
+
+-- DROP IDENTITY PROVIDER with underscored names and CASCADE
+DROP IDENTITY PROVIDER oauth_2_provider CASCADE;
+DROP IDENTITY PROVIDER saml_2_0_provider CASCADE;
+DROP IDENTITY PROVIDER azure_ad_b2c CASCADE;
+DROP IDENTITY PROVIDER google_workspace_sso CASCADE;
+DROP IDENTITY PROVIDER okta_universal_directory CASCADE;
+
+-- DROP IDENTITY PROVIDER with realistic enterprise provider names
+DROP IDENTITY PROVIDER corp_azure_ad;
+DROP IDENTITY PROVIDER enterprise_okta;
+DROP IDENTITY PROVIDER federated_login;
+DROP IDENTITY PROVIDER third_party_auth;
+DROP IDENTITY PROVIDER vendor_sso;
+DROP IDENTITY PROVIDER client_authentication;
+
+-- DROP IDENTITY PROVIDER with realistic names and CASCADE
+DROP IDENTITY PROVIDER corp_azure_ad CASCADE;
+DROP IDENTITY PROVIDER enterprise_okta CASCADE;
+DROP IDENTITY PROVIDER federated_login CASCADE;
+DROP IDENTITY PROVIDER third_party_auth CASCADE;
+DROP IDENTITY PROVIDER vendor_sso CASCADE;
+DROP IDENTITY PROVIDER client_authentication CASCADE;
+
+-- DROP IDENTITY PROVIDER with special characters in quoted names
+DROP IDENTITY PROVIDER "provider-with-hyphens";
+DROP IDENTITY PROVIDER "provider.with.dots";
+DROP IDENTITY PROVIDER "provider_with_underscores";
+DROP IDENTITY PROVIDER "Provider With Spaces";
+DROP IDENTITY PROVIDER "provider@company.com";
+
+-- DROP IDENTITY PROVIDER with special characters and CASCADE
+DROP IDENTITY PROVIDER "provider-with-hyphens" CASCADE;
+DROP IDENTITY PROVIDER "provider.with.dots" CASCADE;
+DROP IDENTITY PROVIDER "provider_with_underscores" CASCADE;
+DROP IDENTITY PROVIDER "Provider With Spaces" CASCADE;
+DROP IDENTITY PROVIDER "provider@company.com" CASCADE;
+
+-- DROP IDENTITY PROVIDER with version numbers in names
+DROP IDENTITY PROVIDER oauth2_provider_v1;
+DROP IDENTITY PROVIDER saml20_provider;
+DROP IDENTITY PROVIDER azure_v2_provider;
+DROP IDENTITY PROVIDER openid_connect_v1;
+
+-- DROP IDENTITY PROVIDER with version numbers and CASCADE
+DROP IDENTITY PROVIDER oauth2_provider_v1 CASCADE;
+DROP IDENTITY PROVIDER saml20_provider CASCADE;
+DROP IDENTITY PROVIDER azure_v2_provider CASCADE;
+DROP IDENTITY PROVIDER openid_connect_v1 CASCADE;
+
+-- DROP IDENTITY PROVIDER with environment-specific names
+DROP IDENTITY PROVIDER prod_azure_provider;
+DROP IDENTITY PROVIDER staging_oauth_provider;
+DROP IDENTITY PROVIDER dev_saml_provider;
+DROP IDENTITY PROVIDER test_okta_provider;
+
+-- DROP IDENTITY PROVIDER with environment-specific names and CASCADE
+DROP IDENTITY PROVIDER prod_azure_provider CASCADE;
+DROP IDENTITY PROVIDER staging_oauth_provider CASCADE;
+DROP IDENTITY PROVIDER dev_saml_provider CASCADE;
+DROP IDENTITY PROVIDER test_okta_provider CASCADE;
+
+-- DROP IDENTITY PROVIDER statements without semicolons (should also be valid)
+DROP IDENTITY PROVIDER test_provider
+DROP IDENTITY PROVIDER test_provider CASCADE

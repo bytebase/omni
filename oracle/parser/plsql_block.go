@@ -244,7 +244,17 @@ func (p *Parser) parsePLSQLCursorDecl() (*nodes.PLSQLCursorDecl, error) {
 	}
 
 	// SELECT statement
-	if p.cur.Type == kwSELECT {
+	if p.cur.Type == '(' && (p.peekNext().Type == kwSELECT || p.peekNext().Type == kwWITH) {
+		p.advance()
+		var parseErr840 error
+		decl.Query, parseErr840 = p.parseSelectStmt()
+		if parseErr840 != nil {
+			return nil, parseErr840
+		}
+		if p.cur.Type == ')' {
+			p.advance()
+		}
+	} else if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
 		var parseErr840 error
 		decl.Query, parseErr840 = p.parseSelectStmt()
 		if parseErr840 !=
@@ -743,6 +753,8 @@ func (p *Parser) parsePLSQLForLoop() (*nodes.PLSQLLoop, error) {
 		// Extract cursor name from expr1
 		if colRef, ok := expr1.(*nodes.ColumnRef); ok {
 			loop.CursorName = colRef.Column
+		} else if subquery, ok := expr1.(*nodes.SubqueryExpr); ok {
+			loop.CursorQuery = subquery.Subquery
 		}
 		// Optional cursor arguments
 		if p.cur.Type == '(' {
@@ -939,7 +951,7 @@ func (p *Parser) parsePLSQLExecImmediate() (*nodes.PLSQLExecImmediate, error) {
 	return stmt, nil
 }
 
-// parsePLSQLOpen parses OPEN cursor [(args)] [FOR query] ;
+// parsePLSQLOpen parses OPEN cursor [(args)] [FOR query|dynamic_sql [USING args]] ;
 func (p *Parser) parsePLSQLOpen() (*nodes.PLSQLOpen, error) {
 	start := p.pos()
 	p.advance() // consume OPEN
@@ -978,6 +990,23 @@ func (p *Parser) parsePLSQLOpen() (*nodes.PLSQLOpen, error) {
 			o.ForQuery, parseErr873 = p.parseSelectStmt()
 			if parseErr873 != nil {
 				return nil, parseErr873
+			}
+		} else {
+			var parseErr873 error
+			o.ForExpr, parseErr873 = p.parseExpr()
+			if parseErr873 != nil {
+				return nil, parseErr873
+			}
+			if o.ForExpr == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+		if p.cur.Type == kwUSING {
+			p.advance()
+			var parseErr874 error
+			o.UsingArgs, parseErr874 = p.parseExprList()
+			if parseErr874 != nil {
+				return nil, parseErr874
 			}
 		}
 	}
@@ -1095,7 +1124,7 @@ func (p *Parser) parsePLSQLExceptionHandlers() (*nodes.List, error) {
 		if p.cur.Type == kwTHEN {
 			return nil, p.syntaxErrorAtCur()
 		}
-		name, parseErr877 := p.parseIdentifier()
+		name, parseErr877 := p.parsePLSQLExceptionName()
 		if parseErr877 != nil {
 			return nil, parseErr877
 		}
@@ -1108,7 +1137,7 @@ func (p *Parser) parsePLSQLExceptionHandlers() (*nodes.List, error) {
 			p.advance()
 			var // consume OR
 			parseErr878 error
-			name, parseErr878 = p.parseIdentifier()
+			name, parseErr878 = p.parsePLSQLExceptionName()
 			if parseErr878 != nil {
 				return nil, parseErr878
 			}
@@ -1134,6 +1163,20 @@ func (p *Parser) parsePLSQLExceptionHandlers() (*nodes.List, error) {
 	}
 
 	return handlers, nil
+}
+
+func (p *Parser) parsePLSQLExceptionName() (string, error) {
+	obj, err := p.parseObjectName()
+	if err != nil {
+		return "", err
+	}
+	if obj == nil || obj.Name == "" {
+		return "", nil
+	}
+	if obj.Schema != "" {
+		return obj.Schema + "." + obj.Name, nil
+	}
+	return obj.Name, nil
 }
 
 // parsePLSQLVarList parses a comma-separated list of variable references.

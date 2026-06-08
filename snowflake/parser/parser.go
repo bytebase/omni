@@ -31,6 +31,16 @@ type Parser struct {
 	nextBuf Token        // buffered lookahead token
 	hasNext bool         // whether nextBuf is valid
 	errors  []ParseError // collected errors for best-effort mode
+	// inConnectBy is true while parsing a CONNECT BY condition, where PRIOR
+	// is a prefix operator rather than a (non-reserved) identifier. Gating
+	// PRIOR on this flag avoids mis-parsing a column literally named "prior"
+	// in ordinary expression positions.
+	inConnectBy bool
+	// scriptDepth bounds Snowflake Scripting block / control-flow nesting
+	// (T7.1). It is incremented on entry to every nested scripting construct and
+	// checked against maxScriptDepth so a pathologically deep (or adversarial)
+	// body cannot blow the Go stack. See scripting.go.
+	scriptDepth int
 }
 
 // advance consumes the current token and moves to the next one.
@@ -44,6 +54,17 @@ func (p *Parser) advance() Token {
 		p.cur = p.lexer.NextToken()
 	}
 	return p.prev
+}
+
+// repositionLexer resets the lexer to the given LOCAL (unshifted) byte offset
+// and re-primes p.cur from there, discarding any buffered lookahead and the
+// previous current token. It is used by clauses (such as MATCH_RECOGNIZE's
+// PATTERN body) that consume a run of input by raw byte scanning rather than
+// token-by-token, and then need the token stream to resume at a known point.
+func (p *Parser) repositionLexer(localPos int) {
+	p.lexer.pos = localPos
+	p.hasNext = false
+	p.cur = p.lexer.NextToken()
 }
 
 // peek returns the current token without consuming it.
@@ -178,11 +199,15 @@ func (p *Parser) unknownStatementError() *ParseError {
 // The dispatch switch itself is not expected to change — only the
 // bodies of individual case branches.
 //
-// Keywords NOT in this switch (SAVEPOINT, EXECUTE, WHILE, REPEAT, LET,
-// LOOP, BREAK) are currently absent from F2's keyword table because
-// they're either missing from the legacy grammar or defined via
-// non-standard ANTLR rule forms. When Tier 7 Snowflake Scripting support
-// lands, F2 gains those constants and this switch gains matching cases.
+// EXECUTE (IMMEDIATE / TASK) is absent from F2's keyword table, so it is
+// dispatched from the default branch by its uppercased identifier text
+// (alongside LS / RM) rather than from a keyword case here.
+//
+// Other keywords NOT in this switch (SAVEPOINT, WHILE, REPEAT, LET, LOOP,
+// BREAK) are currently absent from F2's keyword table because they're either
+// missing from the legacy grammar or defined via non-standard ANTLR rule forms.
+// When Tier 7 Snowflake Scripting support lands, F2 gains those constants and
+// this switch gains matching cases.
 func (p *Parser) parseStmt() (ast.Node, error) {
 	switch p.cur.Type {
 	// DDL (6 cases)
@@ -227,7 +252,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwREMOVE:
 		return p.parseRemoveStmt(false)
 	case kwCALL:
-		return p.unsupported("CALL")
+		return p.parseCallStmt()
 
 	// DCL (2 cases)
 	case kwGRANT:
@@ -237,7 +262,15 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// TCL (4 cases)
 	case kwBEGIN:
-		return p.parseBeginStmt()
+		// BEGIN is overloaded: a TCL transaction opener
+		// (BEGIN [WORK|TRANSACTION] [NAME ...]) versus a Snowflake Scripting
+		// block (BEGIN <stmts> [EXCEPTION ...] END). Disambiguate on the token
+		// after BEGIN: WORK / TRANSACTION / NAME / ; / EOF → TCL; anything else
+		// opens a scripting block. See beginIsTransaction.
+		if p.beginIsTransaction() {
+			return p.parseBeginStmt()
+		}
+		return p.parseScriptBlock()
 	case kwSTART:
 		return p.parseStartTransactionStmt()
 	case kwCOMMIT:
@@ -253,7 +286,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwDESC:
 		return p.parseDescribeStmt(true)
 	case kwEXPLAIN:
-		return p.unsupported("EXPLAIN")
+		return p.parseExplainStmt()
 	case kwUSE:
 		return p.parseUseStmt()
 
@@ -263,30 +296,33 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwUNSET:
 		return p.parseUnsetStmt()
 
-	// Snowflake Scripting (subset available as F2 keywords — 6 cases)
+	// Snowflake Scripting (T7.1). A top-level DECLARE opens a scripting block
+	// (DECLARE <decls> BEGIN <stmts> ... END). The remaining scripting
+	// keywords introduce individual scripting statements; Snowflake itself
+	// only accepts them inside a block, but omni parses them structurally at
+	// the top level too (a lenient superset, flagged in the divergence ledger)
+	// so best-effort parsing of partial / extracted bodies still yields an AST.
 	case kwDECLARE:
-		return p.unsupported("DECLARE")
-	case kwIF:
-		return p.unsupported("IF")
-	case kwCASE:
-		return p.unsupported("CASE")
-	case kwFOR:
-		return p.unsupported("FOR")
-	case kwRETURN:
-		return p.unsupported("RETURN")
-	case kwCONTINUE:
-		return p.unsupported("CONTINUE")
+		return p.parseScriptBlock()
+	case kwIF, kwCASE, kwFOR, kwRETURN, kwCONTINUE,
+		kwSCRIPT_WHILE, kwSCRIPT_LOOP, kwSCRIPT_REPEAT, kwSCRIPT_LET,
+		kwSCRIPT_BREAK, kwSCRIPT_EXIT, kwSCRIPT_ITERATE, kwSCRIPT_RAISE,
+		kwSCRIPT_OPEN, kwSCRIPT_CLOSE, kwFETCH:
+		return p.parseScriptStatement()
 
 	default:
-		// LS and RM are the documented aliases of LIST and REMOVE. Snowflake's
-		// lexer (and omni's) does not reserve them, so they arrive as plain
-		// identifiers and are dispatched here by their uppercased text.
+		// LS and RM are the documented aliases of LIST and REMOVE. EXECUTE
+		// (IMMEDIATE / TASK) is likewise absent from the keyword table.
+		// Snowflake's lexer (and omni's) does not reserve any of them, so they
+		// arrive as plain identifiers and are dispatched here by uppercased text.
 		if p.cur.Type == tokIdent {
 			switch strings.ToUpper(p.cur.Str) {
 			case "LS":
 				return p.parseListStmt(true)
 			case "RM":
 				return p.parseRemoveStmt(true)
+			case "EXECUTE":
+				return p.parseExecuteStmt()
 			}
 		}
 		return nil, p.unknownStatementError()

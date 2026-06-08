@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/oracle/ast"
@@ -95,6 +96,54 @@ func TestParseExprBinary(t *testing.T) {
 				t.Errorf("expected op %q, got %q", tc.op, be.Op)
 			}
 		})
+	}
+}
+
+func TestParseExprAtTimeZone(t *testing.T) {
+	result := ParseAndCheck(t, `SELECT FROM_TZ(CAST(ts AS TIMESTAMP), 'UTC') AT TIME ZONE 'Asia/Tokyo' AS local_ts FROM dual`)
+	raw := result.Items[0].(*ast.RawStmt)
+	sel := raw.Stmt.(*ast.SelectStmt)
+	target := sel.TargetList.Items[0].(*ast.ResTarget)
+	expr, ok := target.Expr.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected AT TIME ZONE function expression, got %T", target.Expr)
+	}
+	if expr.FuncName == nil || expr.FuncName.Name != "AT_TIME_ZONE" {
+		t.Fatalf("expected AT_TIME_ZONE function, got %#v", expr.FuncName)
+	}
+	if expr.Args == nil || expr.Args.Len() != 2 {
+		t.Fatalf("expected two AT_TIME_ZONE args, got %#v", expr.Args)
+	}
+}
+
+func TestParseExprThreePartFunctionName(t *testing.T) {
+	result := ParseAndCheck(t, `SELECT sys.dbms_lob.substr(payload, 10) AS chunk_text FROM docs`)
+	raw := result.Items[0].(*ast.RawStmt)
+	sel := raw.Stmt.(*ast.SelectStmt)
+	target := sel.TargetList.Items[0].(*ast.ResTarget)
+	expr, ok := target.Expr.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected function expression, got %T", target.Expr)
+	}
+	if expr.FuncName == nil || expr.FuncName.Schema != "SYS.DBMS_LOB" || expr.FuncName.Name != "SUBSTR" {
+		t.Fatalf("unexpected function name: %#v", expr.FuncName)
+	}
+}
+
+func TestParseExprMethodCallPostfix(t *testing.T) {
+	result := ParseAndCheck(t, `SELECT xmltype(payload).extract('/r').getStringVal() AS value FROM docs`)
+	raw := result.Items[0].(*ast.RawStmt)
+	sel := raw.Stmt.(*ast.SelectStmt)
+	target := sel.TargetList.Items[0].(*ast.ResTarget)
+	expr, ok := target.Expr.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected method call expression, got %T", target.Expr)
+	}
+	if expr.FuncName == nil || expr.FuncName.Name != "GETSTRINGVAL" {
+		t.Fatalf("unexpected method name: %#v", expr.FuncName)
+	}
+	if expr.Args == nil || expr.Args.Len() != 1 {
+		t.Fatalf("expected receiver arg, got %#v", expr.Args)
 	}
 }
 
@@ -352,6 +401,24 @@ func TestParseExprLikeLocCoversLeftOperand(t *testing.T) {
 	}
 }
 
+func TestParseExprExtractXmlFunction(t *testing.T) {
+	p := newTestParser("EXTRACT(payload, '/root/value')")
+	e, err := p.parseExpr()
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	fc, ok := e.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected FuncCallExpr, got %T", e)
+	}
+	if fc.FuncName.Name != "EXTRACT" {
+		t.Fatalf("expected EXTRACT function, got %q", fc.FuncName.Name)
+	}
+	if fc.Args.Len() != 2 {
+		t.Fatalf("expected XML expression and XPath args, got %d", fc.Args.Len())
+	}
+}
+
 // TestParseExprIsNull tests IS NULL and IS NOT NULL.
 func TestParseExprIsNull(t *testing.T) {
 	tests := []struct {
@@ -418,6 +485,75 @@ func TestParseExprFuncCall(t *testing.T) {
 	}
 	if fc.Args.Len() != 2 {
 		t.Errorf("expected 2 args, got %d", fc.Args.Len())
+	}
+}
+
+func TestParseExprTrimFrom(t *testing.T) {
+	p := newTestParser("TRIM(',' FROM status)")
+	e, err := p.parseExpr()
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	fc, ok := e.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected FuncCallExpr, got %T", e)
+	}
+	if fc.FuncName.Name != "TRIM" {
+		t.Fatalf("expected TRIM function, got %q", fc.FuncName.Name)
+	}
+	if fc.Args.Len() != 2 {
+		t.Fatalf("expected trim character and source args, got %d", fc.Args.Len())
+	}
+}
+
+func TestParseExprTrimModeCharacterFrom(t *testing.T) {
+	p := newTestParser("TRIM(LEADING pad_char FROM payload)")
+	e, err := p.parseExpr()
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	fc, ok := e.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected FuncCallExpr, got %T", e)
+	}
+	if fc.FuncName.Name != "TRIM" {
+		t.Fatalf("expected TRIM function, got %q", fc.FuncName.Name)
+	}
+	if fc.Args.Len() != 3 {
+		t.Fatalf("expected trim mode, character, and source args, got %d", fc.Args.Len())
+	}
+}
+
+func TestParseExprNamedArgument(t *testing.T) {
+	p := newTestParser("pkg.call_job('run', retry_count => 3)")
+	e, err := p.parseExpr()
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	out := ast.NodeToString(e)
+	if !strings.Contains(out, `:name "RETRY_COUNT"`) {
+		t.Fatalf("expected named argument in AST, got %s", out)
+	}
+	if !strings.Contains(out, `:expr {NUMLIT :val "3"`) {
+		t.Fatalf("expected named argument value in AST, got %s", out)
+	}
+}
+
+func TestParseExprJsonObjectIsPairs(t *testing.T) {
+	p := newTestParser("JSON_OBJECT('items' IS JSON_ARRAY(JSON_OBJECT('id' IS id, 'name' IS name)))")
+	e, err := p.parseExpr()
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	fc, ok := e.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected FuncCallExpr, got %T", e)
+	}
+	if fc.FuncName.Name != "JSON_OBJECT" {
+		t.Fatalf("expected JSON_OBJECT, got %q", fc.FuncName.Name)
+	}
+	if fc.Args.Len() != 2 {
+		t.Fatalf("expected top-level key and value args, got %d", fc.Args.Len())
 	}
 }
 

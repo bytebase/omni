@@ -91,6 +91,19 @@ func TestCreateView_OrReplace(t *testing.T) {
 	}
 }
 
+func TestCreateView_OrAlter(t *testing.T) {
+	stmt, errs := testParseCreateView("CREATE OR ALTER VIEW v2(one) AS SELECT a FROM my_table")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if !stmt.OrAlter {
+		t.Error("expected OrAlter=true")
+	}
+	if stmt.OrReplace {
+		t.Error("expected OrReplace=false")
+	}
+}
+
 func TestCreateView_Secure(t *testing.T) {
 	stmt, errs := testParseCreateView("CREATE SECURE VIEW v AS SELECT 1")
 	if len(errs) > 0 {
@@ -98,6 +111,32 @@ func TestCreateView_Secure(t *testing.T) {
 	}
 	if !stmt.Secure {
 		t.Error("expected Secure=true")
+	}
+}
+
+// TestCreateView_ChangeTracking covers the CHANGE_TRACKING = { TRUE | FALSE }
+// view property (official create-view example_11 and example_13). It is consumed
+// and discarded, mirroring the CREATE TABLE handling in create_table.go.
+func TestCreateView_ChangeTracking(t *testing.T) {
+	cases := []string{
+		// example_11: COMMENT then CHANGE_TRACKING, column list.
+		"CREATE OR ALTER VIEW v2(one) COMMENT='fff' CHANGE_TRACKING=true AS SELECT a FROM my_table",
+		// example_13: per-column COMMENT then CHANGE_TRACKING.
+		"CREATE OR ALTER VIEW v2(one COMMENT 'bar') CHANGE_TRACKING=true AS SELECT a FROM my_table",
+		// FALSE and spaced '=' variants.
+		"CREATE VIEW v CHANGE_TRACKING = FALSE AS SELECT 1",
+		"CREATE VIEW v CHANGE_TRACKING TRUE AS SELECT 1",
+	}
+	for _, in := range cases {
+		t.Run(in, func(t *testing.T) {
+			stmt, errs := testParseCreateView(in)
+			if len(errs) > 0 {
+				t.Fatalf("unexpected errors: %v", errs)
+			}
+			if stmt == nil || stmt.Query == nil {
+				t.Fatalf("expected a CreateViewStmt with a query body, got %#v", stmt)
+			}
+		})
 	}
 }
 

@@ -1,0 +1,35 @@
+{
+  "family": {
+    "id": "show",
+    "slug": "show",
+    "category": "set"
+  },
+  "scope": {
+    "statements": [
+      "SHOW"
+    ],
+    "entry_ast_nodes": [
+      "VariableShowStmt"
+    ],
+    "dispatch_roots": [
+      "ProcessUtility"
+    ]
+  },
+  "dispatcher": [],
+  "handlers": [],
+  "writes": [],
+  "reads": [],
+  "regress_files": [],
+  "scenarios": [],
+  "translation_targets": [],
+  "evidence": [],
+  "stage_status": {
+    "discover": "pending",
+    "map": "pending",
+    "trace_writes": "pending",
+    "trace_reads": "pending",
+    "map_tests": "pending",
+    "plan_translation": "pending",
+    "synthesize": "pending"
+  }
+}

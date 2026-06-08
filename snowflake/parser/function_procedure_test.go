@@ -71,6 +71,24 @@ func assertParseError(t *testing.T, input string) {
 // ⭐ CANARY — body handling: single-line '…', MULTI-LINE '…', and $$…$$
 // ---------------------------------------------------------------------------
 
+func TestCreateRoutine_OrAlter(t *testing.T) {
+	// FUNCTION (T4.5) and PROCEDURE both flow through parseCreateRoutineBody;
+	// CREATE OR ALTER threads OrAlter to the shared CreateRoutineStmt node.
+	fn := mustCreateRoutine(t, "CREATE OR ALTER FUNCTION multiply(a NUMBER, b NUMBER) RETURNS NUMBER AS 'a * b'")
+	if !fn.OrAlter || fn.OrReplace || fn.Kind != ast.RoutineFunction {
+		t.Errorf("function: OrAlter=%v OrReplace=%v Kind=%v, want true/false/RoutineFunction", fn.OrAlter, fn.OrReplace, fn.Kind)
+	}
+	proc := mustCreateRoutine(t, "CREATE OR ALTER PROCEDURE p(a NUMBER) RETURNS NUMBER LANGUAGE SQL AS 'BEGIN RETURN a; END'")
+	if !proc.OrAlter || proc.OrReplace || proc.Kind != ast.RoutineProcedure {
+		t.Errorf("procedure: OrAlter=%v OrReplace=%v Kind=%v, want true/false/RoutineProcedure", proc.OrAlter, proc.OrReplace, proc.Kind)
+	}
+	// SECURE pairs with OR ALTER (early-dispatch path in parseCreateStmt).
+	secFn := mustCreateRoutine(t, "CREATE OR ALTER SECURE FUNCTION sf(a NUMBER) RETURNS NUMBER AS 'a'")
+	if !secFn.OrAlter || !secFn.Secure || secFn.OrReplace {
+		t.Errorf("secure function: OrAlter=%v Secure=%v OrReplace=%v, want true/true/false", secFn.OrAlter, secFn.Secure, secFn.OrReplace)
+	}
+}
+
 func TestRoutineBody_SingleLineSingleQuote(t *testing.T) {
 	stmt := mustCreateRoutine(t, "CREATE FUNCTION multiply1 (a number, b number) RETURNS number AS 'a * b'")
 	if stmt.Body != "'a * b'" {
@@ -453,6 +471,50 @@ func TestCreateProcedure(t *testing.T) {
 			t.Errorf("Kind/Body = %v/%q", stmt.Kind, stmt.Body)
 		}
 	})
+	t.Run("secrets quoted-key group", func(t *testing.T) {
+		// SECRETS = ('secret_variable_name' = secret_name [, ...]) — a group whose
+		// entry KEY is a quoted string (official create-procedure example_06). Each
+		// entry binds a string-name to a secret identifier.
+		stmt := mustCreateRoutine(t, "CREATE OR ALTER PROCEDURE python_add1(A NUMBER) RETURNS NUMBER LANGUAGE PYTHON HANDLER='main' RUNTIME_VERSION=3.10 EXTERNAL_ACCESS_INTEGRATIONS=(example_integration) secrets=('secret_variable_name'=secret_name) PACKAGES = ('snowflake-snowpark-python') EXECUTE AS CALLER AS $$ x $$")
+		var secrets *ast.CopyOption
+		for _, o := range stmt.Options {
+			if o.Name == "SECRETS" {
+				secrets = o
+			}
+		}
+		if secrets == nil {
+			t.Fatalf("SECRETS option not captured; got %v", optNames(stmt.Options))
+		}
+		if len(secrets.Group) != 1 {
+			t.Fatalf("SECRETS group len = %d, want 1", len(secrets.Group))
+		}
+		if got := secrets.Group[0].Name; got != "secret_variable_name" {
+			t.Errorf("SECRETS entry key = %q, want %q", got, "secret_variable_name")
+		}
+	})
+	t.Run("secrets multi quoted-key", func(t *testing.T) {
+		stmt := mustCreateRoutine(t, "CREATE PROCEDURE p() RETURNS NUMBER LANGUAGE PYTHON HANDLER='main' RUNTIME_VERSION=3.10 SECRETS=('a'=s1,'b'=s2) PACKAGES=('x') AS $$ y $$")
+		var secrets *ast.CopyOption
+		for _, o := range stmt.Options {
+			if o.Name == "SECRETS" {
+				secrets = o
+			}
+		}
+		if secrets == nil || len(secrets.Group) != 2 {
+			t.Fatalf("SECRETS group = %#v, want 2 entries", secrets)
+		}
+		if secrets.Group[0].Name != "a" || secrets.Group[1].Name != "b" {
+			t.Errorf("SECRETS keys = %q/%q, want a/b", secrets.Group[0].Name, secrets.Group[1].Name)
+		}
+	})
+}
+
+func optNames(opts []*ast.CopyOption) []string {
+	names := make([]string, 0, len(opts))
+	for _, o := range opts {
+		names = append(names, o.Name)
+	}
+	return names
 }
 
 // ---------------------------------------------------------------------------
@@ -676,9 +738,9 @@ func TestRoutine_LegacyCorpus(t *testing.T) {
 // assertRoutineFileParses treats a single-statement corpus file as ONE
 // statement: it strips a trailing ';' and parses the whole text via parseSingle
 // (bypassing F3's Split, which mis-segments multi-line single-quoted bodies). It
-// asserts the statement parses with no errors and to a routine node, unless it is
-// owned by another DAG node (CREATE OR ALTER → parser-or-alter; SELECT →
-// select-core), which is skipped with a logged note.
+// asserts the statement parses with no errors and to a routine node. CREATE OR
+// ALTER FUNCTION/PROCEDURE is a routine and is asserted; a non-routine statement
+// owned by another DAG node (e.g. a SELECT) is skipped via routineStmtKind.
 func assertRoutineFileParses(t *testing.T, sql string) {
 	t.Helper()
 	text := strings.TrimRight(strings.TrimSpace(sql), ";")
@@ -687,15 +749,6 @@ func assertRoutineFileParses(t *testing.T, sql string) {
 		return
 	}
 	upper := strings.ToUpper(text)
-
-	if routineOrAlterLimited(upper) {
-		// CREATE OR ALTER is owned by the parser-or-alter node. If it starts
-		// parsing here, surface that so the filter can be removed.
-		if _, errs := parseSingle(text, 0); len(errs) == 0 {
-			t.Logf("note: CREATE OR ALTER now parses, drop it from routineOrAlterLimited: %q", text)
-		}
-		return
-	}
 
 	kind, want := routineStmtKind(upper)
 	if kind == "" {
@@ -712,14 +765,6 @@ func assertRoutineFileParses(t *testing.T, sql string) {
 	}
 }
 
-// routineOrAlterLimited reports whether a statement uses the CREATE OR ALTER form
-// (owned by the separate parser-or-alter DAG node). Those are skipped with a
-// logged note + a flagged divergence, mirroring the copy / file-format / pipeline
-// corpus harnesses' skip-with-note pattern.
-func routineOrAlterLimited(upper string) bool {
-	return strings.HasPrefix(upper, "CREATE OR ALTER ")
-}
-
 // assertRoutineStatementsParse parses sql via Split + parseSingle and asserts
 // that every CREATE FUNCTION / EXTERNAL FUNCTION / PROCEDURE and ALTER FUNCTION /
 // PROCEDURE statement parses with no errors and to the expected AST type.
@@ -733,13 +778,6 @@ func assertRoutineStatementsParse(t *testing.T, sql string) {
 			continue
 		}
 		upper := strings.ToUpper(text)
-
-		if routineOrAlterLimited(upper) {
-			if _, errs := parseSingle(seg.Text, seg.ByteStart); len(errs) == 0 {
-				t.Logf("note: CREATE OR ALTER now parses, drop it from routineOrAlterLimited: %q", text)
-			}
-			continue
-		}
 
 		kind, want := routineStmtKind(upper)
 		if kind == "" {
@@ -779,7 +817,7 @@ func routineHasCreatePrefix(upper string) bool {
 		return false
 	}
 	rest := strings.TrimPrefix(upper, "CREATE ")
-	for _, mod := range []string{"OR REPLACE ", "SECURE ", "TEMPORARY ", "TEMP ", "EXTERNAL "} {
+	for _, mod := range []string{"OR REPLACE ", "OR ALTER ", "SECURE ", "TEMPORARY ", "TEMP ", "EXTERNAL "} {
 		rest = strings.TrimPrefix(rest, mod)
 	}
 	return strings.HasPrefix(rest, "FUNCTION ") || strings.HasPrefix(rest, "FUNCTION(") ||

@@ -173,6 +173,29 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			},
 		},
 		{
+			name: "wrapped procedure with slash separator",
+			sql: "CREATE OR REPLACE PROCEDURE wrapped_proc WRAPPED\n" +
+				"a000000\n" +
+				"abcd\n" +
+				"/\n" +
+				"CREATE TABLE t (id NUMBER);",
+			want: []string{
+				"CREATE OR REPLACE PROCEDURE wrapped_proc WRAPPED\na000000\nabcd",
+				"\nCREATE TABLE t (id NUMBER)",
+			},
+		},
+		{
+			name: "wrapped procedure with semicolon separator",
+			sql: "CREATE OR REPLACE PROCEDURE wrapped_proc WRAPPED\n" +
+				"a000000\n" +
+				"abcd;\n" +
+				"CREATE TABLE t (id NUMBER);",
+			want: []string{
+				"CREATE OR REPLACE PROCEDURE wrapped_proc WRAPPED\na000000\nabcd",
+				"\nCREATE TABLE t (id NUMBER)",
+			},
+		},
+		{
 			name: "create function with declarations without slash separator",
 			sql: "CREATE FUNCTION calc_bonus(p_start_date DATE)\n" +
 				"RETURN DATE\n" +
@@ -666,6 +689,29 @@ func TestSplitDoesNotClassifySQLContinuationLinesAsSQLPlus(t *testing.T) {
 		"SELECT employee_id\nFROM employees\nSTART WITH manager_id IS NULL\nCONNECT BY PRIOR employee_id = manager_id",
 		"\nCREATE DATABASE LINK remote_db\nCONNECT TO remote_user IDENTIFIED BY remote_pass\nUSING 'remote_tns'",
 		"\nCREATE DATABASE mydb\nSET DEFAULT BIGFILE TABLESPACE",
+	}
+	if len(got) != len(wantTexts) {
+		t.Fatalf("got %d segments %q, want %d", len(got), splitTexts(got), len(wantTexts))
+	}
+	for i := range wantTexts {
+		if got[i].Text != wantTexts[i] {
+			t.Fatalf("segment[%d] Text = %q, want %q", i, got[i].Text, wantTexts[i])
+		}
+		if got[i].Kind != SegmentSQL {
+			t.Fatalf("segment[%d] Kind = %v for %q, want %v", i, got[i].Kind, got[i].Text, SegmentSQL)
+		}
+	}
+}
+
+func TestSplitDoesNotTreatQualifiedRAtLineStartAsRun(t *testing.T) {
+	sql := "CREATE VIEW v AS SELECT\n" +
+		"  r.id,\n" +
+		"  r rows,\n" +
+		"  r.name\n" +
+		"FROM records r;"
+	got := Split(sql)
+	wantTexts := []string{
+		"CREATE VIEW v AS SELECT\n  r.id,\n  r rows,\n  r.name\nFROM records r",
 	}
 	if len(got) != len(wantTexts) {
 		t.Fatalf("got %d segments %q, want %d", len(got), splitTexts(got), len(wantTexts))

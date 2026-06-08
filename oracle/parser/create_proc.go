@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -60,11 +62,20 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 		}
 	}
 
+	var parseErr456 error
+	stmt.AuthID, parseErr456 = p.parseOptionalAuthID()
+	if parseErr456 != nil {
+		return nil, parseErr456
+	}
+
+	if p.isIdentLikeStr("WRAPPED") {
+		return p.parseWrappedProcedure(stmt)
+	}
+
 	if p.cur.Type != kwIS && p.cur.Type != kwAS {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	var parseErr456 error
 
 	// PL/SQL block body (BEGIN ... END)
 	stmt.Body, parseErr456 = p.parsePLSQLBlock()
@@ -73,6 +84,36 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 	}
 
 	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+func (p *Parser) parseWrappedProcedure(stmt *nodes.CreateProcedureStmt) (*nodes.CreateProcedureStmt, error) {
+	wrappedTok := p.cur
+	wrappedStart := p.cur.Loc
+	stmt.Wrapped = true
+
+	wrappedEnd := len(p.source)
+	if idx := strings.IndexByte(p.source[wrappedTok.End:], ';'); idx >= 0 {
+		wrappedEnd = wrappedTok.End + idx
+	}
+	wrappedSourceEnd := trimRightSpace(p.source, wrappedEnd)
+	if strings.TrimSpace(p.source[wrappedTok.End:wrappedSourceEnd]) == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	if wrappedStart >= 0 && wrappedSourceEnd <= len(p.source) && wrappedStart < wrappedSourceEnd {
+		stmt.WrappedSource = p.source[wrappedStart:wrappedSourceEnd]
+	}
+	stmt.Loc.End = wrappedSourceEnd
+	p.prev = Token{Type: tokIDENT, Str: "WRAPPED", Loc: wrappedStart, End: wrappedSourceEnd}
+	p.hasNext = false
+	if wrappedEnd < len(p.source) && p.source[wrappedEnd] == ';' {
+		p.cur = Token{Type: ';', Str: ";", Loc: wrappedEnd, End: wrappedEnd + 1}
+		p.lexer.pos = wrappedEnd + 1
+	} else {
+		p.cur = Token{Type: tokEOF, Loc: wrappedEnd, End: wrappedEnd}
+		p.lexer.pos = wrappedEnd
+	}
 	return stmt, nil
 }
 
@@ -237,11 +278,11 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) error {
 				}
 			}
 		case p.isIdentLikeStr("AUTHID"):
-			// invoker_rights_clause: AUTHID { CURRENT_USER | DEFINER }
-			p.advance() // consume AUTHID
-			if p.isIdentLike() {
-				p.advance() // consume CURRENT_USER or DEFINER
+			authID, parseErr464 := p.parseOptionalAuthID()
+			if parseErr464 != nil {
+				return parseErr464
 			}
+			stmt.AuthID = authID
 		case p.isIdentLikeStr("ACCESSIBLE"):
 			// accessible_by_clause: ACCESSIBLE BY ( accessor [, ...] )
 			p.advance() // consume ACCESSIBLE
@@ -277,6 +318,29 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) error {
 		}
 	}
 	return nil
+}
+
+func (p *Parser) parseOptionalAuthID() (string, error) {
+	if !p.isIdentLikeStr("AUTHID") {
+		return "", nil
+	}
+	p.advance()
+	if p.isIdentLikeStr("CURRENT_USER") {
+		p.advance()
+		return "CURRENT_USER", nil
+	}
+	if p.cur.Type == kwCURRENT {
+		p.advance()
+		if p.isIdentLikeStr("USER") {
+			p.advance()
+		}
+		return "CURRENT_USER", nil
+	}
+	if p.isIdentLikeStr("DEFINER") {
+		p.advance()
+		return "DEFINER", nil
+	}
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseCreatePackageStmt parses a CREATE [OR REPLACE] PACKAGE [BODY] statement.

@@ -661,12 +661,25 @@ func (p *Parser) parseCopyOptionParen(opt *ast.CopyOption) error {
 // INCLUDE_METADATA uses `key = METADATA$col` values, captured as a word value
 // (the lexer emits a single METADATA$col identifier).
 func (p *Parser) parseGroupEntry() (*ast.CopyOption, error) {
-	if !p.startsCopyOption() {
+	// A group entry key is normally a name word, but a few documented option
+	// groups key on a single-quoted string instead — e.g. CREATE PROCEDURE's
+	// SECRETS = ('secret_variable_name' = secret_name) (official create-procedure
+	// example_06). A string key reaches here only when the literal is followed by
+	// '=' (a string followed by ','/')' is a literal LIST, handled in
+	// parseCopyOptionParen before we are called), so accepting it does not
+	// reinterpret any list. The string's text is stored verbatim (not uppercased)
+	// since it is a literal name, not a keyword.
+	quotedKey := p.cur.Type == tokString
+	if !quotedKey && !p.startsCopyOption() {
 		return nil, p.syntaxErrorAtCur()
 	}
 	nameTok := p.advance()
+	name := strings.ToUpper(nameTok.Str)
+	if quotedKey {
+		name = nameTok.Str
+	}
 	entry := &ast.CopyOption{
-		Name: strings.ToUpper(nameTok.Str),
+		Name: name,
 		Loc:  ast.Loc{Start: nameTok.Loc.Start, End: nameTok.Loc.End},
 	}
 

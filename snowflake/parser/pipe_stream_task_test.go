@@ -125,6 +125,16 @@ func optByName(opts []*ast.CopyOption, name string) *ast.CopyOption {
 //	  AS <copy_into_table>
 // ---------------------------------------------------------------------------
 
+func TestParseCreateTask_OrAlter(t *testing.T) {
+	stmt := mustCreateTask(t, "CREATE OR ALTER TASK my_task WAREHOUSE = my_warehouse SCHEDULE = '60 MINUTES' AS SELECT 1")
+	if !stmt.OrAlter {
+		t.Error("expected OrAlter=true")
+	}
+	if stmt.OrReplace {
+		t.Error("expected OrReplace=false")
+	}
+}
+
 func TestParseCreatePipe(t *testing.T) {
 	t.Run("minimal AS COPY", func(t *testing.T) {
 		stmt := mustCreatePipe(t, "CREATE PIPE mypipe AS COPY INTO mytable FROM @mystage FILE_FORMAT = (TYPE = 'JSON')")
@@ -600,12 +610,12 @@ func TestParseCreateTask(t *testing.T) {
 		}
 	})
 
-	t.Run("call body (parseStmt unsupported, raw fallback)", func(t *testing.T) {
-		// CALL is not yet supported by parseStmt; the body must still be captured
-		// verbatim so the task parses. Body is nil, BodyRaw holds the text.
+	t.Run("call body (parses to CallStmt)", func(t *testing.T) {
+		// CALL is now supported by parseStmt, so the task body parses structurally
+		// to a *ast.CallStmt; BodyRaw still holds the verbatim text.
 		stmt := mustCreateTask(t, "CREATE TASK t WAREHOUSE = wh SCHEDULE = '60 MINUTES' AS CALL my_sp()")
-		if stmt.Body != nil {
-			t.Errorf("Body = %T, want nil (CALL unsupported)", stmt.Body)
+		if _, ok := stmt.Body.(*ast.CallStmt); !ok {
+			t.Errorf("Body = %T, want *ast.CallStmt", stmt.Body)
 		}
 		if !strings.Contains(strings.ToUpper(stmt.BodyRaw), "CALL MY_SP()") {
 			t.Errorf("BodyRaw = %q, want it to contain CALL MY_SP()", stmt.BodyRaw)
@@ -877,10 +887,10 @@ func TestParseCreateAlert(t *testing.T) {
 		}
 	})
 
-	t.Run("call action (raw fallback)", func(t *testing.T) {
+	t.Run("call action (parses to CallStmt)", func(t *testing.T) {
 		stmt := mustCreateAlert(t, "CREATE ALERT a SCHEDULE = '1 MINUTE' IF (EXISTS (SELECT 1)) THEN CALL SYSTEM$SEND_EMAIL('i', 'a@b.c', 's', 'm')")
-		if stmt.Action != nil {
-			t.Errorf("Action = %T, want nil (CALL unsupported)", stmt.Action)
+		if _, ok := stmt.Action.(*ast.CallStmt); !ok {
+			t.Errorf("Action = %T, want *ast.CallStmt", stmt.Action)
 		}
 		if !strings.Contains(strings.ToUpper(stmt.ActionRaw), "CALL SYSTEM$SEND_EMAIL") {
 			t.Errorf("ActionRaw = %q", stmt.ActionRaw)
@@ -974,13 +984,13 @@ func TestParseAlterAlert(t *testing.T) {
 		}
 	})
 
-	t.Run("modify action call (raw fallback)", func(t *testing.T) {
+	t.Run("modify action call (parses to CallStmt)", func(t *testing.T) {
 		stmt := mustAlterAlert(t, "ALTER ALERT a MODIFY ACTION CALL my_sp()")
 		if stmt.Action != ast.AlterAlertModifyAction {
 			t.Errorf("Action = %v, want AlterAlertModifyAction", stmt.Action)
 		}
-		if stmt.ActionBody != nil {
-			t.Errorf("ActionBody = %T, want nil", stmt.ActionBody)
+		if _, ok := stmt.ActionBody.(*ast.CallStmt); !ok {
+			t.Errorf("ActionBody = %T, want *ast.CallStmt", stmt.ActionBody)
 		}
 		if !strings.Contains(strings.ToUpper(stmt.ActionRaw), "CALL MY_SP()") {
 			t.Errorf("ActionRaw = %q", stmt.ActionRaw)

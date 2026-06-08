@@ -134,6 +134,49 @@ func TestParseType_DottedPathName(t *testing.T) {
 	}
 }
 
+func TestParseType_KeywordPartCasePreserved(t *testing.T) {
+	// Regression for identifierText folding keyword-spelled path parts to their
+	// canonical UPPER-case keyword name. `Type`, `value`, `Key`, `Value` are all
+	// NON-reserved keywords, so the lexer emits a kw* token for them — but it
+	// also records the verbatim source spelling in Token.Str. identifierText must
+	// return that spelling, not TokenName(tok.Type): otherwise `pkg.Type` parses
+	// as `pkg.TYPE`, `x.value` as `x.VALUE`, silently corrupting proto/enum type
+	// names (and, since identifierText backs every name part in the grammar,
+	// every keyword-spelled identifier elsewhere too).
+	cases := []struct {
+		input string
+		parts []string
+	}{
+		{"pkg.Type", []string{"pkg", "Type"}},
+		{"x.value", []string{"x", "value"}},
+		{"p.Key.Value", []string{"p", "Key", "Value"}},
+		// Mixed case on the part itself must survive byte-for-byte.
+		{"a.TyPe", []string{"a", "TyPe"}},
+		// A keyword as the FIRST part (parseTypeName accepts a non-reserved
+		// keyword there via isIdentifierStart) must also keep its casing.
+		{"Value.x", []string{"Value", "x"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			dt, err := testParseType(tc.input)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if dt.Kind != TypeName {
+				t.Fatalf("Kind = %v, want TypeName", dt.Kind)
+			}
+			if len(dt.NameParts) != len(tc.parts) {
+				t.Fatalf("NameParts = %v, want %v", dt.NameParts, tc.parts)
+			}
+			for i := range tc.parts {
+				if dt.NameParts[i] != tc.parts[i] {
+					t.Errorf("NameParts[%d] = %q, want %q (source casing must be preserved for keyword-spelled parts)", i, dt.NameParts[i], tc.parts[i])
+				}
+			}
+		})
+	}
+}
+
 func TestParseType_EmptyBacktickRejected(t *testing.T) {
 	// Oracle: `CAST(NULL AS ``)` REJECTS ("Syntax error: Invalid empty
 	// identifier"). The lexer admits the empty backtick pair `` as a

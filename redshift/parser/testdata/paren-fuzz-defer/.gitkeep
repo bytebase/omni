@@ -1,0 +1,6 @@
+# Sink directory for paren-fuzz CI-defer runs (SCENARIOS §5.2).
+# TestParenOracleFuzz writes <timestamp>.txt here when run with
+# PAREN_FUZZ_DEFER=1 and a new mismatch is discovered. Human triage
+# moves the entry into testdata/paren-fuzz-corpus/known-mismatches.txt
+# (if it's a known-acceptable divergence) or triggers a parser fix
+# (if it's a regression), then deletes the deferred file.

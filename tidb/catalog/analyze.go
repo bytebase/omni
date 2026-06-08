@@ -47,7 +47,11 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 		return nil, err
 	}
 
-	// Merge inherited CTE map (for recursive CTE self-references).
+	// Carry inherited CTEs that analyzeCTEs did not return. analyzeCTEs seeds
+	// the inherited map when this level has its own WITH, but early-returns nil
+	// when there is no local WITH — so without this a query that inherits CTEs
+	// (a subquery, or a CTE body referencing an earlier sibling / itself) but
+	// declares none of its own would lose them. No-op when already seeded.
 	if inheritedCTEMap != nil {
 		if cteMap == nil {
 			cteMap = make(map[string]*CommonTableExprQ)
@@ -58,6 +62,10 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 			}
 		}
 	}
+
+	// Make the visible CTEs reachable from nested subqueries (derived tables,
+	// scalar/IN/EXISTS subqueries), which analyze through this scope.
+	scope.cteMap = cteMap
 
 	// Step 1: Analyze FROM clause → populate RangeTable and scope.
 	if err := analyzeFromClause(c, stmt.From, q, scope, cteMap); err != nil {
@@ -354,12 +362,13 @@ func markCoalescedInNode(node JoinNode, q *Query, scope *analyzerScope, usingSet
 // analyzeFromSubquery processes a subquery used as a derived table in FROM.
 func analyzeFromSubquery(c *Catalog, subq *nodes.SubqueryExpr, q *Query, scope *analyzerScope) (JoinNode, error) {
 	// Recursively analyze the inner SELECT. FROM subqueries are not correlated,
-	// so we pass nil as parent scope (unless LATERAL).
+	// so we pass nil as parent scope (unless LATERAL). CTEs from the enclosing
+	// WITH are visible regardless of correlation, so pass them down explicitly.
 	var parentScope *analyzerScope
 	if subq.Lateral {
 		parentScope = scope
 	}
-	innerQ, err := c.analyzeSelectStmtInternal(subq.Select, parentScope)
+	innerQ, err := c.analyzeSelectStmtWithCTEs(subq.Select, parentScope, scope.cteMap)
 	if err != nil {
 		return nil, err
 	}
@@ -803,8 +812,10 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *analyzerScope, cteMap map[string]*CommonTableExprQ) (*Query, error) {
 	stmt := nodes.UnwrapParenSource(cte.Select)
 
-	// Analyze left arm to establish base columns.
-	larg, err := c.analyzeSelectStmtInternal(stmt.Left, parentScope)
+	// Analyze left arm to establish base columns. Pass cteMap so the base arm
+	// can reference earlier sibling CTEs in the same WITH clause; the recursive
+	// CTE itself is not yet registered, so the base case correctly cannot see it.
+	larg, err := c.analyzeSelectStmtWithCTEs(stmt.Left, parentScope, cteMap)
 	if err != nil {
 		return nil, err
 	}
@@ -878,7 +889,10 @@ func analyzeCTERef(ref *nodes.TableRef, cteQ *CommonTableExprQ, q *Query, scope 
 
 	// Find the CTE's index in the current query's CTEList by identity (the
 	// resolved CTE), so an inner CTE that shadows a same-named outer CTE resolves
-	// to the correct entry rather than the first name match.
+	// to the correct entry rather than the first name match. A CTE inherited from
+	// an enclosing WITH (or an earlier sibling, or a recursive self-reference
+	// being built) is not in this query's CTEList; CTEIndex stays -1 and the body
+	// is reachable only via Subquery (set below).
 	cteIndex := -1
 	for i, c := range q.CTEList {
 		if c == cteQ {
@@ -886,10 +900,6 @@ func analyzeCTERef(ref *nodes.TableRef, cteQ *CommonTableExprQ, q *Query, scope 
 			break
 		}
 	}
-	if cteIndex < 0 {
-		cteIndex = 0 // fallback for recursive self-ref during analysis
-	}
-
 	colNames := cteQ.ColumnNames
 
 	rte := &RangeTableEntryQ{
@@ -987,6 +997,9 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 	// scope built from result columns.
 	if len(stmt.OrderBy) > 0 || stmt.Limit != nil {
 		setScope := newScope()
+		// CTEs visible to the set operation remain visible to subqueries in its
+		// ORDER BY / LIMIT (e.g. ORDER BY (SELECT ... FROM cte)).
+		setScope.cteMap = cteMap
 		// Build stub columns from target list for ORDER BY resolution.
 		cols := make([]*Column, len(targetList))
 		colNames := make([]string, len(targetList))

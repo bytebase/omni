@@ -1,0 +1,36 @@
+{
+  "family": {
+    "id": "delete",
+    "slug": "delete",
+    "category": "dml"
+  },
+  "scope": {
+    "statements": [
+      "DELETE"
+    ],
+    "entry_ast_nodes": [
+      "DeleteStmt"
+    ],
+    "dispatch_roots": [
+      "parse_analyze_fixedparams",
+      "transformDeleteStmt"
+    ]
+  },
+  "dispatcher": [],
+  "handlers": [],
+  "writes": [],
+  "reads": [],
+  "regress_files": [],
+  "scenarios": [],
+  "translation_targets": [],
+  "evidence": [],
+  "stage_status": {
+    "discover": "pending",
+    "map": "pending",
+    "trace_writes": "pending",
+    "trace_reads": "pending",
+    "map_tests": "pending",
+    "plan_translation": "pending",
+    "synthesize": "pending"
+  }
+}

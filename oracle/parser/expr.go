@@ -70,6 +70,33 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 	}
 
 	for {
+		if p.startsDotPostfix() {
+			var err error
+			left, err = p.parseDotPostfix(left)
+			if err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		if p.startsCursorAttributePostfix() {
+			var err error
+			left, err = p.parseCursorAttributePostfix(left)
+			if err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		if p.startsAtTimeZoneExpr() {
+			var err error
+			left, err = p.parseAtTimeZoneExpr(left)
+			if err != nil {
+				return nil, err
+			}
+			continue
+		}
+
 		if prec, ok := p.postfixInfo(); ok && prec >= minPrec {
 			var err error
 			left, err = p.parsePostfix(left)
@@ -114,6 +141,135 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 	}
 
 	return left, nil
+}
+
+func (p *Parser) startsDotPostfix() bool {
+	if p.cur.Type != '.' {
+		return false
+	}
+	next := p.peekNext()
+	return next.Type == tokIDENT || next.Type == tokQIDENT || next.Type >= 2000
+}
+
+func (p *Parser) parseDotPostfix(left nodes.ExprNode) (nodes.ExprNode, error) {
+	start := exprLocStart(left, p.pos())
+	p.advance() // consume '.'
+	memberStart := p.pos()
+	name, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	if name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type != '(' {
+		return &nodes.FieldAccessExpr{
+			Expr:  left,
+			Field: name,
+			Loc:   nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
+	}
+
+	fc := &nodes.FuncCallExpr{
+		FuncName: &nodes.ObjectName{Name: name, Loc: nodes.Loc{Start: memberStart, End: p.prev.End}},
+		Args:     &nodes.List{Items: []nodes.Node{left}},
+		Loc:      nodes.Loc{Start: start},
+	}
+	p.advance() // consume '('
+	if p.cur.Type != ')' {
+		args, err := p.parseExprList()
+		if err != nil {
+			return nil, err
+		}
+		if args != nil {
+			fc.Args.Items = append(fc.Args.Items, args.Items...)
+		}
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	fc.Loc.End = p.prev.End
+	return p.parseFuncCallPostfix(fc)
+}
+
+func (p *Parser) startsCursorAttributePostfix() bool {
+	if p.cur.Type != '%' {
+		return false
+	}
+	next := p.peekNext()
+	return p.isCursorAttributeToken(next)
+}
+
+func (p *Parser) isCursorAttributeToken(tok Token) bool {
+	switch tok.Str {
+	case "FOUND", "ISOPEN", "NOTFOUND", "ROWCOUNT":
+		return tok.Type == tokIDENT || tok.Type == tokQIDENT || tok.Type >= 2000
+	default:
+		return false
+	}
+}
+
+func (p *Parser) parseCursorAttributePostfix(left nodes.ExprNode) (nodes.ExprNode, error) {
+	start := exprLocStart(left, p.pos())
+	p.advance() // consume '%'
+	attr, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	if attr == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return &nodes.CursorAttributeExpr{
+		Cursor:    left,
+		Attribute: attr,
+		Loc:       nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
+}
+
+func (p *Parser) startsAtTimeZoneExpr() bool {
+	if !p.isIdentLikeStr("AT") {
+		return false
+	}
+	next := p.peekNext()
+	return p.isIdentLikeStrAt(next, "LOCAL") || p.isIdentLikeStrAt(next, "TIME")
+}
+
+func (p *Parser) parseAtTimeZoneExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
+	start := exprLocStart(left, p.pos())
+	p.advance() // consume AT
+
+	if p.cur.Type == kwLOCAL {
+		p.advance()
+		return &nodes.FuncCallExpr{
+			FuncName: &nodes.ObjectName{Name: "AT_LOCAL", Loc: nodes.Loc{Start: start, End: p.prev.End}},
+			Args:     &nodes.List{Items: []nodes.Node{left}},
+			Loc:      nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
+	}
+
+	if !p.isIdentLikeStr("TIME") {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type != kwZONE {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+
+	zone, err := p.parseExprPrec(precPrimary)
+	if err != nil {
+		return nil, err
+	}
+	if zone == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	return &nodes.FuncCallExpr{
+		FuncName: &nodes.ObjectName{Name: "AT_TIME_ZONE", Loc: nodes.Loc{Start: start, End: p.prev.End}},
+		Args:     &nodes.List{Items: []nodes.Node{left, zone}},
+		Loc:      nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 func (p *Parser) infixInfo() (int, string, bool) {
@@ -683,6 +839,9 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 					Loc:    nodes.Loc{Start: start, End: p.prev.End},
 				})
 			}
+			if p.cur.Type == '(' {
+				return p.parseFuncCall(name3, name1+"."+name2, start)
+			}
 			return &nodes.ColumnRef{
 				Schema: name1,
 				Table:  name2,
@@ -713,6 +872,36 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 //	EXTRACT({ YEAR | MONTH | DAY | HOUR | MINUTE | SECOND } FROM expr)
 func (p *Parser) parseExtractExpr(start int) (nodes.ExprNode, error) {
 	p.advance() // consume '('
+
+	if !(p.isIntervalField() && p.peekNext().Type == kwFROM) {
+		fc := &nodes.FuncCallExpr{
+			FuncName: &nodes.ObjectName{Name: "EXTRACT", Loc: nodes.Loc{Start: start, End: p.prev.End}},
+			Args:     &nodes.List{},
+			Loc:      nodes.Loc{Start: start},
+		}
+		if p.cur.Type != ')' {
+			for {
+				arg, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				if arg == nil {
+					return nil, p.syntaxErrorAtCur()
+				}
+				fc.Args.Items = append(fc.Args.Items, arg)
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
+			}
+		}
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		fc.Loc.End = p.prev.End
+		return p.parseFuncCallPostfix(fc)
+	}
 
 	field, parseErr713 := p.parseIdentifier()
 	if parseErr713 != nil {
@@ -897,12 +1086,44 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 		p.advance()
 	}
 
+	if schema == "" && name == "TRIM" {
+		if err := p.parseTrimFuncArgs(fc); err != nil {
+			return nil, err
+		}
+		if p.cur.Type == ')' {
+			p.advance()
+		}
+		return p.parseFuncCallPostfix(fc)
+	}
+
 	// Arguments
 	if p.cur.Type != ')' {
 		for {
 			arg, parseErr714 := p.parseExpr()
 			if parseErr714 != nil {
 				return nil, parseErr714
+			}
+			if p.cur.Type == tokASSOC {
+				named, err := p.parseNamedArgExpr(arg)
+				if err != nil {
+					return nil, err
+				}
+				arg = named
+			}
+			if schema == "" && name == "TRIM" && p.cur.Type == kwFROM {
+				if arg != nil {
+					fc.Args.Items = append(fc.Args.Items, arg)
+				}
+				p.advance()
+				source, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				if source == nil {
+					return nil, p.syntaxErrorAtCur()
+				}
+				fc.Args.Items = append(fc.Args.Items, source)
+				break
 			}
 			if arg != nil {
 				fc.Args.Items = append(fc.Args.Items, arg)
@@ -919,6 +1140,94 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 	}
 
 	return p.parseFuncCallPostfix(fc)
+}
+
+func (p *Parser) parseTrimFuncArgs(fc *nodes.FuncCallExpr) error {
+	if p.cur.Type == ')' {
+		return nil
+	}
+
+	arg, err := p.parseExpr()
+	if err != nil {
+		return err
+	}
+	if arg == nil {
+		return p.syntaxErrorAtCur()
+	}
+	fc.Args.Items = append(fc.Args.Items, arg)
+
+	if p.isTrimModeArg(arg) && p.cur.Type != kwFROM && p.cur.Type != ',' && p.cur.Type != ')' {
+		charArg, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if charArg == nil {
+			return p.syntaxErrorAtCur()
+		}
+		fc.Args.Items = append(fc.Args.Items, charArg)
+	}
+
+	if p.cur.Type == kwFROM {
+		p.advance()
+		source, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if source == nil {
+			return p.syntaxErrorAtCur()
+		}
+		fc.Args.Items = append(fc.Args.Items, source)
+		return nil
+	}
+
+	for p.cur.Type == ',' {
+		p.advance()
+		arg, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if arg == nil {
+			return p.syntaxErrorAtCur()
+		}
+		fc.Args.Items = append(fc.Args.Items, arg)
+	}
+
+	return nil
+}
+
+func (p *Parser) isTrimModeArg(arg nodes.ExprNode) bool {
+	ref, ok := arg.(*nodes.ColumnRef)
+	if !ok || ref.Schema != "" || ref.Table != "" {
+		return false
+	}
+	switch ref.Column {
+	case "LEADING", "TRAILING", "BOTH":
+		return true
+	default:
+		return false
+	}
+}
+
+func (p *Parser) parseNamedArgExpr(arg nodes.ExprNode) (nodes.ExprNode, error) {
+	ref, ok := arg.(*nodes.ColumnRef)
+	if !ok || ref.Schema != "" || ref.Table != "" || ref.Column == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+	start := ref.Loc.Start
+	name := ref.Column
+	p.advance() // consume =>
+	value, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if value == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return &nodes.NamedArgExpr{
+		Name: name,
+		Expr: value,
+		Loc:  nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }
 
 // parseFuncCallPostfix checks for WITHIN GROUP, KEEP, and OVER clauses
@@ -1245,6 +1554,39 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	inner, parseErr729 := p.parseExpr()
 	if parseErr729 != nil {
 		return nil, parseErr729
+	}
+	if inner == nil {
+		if p.cur.Type == ')' {
+			p.advance()
+		}
+		return &nodes.ParenExpr{
+			Loc: nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
+	}
+
+	if p.cur.Type == ',' {
+		items := &nodes.List{Items: []nodes.Node{inner}}
+		for p.cur.Type == ',' {
+			p.advance()
+			item, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if item == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			items.Items = append(items.Items, item)
+		}
+		if p.cur.Type == ')' {
+			p.advance()
+		} else {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return &nodes.FuncCallExpr{
+			FuncName: &nodes.ObjectName{Name: "", Loc: nodes.Loc{Start: start, End: p.prev.End}},
+			Args:     items,
+			Loc:      nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 	}
 
 	if p.cur.Type == ')' {
@@ -2082,15 +2424,21 @@ func (p *Parser) parseJsonObjectOrArray(name string) (nodes.ExprNode, error) {
 	p.advance() // consume '('
 
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		arg, parseErr757 := p.parseExpr()
+		var arg nodes.ExprNode
+		var parseErr757 error
+		if name == "JSON_OBJECT" {
+			arg, parseErr757 = p.parseExprPrec(precComp)
+		} else {
+			arg, parseErr757 = p.parseExpr()
+		}
 		if parseErr757 != nil {
 			return nil, parseErr757
 		}
 		if arg != nil {
 			fc.Args.Items = append(fc.Args.Items, arg)
 		}
-		// Skip VALUE keyword (JSON_OBJECT key VALUE val syntax)
-		if p.isIdentLikeStr("VALUE") {
+		// Skip VALUE/IS keyword (JSON_OBJECT key VALUE val or key IS val syntax)
+		if p.isIdentLikeStr("VALUE") || (name == "JSON_OBJECT" && p.cur.Type == kwIS) {
 			p.advance()
 			val, parseErr758 := p.parseExpr()
 			if parseErr758 != nil {

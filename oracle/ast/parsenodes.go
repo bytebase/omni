@@ -429,6 +429,36 @@ type FuncCallExpr struct {
 func (n *FuncCallExpr) nodeTag()  {}
 func (n *FuncCallExpr) exprNode() {}
 
+// NamedArgExpr represents a named argument association in a function call.
+type NamedArgExpr struct {
+	Name string
+	Expr ExprNode
+	Loc  Loc
+}
+
+func (n *NamedArgExpr) nodeTag()  {}
+func (n *NamedArgExpr) exprNode() {}
+
+// FieldAccessExpr represents field access on an expression (e.g., collection(i).field).
+type FieldAccessExpr struct {
+	Expr  ExprNode
+	Field string
+	Loc   Loc
+}
+
+func (n *FieldAccessExpr) nodeTag()  {}
+func (n *FieldAccessExpr) exprNode() {}
+
+// CursorAttributeExpr represents PL/SQL cursor attributes (e.g., c%ROWCOUNT).
+type CursorAttributeExpr struct {
+	Cursor    ExprNode
+	Attribute string
+	Loc       Loc
+}
+
+func (n *CursorAttributeExpr) nodeTag()  {}
+func (n *CursorAttributeExpr) exprNode() {}
+
 // ExtractExpr represents EXTRACT(datetime_field FROM expr).
 type ExtractExpr struct {
 	Field string   // YEAR, MONTH, DAY, HOUR, MINUTE, SECOND
@@ -1958,8 +1988,11 @@ type CreateProcedureStmt struct {
 	Editionable    bool        // EDITIONABLE
 	NonEditionable bool        // NONEDITIONABLE
 	Sharing        string      // SHARING = METADATA | NONE
+	AuthID         string      // AUTHID CURRENT_USER | DEFINER
 	Name           *ObjectName // procedure name
 	Parameters     *List       // parameter list (list of *Parameter)
+	Wrapped        bool        // WRAPPED procedure body
+	WrappedSource  string      // raw text from WRAPPED through the wrapped payload
 	Body           StmtNode    // procedure body (PL/SQL block)
 	Loc            Loc         // start location
 }
@@ -1983,6 +2016,7 @@ type CreateFunctionStmt struct {
 	ResultCache    bool        // RESULT_CACHE
 	Aggregate      bool        // AGGREGATE USING
 	SqlMacro       bool        // SQL_MACRO
+	AuthID         string      // AUTHID CURRENT_USER | DEFINER
 	Body           StmtNode    // function body (PL/SQL block)
 	Loc            Loc         // start location
 }
@@ -2276,17 +2310,18 @@ func (n *PLSQLElsIf) nodeTag() {}
 
 // PLSQLLoop represents a LOOP/WHILE/FOR statement.
 type PLSQLLoop struct {
-	Type       PLSQLLoopType // loop type
-	Label      string        // loop label
-	Condition  ExprNode      // WHILE condition
-	Iterator   string        // FOR iterator variable
-	LowerBound ExprNode      // FOR lower bound
-	UpperBound ExprNode      // FOR upper bound
-	Reverse    bool          // REVERSE
-	CursorName string        // cursor name (for cursor FOR loop)
-	CursorArgs *List         // cursor arguments
-	Statements *List         // loop body
-	Loc        Loc           // start location
+	Type        PLSQLLoopType // loop type
+	Label       string        // loop label
+	Condition   ExprNode      // WHILE condition
+	Iterator    string        // FOR iterator variable
+	LowerBound  ExprNode      // FOR lower bound
+	UpperBound  ExprNode      // FOR upper bound
+	Reverse     bool          // REVERSE
+	CursorName  string        // cursor name (for cursor FOR loop)
+	CursorArgs  *List         // cursor arguments
+	CursorQuery StmtNode      // query source for cursor FOR loop
+	Statements  *List         // loop body
+	Loc         Loc           // start location
 }
 
 func (n *PLSQLLoop) nodeTag()  {}
@@ -2372,10 +2407,12 @@ func (n *PLSQLExecImmediate) stmtNode() {}
 
 // PLSQLOpen represents an OPEN cursor statement.
 type PLSQLOpen struct {
-	Cursor   string   // cursor name
-	Args     *List    // cursor arguments
-	ForQuery StmtNode // FOR select statement (ref cursor)
-	Loc      Loc
+	Cursor    string   // cursor name
+	Args      *List    // cursor arguments
+	ForQuery  StmtNode // FOR select statement (ref cursor)
+	ForExpr   ExprNode // FOR dynamic SQL expression (ref cursor)
+	UsingArgs *List    // USING bind argument list
+	Loc       Loc
 }
 
 func (n *PLSQLOpen) nodeTag()  {}

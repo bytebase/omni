@@ -1,0 +1,1857 @@
+{
+  "version": 1,
+  "target": "100% yacc grammar parity with recursive descent parser",
+  "status": "done",
+  "batches": [
+    {
+      "id": 0,
+      "name": "infrastructure",
+      "file": "parser.go",
+      "status": "done",
+      "description": "Parser struct, advance/peek/match/expect/pos/mapTokenType helpers",
+      "rules": [],
+      "depends_on": [],
+      "tests": []
+    },
+    {
+      "id": 1,
+      "name": "names",
+      "file": "name.go",
+      "status": "done",
+      "description": "Identifiers, qualified names, name lists",
+      "rules": [
+        "name",
+        "attr_name",
+        "qualified_name",
+        "any_name",
+        "any_name_list",
+        "opt_name_list",
+        "name_list",
+        "columnref",
+        "indirection",
+        "indirection_el",
+        "opt_indirection",
+        "opt_slice_bound",
+        "attrs",
+        "ColId",
+        "ColLabel",
+        "type_function_name",
+        "unreserved_keyword",
+        "col_name_keyword",
+        "type_func_name_keyword",
+        "reserved_keyword",
+        "func_name",
+        "file_name",
+        "cursor_name",
+        "any_operator",
+        "qualified_name_list"
+      ],
+      "depends_on": [
+        0
+      ],
+      "tests": []
+    },
+    {
+      "id": 2,
+      "name": "types",
+      "file": "type.go",
+      "status": "done",
+      "description": "Type names, array bounds, type modifiers",
+      "rules": [
+        "opt_array_bounds",
+        "opt_type_modifiers",
+        "opt_float",
+        "opt_varying",
+        "opt_timezone",
+        "opt_interval",
+        "interval_second",
+        "type_list",
+        "func_type"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "typecast"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "expressions",
+      "file": "expr.go",
+      "status": "done",
+      "description": "All expression types: a_expr, b_expr, c_expr, operators, subqueries",
+      "rules": [
+        "a_expr",
+        "b_expr",
+        "c_expr",
+        "opt_asymmetric",
+        "sub_type",
+        "case_expr",
+        "when_clause_list",
+        "when_clause",
+        "case_default",
+        "case_arg",
+        "array_expr",
+        "array_expr_list",
+        "row",
+        "explicit_row",
+        "implicit_row",
+        "expr_list",
+        "func_arg_list",
+        "func_arg_list_opt",
+        "func_arg_expr",
+        "extract_list",
+        "extract_arg",
+        "unicode_normal_form",
+        "overlay_list",
+        "position_list",
+        "substr_list",
+        "trim_list",
+        "in_expr"
+      ],
+      "depends_on": [
+        1,
+        2
+      ],
+      "tests": [
+        "case",
+        "cast",
+        "array",
+        "row",
+        "subquery",
+        "distinct"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "functions",
+      "file": "func.go",
+      "status": "done",
+      "description": "Function calls, window functions, aggregates",
+      "rules": [
+        "func_expr",
+        "func_expr_windowless",
+        "func_application",
+        "func_expr_common_subexpr",
+        "within_group_clause",
+        "filter_clause",
+        "over_clause",
+        "window_clause",
+        "window_definition_list",
+        "window_definition",
+        "window_specification",
+        "opt_existing_window_name",
+        "opt_partition_clause",
+        "opt_frame_clause",
+        "frame_extent",
+        "frame_bound",
+        "opt_window_exclusion_clause"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": []
+    },
+    {
+      "id": 5,
+      "name": "xml",
+      "file": "xml.go",
+      "status": "done",
+      "description": "XML expressions and functions",
+      "rules": [
+        "xml_root_version",
+        "opt_xml_root_standalone",
+        "xml_attributes",
+        "xml_attribute_list",
+        "xml_attribute_el",
+        "document_or_content",
+        "xml_indent_option",
+        "xml_whitespace_option",
+        "xmlexists_argument",
+        "xml_passing_mech",
+        "xmltable",
+        "xmltable_column_list",
+        "xmltable_column_el",
+        "xmltable_column_option_list",
+        "xmltable_column_option_el",
+        "xml_namespace_list",
+        "xml_namespace_el"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": []
+    },
+    {
+      "id": 6,
+      "name": "json",
+      "file": "json.go",
+      "status": "done",
+      "description": "JSON expressions, constructors, queries",
+      "rules": [
+        "json_value_expr",
+        "json_format_clause",
+        "json_format_clause_opt",
+        "json_returning_clause_opt",
+        "json_output_clause_opt",
+        "json_behavior",
+        "json_behavior_type",
+        "json_behavior_clause_opt",
+        "json_on_error_clause_opt",
+        "json_wrapper_behavior",
+        "json_quotes_clause_opt",
+        "json_predicate_type_constraint",
+        "json_key_uniqueness_constraint_opt",
+        "json_name_and_value_list",
+        "json_name_and_value",
+        "json_object_constructor_null_clause_opt",
+        "json_array_constructor_null_clause_opt",
+        "json_value_expr_list",
+        "json_passing_clause_opt",
+        "json_arguments",
+        "json_argument",
+        "json_aggregate_func",
+        "json_array_aggregate_order_by_clause_opt",
+        "json_table",
+        "json_table_path_name_opt",
+        "json_table_column_definition_list",
+        "json_table_column_definition",
+        "json_table_column_path_clause_opt",
+        "json_table_column_option_list",
+        "json_table_column_option_el",
+        "path_opt"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "sqljson",
+        "json_agg"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "select",
+      "file": "select.go",
+      "status": "done",
+      "description": "SELECT statement and all clauses",
+      "rules": [
+        "select_with_parens",
+        "select_no_parens",
+        "select_clause",
+        "simple_select",
+        "values_clause",
+        "opt_all_clause",
+        "opt_distinct_clause",
+        "distinct_clause",
+        "set_quantifier",
+        "opt_with_clause",
+        "with_clause",
+        "cte_list",
+        "common_table_expr",
+        "opt_materialized",
+        "opt_search_clause",
+        "opt_cycle_clause",
+        "opt_target_list",
+        "into_clause",
+        "target_list",
+        "target_el",
+        "from_clause",
+        "from_list",
+        "table_ref",
+        "joined_table",
+        "join_type",
+        "opt_outer",
+        "join_qual",
+        "join_using_alias",
+        "relation_expr",
+        "relation_expr_opt_alias",
+        "opt_alias_clause",
+        "func_alias_clause",
+        "alias_clause",
+        "func_table",
+        "rowsfrom_list",
+        "rowsfrom_item",
+        "opt_col_def_list",
+        "opt_ordinality",
+        "tablesample_clause",
+        "opt_repeatable_clause",
+        "where_clause",
+        "where_or_current_clause",
+        "group_clause",
+        "group_by_list",
+        "group_by_item",
+        "empty_grouping_set",
+        "cube_clause",
+        "rollup_clause",
+        "grouping_sets_clause",
+        "having_clause",
+        "sort_clause",
+        "opt_sort_clause",
+        "sortby_list",
+        "sortby",
+        "opt_asc_desc",
+        "opt_nulls_order",
+        "select_limit",
+        "limit_clause",
+        "offset_clause",
+        "first_or_next",
+        "row_or_rows",
+        "select_limit_value",
+        "select_offset_value",
+        "select_fetch_first_value",
+        "opt_select_limit",
+        "for_locking_clause",
+        "opt_for_locking_clause",
+        "for_locking_items",
+        "for_locking_item",
+        "for_locking_strength",
+        "locked_rels_list",
+        "opt_nowait_or_skip"
+      ],
+      "depends_on": [
+        3,
+        4
+      ],
+      "tests": [
+        "cte",
+        "distinct",
+        "group",
+        "join",
+        "limit",
+        "subquery"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "insert",
+      "file": "insert.go",
+      "status": "done",
+      "description": "INSERT statement",
+      "rules": [
+        "insert_target",
+        "insert_rest",
+        "insert_column_list",
+        "insert_column_item",
+        "opt_on_conflict",
+        "returning_clause",
+        "set_clause_list",
+        "set_clause",
+        "set_target",
+        "set_target_list",
+        "override_kind"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": [
+        "insert"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "update",
+      "file": "update.go",
+      "status": "done",
+      "description": "UPDATE, DELETE, MERGE statements",
+      "rules": [
+        "using_clause",
+        "merge_when_list",
+        "merge_when_clause",
+        "merge_when_tgt_matched",
+        "merge_when_tgt_not_matched",
+        "opt_merge_when_condition",
+        "merge_update",
+        "merge_delete",
+        "merge_insert",
+        "merge_values_clause"
+      ],
+      "depends_on": [
+        7,
+        8
+      ],
+      "tests": [
+        "update",
+        "delete",
+        "merge"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "create_table",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "CREATE TABLE, column definitions, constraints",
+      "rules": [
+        "opt_column_constraints",
+        "opt_column_list",
+        "key_match",
+        "key_actions",
+        "key_update",
+        "key_delete",
+        "key_action",
+        "opt_c_include",
+        "opt_collate",
+        "part_params",
+        "part_elem",
+        "hash_partbound",
+        "hash_partbound_elem",
+        "column_compression",
+        "generated_when",
+        "no_inherit",
+        "opt_unique_null_treatment"
+      ],
+      "depends_on": [
+        2,
+        3
+      ],
+      "tests": [
+        "createtable",
+        "createtable_relpersistence",
+        "check_constraint",
+        "fk_action"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "alter_table",
+      "file": "alter_table.go",
+      "status": "done",
+      "description": "ALTER TABLE and all subcommands",
+      "rules": [
+        "alter_table_cmds",
+        "alter_table_cmd",
+        "opt_drop_behavior",
+        "alter_column_default",
+        "opt_if_not_exists",
+        "alter_identity_column_option_list",
+        "alter_identity_column_option",
+        "opt_as",
+        "opt_collate_clause",
+        "reloptions",
+        "opt_reloptions",
+        "reloption_list",
+        "reloption_elem",
+        "opt_set_data"
+      ],
+      "depends_on": [
+        10
+      ],
+      "tests": [
+        "altertable",
+        "set_storage"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "create_index",
+      "file": "create_index.go",
+      "status": "done",
+      "description": "CREATE INDEX",
+      "rules": [
+        "opt_unique",
+        "opt_concurrently",
+        "opt_single_name",
+        "access_method_clause",
+        "index_params",
+        "index_elem",
+        "opt_include",
+        "index_including_params",
+        "opt_check_option"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "createindex"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "create_view",
+      "file": "create_view.go",
+      "status": "done",
+      "description": "CREATE VIEW, CREATE TABLE AS",
+      "rules": [
+        "opt_or_replace",
+        "create_as_target",
+        "opt_with_data",
+        "create_mv_target"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": [
+        "createview",
+        "ctas"
+      ]
+    },
+    {
+      "id": 14,
+      "name": "create_function",
+      "file": "create_function.go",
+      "status": "done",
+      "description": "CREATE FUNCTION/PROCEDURE",
+      "rules": [
+        "func_args_with_defaults",
+        "func_args_with_defaults_list",
+        "func_arg_with_default",
+        "func_arg",
+        "arg_class",
+        "param_name",
+        "func_return",
+        "table_func_column_list",
+        "table_func_column",
+        "opt_createfunc_opt_list",
+        "createfunc_opt_list",
+        "opt_routine_body",
+        "routine_body_stmt_list",
+        "routine_body_stmt",
+        "createfunc_opt_item",
+        "func_as",
+        "transform_type_list",
+        "common_func_opt_item"
+      ],
+      "depends_on": [
+        2,
+        7
+      ],
+      "tests": [
+        "createfunction"
+      ]
+    },
+    {
+      "id": 15,
+      "name": "alter_misc",
+      "file": "alter_misc.go",
+      "status": "done",
+      "description": "ALTER FUNCTION, ALTER TYPE, ALTER SEQUENCE, ALTER generic",
+      "rules": [
+        "alterfunc_opt_list",
+        "opt_restrict",
+        "alter_type_cmds",
+        "alter_type_cmd",
+        "alter_identity_column_option_list",
+        "alter_identity_column_option",
+        "function_with_argtypes_list",
+        "function_with_argtypes",
+        "func_args",
+        "func_args_list",
+        "aggregate_with_argtypes",
+        "aggregate_with_argtypes_list",
+        "operator_with_argtypes_list",
+        "operator_with_argtypes",
+        "oper_argtypes"
+      ],
+      "depends_on": [
+        11,
+        14
+      ],
+      "tests": [
+        "alterfunc",
+        "alter_generic"
+      ]
+    },
+    {
+      "id": 16,
+      "name": "drop",
+      "file": "drop.go",
+      "status": "done",
+      "description": "DROP, TRUNCATE",
+      "rules": [
+        "object_type_any_name",
+        "object_type_name",
+        "object_type_name_on_any_name",
+        "drop_option_list",
+        "drop_option",
+        "opt_if_exists",
+        "opt_restart_seqs",
+        "opt_table",
+        "relation_expr_list"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "drop"
+      ]
+    },
+    {
+      "id": 17,
+      "name": "sequence",
+      "file": "sequence.go",
+      "status": "done",
+      "description": "CREATE/ALTER SEQUENCE",
+      "rules": [
+        "opt_enum_val_list",
+        "enum_val_list"
+      ],
+      "depends_on": [
+        2
+      ],
+      "tests": [
+        "sequence",
+        "domain"
+      ]
+    },
+    {
+      "id": 18,
+      "name": "grant",
+      "file": "grant.go",
+      "status": "done",
+      "description": "GRANT/REVOKE, policies",
+      "rules": [
+        "privileges",
+        "privilege_list",
+        "privilege",
+        "grantee_list",
+        "grantee",
+        "opt_grant_grant_option",
+        "grant_role_opt_list",
+        "grant_role_opt",
+        "grant_role_opt_value",
+        "opt_granted_by",
+        "opt_with",
+        "role_list",
+        "row_security_cmd"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "grant",
+        "policy",
+        "role"
+      ]
+    },
+    {
+      "id": 19,
+      "name": "schema",
+      "file": "schema.go",
+      "status": "done",
+      "description": "CREATE SCHEMA, RENAME, COMMENT",
+      "rules": [
+        "schema_stmt",
+        "comment_text",
+        "opt_by"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "schema",
+        "comment"
+      ]
+    },
+    {
+      "id": 20,
+      "name": "define",
+      "file": "define.go",
+      "status": "done",
+      "description": "DefineStmt, aggregate, operator, opclass definitions",
+      "rules": [
+        "definition",
+        "def_list",
+        "def_elem",
+        "def_arg",
+        "old_aggr_definition",
+        "old_aggr_list",
+        "old_aggr_elem",
+        "aggr_args",
+        "aggr_args_list",
+        "aggr_arg",
+        "opt_definition",
+        "operator_def_list",
+        "operator_def_elem",
+        "operator_def_arg",
+        "opclass_item_list",
+        "opclass_item",
+        "opt_default",
+        "opt_opfamily",
+        "opclass_purpose",
+        "opt_recheck",
+        "opclass_drop_list",
+        "opclass_drop",
+        "defacl_privilege_target",
+        "opt_stat_name_list",
+        "stats_params",
+        "stats_param",
+        "set_statistics_value"
+      ],
+      "depends_on": [
+        2,
+        3
+      ],
+      "tests": [
+        "define",
+        "opclass",
+        "stats"
+      ]
+    },
+    {
+      "id": 21,
+      "name": "trigger",
+      "file": "trigger.go",
+      "status": "done",
+      "description": "CREATE TRIGGER, event triggers",
+      "rules": [
+        "event",
+        "opt_instead",
+        "enable_trigger",
+        "event_trigger_when_list",
+        "event_trigger_when_item",
+        "event_trigger_value_list"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "trigger"
+      ]
+    },
+    {
+      "id": 22,
+      "name": "copy",
+      "file": "copy.go",
+      "status": "done",
+      "description": "COPY statement",
+      "rules": [
+        "copy_from",
+        "opt_program",
+        "copy_file_name",
+        "copy_opt_with",
+        "copy_options",
+        "copy_opt_list",
+        "copy_opt_item",
+        "opt_binary",
+        "copy_delimiter",
+        "opt_using"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "copy"
+      ]
+    },
+    {
+      "id": 23,
+      "name": "set",
+      "file": "set.go",
+      "status": "done",
+      "description": "SET, SHOW, RESET, variable handling",
+      "rules": [
+        "set_rest",
+        "generic_set",
+        "set_rest_more",
+        "var_name",
+        "var_list",
+        "var_value",
+        "zone_value",
+        "opt_encoding",
+        "iso_level",
+        "reset_rest",
+        "generic_reset",
+        "opt_boolean_or_string"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "set"
+      ]
+    },
+    {
+      "id": 24,
+      "name": "transaction",
+      "file": "transaction.go",
+      "status": "done",
+      "description": "Transaction statements",
+      "rules": [
+        "opt_transaction",
+        "opt_transaction_chain",
+        "transaction_mode_item",
+        "transaction_mode_list",
+        "transaction_mode_list_or_empty"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "transaction"
+      ]
+    },
+    {
+      "id": 25,
+      "name": "cursor",
+      "file": "cursor.go",
+      "status": "done",
+      "description": "DECLARE CURSOR, FETCH, MOVE",
+      "rules": [
+        "cursor_options",
+        "opt_hold",
+        "fetch_args",
+        "from_in",
+        "opt_from_in"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": [
+        "cursor"
+      ]
+    },
+    {
+      "id": 26,
+      "name": "prepare",
+      "file": "prepare.go",
+      "status": "done",
+      "description": "PREPARE, EXECUTE, DEALLOCATE",
+      "rules": [
+        "prep_type_clause",
+        "execute_param_clause"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": []
+    },
+    {
+      "id": 27,
+      "name": "maintenance",
+      "file": "maintenance.go",
+      "status": "done",
+      "description": "VACUUM, ANALYZE, CLUSTER, REINDEX",
+      "rules": [
+        "analyze_keyword",
+        "opt_full",
+        "opt_freeze",
+        "opt_verbose",
+        "opt_analyze",
+        "vacuum_relation",
+        "vacuum_relation_list",
+        "opt_vacuum_relation_list",
+        "cluster_index_specification",
+        "reindex_target_type",
+        "reindex_target_multitable",
+        "opt_reindex_option_list"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "maintenance"
+      ]
+    },
+    {
+      "id": 28,
+      "name": "lock",
+      "file": "lock.go",
+      "status": "done",
+      "description": "LOCK, CONSTRAINTS SET",
+      "rules": [
+        "opt_lock",
+        "lock_type",
+        "opt_nowait",
+        "constraints_set_list",
+        "constraints_set_mode"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": []
+    },
+    {
+      "id": 29,
+      "name": "utility",
+      "file": "utility.go",
+      "status": "done",
+      "description": "Utility options, DO, EXPLAIN, LISTEN, NOTIFY, etc.",
+      "rules": [
+        "utility_option_list",
+        "utility_option_elem",
+        "utility_option_name",
+        "utility_option_arg",
+        "utility_option_arg_list",
+        "dostmt_opt_list",
+        "dostmt_opt_item",
+        "opt_provider",
+        "security_label"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": [
+        "utility",
+        "explain"
+      ]
+    },
+    {
+      "id": 30,
+      "name": "database",
+      "file": "database.go",
+      "status": "done",
+      "description": "CREATE/ALTER DATABASE",
+      "rules": [
+        "createdb_opt_list",
+        "createdb_opt_items",
+        "createdb_opt_item",
+        "createdb_opt_name",
+        "opt_equal",
+        "add_drop"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "database"
+      ]
+    },
+    {
+      "id": 31,
+      "name": "fdw",
+      "file": "fdw.go",
+      "status": "done",
+      "description": "Foreign data wrappers, foreign servers, foreign tables",
+      "rules": [
+        "fdw_option",
+        "fdw_options",
+        "opt_fdw_options",
+        "create_generic_options",
+        "generic_option_list",
+        "alter_generic_options",
+        "alter_generic_option_list",
+        "alter_generic_option_elem",
+        "generic_option_elem",
+        "generic_option_name",
+        "generic_option_arg",
+        "opt_type",
+        "foreign_server_version",
+        "opt_foreign_server_version",
+        "import_qualification_type",
+        "import_qualification",
+        "auth_ident",
+        "opt_trusted",
+        "handler_name",
+        "opt_inline_handler",
+        "opt_validator",
+        "opt_procedural"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "fdw"
+      ]
+    },
+    {
+      "id": 32,
+      "name": "extension",
+      "file": "extension.go",
+      "status": "done",
+      "description": "CREATE/ALTER EXTENSION, ACCESS METHOD, CAST, TRANSFORM",
+      "rules": [
+        "create_extension_opt_list",
+        "create_extension_opt_item",
+        "alter_extension_opt_list",
+        "alter_extension_opt_item",
+        "am_type",
+        "cast_context",
+        "transform_element_list",
+        "opt_no"
+      ],
+      "depends_on": [
+        2
+      ],
+      "tests": [
+        "extension"
+      ]
+    },
+    {
+      "id": 33,
+      "name": "publication",
+      "file": "publication.go",
+      "status": "done",
+      "description": "Publication, subscription, rule",
+      "rules": [
+        "pub_obj_list",
+        "opt_qualified_name"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "publication",
+        "subscription",
+        "rule"
+      ]
+    },
+    {
+      "id": 34,
+      "name": "stmt_dispatch",
+      "file": "parser.go",
+      "status": "done",
+      "description": "Top-level stmtblock/stmtmulti/stmt dispatching, wire up Parse() entry point",
+      "rules": [
+        "stmtblock",
+        "stmtmulti",
+        "stmt"
+      ],
+      "depends_on": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33
+      ],
+      "tests": [
+        "integration"
+      ]
+    },
+    {
+      "id": 35,
+      "name": "call_stmt",
+      "file": "utility.go",
+      "status": "done",
+      "description": "CALL statement for invoking procedures. Add CALL case to parseStmt dispatch. Ref: https://www.postgresql.org/docs/17/sql-call.html",
+      "rules": [
+        "CallStmt"
+      ],
+      "depends_on": [
+        4,
+        34
+      ],
+      "tests": [
+        "call"
+      ]
+    },
+    {
+      "id": 36,
+      "name": "alter_system",
+      "file": "set.go",
+      "status": "done",
+      "description": "ALTER SYSTEM SET/RESET for modifying postgresql.conf. Add ALTER SYSTEM case to parseStmt ALTER dispatch. Ref: https://www.postgresql.org/docs/17/sql-altersystem.html",
+      "rules": [
+        "AlterSystemStmt"
+      ],
+      "depends_on": [
+        23,
+        34
+      ],
+      "tests": [
+        "alter_system"
+      ]
+    },
+    {
+      "id": 37,
+      "name": "tablespace",
+      "file": "schema.go",
+      "status": "done",
+      "description": "CREATE TABLESPACE, DROP TABLESPACE, and full ALTER TABLESPACE (SET/RESET reloptions). Currently ALTER TABLESPACE only handles OWNER/RENAME, missing SET/RESET. Refs: https://www.postgresql.org/docs/17/sql-createtablespace.html, https://www.postgresql.org/docs/17/sql-droptablespace.html, https://www.postgresql.org/docs/17/sql-altertablespace.html",
+      "rules": [
+        "CreateTableSpaceStmt",
+        "OptTableSpaceOwner",
+        "DropTableSpaceStmt",
+        "AlterTblSpcStmt"
+      ],
+      "depends_on": [
+        11,
+        34
+      ],
+      "tests": [
+        "tablespace"
+      ]
+    },
+    {
+      "id": 38,
+      "name": "create_conversion",
+      "file": "define.go",
+      "status": "done",
+      "description": "CREATE [DEFAULT] CONVERSION statement. Add CONVERSION case to parseCreateDispatch. Ref: https://www.postgresql.org/docs/17/sql-createconversion.html",
+      "rules": [
+        "CreateConversionStmt"
+      ],
+      "depends_on": [
+        20,
+        34
+      ],
+      "tests": [
+        "conversion"
+      ]
+    },
+    {
+      "id": 39,
+      "name": "drop_operator",
+      "file": "drop.go",
+      "status": "done",
+      "description": "DROP OPERATOR with oper_argtypes (RemoveOperStmt). Currently has a TODO placeholder returning nil. Must parse operator_with_argtypes_list. Ref: https://www.postgresql.org/docs/17/sql-dropoperator.html",
+      "rules": [
+        "RemoveOperStmt"
+      ],
+      "depends_on": [
+        15,
+        16,
+        34
+      ],
+      "tests": [
+        "drop_operator"
+      ]
+    },
+    {
+      "id": 40,
+      "name": "drop_func_argtypes",
+      "file": "drop.go",
+      "status": "done",
+      "description": "Fix DROP FUNCTION/PROCEDURE/ROUTINE/AGGREGATE to use function_with_argtypes_list instead of any_name_list. The yacc grammar (RemoveFuncStmt, RemoveAggrStmt) parses argument types like DROP FUNCTION foo(integer, text). Current parseDropAnyNameList only parses names without arg types. Refs: https://www.postgresql.org/docs/17/sql-dropfunction.html, https://www.postgresql.org/docs/17/sql-dropprocedure.html, https://www.postgresql.org/docs/17/sql-dropaggregate.html",
+      "rules": [
+        "RemoveFuncStmt",
+        "RemoveAggrStmt"
+      ],
+      "depends_on": [
+        15,
+        16,
+        34
+      ],
+      "tests": [
+        "drop_func_argtypes"
+      ]
+    },
+    {
+      "id": 41,
+      "name": "alter_tablespace_set_reset",
+      "file": "alter_misc.go",
+      "status": "done",
+      "description": "Complete ALTER TABLESPACE SET/RESET reloptions (AlterTableSpaceOptionsStmt). Currently parseAlterTablespaceOwner handles OWNER/RENAME but returns nil for SET. Must produce AlterTableSpaceOptionsStmt with IsReset flag. Ref: https://www.postgresql.org/docs/17/sql-altertablespace.html",
+      "rules": [
+        "AlterTblSpcStmt"
+      ],
+      "depends_on": [
+        11,
+        34
+      ],
+      "tests": [
+        "alter_tablespace_opts"
+      ]
+    },
+    {
+      "id": 42,
+      "name": "func_table_in_from",
+      "file": "select.go",
+      "status": "done",
+      "description": "Fix batch 7 gap: parseRelationOrFuncTable does not handle bare function calls (func_table) in FROM clause. Also parseTableRefPrimary does not dispatch XMLTABLE/JSON_TABLE tokens, and parseLateralTableRef lacks LATERAL XMLTABLE/JSON_TABLE. Must disambiguate qualified_name followed by '(' as func_expr_windowless, and add XMLTABLE/JSON_TABLE cases to parseTableRefPrimary and parseLateralTableRef. Refs: https://www.postgresql.org/docs/current/sql-select.html, https://www.postgresql.org/docs/current/functions-xml.html#FUNCTIONS-XML-PROCESSING-XMLTABLE, https://www.postgresql.org/docs/current/functions-json.html#FUNCTIONS-SQLJSON-TABLE",
+      "rules": [
+        "parseRelationOrFuncTable",
+        "parseTableRefPrimary",
+        "parseLateralTableRef"
+      ],
+      "depends_on": [
+        5,
+        6,
+        7
+      ],
+      "tests": [
+        "func_table_from",
+        "xmltable_from",
+        "json_table_from"
+      ]
+    },
+    {
+      "id": 43,
+      "name": "cte_search_cycle",
+      "file": "select.go",
+      "status": "done",
+      "description": "Fix batch 7 gap: parseCommonTableExpr skips opt_search_clause and opt_cycle_clause (lines 561-562 comment 'rarely used, skip for now'). Must implement SEARCH BREADTH/DEPTH FIRST BY column_list SET column and CYCLE column_list SET column TO value DEFAULT value USING column. Ref: https://www.postgresql.org/docs/current/queries-with.html",
+      "rules": [
+        "opt_search_clause",
+        "opt_cycle_clause"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": [
+        "cte_search",
+        "cte_cycle"
+      ]
+    },
+    {
+      "id": 44,
+      "name": "begin_atomic_routine_body",
+      "file": "create_function.go",
+      "status": "done",
+      "description": "Fix batch 14 gap: parseOptRoutineBody has TODO stub at line 525 for BEGIN ATOMIC routine_body_stmt_list END. Must parse BEGIN_P ATOMIC, then loop calling parseStmt for each statement (separated by ';'), then expect END_P. Ref: https://www.postgresql.org/docs/current/sql-createfunction.html",
+      "rules": [
+        "parseOptRoutineBody",
+        "routine_body_stmt_list",
+        "routine_body_stmt"
+      ],
+      "depends_on": [
+        14,
+        34
+      ],
+      "tests": [
+        "begin_atomic_body"
+      ]
+    },
+    {
+      "id": 45,
+      "name": "func_set_reset_options",
+      "file": "create_function.go",
+      "status": "done",
+      "description": "Fix batch 14 gap: parseCommonFuncOptItem BNF lists SET set_rest_more and VariableResetStmt (lines 442-443) but the switch has no cases for them. Must add SET case that calls parseSetRestMore and RESET case that calls parseVariableResetStmt, wrapping results in DefElem. Ref: https://www.postgresql.org/docs/current/sql-createfunction.html",
+      "rules": [
+        "parseCommonFuncOptItem"
+      ],
+      "depends_on": [
+        14,
+        23
+      ],
+      "tests": [
+        "func_set_option",
+        "func_reset_option"
+      ]
+    },
+    {
+      "id": 46,
+      "name": "alter_rule",
+      "file": "alter_misc.go",
+      "status": "done",
+      "description": "New: ALTER RULE name ON table_name RENAME TO new_name. Width gap \u2014 ALTER RULE is not dispatched in parseStmt ALTER switch. Add case RULE to ALTER dispatch in parser.go, implement parseAlterRuleStmt producing RenameStmt with OBJECT_RULE. Ref: https://www.postgresql.org/docs/17/sql-alterrule.html",
+      "rules": [
+        "parseAlterRuleStmt"
+      ],
+      "depends_on": [
+        34
+      ],
+      "tests": [
+        "alter_rule"
+      ]
+    },
+    {
+      "id": 47,
+      "name": "alter_relation_set_schema",
+      "file": "alter_table.go",
+      "status": "done",
+      "description": "Fix batch 11 gap: parseAlterTable, parseAlterView, parseAlterIndex, parseAlterMaterializedView, parseAlterForeignTable do not handle SET SCHEMA. In PG yacc grammar, ALTER TABLE/VIEW/INDEX/MATVIEW/FOREIGN TABLE ... SET SCHEMA produces AlterObjectSchemaStmt, but parseAlterTableSet has no SCHEMA case and the separate parseAlter* functions don't check for it before delegating to parseAlterTableCmds. Must add SET SCHEMA dispatch before parseAlterTableCmds in each function. Ref: https://www.postgresql.org/docs/17/sql-altertable.html",
+      "rules": [
+        "parseAlterTable",
+        "parseAlterView",
+        "parseAlterIndex",
+        "parseAlterMaterializedView",
+        "parseAlterForeignTable"
+      ],
+      "depends_on": [
+        11
+      ],
+      "tests": [
+        "alter_table_set_schema",
+        "alter_view_set_schema",
+        "alter_index_set_schema",
+        "alter_matview_set_schema"
+      ]
+    },
+    {
+      "id": 48,
+      "name": "alter_sequence_owner_schema",
+      "file": "alter_table.go",
+      "status": "done",
+      "description": "Fix batch 11 gap: parseAlterSequence only handles RENAME TO and sequence options via parseSeqOptList. Missing OWNER TO (AlterOwnerStmt) and SET SCHEMA (AlterObjectSchemaStmt). Must add OWNER and SET SCHEMA checks before falling through to parseSeqOptList. Ref: https://www.postgresql.org/docs/17/sql-altersequence.html",
+      "rules": [
+        "parseAlterSequence"
+      ],
+      "depends_on": [
+        11,
+        17
+      ],
+      "tests": [
+        "alter_sequence_owner",
+        "alter_sequence_set_schema"
+      ]
+    },
+    {
+      "id": 49,
+      "name": "alter_database_rename_owner_refresh",
+      "file": "database.go",
+      "status": "done",
+      "description": "Fix batch 30 gap: parseAlterDatabaseDispatch does not handle RENAME TO (RenameStmt), OWNER TO (AlterOwnerStmt), or REFRESH COLLATION VERSION (AlterDatabaseRefreshCollStmt). RENAME falls to default which tries createdb_opt_list and fails. OWNER is parsed as a createdb option producing wrong AST. Must add explicit cases for RENAME, OWNER, and REFRESH. Ref: https://www.postgresql.org/docs/17/sql-alterdatabase.html",
+      "rules": [
+        "parseAlterDatabaseDispatch"
+      ],
+      "depends_on": [
+        30
+      ],
+      "tests": [
+        "alter_database_rename",
+        "alter_database_owner",
+        "alter_database_refresh_collation"
+      ]
+    },
+    {
+      "id": 50,
+      "name": "createdb_pg17_options",
+      "file": "database.go",
+      "status": "done",
+      "description": "Fix batch 30 gap: parseCreatedbOptName only recognizes CONNECTION LIMIT, ENCODING, LOCATION, OWNER, TABLESPACE, TEMPLATE, and IDENT. PG 17 added many options as reserved/unreserved keywords: LOCALE, LC_COLLATE, LC_CTYPE, ICU_LOCALE, ICU_RULES, LOCALE_PROVIDER, COLLATION_VERSION, ALLOW_CONNECTIONS, IS_TEMPLATE, OID, STRATEGY, BUILTIN_LOCALE. These keywords won't match IDENT and silently fail. Must add explicit cases. Ref: https://www.postgresql.org/docs/17/sql-createdatabase.html",
+      "rules": [
+        "parseCreatedbOptName"
+      ],
+      "depends_on": [
+        30
+      ],
+      "tests": [
+        "createdb_pg17_options"
+      ]
+    },
+    {
+      "id": 51,
+      "name": "alter_index_matview_depends_ext",
+      "file": "alter_table.go",
+      "status": "done",
+      "description": "Fix batch 11 gap: parseAlterIndex and parseAlterMaterializedView do not handle [NO] DEPENDS ON EXTENSION (AlterObjectDependsStmt). In PG grammar, ALTER INDEX/MATERIALIZED VIEW name [NO] DEPENDS ON EXTENSION ext_name produces AlterObjectDependsStmt. Must add DEPENDS and NO DEPENDS checks before falling through to parseAlterTableCmds. Ref: https://www.postgresql.org/docs/17/sql-alterindex.html",
+      "rules": [
+        "parseAlterIndex",
+        "parseAlterMaterializedView"
+      ],
+      "depends_on": [
+        11
+      ],
+      "tests": [
+        "alter_index_depends_ext",
+        "alter_matview_depends_ext"
+      ]
+    },
+    {
+      "id": 52,
+      "name": "alter_trigger_rename",
+      "file": "alter_misc.go",
+      "status": "done",
+      "description": "Fix batch 21 gap: parseAlterTriggerDependsOnExtension only handles [NO] DEPENDS ON EXTENSION variant. Missing ALTER TRIGGER name ON table_name RENAME TO new_name which produces RenameStmt with OBJECT_TRIGGER. Must dispatch on RENAME vs DEPENDS/NO after parsing trigger name and ON relation. Ref: https://www.postgresql.org/docs/17/sql-altertrigger.html",
+      "rules": [
+        "parseAlterTriggerDependsOnExtension"
+      ],
+      "depends_on": [
+        21
+      ],
+      "tests": [
+        "alter_trigger_rename"
+      ]
+    },
+    {
+      "id": 53,
+      "name": "alter_extension_set_schema",
+      "file": "extension.go",
+      "status": "done",
+      "description": "Fix batch 32 gap: parseAlterExtensionStmt only handles UPDATE, ADD, DROP. Missing ALTER EXTENSION name SET SCHEMA new_schema which produces AlterObjectSchemaStmt with OBJECT_EXTENSION. Must add SET case checking for SCHEMA keyword. Ref: https://www.postgresql.org/docs/17/sql-alterextension.html",
+      "rules": [
+        "parseAlterExtensionStmt"
+      ],
+      "depends_on": [
+        32
+      ],
+      "tests": [
+        "alter_extension_set_schema"
+      ]
+    },
+    {
+      "id": 54,
+      "name": "alter_server_owner_rename",
+      "file": "fdw.go",
+      "status": "done",
+      "description": "Fix batch 31 gap: parseAlterForeignServerStmt only handles VERSION and OPTIONS. Missing OWNER TO (AlterOwnerStmt with OBJECT_FOREIGN_SERVER) and RENAME TO (RenameStmt with OBJECT_FOREIGN_SERVER). Must add OWNER and RENAME cases before VERSION/OPTIONS dispatch. Ref: https://www.postgresql.org/docs/17/sql-alterserver.html",
+      "rules": [
+        "parseAlterForeignServerStmt"
+      ],
+      "depends_on": [
+        31
+      ],
+      "tests": [
+        "alter_server_owner",
+        "alter_server_rename"
+      ]
+    },
+    {
+      "id": 55,
+      "name": "alter_role_group_rename",
+      "file": "grant.go",
+      "status": "done",
+      "description": "Fix batch 18 gap: parseAlterRoleStmt missing RENAME TO (RenameStmt with OBJECT_ROLE). parseAlterGroupStmt missing RENAME TO (RenameStmt with OBJECT_ROLE). Must add RENAME case to both functions. ALTER USER RENAME TO is covered by parseAlterRoleStmt since ALTER USER dispatches there. Refs: https://www.postgresql.org/docs/17/sql-alterrole.html, https://www.postgresql.org/docs/17/sql-altergroup.html",
+      "rules": [
+        "parseAlterRoleStmt",
+        "parseAlterGroupStmt"
+      ],
+      "depends_on": [
+        18
+      ],
+      "tests": [
+        "alter_role_rename",
+        "alter_group_rename"
+      ]
+    },
+    {
+      "id": 56,
+      "name": "alter_publication_owner_rename",
+      "file": "publication.go",
+      "status": "done",
+      "description": "Fix batch 33 gap: parseAlterPublicationStmt only handles SET/ADD/DROP. Missing OWNER TO (AlterOwnerStmt with OBJECT_PUBLICATION) and RENAME TO (RenameStmt with OBJECT_PUBLICATION). Must add OWNER and RENAME cases to the switch. Ref: https://www.postgresql.org/docs/17/sql-alterpublication.html",
+      "rules": [
+        "parseAlterPublicationStmt"
+      ],
+      "depends_on": [
+        33
+      ],
+      "tests": [
+        "alter_publication_owner",
+        "alter_publication_rename"
+      ]
+    },
+    {
+      "id": 57,
+      "name": "alter_subscription_owner_rename",
+      "file": "publication.go",
+      "status": "done",
+      "description": "Fix batch 33 gap: parseAlterSubscriptionStmt only handles SET/ADD/DROP/CONNECTION/REFRESH/ENABLE/DISABLE/SKIP. Missing OWNER TO (AlterOwnerStmt with OBJECT_SUBSCRIPTION) and RENAME TO (RenameStmt with OBJECT_SUBSCRIPTION). Must add OWNER and RENAME cases to the switch. Ref: https://www.postgresql.org/docs/17/sql-altersubscription.html",
+      "rules": [
+        "parseAlterSubscriptionStmt"
+      ],
+      "depends_on": [
+        33
+      ],
+      "tests": [
+        "alter_subscription_owner",
+        "alter_subscription_rename"
+      ]
+    },
+    {
+      "id": 58,
+      "name": "is_normalized_expr",
+      "file": "expr.go",
+      "status": "done",
+      "description": "Fix batch 3 gap: parseIsPostfix has a deferred stub for IS [NOT] [NFC|NFD|NFKC|NFKD] NORMALIZED that just returns left operand unchanged. Must produce a proper FuncCall to unicode_is_normalized(expr, form) or equivalent AST node. The unicode_normal_form rule is already implemented. Ref: https://www.postgresql.org/docs/17/functions-string.html",
+      "rules": [
+        "parseIsPostfix"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "is_normalized"
+      ]
+    },
+    {
+      "id": 59,
+      "name": "alter_fdw_owner_rename",
+      "file": "fdw.go",
+      "status": "done",
+      "description": "Fix batch 31 gap: parseAlterFdwStmt only handles HANDLER/VALIDATOR/OPTIONS. Missing OWNER TO (AlterOwnerStmt with OBJECT_FDW) and RENAME TO (RenameStmt with OBJECT_FDW). Must add OWNER and RENAME cases before falling through to FDW options parsing, similar to pattern in parseAlterForeignServerStmt. Ref: https://www.postgresql.org/docs/17/sql-alterforeigndatawrapper.html",
+      "rules": [
+        "parseAlterFdwStmt"
+      ],
+      "depends_on": [
+        31
+      ],
+      "tests": [
+        "alter_fdw_owner",
+        "alter_fdw_rename"
+      ]
+    },
+    {
+      "id": 60,
+      "name": "alter_statistics_rename_owner_schema",
+      "file": "define.go",
+      "status": "done",
+      "description": "Fix batch 20 gap: parseAlterStatisticsStmt only handles SET STATISTICS value. Missing RENAME TO (RenameStmt with OBJECT_STATISTIC_EXT), OWNER TO (AlterOwnerStmt with OBJECT_STATISTIC_EXT), and SET SCHEMA (AlterObjectSchemaStmt with OBJECT_STATISTIC_EXT). Must dispatch on next token after name before expecting SET STATISTICS. Ref: https://www.postgresql.org/docs/17/sql-alterstatistics.html",
+      "rules": [
+        "parseAlterStatisticsStmt"
+      ],
+      "depends_on": [
+        20
+      ],
+      "tests": [
+        "alter_statistics_rename",
+        "alter_statistics_owner",
+        "alter_statistics_set_schema"
+      ]
+    },
+    {
+      "id": 61,
+      "name": "set_catalog_stmt",
+      "file": "set.go",
+      "status": "done",
+      "description": "Fix batch 23 gap: SET CATALOG Sconst returns nil instead of VariableSetStmt. Should construct VariableSetStmt with kind=VAR_SET_VALUE, name=\"catalog\"",
+      "rules": [
+        "parseSetRestMore"
+      ],
+      "depends_on": [
+        23
+      ],
+      "tests": [
+        "TestSetCatalog"
+      ]
+    },
+    {
+      "id": 62,
+      "name": "ext_oper_argtypes_unary",
+      "file": "extension.go",
+      "status": "done",
+      "description": "Fix batch 32 gap: parseExtOperArgtypes returns nil for single-argument operators (Typename) instead of list_make1(typ). Should return &nodes.List{Items: []nodes.Node{typ1}}",
+      "rules": [
+        "parseExtOperArgtypes"
+      ],
+      "depends_on": [
+        32
+      ],
+      "tests": [
+        "TestDropOperatorUnary",
+        "TestAlterOperatorUnary"
+      ]
+    },
+    {
+      "id": 63,
+      "name": "loc_end_test_infra",
+      "file": "compare_test.go",
+      "status": "done",
+      "description": "Add location testing infrastructure: a CheckLocations(t, sql) helper that parses SQL, walks the AST, and asserts every node with a Loc field has Start >= 0 AND End > Start. Also add source[Start:End] round-trip validation for statement-level nodes (the extracted substring must be non-empty and reasonable). Add TestLocBasic with a few SELECT/INSERT/CREATE TABLE cases to prove the infra works (these will initially fail, confirming End=-1 bug).",
+      "rules": [
+        "CheckLocations",
+        "walkNodeLocs",
+        "TestLocBasic"
+      ],
+      "depends_on": [
+        0
+      ],
+      "tests": [
+        "TestLocBasic"
+      ]
+    },
+    {
+      "id": 64,
+      "name": "loc_end_select_insert_update_delete",
+      "file": "select.go",
+      "status": "done",
+      "description": "Fix End position for all parse functions in select.go, insert.go, update.go: parseSelectNoParens, parseSelectWithParens, parseSelectClause, parseSelectClausePrimary, parseTargetEl, parseSortBy, parseWindowDef, parseFrameClause, parseGroupByItem, parseLockingClause, parseInsertStmt, parseOnConflict, parseUpdateStmt, parseDeleteStmt, parseMergeStmt, parseMergeWhen. Every function must set node.Loc.End = p.pos() before returning. Add TestLocSelect, TestLocInsert, TestLocUpdate, TestLocDelete with comprehensive SQL cases that validate Start:End extracts correct substring.",
+      "rules": [
+        "parseSelectNoParens",
+        "parseSelectClausePrimary",
+        "parseTargetEl",
+        "parseSortBy",
+        "parseWindowDef",
+        "parseInsertStmt",
+        "parseOnConflict",
+        "parseUpdateStmt",
+        "parseDeleteStmt",
+        "parseMergeStmt"
+      ],
+      "depends_on": [
+        63
+      ],
+      "tests": [
+        "TestLocSelect",
+        "TestLocInsert",
+        "TestLocUpdate",
+        "TestLocDelete"
+      ]
+    },
+    {
+      "id": 65,
+      "name": "loc_end_expr",
+      "file": "expr.go",
+      "status": "done",
+      "description": "Fix End position for all parse functions in expr.go and json.go and xml.go: parseExpr (A_Expr), parsePrimaryExpr, parseTypeCast, parseFuncCall, parseSubqueryExpr, parseCaseExpr, parseCoalesceExpr, parseArrayExpr, parseRowExpr, parseBoolExpr, parseNullTest, parseBooleanTest, parseColumnRef, parseParamRef, parseJsonExpr, parseXmlExpr, etc. Every ExprNode must have valid Start and End. Add TestLocExpr with diverse expression cases.",
+      "rules": [
+        "parseExpr",
+        "parsePrimaryExpr",
+        "parseFuncCall",
+        "parseCaseExpr",
+        "parseArrayExpr",
+        "parseColumnRef",
+        "parseJsonExpr",
+        "parseXmlExpr"
+      ],
+      "depends_on": [
+        63
+      ],
+      "tests": [
+        "TestLocExpr"
+      ]
+    },
+    {
+      "id": 66,
+      "name": "loc_end_create_table_index_view",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "Fix End position for all parse functions in create_table.go, create_index.go, create_view.go: parseCreateStmt (CreateStmt), parseColumnDef, parseConstraint (all constraint types), parseTypeName, parsePartitionClause, parsePartitionBound, finishCreateStmt, finishCTAS, parseCreateIndexStmt, parseCreateViewStmt, parseCreateMatviewStmt. Add TestLocCreateTable, TestLocCreateIndex, TestLocCreateView.",
+      "rules": [
+        "finishCreateStmt",
+        "finishCTAS",
+        "parseColumnDef",
+        "parseConstraint",
+        "parseTypeName",
+        "parseCreateIndexStmt",
+        "parseCreateViewStmt"
+      ],
+      "depends_on": [
+        63
+      ],
+      "tests": [
+        "TestLocCreateTable",
+        "TestLocCreateIndex",
+        "TestLocCreateView"
+      ]
+    },
+    {
+      "id": 67,
+      "name": "loc_end_alter_table",
+      "file": "alter_table.go",
+      "status": "done",
+      "description": "Fix End position for all parse functions in alter_table.go and alter_misc.go: parseAlterTableStmt, parseAlterTableCmd (all ALTER TABLE sub-commands), parseAlterDomainStmt, parseAlterEnumStmt, parseAlterOwnerStmt, parseAlterObjectSchemaStmt, parseRenameStmt, parseAlterSeqStmt, parseAlterExtensionStmt, parseAlterPolicyStmt, etc. Add TestLocAlterTable, TestLocAlterMisc.",
+      "rules": [
+        "parseAlterTableStmt",
+        "parseAlterTableCmd",
+        "parseAlterDomainStmt",
+        "parseAlterEnumStmt",
+        "parseRenameStmt"
+      ],
+      "depends_on": [
+        63
+      ],
+      "tests": [
+        "TestLocAlterTable",
+        "TestLocAlterMisc"
+      ]
+    },
+    {
+      "id": 68,
+      "name": "loc_end_create_function_trigger_type",
+      "file": "create_function.go",
+      "status": "done",
+      "description": "Fix End position for all parse functions in create_function.go, trigger.go, type.go, sequence.go, define.go: parseCreateFunctionStmt, parseFunctionParam, parseReturnType, parseCreateTriggerStmt, parseTriggerEvent, parseCreateTypeStmt (composite, enum, range, base), parseCreateOpClassStmt, parseCreateOpFamilyStmt, parseDefineStmt (CREATE AGGREGATE, OPERATOR, COLLATION), parseCreateSeqStmt. Add TestLocCreateFunction, TestLocTrigger, TestLocType, TestLocDefine.",
+      "rules": [
+        "parseCreateFunctionStmt",
+        "parseCreateTriggerStmt",
+        "parseCreateTypeStmt",
+        "parseDefineStmt",
+        "parseCreateSeqStmt"
+      ],
+      "depends_on": [
+        63
+      ],
+      "tests": [
+        "TestLocCreateFunction",
+        "TestLocTrigger",
+        "TestLocType",
+        "TestLocDefine"
+      ]
+    },
+    {
+      "id": 69,
+      "name": "loc_end_drop_grant_schema",
+      "file": "drop.go",
+      "status": "done",
+      "description": "Fix End position for all parse functions in drop.go, grant.go, schema.go, database.go: parseDropStmt, parseDropOwnedStmt, parseDropdbStmt, parseGrantStmt, parseRevokeStmt, parseGrantRoleStmt, parseAlterDefaultPrivilegesStmt, parseCreateSchemaStmt, parseCreatedbStmt, parseAlterRoleStmt, parseCreateRoleStmt. Add TestLocDrop, TestLocGrant, TestLocSchema, TestLocDatabase.",
+      "rules": [
+        "parseDropStmt",
+        "parseGrantStmt",
+        "parseRevokeStmt",
+        "parseCreateSchemaStmt",
+        "parseCreatedbStmt",
+        "parseCreateRoleStmt"
+      ],
+      "depends_on": [
+        63
+      ],
+      "tests": [
+        "TestLocDrop",
+        "TestLocGrant",
+        "TestLocSchema",
+        "TestLocDatabase"
+      ]
+    },
+    {
+      "id": 70,
+      "name": "loc_end_utility_misc",
+      "file": "utility.go",
+      "status": "done",
+      "description": "Fix End position for all remaining parse functions: utility.go (EXPLAIN, VACUUM, ANALYZE, REINDEX, CLUSTER, COMMENT, SECURITY LABEL, COPY), transaction.go (BEGIN, COMMIT, ROLLBACK, SAVEPOINT), prepare.go (PREPARE, EXECUTE, DEALLOCATE), cursor.go (DECLARE, FETCH, MOVE, CLOSE), lock.go (LOCK), set.go (SET, RESET, SHOW), publication.go, extension.go, fdw.go, maintenance.go, copy.go, func.go (DO stmt), name.go helpers. Add TestLocUtility, TestLocTransaction, TestLocCursor, TestLocSet.",
+      "rules": [
+        "parseExplainStmt",
+        "parseVacuumStmt",
+        "parseCopyStmt",
+        "parseTransactionStmt",
+        "parsePrepareStmt",
+        "parseCursorStmt",
+        "parseSetStmt",
+        "parseLockStmt"
+      ],
+      "depends_on": [
+        63
+      ],
+      "tests": [
+        "TestLocUtility",
+        "TestLocTransaction",
+        "TestLocCursor",
+        "TestLocSet"
+      ]
+    },
+    {
+      "id": 71,
+      "name": "loc_end_rawstmt_wrap",
+      "file": "parser.go",
+      "status": "done",
+      "description": "Wrap every statement returned from parseStmt() in a RawStmt with correct Loc (Start from before the statement keyword, End from after the last token including optional semicolon). Update Parse() to record stmt_start before calling parseStmt, then wrap: RawStmt{Stmt: stmt, Loc: Loc{Start: stmt_start, End: p.pos()}}. Add TestLocRawStmt that validates source[raw.Loc.Start:raw.Loc.End] exactly equals the original SQL statement text for multi-statement inputs.",
+      "rules": [
+        "Parse",
+        "parseStmt",
+        "RawStmt"
+      ],
+      "depends_on": [
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70
+      ],
+      "tests": [
+        "TestLocRawStmt"
+      ]
+    },
+    {
+      "id": 72,
+      "name": "ddl_compat_unlogged_view_modifying_cte",
+      "file": "parser.go",
+      "status": "done",
+      "description": "Fix 2 syntax gaps found by pg/ddl test suite. (1) CREATE UNLOGGED VIEW: parseCreateUnloggedDispatch only handles TABLE and MATERIALIZED VIEW, missing VIEW branch \u2014 should call parseCreateViewStmt with RELPERSISTENCE_UNLOGGED. (2) Modifying CTE: parseCommonTableExpr calls parseSelectNoParens for cte.Ctequery, but PreparableStmt in gram.y also allows INSERT/UPDATE/DELETE (modifying CTEs with RETURNING). Must dispatch on INSERT/UPDATE/DELETE tokens before falling back to parseSelectNoParens. Refs: https://www.postgresql.org/docs/17/sql-createview.html, https://www.postgresql.org/docs/17/queries-with.html#QUERIES-WITH-MODIFYING",
+      "rules": [
+        "parseCreateUnloggedDispatch",
+        "parseCommonTableExpr",
+        "PreparableStmt"
+      ],
+      "depends_on": [
+        7,
+        34
+      ],
+      "tests": [
+        "TestDdlCompatUnloggedView",
+        "TestDdlCompatModifyingCTE"
+      ]
+    },
+    {
+      "id": 73,
+      "name": "alter_column_reset_options",
+      "file": "alter_table.go",
+      "status": "done",
+      "description": "Fix batch 11 gap: parseAlterColumnAction (line ~725) has no case RESET handler. PostgreSQL grammar allows ALTER TABLE t ALTER COLUMN c RESET (attribute_option [, ...]). Must add case RESET that consumes RESET, calls parseReloptions(), and returns AlterTableCmd with Subtype=AT_ResetOptions and Name=colname. Ref: https://www.postgresql.org/docs/17/sql-altertable.html",
+      "rules": [
+        "parseAlterColumnAction"
+      ],
+      "depends_on": [
+        11
+      ],
+      "tests": [
+        "TestAlterColumnReset"
+      ]
+    },
+    {
+      "id": 74,
+      "name": "grant_object_rangevar",
+      "file": "grant.go",
+      "status": "done",
+      "description": "Fix GRANT/REVOKE object list AST structure. parseGrantObjectAnyNameList() returns *nodes.List items but yacc returns *nodes.RangeVar. After parsing ON TABLE any_name_list, convert each AnyName (a List of name parts) into a RangeVar with Schemaname/Relname populated, matching yacc's grant_target_list behavior.",
+      "rules": [
+        "parseGrantObjectAnyNameList",
+        "grant_target_list"
+      ],
+      "depends_on": [
+        15
+      ],
+      "tests": [
+        "TestGrantSelectOnTable",
+        "TestGrantSelectDefaultTable",
+        "TestGrantWithGrantOption",
+        "TestRevokeSelect"
+      ]
+    },
+    {
+      "id": 75,
+      "name": "alter_role_all_create_group_user",
+      "file": "grant.go",
+      "status": "done",
+      "description": "Fix 2 gaps in role management. (1) ALTER ROLE ALL SET: parseAlterRoleStmt() calls parseRoleSpec() immediately, but ALL is a reserved keyword that parseRoleSpec/parseColId cannot handle. Must check for ALL token before parseRoleSpec, set role to nil, then proceed to parse SET/RESET/IN DATABASE. (2) CREATE GROUP ... USER: parseCreateGroupStmt() calls parseOptRoleList() which delegates to parseCreateOptRoleElem(), but the bare USER keyword is not handled as a role option. Must recognize USER as a synonym for ROLE in CREATE GROUP context and parse the following role list as rolemembers DefElem.",
+      "rules": [
+        "parseAlterRoleStmt",
+        "parseCreateGroupStmt",
+        "AlterRoleAllStmt"
+      ],
+      "depends_on": [
+        15
+      ],
+      "tests": [
+        "TestAlterRoleAllSetTimezone",
+        "TestAlterRoleAllInDatabaseSetTimezone",
+        "TestRoleManagementTableDriven/create_group_with_user",
+        "TestRoleManagementTableDriven/alter_role_all_set",
+        "TestRoleManagementTableDriven/alter_role_all_in_database_set",
+        "TestRoleManagementTableDriven/alter_user_all_set"
+      ]
+    },
+    {
+      "id": 76,
+      "name": "json_table_format_empty_behavior",
+      "file": "json.go",
+      "status": "done",
+      "description": "Fix 2 JSON/SQL gaps. (1) JSON_TABLE COLUMNS with FORMAT clause: parseJsonTableColumnDefinition() does not handle FORMAT JSON/JSONB specifier on REGULAR columns (e.g. COLUMNS(j jsonb FORMAT JSON)). Must parse optional FORMAT keyword after type in column definitions. (2) Bare EMPTY behavior in JSON_QUERY/JSON_VALUE: parseJsonBehaviorClauseOpt() does not recognize EMPTY as a standalone behavior type (EMPTY ARRAY/OBJECT). Statements like JSON_QUERY(..., '$[*]' EMPTY ON EMPTY) and JSON_VALUE(..., '$' EMPTY ON ERROR) fail. Must add EMPTY as a valid json_behavior_type that produces JSON_BEHAVIOR_EMPTY_ARRAY or JSON_BEHAVIOR_EMPTY_OBJECT.",
+      "rules": [
+        "parseJsonTableColumnDefinition",
+        "parseJsonBehaviorClauseOpt",
+        "json_behavior_type"
+      ],
+      "depends_on": [
+        42
+      ],
+      "tests": [
+        "TestJsonTableFormattedColumn",
+        "TestJsonBareEmpty"
+      ]
+    },
+    {
+      "id": 77,
+      "name": "alter_group_rename",
+      "file": "grant.go",
+      "status": "done",
+      "description": "Fix batch 55 gap: parseAlterGroupStmt only handles ADD USER and DROP USER, returns nil for RENAME. Must add RENAME TO case that produces RenameStmt with OBJECT_ROLE, matching parseAlterRoleStmt pattern at grant.go:717. Ref: https://www.postgresql.org/docs/17/sql-altergroup.html",
+      "rules": [
+        "parseAlterGroupStmt"
+      ],
+      "depends_on": [
+        55
+      ],
+      "tests": [
+        "TestAlterGroupRename"
+      ]
+    }
+  ],
+  "audit_round": 9
+}

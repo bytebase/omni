@@ -1,0 +1,331 @@
+-- UPDATE command test cases for Redshift
+-- Reference: https://docs.aws.amazon.com/redshift/latest/dg/r_UPDATE.html
+
+-- =====================================
+-- Basic UPDATE statements
+-- =====================================
+
+-- Simple UPDATE with single column
+UPDATE users SET email = 'newemail@example.com' WHERE userid = 1;
+
+-- UPDATE with schema-qualified table name
+UPDATE public.users SET email = 'newemail@example.com' WHERE userid = 1;
+
+-- UPDATE multiple columns
+UPDATE category
+SET catgroup = 'Theatre',
+    catname = 'Broadway',
+    catdesc = 'All Broadway shows'
+WHERE catid = 10;
+
+-- UPDATE with expression
+UPDATE sales
+SET commission = salesamt * 0.05
+WHERE salesamt > 10000;
+
+-- UPDATE with DEFAULT value
+UPDATE product
+SET discount = DEFAULT
+WHERE category = 'discontinued';
+
+-- UPDATE with NULL value
+UPDATE customer
+SET middle_name = NULL
+WHERE middle_name = '';
+
+-- =====================================
+-- UPDATE with subqueries
+-- =====================================
+
+-- UPDATE with scalar subquery
+UPDATE event
+SET starttime = (SELECT min(starttime) FROM event WHERE venueid = 40)
+WHERE eventid = 5;
+
+-- UPDATE with correlated subquery
+UPDATE sales s
+SET pricepaid = (
+    SELECT e.price
+    FROM event e
+    WHERE e.eventid = s.eventid
+)
+WHERE s.eventid IN (SELECT eventid FROM event WHERE catid = 7);
+
+-- UPDATE with subquery in WHERE clause
+UPDATE users
+SET state = 'CA'
+WHERE userid IN (
+    SELECT DISTINCT userid
+    FROM sales
+    WHERE salesdate > '2023-01-01'
+);
+
+-- =====================================
+-- UPDATE with FROM clause
+-- =====================================
+
+-- Simple UPDATE with FROM
+UPDATE sales
+SET pricepaid = e.price
+FROM event e
+WHERE sales.eventid = e.eventid
+AND sales.salesdate = e.starttime;
+
+-- UPDATE with multiple tables in FROM
+UPDATE inventory i
+SET quantity = i.quantity - s.quantity_sold
+FROM (
+    SELECT product_id, SUM(quantity) as quantity_sold
+    FROM sales_detail
+    WHERE sale_date = CURRENT_DATE
+    GROUP BY product_id
+) s
+WHERE i.product_id = s.product_id;
+
+-- UPDATE with table alias
+UPDATE users u
+SET email = lower(u.email)
+WHERE u.email LIKE '%@EXAMPLE.COM';
+
+-- UPDATE with self-join
+UPDATE category c1
+SET catdesc = c2.catdesc
+FROM category c2
+WHERE c1.catid = c2.catid + 100
+AND c2.catgroup = 'Sports';
+
+-- =====================================
+-- UPDATE with CTEs (Common Table Expressions)
+-- =====================================
+
+-- UPDATE with simple CTE
+WITH high_commission_sales AS (
+    SELECT salesid
+    FROM sales
+    WHERE commission > 100
+)
+UPDATE sales
+SET commission = commission * 1.1
+WHERE salesid IN (SELECT salesid FROM high_commission_sales);
+
+-- UPDATE with multiple CTEs
+WITH
+active_users AS (
+    SELECT DISTINCT userid
+    FROM sales
+    WHERE salesdate >= CURRENT_DATE - INTERVAL '30 days'
+),
+high_value_users AS (
+    SELECT userid, SUM(pricepaid) as total_spent
+    FROM sales
+    GROUP BY userid
+    HAVING SUM(pricepaid) > 1000
+)
+UPDATE users
+SET status = 'VIP'
+WHERE userid IN (
+    SELECT userid FROM active_users
+    INTERSECT
+    SELECT userid FROM high_value_users
+);
+
+-- UPDATE with recursive CTE
+WITH RECURSIVE category_tree AS (
+    SELECT catid, catname, parent_catid, 0 as level
+    FROM category
+    WHERE parent_catid IS NULL
+
+    UNION ALL
+
+    SELECT c.catid, c.catname, c.parent_catid, ct.level + 1
+    FROM category c
+    JOIN category_tree ct ON c.parent_catid = ct.catid
+)
+UPDATE category
+SET hierarchy_level = ct.level
+FROM category_tree ct
+WHERE category.catid = ct.catid;
+
+-- =====================================
+-- UPDATE with complex expressions
+-- =====================================
+
+-- UPDATE with CASE expression
+UPDATE orders
+SET status = CASE
+    WHEN shipped_date IS NOT NULL THEN 'Shipped'
+    WHEN cancelled_date IS NOT NULL THEN 'Cancelled'
+    WHEN payment_date IS NOT NULL THEN 'Paid'
+    ELSE 'Pending'
+END
+WHERE order_date >= '2023-01-01';
+
+-- UPDATE with multiple CASE expressions
+UPDATE product_inventory
+SET
+    stock_status = CASE
+        WHEN quantity = 0 THEN 'Out of Stock'
+        WHEN quantity < reorder_level THEN 'Low Stock'
+        ELSE 'In Stock'
+    END,
+    reorder_flag = CASE
+        WHEN quantity <= reorder_level THEN TRUE
+        ELSE FALSE
+    END
+WHERE last_updated < CURRENT_DATE;
+
+-- UPDATE with mathematical expressions
+UPDATE sales_forecast
+SET
+    adjusted_forecast = base_forecast * (1 + growth_rate),
+    confidence_interval = base_forecast * margin_of_error * 2,
+    last_calculated = CURRENT_TIMESTAMP
+WHERE forecast_date > CURRENT_DATE;
+
+-- UPDATE with string operations
+UPDATE customer
+SET
+    full_name = first_name || ' ' || COALESCE(middle_name || ' ', '') || last_name,
+    search_name = UPPER(last_name || ', ' || first_name)
+WHERE full_name IS NULL;
+
+-- =====================================
+-- UPDATE IDENTITY columns
+-- =====================================
+
+-- UPDATE GENERATED BY DEFAULT AS IDENTITY column
+UPDATE product_catalog
+SET product_id = 99999
+WHERE product_name = 'Special Item';
+
+-- =====================================
+-- UPDATE with date/time functions
+-- =====================================
+
+-- UPDATE with date arithmetic
+UPDATE subscription
+SET
+    expiry_date = start_date + INTERVAL '1 year',
+    renewal_reminder_date = expiry_date - INTERVAL '30 days'
+WHERE subscription_type = 'Annual';
+
+-- UPDATE with current timestamp
+UPDATE user_activity
+SET
+    last_login = CURRENT_TIMESTAMP,
+    login_count = login_count + 1
+WHERE user_id = 12345;
+
+-- =====================================
+-- UPDATE with window functions (via subquery)
+-- =====================================
+
+-- UPDATE with row_number
+UPDATE sales s
+SET rank_in_category = sub.rn
+FROM (
+    SELECT salesid,
+           ROW_NUMBER() OVER (PARTITION BY catid ORDER BY pricepaid DESC) as rn
+    FROM sales
+) sub
+WHERE s.salesid = sub.salesid;
+
+-- =====================================
+-- UPDATE with EXISTS
+-- =====================================
+
+-- UPDATE with EXISTS condition
+UPDATE venue
+SET active = TRUE
+WHERE EXISTS (
+    SELECT 1
+    FROM event
+    WHERE event.venueid = venue.venueid
+    AND event.starttime > CURRENT_DATE
+);
+
+-- UPDATE with NOT EXISTS
+UPDATE customer
+SET status = 'Inactive'
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM orders
+    WHERE orders.customer_id = customer.customer_id
+    AND order_date > CURRENT_DATE - INTERVAL '6 months'
+);
+
+-- =====================================
+-- UPDATE with complex WHERE conditions
+-- =====================================
+
+-- UPDATE with multiple conditions
+UPDATE sales
+SET discount_applied = TRUE
+WHERE salesdate BETWEEN '2023-01-01' AND '2023-12-31'
+AND pricepaid > 100
+AND eventid IN (SELECT eventid FROM event WHERE catid = 7)
+AND commission IS NOT NULL;
+
+-- UPDATE with LIKE pattern
+UPDATE users
+SET email_domain = 'company.com'
+WHERE email LIKE '%@oldcompany.com';
+
+-- UPDATE with ILIKE (case-insensitive)
+UPDATE product
+SET category = 'Electronics'
+WHERE product_name ILIKE '%laptop%'
+   OR product_name ILIKE '%computer%';
+
+-- =====================================
+-- UPDATE materialized views (if supported)
+-- =====================================
+
+-- UPDATE on materialized view
+UPDATE sales_summary_mv
+SET last_refresh = CURRENT_TIMESTAMP
+WHERE summary_date = CURRENT_DATE;
+
+-- =====================================
+-- Multi-column UPDATE patterns
+-- =====================================
+
+-- UPDATE multiple columns from subquery
+UPDATE order_summary os
+SET (total_amount, order_count, last_order_date) = (
+    SELECT SUM(amount), COUNT(*), MAX(order_date)
+    FROM orders o
+    WHERE o.customer_id = os.customer_id
+    AND o.order_date >= DATE_TRUNC('month', CURRENT_DATE)
+)
+WHERE os.summary_month = DATE_TRUNC('month', CURRENT_DATE);
+
+-- UPDATE with column list syntax
+UPDATE sales
+SET (pricepaid, commission) = (100.00, 10.00)
+WHERE salesid = 12345;
+
+-- =====================================
+-- Performance considerations
+-- =====================================
+
+-- UPDATE with proper join conditions to avoid cartesian product
+UPDATE large_table lt
+SET status = 'Processed'
+FROM processing_queue pq
+WHERE lt.id = pq.record_id
+AND pq.status = 'Ready'
+AND pq.process_date = CURRENT_DATE;
+
+-- UPDATE with limiting conditions for large tables
+UPDATE events_archive
+SET archived = TRUE
+WHERE event_date < CURRENT_DATE - INTERVAL '2 years'
+AND archived = FALSE
+AND eventid IN (
+    SELECT eventid
+    FROM events_archive
+    WHERE event_date < CURRENT_DATE - INTERVAL '2 years'
+    AND archived = FALSE
+    LIMIT 10000
+);

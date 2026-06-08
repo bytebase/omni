@@ -94,6 +94,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeBoolExpr(sb, n)
 	case *FuncCallExpr:
 		writeFuncCallExpr(sb, n)
+	case *NamedArgExpr:
+		writeNamedArgExpr(sb, n)
+	case *FieldAccessExpr:
+		writeFieldAccessExpr(sb, n)
+	case *CursorAttributeExpr:
+		writeCursorAttributeExpr(sb, n)
 	case *ExtractExpr:
 		writeExtractExpr(sb, n)
 	case *CaseExpr:
@@ -732,6 +738,39 @@ func writeFuncCallExpr(sb *strings.Builder, n *FuncCallExpr) {
 		sb.WriteString(" :over ")
 		writeNode(sb, n.Over)
 	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeNamedArgExpr(sb *strings.Builder, n *NamedArgExpr) {
+	sb.WriteString("{NAMEDARG")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.Expr != nil {
+		sb.WriteString(" :expr ")
+		writeNode(sb, n.Expr)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeFieldAccessExpr(sb *strings.Builder, n *FieldAccessExpr) {
+	sb.WriteString("{FIELDACCESS")
+	if n.Expr != nil {
+		sb.WriteString(" :expr ")
+		writeNode(sb, n.Expr)
+	}
+	sb.WriteString(fmt.Sprintf(" :field %q", n.Field))
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCursorAttributeExpr(sb *strings.Builder, n *CursorAttributeExpr) {
+	sb.WriteString("{CURSORATTRIBUTE")
+	if n.Cursor != nil {
+		sb.WriteString(" :cursor ")
+		writeNode(sb, n.Cursor)
+	}
+	sb.WriteString(fmt.Sprintf(" :attribute %q", n.Attribute))
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -3122,6 +3161,9 @@ func writeCreateProcedureStmt(sb *strings.Builder, n *CreateProcedureStmt) {
 	if n.Sharing != "" {
 		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
 	}
+	if n.AuthID != "" {
+		sb.WriteString(fmt.Sprintf(" :authID %q", n.AuthID))
+	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
@@ -3129,6 +3171,12 @@ func writeCreateProcedureStmt(sb *strings.Builder, n *CreateProcedureStmt) {
 	if n.Parameters != nil {
 		sb.WriteString(" :parameters ")
 		writeNode(sb, n.Parameters)
+	}
+	if n.Wrapped {
+		sb.WriteString(" :wrapped true")
+	}
+	if n.WrappedSource != "" {
+		sb.WriteString(fmt.Sprintf(" :wrappedSource %q", n.WrappedSource))
 	}
 	if n.Body != nil {
 		sb.WriteString(" :body ")
@@ -3184,6 +3232,9 @@ func writeCreateFunctionStmt(sb *strings.Builder, n *CreateFunctionStmt) {
 	}
 	if n.SqlMacro {
 		sb.WriteString(" :sqlMacro true")
+	}
+	if n.AuthID != "" {
+		sb.WriteString(fmt.Sprintf(" :authID %q", n.AuthID))
 	}
 	if n.Body != nil {
 		sb.WriteString(" :body ")
@@ -4833,6 +4884,10 @@ func writePLSQLLoop(sb *strings.Builder, n *PLSQLLoop) {
 		sb.WriteString(" :cursorArgs ")
 		writeNode(sb, n.CursorArgs)
 	}
+	if n.CursorQuery != nil {
+		sb.WriteString(" :cursorQuery ")
+		writeNode(sb, n.CursorQuery)
+	}
 	if n.Statements != nil {
 		sb.WriteString(" :statements ")
 		writeNode(sb, n.Statements)
@@ -4951,6 +5006,14 @@ func writePLSQLOpen(sb *strings.Builder, n *PLSQLOpen) {
 	if n.ForQuery != nil {
 		sb.WriteString(" :forQuery ")
 		writeNode(sb, n.ForQuery)
+	}
+	if n.ForExpr != nil {
+		sb.WriteString(" :forExpr ")
+		writeNode(sb, n.ForExpr)
+	}
+	if n.UsingArgs != nil {
+		sb.WriteString(" :usingArgs ")
+		writeNode(sb, n.UsingArgs)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

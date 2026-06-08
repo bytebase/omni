@@ -34,9 +34,10 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 
 	switch p.cur.Type {
 	case kwTABLE:
-		// DROP TABLE — but DROP TABLE FUNCTION is dialect-node territory.
+		// DROP TABLE — but DROP TABLE FUNCTION is BigQuery-only
+		// (bq_function_procedure.go).
 		if p.peekNext().Type == kwFUNCTION {
-			return p.unsupported("DROP TABLE FUNCTION")
+			return p.parseBQDropFunction(drop)
 		}
 		return p.parseDropObject(drop, ast.DropTable, false /*external*/)
 	case kwVIEW:
@@ -44,8 +45,9 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 	case kwINDEX:
 		return p.parseDropIndex(drop)
 	case kwSEARCH, kwVECTOR:
-		// DROP {SEARCH|VECTOR} INDEX … ON table — dialect-specific.
-		return p.unsupported("DROP " + p.cur.Str + " INDEX")
+		// DROP {SEARCH|VECTOR} INDEX … ON table — BigQuery-only
+		// (bq_search_vector_index.go).
+		return p.parseBQDropSearchVectorIndex(drop)
 	case kwSCHEMA:
 		return p.parseDropObject(drop, ast.DropSchema, false)
 	case kwDATABASE:
@@ -58,10 +60,49 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 			return p.parseDropObject(drop, ast.DropSchema, true /*external*/)
 		}
 		return p.unsupported("DROP EXTERNAL")
+	// --- BigQuery-only object drops (parser-ddl-bigquery node) ---
+	case kwFUNCTION:
+		return p.parseBQDropFunction(drop)
+	case kwPROCEDURE:
+		return p.parseBQDropProcedure(drop)
+	case kwMATERIALIZED, kwAPPROX:
+		return p.parseBQDropMaterializedView(drop)
+	case kwSNAPSHOT:
+		return p.parseBQDropSnapshot(drop)
+	case kwROW:
+		// DROP ROW ACCESS POLICY … ON table (bq_row_access_policy.go).
+		return p.parseDropRowAccessPolicy(drop)
+	case kwALL:
+		// DROP ALL ROW ACCESS POLICIES ON table
+		// (drop_all_row_access_policies_statement; bq_row_access_policy.go).
+		return p.parseDropRowAccessPolicy(drop)
+	// --- Spanner-only object DROPs (parser-ddl-spanner node) ---
+	case kwSEQUENCE:
+		// DROP SEQUENCE [IF EXISTS] name (spanner_sequence.go).
+		return p.parseDropSequence(drop)
 	default:
-		// DROP FUNCTION / PROCEDURE / MODEL / SNAPSHOT TABLE / ROW ACCESS POLICY /
-		// PRIVILEGE RESTRICTION / generic entity / a bare-identifier object — not
-		// owned here.
+		// Spanner objects whose leading word lexes as a BARE IDENTIFIER (CHANGE
+		// STREAM, LOCALITY GROUP) and ROLE — matched by spelling before the
+		// generic-entity fallback (parser-ddl-spanner node).
+		if p.tokIsWord(p.cur, "CHANGE") && p.tokIsWord(p.peekNext(), "STREAM") {
+			return p.parseDropChangeStream(drop) // spanner_change_stream.go
+		}
+		if p.tokIsWord(p.cur, "LOCALITY") && p.tokIsWord(p.peekNext(), "GROUP") {
+			return p.parseDropLocalityGroup(drop) // spanner_sequence.go
+		}
+		if p.curIsWord("ROLE") {
+			// DROP ROLE name (spanner_schema_role.go). First-class — supersedes the
+			// generic-entity drop the bare `ROLE` identifier would otherwise get.
+			return p.parseDropRole(drop)
+		}
+		// DROP <generic-entity> (CAPACITY / RESERVATION / ASSIGNMENT — DDL-053; the
+		// keyword lexes as an identifier) routes to the generic-entity drop
+		// (bq_capacity.go). DROP MODEL / CONNECTION / CONSTANT / PRIVILEGE
+		// RESTRICTION and the bare-identifier dispatch-coverage probe otherwise emit
+		// the not-yet-supported diagnostic.
+		if isGenericEntityType(p.cur.Type) {
+			return p.parseBQDropEntity(drop)
+		}
 		return p.unsupported("DROP")
 	}
 }
