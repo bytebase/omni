@@ -97,6 +97,30 @@ func TestParseCreateWrappedProcedure(t *testing.T) {
 	}
 }
 
+func TestParseCreateWrappedProcedureWithOperatorPayload(t *testing.T) {
+	result := ParseAndCheck(t, "CREATE PROCEDURE wrapped_proc WRAPPED\na000000\nabc=\n")
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt := raw.Stmt.(*ast.CreateProcedureStmt)
+	if !stmt.Wrapped {
+		t.Fatal("expected Wrapped to be true")
+	}
+	if stmt.WrappedSource != "WRAPPED\na000000\nabc=" {
+		t.Fatalf("expected wrapped source to preserve opaque payload, got %q", stmt.WrappedSource)
+	}
+}
+
+func TestParseCreateWrappedProcedureWithCommentBeforeName(t *testing.T) {
+	result := ParseAndCheck(t, "CREATE OR REPLACE PROCEDURE\n--++WRAP_VERSION:1\n  wrapped_proc wrapped\na000000\nabc=\n")
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt := raw.Stmt.(*ast.CreateProcedureStmt)
+	if stmt.Name == nil || stmt.Name.Name != "WRAPPED_PROC" {
+		t.Fatalf("expected name WRAPPED_PROC, got %v", stmt.Name)
+	}
+	if !stmt.Wrapped {
+		t.Fatal("expected Wrapped to be true")
+	}
+}
+
 func TestParseCreateWrappedProcedureWithSemicolon(t *testing.T) {
 	result := ParseAndCheck(t, "CREATE PROCEDURE wrapped_proc WRAPPED\na000000\nabcd;")
 	raw := result.Items[0].(*ast.RawStmt)

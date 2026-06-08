@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -86,24 +88,32 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 }
 
 func (p *Parser) parseWrappedProcedure(stmt *nodes.CreateProcedureStmt) (*nodes.CreateProcedureStmt, error) {
+	wrappedTok := p.cur
 	wrappedStart := p.cur.Loc
 	stmt.Wrapped = true
 
-	p.advance() // consume WRAPPED
-	if p.cur.Type == ';' || p.cur.Type == tokEOF {
+	wrappedEnd := len(p.source)
+	if idx := strings.IndexByte(p.source[wrappedTok.End:], ';'); idx >= 0 {
+		wrappedEnd = wrappedTok.End + idx
+	}
+	wrappedSourceEnd := trimRightSpace(p.source, wrappedEnd)
+	if strings.TrimSpace(p.source[wrappedTok.End:wrappedSourceEnd]) == "" {
 		return nil, p.syntaxErrorAtCur()
 	}
 
-	wrappedEnd := p.prev.End
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		wrappedEnd = p.cur.End
-		p.advance()
+	if wrappedStart >= 0 && wrappedSourceEnd <= len(p.source) && wrappedStart < wrappedSourceEnd {
+		stmt.WrappedSource = p.source[wrappedStart:wrappedSourceEnd]
 	}
-
-	if wrappedStart >= 0 && wrappedEnd <= len(p.source) && wrappedStart < wrappedEnd {
-		stmt.WrappedSource = p.source[wrappedStart:wrappedEnd]
+	stmt.Loc.End = wrappedSourceEnd
+	p.prev = Token{Type: tokIDENT, Str: "WRAPPED", Loc: wrappedStart, End: wrappedSourceEnd}
+	p.hasNext = false
+	if wrappedEnd < len(p.source) && p.source[wrappedEnd] == ';' {
+		p.cur = Token{Type: ';', Str: ";", Loc: wrappedEnd, End: wrappedEnd + 1}
+		p.lexer.pos = wrappedEnd + 1
+	} else {
+		p.cur = Token{Type: tokEOF, Loc: wrappedEnd, End: wrappedEnd}
+		p.lexer.pos = wrappedEnd
 	}
-	stmt.Loc.End = wrappedEnd
 	return stmt, nil
 }
 
