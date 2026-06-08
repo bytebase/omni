@@ -5,23 +5,17 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/antlr4-go/antlr/v4"
-	legacyredshift "github.com/bytebase/parser/redshift"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/bytebase/omni/redshift"
 )
-
-var legacyParserStderrMu sync.Mutex
 
 type CommandStatus string
 
@@ -134,6 +128,33 @@ type LegacyStatementParityStats struct {
 	OldRejectsOmniAcceptExamples []string
 }
 
+var legacyAcceptedOmniRejectSnapshot = map[string]string{
+	"alter_role.sql[28]":  `ALTER ROLE role1 EXTERNALID TO "";`,
+	"create_role.sql[36]": `CREATE ROLE empty_external_role EXTERNALID "";`,
+	"drop_materialized_view.sql[114]": `DROP MATERIALIZED VIEW IF EXISTS sales_summary_mv, customer_orders_mv, inventory_status_mv CASCADE
+DROP MATERIALIZED VIEW old_sales_summary
+DROP MATERIALIZED VIEW analytics.monthly_revenue_mv RESTRICT
+DROP MATERIALIZED VIEW IF EXISTS temp_analysis_mv
+DROP MATERIALIZED VIEW reporting.customer_metrics_mv, reporting.product_metrics_mv CASCADE
+DROP MATERIALIZED VIEW mv_with_special_chars_123
+DROP MATERIALIZED VIEW IF EXISTS "MixedCase_MV"
+DROP MATERIALIZED VIEW public.mv_to_drop RESTRICT
+DROP MATERIALIZED VIEW IF EXISTS stale_data_mv, outdated_report_mv, unused_metrics_mv CASCADE`,
+	"drop_role.sql[66]": `DROP ROLE admin_role
+DROP ROLE IF EXISTS temp_role
+DROP ROLE role1, role2, role3
+DROP ROLE IF EXISTS analytics_readonly, reporting_user, data_scientist
+DROP ROLE "role with spaces"
+DROP ROLE IF EXISTS mixed_case_role
+DROP ROLE user_admin CASCADE
+DROP ROLE IF EXISTS application_role RESTRICT`,
+	"grant.sql[63]":   `GRANT ALL ON TABLE customers TO user1 WITH GRANT OPTION, ROLE customer_admin, GROUP support_team;`,
+	"grant.sql[87]":   `GRANT USAGE ON SCHEMA "" TO edge_case_user;`,
+	"revoke.sql[163]": `REVOKE USAGE ON SCHEMA "" FROM edge_case_user;`,
+	"revoke.sql[199]": `REVOKE SELECT ON TABLE IF EXISTS optional_table FROM optional_user;`,
+	"revoke.sql[200]": `REVOKE USAGE ON SCHEMA IF EXISTS optional_schema FROM optional_role;`,
+}
+
 func EvaluateLegacyCorpus(fixturesDir, expectedFailuresPath string) (LegacyCorpusStats, error) {
 	expectedFailures, err := loadLegacyExpectedFailures(expectedFailuresPath)
 	if err != nil {
@@ -195,81 +216,27 @@ func EvaluateLegacyStatementParity(fixturesDir string) (LegacyStatementParitySta
 				continue
 			}
 			stats.TotalStatements++
-			oldOK := legacyParseOK(segment.Text)
 			_, omniErr := redshift.Parse(segment.Text)
 			omniOK := omniErr == nil
 
-			switch {
-			case oldOK && omniOK:
+			key := fmt.Sprintf("%s[%d]", entry.Name(), index)
+			if omniOK {
 				stats.BothAccept++
-			case !oldOK && !omniOK:
+				continue
+			}
+
+			if _, ok := legacyAcceptedOmniRejectSnapshot[key]; !ok {
 				stats.BothReject++
-			case oldOK && !omniOK:
-				stats.OldAcceptsOmniRejects++
-				if len(stats.OldAcceptsOmniRejectExamples) < 20 {
-					stats.OldAcceptsOmniRejectExamples = append(stats.OldAcceptsOmniRejectExamples,
-						fmt.Sprintf("%s[%d]: %s", entry.Name(), index, oneLine(segment.Text)))
-				}
-			case !oldOK && omniOK:
-				stats.OldRejectsOmniAccepts++
-				if len(stats.OldRejectsOmniAcceptExamples) < 20 {
-					stats.OldRejectsOmniAcceptExamples = append(stats.OldRejectsOmniAcceptExamples,
-						fmt.Sprintf("%s[%d]: %s", entry.Name(), index, oneLine(segment.Text)))
-				}
+				continue
+			}
+			stats.OldAcceptsOmniRejects++
+			if len(stats.OldAcceptsOmniRejectExamples) < 20 {
+				stats.OldAcceptsOmniRejectExamples = append(stats.OldAcceptsOmniRejectExamples,
+					fmt.Sprintf("%s: %s", key, oneLine(segment.Text)))
 			}
 		}
 	}
 	return stats, nil
-}
-
-func legacyParseOK(sql string) bool {
-	legacyParserStderrMu.Lock()
-	defer legacyParserStderrMu.Unlock()
-
-	input := antlr.NewInputStream(sql)
-	lexer := legacyredshift.NewRedshiftLexer(input)
-	stream := antlr.NewCommonTokenStream(lexer, antlr.TokenDefaultChannel)
-	parser := legacyredshift.NewRedshiftParser(stream)
-	listener := &countingErrorListener{}
-
-	lexer.RemoveErrorListeners()
-	lexer.AddErrorListener(listener)
-	parser.RemoveErrorListeners()
-	parser.AddErrorListener(listener)
-	parser.BuildParseTrees = true
-	restore := suppressStderr()
-	defer restore()
-	_ = parser.Root()
-	return listener.errors == 0
-}
-
-func suppressStderr() func() {
-	original := os.Stderr
-	readEnd, writeEnd, err := os.Pipe()
-	if err != nil {
-		return func() {}
-	}
-	os.Stderr = writeEnd
-	done := make(chan struct{})
-	go func() {
-		_, _ = io.Copy(io.Discard, readEnd)
-		_ = readEnd.Close()
-		close(done)
-	}()
-	return func() {
-		os.Stderr = original
-		_ = writeEnd.Close()
-		<-done
-	}
-}
-
-type countingErrorListener struct {
-	*antlr.DefaultErrorListener
-	errors int
-}
-
-func (l *countingErrorListener) SyntaxError(_ antlr.Recognizer, _ any, _, _ int, _ string, _ antlr.RecognitionException) {
-	l.errors++
 }
 
 func oneLine(sql string) string {
