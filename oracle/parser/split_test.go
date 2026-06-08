@@ -680,6 +680,29 @@ func TestSplitDoesNotClassifySQLContinuationLinesAsSQLPlus(t *testing.T) {
 	}
 }
 
+func TestSplitDoesNotTreatQualifiedRAtLineStartAsRun(t *testing.T) {
+	sql := "CREATE VIEW v AS SELECT\n" +
+		"  r.id,\n" +
+		"  r rows,\n" +
+		"  r.name\n" +
+		"FROM records r;"
+	got := Split(sql)
+	wantTexts := []string{
+		"CREATE VIEW v AS SELECT\n  r.id,\n  r rows,\n  r.name\nFROM records r",
+	}
+	if len(got) != len(wantTexts) {
+		t.Fatalf("got %d segments %q, want %d", len(got), splitTexts(got), len(wantTexts))
+	}
+	for i := range wantTexts {
+		if got[i].Text != wantTexts[i] {
+			t.Fatalf("segment[%d] Text = %q, want %q", i, got[i].Text, wantTexts[i])
+		}
+		if got[i].Kind != SegmentSQL {
+			t.Fatalf("segment[%d] Kind = %v for %q, want %v", i, got[i].Kind, got[i].Text, SegmentSQL)
+		}
+	}
+}
+
 func TestSplitClassifiesUnambiguousSQLPlusCommandsAfterBufferedSQL(t *testing.T) {
 	sql := "SELECT 1 FROM dual\n" +
 		"PROMPT running next query\n" +

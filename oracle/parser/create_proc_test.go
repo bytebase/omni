@@ -64,6 +64,19 @@ func TestParseCreateOrReplaceProcedure(t *testing.T) {
 	}
 }
 
+func TestParseCreateProcedureAuthID(t *testing.T) {
+	sql := `CREATE PROCEDURE my_proc AUTHID CURRENT_USER IS BEGIN NULL; END;`
+	result, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt := raw.Stmt.(*ast.CreateProcedureStmt)
+	if stmt.AuthID != "CURRENT_USER" {
+		t.Fatalf("expected AUTHID CURRENT_USER, got %q", stmt.AuthID)
+	}
+}
+
 func TestParseCreateFunctionSimple(t *testing.T) {
 	sql := `CREATE FUNCTION get_total (p_id IN NUMBER) RETURN NUMBER IS BEGIN RETURN 0; END;`
 	result, err := Parse(sql)
@@ -119,6 +132,19 @@ func TestParseCreateFunctionPipelined(t *testing.T) {
 	stmt := raw.Stmt.(*ast.CreateFunctionStmt)
 	if !stmt.Pipelined {
 		t.Error("expected Pipelined to be true")
+	}
+}
+
+func TestParseCreateFunctionAuthID(t *testing.T) {
+	sql := `CREATE FUNCTION get_total RETURN NUMBER AUTHID DEFINER IS BEGIN RETURN 0; END;`
+	result, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt := raw.Stmt.(*ast.CreateFunctionStmt)
+	if stmt.AuthID != "DEFINER" {
+		t.Fatalf("expected AUTHID DEFINER, got %q", stmt.AuthID)
 	}
 }
 

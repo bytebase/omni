@@ -60,11 +60,16 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 		}
 	}
 
+	var parseErr456 error
+	stmt.AuthID, parseErr456 = p.parseOptionalAuthID()
+	if parseErr456 != nil {
+		return nil, parseErr456
+	}
+
 	if p.cur.Type != kwIS && p.cur.Type != kwAS {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	var parseErr456 error
 
 	// PL/SQL block body (BEGIN ... END)
 	stmt.Body, parseErr456 = p.parsePLSQLBlock()
@@ -237,11 +242,11 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) error {
 				}
 			}
 		case p.isIdentLikeStr("AUTHID"):
-			// invoker_rights_clause: AUTHID { CURRENT_USER | DEFINER }
-			p.advance() // consume AUTHID
-			if p.isIdentLike() {
-				p.advance() // consume CURRENT_USER or DEFINER
+			authID, parseErr464 := p.parseOptionalAuthID()
+			if parseErr464 != nil {
+				return parseErr464
 			}
+			stmt.AuthID = authID
 		case p.isIdentLikeStr("ACCESSIBLE"):
 			// accessible_by_clause: ACCESSIBLE BY ( accessor [, ...] )
 			p.advance() // consume ACCESSIBLE
@@ -277,6 +282,29 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) error {
 		}
 	}
 	return nil
+}
+
+func (p *Parser) parseOptionalAuthID() (string, error) {
+	if !p.isIdentLikeStr("AUTHID") {
+		return "", nil
+	}
+	p.advance()
+	if p.isIdentLikeStr("CURRENT_USER") {
+		p.advance()
+		return "CURRENT_USER", nil
+	}
+	if p.cur.Type == kwCURRENT {
+		p.advance()
+		if p.isIdentLikeStr("USER") {
+			p.advance()
+		}
+		return "CURRENT_USER", nil
+	}
+	if p.isIdentLikeStr("DEFINER") {
+		p.advance()
+		return "DEFINER", nil
+	}
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseCreatePackageStmt parses a CREATE [OR REPLACE] PACKAGE [BODY] statement.

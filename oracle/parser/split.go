@@ -459,6 +459,12 @@ func sqlPlusCommandAtLineStart(sql string, tok Token) (sqlPlusCommand, bool) {
 	if word == "" {
 		return sqlPlusCommand{}, false
 	}
+	if sqlPlusCommandWordIsQualifiedIdentifier(sql, tok.End) {
+		return sqlPlusCommand{}, false
+	}
+	if (word == "R" || word == "RUN") && !onlyHorizontalSpaceUntilLineEnd(sql, tok.End) {
+		return sqlPlusCommand{}, false
+	}
 	if isOracleSetStatement(word, sql, tok.End) {
 		return sqlPlusCommand{}, false
 	}
@@ -476,6 +482,24 @@ func splitTokenWord(tok Token) string {
 		return tok.Str
 	}
 	return ""
+}
+
+func sqlPlusCommandWordIsQualifiedIdentifier(sql string, pos int) bool {
+	return pos < len(sql) && sql[pos] == '.'
+}
+
+func onlyHorizontalSpaceUntilLineEnd(sql string, pos int) bool {
+	for pos < len(sql) {
+		switch sql[pos] {
+		case ' ', '\t', '\f':
+			pos++
+		case '\r', '\n':
+			return true
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func isOracleSetStatement(word, sql string, pos int) bool {

@@ -731,6 +731,8 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.Args)
 	case *CursorExpr:
 		Walk(v, n.Subquery)
+	case *CursorAttributeExpr:
+		Walk(v, n.Cursor)
 	case *DDLOption:
 		walkList(v, n.Items)
 	case *DatafileClause:
@@ -858,6 +860,8 @@ func walkChildren(v Visitor, node Node) {
 	case *ForUpdateClause:
 		walkList(v, n.Tables)
 		Walk(v, n.Wait)
+	case *FieldAccessExpr:
+		Walk(v, n.Expr)
 	case *FuncCallExpr:
 		if n.FuncName != nil {
 			Walk(v, n.FuncName)
@@ -870,6 +874,8 @@ func walkChildren(v Visitor, node Node) {
 		if n.Over != nil {
 			Walk(v, n.Over)
 		}
+	case *NamedArgExpr:
+		Walk(v, n.Expr)
 	case *GrantStmt:
 		walkList(v, n.Privileges)
 		if n.OnObject != nil {
@@ -1158,10 +1164,13 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.LowerBound)
 		Walk(v, n.UpperBound)
 		walkList(v, n.CursorArgs)
+		Walk(v, n.CursorQuery)
 		walkList(v, n.Statements)
 	case *PLSQLOpen:
 		walkList(v, n.Args)
 		Walk(v, n.ForQuery)
+		Walk(v, n.ForExpr)
+		walkList(v, n.UsingArgs)
 	case *PLSQLPipeRow:
 		Walk(v, n.Row)
 	case *PLSQLPragma:
