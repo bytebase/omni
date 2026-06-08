@@ -2,6 +2,7 @@ package deparse_test
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/snowflake/ast"
@@ -453,6 +454,28 @@ func TestDeparse_CreateTable_Simple(t *testing.T) {
 
 func TestDeparse_CreateTable_OrReplace(t *testing.T) {
 	assertRoundTrip(t, `CREATE OR REPLACE TABLE t (id INT)`)
+}
+
+// OR ALTER must round-trip distinctly from OR REPLACE: a deparse that emitted
+// OR REPLACE (or dropped the modifier) would change the reparsed AST and fail
+// the DeepEqual in assertRoundTrip.
+func TestDeparse_CreateTable_OrAlter(t *testing.T) {
+	out := assertRoundTrip(t, `CREATE OR ALTER TABLE t (id INT)`)
+	if !strings.Contains(out, "OR ALTER") {
+		t.Errorf("deparsed SQL missing OR ALTER: %q", out)
+	}
+}
+
+func TestDeparse_CreateDatabase_OrAlter(t *testing.T) {
+	assertRoundTrip(t, `CREATE OR ALTER DATABASE db1`)
+}
+
+func TestDeparse_CreateSchema_OrAlter(t *testing.T) {
+	assertRoundTrip(t, `CREATE OR ALTER SCHEMA s1`)
+}
+
+func TestDeparse_CreateView_OrAlter(t *testing.T) {
+	assertRoundTrip(t, `CREATE OR ALTER VIEW v2 (one) AS SELECT a FROM my_table`)
 }
 
 func TestDeparse_CreateTable_Transient(t *testing.T) {

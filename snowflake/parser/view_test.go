@@ -91,6 +91,19 @@ func TestCreateView_OrReplace(t *testing.T) {
 	}
 }
 
+func TestCreateView_OrAlter(t *testing.T) {
+	stmt, errs := testParseCreateView("CREATE OR ALTER VIEW v2(one) AS SELECT a FROM my_table")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if !stmt.OrAlter {
+		t.Error("expected OrAlter=true")
+	}
+	if stmt.OrReplace {
+		t.Error("expected OrReplace=false")
+	}
+}
+
 func TestCreateView_Secure(t *testing.T) {
 	stmt, errs := testParseCreateView("CREATE SECURE VIEW v AS SELECT 1")
 	if len(errs) > 0 {

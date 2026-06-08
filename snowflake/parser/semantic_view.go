@@ -50,11 +50,12 @@ import (
 // The CREATE keyword and the optional OR REPLACE modifier have already been
 // consumed by parseCreateStmt; start is the Loc of the CREATE token, and cur is
 // the TAG keyword.
-func (p *Parser) parseCreateTagStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreateTagStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	p.advance() // consume TAG
 
 	stmt := &ast.CreateTagStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 
@@ -252,7 +253,7 @@ func (p *Parser) parseAlterTagSet(stmt *ast.AlterTagStmt) error {
 //
 // The CREATE / OR REPLACE tokens have already been consumed by parseCreateStmt;
 // start is the Loc of the CREATE token, and cur is the SEMANTIC keyword.
-func (p *Parser) parseCreateSemanticViewStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreateSemanticViewStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	p.advance() // consume SEMANTIC
 	if _, err := p.expect(kwVIEW); err != nil {
 		return nil, err
@@ -260,6 +261,7 @@ func (p *Parser) parseCreateSemanticViewStmt(start ast.Loc, orReplace bool) (ast
 
 	stmt := &ast.CreateSemanticViewStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 
@@ -513,11 +515,12 @@ func (p *Parser) parseAlterSemanticViewStmt() (ast.Node, error) {
 // it *after* the object keyword. The post-keyword spelling is accepted here for
 // consistency with the rest of the engine; the docs' pre-keyword spelling is a
 // flagged divergence (likely a docs rendering quirk).
-func (p *Parser) parseCreateDatasetStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreateDatasetStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	p.advance() // consume DATASET
 
 	stmt := &ast.CreateDatasetStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 

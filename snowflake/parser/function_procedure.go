@@ -41,9 +41,9 @@ import "github.com/bytebase/omni/snowflake/ast"
 // FUNCTION ... . The CREATE keyword and the OR REPLACE / SECURE / TEMPORARY
 // modifiers have already been consumed by parseCreateStmt; start is the Loc of
 // the CREATE token and cur is the FUNCTION keyword.
-func (p *Parser) parseCreateFunctionStmt(start ast.Loc, orReplace, secure, temporary bool) (ast.Node, error) {
+func (p *Parser) parseCreateFunctionStmt(start ast.Loc, orReplace, orAlter, secure, temporary bool) (ast.Node, error) {
 	p.advance() // consume FUNCTION
-	return p.parseCreateRoutineBody(start, ast.RoutineFunction, orReplace, secure, temporary)
+	return p.parseCreateRoutineBody(start, ast.RoutineFunction, orReplace, orAlter, secure, temporary)
 }
 
 // parseCreateExternalFunctionStmt parses CREATE [OR REPLACE] [SECURE] EXTERNAL
@@ -55,18 +55,18 @@ func (p *Parser) parseCreateFunctionStmt(start ast.Loc, orReplace, secure, tempo
 // path (its API_INTEGRATION / HEADERS / CONTEXT_HEADERS / ... clauses are
 // captured open-ended like any other property, and its `AS '<url>'` body is the
 // single-quoted form).
-func (p *Parser) parseCreateExternalFunctionStmt(start ast.Loc, orReplace, secure bool) (ast.Node, error) {
+func (p *Parser) parseCreateExternalFunctionStmt(start ast.Loc, orReplace, orAlter, secure bool) (ast.Node, error) {
 	p.advance() // consume FUNCTION
-	return p.parseCreateRoutineBody(start, ast.RoutineExternalFunction, orReplace, secure, false)
+	return p.parseCreateRoutineBody(start, ast.RoutineExternalFunction, orReplace, orAlter, secure, false)
 }
 
 // parseCreateProcedureStmt parses CREATE [OR REPLACE] [SECURE] PROCEDURE ... .
 // The CREATE / OR REPLACE / SECURE modifiers have already been consumed by
 // parseCreateStmt; start is the Loc of the CREATE token and cur is the PROCEDURE
 // keyword.
-func (p *Parser) parseCreateProcedureStmt(start ast.Loc, orReplace, secure bool) (ast.Node, error) {
+func (p *Parser) parseCreateProcedureStmt(start ast.Loc, orReplace, orAlter, secure bool) (ast.Node, error) {
 	p.advance() // consume PROCEDURE
-	return p.parseCreateRoutineBody(start, ast.RoutineProcedure, orReplace, secure, false)
+	return p.parseCreateRoutineBody(start, ast.RoutineProcedure, orReplace, orAlter, secure, false)
 }
 
 // parseCreateRoutineBody parses the shared tail common to CREATE FUNCTION /
@@ -82,10 +82,11 @@ func (p *Parser) parseCreateProcedureStmt(start ast.Loc, orReplace, secure bool)
 // semantic, not syntactic, concern). The body is optional: the docs permit a
 // function defined entirely by its handler (no AS clause), in which case Body
 // stays "".
-func (p *Parser) parseCreateRoutineBody(start ast.Loc, kind ast.RoutineKind, orReplace, secure, temporary bool) (ast.Node, error) {
+func (p *Parser) parseCreateRoutineBody(start ast.Loc, kind ast.RoutineKind, orReplace, orAlter, secure, temporary bool) (ast.Node, error) {
 	stmt := &ast.CreateRoutineStmt{
 		Kind:      kind,
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Secure:    secure,
 		Temporary: temporary,
 		Loc:       ast.Loc{Start: start.Start},

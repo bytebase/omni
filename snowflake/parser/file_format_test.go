@@ -44,6 +44,16 @@ func mustAlterFileFormat(t *testing.T, input string) *ast.AlterFileFormatStmt {
 //	  [ formatTypeOptions ] [ COMMENT = '<string_literal>' ]
 // ---------------------------------------------------------------------------
 
+func TestParseCreateFileFormat_OrAlter(t *testing.T) {
+	stmt := mustCreateFileFormat(t, "CREATE OR ALTER FILE FORMAT my_csv_format TYPE = CSV FIELD_DELIMITER = '|'")
+	if !stmt.OrAlter {
+		t.Error("expected OrAlter=true")
+	}
+	if stmt.OrReplace {
+		t.Error("expected OrReplace=false")
+	}
+}
+
 func TestParseCreateFileFormat_Modifiers(t *testing.T) {
 	t.Run("minimal (no type)", func(t *testing.T) {
 		// TYPE is optional per the docs (defaults to CSV); the legacy ANTLR

@@ -50,11 +50,12 @@ import (
 // transient records a preceding TRANSIENT, and cur is the DYNAMIC keyword. The
 // two-keyword `DYNAMIC TABLE` (with an optional ICEBERG between them) is consumed
 // here.
-func (p *Parser) parseCreateDynamicTableStmt(start ast.Loc, orReplace, transient bool) (ast.Node, error) {
+func (p *Parser) parseCreateDynamicTableStmt(start ast.Loc, orReplace, orAlter, transient bool) (ast.Node, error) {
 	p.advance() // consume DYNAMIC
 
 	stmt := &ast.CreateDynamicTableStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Transient: transient,
 		Loc:       ast.Loc{Start: start.Start},
 	}
@@ -486,7 +487,7 @@ func (p *Parser) parseAlterDynamicTableStmt() (ast.Node, error) {
 // INTEGRATION / COMMENT / ...) is captured open-ended, with PARTITION BY, the
 // column list / USING TEMPLATE, COPY GRANTS, and [WITH] TAG as the structural
 // anchors.
-func (p *Parser) parseCreateExternalTableStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreateExternalTableStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	p.advance() // consume EXTERNAL
 	if _, err := p.expect(kwTABLE); err != nil {
 		return nil, err
@@ -494,6 +495,7 @@ func (p *Parser) parseCreateExternalTableStmt(start ast.Loc, orReplace bool) (as
 
 	stmt := &ast.CreateExternalTableStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 
@@ -1003,7 +1005,7 @@ func (p *Parser) parsePartitionAssignments() ([]*ast.ExternalTablePartition, err
 // COPY GRANTS / [WITH] TAG are anchors; every other parameter
 // (DATA_RETENTION_TIME_IN_DAYS / MAX_DATA_EXTENSION_TIME_IN_DAYS / CHANGE_TRACKING
 // / DEFAULT_DDL_COLLATION / COMMENT / ...) is captured open-ended.
-func (p *Parser) parseCreateEventTableStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreateEventTableStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	p.advance() // consume EVENT
 	if _, err := p.expect(kwTABLE); err != nil {
 		return nil, err
@@ -1011,6 +1013,7 @@ func (p *Parser) parseCreateEventTableStmt(start ast.Loc, orReplace bool) (ast.N
 
 	stmt := &ast.CreateEventTableStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 

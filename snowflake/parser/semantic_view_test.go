@@ -94,6 +94,16 @@ func assertFullLoc(t *testing.T, loc ast.Loc, input string) {
 //	  [COMMENT = '<string>']
 // ---------------------------------------------------------------------------
 
+func TestParseCreateTag_OrAlter(t *testing.T) {
+	stmt := mustCreateTag(t, "CREATE OR ALTER TAG cost_center ALLOWED_VALUES 'finance', 'engineering', 'sales'")
+	if !stmt.OrAlter {
+		t.Error("expected OrAlter=true")
+	}
+	if stmt.OrReplace {
+		t.Error("expected OrReplace=false")
+	}
+}
+
 func TestParseCreateTag_Modifiers(t *testing.T) {
 	t.Run("minimal", func(t *testing.T) {
 		stmt := mustCreateTag(t, "CREATE TAG cost_center")

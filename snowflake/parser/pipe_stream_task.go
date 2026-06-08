@@ -47,11 +47,12 @@ import (
 // the PIPE keyword. Every option before AS (AUTO_INGEST / ERROR_INTEGRATION /
 // AWS_SNS_TOPIC / INTEGRATION / COMMENT / …) is captured open-ended. AS is the
 // structural anchor; its body is a COPY INTO, optionally wrapped in parens.
-func (p *Parser) parseCreatePipeStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreatePipeStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	p.advance() // consume PIPE
 
 	stmt := &ast.CreatePipeStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 
@@ -212,11 +213,12 @@ func (p *Parser) parseAlterPipeStmt() (ast.Node, error) {
 // keyword. Per the docs the [WITH] TAG clause precedes COPY GRANTS, which
 // precedes ON. The trailing config options (APPEND_ONLY / INSERT_ONLY /
 // SHOW_INITIAL_ROWS / COMMENT / …) are captured open-ended.
-func (p *Parser) parseCreateStreamStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreateStreamStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	p.advance() // consume STREAM
 
 	stmt := &ast.CreateStreamStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 
@@ -472,11 +474,12 @@ func (p *Parser) parseAlterStreamStmt() (ast.Node, error) {
 // session params / …) are captured open-ended, with AFTER / WHEN / AS as the
 // structural anchors. AS's body is captured by parseEmbeddedBody (reuses
 // parseStmt, with verbatim fallback for scripting / unsupported bodies).
-func (p *Parser) parseCreateTaskStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreateTaskStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	p.advance() // consume TASK
 
 	stmt := &ast.CreateTaskStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 
@@ -727,11 +730,12 @@ func (p *Parser) parseAlterTaskStmt() (ast.Node, error) {
 // serverless alerts and SCHEDULE's value grows — so all config is open-ended.
 // IF / THEN are the structural anchors. The condition reuses parseQueryExpr; the
 // action reuses parseEmbeddedBody (parseStmt + verbatim fallback).
-func (p *Parser) parseCreateAlertStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreateAlertStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	p.advance() // consume ALERT
 
 	stmt := &ast.CreateAlertStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 

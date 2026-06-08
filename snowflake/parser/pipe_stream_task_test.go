@@ -125,6 +125,16 @@ func optByName(opts []*ast.CopyOption, name string) *ast.CopyOption {
 //	  AS <copy_into_table>
 // ---------------------------------------------------------------------------
 
+func TestParseCreateTask_OrAlter(t *testing.T) {
+	stmt := mustCreateTask(t, "CREATE OR ALTER TASK my_task WAREHOUSE = my_warehouse SCHEDULE = '60 MINUTES' AS SELECT 1")
+	if !stmt.OrAlter {
+		t.Error("expected OrAlter=true")
+	}
+	if stmt.OrReplace {
+		t.Error("expected OrReplace=false")
+	}
+}
+
 func TestParseCreatePipe(t *testing.T) {
 	t.Run("minimal AS COPY", func(t *testing.T) {
 		stmt := mustCreatePipe(t, "CREATE PIPE mypipe AS COPY INTO mytable FROM @mystage FILE_FORMAT = (TYPE = 'JSON')")

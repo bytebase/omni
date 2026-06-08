@@ -10,11 +10,12 @@ import "github.com/bytebase/omni/snowflake/ast"
 // [RECURSIVE] VIEW statement. The CREATE keyword and OR REPLACE / SECURE /
 // RECURSIVE modifiers have already been consumed; start is the Loc of the
 // CREATE token.
-func (p *Parser) parseCreateViewStmt(start ast.Loc, orReplace, secure, recursive bool) (ast.Node, error) {
+func (p *Parser) parseCreateViewStmt(start ast.Loc, orReplace, orAlter, secure, recursive bool) (ast.Node, error) {
 	p.advance() // consume VIEW
 
 	stmt := &ast.CreateViewStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Secure:    secure,
 		Recursive: recursive,
 		Loc:       ast.Loc{Start: start.Start},
@@ -412,11 +413,12 @@ func (p *Parser) parseRowAccessPolicyClause() (*ast.RowAccessPolicy, error) {
 // [SECURE] MATERIALIZED VIEW statement. The CREATE keyword and OR REPLACE /
 // SECURE modifiers have already been consumed; MATERIALIZED has also been
 // consumed. start is the Loc of the CREATE token.
-func (p *Parser) parseCreateMaterializedViewStmt(start ast.Loc, orReplace, secure bool) (ast.Node, error) {
+func (p *Parser) parseCreateMaterializedViewStmt(start ast.Loc, orReplace, orAlter, secure bool) (ast.Node, error) {
 	p.advance() // consume VIEW
 
 	stmt := &ast.CreateMaterializedViewStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Secure:    secure,
 		Loc:       ast.Loc{Start: start.Start},
 	}

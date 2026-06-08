@@ -71,6 +71,24 @@ func assertParseError(t *testing.T, input string) {
 // ⭐ CANARY — body handling: single-line '…', MULTI-LINE '…', and $$…$$
 // ---------------------------------------------------------------------------
 
+func TestCreateRoutine_OrAlter(t *testing.T) {
+	// FUNCTION (T4.5) and PROCEDURE both flow through parseCreateRoutineBody;
+	// CREATE OR ALTER threads OrAlter to the shared CreateRoutineStmt node.
+	fn := mustCreateRoutine(t, "CREATE OR ALTER FUNCTION multiply(a NUMBER, b NUMBER) RETURNS NUMBER AS 'a * b'")
+	if !fn.OrAlter || fn.OrReplace || fn.Kind != ast.RoutineFunction {
+		t.Errorf("function: OrAlter=%v OrReplace=%v Kind=%v, want true/false/RoutineFunction", fn.OrAlter, fn.OrReplace, fn.Kind)
+	}
+	proc := mustCreateRoutine(t, "CREATE OR ALTER PROCEDURE p(a NUMBER) RETURNS NUMBER LANGUAGE SQL AS 'BEGIN RETURN a; END'")
+	if !proc.OrAlter || proc.OrReplace || proc.Kind != ast.RoutineProcedure {
+		t.Errorf("procedure: OrAlter=%v OrReplace=%v Kind=%v, want true/false/RoutineProcedure", proc.OrAlter, proc.OrReplace, proc.Kind)
+	}
+	// SECURE pairs with OR ALTER (early-dispatch path in parseCreateStmt).
+	secFn := mustCreateRoutine(t, "CREATE OR ALTER SECURE FUNCTION sf(a NUMBER) RETURNS NUMBER AS 'a'")
+	if !secFn.OrAlter || !secFn.Secure || secFn.OrReplace {
+		t.Errorf("secure function: OrAlter=%v Secure=%v OrReplace=%v, want true/true/false", secFn.OrAlter, secFn.Secure, secFn.OrReplace)
+	}
+}
+
 func TestRoutineBody_SingleLineSingleQuote(t *testing.T) {
 	stmt := mustCreateRoutine(t, "CREATE FUNCTION multiply1 (a number, b number) RETURNS number AS 'a * b'")
 	if stmt.Body != "'a * b'" {
