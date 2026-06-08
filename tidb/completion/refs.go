@@ -83,6 +83,11 @@ func extractRefsFromSelect(s *ast.SelectStmt) []TableRef {
 		return refs
 	}
 
+	// Parenthesized query: walk the inner query.
+	if s.ParenSource != nil {
+		return append(refs, extractRefsFromSelect(s.ParenSource)...)
+	}
+
 	// CTEs.
 	for _, cte := range s.CTEs {
 		if cte != nil && cte.Name != "" {

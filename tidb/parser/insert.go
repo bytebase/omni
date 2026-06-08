@@ -103,17 +103,18 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 
 	// Optional column list: (col1, col2, ...)
 	if p.cur.Type == '(' {
-		// Peek ahead to distinguish column list from VALUES (...) or subquery SELECT
-		// If the next token after '(' is SELECT, this is INSERT ... (SELECT ...)
+		// Distinguish a column list from a parenthesized query SOURCE. A column
+		// list always starts with an identifier (or ')'); a parenthesized query
+		// source starts with SELECT, WITH, or a nested '(' — none of which can
+		// begin a column name. So when the token after '(' is one of those, this
+		// is INSERT ... (query) — possibly the left operand of a set operation,
+		// e.g. (SELECT 1) UNION (SELECT 2) or ((SELECT 1) UNION (SELECT 2)).
+		// parseSelectStmt (parseSelectNoParens) consumes the parentheses and any
+		// trailing set-op / ORDER BY / LIMIT, so the '(' is NOT consumed here.
 		next := p.peekNext()
-		if next.Type == kwSELECT {
-			// This is INSERT ... (SELECT ...)
-			p.advance() // consume '('
+		if next.Type == kwSELECT || next.Type == kwWITH || next.Type == '(' {
 			sel, err := p.parseSelectStmt()
 			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
 			stmt.Select = sel
@@ -146,7 +147,10 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		}
 		stmt.SetList = setList
 
-	case kwSELECT, kwWITH:
+	case kwSELECT, kwWITH, '(':
+		// SELECT / WITH / parenthesized query source. A leading '(' reaches here
+		// when an explicit column list preceded it, e.g.
+		// INSERT INTO t (a) (SELECT 1) or INSERT INTO t (a) ((SELECT 1) UNION ...).
 		sel, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err

@@ -265,6 +265,13 @@ func RewriteSelectStmt(stmt *ast.SelectStmt) {
 		RewriteSelectStmt(stmt.Right)
 		return
 	}
+	if stmt.ParenSource != nil {
+		RewriteSelectStmt(stmt.ParenSource)
+		for _, item := range stmt.OrderBy {
+			item.Expr = RewriteExpr(item.Expr)
+		}
+		return
+	}
 	for i, target := range stmt.TargetList {
 		if rt, ok := target.(*ast.ResTarget); ok {
 			rt.Val = RewriteExpr(rt.Val)

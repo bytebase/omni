@@ -942,6 +942,63 @@ func TestDeparseSelect_Section_5_1_NilStmt(t *testing.T) {
 	}
 }
 
+// TestDeparseSelect_WithClauseOnSetOp guards that a query-expression WITH on a
+// set operation round-trips. The parser attaches it to the set-op root node;
+// deparse must read CTEs off the root (not the leftmost leaf), else the WITH is
+// silently dropped and the output references an undefined CTE. A CTE that lives
+// INSIDE a parenthesized operand must stay inside its parens (not hoisted).
+func TestDeparseSelect_WithClauseOnSetOp(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"bare", "WITH cte AS (SELECT 1 AS x) SELECT x FROM cte UNION SELECT x FROM cte",
+			"with `cte` as (select 1 AS `x`) select `x` AS `x` from `cte` union select `x` AS `x` from `cte`"},
+		{"paren_operands", "WITH cte AS (SELECT 1 AS x) (SELECT x FROM cte) UNION (SELECT x FROM cte)",
+			"with `cte` as (select 1 AS `x`) (select `x` AS `x` from `cte`) union (select `x` AS `x` from `cte`)"},
+		{"cte_inside_operand", "(WITH a AS (SELECT 1 AS x) SELECT x FROM a) UNION (SELECT 2)",
+			"(with `a` as (select 1 AS `x`) select `x` AS `x` from `a`) union (select 2 AS `2`)"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := DeparseSelect(parseSelect(t, tc.input))
+			if got != tc.expected {
+				t.Errorf("DeparseSelect(%q) =\n  %q\nwant:\n  %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
+// TestDeparseSelect_ParenthesizedQuery is the load-bearing round-trip guard for
+// the ParenSource wrapper: a consumer that silently drops ParenSource parses
+// fine but deparses wrong. Each case proves BOTH the inner and the OUTER scope
+// survive parse → deparse — e.g. "(SELECT 1 LIMIT 5) LIMIT 2" must keep both
+// limits, which a flat (overwriting) representation cannot.
+func TestDeparseSelect_ParenthesizedQuery(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"two_scope_limit", "(SELECT 1 LIMIT 5) LIMIT 2", "(select 1 AS `1` limit 5) limit 2"},
+		{"two_scope_order", "(SELECT a FROM t ORDER BY a) ORDER BY a", "(select `a` AS `a` from `t` order by `a`) order by `a`"},
+		{"paren_union", "(SELECT 1) UNION (SELECT 2)", "(select 1 AS `1`) union (select 2 AS `2`)"},
+		{"paren_query_order", "(SELECT a FROM t) ORDER BY a", "(select `a` AS `a` from `t`) order by `a`"},
+		{"union_outer_limit", "((SELECT 1) UNION (SELECT 2)) LIMIT 1", "((select 1 AS `1`) union (select 2 AS `2`)) limit 1"},
+		{"nested", "((SELECT 1))", "((select 1 AS `1`))"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sel := parseSelect(t, tc.input)
+			got := DeparseSelect(sel)
+			if got != tc.expected {
+				t.Errorf("DeparseSelect(%q) =\n  %q\nwant:\n  %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
 func TestDeparseSelect_Section_5_2_FromClause(t *testing.T) {
 	cases := []struct {
 		name     string

@@ -23,6 +23,12 @@ func (c *Catalog) analyzeSelectStmtInternal(stmt *nodes.SelectStmt, parentScope 
 // inheritedCTEMap provides CTE definitions inherited from an enclosing context
 // (e.g., a recursive CTE body referencing itself).
 func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
+	// Parenthesized query expression: result columns and command type come from
+	// the inner query; outer ORDER BY / LIMIT are validated against its result.
+	if stmt.ParenSource != nil {
+		return c.analyzeParenSourceWithCTEs(stmt, parentScope, inheritedCTEMap)
+	}
+
 	// Handle set operations (UNION/INTERSECT/EXCEPT).
 	if stmt.SetOp != nodes.SetOpNone {
 		return c.analyzeSetOpWithCTEs(stmt, parentScope, inheritedCTEMap)
@@ -763,9 +769,10 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 		var innerQ *Query
 		var err error
 
-		if cte.Recursive && cte.Select.SetOp != nodes.SetOpNone {
+		if cte.Recursive && nodes.UnwrapParenSource(cte.Select).SetOp != nodes.SetOpNone {
 			// Recursive CTE: analyze the left arm first to establish columns,
-			// then register the CTE, then analyze the right arm.
+			// then register the CTE, then analyze the right arm. The body may be
+			// a parenthesized set operation, so unwrap ParenSource first.
 			innerQ, err = c.analyzeRecursiveCTE(cte, parentScope, cteMap)
 		} else {
 			// Pass the running cteMap so this CTE body can reference inherited and
@@ -803,7 +810,7 @@ func (c *Catalog) analyzeCTEs(ctes []*nodes.CommonTableExpr, q *Query, parentSco
 // operation. The left arm establishes column signatures; the right arm may
 // reference the CTE itself.
 func (c *Catalog) analyzeRecursiveCTE(cte *nodes.CommonTableExpr, parentScope *analyzerScope, cteMap map[string]*CommonTableExprQ) (*Query, error) {
-	stmt := cte.Select
+	stmt := nodes.UnwrapParenSource(cte.Select)
 
 	// Analyze left arm to establish base columns. Pass cteMap so the base arm
 	// can reference earlier sibling CTEs in the same WITH clause; the recursive
@@ -880,13 +887,15 @@ func analyzeCTERef(ref *nodes.TableRef, cteQ *CommonTableExprQ, q *Query, scope 
 		eref = ref.Alias
 	}
 
-	// Find the CTE's index in the current query's CTEList. A CTE inherited from
+	// Find the CTE's index in the current query's CTEList by identity (the
+	// resolved CTE), so an inner CTE that shadows a same-named outer CTE resolves
+	// to the correct entry rather than the first name match. A CTE inherited from
 	// an enclosing WITH (or an earlier sibling, or a recursive self-reference
 	// being built) is not in this query's CTEList; CTEIndex stays -1 and the body
 	// is reachable only via Subquery (set below).
 	cteIndex := -1
 	for i, c := range q.CTEList {
-		if strings.EqualFold(c.Name, cteQ.Name) {
+		if c == cteQ {
 			cteIndex = i
 			break
 		}
@@ -1013,6 +1022,115 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 		}
 	}
 
+	return q, nil
+}
+
+// analyzeParenSourceWithCTEs analyzes a parenthesized query expression
+// "WITH ctes ( body ) [ORDER BY] [LIMIT]". The parentheses are pure grouping, so
+// when folding the wrapper CTEs / outer ORDER BY / LIMIT onto the body cannot
+// collide with a clause the body already carries, it is analyzed as the
+// equivalent flat query "WITH ctes body [ORDER BY] [LIMIT]" — which keeps CTE
+// references at same-level indices and resolves an outer ORDER BY against the
+// body's real FROM scope. When folding WOULD collide — an outer ORDER BY/LIMIT
+// meeting one the body already has, or a wrapper CTE shadowing a same-named body
+// CTE — the body is analyzed as a derived-table subquery so both scopes survive.
+func (c *Catalog) analyzeParenSourceWithCTEs(stmt *nodes.SelectStmt, parentScope *analyzerScope, inheritedCTEMap map[string]*CommonTableExprQ) (*Query, error) {
+	body := stmt.ParenSource
+
+	// Transparent grouping: nothing on the wrapper, so the parens have no effect.
+	if len(stmt.CTEs) == 0 && len(stmt.OrderBy) == 0 && stmt.Limit == nil {
+		return c.analyzeSelectStmtWithCTEs(body, parentScope, inheritedCTEMap)
+	}
+
+	orderConflict := len(stmt.OrderBy) > 0 && len(body.OrderBy) > 0
+	limitConflict := stmt.Limit != nil && body.Limit != nil
+	cteShadow := false
+	if len(stmt.CTEs) > 0 && len(body.CTEs) > 0 {
+		bodyNames := make(map[string]bool, len(body.CTEs))
+		for _, cte := range body.CTEs {
+			bodyNames[strings.ToLower(cte.Name)] = true
+		}
+		for _, cte := range stmt.CTEs {
+			if bodyNames[strings.ToLower(cte.Name)] {
+				cteShadow = true
+				break
+			}
+		}
+	}
+
+	// No collision: fold the wrapper CTEs / outer clauses onto the body and
+	// analyze the equivalent flat query.
+	if !orderConflict && !limitConflict && !cteShadow {
+		combined := *body
+		if len(stmt.CTEs) > 0 {
+			combined.CTEs = append(append([]*nodes.CommonTableExpr{}, stmt.CTEs...), body.CTEs...)
+		}
+		if len(stmt.OrderBy) > 0 {
+			combined.OrderBy = stmt.OrderBy
+			combined.OrderByWithRollup = stmt.OrderByWithRollup
+		}
+		if stmt.Limit != nil {
+			combined.Limit = stmt.Limit
+		}
+		return c.analyzeSelectStmtWithCTEs(&combined, parentScope, inheritedCTEMap)
+	}
+
+	// Collision: model "WITH ctes ( body ) [outer clauses]" as
+	// "WITH ctes SELECT <cols> FROM ( body ) [outer clauses]". The wrapper CTEs
+	// live on this OUTER query; the body's own CTEs stay nested inside the
+	// subquery (so same-named CTEs never share a list), and the outer ORDER BY /
+	// LIMIT resolve against the derived-table output (rtindex 0), not the body's
+	// base tables.
+	q := &Query{CommandType: CmdSelect, JoinTree: &JoinTreeQ{}}
+	cteMap, err := c.analyzeCTEs(stmt.CTEs, q, parentScope, inheritedCTEMap)
+	if err != nil {
+		return nil, err
+	}
+	if cteMap == nil {
+		cteMap = inheritedCTEMap
+	}
+	bodyQ, err := c.analyzeSelectStmtWithCTEs(body, parentScope, cteMap)
+	if err != nil {
+		return nil, err
+	}
+
+	var colNames []string
+	for _, te := range bodyQ.TargetList {
+		if !te.ResJunk {
+			colNames = append(colNames, te.ResName)
+		}
+	}
+	q.RangeTable = append(q.RangeTable, &RangeTableEntryQ{
+		Kind:     RTESubquery,
+		Alias:    "__paren__",
+		ERef:     "__paren__",
+		ColNames: colNames,
+		Subquery: bodyQ,
+	})
+	q.JoinTree.FromList = append(q.JoinTree.FromList, &RangeTableRefQ{RTIndex: 0})
+
+	cols := make([]*Column, len(colNames))
+	for i, name := range colNames {
+		cols[i] = &Column{Position: i + 1, Name: name}
+		q.TargetList = append(q.TargetList, &TargetEntryQ{
+			Expr:    &VarExprQ{RangeIdx: 0, AttNum: i + 1},
+			ResNo:   i + 1,
+			ResName: name,
+		})
+	}
+
+	scope := newScope()
+	scope.add("__paren__", 0, cols)
+	if len(stmt.OrderBy) > 0 {
+		if err := c.analyzeOrderBy(stmt.OrderBy, q, scope); err != nil {
+			return nil, err
+		}
+	}
+	if stmt.Limit != nil {
+		if err := c.analyzeLimitOffset(stmt.Limit, q, scope); err != nil {
+			return nil, err
+		}
+	}
 	return q, nil
 }
 

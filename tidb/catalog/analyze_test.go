@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"strings"
 	"testing"
 
 	nodes "github.com/bytebase/omni/tidb/ast"
@@ -2458,6 +2459,218 @@ func TestAnalyze_12_5_RecursiveCTE(t *testing.T) {
 }
 
 // --- Batch 13: Set operations ---
+
+// TestAnalyze_ParenthesizedQuery analyzes parenthesized query expressions: a
+// bare parenthesized SELECT with an outer ORDER BY, a two-scope LIMIT, and a
+// parenthesized set operation whose operands reach analyze as ParenSource
+// wrappers. Each must resolve to the inner query's columns.
+// TestAnalyze_RecursiveCTEParenthesizedBody guards recursive-CTE detection when
+// the CTE body is a parenthesized set operation. The recursive arm references
+// the CTE itself, so the CTE must be registered (via analyzeRecursiveCTE) before
+// the right arm is analyzed — which only happens if ParenSource is unwrapped
+// before the set-operation check. TiDB v8.5.0 accepts both the bare and
+// parenthesized forms (container-verified, returns 1,2,3). The parenthesized
+// form must analyze with the same recursive-CTE structure as the bare form.
+func TestAnalyze_RecursiveCTEParenthesizedBody(t *testing.T) {
+	c := setupJoinTables(t)
+	check := func(t *testing.T, sql string) {
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, sql))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(q.CTEList) != 1 {
+			t.Fatalf("CTEList: want 1, got %d", len(q.CTEList))
+		}
+		cte := q.CTEList[0]
+		if !cte.Recursive {
+			t.Error("CTE not marked recursive")
+		}
+		if len(cte.ColumnNames) != 1 || cte.ColumnNames[0] != "n" {
+			t.Errorf("CTE columns: want [n], got %v", cte.ColumnNames)
+		}
+		if cte.Query == nil || cte.Query.SetOp != SetOpUnion {
+			t.Errorf("CTE body: want a UNION set-op query, got %+v", cte.Query)
+		}
+	}
+	t.Run("bare", func(t *testing.T) {
+		check(t, "WITH RECURSIVE cte(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM cte WHERE n < 3) SELECT * FROM cte")
+	})
+	t.Run("parenthesized", func(t *testing.T) {
+		check(t, "WITH RECURSIVE cte(n) AS ((SELECT 1) UNION ALL (SELECT n + 1 FROM cte WHERE n < 3)) SELECT * FROM cte")
+	})
+}
+
+// TestAnalyze_WithClauseOnParenthesizedBody guards a WITH clause attached to a
+// parenthesized query body — WITH cte AS (...) (SELECT ... FROM cte). The
+// wrapper-level CTE definitions must land on the returned query's CTEList so the
+// inner range table's RTECTE references resolve (CTEIndex must not dangle).
+func TestAnalyze_WithClauseOnParenthesizedBody(t *testing.T) {
+	c := setupJoinTables(t)
+	q, err := c.AnalyzeSelectStmt(parseSelect(t, "WITH cte AS (SELECT name FROM employees) (SELECT name FROM cte)"))
+	assertNoError(t, err)
+	if len(q.CTEList) != 1 || q.CTEList[0].Name != "cte" {
+		t.Fatalf("CTEList: want [cte], got %+v", q.CTEList)
+	}
+	// The CTE must survive into analyzed-query deparse — a dangling CTEIndex
+	// would drop the WITH and leave the body referencing an undefined cte.
+	if got := DeparseQuery(q); !strings.Contains(got, "with `cte`") {
+		t.Errorf("DeparseQuery lost the WITH clause: %q", got)
+	}
+}
+
+// TestAnalyze_WithClauseOnParenthesizedBody_Indices guards the Query invariant
+// for mixed/multiple CTEs on a parenthesized body: every RTECTE.CTEIndex must
+// point to the matching CTEList entry. A nested inner WITH or a second wrapper
+// CTE exposes a stale/fallback index if the wrapper CTEs are merged after the
+// body is analyzed instead of being folded onto it.
+func TestAnalyze_WithClauseOnParenthesizedBody_Indices(t *testing.T) {
+	c := setupJoinTables(t)
+	var checkInvariant func(t *testing.T, q *Query)
+	checkInvariant = func(t *testing.T, q *Query) {
+		for _, rte := range q.RangeTable {
+			// Descend into a derived-table subquery (the collision path nests the
+			// parenthesized body there, so RTECTEs can live one level down).
+			if rte.Kind == RTESubquery && rte.Subquery != nil {
+				checkInvariant(t, rte.Subquery)
+				continue
+			}
+			if rte.Kind != RTECTE {
+				continue
+			}
+			if rte.CTEIndex < 0 || rte.CTEIndex >= len(q.CTEList) {
+				t.Fatalf("RTECTE %q: CTEIndex %d out of range (CTEList len %d)", rte.CTEName, rte.CTEIndex, len(q.CTEList))
+			}
+			if !strings.EqualFold(q.CTEList[rte.CTEIndex].Name, rte.CTEName) {
+				t.Errorf("RTECTE %q: CTEIndex %d points to CTE %q", rte.CTEName, rte.CTEIndex, q.CTEList[rte.CTEIndex].Name)
+			}
+			// CTEIndex must point to the SAME CTE the reference resolved to, not
+			// just a same-named one (shadowing: an inner CTE wins over a same-named
+			// outer CTE).
+			if q.CTEList[rte.CTEIndex].Query != rte.Subquery {
+				t.Errorf("RTECTE %q: CTEIndex %d points to a different CTE query than the reference resolved to (shadowing mismatch)", rte.CTEName, rte.CTEIndex)
+			}
+		}
+	}
+	t.Run("nested_inner_with", func(t *testing.T) {
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, "WITH outer_cte AS (SELECT name FROM employees) (WITH inner_cte AS (SELECT name FROM departments) SELECT name FROM inner_cte)"))
+		assertNoError(t, err)
+		checkInvariant(t, q)
+	})
+	t.Run("multiple_wrapper_ctes", func(t *testing.T) {
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, "WITH a AS (SELECT name FROM employees), b AS (SELECT name FROM departments) (SELECT name FROM b)"))
+		assertNoError(t, err)
+		checkInvariant(t, q)
+	})
+	t.Run("shadowed_same_name", func(t *testing.T) {
+		// The inner cte (departments) shadows the outer cte (employees); the body
+		// reference must point at the inner one.
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, "WITH cte AS (SELECT name FROM employees) (WITH cte AS (SELECT name FROM departments) SELECT name FROM cte)"))
+		assertNoError(t, err)
+		checkInvariant(t, q)
+	})
+}
+
+// TestAnalyze_ChainedAndInheritedCTE guards that a CTE body can reference an
+// earlier sibling CTE or an inherited (wrapper) CTE. analyzeCTEs previously
+// analyzed CTE bodies with a nil cteMap, so these failed with table-not-found.
+func TestAnalyze_ChainedAndInheritedCTE(t *testing.T) {
+	c := setupJoinTables(t)
+	for _, tc := range []struct{ name, sql string }{
+		{"chained_sibling", "WITH a AS (SELECT name FROM employees), b AS (SELECT name FROM a) SELECT name FROM b"},
+		{"inherited_into_paren_body", "WITH outer_cte AS (SELECT name FROM employees) (WITH inner_cte AS (SELECT name FROM outer_cte) SELECT name FROM inner_cte)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := c.AnalyzeSelectStmt(parseSelect(t, tc.sql)); err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+// TestAnalyze_ParenBodyShadowingDeparse guards that a body WITH shadowing a
+// same-named wrapper WITH does NOT collapse into two same-level CTEs (invalid
+// SQL); the shadowing body is nested as a derived-table subquery instead.
+func TestAnalyze_ParenBodyShadowingDeparse(t *testing.T) {
+	c := setupJoinTables(t)
+	q, err := c.AnalyzeSelectStmt(parseSelect(t, "WITH cte AS (SELECT name FROM employees) (WITH cte AS (SELECT name FROM departments) SELECT name FROM cte)"))
+	assertNoError(t, err)
+	got := DeparseQuery(q)
+	if strings.Contains(got, ") , `cte`") {
+		t.Errorf("two same-level CTEs named cte (invalid SQL): %q", got)
+	}
+	if !strings.Contains(got, "as `__paren__`") {
+		t.Errorf("expected the shadowing body to be nested as a derived-table subquery: %q", got)
+	}
+}
+
+func TestAnalyze_ParenthesizedQuery(t *testing.T) {
+	c := setupJoinTables(t)
+
+	// nonJunk returns the output (non-junk) column names of an analyzed query.
+	nonJunk := func(q *Query) []string {
+		var names []string
+		for _, te := range q.TargetList {
+			if !te.ResJunk {
+				names = append(names, te.ResName)
+			}
+		}
+		return names
+	}
+
+	t.Run("outer_order_applied", func(t *testing.T) {
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, `(SELECT name FROM employees) ORDER BY name`))
+		assertNoError(t, err)
+		if cols := nonJunk(q); len(cols) != 1 || cols[0] != "name" {
+			t.Fatalf("columns: want [name], got %v", cols)
+		}
+		if len(q.SortClause) == 0 {
+			t.Error("outer ORDER BY not applied to analyzed query (SortClause empty)")
+		}
+		// The outer ORDER BY must resolve to the real column, not a wrong one
+		// (a synthetic scope colliding with the body's RTE produced employees.id).
+		if got := DeparseQuery(q); !strings.Contains(got, "order by `employees`.`name`") {
+			t.Errorf("outer ORDER BY resolved to the wrong column: %q", got)
+		}
+	})
+
+	t.Run("outer_limit_applied", func(t *testing.T) {
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, `(SELECT name FROM employees) LIMIT 2`))
+		assertNoError(t, err)
+		if cols := nonJunk(q); len(cols) != 1 || cols[0] != "name" {
+			t.Fatalf("columns: want [name], got %v", cols)
+		}
+		if q.LimitCount == nil {
+			t.Error("outer LIMIT not applied to analyzed query (LimitCount nil)")
+		}
+	})
+
+	t.Run("two_scope_limit_keeps_inner", func(t *testing.T) {
+		// Inner LIMIT 5 and outer LIMIT 2 cannot both live on the flat Query IR;
+		// the inner is kept (the AST / stored Definition path preserves both).
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, `(SELECT name FROM employees LIMIT 5) LIMIT 2`))
+		assertNoError(t, err)
+		if cols := nonJunk(q); len(cols) != 1 || cols[0] != "name" {
+			t.Fatalf("columns: want [name], got %v", cols)
+		}
+		if q.LimitCount == nil {
+			t.Error("inner LIMIT lost (LimitCount nil)")
+		}
+	})
+
+	t.Run("paren_union", func(t *testing.T) {
+		q, err := c.AnalyzeSelectStmt(parseSelect(t, `(SELECT name FROM employees) UNION (SELECT name FROM departments)`))
+		assertNoError(t, err)
+		if q.SetOp != SetOpUnion {
+			t.Errorf("SetOp: want SetOpUnion, got %d", q.SetOp)
+		}
+		if q.LArg == nil || q.RArg == nil {
+			t.Fatal("LArg/RArg: want non-nil")
+		}
+		if cols := nonJunk(q); len(cols) != 1 || cols[0] != "name" {
+			t.Fatalf("columns: want [name], got %v", cols)
+		}
+	})
+}
 
 // TestAnalyze_13_1_Union tests UNION (without ALL).
 func TestAnalyze_13_1_Union(t *testing.T) {

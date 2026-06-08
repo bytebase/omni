@@ -40,17 +40,81 @@ func (r *Resolver) Resolve(stmt *ast.SelectStmt) *ast.SelectStmt {
 // resolveWithCTEs resolves a SelectStmt with optional CTE virtual tables
 // available in scope. cteTables maps CTE names to virtual ResolverTables
 // built from their SELECT target lists.
+// resolveOrderByOrdinals rewrites positional ORDER BY items (ORDER BY 1) to the
+// matching column alias from the leftmost SELECT's target list, matching MySQL
+// 8.0 behavior.
+func resolveOrderByOrdinals(orderBy []*ast.OrderByItem, leftmost *ast.SelectStmt) {
+	if leftmost == nil {
+		return
+	}
+	for _, item := range orderBy {
+		lit, ok := item.Expr.(*ast.IntLit)
+		if !ok {
+			continue
+		}
+		idx := int(lit.Value) - 1 // 1-based to 0-based
+		if idx < 0 || idx >= len(leftmost.TargetList) {
+			continue
+		}
+		rt, ok := leftmost.TargetList[idx].(*ast.ResTarget)
+		if !ok {
+			continue
+		}
+		alias := rt.Name
+		if alias == "" {
+			// Derive alias from a bare column ref.
+			if cr, ok := rt.Val.(*ast.ColumnRef); ok {
+				alias = cr.Column
+			}
+		}
+		if alias != "" {
+			item.Expr = &ast.ColumnRef{Column: alias}
+		}
+	}
+}
+
+// resolveParenSource resolves a parenthesized query expression: the inner query
+// (with the wrapper's CTEs visible), then any OUTER ORDER BY ordinals against
+// the inner's leftmost SELECT target list.
+func (r *Resolver) resolveParenSource(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable) {
+	mergedCTETables := cteTables
+	if len(stmt.CTEs) > 0 {
+		mergedCTETables = make(map[string]*ResolverTable)
+		for k, v := range cteTables {
+			mergedCTETables[k] = v
+		}
+		for _, cte := range stmt.CTEs {
+			cteResolver := &Resolver{
+				Lookup:         r.withCTELookup(mergedCTETables),
+				DefaultCharset: r.DefaultCharset,
+			}
+			cteResolver.resolveWithCTEs(cte.Select, mergedCTETables)
+			if vt := buildCTEVirtualTable(cte); vt != nil {
+				mergedCTETables[strings.ToLower(cte.Name)] = vt
+			}
+		}
+	}
+
+	r.resolveWithCTEs(stmt.ParenSource, mergedCTETables)
+
+	if len(stmt.OrderBy) == 0 {
+		return
+	}
+	// Outer ORDER BY ordinals resolve against the inner's leftmost output SELECT.
+	resolveOrderByOrdinals(stmt.OrderBy, ast.LeftmostQueryLeaf(stmt.ParenSource))
+}
+
 func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*ResolverTable) *ast.SelectStmt {
 	if stmt == nil {
 		return nil
 	}
 	// Handle set operations recursively
 	if stmt.SetOp != ast.SetOpNone {
-		// Before recursing, hoist CTEs from the leftmost leaf so they are
-		// visible to both sides of the set operation (matching MySQL semantics
-		// where WITH ... applies to the entire UNION).
+		// The query-expression WITH lives on the set-op root node; register it
+		// so it is visible to both sides of the set operation (matching MySQL
+		// semantics where WITH ... applies to the entire UNION).
 		mergedCTETables := cteTables
-		if leftCTEs := collectLeftmostCTEs(stmt); len(leftCTEs) > 0 {
+		if leftCTEs := collectSetOpCTEs(stmt); len(leftCTEs) > 0 {
 			mergedCTETables = make(map[string]*ResolverTable)
 			if cteTables != nil {
 				for k, v := range cteTables {
@@ -78,30 +142,15 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		// Resolve ORDER BY ordinals (e.g., ORDER BY 1) to column aliases
 		// from the leftmost SELECT's target list, matching MySQL 8.0 behavior.
 		if len(stmt.OrderBy) > 0 {
-			leftmost := stmt
-			for leftmost.SetOp != ast.SetOpNone && leftmost.Left != nil {
-				leftmost = leftmost.Left
-			}
-			for _, item := range stmt.OrderBy {
-				if lit, ok := item.Expr.(*ast.IntLit); ok {
-					idx := int(lit.Value) - 1 // 1-based to 0-based
-					if idx >= 0 && idx < len(leftmost.TargetList) {
-						if rt, ok := leftmost.TargetList[idx].(*ast.ResTarget); ok {
-							alias := rt.Name
-							if alias == "" {
-								// Derive alias from column ref
-								if cr, ok := rt.Val.(*ast.ColumnRef); ok {
-									alias = cr.Column
-								}
-							}
-							if alias != "" {
-								item.Expr = &ast.ColumnRef{Column: alias}
-							}
-						}
-					}
-				}
-			}
+			resolveOrderByOrdinals(stmt.OrderBy, ast.LeftmostQueryLeaf(stmt))
 		}
+		return stmt
+	}
+
+	// Parenthesized query expression: resolve the inner query (with the
+	// wrapper's CTEs visible) and the outer ORDER BY ordinals.
+	if stmt.ParenSource != nil {
+		r.resolveParenSource(stmt, cteTables)
 		return stmt
 	}
 
@@ -114,10 +163,11 @@ func (r *Resolver) resolveWithCTEs(stmt *ast.SelectStmt, cteTables map[string]*R
 		}
 	}
 	for _, cte := range stmt.CTEs {
-		if cte.Recursive && cte.Select != nil && cte.Select.SetOp != ast.SetOpNone {
+		if cte.Recursive && cte.Select != nil && ast.UnwrapParenSource(cte.Select).SetOp != ast.SetOpNone {
 			// Recursive CTE: resolve left (non-recursive) branch first to get column info,
-			// then add CTE to scope, then resolve right (recursive) branch.
-			sel := cte.Select
+			// then add CTE to scope, then resolve right (recursive) branch. The body
+			// may be a parenthesized set operation, so unwrap ParenSource first.
+			sel := ast.UnwrapParenSource(cte.Select)
 
 			// Step 1: Resolve the non-recursive (left) branch
 			leftResolver := &Resolver{
@@ -759,18 +809,14 @@ func (r *Resolver) withCTELookup(cteTables map[string]*ResolverTable) TableLooku
 	}
 }
 
-// collectLeftmostCTEs walks down the left spine of a set operation tree and
-// returns CTEs from the leftmost leaf. Unlike extractCTEs in the deparser,
-// this does NOT clear the CTEs — they must remain in the AST for the deparser
-// to emit the WITH clause later. Instead, it marks them as already-resolved
-// by removing them from a copy so the resolver doesn't double-process.
-func collectLeftmostCTEs(stmt *ast.SelectStmt) []*ast.CommonTableExpr {
-	cur := stmt
-	for cur.SetOp != ast.SetOpNone && cur.Left != nil {
-		cur = cur.Left
-	}
-	if len(cur.CTEs) > 0 {
-		return cur.CTEs
+// collectSetOpCTEs returns the WITH clause of a set-operation query expression.
+// The parser attaches a query-expression-level WITH to the set-op ROOT node, so
+// both operands can see it (matching MySQL, where WITH applies to the whole
+// UNION). A parenthesized operand's own WITH lives inside its parens and is
+// resolved when that operand is recursed into.
+func collectSetOpCTEs(stmt *ast.SelectStmt) []*ast.CommonTableExpr {
+	if len(stmt.CTEs) > 0 {
+		return stmt.CTEs
 	}
 	return nil
 }
@@ -792,10 +838,8 @@ func buildCTEVirtualTableFromSelect(cteName string, cteColumns []string, sel *as
 		return &ResolverTable{Name: cteName, Columns: cols}
 	}
 
-	// Walk down to the leftmost leaf for set operations
-	for sel.SetOp != ast.SetOpNone && sel.Left != nil {
-		sel = sel.Left
-	}
+	// Resolve to the leftmost output SELECT (unwrap parens, walk set-op left arms).
+	sel = ast.LeftmostQueryLeaf(sel)
 
 	var cols []ResolverColumn
 	for i, target := range sel.TargetList {
@@ -826,10 +870,8 @@ func buildCTEVirtualTable(cte *ast.CommonTableExpr) *ResolverTable {
 
 	// Otherwise, derive columns from the CTE's SELECT target list
 	sel := cte.Select
-	// For set operations, use the left side's target list
-	for sel.SetOp != ast.SetOpNone && sel.Left != nil {
-		sel = sel.Left
-	}
+	// Resolve to the leftmost output SELECT (unwrap parens, walk set-op left arms).
+	sel = ast.LeftmostQueryLeaf(sel)
 
 	var cols []ResolverColumn
 	for i, target := range sel.TargetList {
@@ -868,10 +910,8 @@ func buildDerivedVirtualTable(sub *ast.SubqueryExpr) *ResolverTable {
 	}
 
 	sel := sub.Select
-	// For set operations, use the left side's target list
-	for sel.SetOp != ast.SetOpNone && sel.Left != nil {
-		sel = sel.Left
-	}
+	// Resolve to the leftmost output SELECT (unwrap parens, walk set-op left arms).
+	sel = ast.LeftmostQueryLeaf(sel)
 
 	var cols []ResolverColumn
 	for i, target := range sel.TargetList {
