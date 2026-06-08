@@ -414,6 +414,13 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 		tok := p.advance()
 		return &ast.StarExpr{Loc: tok.Loc}, nil
 
+	case tokVariable:
+		// $N positional column ref or $<name> session/scripting variable. The
+		// lexer strips the leading '$' (Str holds the bare name) and folds both
+		// forms into tokVariable. A lone '$' is emitted as a bare ASCII token,
+		// not tokVariable, so it falls through to the default error branch.
+		return p.parseDollarRef(nil), nil
+
 	// Reserved keywords that are also common zero-argument functions:
 	// CURRENT_TIMESTAMP([prec]), CURRENT_DATE, CURRENT_TIME([prec]).
 	// Snowflake allows them both with and without parentheses.
@@ -488,8 +495,46 @@ func (p *Parser) parseIdentExpr() (ast.Node, error) {
 	}, nil
 }
 
+// parseDollarRef builds a *ast.DollarRef from the current tokVariable token,
+// consuming it. qualifier is the optional leading table/alias qualifier (e.g.
+// the d in d.$1) or nil for a bare $-reference. The leading '$' was stripped by
+// the lexer, so the token text is the bare name; Positional is set when that
+// text is composed solely of decimal digits ($1, $2, ...).
+//
+// The caller must ensure p.cur.Type == tokVariable.
+func (p *Parser) parseDollarRef(qualifier *ast.ObjectName) *ast.DollarRef {
+	tok := p.advance() // consume the $-token
+	start := tok.Loc.Start
+	if qualifier != nil {
+		start = qualifier.Loc.Start
+	}
+	return &ast.DollarRef{
+		Qualifier:  qualifier,
+		Name:       tok.Str,
+		Positional: isAllDigits(tok.Str),
+		Loc:        ast.Loc{Start: start, End: tok.Loc.End},
+	}
+}
+
+// isAllDigits reports whether s is non-empty and every byte is a decimal digit.
+// A tokVariable text is always non-empty (the lexer only emits it for '$'
+// followed by at least one [A-Za-z0-9_] character), but the empty guard keeps
+// the predicate honest for any other caller.
+func isAllDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 // parseDottedIdentOrFunc handles dotted names after the first ident.
-// Returns a ColumnRef, StarExpr, or FuncCallExpr depending on what follows.
+// Returns a ColumnRef, StarExpr, DollarRef, or FuncCallExpr depending on what
+// follows.
 func (p *Parser) parseDottedIdentOrFunc(first ast.Ident) (ast.Node, error) {
 	parts := []ast.Ident{first}
 
@@ -524,6 +569,34 @@ func (p *Parser) parseDottedIdentOrFunc(first ast.Ident) (ast.Node, error) {
 				Qualifier: qualifier,
 				Loc:       ast.Loc{Start: first.Loc.Start, End: starTok.Loc.End},
 			}, nil
+		}
+
+		// table.$N — positional column ref qualified by a table alias/name
+		// (e.g. d.$1 in a COPY transform). The accumulated dotted parts become
+		// the DollarRef qualifier, mirroring the table.* case above.
+		if p.cur.Type == tokVariable {
+			var qualifier *ast.ObjectName
+			switch len(parts) {
+			case 1:
+				qualifier = &ast.ObjectName{
+					Name: parts[0],
+					Loc:  parts[0].Loc,
+				}
+			case 2:
+				qualifier = &ast.ObjectName{
+					Schema: parts[0],
+					Name:   parts[1],
+					Loc:    ast.Loc{Start: parts[0].Loc.Start, End: parts[1].Loc.End},
+				}
+			case 3:
+				qualifier = &ast.ObjectName{
+					Database: parts[0],
+					Schema:   parts[1],
+					Name:     parts[2],
+					Loc:      ast.Loc{Start: parts[0].Loc.Start, End: parts[2].Loc.End},
+				}
+			}
+			return p.parseDollarRef(qualifier), nil
 		}
 
 		ident, err := p.parseIdent()

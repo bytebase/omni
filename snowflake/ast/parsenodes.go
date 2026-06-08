@@ -453,6 +453,27 @@ type StarExpr struct {
 
 func (n *StarExpr) Tag() NodeTag { return T_StarExpr }
 
+// DollarRef represents a Snowflake '$'-reference used as a primary expression:
+//
+//   - $N          positional column reference (Positional=true, Name="N").
+//     Used in COPY-transform / stage queries (SELECT $1, $2 FROM @stage) and
+//     anywhere a column may appear.
+//   - $<name>     session-variable / scripting-variable reference
+//     (Positional=false), e.g. $min, $Variable1.
+//   - <qual>.$N   positional reference qualified by a table alias or name
+//     (e.g. d.$1), with the leading qualifier captured in Qualifier.
+//
+// The lexer strips the leading '$' and emits a single tokVariable whose text is
+// stored in Name; Positional records whether that text is all decimal digits.
+type DollarRef struct {
+	Qualifier  *ObjectName // optional leading qualifier (e.g. d in d.$1); nil when bare
+	Name       string      // text after '$': digits for positional, identifier otherwise
+	Positional bool        // true when Name is all decimal digits ($1, $2, ...)
+	Loc        Loc
+}
+
+func (n *DollarRef) Tag() NodeTag { return T_DollarRef }
+
 // BinaryExpr represents a binary operation: left op right.
 type BinaryExpr struct {
 	Op    BinaryOp
