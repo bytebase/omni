@@ -9,6 +9,16 @@ func walkChildren(v Visitor, node Node) {
 	case *AccessExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.Index)
+	case *AlterAccountStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.PolicyName != nil {
+			Walk(v, n.PolicyName)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
 	case *AlterAlertStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -65,6 +75,16 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.NewName)
 		}
 		Walk(v, n.Body)
+	case *AlterReplicationGroupStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
+		if n.MoveTo != nil {
+			Walk(v, n.MoveTo)
+		}
 	case *AlterRoleStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -92,6 +112,10 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.NewName != nil {
 			Walk(v, n.NewName)
+		}
+	case *AlterShareStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 	case *AlterStageStmt:
 		if n.Name != nil {
@@ -196,6 +220,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.Lit != nil {
 			Walk(v, n.Lit)
 		}
+	case *CreateAccountStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *CreateAlertStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -258,6 +286,13 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Returns)
 		}
 		Walk(v, n.Body)
+	case *CreateReplicationGroupStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.Replica != nil {
+			Walk(v, n.Replica)
+		}
 	case *CreateRoleStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -274,6 +309,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Name)
 		}
 	case *CreateSequenceStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+	case *CreateShareStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
@@ -381,6 +420,10 @@ func walkChildren(v Visitor, node Node) {
 	case *Grantee:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+	case *GroupOption:
+		if n.Lit != nil {
+			Walk(v, n.Lit)
 		}
 	case *IffExpr:
 		Walk(v, n.Cond)

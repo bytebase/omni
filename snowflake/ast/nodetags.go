@@ -119,6 +119,15 @@ const (
 	T_CreateIntegrationStmt
 	T_AlterIntegrationStmt
 
+	// Replication & sharing DDL tags (T4.8)
+	T_GroupOption
+	T_CreateReplicationGroupStmt
+	T_AlterReplicationGroupStmt
+	T_CreateAccountStmt
+	T_AlterAccountStmt
+	T_CreateShareStmt
+	T_AlterShareStmt
+
 	// Data-pipeline DDL tags (T4.3)
 	T_CreatePipeStmt
 	T_AlterPipeStmt
@@ -335,6 +344,20 @@ func (t NodeTag) String() string {
 		return "CreateIntegrationStmt"
 	case T_AlterIntegrationStmt:
 		return "AlterIntegrationStmt"
+	case T_GroupOption:
+		return "GroupOption"
+	case T_CreateReplicationGroupStmt:
+		return "CreateReplicationGroupStmt"
+	case T_AlterReplicationGroupStmt:
+		return "AlterReplicationGroupStmt"
+	case T_CreateAccountStmt:
+		return "CreateAccountStmt"
+	case T_AlterAccountStmt:
+		return "AlterAccountStmt"
+	case T_CreateShareStmt:
+		return "CreateShareStmt"
+	case T_AlterShareStmt:
+		return "AlterShareStmt"
 	case T_CreateRoutineStmt:
 		return "CreateRoutineStmt"
 	case T_AlterRoutineStmt:

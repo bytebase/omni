@@ -2996,6 +2996,304 @@ var (
 )
 
 // ---------------------------------------------------------------------------
+// Replication & sharing DDL — CREATE / ALTER FAILOVER GROUP / REPLICATION GROUP
+// / ACCOUNT / SHARE (T4.8)
+// ---------------------------------------------------------------------------
+//
+// These account-level objects drive Snowflake's replication and data-sharing
+// features. They share a distinctive option shape with the rest of this engine's
+// account-level DDL — large, version-growing `KEY = <value>` vocabularies — but
+// with one structural twist the COPY/STAGE option machinery does not cover: the
+// replication/sharing list parameters (OBJECT_TYPES, ALLOWED_DATABASES,
+// ALLOWED_SHARES, ALLOWED_INTEGRATION_TYPES, ALLOWED_ACCOUNTS, ...) are
+// UNPARENTHESIZED comma lists whose elements are multi-word object-type names
+// (e.g. `ACCOUNT PARAMETERS`, `RESOURCE MONITORS`, `NETWORK POLICIES`) or dotted
+// account names (`org.account`). Both the official docs (truth1) and the legacy
+// ANTLR grammar (truth2) agree on the no-parentheses form — the COPY-style
+// `KEY = ( a, b )` reader is therefore NOT reused for them. They are captured as
+// GroupOption (a `KEY = <value-list | literal>` pair). Scalar options
+// (REPLICATION_SCHEDULE = '...', OPTIMIZED_REFRESH = TRUE, ERROR_INTEGRATION =
+// <name>, ...) reuse the same GroupOption type. Only the structural anchors are
+// modeled as dedicated fields: the object discriminator (FAILOVER vs REPLICATION
+// GROUP, MANAGED ACCOUNT), the [WITH] TAG clause, the AS REPLICA OF secondary
+// form, and (on ALTER) the action keyword plus its operands (ADD/REMOVE/MOVE
+// name lists, the ALLOWED_* list target, the MOVE-TO group, RENAME's new name,
+// the account-policy forms, etc.). Per this engine's parse-permissively
+// philosophy the parser accepts the open-ended combination and the
+// catalog/semantic layer validates legality (mutually-exclusive OR REPLACE / IF
+// NOT EXISTS, which options are real for the chosen object, and so on).
+
+// GroupOption is a single `KEY = <value>` parameter of a replication/sharing
+// statement. The value is one of:
+//   - Values: an unparenthesized comma list of items, each a verbatim,
+//     uppercased multi-word token run (OBJECT_TYPES = DATABASES, ROLES;
+//     ALLOWED_DATABASES = db1, db2; ALLOWED_ACCOUNTS = org.acct1, org.acct2) or
+//     a single bareword/identifier value (OPTIMIZED_REFRESH = TRUE,
+//     ERROR_INTEGRATION = my_int, EDITION = STANDARD, ADMIN_NAME = admin).
+//   - Lit: a string or numeric literal (REPLICATION_SCHEDULE = '10 MINUTE',
+//     ADMIN_PASSWORD = 'secret', EMAIL = 'a@b.com').
+//
+// Exactly one of Values / Lit is set. Name is the uppercased option name.
+type GroupOption struct {
+	Name   string   // uppercased option name (e.g. "OBJECT_TYPES", "REPLICATION_SCHEDULE")
+	Values []string // unparenthesized comma-list of verbatim uppercased items; nil when Lit is set
+	Lit    *Literal // a string/number literal value; nil when Values is set
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *GroupOption) Tag() NodeTag { return T_GroupOption }
+
+// ReplicationGroupKind discriminates a FAILOVER GROUP from a REPLICATION GROUP.
+// The two objects share a near-identical CREATE/ALTER grammar (the docs differ
+// only in a handful of options), so they share AST node types and are told apart
+// by this flag.
+type ReplicationGroupKind int
+
+const (
+	ReplicationGroup ReplicationGroupKind = iota // REPLICATION GROUP
+	FailoverGroup                                // FAILOVER GROUP
+)
+
+// String returns the SQL keyword(s) for the kind (uppercased).
+func (k ReplicationGroupKind) String() string {
+	if k == FailoverGroup {
+		return "FAILOVER GROUP"
+	}
+	return "REPLICATION GROUP"
+}
+
+// CreateReplicationGroupStmt represents the CREATE form of a FAILOVER GROUP or
+// REPLICATION GROUP (Failover discriminates):
+//
+//	CREATE [ OR REPLACE ] { FAILOVER | REPLICATION } GROUP [ IF NOT EXISTS ] <name>
+//	  OBJECT_TYPES = <object_type> [ , ... ]
+//	  [ ALLOWED_DATABASES = <db_name> [ , ... ] ]
+//	  [ ALLOWED_EXTERNAL_VOLUMES = <ev_name> [ , ... ] ]
+//	  [ ALLOWED_SHARES = <share_name> [ , ... ] ]
+//	  [ ALLOWED_INTEGRATION_TYPES = <integration_type_name> [ , ... ] ]
+//	  ALLOWED_ACCOUNTS = <org>.<account> [ , ... ]
+//	  [ IGNORE EDITION CHECK ]
+//	  [ REPLICATION_SCHEDULE = '...' ] [ OPTIMIZED_REFRESH = { TRUE | FALSE } ]
+//	  [ [ WITH ] TAG ( <tag> = '<value>' [ , ... ] ) ]
+//	  [ ERROR_INTEGRATION = <integration_name> ]
+//
+//	-- secondary form:
+//	CREATE [ OR REPLACE ] { FAILOVER | REPLICATION } GROUP [ IF NOT EXISTS ] <name>
+//	  AS REPLICA OF <org>.<source_account>.<name>
+//
+// All configuration parameters are captured open-ended in Options, source order.
+// IgnoreEditionCheck records the bare `IGNORE EDITION CHECK` flag, Tags the
+// [WITH] TAG clause, and Replica the AS REPLICA OF secondary-form source (a
+// dotted ObjectName); when Replica is set the primary-form fields are empty.
+type CreateReplicationGroupStmt struct {
+	Failover           bool
+	OrReplace          bool
+	IfNotExists        bool
+	Name               *ObjectName
+	Options            []*GroupOption   // open-ended KEY = value parameters, source order
+	IgnoreEditionCheck bool             // bare IGNORE EDITION CHECK flag
+	Tags               []*TagAssignment // [WITH] TAG (...); nil if absent
+	Replica            *ObjectName      // AS REPLICA OF <org>.<account>.<name>; nil for primary form
+	Loc                Loc
+}
+
+// Tag implements Node.
+func (n *CreateReplicationGroupStmt) Tag() NodeTag { return T_CreateReplicationGroupStmt }
+
+// AlterGroupAction discriminates the action variants of ALTER FAILOVER GROUP /
+// REPLICATION GROUP.
+type AlterGroupAction int
+
+const (
+	AlterGroupRename   AlterGroupAction = iota // RENAME TO <new_name>
+	AlterGroupSet                              // SET <options>
+	AlterGroupUnset                            // UNSET <property> [ , ... ]
+	AlterGroupSetTag                           // SET TAG <tag> = '<value>' [ , ... ]
+	AlterGroupUnsetTag                         // UNSET TAG <tag> [ , ... ]
+	AlterGroupAdd                              // ADD <name-list> TO ALLOWED_{DATABASES|SHARES|ACCOUNTS} [ IGNORE EDITION CHECK ]
+	AlterGroupRemove                           // REMOVE <name-list> FROM ALLOWED_{DATABASES|SHARES|ACCOUNTS}
+	AlterGroupMove                             // MOVE { DATABASES | SHARES } <name-list> TO { FAILOVER | REPLICATION } GROUP <name>
+	AlterGroupRefresh                          // REFRESH
+	AlterGroupPrimary                          // PRIMARY (FAILOVER GROUP only)
+	AlterGroupSuspend                          // SUSPEND [ IMMEDIATE ]
+	AlterGroupResume                           // RESUME
+)
+
+// AlterReplicationGroupStmt represents the ALTER form of a FAILOVER GROUP or
+// REPLICATION GROUP (Failover discriminates). The legal action set depends on
+// the kind (validated by the semantic layer, not here):
+//
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> RENAME TO <new_name>
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> SET <options>
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> UNSET <property> [ , ... ]
+//	ALTER { FAILOVER | REPLICATION } GROUP <name> { SET | UNSET } TAG ...
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> ADD <name-list> TO ALLOWED_{DATABASES|SHARES|ACCOUNTS} [ IGNORE EDITION CHECK ]
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> MOVE { DATABASES | SHARES } <name-list> TO { FAILOVER | REPLICATION } GROUP <name>
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> REMOVE <name-list> FROM ALLOWED_{DATABASES|SHARES|ACCOUNTS}
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> { REFRESH | PRIMARY | SUSPEND [ IMMEDIATE ] | RESUME }
+type AlterReplicationGroupStmt struct {
+	Failover           bool
+	IfExists           bool
+	Name               *ObjectName
+	Action             AlterGroupAction
+	NewName            *ObjectName      // RENAME TO; for AlterGroupRename
+	Options            []*GroupOption   // SET <options>; for AlterGroupSet
+	Tags               []*TagAssignment // SET TAG assignments; for AlterGroupSetTag
+	UnsetTags          []*ObjectName    // UNSET TAG names; for AlterGroupUnsetTag
+	UnsetProps         []string         // UNSET <property> names; for AlterGroupUnset
+	Names              []*ObjectName    // ADD/MOVE/REMOVE name list (databases / shares / org.account)
+	ListTarget         string           // ALLOWED_DATABASES / ALLOWED_SHARES / ALLOWED_ACCOUNTS (ADD/REMOVE) — uppercased
+	MoveKind           string           // MOVE DATABASES | SHARES — uppercased; for AlterGroupMove
+	MoveTo             *ObjectName      // MOVE ... TO { FAILOVER | REPLICATION } GROUP <name>; for AlterGroupMove
+	IgnoreEditionCheck bool             // ADD ... TO ALLOWED_ACCOUNTS IGNORE EDITION CHECK
+	Immediate          bool             // SUSPEND IMMEDIATE
+	Loc                Loc
+}
+
+// Tag implements Node.
+func (n *AlterReplicationGroupStmt) Tag() NodeTag { return T_AlterReplicationGroupStmt }
+
+// CreateAccountStmt represents
+//
+//	CREATE ACCOUNT <name> ADMIN_NAME = '...' { ADMIN_PASSWORD = '...' | ADMIN_RSA_PUBLIC_KEY = '...' }
+//	  [ ADMIN_USER_TYPE = ... ] [ FIRST_NAME = '...' ] [ LAST_NAME = '...' ]
+//	  EMAIL = '...' [ MUST_CHANGE_PASSWORD = { TRUE | FALSE } ]
+//	  EDITION = { STANDARD | ENTERPRISE | BUSINESS_CRITICAL }
+//	  [ REGION_GROUP = <id> ] [ REGION = <id> ] [ COMMENT = '...' ] [ POLARIS = { TRUE | FALSE } ]
+//
+//	CREATE [ OR REPLACE ] MANAGED ACCOUNT <name>
+//	  ADMIN_NAME = <username>, ADMIN_PASSWORD = <password>, TYPE = READER [ , COMMENT = '...' ]
+//
+// Managed discriminates the MANAGED ACCOUNT form. Every parameter is captured
+// open-ended in Options (source order); CREATE ACCOUNT separates them with
+// whitespace, CREATE MANAGED ACCOUNT with commas (the parser tolerates both).
+type CreateAccountStmt struct {
+	Managed   bool
+	OrReplace bool // only MANAGED ACCOUNT accepts OR REPLACE per the docs
+	Name      *ObjectName
+	Options   []*GroupOption // ADMIN_NAME / ADMIN_PASSWORD / EMAIL / EDITION / TYPE / COMMENT / ...
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *CreateAccountStmt) Tag() NodeTag { return T_CreateAccountStmt }
+
+// AlterAccountAction discriminates the action variants of ALTER ACCOUNT.
+type AlterAccountAction int
+
+const (
+	AlterAccountSet         AlterAccountAction = iota // SET <param> = <value> [ , ... ] / SET RESOURCE_MONITOR = <name>
+	AlterAccountUnset                                 // UNSET <param> [ , ... ]
+	AlterAccountSetTag                                // SET TAG <tag> = '<value>' [ , ... ]
+	AlterAccountUnsetTag                              // UNSET TAG <tag> [ , ... ]
+	AlterAccountSetPolicy                             // SET { <policy_kind> } POLICY <name> [ <scope> ] [ FORCE ]
+	AlterAccountUnsetPolicy                           // UNSET { <policy_kind> } POLICY [ <scope> ]
+	AlterAccountRename                                // <name> RENAME TO <new_name> [ SAVE_OLD_URL = ... ]
+	AlterAccountDropURL                               // <name> DROP OLD [ ORGANIZATION ] URL
+)
+
+// AlterAccountStmt represents ALTER ACCOUNT. The current-account forms omit the
+// name (Name is nil); the cross-account forms (org admins) carry a name:
+//
+//	ALTER ACCOUNT SET <param> = <value> [ , ... ]
+//	ALTER ACCOUNT SET RESOURCE_MONITOR = <monitor_name>
+//	ALTER ACCOUNT UNSET <param> [ , ... ]
+//	ALTER ACCOUNT SET TAG <tag> = '<value>' [ , ... ]   |   UNSET TAG <tag> [ , ... ]
+//	ALTER ACCOUNT SET { AUTHENTICATION | SESSION } POLICY <name> [ FOR ALL { PERSON | SERVICE } USERS ] [ FORCE ]
+//	ALTER ACCOUNT SET { PACKAGES | PASSWORD } POLICY <name> [ FORCE ]
+//	ALTER ACCOUNT SET FEATURE POLICY <name> FOR ALL APPLICATIONS [ FORCE ]
+//	ALTER ACCOUNT UNSET { <policy_kind> } POLICY [ <scope> ]
+//	ALTER ACCOUNT <name> SET EDITION = ... | SET IS_ORG_ADMIN = ...
+//	ALTER ACCOUNT <name> RENAME TO <new_name> [ SAVE_OLD_URL = { TRUE | FALSE } ]
+//	ALTER ACCOUNT <name> DROP OLD [ ORGANIZATION ] URL
+type AlterAccountStmt struct {
+	Name         *ObjectName // nil for the current-account forms; set for the cross-account forms
+	Action       AlterAccountAction
+	Options      []*GroupOption   // SET <param> = value list; for AlterAccountSet
+	Tags         []*TagAssignment // SET TAG assignments; for AlterAccountSetTag
+	UnsetTags    []*ObjectName    // UNSET TAG names; for AlterAccountUnsetTag
+	UnsetProps   []string         // UNSET <property> names; for AlterAccountUnset
+	PolicyKind   string           // "{ AUTHENTICATION | SESSION | PACKAGES | PASSWORD | FEATURE } POLICY"; for Set/UnsetPolicy — uppercased
+	PolicyName   *ObjectName      // the policy name; for AlterAccountSetPolicy
+	PolicyScope  string           // the trailing FOR ALL ... clause, verbatim uppercased; "" if absent
+	Force        bool             // trailing FORCE; for AlterAccountSetPolicy
+	NewName      *ObjectName      // RENAME TO; for AlterAccountRename
+	SaveOldURL   *bool            // RENAME ... SAVE_OLD_URL = { TRUE | FALSE }; nil if absent
+	Organization bool             // DROP OLD ORGANIZATION URL (vs DROP OLD URL); for AlterAccountDropURL
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *AlterAccountStmt) Tag() NodeTag { return T_AlterAccountStmt }
+
+// CreateShareStmt represents
+//
+//	CREATE [ OR REPLACE ] SHARE [ IF NOT EXISTS ] <name> [ COMMENT = '<string_literal>' ]
+//
+// COMMENT (the only documented parameter) is captured open-ended in Options.
+type CreateShareStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Options     []*GroupOption // COMMENT = '...'; nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateShareStmt) Tag() NodeTag { return T_CreateShareStmt }
+
+// AlterShareAction discriminates the action variants of ALTER SHARE.
+type AlterShareAction int
+
+const (
+	AlterShareAdd      AlterShareAction = iota // ADD ACCOUNTS = <a> [ , ... ] [ SHARE_RESTRICTIONS = ... ]
+	AlterShareRemove                           // REMOVE ACCOUNTS = <a> [ , ... ]
+	AlterShareSet                              // SET [ ACCOUNTS = <a> [ , ... ] ] [ COMMENT = '...' ]
+	AlterShareSetTag                           // SET TAG <tag> = '<value>' [ , ... ]
+	AlterShareUnsetTag                         // UNSET TAG <tag> [ , ... ]
+	AlterShareUnset                            // UNSET COMMENT
+)
+
+// AlterShareStmt represents
+//
+//	ALTER SHARE [ IF EXISTS ] <name> { ADD | REMOVE } ACCOUNTS = <a> [ , ... ] [ SHARE_RESTRICTIONS = { TRUE | FALSE } ]
+//	ALTER SHARE [ IF EXISTS ] <name> SET [ ACCOUNTS = <a> [ , ... ] ] [ COMMENT = '...' ]
+//	ALTER SHARE [ IF EXISTS ] <name> SET TAG <tag> = '<value>' [ , ... ]
+//	ALTER SHARE <name> UNSET TAG <tag> [ , ... ]
+//	ALTER SHARE [ IF EXISTS ] <name> UNSET COMMENT
+//
+// Accounts holds the consumer-account list (ADD/REMOVE/SET ACCOUNTS = ...);
+// ShareRestrictions records the optional SHARE_RESTRICTIONS flag; Options holds
+// the SET COMMENT param; UnsetProps holds the UNSET property names.
+type AlterShareStmt struct {
+	IfExists          bool
+	Name              *ObjectName
+	Action            AlterShareAction
+	Accounts          []*ObjectName    // ACCOUNTS = <a> [ , ... ]; for Add/Remove/Set
+	ShareRestrictions *bool            // SHARE_RESTRICTIONS = { TRUE | FALSE }; nil if absent
+	Options           []*GroupOption   // SET COMMENT = '...'; nil if absent
+	Tags              []*TagAssignment // SET TAG assignments; for AlterShareSetTag
+	UnsetTags         []*ObjectName    // UNSET TAG names; for AlterShareUnsetTag
+	UnsetProps        []string         // UNSET <property> names (e.g. COMMENT); for AlterShareUnset
+	Loc               Loc
+}
+
+// Tag implements Node.
+func (n *AlterShareStmt) Tag() NodeTag { return T_AlterShareStmt }
+
+// Compile-time assertions for replication & sharing DDL nodes.
+var (
+	_ Node = (*GroupOption)(nil)
+	_ Node = (*CreateReplicationGroupStmt)(nil)
+	_ Node = (*AlterReplicationGroupStmt)(nil)
+	_ Node = (*CreateAccountStmt)(nil)
+	_ Node = (*AlterAccountStmt)(nil)
+	_ Node = (*CreateShareStmt)(nil)
+	_ Node = (*AlterShareStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
 // Data-pipeline DDL — CREATE / ALTER PIPE / STREAM / TASK / ALERT (T4.3)
 // ---------------------------------------------------------------------------
 //

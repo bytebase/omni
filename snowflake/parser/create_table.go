@@ -178,6 +178,17 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// SECRET, CONNECTION, GIT REPOSITORY. parseCreateIntegrationStmt consumes the
 		// object-type keyword(s).
 		return p.parseCreateIntegrationStmt(start, orReplace)
+	case kwFAILOVER, kwREPLICATION:
+		// CREATE [OR REPLACE] { FAILOVER | REPLICATION } GROUP ... (T4.8).
+		// parseCreateReplicationGroupStmt consumes the kind keyword + GROUP.
+		return p.parseCreateReplicationGroupStmt(start, orReplace)
+	case kwACCOUNT, kwMANAGED:
+		// CREATE ACCOUNT / CREATE [OR REPLACE] MANAGED ACCOUNT ... (T4.8).
+		// parseCreateAccountStmt consumes the (MANAGED) ACCOUNT keyword(s).
+		return p.parseCreateAccountStmt(start, orReplace)
+	case kwSHARE:
+		// CREATE [OR REPLACE] SHARE ... (T4.8).
+		return p.parseCreateShareStmt(start, orReplace)
 	case kwROLE:
 		// CREATE [OR REPLACE] ROLE ... (T4.6). DATABASE ROLE is dispatched by the
 		// kwDATABASE case above.
