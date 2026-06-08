@@ -1,0 +1,876 @@
+package parser
+
+import (
+	"strings"
+
+	nodes "github.com/bytebase/omni/redshift/ast"
+)
+
+// parseTypename parses a Typename production.
+//
+// Ref: https://www.postgresql.org/docs/17/sql-expressions.html#SQL-SYNTAX-TYPE-CASTS
+//
+//	Typename:
+//	    SimpleTypename opt_array_bounds
+//	    | SETOF SimpleTypename opt_array_bounds
+//	    | SimpleTypename ARRAY '[' Iconst ']'
+//	    | SETOF SimpleTypename ARRAY '[' Iconst ']'
+//	    | SimpleTypename ARRAY
+//	    | SETOF SimpleTypename ARRAY
+func (p *Parser) parseTypename() (*nodes.TypeName, error) {
+	setof := false
+	if _, ok := p.match(SETOF); ok {
+		setof = true
+	}
+
+	tn, err := p.parseSimpleTypename()
+	if err != nil {
+		return nil, err
+	}
+	tn.Loc = nodes.NoLoc()
+	tn.Setof = setof
+
+	// Check for ARRAY '[' Iconst ']' or ARRAY (without bounds)
+	if p.cur.Type == ARRAY {
+		p.advance()
+		if p.cur.Type == '[' {
+			p.advance()
+			if p.cur.Type != ICONST {
+				return nil, &ParseError{Message: "expected integer constant for array bound", Position: p.cur.Loc}
+			}
+			ival := p.cur.Ival
+			p.advance()
+			if _, err := p.expect(']'); err != nil {
+				return nil, err
+			}
+			tn.ArrayBounds = &nodes.List{Items: []nodes.Node{&nodes.Integer{Ival: ival}}}
+		} else {
+			tn.ArrayBounds = &nodes.List{Items: []nodes.Node{&nodes.Integer{Ival: -1}}}
+		}
+	} else {
+		// opt_array_bounds: zero or more '[ ]' or '[ Iconst ]'
+		bounds, err := p.parseOptArrayBounds()
+		if err != nil {
+			return nil, err
+		}
+		if bounds != nil {
+			tn.ArrayBounds = bounds
+		}
+	}
+
+	return tn, nil
+}
+
+// parseOptArrayBounds parses zero or more array bound specifications.
+//
+//	opt_array_bounds:
+//	    opt_array_bounds '[' ']'
+//	    | opt_array_bounds '[' Iconst ']'
+//	    | /* EMPTY */
+func (p *Parser) parseOptArrayBounds() (*nodes.List, error) {
+	var items []nodes.Node
+	for p.cur.Type == '[' {
+		p.advance()
+		if p.cur.Type == ICONST {
+			ival := p.cur.Ival
+			p.advance()
+			if _, err := p.expect(']'); err != nil {
+				return nil, err
+			}
+			items = append(items, &nodes.Integer{Ival: ival})
+		} else if p.cur.Type == ']' {
+			p.advance()
+			items = append(items, &nodes.Integer{Ival: -1})
+		} else {
+			// Not an array bound; caller will handle
+			return nil, nil
+		}
+	}
+	if len(items) == 0 {
+		return nil, nil
+	}
+	return &nodes.List{Items: items}, nil
+}
+
+// parseSimpleTypename parses a SimpleTypename production.
+//
+//	SimpleTypename:
+//	    GenericType
+//	    | Numeric
+//	    | Bit
+//	    | Character
+//	    | ConstDatetime
+//	    | ConstInterval opt_interval
+//	    | ConstInterval '(' Iconst ')'
+//	    | BOOLEAN_P
+//	    | JSON
+//
+// MAINTENANCE: the explicit case list below MUST stay in lockstep with
+// simpleTypenameLeadTokens in first_sets.go. Callers using FIRST-set
+// lookahead should consult isSimpleTypenameStart rather than hand-writing
+// a switch on these tokens — TestSimpleTypenameLeadTokensMatchPG enforces
+// the parity against PG 17 so any drift fails CI.
+func (p *Parser) parseSimpleTypename() (*nodes.TypeName, error) {
+	switch p.cur.Type {
+	case INT_P, INTEGER:
+		p.advance()
+		return makeTypeName("int4"), nil
+	case SMALLINT:
+		p.advance()
+		return makeTypeName("int2"), nil
+	case BIGINT:
+		p.advance()
+		return makeTypeName("int8"), nil
+	case REAL:
+		p.advance()
+		return makeTypeName("float4"), nil
+	case FLOAT_P:
+		p.advance()
+		return p.parseOptFloat()
+	case DOUBLE_P:
+		p.advance()
+		if _, err := p.expect(PRECISION); err != nil {
+			return nil, err
+		}
+		return makeTypeName("float8"), nil
+	case DECIMAL_P:
+		p.advance()
+		tn := makeTypeName("numeric")
+		typmods, err := p.parseOptTypeModifiers()
+		if err != nil {
+			return nil, err
+		}
+		tn.Typmods = typmods
+		return tn, nil
+	case DEC:
+		p.advance()
+		tn := makeTypeName("numeric")
+		typmods, err := p.parseOptTypeModifiers()
+		if err != nil {
+			return nil, err
+		}
+		tn.Typmods = typmods
+		return tn, nil
+	case NUMERIC:
+		p.advance()
+		tn := makeTypeName("numeric")
+		typmods, err := p.parseOptTypeModifiers()
+		if err != nil {
+			return nil, err
+		}
+		tn.Typmods = typmods
+		return tn, nil
+	case BIT:
+		return p.parseBit()
+	case CHARACTER:
+		return p.parseCharacterType()
+	case CHAR_P:
+		return p.parseCharType()
+	case VARCHAR:
+		return p.parseVarcharType()
+	case BINARY:
+		return p.parseRedshiftBinaryVaryingType()
+	case NATIONAL:
+		return p.parseNationalCharType()
+	case NCHAR:
+		return p.parseNcharType()
+	case BOOLEAN_P:
+		p.advance()
+		return makeTypeName("bool"), nil
+	case JSON:
+		p.advance()
+		return makeTypeName("json"), nil
+	case TIMESTAMP:
+		return p.parseTimestampType()
+	case TIME:
+		return p.parseTimeType()
+	case INTERVAL:
+		return p.parseIntervalType()
+	default:
+		if p.cur.Type == IDENT {
+			switch strings.ToLower(p.cur.Str) {
+			case "nvarchar":
+				return p.parseRedshiftAliasType("varchar", true)
+			case "bpchar":
+				return p.parseRedshiftAliasType("bpchar", true)
+			case "varbyte", "varbinary":
+				return p.parseRedshiftAliasType("varbyte", true)
+			case "super", "geometry", "geography", "hllsketch":
+				return p.parseRedshiftAliasType(strings.ToLower(p.cur.Str), false)
+			}
+		}
+		// GenericType: type_function_name opt_type_modifiers
+		//            | type_function_name '.' attr_name opt_type_modifiers
+		return p.parseGenericType()
+	}
+}
+
+// parseGenericType parses a GenericType production.
+//
+//	GenericType:
+//	    type_function_name opt_type_modifiers
+//	    | type_function_name attrs opt_type_modifiers
+//
+// `attrs` is recursive in PG's grammar (gram.y:7007-7011), so an
+// arbitrary number of `.attr_name` continuations is allowed:
+// `pg_catalog.int4`, `db.schema.mytype`, `a.b.c.d`, etc.
+//
+// Reuses the existing parseAttrs helper from name.go (which is also
+// used by extension.go, fdw.go, and parseFuncType's %TYPE branch).
+//
+// History: prior to this fix, this function consumed exactly one
+// dot and produced a 2-element Names list at most. That caused
+// every type position (CAST, TYPECAST, CREATE TABLE column, ALTER
+// TABLE, CREATE FUNCTION param/return, RETURNS TABLE, CREATE
+// OPERATOR LEFTARG/RIGHTARG, CREATE SEQUENCE AS, XMLSERIALIZE,
+// JSON_SERIALIZE RETURNING) to reject 3-or-more component qualified
+// type names. The catalog's typeNameParts already handles
+// 3-component as (schema, name) — see commit 433a1eb. See
+// docs/plans/2026-04-14-pg-followups.md for the audit.
+func (p *Parser) parseGenericType() (*nodes.TypeName, error) {
+	name, err := p.parseTypeFunctionName()
+	if err != nil {
+		return nil, err
+	}
+
+	nameItems := []nodes.Node{&nodes.String{Str: name}}
+	if p.cur.Type == '.' {
+		attrs, err := p.parseAttrs()
+		if err != nil {
+			return nil, err
+		}
+		nameItems = append(nameItems, attrs.Items...)
+	}
+
+	typmods, err := p.parseOptTypeModifiers()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.TypeName{
+		Names:   &nodes.List{Items: nameItems},
+		Typmods: typmods,
+		Loc:     nodes.NoLoc(),
+	}, nil
+}
+
+// parseOptTypeModifiers parses optional type modifiers.
+//
+//	opt_type_modifiers:
+//	    '(' expr_list ')'
+//	    | /* EMPTY */
+func (p *Parser) parseOptTypeModifiers() (*nodes.List, error) {
+	if p.cur.Type != '(' {
+		return nil, nil
+	}
+	p.advance()
+	exprs := p.parseExprList()
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return exprs, nil
+}
+
+// parseExprList parses a comma-separated list of expressions.
+// This is a minimal implementation for type modifiers (integer constants).
+// The full implementation will be in batch 3 (expressions).
+func (p *Parser) parseExprList() *nodes.List {
+	first := p.parseAExprForTypmod()
+	if first == nil {
+		return nil
+	}
+	items := []nodes.Node{first}
+	for p.cur.Type == ',' {
+		p.advance()
+		expr := p.parseAExprForTypmod()
+		if expr == nil {
+			break
+		}
+		items = append(items, expr)
+	}
+	return &nodes.List{Items: items}
+}
+
+// parseAExprForTypmod parses a simple expression suitable for type modifiers.
+// For now, this only handles integer constants and signed integers.
+// The full a_expr will be implemented in batch 3.
+func (p *Parser) parseAExprForTypmod() nodes.Node {
+	if p.cur.Type == ICONST {
+		tok := p.advance()
+		return &nodes.A_Const{
+			Val: &nodes.Integer{Ival: tok.Ival},
+			Loc: nodes.Loc{Start: tok.Loc, End: p.pos()},
+		}
+	}
+	if p.cur.Type == FCONST {
+		tok := p.advance()
+		return &nodes.A_Const{
+			Val: &nodes.Float{Fval: tok.Str},
+			Loc: nodes.Loc{Start: tok.Loc, End: p.pos()},
+		}
+	}
+	if p.cur.Type == SCONST {
+		tok := p.advance()
+		return &nodes.A_Const{
+			Val: &nodes.String{Str: tok.Str},
+			Loc: nodes.Loc{Start: tok.Loc, End: p.pos()},
+		}
+	}
+	// Fall back to full a_expr for complex expressions
+	result, _ := p.parseAExpr(0)
+	return result
+}
+
+// parseOptFloat parses opt_float after FLOAT keyword.
+//
+//	opt_float:
+//	    '(' Iconst ')'
+//	    | /* EMPTY */
+func (p *Parser) parseOptFloat() (*nodes.TypeName, error) {
+	if p.cur.Type == '(' {
+		p.advance()
+		if p.cur.Type != ICONST {
+			return nil, &ParseError{Message: "expected integer constant", Position: p.cur.Loc}
+		}
+		prec := p.cur.Ival
+		p.advance()
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		if prec <= 24 {
+			return makeTypeName("float4"), nil
+		}
+		return makeTypeName("float8"), nil
+	}
+	return makeTypeName("float8"), nil
+}
+
+// parseBit parses Bit type.
+//
+//	Bit:
+//	    BIT opt_varying '(' expr_list ')'   -- BitWithLength
+//	    | BIT opt_varying                    -- BitWithoutLength
+func (p *Parser) parseBit() (*nodes.TypeName, error) {
+	p.advance() // consume BIT
+	varying := p.parseOptVarying()
+
+	if p.cur.Type == '(' {
+		// BitWithLength
+		p.advance()
+		exprs := p.parseExprList()
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		if varying {
+			tn := makeTypeName("varbit")
+			tn.Typmods = exprs
+			return tn, nil
+		}
+		tn := makeTypeName("bit")
+		tn.Typmods = exprs
+		return tn, nil
+	}
+
+	// BitWithoutLength
+	if varying {
+		return makeTypeName("varbit"), nil
+	}
+	tn := makeTypeName("bit")
+	tn.Typmods = &nodes.List{Items: []nodes.Node{makeIntConst(1)}}
+	return tn, nil
+}
+
+// parseOptVarying parses opt_varying.
+//
+//	opt_varying:
+//	    VARYING
+//	    | /* EMPTY */
+func (p *Parser) parseOptVarying() bool {
+	if _, ok := p.match(VARYING); ok {
+		return true
+	}
+	return false
+}
+
+// parseCharacterType parses CHARACTER [VARYING] type.
+func (p *Parser) parseCharacterType() (*nodes.TypeName, error) {
+	p.advance() // consume CHARACTER
+	varying := p.parseOptVarying()
+	return p.finishCharType(varying)
+}
+
+// parseCharType parses CHAR [VARYING] type.
+func (p *Parser) parseCharType() (*nodes.TypeName, error) {
+	p.advance() // consume CHAR
+	varying := p.parseOptVarying()
+	return p.finishCharType(varying)
+}
+
+// parseVarcharType parses VARCHAR type.
+func (p *Parser) parseVarcharType() (*nodes.TypeName, error) {
+	p.advance() // consume VARCHAR
+	typmods, err := p.parseRedshiftTypeLengthModifiers()
+	if err != nil {
+		return nil, err
+	}
+	tn := makeTypeName("varchar")
+	tn.Typmods = typmods
+	return tn, nil
+}
+
+// parseNationalCharType parses NATIONAL CHARACTER/CHAR type.
+func (p *Parser) parseNationalCharType() (*nodes.TypeName, error) {
+	p.advance() // consume NATIONAL
+	if p.cur.Type == CHARACTER {
+		p.advance()
+	} else if p.cur.Type == CHAR_P {
+		p.advance()
+	} else {
+		return nil, &ParseError{Message: "expected CHARACTER or CHAR after NATIONAL", Position: p.cur.Loc}
+	}
+	varying := p.parseOptVarying()
+	return p.finishCharType(varying)
+}
+
+// parseNcharType parses NCHAR type.
+func (p *Parser) parseNcharType() (*nodes.TypeName, error) {
+	p.advance() // consume NCHAR
+	varying := p.parseOptVarying()
+	return p.finishCharType(varying)
+}
+
+// finishCharType completes parsing a character type with optional length.
+func (p *Parser) finishCharType(varying bool) (*nodes.TypeName, error) {
+	typName := "bpchar"
+	if varying {
+		typName = "varchar"
+	}
+
+	typmods, err := p.parseRedshiftTypeLengthModifiers()
+	if err != nil {
+		return nil, err
+	}
+	tn := makeTypeName(typName)
+	tn.Typmods = typmods
+	return tn, nil
+}
+
+func (p *Parser) parseRedshiftAliasType(typName string, allowLength bool) (*nodes.TypeName, error) {
+	p.advance()
+	tn := makeTypeName(typName)
+	if allowLength {
+		typmods, err := p.parseRedshiftTypeLengthModifiers()
+		if err != nil {
+			return nil, err
+		}
+		tn.Typmods = typmods
+	}
+	return tn, nil
+}
+
+func (p *Parser) parseRedshiftBinaryVaryingType() (*nodes.TypeName, error) {
+	p.advance() // consume BINARY
+	p.parseOptVarying()
+	typmods, err := p.parseRedshiftTypeLengthModifiers()
+	if err != nil {
+		return nil, err
+	}
+	tn := makeTypeName("varbyte")
+	tn.Typmods = typmods
+	return tn, nil
+}
+
+func (p *Parser) parseRedshiftTypeLengthModifiers() (*nodes.List, error) {
+	if p.cur.Type != '(' {
+		return nil, nil
+	}
+	p.advance()
+	var typmod nodes.Node
+	switch {
+	case p.cur.Type == ICONST:
+		typmod = &nodes.Integer{Ival: p.cur.Ival}
+		p.advance()
+	case p.cur.Type == IDENT && strings.EqualFold(p.cur.Str, "max"):
+		typmod = &nodes.String{Str: "max"}
+		p.advance()
+	default:
+		return nil, &ParseError{Message: "expected integer constant or MAX", Position: p.cur.Loc}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.List{Items: []nodes.Node{typmod}}, nil
+}
+
+// parseTimestampType parses TIMESTAMP type.
+//
+//	TIMESTAMP '(' Iconst ')' opt_timezone
+//	| TIMESTAMP opt_timezone
+func (p *Parser) parseTimestampType() (*nodes.TypeName, error) {
+	p.advance() // consume TIMESTAMP
+	if p.cur.Type == '(' {
+		p.advance()
+		if p.cur.Type != ICONST {
+			return nil, &ParseError{Message: "expected integer constant", Position: p.cur.Loc}
+		}
+		ival := p.cur.Ival
+		p.advance()
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		tz := p.parseOptTimezone()
+		if tz {
+			tn := makeTypeName("timestamptz")
+			tn.Typmods = &nodes.List{Items: []nodes.Node{makeIntConst(ival)}}
+			return tn, nil
+		}
+		tn := makeTypeName("timestamp")
+		tn.Typmods = &nodes.List{Items: []nodes.Node{makeIntConst(ival)}}
+		return tn, nil
+	}
+	tz := p.parseOptTimezone()
+	if tz {
+		return makeTypeName("timestamptz"), nil
+	}
+	return makeTypeName("timestamp"), nil
+}
+
+// parseTimeType parses TIME type.
+//
+//	TIME '(' Iconst ')' opt_timezone
+//	| TIME opt_timezone
+func (p *Parser) parseTimeType() (*nodes.TypeName, error) {
+	p.advance() // consume TIME
+	if p.cur.Type == '(' {
+		p.advance()
+		if p.cur.Type != ICONST {
+			return nil, &ParseError{Message: "expected integer constant", Position: p.cur.Loc}
+		}
+		ival := p.cur.Ival
+		p.advance()
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		tz := p.parseOptTimezone()
+		if tz {
+			tn := makeTypeName("timetz")
+			tn.Typmods = &nodes.List{Items: []nodes.Node{makeIntConst(ival)}}
+			return tn, nil
+		}
+		tn := makeTypeName("time")
+		tn.Typmods = &nodes.List{Items: []nodes.Node{makeIntConst(ival)}}
+		return tn, nil
+	}
+	tz := p.parseOptTimezone()
+	if tz {
+		return makeTypeName("timetz"), nil
+	}
+	return makeTypeName("time"), nil
+}
+
+// parseOptTimezone parses opt_timezone.
+//
+//	opt_timezone:
+//	    WITH_LA TIME ZONE
+//	    | WITHOUT_LA TIME ZONE
+//	    | /* EMPTY */
+func (p *Parser) parseOptTimezone() bool {
+	if p.cur.Type == WITH_LA {
+		p.advance()
+		p.expect(TIME)
+		p.expect(ZONE)
+		return true
+	}
+	if p.cur.Type == WITHOUT_LA {
+		p.advance()
+		p.expect(TIME)
+		p.expect(ZONE)
+		return false
+	}
+	return false
+}
+
+// parseIntervalType parses INTERVAL type with optional qualifiers.
+//
+//	ConstInterval opt_interval
+//	| ConstInterval '(' Iconst ')'
+func (p *Parser) parseIntervalType() (*nodes.TypeName, error) {
+	p.advance() // consume INTERVAL
+	tn := makeTypeName("interval")
+
+	if p.cur.Type == '(' {
+		// ConstInterval '(' Iconst ')'
+		p.advance()
+		if p.cur.Type != ICONST {
+			return nil, &ParseError{Message: "expected integer constant", Position: p.cur.Loc}
+		}
+		ival := p.cur.Ival
+		p.advance()
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		tn.Typmods = &nodes.List{Items: []nodes.Node{
+			makeIntConst(int64(nodes.INTERVAL_FULL_RANGE)),
+			makeIntConst(ival),
+		}}
+		return tn, nil
+	}
+
+	// opt_interval
+	typmods, err := p.parseOptInterval()
+	if err != nil {
+		return nil, err
+	}
+	if typmods != nil {
+		tn.Typmods = typmods
+	}
+	return tn, nil
+}
+
+// parseOptInterval parses opt_interval.
+//
+//	opt_interval:
+//	    YEAR_P | MONTH_P | DAY_P | HOUR_P | MINUTE_P | interval_second
+//	    | YEAR_P TO MONTH_P
+//	    | DAY_P TO HOUR_P | DAY_P TO MINUTE_P | DAY_P TO interval_second
+//	    | HOUR_P TO MINUTE_P | HOUR_P TO interval_second
+//	    | MINUTE_P TO interval_second
+//	    | /* EMPTY */
+func (p *Parser) parseOptInterval() (*nodes.List, error) {
+	switch p.cur.Type {
+	case YEAR_P:
+		p.advance()
+		if _, ok := p.match(TO); ok {
+			if _, err := p.expect(MONTH_P); err != nil {
+				return nil, err
+			}
+			return &nodes.List{Items: []nodes.Node{
+				makeIntConst(int64(nodes.INTERVAL_MASK_YEAR | nodes.INTERVAL_MASK_MONTH)),
+			}}, nil
+		}
+		return &nodes.List{Items: []nodes.Node{
+			makeIntConst(int64(nodes.INTERVAL_MASK_YEAR)),
+		}}, nil
+	case MONTH_P:
+		p.advance()
+		return &nodes.List{Items: []nodes.Node{
+			makeIntConst(int64(nodes.INTERVAL_MASK_MONTH)),
+		}}, nil
+	case DAY_P:
+		p.advance()
+		if _, ok := p.match(TO); ok {
+			switch p.cur.Type {
+			case HOUR_P:
+				p.advance()
+				return &nodes.List{Items: []nodes.Node{
+					makeIntConst(int64(nodes.INTERVAL_MASK_DAY | nodes.INTERVAL_MASK_HOUR)),
+				}}, nil
+			case MINUTE_P:
+				p.advance()
+				return &nodes.List{Items: []nodes.Node{
+					makeIntConst(int64(nodes.INTERVAL_MASK_DAY | nodes.INTERVAL_MASK_HOUR | nodes.INTERVAL_MASK_MINUTE)),
+				}}, nil
+			case SECOND_P:
+				secs, err := p.parseIntervalSecond()
+				if err != nil {
+					return nil, err
+				}
+				secs.Items[0] = makeIntConst(int64(nodes.INTERVAL_MASK_DAY | nodes.INTERVAL_MASK_HOUR | nodes.INTERVAL_MASK_MINUTE | nodes.INTERVAL_MASK_SECOND))
+				return secs, nil
+			}
+		}
+		return &nodes.List{Items: []nodes.Node{
+			makeIntConst(int64(nodes.INTERVAL_MASK_DAY)),
+		}}, nil
+	case HOUR_P:
+		p.advance()
+		if _, ok := p.match(TO); ok {
+			switch p.cur.Type {
+			case MINUTE_P:
+				p.advance()
+				return &nodes.List{Items: []nodes.Node{
+					makeIntConst(int64(nodes.INTERVAL_MASK_HOUR | nodes.INTERVAL_MASK_MINUTE)),
+				}}, nil
+			case SECOND_P:
+				secs, err := p.parseIntervalSecond()
+				if err != nil {
+					return nil, err
+				}
+				secs.Items[0] = makeIntConst(int64(nodes.INTERVAL_MASK_HOUR | nodes.INTERVAL_MASK_MINUTE | nodes.INTERVAL_MASK_SECOND))
+				return secs, nil
+			}
+		}
+		return &nodes.List{Items: []nodes.Node{
+			makeIntConst(int64(nodes.INTERVAL_MASK_HOUR)),
+		}}, nil
+	case MINUTE_P:
+		p.advance()
+		if _, ok := p.match(TO); ok {
+			if p.cur.Type == SECOND_P {
+				secs, err := p.parseIntervalSecond()
+				if err != nil {
+					return nil, err
+				}
+				secs.Items[0] = makeIntConst(int64(nodes.INTERVAL_MASK_MINUTE | nodes.INTERVAL_MASK_SECOND))
+				return secs, nil
+			}
+		}
+		return &nodes.List{Items: []nodes.Node{
+			makeIntConst(int64(nodes.INTERVAL_MASK_MINUTE)),
+		}}, nil
+	case SECOND_P:
+		return p.parseIntervalSecond()
+	// optional-probe: opt_interval has explicit /* EMPTY */ branch — caller ignores nil Typmods
+	default:
+		return nil, nil
+	}
+}
+
+// parseIntervalSecond parses interval_second.
+//
+//	interval_second:
+//	    SECOND_P
+//	    | SECOND_P '(' Iconst ')'
+func (p *Parser) parseIntervalSecond() (*nodes.List, error) {
+	p.advance() // consume SECOND_P
+	if p.cur.Type == '(' {
+		p.advance()
+		ival := p.cur.Ival
+		p.advance() // consume ICONST
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return &nodes.List{Items: []nodes.Node{
+			makeIntConst(int64(nodes.INTERVAL_MASK_SECOND)),
+			makeIntConst(ival),
+		}}, nil
+	}
+	return &nodes.List{Items: []nodes.Node{
+		makeIntConst(int64(nodes.INTERVAL_MASK_SECOND)),
+	}}, nil
+}
+
+// parseTypeList parses a comma-separated list of typenames.
+//
+//	type_list:
+//	    Typename
+//	    | type_list ',' Typename
+func (p *Parser) parseTypeList() (*nodes.List, error) {
+	tn, err := p.parseTypename()
+	if err != nil {
+		return nil, err
+	}
+	items := []nodes.Node{tn}
+	for p.cur.Type == ',' {
+		p.advance()
+		tn, err = p.parseTypename()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, tn)
+	}
+	return &nodes.List{Items: items}, nil
+}
+
+// parseFuncType parses a func_type production.
+//
+//	func_type:
+//	    Typename
+//	    | type_function_name attrs '%' TYPE_P
+//	    | SETOF type_function_name attrs '%' TYPE_P
+func (p *Parser) parseFuncType() (*nodes.TypeName, error) {
+	if p.cur.Type == SETOF {
+		// SETOF can be:
+		// 1. SETOF type_function_name attrs '%' TYPE_P  (pct_type with SETOF)
+		// 2. SETOF Typename (regular SETOF type)
+		//
+		// We check for the %TYPE pattern: SETOF name '.' ... '%' TYPE_P
+		// If the token after SETOF is followed by '.', it might be case 1.
+		// Otherwise, delegate to parseTypename which handles SETOF.
+
+		// Check if this is the %TYPE pattern: need at least name '.' ... '%'
+		next := p.peekNext()
+		if p.isTypeFunctionNameToken(next) {
+			// Could be either case. We can't easily distinguish without
+			// more lookahead. Use heuristic: delegate to parseTypename
+			// which handles SETOF Typename correctly.
+			// The %TYPE case is very rare in practice.
+		}
+
+		// Delegate to parseTypename which handles SETOF
+		return p.parseTypename()
+	}
+
+	// Non-SETOF: could be type_function_name attrs '%' TYPE_P or Typename.
+	// The %TYPE case requires name '.' name '%' TYPE_P pattern.
+	// Check if we see name '.' which could indicate qualified name with %TYPE.
+	if p.isTypeFunctionName() {
+		// Check if this looks like a %TYPE reference (name.name...%TYPE)
+		next := p.peekNext()
+		if next.Type == '.' {
+			// Could be qualified type or %TYPE. Speculatively parse the
+			// %TYPE form; if it doesn't match, roll the token stream back
+			// and let parseTypename handle it as a normal qualified type.
+			//
+			// Use snapshotTokenStream/restoreTokenStream for the rollback —
+			// the previous hand-rolled save here only captured cur/prev/
+			// nextBuf/hasNext/lexer.Err and missed lexer.pos/start/state,
+			// causing every qualified type at any parseFuncType call site
+			// (parseFuncArg, RETURNS, parseTableFuncColumn, parseDefArg /
+			// CREATE OPERATOR LEFTARG/RIGHTARG, etc.) to corrupt the lexer
+			// position when parseAttrs read fresh tokens during the
+			// speculative parse.
+			snap := p.snapshotTokenStream()
+
+			name, _ := p.parseTypeFunctionName()
+			if p.cur.Type == '.' {
+				attrs, _ := p.parseAttrs()
+				if p.cur.Type == '%' {
+					p.advance()
+					if p.cur.Type == TYPE_P {
+						p.advance()
+						nameItems := make([]nodes.Node, 0, 1+len(attrs.Items))
+						nameItems = append(nameItems, &nodes.String{Str: name})
+						nameItems = append(nameItems, attrs.Items...)
+						return &nodes.TypeName{
+							Names:   &nodes.List{Items: nameItems},
+							PctType: true,
+							Loc:     nodes.NoLoc(),
+						}, nil
+					}
+				}
+			}
+
+			// Not %TYPE pattern - restore and parse as Typename
+			p.restoreTokenStream(snap)
+		}
+	}
+
+	return p.parseTypename()
+}
+
+// isTypeFunctionNameToken checks if a token could be a type_function_name.
+func (p *Parser) isTypeFunctionNameToken(tok Token) bool {
+	if tok.Type == IDENT {
+		return true
+	}
+	if kw := LookupKeyword(tok.Str); kw != nil && kw.Token == tok.Type {
+		return kw.Category == UnreservedKeyword || kw.Category == TypeFuncNameKeyword
+	}
+	return false
+}
+
+// makeTypeName creates a TypeName with pg_catalog schema prefix.
+func makeTypeName(typName string) *nodes.TypeName {
+	return &nodes.TypeName{
+		Names: &nodes.List{Items: []nodes.Node{
+			&nodes.String{Str: "pg_catalog"},
+			&nodes.String{Str: typName},
+		}},
+		Loc: nodes.NoLoc(),
+	}
+}
+
+// makeIntConst creates an A_Const with an integer value.
+func makeIntConst(val int64) nodes.Node {
+	return &nodes.A_Const{Val: &nodes.Integer{Ival: val}}
+}

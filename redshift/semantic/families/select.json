@@ -1,0 +1,174 @@
+{
+  "family": {
+    "id": "select",
+    "slug": "select",
+    "category": "query"
+  },
+  "scope": {
+    "statements": [
+      "SELECT",
+      "WITH",
+      "VALUES",
+      "TABLE"
+    ],
+    "entry_ast_nodes": [
+      "SelectStmt"
+    ],
+    "dispatch_roots": [
+      "parse_analyze_fixedparams",
+      "transformSelectStmt"
+    ]
+  },
+  "dispatcher": [
+    {
+      "symbol": "parse_analyze_fixedparams",
+      "path": "../postgres/src/backend/parser/analyze.c:104",
+      "kind": "dispatcher",
+      "source_path": "../postgres/src/backend/parser/analyze.c:104",
+      "chain": [
+        "parse_analyze_fixedparams",
+        "transformSelectStmt"
+      ]
+    },
+    {
+      "symbol": "transformSelectStmt",
+      "path": "../postgres/src/backend/parser/analyze.c:1337",
+      "kind": "analyzer",
+      "source_path": "../postgres/src/backend/parser/analyze.c:1337",
+      "chain": [
+        "transformSelectStmt",
+        "transformFromClause",
+        "transformTargetList"
+      ]
+    }
+  ],
+  "handlers": [
+    {
+      "symbol": "transformSelectStmt",
+      "path": "../postgres/src/backend/parser/analyze.c:1337",
+      "kind": "analyzer",
+      "source_path": "../postgres/src/backend/parser/analyze.c:1337",
+      "chain": [
+        "transformSelectStmt",
+        "transformFromClause",
+        "transformTargetList"
+      ]
+    }
+  ],
+  "writes": [],
+  "reads": [
+    {
+      "catalog": "pg_class",
+      "lookup_key": "qualified relation name",
+      "purpose": "resolve FROM relations",
+      "source_path": "../postgres/src/backend/parser/parse_relation.c:370",
+      "chain": [
+        "parse_analyze_fixedparams",
+        "transformSelectStmt",
+        "RangeVarGetRelid"
+      ]
+    },
+    {
+      "catalog": "pg_namespace",
+      "lookup_key": "search_path namespace",
+      "purpose": "schema qualification",
+      "source_path": "../postgres/src/backend/catalog/namespace.c:3358",
+      "chain": [
+        "transformSelectStmt",
+        "LookupNamespaceNoError"
+      ]
+    },
+    {
+      "catalog": "pg_type",
+      "lookup_key": "oid and type name",
+      "purpose": "type inference and coercion",
+      "source_path": "../postgres/src/backend/parser/parse_type.c:291",
+      "chain": [
+        "transformExpr",
+        "typenameTypeId"
+      ]
+    },
+    {
+      "catalog": "pg_operator",
+      "lookup_key": "operator name and arg types",
+      "purpose": "resolve operator semantics",
+      "source_path": "../postgres/src/backend/catalog/namespace.c:1785",
+      "chain": [
+        "transformExpr",
+        "OpernameGetOprid"
+      ]
+    }
+  ],
+  "regress_files": [],
+  "scenarios": [
+    {
+      "id": "simple_select",
+      "summary": "Plain SELECT query analysis",
+      "manual_review": false
+    },
+    {
+      "id": "cte_select",
+      "summary": "WITH and CTE resolution",
+      "manual_review": false
+    },
+    {
+      "id": "setop_select",
+      "summary": "UNION/INTERSECT/EXCEPT analysis",
+      "manual_review": false
+    }
+  ],
+  "translation_targets": [],
+  "evidence": [
+    {
+      "stage": "discover",
+      "path": "../postgres/src/backend/parser/gram.y:188",
+      "symbol": "SelectStmt",
+      "reason": "top-level AST entry node from seed universe"
+    },
+    {
+      "stage": "map",
+      "path": "../postgres/src/backend/parser/analyze.c:104",
+      "symbol": "parse_analyze_fixedparams",
+      "reason": "dispatcher or primary handler for family"
+    },
+    {
+      "stage": "map",
+      "path": "../postgres/src/backend/parser/analyze.c:1337",
+      "symbol": "transformSelectStmt",
+      "reason": "dispatcher or primary handler for family"
+    },
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/parser/parse_relation.c:370",
+      "symbol": "resolve FROM relations",
+      "reason": "semantic read from pg_class"
+    },
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/catalog/namespace.c:3358",
+      "symbol": "schema qualification",
+      "reason": "semantic read from pg_namespace"
+    },
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/parser/parse_type.c:291",
+      "symbol": "type inference and coercion",
+      "reason": "semantic read from pg_type"
+    },
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/catalog/namespace.c:1785",
+      "symbol": "resolve operator semantics",
+      "reason": "semantic read from pg_operator"
+    }
+  ],
+  "stage_status": {
+    "discover": "done",
+    "map": "done",
+    "trace_writes": "pending",
+    "trace_reads": "done",
+    "map_tests": "pending",
+    "plan_translation": "pending",
+    "synthesize": "pending"
+  }
+}

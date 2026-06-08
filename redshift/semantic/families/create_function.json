@@ -1,0 +1,36 @@
+{
+  "family": {
+    "id": "create_function",
+    "slug": "create-function",
+    "category": "object_control"
+  },
+  "scope": {
+    "statements": [
+      "CREATE FUNCTION",
+      "CREATE PROCEDURE"
+    ],
+    "entry_ast_nodes": [
+      "CreateFunctionStmt"
+    ],
+    "dispatch_roots": [
+      "ProcessUtility"
+    ]
+  },
+  "dispatcher": [],
+  "handlers": [],
+  "writes": [],
+  "reads": [],
+  "regress_files": [],
+  "scenarios": [],
+  "translation_targets": [],
+  "evidence": [],
+  "stage_status": {
+    "discover": "pending",
+    "map": "pending",
+    "trace_writes": "pending",
+    "trace_reads": "pending",
+    "map_tests": "pending",
+    "plan_translation": "pending",
+    "synthesize": "pending"
+  }
+}

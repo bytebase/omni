@@ -1,0 +1,320 @@
+{
+  "version": 1,
+  "families": [
+    {
+      "id": "create_table",
+      "status": "done",
+      "stages": {
+        "discover": "done",
+        "map": "done",
+        "trace_writes": "done",
+        "trace_reads": "done",
+        "map_tests": "done",
+        "plan_translation": "done",
+        "synthesize": "done"
+      },
+      "scenario_count": 3,
+      "updated_at": "2026-03-17T07:07:52.729347+00:00"
+    },
+    {
+      "id": "alter_table",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "drop",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "create_index",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "create_view",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "create_schema",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "create_function",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "create_type",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "create_extension",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "create_sequence",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "comment",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "grant_revoke",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "trigger",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "policy",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "select",
+      "status": "in_progress",
+      "stages": {
+        "discover": "done",
+        "map": "done",
+        "trace_writes": "pending",
+        "trace_reads": "done",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 3,
+      "updated_at": "2026-03-17T07:07:51.901867+00:00"
+    },
+    {
+      "id": "insert",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "update",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "delete",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "merge",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    },
+    {
+      "id": "set",
+      "status": "in_progress",
+      "stages": {
+        "discover": "done",
+        "map": "done",
+        "trace_writes": "pending",
+        "trace_reads": "done",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 2,
+      "updated_at": "2026-03-17T07:07:52.076096+00:00"
+    },
+    {
+      "id": "show",
+      "status": "pending",
+      "stages": {
+        "discover": "pending",
+        "map": "pending",
+        "trace_writes": "pending",
+        "trace_reads": "pending",
+        "map_tests": "pending",
+        "plan_translation": "pending",
+        "synthesize": "pending"
+      },
+      "scenario_count": 0,
+      "updated_at": ""
+    }
+  ]
+}

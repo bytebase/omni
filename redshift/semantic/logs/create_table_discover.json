@@ -1,0 +1,36 @@
+{
+  "family_id": "create_table",
+  "scenarios": [
+    {
+      "id": "basic_heap_table",
+      "summary": "Basic heap table creation",
+      "manual_review": false
+    },
+    {
+      "id": "table_as",
+      "summary": "CREATE TABLE AS / SELECT INTO path",
+      "manual_review": false
+    },
+    {
+      "id": "partitioned_table",
+      "summary": "Partition-aware table creation",
+      "manual_review": false
+    }
+  ],
+  "evidence": [
+    {
+      "stage": "discover",
+      "path": "../postgres/src/backend/parser/gram.y:297",
+      "symbol": "CreateStmt",
+      "reason": "top-level AST entry node from seed universe"
+    },
+    {
+      "stage": "discover",
+      "path": "../postgres/src/backend/parser/gram.y:4695",
+      "symbol": "CreateTableAsStmt",
+      "reason": "top-level AST entry node from seed universe"
+    }
+  ],
+  "scenario_count": 3,
+  "executor": "local"
+}

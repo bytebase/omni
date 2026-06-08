@@ -1,0 +1,138 @@
+{
+  "family": {
+    "id": "set",
+    "slug": "set",
+    "category": "set"
+  },
+  "scope": {
+    "statements": [
+      "SET",
+      "RESET",
+      "SET TRANSACTION",
+      "SET ROLE",
+      "SET SESSION AUTHORIZATION"
+    ],
+    "entry_ast_nodes": [
+      "VariableSetStmt",
+      "VariableShowStmt",
+      "TransactionStmt"
+    ],
+    "dispatch_roots": [
+      "ProcessUtility"
+    ]
+  },
+  "dispatcher": [
+    {
+      "symbol": "ProcessUtility",
+      "path": "../postgres/src/backend/tcop/utility.c:499",
+      "kind": "dispatcher",
+      "source_path": "../postgres/src/backend/tcop/utility.c:499",
+      "chain": [
+        "ProcessUtility",
+        "ExecSetVariableStmt"
+      ]
+    }
+  ],
+  "handlers": [
+    {
+      "symbol": "ExecSetVariableStmt",
+      "path": "../postgres/src/backend/utils/misc/guc_funcs.c:43",
+      "kind": "validator",
+      "source_path": "../postgres/src/backend/utils/misc/guc_funcs.c:43",
+      "chain": [
+        "ExecSetVariableStmt",
+        "AlterSetting"
+      ]
+    }
+  ],
+  "writes": [],
+  "reads": [
+    {
+      "catalog": "pg_db_role_setting",
+      "lookup_key": "database and role",
+      "purpose": "database role settings",
+      "source_path": "../postgres/src/backend/catalog/pg_db_role_setting.c:24",
+      "chain": [
+        "ExecSetVariableStmt",
+        "AlterSetting"
+      ]
+    },
+    {
+      "catalog": "pg_authid",
+      "lookup_key": "role name",
+      "purpose": "SET ROLE / session auth validation",
+      "source_path": "../postgres/src/backend/utils/misc/guc_funcs.c:43",
+      "chain": [
+        "ExecSetVariableStmt",
+        "AUTHNAME"
+      ]
+    }
+  ],
+  "regress_files": [],
+  "scenarios": [
+    {
+      "id": "guc_assignment",
+      "summary": "GUC assignment and RESET semantics",
+      "manual_review": false
+    },
+    {
+      "id": "role_assignment",
+      "summary": "SET ROLE and session auth paths",
+      "manual_review": false
+    }
+  ],
+  "translation_targets": [],
+  "evidence": [
+    {
+      "stage": "discover",
+      "path": "../postgres/src/backend/parser/gram.y:268",
+      "symbol": "VariableSetStmt",
+      "reason": "top-level AST entry node from seed universe"
+    },
+    {
+      "stage": "discover",
+      "path": "../postgres/src/backend/parser/gram.y:314",
+      "symbol": "VariableShowStmt",
+      "reason": "top-level AST entry node from seed universe"
+    },
+    {
+      "stage": "discover",
+      "path": "../postgres/src/backend/parser/gram.y:312",
+      "symbol": "TransactionStmt",
+      "reason": "top-level AST entry node from seed universe"
+    },
+    {
+      "stage": "map",
+      "path": "../postgres/src/backend/tcop/utility.c:499",
+      "symbol": "ProcessUtility",
+      "reason": "dispatcher or primary handler for family"
+    },
+    {
+      "stage": "map",
+      "path": "../postgres/src/backend/utils/misc/guc_funcs.c:43",
+      "symbol": "ExecSetVariableStmt",
+      "reason": "dispatcher or primary handler for family"
+    },
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/catalog/pg_db_role_setting.c:24",
+      "symbol": "pg_db_role_setting",
+      "reason": "semantic read from pg_db_role_setting"
+    },
+    {
+      "stage": "trace_reads",
+      "path": "../postgres/src/backend/utils/misc/guc_funcs.c:43",
+      "symbol": "pg_authid",
+      "reason": "semantic read from pg_authid"
+    }
+  ],
+  "stage_status": {
+    "discover": "done",
+    "map": "done",
+    "trace_writes": "pending",
+    "trace_reads": "done",
+    "map_tests": "pending",
+    "plan_translation": "pending",
+    "synthesize": "pending"
+  }
+}

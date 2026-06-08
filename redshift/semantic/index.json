@@ -1,0 +1,175 @@
+{
+  "version": 1,
+  "source_root": "../postgres",
+  "generated_at": "2026-03-17T07:07:52.729759+00:00",
+  "families": [
+    {
+      "id": "alter_table",
+      "slug": "alter-table",
+      "category": "ddl",
+      "path": "pg/semantic/families/alter_table.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "comment",
+      "slug": "comment",
+      "category": "object_control",
+      "path": "pg/semantic/families/comment.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "create_extension",
+      "slug": "create-extension",
+      "category": "object_control",
+      "path": "pg/semantic/families/create_extension.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "create_function",
+      "slug": "create-function",
+      "category": "object_control",
+      "path": "pg/semantic/families/create_function.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "create_index",
+      "slug": "create-index",
+      "category": "ddl",
+      "path": "pg/semantic/families/create_index.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "create_schema",
+      "slug": "create-schema",
+      "category": "object_control",
+      "path": "pg/semantic/families/create_schema.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "create_sequence",
+      "slug": "create-sequence",
+      "category": "object_control",
+      "path": "pg/semantic/families/create_sequence.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "create_table",
+      "slug": "create-table",
+      "category": "ddl",
+      "path": "pg/semantic/families/create_table.json",
+      "status": "done",
+      "scenario_count": 3
+    },
+    {
+      "id": "create_type",
+      "slug": "create-type",
+      "category": "object_control",
+      "path": "pg/semantic/families/create_type.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "create_view",
+      "slug": "create-view",
+      "category": "object_control",
+      "path": "pg/semantic/families/create_view.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "delete",
+      "slug": "delete",
+      "category": "dml",
+      "path": "pg/semantic/families/delete.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "drop",
+      "slug": "drop",
+      "category": "ddl",
+      "path": "pg/semantic/families/drop.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "grant_revoke",
+      "slug": "grant-revoke",
+      "category": "object_control",
+      "path": "pg/semantic/families/grant_revoke.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "insert",
+      "slug": "insert",
+      "category": "dml",
+      "path": "pg/semantic/families/insert.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "merge",
+      "slug": "merge",
+      "category": "dml",
+      "path": "pg/semantic/families/merge.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "policy",
+      "slug": "policy",
+      "category": "object_control",
+      "path": "pg/semantic/families/policy.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "select",
+      "slug": "select",
+      "category": "query",
+      "path": "pg/semantic/families/select.json",
+      "status": "in_progress",
+      "scenario_count": 3
+    },
+    {
+      "id": "set",
+      "slug": "set",
+      "category": "set",
+      "path": "pg/semantic/families/set.json",
+      "status": "in_progress",
+      "scenario_count": 2
+    },
+    {
+      "id": "show",
+      "slug": "show",
+      "category": "set",
+      "path": "pg/semantic/families/show.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "trigger",
+      "slug": "trigger",
+      "category": "object_control",
+      "path": "pg/semantic/families/trigger.json",
+      "status": "pending",
+      "scenario_count": 0
+    },
+    {
+      "id": "update",
+      "slug": "update",
+      "category": "dml",
+      "path": "pg/semantic/families/update.json",
+      "status": "pending",
+      "scenario_count": 0
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "family_id": "create_table",
+  "regress_files": [
+    "create_table.sql",
+    "create_table_like.sql",
+    "select_into.sql"
+  ],
+  "scenario_test_map": [
+    {
+      "scenario": "basic_heap_table",
+      "files": [
+        "create_table.sql"
+      ],
+      "manual_review": false
+    },
+    {
+      "scenario": "table_as",
+      "files": [
+        "create_table_like.sql"
+      ],
+      "manual_review": false
+    },
+    {
+      "scenario": "partitioned_table",
+      "files": [
+        "select_into.sql"
+      ],
+      "manual_review": false
+    }
+  ],
+  "evidence": [
+    {
+      "stage": "map_tests",
+      "path": "../postgres/src/test/regress/sql/create_table.sql",
+      "symbol": "create_table.sql",
+      "reason": "mapped regression coverage"
+    },
+    {
+      "stage": "map_tests",
+      "path": "../postgres/src/test/regress/sql/create_table_like.sql",
+      "symbol": "create_table_like.sql",
+      "reason": "mapped regression coverage"
+    },
+    {
+      "stage": "map_tests",
+      "path": "../postgres/src/test/regress/sql/select_into.sql",
+      "symbol": "select_into.sql",
+      "reason": "mapped regression coverage"
+    }
+  ],
+  "executor": "local"
+}

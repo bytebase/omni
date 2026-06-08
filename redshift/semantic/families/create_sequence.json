@@ -1,0 +1,37 @@
+{
+  "family": {
+    "id": "create_sequence",
+    "slug": "create-sequence",
+    "category": "object_control"
+  },
+  "scope": {
+    "statements": [
+      "CREATE SEQUENCE",
+      "ALTER SEQUENCE"
+    ],
+    "entry_ast_nodes": [
+      "CreateSeqStmt",
+      "AlterSeqStmt"
+    ],
+    "dispatch_roots": [
+      "ProcessUtility"
+    ]
+  },
+  "dispatcher": [],
+  "handlers": [],
+  "writes": [],
+  "reads": [],
+  "regress_files": [],
+  "scenarios": [],
+  "translation_targets": [],
+  "evidence": [],
+  "stage_status": {
+    "discover": "pending",
+    "map": "pending",
+    "trace_writes": "pending",
+    "trace_reads": "pending",
+    "map_tests": "pending",
+    "plan_translation": "pending",
+    "synthesize": "pending"
+  }
+}

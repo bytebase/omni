@@ -1,0 +1,867 @@
+{
+  "version": 1,
+  "deprecated": true,
+  "replacement": "pg/semantic/STATE.json",
+  "note": "This parser-derived batch model is superseded by the family/scenario semantic pipeline rooted in ../postgres.",
+  "target": "100% PG Semantic Fidelity",
+  "batches": [
+    {
+      "id": 0,
+      "name": "infrastructure",
+      "status": "pending",
+      "steps": {
+        "mapper": "done",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 1,
+      "name": "names",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 2,
+      "name": "types",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 3,
+      "name": "expressions",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 4,
+      "name": "functions",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 5,
+      "name": "xml",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 6,
+      "name": "json",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 7,
+      "name": "select",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 8,
+      "name": "insert",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 9,
+      "name": "update",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 10,
+      "name": "create_table",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 11,
+      "name": "alter_table",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 12,
+      "name": "create_index",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 13,
+      "name": "create_view",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 14,
+      "name": "create_function",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 15,
+      "name": "alter_misc",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 16,
+      "name": "drop",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 17,
+      "name": "sequence",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 18,
+      "name": "grant",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 19,
+      "name": "schema",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 20,
+      "name": "define",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 21,
+      "name": "trigger",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 22,
+      "name": "copy",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 23,
+      "name": "set",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 24,
+      "name": "transaction",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 25,
+      "name": "cursor",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 26,
+      "name": "prepare",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 27,
+      "name": "maintenance",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 28,
+      "name": "lock",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 29,
+      "name": "utility",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 30,
+      "name": "database",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 31,
+      "name": "fdw",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 32,
+      "name": "extension",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 33,
+      "name": "publication",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 34,
+      "name": "stmt_dispatch",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 35,
+      "name": "call_stmt",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 36,
+      "name": "alter_system",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 37,
+      "name": "tablespace",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 38,
+      "name": "create_conversion",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 39,
+      "name": "drop_operator",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 40,
+      "name": "drop_func_argtypes",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 41,
+      "name": "alter_tablespace_set_reset",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 42,
+      "name": "func_table_in_from",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 43,
+      "name": "cte_search_cycle",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 44,
+      "name": "begin_atomic_routine_body",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 45,
+      "name": "func_set_reset_options",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 46,
+      "name": "alter_rule",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 47,
+      "name": "alter_relation_set_schema",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 48,
+      "name": "alter_sequence_owner_schema",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 49,
+      "name": "alter_database_rename_owner_refresh",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 50,
+      "name": "createdb_pg17_options",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 51,
+      "name": "alter_index_matview_depends_ext",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 52,
+      "name": "alter_trigger_rename",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 53,
+      "name": "alter_extension_set_schema",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 54,
+      "name": "alter_server_owner_rename",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 55,
+      "name": "alter_role_group_rename",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 56,
+      "name": "alter_publication_owner_rename",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 57,
+      "name": "alter_subscription_owner_rename",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 58,
+      "name": "is_normalized_expr",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 59,
+      "name": "alter_fdw_owner_rename",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 60,
+      "name": "alter_statistics_rename_owner_schema",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 61,
+      "name": "set_catalog_stmt",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 62,
+      "name": "ext_oper_argtypes_unary",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 63,
+      "name": "loc_end_test_infra",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 64,
+      "name": "loc_end_select_insert_update_delete",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 65,
+      "name": "loc_end_expr",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 66,
+      "name": "loc_end_create_table_index_view",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 67,
+      "name": "loc_end_alter_table",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 68,
+      "name": "loc_end_create_function_trigger_type",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 69,
+      "name": "loc_end_drop_grant_schema",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 70,
+      "name": "loc_end_utility_misc",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 71,
+      "name": "loc_end_rawstmt_wrap",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 72,
+      "name": "ddl_compat_unlogged_view_modifying_cte",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 73,
+      "name": "alter_column_reset_options",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 74,
+      "name": "grant_object_rangevar",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 75,
+      "name": "alter_role_all_create_group_user",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 76,
+      "name": "json_table_format_empty_behavior",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    },
+    {
+      "id": 77,
+      "name": "alter_group_rename",
+      "status": "pending",
+      "steps": {
+        "mapper": "pending",
+        "write_trace": "pending",
+        "read_trace": "pending",
+        "synthesized": "pending"
+      }
+    }
+  ]
+}

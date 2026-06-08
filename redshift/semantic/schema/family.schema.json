@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pg/semantic/schema/family.schema.json",
+  "title": "PostgreSQL Semantic Family Artifact",
+  "type": "object",
+  "required": [
+    "family",
+    "scope",
+    "dispatcher",
+    "handlers",
+    "writes",
+    "reads",
+    "regress_files",
+    "scenarios",
+    "translation_targets",
+    "evidence",
+    "stage_status"
+  ],
+  "properties": {
+    "family": {
+      "type": "object",
+      "required": ["id", "slug", "category"]
+    },
+    "scope": {
+      "type": "object",
+      "required": ["statements", "entry_ast_nodes", "dispatch_roots"]
+    },
+    "dispatcher": {
+      "type": "array"
+    },
+    "handlers": {
+      "type": "array"
+    },
+    "writes": {
+      "type": "array"
+    },
+    "reads": {
+      "type": "array"
+    },
+    "regress_files": {
+      "type": "array"
+    },
+    "scenarios": {
+      "type": "array"
+    },
+    "translation_targets": {
+      "type": "array"
+    },
+    "evidence": {
+      "type": "array"
+    },
+    "stage_status": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

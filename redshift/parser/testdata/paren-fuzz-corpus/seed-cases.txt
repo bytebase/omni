@@ -1,0 +1,17 @@
+# paren-fuzz seed cases — known-mismatch regressions pinned for replay.
+# Lines beginning with `#` and blank lines are ignored. Each SQL is
+# replayed as an additional probe after the PRNG-generated batch.
+#
+# Status: empty.
+#
+# PAREN-KB-1 (inner JOIN missing ON/USING inside parens) was closed by
+# the parseJoinQual strictness fix; the canonical `FROM (T JOIN U)` /
+# `FROM (foo LEFT JOIN W)` / `FROM (foo RIGHT OUTER JOIN W)` probes now
+# produce PG-omni parity. The hand-written §2.7 test
+# "inner JOIN missing qual" is unskipped. Seed probes removed — nothing
+# to pin.
+#
+# PAREN-KB-2 (trailing SELECT after paren-wrapped subquery): never
+# belonged here — that's a statement-list bug (parser.go Parse-level),
+# not a `(` dispatch bug. Tracked in PAREN_KNOWN_BUGS.md with its own
+# recommended fix site.
