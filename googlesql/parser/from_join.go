@@ -258,18 +258,62 @@ func (p *Parser) parseUsingClause() ([]string, error) {
 //	UNNEST ( … ) [alias] …   — unnest table source
 //	<path> [( args )] …      — table path, or a table-valued function call
 //
-// followed by an optional `[AS] alias` and (for path sources) `WITH OFFSET` /
-// `FOR SYSTEM_TIME AS OF`. PIVOT/UNPIVOT/TABLESAMPLE/MATCH_RECOGNIZE suffixes are
-// left for the parser-query-clauses node and are not consumed here.
+// followed by an optional `[AS] alias`, (for path/subquery/TVF sources) a
+// PIVOT/UNPIVOT operator, (for path sources) `WITH OFFSET` / `FOR SYSTEM_TIME AS
+// OF`, and finally an optional TABLESAMPLE that wraps the whole source.
+// PIVOT/UNPIVOT/TABLESAMPLE are parsed by the parser-query-clauses node
+// (pivot_unpivot.go / tablesample.go); MATCH_RECOGNIZE is not yet implemented.
 func (p *Parser) parseTablePrimary() (ast.Node, error) {
+	var (
+		src ast.Node
+		err error
+	)
 	switch p.cur.Type {
 	case int('('):
-		return p.parseParenTableSource()
+		src, err = p.parseParenTableSource()
 	case kwUNNEST:
-		return p.parseUnnestTableSource()
+		src, err = p.parseUnnestTableSource()
 	default:
-		return p.parsePathTableSource()
+		src, err = p.parsePathTableSource()
 	}
+	if err != nil {
+		return nil, err
+	}
+
+	// TABLESAMPLE wraps a complete table_primary (grammar:
+	// `table_primary sample_clause`), binding after the source's own alias /
+	// PIVOT / WITH OFFSET / FOR SYSTEM_TIME. It attaches to the TableExpr / UNNEST
+	// source shapes (a parenthesized join carries no sample field — sampling a
+	// raw join is not a documented form). The grammar allows it to chain
+	// (`table_primary sample_clause` is itself a table_primary), so loop.
+	for p.atTableSample() {
+		sc, serr := p.parseTableSample()
+		if serr != nil {
+			return nil, serr
+		}
+		if !attachSample(src, sc) {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	return src, nil
+}
+
+// attachSample stores a parsed TABLESAMPLE clause on a table source, updating
+// its end Loc. It supports the TableExpr / UnnestExpr source shapes; for any
+// other node (e.g. a parenthesized join) it returns false so the caller can
+// surface a syntax error.
+func attachSample(src ast.Node, sc *ast.SampleClause) bool {
+	switch s := src.(type) {
+	case *ast.TableExpr:
+		s.Sample = sc
+		s.Loc.End = sc.Loc.End
+	case *ast.UnnestExpr:
+		s.Sample = sc
+		s.Loc.End = sc.Loc.End
+	default:
+		return false
+	}
+	return true
 }
 
 // parseParenTableSource parses a parenthesized table source: either a
@@ -336,14 +380,20 @@ func (p *Parser) parseUnnestTableSource() (ast.Node, error) {
 	}
 	ue := &ast.UnnestExpr{Array: arr, Loc: ast.Loc{Start: start, End: nodeLoc(arr).End}}
 
-	// Optional `[AS] alias` then `WITH OFFSET [[AS] name]` (UNNEST supports the
-	// offset companion column). UnnestExpr has its own fields, so it is done
-	// inline rather than via the path-source suffix parser.
+	// Optional `[AS] alias`, then a PIVOT/UNPIVOT operator (parser-query-clauses),
+	// then `WITH OFFSET [[AS] name]` (UNNEST supports the offset companion
+	// column). UnnestExpr has its own fields, so it is done inline rather than via
+	// the path-source suffix parser. PIVOT/UNPIVOT/TABLESAMPLE on an array scan
+	// are always SEMANTIC errors but PARSE in the union grammar (retained for
+	// parity); TABLESAMPLE wraps the source in parseTablePrimary.
 	if alias, ok, err := p.tryParseTableAlias(); err != nil {
 		return nil, err
 	} else if ok {
 		ue.Alias = alias
 		ue.Loc.End = p.prev.Loc.End
+	}
+	if err := p.parsePivotOrUnpivot(ue); err != nil {
+		return nil, err
 	}
 	if p.cur.Type == kwWITH && p.peekNext().Type == kwOFFSET {
 		p.advance()           // WITH
@@ -470,11 +520,14 @@ func (p *Parser) tokenSource(tok Token) string {
 	return TokenName(tok.Type)
 }
 
-// parseTableAliasOnly parses ONLY the optional `[AS] alias` suffix of a table
-// source, filling te.Alias. It is used for subquery and TVF sources, which
-// (unlike path / UNNEST sources) take NO WITH OFFSET or FOR SYSTEM_TIME suffix
-// (oracle: those reject on subqueries/TVFs). A per-source `@{...}` hint may
-// precede the alias.
+// parseTableAliasOnly parses the optional `[AS] alias` suffix of a table source
+// plus an optional PIVOT/UNPIVOT operator (parser-query-clauses), filling
+// te.Alias / te.Pivot / te.Unpivot. It is used for subquery and TVF sources,
+// which (unlike path / UNNEST sources) take NO WITH OFFSET or FOR SYSTEM_TIME
+// suffix (oracle: those reject on subqueries/TVFs) but DO accept PIVOT/UNPIVOT
+// (grammar: table_subquery / tvf_with_suffixes carry opt_pivot_or_unpivot_
+// clause_and_alias; oracle: `(SELECT …) PIVOT(…)` parses). A per-source `@{...}`
+// hint may precede the alias.
 func (p *Parser) parseTableAliasOnly(te *ast.TableExpr) error {
 	if p.cur.Type == int('@') {
 		if herr := p.skipHint(); herr != nil {
@@ -489,15 +542,20 @@ func (p *Parser) parseTableAliasOnly(te *ast.TableExpr) error {
 		te.Alias = alias
 		te.Loc.End = p.prev.Loc.End
 	}
-	return nil
+	// PIVOT / UNPIVOT operator (after the optional alias).
+	return p.parsePivotOrUnpivot(te)
 }
 
 // parseTableSuffixes parses the optional trailing suffixes of a PATH table
-// source: `[AS] alias`, `WITH OFFSET [[AS] name]`, and `FOR SYSTEM_TIME AS OF
-// expr`. It fills the corresponding TableExpr fields. (PIVOT/UNPIVOT/TABLESAMPLE/
-// MATCH_RECOGNIZE are NOT handled — they belong to parser-query-clauses. Subquery
-// and TVF sources use parseTableAliasOnly instead, since the offset / time-travel
-// suffixes are path-source-only.)
+// source: `[AS] alias`, a PIVOT/UNPIVOT operator, `WITH OFFSET [[AS] name]`, and
+// `FOR SYSTEM_TIME AS OF expr`. It fills the corresponding TableExpr fields.
+// (PIVOT/UNPIVOT are owned by parser-query-clauses via parsePivotOrUnpivot;
+// TABLESAMPLE wraps the whole source in parseTablePrimary. Subquery and TVF
+// sources use parseTableAliasOnly instead, since the offset / time-travel
+// suffixes are path-source-only.) The grammar's ordering is
+// `opt_pivot_or_unpivot_clause_and_alias? opt_with_offset_and_alias?
+// opt_at_system_time?`, i.e. alias+pivot bind before WITH OFFSET / FOR SYSTEM_
+// TIME.
 func (p *Parser) parseTableSuffixes(te *ast.TableExpr) error {
 	// Per-source hint @{...} (table_hint_expr) may precede the alias.
 	if p.cur.Type == int('@') {
@@ -520,6 +578,11 @@ func (p *Parser) parseTableSuffixes(te *ast.TableExpr) error {
 	} else if ok {
 		te.Alias = alias
 		te.Loc.End = p.prev.Loc.End
+	}
+
+	// PIVOT / UNPIVOT operator (after the optional alias, before WITH OFFSET).
+	if err := p.parsePivotOrUnpivot(te); err != nil {
+		return err
 	}
 
 	if p.cur.Type == kwWITH && p.peekNext().Type == kwOFFSET {
@@ -624,16 +687,34 @@ func (p *Parser) tryParseTableAlias() (string, bool, error) {
 
 // atTableAliasStop reports whether the current (identifier-start) token must NOT
 // be consumed as an implicit table alias because it begins a following
-// clause/join/table-operator. These are the non-reserved keywords that, in
-// table-source position, introduce a suffix rather than serve as an alias:
-// WITH (OFFSET), and the table-operator keywords PIVOT/UNPIVOT/TABLESAMPLE/
-// MATCH_RECOGNIZE (owned by parser-query-clauses, but must not be eaten as an
-// alias here). Reserved clause keywords (FROM/WHERE/JOIN/…) are already excluded
-// by isIdentifierStart.
+// clause/table-operator suffix rather than serving as an alias.
+//
+//   - WITH always stops: it begins `WITH OFFSET` (the only WITH that follows a
+//     table source); a table is never implicitly aliased `WITH`.
+//   - PIVOT / UNPIVOT are NON-reserved, so a bare `FROM t pivot` / `FROM t
+//     unpivot` is a valid implicit alias (oracle-confirmed accept). They stop
+//     alias parsing ONLY when they actually START the operator: `PIVOT (`,
+//     `UNPIVOT (`, or `UNPIVOT {INCLUDE|EXCLUDE}`. Anything else (a bare keyword
+//     at end of source, before a comma/JOIN/clause) is the implicit alias.
+//
+// TABLESAMPLE / MATCH_RECOGNIZE are RESERVED keywords (keywordReserved), so they
+// are never identifier-start and never reach this predicate as alias candidates;
+// they are consumed as operators by parseTablePrimary. Reserved clause keywords
+// (FROM/WHERE/JOIN/…) are likewise already excluded by isIdentifierStart.
 func (p *Parser) atTableAliasStop() bool {
 	switch p.cur.Type {
-	case kwWITH, kwPIVOT, kwUNPIVOT, kwTABLESAMPLE, kwMATCH_RECOGNIZE:
+	case kwWITH:
 		return true
+	case kwPIVOT:
+		// Operator iff `PIVOT (`; otherwise a bare implicit alias named "pivot".
+		return p.peekNext().Type == int('(')
+	case kwUNPIVOT:
+		// Operator iff `UNPIVOT (` or `UNPIVOT INCLUDE|EXCLUDE`; otherwise alias.
+		switch p.peekNext().Type {
+		case int('('), kwINCLUDE, kwEXCLUDE:
+			return true
+		}
+		return false
 	}
 	return false
 }

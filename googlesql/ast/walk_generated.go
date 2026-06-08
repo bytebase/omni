@@ -707,6 +707,16 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Collate)
 	case *ParenExpr:
 		Walk(v, n.Expr)
+	case *PivotClause:
+		for _, c := range n.Aggregates {
+			Walk(v, c)
+		}
+		Walk(v, n.For)
+		for _, c := range n.Values {
+			Walk(v, c)
+		}
+	case *PivotExpr:
+		Walk(v, n.Expr)
 	case *QueryStmt:
 		if n.With != nil {
 			Walk(v, n.With)
@@ -744,6 +754,10 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Grantees {
 			Walk(v, c)
 		}
+	case *SampleClause:
+		Walk(v, n.Size)
+		walkNodes(v, n.PartitionBy)
+		Walk(v, n.Repeatable)
 	case *SearchVectorIndexStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -831,6 +845,15 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Func)
 		}
 		Walk(v, n.SystemTime)
+		if n.Pivot != nil {
+			Walk(v, n.Pivot)
+		}
+		if n.Unpivot != nil {
+			Walk(v, n.Unpivot)
+		}
+		if n.Sample != nil {
+			Walk(v, n.Sample)
+		}
 	case *TransactionStmt:
 		for _, c := range n.Modes {
 			Walk(v, c)
@@ -844,6 +867,29 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Expr)
 	case *UnnestExpr:
 		Walk(v, n.Array)
+		if n.Pivot != nil {
+			Walk(v, n.Pivot)
+		}
+		if n.Unpivot != nil {
+			Walk(v, n.Unpivot)
+		}
+		if n.Sample != nil {
+			Walk(v, n.Sample)
+		}
+	case *UnpivotClause:
+		for _, c := range n.ValueColumns {
+			Walk(v, c)
+		}
+		if n.NameColumn != nil {
+			Walk(v, n.NameColumn)
+		}
+		for _, c := range n.Items {
+			Walk(v, c)
+		}
+	case *UnpivotInItem:
+		for _, c := range n.Columns {
+			Walk(v, c)
+		}
 	case *UpdateItem:
 		Walk(v, n.Value)
 		Walk(v, n.Nested)
