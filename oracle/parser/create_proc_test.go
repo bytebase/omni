@@ -64,6 +64,48 @@ func TestParseCreateOrReplaceProcedure(t *testing.T) {
 	}
 }
 
+func TestParseCreateWrappedProcedure(t *testing.T) {
+	sql := "CREATE OR REPLACE PROCEDURE wrapped_proc WRAPPED\n" +
+		"a000000\n" +
+		"abcd\n"
+	result, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if result.Len() != 1 {
+		t.Fatalf("expected 1 statement, got %d", result.Len())
+	}
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt, ok := raw.Stmt.(*ast.CreateProcedureStmt)
+	if !ok {
+		t.Fatalf("expected CreateProcedureStmt, got %T", raw.Stmt)
+	}
+	if !stmt.OrReplace {
+		t.Error("expected OrReplace to be true")
+	}
+	if stmt.Name == nil || stmt.Name.Name != "WRAPPED_PROC" {
+		t.Errorf("expected name WRAPPED_PROC, got %v", stmt.Name)
+	}
+	if !stmt.Wrapped {
+		t.Error("expected Wrapped to be true")
+	}
+	if stmt.WrappedSource != "WRAPPED\na000000\nabcd" {
+		t.Fatalf("expected wrapped source to preserve raw payload, got %q", stmt.WrappedSource)
+	}
+	if stmt.Body != nil {
+		t.Fatalf("expected nil body for wrapped procedure, got %T", stmt.Body)
+	}
+}
+
+func TestParseCreateWrappedProcedureWithSemicolon(t *testing.T) {
+	result := ParseAndCheck(t, "CREATE PROCEDURE wrapped_proc WRAPPED\na000000\nabcd;")
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt := raw.Stmt.(*ast.CreateProcedureStmt)
+	if !stmt.Wrapped {
+		t.Fatal("expected Wrapped to be true")
+	}
+}
+
 func TestParseCreateProcedureAuthID(t *testing.T) {
 	sql := `CREATE PROCEDURE my_proc AUTHID CURRENT_USER IS BEGIN NULL; END;`
 	result, err := Parse(sql)

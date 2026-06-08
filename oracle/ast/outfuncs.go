@@ -3172,6 +3172,12 @@ func writeCreateProcedureStmt(sb *strings.Builder, n *CreateProcedureStmt) {
 		sb.WriteString(" :parameters ")
 		writeNode(sb, n.Parameters)
 	}
+	if n.Wrapped {
+		sb.WriteString(" :wrapped true")
+	}
+	if n.WrappedSource != "" {
+		sb.WriteString(fmt.Sprintf(" :wrappedSource %q", n.WrappedSource))
+	}
 	if n.Body != nil {
 		sb.WriteString(" :body ")
 		writeNode(sb, n.Body)

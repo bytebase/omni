@@ -1991,6 +1991,8 @@ type CreateProcedureStmt struct {
 	AuthID         string      // AUTHID CURRENT_USER | DEFINER
 	Name           *ObjectName // procedure name
 	Parameters     *List       // parameter list (list of *Parameter)
+	Wrapped        bool        // WRAPPED procedure body
+	WrappedSource  string      // raw text from WRAPPED through the wrapped payload
 	Body           StmtNode    // procedure body (PL/SQL block)
 	Loc            Loc         // start location
 }

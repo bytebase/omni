@@ -66,6 +66,10 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 		return nil, parseErr456
 	}
 
+	if p.isIdentLikeStr("WRAPPED") {
+		return p.parseWrappedProcedure(stmt)
+	}
+
 	if p.cur.Type != kwIS && p.cur.Type != kwAS {
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -78,6 +82,28 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 	}
 
 	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+func (p *Parser) parseWrappedProcedure(stmt *nodes.CreateProcedureStmt) (*nodes.CreateProcedureStmt, error) {
+	wrappedStart := p.cur.Loc
+	stmt.Wrapped = true
+
+	p.advance() // consume WRAPPED
+	if p.cur.Type == ';' || p.cur.Type == tokEOF {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	wrappedEnd := p.prev.End
+	for p.cur.Type != ';' && p.cur.Type != tokEOF {
+		wrappedEnd = p.cur.End
+		p.advance()
+	}
+
+	if wrappedStart >= 0 && wrappedEnd <= len(p.source) && wrappedStart < wrappedEnd {
+		stmt.WrappedSource = p.source[wrappedStart:wrappedEnd]
+	}
+	stmt.Loc.End = wrappedEnd
 	return stmt, nil
 }
 
