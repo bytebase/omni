@@ -195,6 +195,13 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 		stmt.Where = where
 	}
 
+	// START WITH ... CONNECT BY ... (hierarchical query). Snowflake places
+	// these after WHERE; START WITH is optional and, when present, precedes
+	// CONNECT BY.
+	if err := p.parseConnectBy(stmt); err != nil {
+		return nil, err
+	}
+
 	// GROUP BY clause
 	if p.cur.Type == kwGROUP {
 		groupBy, err := p.parseGroupByClause()
@@ -528,11 +535,9 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 				Subquery: query,
 				Loc:      ast.Loc{Start: startLoc.Start},
 			}
-			alias, hasAlias := p.parseOptionalAlias()
-			if hasAlias {
-				ref.Alias = alias
+			if err := p.parseTableSuffix(ref); err != nil {
+				return nil, err
 			}
-			ref.Loc.End = p.prev.Loc.End
 			return ref, nil
 		}
 		// Parenthesized from-item: (t1 JOIN t2 ON ...)
@@ -590,11 +595,9 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 			FuncCall: funcCall,
 			Loc:      ast.Loc{Start: startLoc.Start},
 		}
-		alias, hasAlias := p.parseOptionalAlias()
-		if hasAlias {
-			ref.Alias = alias
+		if err := p.parseTableSuffix(ref); err != nil {
+			return nil, err
 		}
-		ref.Loc.End = p.prev.Loc.End
 		return ref, nil
 	}
 
@@ -877,7 +880,9 @@ func (p *Parser) consumeDirectionAndJoin() ast.JoinType {
 	}
 }
 
-// parseTableRef parses one simple table reference: object_name [AS alias].
+// parseTableRef parses one simple table reference: object_name followed by
+// the Snowflake table-attached clause chain (AT/BEFORE, CHANGES,
+// MATCH_RECOGNIZE, PIVOT/UNPIVOT, alias, SAMPLE).
 func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 	name, err := p.parseObjectName()
 	if err != nil {
@@ -889,13 +894,153 @@ func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 		Loc:  ast.Loc{Start: name.Loc.Start},
 	}
 
-	alias, hasAlias := p.parseOptionalAlias()
-	if hasAlias {
-		ref.Alias = alias
+	if err := p.parseTableSuffix(ref); err != nil {
+		return nil, err
+	}
+	return ref, nil
+}
+
+// parseTableSuffix parses the chain of Snowflake clauses that may follow a
+// table primary, in the documented source order:
+//
+//	AT|BEFORE → CHANGES → MATCH_RECOGNIZE → PIVOT|UNPIVOT → [AS] alias → SAMPLE
+//
+// The aggregate alias position sits between PIVOT/UNPIVOT and SAMPLE (matching
+// `table1 AS t1 SAMPLE (25)` from the docs). ref already has its source set
+// (Name / Subquery / FuncCall); this fills the clause fields, Alias, and the
+// final End location. Each branch is guarded by a keyword, so the function
+// makes progress only when a clause is actually present and is otherwise a
+// no-op (leaving ref.Loc.End at the source's end).
+func (p *Parser) parseTableSuffix(ref *ast.TableRef) error {
+	ref.Loc.End = p.prev.Loc.End
+
+	// AT | BEFORE ( … )
+	if p.cur.Type == kwAT || p.cur.Type == kwBEFORE {
+		tt, err := p.parseTimeTravelClause()
+		if err != nil {
+			return err
+		}
+		ref.TimeTravel = tt
+		ref.Loc.End = tt.Loc.End
 	}
 
-	ref.Loc.End = p.prev.Loc.End
-	return ref, nil
+	// CHANGES ( … ) AT|BEFORE ( … ) [END ( … )]
+	if p.cur.Type == kwCHANGES {
+		ch, err := p.parseChangesClause()
+		if err != nil {
+			return err
+		}
+		ref.Changes = ch
+		ref.Loc.End = ch.Loc.End
+	}
+
+	// MATCH_RECOGNIZE ( … )
+	if p.cur.Type == kwMATCH_RECOGNIZE {
+		mr, err := p.parseMatchRecognizeClause()
+		if err != nil {
+			return err
+		}
+		ref.MatchRecognize = mr
+		ref.Loc.End = mr.Loc.End
+		// MATCH_RECOGNIZE consumes its own trailing alias; only SAMPLE may
+		// follow (per the legacy grammar's clause ordering).
+		return p.parseTrailingSample(ref)
+	}
+
+	// PIVOT ( … ) | UNPIVOT ( … )
+	switch p.cur.Type {
+	case kwPIVOT:
+		pv, err := p.parsePivotClause()
+		if err != nil {
+			return err
+		}
+		ref.Pivot = pv
+		ref.Loc.End = pv.Loc.End
+		// PIVOT consumes its own trailing alias; only SAMPLE may follow.
+		return p.parseTrailingSample(ref)
+	case kwUNPIVOT:
+		uv, err := p.parseUnpivotClause()
+		if err != nil {
+			return err
+		}
+		ref.Unpivot = uv
+		ref.Loc.End = uv.Loc.End
+		// UNPIVOT consumes its own trailing alias; only SAMPLE may follow.
+		return p.parseTrailingSample(ref)
+	}
+
+	// [AS] alias
+	if alias, has := p.parseOptionalAlias(); has {
+		ref.Alias = alias
+		ref.Loc.End = p.prev.Loc.End
+	}
+
+	// SAMPLE | TABLESAMPLE ( … )
+	return p.parseTrailingSample(ref)
+}
+
+// parseTrailingSample parses an optional SAMPLE / TABLESAMPLE clause and
+// updates ref. It is a no-op when no sampling clause is present.
+func (p *Parser) parseTrailingSample(ref *ast.TableRef) error {
+	if p.cur.Type == kwSAMPLE || p.cur.Type == kwTABLESAMPLE {
+		s, err := p.parseSampleClause()
+		if err != nil {
+			return err
+		}
+		ref.Sample = s
+		ref.Loc.End = s.Loc.End
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// START WITH / CONNECT BY (hierarchical queries)
+// ---------------------------------------------------------------------------
+
+// parseConnectBy parses the optional hierarchical-query clauses:
+//
+//	[ START WITH <condition> ] CONNECT BY [PRIOR] <condition> [ , … ]
+//
+// Snowflake documents START WITH before CONNECT BY. PRIOR appears as a
+// prefix operator inside the condition expressions (handled by the shared
+// expression parser). A bare START WITH with no following CONNECT BY is a
+// syntax error, surfaced by the CONNECT BY expect below.
+func (p *Parser) parseConnectBy(stmt *ast.SelectStmt) error {
+	if p.cur.Type != kwSTART && p.cur.Type != kwCONNECT {
+		return nil
+	}
+
+	// Optional START WITH <condition>.
+	if p.cur.Type == kwSTART {
+		p.advance() // consume START
+		if _, err := p.expect(kwWITH); err != nil {
+			return err
+		}
+		cond, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		stmt.StartWith = cond
+	}
+
+	// CONNECT BY <condition> [ , … ] (required when hierarchical clauses appear).
+	if _, err := p.expect(kwCONNECT); err != nil {
+		return err
+	}
+	if _, err := p.expect(kwBY); err != nil {
+		return err
+	}
+	// Enable PRIOR-as-prefix only for the duration of the CONNECT BY conditions.
+	saved := p.inConnectBy
+	p.inConnectBy = true
+	conds, err := p.parseExprList()
+	p.inConnectBy = saved
+	if err != nil {
+		return err
+	}
+	stmt.ConnectBy = conds
+
+	return nil
 }
 
 // ---------------------------------------------------------------------------

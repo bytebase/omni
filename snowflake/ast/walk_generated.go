@@ -196,6 +196,13 @@ func walkChildren(v Visitor, node Node) {
 		if n.TypeName != nil {
 			Walk(v, n.TypeName)
 		}
+	case *ChangesClause:
+		if n.Start != nil {
+			Walk(v, n.Start)
+		}
+		if n.End != nil {
+			Walk(v, n.End)
+		}
 	case *CollateExpr:
 		Walk(v, n.Expr)
 	case *ColumnDef:
@@ -500,6 +507,21 @@ func walkChildren(v Visitor, node Node) {
 		if n.Pattern != nil {
 			Walk(v, n.Pattern)
 		}
+	case *MatchDefine:
+		Walk(v, n.Cond)
+	case *MatchMeasure:
+		Walk(v, n.Expr)
+	case *MatchRecognizeClause:
+		walkNodes(v, n.PartitionBy)
+		if n.RowsPerMatch != nil {
+			Walk(v, n.RowsPerMatch)
+		}
+		if n.AfterMatch != nil {
+			Walk(v, n.AfterMatch)
+		}
+		if n.Pattern != nil {
+			Walk(v, n.Pattern)
+		}
 	case *MergeStmt:
 		if n.Target != nil {
 			Walk(v, n.Target)
@@ -508,6 +530,21 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.On)
 	case *ParenExpr:
 		Walk(v, n.Expr)
+	case *PivotClause:
+		if n.Agg != nil {
+			Walk(v, n.Agg)
+		}
+		if n.ForColumn != nil {
+			Walk(v, n.ForColumn)
+		}
+		if n.In != nil {
+			Walk(v, n.In)
+		}
+		Walk(v, n.DefaultVal)
+	case *PivotInClause:
+		Walk(v, n.Subquery)
+	case *PivotValue:
+		Walk(v, n.Value)
 	case *PolicyArg:
 		if n.DataType != nil {
 			Walk(v, n.DataType)
@@ -536,12 +573,17 @@ func walkChildren(v Visitor, node Node) {
 		if n.Grantee != nil {
 			Walk(v, n.Grantee)
 		}
+	case *SampleClause:
+		Walk(v, n.Quantity)
+		Walk(v, n.Seed)
 	case *SelectStmt:
 		Walk(v, n.Top)
 		walkNodes(v, n.From)
 		Walk(v, n.Where)
 		Walk(v, n.Having)
 		Walk(v, n.Qualify)
+		Walk(v, n.StartWith)
+		walkNodes(v, n.ConnectBy)
 		Walk(v, n.Limit)
 		Walk(v, n.Offset)
 	case *SetOperationStmt:
@@ -572,6 +614,26 @@ func walkChildren(v Visitor, node Node) {
 		if n.FuncCall != nil {
 			Walk(v, n.FuncCall)
 		}
+		if n.TimeTravel != nil {
+			Walk(v, n.TimeTravel)
+		}
+		if n.Changes != nil {
+			Walk(v, n.Changes)
+		}
+		if n.MatchRecognize != nil {
+			Walk(v, n.MatchRecognize)
+		}
+		if n.Pivot != nil {
+			Walk(v, n.Pivot)
+		}
+		if n.Unpivot != nil {
+			Walk(v, n.Unpivot)
+		}
+		if n.Sample != nil {
+			Walk(v, n.Sample)
+		}
+	case *TimeTravelClause:
+		Walk(v, n.Expr)
 	case *TruncateStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
