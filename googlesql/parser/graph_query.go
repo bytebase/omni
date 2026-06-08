@@ -1044,15 +1044,17 @@ func (p *Parser) parseGraphPathPrimary() (ast.Node, error) {
 		return p.parseGraphEdgePattern()
 	case int('('):
 		open := p.advance() // (
+		hintConsumed := false
 		if p.cur.Type == int('@') {
 			if herr := p.skipHint(); herr != nil {
 				return nil, herr
 			}
+			hintConsumed = true
 		}
 		if p.interiorStartsParenthesizedPath() {
 			return p.parseGraphParenthesizedPathBody(open)
 		}
-		return p.parseGraphNodePatternBody(open)
+		return p.parseGraphNodePatternBody(open, hintConsumed)
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -1158,8 +1160,8 @@ func (p *Parser) parseGraphParenthesizedPathBody(open Token) (ast.Node, error) {
 // optional leading hint has already been skipped at the '(' level, so any '@'
 // the filler parser sees here would be a SECOND hint (the grammar admits at most
 // one — a stray one is a syntax error from parseGraphPatternFiller's tail).
-func (p *Parser) parseGraphNodePatternBody(open Token) (ast.Node, error) {
-	filler, err := p.parseGraphPatternFiller()
+func (p *Parser) parseGraphNodePatternBody(open Token, hintAlreadyConsumed bool) (ast.Node, error) {
+	filler, err := p.parseGraphPatternFiller(hintAlreadyConsumed)
 	if err != nil {
 		return nil, err
 	}
@@ -1251,7 +1253,7 @@ func (p *Parser) parseBracketedEdgeFiller(allowArrowClose bool) (*ast.GraphPatte
 // close was the `->` arrow (closeArrow), and the end offset.
 func (p *Parser) parseBracketedEdge(allowArrowClose bool) (filler *ast.GraphPatternFiller, closeArrow bool, end int, err error) {
 	p.advance() // [
-	filler, err = p.parseGraphPatternFiller()
+	filler, err = p.parseGraphPatternFiller(false)
 	if err != nil {
 		return nil, false, 0, err
 	}
@@ -1280,12 +1282,16 @@ func (p *Parser) parseBracketedEdge(allowArrowClose bool) (filler *ast.GraphPatt
 // production). The grammar's three alternatives differ only in how WHERE relates
 // to the property spec; this parser accepts the superset (var?, label?, props?,
 // where?) which covers all three.
-func (p *Parser) parseGraphPatternFiller() (*ast.GraphPatternFiller, error) {
+func (p *Parser) parseGraphPatternFiller(hintAlreadyConsumed bool) (*ast.GraphPatternFiller, error) {
 	filler := &ast.GraphPatternFiller{Loc: p.cur.Loc}
 	start := p.cur.Loc.Start
 	end := p.prev.Loc.End // empty filler: zero-width at the prior token's end
 
-	if p.cur.Type == int('@') {
+	// graph_element_pattern_filler admits at most one leading hint. When the caller
+	// (a node pattern via parseGraphPathPrimary) already consumed the single hint at
+	// the '(' level, do NOT consume another here — a second '@' is a syntax error
+	// (oracle: `(@{h1} @{h2} v)` -> live emulator `Expected ")" but got "@"`).
+	if !hintAlreadyConsumed && p.cur.Type == int('@') {
 		if herr := p.skipHint(); herr != nil {
 			return nil, herr
 		}

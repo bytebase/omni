@@ -450,6 +450,36 @@ func TestGQL_HintedNodePattern(t *testing.T) {
 	}
 }
 
+// TestGQL_DoubleHintRejected pins the post-review fix: a node pattern admits at
+// most one leading hint (graph_element_pattern_filler: `hint? ...`). The single
+// hint is consumed at the '(' level; the filler must NOT consume a second, so a
+// second '@' is a syntax error. Oracle: the live Spanner emulator rejects
+// `(@{h1} @{h2} v)` with `Expected ")" but got "@"`.
+func TestGQL_DoubleHintRejected(t *testing.T) {
+	assertReject(t, "GRAPH g MATCH (@{h1=1} @{h2=2} v) RETURN v")
+	assertReject(t, "GRAPH g MATCH (@{h1=1} @{h2=2} :Person) RETURN 1")
+}
+
+// TestGQL_KeywordPathVarRejected pins the resolution of a review finding: a
+// path-variable assignment whose name is a graph path-mode keyword
+// (WALK/TRAIL/SIMPLE/...) is REJECTED. The legacy .g4 lists WALK/TRAIL/ACYCLIC
+// in common_keyword_as_identifier (which would permit them as graph
+// identifiers), but the live ZetaSQL/Spanner emulator REJECTS them as path-var
+// names (`Syntax error: Unexpected "="`). The oracle wins over the .g4, so omni
+// correctly rejects; this guards against a future change that loosens it to the
+// .g4.
+func TestGQL_KeywordPathVarRejected(t *testing.T) {
+	for _, sql := range []string{
+		"GRAPH g MATCH (walk = (a)) RETURN walk",
+		"GRAPH g MATCH (trail = (a)) RETURN trail",
+		"GRAPH g MATCH (simple = (a)) RETURN simple",
+	} {
+		assertReject(t, sql)
+	}
+	// A plain (non-keyword) identifier path-variable name is still accepted.
+	gqlStmtOf(t, "GRAPH g MATCH (x = (a)) RETURN x")
+}
+
 // TestGQL_TrailingPathFactorHintRejected covers finding F5: a hint between path
 // factors is part of a `(hint? graph_path_factor)` group, so it MUST be followed
 // by another factor. A TRAILING hint with no factor after it is a syntax error —
