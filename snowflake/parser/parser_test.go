@@ -159,11 +159,11 @@ func TestParse_BeginEndBlockOneSegment(t *testing.T) {
 }
 
 func TestParse_StrictVsBestEffort(t *testing.T) {
-	// SELECT now parses successfully; BEGIN is now a real TCL statement too.
-	// Use a CALL statement (still unsupported) to produce the error that
-	// distinguishes strict Parse (returns first error) from ParseBestEffort
-	// (collects all errors).
-	input := "SELECT 1; CALL p();"
+	// SELECT now parses successfully; BEGIN and CALL are real statements too.
+	// Use a DECLARE statement (still unsupported — Snowflake Scripting lands in
+	// Tier 7) to produce the error that distinguishes strict Parse (returns first
+	// error) from ParseBestEffort (collects all errors).
+	input := "SELECT 1; DECLARE x INT;"
 
 	file, err := Parse(input)
 	if err == nil {
@@ -172,8 +172,8 @@ func TestParse_StrictVsBestEffort(t *testing.T) {
 		pe, ok := err.(*ParseError)
 		if !ok {
 			t.Errorf("Parse: expected *ParseError, got %T", err)
-		} else if !strings.Contains(pe.Msg, "CALL") {
-			t.Errorf("Parse: first error Msg = %q, want to contain CALL", pe.Msg)
+		} else if !strings.Contains(pe.Msg, "DECLARE") {
+			t.Errorf("Parse: first error Msg = %q, want to contain DECLARE", pe.Msg)
 		}
 	}
 	if file == nil {

@@ -4608,3 +4608,184 @@ var (
 	_ Node = (*CreateSequenceStmt)(nil)
 	_ Node = (*AlterSequenceStmt)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// CALL / EXECUTE IMMEDIATE / EXECUTE TASK / EXPLAIN statement nodes (T5.4)
+// ---------------------------------------------------------------------------
+
+// CallArg is one argument of a CALL statement. Snowflake stored procedures
+// accept either positional arguments or named arguments using the `=>` syntax
+// (CALL p(province => 'MB')). For a positional argument Name is the zero Ident
+// (IsEmpty); for a named argument Name carries the parameter name. Value is the
+// argument expression (any expression node; a subquery argument is a
+// SubqueryExpr or, per Snowflake docs, a bare SELECT — see ParenlessQuery).
+type CallArg struct {
+	Name  Ident // optional parameter name for `name => value`; zero Ident when positional
+	Value Node  // the argument expression
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *CallArg) Tag() NodeTag { return T_CallArg }
+
+// CallStmt represents `CALL <proc_name> ( [ <arg> [ , ... ] ] )`.
+//
+// Syntax (docs + legacy .g4):
+//
+//	CALL <procedure_name> ( [ <arg> , ... ] )
+//
+// Args carries the (possibly empty) argument list. Every element is a *CallArg
+// (a positional argument has a zero Name; a named argument records its name).
+// Args is typed []Node so the generated walker descends into each *CallArg —
+// and thence into the argument expression — via walkNodes.
+type CallStmt struct {
+	Name *ObjectName
+	Args []Node // each element is a *CallArg
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *CallStmt) Tag() NodeTag { return T_CallStmt }
+
+// ExecImmSource classifies the input form of an EXECUTE IMMEDIATE statement.
+//
+// Snowflake documents three forms (docs win over the legacy grammar, which adds
+// the equivalent DBL_DOLLAR alternative):
+//
+//	EXECUTE IMMEDIATE '<string_literal>'   -> ExecImmString
+//	EXECUTE IMMEDIATE $$<dollar_body>$$    -> ExecImmDollar
+//	EXECUTE IMMEDIATE <variable>           -> ExecImmVariable  (Snowflake Scripting local var, no $)
+//	EXECUTE IMMEDIATE $<session_variable>  -> ExecImmSessionVar ($-prefixed session variable)
+type ExecImmSource int
+
+const (
+	// ExecImmString is a single-quoted string-literal body.
+	ExecImmString ExecImmSource = iota
+	// ExecImmDollar is a $$...$$ dollar-quoted body.
+	ExecImmDollar
+	// ExecImmVariable is a bare Snowflake Scripting local variable (no $).
+	ExecImmVariable
+	// ExecImmSessionVar is a $-prefixed session variable.
+	ExecImmSessionVar
+)
+
+// String returns a human-readable name for the source kind.
+func (k ExecImmSource) String() string {
+	switch k {
+	case ExecImmString:
+		return "STRING"
+	case ExecImmDollar:
+		return "DOLLAR"
+	case ExecImmVariable:
+		return "VARIABLE"
+	case ExecImmSessionVar:
+		return "SESSION_VARIABLE"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// ExecuteImmediateStmt represents an EXECUTE IMMEDIATE statement.
+//
+// Syntax (docs):
+//
+//	EXECUTE IMMEDIATE { '<string_literal>' | $$<body>$$ | <variable> | $<session_variable> }
+//	  [ USING ( <bind_variable> [ , ... ] ) ]
+//
+// The body of the string / dollar forms is OPAQUE: it is captured VERBATIM
+// (delimiters included for the dollar form; quotes included for the string form)
+// and never parsed as SQL — its contents may be a Snowflake Scripting block, a
+// single SQL statement, or any string the engine evaluates at runtime. Source
+// records which form was used. For the string / dollar forms Body holds the
+// verbatim text; for the variable / session-variable forms Var holds the name
+// (for $<session_variable>, Var.Name excludes the leading $). Using holds the
+// optional bind-variable list (bare identifiers per the legacy grammar and the
+// official corpus).
+type ExecuteImmediateStmt struct {
+	Source ExecImmSource
+	Body   string  // verbatim body for ExecImmString / ExecImmDollar (incl. delimiters); "" otherwise
+	Var    Ident   // variable name for ExecImmVariable / ExecImmSessionVar; zero Ident otherwise
+	Using  []Ident // optional USING ( <bind_variable> , ... ) list
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ExecuteImmediateStmt) Tag() NodeTag { return T_ExecuteImmediateStmt }
+
+// ExecuteTaskStmt represents an EXECUTE TASK statement.
+//
+// Syntax (docs):
+//
+//	EXECUTE TASK <name> [ USING CONFIG = <configuration_string> ]
+//	EXECUTE TASK <name> RETRY LAST
+//
+// RetryLast records the RETRY LAST form. UsingConfig holds the verbatim
+// configuration string (including quotes) when `USING CONFIG = '<...>'` is
+// present, or "" when absent. The two trailing forms are mutually exclusive per
+// the docs.
+type ExecuteTaskStmt struct {
+	Name        *ObjectName
+	RetryLast   bool
+	UsingConfig string // verbatim USING CONFIG = value (incl. quotes); "" when absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *ExecuteTaskStmt) Tag() NodeTag { return T_ExecuteTaskStmt }
+
+// ExplainFormat enumerates the EXPLAIN output format selected by the optional
+// USING clause. ExplainDefault is the bare `EXPLAIN <statement>` form (no USING).
+type ExplainFormat int
+
+const (
+	// ExplainDefault is `EXPLAIN <statement>` with no USING clause.
+	ExplainDefault ExplainFormat = iota
+	// ExplainTabular is `EXPLAIN USING TABULAR <statement>`.
+	ExplainTabular
+	// ExplainJSON is `EXPLAIN USING JSON <statement>`.
+	ExplainJSON
+	// ExplainText is `EXPLAIN USING TEXT <statement>`.
+	ExplainText
+)
+
+// String returns the USING-clause keyword for the format (or "DEFAULT").
+func (f ExplainFormat) String() string {
+	switch f {
+	case ExplainDefault:
+		return "DEFAULT"
+	case ExplainTabular:
+		return "TABULAR"
+	case ExplainJSON:
+		return "JSON"
+	case ExplainText:
+		return "TEXT"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// ExplainStmt represents an EXPLAIN statement.
+//
+// Syntax (docs + legacy .g4):
+//
+//	EXPLAIN [ USING { TABULAR | JSON | TEXT } ] <statement>
+//
+// Format records the optional USING format (ExplainDefault when absent). Stmt is
+// the inner statement, parsed structurally via the top-level statement parser.
+type ExplainStmt struct {
+	Format ExplainFormat
+	Stmt   Node
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ExplainStmt) Tag() NodeTag { return T_ExplainStmt }
+
+// Compile-time assertions for CALL / EXECUTE / EXPLAIN nodes (T5.4).
+var (
+	_ Node = (*CallArg)(nil)
+	_ Node = (*CallStmt)(nil)
+	_ Node = (*ExecuteImmediateStmt)(nil)
+	_ Node = (*ExecuteTaskStmt)(nil)
+	_ Node = (*ExplainStmt)(nil)
+)
