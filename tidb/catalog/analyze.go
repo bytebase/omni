@@ -984,6 +984,9 @@ func (c *Catalog) analyzeSetOpWithCTEs(stmt *nodes.SelectStmt, parentScope *anal
 	// scope built from result columns.
 	if len(stmt.OrderBy) > 0 || stmt.Limit != nil {
 		setScope := newScope()
+		// CTEs visible to the set operation remain visible to subqueries in its
+		// ORDER BY / LIMIT (e.g. ORDER BY (SELECT ... FROM cte)).
+		setScope.cteMap = cteMap
 		// Build stub columns from target list for ORDER BY resolution.
 		cols := make([]*Column, len(targetList))
 		colNames := make([]string, len(targetList))

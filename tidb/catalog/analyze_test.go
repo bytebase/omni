@@ -3004,3 +3004,22 @@ func TestAnalyze_CTESiblingThroughSubquery(t *testing.T) {
 	_, err := c.AnalyzeSelectStmt(sel)
 	assertNoError(t, err)
 }
+
+// TestAnalyze_CTEInSetOpOrderBySubquery verifies a WITH CTE is visible inside a
+// scalar subquery in the ORDER BY of a set operation: the set-op's synthetic
+// ORDER BY/LIMIT scope must carry the CTE map.
+//
+//	WITH a AS (...) SELECT 1 AS r UNION SELECT 2 ORDER BY (SELECT x FROM a)
+func TestAnalyze_CTEInSetOpOrderBySubquery(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH a AS (SELECT 1 AS x) SELECT 1 AS r UNION SELECT 2 ORDER BY (SELECT x FROM a)")
+
+	q, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+	if q.SetOp != SetOpUnion {
+		t.Errorf("SetOp: want SetOpUnion, got %v", q.SetOp)
+	}
+	if len(q.SortClause) == 0 {
+		t.Errorf("SortClause: want non-empty (ORDER BY present), got empty")
+	}
+}
