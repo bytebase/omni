@@ -173,6 +173,29 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			},
 		},
 		{
+			name: "wrapped procedure with slash separator",
+			sql: "CREATE OR REPLACE PROCEDURE wrapped_proc WRAPPED\n" +
+				"a000000\n" +
+				"abcd\n" +
+				"/\n" +
+				"CREATE TABLE t (id NUMBER);",
+			want: []string{
+				"CREATE OR REPLACE PROCEDURE wrapped_proc WRAPPED\na000000\nabcd",
+				"\nCREATE TABLE t (id NUMBER)",
+			},
+		},
+		{
+			name: "wrapped procedure with semicolon separator",
+			sql: "CREATE OR REPLACE PROCEDURE wrapped_proc WRAPPED\n" +
+				"a000000\n" +
+				"abcd;\n" +
+				"CREATE TABLE t (id NUMBER);",
+			want: []string{
+				"CREATE OR REPLACE PROCEDURE wrapped_proc WRAPPED\na000000\nabcd",
+				"\nCREATE TABLE t (id NUMBER)",
+			},
+		},
+		{
 			name: "create function with declarations without slash separator",
 			sql: "CREATE FUNCTION calc_bonus(p_start_date DATE)\n" +
 				"RETURN DATE\n" +

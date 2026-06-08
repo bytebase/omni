@@ -322,7 +322,7 @@ func (s *splitState) observePLSQL(tok Token) {
 	if len(s.frames) == 1 && !top.bodyStarted {
 		switch top.kind {
 		case splitPLSQLStoredUnit:
-			if tok.Str == "LANGUAGE" || tok.Str == "EXTERNAL" {
+			if tok.Str == "LANGUAGE" || tok.Str == "EXTERNAL" || tok.Str == "WRAPPED" {
 				s.callSpecStarted = true
 			}
 		case splitPLSQLTrigger:

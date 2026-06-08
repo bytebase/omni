@@ -48,6 +48,35 @@ func TestParseSplitScript(t *testing.T) {
 	}
 }
 
+func TestParseWrappedProcedure(t *testing.T) {
+	sql := "CREATE OR REPLACE PROCEDURE wrapped_proc WRAPPED\n" +
+		"a000000\n" +
+		"abcd\n" +
+		"/\n" +
+		"SELECT 1 FROM dual;"
+
+	stmts, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if len(stmts) != 2 {
+		t.Fatalf("got %d statements, want 2", len(stmts))
+	}
+	if stmts[0].Text != "CREATE OR REPLACE PROCEDURE wrapped_proc WRAPPED\na000000\nabcd" {
+		t.Fatalf("stmt[0].Text = %q", stmts[0].Text)
+	}
+	proc, ok := stmts[0].AST.(*ast.CreateProcedureStmt)
+	if !ok {
+		t.Fatalf("stmt[0].AST = %T, want CreateProcedureStmt", stmts[0].AST)
+	}
+	if !proc.Wrapped {
+		t.Fatal("stmt[0].AST.Wrapped = false, want true")
+	}
+	if proc.Body != nil {
+		t.Fatalf("stmt[0].AST.Body = %T, want nil", proc.Body)
+	}
+}
+
 func TestParseReturnsErrorForSQLPlusCommands(t *testing.T) {
 	sql := "SET DEFINE OFF\n" +
 		"PROMPT setup\n" +
