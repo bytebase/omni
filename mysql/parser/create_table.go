@@ -84,15 +84,14 @@ func (p *Parser) parseCreateTableStmt(temporary bool) (*nodes.CreateTableStmt, e
 	// Parenthesized create definitions (columns and constraints)
 	if p.cur.Type == '(' {
 		next := p.peekNext()
-		// Check for CREATE TABLE ... (SELECT ...) — subquery without AS
-		if next.Type == kwSELECT {
-			// CREATE TABLE t (SELECT ...)
-			p.advance() // consume '('
+		// Check for CREATE TABLE ... (query) — query source without AS. Let
+		// parseSelectStmt consume the parentheses and any following set-op /
+		// ORDER BY / LIMIT so "(SELECT 1) UNION (SELECT 2)" stays one source.
+		if next.Type == kwSELECT || next.Type == kwWITH || next.Type == '(' {
 			sel, err := p.parseSelectStmt()
 			if err != nil {
 				return nil, err
 			}
-			p.match(')')
 			stmt.Select = sel
 			stmt.Loc.End = p.pos()
 			return stmt, nil

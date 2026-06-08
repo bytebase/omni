@@ -594,6 +594,18 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 			writeNode(sb, n.Right)
 		}
 	}
+	if n.TableSource != nil {
+		sb.WriteString(" :table_source ")
+		writeNode(sb, n.TableSource)
+	}
+	if n.ValuesSource != nil {
+		sb.WriteString(" :values_source ")
+		writeNode(sb, n.ValuesSource)
+	}
+	if n.ParenSource != nil {
+		sb.WriteString(" :paren_source ")
+		writeNode(sb, n.ParenSource)
+	}
 	sb.WriteString("}")
 }
 

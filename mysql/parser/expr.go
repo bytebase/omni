@@ -138,6 +138,9 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}
+			if !p.isQueryExpressionStart() {
+				return nil, p.syntaxErrorAtCur()
+			}
 			subStart := p.pos()
 			sub, err := p.parseSubqueryExpr()
 			if err != nil {
@@ -1121,8 +1124,8 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume '('
 
-	// Check for subquery
-	if p.cur.Type == kwSELECT {
+	// Check for subquery.
+	if p.isQueryExpressionStart() {
 		sub, err := p.parseSubqueryExpr()
 		if err != nil {
 			return nil, err
@@ -1430,8 +1433,8 @@ func (p *Parser) parseInExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 		Expr: left,
 	}
 
-	// Check for subquery
-	if p.cur.Type == kwSELECT {
+	// Check for subquery.
+	if p.isQueryExpressionStart() {
 		sub, err := p.parseSubqueryExpr()
 		if err != nil {
 			return nil, err
@@ -1625,6 +1628,9 @@ func (p *Parser) parseExistsExpr() (nodes.ExprNode, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	if !p.isQueryExpressionStart() {
+		return nil, p.syntaxErrorAtCur()
+	}
 	sub, err := p.parseSubqueryExpr()
 	if err != nil {
 		return nil, err

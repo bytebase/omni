@@ -840,18 +840,25 @@ func extractViewColumns(sel *nodes.SelectStmt) []string {
 	if sel == nil {
 		return nil
 	}
+	// The result columns live on the leftmost output SELECT. Unwrap any
+	// parenthesized-query wrappers and walk set-operation left arms to reach it,
+	// so a parenthesized or set-op view body (CREATE VIEW v AS (SELECT a, b) or
+	// (SELECT 1 AS a) UNION (SELECT 2 AS a)) derives columns from that SELECT.
+	sel = nodes.LeftmostQueryLeaf(sel)
 	var cols []string
 	for _, target := range sel.TargetList {
-		rt, ok := target.(*nodes.ResTarget)
-		if !ok {
-			continue
-		}
-		if rt.Name != "" {
-			cols = append(cols, canonicalViewDerivedColumnName(rt.Name))
-		} else if cr, ok := rt.Val.(*nodes.ColumnRef); ok {
+		if rt, ok := target.(*nodes.ResTarget); ok {
+			if rt.Name != "" {
+				cols = append(cols, canonicalViewDerivedColumnName(rt.Name))
+			} else if cr, ok := rt.Val.(*nodes.ColumnRef); ok {
+				cols = append(cols, cr.Column)
+			} else {
+				cols = append(cols, canonicalViewDerivedColumnName(nodeToSQL(rt.Val)))
+			}
+		} else if cr, ok := target.(*nodes.ColumnRef); ok {
 			cols = append(cols, cr.Column)
 		} else {
-			cols = append(cols, canonicalViewDerivedColumnName(nodeToSQL(rt.Val)))
+			cols = append(cols, canonicalViewDerivedColumnName(nodeToSQL(target)))
 		}
 	}
 	return cols
