@@ -3023,3 +3023,33 @@ func TestAnalyze_CTEInSetOpOrderBySubquery(t *testing.T) {
 		t.Errorf("SortClause: want non-empty (ORDER BY present), got empty")
 	}
 }
+
+// TestAnalyze_NonLateralDerivedTableNoCorrelation locks the correlation
+// invariant: the CTE map flows into nested subqueries, but it must NOT carry
+// column correlation. A non-LATERAL derived table cannot see a column from a
+// sibling FROM item — TiDB v8.5.0 rejects this (Unknown column 't1.a'). This is
+// the negative guard for the analyzerScope.cteMap channel: a future change that
+// passed `scope` (column visibility) instead of only `scope.cteMap` would
+// silently re-break it, and this test would catch it.
+func TestAnalyze_NonLateralDerivedTableNoCorrelation(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "SELECT a FROM (SELECT 1 AS a) t1, (SELECT t1.a AS b) s")
+
+	if _, err := c.AnalyzeSelectStmt(sel); err == nil {
+		t.Errorf("expected error: non-LATERAL derived table must not resolve sibling column t1.a")
+	}
+}
+
+// TestAnalyze_CTEVisibilityDoesNotLeakCorrelation is the sharper form of the
+// invariant: even when the derived table genuinely references a CTE (so the CTE
+// map is flowing into it), it still must not gain column correlation to a
+// sibling FROM item. TiDB v8.5.0 rejects this (Unknown column 't1.a') despite
+// `cte` resolving fine.
+func TestAnalyze_CTEVisibilityDoesNotLeakCorrelation(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "WITH cte AS (SELECT 1 AS x) SELECT a FROM (SELECT 1 AS a) t1, (SELECT t1.a AS b FROM cte) s")
+
+	if _, err := c.AnalyzeSelectStmt(sel); err == nil {
+		t.Errorf("expected error: CTE visibility must not bring column correlation to sibling t1.a")
+	}
+}

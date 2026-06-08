@@ -41,7 +41,11 @@ func (c *Catalog) analyzeSelectStmtWithCTEs(stmt *nodes.SelectStmt, parentScope 
 		return nil, err
 	}
 
-	// Merge inherited CTE map (for recursive CTE self-references).
+	// Carry inherited CTEs that analyzeCTEs did not return. analyzeCTEs seeds
+	// the inherited map when this level has its own WITH, but early-returns nil
+	// when there is no local WITH — so without this a query that inherits CTEs
+	// (a subquery, or a CTE body referencing an earlier sibling / itself) but
+	// declares none of its own would lose them. No-op when already seeded.
 	if inheritedCTEMap != nil {
 		if cteMap == nil {
 			cteMap = make(map[string]*CommonTableExprQ)
