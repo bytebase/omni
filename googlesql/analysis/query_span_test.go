@@ -430,3 +430,41 @@ func TestGetQuerySpan_LambdaParamsExcluded(t *testing.T) {
 		t.Errorf("source columns = %v, want [arr threshold] (lambda param e excluded)", cols)
 	}
 }
+
+// TestGetQuerySpan_GQLEmptySpan pins the parser-gql query-span DISPOSITION
+// (finding F9): a GQL graph query (`GRAPH … MATCH … RETURN …`) yields an EMPTY
+// span — Type=Unknown, no AccessTables, no Results, no PredicateColumns. This is
+// faithful parity with the legacy bytebase GetQuerySpan, which short-circuits any
+// non-Select statement to `{Type: <unknown>, SourceColumns: {}, Results: []}`
+// (plugin/parser/{bigquery,spanner}/query_span_extractor.go getQuerySpan) and
+// whose accessTableListener walks only table_path_expression nodes — graph
+// element patterns reference labels, not table paths, so legacy records nothing
+// for a graph read either. Deferred-parity: a future source-table-discovery pass
+// over graph patterns is tracked as a divergence/follow-up, not implemented here.
+func TestGetQuerySpan_GQLEmptySpan(t *testing.T) {
+	cases := []string{
+		"GRAPH g MATCH (n) RETURN n",
+		"GRAPH g MATCH (a)-[e]->(b) WHERE a.id = b.id RETURN a, b",
+		"GRAPH myproject.mydataset.g MATCH (p:Person) RETURN p.name",
+	}
+	for _, sql := range cases {
+		for _, dialect := range []Dialect{DialectBigQuery, DialectSpanner} {
+			span, err := GetQuerySpan(sql, dialect)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q, %v) error: %v", sql, dialect, err)
+			}
+			if span.Type != Unknown {
+				t.Errorf("GetQuerySpan(%q, %v) Type = %v, want Unknown (legacy non-Select parity)", sql, dialect, span.Type)
+			}
+			if len(span.AccessTables) != 0 {
+				t.Errorf("GetQuerySpan(%q, %v) AccessTables = %v, want empty", sql, dialect, tableNames(span))
+			}
+			if len(span.Results) != 0 {
+				t.Errorf("GetQuerySpan(%q, %v) Results = %v, want empty", sql, dialect, resultNames(span))
+			}
+			if len(span.PredicateColumns) != 0 {
+				t.Errorf("GetQuerySpan(%q, %v) PredicateColumns = %v, want empty", sql, dialect, predicateColumnNames(span))
+			}
+		}
+	}
+}

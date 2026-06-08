@@ -205,6 +205,48 @@ func TestGQL_LabelExpression(t *testing.T) {
 	}
 }
 
+// TestGQL_LabelNotBindsTightest pins the label-expression precedence the legacy
+// .g4 gets WRONG and the oracle/official docs get right (finding F4). The .g4
+// lists the unary `EXCLAMATION_OPERATOR label_expression` alternative LAST, which
+// — read as ANTLR left-recursion precedence — would bind `!` LOOSEST, parsing
+// `!A & B` as `!(A & B)`. That is a hand-port slip. Standard GQL/ZetaSQL label-
+// expression precedence (ISO/IEC 39075 GQL: NOT binds tighter than AND tighter
+// than OR; ZetaSQL graph-patterns.md's own example `(p:(!Singer&!Writer))` only
+// parses as `(!Singer)&(!Writer)`) makes `!` bind TIGHTEST, so `!A & B` is
+// `(!A) & B`. omni builds `(!A) & B`; we DEFEND that and lock the AST shape here.
+// (See the divergence ledger: the .g4 operator order is backwards.)
+func TestGQL_LabelNotBindsTightest(t *testing.T) {
+	// !A & B  must be  (!A) & B  — top is AND, left is NOT(A), right is B.
+	g := gqlStmtOf(t, "GRAPH g MATCH (n:!A&B) RETURN n")
+	lbl := nodeFiller(t, g).Label
+	if lbl.Kind != ast.LabelAnd {
+		t.Fatalf("top kind = %v, want LabelAnd ((!A)&B, i.e. ! binds tighter than &)", lbl.Kind)
+	}
+	if lbl.Left.Kind != ast.LabelNot || lbl.Left.Operand.Name != "A" {
+		t.Errorf("AND left = %+v, want LabelNot(A)", lbl.Left)
+	}
+	if lbl.Right.Kind != ast.LabelName || lbl.Right.Name != "B" {
+		t.Errorf("AND right = %+v, want LabelName B", lbl.Right)
+	}
+
+	// !A | B  must be  (!A) | B  — top is OR, left is NOT(A), right is B.
+	g = gqlStmtOf(t, "GRAPH g MATCH (n:!A|B) RETURN n")
+	lbl = nodeFiller(t, g).Label
+	if lbl.Kind != ast.LabelOr {
+		t.Fatalf("top kind = %v, want LabelOr ((!A)|B)", lbl.Kind)
+	}
+	if lbl.Left.Kind != ast.LabelNot || lbl.Left.Operand.Name != "A" {
+		t.Errorf("OR left = %+v, want LabelNot(A)", lbl.Left)
+	}
+
+	// The ZetaSQL canonical example: !A & !B  ==  (!A) & (!B).
+	g = gqlStmtOf(t, "GRAPH g MATCH (n:!A&!B) RETURN n")
+	lbl = nodeFiller(t, g).Label
+	if lbl.Kind != ast.LabelAnd || lbl.Left.Kind != ast.LabelNot || lbl.Right.Kind != ast.LabelNot {
+		t.Errorf("!A & !B = %+v, want LabelAnd(LabelNot, LabelNot)", lbl)
+	}
+}
+
 // nodeFiller extracts the filler of the first node pattern of a single
 // MATCH-RETURN GQL statement.
 func nodeFiller(t *testing.T, g *ast.GQLStmt) *ast.GraphPatternFiller {
@@ -321,6 +363,144 @@ func TestGQL_ParenthesizedPath(t *testing.T) {
 	}
 	if sub.Where == nil {
 		t.Error("expected WHERE inside parenthesized path")
+	}
+}
+
+// parenSubPathOf extracts the first path factor of a single MATCH-RETURN GQL
+// statement and asserts it is a parenthesized sub-path (*ast.GraphPathPattern).
+func parenSubPathOf(t *testing.T, sql string) *ast.GraphPathPattern {
+	t.Helper()
+	g := gqlStmtOf(t, sql)
+	lq := linearOf(t, g)
+	m := lq.Operators[0].(*ast.GraphMatchOp)
+	sub, ok := m.Pattern.Paths[0].Factors[0].(*ast.GraphPathPattern)
+	if !ok {
+		t.Fatalf("%q: factor[0] is %T, want *ast.GraphPathPattern (parenthesized path)", sql, m.Pattern.Paths[0].Factors[0])
+	}
+	return sub
+}
+
+// TestGQL_ParenthesizedPathWithPrefix covers finding F1: a parenthesized path
+// whose interior begins with a path-pattern PREFIX — a path-variable assignment
+// (`p = …`), a search prefix (ANY / ALL [SHORTEST]), or a path-mode prefix
+// (WALK / TRAIL / SIMPLE / ACYCLIC). The .g4
+// `graph_parenthesized_path_pattern: '(' hint? graph_path_pattern …` admits the
+// full graph_path_pattern (prefixes included) inside the parens; the live Spanner
+// emulator accepts all of these. The disambiguator previously misrouted them to a
+// node pattern (and errored). These must parse as parenthesized sub-paths with
+// the prefix recorded on the inner path.
+func TestGQL_ParenthesizedPathWithPrefix(t *testing.T) {
+	// Path-variable assignment inside parens.
+	sub := parenSubPathOf(t, "GRAPH g MATCH (p = (a)-[e]->(b)) RETURN p")
+	if sub.PathVar != "p" {
+		t.Errorf("PathVar = %q, want p", sub.PathVar)
+	}
+	if len(sub.Factors) != 3 {
+		t.Errorf("inner factors = %d, want 3 (node, edge, node)", len(sub.Factors))
+	}
+
+	// Search prefix ANY.
+	if sub := parenSubPathOf(t, "GRAPH g MATCH (ANY (a)-[e]->(b)) RETURN a"); sub.Search != "ANY" {
+		t.Errorf("Search = %q, want ANY", sub.Search)
+	}
+
+	// Search prefix ALL SHORTEST.
+	if sub := parenSubPathOf(t, "GRAPH g MATCH (ALL SHORTEST (a)-[e]->(b)) RETURN a"); sub.Search != "ALL SHORTEST" {
+		t.Errorf("Search = %q, want 'ALL SHORTEST'", sub.Search)
+	}
+
+	// Path-mode prefix WALK.
+	if sub := parenSubPathOf(t, "GRAPH g MATCH (WALK (a)-[e]->(b)) RETURN a"); sub.Mode != "WALK" {
+		t.Errorf("Mode = %q, want WALK", sub.Mode)
+	}
+
+	// Combined prefix inside parens: var + search + mode.
+	sub = parenSubPathOf(t, "GRAPH g MATCH (q = ANY SHORTEST TRAIL (a)-[e]->(b)) RETURN q")
+	if sub.PathVar != "q" || sub.Search != "ANY SHORTEST" || sub.Mode != "TRAIL" {
+		t.Errorf("combined prefix = {var %q, search %q, mode %q}, want {q, 'ANY SHORTEST', TRAIL}", sub.PathVar, sub.Search, sub.Mode)
+	}
+}
+
+// TestGQL_HintedNodePattern covers finding F2: a node pattern whose filler starts
+// with a hint — `graph_element_pattern_filler: hint? opt_graph_element_identifier?
+// …`. The disambiguator previously treated the leading '@' as a parenthesized-
+// path opener and misparsed `(@{h} v:L)`. After consuming the optional leading
+// hint, the next token (`v`) reveals a node filler; the live emulator accepts it.
+func TestGQL_HintedNodePattern(t *testing.T) {
+	g := gqlStmtOf(t, "GRAPH g MATCH (@{force_index=idx} v:Person) RETURN v")
+	lq := linearOf(t, g)
+	m := lq.Operators[0].(*ast.GraphMatchOp)
+	node, ok := m.Pattern.Paths[0].Factors[0].(*ast.GraphNodePattern)
+	if !ok {
+		t.Fatalf("factor[0] is %T, want *ast.GraphNodePattern (hinted node)", m.Pattern.Paths[0].Factors[0])
+	}
+	if node.Filler.Var != "v" {
+		t.Errorf("node var = %q, want v", node.Filler.Var)
+	}
+	if node.Filler.Label == nil || node.Filler.Label.Name != "Person" {
+		t.Errorf("node label = %+v, want Person", node.Filler.Label)
+	}
+
+	// A hinted node with label only, no var (the hint is consumed at the '(' level,
+	// then the filler is `:Person`).
+	g = gqlStmtOf(t, "GRAPH g MATCH (@{h=1} :Person) RETURN 1")
+	f := nodeFiller(t, g)
+	if f.Var != "" || f.Label == nil || f.Label.Name != "Person" {
+		t.Errorf("hinted (:Person) filler = %+v, want var='' label=Person", f)
+	}
+}
+
+// TestGQL_TrailingPathFactorHintRejected covers finding F5: a hint between path
+// factors is part of a `(hint? graph_path_factor)` group, so it MUST be followed
+// by another factor. A TRAILING hint with no factor after it is a syntax error —
+// the live Spanner emulator rejects `(a) @{h} RETURN *` with
+// `Expected "(" or "-" or "<" or -> but got …`. The inter-factor form
+// `(a) @{h} (b)` stays valid (the emulator accepts it).
+func TestGQL_TrailingPathFactorHintRejected(t *testing.T) {
+	// Reject: trailing hint with no following factor.
+	assertReject(t, "GRAPH g MATCH (a) @{h=1} RETURN *")
+	assertReject(t, "GRAPH g MATCH (a)-[e]->(b) @{h=1} RETURN *")
+
+	// Accept: inter-factor hint followed by a factor.
+	for _, sql := range []string{
+		"GRAPH g MATCH (a) @{h=1} (b) RETURN *",
+		"GRAPH g MATCH (a)-[e]-> @{h=1} (b) RETURN *",
+	} {
+		if _, errs := Parse(sql); len(errs) != 0 {
+			t.Errorf("Parse(%q) should accept (inter-factor hint), got errs=%v", sql, errs)
+		}
+	}
+}
+
+// TestGQL_FillerWhereWithoutIdentifier covers finding F6: the where-bearing
+// graph_element_pattern_filler alternatives are written with
+// `opt_graph_element_identifier` (no trailing '?'), but opt_graph_element_identifier
+// is itself optional in practice — the live Spanner emulator ACCEPTS an inline
+// WHERE with NO element identifier, both with a label (`(:Person WHERE TRUE)`) and
+// bare (`(WHERE foo)`). omni accepts these (the filler treats the identifier as
+// optional); we DEFEND that with an accept test.
+func TestGQL_FillerWhereWithoutIdentifier(t *testing.T) {
+	// (:Person WHERE …): label + WHERE, no element identifier.
+	g := gqlStmtOf(t, "GRAPH g MATCH (:Person WHERE TRUE) RETURN 1")
+	f := nodeFiller(t, g)
+	if f.Var != "" {
+		t.Errorf("var = %q, want '' (no element identifier)", f.Var)
+	}
+	if f.Label == nil || f.Label.Name != "Person" {
+		t.Errorf("label = %+v, want Person", f.Label)
+	}
+	if f.Where == nil {
+		t.Error("expected inline WHERE")
+	}
+
+	// (WHERE …): bare WHERE, no identifier and no label.
+	g = gqlStmtOf(t, "GRAPH g MATCH (WHERE foo) RETURN 1")
+	f = nodeFiller(t, g)
+	if f.Var != "" || f.Label != nil {
+		t.Errorf("filler = %+v, want empty var + nil label", f)
+	}
+	if f.Where == nil {
+		t.Error("expected bare inline WHERE")
 	}
 }
 

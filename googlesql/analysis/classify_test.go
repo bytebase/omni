@@ -80,11 +80,25 @@ func TestClassifySQL(t *testing.T) {
 		{"grant role to role", "GRANT ROLE a TO ROLE b", DDL},
 		{"revoke role from role", "REVOKE ROLE a FROM ROLE b", DDL},
 
+		// --- DDL — CREATE PROPERTY GRAPH (parser-gql node). Every CREATE form is
+		// DDL; the legacy queryTypeListener lists create_property_graph_statement
+		// directly among the DDL alternatives. ---
+		{"create property graph", "CREATE PROPERTY GRAPH g NODE TABLES (Person)", DDL},
+		{"create or replace property graph", "CREATE OR REPLACE PROPERTY GRAPH g NODE TABLES (Person) EDGE TABLES (Knows SOURCE KEY (a) REFERENCES Person DESTINATION KEY (b) REFERENCES Person)", DDL},
+
 		// --- Unknown / empty ---
 		{"empty", "", Unknown},
 		{"whitespace only", "   \n  ", Unknown},
 		{"comment only", "-- just a comment\n", Unknown},
 		{"garbage", "this is not sql", Unknown},
+
+		// --- GQL graph query (parser-gql node). A bare `GRAPH … MATCH … RETURN …`
+		// read classifies UNKNOWN, NOT Select: the legacy queryTypeListener has no
+		// gql_statement case and falls through to `default: QueryTypeUnknown` in both
+		// dialects. This is deliberate parity (see Classify's GQLStmt case + the
+		// divergence ledger), so it lives with the Unknown group. ---
+		{"gql graph query", "GRAPH g MATCH (n) RETURN n", Unknown},
+		{"gql graph query with ops", "GRAPH g MATCH (a)-[e]->(b) WHERE a.id = 1 RETURN a, b", Unknown},
 	}
 
 	for _, tc := range tests {

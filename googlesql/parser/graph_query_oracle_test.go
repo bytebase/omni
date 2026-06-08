@@ -89,6 +89,20 @@ var gqlAcceptFixtures = []gqlOracleExpectation{
 	{"GRAPH g MATCH WALK PATHS (a)-[e]->(b) RETURN a", "accept", true, "path mode WALK PATHS"},
 	{"GRAPH g MATCH (a) (-[e]->){1,3} (b) RETURN a", "accept", true, "quantified parenthesized path"},
 	{"GRAPH g MATCH ((a)-[e]->(b) WHERE a.x > 0) RETURN a", "accept", true, "parenthesized path with WHERE"},
+	// ---- F1: parenthesized path whose interior begins with a path-pattern prefix
+	//      (path-var assignment / search / mode). graph_parenthesized_path_pattern
+	//      wraps the FULL graph_path_pattern (prefixes included). ----
+	{"GRAPH g MATCH (p = (a)-[e]->(b)) RETURN p", "accept", true, "F1: parenthesized path with path-variable assignment"},
+	{"GRAPH g MATCH (ANY (a)-[e]->(b)) RETURN a", "accept", true, "F1: parenthesized path with ANY search prefix"},
+	{"GRAPH g MATCH (ALL SHORTEST (a)-[e]->(b)) RETURN a", "accept", true, "F1: parenthesized path with ALL SHORTEST search prefix"},
+	{"GRAPH g MATCH (WALK (a)-[e]->(b)) RETURN a", "accept", true, "F1: parenthesized path with WALK path-mode prefix"},
+	// ---- F2: a node pattern whose filler starts with a hint. ----
+	{"GRAPH g MATCH (@{force_index=idx} v:Person) RETURN v", "accept", true, "F2: hinted node pattern filler"},
+	// ---- F6: inline WHERE in a filler with NO element identifier (opt_graph_element_identifier absent). ----
+	{"GRAPH g MATCH (:Person WHERE TRUE) RETURN 1", "accept", true, "F6: labeled filler with WHERE, no identifier"},
+	{"GRAPH g MATCH (WHERE foo) RETURN 1", "accept", true, "F6: bare WHERE filler, no identifier"},
+	// ---- F5: an inter-factor hint FOLLOWED by a factor is valid. ----
+	{"GRAPH g MATCH (a) @{h=1} (b) RETURN *", "accept", true, "F5: inter-factor hint followed by a node factor"},
 	// ---- linear operators ----
 	{"GRAPH g MATCH (n) LET x = n.age FILTER x > 18 RETURN x", "accept", true, "LET + bare FILTER"},
 	{"GRAPH g MATCH (n) FILTER WHERE n.age > 18 RETURN n", "accept", true, "FILTER WHERE form"},
@@ -144,6 +158,11 @@ var gqlRejectFixtures = []gqlOracleExpectation{
 	{"GRAPH g MATCH (n) LIMIT z RETURN n", "reject", false, "standalone-page LIMIT identifier"},
 	{"GRAPH g MATCH (a) (-[e]->){1+1,3} (b) RETURN a", "reject", false, "quantifier bound cannot be arithmetic"},
 	{"GRAPH g MATCH (n) TABLESAMPLE RESERVOIR (foo ROWS) RETURN n", "reject", false, "sample size must be numeric/param, not an identifier"},
+	// F5: a hint between factors belongs to a `(hint? graph_path_factor)` group, so a
+	// TRAILING hint with no factor after it is a syntax error (emulator: Expected "("
+	// or "-" or "<" or -> but got the next keyword).
+	{"GRAPH g MATCH (a) @{h=1} RETURN *", "reject", false, "F5: trailing path-factor hint with no following factor"},
+	{"GRAPH g MATCH (a)-[e]->(b) @{h=1} RETURN *", "reject", false, "F5: trailing path-factor hint after a full path"},
 	// CREATE PROPERTY GRAPH — OUTER-grammar true rejects (ledger 136).
 	{"CREATE OR REPLACE PROPERTY GRAPH IF NOT EXISTS g NODE TABLES (T)", "reject", false, "OR REPLACE + IF NOT EXISTS mutually exclusive (emulator: Error parsing Spanner DDL statement: ... cannot be used with other existence modifiers)"},
 	{"CREATE PROPERTY g NODE TABLES (T)", "reject", false, "PROPERTY without GRAPH (emulator outer DDL: Encountered 'PROPERTY')"},

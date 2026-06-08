@@ -870,45 +870,66 @@ func (p *Parser) parseGraphPathPattern() (*ast.GraphPathPattern, error) {
 		p.advance() // =
 	}
 
-	// opt_graph_search_prefix: (ANY|ALL) SHORTEST?.
+	// opt_graph_search_prefix: (ANY|ALL) SHORTEST?. ANY/ALL are also usable as
+	// bare graph_identifiers, so they are consumed as a search prefix only when
+	// graphPrefixKeywordContinues confirms a prefix follows (SHORTEST / a further
+	// prefix / a path-factor start) — NOT when the keyword is the first node's own
+	// identifier (e.g. the parenthesized path `( ANY )` is a single node named
+	// ANY). This is the same guard the disambiguator (atGraphPathPrefix) uses, so
+	// the two never disagree about whether a leading keyword is a prefix.
 	switch p.cur.Type {
 	case kwANY:
-		p.advance()
-		pp.Search = "ANY"
-		if p.cur.Type == kwSHORTEST {
+		if p.graphPrefixKeywordContinues(p.peekNext().Type) {
 			p.advance()
-			pp.Search = "ANY SHORTEST"
+			pp.Search = "ANY"
+			if p.cur.Type == kwSHORTEST {
+				p.advance()
+				pp.Search = "ANY SHORTEST"
+			}
 		}
 	case kwALL:
-		// ALL is also a set-quantifier; in a path-pattern prefix position it is the
-		// search prefix. It is only consumed as a search prefix here when followed
-		// by SHORTEST or by a path-factor start — but since a path-pattern always
-		// begins with a path factor, a bare leading ALL here is the search prefix.
-		p.advance()
-		pp.Search = "ALL"
-		if p.cur.Type == kwSHORTEST {
+		if p.graphPrefixKeywordContinues(p.peekNext().Type) {
 			p.advance()
-			pp.Search = "ALL SHORTEST"
+			pp.Search = "ALL"
+			if p.cur.Type == kwSHORTEST {
+				p.advance()
+				pp.Search = "ALL SHORTEST"
+			}
 		}
 	}
 
-	// opt_graph_path_mode_prefix: opt_graph_path_mode path_or_paths?.
+	// opt_graph_path_mode_prefix: opt_graph_path_mode path_or_paths?. The mode
+	// keywords are likewise usable as bare identifiers, so they are consumed as a
+	// mode prefix only when graphPrefixKeywordContinues confirms a prefix follows
+	// (PATH/PATHS / a further prefix / a path-factor start).
 	switch p.cur.Type {
 	case kwWALK, kwTRAIL, kwSIMPLE, kwACYCLIC:
-		mode := TokenName(p.cur.Type)
-		p.advance()
-		switch p.cur.Type {
-		case kwPATH:
+		if p.graphPrefixKeywordContinues(p.peekNext().Type) {
+			mode := TokenName(p.cur.Type)
 			p.advance()
-			mode += " PATH"
-		case kwPATHS:
-			p.advance()
-			mode += " PATHS"
+			switch p.cur.Type {
+			case kwPATH:
+				p.advance()
+				mode += " PATH"
+			case kwPATHS:
+				p.advance()
+				mode += " PATHS"
+			}
+			pp.Mode = mode
 		}
-		pp.Mode = mode
 	}
 
 	// graph_path_pattern_expr: graph_path_factor (hint? graph_path_factor)*.
+	//
+	// A hint between factors is part of a `(hint? graph_path_factor)` group, so a
+	// hint MUST be followed by another factor — a trailing hint with no factor
+	// after it is a syntax error (oracle F5: the live emulator rejects
+	// `(a) @{h} RETURN *` with `Expected "(" or "-" or "<" or -> but got …`). We
+	// therefore only consume a hint once we know a factor follows: if the next
+	// token is '@' we require either a factor right after the hint, or we leave the
+	// '@' for the caller (which would have its own hint position). Because the only
+	// position a trailing '@' could be consumed is here, we detect it and demand a
+	// factor.
 	for {
 		factor, err := p.parseGraphPathFactor()
 		if err != nil {
@@ -916,13 +937,19 @@ func (p *Parser) parseGraphPathPattern() (*ast.GraphPathPattern, error) {
 		}
 		pp.Factors = append(pp.Factors, factor)
 		pp.Loc.End = nodeLoc(factor).End
-		if p.cur.Type == int('@') {
-			if herr := p.skipHint(); herr != nil {
-				return nil, herr
+		if p.cur.Type != int('@') {
+			if !p.atGraphPathFactor() {
+				break
 			}
+			continue
+		}
+		// A '@' here opens a `hint? graph_path_factor` continuation. Consume the
+		// hint, then REQUIRE a following factor (F5).
+		if herr := p.skipHint(); herr != nil {
+			return nil, herr
 		}
 		if !p.atGraphPathFactor() {
-			break
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 	pp.Loc.Start = start
@@ -999,53 +1026,106 @@ func (p *Parser) parseGraphQuantifier(primary ast.Node) (ast.Node, error) {
 //	graph_element_pattern   |   graph_parenthesized_path_pattern
 //
 // A '(' begins either a node pattern `( <filler> )` or a parenthesized path
-// `( [hint] <path> [WHERE] )`. We disambiguate by looking past the '(': a node
-// pattern's filler is an element filler (identifier / label colon `:` / `IS` /
-// `{` / WHERE / empty `)`), whereas a parenthesized path's content begins with a
-// path-factor start (another '(' or an edge `-`/`<`/`->`) or a path-variable /
-// search / mode prefix.
+// `( [hint] <graph_path_pattern> [WHERE] )`. Both can carry a leading hint
+// (the node hint lives INSIDE the filler — graph_element_pattern_filler:
+// `hint? …`; the parenthesized-path hint sits between '(' and the path — and the
+// hint is discarded either way), so we consume '(' and any leading hint FIRST,
+// then disambiguate on the post-hint interior token. The parser has only
+// one-token lookahead, so peeking PAST a multi-token `@{…}` hint is impossible;
+// consuming it up front is what lets a hinted node `(@{h} v:L)` be recognized
+// (the disambiguation bug F2). The interior is a parenthesized PATH when it
+// begins with a nested path factor (another '(' or an edge `-`/`<`/`->`) or a
+// path-pattern prefix (path-variable assignment `id =`, search prefix ANY/ALL,
+// or path-mode prefix WALK/TRAIL/SIMPLE/ACYCLIC — bug F1); otherwise it is a
+// node-pattern filler (identifier / ':' / IS / '{' / WHERE / empty ')').
 func (p *Parser) parseGraphPathPrimary() (ast.Node, error) {
 	switch p.cur.Type {
 	case int('-'), int('<'), tokArrow:
 		return p.parseGraphEdgePattern()
 	case int('('):
-		if p.parenStartsParenthesizedPath() {
-			return p.parseGraphParenthesizedPath()
+		open := p.advance() // (
+		if p.cur.Type == int('@') {
+			if herr := p.skipHint(); herr != nil {
+				return nil, herr
+			}
 		}
-		return p.parseGraphNodePattern()
+		if p.interiorStartsParenthesizedPath() {
+			return p.parseGraphParenthesizedPathBody(open)
+		}
+		return p.parseGraphNodePatternBody(open)
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
 }
 
-// parenStartsParenthesizedPath decides, with cur at '(', whether the parenthesis
-// opens a graph_parenthesized_path_pattern (vs a graph_node_pattern). A
-// parenthesized path's interior begins with a nested path factor or a path
-// prefix; a node pattern's interior is an element filler. The discriminating
-// token right after '(' is:
-//   - another '(' or an edge start ('-', '<', '->')  => parenthesized path
-//     (a node filler never starts with one of these).
-//   - '@' (a leading hint)                           => parenthesized path.
+// interiorStartsParenthesizedPath decides, with cur positioned at the FIRST
+// interior token of a '(' group (after the '(' and any leading hint have already
+// been consumed), whether the group is a graph_parenthesized_path_pattern (vs a
+// graph_node_pattern). It is a parenthesized path when the interior begins with:
+//   - a path factor: another '(' or an edge start ('-', '<', '->') — a node
+//     filler never starts with one of these; or
+//   - a path-pattern prefix: a path-variable assignment (`id =`), a search
+//     prefix (ANY/ALL …), or a path-mode prefix (WALK/TRAIL/SIMPLE/ACYCLIC …) —
+//     see atGraphPathPrefix.
 //
-// Everything else (identifier, ':', IS, '{', WHERE, ')') is a node filler.
-func (p *Parser) parenStartsParenthesizedPath() bool {
-	switch p.peekNext().Type {
-	case int('('), int('-'), int('<'), tokArrow, int('@'):
+// Everything else (a bare identifier not followed by '=', ':', IS, '{', WHERE,
+// or an immediate ')') is a node-pattern filler.
+func (p *Parser) interiorStartsParenthesizedPath() bool {
+	switch p.cur.Type {
+	case int('('), int('-'), int('<'), tokArrow:
+		return true
+	}
+	return p.atGraphPathPrefix()
+}
+
+// atGraphPathPrefix reports whether cur is at the start of a graph_path_pattern
+// prefix — opt_path_variable_assignment? opt_graph_search_prefix?
+// opt_graph_path_mode_prefix? — using the SAME detection parseGraphPathPattern
+// applies when it consumes those prefixes (kept in lockstep so the disambiguator
+// and the consumer never disagree):
+//   - path-variable assignment: an identifier IMMEDIATELY followed by '='.
+//   - search prefix: ANY or ALL. These are also usable as bare graph_identifiers,
+//     so they are a prefix only when followed by SHORTEST or by something that
+//     starts a path factor / further prefix — NOT when followed by a filler
+//     continuation (':', IS, '{', WHERE) or a closing ')'.
+//   - path-mode prefix: WALK/TRAIL/SIMPLE/ACYCLIC, with the same
+//     identifier-vs-prefix disambiguation (a prefix only when followed by
+//     PATH/PATHS or a path-factor / further-prefix start).
+func (p *Parser) atGraphPathPrefix() bool {
+	switch p.cur.Type {
+	case kwANY, kwALL, kwWALK, kwTRAIL, kwSIMPLE, kwACYCLIC:
+		return p.graphPrefixKeywordContinues(p.peekNext().Type)
+	}
+	// opt_path_variable_assignment: graph_identifier '='.
+	return isIdentifierStart(p.cur.Type) && p.peekNext().Type == int('=')
+}
+
+// graphPrefixKeywordContinues reports whether a token following a search/mode
+// prefix keyword (ANY/ALL/WALK/TRAIL/SIMPLE/ACYCLIC) confirms that the keyword
+// introduces a path-pattern prefix rather than standing in as a node-filler
+// identifier. A prefix continues into another prefix word (SHORTEST after
+// ANY/ALL; PATH/PATHS after a mode; or a further mode/search keyword) or
+// directly into a path factor ('(' or an edge). A following filler-continuation
+// (':', IS, '{', WHERE) or a closing ')' means the keyword was the node's own
+// identifier, so it does NOT continue.
+func (p *Parser) graphPrefixKeywordContinues(next int) bool {
+	switch next {
+	case kwSHORTEST, kwPATH, kwPATHS,
+		kwANY, kwALL, kwWALK, kwTRAIL, kwSIMPLE, kwACYCLIC,
+		int('('), int('-'), int('<'), tokArrow:
 		return true
 	}
 	return false
 }
 
-// parseGraphParenthesizedPath parses a graph_parenthesized_path_pattern:
+// parseGraphParenthesizedPathBody parses the body of a
+// graph_parenthesized_path_pattern after its '(' (and any leading hint) have
+// already been consumed by parseGraphPathPrimary:
 //
-//	( [hint] <graph_path_pattern> [WHERE <expr>] )
-func (p *Parser) parseGraphParenthesizedPath() (ast.Node, error) {
-	open := p.advance() // (
-	if p.cur.Type == int('@') {
-		if herr := p.skipHint(); herr != nil {
-			return nil, herr
-		}
-	}
+//	<graph_path_pattern> [WHERE <expr>] )
+//
+// open is the already-consumed '(' token (for the Loc start).
+func (p *Parser) parseGraphParenthesizedPathBody(open Token) (ast.Node, error) {
 	path, err := p.parseGraphPathPattern()
 	if err != nil {
 		return nil, err
@@ -1068,12 +1148,17 @@ func (p *Parser) parseGraphParenthesizedPath() (ast.Node, error) {
 	return path, nil
 }
 
-// parseGraphNodePattern parses a graph_node_pattern: `( <filler> )`.
-func (p *Parser) parseGraphNodePattern() (ast.Node, error) {
-	open, err := p.expect(int('('))
-	if err != nil {
-		return nil, err
-	}
+// parseGraphNodePatternBody parses the body of a graph_node_pattern after its
+// '(' (and any leading hint) have already been consumed by
+// parseGraphPathPrimary:
+//
+//	<filler> )
+//
+// open is the already-consumed '(' token (for the Loc start). The filler's own
+// optional leading hint has already been skipped at the '(' level, so any '@'
+// the filler parser sees here would be a SECOND hint (the grammar admits at most
+// one — a stray one is a syntax error from parseGraphPatternFiller's tail).
+func (p *Parser) parseGraphNodePatternBody(open Token) (ast.Node, error) {
 	filler, err := p.parseGraphPatternFiller()
 	if err != nil {
 		return nil, err
