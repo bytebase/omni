@@ -564,19 +564,18 @@ func TestUtility_LegacyCorpus(t *testing.T) {
 }
 
 // utilityDollarLimited matches the corpus statements that are owned by this node
-// but cannot yet parse because the shared expression / table-reference parser
-// (T3/T5) does not implement the $N result-set reference or $var session-variable
-// reference. They are excluded from the zero-error corpus assertion and tracked
-// as a flagged divergence; their root cause is the dependency, not this node's
-// grammar. When the expression/table-ref parser gains $-support, these will
-// parse with no change to this node.
+// but cannot yet parse because the shared table-reference parser (T5) does not
+// implement the $N result-set reference (FROM $1). They are excluded from the
+// zero-error corpus assertion and tracked as a flagged divergence; their root
+// cause is the dependency, not this node's grammar. When the table-ref parser
+// gains $-support, these will parse with no change to this node.
+//
+// NOTE: the expression-position $var case (SET (min, max) = (50, 2 * $min),
+// set/example_06) used to live here but now parses since the expression parser
+// gained $-support — it has been removed from this filter.
 func utilityDollarLimited(upper string) bool {
 	// SHOW ... ->> SELECT ... FROM $1 ...   (show-tables/example_07..09)
 	if strings.Contains(upper, "->>") && strings.Contains(upper, "$1") {
-		return true
-	}
-	// SET (min, max) = (50, 2 * $min)       (set/example_06)
-	if strings.HasPrefix(upper, "SET") && strings.Contains(upper, "$") {
 		return true
 	}
 	return false
