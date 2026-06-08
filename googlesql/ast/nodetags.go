@@ -263,6 +263,28 @@ const (
 	T_UnpivotClause
 	T_UnpivotInItem
 	T_SampleClause
+
+	// Procedural / scripting statements (parser-scripting node). The control-flow
+	// and variable statements of BigQuery's procedural language
+	// (GoogleSQLParser.g4 §2.11): a hand-port of ZetaSQL's script statement_list.
+	T_DeclareStmt
+	T_SetStmt
+	T_IfStmt
+	T_ElseIfClause
+	T_CaseStmt
+	T_WhenThenClause
+	T_WhileStmt
+	T_LoopStmt
+	T_RepeatStmt
+	T_ForInStmt
+	T_BeginEndBlock
+	T_BreakStmt
+	T_ContinueStmt
+	T_ReturnStmt
+	T_RaiseStmt
+	T_ExecuteImmediateStmt
+	T_UsingArg
+	T_LabeledStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -592,6 +614,42 @@ func (t NodeTag) String() string {
 		return "UnpivotInItem"
 	case T_SampleClause:
 		return "SampleClause"
+	case T_DeclareStmt:
+		return "DeclareStmt"
+	case T_SetStmt:
+		return "SetStmt"
+	case T_IfStmt:
+		return "IfStmt"
+	case T_ElseIfClause:
+		return "ElseIfClause"
+	case T_CaseStmt:
+		return "CaseStmt"
+	case T_WhenThenClause:
+		return "WhenThenClause"
+	case T_WhileStmt:
+		return "WhileStmt"
+	case T_LoopStmt:
+		return "LoopStmt"
+	case T_RepeatStmt:
+		return "RepeatStmt"
+	case T_ForInStmt:
+		return "ForInStmt"
+	case T_BeginEndBlock:
+		return "BeginEndBlock"
+	case T_BreakStmt:
+		return "BreakStmt"
+	case T_ContinueStmt:
+		return "ContinueStmt"
+	case T_ReturnStmt:
+		return "ReturnStmt"
+	case T_RaiseStmt:
+		return "RaiseStmt"
+	case T_ExecuteImmediateStmt:
+		return "ExecuteImmediateStmt"
+	case T_UsingArg:
+		return "UsingArg"
+	case T_LabeledStmt:
+		return "LabeledStmt"
 	default:
 		return "Unknown"
 	}

@@ -91,6 +91,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.OnTable != nil {
 			Walk(v, n.OnTable)
 		}
+	case *BeginEndBlock:
+		walkNodes(v, n.Body)
+		walkNodes(v, n.Exception)
 	case *BetweenExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.Low)
@@ -123,6 +126,12 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, c)
 		}
 		Walk(v, n.Else)
+	case *CaseStmt:
+		Walk(v, n.Operand)
+		for _, c := range n.Whens {
+			Walk(v, c)
+		}
+		walkNodes(v, n.Else)
 	case *CastExpr:
 		Walk(v, n.Expr)
 		if n.Type != nil {
@@ -353,6 +362,14 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, c)
 		}
 		Walk(v, n.AsQuery)
+	case *DeclareStmt:
+		for _, c := range n.Names {
+			Walk(v, c)
+		}
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		Walk(v, n.Default)
 	case *DeleteStmt:
 		if n.Target != nil {
 			Walk(v, n.Target)
@@ -405,6 +422,17 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Labels {
 			Walk(v, c)
 		}
+	case *ElseIfClause:
+		Walk(v, n.Cond)
+		walkNodes(v, n.Then)
+	case *ExecuteImmediateStmt:
+		Walk(v, n.SQL)
+		for _, c := range n.Into {
+			Walk(v, c)
+		}
+		for _, c := range n.Using {
+			Walk(v, c)
+		}
 	case *ExistsExpr:
 		Walk(v, n.Query)
 	case *ExportDataStmt:
@@ -432,6 +460,14 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Expr)
 	case *File:
 		walkNodes(v, n.Stmts)
+	case *ForInStmt:
+		if n.Var != nil {
+			Walk(v, n.Var)
+		}
+		if n.Query != nil {
+			Walk(v, n.Query)
+		}
+		walkNodes(v, n.Body)
 	case *ForeignKeyRef:
 		if n.Table != nil {
 			Walk(v, n.Table)
@@ -574,6 +610,13 @@ func walkChildren(v Visitor, node Node) {
 		walkNodes(v, n.Items)
 	case *HavingModifier:
 		Walk(v, n.Expr)
+	case *IfStmt:
+		Walk(v, n.Cond)
+		walkNodes(v, n.Then)
+		for _, c := range n.ElseIf {
+			Walk(v, c)
+		}
+		walkNodes(v, n.Else)
 	case *InExpr:
 		Walk(v, n.Expr)
 		walkNodes(v, n.Values)
@@ -632,6 +675,8 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.PropsList {
 			Walk(v, c)
 		}
+	case *LabeledStmt:
+		Walk(v, n.Stmt)
 	case *LambdaExpr:
 		Walk(v, n.Body)
 	case *LikeExpr:
@@ -662,6 +707,8 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.PartitionColumns {
 			Walk(v, c)
 		}
+	case *LoopStmt:
+		walkNodes(v, n.Body)
 	case *MergeAction:
 		if n.InsertRow != nil {
 			Walk(v, n.InsertRow)
@@ -727,6 +774,8 @@ func walkChildren(v Visitor, node Node) {
 		}
 		Walk(v, n.Limit)
 		Walk(v, n.Offset)
+	case *RaiseStmt:
+		Walk(v, n.Message)
 	case *RecursionDepth:
 		Walk(v, n.Lower)
 		Walk(v, n.Upper)
@@ -738,6 +787,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.To != nil {
 			Walk(v, n.To)
 		}
+	case *RepeatStmt:
+		walkNodes(v, n.Body)
+		Walk(v, n.Until)
 	case *ReplaceFieldsExpr:
 		Walk(v, n.Expr)
 		for _, c := range n.Items {
@@ -802,6 +854,12 @@ func walkChildren(v Visitor, node Node) {
 	case *SetOperation:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
+	case *SetStmt:
+		walkNodes(v, n.Targets)
+		Walk(v, n.Value)
+		for _, c := range n.Modes {
+			Walk(v, c)
+		}
 	case *StarExpr:
 		if n.Modifiers != nil {
 			Walk(v, n.Modifiers)
@@ -906,6 +964,8 @@ func walkChildren(v Visitor, node Node) {
 		if n.Returning != nil {
 			Walk(v, n.Returning)
 		}
+	case *UsingArg:
+		Walk(v, n.Value)
 	case *ViewColumn:
 		for _, c := range n.Options {
 			Walk(v, c)
@@ -913,6 +973,12 @@ func walkChildren(v Visitor, node Node) {
 	case *WhenClause:
 		Walk(v, n.Cond)
 		Walk(v, n.Result)
+	case *WhenThenClause:
+		Walk(v, n.Cond)
+		walkNodes(v, n.Then)
+	case *WhileStmt:
+		Walk(v, n.Cond)
+		walkNodes(v, n.Body)
 	case *WindowDef:
 		if n.Spec != nil {
 			Walk(v, n.Spec)

@@ -209,6 +209,20 @@ func Split(input string) []Segment {
 
 		switch state {
 		case stateTop:
+			// A statement-leading `label:` prefix introduces a labeled procedural
+			// block (`label: BEGIN|LOOP|WHILE|REPEAT|FOR …`, GoogleSQLParser.g4
+			// unterminated_script_statement's labeled alternative). The label name
+			// and its ':' must stay TRANSPARENT to statement-leading position so the
+			// block opener that follows still opens a block — otherwise the block's
+			// internal ';' would split the labeled statement. Consume the ':' here
+			// and keep atStmtStart true. (Only a non-reserved identifier can be a
+			// bare label; a reserved word would be backtick-quoted → tokIdentifier.)
+			if atStmtStart && isIdentifierStart(tok.Type) && peekToken().Type == int(':') {
+				nextToken() // consume ':'
+				// atStmtStart stays true: the next token (the block opener) is still
+				// statement-leading.
+				continue
+			}
 			switch tok.Type {
 			case kwBEGIN:
 				// BEGIN opens a procedural block whenever the following token is
