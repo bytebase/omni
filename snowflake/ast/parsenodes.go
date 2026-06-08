@@ -5124,3 +5124,344 @@ var (
 	_ Node = (*ExecuteTaskStmt)(nil)
 	_ Node = (*ExplainStmt)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// Snowflake Scripting (T7.1)
+//
+// A Snowflake Scripting block is a structured procedural body that may appear
+// as a top-level statement (an anonymous block) or as the body of a CREATE
+// PROCEDURE / TASK. These nodes model the body STRUCTURALLY: the block, its
+// declarations, its statements, and the control-flow constructs (IF / CASE /
+// FOR / WHILE / REPEAT / LOOP / cursors / exceptions). Expressions and nested
+// SQL are parsed by the engine's existing parseExpr / parseStmt machinery.
+//
+// Grammar (Snowflake Scripting reference; docs are authoritative — the legacy
+// SnowflakeParser.g4 modeled only a thin subset: BEGIN..END, a DECLARE list of
+// `id data_type`, `id := expr`, and `RETURN expr`):
+//
+//	[ DECLARE <declaration>; [ <declaration>; ... ] ]
+//	BEGIN
+//	    <statement>; [ <statement>; ... ]
+//	[ EXCEPTION <handler> ... ]
+//	END [ <label> ] ;
+//
+// Walker note: the structural sub-nodes (ScriptDeclaration, ScriptIfBranch,
+// ScriptCaseWhen, ScriptExceptionHandler) ARE Nodes and are held in []Node
+// slices, so the generated walker descends into the nested bodies and queries
+// they carry. (This deviates from the CaseExpr/WhenClause precedent, whose WHEN
+// bodies are unreachable — a gap an analysis pass over scripting must not have.)
+// ---------------------------------------------------------------------------
+
+// ScriptDeclKind classifies a single entry in a DECLARE section.
+type ScriptDeclKind int
+
+const (
+	// ScriptDeclVar is `<name> [<type>] [ { DEFAULT | := } <expr> ]`.
+	ScriptDeclVar ScriptDeclKind = iota
+	// ScriptDeclCursor is `<name> CURSOR FOR <query>`.
+	ScriptDeclCursor
+	// ScriptDeclResultset is `<name> RESULTSET [ { DEFAULT | := } [ ASYNC ] ( <query> ) ]`.
+	ScriptDeclResultset
+	// ScriptDeclException is `<name> EXCEPTION [ ( <number>, '<message>' ) ]`.
+	ScriptDeclException
+)
+
+// ScriptDeclaration is one entry in a DECLARE section. The active fields depend
+// on Kind:
+//
+//	ScriptDeclVar       — Name, optional Type, optional Default (the := / DEFAULT value)
+//	ScriptDeclCursor    — Name, Query (the SELECT after CURSOR FOR)
+//	ScriptDeclResultset — Name, optional Query (the ( <query> ) after := / DEFAULT), Async
+//	ScriptDeclException — Name, optional ExcArgs (the ( number, 'message' ) expr list)
+type ScriptDeclaration struct {
+	Kind    ScriptDeclKind
+	Name    Ident
+	Type    *TypeName // ScriptDeclVar only; nil when the type is inferred from the value
+	Default Node      // ScriptDeclVar value (DEFAULT / := expr); nil if none
+	Query   Node      // ScriptDeclCursor query; ScriptDeclResultset query; nil otherwise
+	Async   bool      // ScriptDeclResultset: the ASYNC modifier was present
+	ExcArgs []Node    // ScriptDeclException ( number, 'message' ) args; nil if none
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ScriptDeclaration) Tag() NodeTag { return T_ScriptDeclaration }
+
+// ScriptBlockStmt represents a Snowflake Scripting block:
+//
+//	[ DECLARE <decls> ] BEGIN <stmts> [ EXCEPTION <handlers> ] END [ <label> ]
+//
+// Decls is nil when there is no DECLARE section (elements are
+// *ScriptDeclaration). Handlers is nil when there is no EXCEPTION section
+// (elements are *ScriptExceptionHandler). Label is the zero Ident when END
+// carries no label.
+type ScriptBlockStmt struct {
+	Decls    []Node // *ScriptDeclaration entries
+	Body     []Node // BEGIN ... statements
+	Handlers []Node // *ScriptExceptionHandler entries
+	Label    Ident  // optional label after END; zero Ident when absent
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *ScriptBlockStmt) Tag() NodeTag { return T_ScriptBlockStmt }
+
+// ScriptExceptionHandler is one WHEN clause in an EXCEPTION section:
+//
+//	WHEN <exc_name> [ OR <exc_name> ... ] THEN <stmts>
+//	WHEN OTHER THEN <stmts>
+//
+// Other is true for the `WHEN OTHER` catch-all (in which case Names is nil).
+type ScriptExceptionHandler struct {
+	Names []Ident // exception names (OR-separated); nil when Other is true
+	Other bool    // WHEN OTHER catch-all
+	Body  []Node  // statements after THEN
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptExceptionHandler) Tag() NodeTag { return T_ScriptExceptionHandler }
+
+// ScriptAssignStmt represents a scripting assignment `<var> := <expr>`. The
+// target may be a qualified name (e.g. a RESULTSET) but is captured as a plain
+// Ident path component; only single-identifier targets occur in practice.
+type ScriptAssignStmt struct {
+	Target Ident
+	Value  Node
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ScriptAssignStmt) Tag() NodeTag { return T_ScriptAssignStmt }
+
+// ScriptLetStmt represents a LET declaration-statement inside a block:
+//
+//	LET <var> [ <type> ] { DEFAULT | := } <expr>
+//	LET <cursor> CURSOR FOR <query>
+//	LET <resultset> RESULTSET { DEFAULT | := } [ ASYNC ] ( <query> )
+//
+// Kind reuses ScriptDeclKind (LET cannot declare an EXCEPTION; only Var /
+// Cursor / Resultset are valid). The active fields mirror ScriptDeclaration.
+type ScriptLetStmt struct {
+	Kind    ScriptDeclKind
+	Name    Ident
+	Type    *TypeName // Var only; nil when inferred
+	Default Node      // Var value; nil if none (a LET var always has a value, but kept Node-typed)
+	Query   Node      // Cursor / Resultset query
+	Async   bool      // Resultset ASYNC
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ScriptLetStmt) Tag() NodeTag { return T_ScriptLetStmt }
+
+// ScriptIfBranch is one IF / ELSEIF arm: a condition plus its THEN body.
+type ScriptIfBranch struct {
+	Cond Node
+	Body []Node
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *ScriptIfBranch) Tag() NodeTag { return T_ScriptIfBranch }
+
+// ScriptIfStmt represents an IF statement:
+//
+//	IF ( <cond> ) THEN <stmts>
+//	[ ELSEIF ( <cond> ) THEN <stmts> ]*
+//	[ ELSE <stmts> ]
+//	END IF
+//
+// Branches holds the leading IF arm followed by each ELSEIF arm (in order;
+// elements are *ScriptIfBranch). Else holds the optional ELSE body (nil when
+// absent).
+type ScriptIfStmt struct {
+	Branches []Node // *ScriptIfBranch entries
+	Else     []Node
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *ScriptIfStmt) Tag() NodeTag { return T_ScriptIfStmt }
+
+// ScriptCaseWhen is one WHEN arm of a CASE statement: a match/condition
+// expression plus its THEN body.
+type ScriptCaseWhen struct {
+	Match Node // simple form: value to compare; searched form: boolean condition
+	Body  []Node
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptCaseWhen) Tag() NodeTag { return T_ScriptCaseWhen }
+
+// ScriptCaseStmt represents a CASE statement (simple or searched):
+//
+//	CASE [ ( <operand> ) ] WHEN <expr> THEN <stmts> [ WHEN ... ]* [ ELSE <stmts> ] END [ CASE ]
+//
+// Operand is non-nil for the simple form (CASE <expr> WHEN ...) and nil for the
+// searched form (CASE WHEN <cond> ...). Whens elements are *ScriptCaseWhen.
+// Else holds the optional ELSE body.
+type ScriptCaseStmt struct {
+	Operand Node   // nil for searched form
+	Whens   []Node // *ScriptCaseWhen entries
+	Else    []Node
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ScriptCaseStmt) Tag() NodeTag { return T_ScriptCaseStmt }
+
+// ScriptForKind distinguishes the counter and cursor/resultset FOR forms.
+type ScriptForKind int
+
+const (
+	// ScriptForCounter is `FOR <var> IN [ REVERSE ] <start> TO <end> { DO | LOOP } ... END { FOR | LOOP }`.
+	ScriptForCounter ScriptForKind = iota
+	// ScriptForCursor is `FOR <row> IN { <cursor> | <resultset> } DO ... END FOR`.
+	ScriptForCursor
+)
+
+// ScriptForStmt represents a FOR loop in either form.
+//
+// Counter form fields: Var, Reverse, Start, End.
+// Cursor form fields:  Var, Source (the cursor / resultset name).
+type ScriptForStmt struct {
+	Kind    ScriptForKind
+	Var     Ident
+	Reverse bool  // counter form: the REVERSE modifier
+	Start   Node  // counter form: lower bound
+	End     Node  // counter form: upper bound
+	Source  Ident // cursor form: the cursor / resultset name
+	Body    []Node
+	Label   Ident // optional label after END; zero Ident when absent
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *ScriptForStmt) Tag() NodeTag { return T_ScriptForStmt }
+
+// ScriptWhileStmt represents `WHILE ( <cond> ) { DO | LOOP } ... END { WHILE | LOOP } [ <label> ]`.
+type ScriptWhileStmt struct {
+	Cond  Node
+	Body  []Node
+	Label Ident // optional label after END; zero Ident when absent
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptWhileStmt) Tag() NodeTag { return T_ScriptWhileStmt }
+
+// ScriptRepeatStmt represents `REPEAT ... UNTIL ( <cond> ) END REPEAT [ <label> ]`.
+type ScriptRepeatStmt struct {
+	Body  []Node
+	Cond  Node  // the UNTIL condition
+	Label Ident // optional label after END; zero Ident when absent
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptRepeatStmt) Tag() NodeTag { return T_ScriptRepeatStmt }
+
+// ScriptLoopStmt represents `LOOP ... END LOOP [ <label> ]`.
+type ScriptLoopStmt struct {
+	Body  []Node
+	Label Ident // optional label after END; zero Ident when absent
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptLoopStmt) Tag() NodeTag { return T_ScriptLoopStmt }
+
+// ScriptBreakStmt represents `BREAK [ <label> ]` (alias EXIT). Label is the
+// zero Ident when no label follows.
+type ScriptBreakStmt struct {
+	Label Ident
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptBreakStmt) Tag() NodeTag { return T_ScriptBreakStmt }
+
+// ScriptContinueStmt represents `CONTINUE [ <label> ]` (alias ITERATE). Label
+// is the zero Ident when no label follows.
+type ScriptContinueStmt struct {
+	Label Ident
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptContinueStmt) Tag() NodeTag { return T_ScriptContinueStmt }
+
+// ScriptReturnStmt represents `RETURN [ <expr> ]`. Value is nil for a bare
+// RETURN.
+type ScriptReturnStmt struct {
+	Value Node
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ScriptReturnStmt) Tag() NodeTag { return T_ScriptReturnStmt }
+
+// ScriptOpenStmt represents `OPEN <cursor> [ USING ( <bind> [ , ... ] ) ]`.
+type ScriptOpenStmt struct {
+	Cursor Ident
+	Using  []Node // optional USING ( ... ) bind expressions; nil when absent
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ScriptOpenStmt) Tag() NodeTag { return T_ScriptOpenStmt }
+
+// ScriptFetchStmt represents `FETCH <cursor> INTO <var> [ , ... ]`.
+type ScriptFetchStmt struct {
+	Cursor Ident
+	Into   []Ident // target variables
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ScriptFetchStmt) Tag() NodeTag { return T_ScriptFetchStmt }
+
+// ScriptCloseStmt represents `CLOSE <cursor>`.
+type ScriptCloseStmt struct {
+	Cursor Ident
+	Loc    Loc
+}
+
+// Tag implements Node.
+func (n *ScriptCloseStmt) Tag() NodeTag { return T_ScriptCloseStmt }
+
+// ScriptRaiseStmt represents `RAISE [ <exc_name> ]`. Name is the zero Ident for
+// a bare `RAISE` (re-raise the current exception inside a handler).
+type ScriptRaiseStmt struct {
+	Name Ident
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *ScriptRaiseStmt) Tag() NodeTag { return T_ScriptRaiseStmt }
+
+// Compile-time assertions for Snowflake Scripting nodes (T7.1).
+var (
+	_ Node = (*ScriptDeclaration)(nil)
+	_ Node = (*ScriptExceptionHandler)(nil)
+	_ Node = (*ScriptIfBranch)(nil)
+	_ Node = (*ScriptCaseWhen)(nil)
+	_ Node = (*ScriptBlockStmt)(nil)
+	_ Node = (*ScriptAssignStmt)(nil)
+	_ Node = (*ScriptLetStmt)(nil)
+	_ Node = (*ScriptIfStmt)(nil)
+	_ Node = (*ScriptCaseStmt)(nil)
+	_ Node = (*ScriptForStmt)(nil)
+	_ Node = (*ScriptWhileStmt)(nil)
+	_ Node = (*ScriptRepeatStmt)(nil)
+	_ Node = (*ScriptLoopStmt)(nil)
+	_ Node = (*ScriptBreakStmt)(nil)
+	_ Node = (*ScriptContinueStmt)(nil)
+	_ Node = (*ScriptReturnStmt)(nil)
+	_ Node = (*ScriptOpenStmt)(nil)
+	_ Node = (*ScriptFetchStmt)(nil)
+	_ Node = (*ScriptCloseStmt)(nil)
+	_ Node = (*ScriptRaiseStmt)(nil)
+)

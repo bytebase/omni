@@ -1032,4 +1032,26 @@ var keywordMap = map[string]int{
 	"yearly":                                   kwYEARLY,
 	"zstd":                                     kwZSTD,
 	// KEYWORD_MAP_END
+
+	// Snowflake Scripting keywords (T7.1). Not present in SnowflakeLexer.g4's
+	// generated set; all NON-RESERVED (absent from keywordReserved), so they
+	// remain usable as ordinary identifiers via parseIdent / isIdentToken.
+	"while":     kwSCRIPT_WHILE,
+	"loop":      kwSCRIPT_LOOP,
+	"repeat":    kwSCRIPT_REPEAT,
+	"until":     kwSCRIPT_UNTIL,
+	"let":       kwSCRIPT_LET,
+	"break":     kwSCRIPT_BREAK,
+	"exception": kwSCRIPT_EXCEPTION,
+	"raise":     kwSCRIPT_RAISE,
+	"cursor":    kwSCRIPT_CURSOR,
+	"resultset": kwSCRIPT_RESULTSET,
+	"reverse":   kwSCRIPT_REVERSE,
+	"async":     kwSCRIPT_ASYNC,
+	"other":     kwSCRIPT_OTHER,
+	"exit":      kwSCRIPT_EXIT,
+	"iterate":   kwSCRIPT_ITERATE,
+	"open":      kwSCRIPT_OPEN,
+	"close":     kwSCRIPT_CLOSE,
+	"elseif":    kwSCRIPT_ELSEIF,
 }
