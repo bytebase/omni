@@ -156,7 +156,7 @@ func analyzeInExpr(c *Catalog, expr *nodes.InExpr, scope *analyzerScope) (Analyz
 
 	if expr.Select != nil {
 		// IN (SELECT ...) / NOT IN (SELECT ...)
-		innerQ, err := c.analyzeSelectStmtInternal(expr.Select, scope)
+		innerQ, err := c.analyzeSelectStmtWithCTEs(expr.Select, scope, scope.cteMap)
 		if err != nil {
 			return nil, err
 		}
@@ -331,7 +331,7 @@ func dataTypeToResolvedType(dt *nodes.DataType) *ResolvedType {
 
 // analyzeScalarSubquery resolves a scalar subquery expression: (SELECT ...).
 func analyzeScalarSubquery(c *Catalog, subq *nodes.SubqueryExpr, scope *analyzerScope) (AnalyzedExpr, error) {
-	innerQ, err := c.analyzeSelectStmtInternal(subq.Select, scope)
+	innerQ, err := c.analyzeSelectStmtWithCTEs(subq.Select, scope, scope.cteMap)
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +343,7 @@ func analyzeScalarSubquery(c *Catalog, subq *nodes.SubqueryExpr, scope *analyzer
 
 // analyzeExistsSubquery resolves an EXISTS (SELECT ...) expression.
 func analyzeExistsSubquery(c *Catalog, expr *nodes.ExistsExpr, scope *analyzerScope) (AnalyzedExpr, error) {
-	innerQ, err := c.analyzeSelectStmtInternal(expr.Select, scope)
+	innerQ, err := c.analyzeSelectStmtWithCTEs(expr.Select, scope, scope.cteMap)
 	if err != nil {
 		return nil, err
 	}

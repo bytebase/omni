@@ -282,8 +282,10 @@ const (
 	RTEJoin
 
 	// RTECTE is a reference to a CTE declared in WITH. CTEIndex indexes into
-	// the enclosing Query.CTEList; the CTE body itself is
-	// `Query.CTEList[i].Query`.
+	// this Query's CTEList (the CTE body is `Query.CTEList[i].Query`), or is -1
+	// when the CTE is inherited from an enclosing WITH / an earlier sibling /
+	// a recursive self-reference and is therefore not in this Query's CTEList —
+	// in that case the body is reachable only via Subquery.
 	RTECTE
 
 	// RTEFunction is a function-in-FROM clause. In MySQL the only such
