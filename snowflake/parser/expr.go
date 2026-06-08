@@ -266,6 +266,26 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
 		}, nil
 
+	case kwPRIOR:
+		// PRIOR <operand> — hierarchical-query prefix operator used inside
+		// CONNECT BY conditions. Binds tightly to the following operand. Only
+		// treated as an operator inside a CONNECT BY clause; elsewhere PRIOR is
+		// a non-reserved identifier and falls through to parsePrimaryExpr.
+		if p.inConnectBy {
+			start := p.cur.Loc
+			p.advance()
+			operand, err := p.parseExprPrec(bpUnary)
+			if err != nil {
+				return nil, err
+			}
+			return &ast.UnaryExpr{
+				Op:   ast.UnaryPrior,
+				Expr: operand,
+				Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
+			}, nil
+		}
+		return p.parsePrimaryExpr()
+
 	case kwEXISTS:
 		existsTok := p.advance()
 		if _, err := p.expect('('); err != nil {
@@ -288,6 +308,23 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 		return &ast.ExistsExpr{Query: query, Loc: ast.Loc{Start: existsTok.Loc.Start, End: closeTok.Loc.End}}, nil
 
 	default:
+		// CONNECT_BY_ROOT <operand> — hierarchical-query prefix operator. It
+		// arrives as a plain identifier (not a reserved keyword). Treat it as a
+		// prefix only when it is NOT immediately followed by '(' (which would
+		// make it an ordinary function call).
+		if p.cur.Type == tokIdent && strings.EqualFold(p.cur.Str, "CONNECT_BY_ROOT") && p.peekNext().Type != '(' {
+			start := p.cur.Loc
+			p.advance()
+			operand, err := p.parseExprPrec(bpUnary)
+			if err != nil {
+				return nil, err
+			}
+			return &ast.UnaryExpr{
+				Op:   ast.UnaryConnectByRoot,
+				Expr: operand,
+				Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
+			}, nil
+		}
 		return p.parsePrimaryExpr()
 	}
 }

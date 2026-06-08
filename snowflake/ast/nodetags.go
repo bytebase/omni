@@ -180,6 +180,22 @@ const (
 	T_ExecuteImmediateStmt
 	T_ExecuteTaskStmt
 	T_ExplainStmt
+
+	// Table-attached query clause tags (T5.3)
+	T_PivotClause
+	T_PivotInClause
+	T_PivotValue
+	T_UnpivotClause
+	T_UnpivotColumn
+	T_MatchRecognizeClause
+	T_MatchMeasure
+	T_RowsPerMatch
+	T_AfterMatchSkip
+	T_MatchDefine
+	T_RowPattern
+	T_SampleClause
+	T_TimeTravelClause
+	T_ChangesClause
 )
 
 // String returns a human-readable representation of the tag.
@@ -435,6 +451,34 @@ func (t NodeTag) String() string {
 		return "ExecuteTaskStmt"
 	case T_ExplainStmt:
 		return "ExplainStmt"
+	case T_PivotClause:
+		return "PivotClause"
+	case T_PivotInClause:
+		return "PivotInClause"
+	case T_PivotValue:
+		return "PivotValue"
+	case T_UnpivotClause:
+		return "UnpivotClause"
+	case T_UnpivotColumn:
+		return "UnpivotColumn"
+	case T_MatchRecognizeClause:
+		return "MatchRecognizeClause"
+	case T_MatchMeasure:
+		return "MatchMeasure"
+	case T_RowsPerMatch:
+		return "RowsPerMatch"
+	case T_AfterMatchSkip:
+		return "AfterMatchSkip"
+	case T_MatchDefine:
+		return "MatchDefine"
+	case T_RowPattern:
+		return "RowPattern"
+	case T_SampleClause:
+		return "SampleClause"
+	case T_TimeTravelClause:
+		return "TimeTravelClause"
+	case T_ChangesClause:
+		return "ChangesClause"
 	default:
 		return "Unknown"
 	}

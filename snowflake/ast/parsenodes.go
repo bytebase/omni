@@ -339,9 +339,11 @@ func (op BinaryOp) String() string {
 type UnaryOp int
 
 const (
-	UnaryMinus UnaryOp = iota // -
-	UnaryPlus                 // +
-	UnaryNot                  // NOT
+	UnaryMinus         UnaryOp = iota // -
+	UnaryPlus                         // +
+	UnaryNot                          // NOT
+	UnaryPrior                        // PRIOR (CONNECT BY hierarchical queries)
+	UnaryConnectByRoot                // CONNECT_BY_ROOT (CONNECT BY hierarchical queries)
 )
 
 // String returns the operator symbol.
@@ -353,6 +355,10 @@ func (op UnaryOp) String() string {
 		return "+"
 	case UnaryNot:
 		return "NOT"
+	case UnaryPrior:
+		return "PRIOR"
+	case UnaryConnectByRoot:
+		return "CONNECT_BY_ROOT"
 	default:
 		return "?"
 	}
@@ -722,11 +728,18 @@ type SelectStmt struct {
 	GroupBy  *GroupByClause  // GROUP BY; nil if absent
 	Having   Node            // HAVING condition; nil if absent
 	Qualify  Node            // QUALIFY condition; nil if absent (Snowflake-specific)
-	OrderBy  []*OrderItem    // ORDER BY; nil if absent
-	Limit    Node            // LIMIT n; nil if absent
-	Offset   Node            // OFFSET n; nil if absent
-	Fetch    *FetchClause    // FETCH FIRST/NEXT; nil if absent
-	Loc      Loc
+	// StartWith / ConnectBy implement hierarchical queries
+	// (CONNECT BY [, START WITH]). StartWith holds the optional START WITH
+	// condition; ConnectBy holds the comma-separated CONNECT BY conditions
+	// (PRIOR appears as a *UnaryExpr with Op == UnaryPrior inside them).
+	// ConnectBy is non-nil whenever the query has a CONNECT BY clause.
+	StartWith Node         // START WITH condition; nil if absent
+	ConnectBy []Node       // CONNECT BY conditions; nil if absent
+	OrderBy   []*OrderItem // ORDER BY; nil if absent
+	Limit     Node         // LIMIT n; nil if absent
+	Offset    Node         // OFFSET n; nil if absent
+	Fetch     *FetchClause // FETCH FIRST/NEXT; nil if absent
+	Loc       Loc
 }
 
 func (n *SelectStmt) Tag() NodeTag { return T_SelectStmt }
@@ -756,7 +769,16 @@ type TableRef struct {
 	Subquery Node          // (SELECT ...) in FROM; nil for table refs
 	FuncCall *FuncCallExpr // TABLE(func(...)); nil for table refs
 	Lateral  bool          // LATERAL prefix
-	Loc      Loc
+	// Table-attached clauses (Snowflake). Any combination may appear; the
+	// documented source order is AT/BEFORE → CHANGES → MATCH_RECOGNIZE →
+	// PIVOT/UNPIVOT → alias → SAMPLE.
+	TimeTravel     *TimeTravelClause     // AT(...) / BEFORE(...); nil if absent
+	Changes        *ChangesClause        // CHANGES(...) AT|BEFORE(...); nil if absent
+	MatchRecognize *MatchRecognizeClause // MATCH_RECOGNIZE(...); nil if absent
+	Pivot          *PivotClause          // PIVOT(...); nil if absent
+	Unpivot        *UnpivotClause        // UNPIVOT(...); nil if absent
+	Sample         *SampleClause         // SAMPLE/TABLESAMPLE(...); nil if absent
+	Loc            Loc
 }
 
 func (n *TableRef) Tag() NodeTag { return T_TableRef }
@@ -858,6 +880,319 @@ type SetOperationStmt struct {
 func (n *SetOperationStmt) Tag() NodeTag { return T_SetOperationStmt }
 
 var _ Node = (*SetOperationStmt)(nil)
+
+// ---------------------------------------------------------------------------
+// Table-attached query clauses (T5.3)
+// ---------------------------------------------------------------------------
+
+// PivotClause represents a PIVOT applied to a table source:
+//
+//	PIVOT ( <agg>(<col>) [AS <alias>]
+//	        FOR <col> IN ( <values> | ANY [ORDER BY …] | <subquery> )
+//	        [DEFAULT ON NULL (<expr>)] ) [ [AS] alias ]
+type PivotClause struct {
+	Agg        *FuncCallExpr // the aggregate, e.g. SUM(amount)
+	AggAlias   Ident         // alias for the aggregate (AS total); zero if absent
+	ForColumn  *ColumnRef    // the FOR pivot column
+	In         *PivotInClause
+	DefaultVal Node  // DEFAULT ON NULL (<expr>); nil if absent
+	Alias      Ident // trailing [AS] alias for the pivot result; zero if absent
+	Loc        Loc
+}
+
+func (n *PivotClause) Tag() NodeTag { return T_PivotClause }
+
+// PivotInKind distinguishes the three forms of the PIVOT … IN (…) list.
+type PivotInKind int
+
+const (
+	PivotInValues   PivotInKind = iota // IN ( v1 [AS a1], v2 [AS a2], … )
+	PivotInAny                         // IN ( ANY [ORDER BY …] )
+	PivotInSubquery                    // IN ( <subquery> )
+)
+
+// PivotInClause is the IN (...) part of a PIVOT.
+type PivotInClause struct {
+	Kind     PivotInKind
+	Values   []*PivotValue // for PivotInValues
+	OrderBy  []*OrderItem  // for PivotInAny: ANY ORDER BY …; nil otherwise
+	Subquery Node          // for PivotInSubquery
+	Loc      Loc
+}
+
+func (n *PivotInClause) Tag() NodeTag { return T_PivotInClause }
+
+// PivotValue is one value in a PIVOT … IN ( v [AS alias], … ) list.
+type PivotValue struct {
+	Value Node  // the value expression (typically a literal)
+	Alias Ident // AS alias; zero if absent
+	Loc   Loc
+}
+
+func (n *PivotValue) Tag() NodeTag { return T_PivotValue }
+
+// UnpivotClause represents an UNPIVOT applied to a table source:
+//
+//	UNPIVOT [ {INCLUDE|EXCLUDE} NULLS ]
+//	  ( <value_col> FOR <name_col> IN ( <col> [AS alias], … ) ) [alias]
+type UnpivotClause struct {
+	NullsMode   UnpivotNullsMode // INCLUDE / EXCLUDE NULLS; default = unspecified
+	ValueColumn Ident            // the new value column name
+	NameColumn  Ident            // the new name column name (FOR <name_col>)
+	Columns     []*UnpivotColumn // the IN (...) source columns
+	Alias       Ident            // trailing alias; zero if absent
+	Loc         Loc
+}
+
+func (n *UnpivotClause) Tag() NodeTag { return T_UnpivotClause }
+
+// UnpivotNullsMode encodes the optional {INCLUDE|EXCLUDE} NULLS modifier.
+type UnpivotNullsMode int
+
+const (
+	UnpivotNullsUnspecified UnpivotNullsMode = iota // no modifier (defaults to EXCLUDE)
+	UnpivotIncludeNulls                             // INCLUDE NULLS
+	UnpivotExcludeNulls                             // EXCLUDE NULLS
+)
+
+// UnpivotColumn is one column in an UNPIVOT … IN ( col [AS alias], … ) list.
+type UnpivotColumn struct {
+	Column Ident // the source column
+	Alias  Ident // AS alias; zero if absent
+	Loc    Loc
+}
+
+func (n *UnpivotColumn) Tag() NodeTag { return T_UnpivotColumn }
+
+// ---------------------------------------------------------------------------
+// MATCH_RECOGNIZE
+// ---------------------------------------------------------------------------
+
+// MatchRecognizeClause represents a MATCH_RECOGNIZE applied to a table source.
+//
+//	MATCH_RECOGNIZE ( [PARTITION BY …] [ORDER BY …] [MEASURES …]
+//	  [{ONE ROW | ALL ROWS} PER MATCH [match-opts]]
+//	  [AFTER MATCH SKIP …] PATTERN ( <row_pattern> )
+//	  [DEFINE <var> AS <cond>, …] ) [ [AS] alias ]
+type MatchRecognizeClause struct {
+	PartitionBy  []Node          // PARTITION BY exprs; nil if absent
+	OrderBy      []*OrderItem    // ORDER BY items; nil if absent
+	Measures     []*MatchMeasure // MEASURES list; nil if absent
+	RowsPerMatch *RowsPerMatch   // ONE ROW / ALL ROWS PER MATCH; nil if absent
+	AfterMatch   *AfterMatchSkip // AFTER MATCH SKIP …; nil if absent
+	Pattern      *RowPattern     // PATTERN ( … ); nil only on malformed input
+	Define       []*MatchDefine  // DEFINE list; nil if absent
+	Alias        Ident           // trailing [AS] alias; zero if absent
+	Loc          Loc
+}
+
+func (n *MatchRecognizeClause) Tag() NodeTag { return T_MatchRecognizeClause }
+
+// MatchMeasure is one item in a MEASURES list: [FINAL|RUNNING] <expr> [AS] <alias>.
+type MatchMeasure struct {
+	Semantics MatchSemantics // FINAL / RUNNING / unspecified
+	Expr      Node           // the measure expression
+	Alias     Ident          // the column alias
+	Loc       Loc
+}
+
+func (n *MatchMeasure) Tag() NodeTag { return T_MatchMeasure }
+
+// MatchSemantics encodes the optional FINAL / RUNNING prefix on a measure.
+type MatchSemantics int
+
+const (
+	MatchSemanticsUnspecified MatchSemantics = iota
+	MatchSemanticsFinal                      // FINAL
+	MatchSemanticsRunning                    // RUNNING
+)
+
+// RowsPerMatchKind selects ONE ROW vs ALL ROWS PER MATCH.
+type RowsPerMatchKind int
+
+const (
+	OneRowPerMatch  RowsPerMatchKind = iota // ONE ROW PER MATCH
+	AllRowsPerMatch                         // ALL ROWS PER MATCH
+)
+
+// RowsPerMatchOpt encodes the optional modifier on ALL ROWS PER MATCH.
+type RowsPerMatchOpt int
+
+const (
+	RowsPerMatchOptNone       RowsPerMatchOpt = iota
+	RowsPerMatchShowEmpty                     // SHOW EMPTY MATCHES
+	RowsPerMatchOmitEmpty                     // OMIT EMPTY MATCHES
+	RowsPerMatchWithUnmatched                 // WITH UNMATCHED ROWS
+)
+
+// RowsPerMatch represents the {ONE ROW | ALL ROWS} PER MATCH [opt] clause.
+type RowsPerMatch struct {
+	Kind RowsPerMatchKind
+	Opt  RowsPerMatchOpt // only meaningful for ALL ROWS PER MATCH
+	Loc  Loc
+}
+
+func (n *RowsPerMatch) Tag() NodeTag { return T_RowsPerMatch }
+
+// AfterMatchKind selects the AFTER MATCH SKIP target.
+type AfterMatchKind int
+
+const (
+	AfterMatchSkipPastLastRow AfterMatchKind = iota // SKIP PAST LAST ROW
+	AfterMatchSkipToNextRow                         // SKIP TO NEXT ROW
+	AfterMatchSkipToFirst                           // SKIP TO FIRST <var>
+	AfterMatchSkipToLast                            // SKIP TO LAST <var>
+	AfterMatchSkipToVar                             // SKIP TO <var>
+)
+
+// AfterMatchSkip represents the AFTER MATCH SKIP … clause.
+type AfterMatchSkip struct {
+	Kind   AfterMatchKind
+	Symbol Ident // the target pattern variable for the TO … forms; zero otherwise
+	Loc    Loc
+}
+
+func (n *AfterMatchSkip) Tag() NodeTag { return T_AfterMatchSkip }
+
+// MatchDefine is one DEFINE entry: <var> AS <condition>.
+type MatchDefine struct {
+	Symbol Ident // the pattern variable being defined
+	Cond   Node  // the boolean condition expression
+	Loc    Loc
+}
+
+func (n *MatchDefine) Tag() NodeTag { return T_MatchDefine }
+
+// RowPattern holds the PATTERN ( … ) body. The body is kept as raw text
+// (Raw, with surrounding parentheses stripped) because the full row-pattern
+// grammar — quantifiers, alternation, PERMUTE, anchors — has no executable
+// oracle to validate a structured tree against; consumers that need the
+// pattern re-lex Raw. RawLoc spans the inner text.
+type RowPattern struct {
+	Raw    string // the verbatim pattern text between the outer parentheses
+	RawLoc Loc    // location of the inner pattern text
+	Loc    Loc    // location spanning PATTERN ( … )
+}
+
+func (n *RowPattern) Tag() NodeTag { return T_RowPattern }
+
+// ---------------------------------------------------------------------------
+// SAMPLE / TABLESAMPLE
+// ---------------------------------------------------------------------------
+
+// SampleKeyword distinguishes the SAMPLE vs TABLESAMPLE spelling.
+type SampleKeyword int
+
+const (
+	SampleKwSample      SampleKeyword = iota // SAMPLE
+	SampleKwTablesample                      // TABLESAMPLE
+)
+
+// SampleMethod is the optional sampling method.
+type SampleMethod int
+
+const (
+	SampleMethodUnspecified SampleMethod = iota
+	SampleMethodBernoulli                // BERNOULLI
+	SampleMethodRow                      // ROW (synonym of BERNOULLI)
+	SampleMethodSystem                   // SYSTEM
+	SampleMethodBlock                    // BLOCK (synonym of SYSTEM)
+)
+
+// SampleClause represents SAMPLE / TABLESAMPLE applied to a table source:
+//
+//	{SAMPLE | TABLESAMPLE} [method] ( <prob> | <n> ROWS ) [{SEED|REPEATABLE} (<n>)]
+type SampleClause struct {
+	Keyword  SampleKeyword
+	Method   SampleMethod
+	Quantity Node // probability or row count expression
+	Rows     bool // true if the quantity is "<n> ROWS"
+	// Seed holds the {SEED|REPEATABLE} (<n>) value; nil if absent.
+	Seed     Node
+	SeedKind SampleSeedKind // which keyword introduced Seed
+	Loc      Loc
+}
+
+func (n *SampleClause) Tag() NodeTag { return T_SampleClause }
+
+// SampleSeedKind records whether the seed used SEED or REPEATABLE.
+type SampleSeedKind int
+
+const (
+	SampleSeedNone       SampleSeedKind = iota
+	SampleSeedSeed                      // SEED (<n>)
+	SampleSeedRepeatable                // REPEATABLE (<n>)
+)
+
+// ---------------------------------------------------------------------------
+// Time travel: AT / BEFORE / CHANGES
+// ---------------------------------------------------------------------------
+
+// TimeTravelKind selects AT vs BEFORE.
+type TimeTravelKind int
+
+const (
+	TimeTravelAt     TimeTravelKind = iota // AT (...)
+	TimeTravelBefore                       // BEFORE (...)
+)
+
+// TimeTravelAnchor selects the parameter name inside AT/BEFORE.
+type TimeTravelAnchor int
+
+const (
+	TimeTravelTimestamp TimeTravelAnchor = iota // TIMESTAMP => expr
+	TimeTravelOffset                            // OFFSET => expr
+	TimeTravelStatement                         // STATEMENT => expr
+	TimeTravelStream                            // STREAM => expr
+)
+
+// TimeTravelClause represents { AT | BEFORE } ( <anchor> => <expr> ).
+type TimeTravelClause struct {
+	Kind   TimeTravelKind
+	Anchor TimeTravelAnchor
+	Expr   Node // the anchor value expression
+	Loc    Loc
+}
+
+func (n *TimeTravelClause) Tag() NodeTag { return T_TimeTravelClause }
+
+// ChangesInfo selects DEFAULT vs APPEND_ONLY for CHANGES(INFORMATION => …).
+type ChangesInfo int
+
+const (
+	ChangesDefault    ChangesInfo = iota // INFORMATION => DEFAULT
+	ChangesAppendOnly                    // INFORMATION => APPEND_ONLY
+)
+
+// ChangesClause represents:
+//
+//	CHANGES ( INFORMATION => {DEFAULT|APPEND_ONLY} ) { AT|BEFORE } (…) [END (…)]
+type ChangesClause struct {
+	Info  ChangesInfo
+	Start *TimeTravelClause // the required AT/BEFORE anchor
+	End   *TimeTravelClause // optional END (…); nil if absent
+	Loc   Loc
+}
+
+func (n *ChangesClause) Tag() NodeTag { return T_ChangesClause }
+
+// Compile-time assertions for the T5.3 clause node types.
+var (
+	_ Node = (*PivotClause)(nil)
+	_ Node = (*PivotInClause)(nil)
+	_ Node = (*PivotValue)(nil)
+	_ Node = (*UnpivotClause)(nil)
+	_ Node = (*UnpivotColumn)(nil)
+	_ Node = (*MatchRecognizeClause)(nil)
+	_ Node = (*MatchMeasure)(nil)
+	_ Node = (*RowsPerMatch)(nil)
+	_ Node = (*AfterMatchSkip)(nil)
+	_ Node = (*MatchDefine)(nil)
+	_ Node = (*RowPattern)(nil)
+	_ Node = (*SampleClause)(nil)
+	_ Node = (*TimeTravelClause)(nil)
+	_ Node = (*ChangesClause)(nil)
+)
 
 // ---------------------------------------------------------------------------
 // Constraint enums

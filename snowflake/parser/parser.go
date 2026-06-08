@@ -31,6 +31,11 @@ type Parser struct {
 	nextBuf Token        // buffered lookahead token
 	hasNext bool         // whether nextBuf is valid
 	errors  []ParseError // collected errors for best-effort mode
+	// inConnectBy is true while parsing a CONNECT BY condition, where PRIOR
+	// is a prefix operator rather than a (non-reserved) identifier. Gating
+	// PRIOR on this flag avoids mis-parsing a column literally named "prior"
+	// in ordinary expression positions.
+	inConnectBy bool
 }
 
 // advance consumes the current token and moves to the next one.
@@ -44,6 +49,17 @@ func (p *Parser) advance() Token {
 		p.cur = p.lexer.NextToken()
 	}
 	return p.prev
+}
+
+// repositionLexer resets the lexer to the given LOCAL (unshifted) byte offset
+// and re-primes p.cur from there, discarding any buffered lookahead and the
+// previous current token. It is used by clauses (such as MATCH_RECOGNIZE's
+// PATTERN body) that consume a run of input by raw byte scanning rather than
+// token-by-token, and then need the token stream to resume at a known point.
+func (p *Parser) repositionLexer(localPos int) {
+	p.lexer.pos = localPos
+	p.hasNext = false
+	p.cur = p.lexer.NextToken()
 }
 
 // peek returns the current token without consuming it.
