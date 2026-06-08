@@ -9,11 +9,12 @@ import "github.com/bytebase/omni/snowflake/ast"
 // parseCreateDatabaseStmt parses CREATE [OR REPLACE] [TRANSIENT] DATABASE ...
 // The CREATE keyword and optional OR REPLACE / TRANSIENT modifiers have already
 // been consumed by parseCreateStmt; start is the Loc of the CREATE token.
-func (p *Parser) parseCreateDatabaseStmt(start ast.Loc, orReplace, transient bool) (ast.Node, error) {
+func (p *Parser) parseCreateDatabaseStmt(start ast.Loc, orReplace, orAlter, transient bool) (ast.Node, error) {
 	p.advance() // consume DATABASE
 
 	stmt := &ast.CreateDatabaseStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Transient: transient,
 		Loc:       ast.Loc{Start: start.Start},
 	}
@@ -76,11 +77,12 @@ func (p *Parser) parseCreateDatabaseStmt(start ast.Loc, orReplace, transient boo
 // ---------------------------------------------------------------------------
 
 // parseCreateSchemaStmt parses CREATE [OR REPLACE] [TRANSIENT] SCHEMA ...
-func (p *Parser) parseCreateSchemaStmt(start ast.Loc, orReplace, transient bool) (ast.Node, error) {
+func (p *Parser) parseCreateSchemaStmt(start ast.Loc, orReplace, orAlter, transient bool) (ast.Node, error) {
 	p.advance() // consume SCHEMA
 
 	stmt := &ast.CreateSchemaStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Transient: transient,
 		Loc:       ast.Loc{Start: start.Start},
 	}

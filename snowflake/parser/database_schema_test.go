@@ -118,6 +118,32 @@ func TestCreateDatabase_OrReplace(t *testing.T) {
 	}
 }
 
+func TestCreateDatabase_OrAlter(t *testing.T) {
+	stmt, errs := testParseCreateDatabase("CREATE OR ALTER DATABASE db1")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if !stmt.OrAlter {
+		t.Error("expected OrAlter=true")
+	}
+	if stmt.OrReplace {
+		t.Error("expected OrReplace=false")
+	}
+}
+
+func TestCreateSchema_OrAlter(t *testing.T) {
+	stmt, errs := testParseCreateSchema("CREATE OR ALTER SCHEMA s1")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if !stmt.OrAlter {
+		t.Error("expected OrAlter=true")
+	}
+	if stmt.OrReplace {
+		t.Error("expected OrReplace=false")
+	}
+}
+
 func TestCreateDatabase_Transient(t *testing.T) {
 	stmt, errs := testParseCreateDatabase("CREATE TRANSIENT DATABASE mydb")
 	if len(errs) > 0 {

@@ -1303,6 +1303,7 @@ type CloneSource struct {
 // CreateTableStmt represents CREATE [OR REPLACE] [TRANSIENT|TEMPORARY|VOLATILE] TABLE ...
 type CreateTableStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Transient   bool
 	Temporary   bool
 	Volatile    bool
@@ -1414,6 +1415,7 @@ type DBSchemaProps struct {
 // CreateDatabaseStmt represents CREATE [OR REPLACE] [TRANSIENT] DATABASE ...
 type CreateDatabaseStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Transient   bool
 	IfNotExists bool
 	Name        *ObjectName
@@ -1474,6 +1476,7 @@ var _ Node = (*UndropDatabaseStmt)(nil)
 // CreateSchemaStmt represents CREATE [OR REPLACE] [TRANSIENT] SCHEMA ...
 type CreateSchemaStmt struct {
 	OrReplace     bool
+	OrAlter       bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Transient     bool
 	IfNotExists   bool
 	Name          *ObjectName
@@ -1895,6 +1898,7 @@ type RowAccessPolicy struct {
 // CreateViewStmt represents CREATE [OR REPLACE] [SECURE] [RECURSIVE] VIEW ...
 type CreateViewStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Secure      bool
 	Recursive   bool
 	IfNotExists bool
@@ -1921,6 +1925,7 @@ var _ Node = (*CreateViewStmt)(nil)
 // CreateMaterializedViewStmt represents CREATE [OR REPLACE] [SECURE] MATERIALIZED VIEW ...
 type CreateMaterializedViewStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Secure      bool
 	IfNotExists bool
 	Name        *ObjectName
@@ -3029,6 +3034,7 @@ var (
 // consumers can detect.
 type CreateStageStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Temporary   bool
 	IfNotExists bool
 	Name        *ObjectName
@@ -3115,6 +3121,7 @@ var (
 // Temporary.
 type CreateFileFormatStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Temporary   bool
 	IfNotExists bool
 	Name        *ObjectName
@@ -3275,6 +3282,7 @@ func (n *ConnectionReplica) Tag() NodeTag { return T_ConnectionReplica }
 type CreateIntegrationStmt struct {
 	Kind        IntegrationObjectKind
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	With        bool                      // RESOURCE MONITOR's mandatory WITH keyword was present
@@ -3445,6 +3453,7 @@ func (k ReplicationGroupKind) String() string {
 type CreateReplicationGroupStmt struct {
 	Failover           bool
 	OrReplace          bool
+	OrAlter            bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists        bool
 	Name               *ObjectName
 	Options            []*GroupOption   // open-ended KEY = value parameters, source order
@@ -3527,6 +3536,7 @@ func (n *AlterReplicationGroupStmt) Tag() NodeTag { return T_AlterReplicationGro
 type CreateAccountStmt struct {
 	Managed   bool
 	OrReplace bool // only MANAGED ACCOUNT accepts OR REPLACE per the docs
+	OrAlter   bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Name      *ObjectName
 	Options   []*GroupOption // ADMIN_NAME / ADMIN_PASSWORD / EMAIL / EDITION / TYPE / COMMENT / ...
 	Loc       Loc
@@ -3590,6 +3600,7 @@ func (n *AlterAccountStmt) Tag() NodeTag { return T_AlterAccountStmt }
 // COMMENT (the only documented parameter) is captured open-ended in Options.
 type CreateShareStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	Options     []*GroupOption // COMMENT = '...'; nil if absent
@@ -3691,6 +3702,7 @@ var (
 // clauses open-ended, in source order.
 type CreateTagStmt struct {
 	OrReplace     bool
+	OrAlter       bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists   bool
 	Name          *ObjectName
 	AllowedValues []string      // ALLOWED_VALUES 'v1', 'v2', ...; nil if absent
@@ -3775,6 +3787,7 @@ func (n *SemanticViewSection) Tag() NodeTag { return T_SemanticViewSection }
 // open-ended. Tags holds a [WITH] TAG clause; CopyGrants records COPY GRANTS.
 type CreateSemanticViewStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	Sections    []*SemanticViewSection // TABLES / RELATIONSHIPS / FACTS / DIMENSIONS / METRICS / AI_VERIFIED_QUERIES, source order
@@ -3830,6 +3843,7 @@ func (n *AlterSemanticViewStmt) Tag() NodeTag { return T_AlterSemanticViewStmt }
 // accepted here for consistency; see the divergence note in semantic_view.go.)
 type CreateDatasetStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	Loc         Loc
@@ -3903,6 +3917,7 @@ var (
 // parens are not retained.
 type CreatePipeStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	Options     []*CopyOption // AUTO_INGEST / ERROR_INTEGRATION / AWS_SNS_TOPIC / INTEGRATION / COMMENT / ...
@@ -3991,6 +4006,7 @@ type StreamTimeTravel struct {
 // SourceKind/Source/Options are zero.
 type CreateStreamStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	Tags        []*TagAssignment  // [WITH] TAG (...); nil if absent
@@ -4062,6 +4078,7 @@ func (n *AlterStreamStmt) Tag() NodeTag { return T_AlterStreamStmt }
 // <source_task>), recorded via Clone with Options/After/When/Body all zero.
 type CreateTaskStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
@@ -4143,6 +4160,7 @@ func (n *AlterTaskStmt) Tag() NodeTag { return T_AlterTaskStmt }
 // verbatim action source text.
 type CreateAlertStmt struct {
 	OrReplace    bool
+	OrAlter      bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists  bool
 	Name         *ObjectName
 	Tags         []*TagAssignment // [WITH] TAG (...); nil if absent
@@ -4277,6 +4295,7 @@ func (n *PolicyArg) Tag() NodeTag { return T_PolicyArg }
 // db-qualified, db_name.role_name). Account roles take an unqualified name.
 type CreateRoleStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Database    bool // CREATE DATABASE ROLE
 	IfNotExists bool
 	Name        *ObjectName
@@ -4300,6 +4319,7 @@ func (n *CreateRoleStmt) Tag() NodeTag { return T_CreateRoleStmt }
 // open-ended as a CopyOption, preserving source order.
 type CreateUserStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	Options     []*CopyOption    // open-ended objectProperties / objectParams / sessionParams
@@ -4332,6 +4352,7 @@ func (n *CreateUserStmt) Tag() NodeTag { return T_CreateUserStmt }
 type CreatePolicyStmt struct {
 	Kind        PolicyKind
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	Args        []*PolicyArg  // MASKING / ROW ACCESS signature; nil for option-bag policies
@@ -4571,6 +4592,7 @@ const (
 type CreateRoutineStmt struct {
 	Kind          RoutineKind
 	OrReplace     bool
+	OrAlter       bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Secure        bool
 	Temporary     bool
 	IfNotExists   bool
@@ -4683,6 +4705,7 @@ var (
 // other body fields zero).
 type CreateDynamicTableStmt struct {
 	OrReplace      bool
+	OrAlter        bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Transient      bool
 	Iceberg        bool
 	IfNotExists    bool
@@ -4797,6 +4820,7 @@ func (n *ExternalColumnDef) Tag() NodeTag { return T_ExternalColumnDef }
 // GRANTS; Tags holds the [WITH] TAG assignments.
 type CreateExternalTableStmt struct {
 	OrReplace     bool
+	OrAlter       bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists   bool
 	Name          *ObjectName
 	Columns       []*ExternalColumnDef // explicit column list; nil for USING TEMPLATE
@@ -4880,6 +4904,7 @@ func (n *AlterExternalTableStmt) Tag() NodeTag { return T_AlterExternalTableStmt
 // holds the [WITH] TAG assignments.
 type CreateEventTableStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	ClusterBy   []Node           // CLUSTER BY ( exprs ); nil if absent
@@ -4907,6 +4932,7 @@ func (n *CreateEventTableStmt) Tag() NodeTag { return T_CreateEventTableStmt }
 // for NOORDER, nil when unspecified. Comment holds the COMMENT clause text.
 type CreateSequenceStmt struct {
 	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	IfNotExists bool
 	Name        *ObjectName
 	Start       *int64  // START [WITH] [=] <n>; nil if absent

@@ -78,6 +78,51 @@ func TestCreateTable_OrReplace(t *testing.T) {
 	if !stmt.OrReplace {
 		t.Error("expected OrReplace=true")
 	}
+	if stmt.OrAlter {
+		t.Error("expected OrAlter=false for OR REPLACE")
+	}
+}
+
+func TestCreateTable_OrAlter(t *testing.T) {
+	stmt, errs := testParseCreateTable("CREATE OR ALTER TABLE my_table (a INT PRIMARY KEY, c VARCHAR(200)) DEFAULT_DDL_COLLATION = 'de'")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if !stmt.OrAlter {
+		t.Error("expected OrAlter=true")
+	}
+	if stmt.OrReplace {
+		t.Error("expected OrReplace=false for OR ALTER")
+	}
+	if stmt.Name.Normalize() != "MY_TABLE" {
+		t.Errorf("name = %q, want %q", stmt.Name.Normalize(), "MY_TABLE")
+	}
+	if len(stmt.Columns) != 2 {
+		t.Fatalf("columns = %d, want 2", len(stmt.Columns))
+	}
+}
+
+// CREATE OR FOO (OR followed by neither REPLACE nor ALTER) must be rejected.
+func TestCreateTable_OrUnknownRejected(t *testing.T) {
+	result := ParseBestEffort("CREATE OR FOO TABLE t (id INT)")
+	if len(result.Errors) == 0 {
+		t.Fatal("expected a parse error for CREATE OR FOO, got none")
+	}
+}
+
+// OR ALTER and OR REPLACE are mutually exclusive; CREATE OR ALTER OR REPLACE
+// (and the reverse) must be rejected — only one OR-modifier is consumed and the
+// trailing one is not a valid object keyword.
+func TestCreateTable_OrAlterOrReplaceRejected(t *testing.T) {
+	for _, input := range []string{
+		"CREATE OR ALTER OR REPLACE TABLE t (id INT)",
+		"CREATE OR REPLACE OR ALTER TABLE t (id INT)",
+	} {
+		result := ParseBestEffort(input)
+		if len(result.Errors) == 0 {
+			t.Errorf("expected a parse error for %q, got none", input)
+		}
+	}
 }
 
 func TestCreateTable_Transient(t *testing.T) {

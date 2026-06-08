@@ -45,13 +45,14 @@ import (
 // the CREATE token, and cur is the FILE_FORMAT keyword (or the FILE keyword of
 // the two-token spelling). temporary is set when any of TEMP / TEMPORARY /
 // VOLATILE preceded FILE FORMAT.
-func (p *Parser) parseCreateFileFormatStmt(start ast.Loc, orReplace, temporary bool) (ast.Node, error) {
+func (p *Parser) parseCreateFileFormatStmt(start ast.Loc, orReplace, orAlter, temporary bool) (ast.Node, error) {
 	if err := p.consumeFileFormatKeyword(); err != nil {
 		return nil, err
 	}
 
 	stmt := &ast.CreateFileFormatStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Temporary: temporary,
 		Loc:       ast.Loc{Start: start.Start},
 	}

@@ -12,14 +12,23 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	createTok := p.advance() // consume CREATE
 	start := createTok.Loc
 
-	// OR REPLACE
+	// OR { REPLACE | ALTER }. These are mutually exclusive prefixes: REPLACE
+	// drops and recreates the object, ALTER (a preview form documented at
+	// CREATE OR ALTER) modifies it in place. Only one OR-modifier is consumed
+	// here, so a second one (CREATE OR ALTER OR REPLACE ...) is left for the
+	// object-type dispatch to reject.
 	orReplace := false
+	orAlter := false
 	if p.cur.Type == kwOR {
-		next := p.peekNext()
-		if next.Type == kwREPLACE {
+		switch p.peekNext().Type {
+		case kwREPLACE:
 			p.advance() // consume OR
 			p.advance() // consume REPLACE
 			orReplace = true
+		case kwALTER:
+			p.advance() // consume OR
+			p.advance() // consume ALTER
+			orAlter = true
 		}
 	}
 
@@ -45,22 +54,22 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	if secure || recursive {
 		switch p.cur.Type {
 		case kwVIEW:
-			return p.parseCreateViewStmt(start, orReplace, secure, recursive)
+			return p.parseCreateViewStmt(start, orReplace, orAlter, secure, recursive)
 		case kwMATERIALIZED:
 			p.advance() // consume MATERIALIZED
-			return p.parseCreateMaterializedViewStmt(start, orReplace, secure)
+			return p.parseCreateMaterializedViewStmt(start, orReplace, orAlter, secure)
 		case kwFUNCTION:
 			if recursive {
 				return p.unsupported("CREATE")
 			}
 			// CREATE [OR REPLACE] SECURE FUNCTION ... (T4.5).
-			return p.parseCreateFunctionStmt(start, orReplace, true, false)
+			return p.parseCreateFunctionStmt(start, orReplace, orAlter, true, false)
 		case kwPROCEDURE:
 			if recursive {
 				return p.unsupported("CREATE")
 			}
 			// CREATE [OR REPLACE] SECURE PROCEDURE ... (T4.5).
-			return p.parseCreateProcedureStmt(start, orReplace, true)
+			return p.parseCreateProcedureStmt(start, orReplace, orAlter, true)
 		case kwEXTERNAL:
 			if recursive {
 				return p.unsupported("CREATE")
@@ -71,7 +80,7 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 				// EXTERNAL TABLE (and any other EXTERNAL object) is owned by another node.
 				return p.unsupported("CREATE")
 			}
-			return p.parseCreateExternalFunctionStmt(start, orReplace, true)
+			return p.parseCreateExternalFunctionStmt(start, orReplace, orAlter, true)
 		default:
 			return p.unsupported("CREATE")
 		}
@@ -101,58 +110,58 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 
 	switch p.cur.Type {
 	case kwTABLE:
-		return p.parseCreateTableStmt(start, orReplace, transient, temporary, volatile)
+		return p.parseCreateTableStmt(start, orReplace, orAlter, transient, temporary, volatile)
 	case kwDATABASE:
 		// CREATE [OR REPLACE] DATABASE ROLE ... (T4.6) vs CREATE DATABASE ... (T2.1).
 		// DATABASE ROLE is disambiguated by the ROLE keyword following DATABASE.
 		if p.peekNext().Type == kwROLE {
 			p.advance() // consume DATABASE
-			return p.parseCreateRoleStmt(start, orReplace, true)
+			return p.parseCreateRoleStmt(start, orReplace, orAlter, true)
 		}
-		return p.parseCreateDatabaseStmt(start, orReplace, transient)
+		return p.parseCreateDatabaseStmt(start, orReplace, orAlter, transient)
 	case kwSCHEMA:
-		return p.parseCreateSchemaStmt(start, orReplace, transient)
+		return p.parseCreateSchemaStmt(start, orReplace, orAlter, transient)
 	case kwVIEW:
-		return p.parseCreateViewStmt(start, orReplace, false, false)
+		return p.parseCreateViewStmt(start, orReplace, orAlter, false, false)
 	case kwMATERIALIZED:
 		p.advance() // consume MATERIALIZED
-		return p.parseCreateMaterializedViewStmt(start, orReplace, false)
+		return p.parseCreateMaterializedViewStmt(start, orReplace, orAlter, false)
 	case kwSTAGE:
 		// CREATE [OR REPLACE] [TEMP|TEMPORARY] STAGE ... (T4.1).
-		return p.parseCreateStageStmt(start, orReplace, temporary)
+		return p.parseCreateStageStmt(start, orReplace, orAlter, temporary)
 	case kwFILE_FORMAT, kwFILE:
 		// CREATE [OR REPLACE] [TEMP|TEMPORARY|VOLATILE] FILE FORMAT ... (T4.2).
 		// FILE FORMAT lexes as one FILE_FORMAT token or two FILE+FORMAT tokens;
 		// both dispatch here. Per the docs VOLATILE is a synonym of TEMPORARY for
 		// a file format, so either modifier sets the statement's Temporary flag.
-		return p.parseCreateFileFormatStmt(start, orReplace, temporary || volatile)
+		return p.parseCreateFileFormatStmt(start, orReplace, orAlter, temporary || volatile)
 	case kwPIPE:
 		// CREATE [OR REPLACE] PIPE ... (T4.3).
-		return p.parseCreatePipeStmt(start, orReplace)
+		return p.parseCreatePipeStmt(start, orReplace, orAlter)
 	case kwSTREAM:
 		// CREATE [OR REPLACE] STREAM ... (T4.3).
-		return p.parseCreateStreamStmt(start, orReplace)
+		return p.parseCreateStreamStmt(start, orReplace, orAlter)
 	case kwTASK:
 		// CREATE [OR REPLACE] TASK ... (T4.3).
-		return p.parseCreateTaskStmt(start, orReplace)
+		return p.parseCreateTaskStmt(start, orReplace, orAlter)
 	case kwALERT:
 		// CREATE [OR REPLACE] ALERT ... (T4.3).
-		return p.parseCreateAlertStmt(start, orReplace)
+		return p.parseCreateAlertStmt(start, orReplace, orAlter)
 	case kwFUNCTION:
 		// CREATE [OR REPLACE] [TEMP|TEMPORARY] FUNCTION ... (T4.5).
-		return p.parseCreateFunctionStmt(start, orReplace, false, temporary)
+		return p.parseCreateFunctionStmt(start, orReplace, orAlter, false, temporary)
 	case kwPROCEDURE:
 		// CREATE [OR REPLACE] PROCEDURE ... (T4.5).
-		return p.parseCreateProcedureStmt(start, orReplace, false)
+		return p.parseCreateProcedureStmt(start, orReplace, orAlter, false)
 	case kwDYNAMIC:
 		// CREATE [OR REPLACE] [TRANSIENT] DYNAMIC [ICEBERG] TABLE ... (T4.4).
-		return p.parseCreateDynamicTableStmt(start, orReplace, transient)
+		return p.parseCreateDynamicTableStmt(start, orReplace, orAlter, transient)
 	case kwEVENT:
 		// CREATE [OR REPLACE] EVENT TABLE ... (T4.4).
-		return p.parseCreateEventTableStmt(start, orReplace)
+		return p.parseCreateEventTableStmt(start, orReplace, orAlter)
 	case kwSEQUENCE:
 		// CREATE [OR REPLACE] SEQUENCE ... (T4.4).
-		return p.parseCreateSequenceStmt(start, orReplace)
+		return p.parseCreateSequenceStmt(start, orReplace, orAlter)
 	case kwEXTERNAL:
 		// CREATE [OR REPLACE] EXTERNAL { FUNCTION (T4.5) | TABLE (T4.4) | VOLUME (T4.7) }.
 		// The object is disambiguated by what follows EXTERNAL. EXTERNAL TABLE keeps
@@ -161,63 +170,63 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// reserved keyword, so EXTERNAL VOLUME lexes as kwEXTERNAL followed by a
 		// "VOLUME" identifier; that branch is taken here.
 		if p.peekNext().Type == kwTABLE {
-			return p.parseCreateExternalTableStmt(start, orReplace)
+			return p.parseCreateExternalTableStmt(start, orReplace, orAlter)
 		}
 		p.advance() // consume EXTERNAL
 		if p.curIsWord("VOLUME") {
 			p.advance() // consume VOLUME (a plain identifier; not a reserved keyword)
-			return p.parseCreateExternalVolumeStmt(start, orReplace)
+			return p.parseCreateExternalVolumeStmt(start, orReplace, orAlter)
 		}
 		if p.cur.Type != kwFUNCTION {
 			return p.unsupported("CREATE")
 		}
-		return p.parseCreateExternalFunctionStmt(start, orReplace, false)
+		return p.parseCreateExternalFunctionStmt(start, orReplace, orAlter, false)
 	case kwSTORAGE, kwAPI, kwNOTIFICATION, kwSECURITY, kwRESOURCE, kwSECRET, kwCONNECTION, kwGIT:
 		// CREATE [OR REPLACE] account-level integration objects (T4.7):
 		// { STORAGE | API | NOTIFICATION | SECURITY } INTEGRATION, RESOURCE MONITOR,
 		// SECRET, CONNECTION, GIT REPOSITORY. parseCreateIntegrationStmt consumes the
 		// object-type keyword(s).
-		return p.parseCreateIntegrationStmt(start, orReplace)
+		return p.parseCreateIntegrationStmt(start, orReplace, orAlter)
 	case kwTAG:
 		// CREATE [OR REPLACE] TAG ... (T4.9).
-		return p.parseCreateTagStmt(start, orReplace)
+		return p.parseCreateTagStmt(start, orReplace, orAlter)
 	case kwSEMANTIC:
 		// CREATE [OR REPLACE] SEMANTIC VIEW ... (T4.9). The sub-parser consumes
 		// SEMANTIC + VIEW.
-		return p.parseCreateSemanticViewStmt(start, orReplace)
+		return p.parseCreateSemanticViewStmt(start, orReplace, orAlter)
 	case kwDATASET:
 		// CREATE [OR REPLACE] DATASET ... (T4.9).
-		return p.parseCreateDatasetStmt(start, orReplace)
+		return p.parseCreateDatasetStmt(start, orReplace, orAlter)
 	case kwFAILOVER, kwREPLICATION:
 		// CREATE [OR REPLACE] { FAILOVER | REPLICATION } GROUP ... (T4.8).
 		// parseCreateReplicationGroupStmt consumes the kind keyword + GROUP.
-		return p.parseCreateReplicationGroupStmt(start, orReplace)
+		return p.parseCreateReplicationGroupStmt(start, orReplace, orAlter)
 	case kwACCOUNT, kwMANAGED:
 		// CREATE ACCOUNT / CREATE [OR REPLACE] MANAGED ACCOUNT ... (T4.8).
 		// parseCreateAccountStmt consumes the (MANAGED) ACCOUNT keyword(s).
-		return p.parseCreateAccountStmt(start, orReplace)
+		return p.parseCreateAccountStmt(start, orReplace, orAlter)
 	case kwSHARE:
 		// CREATE [OR REPLACE] SHARE ... (T4.8).
-		return p.parseCreateShareStmt(start, orReplace)
+		return p.parseCreateShareStmt(start, orReplace, orAlter)
 	case kwROLE:
 		// CREATE [OR REPLACE] ROLE ... (T4.6). DATABASE ROLE is dispatched by the
 		// kwDATABASE case above.
-		return p.parseCreateRoleStmt(start, orReplace, false)
+		return p.parseCreateRoleStmt(start, orReplace, orAlter, false)
 	case kwUSER:
 		// CREATE [OR REPLACE] USER ... (T4.6).
-		return p.parseCreateUserStmt(start, orReplace)
+		return p.parseCreateUserStmt(start, orReplace, orAlter)
 	case kwMASKING, kwSESSION, kwPASSWORD, kwNETWORK, kwROW:
 		// CREATE [OR REPLACE] { MASKING | ROW ACCESS | SESSION | PASSWORD | NETWORK }
 		// POLICY ... (T4.6). parseCreatePolicyDispatch consumes the kind keyword(s)
 		// and the POLICY keyword, then delegates. A leading keyword not followed by
 		// the expected POLICY (or ACCESS POLICY, for ROW) is not a policy statement.
-		return p.parseCreatePolicyDispatch(start, orReplace)
+		return p.parseCreatePolicyDispatch(start, orReplace, orAlter)
 	default:
 		// AUTHENTICATION is not a reserved keyword, so CREATE AUTHENTICATION POLICY
 		// lexes as an "AUTHENTICATION" identifier followed by the POLICY keyword;
 		// that form is dispatched here (T4.6).
 		if p.curIsWord("AUTHENTICATION") && p.peekNext().Type == kwPOLICY {
-			return p.parseCreatePolicyDispatch(start, orReplace)
+			return p.parseCreatePolicyDispatch(start, orReplace, orAlter)
 		}
 		return p.unsupported("CREATE")
 	}
@@ -233,12 +242,12 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 //	PASSWORD POLICY           -> PolicyPassword
 //	NETWORK POLICY            -> PolicyNetwork
 //	AUTHENTICATION POLICY     -> PolicyAuthentication  (AUTHENTICATION is an identifier)
-func (p *Parser) parseCreatePolicyDispatch(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreatePolicyDispatch(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	kind, err := p.consumePolicyKeywords()
 	if err != nil {
 		return nil, err
 	}
-	return p.parseCreatePolicyStmt(start, orReplace, kind)
+	return p.parseCreatePolicyStmt(start, orReplace, orAlter, kind)
 }
 
 // ---------------------------------------------------------------------------
@@ -248,11 +257,12 @@ func (p *Parser) parseCreatePolicyDispatch(start ast.Loc, orReplace bool) (ast.N
 // parseCreateTableStmt parses the body of a CREATE [OR REPLACE] [...] TABLE
 // statement. The CREATE keyword and optional modifiers have already been
 // consumed; start is the Loc of the CREATE token.
-func (p *Parser) parseCreateTableStmt(start ast.Loc, orReplace, transient, temporary, volatile bool) (ast.Node, error) {
+func (p *Parser) parseCreateTableStmt(start ast.Loc, orReplace, orAlter, transient, temporary, volatile bool) (ast.Node, error) {
 	p.advance() // consume TABLE
 
 	stmt := &ast.CreateTableStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Transient: transient,
 		Temporary: temporary,
 		Volatile:  volatile,

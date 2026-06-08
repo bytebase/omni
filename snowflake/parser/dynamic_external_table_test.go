@@ -82,6 +82,16 @@ func mustCreateEventTable(t *testing.T, input string) *ast.CreateEventTableStmt 
 // docs-only form), so each is implemented and flagged in the divergence ledger.
 // ---------------------------------------------------------------------------
 
+func TestParseCreateDynamicTable_OrAlter(t *testing.T) {
+	stmt := mustCreateDynamicTable(t, "CREATE OR ALTER DYNAMIC TABLE my_dynamic_table TARGET_LAG = DOWNSTREAM WAREHOUSE = mywh AS SELECT a, b FROM t")
+	if !stmt.OrAlter {
+		t.Error("expected OrAlter=true")
+	}
+	if stmt.OrReplace {
+		t.Error("expected OrReplace=false")
+	}
+}
+
 func TestParseCreateDynamicTable(t *testing.T) {
 	t.Run("minimal target_lag warehouse AS", func(t *testing.T) {
 		stmt := mustCreateDynamicTable(t, "CREATE OR REPLACE DYNAMIC TABLE dt TARGET_LAG = '20 minutes' WAREHOUSE = mywh AS SELECT a FROM t")

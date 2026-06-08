@@ -53,11 +53,12 @@ import (
 // `with_tags? comment_clause?` (TAG before COMMENT). Accepting either order (a)
 // follows the docs, (b) regresses neither, and (c) avoids silently dropping a
 // COMMENT that trails the TAG clause — matching the merged STAGE (T4.1) handling.
-func (p *Parser) parseCreateRoleStmt(start ast.Loc, orReplace, database bool) (ast.Node, error) {
+func (p *Parser) parseCreateRoleStmt(start ast.Loc, orReplace, orAlter, database bool) (ast.Node, error) {
 	p.advance() // consume ROLE
 
 	stmt := &ast.CreateRoleStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Database:  database,
 		Loc:       ast.Loc{Start: start.Start},
 	}
@@ -107,11 +108,12 @@ func (p *Parser) parseCreateRoleStmt(start ast.Loc, orReplace, database bool) (a
 //
 // Every property/parameter is an open-ended `KEY = value` pair (CopyOption).
 // The CREATE keyword and OR REPLACE have already been consumed; cur is USER.
-func (p *Parser) parseCreateUserStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreateUserStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	p.advance() // consume USER
 
 	stmt := &ast.CreateUserStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 
@@ -172,10 +174,11 @@ func (p *Parser) parseCreateUserStmt(start ast.Loc, orReplace bool) (ast.Node, e
 // SESSION / PASSWORD / NETWORK / AUTHENTICATION:
 //
 //	... [ IF NOT EXISTS ] <name> [ <option> ... ]
-func (p *Parser) parseCreatePolicyStmt(start ast.Loc, orReplace bool, kind ast.PolicyKind) (ast.Node, error) {
+func (p *Parser) parseCreatePolicyStmt(start ast.Loc, orReplace, orAlter bool, kind ast.PolicyKind) (ast.Node, error) {
 	stmt := &ast.CreatePolicyStmt{
 		Kind:      kind,
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 

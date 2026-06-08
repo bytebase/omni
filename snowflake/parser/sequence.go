@@ -36,11 +36,12 @@ import "github.com/bytebase/omni/snowflake/ast"
 // SEQUENCE keyword. The leading [ WITH ] is an optional no-op connector; the
 // START / INCREMENT / ORDER|NOORDER / COMMENT clauses follow in that documented
 // order.
-func (p *Parser) parseCreateSequenceStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreateSequenceStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	p.advance() // consume SEQUENCE
 
 	stmt := &ast.CreateSequenceStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 

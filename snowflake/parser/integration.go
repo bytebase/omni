@@ -56,7 +56,7 @@ import (
 // RESOURCE / SECRET / CONNECTION / GIT). EXTERNAL VOLUME enters through
 // parseCreateExternalVolumeStmt instead (its dispatch already consumed EXTERNAL +
 // VOLUME).
-func (p *Parser) parseCreateIntegrationStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreateIntegrationStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	kind, err := p.consumeIntegrationObjectKeyword()
 	if err != nil {
 		return nil, err
@@ -65,6 +65,7 @@ func (p *Parser) parseCreateIntegrationStmt(start ast.Loc, orReplace bool) (ast.
 	stmt := &ast.CreateIntegrationStmt{
 		Kind:      kind,
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 
@@ -155,10 +156,11 @@ func (p *Parser) parseCreateIntegrationStmt(start ast.Loc, orReplace bool) (ast.
 // The CREATE / OR REPLACE / EXTERNAL / VOLUME tokens have already been consumed by
 // the dispatch in create_table.go; start is the Loc of the CREATE token. Every
 // parameter is open-ended; only STORAGE_LOCATIONS needs the list-of-groups reader.
-func (p *Parser) parseCreateExternalVolumeStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreateExternalVolumeStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	stmt := &ast.CreateIntegrationStmt{
 		Kind:      ast.ExternalVolume,
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 

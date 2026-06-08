@@ -56,7 +56,7 @@ import (
 //	  [ [ WITH ] TAG (...) ]
 //	CREATE [ OR REPLACE ] { FAILOVER | REPLICATION } GROUP [ IF NOT EXISTS ] <name>
 //	  AS REPLICA OF <org>.<source_account>.<name>
-func (p *Parser) parseCreateReplicationGroupStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreateReplicationGroupStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	failover := p.cur.Type == kwFAILOVER
 	p.advance() // consume FAILOVER / REPLICATION
 	if _, err := p.expect(kwGROUP); err != nil {
@@ -66,6 +66,7 @@ func (p *Parser) parseCreateReplicationGroupStmt(start ast.Loc, orReplace bool) 
 	stmt := &ast.CreateReplicationGroupStmt{
 		Failover:  failover,
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 
@@ -358,7 +359,7 @@ func (p *Parser) parseAlterGroupUnset(stmt *ast.AlterReplicationGroupStmt) error
 //
 //	CREATE ACCOUNT <name> ADMIN_NAME = ... <space-separated params...>
 //	CREATE [ OR REPLACE ] MANAGED ACCOUNT <name> ADMIN_NAME = ..., <comma-separated params...>
-func (p *Parser) parseCreateAccountStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreateAccountStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	managed := p.cur.Type == kwMANAGED
 	if managed {
 		p.advance() // consume MANAGED
@@ -370,6 +371,7 @@ func (p *Parser) parseCreateAccountStmt(start ast.Loc, orReplace bool) (ast.Node
 	stmt := &ast.CreateAccountStmt{
 		Managed:   managed,
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 
@@ -654,11 +656,12 @@ func (p *Parser) parseAccountPolicyScope() (string, error) {
 //
 // The CREATE keyword and optional OR REPLACE modifier have already been consumed;
 // start is the Loc of the CREATE token, and cur is the SHARE keyword.
-func (p *Parser) parseCreateShareStmt(start ast.Loc, orReplace bool) (ast.Node, error) {
+func (p *Parser) parseCreateShareStmt(start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
 	p.advance() // consume SHARE
 
 	stmt := &ast.CreateShareStmt{
 		OrReplace: orReplace,
+		OrAlter:   orAlter,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 
