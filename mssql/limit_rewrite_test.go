@@ -40,6 +40,18 @@ func TestStatementWithResultLimit(t *testing.T) {
 			want:      "SELECT TOP 10 id FROM t1;",
 		},
 		{
+			name:      "lowers top percent even when numeric value is smaller",
+			statement: "SELECT TOP (3) PERCENT id FROM t1;",
+			limit:     10,
+			want:      "SELECT TOP 10 id FROM t1;",
+		},
+		{
+			name:      "lowers top with ties even when numeric value is smaller",
+			statement: "SELECT TOP (3) WITH TIES id FROM t1 ORDER BY id;",
+			limit:     10,
+			want:      "SELECT TOP 10 id FROM t1 ORDER BY id;",
+		},
+		{
 			name:      "adds offset fetch after order by",
 			statement: "SELECT id FROM t1 ORDER BY price;",
 			limit:     10,
