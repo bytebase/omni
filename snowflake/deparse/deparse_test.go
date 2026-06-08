@@ -760,3 +760,30 @@ func TestDeparse_UnsupportedNode(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "unsupported")
 }
+
+// ---------------------------------------------------------------------------
+// $-reference deparse (positional $N + named $var, optional qualifier).
+// Round-trip is the structural correctness gate for the DollarRef node.
+// ---------------------------------------------------------------------------
+
+func TestDeparse_DollarPositional(t *testing.T) {
+	assertRoundTrip(t, `SELECT $1, $2 FROM t`)
+}
+
+func TestDeparse_DollarQualified(t *testing.T) {
+	out := assertRoundTrip(t, `SELECT d.$1 FROM t AS d`)
+	require.Contains(t, out, "d.$1")
+}
+
+func TestDeparse_DollarNamedVar(t *testing.T) {
+	assertRoundTrip(t, `SELECT 2 * $min FROM t`)
+}
+
+func TestDeparse_DollarColonCast(t *testing.T) {
+	assertRoundTrip(t, `SELECT $1:num::NUMBER AS num FROM t`)
+}
+
+func TestDeparse_DollarFuncArg(t *testing.T) {
+	out := assertRoundTrip(t, `SELECT TO_DATE($1) FROM t`)
+	require.Contains(t, out, "$1")
+}

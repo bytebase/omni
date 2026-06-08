@@ -410,6 +410,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.NameLiteral != nil {
 			Walk(v, n.NameLiteral)
 		}
+	case *DollarRef:
+		if n.Qualifier != nil {
+			Walk(v, n.Qualifier)
+		}
 	case *DropDatabaseStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)

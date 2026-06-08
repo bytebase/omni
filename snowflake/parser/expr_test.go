@@ -1516,3 +1516,277 @@ func TestExpr_WindowSingleBound(t *testing.T) {
 		t.Errorf("Start.Kind = %v, want BoundUnboundedPreceding", fc.Over.Frame.Start.Kind)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// $-references ($N positional column refs, $<name> variable refs)
+//
+// Oracle: official Snowflake docs (truth1) + the previously-filtered corpus
+// forms (copyDollarLimited / execCallDollarLimited / SET $var). The legacy
+// SnowflakeParser.g4 is not vendored in this tree, so docs + corpus are the
+// authoritative sources. The lexer collapses both forms into a single
+// tokVariable (leading '$' stripped); Positional is derived from the text.
+// ---------------------------------------------------------------------------
+
+func TestExpr_DollarPositional(t *testing.T) {
+	node, err := testParseExpr("$1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	dr, ok := node.(*ast.DollarRef)
+	if !ok {
+		t.Fatalf("expected *ast.DollarRef, got %T", node)
+	}
+	if dr.Name != "1" {
+		t.Errorf("Name = %q, want %q", dr.Name, "1")
+	}
+	if !dr.Positional {
+		t.Error("Positional should be true for $1")
+	}
+	if dr.Qualifier != nil {
+		t.Error("expected nil Qualifier for bare $1")
+	}
+	// Loc must span the whole token including the leading '$'.
+	if dr.Loc.Start != 0 || dr.Loc.End != 2 {
+		t.Errorf("Loc = %+v, want {0 2}", dr.Loc)
+	}
+}
+
+func TestExpr_DollarPositionalMultiDigit(t *testing.T) {
+	node, err := testParseExpr("$42")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	dr, ok := node.(*ast.DollarRef)
+	if !ok {
+		t.Fatalf("expected *ast.DollarRef, got %T", node)
+	}
+	if dr.Name != "42" || !dr.Positional {
+		t.Errorf("got Name=%q Positional=%v, want \"42\" true", dr.Name, dr.Positional)
+	}
+}
+
+func TestExpr_DollarNamedVar(t *testing.T) {
+	tests := []struct {
+		input    string
+		wantName string
+	}{
+		{"$min", "min"},
+		{"$Variable1", "Variable1"},
+		{"$ABC_123", "ABC_123"},
+		{"$_x", "_x"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			node, err := testParseExpr(tt.input)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			dr, ok := node.(*ast.DollarRef)
+			if !ok {
+				t.Fatalf("expected *ast.DollarRef, got %T", node)
+			}
+			if dr.Name != tt.wantName {
+				t.Errorf("Name = %q, want %q", dr.Name, tt.wantName)
+			}
+			if dr.Positional {
+				t.Errorf("Positional should be false for %s", tt.input)
+			}
+			if dr.Qualifier != nil {
+				t.Error("expected nil Qualifier")
+			}
+		})
+	}
+}
+
+func TestExpr_DollarQualifiedPositional(t *testing.T) {
+	// d.$1 — positional column ref qualified by table alias d (COPY transform).
+	node, err := testParseExpr("d.$1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	dr, ok := node.(*ast.DollarRef)
+	if !ok {
+		t.Fatalf("expected *ast.DollarRef, got %T", node)
+	}
+	if dr.Name != "1" || !dr.Positional {
+		t.Errorf("got Name=%q Positional=%v, want \"1\" true", dr.Name, dr.Positional)
+	}
+	if dr.Qualifier == nil {
+		t.Fatal("expected non-nil Qualifier for d.$1")
+	}
+	if dr.Qualifier.Name.Name != "d" {
+		t.Errorf("Qualifier.Name = %q, want %q", dr.Qualifier.Name.Name, "d")
+	}
+	// Loc spans from the qualifier start to the $-token end.
+	if dr.Loc.Start != 0 || dr.Loc.End != 4 {
+		t.Errorf("Loc = %+v, want {0 4}", dr.Loc)
+	}
+}
+
+func TestExpr_DollarQualifiedSchemaTable(t *testing.T) {
+	// s.t.$1 — two-part qualifier on a positional ref.
+	node, err := testParseExpr("s.t.$1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	dr, ok := node.(*ast.DollarRef)
+	if !ok {
+		t.Fatalf("expected *ast.DollarRef, got %T", node)
+	}
+	if dr.Qualifier == nil {
+		t.Fatal("expected non-nil Qualifier")
+	}
+	if dr.Qualifier.Schema.Name != "s" || dr.Qualifier.Name.Name != "t" {
+		t.Errorf("Qualifier = %s.%s, want s.t", dr.Qualifier.Schema.Name, dr.Qualifier.Name.Name)
+	}
+}
+
+func TestExpr_DollarColonCast(t *testing.T) {
+	// $1:num::number — positional ref, semi-structured colon access, then cast.
+	// Composes through the infix loop: CastExpr(AccessExpr(Colon, DollarRef, num)).
+	node, err := testParseExpr("$1:num::number")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	cast, ok := node.(*ast.CastExpr)
+	if !ok {
+		t.Fatalf("expected *ast.CastExpr, got %T", node)
+	}
+	if !cast.ColonColon {
+		t.Error("ColonColon should be true")
+	}
+	acc, ok := cast.Expr.(*ast.AccessExpr)
+	if !ok {
+		t.Fatalf("expected *ast.AccessExpr, got %T", cast.Expr)
+	}
+	if acc.Kind != ast.AccessColon || acc.Field.Name != "num" {
+		t.Errorf("access = %v %q, want Colon num", acc.Kind, acc.Field.Name)
+	}
+	dr, ok := acc.Expr.(*ast.DollarRef)
+	if !ok {
+		t.Fatalf("expected *ast.DollarRef, got %T", acc.Expr)
+	}
+	if dr.Name != "1" || !dr.Positional {
+		t.Errorf("got Name=%q Positional=%v, want \"1\" true", dr.Name, dr.Positional)
+	}
+}
+
+func TestExpr_DollarArithmetic(t *testing.T) {
+	// $1 + $2 — DollarRefs compose as arithmetic operands.
+	node, err := testParseExpr("$1 + $2")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	bin, ok := node.(*ast.BinaryExpr)
+	if !ok {
+		t.Fatalf("expected *ast.BinaryExpr, got %T", node)
+	}
+	if bin.Op != ast.BinAdd {
+		t.Errorf("Op = %v, want BinAdd", bin.Op)
+	}
+	if _, ok := bin.Left.(*ast.DollarRef); !ok {
+		t.Errorf("Left = %T, want *ast.DollarRef", bin.Left)
+	}
+	if _, ok := bin.Right.(*ast.DollarRef); !ok {
+		t.Errorf("Right = %T, want *ast.DollarRef", bin.Right)
+	}
+}
+
+func TestExpr_DollarInArithmeticWithVar(t *testing.T) {
+	// 2 * $min — the SET corpus form (set/example_06.sql value).
+	node, err := testParseExpr("2 * $min")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	bin, ok := node.(*ast.BinaryExpr)
+	if !ok {
+		t.Fatalf("expected *ast.BinaryExpr, got %T", node)
+	}
+	dr, ok := bin.Right.(*ast.DollarRef)
+	if !ok {
+		t.Fatalf("Right = %T, want *ast.DollarRef", bin.Right)
+	}
+	if dr.Name != "min" || dr.Positional {
+		t.Errorf("got Name=%q Positional=%v, want \"min\" false", dr.Name, dr.Positional)
+	}
+}
+
+func TestExpr_DollarAsFuncArg(t *testing.T) {
+	// TO_DATE($1) — positional ref as a function argument (copy-into-location).
+	node, err := testParseExpr("TO_DATE($1)")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	fc, ok := node.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected *ast.FuncCallExpr, got %T", node)
+	}
+	if len(fc.Args) != 1 {
+		t.Fatalf("len(Args) = %d, want 1", len(fc.Args))
+	}
+	dr, ok := fc.Args[0].(*ast.DollarRef)
+	if !ok {
+		t.Fatalf("Args[0] = %T, want *ast.DollarRef", fc.Args[0])
+	}
+	if dr.Name != "1" || !dr.Positional {
+		t.Errorf("got Name=%q Positional=%v, want \"1\" true", dr.Name, dr.Positional)
+	}
+}
+
+func TestExpr_DollarVarAsFuncArg(t *testing.T) {
+	// p($v) argument form — the execCallDollarLimited corpus case.
+	node, err := testParseExpr("p($v)")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	fc, ok := node.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected *ast.FuncCallExpr, got %T", node)
+	}
+	if len(fc.Args) != 1 {
+		t.Fatalf("len(Args) = %d, want 1", len(fc.Args))
+	}
+	dr, ok := fc.Args[0].(*ast.DollarRef)
+	if !ok {
+		t.Fatalf("Args[0] = %T, want *ast.DollarRef", fc.Args[0])
+	}
+	if dr.Name != "v" || dr.Positional {
+		t.Errorf("got Name=%q Positional=%v, want \"v\" false", dr.Name, dr.Positional)
+	}
+}
+
+func TestExpr_DollarBracketAccess(t *testing.T) {
+	// $1[0] — positional ref with array subscript (semi-structured).
+	node, err := testParseExpr("$1[0]")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	acc, ok := node.(*ast.AccessExpr)
+	if !ok {
+		t.Fatalf("expected *ast.AccessExpr, got %T", node)
+	}
+	if acc.Kind != ast.AccessBracket {
+		t.Errorf("Kind = %v, want AccessBracket", acc.Kind)
+	}
+	if _, ok := acc.Expr.(*ast.DollarRef); !ok {
+		t.Errorf("Expr = %T, want *ast.DollarRef", acc.Expr)
+	}
+}
+
+// Negative: a lone '$' with no following name/number is not a DollarRef — the
+// lexer emits a bare '$' ASCII token which the expression parser must reject.
+func TestExpr_DollarBareIsError(t *testing.T) {
+	_, err := testParseExpr("$")
+	if err == nil {
+		t.Fatal("expected an error for a lone '$'")
+	}
+}
+
+// Negative: '$' followed by whitespace then a number is still a lone '$' (the
+// digits are a separate token) and must error.
+func TestExpr_DollarSpaceNumberIsError(t *testing.T) {
+	_, err := testParseExpr("$ 1")
+	if err == nil {
+		t.Fatal("expected an error for '$ 1' (bare $ followed by separate number)")
+	}
+}

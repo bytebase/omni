@@ -20,6 +20,8 @@ func (w *writer) writeExpr(node ast.Node) error {
 		return w.writeColumnRef(n)
 	case *ast.StarExpr:
 		return w.writeStarExpr(n)
+	case *ast.DollarRef:
+		return w.writeDollarRef(n)
 	case *ast.BinaryExpr:
 		return w.writeBinaryExpr(n)
 	case *ast.UnaryExpr:
@@ -109,6 +111,20 @@ func (w *writer) writeStarExpr(n *ast.StarExpr) error {
 	} else {
 		w.buf.WriteByte('*')
 	}
+	return nil
+}
+
+// writeDollarRef emits a $-reference: [qualifier.]$Name. The leading '$' is
+// re-attached (the lexer stripped it; Name holds only the bare text). Mirrors
+// writeStarExpr's qualifier handling.
+func (w *writer) writeDollarRef(n *ast.DollarRef) error {
+	w.ensureSpace()
+	if n.Qualifier != nil {
+		w.writeObjectNameNoSpace(n.Qualifier)
+		w.buf.WriteByte('.')
+	}
+	w.buf.WriteByte('$')
+	w.buf.WriteString(n.Name)
 	return nil
 }
 
