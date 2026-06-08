@@ -933,6 +933,31 @@ const (
 	kwYEARLY
 	kwZSTD
 	// KEYWORD_CONSTANTS_END
+
+	// Snowflake Scripting keywords (T7.1). These are absent from the
+	// SnowflakeLexer.g4 extraction (the legacy grammar modeled scripting only
+	// minimally), so they are appended here rather than in the generated region
+	// above. They are non-reserved (usable as identifiers); see keywordMap. As
+	// bare entries they continue the enclosing `700 + iota` const block, so each
+	// gets a distinct value just past kwZSTD.
+	kwSCRIPT_WHILE
+	kwSCRIPT_LOOP
+	kwSCRIPT_REPEAT
+	kwSCRIPT_UNTIL
+	kwSCRIPT_LET
+	kwSCRIPT_BREAK
+	kwSCRIPT_EXCEPTION
+	kwSCRIPT_RAISE
+	kwSCRIPT_CURSOR
+	kwSCRIPT_RESULTSET
+	kwSCRIPT_REVERSE
+	kwSCRIPT_ASYNC
+	kwSCRIPT_OTHER
+	kwSCRIPT_EXIT
+	kwSCRIPT_ITERATE
+	kwSCRIPT_OPEN
+	kwSCRIPT_CLOSE
+	kwSCRIPT_ELSEIF
 )
 
 // TokenName returns a human-readable name for a token type. Used by tests

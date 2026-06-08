@@ -198,25 +198,23 @@ func TestBegin_Loc(t *testing.T) {
 	}
 }
 
-// Trailing-junk leniency: like every other omni snowflake statement parser
-// (verified against parseDropStmt / parseTruncateStmt / parseUseStmt, which all
-// accept "<stmt> junk" with zero errors), parseBeginStmt consumes exactly the
-// grammar it owns and leaves any trailing tokens unconsumed without raising an
-// error. Real Snowflake rejects "BEGIN FOO" as a syntax error; omni's
-// engine-wide convention is to trust the F3 splitter and not enforce
-// trailing-token strictness per node. This is a pre-existing engine-wide
-// divergence (recorded in the divergence ledger), not specific to TCL. The
-// statement still parses to the correct BeginStmt with the right Kind.
-func TestBegin_TrailingJunkLenient(t *testing.T) {
-	stmt, errs := testParseBeginStmt("BEGIN FOO")
-	if len(errs) != 0 {
-		t.Fatalf("BEGIN FOO: expected lenient parse (engine-wide convention), got errors: %v", errs)
+// BEGIN disambiguation (T7.1): a BEGIN followed by a token that is NOT a TCL
+// modifier (WORK / TRANSACTION / NAME / ; / EOF) no longer opens a transaction
+// — it opens a Snowflake Scripting BLOCK. "BEGIN FOO" is therefore a scripting
+// block whose body begins with FOO; because the block is never closed (no END),
+// it is a malformed block and errors. This supersedes the old TCL trailing-junk
+// leniency for the "BEGIN FOO" shape (the real TCL forms below are unaffected
+// because WORK / TRANSACTION / NAME keep BEGIN on the transaction path).
+func TestBegin_FooRoutesToScriptBlock(t *testing.T) {
+	result := ParseBestEffort("BEGIN FOO")
+	if len(result.Errors) == 0 {
+		t.Fatal("BEGIN FOO: expected an error (unterminated scripting block), got none")
 	}
-	if stmt.Kind != ast.BeginBare {
-		t.Errorf("kind = %v, want BeginBare", stmt.Kind)
-	}
-	if !stmt.Name.IsEmpty() {
-		t.Errorf("expected no NAME (FOO is trailing junk, not consumed), got %q", stmt.Name.Normalize())
+	// It must NOT be parsed as a TCL BeginStmt.
+	if len(result.File.Stmts) > 0 {
+		if _, ok := result.File.Stmts[0].(*ast.BeginStmt); ok {
+			t.Errorf("BEGIN FOO parsed as *ast.BeginStmt; expected a scripting-block routing")
+		}
 	}
 }
 

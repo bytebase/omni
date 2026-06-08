@@ -196,6 +196,32 @@ const (
 	T_SampleClause
 	T_TimeTravelClause
 	T_ChangesClause
+
+	// Snowflake Scripting (T7.1) — statement nodes plus the structural
+	// sub-nodes (declarations, IF/CASE branches, exception handlers). The
+	// sub-nodes are Nodes (unlike the CaseExpr/WhenClause precedent) so the
+	// generated walker descends into their nested bodies and queries, which an
+	// analysis pass needs to reach.
+	T_ScriptDeclaration
+	T_ScriptExceptionHandler
+	T_ScriptIfBranch
+	T_ScriptCaseWhen
+	T_ScriptBlockStmt
+	T_ScriptAssignStmt
+	T_ScriptLetStmt
+	T_ScriptIfStmt
+	T_ScriptCaseStmt
+	T_ScriptForStmt
+	T_ScriptWhileStmt
+	T_ScriptRepeatStmt
+	T_ScriptLoopStmt
+	T_ScriptBreakStmt
+	T_ScriptContinueStmt
+	T_ScriptReturnStmt
+	T_ScriptOpenStmt
+	T_ScriptFetchStmt
+	T_ScriptCloseStmt
+	T_ScriptRaiseStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -479,6 +505,46 @@ func (t NodeTag) String() string {
 		return "TimeTravelClause"
 	case T_ChangesClause:
 		return "ChangesClause"
+	case T_ScriptDeclaration:
+		return "ScriptDeclaration"
+	case T_ScriptExceptionHandler:
+		return "ScriptExceptionHandler"
+	case T_ScriptIfBranch:
+		return "ScriptIfBranch"
+	case T_ScriptCaseWhen:
+		return "ScriptCaseWhen"
+	case T_ScriptBlockStmt:
+		return "ScriptBlockStmt"
+	case T_ScriptAssignStmt:
+		return "ScriptAssignStmt"
+	case T_ScriptLetStmt:
+		return "ScriptLetStmt"
+	case T_ScriptIfStmt:
+		return "ScriptIfStmt"
+	case T_ScriptCaseStmt:
+		return "ScriptCaseStmt"
+	case T_ScriptForStmt:
+		return "ScriptForStmt"
+	case T_ScriptWhileStmt:
+		return "ScriptWhileStmt"
+	case T_ScriptRepeatStmt:
+		return "ScriptRepeatStmt"
+	case T_ScriptLoopStmt:
+		return "ScriptLoopStmt"
+	case T_ScriptBreakStmt:
+		return "ScriptBreakStmt"
+	case T_ScriptContinueStmt:
+		return "ScriptContinueStmt"
+	case T_ScriptReturnStmt:
+		return "ScriptReturnStmt"
+	case T_ScriptOpenStmt:
+		return "ScriptOpenStmt"
+	case T_ScriptFetchStmt:
+		return "ScriptFetchStmt"
+	case T_ScriptCloseStmt:
+		return "ScriptCloseStmt"
+	case T_ScriptRaiseStmt:
+		return "ScriptRaiseStmt"
 	default:
 		return "Unknown"
 	}

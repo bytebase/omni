@@ -36,6 +36,11 @@ type Parser struct {
 	// PRIOR on this flag avoids mis-parsing a column literally named "prior"
 	// in ordinary expression positions.
 	inConnectBy bool
+	// scriptDepth bounds Snowflake Scripting block / control-flow nesting
+	// (T7.1). It is incremented on entry to every nested scripting construct and
+	// checked against maxScriptDepth so a pathologically deep (or adversarial)
+	// body cannot blow the Go stack. See scripting.go.
+	scriptDepth int
 }
 
 // advance consumes the current token and moves to the next one.
@@ -257,7 +262,15 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// TCL (4 cases)
 	case kwBEGIN:
-		return p.parseBeginStmt()
+		// BEGIN is overloaded: a TCL transaction opener
+		// (BEGIN [WORK|TRANSACTION] [NAME ...]) versus a Snowflake Scripting
+		// block (BEGIN <stmts> [EXCEPTION ...] END). Disambiguate on the token
+		// after BEGIN: WORK / TRANSACTION / NAME / ; / EOF → TCL; anything else
+		// opens a scripting block. See beginIsTransaction.
+		if p.beginIsTransaction() {
+			return p.parseBeginStmt()
+		}
+		return p.parseScriptBlock()
 	case kwSTART:
 		return p.parseStartTransactionStmt()
 	case kwCOMMIT:
@@ -283,19 +296,19 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwUNSET:
 		return p.parseUnsetStmt()
 
-	// Snowflake Scripting (subset available as F2 keywords — 6 cases)
+	// Snowflake Scripting (T7.1). A top-level DECLARE opens a scripting block
+	// (DECLARE <decls> BEGIN <stmts> ... END). The remaining scripting
+	// keywords introduce individual scripting statements; Snowflake itself
+	// only accepts them inside a block, but omni parses them structurally at
+	// the top level too (a lenient superset, flagged in the divergence ledger)
+	// so best-effort parsing of partial / extracted bodies still yields an AST.
 	case kwDECLARE:
-		return p.unsupported("DECLARE")
-	case kwIF:
-		return p.unsupported("IF")
-	case kwCASE:
-		return p.unsupported("CASE")
-	case kwFOR:
-		return p.unsupported("FOR")
-	case kwRETURN:
-		return p.unsupported("RETURN")
-	case kwCONTINUE:
-		return p.unsupported("CONTINUE")
+		return p.parseScriptBlock()
+	case kwIF, kwCASE, kwFOR, kwRETURN, kwCONTINUE,
+		kwSCRIPT_WHILE, kwSCRIPT_LOOP, kwSCRIPT_REPEAT, kwSCRIPT_LET,
+		kwSCRIPT_BREAK, kwSCRIPT_EXIT, kwSCRIPT_ITERATE, kwSCRIPT_RAISE,
+		kwSCRIPT_OPEN, kwSCRIPT_CLOSE, kwFETCH:
+		return p.parseScriptStatement()
 
 	default:
 		// LS and RM are the documented aliases of LIST and REMOVE. EXECUTE

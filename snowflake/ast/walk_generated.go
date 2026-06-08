@@ -576,6 +576,56 @@ func walkChildren(v Visitor, node Node) {
 	case *SampleClause:
 		Walk(v, n.Quantity)
 		Walk(v, n.Seed)
+	case *ScriptAssignStmt:
+		Walk(v, n.Value)
+	case *ScriptBlockStmt:
+		walkNodes(v, n.Decls)
+		walkNodes(v, n.Body)
+		walkNodes(v, n.Handlers)
+	case *ScriptCaseStmt:
+		Walk(v, n.Operand)
+		walkNodes(v, n.Whens)
+		walkNodes(v, n.Else)
+	case *ScriptCaseWhen:
+		Walk(v, n.Match)
+		walkNodes(v, n.Body)
+	case *ScriptDeclaration:
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		Walk(v, n.Default)
+		Walk(v, n.Query)
+		walkNodes(v, n.ExcArgs)
+	case *ScriptExceptionHandler:
+		walkNodes(v, n.Body)
+	case *ScriptForStmt:
+		Walk(v, n.Start)
+		Walk(v, n.End)
+		walkNodes(v, n.Body)
+	case *ScriptIfBranch:
+		Walk(v, n.Cond)
+		walkNodes(v, n.Body)
+	case *ScriptIfStmt:
+		walkNodes(v, n.Branches)
+		walkNodes(v, n.Else)
+	case *ScriptLetStmt:
+		if n.Type != nil {
+			Walk(v, n.Type)
+		}
+		Walk(v, n.Default)
+		Walk(v, n.Query)
+	case *ScriptLoopStmt:
+		walkNodes(v, n.Body)
+	case *ScriptOpenStmt:
+		walkNodes(v, n.Using)
+	case *ScriptRepeatStmt:
+		walkNodes(v, n.Body)
+		Walk(v, n.Cond)
+	case *ScriptReturnStmt:
+		Walk(v, n.Value)
+	case *ScriptWhileStmt:
+		Walk(v, n.Cond)
+		walkNodes(v, n.Body)
 	case *SelectStmt:
 		Walk(v, n.Top)
 		walkNodes(v, n.From)
