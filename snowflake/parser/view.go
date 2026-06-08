@@ -352,6 +352,20 @@ func (p *Parser) parseViewProperties(stmt interface{}) error {
 				v.Comment = &s
 			}
 
+		case kwCHANGE_TRACKING:
+			// CHANGE_TRACKING [=] { TRUE | FALSE } — consume and discard, mirroring
+			// the CREATE TABLE handling in create_table.go. Documented for CREATE
+			// VIEW (official create-view example_11 / example_13).
+			p.advance() // consume CHANGE_TRACKING
+			if p.cur.Type == '=' {
+				p.advance() // consume optional '='
+			}
+			if p.cur.Type == kwTRUE || p.cur.Type == kwFALSE {
+				p.advance()
+			} else {
+				return p.syntaxErrorAtCur()
+			}
+
 		default:
 			return nil
 		}
