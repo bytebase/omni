@@ -3294,6 +3294,205 @@ var (
 )
 
 // ---------------------------------------------------------------------------
+// Tag / semantic-view / dataset DDL — CREATE / ALTER (T4.9)
+// ---------------------------------------------------------------------------
+//
+// Three governance / semantic-layer objects:
+//
+//   - TAG: a named label whose CREATE carries an ALLOWED_VALUES string list plus
+//     a small, version-growing option vocabulary (PROPAGATE, ON_CONFLICT,
+//     COMMENT). The legacy ANTLR grammar's create_tag rule modeled only
+//     `tag_allowed_values? comment_clause?` and so lacks PROPAGATE / ON_CONFLICT
+//     (both present in the official docs and the create-tag corpus). To avoid
+//     re-staling, every clause after ALLOWED_VALUES is captured open-ended as a
+//     CopyOption; only ALLOWED_VALUES — the one structural anchor the docs pin
+//     to first position — is lifted into a dedicated field.
+//   - SEMANTIC VIEW: a logical model over tables. Its TABLES / RELATIONSHIPS /
+//     FACTS / DIMENSIONS / METRICS / AI_VERIFIED_QUERIES sections are each a
+//     comma-separated definition list inside a parenthesized group whose inner
+//     grammar is large and version-growing; rather than model each inner
+//     definition, each section's body is captured as a balanced raw group
+//     (SemanticViewSection). The trailing scalar clauses (COMMENT,
+//     AI_SQL_GENERATION, AI_QUESTION_CATEGORIZATION) are open-ended options, and
+//     the [WITH] TAG / COPY GRANTS clauses are the remaining structural anchors.
+//   - DATASET: a newer ML object whose CREATE is, per both the docs and the
+//     legacy grammar, just a name (no options).
+//
+// This mirrors the merged STAGE (T4.1) / FILE FORMAT (T4.2) / integration (T4.7)
+// open-ended philosophy: the catalog/semantic layer, not the parser, validates
+// that an option is real and legal.
+
+// CreateTagStmt represents
+//
+//	CREATE [ OR REPLACE ] TAG [ IF NOT EXISTS ] <name>
+//	  [ ALLOWED_VALUES '<v1>' [ , '<v2>' ... ] ]
+//	  [ PROPAGATE = { ON_DEPENDENCY_AND_DATA_MOVEMENT | ON_DEPENDENCY | ON_DATA_MOVEMENT }
+//	    [ ON_CONFLICT = { '<string>' | ALLOWED_VALUES_SEQUENCE } ] ]
+//	  [ COMMENT = '<string_literal>' ]
+//
+// AllowedValues holds the ALLOWED_VALUES string list (nil when the clause is
+// absent). Options captures the trailing PROPAGATE / ON_CONFLICT / COMMENT
+// clauses open-ended, in source order.
+type CreateTagStmt struct {
+	OrReplace     bool
+	IfNotExists   bool
+	Name          *ObjectName
+	AllowedValues []string      // ALLOWED_VALUES 'v1', 'v2', ...; nil if absent
+	Options       []*CopyOption // PROPAGATE / ON_CONFLICT / COMMENT; source order
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *CreateTagStmt) Tag() NodeTag { return T_CreateTagStmt }
+
+// AlterTagAction discriminates the action variants of ALTER TAG.
+type AlterTagAction int
+
+const (
+	AlterTagRename             AlterTagAction = iota // RENAME TO <new_name>
+	AlterTagAddAllowedValues                         // ADD ALLOWED_VALUES '<v>' [ , ... ]
+	AlterTagDropAllowedValues                        // DROP ALLOWED_VALUES '<v>' [ , ... ]
+	AlterTagSet                                      // SET [ ALLOWED_VALUES ... ] [ PROPAGATE ... ] [ COMMENT ... ]
+	AlterTagUnset                                    // UNSET { ALLOWED_VALUES | PROPAGATE | ON_CONFLICT | COMMENT | DCM PROJECT }
+	AlterTagSetMaskingPolicy                         // SET MASKING POLICY <p> [ , MASKING POLICY <p2> ... ] [ FORCE ]
+	AlterTagUnsetMaskingPolicy                       // UNSET MASKING POLICY <p> [ , MASKING POLICY <p2> ... ]
+)
+
+// AlterTagStmt represents ALTER TAG [ IF EXISTS ] <name> <action>.
+//
+//	RENAME TO <new_name>
+//	{ ADD | DROP } ALLOWED_VALUES '<v>' [ , ... ]
+//	SET [ ALLOWED_VALUES '<v>' [ , ... ] ] [ PROPAGATE = ... [ ON_CONFLICT = ... ] ] [ COMMENT = '...' ]
+//	UNSET { ALLOWED_VALUES | PROPAGATE | ON_CONFLICT | COMMENT | DCM PROJECT }
+//	SET MASKING POLICY <p> [ , MASKING POLICY <p2> ... ] [ FORCE ]
+//	UNSET MASKING POLICY <p> [ , MASKING POLICY <p2> ... ]
+type AlterTagStmt struct {
+	IfExists        bool
+	Name            *ObjectName
+	Action          AlterTagAction
+	NewName         *ObjectName   // RENAME TO target; for AlterTagRename
+	AllowedValues   []string      // ADD/DROP/SET ALLOWED_VALUES list
+	Options         []*CopyOption // SET <options> (ALLOWED_VALUES lives in AllowedValues; PROPAGATE / ON_CONFLICT / COMMENT here)
+	UnsetProps      []string      // UNSET <property> names (ALLOWED_VALUES / PROPAGATE / ON_CONFLICT / COMMENT / DCM PROJECT)
+	MaskingPolicies []*ObjectName // SET/UNSET MASKING POLICY names
+	Force           bool          // SET MASKING POLICY ... FORCE
+	Loc             Loc
+}
+
+// Tag implements Node.
+func (n *AlterTagStmt) Tag() NodeTag { return T_AlterTagStmt }
+
+// SemanticViewSection is one section of a CREATE SEMANTIC VIEW body — a keyword
+// (TABLES / RELATIONSHIPS / FACTS / DIMENSIONS / METRICS / AI_VERIFIED_QUERIES)
+// followed by a parenthesized, comma-separated definition list. The inner
+// grammar of each section is large and version-growing, so the body is captured
+// as the verbatim source text between the section's outer parentheses (the
+// parentheses themselves are not included in Body) rather than fully modeled.
+type SemanticViewSection struct {
+	Keyword string // uppercased section keyword: TABLES, RELATIONSHIPS, FACTS, DIMENSIONS, METRICS, AI_VERIFIED_QUERIES
+	Body    string // verbatim source text inside the section's ( ... ); excludes the parens
+	Loc     Loc    // spans the keyword through the closing ')'
+}
+
+// Tag implements Node.
+func (n *SemanticViewSection) Tag() NodeTag { return T_SemanticViewSection }
+
+// CreateSemanticViewStmt represents
+//
+//	CREATE [ OR REPLACE ] SEMANTIC VIEW [ IF NOT EXISTS ] <name>
+//	  TABLES ( ... )
+//	  [ RELATIONSHIPS ( ... ) ]
+//	  [ FACTS ( ... ) ]
+//	  [ DIMENSIONS ( ... ) ]
+//	  [ METRICS ( ... ) ]
+//	  [ COMMENT = '<string>' ]
+//	  [ AI_SQL_GENERATION '<instructions>' ]
+//	  [ AI_QUESTION_CATEGORIZATION '<instructions>' ]
+//	  [ AI_VERIFIED_QUERIES ( ... ) ]
+//	  [ [ WITH ] TAG ( <tag> = '<value>' [ , ... ] ) ]
+//	  [ COPY GRANTS ]
+//
+// Sections holds the parenthesized definition-list sections (TABLES first, per
+// the docs, then the optional RELATIONSHIPS / FACTS / DIMENSIONS / METRICS /
+// AI_VERIFIED_QUERIES), each as a balanced raw group. Options captures the
+// scalar trailing clauses (COMMENT, AI_SQL_GENERATION, AI_QUESTION_CATEGORIZATION)
+// open-ended. Tags holds a [WITH] TAG clause; CopyGrants records COPY GRANTS.
+type CreateSemanticViewStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Sections    []*SemanticViewSection // TABLES / RELATIONSHIPS / FACTS / DIMENSIONS / METRICS / AI_VERIFIED_QUERIES, source order
+	Options     []*CopyOption          // COMMENT / AI_SQL_GENERATION / AI_QUESTION_CATEGORIZATION; source order
+	Tags        []*TagAssignment       // [WITH] TAG (...); nil if absent
+	CopyGrants  bool
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateSemanticViewStmt) Tag() NodeTag { return T_CreateSemanticViewStmt }
+
+// AlterSemanticViewAction discriminates the action variants of ALTER SEMANTIC
+// VIEW.
+type AlterSemanticViewAction int
+
+const (
+	AlterSemanticViewRename   AlterSemanticViewAction = iota // RENAME TO <new_name>
+	AlterSemanticViewSet                                     // SET COMMENT = '...'
+	AlterSemanticViewUnset                                   // UNSET COMMENT
+	AlterSemanticViewSetTag                                  // SET TAG <tag> = '<value>' [ , ... ]
+	AlterSemanticViewUnsetTag                                // UNSET TAG <tag> [ , ... ]
+)
+
+// AlterSemanticViewStmt represents ALTER SEMANTIC VIEW [ IF EXISTS ] <name>
+// <action>.
+//
+//	RENAME TO <new_name>
+//	SET COMMENT = '<string_literal>'
+//	UNSET COMMENT
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
+type AlterSemanticViewStmt struct {
+	IfExists   bool
+	Name       *ObjectName
+	Action     AlterSemanticViewAction
+	NewName    *ObjectName      // RENAME TO target; for AlterSemanticViewRename
+	Options    []*CopyOption    // SET COMMENT; for AlterSemanticViewSet
+	Tags       []*TagAssignment // SET TAG assignments; for AlterSemanticViewSetTag
+	UnsetTags  []*ObjectName    // UNSET TAG names; for AlterSemanticViewUnsetTag
+	UnsetProps []string         // UNSET <property> names (COMMENT); for AlterSemanticViewUnset
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *AlterSemanticViewStmt) Tag() NodeTag { return T_AlterSemanticViewStmt }
+
+// CreateDatasetStmt represents CREATE [ OR REPLACE ] DATASET [ IF NOT EXISTS ]
+// <name>. DATASET is a newer ML object whose CREATE carries no options in either
+// the docs or the legacy grammar — only the name. (The official docs render
+// IF NOT EXISTS before DATASET; the legacy grammar and every other CREATE object
+// in this engine place it after the object keyword. The post-keyword spelling is
+// accepted here for consistency; see the divergence note in semantic_view.go.)
+type CreateDatasetStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateDatasetStmt) Tag() NodeTag { return T_CreateDatasetStmt }
+
+// Compile-time assertions for tag / semantic-view / dataset DDL nodes.
+var (
+	_ Node = (*CreateTagStmt)(nil)
+	_ Node = (*AlterTagStmt)(nil)
+	_ Node = (*SemanticViewSection)(nil)
+	_ Node = (*CreateSemanticViewStmt)(nil)
+	_ Node = (*AlterSemanticViewStmt)(nil)
+	_ Node = (*CreateDatasetStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
 // Data-pipeline DDL — CREATE / ALTER PIPE / STREAM / TASK / ALERT (T4.3)
 // ---------------------------------------------------------------------------
 //

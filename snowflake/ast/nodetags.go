@@ -128,6 +128,14 @@ const (
 	T_CreateShareStmt
 	T_AlterShareStmt
 
+	// Tag / semantic-view / dataset DDL tags (T4.9)
+	T_CreateTagStmt
+	T_AlterTagStmt
+	T_SemanticViewSection
+	T_CreateSemanticViewStmt
+	T_AlterSemanticViewStmt
+	T_CreateDatasetStmt
+
 	// Data-pipeline DDL tags (T4.3)
 	T_CreatePipeStmt
 	T_AlterPipeStmt
@@ -398,6 +406,18 @@ func (t NodeTag) String() string {
 		return "AlterUserStmt"
 	case T_AlterPolicyStmt:
 		return "AlterPolicyStmt"
+	case T_CreateTagStmt:
+		return "CreateTagStmt"
+	case T_AlterTagStmt:
+		return "AlterTagStmt"
+	case T_SemanticViewSection:
+		return "SemanticViewSection"
+	case T_CreateSemanticViewStmt:
+		return "CreateSemanticViewStmt"
+	case T_AlterSemanticViewStmt:
+		return "AlterSemanticViewStmt"
+	case T_CreateDatasetStmt:
+		return "CreateDatasetStmt"
 	default:
 		return "Unknown"
 	}

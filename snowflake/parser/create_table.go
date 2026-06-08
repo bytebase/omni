@@ -178,6 +178,16 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// SECRET, CONNECTION, GIT REPOSITORY. parseCreateIntegrationStmt consumes the
 		// object-type keyword(s).
 		return p.parseCreateIntegrationStmt(start, orReplace)
+	case kwTAG:
+		// CREATE [OR REPLACE] TAG ... (T4.9).
+		return p.parseCreateTagStmt(start, orReplace)
+	case kwSEMANTIC:
+		// CREATE [OR REPLACE] SEMANTIC VIEW ... (T4.9). The sub-parser consumes
+		// SEMANTIC + VIEW.
+		return p.parseCreateSemanticViewStmt(start, orReplace)
+	case kwDATASET:
+		// CREATE [OR REPLACE] DATASET ... (T4.9).
+		return p.parseCreateDatasetStmt(start, orReplace)
 	case kwFAILOVER, kwREPLICATION:
 		// CREATE [OR REPLACE] { FAILOVER | REPLICATION } GROUP ... (T4.8).
 		// parseCreateReplicationGroupStmt consumes the kind keyword + GROUP.
