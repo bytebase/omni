@@ -47,6 +47,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		}
 		idxCols = append(idxCols, col)
 	}
+	if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial); err != nil {
+		return err
+	}
 
 	// Determine index type: Fulltext/Spatial override IndexType.
 	idx := &Index{

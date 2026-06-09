@@ -22,6 +22,7 @@ const (
 	ErrDupEntry                          = 1062
 	ErrMultiplePriKey                    = 1068
 	ErrInvalidDefault                    = 1067
+	ErrIncorrectTableDefinition          = 1075
 	ErrNoSuchTable                       = 1146
 	ErrNoSuchColumn                      = 1054
 	ErrNoDatabaseSelected                = 1046
@@ -46,6 +47,7 @@ const (
 	ErrDependentByGenCol                 = 3108
 	ErrWrongArguments                    = 1210
 	ErrWrongNameForIndex                 = 1280
+	ErrInvalidOnUpdate                   = 1294
 	ErrTooBigPrecision                   = 1426
 	ErrInvalidYearColumnLength           = 1818
 	ErrFKDupName                         = 1826
@@ -63,6 +65,7 @@ var sqlStateMap = map[int]string{
 	ErrDupEntry:                          "23000",
 	ErrMultiplePriKey:                    "42000",
 	ErrInvalidDefault:                    "42000",
+	ErrIncorrectTableDefinition:          "42000",
 	ErrNoSuchTable:                       "42S02",
 	ErrNoSuchColumn:                      "42S22",
 	ErrNoDatabaseSelected:                "3D000",
@@ -83,6 +86,7 @@ var sqlStateMap = map[int]string{
 	ErrDependentByGenCol:                 "HY000",
 	ErrWrongArguments:                    "HY000",
 	ErrWrongNameForIndex:                 "42000",
+	ErrInvalidOnUpdate:                   "HY000",
 	ErrTooBigPrecision:                   "42000",
 	ErrInvalidYearColumnLength:           "HY000",
 	ErrFKDupName:                         "HY000",
@@ -145,6 +149,16 @@ func errMultiplePriKey() error {
 func errInvalidDefault(name string) error {
 	return &Error{Code: ErrInvalidDefault, SQLState: sqlState(ErrInvalidDefault),
 		Message: fmt.Sprintf("Invalid default value for '%s'", name)}
+}
+
+func errIncorrectAutoIncrementDefinition() error {
+	return &Error{Code: ErrIncorrectTableDefinition, SQLState: sqlState(ErrIncorrectTableDefinition),
+		Message: "Incorrect table definition; there can be only one auto column and it must be defined as a key"}
+}
+
+func errInvalidOnUpdate(name string) error {
+	return &Error{Code: ErrInvalidOnUpdate, SQLState: sqlState(ErrInvalidOnUpdate),
+		Message: fmt.Sprintf("Invalid ON UPDATE clause for '%s' column", name)}
 }
 
 func errTooBigPrecision(precision int, typ string) error {
