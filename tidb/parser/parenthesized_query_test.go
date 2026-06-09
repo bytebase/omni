@@ -260,3 +260,24 @@ func TestParenFromRejected(t *testing.T) {
 		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
 	}
 }
+
+// PR3: parenthesized-query expression subqueries (IN + scalar). All container-
+// verified parse on pingcap/tidb:v8.5.0. Before this change the kwSELECT-only
+// peek in parseInExpr/parseParenExpr misrouted a leading nested '('.
+func TestParenExprSubqueryAccept(t *testing.T) {
+	accepted := []string{
+		// IN
+		"SELECT 1 WHERE 1 IN ((SELECT 1) UNION (SELECT 2))",
+		"SELECT 1 WHERE 1 IN ((SELECT 1))",
+		"SELECT 1 WHERE 1 IN ((SELECT 1) ORDER BY 1)",
+		"SELECT 1 WHERE 1 IN ((SELECT 1) LIMIT 1)",
+		"SELECT 1 WHERE 1 IN ((WITH x AS (SELECT 1) SELECT 1 FROM x))",
+		// scalar / comparison
+		"SELECT ((SELECT 1) UNION (SELECT 2))",
+		"SELECT 1 WHERE 1 > ((SELECT 1) UNION (SELECT 2))",
+		"SELECT 1 WHERE 1 > (WITH x AS (SELECT 1) SELECT 1 FROM x)",
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
