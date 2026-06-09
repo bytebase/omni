@@ -175,6 +175,9 @@ const (
 	T_CreateNetworkRuleStmt
 	T_AlterNetworkRuleStmt
 
+	// Session DDL tags (gap-alter-family)
+	T_AlterSessionStmt
+
 	// Access-control DDL tags (T4.6)
 	T_PolicyArg
 	T_CreateRoleStmt
@@ -463,6 +466,8 @@ func (t NodeTag) String() string {
 		return "CreateNetworkRuleStmt"
 	case T_AlterNetworkRuleStmt:
 		return "AlterNetworkRuleStmt"
+	case T_AlterSessionStmt:
+		return "AlterSessionStmt"
 	case T_PolicyArg:
 		return "PolicyArg"
 	case T_CreateRoleStmt:

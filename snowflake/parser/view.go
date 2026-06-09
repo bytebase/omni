@@ -585,7 +585,21 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterViewSetTag
 			stmt.Tags = tags
 
+		case kwJOIN:
+			// SET JOIN POLICY name [ { ALLOWED | ENFORCED } JOIN KEYS ( col, ... ) ]
+			if err := p.parseAlterViewSetJoinPolicy(stmt); err != nil {
+				return nil, err
+			}
+
 		default:
+			// SET AGGREGATION POLICY name [ ENTITY KEY ( col, ... ) ] [ FORCE ].
+			// AGGREGATION is not a reserved keyword, so it lexes as an identifier.
+			if p.curIsWord("AGGREGATION") {
+				if err := p.parseAlterViewSetAggregationPolicy(stmt); err != nil {
+					return nil, err
+				}
+				break
+			}
 			return nil, p.syntaxErrorAtCur()
 		}
 
@@ -608,7 +622,24 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 			stmt.Action = ast.AlterViewUnsetTag
 			stmt.UnsetTags = names
 
+		case kwJOIN:
+			// UNSET JOIN POLICY
+			p.advance() // consume JOIN
+			if _, err := p.expect(kwPOLICY); err != nil {
+				return nil, err
+			}
+			stmt.Action = ast.AlterViewUnsetJoinPolicy
+
 		default:
+			// UNSET AGGREGATION POLICY (AGGREGATION lexes as an identifier).
+			if p.curIsWord("AGGREGATION") {
+				p.advance() // consume AGGREGATION
+				if _, err := p.expect(kwPOLICY); err != nil {
+					return nil, err
+				}
+				stmt.Action = ast.AlterViewUnsetAggregationPolicy
+				break
+			}
 			return nil, p.syntaxErrorAtCur()
 		}
 
@@ -783,6 +814,88 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// parseAlterViewSetJoinPolicy parses
+//
+//	SET JOIN POLICY <name> [ { ALLOWED | ENFORCED } JOIN KEYS ( col, ... ) ]
+//
+// On entry cur is the JOIN keyword. ALLOWED lexes as an identifier; ENFORCED is
+// a reserved keyword.
+func (p *Parser) parseAlterViewSetJoinPolicy(stmt *ast.AlterViewStmt) error {
+	p.advance() // consume JOIN
+	if _, err := p.expect(kwPOLICY); err != nil {
+		return err
+	}
+	name, err := p.parseObjectName()
+	if err != nil {
+		return err
+	}
+	stmt.Action = ast.AlterViewSetJoinPolicy
+	stmt.PolicyName = name
+
+	// Optional { ALLOWED | ENFORCED } JOIN KEYS ( col, ... ).
+	var kind string
+	if p.curIsWord("ALLOWED") {
+		kind = "ALLOWED"
+		p.advance() // consume ALLOWED
+	} else if p.cur.Type == kwENFORCED {
+		kind = "ENFORCED"
+		p.advance() // consume ENFORCED
+	}
+	if kind != "" {
+		if _, err := p.expect(kwJOIN); err != nil {
+			return err
+		}
+		if _, err := p.expect(kwKEYS); err != nil {
+			return err
+		}
+		cols, err := p.parseIdentListInParens()
+		if err != nil {
+			return err
+		}
+		stmt.PolicyKeyKind = kind
+		stmt.PolicyKeyCols = cols
+	}
+	return nil
+}
+
+// parseAlterViewSetAggregationPolicy parses
+//
+//	SET AGGREGATION POLICY <name> [ ENTITY KEY ( col, ... ) ] [ FORCE ]
+//
+// On entry cur is the AGGREGATION identifier. ENTITY lexes as an identifier.
+func (p *Parser) parseAlterViewSetAggregationPolicy(stmt *ast.AlterViewStmt) error {
+	p.advance() // consume AGGREGATION
+	if _, err := p.expect(kwPOLICY); err != nil {
+		return err
+	}
+	name, err := p.parseObjectName()
+	if err != nil {
+		return err
+	}
+	stmt.Action = ast.AlterViewSetAggregationPolicy
+	stmt.PolicyName = name
+
+	// Optional ENTITY KEY ( col, ... ).
+	if p.curIsWord("ENTITY") {
+		p.advance() // consume ENTITY
+		if _, err := p.expect(kwKEY); err != nil {
+			return err
+		}
+		cols, err := p.parseIdentListInParens()
+		if err != nil {
+			return err
+		}
+		stmt.PolicyKeyCols = cols
+	}
+
+	// Optional FORCE.
+	if p.cur.Type == kwFORCE {
+		p.advance() // consume FORCE
+		stmt.PolicyForce = true
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------

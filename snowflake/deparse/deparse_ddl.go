@@ -781,6 +781,41 @@ func (w *writer) writeAlterViewStmt(n *ast.AlterViewStmt) error {
 		w.buf.WriteString(" UNSET TAG (")
 		w.writeObjectNameList(n.UnsetTags)
 		w.buf.WriteByte(')')
+	case ast.AlterViewSetAggregationPolicy:
+		w.buf.WriteString(" SET AGGREGATION POLICY ")
+		w.writeObjectNameNoSpace(n.PolicyName)
+		if len(n.PolicyKeyCols) > 0 {
+			w.buf.WriteString(" ENTITY KEY (")
+			for i, col := range n.PolicyKeyCols {
+				if i > 0 {
+					w.buf.WriteString(", ")
+				}
+				w.buf.WriteString(col.String())
+			}
+			w.buf.WriteByte(')')
+		}
+		if n.PolicyForce {
+			w.buf.WriteString(" FORCE")
+		}
+	case ast.AlterViewUnsetAggregationPolicy:
+		w.buf.WriteString(" UNSET AGGREGATION POLICY")
+	case ast.AlterViewSetJoinPolicy:
+		w.buf.WriteString(" SET JOIN POLICY ")
+		w.writeObjectNameNoSpace(n.PolicyName)
+		if len(n.PolicyKeyCols) > 0 {
+			w.buf.WriteByte(' ')
+			w.buf.WriteString(n.PolicyKeyKind)
+			w.buf.WriteString(" JOIN KEYS (")
+			for i, col := range n.PolicyKeyCols {
+				if i > 0 {
+					w.buf.WriteString(", ")
+				}
+				w.buf.WriteString(col.String())
+			}
+			w.buf.WriteByte(')')
+		}
+	case ast.AlterViewUnsetJoinPolicy:
+		w.buf.WriteString(" UNSET JOIN POLICY")
 	default:
 		return fmt.Errorf("deparse: unsupported ALTER VIEW action %d", n.Action)
 	}
@@ -1358,6 +1393,25 @@ func (w *writer) writeAlterNetworkRuleStmt(n *ast.AlterNetworkRuleStmt) error {
 		w.buf.WriteString(strings.Join(n.UnsetKeys, ", "))
 	default:
 		return fmt.Errorf("deparse: unsupported ALTER NETWORK RULE action %d", n.Action)
+	}
+	return nil
+}
+
+// writeAlterSessionStmt emits ALTER SESSION { SET | UNSET } <session_parameter>
+// ... (session parameters, gap-alter-family).
+func (w *writer) writeAlterSessionStmt(n *ast.AlterSessionStmt) error {
+	w.buf.WriteString("ALTER SESSION")
+	switch n.Action {
+	case ast.AlterSessionSet:
+		w.buf.WriteString(" SET")
+		if err := w.writeCopyOptions(n.Options); err != nil {
+			return err
+		}
+	case ast.AlterSessionUnset:
+		w.buf.WriteString(" UNSET ")
+		w.buf.WriteString(strings.Join(n.UnsetKeys, ", "))
+	default:
+		return fmt.Errorf("deparse: unsupported ALTER SESSION action %d", n.Action)
 	}
 	return nil
 }

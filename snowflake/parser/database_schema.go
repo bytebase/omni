@@ -1,6 +1,10 @@
 package parser
 
-import "github.com/bytebase/omni/snowflake/ast"
+import (
+	"strings"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
 
 // ---------------------------------------------------------------------------
 // CREATE DATABASE
@@ -262,6 +266,15 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		// by kwPOLICY. The RULE form is dispatched here before the shared policy path.
 		if p.cur.Type == kwNETWORK && p.peekIsWord("RULE") {
 			return p.parseAlterNetworkRuleStmt()
+		}
+		// ALTER SESSION { SET | UNSET } <param> ... (session parameters,
+		// gap-alter-family) vs ALTER SESSION POLICY <name> ... (a policy object).
+		// SESSION followed by SET/UNSET is session parameters; SESSION followed by
+		// POLICY stays on the policy path below.
+		if p.cur.Type == kwSESSION {
+			if next := p.peekNext().Type; next == kwSET || next == kwUNSET {
+				return p.parseAlterSessionStmt()
+			}
 		}
 		// ALTER { MASKING | ROW ACCESS | SESSION | PASSWORD | NETWORK } POLICY ...
 		// (T4.6). Only routed to the policy parser when the kind keyword is actually
@@ -594,6 +607,102 @@ func (p *Parser) parseAlterSchemaStmt() (ast.Node, error) {
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// ---------------------------------------------------------------------------
+// ALTER SESSION (session parameters)
+// ---------------------------------------------------------------------------
+
+// sessionParamCap bounds the open-ended `<param> = <value>` run of an
+// ALTER SESSION SET so a malformed input can never spin.
+const sessionParamCap = 1024
+
+// parseAlterSessionStmt parses ALTER SESSION { SET | UNSET } <session_parameter>
+// ... (session parameters). The ALTER keyword has already been consumed; cur is
+// SESSION. ALTER SESSION POLICY ... is routed to the policy parser by the
+// dispatch in parseAlterStmt, so SESSION here is always followed by SET/UNSET.
+func (p *Parser) parseAlterSessionStmt() (ast.Node, error) {
+	sessTok := p.advance() // consume SESSION (anchors Loc.Start at the object keyword)
+	stmt := &ast.AlterSessionStmt{Loc: ast.Loc{Start: sessTok.Loc.Start}}
+
+	switch p.cur.Type {
+	case kwSET:
+		p.advance() // consume SET
+		opts, err := p.parseSessionParamOptions()
+		if err != nil {
+			return nil, err
+		}
+		if len(opts) == 0 {
+			// SET with nothing settable is a syntax error.
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Action = ast.AlterSessionSet
+		stmt.Options = opts
+
+	case kwUNSET:
+		p.advance() // consume UNSET
+		keys, err := p.parseSessionParamUnsetKeys()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Action = ast.AlterSessionUnset
+		stmt.UnsetKeys = keys
+
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// parseSessionParamUnsetKeys reads the comma-separated parameter-name list of an
+// ALTER SESSION UNSET. Session parameter names are open-ended: most lex as
+// reserved keywords (LOCK_TIMEOUT, AUTOCOMMIT, ...), so any option word is
+// accepted (not only the closed DB-property set parsePropertyName allows). The
+// names are uppercased; the loop is bounded.
+func (p *Parser) parseSessionParamUnsetKeys() ([]string, error) {
+	var keys []string
+	for i := 0; ; i++ {
+		if i >= sessionParamCap {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if !p.isOptionWord(p.cur.Type) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		keys = append(keys, strings.ToUpper(p.advance().Str))
+		if p.cur.Type == ',' {
+			p.advance() // consume ','
+			continue
+		}
+		break
+	}
+	return keys, nil
+}
+
+// parseSessionParamOptions reads the open-ended `<param> = <value>` run of an
+// ALTER SESSION SET (e.g. AUTOCOMMIT = TRUE, LOCK_TIMEOUT = 3600,
+// DEFAULT_NULL_ORDERING = 'LAST'). Each entry is a CopyOption so any name/value
+// shape (word, number, or string literal) is captured. The loop is bounded and
+// guards against a non-advancing token.
+func (p *Parser) parseSessionParamOptions() ([]*ast.CopyOption, error) {
+	var opts []*ast.CopyOption
+	for i := 0; p.startsCopyOption(); i++ {
+		if i >= sessionParamCap {
+			return nil, p.syntaxErrorAtCur()
+		}
+		before := p.cur.Loc.Start
+		opt, err := p.parseCopyOption()
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, opt)
+		if p.cur.Loc.Start == before && p.cur.Type != tokEOF {
+			// No forward progress on a non-EOF token: abort rather than spin.
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	return opts, nil
 }
 
 // ---------------------------------------------------------------------------

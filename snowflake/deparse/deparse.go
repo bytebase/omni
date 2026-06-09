@@ -119,6 +119,10 @@ func (w *writer) writeNode(node ast.Node) error {
 	case *ast.AlterNetworkRuleStmt:
 		return w.writeAlterNetworkRuleStmt(n)
 
+	// --- DDL: session ---
+	case *ast.AlterSessionStmt:
+		return w.writeAlterSessionStmt(n)
+
 	// --- Expressions (can also be top-level in some contexts) ---
 	case *ast.Literal,
 		*ast.ColumnRef,

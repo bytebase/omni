@@ -389,9 +389,22 @@ func (p *Parser) parseAddColumnList(action *ast.AlterTableAction) error {
 	return nil
 }
 
-// parseSearchOptTargets parses the ON method(target) list for SEARCH OPTIMIZATION.
+// searchOptMethodCap bounds the comma-separated method list so a malformed
+// input can never spin.
+const searchOptMethodCap = 1024
+
+// parseSearchOptTargets parses the `ON <method>(<target> [, ...]) [, ...]` list
+// for SEARCH OPTIMIZATION. Each method (EQUALITY, SUBSTRING, GEO, or an
+// identifier) takes a parenthesized target that is either '*' or a
+// comma-separated list of column/path expressions (e.g.
+// EQUALITY(c1, c2, c3) or EQUALITY(src:user.id)). The whole methods list may be
+// comma-separated (e.g. EQUALITY(c1), EQUALITY(c2, c3)). The verbatim source of
+// each method clause is recorded in SearchOptOn so the form round-trips.
 func (p *Parser) parseSearchOptTargets(action *ast.AlterTableAction) error {
-	for {
+	for i := 0; ; i++ {
+		if i >= searchOptMethodCap {
+			return p.syntaxErrorAtCur()
+		}
 		// method can be EQUALITY, SUBSTRING, GEO, or an identifier
 		var method string
 		switch p.cur.Type {
@@ -410,22 +423,30 @@ func (p *Parser) parseSearchOptTargets(action *ast.AlterTableAction) error {
 		default:
 			return p.syntaxErrorAtCur()
 		}
-		// (STAR | expr)
+		// ( STAR | expr [, expr ...] )
 		if _, err := p.expect('('); err != nil {
 			return err
 		}
+		// Capture the verbatim target text spanning the parenthesized content.
+		innerStart := p.cur.Loc.Start
 		var target string
 		if p.cur.Type == '*' {
 			p.advance()
 			target = "*"
 		} else {
-			// skip expression tokens until matching ')'
-			expr, err := p.parseExpr()
-			if err != nil {
-				return err
+			for j := 0; ; j++ {
+				if j >= searchOptMethodCap {
+					return p.syntaxErrorAtCur()
+				}
+				if _, err := p.parseExpr(); err != nil {
+					return err
+				}
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance() // consume ',' between target columns
 			}
-			_ = expr
-			target = "expr"
+			target = p.srcSlice(innerStart, p.prev.Loc.End)
 		}
 		if _, err := p.expect(')'); err != nil {
 			return err
@@ -434,7 +455,7 @@ func (p *Parser) parseSearchOptTargets(action *ast.AlterTableAction) error {
 		if p.cur.Type != ',' {
 			break
 		}
-		p.advance() // consume ','
+		p.advance() // consume ',' between methods
 	}
 	return nil
 }
