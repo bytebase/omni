@@ -144,9 +144,44 @@ func resolveNodeCols(node parser.QueryNode, cte *cteDefs) []outCol {
 	case *parser.TableQuery:
 		// TABLE name == SELECT * FROM name.
 		return []outCol{{name: "*"}}
+	case *parser.ValuesQuery:
+		return resolveValuesCols(n, cte)
 	default:
 		return nil
 	}
+}
+
+// resolveValuesCols computes the output columns of a VALUES clause. Each row is a
+// row expression (a RowConstructor for the multi-column form, a bare expression
+// for a single column); output column i's lineage is the union of column i's
+// expression sources across all rows, so a sensitive value (e.g. a scalar
+// subquery) anywhere in a VALUES arm of a set operation is still masked. VALUES
+// has no FROM relations, so column refs resolve to themselves; scalar subqueries
+// within the row expressions are followed.
+func resolveValuesCols(n *parser.ValuesQuery, cte *cteDefs) []outCol {
+	if n == nil {
+		return nil
+	}
+	scope := &rscope{cte: cte}
+	var cols []outCol
+	for _, row := range n.Rows {
+		for i, e := range valuesRowElements(row) {
+			for len(cols) <= i {
+				cols = append(cols, outCol{})
+			}
+			cols[i].sources = unionRefs(cols[i].sources, scope.resolveExprRefs(e))
+		}
+	}
+	return cols
+}
+
+// valuesRowElements returns the per-column expressions of one VALUES row: the
+// elements of a RowConstructor, or the row itself as a single column.
+func valuesRowElements(row parser.Expr) []parser.Expr {
+	if rc, ok := row.(*parser.RowConstructor); ok {
+		return rc.Elements
+	}
+	return []parser.Expr{row}
 }
 
 // mergeArms positionally merges the resolved columns of two set-operation arms.
@@ -378,9 +413,14 @@ func (s *rscope) resolveRef(ref ColumnRef) []ColumnRef {
 // scalar subquery used as a value within it (SELECT (SELECT phone …) AS sp). It
 // does not cross subquery boundaries for direct columns (matching the primary
 // walk's collectDirectColumns); scalar subqueries are handled via onSubquery.
+//
+// A scalar subquery's recovered sources are themselves resolved through this
+// (outer) scope, so a correlated reference to an outer relation — e.g. the `d`
+// in SELECT (SELECT d.phone) AS sp FROM (SELECT phone FROM customer) d — is
+// resolved to its base column rather than left as the unmaskable alias ref.
 func (s *rscope) resolveExprRefs(expr parser.Expr) []ColumnRef {
-	var refs []ColumnRef       // direct column refs, resolved through the scope
-	var subSources []ColumnRef // scalar-subquery output sources, already resolved
+	var refs []ColumnRef       // direct column refs
+	var subSources []ColumnRef // scalar-subquery output sources
 	ew := exprWalk{
 		followSub: false,
 		onColumn:  func(ref ColumnRef) { refs = append(refs, ref) },
@@ -389,7 +429,7 @@ func (s *rscope) resolveExprRefs(expr parser.Expr) []ColumnRef {
 		},
 	}
 	ew.walk(expr)
-	return unionRefs(s.resolveRefs(refs), subSources)
+	return unionRefs(s.resolveRefs(refs), s.resolveRefs(subSources))
 }
 
 // scalarSubquerySources recovers the resolved base-column sources of a scalar

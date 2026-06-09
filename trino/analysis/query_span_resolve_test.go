@@ -371,6 +371,40 @@ func TestGetQuerySpan_IntersectArmMerge(t *testing.T) {
 	}
 }
 
+// TestGetQuerySpan_SetOpValuesArmMerge guards that a sensitive value contributed
+// by a VALUES arm of a set operation is merged into the output column's lineage
+// (completes the set-op merge; flagged in cross-review).
+func TestGetQuerySpan_SetOpValuesArmMerge(t *testing.T) {
+	span, err := GetQuerySpan("SELECT id, CAST(NULL AS varchar) AS x FROM t UNION ALL VALUES (0, (SELECT phone FROM customer LIMIT 1))")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	r, ok := resultByName(span, "x")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named x", span.Results)
+	}
+	if !hasSource(r.SourceColumns, ColumnRef{Column: "phone"}) {
+		t.Errorf("x.SourceColumns = %+v, want to contain {Column:phone} (VALUES arm must be merged)", r.SourceColumns)
+	}
+}
+
+// TestGetQuerySpan_CorrelatedScalarSubqueryThroughDerived guards that a scalar
+// subquery correlated to a derived outer relation resolves to the base column
+// (flagged in cross-review).
+func TestGetQuerySpan_CorrelatedScalarSubqueryThroughDerived(t *testing.T) {
+	span, err := GetQuerySpan("SELECT (SELECT d.phone) AS sp FROM (SELECT phone FROM customer) d")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	r, ok := resultByName(span, "sp")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named sp", span.Results)
+	}
+	if !hasSource(r.SourceColumns, ColumnRef{Column: "phone"}) {
+		t.Errorf("sp.SourceColumns = %+v, want to contain {Column:phone} (correlated subquery resolved through outer d)", r.SourceColumns)
+	}
+}
+
 // TestGetQuerySpan_DirectColumnLineageUnchanged guards that a direct base-table
 // column (no derived relation in scope) is left exactly as the primary walk
 // produced it — the resolver must only deepen lineage through indirection.
