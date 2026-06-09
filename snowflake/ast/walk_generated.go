@@ -552,6 +552,8 @@ func walkChildren(v Visitor, node Node) {
 		}
 		Walk(v, n.Source)
 		Walk(v, n.On)
+	case *OuterJoinExpr:
+		Walk(v, n.Operand)
 	case *ParenExpr:
 		Walk(v, n.Expr)
 	case *PivotClause:

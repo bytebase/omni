@@ -178,16 +178,6 @@ var corpusSkips = map[string]string{
 	"official/create-external-table/example_01.sql": "DEPENDENCY GAP: SELECT metadata$filename FROM @s1/ — stage-path table ref + metadata$col not parsed",
 	"official/create-table/example_06.sql":          "DEPENDENCY GAP: CTAS AS SELECT $1:o_custkey::number FROM @my_stage — $N:path semi-structured + stage table ref",
 
-	// --- RESIDUAL GAP: MERGE ... INSERT/UPDATE ALL BY NAME ---
-	// (ORDER BY ALL itself now parses via gap-select-ext; this file's residual
-	// is the MERGE `UPDATE ALL BY NAME` / `INSERT ALL BY NAME` form, owned by
-	// the merge node.)
-	"official/merge/example_09.sql": "RESIDUAL GAP: WHEN MATCHED THEN UPDATE ALL BY NAME / INSERT ALL BY NAME — MERGE column-list-by-name form not parsed",
-
-	// --- RESIDUAL GAP: (+) Oracle-style outer-join operator ---
-	"official/where/example_09.sql": "RESIDUAL GAP: WHERE t1.c1 = t2.c2(+) Oracle-style outer join operator not parsed",
-	"official/where/example_10.sql": "RESIDUAL GAP: WHERE ... (+) Oracle-style outer join operator not parsed",
-
 	// --- RESIDUAL GAP: Snowflake Scripting blocks (DECLARE..BEGIN..END, CALL ... INTO) ---
 	"official/execute-immediate/example_01.sql": "RESIDUAL GAP: CREATE PROCEDURE ... AS DECLARE ... BEGIN ... END scripting body (non-$$) not parsed",
 	"official/execute-immediate/example_04.sql": "RESIDUAL GAP: CREATE PROCEDURE ... AS DECLARE ... BEGIN ... END scripting body (non-$$) not parsed",

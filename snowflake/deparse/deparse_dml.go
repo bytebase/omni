@@ -248,6 +248,10 @@ func (w *writer) writeMergeWhen(mw *ast.MergeWhen) error {
 	w.buf.WriteString(" THEN")
 	switch mw.Action {
 	case ast.MergeActionUpdate:
+		if mw.AllByName {
+			w.buf.WriteString(" UPDATE ALL BY NAME")
+			break
+		}
 		w.buf.WriteString(" UPDATE SET ")
 		for i, set := range mw.Sets {
 			if i > 0 {
@@ -263,6 +267,10 @@ func (w *writer) writeMergeWhen(mw *ast.MergeWhen) error {
 		w.buf.WriteString(" DELETE")
 	case ast.MergeActionInsert:
 		w.buf.WriteString(" INSERT")
+		if mw.AllByName {
+			w.buf.WriteString(" ALL BY NAME")
+			break
+		}
 		if mw.InsertDefault {
 			w.buf.WriteString(" VALUES DEFAULT")
 		} else {

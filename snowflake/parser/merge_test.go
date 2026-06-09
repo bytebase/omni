@@ -293,3 +293,98 @@ func TestMerge_NoAliases(t *testing.T) {
 		t.Fatalf("whens = %d, want 2", len(stmt.Whens))
 	}
 }
+
+// ---------------------------------------------------------------------------
+// 10. MERGE ... UPDATE / INSERT ALL BY NAME
+// ---------------------------------------------------------------------------
+
+func TestMerge_UpdateAllByName(t *testing.T) {
+	stmt := testParseMergeStmt(t, `
+		MERGE INTO tgt USING src ON tgt.id = src.id
+		WHEN MATCHED THEN UPDATE ALL BY NAME
+	`)
+	if len(stmt.Whens) != 1 {
+		t.Fatalf("whens = %d, want 1", len(stmt.Whens))
+	}
+	when := stmt.Whens[0]
+	if !when.Matched {
+		t.Error("Matched should be true")
+	}
+	if when.Action != ast.MergeActionUpdate {
+		t.Errorf("action = %v, want MergeActionUpdate", when.Action)
+	}
+	if !when.AllByName {
+		t.Error("AllByName should be true for UPDATE ALL BY NAME")
+	}
+	if len(when.Sets) != 0 {
+		t.Errorf("Sets = %d, want 0 for ALL BY NAME", len(when.Sets))
+	}
+}
+
+func TestMerge_InsertAllByName(t *testing.T) {
+	stmt := testParseMergeStmt(t, `
+		MERGE INTO tgt USING src ON tgt.id = src.id
+		WHEN NOT MATCHED THEN INSERT ALL BY NAME
+	`)
+	if len(stmt.Whens) != 1 {
+		t.Fatalf("whens = %d, want 1", len(stmt.Whens))
+	}
+	when := stmt.Whens[0]
+	if when.Matched {
+		t.Error("Matched should be false")
+	}
+	if when.Action != ast.MergeActionInsert {
+		t.Errorf("action = %v, want MergeActionInsert", when.Action)
+	}
+	if !when.AllByName {
+		t.Error("AllByName should be true for INSERT ALL BY NAME")
+	}
+	if len(when.InsertCols) != 0 || len(when.InsertVals) != 0 {
+		t.Errorf("InsertCols/InsertVals = %d/%d, want 0/0 for ALL BY NAME",
+			len(when.InsertCols), len(when.InsertVals))
+	}
+}
+
+func TestMerge_BothAllByName(t *testing.T) {
+	// Both WHEN actions use the by-name form (mirrors official/merge/example_09).
+	stmt := testParseMergeStmt(t, `
+		MERGE INTO tgt USING src ON tgt.id = src.id
+		WHEN MATCHED THEN UPDATE ALL BY NAME
+		WHEN NOT MATCHED THEN INSERT ALL BY NAME
+	`)
+	if len(stmt.Whens) != 2 {
+		t.Fatalf("whens = %d, want 2", len(stmt.Whens))
+	}
+	if !stmt.Whens[0].AllByName || !stmt.Whens[1].AllByName {
+		t.Errorf("both whens should be AllByName, got %v / %v",
+			stmt.Whens[0].AllByName, stmt.Whens[1].AllByName)
+	}
+}
+
+// Regression: standard `UPDATE SET` / `INSERT (cols) VALUES (...)` keep
+// AllByName=false and populate their explicit lists.
+func TestMerge_StandardFormsNotAllByName(t *testing.T) {
+	stmt := testParseMergeStmt(t, `
+		MERGE INTO tgt USING src ON tgt.id = src.id
+		WHEN MATCHED THEN UPDATE SET tgt.a = src.a
+		WHEN NOT MATCHED THEN INSERT (a, b) VALUES (src.a, src.b)
+	`)
+	if len(stmt.Whens) != 2 {
+		t.Fatalf("whens = %d, want 2", len(stmt.Whens))
+	}
+	upd := stmt.Whens[0]
+	if upd.AllByName {
+		t.Error("UPDATE SET should not set AllByName")
+	}
+	if len(upd.Sets) != 1 {
+		t.Errorf("Sets = %d, want 1", len(upd.Sets))
+	}
+	ins := stmt.Whens[1]
+	if ins.AllByName {
+		t.Error("INSERT VALUES should not set AllByName")
+	}
+	if len(ins.InsertCols) != 2 || len(ins.InsertVals) != 2 {
+		t.Errorf("InsertCols/InsertVals = %d/%d, want 2/2",
+			len(ins.InsertCols), len(ins.InsertVals))
+	}
+}

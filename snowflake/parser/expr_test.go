@@ -1311,6 +1311,146 @@ func TestExpr_CollateString(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// 25b. Oracle-style outer-join marker (+)
+// ---------------------------------------------------------------------------
+
+// mustOuterJoin parses input and asserts the result is an *ast.OuterJoinExpr.
+func mustOuterJoin(t *testing.T, input string) *ast.OuterJoinExpr {
+	t.Helper()
+	node, err := testParseExpr(input)
+	if err != nil {
+		t.Fatalf("parse %q: unexpected error: %v", input, err)
+	}
+	oj, ok := node.(*ast.OuterJoinExpr)
+	if !ok {
+		t.Fatalf("parse %q: got %T, want *ast.OuterJoinExpr", input, node)
+	}
+	return oj
+}
+
+func TestExpr_OuterJoinMarker_NoSpace(t *testing.T) {
+	oj := mustOuterJoin(t, "t2.c2(+)")
+	cr, ok := oj.Operand.(*ast.ColumnRef)
+	if !ok {
+		t.Fatalf("Operand = %T, want *ast.ColumnRef", oj.Operand)
+	}
+	if len(cr.Parts) != 2 || cr.Parts[0].Name != "t2" || cr.Parts[1].Name != "c2" {
+		t.Errorf("Operand parts = %+v, want [t2 c2]", cr.Parts)
+	}
+	// Loc spans the operand through the closing ')'.
+	if oj.Loc.Start != cr.Loc.Start {
+		t.Errorf("Loc.Start = %d, want operand start %d", oj.Loc.Start, cr.Loc.Start)
+	}
+	if oj.Loc.End <= cr.Loc.End {
+		t.Errorf("Loc.End = %d, want > operand end %d (must cover `(+)`)", oj.Loc.End, cr.Loc.End)
+	}
+}
+
+func TestExpr_OuterJoinMarker_WithSpace(t *testing.T) {
+	// A space before the marker is allowed: `t2.c2 (+)`.
+	oj := mustOuterJoin(t, "t2.c2 (+)")
+	if _, ok := oj.Operand.(*ast.ColumnRef); !ok {
+		t.Fatalf("Operand = %T, want *ast.ColumnRef", oj.Operand)
+	}
+}
+
+func TestExpr_OuterJoinMarker_SingleColumn(t *testing.T) {
+	// Unqualified column also accepts the marker.
+	oj := mustOuterJoin(t, "c(+)")
+	cr, ok := oj.Operand.(*ast.ColumnRef)
+	if !ok {
+		t.Fatalf("Operand = %T, want *ast.ColumnRef", oj.Operand)
+	}
+	if len(cr.Parts) != 1 || cr.Parts[0].Name != "c" {
+		t.Errorf("Operand parts = %+v, want [c]", cr.Parts)
+	}
+}
+
+func TestExpr_OuterJoinMarker_InComparison(t *testing.T) {
+	// `t1.c1 = t2.c2(+)` — the marker binds tightly to the right operand.
+	node, err := testParseExpr("t1.c1 = t2.c2(+)")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	bin, ok := node.(*ast.BinaryExpr)
+	if !ok {
+		t.Fatalf("got %T, want *ast.BinaryExpr", node)
+	}
+	if bin.Op != ast.BinEq {
+		t.Errorf("Op = %v, want BinEq", bin.Op)
+	}
+	if _, ok := bin.Right.(*ast.OuterJoinExpr); !ok {
+		t.Errorf("Right = %T, want *ast.OuterJoinExpr", bin.Right)
+	}
+	if _, ok := bin.Left.(*ast.OuterJoinExpr); ok {
+		t.Errorf("Left wrongly wrapped in *ast.OuterJoinExpr")
+	}
+}
+
+func TestExpr_OuterJoinMarker_MultipleInWhere(t *testing.T) {
+	// Two markers in one WHERE (both spaced), via the full statement parser.
+	sql := "SELECT t1.c1, t2.c2 FROM t1, t2 WHERE t1.c1 = t2.c2 (+) AND t1.c3 = t2.c4 (+);"
+	f, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("parse %q: %v", sql, err)
+	}
+	if len(f.Stmts) != 1 {
+		t.Fatalf("len(Stmts) = %d, want 1", len(f.Stmts))
+	}
+	markers := 0
+	ast.Inspect(f, func(n ast.Node) bool {
+		if _, ok := n.(*ast.OuterJoinExpr); ok {
+			markers++
+		}
+		return true
+	})
+	if markers != 2 {
+		t.Errorf("OuterJoinExpr count = %d, want 2", markers)
+	}
+}
+
+// Regression: a genuine function call `count(*)` must stay a FuncCallExpr and
+// never be mistaken for the `(+)` marker.
+func TestExpr_OuterJoinMarker_CountStarUnchanged(t *testing.T) {
+	fc := mustFuncCall(t, "count(*)")
+	if !fc.Star {
+		t.Errorf("count(*) Star = false, want true")
+	}
+}
+
+// Regression: a plain call `f(a)` is unaffected by the marker lookahead.
+func TestExpr_OuterJoinMarker_PlainCallUnchanged(t *testing.T) {
+	fc := mustFuncCall(t, "f(a)")
+	if len(fc.Args) != 1 {
+		t.Errorf("f(a) Args = %d, want 1", len(fc.Args))
+	}
+}
+
+// Regression: `f(+1)` is a call whose single argument is a unary-plus literal,
+// NOT an outer-join marker (the token after '+' is an int, not ')').
+func TestExpr_OuterJoinMarker_UnaryPlusArgUnchanged(t *testing.T) {
+	fc := mustFuncCall(t, "f(+1)")
+	if len(fc.Args) != 1 {
+		t.Fatalf("f(+1) Args = %d, want 1", len(fc.Args))
+	}
+	if _, ok := fc.Args[0].(*ast.UnaryExpr); !ok {
+		t.Errorf("f(+1) arg0 = %T, want *ast.UnaryExpr", fc.Args[0])
+	}
+}
+
+// Regression: a parenthesized `(a+1)` expression is unchanged (it is not a
+// column ref followed by `(+)`).
+func TestExpr_OuterJoinMarker_ParenExprUnchanged(t *testing.T) {
+	node, err := testParseExpr("(a+1)")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := node.(*ast.ParenExpr); !ok {
+		t.Errorf("(a+1) = %T, want *ast.ParenExpr", node)
+	}
+}
+
+// ---------------------------------------------------------------------------
 // 26. Error cases
 // ---------------------------------------------------------------------------
 
