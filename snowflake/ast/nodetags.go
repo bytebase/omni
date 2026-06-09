@@ -166,6 +166,10 @@ const (
 	T_CreateSequenceStmt
 	T_AlterSequenceStmt
 
+	// Warehouse DDL tags (gap-warehouse)
+	T_CreateWarehouseStmt
+	T_AlterWarehouseStmt
+
 	// Access-control DDL tags (T4.6)
 	T_PolicyArg
 	T_CreateRoleStmt
@@ -444,6 +448,10 @@ func (t NodeTag) String() string {
 		return "CreateSequenceStmt"
 	case T_AlterSequenceStmt:
 		return "AlterSequenceStmt"
+	case T_CreateWarehouseStmt:
+		return "CreateWarehouseStmt"
+	case T_AlterWarehouseStmt:
+		return "AlterWarehouseStmt"
 	case T_PolicyArg:
 		return "PolicyArg"
 	case T_CreateRoleStmt:

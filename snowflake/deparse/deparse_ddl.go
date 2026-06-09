@@ -1138,3 +1138,159 @@ func (w *writer) writeObjectNameList(names []*ast.ObjectName) {
 		w.writeObjectNameNoSpace(n)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// WAREHOUSE DDL (gap-warehouse)
+// ---------------------------------------------------------------------------
+
+// writeCopyOption emits one open-ended `KEY = value` option (or a bare KEY),
+// covering every CopyOption value shape: a literal, a verbatim word run, a
+// parenthesized key/value group, or a parenthesized literal list. It is shared
+// by the warehouse writers; option names are emitted verbatim (already
+// uppercased by the parser).
+func (w *writer) writeCopyOption(opt *ast.CopyOption) error {
+	w.buf.WriteString(opt.Name)
+	if opt.Bare {
+		return nil
+	}
+	w.buf.WriteString(" = ")
+	switch {
+	case opt.Lit != nil:
+		return w.writeCopyOptionLiteral(opt.Lit)
+	case opt.Words != "":
+		w.buf.WriteString(opt.Words)
+	case opt.Group != nil:
+		w.buf.WriteByte('(')
+		for i, sub := range opt.Group {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			if err := w.writeCopyOption(sub); err != nil {
+				return err
+			}
+		}
+		w.buf.WriteByte(')')
+	case opt.List != nil:
+		w.buf.WriteByte('(')
+		for i, lit := range opt.List {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			if err := w.writeCopyOptionLiteral(lit); err != nil {
+				return err
+			}
+		}
+		w.buf.WriteByte(')')
+	default:
+		return fmt.Errorf("deparse: empty option value for %q", opt.Name)
+	}
+	return nil
+}
+
+// writeCopyOptionLiteral emits a CopyOption literal value without a leading
+// space (the caller has already written " = "). String literals are single
+// quoted; numeric literals use their raw text / integer value.
+func (w *writer) writeCopyOptionLiteral(lit *ast.Literal) error {
+	switch lit.Kind {
+	case ast.LitString:
+		w.buf.WriteString(quoteString(lit.Value))
+	case ast.LitInt:
+		w.buf.WriteString(strconv.FormatInt(lit.Ival, 10))
+	case ast.LitFloat:
+		w.buf.WriteString(lit.Value)
+	case ast.LitBool:
+		if lit.Bval {
+			w.buf.WriteString("TRUE")
+		} else {
+			w.buf.WriteString("FALSE")
+		}
+	case ast.LitNull:
+		w.buf.WriteString("NULL")
+	default:
+		w.buf.WriteString(lit.Value)
+	}
+	return nil
+}
+
+// writeCopyOptions emits a space-separated run of options.
+func (w *writer) writeCopyOptions(opts []*ast.CopyOption) error {
+	for _, opt := range opts {
+		w.buf.WriteByte(' ')
+		if err := w.writeCopyOption(opt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *writer) writeCreateWarehouseStmt(n *ast.CreateWarehouseStmt) error {
+	w.buf.WriteString("CREATE")
+	if n.OrReplace {
+		w.buf.WriteString(" OR REPLACE")
+	} else if n.OrAlter {
+		w.buf.WriteString(" OR ALTER")
+	}
+	w.buf.WriteString(" WAREHOUSE")
+	if n.IfNotExists {
+		w.buf.WriteString(" IF NOT EXISTS")
+	}
+	w.buf.WriteByte(' ')
+	w.writeObjectNameNoSpace(n.Name)
+	if err := w.writeCopyOptions(n.Options); err != nil {
+		return err
+	}
+	if len(n.Tags) > 0 {
+		w.buf.WriteString(" WITH TAG (")
+		w.writeTagAssignments(n.Tags)
+		w.buf.WriteByte(')')
+	}
+	return nil
+}
+
+func (w *writer) writeAlterWarehouseStmt(n *ast.AlterWarehouseStmt) error {
+	w.buf.WriteString("ALTER WAREHOUSE")
+	if n.IfExists {
+		w.buf.WriteString(" IF EXISTS")
+	}
+	w.buf.WriteByte(' ')
+	w.writeObjectNameNoSpace(n.Name)
+	switch n.Action {
+	case ast.AlterWarehouseSuspend:
+		w.buf.WriteString(" SUSPEND")
+	case ast.AlterWarehouseResume:
+		w.buf.WriteString(" RESUME")
+		if n.ResumeIfSuspended {
+			w.buf.WriteString(" IF SUSPENDED")
+		}
+	case ast.AlterWarehouseAbort:
+		w.buf.WriteString(" ABORT ALL QUERIES")
+	case ast.AlterWarehouseRename:
+		w.buf.WriteString(" RENAME TO ")
+		w.writeObjectNameNoSpace(n.NewName)
+	case ast.AlterWarehouseSet:
+		w.buf.WriteString(" SET")
+		if err := w.writeCopyOptions(n.Options); err != nil {
+			return err
+		}
+	case ast.AlterWarehouseUnset:
+		w.buf.WriteString(" UNSET ")
+		w.buf.WriteString(strings.Join(n.UnsetKeys, ", "))
+	case ast.AlterWarehouseSetTag:
+		w.buf.WriteString(" SET TAG ")
+		w.writeTagAssignments(n.Tags)
+	case ast.AlterWarehouseUnsetTag:
+		w.buf.WriteString(" UNSET TAG ")
+		w.writeObjectNameList(n.UnsetTags)
+	case ast.AlterWarehouseAddTables:
+		w.buf.WriteString(" ADD TABLES (")
+		w.writeObjectNameList(n.Tables)
+		w.buf.WriteByte(')')
+	case ast.AlterWarehouseRemoveTables:
+		w.buf.WriteString(" REMOVE TABLES (")
+		w.writeObjectNameList(n.Tables)
+		w.buf.WriteByte(')')
+	default:
+		return fmt.Errorf("deparse: unsupported ALTER WAREHOUSE action %d", n.Action)
+	}
+	return nil
+}

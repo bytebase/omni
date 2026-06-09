@@ -172,6 +172,13 @@ func walkChildren(v Visitor, node Node) {
 		if n.MaskingPolicy != nil {
 			Walk(v, n.MaskingPolicy)
 		}
+	case *AlterWarehouseStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.NewName != nil {
+			Walk(v, n.NewName)
+		}
 	case *ArrayLiteralExpr:
 		walkNodes(v, n.Elements)
 	case *BetweenExpr:
@@ -397,6 +404,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Name)
 		}
 		Walk(v, n.Query)
+	case *CreateWarehouseStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *DeleteStmt:
 		if n.Target != nil {
 			Walk(v, n.Target)

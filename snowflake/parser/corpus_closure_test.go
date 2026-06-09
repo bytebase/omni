@@ -172,15 +172,7 @@ var corpusSkips = map[string]string{
 	"legacy/alter.sql":                        "RESIDUAL GAP: ALTER {ACCOUNT,DATABASE,SESSION,SHARE,...} family — parser-alter node not built",
 	"official/alter-session/example_01.sql":   "RESIDUAL GAP: ALTER SESSION SET — parser-alter node not built",
 	"official/alter-session/example_02.sql":   "RESIDUAL GAP: ALTER SESSION UNSET — parser-alter node not built",
-	"official/alter-warehouse/example_01.sql": "RESIDUAL GAP: ALTER WAREHOUSE — parser-alter node not built",
-	"official/alter-warehouse/example_02.sql": "RESIDUAL GAP: ALTER WAREHOUSE — parser-alter node not built",
-	"official/alter-warehouse/example_03.sql": "RESIDUAL GAP: ALTER WAREHOUSE — parser-alter node not built",
-	"official/alter-warehouse/example_04.sql": "RESIDUAL GAP: ALTER WAREHOUSE — parser-alter node not built",
-	"official/alter-warehouse/example_05.sql": "RESIDUAL GAP: ALTER WAREHOUSE — parser-alter node not built",
-	"official/alter-warehouse/example_06.sql": "RESIDUAL GAP: ALTER WAREHOUSE — parser-alter node not built",
 	"official/create-database/example_08.sql": "CONTEXT: file is a lone ALTER SESSION SET (create-database page follow-up) — parser-alter not built",
-	"official/create-database/example_10.sql": "CONTEXT: file is a lone ALTER DATABASE/SESSION (create-database page follow-up) — parser-alter not built",
-	"official/create-database/example_11.sql": "CONTEXT: file is a lone ALTER DATABASE/SESSION (create-database page follow-up) — parser-alter not built",
 	"official/order-by/example_04.sql":        "RESIDUAL GAP: ALTER SESSION SET DEFAULT_NULL_ORDERING — parser-alter node not built",
 	"official/order-by/example_07.sql":        "RESIDUAL GAP: ALTER SESSION SET DEFAULT_NULL_ORDERING — parser-alter node not built",
 	"official/update/example_04.sql":          "RESIDUAL GAP: ALTER SESSION SET (update page setup) — parser-alter node not built",
@@ -193,14 +185,12 @@ var corpusSkips = map[string]string{
 	// --- RESIDUAL GAP: ALTER VIEW with a re-defined query body ---
 	"official/alter-view/example_11.sql": "RESIDUAL GAP: ALTER VIEW ... AS <join query> body redefinition not parsed",
 
-	// --- RESIDUAL GAP: CREATE WAREHOUSE (object node not built) ---
-	"official/create-warehouse/example_01.sql": "RESIDUAL GAP: CREATE WAREHOUSE — object node not built",
-	"official/create-warehouse/example_02.sql": "RESIDUAL GAP: CREATE WAREHOUSE — object node not built",
-	"official/create-warehouse/example_03.sql": "RESIDUAL GAP: CREATE WAREHOUSE — object node not built",
-	"official/create-warehouse/example_04.sql": "RESIDUAL GAP: CREATE WAREHOUSE — object node not built",
-	"official/create-warehouse/example_05.sql": "RESIDUAL GAP: CREATE WAREHOUSE — object node not built",
-	"official/create-warehouse/example_06.sql": "RESIDUAL GAP: CREATE WAREHOUSE — object node not built",
-	"official/create-warehouse/example_07.sql": "RESIDUAL GAP: CREATE OR ALTER WAREHOUSE + SHOW ->> SELECT FROM $1 — object node not built; also the $N table-ref gap",
+	// --- RESIDUAL GAP: SHOW ->> result-pipe + $N table-ref (other nodes) ---
+	// CREATE/ALTER WAREHOUSE now parse (gap-warehouse); this file remains skipped
+	// only because its two `SHOW WAREHOUSES ... ->> SELECT ... FROM $1` statements
+	// exercise the ->> result-pipe and $N table-ref gaps owned by other nodes. The
+	// CREATE OR ALTER WAREHOUSE and DROP WAREHOUSE statements in it parse clean.
+	"official/create-warehouse/example_07.sql": "RESIDUAL GAP: SHOW WAREHOUSES ->> SELECT ... FROM $1 — ->> result-pipe + $N table-ref owned by other nodes (CREATE OR ALTER WAREHOUSE parses)",
 
 	// --- RESIDUAL GAP: CREATE HYBRID TABLE (object node not built) ---
 	"official/create-hybrid-table/example_01.sql": "RESIDUAL GAP: CREATE HYBRID TABLE — object node not built",
@@ -219,11 +209,11 @@ var corpusSkips = map[string]string{
 	"official/create-network-rule/example_04.sql": "RESIDUAL GAP: CREATE NETWORK RULE — object node not built",
 	"official/create-network-rule/example_05.sql": "RESIDUAL GAP: CREATE NETWORK RULE — object node not built",
 
-	// --- RESIDUAL GAP: CREATE INTERACTIVE MATERIALIZED VIEW + ALTER WAREHOUSE ---
-	"official/create-materialized-view/example_02.sql": "RESIDUAL GAP: CREATE INTERACTIVE MATERIALIZED VIEW (INTERACTIVE keyword) + ALTER WAREHOUSE ADD TABLES",
-
-	// --- RESIDUAL GAP: CREATE statement variants in the legacy create.sql ---
-	"legacy/create.sql": "RESIDUAL GAP: CREATE {ACCOUNT,API INTEGRATION,FAILOVER GROUP,MANAGED ACCOUNT,WAREHOUSE,...} object variants not all built",
+	// --- RESIDUAL GAP: CREATE INTERACTIVE MATERIALIZED VIEW (object node not built) ---
+	// The ALTER WAREHOUSE ADD TABLES statement in this file now parses
+	// (gap-warehouse); it remains skipped only for the CREATE INTERACTIVE
+	// MATERIALIZED VIEW (INTERACTIVE keyword) statement owned by another node.
+	"official/create-materialized-view/example_02.sql": "RESIDUAL GAP: CREATE INTERACTIVE MATERIALIZED VIEW (INTERACTIVE keyword) — object node not built (ALTER WAREHOUSE ADD TABLES parses)",
 
 	// --- RESIDUAL GAP: CREATE/ALTER/DROP ALERT (object node not built) ---
 	"legacy/alerts.sql": "RESIDUAL GAP: CREATE/ALTER/DROP ALERT — alert object node not built",

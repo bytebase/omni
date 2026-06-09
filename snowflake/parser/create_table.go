@@ -162,6 +162,9 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 	case kwSEQUENCE:
 		// CREATE [OR REPLACE] SEQUENCE ... (T4.4).
 		return p.parseCreateSequenceStmt(start, orReplace, orAlter)
+	case kwWAREHOUSE:
+		// CREATE [ OR REPLACE | OR ALTER ] WAREHOUSE ... (gap-warehouse).
+		return p.parseCreateWarehouseStmt(start, orReplace, orAlter)
 	case kwEXTERNAL:
 		// CREATE [OR REPLACE] EXTERNAL { FUNCTION (T4.5) | TABLE (T4.4) | VOLUME (T4.7) }.
 		// The object is disambiguated by what follows EXTERNAL. EXTERNAL TABLE keeps

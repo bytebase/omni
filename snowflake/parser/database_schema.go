@@ -224,6 +224,9 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	case kwSEQUENCE:
 		// ALTER SEQUENCE ... (T4.4). (ALTER EVENT TABLE goes through ALTER TABLE.)
 		return p.parseAlterSequenceStmt()
+	case kwWAREHOUSE:
+		// ALTER WAREHOUSE ... (gap-warehouse).
+		return p.parseAlterWarehouseStmt()
 	case kwSTORAGE, kwAPI, kwNOTIFICATION, kwSECURITY, kwINTEGRATION, kwRESOURCE, kwSECRET, kwCONNECTION, kwGIT:
 		// ALTER account-level integration objects (T4.7): { [STORAGE] | API |
 		// NOTIFICATION | SECURITY } INTEGRATION, RESOURCE MONITOR, SECRET,
