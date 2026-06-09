@@ -200,6 +200,24 @@ func TestParenFromDerived(t *testing.T) {
 	}
 }
 
+// TestParenFromDerivedOuterClause covers a derived-table body that is a
+// parenthesized query with an OUTER ORDER BY / LIMIT (no set op). TiDB v8.5.0
+// accepts all of these (container-verified); the classifier must inherit the
+// nested verdict across a trailing ORDER/LIMIT, not just across a set-op
+// keyword. This is the bare sibling of the already-passing
+// `((SELECT 1) UNION (SELECT 2) ORDER BY 1) x`.
+func TestParenFromDerivedOuterClause(t *testing.T) {
+	accepted := []string{
+		"SELECT * FROM ((SELECT 1) ORDER BY 1) x",
+		"SELECT * FROM ((SELECT 1) LIMIT 1) x",
+		"SELECT * FROM (((SELECT 1) LIMIT 1)) x",
+		"SELECT * FROM ((SELECT 1) ORDER BY 1 LIMIT 1) x",
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
 // Regression: the classifier must preserve every shape that parses today.
 func TestParenFromRegression(t *testing.T) {
 	accepted := []string{
@@ -236,6 +254,7 @@ func TestParenFromRejected(t *testing.T) {
 	rejected := []string{
 		"SELECT * FROM ((SELECT 1) UNION (SELECT 2)", // unbalanced parens
 		"SELECT * FROM ((SELECT 1) (SELECT 2)) x",    // two selects, no set-op
+		"SELECT * FROM ((SELECT 1) FOR UPDATE) x",    // FOR UPDATE binds to the leaf, not the outer level (TiDB rejects)
 	}
 	for _, sql := range rejected {
 		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })

@@ -1030,8 +1030,17 @@ func (p *Parser) consumeMatchedParenIsSubquery() bool {
 		isSubquery = true
 	case '(':
 		nested := p.consumeMatchedParenIsSubquery()
+		// Classify the outer by what follows the nested block. A trailing set-op
+		// keyword OR an outer ORDER BY / LIMIT continues the OUTER query
+		// expression, so it inherits the nested verdict (TiDB accepts
+		// `((SELECT 1) UNION (SELECT 2)) x` and `((SELECT 1) ORDER BY 1) x`).
+		// Adding ORDER/LIMIT DIVERGES from pg, whose set omits them; both are
+		// container-verified on v8.5.0. FOR UPDATE is deliberately excluded — it
+		// binds to the leaf, not this outer level, and TiDB rejects
+		// `((SELECT 1) FOR UPDATE) x`. Inheriting `nested` (not blind true) keeps
+		// a join body safe: `((t1 JOIN t2) ORDER BY 1)` inherits false → join.
 		switch p.cur.Type {
-		case ')', kwUNION, kwINTERSECT, kwEXCEPT:
+		case ')', kwUNION, kwINTERSECT, kwEXCEPT, kwORDER, kwLIMIT:
 			isSubquery = nested
 		default:
 			isSubquery = false
