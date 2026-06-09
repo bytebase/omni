@@ -49,9 +49,10 @@ func TestParenthesizedQueryExpression(t *testing.T) {
 // query is accepted there too (the handoff repro is the procedure-body case).
 // All container-verified accepted on pingcap/tidb:v8.5.0.
 //
-// Not yet covered (separate productions, tracked as a follow-up): a derived
-// table `FROM ((SELECT 1) UNION (SELECT 2)) x` and a subquery expression
-// `IN ((SELECT 1) UNION (SELECT 2))`, parsed by parseTableFactor / parseParenExpr.
+// The derived-table case `FROM ((SELECT 1) UNION (SELECT 2)) x` is now handled
+// via a backtracking classifier in parseTableFactor (see TestParenFromDerived).
+// Still not covered (subquery-expression production, tracked as PR3): a subquery
+// expression `IN ((SELECT 1) UNION (SELECT 2))`, parsed by parseParenExpr.
 func TestParenthesizedQueryDelegatedContexts(t *testing.T) {
 	accepted := []string{
 		"INSERT INTO t (SELECT 1) UNION (SELECT 2)",
@@ -178,5 +179,38 @@ func TestParenthesizedQueryLocking(t *testing.T) {
 		t.Run(sql, func(t *testing.T) {
 			ParseExpectError(t, sql)
 		})
+	}
+}
+
+// PR2: derived tables whose body is a parenthesized / set-op query expression.
+// All container-verified accepted on pingcap/tidb:v8.5.0. Before this change
+// parseTableFactor consumed '(' then peeked kwSELECT||kwWITH, so a leading
+// nested '(' misrouted to parseTableReferenceList and rejected.
+func TestParenFromDerived(t *testing.T) {
+	accepted := []string{
+		"SELECT * FROM ((SELECT 1) UNION (SELECT 2)) x",
+		"SELECT * FROM ((SELECT 1)) x",
+		"SELECT * FROM (((SELECT 1))) x",
+		"SELECT * FROM ((SELECT 1) UNION (SELECT 2) ORDER BY 1) x",
+		"SELECT * FROM ((SELECT 1 UNION SELECT 2)) x",
+		"SELECT * FROM ((SELECT a FROM t) UNION (SELECT b FROM t)) x",
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
+// Regression: the classifier must preserve every shape that parses today.
+func TestParenFromRegression(t *testing.T) {
+	accepted := []string{
+		"SELECT * FROM (SELECT 1) x",              // simple derived table
+		"SELECT * FROM (t1)",                      // parenthesized single table
+		"SELECT * FROM (t1 JOIN t2 ON t1.a=t2.b)", // parenthesized join
+		"SELECT * FROM (t1, t2)",                  // parenthesized comma cross-join
+		"SELECT * FROM t1, LATERAL (SELECT 1) x",  // LATERAL derived table
+		"(SELECT 1) UNION (SELECT 2)",             // top-level set-op (statement)
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
 	}
 }

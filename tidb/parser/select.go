@@ -995,6 +995,68 @@ func (p *Parser) matchJoinType() (nodes.JoinType, bool, error) {
 	return 0, false, nil
 }
 
+// parenBeginsSubquery reports whether the '(' at p.cur opens a parenthesized
+// query expression (a derived table) rather than a parenthesized table
+// reference (a join). It classifies WITHOUT consuming: snapshot, scan, restore.
+// One-token lookahead cannot decide this because the disambiguating token (a
+// depth-1 SELECT/WITH, or a post-')' UNION/JOIN) can sit behind an unbounded
+// run of '('. Ported from pg/parser/select.go parenBeginsSubquery.
+func (p *Parser) parenBeginsSubquery() bool {
+	if p.cur.Type != '(' {
+		return false
+	}
+	snap := p.snapshotTokenStream()
+	defer p.restoreTokenStream(snap)
+	return p.consumeMatchedParenIsSubquery()
+}
+
+// consumeMatchedParenIsSubquery consumes the matched '(' ... ')' block at p.cur
+// and reports whether its content is a query expression. The lead set is
+// {SELECT, WITH} ((VALUES)/(TABLE) primaries are a separate follow-up that
+// parseSelectNoParens cannot parse as a body, so excluding them preserves
+// today's reject behavior). A nested '(' recurses, and the outer is classified
+// by what follows the nested block: ')' or a set-op keyword inherits the nested
+// verdict; anything else (e.g. a JOIN keyword) means the nested block is a join
+// operand, not a wrapped subquery. Must run inside a snapshot/restore scope.
+func (p *Parser) consumeMatchedParenIsSubquery() bool {
+	if p.cur.Type != '(' {
+		return false
+	}
+	p.advance() // consume '('
+
+	var isSubquery bool
+	switch p.cur.Type {
+	case kwSELECT, kwWITH:
+		isSubquery = true
+	case '(':
+		nested := p.consumeMatchedParenIsSubquery()
+		switch p.cur.Type {
+		case ')', kwUNION, kwINTERSECT, kwEXCEPT:
+			isSubquery = nested
+		default:
+			isSubquery = false
+		}
+	default:
+		isSubquery = false
+	}
+
+	depth := 1
+	for depth > 0 && p.cur.Type != tokEOF {
+		switch p.cur.Type {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				p.advance()
+				return isSubquery
+			}
+		}
+		p.advance()
+	}
+	return isSubquery
+}
+
 // parseTableFactor parses a table factor: table_ref, subquery, LATERAL subquery, or parenthesized table_references.
 func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	// LATERAL (SELECT ...) — LATERAL derived table
@@ -1058,11 +1120,16 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 
 	if p.cur.Type == '(' {
 		startPos := p.pos()
-		p.advance()
 
-		// Subquery (derived table): (SELECT ...) or (WITH ... SELECT ...)
-		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-			sel, err := p.parseSelectStmt()
+		// One-token lookahead can't separate a parenthesized-query derived table
+		// `((SELECT 1) UNION (SELECT 2)) x` from a parenthesized join `(t1 JOIN
+		// t2)`, so classify with a backtracking scan before consuming the '('.
+		if p.parenBeginsSubquery() {
+			p.advance() // consume '('
+
+			// Body is a query expression (possibly a paren set-op); parseSelectNoParens
+			// (#238) parses paren operands via parseSelectClause/parseSelectWithParens.
+			sel, err := p.parseSelectNoParens()
 			if err != nil {
 				return nil, err
 			}
@@ -1105,6 +1172,7 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 		}
 
 		// Parenthesized table references use MySQL nested-join semantics.
+		p.advance() // consume '('
 		refs, err := p.parseTableReferenceList()
 		if err != nil {
 			return nil, err
