@@ -53,6 +53,26 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		kind = ast.AlterView
 	case kwINDEX:
 		kind = ast.AlterIndex
+	case kwSEARCH:
+		// ALTER SEARCH INDEX … {ADD|DROP} STORED COLUMN (Spanner DDL-049). A
+		// two-word object: consume SEARCH here so the shared p.advance() below
+		// consumes INDEX. SEARCH must be followed by INDEX — otherwise this is not
+		// a SEARCH INDEX alter and falls through to a syntax error.
+		//
+		// This is a documented Spanner GoogleSQL form the BigQuery+Spanner union
+		// parser must accept; the live emulator non-authoritatively REJECTS it (its
+		// grammar is a subset that lags the docs — same shape as ALTER VECTOR INDEX
+		// REBUILD). Triangulated against the Spanner DDL reference + the legacy
+		// GoogleSQLParser.g4 (schema_object_kind has INDEX but not SEARCH INDEX, and
+		// SEARCH is a keyword token so the generic-entity alt — IDENTIFIER|PROJECT —
+		// does not match it either ⇒ legacy rejects it too). The action set is the
+		// same STORED COLUMN actions ALTER INDEX uses, so it reuses the shared
+		// alter_action_list flow below.
+		if p.peekNext().Type != kwINDEX {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // SEARCH (the shared p.advance() consumes INDEX)
+		kind = ast.AlterSearchIndex
 	case kwSCHEMA:
 		kind = ast.AlterSchema
 	case kwDATABASE:
