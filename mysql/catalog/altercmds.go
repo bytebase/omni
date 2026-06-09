@@ -146,6 +146,9 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
+	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, "") {
+		return errIncorrectAutoIncrementDefinition()
+	}
 	if err := insertColumn(tbl, col, first, after); err != nil {
 		return err
 	}
@@ -355,6 +358,9 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
+	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, oldName) {
+		return errIncorrectAutoIncrementDefinition()
+	}
 	col.Position = idx + 1
 	tbl.Columns[idx] = col
 
@@ -808,6 +814,9 @@ func (c *Catalog) alterColumnDefault(tbl *Table, cmd *nodes.AlterTableCmd) error
 
 	col := tbl.Columns[idx]
 	if cmd.DefaultExpr != nil {
+		if err := validateDefaultExprForExistingColumn(col, cmd.DefaultExpr); err != nil {
+			return err
+		}
 		setColumnDefaultFromExpr(col, cmd.DefaultExpr)
 	} else {
 		// DROP DEFAULT — MySQL shows no default at all (not even DEFAULT NULL).
@@ -968,6 +977,45 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	}
 
 	return col
+}
+
+func tableHasOtherAutoIncrementColumn(tbl *Table, exceptName string) bool {
+	exceptKey := toLower(exceptName)
+	for _, col := range tbl.Columns {
+		if col.AutoIncrement && (exceptKey == "" || toLower(col.Name) != exceptKey) {
+			return true
+		}
+	}
+	return false
+}
+
+func validateDefaultExprForExistingColumn(col *Column, expr nodes.ExprNode) error {
+	if isNullDefault(expr) && !col.Nullable {
+		return errInvalidDefault(col.Name)
+	}
+	if isLiteralDefaultForbiddenType(col.DataType) && isLiteralDefault(expr) {
+		return &Error{Code: 1101, SQLState: "42000", Message: fmtCantHaveDefault(col.Name)}
+	}
+	return validateTemporalExprForColumn(col.Name, col.DataType, columnTemporalFSP(col), expr, true)
+}
+
+func columnTemporalFSP(col *Column) int {
+	if col == nil || (col.DataType != "datetime" && col.DataType != "timestamp" && col.DataType != "time") {
+		return 0
+	}
+	open := strings.IndexByte(col.ColumnType, '(')
+	close := strings.IndexByte(col.ColumnType, ')')
+	if open < 0 || close <= open+1 {
+		return 0
+	}
+	n := 0
+	for _, ch := range col.ColumnType[open+1 : close] {
+		if ch < '0' || ch > '9' {
+			return 0
+		}
+		n = n*10 + int(ch-'0')
+	}
+	return n
 }
 
 // updateColumnRefsInIndexes updates index and constraint column references

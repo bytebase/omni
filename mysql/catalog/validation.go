@@ -76,6 +76,9 @@ func validateColumnDefSemantics(colDef *nodes.ColumnDef) error {
 	if hasExplicitNullPrimaryKey(colDef) {
 		return &Error{Code: 1171, SQLState: "42000", Message: "All parts of a PRIMARY KEY must be NOT NULL"}
 	}
+	if !columnDefNullable(colDef) && hasNullDefault(colDef) {
+		return errInvalidDefault(colDef.Name)
+	}
 	if isLiteralDefaultForbiddenType(typeName) {
 		if isLiteralDefault(colDef.DefaultValue) || hasLiteralColumnDefaultConstraint(colDef) {
 			return &Error{Code: 1101, SQLState: "42000", Message: fmtCantHaveDefault(colDef.Name)}
@@ -119,6 +122,22 @@ func hasExplicitNullPrimaryKey(colDef *nodes.ColumnDef) bool {
 		}
 	}
 	return hasNull && hasPK
+}
+
+func columnDefNullable(colDef *nodes.ColumnDef) bool {
+	nullable := true
+	if colDef.AutoIncrement {
+		nullable = false
+	}
+	for _, cc := range colDef.Constraints {
+		switch cc.Type {
+		case nodes.ColConstrNotNull, nodes.ColConstrPrimaryKey, nodes.ColConstrAutoIncrement:
+			nullable = false
+		case nodes.ColConstrNull:
+			nullable = true
+		}
+	}
+	return nullable
 }
 
 func validateGeneratedExpr(colName string, expr nodes.ExprNode) error {
@@ -186,6 +205,18 @@ func hasColumnDefaultConstraint(colDef *nodes.ColumnDef) bool {
 	return false
 }
 
+func hasNullDefault(colDef *nodes.ColumnDef) bool {
+	if isNullDefault(colDef.DefaultValue) {
+		return true
+	}
+	for _, cc := range colDef.Constraints {
+		if cc.Type == nodes.ColConstrDefault && isNullDefault(cc.Expr) {
+			return true
+		}
+	}
+	return false
+}
+
 func hasLiteralColumnDefaultConstraint(colDef *nodes.ColumnDef) bool {
 	for _, cc := range colDef.Constraints {
 		if cc.Type == nodes.ColConstrDefault && isLiteralDefault(cc.Expr) {
@@ -201,6 +232,17 @@ func isLiteralDefault(expr nodes.ExprNode) bool {
 		return true
 	case *nodes.ParenExpr:
 		return isLiteralDefault(e.Expr)
+	default:
+		return false
+	}
+}
+
+func isNullDefault(expr nodes.ExprNode) bool {
+	switch e := expr.(type) {
+	case *nodes.NullLit:
+		return true
+	case *nodes.ParenExpr:
+		return isNullDefault(e.Expr)
 	default:
 		return false
 	}
@@ -238,10 +280,13 @@ func validateTemporalExprForColumn(colName, typeName string, colFsp int, expr no
 		return errInvalidDefault(colName)
 	}
 	if !isDefault && typeName != "datetime" && typeName != "timestamp" {
-		return errInvalidDefault(colName)
+		return errInvalidOnUpdate(colName)
 	}
 	if typeName == "datetime" || typeName == "timestamp" {
 		if fsp, ok := temporalFuncFSP(fn); ok && fsp != colFsp {
+			if !isDefault {
+				return errInvalidOnUpdate(colName)
+			}
 			return errInvalidDefault(colName)
 		}
 	}

@@ -122,6 +122,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	}
 	// Track whether we have a primary key (to detect multiple PKs).
 	hasPK := false
+	autoIncrementColumn := ""
 
 	// Defer FK backing index creation until after all explicit indexes are added,
 	// so that explicit indexes can satisfy FK requirements without creating duplicates.
@@ -254,6 +255,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Expr:   nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
 				Stored: colDef.Generated.Stored,
 			}
+		}
+		if col.AutoIncrement {
+			if autoIncrementColumn != "" {
+				return errIncorrectAutoIncrementDefinition()
+			}
+			autoIncrementColumn = colDef.Name
 		}
 
 		// Process column-level constraints.
