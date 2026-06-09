@@ -60,7 +60,12 @@ func Split(input string) []Segment {
 		return nil
 	}
 
-	l := NewLexer(input)
+	// Split's lexer runs in multilineString mode so a multi-line single-quoted
+	// routine body ('class Foo { ...; ... }' spanning several lines, a Java / JS /
+	// SQL handler) tokenizes as ONE string. The parser's own lexer keeps the
+	// conventional one-line string rule; only segmentation needs a ';' on a
+	// continuation line inside such a body to NOT read as a statement terminator.
+	l := newSplitLexer(input)
 	var segments []Segment
 	stmtStart := 0
 	state := stateTop

@@ -185,6 +185,69 @@ func TestRoutineBody_TrailingSemicolonNotInBody(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// PROCEDURE AS <bare scripting block> body — the non-$$, non-quoted form
+//
+//	CREATE PROCEDURE p() RETURNS ... AS DECLARE ... BEGIN ... END
+//
+// The body after AS is a Snowflake Scripting block (DECLARE..BEGIN..END or a
+// bare BEGIN..END) with NO surrounding quotes or $$. F3's Split already keeps
+// the whole block in one segment (the DECLARE/BEGIN..END state machine), and
+// parseRoutineBody routes a leading DECLARE/BEGIN body to the scripting parser,
+// capturing the block text verbatim into Body. These flow end-to-end through
+// mustCreateRoutine (the full Split + parse pipeline).
+// ---------------------------------------------------------------------------
+
+func TestRoutineBody_AsDeclareBeginBlock(t *testing.T) {
+	input := "CREATE PROCEDURE p() RETURNS INTEGER AS\n" +
+		"DECLARE\n  x INTEGER DEFAULT 0;\nBEGIN\n  x := 1;\n  RETURN x;\nEND"
+	stmt := mustCreateRoutine(t, input)
+	if stmt.Kind != ast.RoutineProcedure {
+		t.Errorf("Kind = %v, want RoutineProcedure", stmt.Kind)
+	}
+	if stmt.BodyDollar {
+		t.Errorf("BodyDollar = true, want false")
+	}
+	if !strings.HasPrefix(stmt.Body, "DECLARE") || !strings.HasSuffix(stmt.Body, "END") {
+		t.Errorf("Body = %q, want the verbatim DECLARE..BEGIN..END block", stmt.Body)
+	}
+	if !strings.Contains(stmt.Body, "x := 1;") {
+		t.Errorf("Body = %q, want it to contain the verbatim block statements", stmt.Body)
+	}
+}
+
+func TestRoutineBody_AsBareBeginBlock(t *testing.T) {
+	// AS BEGIN ... END (no DECLARE) — BEGIN here is a block opener, not a TCL
+	// transaction (we are in a routine body).
+	stmt := mustCreateRoutine(t, "CREATE PROCEDURE p() RETURNS INTEGER AS BEGIN RETURN 1; END")
+	if stmt.Body != "BEGIN RETURN 1; END" {
+		t.Errorf("Body = %q, want %q", stmt.Body, "BEGIN RETURN 1; END")
+	}
+	if stmt.BodyDollar {
+		t.Errorf("BodyDollar = true, want false")
+	}
+}
+
+func TestRoutineBody_AsBlockNestedEndIf(t *testing.T) {
+	// A nested IF..END IF inside the body must NOT close the outer block early:
+	// the whole block through the terminating END is the body.
+	input := "CREATE PROCEDURE p() RETURNS INTEGER AS\n" +
+		"BEGIN\n  IF (1 = 1) THEN\n    RETURN 1;\n  END IF;\n  RETURN 0;\nEND"
+	stmt := mustCreateRoutine(t, input)
+	if !strings.HasSuffix(stmt.Body, "RETURN 0;\nEND") {
+		t.Errorf("Body = %q, want it to end at the terminating END (not END IF)", stmt.Body)
+	}
+}
+
+func TestRoutineBody_AsBlockTrailingSemicolon(t *testing.T) {
+	// The trailing ';' after the block's END is the statement delimiter and must
+	// not be part of Body.
+	stmt := mustCreateRoutine(t, "CREATE PROCEDURE p() RETURNS INTEGER AS BEGIN RETURN 1; END;")
+	if stmt.Body != "BEGIN RETURN 1; END" {
+		t.Errorf("Body = %q, want %q (no trailing ';')", stmt.Body, "BEGIN RETURN 1; END")
+	}
+}
+
+// ---------------------------------------------------------------------------
 // CREATE FUNCTION — language × body matrix
 //
 // Asserted via parseSingle (mustCreateRoutineDirect): the multi-line
