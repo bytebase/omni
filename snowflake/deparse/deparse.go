@@ -113,6 +113,12 @@ func (w *writer) writeNode(node ast.Node) error {
 	case *ast.AlterWarehouseStmt:
 		return w.writeAlterWarehouseStmt(n)
 
+	// --- DDL: network rule ---
+	case *ast.CreateNetworkRuleStmt:
+		return w.writeCreateNetworkRuleStmt(n)
+	case *ast.AlterNetworkRuleStmt:
+		return w.writeAlterNetworkRuleStmt(n)
+
 	// --- Expressions (can also be top-level in some contexts) ---
 	case *ast.Literal,
 		*ast.ColumnRef,

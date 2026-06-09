@@ -1294,3 +1294,46 @@ func (w *writer) writeAlterWarehouseStmt(n *ast.AlterWarehouseStmt) error {
 	}
 	return nil
 }
+
+// ---------------------------------------------------------------------------
+// CREATE NETWORK RULE / ALTER NETWORK RULE (gap-network-rule)
+// ---------------------------------------------------------------------------
+
+func (w *writer) writeCreateNetworkRuleStmt(n *ast.CreateNetworkRuleStmt) error {
+	w.buf.WriteString("CREATE")
+	if n.OrReplace {
+		w.buf.WriteString(" OR REPLACE")
+	}
+	w.buf.WriteString(" NETWORK RULE")
+	if n.IfNotExists {
+		w.buf.WriteString(" IF NOT EXISTS")
+	}
+	w.buf.WriteByte(' ')
+	w.writeObjectNameNoSpace(n.Name)
+	if err := w.writeCopyOptions(n.Options); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *writer) writeAlterNetworkRuleStmt(n *ast.AlterNetworkRuleStmt) error {
+	w.buf.WriteString("ALTER NETWORK RULE")
+	if n.IfExists {
+		w.buf.WriteString(" IF EXISTS")
+	}
+	w.buf.WriteByte(' ')
+	w.writeObjectNameNoSpace(n.Name)
+	switch n.Action {
+	case ast.AlterNetworkRuleSet:
+		w.buf.WriteString(" SET")
+		if err := w.writeCopyOptions(n.Options); err != nil {
+			return err
+		}
+	case ast.AlterNetworkRuleUnset:
+		w.buf.WriteString(" UNSET ")
+		w.buf.WriteString(strings.Join(n.UnsetKeys, ", "))
+	default:
+		return fmt.Errorf("deparse: unsupported ALTER NETWORK RULE action %d", n.Action)
+	}
+	return nil
+}

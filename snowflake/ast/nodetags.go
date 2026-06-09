@@ -170,6 +170,10 @@ const (
 	T_CreateWarehouseStmt
 	T_AlterWarehouseStmt
 
+	// Network rule DDL tags (gap-network-rule)
+	T_CreateNetworkRuleStmt
+	T_AlterNetworkRuleStmt
+
 	// Access-control DDL tags (T4.6)
 	T_PolicyArg
 	T_CreateRoleStmt
@@ -452,6 +456,10 @@ func (t NodeTag) String() string {
 		return "CreateWarehouseStmt"
 	case T_AlterWarehouseStmt:
 		return "AlterWarehouseStmt"
+	case T_CreateNetworkRuleStmt:
+		return "CreateNetworkRuleStmt"
+	case T_AlterNetworkRuleStmt:
+		return "AlterNetworkRuleStmt"
 	case T_PolicyArg:
 		return "PolicyArg"
 	case T_CreateRoleStmt:

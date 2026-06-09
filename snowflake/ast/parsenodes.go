@@ -1556,6 +1556,7 @@ const (
 	DropTag                             // DROP TAG
 	DropRole                            // DROP ROLE
 	DropWarehouse                       // DROP WAREHOUSE
+	DropNetworkRule                     // DROP NETWORK RULE
 )
 
 // String returns the SQL object-type keyword for the kind.
@@ -1593,6 +1594,8 @@ func (k DropObjectKind) String() string {
 		return "ROLE"
 	case DropWarehouse:
 		return "WAREHOUSE"
+	case DropNetworkRule:
+		return "NETWORK RULE"
 	default:
 		return "UNKNOWN"
 	}
@@ -5084,6 +5087,71 @@ func (n *AlterWarehouseStmt) Tag() NodeTag { return T_AlterWarehouseStmt }
 var (
 	_ Node = (*CreateWarehouseStmt)(nil)
 	_ Node = (*AlterWarehouseStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
+// NETWORK RULE DDL statement nodes (gap-network-rule)
+// ---------------------------------------------------------------------------
+//
+// A network rule carries a small but version-growing set of `KEY = value`
+// properties — TYPE (IPV4 / IPV6 / AWSVPCEID / HOST_PORT / PRIVATE_HOST_PORT /
+// COMPUTE_POOL / ...), VALUE_LIST = ( '...' [ , ... ] ), MODE (INGRESS /
+// EGRESS / INTERNAL_STAGE / ...), and COMMENT. Rather than enumerate the
+// (already-growing) TYPE / MODE vocabularies, every property is parsed as an
+// open-ended `KEY = <value>` pair (ast.CopyOption), reusing the COPY (T5.2)
+// option machinery exactly as STAGE (T4.1), FILE FORMAT (T4.2) and WAREHOUSE
+// (gap-warehouse) do. The parenthesized VALUE_LIST string list is already a
+// native CopyOption value shape (List). Property order is free.
+
+// CreateNetworkRuleStmt represents
+//
+//	CREATE [ OR REPLACE ] NETWORK RULE [ IF NOT EXISTS ] <name> <prop> [ <prop> ... ]
+//
+// where each <prop> is an open-ended `KEY = value` pair (TYPE, VALUE_LIST,
+// MODE, COMMENT, ...). Options preserves source order.
+type CreateNetworkRuleStmt struct {
+	OrReplace   bool
+	IfNotExists bool
+	Name        *ObjectName
+	Options     []*CopyOption // open-ended network-rule properties (TYPE / VALUE_LIST / MODE / COMMENT / ...)
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateNetworkRuleStmt) Tag() NodeTag { return T_CreateNetworkRuleStmt }
+
+// AlterNetworkRuleAction discriminates the action variants of ALTER NETWORK
+// RULE.
+type AlterNetworkRuleAction int
+
+const (
+	AlterNetworkRuleSet   AlterNetworkRuleAction = iota // SET <prop> [ <prop> ... ]
+	AlterNetworkRuleUnset                               // UNSET <key> [ , ... ]
+)
+
+// AlterNetworkRuleStmt represents
+//
+//	ALTER NETWORK RULE [ IF EXISTS ] <name> { SET <prop>... | UNSET <key>,... }
+//
+// SET carries an open-ended `KEY = value` property run (VALUE_LIST, COMMENT,
+// ...) in Options; UNSET carries the uppercased key names (VALUE_LIST,
+// COMMENT, ...) in UnsetKeys.
+type AlterNetworkRuleStmt struct {
+	IfExists  bool
+	Name      *ObjectName
+	Action    AlterNetworkRuleAction
+	Options   []*CopyOption // SET <props>; for AlterNetworkRuleSet
+	UnsetKeys []string      // UNSET <key> [ , ... ]; for AlterNetworkRuleUnset
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *AlterNetworkRuleStmt) Tag() NodeTag { return T_AlterNetworkRuleStmt }
+
+// Compile-time assertions for network-rule DDL nodes.
+var (
+	_ Node = (*CreateNetworkRuleStmt)(nil)
+	_ Node = (*AlterNetworkRuleStmt)(nil)
 )
 
 // ---------------------------------------------------------------------------

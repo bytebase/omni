@@ -219,6 +219,14 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		// CREATE [OR REPLACE] USER ... (T4.6).
 		return p.parseCreateUserStmt(start, orReplace, orAlter)
 	case kwMASKING, kwSESSION, kwPASSWORD, kwNETWORK, kwROW:
+		// CREATE [OR REPLACE] NETWORK RULE ... (gap-network-rule) vs the policy
+		// objects below. NETWORK is reserved but RULE is not, so NETWORK RULE lexes
+		// as kwNETWORK followed by a "RULE" identifier; NETWORK POLICY lexes as
+		// kwNETWORK followed by kwPOLICY. The RULE form is dispatched here before the
+		// shared policy path.
+		if p.cur.Type == kwNETWORK && p.peekIsWord("RULE") {
+			return p.parseCreateNetworkRuleStmt(start, orReplace)
+		}
 		// CREATE [OR REPLACE] { MASKING | ROW ACCESS | SESSION | PASSWORD | NETWORK }
 		// POLICY ... (T4.6). parseCreatePolicyDispatch consumes the kind keyword(s)
 		// and the POLICY keyword, then delegates. A leading keyword not followed by
