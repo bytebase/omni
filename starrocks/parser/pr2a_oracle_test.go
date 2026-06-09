@@ -35,8 +35,13 @@ func TestPR2aParity(t *testing.T) {
 			false,
 		},
 		{
-			"generated_column_as",
+			"generated_column_as_parens",
 			"CREATE TABLE gc (id BIGINT, price DECIMAL(18,2), qty INT, total DECIMAL(18,2) AS (price*qty)) DUPLICATE KEY(id) DISTRIBUTED BY HASH(id)",
+			true,
+		},
+		{
+			"generated_column_as_unparenthesized", // #288 P2: AS <expr> without outer parens
+			"CREATE TABLE g1 (a INT, b INT, c BIGINT AS abs(a)) DUPLICATE KEY(a) DISTRIBUTED BY HASH(a) BUCKETS 1",
 			true,
 		},
 		{

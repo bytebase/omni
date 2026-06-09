@@ -114,6 +114,23 @@ func TestCreateTable_GeneratedColumnAS(t *testing.T) {
 	}
 }
 
+// StarRocks generated columns allow AS <expr> with NO outer parens, e.g.
+// `c DOUBLE AS array_avg(data)` or `c BIGINT AS a + b` (docs + SHOW CREATE TABLE
+// output). The arm must not mandate the parenthesized form. (#288 P2 review.)
+func TestCreateTable_GeneratedColumnASUnparenthesizedCall(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE g1 (a INT, b INT, c BIGINT AS abs(a)) DUPLICATE KEY(a) DISTRIBUTED BY HASH(a) BUCKETS 1")
+	if stmt.Columns[2].Generated == nil {
+		t.Errorf("expected Columns[2].Generated set for unparenthesized AS abs(a)")
+	}
+}
+
+func TestCreateTable_GeneratedColumnASBareBinary(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE g2 (a INT, b INT, c BIGINT AS a + b) DUPLICATE KEY(a) DISTRIBUTED BY HASH(a) BUCKETS 1")
+	if stmt.Columns[2].Generated == nil {
+		t.Errorf("expected Columns[2].Generated set for unparenthesized AS a + b")
+	}
+}
+
 // StarRocks parenthesized expression default `DEFAULT (expr)` (BYT-9140 PR2a #12).
 // (Bare CURRENT_TIMESTAMP already parses; the gap is the (expr) form.)
 func TestCreateTable_DefaultExpr(t *testing.T) {
