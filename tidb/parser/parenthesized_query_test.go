@@ -49,9 +49,10 @@ func TestParenthesizedQueryExpression(t *testing.T) {
 // query is accepted there too (the handoff repro is the procedure-body case).
 // All container-verified accepted on pingcap/tidb:v8.5.0.
 //
-// Not yet covered (separate productions, tracked as a follow-up): a derived
-// table `FROM ((SELECT 1) UNION (SELECT 2)) x` and a subquery expression
-// `IN ((SELECT 1) UNION (SELECT 2))`, parsed by parseTableFactor / parseParenExpr.
+// The derived-table case `FROM ((SELECT 1) UNION (SELECT 2)) x` is now handled
+// via a backtracking classifier in parseTableFactor (see TestParenFromDerived).
+// Still not covered (subquery-expression production, tracked as PR3): a subquery
+// expression `IN ((SELECT 1) UNION (SELECT 2))`, parsed by parseParenExpr.
 func TestParenthesizedQueryDelegatedContexts(t *testing.T) {
 	accepted := []string{
 		"INSERT INTO t (SELECT 1) UNION (SELECT 2)",
@@ -178,5 +179,84 @@ func TestParenthesizedQueryLocking(t *testing.T) {
 		t.Run(sql, func(t *testing.T) {
 			ParseExpectError(t, sql)
 		})
+	}
+}
+
+// PR2: derived tables whose body is a parenthesized / set-op query expression.
+// All container-verified accepted on pingcap/tidb:v8.5.0. Before this change
+// parseTableFactor consumed '(' then peeked kwSELECT||kwWITH, so a leading
+// nested '(' misrouted to parseTableReferenceList and rejected.
+func TestParenFromDerived(t *testing.T) {
+	accepted := []string{
+		"SELECT * FROM ((SELECT 1) UNION (SELECT 2)) x",
+		"SELECT * FROM ((SELECT 1)) x",
+		"SELECT * FROM (((SELECT 1))) x",
+		"SELECT * FROM ((SELECT 1) UNION (SELECT 2) ORDER BY 1) x",
+		"SELECT * FROM ((SELECT 1 UNION SELECT 2)) x",
+		"SELECT * FROM ((SELECT a FROM t) UNION (SELECT b FROM t)) x",
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
+// TestParenFromDerivedOuterClause covers a derived-table body that is a
+// parenthesized query with an OUTER ORDER BY / LIMIT (no set op). TiDB v8.5.0
+// accepts all of these (container-verified); the classifier must inherit the
+// nested verdict across a trailing ORDER/LIMIT, not just across a set-op
+// keyword. This is the bare sibling of the already-passing
+// `((SELECT 1) UNION (SELECT 2) ORDER BY 1) x`.
+func TestParenFromDerivedOuterClause(t *testing.T) {
+	accepted := []string{
+		"SELECT * FROM ((SELECT 1) ORDER BY 1) x",
+		"SELECT * FROM ((SELECT 1) LIMIT 1) x",
+		"SELECT * FROM (((SELECT 1) LIMIT 1)) x",
+		"SELECT * FROM ((SELECT 1) ORDER BY 1 LIMIT 1) x",
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
+// Regression: the classifier must preserve every shape that parses today.
+func TestParenFromRegression(t *testing.T) {
+	accepted := []string{
+		"SELECT * FROM (SELECT 1) x",              // simple derived table
+		"SELECT * FROM (t1)",                      // parenthesized single table
+		"SELECT * FROM (t1 JOIN t2 ON t1.a=t2.b)", // parenthesized join
+		"SELECT * FROM (t1, t2)",                  // parenthesized comma cross-join
+		"SELECT * FROM t1, LATERAL (SELECT 1) x",  // LATERAL derived table
+		"(SELECT 1) UNION (SELECT 2)",             // top-level set-op (statement)
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
+// TestParenFromRobustness exercises the trickier paths: a conditional comment
+// spliced inside the body during the classifier scan (validates the snapshot's
+// input capture), a set-op derived table followed by a JOIN, and a set-op body
+// with no alias. All container-verified parse on pingcap/tidb:v8.5.0.
+func TestParenFromRobustness(t *testing.T) {
+	accepted := []string{
+		"SELECT * FROM ((SELECT 1) UNION (/*!40000 SELECT 2 */)) x",
+		"SELECT * FROM ((SELECT 1) UNION (SELECT 2)) x JOIN t3 ON x.a=t3.a",
+		"SELECT * FROM ((SELECT 1) UNION (SELECT 2))",
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
+// TestParenFromRejected: malformed paren bodies must still be rejected. Both are
+// 1064 syntax errors on the TiDB v8.5.0 container.
+func TestParenFromRejected(t *testing.T) {
+	rejected := []string{
+		"SELECT * FROM ((SELECT 1) UNION (SELECT 2)", // unbalanced parens
+		"SELECT * FROM ((SELECT 1) (SELECT 2)) x",    // two selects, no set-op
+		"SELECT * FROM ((SELECT 1) FOR UPDATE) x",    // FOR UPDATE binds to the leaf, not the outer level (TiDB rejects)
+	}
+	for _, sql := range rejected {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
 	}
 }

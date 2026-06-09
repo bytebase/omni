@@ -815,3 +815,23 @@ func TestTokenEndMultiChar(t *testing.T) {
 		t.Error("did not find <=> token")
 	}
 }
+
+// TestComplete_ParenFromDerivedBody locks design residual-risk #1: completion
+// with the cursor inside a parenthesized-query derived table. The classifier
+// (parenBeginsSubquery) snapshots and scans across this paren block before the
+// real parse; because advance() is collection-inert, that scan must not corrupt
+// completion state — the body still offers correct SELECT-context candidates.
+func TestComplete_ParenFromDerivedBody(t *testing.T) {
+	full := "SELECT x FROM ((SELECT 1) UNION (SELECT 2)) y"
+	cursor := len("SELECT x FROM ((SELECT ") // inside the first derived-table operand
+	cs := Collect(full, cursor)
+	if cs == nil {
+		t.Fatal("Collect returned nil")
+	}
+	if !cs.HasRule("columnref") {
+		t.Error("missing columnref candidate inside parenthesized derived-table body")
+	}
+	if !cs.HasToken(kwDISTINCT) {
+		t.Error("missing DISTINCT candidate inside parenthesized derived-table body")
+	}
+}
