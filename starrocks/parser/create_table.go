@@ -402,6 +402,18 @@ func (p *Parser) parseDefaultValue() (ast.Node, error) {
 		tok := p.advance()
 		return &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}, nil
 
+	case int('('):
+		// StarRocks parenthesized expression default: DEFAULT (uuid()), DEFAULT (expr).
+		p.advance() // consume (
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
+		return expr, nil
+
 	default:
 		return nil, &ParseError{
 			Loc: p.cur.Loc,

@@ -114,6 +114,18 @@ func TestCreateTable_GeneratedColumnAS(t *testing.T) {
 	}
 }
 
+// StarRocks parenthesized expression default `DEFAULT (expr)` (BYT-9140 PR2a #12).
+// (Bare CURRENT_TIMESTAMP already parses; the gap is the (expr) form.)
+func TestCreateTable_DefaultExpr(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE dft (id BIGINT, token VARCHAR(64) DEFAULT (uuid())) PRIMARY KEY(id) DISTRIBUTED BY HASH(id)")
+	if len(stmt.Columns) != 2 {
+		t.Fatalf("expected 2 columns, got %d", len(stmt.Columns))
+	}
+	if stmt.Columns[1].Default == nil {
+		t.Errorf("expected Columns[1].Default set for DEFAULT (expr)")
+	}
+}
+
 func TestCreateTable_WithNotNullDefault(t *testing.T) {
 	stmt := parseCreateTableStmt(t, "CREATE TABLE t (id INT NOT NULL DEFAULT 0, name VARCHAR(50) NULL)")
 	if len(stmt.Columns) != 2 {
