@@ -181,7 +181,7 @@ func (p *Parser) parseColumnDef() (*ast.ColumnDef, error) {
 			continue
 
 		case kwMAX, kwMIN, kwSUM, kwREPLACE, kwREPLACE_IF_NOT_NULL,
-			kwHLL_UNION, kwBITMAP_UNION, kwQUANTILE_UNION, kwGENERIC:
+			kwHLL_UNION, kwBITMAP_UNION, kwQUANTILE_UNION, kwPERCENTILE_UNION, kwGENERIC:
 			col.AggType = strings.ToUpper(p.cur.Str)
 			col.Loc.End = p.cur.Loc.End
 			p.advance()

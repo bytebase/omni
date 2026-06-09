@@ -28,7 +28,7 @@ func isPrimitiveTypeKeyword(kind TokenKind) bool {
 	case kwDATE, kwDATETIME, kwTIME, kwDATEV1, kwDATEV2, kwDATETIMEV1, kwDATETIMEV2:
 		return true
 	// Special Doris types
-	case kwBITMAP, kwHLL, kwQUANTILE_STATE, kwJSON, kwJSONB:
+	case kwBITMAP, kwHLL, kwQUANTILE_STATE, kwPERCENTILE, kwJSON, kwJSONB:
 		return true
 	case kwIPV4, kwIPV6, kwVARIANT, kwAGG_STATE:
 		return true
@@ -99,6 +99,8 @@ func typeKeywordName(tok Token) string {
 		return "HLL"
 	case kwQUANTILE_STATE:
 		return "QUANTILE_STATE"
+	case kwPERCENTILE:
+		return "PERCENTILE"
 	case kwJSON:
 		return "JSON"
 	case kwJSONB:

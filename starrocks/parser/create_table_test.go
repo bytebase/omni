@@ -52,6 +52,21 @@ func TestCreateTable_Basic(t *testing.T) {
 	}
 }
 
+// StarRocks PERCENTILE type + PERCENTILE_UNION aggregate (BYT-9140 PR2a #10).
+// doris uses QUANTILE_STATE/QUANTILE_UNION; StarRocks uses PERCENTILE.
+func TestCreateTable_PercentileAggType(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE agg_pct (k INT, p PERCENTILE PERCENTILE_UNION) AGGREGATE KEY(k) DISTRIBUTED BY HASH(k) BUCKETS 1")
+	if len(stmt.Columns) != 2 {
+		t.Fatalf("expected 2 columns, got %d", len(stmt.Columns))
+	}
+	if stmt.Columns[1].Type.Name != "PERCENTILE" {
+		t.Errorf("Columns[1].Type.Name = %q, want PERCENTILE", stmt.Columns[1].Type.Name)
+	}
+	if stmt.Columns[1].AggType != "PERCENTILE_UNION" {
+		t.Errorf("Columns[1].AggType = %q, want PERCENTILE_UNION", stmt.Columns[1].AggType)
+	}
+}
+
 func TestCreateTable_WithNotNullDefault(t *testing.T) {
 	stmt := parseCreateTableStmt(t, "CREATE TABLE t (id INT NOT NULL DEFAULT 0, name VARCHAR(50) NULL)")
 	if len(stmt.Columns) != 2 {
