@@ -165,6 +165,8 @@ func main() {
 				fmt.Fprintf(&buf, "\t\tWalk(v, n.%s)\n", f.Name)
 			case "[]Node":
 				fmt.Fprintf(&buf, "\t\twalkNodes(v, n.%s)\n", f.Name)
+			case "[][]Node":
+				fmt.Fprintf(&buf, "\t\twalkNodeRows(v, n.%s)\n", f.Name)
 			default:
 				// Pointer to a known struct type (e.g. *SelectStmt).
 				fmt.Fprintf(&buf, "\t\tif n.%s != nil {\n", f.Name)
@@ -226,6 +228,7 @@ func typeString(expr ast.Expr) string {
 // Recognized shapes:
 //   - "Node"             — the Node interface
 //   - "[]Node"           — slice of nodes
+//   - "[][]Node"         — slice of rows of nodes (e.g. VALUES rows)
 //   - "*<NodeStruct>"    — pointer to a struct that implements Node (has Tag() method)
 //
 // Excluded: pointer to "Loc" (Loc is not a node), pointer to non-Node structs
@@ -235,6 +238,9 @@ func isChildType(typStr string, nodeStructs map[string]bool) bool {
 		return true
 	}
 	if typStr == "[]Node" {
+		return true
+	}
+	if typStr == "[][]Node" {
 		return true
 	}
 	if strings.HasPrefix(typStr, "*") {

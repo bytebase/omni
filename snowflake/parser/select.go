@@ -378,6 +378,27 @@ func (p *Parser) parseCTE(recursive bool) (*ast.CTE, error) {
 	return cte, nil
 }
 
+// parseValuesClause parses a VALUES query expression used as a row source:
+//
+//	VALUES (expr, …) [, (expr, …) …]
+//
+// It is reached from parsePrimarySource when a parenthesized derived table
+// opens with VALUES (i.e. `( VALUES … )`). Row parsing is delegated to the
+// shared parseValuesRows (the same code path INSERT uses); its loop makes
+// progress only on a `, (` and so cannot spin. Rows need not be uniform in
+// arity — Snowflake accepts ragged VALUES lists.
+func (p *Parser) parseValuesClause() (ast.Node, error) {
+	start := p.cur.Loc.Start
+	rows, err := p.parseValuesRows()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.ValuesClause{
+		Rows: rows,
+		Loc:  ast.Loc{Start: start, End: p.prev.Loc.End},
+	}, nil
+}
+
 // ---------------------------------------------------------------------------
 // SELECT list
 // ---------------------------------------------------------------------------
@@ -632,17 +653,20 @@ func (p *Parser) parseFromItem() (ast.Node, error) {
 func (p *Parser) parsePrimarySource() (ast.Node, error) {
 	startLoc := p.cur.Loc
 
-	// Parenthesized: subquery or parenthesized from-item.
+	// Parenthesized: subquery, VALUES row-source, or parenthesized from-item.
 	if p.cur.Type == '(' {
 		next := p.peekNext()
-		if next.Type == kwSELECT || next.Type == kwWITH {
-			// Subquery in FROM: (SELECT ...) [AS] alias
+		if next.Type == kwSELECT || next.Type == kwWITH || next.Type == kwVALUES {
+			// Derived table in FROM: ( SELECT … ) | ( VALUES … ) [AS] alias
 			p.advance() // consume '('
 			var query ast.Node
 			var err error
-			if p.cur.Type == kwWITH {
+			switch p.cur.Type {
+			case kwWITH:
 				query, err = p.parseWithSelect()
-			} else {
+			case kwVALUES:
+				query, err = p.parseValuesClause()
+			default:
 				query, err = p.parseSelectStmt()
 			}
 			if err != nil {
@@ -743,6 +767,23 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 			ref.Alias = alias
 		}
 		ref.Loc.End = p.prev.Loc.End
+		return ref, nil
+	}
+
+	// $N result-set table reference: FROM $1. A bare positional $-reference in
+	// FROM position names the result set of the preceding statement (the source
+	// of a `->>` result-pipe). A qualified $N (t.$1) is a column expression, not
+	// a source, and never reaches FROM position, so only the bare token is
+	// handled here.
+	if p.cur.Type == tokVariable {
+		dollar := p.parseDollarRef(nil)
+		ref := &ast.TableRef{
+			DollarN: dollar,
+			Loc:     ast.Loc{Start: startLoc.Start, End: dollar.Loc.End},
+		}
+		if err := p.parseTableSuffix(ref); err != nil {
+			return nil, err
+		}
 		return ref, nil
 	}
 
@@ -1093,10 +1134,53 @@ func (p *Parser) parseTableSuffix(ref *ast.TableRef) error {
 	if alias, has := p.parseOptionalAlias(); has {
 		ref.Alias = alias
 		ref.Loc.End = p.prev.Loc.End
+
+		// Derived column list: alias (c1, c2, …). Only valid on a derived
+		// table (subquery / VALUES); a parenthesis after a plain table name is
+		// not a column list and is left for the caller. Requires an explicit
+		// alias to precede it, which the IsEmpty guard above ensures.
+		if ref.Subquery != nil && p.cur.Type == '(' {
+			cols, err := p.parseDerivedColumnList()
+			if err != nil {
+				return err
+			}
+			ref.Columns = cols
+			ref.Loc.End = p.prev.Loc.End
+		}
 	}
 
 	// SAMPLE | TABLESAMPLE ( … )
 	return p.parseTrailingSample(ref)
+}
+
+// parseDerivedColumnList parses a parenthesized derived-table column list:
+//
+//	( col1 [, col2 …] )
+//
+// The caller must have already verified p.cur is '('. The list must be
+// non-empty (an empty "()" is rejected). Each iteration consumes one
+// identifier and either a ',' (continue) or ')' (stop), so the loop always
+// makes progress.
+func (p *Parser) parseDerivedColumnList() ([]ast.Ident, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var cols []ast.Ident
+	for {
+		col, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		cols = append(cols, col)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return cols, nil
 }
 
 // parseTrailingSample parses an optional SAMPLE / TABLESAMPLE clause and

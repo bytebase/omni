@@ -164,13 +164,6 @@ var corpusWholeFile = map[string]string{
 //
 // Grouped by root cause. Counts in comments are at authoring time.
 var corpusSkips = map[string]string{
-	// --- RESIDUAL GAP: SHOW ->> result-pipe + $N table-ref (other nodes) ---
-	// CREATE/ALTER WAREHOUSE now parse (gap-warehouse); this file remains skipped
-	// only because its two `SHOW WAREHOUSES ... ->> SELECT ... FROM $1` statements
-	// exercise the ->> result-pipe and $N table-ref gaps owned by other nodes. The
-	// CREATE OR ALTER WAREHOUSE and DROP WAREHOUSE statements in it parse clean.
-	"official/create-warehouse/example_07.sql": "RESIDUAL GAP: SHOW WAREHOUSES ->> SELECT ... FROM $1 — ->> result-pipe + $N table-ref owned by other nodes (CREATE OR ALTER WAREHOUSE parses)",
-
 	// --- RESIDUAL GAP: dynamic-table IMMUTABLE WHERE + INTERVAL literal ---
 	// example_04 (CLONE ... AT (TIMESTAMP => TO_TIMESTAMP_TZ(...))) is now closed
 	// by gap-named-args (named function arguments + general clone time-travel
@@ -178,19 +171,12 @@ var corpusSkips = map[string]string{
 	// the INTERVAL literal / refresh-mode clause owned by gap-expr-misc.
 	"official/create-dynamic-table/example_07.sql": "RESIDUAL GAP: IMMUTABLE WHERE (... - INTERVAL '1 day') refresh-mode + interval literal not parsed",
 
-	// --- DEPENDENCY GAP: $N / $N:path result-set ref + stage path as a table ref (T5) ---
-	"official/create-external-table/example_01.sql":  "DEPENDENCY GAP: SELECT metadata$filename FROM @s1/ — stage-path table ref + metadata$col not parsed",
-	"official/create-external-volume/example_05.sql": "DEPENDENCY GAP: SHOW ... ->> SELECT * FROM $1 — $N result-set table ref (T5) not parsed",
-	"official/create-table/example_06.sql":           "DEPENDENCY GAP: CTAS AS SELECT $1:o_custkey::number FROM @my_stage — $N:path semi-structured + stage table ref",
-	"official/show-tables/example_07.sql":            "DEPENDENCY GAP: SHOW ... ->> SELECT * FROM $1 — $N result-set table ref (T5) not parsed",
-	"official/show-tables/example_08.sql":            "DEPENDENCY GAP: SHOW ... ->> SELECT ... FROM $1 — $N result-set table ref (T5) not parsed",
-	"official/show-tables/example_09.sql":            "DEPENDENCY GAP: SHOW ... ->> SELECT ... FROM $1 — $N result-set table ref (T5) not parsed",
-
-	// --- RESIDUAL GAP: VALUES as a table source  FROM (VALUES (...), ...) ---
-	"official/values/example_01.sql": "RESIDUAL GAP: SELECT * FROM (VALUES (...), ...) — VALUES table source not parsed",
-	"official/values/example_02.sql": "RESIDUAL GAP: FROM (VALUES ...) with positional $N column refs — VALUES table source not parsed",
-	"official/values/example_03.sql": "RESIDUAL GAP: FROM (VALUES ...) AS v(...) join — VALUES table source not parsed",
-	"official/values/example_04.sql": "RESIDUAL GAP: FROM (VALUES ...) AS v(c1, c2) — VALUES table source + derived column list not parsed",
+	// --- DEPENDENCY GAP: $N:path semi-structured ref + stage path as a table ref (T5) ---
+	// (Bare $N as a table ref and the SHOW ... ->> ... FROM $1 result-pipe now
+	// parse via gap-from-values; these two remain because they additionally need
+	// a stage-path source (@s1/, @my_stage) and the $N:path semi-structured cast.)
+	"official/create-external-table/example_01.sql": "DEPENDENCY GAP: SELECT metadata$filename FROM @s1/ — stage-path table ref + metadata$col not parsed",
+	"official/create-table/example_06.sql":          "DEPENDENCY GAP: CTAS AS SELECT $1:o_custkey::number FROM @my_stage — $N:path semi-structured + stage table ref",
 
 	// --- RESIDUAL GAP: MERGE ... INSERT/UPDATE ALL BY NAME ---
 	// (ORDER BY ALL itself now parses via gap-select-ext; this file's residual

@@ -68,6 +68,10 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *JoinExpr:
 		return v.Loc
+	case *ValuesClause:
+		return v.Loc
+	case *ResultScanStmt:
+		return v.Loc
 	default:
 		return NoLoc()
 	}
