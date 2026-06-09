@@ -350,6 +350,8 @@ const (
 	kwPATH
 	kwPAUSE
 	kwPERCENT
+	kwPERCENTILE
+	kwPERCENTILE_UNION
 	kwPERIOD
 	kwPERMISSIVE
 	kwPHYSICAL
@@ -888,6 +890,8 @@ var keywordMap = map[string]TokenKind{
 	"path":                                 kwPATH,
 	"pause":                                kwPAUSE,
 	"percent":                              kwPERCENT,
+	"percentile":                           kwPERCENTILE,
+	"percentile_union":                     kwPERCENTILE_UNION,
 	"period":                               kwPERIOD,
 	"permissive":                           kwPERMISSIVE,
 	"physical":                             kwPHYSICAL,
@@ -1307,6 +1311,8 @@ var nonReservedKeywords = map[TokenKind]bool{
 	kwPATH:                   true,
 	kwPAUSE:                  true,
 	kwPERCENT:                true,
+	kwPERCENTILE:             true,
+	kwPERCENTILE_UNION:       true,
 	kwPERIOD:                 true,
 	kwPERMISSIVE:             true,
 	kwPHYSICAL:               true,

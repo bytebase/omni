@@ -52,6 +52,97 @@ func TestCreateTable_Basic(t *testing.T) {
 	}
 }
 
+// StarRocks PERCENTILE type + PERCENTILE_UNION aggregate (BYT-9140 PR2a #10).
+// doris uses QUANTILE_STATE/QUANTILE_UNION; StarRocks uses PERCENTILE.
+func TestCreateTable_PercentileAggType(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE agg_pct (k INT, p PERCENTILE PERCENTILE_UNION) AGGREGATE KEY(k) DISTRIBUTED BY HASH(k) BUCKETS 1")
+	if len(stmt.Columns) != 2 {
+		t.Fatalf("expected 2 columns, got %d", len(stmt.Columns))
+	}
+	if stmt.Columns[1].Type.Name != "PERCENTILE" {
+		t.Errorf("Columns[1].Type.Name = %q, want PERCENTILE", stmt.Columns[1].Type.Name)
+	}
+	if stmt.Columns[1].AggType != "PERCENTILE_UNION" {
+		t.Errorf("Columns[1].AggType = %q, want PERCENTILE_UNION", stmt.Columns[1].AggType)
+	}
+}
+
+// StarRocks batch range partition START..END..EVERY (BYT-9140 PR2a #13).
+// doris uses FROM..TO..INTERVAL; semantically a stepped range (reuses IsStep).
+func TestCreateTable_BatchRangePartition(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE bp (dt DATE, k INT) DUPLICATE KEY(dt) PARTITION BY RANGE(dt) (START ('2024-01-01') END ('2024-04-01') EVERY (INTERVAL 1 MONTH)) DISTRIBUTED BY HASH(k)")
+	if stmt.PartitionBy == nil || len(stmt.PartitionBy.Partitions) != 1 {
+		t.Fatalf("expected 1 partition item, got %+v", stmt.PartitionBy)
+	}
+	item := stmt.PartitionBy.Partitions[0]
+	if !item.IsStep {
+		t.Errorf("expected stepped batch partition (IsStep)")
+	}
+	if item.Interval != "1" || item.IntervalUnit != "MONTH" {
+		t.Errorf("Interval=%q Unit=%q, want 1/MONTH", item.Interval, item.IntervalUnit)
+	}
+}
+
+func TestCreateTable_BatchRangePartitionNumeric(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE bpn (id INT, v BIGINT) DUPLICATE KEY(id) PARTITION BY RANGE(id) (START ('1') END ('100') EVERY (10)) DISTRIBUTED BY HASH(id)")
+	if stmt.PartitionBy == nil || len(stmt.PartitionBy.Partitions) != 1 {
+		t.Fatalf("expected 1 partition item, got %+v", stmt.PartitionBy)
+	}
+	if got := stmt.PartitionBy.Partitions[0].Interval; got != "10" {
+		t.Errorf("Interval=%q, want 10", got)
+	}
+}
+
+// Sibling-arm negative: START..END without EVERY is rejected (container-confirmed
+// StarRocks also rejects it).
+func TestCreateTable_BatchRangePartitionRequiresEvery(t *testing.T) {
+	_, errs := Parse("CREATE TABLE bpno (dt DATE) DUPLICATE KEY(dt) PARTITION BY RANGE(dt) (START ('2024-01-01') END ('2024-04-01')) DISTRIBUTED BY HASH(dt)")
+	if len(errs) == 0 {
+		t.Error("expected START..END without EVERY to be rejected")
+	}
+}
+
+// StarRocks generated column shorthand `c TYPE AS (expr)` (BYT-9140 PR2a #11).
+// doris uses GENERATED ALWAYS AS (expr); StarRocks drops the GENERATED ALWAYS.
+func TestCreateTable_GeneratedColumnAS(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE gc (id BIGINT, price DECIMAL(18,2), qty INT, total DECIMAL(18,2) AS (price*qty)) DUPLICATE KEY(id) DISTRIBUTED BY HASH(id)")
+	if len(stmt.Columns) != 4 {
+		t.Fatalf("expected 4 columns, got %d", len(stmt.Columns))
+	}
+	if stmt.Columns[3].Generated == nil {
+		t.Errorf("expected Columns[3].Generated to be set for AS (expr)")
+	}
+}
+
+// StarRocks generated columns allow AS <expr> with NO outer parens, e.g.
+// `c DOUBLE AS array_avg(data)` or `c BIGINT AS a + b` (docs + SHOW CREATE TABLE
+// output). The arm must not mandate the parenthesized form. (#288 P2 review.)
+func TestCreateTable_GeneratedColumnASUnparenthesizedCall(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE g1 (a INT, b INT, c BIGINT AS abs(a)) DUPLICATE KEY(a) DISTRIBUTED BY HASH(a) BUCKETS 1")
+	if stmt.Columns[2].Generated == nil {
+		t.Errorf("expected Columns[2].Generated set for unparenthesized AS abs(a)")
+	}
+}
+
+func TestCreateTable_GeneratedColumnASBareBinary(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE g2 (a INT, b INT, c BIGINT AS a + b) DUPLICATE KEY(a) DISTRIBUTED BY HASH(a) BUCKETS 1")
+	if stmt.Columns[2].Generated == nil {
+		t.Errorf("expected Columns[2].Generated set for unparenthesized AS a + b")
+	}
+}
+
+// StarRocks parenthesized expression default `DEFAULT (expr)` (BYT-9140 PR2a #12).
+// (Bare CURRENT_TIMESTAMP already parses; the gap is the (expr) form.)
+func TestCreateTable_DefaultExpr(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE dft (id BIGINT, token VARCHAR(64) DEFAULT (uuid())) PRIMARY KEY(id) DISTRIBUTED BY HASH(id)")
+	if len(stmt.Columns) != 2 {
+		t.Fatalf("expected 2 columns, got %d", len(stmt.Columns))
+	}
+	if stmt.Columns[1].Default == nil {
+		t.Errorf("expected Columns[1].Default set for DEFAULT (expr)")
+	}
+}
+
 func TestCreateTable_WithNotNullDefault(t *testing.T) {
 	stmt := parseCreateTableStmt(t, "CREATE TABLE t (id INT NOT NULL DEFAULT 0, name VARCHAR(50) NULL)")
 	if len(stmt.Columns) != 2 {
