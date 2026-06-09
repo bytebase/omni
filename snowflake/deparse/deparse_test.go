@@ -317,6 +317,18 @@ func TestDeparse_Expr_Iff(t *testing.T) {
 	assertRoundTrip(t, `SELECT IFF(a > 0, 'positive', 'non-positive') FROM t`)
 }
 
+func TestDeparse_Expr_Interval(t *testing.T) {
+	assertRoundTrip(t, `SELECT INTERVAL '1 day'`)
+}
+
+func TestDeparse_Expr_IntervalArithmetic(t *testing.T) {
+	assertRoundTrip(t, `SELECT ts + INTERVAL '7 days' FROM t`)
+}
+
+func TestDeparse_Expr_IntervalInPredicate(t *testing.T) {
+	assertRoundTrip(t, `SELECT * FROM t WHERE ts < CURRENT_TIMESTAMP() - INTERVAL '1 day'`)
+}
+
 func TestDeparse_Expr_IsNull(t *testing.T) {
 	assertRoundTrip(t, `SELECT * FROM t WHERE a IS NULL`)
 }
@@ -854,6 +866,17 @@ func TestDeparse_CreateView_Secure(t *testing.T) {
 
 func TestDeparse_CreateView_WithColumns(t *testing.T) {
 	assertRoundTrip(t, `CREATE VIEW v (a, b) AS SELECT x, y FROM t`)
+}
+
+// A parenthesized view body whose query begins with WITH (a CTE) deparses to
+// the canonical unparenthesized form (the surrounding parens are not modeled);
+// both forms parse to the same AST, so the round-trip holds.
+func TestDeparse_CreateView_ParenCTEBody(t *testing.T) {
+	assertRoundTrip(t, `CREATE VIEW v AS ( WITH x AS ( SELECT 1 ) SELECT * FROM x )`)
+}
+
+func TestDeparse_CreateView_ParenRecursiveCTEBody(t *testing.T) {
+	assertRoundTrip(t, `CREATE VIEW v (a, b) AS ( WITH RECURSIVE cte (a, b) AS ( SELECT 1, 2 FROM t WHERE a = 1 UNION ALL SELECT a, b FROM t INNER JOIN cte WHERE cte.a = t.b ) SELECT * FROM cte )`)
 }
 
 func TestDeparse_AlterView_Rename(t *testing.T) {

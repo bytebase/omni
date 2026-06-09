@@ -164,13 +164,6 @@ var corpusWholeFile = map[string]string{
 //
 // Grouped by root cause. Counts in comments are at authoring time.
 var corpusSkips = map[string]string{
-	// --- RESIDUAL GAP: dynamic-table IMMUTABLE WHERE + INTERVAL literal ---
-	// example_04 (CLONE ... AT (TIMESTAMP => TO_TIMESTAMP_TZ(...))) is now closed
-	// by gap-named-args (named function arguments + general clone time-travel
-	// value). example_07 remains: IMMUTABLE WHERE (... - INTERVAL '1 day') needs
-	// the INTERVAL literal / refresh-mode clause owned by gap-expr-misc.
-	"official/create-dynamic-table/example_07.sql": "RESIDUAL GAP: IMMUTABLE WHERE (... - INTERVAL '1 day') refresh-mode + interval literal not parsed",
-
 	// --- DEPENDENCY GAP: $N:path semi-structured ref + stage path as a table ref (T5) ---
 	// (Bare $N as a table ref and the SHOW ... ->> ... FROM $1 result-pipe now
 	// parse via gap-from-values; these two remain because they additionally need
@@ -182,9 +175,6 @@ var corpusSkips = map[string]string{
 	"official/execute-immediate/example_01.sql": "RESIDUAL GAP: CREATE PROCEDURE ... AS DECLARE ... BEGIN ... END scripting body (non-$$) not parsed",
 	"official/execute-immediate/example_04.sql": "RESIDUAL GAP: CREATE PROCEDURE ... AS DECLARE ... BEGIN ... END scripting body (non-$$) not parsed",
 	"official/call/example_07.sql":              "RESIDUAL GAP: DECLARE ... BEGIN CALL p(...) INTO :var ... END scripting block not parsed",
-
-	// --- RESIDUAL GAP: parenthesized view body with leading WITH (CTE) ---
-	"official/create-view/example_05.sql": "RESIDUAL GAP: CREATE VIEW ... AS ( WITH ... SELECT ... ) — parenthesized CTE view body not parsed",
 
 	// --- RESIDUAL GAP / MALFORMED: legacy select.sql expression corpus ---
 	// LEFT(...)/ILIKE(...) used as function names, lowercase `union` inside a

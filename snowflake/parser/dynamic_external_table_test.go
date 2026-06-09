@@ -196,6 +196,29 @@ func TestParseCreateDynamicTable(t *testing.T) {
 		}
 	})
 
+	// The official create-dynamic-table example_07 shape: an IMMUTABLE WHERE
+	// predicate whose expression contains an INTERVAL literal.
+	t.Run("immutable where with interval", func(t *testing.T) {
+		stmt := mustCreateDynamicTable(t, "CREATE DYNAMIC TABLE my_dynamic_table TARGET_LAG = '1 hour' WAREHOUSE = my_warehouse IMMUTABLE WHERE (ts < CURRENT_TIMESTAMP() - INTERVAL '1 day') AS SELECT * FROM source_table")
+		if stmt.ImmutableKind != "IMMUTABLE" {
+			t.Errorf("ImmutableKind = %q, want IMMUTABLE", stmt.ImmutableKind)
+		}
+		if stmt.ImmutableWhere == nil {
+			t.Fatal("ImmutableWhere nil")
+		}
+		// The predicate must contain an INTERVAL literal node.
+		sawInterval := false
+		ast.Inspect(stmt.ImmutableWhere, func(n ast.Node) bool {
+			if _, ok := n.(*ast.IntervalExpr); ok {
+				sawInterval = true
+			}
+			return true
+		})
+		if !sawInterval {
+			t.Error("expected an *ast.IntervalExpr inside the IMMUTABLE WHERE predicate")
+		}
+	})
+
 	t.Run("refresh using dml body", func(t *testing.T) {
 		stmt := mustCreateDynamicTable(t, "CREATE DYNAMIC TABLE dt TARGET_LAG = '1 hour' WAREHOUSE = w REFRESH USING (INSERT INTO dt SELECT * FROM s)")
 		if stmt.AsQuery != nil {
@@ -797,10 +820,6 @@ func TestTableVariants_WalkerVisitsChildren(t *testing.T) {
 //   - CREATE OR ALTER (preview): the OR-prefix parser recognizes only OR
 //     REPLACE, not OR ALTER (owned by parser-or-alter / create_table.go,
 //     out of this node's writes-scope). create-dynamic-table examples 08-11.
-//   - INTERVAL '<n> <unit>' nested inside a parenthesized group fails in the
-//     shared expression parser (`SELECT (CURRENT_TIMESTAMP() - INTERVAL '1
-//     day')` fails identically). create-dynamic-table example_07's IMMUTABLE
-//     WHERE predicate uses it.
 //   - example_12 is malformed in the docs themselves (the AS query
 //     `SELECT COUNT(DISTINCT order_id) DATE_TRUNC(...)` is missing the comma
 //     between two select items); it is skipped as a known-bad doc example.
@@ -879,9 +898,6 @@ func sharedLayerGap(t *testing.T, text, upper string, seg Segment) bool {
 	case orAlterLimited(upper):
 		expectStillFails(t, text, seg, "OR ALTER")
 		return true
-	case intervalInParensLimited(text):
-		expectStillFails(t, text, seg, "INTERVAL-in-parens")
-		return true
 	case malformedDocExample(upper):
 		// example_12: missing comma in the AS query is a doc bug, not a parser bug.
 		return true
@@ -896,13 +912,6 @@ func expectStillFails(t *testing.T, text string, seg Segment, gap string) {
 	if _, errs := parseSingle(seg.Text, seg.ByteStart); len(errs) == 0 {
 		t.Logf("note: %s statement now parses, drop it from the filter: %q", gap, text)
 	}
-}
-
-// intervalInParensLimited reports whether sql contains an INTERVAL literal that
-// sits inside a parenthesized group, which the shared expression parser does not
-// yet handle. Heuristic: the text contains both '(' and the word INTERVAL.
-func intervalInParensLimited(sql string) bool {
-	return strings.Contains(strings.ToUpper(sql), "INTERVAL") && strings.Contains(sql, "(")
 }
 
 // malformedDocExample reports whether the statement is a known-malformed docs

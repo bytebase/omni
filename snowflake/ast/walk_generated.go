@@ -509,6 +509,8 @@ func walkChildren(v Visitor, node Node) {
 		}
 		walkNodeRows(v, n.Values)
 		Walk(v, n.Select)
+	case *IntervalExpr:
+		Walk(v, n.Value)
 	case *IsExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.DistinctFrom)

@@ -72,6 +72,77 @@ func TestExpr_StringLiteral(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// 1b. INTERVAL literals
+// ---------------------------------------------------------------------------
+
+func TestExpr_IntervalLiteral(t *testing.T) {
+	node, err := testParseExpr("INTERVAL '1 day'")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	iv, ok := node.(*ast.IntervalExpr)
+	if !ok {
+		t.Fatalf("expected *ast.IntervalExpr, got %T", node)
+	}
+	lit, ok := iv.Value.(*ast.Literal)
+	if !ok {
+		t.Fatalf("Value = %T, want *ast.Literal", iv.Value)
+	}
+	if lit.Kind != ast.LitString || lit.Value != "1 day" {
+		t.Errorf("Value literal = (%v, %q), want (LitString, %q)", lit.Kind, lit.Value, "1 day")
+	}
+	// Loc spans from the INTERVAL keyword (offset 0) through the string literal.
+	if iv.Loc.Start != 0 {
+		t.Errorf("Loc.Start = %d, want 0", iv.Loc.Start)
+	}
+	if iv.Loc.End != lit.Loc.End {
+		t.Errorf("Loc.End = %d, want %d (the value's end)", iv.Loc.End, lit.Loc.End)
+	}
+}
+
+// An INTERVAL literal as the right operand of arithmetic: the binary expression
+// must carry an *ast.IntervalExpr on its right.
+func TestExpr_IntervalInArithmetic(t *testing.T) {
+	node, err := testParseExpr("ts - INTERVAL '1 day'")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	bin, ok := node.(*ast.BinaryExpr)
+	if !ok {
+		t.Fatalf("expected *ast.BinaryExpr, got %T", node)
+	}
+	if _, ok := bin.Right.(*ast.IntervalExpr); !ok {
+		t.Errorf("Right = %T, want *ast.IntervalExpr", bin.Right)
+	}
+}
+
+// Regression: INTERVAL is a non-reserved keyword and must remain usable as a
+// bare column name when it is NOT followed by a string literal.
+func TestExpr_IntervalAsColumn(t *testing.T) {
+	for _, in := range []string{"interval", "interval + 1", "interval = 5"} {
+		t.Run(in, func(t *testing.T) {
+			node, err := testParseExpr(in)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			// The leading `interval` must resolve to a column ref, never an
+			// interval literal.
+			var first ast.Node = node
+			if bin, ok := node.(*ast.BinaryExpr); ok {
+				first = bin.Left
+			}
+			cr, ok := first.(*ast.ColumnRef)
+			if !ok {
+				t.Fatalf("expected leading *ast.ColumnRef, got %T", first)
+			}
+			if cr.Parts[0].Normalize() != "INTERVAL" {
+				t.Errorf("column name = %q, want INTERVAL", cr.Parts[0].Normalize())
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
 // 2. Column refs
 // ---------------------------------------------------------------------------
 

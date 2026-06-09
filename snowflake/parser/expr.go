@@ -449,6 +449,14 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 		return &ast.FuncCallExpr{Name: name, Loc: tok.Loc}, nil
 
 	default:
+		// INTERVAL '<value>' literal (e.g. INTERVAL '1 day'). INTERVAL is a
+		// non-reserved keyword, so it is only treated as an interval literal when
+		// immediately followed by a string literal; otherwise it falls through to
+		// identifier handling so a column literally named "interval" still parses.
+		if p.cur.Type == kwINTERVAL && p.peekNext().Type == tokString {
+			return p.parseIntervalExpr()
+		}
+
 		// Lambda detection: single ident followed by ->
 		if p.isIdentToken() && p.peekNext().Type == tokArrow {
 			return p.parseLambdaExpr()
@@ -461,6 +469,23 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 
 		return nil, p.syntaxErrorAtCur()
 	}
+}
+
+// parseIntervalExpr parses an INTERVAL '<value>' literal. On entry cur is the
+// INTERVAL keyword and the following token is a string literal (the caller has
+// confirmed both). The value is parsed as a primary expression (a string
+// literal) and stored verbatim, mirroring the legacy grammar's typed-string
+// form; the date-time components inside the string are not decomposed.
+func (p *Parser) parseIntervalExpr() (ast.Node, error) {
+	kwTok := p.advance() // consume INTERVAL
+	value, err := p.parsePrimaryExpr()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.IntervalExpr{
+		Value: value,
+		Loc:   ast.Loc{Start: kwTok.Loc.Start, End: ast.NodeLoc(value).End},
+	}, nil
 }
 
 // isIdentToken reports whether the current token is usable as an identifier

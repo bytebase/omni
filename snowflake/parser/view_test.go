@@ -261,6 +261,111 @@ func TestCreateView_WithCTE(t *testing.T) {
 	}
 }
 
+// A parenthesized view body whose query begins with WITH: CREATE VIEW v AS (
+// WITH x AS (...) SELECT ... ). The surrounding parens around the query are
+// optional in Snowflake; the inner query is a CTE / RECURSIVE block.
+func TestCreateView_ParenCTEBody(t *testing.T) {
+	stmt, errs := testParseCreateView("CREATE VIEW v AS ( WITH x AS ( SELECT 1 ) SELECT * FROM x )")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	sel, ok := stmt.Query.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("Query = %T, want *ast.SelectStmt", stmt.Query)
+	}
+	if len(sel.With) != 1 {
+		t.Fatalf("CTE count = %d, want 1", len(sel.With))
+	}
+	if sel.With[0].Name.Normalize() != "X" {
+		t.Errorf("CTE name = %q, want X", sel.With[0].Name.Normalize())
+	}
+	// The view statement Loc must span to the final ')'.
+	if stmt.Loc.End == 0 {
+		t.Error("stmt.Loc.End not set")
+	}
+}
+
+// The official create-view example_05 shape: a parenthesized RECURSIVE CTE view
+// body with a UNION ALL recursive member and quoted/spaced column names.
+func TestCreateView_ParenRecursiveCTEBody(t *testing.T) {
+	sql := `CREATE VIEW employee_hierarchy (title, employee_ID, manager_ID, "MGR_EMP_ID (SHOULD BE SAME)", "MGR TITLE") AS (
+   WITH RECURSIVE employee_hierarchy_cte (title, employee_ID, manager_ID, "MGR_EMP_ID (SHOULD BE SAME)", "MGR TITLE") AS (
+      SELECT title, employee_ID, manager_ID, NULL AS "MGR_EMP_ID (SHOULD BE SAME)", 'President' AS "MGR TITLE"
+        FROM employees
+        WHERE title = 'President'
+      UNION ALL
+      SELECT employees.title, employees.employee_ID, employees.manager_ID,
+             employee_hierarchy_cte.employee_id AS "MGR_EMP_ID (SHOULD BE SAME)",
+             employee_hierarchy_cte.title AS "MGR TITLE"
+        FROM employees INNER JOIN employee_hierarchy_cte
+       WHERE employee_hierarchy_cte.employee_ID = employees.manager_ID
+   )
+   SELECT * FROM employee_hierarchy_cte
+)`
+	stmt, errs := testParseCreateView(sql)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(stmt.Columns) != 5 {
+		t.Errorf("view column count = %d, want 5", len(stmt.Columns))
+	}
+	sel, ok := stmt.Query.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("Query = %T, want *ast.SelectStmt", stmt.Query)
+	}
+	if len(sel.With) != 1 {
+		t.Fatalf("CTE count = %d, want 1", len(sel.With))
+	}
+	if !sel.With[0].Recursive {
+		t.Error("expected the CTE to carry the RECURSIVE flag")
+	}
+	if len(sel.With[0].Columns) != 5 {
+		t.Errorf("CTE column count = %d, want 5", len(sel.With[0].Columns))
+	}
+}
+
+// A parenthesized view body wrapping a plain SELECT (no WITH) must still parse —
+// guards the paren branch from regressing for the non-CTE case.
+func TestCreateView_ParenSelectBody(t *testing.T) {
+	stmt, errs := testParseCreateView("CREATE VIEW v AS ( SELECT 1 )")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if _, ok := stmt.Query.(*ast.SelectStmt); !ok {
+		t.Fatalf("Query = %T, want *ast.SelectStmt", stmt.Query)
+	}
+}
+
+// Regression: a plain (unparenthesized) view body is unchanged.
+func TestCreateView_PlainBodyUnchanged(t *testing.T) {
+	stmt, errs := testParseCreateView("CREATE VIEW v AS SELECT a, b FROM t")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	sel, ok := stmt.Query.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("Query = %T, want *ast.SelectStmt", stmt.Query)
+	}
+	if len(sel.With) != 0 {
+		t.Errorf("plain body should have no CTEs, got %d", len(sel.With))
+	}
+}
+
+// A parenthesized CTE body is accepted for MATERIALIZED VIEW too.
+func TestCreateMaterializedView_ParenCTEBody(t *testing.T) {
+	stmt, errs := testParseCreateMaterializedView("CREATE MATERIALIZED VIEW mv AS ( WITH x AS (SELECT 1) SELECT * FROM x )")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	sel, ok := stmt.Query.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("Query = %T, want *ast.SelectStmt", stmt.Query)
+	}
+	if len(sel.With) != 1 {
+		t.Fatalf("CTE count = %d, want 1", len(sel.With))
+	}
+}
+
 func TestCreateView_AllModifiers(t *testing.T) {
 	sql := `CREATE OR REPLACE SECURE VIEW v
 		COMMENT = 'test'
