@@ -52,6 +52,8 @@ func (w *writer) writeNode(node ast.Node) error {
 		return w.writeSelectStmt(n)
 	case *ast.SetOperationStmt:
 		return w.writeSetOperationStmt(n)
+	case *ast.ResultScanStmt:
+		return w.writeResultScanStmt(n)
 
 	// --- DML ---
 	case *ast.InsertStmt:

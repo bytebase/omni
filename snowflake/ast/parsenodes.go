@@ -805,8 +805,10 @@ type StarRename struct {
 type TableRef struct {
 	Name     *ObjectName   // table name; nil for subquery/func sources
 	Alias    Ident         // AS alias; zero if absent
-	Subquery Node          // (SELECT ...) in FROM; nil for table refs
+	Columns  []Ident       // derived column list: AS v(c1, c2); nil if absent
+	Subquery Node          // (SELECT ...) or (VALUES ...) in FROM; nil for table refs
 	FuncCall *FuncCallExpr // TABLE(func(...)); nil for table refs
+	DollarN  *DollarRef    // $N result-set table ref (RESULT_SCAN of a prior result); nil otherwise
 	Lateral  bool          // LATERAL prefix
 	// Table-attached clauses (Snowflake). Any combination may appear; the
 	// documented source order is AT/BEFORE → CHANGES → MATCH_RECOGNIZE →
@@ -861,6 +863,43 @@ type CTE struct {
 	Recursive bool    // WITH RECURSIVE flag
 	Loc       Loc
 }
+
+// ValuesClause is a VALUES query expression usable as a row source:
+//
+//	VALUES (expr, …) [, (expr, …) …]
+//
+// In Snowflake a VALUES list is a query expression: parenthesized as
+// `( VALUES (1,'a'), (2,'b') )` it is a derived-table source (carried on
+// TableRef.Subquery), and an optional `AS v (c1, c2)` aliases it and its
+// columns. Each row is a slice of value expressions; rows need not share
+// arity (Snowflake accepts ragged rows and resolves widths downstream).
+type ValuesClause struct {
+	Rows [][]Node // one slice of value expressions per row; len(Rows) >= 1
+	Loc  Loc
+}
+
+func (n *ValuesClause) Tag() NodeTag { return T_ValuesClause }
+
+var _ Node = (*ValuesClause)(nil)
+
+// ResultScanStmt is the Snowflake result-pipe operator `->>`:
+//
+//	<source-stmt> ->> <query>
+//
+// The source statement (typically a SHOW / metadata command) is executed and
+// its result set is exposed to the following query as `$1` (a $N table ref).
+// Source holds the left statement; Query holds the right query expression.
+// It is only recognized at the top level of a statement (not inside a
+// procedure body or EXECUTE IMMEDIATE), mirroring Snowflake.
+type ResultScanStmt struct {
+	Source Node // the left statement whose result set feeds the pipe
+	Query  Node // the right query expression consuming $1
+	Loc    Loc
+}
+
+func (n *ResultScanStmt) Tag() NodeTag { return T_ResultScanStmt }
+
+var _ Node = (*ResultScanStmt)(nil)
 
 // GroupByClause represents a GROUP BY clause with optional variant.
 type GroupByClause struct {

@@ -329,6 +329,42 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	}
 }
 
+// parseTopStmt parses one top-level statement and applies the Snowflake
+// result-pipe operator `->>` when it follows:
+//
+//	<source-stmt> ->> <query>
+//
+// The source statement (typically a SHOW / metadata command) runs and exposes
+// its result set to the right-hand query as `$1`. `->>` is a top-level-only
+// construct in Snowflake, so it is recognized here — at the genuine statement
+// entry (parseSingle) — and NOT inside nested statement contexts (procedure
+// bodies, EXECUTE IMMEDIATE, pipe/task/dynamic-table bodies, scripting), all of
+// which call parseStmt directly and are therefore unaffected. Chained pipes
+// (`a ->> b ->> c`) nest left-associatively.
+func (p *Parser) parseTopStmt() (ast.Node, error) {
+	// Capture the start offset from the first token: the source statement may be
+	// a node type (e.g. *ShowStmt) that ast.NodeLoc does not cover, so we cannot
+	// rely on NodeLoc(stmt) for the wrapper's start.
+	startOff := p.cur.Loc.Start
+	stmt, err := p.parseStmt()
+	if err != nil {
+		return nil, err
+	}
+	for p.cur.Type == tokFlow {
+		p.advance() // consume '->>'
+		query, qerr := p.parseQueryExpr()
+		if qerr != nil {
+			return nil, qerr
+		}
+		stmt = &ast.ResultScanStmt{
+			Source: stmt,
+			Query:  query,
+			Loc:    ast.Loc{Start: startOff, End: p.prev.Loc.End},
+		}
+	}
+	return stmt, nil
+}
+
 // ParseResult holds the outcome of a best-effort parse. File contains
 // all successfully-parsed statements (empty for stubs-only F4); Errors
 // contains every ParseError encountered plus any LexErrors promoted
@@ -394,7 +430,7 @@ func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
 
 	var result ast.Node
 	if p.cur.Type != tokEOF {
-		node, err := p.parseStmt()
+		node, err := p.parseTopStmt()
 		if err != nil {
 			if pe, ok := err.(*ParseError); ok {
 				p.errors = append(p.errors, *pe)

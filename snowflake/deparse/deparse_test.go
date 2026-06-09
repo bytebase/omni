@@ -1000,3 +1000,39 @@ func TestDeparse_CloneBeforeStatementValue(t *testing.T) {
 	out := assertRoundTrip(t, `CREATE TABLE t2 CLONE t1 BEFORE (STATEMENT => '8e5d0ca1-e866-44fa-843b-5e6ad35e8bb7')`)
 	require.Contains(t, out, "BEFORE (STATEMENT => '8e5d0ca1-e866-44fa-843b-5e6ad35e8bb7')")
 }
+
+// ---------------------------------------------------------------------------
+// VALUES table source + $N table ref + ->> result-pipe (gap-from-values)
+// ---------------------------------------------------------------------------
+
+func TestDeparse_ValuesTableSource(t *testing.T) {
+	out := assertRoundTrip(t, `SELECT * FROM (VALUES (1, 'one'), (2, 'two'), (3, 'three'))`)
+	require.Contains(t, out, "(VALUES (1, 'one'), (2, 'two'), (3, 'three'))")
+}
+
+func TestDeparse_ValuesTableSourceDerivedColumnList(t *testing.T) {
+	out := assertRoundTrip(t, `SELECT c1, c2 FROM (VALUES (1, 'one'), (2, 'two')) AS v1 (c1, c2)`)
+	require.Contains(t, out, "AS v1 (c1, c2)")
+}
+
+func TestDeparse_ValuesTableSourceJoin(t *testing.T) {
+	assertRoundTrip(t,
+		`SELECT v1.$2, v2.$2 FROM (VALUES (1, 'one'), (2, 'two')) AS v1 `+
+			`INNER JOIN (VALUES (1, 'One'), (3, 'three')) AS v2 WHERE v2.$1 = v1.$1`)
+}
+
+func TestDeparse_DollarTableRef(t *testing.T) {
+	out := assertRoundTrip(t, `SELECT * FROM $1`)
+	require.Contains(t, out, "FROM $1")
+}
+
+func TestDeparse_DollarTableRefAlias(t *testing.T) {
+	out := assertRoundTrip(t, `SELECT d.x FROM $1 AS d`)
+	require.Contains(t, out, "FROM $1 AS d")
+}
+
+func TestDeparse_ResultPipeGeneral(t *testing.T) {
+	out := assertRoundTrip(t, `SELECT 1 ->> SELECT * FROM $1`)
+	require.Contains(t, out, "->>")
+	require.Contains(t, out, "FROM $1")
+}

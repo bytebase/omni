@@ -507,6 +507,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Target != nil {
 			Walk(v, n.Target)
 		}
+		walkNodeRows(v, n.Values)
 		Walk(v, n.Select)
 	case *IsExpr:
 		Walk(v, n.Expr)
@@ -586,6 +587,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Pattern != nil {
 			Walk(v, n.Pattern)
 		}
+	case *ResultScanStmt:
+		Walk(v, n.Source)
+		Walk(v, n.Query)
 	case *RevokeStmt:
 		if n.On != nil {
 			Walk(v, n.On)
@@ -687,6 +691,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.FuncCall != nil {
 			Walk(v, n.FuncCall)
 		}
+		if n.DollarN != nil {
+			Walk(v, n.DollarN)
+		}
 		if n.TimeTravel != nil {
 			Walk(v, n.TimeTravel)
 		}
@@ -739,5 +746,7 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *ValuesClause:
+		walkNodeRows(v, n.Rows)
 	}
 }

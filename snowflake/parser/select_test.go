@@ -2321,3 +2321,203 @@ func TestSelect_AllAsQuotedAlias(t *testing.T) {
 		t.Errorf("alias = %q, want all", sel.Targets[0].Alias.Name)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// VALUES as a table source  (gap-from-values, official/values/example_01..04)
+// ---------------------------------------------------------------------------
+
+// fromTableRef returns sel.From[i] as a *ast.TableRef or fails the test.
+func fromTableRef(t *testing.T, sel *ast.SelectStmt, i int) *ast.TableRef {
+	t.Helper()
+	if len(sel.From) <= i {
+		t.Fatalf("from len = %d, want > %d", len(sel.From), i)
+	}
+	ref, ok := sel.From[i].(*ast.TableRef)
+	if !ok {
+		t.Fatalf("from[%d] = %T, want *ast.TableRef", i, sel.From[i])
+	}
+	return ref
+}
+
+func TestSelect_ValuesTableSource(t *testing.T) {
+	sel, errs := testParseSelectStmt(`SELECT * FROM (VALUES (1, 'one'), (2, 'two'), (3, 'three'))`)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	ref := fromTableRef(t, sel, 0)
+	vc, ok := ref.Subquery.(*ast.ValuesClause)
+	if !ok {
+		t.Fatalf("Subquery = %T, want *ast.ValuesClause", ref.Subquery)
+	}
+	if len(vc.Rows) != 3 {
+		t.Fatalf("rows = %d, want 3", len(vc.Rows))
+	}
+	for i, row := range vc.Rows {
+		if len(row) != 2 {
+			t.Errorf("row %d arity = %d, want 2", i, len(row))
+		}
+	}
+	if !vc.Loc.IsValid() {
+		t.Errorf("ValuesClause.Loc invalid: %+v", vc.Loc)
+	}
+}
+
+func TestSelect_ValuesTableSourcePositionalRef(t *testing.T) {
+	// official/values/example_02: positional $2 column ref over a VALUES source.
+	sel, errs := testParseSelectStmt(`SELECT column1, $2 FROM (VALUES (1, 'one'), (2, 'two'), (3, 'three'))`)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	ref := fromTableRef(t, sel, 0)
+	if _, ok := ref.Subquery.(*ast.ValuesClause); !ok {
+		t.Fatalf("Subquery = %T, want *ast.ValuesClause", ref.Subquery)
+	}
+	// $2 is a positional DollarRef in the select list.
+	d, ok := sel.Targets[1].Expr.(*ast.DollarRef)
+	if !ok {
+		t.Fatalf("target[1] = %T, want *ast.DollarRef", sel.Targets[1].Expr)
+	}
+	if d.Name != "2" || !d.Positional {
+		t.Errorf("DollarRef = %+v, want positional $2", d)
+	}
+}
+
+func TestSelect_ValuesTableSourceDerivedColumnList(t *testing.T) {
+	// official/values/example_04: AS v1 (c1, c2) derived column list.
+	sel, errs := testParseSelectStmt(`SELECT c1, c2 FROM (VALUES (1, 'one'), (2, 'two')) AS v1 (c1, c2)`)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	ref := fromTableRef(t, sel, 0)
+	if ref.Alias.Name != "v1" {
+		t.Errorf("alias = %q, want v1", ref.Alias.Name)
+	}
+	if len(ref.Columns) != 2 || ref.Columns[0].Name != "c1" || ref.Columns[1].Name != "c2" {
+		t.Errorf("columns = %+v, want [c1 c2]", ref.Columns)
+	}
+}
+
+func TestSelect_ValuesTableSourceJoinQualifiedDollar(t *testing.T) {
+	// official/values/example_03: two aliased VALUES sources joined, with
+	// qualified positional refs (v1.$2, v2.$1).
+	sel, errs := testParseSelectStmt(
+		`SELECT v1.$2, v2.$2 FROM (VALUES (1, 'one'), (2, 'two')) AS v1 ` +
+			`INNER JOIN (VALUES (1, 'One'), (3, 'three')) AS v2 WHERE v2.$1 = v1.$1`)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("from len = %d, want 1 (join)", len(sel.From))
+	}
+	join, ok := sel.From[0].(*ast.JoinExpr)
+	if !ok {
+		t.Fatalf("from[0] = %T, want *ast.JoinExpr", sel.From[0])
+	}
+	left, ok := join.Left.(*ast.TableRef)
+	if !ok || left.Alias.Name != "v1" {
+		t.Errorf("join.Left = %T alias=%q, want *ast.TableRef v1", join.Left, aliasOf(join.Left))
+	}
+	if _, ok := left.Subquery.(*ast.ValuesClause); !ok {
+		t.Errorf("join.Left.Subquery = %T, want *ast.ValuesClause", left.Subquery)
+	}
+}
+
+func aliasOf(n ast.Node) string {
+	if ref, ok := n.(*ast.TableRef); ok {
+		return ref.Alias.Name
+	}
+	return ""
+}
+
+// Snowflake accepts ragged VALUES rows (differing arity); the parser must not
+// reject them. Resolution of column widths is a downstream concern.
+func TestSelect_ValuesTableSourceRaggedRows(t *testing.T) {
+	sel, errs := testParseSelectStmt(`SELECT * FROM (VALUES (1, 'a'), (2), (3, 'c', 4))`)
+	if len(errs) > 0 {
+		t.Fatalf("ragged VALUES rows should parse, got: %v", errs)
+	}
+	ref := fromTableRef(t, sel, 0)
+	vc := ref.Subquery.(*ast.ValuesClause)
+	if got := []int{len(vc.Rows[0]), len(vc.Rows[1]), len(vc.Rows[2])}; got[0] != 2 || got[1] != 1 || got[2] != 3 {
+		t.Errorf("row arities = %v, want [2 1 3]", got)
+	}
+}
+
+// Regression: a plain ( SELECT … ) AS d derived table is unchanged by the
+// VALUES additions.
+func TestSelect_DerivedSubqueryStillParses(t *testing.T) {
+	sel, errs := testParseSelectStmt(`SELECT d.x FROM (SELECT 1 AS x) AS d`)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	ref := fromTableRef(t, sel, 0)
+	if ref.Alias.Name != "d" {
+		t.Errorf("alias = %q, want d", ref.Alias.Name)
+	}
+	if _, ok := ref.Subquery.(*ast.SelectStmt); !ok {
+		t.Errorf("Subquery = %T, want *ast.SelectStmt", ref.Subquery)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// $N as a result-set table reference  (gap-from-values, FROM $1)
+// ---------------------------------------------------------------------------
+
+func TestSelect_DollarTableRef(t *testing.T) {
+	sel, errs := testParseSelectStmt(`SELECT * FROM $1 ORDER BY 1`)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	ref := fromTableRef(t, sel, 0)
+	if ref.DollarN == nil {
+		t.Fatalf("DollarN is nil, want $1")
+	}
+	if ref.DollarN.Name != "1" || !ref.DollarN.Positional {
+		t.Errorf("DollarN = %+v, want positional $1", ref.DollarN)
+	}
+	if ref.Name != nil || ref.Subquery != nil || ref.FuncCall != nil {
+		t.Errorf("expected $N-only TableRef, got Name=%v Subquery=%v FuncCall=%v", ref.Name, ref.Subquery, ref.FuncCall)
+	}
+	if !ref.Loc.IsValid() {
+		t.Errorf("TableRef.Loc invalid: %+v", ref.Loc)
+	}
+}
+
+func TestSelect_DollarTableRefAlias(t *testing.T) {
+	sel, errs := testParseSelectStmt(`SELECT d.x FROM $1 AS d`)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	ref := fromTableRef(t, sel, 0)
+	if ref.DollarN == nil || ref.DollarN.Name != "1" {
+		t.Fatalf("DollarN = %+v, want $1", ref.DollarN)
+	}
+	if ref.Alias.Name != "d" {
+		t.Errorf("alias = %q, want d", ref.Alias.Name)
+	}
+}
+
+// Regression: $1 as a column expression (not a FROM source) still parses as a
+// DollarRef in the select list.
+func TestSelect_DollarColumnExprUnchanged(t *testing.T) {
+	sel, errs := testParseSelectStmt(`SELECT $1, $2 FROM t`)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if _, ok := sel.Targets[0].Expr.(*ast.DollarRef); !ok {
+		t.Errorf("target[0] = %T, want *ast.DollarRef", sel.Targets[0].Expr)
+	}
+	ref := fromTableRef(t, sel, 0)
+	if ref.Name == nil || ref.Name.String() != "t" {
+		t.Errorf("from[0] = %+v, want table t", ref)
+	}
+}
+
+// Negative: FROM $ with no name is not a valid table reference. The lexer only
+// emits tokVariable for $ followed by a name, so a bare $ is a lex error.
+func TestSelect_DollarBareIsError(t *testing.T) {
+	result := ParseBestEffort(`SELECT * FROM $`)
+	if len(result.Errors) == 0 {
+		t.Error("expected an error for bare `FROM $`, got none")
+	}
+}

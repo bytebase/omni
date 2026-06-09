@@ -53,3 +53,14 @@ func walkNodes(v Visitor, nodes []Node) {
 		Walk(v, n)
 	}
 }
+
+// walkNodeRows visits every node in a slice-of-rows child field ([][]Node),
+// e.g. the VALUES rows on *ValuesClause / *InsertStmt. Used by
+// walk_generated.go.
+func walkNodeRows(v Visitor, rows [][]Node) {
+	for _, row := range rows {
+		for _, n := range row {
+			Walk(v, n)
+		}
+	}
+}

@@ -173,17 +173,33 @@ func TestParseShow_Pipe(t *testing.T) {
 	})
 }
 
-// TestParseShow_PipeDollarLimitation documents that a SHOW ... ->> SELECT ...
-// FROM $1 result pipe cannot yet parse, because the table-reference / expression
-// parser (T3/T5) does not implement the $N result-set reference. The SHOW pipe
-// machinery is correct — it delegates the piped query to parseStmt — so when the
-// table-ref parser gains $N support these official examples
-// (show-tables/example_07..09) will parse with no change to show.go. Flagged
-// divergence (shared root cause with the SET $var limitation).
-func TestParseShow_PipeDollarLimitation(t *testing.T) {
-	result := ParseBestEffort(`SHOW TABLES ->> SELECT * FROM $1 ORDER BY 1`)
-	if len(result.Errors) == 0 {
-		t.Skip("table-ref parser now supports $N — wire show-tables/example_07..09 into the corpus filter")
+// TestParseShow_PipeDollar verifies that a SHOW ... ->> SELECT ... FROM $1
+// result pipe parses end-to-end now that the table-reference parser accepts a
+// bare positional $N as a result-set source (gap-from-values). The SHOW pipe
+// machinery delegates the piped query to parseStmt, so the $N table ref is the
+// only piece that was missing; the official examples (show-tables/example_07..09,
+// create-external-volume/example_05) are now wired into the corpus filter.
+func TestParseShow_PipeDollar(t *testing.T) {
+	stmt := mustParseShow(t, `SHOW TABLES ->> SELECT * FROM $1 ORDER BY 1`)
+	if stmt.Pipe == nil {
+		t.Fatalf("Pipe is nil, want a piped SELECT statement")
+	}
+	sel, ok := stmt.Pipe.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("Pipe = %T, want *ast.SelectStmt", stmt.Pipe)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("piped SELECT From len = %d, want 1", len(sel.From))
+	}
+	ref, ok := sel.From[0].(*ast.TableRef)
+	if !ok {
+		t.Fatalf("From[0] = %T, want *ast.TableRef", sel.From[0])
+	}
+	if ref.DollarN == nil {
+		t.Fatalf("From[0].DollarN is nil, want a $1 result-set ref")
+	}
+	if ref.DollarN.Name != "1" || !ref.DollarN.Positional {
+		t.Errorf("DollarN = %+v, want positional $1", ref.DollarN)
 	}
 }
 

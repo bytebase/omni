@@ -235,6 +235,13 @@ const (
 	T_ScriptFetchStmt
 	T_ScriptCloseStmt
 	T_ScriptRaiseStmt
+
+	// T_ValuesClause is the tag for *ValuesClause, a VALUES (row), (row), …
+	// query expression usable as a derived-table source.
+	T_ValuesClause
+	// T_ResultScanStmt is the tag for *ResultScanStmt, the `<stmt> ->> <query>`
+	// result-pipe that feeds a statement's result set into a following query.
+	T_ResultScanStmt
 )
 
 // String returns a human-readable representation of the tag.
@@ -572,6 +579,10 @@ func (t NodeTag) String() string {
 		return "ScriptCloseStmt"
 	case T_ScriptRaiseStmt:
 		return "ScriptRaiseStmt"
+	case T_ValuesClause:
+		return "ValuesClause"
+	case T_ResultScanStmt:
+		return "ResultScanStmt"
 	default:
 		return "Unknown"
 	}

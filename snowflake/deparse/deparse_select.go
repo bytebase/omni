@@ -14,9 +14,44 @@ func (w *writer) writeQueryExpr(node ast.Node) error {
 		return w.writeSelectStmt(n)
 	case *ast.SetOperationStmt:
 		return w.writeSetOperationStmt(n)
+	case *ast.ValuesClause:
+		return w.writeValuesClause(n)
 	default:
 		return fmt.Errorf("deparse: expected query expression, got %T", node)
 	}
+}
+
+// writeResultScanStmt emits the result-pipe: <source> ->> <query>. The source
+// node may be any deparsable statement (a non-deparsable source — e.g. SHOW,
+// which the deparser does not render — surfaces as the underlying writeNode
+// error rather than a panic).
+func (w *writer) writeResultScanStmt(n *ast.ResultScanStmt) error {
+	if err := w.writeNode(n.Source); err != nil {
+		return err
+	}
+	w.buf.WriteString(" ->> ")
+	return w.writeQueryExpr(n.Query)
+}
+
+// writeValuesClause emits a VALUES row source: VALUES (e, …), (e, …).
+func (w *writer) writeValuesClause(n *ast.ValuesClause) error {
+	w.buf.WriteString("VALUES ")
+	for i, row := range n.Rows {
+		if i > 0 {
+			w.buf.WriteString(", ")
+		}
+		w.buf.WriteByte('(')
+		for j, val := range row {
+			if j > 0 {
+				w.buf.WriteString(", ")
+			}
+			if err := writeExprNoLeadSpace(w, val); err != nil {
+				return err
+			}
+		}
+		w.buf.WriteByte(')')
+	}
+	return nil
 }
 
 // writeCTEs writes the WITH clause (all CTEs).
@@ -265,22 +300,39 @@ func (w *writer) writeTableRef(n *ast.TableRef) error {
 	if n.Lateral {
 		w.buf.WriteString("LATERAL ")
 	}
-	if n.Name != nil {
+	switch {
+	case n.Name != nil:
 		w.buf.WriteString(n.Name.String())
-	} else if n.Subquery != nil {
+	case n.Subquery != nil:
 		w.buf.WriteByte('(')
 		if err := w.writeQueryExpr(n.Subquery); err != nil {
 			return err
 		}
 		w.buf.WriteByte(')')
-	} else if n.FuncCall != nil {
+	case n.FuncCall != nil:
 		if err := writeExprNoLeadSpace(w, n.FuncCall); err != nil {
+			return err
+		}
+	case n.DollarN != nil:
+		// $N result-set table reference (e.g. FROM $1).
+		if err := writeExprNoLeadSpace(w, n.DollarN); err != nil {
 			return err
 		}
 	}
 	if !n.Alias.IsEmpty() {
 		w.buf.WriteString(" AS ")
 		w.buf.WriteString(n.Alias.String())
+	}
+	// Derived column list: AS v (c1, c2).
+	if len(n.Columns) > 0 {
+		w.buf.WriteString(" (")
+		for i, col := range n.Columns {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			w.buf.WriteString(col.String())
+		}
+		w.buf.WriteByte(')')
 	}
 	return nil
 }
