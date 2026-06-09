@@ -157,6 +157,63 @@ func TestGetQuerySpan_JoinUsingDerivedDoesNotDropLineage(t *testing.T) {
 	}
 }
 
+// TestGetQuerySpan_UnnestColumnLineage covers BYT-9680: a column produced by
+// UNNEST of a sensitive array column must resolve to that array column so the
+// unnested values are masked.
+func TestGetQuerySpan_UnnestColumnLineage(t *testing.T) {
+	span, err := GetQuerySpan("SELECT t.p FROM customer CROSS JOIN UNNEST(phones) AS t(p)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	r, ok := resultByName(span, "p")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named p", span.Results)
+	}
+	if !hasSource(r.SourceColumns, ColumnRef{Column: "phones"}) {
+		t.Errorf("p.SourceColumns = %+v, want to contain {Column:phones} (resolved through UNNEST)", r.SourceColumns)
+	}
+}
+
+// TestGetQuerySpan_UnnestBareColumnLineage resolves an UNNEST output referenced
+// by its bare column alias (no relation qualifier).
+func TestGetQuerySpan_UnnestBareColumnLineage(t *testing.T) {
+	span, err := GetQuerySpan("SELECT p FROM customer CROSS JOIN UNNEST(phones) AS t(p)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	r, ok := resultByName(span, "p")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named p", span.Results)
+	}
+	if !hasSource(r.SourceColumns, ColumnRef{Column: "phones"}) {
+		t.Errorf("p.SourceColumns = %+v, want to contain {Column:phones}", r.SourceColumns)
+	}
+}
+
+// TestGetQuerySpan_UnnestWithOrdinality resolves the element column's lineage
+// while leaving the trailing WITH ORDINALITY ordinal column without lineage.
+func TestGetQuerySpan_UnnestWithOrdinality(t *testing.T) {
+	span, err := GetQuerySpan("SELECT t.p, t.ord FROM customer CROSS JOIN UNNEST(phones) WITH ORDINALITY AS t(p, ord)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	p, ok := resultByName(span, "p")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named p", span.Results)
+	}
+	if !hasSource(p.SourceColumns, ColumnRef{Column: "phones"}) {
+		t.Errorf("p.SourceColumns = %+v, want to contain {Column:phones}", p.SourceColumns)
+	}
+	ord, ok := resultByName(span, "ord")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named ord", span.Results)
+	}
+	// The ordinal column derives from no base column; it must not pick up phones.
+	if hasSource(ord.SourceColumns, ColumnRef{Column: "phones"}) {
+		t.Errorf("ord.SourceColumns = %+v, must not contain {Column:phones} (ordinal has no lineage)", ord.SourceColumns)
+	}
+}
+
 // TestGetQuerySpan_DirectColumnLineageUnchanged guards that a direct base-table
 // column (no derived relation in scope) is left exactly as the primary walk
 // produced it — the resolver must only deepen lineage through indirection.

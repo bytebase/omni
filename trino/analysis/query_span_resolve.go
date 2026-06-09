@@ -248,12 +248,49 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 	case *parser.SubqueryRelation:
 		cols := resolveQueryCols(n.Query, s.cte)
 		s.rels = append(s.rels, rbind{name: alias, derived: true, cols: applyColumnAliases(cols, colAliases)})
+	case *parser.UnnestRelation:
+		s.rels = append(s.rels, rbind{name: alias, derived: true, cols: s.unnestColumns(n, colAliases)})
 	default:
-		// Lateral / UNNEST / table-function relations are not resolved here
-		// (tracked separately). Bind the alias as a non-derived (opaque)
-		// relation so references through it pass through unchanged.
+		// Lateral and table-function relations are not resolved here (tracked
+		// separately). Bind the alias as a non-derived (opaque) relation so
+		// references through it pass through unchanged.
 		s.rels = append(s.rels, rbind{name: alias, derived: false})
 	}
+}
+
+// unnestColumns computes the output columns of an UNNEST relation. Each named
+// output column (from the enclosing `AS alias (c1, …)` list) is an element of an
+// unnested collection; its lineage is the column(s) referenced by the unnested
+// expressions, resolved against the relations already in scope — UNNEST is
+// implicitly lateral over the left side of its join, so those expressions may
+// reference the left relations. The number of output columns produced per
+// expression depends on the element type (array → 1, map → 2, array<row> → N),
+// which is unknown without type metadata, so every named column conservatively
+// carries the union of all unnested expressions' sources (over-inclusion is safe
+// for masking). A trailing WITH ORDINALITY column is an ordinal and carries no
+// lineage. Without column aliases the output columns are unnamed and cannot be
+// referenced by name, so none are produced (best-effort, unchanged behaviour).
+//
+// Boundary: a scalar subquery as the unnested expression — UNNEST((SELECT
+// array_agg(x) FROM t)) — is not followed here (resolveExprRefs collects direct
+// columns only), so its inner columns are not yet recovered. Because resolution
+// is additive this never regresses below the prior behaviour; the inner lineage
+// is picked up once scalar-subquery resolution lands (BYT-9676).
+func (s *rscope) unnestColumns(n *parser.UnnestRelation, colAliases []*ast.Identifier) []outCol {
+	var srcs []ColumnRef
+	for _, e := range n.Exprs {
+		srcs = append(srcs, s.resolveExprRefs(e)...)
+	}
+	cols := make([]outCol, 0, len(colAliases))
+	for i, a := range colAliases {
+		name := identName(a)
+		if n.WithOrdinality && i == len(colAliases)-1 {
+			cols = append(cols, outCol{name: name})
+			continue
+		}
+		cols = append(cols, outCol{name: name, sources: srcs})
+	}
+	return cols
 }
 
 // resolveRefs resolves a list of result-column refs through the scope,
