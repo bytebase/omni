@@ -281,3 +281,51 @@ func TestParenExprSubqueryAccept(t *testing.T) {
 		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
 	}
 }
+
+// A top-level comma makes the paren content a value list, NOT a single
+// subquery — the classifier must not misclassify it. Container-verified parse.
+func TestParenExprValueListNotSubquery(t *testing.T) {
+	accepted := []string{
+		"SELECT 1 WHERE 1 IN ((SELECT 1), (SELECT 2))", // value list of scalar subqueries
+		"SELECT 1 WHERE 1 IN (1, 2, 3)",                // plain value list
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
+func TestParenExprSubqueryRejected(t *testing.T) {
+	rejected := []string{
+		"SELECT 1 WHERE 1 IN ((SELECT 1) FOR UPDATE)",      // FOR binds to the leaf (TiDB 1064)
+		"SELECT 1 WHERE 1 IN ((SELECT 1) UNION (SELECT 2)", // unbalanced parens
+	}
+	for _, sql := range rejected {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+}
+
+// Deferred boundary: TiDB PARSES (TABLE)/(VALUES) primaries as subquery bodies
+// (semantic 1054/1051), but they need non-SELECT-primary AST — a separate
+// backlog feature. The classifier lead set is {SELECT, WITH}, so omni rejects
+// them today. These document the boundary and trip if the lead set is widened.
+func TestParenExprDeferredPrimaries(t *testing.T) {
+	rejected := []string{
+		"SELECT 1 WHERE 1 IN ((TABLE t))",
+		"SELECT 1 WHERE 1 IN ((VALUES ROW(1)))",
+	}
+	for _, sql := range rejected {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+}
+
+// Regression: EXISTS (unambiguous) and simple single-paren subqueries unaffected.
+func TestParenExprRegression(t *testing.T) {
+	accepted := []string{
+		"SELECT 1 WHERE EXISTS ((SELECT 1) UNION (SELECT 2))", // EXISTS already works
+		"SELECT 1 WHERE 1 IN (SELECT 1)",                      // simple IN subquery
+		"SELECT 1 WHERE 1 > (SELECT 1)",                       // simple scalar subquery
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
