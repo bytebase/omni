@@ -209,6 +209,20 @@ func Split(input string) []Segment {
 
 		switch state {
 		case stateTop:
+			// A statement-leading `label:` prefix introduces a labeled procedural
+			// block (`label: BEGIN|LOOP|WHILE|REPEAT|FOR …`, GoogleSQLParser.g4
+			// unterminated_script_statement's labeled alternative). The label name
+			// and its ':' must stay TRANSPARENT to statement-leading position so the
+			// block opener that follows still opens a block — otherwise the block's
+			// internal ';' would split the labeled statement. Consume the ':' here
+			// and keep atStmtStart true. (Only a non-reserved identifier can be a
+			// bare label; a reserved word would be backtick-quoted → tokIdentifier.)
+			if atStmtStart && isIdentifierStart(tok.Type) && peekToken().Type == int(':') {
+				nextToken() // consume ':'
+				// atStmtStart stays true: the next token (the block opener) is still
+				// statement-leading.
+				continue
+			}
 			switch tok.Type {
 			case kwBEGIN:
 				// BEGIN opens a procedural block whenever the following token is
@@ -249,9 +263,27 @@ func Split(input string) []Segment {
 
 		case stateInBlock:
 			switch tok.Type {
-			case kwBEGIN, kwIF, kwCASE, kwLOOP, kwWHILE, kwREPEAT, kwFOR:
+			case kwIF:
+				// A block keyword right after END is the suffix of a typed closer
+				// (END IF), not a new opener.
+				if prevWasEnd {
+					prevWasEnd = false
+				} else if peekToken().Type != int('(') {
+					// `IF(` is the IF() scalar function (no matching END), not a
+					// nested IF statement — counting it inflates depth and swallows
+					// the block's terminating ';' (e.g. `BEGIN SELECT IF(a,b,c); END`).
+					// The IF statement (`IF <expr> THEN`) is not followed by '('. The
+					// rare `IF (paren-condition) THEN` nested form is the one this
+					// under-counts; it degrades to a best-effort mis-split rather than
+					// breaking on the far more common IF()-call. (Top-level IF is
+					// statement-position-gated above; the block interior cannot track
+					// statement position without full parsing.)
+					depth++
+				}
+			case kwBEGIN, kwCASE, kwLOOP, kwWHILE, kwREPEAT, kwFOR:
 				// A block keyword right after END is the suffix of a typed
-				// closer (END IF / END CASE / …), not a new opener.
+				// closer (END CASE / END LOOP / …), not a new opener. A CASE
+				// *expression* self-balances (CASE … END).
 				if prevWasEnd {
 					prevWasEnd = false
 				} else {

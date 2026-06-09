@@ -137,6 +137,31 @@ func TestSplit_SemicolonInHiddenContent(t *testing.T) {
 
 // Block-aware Split keeps procedural BEGIN/END (and IF/CASE/LOOP/WHILE/REPEAT/
 // FOR) blocks whole; SplitFlat (BigQuery lexer-split) does not.
+// TestSplit_BlockWithFunctionKeyword pins the fix for the block-interior
+// function-keyword bug (Codex review): a control-flow KEYWORD used as a scalar
+// function inside a block body — IF(...) — must NOT be counted as a nested block
+// opener. Counting it inflated the block depth so the ';' after END was swallowed
+// and the following statement became trailing junk (Split returned 1, not 2).
+func TestSplit_BlockWithFunctionKeyword(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  int
+	}{
+		{"if_function_in_block", "BEGIN SELECT IF(TRUE, 1, 0); END; SELECT 2;", 2},
+		{"case_expr_with_if_function", "BEGIN SELECT CASE WHEN x THEN IF(a,b,c) ELSE 0 END; END; SELECT 2;", 2},
+		{"real_nested_if_statement", "BEGIN IF x THEN SELECT 1; END IF; END; SELECT 2;", 2},
+		{"plain_block", "BEGIN SELECT 1; END; SELECT 2;", 2},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := Split(c.input); len(got) != c.want {
+				t.Fatalf("Split(%q) = %d segments, want %d: %+v", c.input, len(got), c.want, got)
+			}
+		})
+	}
+}
+
 func TestSplit_BeginEndBlock(t *testing.T) {
 	// A stored-procedure body with internal ';' separators.
 	const proc = "CREATE PROCEDURE p() BEGIN SELECT 1; SELECT 2; END"

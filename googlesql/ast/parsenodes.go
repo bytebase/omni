@@ -4188,3 +4188,373 @@ var (
 	_ Node = (*LabelAndProperties)(nil)
 	_ Node = (*DerivedProperty)(nil)
 )
+
+// ===========================================================================
+// Procedural / scripting statements (googlesql/parser-scripting node)
+// ===========================================================================
+//
+// BigQuery's procedural language (GoogleSQLParser.g4 §2.11, a hand-port of
+// ZetaSQL): the control-flow and variable statements that make up a multi-
+// statement script or a stored-procedure BEGIN…END body. The grammar:
+//
+//	begin_end_block:        BEGIN statement_list? opt_exception_handler? END
+//	opt_exception_handler:  EXCEPTION WHEN ERROR THEN statement_list
+//	statement_list:         unterminated_statement (';' unterminated_statement)* ';'
+//	if_statement:           IF expr THEN statement_list? elseif_clauses? opt_else? END IF
+//	elseif_clauses:         (ELSEIF expr THEN statement_list?)+
+//	opt_else:               ELSE statement_list?
+//	case_statement:         CASE expr? when_then_clauses opt_else? END CASE
+//	when_then_clauses:      (WHEN expr THEN statement_list?)+
+//	while_statement:        WHILE expr DO statement_list? END WHILE
+//	loop_statement:         LOOP statement_list? END LOOP
+//	repeat_statement:       REPEAT statement_list? UNTIL expr END REPEAT
+//	for_in_statement:       FOR id IN (query) DO statement_list? END FOR
+//	variable_declaration:   DECLARE id_list type opt_default? | DECLARE id_list DEFAULT expr
+//	set_statement:          SET TRANSACTION modes | SET id = expr | SET @p = expr
+//	                        | SET @@v = expr | SET (id_list) = expr | SET id, id = (error)
+//	execute_immediate:      EXECUTE IMMEDIATE expr (INTO id_list)? (USING arg_list)?
+//	break_statement:        BREAK id? | LEAVE id?
+//	continue_statement:     CONTINUE id? | ITERATE id?
+//	return_statement:       RETURN
+//	raise_statement:        RAISE | RAISE USING MESSAGE = expr
+//	label:                  identifier (a labeled block/loop: `id: <stmt> [id]`)
+//
+// DIALECT (oracle.md). Scripting is BigQuery-ONLY at the GoogleSQL union level
+// with two oracle-authoritative exceptions: the Spanner emulator PARSES the
+// BEGIN…END envelope (verdict accept, "Statement not supported: BeginStmt"),
+// SET (SingleAssignment / AssignmentFromStruct / ParameterAssignment /
+// SystemVariableAssignment / SetTransactionStatement), and EXECUTE IMMEDIATE
+// (ExecuteImmediateStatement) — so those LEADING forms are accepted on the
+// oracle's authority. The control-flow statements (IF/CASE/WHILE/LOOP/REPEAT/
+// FOR-IN/DECLARE/BREAK/CONTINUE/RETURN/RAISE/labels) syntax-reject on Spanner;
+// the union parser accepts them on the authority of the legacy .g4 + the
+// BigQuery truth1 corpus (SCRIPT-001…019). The emulator's BEGIN…END recognizer
+// is SHALLOW (it accepts any token run between BEGIN and END, even
+// `BEGIN SELECT 1 SELECT 2 END`), so the INTERIOR statement_list grammar is
+// NON-authoritative on Spanner and follows the .g4 — which requires `;`
+// separation and a trailing `;` (divergence ledger: Spanner over-accepts the
+// block interior, mirroring the transaction-tail divergence).
+//
+// bytebase does not consume scripting today (P1 parity); the parser accepts and
+// models it so Diagnose reports a script statement as valid rather than a false
+// syntax error, and the query-span / lineage walker can reach the embedded
+// queries (DECLARE … DEFAULT (subquery), FOR … IN (query), the SQL statements in
+// every body).
+
+// DeclareStmt is a DECLARE statement (variable_declaration):
+//
+//	DECLARE id [, id ...] type [DEFAULT expr]
+//	DECLARE id [, id ...] DEFAULT expr
+//
+// Names is the declared variable list (≥1). Type is the declared type
+// (variable_declaration's first alternative); it is nil for the DEFAULT-only
+// alternative (`DECLARE x DEFAULT 5`, where the type is inferred). Default is the
+// DEFAULT initializer expression (opt_default_expression / the DEFAULT
+// alternative); nil when absent.
+type DeclareStmt struct {
+	Names   []*Identifier // declared variable names (≥1)
+	Type    *TypeRef      // declared type; nil for the DEFAULT-only form
+	Default Node          // DEFAULT initializer expression; nil if absent
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *DeclareStmt) Tag() NodeTag { return T_DeclareStmt }
+
+// SetStmtKind discriminates the set_statement alternatives.
+type SetStmtKind int
+
+const (
+	// SetVariable is `SET <target> = expr` where the target is a single variable
+	// identifier, a named parameter (@p), or a system variable (@@v). Targets
+	// holds exactly one element (the LHS expression); Value holds the RHS.
+	SetVariable SetStmtKind = iota
+	// SetTuple is `SET ( id [, id ...] ) = expr` (tuple/struct assignment).
+	// Targets holds the parenthesized identifier list (≥1); Value holds the
+	// single RHS expression (typically a parenthesized list or a SELECT AS STRUCT).
+	SetTuple
+	// SetTransaction is `SET TRANSACTION <transaction_mode_list>`. Modes holds the
+	// mode list; Targets / Value are nil.
+	SetTransaction
+)
+
+// SetStmt is a SET statement (set_statement). Kind selects the shape:
+//   - SetVariable: Targets[0] is the LHS (an *Identifier for a plain variable, a
+//     *Parameter for @p, or a *SystemVariable for @@v) and Value is the RHS expr.
+//   - SetTuple: Targets is the parenthesized identifier list and Value is the
+//     single RHS expr.
+//   - SetTransaction: Modes is the transaction_mode_list.
+//
+// The `SET a, b = ...` form (two bare identifiers without parentheses) is a
+// grammar error alt in the .g4 ("Using SET with multiple variables requires
+// parentheses around the variable list") — the parser rejects it rather than
+// producing a SetStmt; it is NOT a SetStmt kind.
+type SetStmt struct {
+	Kind    SetStmtKind
+	Targets []Node             // LHS targets (SetVariable: 1; SetTuple: ≥1); nil for SetTransaction
+	Value   Node               // RHS expression; nil for SetTransaction
+	Modes   []*TransactionMode // SET TRANSACTION mode list; nil otherwise
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *SetStmt) Tag() NodeTag { return T_SetStmt }
+
+// IfStmt is an IF statement (if_statement):
+//
+//	IF expr THEN [statement_list] [ELSEIF expr THEN ...]... [ELSE [statement_list]] END IF
+//
+// Cond is the leading condition; Then is its (possibly empty) statement_list.
+// ElseIf holds the ELSEIF clauses (nil if none). Else is the trailing ELSE
+// statement_list; HasElse distinguishes a present-but-empty ELSE (`ELSE END IF`)
+// from an absent ELSE (both leave Else nil).
+type IfStmt struct {
+	Cond    Node            // the IF condition
+	Then    []Node          // the THEN statement_list (may be empty)
+	ElseIf  []*ElseIfClause // ELSEIF clauses; nil if none
+	Else    []Node          // ELSE statement_list; nil if HasElse is false
+	HasElse bool            // an ELSE clause was present (even if its body is empty)
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *IfStmt) Tag() NodeTag { return T_IfStmt }
+
+// ElseIfClause is one ELSEIF arm of an IF statement (elseif_clauses):
+// `ELSEIF expr THEN [statement_list]`.
+type ElseIfClause struct {
+	Cond Node   // the ELSEIF condition
+	Then []Node // the THEN statement_list (may be empty)
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *ElseIfClause) Tag() NodeTag { return T_ElseIfClause }
+
+// CaseStmt is a CASE statement (case_statement) — the procedural form, distinct
+// from the CASE expression (CaseExpr):
+//
+//	CASE [operand] WHEN expr THEN [statement_list] [WHEN ...]... [ELSE [statement_list]] END CASE
+//
+// Operand is the optional search expression (`CASE x WHEN ...`); nil for the
+// searched form (`CASE WHEN cond ...`). Whens holds the WHEN/THEN clauses (≥1).
+// Else is the trailing ELSE statement_list; HasElse marks a present (possibly
+// empty) ELSE.
+type CaseStmt struct {
+	Operand Node              // optional CASE operand; nil for the searched form
+	Whens   []*WhenThenClause // WHEN expr THEN ... clauses (≥1)
+	Else    []Node            // ELSE statement_list; nil if HasElse is false
+	HasElse bool              // an ELSE clause was present
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *CaseStmt) Tag() NodeTag { return T_CaseStmt }
+
+// WhenThenClause is one WHEN/THEN arm of a procedural CASE statement
+// (when_then_clauses): `WHEN expr THEN [statement_list]`.
+type WhenThenClause struct {
+	Cond Node   // the WHEN condition
+	Then []Node // the THEN statement_list (may be empty)
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *WhenThenClause) Tag() NodeTag { return T_WhenThenClause }
+
+// WhileStmt is a WHILE statement (while_statement):
+//
+//	WHILE expr DO [statement_list] END WHILE
+//
+// Cond is the loop condition; Body is the loop statement_list (may be empty).
+type WhileStmt struct {
+	Cond Node   // the WHILE condition
+	Body []Node // the loop body statement_list (may be empty)
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *WhileStmt) Tag() NodeTag { return T_WhileStmt }
+
+// LoopStmt is a LOOP statement (loop_statement):
+//
+//	LOOP [statement_list] END LOOP
+//
+// Body is the loop statement_list (may be empty). The loop is exited via BREAK /
+// LEAVE.
+type LoopStmt struct {
+	Body []Node // the loop body statement_list (may be empty)
+	Loc  Loc
+}
+
+// Tag implements Node.
+func (n *LoopStmt) Tag() NodeTag { return T_LoopStmt }
+
+// RepeatStmt is a REPEAT statement (repeat_statement):
+//
+//	REPEAT [statement_list] UNTIL expr END REPEAT
+//
+// Body is the loop statement_list (may be empty). Until is the until_clause
+// boolean condition evaluated after each iteration (required).
+type RepeatStmt struct {
+	Body  []Node // the loop body statement_list (may be empty)
+	Until Node   // the UNTIL condition (required)
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *RepeatStmt) Tag() NodeTag { return T_RepeatStmt }
+
+// ForInStmt is a FOR…IN statement (for_in_statement):
+//
+//	FOR id IN (query) DO [statement_list] END FOR
+//
+// Var is the loop variable identifier; Query is the parenthesized source query;
+// Body is the loop statement_list (may be empty).
+type ForInStmt struct {
+	Var   *Identifier // loop variable
+	Query *QueryStmt  // the parenthesized source query
+	Body  []Node      // the loop body statement_list (may be empty)
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ForInStmt) Tag() NodeTag { return T_ForInStmt }
+
+// BeginEndBlock is a procedural BEGIN…END block (begin_end_block):
+//
+//	BEGIN [statement_list] [EXCEPTION WHEN ERROR THEN statement_list] END
+//
+// Body is the main statement_list (may be empty). Exception is the EXCEPTION
+// handler's statement_list (opt_exception_handler); HasException marks a present
+// handler (even with an empty body), distinct from an absent one (both leave
+// Exception nil). A BEGIN…END block is the one scripting form the Spanner
+// emulator parses as a top-level statement (oracle: accept, "BeginStmt").
+type BeginEndBlock struct {
+	Body         []Node // the block statement_list (may be empty)
+	Exception    []Node // the EXCEPTION WHEN ERROR THEN statement_list; nil if HasException is false
+	HasException bool   // an EXCEPTION handler was present
+	Loc          Loc
+}
+
+// Tag implements Node.
+func (n *BeginEndBlock) Tag() NodeTag { return T_BeginEndBlock }
+
+// BreakStmt is a BREAK / LEAVE statement (break_statement): `BREAK [id]` or
+// `LEAVE [id]`. LEAVE is a synonym for BREAK; IsLeave records which keyword was
+// used so the source verb round-trips. Label is the optional target loop/block
+// label; "" if absent.
+type BreakStmt struct {
+	IsLeave bool   // LEAVE (true) vs BREAK (false)
+	Label   string // optional target label; "" if absent
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *BreakStmt) Tag() NodeTag { return T_BreakStmt }
+
+// ContinueStmt is a CONTINUE / ITERATE statement (continue_statement):
+// `CONTINUE [id]` or `ITERATE [id]`. ITERATE is a synonym for CONTINUE; IsIterate
+// records the keyword. Label is the optional target loop label; "" if absent.
+type ContinueStmt struct {
+	IsIterate bool   // ITERATE (true) vs CONTINUE (false)
+	Label     string // optional target label; "" if absent
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *ContinueStmt) Tag() NodeTag { return T_ContinueStmt }
+
+// ReturnStmt is a RETURN statement (return_statement): a bare `RETURN` that stops
+// execution of the multi-statement script. GoogleSQL's RETURN carries no value.
+type ReturnStmt struct {
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *ReturnStmt) Tag() NodeTag { return T_ReturnStmt }
+
+// RaiseStmt is a RAISE statement (raise_statement): `RAISE` (re-raise the caught
+// exception, valid only inside an EXCEPTION handler) or
+// `RAISE USING MESSAGE = expr` (raise a custom error). Message is the
+// USING MESSAGE expression; nil for a bare RAISE.
+type RaiseStmt struct {
+	Message Node // USING MESSAGE = expr; nil for a bare RAISE
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *RaiseStmt) Tag() NodeTag { return T_RaiseStmt }
+
+// ExecuteImmediateStmt is an EXECUTE IMMEDIATE statement (execute_immediate):
+//
+//	EXECUTE IMMEDIATE sql_expr [INTO id [, id ...]] [USING arg [, arg ...]]
+//
+// SQL is the dynamic-SQL expression (a string literal or an expression that
+// produces one). Into is the optional INTO variable list (nil if absent). Using
+// is the optional USING argument list; each entry is an expression, optionally
+// `expr AS alias` (carried as a *NamedArg-free aliased wrapper — see UsingArg).
+type ExecuteImmediateStmt struct {
+	SQL   Node          // the dynamic SQL expression
+	Into  []*Identifier // INTO variable list; nil if absent
+	Using []*UsingArg   // USING argument list; nil if absent
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *ExecuteImmediateStmt) Tag() NodeTag { return T_ExecuteImmediateStmt }
+
+// UsingArg is one entry of an EXECUTE IMMEDIATE USING list (the grammar's
+// `execute_immediate_argument`: `expr opt_as_alias_with_required_as?`). Value is
+// the argument expression; Alias is the optional `AS name` (used to bind a named
+// query parameter @name); "" if absent.
+type UsingArg struct {
+	Value Node   // the argument expression
+	Alias string // optional AS alias (binds a named @parameter); "" if absent
+	Loc   Loc
+}
+
+// Tag implements Node.
+func (n *UsingArg) Tag() NodeTag { return T_UsingArg }
+
+// LabeledStmt is a labeled procedural statement (the
+// `label ':' unterminated_unlabeled_script_statement identifier?` alternative of
+// unterminated_script_statement):
+//
+//	label: <block-or-loop> [end_label]
+//
+// Only the unlabeled block forms (BEGIN…END, WHILE, LOOP, REPEAT, FOR-IN) can be
+// labeled. Label is the leading label name; Stmt is the wrapped statement;
+// EndLabel is the optional trailing label after the END (must match Label per
+// BigQuery semantics, though the grammar does not enforce it here); "" if absent.
+type LabeledStmt struct {
+	Label    string // leading label name
+	Stmt     Node   // the labeled block/loop statement
+	EndLabel string // optional trailing label after END; "" if absent
+	Loc      Loc
+}
+
+// Tag implements Node.
+func (n *LabeledStmt) Tag() NodeTag { return T_LabeledStmt }
+
+// Compile-time assertions that the scripting node types satisfy Node.
+var (
+	_ Node = (*DeclareStmt)(nil)
+	_ Node = (*SetStmt)(nil)
+	_ Node = (*IfStmt)(nil)
+	_ Node = (*ElseIfClause)(nil)
+	_ Node = (*CaseStmt)(nil)
+	_ Node = (*WhenThenClause)(nil)
+	_ Node = (*WhileStmt)(nil)
+	_ Node = (*LoopStmt)(nil)
+	_ Node = (*RepeatStmt)(nil)
+	_ Node = (*ForInStmt)(nil)
+	_ Node = (*BeginEndBlock)(nil)
+	_ Node = (*BreakStmt)(nil)
+	_ Node = (*ContinueStmt)(nil)
+	_ Node = (*ReturnStmt)(nil)
+	_ Node = (*RaiseStmt)(nil)
+	_ Node = (*ExecuteImmediateStmt)(nil)
+	_ Node = (*UsingArg)(nil)
+	_ Node = (*LabeledStmt)(nil)
+)

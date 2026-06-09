@@ -248,42 +248,57 @@ func TestParse_EmptyHintReported(t *testing.T) {
 // dispatchPrefix is one representative leading token sequence per documented
 // GoogleSQL top-level statement kind (antlr_rules.md §4: sql_statement_body
 // alternatives + the procedural-script forms recognized at top level). The body
-// after the keyword does not matter — the foundation stubs it — so we only need
-// the leading keyword(s) to land in a real dispatch case rather than default.
-var dispatchPrefixes = []string{
+// after the keyword does not matter for the leading-keyword dispatch check — we
+// only need the leading keyword(s) to land in a real dispatch case rather than
+// default. A bare " x" tail suffices for most; the three block forms whose body
+// is a statement_list that begins immediately after the opener (BEGIN / LOOP /
+// REPEAT) need a benign complete tail so the parsed body does not itself produce
+// an inner "unknown statement starting with x" (the now-implemented
+// parser-scripting bodies parse their statement_list, so a bare `x` body is a
+// real — but irrelevant-to-this-test — reject).
+var dispatchPrefixes = []struct{ prefix, tail string }{
 	// Query / GQL.
-	"SELECT", "WITH", "GRAPH", "FROM", "(",
+	{"SELECT", "x"}, {"WITH", "x"}, {"GRAPH", "x"}, {"FROM", "x"}, {"(", "x"},
 	// DDL.
-	"CREATE", "ALTER", "DROP", "RENAME", "UNDROP", "TRUNCATE", "DEFINE",
+	{"CREATE", "x"}, {"ALTER", "x"}, {"DROP", "x"}, {"RENAME", "x"},
+	{"UNDROP", "x"}, {"TRUNCATE", "x"}, {"DEFINE", "x"},
 	// DML.
-	"INSERT", "UPDATE", "DELETE", "MERGE",
+	{"INSERT", "x"}, {"UPDATE", "x"}, {"DELETE", "x"}, {"MERGE", "x"},
 	// DCL.
-	"GRANT", "REVOKE",
-	// Transactions / batch / session.
-	"BEGIN", "START", "COMMIT", "ROLLBACK", "SET", "RUN", "ABORT",
+	{"GRANT", "x"}, {"REVOKE", "x"},
+	// Transactions / batch / session. A top-level BEGIN is a TCL transaction only
+	// when followed by a TCL follower (here TRANSACTION); a non-follower opens a
+	// BEGIN…END block (covered by the scripting `{"BEGIN","END"}` entry below).
+	{"BEGIN", "TRANSACTION"}, {"START", "x"}, {"COMMIT", "x"}, {"ROLLBACK", "x"},
+	{"SET", "x"}, {"RUN", "x"}, {"ABORT", "x"},
 	// Utility / metadata.
-	"EXPLAIN", "DESCRIBE", "DESC", "SHOW", "ANALYZE", "ASSERT", "CALL",
-	"EXECUTE", "IMPORT", "MODULE", "EXPORT", "LOAD", "CLONE",
-	// Procedural / scripting (recognized at top level).
-	"IF", "CASE", "WHILE", "LOOP", "REPEAT", "FOR", "DECLARE", "BREAK",
-	"LEAVE", "CONTINUE", "ITERATE", "RETURN", "RAISE",
+	{"EXPLAIN", "x"}, {"DESCRIBE", "x"}, {"DESC", "x"}, {"SHOW", "x"},
+	{"ANALYZE", "x"}, {"ASSERT", "x"}, {"CALL", "x"}, {"EXECUTE", "x"},
+	{"IMPORT", "x"}, {"MODULE", "x"}, {"EXPORT", "x"}, {"LOAD", "x"}, {"CLONE", "x"},
+	// Procedural / scripting (now implemented by parser-scripting). BEGIN / LOOP /
+	// REPEAT have a statement_list body that starts right after the opener, so
+	// their tails are complete benign blocks rather than a bare `x` (which would
+	// be parsed as an invalid body statement, not a leading-keyword miss).
+	{"IF", "x"}, {"CASE", "x"}, {"WHILE", "x"}, {"LOOP", "END LOOP"},
+	{"REPEAT", "UNTIL TRUE END REPEAT"}, {"FOR", "x"}, {"DECLARE", "x"},
+	{"BREAK", "x"}, {"LEAVE", "x"}, {"CONTINUE", "x"}, {"ITERATE", "x"},
+	{"RETURN", "x"}, {"RAISE", "x"}, {"BEGIN", "END"},
 }
 
 // TestParse_DispatchKeywordsRecognized verifies every documented top-level
-// statement keyword is routed by the dispatch switch — it produces a "not yet
-// supported" (stubbed) error, NOT an "unknown statement" error. This is the
-// foundation's completeness contract: all statement forms must be reachable so
-// bytebase's Diagnose never emits a false "unknown statement" diagnostic for
-// valid GoogleSQL.
+// statement keyword is routed by the dispatch switch — it does NOT hit the
+// default "unknown statement" branch. This is the foundation's completeness
+// contract: all statement forms must be reachable so bytebase's Diagnose never
+// emits a false "unknown statement" diagnostic for valid GoogleSQL.
 func TestParse_DispatchKeywordsRecognized(t *testing.T) {
 	for _, p := range dispatchPrefixes {
-		t.Run(p, func(t *testing.T) {
-			sql := p + " x" // minimal tail; the leading token is the keyword
+		t.Run(p.prefix, func(t *testing.T) {
+			sql := p.prefix + " " + p.tail // leading token is the keyword
 			_, errs := Parse(sql)
 			for _, e := range errs {
 				if strings.Contains(e.Msg, "unknown or unsupported statement") {
 					t.Errorf("Parse(%q): leading keyword %q hit the UNKNOWN branch; "+
-						"it must be in the dispatch switch (got %q)", sql, p, e.Msg)
+						"it must be in the dispatch switch (got %q)", sql, p.prefix, e.Msg)
 				}
 			}
 		})

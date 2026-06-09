@@ -318,6 +318,14 @@ func (p *Parser) skipBalancedBraces(hintStart ast.Loc) *ParseError {
 // them at top level so a standalone script fragment fed to Diagnose is reported
 // as "not yet supported" rather than "unknown statement".
 func (p *Parser) parseStmt() (ast.Node, error) {
+	// A labeled procedural statement (`label: BEGIN|WHILE|LOOP|REPEAT|FOR …`) leads
+	// with an identifier followed by ':'. It is the only statement form that starts
+	// with a bare identifier, so check it before the keyword dispatch (owned by the
+	// parser-scripting node). Reachable both at the top level and inside a
+	// statement_list.
+	if p.isScriptLabelStart() {
+		return p.parseLabeledStmt()
+	}
 	switch p.cur.Type {
 	// --- Query (query_statement / GQL) ---
 	case kwSELECT:
@@ -392,7 +400,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if isTCLBeginFollower(p.peekNext()) {
 			return p.parseBeginStmt()
 		}
-		return p.unsupported("BEGIN...END block")
+		return p.parseBeginEndBlock()
 	case kwSTART:
 		// START TRANSACTION (begin_statement) | START BATCH (start_batch_statement).
 		return p.parseStartStmt()
@@ -401,9 +409,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwROLLBACK:
 		return p.parseRollbackStmt()
 	case kwSET:
-		// SET TRANSACTION / SET variable / SET system-var (set_statement) — owned by
-		// a separate node (not parser-utility).
-		return p.unsupported("SET")
+		// SET TRANSACTION / SET variable / SET @p / SET @@v / SET (tuple)
+		// (set_statement) — owned by the parser-scripting node. The RHS / tuple
+		// values are full expressions that may embed subqueries, filled by
+		// parseSetStmt itself.
+		return p.parseSetStmt()
 	case kwRUN:
 		return p.parseRunBatchStmt()
 	case kwABORT:
@@ -429,8 +439,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		// they are re-parsed (fillSubqueries) like the query / DML paths.
 		return p.parseStmtWithSubqueries(p.parseCallStmt)
 	case kwEXECUTE:
-		// EXECUTE IMMEDIATE.
-		return p.unsupported("EXECUTE")
+		// EXECUTE IMMEDIATE <sql> [INTO ...] [USING ...] (execute_immediate) — owned
+		// by the parser-scripting node. The SQL / USING expressions may embed
+		// subqueries, filled by parseExecuteImmediateStmt itself.
+		return p.parseExecuteImmediateStmt()
 	case kwIMPORT:
 		return p.unsupported("IMPORT")
 	case kwMODULE:
@@ -451,34 +463,37 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		// wrap for fillSubqueries.
 		return p.parseStmtWithSubqueries(p.parseCloneData)
 
-	// --- Procedural / scripting (legal inside a script body; recognized at
-	// top level so a script fragment is reported as unsupported, not unknown) ---
+	// --- Procedural / scripting (parser-scripting node) ---
+	//
+	// These are legal inside a procedural body (statement_list) and, for the
+	// BEGIN…END block / SET / EXECUTE IMMEDIATE forms, also as the top-level
+	// statement of a script (oracle: the Spanner emulator parses a top-level
+	// BEGIN…END / SET / EXECUTE IMMEDIATE). The control-flow forms are
+	// BigQuery-only at the union level (Spanner syntax-rejects them standalone);
+	// omni accepts them on the authority of the legacy .g4 + the BigQuery truth1
+	// corpus so a script fragment parses rather than drawing a false syntax error.
 	case kwIF:
-		return p.unsupported("IF")
+		return p.parseIfStmt()
 	case kwCASE:
-		return p.unsupported("CASE")
+		return p.parseCaseStmt()
 	case kwWHILE:
-		return p.unsupported("WHILE")
+		return p.parseWhileStmt()
 	case kwLOOP:
-		return p.unsupported("LOOP")
+		return p.parseLoopStmt()
 	case kwREPEAT:
-		return p.unsupported("REPEAT")
+		return p.parseRepeatStmt()
 	case kwFOR:
-		return p.unsupported("FOR")
+		return p.parseForInStmt()
 	case kwDECLARE:
-		return p.unsupported("DECLARE")
-	case kwBREAK:
-		return p.unsupported("BREAK")
-	case kwLEAVE:
-		return p.unsupported("LEAVE")
-	case kwCONTINUE:
-		return p.unsupported("CONTINUE")
-	case kwITERATE:
-		return p.unsupported("ITERATE")
+		return p.parseDeclareStmt()
+	case kwBREAK, kwLEAVE:
+		return p.parseBreakStmt()
+	case kwCONTINUE, kwITERATE:
+		return p.parseContinueStmt()
 	case kwRETURN:
-		return p.unsupported("RETURN")
+		return p.parseReturnStmt()
 	case kwRAISE:
-		return p.unsupported("RAISE")
+		return p.parseRaiseStmt()
 
 	default:
 		return nil, p.unknownStatementError()
