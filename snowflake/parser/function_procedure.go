@@ -382,6 +382,27 @@ func (p *Parser) parseRoutineBody() (body string, dollar bool, end int, err erro
 		return "", false, 0, p.syntaxErrorAtCur()
 	}
 
+	// Bare Snowflake Scripting body: AS DECLARE ... BEGIN ... END (no quotes, no
+	// $$). A SQL stored procedure may give its body directly as a scripting block
+	// instead of a quoted literal. This is NOT raw-scanned: it is parsed through
+	// the scripting parser (which validates the block and leaves cur positioned
+	// just past the terminating END), and the verbatim block text is captured into
+	// Body for parity with the quoted forms. A leading BEGIN here is unambiguously
+	// a block opener (we are in a routine body, not at the statement top where
+	// BEGIN could start a transaction).
+	if p.cur.Type == kwDECLARE || p.cur.Type == kwBEGIN {
+		if _, berr := p.parseScriptBlock(); berr != nil {
+			return "", false, 0, berr
+		}
+		// p.prev is the last token the block consumed (END or its trailing label);
+		// its absolute End bounds the verbatim body.
+		blockEnd := p.prev.Loc.End - p.base
+		if blockEnd < startLocal || blockEnd > len(p.input) {
+			return "", false, 0, p.syntaxErrorAtCur()
+		}
+		return p.input[startLocal:blockEnd], false, p.prev.Loc.End, nil
+	}
+
 	var endLocal int
 	switch p.input[startLocal] {
 	case '$':

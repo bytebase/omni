@@ -19,12 +19,31 @@ type Lexer struct {
 	start      int // start byte of the token currently being scanned
 	errors     []LexError
 	baseOffset int // added to token Loc.Start/End and error Loc.Start/End when returned via public API
+	// multilineString, when set, lets a single-quoted string literal span
+	// newlines (the matching unescaped closing ' may be on a later line). It is
+	// OFF by default — the parser's lexer keeps the conventional one-line string
+	// rule. Split turns it ON: statement-segmentation must treat a multi-line
+	// single-quoted routine body (a Java / JavaScript / SQL handler) as one
+	// opaque string so an embedded ';' on a continuation line does not look like
+	// a statement terminator. See split.go and parseRoutineBody (which itself
+	// raw-scans the body verbatim once Split delivers the whole statement).
+	multilineString bool
 }
 
 // NewLexer constructs a Lexer for the given input. Token positions are
 // zero-based byte offsets into input.
 func NewLexer(input string) *Lexer {
 	return &Lexer{input: input}
+}
+
+// newSplitLexer constructs a Lexer for statement segmentation (Split). It is
+// identical to NewLexer except that single-quoted string literals may span
+// newlines (multilineString), so a multi-line single-quoted routine body is
+// tokenized as ONE string rather than being torn at the first embedded newline.
+// This mode is intentionally NOT exposed on the parser's lexer: only Split needs
+// it, and only for finding statement boundaries.
+func newSplitLexer(input string) *Lexer {
+	return &Lexer{input: input, multilineString: true}
 }
 
 // NewLexerWithOffset constructs a Lexer whose emitted token Loc values
@@ -268,8 +287,10 @@ func (l *Lexer) scanString() Token {
 			l.pos++
 			continue
 		}
-		if ch == '\n' {
+		if ch == '\n' && !l.multilineString {
 			// Unterminated single-quoted string — strings cannot span newlines.
+			// In multilineString mode (Split's segmentation lexer) a newline is an
+			// ordinary body byte; the string runs on to its matching closing quote.
 			l.errors = append(l.errors, LexError{
 				Loc: ast.Loc{Start: start, End: l.pos},
 				Msg: errUnterminatedString,

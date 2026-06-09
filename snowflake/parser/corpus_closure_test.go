@@ -21,15 +21,15 @@ import (
 // file that starts parsing clean fails the test with a "REMOVE me" note, so the
 // list cannot silently rot as the grammar grows.
 //
-// Two files (create-function example_01 / example_03) carry a multi-line
-// single-quoted routine body. F3's Split mis-segments those because the omni
-// lexer's scanString cannot span a newline, so a ';' that follows a newline
-// inside the body looks like a statement terminator. They are NOT a parser gap —
-// the whole file parses clean when handed to parseSingle directly — so they are
-// driven whole-file (corpusWholeFile) instead of being skipped.
+// Multi-line single-quoted routine bodies (e.g. create-function example_01 /
+// example_03, a Java / JavaScript handler) used to defeat F3's Split because the
+// omni lexer's scanString could not span a newline, so a ';' on a continuation
+// line inside the body read as a statement terminator. Split now runs its lexer
+// in multilineString mode (split.go), so those segment correctly and parse via
+// the normal Split path; corpusWholeFile is consequently empty.
 //
-// Coverage snapshot at authoring time: 576/657 files parse clean
-// (574 via Split + 2 via whole-file), 81 files skipped (categorized below).
+// Coverage snapshot at authoring time: 651/657 files parse clean (all via
+// Split), 6 files skipped (categorized below).
 func TestCorpusClosure(t *testing.T) {
 	files := collectCorpusFiles(t)
 	if len(files) != 657 {
@@ -139,14 +139,16 @@ func collectCorpusFiles(t *testing.T) []string {
 	return out
 }
 
-// corpusWholeFile lists files that are a SINGLE valid statement whose multi-line
-// single-quoted body defeats F3's Split (a Split-layer limitation tracked as a
-// flagged divergence, not a parser gap). They are parsed whole-file via
-// parseSingle and must parse clean.
-var corpusWholeFile = map[string]string{
-	"official/create-function/example_01.sql": "single CREATE FUNCTION with a multi-line single-quoted Java body (embedded ';' defeats Split)",
-	"official/create-function/example_03.sql": "single CREATE FUNCTION with a multi-line single-quoted JavaScript body (embedded ';' defeats Split)",
-}
+// corpusWholeFile lists files that are a SINGLE valid statement whose body
+// defeats F3's Split and so must be parsed whole-file via parseSingle.
+//
+// It is now EMPTY: Split runs its lexer in multilineString mode (split.go), so a
+// multi-line single-quoted routine body — the Java / JavaScript handler bodies
+// in create-function example_01 / example_03 that used to live here — segments
+// correctly and parses end-to-end through the normal Split path. The map and its
+// branch are retained as a safety hatch for any future single-statement file
+// whose body genuinely cannot be segmented.
+var corpusWholeFile = map[string]string{}
 
 // corpusSkips is the explicit, categorized skip-list. Each key is a corpus file
 // (relative to testdata/) that contains at least one statement the engine cannot
@@ -172,8 +174,15 @@ var corpusSkips = map[string]string{
 	"official/create-table/example_06.sql":          "DEPENDENCY GAP: CTAS AS SELECT $1:o_custkey::number FROM @my_stage — $N:path semi-structured + stage table ref",
 
 	// --- RESIDUAL GAP: Snowflake Scripting blocks (DECLARE..BEGIN..END, CALL ... INTO) ---
-	"official/execute-immediate/example_01.sql": "RESIDUAL GAP: CREATE PROCEDURE ... AS DECLARE ... BEGIN ... END scripting body (non-$$) not parsed",
-	"official/execute-immediate/example_04.sql": "RESIDUAL GAP: CREATE PROCEDURE ... AS DECLARE ... BEGIN ... END scripting body (non-$$) not parsed",
+	// The PROCEDURE AS DECLARE..BEGIN..END body now routes to the scripting parser
+	// (gap-scripting-split), so the block itself parses; these two remain only for
+	// an EXECUTE IMMEDIATE argument-grammar gap inside the body, NOT a split/body
+	// gap: example_01 uses `EXECUTE IMMEDIATE <var> || '...'` (a string EXPRESSION
+	// argument, not a bare variable) and example_04 uses `rs := (EXECUTE IMMEDIATE
+	// :bind USING (...))` (a parenthesized EXECUTE IMMEDIATE assigned to a RESULTSET
+	// + a `:`-bind argument). Both are owned by the EXECUTE IMMEDIATE node.
+	"official/execute-immediate/example_01.sql": "RESIDUAL GAP: EXECUTE IMMEDIATE <var> || '...' string-expression argument (block body now parses; EXECUTE IMMEDIATE expr-arg not yet supported)",
+	"official/execute-immediate/example_04.sql": "RESIDUAL GAP: rs := (EXECUTE IMMEDIATE :bind USING (...)) parenthesized-statement assignment + :bind arg (block body now parses; this EXECUTE IMMEDIATE form not yet supported)",
 	"official/call/example_07.sql":              "RESIDUAL GAP: DECLARE ... BEGIN CALL p(...) INTO :var ... END scripting block not parsed",
 
 	// --- RESIDUAL GAP / MALFORMED: legacy select.sql expression corpus ---

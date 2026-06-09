@@ -240,6 +240,59 @@ func TestSplit_DollarQuotedBody(t *testing.T) {
 	runSplitCases(t, cases)
 }
 
+func TestSplit_MultiLineSingleQuotedBody(t *testing.T) {
+	// A single-quoted routine body that SPANS NEWLINES and embeds ';', '{', '}'
+	// (a Java / JavaScript / SQL handler) must stay in ONE segment. Split runs its
+	// lexer in multilineString mode so the opening ' only ends at the matching
+	// unescaped ' — the embedded ';' on a continuation line is NOT a terminator.
+	cases := []struct {
+		name  string
+		input string
+		want  []Segment
+	}{
+		{"java body", "CREATE FUNCTION f() RETURNS VARCHAR LANGUAGE JAVA AS\n'class T {\n  String e(String x){ return x; }\n}';", []Segment{
+			{"CREATE FUNCTION f() RETURNS VARCHAR LANGUAGE JAVA AS\n'class T {\n  String e(String x){ return x; }\n}'", 0, 100},
+		}},
+		{"js body with semicolons and braces", "CREATE FUNCTION f(d double) RETURNS double LANGUAGE JAVASCRIPT AS '\n  if (D <= 0) { return 1; }\n  return D;\n';", []Segment{
+			{"CREATE FUNCTION f(d double) RETURNS double LANGUAGE JAVASCRIPT AS '\n  if (D <= 0) { return 1; }\n  return D;\n'", 0, 109},
+		}},
+		{"doubled-quote escape spanning newline", "CREATE FUNCTION f() RETURNS VARCHAR AS 'a;\nit''s b;\nc';", []Segment{
+			{"CREATE FUNCTION f() RETURNS VARCHAR AS 'a;\nit''s b;\nc'", 0, 54},
+		}},
+		{"multi-line body then a following statement", "CREATE FUNCTION f() RETURNS INT AS 'x;\ny';\nSELECT 2;", []Segment{
+			{"CREATE FUNCTION f() RETURNS INT AS 'x;\ny'", 0, 41},
+			{"\nSELECT 2", 42, 51},
+		}},
+	}
+	runSplitCases(t, cases)
+}
+
+func TestSplit_StringStateRegression(t *testing.T) {
+	// The multilineString change must NOT alter segmentation of ordinary inputs:
+	// a single-line string with an embedded ';' is still one segment, a $$ body
+	// with ';' is unchanged, and a ';'-separated pair of plain statements still
+	// splits into two.
+	cases := []struct {
+		name  string
+		input string
+		want  []Segment
+	}{
+		{"single-line string", "SELECT 'a;b';", []Segment{{"SELECT 'a;b'", 0, 12}}},
+		{"single-line string two stmts", "SELECT 'a;b'; SELECT 2;", []Segment{
+			{"SELECT 'a;b'", 0, 12},
+			{" SELECT 2", 13, 22},
+		}},
+		{"dollar body with semicolons", "CREATE PROCEDURE p() AS $$ body; with; semicolons $$;", []Segment{
+			{"CREATE PROCEDURE p() AS $$ body; with; semicolons $$", 0, 52},
+		}},
+		{"plain pair", "SELECT 1; SELECT 2;", []Segment{
+			{"SELECT 1", 0, 8},
+			{" SELECT 2", 9, 18},
+		}},
+	}
+	runSplitCases(t, cases)
+}
+
 func TestSplit_UnclosedBlock(t *testing.T) {
 	// BEGIN without a matching END should produce a best-effort single
 	// segment covering the whole input.
@@ -247,6 +300,17 @@ func TestSplit_UnclosedBlock(t *testing.T) {
 	want := []Segment{{"BEGIN SELECT 1;", 0, 15}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Split(unclosed BEGIN) = %+v, want %+v", got, want)
+	}
+}
+
+func TestSplit_UnterminatedMultiLineString(t *testing.T) {
+	// LOOP-GUARD: an unterminated single-quoted body (no closing ') in
+	// multilineString mode must not loop — Split treats EOF as terminating and
+	// returns one best-effort segment covering the whole input.
+	got := Split("CREATE FUNCTION f() RETURNS INT AS 'x;\ny")
+	want := []Segment{{"CREATE FUNCTION f() RETURNS INT AS 'x;\ny", 0, 40}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Split(unterminated multi-line string) = %+v, want %+v", got, want)
 	}
 }
 
