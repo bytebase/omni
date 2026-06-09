@@ -132,18 +132,20 @@ const syntaxErrMarker = "Getting syntax error"
 
 // accepts reports whether StarRocks accepted sql at the PARSE layer: executed
 // OK, or failed with any non-syntax error (semantic/runtime) — both imply it
-// parsed. Only a "Getting syntax error" message means rejected.
-func (c *srContainer) accepts(sql string) bool {
+// parsed. Only a "Getting syntax error" message means rejected. A non-driver
+// error (connection drop/timeout) is NOT a parse verdict — it's returned so the
+// caller fails the test rather than silently passing an accept it never proved.
+func (c *srContainer) accepts(sql string) (bool, error) {
 	ctx, cancel := context.WithTimeout(c.ctx, 8*time.Second)
 	defer cancel()
 	_, err := c.db.ExecContext(ctx, sql)
 	if err == nil {
-		return true
+		return true, nil
 	}
 	if myErr, ok := err.(*gomysql.MySQLError); ok {
-		return !strings.Contains(myErr.Message, syntaxErrMarker)
+		return !strings.Contains(myErr.Message, syntaxErrMarker), nil
 	}
-	return true // non-driver error (conn/timeout) — treat as accepted
+	return false, fmt.Errorf("non-driver error (cannot determine parse verdict): %w", err)
 }
 
 // assertParity asserts the omni parser and StarRocks agree on sql (both accept
@@ -152,7 +154,10 @@ func (c *srContainer) assertParity(t *testing.T, sql string, wantAccept bool) {
 	t.Helper()
 	_, errs := Parse(sql)
 	omni := len(errs) == 0
-	sr := c.accepts(sql)
+	sr, err := c.accepts(sql)
+	if err != nil {
+		t.Fatalf("StarRocks oracle could not verdict %q: %v", sql, err)
+	}
 	if omni != sr {
 		t.Errorf("MISMATCH %q: omni=%v starrocks=%v (omniErrs=%v)", sql, omni, sr, errs)
 	}
