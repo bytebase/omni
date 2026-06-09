@@ -60,6 +60,15 @@ var bqOracleFixtures = []bqOracleExpectation{
 	{"DROP VECTOR INDEX idx ON ds.t", "reject", true, "DROP VECTOR INDEX … ON not in Spanner"},
 	{"DROP SEARCH INDEX idx ON ds.t", "reject", true, "DROP SEARCH INDEX … ON not in Spanner"},
 	{"ALTER VECTOR INDEX idx ON ds.t REBUILD", "reject", true, "ALTER VECTOR INDEX REBUILD not in Spanner (nor in legacy .g4 — flagged divergence)"},
+	// ALTER SEARCH INDEX … {ADD|DROP} STORED COLUMN is a DOCUMENTED Spanner form
+	// (DDL-049, Spanner DDL reference) the union parser must accept, but the live
+	// emulator (sha256:caf1bd24) REJECTs it at the syntax layer ("Encountered
+	// 'SEARCH' while parsing: alter_statement") — its grammar is a subset that lags
+	// the docs. Non-authoritative reject the union parser correctly overrides
+	// (triangulated against the Spanner DDL reference + legacy .g4, which has
+	// INDEX but not SEARCH INDEX in schema_object_kind). Divergence #203.
+	{"ALTER SEARCH INDEX idx ADD STORED COLUMN c", "reject", true, "ALTER SEARCH INDEX ADD STORED COLUMN: documented Spanner form (DDL-049) the emulator rejects — non-authoritative (#203)"},
+	{"ALTER SEARCH INDEX idx DROP STORED COLUMN c", "reject", true, "ALTER SEARCH INDEX DROP STORED COLUMN: documented Spanner form (DDL-049) the emulator rejects — non-authoritative (#203)"},
 
 	// ---- narrow shared shapes → oracle ACCEPTs (semantic), omni accepts ----
 	{"CREATE FUNCTION ds.f(x INT64) AS (x + 1)", "accept", true, "bare CREATE FUNCTION … AS (expr) is shared with Spanner"},

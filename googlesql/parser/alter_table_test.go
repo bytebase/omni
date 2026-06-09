@@ -284,6 +284,91 @@ func TestAlterIndex_AddDropStoredColumn(t *testing.T) {
 	}
 }
 
+func TestAlterSearchIndex_AddDropStoredColumn(t *testing.T) {
+	// Spanner DDL-049 (ALTER SEARCH INDEX … {ADD|DROP} STORED COLUMN). This is a
+	// documented Spanner GoogleSQL form the union parser must accept; the live
+	// emulator (image sha256:caf1bd24) non-authoritatively REJECTS it at the
+	// syntax layer ("Encountered 'SEARCH' while parsing: alter_statement") — its
+	// grammar is a subset that lags the docs (same situation as ALTER VECTOR
+	// INDEX REBUILD, divergence #113). Triangulated against the Spanner DDL
+	// reference + the legacy GoogleSQLParser.g4 (whose schema_object_kind lists
+	// INDEX but not SEARCH INDEX, and whose generic-entity alt matches only
+	// IDENTIFIER|PROJECT — SEARCH is a keyword token, so legacy rejects it too).
+	// See the bq_ddl_oracle_test.go triangulation fixture for the live verdict.
+	add := alterOf(t, "ALTER SEARCH INDEX SingerNameIndex ADD STORED COLUMN FirstName")
+	if add.Object != ast.AlterSearchIndex {
+		t.Errorf("Object = %v, want SEARCH INDEX", add.Object)
+	}
+	if add.Name.String() != "SingerNameIndex" {
+		t.Errorf("Name = %q, want SingerNameIndex", add.Name.String())
+	}
+	addAct := firstAction(t, add)
+	if addAct.Kind != ast.AlterAddStoredColumn || addAct.StoredColumn != "FirstName" {
+		t.Errorf("action = %+v, want ADD STORED COLUMN FirstName", addAct)
+	}
+
+	drop := alterOf(t, "ALTER SEARCH INDEX SingerNameIndex DROP STORED COLUMN FirstName")
+	if drop.Object != ast.AlterSearchIndex {
+		t.Errorf("Object = %v, want SEARCH INDEX", drop.Object)
+	}
+	dropAct := firstAction(t, drop)
+	if dropAct.Kind != ast.AlterDropStoredColumn || dropAct.StoredColumn != "FirstName" {
+		t.Errorf("action = %+v, want DROP STORED COLUMN FirstName", dropAct)
+	}
+}
+
+func TestAlterSearchIndex_IfExists(t *testing.T) {
+	// DDL-049 allows IF EXISTS before the index name.
+	a := alterOf(t, "ALTER SEARCH INDEX IF EXISTS idx ADD STORED COLUMN c")
+	if a.Object != ast.AlterSearchIndex {
+		t.Errorf("Object = %v, want SEARCH INDEX", a.Object)
+	}
+	if !a.IfExists {
+		t.Error("IfExists = false, want true")
+	}
+	if a.Name.String() != "idx" {
+		t.Errorf("Name = %q, want idx", a.Name.String())
+	}
+}
+
+func TestAlterSearchIndex_QualifiedName(t *testing.T) {
+	// The index name is a path_expression (may be schema-qualified).
+	a := alterOf(t, "ALTER SEARCH INDEX myschema.idx DROP STORED COLUMN c")
+	if a.Name.String() != "myschema.idx" {
+		t.Errorf("Name = %q, want myschema.idx", a.Name.String())
+	}
+}
+
+func TestAlterSearchIndex_String(t *testing.T) {
+	if got := ast.AlterSearchIndex.String(); got != "SEARCH INDEX" {
+		t.Errorf("AlterSearchIndex.String() = %q, want %q", got, "SEARCH INDEX")
+	}
+}
+
+func TestAlterSearchIndex_Rejects(t *testing.T) {
+	cases := []string{
+		"ALTER SEARCH",                                // SEARCH without INDEX
+		"ALTER SEARCH FOO idx ADD STORED COLUMN c",    // SEARCH not followed by INDEX
+		"ALTER SEARCH INDEX",                          // missing name + action
+		"ALTER SEARCH INDEX idx",                      // missing action list
+		"ALTER SEARCH INDEX idx ADD",                  // dangling ADD
+		"ALTER SEARCH INDEX idx ADD STORED",           // STORED without COLUMN
+		"ALTER SEARCH INDEX idx ADD STORED COLUMN",    // STORED COLUMN without name
+		"ALTER SEARCH INDEX idx DROP STORED",          // DROP STORED without COLUMN
+		// DDL-049 restricts the action to a single {ADD|DROP} STORED COLUMN — the
+		// generic table alter actions must NOT be accepted (review finding F1: the
+		// initial impl reused the unrestricted alter_action_list).
+		"ALTER SEARCH INDEX idx RENAME TO idx2",                          // RENAME forbidden
+		"ALTER SEARCH INDEX idx SET OPTIONS (x=1)",                       // SET OPTIONS forbidden
+		"ALTER SEARCH INDEX idx ADD COLUMN c INT64",                      // ADD COLUMN (non-STORED) forbidden
+		"ALTER SEARCH INDEX idx ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES t(b)", // ADD CONSTRAINT forbidden
+		"ALTER SEARCH INDEX idx ADD STORED COLUMN a, DROP STORED COLUMN b", // single action only, not a list
+	}
+	for _, sql := range cases {
+		assertReject(t, sql)
+	}
+}
+
 func TestAlter_Rejects(t *testing.T) {
 	cases := []string{
 		"ALTER TABLE",                      // missing name + actions
