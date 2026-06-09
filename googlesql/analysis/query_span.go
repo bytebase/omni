@@ -61,7 +61,7 @@ type TableAccess struct {
 	Schema   string  // optional schema qualifier (empty when none)
 	Table    string  // table (or view) name
 	Alias    string  // alias at the reference site (empty when none)
-	IsSystem bool     // true when the reference is to a system/information schema
+	IsSystem bool    // true when the reference is to a system/information schema
 	Loc      ast.Loc // source location of the table reference
 }
 
@@ -723,15 +723,15 @@ func (w *spanWalker) recordParts(parts []string, alias string, loc ast.Loc) {
 // Dialect bucketing (contract.md §4, mirroring the legacy accessTableListener):
 //   - 1 part: bare table (no qualifier).
 //   - 2 parts (X.table):
-//     - BigQuery: X is Schema iff X==INFORMATION_SCHEMA, else X is Database
-//       (dataset) — the legacy listener's INFORMATION_SCHEMA-only schema rule.
-//     - Spanner: X is always Schema (named schema under one DB).
+//   - BigQuery: X is Schema iff X==INFORMATION_SCHEMA, else X is Database
+//     (dataset) — the legacy listener's INFORMATION_SCHEMA-only schema rule.
+//   - Spanner: X is always Schema (named schema under one DB).
 //   - 3 parts (X.Y.table):
-//     - BigQuery: Y is Schema iff Y==INFORMATION_SCHEMA (then X is Database),
-//       else Y is Database (dataset) and X is Catalog (project) — the
-//       project.dataset.table shape.
-//     - Spanner: Y is Schema, X is Database (db.schema.table — Spanner has no
-//       catalog/project layer, so X is Database, not Catalog).
+//   - BigQuery: Y is Schema iff Y==INFORMATION_SCHEMA (then X is Database),
+//     else Y is Database (dataset) and X is Catalog (project) — the
+//     project.dataset.table shape.
+//   - Spanner: Y is Schema, X is Database (db.schema.table — Spanner has no
+//     catalog/project layer, so X is Database, not Catalog).
 //   - >3 parts: the rightmost three follow the 3-part rule; the one extra
 //     leading part is captured as Catalog for the BigQuery info-schema shape
 //     (project.dataset.INFORMATION_SCHEMA.VIEW), otherwise dropped (no
@@ -913,6 +913,12 @@ func (ew *exprWalk) walk(node ast.Node) {
 	case *ast.CompareExpr:
 		ew.walk(e.Left)
 		ew.walk(e.Right)
+		// Quantified form (`expr op {ANY|SOME|ALL} <rhs>`) carries the RHS in the
+		// Quant* fields with Right nil — mirror the LikeExpr/InExpr handling so a
+		// subquery (or list/UNNEST) RHS still contributes its tables/columns.
+		ew.walkList(e.QuantValues)
+		ew.walk(e.QuantUnnest)
+		ew.walk(e.QuantSubquery)
 	case *ast.IsExpr:
 		ew.walk(e.Expr)
 		ew.walk(e.DistinctFrom)

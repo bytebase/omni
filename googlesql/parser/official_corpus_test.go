@@ -185,15 +185,19 @@ var officialCorpusSkips = map[string]string{
 	"spanner/expressions.md#38": "DOC-REJECTED: EXPR-… proto construction `NEW \\`pkg.Msg\\`(field: value)` rejected by Spanner oracle (Syntax error: got ':'); omni rejects too (parity).",
 	"spanner/expressions.md#34": "DOC-REJECTED: EXPR block — `SELECT TIMESTAMP '…' AT TIME ZONE '…'` (bare AT TIME ZONE select item) rejected by Spanner oracle (\"Expected end of input but got AT\"); omni rejects too (parity). The EXTRACT(… AT TIME ZONE …) form in the same block parses on both.",
 
-	// =========================== RESIDUAL GAP (4) ==========================
+	// =========================== RESIDUAL GAP (3) ==========================
 	// Genuine union-grammar gaps: the live oracle ACCEPTS the form, omni rejects.
 	// Mirrored as flagged divergences in the v2 migration store; the to-do list
 	// for a future grammar fix (out of corpus-closure's writes scope).
-	// (11 RESIDUAL GAP total = these 4 + 6 pipe/FROM-first/MATCH_RECOGNIZE + 1 scripting Split.)
-	"spanner/expressions.md#33": "RESIDUAL GAP: quantified comparison `expr {>|=|…} {ALL|ANY|SOME} (subquery)` — live Spanner oracle ACCEPTS `x > ALL (SELECT …)` / `x = ANY (SELECT …)` (Table not found, i.e. parsed), omni rejects (\"syntax error at or near ALL\"). Expression-grammar gap.",
-	"spanner/expressions.md#6":  "RESIDUAL GAP: parameterized vector-array constructor `ARRAY<FLOAT32>(vector_length => N)` — live Spanner oracle ACCEPTS `SELECT ARRAY<FLOAT32>(vector_length => 128)`, omni rejects (\"syntax error at or near =>\"). Named args in a typed ARRAY constructor not parsed (plain named args f(a=>1) DO parse). TOKENIZE_NGRAMS(... =>) in the same block parses.",
-	"spanner/ddl.md#51":         "RESIDUAL GAP: parameterized vector-array column type `Embedding ARRAY<FLOAT32>(vector_length=>128)` — live Spanner oracle ACCEPTS the CREATE TABLE, omni rejects (\"expected a type parameter\"). The CREATE VECTOR INDEX in the same block parses on omni.",
-	"spanner/ddl.md#48":         "RESIDUAL GAP: `ALTER SEARCH INDEX … ADD/DROP STORED COLUMN` — live Spanner oracle ACCEPTS (semantic, parsed), omni rejects (\"ALTER statement parsing is not yet supported\" for SEARCH INDEX). ALTER-search-index action not wired.",
+	// (10 RESIDUAL GAP total = these 3 + 6 pipe/FROM-first/MATCH_RECOGNIZE + 1 scripting Split.)
+	// NOTE: spanner/expressions.md#33 (quantified comparison `expr {>|=|…}
+	// {ALL|ANY|SOME} (subquery)`, divergence #201) was CLOSED by the
+	// googlesql/maint-quantified-comparison node — it now parses clean and is
+	// covered by TestExpr_QuantifiedComparison + the live differential, so its
+	// skip entry was removed here.
+	"spanner/expressions.md#6": "RESIDUAL GAP: parameterized vector-array constructor `ARRAY<FLOAT32>(vector_length => N)` — live Spanner oracle ACCEPTS `SELECT ARRAY<FLOAT32>(vector_length => 128)`, omni rejects (\"syntax error at or near =>\"). Named args in a typed ARRAY constructor not parsed (plain named args f(a=>1) DO parse). TOKENIZE_NGRAMS(... =>) in the same block parses.",
+	"spanner/ddl.md#51":        "RESIDUAL GAP: parameterized vector-array column type `Embedding ARRAY<FLOAT32>(vector_length=>128)` — live Spanner oracle ACCEPTS the CREATE TABLE, omni rejects (\"expected a type parameter\"). The CREATE VECTOR INDEX in the same block parses on omni.",
+	"spanner/ddl.md#48":        "RESIDUAL GAP: `ALTER SEARCH INDEX … ADD/DROP STORED COLUMN` — live Spanner oracle ACCEPTS (semantic, parsed), omni rejects (\"ALTER statement parsing is not yet supported\" for SEARCH INDEX). ALTER-search-index action not wired.",
 
 	// ===== RESIDUAL GAP / pipe & FROM-first & MATCH_RECOGNIZE (BigQuery) (6) =====
 	// BigQuery-only query forms; the Spanner oracle is non-authoritative, so

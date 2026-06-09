@@ -125,6 +125,22 @@ var exprFixtures = []exprFixture{
 	{"x NOT LIKE '%a%'", "SELECT x NOT LIKE '%a%' FROM t", true},
 	{"x LIKE ANY ('a', 'b')", "SELECT x LIKE ANY ('a', 'b') FROM t", true},
 
+	// --- quantified comparison: expr {= != <> < <= > >=} {ANY|SOME|ALL} <rhs>
+	// (any_some_all on comparative_operator). SHARED GoogleSQL core; the emulator
+	// accepts every form (semantic Table-not-found ⇒ parsed). See divergence #201
+	// and the unit suite TestExpr_QuantifiedComparison.
+	{"x = ANY (SELECT v FROM s)", "SELECT * FROM t WHERE x = ANY (SELECT v FROM s)", true},
+	{"x > ALL (SELECT v FROM s)", "SELECT * FROM t WHERE x > ALL (SELECT v FROM s)", true},
+	{"x < SOME (SELECT v FROM s)", "SELECT * FROM t WHERE x < SOME (SELECT v FROM s)", true},
+	{"x >= ANY (SELECT v FROM s)", "SELECT * FROM t WHERE x >= ANY (SELECT v FROM s)", true},
+	{"x <= ALL (SELECT v FROM s)", "SELECT * FROM t WHERE x <= ALL (SELECT v FROM s)", true},
+	{"x != ANY (SELECT v FROM s)", "SELECT * FROM t WHERE x != ANY (SELECT v FROM s)", true},
+	{"x <> ALL (SELECT v FROM s)", "SELECT * FROM t WHERE x <> ALL (SELECT v FROM s)", true},
+	{"x = ANY (1, 2, 3)", "SELECT * FROM t WHERE x = ANY (1, 2, 3)", true},
+	{"x > ALL (1, 2)", "SELECT * FROM t WHERE x > ALL (1, 2)", true},
+	{"x = ANY UNNEST([1, 2, 3])", "SELECT * FROM t WHERE x = ANY UNNEST([1, 2, 3])", true},
+	{"x = ANY @{a=1} (SELECT v FROM s)", "SELECT * FROM t WHERE x = ANY @{a=1} (SELECT v FROM s)", true},
+
 	// --- CASE (accept) ---
 	{"CASE WHEN a THEN 1 ELSE 2 END", "SELECT CASE WHEN a THEN 1 ELSE 2 END FROM t", true},
 	{"CASE a WHEN 1 THEN 2 END", "SELECT CASE a WHEN 1 THEN 2 END FROM t", true},
@@ -202,6 +218,12 @@ var exprFixtures = []exprFixture{
 	{"a IN (1) IN (2)", "SELECT a IN (1) IN (2) FROM t", false},
 	{"1 IS NULL IS NULL", "SELECT 1 IS NULL IS NULL", false},
 	{"1 LIKE 'a' LIKE 'b'", "SELECT 1 LIKE 'a' LIKE 'b'", false},
+	// quantified comparison negatives (oracle: syntax reject).
+	{"x = ANY ()", "SELECT * FROM t WHERE x = ANY ()", false},                                       // empty list
+	{"x = ANY ANY (SELECT v FROM s)", "SELECT * FROM t WHERE x = ANY ANY (SELECT v FROM s)", false}, // double quantifier
+	{"x = ANY SELECT v FROM s", "SELECT * FROM t WHERE x = ANY SELECT v FROM s", false},             // subquery not parenthesized
+	{"x IS ANY (SELECT v FROM s)", "SELECT * FROM t WHERE x IS ANY (SELECT v FROM s)", false},       // IS has no quantified form
+	{"x = ANY (SELECT v FROM s) = y", "SELECT * FROM t WHERE x = ANY (SELECT v FROM s) = y", false}, // non-associative chaining
 	{"1 BETWEEN 0 AND 2 BETWEEN 0 AND 1", "SELECT 1 BETWEEN 0 AND 2 BETWEEN 0 AND 1", false},
 	{"CASE END", "SELECT CASE END", false},
 	{"CAST(x INT64)", "SELECT CAST(x INT64) FROM t", false},
