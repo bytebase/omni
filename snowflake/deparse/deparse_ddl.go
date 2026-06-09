@@ -47,7 +47,9 @@ func (w *writer) writeCreateTableStmt(n *ast.CreateTableStmt) error {
 	if n.Clone != nil {
 		w.buf.WriteString(" CLONE ")
 		w.writeObjectNameNoSpace(n.Clone.Source)
-		w.writeCloneTimeTravelSuffix(n.Clone)
+		if err := w.writeCloneTimeTravelSuffix(n.Clone); err != nil {
+			return err
+		}
 		return nil
 	}
 
@@ -354,11 +356,12 @@ func (w *writer) writeTagAssignments(tags []*ast.TagAssignment) {
 	}
 }
 
-// writeCloneTimeTravelSuffix writes the AT/BEFORE time travel qualifier.
-// The value is always a string literal (single-quoted in SQL).
-func (w *writer) writeCloneTimeTravelSuffix(c *ast.CloneSource) {
+// writeCloneTimeTravelSuffix writes the AT/BEFORE time travel qualifier
+// `{ AT | BEFORE } ( <kind> => <value> )`. The value is a general expression
+// (a string literal, a TO_TIMESTAMP_TZ(...) call, an offset arithmetic, …).
+func (w *writer) writeCloneTimeTravelSuffix(c *ast.CloneSource) error {
 	if c.AtBefore == "" {
-		return
+		return nil
 	}
 	if c.AtBefore == "BEFORE" {
 		w.buf.WriteString(" BEFORE (")
@@ -367,8 +370,11 @@ func (w *writer) writeCloneTimeTravelSuffix(c *ast.CloneSource) {
 	}
 	w.buf.WriteString(c.Kind)
 	w.buf.WriteString(" => ")
-	w.buf.WriteString(quoteString(c.Value))
+	if err := w.writeExpr(c.Value); err != nil {
+		return err
+	}
 	w.buf.WriteByte(')')
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -394,7 +400,9 @@ func (w *writer) writeCreateDatabaseStmt(n *ast.CreateDatabaseStmt) error {
 	if n.Clone != nil {
 		w.buf.WriteString(" CLONE ")
 		w.writeObjectNameNoSpace(n.Clone.Source)
-		w.writeCloneTimeTravelSuffix(n.Clone)
+		if err := w.writeCloneTimeTravelSuffix(n.Clone); err != nil {
+			return err
+		}
 	}
 	w.writeDBSchemaProps(&n.Props)
 	if len(n.Tags) > 0 {
@@ -497,7 +505,9 @@ func (w *writer) writeCreateSchemaStmt(n *ast.CreateSchemaStmt) error {
 	if n.Clone != nil {
 		w.buf.WriteString(" CLONE ")
 		w.writeObjectNameNoSpace(n.Clone.Source)
-		w.writeCloneTimeTravelSuffix(n.Clone)
+		if err := w.writeCloneTimeTravelSuffix(n.Clone); err != nil {
+			return err
+		}
 	}
 	if n.ManagedAccess {
 		w.buf.WriteString(" WITH MANAGED ACCESS")

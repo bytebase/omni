@@ -1241,8 +1241,11 @@ func (p *Parser) parseCloneSource() (*ast.CloneSource, error) {
 			return nil, err
 		}
 
-		// Value: string or expression — consume as a string token or expression
-		valueTok, err := p.expect(tokString)
+		// Value: any expression. The docs accept a string literal for STATEMENT,
+		// but TIMESTAMP/OFFSET commonly take a function call (e.g.
+		// TO_TIMESTAMP_TZ('…')) or an arithmetic expression, so we parse the full
+		// expression grammar here rather than only a bare string token.
+		value, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -1253,7 +1256,7 @@ func (p *Parser) parseCloneSource() (*ast.CloneSource, error) {
 
 		clone.AtBefore = atBefore
 		clone.Kind = kind
-		clone.Value = valueTok.Str
+		clone.Value = value
 	}
 
 	return clone, nil

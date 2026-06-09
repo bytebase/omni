@@ -801,14 +801,6 @@ func TestTableVariants_WalkerVisitsChildren(t *testing.T) {
 //     shared expression parser (`SELECT (CURRENT_TIMESTAMP() - INTERVAL '1
 //     day')` fails identically). create-dynamic-table example_07's IMMUTABLE
 //     WHERE predicate uses it.
-//   - A function call with a named argument `f(name => value)` fails in the
-//     shared expression parser (`SELECT f(a=>1)` fails identically). The
-//     create-external-table USING TEMPLATE examples 09/10 use INFER_SCHEMA(
-//     LOCATION=>'@mystage', ...).
-//   - A time-travel clone value that is a function call `CLONE s AT (TIMESTAMP
-//     => f(...))` fails in the shared parseCloneSource (a plain `CREATE TABLE t
-//     CLONE s AT (TIMESTAMP => TO_TIMESTAMP('x'))` fails identically). The
-//     create-dynamic-table example_04 uses it.
 //   - example_12 is malformed in the docs themselves (the AS query
 //     `SELECT COUNT(DISTINCT order_id) DATE_TRUNC(...)` is missing the comma
 //     between two select items); it is skipped as a known-bad doc example.
@@ -890,12 +882,6 @@ func sharedLayerGap(t *testing.T, text, upper string, seg Segment) bool {
 	case intervalInParensLimited(text):
 		expectStillFails(t, text, seg, "INTERVAL-in-parens")
 		return true
-	case namedArgLimited(text):
-		expectStillFails(t, text, seg, "named function argument =>")
-		return true
-	case cloneFuncValueLimited(upper):
-		expectStillFails(t, text, seg, "clone time-travel function value")
-		return true
 	case malformedDocExample(upper):
 		// example_12: missing comma in the AS query is a doc bug, not a parser bug.
 		return true
@@ -917,24 +903,6 @@ func expectStillFails(t *testing.T, text string, seg Segment, gap string) {
 // yet handle. Heuristic: the text contains both '(' and the word INTERVAL.
 func intervalInParensLimited(sql string) bool {
 	return strings.Contains(strings.ToUpper(sql), "INTERVAL") && strings.Contains(sql, "(")
-}
-
-// namedArgLimited reports whether sql contains a `<word> => ` named function
-// argument (e.g. INFER_SCHEMA(LOCATION=>'@s')), unsupported by the shared
-// expression parser. Distinguished from a time-travel `AT (KEY => ...)` clause
-// by not requiring the AT/BEFORE context — any `=>` inside the statement that is
-// not part of a recognized clause is treated as the named-arg gap. The corpus
-// files that hit this are the USING TEMPLATE examples.
-func namedArgLimited(sql string) bool {
-	return strings.Contains(sql, "=>") && strings.Contains(strings.ToUpper(sql), "USING TEMPLATE")
-}
-
-// cloneFuncValueLimited reports whether sql is a CLONE ... AT/BEFORE (KEY =>
-// <function-call>) form, whose function-valued time-travel argument the shared
-// parseCloneSource does not yet parse. Heuristic: a CLONE with a '(' '=>' and a
-// function-call-looking token (an identifier immediately followed by '(').
-func cloneFuncValueLimited(upper string) bool {
-	return strings.Contains(upper, "CLONE") && strings.Contains(upper, "=>")
 }
 
 // malformedDocExample reports whether the statement is a known-malformed docs

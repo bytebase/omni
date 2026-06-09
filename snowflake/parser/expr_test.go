@@ -1790,3 +1790,308 @@ func TestExpr_DollarSpaceNumberIsError(t *testing.T) {
 		t.Fatal("expected an error for '$ 1' (bare $ followed by separate number)")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Named (keyword) function arguments:  f(name => value)
+// ---------------------------------------------------------------------------
+
+// namedArg fetches the i-th argument of a function call, asserting it is a
+// named argument (*ast.CallArg with a non-zero Name) and returning it.
+func namedArg(t *testing.T, fc *ast.FuncCallExpr, i int) *ast.CallArg {
+	t.Helper()
+	if i >= len(fc.Args) {
+		t.Fatalf("arg index %d out of range (len=%d)", i, len(fc.Args))
+	}
+	ca, ok := fc.Args[i].(*ast.CallArg)
+	if !ok {
+		t.Fatalf("arg %d type = %T, want *ast.CallArg", i, fc.Args[i])
+	}
+	if ca.Name.Name == "" {
+		t.Fatalf("arg %d has empty Name, want a named argument", i)
+	}
+	return ca
+}
+
+func mustFuncCall(t *testing.T, input string) *ast.FuncCallExpr {
+	t.Helper()
+	node, err := testParseExpr(input)
+	if err != nil {
+		t.Fatalf("parse %q: unexpected error: %v", input, err)
+	}
+	fc, ok := node.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("parse %q: got %T, want *ast.FuncCallExpr", input, node)
+	}
+	return fc
+}
+
+func TestExpr_NamedArgSingle(t *testing.T) {
+	fc := mustFuncCall(t, "INFER_SCHEMA(LOCATION => '@stage')")
+	if len(fc.Args) != 1 {
+		t.Fatalf("len(Args) = %d, want 1", len(fc.Args))
+	}
+	ca := namedArg(t, fc, 0)
+	if ca.Name.Name != "LOCATION" {
+		t.Errorf("Name = %q, want LOCATION", ca.Name.Name)
+	}
+	lit, ok := ca.Value.(*ast.Literal)
+	if !ok || lit.Kind != ast.LitString || lit.Value != "@stage" {
+		t.Errorf("Value = %#v, want string literal '@stage'", ca.Value)
+	}
+}
+
+func TestExpr_NamedArgNoSpaces(t *testing.T) {
+	// LOCATION=>'@s' with no surrounding whitespace (=> is its own token).
+	fc := mustFuncCall(t, "INFER_SCHEMA(LOCATION=>'@s', FILE_FORMAT=>'fmt')")
+	if len(fc.Args) != 2 {
+		t.Fatalf("len(Args) = %d, want 2", len(fc.Args))
+	}
+	if a := namedArg(t, fc, 0); a.Name.Name != "LOCATION" {
+		t.Errorf("arg0 Name = %q, want LOCATION", a.Name.Name)
+	}
+	if a := namedArg(t, fc, 1); a.Name.Name != "FILE_FORMAT" {
+		t.Errorf("arg1 Name = %q, want FILE_FORMAT", a.Name.Name)
+	}
+}
+
+func TestExpr_NamedArgMultiple(t *testing.T) {
+	fc := mustFuncCall(t, "FLATTEN(INPUT => a.b, PATH => 'contact', OUTER => TRUE)")
+	if len(fc.Args) != 3 {
+		t.Fatalf("len(Args) = %d, want 3", len(fc.Args))
+	}
+	for i, want := range []string{"INPUT", "PATH", "OUTER"} {
+		if a := namedArg(t, fc, i); a.Name.Name != want {
+			t.Errorf("arg%d Name = %q, want %q", i, a.Name.Name, want)
+		}
+	}
+}
+
+func TestExpr_NamedArgMixedPositionalThenNamed(t *testing.T) {
+	// Positional args first, then named — the common Snowflake form.
+	fc := mustFuncCall(t, "f(1, x, TYPE => 'STREAMING')")
+	if len(fc.Args) != 3 {
+		t.Fatalf("len(Args) = %d, want 3", len(fc.Args))
+	}
+	if _, ok := fc.Args[0].(*ast.CallArg); ok {
+		t.Errorf("arg0 should be positional, got *ast.CallArg")
+	}
+	if _, ok := fc.Args[1].(*ast.CallArg); ok {
+		t.Errorf("arg1 should be positional, got *ast.CallArg")
+	}
+	if a := namedArg(t, fc, 2); a.Name.Name != "TYPE" {
+		t.Errorf("arg2 Name = %q, want TYPE", a.Name.Name)
+	}
+}
+
+func TestExpr_NamedArgInterleaved(t *testing.T) {
+	// Lenient: named, then positional, then named (Snowflake itself is stricter,
+	// but the parser accepts interleaving).
+	fc := mustFuncCall(t, "f(A => 1, 2, B => 3)")
+	if len(fc.Args) != 3 {
+		t.Fatalf("len(Args) = %d, want 3", len(fc.Args))
+	}
+	if a := namedArg(t, fc, 0); a.Name.Name != "A" {
+		t.Errorf("arg0 Name = %q, want A", a.Name.Name)
+	}
+	if _, ok := fc.Args[1].(*ast.CallArg); ok {
+		t.Errorf("arg1 should be positional")
+	}
+	if a := namedArg(t, fc, 2); a.Name.Name != "B" {
+		t.Errorf("arg2 Name = %q, want B", a.Name.Name)
+	}
+}
+
+func TestExpr_NamedArgNested(t *testing.T) {
+	// A function call whose single argument is itself a named-arg call:
+	// WRAP(DATA_SOURCE(TYPE => 'STREAMING')). (TABLE is a reserved word and only
+	// legal as a FROM table-function, so the bare-expression nesting uses a
+	// non-reserved outer name; the TABLE(DATA_SOURCE(...)) statement form is
+	// covered by TestStmt_NamedArgInTableFunction.)
+	fc := mustFuncCall(t, "WRAP(DATA_SOURCE(TYPE => 'STREAMING'))")
+	if len(fc.Args) != 1 {
+		t.Fatalf("outer len(Args) = %d, want 1", len(fc.Args))
+	}
+	inner, ok := fc.Args[0].(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("outer arg0 = %T, want *ast.FuncCallExpr (DATA_SOURCE)", fc.Args[0])
+	}
+	if inner.Name.Name.Name != "DATA_SOURCE" {
+		t.Errorf("inner func = %q, want DATA_SOURCE", inner.Name.Name.Name)
+	}
+	ca := namedArg(t, inner, 0)
+	if ca.Name.Name != "TYPE" {
+		t.Errorf("inner arg Name = %q, want TYPE", ca.Name.Name)
+	}
+	if lit, ok := ca.Value.(*ast.Literal); !ok || lit.Value != "STREAMING" {
+		t.Errorf("inner arg value = %#v, want literal 'STREAMING'", ca.Value)
+	}
+}
+
+// TestStmt_NamedArgInTableFunction exercises the literal TABLE(DATA_SOURCE(TYPE
+// => 'STREAMING')) table-function form (pipe / COPY streaming source) at the
+// statement level, where TABLE() is a legal FROM table function.
+func TestStmt_NamedArgInTableFunction(t *testing.T) {
+	sql := "SELECT $1 FROM TABLE(DATA_SOURCE(TYPE => 'STREAMING'))"
+	result, errs := parseSingle(sql, 0)
+	if len(errs) > 0 {
+		t.Fatalf("parse %q: %v", sql, errs)
+	}
+	// Walk the AST and confirm a DATA_SOURCE call with a named TYPE argument
+	// appears.
+	found := false
+	ast.Inspect(result, func(n ast.Node) bool {
+		fc, ok := n.(*ast.FuncCallExpr)
+		if !ok || fc.Name.Name.Name != "DATA_SOURCE" {
+			return true
+		}
+		if len(fc.Args) == 1 {
+			if ca, ok := fc.Args[0].(*ast.CallArg); ok && ca.Name.Name == "TYPE" {
+				found = true
+			}
+		}
+		return true
+	})
+	if !found {
+		t.Errorf("did not find DATA_SOURCE(TYPE => ...) named arg in %q", sql)
+	}
+}
+
+func TestExpr_NamedArgValueIsComplexExpr(t *testing.T) {
+	// The value of a named arg may be any expression: a function call, a cast,
+	// a $N ref, and a colon path all compose through.
+	tests := []struct {
+		name  string
+		input string
+		check func(t *testing.T, v ast.Node)
+	}{
+		{
+			name:  "func-call value",
+			input: "CLONE_AT(TIMESTAMP => TO_TIMESTAMP_TZ('x', 'fmt'))",
+			check: func(t *testing.T, v ast.Node) {
+				if _, ok := v.(*ast.FuncCallExpr); !ok {
+					t.Errorf("value = %T, want *ast.FuncCallExpr", v)
+				}
+			},
+		},
+		{
+			name:  "cast value",
+			input: "f(X => $1::number)",
+			check: func(t *testing.T, v ast.Node) {
+				if _, ok := v.(*ast.CastExpr); !ok {
+					t.Errorf("value = %T, want *ast.CastExpr", v)
+				}
+			},
+		},
+		{
+			name:  "dollar-ref value",
+			input: "f(X => $1)",
+			check: func(t *testing.T, v ast.Node) {
+				if _, ok := v.(*ast.DollarRef); !ok {
+					t.Errorf("value = %T, want *ast.DollarRef", v)
+				}
+			},
+		},
+		{
+			name:  "colon-path value",
+			input: "f(X => col:field)",
+			check: func(t *testing.T, v ast.Node) {
+				if v == nil {
+					t.Errorf("value is nil")
+				}
+			},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fc := mustFuncCall(t, tc.input)
+			ca := namedArg(t, fc, 0)
+			tc.check(t, ca.Value)
+		})
+	}
+}
+
+func TestExpr_NamedArgLoc(t *testing.T) {
+	// Loc must span from the name's start to the value's end.
+	input := "f(NAME => 123)"
+	fc := mustFuncCall(t, input)
+	ca := namedArg(t, fc, 0)
+	// "NAME" starts at offset 2; the value "123" ends at offset 13.
+	if ca.Loc.Start != 2 {
+		t.Errorf("Loc.Start = %d, want 2 (start of NAME)", ca.Loc.Start)
+	}
+	if ca.Loc.End != 13 {
+		t.Errorf("Loc.End = %d, want 13 (end of 123)", ca.Loc.End)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Named-arg negatives + regression
+// ---------------------------------------------------------------------------
+
+func TestExpr_NamedArgBareAssocIsError(t *testing.T) {
+	// `f(=> 1)` — `=>` with no name must error cleanly, not loop.
+	if _, err := testParseExpr("f(=> 1)"); err == nil {
+		t.Fatal("expected an error for f(=> 1)")
+	}
+}
+
+func TestExpr_NamedArgMissingValueIsError(t *testing.T) {
+	// `f(x =>)` — name with no value must error cleanly.
+	if _, err := testParseExpr("f(x =>)"); err == nil {
+		t.Fatal("expected an error for f(x =>)")
+	}
+}
+
+func TestExpr_NamedArgMissingValueBeforeCommaIsError(t *testing.T) {
+	// `f(x =>, y)` — the value is missing before the comma.
+	if _, err := testParseExpr("f(x =>, y)"); err == nil {
+		t.Fatal("expected an error for f(x =>, y)")
+	}
+}
+
+// Regression: an ordinary positional call whose argument is a bare identifier
+// must NOT be mistaken for a named argument (no `=>` follows).
+func TestExpr_PositionalIdentArgsUnchanged(t *testing.T) {
+	fc := mustFuncCall(t, "f(a, b)")
+	if len(fc.Args) != 2 {
+		t.Fatalf("len(Args) = %d, want 2", len(fc.Args))
+	}
+	for i := range fc.Args {
+		if _, ok := fc.Args[i].(*ast.CallArg); ok {
+			t.Errorf("arg %d wrongly parsed as a named *ast.CallArg", i)
+		}
+	}
+}
+
+// Regression: the `->` (tokArrow) lambda/operator is distinct from `=>` and must
+// keep parsing unchanged inside a higher-order function argument.
+func TestExpr_ArrowOperatorUnchanged(t *testing.T) {
+	// TRANSFORM(arr, x -> x + 1): the second argument is a lambda using ->, not
+	// a named argument. It must parse as a LambdaExpr, never a *ast.CallArg.
+	fc := mustFuncCall(t, "TRANSFORM(arr, x -> x + 1)")
+	if len(fc.Args) != 2 {
+		t.Fatalf("len(Args) = %d, want 2", len(fc.Args))
+	}
+	if _, ok := fc.Args[1].(*ast.CallArg); ok {
+		t.Errorf("arg1 (x -> x + 1) wrongly parsed as a named *ast.CallArg")
+	}
+	if _, ok := fc.Args[1].(*ast.LambdaExpr); !ok {
+		t.Errorf("arg1 = %T, want *ast.LambdaExpr", fc.Args[1])
+	}
+}
+
+// Regression: a comparison `a >= b` must not be confused with a named arg — its
+// operator is its own token, distinct from tokAssoc. (Sanity at the arg-list
+// level; a plain function is used because IFF is a dedicated AST node.)
+func TestExpr_GreaterEqualArgUnchanged(t *testing.T) {
+	fc := mustFuncCall(t, "f(a >= b, 1, 0)")
+	if len(fc.Args) != 3 {
+		t.Fatalf("len(Args) = %d, want 3", len(fc.Args))
+	}
+	if _, ok := fc.Args[0].(*ast.CallArg); ok {
+		t.Errorf("arg0 (a >= b) wrongly parsed as a named *ast.CallArg")
+	}
+	if _, ok := fc.Args[0].(*ast.BinaryExpr); !ok {
+		t.Errorf("arg0 = %T, want *ast.BinaryExpr (a >= b)", fc.Args[0])
+	}
+}

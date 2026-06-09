@@ -58,9 +58,23 @@ func (w *writer) writeExpr(node ast.Node) error {
 		return w.writeSubqueryExpr(n)
 	case *ast.ExistsExpr:
 		return w.writeExistsExpr(n)
+	case *ast.CallArg:
+		return w.writeCallArg(n)
 	default:
 		return fmt.Errorf("deparse: unsupported expression node type %T", node)
 	}
+}
+
+// writeCallArg deparses a function-call argument. A named (keyword) argument is
+// written as `name => value`; a bare positional argument (zero Name) writes
+// just the value. Named call args appear inside FuncCallExpr.Args.
+func (w *writer) writeCallArg(n *ast.CallArg) error {
+	if n.Name.Name == "" {
+		return w.writeExpr(n.Value)
+	}
+	w.writeIdent(n.Name)
+	w.buf.WriteString(" => ")
+	return w.writeExpr(n.Value)
 }
 
 func (w *writer) writeLiteral(n *ast.Literal) error {

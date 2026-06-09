@@ -889,3 +889,74 @@ func TestDeparse_DollarFuncArg(t *testing.T) {
 	out := assertRoundTrip(t, `SELECT TO_DATE($1) FROM t`)
 	require.Contains(t, out, "$1")
 }
+
+// ---------------------------------------------------------------------------
+// Named (keyword) function arguments  name => value
+// ---------------------------------------------------------------------------
+
+func TestDeparse_NamedArgSingle(t *testing.T) {
+	out := assertRoundTrip(t, `SELECT f(LOCATION => '@s') FROM t`)
+	require.Contains(t, out, "LOCATION => '@s'")
+}
+
+func TestDeparse_NamedArgMultiple(t *testing.T) {
+	out := assertRoundTrip(t, `SELECT f(A => 1, B => 'x', C => TRUE) FROM t`)
+	require.Contains(t, out, "A => 1")
+	require.Contains(t, out, "B => 'x'")
+	require.Contains(t, out, "C => TRUE")
+}
+
+func TestDeparse_NamedArgMixedPositionalThenNamed(t *testing.T) {
+	out := assertRoundTrip(t, `SELECT f(1, x, TYPE => 'STREAMING') FROM t`)
+	require.Contains(t, out, "f(1, x, TYPE => 'STREAMING')")
+}
+
+func TestDeparse_NamedArgValueIsFuncCall(t *testing.T) {
+	out := assertRoundTrip(t, `SELECT f(TS => TO_TIMESTAMP_TZ('x', 'fmt')) FROM t`)
+	require.Contains(t, out, "TS => TO_TIMESTAMP_TZ('x', 'fmt')")
+}
+
+func TestDeparse_NamedArgValueIsCast(t *testing.T) {
+	out := assertRoundTrip(t, `SELECT f(N => $1::NUMBER) FROM t`)
+	require.Contains(t, out, "N => $1::NUMBER")
+}
+
+// Table-function named args (INFER_SCHEMA / DATA_SOURCE / FLATTEN). The TABLE()
+// wrapper is normalized away by the table-function deparse, so we assert the
+// named `=>` argument survives rather than a full structural round-trip.
+func TestDeparse_NamedArgInferSchema(t *testing.T) {
+	f, err := parser.Parse(`SELECT * FROM TABLE(INFER_SCHEMA(LOCATION => '@s', FILE_FORMAT => 'fmt'))`)
+	require.NoError(t, err)
+	out, err := deparse.DeparseFile(f)
+	require.NoError(t, err)
+	require.Contains(t, out, "LOCATION => '@s'")
+	require.Contains(t, out, "FILE_FORMAT => 'fmt'")
+}
+
+func TestDeparse_NamedArgFlatten(t *testing.T) {
+	f, err := parser.Parse(`SELECT * FROM persons p, LATERAL FLATTEN(INPUT => p.c, PATH => 'contact') f`)
+	require.NoError(t, err)
+	out, err := deparse.DeparseFile(f)
+	require.NoError(t, err)
+	require.Contains(t, out, "INPUT => p.c")
+	require.Contains(t, out, "PATH => 'contact'")
+}
+
+// ---------------------------------------------------------------------------
+// CLONE ... { AT | BEFORE } ( kind => value ) time-travel
+// ---------------------------------------------------------------------------
+
+func TestDeparse_CloneAtStringValue(t *testing.T) {
+	out := assertRoundTrip(t, `CREATE TABLE t2 CLONE t1 AT (TIMESTAMP => '2024-01-01')`)
+	require.Contains(t, out, "AT (TIMESTAMP => '2024-01-01')")
+}
+
+func TestDeparse_CloneAtFuncValue(t *testing.T) {
+	out := assertRoundTrip(t, `CREATE TABLE t2 CLONE t1 AT (TIMESTAMP => TO_TIMESTAMP_TZ('04/05/2013 01:02:03', 'mm/dd/yyyy hh24:mi:ss'))`)
+	require.Contains(t, out, "AT (TIMESTAMP => TO_TIMESTAMP_TZ(")
+}
+
+func TestDeparse_CloneBeforeStatementValue(t *testing.T) {
+	out := assertRoundTrip(t, `CREATE TABLE t2 CLONE t1 BEFORE (STATEMENT => '8e5d0ca1-e866-44fa-843b-5e6ad35e8bb7')`)
+	require.Contains(t, out, "BEFORE (STATEMENT => '8e5d0ca1-e866-44fa-843b-5e6ad35e8bb7')")
+}
