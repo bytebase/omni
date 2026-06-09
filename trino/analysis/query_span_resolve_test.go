@@ -214,6 +214,87 @@ func TestGetQuerySpan_UnnestWithOrdinality(t *testing.T) {
 	}
 }
 
+// TestGetQuerySpan_ScalarSubqueryLineage covers BYT-9676: a scalar subquery used
+// as a SELECT value must resolve to its inner output column's lineage.
+func TestGetQuerySpan_ScalarSubqueryLineage(t *testing.T) {
+	span, err := GetQuerySpan("SELECT (SELECT phone FROM customer LIMIT 1) AS sp FROM customer")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	r, ok := resultByName(span, "sp")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named sp", span.Results)
+	}
+	if !hasSource(r.SourceColumns, ColumnRef{Column: "phone"}) {
+		t.Errorf("sp.SourceColumns = %+v, want to contain {Column:phone} (resolved through scalar subquery)", r.SourceColumns)
+	}
+}
+
+// TestGetQuerySpan_ScalarSubqueryInExprLineage resolves a scalar subquery nested
+// inside a larger select expression.
+func TestGetQuerySpan_ScalarSubqueryInExprLineage(t *testing.T) {
+	span, err := GetQuerySpan("SELECT id, (SELECT max(phone) FROM customer) AS mp FROM orders")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	r, ok := resultByName(span, "mp")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named mp", span.Results)
+	}
+	if !hasSource(r.SourceColumns, ColumnRef{Column: "phone"}) {
+		t.Errorf("mp.SourceColumns = %+v, want to contain {Column:phone}", r.SourceColumns)
+	}
+}
+
+// TestGetQuerySpan_ScalarSubqueryThroughDerived resolves a scalar subquery that
+// is projected by a derived table (composition of both mechanisms).
+func TestGetQuerySpan_ScalarSubqueryThroughDerived(t *testing.T) {
+	span, err := GetQuerySpan("SELECT d.sp FROM (SELECT (SELECT phone FROM customer LIMIT 1) AS sp FROM x) d")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	r, ok := resultByName(span, "sp")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named sp", span.Results)
+	}
+	if !hasSource(r.SourceColumns, ColumnRef{Column: "phone"}) {
+		t.Errorf("sp.SourceColumns = %+v, want to contain {Column:phone} (scalar subquery through derived table)", r.SourceColumns)
+	}
+}
+
+// TestGetQuerySpan_UnnestOfScalarSubqueryLineage covers the intersection of
+// UNNEST and a scalar-subquery argument, flagged during review: UNNEST of a
+// subquery-returned array must resolve to the subquery's sensitive column.
+func TestGetQuerySpan_UnnestOfScalarSubqueryLineage(t *testing.T) {
+	span, err := GetQuerySpan("SELECT p FROM UNNEST((SELECT array_agg(phone) FROM customer)) AS t(p)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	r, ok := resultByName(span, "p")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named p", span.Results)
+	}
+	if !hasSource(r.SourceColumns, ColumnRef{Column: "phone"}) {
+		t.Errorf("p.SourceColumns = %+v, want to contain {Column:phone} (UNNEST of scalar subquery)", r.SourceColumns)
+	}
+}
+
+// TestGetQuerySpan_ExistsSubqueryNotResolved guards that an EXISTS subquery (a
+// boolean, not a value) does not contribute its inner columns as lineage.
+func TestGetQuerySpan_ExistsSubqueryNotResolved(t *testing.T) {
+	span, err := GetQuerySpan("SELECT EXISTS (SELECT 1 FROM customer WHERE phone IS NOT NULL) AS e FROM orders")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	r, ok := resultByName(span, "e")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named e", span.Results)
+	}
+	if hasSource(r.SourceColumns, ColumnRef{Column: "phone"}) {
+		t.Errorf("e.SourceColumns = %+v, must not contain {Column:phone} (EXISTS yields a boolean)", r.SourceColumns)
+	}
+}
+
 // TestGetQuerySpan_DirectColumnLineageUnchanged guards that a direct base-table
 // column (no derived relation in scope) is left exactly as the primary walk
 // produced it — the resolver must only deepen lineage through indirection.

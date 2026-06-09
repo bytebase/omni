@@ -7,30 +7,32 @@ import (
 	"github.com/bytebase/omni/trino/parser"
 )
 
-// resolveDerivedLineage deepens result-column lineage through derived relations.
+// resolveDerivedLineage deepens result-column lineage through relation
+// indirection (derived tables, CTEs, UNNEST) and scalar subqueries.
 //
 // GetQuerySpan's primary walk records each result column's source refs as the
-// refs written in the select item (e.g. `d.x`, or a CTE column `pp`). When the
-// referenced relation is a derived relation — a subquery in FROM or a CTE — that
-// ref names the derived relation's output column, not a base table, so a
-// downstream name-match against the FROM tables finds nothing and the column is
-// left without lineage. Bytebase then has no source column to attach a masker
-// to and returns the (possibly sensitive) value unmasked.
+// refs written in the select item (e.g. `d.x`, a CTE column `pp`, an UNNEST
+// output `t.p`), or records nothing for a scalar subquery used as a value. When
+// the reference names a derived relation's output column rather than a base
+// table, a downstream name-match against the FROM tables finds nothing and the
+// column is left without lineage; Bytebase then has no source column to attach a
+// masker to and returns the (possibly sensitive) value unmasked.
 //
-// This pass resolves those refs: for the outermost query it builds the set of
-// derived relations visible in FROM, computes each derived relation's output
-// columns and their underlying base-column refs (recursively, so a derived
-// relation over another derived relation resolves), and ADDS the recovered base
-// refs to every result ref that points at a derived relation. Resolution is
-// additive — the original ref is always retained — so the resolved source set is
-// a superset of the original and the pass can only ever deepen lineage (mask
-// more), never drop a previously-correct ref (which would under-mask and leak).
-// A ref that names a real base table (or an unrecognised relation) is left as-is.
+// This pass recomputes the outermost select block's lineage with relation-scope
+// resolution: it builds the relations visible in FROM (resolving each derived
+// relation's output columns and their underlying base-column refs recursively,
+// so derived-over-derived and UNNEST-of-a-base-column resolve) and re-resolves
+// each select item — following scalar subqueries to their output sources — then
+// unions the result into the primary walk's Results. The union is additive: the
+// walk's refs are always retained, so the resolved source set is a superset of
+// the original and the pass can only ever deepen lineage (mask more), never drop
+// a previously-correct ref (which would under-mask and leak). A ref naming a real
+// base table (or an unrecognised relation) is left as-is.
 //
-// Scope: derived-relation projection only (subqueries in FROM and CTE
-// references). Scalar subqueries in the select list, set-operation arm merging,
-// and UNNEST are deliberately out of scope here (each tracked separately) and
-// pass through unchanged.
+// Scope: derived-relation projection (subqueries in FROM, CTE references),
+// UNNEST output columns, and scalar subqueries in the select list. Set-operation
+// arm merging is out of scope here (tracked separately); the left arm's lineage
+// is used, consistent with the primary walk.
 func resolveDerivedLineage(stmt ast.Node, span *QuerySpan) {
 	if span == nil {
 		return
@@ -43,14 +45,18 @@ func resolveDerivedLineage(stmt ast.Node, span *QuerySpan) {
 	if spec == nil {
 		return
 	}
-	scope := newRScope(spec.From, cte)
-	if !scope.hasDerived() {
-		// No derived relations in the outermost FROM: there is nothing to
-		// resolve, so leave Results byte-for-byte unchanged.
-		return
-	}
+	// Recompute the outermost select block's column lineage with relation-scope
+	// resolution (derived tables, CTEs, UNNEST, scalar subqueries) and union it
+	// into the primary walk's Results positionally — the walk produces exactly
+	// one Result per select item in order, as does resolveSpecCols. The union is
+	// additive (resolved sources extend the walk's), so even a positional
+	// mismatch could only over-include, never drop a previously-correct ref.
+	cols := resolveSpecCols(spec, cte)
 	for i := range span.Results {
-		span.Results[i].SourceColumns = scope.resolveRefs(span.Results[i].SourceColumns)
+		if i >= len(cols) {
+			break
+		}
+		span.Results[i].SourceColumns = unionRefs(span.Results[i].SourceColumns, cols[i].sources)
 	}
 }
 
@@ -204,17 +210,6 @@ func newRScope(from []parser.Relation, cte *cteDefs) *rscope {
 	return s
 }
 
-// hasDerived reports whether the scope contains any derived relation (so the
-// caller can skip resolution entirely for base-table-only queries).
-func (s *rscope) hasDerived() bool {
-	for _, rb := range s.rels {
-		if rb.derived {
-			return true
-		}
-	}
-	return false
-}
-
 // add binds one FROM relation (recursing through joins/parentheses). alias and
 // colAliases carry an enclosing AliasedRelation's `AS name (c1, …)` down to the
 // primary relation it names.
@@ -357,17 +352,69 @@ func (s *rscope) resolveRef(ref ColumnRef) []ColumnRef {
 	return out
 }
 
-// resolveExprRefs collects the direct column refs of a select-item expression
-// (not crossing subquery boundaries, matching the primary walk's
-// collectDirectColumns) and resolves each through the scope.
+// resolveExprRefs collects a select-item expression's lineage: its direct column
+// refs (resolved through the scope) plus the recovered output sources of any
+// scalar subquery used as a value within it (SELECT (SELECT phone …) AS sp). It
+// does not cross subquery boundaries for direct columns (matching the primary
+// walk's collectDirectColumns); scalar subqueries are handled via onSubquery.
 func (s *rscope) resolveExprRefs(expr parser.Expr) []ColumnRef {
-	var refs []ColumnRef
+	var refs []ColumnRef       // direct column refs, resolved through the scope
+	var subSources []ColumnRef // scalar-subquery output sources, already resolved
 	ew := exprWalk{
 		followSub: false,
 		onColumn:  func(ref ColumnRef) { refs = append(refs, ref) },
+		onSubquery: func(sub *parser.SubqueryExpr) {
+			subSources = append(subSources, scalarSubquerySources(sub, s.cte)...)
+		},
 	}
 	ew.walk(expr)
-	return s.resolveRefs(refs)
+	return unionRefs(s.resolveRefs(refs), subSources)
+}
+
+// scalarSubquerySources recovers the resolved base-column sources of a scalar
+// subquery used as a value (e.g. SELECT (SELECT phone FROM customer) AS sp). The
+// subquery's raw text is re-parsed and its output columns resolved (recursively,
+// in the enclosing CTE scope); the union of those columns' sources is the
+// lineage feeding the enclosing expression. EXISTS subqueries yield a boolean and
+// are skipped. Best-effort: a correlated reference to an outer column is not
+// resolved to the outer relation (it resolves within the subquery's own scope).
+func scalarSubquerySources(sub *parser.SubqueryExpr, cte *cteDefs) []ColumnRef {
+	if sub == nil || sub.Kind != parser.SubqueryScalar {
+		return nil
+	}
+	file, _ := parser.Parse(sub.RawText)
+	if file == nil {
+		return nil
+	}
+	var out []ColumnRef
+	for _, stmt := range file.Stmts {
+		if qs, ok := stmt.(*parser.QueryStmt); ok {
+			for _, c := range resolveQueryCols(qs.Query, cte) {
+				out = append(out, c.sources...)
+			}
+		}
+	}
+	return out
+}
+
+// unionRefs returns the deduplicated concatenation of a and b, preserving a's
+// order first and then b's new entries.
+func unionRefs(a, b []ColumnRef) []ColumnRef {
+	out := make([]ColumnRef, 0, len(a)+len(b))
+	seen := make(map[ColumnRef]bool, len(a)+len(b))
+	for _, r := range a {
+		if !seen[r] {
+			seen[r] = true
+			out = append(out, r)
+		}
+	}
+	for _, r := range b {
+		if !seen[r] {
+			seen[r] = true
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 // ---------------------------------------------------------------------------
