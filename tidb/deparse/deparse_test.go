@@ -1022,6 +1022,27 @@ func TestDeparseSelect_ParenFromDerived(t *testing.T) {
 	}
 }
 
+// TestDeparseSelect_ParenExprSubquery guards the PR3 shape: an IN-subquery whose
+// body is a parenthesized set-op must deparse back to the same structure.
+func TestDeparseSelect_ParenExprSubquery(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"in_setop", "SELECT 1 WHERE 1 IN ((SELECT 1) UNION (SELECT 2))", "select 1 AS `1` where 1 in ((select 1 AS `1`) union (select 2 AS `2`))"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sel := parseSelect(t, tc.input)
+			got := DeparseSelect(sel)
+			if got != tc.expected {
+				t.Errorf("DeparseSelect(%q) =\n  %q\nwant:\n  %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
 func TestDeparseSelect_Section_5_2_FromClause(t *testing.T) {
 	cases := []struct {
 		name     string

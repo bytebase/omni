@@ -3277,3 +3277,15 @@ func TestAnalyze_ParenFromDerivedSetOp(t *testing.T) {
 	_, err := c.AnalyzeSelectStmt(sel)
 	assertNoError(t, err)
 }
+
+// TestAnalyze_ParenInSubquerySetOp guards the PR3 shape: an IN-subquery whose
+// body is a parenthesized set-op must analyze end-to-end. #238 made the analyzer
+// ParenSource-aware, so no analyzer change is expected — if this FAILS, the
+// analyzer is additional PR3 scope (stop and re-plan).
+func TestAnalyze_ParenInSubquerySetOp(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "SELECT 1 WHERE 1 IN ((SELECT 1) UNION (SELECT 2))")
+	if _, err := c.AnalyzeSelectStmt(sel); err != nil {
+		t.Fatalf("analyzer does not handle paren-setop IN subquery (PR3 scope grows): %v", err)
+	}
+}

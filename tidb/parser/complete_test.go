@@ -835,3 +835,20 @@ func TestComplete_ParenFromDerivedBody(t *testing.T) {
 		t.Error("missing DISTINCT candidate inside parenthesized derived-table body")
 	}
 }
+
+// TestComplete_ParenInSubqueryBody locks the no-completion-guard decision for the
+// PR3 expr classifier: completion with the cursor inside a parenthesized
+// IN-subquery body must still yield correct candidates. lookaheadParenContentIsSubquery
+// scans across this paren block before the real parse; because advance() is
+// collection-inert, that scan must not corrupt completion state.
+func TestComplete_ParenInSubqueryBody(t *testing.T) {
+	full := "SELECT 1 WHERE 1 IN ((SELECT 1) UNION (SELECT 2))"
+	cursor := len("SELECT 1 WHERE 1 IN ((SELECT ") // inside the first IN-subquery operand
+	cs := Collect(full, cursor)
+	if cs == nil {
+		t.Fatal("Collect returned nil")
+	}
+	if !cs.HasRule("columnref") {
+		t.Error("missing columnref candidate inside parenthesized IN-subquery body")
+	}
+}
