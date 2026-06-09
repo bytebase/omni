@@ -78,6 +78,8 @@ func (p *Parser) parseExprPrec(minBP int) (ast.Node, error) {
 				left, err = p.parseCollatePostfix(left)
 			case "OVER":
 				left, err = p.parseOverPostfix(left)
+			case "OUTER_JOIN":
+				left, err = p.parseOuterJoinPostfix(left)
 			case "COLON_ACCESS":
 				left, err = p.parseColonAccess(left)
 			case "BRACKET_ACCESS":
@@ -181,6 +183,16 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 		return bpMul, ast.BinDiv, "", true
 	case '%':
 		return bpMul, ast.BinMod, "", true
+
+	// Postfix: (+) legacy Oracle-style outer-join marker. Only treat a '('
+	// as an operator when it forms exactly `(+)`; otherwise a leading '(' is
+	// not an infix operator here (function-call parens are consumed by the
+	// primary parser).
+	case '(':
+		if p.atOuterJoinMarker() {
+			return bpPostfix, 0, "OUTER_JOIN", true
+		}
+		return 0, 0, "", false
 
 	// Postfix: :: cast
 	case tokDoubleColon:
@@ -473,8 +485,10 @@ func (p *Parser) parseIdentExpr() (ast.Node, error) {
 		return nil, err
 	}
 
-	// Check for function call: name(
-	if p.cur.Type == '(' {
+	// Check for function call: name( — but a following `(+)` is the
+	// Oracle-style outer-join marker, not a call, so leave it for the infix
+	// postfix loop to consume.
+	if p.cur.Type == '(' && !p.atOuterJoinMarker() {
 		objName := ast.ObjectName{Name: first, Loc: first.Loc}
 		return p.parseFuncCall(objName, first.Loc)
 	}
@@ -605,8 +619,10 @@ func (p *Parser) parseDottedIdentOrFunc(first ast.Ident) (ast.Node, error) {
 		}
 		parts = append(parts, ident)
 
-		// Check for function call: schema.func(
-		if p.cur.Type == '(' {
+		// Check for function call: schema.func( — but a following `(+)` is the
+		// Oracle-style outer-join marker on a qualified column ref (e.g.
+		// t2.c2(+)), not a call, so leave it for the infix postfix loop.
+		if p.cur.Type == '(' && !p.atOuterJoinMarker() {
 			var objName ast.ObjectName
 			switch len(parts) {
 			case 2:
@@ -716,6 +732,73 @@ func (p *Parser) parseFuncCall(name ast.ObjectName, startLoc ast.Loc) (*ast.Func
 	}
 
 	return fc, nil
+}
+
+// atOuterJoinMarker reports whether the parser is positioned exactly at a
+// legacy Oracle-style outer-join marker `(+)` — i.e. cur is '(', the next
+// token is '+', and the one after that is ')'. It performs a side-effect-free
+// three-token lookahead by snapshotting and restoring the token-stream state
+// (cur/prev/buffered-next plus the lexer byte position and error count), so it
+// can be called speculatively at any '(' to decide whether that paren opens a
+// function-call argument list or is the outer-join marker.
+//
+// Going through the lexer (rather than raw byte scanning) makes the check
+// robust to intervening whitespace and comments, e.g. `t2.c2 (+)` and
+// `t2.c2 /* */ ( + )` both match.
+func (p *Parser) atOuterJoinMarker() bool {
+	if p.cur.Type != '(' {
+		return false
+	}
+	// First lookahead token (immediately after '(') must be '+'.
+	if p.peekNext().Type != '+' {
+		return false
+	}
+
+	// Need one more token of lookahead (past '+'). Snapshot the full
+	// token-stream state, advance twice, inspect, then restore exactly.
+	savedCur := p.cur
+	savedPrev := p.prev
+	savedNextBuf := p.nextBuf
+	savedHasNext := p.hasNext
+	savedLexPos := p.lexer.pos
+	savedErrCount := len(p.lexer.errors)
+
+	p.advance() // consume '('  (cur is now '+')
+	p.advance() // consume '+'  (cur is the token after '+')
+	isMarker := p.cur.Type == ')'
+
+	// Restore.
+	p.cur = savedCur
+	p.prev = savedPrev
+	p.nextBuf = savedNextBuf
+	p.hasNext = savedHasNext
+	p.lexer.pos = savedLexPos
+	if len(p.lexer.errors) > savedErrCount {
+		p.lexer.errors = p.lexer.errors[:savedErrCount]
+	}
+
+	return isMarker
+}
+
+// parseOuterJoinPostfix consumes a `(+)` outer-join marker (cur is '(') and
+// wraps left in an *ast.OuterJoinExpr. The caller (the infix loop) only invokes
+// this when atOuterJoinMarker has already confirmed the `( + )` shape, so each
+// expect here is guaranteed to succeed and the function always makes progress.
+func (p *Parser) parseOuterJoinPostfix(left ast.Node) (ast.Node, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect('+'); err != nil {
+		return nil, err
+	}
+	closeTok, err := p.expect(')')
+	if err != nil {
+		return nil, err
+	}
+	return &ast.OuterJoinExpr{
+		Operand: left,
+		Loc:     ast.Loc{Start: ast.NodeLoc(left).Start, End: closeTok.Loc.End},
+	}, nil
 }
 
 // parseParenExpr parses a parenthesized expression or subquery.

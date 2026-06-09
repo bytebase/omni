@@ -164,6 +164,19 @@ func TestDeparse_Select_Where(t *testing.T) {
 	assertRoundTrip(t, `SELECT a FROM t WHERE a > 1`)
 }
 
+func TestDeparse_Where_OuterJoinMarker(t *testing.T) {
+	out := assertRoundTrip(t, `SELECT t1.c1, t2.c2 FROM t1, t2 WHERE t1.c1 = t2.c2(+)`)
+	require.Contains(t, out, "t2.c2(+)")
+}
+
+func TestDeparse_Where_OuterJoinMarkerMultiple(t *testing.T) {
+	// A space before the marker in the source canonicalizes to no-space on
+	// deparse; the round-trip still re-parses to an equivalent AST.
+	out := assertRoundTrip(t, `SELECT t1.c1, t2.c2 FROM t1, t2 WHERE t1.c1 = t2.c2 (+) AND t1.c3 = t2.c4 (+)`)
+	require.Contains(t, out, "t2.c2(+)")
+	require.Contains(t, out, "t2.c4(+)")
+}
+
 func TestDeparse_Select_GroupBy(t *testing.T) {
 	assertRoundTrip(t, `SELECT a, COUNT(*) FROM t GROUP BY a`)
 }
@@ -482,6 +495,20 @@ func TestDeparse_Merge_InsertWhenNotMatched(t *testing.T) {
 
 func TestDeparse_Merge_Delete(t *testing.T) {
 	assertRoundTrip(t, `MERGE INTO target t USING source s ON t.id = s.id WHEN MATCHED AND s.active = 0 THEN DELETE`)
+}
+
+func TestDeparse_Merge_UpdateAllByName(t *testing.T) {
+	out := assertRoundTrip(t, `MERGE INTO target t USING source s ON t.id = s.id WHEN MATCHED THEN UPDATE ALL BY NAME`)
+	require.Contains(t, out, "UPDATE ALL BY NAME")
+}
+
+func TestDeparse_Merge_InsertAllByName(t *testing.T) {
+	out := assertRoundTrip(t, `MERGE INTO target t USING source s ON t.id = s.id WHEN NOT MATCHED THEN INSERT ALL BY NAME`)
+	require.Contains(t, out, "INSERT ALL BY NAME")
+}
+
+func TestDeparse_Merge_BothAllByName(t *testing.T) {
+	assertRoundTrip(t, `MERGE INTO target t USING source s ON t.id = s.id WHEN MATCHED THEN UPDATE ALL BY NAME WHEN NOT MATCHED THEN INSERT ALL BY NAME`)
 }
 
 // ---------------------------------------------------------------------------

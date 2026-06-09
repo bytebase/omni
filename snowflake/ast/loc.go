@@ -40,6 +40,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *CollateExpr:
 		return v.Loc
+	case *OuterJoinExpr:
+		return v.Loc
 	case *IsExpr:
 		return v.Loc
 	case *BetweenExpr:

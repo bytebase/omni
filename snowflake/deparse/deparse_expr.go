@@ -38,6 +38,8 @@ func (w *writer) writeExpr(node ast.Node) error {
 		return w.writeIffExpr(n)
 	case *ast.CollateExpr:
 		return w.writeCollateExpr(n)
+	case *ast.OuterJoinExpr:
+		return w.writeOuterJoinExpr(n)
 	case *ast.IsExpr:
 		return w.writeIsExpr(n)
 	case *ast.BetweenExpr:
@@ -462,6 +464,16 @@ func (w *writer) writeCollateExpr(n *ast.CollateExpr) error {
 	}
 	w.buf.WriteString(" COLLATE ")
 	w.buf.WriteString(quoteString(n.Collation))
+	return nil
+}
+
+// writeOuterJoinExpr renders the legacy Oracle-style outer-join marker as the
+// canonical `operand(+)` (no space before the marker).
+func (w *writer) writeOuterJoinExpr(n *ast.OuterJoinExpr) error {
+	if err := w.writeExpr(n.Operand); err != nil {
+		return err
+	}
+	w.buf.WriteString("(+)")
 	return nil
 }
 

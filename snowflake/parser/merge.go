@@ -185,6 +185,12 @@ func (p *Parser) parseMergeWhen() (*ast.MergeWhen, error) {
 	switch p.cur.Type {
 	case kwUPDATE:
 		p.advance() // consume UPDATE
+		when.Action = ast.MergeActionUpdate
+		// `UPDATE ALL BY NAME` is an alternative to `UPDATE SET col = val, ...`.
+		if p.matchAllByName() {
+			when.AllByName = true
+			break
+		}
 		if _, err := p.expect(kwSET); err != nil {
 			return nil, err
 		}
@@ -192,7 +198,6 @@ func (p *Parser) parseMergeWhen() (*ast.MergeWhen, error) {
 		if err != nil {
 			return nil, err
 		}
-		when.Action = ast.MergeActionUpdate
 		when.Sets = sets
 
 	case kwDELETE:
@@ -202,6 +207,12 @@ func (p *Parser) parseMergeWhen() (*ast.MergeWhen, error) {
 	case kwINSERT:
 		p.advance() // consume INSERT
 		when.Action = ast.MergeActionInsert
+
+		// `INSERT ALL BY NAME` is an alternative to `INSERT (cols) VALUES (vals)`.
+		if p.matchAllByName() {
+			when.AllByName = true
+			break
+		}
 
 		// Optional column list
 		if p.cur.Type == '(' {
@@ -248,4 +259,42 @@ func (p *Parser) parseMergeWhen() (*ast.MergeWhen, error) {
 
 	when.Loc.End = p.prev.Loc.End
 	return when, nil
+}
+
+// matchAllByName consumes the `ALL BY NAME` token sequence that introduces the
+// MERGE column-list-by-name action forms (`UPDATE ALL BY NAME`,
+// `INSERT ALL BY NAME`) and reports whether it was present. It only advances
+// when the full three-token sequence matches, so a partial run is left intact
+// for the caller's normal SET / VALUES handling. ALL, BY, and NAME are all
+// non-reserved keywords (kwALL/kwBY/kwNAME).
+func (p *Parser) matchAllByName() bool {
+	if p.cur.Type != kwALL {
+		return false
+	}
+	if p.peekNext().Type != kwBY {
+		return false
+	}
+	// Confirm `NAME` follows `BY` before consuming anything. Snapshot the
+	// token-stream state, advance past ALL/BY, peek for NAME, and restore if
+	// the sequence is incomplete (no allocation, bounded by three tokens).
+	savedCur := p.cur
+	savedPrev := p.prev
+	savedNextBuf := p.nextBuf
+	savedHasNext := p.hasNext
+	savedLexPos := p.lexer.pos
+
+	p.advance() // consume ALL (cur is now BY)
+	p.advance() // consume BY  (cur is the token after BY)
+	if p.cur.Type == kwNAME {
+		p.advance() // consume NAME
+		return true
+	}
+
+	// Not `ALL BY NAME` — restore and report no match.
+	p.cur = savedCur
+	p.prev = savedPrev
+	p.nextBuf = savedNextBuf
+	p.hasNext = savedHasNext
+	p.lexer.pos = savedLexPos
+	return false
 }

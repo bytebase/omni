@@ -567,6 +567,18 @@ type CollateExpr struct {
 
 func (n *CollateExpr) Tag() NodeTag { return T_CollateExpr }
 
+// OuterJoinExpr represents the legacy Oracle-style outer-join marker that
+// Snowflake supports in a WHERE join predicate: a postfix `(+)` applied to a
+// column reference, e.g. `t1.c1 = t2.c2(+)`. The `(+)` marks the side opposite
+// the outer table, requesting that unmatched rows be preserved. Operand is the
+// marked operand (typically a *ColumnRef).
+type OuterJoinExpr struct {
+	Operand Node
+	Loc     Loc
+}
+
+func (n *OuterJoinExpr) Tag() NodeTag { return T_OuterJoinExpr }
+
 // IsExpr represents expr IS [NOT] NULL or expr IS [NOT] DISTINCT FROM expr.
 type IsExpr struct {
 	Expr         Node
@@ -1952,7 +1964,12 @@ type MergeWhen struct {
 	InsertCols    []Ident      // for MergeActionInsert: optional column list
 	InsertVals    []Node       // for MergeActionInsert: VALUES expressions
 	InsertDefault bool         // for MergeActionInsert: INSERT VALUES DEFAULT
-	Loc           Loc
+	// AllByName marks the column-list-by-name forms `UPDATE ALL BY NAME` and
+	// `INSERT ALL BY NAME` (Snowflake), which match every source column to a
+	// like-named target column instead of an explicit SET / (cols) VALUES list.
+	// When set, Sets / InsertCols / InsertVals / InsertDefault are unused.
+	AllByName bool
+	Loc       Loc
 }
 
 // MergeStmt represents a MERGE statement:
