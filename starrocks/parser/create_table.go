@@ -209,6 +209,25 @@ func (p *Parser) parseColumnDef() (*ast.ColumnDef, error) {
 			col.Loc.End = closeTok.Loc.End
 			continue
 
+		case kwAS:
+			// StarRocks generated-column shorthand: col TYPE AS (expr)
+			// (doris requires the GENERATED ALWAYS prefix handled above).
+			p.advance() // consume AS
+			if _, err := p.expect(int('(')); err != nil {
+				return nil, err
+			}
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			closeTok, err := p.expect(int(')'))
+			if err != nil {
+				return nil, err
+			}
+			col.Generated = expr
+			col.Loc.End = closeTok.Loc.End
+			continue
+
 		case kwNOT:
 			// NOT NULL
 			p.advance()

@@ -102,6 +102,18 @@ func TestCreateTable_BatchRangePartitionRequiresEvery(t *testing.T) {
 	}
 }
 
+// StarRocks generated column shorthand `c TYPE AS (expr)` (BYT-9140 PR2a #11).
+// doris uses GENERATED ALWAYS AS (expr); StarRocks drops the GENERATED ALWAYS.
+func TestCreateTable_GeneratedColumnAS(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE gc (id BIGINT, price DECIMAL(18,2), qty INT, total DECIMAL(18,2) AS (price*qty)) DUPLICATE KEY(id) DISTRIBUTED BY HASH(id)")
+	if len(stmt.Columns) != 4 {
+		t.Fatalf("expected 4 columns, got %d", len(stmt.Columns))
+	}
+	if stmt.Columns[3].Generated == nil {
+		t.Errorf("expected Columns[3].Generated to be set for AS (expr)")
+	}
+}
+
 func TestCreateTable_WithNotNullDefault(t *testing.T) {
 	stmt := parseCreateTableStmt(t, "CREATE TABLE t (id INT NOT NULL DEFAULT 0, name VARCHAR(50) NULL)")
 	if len(stmt.Columns) != 2 {
