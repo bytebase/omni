@@ -1076,13 +1076,76 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 	return fc, nil
 }
 
+// lookaheadParenContentIsSubquery reports whether the content just inside an
+// already-consumed '(' (p.cur is at the content's leading '(') is a query
+// expression (subquery) rather than an expression / value list. It classifies
+// WITHOUT consuming: snapshot, flat depth-scan, restore. Only invoked when
+// p.cur == '(' — simple (SELECT ...)/(WITH ...) bodies are caught by the cheaper
+// peek before this. Ported from pg/parser/expr.go lookaheadParenContentIsSubquery.
+func (p *Parser) lookaheadParenContentIsSubquery() bool {
+	if p.cur.Type != '(' {
+		return false
+	}
+	snap := p.snapshotTokenStream()
+	defer p.restoreTokenStream(snap)
+
+	// Pass 1: first event at depth 0 (relative to the consumed outer '('). A
+	// top-level ',' commits to a value list; a top-level set-op or ORDER/LIMIT
+	// commits to a subquery; the matching ')' means a single element → pass 2.
+	depth := 0
+	for p.cur.Type != tokEOF {
+		switch p.cur.Type {
+		case '(':
+			depth++
+		case ')':
+			if depth == 0 {
+				goto singleElement
+			}
+			depth--
+		case ',':
+			if depth == 0 {
+				return false // value list, e.g. IN ((SELECT 1), (SELECT 2))
+			}
+		case kwUNION, kwINTERSECT, kwEXCEPT, kwORDER, kwLIMIT:
+			if depth == 0 {
+				return true // query-expression continuation
+			}
+		default:
+			if depth == 0 {
+				return false // ordinary expression, e.g. ((SELECT 1) + 1)
+			}
+		}
+		p.advance()
+	}
+	return false // EOF before matching ')': malformed → value-list branch errors
+
+singleElement:
+	// Walk past leading '(' and probe the element's first non-'(' token.
+	// Subquery iff SELECT-start. FOR is excluded (TiDB rejects
+	// `IN ((SELECT 1) FOR UPDATE)`); VALUES/TABLE excluded (deferred backlog).
+	p.restoreTokenStream(snap)
+	for p.cur.Type == '(' {
+		p.advance()
+	}
+	return isSelectStartToken(p.cur.Type)
+}
+
+// isSelectStartToken reports whether tok begins a parsable query-expression
+// body. {SELECT, WITH} only — (VALUES)/(TABLE) primaries are a deferred
+// follow-up (parseSelectNoParens cannot parse them as a body).
+func isSelectStartToken(tok int) bool {
+	return tok == kwSELECT || tok == kwWITH
+}
+
 // parseParenExpr parses a parenthesized expression or subquery.
 func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume '('
 
-	// Check for subquery
-	if p.cur.Type == kwSELECT {
+	// Check for subquery (incl. a parenthesized query expression like
+	// ((SELECT 1) UNION (SELECT 2)) — classified by a backtracking scan).
+	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH ||
+		(p.cur.Type == '(' && p.lookaheadParenContentIsSubquery()) {
 		sub, err := p.parseSubqueryExpr()
 		if err != nil {
 			return nil, err
@@ -1390,8 +1453,11 @@ func (p *Parser) parseInExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 		Expr: left,
 	}
 
-	// Check for subquery
-	if p.cur.Type == kwSELECT {
+	// Check for subquery (incl. a parenthesized query expression like
+	// ((SELECT 1) UNION (SELECT 2)) — classified by a backtracking scan; a
+	// top-level comma instead routes to the value-list branch below).
+	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH ||
+		(p.cur.Type == '(' && p.lookaheadParenContentIsSubquery()) {
 		sub, err := p.parseSubqueryExpr()
 		if err != nil {
 			return nil, err

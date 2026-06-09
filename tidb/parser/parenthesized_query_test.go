@@ -260,3 +260,96 @@ func TestParenFromRejected(t *testing.T) {
 		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
 	}
 }
+
+// PR3: parenthesized-query expression subqueries (IN + scalar). All container-
+// verified parse on pingcap/tidb:v8.5.0. Before this change the kwSELECT-only
+// peek in parseInExpr/parseParenExpr misrouted a leading nested '('.
+func TestParenExprSubqueryAccept(t *testing.T) {
+	accepted := []string{
+		// IN
+		"SELECT 1 WHERE 1 IN ((SELECT 1) UNION (SELECT 2))",
+		"SELECT 1 WHERE 1 IN ((SELECT 1))",
+		"SELECT 1 WHERE 1 IN ((SELECT 1) ORDER BY 1)",
+		"SELECT 1 WHERE 1 IN ((SELECT 1) LIMIT 1)",
+		"SELECT 1 WHERE 1 IN ((WITH x AS (SELECT 1) SELECT 1 FROM x))",
+		// scalar / comparison
+		"SELECT ((SELECT 1) UNION (SELECT 2))",
+		"SELECT 1 WHERE 1 > ((SELECT 1) UNION (SELECT 2))",
+		"SELECT 1 WHERE 1 > (WITH x AS (SELECT 1) SELECT 1 FROM x)",
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
+// A top-level comma makes the paren content a value list, NOT a single
+// subquery — the classifier must not misclassify it. Container-verified parse.
+func TestParenExprValueListNotSubquery(t *testing.T) {
+	accepted := []string{
+		"SELECT 1 WHERE 1 IN ((SELECT 1), (SELECT 2))", // value list of scalar subqueries
+		"SELECT 1 WHERE 1 IN (1, 2, 3)",                // plain value list
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
+func TestParenExprSubqueryRejected(t *testing.T) {
+	rejected := []string{
+		"SELECT 1 WHERE 1 IN ((SELECT 1) FOR UPDATE)",      // FOR binds to the leaf (TiDB 1064)
+		"SELECT 1 WHERE 1 IN ((SELECT 1) UNION (SELECT 2)", // unbalanced parens
+	}
+	for _, sql := range rejected {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+}
+
+// Deferred boundary: TiDB PARSES (TABLE)/(VALUES) primaries as subquery bodies
+// (semantic 1054/1051), but they need non-SELECT-primary AST — a separate
+// backlog feature. The classifier lead set is {SELECT, WITH}, so omni rejects
+// them today. These document the boundary and trip if the lead set is widened.
+func TestParenExprDeferredPrimaries(t *testing.T) {
+	rejected := []string{
+		"SELECT 1 WHERE 1 IN ((TABLE t))",
+		"SELECT 1 WHERE 1 IN ((VALUES ROW(1)))",
+	}
+	for _, sql := range rejected {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+}
+
+// Regression: EXISTS (unambiguous) and simple single-paren subqueries unaffected.
+func TestParenExprRegression(t *testing.T) {
+	accepted := []string{
+		"SELECT 1 WHERE EXISTS ((SELECT 1) UNION (SELECT 2))", // EXISTS already works
+		"SELECT 1 WHERE 1 IN (SELECT 1)",                      // simple IN subquery
+		"SELECT 1 WHERE 1 > (SELECT 1)",                       // simple scalar subquery
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
+// KNOWN DIVERGENCE vs TiDB v8.5.0 (deliberate, documented over-acceptance):
+// TiDB rejects a redundantly double-parenthesized FIRST set-op operand, but ONLY
+// in expr-subquery position — `IN (((SELECT 1)) UNION (SELECT 2))` and scalar
+// `(((SELECT 1)) UNION (SELECT 2))` are 1064 — while ACCEPTING the identical body
+// in FROM, EXISTS, and statement position (all container-verified). The
+// rejection is also narrow: `IN ((SELECT 1) UNION ((SELECT 2)))` (double SECOND
+// operand) and `IN (((SELECT 1) UNION (SELECT 2)))` (whole double-wrapped) are
+// accepted. omni accepts the IN/scalar form too: the expr-subquery path routes to
+// the shared parseSelectNoParens, which is correctly lax for the other three
+// contexts. Replicating TiDB's context-specific rejection would require a fragile
+// AST post-check (top-level set-op whose leftmost operand is a double-ParenSource,
+// worsening for chained set-ops) for a pathological shape no real query uses — so
+// it is left as a documented divergence. This test pins the current behavior; if
+// it ever flips to reject, revisit whether exact parity is warranted.
+func TestParenExprKnownDivergence_DoubleParenFirstOperand(t *testing.T) {
+	accepted := []string{
+		"SELECT 1 WHERE 1 IN (((SELECT 1)) UNION (SELECT 2))",
+		"SELECT (((SELECT 1)) UNION (SELECT 2))",
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
