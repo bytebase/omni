@@ -67,6 +67,41 @@ func TestCreateTable_PercentileAggType(t *testing.T) {
 	}
 }
 
+// StarRocks batch range partition START..END..EVERY (BYT-9140 PR2a #13).
+// doris uses FROM..TO..INTERVAL; semantically a stepped range (reuses IsStep).
+func TestCreateTable_BatchRangePartition(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE bp (dt DATE, k INT) DUPLICATE KEY(dt) PARTITION BY RANGE(dt) (START ('2024-01-01') END ('2024-04-01') EVERY (INTERVAL 1 MONTH)) DISTRIBUTED BY HASH(k)")
+	if stmt.PartitionBy == nil || len(stmt.PartitionBy.Partitions) != 1 {
+		t.Fatalf("expected 1 partition item, got %+v", stmt.PartitionBy)
+	}
+	item := stmt.PartitionBy.Partitions[0]
+	if !item.IsStep {
+		t.Errorf("expected stepped batch partition (IsStep)")
+	}
+	if item.Interval != "1" || item.IntervalUnit != "MONTH" {
+		t.Errorf("Interval=%q Unit=%q, want 1/MONTH", item.Interval, item.IntervalUnit)
+	}
+}
+
+func TestCreateTable_BatchRangePartitionNumeric(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE bpn (id INT, v BIGINT) DUPLICATE KEY(id) PARTITION BY RANGE(id) (START ('1') END ('100') EVERY (10)) DISTRIBUTED BY HASH(id)")
+	if stmt.PartitionBy == nil || len(stmt.PartitionBy.Partitions) != 1 {
+		t.Fatalf("expected 1 partition item, got %+v", stmt.PartitionBy)
+	}
+	if got := stmt.PartitionBy.Partitions[0].Interval; got != "10" {
+		t.Errorf("Interval=%q, want 10", got)
+	}
+}
+
+// Sibling-arm negative: START..END without EVERY is rejected (container-confirmed
+// StarRocks also rejects it).
+func TestCreateTable_BatchRangePartitionRequiresEvery(t *testing.T) {
+	_, errs := Parse("CREATE TABLE bpno (dt DATE) DUPLICATE KEY(dt) PARTITION BY RANGE(dt) (START ('2024-01-01') END ('2024-04-01')) DISTRIBUTED BY HASH(dt)")
+	if len(errs) == 0 {
+		t.Error("expected START..END without EVERY to be rejected")
+	}
+}
+
 func TestCreateTable_WithNotNullDefault(t *testing.T) {
 	stmt := parseCreateTableStmt(t, "CREATE TABLE t (id INT NOT NULL DEFAULT 0, name VARCHAR(50) NULL)")
 	if len(stmt.Columns) != 2 {

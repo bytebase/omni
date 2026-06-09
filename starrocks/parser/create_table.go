@@ -819,6 +819,11 @@ func (p *Parser) parsePartitionItem() (*ast.PartitionItem, error) {
 		return p.parseStepPartition(startLoc)
 	}
 
+	// StarRocks batch range: START (...) END (...) EVERY (INTERVAL n [unit] | n)
+	if p.cur.Kind == kwSTART {
+		return p.parseBatchRangePartition(startLoc)
+	}
+
 	// Named partition: PARTITION [IF NOT EXISTS] name ...
 	if p.cur.Kind != kwPARTITION {
 		return nil, p.syntaxErrorAtCur()
@@ -960,6 +965,76 @@ func (p *Parser) parseStepPartition(startLoc ast.Loc) (*ast.PartitionItem, error
 		item.Loc.End = p.cur.Loc.End
 		p.advance()
 	}
+
+	return item, nil
+}
+
+// parseBatchRangePartition parses StarRocks batch range partitioning:
+//
+//	START (value) END (value) EVERY (INTERVAL n [unit] | n)
+//
+// This is the StarRocks spelling of doris's FROM..TO..INTERVAL stepped range,
+// so it populates the same IsStep PartitionItem fields. The EVERY amount is
+// parenthesized (unlike doris's bare INTERVAL).
+func (p *Parser) parseBatchRangePartition(startLoc ast.Loc) (*ast.PartitionItem, error) {
+	p.advance() // consume START
+
+	fromVals, _, err := p.parsePartitionValueList()
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := p.expect(kwEND); err != nil {
+		return nil, err
+	}
+
+	toVals, _, err := p.parsePartitionValueList()
+	if err != nil {
+		return nil, err
+	}
+
+	item := &ast.PartitionItem{
+		IsStep:     true,
+		FromValues: fromVals,
+		ToValues:   toVals,
+		Loc:        startLoc,
+	}
+
+	if _, err := p.expect(kwEVERY); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+
+	// EVERY (INTERVAL n [unit]) for date ranges, or EVERY (n) for numeric ranges.
+	if p.cur.Kind == kwINTERVAL {
+		p.advance()
+	}
+	if p.cur.Kind != tokInt {
+		return nil, &ParseError{
+			Loc: p.cur.Loc,
+			Msg: fmt.Sprintf("expected integer interval amount, got %q", p.cur.Str),
+		}
+	}
+	item.Interval = p.cur.Str
+	item.Loc.End = p.cur.Loc.End
+	p.advance()
+
+	// Optional interval unit (date ranges).
+	if p.cur.Kind == kwDAY || p.cur.Kind == kwWEEK || p.cur.Kind == kwMONTH ||
+		p.cur.Kind == kwYEAR || p.cur.Kind == kwHOUR || p.cur.Kind == kwMINUTE ||
+		p.cur.Kind == kwSECOND || p.cur.Kind == tokIdent {
+		item.IntervalUnit = strings.ToUpper(p.cur.Str)
+		item.Loc.End = p.cur.Loc.End
+		p.advance()
+	}
+
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	item.Loc.End = closeTok.Loc.End
 
 	return item, nil
 }
