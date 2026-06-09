@@ -105,6 +105,15 @@ func GetQuerySpan(statement string) (*QuerySpan, error) {
 	for _, stmt := range file.Stmts {
 		w.analyzeStmt(stmt)
 	}
+
+	// Deepen result-column lineage through derived relations (subqueries in
+	// FROM and CTE references): the primary walk records a derived column by the
+	// name written at the reference site, which has no base table to mask
+	// against. This rewrites those refs to the recovered base columns, leaving
+	// direct base-table references untouched.
+	if len(file.Stmts) > 0 {
+		resolveDerivedLineage(file.Stmts[0], span)
+	}
 	return span, nil
 }
 
