@@ -132,16 +132,30 @@ func (k TypeKind) String() string {
 // float) so a faithful round-trip is possible without re-classifying them.
 // IntText preserves an integer's exact source spelling (faithful even on int64
 // overflow, where the lexer leaves IntVal at 0 but keeps the text).
+//
+// Name is the named-argument spelling for the one parameterized form that takes
+// a `name => value` shape: the Spanner ARRAY column vector-length parameter
+// `ARRAY<FLOAT32>(vector_length => N)`. It is "" for an ordinary positional
+// type_parameter. When Name != "" the value is always an integer (IsInt +
+// IntVal/IntText); writeTo renders it as `name => value`. This named form is
+// admitted ONLY on an ARRAY type in column-schema position (parseType's
+// inArrayColumnSchema guard); the general `type` rule (CAST targets, function
+// params) never accepts it (oracle: a CAST<ARRAY<…>(vector_length=>…)> rejects).
 type TypeParam struct {
 	IsInt   bool
 	IsMax   bool
 	IntVal  int64
 	IntText string // exact source spelling of an integer parameter
 	Text    string // source spelling of a non-integer literal parameter
+	Name    string // named-arg spelling (e.g. "vector_length"); "" for positional
 	Loc     ast.Loc
 }
 
 func (p TypeParam) writeTo(b *strings.Builder) {
+	if p.Name != "" {
+		b.WriteString(p.Name)
+		b.WriteString(" => ")
+	}
 	switch {
 	case p.IsMax:
 		b.WriteString("MAX")
@@ -331,14 +345,31 @@ func (p *Parser) parseType() (*DataType, error) {
 		return nil, err
 	}
 
-	// opt_type_parameters — `( type_parameter (, type_parameter)* )`.
+	// opt_type_parameters — `( type_parameter (, type_parameter)* )`, OR the
+	// Spanner ARRAY vector-length parameter `( vector_length => integer )`.
+	//
+	// On an ARRAY in column-schema position the ONLY admissible parameter is the
+	// vector-length form: a positional `ARRAY<FLOAT32>(128)` is a syntax error
+	// there (oracle: rejects "Error parsing Spanner DDL statement"). In a general
+	// `type` position the array carries an ordinary opt_type_parameters list
+	// (oracle: a CAST<ARRAY<…>(128)> PARSES — "Parameterized types are not
+	// supported" is a semantic message), so the strict list path is kept.
 	if p.cur.Type == int('(') {
-		params, endLoc, err := p.parseTypeParameters()
-		if err != nil {
-			return nil, err
+		if dt.Kind == TypeArray && p.inArrayColumnSchema {
+			param, endLoc, err := p.parseVectorLengthParam()
+			if err != nil {
+				return nil, err
+			}
+			dt.Params = []TypeParam{param}
+			dt.Loc.End = endLoc.End
+		} else {
+			params, endLoc, err := p.parseTypeParameters()
+			if err != nil {
+				return nil, err
+			}
+			dt.Params = params
+			dt.Loc.End = endLoc.End
 		}
-		dt.Params = params
-		dt.Loc.End = endLoc.End
 	}
 
 	// collate_clause — `COLLATE string_literal_or_parameter`.
@@ -352,6 +383,33 @@ func (p *Parser) parseType() (*DataType, error) {
 	}
 
 	return dt, nil
+}
+
+// parseColumnSchemaType parses a column's type (a column_schema_inner position)
+// with the ARRAY vector-length parameter enabled. It is parseType wrapped in
+// the inArrayColumnSchema flag: an ARRAY column type (and nested ARRAY elements)
+// may carry `(vector_length => N)`, but the flag is cleared on descent into a
+// STRUCT/RANGE/MAP/FUNCTION template (those inner positions are general types,
+// not column schemas — oracle: STRUCT<v ARRAY<…>(vector_length=>…)> rejects).
+func (p *Parser) parseColumnSchemaType() (*DataType, error) {
+	saved := p.inArrayColumnSchema
+	p.inArrayColumnSchema = true
+	dt, err := p.parseType()
+	p.inArrayColumnSchema = saved
+	return dt, err
+}
+
+// parseInnerType parses a `type` in a position that is NOT an array-column
+// schema (a STRUCT/RANGE/MAP/FUNCTION template element). It clears
+// inArrayColumnSchema for the duration so the vector-length parameter is not
+// admitted there, then restores it. ARRAY elements are the one exception that
+// keeps the flag set, so they call parseType directly rather than this.
+func (p *Parser) parseInnerType() (*DataType, error) {
+	saved := p.inArrayColumnSchema
+	p.inArrayColumnSchema = false
+	dt, err := p.parseType()
+	p.inArrayColumnSchema = saved
+	return dt, err
 }
 
 // parseRawType parses one raw_type alternative (without the trailing
@@ -504,7 +562,7 @@ func (p *Parser) parseRangeType() (*DataType, error) {
 	if err := p.expectTemplateOpen(); err != nil {
 		return nil, err
 	}
-	elem, err := p.parseType()
+	elem, err := p.parseInnerType()
 	if err != nil {
 		return nil, err
 	}
@@ -600,7 +658,7 @@ func (p *Parser) parseStructField() (StructField, error) {
 		if err != nil {
 			return StructField{}, err
 		}
-		fieldType, err := p.parseType()
+		fieldType, err := p.parseInnerType()
 		if err != nil {
 			return StructField{}, err
 		}
@@ -612,7 +670,7 @@ func (p *Parser) parseStructField() (StructField, error) {
 	}
 
 	// Anonymous form: a bare `type`.
-	fieldType, err := p.parseType()
+	fieldType, err := p.parseInnerType()
 	if err != nil {
 		return StructField{}, err
 	}
@@ -643,14 +701,14 @@ func (p *Parser) parseMapType() (*DataType, error) {
 	if err := p.expectTemplateOpen(); err != nil {
 		return nil, err
 	}
-	keyType, err := p.parseType()
+	keyType, err := p.parseInnerType()
 	if err != nil {
 		return nil, err
 	}
 	if _, err := p.expect(int(',')); err != nil {
 		return nil, err
 	}
-	valueType, err := p.parseType()
+	valueType, err := p.parseInnerType()
 	if err != nil {
 		return nil, err
 	}
@@ -683,14 +741,14 @@ func (p *Parser) parseFunctionType() (*DataType, error) {
 		// Parenthesized argument list (possibly empty).
 		p.advance() // consume '('
 		if p.cur.Type != int(')') {
-			arg, err := p.parseType()
+			arg, err := p.parseInnerType()
 			if err != nil {
 				return nil, err
 			}
 			dt.ArgTypes = append(dt.ArgTypes, arg)
 			for p.cur.Type == int(',') {
 				p.advance() // consume ','
-				a, err := p.parseType()
+				a, err := p.parseInnerType()
 				if err != nil {
 					return nil, err
 				}
@@ -702,7 +760,7 @@ func (p *Parser) parseFunctionType() (*DataType, error) {
 		}
 	} else {
 		// Single bare argument type.
-		arg, err := p.parseType()
+		arg, err := p.parseInnerType()
 		if err != nil {
 			return nil, err
 		}
@@ -712,7 +770,7 @@ func (p *Parser) parseFunctionType() (*DataType, error) {
 	if _, err := p.expect(tokArrow); err != nil {
 		return nil, err
 	}
-	ret, err := p.parseType()
+	ret, err := p.parseInnerType()
 	if err != nil {
 		return nil, err
 	}
@@ -872,6 +930,88 @@ func (p *Parser) parseTypeParameter() (TypeParam, error) {
 	default:
 		return TypeParam{}, p.typeErrorAt("expected a type parameter (integer, boolean, string, bytes, float, or MAX)")
 	}
+}
+
+// ---------------------------------------------------------------------------
+// ARRAY vector-length parameter — `( vector_length => integer )`.
+//
+// Spanner allows a vector-length parameter on an ARRAY column type:
+//
+//	column_name ARRAY<FLOAT32>(vector_length => integer_literal)
+//
+// (legacy ZetaSQL array_type: `ARRAY < scalar_type > [ ( vector_length =>
+// integer_literal ) ]`). It is admitted ONLY on an ARRAY type in column-schema
+// position (parseType's inArrayColumnSchema guard) — never in a CAST target or
+// any general `type` position. The empirically-verified grammar (Spanner
+// emulator @ sha256:caf1bd24) is tight:
+//
+//   - the name must be the bare keyword `vector_length`, case-insensitive
+//     (VECTOR_LENGTH accepts); a backtick-quoted `vector_length` rejects, and
+//     any other name (length => …) rejects "Expecting 'VECTOR_LENGTH'";
+//   - the value must be a single integer literal (MAX rejects);
+//   - exactly ONE parameter — a trailing comma or a second parameter rejects
+//     "Expecting ')'".
+//
+// The element-type restriction (FLOAT32/FLOAT64 only) and the
+// not-on-generated-column rule are SEMANTIC (the emulator parses the form, then
+// rejects with a non-syntax message), so they are not enforced here.
+
+// parseVectorLengthParam parses the sole parameter form an ARRAY column type
+// admits: `( vector_length => integer )`. The current token is the opening '('.
+// Any other parenthesized content — a positional type_parameter list
+// (ARRAY<FLOAT32>(128)), a wrong name, a quoted name, a non-integer value, a
+// trailing comma, or a second parameter — is a syntax error here (the oracle
+// rejects each: "Error parsing Spanner DDL statement: … Expecting 'VECTOR_LENGTH'
+// / '<INTEGER_LITERAL>' / ')'"). Returns the named TypeParam and the Loc through
+// the closing ')'.
+func (p *Parser) parseVectorLengthParam() (TypeParam, ast.Loc, error) {
+	if _, err := p.expect(int('(')); err != nil {
+		return TypeParam{}, ast.NoLoc(), err
+	}
+	// Name: the bare keyword `vector_length`, case-insensitive. A backtick-quoted
+	// `vector_length` is rejected (oracle: "Expecting 'VECTOR_LENGTH'"); the lexer
+	// collapses both spellings to tokIdentifier, so the source byte is checked.
+	if p.cur.Type != tokIdentifier ||
+		!strings.EqualFold(p.cur.Str, vectorLengthParamName) ||
+		p.isQuotedIdentifier(p.cur) {
+		return TypeParam{}, ast.NoLoc(), p.typeErrorAt("expected the vector_length parameter on an ARRAY column type")
+	}
+	nameTok := p.advance()
+	if _, err := p.expect(tokFatArrow); err != nil {
+		return TypeParam{}, ast.NoLoc(), err
+	}
+	if p.cur.Type != tokInteger {
+		return TypeParam{}, ast.NoLoc(), p.typeErrorAt("expected an integer literal for the vector_length parameter")
+	}
+	valTok := p.advance()
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return TypeParam{}, ast.NoLoc(), err
+	}
+	param := TypeParam{
+		IsInt:   true,
+		IntVal:  valTok.Ival,
+		IntText: valTok.Str,
+		Name:    nameTok.Str,
+		Loc:     ast.Loc{Start: nameTok.Loc.Start, End: valTok.Loc.End},
+	}
+	return param, closeTok.Loc, nil
+}
+
+// vectorLengthParamName is the (case-insensitive) name of the ARRAY column
+// vector-length parameter.
+const vectorLengthParamName = "vector_length"
+
+// isQuotedIdentifier reports whether an identifier token was written with
+// surrounding backticks in the source (the lexer collapses `x` and x to the
+// same tokIdentifier, so this peeks at the original source byte at the token's
+// start). Used to reject a backtick-quoted vector_length parameter name.
+func (p *Parser) isQuotedIdentifier(tok Token) bool {
+	idx := tok.Loc.Start - p.baseOffset
+	if idx < 0 || idx >= len(p.input) {
+		return false
+	}
+	return p.input[idx] == '`'
 }
 
 // ---------------------------------------------------------------------------

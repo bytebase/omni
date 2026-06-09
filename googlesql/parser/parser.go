@@ -48,6 +48,15 @@ type Parser struct {
 	nextBuf    Token        // buffered lookahead token
 	hasNext    bool         // whether nextBuf is valid
 	errors     []ParseError // collected errors for best-effort mode
+
+	// inArrayColumnSchema is set while parsing a table column's type (a
+	// column_schema_inner position) so parseType admits the Spanner ARRAY
+	// vector-length parameter `ARRAY<FLOAT32>(vector_length => N)`. It propagates
+	// into nested ARRAY elements (ARRAY<ARRAY<…>(vector_length=>…)> parses) but is
+	// cleared when descending into a STRUCT/RANGE/MAP/FUNCTION template, where the
+	// parameter is not a column schema (oracle: STRUCT<v ARRAY<…>(vector_length=>…)>
+	// rejects). It is never set for a CAST target or any general `type` position.
+	inArrayColumnSchema bool
 }
 
 // advance consumes the current token and moves to the next one. Returns the

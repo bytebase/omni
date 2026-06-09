@@ -48,8 +48,11 @@ import (
 //     v2 migration store and are the to-do list for a future grammar fix. Each is
 //     annotated with the oracle verdict that proves it is a real gap.
 //
-// Coverage at authoring time: 307/350 blocks parse clean, 43 skipped (see the
-// counts on each bucket below).
+// Coverage: 310/350 blocks parse clean, 40 skipped (see the counts on each
+// bucket below). (The vector-array column-type block spanner/ddl.md#51 graduated
+// from the skip-list when googlesql/maint-vector-array-type wired the ARRAY
+// vector-length parameter; spanner/expressions.md#6 stays skipped as DOC-REJECTED
+// — its constructor statement is rejected by the oracle itself.)
 func TestOfficialCorpusParses(t *testing.T) {
 	blocks := collectOfficialCorpus(t)
 
@@ -200,8 +203,20 @@ var officialCorpusSkips = map[string]string{
 	// AlterSearchIndex). It is a documented Spanner form the union parser accepts;
 	// the live emulator non-authoritatively rejects it (proven in the
 	// bq_ddl_oracle_test.go triangulation guard). Divergence #203.
-	"spanner/expressions.md#6": "RESIDUAL GAP: parameterized vector-array constructor `ARRAY<FLOAT32>(vector_length => N)` — live Spanner oracle ACCEPTS `SELECT ARRAY<FLOAT32>(vector_length => 128)`, omni rejects (\"syntax error at or near =>\"). Named args in a typed ARRAY constructor not parsed (plain named args f(a=>1) DO parse). TOKENIZE_NGRAMS(... =>) in the same block parses.",
-	"spanner/ddl.md#51":        "RESIDUAL GAP: parameterized vector-array column type `Embedding ARRAY<FLOAT32>(vector_length=>128)` — live Spanner oracle ACCEPTS the CREATE TABLE, omni rejects (\"expected a type parameter\"). The CREATE VECTOR INDEX in the same block parses on omni.",
+	// DOC-REJECTED: the block's `SELECT ARRAY<FLOAT32>(vector_length => 128)`
+	// statement is rejected by the live Spanner oracle itself — a value
+	// constructor `ARRAY<scalar>(...)` is not a query expression form (oracle @
+	// sha256:caf1bd24: "Syntax error: Expected \"[\" but got \"(\"", same reject
+	// for the bare `SELECT ARRAY<FLOAT32>()`). omni's reject ("syntax error at or
+	// near =>") MATCHES the oracle, so parity holds; the block is skipped only
+	// because that one statement is not valid. (The vector_length parameter is a
+	// COLUMN-SCHEMA feature, not an expression — its DDL form parses clean and is
+	// covered by TestParseType_ArrayVectorLength + the live differential. This was
+	// re-classified from a "RESIDUAL GAP" after the maint-vector-array-type node
+	// re-probed the oracle: the prior divergence-#202 evidence claiming the
+	// constructor ACCEPTS was stale.) The TOKENIZE_NGRAMS(... =>) statement in the
+	// same block parses fine.
+	"spanner/expressions.md#6": "DOC-REJECTED: `SELECT ARRAY<FLOAT32>(vector_length => 128)` — the live Spanner oracle REJECTS a typed-ARRAY value constructor (\"Expected '[' but got '('\"); omni's reject (\"syntax error at or near =>\") matches. vector_length is a column-schema parameter, not an expression form. (The first statement, TOKENIZE_NGRAMS named args, parses.)",
 
 	// ===== RESIDUAL GAP / pipe & FROM-first & MATCH_RECOGNIZE (BigQuery) (6) =====
 	// BigQuery-only query forms; the Spanner oracle is non-authoritative, so

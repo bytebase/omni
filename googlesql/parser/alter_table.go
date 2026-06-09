@@ -538,7 +538,9 @@ func (p *Parser) parseAlterColumnSet(start ast.Loc, ifExists bool, name string) 
 		// field_schema: column_schema_inner collate_clause? not_null? OPTIONS? —
 		// the core captures the type (and a trailing NOT NULL/collate are absorbed
 		// by parseType's collate handling + the optional NOT NULL below).
-		dt, err := p.parseType()
+		// parseColumnSchemaType so an ARRAY column type may carry the Spanner
+		// vector-length parameter `ARRAY<FLOAT32>(vector_length => N)`.
+		dt, err := p.parseColumnSchemaType()
 		if err != nil {
 			return nil, err
 		}
@@ -595,7 +597,10 @@ func (p *Parser) parseAlterColumnDrop(start ast.Loc, ifExists bool, name string)
 // not_null_column_attribute? spanner_generated_or_default? opt_options_list?`.
 // cur is at the type token.
 func (p *Parser) parseSpannerAlterColumn(start ast.Loc, ifExists bool, name string) (*ast.AlterAction, error) {
-	dt, err := p.parseType()
+	// column_schema_inner — parseColumnSchemaType so an ARRAY column type may
+	// carry the Spanner vector-length parameter `ARRAY<FLOAT32>(vector_length => N)`
+	// (oracle: ALTER TABLE t ALTER COLUMN e ARRAY<FLOAT32>(vector_length=>128) parses).
+	dt, err := p.parseColumnSchemaType()
 	if err != nil {
 		return nil, err
 	}

@@ -793,6 +793,182 @@ func TestParseType_ArrayTypeParametersRejectNamedArg(t *testing.T) {
 	}
 }
 
+// testParseColumnSchemaType parses input as a column type (a column_schema_inner
+// position, where the ARRAY vector-length parameter is admitted), asserting the
+// whole input is consumed. It is testParseType with the inArrayColumnSchema flag
+// set, mirroring how parseColumnDefinition / parseSpannerAlterColumn call in.
+func testParseColumnSchemaType(input string) (*DataType, error) {
+	p := &Parser{lexer: NewLexer(input), input: input}
+	p.advance()
+	dt, err := p.parseColumnSchemaType()
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type != tokEOF {
+		return dt, &ParseError{Loc: p.cur.Loc, Msg: "trailing tokens after type: " + TokenName(p.cur.Type)}
+	}
+	return dt, nil
+}
+
+// TestParseType_ArrayVectorLength is the focused regression for the Spanner
+// ARRAY vector-length parameter `ARRAY<scalar>(vector_length => N)`
+// (googlesql/maint-vector-array-type; divergence #202). The empirically-verified
+// grammar (Spanner emulator @ sha256:caf1bd24) is admitted ONLY in a
+// column-schema position, on an ARRAY type, with the exact bare name
+// `vector_length` (case-insensitive) and a single integer value.
+func TestParseType_ArrayVectorLength(t *testing.T) {
+	// --- accepts in column-schema position (oracle: CREATE TABLE … accepts) ---
+	accepts := []struct {
+		input    string
+		wantText string // round-trip rendering via DataType.String()
+	}{
+		{"ARRAY<FLOAT32>(vector_length=>128)", "ARRAY<FLOAT32>(vector_length => 128)"},
+		{"ARRAY<FLOAT64>(vector_length => 256)", "ARRAY<FLOAT64>(vector_length => 256)"},
+		// Case-insensitive name (oracle: VECTOR_LENGTH accepts); spelling preserved.
+		{"ARRAY<FLOAT32>(VECTOR_LENGTH=>8)", "ARRAY<FLOAT32>(VECTOR_LENGTH => 8)"},
+		// Grammar admits any element type + nested ARRAY (FLOAT-only / array-of-array
+		// is a SEMANTIC restriction, not syntax — oracle parses then semantic-rejects).
+		{"ARRAY<INT64>(vector_length=>4)", "ARRAY<INT64>(vector_length => 4)"},
+		{"ARRAY<ARRAY<FLOAT32>(vector_length=>8)>", "ARRAY<ARRAY<FLOAT32>(vector_length => 8)>"},
+	}
+	for _, tc := range accepts {
+		dt, err := testParseColumnSchemaType(tc.input)
+		if err != nil {
+			t.Errorf("column-schema parseType(%q): unexpected error: %v", tc.input, err)
+			continue
+		}
+		if got := dt.String(); got != tc.wantText {
+			t.Errorf("column-schema parseType(%q) round-trip = %q, want %q", tc.input, got, tc.wantText)
+		}
+	}
+
+	// --- rejects even in column-schema position (oracle rejects each) ---
+	rejects := []struct {
+		input  string
+		reason string
+	}{
+		// Wrong name (oracle: "Expecting 'VECTOR_LENGTH' but found 'length'").
+		{"ARRAY<FLOAT32>(length=>8)", "non-vector_length name"},
+		// MAX value (oracle: "Expecting '<INTEGER_LITERAL>'").
+		{"ARRAY<FLOAT32>(vector_length=>MAX)", "non-integer value"},
+		// String value — not an integer literal.
+		{"ARRAY<FLOAT32>(vector_length=>'8')", "string value"},
+		// Trailing comma / second param (oracle: "Expecting ')'").
+		{"ARRAY<FLOAT32>(vector_length=>8,)", "trailing comma"},
+		{"ARRAY<FLOAT32>(vector_length=>8, foo=>9)", "second parameter"},
+		// Backtick-quoted name (oracle: "Expecting 'VECTOR_LENGTH'").
+		{"ARRAY<FLOAT32>(`vector_length`=>8)", "quoted name"},
+		// Not an ARRAY type — the parameter only attaches to ARRAY.
+		{"STRING(vector_length=>8)", "non-array type"},
+		// A positional type_parameter on an ARRAY is a syntax error in column
+		// schema (oracle rejects "Error parsing Spanner DDL statement"); only the
+		// vector_length named form is admissible. (In a general `type` position the
+		// same `ARRAY<FLOAT32>(128)` PARSES — see TestParseType below.)
+		{"ARRAY<FLOAT32>(128)", "positional param on array column"},
+		{"ARRAY<FLOAT32>(MAX)", "positional MAX on array column"},
+		// Missing `=>` after the name (oracle rejects).
+		{"ARRAY<FLOAT32>(vector_length)", "missing => and value"},
+		// Negative value — a sign is not part of an integer literal (oracle rejects).
+		{"ARRAY<FLOAT32>(vector_length=>-5)", "negative value"},
+		// Empty parens (oracle rejects).
+		{"ARRAY<FLOAT32>()", "empty parens"},
+	}
+	for _, tc := range rejects {
+		if _, err := testParseColumnSchemaType(tc.input); err == nil {
+			t.Errorf("column-schema parseType(%q): want error (%s), got nil", tc.input, tc.reason)
+		}
+	}
+
+	// --- the vector-length parameter is NOT admitted in a general `type` position
+	// (a CAST target / standalone ParseDataType) even on an ARRAY (oracle: a
+	// CAST<ARRAY<…>(vector_length=>…)> rejects "Unexpected identifier"). ---
+	for _, in := range []string{
+		"ARRAY<FLOAT32>(vector_length=>8)",
+		"ARRAY<INT64>(vector_length=>128)",
+	} {
+		if _, err := testParseType(in); err == nil {
+			t.Errorf("bare parseType(%q): want error (vector_length is column-schema-only), got nil", in)
+		}
+	}
+
+	// --- conversely, a POSITIONAL type_parameter list on an ARRAY is fine in a
+	// general `type` position (oracle: a CAST<ARRAY<FLOAT32>(128)> PARSES,
+	// "Parameterized types are not supported" being a semantic message). Only the
+	// column-schema position restricts an array to the vector_length form. ---
+	for _, in := range []string{
+		"ARRAY<FLOAT32>(128)",
+		"ARRAY<INT64>(10, 2)",
+	} {
+		if _, err := testParseType(in); err != nil {
+			t.Errorf("bare parseType(%q): unexpected error (positional array type-params parse in a general type position): %v", in, err)
+		}
+	}
+
+	// --- value spellings the column-schema vector_length form accepts (oracle:
+	// 0 and hex both accept). ---
+	for _, in := range []string{
+		"ARRAY<FLOAT32>(vector_length=>0)",
+		"ARRAY<FLOAT32>(vector_length=>0x80)",
+	} {
+		if _, err := testParseColumnSchemaType(in); err != nil {
+			t.Errorf("column-schema parseType(%q): unexpected error: %v", in, err)
+		}
+	}
+}
+
+// TestParseType_ArrayVectorLengthStatements exercises the ARRAY vector-length
+// parameter through the real statement entry point Parse — the CREATE
+// TABLE / ALTER TABLE column-schema positions a consumer hits — plus the
+// negatives the live oracle rejects (STRUCT-of-ARRAY, and the SELECT value
+// constructor, which the oracle itself rejects so omni's reject is parity).
+func TestParseType_ArrayVectorLengthStatements(t *testing.T) {
+	accepts := []string{
+		// CREATE TABLE column (oracle: accept).
+		"CREATE TABLE Products (ProductId INT64 NOT NULL, Embedding ARRAY<FLOAT32>(vector_length=>128)) PRIMARY KEY (ProductId)",
+		"CREATE TABLE Products (ProductId INT64 NOT NULL, Embedding ARRAY<FLOAT64>(vector_length => 256)) PRIMARY KEY (ProductId)",
+		// With a trailing NOT NULL on the same column (oracle: accept).
+		"CREATE TABLE Products (ProductId INT64 NOT NULL, Embedding ARRAY<FLOAT32>(vector_length=>128) NOT NULL) PRIMARY KEY (ProductId)",
+		// Spanner ALTER COLUMN <name> <column_schema_inner> (oracle: parses,
+		// semantic-rejects the change).
+		"ALTER TABLE Products ALTER COLUMN Embedding ARRAY<FLOAT32>(vector_length=>128)",
+		// BigQuery ALTER COLUMN … SET DATA TYPE field_schema (column-schema position).
+		"ALTER TABLE Products ALTER COLUMN Embedding SET DATA TYPE ARRAY<FLOAT32>(vector_length=>128)",
+		// ADD COLUMN with the parameter (oracle: accept).
+		"ALTER TABLE Products ADD COLUMN E2 ARRAY<FLOAT32>(vector_length=>64)",
+	}
+	for _, sql := range accepts {
+		if _, errs := Parse(sql); len(errs) > 0 {
+			t.Errorf("Parse(%q): unexpected errors: %v", sql, errs)
+		}
+	}
+
+	rejects := []struct {
+		sql    string
+		reason string
+	}{
+		// STRUCT-of-ARRAY column (oracle: "'vector_length' is not supported in
+		// STRUCT of ARRAY" — a true syntax reject). The flag is cleared inside a
+		// STRUCT template, so omni rejects too.
+		{
+			"CREATE TABLE T (Id INT64 NOT NULL, E STRUCT<v ARRAY<FLOAT32>(vector_length=>8)>) PRIMARY KEY (Id)",
+			"STRUCT-of-ARRAY",
+		},
+		// The SELECT value-constructor form: oracle REJECTS ("Expected '[' but got
+		// '('"); omni rejects too — parity (defended against the stale divergence
+		// #202 claim that it ACCEPTS).
+		{"SELECT ARRAY<FLOAT32>(vector_length => 128)", "value constructor (oracle rejects)"},
+		{"SELECT ARRAY<FLOAT32>()", "empty typed-array constructor (oracle rejects)"},
+		// CAST target: vector_length is not a type_parameter in a general type
+		// position (oracle: "Unexpected identifier vector_length").
+		{"SELECT CAST(NULL AS ARRAY<FLOAT32>(vector_length=>2))", "CAST target"},
+	}
+	for _, tc := range rejects {
+		if _, errs := Parse(tc.sql); len(errs) == 0 {
+			t.Errorf("Parse(%q): want parse error (%s), got none", tc.sql, tc.reason)
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // collate_clause — type COLLATE 'string-or-parameter'
 // ---------------------------------------------------------------------------
