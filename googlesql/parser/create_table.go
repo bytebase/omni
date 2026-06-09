@@ -464,8 +464,11 @@ func (p *Parser) parseColumnDefinition() (*ast.ColumnDef, error) {
 		}
 	} else {
 		// column_schema_inner — the column type (parseType covers
-		// simple/array/struct/range + type parameters).
-		dt, err := p.parseType()
+		// simple/array/struct/range + type parameters). inArrayColumnSchema lets
+		// parseType admit the Spanner ARRAY vector-length parameter
+		// `ARRAY<FLOAT32>(vector_length => N)` here (and in nested ARRAY elements),
+		// which the general `type` rule does not accept.
+		dt, err := p.parseColumnSchemaType()
 		if err != nil {
 			return nil, err
 		}

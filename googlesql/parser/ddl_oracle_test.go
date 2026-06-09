@@ -73,6 +73,13 @@ var ddlFixtures = []ddlFixture{
 	{"CREATE TABLE T (x INT64, a BOOL, b FLOAT64, c NUMERIC, d DATE, e TIMESTAMP, f BYTES(MAX), g JSON) PRIMARY KEY (x)", true},
 	{"CREATE TABLE T (x INT64, tags ARRAY<INT64>) PRIMARY KEY (x)", true}, // ARRAY<STRING> (no length) is BigQuery-only — see unit test
 	{"CREATE TABLE T (x INT64, tags ARRAY<STRING(MAX)>) PRIMARY KEY (x)", true},
+	// ARRAY vector-length parameter (Spanner column-schema; divergence #202).
+	// The element-type FLOAT32/FLOAT64 restriction is semantic — ARRAY<INT64>(...)
+	// PARSES (oracle accepts the grammar, then semantic-rejects), so wantParse=true.
+	{"CREATE TABLE T (x INT64 NOT NULL, e ARRAY<FLOAT32>(vector_length=>128)) PRIMARY KEY (x)", true},
+	{"CREATE TABLE T (x INT64 NOT NULL, e ARRAY<FLOAT64>(vector_length => 256)) PRIMARY KEY (x)", true},
+	{"CREATE TABLE T (x INT64 NOT NULL, e ARRAY<FLOAT32>(vector_length=>128) NOT NULL) PRIMARY KEY (x)", true},
+	{"CREATE TABLE T (x INT64 NOT NULL, e ARRAY<INT64>(vector_length=>4)) PRIMARY KEY (x)", true},
 	// Generated / default / options / constraints (Spanner-authoritative).
 	{"CREATE TABLE T (x INT64, f STRING(10) AS (CONCAT(x)) STORED) PRIMARY KEY (x)", true},
 	{"CREATE TABLE T (x INT64, s STRING(20) DEFAULT ('a')) PRIMARY KEY (x)", true},
@@ -90,6 +97,11 @@ var ddlFixtures = []ddlFixture{
 	{"ALTER TABLE T ADD COLUMN IF NOT EXISTS c STRING(MAX)", true},
 	{"ALTER TABLE T DROP COLUMN c", true},
 	{"ALTER TABLE T ALTER COLUMN c STRING(20)", true},
+	// Spanner ALTER COLUMN <name> <column_schema_inner> with the vector-length
+	// parameter (oracle parses, semantic-rejects the change). SET DATA TYPE is a
+	// BigQuery-only form excluded from this differential (covered by unit tests).
+	{"ALTER TABLE T ALTER COLUMN e ARRAY<FLOAT32>(vector_length=>128)", true},
+	{"ALTER TABLE T ADD COLUMN e ARRAY<FLOAT32>(vector_length=>64)", true},
 	{"ALTER TABLE T ALTER COLUMN c SET OPTIONS (allow_commit_timestamp = true)", true},
 	{"ALTER TABLE T ALTER COLUMN c SET DEFAULT (1)", true},
 	{"ALTER TABLE T ALTER COLUMN c DROP DEFAULT", true},
@@ -160,6 +172,19 @@ var ddlFixtures = []ddlFixture{
 	// Plain DROP INDEX (schema_object_kind) has no on_path_expression — a trailing
 	// `ON <table>` rejects (regression: parser-ddl PR #220 finding 2).
 	{"DROP INDEX idx ON T", false},
+	// ARRAY vector-length parameter — the grammar is tight (divergence #202):
+	// exactly `( vector_length => integer )`. The oracle rejects each of these.
+	{"CREATE TABLE T (x INT64 NOT NULL, e ARRAY<FLOAT32>(vector_length=>8,)) PRIMARY KEY (x)", false},        // trailing comma
+	{"CREATE TABLE T (x INT64 NOT NULL, e ARRAY<FLOAT32>(vector_length=>8, foo=>9)) PRIMARY KEY (x)", false}, // second parameter
+	{"CREATE TABLE T (x INT64 NOT NULL, e ARRAY<FLOAT32>(length=>8)) PRIMARY KEY (x)", false},                // wrong name
+	{"CREATE TABLE T (x INT64 NOT NULL, e ARRAY<FLOAT32>(vector_length=>MAX)) PRIMARY KEY (x)", false},       // non-integer value
+	{"CREATE TABLE T (x INT64 NOT NULL, e ARRAY<FLOAT32>(`vector_length`=>8)) PRIMARY KEY (x)", false},       // backtick-quoted name
+	{"CREATE TABLE T (x INT64 NOT NULL, e ARRAY<FLOAT32>(128)) PRIMARY KEY (x)", false},                      // positional param (only vector_length allowed on an array column)
+	{"CREATE TABLE T (x INT64 NOT NULL, e ARRAY<FLOAT32>(vector_length)) PRIMARY KEY (x)", false},            // missing => value
+	{"CREATE TABLE T (x INT64 NOT NULL, e ARRAY<FLOAT32>(vector_length=>-5)) PRIMARY KEY (x)", false},        // negative value
+	// vector_length is unsupported inside a STRUCT-of-ARRAY (oracle: a true syntax
+	// reject "'vector_length' is not supported in STRUCT of ARRAY").
+	{"CREATE TABLE T (x INT64 NOT NULL, e STRUCT<v ARRAY<FLOAT32>(vector_length=>8)>) PRIMARY KEY (x)", false},
 }
 
 func TestDDLDifferential(t *testing.T) {
