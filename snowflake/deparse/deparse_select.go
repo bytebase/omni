@@ -214,6 +214,19 @@ func (w *writer) writeSelectTarget(t *ast.SelectTarget) error {
 			}
 			w.buf.WriteByte(')')
 		}
+		// RENAME (col AS alias, ...)
+		if len(t.Rename) > 0 {
+			w.buf.WriteString(" RENAME (")
+			for i, r := range t.Rename {
+				if i > 0 {
+					w.buf.WriteString(", ")
+				}
+				w.buf.WriteString(r.Col.String())
+				w.buf.WriteString(" AS ")
+				w.buf.WriteString(r.Alias.String())
+			}
+			w.buf.WriteByte(')')
+		}
 		return nil
 	}
 	if err := writeExprNoLeadSpace(w, t.Expr); err != nil {

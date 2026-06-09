@@ -383,6 +383,11 @@ func (p *Parser) parseCTE(recursive bool) (*ast.CTE, error) {
 // ---------------------------------------------------------------------------
 
 // parseSelectList parses comma-separated SELECT targets.
+//
+// Snowflake permits a trailing comma right before the clause that follows the
+// SELECT list (e.g. `SELECT a, b, FROM t`). After consuming a comma, if the
+// next token terminates the list (FROM or another query clause, a `)`, `;`, or
+// EOF) we stop without parsing — and erroring on — an empty target.
 func (p *Parser) parseSelectList() ([]*ast.SelectTarget, error) {
 	var targets []*ast.SelectTarget
 
@@ -394,6 +399,10 @@ func (p *Parser) parseSelectList() ([]*ast.SelectTarget, error) {
 
 	for p.cur.Type == ',' {
 		p.advance() // consume ','
+		if p.selectListTerminator() {
+			// Trailing comma before a clause terminator — allowed.
+			break
+		}
 		target, err = p.parseSelectTarget()
 		if err != nil {
 			return nil, err
@@ -402,6 +411,23 @@ func (p *Parser) parseSelectList() ([]*ast.SelectTarget, error) {
 	}
 
 	return targets, nil
+}
+
+// selectListTerminator reports whether the current token ends the SELECT list.
+// Used to accept a trailing comma: a comma immediately followed by one of these
+// tokens is a permitted trailing comma rather than an empty list item. It is
+// deliberately narrow — only genuine list-ending tokens — so a stray comma in
+// the middle of the list (e.g. `SELECT a, , b`) still errors.
+func (p *Parser) selectListTerminator() bool {
+	switch p.cur.Type {
+	case tokEOF, ')', ';':
+		return true
+	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwQUALIFY, kwORDER,
+		kwLIMIT, kwOFFSET, kwFETCH, kwUNION, kwEXCEPT, kwMINUS, kwINTERSECT,
+		kwINTO, kwSTART, kwCONNECT:
+		return true
+	}
+	return false
 }
 
 // parseSelectTarget parses one item in the SELECT list:
@@ -428,24 +454,19 @@ func (p *Parser) parseSelectTarget() (*ast.SelectTarget, error) {
 		target.Star = true
 		target.Expr = expr
 
-		// Check for EXCLUDE (col1, col2, ...)
+		// Star column-transforms: EXCLUDE then RENAME (Snowflake documents
+		// EXCLUDE before RENAME; either or both may be present).
+		//   EXCLUDE <col> | EXCLUDE (<col>, ...)
+		//   RENAME <col> AS <alias> | RENAME (<col> AS <alias>, ...)
 		if p.cur.Type == kwEXCLUDE {
 			p.advance() // consume EXCLUDE
-			if _, err := p.expect('('); err != nil {
+			if err := p.parseStarExclude(target); err != nil {
 				return nil, err
 			}
-			for {
-				col, err := p.parseIdent()
-				if err != nil {
-					return nil, err
-				}
-				target.Exclude = append(target.Exclude, col)
-				if p.cur.Type != ',' {
-					break
-				}
-				p.advance() // consume ','
-			}
-			if _, err := p.expect(')'); err != nil {
+		}
+		if p.cur.Type == kwRENAME {
+			p.advance() // consume RENAME
+			if err := p.parseStarRename(target); err != nil {
 				return nil, err
 			}
 		}
@@ -463,6 +484,105 @@ func (p *Parser) parseSelectTarget() (*ast.SelectTarget, error) {
 
 	target.Loc.End = p.prev.Loc.End
 	return target, nil
+}
+
+// parseStarExclude parses the EXCLUDE column-transform that may follow a star
+// in a SELECT list. The EXCLUDE keyword has already been consumed. Accepts
+// either a single bare column or a parenthesized comma-separated list:
+//
+//	EXCLUDE <col>
+//	EXCLUDE (<col>, <col>, ...)
+func (p *Parser) parseStarExclude(target *ast.SelectTarget) error {
+	if p.cur.Type == '(' {
+		p.advance() // consume '('
+		for {
+			// Progress guard: each iteration must consume at least one token
+			// (parseIdent advances or errors; the comma is consumed below), so
+			// a stalled cursor means a malformed list rather than an infinite
+			// loop.
+			before := p.cur.Loc.Start
+			col, err := p.parseIdent()
+			if err != nil {
+				return err
+			}
+			target.Exclude = append(target.Exclude, col)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ','
+			if p.cur.Loc.Start <= before {
+				return &ParseError{Loc: p.cur.Loc, Msg: "malformed EXCLUDE list"}
+			}
+		}
+		if _, err := p.expect(')'); err != nil {
+			return err
+		}
+		return nil
+	}
+	// Single bare column.
+	col, err := p.parseIdent()
+	if err != nil {
+		return err
+	}
+	target.Exclude = append(target.Exclude, col)
+	return nil
+}
+
+// parseStarRename parses the RENAME column-transform that may follow a star in
+// a SELECT list. The RENAME keyword has already been consumed. Accepts either a
+// single bare `col AS alias` or a parenthesized comma-separated list of them:
+//
+//	RENAME <col> AS <alias>
+//	RENAME (<col> AS <alias>, <col> AS <alias>, ...)
+func (p *Parser) parseStarRename(target *ast.SelectTarget) error {
+	if p.cur.Type == '(' {
+		p.advance() // consume '('
+		for {
+			// Progress guard: see parseStarExclude — the cursor must strictly
+			// advance each iteration.
+			before := p.cur.Loc.Start
+			pair, err := p.parseStarRenamePair()
+			if err != nil {
+				return err
+			}
+			target.Rename = append(target.Rename, pair)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ','
+			if p.cur.Loc.Start <= before {
+				return &ParseError{Loc: p.cur.Loc, Msg: "malformed RENAME list"}
+			}
+		}
+		if _, err := p.expect(')'); err != nil {
+			return err
+		}
+		return nil
+	}
+	// Single bare `col AS alias`.
+	pair, err := p.parseStarRenamePair()
+	if err != nil {
+		return err
+	}
+	target.Rename = append(target.Rename, pair)
+	return nil
+}
+
+// parseStarRenamePair parses one `<col> AS <alias>` pair of a RENAME transform.
+// The AS keyword is required (Snowflake's documented syntax).
+func (p *Parser) parseStarRenamePair() (ast.StarRename, error) {
+	col, err := p.parseIdent()
+	if err != nil {
+		return ast.StarRename{}, err
+	}
+	if _, err := p.expect(kwAS); err != nil {
+		return ast.StarRename{}, err
+	}
+	alias, err := p.parseIdent()
+	if err != nil {
+		return ast.StarRename{}, err
+	}
+	return ast.StarRename{Col: col, Alias: alias}, nil
 }
 
 // ---------------------------------------------------------------------------

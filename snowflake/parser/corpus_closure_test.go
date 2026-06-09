@@ -192,22 +192,11 @@ var corpusSkips = map[string]string{
 	"official/values/example_03.sql": "RESIDUAL GAP: FROM (VALUES ...) AS v(...) join — VALUES table source not parsed",
 	"official/values/example_04.sql": "RESIDUAL GAP: FROM (VALUES ...) AS v(c1, c2) — VALUES table source + derived column list not parsed",
 
-	// --- RESIDUAL GAP: ORDER BY ALL ---
-	"official/order-by/example_01.sql": "RESIDUAL GAP: ORDER BY ALL not parsed",
-	"official/order-by/example_11.sql": "RESIDUAL GAP: ORDER BY ALL not parsed",
-	"official/order-by/example_12.sql": "RESIDUAL GAP: ORDER BY ALL ASC not parsed",
-	"official/order-by/example_13.sql": "RESIDUAL GAP: ORDER BY ALL not parsed (ALTER SESSION setup now parses)",
-	"official/order-by/example_14.sql": "RESIDUAL GAP: ORDER BY ALL NULLS FIRST not parsed",
-	"official/order-by/example_15.sql": "RESIDUAL GAP: ORDER BY ALL NULLS LAST not parsed",
-	"official/merge/example_09.sql":    "RESIDUAL GAP: WHEN MATCHED ... DELETE / ORDER BY ALL form not parsed",
-
-	// --- RESIDUAL GAP: SELECT * EXCLUDE / RENAME column transforms ---
-	"official/select/example_07.sql": "RESIDUAL GAP: SELECT * EXCLUDE col not parsed",
-	"official/select/example_11.sql": "RESIDUAL GAP: SELECT * EXCLUDE col RENAME (...) not parsed",
-	"official/select/example_16.sql": "RESIDUAL GAP: SELECT tbl.* EXCLUDE / RENAME column transforms not parsed",
-
-	// --- RESIDUAL GAP: trailing comma in SELECT list ---
-	"official/select/example_24.sql": "RESIDUAL GAP: trailing comma before FROM in SELECT list (Snowflake permits it) not parsed",
+	// --- RESIDUAL GAP: MERGE ... INSERT/UPDATE ALL BY NAME ---
+	// (ORDER BY ALL itself now parses via gap-select-ext; this file's residual
+	// is the MERGE `UPDATE ALL BY NAME` / `INSERT ALL BY NAME` form, owned by
+	// the merge node.)
+	"official/merge/example_09.sql": "RESIDUAL GAP: WHEN MATCHED THEN UPDATE ALL BY NAME / INSERT ALL BY NAME — MERGE column-list-by-name form not parsed",
 
 	// --- RESIDUAL GAP: (+) Oracle-style outer-join operator ---
 	"official/where/example_09.sql": "RESIDUAL GAP: WHERE t1.c1 = t2.c2(+) Oracle-style outer join operator not parsed",
