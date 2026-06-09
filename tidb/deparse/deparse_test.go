@@ -999,6 +999,29 @@ func TestDeparseSelect_ParenthesizedQuery(t *testing.T) {
 	}
 }
 
+// TestDeparseSelect_ParenFromDerived guards the PR2 shape: a derived table whose
+// body is a parenthesized set-op query expression must deparse back to the same
+// structure (the SubqueryExpr wrapper + the ParenSource body both survive).
+func TestDeparseSelect_ParenFromDerived(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"setop_body", "SELECT 1 FROM ((SELECT 1) UNION (SELECT 2)) x", "select 1 AS `1` from ((select 1 AS `1`) union (select 2 AS `2`)) `x`"},
+		{"nested_body", "SELECT 1 FROM ((SELECT 1)) x", "select 1 AS `1` from ((select 1 AS `1`)) `x`"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sel := parseSelect(t, tc.input)
+			got := DeparseSelect(sel)
+			if got != tc.expected {
+				t.Errorf("DeparseSelect(%q) =\n  %q\nwant:\n  %q", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
+
 func TestDeparseSelect_Section_5_2_FromClause(t *testing.T) {
 	cases := []struct {
 		name     string

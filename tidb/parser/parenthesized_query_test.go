@@ -214,3 +214,30 @@ func TestParenFromRegression(t *testing.T) {
 		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
 	}
 }
+
+// TestParenFromRobustness exercises the trickier paths: a conditional comment
+// spliced inside the body during the classifier scan (validates the snapshot's
+// input capture), a set-op derived table followed by a JOIN, and a set-op body
+// with no alias. All container-verified parse on pingcap/tidb:v8.5.0.
+func TestParenFromRobustness(t *testing.T) {
+	accepted := []string{
+		"SELECT * FROM ((SELECT 1) UNION (/*!40000 SELECT 2 */)) x",
+		"SELECT * FROM ((SELECT 1) UNION (SELECT 2)) x JOIN t3 ON x.a=t3.a",
+		"SELECT * FROM ((SELECT 1) UNION (SELECT 2))",
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
+// TestParenFromRejected: malformed paren bodies must still be rejected. Both are
+// 1064 syntax errors on the TiDB v8.5.0 container.
+func TestParenFromRejected(t *testing.T) {
+	rejected := []string{
+		"SELECT * FROM ((SELECT 1) UNION (SELECT 2)", // unbalanced parens
+		"SELECT * FROM ((SELECT 1) (SELECT 2)) x",    // two selects, no set-op
+	}
+	for _, sql := range rejected {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+}

@@ -3266,3 +3266,14 @@ func TestAnalyze_CTEVisibilityDoesNotLeakCorrelation(t *testing.T) {
 		t.Errorf("expected error: CTE visibility must not bring column correlation to sibling t1.a")
 	}
 }
+
+// TestAnalyze_ParenFromDerivedSetOp confirms the new PR2 FROM shape (a derived
+// table whose body is a parenthesized set-op) analyzes end-to-end: an
+// RTESubquery over the set-op body. #238 made the analyzer ParenSource-aware, so
+// no analyzer change is expected — this guards that assumption.
+func TestAnalyze_ParenFromDerivedSetOp(t *testing.T) {
+	c := wtSetup(t)
+	sel := parseSelect(t, "SELECT x FROM ((SELECT 1 AS x) UNION (SELECT 2)) s")
+	_, err := c.AnalyzeSelectStmt(sel)
+	assertNoError(t, err)
+}
