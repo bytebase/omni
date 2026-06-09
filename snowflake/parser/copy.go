@@ -430,6 +430,19 @@ func (p *Parser) curIsWord(upper string) bool {
 	return strings.ToUpper(p.cur.Str) == upper
 }
 
+// peekIsWord reports whether the next token (one past cur) has the given
+// uppercase spelling, treating keyword and identifier tokens uniformly by
+// their text. Used for one-token lookahead disambiguation of non-reserved
+// object qualifiers (e.g. NETWORK RULE vs NETWORK POLICY, where RULE is not a
+// reserved keyword).
+func (p *Parser) peekIsWord(upper string) bool {
+	next := p.peekNext()
+	if next.Str == "" {
+		return false
+	}
+	return strings.ToUpper(next.Str) == upper
+}
+
 // lookaheadColonSlashSlash reports whether the source immediately following the
 // current token is "://" — i.e. the current 'file' word begins a file:// URI.
 // It inspects the raw source rather than tokens because '//' is lexed as a

@@ -105,20 +105,39 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		p.advance() // consume WAREHOUSE
 		return p.parseDropObject(ast.DropWarehouse, start, true, false)
 
+	case kwNETWORK:
+		// DROP NETWORK RULE (gap-network-rule). NETWORK is reserved but RULE is not,
+		// so NETWORK RULE lexes as kwNETWORK followed by a "RULE" identifier. Only the
+		// RULE form is handled here; other NETWORK objects (e.g. NETWORK POLICY) are
+		// reported as unsupported.
+		if p.peekIsWord("RULE") {
+			p.advance() // consume NETWORK
+			p.advance() // consume RULE
+			return p.parseDropObject(ast.DropNetworkRule, start, true, false)
+		}
+		return p.unsupportedDrop()
+
 	default:
 		// Emit a targeted error for recognized-but-unimplemented DROP forms,
 		// or a generic error for completely unknown object types.
-		objText := p.cur.Str
-		if objText == "" {
-			objText = TokenName(p.cur.Type)
-		}
-		err := &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "DROP " + objText + " statement parsing is not yet supported",
-		}
-		p.skipToNextStatement()
-		return nil, err
+		return p.unsupportedDrop()
 	}
+}
+
+// unsupportedDrop emits a targeted "DROP <obj> ... not yet supported" error for
+// a recognized-but-unimplemented (or unknown) DROP object type at cur, and
+// skips to the next statement for error recovery.
+func (p *Parser) unsupportedDrop() (ast.Node, error) {
+	objText := p.cur.Str
+	if objText == "" {
+		objText = TokenName(p.cur.Type)
+	}
+	err := &ParseError{
+		Loc: p.cur.Loc,
+		Msg: "DROP " + objText + " statement parsing is not yet supported",
+	}
+	p.skipToNextStatement()
+	return nil, err
 }
 
 // parseDropObject is the shared helper that parses the [IF EXISTS] name

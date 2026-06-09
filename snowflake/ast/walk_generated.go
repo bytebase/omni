@@ -63,6 +63,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.NewName)
 		}
 		walkNodes(v, n.ClusterBy)
+	case *AlterNetworkRuleStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *AlterPipeStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -312,6 +316,10 @@ func walkChildren(v Visitor, node Node) {
 		}
 		walkNodes(v, n.ClusterBy)
 		Walk(v, n.Query)
+	case *CreateNetworkRuleStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *CreatePipeStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)

@@ -202,13 +202,6 @@ var corpusSkips = map[string]string{
 	"official/create-hybrid-table/example_16.sql": "RESIDUAL GAP: CREATE HYBRID TABLE — object node not built",
 	"official/drop-table/example_05.sql":          "CONTEXT: setup is CREATE OR REPLACE HYBRID TABLE (drop-table page) — hybrid-table object node not built",
 
-	// --- RESIDUAL GAP: CREATE NETWORK RULE (object node not built; NETWORK POLICY is) ---
-	"official/create-network-rule/example_01.sql": "RESIDUAL GAP: CREATE NETWORK RULE — object node not built (NETWORK POLICY is)",
-	"official/create-network-rule/example_02.sql": "RESIDUAL GAP: CREATE NETWORK RULE — object node not built",
-	"official/create-network-rule/example_03.sql": "RESIDUAL GAP: CREATE NETWORK RULE — object node not built",
-	"official/create-network-rule/example_04.sql": "RESIDUAL GAP: CREATE NETWORK RULE — object node not built",
-	"official/create-network-rule/example_05.sql": "RESIDUAL GAP: CREATE NETWORK RULE — object node not built",
-
 	// --- RESIDUAL GAP: CREATE INTERACTIVE MATERIALIZED VIEW (object node not built) ---
 	// The ALTER WAREHOUSE ADD TABLES statement in this file now parses
 	// (gap-warehouse); it remains skipped only for the CREATE INTERACTIVE

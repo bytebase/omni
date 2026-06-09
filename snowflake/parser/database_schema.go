@@ -256,6 +256,13 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 		// ALTER USER ... (T4.6).
 		return p.parseAlterUserStmt()
 	case kwMASKING, kwSESSION, kwPASSWORD, kwNETWORK, kwROW:
+		// ALTER NETWORK RULE ... (gap-network-rule) vs the policy objects below.
+		// NETWORK is reserved but RULE is not, so NETWORK RULE lexes as kwNETWORK
+		// followed by a "RULE" identifier; NETWORK POLICY lexes as kwNETWORK followed
+		// by kwPOLICY. The RULE form is dispatched here before the shared policy path.
+		if p.cur.Type == kwNETWORK && p.peekIsWord("RULE") {
+			return p.parseAlterNetworkRuleStmt()
+		}
 		// ALTER { MASKING | ROW ACCESS | SESSION | PASSWORD | NETWORK } POLICY ...
 		// (T4.6). Only routed to the policy parser when the kind keyword is actually
 		// followed by POLICY (and, for ROW, ACCESS POLICY); otherwise a same-prefix
