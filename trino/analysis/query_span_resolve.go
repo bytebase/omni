@@ -30,9 +30,9 @@ import (
 // base table (or an unrecognised relation) is left as-is.
 //
 // Scope: derived-relation projection (subqueries in FROM, CTE references),
-// UNNEST output columns, and scalar subqueries in the select list. Set-operation
-// arm merging is out of scope here (tracked separately); the left arm's lineage
-// is used, consistent with the primary walk.
+// UNNEST output columns, scalar subqueries in the select list, and set-operation
+// arm merging (each output column's lineage is the union of that column across
+// all arms).
 func resolveDerivedLineage(stmt ast.Node, span *QuerySpan) {
 	if span == nil {
 		return
@@ -41,17 +41,15 @@ func resolveDerivedLineage(stmt ast.Node, span *QuerySpan) {
 	if !ok || qs.Query == nil {
 		return
 	}
-	spec, cte := outermostScope(qs.Query, nil)
-	if spec == nil {
-		return
-	}
-	// Recompute the outermost select block's column lineage with relation-scope
-	// resolution (derived tables, CTEs, UNNEST, scalar subqueries) and union it
-	// into the primary walk's Results positionally — the walk produces exactly
-	// one Result per select item in order, as does resolveSpecCols. The union is
-	// additive (resolved sources extend the walk's), so even a positional
-	// mismatch could only over-include, never drop a previously-correct ref.
-	cols := resolveSpecCols(spec, cte)
+	// Recompute the outermost query's column lineage with relation-scope
+	// resolution (derived tables, CTEs, UNNEST, scalar subqueries, and
+	// set-operation arm merging) and union it into the primary walk's Results
+	// positionally. Both produce one column per output position in the same order
+	// — a set operation's columns come from its first arm, exactly as the walk
+	// records them — so index i aligns. The union is additive (resolved sources
+	// extend the walk's), so even a positional mismatch could only over-include,
+	// never drop a previously-correct ref.
+	cols := resolveQueryCols(qs.Query, nil)
 	for i := range span.Results {
 		if i >= len(cols) {
 			break
@@ -135,7 +133,12 @@ func resolveNodeCols(node parser.QueryNode, cte *cteDefs) []outCol {
 	case *parser.QuerySpec:
 		return resolveSpecCols(n, cte)
 	case *parser.SetOperation:
-		return resolveNodeCols(n.Left, cte)
+		// A set operation's output columns take their names from the first (left)
+		// arm, but a value in ANY arm surfaces in the corresponding output column,
+		// so the lineage of column i is the union of column i across all arms. The
+		// right operand may itself be a set operation, so recursion accumulates
+		// every arm's positional sources.
+		return mergeArms(resolveNodeCols(n.Left, cte), resolveNodeCols(n.Right, cte))
 	case *parser.ParenQuery:
 		return resolveQueryCols(n.Inner, cte)
 	case *parser.TableQuery:
@@ -144,6 +147,24 @@ func resolveNodeCols(node parser.QueryNode, cte *cteDefs) []outCol {
 	default:
 		return nil
 	}
+}
+
+// mergeArms positionally merges the resolved columns of two set-operation arms.
+// The result has the left arm's shape (count and names — SQL takes the output
+// column names from the first SELECT); each column's sources are the union of
+// the two arms' sources at that position, so a sensitive value contributed by
+// either arm forces the column to be masked. A right arm with fewer columns than
+// the left (only in malformed SQL) contributes nothing beyond the positions it
+// has.
+func mergeArms(left, right []outCol) []outCol {
+	out := make([]outCol, len(left))
+	for i := range left {
+		out[i] = outCol{name: left[i].name, sources: left[i].sources}
+		if i < len(right) {
+			out[i].sources = unionRefs(left[i].sources, right[i].sources)
+		}
+	}
+	return out
 }
 
 // resolveSpecCols computes the resolved output columns of one SELECT block: it
@@ -420,31 +441,6 @@ func unionRefs(a, b []ColumnRef) []ColumnRef {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-// outermostScope unwraps a query to the SELECT block whose select list produced
-// the span's Results — descending through a set operation's left arm and
-// parenthesised queries — and returns it together with the CTE scope visible
-// there (accumulated across any WITH clauses encountered on the way down).
-func outermostScope(q *parser.Query, parent *cteDefs) (*parser.QuerySpec, *cteDefs) {
-	if q == nil {
-		return nil, parent
-	}
-	cte := buildCTEDefs(q, parent)
-	return specOf(q.Body, cte)
-}
-
-func specOf(node parser.QueryNode, cte *cteDefs) (*parser.QuerySpec, *cteDefs) {
-	switch n := node.(type) {
-	case *parser.QuerySpec:
-		return n, cte
-	case *parser.SetOperation:
-		return specOf(n.Left, cte)
-	case *parser.ParenQuery:
-		return outermostScope(n.Inner, cte)
-	default:
-		return nil, cte
-	}
-}
 
 // lookupOutCol returns the sources of the output column named name (case-
 // insensitively), and whether such a column exists. found can be true with

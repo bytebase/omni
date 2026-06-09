@@ -295,6 +295,82 @@ func TestGetQuerySpan_ExistsSubqueryNotResolved(t *testing.T) {
 	}
 }
 
+// TestGetQuerySpan_SetOpArmMergeLineage covers BYT-9677: a set operation's
+// output column must carry the lineage of that column across ALL arms, so a
+// sensitive column in a non-first arm forces masking.
+func TestGetQuerySpan_SetOpArmMergeLineage(t *testing.T) {
+	span, err := GetQuerySpan("SELECT name FROM customer UNION SELECT phone FROM customer")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	r, ok := resultByName(span, "name")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named name (from the first arm)", span.Results)
+	}
+	if !hasSource(r.SourceColumns, ColumnRef{Column: "name"}) {
+		t.Errorf("name.SourceColumns = %+v, want to contain {Column:name} (left arm)", r.SourceColumns)
+	}
+	if !hasSource(r.SourceColumns, ColumnRef{Column: "phone"}) {
+		t.Errorf("name.SourceColumns = %+v, want to contain {Column:phone} (right arm must be merged)", r.SourceColumns)
+	}
+}
+
+// TestGetQuerySpan_SetOpMultiColumnMerge merges arms positionally across several
+// output columns.
+func TestGetQuerySpan_SetOpMultiColumnMerge(t *testing.T) {
+	span, err := GetQuerySpan("SELECT id, name FROM customer UNION SELECT uid, phone FROM other")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	name, ok := resultByName(span, "name")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named name", span.Results)
+	}
+	if !hasSource(name.SourceColumns, ColumnRef{Column: "name"}) || !hasSource(name.SourceColumns, ColumnRef{Column: "phone"}) {
+		t.Errorf("name.SourceColumns = %+v, want both {Column:name} and {Column:phone}", name.SourceColumns)
+	}
+	id, ok := resultByName(span, "id")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named id", span.Results)
+	}
+	if !hasSource(id.SourceColumns, ColumnRef{Column: "id"}) || !hasSource(id.SourceColumns, ColumnRef{Column: "uid"}) {
+		t.Errorf("id.SourceColumns = %+v, want both {Column:id} and {Column:uid}", id.SourceColumns)
+	}
+}
+
+// TestGetQuerySpan_SetOpChainedMerge accumulates lineage across a chain of set
+// operations (a UNION b UNION c).
+func TestGetQuerySpan_SetOpChainedMerge(t *testing.T) {
+	span, err := GetQuerySpan("SELECT a FROM t1 UNION SELECT b FROM t2 UNION SELECT phone FROM customer")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	r, ok := resultByName(span, "a")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named a", span.Results)
+	}
+	for _, want := range []ColumnRef{{Column: "a"}, {Column: "b"}, {Column: "phone"}} {
+		if !hasSource(r.SourceColumns, want) {
+			t.Errorf("a.SourceColumns = %+v, want to contain %+v (all arms merged)", r.SourceColumns, want)
+		}
+	}
+}
+
+// TestGetQuerySpan_IntersectArmMerge confirms INTERSECT/EXCEPT arms merge too.
+func TestGetQuerySpan_IntersectArmMerge(t *testing.T) {
+	span, err := GetQuerySpan("SELECT name FROM customer INTERSECT SELECT phone FROM customer")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	r, ok := resultByName(span, "name")
+	if !ok {
+		t.Fatalf("Results = %+v, want a column named name", span.Results)
+	}
+	if !hasSource(r.SourceColumns, ColumnRef{Column: "phone"}) {
+		t.Errorf("name.SourceColumns = %+v, want to contain {Column:phone}", r.SourceColumns)
+	}
+}
+
 // TestGetQuerySpan_DirectColumnLineageUnchanged guards that a direct base-table
 // column (no derived relation in scope) is left exactly as the primary walk
 // produced it — the resolver must only deepen lineage through indirection.
