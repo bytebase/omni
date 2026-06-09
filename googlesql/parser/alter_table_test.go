@@ -355,6 +355,14 @@ func TestAlterSearchIndex_Rejects(t *testing.T) {
 		"ALTER SEARCH INDEX idx ADD STORED",           // STORED without COLUMN
 		"ALTER SEARCH INDEX idx ADD STORED COLUMN",    // STORED COLUMN without name
 		"ALTER SEARCH INDEX idx DROP STORED",          // DROP STORED without COLUMN
+		// DDL-049 restricts the action to a single {ADD|DROP} STORED COLUMN — the
+		// generic table alter actions must NOT be accepted (review finding F1: the
+		// initial impl reused the unrestricted alter_action_list).
+		"ALTER SEARCH INDEX idx RENAME TO idx2",                          // RENAME forbidden
+		"ALTER SEARCH INDEX idx SET OPTIONS (x=1)",                       // SET OPTIONS forbidden
+		"ALTER SEARCH INDEX idx ADD COLUMN c INT64",                      // ADD COLUMN (non-STORED) forbidden
+		"ALTER SEARCH INDEX idx ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES t(b)", // ADD CONSTRAINT forbidden
+		"ALTER SEARCH INDEX idx ADD STORED COLUMN a, DROP STORED COLUMN b", // single action only, not a list
 	}
 	for _, sql := range cases {
 		assertReject(t, sql)

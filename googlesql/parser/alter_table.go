@@ -132,13 +132,30 @@ func (p *Parser) parseAlterStmt() (ast.Node, error) {
 	stmt.Name = name
 
 	// alter_action_list: alter_action (, alter_action)* — requires at least one.
+	// ALTER SEARCH INDEX is the exception: Spanner DDL-049 restricts it to a
+	// SINGLE {ADD|DROP} STORED COLUMN action, NOT the generic table action list.
 	for {
+		if kind == ast.AlterSearchIndex && p.cur.Type != kwADD && p.cur.Type != kwDROP {
+			// Only ADD/DROP STORED COLUMN is valid for a search index; reject
+			// RENAME/SET/ALTER/… at the offending keyword.
+			return nil, p.syntaxErrorAtCur()
+		}
 		action, err := p.parseAlterAction()
 		if err != nil {
 			return nil, err
 		}
+		if kind == ast.AlterSearchIndex &&
+			action.Kind != ast.AlterAddStoredColumn && action.Kind != ast.AlterDropStoredColumn {
+			// ADD/DROP that is not STORED COLUMN (ADD COLUMN, ADD CONSTRAINT,
+			// ADD ROW DELETION POLICY, …) is not a valid SEARCH INDEX action.
+			return nil, p.syntaxErrorAtCur()
+		}
 		stmt.Actions = append(stmt.Actions, action)
 		if _, ok := p.match(int(',')); ok {
+			if kind == ast.AlterSearchIndex {
+				// DDL-049 allows a single action, not a comma-separated list.
+				return nil, p.syntaxErrorAtCur()
+			}
 			continue
 		}
 		break
