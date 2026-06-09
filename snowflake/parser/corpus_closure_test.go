@@ -171,18 +171,6 @@ var corpusSkips = map[string]string{
 	// CREATE OR ALTER WAREHOUSE and DROP WAREHOUSE statements in it parse clean.
 	"official/create-warehouse/example_07.sql": "RESIDUAL GAP: SHOW WAREHOUSES ->> SELECT ... FROM $1 — ->> result-pipe + $N table-ref owned by other nodes (CREATE OR ALTER WAREHOUSE parses)",
 
-	// --- RESIDUAL GAP: CREATE INTERACTIVE MATERIALIZED VIEW (object node not built) ---
-	// The ALTER WAREHOUSE ADD TABLES statement in this file now parses
-	// (gap-warehouse); it remains skipped only for the CREATE INTERACTIVE
-	// MATERIALIZED VIEW (INTERACTIVE keyword) statement owned by another node.
-	"official/create-materialized-view/example_02.sql": "RESIDUAL GAP: CREATE INTERACTIVE MATERIALIZED VIEW (INTERACTIVE keyword) — object node not built (ALTER WAREHOUSE ADD TABLES parses)",
-
-	// --- RESIDUAL GAP: CREATE/ALTER/DROP ALERT (object node not built) ---
-	"legacy/alerts.sql": "RESIDUAL GAP: CREATE/ALTER/DROP ALERT — alert object node not built",
-
-	// --- RESIDUAL GAP: DROP object variants (parser-drop covers only some objects) ---
-	"legacy/drop.sql": "RESIDUAL GAP: DROP {CONNECTION,FAILOVER GROUP,INTEGRATION,MASKING POLICY,NETWORK POLICY,REPLICATION GROUP,RESOURCE MONITOR,ROW ACCESS POLICY,SESSION POLICY,SHARE,USER,...} not all built",
-
 	// --- RESIDUAL GAP: dynamic-table clauses (named-arg => and INTERVAL/refresh-mode) ---
 	"official/create-dynamic-table/example_04.sql": "RESIDUAL GAP: CLONE ... AT (TIMESTAMP => TO_TIMESTAMP_TZ(...)) named-arg => in time-travel clause",
 	"official/create-dynamic-table/example_07.sql": "RESIDUAL GAP: IMMUTABLE WHERE (... - INTERVAL '1 day') refresh-mode + interval literal not parsed",

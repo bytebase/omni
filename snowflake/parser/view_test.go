@@ -331,6 +331,80 @@ func TestCreateMaterializedView_IfNotExists(t *testing.T) {
 	}
 }
 
+func TestCreateMaterializedView_Interactive(t *testing.T) {
+	stmt, errs := testParseCreateMaterializedView("CREATE INTERACTIVE MATERIALIZED VIEW mv AS SELECT 1")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if !stmt.Interactive {
+		t.Error("expected Interactive=true")
+	}
+	if stmt.Name.Normalize() != "MV" {
+		t.Errorf("name = %q, want MV", stmt.Name.Normalize())
+	}
+}
+
+func TestCreateMaterializedView_InteractiveOrReplaceIfNotExists(t *testing.T) {
+	// The exact form from official/create-materialized-view/example_02.sql.
+	stmt, errs := testParseCreateMaterializedView(
+		"CREATE OR REPLACE INTERACTIVE MATERIALIZED VIEW IF NOT EXISTS mv_summary AS SELECT SUM(quantity) FROM t")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if !stmt.Interactive {
+		t.Error("expected Interactive=true")
+	}
+	if !stmt.OrReplace {
+		t.Error("expected OrReplace=true")
+	}
+	if !stmt.IfNotExists {
+		t.Error("expected IfNotExists=true")
+	}
+}
+
+func TestCreateMaterializedView_NotInteractiveByDefault(t *testing.T) {
+	// Regression: a plain MATERIALIZED VIEW must keep Interactive=false.
+	stmt, errs := testParseCreateMaterializedView("CREATE MATERIALIZED VIEW mv AS SELECT 1")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if stmt.Interactive {
+		t.Error("expected Interactive=false for a plain MATERIALIZED VIEW")
+	}
+}
+
+func TestCreateMaterializedView_InteractiveAsViewName(t *testing.T) {
+	// Regression: "interactive" used as the view name (after MATERIALIZED VIEW)
+	// must NOT set the Interactive modifier — the INTERACTIVE modifier only
+	// triggers when it precedes MATERIALIZED.
+	stmt, errs := testParseCreateMaterializedView("CREATE MATERIALIZED VIEW interactive AS SELECT 1")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if stmt.Interactive {
+		t.Error("expected Interactive=false when 'interactive' is the view name")
+	}
+	if stmt.Name.Normalize() != "INTERACTIVE" {
+		t.Errorf("name = %q, want INTERACTIVE", stmt.Name.Normalize())
+	}
+}
+
+func TestCreateTable_InteractiveAsTableName(t *testing.T) {
+	// Regression: the INTERACTIVE modifier must not steal a table named
+	// "interactive" (INTERACTIVE only pairs with MATERIALIZED VIEW).
+	result := ParseBestEffort("CREATE TABLE interactive (id INT)")
+	if len(result.Errors) > 0 {
+		t.Fatalf("unexpected errors: %v", result.Errors)
+	}
+	stmt, ok := result.File.Stmts[0].(*ast.CreateTableStmt)
+	if !ok {
+		t.Fatalf("expected CreateTableStmt, got %T", result.File.Stmts[0])
+	}
+	if stmt.Name.Normalize() != "INTERACTIVE" {
+		t.Errorf("name = %q, want INTERACTIVE", stmt.Name.Normalize())
+	}
+}
+
 func TestCreateMaterializedView_ClusterBy(t *testing.T) {
 	stmt, errs := testParseCreateMaterializedView("CREATE MATERIALIZED VIEW mv CLUSTER BY (col1, col2) AS SELECT col1, col2 FROM t")
 	if len(errs) > 0 {
