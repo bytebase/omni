@@ -54,6 +54,7 @@ const (
 	T_CreateTableStmt
 	T_ColumnDef
 	T_TableConstraint
+	T_TableIndex
 	T_CreateDatabaseStmt
 	T_AlterDatabaseStmt
 	T_DropDatabaseStmt
@@ -302,6 +303,8 @@ func (t NodeTag) String() string {
 		return "ColumnDef"
 	case T_TableConstraint:
 		return "TableConstraint"
+	case T_TableIndex:
+		return "TableIndex"
 	case T_CreateDatabaseStmt:
 		return "CreateDatabaseStmt"
 	case T_AlterDatabaseStmt:

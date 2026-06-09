@@ -1307,13 +1307,15 @@ type CreateTableStmt struct {
 	Transient   bool
 	Temporary   bool
 	Volatile    bool
+	Hybrid      bool // CREATE HYBRID TABLE (Unistore); mutually exclusive with the temp modifiers
 	IfNotExists bool
 	Name        *ObjectName
 	Columns     []*ColumnDef
 	Constraints []*TableConstraint
-	ClusterBy   []Node  // CLUSTER BY expressions; nil if absent
-	Linear      bool    // CLUSTER BY LINEAR modifier
-	Comment     *string // COMMENT = 'text'; nil if absent
+	Indexes     []*TableIndex // inline INDEX name (cols) elements (HYBRID TABLE only); nil if absent
+	ClusterBy   []Node        // CLUSTER BY expressions; nil if absent
+	Linear      bool          // CLUSTER BY LINEAR modifier
+	Comment     *string       // COMMENT = 'text'; nil if absent
 	CopyGrants  bool
 	Tags        []*TagAssignment // WITH TAG (...); nil if absent
 	AsSelect    Node             // CREATE TABLE ... AS SELECT; nil if absent
@@ -1355,11 +1357,23 @@ type TableConstraint struct {
 
 func (n *TableConstraint) Tag() NodeTag { return T_TableConstraint }
 
+// TableIndex represents an inline secondary-index element in a CREATE HYBRID
+// TABLE column list: INDEX <name> ( <col> [, <col>...] ). This construct is
+// specific to hybrid (Unistore) tables.
+type TableIndex struct {
+	Name    Ident   // index name
+	Columns []Ident // indexed column names (one or more)
+	Loc     Loc
+}
+
+func (n *TableIndex) Tag() NodeTag { return T_TableIndex }
+
 // Compile-time assertions.
 var (
 	_ Node = (*CreateTableStmt)(nil)
 	_ Node = (*ColumnDef)(nil)
 	_ Node = (*TableConstraint)(nil)
+	_ Node = (*TableIndex)(nil)
 )
 
 // ---------------------------------------------------------------------------

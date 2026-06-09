@@ -26,6 +26,9 @@ func (w *writer) writeCreateTableStmt(n *ast.CreateTableStmt) error {
 	} else if n.Volatile {
 		w.buf.WriteString(" VOLATILE")
 	}
+	if n.Hybrid {
+		w.buf.WriteString(" HYBRID")
+	}
 	w.buf.WriteString(" TABLE")
 	if n.IfNotExists {
 		w.buf.WriteString(" IF NOT EXISTS")
@@ -48,8 +51,8 @@ func (w *writer) writeCreateTableStmt(n *ast.CreateTableStmt) error {
 		return nil
 	}
 
-	// Column definitions and table constraints
-	if len(n.Columns) > 0 || len(n.Constraints) > 0 {
+	// Column definitions, table constraints and inline INDEX elements (HYBRID).
+	if len(n.Columns) > 0 || len(n.Constraints) > 0 || len(n.Indexes) > 0 {
 		w.buf.WriteString(" (")
 		idx := 0
 		for _, col := range n.Columns {
@@ -68,6 +71,13 @@ func (w *writer) writeCreateTableStmt(n *ast.CreateTableStmt) error {
 			if err := w.writeTableConstraint(con); err != nil {
 				return err
 			}
+			idx++
+		}
+		for _, ti := range n.Indexes {
+			if idx > 0 {
+				w.buf.WriteString(", ")
+			}
+			w.writeTableIndex(ti)
 			idx++
 		}
 		w.buf.WriteByte(')')
@@ -266,6 +276,20 @@ func (w *writer) writeTableConstraint(n *ast.TableConstraint) error {
 		w.buf.WriteString(quoteString(*n.Comment))
 	}
 	return nil
+}
+
+// writeTableIndex emits an inline INDEX element: INDEX name (col, col, ...).
+func (w *writer) writeTableIndex(n *ast.TableIndex) {
+	w.buf.WriteString("INDEX ")
+	w.buf.WriteString(n.Name.String())
+	w.buf.WriteString(" (")
+	for i, col := range n.Columns {
+		if i > 0 {
+			w.buf.WriteString(", ")
+		}
+		w.buf.WriteString(col.String())
+	}
+	w.buf.WriteByte(')')
 }
 
 func (w *writer) writeRefActions(onDelete, onUpdate ast.ReferenceAction) {

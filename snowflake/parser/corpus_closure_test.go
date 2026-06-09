@@ -192,16 +192,6 @@ var corpusSkips = map[string]string{
 	// CREATE OR ALTER WAREHOUSE and DROP WAREHOUSE statements in it parse clean.
 	"official/create-warehouse/example_07.sql": "RESIDUAL GAP: SHOW WAREHOUSES ->> SELECT ... FROM $1 — ->> result-pipe + $N table-ref owned by other nodes (CREATE OR ALTER WAREHOUSE parses)",
 
-	// --- RESIDUAL GAP: CREATE HYBRID TABLE (object node not built) ---
-	"official/create-hybrid-table/example_01.sql": "RESIDUAL GAP: CREATE HYBRID TABLE — object node not built",
-	"official/create-hybrid-table/example_07.sql": "RESIDUAL GAP: CREATE HYBRID TABLE — object node not built",
-	"official/create-hybrid-table/example_08.sql": "RESIDUAL GAP: CREATE HYBRID TABLE — object node not built",
-	"official/create-hybrid-table/example_13.sql": "RESIDUAL GAP: CREATE HYBRID TABLE — object node not built",
-	"official/create-hybrid-table/example_14.sql": "RESIDUAL GAP: CREATE HYBRID TABLE — object node not built",
-	"official/create-hybrid-table/example_15.sql": "RESIDUAL GAP: CREATE HYBRID TABLE — object node not built",
-	"official/create-hybrid-table/example_16.sql": "RESIDUAL GAP: CREATE HYBRID TABLE — object node not built",
-	"official/drop-table/example_05.sql":          "CONTEXT: setup is CREATE OR REPLACE HYBRID TABLE (drop-table page) — hybrid-table object node not built",
-
 	// --- RESIDUAL GAP: CREATE INTERACTIVE MATERIALIZED VIEW (object node not built) ---
 	// The ALTER WAREHOUSE ADD TABLES statement in this file now parses
 	// (gap-warehouse); it remains skipped only for the CREATE INTERACTIVE
