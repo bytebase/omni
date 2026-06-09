@@ -164,27 +164,6 @@ var corpusWholeFile = map[string]string{
 //
 // Grouped by root cause. Counts in comments are at authoring time.
 var corpusSkips = map[string]string{
-	// --- RESIDUAL GAP: ALTER statement family (parser-alter node not built) ---
-	// The generic ALTER dispatcher returns "ALTER statement parsing is not yet
-	// supported"; ALTER SESSION / WAREHOUSE / DATABASE / ACCOUNT / ... are all
-	// pending. Some files are docs pages for a *built* command whose page also
-	// shows an ALTER follow-up as their only statement(s).
-	"legacy/alter.sql":                        "RESIDUAL GAP: ALTER {ACCOUNT,DATABASE,SESSION,SHARE,...} family — parser-alter node not built",
-	"official/alter-session/example_01.sql":   "RESIDUAL GAP: ALTER SESSION SET — parser-alter node not built",
-	"official/alter-session/example_02.sql":   "RESIDUAL GAP: ALTER SESSION UNSET — parser-alter node not built",
-	"official/create-database/example_08.sql": "CONTEXT: file is a lone ALTER SESSION SET (create-database page follow-up) — parser-alter not built",
-	"official/order-by/example_04.sql":        "RESIDUAL GAP: ALTER SESSION SET DEFAULT_NULL_ORDERING — parser-alter node not built",
-	"official/order-by/example_07.sql":        "RESIDUAL GAP: ALTER SESSION SET DEFAULT_NULL_ORDERING — parser-alter node not built",
-	"official/update/example_04.sql":          "RESIDUAL GAP: ALTER SESSION SET (update page setup) — parser-alter node not built",
-
-	// --- RESIDUAL GAP: ALTER TABLE ADD SEARCH OPTIMIZATION ON method-list ---
-	"official/alter-table-event-table/example_07.sql": "RESIDUAL GAP: ALTER TABLE ADD SEARCH OPTIMIZATION ON EQUALITY(c1), EQUALITY(c2,c3) — comma-separated method list not parsed",
-	"official/alter-table-event-table/example_08.sql": "RESIDUAL GAP: ALTER TABLE ADD/DROP SEARCH OPTIMIZATION ON comma-separated method list not parsed",
-	"official/alter-table-event-table/example_09.sql": "RESIDUAL GAP: ALTER TABLE DROP SEARCH OPTIMIZATION ON comma-separated method list not parsed",
-
-	// --- RESIDUAL GAP: ALTER VIEW with a re-defined query body ---
-	"official/alter-view/example_11.sql": "RESIDUAL GAP: ALTER VIEW ... AS <join query> body redefinition not parsed",
-
 	// --- RESIDUAL GAP: SHOW ->> result-pipe + $N table-ref (other nodes) ---
 	// CREATE/ALTER WAREHOUSE now parse (gap-warehouse); this file remains skipped
 	// only because its two `SHOW WAREHOUSES ... ->> SELECT ... FROM $1` statements
@@ -236,7 +215,7 @@ var corpusSkips = map[string]string{
 	"official/order-by/example_01.sql": "RESIDUAL GAP: ORDER BY ALL not parsed",
 	"official/order-by/example_11.sql": "RESIDUAL GAP: ORDER BY ALL not parsed",
 	"official/order-by/example_12.sql": "RESIDUAL GAP: ORDER BY ALL ASC not parsed",
-	"official/order-by/example_13.sql": "RESIDUAL GAP: ORDER BY ALL not parsed (also ALTER SESSION)",
+	"official/order-by/example_13.sql": "RESIDUAL GAP: ORDER BY ALL not parsed (ALTER SESSION setup now parses)",
 	"official/order-by/example_14.sql": "RESIDUAL GAP: ORDER BY ALL NULLS FIRST not parsed",
 	"official/order-by/example_15.sql": "RESIDUAL GAP: ORDER BY ALL NULLS LAST not parsed",
 	"official/merge/example_09.sql":    "RESIDUAL GAP: WHEN MATCHED ... DELETE / ORDER BY ALL form not parsed",

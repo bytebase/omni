@@ -1985,6 +1985,10 @@ const (
 	AlterViewColumnUnsetMaskingPolicy                        // ALTER COLUMN col UNSET MASKING POLICY
 	AlterViewColumnSetTag                                    // ALTER COLUMN col SET TAG (...)
 	AlterViewColumnUnsetTag                                  // ALTER COLUMN col UNSET TAG (...)
+	AlterViewSetAggregationPolicy                            // SET AGGREGATION POLICY name [ ENTITY KEY (...) ] [ FORCE ]
+	AlterViewUnsetAggregationPolicy                          // UNSET AGGREGATION POLICY
+	AlterViewSetJoinPolicy                                   // SET JOIN POLICY name [ ALLOWED/ENFORCED JOIN KEYS (...) ]
+	AlterViewUnsetJoinPolicy                                 // UNSET JOIN POLICY
 )
 
 // AlterViewStmt represents ALTER VIEW ... (all action variants).
@@ -1997,8 +2001,11 @@ type AlterViewStmt struct {
 	Secure        bool             // true = SET SECURE; false = UNSET SECURE (check Action)
 	Tags          []*TagAssignment // SET TAG (...)
 	UnsetTags     []*ObjectName    // UNSET TAG (...)
-	PolicyName    *ObjectName      // ADD/DROP ROW ACCESS POLICY name
+	PolicyName    *ObjectName      // ADD/DROP ROW ACCESS POLICY name; also SET {AGGREGATION|JOIN} POLICY name
 	PolicyCols    []Ident          // ON (col, ...) for ADD ROW ACCESS POLICY
+	PolicyKeyCols []Ident          // ENTITY KEY (...) / ALLOWED|ENFORCED JOIN KEYS (...) for SET {AGGREGATION|JOIN} POLICY
+	PolicyKeyKind string           // "ALLOWED" or "ENFORCED" for SET JOIN POLICY ... JOIN KEYS; "" if no keys clause
+	PolicyForce   bool             // FORCE for SET AGGREGATION POLICY
 	Column        Ident            // ALTER COLUMN col name
 	MaskingPolicy *ObjectName      // SET MASKING POLICY p
 	MaskingUsing  []Ident          // USING (col, ...)
@@ -5167,6 +5174,36 @@ var (
 	_ Node = (*CreateNetworkRuleStmt)(nil)
 	_ Node = (*AlterNetworkRuleStmt)(nil)
 )
+
+// ---------------------------------------------------------------------------
+// ALTER SESSION (session parameters) node (gap-alter-family)
+// ---------------------------------------------------------------------------
+
+// AlterSessionAction enumerates the ALTER SESSION action variants.
+type AlterSessionAction int
+
+const (
+	AlterSessionSet   AlterSessionAction = iota // SET <param> = <value> [ , ... ]
+	AlterSessionUnset                           // UNSET <param> [ , ... ]
+)
+
+// AlterSessionStmt represents ALTER SESSION { SET | UNSET } <session_parameter> ...
+// (session parameters, distinct from ALTER SESSION POLICY which is an
+// AlterPolicyStmt). The SET form carries open-ended `<key> = <value>` options
+// (e.g. AUTOCOMMIT = TRUE, LOCK_TIMEOUT = 3600, DEFAULT_NULL_ORDERING = 'LAST');
+// the UNSET form carries a list of parameter names.
+type AlterSessionStmt struct {
+	Action    AlterSessionAction
+	Options   []*CopyOption // SET <param> = <value> [ , ... ]; for AlterSessionSet
+	UnsetKeys []string      // UNSET <param> [ , ... ]; for AlterSessionUnset
+	Loc       Loc
+}
+
+// Tag implements Node.
+func (n *AlterSessionStmt) Tag() NodeTag { return T_AlterSessionStmt }
+
+// Compile-time assertion for the session DDL node.
+var _ Node = (*AlterSessionStmt)(nil)
 
 // ---------------------------------------------------------------------------
 // CALL / EXECUTE IMMEDIATE / EXECUTE TASK / EXPLAIN statement nodes (T5.4)
