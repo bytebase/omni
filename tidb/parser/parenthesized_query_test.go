@@ -329,3 +329,27 @@ func TestParenExprRegression(t *testing.T) {
 		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
 	}
 }
+
+// KNOWN DIVERGENCE vs TiDB v8.5.0 (deliberate, documented over-acceptance):
+// TiDB rejects a redundantly double-parenthesized FIRST set-op operand, but ONLY
+// in expr-subquery position — `IN (((SELECT 1)) UNION (SELECT 2))` and scalar
+// `(((SELECT 1)) UNION (SELECT 2))` are 1064 — while ACCEPTING the identical body
+// in FROM, EXISTS, and statement position (all container-verified). The
+// rejection is also narrow: `IN ((SELECT 1) UNION ((SELECT 2)))` (double SECOND
+// operand) and `IN (((SELECT 1) UNION (SELECT 2)))` (whole double-wrapped) are
+// accepted. omni accepts the IN/scalar form too: the expr-subquery path routes to
+// the shared parseSelectNoParens, which is correctly lax for the other three
+// contexts. Replicating TiDB's context-specific rejection would require a fragile
+// AST post-check (top-level set-op whose leftmost operand is a double-ParenSource,
+// worsening for chained set-ops) for a pathological shape no real query uses — so
+// it is left as a documented divergence. This test pins the current behavior; if
+// it ever flips to reject, revisit whether exact parity is warranted.
+func TestParenExprKnownDivergence_DoubleParenFirstOperand(t *testing.T) {
+	accepted := []string{
+		"SELECT 1 WHERE 1 IN (((SELECT 1)) UNION (SELECT 2))",
+		"SELECT (((SELECT 1)) UNION (SELECT 2))",
+	}
+	for _, sql := range accepted {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
