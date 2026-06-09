@@ -558,6 +558,19 @@ type IffExpr struct {
 
 func (n *IffExpr) Tag() NodeTag { return T_IffExpr }
 
+// IntervalExpr represents an interval literal: INTERVAL <value>, where <value>
+// is normally a string literal describing the span (e.g. INTERVAL '1 day',
+// INTERVAL '2 hours, 30 minutes'). Mirroring the legacy grammar's typed-string
+// form ((TIMESTAMP | DATE | TIME | INTERVAL) expr), the value is kept as a
+// general expression node rather than decomposed into quantity/unit pairs, so
+// every documented spelling is accepted without enumerating the date-time parts.
+type IntervalExpr struct {
+	Value Node // the interval value expression (typically a string literal)
+	Loc   Loc
+}
+
+func (n *IntervalExpr) Tag() NodeTag { return T_IntervalExpr }
+
 // CollateExpr represents expr COLLATE collation_name.
 type CollateExpr struct {
 	Expr      Node

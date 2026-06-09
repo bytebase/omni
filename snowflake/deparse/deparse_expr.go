@@ -36,6 +36,8 @@ func (w *writer) writeExpr(node ast.Node) error {
 		return w.writeFuncCallExpr(n)
 	case *ast.IffExpr:
 		return w.writeIffExpr(n)
+	case *ast.IntervalExpr:
+		return w.writeIntervalExpr(n)
 	case *ast.CollateExpr:
 		return w.writeCollateExpr(n)
 	case *ast.OuterJoinExpr:
@@ -456,6 +458,14 @@ func (w *writer) writeIffExpr(n *ast.IffExpr) error {
 	}
 	w.buf.WriteByte(')')
 	return nil
+}
+
+// writeIntervalExpr renders an interval literal as `INTERVAL <value>` (e.g.
+// INTERVAL '1 day'). The value writer supplies its own leading space.
+func (w *writer) writeIntervalExpr(n *ast.IntervalExpr) error {
+	w.ensureSpace()
+	w.buf.WriteString("INTERVAL")
+	return w.writeExpr(n.Value)
 }
 
 func (w *writer) writeCollateExpr(n *ast.CollateExpr) error {

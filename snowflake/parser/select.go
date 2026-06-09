@@ -23,23 +23,44 @@ import (
 func (p *Parser) parseQueryExpr() (ast.Node, error) {
 	var left ast.Node
 	var err error
-	if p.cur.Type == '(' {
-		// Parenthesized SELECT: consume '(', parse inner query, then ')'
+	switch {
+	case p.cur.Type == '(':
+		// Parenthesized query body: consume '(', parse inner query, then ')'.
+		// The inner query may itself begin with WITH (a CTE / RECURSIVE), e.g.
+		// CREATE VIEW v AS ( WITH cte AS (...) SELECT ... ), so dispatch on WITH
+		// rather than always recursing into the bare-SELECT path.
 		p.advance() // consume '('
-		left, err = p.parseQueryExpr()
+		left, err = p.parseQueryBody()
 		if err != nil {
 			return nil, err
 		}
 		if _, err = p.expect(')'); err != nil {
 			return nil, err
 		}
-	} else {
+	case p.cur.Type == kwWITH:
+		left, err = p.parseWithQueryExpr()
+		if err != nil {
+			return nil, err
+		}
+	default:
 		left, err = p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}
 	}
 	return p.parseSetOpChain(left)
+}
+
+// parseQueryBody parses a query expression that may begin with WITH (a CTE /
+// RECURSIVE block) or be a plain SELECT / set-operation / parenthesized query.
+// It is the shared dispatch used wherever a query can appear after a '(' — the
+// parenthesized operand of a set-op chain, a CTE body, and a parenthesized view
+// body — so a leading WITH is never mistaken for a bare SELECT.
+func (p *Parser) parseQueryBody() (ast.Node, error) {
+	if p.cur.Type == kwWITH {
+		return p.parseWithQueryExpr()
+	}
+	return p.parseQueryExpr()
 }
 
 // parseWithQueryExpr parses WITH ... SELECT ... [set operators].

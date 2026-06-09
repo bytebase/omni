@@ -136,6 +136,7 @@ func (w *writer) writeNode(node ast.Node) error {
 		*ast.CaseExpr,
 		*ast.FuncCallExpr,
 		*ast.IffExpr,
+		*ast.IntervalExpr,
 		*ast.CollateExpr,
 		*ast.IsExpr,
 		*ast.BetweenExpr,

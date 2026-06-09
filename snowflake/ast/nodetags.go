@@ -36,6 +36,7 @@ const (
 	T_CaseExpr
 	T_FuncCallExpr
 	T_IffExpr
+	T_IntervalExpr
 	T_CollateExpr
 	T_OuterJoinExpr
 	T_IsExpr
@@ -278,6 +279,8 @@ func (t NodeTag) String() string {
 		return "FuncCallExpr"
 	case T_IffExpr:
 		return "IffExpr"
+	case T_IntervalExpr:
+		return "IntervalExpr"
 	case T_CollateExpr:
 		return "CollateExpr"
 	case T_OuterJoinExpr:
