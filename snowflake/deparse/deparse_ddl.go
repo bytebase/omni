@@ -836,6 +836,9 @@ func (w *writer) writeCreateMaterializedViewStmt(n *ast.CreateMaterializedViewSt
 	if n.Secure {
 		w.buf.WriteString(" SECURE")
 	}
+	if n.Interactive {
+		w.buf.WriteString(" INTERACTIVE")
+	}
 	w.buf.WriteString(" MATERIALIZED VIEW")
 	if n.IfNotExists {
 		w.buf.WriteString(" IF NOT EXISTS")

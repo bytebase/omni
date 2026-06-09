@@ -424,17 +424,18 @@ func (p *Parser) parseRowAccessPolicyClause() (*ast.RowAccessPolicy, error) {
 // ---------------------------------------------------------------------------
 
 // parseCreateMaterializedViewStmt parses the body of a CREATE [OR REPLACE]
-// [SECURE] MATERIALIZED VIEW statement. The CREATE keyword and OR REPLACE /
-// SECURE modifiers have already been consumed; MATERIALIZED has also been
-// consumed. start is the Loc of the CREATE token.
-func (p *Parser) parseCreateMaterializedViewStmt(start ast.Loc, orReplace, orAlter, secure bool) (ast.Node, error) {
+// [SECURE] [INTERACTIVE] MATERIALIZED VIEW statement. The CREATE keyword and OR
+// REPLACE / SECURE / INTERACTIVE modifiers have already been consumed;
+// MATERIALIZED has also been consumed. start is the Loc of the CREATE token.
+func (p *Parser) parseCreateMaterializedViewStmt(start ast.Loc, orReplace, orAlter, secure, interactive bool) (ast.Node, error) {
 	p.advance() // consume VIEW
 
 	stmt := &ast.CreateMaterializedViewStmt{
-		OrReplace: orReplace,
-		OrAlter:   orAlter,
-		Secure:    secure,
-		Loc:       ast.Loc{Start: start.Start},
+		OrReplace:   orReplace,
+		OrAlter:     orAlter,
+		Secure:      secure,
+		Interactive: interactive,
+		Loc:         ast.Loc{Start: start.Start},
 	}
 
 	// IF NOT EXISTS

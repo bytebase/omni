@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/snowflake/ast"
@@ -490,19 +491,182 @@ func TestDropWarehouse_IfExists(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// DROP object variants (gap-drop-create-variants) — single- and multi-word
+// kinds added to close legacy/drop.sql + legacy/alerts.sql (DROP ALERT).
+// ---------------------------------------------------------------------------
+
+func TestDropObjectVariants_Kinds(t *testing.T) {
+	cases := []struct {
+		sql  string
+		kind ast.DropObjectKind
+	}{
+		{"DROP ALERT a", ast.DropAlert},
+		{"DROP CONNECTION c", ast.DropConnection},
+		{"DROP FAILOVER GROUP fg", ast.DropFailoverGroup},
+		{"DROP INTEGRATION i", ast.DropIntegration},
+		{"DROP MANAGED ACCOUNT ma", ast.DropManagedAccount},
+		{"DROP MASKING POLICY mp", ast.DropMaskingPolicy},
+		{"DROP NETWORK POLICY np", ast.DropNetworkPolicy},
+		{"DROP REPLICATION GROUP rg", ast.DropReplicationGroup},
+		{"DROP RESOURCE MONITOR rm", ast.DropResourceMonitor},
+		{"DROP ROW ACCESS POLICY rap", ast.DropRowAccessPolicy},
+		{"DROP SESSION POLICY sp", ast.DropSessionPolicy},
+		{"DROP SHARE s", ast.DropShare},
+		{"DROP USER u", ast.DropUser},
+	}
+	for _, tc := range cases {
+		t.Run(tc.sql, func(t *testing.T) {
+			stmt, errs := testParseDropStmt(tc.sql)
+			if len(errs) > 0 {
+				t.Fatalf("unexpected errors: %v", errs)
+			}
+			if stmt.Kind != tc.kind {
+				t.Errorf("kind = %v, want %v", stmt.Kind, tc.kind)
+			}
+			// The trailing identifier is the object name, not stolen by a
+			// multi-word kind matcher.
+			if stmt.Name == nil {
+				t.Fatal("expected an object name")
+			}
+		})
+	}
+}
+
+func TestDropObjectVariants_NameNotStolenByMultiWordKind(t *testing.T) {
+	// The second keyword of a 2-word kind must be consumed as part of the kind,
+	// leaving the following identifier as the object name.
+	stmt, errs := testParseDropStmt("DROP MASKING POLICY my_policy")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if stmt.Kind != ast.DropMaskingPolicy {
+		t.Errorf("kind = %v, want DropMaskingPolicy", stmt.Kind)
+	}
+	if stmt.Name.Normalize() != "MY_POLICY" {
+		t.Errorf("name = %q, want MY_POLICY", stmt.Name.Normalize())
+	}
+}
+
+func TestDropObjectVariants_IfExists(t *testing.T) {
+	stmt, errs := testParseDropStmt("DROP MASKING POLICY IF EXISTS mp")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if !stmt.IfExists {
+		t.Error("expected IfExists=true")
+	}
+	if stmt.Kind != ast.DropMaskingPolicy {
+		t.Errorf("kind = %v, want DropMaskingPolicy", stmt.Kind)
+	}
+	if stmt.Name.Normalize() != "MP" {
+		t.Errorf("name = %q, want MP", stmt.Name.Normalize())
+	}
+}
+
+func TestDropObjectVariants_AlertIfExists(t *testing.T) {
+	stmt, errs := testParseDropStmt("DROP ALERT IF EXISTS my_alert")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if stmt.Kind != ast.DropAlert {
+		t.Errorf("kind = %v, want DropAlert", stmt.Kind)
+	}
+	if !stmt.IfExists {
+		t.Error("expected IfExists=true")
+	}
+}
+
+func TestDropObjectVariants_RowAccessPolicyThreeWord(t *testing.T) {
+	// ROW ACCESS POLICY is a 3-keyword kind; all three must be consumed.
+	stmt, errs := testParseDropStmt("DROP ROW ACCESS POLICY rap1")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if stmt.Kind != ast.DropRowAccessPolicy {
+		t.Errorf("kind = %v, want DropRowAccessPolicy", stmt.Kind)
+	}
+	if stmt.Name.Normalize() != "RAP1" {
+		t.Errorf("name = %q, want RAP1", stmt.Name.Normalize())
+	}
+}
+
+func TestDropObjectVariants_Qualified(t *testing.T) {
+	stmt, errs := testParseDropStmt("DROP MASKING POLICY db.sch.mp")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if stmt.Name.Normalize() != "DB.SCH.MP" {
+		t.Errorf("name = %q, want DB.SCH.MP", stmt.Name.Normalize())
+	}
+}
+
+// TestDropNetworkRuleVsPolicy is a regression guard: DROP NETWORK RULE (RULE is
+// a non-reserved identifier) and DROP NETWORK POLICY (POLICY is a reserved
+// keyword) must disambiguate to the correct kinds and not collide.
+func TestDropNetworkRuleVsPolicy(t *testing.T) {
+	ruleStmt, errs := testParseDropStmt("DROP NETWORK RULE nr")
+	if len(errs) > 0 {
+		t.Fatalf("DROP NETWORK RULE: unexpected errors: %v", errs)
+	}
+	if ruleStmt.Kind != ast.DropNetworkRule {
+		t.Errorf("kind = %v, want DropNetworkRule", ruleStmt.Kind)
+	}
+
+	policyStmt, errs := testParseDropStmt("DROP NETWORK POLICY np")
+	if len(errs) > 0 {
+		t.Fatalf("DROP NETWORK POLICY: unexpected errors: %v", errs)
+	}
+	if policyStmt.Kind != ast.DropNetworkPolicy {
+		t.Errorf("kind = %v, want DropNetworkPolicy", policyStmt.Kind)
+	}
+}
+
+func TestDropObjectVariants_DropStmtString(t *testing.T) {
+	// DropObjectKind.String() drives deparse; verify the spaced spelling for the
+	// multi-word kinds.
+	cases := []struct {
+		kind ast.DropObjectKind
+		want string
+	}{
+		{ast.DropAlert, "ALERT"},
+		{ast.DropConnection, "CONNECTION"},
+		{ast.DropFailoverGroup, "FAILOVER GROUP"},
+		{ast.DropIntegration, "INTEGRATION"},
+		{ast.DropManagedAccount, "MANAGED ACCOUNT"},
+		{ast.DropMaskingPolicy, "MASKING POLICY"},
+		{ast.DropNetworkPolicy, "NETWORK POLICY"},
+		{ast.DropReplicationGroup, "REPLICATION GROUP"},
+		{ast.DropResourceMonitor, "RESOURCE MONITOR"},
+		{ast.DropRowAccessPolicy, "ROW ACCESS POLICY"},
+		{ast.DropSessionPolicy, "SESSION POLICY"},
+		{ast.DropShare, "SHARE"},
+		{ast.DropUser, "USER"},
+	}
+	for _, tc := range cases {
+		if got := tc.kind.String(); got != tc.want {
+			t.Errorf("DropObjectKind(%d).String() = %q, want %q", tc.kind, got, tc.want)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Unsupported DROP object types — targeted error, not generic
 // ---------------------------------------------------------------------------
 
 func TestDropUnsupported_TargetedError(t *testing.T) {
-	// DROP <unrecognized object> should produce a targeted error rather than
-	// a generic "DROP not supported" error.
-	result := ParseBestEffort("DROP NETWORK POLICY foo")
+	// DROP <unrecognized object> should produce a targeted error naming the
+	// object type rather than a generic "DROP not supported" error. SECRET is a
+	// recognized keyword whose DROP form is not yet implemented.
+	result := ParseBestEffort("DROP SECRET foo")
 	if len(result.Errors) == 0 {
-		t.Fatal("expected an error for DROP NETWORK POLICY, got none")
+		t.Fatal("expected an error for DROP SECRET, got none")
 	}
 	msg := result.Errors[0].Msg
 	if msg == "DROP statement parsing is not yet supported" {
 		t.Errorf("got generic DROP error; want targeted error, got: %q", msg)
+	}
+	if !strings.Contains(strings.ToUpper(msg), "SECRET") {
+		t.Errorf("targeted error should name the object type; got: %q", msg)
 	}
 }
 

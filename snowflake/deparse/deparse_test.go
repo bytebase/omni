@@ -742,6 +742,33 @@ func TestDeparse_UndropTable(t *testing.T) {
 	assertRoundTrip(t, `UNDROP TABLE t`)
 }
 
+func TestDeparse_DropObjectVariants(t *testing.T) {
+	// Each newly-supported DROP object variant must round-trip exactly via
+	// DropObjectKind.String(); multi-word kinds reproduce the spaced spelling.
+	cases := []string{
+		`DROP ALERT a`,
+		`DROP CONNECTION c`,
+		`DROP FAILOVER GROUP fg`,
+		`DROP INTEGRATION i`,
+		`DROP MANAGED ACCOUNT ma`,
+		`DROP MASKING POLICY mp`,
+		`DROP NETWORK POLICY np`,
+		`DROP REPLICATION GROUP rg`,
+		`DROP RESOURCE MONITOR rm`,
+		`DROP ROW ACCESS POLICY rap`,
+		`DROP SESSION POLICY sp`,
+		`DROP SHARE s`,
+		`DROP USER u`,
+		`DROP CONNECTION IF EXISTS c`,
+		`DROP MASKING POLICY IF EXISTS mp`,
+	}
+	for _, sql := range cases {
+		t.Run(sql, func(t *testing.T) {
+			assertRoundTrip(t, sql)
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // VIEW tests
 // ---------------------------------------------------------------------------
@@ -780,6 +807,14 @@ func TestDeparse_CreateMaterializedView_Simple(t *testing.T) {
 
 func TestDeparse_CreateMaterializedView_ClusterBy(t *testing.T) {
 	assertRoundTrip(t, `CREATE MATERIALIZED VIEW mv CLUSTER BY (a) AS SELECT a, b FROM t`)
+}
+
+func TestDeparse_CreateInteractiveMaterializedView(t *testing.T) {
+	assertRoundTrip(t, `CREATE INTERACTIVE MATERIALIZED VIEW mv AS SELECT * FROM t`)
+}
+
+func TestDeparse_CreateInteractiveMaterializedView_OrReplaceIfNotExists(t *testing.T) {
+	assertRoundTrip(t, `CREATE OR REPLACE INTERACTIVE MATERIALIZED VIEW IF NOT EXISTS mv AS SELECT a FROM t`)
 }
 
 func TestDeparse_AlterMaterializedView_Rename(t *testing.T) {

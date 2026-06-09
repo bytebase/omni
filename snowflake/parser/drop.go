@@ -106,16 +106,100 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 		return p.parseDropObject(ast.DropWarehouse, start, true, false)
 
 	case kwNETWORK:
-		// DROP NETWORK RULE (gap-network-rule). NETWORK is reserved but RULE is not,
-		// so NETWORK RULE lexes as kwNETWORK followed by a "RULE" identifier. Only the
-		// RULE form is handled here; other NETWORK objects (e.g. NETWORK POLICY) are
-		// reported as unsupported.
+		// DROP NETWORK RULE (gap-network-rule) and DROP NETWORK POLICY. NETWORK is
+		// reserved but RULE is not, so NETWORK RULE lexes as kwNETWORK followed by a
+		// "RULE" identifier; POLICY is a reserved keyword, so NETWORK POLICY lexes as
+		// kwNETWORK followed by kwPOLICY.
 		if p.peekIsWord("RULE") {
 			p.advance() // consume NETWORK
 			p.advance() // consume RULE
 			return p.parseDropObject(ast.DropNetworkRule, start, true, false)
 		}
+		if p.peekNext().Type == kwPOLICY {
+			p.advance() // consume NETWORK
+			p.advance() // consume POLICY
+			return p.parseDropObject(ast.DropNetworkPolicy, start, true, false)
+		}
 		return p.unsupportedDrop()
+
+	case kwALERT:
+		p.advance() // consume ALERT
+		return p.parseDropObject(ast.DropAlert, start, true, false)
+
+	case kwCONNECTION:
+		p.advance() // consume CONNECTION
+		return p.parseDropObject(ast.DropConnection, start, true, false)
+
+	case kwFAILOVER:
+		// FAILOVER GROUP
+		p.advance() // consume FAILOVER
+		if _, err := p.expect(kwGROUP); err != nil {
+			return nil, err
+		}
+		return p.parseDropObject(ast.DropFailoverGroup, start, true, false)
+
+	case kwINTEGRATION:
+		p.advance() // consume INTEGRATION
+		return p.parseDropObject(ast.DropIntegration, start, true, false)
+
+	case kwMANAGED:
+		// MANAGED ACCOUNT
+		p.advance() // consume MANAGED
+		if _, err := p.expect(kwACCOUNT); err != nil {
+			return nil, err
+		}
+		return p.parseDropObject(ast.DropManagedAccount, start, true, false)
+
+	case kwMASKING:
+		// MASKING POLICY
+		p.advance() // consume MASKING
+		if _, err := p.expect(kwPOLICY); err != nil {
+			return nil, err
+		}
+		return p.parseDropObject(ast.DropMaskingPolicy, start, true, false)
+
+	case kwREPLICATION:
+		// REPLICATION GROUP
+		p.advance() // consume REPLICATION
+		if _, err := p.expect(kwGROUP); err != nil {
+			return nil, err
+		}
+		return p.parseDropObject(ast.DropReplicationGroup, start, true, false)
+
+	case kwRESOURCE:
+		// RESOURCE MONITOR
+		p.advance() // consume RESOURCE
+		if _, err := p.expect(kwMONITOR); err != nil {
+			return nil, err
+		}
+		return p.parseDropObject(ast.DropResourceMonitor, start, true, false)
+
+	case kwROW:
+		// ROW ACCESS POLICY
+		p.advance() // consume ROW
+		if _, err := p.expect(kwACCESS); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwPOLICY); err != nil {
+			return nil, err
+		}
+		return p.parseDropObject(ast.DropRowAccessPolicy, start, true, false)
+
+	case kwSESSION:
+		// SESSION POLICY
+		p.advance() // consume SESSION
+		if _, err := p.expect(kwPOLICY); err != nil {
+			return nil, err
+		}
+		return p.parseDropObject(ast.DropSessionPolicy, start, true, false)
+
+	case kwSHARE:
+		p.advance() // consume SHARE
+		return p.parseDropObject(ast.DropShare, start, true, false)
+
+	case kwUSER:
+		p.advance() // consume USER
+		return p.parseDropObject(ast.DropUser, start, true, false)
 
 	default:
 		// Emit a targeted error for recognized-but-unimplemented DROP forms,

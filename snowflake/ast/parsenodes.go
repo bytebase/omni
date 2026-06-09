@@ -1571,6 +1571,19 @@ const (
 	DropRole                            // DROP ROLE
 	DropWarehouse                       // DROP WAREHOUSE
 	DropNetworkRule                     // DROP NETWORK RULE
+	DropAlert                           // DROP ALERT
+	DropConnection                      // DROP CONNECTION
+	DropFailoverGroup                   // DROP FAILOVER GROUP
+	DropIntegration                     // DROP INTEGRATION
+	DropManagedAccount                  // DROP MANAGED ACCOUNT
+	DropMaskingPolicy                   // DROP MASKING POLICY
+	DropNetworkPolicy                   // DROP NETWORK POLICY
+	DropReplicationGroup                // DROP REPLICATION GROUP
+	DropResourceMonitor                 // DROP RESOURCE MONITOR
+	DropRowAccessPolicy                 // DROP ROW ACCESS POLICY
+	DropSessionPolicy                   // DROP SESSION POLICY
+	DropShare                           // DROP SHARE
+	DropUser                            // DROP USER
 )
 
 // String returns the SQL object-type keyword for the kind.
@@ -1610,6 +1623,32 @@ func (k DropObjectKind) String() string {
 		return "WAREHOUSE"
 	case DropNetworkRule:
 		return "NETWORK RULE"
+	case DropAlert:
+		return "ALERT"
+	case DropConnection:
+		return "CONNECTION"
+	case DropFailoverGroup:
+		return "FAILOVER GROUP"
+	case DropIntegration:
+		return "INTEGRATION"
+	case DropManagedAccount:
+		return "MANAGED ACCOUNT"
+	case DropMaskingPolicy:
+		return "MASKING POLICY"
+	case DropNetworkPolicy:
+		return "NETWORK POLICY"
+	case DropReplicationGroup:
+		return "REPLICATION GROUP"
+	case DropResourceMonitor:
+		return "RESOURCE MONITOR"
+	case DropRowAccessPolicy:
+		return "ROW ACCESS POLICY"
+	case DropSessionPolicy:
+		return "SESSION POLICY"
+	case DropShare:
+		return "SHARE"
+	case DropUser:
+		return "USER"
 	default:
 		return "UNKNOWN"
 	}
@@ -1944,6 +1983,7 @@ type CreateMaterializedViewStmt struct {
 	OrReplace   bool
 	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Secure      bool
+	Interactive bool // CREATE INTERACTIVE MATERIALIZED VIEW (INTERACTIVE modifier)
 	IfNotExists bool
 	Name        *ObjectName
 	Columns     []*ViewColumn // optional column list

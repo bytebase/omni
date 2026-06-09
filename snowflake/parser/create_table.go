@@ -48,16 +48,28 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		recursive = true
 	}
 
-	// If SECURE or RECURSIVE were consumed, dispatch early on the object type.
-	// RECURSIVE pairs only with VIEW; SECURE additionally precedes
-	// FUNCTION / EXTERNAL FUNCTION / PROCEDURE.
-	if secure || recursive {
+	// Optional INTERACTIVE modifier (MATERIALIZED VIEW-only). INTERACTIVE is not a
+	// reserved keyword (it lexes as a plain identifier), so it is detected the
+	// non-reserved way via curIsWord and only when immediately followed by
+	// MATERIALIZED — otherwise a bare "INTERACTIVE" identifier object is left for
+	// the dispatch switch to reject. INTERACTIVE pairs only with MATERIALIZED VIEW.
+	interactive := false
+	if p.curIsWord("INTERACTIVE") && p.peekNext().Type == kwMATERIALIZED {
+		p.advance() // consume INTERACTIVE
+		interactive = true
+	}
+
+	// If SECURE / RECURSIVE / INTERACTIVE were consumed, dispatch early on the
+	// object type. RECURSIVE pairs only with VIEW; INTERACTIVE only with
+	// MATERIALIZED VIEW; SECURE additionally precedes FUNCTION / EXTERNAL
+	// FUNCTION / PROCEDURE.
+	if secure || recursive || interactive {
 		switch p.cur.Type {
 		case kwVIEW:
 			return p.parseCreateViewStmt(start, orReplace, orAlter, secure, recursive)
 		case kwMATERIALIZED:
 			p.advance() // consume MATERIALIZED
-			return p.parseCreateMaterializedViewStmt(start, orReplace, orAlter, secure)
+			return p.parseCreateMaterializedViewStmt(start, orReplace, orAlter, secure, interactive)
 		case kwFUNCTION:
 			if recursive {
 				return p.unsupported("CREATE")
@@ -137,7 +149,7 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		return p.parseCreateViewStmt(start, orReplace, orAlter, false, false)
 	case kwMATERIALIZED:
 		p.advance() // consume MATERIALIZED
-		return p.parseCreateMaterializedViewStmt(start, orReplace, orAlter, false)
+		return p.parseCreateMaterializedViewStmt(start, orReplace, orAlter, false, false)
 	case kwSTAGE:
 		// CREATE [OR REPLACE] [TEMP|TEMPORARY] STAGE ... (T4.1).
 		return p.parseCreateStageStmt(start, orReplace, orAlter, temporary)
