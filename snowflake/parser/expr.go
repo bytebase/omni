@@ -675,7 +675,7 @@ func (p *Parser) parseFuncCall(name ast.ObjectName, startLoc ast.Loc) (*ast.Func
 	// We parse TRIM as a regular function call with arguments.
 
 	if p.cur.Type != ')' {
-		args, err := p.parseExprList()
+		args, err := p.parseFuncArgList()
 		if err != nil {
 			return nil, err
 		}
@@ -1627,6 +1627,67 @@ func (p *Parser) parseExprList() ([]ast.Node, error) {
 	}
 
 	return exprs, nil
+}
+
+// parseFuncArgList parses a comma-separated function-call argument list where
+// each argument is either a positional expression or a named (keyword) argument
+// `<name> => <value>` (e.g. INFER_SCHEMA(LOCATION => '@s'), FLATTEN(INPUT => x,
+// PATH => 'p'), DATA_SOURCE(TYPE => 'STREAMING')). Positional and named
+// arguments may be freely intermixed; Snowflake itself requires positional
+// first, but the parser is lenient. A named argument is represented as an
+// *ast.CallArg with a non-zero Name placed directly in the arg slice; a
+// positional argument is the bare expression node.
+//
+// The loop is progress-guarded: each iteration must consume at least one token,
+// otherwise it returns a syntax error rather than spinning.
+func (p *Parser) parseFuncArgList() ([]ast.Node, error) {
+	var args []ast.Node
+	for {
+		before := p.cur.Loc.Start
+		arg, err := p.parseFuncArg()
+		if err != nil {
+			return nil, err
+		}
+		// Progress guard: parseFuncArg must always consume at least one token.
+		// parseExpr already errors on an empty production, so this is a
+		// defensive backstop against an infinite loop.
+		if p.cur.Loc.Start == before {
+			return nil, p.syntaxErrorAtCur()
+		}
+		args = append(args, arg)
+
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+	}
+	return args, nil
+}
+
+// parseFuncArg parses one function-call argument: a named argument
+// `<name> => <value>` when the current token is an identifier (or non-reserved
+// word) immediately followed by `=>` (tokAssoc), otherwise a positional
+// expression. The value of a named argument may be any expression (so casts,
+// `$N` refs, colon paths, nested calls compose through).
+func (p *Parser) parseFuncArg() (ast.Node, error) {
+	if p.isIdentToken() && p.peekNext().Type == tokAssoc {
+		start := p.cur.Loc.Start
+		name, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		p.advance() // consume '=>'
+		value, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.CallArg{
+			Name:  name,
+			Value: value,
+			Loc:   ast.Loc{Start: start, End: p.prev.Loc.End},
+		}, nil
+	}
+	return p.parseExpr()
 }
 
 // parseOrderByList parses ORDER BY items: expr [ASC|DESC] [NULLS FIRST|LAST].

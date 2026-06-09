@@ -1293,7 +1293,7 @@ type CloneSource struct {
 	Source   *ObjectName
 	AtBefore string // "AT" or "BEFORE"; empty if no time travel
 	Kind     string // "TIMESTAMP"/"OFFSET"/"STATEMENT"
-	Value    string // the time travel value
+	Value    Node   // the time-travel value expression (e.g. a string literal or TO_TIMESTAMP_TZ(...))
 }
 
 // ---------------------------------------------------------------------------

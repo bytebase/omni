@@ -171,19 +171,12 @@ var corpusSkips = map[string]string{
 	// CREATE OR ALTER WAREHOUSE and DROP WAREHOUSE statements in it parse clean.
 	"official/create-warehouse/example_07.sql": "RESIDUAL GAP: SHOW WAREHOUSES ->> SELECT ... FROM $1 — ->> result-pipe + $N table-ref owned by other nodes (CREATE OR ALTER WAREHOUSE parses)",
 
-	// --- RESIDUAL GAP: dynamic-table clauses (named-arg => and INTERVAL/refresh-mode) ---
-	"official/create-dynamic-table/example_04.sql": "RESIDUAL GAP: CLONE ... AT (TIMESTAMP => TO_TIMESTAMP_TZ(...)) named-arg => in time-travel clause",
+	// --- RESIDUAL GAP: dynamic-table IMMUTABLE WHERE + INTERVAL literal ---
+	// example_04 (CLONE ... AT (TIMESTAMP => TO_TIMESTAMP_TZ(...))) is now closed
+	// by gap-named-args (named function arguments + general clone time-travel
+	// value). example_07 remains: IMMUTABLE WHERE (... - INTERVAL '1 day') needs
+	// the INTERVAL literal / refresh-mode clause owned by gap-expr-misc.
 	"official/create-dynamic-table/example_07.sql": "RESIDUAL GAP: IMMUTABLE WHERE (... - INTERVAL '1 day') refresh-mode + interval literal not parsed",
-
-	// --- RESIDUAL GAP: named function arguments  name => value  (expr/func-call) ---
-	"official/copy-into-table/example_06.sql":       "RESIDUAL GAP: TABLE(DATA_SOURCE(TYPE => 'STREAMING')) named-arg => in function call",
-	"official/create-external-table/example_09.sql": "RESIDUAL GAP: INFER_SCHEMA(LOCATION=>'...', FILE_FORMAT=>'...') named-arg => in function call",
-	"official/create-external-table/example_10.sql": "RESIDUAL GAP: INFER_SCHEMA(...) named-arg => in function call",
-	"official/create-pipe/example_08.sql":           "RESIDUAL GAP: TABLE(DATA_SOURCE(TYPE => 'STREAMING')) named-arg => in function call",
-	"official/create-pipe/example_09.sql":           "RESIDUAL GAP: named-arg => in function call (pipe streaming source)",
-	"official/create-pipe/example_10.sql":           "RESIDUAL GAP: named-arg => in function call (pipe streaming source)",
-	"official/join-lateral/example_05.sql":          "RESIDUAL GAP: LATERAL FLATTEN(INPUT => ..., PATH => ...) named-arg => in function call",
-	"official/truncate-table/example_02.sql":        "RESIDUAL GAP: table(generator(rowcount=>20)) named-arg => in function call",
 
 	// --- DEPENDENCY GAP: $N / $N:path result-set ref + stage path as a table ref (T5) ---
 	"official/create-external-table/example_01.sql":  "DEPENDENCY GAP: SELECT metadata$filename FROM @s1/ — stage-path table ref + metadata$col not parsed",

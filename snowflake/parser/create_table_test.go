@@ -247,8 +247,12 @@ func TestCreateTable_CloneAtTimestamp(t *testing.T) {
 	if stmt.Clone.Kind != "TIMESTAMP" {
 		t.Errorf("Kind = %q, want %q", stmt.Clone.Kind, "TIMESTAMP")
 	}
-	if stmt.Clone.Value != "2024-01-01" {
-		t.Errorf("Value = %q, want %q", stmt.Clone.Value, "2024-01-01")
+	lit, ok := stmt.Clone.Value.(*ast.Literal)
+	if !ok {
+		t.Fatalf("Value type = %T, want *ast.Literal", stmt.Clone.Value)
+	}
+	if lit.Kind != ast.LitString || lit.Value != "2024-01-01" {
+		t.Errorf("Value = %v %q, want LitString %q", lit.Kind, lit.Value, "2024-01-01")
 	}
 }
 
