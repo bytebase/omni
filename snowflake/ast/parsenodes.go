@@ -4992,6 +4992,101 @@ var (
 )
 
 // ---------------------------------------------------------------------------
+// Warehouse DDL — CREATE / ALTER WAREHOUSE (gap-warehouse)
+// ---------------------------------------------------------------------------
+//
+// A warehouse carries an open-ended, version-growing vocabulary of object
+// properties (WAREHOUSE_SIZE, WAREHOUSE_TYPE, RESOURCE_CONSTRAINT, AUTO_RESUME,
+// AUTO_SUSPEND, INITIALLY_SUSPENDED, GENERATION, MAX_CLUSTER_COUNT,
+// MIN_CLUSTER_COUNT, SCALING_POLICY, ENABLE_QUERY_ACCELERATION, COMMENT, ...)
+// plus object-parameters and session-parameters that share the same
+// `KEY = value` shape. Rather than mirror the legacy ANTLR grammar's finite,
+// already-stale enumeration (its wh_properties / wh_common_size rules predate
+// WAREHOUSE_TYPE, RESOURCE_CONSTRAINT, GENERATION, ENABLE_QUERY_ACCELERATION,
+// QUERY_ACCELERATION_MAX_SCALE_FACTOR, ...), every property is captured as an
+// open-ended CopyOption pair, exactly like STAGE (T4.1) / FILE FORMAT (T4.2).
+// The catalog/semantic layer, not the parser, validates that a property is real
+// and legal. The trailing [ WITH ] TAG (...) clause is the one structural anchor.
+
+// CreateWarehouseStmt represents
+//
+//	CREATE [ OR REPLACE | OR ALTER ] WAREHOUSE [ IF NOT EXISTS ] <name>
+//	  [ WITH ] <prop> [ <prop> ... ]
+//	  [ [ WITH ] TAG ( <tag> = '<value>' [ , ... ] ) ]
+//
+// where each <prop> is an open-ended `KEY = value` pair captured in Options,
+// preserving source order. The leading optional WITH (CREATE WAREHOUSE w WITH
+// WAREHOUSE_SIZE=...) is purely cosmetic and not retained.
+type CreateWarehouseStmt struct {
+	OrReplace   bool
+	OrAlter     bool // CREATE OR ALTER (mutually exclusive with OrReplace)
+	IfNotExists bool
+	Name        *ObjectName
+	Options     []*CopyOption    // open-ended warehouse properties / object+session params
+	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
+	Loc         Loc
+}
+
+// Tag implements Node.
+func (n *CreateWarehouseStmt) Tag() NodeTag { return T_CreateWarehouseStmt }
+
+// AlterWarehouseAction discriminates the action variants of ALTER WAREHOUSE.
+type AlterWarehouseAction int
+
+const (
+	AlterWarehouseSuspend      AlterWarehouseAction = iota // SUSPEND
+	AlterWarehouseResume                                   // RESUME [ IF SUSPENDED ]
+	AlterWarehouseAbort                                    // ABORT ALL QUERIES
+	AlterWarehouseRename                                   // RENAME TO <new_name>
+	AlterWarehouseSet                                      // SET <prop> [ <prop> ... ]
+	AlterWarehouseUnset                                    // UNSET <key> [ , ... ]
+	AlterWarehouseSetTag                                   // SET TAG <tag> = '<value>' [ , ... ]
+	AlterWarehouseUnsetTag                                 // UNSET TAG <tag> [ , ... ]
+	AlterWarehouseAddTables                                // ADD TABLES ( <id> [ , ... ] )
+	AlterWarehouseRemoveTables                             // { REMOVE | DROP } TABLES ( <id> [ , ... ] )
+)
+
+// AlterWarehouseStmt represents ALTER WAREHOUSE [ IF EXISTS ] <name> <action>.
+//
+//	SUSPEND
+//	RESUME [ IF SUSPENDED ]
+//	ABORT ALL QUERIES
+//	RENAME TO <new_name>
+//	SET <prop> [ <prop> ... ]               -- open-ended KEY = value params
+//	UNSET <key> [ , ... ]
+//	SET TAG <tag> = '<value>' [ , ... ]
+//	UNSET TAG <tag> [ , ... ]
+//	ADD TABLES ( <id> [ , ... ] )           -- Unistore/interactive variant
+//	{ REMOVE | DROP } TABLES ( <id> [ , ... ] )
+//
+// NewName holds the RENAME target. Options holds the SET properties. UnsetKeys
+// holds the UNSET key names. Tags / UnsetTags hold the SET TAG / UNSET TAG
+// assignments and names. Tables holds the ADD/REMOVE TABLES identifier list.
+// ResumeIfSuspended records the optional IF SUSPENDED on RESUME.
+type AlterWarehouseStmt struct {
+	IfExists          bool
+	Name              *ObjectName
+	Action            AlterWarehouseAction
+	NewName           *ObjectName      // RENAME TO target; for AlterWarehouseRename
+	Options           []*CopyOption    // SET <props>; for AlterWarehouseSet
+	UnsetKeys         []string         // UNSET <key> [, ...]; for AlterWarehouseUnset
+	Tags              []*TagAssignment // SET TAG (...) assignments; for AlterWarehouseSetTag
+	UnsetTags         []*ObjectName    // UNSET TAG (...) names; for AlterWarehouseUnsetTag
+	Tables            []*ObjectName    // ADD/REMOVE TABLES (...) ids; for the table actions
+	ResumeIfSuspended bool             // RESUME IF SUSPENDED; for AlterWarehouseResume
+	Loc               Loc
+}
+
+// Tag implements Node.
+func (n *AlterWarehouseStmt) Tag() NodeTag { return T_AlterWarehouseStmt }
+
+// Compile-time assertions for warehouse DDL nodes.
+var (
+	_ Node = (*CreateWarehouseStmt)(nil)
+	_ Node = (*AlterWarehouseStmt)(nil)
+)
+
+// ---------------------------------------------------------------------------
 // CALL / EXECUTE IMMEDIATE / EXECUTE TASK / EXPLAIN statement nodes (T5.4)
 // ---------------------------------------------------------------------------
 

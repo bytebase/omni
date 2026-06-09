@@ -107,6 +107,12 @@ func (w *writer) writeNode(node ast.Node) error {
 	case *ast.AlterMaterializedViewStmt:
 		return w.writeAlterMaterializedViewStmt(n)
 
+	// --- DDL: warehouse ---
+	case *ast.CreateWarehouseStmt:
+		return w.writeCreateWarehouseStmt(n)
+	case *ast.AlterWarehouseStmt:
+		return w.writeAlterWarehouseStmt(n)
+
 	// --- Expressions (can also be top-level in some contexts) ---
 	case *ast.Literal,
 		*ast.ColumnRef,
