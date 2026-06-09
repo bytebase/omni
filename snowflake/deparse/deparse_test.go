@@ -482,6 +482,50 @@ func TestDeparse_CreateTable_Transient(t *testing.T) {
 	assertRoundTrip(t, `CREATE TRANSIENT TABLE t (id INT)`)
 }
 
+// HYBRID must round-trip distinctly: a deparse that dropped the modifier would
+// change the reparsed AST (Hybrid false vs true) and fail the DeepEqual.
+func TestDeparse_CreateTable_Hybrid(t *testing.T) {
+	out := assertRoundTrip(t, `CREATE HYBRID TABLE t (id INT)`)
+	if !strings.Contains(out, "HYBRID TABLE") {
+		t.Errorf("deparsed SQL missing HYBRID TABLE: %q", out)
+	}
+}
+
+func TestDeparse_CreateTable_HybridOrReplace(t *testing.T) {
+	out := assertRoundTrip(t, `CREATE OR REPLACE HYBRID TABLE t (id INT)`)
+	if !strings.Contains(out, "OR REPLACE HYBRID TABLE") {
+		t.Errorf("deparsed SQL missing OR REPLACE HYBRID TABLE: %q", out)
+	}
+}
+
+// Inline INDEX elements round-trip: name + parenthesized column list.
+func TestDeparse_CreateTable_HybridIndexSingle(t *testing.T) {
+	out := assertRoundTrip(t,
+		`CREATE HYBRID TABLE t (id INT, full_name VARCHAR(255), INDEX index_full_name (full_name))`)
+	if !strings.Contains(out, "INDEX index_full_name (full_name)") {
+		t.Errorf("deparsed SQL missing INDEX element: %q", out)
+	}
+}
+
+func TestDeparse_CreateTable_HybridIndexMulti(t *testing.T) {
+	out := assertRoundTrip(t,
+		`CREATE HYBRID TABLE t (a INT, b INT, c INT, INDEX idx_abc (a, b, c))`)
+	if !strings.Contains(out, "INDEX idx_abc (a, b, c)") {
+		t.Errorf("deparsed SQL missing multi-column INDEX element: %q", out)
+	}
+}
+
+// Full corpus example_01 shape round-trips (AUTOINCREMENT/PK/UNIQUE/VARIANT +
+// inline INDEX in one statement).
+func TestDeparse_CreateTable_HybridCorpus01(t *testing.T) {
+	assertRoundTrip(t, `CREATE HYBRID TABLE mytable (customer_id INT AUTOINCREMENT PRIMARY KEY, full_name VARCHAR(255), email VARCHAR(255) UNIQUE, extended_customer_info VARIANT, INDEX index_full_name (full_name))`)
+}
+
+// INDEX element alongside an out-of-line constraint round-trips.
+func TestDeparse_CreateTable_HybridIndexWithConstraint(t *testing.T) {
+	assertRoundTrip(t, `CREATE OR REPLACE HYBRID TABLE ht2 (c1 INT PRIMARY KEY, c2 VARCHAR(10), INDEX idx_c2 (c2))`)
+}
+
 func TestDeparse_CreateTable_Temporary(t *testing.T) {
 	assertRoundTrip(t, `CREATE TEMPORARY TABLE t (id INT)`)
 }

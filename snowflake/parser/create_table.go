@@ -108,9 +108,21 @@ func (p *Parser) parseCreateStmt() (ast.Node, error) {
 		volatile = true
 	}
 
+	// Optional HYBRID modifier (Unistore). HYBRID is not a reserved keyword (it
+	// lexes as a plain identifier), so it is detected the non-reserved way via
+	// curIsWord and only when immediately followed by TABLE — otherwise a bare
+	// "HYBRID" identifier object (e.g. CREATE HYBRID VIEW, were that a thing) is
+	// left for the dispatch switch to reject. CREATE HYBRID TABLE is the only
+	// documented form, so HYBRID pairs only with TABLE.
+	hybrid := false
+	if p.curIsWord("HYBRID") && p.peekNext().Type == kwTABLE {
+		p.advance() // consume HYBRID
+		hybrid = true
+	}
+
 	switch p.cur.Type {
 	case kwTABLE:
-		return p.parseCreateTableStmt(start, orReplace, orAlter, transient, temporary, volatile)
+		return p.parseCreateTableStmt(start, orReplace, orAlter, transient, temporary, volatile, hybrid)
 	case kwDATABASE:
 		// CREATE [OR REPLACE] DATABASE ROLE ... (T4.6) vs CREATE DATABASE ... (T2.1).
 		// DATABASE ROLE is disambiguated by the ROLE keyword following DATABASE.
@@ -268,7 +280,7 @@ func (p *Parser) parseCreatePolicyDispatch(start ast.Loc, orReplace, orAlter boo
 // parseCreateTableStmt parses the body of a CREATE [OR REPLACE] [...] TABLE
 // statement. The CREATE keyword and optional modifiers have already been
 // consumed; start is the Loc of the CREATE token.
-func (p *Parser) parseCreateTableStmt(start ast.Loc, orReplace, orAlter, transient, temporary, volatile bool) (ast.Node, error) {
+func (p *Parser) parseCreateTableStmt(start ast.Loc, orReplace, orAlter, transient, temporary, volatile, hybrid bool) (ast.Node, error) {
 	p.advance() // consume TABLE
 
 	stmt := &ast.CreateTableStmt{
@@ -277,6 +289,7 @@ func (p *Parser) parseCreateTableStmt(start ast.Loc, orReplace, orAlter, transie
 		Transient: transient,
 		Temporary: temporary,
 		Volatile:  volatile,
+		Hybrid:    hybrid,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 
@@ -372,6 +385,26 @@ func (p *Parser) parseColumnDeclItems(stmt *ast.CreateTableStmt) error {
 	}
 
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		// An inline INDEX element (HYBRID TABLE) shares its leading keyword with a
+		// column whose name is literally "index" (INDEX is non-reserved).
+		// tryParseTableIndex speculatively matches the INDEX <name> ( ... ) shape
+		// and reports matched=false (rolling back) when it is actually a column
+		// named "index", which then falls through to parseColumnDef below.
+		if p.cur.Type == kwINDEX {
+			idx, matched, err := p.tryParseTableIndex()
+			if err != nil {
+				return err
+			}
+			if matched {
+				stmt.Indexes = append(stmt.Indexes, idx)
+				if p.cur.Type == ',' {
+					p.advance() // consume ','
+					continue
+				}
+				break
+			}
+		}
+
 		if p.isOutOfLineConstraintStart() {
 			con, err := p.parseOutOfLineConstraint()
 			if err != nil {
@@ -407,6 +440,50 @@ func (p *Parser) isOutOfLineConstraintStart() bool {
 		return true
 	}
 	return false
+}
+
+// tryParseTableIndex speculatively parses an inline INDEX element of a HYBRID
+// TABLE column list:
+//
+//	INDEX <index_name> ( <col_name> [, <col_name>...] )
+//
+// On entry cur is the INDEX keyword. Because INDEX is a non-reserved keyword,
+// the same leading token can begin a column definition whose name is literally
+// "index" — e.g. `index INT`, `index VARCHAR(10)`, or even `index NUMBER(38,0)`
+// (where the type's own parenthesized params would superficially resemble an
+// index column list). To disambiguate unambiguously, the whole element shape is
+// parsed under a snapshot: the index name, '(', a non-empty identifier list, and
+// ')'. If every part matches, the index is committed (matched=true). If any part
+// fails — wrong name, no '(', a numeric type param instead of a column name,
+// missing ')' — the parser is rolled back to the INDEX keyword and matched=false
+// is returned, so the caller parses a column definition instead. This never
+// surfaces a hard error from the speculative path; a genuinely malformed INDEX
+// element instead produces a column-definition error downstream.
+func (p *Parser) tryParseTableIndex() (idx *ast.TableIndex, matched bool, err error) {
+	snap := p.snapshot()
+
+	start := p.cur.Loc.Start
+	p.advance() // consume INDEX
+
+	name, nameErr := p.parseIdent()
+	if nameErr != nil || p.cur.Type != '(' {
+		p.restore(snap)
+		return nil, false, nil
+	}
+
+	cols, colsErr := p.parseIdentListInParens()
+	if colsErr != nil {
+		// Not an index element after all (e.g. a column named "index" with a
+		// parenthesized type): roll back and let parseColumnDef handle it.
+		p.restore(snap)
+		return nil, false, nil
+	}
+
+	return &ast.TableIndex{
+		Name:    name,
+		Columns: cols,
+		Loc:     ast.Loc{Start: start, End: p.prev.Loc.End},
+	}, true, nil
 }
 
 // ---------------------------------------------------------------------------
