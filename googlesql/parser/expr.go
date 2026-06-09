@@ -222,16 +222,95 @@ func (p *Parser) parseComparison() (ast.Node, error) {
 	return left, nil
 }
 
-// parseCompareRHS consumes a comparative operator and its RHS (a higher-prec
-// operand). The RHS is parseBinaryExpr(bpBitOr) — NOT another comparison — so
-// the family stays non-associative (P1).
+// parseCompareRHS consumes a comparative operator and its RHS. The plain RHS is
+// parseBinaryExpr(bpBitOr) — NOT another comparison — so the family stays
+// non-associative (P1). The quantified form (`op {ANY|SOME|ALL} <rhs>`, the
+// any_some_all production) is also accepted here: GoogleSQL allows
+// `expr comparative_operator any_some_all (subquery | list | UNNEST)` exactly as
+// it allows `expr LIKE any_some_all ...`. (Verified against the live Spanner
+// emulator: all six operators × ANY/SOME/ALL × subquery/list/UNNEST parse —
+// see TestExprDifferential and divergence #201.)
 func (p *Parser) parseCompareRHS(left ast.Node, op ast.CompareOp) (ast.Node, error) {
 	p.advance() // consume the operator
+
+	// Quantified form: comparative_operator { ANY | SOME | ALL } <rhs>.
+	switch p.cur.Type {
+	case kwANY, kwSOME, kwALL:
+		quant := strings.ToUpper(TokenName(p.cur.Type))
+		p.advance()
+		rhs, err := p.parseQuantifiedRHS(nodeLoc(left).Start)
+		if err != nil {
+			return nil, err
+		}
+		return &ast.CompareExpr{
+			Op:            op,
+			Left:          left,
+			Quantifier:    quant,
+			QuantValues:   rhs.values,
+			QuantUnnest:   rhs.unnest,
+			QuantSubquery: rhs.subquery,
+			Loc:           ast.Loc{Start: nodeLoc(left).Start, End: rhs.end},
+		}, nil
+	}
+
 	right, err := p.parseBinaryExpr(bpBitOr)
 	if err != nil {
 		return nil, err
 	}
 	return &ast.CompareExpr{Op: op, Left: left, Right: right, Loc: spanNodes(left, right)}, nil
+}
+
+// quantifiedRHS is the parsed right-hand side of a quantified operator
+// (`{ANY|SOME|ALL} <rhs>`), shared by the comparative and LIKE forms. Exactly
+// one of values / unnest / subquery is set; end is the offset past the RHS.
+type quantifiedRHS struct {
+	values   []ast.Node // parenthesized expression list (>= 1)
+	unnest   ast.Node   // UNNEST(...) call
+	subquery ast.Node   // parenthesized query
+	end      int        // end offset past the RHS
+}
+
+// parseQuantifiedRHS parses the RHS after an `ANY|SOME|ALL` quantifier has been
+// consumed: an optional leading `@{...}`/`@N` hint, then either `UNNEST(...)`, a
+// parenthesized query, or a parenthesized expression list (>= 1). lhsStart is the
+// start offset of the overall expression's left operand, used for the span. This
+// is the any_some_all RHS shared by `expr op {ANY|SOME|ALL} ...` and
+// `expr LIKE {ANY|SOME|ALL} ...` (the grammar's anysomeall list/subquery RHS).
+func (p *Parser) parseQuantifiedRHS(lhsStart int) (quantifiedRHS, error) {
+	var out quantifiedRHS
+	if p.cur.Type == int('@') {
+		if herr := p.skipHint(); herr != nil {
+			return out, herr
+		}
+	}
+	if p.cur.Type == kwUNNEST {
+		unnest, err := p.parseUnnestExpression()
+		if err != nil {
+			return out, err
+		}
+		out.unnest = unnest
+		out.end = nodeLoc(unnest).End
+		return out, nil
+	}
+	if _, err := p.expect(int('(')); err != nil {
+		return out, err
+	}
+	if p.atQueryStart() {
+		sub, end, err := p.parseSubqueryBody(lhsStart)
+		if err != nil {
+			return out, err
+		}
+		out.subquery = sub
+		out.end = end
+		return out, nil
+	}
+	values, endLoc, err := p.parseExprListThroughParen()
+	if err != nil {
+		return out, err
+	}
+	out.values = values
+	out.end = endLoc.End
+	return out, nil
 }
 
 // parseBinaryExpr parses the left-associative arithmetic / bitwise / shift /
@@ -418,43 +497,21 @@ func (p *Parser) parseLike(left ast.Node, not bool) (ast.Node, error) {
 	p.advance() // consume LIKE
 	out := &ast.LikeExpr{Expr: left, Not: not}
 
-	// Quantified form: ANY / SOME / ALL.
+	// Quantified form: ANY / SOME / ALL. Shares the RHS grammar (hint + UNNEST /
+	// subquery / list) with the comparative-operator quantified form via
+	// parseQuantifiedRHS.
 	switch p.cur.Type {
 	case kwANY, kwSOME, kwALL:
 		out.Quantifier = strings.ToUpper(TokenName(p.cur.Type))
 		p.advance()
-		if p.cur.Type == int('@') {
-			if herr := p.skipHint(); herr != nil {
-				return nil, herr
-			}
-		}
-		if p.cur.Type == kwUNNEST {
-			unnest, err := p.parseUnnestExpression()
-			if err != nil {
-				return nil, err
-			}
-			out.QuantUnnest = unnest
-			out.Loc = spanNodes(left, unnest)
-			return out, nil
-		}
-		if _, err := p.expect(int('(')); err != nil {
-			return nil, err
-		}
-		if p.atQueryStart() {
-			sub, end, err := p.parseSubqueryBody(nodeLoc(left).Start)
-			if err != nil {
-				return nil, err
-			}
-			out.QuantSubquery = sub
-			out.Loc = ast.Loc{Start: nodeLoc(left).Start, End: end}
-			return out, nil
-		}
-		values, endLoc, err := p.parseExprListThroughParen()
+		rhs, err := p.parseQuantifiedRHS(nodeLoc(left).Start)
 		if err != nil {
 			return nil, err
 		}
-		out.QuantValues = values
-		out.Loc = ast.Loc{Start: nodeLoc(left).Start, End: endLoc.End}
+		out.QuantValues = rhs.values
+		out.QuantUnnest = rhs.unnest
+		out.QuantSubquery = rhs.subquery
+		out.Loc = ast.Loc{Start: nodeLoc(left).Start, End: rhs.end}
 		return out, nil
 	}
 

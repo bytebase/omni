@@ -32,6 +32,18 @@ func sexpr(n ast.Node) string {
 	case *ast.BinaryExpr:
 		return fmt.Sprintf("(%s %s %s)", v.Op, sexpr(v.Left), sexpr(v.Right))
 	case *ast.CompareExpr:
+		if v.Quantifier != "" {
+			var rhs string
+			switch {
+			case v.QuantUnnest != nil:
+				rhs = "unnest"
+			case v.QuantSubquery != nil:
+				rhs = "subq"
+			default:
+				rhs = fmt.Sprintf("%d-vals", len(v.QuantValues))
+			}
+			return fmt.Sprintf("(%s-%s %s %s)", v.Op, v.Quantifier, sexpr(v.Left), rhs)
+		}
 		return fmt.Sprintf("(%s %s %s)", v.Op, sexpr(v.Left), sexpr(v.Right))
 	case *ast.UnaryExpr:
 		return fmt.Sprintf("(%s %s)", v.Op, sexpr(v.Expr))
@@ -250,6 +262,11 @@ func TestExpr_NonAssociative(t *testing.T) {
 		"1 BETWEEN 0 AND 2 BETWEEN 0 AND 1",
 		"a < b > c",
 		"1 = 2 != 3",
+		// A quantified comparison is itself a comparison-family operator: chaining
+		// it (or a plain comparison) onto its result is non-associative. (Oracle:
+		// "Expression to the left of comparison must be parenthesized".)
+		"x = ANY (SELECT v FROM s) = y",
+		"x = ANY (1, 2) = z",
 	}
 	for _, in := range rejects {
 		if _, errs := ParseExpression(in); len(errs) == 0 {
@@ -559,6 +576,92 @@ func TestExpr_Subqueries(t *testing.T) {
 	// A subquery participates in an outer expression.
 	if got := sexpr(mustParse(t, "(SELECT 1) + 2")); got != "(+ (subquery SELECT 1) 2)" {
 		t.Errorf("(SELECT 1)+2 = %s", got)
+	}
+}
+
+// TestExpr_QuantifiedComparison covers the quantified comparison predicate
+// `expr {= != <> < <= > >=} {ANY|SOME|ALL} <rhs>` (the any_some_all production
+// on comparative_operator). This is SHARED GoogleSQL core (the live Spanner
+// emulator accepts every form here — see expr_oracle_test.go and divergence
+// #201). Before this node, omni rejected it with "syntax error at or near
+// ANY/ALL"; it now parses, mirroring the long-standing `LIKE ANY|SOME|ALL` form.
+func TestExpr_QuantifiedComparison(t *testing.T) {
+	// Structural shape: operator, quantifier and RHS kind. RHS kind is "subq"
+	// (parenthesized query), "N-vals" (parenthesized list), or "unnest".
+	cases := []struct{ in, want string }{
+		// Subquery RHS, all six operators × the three quantifiers.
+		{"x = ANY (SELECT v FROM s)", "(=-ANY x subq)"},
+		// `!=` and `<>` both canonicalize to CmpNe (rendered "!=").
+		{"x != ANY (SELECT v FROM s)", "(!=-ANY x subq)"},
+		{"x <> ALL (SELECT v FROM s)", "(!=-ALL x subq)"},
+		{"x < SOME (SELECT v FROM s)", "(<-SOME x subq)"},
+		{"x <= ALL (SELECT v FROM s)", "(<=-ALL x subq)"},
+		{"x > ALL (SELECT v FROM s)", "(>-ALL x subq)"},
+		{"x >= ANY (SELECT v FROM s)", "(>=-ANY x subq)"},
+		{"x = SOME (SELECT v FROM s)", "(=-SOME x subq)"},
+		// List RHS (>= 1 element).
+		{"x = ANY (1, 2, 3)", "(=-ANY x 3-vals)"},
+		{"x > ALL (1, 2)", "(>-ALL x 2-vals)"},
+		{"x = ANY (5)", "(=-ANY x 1-vals)"},
+		// UNNEST RHS.
+		{"x = ANY UNNEST([1, 2, 3])", "(=-ANY x unnest)"},
+		{"x > ALL UNNEST([1, 2])", "(>-ALL x unnest)"},
+		// LHS may be a higher-precedence expression (arithmetic binds tighter).
+		{"x + 1 > ALL (SELECT v FROM s)", "(>-ALL (+ x 1) subq)"},
+		// Optional @{...} hint before the RHS (matches the IN/LIKE hint slot).
+		{"x = ANY @{a=1} (SELECT v FROM s)", "(=-ANY x subq)"},
+		// Quantified comparison feeds into AND (it is below AND in precedence).
+		{"x = ALL (SELECT v FROM s) AND y > 0", "(AND (=-ALL x subq) (> y 0))"},
+	}
+	for _, c := range cases {
+		got := sexpr(mustParse(t, c.in))
+		if got != c.want {
+			t.Errorf("%q: got %s, want %s", c.in, got, c.want)
+		}
+	}
+
+	// Field-level assertions for one representative of each RHS form.
+	sub := mustParse(t, "x = ANY (SELECT v FROM s)").(*ast.CompareExpr)
+	if sub.Op != ast.CmpEq || sub.Quantifier != "ANY" || sub.Right != nil {
+		t.Errorf("subquery form: op=%v quant=%q right=%v", sub.Op, sub.Quantifier, sub.Right)
+	}
+	if sq, ok := sub.QuantSubquery.(*ast.SubqueryExpr); !ok || sq.RawText != "SELECT v FROM s" {
+		t.Errorf("subquery form: QuantSubquery=%v", sub.QuantSubquery)
+	}
+	lst := mustParse(t, "x > ALL (1, 2, 3)").(*ast.CompareExpr)
+	if lst.Quantifier != "ALL" || len(lst.QuantValues) != 3 || lst.QuantSubquery != nil || lst.QuantUnnest != nil {
+		t.Errorf("list form: quant=%q vals=%d", lst.Quantifier, len(lst.QuantValues))
+	}
+	un := mustParse(t, "x = ANY UNNEST([1, 2])").(*ast.CompareExpr)
+	if un.QuantUnnest == nil || un.QuantSubquery != nil || un.QuantValues != nil {
+		t.Errorf("unnest form: unnest=%v", un.QuantUnnest)
+	}
+
+	// Inspect visits the quantified RHS children (genwalker coverage).
+	var sawSubquery bool
+	ast.Inspect(sub, func(n ast.Node) bool {
+		if _, ok := n.(*ast.SubqueryExpr); ok {
+			sawSubquery = true
+		}
+		return true
+	})
+	if !sawSubquery {
+		t.Errorf("Inspect did not visit the quantified subquery RHS")
+	}
+
+	// Rejects: empty list, double quantifier, missing/unparenthesized RHS, and
+	// IS does not take a quantifier. (All confirmed reject by the live oracle.)
+	rejects := []string{
+		"x = ANY ()",                    // empty list
+		"x = ANY ANY (SELECT v FROM s)", // double quantifier
+		"x = ANY",                       // no RHS
+		"x = ANY SELECT v FROM s",       // subquery not parenthesized
+		"x IS ANY (SELECT v FROM s)",    // IS has no quantified form
+	}
+	for _, in := range rejects {
+		if _, errs := ParseExpression(in); len(errs) == 0 {
+			t.Errorf("ParseExpression(%q): expected a syntax error, got none", in)
+		}
 	}
 }
 

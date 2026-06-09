@@ -174,6 +174,9 @@ func walkChildren(v Visitor, node Node) {
 	case *CompareExpr:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
+		walkNodes(v, n.QuantValues)
+		Walk(v, n.QuantUnnest)
+		Walk(v, n.QuantSubquery)
 	case *CreateChangeStreamStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)

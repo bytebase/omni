@@ -614,14 +614,26 @@ type BinaryExpr struct {
 // Tag implements Node.
 func (n *BinaryExpr) Tag() NodeTag { return T_BinaryExpr }
 
-// CompareExpr is a single comparative operation `left op right` for
-// = != <> < <= > >= (comparative_operator). NON-ASSOCIATIVE (P1): Left and
-// Right are both the next-higher precedence level, never another comparison.
+// CompareExpr is a single comparative operation for = != <> < <= > >=
+// (comparative_operator). NON-ASSOCIATIVE (P1): the operands are the next-higher
+// precedence level, never another comparison.
+//
+// Plain form (`left op right`) sets Right. Quantified form
+// (`left op {ANY|SOME|ALL} <rhs>`, the any_some_all production) leaves Right nil,
+// sets Quantifier, and sets exactly one of QuantValues (a parenthesized
+// expression list, >= 1), QuantUnnest (an UNNEST(...) call), or QuantSubquery (a
+// parenthesized query) — mirroring the quantified form of LikeExpr.
 type CompareExpr struct {
 	Op    CompareOp
 	Left  Node
-	Right Node
-	Loc   Loc
+	Right Node // plain form; nil for the quantified form
+
+	Quantifier    string // "ANY" | "SOME" | "ALL"; "" for the plain form
+	QuantValues   []Node // quantified parenthesized-list RHS (>= 1)
+	QuantUnnest   Node   // quantified UNNEST(...) RHS
+	QuantSubquery Node   // quantified parenthesized-query RHS
+
+	Loc Loc
 }
 
 // Tag implements Node.

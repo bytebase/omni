@@ -83,6 +83,11 @@ func TestGetQuerySpan_AccessTables(t *testing.T) {
 		{"scalar subquery", "SELECT (SELECT MAX(x) FROM u) AS m FROM t", DialectBigQuery, []string{"t", "u"}},
 		{"exists subquery", "SELECT * FROM t WHERE EXISTS (SELECT 1 FROM u WHERE u.id = t.id)", DialectBigQuery, []string{"t", "u"}},
 		{"in subquery", "SELECT * FROM t WHERE id IN (SELECT id FROM u)", DialectBigQuery, []string{"t", "u"}},
+		// Quantified comparison subquery RHS (`= ANY (SELECT ...)`): its table must
+		// be followed, exactly like an IN/EXISTS subquery (regression for the
+		// CompareExpr Quant* walker path).
+		{"quantified-comparison subquery", "SELECT * FROM t WHERE x = ANY (SELECT id FROM u)", DialectBigQuery, []string{"t", "u"}},
+		{"quantified-comparison all subquery", "SELECT * FROM t WHERE x > ALL (SELECT id FROM u)", DialectSpanner, []string{"t", "u"}},
 		{"set op", "SELECT a FROM t UNION ALL SELECT a FROM u", DialectBigQuery, []string{"t", "u"}},
 		{"dedup same table", "SELECT * FROM t WHERE a IN (SELECT a FROM t)", DialectBigQuery, []string{"t"}},
 		// Spanner schema.table bucketing (named schema under one DB).
