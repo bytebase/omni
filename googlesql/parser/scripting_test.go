@@ -446,6 +446,28 @@ func TestParseBeginExceptionEnd(t *testing.T) {
 	}
 }
 
+// TestParseBeginExceptionEmptyRejected pins the fix for the empty-handler
+// over-accept (Codex review): opt_exception_handler's statement_list is non-empty
+// in the .g4 (unterminated_non_empty_statement_list ';'), so `EXCEPTION WHEN
+// ERROR THEN` with no handler statement is a syntax error. The Spanner emulator's
+// BeginStmt recognizer is shallow here (divergence #161), so the grammar governs.
+func TestParseBeginExceptionEmptyRejected(t *testing.T) {
+	assertReject(t, "BEGIN EXCEPTION WHEN ERROR THEN END")
+	// A non-empty handler is still accepted.
+	parseOneScript(t, "BEGIN EXCEPTION WHEN ERROR THEN SELECT 1; END")
+}
+
+// TestParseLabeledEndLabelNotMatched defends a Codex finding: a labeled
+// statement's optional END label is grammatically just `identifier?`
+// (.g4: `label ':' unterminated_unlabeled_script_statement identifier?`), with NO
+// syntactic requirement that it match the opening label — matching is a SEMANTIC
+// check, not the parser's job. So omni accepts a mismatched end label (parity with
+// the legacy ANTLR parser); this guards against a future change that wrongly
+// rejects it at parse time. (parseOneScript fatals on any parse error.)
+func TestParseLabeledEndLabelNotMatched(t *testing.T) {
+	parseOneScript(t, "label_1: LOOP SELECT 1; END LOOP different")
+}
+
 func TestParseBeginEndNested(t *testing.T) {
 	n := parseOneScript(t, "BEGIN BEGIN SELECT 1; END; SELECT 2; END")
 	b := n.(*ast.BeginEndBlock)
