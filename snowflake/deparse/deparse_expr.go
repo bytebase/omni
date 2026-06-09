@@ -659,7 +659,10 @@ func (w *writer) writeExistsExpr(n *ast.ExistsExpr) error {
 
 // writeOrderItem writes a single ORDER BY item.
 func (w *writer) writeOrderItem(item *ast.OrderItem) error {
-	if err := writeExprNoLeadSpace(w, item.Expr); err != nil {
+	if item.All {
+		// ORDER BY ALL — all-columns marker (no expression).
+		w.buf.WriteString("ALL")
+	} else if err := writeExprNoLeadSpace(w, item.Expr); err != nil {
 		return err
 	}
 	if item.Desc {

@@ -120,6 +120,46 @@ func TestDeparse_Select_ExcludeStar(t *testing.T) {
 	assertRoundTrip(t, `SELECT * EXCLUDE (a, b) FROM t`)
 }
 
+func TestDeparse_Select_ExcludeStarBare(t *testing.T) {
+	// Bare single-column EXCLUDE deparses to the parenthesized form, which
+	// re-parses to the same AST (single Exclude entry).
+	assertRoundTrip(t, `SELECT * EXCLUDE a FROM t`)
+}
+
+func TestDeparse_Select_RenameStar(t *testing.T) {
+	assertRoundTrip(t, `SELECT * RENAME a AS b FROM t`)
+}
+
+func TestDeparse_Select_RenameStarList(t *testing.T) {
+	assertRoundTrip(t, `SELECT * RENAME (a AS b, c AS d) FROM t`)
+}
+
+func TestDeparse_Select_ExcludeAndRenameStar(t *testing.T) {
+	assertRoundTrip(t, `SELECT * EXCLUDE x RENAME (a AS b, c AS d) FROM t`)
+}
+
+func TestDeparse_Select_QualifiedStarExcludeRename(t *testing.T) {
+	assertRoundTrip(t, `SELECT t.* EXCLUDE a, u.* RENAME b AS c FROM t INNER JOIN u ON t.id = u.id`)
+}
+
+func TestDeparse_Select_OrderByAll(t *testing.T) {
+	assertRoundTrip(t, `SELECT a, b FROM t ORDER BY ALL`)
+}
+
+func TestDeparse_Select_OrderByAllDesc(t *testing.T) {
+	assertRoundTrip(t, `SELECT a, b FROM t ORDER BY ALL DESC`)
+}
+
+func TestDeparse_Select_OrderByAllNullsFirst(t *testing.T) {
+	assertRoundTrip(t, `SELECT a, b FROM t ORDER BY ALL NULLS FIRST`)
+}
+
+func TestDeparse_Select_TrailingComma(t *testing.T) {
+	// The trailing comma is normalized away on deparse; the AST (3 targets)
+	// must round-trip identically.
+	assertRoundTrip(t, `SELECT a, b, c, FROM t`)
+}
+
 func TestDeparse_Select_Where(t *testing.T) {
 	assertRoundTrip(t, `SELECT a FROM t WHERE a > 1`)
 }

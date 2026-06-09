@@ -1712,6 +1712,24 @@ func (p *Parser) parseOrderByList() ([]*ast.OrderItem, error) {
 
 // parseOrderItem parses a single ORDER BY item.
 func (p *Parser) parseOrderItem() (*ast.OrderItem, error) {
+	// ORDER BY ALL — the reserved keyword ALL stands for "all columns of the
+	// SELECT list" (Snowflake). It is only the all-columns marker when it is
+	// the entire order term: a lone ALL followed by a sort modifier (ASC/DESC/
+	// NULLS) or a list/clause terminator (`,`, `;`, `)`, EOF). Because ALL is
+	// reserved it can never begin a real ORDER BY expression, so this never
+	// shadows a legitimate `ORDER BY <expr>`.
+	if p.cur.Type == kwALL && p.orderByAllFollows() {
+		allTok := p.advance() // consume ALL
+		item := &ast.OrderItem{
+			All: true,
+			Loc: allTok.Loc,
+		}
+		if err := p.parseOrderItemModifiers(item); err != nil {
+			return nil, err
+		}
+		return item, nil
+	}
+
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
@@ -1722,6 +1740,30 @@ func (p *Parser) parseOrderItem() (*ast.OrderItem, error) {
 		Loc:  ast.NodeLoc(expr),
 	}
 
+	if err := p.parseOrderItemModifiers(item); err != nil {
+		return nil, err
+	}
+
+	return item, nil
+}
+
+// orderByAllFollows reports whether a `kwALL` at the current position is the
+// `ORDER BY ALL` all-columns marker rather than something else. It is the
+// marker only when, after ALL, the next token is a sort modifier (ASC/DESC/
+// NULLS) or a term/clause terminator (`,`, `;`, `)`, EOF). The caller must
+// already be positioned on the ALL token; this peeks one token ahead.
+func (p *Parser) orderByAllFollows() bool {
+	switch p.peekNext().Type {
+	case kwASC, kwDESC, kwNULLS, ',', ';', ')', tokEOF:
+		return true
+	}
+	return false
+}
+
+// parseOrderItemModifiers consumes the optional [ASC|DESC] and
+// [NULLS {FIRST|LAST}] modifiers that may follow an ORDER BY term, recording
+// them on item. Shared by the expression and the `ORDER BY ALL` forms.
+func (p *Parser) parseOrderItemModifiers(item *ast.OrderItem) error {
 	// ASC / DESC
 	if p.cur.Type == kwASC {
 		p.advance()
@@ -1747,14 +1789,14 @@ func (p *Parser) parseOrderItem() (*ast.OrderItem, error) {
 			item.NullsFirst = &nf
 			item.Loc.End = p.prev.Loc.End
 		} else {
-			return nil, &ParseError{
+			return &ParseError{
 				Loc: p.cur.Loc,
 				Msg: "expected FIRST or LAST after NULLS",
 			}
 		}
 	}
 
-	return item, nil
+	return nil
 }
 
 // ---------------------------------------------------------------------------

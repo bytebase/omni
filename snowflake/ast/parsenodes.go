@@ -687,10 +687,16 @@ type WindowSpec struct {
 }
 
 // OrderItem represents one element in an ORDER BY clause.
+//
+// All is set for the Snowflake `ORDER BY ALL` form, where the reserved keyword
+// ALL stands for "all columns of the SELECT list". When All is true, Expr is
+// nil; the Desc / NullsFirst modifiers still apply (ORDER BY ALL [ASC|DESC]
+// [NULLS {FIRST|LAST}]).
 type OrderItem struct {
 	Expr       Node
 	Desc       bool  // true for DESC
 	NullsFirst *bool // nil = unspecified, true = NULLS FIRST, false = NULLS LAST
+	All        bool  // true for the `ORDER BY ALL` all-columns marker (Expr is nil)
 	Loc        Loc
 }
 
@@ -770,12 +776,24 @@ var _ Node = (*SelectStmt)(nil)
 // SelectTarget is one item in a SELECT list.
 // For expressions: Expr is set, Star is false.
 // For star: Star is true, Expr may be a qualifier (table.*) or nil (bare *).
+//
+// Exclude / Rename carry the Snowflake star column-transforms that may follow
+// a `*` or `tbl.*`: EXCLUDE drops the named columns; RENAME aliases them. Both
+// may appear together (EXCLUDE then RENAME). They are only valid on a star
+// target.
 type SelectTarget struct {
-	Expr    Node    // expression; nil for bare *
-	Alias   Ident   // AS alias; zero Ident if absent
-	Star    bool    // true for * or qualifier.*
-	Exclude []Ident // EXCLUDE columns; nil if absent
+	Expr    Node         // expression; nil for bare *
+	Alias   Ident        // AS alias; zero Ident if absent
+	Star    bool         // true for * or qualifier.*
+	Exclude []Ident      // EXCLUDE columns; nil if absent
+	Rename  []StarRename // RENAME col AS alias pairs; nil if absent
 	Loc     Loc
+}
+
+// StarRename is one `col AS alias` pair in a `SELECT * RENAME (...)` transform.
+type StarRename struct {
+	Col   Ident // source column name
+	Alias Ident // new alias
 }
 
 // TableRef is a table reference in the FROM clause.

@@ -1925,3 +1925,399 @@ func TestJoin_JoinWithOrderByLimit(t *testing.T) {
 		t.Fatal("expected LIMIT to be set")
 	}
 }
+
+// ===========================================================================
+// gap-select-ext: SELECT * EXCLUDE/RENAME, ORDER BY ALL, trailing comma
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// A. Star column-transforms — EXCLUDE (bare + list), RENAME (bare + list)
+// ---------------------------------------------------------------------------
+
+func TestSelect_StarExcludeBare(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * EXCLUDE department_id FROM employee_table")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if !target.Star {
+		t.Fatal("target should be star")
+	}
+	if len(target.Exclude) != 1 || target.Exclude[0].Name != "department_id" {
+		t.Fatalf("exclude = %v, want [department_id]", target.Exclude)
+	}
+	if len(target.Rename) != 0 {
+		t.Errorf("rename = %v, want empty", target.Rename)
+	}
+}
+
+func TestSelect_StarRenameBare(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * RENAME department_id AS department FROM employee_table")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if !target.Star {
+		t.Fatal("target should be star")
+	}
+	if len(target.Rename) != 1 {
+		t.Fatalf("rename = %d, want 1", len(target.Rename))
+	}
+	if target.Rename[0].Col.Name != "department_id" || target.Rename[0].Alias.Name != "department" {
+		t.Errorf("rename[0] = %q AS %q, want department_id AS department",
+			target.Rename[0].Col.Name, target.Rename[0].Alias.Name)
+	}
+}
+
+func TestSelect_StarRenameList(t *testing.T) {
+	sel, errs := testParseSelectStmt(
+		"SELECT * RENAME (department_id AS department, employee_id AS id) FROM employee_table")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if len(target.Rename) != 2 {
+		t.Fatalf("rename = %d, want 2", len(target.Rename))
+	}
+	if target.Rename[0].Col.Name != "department_id" || target.Rename[0].Alias.Name != "department" {
+		t.Errorf("rename[0] = %q AS %q", target.Rename[0].Col.Name, target.Rename[0].Alias.Name)
+	}
+	if target.Rename[1].Col.Name != "employee_id" || target.Rename[1].Alias.Name != "id" {
+		t.Errorf("rename[1] = %q AS %q", target.Rename[1].Col.Name, target.Rename[1].Alias.Name)
+	}
+}
+
+func TestSelect_StarExcludeThenRename(t *testing.T) {
+	sel, errs := testParseSelectStmt(
+		"SELECT * EXCLUDE first_name RENAME (department_id AS department, employee_id AS id) FROM employee_table")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if len(target.Exclude) != 1 || target.Exclude[0].Name != "first_name" {
+		t.Fatalf("exclude = %v, want [first_name]", target.Exclude)
+	}
+	if len(target.Rename) != 2 {
+		t.Fatalf("rename = %d, want 2", len(target.Rename))
+	}
+}
+
+func TestSelect_QualifiedStarExcludeAndRename(t *testing.T) {
+	sel, errs := testParseSelectStmt(
+		"SELECT employee_table.* EXCLUDE department_id, department_table.* RENAME department_name AS department " +
+			"FROM employee_table INNER JOIN department_table ON employee_table.id = department_table.id")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.Targets) != 2 {
+		t.Fatalf("targets = %d, want 2", len(sel.Targets))
+	}
+	t0 := sel.Targets[0]
+	if !t0.Star {
+		t.Error("target[0] should be star")
+	}
+	star0, ok := t0.Expr.(*ast.StarExpr)
+	if !ok || star0.Qualifier == nil || star0.Qualifier.Name.Name != "employee_table" {
+		t.Errorf("target[0] qualifier mismatch: %#v", t0.Expr)
+	}
+	if len(t0.Exclude) != 1 || t0.Exclude[0].Name != "department_id" {
+		t.Errorf("target[0] exclude = %v", t0.Exclude)
+	}
+	t1 := sel.Targets[1]
+	star1, ok := t1.Expr.(*ast.StarExpr)
+	if !ok || star1.Qualifier == nil || star1.Qualifier.Name.Name != "department_table" {
+		t.Errorf("target[1] qualifier mismatch: %#v", t1.Expr)
+	}
+	if len(t1.Rename) != 1 || t1.Rename[0].Col.Name != "department_name" || t1.Rename[0].Alias.Name != "department" {
+		t.Errorf("target[1] rename = %v", t1.Rename)
+	}
+}
+
+func TestSelect_StarExcludeLoc(t *testing.T) {
+	const sql = "SELECT * EXCLUDE department_id FROM employee_table"
+	sel, errs := testParseSelectStmt(sql)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	// The target Loc should span from the '*' through the end of the EXCLUDE col.
+	got := sql[target.Loc.Start:target.Loc.End]
+	if got != "* EXCLUDE department_id" {
+		t.Errorf("target Loc slice = %q, want %q", got, "* EXCLUDE department_id")
+	}
+}
+
+// Negative: `* EXCLUDE` with no column.
+func TestSelect_StarExcludeNoColumn(t *testing.T) {
+	_, err := Parse("SELECT * EXCLUDE FROM t")
+	if err == nil {
+		t.Fatal("expected error for `* EXCLUDE` with no column")
+	}
+}
+
+// Negative: `* RENAME x` with no AS.
+func TestSelect_StarRenameNoAs(t *testing.T) {
+	_, err := Parse("SELECT * RENAME x FROM t")
+	if err == nil {
+		t.Fatal("expected error for `* RENAME x` with no AS alias")
+	}
+}
+
+// Regression: a column literally named "exclude" / "rename" still parses as a
+// plain column reference (these are non-reserved keywords).
+func TestSelect_ColumnNamedExcludeRename(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT exclude, rename FROM t")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.Targets) != 2 {
+		t.Fatalf("targets = %d, want 2", len(sel.Targets))
+	}
+	for i, want := range []string{"exclude", "rename"} {
+		col, ok := sel.Targets[i].Expr.(*ast.ColumnRef)
+		if !ok {
+			t.Fatalf("target[%d] = %T, want *ast.ColumnRef", i, sel.Targets[i].Expr)
+		}
+		if len(col.Parts) != 1 || col.Parts[0].Name != want {
+			t.Errorf("target[%d] = %v, want [%q]", i, col.Parts, want)
+		}
+		if sel.Targets[i].Star {
+			t.Errorf("target[%d] should not be star", i)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// B. ORDER BY ALL
+// ---------------------------------------------------------------------------
+
+func TestSelect_OrderByAll(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT col_1, col_2 FROM my_table ORDER BY ALL")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.OrderBy) != 1 {
+		t.Fatalf("OrderBy = %d, want 1", len(sel.OrderBy))
+	}
+	item := sel.OrderBy[0]
+	if !item.All {
+		t.Error("OrderBy[0].All should be true")
+	}
+	if item.Expr != nil {
+		t.Errorf("OrderBy[0].Expr should be nil for ALL, got %T", item.Expr)
+	}
+	if item.Desc {
+		t.Error("OrderBy[0].Desc should be false (default ASC)")
+	}
+	if item.NullsFirst != nil {
+		t.Error("OrderBy[0].NullsFirst should be nil")
+	}
+}
+
+func TestSelect_OrderByAllAsc(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM my_sort_example ORDER BY ALL ASC")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	item := sel.OrderBy[0]
+	if !item.All {
+		t.Error("OrderBy[0].All should be true")
+	}
+	if item.Desc {
+		t.Error("ALL ASC should not be Desc")
+	}
+}
+
+func TestSelect_OrderByAllDesc(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM my_sort_example ORDER BY ALL DESC")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	item := sel.OrderBy[0]
+	if !item.All {
+		t.Error("OrderBy[0].All should be true")
+	}
+	if !item.Desc {
+		t.Error("ALL DESC should be Desc")
+	}
+}
+
+func TestSelect_OrderByAllNullsFirst(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * FROM my_sort_example ORDER BY ALL NULLS FIRST")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	item := sel.OrderBy[0]
+	if !item.All {
+		t.Error("OrderBy[0].All should be true")
+	}
+	if item.NullsFirst == nil || !*item.NullsFirst {
+		t.Errorf("ALL NULLS FIRST: NullsFirst = %v, want true", item.NullsFirst)
+	}
+}
+
+func TestSelect_OrderByAllNullsLast(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT b, s, a FROM my_sort_example ORDER BY ALL NULLS LAST")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	item := sel.OrderBy[0]
+	if !item.All {
+		t.Error("OrderBy[0].All should be true")
+	}
+	if item.NullsFirst == nil || *item.NullsFirst {
+		t.Errorf("ALL NULLS LAST: NullsFirst = %v, want false", item.NullsFirst)
+	}
+}
+
+func TestSelect_OrderByAllLoc(t *testing.T) {
+	const sql = "SELECT * FROM t ORDER BY ALL"
+	sel, errs := testParseSelectStmt(sql)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	item := sel.OrderBy[0]
+	got := sql[item.Loc.Start:item.Loc.End]
+	if got != "ALL" {
+		t.Errorf("OrderBy[0] Loc slice = %q, want %q", got, "ALL")
+	}
+}
+
+// Negative: `ORDER BY ALL NULLS <garbage>` must error just like the
+// expression path does — the ALL branch must not swallow the modifier error.
+func TestSelect_OrderByAllNullsGarbageErrors(t *testing.T) {
+	_, err := Parse("SELECT a FROM t ORDER BY ALL NULLS SOMETHING")
+	if err == nil {
+		t.Fatal("expected error for `ORDER BY ALL NULLS SOMETHING`")
+	}
+}
+
+// Regression: ORDER BY with real expressions still works, and a column named
+// "all" inside an expression context is unaffected by the ALL marker (note:
+// ALL is reserved, so a *bare* `ORDER BY all` is always the marker; this guards
+// the multi-term and modifier paths).
+func TestSelect_OrderByExprNotStolenByAll(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT x, y FROM t ORDER BY x, y DESC")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.OrderBy) != 2 {
+		t.Fatalf("OrderBy = %d, want 2", len(sel.OrderBy))
+	}
+	if sel.OrderBy[0].All || sel.OrderBy[1].All {
+		t.Error("neither ORDER BY term should be flagged All")
+	}
+	if sel.OrderBy[0].Expr == nil || sel.OrderBy[1].Expr == nil {
+		t.Error("both ORDER BY terms should carry an Expr")
+	}
+	if !sel.OrderBy[1].Desc {
+		t.Error("second ORDER BY term should be DESC")
+	}
+}
+
+// Regression: `ALL` as the *argument of a function* in ORDER BY (e.g. a hand-
+// written ORDER BY over a function) is not the ALL marker because it is not a
+// lone term — guard that ORDER BY ALL only fires when ALL is the whole term.
+// `ORDER BY x + 1` exercises the expression path adjacent to a possible ALL.
+func TestSelect_OrderByExpression(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT x FROM t ORDER BY x + 1")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.OrderBy) != 1 {
+		t.Fatalf("OrderBy = %d, want 1", len(sel.OrderBy))
+	}
+	if sel.OrderBy[0].All {
+		t.Error("ORDER BY x + 1 should not be flagged All")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// C. Trailing comma in SELECT list
+// ---------------------------------------------------------------------------
+
+func TestSelect_TrailingCommaBeforeFrom(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT emp_id, name, dept, FROM employees")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.Targets) != 3 {
+		t.Fatalf("targets = %d, want 3 (trailing comma must not add an empty item)", len(sel.Targets))
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("from = %d, want 1", len(sel.From))
+	}
+}
+
+func TestSelect_TrailingCommaNoFrom(t *testing.T) {
+	// Trailing comma before end-of-statement (no FROM).
+	sel, errs := testParseSelectStmt("SELECT 1, 2,")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.Targets) != 2 {
+		t.Fatalf("targets = %d, want 2", len(sel.Targets))
+	}
+}
+
+func TestSelect_TrailingCommaInSubquery(t *testing.T) {
+	// Trailing comma before `)` inside a derived-table subquery.
+	sel, errs := testParseSelectStmt("SELECT * FROM (SELECT a, b, FROM t) x")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("from = %d, want 1", len(sel.From))
+	}
+}
+
+// Regression: a genuine empty item mid-list (double comma) must still error.
+func TestSelect_DoubleCommaErrors(t *testing.T) {
+	_, err := Parse("SELECT a, , b FROM t")
+	if err == nil {
+		t.Fatal("expected error for empty select item (`a, , b`)")
+	}
+}
+
+// Regression: a leading comma (`SELECT , a`) must still error.
+func TestSelect_LeadingCommaErrors(t *testing.T) {
+	_, err := Parse("SELECT , a FROM t")
+	if err == nil {
+		t.Fatal("expected error for leading comma in select list")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// D. Plain-form regressions (must be unaffected by the new code)
+// ---------------------------------------------------------------------------
+
+func TestSelect_PlainStarAndQualifiedStarRegression(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT * FROM t",
+		"SELECT tbl.* FROM tbl",
+		"SELECT a, b FROM t",
+		"SELECT a, b FROM t ORDER BY x, y DESC",
+	} {
+		sel, errs := testParseSelectStmt(sql)
+		if len(errs) > 0 {
+			t.Errorf("%q: unexpected errors: %v", sql, errs)
+		}
+		if sel == nil {
+			t.Errorf("%q: nil select", sql)
+		}
+	}
+}
+
+// Regression: a column/alias literally named "all" is parseable where it is a
+// legal identifier — e.g. as an alias via AS (ALL is reserved so it cannot be a
+// bare column, but AS "all" quoted, or other non-bare positions are fine). Use
+// the AS-quoted alias form which is unambiguously an identifier.
+func TestSelect_AllAsQuotedAlias(t *testing.T) {
+	sel, errs := testParseSelectStmt(`SELECT x AS "all" FROM t`)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if sel.Targets[0].Alias.Name != "all" {
+		t.Errorf("alias = %q, want all", sel.Targets[0].Alias.Name)
+	}
+}
