@@ -53,8 +53,8 @@ func TestProjection_CTESubsetThenStar(t *testing.T) {
 	if r.IsPlain {
 		t.Errorf("IsPlain = true, want false (a CTE column from an explicit select is not a plain field)")
 	}
-	if got := resolvedSources(r); !eqStrings(got, []string{"email"}) {
-		t.Errorf("sources = %v, want [email] (lineage to users.email; the bare ref is matched to the table by the consumer)", got)
+	if got := resolvedSources(r); !eqStrings(got, []string{"users.email"}) {
+		t.Errorf("sources = %v, want [users.email] (the sole-base-relation attribution ties the bare column to its FROM table)", got)
 	}
 }
 
@@ -124,11 +124,11 @@ func TestProjection_SetOpMergesResolvedCTEs(t *testing.T) {
 	if got := resultNames(span); !eqStrings(got, []string{"id", "name"}) {
 		t.Fatalf("names = %v, want [id name] (left arm names)", got)
 	}
-	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"id", "pid"}) {
-		t.Errorf("result[0] sources = %v, want [id pid] (both arms position 0)", got)
+	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"members.pid", "users.id"}) {
+		t.Errorf("result[0] sources = %v, want [members.pid users.id] (both arms position 0, table-attributed)", got)
 	}
-	if got := resolvedSources(span.Results[1]); !eqStrings(got, []string{"label", "name"}) {
-		t.Errorf("result[1] sources = %v, want [label name] (both arms position 1)", got)
+	if got := resolvedSources(span.Results[1]); !eqStrings(got, []string{"members.label", "users.name"}) {
+		t.Errorf("result[1] sources = %v, want [members.label users.name] (both arms position 1, table-attributed)", got)
 	}
 }
 
@@ -217,11 +217,11 @@ func TestProjection_QualifiedColumnThroughCTE(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
-	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"id"}) {
-		t.Errorf("x.id sources = %v, want [id] (CTE column id, matched to nodes.id by the consumer)", got)
+	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"nodes.id"}) {
+		t.Errorf("x.id sources = %v, want [nodes.id] (CTE column attributed to its base table)", got)
 	}
-	if got := resolvedSources(span.Results[1]); !eqStrings(got, []string{"parent_id"}) {
-		t.Errorf("y.parent_id sources = %v, want [parent_id] (CTE column, matched to nodes.parent_id)", got)
+	if got := resolvedSources(span.Results[1]); !eqStrings(got, []string{"nodes.parent_id"}) {
+		t.Errorf("y.parent_id sources = %v, want [nodes.parent_id] (CTE column attributed to its base table)", got)
 	}
 }
 
@@ -243,10 +243,10 @@ func TestProjection_RecursiveCTEFixpoint(t *testing.T) {
 	}
 	// c1 = c1*c2 → {a,b}; c2 = c2+c1 → {a,b}; c3 = c3*c2 → {a,b,c} via the fixpoint
 	// (c2 grew to {a,b} in an earlier pass, then c3 reads c2 and picks up a).
-	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"a", "b"}) {
+	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"t.a", "t.b"}) {
 		t.Errorf("c1 sources = %v, want [a b]", got)
 	}
-	if got := resolvedSources(span.Results[2]); !eqStrings(got, []string{"a", "b", "c"}) {
+	if got := resolvedSources(span.Results[2]); !eqStrings(got, []string{"t.a", "t.b", "t.c"}) {
 		t.Errorf("c3 sources = %v, want [a b c] (fixpoint propagates c2's growth)", got)
 	}
 }
@@ -266,8 +266,8 @@ func TestProjection_StructFieldRootIsColumn(t *testing.T) {
 		if !strings.EqualFold(span.Results[0].Name, "s") {
 			t.Errorf("%q name = %q, want s (the struct column root)", sql, span.Results[0].Name)
 		}
-		if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"s"}) {
-			t.Errorf("%q sources = %v, want [s] (resolved to t.s by the consumer)", sql, got)
+		if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"t.s"}) {
+			t.Errorf("%q sources = %v, want [t.s] (struct root attributed to its sole base relation)", sql, got)
 		}
 	}
 }
@@ -315,8 +315,8 @@ func TestProjection_LambdaParamExcludedFromResolvedLineage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
-	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"arr", "threshold"}) {
-		t.Errorf("sources = %v, want [arr threshold] (lambda param e excluded)", got)
+	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"t.arr", "t.threshold"}) {
+		t.Errorf("sources = %v, want [t.arr t.threshold] (lambda param e excluded; table-attributed)", got)
 	}
 }
 
@@ -451,13 +451,13 @@ func TestProjection_JoinUsingConcreteSides(t *testing.T) {
 	if got := resultNames(span); !eqStrings(got, []string{"k", "note", "sec"}) {
 		t.Fatalf("names = %v, want [k note sec]", got)
 	}
-	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"lk", "rk"}) {
+	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"t1.lk", "t2.rk"}) {
 		t.Errorf("k sources = %v, want [lk rk]", got)
 	}
-	if got := resolvedSources(span.Results[1]); !eqStrings(got, []string{"note"}) {
+	if got := resolvedSources(span.Results[1]); !eqStrings(got, []string{"t1.note"}) {
 		t.Errorf("note sources = %v, want [note]", got)
 	}
-	if got := resolvedSources(span.Results[2]); !eqStrings(got, []string{"sec"}) {
+	if got := resolvedSources(span.Results[2]); !eqStrings(got, []string{"t2.sec"}) {
 		t.Errorf("sec sources = %v, want [sec]", got)
 	}
 }
@@ -636,11 +636,11 @@ func TestProjection_SetOpByNameConcrete(t *testing.T) {
 	if got := resultNames(span); !eqStrings(got, []string{"id", "sec"}) {
 		t.Fatalf("names = %v, want [id sec] (left arm order)", got)
 	}
-	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"a", "d"}) {
-		t.Errorf("id sources = %v, want [a d] (NAME-matched, not ordinal)", got)
+	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"t1.a", "t2.d"}) {
+		t.Errorf("id sources = %v, want [t1.a t2.d] (NAME-matched, not ordinal)", got)
 	}
-	if got := resolvedSources(span.Results[1]); !eqStrings(got, []string{"b", "c"}) {
-		t.Errorf("sec sources = %v, want [b c]", got)
+	if got := resolvedSources(span.Results[1]); !eqStrings(got, []string{"t1.b", "t2.c"}) {
+		t.Errorf("sec sources = %v, want [t1.b t2.c]", got)
 	}
 }
 
@@ -660,11 +660,11 @@ func TestProjection_SetOpByNameRightOnlyAppends(t *testing.T) {
 	if got := resultNames(span); !eqStrings(got, []string{"id", "extra"}) {
 		t.Fatalf("names = %v, want [id extra]", got)
 	}
-	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"a", "d"}) {
-		t.Errorf("id sources = %v, want [a d]", got)
+	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"t1.a", "t2.d"}) {
+		t.Errorf("id sources = %v, want [t1.a t2.d]", got)
 	}
-	if got := resolvedSources(span.Results[1]); !eqStrings(got, []string{"e"}) {
-		t.Errorf("extra sources = %v, want [e]", got)
+	if got := resolvedSources(span.Results[1]); !eqStrings(got, []string{"t2.e"}) {
+		t.Errorf("extra sources = %v, want [t2.e]", got)
 	}
 }
 
@@ -681,8 +681,8 @@ func TestProjection_SetOpByNameMatchColumns(t *testing.T) {
 	if got := resultNames(span); !eqStrings(got, []string{"sec"}) {
 		t.Fatalf("names = %v, want [sec]", got)
 	}
-	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"b", "c"}) {
-		t.Errorf("sec sources = %v, want [b c]", got)
+	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"t1.b", "t2.c"}) {
+		t.Errorf("sec sources = %v, want [t1.b t2.c]", got)
 	}
 }
 
@@ -695,8 +695,8 @@ func TestProjection_SetOpCorrespondingMergesByName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
-	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"a", "d"}) {
-		t.Errorf("id sources = %v, want [a d]", got)
+	if got := resolvedSources(span.Results[0]); !eqStrings(got, []string{"t1.a", "t2.d"}) {
+		t.Errorf("id sources = %v, want [t1.a t2.d]", got)
 	}
 }
 

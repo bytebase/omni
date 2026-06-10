@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/bytebase/omni/googlesql/ast"
@@ -31,6 +32,12 @@ type projColumn struct {
 	name    string      // output column name (lower/written case; consumer upper-cases explicit names)
 	sources []ColumnRef // resolved base-column lineage
 	plain   bool        // IsPlainField (legacy semantics)
+
+	// baseFieldName marks name as a base-table FIELD passthrough (today: the
+	// JOIN ... USING coalesced key, which the legacy resolver named after the
+	// left PhysicalTable's field). A consumer reproducing legacy naming renders
+	// it in the field's metadata case rather than the written/upper-cased form.
+	baseFieldName bool
 
 	// baseStar, when non-nil, means this projection element stands for "every
 	// column of this base table" — omni cannot enumerate it (no catalog), so the
@@ -344,7 +351,37 @@ func (w *spanWalker) resolveColumn(relQualifier, column string) []ColumnRef {
 		// the consumer can still match by column name (table set to the qualifier).
 		return []ColumnRef{{Table: relQualifier, Column: column}}
 	}
+	// Unqualified with exactly ONE base relation in scope: the column can only
+	// come from that relation — the strict pass already ruled out every concrete
+	// CTE/derived projection — so attribute it. Without the attribution the
+	// consumer falls back to matching the bare name across ALL expanded tables,
+	// which over-includes whenever another table shares the column name (e.g. a
+	// 3-way UNION whose arms' tables have overlapping column names) and diverges
+	// from the legacy resolver's exact single-table attribution.
+	if rel := soleBaseRelation(w.leafRels); rel != nil {
+		ref := rel.baseRef
+		ref.Column = column
+		return []ColumnRef{ref}
+	}
 	return []ColumnRef{{Column: column}}
+}
+
+// soleBaseRelation returns the single base-table relation in rels when exactly
+// one exists, else nil. With several base relations a bare column is ambiguous
+// (omni cannot enumerate base-table columns metadata-free), so the caller keeps
+// the bare ref and the consumer matches additively by name.
+func soleBaseRelation(rels []*relation) *relation {
+	var sole *relation
+	for _, rel := range rels {
+		if !rel.isBase {
+			continue
+		}
+		if sole != nil {
+			return nil
+		}
+		sole = rel
+	}
+	return sole
 }
 
 // resolveColumnStrict resolves a (relationQualifier, column) reference ONLY when
@@ -429,11 +466,15 @@ func projectionColumnSources(rel *relation, column string, allowBaseStar bool) (
 	return nil, false
 }
 
-// resolveDotStar resolves a `rel.*` (or field-path star) to the named relation's
-// projection columns, mirroring the legacy extractWildFromExpr: the leading path
-// names a relation whose columns are reproduced. A path that does not name a FROM
-// relation yields no columns (best-effort; same boundary as the legacy code,
-// which errored on an unresolvable wild path).
+// resolveDotStar resolves a `rel.*` (or qualified/field-path star) to the named
+// relation's projection columns, mirroring the legacy extractWildFromExpr: the
+// leading path names a relation whose columns are reproduced. A multi-part
+// qualifier (`schema.table.*` / `db.schema.table.*`) matches the relation by its
+// TRAILING part with the prefix verified against the relation's base reference —
+// the legacy resolver ERRORED on these (fail-closed), so resolving them is an
+// omni improvement, but an UNRESOLVABLE wild path must FAIL CLOSED too (the
+// structural rule): silently yielding no columns would give the masker zero
+// result maskers and return every output column unmasked.
 func (w *spanWalker) resolveDotStar(expr ast.Node) []projColumn {
 	parts := exprToParts(expr)
 	if len(parts) == 0 {
@@ -444,8 +485,20 @@ func (w *spanWalker) resolveDotStar(expr ast.Node) []projColumn {
 	if rel := findRelation(w.leafRels, parts[0]); rel != nil {
 		return rel.columns
 	}
-	// `a.b.*` where a does not name a relation: not column-enumerable here
-	// (best-effort — a deeper struct-path star).
+	// `schema.table.*` (or `db.schema.table.*`): the trailing part names a base
+	// relation and the written prefix must agree with its schema qualifier.
+	if len(parts) >= 2 {
+		last := parts[len(parts)-1]
+		if rel := findRelation(w.leafRels, last); rel != nil && rel.isBase {
+			schemaPart := parts[len(parts)-2]
+			if rel.baseRef.Schema == "" || strings.EqualFold(rel.baseRef.Schema, schemaPart) {
+				return rel.columns
+			}
+		}
+	}
+	// Unresolvable wild path (a struct-path star or a qualifier naming nothing in
+	// FROM): fail closed rather than silently produce zero output columns.
+	w.failClosed(fmt.Errorf("cannot resolve %s.* to a FROM relation's columns (fail closed)", strings.Join(parts, ".")))
 	return nil
 }
 
@@ -648,9 +701,10 @@ func coalesceUsingJoin(left, right *relation, keys []string) (*relation, bool) {
 	cols := make([]projColumn, 0, len(keys)+len(leftRest)+len(rightRest))
 	for _, key := range keys {
 		cols = append(cols, projColumn{
-			name:    key,
-			sources: unionColumnRefs(usingKeyLineage(left.columns, key), usingKeyLineage(right.columns, key)),
-			plain:   false,
+			name:          key,
+			sources:       unionColumnRefs(usingKeyLineage(left.columns, key), usingKeyLineage(right.columns, key)),
+			plain:         false,
+			baseFieldName: true,
 		})
 	}
 	for _, c := range leftRest {
@@ -905,6 +959,7 @@ func projColumnsToColumnInfos(cols []projColumn) []ColumnInfo {
 				Name:          c.name,
 				SourceColumns: c.sources,
 				IsPlain:       c.plain,
+				BaseFieldName: c.baseFieldName,
 			})
 		}
 	}
@@ -923,7 +978,7 @@ func segmentsToWire(segs []projColumn) []StarSegment {
 			out = append(out, StarSegment{BaseTable: &ref, ExceptColumns: s.baseStarExcept, Plain: s.plain})
 			continue
 		}
-		out = append(out, StarSegment{Name: s.name, Sources: s.sources, Plain: s.plain})
+		out = append(out, StarSegment{Name: s.name, Sources: s.sources, Plain: s.plain, BaseFieldName: s.baseFieldName})
 	}
 	return out
 }

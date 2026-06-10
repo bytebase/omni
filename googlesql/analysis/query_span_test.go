@@ -515,25 +515,25 @@ func TestGetQuerySpan_SetOpMergesBothArms(t *testing.T) {
 			name:        "two arms aliased",
 			sql:         "SELECT a AS x FROM t UNION ALL SELECT b AS y FROM u",
 			wantNames:   []string{"x"},
-			wantSources: [][]string{{"a", "b"}},
+			wantSources: [][]string{{"t.a", "u.b"}},
 		},
 		{
 			name:        "two columns each",
 			sql:         "SELECT a, b FROM t UNION ALL SELECT c, d FROM u",
 			wantNames:   []string{"a", "b"},
-			wantSources: [][]string{{"a", "c"}, {"b", "d"}},
+			wantSources: [][]string{{"t.a", "u.c"}, {"t.b", "u.d"}},
 		},
 		{
 			name:        "three arms accumulate",
 			sql:         "SELECT a FROM t UNION ALL SELECT b FROM u UNION ALL SELECT c FROM v",
 			wantNames:   []string{"a"},
-			wantSources: [][]string{{"a", "b", "c"}},
+			wantSources: [][]string{{"t.a", "u.b", "v.c"}},
 		},
 		{
 			name:        "intersect and except also merge",
 			sql:         "SELECT a FROM t INTERSECT DISTINCT SELECT b FROM u",
 			wantNames:   []string{"a"},
-			wantSources: [][]string{{"a", "b"}},
+			wantSources: [][]string{{"t.a", "u.b"}},
 		},
 	}
 	for _, tc := range tests {
@@ -577,8 +577,8 @@ func TestGetQuerySpan_ScalarSubqueryInSelectListIsOpaque(t *testing.T) {
 		t.Errorf("scalar-subquery result sources = %v, want empty", got)
 	}
 	// The sibling bare column resolves normally.
-	if got := resultSourceColumns(span.Results[1]); !eqStrings(got, []string{"ID"}) {
-		t.Errorf("result[1] sources = %v, want [ID]", got)
+	if got := resultSourceColumns(span.Results[1]); !eqStrings(got, []string{"people.ID"}) {
+		t.Errorf("result[1] sources = %v, want [people.ID]", got)
 	}
 	// The subquery's table is still discovered (people appears once, deduped).
 	if got := tableNames(span); !eqStrings(got, []string{"people"}) {

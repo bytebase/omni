@@ -104,6 +104,13 @@ type ColumnInfo struct {
 	// plain. The consumer copies this onto base.QuerySpanResult.IsPlainField.
 	IsPlain bool
 
+	// BaseFieldName marks Name as a base-table FIELD passthrough rather than a
+	// written/derived select-item name (today: the JOIN ... USING coalesced key,
+	// which the legacy resolver named after the left PhysicalTable's field). A
+	// consumer reproducing legacy naming renders it in the field's metadata case
+	// instead of the written or upper-cased form.
+	BaseFieldName bool
+
 	// StarSegments, when non-nil, marks this ColumnInfo as a `*` / `rel.*` star item
 	// (a bare star, a qualified star, or a `SELECT *` over a CTE / derived relation)
 	// that the catalog-aware consumer expands IN ORDER into one output column per
@@ -202,6 +209,7 @@ type StarSegment struct {
 	Name          string      // concrete segment output column name
 	Sources       []ColumnRef // concrete segment base lineage
 	Plain         bool        // IsPlainField for this segment's column(s)
+	BaseFieldName bool        // Name is a base-table field passthrough (see ColumnInfo.BaseFieldName)
 }
 
 // StarReplaceItem is one `expr AS name` entry of a star REPLACE modifier: the
