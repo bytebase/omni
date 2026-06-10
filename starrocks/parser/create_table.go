@@ -105,6 +105,17 @@ func (p *Parser) parseColumnDefsBlock(stmt *ast.CreateTableStmt) error {
 		return err
 	}
 
+	// StarRocks CTAS column-name list: ( ident (, ident)* (, indexDesc)* ) AS query.
+	// A CTAS column carries NO type/attributes, so its name is followed by `,`
+	// or `)`; a full-def column name is followed by a type. The token sets are
+	// disjoint, so a 2-token peek (first ident + the token after it) classifies
+	// the whole block — no backtracking needed.
+	if isIdentifierToken(p.cur.Kind) {
+		if nx := p.peekNext().Kind; nx == int(',') || nx == int(')') {
+			return p.parseCTASColumnNames(stmt)
+		}
+	}
+
 	// Parse column defs and index defs.
 	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
 		// Check if this is an INDEX definition
@@ -135,6 +146,39 @@ func (p *Parser) parseColumnDefsBlock(stmt *ast.CreateTableStmt) error {
 		}
 	}
 
+	if _, err := p.expect(int(')')); err != nil {
+		return err
+	}
+	return nil
+}
+
+// parseCTASColumnNames parses a StarRocks CTAS column-name list, with cur at the
+// first identifier inside the already-consumed '(':
+//
+//	ident (, ident)* (, indexDesc)* ')'
+//
+// Names go to stmt.CTASColumns; trailing INDEX entries reuse the inline-index
+// parser. The AS query tail is parsed later by parseCreateTableClauses.
+func (p *Parser) parseCTASColumnNames(stmt *ast.CreateTableStmt) error {
+	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+		if p.cur.Kind == kwINDEX {
+			idx, err := p.parseInlineIndexDef()
+			if err != nil {
+				return err
+			}
+			stmt.Indexes = append(stmt.Indexes, idx)
+		} else {
+			name, _, err := p.parseIdentifier()
+			if err != nil {
+				return err
+			}
+			stmt.CTASColumns = append(stmt.CTASColumns, name)
+		}
+
+		if p.cur.Kind == int(',') {
+			p.advance()
+		}
+	}
 	if _, err := p.expect(int(')')); err != nil {
 		return err
 	}

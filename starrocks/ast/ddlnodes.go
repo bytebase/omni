@@ -43,6 +43,7 @@ type CreateTableStmt struct {
 	Comment       string            // COMMENT 'xxx'
 	Like          *ObjectName       // CREATE TABLE ... LIKE other_table
 	AsSelect      *RawQuery         // CREATE TABLE ... AS SELECT ...
+	CTASColumns   []string          // CTAS column-name list: CREATE TABLE t (a, b) AS SELECT ...
 	Loc           Loc
 }
 

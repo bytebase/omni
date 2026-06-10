@@ -173,6 +173,44 @@ func TestCreateTable_RollupFrom(t *testing.T) {
 	}
 }
 
+// StarRocks CTAS with a column-name list (BYT-9140 PR2b #16): the parenthesized
+// list is names-only (no types), distinguished from full column-defs by a
+// 2-token peek (a CTAS name is followed by , or ) ; a full-def name by a type).
+func TestCreateTable_CTASNameList(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE ck (new_id, new_name) DISTRIBUTED BY HASH(new_id) BUCKETS 8 AS SELECT k AS new_id, v AS new_name FROM smoke_t")
+	if len(stmt.CTASColumns) != 2 || stmt.CTASColumns[0] != "new_id" || stmt.CTASColumns[1] != "new_name" {
+		t.Fatalf("CTASColumns=%v, want [new_id new_name]", stmt.CTASColumns)
+	}
+	if stmt.AsSelect == nil {
+		t.Errorf("expected AsSelect set")
+	}
+}
+
+func TestCreateTable_CTASNameListSingle(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE ck1 (a) DISTRIBUTED BY HASH(a) AS SELECT k AS a FROM smoke_t")
+	if len(stmt.CTASColumns) != 1 || stmt.CTASColumns[0] != "a" {
+		t.Errorf("CTASColumns=%v, want [a]", stmt.CTASColumns)
+	}
+}
+
+func TestCreateTable_CTASNameListWithIndex(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE ck2 (a, b, INDEX idx_b (b) USING BITMAP) DISTRIBUTED BY HASH(a) AS SELECT k AS a, v AS b FROM smoke_t")
+	if len(stmt.CTASColumns) != 2 {
+		t.Errorf("CTASColumns=%v, want [a b]", stmt.CTASColumns)
+	}
+	if len(stmt.Indexes) != 1 {
+		t.Errorf("expected 1 trailing index, got %d", len(stmt.Indexes))
+	}
+}
+
+// Regression: full column-defs still parse as defs (not name-list).
+func TestCreateTable_FullDefsStillParse(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE reg (a INT, b VARCHAR(20)) DUPLICATE KEY(a) DISTRIBUTED BY HASH(a) BUCKETS 1")
+	if len(stmt.Columns) != 2 || len(stmt.CTASColumns) != 0 {
+		t.Errorf("Columns=%d CTASColumns=%d, want 2/0", len(stmt.Columns), len(stmt.CTASColumns))
+	}
+}
+
 func TestCreateTable_WithNotNullDefault(t *testing.T) {
 	stmt := parseCreateTableStmt(t, "CREATE TABLE t (id INT NOT NULL DEFAULT 0, name VARCHAR(50) NULL)")
 	if len(stmt.Columns) != 2 {
