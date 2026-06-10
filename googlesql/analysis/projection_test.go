@@ -719,3 +719,29 @@ func TestProjection_SetOpByNameDeferredStarArm(t *testing.T) {
 		t.Errorf("arm widths = %d/%d, want 2 concrete / 1 star", len(m.Left), len(m.Right))
 	}
 }
+
+// TestProjection_StructFieldStarFailsClosed pins the gate-round P0: a STRUCT-
+// field star through a relation (`d.s.*` / `t.s.*`) cannot be enumerated
+// metadata-free — returning the relation's whole projection would misalign the
+// positional masker (the first result's masker lands on the struct's first
+// sub-column → a sensitive column is returned unmasked). It must FAIL CLOSED
+// (the legacy resolver errored on multi-part wild paths too). A plain `rel.*`
+// and a schema-qualified `schema.table.*` still resolve.
+func TestProjection_StructFieldStarFailsClosed(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT d.s.* FROM (SELECT public, STRUCT(secret AS ssn) AS s FROM t) AS d",
+		"SELECT t.s.* FROM t",
+	} {
+		if _, err := GetQuerySpan(sql, DialectSpanner); err == nil {
+			t.Errorf("GetQuerySpan(%q) = nil error, want fail-closed (struct-field star is not enumerable)", sql)
+		}
+	}
+	// Single-part rel.* still resolves (no error).
+	if _, err := GetQuerySpan("SELECT d.* FROM (SELECT a, b FROM t) AS d", DialectSpanner); err != nil {
+		t.Errorf("rel.* should still resolve, got error: %v", err)
+	}
+	// Schema-qualified table star still resolves (the head is not a relation).
+	if _, err := GetQuerySpan("SELECT analytics.events.* FROM analytics.events", DialectSpanner); err != nil {
+		t.Errorf("schema-qualified star should still resolve, got error: %v", err)
+	}
+}

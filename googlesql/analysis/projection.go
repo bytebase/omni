@@ -480,14 +480,23 @@ func (w *spanWalker) resolveDotStar(expr ast.Node) []projColumn {
 	if len(parts) == 0 {
 		return nil
 	}
-	// `rel.*`: the first part names a leaf relation (legacy tries the leading
-	// identifier as a relation for a `a.*`).
-	if rel := findRelation(w.leafRels, parts[0]); rel != nil {
-		return rel.columns
+	// `rel.*`: a SINGLE-part qualifier naming a leaf relation reproduces that
+	// relation's projection. The single-part guard is load-bearing: a MULTI-part
+	// path whose head names a relation is a STRUCT-FIELD star through it
+	// (`d.s.*` — the star expands the struct field's sub-columns, which omni
+	// cannot enumerate metadata-free); returning the relation's whole projection
+	// would misalign the positional masker (gate-round finding: the first
+	// result's masker lands on the struct's first sub-column → leak). Those fall
+	// through to the fail-closed branch, matching the legacy resolver's error.
+	if len(parts) == 1 {
+		if rel := findRelation(w.leafRels, parts[0]); rel != nil {
+			return rel.columns
+		}
 	}
-	// `schema.table.*` (or `db.schema.table.*`): the trailing part names a base
-	// relation and the written prefix must agree with its schema qualifier.
-	if len(parts) >= 2 {
+	// `schema.table.*` (or `db.schema.table.*`): the head does NOT name a
+	// relation, the trailing part names a base relation, and the written prefix
+	// agrees with its schema qualifier.
+	if len(parts) >= 2 && findRelation(w.leafRels, parts[0]) == nil {
 		last := parts[len(parts)-1]
 		if rel := findRelation(w.leafRels, last); rel != nil && rel.isBase {
 			schemaPart := parts[len(parts)-2]
