@@ -51,6 +51,16 @@ func TestPR2bParity(t *testing.T) {
 			true,
 		},
 		{
+			"alter_drop_field_array_path", // #289 P2
+			"ALTER TABLE t MODIFY COLUMN c2 DROP FIELD c2.[*].v3",
+			true,
+		},
+		{
+			"ctas_name_list_requires_as_select", // #289 P3: invalid without AS query
+			"CREATE TABLE tnoas (a) DISTRIBUTED BY HASH(a) BUCKETS 1",
+			false,
+		},
+		{
 			"alter_modify_column_regression", // plain MODIFY COLUMN col TYPE still parses
 			"ALTER TABLE t MODIFY COLUMN c BIGINT",
 			true,
