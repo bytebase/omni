@@ -172,6 +172,77 @@ func TestPivot_Chained(t *testing.T) {
 	if ref.Pivot == nil {
 		t.Fatal("outer table ref has no PIVOT")
 	}
+	// The outer clause is the SECOND pivot (MAX); the keyword PIVOT must not
+	// have been eaten as the first clause's implicit alias.
+	if got := ref.Pivot.Agg.Name.Name.Normalize(); got != "MAX" {
+		t.Errorf("outer pivot agg = %q, want MAX", got)
+	}
+	if ref.Nested == nil {
+		t.Fatal("outer table ref has no Nested source for the chain")
+	}
+	inner := ref.Nested
+	if inner.Pivot == nil {
+		t.Fatal("nested table ref has no PIVOT")
+	}
+	if got := inner.Pivot.Agg.Name.Name.Normalize(); got != "SUM" {
+		t.Errorf("inner pivot agg = %q, want SUM", got)
+	}
+	if inner.Pivot.Alias.Name != "" {
+		t.Errorf("inner pivot alias = %q, want empty (PIVOT keyword must not become an alias)", inner.Pivot.Alias.Name)
+	}
+	if inner.Subquery == nil {
+		t.Error("nested table ref lost its subquery source")
+	}
+	// Loc sanity: the outer ref spans from the subquery start through the
+	// second pivot's closing paren.
+	if ref.Loc.Start != inner.Loc.Start {
+		t.Errorf("outer Loc.Start = %d, want %d (inner start)", ref.Loc.Start, inner.Loc.Start)
+	}
+	if ref.Loc.End != ref.Pivot.Loc.End {
+		t.Errorf("outer Loc.End = %d, want %d (outer pivot end)", ref.Loc.End, ref.Pivot.Loc.End)
+	}
+}
+
+func TestPivot_ChainedTrailingAlias(t *testing.T) {
+	sel := firstSelect(t, "SELECT * FROM t PIVOT (SUM(a) FOR b IN ('x')) PIVOT (MAX(c) FOR d IN ('y')) AS pp")
+	ref := firstTableRef(t, sel)
+	if ref.Pivot == nil || ref.Nested == nil || ref.Nested.Pivot == nil {
+		t.Fatalf("chain shape: outer pivot=%v nested=%v", ref.Pivot != nil, ref.Nested != nil)
+	}
+	if ref.Pivot.Alias.Name != "pp" {
+		t.Errorf("outer pivot alias = %q, want pp", ref.Pivot.Alias.Name)
+	}
+	if ref.Nested.Name == nil {
+		t.Error("nested ref lost its table name")
+	}
+}
+
+func TestPivot_ChainedMixedUnpivotPivot(t *testing.T) {
+	sel := firstSelect(t, "SELECT * FROM t UNPIVOT (v FOR n IN (a, b)) PIVOT (SUM(v) FOR n IN ('a'))")
+	ref := firstTableRef(t, sel)
+	if ref.Pivot == nil {
+		t.Fatal("outer ref must carry the PIVOT")
+	}
+	if ref.Nested == nil || ref.Nested.Unpivot == nil {
+		t.Fatal("nested ref must carry the UNPIVOT")
+	}
+	if ref.Unpivot != nil {
+		t.Error("outer ref must not also carry the UNPIVOT")
+	}
+}
+
+func TestPivot_ChainedThenSample(t *testing.T) {
+	sel := firstSelect(t, "SELECT * FROM t PIVOT (SUM(a) FOR b IN ('x')) PIVOT (MAX(c) FOR d IN ('y')) SAMPLE (10)")
+	ref := firstTableRef(t, sel)
+	if ref.Pivot == nil || ref.Nested == nil {
+		t.Fatal("expected chained pivot shape")
+	}
+	if ref.Sample == nil {
+		t.Error("trailing SAMPLE must attach to the outer pivoted ref")
+	}
+	if ref.Nested.Sample != nil {
+		t.Error("SAMPLE must not leak onto the nested ref")
+	}
 }
 
 func TestPivot_OverSubquerySource(t *testing.T) {

@@ -1146,25 +1146,41 @@ func (p *Parser) parseTableSuffix(ref *ast.TableRef) error {
 		return p.parseTrailingSample(ref)
 	}
 
-	// PIVOT ( … ) | UNPIVOT ( … )
-	switch p.cur.Type {
-	case kwPIVOT:
-		pv, err := p.parsePivotClause()
-		if err != nil {
-			return err
+	// PIVOT ( … ) | UNPIVOT ( … ) — possibly chained (`src PIVOT(...)
+	// PIVOT(...)`, official docs): each subsequent clause applies to the
+	// result of the previous one, so on the second and later clauses the ref
+	// is re-rooted in place with the prior contents moved to Nested.
+	pivoted := false
+	for p.cur.Type == kwPIVOT || p.cur.Type == kwUNPIVOT {
+		if ref.Pivot != nil || ref.Unpivot != nil {
+			inner := &ast.TableRef{}
+			*inner = *ref
+			*ref = ast.TableRef{
+				Nested: inner,
+				Loc:    ast.Loc{Start: inner.Loc.Start, End: inner.Loc.End},
+			}
 		}
-		ref.Pivot = pv
-		ref.Loc.End = pv.Loc.End
-		// PIVOT consumes its own trailing alias; only SAMPLE may follow.
-		return p.parseTrailingSample(ref)
-	case kwUNPIVOT:
-		uv, err := p.parseUnpivotClause()
-		if err != nil {
-			return err
+		switch p.cur.Type {
+		case kwPIVOT:
+			pv, err := p.parsePivotClause()
+			if err != nil {
+				return err
+			}
+			ref.Pivot = pv
+			ref.Loc.End = pv.Loc.End
+		case kwUNPIVOT:
+			uv, err := p.parseUnpivotClause()
+			if err != nil {
+				return err
+			}
+			ref.Unpivot = uv
+			ref.Loc.End = uv.Loc.End
 		}
-		ref.Unpivot = uv
-		ref.Loc.End = uv.Loc.End
-		// UNPIVOT consumes its own trailing alias; only SAMPLE may follow.
+		pivoted = true
+	}
+	if pivoted {
+		// PIVOT/UNPIVOT consume their own trailing alias; only SAMPLE may
+		// follow.
 		return p.parseTrailingSample(ref)
 	}
 

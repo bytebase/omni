@@ -106,6 +106,17 @@ type tableEntry struct {
 	// For a base table with unknown schema, we synthesize a * source column
 	// rather than enumerating specific columns.
 	isUnknown bool // true when we have no schema information
+	// opaque marks a PIVOT/UNPIVOT-derived relation. The output columns of a
+	// pivoted relation are computed from its source relation but carry names
+	// that do not exist on it (pivot value columns / the UNPIVOT value+name
+	// columns), and without catalog information the projection cannot be
+	// enumerated. To stay masking-sound, every column resolved through such
+	// an entry — star or named, qualified or bare — attributes to these
+	// whole-relation ("*") sources instead of fabricating per-column
+	// attributions. Over-attribution is deliberate: claiming base.* for a
+	// pivot output is conservative, while claiming base.Q1 for a column that
+	// actually carries agg(base.amount) would let a masking consumer leak.
+	opaque []*SourceColumn
 }
 
 // ---------------------------------------------------------------------------
@@ -176,6 +187,17 @@ func extractSelectStmt(s *ast.SelectStmt, scope *queryScope) *QuerySpan {
 	// Also include "table-level" sources for every FROM entry even if no
 	// columns are explicitly referenced (e.g. SELECT 1 FROM t still "touches" t).
 	for _, entry := range fromEntries {
+		if len(entry.opaque) > 0 {
+			// Pivoted relation: the alias names a derived relation, not a
+			// real table — record the underlying whole-relation sources.
+			for _, sc := range entry.opaque {
+				k := toSourceKey(sc)
+				if _, exists := sourcesMap[k]; !exists {
+					sourcesMap[k] = sc
+				}
+			}
+			continue
+		}
 		sc := &SourceColumn{Table: entry.alias, Column: "*"}
 		k := toSourceKey(sc)
 		if _, exists := sourcesMap[k]; !exists {
@@ -281,6 +303,13 @@ func resolveFromItem(item ast.Node, scope *queryScope) []tableEntry {
 
 // resolveTableRef resolves a single TableRef to a tableEntry.
 func resolveTableRef(ref *ast.TableRef, scope *queryScope) tableEntry {
+	// PIVOT/UNPIVOT (possibly chained via Nested): the relation's output
+	// columns are derived from the source relation under names the source
+	// does not have — resolve as an opaque-derived entry.
+	if ref.Pivot != nil || ref.Unpivot != nil || ref.Nested != nil {
+		return resolvePivotedRef(ref, scope)
+	}
+
 	// Subquery: (SELECT ...) AS alias
 	if ref.Subquery != nil {
 		subSpan := extractSpan(ref.Subquery, scope)
@@ -351,6 +380,70 @@ func resolveJoin(join *ast.JoinExpr, scope *queryScope) []tableEntry {
 	return append(left, right...)
 }
 
+// resolvePivotedRef resolves a TableRef that carries PIVOT/UNPIVOT clauses
+// (or a Nested chain of them) to an opaque-derived tableEntry: the entry is
+// addressed by the clause's trailing alias (PIVOT(...) AS p) and every column
+// resolved through it attributes to the underlying relation's whole-relation
+// sources. See tableEntry.opaque for the soundness rationale.
+func resolvePivotedRef(ref *ast.TableRef, scope *queryScope) tableEntry {
+	// Resolve the underlying source relation.
+	var base tableEntry
+	if ref.Nested != nil {
+		base = resolveTableRef(ref.Nested, scope)
+	} else {
+		stripped := *ref
+		stripped.Pivot = nil
+		stripped.Unpivot = nil
+		base = resolveTableRef(&stripped, scope)
+	}
+
+	// The pivoted relation is addressed by the clause's trailing alias when
+	// present (the parser stores it on the clause, not on the TableRef).
+	alias := ""
+	if ref.Pivot != nil {
+		alias = ref.Pivot.Alias.Normalize()
+	}
+	if alias == "" && ref.Unpivot != nil {
+		alias = ref.Unpivot.Alias.Normalize()
+	}
+	if alias == "" {
+		alias = ref.Alias.Normalize()
+	}
+	if alias == "" {
+		alias = base.alias
+	}
+
+	return tableEntry{
+		alias:     alias,
+		isUnknown: true,
+		opaque:    collapseEntryToOpaque(base),
+	}
+}
+
+// collapseEntryToOpaque reduces a resolved entry to its whole-relation ("*")
+// source set, used to attribute every column of a pivoted relation.
+func collapseEntryToOpaque(e tableEntry) []*SourceColumn {
+	if len(e.opaque) > 0 {
+		// Already opaque (chained PIVOT): keep the original base sources.
+		return e.opaque
+	}
+	var out []*SourceColumn
+	named := false
+	for _, c := range e.columns {
+		if c.Column == "*" {
+			out = append(out, c)
+		} else {
+			named = true
+		}
+	}
+	if named || len(out) == 0 {
+		// Subquery/CTE entries expose named columns; collapse them to a
+		// single whole-relation source under the entry's alias.
+		out = append(out, &SourceColumn{Table: e.alias, Column: "*"})
+	}
+	return out
+}
+
 // ---------------------------------------------------------------------------
 // SelectTarget resolution
 // ---------------------------------------------------------------------------
@@ -394,6 +487,12 @@ func resolveStarTarget(target *ast.SelectTarget, fromEntries []tableEntry) *Resu
 
 // expandEntryStar expands a tableEntry for * selection, filtering excluded columns.
 func expandEntryStar(entry tableEntry, excluded map[string]bool) []*SourceColumn {
+	if len(entry.opaque) > 0 {
+		// Pivoted relation: output column names are unrelated to the base
+		// columns, so EXCLUDE filtering cannot apply — return the
+		// whole-relation sources.
+		return entry.opaque
+	}
 	if entry.isUnknown || len(entry.columns) == 0 {
 		// Unknown table: emit a * pseudo-source.
 		return []*SourceColumn{{Table: entry.alias, Column: "*"}}
@@ -475,11 +574,12 @@ func collectColumnRefs(expr ast.Node, fromEntries []tableEntry) []*SourceColumn 
 		}
 		switch n := node.(type) {
 		case *ast.ColumnRef:
-			sc := resolveColumnRef(n, fromEntries)
-			k := toSourceKey(sc)
-			if !seen[k] {
-				seen[k] = true
-				refs = append(refs, sc)
+			for _, sc := range resolveColumnRef(n, fromEntries) {
+				k := toSourceKey(sc)
+				if !seen[k] {
+					seen[k] = true
+					refs = append(refs, sc)
+				}
 			}
 			return false // don't recurse into ColumnRef parts
 		case *ast.StarExpr:
@@ -503,24 +603,59 @@ func collectColumnRefs(expr ast.Node, fromEntries []tableEntry) []*SourceColumn 
 	return refs
 }
 
-// resolveColumnRef resolves a ColumnRef to a SourceColumn, looking up the
+// resolveColumnRef resolves a ColumnRef to its SourceColumns, looking up the
 // table qualifier from the FROM entries when only a column name is provided.
-func resolveColumnRef(ref *ast.ColumnRef, fromEntries []tableEntry) *SourceColumn {
+// A reference into a pivoted (opaque) relation resolves to that relation's
+// whole-relation sources rather than a fabricated per-column attribution.
+func resolveColumnRef(ref *ast.ColumnRef, fromEntries []tableEntry) []*SourceColumn {
 	parts := ref.Parts
+
+	// Qualified ref whose qualifier names a pivoted relation: attribute to
+	// the relation's whole-relation source set (e.g. p.Q1 with
+	// `t PIVOT(...) AS p` reads derived data, not a base column "Q1").
+	if len(parts) >= 2 {
+		qual := parts[0].Normalize()
+		for _, entry := range fromEntries {
+			if len(entry.opaque) > 0 && strings.EqualFold(entry.alias, qual) {
+				return entry.opaque
+			}
+		}
+	}
+
 	switch len(parts) {
 	case 1:
 		col := parts[0].Normalize()
-		// Try to find which table this column comes from.
-		table := resolveColumnToTable(col, fromEntries)
-		return &SourceColumn{Table: table, Column: col}
+		// A bare column in a scope containing pivoted relations may name one
+		// of their derived output columns: include those relations'
+		// whole-relation sources (conservative over-attribution).
+		var out []*SourceColumn
+		var plain []tableEntry
+		for _, entry := range fromEntries {
+			if len(entry.opaque) > 0 {
+				out = append(out, entry.opaque...)
+			} else {
+				plain = append(plain, entry)
+			}
+		}
+		if len(out) == 0 {
+			// No pivoted relations: existing resolution.
+			table := resolveColumnToTable(col, fromEntries)
+			return []*SourceColumn{{Table: table, Column: col}}
+		}
+		if len(plain) > 0 {
+			// The column may equally come from a non-pivoted relation.
+			table := resolveColumnToTable(col, plain)
+			out = append(out, &SourceColumn{Table: table, Column: col})
+		}
+		return out
 	case 2:
-		return &SourceColumn{Table: parts[0].Normalize(), Column: parts[1].Normalize()}
+		return []*SourceColumn{{Table: parts[0].Normalize(), Column: parts[1].Normalize()}}
 	case 3:
-		return &SourceColumn{Schema: parts[0].Normalize(), Table: parts[1].Normalize(), Column: parts[2].Normalize()}
+		return []*SourceColumn{{Schema: parts[0].Normalize(), Table: parts[1].Normalize(), Column: parts[2].Normalize()}}
 	case 4:
-		return &SourceColumn{Database: parts[0].Normalize(), Schema: parts[1].Normalize(), Table: parts[2].Normalize(), Column: parts[3].Normalize()}
+		return []*SourceColumn{{Database: parts[0].Normalize(), Schema: parts[1].Normalize(), Table: parts[2].Normalize(), Column: parts[3].Normalize()}}
 	}
-	return &SourceColumn{Column: strings.Join(identPartsToStrings(parts), ".")}
+	return []*SourceColumn{{Column: strings.Join(identPartsToStrings(parts), ".")}}
 }
 
 // resolveColumnToTable looks up which FROM entry contains the given column name.
