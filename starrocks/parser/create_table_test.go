@@ -143,6 +143,106 @@ func TestCreateTable_DefaultExpr(t *testing.T) {
 	}
 }
 
+// StarRocks inline index with a bare property list after the index type
+// (BYT-9140 PR2b #14): INDEX i (c) USING GIN ('k'='v'). GIN/VECTOR lex as
+// identifiers (USING already accepts any), so the gap is only the bare (...)
+// property list (distinct from the PROPERTIES(...) form).
+func TestCreateTable_InlineIndexGINProps(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE ix (id BIGINT, name VARCHAR(64), tags VARCHAR(255), INDEX idx_name (name) USING BITMAP COMMENT 'x', INDEX idx_tags (tags) USING GIN ('parser'='english')) DUPLICATE KEY(id) DISTRIBUTED BY HASH(id)")
+	if len(stmt.Indexes) != 2 {
+		t.Fatalf("expected 2 inline indexes, got %d", len(stmt.Indexes))
+	}
+	gin := stmt.Indexes[1]
+	if gin.IndexType != "gin" {
+		t.Errorf("IndexType=%q, want gin", gin.IndexType)
+	}
+	if len(gin.Properties) != 1 || gin.Properties[0].Key != "parser" || gin.Properties[0].Value != "english" {
+		t.Errorf("Properties=%v, want [parser=english]", gin.Properties)
+	}
+}
+
+// StarRocks ROLLUP FROM <base_rollup> (BYT-9140 PR2b #15): build a rollup from
+// another rollup. Inline ROLLUP(...) + DUPLICATE KEY already parse; gap is FROM.
+func TestCreateTable_RollupFrom(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE rl (k1 INT, k2 INT, v BIGINT SUM) AGGREGATE KEY(k1,k2) DISTRIBUTED BY HASH(k1) ROLLUP (r1 (k1,v), r2 (k2,v) FROM r1)")
+	if len(stmt.Rollup) != 2 {
+		t.Fatalf("expected 2 rollups, got %d", len(stmt.Rollup))
+	}
+	if stmt.Rollup[1].FromRollup != "r1" {
+		t.Errorf("Rollup[1].FromRollup=%q, want r1", stmt.Rollup[1].FromRollup)
+	}
+}
+
+// StarRocks CTAS with a column-name list (BYT-9140 PR2b #16): the parenthesized
+// list is names-only (no types), distinguished from full column-defs by a
+// 2-token peek (a CTAS name is followed by , or ) ; a full-def name by a type).
+func TestCreateTable_CTASNameList(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE ck (new_id, new_name) DISTRIBUTED BY HASH(new_id) BUCKETS 8 AS SELECT k AS new_id, v AS new_name FROM smoke_t")
+	if len(stmt.CTASColumns) != 2 || stmt.CTASColumns[0] != "new_id" || stmt.CTASColumns[1] != "new_name" {
+		t.Fatalf("CTASColumns=%v, want [new_id new_name]", stmt.CTASColumns)
+	}
+	if stmt.AsSelect == nil {
+		t.Errorf("expected AsSelect set")
+	}
+}
+
+func TestCreateTable_CTASNameListSingle(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE ck1 (a) DISTRIBUTED BY HASH(a) AS SELECT k AS a FROM smoke_t")
+	if len(stmt.CTASColumns) != 1 || stmt.CTASColumns[0] != "a" {
+		t.Errorf("CTASColumns=%v, want [a]", stmt.CTASColumns)
+	}
+}
+
+func TestCreateTable_CTASNameListWithIndex(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE ck2 (a, b, INDEX idx_b (b) USING BITMAP) DISTRIBUTED BY HASH(a) AS SELECT k AS a, v AS b FROM smoke_t")
+	if len(stmt.CTASColumns) != 2 {
+		t.Errorf("CTASColumns=%v, want [a b]", stmt.CTASColumns)
+	}
+	if len(stmt.Indexes) != 1 {
+		t.Errorf("expected 1 trailing index, got %d", len(stmt.Indexes))
+	}
+}
+
+// #289 P3: a column-name list (no types) is valid ONLY as CTAS; without AS
+// SELECT it is invalid DDL and StarRocks rejects it — so must omni.
+func TestCreateTable_CTASNameListRequiresAsSelect(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TABLE tnoas (a)",
+		"CREATE TABLE tnoas2 (a) DISTRIBUTED BY HASH(a) BUCKETS 1",
+		"CREATE TABLE tnoas3 (a, b) DISTRIBUTED BY HASH(a)",
+	} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("expected %q to be rejected (name-list without AS SELECT)", sql)
+		}
+	}
+}
+
+// Regression: full column-defs still parse as defs (not name-list).
+func TestCreateTable_FullDefsStillParse(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE reg (a INT, b VARCHAR(20)) DUPLICATE KEY(a) DISTRIBUTED BY HASH(a) BUCKETS 1")
+	if len(stmt.Columns) != 2 || len(stmt.CTASColumns) != 0 {
+		t.Errorf("Columns=%d CTASColumns=%d, want 2/0", len(stmt.Columns), len(stmt.CTASColumns))
+	}
+}
+
+// Boundary sweep: a bare index property list is valid ONLY after a USING index
+// type (grammar: indexType propertyList?); props without USING is invalid.
+func TestCreateTable_InlineIndexPropsRequireUsing(t *testing.T) {
+	_, errs := Parse("CREATE TABLE t (k INT, INDEX idx (k) ('parser' = 'english')) DISTRIBUTED BY HASH(k)")
+	if len(errs) == 0 {
+		t.Error("expected index property list without USING to be rejected")
+	}
+}
+
+// Boundary sweep: QUARTER is a valid batch-partition interval unit (it's a
+// keyword, so it bypassed the tokIdent fallback in the unit set).
+func TestCreateTable_BatchRangePartitionQuarter(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE t (k DATE, v INT) DUPLICATE KEY(k) PARTITION BY RANGE(k) (START ('2020-01-01') END ('2021-01-01') EVERY (INTERVAL 1 QUARTER)) DISTRIBUTED BY HASH(v)")
+	if got := stmt.PartitionBy.Partitions[0].IntervalUnit; got != "QUARTER" {
+		t.Errorf("IntervalUnit=%q, want QUARTER", got)
+	}
+}
+
 func TestCreateTable_WithNotNullDefault(t *testing.T) {
 	stmt := parseCreateTableStmt(t, "CREATE TABLE t (id INT NOT NULL DEFAULT 0, name VARCHAR(50) NULL)")
 	if len(stmt.Columns) != 2 {

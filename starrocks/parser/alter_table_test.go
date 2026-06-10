@@ -153,6 +153,62 @@ func TestAlterTableDropColumn(t *testing.T) {
 
 // ---- MODIFY COLUMN ----
 
+// StarRocks struct-field evolution (BYT-9140 PR2b #17):
+// MODIFY COLUMN col ADD FIELD name type [FIRST|AFTER f] / DROP FIELD path.
+func TestAlterTableModifyColumnStructField(t *testing.T) {
+	runAlterTableTests(t, []alterTableTestCase{
+		{
+			sql: "ALTER TABLE t MODIFY COLUMN s ADD FIELD f4 DOUBLE AFTER f2",
+			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
+				a := stmt.Actions[0]
+				if a.Type != ast.AlterModifyColumnAddField {
+					t.Errorf("type=%v, want AlterModifyColumnAddField", a.Type)
+				}
+				if a.ColumnName != "s" || a.FieldName != "f4" {
+					t.Errorf("col=%q field=%q, want s/f4", a.ColumnName, a.FieldName)
+				}
+				if a.FieldType == nil || a.FieldType.Name != "DOUBLE" {
+					t.Errorf("FieldType=%v, want DOUBLE", a.FieldType)
+				}
+				if a.After != "f2" {
+					t.Errorf("After=%q, want f2", a.After)
+				}
+			},
+		},
+		{
+			sql: "ALTER TABLE t MODIFY COLUMN s DROP FIELD nested",
+			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
+				a := stmt.Actions[0]
+				if a.Type != ast.AlterModifyColumnDropField {
+					t.Errorf("type=%v, want AlterModifyColumnDropField", a.Type)
+				}
+				if a.ColumnName != "s" || a.FieldName != "nested" {
+					t.Errorf("col=%q field=%q, want s/nested", a.ColumnName, a.FieldName)
+				}
+			},
+		},
+	})
+}
+
+// #289 P2: struct-field paths can include array-element traversal [*],
+// e.g. DROP FIELD c2.[*].v3 (subfieldName: identifier | ARRAY_ELEMENT).
+func TestAlterTableModifyColumnDropFieldArrayPath(t *testing.T) {
+	runAlterTableTests(t, []alterTableTestCase{
+		{
+			sql: "ALTER TABLE t MODIFY COLUMN c2 DROP FIELD c2.[*].v3",
+			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
+				a := stmt.Actions[0]
+				if a.Type != ast.AlterModifyColumnDropField {
+					t.Errorf("type=%v, want AlterModifyColumnDropField", a.Type)
+				}
+				if a.FieldName != "c2.[*].v3" {
+					t.Errorf("FieldName=%q, want c2.[*].v3", a.FieldName)
+				}
+			},
+		},
+	})
+}
+
 func TestAlterTableModifyColumn(t *testing.T) {
 	cases := []alterTableTestCase{
 		{

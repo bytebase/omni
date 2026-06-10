@@ -91,6 +91,15 @@ func (p *Parser) parseCreateTable() (ast.Node, error) {
 		return nil, err
 	}
 
+	// A column-name list (no column types) is valid ONLY as CTAS — it requires
+	// an AS <query>. Without it the statement is invalid (StarRocks rejects it).
+	if len(stmt.CTASColumns) > 0 && stmt.AsSelect == nil {
+		return nil, &ParseError{
+			Loc: p.cur.Loc,
+			Msg: "column-name list requires AS <query> (CTAS)",
+		}
+	}
+
 	// Compute location.
 	stmt.Loc = startLoc.Merge(p.prev.Loc)
 	return stmt, nil
@@ -103,6 +112,17 @@ func (p *Parser) parseCreateTable() (ast.Node, error) {
 func (p *Parser) parseColumnDefsBlock(stmt *ast.CreateTableStmt) error {
 	if _, err := p.expect(int('(')); err != nil {
 		return err
+	}
+
+	// StarRocks CTAS column-name list: ( ident (, ident)* (, indexDesc)* ) AS query.
+	// A CTAS column carries NO type/attributes, so its name is followed by `,`
+	// or `)`; a full-def column name is followed by a type. The token sets are
+	// disjoint, so a 2-token peek (first ident + the token after it) classifies
+	// the whole block — no backtracking needed.
+	if isIdentifierToken(p.cur.Kind) {
+		if nx := p.peekNext().Kind; nx == int(',') || nx == int(')') {
+			return p.parseCTASColumnNames(stmt)
+		}
 	}
 
 	// Parse column defs and index defs.
@@ -135,6 +155,39 @@ func (p *Parser) parseColumnDefsBlock(stmt *ast.CreateTableStmt) error {
 		}
 	}
 
+	if _, err := p.expect(int(')')); err != nil {
+		return err
+	}
+	return nil
+}
+
+// parseCTASColumnNames parses a StarRocks CTAS column-name list, with cur at the
+// first identifier inside the already-consumed '(':
+//
+//	ident (, ident)* (, indexDesc)* ')'
+//
+// Names go to stmt.CTASColumns; trailing INDEX entries reuse the inline-index
+// parser. The AS query tail is parsed later by parseCreateTableClauses.
+func (p *Parser) parseCTASColumnNames(stmt *ast.CreateTableStmt) error {
+	for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+		if p.cur.Kind == kwINDEX {
+			idx, err := p.parseInlineIndexDef()
+			if err != nil {
+				return err
+			}
+			stmt.Indexes = append(stmt.Indexes, idx)
+		} else {
+			name, _, err := p.parseIdentifier()
+			if err != nil {
+				return err
+			}
+			stmt.CTASColumns = append(stmt.CTASColumns, name)
+		}
+
+		if p.cur.Kind == int(',') {
+			p.advance()
+		}
+	}
 	if _, err := p.expect(int(')')); err != nil {
 		return err
 	}
@@ -473,9 +526,19 @@ func (p *Parser) parseInlineIndexDef() (*ast.IndexDef, error) {
 		p.advance()
 	}
 
-	// Optional PROPERTIES(...)
+	// Optional index property list: PROPERTIES("k"="v", ...) or the StarRocks
+	// bare form ("k"="v", ...) immediately after the index type.
 	if p.cur.Kind == kwPROPERTIES {
 		props, err := p.parseProperties()
+		if err != nil {
+			return nil, err
+		}
+		idx.Properties = props
+		idx.Loc.End = p.prev.Loc.End
+	} else if idx.IndexType != "" && p.cur.Kind == int('(') {
+		// The bare property list is only valid AFTER an index type
+		// (grammar: indexType propertyList?) — not on its own.
+		props, err := p.parsePropertyList()
 		if err != nil {
 			return nil, err
 		}
@@ -1049,8 +1112,8 @@ func (p *Parser) parseBatchRangePartition(startLoc ast.Loc) (*ast.PartitionItem,
 
 	// Optional interval unit (date ranges).
 	if p.cur.Kind == kwDAY || p.cur.Kind == kwWEEK || p.cur.Kind == kwMONTH ||
-		p.cur.Kind == kwYEAR || p.cur.Kind == kwHOUR || p.cur.Kind == kwMINUTE ||
-		p.cur.Kind == kwSECOND || p.cur.Kind == tokIdent {
+		p.cur.Kind == kwQUARTER || p.cur.Kind == kwYEAR || p.cur.Kind == kwHOUR ||
+		p.cur.Kind == kwMINUTE || p.cur.Kind == kwSECOND || p.cur.Kind == tokIdent {
 		item.IntervalUnit = strings.ToUpper(p.cur.Str)
 		item.Loc.End = p.cur.Loc.End
 		p.advance()
@@ -1351,6 +1414,17 @@ func (p *Parser) parseRollupDef() (*ast.RollupDef, error) {
 		}
 		rd.DupKeys = keys
 		rd.Loc.End = closeTok.Loc.End
+	}
+
+	// Optional FROM <base_rollup> (StarRocks: build this rollup from another).
+	if p.cur.Kind == kwFROM {
+		p.advance() // consume FROM
+		base, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		rd.FromRollup = base
+		rd.Loc.End = p.prev.Loc.End
 	}
 
 	// Optional PROPERTIES
