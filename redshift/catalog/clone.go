@@ -414,5 +414,8 @@ func (c *Catalog) Clone() *Catalog {
 	// Warnings: start clean (not copied from source).
 	// clone.warnings is nil by default.
 
+	clone.relationResolver = c.relationResolver
+	clone.relationResolutionStack = make(map[string]bool)
+
 	return clone
 }
