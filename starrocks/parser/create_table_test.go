@@ -225,6 +225,24 @@ func TestCreateTable_FullDefsStillParse(t *testing.T) {
 	}
 }
 
+// Boundary sweep: a bare index property list is valid ONLY after a USING index
+// type (grammar: indexType propertyList?); props without USING is invalid.
+func TestCreateTable_InlineIndexPropsRequireUsing(t *testing.T) {
+	_, errs := Parse("CREATE TABLE t (k INT, INDEX idx (k) ('parser' = 'english')) DISTRIBUTED BY HASH(k)")
+	if len(errs) == 0 {
+		t.Error("expected index property list without USING to be rejected")
+	}
+}
+
+// Boundary sweep: QUARTER is a valid batch-partition interval unit (it's a
+// keyword, so it bypassed the tokIdent fallback in the unit set).
+func TestCreateTable_BatchRangePartitionQuarter(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE t (k DATE, v INT) DUPLICATE KEY(k) PARTITION BY RANGE(k) (START ('2020-01-01') END ('2021-01-01') EVERY (INTERVAL 1 QUARTER)) DISTRIBUTED BY HASH(v)")
+	if got := stmt.PartitionBy.Partitions[0].IntervalUnit; got != "QUARTER" {
+		t.Errorf("IntervalUnit=%q, want QUARTER", got)
+	}
+}
+
 func TestCreateTable_WithNotNullDefault(t *testing.T) {
 	stmt := parseCreateTableStmt(t, "CREATE TABLE t (id INT NOT NULL DEFAULT 0, name VARCHAR(50) NULL)")
 	if len(stmt.Columns) != 2 {

@@ -535,7 +535,9 @@ func (p *Parser) parseInlineIndexDef() (*ast.IndexDef, error) {
 		}
 		idx.Properties = props
 		idx.Loc.End = p.prev.Loc.End
-	} else if p.cur.Kind == int('(') {
+	} else if idx.IndexType != "" && p.cur.Kind == int('(') {
+		// The bare property list is only valid AFTER an index type
+		// (grammar: indexType propertyList?) — not on its own.
 		props, err := p.parsePropertyList()
 		if err != nil {
 			return nil, err
@@ -1110,8 +1112,8 @@ func (p *Parser) parseBatchRangePartition(startLoc ast.Loc) (*ast.PartitionItem,
 
 	// Optional interval unit (date ranges).
 	if p.cur.Kind == kwDAY || p.cur.Kind == kwWEEK || p.cur.Kind == kwMONTH ||
-		p.cur.Kind == kwYEAR || p.cur.Kind == kwHOUR || p.cur.Kind == kwMINUTE ||
-		p.cur.Kind == kwSECOND || p.cur.Kind == tokIdent {
+		p.cur.Kind == kwQUARTER || p.cur.Kind == kwYEAR || p.cur.Kind == kwHOUR ||
+		p.cur.Kind == kwMINUTE || p.cur.Kind == kwSECOND || p.cur.Kind == tokIdent {
 		item.IntervalUnit = strings.ToUpper(p.cur.Str)
 		item.Loc.End = p.cur.Loc.End
 		p.advance()
