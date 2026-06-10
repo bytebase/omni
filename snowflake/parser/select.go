@@ -159,7 +159,7 @@ func (p *Parser) tryParseSetOp() (ast.SetOp, bool, bool, bool) {
 //	  [QUALIFY expr]
 //	  [ORDER BY ...]
 //	  [LIMIT n [OFFSET n]]
-//	  [FETCH FIRST|NEXT n ROWS ONLY]
+//	  [FETCH [FIRST|NEXT] n [ROW|ROWS] [ONLY]]
 func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	selectTok, err := p.expect(kwSELECT)
 	if err != nil {
@@ -182,7 +182,7 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	// TOP n
 	if p.cur.Type == kwTOP {
 		p.advance() // consume TOP
-		topExpr, err := p.parseExpr()
+		topExpr, err := p.parseTopCount()
 		if err != nil {
 			return nil, err
 		}
@@ -274,6 +274,23 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	stmt.Loc.End = p.prev.Loc.End
 
 	return stmt, nil
+}
+
+// parseTopCount parses the count following TOP. Snowflake documents TOP n
+// as taking a constant, so this deliberately parses a single primary
+// expression (number literal, $variable, or parenthesized expression)
+// rather than a full expression: in `SELECT TOP 125 * FROM t` the `*` is
+// the star select target, not a multiplication operator applied to 125.
+func (p *Parser) parseTopCount() (ast.Node, error) {
+	switch p.cur.Type {
+	case tokInt, tokFloat, tokReal, tokVariable, '(':
+		return p.parsePrimaryExpr()
+	default:
+		return nil, &ParseError{
+			Loc: p.cur.Loc,
+			Msg: "expected a number after TOP",
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -1404,18 +1421,17 @@ func (p *Parser) parseLimitOffsetFetch(stmt *ast.SelectStmt) error {
 		stmt.Offset = offsetExpr
 	}
 
-	// FETCH FIRST|NEXT n ROWS ONLY
+	// FETCH [FIRST|NEXT] n [ROW|ROWS] [ONLY]
+	//
+	// FIRST/NEXT, ROW/ROWS, and ONLY are all optional noise words in
+	// Snowflake: `FETCH 123` is equivalent to `FETCH FIRST 123 ROWS ONLY`.
 	if p.cur.Type == kwFETCH {
 		fetchTok := p.advance() // consume FETCH
 
-		// Expect FIRST or NEXT
-		if p.cur.Type != kwFIRST && p.cur.Type != kwNEXT {
-			return &ParseError{
-				Loc: p.cur.Loc,
-				Msg: "expected FIRST or NEXT after FETCH",
-			}
+		// Optional FIRST or NEXT
+		if p.cur.Type == kwFIRST || p.cur.Type == kwNEXT {
+			p.advance() // consume FIRST or NEXT
 		}
-		p.advance() // consume FIRST or NEXT
 
 		// Parse count expression
 		countExpr, err := p.parseExpr()
@@ -1423,24 +1439,21 @@ func (p *Parser) parseLimitOffsetFetch(stmt *ast.SelectStmt) error {
 			return err
 		}
 
-		// Expect ROWS or ROW
-		if p.cur.Type != kwROWS && p.cur.Type != kwROW {
-			return &ParseError{
-				Loc: p.cur.Loc,
-				Msg: "expected ROWS or ROW after FETCH count",
-			}
+		// Optional ROWS or ROW
+		if p.cur.Type == kwROWS || p.cur.Type == kwROW {
+			p.advance() // consume ROWS or ROW
 		}
-		p.advance() // consume ROWS or ROW
 
-		// Expect ONLY
-		onlyTok, err := p.expect(kwONLY)
-		if err != nil {
-			return err
+		// Optional ONLY
+		if p.cur.Type == kwONLY {
+			p.advance() // consume ONLY
 		}
 
 		stmt.Fetch = &ast.FetchClause{
 			Count: countExpr,
-			Loc:   ast.Loc{Start: fetchTok.Loc.Start, End: onlyTok.Loc.End},
+			// p.prev is the last token consumed: ONLY, ROW/ROWS, or the
+			// end of the count expression.
+			Loc: ast.Loc{Start: fetchTok.Loc.Start, End: p.prev.Loc.End},
 		}
 	}
 
