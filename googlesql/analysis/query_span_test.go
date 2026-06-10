@@ -216,7 +216,10 @@ func TestGetQuerySpan_Results(t *testing.T) {
 		{"qualified col", "SELECT t.a FROM t", []string{"a"}},
 		{"expr no name", "SELECT a + b FROM t", []string{""}},
 		{"set op left wins", "SELECT a AS x FROM t UNION ALL SELECT b AS y FROM u", []string{"x"}},
-		{"dot star", "SELECT t.* FROM t", []string{"t.*"}},
+		// A `rel.*` star is now a resolved StarSegments item (the relation's
+		// projection), surfaced with Name "*"; the segment carries the base relation
+		// the consumer expands. See TestGetQuerySpan_StarSegments for the segment shape.
+		{"dot star", "SELECT t.* FROM t", []string{"*"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -472,4 +475,182 @@ func TestGetQuerySpan_GQLEmptySpan(t *testing.T) {
 			}
 		}
 	}
+}
+
+// --- Masking-grade per-shape lineage (BigQuery cutover) -------------------
+//
+// These pin the lineage SHAPE the bytebase masking layer consumes, independent
+// of catalog metadata: omni records bare (unqualified) source-column refs and a
+// star's EXCEPT/REPLACE modifiers; the bytebase extractor resolves them against
+// dataset metadata. The shape — which refs feed which output position — is what
+// must be correct here.
+
+// resultSourceColumns renders one result's source ColumnRefs as sorted
+// "table.column" (or just "column" when unqualified) strings.
+func resultSourceColumns(info ColumnInfo) []string {
+	var out []string
+	for _, sc := range info.SourceColumns {
+		if sc.Table != "" {
+			out = append(out, sc.Table+"."+sc.Column)
+		} else {
+			out = append(out, sc.Column)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// TestGetQuerySpan_SetOpMergesBothArms pins fix #1: a set operation's output
+// column at position i draws its lineage from the UNION of BOTH arms' source
+// columns at that position (the left arm alone is a masking leak). The output
+// NAME still comes from the left arm.
+func TestGetQuerySpan_SetOpMergesBothArms(t *testing.T) {
+	tests := []struct {
+		name        string
+		sql         string
+		wantNames   []string
+		wantSources [][]string // per output position, sorted source columns
+	}{
+		{
+			name:        "two arms aliased",
+			sql:         "SELECT a AS x FROM t UNION ALL SELECT b AS y FROM u",
+			wantNames:   []string{"x"},
+			wantSources: [][]string{{"a", "b"}},
+		},
+		{
+			name:        "two columns each",
+			sql:         "SELECT a, b FROM t UNION ALL SELECT c, d FROM u",
+			wantNames:   []string{"a", "b"},
+			wantSources: [][]string{{"a", "c"}, {"b", "d"}},
+		},
+		{
+			name:        "three arms accumulate",
+			sql:         "SELECT a FROM t UNION ALL SELECT b FROM u UNION ALL SELECT c FROM v",
+			wantNames:   []string{"a"},
+			wantSources: [][]string{{"a", "b", "c"}},
+		},
+		{
+			name:        "intersect and except also merge",
+			sql:         "SELECT a FROM t INTERSECT DISTINCT SELECT b FROM u",
+			wantNames:   []string{"a"},
+			wantSources: [][]string{{"a", "b"}},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			span, err := GetQuerySpan(tc.sql, DialectBigQuery)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q) error: %v", tc.sql, err)
+			}
+			if got := resultNames(span); !eqStrings(got, tc.wantNames) {
+				t.Errorf("names = %v, want %v", got, tc.wantNames)
+			}
+			if len(span.Results) != len(tc.wantSources) {
+				t.Fatalf("got %d results, want %d", len(span.Results), len(tc.wantSources))
+			}
+			for i, want := range tc.wantSources {
+				if got := resultSourceColumns(span.Results[i]); !eqStrings(got, want) {
+					t.Errorf("result[%d] sources = %v, want %v", i, got, want)
+				}
+			}
+		})
+	}
+}
+
+// TestGetQuerySpan_ScalarSubqueryInSelectListIsOpaque pins the SELECT-list
+// scalar-subquery lineage shape: the subquery's projected columns are NOT
+// surfaced as the output column's direct sources (the column is treated as
+// opaque, matching the restored BigQuery goldens — a SELECT-list `(SELECT c FROM
+// u)` yields an empty source set). Its inner tables and correlation predicates
+// are still discovered by the walk.
+func TestGetQuerySpan_ScalarSubqueryInSelectListIsOpaque(t *testing.T) {
+	sql := "SELECT (SELECT NAME FROM people), ID FROM people"
+	span, err := GetQuerySpan(sql, DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	if len(span.Results) != 2 {
+		t.Fatalf("got %d results, want 2", len(span.Results))
+	}
+	// The scalar subquery output column has no direct source columns.
+	if got := resultSourceColumns(span.Results[0]); len(got) != 0 {
+		t.Errorf("scalar-subquery result sources = %v, want empty", got)
+	}
+	// The sibling bare column resolves normally.
+	if got := resultSourceColumns(span.Results[1]); !eqStrings(got, []string{"ID"}) {
+		t.Errorf("result[1] sources = %v, want [ID]", got)
+	}
+	// The subquery's table is still discovered (people appears once, deduped).
+	if got := tableNames(span); !eqStrings(got, []string{"people"}) {
+		t.Errorf("tables = %v, want [people]", got)
+	}
+}
+
+// TestGetQuerySpan_JoinUsingCoalesceSurfacesColumn pins fix #4's omni-side
+// contribution: a JOIN ... USING (c) records the coalesced column c as a bare
+// reference (Column=c, no table qualifier) so the catalog-aware consumer matches
+// it against BOTH joined sides' c columns; the USING column is also a predicate.
+func TestGetQuerySpan_JoinUsingCoalesceSurfacesColumn(t *testing.T) {
+	sql := "SELECT ID, NAME, ADDRESS FROM people JOIN address ON people.ID = address.PEOPLE_ID USING (ID)"
+	span, err := GetQuerySpan(sql, DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	if len(span.Results) == 0 || span.Results[0].Name != "ID" {
+		t.Fatalf("results = %v, want first column ID", resultNames(span))
+	}
+	// The coalesced ID is a bare ref (no table) so it flat-matches both PEOPLE.ID
+	// and ADDRESS.ID downstream.
+	if got := resultSourceColumns(span.Results[0]); !eqStrings(got, []string{"ID"}) {
+		t.Errorf("ID result sources = %v, want [ID] (bare, table-agnostic)", got)
+	}
+	if got := predicateColumnNames(span); !containsString(got, "ID") {
+		t.Errorf("predicate columns = %v, want to include the USING column ID", got)
+	}
+}
+
+// TestGetQuerySpan_StarExceptReplaceCaptured pins fix #2: a SELECT * EXCEPT/
+// REPLACE star item records its modifiers on the ColumnInfo (StarExcept names,
+// StarReplace name+expr-sources) so the catalog-aware consumer can drop EXCEPT-ed
+// columns and re-point a REPLACE-d column's lineage.
+func TestGetQuerySpan_StarExceptReplaceCaptured(t *testing.T) {
+	sql := "SELECT * EXCEPT (ID) REPLACE (ID/2 AS NAME) FROM people"
+	span, err := GetQuerySpan(sql, DialectBigQuery)
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	if len(span.Results) != 1 {
+		t.Fatalf("got %d results, want 1 (the star)", len(span.Results))
+	}
+	star := span.Results[0]
+	if star.Name != "*" {
+		t.Errorf("star name = %q, want *", star.Name)
+	}
+	if !eqStrings(star.StarExcept, []string{"ID"}) {
+		t.Errorf("StarExcept = %v, want [ID]", star.StarExcept)
+	}
+	if len(star.StarReplace) != 1 {
+		t.Fatalf("got %d StarReplace, want 1", len(star.StarReplace))
+	}
+	repl := star.StarReplace[0]
+	if repl.Name != "NAME" {
+		t.Errorf("StarReplace[0].Name = %q, want NAME", repl.Name)
+	}
+	var cols []string
+	for _, sc := range repl.Sources {
+		cols = append(cols, sc.Column)
+	}
+	if !eqStrings(cols, []string{"ID"}) {
+		t.Errorf("StarReplace[0].Sources = %v, want [ID] (the ID/2 expr)", cols)
+	}
+}
+
+// containsString reports whether list contains s.
+func containsString(list []string, s string) bool {
+	for _, e := range list {
+		if e == s {
+			return true
+		}
+	}
+	return false
 }
