@@ -242,6 +242,62 @@ func TestSelect_Top(t *testing.T) {
 	}
 }
 
+// The TOP count is a constant, not a full expression: the `*` after the
+// count is the star select target, not a multiplication operator.
+func TestSelect_TopStar(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT TOP 125 * FROM t")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if sel.Top == nil {
+		t.Fatal("expected Top to be set")
+	}
+	lit, ok := sel.Top.(*ast.Literal)
+	if !ok {
+		t.Fatalf("expected *ast.Literal for Top, got %T", sel.Top)
+	}
+	if lit.Ival != 125 {
+		t.Errorf("Top = %d, want 125", lit.Ival)
+	}
+	if len(sel.Targets) != 1 {
+		t.Fatalf("targets = %d, want 1", len(sel.Targets))
+	}
+	if !sel.Targets[0].Star {
+		t.Error("expected Targets[0].Star = true")
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("from = %d, want 1", len(sel.From))
+	}
+}
+
+func TestSelect_TopColumn(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT TOP 40 c1 FROM t")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if sel.Top == nil {
+		t.Fatal("expected Top to be set")
+	}
+	lit, ok := sel.Top.(*ast.Literal)
+	if !ok {
+		t.Fatalf("expected *ast.Literal for Top, got %T", sel.Top)
+	}
+	if lit.Ival != 40 {
+		t.Errorf("Top = %d, want 40", lit.Ival)
+	}
+	if len(sel.Targets) != 1 {
+		t.Fatalf("targets = %d, want 1", len(sel.Targets))
+	}
+}
+
+func TestSelect_TopMissingCount(t *testing.T) {
+	// TOP with no count expression must error.
+	_, errs := testParseSelectStmt("SELECT TOP FROM t")
+	if len(errs) == 0 {
+		t.Fatal("expected error for TOP without count")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // 10. SELECT a FROM t1, t2 AS x — comma FROM with alias
 // ---------------------------------------------------------------------------
@@ -538,6 +594,99 @@ func TestSelect_OffsetFetch(t *testing.T) {
 	}
 	if sel.Fetch == nil {
 		t.Fatal("expected Fetch to be set")
+	}
+}
+
+// FIRST/NEXT, ROW/ROWS, and ONLY are all optional noise words: FETCH 123
+// is equivalent to FETCH FIRST 123 ROWS ONLY.
+func TestSelect_FetchBare(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT a FROM t FETCH 123")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if sel.Fetch == nil {
+		t.Fatal("expected Fetch to be set")
+	}
+	litCount, ok := sel.Fetch.Count.(*ast.Literal)
+	if !ok {
+		t.Fatalf("expected *ast.Literal for Fetch.Count, got %T", sel.Fetch.Count)
+	}
+	if litCount.Ival != 123 {
+		t.Errorf("Fetch.Count = %d, want 123", litCount.Ival)
+	}
+	// Fetch.Loc must span FETCH..123.
+	input := "SELECT a FROM t FETCH 123"
+	if got := input[sel.Fetch.Loc.Start:sel.Fetch.Loc.End]; got != "FETCH 123" {
+		t.Errorf("Fetch.Loc spans %q, want %q", got, "FETCH 123")
+	}
+}
+
+func TestSelect_OffsetFetchBare(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT a FROM t OFFSET 12 FETCH 123")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if sel.Offset == nil {
+		t.Fatal("expected Offset to be set")
+	}
+	litOff, ok := sel.Offset.(*ast.Literal)
+	if !ok {
+		t.Fatalf("expected *ast.Literal for Offset, got %T", sel.Offset)
+	}
+	if litOff.Ival != 12 {
+		t.Errorf("Offset = %d, want 12", litOff.Ival)
+	}
+	if sel.Fetch == nil {
+		t.Fatal("expected Fetch to be set")
+	}
+	litCount, ok := sel.Fetch.Count.(*ast.Literal)
+	if !ok {
+		t.Fatalf("expected *ast.Literal for Fetch.Count, got %T", sel.Fetch.Count)
+	}
+	if litCount.Ival != 123 {
+		t.Errorf("Fetch.Count = %d, want 123", litCount.Ival)
+	}
+}
+
+func TestSelect_FetchFirstNoRowsOnly(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT a FROM t FETCH FIRST 5")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if sel.Fetch == nil {
+		t.Fatal("expected Fetch to be set")
+	}
+	litCount, ok := sel.Fetch.Count.(*ast.Literal)
+	if !ok {
+		t.Fatalf("expected *ast.Literal for Fetch.Count, got %T", sel.Fetch.Count)
+	}
+	if litCount.Ival != 5 {
+		t.Errorf("Fetch.Count = %d, want 5", litCount.Ival)
+	}
+}
+
+func TestSelect_FetchNextRowNoOnly(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT a FROM t FETCH NEXT 7 ROW")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if sel.Fetch == nil {
+		t.Fatal("expected Fetch to be set")
+	}
+	litCount, ok := sel.Fetch.Count.(*ast.Literal)
+	if !ok {
+		t.Fatalf("expected *ast.Literal for Fetch.Count, got %T", sel.Fetch.Count)
+	}
+	if litCount.Ival != 7 {
+		t.Errorf("Fetch.Count = %d, want 7", litCount.Ival)
+	}
+}
+
+func TestSelect_FetchMissingCount(t *testing.T) {
+	// FETCH with no count expression must error.
+	_, errs := testParseSelectStmt("SELECT a FROM t FETCH")
+	if len(errs) == 0 {
+		t.Fatal("expected error for FETCH without count")
 	}
 }
 

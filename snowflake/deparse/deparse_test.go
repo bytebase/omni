@@ -249,6 +249,21 @@ func TestDeparse_Select_Fetch(t *testing.T) {
 	assertRoundTrip(t, `SELECT a FROM t FETCH FIRST 5 ROWS ONLY`)
 }
 
+func TestDeparse_Select_FetchBare(t *testing.T) {
+	// All FETCH noise words are optional on input; deparse canonicalizes
+	// to FETCH FIRST n ROWS ONLY, which parses back to the same AST.
+	assertRoundTrip(t, `SELECT a FROM t FETCH 123`)
+}
+
+func TestDeparse_Select_OffsetFetchBare(t *testing.T) {
+	assertRoundTrip(t, `SELECT a FROM t OFFSET 12 FETCH 123`)
+}
+
+func TestDeparse_Select_TopStar(t *testing.T) {
+	// The TOP count must not swallow the `*` select target.
+	assertRoundTrip(t, `SELECT TOP 125 * FROM t`)
+}
+
 // ---------------------------------------------------------------------------
 // SET operations
 // ---------------------------------------------------------------------------
