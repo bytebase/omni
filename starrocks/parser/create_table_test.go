@@ -161,6 +161,18 @@ func TestCreateTable_InlineIndexGINProps(t *testing.T) {
 	}
 }
 
+// StarRocks ROLLUP FROM <base_rollup> (BYT-9140 PR2b #15): build a rollup from
+// another rollup. Inline ROLLUP(...) + DUPLICATE KEY already parse; gap is FROM.
+func TestCreateTable_RollupFrom(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE rl (k1 INT, k2 INT, v BIGINT SUM) AGGREGATE KEY(k1,k2) DISTRIBUTED BY HASH(k1) ROLLUP (r1 (k1,v), r2 (k2,v) FROM r1)")
+	if len(stmt.Rollup) != 2 {
+		t.Fatalf("expected 2 rollups, got %d", len(stmt.Rollup))
+	}
+	if stmt.Rollup[1].FromRollup != "r1" {
+		t.Errorf("Rollup[1].FromRollup=%q, want r1", stmt.Rollup[1].FromRollup)
+	}
+}
+
 func TestCreateTable_WithNotNullDefault(t *testing.T) {
 	stmt := parseCreateTableStmt(t, "CREATE TABLE t (id INT NOT NULL DEFAULT 0, name VARCHAR(50) NULL)")
 	if len(stmt.Columns) != 2 {

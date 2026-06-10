@@ -189,6 +189,7 @@ type RollupDef struct {
 	Name       string
 	Columns    []string
 	DupKeys    []string    // optional DUPLICATE KEY columns
+	FromRollup string      // optional FROM <base_rollup> (StarRocks)
 	Properties []*Property // optional PROPERTIES
 	Loc        Loc
 }

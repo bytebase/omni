@@ -1361,6 +1361,17 @@ func (p *Parser) parseRollupDef() (*ast.RollupDef, error) {
 		rd.Loc.End = closeTok.Loc.End
 	}
 
+	// Optional FROM <base_rollup> (StarRocks: build this rollup from another).
+	if p.cur.Kind == kwFROM {
+		p.advance() // consume FROM
+		base, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		rd.FromRollup = base
+		rd.Loc.End = p.prev.Loc.End
+	}
+
 	// Optional PROPERTIES
 	if p.cur.Kind == kwPROPERTIES {
 		props, err := p.parseProperties()
