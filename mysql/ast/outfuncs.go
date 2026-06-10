@@ -2813,6 +2813,10 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	if n.NewName != "" {
 		fmt.Fprintf(sb, " :new_name %s", n.NewName)
 	}
+	if n.NewTable != nil {
+		sb.WriteString(" :new_table ")
+		writeNode(sb, n.NewTable)
+	}
 	if n.Column != nil {
 		sb.WriteString(" :col ")
 		writeNode(sb, n.Column)

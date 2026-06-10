@@ -734,19 +734,26 @@ func (c *Catalog) alterRenameIndex(tbl *Table, cmd *nodes.AlterTableCmd) error {
 
 // alterRenameTable moves a table to a new name.
 func (c *Catalog) alterRenameTable(db *Database, tbl *Table, cmd *nodes.AlterTableCmd) error {
-	newName := cmd.NewName
+	newTable := cmd.NewTable
+	if newTable == nil {
+		newTable = &nodes.TableRef{Name: cmd.NewName}
+	}
+	newDB, err := c.resolveDatabase(newTable.Schema)
+	if err != nil {
+		return err
+	}
+	newName := newTable.Name
 	newKey := toLower(newName)
 	oldKey := toLower(tbl.Name)
 
-	if newKey != oldKey {
-		if db.Tables[newKey] != nil {
-			return errDupTable(newName)
-		}
+	if (newDB != db || newKey != oldKey) && newDB.Tables[newKey] != nil {
+		return errDupTable(newName)
 	}
 
 	delete(db.Tables, oldKey)
 	tbl.Name = newName
-	db.Tables[newKey] = tbl
+	tbl.Database = newDB
+	newDB.Tables[newKey] = tbl
 	return nil
 }
 

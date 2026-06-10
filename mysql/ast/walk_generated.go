@@ -27,6 +27,9 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 	case *AlterTableCmd:
+		if n.NewTable != nil {
+			Walk(v, n.NewTable)
+		}
 		if n.Column != nil {
 			Walk(v, n.Column)
 		}
