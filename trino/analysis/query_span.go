@@ -38,6 +38,13 @@ type QuerySpan struct {
 	// Results is the list of output columns produced by the outermost query. For
 	// a set operation (UNION/INTERSECT/EXCEPT) the left arm wins, matching SQL's
 	// "column names come from the first select" rule.
+	//
+	// A star select item appears in one of two forms: expanded — when every
+	// relation it covers is a derived relation (subquery in FROM, CTE, aliased
+	// UNNEST) whose projection is fully resolved, the star is replaced by its
+	// exact output columns in order — or as a single "*" / "<rel>.*" entry when
+	// expansion would need catalog metadata (base tables, coalescing joins),
+	// which the consumer expands itself.
 	Results []ColumnInfo
 
 	// PredicateColumns is the set of columns referenced in filter/join positions
