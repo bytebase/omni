@@ -190,6 +190,25 @@ func TestAlterTableModifyColumnStructField(t *testing.T) {
 	})
 }
 
+// #289 P2: struct-field paths can include array-element traversal [*],
+// e.g. DROP FIELD c2.[*].v3 (subfieldName: identifier | ARRAY_ELEMENT).
+func TestAlterTableModifyColumnDropFieldArrayPath(t *testing.T) {
+	runAlterTableTests(t, []alterTableTestCase{
+		{
+			sql: "ALTER TABLE t MODIFY COLUMN c2 DROP FIELD c2.[*].v3",
+			check: func(t *testing.T, stmt *ast.AlterTableStmt) {
+				a := stmt.Actions[0]
+				if a.Type != ast.AlterModifyColumnDropField {
+					t.Errorf("type=%v, want AlterModifyColumnDropField", a.Type)
+				}
+				if a.FieldName != "c2.[*].v3" {
+					t.Errorf("FieldName=%q, want c2.[*].v3", a.FieldName)
+				}
+			},
+		},
+	})
+}
+
 func TestAlterTableModifyColumn(t *testing.T) {
 	cases := []alterTableTestCase{
 		{

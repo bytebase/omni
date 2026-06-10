@@ -267,21 +267,40 @@ func (p *Parser) parseModifyColumnField(action *ast.AlterTableAction) (*ast.Alte
 	return action, nil
 }
 
-// parseFieldPath parses a struct field name, possibly dotted: ident ('.' ident)*.
+// parseFieldPath parses a struct-field path: segment ('.' segment)* where each
+// segment is an identifier or the array-element marker [*] (StarRocks
+// nestedFieldName / subfieldName), e.g. c2.[*].v3.
 func (p *Parser) parseFieldPath() (string, error) {
-	name, _, err := p.parseIdentifier()
+	path, err := p.parseFieldSegment()
 	if err != nil {
 		return "", err
 	}
 	for p.cur.Kind == int('.') {
 		p.advance()
-		part, _, err := p.parseIdentifier()
+		seg, err := p.parseFieldSegment()
 		if err != nil {
 			return "", err
 		}
-		name = name + "." + part
+		path = path + "." + seg
 	}
-	return name, nil
+	return path, nil
+}
+
+// parseFieldSegment parses one struct-field path segment: an identifier or the
+// array-element traversal marker [*].
+func (p *Parser) parseFieldSegment() (string, error) {
+	if p.cur.Kind == int('[') {
+		p.advance() // consume [
+		if _, err := p.expect(int('*')); err != nil {
+			return "", err
+		}
+		if _, err := p.expect(int(']')); err != nil {
+			return "", err
+		}
+		return "[*]", nil
+	}
+	name, _, err := p.parseIdentifier()
+	return name, err
 }
 
 // parsePartitionItemNoKeyword parses a single partition definition where the
