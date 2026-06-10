@@ -105,6 +105,15 @@ func GetQuerySpan(statement string) (*QuerySpan, error) {
 	for _, stmt := range file.Stmts {
 		w.analyzeStmt(stmt)
 	}
+
+	// Deepen result-column lineage through derived relations (subqueries in
+	// FROM and CTE references): the primary walk records a derived column by the
+	// name written at the reference site, which has no base table to mask
+	// against. This rewrites those refs to the recovered base columns, leaving
+	// direct base-table references untouched.
+	if len(file.Stmts) > 0 {
+		resolveDerivedLineage(file.Stmts[0], span)
+	}
 	return span, nil
 }
 
@@ -461,6 +470,11 @@ type exprWalk struct {
 	w         *spanWalker
 	onColumn  func(ColumnRef)
 	followSub bool
+	// onSubquery, when non-nil, is invoked for each scalar subquery placeholder
+	// (a bare `( query )`) instead of followSubquery. The lineage resolver uses
+	// it to recover a scalar subquery's output-column sources; the walker's own
+	// passes leave it nil and keep the followSub/followSubquery behaviour.
+	onSubquery func(*parser.SubqueryExpr)
 }
 
 // addPredicateColumn appends a column reference to PredicateColumns,
@@ -529,7 +543,11 @@ func (ew exprWalk) walk(expr parser.Expr) {
 	// when this pass follows subqueries (a select item's direct-column pass does
 	// not cross the subquery boundary).
 	case *parser.SubqueryExpr:
-		ew.followSubquery(e)
+		if ew.onSubquery != nil {
+			ew.onSubquery(e)
+		} else {
+			ew.followSubquery(e)
+		}
 
 	// Composite expressions — recurse into children.
 	case *parser.Subscript:
