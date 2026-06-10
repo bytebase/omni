@@ -301,6 +301,11 @@ func (w *writer) writeTableRef(n *ast.TableRef) error {
 		w.buf.WriteString("LATERAL ")
 	}
 	switch {
+	case n.Nested != nil:
+		// Chained PIVOT/UNPIVOT: the source is itself a pivoted ref.
+		if err := w.writeTableRef(n.Nested); err != nil {
+			return err
+		}
 	case n.Name != nil:
 		w.buf.WriteString(n.Name.String())
 	case n.Subquery != nil:
@@ -319,6 +324,20 @@ func (w *writer) writeTableRef(n *ast.TableRef) error {
 			return err
 		}
 	}
+	// PIVOT / UNPIVOT come before the alias position in the documented
+	// clause order (each clause carries its own trailing alias).
+	if n.Pivot != nil {
+		w.buf.WriteByte(' ')
+		if err := w.writePivotClause(n.Pivot); err != nil {
+			return err
+		}
+	}
+	if n.Unpivot != nil {
+		w.buf.WriteByte(' ')
+		if err := w.writeUnpivotClause(n.Unpivot); err != nil {
+			return err
+		}
+	}
 	if !n.Alias.IsEmpty() {
 		w.buf.WriteString(" AS ")
 		w.buf.WriteString(n.Alias.String())
@@ -333,6 +352,106 @@ func (w *writer) writeTableRef(n *ast.TableRef) error {
 			w.buf.WriteString(col.String())
 		}
 		w.buf.WriteByte(')')
+	}
+	return nil
+}
+
+// writePivotClause emits PIVOT (agg [AS a] FOR col IN (...) [DEFAULT ON NULL
+// (expr)]) [AS alias].
+func (w *writer) writePivotClause(n *ast.PivotClause) error {
+	w.buf.WriteString("PIVOT (")
+	if err := writeExprNoLeadSpace(w, n.Agg); err != nil {
+		return err
+	}
+	if !n.AggAlias.IsEmpty() {
+		w.buf.WriteString(" AS ")
+		w.buf.WriteString(n.AggAlias.String())
+	}
+	w.buf.WriteString(" FOR ")
+	if err := writeExprNoLeadSpace(w, n.ForColumn); err != nil {
+		return err
+	}
+	w.buf.WriteString(" IN (")
+	if n.In == nil {
+		return fmt.Errorf("deparse: PIVOT clause without IN list")
+	}
+	switch n.In.Kind {
+	case ast.PivotInAny:
+		w.buf.WriteString("ANY")
+		if len(n.In.OrderBy) > 0 {
+			w.buf.WriteString(" ORDER BY ")
+			for i, item := range n.In.OrderBy {
+				if i > 0 {
+					w.buf.WriteString(", ")
+				}
+				if err := w.writeOrderItem(item); err != nil {
+					return err
+				}
+			}
+		}
+	case ast.PivotInSubquery:
+		if err := w.writeQueryExpr(n.In.Subquery); err != nil {
+			return err
+		}
+	default: // PivotInValues
+		for i, val := range n.In.Values {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			if err := writeExprNoLeadSpace(w, val.Value); err != nil {
+				return err
+			}
+			if !val.Alias.IsEmpty() {
+				w.buf.WriteString(" AS ")
+				w.buf.WriteString(val.Alias.String())
+			}
+		}
+	}
+	w.buf.WriteByte(')')
+	if n.DefaultVal != nil {
+		w.buf.WriteString(" DEFAULT ON NULL (")
+		if err := writeExprNoLeadSpace(w, n.DefaultVal); err != nil {
+			return err
+		}
+		w.buf.WriteByte(')')
+	}
+	w.buf.WriteByte(')')
+	if !n.Alias.IsEmpty() {
+		w.buf.WriteString(" AS ")
+		w.buf.WriteString(n.Alias.String())
+	}
+	return nil
+}
+
+// writeUnpivotClause emits UNPIVOT [INCLUDE|EXCLUDE NULLS] (val FOR name IN
+// (col [AS a], ...)) [AS alias].
+func (w *writer) writeUnpivotClause(n *ast.UnpivotClause) error {
+	w.buf.WriteString("UNPIVOT ")
+	switch n.NullsMode {
+	case ast.UnpivotIncludeNulls:
+		w.buf.WriteString("INCLUDE NULLS ")
+	case ast.UnpivotExcludeNulls:
+		w.buf.WriteString("EXCLUDE NULLS ")
+	}
+	w.buf.WriteByte('(')
+	w.buf.WriteString(n.ValueColumn.String())
+	w.buf.WriteString(" FOR ")
+	w.buf.WriteString(n.NameColumn.String())
+	w.buf.WriteString(" IN (")
+	for i, col := range n.Columns {
+		if i > 0 {
+			w.buf.WriteString(", ")
+		}
+		w.buf.WriteString(col.Column.String())
+		if !col.Alias.IsEmpty() {
+			w.buf.WriteString(" AS ")
+			w.buf.WriteString(col.Alias.String())
+		}
+	}
+	w.buf.WriteString("))")
+	if !n.Alias.IsEmpty() {
+		w.buf.WriteString(" AS ")
+		w.buf.WriteString(n.Alias.String())
 	}
 	return nil
 }

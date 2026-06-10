@@ -20,6 +20,19 @@ package parser
 
 import "github.com/bytebase/omni/snowflake/ast"
 
+// parsePivotTrailingAlias parses the optional trailing alias of a PIVOT /
+// UNPIVOT clause. Unlike parseOptionalAlias it refuses to treat the head of a
+// chained PIVOT/UNPIVOT clause — the (non-reserved) keyword followed by
+// '(' — as an implicit alias, so `t PIVOT(...) PIVOT(...)` stays parseable as
+// a chain instead of the second clause being eaten as alias "PIVOT" and its
+// body discarded. An explicit `AS pivot` alias is still accepted.
+func (p *Parser) parsePivotTrailingAlias() (ast.Ident, bool) {
+	if (p.cur.Type == kwPIVOT || p.cur.Type == kwUNPIVOT) && p.peekNext().Type == '(' {
+		return ast.Ident{}, false
+	}
+	return p.parseOptionalAlias()
+}
+
 // parsePivotClause parses a PIVOT (...) clause. The caller has verified that
 // p.cur is kwPIVOT.
 func (p *Parser) parsePivotClause() (*ast.PivotClause, error) {
@@ -106,7 +119,7 @@ func (p *Parser) parsePivotClause() (*ast.PivotClause, error) {
 	clause.Loc.End = closeTok.Loc.End
 
 	// Optional trailing [AS] alias for the pivot result.
-	if alias, has := p.parseOptionalAlias(); has {
+	if alias, has := p.parsePivotTrailingAlias(); has {
 		clause.Alias = alias
 		clause.Loc.End = p.prev.Loc.End
 	}
@@ -291,7 +304,7 @@ func (p *Parser) parseUnpivotClause() (*ast.UnpivotClause, error) {
 	clause.Loc.End = closeTok.Loc.End
 
 	// Optional trailing alias.
-	if alias, has := p.parseOptionalAlias(); has {
+	if alias, has := p.parsePivotTrailingAlias(); has {
 		clause.Alias = alias
 		clause.Loc.End = p.prev.Loc.End
 	}

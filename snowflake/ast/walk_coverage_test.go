@@ -221,6 +221,21 @@ func TestWalkCoverage_FromClauses(t *testing.T) {
 			tags: map[ast.NodeTag]int{ast.T_UnpivotColumn: 2},
 		},
 		{
+			name: "TableRef.Nested chained PIVOT reaches both clauses",
+			sql: `SELECT * FROM (SELECT * FROM quarterly_sales)
+				PIVOT (SUM(amount) FOR quarter_amount IN ('2023_Q1' AS q1, '2023_Q2'))
+				PIVOT (MAX(discount_percent) FOR quarter_discount IN ('2023_Q3'))`,
+			cols: []string{"AMOUNT", "QUARTER_AMOUNT", "DISCOUNT_PERCENT", "QUARTER_DISCOUNT"},
+			lits: []string{"2023_Q1", "2023_Q2", "2023_Q3"},
+			tags: map[ast.NodeTag]int{ast.T_PivotClause: 2, ast.T_PivotValue: 3},
+		},
+		{
+			name: "TableRef.Nested UNPIVOT then PIVOT",
+			sql:  "SELECT * FROM t UNPIVOT (v FOR n IN (ca, cb)) PIVOT (SUM(v) FOR n IN ('x'))",
+			cols: []string{"V", "N"},
+			tags: map[ast.NodeTag]int{ast.T_UnpivotClause: 1, ast.T_PivotClause: 1, ast.T_UnpivotColumn: 2},
+		},
+		{
 			name: "MatchRecognizeClause OrderBy/Measures/Define",
 			sql: `SELECT * FROM stock_price_history MATCH_RECOGNIZE(
 				PARTITION BY company

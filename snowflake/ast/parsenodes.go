@@ -826,6 +826,8 @@ type StarRename struct {
 //   - Table: Name is set, others nil
 //   - Subquery: Subquery is set, Name is nil
 //   - Table function: FuncCall is set, Name is nil
+//   - Chained PIVOT/UNPIVOT: Nested is set, carrying the previous
+//     pivoted source (see Nested below)
 //   - Any of the above can have Lateral = true
 type TableRef struct {
 	Name     *ObjectName   // table name; nil for subquery/func sources
@@ -834,7 +836,13 @@ type TableRef struct {
 	Subquery Node          // (SELECT ...) or (VALUES ...) in FROM; nil for table refs
 	FuncCall *FuncCallExpr // TABLE(func(...)); nil for table refs
 	DollarN  *DollarRef    // $N result-set table ref (RESULT_SCAN of a prior result); nil otherwise
-	Lateral  bool          // LATERAL prefix
+	// Nested is the source relation of a chained PIVOT/UNPIVOT: in
+	// `src PIVOT(...) PIVOT(...)` each clause after the first applies to the
+	// result of the previous one, so the parser re-roots the TableRef with
+	// the prior pivoted ref here. When Nested is set, Name/Subquery/FuncCall/
+	// DollarN are nil and exactly one of Pivot/Unpivot is set.
+	Nested  *TableRef
+	Lateral bool // LATERAL prefix
 	// Table-attached clauses (Snowflake). Any combination may appear; the
 	// documented source order is AT/BEFORE → CHANGES → MATCH_RECOGNIZE →
 	// PIVOT/UNPIVOT → alias → SAMPLE.

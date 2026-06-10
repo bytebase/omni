@@ -245,6 +245,38 @@ func TestDeparse_Select_JoinUsing(t *testing.T) {
 	assertRoundTrip(t, `SELECT a.x FROM a JOIN b USING (id)`)
 }
 
+func TestDeparse_Select_PivotValues(t *testing.T) {
+	assertRoundTrip(t, `SELECT * FROM quarterly_sales PIVOT (SUM(amount) FOR quarter IN ('2023_Q1', '2023_Q2'))`)
+}
+
+func TestDeparse_Select_PivotValueAliasesDefaultOnNull(t *testing.T) {
+	assertRoundTrip(t, `SELECT * FROM quarterly_sales PIVOT (SUM(amount) AS total FOR quarter IN ('2023_Q1' AS q1, '2023_Q2' AS q2) DEFAULT ON NULL (0)) AS p`)
+}
+
+func TestDeparse_Select_PivotAnyOrderBy(t *testing.T) {
+	assertRoundTrip(t, `SELECT * FROM quarterly_sales PIVOT (SUM(amount) FOR quarter IN (ANY ORDER BY quarter)) ORDER BY empid`)
+}
+
+func TestDeparse_Select_PivotInSubquery(t *testing.T) {
+	assertRoundTrip(t, `SELECT * FROM quarterly_sales PIVOT (SUM(amount) FOR quarter IN (SELECT DISTINCT quarter FROM ad_campaign_types_by_quarter WHERE television = TRUE))`)
+}
+
+func TestDeparse_Select_PivotChained(t *testing.T) {
+	assertRoundTrip(t, `SELECT q1 FROM (SELECT amount, quarter_amount, quarter_discount, discount_percent FROM quarterly_sales) PIVOT (SUM(amount) FOR quarter_amount IN ('2023_Q1', '2023_Q2')) PIVOT (MAX(discount_percent) FOR quarter_discount IN ('2023_Q1')) AS pp`)
+}
+
+func TestDeparse_Select_Unpivot(t *testing.T) {
+	assertRoundTrip(t, `SELECT * FROM monthly_sales UNPIVOT (sales FOR month IN (jan, feb, mar, apr)) ORDER BY empid`)
+}
+
+func TestDeparse_Select_UnpivotIncludeNullsAliases(t *testing.T) {
+	assertRoundTrip(t, `SELECT * FROM monthly_sales UNPIVOT INCLUDE NULLS (sales FOR month IN (jan AS january, feb AS february)) AS u`)
+}
+
+func TestDeparse_Select_UnpivotThenJoin(t *testing.T) {
+	assertRoundTrip(t, `SELECT * FROM monthly_sales UNPIVOT (sales FOR month IN (jan, feb)) AS unpvt JOIN d ON unpvt.empid = d.empid`)
+}
+
 func TestDeparse_Select_Fetch(t *testing.T) {
 	assertRoundTrip(t, `SELECT a FROM t FETCH FIRST 5 ROWS ONLY`)
 }

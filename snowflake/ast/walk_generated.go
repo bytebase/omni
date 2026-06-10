@@ -1318,6 +1318,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.DollarN != nil {
 			Walk(v, n.DollarN)
 		}
+		if n.Nested != nil {
+			Walk(v, n.Nested)
+		}
 		if n.TimeTravel != nil {
 			Walk(v, n.TimeTravel)
 		}

@@ -646,3 +646,124 @@ func TestQuerySpan_WithinGroupColumns(t *testing.T) {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// PIVOT / UNPIVOT: opaque-derived relations (masking soundness)
+// ---------------------------------------------------------------------------
+//
+// The output columns of a pivoted relation are computed from the source
+// relation under names that do not exist on it. Without catalog information
+// the projection cannot be enumerated, so every column resolved through a
+// pivoted relation must attribute to the source's whole-relation ("*")
+// sources. Fabricating per-column attributions (e.g. T."2023_Q1" for a pivot
+// value column that actually carries SUM(T.AMOUNT)) would under-attribute and
+// let a masking consumer leak.
+
+func TestQuerySpan_PivotStar(t *testing.T) {
+	span := mustExtract(t, "SELECT * FROM t PIVOT(SUM(a) FOR m IN ('JAN', 'FEB')) AS p")
+
+	if len(span.Results) != 1 {
+		t.Fatalf("Results: got %d, want 1", len(span.Results))
+	}
+	keys := resultSourceKeys(span, 0)
+	want := []string{"..T.*"}
+	if len(keys) != 1 || keys[0] != want[0] {
+		t.Fatalf("result sources: got %v, want %v", keys, want)
+	}
+	// The pivot alias P must not surface as a source table.
+	for _, k := range sourceKeys(span) {
+		if strings.HasPrefix(k, "..P.") {
+			t.Errorf("pivot alias leaked into sources: %v", sourceKeys(span))
+		}
+	}
+}
+
+func TestQuerySpan_PivotValueColumnNotFabricated(t *testing.T) {
+	span := mustExtract(t, `SELECT "2023_Q1" FROM quarterly_sales PIVOT(SUM(amount) FOR quarter IN ('2023_Q1', '2023_Q2')) AS p`)
+
+	keys := resultSourceKeys(span, 0)
+	want := []string{"..QUARTERLY_SALES.*"}
+	if len(keys) != 1 || keys[0] != want[0] {
+		t.Fatalf("result sources: got %v, want %v", keys, want)
+	}
+	if hasSrcKey(span, "..QUARTERLY_SALES.2023_Q1") {
+		t.Error("fabricated base-column attribution for a pivot value column")
+	}
+}
+
+func TestQuerySpan_PivotQualifiedRef(t *testing.T) {
+	span := mustExtract(t, "SELECT p.q1 FROM db1.s1.t PIVOT(SUM(a) FOR m IN ('JAN')) AS p")
+
+	keys := resultSourceKeys(span, 0)
+	want := []string{"DB1.S1.T.*"}
+	if len(keys) != 1 || keys[0] != want[0] {
+		t.Fatalf("result sources: got %v, want %v", keys, want)
+	}
+	if hasSrcKey(span, "..P.Q1") {
+		t.Error("qualified ref through pivot alias must not fabricate table P")
+	}
+}
+
+func TestQuerySpan_PivotQualifiedStar(t *testing.T) {
+	span := mustExtract(t, "SELECT p.* FROM t PIVOT(SUM(a) FOR m IN ('JAN')) AS p")
+
+	keys := resultSourceKeys(span, 0)
+	want := []string{"..T.*"}
+	if len(keys) != 1 || keys[0] != want[0] {
+		t.Fatalf("result sources: got %v, want %v", keys, want)
+	}
+}
+
+func TestQuerySpan_UnpivotValueColumn(t *testing.T) {
+	span := mustExtract(t, "SELECT sales FROM monthly_sales UNPIVOT (sales FOR month IN (jan, feb)) unpvt")
+
+	keys := resultSourceKeys(span, 0)
+	want := []string{"..MONTHLY_SALES.*"}
+	if len(keys) != 1 || keys[0] != want[0] {
+		t.Fatalf("result sources: got %v, want %v", keys, want)
+	}
+	if hasSrcKey(span, "..MONTHLY_SALES.SALES") {
+		t.Error("UNPIVOT value column attributed to a nonexistent base column")
+	}
+	if hasSrcKey(span, "..UNPVT.SALES") {
+		t.Error("UNPIVOT alias fabricated as a source table")
+	}
+}
+
+func TestQuerySpan_PivotChainedOverSubquery(t *testing.T) {
+	span := mustExtract(t, `SELECT q1 FROM (SELECT a, b FROM real_table) PIVOT (SUM(a) FOR b IN ('x')) PIVOT (MAX(a) FOR b IN ('y')) AS pp`)
+
+	// The chain collapses to the subquery's whole-relation source (the
+	// package addresses unaliased subqueries as "_subquery").
+	keys := resultSourceKeys(span, 0)
+	want := []string{".._subquery.*"}
+	if len(keys) != 1 || keys[0] != want[0] {
+		t.Fatalf("result sources: got %v, want %v", keys, want)
+	}
+}
+
+func TestQuerySpan_PivotJoinMixedAttribution(t *testing.T) {
+	// A bare column in a scope with both a pivoted relation and a plain table
+	// may come from either: both must be attributed (conservative).
+	span := mustExtract(t, "SELECT x FROM t PIVOT(SUM(a) FOR m IN ('J')) AS p, u")
+
+	keys := resultSourceKeys(span, 0)
+	if len(keys) != 2 {
+		t.Fatalf("result sources: got %v, want T.* plus U.X", keys)
+	}
+	if keys[0] != "..T.*" || keys[1] != "..U.X" {
+		t.Errorf("result sources: got %v, want [..T.* ..U.X]", keys)
+	}
+}
+
+func TestQuerySpan_PivotOverCTE(t *testing.T) {
+	span := mustExtract(t, "WITH c AS (SELECT a FROM real_table) SELECT * FROM c PIVOT(SUM(a) FOR m IN ('J')) AS p")
+
+	// The CTE's columns collapse to a whole-relation source under the CTE
+	// name (consistent with how non-pivoted CTE references are reported).
+	keys := resultSourceKeys(span, 0)
+	want := []string{"..C.*"}
+	if len(keys) != 1 || keys[0] != want[0] {
+		t.Fatalf("result sources: got %v, want %v", keys, want)
+	}
+}
