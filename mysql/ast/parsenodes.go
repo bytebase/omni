@@ -259,6 +259,7 @@ type AlterTableCmd struct {
 	Type           AlterTableCmdType
 	Name           string       // column/constraint/index name
 	NewName        string       // for RENAME operations
+	NewTable       *TableRef    // for RENAME TABLE
 	Column         *ColumnDef   // for ADD/MODIFY/CHANGE COLUMN
 	Columns        []*ColumnDef // for ADD (col1, col2, ...) multi-column form
 	Constraint     *Constraint  // for ADD CONSTRAINT

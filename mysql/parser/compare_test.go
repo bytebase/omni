@@ -3674,16 +3674,25 @@ func TestParseAlterTableRename(t *testing.T) {
 		if cmd.Type != ast.ATRenameTable {
 			t.Errorf("Type = %d, want ATRenameTable", cmd.Type)
 		}
-		if cmd.NewName != "new_t" {
-			t.Errorf("NewName = %s, want new_t", cmd.NewName)
+		if cmd.NewTable == nil {
+			t.Fatal("NewTable is nil")
+		}
+		if cmd.NewTable.Schema != "" || cmd.NewTable.Name != "new_t" {
+			t.Errorf("NewTable = %v.%v, want .new_t", cmd.NewTable.Schema, cmd.NewTable.Name)
 		}
 	})
 
 	t.Run("rename table as", func(t *testing.T) {
-		stmt := parseAlterTable(t, "ALTER TABLE t RENAME AS new_t")
+		stmt := parseAlterTable(t, "ALTER TABLE t RENAME AS db2.new_t")
 		cmd := stmt.Commands[0]
 		if cmd.Type != ast.ATRenameTable {
 			t.Errorf("Type = %d, want ATRenameTable", cmd.Type)
+		}
+		if cmd.NewTable == nil {
+			t.Fatal("NewTable is nil")
+		}
+		if cmd.NewTable.Schema != "db2" || cmd.NewTable.Name != "new_t" {
+			t.Errorf("NewTable = %v.%v, want db2.new_t", cmd.NewTable.Schema, cmd.NewTable.Name)
 		}
 	})
 

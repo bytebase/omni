@@ -874,11 +874,11 @@ func (p *Parser) parseAlterRename(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCm
 		// RENAME [TO | AS] new_tbl_name
 		cmd.Type = nodes.ATRenameTable
 		p.match(kwTO, kwAS)
-		newName, _, err := p.parseIdentifier()
+		newTable, err := p.parseTableRef()
 		if err != nil {
 			return nil, err
 		}
-		cmd.NewName = newName
+		cmd.NewTable = newTable
 	}
 
 	cmd.Loc.End = p.pos()
