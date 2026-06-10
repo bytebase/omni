@@ -91,6 +91,15 @@ func (p *Parser) parseCreateTable() (ast.Node, error) {
 		return nil, err
 	}
 
+	// A column-name list (no column types) is valid ONLY as CTAS — it requires
+	// an AS <query>. Without it the statement is invalid (StarRocks rejects it).
+	if len(stmt.CTASColumns) > 0 && stmt.AsSelect == nil {
+		return nil, &ParseError{
+			Loc: p.cur.Loc,
+			Msg: "column-name list requires AS <query> (CTAS)",
+		}
+	}
+
 	// Compute location.
 	stmt.Loc = startLoc.Merge(p.prev.Loc)
 	return stmt, nil

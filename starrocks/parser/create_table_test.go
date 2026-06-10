@@ -203,6 +203,20 @@ func TestCreateTable_CTASNameListWithIndex(t *testing.T) {
 	}
 }
 
+// #289 P3: a column-name list (no types) is valid ONLY as CTAS; without AS
+// SELECT it is invalid DDL and StarRocks rejects it — so must omni.
+func TestCreateTable_CTASNameListRequiresAsSelect(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TABLE tnoas (a)",
+		"CREATE TABLE tnoas2 (a) DISTRIBUTED BY HASH(a) BUCKETS 1",
+		"CREATE TABLE tnoas3 (a, b) DISTRIBUTED BY HASH(a)",
+	} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("expected %q to be rejected (name-list without AS SELECT)", sql)
+		}
+	}
+}
+
 // Regression: full column-defs still parse as defs (not name-list).
 func TestCreateTable_FullDefsStillParse(t *testing.T) {
 	stmt := parseCreateTableStmt(t, "CREATE TABLE reg (a INT, b VARCHAR(20)) DUPLICATE KEY(a) DISTRIBUTED BY HASH(a) BUCKETS 1")
