@@ -559,3 +559,90 @@ func TestQuerySpan_ParseError(t *testing.T) {
 		t.Error("expected error for invalid SQL, got nil")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Test 19: CASE expression columns are attributed (walker coverage regression)
+// ---------------------------------------------------------------------------
+
+// The generated AST walker used to skip CaseExpr.Whens (a []*WhenClause of a
+// non-Node helper struct), so the WHEN condition and THEN result columns were
+// invisible to ast.Inspect and never attributed to the result column.
+func TestQuerySpan_CaseExpressionColumns(t *testing.T) {
+	span := mustExtract(t, "SELECT CASE WHEN a > 0 THEN b ELSE c END AS r FROM t")
+
+	if len(span.Results) != 1 {
+		t.Fatalf("Results: got %d, want 1", len(span.Results))
+	}
+	rc := span.Results[0]
+	if rc.Name != "R" {
+		t.Errorf("result name: got %q, want %q", rc.Name, "R")
+	}
+	if !rc.IsDerived {
+		t.Error("IsDerived should be true for a CASE expression")
+	}
+	keys := resultSourceKeys(span, 0)
+	want := []string{"..T.A", "..T.B", "..T.C"}
+	if len(keys) != len(want) {
+		t.Fatalf("result sources: got %v, want %v", keys, want)
+	}
+	for i := range want {
+		if keys[i] != want[i] {
+			t.Errorf("source[%d]: got %q, want %q", i, keys[i], want[i])
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Test 20: window function columns are attributed (walker coverage regression)
+// ---------------------------------------------------------------------------
+
+// FuncCallExpr.Over (*WindowSpec, a non-Node helper struct) used to be skipped
+// by the walker, hiding PARTITION BY / ORDER BY columns from the span.
+func TestQuerySpan_WindowFunctionColumns(t *testing.T) {
+	span := mustExtract(t, "SELECT ROW_NUMBER() OVER (PARTITION BY dept ORDER BY salary) AS rn FROM emp")
+
+	if len(span.Results) != 1 {
+		t.Fatalf("Results: got %d, want 1", len(span.Results))
+	}
+	rc := span.Results[0]
+	if rc.Name != "RN" {
+		t.Errorf("result name: got %q, want %q", rc.Name, "RN")
+	}
+	if !rc.IsDerived {
+		t.Error("IsDerived should be true for a window function")
+	}
+	keys := resultSourceKeys(span, 0)
+	want := []string{"..EMP.DEPT", "..EMP.SALARY"}
+	if len(keys) != len(want) {
+		t.Fatalf("result sources: got %v, want %v", keys, want)
+	}
+	for i := range want {
+		if keys[i] != want[i] {
+			t.Errorf("source[%d]: got %q, want %q", i, keys[i], want[i])
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Test 21: WITHIN GROUP order columns are attributed (walker coverage regression)
+// ---------------------------------------------------------------------------
+
+// FuncCallExpr.OrderBy ([]*OrderItem, non-Node helper structs) used to be
+// skipped by the walker, hiding WITHIN GROUP (ORDER BY ...) columns.
+func TestQuerySpan_WithinGroupColumns(t *testing.T) {
+	span := mustExtract(t, "SELECT LISTAGG(name, ',') WITHIN GROUP (ORDER BY pos) AS l FROM t")
+
+	if len(span.Results) != 1 {
+		t.Fatalf("Results: got %d, want 1", len(span.Results))
+	}
+	keys := resultSourceKeys(span, 0)
+	want := []string{"..T.NAME", "..T.POS"}
+	if len(keys) != len(want) {
+		t.Fatalf("result sources: got %v, want %v", keys, want)
+	}
+	for i := range want {
+		if keys[i] != want[i] {
+			t.Errorf("source[%d]: got %q, want %q", i, keys[i], want[i])
+		}
+	}
+}
