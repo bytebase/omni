@@ -49,8 +49,7 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 	// CREATE OR REPLACE functions when possible so earlier views can resolve
 	// RETURNS TABLE/OUT columns during analysis. Errors are still surfaced
 	// during normal statement execution below.
-	predeclaredFunctions := make(map[int]bool)
-	firstFunctionIndex := firstFunctionDefinitionIndexes(list)
+	pendingPredeclare := replaceableFunctionIndexes(list)
 
 	continueOnError := false
 	if opts != nil {
@@ -62,7 +61,9 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 		// Drain any leftover warnings from previous operations.
 		c.DrainWarnings()
 
-		c.predeclareReplaceableFunctions(list, predeclaredFunctions, firstFunctionIndex)
+		if len(pendingPredeclare) > 0 {
+			pendingPredeclare = c.predeclareReplaceableFunctions(list, pendingPredeclare)
+		}
 
 		// Unwrap RawStmt if present.
 		stmt := unwrapRawStmt(item)
@@ -102,39 +103,43 @@ func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
 	return results, nil
 }
 
-func firstFunctionDefinitionIndexes(list *nodes.List) map[string]int {
-	first := make(map[string]int)
+// replaceableFunctionIndexes returns the statement indexes that are candidates
+// for pre-declaration: the first definition of each function identity, when
+// that first definition is CREATE OR REPLACE.
+func replaceableFunctionIndexes(list *nodes.List) []int {
+	seen := make(map[string]bool)
+	var indexes []int
 	for i, item := range list.Items {
 		fn, ok := unwrapRawStmt(item).(*nodes.CreateFunctionStmt)
 		if !ok {
 			continue
 		}
 		identity := functionIdentity(fn)
-		if _, exists := first[identity]; !exists {
-			first[identity] = i
+		if seen[identity] {
+			continue
+		}
+		seen[identity] = true
+		if fn.IsOrReplace {
+			indexes = append(indexes, i)
 		}
 	}
-	return first
+	return indexes
 }
 
-func (c *Catalog) predeclareReplaceableFunctions(list *nodes.List, predeclared map[int]bool, firstFunctionIndex map[string]int) {
-	for i, item := range list.Items {
-		if predeclared[i] {
-			continue
-		}
-		stmt := unwrapRawStmt(item)
-		fn, ok := stmt.(*nodes.CreateFunctionStmt)
-		if !ok || !fn.IsOrReplace {
-			continue
-		}
-		if firstFunctionIndex[functionIdentity(fn)] != i {
-			continue
-		}
-		if err := c.CreateFunctionStmt(fn); err == nil {
-			predeclared[i] = true
+// predeclareReplaceableFunctions attempts to pre-declare each pending
+// candidate and returns the indexes that still failed (e.g. because a
+// dependency appears later in the script) so they can be retried before
+// the next statement.
+func (c *Catalog) predeclareReplaceableFunctions(list *nodes.List, pending []int) []int {
+	remaining := pending[:0]
+	for _, i := range pending {
+		fn := unwrapRawStmt(list.Items[i]).(*nodes.CreateFunctionStmt)
+		if err := c.CreateFunctionStmt(fn); err != nil {
+			remaining = append(remaining, i)
 		}
 		c.DrainWarnings()
 	}
+	return remaining
 }
 
 func unwrapRawStmt(item nodes.Node) nodes.Node {
