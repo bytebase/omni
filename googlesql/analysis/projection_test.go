@@ -745,3 +745,28 @@ func TestProjection_StructFieldStarFailsClosed(t *testing.T) {
 		t.Errorf("schema-qualified star should still resolve, got error: %v", err)
 	}
 }
+
+// TestProjection_DotStarQualifierTightening pins the re-verify refinements:
+// a value-table (UNNEST) `elem.*` fails closed (the element's struct sub-fields
+// are not enumerable — returning one column would shift every later position);
+// a schema-qualified star over an UNQUALIFIED FROM fails closed (no written
+// prefix can match — the engine rejects the range variable; legacy errored);
+// and a BigQuery dataset-qualified star resolves via the Database qualifier.
+func TestProjection_DotStarQualifierTightening(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT elem.* FROM t, UNNEST(t.structs) AS elem",
+		"SELECT wrongschema.t.* FROM t",
+	} {
+		if _, err := GetQuerySpan(sql, DialectSpanner); err == nil {
+			t.Errorf("GetQuerySpan(%q) = nil error, want fail-closed", sql)
+		}
+	}
+	// BigQuery: a dataset-qualified star matches the relation's Database bucket.
+	span, err := GetQuerySpan("SELECT ds.t.* FROM ds.t", DialectBigQuery)
+	if err != nil {
+		t.Fatalf("dataset-qualified star should resolve, got error: %v", err)
+	}
+	if len(span.Results) != 1 || len(span.Results[0].StarSegments) != 1 {
+		t.Fatalf("want one base-star segment over ds.t, got %+v", span.Results)
+	}
+}

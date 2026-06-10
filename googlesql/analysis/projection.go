@@ -490,17 +490,30 @@ func (w *spanWalker) resolveDotStar(expr ast.Node) []projColumn {
 	// through to the fail-closed branch, matching the legacy resolver's error.
 	if len(parts) == 1 {
 		if rel := findRelation(w.leafRels, parts[0]); rel != nil {
+			if rel.valueTable {
+				// An UNNEST/value relation's `elem.*` expands the ELEMENT's struct
+				// sub-fields — N engine output columns omni cannot enumerate;
+				// returning the relation's single projection column would shift
+				// every later position (re-verify finding). Fail closed.
+				w.failClosed(fmt.Errorf("cannot enumerate %s.* over a value table's element (fail closed)", parts[0]))
+				return nil
+			}
 			return rel.columns
 		}
 	}
-	// `schema.table.*` (or `db.schema.table.*`): the head does NOT name a
-	// relation, the trailing part names a base relation, and the written prefix
-	// agrees with its schema qualifier.
+	// `schema.table.*` / `dataset.table.*`: the head does NOT name a relation,
+	// the trailing part names a base relation, and the written prefix matches the
+	// relation's schema OR database/dataset qualifier (non-empty — an unqualified
+	// FROM accepts no written prefix; the engine would reject the mismatched
+	// range variable anyway, and the legacy resolver errored on every
+	// schema-qualified star).
 	if len(parts) >= 2 && findRelation(w.leafRels, parts[0]) == nil {
 		last := parts[len(parts)-1]
 		if rel := findRelation(w.leafRels, last); rel != nil && rel.isBase {
-			schemaPart := parts[len(parts)-2]
-			if rel.baseRef.Schema == "" || strings.EqualFold(rel.baseRef.Schema, schemaPart) {
+			prefix := parts[len(parts)-2]
+			schemaMatch := rel.baseRef.Schema != "" && strings.EqualFold(rel.baseRef.Schema, prefix)
+			databaseMatch := rel.baseRef.Database != "" && strings.EqualFold(rel.baseRef.Database, prefix)
+			if schemaMatch || databaseMatch {
 				return rel.columns
 			}
 		}
