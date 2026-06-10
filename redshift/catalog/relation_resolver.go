@@ -26,7 +26,8 @@ type RelationSpec struct {
 	Kind       byte
 	Columns    []RelationColumnSpec
 
-	// Definition is the SELECT definition for a view or materialized view.
+	// Definition is the SELECT definition, or a full CREATE VIEW /
+	// CREATE MATERIALIZED VIEW statement, for a view or materialized view.
 	Definition string
 }
 
@@ -107,24 +108,17 @@ func (c *Catalog) materializeRelationSpec(spec *RelationSpec) error {
 	case RelationKindTable:
 		return c.materializeResolvedTable(spec)
 	case RelationKindView:
-		sel, err := parseRelationDefinitionSelect(spec)
+		stmt, err := parseRelationDefinitionView(spec)
 		if err != nil {
 			return err
 		}
-		return c.DefineView(&nodes.ViewStmt{
-			View:  &nodes.RangeVar{Schemaname: spec.SchemaName, Relname: spec.Name},
-			Query: sel,
-		})
+		return c.DefineView(stmt)
 	case RelationKindMaterializedView:
-		sel, err := parseRelationDefinitionSelect(spec)
+		stmt, err := parseRelationDefinitionMaterializedView(spec)
 		if err != nil {
 			return err
 		}
-		return c.ExecCreateTableAs(&nodes.CreateTableAsStmt{
-			Query:   sel,
-			Into:    &nodes.IntoClause{Rel: &nodes.RangeVar{Schemaname: spec.SchemaName, Relname: spec.Name}},
-			Objtype: nodes.OBJECT_MATVIEW,
-		})
+		return c.ExecCreateTableAs(stmt)
 	default:
 		return &Error{
 			Code:    CodeFeatureNotSupported,
@@ -172,7 +166,58 @@ func (c *Catalog) materializeResolvedTable(spec *RelationSpec) error {
 	return c.DefineRelation(stmt, RelationKindTable)
 }
 
-func parseRelationDefinitionSelect(spec *RelationSpec) (*nodes.SelectStmt, error) {
+func parseRelationDefinitionView(spec *RelationSpec) (*nodes.ViewStmt, error) {
+	stmt, err := parseRelationDefinitionStatement(spec)
+	if err != nil {
+		return nil, err
+	}
+	switch n := stmt.(type) {
+	case *nodes.SelectStmt:
+		return &nodes.ViewStmt{
+			View:  &nodes.RangeVar{Schemaname: spec.SchemaName, Relname: spec.Name},
+			Query: n,
+		}, nil
+	case *nodes.ViewStmt:
+		copy := *n
+		copy.View = &nodes.RangeVar{Schemaname: spec.SchemaName, Relname: spec.Name}
+		return &copy, nil
+	default:
+		return nil, &Error{Code: CodeInvalidObjectDefinition, Message: "relation resolver view requires a SELECT definition"}
+	}
+}
+
+func parseRelationDefinitionMaterializedView(spec *RelationSpec) (*nodes.CreateTableAsStmt, error) {
+	stmt, err := parseRelationDefinitionStatement(spec)
+	if err != nil {
+		return nil, err
+	}
+	switch n := stmt.(type) {
+	case *nodes.SelectStmt:
+		return &nodes.CreateTableAsStmt{
+			Query:   n,
+			Into:    &nodes.IntoClause{Rel: &nodes.RangeVar{Schemaname: spec.SchemaName, Relname: spec.Name}},
+			Objtype: nodes.OBJECT_MATVIEW,
+		}, nil
+	case *nodes.CreateTableAsStmt:
+		if n.Objtype != nodes.OBJECT_MATVIEW {
+			return nil, &Error{Code: CodeInvalidObjectDefinition, Message: "relation resolver view requires a SELECT definition"}
+		}
+		copy := *n
+		if copy.Into == nil {
+			copy.Into = &nodes.IntoClause{}
+		} else {
+			into := *copy.Into
+			copy.Into = &into
+		}
+		copy.Into.Rel = &nodes.RangeVar{Schemaname: spec.SchemaName, Relname: spec.Name}
+		copy.Objtype = nodes.OBJECT_MATVIEW
+		return &copy, nil
+	default:
+		return nil, &Error{Code: CodeInvalidObjectDefinition, Message: "relation resolver view requires a SELECT definition"}
+	}
+}
+
+func parseRelationDefinitionStatement(spec *RelationSpec) (nodes.Node, error) {
 	definition := strings.TrimSpace(spec.Definition)
 	if definition == "" {
 		return nil, &Error{Code: CodeInvalidObjectDefinition, Message: "relation resolver view requires a SELECT definition"}
@@ -188,9 +233,5 @@ func parseRelationDefinitionSelect(spec *RelationSpec) (*nodes.SelectStmt, error
 	if !ok {
 		return nil, &Error{Code: CodeInvalidObjectDefinition, Message: "relation resolver view requires a SELECT definition"}
 	}
-	sel, ok := raw.Stmt.(*nodes.SelectStmt)
-	if !ok {
-		return nil, &Error{Code: CodeInvalidObjectDefinition, Message: "relation resolver view requires a SELECT definition"}
-	}
-	return sel, nil
+	return raw.Stmt, nil
 }
