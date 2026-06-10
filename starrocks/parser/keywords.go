@@ -182,6 +182,7 @@ const (
 	kwFALSE
 	kwFAST
 	kwFEATURE
+	kwFIELD
 	kwFIELDS
 	kwFILE
 	kwFILTER
@@ -722,6 +723,7 @@ var keywordMap = map[string]TokenKind{
 	"false":                                kwFALSE,
 	"fast":                                 kwFAST,
 	"feature":                              kwFEATURE,
+	"field":                                kwFIELD,
 	"fields":                               kwFIELDS,
 	"file":                                 kwFILE,
 	"filter":                               kwFILTER,
@@ -1202,6 +1204,7 @@ var nonReservedKeywords = map[TokenKind]bool{
 	kwFAILED_LOGIN_ATTEMPTS:  true,
 	kwFAST:                   true,
 	kwFEATURE:                true,
+	kwFIELD:                  true,
 	kwFIELDS:                 true,
 	kwFILE:                   true,
 	kwFILTER:                 true,

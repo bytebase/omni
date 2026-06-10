@@ -266,6 +266,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Column != nil {
 			Walk(v, n.Column)
 		}
+		if n.FieldType != nil {
+			Walk(v, n.FieldType)
+		}
 		if n.NewTableName != nil {
 			Walk(v, n.NewTableName)
 		}

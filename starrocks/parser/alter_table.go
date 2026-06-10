@@ -215,6 +215,75 @@ func (p *Parser) parseColumnPosition(action *ast.AlterTableAction) {
 	}
 }
 
+// parseModifyColumnField parses StarRocks struct-field evolution, with cur at
+// the struct column identifier:
+//
+//	col ADD FIELD field type [FIRST | AFTER f]
+//	col DROP FIELD path
+func (p *Parser) parseModifyColumnField(action *ast.AlterTableAction) (*ast.AlterTableAction, error) {
+	colName, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	action.ColumnName = colName
+
+	switch p.cur.Kind {
+	case kwADD:
+		p.advance() // consume ADD
+		if _, err := p.expect(kwFIELD); err != nil {
+			return nil, err
+		}
+		action.Type = ast.AlterModifyColumnAddField
+		fieldName, err := p.parseFieldPath()
+		if err != nil {
+			return nil, err
+		}
+		action.FieldName = fieldName
+		fieldType, err := p.parseDataType()
+		if err != nil {
+			return nil, err
+		}
+		action.FieldType = fieldType
+		action.Loc.End = ast.NodeLoc(fieldType).End
+		p.parseColumnPosition(action) // optional FIRST | AFTER f
+
+	case kwDROP:
+		p.advance() // consume DROP
+		if _, err := p.expect(kwFIELD); err != nil {
+			return nil, err
+		}
+		action.Type = ast.AlterModifyColumnDropField
+		path, err := p.parseFieldPath()
+		if err != nil {
+			return nil, err
+		}
+		action.FieldName = path
+		action.Loc.End = p.prev.Loc.End
+
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	return action, nil
+}
+
+// parseFieldPath parses a struct field name, possibly dotted: ident ('.' ident)*.
+func (p *Parser) parseFieldPath() (string, error) {
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return "", err
+	}
+	for p.cur.Kind == int('.') {
+		p.advance()
+		part, _, err := p.parseIdentifier()
+		if err != nil {
+			return "", err
+		}
+		name = name + "." + part
+	}
+	return name, nil
+}
+
 // parsePartitionItemNoKeyword parses a single partition definition where the
 // leading PARTITION keyword has already been consumed. cur is the partition name
 // (or IF for IF NOT EXISTS).
@@ -503,6 +572,11 @@ func (p *Parser) parseAlterModify(action *ast.AlterTableAction) (*ast.AlterTable
 			}
 			action.Loc.End = p.prev.Loc.End
 			return action, nil
+		}
+		// StarRocks struct evolution: MODIFY COLUMN col ADD/DROP FIELD ...
+		// (after the column name, ADD/DROP can only begin a FIELD op here).
+		if isIdentifierToken(p.cur.Kind) && (p.peekNext().Kind == kwADD || p.peekNext().Kind == kwDROP) {
+			return p.parseModifyColumnField(action)
 		}
 		col, err := p.parseColumnDef()
 		if err != nil {

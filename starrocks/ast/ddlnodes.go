@@ -223,6 +223,8 @@ const (
 	AlterAddColumn                          // ADD COLUMN col_def [AFTER col | FIRST]
 	AlterDropColumn                         // DROP COLUMN col
 	AlterModifyColumn                       // MODIFY COLUMN col_def [AFTER col | FIRST]
+	AlterModifyColumnAddField               // MODIFY COLUMN col ADD FIELD name type [FIRST|AFTER f]
+	AlterModifyColumnDropField              // MODIFY COLUMN col DROP FIELD path
 	AlterRenameColumn                       // RENAME COLUMN old TO new (or old new)
 	AlterRenameTable                        // RENAME TO new_name (or RENAME new_name)
 	AlterRenameRollup                       // RENAME ROLLUP old new
@@ -254,6 +256,9 @@ type AlterTableAction struct {
 	NewName    string     // for RENAME COLUMN (new name) or RENAME ROLLUP/PARTITION
 	After      string     // optional AFTER column name
 	First      bool       // FIRST position flag
+	// Struct-field actions (MODIFY COLUMN col ADD/DROP FIELD):
+	FieldName string    // field name (ADD) or dotted field path (DROP)
+	FieldType *TypeName // field type (ADD FIELD only)
 	// Rename table:
 	NewTableName *ObjectName // for RENAME TO new_name
 	// Partition actions:
