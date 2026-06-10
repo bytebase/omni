@@ -169,7 +169,13 @@ func (p *Parser) parseDropDatabase() (ast.Node, error) {
 // cur must be kwPROPERTIES on entry; it is consumed here.
 func (p *Parser) parseProperties() ([]*ast.Property, error) {
 	p.advance() // consume PROPERTIES
+	return p.parsePropertyList()
+}
 
+// parsePropertyList parses a bare ('key'='value', ...) list; cur must be '('
+// on entry. Shared by parseProperties (after the PROPERTIES keyword) and the
+// bare index-property list (StarRocks `USING GIN ('k'='v')`).
+func (p *Parser) parsePropertyList() ([]*ast.Property, error) {
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}

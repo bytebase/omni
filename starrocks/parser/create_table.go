@@ -473,9 +473,17 @@ func (p *Parser) parseInlineIndexDef() (*ast.IndexDef, error) {
 		p.advance()
 	}
 
-	// Optional PROPERTIES(...)
+	// Optional index property list: PROPERTIES("k"="v", ...) or the StarRocks
+	// bare form ("k"="v", ...) immediately after the index type.
 	if p.cur.Kind == kwPROPERTIES {
 		props, err := p.parseProperties()
+		if err != nil {
+			return nil, err
+		}
+		idx.Properties = props
+		idx.Loc.End = p.prev.Loc.End
+	} else if p.cur.Kind == int('(') {
+		props, err := p.parsePropertyList()
 		if err != nil {
 			return nil, err
 		}

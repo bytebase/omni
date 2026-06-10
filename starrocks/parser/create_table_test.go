@@ -143,6 +143,24 @@ func TestCreateTable_DefaultExpr(t *testing.T) {
 	}
 }
 
+// StarRocks inline index with a bare property list after the index type
+// (BYT-9140 PR2b #14): INDEX i (c) USING GIN ('k'='v'). GIN/VECTOR lex as
+// identifiers (USING already accepts any), so the gap is only the bare (...)
+// property list (distinct from the PROPERTIES(...) form).
+func TestCreateTable_InlineIndexGINProps(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE ix (id BIGINT, name VARCHAR(64), tags VARCHAR(255), INDEX idx_name (name) USING BITMAP COMMENT 'x', INDEX idx_tags (tags) USING GIN ('parser'='english')) DUPLICATE KEY(id) DISTRIBUTED BY HASH(id)")
+	if len(stmt.Indexes) != 2 {
+		t.Fatalf("expected 2 inline indexes, got %d", len(stmt.Indexes))
+	}
+	gin := stmt.Indexes[1]
+	if gin.IndexType != "gin" {
+		t.Errorf("IndexType=%q, want gin", gin.IndexType)
+	}
+	if len(gin.Properties) != 1 || gin.Properties[0].Key != "parser" || gin.Properties[0].Value != "english" {
+		t.Errorf("Properties=%v, want [parser=english]", gin.Properties)
+	}
+}
+
 func TestCreateTable_WithNotNullDefault(t *testing.T) {
 	stmt := parseCreateTableStmt(t, "CREATE TABLE t (id INT NOT NULL DEFAULT 0, name VARCHAR(50) NULL)")
 	if len(stmt.Columns) != 2 {
