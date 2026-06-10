@@ -37,7 +37,7 @@ import (
 // columns (width and order), so `SELECT *` over a derived table or CTE masks
 // positionally; a star that needs catalog metadata (base table, coalescing
 // join, unresolved relation) stays a single opaque "*" result, as before.
-func resolveDerivedLineage(stmt ast.Node, span *QuerySpan) {
+func resolveDerivedLineage(stmt ast.Node, span *QuerySpan, vs *viewState) {
 	if span == nil {
 		return
 	}
@@ -45,6 +45,10 @@ func resolveDerivedLineage(stmt ast.Node, span *QuerySpan) {
 	if !ok || qs.Query == nil {
 		return
 	}
+	// The root CTE scope carries the catalog-aware resolution state (nil
+	// disables catalog resolution); buildCTEDefs propagates it to nested
+	// scopes.
+	root := &cteDefs{views: vs}
 	// Recompute the outermost query's column lineage with relation-scope
 	// resolution (derived tables, CTEs, UNNEST, scalar subqueries, set-operation
 	// arm merging, and star expansion) and fold it into the primary walk's
@@ -60,7 +64,7 @@ func resolveDerivedLineage(stmt ast.Node, span *QuerySpan) {
 	//   - an opaque star (not expandable without metadata) is left byte-for-byte
 	//     untouched, preserving the exact result shape consumers key on to apply
 	//     their own metadata-based expansion.
-	cols := resolveQueryCols(qs.Query, nil)
+	cols := resolveQueryCols(qs.Query, root)
 
 	// A top-level VALUES produces no Results in the primary walk (it has no
 	// select items), leaving the consumer with zero positional maskers — a
@@ -164,10 +168,12 @@ func hasOpaque(cols []outCol) bool {
 
 // cteDefs maps a CTE name (lower-cased) to its resolved output columns, with a
 // parent link for nested WITH scopes. A CTE shadows an outer one of the same
-// name; an inner WITH's definitions chain to the outer ones.
+// name; an inner WITH's definitions chain to the outer ones. The chain also
+// carries the catalog-aware resolution state (views) from the root scope.
 type cteDefs struct {
 	defs   map[string][]outCol
 	parent *cteDefs
+	views  *viewState
 }
 
 func (c *cteDefs) lookup(name string) ([]outCol, bool) {
@@ -180,6 +186,17 @@ func (c *cteDefs) lookup(name string) ([]outCol, bool) {
 	return nil, false
 }
 
+// viewState returns the catalog-aware resolution state carried by this scope
+// chain, or nil when there is none (catalog-less analysis).
+func (c *cteDefs) viewState() *viewState {
+	for cur := c; cur != nil; cur = cur.parent {
+		if cur.views != nil {
+			return cur.views
+		}
+	}
+	return nil
+}
+
 // buildCTEDefs resolves a query's WITH clause into a cteDefs scope chained to
 // parent. Each CTE body is resolved in a scope that already includes the earlier
 // siblings (sequential visibility), matching standard non-recursive CTE scoping;
@@ -190,6 +207,9 @@ func buildCTEDefs(q *parser.Query, parent *cteDefs) *cteDefs {
 		return parent
 	}
 	d := &cteDefs{defs: make(map[string][]outCol), parent: parent}
+	if parent != nil {
+		d.views = parent.views
+	}
 	for i := range q.With.CTEs {
 		nq := q.With.CTEs[i]
 		name := identName(nq.Name)
@@ -238,10 +258,32 @@ func resolveNodeCols(node parser.QueryNode, cte *cteDefs) []outCol {
 		// TABLE name == SELECT * FROM name. Over an in-scope CTE the projection
 		// is the CTE's resolved columns (verified against Trino 481:
 		// `WITH w AS (SELECT phone, name …) TABLE w` returns [phone, name]);
-		// over a base table the star needs catalog metadata and stays opaque.
-		if parts := normalizedParts(n.Name); len(parts) == 1 && cte != nil {
-			if cols, ok := cte.lookup(parts[0]); ok && len(cols) > 0 && !hasOpaque(cols) {
-				return stampStar(cols, 0, nil)
+		// the same holds for a catalog-resolved view (its definition's
+		// projection) or table (its catalog columns). Otherwise the star needs
+		// metadata the analysis does not have and stays opaque.
+		parts := normalizedParts(n.Name)
+		if len(parts) == 1 && cte != nil {
+			if cols, ok := cte.lookup(parts[0]); ok {
+				if len(cols) > 0 && !hasOpaque(cols) {
+					return stampStar(cols, 0, nil)
+				}
+				return []outCol{{name: "*", opaque: true}}
+			}
+		}
+		if vs := cte.viewState(); vs != nil {
+			if key, view, table, found := vs.lookupRelation(parts); found {
+				var cols []outCol
+				if view != nil {
+					if proj := vs.projectionFor(key, view); proj != nil {
+						vs.collectTables(proj.tables)
+						cols = proj.cols
+					}
+				} else {
+					cols = tableCols(key, table)
+				}
+				if len(cols) > 0 && !hasOpaque(cols) {
+					return stampStar(cols, 0, nil)
+				}
 			}
 		}
 		return []outCol{{name: "*", opaque: true}}
@@ -468,9 +510,11 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 	case *parser.ParenRelation:
 		s.add(n.Inner, alias, colAliases)
 	case *parser.TableRelation:
+		parts := normalizedParts(n.Name)
 		// A single-part name that matches an in-scope CTE is a derived relation
-		// (the CTE's resolved columns); otherwise it is a base table.
-		if parts := normalizedParts(n.Name); len(parts) == 1 && s.cte != nil {
+		// (the CTE's resolved columns); a CTE shadows any same-named catalog
+		// object.
+		if len(parts) == 1 && s.cte != nil {
 			if cols, ok := s.cte.lookup(parts[0]); ok {
 				name := alias
 				if name == "" {
@@ -483,6 +527,29 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 		name := alias
 		if name == "" {
 			name = lastPart(n.Name)
+		}
+		// Resolve against the catalog when one was supplied. A VIEW binds as a
+		// derived relation carrying its definition's resolved projection, so
+		// references and stars through it reach the underlying base columns; a
+		// TABLE binds with its catalog columns, which star expansion uses (named
+		// references through a base table keep their written form — additive
+		// resolution needs no help there, see resolveRef).
+		if vs := s.cte.viewState(); vs != nil {
+			if key, view, table, found := vs.lookupRelation(parts); found {
+				if view != nil {
+					if proj := vs.projectionFor(key, view); proj != nil {
+						vs.collectTables(proj.tables)
+						s.rels = append(s.rels, rbind{name: name, derived: true, cols: applyColumnAliases(proj.cols, colAliases)})
+						return
+					}
+					// Unresolvable view (no/unanalyzable definition, cycle):
+					// bind opaquely so stars through it stay unexpanded.
+					s.rels = append(s.rels, rbind{name: name, derived: false})
+					return
+				}
+				s.rels = append(s.rels, rbind{name: name, derived: false, cols: applyColumnAliases(tableCols(key, table), colAliases)})
+				return
+			}
 		}
 		s.rels = append(s.rels, rbind{name: name, derived: false})
 	case *parser.SubqueryRelation:
@@ -542,10 +609,11 @@ func (s *rscope) unnestColumns(n *parser.UnnestRelation, colAliases []*ast.Ident
 // positional masker downstream, which is precisely the bug this resolves — so
 // it bails (nil) unless:
 //   - no USING/NATURAL join coalesces columns in this scope, and
-//   - every covered relation is a derived relation (subquery, CTE reference, or
-//     aliased UNNEST) whose projection is fully resolved: non-empty and free of
-//     opaque star placeholders. A base table (width known only to catalog
-//     metadata), a lateral/table-function relation, an UNNEST without column
+//   - every covered relation has a fully-resolved projection: non-empty and
+//     free of opaque star placeholders. That is a derived relation (subquery,
+//     CTE reference, aliased UNNEST, catalog-resolved view) or a base table
+//     whose columns the supplied catalog knows. A base table without catalog
+//     metadata, a lateral/table-function relation, an UNNEST without column
 //     aliases, or a qualifier matching zero or several relations all bail.
 //
 // A nil return leaves the star opaque — the consumer's metadata-based expansion
@@ -563,14 +631,14 @@ func (s *rscope) starExpansion(qualifier string) []outCol {
 				count++
 			}
 		}
-		if count != 1 || !match.derived || len(match.cols) == 0 || hasOpaque(match.cols) {
+		if count != 1 || len(match.cols) == 0 || hasOpaque(match.cols) {
 			return nil
 		}
 		return match.cols
 	}
 	var out []outCol
 	for _, rb := range s.rels {
-		if !rb.derived || len(rb.cols) == 0 || hasOpaque(rb.cols) {
+		if len(rb.cols) == 0 || hasOpaque(rb.cols) {
 			return nil
 		}
 		out = append(out, rb.cols...)
@@ -617,10 +685,14 @@ func (s *rscope) resolveRef(ref ColumnRef) []ColumnRef {
 	out := []ColumnRef{ref}
 	if ref.Table != "" {
 		// Qualified by a relation name: append the recovered sources of every
-		// in-scope derived relation of that name exposing the column (a reused
-		// alias yields several; unioning them over-includes, which is safe).
+		// in-scope relation of that name exposing the column (a reused alias
+		// yields several; unioning them over-includes, which is safe). A
+		// catalog-known base table's cols matter when relation column aliases
+		// rename its columns (FROM customer AS c(i, p, …): c.p must reach
+		// customer.phone); without aliases they only restate the written ref
+		// in qualified form, which is harmless.
 		for _, rb := range s.rels {
-			if rb.derived && strings.EqualFold(rb.name, ref.Table) {
+			if strings.EqualFold(rb.name, ref.Table) {
 				if src, ok := lookupOutCol(rb.cols, ref.Column); ok {
 					out = append(out, src...)
 				}
@@ -628,13 +700,10 @@ func (s *rscope) resolveRef(ref ColumnRef) []ColumnRef {
 		}
 		return out
 	}
-	// Bare reference: append the recovered sources of every in-scope derived
-	// relation exposing a column of this name. The original bare ref is retained
-	// so a base table providing the same column is still covered.
+	// Bare reference: append the recovered sources of every in-scope relation
+	// exposing a column of this name. The original bare ref is retained so a
+	// base table providing the same column is still covered.
 	for _, rb := range s.rels {
-		if !rb.derived {
-			continue
-		}
 		if src, ok := lookupOutCol(rb.cols, ref.Column); ok {
 			out = append(out, src...)
 		}
