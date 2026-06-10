@@ -88,6 +88,40 @@ func TestRelationResolverViewToTable(t *testing.T) {
 	}
 }
 
+func TestRelationResolverFullCreateViewDefinition(t *testing.T) {
+	c := New()
+	c.SetRelationResolver(testRelationResolver{
+		"public.active_accounts": {
+			SchemaName: "public",
+			Name:       "active_accounts",
+			Kind:       'v',
+			Definition: "CREATE VIEW public.active_accounts(account_id) AS SELECT id FROM accounts WHERE active",
+		},
+		"public.accounts": {
+			SchemaName: "public",
+			Name:       "accounts",
+			Kind:       'r',
+			Columns: []RelationColumnSpec{
+				{Name: "id", Type: "int4"},
+				{Name: "active", Type: "bool"},
+			},
+		},
+	})
+
+	q := analyzeSelectSQL(t, c, "SELECT account_id FROM active_accounts")
+
+	if len(q.TargetList) != 1 || q.TargetList[0].ResName != "account_id" {
+		t.Fatalf("target list = %+v, want account_id", q.TargetList)
+	}
+	_, rel, err := c.findRelation("public", "active_accounts")
+	if err != nil {
+		t.Fatalf("find materialized view: %v", err)
+	}
+	if got := columnNames(rel); strings.Join(got, ",") != "account_id" {
+		t.Fatalf("columns = %v, want [account_id]", got)
+	}
+}
+
 func TestRelationResolverViewToLaterView(t *testing.T) {
 	c := New()
 	c.SetRelationResolver(testRelationResolver{
@@ -239,6 +273,37 @@ func TestRelationResolverLazyMaterializedView(t *testing.T) {
 	}
 	if rel.RelKind != 'm' || rel.AnalyzedQuery == nil {
 		t.Fatalf("relkind/analyzed = %q/%v, want analyzed matview", rel.RelKind, rel.AnalyzedQuery)
+	}
+}
+
+func TestRelationResolverFullCreateMaterializedViewDefinition(t *testing.T) {
+	c := New()
+	c.SetRelationResolver(testRelationResolver{
+		"public.recent_accounts": {
+			SchemaName: "public",
+			Name:       "recent_accounts",
+			Kind:       'm',
+			Definition: "CREATE MATERIALIZED VIEW public.recent_accounts(account_id) AS SELECT id FROM accounts",
+		},
+		"public.accounts": {
+			SchemaName: "public",
+			Name:       "accounts",
+			Kind:       'r',
+			Columns:    []RelationColumnSpec{{Name: "id", Type: "int4"}},
+		},
+	})
+
+	analyzeSelectSQL(t, c, "SELECT account_id FROM recent_accounts")
+
+	_, rel, err := c.findRelation("public", "recent_accounts")
+	if err != nil {
+		t.Fatalf("find materialized view: %v", err)
+	}
+	if rel.RelKind != 'm' || rel.AnalyzedQuery == nil {
+		t.Fatalf("relkind/analyzed = %q/%v, want analyzed matview", rel.RelKind, rel.AnalyzedQuery)
+	}
+	if got := columnNames(rel); strings.Join(got, ",") != "account_id" {
+		t.Fatalf("columns = %v, want [account_id]", got)
 	}
 }
 
