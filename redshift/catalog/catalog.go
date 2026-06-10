@@ -129,45 +129,49 @@ type Catalog struct {
 	// partially-defined CTE.
 	// pg: src/backend/parser/analyze.c — determineRecursiveColTypes
 	visibleCTEs []*CommonTableExprQ
+
+	relationResolver        RelationResolver
+	relationResolutionStack map[string]bool
 }
 
 // New creates a fully initialized Catalog with all built-in data indexed.
 func New() *Catalog {
 	c := &Catalog{
-		oidGen:             NewOIDGenerator(),
-		schemas:            make(map[uint32]*Schema),
-		schemaByName:       make(map[string]*Schema),
-		typeByOID:          make(map[uint32]*BuiltinType, len(BuiltinTypes)),
-		typeByName:         make(map[typeKey]*BuiltinType, len(BuiltinTypes)),
-		castIndex:          make(map[castKey]*BuiltinCast, len(BuiltinCasts)),
-		operByOID:          make(map[uint32]*BuiltinOperator, len(BuiltinOperators)),
-		operByKey:          make(map[operKey][]*BuiltinOperator, len(BuiltinOperators)),
-		procByOID:          make(map[uint32]*BuiltinProc, len(BuiltinProcs)),
-		procByName:         make(map[string][]*BuiltinProc),
-		relationByOID:      make(map[uint32]*Relation),
-		constraints:        make(map[uint32]*Constraint),
-		consByRel:          make(map[uint32][]*Constraint),
-		indexes:            make(map[uint32]*Index),
-		indexesByRel:       make(map[uint32][]*Index),
-		sequenceByOID:      make(map[uint32]*Sequence),
-		enumTypes:          make(map[uint32]*EnumType),
-		domainTypes:        make(map[uint32]*DomainType),
-		rangeTypes:         make(map[uint32]*RangeType),
-		userProcs:          make(map[uint32]*UserProc),
-		triggers:           make(map[uint32]*Trigger),
-		triggersByRel:      make(map[uint32][]*Trigger),
-		eventTriggers:      make(map[uint32]*EventTrigger),
-		eventTriggerByName: make(map[string]*EventTrigger),
-		comments:           make(map[commentKey]string),
-		policies:           make(map[uint32]*Policy),
-		policiesByRel:      make(map[uint32][]*Policy),
-		extensions:         make(map[uint32]*Extension),
-		extByName:          make(map[string]*Extension),
-		accessMethods:      make(map[uint32]*AccessMethod),
-		accessMethodByName: make(map[string]*AccessMethod),
-		opFamilies:         make(map[uint32]*OpFamily),
-		opClasses:          make(map[uint32]*OpClass),
-		opClassByKey:       make(map[opClassKey]*OpClass),
+		oidGen:                  NewOIDGenerator(),
+		schemas:                 make(map[uint32]*Schema),
+		schemaByName:            make(map[string]*Schema),
+		typeByOID:               make(map[uint32]*BuiltinType, len(BuiltinTypes)),
+		typeByName:              make(map[typeKey]*BuiltinType, len(BuiltinTypes)),
+		castIndex:               make(map[castKey]*BuiltinCast, len(BuiltinCasts)),
+		operByOID:               make(map[uint32]*BuiltinOperator, len(BuiltinOperators)),
+		operByKey:               make(map[operKey][]*BuiltinOperator, len(BuiltinOperators)),
+		procByOID:               make(map[uint32]*BuiltinProc, len(BuiltinProcs)),
+		procByName:              make(map[string][]*BuiltinProc),
+		relationByOID:           make(map[uint32]*Relation),
+		constraints:             make(map[uint32]*Constraint),
+		consByRel:               make(map[uint32][]*Constraint),
+		indexes:                 make(map[uint32]*Index),
+		indexesByRel:            make(map[uint32][]*Index),
+		sequenceByOID:           make(map[uint32]*Sequence),
+		enumTypes:               make(map[uint32]*EnumType),
+		domainTypes:             make(map[uint32]*DomainType),
+		rangeTypes:              make(map[uint32]*RangeType),
+		userProcs:               make(map[uint32]*UserProc),
+		triggers:                make(map[uint32]*Trigger),
+		triggersByRel:           make(map[uint32][]*Trigger),
+		eventTriggers:           make(map[uint32]*EventTrigger),
+		eventTriggerByName:      make(map[string]*EventTrigger),
+		comments:                make(map[commentKey]string),
+		policies:                make(map[uint32]*Policy),
+		policiesByRel:           make(map[uint32][]*Policy),
+		extensions:              make(map[uint32]*Extension),
+		extByName:               make(map[string]*Extension),
+		accessMethods:           make(map[uint32]*AccessMethod),
+		accessMethodByName:      make(map[string]*AccessMethod),
+		opFamilies:              make(map[uint32]*OpFamily),
+		opClasses:               make(map[uint32]*OpClass),
+		opClassByKey:            make(map[opClassKey]*OpClass),
+		relationResolutionStack: make(map[string]bool),
 	}
 
 	// Index types.
@@ -222,6 +226,12 @@ func New() *Catalog {
 	c.searchPath = []string{"public"}
 
 	return c
+}
+
+// SetRelationResolver installs a lazy relation resolver used when relation
+// lookup misses the in-memory catalog.
+func (c *Catalog) SetRelationResolver(resolver RelationResolver) {
+	c.relationResolver = resolver
 }
 
 func (c *Catalog) addBuiltinSchema(oid uint32, name string) {

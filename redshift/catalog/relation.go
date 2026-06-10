@@ -96,16 +96,33 @@ type Relation struct {
 
 // findRelation locates a relation by schema (or search path) and name.
 func (c *Catalog) findRelation(schemaName, relName string) (*Schema, *Relation, error) {
+	if schema, rel := c.lookupRelation(schemaName, relName); rel != nil {
+		return schema, rel, nil
+	}
+	if err := c.resolveMissingRelation(schemaName, relName); err != nil {
+		return nil, nil, err
+	}
+	if schema, rel := c.lookupRelation(schemaName, relName); rel != nil {
+		return schema, rel, nil
+	}
+
 	if schemaName != "" {
 		s := c.schemaByName[schemaName]
 		if s == nil {
 			return nil, nil, errUndefinedSchema(schemaName)
 		}
-		r := s.Relations[relName]
-		if r == nil {
-			return nil, nil, errUndefinedTable(relName)
+		return nil, nil, errUndefinedTable(relName)
+	}
+	return nil, nil, errUndefinedTable(relName)
+}
+
+func (c *Catalog) lookupRelation(schemaName, relName string) (*Schema, *Relation) {
+	if schemaName != "" {
+		s := c.schemaByName[schemaName]
+		if s == nil {
+			return nil, nil
 		}
-		return s, r, nil
+		return s, s.Relations[relName]
 	}
 	for _, nsOID := range c.searchPathWithCatalog() {
 		s := c.schemas[nsOID]
@@ -113,10 +130,10 @@ func (c *Catalog) findRelation(schemaName, relName string) (*Schema, *Relation, 
 			continue
 		}
 		if r := s.Relations[relName]; r != nil {
-			return s, r, nil
+			return s, r
 		}
 	}
-	return nil, nil, errUndefinedTable(relName)
+	return nil, nil
 }
 
 // findRelByOID locates a relation by its OID across all schemas.
