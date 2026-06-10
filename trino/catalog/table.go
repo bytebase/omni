@@ -71,8 +71,7 @@ func (t *Table) ColumnNames() []string {
 }
 
 // View is a Trino view (including materialized views). For completion and
-// lineage purposes a view exposes a column list just like a table; this
-// catalog does not retain the view's defining query.
+// lineage purposes a view exposes a column list just like a table.
 type View struct {
 	// Name is the normalized view name.
 	Name string
@@ -80,6 +79,12 @@ type View struct {
 	schema *Schema
 	// columns are the view's output columns in order.
 	columns []*Column
+	// Definition is the view's defining query text (the SELECT it was created
+	// AS), when known. analysis resolves column lineage through the view by
+	// analyzing this text in the view's own catalog/schema context; an empty
+	// Definition leaves the view opaque (lineage stops at the view column).
+	// Consumers populate it from their synced metadata.
+	Definition string
 }
 
 // Schema returns the schema that owns this view, or nil if detached.

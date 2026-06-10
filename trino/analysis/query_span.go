@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/trino/ast"
+	"github.com/bytebase/omni/trino/catalog"
 	"github.com/bytebase/omni/trino/parser"
 )
 
@@ -102,6 +103,25 @@ type ColumnRef struct {
 // whatever parsed is still analyzed. On empty input it returns a zero-valued
 // span with Type=Unknown.
 func GetQuerySpan(statement string) (*QuerySpan, error) {
+	return GetQuerySpanWithCatalog(statement, nil)
+}
+
+// GetQuerySpanWithCatalog is GetQuerySpan with catalog metadata: a FROM
+// reference that resolves to a known VIEW is followed into its definition
+// (recursively, in the view's own catalog/schema context), so result-column
+// lineage reaches the underlying base-table columns and the definition's base
+// tables are added to AccessTables; a star over a catalog-known relation
+// expands to its exact projection. Unqualified names resolve against the
+// catalog's current session catalog/schema. A nil catalog (or names the
+// catalog cannot resolve) leaves behaviour identical to GetQuerySpan.
+func GetQuerySpanWithCatalog(statement string, cat *catalog.Catalog) (*QuerySpan, error) {
+	return getQuerySpanWithViews(statement, newViewState(cat))
+}
+
+// getQuerySpanWithViews is the shared implementation; vs carries the
+// catalog-aware resolution state across the recursive analysis of view
+// definitions (nil disables catalog resolution).
+func getQuerySpanWithViews(statement string, vs *viewState) (*QuerySpan, error) {
 	file, _ := parser.Parse(statement)
 	span := &QuerySpan{Type: Classify(statement)}
 	if file == nil || len(file.Stmts) == 0 {
@@ -117,9 +137,18 @@ func GetQuerySpan(statement string) (*QuerySpan, error) {
 	// FROM and CTE references): the primary walk records a derived column by the
 	// name written at the reference site, which has no base table to mask
 	// against. This rewrites those refs to the recovered base columns, leaving
-	// direct base-table references untouched.
+	// direct base-table references untouched. Base tables read through views
+	// resolved during the pass are collected into this statement's
+	// AccessTables.
 	if len(file.Stmts) > 0 {
-		resolveDerivedLineage(file.Stmts[0], span)
+		var viewTables []TableAccess
+		if vs != nil {
+			savedOut := vs.tablesOut
+			vs.tablesOut = &viewTables
+			defer func() { vs.tablesOut = savedOut }()
+		}
+		resolveDerivedLineage(file.Stmts[0], span, vs)
+		appendViewTables(span, viewTables)
 	}
 	return span, nil
 }
