@@ -378,30 +378,61 @@ type ParseResult struct {
 // statement fails. Callers that want partial results should use
 // ParseBestEffort instead.
 //
+// Strictness includes trailing-token rejection: after each statement
+// parses, the next token must be `;` or end-of-segment. Inputs like
+// `SELECT * FFROM users` (where the parser consumes only the valid
+// `SELECT *` prefix) therefore fail with "syntax error at or near FFROM"
+// instead of silently dropping the rest.
+//
 // The returned *ast.File always reflects whatever statements parsed
 // successfully before the first error — even in the error case, the
 // File may be non-empty.
 func Parse(input string) (*ast.File, error) {
-	result := ParseBestEffort(input)
+	result := ParseStrict(input)
 	if len(result.Errors) > 0 {
 		return result.File, &result.Errors[0]
 	}
 	return result.File, nil
 }
 
-// ParseBestEffort runs F3's Split to segment the input, then parses each
-// segment via parseSingle. Errors from individual segments are collected;
-// all successfully-parsed statements are appended to the result File.
+// ParseStrict runs the same segmentation and per-statement parsing as
+// ParseBestEffort, but applies the strict trailing-token check: a
+// statement followed by anything other than `;` or end-of-segment gets a
+// "syntax error at or near <token>" ParseError at the first stray token.
+// All errors across all statements are collected (per-statement
+// reporting), so diagnostics callers see every offending statement, not
+// just the first.
 //
-// This is the canonical entry point for bytebase consumers (diagnose.go,
-// query_type.go, query_span_extractor.go) that need partial results plus
-// error diagnostics.
+// This is the entry point for diagnostics.Analyze and any consumer that
+// must REJECT garbage suffixes rather than tolerate them.
+func ParseStrict(input string) *ParseResult {
+	return parseAll(input, true)
+}
+
+// ParseBestEffort runs F3's Split to segment the input, then parses each
+// segment. Errors from individual segments are collected; all
+// successfully-parsed statements are appended to the result File.
+//
+// Unlike Parse / ParseStrict, ParseBestEffort TOLERATES unconsumed
+// trailing tokens after a successfully-parsed statement prefix: partial
+// or in-progress input such as `SELECT a FROM` + stray fragments still
+// yields whatever prefix parsed. Completion and other partial-input
+// callers depend on this tolerance — do not add the strict
+// trailing-token check here.
 func ParseBestEffort(input string) *ParseResult {
+	return parseAll(input, false)
+}
+
+// parseAll is the shared implementation behind ParseStrict and
+// ParseBestEffort: Split the input, parse each segment, collect nodes and
+// errors. strictTrailing selects whether parseSegment rejects unconsumed
+// trailing tokens.
+func parseAll(input string, strictTrailing bool) *ParseResult {
 	file := &ast.File{Loc: ast.Loc{Start: 0, End: len(input)}}
 	result := &ParseResult{File: file}
 
 	for _, seg := range Split(input) {
-		node, errs := parseSingle(seg.Text, seg.ByteStart)
+		node, errs := parseSegment(seg.Text, seg.ByteStart, strictTrailing)
 		if node != nil {
 			file.Stmts = append(file.Stmts, node)
 		}
@@ -412,6 +443,15 @@ func ParseBestEffort(input string) *ParseResult {
 }
 
 // parseSingle parses one segment (one top-level statement) into a single
+// ast.Node with the STRICT trailing-token check enabled. It is the
+// internal single-statement entry used by tests (including the
+// whole-corpus closure gate, so every corpus statement also proves it
+// leaves no unconsumed tokens behind).
+func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
+	return parseSegment(segText, baseOffset, true)
+}
+
+// parseSegment parses one segment (one top-level statement) into a single
 // ast.Node. Returns (node, errors) where node may be nil if the segment
 // failed to parse and errors is the list of ParseErrors encountered,
 // including any LexErrors promoted from the underlying Lexer.
@@ -420,7 +460,14 @@ func ParseBestEffort(input string) *ParseResult {
 // comes from F3.Segment.Text. baseOffset is the byte offset of segText
 // within the original input — passed to NewLexerWithOffset so token Loc
 // values are absolute.
-func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
+//
+// strictTrailing controls the trailing-token check: when true, a
+// successfully-parsed statement must be followed by `;` or end-of-segment;
+// any other token produces a "syntax error at or near <token>" ParseError
+// at the stray token's position (the historical behavior — silently
+// ignoring the unconsumed tail, e.g. `SELECT * FFROM users` parsing clean
+// as `SELECT *` — is preserved only for the best-effort path).
+func parseSegment(segText string, baseOffset int, strictTrailing bool) (ast.Node, []ParseError) {
 	p := &Parser{
 		lexer: NewLexerWithOffset(segText, baseOffset),
 		input: segText,
@@ -439,6 +486,22 @@ func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
 					Loc: p.cur.Loc,
 					Msg: err.Error(),
 				})
+			}
+		} else if strictTrailing {
+			// The statement parsed cleanly: the only legal continuations
+			// are end-of-segment or a `;` statement terminator (Split
+			// strips the terminator, so EOF is the common case; `;` shows
+			// up when callers hand un-split text to the parser).
+			// Anything else is a trailing run the parser used to drop
+			// silently — report it at the first stray token, then recover
+			// to the next statement boundary so the rest of the tail
+			// (including any lex errors in it) is still scanned.
+			for p.cur.Type == ';' {
+				p.advance()
+			}
+			if p.cur.Type != tokEOF {
+				p.errors = append(p.errors, *p.syntaxErrorAtCur())
+				p.skipToNextStatement()
 			}
 		}
 		result = node

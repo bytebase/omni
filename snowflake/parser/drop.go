@@ -254,6 +254,28 @@ func (p *Parser) parseDropObject(kind ast.DropObjectKind, start ast.Loc, ifExist
 	}
 	stmt.Name = name
 
+	// Optional argument-type signature for FUNCTION / PROCEDURE overload
+	// disambiguation: DROP FUNCTION f(NUMBER, VARCHAR) / DROP PROCEDURE p().
+	if (kind == ast.DropFunction || kind == ast.DropProcedure) && p.cur.Type == '(' {
+		p.advance() // consume '('
+		stmt.HasArgs = true
+		for p.cur.Type != ')' && p.cur.Type != tokEOF {
+			argType, err := p.parseDataType()
+			if err != nil {
+				return nil, err
+			}
+			stmt.ArgTypes = append(stmt.ArgTypes, argType)
+			if p.cur.Type == ',' {
+				p.advance() // consume ','
+				continue
+			}
+			break
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+	}
+
 	// Optional CASCADE | RESTRICT
 	if cascadeOK {
 		switch p.cur.Type {

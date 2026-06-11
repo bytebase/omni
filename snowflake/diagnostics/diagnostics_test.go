@@ -121,6 +121,67 @@ func TestAnalyze_UnsupportedStatementInMiddle(t *testing.T) {
 }
 
 // -----------------------------------------------------------------------
+// Trailing-token rejection (strict parse path)
+// -----------------------------------------------------------------------
+
+func TestAnalyze_TrailingTokensRejected(t *testing.T) {
+	// `SELECT *` is a valid prefix; FFROM and everything after it used to be
+	// silently dropped. Analyze runs the strict path, so the stray token is
+	// a diagnostic with an accurate position: FFROM starts at byte 9 →
+	// line 1, column 10; it is 5 bytes long → end column 15.
+	diags := Analyze("SELECT * FFROM users")
+	if len(diags) != 1 {
+		t.Fatalf("expected 1 diagnostic, got %d: %+v", len(diags), diags)
+	}
+	d := diags[0]
+	if d.Severity != SeverityError {
+		t.Errorf("severity = %v, want SeverityError", d.Severity)
+	}
+	if !strings.Contains(d.Message, "syntax error at or near FFROM") {
+		t.Errorf("message = %q, want to contain %q", d.Message, "syntax error at or near FFROM")
+	}
+	if d.Range.Start.Line != 1 || d.Range.Start.Column != 10 || d.Range.Start.Offset != 9 {
+		t.Errorf("start = %+v, want line 1, column 10, offset 9", d.Range.Start)
+	}
+	if d.Range.End.Line != 1 || d.Range.End.Column != 15 || d.Range.End.Offset != 14 {
+		t.Errorf("end = %+v, want line 1, column 15, offset 14", d.Range.End)
+	}
+}
+
+func TestAnalyze_TrailingTokensMultiLine(t *testing.T) {
+	// Same shape with the garbage on line 2: position must track the line.
+	diags := Analyze("SELECT *\nFFROM users")
+	if len(diags) != 1 {
+		t.Fatalf("expected 1 diagnostic, got %d: %+v", len(diags), diags)
+	}
+	d := diags[0]
+	if d.Range.Start.Line != 2 || d.Range.Start.Column != 1 || d.Range.Start.Offset != 9 {
+		t.Errorf("start = %+v, want line 2, column 1, offset 9", d.Range.Start)
+	}
+}
+
+func TestAnalyze_TrailingTokensPerStatement(t *testing.T) {
+	// Per-statement reporting: only the offending statement diagnoses; a
+	// second garbage statement adds a second diagnostic.
+	diags := Analyze("SELECT 1 2; SELECT 3")
+	if len(diags) != 1 {
+		t.Fatalf("expected 1 diagnostic, got %d: %+v", len(diags), diags)
+	}
+	if diags[0].Range.Start.Offset != 9 {
+		t.Errorf("offset = %d, want 9 (the stray 2)", diags[0].Range.Start.Offset)
+	}
+	diags = Analyze("SELECT 1 2; SELECT 3 4")
+	if len(diags) != 2 {
+		t.Fatalf("expected 2 diagnostics, got %d: %+v", len(diags), diags)
+	}
+}
+
+func TestAnalyze_ImplicitAliasStillValid(t *testing.T) {
+	// `garbage` is a legal implicit table alias — NOT a trailing token.
+	assertNoDiags(t, "implicit alias", Analyze("SELECT a FROM b garbage"))
+}
+
+// -----------------------------------------------------------------------
 // Multi-line inputs
 // -----------------------------------------------------------------------
 

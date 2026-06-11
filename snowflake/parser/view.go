@@ -689,6 +689,35 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 				}
 				stmt.Action = ast.AlterViewDropRowAccessPolicy
 				stmt.PolicyName = policyName
+
+				// Documented drop-and-add combination:
+				// DROP ROW ACCESS POLICY p1, ADD ROW ACCESS POLICY p2 ON (cols)
+				if p.cur.Type == ',' && p.peekNext().Type == kwADD {
+					p.advance() // consume ','
+					p.advance() // consume ADD
+					if _, err := p.expect(kwROW); err != nil {
+						return nil, err
+					}
+					if _, err := p.expect(kwACCESS); err != nil {
+						return nil, err
+					}
+					if _, err := p.expect(kwPOLICY); err != nil {
+						return nil, err
+					}
+					addName, err := p.parseObjectName()
+					if err != nil {
+						return nil, err
+					}
+					if _, err := p.expect(kwON); err != nil {
+						return nil, err
+					}
+					addCols, err := p.parseIdentListInParens()
+					if err != nil {
+						return nil, err
+					}
+					stmt.AddPolicyName = addName
+					stmt.AddPolicyCols = addCols
+				}
 			} else if p.cur.Type == kwPOLICIES {
 				p.advance() // consume POLICIES
 				stmt.Action = ast.AlterViewDropAllRowAccessPolicies
@@ -713,97 +742,137 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 		}
 
 	case kwALTER, kwMODIFY:
-		// ALTER|MODIFY [COLUMN] col_name SET MASKING POLICY / UNSET MASKING POLICY
-		// ALTER|MODIFY [COLUMN] col_name SET TAG / UNSET TAG
+		// ALTER|MODIFY [COLUMN] col SET MASKING POLICY / UNSET MASKING POLICY
+		//                          | SET TAG / UNSET TAG
+		// — comma-separated list form included:
+		// MODIFY COLUMN a SET MASKING POLICY p1, COLUMN b SET MASKING POLICY p2
 		p.advance() // consume ALTER or MODIFY
-		// Optional COLUMN keyword
-		if p.cur.Type == kwCOLUMN {
-			p.advance() // consume COLUMN
+		for {
+			action, err := p.parseAlterViewColumnAction()
+			if err != nil {
+				return nil, err
+			}
+			stmt.ColumnActions = append(stmt.ColumnActions, action)
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ','
 		}
-		colName, err := p.parseIdent()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Column = colName
+		// Mirror the first action into the legacy single-action fields.
+		first := stmt.ColumnActions[0]
+		stmt.Action = first.Action
+		stmt.Column = first.Column
+		stmt.MaskingPolicy = first.MaskingPolicy
+		stmt.MaskingUsing = first.MaskingUsing
+		stmt.Tags = first.Tags
+		stmt.UnsetTags = first.UnsetTags
 
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// parseAlterViewColumnAction parses ONE element of an ALTER VIEW
+// MODIFY/ALTER column action list:
+//
+//	[COLUMN] <col> { SET MASKING POLICY <p> [USING (col, ...)] [FORCE]
+//	               | UNSET MASKING POLICY
+//	               | SET TAG <t> = '<v>' [, ...]
+//	               | UNSET TAG <t> [, ...] }
+//
+// The leading ALTER|MODIFY keyword (or the list comma) has already been
+// consumed.
+func (p *Parser) parseAlterViewColumnAction() (*ast.AlterViewColumnAction, error) {
+	action := &ast.AlterViewColumnAction{Loc: ast.Loc{Start: p.cur.Loc.Start}}
+
+	// Optional COLUMN keyword
+	if p.cur.Type == kwCOLUMN {
+		p.advance() // consume COLUMN
+	}
+	colName, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	action.Column = colName
+
+	switch p.cur.Type {
+	case kwSET:
+		p.advance() // consume SET
 		switch p.cur.Type {
-		case kwSET:
-			p.advance() // consume SET
-			switch p.cur.Type {
-			case kwMASKING:
-				// SET MASKING POLICY policy_name [USING (col, ...)] [FORCE]
-				p.advance() // consume MASKING
-				if _, err := p.expect(kwPOLICY); err != nil {
-					return nil, err
-				}
-				policyName, err := p.parseObjectName()
-				if err != nil {
-					return nil, err
-				}
-				stmt.Action = ast.AlterViewColumnSetMaskingPolicy
-				stmt.MaskingPolicy = policyName
+		case kwMASKING:
+			// SET MASKING POLICY policy_name [USING (col, ...)] [FORCE]
+			p.advance() // consume MASKING
+			if _, err := p.expect(kwPOLICY); err != nil {
+				return nil, err
+			}
+			policyName, err := p.parseObjectName()
+			if err != nil {
+				return nil, err
+			}
+			action.Action = ast.AlterViewColumnSetMaskingPolicy
+			action.MaskingPolicy = policyName
 
-				// Optional USING (col, ...)
-				if p.cur.Type == kwUSING {
-					p.advance() // consume USING
-					if _, err := p.expect('('); err != nil {
+			// Optional USING (col, ...)
+			if p.cur.Type == kwUSING {
+				p.advance() // consume USING
+				if _, err := p.expect('('); err != nil {
+					return nil, err
+				}
+				for p.cur.Type != ')' && p.cur.Type != tokEOF {
+					id, err := p.parseIdent()
+					if err != nil {
 						return nil, err
 					}
-					for p.cur.Type != ')' && p.cur.Type != tokEOF {
-						id, err := p.parseIdent()
-						if err != nil {
-							return nil, err
-						}
-						stmt.MaskingUsing = append(stmt.MaskingUsing, id)
-						if p.cur.Type == ',' {
-							p.advance()
-						} else {
-							break
-						}
-					}
-					if _, err := p.expect(')'); err != nil {
-						return nil, err
+					action.MaskingUsing = append(action.MaskingUsing, id)
+					if p.cur.Type == ',' {
+						p.advance()
+					} else {
+						break
 					}
 				}
-
-				// Optional FORCE
-				if p.cur.Type == kwFORCE {
-					p.advance() // consume FORCE
-				}
-
-			case kwTAG:
-				tags, err := p.parseTagAssignments()
-				if err != nil {
+				if _, err := p.expect(')'); err != nil {
 					return nil, err
 				}
-				stmt.Action = ast.AlterViewColumnSetTag
-				stmt.Tags = tags
-
-			default:
-				return nil, p.syntaxErrorAtCur()
 			}
 
-		case kwUNSET:
-			p.advance() // consume UNSET
-			switch p.cur.Type {
-			case kwMASKING:
-				p.advance() // consume MASKING
-				if _, err := p.expect(kwPOLICY); err != nil {
-					return nil, err
-				}
-				stmt.Action = ast.AlterViewColumnUnsetMaskingPolicy
-
-			case kwTAG:
-				names, err := p.parseUnsetTagList()
-				if err != nil {
-					return nil, err
-				}
-				stmt.Action = ast.AlterViewColumnUnsetTag
-				stmt.UnsetTags = names
-
-			default:
-				return nil, p.syntaxErrorAtCur()
+			// Optional FORCE
+			if p.cur.Type == kwFORCE {
+				p.advance() // consume FORCE
+				action.Force = true
 			}
+
+		case kwTAG:
+			tags, err := p.parseTagAssignments()
+			if err != nil {
+				return nil, err
+			}
+			action.Action = ast.AlterViewColumnSetTag
+			action.Tags = tags
+
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+
+	case kwUNSET:
+		p.advance() // consume UNSET
+		switch p.cur.Type {
+		case kwMASKING:
+			p.advance() // consume MASKING
+			if _, err := p.expect(kwPOLICY); err != nil {
+				return nil, err
+			}
+			action.Action = ast.AlterViewColumnUnsetMaskingPolicy
+
+		case kwTAG:
+			names, err := p.parseUnsetTagList()
+			if err != nil {
+				return nil, err
+			}
+			action.Action = ast.AlterViewColumnUnsetTag
+			action.UnsetTags = names
 
 		default:
 			return nil, p.syntaxErrorAtCur()
@@ -813,8 +882,8 @@ func (p *Parser) parseAlterViewStmt() (ast.Node, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 
-	stmt.Loc.End = p.prev.Loc.End
-	return stmt, nil
+	action.Loc.End = p.prev.Loc.End
+	return action, nil
 }
 
 // parseAlterViewSetJoinPolicy parses

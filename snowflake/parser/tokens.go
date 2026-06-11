@@ -28,6 +28,7 @@ const (
 	tokNotEq       // != or <> (legacy NE / LTGT — folded into one token)
 	tokLessEq      // <=  (legacy LE)
 	tokGreaterEq   // >=  (legacy GE)
+	tokBang        // !   (class instance role separator: <instance>!<role>)
 )
 
 // Token represents a single lexical token.
@@ -1005,6 +1006,8 @@ func TokenName(t int) string {
 		return "<="
 	case tokGreaterEq:
 		return ">="
+	case tokBang:
+		return "!"
 	}
 	if t >= 700 {
 		// Keyword token — look up by reverse-mapping the keywordMap. The

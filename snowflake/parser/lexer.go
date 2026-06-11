@@ -19,31 +19,29 @@ type Lexer struct {
 	start      int // start byte of the token currently being scanned
 	errors     []LexError
 	baseOffset int // added to token Loc.Start/End and error Loc.Start/End when returned via public API
-	// multilineString, when set, lets a single-quoted string literal span
-	// newlines (the matching unescaped closing ' may be on a later line). It is
-	// OFF by default — the parser's lexer keeps the conventional one-line string
-	// rule. Split turns it ON: statement-segmentation must treat a multi-line
-	// single-quoted routine body (a Java / JavaScript / SQL handler) as one
-	// opaque string so an embedded ';' on a continuation line does not look like
-	// a statement terminator. See split.go and parseRoutineBody (which itself
-	// raw-scans the body verbatim once Split delivers the whole statement).
-	multilineString bool
 }
 
 // NewLexer constructs a Lexer for the given input. Token positions are
 // zero-based byte offsets into input.
+//
+// Single-quoted string literals may span newlines: Snowflake string
+// constants can contain literal newline bytes (the official-docs corpus
+// uses multi-line JSON strings and routine bodies in runnable examples).
+// The parser's lexer historically tore strings at the first newline, which
+// went unnoticed only because statement-prefix parses silently dropped the
+// multi-line tail before ever lexing it; the strict trailing-token check
+// exposed that gap, and the parser and Split lexers now agree on string
+// extent.
 func NewLexer(input string) *Lexer {
 	return &Lexer{input: input}
 }
 
 // newSplitLexer constructs a Lexer for statement segmentation (Split). It is
-// identical to NewLexer except that single-quoted string literals may span
-// newlines (multilineString), so a multi-line single-quoted routine body is
-// tokenized as ONE string rather than being torn at the first embedded newline.
-// This mode is intentionally NOT exposed on the parser's lexer: only Split needs
-// it, and only for finding statement boundaries.
+// identical to NewLexer (single-quoted strings span newlines in both); the
+// separate constructor is retained as the seam where Split-specific lexing
+// behavior would attach.
 func newSplitLexer(input string) *Lexer {
-	return &Lexer{input: input, multilineString: true}
+	return &Lexer{input: input}
 }
 
 // NewLexerWithOffset constructs a Lexer whose emitted token Loc values
@@ -188,7 +186,16 @@ func (l *Lexer) skipWhitespaceAndComments() {
 			for l.pos < len(l.input) && l.input[l.pos] != '\n' {
 				l.pos++
 			}
-		case ch == '/' && l.peek(1) == '/':
+		case ch == '/' && l.peek(1) == '/' && !l.afterColon():
+			// `//` opens a line comment — EXCEPT when it directly follows a
+			// `:` (no intervening byte), where `://` is a URL scheme separator
+			// (PUT file://…, s3://, https://). Treating `file://` as
+			// comment-opening made the rest of the line — including a real
+			// `;` statement terminator — vanish, so Split fused the next
+			// statement into the same segment and the parser silently
+			// dropped it. With the guard the slashes lex as ordinary `/`
+			// tokens; PUT/GET re-scan the URL from raw source anyway
+			// (scanRawLocation).
 			l.pos += 2
 			for l.pos < len(l.input) && l.input[l.pos] != '\n' {
 				l.pos++
@@ -199,6 +206,13 @@ func (l *Lexer) skipWhitespaceAndComments() {
 			return
 		}
 	}
+}
+
+// afterColon reports whether the byte immediately before l.pos is ':'.
+// Used to keep `://` (a URL scheme separator) from opening a `//` line
+// comment in skipWhitespaceAndComments.
+func (l *Lexer) afterColon() bool {
+	return l.pos > 0 && l.input[l.pos-1] == ':'
 }
 
 // scanBlockComment advances past a /* ... */ block comment. Block comments
@@ -233,10 +247,11 @@ func (l *Lexer) scanBlockComment() {
 //   - backslash escapes: \n \t \r \0 \\ \' \"  (and \<other> → <other>)
 //   - doubled-quote escape: ” inside a string is a literal '
 //
-// Token.Str contains the unescaped content (no surrounding quotes).
-// On unterminated string, appends an unterminated-string LexError, emits
-// a tokInvalid token covering the bad span, and advances to the next
-// newline or EOF.
+// Token.Str contains the unescaped content (no surrounding quotes). The
+// literal may span newlines (Snowflake string constants can contain literal
+// newline bytes). On unterminated string (no closing quote before EOF),
+// appends an unterminated-string LexError and emits a tokInvalid token
+// covering the bad span.
 func (l *Lexer) scanString() Token {
 	start := l.start // l.start is the byte offset of the opening quote
 	l.pos++          // consume opening quote
@@ -287,16 +302,9 @@ func (l *Lexer) scanString() Token {
 			l.pos++
 			continue
 		}
-		if ch == '\n' && !l.multilineString {
-			// Unterminated single-quoted string — strings cannot span newlines.
-			// In multilineString mode (Split's segmentation lexer) a newline is an
-			// ordinary body byte; the string runs on to its matching closing quote.
-			l.errors = append(l.errors, LexError{
-				Loc: ast.Loc{Start: start, End: l.pos},
-				Msg: errUnterminatedString,
-			})
-			return Token{Type: tokInvalid, Loc: ast.Loc{Start: start, End: l.pos}}
-		}
+		// A newline is an ordinary body byte: Snowflake string constants may
+		// span lines, so the string runs on to its matching closing quote
+		// (or to EOF, which reports unterminated below).
 		sb.WriteByte(ch)
 		l.pos++
 	}
@@ -566,12 +574,12 @@ func (l *Lexer) scanOperatorOrPunct(ch byte) Token {
 			l.pos += 2
 			return Token{Type: tokNotEq, Loc: ast.Loc{Start: start, End: l.pos}}
 		}
-		l.errors = append(l.errors, LexError{
-			Loc: ast.Loc{Start: start, End: start + 1},
-			Msg: errInvalidByte,
-		})
+		// Bare `!` is the class instance role separator in names like
+		// cost.budgets.my_budget!ADMIN (SHOW GRANTS TO <class> ROLE
+		// <instance>!<role>). It lexes as its own token; contexts that do
+		// not expect it reject it at parse time.
 		l.pos++
-		return Token{Type: tokInvalid, Loc: ast.Loc{Start: start, End: l.pos}}
+		return Token{Type: tokBang, Str: "!", Loc: ast.Loc{Start: start, End: l.pos}}
 	case '<':
 		if l.peek(1) == '=' {
 			l.pos += 2

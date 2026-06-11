@@ -4,16 +4,41 @@ import (
 	"testing"
 )
 
-func TestRecovery_TwoUnterminatedStrings(t *testing.T) {
-	// 'unterm1' is actually terminated; 'unterm2 is not. So this only
-	// produces one real error. Use a multiline form for two errors.
+func TestRecovery_MultilineStringAndUnterminated(t *testing.T) {
+	// Snowflake string constants may span newlines, so "'unterm1\n'unterm2"
+	// lexes as ONE multi-line string ("unterm1\n") followed by the identifier
+	// unterm2 — zero errors. (Under the historical one-line rule this input
+	// produced two unterminated-string errors; that rule falsely rejected
+	// valid multi-line strings, e.g. the official-docs JSON literals.)
 	input := "'unterm1\n'unterm2"
 	tokens, errs := Tokenize(input)
-	if len(errs) != 2 {
-		t.Errorf("expected 2 errors, got %d: %+v", len(errs), errs)
+	if len(errs) != 0 {
+		t.Errorf("expected 0 errors, got %d: %+v", len(errs), errs)
 	}
-	if len(tokens) < 1 {
-		t.Errorf("expected at least 1 token, got 0")
+	if len(tokens) != 3 { // string, ident, EOF
+		t.Fatalf("expected 3 tokens (string, ident, EOF), got %d: %+v", len(tokens), tokens)
+	}
+	if tokens[0].Type != tokString || tokens[0].Str != "unterm1\n" {
+		t.Errorf("token[0] = %+v, want tokString with content \"unterm1\\n\"", tokens[0])
+	}
+	if tokens[1].Type != tokIdent || tokens[1].Str != "unterm2" {
+		t.Errorf("token[1] = %+v, want tokIdent unterm2", tokens[1])
+	}
+
+	// A string with NO closing quote anywhere runs to EOF and reports exactly
+	// one unterminated-string error.
+	tokens, errs = Tokenize("SELECT 'never closed\nFROM t")
+	if len(errs) != 1 {
+		t.Errorf("unterminated: expected 1 error, got %d: %+v", len(errs), errs)
+	}
+	hasInvalid := false
+	for _, tok := range tokens {
+		if tok.Type == tokInvalid {
+			hasInvalid = true
+		}
+	}
+	if !hasInvalid {
+		t.Errorf("unterminated: expected a tokInvalid token, got %+v", tokens)
 	}
 }
 

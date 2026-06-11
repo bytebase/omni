@@ -52,6 +52,18 @@ func (p *Parser) parseCreateDatabaseStmt(start ast.Loc, orReplace, orAlter, tran
 		stmt.Clone = clone
 	}
 
+	// Optional FROM SHARE <provider_account>.<share_name> — creates the
+	// database from an inbound share.
+	if p.cur.Type == kwFROM && p.peekNext().Type == kwSHARE {
+		p.advance() // consume FROM
+		p.advance() // consume SHARE
+		share, err := p.parseObjectName()
+		if err != nil {
+			return nil, err
+		}
+		stmt.FromShare = share
+	}
+
 	// Optional properties
 	if err := p.parseDBSchemaPropsInto(&stmt.Props); err != nil {
 		return nil, err
