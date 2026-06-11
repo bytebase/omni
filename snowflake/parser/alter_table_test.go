@@ -788,3 +788,20 @@ func TestAlterTable_LocTracking(t *testing.T) {
 		t.Errorf("stmt.Loc.End (%d) <= Start (%d)", stmt.Loc.End, stmt.Loc.Start)
 	}
 }
+
+// TestAlterTable_DropPrimaryKeyWithColumns covers the legacy-tolerated
+// `DROP PRIMARY KEY (cols)` form (strict Parse #303 exposed that the column
+// list was previously absorbed by the silent trailing-token drop).
+func TestAlterTable_DropPrimaryKeyWithColumns(t *testing.T) {
+	file, err := Parse("ALTER TABLE CUSTOMER DROP PRIMARY KEY(ID);")
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	stmt, ok := file.Stmts[0].(*ast.AlterTableStmt)
+	if !ok {
+		t.Fatalf("expected AlterTableStmt, got %T", file.Stmts[0])
+	}
+	if len(stmt.Actions) != 1 || stmt.Actions[0].Kind != ast.AlterTableDropConstraint || !stmt.Actions[0].IsPrimaryKey {
+		t.Fatalf("expected DROP PRIMARY KEY action, got %+v", stmt.Actions[0])
+	}
+}
