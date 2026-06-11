@@ -238,6 +238,13 @@ func (w *writer) writeSelectTarget(t *ast.SelectTarget) error {
 		} else {
 			w.buf.WriteByte('*')
 		}
+		// ILIKE 'pattern'
+		if t.Ilike != nil {
+			w.buf.WriteString(" ILIKE")
+			if err := w.writeLiteral(t.Ilike); err != nil {
+				return err
+			}
+		}
 		// EXCLUDE (col, ...)
 		if len(t.Exclude) > 0 {
 			w.buf.WriteString(" EXCLUDE (")

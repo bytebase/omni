@@ -802,15 +802,19 @@ var _ Node = (*SelectStmt)(nil)
 // For expressions: Expr is set, Star is false.
 // For star: Star is true, Expr may be a qualifier (table.*) or nil (bare *).
 //
-// Exclude / Replace / Rename carry the Snowflake star column-transforms that
-// may follow a `*` or `tbl.*`: EXCLUDE drops the named columns; REPLACE
-// substitutes an expression for a column while keeping its name; RENAME
-// aliases columns. Any combination may appear together, in documented order
-// (EXCLUDE, then REPLACE, then RENAME). They are only valid on a star target.
+// Ilike / Exclude / Replace / Rename carry the Snowflake star
+// column-transforms that may follow a `*` or `tbl.*`: ILIKE keeps only the
+// columns whose names match the pattern; EXCLUDE drops the named columns;
+// REPLACE substitutes an expression for a column while keeping its name;
+// RENAME aliases columns. They appear in documented order (ILIKE, then
+// EXCLUDE, then REPLACE, then RENAME) and are only valid on a star target.
+// The docs additionally forbid combining ILIKE with EXCLUDE; the parser
+// over-accepts that combination (semantic validation is a later layer's job).
 type SelectTarget struct {
 	Expr    Node          // expression; nil for bare *
 	Alias   Ident         // AS alias; zero Ident if absent
 	Star    bool          // true for * or qualifier.*
+	Ilike   *Literal      // ILIKE '<pattern>' string literal; nil if absent
 	Exclude []Ident       // EXCLUDE columns; nil if absent
 	Replace []StarReplace // REPLACE expr AS col pairs; nil if absent
 	Rename  []StarRename  // RENAME col AS alias pairs; nil if absent

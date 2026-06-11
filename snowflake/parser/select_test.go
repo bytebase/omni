@@ -2396,6 +2396,241 @@ func TestSelect_ReplaceAsColumnAndFunction(t *testing.T) {
 	}
 }
 
+// Regression for the star-ILIKE silent drop (corpus official/select
+// example_06): ILIKE is an infix operator, so the expression parser used to
+// swallow `* ILIKE '<pattern>'` into a LikeExpr — the target was not a star,
+// any following transform keyword was eaten as an alias, and the FROM clause
+// was silently dropped from the AST (SelectStmt.From empty), which is
+// masking-unsound for query-span consumers. It must now parse as a star
+// target with Ilike populated and From non-empty.
+func TestSelect_StarIlike(t *testing.T) {
+	const sql = "SELECT * ILIKE '%id%' FROM employee_table"
+	sel, errs := testParseSelectStmt(sql)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if !target.Star {
+		t.Fatalf("target should be star, got expr %#v", target.Expr)
+	}
+	if target.Ilike == nil {
+		t.Fatal("target.Ilike = nil, want ILIKE pattern literal")
+	}
+	if target.Ilike.Kind != ast.LitString || target.Ilike.Value != "%id%" {
+		t.Errorf("Ilike = kind %v value %q, want string %q", target.Ilike.Kind, target.Ilike.Value, "%id%")
+	}
+	if len(target.Exclude) != 0 || len(target.Replace) != 0 || len(target.Rename) != 0 {
+		t.Errorf("unexpected other transforms: exclude=%v replace=%v rename=%v",
+			target.Exclude, target.Replace, target.Rename)
+	}
+	// The FROM clause must survive — this is the silent-drop regression check.
+	if len(sel.From) != 1 {
+		t.Fatalf("From = %d entries, want 1 (FROM clause was dropped)", len(sel.From))
+	}
+	ref, ok := sel.From[0].(*ast.TableRef)
+	if !ok || ref.Name == nil || ref.Name.Normalize() != "EMPLOYEE_TABLE" {
+		t.Errorf("From[0] = %#v, want table employee_table", sel.From[0])
+	}
+	// And the statement must span the whole input, not a prefix.
+	if got := sql[sel.Loc.Start:sel.Loc.End]; got != sql {
+		t.Errorf("stmt Loc slice = %q, want full input", got)
+	}
+}
+
+// ILIKE then RENAME (corpus official/select/example_12). RENAME used to be
+// eaten as the alias of the mis-parsed LikeExpr target.
+func TestSelect_StarIlikeRename(t *testing.T) {
+	sel, errs := testParseSelectStmt(
+		"SELECT * ILIKE '%id%' RENAME department_id AS department FROM employee_table")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if !target.Star || target.Ilike == nil || target.Ilike.Value != "%id%" {
+		t.Fatalf("star/Ilike mismatch: star=%v ilike=%#v", target.Star, target.Ilike)
+	}
+	if len(target.Rename) != 1 || target.Rename[0].Col.Name != "department_id" ||
+		target.Rename[0].Alias.Name != "department" {
+		t.Fatalf("rename = %v, want department_id AS department", target.Rename)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("From = %d entries, want 1", len(sel.From))
+	}
+}
+
+// ILIKE then REPLACE (corpus official/select/example_15).
+func TestSelect_StarIlikeReplace(t *testing.T) {
+	sel, errs := testParseSelectStmt(
+		"SELECT * ILIKE '%id%' REPLACE('DEPT-' || department_id AS department_id) FROM employee_table")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if !target.Star || target.Ilike == nil || target.Ilike.Value != "%id%" {
+		t.Fatalf("star/Ilike mismatch: star=%v ilike=%#v", target.Star, target.Ilike)
+	}
+	if len(target.Replace) != 1 || target.Replace[0].Col.Name != "department_id" {
+		t.Fatalf("replace = %v, want one department_id pair", target.Replace)
+	}
+	if _, ok := target.Replace[0].Expr.(*ast.BinaryExpr); !ok {
+		t.Errorf("replace[0].Expr = %T, want *ast.BinaryExpr (concat)", target.Replace[0].Expr)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("From = %d entries, want 1", len(sel.From))
+	}
+}
+
+// ILIKE then REPLACE then RENAME — the full documented-order chain.
+func TestSelect_StarIlikeReplaceRename(t *testing.T) {
+	sel, errs := testParseSelectStmt(
+		"SELECT * ILIKE 'col%' REPLACE (UPPER(a) AS a) RENAME (a AS b) FROM t")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if target.Ilike == nil || target.Ilike.Value != "col%" {
+		t.Fatalf("Ilike = %#v, want 'col%%'", target.Ilike)
+	}
+	if len(target.Replace) != 1 || len(target.Rename) != 1 {
+		t.Fatalf("replace=%v rename=%v, want one pair each", target.Replace, target.Rename)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("From = %d entries, want 1", len(sel.From))
+	}
+}
+
+// ILIKE applies to qualified stars too: [{<object_name>|<alias>}.]* ILIKE ...
+func TestSelect_QualifiedStarIlike(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT t.* ILIKE '%id%' FROM t")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if !target.Star {
+		t.Fatalf("target should be star, got %#v", target.Expr)
+	}
+	star, ok := target.Expr.(*ast.StarExpr)
+	if !ok || star.Qualifier == nil || star.Qualifier.Name.Name != "t" {
+		t.Fatalf("qualifier mismatch: %#v", target.Expr)
+	}
+	if target.Ilike == nil || target.Ilike.Value != "%id%" {
+		t.Fatalf("Ilike = %#v, want '%%id%%'", target.Ilike)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("From = %d entries, want 1", len(sel.From))
+	}
+}
+
+func TestSelect_StarIlikeLoc(t *testing.T) {
+	const sql = "SELECT * ILIKE '%id%' FROM t"
+	sel, errs := testParseSelectStmt(sql)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	got := sql[target.Loc.Start:target.Loc.End]
+	if got != "* ILIKE '%id%'" {
+		t.Errorf("target Loc slice = %q, want %q", got, "* ILIKE '%id%'")
+	}
+}
+
+// Snowflake's docs forbid combining ILIKE with EXCLUDE, but the combination
+// is positionally in documented order and parses soundly (FROM intact), so
+// the parser over-accepts it — semantic validation is a later layer's job.
+func TestSelect_StarIlikeExcludeOverAccept(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * ILIKE '%id%' EXCLUDE department_id FROM t")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if target.Ilike == nil || len(target.Exclude) != 1 {
+		t.Fatalf("ilike=%#v exclude=%v, want both populated", target.Ilike, target.Exclude)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("From = %d entries, want 1", len(sel.From))
+	}
+}
+
+// Disambiguation: `a ILIKE 'x'` on a column stays a boolean ILIKE expression
+// target — only a BARE (or qualified) star left operand is reinterpreted as
+// the star ILIKE transform.
+func TestSelect_ColumnIlikeExpressionUntouched(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT a ILIKE '%x%' AS flag, b FROM t")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if target.Star || target.Ilike != nil {
+		t.Fatalf("target wrongly star-ified: star=%v ilike=%#v", target.Star, target.Ilike)
+	}
+	like, ok := target.Expr.(*ast.LikeExpr)
+	if !ok || like.Op != ast.LikeOpILike {
+		t.Fatalf("target = %T, want *ast.LikeExpr with ILIKE op", target.Expr)
+	}
+	if target.Alias.Name != "flag" {
+		t.Errorf("alias = %q, want flag", target.Alias.Name)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("From = %d entries, want 1", len(sel.From))
+	}
+}
+
+// Scope boundary: COUNT(* ILIKE 'pattern') is valid Snowflake (the wildcard
+// transforms also apply inside COUNT per its docs), but the COUNT(*) argument
+// path is special-cased (`*` then `)`) and has never parsed transforms — a
+// pre-existing, separate gap. The select-target reinterpretation must not
+// change that: it stays a LOUD parse error, never a silent truncation.
+func TestSelect_CountStarIlikeArgStillLoudError(t *testing.T) {
+	if _, err := Parse("SELECT COUNT(* ILIKE 'col1%') FROM t"); err == nil {
+		t.Fatal("COUNT(* ILIKE ...) unexpectedly parses now — update this pin " +
+			"(and make sure the select-target ILIKE unwrap did not leak into function args)")
+	}
+}
+
+// Non-transform star shapes are NOT reinterpreted: `* NOT ILIKE 'x'` is not a
+// documented star transform, so it stays an (invalid-SQL) expression target.
+// Nothing after the pattern follows here, so FROM still parses.
+func TestSelect_StarNotIlikeStaysExpression(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT * NOT ILIKE 'x%' FROM t")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if target.Star || target.Ilike != nil {
+		t.Fatalf("target wrongly star-ified: star=%v ilike=%#v", target.Star, target.Ilike)
+	}
+	like, ok := target.Expr.(*ast.LikeExpr)
+	if !ok || !like.Not {
+		t.Fatalf("target = %#v, want NOT ILIKE LikeExpr", target.Expr)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("From = %d entries, want 1", len(sel.From))
+	}
+}
+
+// Negative: ILIKE without a pattern.
+func TestSelect_StarIlikeNoPattern(t *testing.T) {
+	_, err := Parse("SELECT * ILIKE FROM t")
+	if err == nil {
+		t.Fatal("expected error for `* ILIKE` without pattern")
+	}
+}
+
+// Negative: ILIKE after another transform is out of documented order (ILIKE
+// must come first) and must error loudly rather than have the rest of the
+// statement — including FROM — silently dropped.
+func TestSelect_StarIlikeOutOfOrder(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT * EXCLUDE a ILIKE '%id%' FROM t",
+		"SELECT * REPLACE (UPPER(c) AS c) ILIKE '%id%' FROM t",
+		"SELECT * RENAME (a AS b) ILIKE '%id%' FROM t",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("expected error for out-of-order ILIKE: %s", sql)
+		}
+	}
+}
+
 // Negative: `* EXCLUDE` with no column.
 func TestSelect_StarExcludeNoColumn(t *testing.T) {
 	_, err := Parse("SELECT * EXCLUDE FROM t")
