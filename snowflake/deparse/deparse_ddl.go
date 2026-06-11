@@ -404,6 +404,10 @@ func (w *writer) writeCreateDatabaseStmt(n *ast.CreateDatabaseStmt) error {
 			return err
 		}
 	}
+	if n.FromShare != nil {
+		w.buf.WriteString(" FROM SHARE ")
+		w.writeObjectNameNoSpace(n.FromShare)
+	}
 	w.writeDBSchemaProps(&n.Props)
 	if len(n.Tags) > 0 {
 		w.buf.WriteString(" WITH TAG (")
@@ -594,6 +598,17 @@ func (w *writer) writeDropStmt(n *ast.DropStmt) error {
 	}
 	w.buf.WriteByte(' ')
 	w.writeObjectNameNoSpace(n.Name)
+	if n.HasArgs {
+		// DROP FUNCTION / PROCEDURE overload signature: f(NUMBER, VARCHAR).
+		w.buf.WriteByte('(')
+		for i, t := range n.ArgTypes {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			w.writeTypeName(t)
+		}
+		w.buf.WriteByte(')')
+	}
 	if n.Cascade {
 		w.buf.WriteString(" CASCADE")
 	} else if n.Restrict {
@@ -717,6 +732,19 @@ func (w *writer) writeAlterViewStmt(n *ast.AlterViewStmt) error {
 	}
 	w.buf.WriteByte(' ')
 	w.writeObjectNameNoSpace(n.Name)
+	// Multi-element column action list: MODIFY COLUMN a SET MASKING POLICY p,
+	// COLUMN b UNSET MASKING POLICY. (A single action keeps the legacy
+	// single-action rendering below, driven by the mirrored fields.)
+	if len(n.ColumnActions) > 1 {
+		w.buf.WriteString(" MODIFY ")
+		for i, a := range n.ColumnActions {
+			if i > 0 {
+				w.buf.WriteString(", ")
+			}
+			w.writeAlterViewColumnAction(a)
+		}
+		return nil
+	}
 	switch n.Action {
 	case ast.AlterViewRename:
 		w.buf.WriteString(" RENAME TO ")
@@ -758,6 +786,19 @@ func (w *writer) writeAlterViewStmt(n *ast.AlterViewStmt) error {
 	case ast.AlterViewDropRowAccessPolicy:
 		w.buf.WriteString(" DROP ROW ACCESS POLICY ")
 		w.writeObjectNameNoSpace(n.PolicyName)
+		if n.AddPolicyName != nil {
+			// Drop-and-add combination form.
+			w.buf.WriteString(", ADD ROW ACCESS POLICY ")
+			w.writeObjectNameNoSpace(n.AddPolicyName)
+			w.buf.WriteString(" ON (")
+			for i, col := range n.AddPolicyCols {
+				if i > 0 {
+					w.buf.WriteString(", ")
+				}
+				w.buf.WriteString(col.String())
+			}
+			w.buf.WriteByte(')')
+		}
 	case ast.AlterViewDropAllRowAccessPolicies:
 		w.buf.WriteString(" DROP ALL ROW ACCESS POLICIES")
 	case ast.AlterViewColumnSetMaskingPolicy:
@@ -830,6 +871,42 @@ func (w *writer) writeAlterViewStmt(n *ast.AlterViewStmt) error {
 		return fmt.Errorf("deparse: unsupported ALTER VIEW action %d", n.Action)
 	}
 	return nil
+}
+
+// writeAlterViewColumnAction emits one element of a multi-element ALTER VIEW
+// MODIFY column action list: COLUMN <col> SET MASKING POLICY <p> [USING (...)]
+// [FORCE] | UNSET MASKING POLICY | SET TAG (...) | UNSET TAG (...).
+func (w *writer) writeAlterViewColumnAction(a *ast.AlterViewColumnAction) {
+	w.buf.WriteString("COLUMN ")
+	w.buf.WriteString(a.Column.String())
+	switch a.Action {
+	case ast.AlterViewColumnSetMaskingPolicy:
+		w.buf.WriteString(" SET MASKING POLICY ")
+		w.writeObjectNameNoSpace(a.MaskingPolicy)
+		if len(a.MaskingUsing) > 0 {
+			w.buf.WriteString(" USING (")
+			for i, col := range a.MaskingUsing {
+				if i > 0 {
+					w.buf.WriteString(", ")
+				}
+				w.buf.WriteString(col.String())
+			}
+			w.buf.WriteByte(')')
+		}
+		if a.Force {
+			w.buf.WriteString(" FORCE")
+		}
+	case ast.AlterViewColumnUnsetMaskingPolicy:
+		w.buf.WriteString(" UNSET MASKING POLICY")
+	case ast.AlterViewColumnSetTag:
+		w.buf.WriteString(" SET TAG (")
+		w.writeTagAssignments(a.Tags)
+		w.buf.WriteByte(')')
+	case ast.AlterViewColumnUnsetTag:
+		w.buf.WriteString(" UNSET TAG (")
+		w.writeObjectNameList(a.UnsetTags)
+		w.buf.WriteByte(')')
+	}
 }
 
 // ---------------------------------------------------------------------------

@@ -1538,6 +1538,7 @@ type CreateDatabaseStmt struct {
 	IfNotExists bool
 	Name        *ObjectName
 	Clone       *CloneSource     // CLONE source [AT|BEFORE (...)]; nil if absent
+	FromShare   *ObjectName      // FROM SHARE <provider>.<share>; nil if absent
 	Props       DBSchemaProps    // optional properties
 	Tags        []*TagAssignment // WITH TAG (...); nil if absent
 	Loc         Loc
@@ -1765,6 +1766,12 @@ type DropStmt struct {
 	Kind     DropObjectKind
 	IfExists bool
 	Name     *ObjectName
+	// HasArgs / ArgTypes carry the argument-type signature of a DROP
+	// FUNCTION / DROP PROCEDURE — `DROP FUNCTION f(NUMBER, VARCHAR)`.
+	// Snowflake requires the signature to disambiguate overloads; the
+	// empty form `f()` sets HasArgs with an empty ArgTypes.
+	HasArgs  bool
+	ArgTypes []*TypeName
 	Cascade  bool // CASCADE option (mutually exclusive with Restrict)
 	Restrict bool // RESTRICT option (mutually exclusive with Cascade)
 	Loc      Loc
@@ -2158,6 +2165,38 @@ type AlterViewStmt struct {
 	Column        Ident            // ALTER COLUMN col name
 	MaskingPolicy *ObjectName      // SET MASKING POLICY p
 	MaskingUsing  []Ident          // USING (col, ...)
+	// ColumnActions is the full comma-separated MODIFY/ALTER column action
+	// list — ALTER VIEW v MODIFY COLUMN a SET MASKING POLICY p, COLUMN b
+	// UNSET MASKING POLICY. It is populated (len >= 1) for every column
+	// action statement; the FIRST element is mirrored into the legacy
+	// single-action fields above (Action / Column / MaskingPolicy /
+	// MaskingUsing / Tags / UnsetTags) for backward compatibility.
+	ColumnActions []*AlterViewColumnAction
+	// AddPolicyName / AddPolicyCols carry the `, ADD ROW ACCESS POLICY p ON
+	// (cols)` tail of the documented drop-and-add combination form:
+	// ALTER VIEW v DROP ROW ACCESS POLICY p1, ADD ROW ACCESS POLICY p2 ON (c).
+	// They are set only when Action == AlterViewDropRowAccessPolicy.
+	AddPolicyName *ObjectName
+	AddPolicyCols []Ident
+	Loc           Loc
+}
+
+// AlterViewColumnAction is one element of an ALTER VIEW column action list:
+//
+//	{ALTER|MODIFY} [COLUMN] <col> SET MASKING POLICY <p> [USING (...)] [FORCE]
+//	                        | UNSET MASKING POLICY
+//	                        | SET TAG <t> = '<v>' [, ...]
+//	                        | UNSET TAG <t> [, ...]
+//
+// Action is one of the AlterViewColumn* values.
+type AlterViewColumnAction struct {
+	Column        Ident
+	Action        AlterViewAction
+	MaskingPolicy *ObjectName      // SET MASKING POLICY p
+	MaskingUsing  []Ident          // USING (col, ...)
+	Force         bool             // FORCE after SET MASKING POLICY
+	Tags          []*TagAssignment // SET TAG (...)
+	UnsetTags     []*ObjectName    // UNSET TAG (...)
 	Loc           Loc
 }
 
@@ -2471,6 +2510,7 @@ const (
 	GranteeShare                              // [TO|FROM] SHARE <name>
 	GranteeApplication                        // TO APPLICATION <name>
 	GranteeApplicationRole                    // TO APPLICATION ROLE <name>
+	GranteeClassRole                          // TO <class> ROLE <instance>!<role> (class instance role)
 )
 
 // String returns the SQL keyword(s) for the grantee kind.
@@ -2488,6 +2528,8 @@ func (k GranteeKind) String() string {
 		return "APPLICATION"
 	case GranteeApplicationRole:
 		return "APPLICATION ROLE"
+	case GranteeClassRole:
+		return "ROLE"
 	default:
 		return "UNKNOWN"
 	}
@@ -2496,12 +2538,20 @@ func (k GranteeKind) String() string {
 // Grantee is the recipient of a GRANT (after TO) or the subject of a REVOKE
 // (after FROM). Name is the (possibly qualified) role/user/share name.
 //
+// For GranteeClassRole — SHOW GRANTS TO SNOWFLAKE.CORE.BUDGET ROLE
+// cost.budgets.my_budget!ADMIN — Class is the class name
+// (SNOWFLAKE.CORE.BUDGET), Name is the instance name
+// (cost.budgets.my_budget), and InstanceRole is the role on the instance
+// (ADMIN, the part after the `!`).
+//
 // Grantee is a Node so the walker visits its Name. (Name is itself an
 // *ObjectName Node.)
 type Grantee struct {
-	Kind GranteeKind
-	Name *ObjectName
-	Loc  Loc
+	Kind         GranteeKind
+	Name         *ObjectName
+	Class        *ObjectName // class name for GranteeClassRole; nil otherwise
+	InstanceRole Ident       // `!<role>` suffix for GranteeClassRole; zero otherwise
+	Loc          Loc
 }
 
 // Tag implements Node.

@@ -236,6 +236,19 @@ func (p *Parser) parseShowScope(stmt *ast.ShowStmt) error {
 			return p.parseOptionalScopeName(stmt)
 		}
 		return nil
+	case kwFAILOVER, kwREPLICATION:
+		// IN FAILOVER GROUP <name> | IN REPLICATION GROUP <name>
+		// (SHOW DATABASES / SHOW SHARES scopes). Without this case the
+		// bare-name fallback below consumed FAILOVER/REPLICATION as a schema
+		// name and left `GROUP <name>` behind as silently-dropped trailing
+		// tokens.
+		tok := p.advance()
+		if _, err := p.expect(kwGROUP); err != nil {
+			return err
+		}
+		stmt.Scope = ast.ShowScopeOther
+		stmt.ScopeText = strings.ToUpper(tok.Str) + " GROUP"
+		return p.parseOptionalScopeName(stmt)
 	}
 
 	// Bare name → schema scope (e.g. SHOW TABLES IN tpch_sf1).

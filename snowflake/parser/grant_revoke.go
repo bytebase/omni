@@ -657,9 +657,11 @@ func (p *Parser) parseGrantSignature() ([]*ast.TypeName, error) {
 //	SHARE <name>
 //	APPLICATION <name>
 //	APPLICATION ROLE <name>
+//	<class> ROLE <instance>!<role>   (class instance role)
 func (p *Parser) parseGrantee() (*ast.Grantee, error) {
 	startLoc := p.cur.Loc
 	var kind ast.GranteeKind
+	bare := false
 
 	switch p.cur.Type {
 	case kwROLE:
@@ -692,11 +694,38 @@ func (p *Parser) parseGrantee() (*ast.Grantee, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		kind = ast.GranteeRole
+		bare = true
 	}
 
 	name, err := p.parseObjectName()
 	if err != nil {
 		return nil, err
+	}
+
+	// Class instance role: <class_name> ROLE <instance>!<role>, e.g.
+	// SHOW GRANTS TO SNOWFLAKE.CORE.BUDGET ROLE cost.budgets.my_budget!ADMIN.
+	// Only a bare leading name can be a class name (the keyworded forms above
+	// already consumed their kind keyword).
+	if bare && p.cur.Type == kwROLE {
+		p.advance() // consume ROLE
+		instance, err := p.parseObjectName()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(tokBang); err != nil {
+			return nil, err
+		}
+		role, err := p.parseIdent()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.Grantee{
+			Kind:         ast.GranteeClassRole,
+			Name:         instance,
+			Class:        name,
+			InstanceRole: role,
+			Loc:          ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End},
+		}, nil
 	}
 
 	return &ast.Grantee{

@@ -81,8 +81,19 @@ func (p *Parser) parseNamePart() (ast.Ident, error) {
 //
 // Each name part is parsed with parseNamePart, which accepts any keyword
 // (including reserved keywords such as SCHEMA or DATABASE) as an identifier.
+//
+// The first part may also be Snowflake's IDENTIFIER(<expr>) literal form —
+// USE WAREHOUSE IDENTIFIER($wh), UNDROP TABLE IDENTIFIER(408578) — which is
+// captured verbatim as a single (unquoted) Ident part; see
+// parseIdentifierFuncPart.
 func (p *Parser) parseObjectName() (*ast.ObjectName, error) {
-	first, err := p.parseNamePart()
+	var first ast.Ident
+	var err error
+	if p.cur.Type == kwIDENTIFIER && p.peekNext().Type == '(' {
+		first, err = p.parseIdentifierFuncPart()
+	} else {
+		first, err = p.parseNamePart()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -122,6 +133,37 @@ func (p *Parser) parseObjectName() (*ast.ObjectName, error) {
 		Schema:   second,
 		Name:     third,
 		Loc:      ast.Loc{Start: first.Loc.Start, End: third.Loc.End},
+	}, nil
+}
+
+// parseIdentifierFuncPart parses Snowflake's IDENTIFIER(<expr>) name form,
+// used wherever an object name is expected with the name supplied as a
+// string / session variable / bind / object id:
+//
+//	USE WAREHOUSE IDENTIFIER($current_wh_name)
+//	UNDROP TABLE IDENTIFIER(408578)
+//	SELECT * FROM IDENTIFIER('db.sch.t')
+//
+// The whole construct is captured VERBATIM (source text, including the
+// IDENTIFIER keyword and parentheses) as one unquoted Ident part, so
+// consumers and deparse round-trip it unchanged; the argument's structure is
+// validated by parsing it as an expression but not retained.
+//
+// The caller must have checked cur == kwIDENTIFIER and peekNext == '('.
+func (p *Parser) parseIdentifierFuncPart() (ast.Ident, error) {
+	startTok := p.advance() // consume IDENTIFIER
+	p.advance()             // consume '('
+	if _, err := p.parseExpr(); err != nil {
+		return ast.Ident{}, err
+	}
+	closeTok, err := p.expect(')')
+	if err != nil {
+		return ast.Ident{}, err
+	}
+	loc := ast.Loc{Start: startTok.Loc.Start, End: closeTok.Loc.End}
+	return ast.Ident{
+		Name: p.srcSlice(loc.Start, loc.End),
+		Loc:  loc,
 	}, nil
 }
 

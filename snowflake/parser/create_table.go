@@ -325,6 +325,17 @@ func (p *Parser) parseCreateTableStmt(start ast.Loc, orReplace, orAlter, transie
 	}
 	stmt.Name = name
 
+	// Postfix IF NOT EXISTS: Snowflake (and the legacy grammar) also accept
+	// the clause AFTER the table name — CREATE TABLE t1 IF NOT EXISTS (...).
+	if !stmt.IfNotExists && p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
+		p.advance() // consume IF
+		p.advance() // consume NOT
+		if _, err := p.expect(kwEXISTS); err != nil {
+			return nil, err
+		}
+		stmt.IfNotExists = true
+	}
+
 	// Branch on what follows the table name
 	switch p.cur.Type {
 	case kwLIKE:

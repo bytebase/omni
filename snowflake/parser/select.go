@@ -905,6 +905,25 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 		return ref, nil
 	}
 
+	// Bare (unparenthesized) VALUES row source: FROM VALUES (1, 'a'), (2, 'b').
+	// Snowflake accepts the inline VALUES list without the surrounding
+	// parentheses that the derived-table form above requires. VALUES is a
+	// reserved keyword, so `VALUES (` in FROM position is unambiguous.
+	if p.cur.Type == kwVALUES && p.peekNext().Type == '(' {
+		query, err := p.parseValuesClause()
+		if err != nil {
+			return nil, err
+		}
+		ref := &ast.TableRef{
+			Subquery: query,
+			Loc:      ast.Loc{Start: startLoc.Start},
+		}
+		if err := p.parseTableSuffix(ref); err != nil {
+			return nil, err
+		}
+		return ref, nil
+	}
+
 	// $N result-set table reference: FROM $1. A bare positional $-reference in
 	// FROM position names the result set of the preceding statement (the source
 	// of a `->>` result-pipe). A qualified $N (t.$1) is a column expression, not
@@ -1025,7 +1044,7 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 // (joinType, natural, directed, true). If not, returns (0, false, false, false)
 // without consuming any tokens.
 func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
-	// NATURAL [LEFT|RIGHT|FULL] [OUTER] JOIN
+	// NATURAL [INNER | {LEFT|RIGHT|FULL} [OUTER]] JOIN
 	if p.cur.Type == kwNATURAL {
 		next := p.peekNext()
 		// NATURAL JOIN
@@ -1034,10 +1053,20 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
 			p.advance() // consume JOIN
 			return ast.JoinInner, true, false, true
 		}
+		// NATURAL INNER JOIN
+		if next.Type == kwINNER {
+			p.advance() // consume NATURAL
+			p.advance() // consume INNER
+			if p.cur.Type == kwJOIN {
+				p.advance() // consume JOIN
+				return ast.JoinInner, true, false, true
+			}
+			return 0, false, false, false
+		}
 		// NATURAL LEFT/RIGHT/FULL [OUTER] JOIN
 		if next.Type == kwLEFT || next.Type == kwRIGHT || next.Type == kwFULL {
 			p.advance() // consume NATURAL
-			jt := p.consumeDirectionAndJoin()
+			jt, _ := p.consumeDirectionAndJoin()
 			return jt, true, false, true
 		}
 		return 0, false, false, false
@@ -1060,7 +1089,7 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
 			return 0, false, false, false
 		case kwLEFT, kwRIGHT, kwFULL:
 			p.advance() // consume DIRECTED
-			jt := p.consumeDirectionAndJoin()
+			jt, _ := p.consumeDirectionAndJoin()
 			return jt, false, true, true
 		case kwCROSS:
 			p.advance() // consume DIRECTED
@@ -1084,7 +1113,8 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
 		return 0, false, false, false
 	}
 
-	// INNER JOIN
+	// INNER [DIRECTED] JOIN — Snowflake's documented placement of DIRECTED is
+	// between the join-type keyword and JOIN (t1 INNER DIRECTED JOIN t2).
 	if p.cur.Type == kwINNER {
 		next := p.peekNext()
 		if next.Type == kwJOIN {
@@ -1092,32 +1122,41 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
 			p.advance() // consume JOIN
 			return ast.JoinInner, false, false, true
 		}
+		if next.Type == kwDIRECTED {
+			p.advance() // consume INNER
+			p.advance() // consume DIRECTED
+			if p.cur.Type == kwJOIN {
+				p.advance() // consume JOIN
+				return ast.JoinInner, false, true, true
+			}
+			return 0, false, false, false
+		}
 		return 0, false, false, false
 	}
 
-	// LEFT [OUTER] JOIN
+	// LEFT [OUTER] [DIRECTED] JOIN
 	if p.cur.Type == kwLEFT {
-		jt := p.consumeDirectionAndJoin()
+		jt, directed := p.consumeDirectionAndJoin()
 		if jt == ast.JoinLeft {
-			return jt, false, false, true
+			return jt, false, directed, true
 		}
 		return 0, false, false, false
 	}
 
-	// RIGHT [OUTER] JOIN
+	// RIGHT [OUTER] [DIRECTED] JOIN
 	if p.cur.Type == kwRIGHT {
-		jt := p.consumeDirectionAndJoin()
+		jt, directed := p.consumeDirectionAndJoin()
 		if jt == ast.JoinRight {
-			return jt, false, false, true
+			return jt, false, directed, true
 		}
 		return 0, false, false, false
 	}
 
-	// FULL [OUTER] JOIN
+	// FULL [OUTER] [DIRECTED] JOIN
 	if p.cur.Type == kwFULL {
-		jt := p.consumeDirectionAndJoin()
+		jt, directed := p.consumeDirectionAndJoin()
 		if jt == ast.JoinFull {
-			return jt, false, false, true
+			return jt, false, directed, true
 		}
 		return 0, false, false, false
 	}
@@ -1142,12 +1181,13 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool, bool) {
 	return 0, false, false, false
 }
 
-// consumeDirectionAndJoin consumes LEFT/RIGHT/FULL [OUTER] JOIN and returns
-// the corresponding JoinType. The caller must have already checked that
-// p.cur.Type is kwLEFT, kwRIGHT, or kwFULL.
+// consumeDirectionAndJoin consumes LEFT/RIGHT/FULL [OUTER] [DIRECTED] JOIN
+// and returns the corresponding JoinType plus whether the DIRECTED keyword
+// was present. The caller must have already checked that p.cur.Type is
+// kwLEFT, kwRIGHT, or kwFULL.
 // If the sequence doesn't end with JOIN, this returns JoinInner as a sentinel
 // (the caller checks the return value).
-func (p *Parser) consumeDirectionAndJoin() ast.JoinType {
+func (p *Parser) consumeDirectionAndJoin() (ast.JoinType, bool) {
 	dir := p.cur.Type
 	p.advance() // consume LEFT/RIGHT/FULL
 
@@ -1156,23 +1196,30 @@ func (p *Parser) consumeDirectionAndJoin() ast.JoinType {
 		p.advance() // consume OUTER
 	}
 
+	// Optional DIRECTED (Snowflake places it directly before JOIN).
+	directed := false
+	if p.cur.Type == kwDIRECTED {
+		p.advance() // consume DIRECTED
+		directed = true
+	}
+
 	// Expect JOIN
 	if p.cur.Type != kwJOIN {
 		// Not a join sequence — but we already consumed tokens.
 		// This is an issue; for safety, return a sentinel and let caller handle.
-		return ast.JoinInner
+		return ast.JoinInner, false
 	}
 	p.advance() // consume JOIN
 
 	switch dir {
 	case kwLEFT:
-		return ast.JoinLeft
+		return ast.JoinLeft, directed
 	case kwRIGHT:
-		return ast.JoinRight
+		return ast.JoinRight, directed
 	case kwFULL:
-		return ast.JoinFull
+		return ast.JoinFull, directed
 	default:
-		return ast.JoinInner
+		return ast.JoinInner, directed
 	}
 }
 

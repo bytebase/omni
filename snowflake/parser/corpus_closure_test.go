@@ -28,8 +28,11 @@ import (
 // in multilineString mode (split.go), so those segment correctly and parse via
 // the normal Split path; corpusWholeFile is consequently empty.
 //
-// Coverage snapshot at authoring time: 651/657 files parse clean (all via
-// Split), 6 files skipped (categorized below).
+// Coverage snapshot: 650/657 files parse clean (all via Split), 7 files
+// skipped (categorized below). Since the strict trailing-token check landed
+// in parseSingle, "parses clean" additionally proves every statement consumes
+// its input to the end — a prefix-parse with silently-dropped trailing tokens
+// now fails the gate.
 func TestCorpusClosure(t *testing.T) {
 	files := collectCorpusFiles(t)
 	if len(files) != 657 {
@@ -191,4 +194,13 @@ var corpusSkips = map[string]string{
 	// without parentheses — a legacy-corpus malformation). Mixed residual-gap and
 	// docs-typo; tracked as one entry.
 	"legacy/select.sql": "RESIDUAL GAP/MALFORMED: LEFT()/ILIKE() as function names, lowercase `union` in derived table, and to_date(SELECT...) (unparenthesized scalar subquery, a legacy malformation)",
+
+	// --- MALFORMED: docs typo, surfaced by the strict trailing-token check ---
+	// The example's SELECT list is missing the comma between
+	// COUNT(DISTINCT order_id) and DATE_TRUNC('DAY', order_timestamp_ns), so
+	// DATE_TRUNC parses as an implicit alias of the COUNT and the following
+	// `(` is genuinely invalid SQL. The parser used to "accept" the file only
+	// by silently dropping everything from that `(` on; strict Parse now
+	// correctly rejects it.
+	"official/create-dynamic-table/example_12.sql": "MALFORMED: docs example missing comma in SELECT list (COUNT(...) DATE_TRUNC(...)) — invalid SQL, correctly rejected since the strict trailing-token check",
 }

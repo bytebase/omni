@@ -89,8 +89,14 @@ type Diagnostic struct {
 
 const source = "snowflake-parser"
 
-// Analyze parses sql using the Snowflake best-effort parser and converts
+// Analyze parses sql using the Snowflake parser in strict mode and converts
 // every parse or lex error into a Diagnostic with a populated source range.
+//
+// Strict mode means unconsumed trailing tokens after an otherwise-valid
+// statement prefix are rejected too: `SELECT * FFROM users` produces a
+// diagnostic at FFROM rather than silently parsing as `SELECT *`. Errors
+// are still collected across ALL statements (per-statement recovery), so a
+// multi-statement input yields one diagnostic per offending statement.
 //
 // Returns nil when sql is syntactically valid or empty. The returned slice
 // is ordered by the byte offset at which each error was detected.
@@ -98,7 +104,7 @@ const source = "snowflake-parser"
 // Line and column numbers are 1-based and measured in bytes. Callers that
 // need Unicode-aware column numbers should post-process the Offset field.
 func Analyze(sql string) []Diagnostic {
-	result := parser.ParseBestEffort(sql)
+	result := parser.ParseStrict(sql)
 	if len(result.Errors) == 0 {
 		return nil
 	}
