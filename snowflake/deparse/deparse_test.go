@@ -134,6 +134,29 @@ func TestDeparse_Select_RenameStarList(t *testing.T) {
 	assertRoundTrip(t, `SELECT * RENAME (a AS b, c AS d) FROM t`)
 }
 
+func TestDeparse_Select_IlikeStar(t *testing.T) {
+	assertRoundTrip(t, `SELECT * ILIKE '%id%' FROM employee_table`)
+}
+
+func TestDeparse_Select_QualifiedStarIlike(t *testing.T) {
+	assertRoundTrip(t, `SELECT t.* ILIKE '%id%' FROM t`)
+}
+
+func TestDeparse_Select_IlikeRenameStar(t *testing.T) {
+	// Corpus official/select/example_12 shape.
+	assertRoundTrip(t, `SELECT * ILIKE '%id%' RENAME (department_id AS department) FROM employee_table`)
+}
+
+func TestDeparse_Select_IlikeReplaceStar(t *testing.T) {
+	// Corpus official/select/example_15 shape.
+	assertRoundTrip(t, `SELECT * ILIKE '%id%' REPLACE ('DEPT-' || department_id AS department_id) FROM employee_table`)
+}
+
+func TestDeparse_Select_IlikeReplaceRenameStar(t *testing.T) {
+	// ILIKE first, then REPLACE, then RENAME — the documented order.
+	assertRoundTrip(t, `SELECT * ILIKE 'col%' REPLACE (UPPER(a) AS a) RENAME (a AS b) FROM t`)
+}
+
 func TestDeparse_Select_ReplaceStar(t *testing.T) {
 	assertRoundTrip(t, `SELECT * REPLACE (UPPER(SSN) AS SSN) FROM T`)
 }

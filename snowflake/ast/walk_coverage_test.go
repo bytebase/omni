@@ -173,6 +173,12 @@ func TestWalkCoverage_SelectClauses(t *testing.T) {
 			cols: []string{"RA", "RB", "RC"},
 		},
 		{
+			name: "SelectTarget.Ilike star-transform pattern",
+			sql:  "SELECT * ILIKE '%id%' REPLACE (UPPER(ra) AS ssn) FROM t",
+			cols: []string{"RA"},
+			lits: []string{"%id%"},
+		},
+		{
 			name: "SelectStmt.With CTE body",
 			sql:  "WITH c AS (SELECT ca FROM t) SELECT * FROM c",
 			cols: []string{"CA"},

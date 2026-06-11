@@ -490,7 +490,7 @@ func (p *Parser) selectListTerminator() bool {
 }
 
 // parseSelectTarget parses one item in the SELECT list:
-//   - * [EXCLUDE (col, ...)] [REPLACE (expr AS col, ...)] [RENAME (col AS alias, ...)]
+//   - * [ILIKE 'pattern'] [EXCLUDE (col, ...)] [REPLACE (expr AS col, ...)] [RENAME (col AS alias, ...)]
 //   - expr [AS alias]
 //
 // The expression parser already handles * (StarExpr) and qualifier.*
@@ -508,13 +508,37 @@ func (p *Parser) parseSelectTarget() (*ast.SelectTarget, error) {
 		Loc: ast.Loc{Start: startLoc.Start},
 	}
 
+	// Star ILIKE transform: ILIKE is an infix operator, so for
+	// `* ILIKE '<pattern>'` (and `tbl.* ILIKE ...`) the expression parser has
+	// already bound the star into LikeExpr(StarExpr, pattern) before this
+	// function can see it. A star is not a scalar operand, so in a SELECT
+	// list that shape is unambiguously Snowflake's star ILIKE
+	// column-transform, not a boolean expression — unwrap it here, at the
+	// select-target boundary, so other expression contexts are untouched.
+	// The unwrap keys on the exact documented shape (plain ILIKE with a
+	// string-literal pattern); NOT/ANY/ESCAPE variants and non-literal
+	// patterns are not transforms and stay expressions.
+	if like, ok := expr.(*ast.LikeExpr); ok &&
+		like.Op == ast.LikeOpILike && !like.Not && !like.Any && like.Escape == nil {
+		if _, isStar := like.Expr.(*ast.StarExpr); isStar {
+			if pat, isLit := like.Pattern.(*ast.Literal); isLit && pat.Kind == ast.LitString {
+				expr = like.Expr
+				target.Ilike = pat
+			}
+		}
+	}
+
 	// Check if the expression is a star (* or qualifier.*)
 	if _, ok := expr.(*ast.StarExpr); ok {
 		target.Star = true
 		target.Expr = expr
 
-		// Star column-transforms, in Snowflake's documented order: EXCLUDE,
-		// then REPLACE, then RENAME (any subset may be present).
+		// Star column-transforms, in Snowflake's documented order: ILIKE
+		// (unwrapped above), then EXCLUDE, then REPLACE, then RENAME (any
+		// subset may be present; the docs forbid combining ILIKE with
+		// EXCLUDE, which the parser over-accepts — the combination is
+		// positionally in order and parses soundly).
+		//   ILIKE '<pattern>'
 		//   EXCLUDE <col> | EXCLUDE (<col>, ...)
 		//   REPLACE (<expr> AS <col>, ...)
 		//   RENAME <col> AS <alias> | RENAME (<col> AS <alias>, ...)
@@ -537,15 +561,17 @@ func (p *Parser) parseSelectTarget() (*ast.SelectTarget, error) {
 			}
 		}
 		// A transform keyword still pending here is out of documented order
-		// (e.g. `* RENAME (...) REPLACE (...)`). parseSingle ignores tokens
-		// after a completed statement, so without this check the rest of the
-		// statement — including FROM — would be dropped silently. Fail loudly
-		// instead.
+		// (e.g. `* RENAME (...) REPLACE (...)`, or ILIKE after any other
+		// transform — ILIKE must come first, and in first position it was
+		// already consumed by the expression parse and unwrapped above).
+		// parseSingle ignores tokens after a completed statement, so without
+		// this check the rest of the statement — including FROM — would be
+		// dropped silently. Fail loudly instead.
 		switch p.cur.Type {
-		case kwEXCLUDE, kwREPLACE, kwRENAME:
+		case kwILIKE, kwEXCLUDE, kwREPLACE, kwRENAME:
 			return nil, &ParseError{
 				Loc: p.cur.Loc,
-				Msg: "star column-transforms must appear in EXCLUDE, REPLACE, RENAME order",
+				Msg: "star column-transforms must appear in ILIKE/EXCLUDE, REPLACE, RENAME order",
 			}
 		}
 	} else {

@@ -1597,6 +1597,9 @@ func walkSelectTarget(v Visitor, n *SelectTarget) {
 		return
 	}
 	Walk(v, n.Expr)
+	if n.Ilike != nil {
+		Walk(v, n.Ilike)
+	}
 	for i := range n.Replace {
 		walkStarReplace(v, &n.Replace[i])
 	}
