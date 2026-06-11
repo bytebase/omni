@@ -2196,6 +2196,206 @@ func TestSelect_StarExcludeLoc(t *testing.T) {
 	}
 }
 
+// Regression for the star-REPLACE silent drop: this statement used to
+// parse-prefix to just `SELECT *` with ZERO errors — REPLACE, its pairs, AND
+// the FROM clause were dropped from the AST (SelectStmt.From empty), which is
+// masking-unsound for query-span consumers. It must now parse fully: Replace
+// populated and From non-empty.
+func TestSelect_StarReplaceSingle(t *testing.T) {
+	const sql = "SELECT * REPLACE (UPPER(SSN) AS SSN) FROM T"
+	sel, errs := testParseSelectStmt(sql)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if !target.Star {
+		t.Fatal("target should be star")
+	}
+	if len(target.Replace) != 1 {
+		t.Fatalf("replace = %d, want 1", len(target.Replace))
+	}
+	if target.Replace[0].Col.Name != "SSN" {
+		t.Errorf("replace[0].Col = %q, want %q", target.Replace[0].Col.Name, "SSN")
+	}
+	fn, ok := target.Replace[0].Expr.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("replace[0].Expr = %T, want *ast.FuncCallExpr", target.Replace[0].Expr)
+	}
+	if fn.Name.Normalize() != "UPPER" {
+		t.Errorf("replace[0].Expr func = %q, want UPPER", fn.Name.Normalize())
+	}
+	// The FROM clause must survive — this is the silent-drop regression check.
+	if len(sel.From) != 1 {
+		t.Fatalf("From = %d entries, want 1 (FROM clause was dropped)", len(sel.From))
+	}
+	ref, ok := sel.From[0].(*ast.TableRef)
+	if !ok || ref.Name == nil || ref.Name.Normalize() != "T" {
+		t.Errorf("From[0] = %#v, want table T", sel.From[0])
+	}
+	// And the statement must span the whole input, not a prefix.
+	if got := sql[sel.Loc.Start:sel.Loc.End]; got != sql {
+		t.Errorf("stmt Loc slice = %q, want full input", got)
+	}
+}
+
+func TestSelect_StarReplaceList(t *testing.T) {
+	sel, errs := testParseSelectStmt(
+		"SELECT * REPLACE ('DEPT-' || department_id AS department_id, UPPER(name) AS name) FROM employee_table")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if len(target.Replace) != 2 {
+		t.Fatalf("replace = %d, want 2", len(target.Replace))
+	}
+	if target.Replace[0].Col.Name != "department_id" {
+		t.Errorf("replace[0].Col = %q, want department_id", target.Replace[0].Col.Name)
+	}
+	if _, ok := target.Replace[0].Expr.(*ast.BinaryExpr); !ok {
+		t.Errorf("replace[0].Expr = %T, want *ast.BinaryExpr (concat)", target.Replace[0].Expr)
+	}
+	if target.Replace[1].Col.Name != "name" {
+		t.Errorf("replace[1].Col = %q, want name", target.Replace[1].Col.Name)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("From = %d entries, want 1", len(sel.From))
+	}
+}
+
+// Combined transforms in Snowflake's documented order: EXCLUDE, REPLACE, RENAME.
+func TestSelect_StarExcludeReplaceRename(t *testing.T) {
+	sel, errs := testParseSelectStmt(
+		"SELECT * EXCLUDE first_name REPLACE (UPPER(ssn) AS ssn) RENAME (department_id AS department) FROM t")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if len(target.Exclude) != 1 || target.Exclude[0].Name != "first_name" {
+		t.Fatalf("exclude = %v, want [first_name]", target.Exclude)
+	}
+	if len(target.Replace) != 1 || target.Replace[0].Col.Name != "ssn" {
+		t.Fatalf("replace = %v, want one ssn pair", target.Replace)
+	}
+	if len(target.Rename) != 1 || target.Rename[0].Col.Name != "department_id" {
+		t.Fatalf("rename = %v, want one department_id pair", target.Rename)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("From = %d entries, want 1", len(sel.From))
+	}
+}
+
+// REPLACE then RENAME (corpus official/select/example_14).
+func TestSelect_StarReplaceThenRename(t *testing.T) {
+	sel, errs := testParseSelectStmt(
+		"SELECT * REPLACE ('DEPT-' || department_id AS department_id) RENAME department_id AS department FROM employee_table")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	if len(target.Replace) != 1 || target.Replace[0].Col.Name != "department_id" {
+		t.Fatalf("replace = %v, want one department_id pair", target.Replace)
+	}
+	if len(target.Rename) != 1 || target.Rename[0].Alias.Name != "department" {
+		t.Fatalf("rename = %v, want department_id AS department", target.Rename)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("From = %d entries, want 1", len(sel.From))
+	}
+}
+
+func TestSelect_QualifiedStarReplace(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT t.* REPLACE (UPPER(x) AS x) FROM t")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	star, ok := target.Expr.(*ast.StarExpr)
+	if !ok || star.Qualifier == nil || star.Qualifier.Name.Name != "t" {
+		t.Fatalf("qualifier mismatch: %#v", target.Expr)
+	}
+	if len(target.Replace) != 1 || target.Replace[0].Col.Name != "x" {
+		t.Fatalf("replace = %v, want one x pair", target.Replace)
+	}
+	if len(sel.From) != 1 {
+		t.Fatalf("From = %d entries, want 1", len(sel.From))
+	}
+}
+
+func TestSelect_StarReplaceLoc(t *testing.T) {
+	const sql = "SELECT * REPLACE (UPPER(ssn) AS ssn) FROM t"
+	sel, errs := testParseSelectStmt(sql)
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	target := sel.Targets[0]
+	got := sql[target.Loc.Start:target.Loc.End]
+	if got != "* REPLACE (UPPER(ssn) AS ssn)" {
+		t.Errorf("target Loc slice = %q, want %q", got, "* REPLACE (UPPER(ssn) AS ssn)")
+	}
+}
+
+// Negative: REPLACE without parentheses. Snowflake documents only the
+// parenthesized form (the replacement is an arbitrary expression). This must
+// be a loud error, not a silent truncation.
+func TestSelect_StarReplaceNoParens(t *testing.T) {
+	_, err := Parse("SELECT * REPLACE UPPER(ssn) AS ssn FROM t")
+	if err == nil {
+		t.Fatal("expected error for `* REPLACE` without parentheses")
+	}
+}
+
+// Negative: REPLACE pair without AS.
+func TestSelect_StarReplaceNoAs(t *testing.T) {
+	_, err := Parse("SELECT * REPLACE (UPPER(ssn) ssn) FROM t")
+	if err == nil {
+		t.Fatal("expected error for `* REPLACE (expr col)` without AS")
+	}
+}
+
+// Negative: empty REPLACE list.
+func TestSelect_StarReplaceEmpty(t *testing.T) {
+	_, err := Parse("SELECT * REPLACE () FROM t")
+	if err == nil {
+		t.Fatal("expected error for `* REPLACE ()` with no pairs")
+	}
+}
+
+// Negative: out-of-documented-order transforms must error loudly rather than
+// have the trailing transform (and everything after it, including FROM)
+// silently dropped by the statement-entry trailing-token gap.
+func TestSelect_StarTransformsOutOfOrder(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT * RENAME (a AS b) REPLACE (UPPER(c) AS c) FROM t",
+		"SELECT * REPLACE (UPPER(c) AS c) EXCLUDE a FROM t",
+		"SELECT * RENAME (a AS b) EXCLUDE c FROM t",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("expected error for out-of-order transforms: %s", sql)
+		}
+	}
+}
+
+// Regression: a column literally named "replace" still parses as a plain
+// column reference (REPLACE is a non-reserved keyword), and the REPLACE()
+// string function is untouched by the star-transform path.
+func TestSelect_ReplaceAsColumnAndFunction(t *testing.T) {
+	sel, errs := testParseSelectStmt("SELECT replace, REPLACE(a, 'x', 'y') FROM t")
+	if len(errs) > 0 {
+		t.Fatalf("unexpected errors: %v", errs)
+	}
+	if len(sel.Targets) != 2 {
+		t.Fatalf("targets = %d, want 2", len(sel.Targets))
+	}
+	col, ok := sel.Targets[0].Expr.(*ast.ColumnRef)
+	if !ok || len(col.Parts) != 1 || col.Parts[0].Name != "replace" {
+		t.Errorf("target[0] = %#v, want column replace", sel.Targets[0].Expr)
+	}
+	fn, ok := sel.Targets[1].Expr.(*ast.FuncCallExpr)
+	if !ok || fn.Name.Normalize() != "REPLACE" {
+		t.Errorf("target[1] = %#v, want REPLACE() call", sel.Targets[1].Expr)
+	}
+}
+
 // Negative: `* EXCLUDE` with no column.
 func TestSelect_StarExcludeNoColumn(t *testing.T) {
 	_, err := Parse("SELECT * EXCLUDE FROM t")

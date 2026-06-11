@@ -1597,6 +1597,9 @@ func walkSelectTarget(v Visitor, n *SelectTarget) {
 		return
 	}
 	Walk(v, n.Expr)
+	for i := range n.Replace {
+		walkStarReplace(v, &n.Replace[i])
+	}
 }
 
 // walkSetVar walks the node-bearing fields of the non-Node helper struct
@@ -1607,6 +1610,16 @@ func walkSetVar(v Visitor, n *SetVar) {
 		return
 	}
 	Walk(v, n.Value)
+}
+
+// walkStarReplace walks the node-bearing fields of the non-Node helper struct
+// StarReplace. The helper itself is not visited (it is not a Node); its child
+// nodes are walked in field order.
+func walkStarReplace(v Visitor, n *StarReplace) {
+	if n == nil {
+		return
+	}
+	Walk(v, n.Expr)
 }
 
 // walkStreamTimeTravel walks the node-bearing fields of the non-Node helper struct

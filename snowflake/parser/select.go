@@ -490,7 +490,7 @@ func (p *Parser) selectListTerminator() bool {
 }
 
 // parseSelectTarget parses one item in the SELECT list:
-//   - * [EXCLUDE (col, ...)]
+//   - * [EXCLUDE (col, ...)] [REPLACE (expr AS col, ...)] [RENAME (col AS alias, ...)]
 //   - expr [AS alias]
 //
 // The expression parser already handles * (StarExpr) and qualifier.*
@@ -513,9 +513,10 @@ func (p *Parser) parseSelectTarget() (*ast.SelectTarget, error) {
 		target.Star = true
 		target.Expr = expr
 
-		// Star column-transforms: EXCLUDE then RENAME (Snowflake documents
-		// EXCLUDE before RENAME; either or both may be present).
+		// Star column-transforms, in Snowflake's documented order: EXCLUDE,
+		// then REPLACE, then RENAME (any subset may be present).
 		//   EXCLUDE <col> | EXCLUDE (<col>, ...)
+		//   REPLACE (<expr> AS <col>, ...)
 		//   RENAME <col> AS <alias> | RENAME (<col> AS <alias>, ...)
 		if p.cur.Type == kwEXCLUDE {
 			p.advance() // consume EXCLUDE
@@ -523,10 +524,28 @@ func (p *Parser) parseSelectTarget() (*ast.SelectTarget, error) {
 				return nil, err
 			}
 		}
+		if p.cur.Type == kwREPLACE {
+			p.advance() // consume REPLACE
+			if err := p.parseStarReplace(target); err != nil {
+				return nil, err
+			}
+		}
 		if p.cur.Type == kwRENAME {
 			p.advance() // consume RENAME
 			if err := p.parseStarRename(target); err != nil {
 				return nil, err
+			}
+		}
+		// A transform keyword still pending here is out of documented order
+		// (e.g. `* RENAME (...) REPLACE (...)`). parseSingle ignores tokens
+		// after a completed statement, so without this check the rest of the
+		// statement — including FROM — would be dropped silently. Fail loudly
+		// instead.
+		switch p.cur.Type {
+		case kwEXCLUDE, kwREPLACE, kwRENAME:
+			return nil, &ParseError{
+				Loc: p.cur.Loc,
+				Msg: "star column-transforms must appear in EXCLUDE, REPLACE, RENAME order",
 			}
 		}
 	} else {
@@ -642,6 +661,58 @@ func (p *Parser) parseStarRenamePair() (ast.StarRename, error) {
 		return ast.StarRename{}, err
 	}
 	return ast.StarRename{Col: col, Alias: alias}, nil
+}
+
+// parseStarReplace parses the REPLACE column-transform that may follow a star
+// in a SELECT list. The REPLACE keyword has already been consumed. Unlike
+// EXCLUDE and RENAME, Snowflake documents only the parenthesized form (the
+// replacement is an arbitrary expression, so the parentheses are required):
+//
+//	REPLACE (<expr> AS <col> [, <expr> AS <col>, ...])
+func (p *Parser) parseStarReplace(target *ast.SelectTarget) error {
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	for {
+		// Progress guard: see parseStarExclude — the cursor must strictly
+		// advance each iteration.
+		before := p.cur.Loc.Start
+		pair, err := p.parseStarReplacePair()
+		if err != nil {
+			return err
+		}
+		target.Replace = append(target.Replace, pair)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ','
+		if p.cur.Loc.Start <= before {
+			return &ParseError{Loc: p.cur.Loc, Msg: "malformed REPLACE list"}
+		}
+	}
+	if _, err := p.expect(')'); err != nil {
+		return err
+	}
+	return nil
+}
+
+// parseStarReplacePair parses one `<expr> AS <col>` pair of a REPLACE
+// transform. The AS keyword is required (Snowflake's documented syntax); Col
+// must name an existing column of the star expansion, which the parser cannot
+// check — it records whatever identifier follows AS.
+func (p *Parser) parseStarReplacePair() (ast.StarReplace, error) {
+	expr, err := p.parseExpr()
+	if err != nil {
+		return ast.StarReplace{}, err
+	}
+	if _, err := p.expect(kwAS); err != nil {
+		return ast.StarReplace{}, err
+	}
+	col, err := p.parseIdent()
+	if err != nil {
+		return ast.StarReplace{}, err
+	}
+	return ast.StarReplace{Expr: expr, Col: col}, nil
 }
 
 // ---------------------------------------------------------------------------

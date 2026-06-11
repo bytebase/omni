@@ -249,6 +249,21 @@ func (w *writer) writeSelectTarget(t *ast.SelectTarget) error {
 			}
 			w.buf.WriteByte(')')
 		}
+		// REPLACE (expr AS col, ...)
+		if len(t.Replace) > 0 {
+			w.buf.WriteString(" REPLACE (")
+			for i, r := range t.Replace {
+				if i > 0 {
+					w.buf.WriteString(", ")
+				}
+				if err := writeExprNoLeadSpace(w, r.Expr); err != nil {
+					return err
+				}
+				w.buf.WriteString(" AS ")
+				w.buf.WriteString(r.Col.String())
+			}
+			w.buf.WriteByte(')')
+		}
 		// RENAME (col AS alias, ...)
 		if len(t.Rename) > 0 {
 			w.buf.WriteString(" RENAME (")

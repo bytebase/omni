@@ -802,16 +802,18 @@ var _ Node = (*SelectStmt)(nil)
 // For expressions: Expr is set, Star is false.
 // For star: Star is true, Expr may be a qualifier (table.*) or nil (bare *).
 //
-// Exclude / Rename carry the Snowflake star column-transforms that may follow
-// a `*` or `tbl.*`: EXCLUDE drops the named columns; RENAME aliases them. Both
-// may appear together (EXCLUDE then RENAME). They are only valid on a star
-// target.
+// Exclude / Replace / Rename carry the Snowflake star column-transforms that
+// may follow a `*` or `tbl.*`: EXCLUDE drops the named columns; REPLACE
+// substitutes an expression for a column while keeping its name; RENAME
+// aliases columns. Any combination may appear together, in documented order
+// (EXCLUDE, then REPLACE, then RENAME). They are only valid on a star target.
 type SelectTarget struct {
-	Expr    Node         // expression; nil for bare *
-	Alias   Ident        // AS alias; zero Ident if absent
-	Star    bool         // true for * or qualifier.*
-	Exclude []Ident      // EXCLUDE columns; nil if absent
-	Rename  []StarRename // RENAME col AS alias pairs; nil if absent
+	Expr    Node          // expression; nil for bare *
+	Alias   Ident         // AS alias; zero Ident if absent
+	Star    bool          // true for * or qualifier.*
+	Exclude []Ident       // EXCLUDE columns; nil if absent
+	Replace []StarReplace // REPLACE expr AS col pairs; nil if absent
+	Rename  []StarRename  // RENAME col AS alias pairs; nil if absent
 	Loc     Loc
 }
 
@@ -819,6 +821,14 @@ type SelectTarget struct {
 type StarRename struct {
 	Col   Ident // source column name
 	Alias Ident // new alias
+}
+
+// StarReplace is one `expr AS col` pair in a `SELECT * REPLACE (...)`
+// transform: the expression replaces the value of the existing column named
+// Col in the star expansion (the output column keeps that name).
+type StarReplace struct {
+	Expr Node  // replacement expression
+	Col  Ident // existing column name being replaced
 }
 
 // TableRef is a table reference in the FROM clause.

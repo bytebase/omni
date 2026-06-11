@@ -134,8 +134,25 @@ func TestDeparse_Select_RenameStarList(t *testing.T) {
 	assertRoundTrip(t, `SELECT * RENAME (a AS b, c AS d) FROM t`)
 }
 
+func TestDeparse_Select_ReplaceStar(t *testing.T) {
+	assertRoundTrip(t, `SELECT * REPLACE (UPPER(SSN) AS SSN) FROM T`)
+}
+
+func TestDeparse_Select_ReplaceStarList(t *testing.T) {
+	assertRoundTrip(t, `SELECT * REPLACE ('DEPT-' || department_id AS department_id, UPPER(name) AS name) FROM t`)
+}
+
+func TestDeparse_Select_QualifiedStarReplace(t *testing.T) {
+	assertRoundTrip(t, `SELECT t.* REPLACE (UPPER(x) AS x) FROM t`)
+}
+
 func TestDeparse_Select_ExcludeAndRenameStar(t *testing.T) {
 	assertRoundTrip(t, `SELECT * EXCLUDE x RENAME (a AS b, c AS d) FROM t`)
+}
+
+func TestDeparse_Select_ExcludeReplaceRenameStar(t *testing.T) {
+	// All three star transforms in Snowflake's documented order.
+	assertRoundTrip(t, `SELECT * EXCLUDE x REPLACE (UPPER(s) AS s) RENAME (a AS b) FROM t`)
 }
 
 func TestDeparse_Select_QualifiedStarExcludeRename(t *testing.T) {
