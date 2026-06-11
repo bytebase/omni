@@ -495,13 +495,22 @@ func (p *Parser) parseAlterTableDropAction(action *ast.AlterTableAction) error {
 		return nil
 
 	case kwPRIMARY:
-		// DROP PRIMARY KEY [CASCADE|RESTRICT]
+		// DROP PRIMARY KEY (cols)? [CASCADE|RESTRICT] — the column list is not
+		// in current docs but the legacy ANTLR parser tolerated it (real
+		// migrations use it), mirroring the UNIQUE/FOREIGN KEY forms. It was
+		// previously absorbed by the silent trailing-token drop; strict Parse
+		// (#303) made the gap visible.
 		p.advance() // consume PRIMARY
 		if _, err := p.expect(kwKEY); err != nil {
 			return err
 		}
 		action.Kind = ast.AlterTableDropConstraint
 		action.IsPrimaryKey = true
+		if p.cur.Type == '(' {
+			if err := p.skipParenthesized(); err != nil {
+				return err
+			}
+		}
 		p.parseDropCascadeRestrict(action)
 		return nil
 
