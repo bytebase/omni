@@ -287,24 +287,21 @@ func (p *Parser) parsePerform() (ast.Node, error) {
 	}, nil
 }
 
-// parseExecSQL parses an inline SQL statement (INSERT, UPDATE, DELETE, SELECT, MERGE, IMPORT).
+// parseExecSQL parses an inline SQL statement (INSERT, UPDATE, DELETE, SELECT, MERGE, WITH, IMPORT).
 //
 // Ref: https://www.postgresql.org/docs/17/plpgsql-statements.html#PLPGSQL-STATEMENTS-SQL-ONEROW
 //
 //	sql_statement [ INTO [STRICT] target [, ...] ] ;
 //
-// For SELECT statements, INTO [STRICT] can appear after the select list
-// (e.g., SELECT a, b INTO [STRICT] x, y FROM t WHERE ...).
+// For SELECT statements, INTO [STRICT] can appear after the select list.
+// For INSERT/UPDATE/DELETE/MERGE, INTO [STRICT] applies after RETURNING.
 func (p *Parser) parseExecSQL() (ast.Node, error) {
 	startPos := p.pos()
 
-	// Determine if this is a SELECT (which may have INTO inside it)
-	isSelect := (p.cur.Type == pgparser.SELECT)
-
 	// Collect the entire SQL statement while tracking INTO within it.
-	// For SELECT, we detect INTO within the statement (between SELECT columns and FROM).
-	// For other statements, INTO does not appear inline.
-	sqlText, into, strict, err := p.collectSQLWithInto(isSelect)
+	// PL/pgSQL INTO is not the same as SQL's INSERT INTO, so detection is
+	// enabled only after a top-level SELECT or top-level RETURNING clause.
+	sqlText, into, strict, err := p.collectSQLWithInto()
 	if err != nil {
 		return nil, err
 	}
@@ -322,10 +319,12 @@ func (p *Parser) parseExecSQL() (ast.Node, error) {
 }
 
 // collectSQLWithInto collects an SQL statement text until semicolon,
-// while detecting INTO [STRICT] target within SELECT statements.
-// For SELECT: INTO can appear after the select list (before FROM, WHERE, etc.)
+// while detecting PL/pgSQL INTO [STRICT] target clauses.
+// SELECT can place INTO after the select list. Row-returning DML places INTO
+// after RETURNING. WITH is handled by observing the top-level command that
+// follows the CTE list, while nested CTE query text is ignored by depth.
 // The INTO clause is extracted from the SQL text and the remaining SQL is reassembled.
-func (p *Parser) collectSQLWithInto(isSelect bool) (string, []string, bool, error) {
+func (p *Parser) collectSQLWithInto() (string, []string, bool, error) {
 	start := p.pos()
 	depth := 0
 	var into []string
@@ -333,7 +332,7 @@ func (p *Parser) collectSQLWithInto(isSelect bool) (string, []string, bool, erro
 	intoStart := -1
 	intoEnd := -1
 
-	// Track whether we've seen INTO for this SELECT
+	intoAllowed := false
 	foundInto := false
 
 	for !p.isEOF() {
@@ -353,8 +352,17 @@ func (p *Parser) collectSQLWithInto(isSelect bool) (string, []string, bool, erro
 			break
 		}
 
-		// Detect INTO at depth 0 in SELECT statements
-		if isSelect && depth == 0 && !foundInto && p.isKeyword("INTO") {
+		if depth == 0 {
+			switch p.cur.Type {
+			case pgparser.SELECT, pgparser.RETURNING:
+				intoAllowed = true
+			case pgparser.INSERT, pgparser.UPDATE, pgparser.DELETE_P, pgparser.MERGE:
+				intoAllowed = false
+			}
+		}
+
+		// Detect PL/pgSQL INTO at depth 0 after SELECT or RETURNING.
+		if intoAllowed && depth == 0 && !foundInto && p.isKeyword("INTO") {
 			intoStart = p.cur.Loc
 			p.advance() // consume INTO
 
@@ -365,6 +373,7 @@ func (p *Parser) collectSQLWithInto(isSelect bool) (string, []string, bool, erro
 			}
 
 			// Parse comma-separated target identifiers
+			targetStart := len(into)
 			for {
 				if !p.isIdent() && !p.isAnyKeywordAsIdent() {
 					break
@@ -383,6 +392,9 @@ func (p *Parser) collectSQLWithInto(isSelect bool) (string, []string, bool, erro
 				} else {
 					break
 				}
+			}
+			if len(into) == targetStart {
+				return "", nil, false, p.errorf("syntax error at or near %q, expected identifier", p.tokenText(p.cur))
 			}
 			intoEnd = p.cur.Loc
 			foundInto = true

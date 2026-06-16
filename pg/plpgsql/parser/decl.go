@@ -182,39 +182,50 @@ func (p *Parser) parseDeclTypeName() (string, error) {
 	}
 
 	start := p.pos()
-	p.advance() // consume first part of type name
 
-	// Check for dot-qualified name (schema.type or table.column)
-	for p.cur.Type == '.' {
-		p.advance() // consume '.'
-		if !p.isIdent() && !p.isAnyKeywordAsIdent() {
-			return "", p.errorf("syntax error at or near %q, expected identifier after '.'", p.tokenText(p.cur))
+	var closers []int
+	for !p.isEOF() {
+		if len(closers) == 0 {
+			if p.cur.Type == ',' || p.cur.Type == ')' || p.cur.Type == ';' ||
+				p.cur.Type == pgparser.COLON_EQUALS || p.cur.Type == '=' ||
+				p.isKeyword("COLLATE") || p.isKeyword("NOT") || p.isKeyword("DEFAULT") {
+				break
+			}
 		}
-		p.advance() // consume next part
-	}
 
-	// Check for %TYPE or %ROWTYPE
-	// The % token comes through as ASCII char 37, not as an Op
-	if p.cur.Type == '%' {
-		p.advance() // consume %
-		if p.isKeyword("TYPE") || p.isKeyword("ROWTYPE") {
+		switch p.cur.Type {
+		case '(':
+			closers = append(closers, ')')
 			p.advance()
-		} else {
+			continue
+		case '[':
+			closers = append(closers, ']')
+			p.advance()
+			continue
+		case ')', ']':
+			if len(closers) == 0 {
+				return "", p.errorf("syntax error at or near %q, unexpected closing delimiter", p.tokenText(p.cur))
+			}
+			want := closers[len(closers)-1]
+			if p.cur.Type != want {
+				return "", p.errorf("syntax error at or near %q, expected closing delimiter", p.tokenText(p.cur))
+			}
+			closers = closers[:len(closers)-1]
+			p.advance()
+			continue
+		case '%':
+			p.advance()
+			if p.isKeyword("TYPE") || p.isKeyword("ROWTYPE") {
+				p.advance()
+				continue
+			}
 			return "", p.errorf("syntax error at or near %q, expected TYPE or ROWTYPE after %%", p.tokenText(p.cur))
 		}
-	}
 
-	// Check for array brackets []
-	if p.cur.Type == '[' {
-		p.advance() // consume [
-		// Optional dimension
-		if p.cur.Type == pgparser.ICONST {
-			p.advance()
-		}
-		if p.cur.Type != ']' {
-			return "", p.errorf("syntax error at or near %q, expected ]", p.tokenText(p.cur))
-		}
-		p.advance() // consume ]
+		p.advance()
+	}
+	if len(closers) > 0 {
+		return "", p.errorf("syntax error at or near %q, expected closing delimiter", p.tokenText(p.cur))
 	}
 
 	typeName := strings.TrimSpace(p.source[start:p.prev.End])

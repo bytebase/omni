@@ -229,6 +229,10 @@ func TestForIntegerExprBounds(t *testing.T) {
 	}
 }
 
+func TestForIntegerRejectsTargetList(t *testing.T) {
+	parseErr(t, `BEGIN FOR a, b IN 1..10 LOOP NULL; END LOOP; END`, "expected single loop variable")
+}
+
 func TestForQuery(t *testing.T) {
 	// Query FOR: FOR rec IN SELECT * FROM t LOOP x := rec.a; END LOOP;
 	block := parseOK(t, `BEGIN FOR rec IN SELECT * FROM t LOOP x := rec.a; END LOOP; END`)
@@ -253,6 +257,34 @@ func TestForQueryComplex(t *testing.T) {
 	f := block.Body[0].(*ast.PLForS)
 	if f.Query != "SELECT a, b FROM t WHERE c > 0 ORDER BY a" {
 		t.Errorf("unexpected query %q", f.Query)
+	}
+}
+
+func TestForQueryTargetList(t *testing.T) {
+	block := parseOK(t, `BEGIN FOR a, b IN SELECT x, y FROM t LOOP NULL; END LOOP; END`)
+	f, ok := block.Body[0].(*ast.PLForS)
+	if !ok {
+		t.Fatalf("expected PLForS, got %T", block.Body[0])
+	}
+	if f.Var != "a, b" {
+		t.Errorf("expected var 'a, b', got %q", f.Var)
+	}
+	if f.Query != "SELECT x, y FROM t" {
+		t.Errorf("expected query 'SELECT x, y FROM t', got %q", f.Query)
+	}
+}
+
+func TestForQueryParenthesizedTargetList(t *testing.T) {
+	block := parseOK(t, `BEGIN FOR a, b IN (SELECT x, y FROM t) LOOP NULL; END LOOP; END`)
+	f, ok := block.Body[0].(*ast.PLForS)
+	if !ok {
+		t.Fatalf("expected PLForS, got %T", block.Body[0])
+	}
+	if f.Var != "a, b" {
+		t.Errorf("expected var 'a, b', got %q", f.Var)
+	}
+	if f.Query != "(SELECT x, y FROM t)" {
+		t.Errorf("expected query '(SELECT x, y FROM t)', got %q", f.Query)
 	}
 }
 
@@ -287,6 +319,10 @@ func TestForCursorWithArgs(t *testing.T) {
 	if f.ArgQuery != "1, 'a'" {
 		t.Errorf("expected arg query \"1, 'a'\", got %q", f.ArgQuery)
 	}
+}
+
+func TestForCursorRejectsTargetList(t *testing.T) {
+	parseErr(t, `BEGIN FOR a, b IN cur LOOP NULL; END LOOP; END`, "expected single loop variable")
 }
 
 func TestForDynamic(t *testing.T) {

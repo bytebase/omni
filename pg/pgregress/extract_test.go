@@ -111,6 +111,25 @@ func TestExtract_DollarQuoteWithTag(t *testing.T) {
 	}
 }
 
+func TestExtract_BeginAtomicWithCaseExpression(t *testing.T) {
+	input := `CREATE FUNCTION f(x int) RETURNS boolean
+LANGUAGE SQL
+BEGIN ATOMIC
+    select case when x % 2 = 0 then true else false end;
+END;
+SELECT 1;`
+	stmts := ExtractStatements("test.sql", []byte(input))
+	if len(stmts) != 2 {
+		t.Fatalf("expected 2 statements, got %d: %v", len(stmts), stmtsSQL(stmts))
+	}
+	if !strings.Contains(stmts[0].SQL, "case when") || !strings.Contains(stmts[0].SQL, "END") {
+		t.Fatalf("first statement was split incorrectly: %q", stmts[0].SQL)
+	}
+	if stmts[1].SQL != "SELECT 1" {
+		t.Fatalf("stmt[1] = %q, want SELECT 1", stmts[1].SQL)
+	}
+}
+
 func TestExtract_NestedDollarQuote(t *testing.T) {
 	input := "DO $$ BEGIN EXECUTE $q$ SELECT 1; $q$; END $$;"
 	stmts := ExtractStatements("test.sql", []byte(input))

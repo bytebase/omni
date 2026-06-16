@@ -81,8 +81,12 @@ func (p *Parser) parseSetRest() (nodes.Node, error) {
 		if next.Type == CHARACTERISTICS {
 			p.advance() // consume SESSION
 			p.advance() // consume CHARACTERISTICS
-			p.expect(AS)
-			p.expect(TRANSACTION)
+			if _, err := p.expect(AS); err != nil {
+				return nil, err
+			}
+			if _, err := p.expect(TRANSACTION); err != nil {
+				return nil, err
+			}
 			modes, _ := p.parseTransactionModeListOrEmpty()
 			return &nodes.VariableSetStmt{
 				Kind: nodes.VAR_SET_MULTI,
@@ -117,8 +121,14 @@ func (p *Parser) parseSetRestMore() (nodes.Node, error) {
 	switch p.cur.Type {
 	case TIME:
 		p.advance() // consume TIME
-		p.expect(ZONE)
+		if _, err := p.expect(ZONE); err != nil {
+			return nil, err
+		}
+		zoneType := p.cur.Type
 		val := p.parseZoneValue()
+		if val == nil && zoneType != DEFAULT && zoneType != LOCAL {
+			return nil, p.syntaxErrorAtCur()
+		}
 		n := &nodes.VariableSetStmt{
 			Kind: nodes.VAR_SET_VALUE,
 			Name: "timezone",
@@ -135,7 +145,9 @@ func (p *Parser) parseSetRestMore() (nodes.Node, error) {
 		// PostgreSQL parses this but rejects it at execution time.
 		p.advance() // consume CATALOG
 		s := p.cur.Str
-		p.expect(SCONST)
+		if _, err := p.expect(SCONST); err != nil {
+			return nil, err
+		}
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_SET_VALUE,
 			Name: "catalog",
@@ -145,7 +157,9 @@ func (p *Parser) parseSetRestMore() (nodes.Node, error) {
 	case SCHEMA:
 		p.advance() // consume SCHEMA
 		s := p.cur.Str
-		p.expect(SCONST)
+		if _, err := p.expect(SCONST); err != nil {
+			return nil, err
+		}
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_SET_VALUE,
 			Name: "search_path",
@@ -173,7 +187,10 @@ func (p *Parser) parseSetRestMore() (nodes.Node, error) {
 			return p.parseGenericSetOrFromCurrent()
 		}
 		p.advance() // consume ROLE
-		val := p.parseNonReservedWordOrSconst()
+		val, err := p.parseSetNonReservedWordOrSconst()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_SET_VALUE,
 			Name: "role",
@@ -183,7 +200,9 @@ func (p *Parser) parseSetRestMore() (nodes.Node, error) {
 	case SESSION:
 		// SESSION AUTHORIZATION NonReservedWord_or_Sconst | SESSION AUTHORIZATION DEFAULT
 		p.advance() // consume SESSION
-		p.expect(AUTHORIZATION)
+		if _, err := p.expect(AUTHORIZATION); err != nil {
+			return nil, err
+		}
 		if p.cur.Type == DEFAULT {
 			p.advance()
 			return &nodes.VariableSetStmt{
@@ -191,7 +210,10 @@ func (p *Parser) parseSetRestMore() (nodes.Node, error) {
 				Name: "session_authorization",
 			}, nil
 		}
-		val := p.parseNonReservedWordOrSconst()
+		val, err := p.parseSetNonReservedWordOrSconst()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_SET_VALUE,
 			Name: "session_authorization",
@@ -200,8 +222,13 @@ func (p *Parser) parseSetRestMore() (nodes.Node, error) {
 
 	case XML_P:
 		p.advance() // consume XML
-		p.expect(OPTION)
-		docOrContent, _ := p.parseDocumentOrContent()
+		if _, err := p.expect(OPTION); err != nil {
+			return nil, err
+		}
+		docOrContent, err := p.parseDocumentOrContent()
+		if err != nil {
+			return nil, err
+		}
 		var val string
 		if docOrContent == int64(nodes.XMLOPTION_DOCUMENT) {
 			val = "DOCUMENT"
@@ -217,9 +244,13 @@ func (p *Parser) parseSetRestMore() (nodes.Node, error) {
 	case TRANSACTION:
 		// TRANSACTION SNAPSHOT Sconst
 		p.advance() // consume TRANSACTION
-		p.expect(SNAPSHOT)
+		if _, err := p.expect(SNAPSHOT); err != nil {
+			return nil, err
+		}
 		s := p.cur.Str
-		p.expect(SCONST)
+		if _, err := p.expect(SCONST); err != nil {
+			return nil, err
+		}
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_SET_MULTI,
 			Name: "TRANSACTION SNAPSHOT",
@@ -254,7 +285,9 @@ func (p *Parser) parseGenericSetOrFromCurrent() (nodes.Node, error) {
 	case FROM:
 		// var_name FROM CURRENT_P
 		p.advance() // consume FROM
-		p.expect(CURRENT_P)
+		if _, err := p.expect(CURRENT_P); err != nil {
+			return nil, err
+		}
 		return &nodes.VariableSetStmt{
 			Kind: nodes.VAR_SET_CURRENT,
 			Name: varName,
@@ -286,6 +319,15 @@ func (p *Parser) parseGenericSetOrFromCurrent() (nodes.Node, error) {
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
+}
+
+func (p *Parser) parseSetNonReservedWordOrSconst() (string, error) {
+	if p.cur.Type == SCONST || p.cur.Type == IDENT || p.cur.Type == DEFAULT || p.isNonReservedWord() {
+		s := p.cur.Str
+		p.advance()
+		return s, nil
+	}
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseVarName parses a dotted variable name.
@@ -660,7 +702,7 @@ func (p *Parser) parseVariableResetStmt() (nodes.Node, error) {
 //	| IMMEDIATE
 func (p *Parser) parseConstraintsSetStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // SET was already consumed
-	p.advance() // consume CONSTRAINTS
+	p.advance()       // consume CONSTRAINTS
 
 	var constraints *nodes.List
 	if p.cur.Type == ALL {
@@ -717,7 +759,7 @@ func (p *Parser) parseConstraintsNameList() *nodes.List {
 //	ALTER SYSTEM RESET ALL
 func (p *Parser) parseAlterSystemStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // ALTER was already consumed
-	p.advance() // consume SYSTEM_P
+	p.advance()       // consume SYSTEM_P
 
 	switch p.cur.Type {
 	case SET:

@@ -20,6 +20,9 @@ func TestDeclScalar(t *testing.T) {
 		{"scalar integer", "DECLARE x integer; BEGIN END", "x", "integer"},
 		{"record type", "DECLARE r record; BEGIN END", "r", "record"},
 		{"qualified type", "DECLARE x public.my_type; BEGIN END", "x", "public.my_type"},
+		{"multiword type", "DECLARE x character varying; BEGIN END", "x", "character varying"},
+		{"parameterized type", "DECLARE x character varying(255); BEGIN END", "x", "character varying(255)"},
+		{"timestamp type", "DECLARE x timestamp with time zone; BEGIN END", "x", "timestamp with time zone"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -147,6 +150,23 @@ func TestDeclTypeRef(t *testing.T) {
 			if d.TypeName != tt.wantType {
 				t.Errorf("type: want %q, got %q", tt.wantType, d.TypeName)
 			}
+		})
+	}
+}
+
+func TestDeclRejectsMalformedTypeName(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want string
+	}{
+		{"bad percent type ref", "DECLARE x my_table%BAD; BEGIN END", "expected TYPE or ROWTYPE"},
+		{"unclosed typmod", "DECLARE x numeric(10; BEGIN END", "expected closing delimiter"},
+		{"unclosed array", "DECLARE x integer[; BEGIN END", "expected closing delimiter"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parseErr(t, tt.body, tt.want)
 		})
 	}
 }
