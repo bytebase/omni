@@ -73,8 +73,14 @@ func (p *Parser) parseCreateMTMV(startLoc ast.Loc) (ast.Node, error) {
 			}
 
 		case kwREFRESH:
-			// REFRESH COMPLETE | AUTO | NEVER | INCREMENTAL
+			// doris: REFRESH COMPLETE | AUTO | NEVER | INCREMENTAL [ON ...]
+			// StarRocks: REFRESH [IMMEDIATE|DEFERRED] (ASYNC [START('ts')] EVERY
+			//            '(' INTERVAL n unit ')' | MANUAL | INCREMENTAL)
 			p.advance() // consume REFRESH
+			// Optional IMMEDIATE | DEFERRED moment (StarRocks); parse-only.
+			if p.cur.Kind == kwIMMEDIATE || p.cur.Kind == kwDEFERRED {
+				p.advance()
+			}
 			switch p.cur.Kind {
 			case kwCOMPLETE:
 				stmt.RefreshMethod = "COMPLETE"
@@ -89,9 +95,18 @@ func (p *Parser) parseCreateMTMV(startLoc ast.Loc) (ast.Node, error) {
 				stmt.RefreshMethod = "INCREMENTAL"
 				p.advance()
 			default:
-				// tolerate unknown
+				// ASYNC / MANUAL / unknown — captured as the method string.
 				stmt.RefreshMethod = strings.ToUpper(p.cur.Str)
 				p.advance()
+			}
+			// StarRocks async scheduling tail (attached directly to REFRESH, no
+			// ON SCHEDULE): [START '(' string ')'] EVERY '(' INTERVAL n unit ')'.
+			if p.cur.Kind == kwSTART || p.cur.Kind == kwEVERY {
+				trigger, err := p.parseRefreshAsyncSchedule()
+				if err != nil {
+					return nil, err
+				}
+				stmt.RefreshTrigger = trigger
 			}
 
 		case kwON:
@@ -251,6 +266,64 @@ func (p *Parser) parseMTMVRefreshTrigger() (*ast.MTMVRefreshTrigger, error) {
 		// Tolerate unknown ON clause variant.
 		trigger.Loc.End = p.cur.Loc.End
 		p.advance()
+	}
+
+	return trigger, nil
+}
+
+// parseRefreshAsyncSchedule parses the StarRocks async-MV scheduling tail that
+// attaches directly to REFRESH [IMMEDIATE|DEFERRED] ASYNC (no ON SCHEDULE):
+//
+//	[START '(' string ')'] EVERY '(' INTERVAL n unit ')'
+//
+// This differs from the doris ON SCHEDULE form (bare EVERY <n unit>, STARTS
+// <string>) parsed by parseMTMVRefreshTrigger. cur is START or EVERY on entry.
+func (p *Parser) parseRefreshAsyncSchedule() (*ast.MTMVRefreshTrigger, error) {
+	trigger := &ast.MTMVRefreshTrigger{OnSchedule: true, Loc: p.cur.Loc}
+
+	// Optional START '(' string ')'
+	if p.cur.Kind == kwSTART {
+		p.advance() // consume START
+		if _, err := p.expect(int('(')); err != nil {
+			return nil, err
+		}
+		if p.cur.Kind != tokString {
+			return nil, p.syntaxErrorAtCur()
+		}
+		trigger.StartsAt = p.cur.Str
+		p.advance()
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
+		trigger.Loc.End = p.prev.Loc.End
+	}
+
+	// EVERY '(' INTERVAL n unit ')'
+	if p.cur.Kind == kwEVERY {
+		p.advance() // consume EVERY
+		if _, err := p.expect(int('(')); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwINTERVAL); err != nil {
+			return nil, err
+		}
+		if p.cur.Kind != tokInt {
+			return nil, p.syntaxErrorAtCur()
+		}
+		parts := []string{p.cur.Str}
+		p.advance()
+		// Unit keyword (DAY, HOUR, MINUTE, ...) or ident (MILLISECOND/MICROSECOND).
+		if p.cur.Kind < 700 && p.cur.Kind != tokIdent {
+			return nil, p.syntaxErrorAtCur()
+		}
+		parts = append(parts, strings.ToUpper(p.cur.Str))
+		p.advance()
+		trigger.Interval = strings.Join(parts, " ")
+		closeTok, err := p.expect(int(')'))
+		if err != nil {
+			return nil, err
+		}
+		trigger.Loc.End = closeTok.Loc.End
 	}
 
 	return trigger, nil
