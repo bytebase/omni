@@ -21,6 +21,8 @@ type InsertStmt struct {
 	TempPartition bool        // true if TEMPORARY PARTITION was specified
 	PartitionStar bool        // true if PARTITION(*) was used
 	Columns       []string    // optional column list; nil if absent
+	ByName        bool        // true for INSERT ... BY NAME (column-name matching)
+	FileTarget    []*Property // FILES(propertyList) target; nil for a table target (mutually exclusive with Target)
 	// Source: exactly one of Values or Query is non-nil.
 	Values [][]Node // VALUES rows: each inner slice is one row's expressions
 	Query  Node     // SELECT or WITH…SELECT (*SelectStmt); nil if VALUES form

@@ -341,6 +341,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Target != nil {
 			Walk(v, n.Target)
 		}
+		for _, prop := range n.FileTarget {
+			Walk(v, prop)
+		}
 		for _, row := range n.Values {
 			walkNodes(v, row)
 		}
