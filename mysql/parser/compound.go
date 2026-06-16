@@ -52,9 +52,8 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 		}
 		stmt.Stmts = append(stmt.Stmts, s)
 
-		// Consume optional semicolon between statements
-		if p.cur.Type == ';' {
-			p.advance()
+		if err := p.expectStoredProgramStmtTerminator(); err != nil {
+			return nil, err
 		}
 	}
 
@@ -532,12 +531,19 @@ func (p *Parser) parseCompoundStmtList() ([]nodes.Node, error) {
 			return nil, err
 		}
 		stmts = append(stmts, s)
-		// Consume optional semicolon between statements
-		if p.cur.Type == ';' {
-			p.advance()
+		if err := p.expectStoredProgramStmtTerminator(); err != nil {
+			return nil, err
 		}
 	}
 	return stmts, nil
+}
+
+func (p *Parser) expectStoredProgramStmtTerminator() error {
+	if p.cur.Type == ';' {
+		p.advance()
+		return nil
+	}
+	return p.syntaxErrorAtCur()
 }
 
 // parseIfStmt parses an IF/ELSEIF/ELSE/END IF compound statement.
@@ -1015,4 +1021,3 @@ func (p *Parser) parseCloseCursorStmt() (*nodes.CloseCursorStmt, error) {
 		Name: name,
 	}, nil
 }
-

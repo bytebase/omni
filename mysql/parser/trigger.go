@@ -52,12 +52,15 @@ func (p *Parser) parseCreateTriggerStmt() (*nodes.CreateTriggerStmt, error) {
 	}
 
 	// trigger_time: BEFORE | AFTER
-	if p.cur.Type == kwBEFORE {
+	switch p.cur.Type {
+	case kwBEFORE:
 		stmt.Timing = "BEFORE"
 		p.advance()
-	} else if p.cur.Type == kwAFTER {
+	case kwAFTER:
 		stmt.Timing = "AFTER"
 		p.advance()
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// Completion: after BEFORE/AFTER, offer INSERT/UPDATE/DELETE.
@@ -80,6 +83,8 @@ func (p *Parser) parseCreateTriggerStmt() (*nodes.CreateTriggerStmt, error) {
 	case kwDELETE:
 		stmt.Event = "DELETE"
 		p.advance()
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// ON tbl_name
@@ -101,12 +106,14 @@ func (p *Parser) parseCreateTriggerStmt() (*nodes.CreateTriggerStmt, error) {
 	stmt.Table = ref
 
 	// FOR EACH ROW
-	p.match(kwFOR)
-	if p.cur.Type == kwEACH {
-		p.advance()
+	if _, err := p.expect(kwFOR); err != nil {
+		return nil, err
 	}
-	if p.cur.Type == kwROW {
-		p.advance()
+	if _, err := p.expect(kwEACH); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwROW); err != nil {
+		return nil, err
 	}
 
 	// Optional trigger_order: { FOLLOWS | PRECEDES } other_trigger_name
@@ -180,8 +187,8 @@ func (p *Parser) parseCreateEventStmt() (*nodes.CreateEventStmt, error) {
 	if _, err := p.expect(kwON); err != nil {
 		return nil, err
 	}
-	if p.cur.Type == kwSCHEDULE {
-		p.advance()
+	if _, err := p.expect(kwSCHEDULE); err != nil {
+		return nil, err
 	}
 
 	// Completion: after ON SCHEDULE, offer AT/EVERY keywords.
@@ -208,8 +215,8 @@ func (p *Parser) parseCreateEventStmt() (*nodes.CreateEventStmt, error) {
 			} else {
 				stmt.OnCompletion = "PRESERVE"
 			}
-			if p.cur.Type == kwPRESERVE {
-				p.advance()
+			if _, err := p.expect(kwPRESERVE); err != nil {
+				return nil, err
 			}
 		}
 	}
@@ -234,15 +241,16 @@ func (p *Parser) parseCreateEventStmt() (*nodes.CreateEventStmt, error) {
 	// Optional: COMMENT 'string'
 	if p.cur.Type == kwCOMMENT {
 		p.advance()
-		if p.cur.Type == tokSCONST {
-			stmt.Comment = p.cur.Str
-			p.advance()
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		stmt.Comment = p.cur.Str
+		p.advance()
 	}
 
 	// DO event_body
-	if p.cur.Type == kwDO {
-		p.advance()
+	if _, err := p.expect(kwDO); err != nil {
+		return nil, err
 	}
 
 	// Event body — parse via the grammar.
