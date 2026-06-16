@@ -66,6 +66,7 @@ var _ Node = (*Assignment)(nil)
 //	    [FROM table_refs]
 //	    [WHERE condition]
 type UpdateStmt struct {
+	With        *WithClause   // optional leading CTE clause (StarRocks WITH … UPDATE); nil if absent
 	Target      *ObjectName   // table to update
 	TargetAlias string        // optional alias (AS alias or bare alias)
 	Assignments []*Assignment // SET clause assignments
@@ -91,6 +92,7 @@ var _ Node = (*UpdateStmt)(nil)
 //	    [USING table_refs]
 //	    [WHERE condition]
 type DeleteStmt struct {
+	With        *WithClause // optional leading CTE clause (StarRocks WITH … DELETE); nil if absent
 	Target      *ObjectName // table to delete from
 	TargetAlias string      // optional alias
 	Partition   []string    // optional PARTITION(p1, p2, ...) names
