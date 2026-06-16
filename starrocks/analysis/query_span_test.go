@@ -323,6 +323,74 @@ func TestGetQuerySpan_SelectItemSourceColumns(t *testing.T) {
 	}
 }
 
+func TestGetQuerySpan_InlineTable(t *testing.T) {
+	// A VALUES table constructor is literal-derived: it must parse and must NOT
+	// leak a phantom physical table (named "v" or "VALUES") into AccessTables.
+	span, err := GetQuerySpan("SELECT * FROM (VALUES (1,'a'),(2,'b')) AS v(id,name)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.AccessTables) != 0 {
+		t.Errorf("AccessTables = %+v, want empty (inline table is not physical)", span.AccessTables)
+	}
+	if len(span.Results) != 1 || span.Results[0].Name != "*" {
+		t.Errorf("Results = %+v, want [*]", span.Results)
+	}
+}
+
+func TestGetQuerySpan_InlineTableSubqueryRow(t *testing.T) {
+	// A subquery embedded in a VALUES row must still contribute its physical
+	// table to AccessTables (this is the discriminating lineage probe: it fails
+	// unless visitFromItem walks the inline table's row expressions).
+	span, err := GetQuerySpan("SELECT * FROM (VALUES ((SELECT a FROM inner_t))) AS v(x)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	if len(sigs) != 1 || sigs[0].Table != "inner_t" {
+		t.Errorf("AccessTables = %+v, want [inner_t]", sigs)
+	}
+}
+
+func TestGetQuerySpan_TableFunction(t *testing.T) {
+	// A table function (unnest) is not a physical table: only the left table t
+	// must appear in AccessTables — never a phantom table named "unnest"/"u".
+	span, err := GetQuerySpan("SELECT * FROM t, unnest(t.arr) AS u")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	if len(sigs) != 1 || sigs[0].Table != "t" {
+		t.Errorf("AccessTables = %+v, want [t] (no phantom unnest)", sigs)
+	}
+}
+
+func TestGetQuerySpan_LateralUnnest(t *testing.T) {
+	// LATERAL unnest correlated against t: t is the only physical table.
+	span, err := GetQuerySpan("SELECT t.id, u.unnest FROM t, LATERAL unnest(t.arr) AS u")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	if len(sigs) != 1 || sigs[0].Table != "t" {
+		t.Errorf("AccessTables = %+v, want [t] (no phantom unnest)", sigs)
+	}
+}
+
+func TestGetQuerySpan_LateralInParenList(t *testing.T) {
+	// LATERAL after a comma inside a parenthesized relation list must parse so
+	// lineage is not silently dropped: t and the unnest-arg subquery table both
+	// surface.
+	span, err := GetQuerySpan("SELECT * FROM (t, LATERAL unnest((SELECT arr FROM latn)) AS u)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	if !containsSig(sigs, tableSig{Table: "t"}) || !containsSig(sigs, tableSig{Table: "latn"}) {
+		t.Errorf("AccessTables = %+v, want both t and latn", sigs)
+	}
+}
+
 func TestGetQuerySpan_CTEShadowsTable(t *testing.T) {
 	// Even if a physical table exists elsewhere named "real_t", a CTE with
 	// the same name inside the WITH clause means the outer reference resolves

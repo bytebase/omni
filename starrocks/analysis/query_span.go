@@ -258,6 +258,10 @@ func (w *spanWalker) visitFromItem(node ast.Node) {
 	switch n := node.(type) {
 	case *ast.TableRef:
 		w.visitTableRef(n)
+	case *ast.InlineTable:
+		w.visitInlineTable(n)
+	case *ast.TableFunctionRef:
+		w.visitTableFunctionRef(n)
 	case *ast.JoinClause:
 		w.visitFromItem(n.Left)
 		w.visitFromItem(n.Right)
@@ -265,6 +269,32 @@ func (w *spanWalker) visitFromItem(node ast.Node) {
 			w.walkExpr(n.On)
 		}
 	}
+}
+
+// visitInlineTable handles a VALUES table constructor in FROM. It is a
+// literal-derived (non-physical) relation, so it contributes NO entry to
+// AccessTables; we still walk each row expression so any subquery embedded in
+// a row contributes its physical tables.
+func (w *spanWalker) visitInlineTable(n *ast.InlineTable) {
+	if n == nil {
+		return
+	}
+	for _, row := range n.Rows {
+		for _, e := range row {
+			w.walkExpr(e)
+		}
+	}
+}
+
+// visitTableFunctionRef handles a table-function relation (e.g. unnest(t.arr)).
+// The function itself is not a physical table, so it adds nothing to
+// AccessTables; we walk the call so its argument expressions — the unnested
+// source column and any embedded subquery — are captured for lineage.
+func (w *spanWalker) visitTableFunctionRef(n *ast.TableFunctionRef) {
+	if n == nil || n.Call == nil {
+		return
+	}
+	w.walkExpr(n.Call)
 }
 
 // visitTableRef handles a single TableRef from the FROM clause. The parser

@@ -132,6 +132,12 @@ const (
 	// T_TableRef is the tag for *TableRef (table reference in FROM clause).
 	T_TableRef
 
+	// T_InlineTable is the tag for *InlineTable (VALUES table constructor in FROM).
+	T_InlineTable
+
+	// T_TableFunctionRef is the tag for *TableFunctionRef (table function in FROM).
+	T_TableFunctionRef
+
 	// T_JoinClause is the tag for *JoinClause (JOIN expression in FROM).
 	T_JoinClause
 
@@ -678,6 +684,10 @@ func (t NodeTag) String() string {
 		return "SelectItem"
 	case T_TableRef:
 		return "TableRef"
+	case T_InlineTable:
+		return "InlineTable"
+	case T_TableFunctionRef:
+		return "TableFunctionRef"
 	case T_JoinClause:
 		return "JoinClause"
 	case T_SetOpStmt:
