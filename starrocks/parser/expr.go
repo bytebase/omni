@@ -255,6 +255,22 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
 		}, nil
 
+	case kwBINARY:
+		// BINARY <expr> cast-to-binary operator. StarRocks places it at the top
+		// of the expression rule (lowest precedence), so the operand spans the
+		// whole following boolean expression: BINARY name = 'abc' => BINARY(name = 'abc').
+		start := p.cur.Loc
+		p.advance()
+		operand, err := p.parseExprPrec(bpNone + 1)
+		if err != nil {
+			return nil, err
+		}
+		return &ast.UnaryExpr{
+			Op:   ast.UnaryBinary,
+			Expr: operand,
+			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
+		}, nil
+
 	case kwEXISTS:
 		return p.parseExistsExpr()
 
@@ -312,6 +328,22 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 		tok := p.advance()
 		return &ast.Literal{
 			Kind:  ast.LitString,
+			Value: tok.Str,
+			Loc:   tok.Loc,
+		}, nil
+
+	case tokHexLiteral:
+		tok := p.advance()
+		return &ast.Literal{
+			Kind:  ast.LitHex,
+			Value: tok.Str,
+			Loc:   tok.Loc,
+		}, nil
+
+	case tokBitLiteral:
+		tok := p.advance()
+		return &ast.Literal{
+			Kind:  ast.LitBit,
 			Value: tok.Str,
 			Loc:   tok.Loc,
 		}, nil

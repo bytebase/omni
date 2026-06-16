@@ -52,6 +52,22 @@ func TestPR4bParity(t *testing.T) {
 			"SELECT FIRST_VALUE(v IGNORE) OVER (ORDER BY ts) FROM t",
 			false,
 		},
+
+		// Binary/hex literals + the BINARY operator — accept probes.
+		{"hex_literal_upper", "SELECT X'4142' FROM t", true},
+		{"hex_literal_lower", "SELECT x'ff' FROM t", true},
+		{"bit_literal", "SELECT B'101' FROM t", true},
+		{"hex_integer_0x", "SELECT 0x4142 FROM t", true},
+		{"binary_operator_select", "SELECT BINARY col1 FROM t", true},
+		{"binary_operator_where", "SELECT * FROM t WHERE BINARY name = 'abc'", true},
+		{"binary_operator_lowprec", "SELECT BINARY name = 'abc' FROM t", true},
+		// Known divergences (documented, left as-is per skip-prune):
+		//   - X'zz' (non-hex / odd-length content): omni over-accepts — the lexer
+		//     scans the hex body verbatim without validating it; StarRocks rejects.
+		//   - SELECT BINARY FROM t (BINARY as a bare column name): omni under-accepts
+		//     — BINARY is reserved in omni and handled as the unary operator, while
+		//     StarRocks treats it as a nonReserved identifier here. Pre-existing
+		//     (omni rejected bare BINARY before this feature too), not a regression.
 	}
 
 	for _, tc := range cases {

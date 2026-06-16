@@ -98,6 +98,7 @@ const (
 	UnaryPlus                   // +
 	UnaryBitNot                 // ~
 	UnaryNot                    // NOT
+	UnaryBinary                 // BINARY (cast-to-binary operator)
 )
 
 // String returns the SQL text form of the unary operator.
@@ -111,6 +112,8 @@ func (op UnaryOp) String() string {
 		return "~"
 	case UnaryNot:
 		return "NOT"
+	case UnaryBinary:
+		return "BINARY"
 	default:
 		return "?"
 	}
@@ -126,6 +129,8 @@ const (
 	LitBool                   // TRUE or FALSE
 	LitNull                   // NULL
 	LitKeyword                // keyword used as literal value, e.g. DEFAULT
+	LitHex                    // hex-string literal, e.g. X'4142'
+	LitBit                    // bit-string literal, e.g. B'101'
 )
 
 // CaseKind classifies a CASE expression as simple or searched.
