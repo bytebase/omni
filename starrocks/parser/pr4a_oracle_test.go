@@ -72,6 +72,81 @@ func TestPR4aParity(t *testing.T) {
 			"VALUES (1,'a'),(2,'b')",
 			false,
 		},
+
+		// LATERAL + table function (unnest) — accept probes.
+		{
+			"lateral_unnest_comma",
+			"SELECT t.id, u.unnest FROM t, LATERAL unnest(t.arr) AS u",
+			true,
+		},
+		{
+			"lateral_unnest_join_inner",
+			"SELECT * FROM t INNER JOIN LATERAL unnest(t.tags) AS g ON TRUE",
+			true,
+		},
+		{
+			"lateral_unnest_join_left",
+			"SELECT * FROM t LEFT JOIN LATERAL unnest(t.arr) AS u ON TRUE",
+			true,
+		},
+		{
+			"lateral_unnest_cross",
+			"SELECT * FROM t CROSS JOIN LATERAL unnest(t.arr) AS u",
+			true,
+		},
+		{
+			"lateral_unnest_multi_arg",
+			"SELECT * FROM t, LATERAL unnest(t.arr, t.tags) AS u",
+			true,
+		},
+		{
+			"lateral_unnest_col_alias",
+			"SELECT * FROM t, LATERAL unnest(t.arr) AS u(col)",
+			true,
+		},
+		{
+			"lateral_unnest_no_as",
+			"SELECT * FROM t, LATERAL unnest(t.arr) u",
+			true,
+		},
+		{
+			"lateral_subquery", // LATERAL applies to any relation primary, not just functions
+			"SELECT * FROM t, LATERAL (SELECT 1) x",
+			true,
+		},
+		{
+			"table_function_no_lateral", // unnest without LATERAL still parses (semantic-only error)
+			"SELECT * FROM t, unnest(t.arr) AS u",
+			true,
+		},
+		{
+			"lateral_unnest_chained",
+			"SELECT * FROM t, LATERAL unnest(t.arr) AS u, LATERAL unnest(t.tags) AS v",
+			true,
+		},
+		{
+			"lateral_unnest_in_paren_list", // LATERAL after a comma inside ( relations )
+			"SELECT * FROM (t, LATERAL unnest(t.arr) AS u)",
+			true,
+		},
+		{
+			"lateral_no_source", // LATERAL with nothing after it fails inside the construct
+			"SELECT * FROM t, LATERAL",
+			false,
+		},
+		// Known accepted divergences (omni over-accepts vs StarRocks 3.4), left
+		// as-is per the skip-prune policy — no Bytebase consumer needs StarRocks
+		// rejection, and forcing them would regress shared behaviour:
+		//   - unnest() (zero-arg): StarRocks syntax-rejects, but omni must keep
+		//     parsing zero-arg table functions like FRONTENDS()/BACKENDS() that
+		//     the inherited corpus relies on.
+		//   - unnest(t.arr) WITH ORDINALITY ...: StarRocks rejects WITH ORDINALITY;
+		//     omni tolerates the trailing tokens (no end-of-input enforcement, a
+		//     parser-wide property out of scope for PR4).
+		// Unimplemented adjacent relation-primary arms (StarRocks parse-accepts,
+		// omni rejects — deferred, not covered by PR4a): #normalizedTableFunction
+		// TABLE(func(args)) and the #tableAtom decorators (PIVOT, queryPeriod,
+		// tabletList). The #fileTableFunction FILES(...) form is already handled.
 	}
 
 	for _, tc := range cases {

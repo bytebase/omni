@@ -84,6 +84,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *InlineTable:
 		return v.Loc
+	case *TableFunctionRef:
+		return v.Loc
 	case *JoinClause:
 		return v.Loc
 	case *SetOpStmt:

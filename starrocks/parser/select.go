@@ -467,7 +467,9 @@ func (p *Parser) parseFromClause() ([]ast.Node, error) {
 
 	for p.cur.Kind == int(',') {
 		p.advance() // consume ','
-		item, err = p.parseFromItem()
+		// A comma-joined relation may carry a LATERAL prefix (relation list:
+		// relation (',' LATERAL? relation)*); the join chain attaches after it.
+		item, err = p.parseCommaRelation()
 		if err != nil {
 			return nil, err
 		}
@@ -489,8 +491,8 @@ func (p *Parser) parseFromItem() (ast.Node, error) {
 
 // parsePrimarySource dispatches on the current token to parse a single
 // FROM source:
-//   - ( → subquery or parenthesized from-item
-//   - otherwise → parseTableRef (ObjectName + alias)
+//   - ( → VALUES inline-table, subquery, or parenthesized from-item
+//   - otherwise → a table reference or a table function (ObjectName + alias)
 func (p *Parser) parsePrimarySource() (ast.Node, error) {
 	startLoc := p.cur.Loc
 
@@ -529,10 +531,11 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		// Implicit cross-join: comma-separated table list inside parens.
+		// Implicit cross-join: comma-separated table list inside parens. Each
+		// continuation may carry a LATERAL prefix, just like the top-level list.
 		for p.cur.Kind == int(',') {
 			p.advance() // consume ','
-			right, err := p.parseFromItem()
+			right, err := p.parseCommaRelation()
 			if err != nil {
 				return nil, err
 			}
@@ -549,29 +552,102 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 		return inner, nil
 	}
 
-	// Default: simple table reference (ObjectName + alias)
-	return p.parseTableRef()
+	// Default: a table reference or a table function.
+	return p.parseTableOrFunction()
 }
 
-// parseTableRef parses one simple table reference: object_name [AS alias].
-func (p *Parser) parseTableRef() (*ast.TableRef, error) {
+// parseLateralPrimary parses an optional LATERAL prefix followed by a relation
+// primary. LATERAL marks the relation as able to reference columns from the
+// preceding FROM items; StarRocks allows it before any relation primary, most
+// commonly a table function (unnest). It is valid only after a comma or a JOIN
+// keyword — never on the first FROM item — so it is consumed here rather than
+// in parsePrimarySource.
+func (p *Parser) parseLateralPrimary() (ast.Node, error) {
+	lateral := false
+	lateralStart := 0
+	if p.cur.Kind == kwLATERAL {
+		lateralStart = p.cur.Loc.Start
+		p.advance() // consume LATERAL
+		lateral = true
+	}
+	src, err := p.parsePrimarySource()
+	if err != nil {
+		return nil, err
+	}
+	if lateral {
+		if tf, ok := src.(*ast.TableFunctionRef); ok {
+			tf.Lateral = true
+			tf.Loc.Start = lateralStart // include the LATERAL keyword in the span
+		}
+	}
+	return src, nil
+}
+
+// parseCommaRelation parses a relation following a comma in a FROM list: an
+// optional LATERAL prefix, a primary source, then its join chain. Shared by the
+// top-level FROM list and the parenthesized relation list so the two paths
+// cannot drift on LATERAL handling.
+func (p *Parser) parseCommaRelation() (ast.Node, error) {
+	primary, err := p.parseLateralPrimary()
+	if err != nil {
+		return nil, err
+	}
+	return p.parseJoinChain(primary)
+}
+
+// parseTableOrFunction parses a FROM relation primary that is either a plain
+// table reference (object_name [AS alias]) or a table function
+// (func(args) [AS? alias [(cols)]], e.g. unnest(t.arr) AS u).
+func (p *Parser) parseTableOrFunction() (ast.Node, error) {
 	name, err := p.parseMultipartIdentifier()
 	if err != nil {
 		return nil, err
+	}
+
+	// Table function: the name is immediately followed by an argument list.
+	if p.cur.Kind == int('(') {
+		return p.parseTableFunction(name)
 	}
 
 	ref := &ast.TableRef{
 		Name: name,
 		Loc:  ast.Loc{Start: name.Loc.Start},
 	}
-
-	alias := p.parseOptionalAlias()
-	if alias != "" {
+	if alias := p.parseOptionalAlias(); alias != "" {
 		ref.Alias = alias
 	}
-
 	ref.Loc.End = p.prev.Loc.End
 	return ref, nil
+}
+
+// parseTableFunction parses a table-function relation primary:
+//
+//	func '(' args ')' [AS? alias [(col, ...)]]
+//
+// The multipart name has been parsed; the current token is '('. It reuses
+// parseFuncCall so the argument expressions are captured as a FuncCallExpr and
+// stay walkable for lineage.
+func (p *Parser) parseTableFunction(name *ast.ObjectName) (ast.Node, error) {
+	call, err := p.parseFuncCall(name)
+	if err != nil {
+		return nil, err
+	}
+	tf := &ast.TableFunctionRef{
+		Call: call,
+		Loc:  ast.Loc{Start: name.Loc.Start},
+	}
+	if alias := p.parseOptionalAlias(); alias != "" {
+		tf.Alias = alias
+		if p.cur.Kind == int('(') {
+			cols, err := p.parseColumnAliasList()
+			if err != nil {
+				return nil, err
+			}
+			tf.ColumnAliases = cols
+		}
+	}
+	tf.Loc.End = p.prev.Loc.End
+	return tf, nil
 }
 
 // parseInlineTable parses a VALUES table constructor in FROM position:
@@ -710,7 +786,9 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 		// Skip optional Doris execution hints: [shuffle], [broadcast], etc.
 		hints := p.parseJoinHints()
 
-		right, err := p.parsePrimarySource()
+		// The right-hand relation may carry a LATERAL prefix
+		// (joinRelation: ... LATERAL? rightRelation).
+		right, err := p.parseLateralPrimary()
 		if err != nil {
 			return nil, err
 		}

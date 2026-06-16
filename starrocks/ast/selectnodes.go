@@ -139,6 +139,29 @@ func (n *InlineTable) Tag() NodeTag { return T_InlineTable }
 // Compile-time assertion that *InlineTable satisfies Node.
 var _ Node = (*InlineTable)(nil)
 
+// TableFunctionRef represents a table-function relation primary in the FROM
+// clause (StarRocks's #tableFunction relation primary):
+//
+//	func(args) [AS? alias [(cols)]]      e.g. unnest(t.arr) AS u(elem)
+//
+// The optional LATERAL prefix (StarRocks allows LATERAL before any relation
+// primary; it is most common before a table function such as unnest) is
+// recorded in Lateral. The call reuses FuncCallExpr so the argument
+// expressions stay walkable for lineage. It references no physical table.
+type TableFunctionRef struct {
+	Call          *FuncCallExpr // the table function call, e.g. unnest(t.arr)
+	Alias         string        // optional table alias; empty if absent
+	ColumnAliases []string      // optional column-alias list; nil if absent
+	Lateral       bool          // LATERAL prefix present
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *TableFunctionRef) Tag() NodeTag { return T_TableFunctionRef }
+
+// Compile-time assertion that *TableFunctionRef satisfies Node.
+var _ Node = (*TableFunctionRef)(nil)
+
 // ---------------------------------------------------------------------------
 // JOIN clause (basic structure for T1.4; T1.5 will flesh out)
 // ---------------------------------------------------------------------------
