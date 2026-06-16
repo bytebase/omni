@@ -72,7 +72,7 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 		}
 		stmt.Target = target
 
-		// Optional PARTITION(p1, p2, ...) or PARTITION(*)
+		// Optional PARTITION(p1, p2, ...) or PARTITION(*) — table targets only.
 		if p.cur.Kind == kwPARTITION {
 			partitions, star, err := p.parseInsertPartition()
 			if err != nil {
@@ -81,10 +81,16 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 			stmt.Partition = partitions
 			stmt.PartitionStar = star
 		}
+	}
 
-		// Optional WITH LABEL label_name (WITH not followed by LABEL is left for
-		// the query source, i.e. WITH ... SELECT ...).
-		if p.cur.Kind == kwWITH && p.peekNext().Kind == kwLABEL {
+	// Post-target modifiers in any order (grammar: insertLabelOrColumnAliases*).
+	// WITH LABEL and BY NAME apply to both table and FILES targets; the column
+	// list is table-only. BY NAME and the column list are mutually exclusive.
+	// (WITH not followed by LABEL is left for the query source: WITH ... SELECT.)
+modifiers:
+	for {
+		switch {
+		case p.cur.Kind == kwWITH && p.peekNext().Kind == kwLABEL:
 			p.advance() // consume WITH
 			p.advance() // consume LABEL
 			label, _, err := p.parseIdentifier()
@@ -92,24 +98,24 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 				return nil, err
 			}
 			stmt.Label = label
-		}
-
-		// Optional BY NAME (StarRocks column-name-matched insert).
-		if p.cur.Kind == kwBY && p.peekNext().Kind == kwNAME {
+		case p.cur.Kind == kwBY && p.peekNext().Kind == kwNAME:
+			if stmt.Columns != nil {
+				return nil, p.syntaxErrorAtCur() // BY NAME and a column list are mutually exclusive
+			}
 			p.advance() // consume BY
 			p.advance() // consume NAME
 			stmt.ByName = true
-		}
-
-		// Optional column list: (col1, col2, ...).
-		if p.cur.Kind == int('(') {
+		case p.cur.Kind == int('(') && stmt.FileTarget == nil && !stmt.ByName:
 			cols, isColList, err := p.tryParseColumnList()
 			if err != nil {
 				return nil, err
 			}
-			if isColList {
-				stmt.Columns = cols
+			if !isColList {
+				break modifiers
 			}
+			stmt.Columns = cols
+		default:
+			break modifiers
 		}
 	}
 

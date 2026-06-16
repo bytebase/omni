@@ -30,6 +30,30 @@ func TestInsertByName(t *testing.T) {
 	}
 }
 
+// Modifiers may appear in any order (grammar: insertLabelOrColumnAliases*).
+func TestInsertByNameThenWithLabel(t *testing.T) {
+	stmt := mustParseInsert(t, "INSERT INTO t BY NAME WITH LABEL lbl SELECT a, b FROM s")
+	if !stmt.ByName || stmt.Label != "lbl" {
+		t.Errorf("ByName=%v Label=%q, want true/lbl", stmt.ByName, stmt.Label)
+	}
+}
+
+// BY NAME and a column list are mutually exclusive — must reject.
+func TestInsertByNameWithColumnListRejected(t *testing.T) {
+	_, errs := Parse("INSERT INTO t BY NAME (a, b) SELECT a, b FROM s")
+	if len(errs) == 0 {
+		t.Fatal("expected a parse error for BY NAME + column list, got none")
+	}
+}
+
+// WITH LABEL / BY NAME apply to FILES targets too.
+func TestInsertFilesWithLabel(t *testing.T) {
+	stmt := mustParseInsert(t, "INSERT INTO FILES('path'='s3://x') WITH LABEL lbl SELECT a FROM s")
+	if len(stmt.FileTarget) != 1 || stmt.Label != "lbl" {
+		t.Errorf("FileTarget=%d Label=%q, want 1/lbl", len(stmt.FileTarget), stmt.Label)
+	}
+}
+
 func TestInsertIntoFiles(t *testing.T) {
 	stmt := mustParseInsert(t, "INSERT INTO FILES('path'='s3://x', 'format'='parquet') SELECT a FROM s")
 	if len(stmt.FileTarget) != 2 {

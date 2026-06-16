@@ -101,7 +101,8 @@ func (p *Parser) parseCreateMTMV(startLoc ast.Loc) (ast.Node, error) {
 			}
 			// StarRocks async scheduling tail (attached directly to REFRESH, no
 			// ON SCHEDULE): [START '(' string ')'] EVERY '(' INTERVAL n unit ')'.
-			if p.cur.Kind == kwSTART || p.cur.Kind == kwEVERY {
+			// Only the ASYNC method takes this tail — MANUAL/INCREMENTAL do not.
+			if stmt.RefreshMethod == "ASYNC" && (p.cur.Kind == kwSTART || p.cur.Kind == kwEVERY) {
 				trigger, err := p.parseRefreshAsyncSchedule()
 				if err != nil {
 					return nil, err
@@ -298,33 +299,34 @@ func (p *Parser) parseRefreshAsyncSchedule() (*ast.MTMVRefreshTrigger, error) {
 		trigger.Loc.End = p.prev.Loc.End
 	}
 
-	// EVERY '(' INTERVAL n unit ')'
-	if p.cur.Kind == kwEVERY {
-		p.advance() // consume EVERY
-		if _, err := p.expect(int('(')); err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(kwINTERVAL); err != nil {
-			return nil, err
-		}
-		if p.cur.Kind != tokInt {
-			return nil, p.syntaxErrorAtCur()
-		}
-		parts := []string{p.cur.Str}
-		p.advance()
-		// Unit keyword (DAY, HOUR, MINUTE, ...) or ident (MILLISECOND/MICROSECOND).
-		if p.cur.Kind < 700 && p.cur.Kind != tokIdent {
-			return nil, p.syntaxErrorAtCur()
-		}
-		parts = append(parts, strings.ToUpper(p.cur.Str))
-		p.advance()
-		trigger.Interval = strings.Join(parts, " ")
-		closeTok, err := p.expect(int(')'))
-		if err != nil {
-			return nil, err
-		}
-		trigger.Loc.End = closeTok.Loc.End
+	// EVERY '(' INTERVAL n unit ')' — mandatory once the async tail is present
+	// (the grammar arm is `(START('...'))? EVERY '(' interval ')'`).
+	if _, err := p.expect(kwEVERY); err != nil {
+		return nil, err
 	}
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwINTERVAL); err != nil {
+		return nil, err
+	}
+	if p.cur.Kind != tokInt {
+		return nil, p.syntaxErrorAtCur()
+	}
+	parts := []string{p.cur.Str}
+	p.advance()
+	// Unit keyword (DAY, HOUR, MINUTE, ...) or ident (MILLISECOND/MICROSECOND).
+	if p.cur.Kind < 700 && p.cur.Kind != tokIdent {
+		return nil, p.syntaxErrorAtCur()
+	}
+	parts = append(parts, strings.ToUpper(p.cur.Str))
+	p.advance()
+	trigger.Interval = strings.Join(parts, " ")
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	trigger.Loc.End = closeTok.Loc.End
 
 	return trigger, nil
 }
