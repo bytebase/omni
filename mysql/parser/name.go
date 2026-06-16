@@ -533,6 +533,10 @@ func (p *Parser) parseIdent() (string, int, error) {
 		tok := p.advance()
 		return tok.Str, tok.Loc, nil
 	}
+	if p.isDoubleQuotedStringToken(p.cur) {
+		tok := p.advance()
+		return tok.Str, tok.Loc, nil
+	}
 	// Accept non-reserved keyword tokens as identifiers.
 	if p.cur.Type >= 700 && !isReserved(p.cur.Type) {
 		tok := p.advance()
@@ -545,6 +549,14 @@ func (p *Parser) parseIdent() (string, int, error) {
 		Message:  "expected identifier",
 		Position: p.cur.Loc,
 	}
+}
+
+func (p *Parser) isDoubleQuotedStringToken(tok Token) bool {
+	if tok.Type != tokSCONST {
+		return false
+	}
+	offset := tok.Loc - p.lexer.baseOffset
+	return offset >= 0 && offset < len(p.lexer.input) && p.lexer.input[offset] == '"'
 }
 
 // parseIdentOrText parses MySQL's `ident_or_text` grammar rule: either an

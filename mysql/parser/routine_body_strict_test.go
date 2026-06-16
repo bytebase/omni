@@ -59,3 +59,27 @@ func TestTriggerAndEventBodyRequiredKeywords(t *testing.T) {
 		})
 	}
 }
+
+func TestRoutineBodyANSIQuotesIdentifiers(t *testing.T) {
+	valid := []string{
+		`CREATE PROCEDURE "p_ansi"() BEGIN SELECT 1; END`,
+		`CREATE FUNCTION "f_ansi"(a INT) RETURNS INT DETERMINISTIC RETURN a + 1`,
+		`CREATE TRIGGER "tr_ansi" BEFORE INSERT ON "t_ansi" FOR EACH ROW SET NEW.v = 1`,
+		`CREATE DEFINER="root"@"%:%" EVENT "ev_ansi" ON SCHEDULE EVERY 15 MINUTE STARTS '2026-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO DELETE FROM t WHERE expired_at < NOW()`,
+	}
+	for _, sql := range valid {
+		t.Run("valid/"+sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+
+	invalid := []string{
+		`CREATE PROCEDURE 'p_string'() BEGIN SELECT 1; END`,
+		`CREATE EVENT 'ev_string' ON SCHEDULE EVERY 1 HOUR DO SELECT 1`,
+	}
+	for _, sql := range invalid {
+		t.Run("invalid/"+sql, func(t *testing.T) {
+			ParseExpectError(t, sql)
+		})
+	}
+}
