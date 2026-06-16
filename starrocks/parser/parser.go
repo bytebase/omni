@@ -432,7 +432,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		}
 		return p.parseSetOpTail(left)
 	case kwWITH:
-		return p.parseWithSelect()
+		return p.parseWithStatement()
 	case kwINSERT:
 		return p.parseInsert()
 	case kwUPDATE:

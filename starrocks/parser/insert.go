@@ -27,13 +27,13 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 		Loc: ast.Loc{Start: insertTok.Loc.Start},
 	}
 
-	// OVERWRITE TABLE or INTO
+	// OVERWRITE [TABLE] or INTO. doris requires TABLE after OVERWRITE; StarRocks
+	// omits it (INSERT OVERWRITE t) — accept both (additive).
 	if p.cur.Kind == kwOVERWRITE {
 		p.advance() // consume OVERWRITE
 		stmt.Overwrite = true
-		// TABLE keyword is required after OVERWRITE
-		if _, err := p.expect(kwTABLE); err != nil {
-			return nil, err
+		if p.cur.Kind == kwTABLE {
+			p.advance() // optional TABLE
 		}
 	} else if p.cur.Kind == kwINTO {
 		p.advance() // consume INTO
@@ -51,28 +51,46 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 	// but in Doris the order is: INSERT INTO [TEMP] table [PARTITION(...)] [WITH LABEL] [(cols)] source)
 	// According to the legacy corpus, PARTITION comes after table name.
 	// Parse table name first.
-	target, err := p.parseMultipartIdentifier()
-	if err != nil {
-		return nil, err
+	// Target: a FILES(propertyList) sink (StarRocks) or a table name. FILES is
+	// not a keyword, and `t (cols)` looks similar, so speculatively parse the
+	// property list and fall back to the table-name path if it isn't one.
+	if isIdentText(p, "files") && p.peekNext().Kind == int('(') {
+		saved := p.save()
+		p.advance() // consume FILES
+		props, perr := p.parsePropertyList()
+		if perr == nil {
+			stmt.FileTarget = props
+		} else {
+			p.restore(saved)
+		}
 	}
-	stmt.Target = target
 
-	// Optional PARTITION(p1, p2, ...) or PARTITION(*)
-	if p.cur.Kind == kwPARTITION {
-		partitions, star, err := p.parseInsertPartition()
+	if stmt.FileTarget == nil {
+		target, err := p.parseMultipartIdentifier()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Partition = partitions
-		stmt.PartitionStar = star
+		stmt.Target = target
+
+		// Optional PARTITION(p1, p2, ...) or PARTITION(*) — table targets only.
+		if p.cur.Kind == kwPARTITION {
+			partitions, star, err := p.parseInsertPartition()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Partition = partitions
+			stmt.PartitionStar = star
+		}
 	}
 
-	// Optional WITH LABEL label_name
-	if p.cur.Kind == kwWITH {
-		// Peek ahead: WITH LABEL means insert label; WITH ident AS means CTE.
-		// We need to disambiguate: if WITH is followed by LABEL, it's a label clause.
-		// Otherwise leave it for the query source parser.
-		if p.peekNext().Kind == kwLABEL {
+	// Post-target modifiers in any order (grammar: insertLabelOrColumnAliases*).
+	// WITH LABEL and BY NAME apply to both table and FILES targets; the column
+	// list is table-only. BY NAME and the column list are mutually exclusive.
+	// (WITH not followed by LABEL is left for the query source: WITH ... SELECT.)
+modifiers:
+	for {
+		switch {
+		case p.cur.Kind == kwWITH && p.peekNext().Kind == kwLABEL:
 			p.advance() // consume WITH
 			p.advance() // consume LABEL
 			label, _, err := p.parseIdentifier()
@@ -80,28 +98,24 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 				return nil, err
 			}
 			stmt.Label = label
-		}
-		// If WITH is NOT followed by LABEL, fall through — it will be parsed as
-		// part of the query source (WITH ... SELECT ...).
-	}
-
-	// Optional column list: (col1, col2, ...)
-	// Appears only when the current token is '(' and it's NOT the start of VALUES
-	// or a SELECT. We detect this by checking what follows the closing ')'.
-	// Simpler heuristic: if cur='(' and peekNext() is an identifier (not SELECT/
-	// WITH/VALUES keyword), it's a column list.
-	if p.cur.Kind == int('(') {
-		// Peek inside to determine if this is a column list or a VALUES row.
-		// A column list always has identifiers; a VALUES row may have expressions
-		// but the distinction here is that column lists appear before the source.
-		// Heuristic: if what we see is '(' <ident/keyword_as_ident> [, ...] ')'
-		// followed by VALUES or SELECT/WITH, it's a column list.
-		cols, isColList, err := p.tryParseColumnList()
-		if err != nil {
-			return nil, err
-		}
-		if isColList {
+		case p.cur.Kind == kwBY && p.peekNext().Kind == kwNAME:
+			if stmt.Columns != nil {
+				return nil, p.syntaxErrorAtCur() // BY NAME and a column list are mutually exclusive
+			}
+			p.advance() // consume BY
+			p.advance() // consume NAME
+			stmt.ByName = true
+		case p.cur.Kind == int('(') && stmt.FileTarget == nil && !stmt.ByName:
+			cols, isColList, err := p.tryParseColumnList()
+			if err != nil {
+				return nil, err
+			}
+			if !isColList {
+				break modifiers
+			}
 			stmt.Columns = cols
+		default:
+			break modifiers
 		}
 	}
 
