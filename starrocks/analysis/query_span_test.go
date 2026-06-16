@@ -391,6 +391,49 @@ func TestGetQuerySpan_LateralInParenList(t *testing.T) {
 	}
 }
 
+func TestGetQuerySpan_BinaryOperator(t *testing.T) {
+	// BINARY is a unary cast operator: the inner column must flow to lineage, a
+	// hex/bit literal contributes no source column.
+	span, err := GetQuerySpan("SELECT BINARY col1 AS c, X'4142' AS h FROM t")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if !containsSig(toSigs(span.AccessTables), tableSig{Table: "t"}) {
+		t.Errorf("AccessTables = %+v, want t", span.AccessTables)
+	}
+	if len(span.Results) != 2 {
+		t.Fatalf("Results len = %d, want 2 (%+v)", len(span.Results), span.Results)
+	}
+	if got := span.Results[0].SourceColumns; len(got) != 1 || got[0].Column != "col1" {
+		t.Errorf("Results[0].SourceColumns = %+v, want [col1]", got)
+	}
+	if got := span.Results[1].SourceColumns; len(got) != 0 {
+		t.Errorf("Results[1].SourceColumns = %+v, want empty (hex literal)", got)
+	}
+}
+
+func TestGetQuerySpan_CollectionLiteral(t *testing.T) {
+	// Column refs inside a map/array literal's value expressions must flow to the
+	// output column's SourceColumns (a literal key contributes nothing).
+	span, err := GetQuerySpan("SELECT map<varchar,int>{'x':a_col} AS m, array<int>[b_col, c_col] AS arr FROM t")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if !containsSig(toSigs(span.AccessTables), tableSig{Table: "t"}) {
+		t.Errorf("AccessTables = %+v, want t", span.AccessTables)
+	}
+	if len(span.Results) != 2 {
+		t.Fatalf("Results len = %d, want 2 (%+v)", len(span.Results), span.Results)
+	}
+	if got := span.Results[0].SourceColumns; len(got) != 1 || got[0].Column != "a_col" {
+		t.Errorf("map literal SourceColumns = %+v, want [a_col]", got)
+	}
+	gotArr := span.Results[1].SourceColumns
+	if len(gotArr) != 2 || gotArr[0].Column != "b_col" || gotArr[1].Column != "c_col" {
+		t.Errorf("array literal SourceColumns = %+v, want [b_col c_col]", gotArr)
+	}
+}
+
 func TestGetQuerySpan_CTEShadowsTable(t *testing.T) {
 	// Even if a physical table exists elsewhere named "real_t", a CTE with
 	// the same name inside the WITH clause means the outer reference resolves

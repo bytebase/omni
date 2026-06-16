@@ -101,6 +101,15 @@ const (
 	// T_Literal is the tag for *Literal (numeric, string, boolean, NULL).
 	T_Literal
 
+	// T_MapLiteral is the tag for *MapLiteral (map<k,v>{...} / MAP{...}).
+	T_MapLiteral
+
+	// T_MapEntry is the tag for *MapEntry (one key:value pair in a MapLiteral).
+	T_MapEntry
+
+	// T_ArrayLiteral is the tag for *ArrayLiteral (array<t>[...] / [...]).
+	T_ArrayLiteral
+
 	// T_ParenExpr is the tag for *ParenExpr ((expr)).
 	T_ParenExpr
 
@@ -666,6 +675,12 @@ func (t NodeTag) String() string {
 		return "ColumnRef"
 	case T_Literal:
 		return "Literal"
+	case T_MapLiteral:
+		return "MapLiteral"
+	case T_MapEntry:
+		return "MapEntry"
+	case T_ArrayLiteral:
+		return "ArrayLiteral"
 	case T_ParenExpr:
 		return "ParenExpr"
 	case T_ExistsExpr:

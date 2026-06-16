@@ -98,6 +98,7 @@ const (
 	UnaryPlus                   // +
 	UnaryBitNot                 // ~
 	UnaryNot                    // NOT
+	UnaryBinary                 // BINARY (cast-to-binary operator)
 )
 
 // String returns the SQL text form of the unary operator.
@@ -111,6 +112,8 @@ func (op UnaryOp) String() string {
 		return "~"
 	case UnaryNot:
 		return "NOT"
+	case UnaryBinary:
+		return "BINARY"
 	default:
 		return "?"
 	}
@@ -126,6 +129,8 @@ const (
 	LitBool                   // TRUE or FALSE
 	LitNull                   // NULL
 	LitKeyword                // keyword used as literal value, e.g. DEFAULT
+	LitHex                    // hex-string literal, e.g. X'4142'
+	LitBit                    // bit-string literal, e.g. B'101'
 )
 
 // CaseKind classifies a CASE expression as simple or searched.
@@ -233,6 +238,7 @@ type FuncCallExpr struct {
 	Star     bool   // COUNT(*)
 	OrderBy  []*OrderByItem // optional ORDER BY in aggregate (GROUP_CONCAT)
 	Separator string // optional SEPARATOR value for GROUP_CONCAT
+	IgnoreNulls bool // IGNORE NULLS null-treatment (FIRST_VALUE/LAST_VALUE/LEAD/LAG)
 	Over     *WindowSpec // optional OVER (...) window specification
 	Loc      Loc
 }
@@ -341,6 +347,51 @@ type Literal struct {
 func (n *Literal) Tag() NodeTag { return T_Literal }
 
 var _ Node = (*Literal)(nil)
+
+// MapLiteral represents a map constructor literal:
+//
+//	map<k,v>{ key:val, ... }   (typed)
+//	MAP{ key:val, ... }        (untyped)
+//
+// MapType holds the map<k,v> type for the typed form and is nil for the
+// untyped MAP{...} form. The entries may be empty.
+type MapLiteral struct {
+	MapType *TypeName // map<k,v> type for the typed form; nil for MAP{...}
+	Entries []*MapEntry
+	Loc     Loc
+}
+
+func (n *MapLiteral) Tag() NodeTag { return T_MapLiteral }
+
+var _ Node = (*MapLiteral)(nil)
+
+// MapEntry is one key:value pair inside a MapLiteral.
+type MapEntry struct {
+	Key   Node
+	Value Node
+	Loc   Loc
+}
+
+func (n *MapEntry) Tag() NodeTag { return T_MapEntry }
+
+var _ Node = (*MapEntry)(nil)
+
+// ArrayLiteral represents an array constructor literal:
+//
+//	array<t>[ e, ... ]   (typed)
+//	[ e, ... ]           (untyped)
+//
+// ElemType holds the array<t> element type for the typed form and is nil for
+// the untyped [...] form. The elements may be empty.
+type ArrayLiteral struct {
+	ElemType *TypeName // array<t> element type for the typed form; nil for [...]
+	Elements []Node
+	Loc      Loc
+}
+
+func (n *ArrayLiteral) Tag() NodeTag { return T_ArrayLiteral }
+
+var _ Node = (*ArrayLiteral)(nil)
 
 // ParenExpr represents a parenthesized expression: (expr).
 type ParenExpr struct {

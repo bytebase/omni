@@ -255,6 +255,23 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
 		}, nil
 
+	case kwBINARY:
+		// BINARY <expr> cast-to-binary operator. StarRocks's grammar is
+		// `(BINARY)? booleanExpression`, so the operand is a booleanExpression —
+		// it spans comparisons/predicates but stops below AND/OR/NOT:
+		// BINARY name = 'abc' => BINARY(name = 'abc'); BINARY a AND b => (BINARY a) AND b.
+		start := p.cur.Loc
+		p.advance()
+		operand, err := p.parseExprPrec(bpNot + 1)
+		if err != nil {
+			return nil, err
+		}
+		return &ast.UnaryExpr{
+			Op:   ast.UnaryBinary,
+			Expr: operand,
+			Loc:  ast.Loc{Start: start.Start, End: ast.NodeLoc(operand).End},
+		}, nil
+
 	case kwEXISTS:
 		return p.parseExistsExpr()
 
@@ -316,6 +333,22 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 			Loc:   tok.Loc,
 		}, nil
 
+	case tokHexLiteral:
+		tok := p.advance()
+		return &ast.Literal{
+			Kind:  ast.LitHex,
+			Value: tok.Str,
+			Loc:   tok.Loc,
+		}, nil
+
+	case tokBitLiteral:
+		tok := p.advance()
+		return &ast.Literal{
+			Kind:  ast.LitBit,
+			Value: tok.Str,
+			Loc:   tok.Loc,
+		}, nil
+
 	case kwTRUE:
 		tok := p.advance()
 		return &ast.Literal{
@@ -342,6 +375,47 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 
 	case int('('):
 		return p.parseParenExprOrSubquery()
+
+	case kwMAP:
+		// map<k,v>{...} (typed) or MAP{...} (untyped) map constructor; otherwise
+		// MAP is an ordinary identifier (it is a non-reserved keyword, so e.g.
+		// `map < 5` is a column comparison).
+		switch p.peekNext().Kind {
+		case int('{'):
+			// Untyped MAP{...} — unambiguous.
+			start := p.cur.Loc.Start
+			p.advance() // consume MAP
+			return p.finishMapLiteral(start, nil)
+		case int('<'):
+			// Ambiguous with `map < expr`: speculatively parse the type and
+			// commit only if '{' follows, else backtrack to the identifier path.
+			saved := p.save()
+			start := p.cur.Loc.Start
+			mapType, err := p.parseDataType()
+			if err == nil && p.cur.Kind == int('{') {
+				return p.finishMapLiteral(start, mapType)
+			}
+			p.restore(saved)
+		}
+		return p.parseIdentExpr()
+
+	case kwARRAY:
+		// array<t>[...] typed array constructor; otherwise an ordinary identifier
+		// (ARRAY is non-reserved too, so `array < 5` is a column comparison).
+		if p.peekNext().Kind == int('<') {
+			saved := p.save()
+			start := p.cur.Loc.Start
+			elemType, err := p.parseDataType()
+			if err == nil && p.cur.Kind == int('[') {
+				return p.finishArrayLiteral(start, elemType)
+			}
+			p.restore(saved)
+		}
+		return p.parseIdentExpr()
+
+	case int('['):
+		// Untyped array constructor: [ e, ... ].
+		return p.finishArrayLiteral(p.cur.Loc.Start, nil)
 
 	case kwCASE:
 		return p.parseCaseExpr()
@@ -411,6 +485,90 @@ func (p *Parser) parseIdentExpr() (ast.Node, error) {
 	}, nil
 }
 
+// finishMapLiteral parses the { key:val, ... } body of a map constructor. The
+// optional map<k,v> type (nil for the untyped MAP{...} form) and the MAP keyword
+// have already been consumed; the current token is '{'.
+func (p *Parser) finishMapLiteral(start int, mapType *ast.TypeName) (ast.Node, error) {
+	lit := &ast.MapLiteral{MapType: mapType}
+
+	if _, err := p.expect(int('{')); err != nil {
+		return nil, err
+	}
+	if p.cur.Kind != int('}') {
+		entry, err := p.parseMapEntry()
+		if err != nil {
+			return nil, err
+		}
+		lit.Entries = append(lit.Entries, entry)
+		for p.cur.Kind == int(',') {
+			p.advance() // consume ','
+			entry, err = p.parseMapEntry()
+			if err != nil {
+				return nil, err
+			}
+			lit.Entries = append(lit.Entries, entry)
+		}
+	}
+	closeTok, err := p.expect(int('}'))
+	if err != nil {
+		return nil, err
+	}
+	lit.Loc = ast.Loc{Start: start, End: closeTok.Loc.End}
+	return lit, nil
+}
+
+// parseMapEntry parses one key:value pair of a map constructor.
+func (p *Parser) parseMapEntry() (*ast.MapEntry, error) {
+	key, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(int(':')); err != nil {
+		return nil, err
+	}
+	value, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.MapEntry{
+		Key:   key,
+		Value: value,
+		Loc:   ast.Loc{Start: ast.NodeLoc(key).Start, End: ast.NodeLoc(value).End},
+	}, nil
+}
+
+// finishArrayLiteral parses the [ e, ... ] body of an array constructor. The
+// optional array<t> type (nil for the untyped [...] form) has already been
+// consumed; the current token is '['.
+func (p *Parser) finishArrayLiteral(start int, elemType *ast.TypeName) (ast.Node, error) {
+	lit := &ast.ArrayLiteral{ElemType: elemType}
+
+	if _, err := p.expect(int('[')); err != nil {
+		return nil, err
+	}
+	if p.cur.Kind != int(']') {
+		el, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		lit.Elements = append(lit.Elements, el)
+		for p.cur.Kind == int(',') {
+			p.advance() // consume ','
+			el, err = p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			lit.Elements = append(lit.Elements, el)
+		}
+	}
+	closeTok, err := p.expect(int(']'))
+	if err != nil {
+		return nil, err
+	}
+	lit.Loc = ast.Loc{Start: start, End: closeTok.Loc.End}
+	return lit, nil
+}
+
 // parseFuncCall parses a function call starting at the opening '('.
 // The function name has already been parsed as an ObjectName.
 func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) {
@@ -447,6 +605,22 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 		}
 		fc.Args = args
 
+		// Optional IGNORE NULLS after the FIRST argument (window null-treatment,
+		// e.g. FIRST_VALUE(v IGNORE NULLS), LAG(v IGNORE NULLS, 1)). The grammar
+		// attaches it only after the first expression, so we require exactly one
+		// arg so far; further args may follow it.
+		if len(fc.Args) == 1 && p.consumeIgnoreNulls() {
+			fc.IgnoreNulls = true
+			for p.cur.Kind == int(',') {
+				p.advance() // consume ','
+				arg, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				fc.Args = append(fc.Args, arg)
+			}
+		}
+
 		// Optional ORDER BY within aggregate functions (e.g., GROUP_CONCAT)
 		if p.cur.Kind == kwORDER {
 			p.advance() // consume ORDER
@@ -479,6 +653,13 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 	}
 	fc.Loc.End = closeTok.Loc.End
 
+	// Optional IGNORE NULLS after the closing paren, e.g.
+	// LEAD(v, 1) IGNORE NULLS OVER (...).
+	if !fc.IgnoreNulls && p.consumeIgnoreNulls() {
+		fc.IgnoreNulls = true
+		fc.Loc.End = p.prev.Loc.End
+	}
+
 	// Optional OVER (...) window specification — turns this call into a window
 	// function. Without consuming OVER here it is left dangling, which breaks
 	// parsing wherever a specific following token is expected (e.g. the ')'
@@ -492,7 +673,37 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 		fc.Loc.End = over.Loc.End
 	}
 
+	// IGNORE NULLS is valid only on the four window value functions and requires
+	// an OVER clause (StarRocks grammar: windowFunction is one of LEAD/LAG/
+	// FIRST_VALUE/LAST_VALUE, used as `windowFunction over`). Reject otherwise.
+	if fc.IgnoreNulls && (fc.Over == nil || !isIgnoreNullsWindowFunc(funcName)) {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	return fc, nil
+}
+
+// isIgnoreNullsWindowFunc reports whether name is one of the window value
+// functions that accept an IGNORE NULLS null-treatment clause.
+func isIgnoreNullsWindowFunc(name string) bool {
+	switch name {
+	case "FIRST_VALUE", "LAST_VALUE", "LEAD", "LAG":
+		return true
+	default:
+		return false
+	}
+}
+
+// consumeIgnoreNulls consumes an optional IGNORE NULLS null-treatment clause and
+// reports whether it was present. (RESPECT NULLS is the default and does not
+// exist as a keyword in StarRocks 3.4.)
+func (p *Parser) consumeIgnoreNulls() bool {
+	if p.cur.Kind == kwIGNORE && p.peekNext().Kind == kwNULLS {
+		p.advance() // consume IGNORE
+		p.advance() // consume NULLS
+		return true
+	}
+	return false
 }
 
 // parseWindowSpec parses an OVER clause window specification. The OVER keyword
