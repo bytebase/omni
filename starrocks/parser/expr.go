@@ -447,6 +447,21 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 		}
 		fc.Args = args
 
+		// Optional IGNORE NULLS after the first argument (window null-treatment,
+		// e.g. FIRST_VALUE(v IGNORE NULLS), LAG(v IGNORE NULLS, 1)). The grammar
+		// attaches it after the first expression, so further args may follow.
+		if p.consumeIgnoreNulls() {
+			fc.IgnoreNulls = true
+			for p.cur.Kind == int(',') {
+				p.advance() // consume ','
+				arg, err := p.parseExpr()
+				if err != nil {
+					return nil, err
+				}
+				fc.Args = append(fc.Args, arg)
+			}
+		}
+
 		// Optional ORDER BY within aggregate functions (e.g., GROUP_CONCAT)
 		if p.cur.Kind == kwORDER {
 			p.advance() // consume ORDER
@@ -479,6 +494,13 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 	}
 	fc.Loc.End = closeTok.Loc.End
 
+	// Optional IGNORE NULLS after the closing paren, e.g.
+	// LEAD(v, 1) IGNORE NULLS OVER (...).
+	if !fc.IgnoreNulls && p.consumeIgnoreNulls() {
+		fc.IgnoreNulls = true
+		fc.Loc.End = p.prev.Loc.End
+	}
+
 	// Optional OVER (...) window specification — turns this call into a window
 	// function. Without consuming OVER here it is left dangling, which breaks
 	// parsing wherever a specific following token is expected (e.g. the ')'
@@ -493,6 +515,18 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 	}
 
 	return fc, nil
+}
+
+// consumeIgnoreNulls consumes an optional IGNORE NULLS null-treatment clause and
+// reports whether it was present. (RESPECT NULLS is the default and does not
+// exist as a keyword in StarRocks 3.4.)
+func (p *Parser) consumeIgnoreNulls() bool {
+	if p.cur.Kind == kwIGNORE && p.peekNext().Kind == kwNULLS {
+		p.advance() // consume IGNORE
+		p.advance() // consume NULLS
+		return true
+	}
+	return false
 }
 
 // parseWindowSpec parses an OVER clause window specification. The OVER keyword
