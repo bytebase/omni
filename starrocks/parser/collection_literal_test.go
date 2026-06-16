@@ -112,3 +112,27 @@ func TestMapLiteralNestedParses(t *testing.T) {
 func TestMapAsIdentifierParses(t *testing.T) {
 	_ = mustParseSelect(t, "SELECT map FROM t")
 }
+
+// TestMapColumnLessThan guards against the map-literal dispatch over-committing:
+// `map` is a non-reserved keyword usable as a column, so `map < 5` is a
+// comparison, not a map<...> type. (Single-token peek cannot tell them apart;
+// the dispatch must backtrack when no '{' follows the angle brackets.)
+func TestMapColumnLessThan(t *testing.T) {
+	stmt := mustParseSelect(t, "SELECT cnt FROM t WHERE map < 5")
+	be, ok := stmt.Where.(*ast.BinaryExpr)
+	if !ok {
+		t.Fatalf("where = %T, want *ast.BinaryExpr (map < 5)", stmt.Where)
+	}
+	if _, ok := be.Left.(*ast.ColumnRef); !ok {
+		t.Errorf("where.Left = %T, want *ast.ColumnRef (map)", be.Left)
+	}
+}
+
+// TestArrayColumnLessThan is the same guard for `array` (also non-reserved in
+// omni), where `array < 5` must parse as a comparison, not array<...>.
+func TestArrayColumnLessThan(t *testing.T) {
+	stmt := mustParseSelect(t, "SELECT cnt FROM t WHERE array < 5")
+	if _, ok := stmt.Where.(*ast.BinaryExpr); !ok {
+		t.Fatalf("where = %T, want *ast.BinaryExpr (array < 5)", stmt.Where)
+	}
+}

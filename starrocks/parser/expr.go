@@ -256,12 +256,13 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 		}, nil
 
 	case kwBINARY:
-		// BINARY <expr> cast-to-binary operator. StarRocks places it at the top
-		// of the expression rule (lowest precedence), so the operand spans the
-		// whole following boolean expression: BINARY name = 'abc' => BINARY(name = 'abc').
+		// BINARY <expr> cast-to-binary operator. StarRocks's grammar is
+		// `(BINARY)? booleanExpression`, so the operand is a booleanExpression —
+		// it spans comparisons/predicates but stops below AND/OR/NOT:
+		// BINARY name = 'abc' => BINARY(name = 'abc'); BINARY a AND b => (BINARY a) AND b.
 		start := p.cur.Loc
 		p.advance()
-		operand, err := p.parseExprPrec(bpNone + 1)
+		operand, err := p.parseExprPrec(bpNot + 1)
 		if err != nil {
 			return nil, err
 		}
@@ -377,25 +378,44 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 
 	case kwMAP:
 		// map<k,v>{...} (typed) or MAP{...} (untyped) map constructor; otherwise
-		// MAP is an ordinary identifier/function.
+		// MAP is an ordinary identifier (it is a non-reserved keyword, so e.g.
+		// `map < 5` is a column comparison).
 		switch p.peekNext().Kind {
-		case int('<'):
-			return p.parseMapLiteral(true)
 		case int('{'):
-			return p.parseMapLiteral(false)
+			// Untyped MAP{...} — unambiguous.
+			start := p.cur.Loc.Start
+			p.advance() // consume MAP
+			return p.finishMapLiteral(start, nil)
+		case int('<'):
+			// Ambiguous with `map < expr`: speculatively parse the type and
+			// commit only if '{' follows, else backtrack to the identifier path.
+			saved := p.save()
+			start := p.cur.Loc.Start
+			mapType, err := p.parseDataType()
+			if err == nil && p.cur.Kind == int('{') {
+				return p.finishMapLiteral(start, mapType)
+			}
+			p.restore(saved)
 		}
 		return p.parseIdentExpr()
 
 	case kwARRAY:
-		// array<t>[...] typed array constructor; otherwise an ordinary identifier.
+		// array<t>[...] typed array constructor; otherwise an ordinary identifier
+		// (ARRAY is non-reserved too, so `array < 5` is a column comparison).
 		if p.peekNext().Kind == int('<') {
-			return p.parseArrayLiteral(true)
+			saved := p.save()
+			start := p.cur.Loc.Start
+			elemType, err := p.parseDataType()
+			if err == nil && p.cur.Kind == int('[') {
+				return p.finishArrayLiteral(start, elemType)
+			}
+			p.restore(saved)
 		}
 		return p.parseIdentExpr()
 
 	case int('['):
 		// Untyped array constructor: [ e, ... ].
-		return p.parseArrayLiteral(false)
+		return p.finishArrayLiteral(p.cur.Loc.Start, nil)
 
 	case kwCASE:
 		return p.parseCaseExpr()
@@ -465,22 +485,11 @@ func (p *Parser) parseIdentExpr() (ast.Node, error) {
 	}, nil
 }
 
-// parseMapLiteral parses a map constructor literal. When typed, the leading
-// map<k,v> type is consumed via parseDataType; when untyped, the MAP keyword is
-// consumed directly. Both forms are then followed by { key:val, ... }.
-func (p *Parser) parseMapLiteral(typed bool) (ast.Node, error) {
-	start := p.cur.Loc.Start
-
-	lit := &ast.MapLiteral{}
-	if typed {
-		mapType, err := p.parseDataType() // consumes map<k,v>
-		if err != nil {
-			return nil, err
-		}
-		lit.MapType = mapType
-	} else {
-		p.advance() // consume MAP
-	}
+// finishMapLiteral parses the { key:val, ... } body of a map constructor. The
+// optional map<k,v> type (nil for the untyped MAP{...} form) and the MAP keyword
+// have already been consumed; the current token is '{'.
+func (p *Parser) finishMapLiteral(start int, mapType *ast.TypeName) (ast.Node, error) {
+	lit := &ast.MapLiteral{MapType: mapType}
 
 	if _, err := p.expect(int('{')); err != nil {
 		return nil, err
@@ -528,20 +537,11 @@ func (p *Parser) parseMapEntry() (*ast.MapEntry, error) {
 	}, nil
 }
 
-// parseArrayLiteral parses an array constructor literal. When typed, the leading
-// array<t> type is consumed via parseDataType; both forms are then followed by
-// [ e, ... ].
-func (p *Parser) parseArrayLiteral(typed bool) (ast.Node, error) {
-	start := p.cur.Loc.Start
-
-	lit := &ast.ArrayLiteral{}
-	if typed {
-		elemType, err := p.parseDataType() // consumes array<t>
-		if err != nil {
-			return nil, err
-		}
-		lit.ElemType = elemType
-	}
+// finishArrayLiteral parses the [ e, ... ] body of an array constructor. The
+// optional array<t> type (nil for the untyped [...] form) has already been
+// consumed; the current token is '['.
+func (p *Parser) finishArrayLiteral(start int, elemType *ast.TypeName) (ast.Node, error) {
+	lit := &ast.ArrayLiteral{ElemType: elemType}
 
 	if _, err := p.expect(int('[')); err != nil {
 		return nil, err
@@ -605,10 +605,11 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 		}
 		fc.Args = args
 
-		// Optional IGNORE NULLS after the first argument (window null-treatment,
+		// Optional IGNORE NULLS after the FIRST argument (window null-treatment,
 		// e.g. FIRST_VALUE(v IGNORE NULLS), LAG(v IGNORE NULLS, 1)). The grammar
-		// attaches it after the first expression, so further args may follow.
-		if p.consumeIgnoreNulls() {
+		// attaches it only after the first expression, so we require exactly one
+		// arg so far; further args may follow it.
+		if len(fc.Args) == 1 && p.consumeIgnoreNulls() {
 			fc.IgnoreNulls = true
 			for p.cur.Kind == int(',') {
 				p.advance() // consume ','
@@ -672,7 +673,25 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 		fc.Loc.End = over.Loc.End
 	}
 
+	// IGNORE NULLS is valid only on the four window value functions and requires
+	// an OVER clause (StarRocks grammar: windowFunction is one of LEAD/LAG/
+	// FIRST_VALUE/LAST_VALUE, used as `windowFunction over`). Reject otherwise.
+	if fc.IgnoreNulls && (fc.Over == nil || !isIgnoreNullsWindowFunc(funcName)) {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	return fc, nil
+}
+
+// isIgnoreNullsWindowFunc reports whether name is one of the window value
+// functions that accept an IGNORE NULLS null-treatment clause.
+func isIgnoreNullsWindowFunc(name string) bool {
+	switch name {
+	case "FIRST_VALUE", "LAST_VALUE", "LEAD", "LAG":
+		return true
+	default:
+		return false
+	}
 }
 
 // consumeIgnoreNulls consumes an optional IGNORE NULLS null-treatment clause and
