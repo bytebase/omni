@@ -122,6 +122,21 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Name)
 	case *Literal:
 		// leaf node, no children
+	case *MapLiteral:
+		if n.MapType != nil {
+			Walk(v, n.MapType)
+		}
+		for _, e := range n.Entries {
+			Walk(v, e)
+		}
+	case *MapEntry:
+		Walk(v, n.Key)
+		Walk(v, n.Value)
+	case *ArrayLiteral:
+		if n.ElemType != nil {
+			Walk(v, n.ElemType)
+		}
+		walkNodes(v, n.Elements)
 	case *ParenExpr:
 		Walk(v, n.Expr)
 	case *ExistsExpr:

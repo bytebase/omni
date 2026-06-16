@@ -348,6 +348,51 @@ func (n *Literal) Tag() NodeTag { return T_Literal }
 
 var _ Node = (*Literal)(nil)
 
+// MapLiteral represents a map constructor literal:
+//
+//	map<k,v>{ key:val, ... }   (typed)
+//	MAP{ key:val, ... }        (untyped)
+//
+// MapType holds the map<k,v> type for the typed form and is nil for the
+// untyped MAP{...} form. The entries may be empty.
+type MapLiteral struct {
+	MapType *TypeName // map<k,v> type for the typed form; nil for MAP{...}
+	Entries []*MapEntry
+	Loc     Loc
+}
+
+func (n *MapLiteral) Tag() NodeTag { return T_MapLiteral }
+
+var _ Node = (*MapLiteral)(nil)
+
+// MapEntry is one key:value pair inside a MapLiteral.
+type MapEntry struct {
+	Key   Node
+	Value Node
+	Loc   Loc
+}
+
+func (n *MapEntry) Tag() NodeTag { return T_MapEntry }
+
+var _ Node = (*MapEntry)(nil)
+
+// ArrayLiteral represents an array constructor literal:
+//
+//	array<t>[ e, ... ]   (typed)
+//	[ e, ... ]           (untyped)
+//
+// ElemType holds the array<t> element type for the typed form and is nil for
+// the untyped [...] form. The elements may be empty.
+type ArrayLiteral struct {
+	ElemType *TypeName // array<t> element type for the typed form; nil for [...]
+	Elements []Node
+	Loc      Loc
+}
+
+func (n *ArrayLiteral) Tag() NodeTag { return T_ArrayLiteral }
+
+var _ Node = (*ArrayLiteral)(nil)
+
 // ParenExpr represents a parenthesized expression: (expr).
 type ParenExpr struct {
 	Expr Node

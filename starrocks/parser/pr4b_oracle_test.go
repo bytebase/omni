@@ -68,6 +68,20 @@ func TestPR4bParity(t *testing.T) {
 		//     — BINARY is reserved in omni and handled as the unary operator, while
 		//     StarRocks treats it as a nonReserved identifier here. Pre-existing
 		//     (omni rejected bare BINARY before this feature too), not a regression.
+
+		// Map / array collection literals — accept probes.
+		{"map_typed", "SELECT map<varchar,int>{'x':1} FROM t", true},
+		{"map_typed_multi", "SELECT map<varchar,int>{'x':1,'y':2} FROM t", true},
+		{"map_typed_empty", "SELECT map<int,int>{} FROM t", true},
+		{"map_untyped", "SELECT MAP{'x':1} FROM t", true},
+		{"array_typed", "SELECT array<int>[1,2,3] FROM t", true},
+		{"array_typed_empty", "SELECT array<int>[] FROM t", true},
+		{"array_untyped", "SELECT [1,2,3] FROM t", true},
+		{"map_nested_array", "SELECT map<varchar,array<int>>{'x':[1,2]} FROM t", true},
+		// Map / array — sibling-arm negatives (fail inside the construct).
+		{"map_entry_missing_value", "SELECT map<varchar,int>{'x'} FROM t", false},
+		{"map_missing_value_type", "SELECT map<varchar,>{} FROM t", false},
+		{"map_trailing_comma", "SELECT map<varchar,int>{'x':1,} FROM t", false},
 	}
 
 	for _, tc := range cases {

@@ -375,6 +375,28 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 	case int('('):
 		return p.parseParenExprOrSubquery()
 
+	case kwMAP:
+		// map<k,v>{...} (typed) or MAP{...} (untyped) map constructor; otherwise
+		// MAP is an ordinary identifier/function.
+		switch p.peekNext().Kind {
+		case int('<'):
+			return p.parseMapLiteral(true)
+		case int('{'):
+			return p.parseMapLiteral(false)
+		}
+		return p.parseIdentExpr()
+
+	case kwARRAY:
+		// array<t>[...] typed array constructor; otherwise an ordinary identifier.
+		if p.peekNext().Kind == int('<') {
+			return p.parseArrayLiteral(true)
+		}
+		return p.parseIdentExpr()
+
+	case int('['):
+		// Untyped array constructor: [ e, ... ].
+		return p.parseArrayLiteral(false)
+
 	case kwCASE:
 		return p.parseCaseExpr()
 
@@ -441,6 +463,110 @@ func (p *Parser) parseIdentExpr() (ast.Node, error) {
 		Name: name,
 		Loc:  name.Loc,
 	}, nil
+}
+
+// parseMapLiteral parses a map constructor literal. When typed, the leading
+// map<k,v> type is consumed via parseDataType; when untyped, the MAP keyword is
+// consumed directly. Both forms are then followed by { key:val, ... }.
+func (p *Parser) parseMapLiteral(typed bool) (ast.Node, error) {
+	start := p.cur.Loc.Start
+
+	lit := &ast.MapLiteral{}
+	if typed {
+		mapType, err := p.parseDataType() // consumes map<k,v>
+		if err != nil {
+			return nil, err
+		}
+		lit.MapType = mapType
+	} else {
+		p.advance() // consume MAP
+	}
+
+	if _, err := p.expect(int('{')); err != nil {
+		return nil, err
+	}
+	if p.cur.Kind != int('}') {
+		entry, err := p.parseMapEntry()
+		if err != nil {
+			return nil, err
+		}
+		lit.Entries = append(lit.Entries, entry)
+		for p.cur.Kind == int(',') {
+			p.advance() // consume ','
+			entry, err = p.parseMapEntry()
+			if err != nil {
+				return nil, err
+			}
+			lit.Entries = append(lit.Entries, entry)
+		}
+	}
+	closeTok, err := p.expect(int('}'))
+	if err != nil {
+		return nil, err
+	}
+	lit.Loc = ast.Loc{Start: start, End: closeTok.Loc.End}
+	return lit, nil
+}
+
+// parseMapEntry parses one key:value pair of a map constructor.
+func (p *Parser) parseMapEntry() (*ast.MapEntry, error) {
+	key, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(int(':')); err != nil {
+		return nil, err
+	}
+	value, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.MapEntry{
+		Key:   key,
+		Value: value,
+		Loc:   ast.Loc{Start: ast.NodeLoc(key).Start, End: ast.NodeLoc(value).End},
+	}, nil
+}
+
+// parseArrayLiteral parses an array constructor literal. When typed, the leading
+// array<t> type is consumed via parseDataType; both forms are then followed by
+// [ e, ... ].
+func (p *Parser) parseArrayLiteral(typed bool) (ast.Node, error) {
+	start := p.cur.Loc.Start
+
+	lit := &ast.ArrayLiteral{}
+	if typed {
+		elemType, err := p.parseDataType() // consumes array<t>
+		if err != nil {
+			return nil, err
+		}
+		lit.ElemType = elemType
+	}
+
+	if _, err := p.expect(int('[')); err != nil {
+		return nil, err
+	}
+	if p.cur.Kind != int(']') {
+		el, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		lit.Elements = append(lit.Elements, el)
+		for p.cur.Kind == int(',') {
+			p.advance() // consume ','
+			el, err = p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			lit.Elements = append(lit.Elements, el)
+		}
+	}
+	closeTok, err := p.expect(int(']'))
+	if err != nil {
+		return nil, err
+	}
+	lit.Loc = ast.Loc{Start: start, End: closeTok.Loc.End}
+	return lit, nil
 }
 
 // parseFuncCall parses a function call starting at the opening '('.
