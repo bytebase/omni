@@ -117,6 +117,28 @@ func (n *TableRef) Tag() NodeTag { return T_TableRef }
 // Compile-time assertion that *TableRef satisfies Node.
 var _ Node = (*TableRef)(nil)
 
+// InlineTable represents a VALUES table constructor in the FROM clause
+// (StarRocks's #inlineTable relation primary):
+//
+//	(VALUES (expr, ...), (expr, ...), ...) [AS] alias [(col, ...)]
+//
+// The wrapping parens are part of the construct. The alias and the
+// column-alias list are both optional. It is a literal-derived relation — it
+// references no physical table — so the analysis layer must not record it as
+// one.
+type InlineTable struct {
+	Rows          [][]Node // each row is a list of value expressions
+	Alias         string   // optional table alias; empty if absent
+	ColumnAliases []string // optional column-alias list; nil if absent
+	Loc           Loc
+}
+
+// Tag implements Node.
+func (n *InlineTable) Tag() NodeTag { return T_InlineTable }
+
+// Compile-time assertion that *InlineTable satisfies Node.
+var _ Node = (*InlineTable)(nil)
+
 // ---------------------------------------------------------------------------
 // JOIN clause (basic structure for T1.4; T1.5 will flesh out)
 // ---------------------------------------------------------------------------

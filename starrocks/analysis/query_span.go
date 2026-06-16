@@ -258,11 +258,28 @@ func (w *spanWalker) visitFromItem(node ast.Node) {
 	switch n := node.(type) {
 	case *ast.TableRef:
 		w.visitTableRef(n)
+	case *ast.InlineTable:
+		w.visitInlineTable(n)
 	case *ast.JoinClause:
 		w.visitFromItem(n.Left)
 		w.visitFromItem(n.Right)
 		if n.On != nil {
 			w.walkExpr(n.On)
+		}
+	}
+}
+
+// visitInlineTable handles a VALUES table constructor in FROM. It is a
+// literal-derived (non-physical) relation, so it contributes NO entry to
+// AccessTables; we still walk each row expression so any subquery embedded in
+// a row contributes its physical tables.
+func (w *spanWalker) visitInlineTable(n *ast.InlineTable) {
+	if n == nil {
+		return
+	}
+	for _, row := range n.Rows {
+		for _, e := range row {
+			w.walkExpr(e)
 		}
 	}
 }

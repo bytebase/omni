@@ -180,6 +180,10 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *InlineTable:
+		for _, row := range n.Rows {
+			walkNodes(v, row)
+		}
 	case *JoinClause:
 		Walk(v, n.Left)
 		Walk(v, n.Right)

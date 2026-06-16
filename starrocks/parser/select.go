@@ -497,6 +497,10 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 	// Parenthesized: subquery
 	if p.cur.Kind == int('(') {
 		next := p.peekNext()
+		if next.Kind == kwVALUES {
+			// VALUES table constructor: (VALUES (..), (..)) [AS alias [(cols)]]
+			return p.parseInlineTable(startLoc.Start)
+		}
 		if next.Kind == kwSELECT || next.Kind == kwWITH {
 			// Subquery in FROM: (SELECT ...) [AS] alias
 			openTok := p.advance() // consume '('
@@ -568,6 +572,126 @@ func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 
 	ref.Loc.End = p.prev.Loc.End
 	return ref, nil
+}
+
+// parseInlineTable parses a VALUES table constructor in FROM position:
+//
+//	'(' VALUES rowConstructor (',' rowConstructor)* ')' [AS? alias [(col, ...)]]
+//
+// The leading '(' has not yet been consumed. StarRocks requires the wrapping
+// parens; the alias and the column-alias list are both optional.
+func (p *Parser) parseInlineTable(start int) (ast.Node, error) {
+	p.advance() // consume '('
+	p.advance() // consume VALUES
+
+	rows, err := p.parseValuesRows()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+
+	tbl := &ast.InlineTable{
+		Rows: rows,
+		Loc:  ast.Loc{Start: start},
+	}
+
+	// Optional alias, then an optional column-alias list (requires the alias).
+	alias := p.parseOptionalAlias()
+	if alias != "" {
+		tbl.Alias = alias
+		if p.cur.Kind == int('(') {
+			cols, err := p.parseColumnAliasList()
+			if err != nil {
+				return nil, err
+			}
+			tbl.ColumnAliases = cols
+		}
+	}
+
+	tbl.Loc.End = p.prev.Loc.End
+	return tbl, nil
+}
+
+// parseValuesRows parses the rowConstructor list of a VALUES table constructor:
+//
+//	rowConstructor (',' rowConstructor)*
+//
+// Unlike INSERT ... VALUES, FROM-position rows use plain expressions (DEFAULT
+// is INSERT-only). The VALUES keyword has already been consumed.
+func (p *Parser) parseValuesRows() ([][]ast.Node, error) {
+	row, err := p.parseValuesRow()
+	if err != nil {
+		return nil, err
+	}
+	rows := [][]ast.Node{row}
+
+	for p.cur.Kind == int(',') {
+		p.advance() // consume ','
+		row, err = p.parseValuesRow()
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, row)
+	}
+	return rows, nil
+}
+
+// parseValuesRow parses one row constructor: '(' expr [, expr]* ')'.
+func (p *Parser) parseValuesRow() ([]ast.Node, error) {
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	exprs := []ast.Node{expr}
+
+	for p.cur.Kind == int(',') {
+		p.advance() // consume ','
+		expr, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		exprs = append(exprs, expr)
+	}
+
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return exprs, nil
+}
+
+// parseColumnAliasList parses a parenthesized column-alias list:
+//
+//	'(' identifier (',' identifier)* ')'
+//
+// The leading '(' has not yet been consumed.
+func (p *Parser) parseColumnAliasList() ([]string, error) {
+	p.advance() // consume '('
+
+	name, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	cols := []string{name}
+
+	for p.cur.Kind == int(',') {
+		p.advance() // consume ','
+		name, _, err = p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		cols = append(cols, name)
+	}
+
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return cols, nil
 }
 
 // ---------------------------------------------------------------------------
