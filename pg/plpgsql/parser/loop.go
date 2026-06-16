@@ -101,12 +101,10 @@ func (p *Parser) parseFor(label string) (ast.Node, error) {
 	startPos := p.pos()
 	p.advance() // consume FOR
 
-	// Parse loop variable name
-	if !p.isIdent() && !p.isAnyKeywordAsIdent() {
-		return nil, p.errorf("syntax error at or near %q, expected loop variable name", p.tokenText(p.cur))
+	varName, err := p.parseForTargetList()
+	if err != nil {
+		return nil, err
 	}
-	varName := p.identText()
-	p.advance()
 
 	// Expect IN
 	if err := p.expectKeyword("IN"); err != nil {
@@ -129,12 +127,54 @@ func (p *Parser) parseFor(label string) (ast.Node, error) {
 		return p.parseForDynamic(label, varName, startPos)
 	}
 
-	if p.isKeyword("SELECT") || p.isKeyword("WITH") {
+	if p.isKeyword("SELECT") || p.isKeyword("WITH") || p.isParenthesizedQueryStart() {
 		return p.parseForQuery(label, varName, startPos)
 	}
 
 	// Collect tokens until LOOP, looking for DOT_DOT to disambiguate integer vs cursor
 	return p.parseForIntOrCursor(label, varName, reverse, startPos)
+}
+
+func (p *Parser) isParenthesizedQueryStart() bool {
+	if p.cur.Type != '(' {
+		return false
+	}
+	next := p.peekNext()
+	return next.Type == pgparser.SELECT || next.Type == pgparser.WITH ||
+		next.Type == pgparser.VALUES || next.Type == pgparser.TABLE
+}
+
+// parseForTargetList parses the target before IN in a FOR statement. Query FOR
+// accepts a record/row target or a comma-separated scalar-variable list.
+func (p *Parser) parseForTargetList() (string, error) {
+	if !p.isIdent() && !p.isAnyKeywordAsIdent() {
+		return "", p.errorf("syntax error at or near %q, expected loop variable name", p.tokenText(p.cur))
+	}
+	start := p.pos()
+	depth := 0
+	for !p.isEOF() {
+		if p.cur.Type == '(' || p.cur.Type == '[' {
+			depth++
+			p.advance()
+			continue
+		}
+		if p.cur.Type == ')' || p.cur.Type == ']' {
+			if depth > 0 {
+				depth--
+			}
+			p.advance()
+			continue
+		}
+		if depth == 0 && p.isKeyword("IN") {
+			break
+		}
+		p.advance()
+	}
+	target := strings.TrimSpace(p.source[start:p.prev.End])
+	if target == "" {
+		return "", p.errorf("syntax error at or near %q, expected loop variable name", p.tokenText(p.cur))
+	}
+	return target, nil
 }
 
 // parseForDynamic parses: FOR rec IN EXECUTE expr [USING params] LOOP stmts END LOOP [label] ;
@@ -281,6 +321,10 @@ func (p *Parser) parseForIntOrCursor(label, varName string, reverse bool, startP
 	}
 
 	if hasDotDot {
+		if hasTopLevelComma(varName) {
+			return nil, p.errorf("syntax error at or near %q, expected single loop variable", varName)
+		}
+
 		// Integer FOR: lower..upper [BY step]
 		lower := strings.TrimSpace(p.source[exprStart:p.cur.Loc])
 		p.advance() // consume DOT_DOT
@@ -329,6 +373,9 @@ func (p *Parser) parseForIntOrCursor(label, varName string, reverse bool, startP
 
 	// Cursor FOR: the tokens we collected form the cursor variable name,
 	// possibly followed by (args)
+	if hasTopLevelComma(varName) {
+		return nil, p.errorf("syntax error at or near %q, expected single loop variable", varName)
+	}
 	cursorText := strings.TrimSpace(p.source[exprStart:p.cur.Loc])
 
 	// Parse cursor variable name and optional args from the collected text
@@ -369,6 +416,25 @@ func (p *Parser) parseForIntOrCursor(label, varName string, reverse bool, startP
 		Body:      body,
 		Loc:       ast.Loc{Start: startPos, End: p.prev.End},
 	}, nil
+}
+
+func hasTopLevelComma(text string) bool {
+	depth := 0
+	for _, r := range text {
+		switch r {
+		case '(', '[':
+			depth++
+		case ')', ']':
+			if depth > 0 {
+				depth--
+			}
+		case ',':
+			if depth == 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // parseForEach parses: FOREACH var [SLICE n] IN ARRAY expr LOOP stmts END LOOP [label] ;

@@ -294,6 +294,97 @@ func TestBareSQLDelete(t *testing.T) {
 	}
 }
 
+func TestBareSQLWithSelectInto(t *testing.T) {
+	block := parseOK(t, `BEGIN WITH rows AS (SELECT 1 AS id) SELECT id INTO result FROM rows; END`)
+	exec, ok := block.Body[0].(*ast.PLExecSQL)
+	if !ok {
+		t.Fatalf("expected PLExecSQL, got %T", block.Body[0])
+	}
+	if len(exec.Into) != 1 || exec.Into[0] != "result" {
+		t.Errorf("into = %v, want [result]", exec.Into)
+	}
+	if exec.SQLText != "WITH rows AS (SELECT 1 AS id) SELECT id FROM rows" {
+		t.Errorf("sql = %q, want %q", exec.SQLText, "WITH rows AS (SELECT 1 AS id) SELECT id FROM rows")
+	}
+}
+
+func TestBareSQLWithInsertDoesNotExtractInsertInto(t *testing.T) {
+	block := parseOK(t, `BEGIN WITH rows AS (SELECT 1 AS id) INSERT INTO t SELECT id FROM rows; END`)
+	exec, ok := block.Body[0].(*ast.PLExecSQL)
+	if !ok {
+		t.Fatalf("expected PLExecSQL, got %T", block.Body[0])
+	}
+	if len(exec.Into) != 0 {
+		t.Errorf("into = %v, want empty", exec.Into)
+	}
+	if exec.SQLText != "WITH rows AS (SELECT 1 AS id) INSERT INTO t SELECT id FROM rows" {
+		t.Errorf("sql = %q, want %q", exec.SQLText, "WITH rows AS (SELECT 1 AS id) INSERT INTO t SELECT id FROM rows")
+	}
+}
+
+func TestBareSQLInsertReturningInto(t *testing.T) {
+	block := parseOK(t, `BEGIN INSERT INTO t (a) VALUES (1) RETURNING id INTO new_id; END`)
+	exec, ok := block.Body[0].(*ast.PLExecSQL)
+	if !ok {
+		t.Fatalf("expected PLExecSQL, got %T", block.Body[0])
+	}
+	if len(exec.Into) != 1 || exec.Into[0] != "new_id" {
+		t.Errorf("into = %v, want [new_id]", exec.Into)
+	}
+	if exec.SQLText != "INSERT INTO t (a) VALUES (1) RETURNING id" {
+		t.Errorf("sql = %q, want %q", exec.SQLText, "INSERT INTO t (a) VALUES (1) RETURNING id")
+	}
+}
+
+func TestBareSQLUpdateReturningIntoStrict(t *testing.T) {
+	block := parseOK(t, `BEGIN UPDATE t SET a = 1 WHERE id = 2 RETURNING a INTO STRICT updated_a; END`)
+	exec, ok := block.Body[0].(*ast.PLExecSQL)
+	if !ok {
+		t.Fatalf("expected PLExecSQL, got %T", block.Body[0])
+	}
+	if len(exec.Into) != 1 || exec.Into[0] != "updated_a" {
+		t.Errorf("into = %v, want [updated_a]", exec.Into)
+	}
+	if !exec.Strict {
+		t.Errorf("strict = false, want true")
+	}
+	if exec.SQLText != "UPDATE t SET a = 1 WHERE id = 2 RETURNING a" {
+		t.Errorf("sql = %q, want %q", exec.SQLText, "UPDATE t SET a = 1 WHERE id = 2 RETURNING a")
+	}
+}
+
+func TestBareSQLUtilityCommands(t *testing.T) {
+	tests := []struct {
+		body string
+		want string
+	}{
+		{
+			body: `BEGIN REFRESH MATERIALIZED VIEW CONCURRENTLY mv; END`,
+			want: "REFRESH MATERIALIZED VIEW CONCURRENTLY mv",
+		},
+		{
+			body: `BEGIN GRANT USAGE ON SCHEMA api TO web_anon; END`,
+			want: "GRANT USAGE ON SCHEMA api TO web_anon",
+		},
+		{
+			body: `BEGIN CREATE OR REPLACE FUNCTION helper() RETURNS void LANGUAGE sql AS 'SELECT 1'; END`,
+			want: "CREATE OR REPLACE FUNCTION helper() RETURNS void LANGUAGE sql AS 'SELECT 1'",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			block := parseOK(t, tt.body)
+			exec, ok := block.Body[0].(*ast.PLExecSQL)
+			if !ok {
+				t.Fatalf("expected PLExecSQL, got %T", block.Body[0])
+			}
+			if exec.SQLText != tt.want {
+				t.Errorf("sql = %q, want %q", exec.SQLText, tt.want)
+			}
+		})
+	}
+}
+
 func TestSelectInto(t *testing.T) {
 	block := parseOK(t, `BEGIN SELECT a, b INTO x, y FROM t WHERE id = 1; END`)
 	exec, ok := block.Body[0].(*ast.PLExecSQL)

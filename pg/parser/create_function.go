@@ -131,7 +131,6 @@ func (p *Parser) parseFuncNameForCreate() *nodes.List {
 	return result
 }
 
-
 // parseFuncArgsWithDefaults parses function arguments with defaults.
 //
 //	func_args_with_defaults:
@@ -399,12 +398,18 @@ func (p *Parser) parseCreatefuncOptItem() (*nodes.DefElem, error) {
 	switch p.cur.Type {
 	case AS:
 		p.advance()
-		funcAs := p.parseFuncAs()
+		funcAs, err := p.parseFuncAs()
+		if err != nil {
+			return nil, err
+		}
 		de = &nodes.DefElem{Defname: "as", Arg: funcAs}
 
 	case LANGUAGE:
 		p.advance()
-		lang := p.parseNonReservedWordOrSconst()
+		lang, err := p.parseCreateFunctionLanguageName()
+		if err != nil {
+			return nil, err
+		}
 		de = &nodes.DefElem{Defname: "language", Arg: &nodes.String{Str: lang}}
 
 	case TRANSFORM:
@@ -420,7 +425,11 @@ func (p *Parser) parseCreatefuncOptItem() (*nodes.DefElem, error) {
 		de = &nodes.DefElem{Defname: "window", Arg: &nodes.Integer{Ival: 1}}
 
 	default:
-		de = p.parseCommonFuncOptItem()
+		var err error
+		de, err = p.parseCommonFuncOptItem()
+		if err != nil {
+			return nil, err
+		}
 	}
 	if de != nil {
 		de.Loc = nodes.Loc{Start: loc, End: p.pos()}
@@ -433,21 +442,45 @@ func (p *Parser) parseCreatefuncOptItem() (*nodes.DefElem, error) {
 //	func_as:
 //	    Sconst
 //	    | Sconst ',' Sconst
-func (p *Parser) parseFuncAs() *nodes.List {
+func (p *Parser) parseFuncAs() (*nodes.List, error) {
 	s1 := p.cur.Str
-	p.expect(SCONST)
+	if _, err := p.expect(SCONST); err != nil {
+		return nil, err
+	}
 	if p.cur.Type == ',' {
 		p.advance()
 		s2 := p.cur.Str
-		p.expect(SCONST)
+		if _, err := p.expect(SCONST); err != nil {
+			return nil, err
+		}
 		return &nodes.List{Items: []nodes.Node{
 			&nodes.String{Str: s1},
 			&nodes.String{Str: s2},
-		}}
+		}}, nil
 	}
 	return &nodes.List{Items: []nodes.Node{
 		&nodes.String{Str: s1},
-	}}
+	}}, nil
+}
+
+func (p *Parser) parseCreateFunctionLanguageName() (string, error) {
+	if p.cur.Type == SCONST {
+		s := p.cur.Str
+		p.advance()
+		return s, nil
+	}
+	if p.cur.Type == IDENT {
+		s := p.cur.Str
+		p.advance()
+		return s, nil
+	}
+	if kw := LookupKeyword(p.cur.Str); kw != nil && kw.Token == p.cur.Type &&
+		(kw.Category == UnreservedKeyword || kw.Category == ColNameKeyword || kw.Category == TypeFuncNameKeyword) {
+		s := p.cur.Str
+		p.advance()
+		return s, nil
+	}
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseNonReservedWordOrSconst parses a non-reserved word or string constant.
@@ -472,8 +505,12 @@ func (p *Parser) parseNonReservedWordOrSconst() string {
 //	    FOR TYPE_P Typename
 //	    | transform_type_list ',' FOR TYPE_P Typename
 func (p *Parser) parseTransformTypeList() (*nodes.List, error) {
-	p.expect(FOR)
-	p.expect(TYPE_P)
+	if _, err := p.expect(FOR); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(TYPE_P); err != nil {
+		return nil, err
+	}
 	tn, err := p.parseTypename()
 	if err != nil {
 		return nil, err
@@ -481,8 +518,12 @@ func (p *Parser) parseTransformTypeList() (*nodes.List, error) {
 	items := []nodes.Node{tn}
 	for p.cur.Type == ',' {
 		p.advance()
-		p.expect(FOR)
-		p.expect(TYPE_P)
+		if _, err := p.expect(FOR); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(TYPE_P); err != nil {
+			return nil, err
+		}
 		tn, err = p.parseTypename()
 		if err != nil {
 			return nil, err
@@ -506,78 +547,114 @@ func (p *Parser) parseTransformTypeList() (*nodes.List, error) {
 //	    | SET set_rest_more
 //	    | VariableResetStmt
 //	    | SUPPORT any_name
-func (p *Parser) parseCommonFuncOptItem() *nodes.DefElem {
+func (p *Parser) parseCommonFuncOptItem() (*nodes.DefElem, error) {
 	switch p.cur.Type {
 	case IMMUTABLE:
 		p.advance()
-		return &nodes.DefElem{Defname: "volatility", Arg: &nodes.String{Str: "immutable"}}
+		return &nodes.DefElem{Defname: "volatility", Arg: &nodes.String{Str: "immutable"}}, nil
 	case STABLE:
 		p.advance()
-		return &nodes.DefElem{Defname: "volatility", Arg: &nodes.String{Str: "stable"}}
+		return &nodes.DefElem{Defname: "volatility", Arg: &nodes.String{Str: "stable"}}, nil
 	case VOLATILE:
 		p.advance()
-		return &nodes.DefElem{Defname: "volatility", Arg: &nodes.String{Str: "volatile"}}
+		return &nodes.DefElem{Defname: "volatility", Arg: &nodes.String{Str: "volatile"}}, nil
 	case STRICT_P:
 		p.advance()
-		return &nodes.DefElem{Defname: "strict", Arg: &nodes.Integer{Ival: 1}}
+		return &nodes.DefElem{Defname: "strict", Arg: &nodes.Integer{Ival: 1}}, nil
 	case CALLED:
 		p.advance()
-		p.expect(ON)
-		p.expect(NULL_P)
-		p.expect(INPUT_P)
-		return &nodes.DefElem{Defname: "strict", Arg: &nodes.Integer{Ival: 0}}
+		if _, err := p.expect(ON); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(NULL_P); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(INPUT_P); err != nil {
+			return nil, err
+		}
+		return &nodes.DefElem{Defname: "strict", Arg: &nodes.Integer{Ival: 0}}, nil
 	case RETURNS:
 		// RETURNS NULL ON NULL INPUT (note: this is ambiguous with RETURNS func_return
 		// but only appears in createfunc_opt_list, not at the top level)
 		p.advance()
-		p.expect(NULL_P)
-		p.expect(ON)
-		p.expect(NULL_P)
-		p.expect(INPUT_P)
-		return &nodes.DefElem{Defname: "strict", Arg: &nodes.Integer{Ival: 1}}
+		if _, err := p.expect(NULL_P); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(ON); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(NULL_P); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(INPUT_P); err != nil {
+			return nil, err
+		}
+		return &nodes.DefElem{Defname: "strict", Arg: &nodes.Integer{Ival: 1}}, nil
 	case SECURITY:
 		p.advance()
 		if p.cur.Type == DEFINER {
 			p.advance()
-			return &nodes.DefElem{Defname: "security", Arg: &nodes.Integer{Ival: 1}}
+			return &nodes.DefElem{Defname: "security", Arg: &nodes.Integer{Ival: 1}}, nil
 		}
-		p.expect(INVOKER)
-		return &nodes.DefElem{Defname: "security", Arg: &nodes.Integer{Ival: 0}}
+		if _, err := p.expect(INVOKER); err != nil {
+			return nil, err
+		}
+		return &nodes.DefElem{Defname: "security", Arg: &nodes.Integer{Ival: 0}}, nil
 	case LEAKPROOF:
 		p.advance()
-		return &nodes.DefElem{Defname: "leakproof", Arg: &nodes.Integer{Ival: 1}}
+		return &nodes.DefElem{Defname: "leakproof", Arg: &nodes.Integer{Ival: 1}}, nil
 	case NOT:
 		p.advance()
-		p.expect(LEAKPROOF)
-		return &nodes.DefElem{Defname: "leakproof", Arg: &nodes.Integer{Ival: 0}}
+		if _, err := p.expect(LEAKPROOF); err != nil {
+			return nil, err
+		}
+		return &nodes.DefElem{Defname: "leakproof", Arg: &nodes.Integer{Ival: 0}}, nil
 	case COST:
 		p.advance()
 		val := p.parseNumericOnly()
-		return &nodes.DefElem{Defname: "cost", Arg: val}
+		if val == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return &nodes.DefElem{Defname: "cost", Arg: val}, nil
 	case ROWS:
 		p.advance()
 		val := p.parseNumericOnly()
-		return &nodes.DefElem{Defname: "rows", Arg: val}
+		if val == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return &nodes.DefElem{Defname: "rows", Arg: val}, nil
 	case PARALLEL:
 		p.advance()
-		name, _ := p.parseColId()
-		return &nodes.DefElem{Defname: "parallel", Arg: &nodes.String{Str: name}}
+		name, err := p.parseColId()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.DefElem{Defname: "parallel", Arg: &nodes.String{Str: name}}, nil
 	case SUPPORT:
 		p.advance()
-		name, _ := p.parseAnyName()
-		return &nodes.DefElem{Defname: "support", Arg: name}
+		name, err := p.parseAnyName()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.DefElem{Defname: "support", Arg: name}, nil
 	case SET:
 		// SET set_rest_more
 		p.advance() // consume SET
-		arg, _ := p.parseSetRestMore()
-		return &nodes.DefElem{Defname: "set", Arg: arg}
+		arg, err := p.parseSetRestMore()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.DefElem{Defname: "set", Arg: arg}, nil
 	case RESET:
 		// VariableResetStmt (RESET reset_rest)
 		p.advance() // consume RESET
-		arg, _ := p.parseVariableResetStmt()
-		return &nodes.DefElem{Defname: "set", Arg: arg}
+		arg, err := p.parseVariableResetStmt()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.DefElem{Defname: "set", Arg: arg}, nil
 	}
-	return nil
+	return nil, nil
 }
 
 // parseOptRoutineBody parses an optional routine body.
@@ -601,7 +678,9 @@ func (p *Parser) parseOptRoutineBody() (nodes.Node, error) {
 	}
 	if p.cur.Type == BEGIN_P {
 		p.advance() // consume BEGIN
-		p.expect(ATOMIC)
+		if _, err := p.expect(ATOMIC); err != nil {
+			return nil, err
+		}
 
 		// Parse routine_body_stmt_list: (routine_body_stmt ';')*
 		var stmts []nodes.Node
@@ -610,10 +689,20 @@ func (p *Parser) parseOptRoutineBody() (nodes.Node, error) {
 			if p.cur.Type == RETURN {
 				innerRetLoc := p.pos()
 				p.advance()
-				expr, _ := p.parseAExpr(0)
+				expr, err := p.parseAExpr(0)
+				if err != nil {
+					return nil, err
+				}
+				if expr == nil {
+					return nil, p.syntaxErrorAtCur()
+				}
 				stmt = &nodes.ReturnStmt{Returnval: expr, Loc: nodes.Loc{Start: innerRetLoc, End: p.prev.End}}
 			} else {
-				stmt, _ = p.parseStmt()
+				var err error
+				stmt, err = p.parseStmt()
+				if err != nil {
+					return nil, err
+				}
 			}
 			if stmt != nil {
 				stmts = append(stmts, stmt)
@@ -623,7 +712,9 @@ func (p *Parser) parseOptRoutineBody() (nodes.Node, error) {
 				p.advance()
 			}
 		}
-		p.expect(END_P)
+		if _, err := p.expect(END_P); err != nil {
+			return nil, err
+		}
 
 		// Yacc wraps the stmt list in makeList(stmtList):
 		// a single-element list containing the statement list

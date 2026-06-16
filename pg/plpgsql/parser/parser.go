@@ -607,9 +607,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return p.parseFetch()
 	case p.isKeyword("MOVE"):
 		return p.parseMove()
-	case p.cur.Type == pgparser.INSERT || p.cur.Type == pgparser.UPDATE ||
-		p.cur.Type == pgparser.DELETE_P || p.cur.Type == pgparser.SELECT ||
-		p.cur.Type == pgparser.MERGE || p.isKeyword("IMPORT"):
+	case p.isSQLCommandStart():
 		return p.parseExecSQL()
 	}
 
@@ -619,6 +617,31 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	}
 
 	return nil, p.errorf("syntax error at or near %q", p.tokenText(p.cur))
+}
+
+// isSQLCommandStart reports whether the current token can start a PostgreSQL
+// SQL command inside PL/pgSQL. PL/pgSQL explicitly handles its own statement
+// keywords before this fallback; PostgreSQL's PL/pgSQL docs say anything not
+// recognized as a PL/pgSQL statement is presumed to be an SQL command.
+func (p *Parser) isSQLCommandStart() bool {
+	switch p.cur.Type {
+	case pgparser.SELECT, pgparser.VALUES, pgparser.TABLE, pgparser.WITH,
+		pgparser.INSERT, pgparser.UPDATE, pgparser.DELETE_P, pgparser.MERGE,
+		pgparser.CREATE, pgparser.COMMENT, pgparser.SECURITY, pgparser.ALTER,
+		pgparser.REFRESH, pgparser.BEGIN_P, pgparser.START, pgparser.COMMIT,
+		pgparser.END_P, pgparser.ABORT_P, pgparser.SAVEPOINT, pgparser.RELEASE,
+		pgparser.ROLLBACK, pgparser.PREPARE, pgparser.EXECUTE, pgparser.DEALLOCATE,
+		pgparser.SET, pgparser.SHOW, pgparser.RESET, pgparser.GRANT, pgparser.REVOKE,
+		pgparser.DROP, pgparser.TRUNCATE, pgparser.LOCK_P, pgparser.DECLARE,
+		pgparser.FETCH, pgparser.MOVE, pgparser.CLOSE, pgparser.VACUUM,
+		pgparser.ANALYZE, pgparser.ANALYSE, pgparser.CLUSTER, pgparser.REINDEX,
+		pgparser.COPY, pgparser.IMPORT_P, pgparser.EXPLAIN, pgparser.DO,
+		pgparser.CHECKPOINT, pgparser.DISCARD, pgparser.LISTEN, pgparser.UNLISTEN,
+		pgparser.NOTIFY, pgparser.LOAD, pgparser.CALL, pgparser.REASSIGN:
+		return true
+	default:
+		return false
+	}
 }
 
 // parseIf, parseCase are implemented in control.go

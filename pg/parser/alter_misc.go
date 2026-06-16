@@ -73,7 +73,10 @@ func (p *Parser) parseAlterFunctionStmt() (nodes.Node, error) {
 			}, nil
 		}
 		// Otherwise it's alterfunc_opt_list (e.g., SET search_path ...)
-		actions := p.parseAlterfuncOptList()
+		actions, err := p.parseAlterfuncOptList()
+		if err != nil {
+			return nil, err
+		}
 		if actions == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -108,7 +111,10 @@ func (p *Parser) parseAlterFunctionStmt() (nodes.Node, error) {
 		}, nil
 	default:
 		// alterfunc_opt_list opt_restrict (e.g., IMMUTABLE, STABLE, etc.)
-		actions := p.parseAlterfuncOptList()
+		actions, err := p.parseAlterfuncOptList()
+		if err != nil {
+			return nil, err
+		}
 		if actions == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -123,20 +129,26 @@ func (p *Parser) parseAlterFunctionStmt() (nodes.Node, error) {
 }
 
 // parseAlterfuncOptList parses alterfunc_opt_list: one or more common_func_opt_item.
-func (p *Parser) parseAlterfuncOptList() *nodes.List {
-	item := p.parseCommonFuncOptItem()
+func (p *Parser) parseAlterfuncOptList() (*nodes.List, error) {
+	item, err := p.parseCommonFuncOptItem()
+	if err != nil {
+		return nil, err
+	}
 	if item == nil {
-		return nil
+		return nil, nil
 	}
 	items := []nodes.Node{item}
 	for {
-		item = p.parseCommonFuncOptItem()
+		item, err = p.parseCommonFuncOptItem()
+		if err != nil {
+			return nil, err
+		}
 		if item == nil {
 			break
 		}
 		items = append(items, item)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseOptRestrict consumes an optional RESTRICT keyword (ignored, for SQL compliance).
