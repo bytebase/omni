@@ -372,7 +372,7 @@ func wrapColumnTypeChangesWithViewOps(from, to *Catalog, diff *SchemaDiff, ops [
 		if toRel != nil {
 			toOID = toRel.OID
 		}
-		def, _ := to.GetViewDefinition(v.schema, v.name)
+		def, _ := to.GetViewDefinition(v.schema, v.name, false)
 		extraOps = append(extraOps, MigrationOp{
 			Type:          OpCreateView,
 			SchemaName:    v.schema,
