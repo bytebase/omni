@@ -306,4 +306,3 @@ func extractLineStatic(input string, offset int) string {
 	}
 	return line
 }
-

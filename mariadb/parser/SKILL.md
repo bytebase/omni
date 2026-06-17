@@ -3,12 +3,12 @@
 You are reviewing a recursive descent MySQL 8.0 parser against its BNF specification files.
 
 **Working directory:** `/Users/rebeliceyang/Github/omni`
-**Parser source:** `mysql/parser/`
-**AST definitions:** `mysql/ast/`
-**BNF catalog:** `mysql/parser/MYSQL_BNF_CATALOG.json`
-**BNF files:** `mysql/parser/bnf/{statement}.bnf` (140 files, 1,823 lines)
+**Parser source:** `mariadb/parser/`
+**AST definitions:** `mariadb/ast/`
+**BNF catalog:** `mariadb/parser/MYSQL_BNF_CATALOG.json`
+**BNF files:** `mariadb/parser/bnf/{statement}.bnf` (140 files, 1,823 lines)
 **Reference:** [MySQL 8.0 SQL Statements](https://dev.mysql.com/doc/refman/8.0/en/sql-statements.html)
-**Tests:** `mysql/parser/compare_test.go`
+**Tests:** `mariadb/parser/compare_test.go`
 
 ## Scope: grammar-only
 
@@ -16,7 +16,7 @@ This package is a pure MySQL-grammar recognizer. It accepts everything
 MySQL's `sql_yacc.yy` accepts and raises `ParseError` for grammar
 violations only. All semantic checks — undeclared variable/cursor/label,
 duplicate DECLARE, missing RETURN, RETURN outside a function, etc. —
-live in `mysql/validate`. See [mysql/validate/SKILL.md](../validate/SKILL.md).
+live in `mariadb/validate`. See [mariadb/validate/SKILL.md](../validate/SKILL.md).
 
 Two checks intentionally stay inside the parser because they mirror
 yacc-level grammar rules rather than post-parse semantics:
@@ -49,13 +49,13 @@ Catalog, deparse, and completion callers do not need the validator —
 
 ## Your Task
 
-1. Read `mysql/parser/PROGRESS_SUMMARY.json` (lightweight version)
+1. Read `mariadb/parser/PROGRESS_SUMMARY.json` (lightweight version)
 2. Pick the next batch to work on:
    - If any batch has `"status": "in_progress"`, **resume that batch**
    - Otherwise, find the first batch with `"status": "pending"` whose dependencies (by id) are all `"done"`
    - If any batch has `"status": "failed"`, **retry it**
 3. Execute the BNF review following the steps below
-4. Update `mysql/parser/PROGRESS.json` (the full file, NOT the summary):
+4. Update `mariadb/parser/PROGRESS.json` (the full file, NOT the summary):
    - Set `"in_progress"` before starting work
    - Set `"done"` only after `go build` and `go test` pass
    - Set `"failed"` with `"error"` if you cannot make tests pass
@@ -91,7 +91,7 @@ If a step fails:
 
 **This is the most critical step. The BNF is the source of truth.**
 
-1. Read the BNF files listed in the batch's `bnf_files` array from `mysql/parser/bnf/`
+1. Read the BNF files listed in the batch's `bnf_files` array from `mariadb/parser/bnf/`
 2. These BNF files are the **authoritative ground truth** — do NOT use WebFetch or other sources
 3. Extract the **complete grammar** from each BNF file
 4. Note every production rule, every alternative, every optional clause
@@ -123,7 +123,7 @@ For each BNF production rule:
 ### Step 4: Write Tests for Gaps
 
 For each gap found:
-1. Write a test case in `mysql/parser/compare_test.go`
+1. Write a test case in `mariadb/parser/compare_test.go`
 2. Use `ParseAndCheck(t, sql)` for positive tests
 3. Cover each missing BNF branch with at least one test
 4. Include edge cases
@@ -132,72 +132,72 @@ For each gap found:
 
 For each gap:
 1. Update the parser code to handle the missing BNF branch
-2. Update AST nodes in `mysql/ast/parsenodes.go` if new fields are needed
-3. Update `mysql/ast/outfuncs.go` for any new AST fields/nodes
+2. Update AST nodes in `mariadb/ast/parsenodes.go` if new fields are needed
+3. Update `mariadb/ast/outfuncs.go` for any new AST fields/nodes
 4. Set `Loc` positions on all new AST nodes
 
 ### Step 6: Build and Test
 
 ```bash
 # Must compile
-cd /Users/rebeliceyang/Github/omni && go build ./mysql/...
+cd /Users/rebeliceyang/Github/omni && go build ./mariadb/...
 
 # Run batch-specific tests
-cd /Users/rebeliceyang/Github/omni && go test -v -count=1 ./mysql/parser/ -run "TestXxx"
+cd /Users/rebeliceyang/Github/omni && go test -v -count=1 ./mariadb/parser/ -run "TestXxx"
 
 # Run full test suite (no regressions)
-cd /Users/rebeliceyang/Github/omni && go test ./mysql/...
+cd /Users/rebeliceyang/Github/omni && go test ./mariadb/...
 ```
 
 ### Step 7: Update Progress and Commit
 
 Edit `PROGRESS.json`:
 - Set `"status"` to `"done"` after all tests pass
-- **NEVER mark `"done"` if `go build ./mysql/...` or `go test ./mysql/...` fails**
+- **NEVER mark `"done"` if `go build ./mariadb/...` or `go test ./mariadb/...` fails**
 
 Commit:
 ```bash
-../../scripts/git-commit.sh "mysql/parser: review batch N - name" mysql/
+../../scripts/git-commit.sh "mariadb/parser: review batch N - name" mariadb/
 ```
 
 ## Key Files Reference
 
 | File | Purpose |
 |------|---------|
-| `mysql/parser/parser.go` | Parser struct, Parse() entry point, helpers |
-| `mysql/parser/lexer.go` | Lexer, Token, keyword map, token constants |
-| `mysql/parser/expr.go` | Expression parser (Pratt/precedence climbing) |
-| `mysql/parser/select.go` | SELECT, CTE/WITH, TABLE, VALUES, set operations |
-| `mysql/parser/insert.go` | INSERT, REPLACE |
-| `mysql/parser/update_delete.go` | UPDATE, DELETE |
-| `mysql/parser/create_table.go` | CREATE TABLE, column defs, constraints, partitions |
-| `mysql/parser/alter_table.go` | ALTER TABLE with all operations |
-| `mysql/parser/create_index.go` | CREATE INDEX |
-| `mysql/parser/create_view.go` | CREATE/ALTER VIEW |
-| `mysql/parser/create_database.go` | CREATE/ALTER/DROP DATABASE |
-| `mysql/parser/create_function.go` | CREATE FUNCTION/PROCEDURE |
-| `mysql/parser/trigger.go` | CREATE TRIGGER, CREATE EVENT |
-| `mysql/parser/drop.go` | DROP TABLE/INDEX/VIEW/DATABASE, TRUNCATE, RENAME |
-| `mysql/parser/set_show.go` | SET, SHOW (37+ variants), USE, EXPLAIN |
-| `mysql/parser/transaction.go` | BEGIN, COMMIT, ROLLBACK, SAVEPOINT, XA, LOCK |
-| `mysql/parser/grant.go` | GRANT, REVOKE, CREATE/ALTER/DROP USER, roles |
-| `mysql/parser/load_data.go` | LOAD DATA, LOAD XML |
-| `mysql/parser/prepare.go` | PREPARE, EXECUTE, DEALLOCATE |
-| `mysql/parser/utility.go` | ANALYZE, CHECK, OPTIMIZE, REPAIR, FLUSH, KILL, etc. |
-| `mysql/parser/compound.go` | BEGIN...END, DECLARE, IF/CASE/WHILE/LOOP |
-| `mysql/parser/signal.go` | SIGNAL, RESIGNAL, GET DIAGNOSTICS |
-| `mysql/parser/replication.go` | CHANGE REPLICATION SOURCE, START/STOP REPLICA |
-| `mysql/parser/stmt.go` | Top-level statement dispatch |
-| `mysql/parser/name.go` | Identifiers, qualified names, variables |
-| `mysql/parser/type.go` | Data type parsing |
-| `mysql/ast/parsenodes.go` | AST node struct definitions |
-| `mysql/ast/node.go` | Node interface, List, String, Integer |
-| `mysql/ast/outfuncs.go` | AST serialization (NodeToString) |
-| `mysql/parser/compare_test.go` | Test cases for parser validation |
-| `mysql/parser/PROGRESS.json` | Full batch tracking |
-| `mysql/parser/PROGRESS_SUMMARY.json` | Lightweight batch tracking |
-| `mysql/parser/bnf/*.bnf` | BNF grammar files (140 files) |
-| `mysql/parser/MYSQL_BNF_CATALOG.json` | BNF file index and metadata |
+| `mariadb/parser/parser.go` | Parser struct, Parse() entry point, helpers |
+| `mariadb/parser/lexer.go` | Lexer, Token, keyword map, token constants |
+| `mariadb/parser/expr.go` | Expression parser (Pratt/precedence climbing) |
+| `mariadb/parser/select.go` | SELECT, CTE/WITH, TABLE, VALUES, set operations |
+| `mariadb/parser/insert.go` | INSERT, REPLACE |
+| `mariadb/parser/update_delete.go` | UPDATE, DELETE |
+| `mariadb/parser/create_table.go` | CREATE TABLE, column defs, constraints, partitions |
+| `mariadb/parser/alter_table.go` | ALTER TABLE with all operations |
+| `mariadb/parser/create_index.go` | CREATE INDEX |
+| `mariadb/parser/create_view.go` | CREATE/ALTER VIEW |
+| `mariadb/parser/create_database.go` | CREATE/ALTER/DROP DATABASE |
+| `mariadb/parser/create_function.go` | CREATE FUNCTION/PROCEDURE |
+| `mariadb/parser/trigger.go` | CREATE TRIGGER, CREATE EVENT |
+| `mariadb/parser/drop.go` | DROP TABLE/INDEX/VIEW/DATABASE, TRUNCATE, RENAME |
+| `mariadb/parser/set_show.go` | SET, SHOW (37+ variants), USE, EXPLAIN |
+| `mariadb/parser/transaction.go` | BEGIN, COMMIT, ROLLBACK, SAVEPOINT, XA, LOCK |
+| `mariadb/parser/grant.go` | GRANT, REVOKE, CREATE/ALTER/DROP USER, roles |
+| `mariadb/parser/load_data.go` | LOAD DATA, LOAD XML |
+| `mariadb/parser/prepare.go` | PREPARE, EXECUTE, DEALLOCATE |
+| `mariadb/parser/utility.go` | ANALYZE, CHECK, OPTIMIZE, REPAIR, FLUSH, KILL, etc. |
+| `mariadb/parser/compound.go` | BEGIN...END, DECLARE, IF/CASE/WHILE/LOOP |
+| `mariadb/parser/signal.go` | SIGNAL, RESIGNAL, GET DIAGNOSTICS |
+| `mariadb/parser/replication.go` | CHANGE REPLICATION SOURCE, START/STOP REPLICA |
+| `mariadb/parser/stmt.go` | Top-level statement dispatch |
+| `mariadb/parser/name.go` | Identifiers, qualified names, variables |
+| `mariadb/parser/type.go` | Data type parsing |
+| `mariadb/ast/parsenodes.go` | AST node struct definitions |
+| `mariadb/ast/node.go` | Node interface, List, String, Integer |
+| `mariadb/ast/outfuncs.go` | AST serialization (NodeToString) |
+| `mariadb/parser/compare_test.go` | Test cases for parser validation |
+| `mariadb/parser/PROGRESS.json` | Full batch tracking |
+| `mariadb/parser/PROGRESS_SUMMARY.json` | Lightweight batch tracking |
+| `mariadb/parser/bnf/*.bnf` | BNF grammar files (140 files) |
+| `mariadb/parser/MYSQL_BNF_CATALOG.json` | BNF file index and metadata |
 
 ## MySQL-Specific Lexer Notes
 
@@ -266,7 +266,7 @@ The MySQL lexer handles these MySQL-specific constructs:
 
 ## Important Constraints
 
-- Do NOT modify any files outside `mysql/`
+- Do NOT modify any files outside `mariadb/`
 - The `go.mod` at `/Users/rebeliceyang/Github/omni/go.mod` already exists
 - Run `gofmt -w` on all created/modified files
 - Use random sleep (1-3s) before git operations to avoid lock contention with other engine pipelines
