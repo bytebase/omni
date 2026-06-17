@@ -1,0 +1,5 @@
+-- Statement: SHOW DATABASES
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/show-databases.html
+
+SHOW {DATABASES | SCHEMAS}
+    [LIKE 'pattern' | WHERE expr]

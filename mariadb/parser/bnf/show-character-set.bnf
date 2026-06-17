@@ -1,0 +1,5 @@
+-- Statement: SHOW CHARACTER SET
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/show-character-set.html
+
+SHOW {CHARACTER SET | CHARSET}
+    [LIKE 'pattern' | WHERE expr]

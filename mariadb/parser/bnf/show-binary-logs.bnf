@@ -1,0 +1,6 @@
+-- Statement: SHOW BINARY LOGS
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/show-binary-logs.html
+
+SHOW BINARY LOGS
+
+SHOW MASTER LOGS

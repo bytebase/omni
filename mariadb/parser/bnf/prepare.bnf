@@ -1,0 +1,4 @@
+-- Statement: PREPARE
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/prepare.html
+
+PREPARE stmt_name FROM preparable_stmt

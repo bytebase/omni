@@ -1,0 +1,987 @@
+{
+  "engine": "mysql",
+  "base_url": "https://dev.mysql.com/doc/refman/8.0/en",
+  "description": "Complete MySQL 8.0 SQL statement catalog with documentation URLs",
+  "statements": [
+    {
+      "name": "ALTER DATABASE",
+      "slug": "alter-database",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/alter-database.html",
+      "http_status": 403
+    },
+    {
+      "name": "ALTER EVENT",
+      "slug": "alter-event",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/alter-event.html",
+      "http_status": 403
+    },
+    {
+      "name": "ALTER FUNCTION",
+      "slug": "alter-function",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/alter-function.html",
+      "http_status": 403
+    },
+    {
+      "name": "ALTER INSTANCE",
+      "slug": "alter-instance",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/alter-instance.html",
+      "http_status": 403
+    },
+    {
+      "name": "ALTER LOGFILE GROUP",
+      "slug": "alter-logfile-group",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/alter-logfile-group.html",
+      "http_status": 403
+    },
+    {
+      "name": "ALTER PROCEDURE",
+      "slug": "alter-procedure",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/alter-procedure.html",
+      "http_status": 403
+    },
+    {
+      "name": "ALTER SERVER",
+      "slug": "alter-server",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/alter-server.html",
+      "http_status": 403
+    },
+    {
+      "name": "ALTER TABLE",
+      "slug": "alter-table",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/alter-table.html",
+      "http_status": 403
+    },
+    {
+      "name": "ALTER TABLESPACE",
+      "slug": "alter-tablespace",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/alter-tablespace.html",
+      "http_status": 403
+    },
+    {
+      "name": "ALTER VIEW",
+      "slug": "alter-view",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/alter-view.html",
+      "http_status": 403
+    },
+    {
+      "name": "CREATE DATABASE",
+      "slug": "create-database",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/create-database.html",
+      "http_status": 403
+    },
+    {
+      "name": "CREATE EVENT",
+      "slug": "create-event",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/create-event.html",
+      "http_status": 403
+    },
+    {
+      "name": "CREATE FUNCTION",
+      "slug": "create-function",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/create-function.html",
+      "http_status": 403
+    },
+    {
+      "name": "CREATE INDEX",
+      "slug": "create-index",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/create-index.html",
+      "http_status": 403
+    },
+    {
+      "name": "CREATE LOGFILE GROUP",
+      "slug": "create-logfile-group",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/create-logfile-group.html",
+      "http_status": 403
+    },
+    {
+      "name": "CREATE PROCEDURE",
+      "slug": "create-procedure",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/create-procedure.html",
+      "http_status": 403
+    },
+    {
+      "name": "CREATE SERVER",
+      "slug": "create-server",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/create-server.html",
+      "http_status": 403
+    },
+    {
+      "name": "CREATE SPATIAL REFERENCE SYSTEM",
+      "slug": "create-spatial-reference-system",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/create-spatial-reference-system.html",
+      "http_status": 403
+    },
+    {
+      "name": "CREATE TABLE",
+      "slug": "create-table",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/create-table.html",
+      "http_status": 403
+    },
+    {
+      "name": "CREATE TABLESPACE",
+      "slug": "create-tablespace",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/create-tablespace.html",
+      "http_status": 403
+    },
+    {
+      "name": "CREATE TRIGGER",
+      "slug": "create-trigger",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/create-trigger.html",
+      "http_status": 403
+    },
+    {
+      "name": "CREATE VIEW",
+      "slug": "create-view",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/create-view.html",
+      "http_status": 403
+    },
+    {
+      "name": "DROP DATABASE",
+      "slug": "drop-database",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/drop-database.html",
+      "http_status": 403
+    },
+    {
+      "name": "DROP EVENT",
+      "slug": "drop-event",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/drop-event.html",
+      "http_status": 403
+    },
+    {
+      "name": "DROP FUNCTION",
+      "slug": "drop-function",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/drop-function.html",
+      "http_status": 403
+    },
+    {
+      "name": "DROP INDEX",
+      "slug": "drop-index",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/drop-index.html",
+      "http_status": 403
+    },
+    {
+      "name": "DROP LOGFILE GROUP",
+      "slug": "drop-logfile-group",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/drop-logfile-group.html",
+      "http_status": 403
+    },
+    {
+      "name": "DROP PROCEDURE",
+      "slug": "drop-procedure",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/drop-procedure.html",
+      "http_status": 403
+    },
+    {
+      "name": "DROP SERVER",
+      "slug": "drop-server",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/drop-server.html",
+      "http_status": 403
+    },
+    {
+      "name": "DROP SPATIAL REFERENCE SYSTEM",
+      "slug": "drop-spatial-reference-system",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/drop-spatial-reference-system.html",
+      "http_status": 403
+    },
+    {
+      "name": "DROP TABLE",
+      "slug": "drop-table",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/drop-table.html",
+      "http_status": 403
+    },
+    {
+      "name": "DROP TABLESPACE",
+      "slug": "drop-tablespace",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/drop-tablespace.html",
+      "http_status": 403
+    },
+    {
+      "name": "DROP TRIGGER",
+      "slug": "drop-trigger",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/drop-trigger.html",
+      "http_status": 403
+    },
+    {
+      "name": "DROP VIEW",
+      "slug": "drop-view",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/drop-view.html",
+      "http_status": 403
+    },
+    {
+      "name": "RENAME TABLE",
+      "slug": "rename-table",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/rename-table.html",
+      "http_status": 403
+    },
+    {
+      "name": "TRUNCATE TABLE",
+      "slug": "truncate-table",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/truncate-table.html",
+      "http_status": 403
+    },
+    {
+      "name": "CALL",
+      "slug": "call",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/call.html",
+      "http_status": 403
+    },
+    {
+      "name": "DELETE",
+      "slug": "delete",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/delete.html",
+      "http_status": 403
+    },
+    {
+      "name": "DO",
+      "slug": "do",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/do.html",
+      "http_status": 403
+    },
+    {
+      "name": "INSERT",
+      "slug": "insert",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/insert.html",
+      "http_status": 403
+    },
+    {
+      "name": "LOAD DATA",
+      "slug": "load-data",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/load-data.html",
+      "http_status": 403
+    },
+    {
+      "name": "LOAD XML",
+      "slug": "load-xml",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/load-xml.html",
+      "http_status": 403
+    },
+    {
+      "name": "REPLACE",
+      "slug": "replace",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/replace.html",
+      "http_status": 403
+    },
+    {
+      "name": "SELECT",
+      "slug": "select",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/select.html",
+      "http_status": 403
+    },
+    {
+      "name": "TABLE",
+      "slug": "table",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/table.html",
+      "http_status": 403
+    },
+    {
+      "name": "UPDATE",
+      "slug": "update",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/update.html",
+      "http_status": 403
+    },
+    {
+      "name": "VALUES",
+      "slug": "values",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/values.html",
+      "http_status": 403
+    },
+    {
+      "name": "UNION",
+      "slug": "union",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/union.html",
+      "http_status": 403
+    },
+    {
+      "name": "EXCEPT",
+      "slug": "except",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/except.html",
+      "http_status": 403
+    },
+    {
+      "name": "INTERSECT",
+      "slug": "intersect",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/intersect.html",
+      "http_status": 403
+    },
+    {
+      "name": "COMMIT",
+      "slug": "commit",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/commit.html",
+      "http_status": 403
+    },
+    {
+      "name": "SAVEPOINT",
+      "slug": "savepoint",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/savepoint.html",
+      "http_status": 403
+    },
+    {
+      "name": "LOCK TABLES",
+      "slug": "lock-tables",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/lock-tables.html",
+      "http_status": 403
+    },
+    {
+      "name": "SET TRANSACTION",
+      "slug": "set-transaction",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/set-transaction.html",
+      "http_status": 403
+    },
+    {
+      "name": "XA",
+      "slug": "xa",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/xa.html",
+      "http_status": 403
+    },
+    {
+      "name": "LOCK INSTANCE",
+      "slug": "lock-instance-for-backup",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/lock-instance-for-backup.html",
+      "http_status": 403
+    },
+    {
+      "name": "ALTER USER",
+      "slug": "alter-user",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/alter-user.html",
+      "http_status": 403
+    },
+    {
+      "name": "CREATE ROLE",
+      "slug": "create-role",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/create-role.html",
+      "http_status": 403
+    },
+    {
+      "name": "CREATE USER",
+      "slug": "create-user",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/create-user.html",
+      "http_status": 403
+    },
+    {
+      "name": "DROP ROLE",
+      "slug": "drop-role",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/drop-role.html",
+      "http_status": 403
+    },
+    {
+      "name": "DROP USER",
+      "slug": "drop-user",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/drop-user.html",
+      "http_status": 403
+    },
+    {
+      "name": "GRANT",
+      "slug": "grant",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/grant.html",
+      "http_status": 403
+    },
+    {
+      "name": "RENAME USER",
+      "slug": "rename-user",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/rename-user.html",
+      "http_status": 403
+    },
+    {
+      "name": "REVOKE",
+      "slug": "revoke",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/revoke.html",
+      "http_status": 403
+    },
+    {
+      "name": "SET DEFAULT ROLE",
+      "slug": "set-default-role",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/set-default-role.html",
+      "http_status": 403
+    },
+    {
+      "name": "SET PASSWORD",
+      "slug": "set-password",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/set-password.html",
+      "http_status": 403
+    },
+    {
+      "name": "SET ROLE",
+      "slug": "set-role",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/set-role.html",
+      "http_status": 403
+    },
+    {
+      "name": "ALTER RESOURCE GROUP",
+      "slug": "alter-resource-group",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/alter-resource-group.html",
+      "http_status": 403
+    },
+    {
+      "name": "CREATE RESOURCE GROUP",
+      "slug": "create-resource-group",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/create-resource-group.html",
+      "http_status": 403
+    },
+    {
+      "name": "DROP RESOURCE GROUP",
+      "slug": "drop-resource-group",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/drop-resource-group.html",
+      "http_status": 403
+    },
+    {
+      "name": "SET RESOURCE GROUP",
+      "slug": "set-resource-group",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/set-resource-group.html",
+      "http_status": 403
+    },
+    {
+      "name": "ANALYZE TABLE",
+      "slug": "analyze-table",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/analyze-table.html",
+      "http_status": 403
+    },
+    {
+      "name": "CHECK TABLE",
+      "slug": "check-table",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/check-table.html",
+      "http_status": 403
+    },
+    {
+      "name": "CHECKSUM TABLE",
+      "slug": "checksum-table",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/checksum-table.html",
+      "http_status": 403
+    },
+    {
+      "name": "OPTIMIZE TABLE",
+      "slug": "optimize-table",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/optimize-table.html",
+      "http_status": 403
+    },
+    {
+      "name": "REPAIR TABLE",
+      "slug": "repair-table",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/repair-table.html",
+      "http_status": 403
+    },
+    {
+      "name": "INSTALL COMPONENT",
+      "slug": "install-component",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/install-component.html",
+      "http_status": 403
+    },
+    {
+      "name": "INSTALL PLUGIN",
+      "slug": "install-plugin",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/install-plugin.html",
+      "http_status": 403
+    },
+    {
+      "name": "UNINSTALL COMPONENT",
+      "slug": "uninstall-component",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/uninstall-component.html",
+      "http_status": 403
+    },
+    {
+      "name": "UNINSTALL PLUGIN",
+      "slug": "uninstall-plugin",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/uninstall-plugin.html",
+      "http_status": 403
+    },
+    {
+      "name": "CLONE",
+      "slug": "clone",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/clone.html",
+      "http_status": 403
+    },
+    {
+      "name": "SET",
+      "slug": "set-variable",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/set-variable.html",
+      "http_status": 403
+    },
+    {
+      "name": "SET CHARACTER SET",
+      "slug": "set-character-set",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/set-character-set.html",
+      "http_status": 403
+    },
+    {
+      "name": "SET NAMES",
+      "slug": "set-names",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/set-names.html",
+      "http_status": 403
+    },
+    {
+      "name": "DESCRIBE",
+      "slug": "describe",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/describe.html",
+      "http_status": 403
+    },
+    {
+      "name": "EXPLAIN",
+      "slug": "explain",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/explain.html",
+      "http_status": 403
+    },
+    {
+      "name": "USE",
+      "slug": "use",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/use.html",
+      "http_status": 403
+    },
+    {
+      "name": "HELP",
+      "slug": "help",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/help.html",
+      "http_status": 403
+    },
+    {
+      "name": "BINLOG",
+      "slug": "binlog",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/binlog.html",
+      "http_status": 403
+    },
+    {
+      "name": "CACHE INDEX",
+      "slug": "cache-index",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/cache-index.html",
+      "http_status": 403
+    },
+    {
+      "name": "FLUSH",
+      "slug": "flush",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/flush.html",
+      "http_status": 403
+    },
+    {
+      "name": "KILL",
+      "slug": "kill",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/kill.html",
+      "http_status": 403
+    },
+    {
+      "name": "LOAD INDEX INTO CACHE",
+      "slug": "load-index",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/load-index.html",
+      "http_status": 403
+    },
+    {
+      "name": "RESET",
+      "slug": "reset",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/reset.html",
+      "http_status": 403
+    },
+    {
+      "name": "RESET PERSIST",
+      "slug": "reset-persist",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/reset-persist.html",
+      "http_status": 403
+    },
+    {
+      "name": "RESTART",
+      "slug": "restart",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/restart.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHUTDOWN",
+      "slug": "shutdown",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/shutdown.html",
+      "http_status": 403
+    },
+    {
+      "name": "PREPARE",
+      "slug": "prepare",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/prepare.html",
+      "http_status": 403
+    },
+    {
+      "name": "EXECUTE",
+      "slug": "execute",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/execute.html",
+      "http_status": 403
+    },
+    {
+      "name": "DEALLOCATE PREPARE",
+      "slug": "deallocate-prepare",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/deallocate-prepare.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW DATABASES",
+      "slug": "show-databases",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-databases.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW TABLES",
+      "slug": "show-tables",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-tables.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW COLUMNS",
+      "slug": "show-columns",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-columns.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW CREATE TABLE",
+      "slug": "show-create-table",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-create-table.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW CREATE DATABASE",
+      "slug": "show-create-database",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-create-database.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW INDEX",
+      "slug": "show-index",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-index.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW GRANTS",
+      "slug": "show-grants",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-grants.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW STATUS",
+      "slug": "show-status",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-status.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW VARIABLES",
+      "slug": "show-variables",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-variables.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW WARNINGS",
+      "slug": "show-warnings",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-warnings.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW ERRORS",
+      "slug": "show-errors",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-errors.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW PROCESSLIST",
+      "slug": "show-processlist",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-processlist.html",
+      "http_status": 0
+    },
+    {
+      "name": "SHOW TABLE STATUS",
+      "slug": "show-table-status",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-table-status.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW ENGINES",
+      "slug": "show-engines",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-engines.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW TRIGGERS",
+      "slug": "show-triggers",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-triggers.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW EVENTS",
+      "slug": "show-events",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-events.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW PLUGINS",
+      "slug": "show-plugins",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-plugins.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW PRIVILEGES",
+      "slug": "show-privileges",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-privileges.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW CHARACTER SET",
+      "slug": "show-character-set",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-character-set.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW COLLATION",
+      "slug": "show-collation",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-collation.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW CREATE VIEW",
+      "slug": "show-create-view",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-create-view.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW CREATE TRIGGER",
+      "slug": "show-create-trigger",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-create-trigger.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW CREATE EVENT",
+      "slug": "show-create-event",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-create-event.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW CREATE FUNCTION",
+      "slug": "show-create-function",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-create-function.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW CREATE PROCEDURE",
+      "slug": "show-create-procedure",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-create-procedure.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW CREATE USER",
+      "slug": "show-create-user",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-create-user.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW BINARY LOGS",
+      "slug": "show-binary-logs",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-binary-logs.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW BINLOG EVENTS",
+      "slug": "show-binlog-events",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-binlog-events.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW ENGINE",
+      "slug": "show-engine",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-engine.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW FUNCTION CODE",
+      "slug": "show-function-code",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-function-code.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW FUNCTION STATUS",
+      "slug": "show-function-status",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-function-status.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW MASTER STATUS",
+      "slug": "show-master-status",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-master-status.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW OPEN TABLES",
+      "slug": "show-open-tables",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-open-tables.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW PROCEDURE CODE",
+      "slug": "show-procedure-code",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-procedure-code.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW PROCEDURE STATUS",
+      "slug": "show-procedure-status",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-procedure-status.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW PROFILE",
+      "slug": "show-profile",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-profile.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW PROFILES",
+      "slug": "show-profiles",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-profiles.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW RELAYLOG EVENTS",
+      "slug": "show-relaylog-events",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-relaylog-events.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW REPLICAS",
+      "slug": "show-replicas",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-replicas.html",
+      "http_status": 403
+    },
+    {
+      "name": "SHOW REPLICA STATUS",
+      "slug": "show-replica-status",
+      "status": "bnf_done",
+      "url": "https://dev.mysql.com/doc/refman/8.0/en/show-replica-status.html",
+      "http_status": 403
+    }
+  ]
+}

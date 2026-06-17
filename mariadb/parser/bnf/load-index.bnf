@@ -1,0 +1,16 @@
+-- Statement: LOAD INDEX INTO CACHE
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/load-index.html
+
+LOAD INDEX INTO CACHE
+  tbl_index_list [, tbl_index_list] ...
+
+tbl_index_list:
+  tbl_name
+    [PARTITION (partition_list)]
+    [{INDEX | KEY} (index_name [, index_name] ...)]
+    [IGNORE LEAVES]
+
+partition_list: {
+    partition_name [, partition_name] ...
+  | ALL
+}

@@ -1,0 +1,10 @@
+-- Statement: ALTER VIEW
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/alter-view.html
+
+ALTER
+    [ALGORITHM = {UNDEFINED | MERGE | TEMPTABLE}]
+    [DEFINER = user]
+    [SQL SECURITY { DEFINER | INVOKER }]
+    VIEW view_name [(column_list)]
+    AS select_statement
+    [WITH [CASCADED | LOCAL] CHECK OPTION]

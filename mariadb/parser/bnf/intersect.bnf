@@ -1,0 +1,6 @@
+-- Statement: INTERSECT
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/intersect.html
+
+query_expression_body INTERSECT [ALL | DISTINCT] query_expression_body
+    [INTERSECT [ALL | DISTINCT] query_expression_body]
+    [...]

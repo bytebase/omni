@@ -1,0 +1,22 @@
+-- Statement: SET TRANSACTION
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/set-transaction.html
+
+SET [GLOBAL | SESSION] TRANSACTION
+    transaction_characteristic [, transaction_characteristic] ...
+
+transaction_characteristic: {
+    ISOLATION LEVEL level
+  | access_mode
+}
+
+level: {
+     REPEATABLE READ
+   | READ COMMITTED
+   | READ UNCOMMITTED
+   | SERIALIZABLE
+}
+
+access_mode: {
+     READ WRITE
+   | READ ONLY
+}

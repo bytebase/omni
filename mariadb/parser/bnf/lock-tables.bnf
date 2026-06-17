@@ -1,0 +1,13 @@
+-- Statement: LOCK TABLES
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/lock-tables.html
+
+LOCK {TABLE | TABLES}
+    tbl_name [[AS] alias] lock_type
+    [, tbl_name [[AS] alias] lock_type] ...
+
+lock_type: {
+    READ [LOCAL]
+  | [LOW_PRIORITY] WRITE
+}
+
+UNLOCK {TABLE | TABLES}

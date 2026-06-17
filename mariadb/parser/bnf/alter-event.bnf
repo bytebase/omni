@@ -1,0 +1,12 @@
+-- Statement: ALTER EVENT
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/alter-event.html
+
+ALTER
+    [DEFINER = user]
+    EVENT event_name
+    [ON SCHEDULE schedule]
+    [ON COMPLETION [NOT] PRESERVE]
+    [RENAME TO new_event_name]
+    [ENABLE | DISABLE | DISABLE ON SLAVE]
+    [COMMENT 'string']
+    [DO event_body]

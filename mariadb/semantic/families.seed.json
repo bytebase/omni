@@ -1,0 +1,126 @@
+{
+  "engine": "mysql",
+  "version": "8.0",
+  "families": [
+    {
+      "id": "create_database",
+      "slug": "create-database",
+      "category": "ddl",
+      "statements": ["CREATE DATABASE", "CREATE SCHEMA"],
+      "entry_ast_nodes": ["CreateDatabaseStmt"],
+      "priority": 0
+    },
+    {
+      "id": "create_table",
+      "slug": "create-table",
+      "category": "ddl",
+      "statements": ["CREATE TABLE", "CREATE TABLE ... LIKE", "CREATE TABLE ... AS SELECT"],
+      "entry_ast_nodes": ["CreateTableStmt"],
+      "priority": 1
+    },
+    {
+      "id": "alter_table",
+      "slug": "alter-table",
+      "category": "ddl",
+      "statements": ["ALTER TABLE"],
+      "entry_ast_nodes": ["AlterTableStmt"],
+      "priority": 2
+    },
+    {
+      "id": "drop_table",
+      "slug": "drop-table",
+      "category": "ddl",
+      "statements": ["DROP TABLE", "DROP TEMPORARY TABLE"],
+      "entry_ast_nodes": ["DropTableStmt"],
+      "priority": 3
+    },
+    {
+      "id": "create_index",
+      "slug": "create-index",
+      "category": "ddl",
+      "statements": ["CREATE INDEX", "CREATE UNIQUE INDEX", "CREATE FULLTEXT INDEX", "CREATE SPATIAL INDEX"],
+      "entry_ast_nodes": ["CreateIndexStmt"],
+      "priority": 4
+    },
+    {
+      "id": "drop_index",
+      "slug": "drop-index",
+      "category": "ddl",
+      "statements": ["DROP INDEX"],
+      "entry_ast_nodes": ["DropIndexStmt"],
+      "priority": 5
+    },
+    {
+      "id": "create_view",
+      "slug": "create-view",
+      "category": "ddl",
+      "statements": ["CREATE VIEW", "CREATE OR REPLACE VIEW"],
+      "entry_ast_nodes": ["CreateViewStmt"],
+      "priority": 6
+    },
+    {
+      "id": "alter_database",
+      "slug": "alter-database",
+      "category": "ddl",
+      "statements": ["ALTER DATABASE", "ALTER SCHEMA"],
+      "entry_ast_nodes": ["AlterDatabaseStmt"],
+      "priority": 7
+    },
+    {
+      "id": "drop_database",
+      "slug": "drop-database",
+      "category": "ddl",
+      "statements": ["DROP DATABASE", "DROP SCHEMA"],
+      "entry_ast_nodes": ["DropDatabaseStmt"],
+      "priority": 8
+    },
+    {
+      "id": "rename_table",
+      "slug": "rename-table",
+      "category": "ddl",
+      "statements": ["RENAME TABLE"],
+      "entry_ast_nodes": ["RenameTableStmt"],
+      "priority": 9
+    },
+    {
+      "id": "truncate_table",
+      "slug": "truncate-table",
+      "category": "ddl",
+      "statements": ["TRUNCATE TABLE"],
+      "entry_ast_nodes": ["TruncateStmt"],
+      "priority": 10
+    },
+    {
+      "id": "create_function",
+      "slug": "create-function",
+      "category": "ddl",
+      "statements": ["CREATE FUNCTION", "CREATE PROCEDURE"],
+      "entry_ast_nodes": ["CreateFunctionStmt"],
+      "priority": 11
+    },
+    {
+      "id": "create_trigger",
+      "slug": "create-trigger",
+      "category": "ddl",
+      "statements": ["CREATE TRIGGER"],
+      "entry_ast_nodes": ["CreateTriggerStmt"],
+      "priority": 12
+    },
+    {
+      "id": "create_event",
+      "slug": "create-event",
+      "category": "ddl",
+      "statements": ["CREATE EVENT"],
+      "entry_ast_nodes": ["CreateEventStmt"],
+      "priority": 13
+    },
+    {
+      "id": "grant_revoke",
+      "slug": "grant-revoke",
+      "category": "dcl",
+      "statements": ["GRANT", "REVOKE"],
+      "entry_ast_nodes": ["GrantStmt", "RevokeStmt"],
+      "priority": 14
+    }
+  ]
+}
