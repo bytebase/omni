@@ -1,0 +1,6 @@
+-- Statement: SHOW TABLES
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/show-tables.html
+
+SHOW [EXTENDED] [FULL] TABLES
+    [{FROM | IN} db_name]
+    [LIKE 'pattern' | WHERE expr]

@@ -1,0 +1,14 @@
+-- Statement: SET
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/set-variable.html
+
+SET variable = expr [, variable = expr] ...
+
+variable: {
+    user_var_name
+  | param_name
+  | local_var_name
+  | {GLOBAL | @@GLOBAL.} system_var_name
+  | {PERSIST | @@PERSIST.} system_var_name
+  | {PERSIST_ONLY | @@PERSIST_ONLY.} system_var_name
+  | [SESSION | @@SESSION. | @@] system_var_name
+}

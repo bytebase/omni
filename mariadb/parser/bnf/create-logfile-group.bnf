@@ -1,0 +1,12 @@
+-- Statement: CREATE LOGFILE GROUP
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/create-logfile-group.html
+
+CREATE LOGFILE GROUP logfile_group
+    ADD UNDOFILE 'undo_file'
+    [INITIAL_SIZE [=] initial_size]
+    [UNDO_BUFFER_SIZE [=] undo_buffer_size]
+    [REDO_BUFFER_SIZE [=] redo_buffer_size]
+    [NODEGROUP [=] nodegroup_id]
+    [WAIT]
+    [COMMENT [=] 'string']
+    ENGINE [=] engine_name

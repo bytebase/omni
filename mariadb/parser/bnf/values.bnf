@@ -1,0 +1,13 @@
+-- Statement: VALUES
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/values.html
+
+VALUES row_constructor_list [ORDER BY column_designator] [LIMIT number]
+
+row_constructor_list:
+    ROW(value_list)[, ROW(value_list)][, ...]
+
+value_list:
+    value[, value][, ...]
+
+column_designator:
+    column_index

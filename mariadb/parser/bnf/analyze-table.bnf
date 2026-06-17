@@ -1,0 +1,18 @@
+-- Statement: ANALYZE TABLE
+-- Source: https://dev.mysql.com/doc/refman/8.0/en/analyze-table.html
+
+ANALYZE [NO_WRITE_TO_BINLOG | LOCAL]
+    TABLE tbl_name [, tbl_name] ...
+
+ANALYZE [NO_WRITE_TO_BINLOG | LOCAL]
+    TABLE tbl_name
+    UPDATE HISTOGRAM ON col_name [, col_name] ...
+        [WITH N BUCKETS]
+
+ANALYZE [NO_WRITE_TO_BINLOG | LOCAL]
+    TABLE tbl_name
+    UPDATE HISTOGRAM ON col_name [USING DATA 'json_data']
+
+ANALYZE [NO_WRITE_TO_BINLOG | LOCAL]
+    TABLE tbl_name
+    DROP HISTOGRAM ON col_name [, col_name] ...

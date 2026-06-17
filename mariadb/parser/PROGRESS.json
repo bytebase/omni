@@ -1,0 +1,2935 @@
+{
+  "version": 1,
+  "target": "100% MySQL 8.0 grammar coverage with recursive descent parser",
+  "status": "in_progress",
+  "batches": [
+    {
+      "id": 0,
+      "name": "infrastructure",
+      "file": "parser.go",
+      "status": "done",
+      "description": "Parser struct, advance/peek/match/expect/pos helpers, Lexer, Token types, keyword map",
+      "rules": [],
+      "depends_on": [],
+      "tests": []
+    },
+    {
+      "id": 1,
+      "name": "names",
+      "file": "name.go",
+      "status": "done",
+      "description": "Identifiers, qualified names (db.table.col), backtick-quoted identifiers, variable refs (@user, @@system)",
+      "rules": [
+        "identifier",
+        "qualified_name",
+        "column_ref",
+        "table_ref",
+        "backtick_ident",
+        "user_variable",
+        "system_variable"
+      ],
+      "depends_on": [
+        0
+      ],
+      "tests": [
+        "TestParseIdentifiers",
+        "TestParseQualifiedNames",
+        "TestParseVariableRefs"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "types",
+      "file": "type.go",
+      "status": "done",
+      "description": "Data types: INT, VARCHAR(N), DECIMAL(M,D), ENUM, SET, JSON, BLOB, DATE/TIME types, UNSIGNED, ZEROFILL",
+      "rules": [
+        "data_type",
+        "numeric_type",
+        "string_type",
+        "date_type",
+        "blob_type",
+        "enum_type",
+        "set_type",
+        "json_type",
+        "type_length",
+        "type_precision",
+        "unsigned",
+        "zerofill",
+        "character_set",
+        "collate"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseDataTypes"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "expressions",
+      "file": "expr.go",
+      "status": "done",
+      "description": "Operators, precedence (Pratt parsing), CASE, BETWEEN, IN, LIKE, REGEXP, IS, functions, CAST, CONVERT, INTERVAL",
+      "rules": [
+        "expr",
+        "primary_expr",
+        "unary_expr",
+        "binary_expr",
+        "comparison_expr",
+        "logical_expr",
+        "arithmetic_expr",
+        "case_expr",
+        "between_expr",
+        "in_expr",
+        "like_expr",
+        "regexp_expr",
+        "is_expr",
+        "exists_expr",
+        "cast_expr",
+        "convert_expr",
+        "interval_expr",
+        "collate_expr",
+        "match_expr",
+        "func_call",
+        "subquery_expr",
+        "paren_expr",
+        "literal",
+        "column_ref_expr"
+      ],
+      "depends_on": [
+        1,
+        2
+      ],
+      "tests": [
+        "TestParseArithmetic",
+        "TestParseComparison",
+        "TestParseLogical",
+        "TestParseCaseExpr",
+        "TestParseBetween",
+        "TestParseIn",
+        "TestParseLike",
+        "TestParseIs",
+        "TestParseCast",
+        "TestParseFuncCall"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "select",
+      "file": "select.go",
+      "status": "done",
+      "description": "SELECT with all clauses including MySQL-specific: SQL_CALC_FOUND_ROWS, INTO, HIGH_PRIORITY, STRAIGHT_JOIN, UNION/INTERSECT/EXCEPT",
+      "rules": [
+        "select_stmt",
+        "select_options",
+        "select_expr_list",
+        "select_expr",
+        "from_clause",
+        "table_references",
+        "table_reference",
+        "table_factor",
+        "join_clause",
+        "join_condition",
+        "where_clause",
+        "group_by_clause",
+        "having_clause",
+        "order_by_clause",
+        "limit_clause",
+        "for_update_clause",
+        "window_clause",
+        "into_clause",
+        "set_operation",
+        "subquery"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseSimpleSelect",
+        "TestParseSelectFrom",
+        "TestParseSelectJoin",
+        "TestParseSelectGroupBy",
+        "TestParseSelectOrderBy",
+        "TestParseSelectLimit",
+        "TestParseSelectUnion",
+        "TestParseSelectForUpdate"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "insert",
+      "file": "insert.go",
+      "status": "done",
+      "description": "INSERT, REPLACE, ON DUPLICATE KEY UPDATE",
+      "rules": [
+        "insert_stmt",
+        "replace_stmt",
+        "insert_values",
+        "insert_set",
+        "insert_select",
+        "on_duplicate_key_update",
+        "insert_priority",
+        "insert_ignore"
+      ],
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseInsertValues",
+        "TestParseInsertSelect",
+        "TestParseInsertSet",
+        "TestParseReplace",
+        "TestParseInsertOnDupKey"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "update_delete",
+      "file": "update_delete.go",
+      "status": "done",
+      "description": "UPDATE (single and multi-table), DELETE (single and multi-table)",
+      "rules": [
+        "update_stmt",
+        "single_table_update",
+        "multi_table_update",
+        "delete_stmt",
+        "single_table_delete",
+        "multi_table_delete"
+      ],
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseUpdate",
+        "TestParseMultiTableUpdate",
+        "TestParseDelete",
+        "TestParseMultiTableDelete"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "create_table",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "CREATE TABLE, column defs, constraints, table options, partitions, LIKE, CREATE TABLE AS SELECT",
+      "rules": [
+        "create_table_stmt",
+        "column_definition",
+        "column_constraint",
+        "table_constraint",
+        "table_option",
+        "partition_clause",
+        "partition_definition",
+        "create_table_like",
+        "create_table_as_select",
+        "reference_definition",
+        "reference_action"
+      ],
+      "depends_on": [
+        2,
+        3
+      ],
+      "tests": [
+        "TestParseCreateTable",
+        "TestParseCreateTableConstraints",
+        "TestParseCreateTableOptions",
+        "TestParseCreateTableLike"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "alter_table",
+      "file": "alter_table.go",
+      "status": "done",
+      "description": "ALTER TABLE with all MySQL-specific operations: ADD/DROP/MODIFY/CHANGE COLUMN, ADD/DROP INDEX, RENAME, etc.",
+      "rules": [
+        "alter_table_stmt",
+        "alter_table_action",
+        "add_column",
+        "drop_column",
+        "modify_column",
+        "change_column",
+        "add_constraint",
+        "drop_constraint",
+        "add_index",
+        "drop_index",
+        "rename_table",
+        "rename_column",
+        "rename_index",
+        "alter_column_default",
+        "convert_charset",
+        "table_option_alter",
+        "algorithm_option",
+        "lock_option"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": [
+        "TestParseAlterTableAddColumn",
+        "TestParseAlterTableDropColumn",
+        "TestParseAlterTableModifyColumn",
+        "TestParseAlterTableAddIndex",
+        "TestParseAlterTableRename"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "create_index",
+      "file": "create_index.go",
+      "status": "done",
+      "description": "CREATE INDEX, including UNIQUE, FULLTEXT, SPATIAL index types",
+      "rules": [
+        "create_index_stmt",
+        "index_type",
+        "index_column_list",
+        "index_column",
+        "index_option"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseCreateIndex",
+        "TestParseCreateUniqueIndex",
+        "TestParseCreateFulltextIndex"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "create_view",
+      "file": "create_view.go",
+      "status": "done",
+      "description": "CREATE VIEW, ALTER VIEW, CREATE OR REPLACE VIEW",
+      "rules": [
+        "create_view_stmt",
+        "view_algorithm",
+        "view_definer",
+        "view_sql_security",
+        "view_check_option"
+      ],
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseCreateView",
+        "TestParseCreateOrReplaceView"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "create_database",
+      "file": "create_database.go",
+      "status": "done",
+      "description": "CREATE/ALTER/DROP DATABASE, CREATE/ALTER/DROP SCHEMA",
+      "rules": [
+        "create_database_stmt",
+        "alter_database_stmt",
+        "drop_database_stmt",
+        "database_option"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseCreateDatabase",
+        "TestParseAlterDatabase",
+        "TestParseDropDatabase"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "drop",
+      "file": "drop.go",
+      "status": "done",
+      "description": "DROP TABLE/INDEX/VIEW/DATABASE, TRUNCATE TABLE, RENAME TABLE",
+      "rules": [
+        "drop_table_stmt",
+        "drop_index_stmt",
+        "drop_view_stmt",
+        "truncate_stmt",
+        "rename_table_stmt"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseDropTable",
+        "TestParseDropIndex",
+        "TestParseDropView",
+        "TestParseTruncate",
+        "TestParseRenameTable"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "set_show",
+      "file": "set_show.go",
+      "status": "done",
+      "description": "SET, SHOW, USE, DESCRIBE/EXPLAIN statements",
+      "rules": [
+        "set_stmt",
+        "show_stmt",
+        "use_stmt",
+        "describe_stmt",
+        "explain_stmt",
+        "show_databases",
+        "show_tables",
+        "show_columns",
+        "show_create",
+        "show_variables",
+        "show_status",
+        "show_warnings",
+        "show_errors"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseSet",
+        "TestParseShow",
+        "TestParseUse",
+        "TestParseExplain"
+      ]
+    },
+    {
+      "id": 14,
+      "name": "transaction",
+      "file": "transaction.go",
+      "status": "done",
+      "description": "BEGIN, START TRANSACTION, COMMIT, ROLLBACK, SAVEPOINT, LOCK/UNLOCK TABLES",
+      "rules": [
+        "begin_stmt",
+        "start_transaction_stmt",
+        "commit_stmt",
+        "rollback_stmt",
+        "savepoint_stmt",
+        "release_savepoint_stmt",
+        "lock_tables_stmt",
+        "unlock_tables_stmt"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseBegin",
+        "TestParseCommit",
+        "TestParseRollback",
+        "TestParseSavepoint",
+        "TestParseLockTables"
+      ]
+    },
+    {
+      "id": 15,
+      "name": "grant",
+      "file": "grant.go",
+      "status": "done",
+      "description": "GRANT, REVOKE, CREATE/DROP/ALTER USER",
+      "rules": [
+        "grant_stmt",
+        "revoke_stmt",
+        "create_user_stmt",
+        "drop_user_stmt",
+        "alter_user_stmt",
+        "privilege_list",
+        "grant_target",
+        "user_spec"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseGrant",
+        "TestParseRevoke",
+        "TestParseCreateUser",
+        "TestParseDropUser"
+      ]
+    },
+    {
+      "id": 16,
+      "name": "create_function",
+      "file": "create_function.go",
+      "status": "done",
+      "description": "CREATE FUNCTION/PROCEDURE, stored routines",
+      "rules": [
+        "create_function_stmt",
+        "create_procedure_stmt",
+        "func_param_list",
+        "func_param",
+        "routine_body",
+        "routine_characteristic"
+      ],
+      "depends_on": [
+        2,
+        4
+      ],
+      "tests": [
+        "TestParseCreateFunction",
+        "TestParseCreateProcedure"
+      ]
+    },
+    {
+      "id": 17,
+      "name": "trigger",
+      "file": "trigger.go",
+      "status": "done",
+      "description": "CREATE TRIGGER, CREATE EVENT",
+      "rules": [
+        "create_trigger_stmt",
+        "trigger_time",
+        "trigger_event",
+        "trigger_order",
+        "create_event_stmt",
+        "event_schedule"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseCreateTrigger",
+        "TestParseCreateEvent"
+      ]
+    },
+    {
+      "id": 18,
+      "name": "load_data",
+      "file": "load_data.go",
+      "status": "done",
+      "description": "LOAD DATA INFILE, LOAD XML",
+      "rules": [
+        "load_data_stmt",
+        "load_data_options",
+        "fields_clause",
+        "lines_clause"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseLoadData"
+      ]
+    },
+    {
+      "id": 19,
+      "name": "prepare",
+      "file": "prepare.go",
+      "status": "done",
+      "description": "PREPARE, EXECUTE, DEALLOCATE PREPARE",
+      "rules": [
+        "prepare_stmt",
+        "execute_stmt",
+        "deallocate_stmt"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParsePrepare",
+        "TestParseExecute",
+        "TestParseDeallocate"
+      ]
+    },
+    {
+      "id": 20,
+      "name": "utility",
+      "file": "utility.go",
+      "status": "done",
+      "description": "ANALYZE TABLE, OPTIMIZE TABLE, CHECK TABLE, REPAIR TABLE, FLUSH, RESET, KILL, DO",
+      "rules": [
+        "analyze_table_stmt",
+        "optimize_table_stmt",
+        "check_table_stmt",
+        "repair_table_stmt",
+        "flush_stmt",
+        "reset_stmt",
+        "kill_stmt",
+        "do_stmt"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseAnalyze",
+        "TestParseOptimize",
+        "TestParseKill",
+        "TestParseDo"
+      ]
+    },
+    {
+      "id": 21,
+      "name": "stmt_dispatch",
+      "file": "stmt.go",
+      "status": "done",
+      "description": "Top-level statement dispatch, semicolon-separated list, wire up Parse() entry point",
+      "rules": [
+        "stmt_list",
+        "stmt"
+      ],
+      "depends_on": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "tests": [
+        "TestParseMultipleStatements",
+        "TestParseEmptyInput"
+      ]
+    },
+    {
+      "id": 22,
+      "name": "cte_with",
+      "file": "select.go",
+      "status": "done",
+      "description": "Common Table Expressions (WITH ... AS). WITH clause for SELECT, INSERT, UPDATE, DELETE. Includes RECURSIVE CTEs.",
+      "rules": [
+        "with_clause",
+        "common_table_expression",
+        "cte_column_list",
+        "recursive_cte"
+      ],
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseWithCTE",
+        "TestParseWithRecursiveCTE",
+        "TestParseInsertWithCTE",
+        "TestParseUpdateWithCTE",
+        "TestParseDeleteWithCTE"
+      ]
+    },
+    {
+      "id": 23,
+      "name": "window_over",
+      "file": "expr.go",
+      "status": "done",
+      "description": "Complete OVER clause for window functions. Currently has TODO in parseFuncCall. Implement named/inline window specs, frame clauses (ROWS/RANGE/GROUPS BETWEEN).",
+      "rules": [
+        "over_clause",
+        "window_spec",
+        "window_name_or_spec",
+        "partition_by_clause",
+        "window_frame_clause",
+        "window_frame_between",
+        "window_frame_bound",
+        "window_frame_start",
+        "window_frame_end",
+        "window_frame_units"
+      ],
+      "depends_on": [
+        3,
+        4
+      ],
+      "tests": [
+        "TestParseWindowRowNumber",
+        "TestParseWindowRank",
+        "TestParseWindowFrameRows",
+        "TestParseWindowFrameRange",
+        "TestParseWindowFrameGroups",
+        "TestParseWindowPartitionOrderBy",
+        "TestParseNamedWindow"
+      ]
+    },
+    {
+      "id": 24,
+      "name": "json_operators",
+      "file": "expr.go",
+      "status": "done",
+      "description": "JSON column-path operators: -> (JSON_EXTRACT), ->> (JSON_UNQUOTE(JSON_EXTRACT)), MEMBER OF, JSON_TABLE",
+      "rules": [
+        "json_extract_op",
+        "json_unquote_extract_op",
+        "member_of_expr",
+        "json_table_expr"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseJsonExtract",
+        "TestParseJsonUnquoteExtract",
+        "TestParseMemberOf",
+        "TestParseJsonTable"
+      ]
+    },
+    {
+      "id": 25,
+      "name": "xa_transactions",
+      "file": "transaction.go",
+      "status": "done",
+      "description": "XA distributed transaction statements: XA START/BEGIN, XA END/SUSPEND, XA PREPARE, XA COMMIT, XA ROLLBACK, XA RECOVER",
+      "rules": [
+        "xa_start_stmt",
+        "xa_end_stmt",
+        "xa_prepare_stmt",
+        "xa_commit_stmt",
+        "xa_rollback_stmt",
+        "xa_recover_stmt",
+        "xid"
+      ],
+      "depends_on": [
+        14
+      ],
+      "tests": [
+        "TestParseXAStart",
+        "TestParseXAEnd",
+        "TestParseXAPrepare",
+        "TestParseXACommit",
+        "TestParseXARollback",
+        "TestParseXARecover"
+      ]
+    },
+    {
+      "id": 26,
+      "name": "set_transaction",
+      "file": "transaction.go",
+      "status": "done",
+      "description": "SET TRANSACTION isolation level and access mode. SET [GLOBAL | SESSION] TRANSACTION { ISOLATION LEVEL level | READ WRITE | READ ONLY }",
+      "rules": [
+        "set_transaction_stmt",
+        "isolation_level",
+        "transaction_access_mode"
+      ],
+      "depends_on": [
+        14
+      ],
+      "tests": [
+        "TestParseSetTransactionReadUncommitted",
+        "TestParseSetTransactionReadCommitted",
+        "TestParseSetTransactionRepeatableRead",
+        "TestParseSetTransactionSerializable",
+        "TestParseSetTransactionReadOnly",
+        "TestParseSetGlobalTransaction"
+      ]
+    },
+    {
+      "id": 27,
+      "name": "call_handler",
+      "file": "utility.go",
+      "status": "done",
+      "description": "CALL procedure statement. HANDLER table OPEN/READ/CLOSE statements for direct row access.",
+      "rules": [
+        "call_stmt",
+        "handler_open_stmt",
+        "handler_read_stmt",
+        "handler_close_stmt",
+        "handler_read_direction"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseCall",
+        "TestParseCallWithArgs",
+        "TestParseHandlerOpen",
+        "TestParseHandlerRead",
+        "TestParseHandlerReadWhere",
+        "TestParseHandlerClose"
+      ]
+    },
+    {
+      "id": 28,
+      "name": "signal_diagnostics",
+      "file": "signal.go",
+      "status": "done",
+      "description": "SIGNAL, RESIGNAL, and GET DIAGNOSTICS statements for stored program error handling",
+      "rules": [
+        "signal_stmt",
+        "signal_condition_value",
+        "signal_information_item",
+        "resignal_stmt",
+        "get_diagnostics_stmt",
+        "statement_information_item",
+        "condition_information_item"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseSignal",
+        "TestParseSignalSet",
+        "TestParseResignal",
+        "TestParseGetDiagnostics",
+        "TestParseGetDiagnosticsCondition"
+      ]
+    },
+    {
+      "id": 29,
+      "name": "compound_stmt",
+      "file": "compound.go",
+      "status": "done",
+      "description": "Stored program compound statements: BEGIN...END blocks, DECLARE (variables, conditions, handlers, cursors), labels",
+      "rules": [
+        "compound_stmt",
+        "begin_end_block",
+        "label",
+        "declare_variable",
+        "declare_condition",
+        "declare_handler",
+        "declare_cursor",
+        "handler_action",
+        "condition_value"
+      ],
+      "depends_on": [
+        2,
+        3
+      ],
+      "tests": [
+        "TestParseBeginEndBlock",
+        "TestParseBeginEndBlockLabeled",
+        "TestParseDeclareVar",
+        "TestParseDeclareCondition",
+        "TestParseDeclareHandler",
+        "TestParseDeclareCursor",
+        "TestParseBeginEndWithDeclare"
+      ]
+    },
+    {
+      "id": 30,
+      "name": "flow_control",
+      "file": "compound.go",
+      "status": "done",
+      "description": "Stored program flow control: IF/ELSEIF/ELSE, CASE statement, WHILE, REPEAT, LOOP, LEAVE, ITERATE, RETURN, OPEN/FETCH/CLOSE cursor",
+      "rules": [
+        "if_stmt",
+        "elseif_clause",
+        "case_stmt",
+        "while_stmt",
+        "repeat_stmt",
+        "loop_stmt",
+        "leave_stmt",
+        "iterate_stmt",
+        "return_stmt",
+        "open_cursor_stmt",
+        "fetch_cursor_stmt",
+        "close_cursor_stmt"
+      ],
+      "depends_on": [
+        29
+      ],
+      "tests": [
+        "TestParseIfElse",
+        "TestParseCaseStmt",
+        "TestParseWhile",
+        "TestParseRepeat",
+        "TestParseLoop",
+        "TestParseLeave",
+        "TestParseIterate",
+        "TestParseReturn",
+        "TestParseOpenCursor",
+        "TestParseFetchCursor",
+        "TestParseCloseCursor"
+      ]
+    },
+    {
+      "id": 31,
+      "name": "role_management",
+      "file": "grant.go",
+      "status": "done",
+      "description": "CREATE ROLE, DROP ROLE, SET DEFAULT ROLE, SET ROLE, GRANT role TO user, REVOKE role FROM user",
+      "rules": [
+        "create_role_stmt",
+        "drop_role_stmt",
+        "set_default_role_stmt",
+        "set_role_stmt",
+        "grant_role_stmt",
+        "revoke_role_stmt"
+      ],
+      "depends_on": [
+        15
+      ],
+      "tests": [
+        "TestParseCreateRole",
+        "TestParseDropRole",
+        "TestParseSetDefaultRole",
+        "TestParseSetRole",
+        "TestParseGrantRole",
+        "TestParseRevokeRole"
+      ]
+    },
+    {
+      "id": 32,
+      "name": "show_extended",
+      "file": "set_show.go",
+      "status": "done",
+      "description": "Extended SHOW variants: SHOW ENGINES, SHOW PLUGINS, SHOW MASTER STATUS, SHOW SLAVE/REPLICA STATUS, SHOW BINARY LOGS, SHOW BINLOG EVENTS, SHOW TABLE STATUS, SHOW TRIGGERS, SHOW EVENTS, SHOW PROCEDURE/FUNCTION STATUS, SHOW CREATE PROCEDURE/FUNCTION/TRIGGER/EVENT, SHOW OPEN TABLES, SHOW PRIVILEGES, SHOW PROFILES, SHOW RELAYLOG EVENTS, SHOW CHARACTER SET, SHOW COLLATION",
+      "rules": [
+        "show_engines",
+        "show_plugins",
+        "show_master_status",
+        "show_replica_status",
+        "show_binary_logs",
+        "show_binlog_events",
+        "show_table_status",
+        "show_triggers",
+        "show_events",
+        "show_procedure_status",
+        "show_function_status",
+        "show_create_procedure",
+        "show_create_function",
+        "show_create_trigger",
+        "show_create_event",
+        "show_open_tables",
+        "show_privileges",
+        "show_profiles",
+        "show_relaylog_events",
+        "show_character_set",
+        "show_collation"
+      ],
+      "depends_on": [
+        13
+      ],
+      "tests": [
+        "TestParseShowEngines",
+        "TestParseShowPlugins",
+        "TestParseShowMasterStatus",
+        "TestParseShowReplicaStatus",
+        "TestParseShowBinaryLogs",
+        "TestParseShowTableStatus",
+        "TestParseShowTriggers",
+        "TestParseShowCreateProcedure",
+        "TestParseShowCharacterSet",
+        "TestParseShowCollation"
+      ]
+    },
+    {
+      "id": 33,
+      "name": "table_values_stmt",
+      "file": "select.go",
+      "status": "done",
+      "description": "MySQL 8.0 TABLE statement (TABLE t is equivalent to SELECT * FROM t) and VALUES statement (VALUES ROW(1,2), ROW(3,4))",
+      "rules": [
+        "table_stmt",
+        "values_stmt",
+        "values_row"
+      ],
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseTableStmt",
+        "TestParseValuesStmt",
+        "TestParseValuesRow",
+        "TestParseTableUnion"
+      ]
+    },
+    {
+      "id": 34,
+      "name": "checksum_shutdown",
+      "file": "utility.go",
+      "status": "done",
+      "description": "CHECKSUM TABLE, SHUTDOWN, RESTART statements",
+      "rules": [
+        "checksum_table_stmt",
+        "shutdown_stmt",
+        "restart_stmt"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseChecksumTable",
+        "TestParseShutdown",
+        "TestParseRestart"
+      ]
+    },
+    {
+      "id": 35,
+      "name": "plugin_component",
+      "file": "utility.go",
+      "status": "done",
+      "description": "INSTALL PLUGIN, UNINSTALL PLUGIN, INSTALL COMPONENT, UNINSTALL COMPONENT",
+      "rules": [
+        "install_plugin_stmt",
+        "uninstall_plugin_stmt",
+        "install_component_stmt",
+        "uninstall_component_stmt"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseInstallPlugin",
+        "TestParseUninstallPlugin",
+        "TestParseInstallComponent",
+        "TestParseUninstallComponent"
+      ]
+    },
+    {
+      "id": 36,
+      "name": "clone",
+      "file": "utility.go",
+      "status": "done",
+      "description": "CLONE LOCAL/REMOTE instance statement (MySQL 8.0.17+)",
+      "rules": [
+        "clone_stmt",
+        "clone_local",
+        "clone_remote"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseCloneLocal",
+        "TestParseCloneRemote"
+      ]
+    },
+    {
+      "id": 37,
+      "name": "create_tablespace",
+      "file": "utility.go",
+      "status": "done",
+      "description": "CREATE/ALTER/DROP TABLESPACE, CREATE/ALTER/DROP LOGFILE GROUP, CREATE/ALTER/DROP SERVER",
+      "rules": [
+        "create_tablespace_stmt",
+        "alter_tablespace_stmt",
+        "drop_tablespace_stmt",
+        "create_logfile_group_stmt",
+        "alter_logfile_group_stmt",
+        "drop_logfile_group_stmt",
+        "create_server_stmt",
+        "alter_server_stmt",
+        "drop_server_stmt"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseCreateTablespace",
+        "TestParseAlterTablespace",
+        "TestParseDropTablespace",
+        "TestParseCreateServer",
+        "TestParseDropServer"
+      ]
+    },
+    {
+      "id": 38,
+      "name": "create_srs_resource",
+      "file": "utility.go",
+      "status": "done",
+      "description": "CREATE/DROP SPATIAL REFERENCE SYSTEM, CREATE/ALTER/DROP RESOURCE GROUP",
+      "rules": [
+        "create_spatial_ref_sys_stmt",
+        "drop_spatial_ref_sys_stmt",
+        "create_resource_group_stmt",
+        "alter_resource_group_stmt",
+        "drop_resource_group_stmt"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseCreateSpatialRefSys",
+        "TestParseDropSpatialRefSys",
+        "TestParseCreateResourceGroup",
+        "TestParseDropResourceGroup"
+      ]
+    },
+    {
+      "id": 39,
+      "name": "alter_misc",
+      "file": "stmt.go",
+      "status": "done",
+      "description": "ALTER dispatches for VIEW, EVENT, FUNCTION, PROCEDURE. Also proper DROP FUNCTION/PROCEDURE/TRIGGER/EVENT with AST nodes (replace current RawStmt stubs).",
+      "rules": [
+        "alter_view_stmt",
+        "alter_event_stmt",
+        "alter_function_stmt",
+        "alter_procedure_stmt",
+        "drop_function_stmt",
+        "drop_procedure_stmt",
+        "drop_trigger_stmt",
+        "drop_event_stmt"
+      ],
+      "depends_on": [
+        10,
+        16,
+        17
+      ],
+      "tests": [
+        "TestParseAlterView",
+        "TestParseAlterEvent",
+        "TestParseAlterFunction",
+        "TestParseAlterProcedure",
+        "TestParseDropFunction",
+        "TestParseDropProcedure",
+        "TestParseDropTrigger",
+        "TestParseDropEvent"
+      ]
+    },
+    {
+      "id": 40,
+      "name": "explain_extended",
+      "file": "set_show.go",
+      "status": "done",
+      "description": "EXPLAIN for all DML (INSERT, UPDATE, DELETE, REPLACE), EXPLAIN ANALYZE, EXPLAIN FORMAT=TREE/JSON for all statements, EXPLAIN FOR CONNECTION",
+      "rules": [
+        "explain_insert",
+        "explain_update",
+        "explain_delete",
+        "explain_replace",
+        "explain_analyze",
+        "explain_for_connection"
+      ],
+      "depends_on": [
+        13,
+        5,
+        6
+      ],
+      "tests": [
+        "TestParseExplainInsert",
+        "TestParseExplainUpdate",
+        "TestParseExplainDelete",
+        "TestParseExplainAnalyze",
+        "TestParseExplainForConnection"
+      ]
+    },
+    {
+      "id": 41,
+      "name": "grouping_lateral",
+      "file": "select.go",
+      "status": "done",
+      "description": "GROUP BY WITH ROLLUP, GROUP BY grouping_sets (MySQL 8.0.25+: GROUPING SETS, CUBE, ROLLUP), LATERAL derived tables",
+      "rules": [
+        "group_by_with_rollup",
+        "grouping_sets_clause",
+        "cube_clause",
+        "rollup_clause",
+        "grouping_function",
+        "lateral_derived_table"
+      ],
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseGroupByWithRollup",
+        "TestParseGroupingSets",
+        "TestParseCube",
+        "TestParseRollup",
+        "TestParseLateralDerivedTable"
+      ]
+    },
+    {
+      "id": 42,
+      "name": "stmt_dispatch_phase2",
+      "file": "stmt.go",
+      "status": "done",
+      "description": "Wire all Phase 2 statement parsers into parseStmt and parseCreateDispatch/parseAlterDispatch/parseDropDispatch. Add missing keyword constants to lexer.",
+      "rules": [
+        "stmt_dispatch_xa",
+        "stmt_dispatch_call",
+        "stmt_dispatch_handler",
+        "stmt_dispatch_signal",
+        "stmt_dispatch_compound",
+        "stmt_dispatch_table_values",
+        "stmt_dispatch_clone",
+        "create_dispatch_tablespace",
+        "create_dispatch_server",
+        "create_dispatch_srs",
+        "create_dispatch_resource_group",
+        "create_dispatch_role",
+        "alter_dispatch_view",
+        "alter_dispatch_event",
+        "alter_dispatch_function",
+        "alter_dispatch_procedure",
+        "drop_dispatch_proper_function",
+        "drop_dispatch_proper_procedure",
+        "drop_dispatch_proper_trigger",
+        "drop_dispatch_proper_event",
+        "drop_dispatch_role",
+        "drop_dispatch_tablespace",
+        "drop_dispatch_server",
+        "drop_dispatch_srs",
+        "drop_dispatch_resource_group"
+      ],
+      "depends_on": [
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41
+      ],
+      "tests": [
+        "TestParsePhase2Dispatch"
+      ]
+    },
+    {
+      "id": 43,
+      "name": "replication_source",
+      "file": "replication.go",
+      "status": "done",
+      "description": "New: CHANGE REPLICATION SOURCE TO with all source options, CHANGE REPLICATION FILTER with filter types",
+      "rules": [
+        "parseChangeReplicationSourceStmt",
+        "parseChangeReplicationFilterStmt",
+        "parseReplicationSourceOption",
+        "parseReplicationFilter"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseChangeReplicationSource",
+        "TestParseChangeReplicationSourceOptions",
+        "TestParseChangeReplicationFilter"
+      ]
+    },
+    {
+      "id": 44,
+      "name": "replication_control",
+      "file": "replication.go",
+      "status": "done",
+      "description": "New: START/STOP REPLICA, RESET REPLICA, PURGE BINARY LOGS, RESET MASTER",
+      "rules": [
+        "parseStartReplicaStmt",
+        "parseStopReplicaStmt",
+        "parseResetReplicaStmt",
+        "parsePurgeBinaryLogsStmt",
+        "parseResetMasterStmt"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseStartReplica",
+        "TestParseStopReplica",
+        "TestParseResetReplica",
+        "TestParsePurgeBinaryLogs",
+        "TestParseResetMaster"
+      ]
+    },
+    {
+      "id": 45,
+      "name": "group_replication",
+      "file": "replication.go",
+      "status": "done",
+      "description": "New: START GROUP_REPLICATION with USER/PASSWORD/DEFAULT_AUTH, STOP GROUP_REPLICATION",
+      "rules": [
+        "parseStartGroupReplicationStmt",
+        "parseStopGroupReplicationStmt"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseStartGroupReplication",
+        "TestParseStopGroupReplication"
+      ]
+    },
+    {
+      "id": 46,
+      "name": "instance_admin",
+      "file": "utility.go",
+      "status": "done",
+      "description": "New: ALTER INSTANCE (ROTATE keys, ENABLE/DISABLE REDO_LOG, RELOAD TLS/KEYRING), LOCK/UNLOCK INSTANCE FOR BACKUP, IMPORT TABLE",
+      "rules": [
+        "parseAlterInstanceStmt",
+        "parseLockInstanceStmt",
+        "parseUnlockInstanceStmt",
+        "parseImportTableStmt"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseAlterInstanceRotateKey",
+        "TestParseAlterInstanceRedoLog",
+        "TestParseAlterInstanceReloadTLS",
+        "TestParseLockInstance",
+        "TestParseUnlockInstance",
+        "TestParseImportTable"
+      ]
+    },
+    {
+      "id": 47,
+      "name": "cache_binlog",
+      "file": "utility.go",
+      "status": "done",
+      "description": "New: BINLOG 'str', CACHE INDEX tbl IN cache_name, LOAD INDEX INTO CACHE tbl, RESET PERSIST [var]",
+      "rules": [
+        "parseBinlogStmt",
+        "parseCacheIndexStmt",
+        "parseLoadIndexIntoCacheStmt",
+        "parseResetPersistStmt"
+      ],
+      "depends_on": [
+        1
+      ],
+      "tests": [
+        "TestParseBinlog",
+        "TestParseCacheIndex",
+        "TestParseLoadIndexIntoCache",
+        "TestParseResetPersist"
+      ]
+    },
+    {
+      "id": 48,
+      "name": "account_misc",
+      "file": "grant.go",
+      "status": "done",
+      "description": "New: RENAME USER old TO new, SET RESOURCE GROUP name [FOR thread_id], HELP 'topic'",
+      "rules": [
+        "parseRenameUserStmt",
+        "parseSetResourceGroupStmt",
+        "parseHelpStmt"
+      ],
+      "depends_on": [
+        15
+      ],
+      "tests": [
+        "TestParseRenameUser",
+        "TestParseSetResourceGroup",
+        "TestParseHelp"
+      ]
+    },
+    {
+      "id": 49,
+      "name": "depth_fix_outfuncs_vcpu",
+      "file": "../ast/outfuncs.go",
+      "status": "done",
+      "description": "Fix batch 38 gap: VCPUSpec struct missing writeNode case in outfuncs.go",
+      "rules": [
+        "writeVCPUSpec"
+      ],
+      "depends_on": [
+        38
+      ],
+      "tests": [
+        "TestDeparseCreateResourceGroup"
+      ]
+    },
+    {
+      "id": 50,
+      "name": "stmt_dispatch_phase3",
+      "file": "stmt.go",
+      "status": "done",
+      "description": "Wire Phase 3 parsers into parseStmt: replication, instance admin, cache/binlog, account misc, HELP, IMPORT",
+      "rules": [
+        "stmt_dispatch_replication",
+        "stmt_dispatch_instance",
+        "stmt_dispatch_cache_binlog",
+        "stmt_dispatch_rename_user",
+        "stmt_dispatch_help",
+        "stmt_dispatch_import"
+      ],
+      "depends_on": [
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48
+      ],
+      "tests": [
+        "TestParsePhase3Dispatch"
+      ]
+    },
+    {
+      "id": 51,
+      "name": "show_remaining",
+      "file": "set_show.go",
+      "status": "done",
+      "description": "New: SHOW CREATE USER, SHOW REPLICAS/SLAVE HOSTS, SHOW ENGINE (singular, e.g. SHOW ENGINE INNODB STATUS/MUTEX), SHOW PROFILE (singular with type/query options), SHOW FUNCTION CODE, SHOW PROCEDURE CODE",
+      "rules": [
+        "parseShowCreateUser",
+        "parseShowReplicas",
+        "parseShowEngine",
+        "parseShowProfile",
+        "parseShowFunctionCode",
+        "parseShowProcedureCode"
+      ],
+      "depends_on": [
+        32
+      ],
+      "tests": [
+        "TestParseShowCreateUser",
+        "TestParseShowReplicas",
+        "TestParseShowEngineInnodbStatus",
+        "TestParseShowProfile",
+        "TestParseShowFunctionCode",
+        "TestParseShowProcedureCode"
+      ]
+    },
+    {
+      "id": 52,
+      "name": "depth_fix_view_with_check_option",
+      "file": "select.go",
+      "status": "done",
+      "description": "Fix batch 10/39 gap: WITH CHECK OPTION after SELECT in CREATE/ALTER VIEW conflicts with WITH keyword parsing. Test at compare_test.go:6653 is disabled.",
+      "rules": [
+        "parseViewWithCheckOption"
+      ],
+      "depends_on": [
+        10,
+        39
+      ],
+      "tests": [
+        "TestParseCreateViewWithCheckOption",
+        "TestParseAlterViewWithCheckOption"
+      ]
+    },
+    {
+      "id": 53,
+      "name": "change_master_to",
+      "file": "replication.go",
+      "status": "done",
+      "description": "New: CHANGE MASTER TO (legacy alias for CHANGE REPLICATION SOURCE TO) - add MASTER keyword dispatch in parseChangeDispatch",
+      "rules": [
+        "parseChangeMasterStmt"
+      ],
+      "depends_on": [
+        43
+      ],
+      "tests": [
+        "TestParseChangeMasterTo",
+        "TestParseChangeMasterToOptions"
+      ]
+    },
+    {
+      "id": 54,
+      "name": "set_password",
+      "file": "set_show.go",
+      "status": "done",
+      "description": "New: SET PASSWORD [FOR user] = 'auth_string' - standalone password change with optional FOR user@host clause",
+      "rules": [
+        "parseSetPasswordStmt"
+      ],
+      "depends_on": [
+        13,
+        15
+      ],
+      "tests": [
+        "TestParseSetPassword",
+        "TestParseSetPasswordForUser"
+      ]
+    },
+    {
+      "id": 55,
+      "name": "depth_fix_grant_as",
+      "file": "grant.go",
+      "status": "done",
+      "description": "Fix batch 15 gap: GRANT ... AS user [WITH ROLE {DEFAULT | NONE | ALL | ALL EXCEPT role | role, ...}] clause for MySQL 8.0+ role context",
+      "rules": [
+        "parseGrantAsClause"
+      ],
+      "depends_on": [
+        15
+      ],
+      "tests": [
+        "TestParseGrantAs",
+        "TestParseGrantAsWithRole"
+      ]
+    },
+    {
+      "id": 56,
+      "name": "show_grants_index_processlist",
+      "file": "set_show.go",
+      "status": "done",
+      "description": "Fix batch 13/32 gap: SHOW GRANTS, SHOW INDEX, SHOW PROCESSLIST are implemented but not tracked in any batch and lack test coverage. Add SHOW FULL PROCESSLIST support.",
+      "rules": [
+        "show_grants",
+        "show_index",
+        "show_processlist"
+      ],
+      "depends_on": [
+        13,
+        32
+      ],
+      "tests": [
+        "TestParseShowGrants",
+        "TestParseShowGrantsForUser",
+        "TestParseShowIndex",
+        "TestParseShowProcesslist"
+      ]
+    },
+    {
+      "id": 57,
+      "name": "alter_table_partition_ops",
+      "file": "alter_table.go",
+      "status": "done",
+      "description": "Fix batch 8 gap: ALTER TABLE partition operations - ADD/DROP/COALESCE/REORGANIZE/EXCHANGE/TRUNCATE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR PARTITION",
+      "rules": [
+        "parseAlterTableAddPartition",
+        "parseAlterTableDropPartition",
+        "parseAlterTableCoalescePartition",
+        "parseAlterTableReorganizePartition",
+        "parseAlterTableExchangePartition",
+        "parseAlterTableTruncatePartition",
+        "parseAlterTableAnalyzePartition",
+        "parseAlterTableCheckPartition",
+        "parseAlterTableOptimizePartition",
+        "parseAlterTableRebuildPartition",
+        "parseAlterTableRepairPartition"
+      ],
+      "depends_on": [
+        8
+      ],
+      "tests": [
+        "TestParseAlterTableAddPartition",
+        "TestParseAlterTableDropPartition",
+        "TestParseAlterTableCoalescePartition",
+        "TestParseAlterTableReorganizePartition",
+        "TestParseAlterTableExchangePartition",
+        "TestParseAlterTableTruncatePartition"
+      ]
+    },
+    {
+      "id": 58,
+      "name": "alter_table_visibility_misc",
+      "file": "alter_table.go",
+      "status": "done",
+      "description": "Fix batch 8 gap: ALTER TABLE column/index VISIBLE/INVISIBLE, FORCE, ORDER BY, ENABLE/DISABLE KEYS, DISCARD/IMPORT TABLESPACE, WITH/WITHOUT VALIDATION",
+      "rules": [
+        "parseAlterColumnSetVisible",
+        "parseAlterIndexSetVisible",
+        "parseAlterTableForce",
+        "parseAlterTableOrderBy",
+        "parseAlterTableEnableKeys",
+        "parseAlterTableDisableKeys",
+        "parseAlterTableDiscardTablespace",
+        "parseAlterTableImportTablespace",
+        "parseAlterTableValidation"
+      ],
+      "depends_on": [
+        8
+      ],
+      "tests": [
+        "TestParseAlterTableColumnVisible",
+        "TestParseAlterTableIndexVisible",
+        "TestParseAlterTableForce",
+        "TestParseAlterTableOrderBy",
+        "TestParseAlterTableEnableKeys",
+        "TestParseAlterTableDiscardTablespace"
+      ]
+    },
+    {
+      "id": 59,
+      "name": "create_table_depth",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "Fix batch 7 gap: column VISIBLE/INVISIBLE modifier, CHECK constraint NOT ENFORCED clause, functional/expression-based index keys, SUBPARTITION support",
+      "rules": [
+        "parseColumnVisibility",
+        "parseCheckNotEnforced",
+        "parseFunctionalIndexKey",
+        "parseSubPartition"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": [
+        "TestParseCreateTableColumnInvisible",
+        "TestParseCreateTableCheckNotEnforced",
+        "TestParseCreateTableFunctionalIndex",
+        "TestParseCreateTableSubPartition"
+      ]
+    },
+    {
+      "id": 60,
+      "name": "grant_tls_resources",
+      "file": "grant.go",
+      "status": "done",
+      "description": "Fix batch 15 gap: GRANT/REVOKE REQUIRE clause (SSL, X509, SUBJECT, ISSUER, CIPHER) and resource limits (MAX_QUERIES_PER_HOUR, MAX_UPDATES_PER_HOUR, MAX_CONNECTIONS_PER_HOUR, MAX_USER_CONNECTIONS)",
+      "rules": [
+        "parseGrantRequireClause",
+        "parseGrantResourceLimits"
+      ],
+      "depends_on": [
+        15
+      ],
+      "tests": [
+        "TestParseGrantRequireSSL",
+        "TestParseGrantRequireX509",
+        "TestParseGrantWithResourceLimits"
+      ]
+    },
+    {
+      "id": 61,
+      "name": "alter_user_extended",
+      "file": "grant.go",
+      "status": "done",
+      "description": "Fix batch 15 gap: ALTER USER PASSWORD EXPIRE, ACCOUNT LOCK/UNLOCK, FAILED_LOGIN_ATTEMPTS, PASSWORD_LOCK_TIME, COMMENT, ATTRIBUTE, resource limits, TLS requirements",
+      "rules": [
+        "parseAlterUserPasswordExpire",
+        "parseAlterUserAccountLock",
+        "parseAlterUserFailedLogin",
+        "parseAlterUserComment",
+        "parseAlterUserResourceLimits",
+        "parseAlterUserRequire"
+      ],
+      "depends_on": [
+        15
+      ],
+      "tests": [
+        "TestParseAlterUserPasswordExpire",
+        "TestParseAlterUserAccountLock",
+        "TestParseAlterUserFailedLoginAttempts",
+        "TestParseAlterUserComment",
+        "TestParseAlterUserRequireSSL"
+      ]
+    },
+    {
+      "id": 62,
+      "name": "depth_fix_select_distinctrow",
+      "file": "select.go",
+      "status": "done",
+      "description": "Fix batch 4 gap: add DISTINCTROW keyword as alias for DISTINCT in SELECT option parsing",
+      "rules": [
+        "parseSelectStmt"
+      ],
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseSelectDistinctrow"
+      ]
+    },
+    {
+      "id": 63,
+      "name": "depth_fix_load_data_lines_starting_by",
+      "file": "load_data.go",
+      "status": "done",
+      "description": "Fix batch 18 gap: LOAD DATA LINES STARTING BY clause parses value but discards it. Add LinesStartingBy field to LoadDataStmt AST node and store parsed value. Update outfuncs.go to emit the field.",
+      "rules": [
+        "parseLinesClause"
+      ],
+      "depends_on": [
+        18
+      ],
+      "tests": [
+        "TestParseLoadDataLinesStartingBy"
+      ]
+    },
+    {
+      "id": 64,
+      "name": "create_loadable_function",
+      "file": "create_function.go",
+      "status": "done",
+      "description": "New: CREATE [AGGREGATE] FUNCTION loadable UDF syntax (RETURNS type SONAME 'lib') - distinct from stored function syntax, requires IsAggregate flag and Soname AST field",
+      "rules": [
+        "parseCreateLoadableFunction"
+      ],
+      "depends_on": [
+        16
+      ],
+      "tests": [
+        "TestParseCreateLoadableFunction",
+        "TestParseCreateAggregateFunction"
+      ]
+    },
+    {
+      "id": 65,
+      "name": "depth_fix_select_into_outfile",
+      "file": "select.go",
+      "status": "done",
+      "description": "Fix batch 4 gap: INTO OUTFILE missing export options (FIELDS/COLUMNS TERMINATED BY, ENCLOSED BY, ESCAPED BY, LINES TERMINATED BY, CHARACTER SET), INTO positioning (before FROM, before FOR UPDATE), LOCK IN SHARE MODE legacy syntax, SELECT modifiers SQL_SMALL_RESULT/SQL_BIG_RESULT/SQL_BUFFER_RESULT/SQL_NO_CACHE",
+      "rules": [
+        "parseIntoClause",
+        "parseIntoOutfileOptions",
+        "parseSelectStmt",
+        "parseForUpdateClause"
+      ],
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseSelectIntoOutfileFields",
+        "TestParseSelectIntoOutfileCharset",
+        "TestParseSelectIntoBeforeFrom",
+        "TestParseLockInShareMode",
+        "TestParseSelectSqlSmallResult",
+        "TestParseSelectSqlBufferResult"
+      ]
+    },
+    {
+      "id": 66,
+      "name": "depth_fix_select_partition_with_insert",
+      "file": "select.go",
+      "status": "done",
+      "description": "Fix batch 4/22 gap: PARTITION clause on table references (SELECT ... FROM t PARTITION (p0, p1)), WITH ... INSERT support, set operation INTERSECT precedence over UNION/EXCEPT",
+      "rules": [
+        "parseTableRefWithAlias",
+        "parseWithStmt",
+        "parseSetOperation"
+      ],
+      "depends_on": [
+        4,
+        22
+      ],
+      "tests": [
+        "TestParseSelectPartition",
+        "TestParseWithInsert",
+        "TestParseIntersectPrecedence"
+      ]
+    },
+    {
+      "id": 67,
+      "name": "depth_fix_create_table_constraints_ctas",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "Fix batch 7 gap: index_option parsing on table-level constraints (USING, KEY_BLOCK_SIZE, COMMENT, VISIBLE/INVISIBLE), IGNORE/REPLACE before SELECT in CTAS, bare SELECT (no AS) in CTAS, store LINEAR flag on partitions, store MATCH type on foreign keys",
+      "rules": [
+        "parseTableConstraint",
+        "parseCreateTableStmt",
+        "parsePartitionClause",
+        "parseReferenceDefinition"
+      ],
+      "depends_on": [
+        7,
+        59
+      ],
+      "tests": [
+        "TestParseCreateTableConstraintIndexOption",
+        "TestParseCreateTableIgnoreAsSelect",
+        "TestParseCreateTableBareSelect",
+        "TestParseCreateTableLinearHash",
+        "TestParseCreateTableFKMatch"
+      ]
+    },
+    {
+      "id": 68,
+      "name": "depth_fix_alter_table_default_constraint",
+      "file": "alter_table.go",
+      "status": "done",
+      "description": "Fix batch 8 gap: ALTER COLUMN SET DEFAULT must consume the default value expression (currently skipped causing parse errors), ADD (multi-column) parenthesized form, ALTER CHECK/CONSTRAINT ENFORCED, DROP CONSTRAINT keyword",
+      "rules": [
+        "parseAlterColumn",
+        "parseAlterAdd",
+        "parseAlterDrop"
+      ],
+      "depends_on": [
+        8,
+        57,
+        58
+      ],
+      "tests": [
+        "TestParseAlterColumnSetDefault",
+        "TestParseAlterTableAddMultiColumn",
+        "TestParseAlterCheckEnforced",
+        "TestParseAlterTableDropConstraint"
+      ]
+    },
+    {
+      "id": 69,
+      "name": "depth_fix_grant_proxy_privileges",
+      "file": "grant.go",
+      "status": "done",
+      "description": "Fix batch 15 gap: GRANT/REVOKE PROXY ON user, column-level privileges priv_type (column_list), multi-word privilege names (CREATE VIEW, ALTER ROUTINE, etc.), REVOKE ALL PRIVILEGES GRANT OPTION FROM user, IDENTIFIED WITH ... AS 'hash', ALTER USER IF EXISTS, ALTER USER DEFAULT ROLE",
+      "rules": [
+        "parseGrantStmt",
+        "parseRevokeStmt",
+        "parsePrivilegeName",
+        "parseUserSpec",
+        "parseAlterUserStmt"
+      ],
+      "depends_on": [
+        15,
+        55,
+        60,
+        61
+      ],
+      "tests": [
+        "TestParseGrantProxy",
+        "TestParseRevokeProxy",
+        "TestParseGrantColumnPrivilege",
+        "TestParseGrantMultiWordPrivilege",
+        "TestParseRevokeAllPrivileges",
+        "TestParseIdentifiedWithAs",
+        "TestParseAlterUserIfExists",
+        "TestParseAlterUserDefaultRole"
+      ]
+    },
+    {
+      "id": 70,
+      "name": "depth_fix_set_persist_show_full",
+      "file": "set_show.go",
+      "status": "done",
+      "description": "Fix batch 13/32 gap: SET PERSIST and SET PERSIST_ONLY scopes, SHOW FULL TABLES, SHOW SCHEMAS/FIELDS synonyms, SHOW EXTENDED COLUMNS/FULL COLUMNS, SET CHARACTER SET error handling, EXPLAIN FOR CONNECTION",
+      "rules": [
+        "parseSetStmt",
+        "parseShowStmt",
+        "parseExplainStmt"
+      ],
+      "depends_on": [
+        13,
+        32,
+        40,
+        51
+      ],
+      "tests": [
+        "TestParseSetPersist",
+        "TestParseSetPersistOnly",
+        "TestParseShowFullTables",
+        "TestParseShowSchemas",
+        "TestParseShowFields",
+        "TestParseShowExtendedColumns",
+        "TestParseExplainForConnection"
+      ]
+    },
+    {
+      "id": 71,
+      "name": "depth_fix_analyze_histogram_flush",
+      "file": "utility.go",
+      "status": "done",
+      "description": "Fix batch 20 gap: ANALYZE TABLE UPDATE HISTOGRAM ON col WITH N BUCKETS, ANALYZE TABLE DROP HISTOGRAM ON col, FLUSH TABLES WITH READ LOCK, FLUSH TABLES FOR EXPORT, FLUSH BINARY LOGS structured parsing, ALTER TABLESPACE SET ACTIVE/INACTIVE",
+      "rules": [
+        "parseAnalyzeTableStmt",
+        "parseFlushStmt",
+        "parseAlterTablespaceStmt"
+      ],
+      "depends_on": [
+        20,
+        37
+      ],
+      "tests": [
+        "TestParseAnalyzeTableUpdateHistogram",
+        "TestParseAnalyzeTableDropHistogram",
+        "TestParseFlushTablesWithReadLock",
+        "TestParseFlushTablesForExport",
+        "TestParseFlushBinaryLogs",
+        "TestParseAlterUndoTablespaceSetActive"
+      ]
+    },
+    {
+      "id": 72,
+      "name": "depth_fix_expr_group_concat",
+      "file": "expr.go",
+      "status": "done",
+      "description": "Fix batch 3 gap: GROUP_CONCAT ORDER BY panics on non-column-ref expressions (unsafe type assertion to *nodes.ColumnRef). Should handle arbitrary expressions in ORDER BY clause.",
+      "rules": [
+        "parseGroupConcatFunc"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseGroupConcatOrderByExpr",
+        "TestParseGroupConcatOrderByFuncCall"
+      ]
+    },
+    {
+      "id": 73,
+      "name": "depth_fix_insert_update_delete_partition",
+      "file": "insert.go",
+      "status": "done",
+      "description": "Fix batch 5/6 gap: INSERT/REPLACE PARTITION clause, INSERT AS row_alias (MySQL 8.0.19+), DELETE PARTITION clause, DELETE table alias, WITH CTE before UPDATE/DELETE dispatch",
+      "rules": [
+        "parseInsertOrReplace",
+        "parseDeleteStmt",
+        "parseUpdateStmt"
+      ],
+      "depends_on": [
+        5,
+        6
+      ],
+      "tests": [
+        "TestParseInsertPartition",
+        "TestParseInsertAsRowAlias",
+        "TestParseDeletePartition",
+        "TestParseDeleteTableAlias",
+        "TestParseWithUpdate",
+        "TestParseWithDelete"
+      ]
+    },
+    {
+      "id": 74,
+      "name": "depth_fix_replication_misc",
+      "file": "replication.go",
+      "status": "done",
+      "description": "Fix batch 43/44/47 gap: PURGE BINARY LOGS BEFORE datetime expression parsing, START REPLICA UNTIL GTID set string parsing, CACHE INDEX with PARTITION and index list clauses",
+      "rules": [
+        "parsePurgeBinaryLogsStmt",
+        "parseStartReplicaStmt",
+        "parseCacheIndexStmt"
+      ],
+      "depends_on": [
+        43,
+        44,
+        47
+      ],
+      "tests": [
+        "TestParsePurgeBinaryLogsBeforeDatetime",
+        "TestParseStartReplicaUntilGtid",
+        "TestParseCacheIndexPartition"
+      ]
+    },
+    {
+      "id": 75,
+      "name": "depth_fix_expr_sounds_like_row_default_values",
+      "file": "expr.go",
+      "status": "done",
+      "description": "Fix batch 3 gap: SOUNDS LIKE string comparison operator (add kwSOUNDS to lexer, parse as binary op), ROW() constructor expression for row comparisons (ROW(1,2) = ROW(a,b)), DEFAULT(col_name) function form (currently only parses bare DEFAULT keyword), VALUES(col_name) function for INSERT ON DUPLICATE KEY UPDATE context",
+      "rules": [
+        "parseSoundsLikeExpr",
+        "parseRowConstructor",
+        "parseDefaultExpr",
+        "parseValuesFunc"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseSoundsLike",
+        "TestParseRowConstructor",
+        "TestParseRowComparison",
+        "TestParseDefaultColName",
+        "TestParseValuesFunc"
+      ]
+    },
+    {
+      "id": 76,
+      "name": "depth_fix_match_query_expansion",
+      "file": "expr.go",
+      "status": "done",
+      "description": "Fix batch 3 gap: MATCH ... AGAINST WITH QUERY EXPANSION modifier - currently only parses IN NATURAL LANGUAGE MODE and IN BOOLEAN MODE, missing standalone WITH QUERY EXPANSION and combined IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION",
+      "rules": [
+        "parseMatchExpr"
+      ],
+      "depends_on": [
+        3
+      ],
+      "tests": [
+        "TestParseMatchWithQueryExpansion",
+        "TestParseMatchNaturalLanguageWithQueryExpansion"
+      ]
+    },
+    {
+      "id": 77,
+      "name": "depth_fix_natural_join_semantics",
+      "file": "select.go",
+      "status": "done",
+      "description": "Fix batch 4 gap: NATURAL LEFT [OUTER] JOIN and NATURAL RIGHT [OUTER] JOIN lose the NATURAL modifier - currently returns JoinLeft/JoinRight instead of preserving NATURAL semantics. Add JoinNaturalLeft and JoinNaturalRight to JoinType enum, update matchJoinType and outfuncs.go",
+      "rules": [
+        "matchJoinType"
+      ],
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseNaturalLeftJoin",
+        "TestParseNaturalRightJoin",
+        "TestParseNaturalLeftOuterJoin"
+      ]
+    },
+    {
+      "id": 78,
+      "name": "depth_fix_select_into_position2",
+      "file": "select.go",
+      "status": "done",
+      "description": "Fix batch 4 gap: INTO clause position 2 (between HAVING and ORDER BY) is not implemented - MySQL allows INTO at 3 positions: after select_expr (pos 1), after HAVING before ORDER BY (pos 2), after FOR UPDATE (pos 3). Only positions 1 and 3 are currently supported.",
+      "rules": [
+        "parseSelectStmt",
+        "parseSelectStmtBase"
+      ],
+      "depends_on": [
+        4,
+        65
+      ],
+      "tests": [
+        "TestParseSelectIntoAfterHaving",
+        "TestParseSelectIntoAfterHavingBeforeOrderBy"
+      ]
+    },
+    {
+      "id": 79,
+      "name": "depth_fix_create_user_password_random",
+      "file": "grant.go",
+      "status": "done",
+      "description": "Fix batch 15 gap: IDENTIFIED BY RANDOM PASSWORD syntax (MySQL 8.0.18+), RETAIN CURRENT PASSWORD dual-password support (MySQL 8.0.14+), DISCARD OLD PASSWORD. Add PasswordRandom and RetainCurrentPassword fields to UserSpec and AlterUserStmt AST nodes.",
+      "rules": [
+        "parseUserSpec",
+        "parseAlterUserStmt"
+      ],
+      "depends_on": [
+        15,
+        61,
+        69
+      ],
+      "tests": [
+        "TestParseCreateUserRandomPassword",
+        "TestParseAlterUserRetainCurrentPassword",
+        "TestParseAlterUserDiscardOldPassword"
+      ]
+    },
+    {
+      "id": 80,
+      "name": "depth_fix_table_options_secondary_engine",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "Fix batch 7 gap: missing table options - PASSWORD [=] 'string' (listed in MySQL docs but not parsed), SECONDARY_ENGINE [=] engine_name (MySQL 8.0.13+), SECONDARY_ENGINE_ATTRIBUTE [=] 'string' (MySQL 8.0.21+). Add cases to parseTableOption and corresponding AST fields.",
+      "rules": [
+        "parseTableOption"
+      ],
+      "depends_on": [
+        7,
+        59,
+        67
+      ],
+      "tests": [
+        "TestParseCreateTablePassword",
+        "TestParseCreateTableSecondaryEngine",
+        "TestParseCreateTableSecondaryEngineAttribute"
+      ]
+    },
+    {
+      "id": 81,
+      "name": "depth_fix_column_format_storage",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "Fix batch 7 gap: COLUMN_FORMAT {FIXED|DYNAMIC|DEFAULT} column modifier and STORAGE {DISK|MEMORY|DEFAULT} column modifier are not parsed. MySQL 8.0 allows these in column definitions but the parser only handles STORAGE as a table option. Add COLUMN_FORMAT and STORAGE to parseColumnOption, isColumnConstraintStart, and corresponding AST ColumnDef fields.",
+      "rules": [
+        "parseColumnOption",
+        "isColumnConstraintStart"
+      ],
+      "depends_on": [
+        7,
+        59
+      ],
+      "tests": [
+        "TestParseColumnFormat",
+        "TestParseColumnStorage"
+      ]
+    },
+    {
+      "id": 82,
+      "name": "depth_fix_utility_tests_batch1",
+      "file": "compare_test.go",
+      "status": "done",
+      "description": "Fix batch 20 gap: add dedicated tests for table maintenance and administrative statements in utility.go - ANALYZE TABLE, OPTIMIZE TABLE, CHECK TABLE, REPAIR TABLE, FLUSH, RESET, KILL, DO, CHECKSUM TABLE, SHUTDOWN, RESTART",
+      "rules": [],
+      "depends_on": [
+        20,
+        34,
+        71
+      ],
+      "tests": [
+        "TestParseAnalyzeTable",
+        "TestParseOptimizeTable",
+        "TestParseCheckTable",
+        "TestParseRepairTable",
+        "TestParseFlush",
+        "TestParseReset",
+        "TestParseKill",
+        "TestParseDo",
+        "TestParseChecksumTable",
+        "TestParseShutdown",
+        "TestParseRestart"
+      ]
+    },
+    {
+      "id": 83,
+      "name": "depth_fix_utility_tests_batch2",
+      "file": "compare_test.go",
+      "status": "done",
+      "description": "Fix batch 27/35/36/37/38/46 gap: add dedicated tests for CALL, HANDLER OPEN/READ/CLOSE, INSTALL/UNINSTALL PLUGIN/COMPONENT, CREATE/ALTER/DROP TABLESPACE, CREATE/ALTER/DROP SERVER, CREATE/DROP SPATIAL REFERENCE SYSTEM, CREATE/ALTER/DROP RESOURCE GROUP, ALTER INSTANCE, LOCK/UNLOCK INSTANCE, IMPORT TABLE, RESET PERSIST",
+      "rules": [],
+      "depends_on": [
+        27,
+        35,
+        36,
+        37,
+        38,
+        46,
+        47,
+        48
+      ],
+      "tests": [
+        "TestParseCall",
+        "TestParseHandlerOpenReadClose",
+        "TestParseInstallPlugin",
+        "TestParseUninstallPlugin",
+        "TestParseInstallComponent",
+        "TestParseUninstallComponent",
+        "TestParseCreateTablespace",
+        "TestParseAlterTablespace",
+        "TestParseDropTablespace",
+        "TestParseCreateServer",
+        "TestParseAlterServer",
+        "TestParseDropServer",
+        "TestParseCreateSpatialRefSys",
+        "TestParseDropSpatialRefSys",
+        "TestParseCreateResourceGroup",
+        "TestParseAlterResourceGroup",
+        "TestParseDropResourceGroup",
+        "TestParseAlterInstance",
+        "TestParseLockUnlockInstance",
+        "TestParseImportTable",
+        "TestParseResetPersist"
+      ]
+    },
+    {
+      "id": 84,
+      "name": "index_hints",
+      "file": "select.go",
+      "status": "done",
+      "description": "New: Parse USE INDEX, FORCE INDEX, IGNORE INDEX hints on table references. AST IndexHint struct exists (parsenodes.go) with Type/Scope/Indexes fields but no parser code. Must handle USE/FORCE/IGNORE {INDEX|KEY} [FOR {JOIN|ORDER BY|GROUP BY}] (index_list) after table name in FROM clause.",
+      "rules": [
+        "parseIndexHints",
+        "parseIndexHint"
+      ],
+      "depends_on": [
+        4
+      ],
+      "tests": [
+        "TestParseIndexHints"
+      ]
+    },
+    {
+      "id": 85,
+      "name": "depth_fix_show_event_value_capture",
+      "file": "set_show.go",
+      "status": "done",
+      "description": "Fix batch 32 gap: SHOW BINLOG EVENTS and SHOW RELAYLOG EVENTS skip FROM position and LIMIT offset,count values with bare p.advance() instead of parsing expressions. SHOW WARNINGS/ERRORS LIMIT count also skipped. Store these values in ShowStmt AST fields.",
+      "rules": [
+        "parseShowBinlogEvents",
+        "parseShowRelaylogEvents"
+      ],
+      "depends_on": [
+        32
+      ],
+      "tests": [
+        "TestParseShowBinlogEventsFromLimit",
+        "TestParseShowRelaylogEventsFromLimit",
+        "TestParseShowWarningsLimit"
+      ]
+    },
+    {
+      "id": 86,
+      "name": "depth_fix_show_create_user_host",
+      "file": "set_show.go",
+      "status": "done",
+      "description": "Fix batch 51 gap: SHOW CREATE USER parses username via parseTableRef then discards @host with bare p.advance(). Should use parseUserSpec (from grant.go) to properly capture user@host as a UserSpec.",
+      "rules": [
+        "parseShowCreateUser"
+      ],
+      "depends_on": [
+        51
+      ],
+      "tests": [
+        "TestParseShowCreateUserHost"
+      ]
+    },
+    {
+      "id": 87,
+      "name": "depth_fix_partition_algorithm_value",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "Fix batch 7 gap: PARTITION BY KEY and SUBPARTITION BY KEY consume ALGORITHM={1|2} value with p.advance() but do not store it in PartitionClause AST. Add Algorithm field and capture the integer value at lines 1016-1019 and 1147-1152.",
+      "rules": [
+        "parsePartitionClause"
+      ],
+      "depends_on": [
+        7
+      ],
+      "tests": [
+        "TestParsePartitionKeyAlgorithm"
+      ]
+    },
+    {
+      "id": 88,
+      "name": "depth_fix_show_profile_limit_offset",
+      "file": "set_show.go",
+      "status": "done",
+      "description": "Fix batch 51 gap: SHOW PROFILE LIMIT count [OFFSET offset] values are consumed with bare p.advance() instead of parsing expressions. Should use p.parseExpr() and store values in ShowStmt.LimitCount and ShowStmt.LimitOffset fields (already defined in AST from batch 85).",
+      "rules": [
+        "parseShowProfileStmt"
+      ],
+      "depends_on": [
+        51,
+        85
+      ],
+      "tests": [
+        "TestParseShowProfileLimitOffset"
+      ]
+    },
+    {
+      "id": 89,
+      "name": "depth_fix_table_option_autoextend_engine_attr",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "Fix batch 7 gap: missing AUTOEXTEND_SIZE [=] value table option (MySQL 8.0.23+) and ENGINE_ATTRIBUTE [=] 'string' table option (MySQL 8.0.21+) in parseTableOption identifier-based options. SECONDARY_ENGINE_ATTRIBUTE is handled but ENGINE_ATTRIBUTE is not.",
+      "rules": [
+        "parseTableOption"
+      ],
+      "depends_on": [
+        7,
+        80
+      ],
+      "tests": [
+        "TestParseCreateTableAutoextendSize",
+        "TestParseCreateTableEngineAttribute"
+      ]
+    },
+    {
+      "id": 90,
+      "name": "depth_fix_column_engine_attribute",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "Fix batch 7 gap: missing column-level ENGINE_ATTRIBUTE [=] 'string' and SECONDARY_ENGINE_ATTRIBUTE [=] 'string' modifiers in column definitions (MySQL 8.0.21+). Not parsed in parseColumnOption or isColumnConstraintStart.",
+      "rules": [
+        "parseColumnOption",
+        "isColumnConstraintStart"
+      ],
+      "depends_on": [
+        7,
+        81
+      ],
+      "tests": [
+        "TestParseColumnEngineAttribute",
+        "TestParseColumnSecondaryEngineAttribute"
+      ]
+    },
+    {
+      "id": 91,
+      "name": "depth_fix_index_engine_attribute",
+      "file": "create_index.go",
+      "status": "done",
+      "description": "Fix batch 9 gap: missing ENGINE_ATTRIBUTE [=] 'string' and SECONDARY_ENGINE_ATTRIBUTE [=] 'string' index options in parseIndexOption (MySQL 8.0.21+). These attributes apply to CREATE INDEX and table-level index/constraint definitions.",
+      "rules": [
+        "parseIndexOption"
+      ],
+      "depends_on": [
+        9
+      ],
+      "tests": [
+        "TestParseCreateIndexEngineAttribute",
+        "TestParseCreateIndexSecondaryEngineAttribute"
+      ]
+    },
+    {
+      "id": 92,
+      "name": "depth_fix_alter_table_secondary_load_unload",
+      "file": "alter_table.go",
+      "status": "done",
+      "description": "Fix batch 8 gap: missing ALTER TABLE ... SECONDARY_LOAD and ALTER TABLE ... SECONDARY_UNLOAD actions (MySQL 8.0.13+) for loading/unloading tables in HeatWave secondary engine. Need new AlterTableCmd types and lexer keywords.",
+      "rules": [
+        "parseAlterTableAction"
+      ],
+      "depends_on": [
+        8
+      ],
+      "tests": [
+        "TestParseAlterTableSecondaryLoad",
+        "TestParseAlterTableSecondaryUnload"
+      ]
+    },
+    {
+      "id": 93,
+      "name": "depth_fix_subpartition_algorithm_value",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "Fix batch 87 gap: SUBPARTITION BY LINEAR KEY ALGORITHM={1|2} value was not stored in part.SubPartAlgo. Also fixed token type checks: LINEAR was checked as tokIDENT instead of kwLINEAR, and ALGORITHM was checked as tokIDENT instead of kwALGORITHM.",
+      "rules": [
+        "parsePartitionClause"
+      ],
+      "depends_on": [
+        87
+      ],
+      "tests": [
+        "TestParseSubPartitionKeyAlgorithm"
+      ]
+    },
+    {
+      "id": 94,
+      "name": "depth_fix_repair_usefrm_checksum_extended",
+      "file": "utility.go",
+      "status": "done",
+      "description": "Added UseFrm field to RepairTableStmt and Extended field to ChecksumTableStmt. Parser now stores these values. Added outfuncs serialization for both.",
+      "rules": [
+        "parseRepairTableStmt",
+        "parseChecksumTableStmt"
+      ],
+      "depends_on": [
+        20,
+        34
+      ],
+      "tests": [
+        "TestParseRepairTableUseFrm",
+        "TestParseChecksumTableExtended"
+      ]
+    },
+    {
+      "id": 95,
+      "name": "depth_fix_logfile_group_stubs",
+      "file": "utility.go",
+      "status": "done",
+      "description": "Fix batch 37 gap: CREATE/ALTER/DROP LOGFILE GROUP use RawStmt token-skipping stubs in stmt.go instead of proper parse functions. Need AST nodes (CreateLogfileGroupStmt, AlterLogfileGroupStmt, DropLogfileGroupStmt), parse functions in utility.go, outfuncs cases, and dispatch wiring in stmt.go.",
+      "rules": [
+        "parseCreateLogfileGroupStmt",
+        "parseAlterLogfileGroupStmt",
+        "parseDropLogfileGroupStmt"
+      ],
+      "depends_on": [
+        37
+      ],
+      "tests": [
+        "TestParseCreateLogfileGroup",
+        "TestParseAlterLogfileGroup",
+        "TestParseDropLogfileGroup"
+      ]
+    },
+    {
+      "id": 96,
+      "name": "depth_fix_show_create_schema_if_not_exists",
+      "file": "set_show.go",
+      "status": "done",
+      "description": "Fix batch 13/32 gap: SHOW CREATE SCHEMA synonym not handled (only kwDATABASE checked in SHOW CREATE dispatch), and SHOW CREATE {DATABASE|SCHEMA} IF NOT EXISTS clause not parsed. Add SCHEMA case and optional IF NOT EXISTS parsing.",
+      "rules": [
+        "parseShowCreateStmt"
+      ],
+      "depends_on": [
+        13,
+        32
+      ],
+      "tests": [
+        "TestParseShowCreateSchema",
+        "TestParseShowCreateDatabaseIfNotExists"
+      ]
+    },
+    {
+      "id": 97,
+      "name": "review_infrastructure_shared",
+      "file": "parser.go",
+      "status": "done",
+      "description": "BNF review: Review lexer, parser helpers, expression parser, shared clause helpers (character set, collation, storage engine options, partition definitions). Establish baseline for all subsequent reviews.",
+      "effort": "review",
+      "bnf_files": [],
+      "review_files": [
+        "parser.go",
+        "lexer.go",
+        "expr.go",
+        "type.go",
+        "name.go"
+      ],
+      "rules": [],
+      "depends_on": [],
+      "tests": []
+    },
+    {
+      "id": 98,
+      "name": "review_select",
+      "file": "select.go",
+      "status": "done",
+      "description": "BNF review: Full review of SELECT against 46-line BNF. CTE/WITH, subquery, JOIN, PARTITION, GROUP BY WITH ROLLUP, HAVING, ORDER BY, LIMIT/OFFSET, FOR UPDATE/SHARE, INTO, DISTINCT/ALL, index hints, LATERAL.",
+      "effort": "review",
+      "bnf_files": [
+        "select.bnf"
+      ],
+      "bnf_lines": 46,
+      "review_files": [
+        "select.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 99,
+      "name": "review_dml",
+      "file": "insert.go",
+      "status": "done",
+      "description": "BNF review: Review all DML against BNF. INSERT ON DUPLICATE KEY, REPLACE, multi-table UPDATE/DELETE, PARTITION clause, LOW_PRIORITY/DELAYED/HIGH_PRIORITY, IGNORE.",
+      "effort": "review",
+      "bnf_files": [
+        "insert.bnf",
+        "update.bnf",
+        "delete.bnf",
+        "replace.bnf",
+        "do.bnf"
+      ],
+      "bnf_lines": 131,
+      "review_files": [
+        "insert.go",
+        "update_delete.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 100,
+      "name": "review_create_table",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "BNF review: Full review against 165-line BNF. Column definitions, constraints, table options (ENGINE, CHARSET, COLLATE, ROW_FORMAT, COMPRESSION, etc.), partitioning (RANGE/LIST/HASH/KEY/LINEAR), LIKE, AS SELECT, temporary tables.",
+      "effort": "review",
+      "bnf_files": [
+        "create-table.bnf"
+      ],
+      "bnf_lines": 165,
+      "review_files": [
+        "create_table.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 101,
+      "name": "review_alter_table",
+      "file": "alter_table.go",
+      "status": "done",
+      "description": "BNF review: Full review against 121-line BNF. ADD/MODIFY/CHANGE/DROP COLUMN, ADD/DROP INDEX/KEY, RENAME, CONVERT CHARACTER SET, PARTITION operations (ADD/DROP/TRUNCATE/REORGANIZE/COALESCE/EXCHANGE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR/REMOVE), ALGORITHM, LOCK, FORCE, ORDER BY, ENABLE/DISABLE KEYS, SECONDARY_LOAD/UNLOAD.",
+      "effort": "review",
+      "bnf_files": [
+        "alter-table.bnf"
+      ],
+      "bnf_lines": 121,
+      "review_files": [
+        "alter_table.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        100
+      ],
+      "tests": []
+    },
+    {
+      "id": 102,
+      "name": "review_index_view_trigger",
+      "file": "create_index.go",
+      "status": "done",
+      "description": "BNF review: CREATE/DROP INDEX, CREATE/ALTER/DROP VIEW, CREATE/DROP TRIGGER against 87 lines of BNF.",
+      "effort": "review",
+      "bnf_files": [
+        "create-index.bnf",
+        "drop-index.bnf",
+        "create-view.bnf",
+        "alter-view.bnf",
+        "drop-view.bnf",
+        "create-trigger.bnf",
+        "drop-trigger.bnf"
+      ],
+      "bnf_lines": 87,
+      "review_files": [
+        "create_index.go",
+        "create_view.go",
+        "trigger.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 103,
+      "name": "review_routines_events",
+      "file": "create_function.go",
+      "status": "done",
+      "description": "BNF review: CREATE/ALTER/DROP PROCEDURE, CREATE/ALTER/DROP FUNCTION, CALL, CREATE/ALTER/DROP EVENT against 145 lines of BNF.",
+      "effort": "review",
+      "bnf_files": [
+        "create-procedure.bnf",
+        "alter-procedure.bnf",
+        "create-function.bnf",
+        "alter-function.bnf",
+        "drop-procedure.bnf",
+        "drop-function.bnf",
+        "call.bnf",
+        "create-event.bnf",
+        "alter-event.bnf",
+        "drop-event.bnf"
+      ],
+      "bnf_lines": 145,
+      "review_files": [
+        "create_function.go",
+        "utility.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 104,
+      "name": "review_compound_flow",
+      "file": "compound.go",
+      "status": "done",
+      "description": "BNF review: BEGIN...END, DECLARE, IF/ELSEIF/ELSE, CASE, LOOP/WHILE/REPEAT, LEAVE/ITERATE, RETURN, OPEN/FETCH/CLOSE cursor, SIGNAL/RESIGNAL/GET DIAGNOSTICS against ~80 lines of BNF.",
+      "effort": "review",
+      "bnf_files": [],
+      "bnf_lines": 80,
+      "review_files": [
+        "compound.go",
+        "signal.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 105,
+      "name": "review_security",
+      "file": "grant.go",
+      "status": "done",
+      "description": "BNF review: CREATE/ALTER/DROP USER, CREATE/DROP ROLE, GRANT, REVOKE, SET DEFAULT ROLE, SET ROLE, SET PASSWORD, RENAME USER against 283 lines of BNF.",
+      "effort": "review",
+      "bnf_files": [
+        "create-user.bnf",
+        "alter-user.bnf",
+        "drop-user.bnf",
+        "create-role.bnf",
+        "drop-role.bnf",
+        "grant.bnf",
+        "revoke.bnf",
+        "set-default-role.bnf",
+        "set-role.bnf",
+        "set-password.bnf",
+        "rename-user.bnf"
+      ],
+      "bnf_lines": 283,
+      "review_files": [
+        "grant.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 106,
+      "name": "review_database_tablespace_admin",
+      "file": "create_database.go",
+      "status": "done",
+      "description": "BNF review: CREATE/ALTER/DROP DATABASE, USE, CREATE/ALTER/DROP TABLESPACE, CREATE/ALTER/DROP SERVER, CREATE/ALTER/DROP LOGFILE GROUP, RENAME TABLE, TRUNCATE TABLE against 97 lines of BNF.",
+      "effort": "review",
+      "bnf_files": [
+        "create-database.bnf",
+        "alter-database.bnf",
+        "drop-database.bnf",
+        "use.bnf",
+        "create-tablespace.bnf",
+        "alter-tablespace.bnf",
+        "drop-tablespace.bnf",
+        "create-server.bnf",
+        "alter-server.bnf",
+        "drop-server.bnf",
+        "create-logfile-group.bnf",
+        "alter-logfile-group.bnf",
+        "drop-logfile-group.bnf",
+        "rename-table.bnf",
+        "truncate-table.bnf",
+        "drop-table.bnf"
+      ],
+      "bnf_lines": 97,
+      "review_files": [
+        "create_database.go",
+        "utility.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 107,
+      "name": "review_transaction_xa_locking",
+      "file": "transaction.go",
+      "status": "done",
+      "description": "BNF review: BEGIN/START TRANSACTION, COMMIT, ROLLBACK, SAVEPOINT/RELEASE, SET TRANSACTION, XA START/END/PREPARE/COMMIT/ROLLBACK/RECOVER, LOCK TABLES/UNLOCK TABLES, LOCK INSTANCE FOR BACKUP against 84 lines of BNF.",
+      "effort": "review",
+      "bnf_files": [
+        "commit.bnf",
+        "savepoint.bnf",
+        "set-transaction.bnf",
+        "xa.bnf",
+        "lock-tables.bnf",
+        "lock-instance.bnf"
+      ],
+      "bnf_lines": 84,
+      "review_files": [
+        "transaction.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 108,
+      "name": "review_show",
+      "file": "set_show.go",
+      "status": "done",
+      "description": "BNF review: All 37+ SHOW variants against 207 lines of BNF across 37 files. SHOW DATABASES, TABLES, COLUMNS, CREATE TABLE/VIEW/etc., INDEX, GRANTS, PROCESSLIST, STATUS/VARIABLES, ERRORS/WARNINGS, ENGINES, PLUGINS, PROFILES, BINARY LOGS, BINLOG/RELAYLOG EVENTS, REPLICA STATUS, MASTER STATUS, OPEN TABLES, TABLE STATUS, TRIGGERS, EVENTS, FUNCTION/PROCEDURE STATUS/CODE, REPLICAS, PRIVILEGES, CHARACTER SET, COLLATION, ENGINE.",
+      "effort": "review",
+      "bnf_files": [
+        "show-databases.bnf",
+        "show-tables.bnf",
+        "show-columns.bnf",
+        "show-create-table.bnf",
+        "show-create-view.bnf",
+        "show-create-procedure.bnf",
+        "show-create-function.bnf",
+        "show-create-trigger.bnf",
+        "show-create-event.bnf",
+        "show-create-user.bnf",
+        "show-create-database.bnf",
+        "show-index.bnf",
+        "show-grants.bnf",
+        "show-processlist.bnf",
+        "show-status.bnf",
+        "show-variables.bnf",
+        "show-errors.bnf",
+        "show-warnings.bnf",
+        "show-engines.bnf",
+        "show-plugins.bnf",
+        "show-profiles.bnf",
+        "show-binary-logs.bnf",
+        "show-binlog-events.bnf",
+        "show-relaylog-events.bnf",
+        "show-replica-status.bnf",
+        "show-master-status.bnf",
+        "show-open-tables.bnf",
+        "show-table-status.bnf",
+        "show-triggers.bnf",
+        "show-events.bnf",
+        "show-function-status.bnf",
+        "show-procedure-status.bnf",
+        "show-replicas.bnf",
+        "show-privileges.bnf",
+        "show-character-set.bnf",
+        "show-collation.bnf",
+        "show-engine.bnf"
+      ],
+      "bnf_lines": 207,
+      "review_files": [
+        "set_show.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 109,
+      "name": "review_set_explain",
+      "file": "set_show.go",
+      "status": "done",
+      "description": "BNF review: SET variable, SET CHARACTER SET, SET NAMES, SET RESOURCE GROUP, EXPLAIN/DESCRIBE/HELP against 67 lines of BNF.",
+      "effort": "review",
+      "bnf_files": [
+        "set.bnf",
+        "set-character-set.bnf",
+        "set-names.bnf",
+        "set-resource-group.bnf",
+        "explain.bnf",
+        "describe.bnf",
+        "help.bnf"
+      ],
+      "bnf_lines": 67,
+      "review_files": [
+        "set_show.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 110,
+      "name": "review_load_import",
+      "file": "load_data.go",
+      "status": "done",
+      "description": "BNF review: LOAD DATA, LOAD XML, LOAD INDEX INTO CACHE, TABLE statement, VALUES statement against 86 lines of BNF. Added LOW_PRIORITY/CONCURRENT, PARTITION, CHARACTER SET, OPTIONALLY ENCLOSED BY, IsXML flag, ROWS IDENTIFIED BY for LOAD XML. Restructured LOAD INDEX INTO CACHE to store partitions/indexes/ignore_leaves per table. Added INTO clause to TABLE statement.",
+      "effort": "review",
+      "bnf_files": [
+        "load-data.bnf",
+        "load-xml.bnf",
+        "load-index.bnf",
+        "table.bnf",
+        "values.bnf"
+      ],
+      "bnf_lines": 86,
+      "review_files": [
+        "load_data.go",
+        "select.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": [
+        "TestReviewBatch110_LoadDataLowPriority",
+        "TestReviewBatch110_LoadDataConcurrent",
+        "TestReviewBatch110_LoadDataPartition",
+        "TestReviewBatch110_LoadDataCharacterSet",
+        "TestReviewBatch110_LoadDataOptionallyEnclosed",
+        "TestReviewBatch110_LoadXmlBasic",
+        "TestReviewBatch110_LoadXmlRowsIdentifiedBy",
+        "TestReviewBatch110_LoadXmlCharsetSetClause",
+        "TestReviewBatch110_LoadDataFullSyntax",
+        "TestReviewBatch110_LoadIndexIntoCachePartition",
+        "TestReviewBatch110_LoadIndexIntoCacheIndex",
+        "TestReviewBatch110_LoadIndexIntoCachePartitionAll",
+        "TestReviewBatch110_LoadIndexIntoCacheMultiTable",
+        "TestReviewBatch110_TableIntoOutfile",
+        "TestReviewBatch110_TableIntoDumpfile",
+        "TestReviewBatch110_TableIntoVar",
+        "TestReviewBatch110_ValuesBasic",
+        "TestReviewBatch110_ValuesOrderByLimit"
+      ]
+    },
+    {
+      "id": 111,
+      "name": "review_maintenance_utility",
+      "file": "utility.go",
+      "status": "done",
+      "description": "BNF review: ANALYZE TABLE, CHECK TABLE, CHECKSUM TABLE, OPTIMIZE TABLE, REPAIR TABLE, FLUSH, CACHE INDEX, KILL, SHUTDOWN, BINLOG, DO against 109 lines of BNF.",
+      "effort": "review",
+      "bnf_files": [
+        "analyze-table.bnf",
+        "check-table.bnf",
+        "checksum-table.bnf",
+        "optimize-table.bnf",
+        "repair-table.bnf",
+        "flush.bnf",
+        "cache-index.bnf",
+        "kill.bnf",
+        "shutdown.bnf",
+        "binlog.bnf",
+        "do.bnf"
+      ],
+      "bnf_lines": 109,
+      "review_files": [
+        "utility.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 112,
+      "name": "review_plugin_clone_instance",
+      "file": "utility.go",
+      "status": "done",
+      "description": "BNF review: INSTALL/UNINSTALL PLUGIN, INSTALL/UNINSTALL COMPONENT, CLONE, RESTART, ALTER INSTANCE against 52 lines of BNF.",
+      "effort": "review",
+      "bnf_files": [
+        "install-plugin.bnf",
+        "uninstall-plugin.bnf",
+        "install-component.bnf",
+        "uninstall-component.bnf",
+        "clone.bnf",
+        "restart.bnf",
+        "alter-instance.bnf"
+      ],
+      "bnf_lines": 52,
+      "review_files": [
+        "utility.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": ["TestParseInstallComponentSet"]
+    },
+    {
+      "id": 113,
+      "name": "review_replication",
+      "file": "replication.go",
+      "status": "done",
+      "description": "BNF review: CHANGE REPLICATION SOURCE, START/STOP REPLICA, RESET, RESET PERSIST, CHANGE MASTER TO, START/STOP GROUP REPLICATION against 14+ lines of BNF plus replication docs.",
+      "effort": "review",
+      "bnf_files": [
+        "reset.bnf",
+        "reset-persist.bnf"
+      ],
+      "bnf_lines": 14,
+      "review_files": [
+        "replication.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 114,
+      "name": "review_spatial_resource_group",
+      "file": "utility.go",
+      "status": "done",
+      "description": "BNF review: CREATE/DROP SPATIAL REFERENCE SYSTEM, CREATE/ALTER/DROP RESOURCE GROUP, SET RESOURCE GROUP against 54 lines of BNF.",
+      "effort": "review",
+      "bnf_files": [
+        "create-spatial-reference-system.bnf",
+        "drop-spatial-reference-system.bnf",
+        "create-resource-group.bnf",
+        "alter-resource-group.bnf",
+        "drop-resource-group.bnf",
+        "set-resource-group.bnf"
+      ],
+      "bnf_lines": 54,
+      "review_files": [
+        "utility.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 115,
+      "name": "review_prepare_drop",
+      "file": "prepare.go",
+      "status": "done",
+      "description": "BNF review: PREPARE, EXECUTE, DEALLOCATE PREPARE, all DROP statements against ~50 lines of BNF.",
+      "effort": "review",
+      "bnf_files": [
+        "prepare.bnf",
+        "execute.bnf",
+        "deallocate.bnf",
+        "drop-table.bnf",
+        "drop-database.bnf",
+        "drop-index.bnf"
+      ],
+      "bnf_lines": 50,
+      "review_files": [
+        "prepare.go",
+        "drop.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 116,
+      "name": "review_expression_deep",
+      "file": "expr.go",
+      "status": "done",
+      "description": "BNF review: Full expression parser review. Operator precedence, CASE, BETWEEN, IN, LIKE, IS, CAST/CONVERT, JSON operators (-> ->>), MATCH AGAINST, GROUP_CONCAT, window functions (OVER), subquery expressions, ROW constructor, DEFAULT/VALUES, MEMBER OF, SOUNDS LIKE. Cross-cutting across all BNF files.",
+      "effort": "review",
+      "bnf_files": [],
+      "bnf_lines": 0,
+      "review_files": [
+        "expr.go"
+      ],
+      "rules": [],
+      "depends_on": [
+        97
+      ],
+      "tests": []
+    },
+    {
+      "id": 117,
+      "name": "depth_fix_definer_propagation",
+      "file": "stmt.go",
+      "status": "done",
+      "description": "Fix batch 16/17/10/39 gap: DEFINER clause consumed at dispatch layer (stmt.go parseCreateDispatch/parseAlterDispatch) but never propagated to sub-parsers. Affects CREATE FUNCTION, CREATE PROCEDURE, CREATE TRIGGER, CREATE EVENT, CREATE VIEW (via DEFINER path), ALTER VIEW, ALTER EVENT. AST nodes have Definer field but it is never populated when DEFINER appears before the object keyword.",
+      "rules": ["parseCreateDispatch", "parseAlterDispatch"],
+      "depends_on": [10, 16, 17, 39],
+      "tests": ["TestDefinerPropagation"]
+    },
+    {
+      "id": 118,
+      "name": "depth_fix_alter_user_registration_factor",
+      "file": "grant.go",
+      "status": "done",
+      "description": "Fix batch 61 gap: ALTER USER missing BNF branches from alter-user.bnf lines 11-18 and 40-64. Missing: (1) USER() user_func_auth_option syntax, (2) registration_option (factor INITIATE/FINISH REGISTRATION, factor UNREGISTER), (3) ADD/MODIFY/DROP factor factor_auth_option operations, (4) factor_auth_option as distinct from standard auth_option.",
+      "rules": ["parseAlterUserStmt", "parseUserSpec", "parseUserAuthOption"],
+      "depends_on": [61],
+      "tests": ["TestAlterUserRegistration", "TestAlterUserFactorAuth"]
+    },
+    {
+      "id": 119,
+      "name": "depth_fix_insert_values_row_constructor",
+      "file": "insert.go",
+      "status": "done",
+      "description": "Fix batch 5 gap: INSERT ... VALUES ROW(val, val), ROW(val, val) row constructor syntax not supported. BNF insert.bnf lines 19-36 specify VALUES row_constructor_list form where row_constructor_list is ROW(value_list)[, ROW(value_list)]. parseValuesRows() at insert.go:234 expects '(' immediately after VALUES but ROW keyword precedes it. Standalone VALUES statement (select.go:1620) correctly requires ROW syntax but INSERT does not.",
+      "rules": ["parseValuesRows"],
+      "depends_on": [5],
+      "tests": ["TestParseInsertValuesRow", "TestParseInsertValuesRowMultiple"]
+    },
+    {
+      "id": 120,
+      "name": "depth_fix_outfuncs_expr_loc",
+      "file": "../ast/outfuncs.go",
+      "status": "done",
+      "description": "Fix batch 3 gap: BinaryExpr, UnaryExpr, and IsExpr write functions in outfuncs.go do not serialize the :loc field, unlike every other expression type (BetweenExpr, InExpr, LikeExpr, CaseExpr, CastExpr, ParenExpr, etc.). Add fmt.Fprintf(sb, \" :loc %d\", n.Loc.Start) to writeBinaryExpr, writeUnaryExpr, and writeIsExpr for consistency.",
+      "rules": ["writeBinaryExpr", "writeUnaryExpr", "writeIsExpr"],
+      "depends_on": [3],
+      "tests": ["TestDeparseBinaryExprLoc", "TestDeparseUnaryExprLoc", "TestDeparseIsExprLoc"]
+    },
+    {
+      "id": 121,
+      "name": "depth_fix_table_option_keywords",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "Fix batch 7 gap: parseTableOption() checks for CHECKSUM, TABLESPACE, ENCRYPTION, UNION in the tokIDENT fallback branch, but the lexer registers these as keyword tokens (kwCHECKSUM, kwTABLESPACE, kwENCRYPTION, kwUNION) so they never enter that branch. Add explicit case entries in the switch statement. UNION also needs parenthesized list parsing instead of consumeOptionValue.",
+      "rules": ["parseTableOption"],
+      "depends_on": [7, 80, 89],
+      "tests": ["TestParseCreateTableChecksum", "TestParseCreateTableTablespace", "TestParseCreateTableEncryption", "TestParseCreateTableUnion"]
+    },
+    {
+      "id": 122,
+      "name": "depth_fix_table_option_data_index_directory",
+      "file": "create_table.go",
+      "status": "done",
+      "description": "Fix batch 7 gap: DATA DIRECTORY and INDEX DIRECTORY table options are two-token sequences (DATA is kwDATA, INDEX is kwINDEX) but parseTableOption() checks for 'data_directory' and 'index_directory' as single tokIDENT strings, which never matches. Add case kwDATA: and case kwINDEX: that peek for DIRECTORY next token and parse [=] 'path'.",
+      "rules": ["parseTableOption"],
+      "depends_on": [7, 121],
+      "tests": ["TestParseCreateTableDataDirectory", "TestParseCreateTableIndexDirectory"]
+    }
+  ],
+  "stats": {
+    "total": 123,
+    "done": 123,
+    "pending": 0,
+    "failed": 0,
+    "in_progress": 0
+  },
+  "audit_round": 22
+}
