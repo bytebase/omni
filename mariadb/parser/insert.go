@@ -118,6 +118,13 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 				return nil, err
 			}
 			stmt.Select = sel
+			if p.cur.Type == kwRETURNING {
+				ret, err := p.parseReturningClause()
+				if err != nil {
+					return nil, err
+				}
+				stmt.Returning = ret
+			}
 			stmt.Loc.End = p.pos()
 			return stmt, nil
 		}
@@ -218,6 +225,15 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 			return nil, err
 		}
 		stmt.OnDuplicateKey = onDup
+	}
+
+	// RETURNING (MariaDB) — valid after every INSERT/REPLACE form.
+	if p.cur.Type == kwRETURNING {
+		ret, err := p.parseReturningClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Returning = ret
 	}
 
 	stmt.Loc.End = p.pos()

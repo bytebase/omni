@@ -780,6 +780,10 @@ func writeDeleteStmt(sb *strings.Builder, n *DeleteStmt) {
 		sb.WriteString(" :limit ")
 		writeNode(sb, n.Limit)
 	}
+	if len(n.Returning) > 0 {
+		sb.WriteString(" :returning ")
+		writeNodeList(sb, n.Returning)
+	}
 	sb.WriteString("}")
 }
 

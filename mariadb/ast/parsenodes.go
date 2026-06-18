@@ -123,7 +123,7 @@ type InsertStmt struct {
 	RowAlias       string        // AS row_alias (MySQL 8.0.19+)
 	ColAliases     []string      // (col_alias, ...) after row_alias
 	OnDuplicateKey []*Assignment // ON DUPLICATE KEY UPDATE
-	Returning      []Node        // not standard MySQL but included for completeness
+	Returning      []Node        // RETURNING select-list (MariaDB; INSERT/REPLACE)
 }
 
 func (s *InsertStmt) nodeTag()  {}
@@ -165,6 +165,7 @@ type DeleteStmt struct {
 	Where       ExprNode       // WHERE condition
 	OrderBy     []*OrderByItem // ORDER BY
 	Limit       *Limit         // LIMIT
+	Returning   []Node         // RETURNING select-list (MariaDB; single-table DELETE only)
 }
 
 func (s *DeleteStmt) nodeTag()  {}

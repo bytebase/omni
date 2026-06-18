@@ -257,6 +257,17 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		stmt.Limit = limit
 	}
 
+	// RETURNING (MariaDB) — single-table DELETE only. Multi-table delete (either
+	// syntax) has >1 table or USING; MariaDB rejects RETURNING there (1064), so
+	// the clause is not reachable on those paths.
+	if len(stmt.Tables) == 1 && stmt.Using == nil && p.cur.Type == kwRETURNING {
+		ret, err := p.parseReturningClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Returning = ret
+	}
+
 	stmt.Loc.End = p.pos()
 	return stmt, nil
 }
