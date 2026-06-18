@@ -872,6 +872,18 @@ const (
 	kwMASTER_TLS_VERSION
 	kwMASTER_USER
 	kwMASTER_ZSTD_COMPRESSION_LEVEL
+
+	// MariaDB sequence keywords (BYT-9135). The 6 siblings next/value/maxvalue/
+	// cache/restart/start are inherited from the mysql fork base.
+	kwSEQUENCE
+	kwPREVIOUS
+	kwMINVALUE
+	kwCYCLE
+	kwINCREMENT
+	kwNOCACHE
+	kwNOCYCLE
+	kwNOMINVALUE
+	kwNOMAXVALUE
 )
 
 // keywords maps lowercase keyword strings to their token types.
@@ -1677,6 +1689,17 @@ var keywords = map[string]int{
 	"week":                                   kwWEEK,
 	"weight_string":                          kwWEIGHT_STRING,
 	"zone":                                   kwZONE,
+
+	// MariaDB sequence keywords (BYT-9135).
+	"sequence":   kwSEQUENCE,
+	"previous":   kwPREVIOUS,
+	"minvalue":   kwMINVALUE,
+	"cycle":      kwCYCLE,
+	"increment":  kwINCREMENT,
+	"nocache":    kwNOCACHE,
+	"nocycle":    kwNOCYCLE,
+	"nominvalue": kwNOMINVALUE,
+	"nomaxvalue": kwNOMAXVALUE,
 }
 
 // Token represents a lexical token.

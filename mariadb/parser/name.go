@@ -472,6 +472,21 @@ var keywordCategories = map[int]keywordCategory{
 	kwRESOURCE:            kwCatAmbiguous3,
 	// Ambiguous 4 (not lvalue)
 	kwPERSIST:             kwCatAmbiguous4,
+
+	// MariaDB sequence keywords (BYT-9135) — all non-reserved in MariaDB, so
+	// usable as label/role/lvalue identifiers (the contexts that route through
+	// isLabelKeyword/isRoleKeyword/isLvalueKeyword, which fail closed for tokens
+	// absent here). The column-name path (parseIdent) accepts them regardless,
+	// since it gates on ">= 700 && !isReserved" rather than this map.
+	kwSEQUENCE:   kwCatUnambiguous,
+	kwPREVIOUS:   kwCatUnambiguous,
+	kwMINVALUE:   kwCatUnambiguous,
+	kwCYCLE:      kwCatUnambiguous,
+	kwINCREMENT:  kwCatUnambiguous,
+	kwNOCACHE:    kwCatUnambiguous,
+	kwNOCYCLE:    kwCatUnambiguous,
+	kwNOMINVALUE: kwCatUnambiguous,
+	kwNOMAXVALUE: kwCatUnambiguous,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot
