@@ -177,16 +177,32 @@
   input: "SELECT 1 FROM dual / \nSELECT 2 FROM dual;"
   statements:
     - text: "SELECT 1 FROM dual / \nSELECT 2 FROM dual"
-- description: run flushes buffer
+- description: run does not flush unterminated buffer
   input: "SELECT 1 FROM dual\nRUN\nSELECT 2 FROM dual;"
   statements:
-    - text: "SELECT 1 FROM dual"
-    - text: "\nSELECT 2 FROM dual"
-- description: r flushes buffer
+    - text: "SELECT 1 FROM dual\nRUN\nSELECT 2 FROM dual"
+- description: r does not flush unterminated buffer
   input: "SELECT 1 FROM dual\nR\nSELECT 2 FROM dual;"
   statements:
+    - text: "SELECT 1 FROM dual\nR\nSELECT 2 FROM dual"
+- description: slash delimiter before sqlplus command
+  input: "SELECT 1 FROM dual\n/\nPROMPT done\nSELECT 2 FROM dual;"
+  statements:
     - text: "SELECT 1 FROM dual"
-    - text: "\nSELECT 2 FROM dual"
+    - text: "\nPROMPT done"
+    - text: "SELECT 2 FROM dual"
+- description: line comment before sqlplus command after semicolon
+  input: "SELECT 1 FROM dual;\n-- setup output\nPROMPT done\nSELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: "\n-- setup output\nPROMPT done"
+    - text: "SELECT 2 FROM dual"
+- description: block comment before sqlplus command after semicolon
+  input: "SELECT 1 FROM dual;\n/* setup output */\nSPOOL out.log\nSELECT 2 FROM dual;"
+  statements:
+    - text: "SELECT 1 FROM dual"
+    - text: "\n/* setup output */\nSPOOL out.log"
+    - text: "SELECT 2 FROM dual"
 - description: multiple slash commands filtered
   input: "/\n/\nSELECT 1 FROM dual\n/\n/"
   statements:
@@ -197,6 +213,13 @@
   statements:
     - text: "BEGIN NULL; END;"
     - text: "\nSELECT 1 FROM dual"
+- description: sqlplus command after anonymous block slash delimiter
+  input: "BEGIN NULL; END;\n/\nPROMPT block complete\nSPOOL install.log\nSELECT 1 FROM dual;"
+  statements:
+    - text: "BEGIN NULL; END;"
+    - text: "\nPROMPT block complete"
+    - text: "SPOOL install.log"
+    - text: "SELECT 1 FROM dual"
 - description: declare block
   input: |-
     DECLARE
@@ -409,6 +432,76 @@
     - text: "SET DEFINE OFF"
     - text: "PROMPT hello; world"
     - text: "SELECT 1 FROM dual"
+- description: set define column inside update is not sqlplus
+  input: "UPDATE accounts\nSET DEFINE = 1\nWHERE id = 1;"
+  statements:
+    - text: "UPDATE accounts\nSET DEFINE = 1\nWHERE id = 1"
+- description: set prompt column inside merge is not sqlplus
+  input: "MERGE INTO dst d USING src s ON (d.id = s.id)\nWHEN MATCHED THEN UPDATE\nSET PROMPT = s.prompt;"
+  statements:
+    - text: "MERGE INTO dst d USING src s ON (d.id = s.id)\nWHEN MATCHED THEN UPDATE\nSET PROMPT = s.prompt"
+- description: match recognize define clause is not sqlplus
+  input: |-
+    SELECT *
+    FROM trades
+    MATCH_RECOGNIZE (
+      ORDER BY ts
+      MEASURES A.price AS start_price
+      PATTERN (A B)
+      DEFINE
+        B AS B.price > A.price
+    ) mr;
+  statements:
+    - text: |-
+        SELECT *
+        FROM trades
+        MATCH_RECOGNIZE (
+          ORDER BY ts
+          MEASURES A.price AS start_price
+          PATTERN (A B)
+          DEFINE
+            B AS B.price > A.price
+        ) mr
+- description: ordinary sql statements with sqlplus-like lines
+  input: |-
+    CREATE VIEW v_sqlplus_words AS
+    SELECT
+      prompt,
+      remark,
+      spool
+    FROM source_table;
+    SELECT employee_id
+    FROM employees
+    START WITH manager_id IS NULL
+    CONNECT BY PRIOR employee_id = manager_id;
+    UPDATE accounts
+    SET DEFINE = 1,
+        PROMPT = 'on'
+    WHERE id = 1;
+    MERGE INTO dst d USING src s ON (d.id = s.id)
+    WHEN MATCHED THEN UPDATE
+    SET SPOOL = s.spool;
+    SELECT *
+    FROM trades
+    MATCH_RECOGNIZE (
+      ORDER BY ts
+      MEASURES A.price AS start_price
+      PATTERN (A B)
+      DEFINE
+        B AS B.price > A.price
+    ) mr;
+  statements:
+    - text: |-
+        CREATE VIEW v_sqlplus_words AS
+        SELECT
+          prompt,
+          remark,
+          spool
+        FROM source_table
+    - text: "\nSELECT employee_id\nFROM employees\nSTART WITH manager_id IS NULL\nCONNECT BY PRIOR employee_id = manager_id"
+    - text: "\nUPDATE accounts\nSET DEFINE = 1,\n    PROMPT = 'on'\nWHERE id = 1"
+    - text: "\nMERGE INTO dst d USING src s ON (d.id = s.id)\nWHEN MATCHED THEN UPDATE\nSET SPOOL = s.spool"
+    - text: "\nSELECT *\nFROM trades\nMATCH_RECOGNIZE (\n  ORDER BY ts\n  MEASURES A.price AS start_price\n  PATTERN (A B)\n  DEFINE\n    B AS B.price > A.price\n) mr"
 - description: spool returned as line segments between statements
   input: "SELECT 1 FROM dual;\nSPOOL out.log\nSELECT 2 FROM dual;\nSPOOL OFF\nSELECT 3 FROM dual;"
   statements:

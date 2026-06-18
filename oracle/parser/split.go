@@ -68,6 +68,10 @@ func Split(sql string) []Segment {
 		if !state.inPLSQL {
 			if cmd, ok := sqlPlusCommandAtLineStart(sql, tok); ok {
 				prefixEmpty := onlyIgnorableSQLPlusPrefix(sql, stmtStart, tok.Loc)
+				if !prefixEmpty && !(cmd.flush && tok.Type == '/') {
+					state.observe(tok)
+					continue
+				}
 				if cmd.flush {
 					if prefixEmpty {
 						if tok.Type == '/' && len(segments) > 0 {
@@ -123,7 +127,7 @@ func Split(sql string) []Segment {
 				state.reset()
 			}
 		case '/':
-			if isSlashDelimiterLine(sql, tok.Loc, tok.End) {
+			if (!state.inPLSQL || state.plsqlCanEndAtSlashDelimiter()) && isSlashDelimiterLine(sql, tok.Loc, tok.End) {
 				segments = appendSegment(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc))
 				stmtStart = slashNextSegmentStart(sql, tok.End)
 				state.reset()
@@ -363,6 +367,10 @@ func (s *splitState) plsqlCanEndAtSemicolon() bool {
 		return true
 	}
 	return false
+}
+
+func (s *splitState) plsqlCanEndAtSlashDelimiter() bool {
+	return s.callSpecStarted
 }
 
 func (s *splitState) afterPLSQLSemicolon() {

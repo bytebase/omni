@@ -105,6 +105,42 @@ func TestParseWrappedProcedureWithOperatorPayload(t *testing.T) {
 	}
 }
 
+func TestParseCreateTableWithRemarkColumn(t *testing.T) {
+	sql := `create table NCF_DI_PO_SOURCE_TEMP
+(
+    data_id             number not null
+        constraint NC_DI_pk
+            primary key,
+    purchase_receive_id number,
+    po_number           varchar2(60),
+    sku_code            varchar2(100),
+    qty                 number,
+    receive_number      varchar2(100),
+    ETD                 date,
+    ETA                 date,
+    ATD                 date,
+    SO_NUMBER           varchar2(100),
+    SO_line_amount      number(10,2),
+    source              varchar2(100),
+    remark              varchar2(100),
+    prompt              varchar2(100),
+    spool               varchar2(100),
+    attribute1          varchar2(100),
+    attribute2          varchar2(100)
+)`
+
+	stmts, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if len(stmts) != 1 {
+		t.Fatalf("got %d statements, want 1", len(stmts))
+	}
+	if _, ok := stmts[0].AST.(*ast.CreateTableStmt); !ok {
+		t.Fatalf("stmt[0].AST = %T, want CreateTableStmt", stmts[0].AST)
+	}
+}
+
 func TestParseReturnsErrorForSQLPlusCommands(t *testing.T) {
 	sql := "SET DEFINE OFF\n" +
 		"PROMPT setup\n" +
