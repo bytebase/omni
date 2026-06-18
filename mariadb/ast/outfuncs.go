@@ -459,6 +459,16 @@ func writeNode(sb *strings.Builder, node Node) {
 		fmt.Fprintf(sb, "{HELP :loc %d :topic %q}", n.Loc.Start, n.Topic)
 	case *VCPUSpec:
 		writeVCPUSpec(sb, n)
+	case *CreateSequenceStmt:
+		writeCreateSequenceStmt(sb, n)
+	case *AlterSequenceStmt:
+		writeAlterSequenceStmt(sb, n)
+	case *DropSequenceStmt:
+		writeDropSequenceStmt(sb, n)
+	case *NextValueForExpr:
+		writeNextValueForExpr(sb, n)
+	case *PreviousValueForExpr:
+		writePreviousValueForExpr(sb, n)
 
 	default:
 		fmt.Fprintf(sb, "{UNKNOWN %T}", node)
@@ -4905,4 +4915,156 @@ func writeVCPUSpec(sb *strings.Builder, n *VCPUSpec) {
 	} else {
 		fmt.Fprintf(sb, "{VCPU %d-%d}", n.Start, n.End)
 	}
+}
+
+func writeCreateSequenceStmt(sb *strings.Builder, n *CreateSequenceStmt) {
+	sb.WriteString("{CREATE_SEQUENCE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OrReplace {
+		sb.WriteString(" :or_replace true")
+	}
+	if n.Temporary {
+		sb.WriteString(" :temporary true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :if_not_exists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.DataType != nil {
+		sb.WriteString(" :as ")
+		writeNode(sb, n.DataType)
+	}
+	if n.Start != nil {
+		sb.WriteString(" :start ")
+		writeNode(sb, n.Start)
+	}
+	if n.Increment != nil {
+		sb.WriteString(" :increment ")
+		writeNode(sb, n.Increment)
+	}
+	if n.MinValue != nil {
+		sb.WriteString(" :minvalue ")
+		writeNode(sb, n.MinValue)
+	}
+	if n.MaxValue != nil {
+		sb.WriteString(" :maxvalue ")
+		writeNode(sb, n.MaxValue)
+	}
+	if n.NoMinValue {
+		sb.WriteString(" :nominvalue true")
+	}
+	if n.NoMaxValue {
+		sb.WriteString(" :nomaxvalue true")
+	}
+	if n.Cache != nil {
+		sb.WriteString(" :cache ")
+		writeNode(sb, n.Cache)
+	}
+	if n.NoCache {
+		sb.WriteString(" :nocache true")
+	}
+	if n.Cycle != nil {
+		fmt.Fprintf(sb, " :cycle %t", *n.Cycle)
+	}
+	sb.WriteString("}")
+}
+
+func writeAlterSequenceStmt(sb *strings.Builder, n *AlterSequenceStmt) {
+	sb.WriteString("{ALTER_SEQUENCE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	if n.DataType != nil {
+		sb.WriteString(" :as ")
+		writeNode(sb, n.DataType)
+	}
+	if n.Start != nil {
+		sb.WriteString(" :start ")
+		writeNode(sb, n.Start)
+	}
+	if n.Restart {
+		sb.WriteString(" :restart true")
+	}
+	if n.RestartWith != nil {
+		sb.WriteString(" :restart_with ")
+		writeNode(sb, n.RestartWith)
+	}
+	if n.Increment != nil {
+		sb.WriteString(" :increment ")
+		writeNode(sb, n.Increment)
+	}
+	if n.MinValue != nil {
+		sb.WriteString(" :minvalue ")
+		writeNode(sb, n.MinValue)
+	}
+	if n.MaxValue != nil {
+		sb.WriteString(" :maxvalue ")
+		writeNode(sb, n.MaxValue)
+	}
+	if n.NoMinValue {
+		sb.WriteString(" :nominvalue true")
+	}
+	if n.NoMaxValue {
+		sb.WriteString(" :nomaxvalue true")
+	}
+	if n.Cache != nil {
+		sb.WriteString(" :cache ")
+		writeNode(sb, n.Cache)
+	}
+	if n.NoCache {
+		sb.WriteString(" :nocache true")
+	}
+	if n.Cycle != nil {
+		fmt.Fprintf(sb, " :cycle %t", *n.Cycle)
+	}
+	sb.WriteString("}")
+}
+
+func writeDropSequenceStmt(sb *strings.Builder, n *DropSequenceStmt) {
+	sb.WriteString("{DROP_SEQUENCE")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Temporary {
+		sb.WriteString(" :temporary true")
+	}
+	if n.IfExists {
+		sb.WriteString(" :if_exists true")
+	}
+	if len(n.Sequences) > 0 {
+		sb.WriteString(" :sequences ")
+		for i, s := range n.Sequences {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, s)
+		}
+	}
+	sb.WriteString("}")
+}
+
+func writeNextValueForExpr(sb *strings.Builder, n *NextValueForExpr) {
+	sb.WriteString("{NEXT_VALUE_FOR")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Sequence != nil {
+		sb.WriteString(" :sequence ")
+		writeNode(sb, n.Sequence)
+	}
+	sb.WriteString("}")
+}
+
+func writePreviousValueForExpr(sb *strings.Builder, n *PreviousValueForExpr) {
+	sb.WriteString("{PREVIOUS_VALUE_FOR")
+	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.Sequence != nil {
+		sb.WriteString(" :sequence ")
+		writeNode(sb, n.Sequence)
+	}
+	sb.WriteString("}")
 }

@@ -402,7 +402,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	// Completion: after CREATE keyword, offer object type candidates.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT} {
+		for _, t := range []int{kwTABLE, kwSEQUENCE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -411,10 +411,13 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	orReplace := false
 	temporary := false
 
-	// OR REPLACE
+	// OR REPLACE — OR must be followed by REPLACE; MariaDB rejects a bare
+	// CREATE OR <object> (without REPLACE) at parse (1064).
 	if p.cur.Type == kwOR {
 		p.advance()
-		p.match(kwREPLACE)
+		if _, err := p.expect(kwREPLACE); err != nil {
+			return nil, err
+		}
 		orReplace = true
 	}
 
@@ -436,6 +439,9 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	switch p.cur.Type {
 	case kwTABLE:
 		return p.parseCreateTableStmt(temporary)
+
+	case kwSEQUENCE:
+		return p.parseCreateSequenceStmt(orReplace, temporary)
 
 	case kwINDEX:
 		return p.parseCreateIndexStmt(false, false, false)
@@ -596,7 +602,7 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	// Completion: after ALTER keyword, offer object type candidates.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwTABLE, kwDATABASE, kwVIEW, kwFUNCTION, kwPROCEDURE, kwEVENT} {
+		for _, t := range []int{kwTABLE, kwSEQUENCE, kwDATABASE, kwVIEW, kwFUNCTION, kwPROCEDURE, kwEVENT} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -614,6 +620,9 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 	switch p.cur.Type {
 	case kwTABLE:
 		return p.parseAlterTableStmt()
+
+	case kwSEQUENCE:
+		return p.parseAlterSequenceStmt()
 
 	case kwDATABASE, kwSCHEMA:
 		return p.parseAlterDatabaseStmt()
@@ -712,7 +721,7 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	// Completion: after DROP keyword, offer object type candidates.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwTABLE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT, kwIF} {
+		for _, t := range []int{kwTABLE, kwSEQUENCE, kwINDEX, kwVIEW, kwDATABASE, kwFUNCTION, kwPROCEDURE, kwTRIGGER, kwEVENT, kwIF} {
 			p.addTokenCandidate(t)
 		}
 		return nil, &ParseError{Message: "collecting"}
@@ -736,6 +745,9 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 	switch p.cur.Type {
 	case kwTABLE:
 		return p.parseDropTableStmt(temporary)
+
+	case kwSEQUENCE:
+		return p.parseDropSequenceStmt(temporary)
 
 	case kwINDEX:
 		return p.parseDropIndexStmt()

@@ -438,6 +438,21 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	case kwVALUES:
 		return p.parseValuesFunc()
 
+	case kwNEXT:
+		// NEXT VALUE FOR seq — MariaDB sequence value function. NEXT is otherwise
+		// a plain identifier (e.g. a column named "next").
+		if p.peekNext().Type == kwVALUE {
+			return p.parseNextValueFor()
+		}
+		return p.parseIdentExpr()
+
+	case kwPREVIOUS:
+		// PREVIOUS VALUE FOR seq — likewise a plain identifier otherwise.
+		if p.peekNext().Type == kwVALUE {
+			return p.parsePreviousValueFor()
+		}
+		return p.parseIdentExpr()
+
 	// Window functions and GROUPING — reserved keywords used as function calls.
 	// After registration as reserved keywords, they no longer match isIdentToken(),
 	// so we dispatch them here to parseFuncCall explicitly.

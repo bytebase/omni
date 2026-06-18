@@ -2911,3 +2911,97 @@ type RawStmt struct {
 
 func (s *RawStmt) nodeTag()  {}
 func (s *RawStmt) stmtNode() {}
+
+// ---------------------------------------------------------------------------
+// Sequence statements and expressions (BYT-9135, MariaDB 11.8).
+//
+// Ported from the mssql donor (CreateSequenceStmt/AlterSequenceStmt/
+// NextValueForExpr), adapted to the MariaDB grammar: the SQL-Server-only OVER
+// clause on the value expression is dropped (MariaDB rejects
+// NEXT VALUE FOR seq OVER (...) with 1064), and CREATE carries MariaDB's
+// OR REPLACE / IF NOT EXISTS.
+// ---------------------------------------------------------------------------
+
+// CreateSequenceStmt represents CREATE [OR REPLACE] SEQUENCE [IF NOT EXISTS]
+// name with any-order options.
+//
+//	CREATE [OR REPLACE] SEQUENCE [IF NOT EXISTS] name
+//	    [AS int_type] [START [WITH] n] [INCREMENT [BY] n]
+//	    [MINVALUE n | NOMINVALUE | NO MINVALUE]
+//	    [MAXVALUE n | NOMAXVALUE | NO MAXVALUE]
+//	    [CACHE n | NOCACHE] [CYCLE | NOCYCLE]
+type CreateSequenceStmt struct {
+	Loc         Loc
+	Name        *TableRef // [schema.]sequence_name
+	OrReplace   bool      // CREATE OR REPLACE SEQUENCE
+	Temporary   bool      // CREATE TEMPORARY SEQUENCE
+	IfNotExists bool      // IF NOT EXISTS
+	DataType    *DataType // AS int_type (optional)
+	Start       ExprNode  // START [WITH] n
+	Increment   ExprNode  // INCREMENT [BY] n
+	MinValue    ExprNode  // MINVALUE n
+	MaxValue    ExprNode  // MAXVALUE n
+	NoMinValue  bool      // NOMINVALUE / NO MINVALUE
+	NoMaxValue  bool      // NOMAXVALUE / NO MAXVALUE
+	Cache       ExprNode  // CACHE n
+	NoCache     bool      // NOCACHE
+	Cycle       *bool     // CYCLE (true) / NOCYCLE (false) / nil unset
+}
+
+func (n *CreateSequenceStmt) nodeTag()  {}
+func (n *CreateSequenceStmt) stmtNode() {}
+
+// AlterSequenceStmt represents ALTER SEQUENCE [IF EXISTS] name with any-order
+// options. Per the MariaDB 11.8 grammar (container-verified), ALTER accepts the
+// same options as CREATE — including AS int_type and START — plus RESTART; the
+// only CREATE/ALTER difference is that RESTART is rejected in CREATE.
+type AlterSequenceStmt struct {
+	Loc         Loc
+	Name        *TableRef
+	IfExists    bool
+	DataType    *DataType // AS int_type (optional)
+	Start       ExprNode  // START [WITH] n
+	Restart     bool      // RESTART
+	RestartWith ExprNode  // RESTART [WITH] n
+	Increment   ExprNode  // INCREMENT [BY] n
+	MinValue    ExprNode  // MINVALUE n
+	MaxValue    ExprNode  // MAXVALUE n
+	NoMinValue  bool      // NOMINVALUE / NO MINVALUE
+	NoMaxValue  bool      // NOMAXVALUE / NO MAXVALUE
+	Cache       ExprNode  // CACHE n
+	NoCache     bool      // NOCACHE
+	Cycle       *bool     // CYCLE / NOCYCLE / nil unset
+}
+
+func (n *AlterSequenceStmt) nodeTag()  {}
+func (n *AlterSequenceStmt) stmtNode() {}
+
+// DropSequenceStmt represents DROP SEQUENCE [IF EXISTS] name [, name ...].
+type DropSequenceStmt struct {
+	Loc       Loc
+	Temporary bool
+	IfExists  bool
+	Sequences []*TableRef
+}
+
+func (n *DropSequenceStmt) nodeTag()  {}
+func (n *DropSequenceStmt) stmtNode() {}
+
+// NextValueForExpr represents NEXT VALUE FOR sequence_name. The SQL-Server OVER
+// clause is intentionally absent (MariaDB rejects it with 1064).
+type NextValueForExpr struct {
+	Loc      Loc
+	Sequence *TableRef
+}
+
+func (n *NextValueForExpr) nodeTag()  {}
+func (n *NextValueForExpr) exprNode() {}
+
+// PreviousValueForExpr represents PREVIOUS VALUE FOR sequence_name.
+type PreviousValueForExpr struct {
+	Loc      Loc
+	Sequence *TableRef
+}
+
+func (n *PreviousValueForExpr) nodeTag()  {}
+func (n *PreviousValueForExpr) exprNode() {}

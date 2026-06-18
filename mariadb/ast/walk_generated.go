@@ -26,6 +26,19 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *AlterSequenceStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.DataType != nil {
+			Walk(v, n.DataType)
+		}
+		Walk(v, n.Start)
+		Walk(v, n.RestartWith)
+		Walk(v, n.Increment)
+		Walk(v, n.MinValue)
+		Walk(v, n.MaxValue)
+		Walk(v, n.Cache)
 	case *AlterTableCmd:
 		if n.NewTable != nil {
 			Walk(v, n.NewTable)
@@ -275,6 +288,18 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *CreateSequenceStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		if n.DataType != nil {
+			Walk(v, n.DataType)
+		}
+		Walk(v, n.Start)
+		Walk(v, n.Increment)
+		Walk(v, n.MinValue)
+		Walk(v, n.MaxValue)
+		Walk(v, n.Cache)
 	case *CreateTableStmt:
 		if n.Table != nil {
 			Walk(v, n.Table)
@@ -370,6 +395,12 @@ func walkChildren(v Visitor, node Node) {
 	case *DropRoutineStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+	case *DropSequenceStmt:
+		for _, item := range n.Sequences {
+			if item != nil {
+				Walk(v, item)
+			}
 		}
 	case *DropTableStmt:
 		for _, item := range n.Tables {
@@ -628,6 +659,10 @@ func walkChildren(v Visitor, node Node) {
 	case *MemberOfExpr:
 		Walk(v, n.Value)
 		Walk(v, n.Array)
+	case *NextValueForExpr:
+		if n.Sequence != nil {
+			Walk(v, n.Sequence)
+		}
 	case *OnCondition:
 		Walk(v, n.Expr)
 	case *OptimizeTableStmt:
@@ -659,6 +694,10 @@ func walkChildren(v Visitor, node Node) {
 			if item != nil {
 				Walk(v, item)
 			}
+		}
+	case *PreviousValueForExpr:
+		if n.Sequence != nil {
+			Walk(v, n.Sequence)
 		}
 	case *PurgeBinaryLogsStmt:
 		Walk(v, n.BeforeExpr)

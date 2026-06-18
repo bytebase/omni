@@ -180,6 +180,8 @@ func allKnownNodes() []Node {
 		&BinlogStmt{}, &CloneStmt{}, &RestartStmt{}, &ShutdownStmt{},
 		&HelpStmt{}, &PurgeBinaryLogsStmt{}, &ImportTableStmt{},
 		&RawStmt{},
+		// Sequence statements (BYT-9135)
+		&CreateSequenceStmt{}, &AlterSequenceStmt{}, &DropSequenceStmt{},
 
 		// Expressions
 		&ColumnRef{}, &IntLit{}, &FloatLit{}, &StringLit{},
@@ -194,6 +196,8 @@ func allKnownNodes() []Node {
 		&MatchExpr{}, &MemberOfExpr{}, &VariableRef{},
 		&ValuesStmt{}, // also an expression in some contexts
 		&JsonTableExpr{}, &JsonTableColumn{},
+		// Sequence value expressions (BYT-9135)
+		&NextValueForExpr{}, &PreviousValueForExpr{},
 
 		// Table expressions
 		&TableRef{}, &JoinClause{},
