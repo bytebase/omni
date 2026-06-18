@@ -173,6 +173,21 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			},
 		},
 		{
+			name: "create function with slash operator on its own line",
+			sql: "CREATE OR REPLACE FUNCTION f RETURN NUMBER IS\n" +
+				"BEGIN\n" +
+				"  RETURN 10\n" +
+				"  /\n" +
+				"  2;\n" +
+				"END;\n" +
+				"/\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE FUNCTION f RETURN NUMBER IS\nBEGIN\n  RETURN 10\n  /\n  2;\nEND;",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
 			name: "wrapped procedure with slash separator",
 			sql: "CREATE OR REPLACE PROCEDURE wrapped_proc WRAPPED\n" +
 				"a000000\n" +
@@ -580,9 +595,9 @@ func TestSplitSQLPlusCommands(t *testing.T) {
 			},
 		},
 		{
-			name: "run flushes current SQL buffer",
+			name: "run does not flush unterminated SQL buffer",
 			sql:  "SELECT 1 FROM dual\nRUN\nSELECT 2 FROM dual;",
-			want: []string{"SELECT 1 FROM dual", "\nSELECT 2 FROM dual"},
+			want: []string{"SELECT 1 FROM dual\nRUN\nSELECT 2 FROM dual"},
 		},
 		{
 			name: "sqlplus command words inside SQL are not skipped",
@@ -598,6 +613,28 @@ func TestSplitSQLPlusCommands(t *testing.T) {
 				"/\n" +
 				"SELECT 1 FROM dual;",
 			want: []string{"BEGIN\n  prompt := 'not a command';\n  NULL;\nEND;", "\nSELECT 1 FROM dual"},
+		},
+		{
+			name: "sqlplus commands after plsql slash delimiter",
+			sql: "BEGIN\n" +
+				"  NULL;\n" +
+				"END;\n" +
+				"/\n" +
+				"PROMPT block complete\n" +
+				"SPOOL install.log\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"BEGIN\n  NULL;\nEND;",
+				"\nPROMPT block complete",
+				"SPOOL install.log",
+				"SELECT 1 FROM dual",
+			},
+			wantKinds: []SegmentKind{
+				SegmentSQL,
+				SegmentSQLPlusCommand,
+				SegmentSQLPlusCommand,
+				SegmentSQL,
+			},
 		},
 	}
 
@@ -703,6 +740,189 @@ func TestSplitDoesNotClassifySQLContinuationLinesAsSQLPlus(t *testing.T) {
 	}
 }
 
+func TestSplitRequiresExplicitSQLTerminatorBeforeSQLPlusCommand(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		want []string
+	}{
+		{
+			name: "table named like remark command after from",
+			sql:  "SELECT * FROM\nremark",
+			want: []string{"SELECT * FROM\nremark"},
+		},
+		{
+			name: "column named like prompt command in select list",
+			sql:  "SELECT\nprompt\nFROM t",
+			want: []string{"SELECT\nprompt\nFROM t"},
+		},
+		{
+			name: "sqlplus command after semicolon",
+			sql:  "SELECT 1 FROM dual;\nPROMPT done\nSELECT 2 FROM dual;",
+			want: []string{"SELECT 1 FROM dual", "\nPROMPT done", "SELECT 2 FROM dual"},
+		},
+		{
+			name: "slash delimiter explicitly terminates sql before sqlplus command",
+			sql:  "SELECT 1 FROM dual\n/\nPROMPT done\nSELECT 2 FROM dual;",
+			want: []string{"SELECT 1 FROM dual", "\nPROMPT done", "SELECT 2 FROM dual"},
+		},
+		{
+			name: "line comment after semicolon can precede sqlplus command",
+			sql:  "SELECT 1 FROM dual;\n-- setup output\nPROMPT done\nSELECT 2 FROM dual;",
+			want: []string{"SELECT 1 FROM dual", "\n-- setup output\nPROMPT done", "SELECT 2 FROM dual"},
+		},
+		{
+			name: "block comment after semicolon can precede sqlplus command",
+			sql:  "SELECT 1 FROM dual;\n/* setup output */\nSPOOL out.log\nSELECT 2 FROM dual;",
+			want: []string{"SELECT 1 FROM dual", "\n/* setup output */\nSPOOL out.log", "SELECT 2 FROM dual"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := splitTexts(Split(tt.sql))
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d segments %q, want %d %q", len(got), got, len(tt.want), tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestSplitDoesNotClassifySQLPlusWordsInsideUnterminatedSQL(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{
+			name: "update set define column",
+			sql: "UPDATE accounts\n" +
+				"SET DEFINE = 1\n" +
+				"WHERE id = 1;",
+		},
+		{
+			name: "merge update set prompt column",
+			sql: "MERGE INTO dst d USING src s ON (d.id = s.id)\n" +
+				"WHEN MATCHED THEN UPDATE\n" +
+				"SET PROMPT = s.prompt;",
+		},
+		{
+			name: "match recognize define clause",
+			sql: "SELECT *\n" +
+				"FROM trades\n" +
+				"MATCH_RECOGNIZE (\n" +
+				"  ORDER BY ts\n" +
+				"  MEASURES A.price AS start_price\n" +
+				"  PATTERN (A B)\n" +
+				"  DEFINE\n" +
+				"    B AS B.price > A.price\n" +
+				") mr;",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := Split(tt.sql)
+			if len(got) != 1 {
+				t.Fatalf("got %d segments %q, want 1", len(got), splitTexts(got))
+			}
+			want := tt.sql[:len(tt.sql)-1]
+			if got[0].Text != want {
+				t.Fatalf("segment Text = %q, want %q", got[0].Text, want)
+			}
+			if got[0].Kind != SegmentSQL {
+				t.Fatalf("segment Kind = %v, want %v", got[0].Kind, SegmentSQL)
+			}
+		})
+	}
+}
+
+func TestSplitOrdinarySQLStatementsWithSQLPlusLikeLines(t *testing.T) {
+	sql := "CREATE VIEW v_sqlplus_words AS\n" +
+		"SELECT\n" +
+		"  prompt,\n" +
+		"  remark,\n" +
+		"  spool\n" +
+		"FROM source_table;\n" +
+		"SELECT employee_id\n" +
+		"FROM employees\n" +
+		"START WITH manager_id IS NULL\n" +
+		"CONNECT BY PRIOR employee_id = manager_id;\n" +
+		"UPDATE accounts\n" +
+		"SET DEFINE = 1,\n" +
+		"    PROMPT = 'on'\n" +
+		"WHERE id = 1;\n" +
+		"MERGE INTO dst d USING src s ON (d.id = s.id)\n" +
+		"WHEN MATCHED THEN UPDATE\n" +
+		"SET SPOOL = s.spool;\n" +
+		"SELECT *\n" +
+		"FROM trades\n" +
+		"MATCH_RECOGNIZE (\n" +
+		"  ORDER BY ts\n" +
+		"  MEASURES A.price AS start_price\n" +
+		"  PATTERN (A B)\n" +
+		"  DEFINE\n" +
+		"    B AS B.price > A.price\n" +
+		") mr;"
+	got := Split(sql)
+	wantTexts := []string{
+		"CREATE VIEW v_sqlplus_words AS\nSELECT\n  prompt,\n  remark,\n  spool\nFROM source_table",
+		"\nSELECT employee_id\nFROM employees\nSTART WITH manager_id IS NULL\nCONNECT BY PRIOR employee_id = manager_id",
+		"\nUPDATE accounts\nSET DEFINE = 1,\n    PROMPT = 'on'\nWHERE id = 1",
+		"\nMERGE INTO dst d USING src s ON (d.id = s.id)\nWHEN MATCHED THEN UPDATE\nSET SPOOL = s.spool",
+		"\nSELECT *\nFROM trades\nMATCH_RECOGNIZE (\n  ORDER BY ts\n  MEASURES A.price AS start_price\n  PATTERN (A B)\n  DEFINE\n    B AS B.price > A.price\n) mr",
+	}
+	if len(got) != len(wantTexts) {
+		t.Fatalf("got %d segments %q, want %d", len(got), splitTexts(got), len(wantTexts))
+	}
+	for i := range wantTexts {
+		if got[i].Text != wantTexts[i] {
+			t.Fatalf("segment[%d] Text = %q, want %q", i, got[i].Text, wantTexts[i])
+		}
+		if got[i].Kind != SegmentSQL {
+			t.Fatalf("segment[%d] Kind = %v for %q, want %v", i, got[i].Kind, got[i].Text, SegmentSQL)
+		}
+	}
+}
+
+func TestSplitDoesNotClassifyRemarkColumnAsSQLPlus(t *testing.T) {
+	sql := `create table NCF_DI_PO_SOURCE_TEMP
+(
+    data_id             number not null
+        constraint NC_DI_pk
+            primary key,
+    purchase_receive_id number,
+    po_number           varchar2(60),
+    sku_code            varchar2(100),
+    qty                 number,
+    receive_number      varchar2(100),
+    ETD                 date,
+    ETA                 date,
+    ATD                 date,
+    SO_NUMBER           varchar2(100),
+    SO_line_amount      number(10,2),
+    source              varchar2(100),
+    remark              varchar2(100),
+    prompt              varchar2(100),
+    spool               varchar2(100),
+    attribute1          varchar2(100),
+    attribute2          varchar2(100)
+)`
+	got := Split(sql)
+	if len(got) != 1 {
+		t.Fatalf("got %d segments %q, want 1", len(got), splitTexts(got))
+	}
+	if got[0].Text != sql {
+		t.Fatalf("segment Text = %q, want original SQL", got[0].Text)
+	}
+	if got[0].Kind != SegmentSQL {
+		t.Fatalf("segment Kind = %v, want %v", got[0].Kind, SegmentSQL)
+	}
+}
+
 func TestSplitDoesNotTreatQualifiedRAtLineStartAsRun(t *testing.T) {
 	sql := "CREATE VIEW v AS SELECT\n" +
 		"  r.id,\n" +
@@ -726,32 +946,32 @@ func TestSplitDoesNotTreatQualifiedRAtLineStartAsRun(t *testing.T) {
 	}
 }
 
-func TestSplitClassifiesUnambiguousSQLPlusCommandsAfterBufferedSQL(t *testing.T) {
-	sql := "SELECT 1 FROM dual\n" +
+func TestSplitClassifiesSQLPlusCommandsAfterExplicitSQLTerminators(t *testing.T) {
+	sql := "SELECT 1 FROM dual;\n" +
 		"PROMPT running next query\n" +
 		"SPOOL install.log\n" +
-		"SELECT 2 FROM dual\n" +
+		"SELECT 2 FROM dual;\n" +
 		"SET DEFINE OFF\n" +
-		"SELECT 3 FROM dual\n" +
+		"SELECT 3 FROM dual;\n" +
 		"SET DEF OFF\n" +
-		"SELECT 4 FROM dual\n" +
+		"SELECT 4 FROM dual;\n" +
 		"SET SERVEROUT ON\n" +
-		"SELECT 3 FROM dual\n" +
+		"SELECT 3 FROM dual;\n" +
 		"CONNECT scott/tiger@db\n" +
 		"SELECT 2 FROM dual;"
 	got := Split(sql)
 	wantTexts := []string{
 		"SELECT 1 FROM dual",
-		"PROMPT running next query",
+		"\nPROMPT running next query",
 		"SPOOL install.log",
 		"SELECT 2 FROM dual",
-		"SET DEFINE OFF",
+		"\nSET DEFINE OFF",
 		"SELECT 3 FROM dual",
-		"SET DEF OFF",
+		"\nSET DEF OFF",
 		"SELECT 4 FROM dual",
-		"SET SERVEROUT ON",
+		"\nSET SERVEROUT ON",
 		"SELECT 3 FROM dual",
-		"CONNECT scott/tiger@db",
+		"\nCONNECT scott/tiger@db",
 		"SELECT 2 FROM dual",
 	}
 	wantKinds := []SegmentKind{
