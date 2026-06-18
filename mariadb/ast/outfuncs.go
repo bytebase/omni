@@ -682,19 +682,6 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 			writeNode(sb, a)
 		}
 	}
-	if n.RowAlias != "" {
-		fmt.Fprintf(sb, " :row_alias %s", n.RowAlias)
-	}
-	if len(n.ColAliases) > 0 {
-		sb.WriteString(" :col_aliases (")
-		for i, c := range n.ColAliases {
-			if i > 0 {
-				sb.WriteString(" ")
-			}
-			sb.WriteString(c)
-		}
-		sb.WriteString(")")
-	}
 	if len(n.OnDuplicateKey) > 0 {
 		sb.WriteString(" :on_dup ")
 		for i, a := range n.OnDuplicateKey {
@@ -779,6 +766,10 @@ func writeDeleteStmt(sb *strings.Builder, n *DeleteStmt) {
 	if n.Limit != nil {
 		sb.WriteString(" :limit ")
 		writeNode(sb, n.Limit)
+	}
+	if len(n.Returning) > 0 {
+		sb.WriteString(" :returning ")
+		writeNodeList(sb, n.Returning)
 	}
 	sb.WriteString("}")
 }

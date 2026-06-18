@@ -487,6 +487,11 @@ var keywordCategories = map[int]keywordCategory{
 	kwNOCYCLE:    kwCatUnambiguous,
 	kwNOMINVALUE: kwCatUnambiguous,
 	kwNOMAXVALUE: kwCatUnambiguous,
+
+	// MariaDB reserves RETURNING (MySQL 8.0 does not): it cannot be a column
+	// name or alias. This makes the SELECT alias parser stop at RETURNING, so the
+	// RETURNING clause binds to INSERT/REPLACE/single-table DELETE (BYT-9135 P2).
+	kwRETURNING: kwCatReserved,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot

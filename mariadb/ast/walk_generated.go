@@ -382,6 +382,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Limit != nil {
 			Walk(v, n.Limit)
 		}
+		for _, item := range n.Returning {
+			Walk(v, item)
+		}
 	case *DiagnosticsItem:
 		Walk(v, n.Target)
 	case *DoStmt:

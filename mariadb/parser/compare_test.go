@@ -9894,6 +9894,9 @@ func TestParseInsertPartition(t *testing.T) {
 	}
 }
 
+// TestParseInsertAsRowAlias verifies MariaDB REJECTS the MySQL 8.0.19+
+// INSERT ... AS row_alias syntax. This is a fork divergence: MySQL accepts it,
+// MariaDB 1064s (it uses the VALUES(col) function for old-value references).
 func TestParseInsertAsRowAlias(t *testing.T) {
 	tests := []string{
 		"INSERT INTO t1 VALUES (1, 2) AS new ON DUPLICATE KEY UPDATE col1 = new.col1",
@@ -9902,7 +9905,7 @@ func TestParseInsertAsRowAlias(t *testing.T) {
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			ParseExpectError(t, sql)
 		})
 	}
 }

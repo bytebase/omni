@@ -928,6 +928,17 @@ func TestKeywordCompleteness(t *testing.T) {
 	}
 }
 
+// mariadbReservedDivergences lists keywords MariaDB 11.8 reserves that MySQL 8.0
+// classifies as non-reserved. TestKeywordClassification expects kwCatReserved
+// for exactly these keys and still asserts the unchanged MySQL category for
+// every other keyword — a per-keyword override, NOT a relaxed guard.
+//
+// To add an entry: container-verify the word is rejected as a column name/alias
+// on mariadb:11.8.8 (1064), then list it here. (P3 temporal will likely add more.)
+var mariadbReservedDivergences = map[string]bool{
+	"returning": true, // column `returning`, bare alias, and AS RETURNING are all 1064 on MariaDB
+}
+
 // TestKeywordClassification verifies that every registered MySQL 8.0 keyword
 // has the correct category in omni's keywordCategories map.
 func TestKeywordClassification(t *testing.T) {
@@ -949,6 +960,10 @@ func TestKeywordClassification(t *testing.T) {
 		expectedCat, ok := catMap[kw.Category]
 		if !ok {
 			continue // skip unknown categories
+		}
+		// MariaDB reserves a few keywords MySQL 8.0 does not (container-verified).
+		if mariadbReservedDivergences[kw.SQL] {
+			expectedCat = kwCatReserved
 		}
 		// Look up the keyword token
 		tokType, registered := keywords[kw.SQL]
