@@ -80,6 +80,9 @@ func TestSequenceAccept(t *testing.T) {
 // restrictions. Guards against over-acceptance.
 func TestSequenceReject(t *testing.T) {
 	reject := []string{
+		// OR must be followed by REPLACE (CREATE OR <object> without REPLACE → 1064)
+		"CREATE OR SEQUENCE s",
+		"CREATE OR TEMPORARY SEQUENCE s",
 		// RESTART is ALTER-only
 		"CREATE SEQUENCE s RESTART",
 		"CREATE SEQUENCE s RESTART WITH 5",

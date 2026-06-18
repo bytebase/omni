@@ -411,10 +411,13 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	orReplace := false
 	temporary := false
 
-	// OR REPLACE
+	// OR REPLACE — OR must be followed by REPLACE; MariaDB rejects a bare
+	// CREATE OR <object> (without REPLACE) at parse (1064).
 	if p.cur.Type == kwOR {
 		p.advance()
-		p.match(kwREPLACE)
+		if _, err := p.expect(kwREPLACE); err != nil {
+			return nil, err
+		}
 		orReplace = true
 	}
 

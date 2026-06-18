@@ -68,6 +68,8 @@ var sequenceOracleCorpus = []string{
 	"CREATE SEQUENCE cr14 START WITH (5)",
 	"CREATE SEQUENCE cr15 CACHE CYCLE",
 	"CREATE SEQUENCE",
+	"CREATE OR SEQUENCE cr16",           // OR without REPLACE
+	"CREATE OR TEMPORARY SEQUENCE cr17", // OR without REPLACE (+ TEMPORARY)
 
 	// --- ALTER SEQUENCE (accept) ---
 	"ALTER SEQUENCE sq RESTART",
