@@ -189,32 +189,14 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 		}
 	}
 
-	// AS row_alias [(col_alias, ...)] (MySQL 8.0.19+)
+	// MariaDB does not support the MySQL 8.0.19+ INSERT ... AS row_alias syntax
+	// (it uses the VALUES(col) function for old-value references, not a row
+	// alias) and rejects it at parse (1064). Reject explicitly rather than
+	// leaving AS to be silently ignored or consumed by a later clause.
 	if p.cur.Type == kwAS {
-		p.advance()
-		alias, _, err := p.parseIdent()
-		if err != nil {
-			return nil, err
-		}
-		stmt.RowAlias = alias
-		if p.cur.Type == '(' {
-			p.advance()
-			var colAliases []string
-			for {
-				name, _, err := p.parseIdent()
-				if err != nil {
-					return nil, err
-				}
-				colAliases = append(colAliases, name)
-				if p.cur.Type != ',' {
-					break
-				}
-				p.advance()
-			}
-			if _, err := p.expect(')'); err != nil {
-				return nil, err
-			}
-			stmt.ColAliases = colAliases
+		return nil, &ParseError{
+			Message:  "INSERT ... AS row alias is not supported in MariaDB",
+			Position: p.cur.Loc,
 		}
 	}
 

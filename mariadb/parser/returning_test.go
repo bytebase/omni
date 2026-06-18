@@ -46,6 +46,7 @@ func TestReturningReject(t *testing.T) {
 		"DELETE rt FROM rt JOIN rt2 ON rt.id = rt2.id RETURNING rt.id",       // multi-table delete (syntax 1, JOIN)
 		"DELETE FROM rt USING rt JOIN rt2 ON rt.id = rt2.id RETURNING rt.id", // multi-table delete (syntax 2, USING)
 		"INSERT INTO rt (id) VALUES (1) RETURNING",                           // bare RETURNING (no list)
+		"INSERT INTO rt (id) VALUES (1) AS new RETURNING id",                 // INSERT row-alias is MySQL-only (not MariaDB)
 	}
 	for _, sql := range reject {
 		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })

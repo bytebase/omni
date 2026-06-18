@@ -45,6 +45,13 @@ var returningOracleCorpus = []string{
 	"SELECT 1 RETURNING",
 	"SELECT 1 AS RETURNING",
 	"SELECT 1 RETURNING x",
+
+	// --- reject (1064): MariaDB has no INSERT ... AS row_alias (MySQL 8.0.19+);
+	// the RETURNING hook surfaced this — gating the row-alias path fixes the class.
+	"INSERT INTO rt VALUES (33, 'a') AS new",
+	"INSERT INTO rt VALUES (34, 'b') AS new ON DUPLICATE KEY UPDATE id = new.id",
+	"INSERT INTO rt VALUES (33, 'a') AS new RETURNING id",
+	"INSERT INTO rt VALUES (34, 'b') AS new ON DUPLICATE KEY UPDATE id = new.id RETURNING id",
 }
 
 // TestMariaDBReturningOracle asserts omni agrees with a live MariaDB 11.8.8 on
