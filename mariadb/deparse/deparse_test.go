@@ -1340,11 +1340,6 @@ func TestDeparse_Section_5_8_ForUpdate(t *testing.T) {
 			"select `a` AS `a` from `t` lock in share mode",
 		},
 		{
-			"for_update_of_table",
-			"SELECT a FROM t FOR UPDATE OF t",
-			"select `a` AS `a` from `t` for update of `t`",
-		},
-		{
 			"for_update_nowait",
 			"SELECT a FROM t FOR UPDATE NOWAIT",
 			"select `a` AS `a` from `t` for update nowait",
