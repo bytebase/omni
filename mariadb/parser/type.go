@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -385,6 +387,24 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		}
 
 	default:
+		// MariaDB-only scalar types that are non-reserved (UUID is also a function
+		// name, INET4/INET6 can be identifiers), so they are recognised here in type
+		// position only, by their identifier text, without reserving the words.
+		if p.cur.Type == tokIDENT {
+			switch {
+			case strings.EqualFold(p.cur.Str, "UUID"):
+				dt.Name = "UUID"
+			case strings.EqualFold(p.cur.Str, "INET4"):
+				dt.Name = "INET4"
+			case strings.EqualFold(p.cur.Str, "INET6"):
+				dt.Name = "INET6"
+			}
+			if dt.Name != "" {
+				p.advance()
+				dt.Loc.End = p.pos()
+				return dt, nil
+			}
+		}
 		if p.cur.Type == tokEOF {
 			return nil, p.syntaxErrorAtCur()
 		}
