@@ -65,42 +65,25 @@ func (p *Parser) parseCreateFunction() (*ast.CreateFunctionStmt, error) {
 		if err := p.expectKeyword(tokINPUT); err != nil {
 			return nil, err
 		}
-	} else if p.cur.Type == tokRETURNS {
+	} else if p.cur.Type == tokRETURNS && p.peekNext().Type == tokNULL {
+		stmt.ReturnMode = ast.ReturnNullOnNull
 		p.advance() // RETURNS
-		if p.cur.Type == tokNULL {
-			stmt.ReturnMode = ast.ReturnNullOnNull
-			p.advance() // NULL
-			if err := p.expectKeyword(tokON); err != nil {
-				return nil, err
-			}
-			if err := p.expectKeyword(tokNULL); err != nil {
-				return nil, err
-			}
-			if err := p.expectKeyword(tokINPUT); err != nil {
-				return nil, err
-			}
+		p.advance() // NULL
+		if err := p.expectKeyword(tokON); err != nil {
+			return nil, err
 		}
-		// RETURNS <type>
-		if err := p.expectKeyword(tokRETURNS); err != nil {
-			// If we already consumed RETURNS for RETURNS NULL, expect another RETURNS for return type.
-			// But actually in the grammar: returnMode RETURNS dataType
-			// So if we consumed RETURNS for "RETURNS NULL ON NULL INPUT", we need another RETURNS.
+		if err := p.expectKeyword(tokNULL); err != nil {
+			return nil, err
+		}
+		if err := p.expectKeyword(tokINPUT); err != nil {
 			return nil, err
 		}
 	}
 
-	// Actually, let me re-read the grammar:
-	// returnMode: (CALLED | RETURNS NULL) ON NULL INPUT
-	// Then: RETURNS dataType LANGUAGE language AS codeBlock
-	// So RETURNS is used twice: once in returnMode and once for return type.
-	// Let me fix the approach.
-
-	// If we haven't seen return mode yet (came here via else path),
-	// the return type RETURNS should follow.
-	// But the above code already handled returnMode, so now we expect:
-	// RETURNS dataType LANGUAGE language AS codeBlock
-	// However, if returnMode was "RETURNS NULL ON NULL INPUT", we already consumed RETURNS once.
-	// The grammar expects another RETURNS keyword for the return type.
+	// RETURNS dataType
+	if err := p.expectKeyword(tokRETURNS); err != nil {
+		return nil, err
+	}
 
 	retType, err := p.parseDataType()
 	if err != nil {
@@ -282,7 +265,16 @@ func (p *Parser) parseCreateTrigger() (*ast.CreateTriggerStmt, error) {
 		return nil, err
 	}
 
-	name, err := p.parseQualifiedName()
+	name, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := p.expectKeyword(tokON); err != nil {
+		return nil, err
+	}
+
+	table, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
@@ -299,6 +291,7 @@ func (p *Parser) parseCreateTrigger() (*ast.CreateTriggerStmt, error) {
 	return &ast.CreateTriggerStmt{
 		IfNotExists: ifNotExists,
 		Name:        name,
+		Table:       table,
 		UsingClass:  usingClass,
 		Loc:         p.makeLoc(start),
 	}, nil

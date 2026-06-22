@@ -172,6 +172,12 @@ func (l *Lexer) scanNumber(start int) Token {
 		}
 	}
 	str := l.input[start:l.pos]
+
+	// A number like 550e8400 may actually be the first group of a UUID.
+	if isUUIDCandidate(str, l) {
+		return l.scanUUID(start, str)
+	}
+
 	tok := tokINTEGER
 	if isFloat {
 		tok = tokFLOAT

@@ -9,14 +9,19 @@ import (
 )
 
 type LocViolation struct {
-	Path    string
-	Start   int
-	End     int
-	Reason  string
+	Path   string
+	Start  int
+	End    int
+	Reason string
 }
 
 func (v LocViolation) String() string {
 	return fmt.Sprintf("%s: %s (Start=%d, End=%d)", v.Path, v.Reason, v.Start, v.End)
+}
+
+type locContext struct {
+	sqlLen     int
+	violations *[]LocViolation
 }
 
 func CheckLocations(t *testing.T, sql string) []LocViolation {
@@ -26,22 +31,24 @@ func CheckLocations(t *testing.T, sql string) []LocViolation {
 		t.Fatalf("Parse(%q): %v", sql, err)
 	}
 	var violations []LocViolation
+	ctx := &locContext{sqlLen: len(sql), violations: &violations}
 	for i, s := range stmts {
 		path := fmt.Sprintf("stmts[%d]", i)
-		walkNodeLocs(reflect.ValueOf(s.AST), path, &violations)
+		parentLoc := ast.Loc{Start: s.ByteStart, End: s.ByteEnd}
+		walkNodeLocs(reflect.ValueOf(s.AST), path, parentLoc, ctx)
 	}
 	return violations
 }
 
 var locType = reflect.TypeOf(ast.Loc{})
 
-func walkNodeLocs(v reflect.Value, path string, violations *[]LocViolation) {
+func walkNodeLocs(v reflect.Value, path string, parentLoc ast.Loc, ctx *locContext) {
 	switch v.Kind() {
 	case reflect.Ptr:
 		if v.IsNil() {
 			return
 		}
-		walkNodeLocs(v.Elem(), path, violations)
+		walkNodeLocs(v.Elem(), path, parentLoc, ctx)
 	case reflect.Interface:
 		if v.IsNil() {
 			return
@@ -51,26 +58,50 @@ func walkNodeLocs(v reflect.Value, path string, violations *[]LocViolation) {
 		if elem.Kind() == reflect.Ptr {
 			typeName = elem.Type().Elem().Name()
 		}
-		walkNodeLocs(elem, path+"("+typeName+")", violations)
+		walkNodeLocs(elem, path+"("+typeName+")", parentLoc, ctx)
 	case reflect.Struct:
 		t := v.Type()
 		locField := v.FieldByName("Loc")
+		currentLoc := parentLoc
 		if locField.IsValid() && locField.Type() == locType {
 			loc := locField.Interface().(ast.Loc)
 			if loc.Start >= 0 && loc.End >= 0 {
 				if loc.End <= loc.Start {
-					*violations = append(*violations, LocViolation{
-						Path:   path,
-						Start:  loc.Start,
-						End:    loc.End,
+					*ctx.violations = append(*ctx.violations, LocViolation{
+						Path: path, Start: loc.Start, End: loc.End,
 						Reason: "End <= Start",
 					})
 				}
+				if loc.End > ctx.sqlLen {
+					*ctx.violations = append(*ctx.violations, LocViolation{
+						Path: path, Start: loc.Start, End: loc.End,
+						Reason: fmt.Sprintf("End > len(sql) (%d)", ctx.sqlLen),
+					})
+				}
+				if loc.Start > ctx.sqlLen {
+					*ctx.violations = append(*ctx.violations, LocViolation{
+						Path: path, Start: loc.Start, End: loc.End,
+						Reason: fmt.Sprintf("Start > len(sql) (%d)", ctx.sqlLen),
+					})
+				}
+				if parentLoc.Start >= 0 && parentLoc.End >= 0 {
+					if loc.Start < parentLoc.Start {
+						*ctx.violations = append(*ctx.violations, LocViolation{
+							Path: path, Start: loc.Start, End: loc.End,
+							Reason: fmt.Sprintf("Start < parent Start (%d)", parentLoc.Start),
+						})
+					}
+					if loc.End > parentLoc.End {
+						*ctx.violations = append(*ctx.violations, LocViolation{
+							Path: path, Start: loc.Start, End: loc.End,
+							Reason: fmt.Sprintf("End > parent End (%d)", parentLoc.End),
+						})
+					}
+				}
+				currentLoc = loc
 			} else if (loc.Start < 0) != (loc.End < 0) {
-				*violations = append(*violations, LocViolation{
-					Path:   path,
-					Start:  loc.Start,
-					End:    loc.End,
+				*ctx.violations = append(*ctx.violations, LocViolation{
+					Path: path, Start: loc.Start, End: loc.End,
 					Reason: "mixed unknown sentinel",
 				})
 			}
@@ -80,12 +111,12 @@ func walkNodeLocs(v reflect.Value, path string, violations *[]LocViolation) {
 			if !field.IsExported() || field.Name == "Loc" {
 				continue
 			}
-			walkNodeLocs(v.Field(i), path+"."+field.Name, violations)
+			walkNodeLocs(v.Field(i), path+"."+field.Name, currentLoc, ctx)
 		}
 	case reflect.Slice:
 		for i := range v.Len() {
 			elem := v.Index(i)
-			walkNodeLocs(elem, fmt.Sprintf("%s[%d]", path, i), violations)
+			walkNodeLocs(elem, fmt.Sprintf("%s[%d]", path, i), parentLoc, ctx)
 		}
 	}
 }

@@ -43,7 +43,6 @@ func (p *Parser) isNextColumnNotNull(next Token) bool {
 
 func (p *Parser) parseAlterMV() (*ast.AlterMVStmt, error) {
 	start := p.curLoc()
-	p.advance() // VIEW
 
 	name, err := p.parseQualifiedName()
 	if err != nil {
@@ -71,7 +70,6 @@ func (p *Parser) parseAlterMV() (*ast.AlterMVStmt, error) {
 
 func (p *Parser) parseDropMV() (*ast.DropMVStmt, error) {
 	start := p.curLoc()
-	p.advance() // VIEW
 
 	ifExists := p.parseIfExists()
 

@@ -379,6 +379,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Name)
 	case *CreateTriggerStmt:
 		Walk(v, n.Name)
+		if n.Table != nil {
+			Walk(v, n.Table)
+		}
 		if n.UsingClass != nil {
 			Walk(v, n.UsingClass)
 		}

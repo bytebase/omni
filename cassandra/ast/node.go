@@ -820,7 +820,8 @@ func (*DropAggregateStmt) stmtNode()     {}
 
 type CreateTriggerStmt struct {
 	IfNotExists bool
-	Name        *QualifiedName
+	Name        *Identifier
+	Table       *QualifiedName
 	UsingClass  ExprNode
 	Loc         Loc
 }

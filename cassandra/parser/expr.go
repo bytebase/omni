@@ -101,6 +101,10 @@ func (p *Parser) parseExpression() (ast.ExprNode, error) {
 		}
 		expr = &ast.TupleLit{Elements: elems, Loc: p.makeLoc(start)}
 
+	// Literal keywords that would otherwise be swallowed by isIdentLike.
+	case p.cur.Type == tokNULL || p.cur.Type == tokTRUE || p.cur.Type == tokFALSE:
+		expr, err = p.parseConstant()
+
 	// Identifier or function call.
 	case isIdentLike(p.cur.Type):
 		// Look ahead: if followed by '(' it is a function call.
