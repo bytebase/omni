@@ -828,6 +828,19 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 		ref.Loc.End = p.pos()
 	}
 
+	// FOR SYSTEM_TIME temporal suffix (system-versioned time travel). It attaches
+	// to a base table factor BEFORE the alias — `t FOR SYSTEM_TIME ... [AS] alias`
+	// (MariaDB rejects alias-first). Disambiguated from the SELECT-tail locking
+	// clause (FOR UPDATE / FOR SHARE) by a single-token peek for SYSTEM_TIME.
+	if p.atForSystemTime() {
+		st, err := p.parseForSystemTime()
+		if err != nil {
+			return nil, err
+		}
+		ref.SystemTime = st
+		ref.Loc.End = p.pos()
+	}
+
 	// Optional AS alias
 	if _, ok := p.match(kwAS); ok {
 		alias, _, err := p.parseIdentOrText()

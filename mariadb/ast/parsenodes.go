@@ -820,10 +820,33 @@ type TableRef struct {
 	Alias      string   // AS alias
 	Partitions []string // PARTITION (p0, p1, ...)
 	IndexHints []*IndexHint
+	SystemTime *SystemTime // FOR SYSTEM_TIME temporal clause (system-versioned time travel)
 }
 
 func (r *TableRef) nodeTag()   {}
 func (r *TableRef) tableExpr() {}
+
+// SystemTimeKind enumerates the FOR SYSTEM_TIME time-travel forms.
+type SystemTimeKind int
+
+const (
+	SystemTimeAsOf    SystemTimeKind = iota // FOR SYSTEM_TIME AS OF expr
+	SystemTimeBetween                       // FOR SYSTEM_TIME BETWEEN expr AND expr
+	SystemTimeFromTo                        // FOR SYSTEM_TIME FROM expr TO expr
+	SystemTimeAll                           // FOR SYSTEM_TIME ALL
+)
+
+// SystemTime is the FOR SYSTEM_TIME temporal clause attached to a base table
+// factor. From/To hold the time bounds: AS OF sets From only; BETWEEN and
+// FROM..TO set both; ALL sets neither.
+type SystemTime struct {
+	Loc  Loc
+	Kind SystemTimeKind
+	From ExprNode
+	To   ExprNode
+}
+
+func (s *SystemTime) nodeTag() {}
 
 // IndexHint represents an index hint (USE/FORCE/IGNORE INDEX).
 type IndexHint struct {

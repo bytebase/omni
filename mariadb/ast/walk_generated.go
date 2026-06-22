@@ -851,11 +851,17 @@ func walkChildren(v Visitor, node Node) {
 		if n.Select != nil {
 			Walk(v, n.Select)
 		}
+	case *SystemTime:
+		Walk(v, n.From)
+		Walk(v, n.To)
 	case *TableRef:
 		for _, item := range n.IndexHints {
 			if item != nil {
 				Walk(v, item)
 			}
+		}
+		if n.SystemTime != nil {
+			Walk(v, n.SystemTime)
 		}
 	case *TableStmt:
 		if n.Table != nil {

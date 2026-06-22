@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -1571,6 +1573,90 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 
 	fu.Loc.End = p.pos()
 	return fu, nil
+}
+
+// atForSystemTime reports whether the cursor begins a FOR SYSTEM_TIME temporal
+// suffix on a table factor. It must NOT match the SELECT-tail locking clause
+// (FOR UPDATE / FOR SHARE), so it requires the word SYSTEM_TIME after FOR.
+// SYSTEM_TIME is non-reserved in MariaDB, so it is matched by identifier text
+// (single-token lookahead, no backtracking).
+func (p *Parser) atForSystemTime() bool {
+	return p.cur.Type == kwFOR && p.peekNext().Type == tokIDENT &&
+		strings.EqualFold(p.peekNext().Str, "SYSTEM_TIME")
+}
+
+// parseForSystemTime parses the FOR SYSTEM_TIME temporal clause:
+//
+//	FOR SYSTEM_TIME AS OF expr
+//	FOR SYSTEM_TIME BETWEEN expr AND expr
+//	FOR SYSTEM_TIME FROM expr TO expr
+//	FOR SYSTEM_TIME ALL
+//
+// FOR is the current token; the caller has confirmed SYSTEM_TIME follows.
+func (p *Parser) parseForSystemTime() (*nodes.SystemTime, error) {
+	start := p.pos()
+	p.advance() // FOR
+	p.advance() // SYSTEM_TIME
+
+	st := &nodes.SystemTime{Loc: nodes.Loc{Start: start}}
+
+	switch p.cur.Type {
+	case kwAS:
+		// AS OF expr
+		p.advance() // AS
+		if _, err := p.expect(kwOF); err != nil {
+			return nil, err
+		}
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		st.Kind = nodes.SystemTimeAsOf
+		st.From = expr
+	case kwBETWEEN:
+		// BETWEEN expr AND expr — bounds parsed at precAdd so the AND is read as
+		// the range separator, not a boolean operator (see parseBetweenExpr).
+		p.advance() // BETWEEN
+		lo, err := p.parseExprPrec(precAdd)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwAND); err != nil {
+			return nil, err
+		}
+		hi, err := p.parseExprPrec(precAdd)
+		if err != nil {
+			return nil, err
+		}
+		st.Kind = nodes.SystemTimeBetween
+		st.From = lo
+		st.To = hi
+	case kwFROM:
+		// FROM expr TO expr
+		p.advance() // FROM
+		lo, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
+		hi, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		st.Kind = nodes.SystemTimeFromTo
+		st.From = lo
+		st.To = hi
+	case kwALL:
+		p.advance() // ALL
+		st.Kind = nodes.SystemTimeAll
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	st.Loc.End = p.pos()
+	return st, nil
 }
 
 // parseLockInShareMode parses LOCK IN SHARE MODE (legacy syntax).

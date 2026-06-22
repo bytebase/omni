@@ -195,6 +195,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeColumnRef(sb, n)
 	case *TableRef:
 		writeTableRef(sb, n)
+	case *SystemTime:
+		writeSystemTime(sb, n)
 	case *IntLit:
 		fmt.Fprintf(sb, "{INT_LIT :val %d :loc %d}", n.Value, n.Loc.Start)
 	case *FloatLit:
@@ -2460,6 +2462,24 @@ func writeTableRef(sb *strings.Builder, n *TableRef) {
 			}
 			writeNode(sb, h)
 		}
+	}
+	if n.SystemTime != nil {
+		sb.WriteString(" :system_time ")
+		writeSystemTime(sb, n.SystemTime)
+	}
+	sb.WriteString("}")
+}
+
+func writeSystemTime(sb *strings.Builder, n *SystemTime) {
+	sb.WriteString("{SYSTEM_TIME")
+	fmt.Fprintf(sb, " :loc %d :kind %d", n.Loc.Start, n.Kind)
+	if n.From != nil {
+		sb.WriteString(" :from ")
+		writeNode(sb, n.From)
+	}
+	if n.To != nil {
+		sb.WriteString(" :to ")
+		writeNode(sb, n.To)
 	}
 	sb.WriteString("}")
 }
