@@ -100,9 +100,6 @@ func collectNodeTypes(v reflect.Value, types map[string]bool) {
 }
 
 func TestWalkChildrenCoverage(t *testing.T) {
-	walkSrc := "/Users/rebeliceyang/.slock/agents/3ddcbf07-d89e-4266-aa7b-12b9445bc400/omni-cassandra/cassandra/ast/walk_children.go"
-	_ = walkSrc
-
 	nodeTypes := collectAllNodeStructTypes()
 
 	walkCases := make(map[string]bool)
