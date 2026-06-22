@@ -259,7 +259,8 @@ func (p *Parser) parseLockTablesStmt() (*nodes.LockTablesStmt, error) {
 
 	for {
 		lockStart := p.pos()
-		ref, err := p.parseTableRefWithAlias()
+		// LOCK TABLES rejects FOR SYSTEM_TIME (temporal is SELECT/UPDATE-only).
+		ref, err := p.parseTableRefWithAlias(false)
 		if err != nil {
 			return nil, err
 		}

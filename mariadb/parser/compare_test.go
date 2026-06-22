@@ -446,7 +446,7 @@ func TestParseTableRefWithAlias(t *testing.T) {
 		t.Run(tt.input, func(t *testing.T) {
 			p := &Parser{lexer: NewLexer(tt.input)}
 			p.advance()
-			ref, err := p.parseTableRefWithAlias()
+			ref, err := p.parseTableRefWithAlias(true)
 			if err != nil {
 				t.Fatalf("parseTableRefWithAlias(%q) error: %v", tt.input, err)
 			}

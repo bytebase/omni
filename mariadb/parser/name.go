@@ -808,10 +808,12 @@ func (p *Parser) parseTableRef() (*nodes.TableRef, error) {
 }
 
 // parseTableRefWithAlias parses a table reference with an optional alias.
+// allowSystemTime enables the FOR SYSTEM_TIME temporal suffix, which MariaDB
+// accepts on SELECT/UPDATE table references but rejects in LOCK TABLES.
 //
 //	table_ref_alias:
-//	    table_ref [AS identifier | identifier]
-func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
+//	    table_ref [PARTITION (...)] [FOR SYSTEM_TIME ...] [AS identifier | identifier]
+func (p *Parser) parseTableRefWithAlias(allowSystemTime bool) (*nodes.TableRef, error) {
 	ref, err := p.parseTableRef()
 	if err != nil {
 		return nil, err
@@ -832,7 +834,7 @@ func (p *Parser) parseTableRefWithAlias() (*nodes.TableRef, error) {
 	// to a base table factor BEFORE the alias — `t FOR SYSTEM_TIME ... [AS] alias`
 	// (MariaDB rejects alias-first). Disambiguated from the SELECT-tail locking
 	// clause (FOR UPDATE / FOR SHARE) by a single-token peek for SYSTEM_TIME.
-	if p.atForSystemTime() {
+	if allowSystemTime && p.atForSystemTime() {
 		st, err := p.parseForSystemTime()
 		if err != nil {
 			return nil, err

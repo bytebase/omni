@@ -66,6 +66,21 @@ func TestSystemTimeReject(t *testing.T) {
 	}
 }
 
+// TestSystemTimeScope pins where FOR SYSTEM_TIME may appear. MariaDB accepts it
+// on SELECT and UPDATE table references but rejects it in LOCK TABLES and in a
+// single-table DELETE (all container-verified vs mariadb:11.8.8).
+func TestSystemTimeScope(t *testing.T) {
+	t.Run("update accepts", func(t *testing.T) {
+		ParseAndCheck(t, "UPDATE t FOR SYSTEM_TIME AS OF '2020-01-01' SET id = 1")
+	})
+	t.Run("lock tables rejects", func(t *testing.T) {
+		ParseExpectError(t, "LOCK TABLES t FOR SYSTEM_TIME AS OF '2020-01-01' READ")
+	})
+	t.Run("single-table delete rejects", func(t *testing.T) {
+		ParseExpectError(t, "DELETE FROM t FOR SYSTEM_TIME AS OF '2020-01-01'")
+	})
+}
+
 // TestSystemTimeLockingIntact guards the overload's other side: the SELECT-tail
 // locking clause must still parse after the temporal change.
 func TestSystemTimeLockingIntact(t *testing.T) {

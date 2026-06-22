@@ -1201,7 +1201,7 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 	}
 
 	// Regular table reference with alias
-	return p.parseTableRefWithAlias()
+	return p.parseTableRefWithAlias(true)
 }
 
 // parseJsonTable parses JSON_TABLE(expr, path COLUMNS (column_list)) [AS] alias.
