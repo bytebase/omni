@@ -15,23 +15,32 @@ func (p *Parser) parseDataType() (*ast.DataType, error) {
 	}
 	dt := &ast.DataType{Name: name, Loc: p.makeLoc(start)}
 
-	isVector := strings.EqualFold(name.Name, "vector")
 	if p.cur.Type == tokLT {
 		p.advance() // <
-		for {
-			if isVector && p.cur.Type == tokINTEGER {
-				dim := &ast.IntegerLit{Val: p.cur.Str, Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
-				p.advance()
-				dt.Dimension = dim
-			} else {
+		if strings.EqualFold(name.Name, "vector") {
+			elemType, err := p.parseDataType()
+			if err != nil {
+				return nil, err
+			}
+			dt.TypeParams = append(dt.TypeParams, elemType)
+			if _, err := p.expect(tokCOMMA); err != nil {
+				return nil, err
+			}
+			if p.cur.Type != tokINTEGER {
+				return nil, p.errorf("expected integer dimension for VECTOR, got %s", p.tokenDesc())
+			}
+			dt.Dimension = &ast.IntegerLit{Val: p.cur.Str, Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
+			p.advance()
+		} else {
+			for {
 				param, err := p.parseDataType()
 				if err != nil {
 					return nil, err
 				}
 				dt.TypeParams = append(dt.TypeParams, param)
-			}
-			if !p.match(tokCOMMA) {
-				break
+				if !p.match(tokCOMMA) {
+					break
+				}
 			}
 		}
 		if _, err := p.expect(tokGT); err != nil {

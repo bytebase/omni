@@ -207,6 +207,7 @@ func TestParseDDL(t *testing.T) {
 		{"TRUNCATE users", "TruncateStmt"},
 		{"TRUNCATE TABLE ks.users", "TruncateStmt"},
 		{"USE my_keyspace", "UseStmt"},
+		{"CREATE TABLE t (id int PRIMARY KEY, v vector<float, 3>)", "CreateTableStmt"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
@@ -367,6 +368,11 @@ func TestParseErrors(t *testing.T) {
 
 		// MV IS NOT NULL with wrong tokens
 		{"MV IS LOL NOPE", "CREATE MATERIALIZED VIEW mv AS SELECT * FROM t WHERE id IS LOL NOPE PRIMARY KEY (id)"},
+
+		// Type generic validation
+		{"vector missing element type", "CREATE TABLE t (id int PRIMARY KEY, v vector<3>)"},
+		{"vector extra dimension", "CREATE TABLE t (id int PRIMARY KEY, v vector<float, 3, 4>)"},
+		{"map with integer param", "CREATE TABLE t (id int PRIMARY KEY, m map<text, 3>)"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
