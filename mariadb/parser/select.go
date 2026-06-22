@@ -1553,19 +1553,11 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// OF table_list
+	// MariaDB removed FOR UPDATE/SHARE ... OF in 11.4 (it is MySQL-only).
 	if p.cur.Type == kwOF {
-		p.advance()
-		for {
-			ref, err := p.parseTableRef()
-			if err != nil {
-				return nil, err
-			}
-			fu.Tables = append(fu.Tables, ref)
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
+		return nil, &ParseError{
+			Message:  "FOR UPDATE/SHARE ... OF is not supported in MariaDB",
+			Position: p.cur.Loc,
 		}
 	}
 

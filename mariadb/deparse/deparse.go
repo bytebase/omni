@@ -180,7 +180,6 @@ func deparseSelectStmtCtx(stmt *ast.SelectStmt, suppressAlias bool) string {
 //   - for update
 //   - for share
 //   - lock in share mode (legacy syntax)
-//   - for update of `t`
 //   - for update nowait
 //   - for update skip locked
 func deparseForUpdate(fu *ast.ForUpdate) string {
@@ -193,19 +192,6 @@ func deparseForUpdate(fu *ast.ForUpdate) string {
 		b.WriteString("for share")
 	} else {
 		b.WriteString("for update")
-	}
-
-	// OF table list
-	if len(fu.Tables) > 0 {
-		b.WriteString(" of ")
-		for i, tbl := range fu.Tables {
-			if i > 0 {
-				b.WriteString(",")
-			}
-			b.WriteString("`")
-			b.WriteString(tbl.Name)
-			b.WriteString("`")
-		}
 	}
 
 	// NOWAIT / SKIP LOCKED

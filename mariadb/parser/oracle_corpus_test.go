@@ -205,6 +205,8 @@ var categoryCaseSQLs = []string{
 	"SELECT 1 MINUS SELECT 2",
 	"SELECT 1 MINUS SELECT 2 MINUS SELECT 3",
 	"SELECT * FROM t WHERE id = 1 FOR SHARE",
+	"SELECT name -> '$.b' FROM t",
+	"SELECT name ->> '$.b' FROM t",
 }
 
 // containerFatalVerbs name statements whose *execution* would kill the shared
@@ -288,6 +290,16 @@ var subtractiveDivergences = []divergence{
 		sql:      "SELECT * FROM t WHERE id = 1 FOR SHARE",
 		omniSide: true, // omni mirrors MySQL's FOR SHARE; MariaDB rejects it (1064).
 		reason:   "FOR SHARE locking clause: valid in MySQL 8.0 and omni mirrors it; MariaDB has no FOR SHARE (uses LOCK IN SHARE MODE) and rejects at parse (1064). Phase-0 mdbcheck OVER finding.",
+	},
+	{
+		sql:      "SELECT name -> '$.b' FROM t",
+		omniSide: true, // omni mirrors MySQL's -> JSON operator; MariaDB rejects it (1064).
+		reason:   "JSON -> column-path operator: MySQL-only; omni mirrors MySQL and over-accepts. MariaDB has no -> / ->> operators (uses JSON_EXTRACT()/JSON_UNQUOTE()) and rejects at parse (1064). Deferred prune: the one-line grammar fix (drop the tokJsonExtract/tokJsonUnquote arms in expr.go) ripples into inherited mysql accept-tests (TestParseJsonExtract/UnquoteExtract) and the routine_body_audit, beyond the surgical FOR-UPDATE-OF arm.",
+	},
+	{
+		sql:      "SELECT name ->> '$.b' FROM t",
+		omniSide: true, // ->> shares the -> divergence.
+		reason:   "JSON ->> column-path unquote operator: MySQL-only; same divergence as -> (omni over-accepts, MariaDB rejects 1064). Deferred with the -> prune.",
 	},
 }
 

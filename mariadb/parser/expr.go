@@ -266,7 +266,13 @@ func (p *Parser) infixPrecedence() (int, nodes.BinaryOp, bool) {
 	case kwCOLLATE:
 		return precCollate, 0, true
 
-	// JSON column-path operators
+	// JSON column-path operators.
+	// FIDELITY NOTE (BYT-9135): MariaDB has no -> / ->> operators (MySQL-only; it
+	// uses JSON_EXTRACT()/JSON_UNQUOTE()), so omni over-accepts them here. The
+	// grammar fix is one line (drop these two cases), but it ripples into the
+	// inherited mysql accept-tests (compare_test.go TestParseJsonExtract /
+	// TestParseJsonUnquoteExtract) and the routine_body_audit "-> / ->>" entries —
+	// a multi-file cleanup deferred from the FOR-UPDATE-OF prune. Tracked over-accept.
 	case tokJsonExtract:
 		return precJsonAccess, nodes.BinOpJsonExtract, true
 	case tokJsonUnquote:
