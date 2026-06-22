@@ -162,6 +162,23 @@ func (l *Lexer) scanNumber(start int) Token {
 	for l.pos < len(l.input) && isDigit(l.input[l.pos]) {
 		l.pos++
 	}
+
+	// UUID check: digits followed by hex letters (a-f) may form the first 8-char group.
+	numLen := l.pos - start
+	if numLen < 8 && l.pos < len(l.input) && isHexLetter(l.input[l.pos]) {
+		savedPos := l.pos
+		for l.pos < len(l.input) && l.pos-start < 8 && isHexDigit(l.input[l.pos]) {
+			l.pos++
+		}
+		if l.pos-start == 8 {
+			str := l.input[start:l.pos]
+			if isUUIDCandidate(str, l) {
+				return l.scanUUID(start, str)
+			}
+		}
+		l.pos = savedPos
+	}
+
 	if l.pos < len(l.input) && l.input[l.pos] == '.' {
 		next := l.pos + 1
 		if next < len(l.input) && isDigit(l.input[next]) {
@@ -336,6 +353,10 @@ func isDigit(ch byte) bool {
 
 func isHexDigit(ch byte) bool {
 	return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')
+}
+
+func isHexLetter(ch byte) bool {
+	return (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')
 }
 
 func isHexDigitRune(ch rune) bool {
