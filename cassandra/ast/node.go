@@ -714,6 +714,7 @@ func (*DropTypeStmt) stmtNode()     {}
 type CreateMVStmt struct {
 	IfNotExists      bool
 	Name             *QualifiedName
+	SelectAll        bool
 	SelectColumns    []*Identifier
 	FromTable        *QualifiedName
 	WhereNotNull     []*Identifier

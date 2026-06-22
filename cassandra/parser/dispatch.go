@@ -110,7 +110,10 @@ func (p *Parser) parseCreate() (ast.StmtNode, error) {
 // parseCreateMVInline handles CREATE MATERIALIZED VIEW when we've already consumed
 // CREATE MATERIALIZED VIEW tokens.
 func (p *Parser) parseCreateMVInline(start int) (*ast.CreateMVStmt, error) {
-	ifNotExists := p.parseIfNotExists()
+	ifNotExists, err := p.parseIfNotExists()
+	if err != nil {
+		return nil, err
+	}
 
 	name, err := p.parseQualifiedName()
 	if err != nil {
@@ -129,15 +132,19 @@ func (p *Parser) parseCreateMVInline(start int) (*ast.CreateMVStmt, error) {
 		Name:        name,
 	}
 
-	// Select columns
-	for {
-		col, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.SelectColumns = append(stmt.SelectColumns, col)
-		if !p.match(tokCOMMA) {
-			break
+	// Select columns or *
+	if p.match(tokSTAR) {
+		stmt.SelectAll = true
+	} else {
+		for {
+			col, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			stmt.SelectColumns = append(stmt.SelectColumns, col)
+			if !p.match(tokCOMMA) {
+				break
+			}
 		}
 	}
 
@@ -163,9 +170,15 @@ func (p *Parser) parseCreateMVInline(start int) (*ast.CreateMVStmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		p.advance() // IS
-		p.advance() // NOT
-		p.advance() // NULL
+		if err := p.expectKeyword(tokIS); err != nil {
+			return nil, err
+		}
+		if err := p.expectKeyword(tokNOT); err != nil {
+			return nil, err
+		}
+		if err := p.expectKeyword(tokNULL); err != nil {
+			return nil, err
+		}
 		stmt.WhereNotNull = append(stmt.WhereNotNull, col)
 		if p.cur.Type != tokAND {
 			break

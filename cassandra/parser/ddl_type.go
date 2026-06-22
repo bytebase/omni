@@ -8,7 +8,10 @@ func (p *Parser) parseCreateType() (*ast.CreateTypeStmt, error) {
 	start := p.curLoc()
 	p.advance() // TYPE
 
-	ifNotExists := p.parseIfNotExists()
+	ifNotExists, err := p.parseIfNotExists()
+	if err != nil {
+		return nil, err
+	}
 
 	name, err := p.parseQualifiedName()
 	if err != nil {

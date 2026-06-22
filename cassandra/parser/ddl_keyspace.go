@@ -8,7 +8,10 @@ func (p *Parser) parseCreateKeyspace() (*ast.CreateKeyspaceStmt, error) {
 	start := p.curLoc()
 	p.advance() // KEYSPACE
 
-	ifNotExists := p.parseIfNotExists()
+	ifNotExists, err := p.parseIfNotExists()
+	if err != nil {
+		return nil, err
+	}
 
 	name, err := p.parseIdentifier()
 	if err != nil {

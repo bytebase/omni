@@ -78,7 +78,11 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 	}
 
 	// Optional IF NOT EXISTS
-	stmt.IfNotExists = p.parseIfNotExists()
+	ifne, err := p.parseIfNotExists()
+	if err != nil {
+		return nil, err
+	}
+	stmt.IfNotExists = ifne
 
 	// Optional USING clause
 	using, err := p.parseUsingClause()

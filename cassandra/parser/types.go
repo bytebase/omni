@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/cassandra/ast"
 )
 
@@ -13,11 +15,11 @@ func (p *Parser) parseDataType() (*ast.DataType, error) {
 	}
 	dt := &ast.DataType{Name: name, Loc: p.makeLoc(start)}
 
+	isVector := strings.EqualFold(name.Name, "vector")
 	if p.cur.Type == tokLT {
 		p.advance() // <
 		for {
-			// Check for dimension integer (VECTOR<float, 3>)
-			if p.cur.Type == tokINTEGER {
+			if isVector && p.cur.Type == tokINTEGER {
 				dim := &ast.IntegerLit{Val: p.cur.Str, Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
 				p.advance()
 				dt.Dimension = dim

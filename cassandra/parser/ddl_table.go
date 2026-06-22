@@ -8,7 +8,10 @@ func (p *Parser) parseCreateTable() (*ast.CreateTableStmt, error) {
 	start := p.curLoc()
 	p.advance() // TABLE
 
-	ifNotExists := p.parseIfNotExists()
+	ifNotExists, err := p.parseIfNotExists()
+	if err != nil {
+		return nil, err
+	}
 
 	name, err := p.parseQualifiedName()
 	if err != nil {

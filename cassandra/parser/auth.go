@@ -261,7 +261,10 @@ func (p *Parser) parseCreateRole() (*ast.CreateRoleStmt, error) {
 	start := p.curLoc()
 	p.advance() // ROLE
 
-	ifNotExists := p.parseIfNotExists()
+	ifNotExists, err := p.parseIfNotExists()
+	if err != nil {
+		return nil, err
+	}
 
 	name, err := p.parseIdentifier()
 	if err != nil {
@@ -389,7 +392,10 @@ func (p *Parser) parseCreateUser() (*ast.CreateUserStmt, error) {
 	start := p.curLoc()
 	p.advance() // USER
 
-	ifNotExists := p.parseIfNotExists()
+	ifNotExists, err := p.parseIfNotExists()
+	if err != nil {
+		return nil, err
+	}
 
 	name, err := p.parseIdentifier()
 	if err != nil {

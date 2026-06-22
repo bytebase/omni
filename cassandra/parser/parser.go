@@ -215,18 +215,20 @@ func (p *Parser) parseQualifiedName() (*ast.QualifiedName, error) {
 	return &ast.QualifiedName{Parts: parts, Loc: p.makeLoc(start)}, nil
 }
 
-// parseIfNotExists parses optional IF NOT EXISTS.
-func (p *Parser) parseIfNotExists() bool {
+// parseIfNotExists parses optional IF NOT EXISTS, returning (found, error).
+func (p *Parser) parseIfNotExists() (bool, error) {
 	if p.cur.Type == tokIF {
 		next := p.peekNext()
 		if next.Type == tokNOT {
 			p.advance() // IF
 			p.advance() // NOT
-			p.advance() // EXISTS (best effort)
-			return true
+			if err := p.expectKeyword(tokEXISTS); err != nil {
+				return false, err
+			}
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // parseIfExists parses optional IF EXISTS.

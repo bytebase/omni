@@ -8,7 +8,10 @@ func (p *Parser) parseCreateFunction() (*ast.CreateFunctionStmt, error) {
 	start := p.curLoc()
 	p.advance() // FUNCTION
 
-	ifNotExists := p.parseIfNotExists()
+	ifNotExists, err := p.parseIfNotExists()
+	if err != nil {
+		return nil, err
+	}
 
 	name, err := p.parseQualifiedName()
 	if err != nil {
@@ -156,7 +159,10 @@ func (p *Parser) parseCreateAggregate() (*ast.CreateAggregateStmt, error) {
 	start := p.curLoc()
 	p.advance() // AGGREGATE
 
-	ifNotExists := p.parseIfNotExists()
+	ifNotExists, err := p.parseIfNotExists()
+	if err != nil {
+		return nil, err
+	}
 
 	name, err := p.parseQualifiedName()
 	if err != nil {
@@ -271,7 +277,10 @@ func (p *Parser) parseCreateTrigger() (*ast.CreateTriggerStmt, error) {
 	start := p.curLoc()
 	p.advance() // TRIGGER
 
-	ifNotExists := p.parseIfNotExists()
+	ifNotExists, err := p.parseIfNotExists()
+	if err != nil {
+		return nil, err
+	}
 
 	name, err := p.parseQualifiedName()
 	if err != nil {

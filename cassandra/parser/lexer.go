@@ -157,13 +157,18 @@ func (l *Lexer) scanNumber(start int) Token {
 		}
 	}
 	if l.pos < len(l.input) && (l.input[l.pos] == 'e' || l.input[l.pos] == 'E') {
-		isFloat = true
+		ePos := l.pos
 		l.pos++
 		if l.pos < len(l.input) && (l.input[l.pos] == '+' || l.input[l.pos] == '-') {
 			l.pos++
 		}
-		for l.pos < len(l.input) && isDigit(l.input[l.pos]) {
-			l.pos++
+		if l.pos >= len(l.input) || !isDigit(l.input[l.pos]) {
+			l.pos = ePos
+		} else {
+			isFloat = true
+			for l.pos < len(l.input) && isDigit(l.input[l.pos]) {
+				l.pos++
+			}
 		}
 	}
 	str := l.input[start:l.pos]

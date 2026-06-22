@@ -267,6 +267,201 @@ func TestParseMultipleStatements(t *testing.T) {
 	}
 }
 
+func TestParseMV(t *testing.T) {
+	tests := []struct {
+		input string
+		check func(t *testing.T, s Statement)
+	}{
+		{
+			input: "CREATE MATERIALIZED VIEW mv AS SELECT * FROM users WHERE id IS NOT NULL PRIMARY KEY (id)",
+			check: func(t *testing.T, s Statement) {
+				mv, ok := s.AST.(*ast.CreateMVStmt)
+				if !ok {
+					t.Fatalf("expected *ast.CreateMVStmt, got %T", s.AST)
+				}
+				if !mv.SelectAll {
+					t.Fatal("expected SelectAll = true")
+				}
+				if len(mv.SelectColumns) != 0 {
+					t.Fatalf("expected 0 SelectColumns, got %d", len(mv.SelectColumns))
+				}
+				if len(mv.WhereNotNull) != 1 || mv.WhereNotNull[0].Name != "id" {
+					t.Fatal("expected WHERE id IS NOT NULL")
+				}
+			},
+		},
+		{
+			input: "CREATE MATERIALIZED VIEW mv AS SELECT col1, col2 FROM users WHERE col1 IS NOT NULL AND col2 IS NOT NULL PRIMARY KEY (col1, col2)",
+			check: func(t *testing.T, s Statement) {
+				mv := s.AST.(*ast.CreateMVStmt)
+				if mv.SelectAll {
+					t.Fatal("expected SelectAll = false")
+				}
+				if len(mv.SelectColumns) != 2 {
+					t.Fatalf("expected 2 SelectColumns, got %d", len(mv.SelectColumns))
+				}
+				if len(mv.WhereNotNull) != 2 {
+					t.Fatalf("expected 2 WhereNotNull, got %d", len(mv.WhereNotNull))
+				}
+			},
+		},
+		{
+			input: "CREATE MATERIALIZED VIEW IF NOT EXISTS ks.mv AS SELECT * FROM users WHERE id IS NOT NULL PRIMARY KEY (id) WITH comment = 'test'",
+			check: func(t *testing.T, s Statement) {
+				mv := s.AST.(*ast.CreateMVStmt)
+				if !mv.IfNotExists {
+					t.Fatal("expected IfNotExists")
+				}
+				if len(mv.Name.Parts) != 2 {
+					t.Fatal("expected qualified name ks.mv")
+				}
+				if len(mv.Options) != 1 {
+					t.Fatalf("expected 1 option, got %d", len(mv.Options))
+				}
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			stmts, err := Parse(tt.input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(stmts) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(stmts))
+			}
+			tt.check(t, stmts[0])
+		})
+	}
+}
+
+func TestParseErrors(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		// IF NOT EXISTS strict validation
+		{"IF NOT GARBAGE", "INSERT INTO users (id) VALUES (1) IF NOT GARBAGE"},
+		{"IF NOT without EXISTS in CREATE", "CREATE TABLE IF NOT GARBAGE users (id int PRIMARY KEY)"},
+
+		// Truncated/malformed DML
+		{"truncated SELECT", "SELECT"},
+		{"truncated SELECT FROM", "SELECT * FROM"},
+		{"truncated INSERT", "INSERT INTO"},
+		{"truncated INSERT no VALUES", "INSERT INTO users (id)"},
+		{"truncated UPDATE", "UPDATE"},
+		{"truncated UPDATE no SET", "UPDATE users"},
+		{"truncated DELETE", "DELETE FROM"},
+		{"truncated BATCH", "BEGIN BATCH"},
+
+		// Truncated/malformed DDL
+		{"truncated CREATE TABLE", "CREATE TABLE"},
+		{"truncated CREATE KEYSPACE", "CREATE KEYSPACE"},
+		{"truncated DROP", "DROP"},
+		{"truncated ALTER", "ALTER"},
+		{"CREATE without object", "CREATE"},
+
+		// Invalid tokens
+		{"bare operator", "< >"},
+		{"invalid statement start", "123"},
+
+		// MV IS NOT NULL with wrong tokens
+		{"MV IS LOL NOPE", "CREATE MATERIALIZED VIEW mv AS SELECT * FROM t WHERE id IS LOL NOPE PRIMARY KEY (id)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Parse(tt.input)
+			if err == nil {
+				t.Fatalf("expected error for %q, got nil", tt.input)
+			}
+		})
+	}
+}
+
+func TestParseNoPanic(t *testing.T) {
+	inputs := []string{
+		"",
+		" ",
+		"\t\n",
+		";",
+		";;;",
+		"SELECT",
+		"INSERT",
+		"CREATE",
+		"DROP TABLE",
+		"ALTER TABLE users",
+		"BEGIN BATCH APPLY BATCH",
+		"SELECT * FROM users WHERE",
+		"CREATE TABLE t (",
+		"UPDATE users SET name =",
+		"'unterminated string",
+		`"unterminated ident`,
+		"$$unterminated code block",
+		"/* unterminated block comment",
+		"SELECT 1e",
+		"SELECT 1e+",
+	}
+	for _, input := range inputs {
+		t.Run(input, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Fatalf("Parse(%q) panicked: %v", input, r)
+				}
+			}()
+			Parse(input) // error is fine, panic is not
+		})
+	}
+}
+
+func TestParseLocWalker(t *testing.T) {
+	tests := []string{
+		"SELECT * FROM users",
+		"SELECT name, age FROM ks.users WHERE id = 1",
+		"INSERT INTO users (id, name) VALUES (1, 'Alice')",
+		"UPDATE users SET name = 'Bob' WHERE id = 2",
+		"DELETE FROM users WHERE id = 3",
+		"CREATE TABLE t (id int, name text, PRIMARY KEY (id))",
+		"CREATE KEYSPACE ks WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': '1'}",
+		"DROP TABLE IF EXISTS users",
+		"USE my_keyspace",
+		"TRUNCATE TABLE users",
+		"CREATE MATERIALIZED VIEW mv AS SELECT * FROM users WHERE id IS NOT NULL PRIMARY KEY (id)",
+	}
+	for _, input := range tests {
+		t.Run(input, func(t *testing.T) {
+			stmts, err := Parse(input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, s := range stmts {
+				if s.ByteStart < 0 {
+					t.Errorf("ByteStart = %d, want >= 0", s.ByteStart)
+				}
+				if s.ByteEnd <= s.ByteStart {
+					t.Errorf("ByteEnd = %d <= ByteStart = %d", s.ByteEnd, s.ByteStart)
+				}
+				if s.ByteEnd > len(input) {
+					t.Errorf("ByteEnd = %d > len(input) = %d", s.ByteEnd, len(input))
+				}
+				text := input[s.ByteStart:s.ByteEnd]
+				if text != s.Text {
+					t.Errorf("input[%d:%d] = %q, s.Text = %q", s.ByteStart, s.ByteEnd, text, s.Text)
+				}
+				if s.Start.Line < 1 || s.Start.Column < 1 {
+					t.Errorf("Start = %+v, want line >= 1 and column >= 1", s.Start)
+				}
+				loc := s.AST.GetLoc()
+				if loc.Start < 0 {
+					t.Errorf("AST Loc.Start = %d, want >= 0", loc.Start)
+				}
+				if loc.End <= loc.Start {
+					t.Errorf("AST Loc.End = %d <= Loc.Start = %d", loc.End, loc.Start)
+				}
+			}
+		})
+	}
+}
+
 func TestParsePositions(t *testing.T) {
 	input := "SELECT * FROM users"
 	stmts, err := Parse(input)

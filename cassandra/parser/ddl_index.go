@@ -13,7 +13,10 @@ func (p *Parser) parseCreateIndex() (*ast.CreateIndexStmt, error) {
 	}
 	p.advance() // INDEX
 
-	ifNotExists := p.parseIfNotExists()
+	ifNotExists, err := p.parseIfNotExists()
+	if err != nil {
+		return nil, err
+	}
 
 	stmt := &ast.CreateIndexStmt{
 		IsCustom:    isCustom,
