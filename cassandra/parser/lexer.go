@@ -7,14 +7,25 @@ import (
 
 // Lexer tokenizes CQL input.
 type Lexer struct {
-	input string
-	pos   int
-	Err   error
+	input   string
+	lineIdx lineIndex
+	pos     int
+	Err     error
 }
 
 // NewLexer creates a new Lexer for the given input.
 func NewLexer(input string) *Lexer {
-	return &Lexer{input: input}
+	return &Lexer{input: input, lineIdx: buildLineIndex(input)}
+}
+
+func (l *Lexer) makeError(msg string, start, end int) *ParseError {
+	line, col := offsetToLineCol(l.lineIdx, start)
+	return &ParseError{
+		Message: msg,
+		Loc:     locFromOffsets(start, end),
+		Line:    line,
+		Column:  col,
+	}
 }
 
 // Next returns the next token from the input.
@@ -95,7 +106,7 @@ func (l *Lexer) scanString(start int) Token {
 		b.WriteByte(ch)
 		l.pos++
 	}
-	l.Err = &ParseError{Message: "unterminated string literal", Loc: locFromOffsets(start, l.pos)}
+	l.Err = l.makeError("unterminated string literal", start, l.pos)
 	return Token{Type: tokEOF, Loc: l.pos, End: l.pos}
 }
 
@@ -116,7 +127,7 @@ func (l *Lexer) scanQuotedIdentifier(start int) Token {
 		b.WriteByte(ch)
 		l.pos++
 	}
-	l.Err = &ParseError{Message: "unterminated quoted identifier", Loc: locFromOffsets(start, l.pos)}
+	l.Err = l.makeError("unterminated quoted identifier", start, l.pos)
 	return Token{Type: tokEOF, Loc: l.pos, End: l.pos}
 }
 
@@ -124,7 +135,7 @@ func (l *Lexer) scanCodeBlock(start int) Token {
 	l.pos += 2 // skip opening $$
 	idx := strings.Index(l.input[l.pos:], "$$")
 	if idx < 0 {
-		l.Err = &ParseError{Message: "unterminated code block", Loc: locFromOffsets(start, len(l.input))}
+		l.Err = l.makeError("unterminated code block", start, len(l.input))
 		l.pos = len(l.input)
 		return Token{Type: tokEOF, Loc: l.pos, End: l.pos}
 	}

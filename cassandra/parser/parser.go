@@ -10,6 +10,7 @@ import (
 // Parser is the recursive-descent parser for Cassandra CQL.
 type Parser struct {
 	lexer   *Lexer
+	source  string
 	cur     Token
 	prev    Token
 	nextBuf Token
@@ -18,7 +19,10 @@ type Parser struct {
 
 // Parse parses a CQL input containing one or more statements and returns a List of RawStmt.
 func Parse(sql string) (*ast.List, error) {
-	p := &Parser{lexer: NewLexer(sql)}
+	p := &Parser{
+		lexer:  NewLexer(sql),
+		source: sql,
+	}
 	p.advance()
 
 	var items []ast.Node
@@ -154,10 +158,32 @@ func (p *Parser) makeLoc(start int) ast.Loc {
 }
 
 func (p *Parser) errorf(format string, args ...any) *ParseError {
+	if pe, ok := p.lexer.Err.(*ParseError); ok {
+		return pe
+	}
+	line, col := offsetToLineCol(p.lexer.lineIdx, p.cur.Loc)
+	near := p.cur.Str
+	if near == "" && p.cur.Type != tokEOF {
+		near = p.extractNear(p.cur.Loc)
+	}
 	return &ParseError{
 		Message: fmt.Sprintf(format, args...),
 		Loc:     ast.Loc{Start: p.cur.Loc, End: p.cur.End},
+		Line:    line,
+		Column:  col,
+		Near:    near,
 	}
+}
+
+func (p *Parser) extractNear(offset int) string {
+	if offset >= len(p.source) {
+		return ""
+	}
+	end := offset
+	for end < len(p.source) && end-offset < 30 && p.source[end] != ' ' && p.source[end] != '\n' && p.source[end] != '\t' {
+		end++
+	}
+	return p.source[offset:end]
 }
 
 func (p *Parser) tokenDesc() string {

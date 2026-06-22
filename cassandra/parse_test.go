@@ -1,9 +1,12 @@
 package cassandra
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/cassandra/ast"
+	"github.com/bytebase/omni/cassandra/parser"
 )
 
 func TestParseEmpty(t *testing.T) {
@@ -489,5 +492,138 @@ func TestParsePositions(t *testing.T) {
 	}
 	if s.Text != "SELECT * FROM users" {
 		t.Errorf("Text = %q", s.Text)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Phase 4: L3 Error Quality
+// ---------------------------------------------------------------------------
+
+func TestErrorLineColumn(t *testing.T) {
+	tests := []struct {
+		name     string
+		sql      string
+		wantLine int
+		wantCol  int
+		wantNear string
+	}{
+		{
+			name:     "single line error",
+			sql:      "SELECT * FORM users",
+			wantLine: 1,
+			wantCol:  10,
+			wantNear: "FORM",
+		},
+		{
+			name:     "second line error",
+			sql:      "SELECT *\nFORM users",
+			wantLine: 2,
+			wantCol:  1,
+			wantNear: "FORM",
+		},
+		{
+			name:     "deep in statement",
+			sql:      "INSERT INTO users (id) VALUE (1)",
+			wantLine: 1,
+			wantCol:  24,
+			wantNear: "VALUE",
+		},
+		{
+			name:     "unterminated string",
+			sql:      "SELECT 'abc",
+			wantLine: 1,
+			wantCol:  8,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Parse(tt.sql)
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			var pe *parser.ParseError
+			if !errors.As(err, &pe) {
+				t.Fatalf("expected *parser.ParseError, got %T: %v", err, err)
+			}
+			if pe.Line != tt.wantLine {
+				t.Errorf("Line = %d, want %d (error: %s)", pe.Line, tt.wantLine, pe.Error())
+			}
+			if pe.Column != tt.wantCol {
+				t.Errorf("Column = %d, want %d (error: %s)", pe.Column, tt.wantCol, pe.Error())
+			}
+			if tt.wantNear != "" && pe.Near != tt.wantNear {
+				t.Errorf("Near = %q, want %q (error: %s)", pe.Near, tt.wantNear, pe.Error())
+			}
+			if !strings.Contains(pe.Error(), "line") {
+				t.Errorf("error message missing 'line': %s", pe.Error())
+			}
+			if !strings.Contains(pe.Error(), "column") {
+				t.Errorf("error message missing 'column': %s", pe.Error())
+			}
+		})
+	}
+}
+
+func TestErrorAtOrNear(t *testing.T) {
+	_, err := Parse("SELECT * FORM users")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "at or near") {
+		t.Errorf("error message missing 'at or near': %s", msg)
+	}
+	if !strings.Contains(msg, "FORM") {
+		t.Errorf("error message missing token text 'FORM': %s", msg)
+	}
+}
+
+func TestTruncationFuzz(t *testing.T) {
+	validSQL := []string{
+		"SELECT * FROM users WHERE id = 1 ORDER BY name ASC LIMIT 10",
+		"INSERT INTO users (id, name) VALUES (1, 'Alice') IF NOT EXISTS USING TTL 86400",
+		"UPDATE users USING TTL 3600 SET name = 'Bob' WHERE id = 2 IF name = 'old'",
+		"DELETE name FROM ks.users WHERE id = 2 IF EXISTS",
+		"BEGIN UNLOGGED BATCH USING TIMESTAMP 12345 INSERT INTO t (id) VALUES (1); DELETE FROM t WHERE id = 2; APPLY BATCH",
+		"CREATE TABLE t (id int, name text, age int, PRIMARY KEY ((id, name), age)) WITH CLUSTERING ORDER BY (age DESC) AND comment = 'test'",
+		"CREATE KEYSPACE ks WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': '1'} AND DURABLE_WRITES = true",
+		"CREATE MATERIALIZED VIEW mv AS SELECT col1, col2 FROM t WHERE col1 IS NOT NULL AND col2 IS NOT NULL PRIMARY KEY (col1, col2)",
+		"CREATE FUNCTION ks.f(input text) CALLED ON NULL INPUT RETURNS text LANGUAGE java AS $$return input;$$",
+		"CREATE AGGREGATE ks.agg(int) SFUNC plus STYPE int FINALFUNC fin INITCOND 0",
+		"GRANT SELECT ON TABLE users TO reader",
+		"CREATE ROLE myrole WITH PASSWORD = 'secret' AND LOGIN = true AND SUPERUSER = false",
+	}
+	for _, sql := range validSQL {
+		for i := 0; i <= len(sql); i++ {
+			truncated := sql[:i]
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						t.Fatalf("Parse(%q) panicked (truncated from %q at byte %d): %v", truncated, sql, i, r)
+					}
+				}()
+				Parse(truncated)
+			}()
+		}
+	}
+}
+
+func TestBinaryInputNoPanic(t *testing.T) {
+	inputs := []string{
+		"\x00\x01\x02\x03",
+		string([]byte{0xFF, 0xFE, 0xFD}),
+		"\x00SELECT * FROM users",
+		"SELECT\x00FROM\x00users",
+		string(make([]byte, 1024)),
+	}
+	for _, input := range inputs {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Fatalf("Parse(binary) panicked: %v", r)
+				}
+			}()
+			Parse(input)
+		}()
 	}
 }
