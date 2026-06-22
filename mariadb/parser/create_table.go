@@ -254,32 +254,43 @@ func (p *Parser) atPeriodForSystemTime() bool {
 // parsePeriodForSystemTime parses PERIOD FOR SYSTEM_TIME (start_col, end_col)
 // and records the period columns on the statement.
 func (p *Parser) parsePeriodForSystemTime(stmt *nodes.CreateTableStmt) error {
-	p.advance() // PERIOD
-	p.advance() // FOR
-	if p.cur.Type != tokIDENT || !strings.EqualFold(p.cur.Str, "SYSTEM_TIME") {
-		return p.syntaxErrorAtCur()
-	}
-	p.advance() // SYSTEM_TIME
-	if _, err := p.expect('('); err != nil {
-		return err
-	}
-	startCol, _, err := p.parseIdent()
+	startCol, endCol, err := p.parsePeriodForSystemTimeCols()
 	if err != nil {
-		return err
-	}
-	if _, err := p.expect(','); err != nil {
-		return err
-	}
-	endCol, _, err := p.parseIdent()
-	if err != nil {
-		return err
-	}
-	if _, err := p.expect(')'); err != nil {
 		return err
 	}
 	stmt.PeriodStartCol = startCol
 	stmt.PeriodEndCol = endCol
 	return nil
+}
+
+// parsePeriodForSystemTimeCols parses PERIOD FOR SYSTEM_TIME (start_col, end_col)
+// and returns the two period column names. Shared by CREATE TABLE and
+// ALTER TABLE ... ADD PERIOD. PERIOD is the current token.
+func (p *Parser) parsePeriodForSystemTimeCols() (string, string, error) {
+	p.advance() // PERIOD
+	p.advance() // FOR
+	if p.cur.Type != tokIDENT || !strings.EqualFold(p.cur.Str, "SYSTEM_TIME") {
+		return "", "", p.syntaxErrorAtCur()
+	}
+	p.advance() // SYSTEM_TIME
+	if _, err := p.expect('('); err != nil {
+		return "", "", err
+	}
+	startCol, _, err := p.parseIdent()
+	if err != nil {
+		return "", "", err
+	}
+	if _, err := p.expect(','); err != nil {
+		return "", "", err
+	}
+	endCol, _, err := p.parseIdent()
+	if err != nil {
+		return "", "", err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return "", "", err
+	}
+	return startCol, endCol, nil
 }
 
 // parseRowBound parses ROW START | ROW END (the system-versioning period bound a

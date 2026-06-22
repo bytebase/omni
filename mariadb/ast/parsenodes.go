@@ -254,6 +254,11 @@ const (
 	ATSecondaryLoad
 	ATSecondaryUnload
 	ATPartitionBy
+	// System-versioning (MariaDB temporal).
+	ATAddSystemVersioning
+	ATDropSystemVersioning
+	ATAddPeriod
+	ATDropPeriod
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
@@ -279,6 +284,9 @@ type AlterTableCmd struct {
 	WithValidation *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
 	OrderByItems   []*OrderByItem   // for ORDER BY operation
 	PartitionBy    *PartitionClause // for PARTITION BY (repartition)
+	// PeriodStartCol / PeriodEndCol carry ADD PERIOD FOR SYSTEM_TIME (start, end).
+	PeriodStartCol string
+	PeriodEndCol   string
 }
 
 func (c *AlterTableCmd) nodeTag() {}
