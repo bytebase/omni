@@ -183,6 +183,10 @@ type CreateTableStmt struct {
 	Select      *SelectStmt // CREATE TABLE ... AS SELECT
 	Ignore      bool        // IGNORE before SELECT in CTAS
 	Replace     bool        // REPLACE before SELECT in CTAS
+
+	// PERIOD FOR SYSTEM_TIME (start_col, end_col) — system-versioning period.
+	PeriodStartCol string
+	PeriodEndCol   string
 }
 
 func (s *CreateTableStmt) nodeTag()  {}
@@ -414,18 +418,39 @@ type ColumnDef struct {
 	Storage                  string // STORAGE {DISK | MEMORY}
 	EngineAttribute          string // ENGINE_ATTRIBUTE [=] 'string'
 	SecondaryEngineAttribute string // SECONDARY_ENGINE_ATTRIBUTE [=] 'string'
+	// SystemVersioning records column-level WITH / WITHOUT SYSTEM VERSIONING.
+	SystemVersioning ColVersioning
 }
 
 func (d *ColumnDef) nodeTag() {}
 
+// ColVersioning marks column-level system versioning.
+type ColVersioning int
+
+const (
+	ColVersioningNone    ColVersioning = iota // unset
+	ColVersioningWith                         // WITH SYSTEM VERSIONING
+	ColVersioningWithout                      // WITHOUT SYSTEM VERSIONING
+)
+
 // GeneratedColumn represents a generated column specification.
 type GeneratedColumn struct {
-	Loc    Loc
-	Expr   ExprNode
-	Stored bool // STORED vs VIRTUAL
+	Loc      Loc
+	Expr     ExprNode     // GENERATED ALWAYS AS (expr); nil for a ROW START/END column
+	Stored   bool         // STORED vs VIRTUAL
+	RowBound RowBoundKind // GENERATED ALWAYS AS ROW START / ROW END
 }
 
 func (g *GeneratedColumn) nodeTag() {}
+
+// RowBoundKind marks a system-versioning period column.
+type RowBoundKind int
+
+const (
+	RowBoundNone  RowBoundKind = iota // expression-generated column
+	RowBoundStart                     // ... AS ROW START
+	RowBoundEnd                       // ... AS ROW END
+)
 
 // ColumnConstraintType enumerates column constraint types.
 type ColumnConstraintType int

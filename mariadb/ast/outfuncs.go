@@ -834,6 +834,9 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 		sb.WriteString(" :as_select ")
 		writeNode(sb, n.Select)
 	}
+	if n.PeriodStartCol != "" {
+		fmt.Fprintf(sb, " :period_for_system_time (%s, %s)", n.PeriodStartCol, n.PeriodEndCol)
+	}
 	sb.WriteString("}")
 }
 
@@ -2677,6 +2680,9 @@ func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 	if n.SecondaryEngineAttribute != "" {
 		fmt.Fprintf(sb, " :secondary_engine_attribute %q", n.SecondaryEngineAttribute)
 	}
+	if n.SystemVersioning != ColVersioningNone {
+		fmt.Fprintf(sb, " :system_versioning %d", n.SystemVersioning)
+	}
 	if len(n.Constraints) > 0 {
 		sb.WriteString(" :constraints ")
 		for i, c := range n.Constraints {
@@ -2694,6 +2700,9 @@ func writeGeneratedColumn(sb *strings.Builder, n *GeneratedColumn) {
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if n.Stored {
 		sb.WriteString(" :stored true")
+	}
+	if n.RowBound != RowBoundNone {
+		fmt.Fprintf(sb, " :row_bound %d", n.RowBound)
 	}
 	if n.Expr != nil {
 		sb.WriteString(" :expr ")

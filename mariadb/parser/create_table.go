@@ -202,8 +202,14 @@ func (p *Parser) parseCreateDefinitions(stmt *nodes.CreateTableStmt) error {
 			return &ParseError{Message: "collecting"}
 		}
 
-		// Table-level constraints: PRIMARY KEY, UNIQUE, INDEX, KEY, FULLTEXT, SPATIAL, FOREIGN KEY, CONSTRAINT, CHECK
-		if p.isTableConstraintStart() {
+		// PERIOD FOR SYSTEM_TIME (start_col, end_col) — a table element, not a
+		// column. Intercepted before parseColumnDef would read PERIOD as a name.
+		if p.atPeriodForSystemTime() {
+			if err := p.parsePeriodForSystemTime(stmt); err != nil {
+				return err
+			}
+		} else if p.isTableConstraintStart() {
+			// Table-level constraints: PRIMARY KEY, UNIQUE, INDEX, KEY, FULLTEXT, SPATIAL, FOREIGN KEY, CONSTRAINT, CHECK
 			constr, err := p.parseTableConstraint()
 			if err != nil {
 				return err
@@ -235,6 +241,61 @@ func (p *Parser) isTableConstraintStart() bool {
 		return true
 	}
 	return false
+}
+
+// atPeriodForSystemTime reports whether the cursor begins a
+// PERIOD FOR SYSTEM_TIME table element. PERIOD is non-reserved (matched by
+// text); FOR follows. Application-time PERIOD FOR <name> is not yet supported.
+func (p *Parser) atPeriodForSystemTime() bool {
+	return p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "PERIOD") &&
+		p.peekNext().Type == kwFOR
+}
+
+// parsePeriodForSystemTime parses PERIOD FOR SYSTEM_TIME (start_col, end_col)
+// and records the period columns on the statement.
+func (p *Parser) parsePeriodForSystemTime(stmt *nodes.CreateTableStmt) error {
+	p.advance() // PERIOD
+	p.advance() // FOR
+	if p.cur.Type != tokIDENT || !strings.EqualFold(p.cur.Str, "SYSTEM_TIME") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // SYSTEM_TIME
+	if _, err := p.expect('('); err != nil {
+		return err
+	}
+	startCol, _, err := p.parseIdent()
+	if err != nil {
+		return err
+	}
+	if _, err := p.expect(','); err != nil {
+		return err
+	}
+	endCol, _, err := p.parseIdent()
+	if err != nil {
+		return err
+	}
+	if _, err := p.expect(')'); err != nil {
+		return err
+	}
+	stmt.PeriodStartCol = startCol
+	stmt.PeriodEndCol = endCol
+	return nil
+}
+
+// parseRowBound parses ROW START | ROW END (the system-versioning period bound a
+// generated column carries). ROW is the current token.
+func (p *Parser) parseRowBound() (nodes.RowBoundKind, error) {
+	p.advance() // ROW
+	switch p.cur.Type {
+	case kwSTART:
+		p.advance()
+		return nodes.RowBoundStart, nil
+	case kwEND:
+		p.advance()
+		return nodes.RowBoundEnd, nil
+	default:
+		return nodes.RowBoundNone, p.syntaxErrorAtCur()
+	}
 }
 
 // parseColumnDef parses a column definition.
@@ -491,6 +552,36 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 			col.Generated = gen
 			return true, nil
 		}
+		// AS ROW START | ROW END — shorthand for GENERATED ALWAYS AS ROW START/END
+		if p.peekNext().Type == kwROW {
+			start := p.pos()
+			p.advance() // AS
+			rb, err := p.parseRowBound()
+			if err != nil {
+				return false, err
+			}
+			col.Generated = &nodes.GeneratedColumn{Loc: nodes.Loc{Start: start, End: p.pos()}, RowBound: rb}
+			return true, nil
+		}
+		return false, nil
+
+	case kwWITH, kwWITHOUT:
+		// WITH / WITHOUT SYSTEM VERSIONING — column-level system versioning.
+		if p.peekNext().Type == kwSYSTEM {
+			without := p.cur.Type == kwWITHOUT
+			p.advance() // WITH / WITHOUT
+			p.advance() // SYSTEM
+			if p.cur.Type != tokIDENT || !strings.EqualFold(p.cur.Str, "VERSIONING") {
+				return false, p.syntaxErrorAtCur()
+			}
+			p.advance() // VERSIONING
+			if without {
+				col.SystemVersioning = nodes.ColVersioningWithout
+			} else {
+				col.SystemVersioning = nodes.ColVersioningWith
+			}
+			return true, nil
+		}
 		return false, nil
 
 	case kwON:
@@ -738,6 +829,15 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 	// AS
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
+	}
+
+	// GENERATED ALWAYS AS ROW START | ROW END (system-versioning period column)
+	if p.cur.Type == kwROW {
+		rb, err := p.parseRowBound()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.GeneratedColumn{Loc: nodes.Loc{Start: start, End: p.pos()}, RowBound: rb}, nil
 	}
 
 	// (expr)
@@ -1075,6 +1175,20 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			return nil, false, err
 		}
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "ENGINE", Value: val}, true, nil
+
+	case kwWITH:
+		// WITH SYSTEM VERSIONING — system-versioned table option. VERSIONING is
+		// non-reserved, so it is matched by identifier text.
+		if p.peekNext().Type == kwSYSTEM {
+			p.advance() // WITH
+			p.advance() // SYSTEM
+			if p.cur.Type != tokIDENT || !strings.EqualFold(p.cur.Str, "VERSIONING") {
+				return nil, false, p.syntaxErrorAtCur()
+			}
+			p.advance() // VERSIONING
+			return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: "SYSTEM VERSIONING"}, true, nil
+		}
+		return nil, false, nil
 
 	case kwAUTO_INCREMENT:
 		p.advance()
