@@ -20,11 +20,16 @@ func NewLexer(input string) *Lexer {
 
 func (l *Lexer) makeError(msg string, start, end int) *ParseError {
 	line, col := offsetToLineCol(l.lineIdx, start)
+	nearEnd := start + 30
+	if nearEnd > end {
+		nearEnd = end
+	}
 	return &ParseError{
 		Message: msg,
 		Loc:     locFromOffsets(start, end),
 		Line:    line,
 		Column:  col,
+		Near:    l.input[start:nearEnd],
 	}
 }
 
