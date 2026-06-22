@@ -3,31 +3,47 @@ package cassandra
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
 
-const cqlExamplesDir = "/Users/rebeliceyang/Github/parser/cql/examples"
+func testdataDir() string {
+	_, file, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(file), "testdata", "cql", "examples")
+}
 
 var expectedFailures = map[string]string{
 	"applyBatch.cql": "standalone APPLY BATCH is not valid CQL without BEGIN BATCH",
 }
 
 func TestCompatibilityHarness(t *testing.T) {
-	entries, err := os.ReadDir(cqlExamplesDir)
+	dir := testdataDir()
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		t.Skipf("CQL examples directory not found: %v", err)
+		t.Fatalf("CQL examples corpus missing at %s: %v", dir, err)
 	}
 
-	var totalStmts, passedStmts int
-	var failures []string
-
-	for _, entry := range entries {
-		if !strings.HasSuffix(entry.Name(), ".cql") {
-			continue
+	var cqlFiles []os.DirEntry
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".cql") {
+			cqlFiles = append(cqlFiles, e)
 		}
+	}
+	if len(cqlFiles) == 0 {
+		t.Fatal("CQL examples corpus is empty")
+	}
+
+	var (
+		totalFiles           = len(cqlFiles)
+		passedFiles          int
+		expectedFailureFiles int
+		totalStmts           int
+	)
+
+	for _, entry := range cqlFiles {
 		t.Run(entry.Name(), func(t *testing.T) {
-			data, err := os.ReadFile(filepath.Join(cqlExamplesDir, entry.Name()))
+			data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -36,16 +52,16 @@ func TestCompatibilityHarness(t *testing.T) {
 			stmts, err := Parse(content)
 			if err != nil {
 				if reason, ok := expectedFailures[entry.Name()]; ok {
+					expectedFailureFiles++
 					t.Skipf("expected failure: %s (%v)", reason, err)
 					return
 				}
-				failures = append(failures, entry.Name()+": "+err.Error())
 				t.Errorf("Parse failed: %v", err)
 				return
 			}
 
+			passedFiles++
 			totalStmts += len(stmts)
-			passedStmts += len(stmts)
 
 			for i, s := range stmts {
 				if s.AST == nil {
@@ -64,8 +80,6 @@ func TestCompatibilityHarness(t *testing.T) {
 		})
 	}
 
-	t.Logf("Compatibility: %d/%d statements parsed from %d files", passedStmts, totalStmts, len(entries))
-	if len(failures) > 0 {
-		t.Logf("Failures:\n  %s", strings.Join(failures, "\n  "))
-	}
+	t.Logf("Compatibility: %d/%d files passed, %d expected failures, %d total statements",
+		passedFiles, totalFiles, expectedFailureFiles, totalStmts)
 }
