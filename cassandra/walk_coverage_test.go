@@ -1,7 +1,6 @@
 package cassandra
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -289,8 +288,4 @@ func collectAllNodeStructTypes() []string {
 		}
 	}
 	return result
-}
-
-func init() {
-	_ = fmt.Sprintf // ensure fmt import for error messages
 }

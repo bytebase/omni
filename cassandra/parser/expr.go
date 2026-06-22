@@ -164,17 +164,17 @@ func (p *Parser) parseExpressionList() ([]ast.ExprNode, error) {
 // builtinFuncToken maps keyword token types that represent built-in CQL
 // functions to the canonical (lowercase) function name used in the AST.
 var builtinFuncToken = map[int]string{
-	tokNOW:               "now",
-	tokUUID_KW:           "uuid",
-	tokFROMJSON:          "fromjson",
-	tokTOJSON:            "tojson",
-	tokMINTIMEUUID:       "mintimeuuid",
-	tokMAXTIMEUUID:       "maxtimeuuid",
-	tokDATETIMENOW:       "datetimenow",
-	tokCURRENTTIMESTAMP:  "currenttimestamp",
-	tokCURRENTDATE:       "currentdate",
-	tokCURRENTTIME:       "currenttime",
-	tokCURRENTTIMEUUID:   "currenttimeuuid",
+	tokNOW:              "now",
+	tokUUID_KW:          "uuid",
+	tokFROMJSON:         "fromjson",
+	tokTOJSON:           "tojson",
+	tokMINTIMEUUID:      "mintimeuuid",
+	tokMAXTIMEUUID:      "maxtimeuuid",
+	tokDATETIMENOW:      "datetimenow",
+	tokCURRENTTIMESTAMP: "currenttimestamp",
+	tokCURRENTDATE:      "currentdate",
+	tokCURRENTTIME:      "currenttime",
+	tokCURRENTTIMEUUID:  "currenttimeuuid",
 }
 
 // parseFunctionCall parses a function call.  It handles both built-in

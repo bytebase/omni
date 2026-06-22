@@ -434,10 +434,10 @@ type OrderByElement struct {
 	Column    ExprNode
 	Direction string // "ASC", "DESC", or ""
 	// ANN OF support
-	IsANN       bool
-	AnnVector   ExprNode
-	AnnLimit    ExprNode
-	Loc         Loc
+	IsANN     bool
+	AnnVector ExprNode
+	AnnLimit  ExprNode
+	Loc       Loc
 }
 
 func (*OrderByElement) nodeTag()      {}
@@ -464,15 +464,15 @@ func (n *SelectStmt) GetLoc() Loc { return n.Loc }
 func (*SelectStmt) stmtNode()     {}
 
 type InsertStmt struct {
-	Table      *QualifiedName
-	Columns    []*Identifier
-	Values     []ExprNode
-	IsJSON     bool
-	JSONValue  ExprNode
+	Table        *QualifiedName
+	Columns      []*Identifier
+	Values       []ExprNode
+	IsJSON       bool
+	JSONValue    ExprNode
 	DefaultUnset bool
-	IfNotExists bool
-	Using      *UsingClause
-	Loc        Loc
+	IfNotExists  bool
+	Using        *UsingClause
+	Loc          Loc
 }
 
 func (*InsertStmt) nodeTag()      {}
@@ -480,13 +480,13 @@ func (n *InsertStmt) GetLoc() Loc { return n.Loc }
 func (*InsertStmt) stmtNode()     {}
 
 type UpdateStmt struct {
-	Table       *QualifiedName
-	Using       *UsingClause
-	Assignments []*AssignmentElement
-	Where       []ExprNode
-	IfExists    bool
+	Table        *QualifiedName
+	Using        *UsingClause
+	Assignments  []*AssignmentElement
+	Where        []ExprNode
+	IfExists     bool
 	IfConditions []*IfCondition
-	Loc         Loc
+	Loc          Loc
 }
 
 func (*UpdateStmt) nodeTag()      {}
@@ -494,13 +494,13 @@ func (n *UpdateStmt) GetLoc() Loc { return n.Loc }
 func (*UpdateStmt) stmtNode()     {}
 
 type DeleteStmt struct {
-	Columns  []ExprNode
-	From     *QualifiedName
-	Using    *UsingClause
-	Where    []ExprNode
-	IfExists bool
+	Columns      []ExprNode
+	From         *QualifiedName
+	Using        *UsingClause
+	Where        []ExprNode
+	IfExists     bool
 	IfConditions []*IfCondition
-	Loc      Loc
+	Loc          Loc
 }
 
 func (*DeleteStmt) nodeTag()      {}
@@ -511,7 +511,7 @@ func (*DeleteStmt) stmtNode()     {}
 type BatchType int
 
 const (
-	BatchDefault  BatchType = iota
+	BatchDefault BatchType = iota
 	BatchLogged
 	BatchUnlogged
 )
@@ -550,11 +550,11 @@ func (*UseStmt) stmtNode()     {}
 // ---------------------------------------------------------------------------
 
 type CreateKeyspaceStmt struct {
-	IfNotExists bool
-	Name        *Identifier
-	Replication *OptionHash
+	IfNotExists   bool
+	Name          *Identifier
+	Replication   *OptionHash
 	DurableWrites *BoolLit
-	Loc         Loc
+	Loc           Loc
 }
 
 func (*CreateKeyspaceStmt) nodeTag()      {}
@@ -562,10 +562,10 @@ func (n *CreateKeyspaceStmt) GetLoc() Loc { return n.Loc }
 func (*CreateKeyspaceStmt) stmtNode()     {}
 
 type AlterKeyspaceStmt struct {
-	Name        *Identifier
-	Replication *OptionHash
+	Name          *Identifier
+	Replication   *OptionHash
 	DurableWrites *BoolLit
-	Loc         Loc
+	Loc           Loc
 }
 
 func (*AlterKeyspaceStmt) nodeTag()      {}
@@ -583,14 +583,14 @@ func (n *DropKeyspaceStmt) GetLoc() Loc { return n.Loc }
 func (*DropKeyspaceStmt) stmtNode()     {}
 
 type CreateTableStmt struct {
-	IfNotExists     bool
-	Name            *QualifiedName
-	Columns         []*ColumnDef
-	PrimaryKey      *PrimaryKeyDef
-	Options         []*TableOption
+	IfNotExists      bool
+	Name             *QualifiedName
+	Columns          []*ColumnDef
+	PrimaryKey       *PrimaryKeyDef
+	Options          []*TableOption
 	ClusteringOrders []*ClusteringOrder
-	CompactStorage  bool
-	Loc             Loc
+	CompactStorage   bool
+	Loc              Loc
 }
 
 func (*CreateTableStmt) nodeTag()      {}
@@ -609,14 +609,14 @@ const (
 )
 
 type AlterTableStmt struct {
-	Name    *QualifiedName
-	Op      AlterTableOp
-	AddColumns   []*ColumnDef
-	DropColumns  []*Identifier
-	RenameFrom   *Identifier
-	RenameTo     *Identifier
-	Options      []*TableOption
-	Loc          Loc
+	Name        *QualifiedName
+	Op          AlterTableOp
+	AddColumns  []*ColumnDef
+	DropColumns []*Identifier
+	RenameFrom  *Identifier
+	RenameTo    *Identifier
+	Options     []*TableOption
+	Loc         Loc
 }
 
 func (*AlterTableStmt) nodeTag()      {}
@@ -942,9 +942,9 @@ func (*RevokeStmt) stmtNode()     {}
 
 // Resource represents a CQL resource (ALL KEYSPACES, KEYSPACE ks, TABLE ks.t, etc.)
 type Resource struct {
-	Type     string // "ALL KEYSPACES", "KEYSPACE", "TABLE", "ALL FUNCTIONS", "FUNCTION", "ALL ROLES", "ROLE"
-	Name     *QualifiedName
-	Loc      Loc
+	Type string // "ALL KEYSPACES", "KEYSPACE", "TABLE", "ALL FUNCTIONS", "FUNCTION", "ALL ROLES", "ROLE"
+	Name *QualifiedName
+	Loc  Loc
 }
 
 func (*Resource) nodeTag()      {}
