@@ -1782,6 +1782,7 @@ func isRowColumnType(col *Column) bool {
 //     period that names columns other than the ROW START/END pair.
 func validateSystemVersioning(tbl *Table) error {
 	var rowStart, rowEnd string
+	var rowStartType, rowEndType string
 	hasWithCol := false
 	for _, col := range tbl.Columns {
 		if col.Generated != nil && col.Generated.RowBound != "" {
@@ -1794,17 +1795,22 @@ func validateSystemVersioning(tbl *Table) error {
 				if rowStart != "" {
 					return errDuplicateRowColumn("ROW START", col.Name)
 				}
-				rowStart = col.Name
+				rowStart, rowStartType = col.Name, col.ColumnType
 			case "ROW END":
 				if rowEnd != "" {
 					return errDuplicateRowColumn("ROW END", col.Name)
 				}
-				rowEnd = col.Name
+				rowEnd, rowEndType = col.Name, col.ColumnType
 			}
 		}
 		if col.SystemVersioning == "WITH" {
 			hasWithCol = true
 		}
+	}
+	// ROW START and ROW END must share the same precision mode (both TIMESTAMP(6)
+	// or both BIGINT UNSIGNED).
+	if rowStart != "" && rowEnd != "" && !strings.EqualFold(rowStartType, rowEndType) {
+		return errWrongRowColumnType(tbl.Name, rowEnd)
 	}
 	hasPeriod := tbl.PeriodStartCol != ""
 	hasRowCols := rowStart != "" || rowEnd != ""
