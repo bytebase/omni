@@ -2480,9 +2480,15 @@ func writeSystemTime(sb *strings.Builder, n *SystemTime) {
 		sb.WriteString(" :from ")
 		writeNode(sb, n.From)
 	}
+	if n.FromTransaction {
+		sb.WriteString(" :from_transaction true")
+	}
 	if n.To != nil {
 		sb.WriteString(" :to ")
 		writeNode(sb, n.To)
+	}
+	if n.ToTransaction {
+		sb.WriteString(" :to_transaction true")
 	}
 	sb.WriteString("}")
 }
