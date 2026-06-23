@@ -56,7 +56,9 @@ const (
 	ErrWrongSystemVersioning             = 4123
 	ErrRowColumnWrongType                = 4110
 	ErrNotSystemVersioned                = 4124
+	ErrAlterOnSystemVersioned            = 4119
 	ErrDuplicateRowColumn                = 4134
+	ErrAlreadySystemVersioned            = 4135
 	ErrMissingSystemVersioning           = 4125
 )
 
@@ -92,7 +94,9 @@ var sqlStateMap = map[int]string{
 	ErrWrongSystemVersioning:             "HY000",
 	ErrRowColumnWrongType:                "HY000",
 	ErrNotSystemVersioned:                "HY000",
+	ErrAlterOnSystemVersioned:            "HY000",
 	ErrDuplicateRowColumn:                "HY000",
+	ErrAlreadySystemVersioned:            "HY000",
 	ErrMissingSystemVersioning:           "HY000",
 	ErrWrongArguments:                    "HY000",
 	ErrWrongNameForIndex:                 "42000",
@@ -294,6 +298,16 @@ func errInconsistentSystemVersioning(table string) error {
 func errNotSystemVersioned(table string) error {
 	return &Error{Code: ErrNotSystemVersioned, SQLState: sqlState(ErrNotSystemVersioned),
 		Message: fmt.Sprintf("Table `%s` is not system-versioned", table)}
+}
+
+func errAlreadySystemVersioned(table string) error {
+	return &Error{Code: ErrAlreadySystemVersioned, SQLState: sqlState(ErrAlreadySystemVersioned),
+		Message: fmt.Sprintf("Table `%s` is already system-versioned", table)}
+}
+
+func errAlterColumnOnSystemVersioned(table string) error {
+	return &Error{Code: ErrAlterOnSystemVersioned, SQLState: sqlState(ErrAlterOnSystemVersioned),
+		Message: fmt.Sprintf("Not allowed for system-versioned `%s`. Change @@system_versioning_alter_history to proceed with ALTER.", table)}
 }
 
 func errNoVersionedColumn(table string) error {

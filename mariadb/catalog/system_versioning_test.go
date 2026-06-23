@@ -288,6 +288,46 @@ func TestSystemVersioningWithoutColumn(t *testing.T) {
 	}
 }
 
+// TestSystemVersioningAlterGuards covers MariaDB's pre-state guards: the
+// versioning ALTERs are not idempotent, and ordinary column ALTERs are not
+// allowed on a table that is already system-versioned at statement start.
+func TestSystemVersioningAlterGuards(t *testing.T) {
+	const versioned = "CREATE TABLE sv (x INT) WITH SYSTEM VERSIONING"
+	const withPeriod = "CREATE TABLE sv2 (x INT, rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING"
+
+	rejects := []struct{ create, alter string }{
+		// idempotent-ALTER guards
+		{versioned, "ALTER TABLE sv ADD SYSTEM VERSIONING"},                  // 4135 already versioned
+		{"CREATE TABLE pl (x INT)", "ALTER TABLE pl DROP SYSTEM VERSIONING"}, // 4124 not versioned
+		{withPeriod, "ALTER TABLE sv2 ADD PERIOD FOR SYSTEM_TIME(rs, re)"},   // 4135 duplicate period
+		// ordinary column ALTERs on an already-versioned table (4119)
+		{versioned, "ALTER TABLE sv ADD COLUMN y INT"},
+		{versioned, "ALTER TABLE sv DROP COLUMN x"},
+		{versioned, "ALTER TABLE sv MODIFY x BIGINT"},
+	}
+	for _, tc := range rejects {
+		t.Run("reject", func(t *testing.T) {
+			c := versionedCatalog(t, tc.create)
+			if _, ok := alterErr(c, tc.alter).(*Error); !ok {
+				t.Errorf("expected rejection for %q", tc.alter)
+			}
+		})
+	}
+
+	// Becoming versioned in the same statement allows the accompanying column op.
+	t.Run("becoming versioned with column op accepted", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE pl (x INT)")
+		if err := alterErr(c, "ALTER TABLE pl ADD SYSTEM VERSIONING, ADD COLUMN y INT"); err != nil {
+			t.Errorf("ADD SYSTEM VERSIONING + ADD COLUMN should be accepted, got: %v", err)
+		}
+	})
+}
+
+func alterErr(c *Catalog, sql string) error {
+	r, _ := c.Exec(sql, &ExecOptions{ContinueOnError: true})
+	return r[0].Error
+}
+
 func versionedCatalog(t *testing.T, createSQL string) *Catalog {
 	t.Helper()
 	c := New()

@@ -40,6 +40,15 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 				return errNotSystemVersioned(tbl.Name)
 			}
 		}
+	} else {
+		// Ordinary column add/drop/modify/change is not allowed on a table that
+		// is already system-versioned at statement start (MariaDB default; it
+		// requires @@system_versioning_alter_history, which is not modeled).
+		for _, cmd := range stmt.Commands {
+			if isColumnMutation(cmd) {
+				return errAlterColumnOnSystemVersioned(tbl.Name)
+			}
+		}
 	}
 
 	if len(stmt.Commands) == 1 {
@@ -153,12 +162,21 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		tbl.Partitioning = nil
 		return nil
 	case nodes.ATAddSystemVersioning:
+		if tbl.SystemVersioned {
+			return errAlreadySystemVersioned(tbl.Name)
+		}
 		tbl.SystemVersioned = true
 		return nil
 	case nodes.ATDropSystemVersioning:
+		if !tbl.SystemVersioned {
+			return errNotSystemVersioned(tbl.Name)
+		}
 		tbl.SystemVersioned = false
 		return nil
 	case nodes.ATAddPeriod:
+		if tbl.PeriodStartCol != "" {
+			return errAlreadySystemVersioned(tbl.Name)
+		}
 		tbl.PeriodStartCol = cmd.PeriodStartCol
 		tbl.PeriodEndCol = cmd.PeriodEndCol
 		return nil
@@ -190,6 +208,17 @@ func cmdAffectsVersioning(cmd *nodes.AlterTableCmd) bool {
 				return true
 			}
 		}
+	}
+	return false
+}
+
+// isColumnMutation reports whether an ALTER command adds, drops, modifies, or
+// changes a column. RENAME COLUMN and index/table-option changes are excluded —
+// MariaDB allows those on a system-versioned table.
+func isColumnMutation(cmd *nodes.AlterTableCmd) bool {
+	switch cmd.Type {
+	case nodes.ATAddColumn, nodes.ATDropColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
+		return true
 	}
 	return false
 }
