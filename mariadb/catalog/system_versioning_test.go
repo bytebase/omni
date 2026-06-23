@@ -419,6 +419,31 @@ func TestSystemVersioningExplicitWithExcludesOthers(t *testing.T) {
 	})
 }
 
+// TestSystemVersioningCreateLike: CREATE TABLE ... LIKE preserves the
+// system-versioning metadata of the source (container-verified vs 11.8.8).
+func TestSystemVersioningCreateLike(t *testing.T) {
+	t.Run("implicit source stays versioned", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE sv (x INT) WITH SYSTEM VERSIONING")
+		c.Exec("CREATE TABLE t2 LIKE sv", nil)
+		if ddl := c.ShowCreateTable("test", "t2"); !strings.Contains(ddl, "WITH SYSTEM VERSIONING") {
+			t.Errorf("LIKE downgraded an implicit versioned table:\n%s", ddl)
+		}
+	})
+	t.Run("explicit source copies row columns and period", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE sv2 (x INT, rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING")
+		c.Exec("CREATE TABLE t3 LIKE sv2", nil)
+		ddl := c.ShowCreateTable("test", "t3")
+		if strings.Contains(ddl, "AS ()") {
+			t.Errorf("LIKE rendered a broken generated column:\n%s", ddl)
+		}
+		for _, want := range []string{"GENERATED ALWAYS AS ROW START", "PERIOD FOR SYSTEM_TIME (`rs`, `re`)", "WITH SYSTEM VERSIONING"} {
+			if !strings.Contains(ddl, want) {
+				t.Errorf("LIKE missing %q:\n%s", want, ddl)
+			}
+		}
+	})
+}
+
 func alterErr(c *Catalog, sql string) error {
 	r, _ := c.Exec(sql, &ExecOptions{ContinueOnError: true})
 	return r[0].Error

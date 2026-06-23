@@ -2299,6 +2299,9 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		Checksum:         srcTbl.Checksum,
 		DelayKeyWrite:    srcTbl.DelayKeyWrite,
 		Temporary:        stmt.Temporary,
+		SystemVersioned:  srcTbl.SystemVersioned,
+		PeriodStartCol:   srcTbl.PeriodStartCol,
+		PeriodEndCol:     srcTbl.PeriodEndCol,
 	}
 
 	// Copy columns.
@@ -2318,6 +2321,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Invisible:                    srcCol.Invisible,
 			GeneratedInvisiblePrimaryKey: srcCol.GeneratedInvisiblePrimaryKey,
 			Hidden:                       srcCol.Hidden,
+			SystemVersioning:             srcCol.SystemVersioning,
 		}
 		if srcCol.Default != nil {
 			def := *srcCol.Default
@@ -2326,8 +2330,9 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		}
 		if srcCol.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
-				Expr:   srcCol.Generated.Expr,
-				Stored: srcCol.Generated.Stored,
+				Expr:     srcCol.Generated.Expr,
+				Stored:   srcCol.Generated.Stored,
+				RowBound: srcCol.Generated.RowBound,
 			}
 		}
 		tbl.Columns = append(tbl.Columns, col)
