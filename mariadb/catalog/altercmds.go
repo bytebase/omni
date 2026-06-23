@@ -29,6 +29,19 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return nil
 	}
 
+	// A column-level WITH/WITHOUT SYSTEM VERSIONING is valid only when the table
+	// is already system-versioned at the start of the statement — a later
+	// ADD SYSTEM VERSIONING in the same ALTER does not retroactively allow it.
+	// Checked up front (against the pre-statement state) so command order does
+	// not matter.
+	if !tbl.SystemVersioned {
+		for _, cmd := range stmt.Commands {
+			if addsColumnVersioning(cmd) {
+				return errNotSystemVersioned(tbl.Name)
+			}
+		}
+	}
+
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
 		// A versioned table can be made inconsistent by any column change (a
@@ -181,6 +194,24 @@ func cmdAffectsVersioning(cmd *nodes.AlterTableCmd) bool {
 	return false
 }
 
+// addsColumnVersioning reports whether an ALTER command adds a column carrying a
+// column-level WITH/WITHOUT SYSTEM VERSIONING attribute (which requires the table
+// to already be system-versioned, independent of command order).
+func addsColumnVersioning(cmd *nodes.AlterTableCmd) bool {
+	if cmd.Type != nodes.ATAddColumn {
+		return false
+	}
+	if cmd.Column != nil && cmd.Column.SystemVersioning != nodes.ColVersioningNone {
+		return true
+	}
+	for _, c := range cmd.Columns {
+		if c != nil && c.SystemVersioning != nodes.ColVersioningNone {
+			return true
+		}
+	}
+	return false
+}
+
 // colDefHasVersioningMeta reports whether a column definition carries
 // system-versioning metadata (a ROW START/END bound or WITH/WITHOUT versioning).
 func colDefHasVersioningMeta(colDef *nodes.ColumnDef) bool {
@@ -221,12 +252,6 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	colKey := toLower(colDef.Name)
 	if _, exists := tbl.colByName[colKey]; exists {
 		return errDupColumn(colDef.Name)
-	}
-	// A column-level WITH/WITHOUT SYSTEM VERSIONING requires the table to already
-	// be system-versioned. MariaDB checks this per-command, so a later
-	// ADD SYSTEM VERSIONING in the same ALTER cannot retroactively validate it.
-	if colDef.SystemVersioning != nodes.ColVersioningNone && !tbl.SystemVersioned {
-		return errNotSystemVersioned(tbl.Name)
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
