@@ -55,6 +55,7 @@ const (
 	ErrCheckConstraintDupName            = 3822
 	ErrWrongSystemVersioning             = 4123
 	ErrRowColumnWrongType                = 4110
+	ErrNotSystemVersioned                = 4124
 	ErrDuplicateRowColumn                = 4134
 	ErrMissingSystemVersioning           = 4125
 )
@@ -90,6 +91,7 @@ var sqlStateMap = map[int]string{
 	ErrDependentByGenCol:                 "HY000",
 	ErrWrongSystemVersioning:             "HY000",
 	ErrRowColumnWrongType:                "HY000",
+	ErrNotSystemVersioned:                "HY000",
 	ErrDuplicateRowColumn:                "HY000",
 	ErrMissingSystemVersioning:           "HY000",
 	ErrWrongArguments:                    "HY000",
@@ -287,6 +289,16 @@ func errMissingSystemVersioning(table string) error {
 func errInconsistentSystemVersioning(table string) error {
 	return &Error{Code: ErrWrongSystemVersioning, SQLState: sqlState(ErrWrongSystemVersioning),
 		Message: fmt.Sprintf("Inconsistent system-versioning metadata for `%s`: PERIOD FOR SYSTEM_TIME must use the ROW START/END columns", table)}
+}
+
+func errNotSystemVersioned(table string) error {
+	return &Error{Code: ErrNotSystemVersioned, SQLState: sqlState(ErrNotSystemVersioned),
+		Message: fmt.Sprintf("Table `%s` is not system-versioned", table)}
+}
+
+func errNoVersionedColumn(table string) error {
+	return &Error{Code: ErrWrongSystemVersioning, SQLState: sqlState(ErrWrongSystemVersioning),
+		Message: fmt.Sprintf("Table `%s` must have at least one versioned column", table)}
 }
 
 func errDuplicateRowColumn(bound, col string) error {

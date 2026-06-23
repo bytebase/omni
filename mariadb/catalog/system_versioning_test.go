@@ -235,6 +235,37 @@ func TestSystemVersioningRowColumnRules(t *testing.T) {
 	}
 }
 
+// TestSystemVersioningWithoutColumn covers MariaDB's treatment of a column-level
+// WITHOUT SYSTEM VERSIONING and the "at least one versioned column" rule.
+func TestSystemVersioningWithoutColumn(t *testing.T) {
+	// On a non-versioned table WITHOUT is a no-op: SHOW CREATE omits it.
+	t.Run("without on plain table is a no-op", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE w (x INT WITHOUT SYSTEM VERSIONING)")
+		if ddl := c.ShowCreateTable("test", "w"); strings.Contains(ddl, "WITHOUT SYSTEM VERSIONING") {
+			t.Errorf("WITHOUT should be omitted on a non-versioned table:\n%s", ddl)
+		}
+	})
+	// ALTER adding a WITHOUT column to a plain table is rejected (4124).
+	t.Run("alter add without column to plain table rejected", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE pl (x INT)")
+		r, _ := c.Exec("ALTER TABLE pl ADD COLUMN y INT WITHOUT SYSTEM VERSIONING", &ExecOptions{ContinueOnError: true})
+		if _, ok := r[0].Error.(*Error); !ok {
+			t.Errorf("expected rejection, got accepted; ShowCreate:\n%s", c.ShowCreateTable("test", "pl"))
+		}
+	})
+	// A system-versioned table needs at least one versioned column.
+	for _, sql := range []string{
+		"CREATE TABLE t (rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING",
+		"CREATE TABLE t (x INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING",
+	} {
+		t.Run("needs a versioned column", func(t *testing.T) {
+			if _, ok := execErr(t, sql).(*Error); !ok {
+				t.Errorf("expected rejection for %q, got accepted", sql)
+			}
+		})
+	}
+}
+
 func versionedCatalog(t *testing.T, createSQL string) *Catalog {
 	t.Helper()
 	c := New()

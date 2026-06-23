@@ -360,6 +360,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		tbl.colByName[colKey] = i
 	}
 
+	// A column-level WITHOUT SYSTEM VERSIONING is a no-op on a non-versioned
+	// table — MariaDB discards it (SHOW CREATE omits it).
+	if !tbl.SystemVersioned {
+		for _, col := range tbl.Columns {
+			col.SystemVersioning = ""
+		}
+	}
 	if err := validateSystemVersioning(tbl); err != nil {
 		return err
 	}
@@ -1783,10 +1790,11 @@ func isRowColumnType(col *Column) bool {
 func validateSystemVersioning(tbl *Table) error {
 	var rowStart, rowEnd string
 	var rowStartType, rowEndType string
-	hasWithCol := false
+	hasColVersioning := false // any column-level WITH / WITHOUT
+	versionedCols := 0        // columns that are neither row-bound nor WITHOUT
 	for _, col := range tbl.Columns {
 		if col.Generated != nil && col.Generated.RowBound != "" {
-			// Row start/end columns must be TIMESTAMP(6) and unique.
+			// Row start/end columns must be a valid version type and unique.
 			if !isRowColumnType(col) {
 				return errWrongRowColumnType(tbl.Name, col.Name)
 			}
@@ -1802,9 +1810,13 @@ func validateSystemVersioning(tbl *Table) error {
 				}
 				rowEnd, rowEndType = col.Name, col.ColumnType
 			}
+			continue
 		}
-		if col.SystemVersioning == "WITH" {
-			hasWithCol = true
+		if col.SystemVersioning != "" {
+			hasColVersioning = true
+		}
+		if col.SystemVersioning != "WITHOUT" {
+			versionedCols++
 		}
 	}
 	// ROW START and ROW END must share the same precision mode (both TIMESTAMP(6)
@@ -1816,20 +1828,31 @@ func validateSystemVersioning(tbl *Table) error {
 	hasRowCols := rowStart != "" || rowEnd != ""
 
 	if !tbl.SystemVersioned {
-		if hasPeriod || hasRowCols || hasWithCol {
+		// Versioning metadata is invalid on a non-versioned table. PERIOD/row
+		// columns are 4125 ("missing WITH SYSTEM VERSIONING" at CREATE, "missing
+		// DROP COLUMN" when an ALTER DROP orphans them); a column-level
+		// WITH/WITHOUT is 4124. (CREATE discards a no-op WITHOUT before this.)
+		if hasPeriod || hasRowCols {
 			return errMissingSystemVersioning(tbl.Name)
+		}
+		if hasColVersioning {
+			return errNotSystemVersioned(tbl.Name)
 		}
 		return nil
 	}
 
+	// Explicit PERIOD and ROW START/END columns must be present together and
+	// reference each other (identifiers compare case-insensitively).
 	if hasPeriod || hasRowCols {
-		// Column identifiers compare case-insensitively, so PERIOD FOR
-		// SYSTEM_TIME(RS, RE) matches row columns declared rs / re.
 		if !hasPeriod || rowStart == "" || rowEnd == "" ||
 			!strings.EqualFold(tbl.PeriodStartCol, rowStart) ||
 			!strings.EqualFold(tbl.PeriodEndCol, rowEnd) {
 			return errInconsistentSystemVersioning(tbl.Name)
 		}
+	}
+	// A system-versioned table must have at least one versioned column.
+	if versionedCols == 0 {
+		return errNoVersionedColumn(tbl.Name)
 	}
 	return nil
 }
