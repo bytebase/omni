@@ -49,6 +49,19 @@ func TestSystemTimeAsOfTransaction(t *testing.T) {
 	ParseAndCheck(t, "SELECT * FROM t FOR SYSTEM_TIME AS OF TRANSACTION 12345")
 }
 
+// TestSystemTimeTransactionRange covers the TRANSACTION qualifier in the range
+// forms (BETWEEN / FROM..TO), including mixed transaction/timestamp bounds — all
+// parse-accepted by mariadb:11.8.8 (mdbcheck GAP), matching AS OF TRANSACTION.
+func TestSystemTimeTransactionRange(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT * FROM t FOR SYSTEM_TIME BETWEEN TRANSACTION 100 AND TRANSACTION 200",
+		"SELECT * FROM t FOR SYSTEM_TIME FROM TRANSACTION 100 TO TRANSACTION 200",
+		"SELECT * FROM t FOR SYSTEM_TIME BETWEEN TRANSACTION 100 AND '2021-01-01'",
+	} {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
 // TestSystemTimeReject covers the 1064 edges (all AGREE_REJECT vs mariadb:11.8.8):
 // the locking clause must keep its FOR, temporal binds before the alias only,
 // it attaches to base tables (not derived), and each form needs its full spec.
@@ -148,6 +161,18 @@ func TestSystemTimeAST(t *testing.T) {
 		}
 		if st.From != nil || st.To != nil {
 			t.Errorf("ALL should set no bounds; got From=%v To=%v", st.From, st.To)
+		}
+	})
+	t.Run("between transaction bounds", func(t *testing.T) {
+		st := sysTime(t, "SELECT * FROM t FOR SYSTEM_TIME BETWEEN TRANSACTION 100 AND TRANSACTION 200")
+		if !st.FromTransaction || !st.ToTransaction {
+			t.Errorf("want both bounds transaction-qualified; got From=%v To=%v", st.FromTransaction, st.ToTransaction)
+		}
+	})
+	t.Run("between mixed bounds", func(t *testing.T) {
+		st := sysTime(t, "SELECT * FROM t FOR SYSTEM_TIME BETWEEN TRANSACTION 100 AND '2021-01-01'")
+		if !st.FromTransaction || st.ToTransaction {
+			t.Errorf("want From transaction-qualified only; got From=%v To=%v", st.FromTransaction, st.ToTransaction)
 		}
 	})
 }

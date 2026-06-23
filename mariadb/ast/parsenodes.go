@@ -882,6 +882,12 @@ type SystemTime struct {
 	Kind SystemTimeKind
 	From ExprNode
 	To   ExprNode
+	// FromTransaction/ToTransaction record a TRANSACTION qualifier on the
+	// corresponding BETWEEN / FROM..TO bound (transaction-id precision). Bounds
+	// are independent — MariaDB allows mixing TRANSACTION and timestamp bounds.
+	// (AS OF TRANSACTION is encoded via SystemTimeAsOfTransaction instead.)
+	FromTransaction bool
+	ToTransaction   bool
 }
 
 func (s *SystemTime) nodeTag() {}

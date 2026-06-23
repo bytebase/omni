@@ -20,6 +20,9 @@ func TestDeparseSystemTime(t *testing.T) {
 		{"SELECT * FROM t FOR SYSTEM_TIME FROM '2020-01-01' TO '2020-06-01'", "for system_time from '2020-01-01' to '2020-06-01'"},
 		{"SELECT * FROM t FOR SYSTEM_TIME ALL", "for system_time all"},
 		{"SELECT * FROM t FOR SYSTEM_TIME AS OF TRANSACTION 12345", "for system_time as of transaction 12345"},
+		{"SELECT * FROM t FOR SYSTEM_TIME BETWEEN TRANSACTION 100 AND TRANSACTION 200", "for system_time between transaction 100 and transaction 200"},
+		{"SELECT * FROM t FOR SYSTEM_TIME FROM TRANSACTION 100 TO TRANSACTION 200", "for system_time from transaction 100 to transaction 200"},
+		{"SELECT * FROM t FOR SYSTEM_TIME BETWEEN TRANSACTION 100 AND '2021-01-01'", "for system_time between transaction 100 and '2021-01-01'"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.sql, func(t *testing.T) {

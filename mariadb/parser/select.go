@@ -1618,9 +1618,12 @@ func (p *Parser) parseForSystemTime() (*nodes.SystemTime, error) {
 		}
 		st.From = expr
 	case kwBETWEEN:
-		// BETWEEN expr AND expr — bounds parsed at precAdd so the AND is read as
-		// the range separator, not a boolean operator (see parseBetweenExpr).
+		// BETWEEN [TRANSACTION] expr AND [TRANSACTION] expr — bounds parsed at
+		// precAdd so the AND is read as the range separator, not a boolean
+		// operator (see parseBetweenExpr). Each bound may carry a TRANSACTION
+		// qualifier (transaction-id precision), independently.
 		p.advance() // BETWEEN
+		st.FromTransaction = p.consumeTransactionKeyword()
 		lo, err := p.parseExprPrec(precAdd)
 		if err != nil {
 			return nil, err
@@ -1628,6 +1631,7 @@ func (p *Parser) parseForSystemTime() (*nodes.SystemTime, error) {
 		if _, err := p.expect(kwAND); err != nil {
 			return nil, err
 		}
+		st.ToTransaction = p.consumeTransactionKeyword()
 		hi, err := p.parseExprPrec(precAdd)
 		if err != nil {
 			return nil, err
@@ -1636,8 +1640,9 @@ func (p *Parser) parseForSystemTime() (*nodes.SystemTime, error) {
 		st.From = lo
 		st.To = hi
 	case kwFROM:
-		// FROM expr TO expr
+		// FROM [TRANSACTION] expr TO [TRANSACTION] expr
 		p.advance() // FROM
+		st.FromTransaction = p.consumeTransactionKeyword()
 		lo, err := p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -1645,6 +1650,7 @@ func (p *Parser) parseForSystemTime() (*nodes.SystemTime, error) {
 		if _, err := p.expect(kwTO); err != nil {
 			return nil, err
 		}
+		st.ToTransaction = p.consumeTransactionKeyword()
 		hi, err := p.parseExpr()
 		if err != nil {
 			return nil, err
@@ -1661,6 +1667,16 @@ func (p *Parser) parseForSystemTime() (*nodes.SystemTime, error) {
 
 	st.Loc.End = p.pos()
 	return st, nil
+}
+
+// consumeTransactionKeyword consumes a leading TRANSACTION qualifier on a
+// FOR SYSTEM_TIME point-in-time bound and reports whether it was present.
+func (p *Parser) consumeTransactionKeyword() bool {
+	if p.cur.Type == kwTRANSACTION {
+		p.advance()
+		return true
+	}
+	return false
 }
 
 // parseLockInShareMode parses LOCK IN SHARE MODE (legacy syntax).

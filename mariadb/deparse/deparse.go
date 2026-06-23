@@ -1079,14 +1079,25 @@ func deparseSystemTime(st *ast.SystemTime) string {
 	case ast.SystemTimeAsOfTransaction:
 		return "for system_time as of transaction " + deparseExpr(st.From)
 	case ast.SystemTimeBetween:
-		return "for system_time between " + deparseExpr(st.From) + " and " + deparseExpr(st.To)
+		return "for system_time between " + systemTimeBound(st.From, st.FromTransaction) +
+			" and " + systemTimeBound(st.To, st.ToTransaction)
 	case ast.SystemTimeFromTo:
-		return "for system_time from " + deparseExpr(st.From) + " to " + deparseExpr(st.To)
+		return "for system_time from " + systemTimeBound(st.From, st.FromTransaction) +
+			" to " + systemTimeBound(st.To, st.ToTransaction)
 	case ast.SystemTimeAll:
 		return "for system_time all"
 	default:
 		return ""
 	}
+}
+
+// systemTimeBound renders a FOR SYSTEM_TIME range bound, prefixing TRANSACTION
+// when the bound carries the transaction-id qualifier.
+func systemTimeBound(expr ast.ExprNode, transaction bool) string {
+	if transaction {
+		return "transaction " + deparseExpr(expr)
+	}
+	return deparseExpr(expr)
 }
 
 func deparseExpr(node ast.ExprNode) string {
