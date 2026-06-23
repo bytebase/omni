@@ -1790,8 +1790,7 @@ func isRowColumnType(col *Column) bool {
 func validateSystemVersioning(tbl *Table) error {
 	var rowStart, rowEnd string
 	var rowStartType, rowEndType string
-	hasColVersioning := false // any column-level WITH / WITHOUT
-	versionedCols := 0        // columns that are neither row-bound nor WITHOUT
+	versionedCols := 0 // columns that are neither row-bound nor WITHOUT
 	for _, col := range tbl.Columns {
 		if col.Generated != nil && col.Generated.RowBound != "" {
 			// Row start/end columns must be a valid version type and unique.
@@ -1812,9 +1811,6 @@ func validateSystemVersioning(tbl *Table) error {
 			}
 			continue
 		}
-		if col.SystemVersioning != "" {
-			hasColVersioning = true
-		}
 		if col.SystemVersioning != "WITHOUT" {
 			versionedCols++
 		}
@@ -1828,15 +1824,12 @@ func validateSystemVersioning(tbl *Table) error {
 	hasRowCols := rowStart != "" || rowEnd != ""
 
 	if !tbl.SystemVersioned {
-		// Versioning metadata is invalid on a non-versioned table. PERIOD/row
-		// columns are 4125 ("missing WITH SYSTEM VERSIONING" at CREATE, "missing
-		// DROP COLUMN" when an ALTER DROP orphans them); a column-level
-		// WITH/WITHOUT is 4124. (CREATE discards a no-op WITHOUT before this.)
+		// PERIOD / ROW START/END columns are invalid on a non-versioned table
+		// (4125). A column-level WITH/WITHOUT is allowed to remain (e.g. after
+		// DROP SYSTEM VERSIONING) — adding one to a plain table is already
+		// rejected up front by the ALTER pre-check.
 		if hasPeriod || hasRowCols {
 			return errMissingSystemVersioning(tbl.Name)
-		}
-		if hasColVersioning {
-			return errNotSystemVersioned(tbl.Name)
 		}
 		return nil
 	}

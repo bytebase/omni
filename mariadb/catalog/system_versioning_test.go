@@ -367,6 +367,29 @@ func TestSystemVersioningRenameAndDropPeriod(t *testing.T) {
 	})
 }
 
+// TestSystemVersioningDropKeepsWithoutAndTruncate: DROP SYSTEM VERSIONING is
+// allowed when a column carries WITHOUT (kept, not a 4124), and TRUNCATE on a
+// system-versioned table is rejected (4137). Container-verified vs 11.8.8.
+func TestSystemVersioningDropKeepsWithoutAndTruncate(t *testing.T) {
+	t.Run("drop versioning keeps column WITHOUT", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE w (x INT, y INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING")
+		if err := alterErr(c, "ALTER TABLE w DROP SYSTEM VERSIONING"); err != nil {
+			t.Fatalf("DROP SYSTEM VERSIONING should be accepted, got: %v", err)
+		}
+		if ddl := c.ShowCreateTable("test", "w"); !strings.Contains(ddl, "WITHOUT SYSTEM VERSIONING") {
+			t.Errorf("column WITHOUT should be kept:\n%s", ddl)
+		}
+	})
+	t.Run("truncate system-versioned rejected", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE sv (x INT) WITH SYSTEM VERSIONING")
+		r, _ := c.Exec("TRUNCATE TABLE sv", &ExecOptions{ContinueOnError: true})
+		catErr, ok := r[0].Error.(*Error)
+		if !ok || catErr.Code != 4137 {
+			t.Errorf("expected 4137, got %v", r[0].Error)
+		}
+	})
+}
+
 func alterErr(c *Catalog, sql string) error {
 	r, _ := c.Exec(sql, &ExecOptions{ContinueOnError: true})
 	return r[0].Error

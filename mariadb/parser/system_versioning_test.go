@@ -75,6 +75,22 @@ func TestSystemVersioningAST(t *testing.T) {
 	})
 }
 
+// TestSystemVersioningGeneratedColumnReject: column-level WITH/WITHOUT SYSTEM
+// VERSIONING is not allowed on an expression-generated column (MariaDB 1064),
+// in either attribute order.
+func TestSystemVersioningGeneratedColumnReject(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TABLE t (x INT, g INT GENERATED ALWAYS AS (x + 1) WITH SYSTEM VERSIONING) WITH SYSTEM VERSIONING",
+		"CREATE TABLE t (x INT, g INT GENERATED ALWAYS AS (x + 1) WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING",
+		"CREATE TABLE t (x INT, g INT WITH SYSTEM VERSIONING GENERATED ALWAYS AS (x + 1)) WITH SYSTEM VERSIONING",
+	} {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+	// A generated column without versioning, and a plain WITHOUT column, parse.
+	ParseAndCheck(t, "CREATE TABLE t (x INT, g INT GENERATED ALWAYS AS (x + 1)) WITH SYSTEM VERSIONING")
+	ParseAndCheck(t, "CREATE TABLE t (x INT, y INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING")
+}
+
 func hasSystemVersioningOption(opts []*ast.TableOption) bool {
 	for _, o := range opts {
 		if o.Name == "SYSTEM VERSIONING" {

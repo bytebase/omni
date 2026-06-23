@@ -59,6 +59,7 @@ const (
 	ErrAlterOnSystemVersioned            = 4119
 	ErrDuplicateRowColumn                = 4134
 	ErrAlreadySystemVersioned            = 4135
+	ErrTruncateSystemVersioned           = 4137
 	ErrMissingSystemVersioning           = 4125
 )
 
@@ -97,6 +98,7 @@ var sqlStateMap = map[int]string{
 	ErrAlterOnSystemVersioned:            "HY000",
 	ErrDuplicateRowColumn:                "HY000",
 	ErrAlreadySystemVersioned:            "HY000",
+	ErrTruncateSystemVersioned:           "HY000",
 	ErrMissingSystemVersioning:           "HY000",
 	ErrWrongArguments:                    "HY000",
 	ErrWrongNameForIndex:                 "42000",
@@ -298,6 +300,11 @@ func errInconsistentSystemVersioning(table string) error {
 func errNotSystemVersioned(table string) error {
 	return &Error{Code: ErrNotSystemVersioned, SQLState: sqlState(ErrNotSystemVersioned),
 		Message: fmt.Sprintf("Table `%s` is not system-versioned", table)}
+}
+
+func errTruncateSystemVersioned(table string) error {
+	return &Error{Code: ErrTruncateSystemVersioned, SQLState: sqlState(ErrTruncateSystemVersioned),
+		Message: fmt.Sprintf("System-versioned tables do not support TRUNCATE TABLE, table `%s`", table)}
 }
 
 func errAlreadySystemVersioned(table string) error {
