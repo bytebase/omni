@@ -162,12 +162,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// see altercmds.go which uses nextCheckNumber (gap-scan helper).
 	var unnamedCheckCount int
 
-	// PERIOD FOR SYSTEM_TIME makes the table system-versioned.
+	// PERIOD FOR SYSTEM_TIME columns. Whether this makes a valid system-versioned
+	// table is validated after columns are processed (it requires an explicit
+	// WITH SYSTEM VERSIONING).
 	tbl.PeriodStartCol = stmt.PeriodStartCol
 	tbl.PeriodEndCol = stmt.PeriodEndCol
-	if tbl.PeriodStartCol != "" {
-		tbl.SystemVersioned = true
-	}
 
 	// Process columns.
 	for i, colDef := range stmt.Columns {
@@ -359,6 +358,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 		tbl.Columns = append(tbl.Columns, col)
 		tbl.colByName[colKey] = i
+	}
+
+	// MariaDB requires explicit system versioning (a table-level WITH SYSTEM
+	// VERSIONING, or a column-level WITH SYSTEM VERSIONING) when the table
+	// declares a PERIOD FOR SYSTEM_TIME or a ROW START/END column (error 4125).
+	if !tbl.SystemVersioned && (tbl.PeriodStartCol != "" || hasRowBoundColumn(tbl)) {
+		return errMissingSystemVersioning(tbl.Name)
 	}
 
 	c.applyTimestampSessionDefaults(tbl.Columns, stmt.Columns)
@@ -1759,6 +1765,17 @@ func applyBinaryModifierCollation(col *Column, dt *nodes.DataType) {
 // nodeToSQLGenerated converts an AST expression to SQL for use in a generated
 // column definition. MySQL prefixes string literals with a charset introducer
 // (e.g., _utf8mb4'value') in generated column expressions.
+// hasRowBoundColumn reports whether any column is a system-versioning period
+// column (GENERATED ALWAYS AS ROW START/END).
+func hasRowBoundColumn(tbl *Table) bool {
+	for _, col := range tbl.Columns {
+		if col.Generated != nil && col.Generated.RowBound != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // rowBoundSQL maps a parsed ROW START/END bound to its SHOW CREATE text.
 func rowBoundSQL(rb nodes.RowBoundKind) string {
 	switch rb {

@@ -53,6 +53,7 @@ const (
 	ErrFKDupName                         = 1826
 	ErrCheckConstraintNotAllowed         = 3815
 	ErrCheckConstraintDupName            = 3822
+	ErrMissingSystemVersioning           = 4125
 )
 
 var sqlStateMap = map[int]string{
@@ -84,6 +85,7 @@ var sqlStateMap = map[int]string{
 	ErrFKCannotUseVirtualColumn:          "HY000",
 	ErrUnsupportedGeneratedStorageChange: "HY000",
 	ErrDependentByGenCol:                 "HY000",
+	ErrMissingSystemVersioning:           "HY000",
 	ErrWrongArguments:                    "HY000",
 	ErrWrongNameForIndex:                 "42000",
 	ErrInvalidOnUpdate:                   "HY000",
@@ -269,6 +271,11 @@ func errNoSuchEvent(db, name string) error {
 func errUnsupportedGeneratedStorageChange(col, table string) error {
 	return &Error{Code: ErrUnsupportedGeneratedStorageChange, SQLState: sqlState(ErrUnsupportedGeneratedStorageChange),
 		Message: fmt.Sprintf("'Changing the STORED status' is not supported for generated columns.")}
+}
+
+func errMissingSystemVersioning(table string) error {
+	return &Error{Code: ErrMissingSystemVersioning, SQLState: sqlState(ErrMissingSystemVersioning),
+		Message: fmt.Sprintf("Wrong parameters for `%s`: missing 'WITH SYSTEM VERSIONING'", table)}
 }
 
 func errDependentByGeneratedColumn(column, genColumn, table string) error {
