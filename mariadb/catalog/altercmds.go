@@ -194,11 +194,14 @@ func cmdAffectsVersioning(cmd *nodes.AlterTableCmd) bool {
 	return false
 }
 
-// addsColumnVersioning reports whether an ALTER command adds a column carrying a
-// column-level WITH/WITHOUT SYSTEM VERSIONING attribute (which requires the table
-// to already be system-versioned, independent of command order).
+// addsColumnVersioning reports whether an ALTER command introduces a column
+// carrying a column-level WITH/WITHOUT SYSTEM VERSIONING attribute (which
+// requires the table to already be system-versioned, independent of command
+// order). ADD/MODIFY/CHANGE COLUMN all carry a column definition.
 func addsColumnVersioning(cmd *nodes.AlterTableCmd) bool {
-	if cmd.Type != nodes.ATAddColumn {
+	switch cmd.Type {
+	case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
+	default:
 		return false
 	}
 	if cmd.Column != nil && cmd.Column.SystemVersioning != nodes.ColVersioningNone {

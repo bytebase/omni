@@ -262,6 +262,10 @@ func TestSystemVersioningWithoutColumn(t *testing.T) {
 			// reverse order — ADD SYSTEM VERSIONING first must not validate it
 			"ALTER TABLE pl ADD SYSTEM VERSIONING, ADD COLUMN y INT WITH SYSTEM VERSIONING",
 			"ALTER TABLE pl ADD SYSTEM VERSIONING, ADD COLUMN y INT WITHOUT SYSTEM VERSIONING",
+			// MODIFY / CHANGE use the same column-def path
+			"ALTER TABLE pl ADD SYSTEM VERSIONING, MODIFY x INT WITH SYSTEM VERSIONING",
+			"ALTER TABLE pl ADD SYSTEM VERSIONING, CHANGE x y INT WITH SYSTEM VERSIONING",
+			"ALTER TABLE pl MODIFY x INT WITH SYSTEM VERSIONING, ADD SYSTEM VERSIONING",
 		} {
 			c := versionedCatalog(t, "CREATE TABLE pl (x INT)")
 			r, _ := c.Exec(alter, &ExecOptions{ContinueOnError: true})
