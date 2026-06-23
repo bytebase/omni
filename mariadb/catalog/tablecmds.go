@@ -365,8 +365,26 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	if !tbl.SystemVersioned {
 		// A column-level WITHOUT SYSTEM VERSIONING is a no-op on a non-versioned
 		// table — MariaDB discards it (SHOW CREATE omits it).
+		hasWithout := false
 		for _, col := range tbl.Columns {
+			if col.SystemVersioning == "WITHOUT" {
+				hasWithout = true
+			}
 			col.SystemVersioning = ""
+		}
+		// A WITHOUT column makes MariaDB normalize the rest of the (otherwise
+		// invalid) versioning metadata away: ROW START/END columns become ordinary
+		// NOT NULL columns and the PERIOD is dropped. Without such a column,
+		// row/period metadata on a non-versioned table is an error (4125).
+		if hasWithout {
+			for _, col := range tbl.Columns {
+				if col.Generated != nil && col.Generated.RowBound != "" {
+					col.Generated = nil
+					col.Nullable = false
+				}
+			}
+			tbl.PeriodStartCol = ""
+			tbl.PeriodEndCol = ""
 		}
 	} else if !tableOptionVersioned && columnsHaveExplicitWith(tbl) {
 		// When versioning comes from an explicit column-level WITH (no table-level

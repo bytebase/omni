@@ -444,6 +444,34 @@ func TestSystemVersioningCreateLike(t *testing.T) {
 	})
 }
 
+// TestSystemVersioningWithoutNormalizesAway: a WITHOUT column on an otherwise
+// non-versioned table makes MariaDB normalize row/period metadata away (the row
+// columns become ordinary NOT NULL columns) instead of rejecting with 4125.
+func TestSystemVersioningWithoutNormalizesAway(t *testing.T) {
+	c := versionedCatalog(t, "CREATE TABLE t (x INT WITHOUT SYSTEM VERSIONING, rs INT GENERATED ALWAYS AS ROW START, re INT GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re))")
+	if tbl := c.GetDatabase("test").GetTable("t"); tbl == nil {
+		t.Fatal("table should have been created (not rejected)")
+	}
+	ddl := c.ShowCreateTable("test", "t")
+	for _, unwanted := range []string{"GENERATED ALWAYS AS", "PERIOD FOR SYSTEM_TIME", "SYSTEM VERSIONING"} {
+		if strings.Contains(ddl, unwanted) {
+			t.Errorf("normalized table should not contain %q:\n%s", unwanted, ddl)
+		}
+	}
+	if !strings.Contains(ddl, "`rs` int NOT NULL") {
+		t.Errorf("row column should normalize to ordinary NOT NULL:\n%s", ddl)
+	}
+}
+
+// TestSystemVersioningRowColumnComment: a COMMENT on a ROW START/END column is
+// preserved in SHOW CREATE.
+func TestSystemVersioningRowColumnComment(t *testing.T) {
+	c := versionedCatalog(t, "CREATE TABLE c (x INT, rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START COMMENT 'start', re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING")
+	if ddl := c.ShowCreateTable("test", "c"); !strings.Contains(ddl, "GENERATED ALWAYS AS ROW START COMMENT 'start'") {
+		t.Errorf("COMMENT on a row column should be preserved:\n%s", ddl)
+	}
+}
+
 func alterErr(c *Catalog, sql string) error {
 	r, _ := c.Exec(sql, &ExecOptions{ContinueOnError: true})
 	return r[0].Error

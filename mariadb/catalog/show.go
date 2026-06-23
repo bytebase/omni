@@ -244,6 +244,9 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 			// System-versioning period column: GENERATED ALWAYS AS ROW START/END
 			// (no expression, no VIRTUAL/STORED mode).
 			b.WriteString(fmt.Sprintf(" GENERATED ALWAYS AS %s", col.Generated.RowBound))
+			if col.Comment != "" {
+				b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
+			}
 			if col.Invisible {
 				b.WriteString(" /*!80023 INVISIBLE */")
 			}
