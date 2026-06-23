@@ -274,6 +274,24 @@ func TestSystemVersioningColumnConflictingOptions(t *testing.T) {
 			t.Errorf("expected accept, got %v", err)
 		}
 	})
+	// An explicit column WITH (even when overridden to WITHOUT) excludes the
+	// unmarked data columns. So WITH..WITHOUT on the only marked column, plus an
+	// unmarked y, leaves zero versioned columns => 4123.
+	t.Run("with then without excludes unmarked column 4123", func(t *testing.T) {
+		err := execErr(t, "CREATE TABLE t (x INT WITH SYSTEM VERSIONING WITHOUT SYSTEM VERSIONING, y INT)")
+		catErr, ok := err.(*Error)
+		if !ok {
+			t.Fatalf("expected *Error (4123), got %v", err)
+		}
+		if catErr.Code != 4123 {
+			t.Errorf("Code = %d, want 4123 (message: %q)", catErr.Code, catErr.Message)
+		}
+	})
+	t.Run("with then without plus a real with accepted", func(t *testing.T) {
+		if err := execErr(t, "CREATE TABLE t (x INT WITH SYSTEM VERSIONING WITHOUT SYSTEM VERSIONING, y INT WITH SYSTEM VERSIONING)"); err != nil {
+			t.Errorf("expected accept, got %v", err)
+		}
+	})
 }
 
 // TestSystemVersioningErrorPrecedence: MariaDB checks the structural rules

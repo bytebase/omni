@@ -62,6 +62,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	tblCharsetExplicit := false
 	tblCollationExplicit := false
 	tableOptionVersioned := false
+	sawExplicitColumnWith := false // an explicit column-level WITH appeared (even if a later WITHOUT overrode it)
 	for _, opt := range stmt.Options {
 		switch toLower(opt.Name) {
 		case "system versioning":
@@ -269,10 +270,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 		col.SystemVersioning = colVersioningSQL(colDef.SystemVersioning)
 		if col.SystemVersioning == "WITH" || colDef.SystemVersioningWithSeen {
-			// A column-level WITH marks the table system-versioned even if a later
-			// WITHOUT on the same column excluded it — leaving no versioned column
-			// (rejected as 4123 by validateSystemVersioning).
+			// A column-level WITH marks the table system-versioned AND excludes the
+			// unmarked columns, even if a later WITHOUT on the same column reset its
+			// own attribute to WITHOUT — which then leaves it excluded, so a lone
+			// such column yields no versioned column (4123 in validateSystemVersioning).
 			tbl.SystemVersioned = true
+			sawExplicitColumnWith = true
 		}
 		if col.AutoIncrement {
 			if autoIncrementColumn != "" {
@@ -393,7 +396,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			tbl.PeriodStartCol = ""
 			tbl.PeriodEndCol = ""
 		}
-	} else if !tableOptionVersioned && columnsHaveExplicitWith(tbl) {
+	} else if !tableOptionVersioned && sawExplicitColumnWith {
 		// When versioning comes from an explicit column-level WITH (no table-level
 		// WITH SYSTEM VERSIONING), the unmarked data columns are excluded —
 		// MariaDB renders them WITHOUT. A table-level option leaves them unmarked.
@@ -1812,16 +1815,6 @@ func applyBinaryModifierCollation(col *Column, dt *nodes.DataType) {
 // nodeToSQLGenerated converts an AST expression to SQL for use in a generated
 // column definition. MySQL prefixes string literals with a charset introducer
 // (e.g., _utf8mb4'value') in generated column expressions.
-// columnsHaveExplicitWith reports whether any column was explicitly declared
-// WITH SYSTEM VERSIONING (which excludes the unmarked columns from versioning).
-func columnsHaveExplicitWith(tbl *Table) bool {
-	for _, col := range tbl.Columns {
-		if col.SystemVersioning == "WITH" {
-			return true
-		}
-	}
-	return false
-}
 
 // isRowColumnType reports whether a column has a type valid for a
 // system-versioning ROW START/END column: TIMESTAMP(6) for timestamp-precise
