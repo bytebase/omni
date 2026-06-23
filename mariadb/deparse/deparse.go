@@ -1058,12 +1058,33 @@ func deparseTableRef(t *ast.TableRef) string {
 	b.WriteString("`")
 	b.WriteString(t.Name)
 	b.WriteString("`")
+	if t.SystemTime != nil {
+		b.WriteString(" ")
+		b.WriteString(deparseSystemTime(t.SystemTime))
+	}
 	if t.Alias != "" {
 		b.WriteString(" `")
 		b.WriteString(t.Alias)
 		b.WriteString("`")
 	}
 	return b.String()
+}
+
+// deparseSystemTime formats the FOR SYSTEM_TIME temporal clause. Dropping it
+// would silently turn a time-travel query into a current-data query.
+func deparseSystemTime(st *ast.SystemTime) string {
+	switch st.Kind {
+	case ast.SystemTimeAsOf:
+		return "for system_time as of " + deparseExpr(st.From)
+	case ast.SystemTimeBetween:
+		return "for system_time between " + deparseExpr(st.From) + " and " + deparseExpr(st.To)
+	case ast.SystemTimeFromTo:
+		return "for system_time from " + deparseExpr(st.From) + " to " + deparseExpr(st.To)
+	case ast.SystemTimeAll:
+		return "for system_time all"
+	default:
+		return ""
+	}
 }
 
 func deparseExpr(node ast.ExprNode) string {
