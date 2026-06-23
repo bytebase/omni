@@ -1762,27 +1762,49 @@ func applyBinaryModifierCollation(col *Column, dt *nodes.DataType) {
 // nodeToSQLGenerated converts an AST expression to SQL for use in a generated
 // column definition. MySQL prefixes string literals with a charset introducer
 // (e.g., _utf8mb4'value') in generated column expressions.
-// validateSystemVersioning enforces MariaDB's rule (error 4125) that a table
-// declaring a PERIOD FOR SYSTEM_TIME or a ROW START/END column must be
-// explicitly system-versioned (a table-level WITH SYSTEM VERSIONING, or a
-// column-level WITH SYSTEM VERSIONING). Applied after CREATE and after an ALTER
-// (so a multi-command "ADD PERIOD, ADD SYSTEM VERSIONING" validates as a whole).
+// validateSystemVersioning enforces MariaDB's structural rules for
+// system-versioned tables. It is applied after CREATE and after an ALTER (so a
+// multi-command "ADD COLUMN ... ROW START, ADD PERIOD, ADD SYSTEM VERSIONING"
+// validates as a whole):
+//   - PERIOD FOR SYSTEM_TIME, ROW START/END columns, and a column-level WITH
+//     SYSTEM VERSIONING are only valid on a system-versioned table (else 4125).
+//   - On a system-versioned table, explicit PERIOD and ROW START/END columns
+//     must be present together and reference each other (else 4123) — this
+//     rejects row columns without a period, a period on ordinary columns, and a
+//     period that names columns other than the ROW START/END pair.
 func validateSystemVersioning(tbl *Table) error {
-	if !tbl.SystemVersioned && (tbl.PeriodStartCol != "" || hasRowBoundColumn(tbl)) {
-		return errMissingSystemVersioning(tbl.Name)
-	}
-	return nil
-}
-
-// hasRowBoundColumn reports whether any column is a system-versioning period
-// column (GENERATED ALWAYS AS ROW START/END).
-func hasRowBoundColumn(tbl *Table) bool {
+	var rowStart, rowEnd string
+	hasWithCol := false
 	for _, col := range tbl.Columns {
-		if col.Generated != nil && col.Generated.RowBound != "" {
-			return true
+		if col.Generated != nil {
+			switch col.Generated.RowBound {
+			case "ROW START":
+				rowStart = col.Name
+			case "ROW END":
+				rowEnd = col.Name
+			}
+		}
+		if col.SystemVersioning == "WITH" {
+			hasWithCol = true
 		}
 	}
-	return false
+	hasPeriod := tbl.PeriodStartCol != ""
+	hasRowCols := rowStart != "" || rowEnd != ""
+
+	if !tbl.SystemVersioned {
+		if hasPeriod || hasRowCols || hasWithCol {
+			return errMissingSystemVersioning(tbl.Name)
+		}
+		return nil
+	}
+
+	if hasPeriod || hasRowCols {
+		if !hasPeriod || rowStart == "" || rowEnd == "" ||
+			tbl.PeriodStartCol != rowStart || tbl.PeriodEndCol != rowEnd {
+			return errInconsistentSystemVersioning(tbl.Name)
+		}
+	}
+	return nil
 }
 
 // rowBoundSQL maps a parsed ROW START/END bound to its SHOW CREATE text.

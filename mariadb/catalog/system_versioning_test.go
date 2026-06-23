@@ -129,6 +129,45 @@ func TestSystemVersioningAlterCatalog(t *testing.T) {
 	})
 }
 
+// TestSystemVersioningConsistency covers the structural rules MariaDB enforces
+// on system-versioned tables: ROW START/END columns and PERIOD FOR SYSTEM_TIME
+// must be present together and reference each other. All reject vs mariadb:11.8.8.
+func TestSystemVersioningConsistency(t *testing.T) {
+	reject := []string{
+		// row columns but no PERIOD
+		"CREATE TABLE c1 (x INT, rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END) WITH SYSTEM VERSIONING",
+		// PERIOD on ordinary columns (no ROW START/END)
+		"CREATE TABLE c3 (a INT, b INT, PERIOD FOR SYSTEM_TIME(a, b)) WITH SYSTEM VERSIONING",
+		// PERIOD references columns that are not the ROW START/END columns
+		"CREATE TABLE c5 (a TIMESTAMP(6), b TIMESTAMP(6), rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(a, b)) WITH SYSTEM VERSIONING",
+	}
+	for _, sql := range reject {
+		t.Run("create", func(t *testing.T) {
+			if _, ok := execErr(t, sql).(*Error); !ok {
+				t.Errorf("expected rejection for %q, got accepted", sql)
+			}
+		})
+	}
+
+	// ALTER ADD COLUMN carrying versioning metadata onto a plain table is rejected
+	// (it would persist orphaned versioning metadata), while the multi-command
+	// convert (which ends versioned) stays valid.
+	t.Run("alter add row column to plain table rejected", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE pl (x INT)")
+		r, _ := c.Exec("ALTER TABLE pl ADD COLUMN rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START", &ExecOptions{ContinueOnError: true})
+		if _, ok := r[0].Error.(*Error); !ok {
+			t.Errorf("expected rejection, got accepted; ShowCreate:\n%s", c.ShowCreateTable("test", "pl"))
+		}
+	})
+	t.Run("alter add WITH SYSTEM VERSIONING column to plain table rejected", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE pl (x INT)")
+		r, _ := c.Exec("ALTER TABLE pl ADD COLUMN z INT WITH SYSTEM VERSIONING", &ExecOptions{ContinueOnError: true})
+		if _, ok := r[0].Error.(*Error); !ok {
+			t.Errorf("expected rejection, got accepted; ShowCreate:\n%s", c.ShowCreateTable("test", "pl"))
+		}
+	})
+}
+
 func versionedCatalog(t *testing.T, createSQL string) *Catalog {
 	t.Helper()
 	c := New()

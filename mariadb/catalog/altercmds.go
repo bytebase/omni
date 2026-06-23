@@ -32,7 +32,7 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
 		// Non-versioning single commands keep the no-clone fast path.
-		if !isSystemVersioningCmd(cmd.Type) {
+		if !cmdAffectsVersioning(cmd) {
 			return c.execAlterCmd(db, tbl, cmd)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
@@ -155,15 +155,38 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	}
 }
 
-// isSystemVersioningCmd reports whether an ALTER command mutates a table's
-// system-versioning state (and so needs a post-ALTER consistency check).
-func isSystemVersioningCmd(t nodes.AlterTableCmdType) bool {
-	switch t {
+// cmdAffectsVersioning reports whether an ALTER command can change a table's
+// system-versioning consistency (and so needs a post-ALTER validation). This is
+// the four ADD/DROP SYSTEM VERSIONING / PERIOD commands, plus ADD COLUMN whose
+// definition carries versioning metadata (ROW START/END or WITH/WITHOUT).
+func cmdAffectsVersioning(cmd *nodes.AlterTableCmd) bool {
+	switch cmd.Type {
 	case nodes.ATAddSystemVersioning, nodes.ATDropSystemVersioning,
 		nodes.ATAddPeriod, nodes.ATDropPeriod:
 		return true
+	case nodes.ATAddColumn:
+		if colDefHasVersioningMeta(cmd.Column) {
+			return true
+		}
+		for _, c := range cmd.Columns {
+			if colDefHasVersioningMeta(c) {
+				return true
+			}
+		}
 	}
 	return false
+}
+
+// colDefHasVersioningMeta reports whether a column definition carries
+// system-versioning metadata (a ROW START/END bound or WITH/WITHOUT versioning).
+func colDefHasVersioningMeta(colDef *nodes.ColumnDef) bool {
+	if colDef == nil {
+		return false
+	}
+	if colDef.SystemVersioning != nodes.ColVersioningNone {
+		return true
+	}
+	return colDef.Generated != nil && colDef.Generated.RowBound != nodes.RowBoundNone
 }
 
 // alterAddColumn adds a new column to the table.

@@ -53,6 +53,7 @@ const (
 	ErrFKDupName                         = 1826
 	ErrCheckConstraintNotAllowed         = 3815
 	ErrCheckConstraintDupName            = 3822
+	ErrWrongSystemVersioning             = 4123
 	ErrMissingSystemVersioning           = 4125
 )
 
@@ -85,6 +86,7 @@ var sqlStateMap = map[int]string{
 	ErrFKCannotUseVirtualColumn:          "HY000",
 	ErrUnsupportedGeneratedStorageChange: "HY000",
 	ErrDependentByGenCol:                 "HY000",
+	ErrWrongSystemVersioning:             "HY000",
 	ErrMissingSystemVersioning:           "HY000",
 	ErrWrongArguments:                    "HY000",
 	ErrWrongNameForIndex:                 "42000",
@@ -276,6 +278,11 @@ func errUnsupportedGeneratedStorageChange(col, table string) error {
 func errMissingSystemVersioning(table string) error {
 	return &Error{Code: ErrMissingSystemVersioning, SQLState: sqlState(ErrMissingSystemVersioning),
 		Message: fmt.Sprintf("Wrong parameters for `%s`: missing 'WITH SYSTEM VERSIONING'", table)}
+}
+
+func errInconsistentSystemVersioning(table string) error {
+	return &Error{Code: ErrWrongSystemVersioning, SQLState: sqlState(ErrWrongSystemVersioning),
+		Message: fmt.Sprintf("Inconsistent system-versioning metadata for `%s`: PERIOD FOR SYSTEM_TIME must use the ROW START/END columns", table)}
 }
 
 func errDependentByGeneratedColumn(column, genColumn, table string) error {
