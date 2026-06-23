@@ -31,8 +31,12 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 	if len(stmt.Commands) == 1 {
 		cmd := stmt.Commands[0]
-		// Non-versioning single commands keep the no-clone fast path.
-		if !cmdAffectsVersioning(cmd) {
+		// A versioned table can be made inconsistent by any column change (a
+		// dropped/modified/renamed ROW START/END or period column), so route the
+		// command through post-mutation validation when the table is already
+		// versioned or the command itself carries versioning metadata. Plain
+		// tables keep the no-clone fast path.
+		if !tbl.SystemVersioned && !cmdAffectsVersioning(cmd) {
 			return c.execAlterCmd(db, tbl, cmd)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
@@ -164,7 +168,7 @@ func cmdAffectsVersioning(cmd *nodes.AlterTableCmd) bool {
 	case nodes.ATAddSystemVersioning, nodes.ATDropSystemVersioning,
 		nodes.ATAddPeriod, nodes.ATDropPeriod:
 		return true
-	case nodes.ATAddColumn:
+	case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
 		if colDefHasVersioningMeta(cmd.Column) {
 			return true
 		}

@@ -177,6 +177,26 @@ func TestSystemVersioningCaseInsensitivePeriod(t *testing.T) {
 	}
 }
 
+// TestSystemVersioningAlterColumnOps: a single-command DROP/MODIFY/CHANGE of a
+// ROW START/END column on a versioned table must not silently leave PERIOD FOR
+// SYSTEM_TIME pointing at a missing/non-row column. MariaDB rejects these.
+func TestSystemVersioningAlterColumnOps(t *testing.T) {
+	const create = "CREATE TABLE sv (x INT, rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING"
+	for _, alter := range []string{
+		"ALTER TABLE sv DROP COLUMN rs",
+		"ALTER TABLE sv MODIFY rs TIMESTAMP(6)",
+		"ALTER TABLE sv CHANGE rs rs2 TIMESTAMP(6) GENERATED ALWAYS AS ROW START",
+	} {
+		t.Run(alter, func(t *testing.T) {
+			c := versionedCatalog(t, create)
+			r, _ := c.Exec(alter, &ExecOptions{ContinueOnError: true})
+			if _, ok := r[0].Error.(*Error); !ok {
+				t.Errorf("expected rejection (breaks PERIOD consistency), got accepted; ShowCreate:\n%s", c.ShowCreateTable("test", "sv"))
+			}
+		})
+	}
+}
+
 func versionedCatalog(t *testing.T, createSQL string) *Catalog {
 	t.Helper()
 	c := New()
