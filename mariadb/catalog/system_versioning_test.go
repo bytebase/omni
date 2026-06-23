@@ -197,6 +197,29 @@ func TestSystemVersioningAlterColumnOps(t *testing.T) {
 	}
 }
 
+// TestSystemVersioningRowColumnRules: ROW START/END columns must be unique and
+// of type TIMESTAMP(6). Container-verified vs mariadb:11.8.8 (duplicate -> 4134,
+// wrong type -> 4123).
+func TestSystemVersioningRowColumnRules(t *testing.T) {
+	reject := []string{
+		// duplicate ROW START
+		"CREATE TABLE t (rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, r2 TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING",
+		// duplicate ROW END
+		"CREATE TABLE t (rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, r2 TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING",
+		// non-TIMESTAMP(6) row columns
+		"CREATE TABLE t (rs INT GENERATED ALWAYS AS ROW START, re INT GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING",
+		"CREATE TABLE t (rs TIMESTAMP GENERATED ALWAYS AS ROW START, re TIMESTAMP GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING",
+		"CREATE TABLE t (rs TIMESTAMP(3) GENERATED ALWAYS AS ROW START, re TIMESTAMP(3) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING",
+	}
+	for _, sql := range reject {
+		t.Run("reject", func(t *testing.T) {
+			if _, ok := execErr(t, sql).(*Error); !ok {
+				t.Errorf("expected rejection for %q, got accepted", sql)
+			}
+		})
+	}
+}
+
 func versionedCatalog(t *testing.T, createSQL string) *Catalog {
 	t.Helper()
 	c := New()

@@ -1762,6 +1762,12 @@ func applyBinaryModifierCollation(col *Column, dt *nodes.DataType) {
 // nodeToSQLGenerated converts an AST expression to SQL for use in a generated
 // column definition. MySQL prefixes string literals with a charset introducer
 // (e.g., _utf8mb4'value') in generated column expressions.
+// isRowColumnType reports whether a column has the TIMESTAMP(6) type required of
+// a system-versioning ROW START/END column.
+func isRowColumnType(col *Column) bool {
+	return strings.EqualFold(col.ColumnType, "timestamp(6)")
+}
+
 // validateSystemVersioning enforces MariaDB's structural rules for
 // system-versioned tables. It is applied after CREATE and after an ALTER (so a
 // multi-command "ADD COLUMN ... ROW START, ADD PERIOD, ADD SYSTEM VERSIONING"
@@ -1776,11 +1782,21 @@ func validateSystemVersioning(tbl *Table) error {
 	var rowStart, rowEnd string
 	hasWithCol := false
 	for _, col := range tbl.Columns {
-		if col.Generated != nil {
+		if col.Generated != nil && col.Generated.RowBound != "" {
+			// Row start/end columns must be TIMESTAMP(6) and unique.
+			if !isRowColumnType(col) {
+				return errWrongRowColumnType(tbl.Name, col.Name)
+			}
 			switch col.Generated.RowBound {
 			case "ROW START":
+				if rowStart != "" {
+					return errDuplicateRowColumn("ROW START", col.Name)
+				}
 				rowStart = col.Name
 			case "ROW END":
+				if rowEnd != "" {
+					return errDuplicateRowColumn("ROW END", col.Name)
+				}
 				rowEnd = col.Name
 			}
 		}
