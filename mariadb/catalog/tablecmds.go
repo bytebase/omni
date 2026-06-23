@@ -1868,36 +1868,29 @@ func checkDuplicateRowColumns(tbl *Table) error {
 //     period that names columns other than the ROW START/END pair.
 func validateSystemVersioning(tbl *Table) error {
 	var rowStart, rowEnd string
-	var rowStartType, rowEndType string
+	var rowStartCol, rowEndCol *Column
 	versionedCols := 0 // columns that are neither row-bound nor WITHOUT
 	for _, col := range tbl.Columns {
 		if col.Generated != nil && col.Generated.RowBound != "" {
-			// Row start/end columns must be a valid version type and unique.
-			if !isRowColumnType(col) {
-				return errWrongRowColumnType(tbl.Name, col.Name)
-			}
+			// Detect duplicate bounds here (4134); the column TYPE is validated
+			// last — MariaDB reports structural errors before the row-column type.
 			switch col.Generated.RowBound {
 			case "ROW START":
 				if rowStart != "" {
 					return errDuplicateRowColumn("ROW START", col.Name)
 				}
-				rowStart, rowStartType = col.Name, col.ColumnType
+				rowStart, rowStartCol = col.Name, col
 			case "ROW END":
 				if rowEnd != "" {
 					return errDuplicateRowColumn("ROW END", col.Name)
 				}
-				rowEnd, rowEndType = col.Name, col.ColumnType
+				rowEnd, rowEndCol = col.Name, col
 			}
 			continue
 		}
 		if col.SystemVersioning != "WITHOUT" {
 			versionedCols++
 		}
-	}
-	// ROW START and ROW END must share the same precision mode (both TIMESTAMP(6)
-	// or both BIGINT UNSIGNED).
-	if rowStart != "" && rowEnd != "" && !strings.EqualFold(rowStartType, rowEndType) {
-		return errWrongRowColumnType(tbl.Name, rowEnd)
 	}
 	hasPeriod := tbl.PeriodStartCol != ""
 	hasRowCols := rowStart != "" || rowEnd != ""
@@ -1913,6 +1906,7 @@ func validateSystemVersioning(tbl *Table) error {
 		return nil
 	}
 
+	// Structural rules first — MariaDB checks these before the ROW column type.
 	// Explicit PERIOD and ROW START/END columns must be present together and
 	// reference each other; MariaDB distinguishes the malformed shapes by code.
 	if err := periodRowColumnError(tbl, rowStart, rowEnd, hasPeriod); err != nil {
@@ -1921,6 +1915,24 @@ func validateSystemVersioning(tbl *Table) error {
 	// A system-versioned table must have at least one versioned column.
 	if versionedCols == 0 {
 		return errNoVersionedColumn(tbl.Name)
+	}
+	// ROW START/END column type is validated last (4110).
+	return validateRowColumnTypes(tbl, rowStartCol, rowEndCol)
+}
+
+// validateRowColumnTypes enforces that the ROW START/END columns are a valid
+// version type (TIMESTAMP(6) or BIGINT UNSIGNED) and share the same precision
+// mode. It runs only after the structural checks pass, so MariaDB's precedence
+// (structural errors before 4110) is preserved.
+func validateRowColumnTypes(tbl *Table, rowStartCol, rowEndCol *Column) error {
+	for _, col := range []*Column{rowStartCol, rowEndCol} {
+		if col != nil && !isRowColumnType(col) {
+			return errWrongRowColumnType(tbl.Name, col.Name)
+		}
+	}
+	if rowStartCol != nil && rowEndCol != nil &&
+		!strings.EqualFold(rowStartCol.ColumnType, rowEndCol.ColumnType) {
+		return errWrongRowColumnType(tbl.Name, rowEndCol.Name)
 	}
 	return nil
 }

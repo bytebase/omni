@@ -276,6 +276,41 @@ func TestSystemVersioningColumnConflictingOptions(t *testing.T) {
 	})
 }
 
+// TestSystemVersioningErrorPrecedence: MariaDB checks the structural rules
+// (missing WITH/PERIOD => 4125, incomplete pair => 4123, duplicate ROW => 4134)
+// BEFORE the ROW START/END column TYPE (=> 4110). The type error only surfaces
+// once the structure is otherwise valid. Grounded vs 11.8.8.
+func TestSystemVersioningErrorPrecedence(t *testing.T) {
+	cases := []struct {
+		name string
+		ddl  string
+		code int
+	}{
+		{"wrong_type_not_versioned", // structure (missing WITH) wins over type
+			"CREATE TABLE t (x INT, rs INT GENERATED ALWAYS AS ROW START)", 4125},
+		{"wrong_type_missing_period", // missing PERIOD wins over type
+			"CREATE TABLE t (x INT, rs INT GENERATED ALWAYS AS ROW START, re INT GENERATED ALWAYS AS ROW END) WITH SYSTEM VERSIONING", 4125},
+		{"wrong_type_duplicate_row", // duplicate ROW wins over type
+			"CREATE TABLE t (x INT, rs INT GENERATED ALWAYS AS ROW START, rs2 INT GENERATED ALWAYS AS ROW START, re INT GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING", 4134},
+		{"wrong_type_no_versioned_col", // no versioned column wins over type
+			"CREATE TABLE t (rs INT GENERATED ALWAYS AS ROW START, re INT GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING", 4123},
+		{"wrong_type_only", // structure valid => type error surfaces
+			"CREATE TABLE t (x INT, rs INT GENERATED ALWAYS AS ROW START, re INT GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING", 4110},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := execErr(t, tc.ddl)
+			catErr, ok := err.(*Error)
+			if !ok {
+				t.Fatalf("expected *Error, got %v", err)
+			}
+			if catErr.Code != tc.code {
+				t.Errorf("Code = %d, want %d (message: %q)", catErr.Code, tc.code, catErr.Message)
+			}
+		})
+	}
+}
+
 // TestSystemVersioningCaseInsensitivePeriod: MariaDB matches the PERIOD FOR
 // SYSTEM_TIME columns against the ROW START/END column names case-insensitively.
 func TestSystemVersioningCaseInsensitivePeriod(t *testing.T) {
