@@ -168,6 +168,15 @@ func TestSystemVersioningConsistency(t *testing.T) {
 	})
 }
 
+// TestSystemVersioningCaseInsensitivePeriod: MariaDB matches the PERIOD FOR
+// SYSTEM_TIME columns against the ROW START/END column names case-insensitively.
+func TestSystemVersioningCaseInsensitivePeriod(t *testing.T) {
+	err := execErr(t, "CREATE TABLE ci (x INT, rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(RS, RE)) WITH SYSTEM VERSIONING")
+	if err != nil {
+		t.Errorf("PERIOD(RS, RE) with columns rs/re should be accepted, got: %v", err)
+	}
+}
+
 func versionedCatalog(t *testing.T, createSQL string) *Catalog {
 	t.Helper()
 	c := New()

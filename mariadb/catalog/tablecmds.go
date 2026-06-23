@@ -1799,8 +1799,11 @@ func validateSystemVersioning(tbl *Table) error {
 	}
 
 	if hasPeriod || hasRowCols {
+		// Column identifiers compare case-insensitively, so PERIOD FOR
+		// SYSTEM_TIME(RS, RE) matches row columns declared rs / re.
 		if !hasPeriod || rowStart == "" || rowEnd == "" ||
-			tbl.PeriodStartCol != rowStart || tbl.PeriodEndCol != rowEnd {
+			!strings.EqualFold(tbl.PeriodStartCol, rowStart) ||
+			!strings.EqualFold(tbl.PeriodEndCol, rowEnd) {
 			return errInconsistentSystemVersioning(tbl.Name)
 		}
 	}
