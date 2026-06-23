@@ -463,6 +463,15 @@ func TestSystemVersioningWithoutNormalizesAway(t *testing.T) {
 	}
 }
 
+// TestSystemVersioningDuplicateRowWithWithout: duplicate ROW START/END is
+// rejected (4134) even when a WITHOUT column would normalize the table to plain.
+func TestSystemVersioningDuplicateRowWithWithout(t *testing.T) {
+	err := execErr(t, "CREATE TABLE t (x INT WITHOUT SYSTEM VERSIONING, rs INT GENERATED ALWAYS AS ROW START, r2 INT GENERATED ALWAYS AS ROW START)")
+	if catErr, ok := err.(*Error); !ok || catErr.Code != 4134 {
+		t.Errorf("expected 4134 (duplicate ROW START), got %v", err)
+	}
+}
+
 // TestSystemVersioningRowColumnComment: a COMMENT on a ROW START/END column is
 // preserved in SHOW CREATE.
 func TestSystemVersioningRowColumnComment(t *testing.T) {

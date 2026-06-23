@@ -377,6 +377,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		// NOT NULL columns and the PERIOD is dropped. Without such a column,
 		// row/period metadata on a non-versioned table is an error (4125).
 		if hasWithout {
+			// Duplicate ROW START/END is still rejected before normalizing away.
+			if err := checkDuplicateRowColumns(tbl); err != nil {
+				return err
+			}
 			for _, col := range tbl.Columns {
 				if col.Generated != nil && col.Generated.RowBound != "" {
 					col.Generated = nil
@@ -1816,6 +1820,31 @@ func columnsHaveExplicitWith(tbl *Table) bool {
 func isRowColumnType(col *Column) bool {
 	return strings.EqualFold(col.ColumnType, "timestamp(6)") ||
 		strings.EqualFold(col.ColumnType, "bigint unsigned")
+}
+
+// checkDuplicateRowColumns rejects a second ROW START or ROW END column (4134).
+// It is independent of versioning — MariaDB rejects duplicates even when a
+// WITHOUT column would otherwise normalize the table to plain.
+func checkDuplicateRowColumns(tbl *Table) error {
+	var rowStart, rowEnd bool
+	for _, col := range tbl.Columns {
+		if col.Generated == nil {
+			continue
+		}
+		switch col.Generated.RowBound {
+		case "ROW START":
+			if rowStart {
+				return errDuplicateRowColumn("ROW START", col.Name)
+			}
+			rowStart = true
+		case "ROW END":
+			if rowEnd {
+				return errDuplicateRowColumn("ROW END", col.Name)
+			}
+			rowEnd = true
+		}
+	}
+	return nil
 }
 
 // validateSystemVersioning enforces MariaDB's structural rules for
