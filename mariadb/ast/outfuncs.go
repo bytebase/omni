@@ -2989,6 +2989,23 @@ func writePartitionClause(sb *strings.Builder, n *PartitionClause) {
 	if n.NumSubParts > 0 {
 		fmt.Fprintf(sb, " :num_sub_parts %d", n.NumSubParts)
 	}
+	if n.IntervalValue != nil {
+		sb.WriteString(" :interval_value ")
+		writeNode(sb, n.IntervalValue)
+	}
+	if n.IntervalUnit != "" {
+		fmt.Fprintf(sb, " :interval_unit %s", n.IntervalUnit)
+	}
+	if n.Limit > 0 {
+		fmt.Fprintf(sb, " :limit %d", n.Limit)
+	}
+	if n.Starts != nil {
+		sb.WriteString(" :starts ")
+		writeNode(sb, n.Starts)
+	}
+	if n.Auto {
+		sb.WriteString(" :auto true")
+	}
 	sb.WriteString("}")
 }
 
@@ -2998,6 +3015,9 @@ func writePartitionDef(sb *strings.Builder, n *PartitionDef) {
 	if n.Values != nil {
 		sb.WriteString(" :values ")
 		writeNode(sb, n.Values)
+	}
+	if n.SystemTime != "" {
+		fmt.Fprintf(sb, " :system_time %s", n.SystemTime)
 	}
 	if len(n.Options) > 0 {
 		sb.WriteString(" :options ")

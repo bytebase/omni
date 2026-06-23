@@ -686,6 +686,8 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 		Walk(v, n.SubPartExpr)
+		Walk(v, n.IntervalValue)
+		Walk(v, n.Starts)
 	case *PartitionDef:
 		Walk(v, n.Values)
 		for _, item := range n.Options {

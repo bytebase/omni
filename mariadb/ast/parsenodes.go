@@ -572,6 +572,14 @@ type PartitionClause struct {
 	SubPartColumns []string      // SUBPARTITION BY KEY (columns)
 	SubPartAlgo    int           // ALGORITHM={1|2} for SUBPARTITION BY KEY (0 if not specified)
 	NumSubParts    int           // SUBPARTITIONS num
+
+	// SYSTEM_TIME partitioning (MariaDB), used when Type == PartitionSystemTime:
+	//   PARTITION BY SYSTEM_TIME [INTERVAL value unit | LIMIT n] [STARTS expr] [AUTO]
+	IntervalValue ExprNode // INTERVAL <value> unit
+	IntervalUnit  string   // the interval unit (WEEK, MONTH, ...)
+	Limit         int      // LIMIT n (0 if not specified)
+	Starts        ExprNode // STARTS <expr>
+	Auto          bool     // AUTO (auto-create history partitions)
 }
 
 func (p *PartitionClause) nodeTag() {}
@@ -584,13 +592,15 @@ const (
 	PartitionList
 	PartitionHash
 	PartitionKey
+	PartitionSystemTime
 )
 
 // PartitionDef represents a single partition definition.
 type PartitionDef struct {
 	Loc           Loc
 	Name          string
-	Values        Node // VALUES LESS THAN (expr) or IN (list) — kept as Node to support heterogeneous partition value types
+	Values        Node   // VALUES LESS THAN (expr) or IN (list) — kept as Node to support heterogeneous partition value types
+	SystemTime    string // "HISTORY" | "CURRENT" for SYSTEM_TIME partitions ("" otherwise)
 	Options       []*TableOption
 	SubPartitions []*SubPartitionDef
 }

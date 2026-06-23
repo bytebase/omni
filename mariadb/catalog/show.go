@@ -670,6 +670,19 @@ func showPartitioning(pi *PartitionInfo) string {
 		} else {
 			b.WriteString(fmt.Sprintf("KEY (%s)", formatPartitionColumnsPlain(pi.Columns)))
 		}
+	case "SYSTEM_TIME":
+		b.WriteString("SYSTEM_TIME")
+		if pi.IntervalValue != "" {
+			b.WriteString(fmt.Sprintf(" INTERVAL %s %s", pi.IntervalValue, pi.IntervalUnit))
+		} else if pi.Limit > 0 {
+			b.WriteString(fmt.Sprintf(" LIMIT %d", pi.Limit))
+		}
+		if pi.Starts != "" {
+			b.WriteString(fmt.Sprintf(" STARTS %s", pi.Starts))
+		}
+		if pi.Auto {
+			b.WriteString(" AUTO")
+		}
 	}
 
 	// Subpartition clause.
@@ -697,8 +710,9 @@ func showPartitioning(pi *PartitionInfo) string {
 	// Partition definitions.
 	// For HASH/KEY partitions with NumParts > 0, auto-generated partition defs
 	// are rendered as "PARTITIONS N" (matching MySQL 8.0's SHOW CREATE TABLE).
-	hashKeyAutoGen := pi.NumParts > 0 && (pi.Type == "HASH" || pi.Type == "KEY")
-	if hashKeyAutoGen {
+	autoGenParts := pi.NumParts > 0 && (pi.Type == "HASH" || pi.Type == "KEY" ||
+		(pi.Type == "SYSTEM_TIME" && len(pi.Partitions) == 0))
+	if autoGenParts {
 		b.WriteString(fmt.Sprintf("\nPARTITIONS %d", pi.NumParts))
 	} else if len(pi.Partitions) > 0 {
 		b.WriteString("\n(")
@@ -708,6 +722,9 @@ func showPartitioning(pi *PartitionInfo) string {
 			}
 			b.WriteString("PARTITION ")
 			b.WriteString(pd.Name)
+			if pd.SystemTime != "" {
+				b.WriteString(" " + pd.SystemTime)
+			}
 			if pd.ValueExpr != "" {
 				switch {
 				case strings.HasPrefix(pi.Type, "RANGE"):

@@ -870,6 +870,13 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 			pi.Columns = primaryKeyColumns(tbl)
 		}
 		pi.Algorithm = pc.Algorithm
+	case nodes.PartitionSystemTime:
+		pi.Type = "SYSTEM_TIME"
+		pi.IntervalValue = nodeToSQL(pc.IntervalValue)
+		pi.IntervalUnit = pc.IntervalUnit
+		pi.Limit = pc.Limit
+		pi.Starts = nodeToSQL(pc.Starts)
+		pi.Auto = pc.Auto
 	}
 
 	// Subpartition info.
@@ -899,7 +906,8 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	explicitSubpartitionCount := 0
 	for _, pd := range pc.Partitions {
 		pdi := &PartitionDefInfo{
-			Name: pd.Name,
+			Name:       pd.Name,
+			SystemTime: pd.SystemTime,
 		}
 		// Values.
 		if pd.Values != nil {
@@ -947,8 +955,8 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 
 	// Auto-generate partition definitions for HASH/KEY/LINEAR HASH/LINEAR KEY
 	// when PARTITIONS N is specified without explicit partition definitions.
-	// MySQL naming convention: p0, p1, p2, ...
-	if len(pi.Partitions) == 0 && pi.NumParts > 0 {
+	// MySQL naming convention: p0, p1, p2, ... (SYSTEM_TIME keeps PARTITIONS N).
+	if len(pi.Partitions) == 0 && pi.NumParts > 0 && pi.Type != "SYSTEM_TIME" {
 		for i := 0; i < pi.NumParts; i++ {
 			pi.Partitions = append(pi.Partitions, &PartitionDefInfo{
 				Name: fmt.Sprintf("p%d", i),
@@ -1139,6 +1147,10 @@ func canonicalBitLiteral(bits string) string {
 }
 
 func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
+	// SYSTEM_TIME partitioning is only valid on a system-versioned table (4124).
+	if pc.Type == nodes.PartitionSystemTime && !tbl.SystemVersioned {
+		return errNotSystemVersioned(tbl.Name)
+	}
 	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
 		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
 	}
