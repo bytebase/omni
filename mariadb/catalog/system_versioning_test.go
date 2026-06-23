@@ -253,6 +253,21 @@ func TestSystemVersioningWithoutColumn(t *testing.T) {
 			t.Errorf("expected rejection, got accepted; ShowCreate:\n%s", c.ShowCreateTable("test", "pl"))
 		}
 	})
+	// Column-level WITH/WITHOUT in a multi-command ALTER is checked per-command:
+	// a later ADD SYSTEM VERSIONING must not make the final state look valid.
+	t.Run("multi-command add versioned column then ADD SYSTEM VERSIONING rejected", func(t *testing.T) {
+		for _, alter := range []string{
+			"ALTER TABLE pl ADD COLUMN y INT WITH SYSTEM VERSIONING, ADD SYSTEM VERSIONING",
+			"ALTER TABLE pl ADD COLUMN y INT WITHOUT SYSTEM VERSIONING, ADD SYSTEM VERSIONING",
+		} {
+			c := versionedCatalog(t, "CREATE TABLE pl (x INT)")
+			r, _ := c.Exec(alter, &ExecOptions{ContinueOnError: true})
+			if _, ok := r[0].Error.(*Error); !ok {
+				t.Errorf("expected rejection for %q, got accepted", alter)
+			}
+		}
+	})
+
 	// A system-versioned table needs at least one versioned column.
 	for _, sql := range []string{
 		"CREATE TABLE t (rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING",

@@ -222,6 +222,12 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if _, exists := tbl.colByName[colKey]; exists {
 		return errDupColumn(colDef.Name)
 	}
+	// A column-level WITH/WITHOUT SYSTEM VERSIONING requires the table to already
+	// be system-versioned. MariaDB checks this per-command, so a later
+	// ADD SYSTEM VERSIONING in the same ALTER cannot retroactively validate it.
+	if colDef.SystemVersioning != nodes.ColVersioningNone && !tbl.SystemVersioned {
+		return errNotSystemVersioned(tbl.Name)
+	}
 
 	col := buildColumnFromDef(tbl, colDef)
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, "") {
