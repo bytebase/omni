@@ -870,6 +870,13 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 			pi.Columns = primaryKeyColumns(tbl)
 		}
 		pi.Algorithm = pc.Algorithm
+	case nodes.PartitionSystemTime:
+		pi.Type = "SYSTEM_TIME"
+		pi.IntervalValue = nodeToSQL(pc.IntervalValue)
+		pi.IntervalUnit = pc.IntervalUnit
+		pi.Limit = pc.Limit
+		pi.Starts = nodeToSQL(pc.Starts)
+		pi.Auto = pc.Auto
 	}
 
 	// Subpartition info.
@@ -899,7 +906,8 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 	explicitSubpartitionCount := 0
 	for _, pd := range pc.Partitions {
 		pdi := &PartitionDefInfo{
-			Name: pd.Name,
+			Name:       pd.Name,
+			SystemTime: pd.SystemTime,
 		}
 		// Values.
 		if pd.Values != nil {
@@ -947,8 +955,8 @@ func buildPartitionInfo(tbl *Table, pc *nodes.PartitionClause) *PartitionInfo {
 
 	// Auto-generate partition definitions for HASH/KEY/LINEAR HASH/LINEAR KEY
 	// when PARTITIONS N is specified without explicit partition definitions.
-	// MySQL naming convention: p0, p1, p2, ...
-	if len(pi.Partitions) == 0 && pi.NumParts > 0 {
+	// MySQL naming convention: p0, p1, p2, ... (SYSTEM_TIME keeps PARTITIONS N).
+	if len(pi.Partitions) == 0 && pi.NumParts > 0 && pi.Type != "SYSTEM_TIME" {
 		for i := 0; i < pi.NumParts; i++ {
 			pi.Partitions = append(pi.Partitions, &PartitionDefInfo{
 				Name: fmt.Sprintf("p%d", i),
@@ -1138,7 +1146,68 @@ func canonicalBitLiteral(bits string) string {
 	return "b'" + bits + "'"
 }
 
+// partitionTypeName maps a partition type to its SQL keyword.
+func partitionTypeName(t nodes.PartitionType) string {
+	switch t {
+	case nodes.PartitionRange:
+		return "RANGE"
+	case nodes.PartitionList:
+		return "LIST"
+	case nodes.PartitionHash:
+		return "HASH"
+	case nodes.PartitionKey:
+		return "KEY"
+	case nodes.PartitionSystemTime:
+		return "SYSTEM_TIME"
+	default:
+		return ""
+	}
+}
+
+// validateSystemTimePartitioning enforces MariaDB's SYSTEM_TIME partitioning
+// rules (grounded vs 11.8.8) and rejects HISTORY/CURRENT tags under other
+// partition types:
+//   - HISTORY/CURRENT only under SYSTEM_TIME            -> 4113
+//   - SYSTEM_TIME requires a system-versioned table     -> 4124
+//   - no VALUES under SYSTEM_TIME                        -> 1480
+//   - an explicit list needs >=1 HISTORY + one final CURRENT -> 4128
+func validateSystemTimePartitioning(tbl *Table, pc *nodes.PartitionClause) error {
+	if pc.Type != nodes.PartitionSystemTime {
+		for _, pd := range pc.Partitions {
+			if pd.SystemTime != "" {
+				return errWrongPartitionType(partitionTypeName(pc.Type))
+			}
+		}
+		return nil
+	}
+	if !tbl.SystemVersioned {
+		return errNotSystemVersioned(tbl.Name)
+	}
+	historyCount, currentCount := 0, 0
+	for i, pd := range pc.Partitions {
+		if pd.Values != nil {
+			return errValuesOnlyForRange()
+		}
+		switch pd.SystemTime {
+		case "HISTORY":
+			historyCount++
+		case "CURRENT":
+			currentCount++
+			if i != len(pc.Partitions)-1 {
+				return errWrongSystemTimePartitions(tbl.Name)
+			}
+		}
+	}
+	if len(pc.Partitions) > 0 && (historyCount == 0 || currentCount != 1) {
+		return errWrongSystemTimePartitions(tbl.Name)
+	}
+	return nil
+}
+
 func validatePartitionClause(tbl *Table, pc *nodes.PartitionClause) error {
+	if err := validateSystemTimePartitioning(tbl, pc); err != nil {
+		return err
+	}
 	if (pc.Type == nodes.PartitionRange || pc.Type == nodes.PartitionList) && len(pc.Partitions) == 0 {
 		return &Error{Code: 1492, SQLState: "HY000", Message: "Partitions must be defined for RANGE/LIST partitioning"}
 	}

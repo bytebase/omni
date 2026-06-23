@@ -1583,9 +1583,18 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		}
 
 	default:
-		return nil, &ParseError{
-			Message:  "expected HASH, KEY, RANGE, or LIST after PARTITION BY",
-			Position: p.cur.Loc,
+		// SYSTEM_TIME is non-reserved (matched by identifier text).
+		if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "SYSTEM_TIME") {
+			p.advance() // SYSTEM_TIME
+			part.Type = nodes.PartitionSystemTime
+			if err := p.parseSystemTimePartitionSpec(part); err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, &ParseError{
+				Message:  "expected HASH, KEY, RANGE, LIST, or SYSTEM_TIME after PARTITION BY",
+				Position: p.cur.Loc,
+			}
 		}
 	}
 
@@ -1705,6 +1714,15 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			if err != nil {
 				return nil, err
 			}
+			// A SYSTEM_TIME HISTORY/CURRENT partition cannot also carry VALUES
+			// (MariaDB 1064). VALUES without HISTORY/CURRENT is left to the catalog
+			// (1480); HISTORY/CURRENT under another type is left to the catalog (4113).
+			if part.Type == nodes.PartitionSystemTime && pd.SystemTime != "" && pd.Values != nil {
+				return nil, &ParseError{
+					Position: pd.Loc.Start,
+					Message:  "VALUES is not allowed for a SYSTEM_TIME HISTORY/CURRENT partition",
+				}
+			}
 			part.Partitions = append(part.Partitions, pd)
 			if p.cur.Type != ',' {
 				break
@@ -1732,10 +1750,67 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 	return part, nil
 }
 
+// parseSystemTimePartitionSpec parses the SYSTEM_TIME specifics that follow
+// PARTITION BY SYSTEM_TIME, before the PARTITIONS count and partition list:
+//
+// Each arm encodes the exact MariaDB grammar (STARTS only after INTERVAL; AUTO
+// not valid bare); other shapes fall through unconsumed and fail as 1064:
+//
+//	INTERVAL value unit [STARTS expr] [AUTO]
+//	LIMIT n [AUTO]
+//	(no modifier)
+func (p *Parser) parseSystemTimePartitionSpec(part *nodes.PartitionClause) error {
+	switch p.cur.Type {
+	case kwINTERVAL:
+		p.advance() // INTERVAL
+		val, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		part.IntervalValue = val
+		// The unit is required and must be a valid interval unit (mirrors
+		// parseIntervalExpr; compound units like DAY_HOUR are reserved keywords).
+		unit, _, err := p.parseKeywordOrIdent()
+		if err != nil {
+			return err
+		}
+		upper := strings.ToUpper(unit)
+		if !isValidIntervalUnit(upper) {
+			return &ParseError{Position: p.pos(), Message: "invalid INTERVAL unit: " + unit}
+		}
+		part.IntervalUnit = upper
+		// STARTS is only valid after INTERVAL.
+		if p.cur.Type == kwSTARTS {
+			p.advance() // STARTS
+			expr, err := p.parseExpr()
+			if err != nil {
+				return err
+			}
+			part.Starts = expr
+		}
+		if p.cur.Type == kwAUTO {
+			p.advance() // AUTO
+			part.Auto = true
+		}
+	case kwLIMIT:
+		p.advance() // LIMIT
+		if p.cur.Type != tokICONST {
+			return p.syntaxErrorAtCur()
+		}
+		part.Limit = int(p.cur.Ival)
+		p.advance()
+		if p.cur.Type == kwAUTO {
+			p.advance() // AUTO
+			part.Auto = true
+		}
+	}
+	return nil
+}
+
 // parsePartitionDef parses a single partition definition.
 //
 //	PARTITION partition_name
-//	    [VALUES {LESS THAN (expr|MAXVALUE) | IN (value_list)}]
+//	    [VALUES {LESS THAN (expr|MAXVALUE) | IN (value_list)} | {HISTORY | CURRENT}]
 //	    [table_options]
 func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 	start := p.pos()
@@ -1751,6 +1826,15 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 	pd := &nodes.PartitionDef{
 		Loc:  nodes.Loc{Start: start},
 		Name: name,
+	}
+
+	// SYSTEM_TIME partitions are tagged HISTORY or CURRENT instead of VALUES.
+	if p.cur.Type == kwHISTORY {
+		p.advance()
+		pd.SystemTime = "HISTORY"
+	} else if p.cur.Type == kwCURRENT {
+		p.advance()
+		pd.SystemTime = "CURRENT"
 	}
 
 	// VALUES LESS THAN or VALUES IN

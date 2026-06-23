@@ -1,6 +1,35 @@
 package ast
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+// TestPartitionClauseSystemTimeOutfuncs locks outfuncs coverage of the SYSTEM_TIME
+// partition fields (interval/limit/starts/auto + per-partition HISTORY/CURRENT) so
+// AST dumps don't silently drop them.
+func TestPartitionClauseSystemTimeOutfuncs(t *testing.T) {
+	n := &PartitionClause{
+		Type:          PartitionSystemTime,
+		IntervalValue: &IntLit{Value: 1},
+		IntervalUnit:  "MONTH",
+		Starts:        &StringLit{Value: "2020-01-01"},
+		Auto:          true,
+		Partitions: []*PartitionDef{
+			{Name: "p0", SystemTime: "HISTORY"},
+			{Name: "pn", SystemTime: "CURRENT"},
+		},
+	}
+	got := NodeToString(n)
+	for _, want := range []string{
+		":interval_value ", ":interval_unit MONTH", ":starts ", ":auto true",
+		":system_time HISTORY", ":system_time CURRENT",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("NodeToString missing %q:\n%s", want, got)
+		}
+	}
+}
 
 // TestSystemTimeOutfuncs locks the outfuncs serialization of the FOR SYSTEM_TIME
 // range bounds, including the per-bound TRANSACTION qualifier so AST dumps keep

@@ -61,12 +61,20 @@ type PartitionInfo struct {
 	// partition_info::use_default_num_subpartitions.
 	UseDefaultSubpartitions    bool
 	UseDefaultNumSubpartitions bool
+
+	// SYSTEM_TIME partitioning (Type == "SYSTEM_TIME").
+	IntervalValue string // INTERVAL <value>
+	IntervalUnit  string // interval unit (MONTH, WEEK, ...)
+	Limit         int    // LIMIT n (0 if none)
+	Starts        string // STARTS <expr> ("" if none)
+	Auto          bool   // AUTO
 }
 
 // PartitionDefInfo holds a single partition definition.
 type PartitionDefInfo struct {
 	Name          string
 	ValueExpr     string // "LESS THAN (...)" or "IN (...)" or ""
+	SystemTime    string // "HISTORY" | "CURRENT" for SYSTEM_TIME partitions
 	Engine        string // ENGINE option for this partition
 	Comment       string // COMMENT option for this partition
 	SubPartitions []*SubPartitionDefInfo
