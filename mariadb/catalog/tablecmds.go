@@ -63,6 +63,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	tblCollationExplicit := false
 	for _, opt := range stmt.Options {
 		switch toLower(opt.Name) {
+		case "system versioning":
+			tbl.SystemVersioned = true
 		case "engine":
 			tbl.Engine = opt.Value
 		case "charset", "character set", "default charset", "default character set":
@@ -160,6 +162,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// see altercmds.go which uses nextCheckNumber (gap-scan helper).
 	var unnamedCheckCount int
 
+	// PERIOD FOR SYSTEM_TIME makes the table system-versioned.
+	tbl.PeriodStartCol = stmt.PeriodStartCol
+	tbl.PeriodEndCol = stmt.PeriodEndCol
+	if tbl.PeriodStartCol != "" {
+		tbl.SystemVersioned = true
+	}
+
 	// Process columns.
 	for i, colDef := range stmt.Columns {
 		if err := validateColumnDefSemantics(colDef); err != nil {
@@ -252,9 +261,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 		if colDef.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
-				Expr:   nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
-				Stored: colDef.Generated.Stored,
+				Expr:     nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+				Stored:   colDef.Generated.Stored,
+				RowBound: rowBoundSQL(colDef.Generated.RowBound),
 			}
+		}
+		col.SystemVersioning = colVersioningSQL(colDef.SystemVersioning)
+		if col.SystemVersioning == "WITH" {
+			tbl.SystemVersioned = true
 		}
 		if col.AutoIncrement {
 			if autoIncrementColumn != "" {
@@ -1745,6 +1759,30 @@ func applyBinaryModifierCollation(col *Column, dt *nodes.DataType) {
 // nodeToSQLGenerated converts an AST expression to SQL for use in a generated
 // column definition. MySQL prefixes string literals with a charset introducer
 // (e.g., _utf8mb4'value') in generated column expressions.
+// rowBoundSQL maps a parsed ROW START/END bound to its SHOW CREATE text.
+func rowBoundSQL(rb nodes.RowBoundKind) string {
+	switch rb {
+	case nodes.RowBoundStart:
+		return "ROW START"
+	case nodes.RowBoundEnd:
+		return "ROW END"
+	default:
+		return ""
+	}
+}
+
+// colVersioningSQL maps a parsed column WITH/WITHOUT SYSTEM VERSIONING to text.
+func colVersioningSQL(v nodes.ColVersioning) string {
+	switch v {
+	case nodes.ColVersioningWith:
+		return "WITH"
+	case nodes.ColVersioningWithout:
+		return "WITHOUT"
+	default:
+		return ""
+	}
+}
+
 func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 	if node == nil {
 		return ""

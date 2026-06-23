@@ -29,6 +29,12 @@ type Table struct {
 	DelayKeyWrite    string
 	Partitioning     *PartitionInfo
 
+	// System versioning (MariaDB temporal). SystemVersioned is set by
+	// WITH SYSTEM VERSIONING or by any versioned/period column.
+	SystemVersioned bool
+	PeriodStartCol  string
+	PeriodEndCol    string
+
 	// droppedByCleanup tracks indexes auto-removed by DROP COLUMN cleanup
 	// during multi-command ALTER TABLE. This allows a subsequent explicit
 	// DROP INDEX in the same ALTER to succeed (matching MySQL 8.0 behavior).
@@ -95,6 +101,9 @@ type Column struct {
 	SRID                         int          // Spatial Reference ID (0 = not set)
 	DefaultAnalyzed              AnalyzedExpr // Phase 3: analyzed DEFAULT expression
 	GeneratedAnalyzed            AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
+	// SystemVersioning is "WITH" / "WITHOUT" for a column-level
+	// WITH/WITHOUT SYSTEM VERSIONING attribute, else "".
+	SystemVersioning string
 }
 
 type ColumnDefaultKind int
@@ -116,6 +125,9 @@ const (
 type GeneratedColumnInfo struct {
 	Expr   string
 	Stored bool
+	// RowBound is "ROW START" / "ROW END" for a system-versioning period
+	// column (GENERATED ALWAYS AS ROW START/END), else "".
+	RowBound string
 }
 
 type View struct {
