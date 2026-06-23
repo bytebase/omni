@@ -62,6 +62,9 @@ const (
 	ErrTruncateSystemVersioned           = 4137
 	ErrMissingSystemVersioning           = 4125
 	ErrPeriodWrongColumns                = 4126
+	ErrWrongPartitionType                = 4113
+	ErrWrongSystemTimePartitions         = 4128
+	ErrValuesOnlyForRange                = 1480
 )
 
 var sqlStateMap = map[int]string{
@@ -102,6 +105,9 @@ var sqlStateMap = map[int]string{
 	ErrTruncateSystemVersioned:           "HY000",
 	ErrMissingSystemVersioning:           "HY000",
 	ErrPeriodWrongColumns:                "HY000",
+	ErrWrongPartitionType:                "HY000",
+	ErrWrongSystemTimePartitions:         "HY000",
+	ErrValuesOnlyForRange:                "HY000",
 	ErrWrongArguments:                    "HY000",
 	ErrWrongNameForIndex:                 "42000",
 	ErrInvalidOnUpdate:                   "HY000",
@@ -307,6 +313,21 @@ func errMissingRowStart(table string) error {
 func errMissingPeriod(table string) error {
 	return &Error{Code: ErrMissingSystemVersioning, SQLState: sqlState(ErrMissingSystemVersioning),
 		Message: fmt.Sprintf("Wrong parameters for `%s`: missing 'PERIOD FOR SYSTEM_TIME'", table)}
+}
+
+func errWrongPartitionType(byType string) error {
+	return &Error{Code: ErrWrongPartitionType, SQLState: sqlState(ErrWrongPartitionType),
+		Message: fmt.Sprintf("Wrong partition type `SYSTEM_TIME` for partitioning by `%s`", byType)}
+}
+
+func errWrongSystemTimePartitions(table string) error {
+	return &Error{Code: ErrWrongSystemTimePartitions, SQLState: sqlState(ErrWrongSystemTimePartitions),
+		Message: fmt.Sprintf("Wrong partitions for `%s`: must have at least one HISTORY and exactly one last CURRENT", table)}
+}
+
+func errValuesOnlyForRange() error {
+	return &Error{Code: ErrValuesOnlyForRange, SQLState: sqlState(ErrValuesOnlyForRange),
+		Message: "Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition"}
 }
 
 func errNotSystemVersioned(table string) error {

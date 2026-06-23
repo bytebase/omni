@@ -1731,7 +1731,12 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 // parseSystemTimePartitionSpec parses the SYSTEM_TIME specifics that follow
 // PARTITION BY SYSTEM_TIME, before the PARTITIONS count and partition list:
 //
-//	[INTERVAL value unit | LIMIT n] [STARTS expr] [AUTO]
+// Each arm encodes the exact MariaDB grammar (STARTS only after INTERVAL; AUTO
+// not valid bare); other shapes fall through unconsumed and fail as 1064:
+//
+//	INTERVAL value unit [STARTS expr] [AUTO]
+//	LIMIT n [AUTO]
+//	(no modifier)
 func (p *Parser) parseSystemTimePartitionSpec(part *nodes.PartitionClause) error {
 	switch p.cur.Type {
 	case kwINTERVAL:
@@ -1741,27 +1746,41 @@ func (p *Parser) parseSystemTimePartitionSpec(part *nodes.PartitionClause) error
 			return err
 		}
 		part.IntervalValue = val
-		// The interval unit (WEEK, MONTH, ...) follows; capture its text.
-		part.IntervalUnit = p.cur.Str
-		p.advance()
-	case kwLIMIT:
-		p.advance() // LIMIT
-		if p.cur.Type == tokICONST {
-			part.Limit = int(p.cur.Ival)
-			p.advance()
-		}
-	}
-	if p.cur.Type == kwSTARTS {
-		p.advance() // STARTS
-		expr, err := p.parseExpr()
+		// The unit is required and must be a valid interval unit (mirrors
+		// parseIntervalExpr; compound units like DAY_HOUR are reserved keywords).
+		unit, _, err := p.parseKeywordOrIdent()
 		if err != nil {
 			return err
 		}
-		part.Starts = expr
-	}
-	if p.cur.Type == kwAUTO {
-		p.advance() // AUTO
-		part.Auto = true
+		upper := strings.ToUpper(unit)
+		if !isValidIntervalUnit(upper) {
+			return &ParseError{Position: p.pos(), Message: "invalid INTERVAL unit: " + unit}
+		}
+		part.IntervalUnit = upper
+		// STARTS is only valid after INTERVAL.
+		if p.cur.Type == kwSTARTS {
+			p.advance() // STARTS
+			expr, err := p.parseExpr()
+			if err != nil {
+				return err
+			}
+			part.Starts = expr
+		}
+		if p.cur.Type == kwAUTO {
+			p.advance() // AUTO
+			part.Auto = true
+		}
+	case kwLIMIT:
+		p.advance() // LIMIT
+		if p.cur.Type != tokICONST {
+			return p.syntaxErrorAtCur()
+		}
+		part.Limit = int(p.cur.Ival)
+		p.advance()
+		if p.cur.Type == kwAUTO {
+			p.advance() // AUTO
+			part.Auto = true
+		}
 	}
 	return nil
 }
