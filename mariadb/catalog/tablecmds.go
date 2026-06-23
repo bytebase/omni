@@ -1762,10 +1762,12 @@ func applyBinaryModifierCollation(col *Column, dt *nodes.DataType) {
 // nodeToSQLGenerated converts an AST expression to SQL for use in a generated
 // column definition. MySQL prefixes string literals with a charset introducer
 // (e.g., _utf8mb4'value') in generated column expressions.
-// isRowColumnType reports whether a column has the TIMESTAMP(6) type required of
-// a system-versioning ROW START/END column.
+// isRowColumnType reports whether a column has a type valid for a
+// system-versioning ROW START/END column: TIMESTAMP(6) for timestamp-precise
+// versioning, or BIGINT UNSIGNED for transaction-precise versioning.
 func isRowColumnType(col *Column) bool {
-	return strings.EqualFold(col.ColumnType, "timestamp(6)")
+	return strings.EqualFold(col.ColumnType, "timestamp(6)") ||
+		strings.EqualFold(col.ColumnType, "bigint unsigned")
 }
 
 // validateSystemVersioning enforces MariaDB's structural rules for

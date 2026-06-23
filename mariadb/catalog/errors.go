@@ -54,6 +54,7 @@ const (
 	ErrCheckConstraintNotAllowed         = 3815
 	ErrCheckConstraintDupName            = 3822
 	ErrWrongSystemVersioning             = 4123
+	ErrRowColumnWrongType                = 4110
 	ErrDuplicateRowColumn                = 4134
 	ErrMissingSystemVersioning           = 4125
 )
@@ -88,6 +89,7 @@ var sqlStateMap = map[int]string{
 	ErrUnsupportedGeneratedStorageChange: "HY000",
 	ErrDependentByGenCol:                 "HY000",
 	ErrWrongSystemVersioning:             "HY000",
+	ErrRowColumnWrongType:                "HY000",
 	ErrDuplicateRowColumn:                "HY000",
 	ErrMissingSystemVersioning:           "HY000",
 	ErrWrongArguments:                    "HY000",
@@ -293,8 +295,8 @@ func errDuplicateRowColumn(bound, col string) error {
 }
 
 func errWrongRowColumnType(table, col string) error {
-	return &Error{Code: ErrWrongSystemVersioning, SQLState: sqlState(ErrWrongSystemVersioning),
-		Message: fmt.Sprintf("Wrong system-versioning row column `%s` in `%s`: must be TIMESTAMP(6)", col, table)}
+	return &Error{Code: ErrRowColumnWrongType, SQLState: sqlState(ErrRowColumnWrongType),
+		Message: fmt.Sprintf("`%s` in `%s` must be of type TIMESTAMP(6) or BIGINT(20) UNSIGNED", col, table)}
 }
 
 func errDependentByGeneratedColumn(column, genColumn, table string) error {
