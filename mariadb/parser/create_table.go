@@ -355,11 +355,10 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		}
 	}
 
-	// MariaDB rejects a column-level WITH/WITHOUT SYSTEM VERSIONING on an
-	// expression-generated column (GENERATED ALWAYS AS (expr)). Row START/END
-	// columns are generated too but carry no column-level versioning.
-	if col.SystemVersioning != nodes.ColVersioningNone &&
-		col.Generated != nil && col.Generated.RowBound == nodes.RowBoundNone {
+	// MariaDB rejects a column-level WITH/WITHOUT SYSTEM VERSIONING on any
+	// generated column — both GENERATED ALWAYS AS (expr) and a ROW START/END
+	// period column.
+	if col.SystemVersioning != nodes.ColVersioningNone && col.Generated != nil {
 		return nil, &ParseError{
 			Message:  "SYSTEM VERSIONING is not allowed on a generated column",
 			Position: p.cur.Loc,

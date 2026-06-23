@@ -390,6 +390,29 @@ func TestSystemVersioningDropKeepsWithoutAndTruncate(t *testing.T) {
 	})
 }
 
+// TestSystemVersioningExplicitWithExcludesOthers: an explicit column-level WITH
+// SYSTEM VERSIONING marks the unmarked data columns as WITHOUT (container-
+// verified), while a table-option-only versioned table leaves them clean.
+func TestSystemVersioningExplicitWithExcludesOthers(t *testing.T) {
+	t.Run("explicit with excludes unmarked column", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE w (x INT WITH SYSTEM VERSIONING, y INT)")
+		ddl := c.ShowCreateTable("test", "w")
+		if !strings.Contains(ddl, "`y` int DEFAULT NULL WITHOUT SYSTEM VERSIONING") {
+			t.Errorf("unmarked column y should render WITHOUT:\n%s", ddl)
+		}
+		// Only y (not the explicit-WITH x) should be marked WITHOUT.
+		if n := strings.Count(ddl, "WITHOUT SYSTEM VERSIONING"); n != 1 {
+			t.Errorf("expected exactly one WITHOUT column, got %d:\n%s", n, ddl)
+		}
+	})
+	t.Run("table option only leaves columns unmarked", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE w2 (x INT, y INT) WITH SYSTEM VERSIONING")
+		if ddl := c.ShowCreateTable("test", "w2"); strings.Contains(ddl, "WITHOUT SYSTEM VERSIONING") {
+			t.Errorf("table-option versioning should not mark columns WITHOUT:\n%s", ddl)
+		}
+	})
+}
+
 func alterErr(c *Catalog, sql string) error {
 	r, _ := c.Exec(sql, &ExecOptions{ContinueOnError: true})
 	return r[0].Error

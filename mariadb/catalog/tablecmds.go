@@ -360,11 +360,20 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		tbl.colByName[colKey] = i
 	}
 
-	// A column-level WITHOUT SYSTEM VERSIONING is a no-op on a non-versioned
-	// table — MariaDB discards it (SHOW CREATE omits it).
 	if !tbl.SystemVersioned {
+		// A column-level WITHOUT SYSTEM VERSIONING is a no-op on a non-versioned
+		// table — MariaDB discards it (SHOW CREATE omits it).
 		for _, col := range tbl.Columns {
 			col.SystemVersioning = ""
+		}
+	} else if columnsHaveExplicitWith(tbl) {
+		// When some columns are explicitly WITH SYSTEM VERSIONING, the unmarked
+		// data columns are excluded — MariaDB renders them WITHOUT.
+		for _, col := range tbl.Columns {
+			isRowCol := col.Generated != nil && col.Generated.RowBound != ""
+			if col.SystemVersioning == "" && !isRowCol {
+				col.SystemVersioning = "WITHOUT"
+			}
 		}
 	}
 	if err := validateSystemVersioning(tbl); err != nil {
@@ -1769,6 +1778,17 @@ func applyBinaryModifierCollation(col *Column, dt *nodes.DataType) {
 // nodeToSQLGenerated converts an AST expression to SQL for use in a generated
 // column definition. MySQL prefixes string literals with a charset introducer
 // (e.g., _utf8mb4'value') in generated column expressions.
+// columnsHaveExplicitWith reports whether any column was explicitly declared
+// WITH SYSTEM VERSIONING (which excludes the unmarked columns from versioning).
+func columnsHaveExplicitWith(tbl *Table) bool {
+	for _, col := range tbl.Columns {
+		if col.SystemVersioning == "WITH" {
+			return true
+		}
+	}
+	return false
+}
+
 // isRowColumnType reports whether a column has a type valid for a
 // system-versioning ROW START/END column: TIMESTAMP(6) for timestamp-precise
 // versioning, or BIGINT UNSIGNED for transaction-precise versioning.
