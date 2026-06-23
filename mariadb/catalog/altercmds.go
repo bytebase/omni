@@ -181,9 +181,15 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		tbl.PeriodEndCol = cmd.PeriodEndCol
 		return nil
 	case nodes.ATDropPeriod:
-		tbl.PeriodStartCol = ""
-		tbl.PeriodEndCol = ""
-		return nil
+		if !tbl.SystemVersioned {
+			return errNotSystemVersioned(tbl.Name)
+		}
+		if tbl.PeriodStartCol == "" {
+			return errCantDropKey("PERIOD `SYSTEM_TIME`")
+		}
+		// Dropping an existing period standalone would orphan the ROW START/END
+		// columns; MariaDB requires dropping them too (4125).
+		return errMissingSystemVersioning(tbl.Name)
 	default:
 		// Unsupported alter command; silently ignore.
 		return nil
@@ -831,6 +837,14 @@ func (c *Catalog) alterRenameColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 
 	tbl.Columns[idx].Name = cmd.NewName
 	updateColumnRefsInIndexes(tbl, cmd.Name, cmd.NewName)
+	// Keep PERIOD FOR SYSTEM_TIME referencing the renamed column (MariaDB
+	// rewrites it).
+	if strings.EqualFold(tbl.PeriodStartCol, cmd.Name) {
+		tbl.PeriodStartCol = cmd.NewName
+	}
+	if strings.EqualFold(tbl.PeriodEndCol, cmd.Name) {
+		tbl.PeriodEndCol = cmd.NewName
+	}
 	rebuildColIndex(tbl)
 	return nil
 }

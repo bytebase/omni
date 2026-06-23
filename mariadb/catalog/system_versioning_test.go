@@ -323,6 +323,35 @@ func TestSystemVersioningAlterGuards(t *testing.T) {
 	})
 }
 
+// TestSystemVersioningRenameAndDropPeriod covers renaming a period column (the
+// PERIOD must follow) and the DROP PERIOD guards.
+func TestSystemVersioningRenameAndDropPeriod(t *testing.T) {
+	const withPeriod = "CREATE TABLE sv2 (x INT, rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING"
+
+	t.Run("rename period column rewrites the period", func(t *testing.T) {
+		c := versionedCatalog(t, withPeriod)
+		if err := alterErr(c, "ALTER TABLE sv2 RENAME COLUMN rs TO rs2"); err != nil {
+			t.Fatalf("renaming a period column should be accepted, got: %v", err)
+		}
+		if ddl := c.ShowCreateTable("test", "sv2"); !strings.Contains(ddl, "PERIOD FOR SYSTEM_TIME (`rs2`, `re`)") {
+			t.Errorf("PERIOD not rewritten to the new column name:\n%s", ddl)
+		}
+	})
+
+	for _, tc := range []struct{ create, alter string }{
+		{"CREATE TABLE pl (x INT)", "ALTER TABLE pl DROP PERIOD FOR SYSTEM_TIME"},                          // 4124 not versioned
+		{"CREATE TABLE svn (x INT) WITH SYSTEM VERSIONING", "ALTER TABLE svn DROP PERIOD FOR SYSTEM_TIME"}, // 1091 no period
+		{withPeriod, "ALTER TABLE sv2 DROP PERIOD FOR SYSTEM_TIME"},                                        // 4125 needs DROP COLUMN
+	} {
+		t.Run("drop period rejected", func(t *testing.T) {
+			c := versionedCatalog(t, tc.create)
+			if _, ok := alterErr(c, tc.alter).(*Error); !ok {
+				t.Errorf("expected rejection for %q", tc.alter)
+			}
+		})
+	}
+}
+
 func alterErr(c *Catalog, sql string) error {
 	r, _ := c.Exec(sql, &ExecOptions{ContinueOnError: true})
 	return r[0].Error
