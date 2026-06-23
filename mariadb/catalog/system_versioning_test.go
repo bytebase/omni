@@ -411,6 +411,12 @@ func TestSystemVersioningExplicitWithExcludesOthers(t *testing.T) {
 			t.Errorf("table-option versioning should not mark columns WITHOUT:\n%s", ddl)
 		}
 	})
+	t.Run("explicit column with plus table option leaves others unmarked", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE w3 (x INT WITH SYSTEM VERSIONING, y INT) WITH SYSTEM VERSIONING")
+		if ddl := c.ShowCreateTable("test", "w3"); strings.Contains(ddl, "WITHOUT SYSTEM VERSIONING") {
+			t.Errorf("with a table-level option present, columns stay unmarked:\n%s", ddl)
+		}
+	})
 }
 
 func alterErr(c *Catalog, sql string) error {

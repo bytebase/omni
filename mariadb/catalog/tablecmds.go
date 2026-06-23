@@ -61,10 +61,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// Apply table options.
 	tblCharsetExplicit := false
 	tblCollationExplicit := false
+	tableOptionVersioned := false
 	for _, opt := range stmt.Options {
 		switch toLower(opt.Name) {
 		case "system versioning":
 			tbl.SystemVersioned = true
+			tableOptionVersioned = true
 		case "engine":
 			tbl.Engine = opt.Value
 		case "charset", "character set", "default charset", "default character set":
@@ -366,9 +368,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		for _, col := range tbl.Columns {
 			col.SystemVersioning = ""
 		}
-	} else if columnsHaveExplicitWith(tbl) {
-		// When some columns are explicitly WITH SYSTEM VERSIONING, the unmarked
-		// data columns are excluded — MariaDB renders them WITHOUT.
+	} else if !tableOptionVersioned && columnsHaveExplicitWith(tbl) {
+		// When versioning comes from an explicit column-level WITH (no table-level
+		// WITH SYSTEM VERSIONING), the unmarked data columns are excluded —
+		// MariaDB renders them WITHOUT. A table-level option leaves them unmarked.
 		for _, col := range tbl.Columns {
 			isRowCol := col.Generated != nil && col.Generated.RowBound != ""
 			if col.SystemVersioning == "" && !isRowCol {
