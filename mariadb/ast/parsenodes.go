@@ -863,10 +863,11 @@ func (r *TableRef) tableExpr() {}
 type SystemTimeKind int
 
 const (
-	SystemTimeAsOf    SystemTimeKind = iota // FOR SYSTEM_TIME AS OF expr
-	SystemTimeBetween                       // FOR SYSTEM_TIME BETWEEN expr AND expr
-	SystemTimeFromTo                        // FOR SYSTEM_TIME FROM expr TO expr
-	SystemTimeAll                           // FOR SYSTEM_TIME ALL
+	SystemTimeAsOf            SystemTimeKind = iota // FOR SYSTEM_TIME AS OF expr
+	SystemTimeBetween                               // FOR SYSTEM_TIME BETWEEN expr AND expr
+	SystemTimeFromTo                                // FOR SYSTEM_TIME FROM expr TO expr
+	SystemTimeAll                                   // FOR SYSTEM_TIME ALL
+	SystemTimeAsOfTransaction                       // FOR SYSTEM_TIME AS OF TRANSACTION expr
 )
 
 // SystemTime is the FOR SYSTEM_TIME temporal clause attached to a base table

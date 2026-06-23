@@ -1602,16 +1602,20 @@ func (p *Parser) parseForSystemTime() (*nodes.SystemTime, error) {
 
 	switch p.cur.Type {
 	case kwAS:
-		// AS OF expr
+		// AS OF expr  |  AS OF TRANSACTION expr (time travel by transaction id)
 		p.advance() // AS
 		if _, err := p.expect(kwOF); err != nil {
 			return nil, err
+		}
+		st.Kind = nodes.SystemTimeAsOf
+		if p.cur.Type == kwTRANSACTION {
+			p.advance() // TRANSACTION
+			st.Kind = nodes.SystemTimeAsOfTransaction
 		}
 		expr, err := p.parseExpr()
 		if err != nil {
 			return nil, err
 		}
-		st.Kind = nodes.SystemTimeAsOf
 		st.From = expr
 	case kwBETWEEN:
 		// BETWEEN expr AND expr — bounds parsed at precAdd so the AND is read as

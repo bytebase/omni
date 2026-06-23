@@ -43,6 +43,12 @@ func TestSystemTimeAccept(t *testing.T) {
 	}
 }
 
+// TestSystemTimeAsOfTransaction covers `FOR SYSTEM_TIME AS OF TRANSACTION n`
+// (time travel by transaction id), container-verified vs mariadb:11.8.8.
+func TestSystemTimeAsOfTransaction(t *testing.T) {
+	ParseAndCheck(t, "SELECT * FROM t FOR SYSTEM_TIME AS OF TRANSACTION 12345")
+}
+
 // TestSystemTimeReject covers the 1064 edges (all AGREE_REJECT vs mariadb:11.8.8):
 // the locking clause must keep its FOR, temporal binds before the alias only,
 // it attaches to base tables (not derived), and each form needs its full spec.

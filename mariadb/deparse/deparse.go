@@ -1076,6 +1076,8 @@ func deparseSystemTime(st *ast.SystemTime) string {
 	switch st.Kind {
 	case ast.SystemTimeAsOf:
 		return "for system_time as of " + deparseExpr(st.From)
+	case ast.SystemTimeAsOfTransaction:
+		return "for system_time as of transaction " + deparseExpr(st.From)
 	case ast.SystemTimeBetween:
 		return "for system_time between " + deparseExpr(st.From) + " and " + deparseExpr(st.To)
 	case ast.SystemTimeFromTo:
