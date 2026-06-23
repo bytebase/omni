@@ -1589,13 +1589,14 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		}
 	}
 
-	// PARTITIONS num
+	// PARTITIONS num (the count is required)
 	if p.cur.Type == kwPARTITIONS {
 		p.advance()
-		if p.cur.Type == tokICONST {
-			part.NumParts = int(p.cur.Ival)
-			p.advance()
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		part.NumParts = int(p.cur.Ival)
+		p.advance()
 	}
 
 	// SUBPARTITION BY {HASH(expr) | KEY [ALGORITHM=N] (column_list)}
@@ -1710,8 +1711,20 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			}
 			p.advance()
 		}
+		// An empty partition list "()" is a syntax error.
+		if len(part.Partitions) == 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
+		}
+	}
+
+	// A PARTITIONS count and an explicit partition list must agree.
+	if part.NumParts > 0 && len(part.Partitions) > 0 && len(part.Partitions) != part.NumParts {
+		return nil, &ParseError{
+			Position: part.Loc.Start,
+			Message:  "Wrong number of partitions defined, mismatch with previous setting",
 		}
 	}
 
