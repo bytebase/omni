@@ -28,8 +28,8 @@ func TestSystemTimePartitioning(t *testing.T) {
 func TestSystemTimePartitioningReject(t *testing.T) {
 	const sv = "CREATE TABLE t (x INT) WITH SYSTEM VERSIONING PARTITION BY SYSTEM_TIME"
 	for _, sql := range []string{
-		sv + " INTERVAL 1 (PARTITION p0 HISTORY, PARTITION pn CURRENT)",        // missing unit
-		sv + " INTERVAL 1 FOOBAR (PARTITION p0 HISTORY, PARTITION pn CURRENT)", // invalid unit
+		sv + " INTERVAL 1 (PARTITION p0 HISTORY, PARTITION pn CURRENT)",                   // missing unit
+		sv + " INTERVAL 1 FOOBAR (PARTITION p0 HISTORY, PARTITION pn CURRENT)",            // invalid unit
 		sv + " STARTS '2020-01-01 00:00:00' (PARTITION p0 HISTORY, PARTITION pn CURRENT)", // bare STARTS
 		sv + " AUTO", // bare AUTO
 		sv + " LIMIT 1000 STARTS '2020-01-01 00:00:00' (PARTITION p0 HISTORY, PARTITION pn CURRENT)", // STARTS after LIMIT
