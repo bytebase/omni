@@ -161,8 +161,14 @@ func walkChildren(v Visitor, node Node) {
 		for _, w := range n.Where {
 			Walk(v, w)
 		}
+		for _, g := range n.GroupBy {
+			Walk(v, g)
+		}
 		for _, o := range n.OrderBy {
 			Walk(v, o)
+		}
+		if n.PerPartitionLimit != nil {
+			Walk(v, n.PerPartitionLimit)
 		}
 		if n.Limit != nil {
 			Walk(v, n.Limit)
@@ -432,6 +438,12 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Resource)
 		}
 		Walk(v, n.Role)
+	case *GrantRoleStmt:
+		Walk(v, n.RoleName)
+		Walk(v, n.Grantee)
+	case *RevokeRoleStmt:
+		Walk(v, n.RoleName)
+		Walk(v, n.Revokee)
 	case *Resource:
 		if n.Name != nil {
 			Walk(v, n.Name)

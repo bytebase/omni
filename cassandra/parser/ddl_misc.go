@@ -179,20 +179,24 @@ func (p *Parser) parseCreateAggregate() (*ast.CreateAggregateStmt, error) {
 		return nil, err
 	}
 
-	if err := p.expectKeyword(tokFINALFUNC); err != nil {
-		return nil, err
-	}
-	finalfunc, err := p.parseIdentifier()
-	if err != nil {
-		return nil, err
+	var finalfunc *ast.Identifier
+	if p.cur.Type == tokFINALFUNC {
+		p.advance()
+		ff, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		finalfunc = ff
 	}
 
-	if err := p.expectKeyword(tokINITCOND); err != nil {
-		return nil, err
-	}
-	initcond, err := p.parseInitCondDefinition()
-	if err != nil {
-		return nil, err
+	var initcond ast.ExprNode
+	if p.cur.Type == tokINITCOND {
+		p.advance()
+		ic, err := p.parseInitCondDefinition()
+		if err != nil {
+			return nil, err
+		}
+		initcond = ic
 	}
 
 	return &ast.CreateAggregateStmt{

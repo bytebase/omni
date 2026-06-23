@@ -346,7 +346,7 @@ func (p *Parser) parseRelationElement() (ast.ExprNode, error) {
 	}
 
 	switch p.cur.Type {
-	case tokEQ, tokLT, tokGT, tokLTE, tokGTE:
+	case tokEQ, tokLT, tokGT, tokLTE, tokGTE, tokNE:
 		op := p.cur.Str
 		p.advance()
 		right, err := p.parseRelationRight()
@@ -468,7 +468,7 @@ func (p *Parser) parseTupleRelation(start int) (ast.ExprNode, error) {
 
 	// Tuple comparison: (col1, col2) op (val1, val2)
 	op := p.cur.Str
-	if !p.match(tokEQ, tokLT, tokGT, tokLTE, tokGTE) {
+	if !p.match(tokEQ, tokLT, tokGT, tokLTE, tokGTE, tokNE) {
 		return nil, p.errorf("expected operator or IN after tuple columns")
 	}
 	var values []ast.ExprNode
@@ -545,6 +545,8 @@ func tokenName(typ int) string {
 		return "'<'"
 	case typ == tokGT:
 		return "'>'"
+	case typ == tokNE:
+		return "'!='"
 	default:
 		// For keywords, reverse lookup
 		for name, t := range keywords {

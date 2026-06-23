@@ -8,42 +8,43 @@ const (
 
 // Literal token types.
 const (
-	tokIDENT      = iota + 1000 // unquoted identifier
-	tokQUOTED     // double-quoted identifier
-	tokSTRING     // single-quoted string
-	tokINTEGER    // integer constant
-	tokFLOAT      // float constant
-	tokUUID       // UUID literal
-	tokHEX        // hex literal 0xABCD
-	tokCODEBLOCK  // $$...$$ code block
+	tokIDENT     = iota + 1000 // unquoted identifier
+	tokQUOTED                  // double-quoted identifier
+	tokSTRING                  // single-quoted string
+	tokINTEGER                 // integer constant
+	tokFLOAT                   // float constant
+	tokUUID                    // UUID literal
+	tokHEX                     // hex literal 0xABCD
+	tokCODEBLOCK               // $$...$$ code block
 )
 
 // Operator / punctuation token types.
 const (
-	tokDOT      = iota + 2000 // .
-	tokCOMMA                  // ,
-	tokSEMI                   // ;
-	tokCOLON                  // :
-	tokLPAREN                 // (
-	tokRPAREN                 // )
-	tokLBRACE                 // {
-	tokRBRACE                 // }
-	tokLBRACK                 // [
-	tokRBRACK                 // ]
-	tokSTAR                   // *
-	tokPLUS                   // +
-	tokMINUS                  // -
-	tokEQ                     // =
-	tokLT                     // <
-	tokGT                     // >
-	tokLTE                    // <=
-	tokGTE                    // >=
-	tokMINUSMINUS             // --
+	tokDOT        = iota + 2000 // .
+	tokCOMMA                    // ,
+	tokSEMI                     // ;
+	tokCOLON                    // :
+	tokLPAREN                   // (
+	tokRPAREN                   // )
+	tokLBRACE                   // {
+	tokRBRACE                   // }
+	tokLBRACK                   // [
+	tokRBRACK                   // ]
+	tokSTAR                     // *
+	tokPLUS                     // +
+	tokMINUS                    // -
+	tokEQ                       // =
+	tokLT                       // <
+	tokGT                       // >
+	tokLTE                      // <=
+	tokGTE                      // >=
+	tokNE                       // !=
+	tokMINUSMINUS               // --
 )
 
 // Keyword token types.
 const (
-	tokADD           = iota + 3000
+	tokADD = iota + 3000
 	tokAGGREGATE
 	tokALL
 	tokALLOW
@@ -98,6 +99,7 @@ const (
 	tokFUNCTION
 	tokFUNCTIONS
 	tokGRANT
+	tokGROUP
 	tokIF
 	tokIN
 	tokINDEX
@@ -133,7 +135,9 @@ const (
 	tokOPTIONS
 	tokOR
 	tokORDER
+	tokPARTITION
 	tokPASSWORD
+	tokPER
 	tokPERMISSIONS
 	tokPRIMARY
 	tokRENAME

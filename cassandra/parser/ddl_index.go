@@ -46,8 +46,9 @@ func (p *Parser) parseCreateIndex() (*ast.CreateIndexStmt, error) {
 		return nil, err
 	}
 
-	// Index column: IDENT or FULL(IDENT)
-	if p.cur.Type == tokFULL {
+	// Index column: IDENT or FULL(IDENT), KEYS(IDENT), VALUES(IDENT), ENTRIES(IDENT)
+	switch p.cur.Type {
+	case tokFULL, tokKEYS, tokVALUES, tokENTRIES:
 		fStart := p.curLoc()
 		fname, err := p.parseIdentifier()
 		if err != nil {
@@ -59,7 +60,7 @@ func (p *Parser) parseCreateIndex() (*ast.CreateIndexStmt, error) {
 		}
 		fc.Loc.Start = fStart
 		stmt.Column = fc
-	} else {
+	default:
 		col, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err

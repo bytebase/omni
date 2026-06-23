@@ -448,15 +448,17 @@ func (n *OrderByElement) GetLoc() Loc { return n.Loc }
 // ---------------------------------------------------------------------------
 
 type SelectStmt struct {
-	Distinct       bool
-	JSON           bool
-	Elements       []*SelectElement
-	From           *QualifiedName
-	Where          []ExprNode // relation elements connected by AND
-	OrderBy        []*OrderByElement
-	Limit          ExprNode
-	AllowFiltering bool
-	Loc            Loc
+	Distinct          bool
+	JSON              bool
+	Elements          []*SelectElement
+	From              *QualifiedName
+	Where             []ExprNode // relation elements connected by AND
+	GroupBy           []*Identifier
+	OrderBy           []*OrderByElement
+	PerPartitionLimit ExprNode
+	Limit             ExprNode
+	AllowFiltering    bool
+	Loc               Loc
 }
 
 func (*SelectStmt) nodeTag()      {}
@@ -514,6 +516,7 @@ const (
 	BatchDefault BatchType = iota
 	BatchLogged
 	BatchUnlogged
+	BatchCounter
 )
 
 type BatchStmt struct {
@@ -939,6 +942,26 @@ type RevokeStmt struct {
 func (*RevokeStmt) nodeTag()      {}
 func (n *RevokeStmt) GetLoc() Loc { return n.Loc }
 func (*RevokeStmt) stmtNode()     {}
+
+type GrantRoleStmt struct {
+	RoleName *Identifier
+	Grantee  *Identifier
+	Loc      Loc
+}
+
+func (*GrantRoleStmt) nodeTag()      {}
+func (n *GrantRoleStmt) GetLoc() Loc { return n.Loc }
+func (*GrantRoleStmt) stmtNode()     {}
+
+type RevokeRoleStmt struct {
+	RoleName *Identifier
+	Revokee  *Identifier
+	Loc      Loc
+}
+
+func (*RevokeRoleStmt) nodeTag()      {}
+func (n *RevokeRoleStmt) GetLoc() Loc { return n.Loc }
+func (*RevokeRoleStmt) stmtNode()     {}
 
 // Resource represents a CQL resource (ALL KEYSPACES, KEYSPACE ks, TABLE ks.t, etc.)
 type Resource struct {

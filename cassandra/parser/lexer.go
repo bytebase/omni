@@ -76,6 +76,13 @@ func (l *Lexer) skipWhitespaceAndComments() {
 			}
 			continue
 		}
+		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
+			l.pos += 2
+			for l.pos < len(l.input) && l.input[l.pos] != '\n' {
+				l.pos++
+			}
+			continue
+		}
 		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
 			l.pos += 2
 			for l.pos+1 < len(l.input) {
@@ -326,6 +333,12 @@ func (l *Lexer) scanOperator(start int) Token {
 		return Token{Type: tokPLUS, Str: "+", Loc: start, End: l.pos}
 	case '-':
 		return Token{Type: tokMINUS, Str: "-", Loc: start, End: l.pos}
+	case '!':
+		if l.pos < len(l.input) && l.input[l.pos] == '=' {
+			l.pos++
+			return Token{Type: tokNE, Str: "!=", Loc: start, End: l.pos}
+		}
+		return Token{Type: tokILLEGAL, Str: "!", Loc: start, End: l.pos}
 	case '=':
 		return Token{Type: tokEQ, Str: "=", Loc: start, End: l.pos}
 	case '<':

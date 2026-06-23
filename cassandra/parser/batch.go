@@ -16,7 +16,7 @@ func (p *Parser) parseBatch() (*ast.BatchStmt, error) {
 		return nil, err
 	}
 
-	// Parse optional batch type: UNLOGGED or LOGGED
+	// Parse optional batch type: UNLOGGED, LOGGED, or COUNTER
 	batchType := ast.BatchDefault
 	switch p.cur.Type {
 	case tokUNLOGGED:
@@ -24,6 +24,9 @@ func (p *Parser) parseBatch() (*ast.BatchStmt, error) {
 		p.advance()
 	case tokLOGGED:
 		batchType = ast.BatchLogged
+		p.advance()
+	case tokCOUNTER:
+		batchType = ast.BatchCounter
 		p.advance()
 	}
 

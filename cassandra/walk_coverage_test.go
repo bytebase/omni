@@ -162,6 +162,15 @@ func TestWalkChildrenCoverage(t *testing.T) {
 		"DROP USER u",
 		"SELECT ks.* FROM ks.t",
 		"SELECT * FROM t ORDER BY v ANN OF [1.0, 2.0, 3.0] LIMIT 5",
+		"SELECT * FROM t GROUP BY a, b",
+		"SELECT * FROM t PER PARTITION LIMIT 5 LIMIT 100",
+		"GRANT myrole TO user1",
+		"REVOKE myrole FROM user1",
+		"BEGIN COUNTER BATCH UPDATE t SET c = c + 1 WHERE id = 1; APPLY BATCH",
+		"CREATE INDEX ON t (KEYS(m))",
+		"CREATE INDEX ON t (VALUES(m))",
+		"CREATE INDEX ON t (ENTRIES(m))",
+		"CREATE AGGREGATE ks.agg2(int) SFUNC plus STYPE int",
 	} {
 		list, err := parser.Parse(sql)
 		if err != nil {
@@ -270,7 +279,9 @@ func collectAllNodeStructTypes() []string {
 		reflect.TypeOf(ast.AlterUserStmt{}),
 		reflect.TypeOf(ast.DropUserStmt{}),
 		reflect.TypeOf(ast.GrantStmt{}),
+		reflect.TypeOf(ast.GrantRoleStmt{}),
 		reflect.TypeOf(ast.RevokeStmt{}),
+		reflect.TypeOf(ast.RevokeRoleStmt{}),
 		reflect.TypeOf(ast.Resource{}),
 		reflect.TypeOf(ast.ListPermissionsStmt{}),
 		reflect.TypeOf(ast.ListRolesStmt{}),

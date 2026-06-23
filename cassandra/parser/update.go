@@ -211,9 +211,8 @@ func (p *Parser) parseIfCondition() (*ast.IfCondition, error) {
 		return nil, err
 	}
 
-	// Parse comparison operator: =, <, >, <=, >=
 	op := p.cur.Str
-	if !p.match(tokEQ, tokLT, tokGT, tokLTE, tokGTE) {
+	if !p.match(tokEQ, tokLT, tokGT, tokLTE, tokGTE, tokNE) {
 		return nil, p.errorf("expected comparison operator in IF condition, got %s", p.tokenDesc())
 	}
 

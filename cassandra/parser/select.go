@@ -58,6 +58,15 @@ func (p *Parser) parseSelect() (*ast.SelectStmt, error) {
 		stmt.Where = where
 	}
 
+	// Optional GROUP BY clause.
+	if p.cur.Type == tokGROUP {
+		groupBy, err := p.parseGroupByClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.GroupBy = groupBy
+	}
+
 	// Optional ORDER BY clause.
 	if p.cur.Type == tokORDER {
 		orderBy, err := p.parseOrderByClause()
@@ -65,6 +74,15 @@ func (p *Parser) parseSelect() (*ast.SelectStmt, error) {
 			return nil, err
 		}
 		stmt.OrderBy = orderBy
+	}
+
+	// Optional PER PARTITION LIMIT clause.
+	if p.cur.Type == tokPER {
+		perPartLimit, err := p.parsePerPartitionLimitClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.PerPartitionLimit = perPartLimit
 	}
 
 	// Optional LIMIT clause.
@@ -295,6 +313,47 @@ func (p *Parser) parseVectorLiteral() (*ast.VectorLit, error) {
 	}
 
 	return &ast.VectorLit{Elements: elements, Loc: p.makeLoc(start)}, nil
+}
+
+// parseGroupByClause parses GROUP BY column (',' column)*.
+func (p *Parser) parseGroupByClause() ([]*ast.Identifier, error) {
+	if err := p.expectKeyword(tokGROUP); err != nil {
+		return nil, err
+	}
+	if err := p.expectKeyword(tokBY); err != nil {
+		return nil, err
+	}
+
+	var cols []*ast.Identifier
+	first, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	cols = append(cols, first)
+
+	for p.cur.Type == tokCOMMA {
+		p.advance()
+		col, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		cols = append(cols, col)
+	}
+	return cols, nil
+}
+
+// parsePerPartitionLimitClause parses PER PARTITION LIMIT decimal.
+func (p *Parser) parsePerPartitionLimitClause() (ast.ExprNode, error) {
+	if err := p.expectKeyword(tokPER); err != nil {
+		return nil, err
+	}
+	if err := p.expectKeyword(tokPARTITION); err != nil {
+		return nil, err
+	}
+	if err := p.expectKeyword(tokLIMIT); err != nil {
+		return nil, err
+	}
+	return p.parseConstant()
 }
 
 // parseLimitClause parses LIMIT decimal.

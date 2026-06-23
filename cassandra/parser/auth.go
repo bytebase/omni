@@ -6,9 +6,32 @@ import (
 	"github.com/bytebase/omni/cassandra/ast"
 )
 
-func (p *Parser) parseGrant() (*ast.GrantStmt, error) {
+func (p *Parser) parseGrant() (ast.StmtNode, error) {
 	start := p.curLoc()
 	p.advance() // GRANT
+
+	// Check for GRANT role_name TO grantee (role grant).
+	// If the current token is identifier-like and the next token is TO,
+	// and the current token is NOT a privilege keyword that would be followed by ON,
+	// then parse as role grant.
+	if isIdentLike(p.cur.Type) && p.peekNext().Type == tokTO {
+		roleName, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.expectKeyword(tokTO); err != nil {
+			return nil, err
+		}
+		grantee, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.GrantRoleStmt{
+			RoleName: roleName,
+			Grantee:  grantee,
+			Loc:      p.makeLoc(start),
+		}, nil
+	}
 
 	priv, err := p.parsePrivilege()
 	if err != nil {
@@ -41,9 +64,31 @@ func (p *Parser) parseGrant() (*ast.GrantStmt, error) {
 	}, nil
 }
 
-func (p *Parser) parseRevoke() (*ast.RevokeStmt, error) {
+func (p *Parser) parseRevoke() (ast.StmtNode, error) {
 	start := p.curLoc()
 	p.advance() // REVOKE
+
+	// Check for REVOKE role_name FROM revokee (role revoke).
+	// If the current token is identifier-like and the next token is FROM,
+	// then parse as role revoke.
+	if isIdentLike(p.cur.Type) && p.peekNext().Type == tokFROM {
+		roleName, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if err := p.expectKeyword(tokFROM); err != nil {
+			return nil, err
+		}
+		revokee, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.RevokeRoleStmt{
+			RoleName: roleName,
+			Revokee:  revokee,
+			Loc:      p.makeLoc(start),
+		}, nil
+	}
 
 	priv, err := p.parsePrivilege()
 	if err != nil {
