@@ -376,6 +376,14 @@ func TestParseErrors(t *testing.T) {
 		{"vector missing element type", "CREATE TABLE t (id int PRIMARY KEY, v vector<3>)"},
 		{"vector extra dimension", "CREATE TABLE t (id int PRIMARY KEY, v vector<float, 3, 4>)"},
 		{"map with integer param", "CREATE TABLE t (id int PRIMARY KEY, m map<text, 3>)"},
+
+		// LIMIT only accepts integer or bind marker
+		{"LIMIT string", "SELECT * FROM t LIMIT 'abc'"},
+		{"LIMIT bool", "SELECT * FROM t LIMIT true"},
+		{"LIMIT null", "SELECT * FROM t LIMIT null"},
+		{"LIMIT float", "SELECT * FROM t LIMIT 3.14"},
+		{"PER PARTITION LIMIT string", "SELECT * FROM t PER PARTITION LIMIT 'abc'"},
+		{"PER PARTITION LIMIT bool", "SELECT * FROM t PER PARTITION LIMIT false"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

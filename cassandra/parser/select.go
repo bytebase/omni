@@ -391,5 +391,10 @@ func (p *Parser) parseLimitValue() (ast.ExprNode, error) {
 		}
 		return &ast.BindMarker{Name: name.Name, Loc: p.makeLoc(start)}, nil
 	}
-	return p.parseConstant()
+	if p.cur.Type == tokINTEGER {
+		lit := &ast.IntegerLit{Val: p.cur.Str, Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
+		p.advance()
+		return lit, nil
+	}
+	return nil, p.errorf("expected integer literal or bind marker for LIMIT, got %s", p.tokenDesc())
 }
