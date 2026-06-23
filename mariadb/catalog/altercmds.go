@@ -181,15 +181,18 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		tbl.PeriodEndCol = cmd.PeriodEndCol
 		return nil
 	case nodes.ATDropPeriod:
+		// Check period presence first so the result is independent of command
+		// order: a DROP SYSTEM VERSIONING earlier in the same statement flips the
+		// versioned flag but does not clear the period.
+		if tbl.PeriodStartCol != "" {
+			// Dropping an existing period orphans the ROW START/END columns;
+			// MariaDB requires dropping them too (4125).
+			return errMissingSystemVersioning(tbl.Name)
+		}
 		if !tbl.SystemVersioned {
 			return errNotSystemVersioned(tbl.Name)
 		}
-		if tbl.PeriodStartCol == "" {
-			return errCantDropKey("PERIOD `SYSTEM_TIME`")
-		}
-		// Dropping an existing period standalone would orphan the ROW START/END
-		// columns; MariaDB requires dropping them too (4125).
-		return errMissingSystemVersioning(tbl.Name)
+		return errCantDropKey("PERIOD `SYSTEM_TIME`")
 	default:
 		// Unsupported alter command; silently ignore.
 		return nil

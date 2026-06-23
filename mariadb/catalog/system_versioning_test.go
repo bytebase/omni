@@ -350,6 +350,21 @@ func TestSystemVersioningRenameAndDropPeriod(t *testing.T) {
 			}
 		})
 	}
+
+	// DROP SYSTEM VERSIONING + DROP PERIOD is 4125 regardless of order (the table
+	// started versioned and still has the row columns).
+	t.Run("drop versioning and period is order-independent 4125", func(t *testing.T) {
+		for _, alter := range []string{
+			"ALTER TABLE sv2 DROP SYSTEM VERSIONING, DROP PERIOD FOR SYSTEM_TIME",
+			"ALTER TABLE sv2 DROP PERIOD FOR SYSTEM_TIME, DROP SYSTEM VERSIONING",
+		} {
+			c := versionedCatalog(t, withPeriod)
+			catErr, ok := alterErr(c, alter).(*Error)
+			if !ok || catErr.Code != 4125 {
+				t.Errorf("Code for %q = %v, want 4125", alter, catErr)
+			}
+		}
+	})
 }
 
 func alterErr(c *Catalog, sql string) error {
