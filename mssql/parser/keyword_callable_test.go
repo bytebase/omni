@@ -51,6 +51,9 @@ const (
 	// ast.SemanticTableRef. SEMANTICKEYPHRASETABLE /
 	// SEMANTICSIMILARITYTABLE / SEMANTICSIMILARITYDETAILSTABLE.
 	roleSemanticTable
+	// roleNiladic — SQL-standard niladic functions that take no parentheses
+	// in expression position (CURRENT_TIMESTAMP, CURRENT_USER, etc.).
+	roleNiladic
 )
 
 type callableKeyword struct {
@@ -103,6 +106,17 @@ var callableKeywordManifest = []callableKeyword{
 	{keyword: "SEMANTICKEYPHRASETABLE", role: roleSemanticTable, acceptSample: "SELECT * FROM SEMANTICKEYPHRASETABLE(t, b) s"},
 	{keyword: "SEMANTICSIMILARITYTABLE", role: roleSemanticTable, acceptSample: "SELECT * FROM SEMANTICSIMILARITYTABLE(t, b, 1) s"},
 	{keyword: "SEMANTICSIMILARITYDETAILSTABLE", role: roleSemanticTable, acceptSample: "SELECT * FROM SEMANTICSIMILARITYDETAILSTABLE(t, a, 1, b, 2) s"},
+	// --- roleExprScalar (CoreKeyword scalar functions) ---
+	{keyword: "LEFT", role: roleExprScalar, acceptSample: "SELECT LEFT('abcdef', 3)"},
+	{keyword: "RIGHT", role: roleExprScalar, acceptSample: "SELECT RIGHT('abcdef', 3)"},
+	// --- roleNiladic (no-parentheses niladic functions) ---
+	{keyword: "CURRENT_TIMESTAMP", role: roleNiladic, acceptSample: "SELECT CURRENT_TIMESTAMP"},
+	{keyword: "CURRENT_USER", role: roleNiladic, acceptSample: "SELECT CURRENT_USER"},
+	{keyword: "SESSION_USER", role: roleNiladic, acceptSample: "SELECT SESSION_USER"},
+	{keyword: "SYSTEM_USER", role: roleNiladic, acceptSample: "SELECT SYSTEM_USER"},
+	{keyword: "USER", role: roleNiladic, acceptSample: "SELECT USER"},
+	{keyword: "CURRENT_DATE", role: roleNiladic, acceptSample: "SELECT CURRENT_DATE"},
+	{keyword: "CURRENT_TIME", role: roleNiladic, acceptSample: "SELECT CURRENT_TIME"},
 }
 
 // rejectContexts are the "wrong-context" shapes we spray each keyword into
@@ -154,6 +168,11 @@ var rejectContexts = []rejectContext{
 			roleExprScalar,
 		},
 	},
+	{
+		name:       "niladic-with-empty-parens",
+		render:     func(k string) string { return "SELECT " + k + "()" },
+		allowRoles: []keywordRole{roleExprScalar},
+	},
 }
 
 // TestCallableKeywordManifest asserts each manifest entry parses in its
@@ -181,8 +200,9 @@ func TestCallableKeywordRoleRejection(t *testing.T) {
 				continue
 			}
 			// Hybrid scalar/FROM keywords (OPENJSON today) are also
-			// legal as generic scalar FunctionCalls.
-			if entry.alsoScalar && strings.HasPrefix(ctx.name, "scalar-") {
+			// legal as generic scalar FunctionCalls — skip scalar and
+			// niladic-shaped contexts for them.
+			if entry.alsoScalar && (strings.HasPrefix(ctx.name, "scalar-") || strings.HasPrefix(ctx.name, "niladic-")) {
 				continue
 			}
 			sql := ctx.render(entry.keyword)
