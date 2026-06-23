@@ -428,6 +428,10 @@ type ColumnDef struct {
 	SecondaryEngineAttribute string // SECONDARY_ENGINE_ATTRIBUTE [=] 'string'
 	// SystemVersioning records column-level WITH / WITHOUT SYSTEM VERSIONING.
 	SystemVersioning ColVersioning
+	// SystemVersioningWithSeen is true when a column-level WITH SYSTEM VERSIONING
+	// appeared, even if a later WITHOUT on the same column overrode the net
+	// attribute. MariaDB marks the TABLE system-versioned once a WITH is seen.
+	SystemVersioningWithSeen bool
 }
 
 func (d *ColumnDef) nodeTag() {}

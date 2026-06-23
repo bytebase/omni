@@ -268,7 +268,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			}
 		}
 		col.SystemVersioning = colVersioningSQL(colDef.SystemVersioning)
-		if col.SystemVersioning == "WITH" {
+		if col.SystemVersioning == "WITH" || colDef.SystemVersioningWithSeen {
+			// A column-level WITH marks the table system-versioned even if a later
+			// WITHOUT on the same column excluded it — leaving no versioned column
+			// (rejected as 4123 by validateSystemVersioning).
 			tbl.SystemVersioned = true
 		}
 		if col.AutoIncrement {
@@ -978,6 +981,12 @@ func (c *Catalog) applyTimestampSessionDefaults(cols []*Column, defs []*nodes.Co
 			continue
 		}
 		def := defs[i]
+		if def.Generated != nil {
+			// Generated columns — including ROW START/END row-bound columns, even
+			// after WITHOUT-normalization nulls the catalog column's Generated —
+			// never take the legacy timestamp DEFAULT/ON UPDATE promotion.
+			continue
+		}
 		if hasExplicitNull(def) {
 			continue
 		}

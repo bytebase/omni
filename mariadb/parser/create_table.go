@@ -600,6 +600,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 				col.SystemVersioning = nodes.ColVersioningWithout
 			} else {
 				col.SystemVersioning = nodes.ColVersioningWith
+				col.SystemVersioningWithSeen = true
 			}
 			return true, nil
 		}

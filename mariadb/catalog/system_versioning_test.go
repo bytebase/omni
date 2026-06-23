@@ -223,6 +223,59 @@ func TestSystemVersioningPeriodRowColumnCodes(t *testing.T) {
 	}
 }
 
+// TestSystemVersioningRowColumnsNoTimestampDefaults: with
+// explicit_defaults_for_timestamp=0, MariaDB does NOT apply the legacy
+// timestamp DEFAULT/ON UPDATE CURRENT_TIMESTAMP promotion to ROW START/END
+// columns — they are generated columns and render bare. Grounded vs 11.8.8 for
+// both a versioned table and a WITHOUT-normalized one (where the row columns
+// become ordinary NOT NULL but still must not pick up the legacy defaults).
+func TestSystemVersioningRowColumnsNoTimestampDefaults(t *testing.T) {
+	cases := []struct{ name, ddl, table string }{
+		{"versioned", "CREATE TABLE t (x INT, rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING", "t"},
+		{"normalized", "CREATE TABLE t (x INT WITHOUT SYSTEM VERSIONING, rs TIMESTAMP(6) AS ROW START, re TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re))", "t"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			c.Exec("SET SESSION explicit_defaults_for_timestamp=0", nil)
+			c.Exec(tc.ddl, nil)
+			ddl := c.ShowCreateTable("test", tc.table)
+			if strings.Contains(ddl, "CURRENT_TIMESTAMP") {
+				t.Errorf("row column picked up legacy DEFAULT/ON UPDATE CURRENT_TIMESTAMP:\n%s", ddl)
+			}
+			if strings.Contains(ddl, "0000-00-00") {
+				t.Errorf("row column picked up legacy zero DEFAULT:\n%s", ddl)
+			}
+		})
+	}
+}
+
+// TestSystemVersioningColumnConflictingOptions: a column may carry both WITH and
+// WITHOUT SYSTEM VERSIONING. MariaDB applies last-wins to the column attribute
+// but marks the TABLE system-versioned once a WITH has appeared. So WITH then
+// WITHOUT leaves the only column excluded on a versioned table => 4123 (no
+// versioned column), while WITHOUT then WITH is a versioned, included column =>
+// accepted. Grounded vs 11.8.8.
+func TestSystemVersioningColumnConflictingOptions(t *testing.T) {
+	t.Run("with then without rejected 4123", func(t *testing.T) {
+		err := execErr(t, "CREATE TABLE t (x INT WITH SYSTEM VERSIONING WITHOUT SYSTEM VERSIONING)")
+		catErr, ok := err.(*Error)
+		if !ok {
+			t.Fatalf("expected *Error (4123), got %v", err)
+		}
+		if catErr.Code != 4123 {
+			t.Errorf("Code = %d, want 4123 (message: %q)", catErr.Code, catErr.Message)
+		}
+	})
+	t.Run("without then with accepted", func(t *testing.T) {
+		if err := execErr(t, "CREATE TABLE t (x INT WITHOUT SYSTEM VERSIONING WITH SYSTEM VERSIONING)"); err != nil {
+			t.Errorf("expected accept, got %v", err)
+		}
+	})
+}
+
 // TestSystemVersioningCaseInsensitivePeriod: MariaDB matches the PERIOD FOR
 // SYSTEM_TIME columns against the ROW START/END column names case-insensitively.
 func TestSystemVersioningCaseInsensitivePeriod(t *testing.T) {
