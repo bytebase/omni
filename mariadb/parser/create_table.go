@@ -1713,6 +1713,15 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 			if err != nil {
 				return nil, err
 			}
+			// A SYSTEM_TIME HISTORY/CURRENT partition cannot also carry VALUES
+			// (MariaDB 1064). VALUES without HISTORY/CURRENT is left to the catalog
+			// (1480); HISTORY/CURRENT under another type is left to the catalog (4113).
+			if part.Type == nodes.PartitionSystemTime && pd.SystemTime != "" && pd.Values != nil {
+				return nil, &ParseError{
+					Position: pd.Loc.Start,
+					Message:  "VALUES is not allowed for a SYSTEM_TIME HISTORY/CURRENT partition",
+				}
+			}
 			part.Partitions = append(part.Partitions, pd)
 			if p.cur.Type != ',' {
 				break

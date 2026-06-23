@@ -33,6 +33,8 @@ func TestSystemTimePartitioningReject(t *testing.T) {
 		sv + " STARTS '2020-01-01 00:00:00' (PARTITION p0 HISTORY, PARTITION pn CURRENT)", // bare STARTS
 		sv + " AUTO", // bare AUTO
 		sv + " LIMIT 1000 STARTS '2020-01-01 00:00:00' (PARTITION p0 HISTORY, PARTITION pn CURRENT)", // STARTS after LIMIT
+		sv + " (PARTITION p0 HISTORY VALUES LESS THAN (1), PARTITION pn CURRENT)",                    // HISTORY + VALUES
+		sv + " (PARTITION p0 HISTORY, PARTITION pn CURRENT VALUES LESS THAN (1))",                    // CURRENT + VALUES
 	} {
 		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
 	}
