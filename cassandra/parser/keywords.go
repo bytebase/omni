@@ -105,6 +105,7 @@ var keywords = map[string]int{
 	"partition":            tokPARTITION,
 	"password":             tokPASSWORD,
 	"per":                  tokPER,
+	"permission":           tokPERMISSION,
 	"permissions":          tokPERMISSIONS,
 	"primary":              tokPRIMARY,
 	"rename":               tokRENAME,

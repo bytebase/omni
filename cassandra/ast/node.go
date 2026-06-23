@@ -644,8 +644,7 @@ type AlterTableStmt struct {
 	DropIfExists   bool
 	DropColumns    []*Identifier
 	RenameIfExists bool
-	RenameFrom     *Identifier
-	RenameTo       *Identifier
+	RenameItems    []*AlterTableRenameItem
 	Options        []*TableOption
 	Loc            Loc
 }
@@ -653,6 +652,15 @@ type AlterTableStmt struct {
 func (*AlterTableStmt) nodeTag()      {}
 func (n *AlterTableStmt) GetLoc() Loc { return n.Loc }
 func (*AlterTableStmt) stmtNode()     {}
+
+type AlterTableRenameItem struct {
+	From *Identifier
+	To   *Identifier
+	Loc  Loc
+}
+
+func (*AlterTableRenameItem) nodeTag()      {}
+func (n *AlterTableRenameItem) GetLoc() Loc { return n.Loc }
 
 type DropTableStmt struct {
 	IfExists bool
@@ -894,9 +902,9 @@ func (n *CreateRoleStmt) GetLoc() Loc { return n.Loc }
 func (*CreateRoleStmt) stmtNode()     {}
 
 type RoleOption struct {
-	Key    string // "PASSWORD", "HASHED PASSWORD", "LOGIN", "SUPERUSER", "OPTIONS", "ACCESS"
-	Value  ExprNode
-	Loc    Loc
+	Key   string // "PASSWORD", "HASHED PASSWORD", "LOGIN", "SUPERUSER", "OPTIONS", "ACCESS"
+	Value ExprNode
+	Loc   Loc
 }
 
 func (*RoleOption) nodeTag()      {}
@@ -927,6 +935,7 @@ type CreateUserStmt struct {
 	IfNotExists bool
 	Name        *Identifier
 	Password    ExprNode
+	Hashed      bool
 	Superuser   *bool
 	Loc         Loc
 }
@@ -939,6 +948,7 @@ type AlterUserStmt struct {
 	IfExists  bool
 	Name      *Identifier
 	Password  ExprNode
+	Hashed    bool
 	Superuser *bool
 	Loc       Loc
 }

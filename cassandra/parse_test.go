@@ -409,6 +409,8 @@ func TestParseNoPanic(t *testing.T) {
 		"/* unterminated block comment",
 		"SELECT 1e",
 		"SELECT 1e+",
+		"GRANT SELECT ON MBEAN 123 TO r",
+		"GRANT SELECT ON MBEANS 456 TO r",
 	}
 	for _, input := range inputs {
 		t.Run(input, func(t *testing.T) {
@@ -682,6 +684,25 @@ func TestParseAlterIfExists(t *testing.T) {
 				if !stmt.RenameIfExists {
 					t.Fatal("expected RenameIfExists=true")
 				}
+				if len(stmt.RenameItems) != 1 {
+					t.Fatalf("expected 1 rename item, got %d", len(stmt.RenameItems))
+				}
+			},
+		},
+		{
+			name: "ALTER TABLE RENAME multiple pairs",
+			sql:  "ALTER TABLE t RENAME a TO b AND c TO d",
+			check: func(t *testing.T, s Statement) {
+				stmt := s.AST.(*ast.AlterTableStmt)
+				if len(stmt.RenameItems) != 2 {
+					t.Fatalf("expected 2 rename items, got %d", len(stmt.RenameItems))
+				}
+				if stmt.RenameItems[0].From.Name != "a" || stmt.RenameItems[0].To.Name != "b" {
+					t.Fatal("first rename pair wrong")
+				}
+				if stmt.RenameItems[1].From.Name != "c" || stmt.RenameItems[1].To.Name != "d" {
+					t.Fatal("second rename pair wrong")
+				}
 			},
 		},
 		{
@@ -875,6 +896,76 @@ func TestParseP2Features(t *testing.T) {
 			r := s.AST.(*ast.GrantStmt).Resource
 			if r.Type != "FUNCTION" || len(r.ArgTypes) != 2 {
 				t.Fatal("wrong func resource")
+			}
+		}},
+		{"singular PERMISSION", "GRANT SELECT PERMISSION ON TABLE t TO r", func(t *testing.T, s Statement) {
+			g := s.AST.(*ast.GrantStmt)
+			if g.Privilege != "SELECT" {
+				t.Fatalf("expected SELECT, got %s", g.Privilege)
+			}
+		}},
+		{"ALL PERMISSION singular", "GRANT ALL PERMISSION ON TABLE t TO r", func(t *testing.T, s Statement) {
+			g := s.AST.(*ast.GrantStmt)
+			if g.Privilege != "ALL PERMISSIONS" {
+				t.Fatalf("expected ALL PERMISSIONS, got %s", g.Privilege)
+			}
+		}},
+		{"REVOKE singular PERMISSION", "REVOKE MODIFY PERMISSION ON TABLE t FROM r", func(t *testing.T, s Statement) {
+			r := s.AST.(*ast.RevokeStmt)
+			if r.Privilege != "MODIFY" {
+				t.Fatalf("expected MODIFY, got %s", r.Privilege)
+			}
+		}},
+		{"LIMIT ?", "SELECT * FROM t LIMIT ?", func(t *testing.T, s Statement) {
+			sel := s.AST.(*ast.SelectStmt)
+			if _, ok := sel.Limit.(*ast.BindMarker); !ok {
+				t.Fatalf("expected BindMarker, got %T", sel.Limit)
+			}
+		}},
+		{"LIMIT :name", "SELECT * FROM t LIMIT :n", func(t *testing.T, s Statement) {
+			sel := s.AST.(*ast.SelectStmt)
+			bm := sel.Limit.(*ast.BindMarker)
+			if bm.Name != "n" {
+				t.Fatalf("expected name 'n', got %s", bm.Name)
+			}
+		}},
+		{"PER PARTITION LIMIT ?", "SELECT * FROM t PER PARTITION LIMIT ?", func(t *testing.T, s Statement) {
+			sel := s.AST.(*ast.SelectStmt)
+			if _, ok := sel.PerPartitionLimit.(*ast.BindMarker); !ok {
+				t.Fatalf("expected BindMarker, got %T", sel.PerPartitionLimit)
+			}
+		}},
+		{"CREATE CUSTOM INDEX WITH OPTIONS", "CREATE CUSTOM INDEX idx ON t (col) USING 'org.Custom' WITH OPTIONS = {'key': 'val'}", func(t *testing.T, s Statement) {
+			idx := s.AST.(*ast.CreateIndexStmt)
+			if !idx.IsCustom {
+				t.Fatal("expected IsCustom")
+			}
+			if idx.Options == nil || len(idx.Options.Items) != 1 {
+				t.Fatal("expected 1 option")
+			}
+		}},
+		{"CREATE USER HASHED PASSWORD", "CREATE USER u WITH HASHED PASSWORD 'h' SUPERUSER", func(t *testing.T, s Statement) {
+			u := s.AST.(*ast.CreateUserStmt)
+			if !u.Hashed {
+				t.Fatal("expected Hashed=true")
+			}
+			if u.Superuser == nil || !*u.Superuser {
+				t.Fatal("expected Superuser=true")
+			}
+		}},
+		{"CREATE USER no password", "CREATE USER u SUPERUSER", func(t *testing.T, s Statement) {
+			u := s.AST.(*ast.CreateUserStmt)
+			if u.Password != nil {
+				t.Fatal("expected no password")
+			}
+		}},
+		{"ALTER USER HASHED PASSWORD", "ALTER USER u WITH HASHED PASSWORD 'h' NOSUPERUSER", func(t *testing.T, s Statement) {
+			u := s.AST.(*ast.AlterUserStmt)
+			if !u.Hashed {
+				t.Fatal("expected Hashed=true")
+			}
+			if u.Superuser == nil || *u.Superuser {
+				t.Fatal("expected Superuser=false")
 			}
 		}},
 	}

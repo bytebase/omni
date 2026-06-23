@@ -188,33 +188,51 @@ func (p *Parser) parsePrivilege() (string, error) {
 			p.advance()
 			return "ALL PERMISSIONS", nil
 		}
+		if p.cur.Type == tokPERMISSION {
+			p.advance()
+			return "ALL PERMISSIONS", nil
+		}
 		return "ALL", nil
 	case tokALTER:
 		p.advance()
+		p.consumeOptionalPermission()
 		return "ALTER", nil
 	case tokAUTHORIZE:
 		p.advance()
+		p.consumeOptionalPermission()
 		return "AUTHORIZE", nil
 	case tokDESCRIBE:
 		p.advance()
+		p.consumeOptionalPermission()
 		return "DESCRIBE", nil
 	case tokEXECUTE:
 		p.advance()
+		p.consumeOptionalPermission()
 		return "EXECUTE", nil
 	case tokCREATE:
 		p.advance()
+		p.consumeOptionalPermission()
 		return "CREATE", nil
 	case tokDROP:
 		p.advance()
+		p.consumeOptionalPermission()
 		return "DROP", nil
 	case tokMODIFY:
 		p.advance()
+		p.consumeOptionalPermission()
 		return "MODIFY", nil
 	case tokSELECT:
 		p.advance()
+		p.consumeOptionalPermission()
 		return "SELECT", nil
 	default:
 		return "", p.errorf("expected privilege keyword, got %s", p.tokenDesc())
+	}
+}
+
+func (p *Parser) consumeOptionalPermission() {
+	if p.cur.Type == tokPERMISSION {
+		p.advance()
 	}
 }
 
@@ -284,7 +302,11 @@ func (p *Parser) parseResource() (*ast.Resource, error) {
 		if err != nil {
 			return nil, err
 		}
-		ident := &ast.Identifier{Name: val.(*ast.StringLit).Val, Loc: val.GetLoc()}
+		strLit, ok := val.(*ast.StringLit)
+		if !ok {
+			return nil, p.errorf("expected string literal for MBEAN name, got %T", val)
+		}
+		ident := &ast.Identifier{Name: strLit.Val, Loc: val.GetLoc()}
 		return &ast.Resource{
 			Type: "MBEAN",
 			Name: &ast.QualifiedName{Parts: []*ast.Identifier{ident}, Loc: ident.Loc},
@@ -297,7 +319,11 @@ func (p *Parser) parseResource() (*ast.Resource, error) {
 		if err != nil {
 			return nil, err
 		}
-		ident := &ast.Identifier{Name: val.(*ast.StringLit).Val, Loc: val.GetLoc()}
+		strLit, ok := val.(*ast.StringLit)
+		if !ok {
+			return nil, p.errorf("expected string literal for MBEANS pattern, got %T", val)
+		}
+		ident := &ast.Identifier{Name: strLit.Val, Loc: val.GetLoc()}
 		return &ast.Resource{
 			Type: "MBEANS",
 			Name: &ast.QualifiedName{Parts: []*ast.Identifier{ident}, Loc: ident.Loc},
@@ -534,17 +560,12 @@ func (p *Parser) parseCreateUser() (*ast.CreateUserStmt, error) {
 		Name:        name,
 	}
 
-	if err := p.expectKeyword(tokWITH); err != nil {
-		return nil, err
+	if p.cur.Type == tokWITH {
+		p.advance()
+		if err := p.parseUserPasswordClause(stmt, nil); err != nil {
+			return nil, err
+		}
 	}
-	if err := p.expectKeyword(tokPASSWORD); err != nil {
-		return nil, err
-	}
-	pwd, err := p.parseConstant()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Password = pwd
 
 	if p.cur.Type == tokSUPERUSER {
 		v := true
@@ -560,6 +581,32 @@ func (p *Parser) parseCreateUser() (*ast.CreateUserStmt, error) {
 	return stmt, nil
 }
 
+// parseUserPasswordClause parses [HASHED] PASSWORD string after WITH.
+// Sets Password and Hashed on the appropriate stmt via the setter closures.
+func (p *Parser) parseUserPasswordClause(create *ast.CreateUserStmt, alter *ast.AlterUserStmt) error {
+	hashed := false
+	if p.cur.Type == tokHASHED {
+		hashed = true
+		p.advance()
+	}
+	if err := p.expectKeyword(tokPASSWORD); err != nil {
+		return err
+	}
+	pwd, err := p.parseConstant()
+	if err != nil {
+		return err
+	}
+	if create != nil {
+		create.Password = pwd
+		create.Hashed = hashed
+	}
+	if alter != nil {
+		alter.Password = pwd
+		alter.Hashed = hashed
+	}
+	return nil
+}
+
 func (p *Parser) parseAlterUser() (*ast.AlterUserStmt, error) {
 	start := p.curLoc()
 	p.advance() // USER
@@ -573,17 +620,12 @@ func (p *Parser) parseAlterUser() (*ast.AlterUserStmt, error) {
 
 	stmt := &ast.AlterUserStmt{IfExists: ifExists, Name: name}
 
-	if err := p.expectKeyword(tokWITH); err != nil {
-		return nil, err
+	if p.cur.Type == tokWITH {
+		p.advance()
+		if err := p.parseUserPasswordClause(nil, stmt); err != nil {
+			return nil, err
+		}
 	}
-	if err := p.expectKeyword(tokPASSWORD); err != nil {
-		return nil, err
-	}
-	pwd, err := p.parseConstant()
-	if err != nil {
-		return nil, err
-	}
-	stmt.Password = pwd
 
 	if p.cur.Type == tokSUPERUSER {
 		v := true

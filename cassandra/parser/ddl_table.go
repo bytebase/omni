@@ -294,19 +294,28 @@ func (p *Parser) parseAlterTable() (*ast.AlterTableStmt, error) {
 		stmt.Op = ast.AlterTableRename
 		p.advance()
 		stmt.RenameIfExists = p.parseIfExists()
-		from, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
+		for {
+			rStart := p.curLoc()
+			from, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			if err := p.expectKeyword(tokTO); err != nil {
+				return nil, err
+			}
+			to, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			stmt.RenameItems = append(stmt.RenameItems, &ast.AlterTableRenameItem{
+				From: from,
+				To:   to,
+				Loc:  p.makeLoc(rStart),
+			})
+			if !p.match(tokAND) {
+				break
+			}
 		}
-		if err := p.expectKeyword(tokTO); err != nil {
-			return nil, err
-		}
-		to, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		stmt.RenameFrom = from
-		stmt.RenameTo = to
 	case tokWITH:
 		stmt.Op = ast.AlterTableWith
 		p.advance()

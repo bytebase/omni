@@ -93,8 +93,14 @@ func (p *Parser) parseCreateIndex() (*ast.CreateIndexStmt, error) {
 		}
 	}
 
-	// Optional WITH options
+	// Optional WITH OPTIONS = { ... } or WITH { ... }
 	if p.match(tokWITH) {
+		if p.cur.Type == tokOPTIONS {
+			p.advance()
+			if _, err := p.expect(tokEQ); err != nil {
+				return nil, err
+			}
+		}
 		opts, err := p.parseOptionHash()
 		if err != nil {
 			return nil, err

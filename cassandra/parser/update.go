@@ -214,7 +214,8 @@ func (p *Parser) parseIfConditions() ([]*ast.IfCondition, error) {
 }
 
 // parseIfCondition parses a single LWT condition:
-//   col op value | col IN (values) | col CONTAINS [KEY] value
+//
+//	col op value | col IN (values) | col CONTAINS [KEY] value
 func (p *Parser) parseIfCondition() (*ast.IfCondition, error) {
 	start := p.curLoc()
 

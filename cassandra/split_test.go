@@ -14,8 +14,8 @@ func TestSplit(t *testing.T) {
 		{"SELECT * FROM users;", 1},
 		{"SELECT * FROM users; INSERT INTO t (id) VALUES (1)", 2},
 		{"SELECT * FROM users; ; INSERT INTO t (id) VALUES (1)", 2}, // empty segment filtered
-		{"SELECT * FROM users WHERE name = 'hello;world'", 1},      // semicolon inside string
-		{`SELECT * FROM users WHERE name = "test;col"`, 1},         // semicolon inside quoted ident
+		{"SELECT * FROM users WHERE name = 'hello;world'", 1},       // semicolon inside string
+		{`SELECT * FROM users WHERE name = "test;col"`, 1},          // semicolon inside quoted ident
 		{"SELECT * FROM users; -- comment with ; inside\nINSERT INTO t (id) VALUES (1)", 2},
 		{"SELECT * FROM users /* ; */ ; SELECT 1", 2},
 		{"CREATE FUNCTION f() RETURNS NULL ON NULL INPUT RETURNS text LANGUAGE java AS $$return \";\";$$", 1}, // semicolon in code block

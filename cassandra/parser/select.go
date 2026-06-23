@@ -366,13 +366,30 @@ func (p *Parser) parsePerPartitionLimitClause() (ast.ExprNode, error) {
 	if err := p.expectKeyword(tokLIMIT); err != nil {
 		return nil, err
 	}
-	return p.parseConstant()
+	return p.parseLimitValue()
 }
 
 // parseLimitClause parses LIMIT decimal.
 func (p *Parser) parseLimitClause() (ast.ExprNode, error) {
 	p.advance() // consume LIMIT
+	return p.parseLimitValue()
+}
 
-	// LIMIT may be an integer literal or a bind marker / function call.
+// parseLimitValue parses an integer literal, bind marker, or named bind marker.
+func (p *Parser) parseLimitValue() (ast.ExprNode, error) {
+	if p.cur.Type == tokQMARK {
+		m := &ast.BindMarker{Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
+		p.advance()
+		return m, nil
+	}
+	if p.cur.Type == tokCOLON {
+		start := p.curLoc()
+		p.advance()
+		name, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.BindMarker{Name: name.Name, Loc: p.makeLoc(start)}, nil
+	}
 	return p.parseConstant()
 }

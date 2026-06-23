@@ -147,6 +147,7 @@ const (
 	tokPARTITION
 	tokPASSWORD
 	tokPER
+	tokPERMISSION
 	tokPERMISSIONS
 	tokPRIMARY
 	tokRENAME

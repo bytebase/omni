@@ -277,15 +277,15 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.DropColumns {
 			Walk(v, c)
 		}
-		if n.RenameFrom != nil {
-			Walk(v, n.RenameFrom)
-		}
-		if n.RenameTo != nil {
-			Walk(v, n.RenameTo)
+		for _, r := range n.RenameItems {
+			Walk(v, r)
 		}
 		for _, o := range n.Options {
 			Walk(v, o)
 		}
+	case *AlterTableRenameItem:
+		Walk(v, n.From)
+		Walk(v, n.To)
 	case *DropTableStmt:
 		Walk(v, n.Name)
 	case *CreateIndexStmt:
