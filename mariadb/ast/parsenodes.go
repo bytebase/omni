@@ -183,6 +183,10 @@ type CreateTableStmt struct {
 	Select      *SelectStmt // CREATE TABLE ... AS SELECT
 	Ignore      bool        // IGNORE before SELECT in CTAS
 	Replace     bool        // REPLACE before SELECT in CTAS
+
+	// PERIOD FOR SYSTEM_TIME (start_col, end_col) — system-versioning period.
+	PeriodStartCol string
+	PeriodEndCol   string
 }
 
 func (s *CreateTableStmt) nodeTag()  {}
@@ -250,6 +254,11 @@ const (
 	ATSecondaryLoad
 	ATSecondaryUnload
 	ATPartitionBy
+	// System-versioning (MariaDB temporal).
+	ATAddSystemVersioning
+	ATDropSystemVersioning
+	ATAddPeriod
+	ATDropPeriod
 )
 
 // AlterTableCmd represents a single ALTER TABLE operation.
@@ -275,6 +284,9 @@ type AlterTableCmd struct {
 	WithValidation *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
 	OrderByItems   []*OrderByItem   // for ORDER BY operation
 	PartitionBy    *PartitionClause // for PARTITION BY (repartition)
+	// PeriodStartCol / PeriodEndCol carry ADD PERIOD FOR SYSTEM_TIME (start, end).
+	PeriodStartCol string
+	PeriodEndCol   string
 }
 
 func (c *AlterTableCmd) nodeTag() {}
@@ -414,18 +426,43 @@ type ColumnDef struct {
 	Storage                  string // STORAGE {DISK | MEMORY}
 	EngineAttribute          string // ENGINE_ATTRIBUTE [=] 'string'
 	SecondaryEngineAttribute string // SECONDARY_ENGINE_ATTRIBUTE [=] 'string'
+	// SystemVersioning records column-level WITH / WITHOUT SYSTEM VERSIONING.
+	SystemVersioning ColVersioning
+	// SystemVersioningWithSeen is true when a column-level WITH SYSTEM VERSIONING
+	// appeared, even if a later WITHOUT on the same column overrode the net
+	// attribute. MariaDB marks the TABLE system-versioned once a WITH is seen.
+	SystemVersioningWithSeen bool
 }
 
 func (d *ColumnDef) nodeTag() {}
 
+// ColVersioning marks column-level system versioning.
+type ColVersioning int
+
+const (
+	ColVersioningNone    ColVersioning = iota // unset
+	ColVersioningWith                         // WITH SYSTEM VERSIONING
+	ColVersioningWithout                      // WITHOUT SYSTEM VERSIONING
+)
+
 // GeneratedColumn represents a generated column specification.
 type GeneratedColumn struct {
-	Loc    Loc
-	Expr   ExprNode
-	Stored bool // STORED vs VIRTUAL
+	Loc      Loc
+	Expr     ExprNode     // GENERATED ALWAYS AS (expr); nil for a ROW START/END column
+	Stored   bool         // STORED vs VIRTUAL
+	RowBound RowBoundKind // GENERATED ALWAYS AS ROW START / ROW END
 }
 
 func (g *GeneratedColumn) nodeTag() {}
+
+// RowBoundKind marks a system-versioning period column.
+type RowBoundKind int
+
+const (
+	RowBoundNone  RowBoundKind = iota // expression-generated column
+	RowBoundStart                     // ... AS ROW START
+	RowBoundEnd                       // ... AS ROW END
+)
 
 // ColumnConstraintType enumerates column constraint types.
 type ColumnConstraintType int
@@ -820,10 +857,40 @@ type TableRef struct {
 	Alias      string   // AS alias
 	Partitions []string // PARTITION (p0, p1, ...)
 	IndexHints []*IndexHint
+	SystemTime *SystemTime // FOR SYSTEM_TIME temporal clause (system-versioned time travel)
 }
 
 func (r *TableRef) nodeTag()   {}
 func (r *TableRef) tableExpr() {}
+
+// SystemTimeKind enumerates the FOR SYSTEM_TIME time-travel forms.
+type SystemTimeKind int
+
+const (
+	SystemTimeAsOf            SystemTimeKind = iota // FOR SYSTEM_TIME AS OF expr
+	SystemTimeBetween                               // FOR SYSTEM_TIME BETWEEN expr AND expr
+	SystemTimeFromTo                                // FOR SYSTEM_TIME FROM expr TO expr
+	SystemTimeAll                                   // FOR SYSTEM_TIME ALL
+	SystemTimeAsOfTransaction                       // FOR SYSTEM_TIME AS OF TRANSACTION expr
+)
+
+// SystemTime is the FOR SYSTEM_TIME temporal clause attached to a base table
+// factor. From/To hold the time bounds: AS OF sets From only; BETWEEN and
+// FROM..TO set both; ALL sets neither.
+type SystemTime struct {
+	Loc  Loc
+	Kind SystemTimeKind
+	From ExprNode
+	To   ExprNode
+	// FromTransaction/ToTransaction record a TRANSACTION qualifier on the
+	// corresponding BETWEEN / FROM..TO bound (transaction-id precision). Bounds
+	// are independent — MariaDB allows mixing TRANSACTION and timestamp bounds.
+	// (AS OF TRANSACTION is encoded via SystemTimeAsOfTransaction instead.)
+	FromTransaction bool
+	ToTransaction   bool
+}
+
+func (s *SystemTime) nodeTag() {}
 
 // IndexHint represents an index hint (USE/FORCE/IGNORE INDEX).
 type IndexHint struct {

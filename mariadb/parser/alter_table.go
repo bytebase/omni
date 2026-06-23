@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -437,6 +439,28 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		return cmd, nil
 	}
 
+	// ADD SYSTEM VERSIONING (system-versioned table). VERSIONING is non-reserved.
+	if p.cur.Type == kwSYSTEM && p.peekNext().Type == tokIDENT && strings.EqualFold(p.peekNext().Str, "VERSIONING") {
+		p.advance() // SYSTEM
+		p.advance() // VERSIONING
+		cmd.Type = nodes.ATAddSystemVersioning
+		cmd.Loc.End = p.pos()
+		return cmd, nil
+	}
+
+	// ADD PERIOD FOR SYSTEM_TIME (start_col, end_col)
+	if p.atPeriodForSystemTime() {
+		startCol, endCol, err := p.parsePeriodForSystemTimeCols()
+		if err != nil {
+			return nil, err
+		}
+		cmd.Type = nodes.ATAddPeriod
+		cmd.PeriodStartCol = startCol
+		cmd.PeriodEndCol = endCol
+		cmd.Loc.End = p.pos()
+		return cmd, nil
+	}
+
 	// ADD [COLUMN]
 	cmd.Type = nodes.ATAddColumn
 	p.match(kwCOLUMN)
@@ -497,7 +521,31 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		return nil, &ParseError{Message: "collecting"}
 	}
 
+	// DROP PERIOD FOR SYSTEM_TIME (PERIOD is non-reserved, intercepted here)
+	if p.atPeriodForSystemTime() {
+		p.advance() // PERIOD
+		p.advance() // FOR
+		if p.cur.Type != tokIDENT || !strings.EqualFold(p.cur.Str, "SYSTEM_TIME") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // SYSTEM_TIME
+		cmd.Type = nodes.ATDropPeriod
+		cmd.Loc.End = p.pos()
+		return cmd, nil
+	}
+
 	switch p.cur.Type {
+	case kwSYSTEM:
+		// DROP SYSTEM VERSIONING
+		if p.peekNext().Type == tokIDENT && strings.EqualFold(p.peekNext().Str, "VERSIONING") {
+			p.advance() // SYSTEM
+			p.advance() // VERSIONING
+			cmd.Type = nodes.ATDropSystemVersioning
+			cmd.Loc.End = p.pos()
+			return cmd, nil
+		}
+		return nil, p.syntaxErrorAtCur()
+
 	case kwPARTITION:
 		// DROP PARTITION partition_names
 		p.advance()

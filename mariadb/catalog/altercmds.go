@@ -25,10 +25,53 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
-	if len(stmt.Commands) <= 1 {
-		// Single command: no rollback needed.
-		if len(stmt.Commands) == 1 {
-			return c.execAlterCmd(db, tbl, stmt.Commands[0])
+	if len(stmt.Commands) == 0 {
+		return nil
+	}
+
+	// A column-level WITH/WITHOUT SYSTEM VERSIONING is valid only when the table
+	// is already system-versioned at the start of the statement — a later
+	// ADD SYSTEM VERSIONING in the same ALTER does not retroactively allow it.
+	// Checked up front (against the pre-statement state) so command order does
+	// not matter.
+	if !tbl.SystemVersioned {
+		for _, cmd := range stmt.Commands {
+			if addsColumnVersioning(cmd) {
+				return errNotSystemVersioned(tbl.Name)
+			}
+		}
+	} else {
+		// Ordinary column add/drop/modify/change is not allowed on a table that
+		// is already system-versioned at statement start (MariaDB default; it
+		// requires @@system_versioning_alter_history, which is not modeled).
+		for _, cmd := range stmt.Commands {
+			if isColumnMutation(cmd) {
+				return errAlterColumnOnSystemVersioned(tbl.Name)
+			}
+		}
+	}
+
+	if len(stmt.Commands) == 1 {
+		cmd := stmt.Commands[0]
+		// A versioned table can be made inconsistent by any column change (a
+		// dropped/modified/renamed ROW START/END or period column), so route the
+		// command through post-mutation validation when the table is already
+		// versioned or the command itself carries versioning metadata. Plain
+		// tables keep the no-clone fast path.
+		if !tbl.SystemVersioned && !cmdAffectsVersioning(cmd) {
+			return c.execAlterCmd(db, tbl, cmd)
+		}
+		// Versioning commands need a post-mutation consistency check, so snapshot
+		// to roll back an invalid result (e.g. DROP SYSTEM VERSIONING that leaves
+		// orphaned period columns -> 4125).
+		snapshot := cloneTable(tbl)
+		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
+			*tbl = snapshot
+			return err
+		}
+		if err := validateSystemVersioning(tbl); err != nil {
+			*tbl = snapshot
+			return err
 		}
 		return nil
 	}
@@ -38,18 +81,27 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	snapshot := cloneTable(tbl)
 	origKey := key
 
+	rollback := func() {
+		// If a RENAME changed the map key, undo it, then restore all fields.
+		newKey := toLower(tbl.Name)
+		if newKey != origKey {
+			delete(db.Tables, newKey)
+			db.Tables[origKey] = tbl
+		}
+		*tbl = snapshot
+	}
+
 	for _, cmd := range stmt.Commands {
 		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
-			// Rollback: if a RENAME changed the map key, undo it.
-			newKey := toLower(tbl.Name)
-			if newKey != origKey {
-				delete(db.Tables, newKey)
-				db.Tables[origKey] = tbl
-			}
-			// Restore all table fields from snapshot.
-			*tbl = snapshot
+			rollback()
 			return err
 		}
+	}
+	// Validate system-versioning consistency across the atomic ALTER as a whole
+	// ("ADD PERIOD ..., ADD SYSTEM VERSIONING" is valid; either one alone is not).
+	if err := validateSystemVersioning(tbl); err != nil {
+		rollback()
+		return err
 	}
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
@@ -109,10 +161,108 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATRemovePartitioning:
 		tbl.Partitioning = nil
 		return nil
+	case nodes.ATAddSystemVersioning:
+		if tbl.SystemVersioned {
+			return errAlreadySystemVersioned(tbl.Name)
+		}
+		tbl.SystemVersioned = true
+		return nil
+	case nodes.ATDropSystemVersioning:
+		if !tbl.SystemVersioned {
+			return errNotSystemVersioned(tbl.Name)
+		}
+		tbl.SystemVersioned = false
+		return nil
+	case nodes.ATAddPeriod:
+		if tbl.PeriodStartCol != "" {
+			return errAlreadySystemVersioned(tbl.Name)
+		}
+		tbl.PeriodStartCol = cmd.PeriodStartCol
+		tbl.PeriodEndCol = cmd.PeriodEndCol
+		return nil
+	case nodes.ATDropPeriod:
+		// Check period presence first so the result is independent of command
+		// order: a DROP SYSTEM VERSIONING earlier in the same statement flips the
+		// versioned flag but does not clear the period.
+		if tbl.PeriodStartCol != "" {
+			// Dropping an existing period orphans the ROW START/END columns;
+			// MariaDB requires dropping them too (4125).
+			return errMissingSystemVersioning(tbl.Name)
+		}
+		if !tbl.SystemVersioned {
+			return errNotSystemVersioned(tbl.Name)
+		}
+		return errCantDropKey("PERIOD `SYSTEM_TIME`")
 	default:
 		// Unsupported alter command; silently ignore.
 		return nil
 	}
+}
+
+// cmdAffectsVersioning reports whether an ALTER command can change a table's
+// system-versioning consistency (and so needs a post-ALTER validation). This is
+// the four ADD/DROP SYSTEM VERSIONING / PERIOD commands, plus ADD COLUMN whose
+// definition carries versioning metadata (ROW START/END or WITH/WITHOUT).
+func cmdAffectsVersioning(cmd *nodes.AlterTableCmd) bool {
+	switch cmd.Type {
+	case nodes.ATAddSystemVersioning, nodes.ATDropSystemVersioning,
+		nodes.ATAddPeriod, nodes.ATDropPeriod:
+		return true
+	case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
+		if colDefHasVersioningMeta(cmd.Column) {
+			return true
+		}
+		for _, c := range cmd.Columns {
+			if colDefHasVersioningMeta(c) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// isColumnMutation reports whether an ALTER command adds, drops, modifies, or
+// changes a column. RENAME COLUMN and index/table-option changes are excluded —
+// MariaDB allows those on a system-versioned table.
+func isColumnMutation(cmd *nodes.AlterTableCmd) bool {
+	switch cmd.Type {
+	case nodes.ATAddColumn, nodes.ATDropColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
+		return true
+	}
+	return false
+}
+
+// addsColumnVersioning reports whether an ALTER command introduces a column
+// carrying a column-level WITH/WITHOUT SYSTEM VERSIONING attribute (which
+// requires the table to already be system-versioned, independent of command
+// order). ADD/MODIFY/CHANGE COLUMN all carry a column definition.
+func addsColumnVersioning(cmd *nodes.AlterTableCmd) bool {
+	switch cmd.Type {
+	case nodes.ATAddColumn, nodes.ATModifyColumn, nodes.ATChangeColumn:
+	default:
+		return false
+	}
+	if cmd.Column != nil && cmd.Column.SystemVersioning != nodes.ColVersioningNone {
+		return true
+	}
+	for _, c := range cmd.Columns {
+		if c != nil && c.SystemVersioning != nodes.ColVersioningNone {
+			return true
+		}
+	}
+	return false
+}
+
+// colDefHasVersioningMeta reports whether a column definition carries
+// system-versioning metadata (a ROW START/END bound or WITH/WITHOUT versioning).
+func colDefHasVersioningMeta(colDef *nodes.ColumnDef) bool {
+	if colDef == nil {
+		return false
+	}
+	if colDef.SystemVersioning != nodes.ColVersioningNone {
+		return true
+	}
+	return colDef.Generated != nil && colDef.Generated.RowBound != nodes.RowBoundNone
 }
 
 // alterAddColumn adds a new column to the table.
@@ -690,6 +840,14 @@ func (c *Catalog) alterRenameColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 
 	tbl.Columns[idx].Name = cmd.NewName
 	updateColumnRefsInIndexes(tbl, cmd.Name, cmd.NewName)
+	// Keep PERIOD FOR SYSTEM_TIME referencing the renamed column (MariaDB
+	// rewrites it).
+	if strings.EqualFold(tbl.PeriodStartCol, cmd.Name) {
+		tbl.PeriodStartCol = cmd.NewName
+	}
+	if strings.EqualFold(tbl.PeriodEndCol, cmd.Name) {
+		tbl.PeriodEndCol = cmd.NewName
+	}
 	rebuildColIndex(tbl)
 	return nil
 }
@@ -951,10 +1109,12 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	}
 	if colDef.Generated != nil {
 		col.Generated = &GeneratedColumnInfo{
-			Expr:   nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
-			Stored: colDef.Generated.Stored,
+			Expr:     nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+			Stored:   colDef.Generated.Stored,
+			RowBound: rowBoundSQL(colDef.Generated.RowBound),
 		}
 	}
+	col.SystemVersioning = colVersioningSQL(colDef.SystemVersioning)
 
 	// Process column-level constraints (non-index-producing ones).
 	for _, cc := range colDef.Constraints {

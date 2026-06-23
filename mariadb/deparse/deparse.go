@@ -1058,12 +1058,46 @@ func deparseTableRef(t *ast.TableRef) string {
 	b.WriteString("`")
 	b.WriteString(t.Name)
 	b.WriteString("`")
+	if t.SystemTime != nil {
+		b.WriteString(" ")
+		b.WriteString(deparseSystemTime(t.SystemTime))
+	}
 	if t.Alias != "" {
 		b.WriteString(" `")
 		b.WriteString(t.Alias)
 		b.WriteString("`")
 	}
 	return b.String()
+}
+
+// deparseSystemTime formats the FOR SYSTEM_TIME temporal clause. Dropping it
+// would silently turn a time-travel query into a current-data query.
+func deparseSystemTime(st *ast.SystemTime) string {
+	switch st.Kind {
+	case ast.SystemTimeAsOf:
+		return "for system_time as of " + deparseExpr(st.From)
+	case ast.SystemTimeAsOfTransaction:
+		return "for system_time as of transaction " + deparseExpr(st.From)
+	case ast.SystemTimeBetween:
+		return "for system_time between " + systemTimeBound(st.From, st.FromTransaction) +
+			" and " + systemTimeBound(st.To, st.ToTransaction)
+	case ast.SystemTimeFromTo:
+		return "for system_time from " + systemTimeBound(st.From, st.FromTransaction) +
+			" to " + systemTimeBound(st.To, st.ToTransaction)
+	case ast.SystemTimeAll:
+		return "for system_time all"
+	default:
+		return ""
+	}
+}
+
+// systemTimeBound renders a FOR SYSTEM_TIME range bound, prefixing TRANSACTION
+// when the bound carries the transaction-id qualifier.
+func systemTimeBound(expr ast.ExprNode, transaction bool) string {
+	if transaction {
+		return "transaction " + deparseExpr(expr)
+	}
+	return deparseExpr(expr)
 }
 
 func deparseExpr(node ast.ExprNode) string {

@@ -88,6 +88,11 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		parts = append(parts, showColumnWithTable(col, tbl))
 	}
 
+	// PERIOD FOR SYSTEM_TIME — after columns, before keys/constraints.
+	if tbl.PeriodStartCol != "" {
+		parts = append(parts, fmt.Sprintf("PERIOD FOR SYSTEM_TIME (`%s`, `%s`)", tbl.PeriodStartCol, tbl.PeriodEndCol))
+	}
+
 	// Indexes — MySQL 8.0 orders them in groups:
 	// 1. PRIMARY KEY
 	// 2. UNIQUE KEYs (creation order)
@@ -151,6 +156,11 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 	if opts != "" {
 		b.WriteString(" ")
 		b.WriteString(opts)
+	}
+
+	// System versioning suffix.
+	if tbl.SystemVersioned {
+		b.WriteString(" WITH SYSTEM VERSIONING")
 	}
 
 	// Partition clause.
@@ -230,6 +240,18 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 
 	// Generated column.
 	if col.Generated != nil {
+		if col.Generated.RowBound != "" {
+			// System-versioning period column: GENERATED ALWAYS AS ROW START/END
+			// (no expression, no VIRTUAL/STORED mode).
+			b.WriteString(fmt.Sprintf(" GENERATED ALWAYS AS %s", col.Generated.RowBound))
+			if col.Comment != "" {
+				b.WriteString(fmt.Sprintf(" COMMENT '%s'", escapeComment(col.Comment)))
+			}
+			if col.Invisible {
+				b.WriteString(" /*!80023 INVISIBLE */")
+			}
+			return b.String()
+		}
 		mode := "VIRTUAL"
 		if col.Generated.Stored {
 			mode = "STORED"
@@ -286,6 +308,11 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 	// INVISIBLE.
 	if col.Invisible {
 		b.WriteString(" /*!80023 INVISIBLE */")
+	}
+
+	// Column-level WITHOUT SYSTEM VERSIONING (WITH is the implicit default).
+	if col.SystemVersioning == "WITHOUT" {
+		b.WriteString(" WITHOUT SYSTEM VERSIONING")
 	}
 
 	return b.String()

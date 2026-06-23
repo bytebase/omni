@@ -53,6 +53,15 @@ const (
 	ErrFKDupName                         = 1826
 	ErrCheckConstraintNotAllowed         = 3815
 	ErrCheckConstraintDupName            = 3822
+	ErrWrongSystemVersioning             = 4123
+	ErrRowColumnWrongType                = 4110
+	ErrNotSystemVersioned                = 4124
+	ErrAlterOnSystemVersioned            = 4119
+	ErrDuplicateRowColumn                = 4134
+	ErrAlreadySystemVersioned            = 4135
+	ErrTruncateSystemVersioned           = 4137
+	ErrMissingSystemVersioning           = 4125
+	ErrPeriodWrongColumns                = 4126
 )
 
 var sqlStateMap = map[int]string{
@@ -84,6 +93,15 @@ var sqlStateMap = map[int]string{
 	ErrFKCannotUseVirtualColumn:          "HY000",
 	ErrUnsupportedGeneratedStorageChange: "HY000",
 	ErrDependentByGenCol:                 "HY000",
+	ErrWrongSystemVersioning:             "HY000",
+	ErrRowColumnWrongType:                "HY000",
+	ErrNotSystemVersioned:                "HY000",
+	ErrAlterOnSystemVersioned:            "HY000",
+	ErrDuplicateRowColumn:                "HY000",
+	ErrAlreadySystemVersioned:            "HY000",
+	ErrTruncateSystemVersioned:           "HY000",
+	ErrMissingSystemVersioning:           "HY000",
+	ErrPeriodWrongColumns:                "HY000",
 	ErrWrongArguments:                    "HY000",
 	ErrWrongNameForIndex:                 "42000",
 	ErrInvalidOnUpdate:                   "HY000",
@@ -269,6 +287,61 @@ func errNoSuchEvent(db, name string) error {
 func errUnsupportedGeneratedStorageChange(col, table string) error {
 	return &Error{Code: ErrUnsupportedGeneratedStorageChange, SQLState: sqlState(ErrUnsupportedGeneratedStorageChange),
 		Message: fmt.Sprintf("'Changing the STORED status' is not supported for generated columns.")}
+}
+
+func errMissingSystemVersioning(table string) error {
+	return &Error{Code: ErrMissingSystemVersioning, SQLState: sqlState(ErrMissingSystemVersioning),
+		Message: fmt.Sprintf("Wrong parameters for `%s`: missing 'WITH SYSTEM VERSIONING'", table)}
+}
+
+func errPeriodWrongColumns(rowStart, rowEnd string) error {
+	return &Error{Code: ErrPeriodWrongColumns, SQLState: sqlState(ErrPeriodWrongColumns),
+		Message: fmt.Sprintf("PERIOD FOR SYSTEM_TIME must use columns `%s` and `%s`", rowStart, rowEnd)}
+}
+
+func errMissingRowStart(table string) error {
+	return &Error{Code: ErrMissingSystemVersioning, SQLState: sqlState(ErrMissingSystemVersioning),
+		Message: fmt.Sprintf("Wrong parameters for `%s`: missing 'AS ROW START'", table)}
+}
+
+func errMissingPeriod(table string) error {
+	return &Error{Code: ErrMissingSystemVersioning, SQLState: sqlState(ErrMissingSystemVersioning),
+		Message: fmt.Sprintf("Wrong parameters for `%s`: missing 'PERIOD FOR SYSTEM_TIME'", table)}
+}
+
+func errNotSystemVersioned(table string) error {
+	return &Error{Code: ErrNotSystemVersioned, SQLState: sqlState(ErrNotSystemVersioned),
+		Message: fmt.Sprintf("Table `%s` is not system-versioned", table)}
+}
+
+func errTruncateSystemVersioned(table string) error {
+	return &Error{Code: ErrTruncateSystemVersioned, SQLState: sqlState(ErrTruncateSystemVersioned),
+		Message: fmt.Sprintf("System-versioned tables do not support TRUNCATE TABLE, table `%s`", table)}
+}
+
+func errAlreadySystemVersioned(table string) error {
+	return &Error{Code: ErrAlreadySystemVersioned, SQLState: sqlState(ErrAlreadySystemVersioned),
+		Message: fmt.Sprintf("Table `%s` is already system-versioned", table)}
+}
+
+func errAlterColumnOnSystemVersioned(table string) error {
+	return &Error{Code: ErrAlterOnSystemVersioned, SQLState: sqlState(ErrAlterOnSystemVersioned),
+		Message: fmt.Sprintf("Not allowed for system-versioned `%s`. Change @@system_versioning_alter_history to proceed with ALTER.", table)}
+}
+
+func errNoVersionedColumn(table string) error {
+	return &Error{Code: ErrWrongSystemVersioning, SQLState: sqlState(ErrWrongSystemVersioning),
+		Message: fmt.Sprintf("Table `%s` must have at least one versioned column", table)}
+}
+
+func errDuplicateRowColumn(bound, col string) error {
+	return &Error{Code: ErrDuplicateRowColumn, SQLState: sqlState(ErrDuplicateRowColumn),
+		Message: fmt.Sprintf("Duplicate %s column `%s`", bound, col)}
+}
+
+func errWrongRowColumnType(table, col string) error {
+	return &Error{Code: ErrRowColumnWrongType, SQLState: sqlState(ErrRowColumnWrongType),
+		Message: fmt.Sprintf("`%s` in `%s` must be of type TIMESTAMP(6) or BIGINT(20) UNSIGNED", col, table)}
 }
 
 func errDependentByGeneratedColumn(column, genColumn, table string) error {

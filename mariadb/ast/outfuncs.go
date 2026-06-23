@@ -195,6 +195,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeColumnRef(sb, n)
 	case *TableRef:
 		writeTableRef(sb, n)
+	case *SystemTime:
+		writeSystemTime(sb, n)
 	case *IntLit:
 		fmt.Fprintf(sb, "{INT_LIT :val %d :loc %d}", n.Value, n.Loc.Start)
 	case *FloatLit:
@@ -831,6 +833,9 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 	if n.Select != nil {
 		sb.WriteString(" :as_select ")
 		writeNode(sb, n.Select)
+	}
+	if n.PeriodStartCol != "" {
+		fmt.Fprintf(sb, " :period_for_system_time (%s, %s)", n.PeriodStartCol, n.PeriodEndCol)
 	}
 	sb.WriteString("}")
 }
@@ -2461,6 +2466,30 @@ func writeTableRef(sb *strings.Builder, n *TableRef) {
 			writeNode(sb, h)
 		}
 	}
+	if n.SystemTime != nil {
+		sb.WriteString(" :system_time ")
+		writeSystemTime(sb, n.SystemTime)
+	}
+	sb.WriteString("}")
+}
+
+func writeSystemTime(sb *strings.Builder, n *SystemTime) {
+	sb.WriteString("{SYSTEM_TIME")
+	fmt.Fprintf(sb, " :loc %d :kind %d", n.Loc.Start, n.Kind)
+	if n.From != nil {
+		sb.WriteString(" :from ")
+		writeNode(sb, n.From)
+	}
+	if n.FromTransaction {
+		sb.WriteString(" :from_transaction true")
+	}
+	if n.To != nil {
+		sb.WriteString(" :to ")
+		writeNode(sb, n.To)
+	}
+	if n.ToTransaction {
+		sb.WriteString(" :to_transaction true")
+	}
 	sb.WriteString("}")
 }
 
@@ -2657,6 +2686,9 @@ func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 	if n.SecondaryEngineAttribute != "" {
 		fmt.Fprintf(sb, " :secondary_engine_attribute %q", n.SecondaryEngineAttribute)
 	}
+	if n.SystemVersioning != ColVersioningNone {
+		fmt.Fprintf(sb, " :system_versioning %d", n.SystemVersioning)
+	}
 	if len(n.Constraints) > 0 {
 		sb.WriteString(" :constraints ")
 		for i, c := range n.Constraints {
@@ -2674,6 +2706,9 @@ func writeGeneratedColumn(sb *strings.Builder, n *GeneratedColumn) {
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
 	if n.Stored {
 		sb.WriteString(" :stored true")
+	}
+	if n.RowBound != RowBoundNone {
+		fmt.Fprintf(sb, " :row_bound %d", n.RowBound)
 	}
 	if n.Expr != nil {
 		sb.WriteString(" :expr ")
@@ -2810,6 +2845,9 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	fmt.Fprintf(sb, " :loc %d :type %d", n.Loc.Start, n.Type)
 	if n.Name != "" {
 		fmt.Fprintf(sb, " :name %s", n.Name)
+	}
+	if n.PeriodStartCol != "" {
+		fmt.Fprintf(sb, " :period_for_system_time (%s, %s)", n.PeriodStartCol, n.PeriodEndCol)
 	}
 	if n.NewName != "" {
 		fmt.Fprintf(sb, " :new_name %s", n.NewName)

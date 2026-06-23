@@ -61,8 +61,13 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// Apply table options.
 	tblCharsetExplicit := false
 	tblCollationExplicit := false
+	tableOptionVersioned := false
+	sawExplicitColumnWith := false // an explicit column-level WITH appeared (even if a later WITHOUT overrode it)
 	for _, opt := range stmt.Options {
 		switch toLower(opt.Name) {
+		case "system versioning":
+			tbl.SystemVersioned = true
+			tableOptionVersioned = true
 		case "engine":
 			tbl.Engine = opt.Value
 		case "charset", "character set", "default charset", "default character set":
@@ -160,6 +165,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// see altercmds.go which uses nextCheckNumber (gap-scan helper).
 	var unnamedCheckCount int
 
+	// PERIOD FOR SYSTEM_TIME columns. Whether this makes a valid system-versioned
+	// table is validated after columns are processed (it requires an explicit
+	// WITH SYSTEM VERSIONING).
+	tbl.PeriodStartCol = stmt.PeriodStartCol
+	tbl.PeriodEndCol = stmt.PeriodEndCol
+
 	// Process columns.
 	for i, colDef := range stmt.Columns {
 		if err := validateColumnDefSemantics(colDef); err != nil {
@@ -252,9 +263,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		}
 		if colDef.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
-				Expr:   nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
-				Stored: colDef.Generated.Stored,
+				Expr:     nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+				Stored:   colDef.Generated.Stored,
+				RowBound: rowBoundSQL(colDef.Generated.RowBound),
 			}
+		}
+		col.SystemVersioning = colVersioningSQL(colDef.SystemVersioning)
+		if col.SystemVersioning == "WITH" || colDef.SystemVersioningWithSeen {
+			// A column-level WITH marks the table system-versioned AND excludes the
+			// unmarked columns, even if a later WITHOUT on the same column reset its
+			// own attribute to WITHOUT — which then leaves it excluded, so a lone
+			// such column yields no versioned column (4123 in validateSystemVersioning).
+			tbl.SystemVersioned = true
+			sawExplicitColumnWith = true
 		}
 		if col.AutoIncrement {
 			if autoIncrementColumn != "" {
@@ -345,6 +366,49 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 
 		tbl.Columns = append(tbl.Columns, col)
 		tbl.colByName[colKey] = i
+	}
+
+	if !tbl.SystemVersioned {
+		// A column-level WITHOUT SYSTEM VERSIONING is a no-op on a non-versioned
+		// table — MariaDB discards it (SHOW CREATE omits it).
+		hasWithout := false
+		for _, col := range tbl.Columns {
+			if col.SystemVersioning == "WITHOUT" {
+				hasWithout = true
+			}
+			col.SystemVersioning = ""
+		}
+		// A WITHOUT column makes MariaDB normalize the rest of the (otherwise
+		// invalid) versioning metadata away: ROW START/END columns become ordinary
+		// NOT NULL columns and the PERIOD is dropped. Without such a column,
+		// row/period metadata on a non-versioned table is an error (4125).
+		if hasWithout {
+			// Duplicate ROW START/END is still rejected before normalizing away.
+			if err := checkDuplicateRowColumns(tbl); err != nil {
+				return err
+			}
+			for _, col := range tbl.Columns {
+				if col.Generated != nil && col.Generated.RowBound != "" {
+					col.Generated = nil
+					col.Nullable = false
+				}
+			}
+			tbl.PeriodStartCol = ""
+			tbl.PeriodEndCol = ""
+		}
+	} else if !tableOptionVersioned && sawExplicitColumnWith {
+		// When versioning comes from an explicit column-level WITH (no table-level
+		// WITH SYSTEM VERSIONING), the unmarked data columns are excluded —
+		// MariaDB renders them WITHOUT. A table-level option leaves them unmarked.
+		for _, col := range tbl.Columns {
+			isRowCol := col.Generated != nil && col.Generated.RowBound != ""
+			if col.SystemVersioning == "" && !isRowCol {
+				col.SystemVersioning = "WITHOUT"
+			}
+		}
+	}
+	if err := validateSystemVersioning(tbl); err != nil {
+		return err
 	}
 
 	c.applyTimestampSessionDefaults(tbl.Columns, stmt.Columns)
@@ -920,6 +984,12 @@ func (c *Catalog) applyTimestampSessionDefaults(cols []*Column, defs []*nodes.Co
 			continue
 		}
 		def := defs[i]
+		if def.Generated != nil {
+			// Generated columns — including ROW START/END row-bound columns, even
+			// after WITHOUT-normalization nulls the catalog column's Generated —
+			// never take the legacy timestamp DEFAULT/ON UPDATE promotion.
+			continue
+		}
 		if hasExplicitNull(def) {
 			continue
 		}
@@ -1745,6 +1815,171 @@ func applyBinaryModifierCollation(col *Column, dt *nodes.DataType) {
 // nodeToSQLGenerated converts an AST expression to SQL for use in a generated
 // column definition. MySQL prefixes string literals with a charset introducer
 // (e.g., _utf8mb4'value') in generated column expressions.
+
+// isRowColumnType reports whether a column has a type valid for a
+// system-versioning ROW START/END column: TIMESTAMP(6) for timestamp-precise
+// versioning, or BIGINT UNSIGNED for transaction-precise versioning.
+func isRowColumnType(col *Column) bool {
+	return strings.EqualFold(col.ColumnType, "timestamp(6)") ||
+		strings.EqualFold(col.ColumnType, "bigint unsigned")
+}
+
+// checkDuplicateRowColumns rejects a second ROW START or ROW END column (4134).
+// It is independent of versioning — MariaDB rejects duplicates even when a
+// WITHOUT column would otherwise normalize the table to plain.
+func checkDuplicateRowColumns(tbl *Table) error {
+	var rowStart, rowEnd bool
+	for _, col := range tbl.Columns {
+		if col.Generated == nil {
+			continue
+		}
+		switch col.Generated.RowBound {
+		case "ROW START":
+			if rowStart {
+				return errDuplicateRowColumn("ROW START", col.Name)
+			}
+			rowStart = true
+		case "ROW END":
+			if rowEnd {
+				return errDuplicateRowColumn("ROW END", col.Name)
+			}
+			rowEnd = true
+		}
+	}
+	return nil
+}
+
+// validateSystemVersioning enforces MariaDB's structural rules for
+// system-versioned tables. It is applied after CREATE and after an ALTER (so a
+// multi-command "ADD COLUMN ... ROW START, ADD PERIOD, ADD SYSTEM VERSIONING"
+// validates as a whole):
+//   - PERIOD FOR SYSTEM_TIME, ROW START/END columns, and a column-level WITH
+//     SYSTEM VERSIONING are only valid on a system-versioned table (else 4125).
+//   - On a system-versioned table, explicit PERIOD and ROW START/END columns
+//     must be present together and reference each other (else 4123) — this
+//     rejects row columns without a period, a period on ordinary columns, and a
+//     period that names columns other than the ROW START/END pair.
+func validateSystemVersioning(tbl *Table) error {
+	var rowStart, rowEnd string
+	var rowStartCol, rowEndCol *Column
+	versionedCols := 0 // columns that are neither row-bound nor WITHOUT
+	for _, col := range tbl.Columns {
+		if col.Generated != nil && col.Generated.RowBound != "" {
+			// Detect duplicate bounds here (4134); the column TYPE is validated
+			// last — MariaDB reports structural errors before the row-column type.
+			switch col.Generated.RowBound {
+			case "ROW START":
+				if rowStart != "" {
+					return errDuplicateRowColumn("ROW START", col.Name)
+				}
+				rowStart, rowStartCol = col.Name, col
+			case "ROW END":
+				if rowEnd != "" {
+					return errDuplicateRowColumn("ROW END", col.Name)
+				}
+				rowEnd, rowEndCol = col.Name, col
+			}
+			continue
+		}
+		if col.SystemVersioning != "WITHOUT" {
+			versionedCols++
+		}
+	}
+	hasPeriod := tbl.PeriodStartCol != ""
+	hasRowCols := rowStart != "" || rowEnd != ""
+
+	if !tbl.SystemVersioned {
+		// PERIOD / ROW START/END columns are invalid on a non-versioned table
+		// (4125). A column-level WITH/WITHOUT is allowed to remain (e.g. after
+		// DROP SYSTEM VERSIONING) — adding one to a plain table is already
+		// rejected up front by the ALTER pre-check.
+		if hasPeriod || hasRowCols {
+			return errMissingSystemVersioning(tbl.Name)
+		}
+		return nil
+	}
+
+	// Structural rules first — MariaDB checks these before the ROW column type.
+	// Explicit PERIOD and ROW START/END columns must be present together and
+	// reference each other; MariaDB distinguishes the malformed shapes by code.
+	if err := periodRowColumnError(tbl, rowStart, rowEnd, hasPeriod); err != nil {
+		return err
+	}
+	// A system-versioned table must have at least one versioned column.
+	if versionedCols == 0 {
+		return errNoVersionedColumn(tbl.Name)
+	}
+	// ROW START/END column type is validated last (4110).
+	return validateRowColumnTypes(tbl, rowStartCol, rowEndCol)
+}
+
+// validateRowColumnTypes enforces that the ROW START/END columns are a valid
+// version type (TIMESTAMP(6) or BIGINT UNSIGNED) and share the same precision
+// mode. It runs only after the structural checks pass, so MariaDB's precedence
+// (structural errors before 4110) is preserved.
+func validateRowColumnTypes(tbl *Table, rowStartCol, rowEndCol *Column) error {
+	for _, col := range []*Column{rowStartCol, rowEndCol} {
+		if col != nil && !isRowColumnType(col) {
+			return errWrongRowColumnType(tbl.Name, col.Name)
+		}
+	}
+	if rowStartCol != nil && rowEndCol != nil &&
+		!strings.EqualFold(rowStartCol.ColumnType, rowEndCol.ColumnType) {
+		return errWrongRowColumnType(tbl.Name, rowEndCol.Name)
+	}
+	return nil
+}
+
+// periodRowColumnError checks the structural relationship between the PERIOD
+// FOR SYSTEM_TIME clause and the ROW START/END columns on a system-versioned
+// table, returning the MariaDB-faithful error (or nil). Grounded vs 11.8.8:
+//   - both row cols present, period names other columns -> 4126
+//   - both row cols present, no period                  -> 4125 (missing PERIOD)
+//   - period present, no row cols at all                -> 4125 (missing AS ROW START)
+//   - an incomplete ROW START/END pair (only one bound) -> 4123
+func periodRowColumnError(tbl *Table, rowStart, rowEnd string, hasPeriod bool) error {
+	hasBothRowCols := rowStart != "" && rowEnd != ""
+	switch {
+	case hasBothRowCols && hasPeriod:
+		if !strings.EqualFold(tbl.PeriodStartCol, rowStart) ||
+			!strings.EqualFold(tbl.PeriodEndCol, rowEnd) {
+			return errPeriodWrongColumns(rowStart, rowEnd)
+		}
+		return nil
+	case hasBothRowCols:
+		return errMissingPeriod(tbl.Name)
+	case hasPeriod && rowStart == "" && rowEnd == "":
+		return errMissingRowStart(tbl.Name)
+	case hasPeriod || rowStart != "" || rowEnd != "":
+		return errNoVersionedColumn(tbl.Name)
+	}
+	return nil
+}
+
+// rowBoundSQL maps a parsed ROW START/END bound to its SHOW CREATE text.
+func rowBoundSQL(rb nodes.RowBoundKind) string {
+	switch rb {
+	case nodes.RowBoundStart:
+		return "ROW START"
+	case nodes.RowBoundEnd:
+		return "ROW END"
+	default:
+		return ""
+	}
+}
+
+// colVersioningSQL maps a parsed column WITH/WITHOUT SYSTEM VERSIONING to text.
+func colVersioningSQL(v nodes.ColVersioning) string {
+	switch v {
+	case nodes.ColVersioningWith:
+		return "WITH"
+	case nodes.ColVersioningWithout:
+		return "WITHOUT"
+	default:
+		return ""
+	}
+}
+
 func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 	if node == nil {
 		return ""
@@ -2147,6 +2382,9 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		Checksum:         srcTbl.Checksum,
 		DelayKeyWrite:    srcTbl.DelayKeyWrite,
 		Temporary:        stmt.Temporary,
+		SystemVersioned:  srcTbl.SystemVersioned,
+		PeriodStartCol:   srcTbl.PeriodStartCol,
+		PeriodEndCol:     srcTbl.PeriodEndCol,
 	}
 
 	// Copy columns.
@@ -2166,6 +2404,7 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Invisible:                    srcCol.Invisible,
 			GeneratedInvisiblePrimaryKey: srcCol.GeneratedInvisiblePrimaryKey,
 			Hidden:                       srcCol.Hidden,
+			SystemVersioning:             srcCol.SystemVersioning,
 		}
 		if srcCol.Default != nil {
 			def := *srcCol.Default
@@ -2174,8 +2413,9 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		}
 		if srcCol.Generated != nil {
 			col.Generated = &GeneratedColumnInfo{
-				Expr:   srcCol.Generated.Expr,
-				Stored: srcCol.Generated.Stored,
+				Expr:     srcCol.Generated.Expr,
+				Stored:   srcCol.Generated.Stored,
+				RowBound: srcCol.Generated.RowBound,
 			}
 		}
 		tbl.Columns = append(tbl.Columns, col)
