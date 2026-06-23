@@ -448,11 +448,15 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		return cmd, nil
 	}
 
-	// ADD PERIOD FOR SYSTEM_TIME (start_col, end_col)
+	// ADD PERIOD FOR SYSTEM_TIME (start_col, end_col).
+	// (Application-time ALTER ... ADD PERIOD is not yet supported.)
 	if p.atPeriodForSystemTime() {
-		startCol, endCol, err := p.parsePeriodForSystemTimeCols()
+		name, startCol, endCol, err := p.parsePeriodForCols()
 		if err != nil {
 			return nil, err
+		}
+		if !strings.EqualFold(name, "SYSTEM_TIME") {
+			return nil, p.syntaxErrorAtCur()
 		}
 		cmd.Type = nodes.ATAddPeriod
 		cmd.PeriodStartCol = startCol

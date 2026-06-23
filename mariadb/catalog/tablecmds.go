@@ -170,6 +170,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// WITH SYSTEM VERSIONING).
 	tbl.PeriodStartCol = stmt.PeriodStartCol
 	tbl.PeriodEndCol = stmt.PeriodEndCol
+	tbl.AppPeriodName = stmt.AppPeriodName
+	tbl.AppPeriodStartCol = stmt.AppPeriodStartCol
+	tbl.AppPeriodEndCol = stmt.AppPeriodEndCol
 
 	// Process columns.
 	for i, colDef := range stmt.Columns {
@@ -407,6 +410,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			}
 		}
 	}
+	if err := validateApplicationTimePeriod(tbl, stmt); err != nil {
+		return err
+	}
+	// Application-time period columns are implicitly NOT NULL.
+	if tbl.AppPeriodName != "" {
+		for _, col := range tbl.Columns {
+			if strings.EqualFold(col.Name, tbl.AppPeriodStartCol) ||
+				strings.EqualFold(col.Name, tbl.AppPeriodEndCol) {
+				col.Nullable = false
+			}
+		}
+	}
+
 	if err := validateSystemVersioning(tbl); err != nil {
 		return err
 	}
@@ -1918,6 +1934,42 @@ func checkDuplicateRowColumns(tbl *Table) error {
 	return nil
 }
 
+// validateApplicationTimePeriod enforces MariaDB's rules for a named
+// (application-time) PERIOD FOR <name> (start, end), grounded vs 11.8.8.
+func validateApplicationTimePeriod(tbl *Table, stmt *nodes.CreateTableStmt) error {
+	if tbl.AppPeriodName == "" {
+		return nil
+	}
+	if stmt.AppPeriodDuplicate {
+		return errMultipleAppPeriods() // 4154
+	}
+	if strings.EqualFold(tbl.AppPeriodStartCol, tbl.AppPeriodEndCol) {
+		return errColumnSpecifiedTwice(tbl.AppPeriodStartCol) // 1110
+	}
+	if tbl.GetColumn(tbl.AppPeriodName) != nil {
+		return errDupColumn(tbl.AppPeriodName) // 1060: period name collides with a column
+	}
+	for _, colName := range []string{tbl.AppPeriodStartCol, tbl.AppPeriodEndCol} {
+		col := tbl.GetColumn(colName)
+		if col == nil {
+			return errNoSuchColumn(colName, tbl.AppPeriodName) // 1054
+		}
+		if !isTemporalPeriodType(col.DataType) {
+			return errIncorrectColumnSpecifier(colName) // 1063
+		}
+	}
+	return nil
+}
+
+// isTemporalPeriodType reports whether a type is valid for a period column.
+func isTemporalPeriodType(dataType string) bool {
+	switch toLower(dataType) {
+	case "date", "datetime", "timestamp":
+		return true
+	}
+	return false
+}
+
 // validateSystemVersioning enforces MariaDB's structural rules for
 // system-versioned tables. It is applied after CREATE and after an ALTER (so a
 // multi-command "ADD COLUMN ... ROW START, ADD PERIOD, ADD SYSTEM VERSIONING"
@@ -2426,34 +2478,37 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 	}
 
 	tbl := &Table{
-		Name:             tableName,
-		Database:         db,
-		Columns:          make([]*Column, 0, len(srcTbl.Columns)),
-		colByName:        make(map[string]int),
-		Indexes:          make([]*Index, 0, len(srcTbl.Indexes)),
-		Constraints:      make([]*Constraint, 0, len(srcTbl.Constraints)),
-		Engine:           srcTbl.Engine,
-		Charset:          srcTbl.Charset,
-		Collation:        srcTbl.Collation,
-		Comment:          srcTbl.Comment,
-		RowFormat:        srcTbl.RowFormat,
-		KeyBlockSize:     srcTbl.KeyBlockSize,
-		Compression:      srcTbl.Compression,
-		Encryption:       srcTbl.Encryption,
-		StatsPersistent:  srcTbl.StatsPersistent,
-		StatsAutoRecalc:  srcTbl.StatsAutoRecalc,
-		StatsSamplePages: srcTbl.StatsSamplePages,
-		MinRows:          srcTbl.MinRows,
-		MaxRows:          srcTbl.MaxRows,
-		AvgRowLength:     srcTbl.AvgRowLength,
-		Tablespace:       srcTbl.Tablespace,
-		PackKeys:         srcTbl.PackKeys,
-		Checksum:         srcTbl.Checksum,
-		DelayKeyWrite:    srcTbl.DelayKeyWrite,
-		Temporary:        stmt.Temporary,
-		SystemVersioned:  srcTbl.SystemVersioned,
-		PeriodStartCol:   srcTbl.PeriodStartCol,
-		PeriodEndCol:     srcTbl.PeriodEndCol,
+		Name:              tableName,
+		Database:          db,
+		Columns:           make([]*Column, 0, len(srcTbl.Columns)),
+		colByName:         make(map[string]int),
+		Indexes:           make([]*Index, 0, len(srcTbl.Indexes)),
+		Constraints:       make([]*Constraint, 0, len(srcTbl.Constraints)),
+		Engine:            srcTbl.Engine,
+		Charset:           srcTbl.Charset,
+		Collation:         srcTbl.Collation,
+		Comment:           srcTbl.Comment,
+		RowFormat:         srcTbl.RowFormat,
+		KeyBlockSize:      srcTbl.KeyBlockSize,
+		Compression:       srcTbl.Compression,
+		Encryption:        srcTbl.Encryption,
+		StatsPersistent:   srcTbl.StatsPersistent,
+		StatsAutoRecalc:   srcTbl.StatsAutoRecalc,
+		StatsSamplePages:  srcTbl.StatsSamplePages,
+		MinRows:           srcTbl.MinRows,
+		MaxRows:           srcTbl.MaxRows,
+		AvgRowLength:      srcTbl.AvgRowLength,
+		Tablespace:        srcTbl.Tablespace,
+		PackKeys:          srcTbl.PackKeys,
+		Checksum:          srcTbl.Checksum,
+		DelayKeyWrite:     srcTbl.DelayKeyWrite,
+		Temporary:         stmt.Temporary,
+		SystemVersioned:   srcTbl.SystemVersioned,
+		PeriodStartCol:    srcTbl.PeriodStartCol,
+		PeriodEndCol:      srcTbl.PeriodEndCol,
+		AppPeriodName:     srcTbl.AppPeriodName,
+		AppPeriodStartCol: srcTbl.AppPeriodStartCol,
+		AppPeriodEndCol:   srcTbl.AppPeriodEndCol,
 	}
 
 	// Copy columns.

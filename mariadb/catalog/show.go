@@ -88,6 +88,12 @@ func (c *Catalog) ShowCreateTable(database, table string) string {
 		parts = append(parts, showColumnWithTable(col, tbl))
 	}
 
+	// Application-time period — rendered before SYSTEM_TIME; the name is
+	// backtick-quoted (unlike the SYSTEM_TIME keyword).
+	if tbl.AppPeriodName != "" {
+		parts = append(parts, fmt.Sprintf("PERIOD FOR `%s` (`%s`, `%s`)", tbl.AppPeriodName, tbl.AppPeriodStartCol, tbl.AppPeriodEndCol))
+	}
+
 	// PERIOD FOR SYSTEM_TIME — after columns, before keys/constraints.
 	if tbl.PeriodStartCol != "" {
 		parts = append(parts, fmt.Sprintf("PERIOD FOR SYSTEM_TIME (`%s`, `%s`)", tbl.PeriodStartCol, tbl.PeriodEndCol))

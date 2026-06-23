@@ -65,6 +65,9 @@ const (
 	ErrWrongPartitionType                = 4113
 	ErrWrongSystemTimePartitions         = 4128
 	ErrValuesOnlyForRange                = 1480
+	ErrMultipleAppPeriods                = 4154
+	ErrColumnSpecifiedTwice              = 1110
+	ErrIncorrectColumnSpecifier          = 1063
 )
 
 var sqlStateMap = map[int]string{
@@ -108,6 +111,9 @@ var sqlStateMap = map[int]string{
 	ErrWrongPartitionType:                "HY000",
 	ErrWrongSystemTimePartitions:         "HY000",
 	ErrValuesOnlyForRange:                "HY000",
+	ErrMultipleAppPeriods:                "HY000",
+	ErrColumnSpecifiedTwice:              "42000",
+	ErrIncorrectColumnSpecifier:          "42000",
 	ErrWrongArguments:                    "HY000",
 	ErrWrongNameForIndex:                 "42000",
 	ErrInvalidOnUpdate:                   "HY000",
@@ -328,6 +334,21 @@ func errWrongSystemTimePartitions(table string) error {
 func errValuesOnlyForRange() error {
 	return &Error{Code: ErrValuesOnlyForRange, SQLState: sqlState(ErrValuesOnlyForRange),
 		Message: "Only RANGE PARTITIONING can use VALUES LESS THAN in partition definition"}
+}
+
+func errMultipleAppPeriods() error {
+	return &Error{Code: ErrMultipleAppPeriods, SQLState: sqlState(ErrMultipleAppPeriods),
+		Message: "Cannot specify more than one application-time period"}
+}
+
+func errColumnSpecifiedTwice(col string) error {
+	return &Error{Code: ErrColumnSpecifiedTwice, SQLState: sqlState(ErrColumnSpecifiedTwice),
+		Message: fmt.Sprintf("Column '%s' specified twice", col)}
+}
+
+func errIncorrectColumnSpecifier(col string) error {
+	return &Error{Code: ErrIncorrectColumnSpecifier, SQLState: sqlState(ErrIncorrectColumnSpecifier),
+		Message: fmt.Sprintf("Incorrect column specifier for column '%s'", col)}
 }
 
 func errNotSystemVersioned(table string) error {
