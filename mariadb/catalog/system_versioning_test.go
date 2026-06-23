@@ -168,6 +168,61 @@ func TestSystemVersioningConsistency(t *testing.T) {
 	})
 }
 
+// TestSystemVersioningPeriodRowColumnCodes pins the exact MariaDB 11.8.8 error
+// codes for the malformed PERIOD/ROW START-END shapes on a system-versioned
+// table. Grounded against the mdb-oracle container (CLAUDE_BB/svcheck): MariaDB
+// distinguishes 4125 (a missing 'AS ROW START' or missing PERIOD declaration),
+// 4126 (the PERIOD names columns other than the ROW START/END pair), and 4123
+// (an incomplete ROW START/END pair — only one bound present).
+func TestSystemVersioningPeriodRowColumnCodes(t *testing.T) {
+	cases := []struct {
+		name string
+		ddl  string
+		code int
+		msg  string
+	}{
+		{"period_no_row_cols",
+			"CREATE TABLE t (x INT, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING",
+			4125, "missing 'AS ROW START'"},
+		{"period_only_row_start",
+			"CREATE TABLE t (x INT, rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING",
+			4123, "must have at least one versioned column"},
+		{"period_only_row_end",
+			"CREATE TABLE t (x INT, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING",
+			4123, "must have at least one versioned column"},
+		{"period_wrong_start_col",
+			"CREATE TABLE t (x INT, rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(x, re)) WITH SYSTEM VERSIONING",
+			4126, "must use columns `rs` and `re`"},
+		{"period_wrong_end_col",
+			"CREATE TABLE t (x INT, rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, x)) WITH SYSTEM VERSIONING",
+			4126, "must use columns `rs` and `re`"},
+		{"row_cols_no_period",
+			"CREATE TABLE t (x INT, rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END) WITH SYSTEM VERSIONING",
+			4125, "missing 'PERIOD FOR SYSTEM_TIME'"},
+		{"only_row_start_no_period",
+			"CREATE TABLE t (x INT, rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START) WITH SYSTEM VERSIONING",
+			4123, "must have at least one versioned column"},
+		{"period_end_names_regular_col",
+			"CREATE TABLE t (x INT, rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, PERIOD FOR SYSTEM_TIME(rs, x)) WITH SYSTEM VERSIONING",
+			4123, "must have at least one versioned column"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := execErr(t, tc.ddl)
+			catErr, ok := err.(*Error)
+			if !ok {
+				t.Fatalf("expected *Error, got %v", err)
+			}
+			if catErr.Code != tc.code {
+				t.Errorf("Code = %d, want %d (message: %q)", catErr.Code, tc.code, catErr.Message)
+			}
+			if !strings.Contains(catErr.Message, tc.msg) {
+				t.Errorf("Message = %q, want substring %q", catErr.Message, tc.msg)
+			}
+		})
+	}
+}
+
 // TestSystemVersioningCaseInsensitivePeriod: MariaDB matches the PERIOD FOR
 // SYSTEM_TIME columns against the ROW START/END column names case-insensitively.
 func TestSystemVersioningCaseInsensitivePeriod(t *testing.T) {

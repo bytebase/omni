@@ -61,6 +61,7 @@ const (
 	ErrAlreadySystemVersioned            = 4135
 	ErrTruncateSystemVersioned           = 4137
 	ErrMissingSystemVersioning           = 4125
+	ErrPeriodWrongColumns                = 4126
 )
 
 var sqlStateMap = map[int]string{
@@ -100,6 +101,7 @@ var sqlStateMap = map[int]string{
 	ErrAlreadySystemVersioned:            "HY000",
 	ErrTruncateSystemVersioned:           "HY000",
 	ErrMissingSystemVersioning:           "HY000",
+	ErrPeriodWrongColumns:                "HY000",
 	ErrWrongArguments:                    "HY000",
 	ErrWrongNameForIndex:                 "42000",
 	ErrInvalidOnUpdate:                   "HY000",
@@ -292,9 +294,19 @@ func errMissingSystemVersioning(table string) error {
 		Message: fmt.Sprintf("Wrong parameters for `%s`: missing 'WITH SYSTEM VERSIONING'", table)}
 }
 
-func errInconsistentSystemVersioning(table string) error {
-	return &Error{Code: ErrWrongSystemVersioning, SQLState: sqlState(ErrWrongSystemVersioning),
-		Message: fmt.Sprintf("Inconsistent system-versioning metadata for `%s`: PERIOD FOR SYSTEM_TIME must use the ROW START/END columns", table)}
+func errPeriodWrongColumns(rowStart, rowEnd string) error {
+	return &Error{Code: ErrPeriodWrongColumns, SQLState: sqlState(ErrPeriodWrongColumns),
+		Message: fmt.Sprintf("PERIOD FOR SYSTEM_TIME must use columns `%s` and `%s`", rowStart, rowEnd)}
+}
+
+func errMissingRowStart(table string) error {
+	return &Error{Code: ErrMissingSystemVersioning, SQLState: sqlState(ErrMissingSystemVersioning),
+		Message: fmt.Sprintf("Wrong parameters for `%s`: missing 'AS ROW START'", table)}
+}
+
+func errMissingPeriod(table string) error {
+	return &Error{Code: ErrMissingSystemVersioning, SQLState: sqlState(ErrMissingSystemVersioning),
+		Message: fmt.Sprintf("Wrong parameters for `%s`: missing 'PERIOD FOR SYSTEM_TIME'", table)}
 }
 
 func errNotSystemVersioned(table string) error {

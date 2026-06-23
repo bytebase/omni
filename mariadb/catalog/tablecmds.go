@@ -1905,16 +1905,38 @@ func validateSystemVersioning(tbl *Table) error {
 	}
 
 	// Explicit PERIOD and ROW START/END columns must be present together and
-	// reference each other (identifiers compare case-insensitively).
-	if hasPeriod || hasRowCols {
-		if !hasPeriod || rowStart == "" || rowEnd == "" ||
-			!strings.EqualFold(tbl.PeriodStartCol, rowStart) ||
-			!strings.EqualFold(tbl.PeriodEndCol, rowEnd) {
-			return errInconsistentSystemVersioning(tbl.Name)
-		}
+	// reference each other; MariaDB distinguishes the malformed shapes by code.
+	if err := periodRowColumnError(tbl, rowStart, rowEnd, hasPeriod); err != nil {
+		return err
 	}
 	// A system-versioned table must have at least one versioned column.
 	if versionedCols == 0 {
+		return errNoVersionedColumn(tbl.Name)
+	}
+	return nil
+}
+
+// periodRowColumnError checks the structural relationship between the PERIOD
+// FOR SYSTEM_TIME clause and the ROW START/END columns on a system-versioned
+// table, returning the MariaDB-faithful error (or nil). Grounded vs 11.8.8:
+//   - both row cols present, period names other columns -> 4126
+//   - both row cols present, no period                  -> 4125 (missing PERIOD)
+//   - period present, no row cols at all                -> 4125 (missing AS ROW START)
+//   - an incomplete ROW START/END pair (only one bound) -> 4123
+func periodRowColumnError(tbl *Table, rowStart, rowEnd string, hasPeriod bool) error {
+	hasBothRowCols := rowStart != "" && rowEnd != ""
+	switch {
+	case hasBothRowCols && hasPeriod:
+		if !strings.EqualFold(tbl.PeriodStartCol, rowStart) ||
+			!strings.EqualFold(tbl.PeriodEndCol, rowEnd) {
+			return errPeriodWrongColumns(rowStart, rowEnd)
+		}
+		return nil
+	case hasBothRowCols:
+		return errMissingPeriod(tbl.Name)
+	case hasPeriod && rowStart == "" && rowEnd == "":
+		return errMissingRowStart(tbl.Name)
+	case hasPeriod || rowStart != "" || rowEnd != "":
 		return errNoVersionedColumn(tbl.Name)
 	}
 	return nil
