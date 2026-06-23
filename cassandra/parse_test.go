@@ -785,3 +785,109 @@ func TestParseAlterIfExists(t *testing.T) {
 		})
 	}
 }
+
+func TestParseP2Features(t *testing.T) {
+	cases := []struct {
+		name  string
+		sql   string
+		check func(t *testing.T, s Statement)
+	}{
+		{"CAST", "SELECT CAST(col AS int) FROM t", func(t *testing.T, s Statement) {
+			sel := s.AST.(*ast.SelectStmt)
+			if _, ok := sel.Elements[0].Expr.(*ast.CastExpr); !ok {
+				t.Fatalf("expected CastExpr, got %T", sel.Elements[0].Expr)
+			}
+		}},
+		{"bind ?", "INSERT INTO t (id) VALUES (?)", func(t *testing.T, s Statement) {
+			ins := s.AST.(*ast.InsertStmt)
+			bm := ins.Values[0].(*ast.BindMarker)
+			if bm.Name != "" {
+				t.Fatal("expected positional")
+			}
+		}},
+		{"bind :name", "SELECT * FROM t WHERE id = :myid", func(t *testing.T, s Statement) {
+			sel := s.AST.(*ast.SelectStmt)
+			bm := sel.Where[0].(*ast.BinaryExpr).Right.(*ast.BindMarker)
+			if bm.Name != "myid" {
+				t.Fatalf("got %s", bm.Name)
+			}
+		}},
+		{"NaN", "INSERT INTO t (v) VALUES (NaN)", func(t *testing.T, s Statement) {
+			fl := s.AST.(*ast.InsertStmt).Values[0].(*ast.FloatLit)
+			if fl.Val != "NaN" {
+				t.Fatalf("got %s", fl.Val)
+			}
+		}},
+		{"Infinity", "INSERT INTO t (v) VALUES (Infinity)", func(t *testing.T, s Statement) {
+			fl := s.AST.(*ast.InsertStmt).Values[0].(*ast.FloatLit)
+			if fl.Val != "Infinity" {
+				t.Fatalf("got %s", fl.Val)
+			}
+		}},
+		{"DROP FUNCTION with types", "DROP FUNCTION IF EXISTS ks.f(int, text)", func(t *testing.T, s Statement) {
+			if len(s.AST.(*ast.DropFunctionStmt).ArgTypes) != 2 {
+				t.Fatal("expected 2 arg types")
+			}
+		}},
+		{"IF IN", "UPDATE t SET x = 1 WHERE id = 1 IF x IN (1, 2)", func(t *testing.T, s Statement) {
+			c := s.AST.(*ast.UpdateStmt).IfConditions[0]
+			if c.Op != "IN" || len(c.InValues) != 2 {
+				t.Fatal("wrong IF IN")
+			}
+		}},
+		{"IF CONTAINS", "UPDATE t SET x = 1 WHERE id = 1 IF tags CONTAINS 'a'", func(t *testing.T, s Statement) {
+			if s.AST.(*ast.UpdateStmt).IfConditions[0].Op != "CONTAINS" {
+				t.Fatal("wrong op")
+			}
+		}},
+		{"IF CONTAINS KEY", "UPDATE t SET x = 1 WHERE id = 1 IF m CONTAINS KEY 'k'", func(t *testing.T, s Statement) {
+			if s.AST.(*ast.UpdateStmt).IfConditions[0].Op != "CONTAINS KEY" {
+				t.Fatal("wrong op")
+			}
+		}},
+		{"JSON DEFAULT NULL", "INSERT INTO t JSON '{\"id\":1}' DEFAULT NULL", func(t *testing.T, s Statement) {
+			ins := s.AST.(*ast.InsertStmt)
+			if !ins.DefaultNull || ins.DefaultUnset {
+				t.Fatal("wrong defaults")
+			}
+		}},
+		{"HASHED PASSWORD", "CREATE ROLE r WITH HASHED PASSWORD = 'h'", func(t *testing.T, s Statement) {
+			if s.AST.(*ast.CreateRoleStmt).Options[0].Key != "HASHED PASSWORD" {
+				t.Fatal("wrong key")
+			}
+		}},
+		{"UDT field UPDATE", "UPDATE t SET a.b = 1 WHERE id = 1", func(t *testing.T, s Statement) {
+			if _, ok := s.AST.(*ast.UpdateStmt).Assignments[0].Target.(*ast.DotAccess); !ok {
+				t.Fatal("expected DotAccess")
+			}
+		}},
+		{"UDT field DELETE", "DELETE a.b FROM t WHERE id = 1", func(t *testing.T, s Statement) {
+			if _, ok := s.AST.(*ast.DeleteStmt).Columns[0].(*ast.DotAccess); !ok {
+				t.Fatal("expected DotAccess")
+			}
+		}},
+		{"MBEAN resource", "GRANT SELECT ON MBEAN 'x' TO r", func(t *testing.T, s Statement) {
+			if s.AST.(*ast.GrantStmt).Resource.Type != "MBEAN" {
+				t.Fatal("wrong type")
+			}
+		}},
+		{"FUNCTION resource with types", "GRANT EXECUTE ON FUNCTION f(int, text) TO r", func(t *testing.T, s Statement) {
+			r := s.AST.(*ast.GrantStmt).Resource
+			if r.Type != "FUNCTION" || len(r.ArgTypes) != 2 {
+				t.Fatal("wrong func resource")
+			}
+		}},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			stmts, err := Parse(tt.sql)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(stmts) != 1 {
+				t.Fatalf("expected 1 stmt, got %d", len(stmts))
+			}
+			tt.check(t, stmts[0])
+		})
+	}
+}

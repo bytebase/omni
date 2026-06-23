@@ -146,6 +146,19 @@ func (p *Parser) parseSelectElements() ([]*ast.SelectElement, error) {
 func (p *Parser) parseSelectElement() (*ast.SelectElement, error) {
 	elemStart := p.curLoc()
 
+	// CAST(expr AS type) in SELECT element
+	if p.cur.Type == tokCAST {
+		castExpr, err := p.parseCast()
+		if err != nil {
+			return nil, err
+		}
+		alias, err := p.parseOptionalAlias()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.SelectElement{Expr: castExpr, Alias: alias, Loc: p.makeLoc(elemStart)}, nil
+	}
+
 	// We need an identifier-like token to start.
 	if !isIdentLike(p.cur.Type) {
 		return nil, p.errorf("expected column name or function call in SELECT, got %s", p.tokenDesc())

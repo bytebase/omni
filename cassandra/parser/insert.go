@@ -65,13 +65,17 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 			return nil, err
 		}
 		stmt.JSONValue = jsonVal
-		// Optional DEFAULT UNSET
+		// Optional DEFAULT UNSET | DEFAULT NULL
 		if p.cur.Type == tokDEFAULT {
 			p.advance() // DEFAULT
-			if err := p.expectKeyword(tokUNSET); err != nil {
+			if p.cur.Type == tokNULL {
+				p.advance()
+				stmt.DefaultNull = true
+			} else if err := p.expectKeyword(tokUNSET); err != nil {
 				return nil, err
+			} else {
+				stmt.DefaultUnset = true
 			}
-			stmt.DefaultUnset = true
 		}
 	default:
 		return nil, p.errorf("expected VALUES or JSON, got %s", p.tokenDesc())

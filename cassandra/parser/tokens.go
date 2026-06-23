@@ -40,11 +40,13 @@ const (
 	tokGTE                      // >=
 	tokNE                       // !=
 	tokMINUSMINUS               // --
+	tokQMARK                    // ?
 )
 
 // Keyword token types.
 const (
-	tokADD = iota + 3000
+	tokACCESS = iota + 3000
+	tokADD
 	tokAGGREGATE
 	tokALL
 	tokALLOW
@@ -63,6 +65,7 @@ const (
 	tokBOOLEAN
 	tokBY
 	tokCALLED
+	tokCAST
 	tokCLUSTERING
 	tokCOMPACT
 	tokCONTAINS
@@ -73,6 +76,7 @@ const (
 	tokCURRENTTIMESTAMP
 	tokCURRENTTIMEUUID
 	tokCUSTOM
+	tokDATACENTERS
 	tokDATE
 	tokDATETIMENOW
 	tokDECIMAL
@@ -100,10 +104,12 @@ const (
 	tokFUNCTIONS
 	tokGRANT
 	tokGROUP
+	tokHASHED
 	tokIF
 	tokIN
 	tokINDEX
 	tokINET
+	tokINFINITY
 	tokINITCOND
 	tokINPUT
 	tokINSERT
@@ -122,9 +128,12 @@ const (
 	tokLOGIN
 	tokMAP
 	tokMATERIALIZED
+	tokMBEAN
+	tokMBEANS
 	tokMAXTIMEUUID
 	tokMINTIMEUUID
 	tokMODIFY
+	tokNAN
 	tokNORECURSIVE
 	tokNOSUPERUSER
 	tokNOT

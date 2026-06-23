@@ -416,6 +416,21 @@ func (p *Parser) parseRelationLeft() (ast.ExprNode, error) {
 }
 
 func (p *Parser) parseRelationRight() (ast.ExprNode, error) {
+	// Bind markers
+	if p.cur.Type == tokQMARK {
+		m := &ast.BindMarker{Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
+		p.advance()
+		return m, nil
+	}
+	if p.cur.Type == tokCOLON {
+		start := p.curLoc()
+		p.advance()
+		name, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.BindMarker{Name: name.Name, Loc: p.makeLoc(start)}, nil
+	}
 	// Could be a constant or a function call.
 	if isIdentLike(p.cur.Type) && p.peekNext().Type == tokLPAREN {
 		name, err := p.parseIdentifier()
@@ -547,6 +562,8 @@ func tokenName(typ int) string {
 		return "'>'"
 	case typ == tokNE:
 		return "'!='"
+	case typ == tokQMARK:
+		return "'?'"
 	default:
 		// For keywords, reverse lookup
 		for name, t := range keywords {

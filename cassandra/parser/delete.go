@@ -89,7 +89,7 @@ func (p *Parser) parseDeleteColumnList() ([]ast.ExprNode, error) {
 	return cols, nil
 }
 
-// parseDeleteColumnItem parses: IDENT | IDENT '[' expression ']'
+// parseDeleteColumnItem parses: IDENT | IDENT '.' IDENT | IDENT '[' expression ']'
 func (p *Parser) parseDeleteColumnItem() (ast.ExprNode, error) {
 	start := p.curLoc()
 
@@ -98,7 +98,19 @@ func (p *Parser) parseDeleteColumnItem() (ast.ExprNode, error) {
 		return nil, err
 	}
 
-	// Check for index access: IDENT '[' expression ']'
+	if p.cur.Type == tokDOT {
+		p.advance()
+		field, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.DotAccess{
+			Object: ident,
+			Field:  field,
+			Loc:    p.makeLoc(start),
+		}, nil
+	}
+
 	if p.cur.Type == tokLBRACK {
 		p.advance() // [
 		idx, err := p.parseExpression()

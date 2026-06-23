@@ -307,6 +307,27 @@ func (*StarExpr) nodeTag()      {}
 func (n *StarExpr) GetLoc() Loc { return n.Loc }
 func (*StarExpr) exprNode()     {}
 
+// CastExpr represents CAST(expr AS type).
+type CastExpr struct {
+	Expr ExprNode
+	Type *DataType
+	Loc  Loc
+}
+
+func (*CastExpr) nodeTag()      {}
+func (n *CastExpr) GetLoc() Loc { return n.Loc }
+func (*CastExpr) exprNode()     {}
+
+// BindMarker represents ? (positional) or :name (named) bind markers.
+type BindMarker struct {
+	Name string // empty for positional ?
+	Loc  Loc
+}
+
+func (*BindMarker) nodeTag()      {}
+func (n *BindMarker) GetLoc() Loc { return n.Loc }
+func (*BindMarker) exprNode()     {}
+
 // ---------------------------------------------------------------------------
 // Type nodes
 // ---------------------------------------------------------------------------
@@ -408,12 +429,13 @@ type AssignmentElement struct {
 func (*AssignmentElement) nodeTag()      {}
 func (n *AssignmentElement) GetLoc() Loc { return n.Loc }
 
-// IfCondition represents a LWT condition: col = value.
+// IfCondition represents a LWT condition: col op value, col IN (...), col CONTAINS [KEY] value.
 type IfCondition struct {
-	Column *Identifier
-	Op     string
-	Value  ExprNode
-	Loc    Loc
+	Column   *Identifier
+	Op       string // comparison operator, "IN", "CONTAINS", "CONTAINS KEY"
+	Value    ExprNode
+	InValues []ExprNode // for IN conditions
+	Loc      Loc
 }
 
 func (*IfCondition) nodeTag()      {}
@@ -472,6 +494,7 @@ type InsertStmt struct {
 	IsJSON       bool
 	JSONValue    ExprNode
 	DefaultUnset bool
+	DefaultNull  bool
 	IfNotExists  bool
 	Using        *UsingClause
 	Loc          Loc
@@ -797,6 +820,7 @@ func (n *FunctionParam) GetLoc() Loc { return n.Loc }
 type DropFunctionStmt struct {
 	IfExists bool
 	Name     *QualifiedName
+	ArgTypes []*DataType
 	Loc      Loc
 }
 
@@ -823,6 +847,7 @@ func (*CreateAggregateStmt) stmtNode()     {}
 type DropAggregateStmt struct {
 	IfExists bool
 	Name     *QualifiedName
+	ArgTypes []*DataType
 	Loc      Loc
 }
 
@@ -869,9 +894,9 @@ func (n *CreateRoleStmt) GetLoc() Loc { return n.Loc }
 func (*CreateRoleStmt) stmtNode()     {}
 
 type RoleOption struct {
-	Key   string // "PASSWORD", "LOGIN", "SUPERUSER", "OPTIONS"
-	Value ExprNode
-	Loc   Loc
+	Key    string // "PASSWORD", "HASHED PASSWORD", "LOGIN", "SUPERUSER", "OPTIONS", "ACCESS"
+	Value  ExprNode
+	Loc    Loc
 }
 
 func (*RoleOption) nodeTag()      {}
@@ -976,9 +1001,10 @@ func (*RevokeRoleStmt) stmtNode()     {}
 
 // Resource represents a CQL resource (ALL KEYSPACES, KEYSPACE ks, TABLE ks.t, etc.)
 type Resource struct {
-	Type string // "ALL KEYSPACES", "KEYSPACE", "TABLE", "ALL FUNCTIONS", "FUNCTION", "ALL ROLES", "ROLE"
-	Name *QualifiedName
-	Loc  Loc
+	Type     string // "ALL KEYSPACES", "KEYSPACE", "TABLE", "ALL FUNCTIONS", "FUNCTION", "ALL ROLES", "ROLE", "ALL MBEANS", "MBEAN", "MBEANS"
+	Name     *QualifiedName
+	ArgTypes []*DataType // for FUNCTION resource with type signature
+	Loc      Loc
 }
 
 func (*Resource) nodeTag()      {}

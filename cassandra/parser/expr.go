@@ -47,12 +47,19 @@ func (p *Parser) parseConstant() (ast.ExprNode, error) {
 		p.advance()
 		return &ast.NullLit{Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
 
+	case tokNAN:
+		p.advance()
+		return &ast.FloatLit{Val: "NaN", Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
+
+	case tokINFINITY:
+		p.advance()
+		return &ast.FloatLit{Val: "Infinity", Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
+
 	case tokCODEBLOCK:
 		p.advance()
 		return &ast.CodeBlock{Val: tok.Str, Loc: ast.Loc{Start: tok.Loc, End: tok.End}}, nil
 
 	case tokMINUS:
-		// Negative numeric literal: -123 or -1.5
 		start := tok.Loc
 		p.advance()
 		next := p.cur
@@ -63,6 +70,12 @@ func (p *Parser) parseConstant() (ast.ExprNode, error) {
 		case tokFLOAT:
 			p.advance()
 			return &ast.FloatLit{Val: "-" + next.Str, Loc: ast.Loc{Start: start, End: next.End}}, nil
+		case tokINFINITY:
+			p.advance()
+			return &ast.FloatLit{Val: "-Infinity", Loc: ast.Loc{Start: start, End: next.End}}, nil
+		case tokNAN:
+			p.advance()
+			return &ast.FloatLit{Val: "-NaN", Loc: ast.Loc{Start: start, End: next.End}}, nil
 		default:
 			return nil, p.errorf("expected number after '-', got %s", p.tokenDesc())
 		}
@@ -105,9 +118,30 @@ func (p *Parser) parseExpression() (ast.ExprNode, error) {
 	case p.cur.Type == tokNULL || p.cur.Type == tokTRUE || p.cur.Type == tokFALSE:
 		expr, err = p.parseConstant()
 
+	// NaN and Infinity literals
+	case p.cur.Type == tokNAN || p.cur.Type == tokINFINITY:
+		expr, err = p.parseConstant()
+
+	// CAST(expr AS type)
+	case p.cur.Type == tokCAST:
+		expr, err = p.parseCast()
+
+	// Bind markers: ? or :name
+	case p.cur.Type == tokQMARK:
+		expr = &ast.BindMarker{Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
+		p.advance()
+
+	case p.cur.Type == tokCOLON:
+		start := p.curLoc()
+		p.advance() // :
+		name, err2 := p.parseIdentifier()
+		if err2 != nil {
+			return nil, err2
+		}
+		expr = &ast.BindMarker{Name: name.Name, Loc: p.makeLoc(start)}
+
 	// Identifier or function call.
 	case isIdentLike(p.cur.Type):
-		// Look ahead: if followed by '(' it is a function call.
 		if p.peekNext().Type == tokLPAREN {
 			expr, err = p.parseFunctionCall()
 		} else {
@@ -138,6 +172,30 @@ func (p *Parser) parseExpression() (ast.ExprNode, error) {
 	}
 
 	return expr, nil
+}
+
+// parseCast parses CAST(expr AS type).
+func (p *Parser) parseCast() (*ast.CastExpr, error) {
+	start := p.curLoc()
+	p.advance() // CAST
+	if _, err := p.expect(tokLPAREN); err != nil {
+		return nil, err
+	}
+	expr, err := p.parseExpression()
+	if err != nil {
+		return nil, err
+	}
+	if err := p.expectKeyword(tokAS); err != nil {
+		return nil, err
+	}
+	dt, err := p.parseDataType()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(tokRPAREN); err != nil {
+		return nil, err
+	}
+	return &ast.CastExpr{Expr: expr, Type: dt, Loc: p.makeLoc(start)}, nil
 }
 
 // parseExpressionList parses a comma-separated list of expressions.
@@ -302,6 +360,27 @@ func (p *Parser) parseFunctionArg() (ast.ExprNode, error) {
 			return nil, err
 		}
 		return &ast.TupleLit{Elements: elems, Loc: p.makeLoc(start)}, nil
+	}
+
+	// Bind markers
+	if p.cur.Type == tokQMARK {
+		m := &ast.BindMarker{Loc: ast.Loc{Start: p.cur.Loc, End: p.cur.End}}
+		p.advance()
+		return m, nil
+	}
+	if p.cur.Type == tokCOLON {
+		start := p.curLoc()
+		p.advance()
+		name, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.BindMarker{Name: name.Name, Loc: p.makeLoc(start)}, nil
+	}
+
+	// CAST
+	if p.cur.Type == tokCAST {
+		return p.parseCast()
 	}
 
 	// Identifier or nested function call.

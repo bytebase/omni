@@ -248,8 +248,11 @@ func (p *Parser) parseResource() (*ast.Resource, error) {
 		case tokROLES:
 			p.advance()
 			return &ast.Resource{Type: "ALL ROLES", Loc: p.makeLoc(start)}, nil
+		case tokMBEANS:
+			p.advance()
+			return &ast.Resource{Type: "ALL MBEANS", Loc: p.makeLoc(start)}, nil
 		default:
-			return nil, p.errorf("expected FUNCTIONS, KEYSPACES, or ROLES after ALL, got %s", p.tokenDesc())
+			return nil, p.errorf("expected FUNCTIONS, KEYSPACES, ROLES, or MBEANS after ALL, got %s", p.tokenDesc())
 		}
 
 	case tokFUNCTION:
@@ -258,7 +261,48 @@ func (p *Parser) parseResource() (*ast.Resource, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ast.Resource{Type: "FUNCTION", Name: name, Loc: p.makeLoc(start)}, nil
+		res := &ast.Resource{Type: "FUNCTION", Name: name, Loc: p.makeLoc(start)}
+		if p.cur.Type == tokLPAREN {
+			p.advance()
+			if p.cur.Type != tokRPAREN {
+				argTypes, err := p.parseTypeList()
+				if err != nil {
+					return nil, err
+				}
+				res.ArgTypes = argTypes
+			}
+			if _, err := p.expect(tokRPAREN); err != nil {
+				return nil, err
+			}
+			res.Loc = p.makeLoc(start)
+		}
+		return res, nil
+
+	case tokMBEAN:
+		p.advance()
+		val, err := p.parseConstant()
+		if err != nil {
+			return nil, err
+		}
+		ident := &ast.Identifier{Name: val.(*ast.StringLit).Val, Loc: val.GetLoc()}
+		return &ast.Resource{
+			Type: "MBEAN",
+			Name: &ast.QualifiedName{Parts: []*ast.Identifier{ident}, Loc: ident.Loc},
+			Loc:  p.makeLoc(start),
+		}, nil
+
+	case tokMBEANS:
+		p.advance()
+		val, err := p.parseConstant()
+		if err != nil {
+			return nil, err
+		}
+		ident := &ast.Identifier{Name: val.(*ast.StringLit).Val, Loc: val.GetLoc()}
+		return &ast.Resource{
+			Type: "MBEANS",
+			Name: &ast.QualifiedName{Parts: []*ast.Identifier{ident}, Loc: ident.Loc},
+			Loc:  p.makeLoc(start),
+		}, nil
 
 	case tokKEYSPACE:
 		p.advance()
@@ -397,6 +441,20 @@ func (p *Parser) parseRoleOption() (*ast.RoleOption, error) {
 	key := strings.ToUpper(tok.Str)
 
 	switch tok.Type {
+	case tokHASHED:
+		p.advance() // HASHED
+		if err := p.expectKeyword(tokPASSWORD); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(tokEQ); err != nil {
+			return nil, err
+		}
+		val, err := p.parseConstant()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.RoleOption{Key: "HASHED PASSWORD", Value: val, Loc: p.makeLoc(start)}, nil
+
 	case tokPASSWORD:
 		p.advance()
 		if _, err := p.expect(tokEQ); err != nil {
@@ -407,6 +465,28 @@ func (p *Parser) parseRoleOption() (*ast.RoleOption, error) {
 			return nil, err
 		}
 		return &ast.RoleOption{Key: key, Value: val, Loc: p.makeLoc(start)}, nil
+
+	case tokACCESS:
+		p.advance() // ACCESS
+		if err := p.expectKeyword(tokTO); err != nil {
+			return nil, err
+		}
+		if p.cur.Type == tokALL {
+			p.advance()
+			if err := p.expectKeyword(tokDATACENTERS); err != nil {
+				return nil, err
+			}
+			return &ast.RoleOption{Key: "ACCESS TO ALL DATACENTERS", Loc: p.makeLoc(start)}, nil
+		}
+		if err := p.expectKeyword(tokDATACENTERS); err != nil {
+			return nil, err
+		}
+		// Parse set of datacenter names: { 'dc1', 'dc2' }
+		val, err := p.parseCollectionLiteral()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.RoleOption{Key: "ACCESS TO DATACENTERS", Value: val, Loc: p.makeLoc(start)}, nil
 
 	case tokLOGIN, tokSUPERUSER:
 		p.advance()

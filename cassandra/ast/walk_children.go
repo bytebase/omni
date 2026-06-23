@@ -26,6 +26,10 @@ func walkChildren(v Visitor, node Node) {
 	case *HexLit:
 	case *CodeBlock:
 	case *StarExpr:
+	case *CastExpr:
+		Walk(v, n.Expr)
+		Walk(v, n.Type)
+	case *BindMarker:
 
 	// Collections
 	case *MapLit:
@@ -133,7 +137,12 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Value)
 	case *IfCondition:
 		Walk(v, n.Column)
-		Walk(v, n.Value)
+		if n.Value != nil {
+			Walk(v, n.Value)
+		}
+		for _, val := range n.InValues {
+			Walk(v, val)
+		}
 	case *UsingClause:
 		if n.TTL != nil {
 			Walk(v, n.TTL)
@@ -364,6 +373,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Type)
 	case *DropFunctionStmt:
 		Walk(v, n.Name)
+		for _, at := range n.ArgTypes {
+			Walk(v, at)
+		}
 	case *CreateAggregateStmt:
 		Walk(v, n.Name)
 		if n.ParamType != nil {
@@ -383,6 +395,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *DropAggregateStmt:
 		Walk(v, n.Name)
+		for _, at := range n.ArgTypes {
+			Walk(v, at)
+		}
 	case *CreateTriggerStmt:
 		Walk(v, n.Name)
 		if n.Table != nil {
@@ -447,6 +462,9 @@ func walkChildren(v Visitor, node Node) {
 	case *Resource:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		for _, at := range n.ArgTypes {
+			Walk(v, at)
 		}
 	case *ListPermissionsStmt:
 		if n.Resource != nil {

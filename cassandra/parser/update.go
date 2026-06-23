@@ -98,9 +98,20 @@ func (p *Parser) parseAssignmentElement() (*ast.AssignmentElement, error) {
 		return nil, err
 	}
 
-	// Check for index access: IDENT '[' expression ']'
+	// Check for field access (col.field) or index access (col[idx])
 	var assignTarget ast.ExprNode = target
-	if p.cur.Type == tokLBRACK {
+	if p.cur.Type == tokDOT {
+		p.advance()
+		field, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		assignTarget = &ast.DotAccess{
+			Object: target,
+			Field:  field,
+			Loc:    p.makeLoc(start),
+		}
+	} else if p.cur.Type == tokLBRACK {
 		p.advance() // [
 		idx, err := p.parseExpression()
 		if err != nil {
@@ -202,7 +213,8 @@ func (p *Parser) parseIfConditions() ([]*ast.IfCondition, error) {
 	return conditions, nil
 }
 
-// parseIfCondition parses a single LWT condition: col op value.
+// parseIfCondition parses a single LWT condition:
+//   col op value | col IN (values) | col CONTAINS [KEY] value
 func (p *Parser) parseIfCondition() (*ast.IfCondition, error) {
 	start := p.curLoc()
 
@@ -211,9 +223,54 @@ func (p *Parser) parseIfCondition() (*ast.IfCondition, error) {
 		return nil, err
 	}
 
+	// IN condition
+	if p.cur.Type == tokIN {
+		p.advance()
+		if _, err := p.expect(tokLPAREN); err != nil {
+			return nil, err
+		}
+		var values []ast.ExprNode
+		if p.cur.Type != tokRPAREN {
+			values, err = p.parseExpressionList()
+			if err != nil {
+				return nil, err
+			}
+		}
+		if _, err := p.expect(tokRPAREN); err != nil {
+			return nil, err
+		}
+		return &ast.IfCondition{
+			Column:   col,
+			Op:       "IN",
+			InValues: values,
+			Loc:      p.makeLoc(start),
+		}, nil
+	}
+
+	// CONTAINS [KEY] condition
+	if p.cur.Type == tokCONTAINS {
+		p.advance()
+		op := "CONTAINS"
+		if p.cur.Type == tokKEY {
+			op = "CONTAINS KEY"
+			p.advance()
+		}
+		val, err := p.parseExpression()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.IfCondition{
+			Column: col,
+			Op:     op,
+			Value:  val,
+			Loc:    p.makeLoc(start),
+		}, nil
+	}
+
+	// Comparison operator
 	op := p.cur.Str
 	if !p.match(tokEQ, tokLT, tokGT, tokLTE, tokGTE, tokNE) {
-		return nil, p.errorf("expected comparison operator in IF condition, got %s", p.tokenDesc())
+		return nil, p.errorf("expected comparison operator, IN, or CONTAINS in IF condition, got %s", p.tokenDesc())
 	}
 
 	val, err := p.parseExpression()

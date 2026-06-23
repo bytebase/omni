@@ -339,6 +339,8 @@ func (l *Lexer) scanOperator(start int) Token {
 			return Token{Type: tokNE, Str: "!=", Loc: start, End: l.pos}
 		}
 		return Token{Type: tokILLEGAL, Str: "!", Loc: start, End: l.pos}
+	case '?':
+		return Token{Type: tokQMARK, Str: "?", Loc: start, End: l.pos}
 	case '=':
 		return Token{Type: tokEQ, Str: "=", Loc: start, End: l.pos}
 	case '<':

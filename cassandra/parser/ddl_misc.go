@@ -131,9 +131,24 @@ func (p *Parser) parseDropFunction() (*ast.DropFunctionStmt, error) {
 		return nil, err
 	}
 
+	var argTypes []*ast.DataType
+	if p.cur.Type == tokLPAREN {
+		p.advance()
+		if p.cur.Type != tokRPAREN {
+			argTypes, err = p.parseTypeList()
+			if err != nil {
+				return nil, err
+			}
+		}
+		if _, err := p.expect(tokRPAREN); err != nil {
+			return nil, err
+		}
+	}
+
 	return &ast.DropFunctionStmt{
 		IfExists: ifExists,
 		Name:     name,
+		ArgTypes: argTypes,
 		Loc:      p.makeLoc(start),
 	}, nil
 }
@@ -253,11 +268,43 @@ func (p *Parser) parseDropAggregate() (*ast.DropAggregateStmt, error) {
 		return nil, err
 	}
 
+	var argTypes []*ast.DataType
+	if p.cur.Type == tokLPAREN {
+		p.advance()
+		if p.cur.Type != tokRPAREN {
+			var err error
+			argTypes, err = p.parseTypeList()
+			if err != nil {
+				return nil, err
+			}
+		}
+		if _, err := p.expect(tokRPAREN); err != nil {
+			return nil, err
+		}
+	}
+
 	return &ast.DropAggregateStmt{
 		IfExists: ifExists,
 		Name:     name,
+		ArgTypes: argTypes,
 		Loc:      p.makeLoc(start),
 	}, nil
+}
+
+// parseTypeList parses a comma-separated list of data types.
+func (p *Parser) parseTypeList() ([]*ast.DataType, error) {
+	var types []*ast.DataType
+	for {
+		dt, err := p.parseDataType()
+		if err != nil {
+			return nil, err
+		}
+		types = append(types, dt)
+		if !p.match(tokCOMMA) {
+			break
+		}
+	}
+	return types, nil
 }
 
 func (p *Parser) parseCreateTrigger() (*ast.CreateTriggerStmt, error) {
