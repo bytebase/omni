@@ -360,11 +360,8 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		tbl.colByName[colKey] = i
 	}
 
-	// MariaDB requires explicit system versioning (a table-level WITH SYSTEM
-	// VERSIONING, or a column-level WITH SYSTEM VERSIONING) when the table
-	// declares a PERIOD FOR SYSTEM_TIME or a ROW START/END column (error 4125).
-	if !tbl.SystemVersioned && (tbl.PeriodStartCol != "" || hasRowBoundColumn(tbl)) {
-		return errMissingSystemVersioning(tbl.Name)
+	if err := validateSystemVersioning(tbl); err != nil {
+		return err
 	}
 
 	c.applyTimestampSessionDefaults(tbl.Columns, stmt.Columns)
@@ -1765,6 +1762,18 @@ func applyBinaryModifierCollation(col *Column, dt *nodes.DataType) {
 // nodeToSQLGenerated converts an AST expression to SQL for use in a generated
 // column definition. MySQL prefixes string literals with a charset introducer
 // (e.g., _utf8mb4'value') in generated column expressions.
+// validateSystemVersioning enforces MariaDB's rule (error 4125) that a table
+// declaring a PERIOD FOR SYSTEM_TIME or a ROW START/END column must be
+// explicitly system-versioned (a table-level WITH SYSTEM VERSIONING, or a
+// column-level WITH SYSTEM VERSIONING). Applied after CREATE and after an ALTER
+// (so a multi-command "ADD PERIOD, ADD SYSTEM VERSIONING" validates as a whole).
+func validateSystemVersioning(tbl *Table) error {
+	if !tbl.SystemVersioned && (tbl.PeriodStartCol != "" || hasRowBoundColumn(tbl)) {
+		return errMissingSystemVersioning(tbl.Name)
+	}
+	return nil
+}
+
 // hasRowBoundColumn reports whether any column is a system-versioning period
 // column (GENERATED ALWAYS AS ROW START/END).
 func hasRowBoundColumn(tbl *Table) bool {

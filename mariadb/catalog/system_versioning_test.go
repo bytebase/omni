@@ -79,6 +79,65 @@ func TestSystemVersionedRequiresExplicit(t *testing.T) {
 	}
 }
 
+// TestSystemVersioningAlterCatalog verifies ALTER ... ADD/DROP SYSTEM VERSIONING
+// mutates the catalog (not a silent no-op), and that the whole-table consistency
+// check still applies after the ALTER. Container-verified vs mariadb:11.8.8.
+func TestSystemVersioningAlterCatalog(t *testing.T) {
+	t.Run("add system versioning reflects in show create", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE av (x INT)")
+		if r, _ := c.Exec("ALTER TABLE av ADD SYSTEM VERSIONING", &ExecOptions{ContinueOnError: true}); r[0].Error != nil {
+			t.Fatalf("ADD SYSTEM VERSIONING errored: %v", r[0].Error)
+		}
+		if ddl := c.ShowCreateTable("test", "av"); !strings.Contains(ddl, "WITH SYSTEM VERSIONING") {
+			t.Errorf("ShowCreateTable missing WITH SYSTEM VERSIONING after ADD:\n%s", ddl)
+		}
+	})
+	t.Run("drop system versioning reverts show create", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE av (x INT) WITH SYSTEM VERSIONING")
+		c.Exec("ALTER TABLE av DROP SYSTEM VERSIONING", &ExecOptions{ContinueOnError: true})
+		if ddl := c.ShowCreateTable("test", "av"); strings.Contains(ddl, "WITH SYSTEM VERSIONING") {
+			t.Errorf("ShowCreateTable still versioned after DROP:\n%s", ddl)
+		}
+	})
+	t.Run("multi-command convert plain table to versioned", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE conv (x INT)")
+		r, _ := c.Exec("ALTER TABLE conv ADD COLUMN rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, ADD COLUMN re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME(rs, re), ADD SYSTEM VERSIONING", &ExecOptions{ContinueOnError: true})
+		if r[0].Error != nil {
+			t.Fatalf("convert ALTER errored: %v", r[0].Error)
+		}
+		ddl := c.ShowCreateTable("test", "conv")
+		if strings.Contains(ddl, "AS ()") {
+			t.Errorf("renders broken AS () on the ALTER path:\n%s", ddl)
+		}
+		for _, want := range []string{"GENERATED ALWAYS AS ROW START", "PERIOD FOR SYSTEM_TIME (`rs`, `re`)", "WITH SYSTEM VERSIONING"} {
+			if !strings.Contains(ddl, want) {
+				t.Errorf("converted table missing %q:\n%s", want, ddl)
+			}
+		}
+	})
+	t.Run("drop system versioning with explicit period cols rejected (4125)", func(t *testing.T) {
+		c := versionedCatalog(t, "CREATE TABLE sv (x INT, rs TIMESTAMP(6) GENERATED ALWAYS AS ROW START, re TIMESTAMP(6) GENERATED ALWAYS AS ROW END, PERIOD FOR SYSTEM_TIME(rs, re)) WITH SYSTEM VERSIONING")
+		r, _ := c.Exec("ALTER TABLE sv DROP SYSTEM VERSIONING", &ExecOptions{ContinueOnError: true})
+		catErr, ok := r[0].Error.(*Error)
+		if !ok || catErr.Code != 4125 {
+			t.Fatalf("expected error 4125, got %v", r[0].Error)
+		}
+		// The failed ALTER must roll back: the table is still versioned.
+		if ddl := c.ShowCreateTable("test", "sv"); !strings.Contains(ddl, "WITH SYSTEM VERSIONING") {
+			t.Errorf("rollback failed — table no longer versioned:\n%s", ddl)
+		}
+	})
+}
+
+func versionedCatalog(t *testing.T, createSQL string) *Catalog {
+	t.Helper()
+	c := New()
+	c.Exec("CREATE DATABASE test", nil)
+	c.SetCurrentDatabase("test")
+	c.Exec(createSQL, nil)
+	return c
+}
+
 func execErr(t *testing.T, ddl string) error {
 	t.Helper()
 	c := New()

@@ -25,10 +25,27 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		return errNoSuchTable(db.Name, tableName)
 	}
 
-	if len(stmt.Commands) <= 1 {
-		// Single command: no rollback needed.
-		if len(stmt.Commands) == 1 {
-			return c.execAlterCmd(db, tbl, stmt.Commands[0])
+	if len(stmt.Commands) == 0 {
+		return nil
+	}
+
+	if len(stmt.Commands) == 1 {
+		cmd := stmt.Commands[0]
+		// Non-versioning single commands keep the no-clone fast path.
+		if !isSystemVersioningCmd(cmd.Type) {
+			return c.execAlterCmd(db, tbl, cmd)
+		}
+		// Versioning commands need a post-mutation consistency check, so snapshot
+		// to roll back an invalid result (e.g. DROP SYSTEM VERSIONING that leaves
+		// orphaned period columns -> 4125).
+		snapshot := cloneTable(tbl)
+		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
+			*tbl = snapshot
+			return err
+		}
+		if err := validateSystemVersioning(tbl); err != nil {
+			*tbl = snapshot
+			return err
 		}
 		return nil
 	}
@@ -38,18 +55,27 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	snapshot := cloneTable(tbl)
 	origKey := key
 
+	rollback := func() {
+		// If a RENAME changed the map key, undo it, then restore all fields.
+		newKey := toLower(tbl.Name)
+		if newKey != origKey {
+			delete(db.Tables, newKey)
+			db.Tables[origKey] = tbl
+		}
+		*tbl = snapshot
+	}
+
 	for _, cmd := range stmt.Commands {
 		if err := c.execAlterCmd(db, tbl, cmd); err != nil {
-			// Rollback: if a RENAME changed the map key, undo it.
-			newKey := toLower(tbl.Name)
-			if newKey != origKey {
-				delete(db.Tables, newKey)
-				db.Tables[origKey] = tbl
-			}
-			// Restore all table fields from snapshot.
-			*tbl = snapshot
+			rollback()
 			return err
 		}
+	}
+	// Validate system-versioning consistency across the atomic ALTER as a whole
+	// ("ADD PERIOD ..., ADD SYSTEM VERSIONING" is valid; either one alone is not).
+	if err := validateSystemVersioning(tbl); err != nil {
+		rollback()
+		return err
 	}
 	// Clear transient cleanup tracking after successful multi-command ALTER.
 	tbl.droppedByCleanup = nil
@@ -109,10 +135,35 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATRemovePartitioning:
 		tbl.Partitioning = nil
 		return nil
+	case nodes.ATAddSystemVersioning:
+		tbl.SystemVersioned = true
+		return nil
+	case nodes.ATDropSystemVersioning:
+		tbl.SystemVersioned = false
+		return nil
+	case nodes.ATAddPeriod:
+		tbl.PeriodStartCol = cmd.PeriodStartCol
+		tbl.PeriodEndCol = cmd.PeriodEndCol
+		return nil
+	case nodes.ATDropPeriod:
+		tbl.PeriodStartCol = ""
+		tbl.PeriodEndCol = ""
+		return nil
 	default:
 		// Unsupported alter command; silently ignore.
 		return nil
 	}
+}
+
+// isSystemVersioningCmd reports whether an ALTER command mutates a table's
+// system-versioning state (and so needs a post-ALTER consistency check).
+func isSystemVersioningCmd(t nodes.AlterTableCmdType) bool {
+	switch t {
+	case nodes.ATAddSystemVersioning, nodes.ATDropSystemVersioning,
+		nodes.ATAddPeriod, nodes.ATDropPeriod:
+		return true
+	}
+	return false
 }
 
 // alterAddColumn adds a new column to the table.
@@ -951,10 +1002,12 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	}
 	if colDef.Generated != nil {
 		col.Generated = &GeneratedColumnInfo{
-			Expr:   nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
-			Stored: colDef.Generated.Stored,
+			Expr:     nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+			Stored:   colDef.Generated.Stored,
+			RowBound: rowBoundSQL(colDef.Generated.RowBound),
 		}
 	}
+	col.SystemVersioning = colVersioningSQL(colDef.SystemVersioning)
 
 	// Process column-level constraints (non-index-producing ones).
 	for _, cc := range colDef.Constraints {
