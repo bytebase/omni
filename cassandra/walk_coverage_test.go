@@ -171,6 +171,15 @@ func TestWalkChildrenCoverage(t *testing.T) {
 		"CREATE INDEX ON t (VALUES(m))",
 		"CREATE INDEX ON t (ENTRIES(m))",
 		"CREATE AGGREGATE ks.agg2(int) SFUNC plus STYPE int",
+		"ALTER KEYSPACE IF EXISTS ks WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': '1'}",
+		"ALTER TABLE IF EXISTS t ADD IF NOT EXISTS col text",
+		"ALTER TABLE t DROP IF EXISTS col",
+		"ALTER TABLE t RENAME IF EXISTS a TO b",
+		"ALTER TYPE IF EXISTS mytype ADD IF NOT EXISTS f2 int",
+		"ALTER TYPE IF EXISTS mytype RENAME IF EXISTS f1 TO field1",
+		"ALTER MATERIALIZED VIEW IF EXISTS mv WITH comment = 'test'",
+		"ALTER ROLE IF EXISTS r WITH PASSWORD = 'x'",
+		"ALTER USER IF EXISTS u WITH PASSWORD 'y'",
 	} {
 		list, err := parser.Parse(sql)
 		if err != nil {

@@ -61,12 +61,14 @@ func (p *Parser) parseAlterKeyspace() (*ast.AlterKeyspaceStmt, error) {
 	start := p.curLoc()
 	p.advance() // KEYSPACE
 
+	ifExists := p.parseIfExists()
+
 	name, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
 
-	stmt := &ast.AlterKeyspaceStmt{Name: name}
+	stmt := &ast.AlterKeyspaceStmt{IfExists: ifExists, Name: name}
 
 	if err := p.expectKeyword(tokWITH); err != nil {
 		return nil, err

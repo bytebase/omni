@@ -240,17 +240,24 @@ func (p *Parser) parseAlterTable() (*ast.AlterTableStmt, error) {
 	start := p.curLoc()
 	p.advance() // TABLE
 
+	ifExists := p.parseIfExists()
+
 	name, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
 
-	stmt := &ast.AlterTableStmt{Name: name}
+	stmt := &ast.AlterTableStmt{IfExists: ifExists, Name: name}
 
 	switch p.cur.Type {
 	case tokADD:
 		stmt.Op = ast.AlterTableAdd
 		p.advance()
+		ine, err := p.parseIfNotExists()
+		if err != nil {
+			return nil, err
+		}
+		stmt.AddIfNotExists = ine
 		for {
 			col, err := p.parseColumnDefinition()
 			if err != nil {
@@ -271,6 +278,7 @@ func (p *Parser) parseAlterTable() (*ast.AlterTableStmt, error) {
 			}
 		} else {
 			stmt.Op = ast.AlterTableDrop
+			stmt.DropIfExists = p.parseIfExists()
 			for {
 				col, err := p.parseIdentifier()
 				if err != nil {
@@ -285,6 +293,7 @@ func (p *Parser) parseAlterTable() (*ast.AlterTableStmt, error) {
 	case tokRENAME:
 		stmt.Op = ast.AlterTableRename
 		p.advance()
+		stmt.RenameIfExists = p.parseIfExists()
 		from, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err

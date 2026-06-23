@@ -44,12 +44,14 @@ func (p *Parser) isNextColumnNotNull(next Token) bool {
 func (p *Parser) parseAlterMV() (*ast.AlterMVStmt, error) {
 	start := p.curLoc()
 
+	ifExists := p.parseIfExists()
+
 	name, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
 
-	stmt := &ast.AlterMVStmt{Name: name}
+	stmt := &ast.AlterMVStmt{IfExists: ifExists, Name: name}
 
 	if p.match(tokWITH) {
 		for {

@@ -337,12 +337,14 @@ func (p *Parser) parseAlterRole() (*ast.AlterRoleStmt, error) {
 	start := p.curLoc()
 	p.advance() // ROLE
 
+	ifExists := p.parseIfExists()
+
 	name, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
 
-	stmt := &ast.AlterRoleStmt{Name: name}
+	stmt := &ast.AlterRoleStmt{IfExists: ifExists, Name: name}
 
 	if p.match(tokWITH) {
 		opts, err := p.parseRoleWithOptions()
@@ -482,12 +484,14 @@ func (p *Parser) parseAlterUser() (*ast.AlterUserStmt, error) {
 	start := p.curLoc()
 	p.advance() // USER
 
+	ifExists := p.parseIfExists()
+
 	name, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
 
-	stmt := &ast.AlterUserStmt{Name: name}
+	stmt := &ast.AlterUserStmt{IfExists: ifExists, Name: name}
 
 	if err := p.expectKeyword(tokWITH); err != nil {
 		return nil, err

@@ -565,6 +565,7 @@ func (n *CreateKeyspaceStmt) GetLoc() Loc { return n.Loc }
 func (*CreateKeyspaceStmt) stmtNode()     {}
 
 type AlterKeyspaceStmt struct {
+	IfExists      bool
 	Name          *Identifier
 	Replication   *OptionHash
 	DurableWrites *BoolLit
@@ -612,14 +613,18 @@ const (
 )
 
 type AlterTableStmt struct {
-	Name        *QualifiedName
-	Op          AlterTableOp
-	AddColumns  []*ColumnDef
-	DropColumns []*Identifier
-	RenameFrom  *Identifier
-	RenameTo    *Identifier
-	Options     []*TableOption
-	Loc         Loc
+	IfExists       bool
+	Name           *QualifiedName
+	Op             AlterTableOp
+	AddIfNotExists bool
+	AddColumns     []*ColumnDef
+	DropIfExists   bool
+	DropColumns    []*Identifier
+	RenameIfExists bool
+	RenameFrom     *Identifier
+	RenameTo       *Identifier
+	Options        []*TableOption
+	Loc            Loc
 }
 
 func (*AlterTableStmt) nodeTag()      {}
@@ -682,13 +687,16 @@ const (
 )
 
 type AlterTypeStmt struct {
-	Name        *QualifiedName
-	Op          AlterTypeOp
-	AlterColumn *Identifier
-	AlterType   *DataType
-	AddFields   []*ColumnDef
-	Renames     []*AlterTypeRenameItem
-	Loc         Loc
+	IfExists       bool
+	Name           *QualifiedName
+	Op             AlterTypeOp
+	AlterColumn    *Identifier
+	AlterType      *DataType
+	AddIfNotExists bool
+	AddFields      []*ColumnDef
+	RenameIfExists bool
+	Renames        []*AlterTypeRenameItem
+	Loc            Loc
 }
 
 func (*AlterTypeStmt) nodeTag()      {}
@@ -733,9 +741,10 @@ func (n *CreateMVStmt) GetLoc() Loc { return n.Loc }
 func (*CreateMVStmt) stmtNode()     {}
 
 type AlterMVStmt struct {
-	Name    *QualifiedName
-	Options []*TableOption
-	Loc     Loc
+	IfExists bool
+	Name     *QualifiedName
+	Options  []*TableOption
+	Loc      Loc
 }
 
 func (*AlterMVStmt) nodeTag()      {}
@@ -869,9 +878,10 @@ func (*RoleOption) nodeTag()      {}
 func (n *RoleOption) GetLoc() Loc { return n.Loc }
 
 type AlterRoleStmt struct {
-	Name    *Identifier
-	Options []*RoleOption
-	Loc     Loc
+	IfExists bool
+	Name     *Identifier
+	Options  []*RoleOption
+	Loc      Loc
 }
 
 func (*AlterRoleStmt) nodeTag()      {}
@@ -901,6 +911,7 @@ func (n *CreateUserStmt) GetLoc() Loc { return n.Loc }
 func (*CreateUserStmt) stmtNode()     {}
 
 type AlterUserStmt struct {
+	IfExists  bool
 	Name      *Identifier
 	Password  ExprNode
 	Superuser *bool

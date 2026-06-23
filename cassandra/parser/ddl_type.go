@@ -59,12 +59,14 @@ func (p *Parser) parseAlterType() (*ast.AlterTypeStmt, error) {
 	start := p.curLoc()
 	p.advance() // TYPE
 
+	ifExists := p.parseIfExists()
+
 	name, err := p.parseQualifiedName()
 	if err != nil {
 		return nil, err
 	}
 
-	stmt := &ast.AlterTypeStmt{Name: name}
+	stmt := &ast.AlterTypeStmt{IfExists: ifExists, Name: name}
 
 	switch p.cur.Type {
 	case tokALTER:
@@ -87,6 +89,11 @@ func (p *Parser) parseAlterType() (*ast.AlterTypeStmt, error) {
 	case tokADD:
 		stmt.Op = ast.AlterTypeAdd
 		p.advance()
+		ine, err := p.parseIfNotExists()
+		if err != nil {
+			return nil, err
+		}
+		stmt.AddIfNotExists = ine
 		for {
 			fStart := p.curLoc()
 			col, err := p.parseIdentifier()
@@ -110,6 +117,7 @@ func (p *Parser) parseAlterType() (*ast.AlterTypeStmt, error) {
 	case tokRENAME:
 		stmt.Op = ast.AlterTypeRename
 		p.advance()
+		stmt.RenameIfExists = p.parseIfExists()
 		for {
 			rStart := p.curLoc()
 			from, err := p.parseIdentifier()

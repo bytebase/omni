@@ -627,3 +627,161 @@ func TestBinaryInputNoPanic(t *testing.T) {
 		}()
 	}
 }
+
+func TestParseAlterIfExists(t *testing.T) {
+	tests := []struct {
+		name  string
+		sql   string
+		check func(t *testing.T, s Statement)
+	}{
+		{
+			name: "ALTER KEYSPACE IF EXISTS",
+			sql:  "ALTER KEYSPACE IF EXISTS ks WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': '1'}",
+			check: func(t *testing.T, s Statement) {
+				stmt := s.AST.(*ast.AlterKeyspaceStmt)
+				if !stmt.IfExists {
+					t.Fatal("expected IfExists=true")
+				}
+			},
+		},
+		{
+			name: "ALTER TABLE IF EXISTS",
+			sql:  "ALTER TABLE IF EXISTS t ADD col text",
+			check: func(t *testing.T, s Statement) {
+				stmt := s.AST.(*ast.AlterTableStmt)
+				if !stmt.IfExists {
+					t.Fatal("expected IfExists=true")
+				}
+			},
+		},
+		{
+			name: "ALTER TABLE ADD IF NOT EXISTS",
+			sql:  "ALTER TABLE t ADD IF NOT EXISTS col text",
+			check: func(t *testing.T, s Statement) {
+				stmt := s.AST.(*ast.AlterTableStmt)
+				if !stmt.AddIfNotExists {
+					t.Fatal("expected AddIfNotExists=true")
+				}
+			},
+		},
+		{
+			name: "ALTER TABLE DROP IF EXISTS",
+			sql:  "ALTER TABLE t DROP IF EXISTS col",
+			check: func(t *testing.T, s Statement) {
+				stmt := s.AST.(*ast.AlterTableStmt)
+				if !stmt.DropIfExists {
+					t.Fatal("expected DropIfExists=true")
+				}
+			},
+		},
+		{
+			name: "ALTER TABLE RENAME IF EXISTS",
+			sql:  "ALTER TABLE t RENAME IF EXISTS a TO b",
+			check: func(t *testing.T, s Statement) {
+				stmt := s.AST.(*ast.AlterTableStmt)
+				if !stmt.RenameIfExists {
+					t.Fatal("expected RenameIfExists=true")
+				}
+			},
+		},
+		{
+			name: "ALTER TABLE IF EXISTS + ADD IF NOT EXISTS combined",
+			sql:  "ALTER TABLE IF EXISTS t ADD IF NOT EXISTS col text",
+			check: func(t *testing.T, s Statement) {
+				stmt := s.AST.(*ast.AlterTableStmt)
+				if !stmt.IfExists {
+					t.Fatal("expected IfExists=true")
+				}
+				if !stmt.AddIfNotExists {
+					t.Fatal("expected AddIfNotExists=true")
+				}
+			},
+		},
+		{
+			name: "ALTER TYPE IF EXISTS",
+			sql:  "ALTER TYPE IF EXISTS mytype ADD f2 int",
+			check: func(t *testing.T, s Statement) {
+				stmt := s.AST.(*ast.AlterTypeStmt)
+				if !stmt.IfExists {
+					t.Fatal("expected IfExists=true")
+				}
+			},
+		},
+		{
+			name: "ALTER TYPE ADD IF NOT EXISTS",
+			sql:  "ALTER TYPE mytype ADD IF NOT EXISTS f2 int",
+			check: func(t *testing.T, s Statement) {
+				stmt := s.AST.(*ast.AlterTypeStmt)
+				if !stmt.AddIfNotExists {
+					t.Fatal("expected AddIfNotExists=true")
+				}
+			},
+		},
+		{
+			name: "ALTER TYPE RENAME IF EXISTS",
+			sql:  "ALTER TYPE mytype RENAME IF EXISTS f1 TO field1",
+			check: func(t *testing.T, s Statement) {
+				stmt := s.AST.(*ast.AlterTypeStmt)
+				if !stmt.RenameIfExists {
+					t.Fatal("expected RenameIfExists=true")
+				}
+			},
+		},
+		{
+			name: "ALTER MATERIALIZED VIEW IF EXISTS",
+			sql:  "ALTER MATERIALIZED VIEW IF EXISTS mv WITH comment = 'test'",
+			check: func(t *testing.T, s Statement) {
+				stmt := s.AST.(*ast.AlterMVStmt)
+				if !stmt.IfExists {
+					t.Fatal("expected IfExists=true")
+				}
+			},
+		},
+		{
+			name: "ALTER ROLE IF EXISTS",
+			sql:  "ALTER ROLE IF EXISTS r WITH PASSWORD = 'x'",
+			check: func(t *testing.T, s Statement) {
+				stmt := s.AST.(*ast.AlterRoleStmt)
+				if !stmt.IfExists {
+					t.Fatal("expected IfExists=true")
+				}
+			},
+		},
+		{
+			name: "ALTER USER IF EXISTS",
+			sql:  "ALTER USER IF EXISTS u WITH PASSWORD 'y'",
+			check: func(t *testing.T, s Statement) {
+				stmt := s.AST.(*ast.AlterUserStmt)
+				if !stmt.IfExists {
+					t.Fatal("expected IfExists=true")
+				}
+			},
+		},
+		{
+			name: "ALTER TABLE without IF EXISTS",
+			sql:  "ALTER TABLE t ADD col text",
+			check: func(t *testing.T, s Statement) {
+				stmt := s.AST.(*ast.AlterTableStmt)
+				if stmt.IfExists {
+					t.Fatal("expected IfExists=false")
+				}
+				if stmt.AddIfNotExists {
+					t.Fatal("expected AddIfNotExists=false")
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stmts, err := Parse(tt.sql)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(stmts) != 1 {
+				t.Fatalf("expected 1 statement, got %d", len(stmts))
+			}
+			tt.check(t, stmts[0])
+		})
+	}
+}
