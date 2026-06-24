@@ -448,17 +448,15 @@ func (p *Parser) parseAlterAdd(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd, 
 		return cmd, nil
 	}
 
-	// ADD PERIOD FOR SYSTEM_TIME (start_col, end_col).
-	// (Application-time ALTER ... ADD PERIOD is not yet supported.)
+	// ADD PERIOD FOR <name> (start_col, end_col): SYSTEM_TIME for the
+	// system-versioning period, any other name for the application-time period.
 	if p.atPeriodForSystemTime() {
 		name, startCol, endCol, err := p.parsePeriodForCols()
 		if err != nil {
 			return nil, err
 		}
-		if !strings.EqualFold(name, "SYSTEM_TIME") {
-			return nil, p.syntaxErrorAtCur()
-		}
 		cmd.Type = nodes.ATAddPeriod
+		cmd.PeriodName = name
 		cmd.PeriodStartCol = startCol
 		cmd.PeriodEndCol = endCol
 		cmd.Loc.End = p.pos()
@@ -525,15 +523,18 @@ func (p *Parser) parseAlterDrop(cmd *nodes.AlterTableCmd) (*nodes.AlterTableCmd,
 		return nil, &ParseError{Message: "collecting"}
 	}
 
-	// DROP PERIOD FOR SYSTEM_TIME (PERIOD is non-reserved, intercepted here)
+	// DROP PERIOD FOR <name> (PERIOD is non-reserved, intercepted here):
+	// SYSTEM_TIME for the system-versioning period, else application-time. The
+	// period name follows the identifier rule (non-reserved keywords allowed).
 	if p.atPeriodForSystemTime() {
 		p.advance() // PERIOD
 		p.advance() // FOR
-		if p.cur.Type != tokIDENT || !strings.EqualFold(p.cur.Str, "SYSTEM_TIME") {
-			return nil, p.syntaxErrorAtCur()
+		name, _, err := p.parseIdent()
+		if err != nil {
+			return nil, err
 		}
-		p.advance() // SYSTEM_TIME
 		cmd.Type = nodes.ATDropPeriod
+		cmd.PeriodName = name
 		cmd.Loc.End = p.pos()
 		return cmd, nil
 	}

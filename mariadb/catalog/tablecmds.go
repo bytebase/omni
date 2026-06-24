@@ -2038,16 +2038,24 @@ func validateApplicationTimePeriod(tbl *Table, stmt *nodes.CreateTableStmt) erro
 	if stmt.AppPeriodDuplicate {
 		return errMultipleAppPeriods() // 4154
 	}
-	if strings.EqualFold(tbl.AppPeriodStartCol, tbl.AppPeriodEndCol) {
-		return errColumnSpecifiedTwice(tbl.AppPeriodStartCol) // 1110
+	return validateAppPeriodColumns(tbl, tbl.AppPeriodName, tbl.AppPeriodStartCol, tbl.AppPeriodEndCol)
+}
+
+// validateAppPeriodColumns enforces the column-level rules for an application-
+// time period: distinct start/end (1110), the period name not colliding with a
+// column (1060), and both columns existing (1054) with a temporal type (1063).
+// Shared by CREATE TABLE and ALTER TABLE ... ADD PERIOD. Grounded vs 11.8.8.
+func validateAppPeriodColumns(tbl *Table, name, startCol, endCol string) error {
+	if strings.EqualFold(startCol, endCol) {
+		return errColumnSpecifiedTwice(startCol) // 1110
 	}
-	if tbl.GetColumn(tbl.AppPeriodName) != nil {
-		return errDupColumn(tbl.AppPeriodName) // 1060: period name collides with a column
+	if tbl.GetColumn(name) != nil {
+		return errDupColumn(name) // 1060: period name collides with a column
 	}
-	for _, colName := range []string{tbl.AppPeriodStartCol, tbl.AppPeriodEndCol} {
+	for _, colName := range []string{startCol, endCol} {
 		col := tbl.GetColumn(colName)
 		if col == nil {
-			return errNoSuchColumn(colName, tbl.AppPeriodName) // 1054
+			return errNoSuchColumn(colName, name) // 1054
 		}
 		if !isTemporalPeriodType(col.DataType) {
 			return errIncorrectColumnSpecifier(colName) // 1063

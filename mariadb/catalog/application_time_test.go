@@ -46,6 +46,86 @@ func TestApplicationTimePeriodValidation(t *testing.T) {
 	}
 }
 
+// TestAlterAddApplicationTimePeriod: ALTER TABLE ... ADD PERIOD FOR <name>(s,e)
+// adds an application-time period — same validation codes as CREATE, and the
+// period columns become NOT NULL. Grounded vs mariadb:11.8.8.
+func TestAlterAddApplicationTimePeriod(t *testing.T) {
+	t.Run("basic", func(t *testing.T) {
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE TABLE t (id INT, s DATE, e DATE)", nil)
+		if r, _ := c.Exec("ALTER TABLE t ADD PERIOD FOR app_time(s, e)", &ExecOptions{ContinueOnError: true}); r[0].Error != nil {
+			t.Fatalf("add period: %v", r[0].Error)
+		}
+		show := c.ShowCreateTable("test", "t")
+		if !strings.Contains(show, "PERIOD FOR `app_time` (`s`, `e`)") {
+			t.Fatalf("missing period clause:\n%s", show)
+		}
+		if !strings.Contains(show, "`s` date NOT NULL") || !strings.Contains(show, "`e` date NOT NULL") {
+			t.Fatalf("period columns should be NOT NULL:\n%s", show)
+		}
+	})
+	for _, tc := range []struct {
+		name, create, add string
+		code              int
+	}{
+		{"already_has_period", "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s,e))", "ALTER TABLE t ADD PERIOD FOR p2(s, e)", 4154},
+		{"nonexistent_col", "CREATE TABLE t (id INT)", "ALTER TABLE t ADD PERIOD FOR app_time(s, e)", 1054},
+		{"non_temporal", "CREATE TABLE t (id INT, s INT, e INT)", "ALTER TABLE t ADD PERIOD FOR app_time(s, e)", 1063},
+		{"same_col", "CREATE TABLE t (id INT, s DATE)", "ALTER TABLE t ADD PERIOD FOR app_time(s, s)", 1110},
+		{"name_is_column", "CREATE TABLE t (id INT, s DATE, e DATE)", "ALTER TABLE t ADD PERIOD FOR id(s, e)", 1060},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			c.Exec(tc.create, nil)
+			r, _ := c.Exec(tc.add, &ExecOptions{ContinueOnError: true})
+			if catErr, ok := r[0].Error.(*Error); !ok || catErr.Code != tc.code {
+				t.Fatalf("want %d, got %v", tc.code, r[0].Error)
+			}
+		})
+	}
+}
+
+// TestAlterDropApplicationTimePeriod: ALTER TABLE ... DROP PERIOD FOR <name>
+// removes the application-time period (1091 if absent; 4156 if a WITHOUT
+// OVERLAPS key still references it). Grounded vs mariadb:11.8.8.
+func TestAlterDropApplicationTimePeriod(t *testing.T) {
+	t.Run("basic", func(t *testing.T) {
+		c := New()
+		c.Exec("CREATE DATABASE test", nil)
+		c.SetCurrentDatabase("test")
+		c.Exec("CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s,e))", nil)
+		if r, _ := c.Exec("ALTER TABLE t DROP PERIOD FOR app_time", &ExecOptions{ContinueOnError: true}); r[0].Error != nil {
+			t.Fatalf("drop period: %v", r[0].Error)
+		}
+		if show := c.ShowCreateTable("test", "t"); strings.Contains(show, "PERIOD FOR") {
+			t.Fatalf("period should be gone:\n%s", show)
+		}
+	})
+	for _, tc := range []struct {
+		name, create, drop string
+		code               int
+	}{
+		{"nonexistent", "CREATE TABLE t (id INT)", "ALTER TABLE t DROP PERIOD FOR app_time", 1091},
+		{"wrong_name", "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s,e))", "ALTER TABLE t DROP PERIOD FOR other", 1091},
+		{"used_by_without_overlaps", "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s,e), UNIQUE(id, app_time WITHOUT OVERLAPS))", "ALTER TABLE t DROP PERIOD FOR app_time", 4156},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			c.Exec(tc.create, nil)
+			r, _ := c.Exec(tc.drop, &ExecOptions{ContinueOnError: true})
+			if catErr, ok := r[0].Error.(*Error); !ok || catErr.Code != tc.code {
+				t.Fatalf("want %d, got %v", tc.code, r[0].Error)
+			}
+		})
+	}
+}
+
 // TestWithoutOverlapsCatalog: WITHOUT OVERLAPS renders on the period key part.
 func TestWithoutOverlapsCatalog(t *testing.T) {
 	for _, tc := range []struct{ name, ddl, want string }{

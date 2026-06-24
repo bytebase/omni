@@ -376,6 +376,12 @@ func errColumnSpecifiedTwice(col string) error {
 		Message: fmt.Sprintf("Column '%s' specified twice", col)}
 }
 
+// errCantDropPeriod reports DROP PERIOD for a period that does not exist. 1091.
+func errCantDropPeriod(name string) error {
+	return &Error{Code: ErrCantDropKey, SQLState: sqlState(ErrCantDropKey),
+		Message: fmt.Sprintf("Can't DROP PERIOD `%s`; check that it exists", name)}
+}
+
 func errPeriodNotFound(name string) error {
 	return &Error{Code: ErrPeriodNotFound, SQLState: sqlState(ErrPeriodNotFound),
 		Message: fmt.Sprintf("Period `%s` is not found in table", name)}

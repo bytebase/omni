@@ -174,6 +174,9 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		tbl.SystemVersioned = false
 		return nil
 	case nodes.ATAddPeriod:
+		if !isSystemTimePeriodName(cmd.PeriodName) {
+			return c.alterAddAppPeriod(tbl, cmd)
+		}
 		if tbl.PeriodStartCol != "" {
 			return errAlreadySystemVersioned(tbl.Name)
 		}
@@ -181,6 +184,9 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		tbl.PeriodEndCol = cmd.PeriodEndCol
 		return nil
 	case nodes.ATDropPeriod:
+		if !isSystemTimePeriodName(cmd.PeriodName) {
+			return c.alterDropAppPeriod(tbl, cmd)
+		}
 		// Check period presence first so the result is independent of command
 		// order: a DROP SYSTEM VERSIONING earlier in the same statement flips the
 		// versioned flag but does not clear the period.
@@ -197,6 +203,54 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		// Unsupported alter command; silently ignore.
 		return nil
 	}
+}
+
+// isSystemTimePeriodName reports whether an ADD/DROP PERIOD command targets the
+// system-versioning period rather than an application-time period.
+func isSystemTimePeriodName(name string) bool {
+	return name == "" || strings.EqualFold(name, "SYSTEM_TIME")
+}
+
+// alterAddAppPeriod adds an application-time period to an existing table,
+// applying the same validations as CREATE (4154/1110/1060/1054/1063) and making
+// the period columns NOT NULL. Grounded vs 11.8.8.
+func (c *Catalog) alterAddAppPeriod(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if tbl.AppPeriodName != "" {
+		return errMultipleAppPeriods() // 4154
+	}
+	if err := validateAppPeriodColumns(tbl, cmd.PeriodName, cmd.PeriodStartCol, cmd.PeriodEndCol); err != nil {
+		return err
+	}
+	tbl.AppPeriodName = cmd.PeriodName
+	tbl.AppPeriodStartCol = cmd.PeriodStartCol
+	tbl.AppPeriodEndCol = cmd.PeriodEndCol
+	// MariaDB makes application-time period columns NOT NULL.
+	for _, colName := range []string{cmd.PeriodStartCol, cmd.PeriodEndCol} {
+		if col := tbl.GetColumn(colName); col != nil {
+			col.Nullable = false
+		}
+	}
+	return nil
+}
+
+// alterDropAppPeriod removes the application-time period: 1091 if no such period
+// exists, or 4156 if a WITHOUT OVERLAPS key still references it. The period
+// columns keep their NOT NULL. Grounded vs 11.8.8.
+func (c *Catalog) alterDropAppPeriod(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if tbl.AppPeriodName == "" || !strings.EqualFold(tbl.AppPeriodName, cmd.PeriodName) {
+		return errCantDropPeriod(cmd.PeriodName) // 1091
+	}
+	for _, idx := range tbl.Indexes {
+		for _, ic := range idx.Columns {
+			if ic.WithoutOverlaps && strings.EqualFold(ic.Name, tbl.AppPeriodName) {
+				return errPeriodNotFound(tbl.AppPeriodName) // 4156
+			}
+		}
+	}
+	tbl.AppPeriodName = ""
+	tbl.AppPeriodStartCol = ""
+	tbl.AppPeriodEndCol = ""
+	return nil
 }
 
 // cmdAffectsVersioning reports whether an ALTER command can change a table's
