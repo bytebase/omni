@@ -54,3 +54,17 @@ func TestWithoutOverlapsGrammarReject(t *testing.T) {
 		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
 	}
 }
+
+// TestWithoutOverlapsBareOnly: WITHOUT OVERLAPS is valid only on a bare column
+// key part — no functional expression, prefix length, or ASC/DESC (1064 vs 11.8.8).
+func TestWithoutOverlapsBareOnly(t *testing.T) {
+	const sv = "CREATE TABLE t (id INT, p VARCHAR(20), s DATE, e DATE, PERIOD FOR app_time(s, e), "
+	for _, sql := range []string{
+		sv + "UNIQUE (id, (id + 1) WITHOUT OVERLAPS))",      // functional
+		sv + "UNIQUE (id, p(1) WITHOUT OVERLAPS))",          // prefix length
+		sv + "UNIQUE (id, app_time DESC WITHOUT OVERLAPS))", // DESC
+		sv + "UNIQUE (id, app_time ASC WITHOUT OVERLAPS))",  // ASC
+	} {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+}

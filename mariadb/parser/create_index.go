@@ -176,16 +176,22 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 	}
 
 	// Optional ASC | DESC
+	hasOrdering := false
 	if _, ok := p.match(kwASC); ok {
-		// ASC is default, nothing to set
+		hasOrdering = true // ASC is the default, but the token was given
 	} else if _, ok := p.match(kwDESC); ok {
 		col.Desc = true
+		hasOrdering = true
 	}
 
-	// Optional WITHOUT OVERLAPS (application-time period key part). OVERLAPS is
-	// non-reserved (matched by text).
+	// Optional WITHOUT OVERLAPS — valid only on a bare column key part: no
+	// functional expression, no prefix length, no ordering token (else 1064).
+	// OVERLAPS is non-reserved (matched by text).
 	if p.cur.Type == kwWITHOUT && p.peekNext().Type == tokIDENT &&
 		strings.EqualFold(p.peekNext().Str, "OVERLAPS") {
+		if col.Functional || col.Length > 0 || hasOrdering {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance() // WITHOUT
 		p.advance() // OVERLAPS
 		col.WithoutOverlaps = true
