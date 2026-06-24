@@ -147,15 +147,35 @@ func TestForPortionOfReject(t *testing.T) {
 	}
 }
 
+// TestPortionReserved: PORTION is a reserved word in MariaDB 11.8.8 — usable as
+// an identifier (alias, table name, period name) only when quoted.
+func TestPortionReserved(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT 1 AS portion",
+		"CREATE TABLE portion (id INT)",
+		"CREATE TABLE t (s DATE, e DATE, PERIOD FOR portion(s, e))",
+	} {
+		t.Run("reject/"+sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+	for _, sql := range []string{
+		"SELECT 1 AS `portion`",
+		"CREATE TABLE `portion` (id INT)",
+	} {
+		t.Run("ok/"+sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
 // TestForPortionOfAliasPosition: the table alias goes AFTER FOR PORTION OF for
 // UPDATE (the target before the clause must be a bare base table — no alias, no
 // join) but BEFORE it for DELETE. Grounded vs mariadb:11.8.8.
 func TestForPortionOfAliasPosition(t *testing.T) {
 	const p = "FROM '2020-01-01' TO '2021-01-01'"
 	for _, sql := range []string{
-		"UPDATE t FOR PORTION OF app_time " + p + " AS x SET x.id = 1", // UPDATE alias after (AS)
-		"UPDATE t FOR PORTION OF app_time " + p + " x SET x.id = 1",    // UPDATE alias after (implicit)
-		"DELETE FROM t AS x FOR PORTION OF app_time " + p,              // DELETE alias before
+		"UPDATE t FOR PORTION OF app_time " + p + " AS x SET x.id = 1",             // UPDATE alias after (AS)
+		"UPDATE t FOR PORTION OF app_time " + p + " x SET x.id = 1",                // UPDATE alias after (implicit)
+		"UPDATE t FOR PORTION OF app_time " + p + " history SET history.id = 3",    // non-reserved keyword alias (implicit)
+		"UPDATE t FOR PORTION OF app_time " + p + " AS history SET history.id = 3", // non-reserved keyword alias (AS)
+		"DELETE FROM t AS x FOR PORTION OF app_time " + p,                          // DELETE alias before
 	} {
 		t.Run("ok/"+sql, func(t *testing.T) { ParseAndCheck(t, sql) })
 	}

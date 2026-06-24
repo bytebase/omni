@@ -192,7 +192,7 @@ func singleBaseTable(tables []nodes.TableExpr) *nodes.TableRef {
 // parseOptionalTableAlias consumes an optional [AS] alias and records it on tref.
 func (p *Parser) parseOptionalTableAlias(tref *nodes.TableRef) error {
 	_, hasAS := p.match(kwAS)
-	if !hasAS && p.cur.Type != tokIDENT {
+	if !hasAS && !p.isIdentToken() {
 		return nil
 	}
 	alias, _, err := p.parseIdent()
