@@ -1469,16 +1469,11 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	// which also guards against consuming a trailing clause.
 	if p.cur.Type == tokIDENT && p.peekNext().Type == '=' {
 		optName := p.cur.Str
-		p.advance() // option name
-		p.advance() // '='
-		valStart := p.pos()
-		val, err := p.consumeOptionValue()
+		p.advance()                        // option name
+		p.advance()                        // '='
+		val, err := p.consumeOptionValue() // errors if no value token follows
 		if err != nil {
 			return nil, false, err
-		}
-		if p.pos() == valStart {
-			// '=' with no value token — MariaDB rejects with 1064.
-			return nil, false, p.syntaxErrorAtCur()
 		}
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: optName, Value: val}, true, nil
 	}
@@ -1509,7 +1504,9 @@ func (p *Parser) consumeOptionValue() (string, error) {
 			}
 			return name, nil
 		}
-		return "", nil
+		// No value token (e.g. `ENGINE=` at end of statement). MariaDB rejects an
+		// option with no value (1064); do not silently return an empty value.
+		return "", p.syntaxErrorAtCur()
 	}
 }
 

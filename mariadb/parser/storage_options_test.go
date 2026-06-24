@@ -79,6 +79,20 @@ func TestTableOptionNoValueReject(t *testing.T) {
 	}
 }
 
+// TestStructuredOptionNoValueReject: structured options that take a value
+// (ENGINE, ROW_FORMAT, KEY_BLOCK_SIZE, ...) also require it — `ENGINE=` with no
+// value is a syntax error (1064 vs MariaDB 11.8.8). consumeOptionValue must not
+// return success without consuming a value token.
+func TestStructuredOptionNoValueReject(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TABLE t (a INT) ENGINE=",
+		"CREATE TABLE t (a INT) ROW_FORMAT=",
+		"CREATE TABLE t (a INT) KEY_BLOCK_SIZE=",
+	} {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+}
+
 // TestTableOptionQuotedNameAccept: a backtick-quoted option NAME is a valid
 // quoted identifier to MariaDB's parser (validated semantically), so omni must
 // keep accepting it — the quoting guard belongs on the keyword, not the name.
