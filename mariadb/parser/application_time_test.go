@@ -147,6 +147,26 @@ func TestForPortionOfReject(t *testing.T) {
 	}
 }
 
+// TestForPortionOfSystemTimeReject: a DML target may carry FOR SYSTEM_TIME (time
+// travel) or FOR PORTION OF (application-time), never both on the same table —
+// MariaDB 11.8.8 rejects the combination with 1064. The isolated clauses stay
+// valid (the prune is surgical).
+func TestForPortionOfSystemTimeReject(t *testing.T) {
+	for _, sql := range []string{
+		"UPDATE t FOR SYSTEM_TIME AS OF TIMESTAMP '2020-01-01 00:00:00' FOR PORTION OF app_time FROM '2020-06-01' TO '2020-07-01' SET id = 3",
+		"UPDATE t FOR PORTION OF app_time FROM '2020-06-01' TO '2020-07-01' FOR SYSTEM_TIME AS OF TIMESTAMP '2020-01-01 00:00:00' SET id = 3",
+		"DELETE FROM t FOR SYSTEM_TIME AS OF TIMESTAMP '2020-01-01 00:00:00' FOR PORTION OF app_time FROM '2020-06-01' TO '2020-07-01'",
+	} {
+		t.Run("reject/"+sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+	for _, sql := range []string{
+		"UPDATE t FOR SYSTEM_TIME AS OF TIMESTAMP '2020-01-01 00:00:00' SET id = 3",
+		"UPDATE t FOR PORTION OF app_time FROM '2020-06-01' TO '2020-07-01' SET id = 3",
+	} {
+		t.Run("accept/"+sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
 // TestPortionReserved: PORTION is a reserved word in MariaDB 11.8.8 — usable as
 // an identifier (alias, table name, period name) only when quoted.
 func TestPortionReserved(t *testing.T) {
