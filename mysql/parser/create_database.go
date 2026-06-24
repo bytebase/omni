@@ -59,7 +59,7 @@ func (p *Parser) parseCreateDatabaseStmt() (*nodes.CreateDatabaseStmt, error) {
 		stmt.Options = append(stmt.Options, opt)
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -96,7 +96,7 @@ func (p *Parser) parseAlterDatabaseStmt() (*nodes.AlterDatabaseStmt, error) {
 		stmt.Options = append(stmt.Options, opt)
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -134,7 +134,7 @@ func (p *Parser) parseDropDatabaseStmt() (*nodes.DropDatabaseStmt, error) {
 	}
 	stmt.Name = name
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 

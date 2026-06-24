@@ -128,7 +128,7 @@ func (p *Parser) parseAnalyzeTableStmt() (*nodes.AnalyzeTableStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -172,7 +172,7 @@ func (p *Parser) parseOptimizeTableStmt() (*nodes.OptimizeTableStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -230,7 +230,7 @@ func (p *Parser) parseCheckTableStmt() (*nodes.CheckTableStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -290,7 +290,7 @@ func (p *Parser) parseRepairTableStmt() (*nodes.RepairTableStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -388,7 +388,7 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 			}
 			stmt.ForExport = true
 		}
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -408,7 +408,7 @@ func (p *Parser) parseFlushStmt() (*nodes.FlushStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -511,7 +511,7 @@ func (p *Parser) parseResetStmt() (*nodes.FlushStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -544,7 +544,7 @@ func (p *Parser) parseKillStmt() (*nodes.KillStmt, error) {
 	}
 	stmt.ConnectionID = expr
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -597,7 +597,7 @@ func (p *Parser) parseCallStmt() (*nodes.CallStmt, error) {
 		p.expect(')')
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -630,7 +630,7 @@ func (p *Parser) parseHandlerOpenStmt(start int, table *nodes.TableRef) (*nodes.
 		stmt.Alias = alias
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -731,7 +731,7 @@ func (p *Parser) parseHandlerReadStmt(start int, table *nodes.TableRef) (*nodes.
 		stmt.Limit = lim
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -748,7 +748,7 @@ func (p *Parser) parseHandlerCloseStmt(start int, table *nodes.TableRef) (*nodes
 		Table: table,
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -811,7 +811,7 @@ func (p *Parser) parseDoStmt() (*nodes.DoStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -849,7 +849,7 @@ func (p *Parser) parseChecksumTableStmt() (*nodes.ChecksumTableStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -863,7 +863,7 @@ func (p *Parser) parseShutdownStmt() (*nodes.ShutdownStmt, error) {
 	p.advance() // consume SHUTDOWN
 
 	stmt := &nodes.ShutdownStmt{Loc: nodes.Loc{Start: start}}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -877,7 +877,7 @@ func (p *Parser) parseRestartStmt() (*nodes.RestartStmt, error) {
 	p.advance() // consume RESTART
 
 	stmt := &nodes.RestartStmt{Loc: nodes.Loc{Start: start}}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1013,7 +1013,7 @@ func (p *Parser) parseCloneStmt() (*nodes.CloneStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1062,7 +1062,7 @@ func (p *Parser) parseInstallPluginStmt(start int) (*nodes.InstallPluginStmt, er
 		PluginName: name,
 		Soname:     soname,
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1107,7 +1107,7 @@ func (p *Parser) parseInstallComponentStmt(start int) (*nodes.InstallComponentSt
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1150,7 +1150,7 @@ func (p *Parser) parseUninstallPluginStmt(start int) (*nodes.UninstallPluginStmt
 		Loc:        nodes.Loc{Start: start},
 		PluginName: name,
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1172,7 +1172,7 @@ func (p *Parser) parseUninstallComponentStmt(start int) (*nodes.UninstallCompone
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1294,7 +1294,7 @@ func (p *Parser) parseCreateTablespaceStmt(start int, undo bool) (*nodes.CreateT
 		}
 	}
 done:
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1407,7 +1407,7 @@ func (p *Parser) parseAlterTablespaceStmt(start int, undo bool) (*nodes.AlterTab
 		}
 	}
 done:
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1443,7 +1443,7 @@ func (p *Parser) parseDropTablespaceStmt(start int, undo bool) (*nodes.DropTable
 		stmt.Engine = ename
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1524,7 +1524,7 @@ func (p *Parser) parseCreateServerStmt(start int) (*nodes.CreateServerStmt, erro
 		stmt.Options = opts
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1555,7 +1555,7 @@ func (p *Parser) parseAlterServerStmt(start int) (*nodes.AlterServerStmt, error)
 		stmt.Options = opts
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1582,7 +1582,7 @@ func (p *Parser) parseDropServerStmt(start int) (*nodes.DropServerStmt, error) {
 	}
 	stmt.Name = name
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1703,7 +1703,7 @@ func (p *Parser) parseCreateSpatialRefSysStmt(start int, orReplace bool) (*nodes
 		}
 	}
 done_srs:
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1749,7 +1749,7 @@ func (p *Parser) parseDropSpatialRefSysStmt(start int) (*nodes.DropSpatialRefSys
 	stmt.SRID = p.cur.Ival
 	p.advance()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1897,7 +1897,7 @@ func (p *Parser) parseCreateResourceGroupStmt(start int) (*nodes.CreateResourceG
 		return nil, err
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1943,7 +1943,7 @@ func (p *Parser) parseAlterResourceGroupStmt(start int) (*nodes.AlterResourceGro
 		stmt.Force = true
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1979,7 +1979,7 @@ func (p *Parser) parseDropResourceGroupStmt(start int) (*nodes.DropResourceGroup
 		stmt.Force = true
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -2041,7 +2041,7 @@ func (p *Parser) parseAlterInstanceStmt(start int) (*nodes.AlterInstanceStmt, er
 		stmt.Action += w
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -2094,7 +2094,7 @@ func (p *Parser) parseImportTableStmt() (*nodes.ImportTableStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -2113,7 +2113,7 @@ func (p *Parser) parseBinlogStmt() (*nodes.BinlogStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -2182,7 +2182,7 @@ func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 		stmt.CacheName = name
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -2273,7 +2273,7 @@ func (p *Parser) parseLoadIndexIntoCacheStmt(start int) (*nodes.LoadIndexIntoCac
 			entry.IgnoreLeaves = true
 		}
 
-		entry.Loc.End = p.pos()
+		entry.Loc.End = p.prev.End
 		stmt.Tables = append(stmt.Tables, entry)
 
 		if p.cur.Type != ',' {
@@ -2282,7 +2282,7 @@ func (p *Parser) parseLoadIndexIntoCacheStmt(start int) (*nodes.LoadIndexIntoCac
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -2306,7 +2306,7 @@ func (p *Parser) parseResetPersistStmt(start int) (*nodes.ResetPersistStmt, erro
 		stmt.Variable = name
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -2334,7 +2334,7 @@ func (p *Parser) parseHelpStmt() (*nodes.HelpStmt, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -2449,7 +2449,7 @@ func (p *Parser) parseCreateLogfileGroupStmt(start int) (*nodes.CreateLogfileGro
 		}
 	}
 createLGDone:
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -2515,7 +2515,7 @@ func (p *Parser) parseAlterLogfileGroupStmt(start int) (*nodes.AlterLogfileGroup
 		}
 	}
 alterLGDone:
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -2552,6 +2552,6 @@ func (p *Parser) parseDropLogfileGroupStmt(start int) (*nodes.DropLogfileGroupSt
 		stmt.Engine = ename
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

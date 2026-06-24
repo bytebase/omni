@@ -60,7 +60,7 @@ func (p *Parser) parseBeginStmt() (*nodes.BeginStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -107,7 +107,7 @@ func (p *Parser) parseCommitStmt() (*nodes.CommitStmt, error) {
 		stmt.Release = true
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -150,7 +150,7 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackStmt, error) {
 			return nil, err
 		}
 		stmt.Savepoint = name
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -174,7 +174,7 @@ func (p *Parser) parseRollbackStmt() (*nodes.RollbackStmt, error) {
 		stmt.Release = true
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -291,7 +291,7 @@ func (p *Parser) parseLockTablesStmt() (*nodes.LockTablesStmt, error) {
 			lt.LockType = "WRITE"
 		}
 
-		lt.Loc.End = p.pos()
+		lt.Loc.End = p.prev.End
 		stmt.Tables = append(stmt.Tables, lt)
 
 		if p.cur.Type != ',' {
@@ -300,7 +300,7 @@ func (p *Parser) parseLockTablesStmt() (*nodes.LockTablesStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -387,7 +387,7 @@ func (p *Parser) parseSetTransactionStmt(start int, scope string) (*nodes.SetTra
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -490,7 +490,7 @@ func (p *Parser) parseXAStmt() (*nodes.XAStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 

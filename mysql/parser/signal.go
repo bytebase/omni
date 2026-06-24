@@ -56,7 +56,7 @@ func (p *Parser) parseSignalStmt() (*nodes.SignalStmt, error) {
 		stmt.SetItems = items
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -123,7 +123,7 @@ func (p *Parser) parseResignalStmt() (*nodes.ResignalStmt, error) {
 		stmt.SetItems = items
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -218,7 +218,7 @@ func (p *Parser) parseGetDiagnosticsStmt() (*nodes.GetDiagnosticsStmt, error) {
 		stmt.Items = items
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 

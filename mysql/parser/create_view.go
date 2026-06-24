@@ -129,6 +129,6 @@ func (p *Parser) parseCreateViewStmt(orReplace bool) (*nodes.CreateViewStmt, err
 		stmt.CheckOption = checkOption
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

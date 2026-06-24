@@ -123,7 +123,7 @@ func (p *Parser) parseCreateIndexStmt(unique bool, fulltext bool, spatial bool) 
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -191,7 +191,7 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 		col.Desc = true
 	}
 
-	col.Loc.End = p.pos()
+	col.Loc.End = p.prev.End
 	return col, nil
 }
 

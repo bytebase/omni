@@ -66,7 +66,7 @@ func (p *Parser) finishLoadableFunction(stmt *nodes.CreateFunctionStmt) (*nodes.
 	stmt.Soname = p.cur.Str
 	p.advance()
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -204,7 +204,7 @@ func (p *Parser) parseCreateFunctionStmt(isProcedure bool) (*nodes.CreateFunctio
 	stmt.Body = body
 	stmt.BodyText = p.inputText(bodyStart, bodyEnd)
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -243,7 +243,7 @@ func (p *Parser) parseFuncParam(isProcedure bool) (*nodes.FuncParam, error) {
 	}
 	param.TypeName = dt
 
-	param.Loc.End = p.pos()
+	param.Loc.End = p.prev.End
 	return param, nil
 }
 

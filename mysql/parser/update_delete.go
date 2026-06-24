@@ -104,7 +104,7 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 		stmt.Limit = limit
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -168,11 +168,11 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 						return nil, err
 					}
 					tblRef.Alias = alias
-					tblRef.Loc.End = p.pos()
+					tblRef.Loc.End = p.prev.End
 				} else if p.cur.Type == tokIDENT {
 					alias, _, _ := p.parseIdent()
 					tblRef.Alias = alias
-					tblRef.Loc.End = p.pos()
+					tblRef.Loc.End = p.prev.End
 				}
 				// Optional PARTITION (p0, p1, ...)
 				if p.cur.Type == kwPARTITION {
@@ -182,7 +182,7 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 						return nil, err
 					}
 					tblRef.Partitions = parts
-					tblRef.Loc.End = p.pos()
+					tblRef.Loc.End = p.prev.End
 				}
 			}
 		}
@@ -257,7 +257,7 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		stmt.Limit = limit
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -368,7 +368,7 @@ func (p *Parser) parseDeleteTableName() (*nodes.TableRef, error) {
 			// name.* -- skip the .* suffix
 			p.advance() // consume '.'
 			p.advance() // consume '*'
-			ref.Loc.End = p.pos()
+			ref.Loc.End = p.prev.End
 			return ref, nil
 		}
 		// schema.table or schema.table.*
@@ -396,6 +396,6 @@ func (p *Parser) parseDeleteTableName() (*nodes.TableRef, error) {
 		}
 	}
 
-	ref.Loc.End = p.pos()
+	ref.Loc.End = p.prev.End
 	return ref, nil
 }
