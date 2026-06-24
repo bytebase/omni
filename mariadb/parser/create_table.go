@@ -903,6 +903,10 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 		gen.Stored = false
 	} else if _, ok := p.match(kwSTORED); ok {
 		gen.Stored = true
+	} else if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "PERSISTENT") {
+		// PERSISTENT is MariaDB's non-reserved synonym for STORED.
+		p.advance()
+		gen.Stored = true
 	}
 
 	gen.Loc.End = p.pos()
@@ -946,6 +950,10 @@ func (p *Parser) parseGeneratedColumnShorthand() (*nodes.GeneratedColumn, error)
 	if _, ok := p.match(kwVIRTUAL); ok {
 		gen.Stored = false
 	} else if _, ok := p.match(kwSTORED); ok {
+		gen.Stored = true
+	} else if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "PERSISTENT") {
+		// PERSISTENT is MariaDB's non-reserved synonym for STORED.
+		p.advance()
 		gen.Stored = true
 	}
 
@@ -1433,6 +1441,23 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		optName := p.cur.Str
 		p.advance()
 		p.match('=')
+		val, err := p.consumeOptionValue()
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: optName, Value: val}, true, nil
+	}
+
+	// Generic MariaDB table option: `IDENT = value`. MariaDB's parser accepts an
+	// unknown option name and rejects it semantically (ER_UNKNOWN_OPTION 1911),
+	// not as a syntax error — so a parse-only check accepts the shape. This covers
+	// PAGE_COMPRESSED, PAGE_COMPRESSION_LEVEL, TRANSACTIONAL, PAGE_CHECKSUM, and
+	// any future plain option. The '=' is required (a bare option name is 1064),
+	// which also guards against consuming a trailing clause.
+	if p.cur.Type == tokIDENT && p.peekNext().Type == '=' {
+		optName := p.cur.Str
+		p.advance() // option name
+		p.advance() // '='
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
