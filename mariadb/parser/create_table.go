@@ -847,6 +847,25 @@ func (p *Parser) parseReferenceAction() nodes.ReferenceAction {
 	return nodes.RefActNone
 }
 
+// matchUnquotedKeyword consumes the current token when it is an UNQUOTED
+// identifier equal (case-insensitively) to kw. A backtick-quoted identifier
+// (e.g. `PERSISTENT`) is a quoted identifier, not the keyword, and must not match
+// — MariaDB rejects a quoted keyword in a keyword position (1064).
+func (p *Parser) matchUnquotedKeyword(kw string) bool {
+	if p.cur.Type != tokIDENT || !strings.EqualFold(p.cur.Str, kw) {
+		return false
+	}
+	// p.cur.Loc is absolute (includes baseOffset); p.lexer.input is the current
+	// split segment, so subtract baseOffset before indexing (cf. the offset
+	// helpers in parser.go). A leading backtick means the keyword was quoted.
+	off := p.cur.Loc - p.lexer.baseOffset
+	if off >= 0 && off < len(p.lexer.input) && p.lexer.input[off] == '`' {
+		return false
+	}
+	p.advance()
+	return true
+}
+
 // parseGeneratedColumn parses a GENERATED ALWAYS AS (expr) [VIRTUAL|STORED].
 func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 	start := p.pos()
@@ -903,6 +922,9 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 		gen.Stored = false
 	} else if _, ok := p.match(kwSTORED); ok {
 		gen.Stored = true
+	} else if p.matchUnquotedKeyword("PERSISTENT") {
+		// PERSISTENT is MariaDB's non-reserved synonym for STORED.
+		gen.Stored = true
 	}
 
 	gen.Loc.End = p.pos()
@@ -946,6 +968,9 @@ func (p *Parser) parseGeneratedColumnShorthand() (*nodes.GeneratedColumn, error)
 	if _, ok := p.match(kwVIRTUAL); ok {
 		gen.Stored = false
 	} else if _, ok := p.match(kwSTORED); ok {
+		gen.Stored = true
+	} else if p.matchUnquotedKeyword("PERSISTENT") {
+		// PERSISTENT is MariaDB's non-reserved synonym for STORED.
 		gen.Stored = true
 	}
 
@@ -1440,6 +1465,23 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: optName, Value: val}, true, nil
 	}
 
+	// Generic MariaDB table option: `IDENT = value`. MariaDB's parser accepts an
+	// unknown option name and rejects it semantically (ER_UNKNOWN_OPTION 1911),
+	// not as a syntax error — so a parse-only check accepts the shape. This covers
+	// PAGE_COMPRESSED, PAGE_COMPRESSION_LEVEL, TRANSACTIONAL, PAGE_CHECKSUM, and
+	// any future plain option. The '=' is required (a bare option name is 1064),
+	// which also guards against consuming a trailing clause.
+	if p.cur.Type == tokIDENT && p.peekNext().Type == '=' {
+		optName := p.cur.Str
+		p.advance()                        // option name
+		p.advance()                        // '='
+		val, err := p.consumeOptionValue() // errors if no value token follows
+		if err != nil {
+			return nil, false, err
+		}
+		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: optName, Value: val}, true, nil
+	}
+
 	return nil, false, nil
 }
 
@@ -1466,7 +1508,9 @@ func (p *Parser) consumeOptionValue() (string, error) {
 			}
 			return name, nil
 		}
-		return "", nil
+		// No value token (e.g. `ENGINE=` at end of statement). MariaDB rejects an
+		// option with no value (1064); do not silently return an empty value.
+		return "", p.syntaxErrorAtCur()
 	}
 }
 
