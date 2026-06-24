@@ -39,7 +39,7 @@ func (p *Parser) parsePrepareStmt() (*nodes.PrepareStmt, error) {
 		stmt.Stmt = "@" + vref.Name
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -80,7 +80,7 @@ func (p *Parser) parseExecuteStmt() (*nodes.ExecuteStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -104,6 +104,6 @@ func (p *Parser) parseDeallocateStmt() (*nodes.DeallocateStmt, error) {
 	}
 	stmt.Name = name
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

@@ -448,3 +448,50 @@ func TestLocAudit(t *testing.T) {
 		t.Logf("%-30s %d", tag, len(violationsByTag[tag]))
 	}
 }
+
+func TestLocEndExcludesTrailingComments(t *testing.T) {
+	tests := []struct {
+		sql     string
+		wantEnd int
+	}{
+		{"SELECT * FROM t -- note", len("SELECT * FROM t")},
+		{"SELECT * FROM t /* block */", len("SELECT * FROM t")},
+		{"SELECT * FROM t # mysql comment", len("SELECT * FROM t")},
+		{"SELECT * FROM t  -- note", len("SELECT * FROM t")},
+		{"SELECT 1 -- trailing", len("SELECT 1")},
+		{"INSERT INTO t VALUES (1) -- done", len("INSERT INTO t VALUES (1)")},
+		{"CREATE TABLE t (id INT) -- comment", len("CREATE TABLE t (id INT)")},
+		{"DELETE FROM t WHERE id = 1 -- cleanup", len("DELETE FROM t WHERE id = 1")},
+		{"UPDATE t SET a = 1 -- fix", len("UPDATE t SET a = 1")},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.sql, func(t *testing.T) {
+			result, err := Parse(tc.sql)
+			if err != nil {
+				t.Fatalf("Parse(%q): %v", tc.sql, err)
+			}
+			if result == nil || len(result.Items) == 0 {
+				t.Fatalf("Parse(%q): no statements", tc.sql)
+			}
+			stmt := result.Items[0]
+			locEnd := stmtLocEnd(stmt)
+			if locEnd != tc.wantEnd {
+				t.Errorf("Parse(%q): Loc.End = %d, want %d (sql[Loc.End:] = %q)",
+					tc.sql, locEnd, tc.wantEnd, tc.sql[locEnd:])
+			}
+		})
+	}
+}
+
+func stmtLocEnd(node ast.Node) int {
+	v := reflect.ValueOf(node)
+	for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
+		v = v.Elem()
+	}
+	loc := v.FieldByName("Loc")
+	if !loc.IsValid() {
+		return -1
+	}
+	return loc.FieldByName("End").Interface().(int)
+}

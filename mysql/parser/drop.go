@@ -55,7 +55,7 @@ func (p *Parser) parseDropTableStmt(temporary bool) (*nodes.DropTableStmt, error
 		stmt.Cascade = true
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -116,7 +116,7 @@ func (p *Parser) parseDropIndexStmt() (*nodes.DropIndexStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -167,7 +167,7 @@ func (p *Parser) parseDropViewStmt() (*nodes.DropViewStmt, error) {
 		stmt.Cascade = true
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -251,6 +251,6 @@ func (p *Parser) parseRenameTableStmt() (*nodes.RenameTableStmt, error) {
 		p.advance()
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

@@ -93,7 +93,7 @@ func (p *Parser) parseChangeReplicationSourceStmtInner(start int) (*nodes.Change
 		stmt.Channel = name
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -135,7 +135,7 @@ func (p *Parser) parseReplicationSourceOption() (*nodes.ReplicationOption, error
 			}
 		}
 		p.match(')')
-		opt.Loc.End = p.pos()
+		opt.Loc.End = p.prev.End
 		return opt, nil
 	}
 
@@ -160,7 +160,7 @@ func (p *Parser) parseReplicationSourceOption() (*nodes.ReplicationOption, error
 		opt.Value = val
 	}
 
-	opt.Loc.End = p.pos()
+	opt.Loc.End = p.prev.End
 	return opt, nil
 }
 
@@ -250,7 +250,7 @@ func (p *Parser) parseChangeMasterStmtInner(start int) (*nodes.ChangeReplication
 		stmt.Channel = name
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -318,7 +318,7 @@ func (p *Parser) parseChangeReplicationFilterStmtInner(start int) (*nodes.Change
 		stmt.Channel = name
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -400,7 +400,7 @@ func (p *Parser) parseReplicationFilter() (*nodes.ReplicationFilter, error) {
 
 	p.match(')') // close outer paren
 
-	f.Loc.End = p.pos()
+	f.Loc.End = p.prev.End
 	return f, nil
 }
 
@@ -525,7 +525,7 @@ doneConnOpts:
 		stmt.Channel = name
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -594,7 +594,7 @@ func (p *Parser) parseStopReplicaStmt(start int) (*nodes.StopReplicaStmt, error)
 		stmt.Channel = name
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -631,7 +631,7 @@ func (p *Parser) parseResetReplicaStmt(start int) (*nodes.ResetReplicaStmt, erro
 		stmt.Channel = name
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -669,7 +669,7 @@ func (p *Parser) parsePurgeBinaryLogsStmt() (*nodes.PurgeBinaryLogsStmt, error) 
 		stmt.BeforeExpr = expr
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -695,7 +695,7 @@ func (p *Parser) parseResetMasterStmt(start int) (*nodes.ResetMasterStmt, error)
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -739,7 +739,7 @@ func (p *Parser) parseStartGroupReplicationStmt(start int) (*nodes.StartGroupRep
 		}
 	}
 groupReplDone:
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 

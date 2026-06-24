@@ -310,7 +310,7 @@ func (p *Parser) parseStartDispatch() (nodes.Node, error) {
 		}
 		p.advance()
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -356,7 +356,7 @@ func (p *Parser) parseResetDispatch() (nodes.Node, error) {
 			p.advance()
 		}
 	}
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 

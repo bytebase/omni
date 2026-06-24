@@ -150,7 +150,7 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 				return nil, err
 			}
 			sub.Loc.Start = subStart
-			sub.Loc.End = p.pos()
+			sub.Loc.End = p.prev.End
 			sub.Quantifier = quantifier
 			left = &nodes.BinaryExpr{
 				Loc:        nodes.Loc{Start: opStart, End: p.pos()},
@@ -413,7 +413,7 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 				return nil, err
 			}
 		}
-		fc.Loc.End = p.pos()
+		fc.Loc.End = p.prev.End
 		return fc, nil
 
 	case '*':
@@ -724,7 +724,7 @@ overCheck:
 		fc.Over = wd
 	}
 
-	fc.Loc.End = p.pos()
+	fc.Loc.End = p.prev.End
 	return fc, nil
 }
 
@@ -849,7 +849,7 @@ func (p *Parser) parseOverClause() (*nodes.WindowDef, error) {
 		return nil, err
 	}
 
-	wd.Loc.End = p.pos()
+	wd.Loc.End = p.prev.End
 	return wd, nil
 }
 
@@ -901,7 +901,7 @@ func (p *Parser) parseFrameClause() (*nodes.WindowFrame, error) {
 		frame.Start = startBound
 	}
 
-	frame.Loc.End = p.pos()
+	frame.Loc.End = p.prev.End
 	return frame, nil
 }
 
@@ -948,7 +948,7 @@ func (p *Parser) parseFrameBound() (*nodes.WindowFrameBound, error) {
 		}
 	}
 
-	bound.Loc.End = p.pos()
+	bound.Loc.End = p.prev.End
 	return bound, nil
 }
 
@@ -987,7 +987,7 @@ func (p *Parser) parseTrimFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	fc.Loc.End = p.pos()
+	fc.Loc.End = p.prev.End
 	return fc, nil
 }
 
@@ -1051,7 +1051,7 @@ func (p *Parser) parseSubstringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	fc.Loc.End = p.pos()
+	fc.Loc.End = p.prev.End
 	return fc, nil
 }
 
@@ -1059,7 +1059,7 @@ func (p *Parser) parseSubstringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
 	if p.cur.Type == ')' {
 		p.advance()
-		fc.Loc.End = p.pos()
+		fc.Loc.End = p.prev.End
 		return fc, nil
 	}
 
@@ -1115,7 +1115,7 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	fc.Loc.End = p.pos()
+	fc.Loc.End = p.prev.End
 	return fc, nil
 }
 
@@ -1134,7 +1134,7 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 			return nil, errP
 		}
 		sub.Loc.Start = start
-		sub.Loc.End = p.pos()
+		sub.Loc.End = p.prev.End
 		return sub, nil
 	}
 
@@ -1323,7 +1323,7 @@ func (p *Parser) parseConvertExpr() (nodes.ExprNode, error) {
 		return nil, err
 	}
 
-	conv.Loc.End = p.pos()
+	conv.Loc.End = p.prev.End
 	return conv, nil
 }
 
@@ -1378,7 +1378,7 @@ func (p *Parser) parseIsExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 		}
 	}
 
-	is.Loc.End = p.pos()
+	is.Loc.End = p.prev.End
 	return is, nil
 }
 
@@ -1443,7 +1443,7 @@ func (p *Parser) parseInExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 			return nil, errP
 		}
 		inExpr.Select = sub.Select
-		inExpr.Loc.End = p.pos()
+		inExpr.Loc.End = p.prev.End
 		return inExpr, nil
 	}
 
@@ -1467,7 +1467,7 @@ func (p *Parser) parseInExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 		return nil, err
 	}
 
-	inExpr.Loc.End = p.pos()
+	inExpr.Loc.End = p.prev.End
 	return inExpr, nil
 }
 
@@ -1500,7 +1500,7 @@ func (p *Parser) parseLikeExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 		like.Escape = esc
 	}
 
-	like.Loc.End = p.pos()
+	like.Loc.End = p.prev.End
 	return like, nil
 }
 
@@ -1608,7 +1608,7 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 		return nil, err
 	}
 
-	ce.Loc.End = p.pos()
+	ce.Loc.End = p.prev.End
 	return ce, nil
 }
 
@@ -1821,7 +1821,7 @@ func (p *Parser) parseMatchExpr() (nodes.ExprNode, error) {
 		return nil, err
 	}
 
-	me.Loc.End = p.pos()
+	me.Loc.End = p.prev.End
 	return me, nil
 }
 
@@ -1887,7 +1887,7 @@ func (p *Parser) parseRowConstructor() (nodes.ExprNode, error) {
 		return nil, err
 	}
 
-	row.Loc.End = p.pos()
+	row.Loc.End = p.prev.End
 	return row, nil
 }
 
@@ -1916,7 +1916,7 @@ func (p *Parser) parseDefaultExpr() (nodes.ExprNode, error) {
 		}
 	}
 
-	de.Loc.End = p.pos()
+	de.Loc.End = p.prev.End
 	return de, nil
 }
 

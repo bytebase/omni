@@ -76,7 +76,7 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 				Value:  &nodes.StringLit{Loc: nodes.Loc{Start: collLoc, End: p.pos()}, Value: collation},
 			})
 		}
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -114,7 +114,7 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 				Column: &nodes.ColumnRef{Loc: nodes.Loc{Start: charsetLoc, End: p.pos()}, Column: "CHARACTER SET"},
 				Value:  &nodes.StringLit{Loc: nodes.Loc{Start: charsetLoc, End: p.pos()}, Value: charset},
 			})
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
 	}
@@ -196,7 +196,7 @@ func (p *Parser) parseSetStmt() (nodes.Node, error) {
 		p.advance() // consume ','
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -276,7 +276,7 @@ func (p *Parser) parseSetPasswordStmt(start int) (*nodes.SetPasswordStmt, error)
 		stmt.RetainCurrentPassword = true
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -345,7 +345,7 @@ func (p *Parser) parseSetAssignment() (*nodes.Assignment, error) {
 			col.Table = name
 			col.Column = name2
 		}
-		col.Loc.End = p.pos()
+		col.Loc.End = p.prev.End
 	}
 
 	// Expect '=' or ':='
@@ -407,7 +407,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			stmt.Type = "COUNT WARNINGS"
 			p.advance()
 		}
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -1175,7 +1175,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 			if err := p.parseShowProfileOptions(stmt); err != nil {
 				return nil, err
 			}
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
 
@@ -1183,7 +1183,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		if p.cur.Type == kwREPLICAS {
 			stmt.Type = "REPLICAS"
 			p.advance()
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
 
@@ -1275,7 +1275,7 @@ func (p *Parser) parseShowStmt() (*nodes.ShowStmt, error) {
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -1550,9 +1550,9 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			}
 			showStmt.Like = colExpr
 		}
-		showStmt.Loc.End = p.pos()
+		showStmt.Loc.End = p.prev.End
 		stmt.Stmt = showStmt
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -1601,7 +1601,7 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			stmt.ForConnection = p.cur.Ival
 			p.advance()
 		}
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -1683,10 +1683,10 @@ func (p *Parser) parseExplainStmt() (*nodes.ExplainStmt, error) {
 			}
 			showStmt.Like = colExpr
 		}
-		showStmt.Loc.End = p.pos()
+		showStmt.Loc.End = p.prev.End
 		stmt.Stmt = showStmt
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

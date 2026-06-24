@@ -79,7 +79,7 @@ func (p *Parser) parseWithClause() ([]*nodes.CommonTableExpr, error) {
 			return nil, err
 		}
 
-		cte.Loc.End = p.pos()
+		cte.Loc.End = p.prev.End
 		ctes = append(ctes, cte)
 
 		if p.cur.Type != ',' {
@@ -193,7 +193,7 @@ func (p *Parser) parseSelectClauseAndTrailing(start int, ctes []*nodes.CommonTab
 		}
 	}
 
-	body.Loc.End = p.pos()
+	body.Loc.End = p.prev.End
 	return body, nil
 }
 
@@ -706,7 +706,7 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		stmt.Into = into
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -994,7 +994,7 @@ func (p *Parser) parseTableReference() (nodes.TableExpr, error) {
 			join.Condition = &nodes.UsingCondition{Loc: nodes.Loc{Start: condStart, End: p.pos()}, Columns: cols}
 		}
 
-		join.Loc.End = p.pos()
+		join.Loc.End = p.prev.End
 		left = join
 	}
 
@@ -1119,7 +1119,7 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 			sub.Columns = cols
 		}
 
-		sub.Loc.End = p.pos()
+		sub.Loc.End = p.prev.End
 		return sub, nil
 	}
 
@@ -1167,7 +1167,7 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 				sub.Columns = cols
 			}
 
-			sub.Loc.End = p.pos()
+			sub.Loc.End = p.prev.End
 			return sub, nil
 		}
 
@@ -1357,7 +1357,7 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 		p.advance()
 		p.match(kwORDINALITY)
 		col.Ordinality = true
-		col.Loc.End = p.pos()
+		col.Loc.End = p.prev.End
 		return col, nil
 	}
 
@@ -1417,7 +1417,7 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 		}
 	}
 
-	col.Loc.End = p.pos()
+	col.Loc.End = p.prev.End
 	return col, nil
 }
 
@@ -1459,7 +1459,7 @@ func (p *Parser) parseOrderByList() ([]*nodes.OrderByItem, error) {
 			item.Direction = nodes.OrderDirectionDefault
 		}
 
-		item.Loc.End = p.pos()
+		item.Loc.End = p.prev.End
 		items = append(items, item)
 
 		if p.cur.Type != ',' {
@@ -1515,7 +1515,7 @@ func (p *Parser) parseLimitClause() (*nodes.Limit, error) {
 		limit.Offset = offset
 	}
 
-	limit.Loc.End = p.pos()
+	limit.Loc.End = p.prev.End
 	return limit, nil
 }
 
@@ -1577,7 +1577,7 @@ func (p *Parser) parseForUpdateClause() (*nodes.ForUpdate, error) {
 		fu.SkipLocked = true
 	}
 
-	fu.Loc.End = p.pos()
+	fu.Loc.End = p.prev.End
 	return fu, nil
 }
 
@@ -1758,7 +1758,7 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 		}
 	}
 
-	into.Loc.End = p.pos()
+	into.Loc.End = p.prev.End
 	return into, nil
 }
 
@@ -1898,7 +1898,7 @@ func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
-		wd.Loc.End = p.pos()
+		wd.Loc.End = p.prev.End
 		defs = append(defs, wd)
 
 		if p.cur.Type != ',' {
@@ -1973,7 +1973,7 @@ func (p *Parser) parseTableStmt() (*nodes.TableStmt, error) {
 		stmt.Into = into
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -2042,7 +2042,7 @@ func (p *Parser) parseValuesStmt() (*nodes.ValuesStmt, error) {
 		stmt.Limit = limit
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -2176,6 +2176,6 @@ func (p *Parser) parseIndexHint() (*nodes.IndexHint, error) {
 		return nil, err
 	}
 
-	hint.Loc.End = p.pos()
+	hint.Loc.End = p.prev.End
 	return hint, nil
 }

@@ -65,7 +65,7 @@ func (p *Parser) parseCreateTableStmt(temporary bool) (*nodes.CreateTableStmt, e
 			return nil, err
 		}
 		stmt.Like = likeRef
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -77,7 +77,7 @@ func (p *Parser) parseCreateTableStmt(temporary bool) (*nodes.CreateTableStmt, e
 			return nil, err
 		}
 		stmt.Select = sel
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -93,7 +93,7 @@ func (p *Parser) parseCreateTableStmt(temporary bool) (*nodes.CreateTableStmt, e
 				return nil, err
 			}
 			stmt.Select = sel
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
 		// Check for CREATE TABLE ... (LIKE old_tbl_name) — parenthesized LIKE
@@ -108,7 +108,7 @@ func (p *Parser) parseCreateTableStmt(temporary bool) (*nodes.CreateTableStmt, e
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
-			stmt.Loc.End = p.pos()
+			stmt.Loc.End = p.prev.End
 			return stmt, nil
 		}
 
@@ -129,7 +129,7 @@ func (p *Parser) parseCreateTableStmt(temporary bool) (*nodes.CreateTableStmt, e
 			return nil, err
 		}
 		stmt.Select = sel
-		stmt.Loc.End = p.pos()
+		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}
 
@@ -181,7 +181,7 @@ func (p *Parser) parseCreateTableStmt(temporary bool) (*nodes.CreateTableStmt, e
 		stmt.Select = sel
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -283,7 +283,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 		}
 	}
 
-	col.Loc.End = p.pos()
+	col.Loc.End = p.prev.End
 	return col, nil
 }
 
@@ -469,7 +469,7 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		} else if p.cur.Type == kwENFORCED {
 			p.advance()
 		}
-		cc.Loc.End = p.pos()
+		cc.Loc.End = p.prev.End
 		col.Constraints = append(col.Constraints, cc)
 		return true, nil
 
@@ -691,7 +691,7 @@ func (p *Parser) parseReferenceDefinition(start int) (*nodes.ColumnConstraint, e
 		}
 	}
 
-	constr.Loc.End = p.pos()
+	constr.Loc.End = p.prev.End
 	return constr, nil
 }
 
@@ -774,7 +774,7 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 		gen.Stored = true
 	}
 
-	gen.Loc.End = p.pos()
+	gen.Loc.End = p.prev.End
 	return gen, nil
 }
 
@@ -818,7 +818,7 @@ func (p *Parser) parseGeneratedColumnShorthand() (*nodes.GeneratedColumn, error)
 		gen.Stored = true
 	}
 
-	gen.Loc.End = p.pos()
+	gen.Loc.End = p.prev.End
 	return gen, nil
 }
 
@@ -1013,7 +1013,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 	}
 
-	constr.Loc.End = p.pos()
+	constr.Loc.End = p.prev.End
 	return constr, nil
 }
 
@@ -1208,7 +1208,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 			}
 			opt.Storage = storageVal
 		}
-		opt.Loc.End = p.pos()
+		opt.Loc.End = p.prev.End
 		return opt, true, nil
 
 	case kwENCRYPTION:
@@ -1579,7 +1579,7 @@ func (p *Parser) parsePartitionClause() (*nodes.PartitionClause, error) {
 		}
 	}
 
-	part.Loc.End = p.pos()
+	part.Loc.End = p.prev.End
 	return part, nil
 }
 
@@ -1731,7 +1731,7 @@ func (p *Parser) parsePartitionDef() (*nodes.PartitionDef, error) {
 		}
 	}
 
-	pd.Loc.End = p.pos()
+	pd.Loc.End = p.prev.End
 	return pd, nil
 }
 
@@ -1761,6 +1761,6 @@ func (p *Parser) parseSubPartitionDef() (*nodes.SubPartitionDef, error) {
 		}
 		spd.Options = append(spd.Options, opt)
 	}
-	spd.Loc.End = p.pos()
+	spd.Loc.End = p.prev.End
 	return spd, nil
 }

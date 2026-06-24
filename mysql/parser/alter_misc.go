@@ -133,7 +133,7 @@ func (p *Parser) parseAlterViewStmt() (*nodes.AlterViewStmt, error) {
 		stmt.CheckOption = checkOption
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -250,7 +250,7 @@ func (p *Parser) parseAlterEventStmt() (*nodes.AlterEventStmt, error) {
 		stmt.BodyText = p.inputText(bodyStart, bodyEnd)
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -300,7 +300,7 @@ func (p *Parser) parseAlterRoutineStmt(isProcedure bool) (*nodes.AlterRoutineStm
 		stmt.Characteristics = append(stmt.Characteristics, ch)
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -342,7 +342,7 @@ func (p *Parser) parseDropRoutineStmt(isProcedure bool) (*nodes.DropRoutineStmt,
 	}
 	stmt.Name = ref
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -379,7 +379,7 @@ func (p *Parser) parseDropTriggerStmt() (*nodes.DropTriggerStmt, error) {
 	}
 	stmt.Name = ref
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -416,6 +416,6 @@ func (p *Parser) parseDropEventStmt() (*nodes.DropEventStmt, error) {
 	}
 	stmt.Name = name
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

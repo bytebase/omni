@@ -72,7 +72,7 @@ func (p *Parser) parseBeginEndBlock(labelName string, labelStart int) (*nodes.Be
 		}
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -334,7 +334,7 @@ func (p *Parser) parseDeclareVarStmt(start int, firstName string) (*nodes.Declar
 		stmt.Default = val
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -363,7 +363,7 @@ func (p *Parser) parseDeclareConditionStmt(start int, name string) (*nodes.Decla
 	}
 	stmt.ConditionValue = condVal
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -415,7 +415,7 @@ func (p *Parser) parseDeclareHandlerStmt(start int) (*nodes.DeclareHandlerStmt, 
 	}
 	stmt.Stmt = body
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -630,7 +630,7 @@ func (p *Parser) parseIfStmt() (*nodes.IfStmt, error) {
 		return nil, err
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -715,7 +715,7 @@ func (p *Parser) parseCaseStmt() (*nodes.CaseStmtNode, error) {
 		return nil, err
 	}
 
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -773,7 +773,7 @@ func (p *Parser) parseWhileStmt(labelName string, labelStart int) (*nodes.WhileS
 
 	stmt.EndLabel = endLabel
 	stmt.Stmts = stmts
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -833,7 +833,7 @@ func (p *Parser) parseRepeatStmt(labelName string, labelStart int) (*nodes.Repea
 	stmt.Stmts = stmts
 	stmt.Cond = cond
 	stmt.EndLabel = endLabel
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
@@ -877,7 +877,7 @@ func (p *Parser) parseLoopStmt(labelName string, labelStart int) (*nodes.LoopStm
 
 	stmt.EndLabel = endLabel
 	stmt.Stmts = stmts
-	stmt.Loc.End = p.pos()
+	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
