@@ -79,6 +79,22 @@ func TestTableOptionNoValueReject(t *testing.T) {
 	}
 }
 
+// TestPersistentQuotedRejectMultiStatement: the quoting guard must hold when the
+// statement is not first in the input — token Loc is absolute (includes
+// baseOffset) while lexer.input is the segment, so the guard must subtract
+// baseOffset before indexing. Regression for the absolute-vs-segment bug.
+func TestPersistentQuotedRejectMultiStatement(t *testing.T) {
+	ParseExpectError(t, "CREATE TABLE ok1 (a INT); CREATE TABLE t (a INT, b INT AS (a+1) `PERSISTENT`)")
+}
+
+// TestPersistentUnquotedAcceptMultiStatement: unquoted PERSISTENT in a non-first
+// statement must still parse (the baseOffset fix must not reject the valid case).
+func TestPersistentUnquotedAcceptMultiStatement(t *testing.T) {
+	if _, err := Parse("CREATE TABLE ok1 (a INT); CREATE TABLE t (a INT, b INT AS (a+1) PERSISTENT)"); err != nil {
+		t.Errorf("unexpected parse error: %v", err)
+	}
+}
+
 // TestStructuredOptionNoValueReject: structured options that take a value
 // (ENGINE, ROW_FORMAT, KEY_BLOCK_SIZE, ...) also require it — `ENGINE=` with no
 // value is a syntax error (1064 vs MariaDB 11.8.8). consumeOptionValue must not

@@ -855,7 +855,11 @@ func (p *Parser) matchUnquotedKeyword(kw string) bool {
 	if p.cur.Type != tokIDENT || !strings.EqualFold(p.cur.Str, kw) {
 		return false
 	}
-	if p.cur.Loc < len(p.lexer.input) && p.lexer.input[p.cur.Loc] == '`' {
+	// p.cur.Loc is absolute (includes baseOffset); p.lexer.input is the current
+	// split segment, so subtract baseOffset before indexing (cf. the offset
+	// helpers in parser.go). A leading backtick means the keyword was quoted.
+	off := p.cur.Loc - p.lexer.baseOffset
+	if off >= 0 && off < len(p.lexer.input) && p.lexer.input[off] == '`' {
 		return false
 	}
 	p.advance()
