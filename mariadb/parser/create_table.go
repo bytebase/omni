@@ -205,7 +205,7 @@ func (p *Parser) parseCreateDefinitions(stmt *nodes.CreateTableStmt) error {
 		// PERIOD FOR SYSTEM_TIME (start_col, end_col) — a table element, not a
 		// column. Intercepted before parseColumnDef would read PERIOD as a name.
 		if p.atPeriodForSystemTime() {
-			if err := p.parsePeriodForSystemTime(stmt); err != nil {
+			if err := p.parsePeriodFor(stmt); err != nil {
 				return err
 			}
 		} else if p.isTableConstraintStart() {
@@ -251,46 +251,55 @@ func (p *Parser) atPeriodForSystemTime() bool {
 		p.peekNext().Type == kwFOR
 }
 
-// parsePeriodForSystemTime parses PERIOD FOR SYSTEM_TIME (start_col, end_col)
-// and records the period columns on the statement.
-func (p *Parser) parsePeriodForSystemTime(stmt *nodes.CreateTableStmt) error {
-	startCol, endCol, err := p.parsePeriodForSystemTimeCols()
+// parsePeriodFor parses a CREATE TABLE PERIOD FOR <name> (start, end) element,
+// routing SYSTEM_TIME to the system-versioning period and any other name to the
+// application-time period.
+func (p *Parser) parsePeriodFor(stmt *nodes.CreateTableStmt) error {
+	name, startCol, endCol, err := p.parsePeriodForCols()
 	if err != nil {
 		return err
 	}
-	stmt.PeriodStartCol = startCol
-	stmt.PeriodEndCol = endCol
+	if strings.EqualFold(name, "SYSTEM_TIME") {
+		stmt.PeriodStartCol = startCol
+		stmt.PeriodEndCol = endCol
+	} else {
+		if stmt.AppPeriodName != "" {
+			stmt.AppPeriodDuplicate = true
+		}
+		stmt.AppPeriodName = name
+		stmt.AppPeriodStartCol = startCol
+		stmt.AppPeriodEndCol = endCol
+	}
 	return nil
 }
 
-// parsePeriodForSystemTimeCols parses PERIOD FOR SYSTEM_TIME (start_col, end_col)
-// and returns the two period column names. Shared by CREATE TABLE and
+// parsePeriodForCols parses PERIOD FOR <name> (start_col, end_col) and returns
+// the period name and the two column names. Shared by CREATE TABLE and
 // ALTER TABLE ... ADD PERIOD. PERIOD is the current token.
-func (p *Parser) parsePeriodForSystemTimeCols() (string, string, error) {
+func (p *Parser) parsePeriodForCols() (name, startCol, endCol string, err error) {
 	p.advance() // PERIOD
 	p.advance() // FOR
-	if p.cur.Type != tokIDENT || !strings.EqualFold(p.cur.Str, "SYSTEM_TIME") {
-		return "", "", p.syntaxErrorAtCur()
+	// The period name follows the identifier rule (non-reserved keywords allowed),
+	// like the start/end column names below.
+	if name, _, err = p.parseIdent(); err != nil {
+		return "", "", "", err
 	}
-	p.advance() // SYSTEM_TIME
-	if _, err := p.expect('('); err != nil {
-		return "", "", err
+	if _, err = p.expect('('); err != nil {
+		return "", "", "", err
 	}
-	startCol, _, err := p.parseIdent()
-	if err != nil {
-		return "", "", err
+	if startCol, _, err = p.parseIdent(); err != nil {
+		return "", "", "", err
 	}
-	if _, err := p.expect(','); err != nil {
-		return "", "", err
+	if _, err = p.expect(','); err != nil {
+		return "", "", "", err
 	}
-	endCol, _, err := p.parseIdent()
-	if err != nil {
-		return "", "", err
+	if endCol, _, err = p.parseIdent(); err != nil {
+		return "", "", "", err
 	}
-	if _, err := p.expect(')'); err != nil {
-		return "", "", err
+	if _, err = p.expect(')'); err != nil {
+		return "", "", "", err
 	}
-	return startCol, endCol, nil
+	return name, startCol, endCol, nil
 }
 
 // parseRowBound parses ROW START | ROW END (the system-versioning period bound a

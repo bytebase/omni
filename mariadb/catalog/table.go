@@ -35,6 +35,12 @@ type Table struct {
 	PeriodStartCol  string
 	PeriodEndCol    string
 
+	// Application-time period: PERIOD FOR <name> (start, end). A table may have
+	// at most one; AppPeriodName is empty when absent.
+	AppPeriodName     string
+	AppPeriodStartCol string
+	AppPeriodEndCol   string
+
 	// droppedByCleanup tracks indexes auto-removed by DROP COLUMN cleanup
 	// during multi-command ALTER TABLE. This allows a subsequent explicit
 	// DROP INDEX in the same ALTER to succeed (matching MySQL 8.0 behavior).

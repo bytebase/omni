@@ -187,6 +187,15 @@ type CreateTableStmt struct {
 	// PERIOD FOR SYSTEM_TIME (start_col, end_col) — system-versioning period.
 	PeriodStartCol string
 	PeriodEndCol   string
+
+	// Application-time period: PERIOD FOR <name> (start_col, end_col). A table
+	// may have at most one; AppPeriodName is empty when absent.
+	AppPeriodName     string
+	AppPeriodStartCol string
+	AppPeriodEndCol   string
+	// AppPeriodDuplicate is set when more than one application-time period was
+	// specified (rejected by the catalog as 4154).
+	AppPeriodDuplicate bool
 }
 
 func (s *CreateTableStmt) nodeTag()  {}

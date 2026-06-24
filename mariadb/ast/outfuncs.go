@@ -837,6 +837,9 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 	if n.PeriodStartCol != "" {
 		fmt.Fprintf(sb, " :period_for_system_time (%s, %s)", n.PeriodStartCol, n.PeriodEndCol)
 	}
+	if n.AppPeriodName != "" {
+		fmt.Fprintf(sb, " :period_for %s (%s, %s)", n.AppPeriodName, n.AppPeriodStartCol, n.AppPeriodEndCol)
+	}
 	sb.WriteString("}")
 }
 
