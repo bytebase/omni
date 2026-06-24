@@ -558,6 +558,7 @@ const (
 	kwNEVER
 	kwDAY
 	kwHISTORY
+	kwOVERLAPS
 	kwREUSE
 	kwOPTIONAL
 	kwX509
@@ -1402,6 +1403,7 @@ var keywords = map[string]int{
 	"never":               kwNEVER,
 	"day":                 kwDAY,
 	"history":             kwHISTORY,
+	"overlaps":            kwOVERLAPS,
 	"reuse":               kwREUSE,
 	"optional":            kwOPTIONAL,
 	"x509":                kwX509,

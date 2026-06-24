@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strings"
-
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -162,13 +160,14 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 			Column: colName,
 		}
 
-		// Optional (length)
+		// Optional (length) — when present, the length is required (no empty "()").
 		if p.cur.Type == '(' {
 			p.advance()
-			if p.cur.Type == tokICONST {
-				col.Length = int(p.cur.Ival)
-				p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			col.Length = int(p.cur.Ival)
+			p.advance()
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
@@ -187,8 +186,7 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 	// Optional WITHOUT OVERLAPS — valid only on a bare column key part: no
 	// functional expression, no prefix length, no ordering token (else 1064).
 	// OVERLAPS is non-reserved (matched by text).
-	if p.cur.Type == kwWITHOUT && p.peekNext().Type == tokIDENT &&
-		strings.EqualFold(p.peekNext().Str, "OVERLAPS") {
+	if p.cur.Type == kwWITHOUT && p.peekNext().Type == kwOVERLAPS {
 		if col.Functional || col.Length > 0 || hasOrdering {
 			return nil, p.syntaxErrorAtCur()
 		}

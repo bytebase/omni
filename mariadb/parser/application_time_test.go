@@ -80,3 +80,24 @@ func TestWithoutOverlapsPositionReject(t *testing.T) {
 		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
 	}
 }
+
+// TestEmptyPrefixParensReject: an empty prefix "()" is invalid (1064 vs 11.8.8),
+// generally and under WITHOUT OVERLAPS.
+func TestEmptyPrefixParensReject(t *testing.T) {
+	const base = "CREATE TABLE t (id INT, p VARCHAR(20), s DATE, e DATE, PERIOD FOR app_time(s, e), "
+	for _, sql := range []string{
+		base + "UNIQUE (id, p()))",                         // general empty prefix
+		base + "UNIQUE (id, app_time() WITHOUT OVERLAPS))", // empty prefix bypassing bare check
+	} {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+}
+
+// TestWithoutOverlapsQuotedKeywordReject: a backtick-quoted `OVERLAPS` is an
+// identifier, not the keyword, so WITHOUT `OVERLAPS` is 1064 (vs 11.8.8).
+func TestWithoutOverlapsQuotedKeywordReject(t *testing.T) {
+	bt := "`"
+	sql := "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s, e), " +
+		"UNIQUE (id, app_time WITHOUT " + bt + "OVERLAPS" + bt + "))"
+	ParseExpectError(t, sql)
+}
