@@ -754,7 +754,7 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		}
 		return nil, nil
 	case kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwSESSION_USER,
-		kwSYSTEM_USER, kwUSER, kwCURRENT_DATE, kwCURRENT_TIME:
+		kwSYSTEM_USER, kwUSER, kwCURRENT_DATE:
 		return p.parseNiladicKeywordFunc()
 	case tokIDENT:
 		return p.parseIdentExpr()
