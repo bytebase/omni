@@ -18,3 +18,17 @@ func TestCreateTableAppPeriodOutfuncs(t *testing.T) {
 		t.Errorf("NodeToString missing app-time period:\n%s", got)
 	}
 }
+
+// TestAlterTableAppPeriodOutfuncs locks outfuncs coverage of the period name on
+// ADD/DROP PERIOD AlterTableCmd nodes, so application-time and system-time
+// periods are distinguishable in NodeToString.
+func TestAlterTableAppPeriodOutfuncs(t *testing.T) {
+	add := &AlterTableCmd{Type: ATAddPeriod, PeriodName: "app_time", PeriodStartCol: "s", PeriodEndCol: "e"}
+	if got := NodeToString(add); !strings.Contains(got, ":period_for app_time (s, e)") {
+		t.Errorf("ADD PERIOD NodeToString missing period name:\n%s", got)
+	}
+	drop := &AlterTableCmd{Type: ATDropPeriod, PeriodName: "app_time"}
+	if got := NodeToString(drop); !strings.Contains(got, ":period_for app_time") {
+		t.Errorf("DROP PERIOD NodeToString missing period name:\n%s", got)
+	}
+}

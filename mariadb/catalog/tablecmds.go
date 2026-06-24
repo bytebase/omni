@@ -418,7 +418,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		for _, col := range tbl.Columns {
 			if strings.EqualFold(col.Name, tbl.AppPeriodStartCol) ||
 				strings.EqualFold(col.Name, tbl.AppPeriodEndCol) {
-				col.Nullable = false
+				normalizeAppPeriodColumn(col)
 			}
 		}
 	}
@@ -746,6 +746,36 @@ func validateWithoutOverlaps(tbl *Table) error {
 		}
 	}
 	return nil
+}
+
+// normalizeAppPeriodColumn coerces an application-time period column to NOT NULL
+// and drops an explicit DEFAULT NULL — MariaDB strips a NULL default when the
+// column becomes NOT NULL, while keeping a non-null default.
+func normalizeAppPeriodColumn(col *Column) {
+	col.Nullable = false
+	if col.Default != nil && strings.EqualFold(*col.Default, "NULL") {
+		col.Default = nil
+	}
+}
+
+// validateApplicationTimeFinalState validates the application-time period and its
+// WITHOUT OVERLAPS keys against the FINAL table state after an ALTER, so a
+// multi-command statement (ADD PERIOD then MODIFY a column, DROP KEY then DROP
+// PERIOD, or a reversed ADD UNIQUE … WITHOUT OVERLAPS / ADD PERIOD) is judged on
+// its end result like MariaDB. When an application-time period remains, its
+// columns are re-normalized to NOT NULL. Grounded vs 11.8.8.
+func validateApplicationTimeFinalState(tbl *Table) error {
+	if tbl.AppPeriodName != "" {
+		if err := validateAppPeriodColumns(tbl, tbl.AppPeriodName, tbl.AppPeriodStartCol, tbl.AppPeriodEndCol); err != nil {
+			return err
+		}
+		for _, colName := range []string{tbl.AppPeriodStartCol, tbl.AppPeriodEndCol} {
+			if col := tbl.GetColumn(colName); col != nil {
+				normalizeAppPeriodColumn(col)
+			}
+		}
+	}
+	return validateWithoutOverlaps(tbl)
 }
 
 // validateColsWithoutOverlaps validates a WITHOUT OVERLAPS key. Used by CREATE
@@ -2038,20 +2068,33 @@ func validateApplicationTimePeriod(tbl *Table, stmt *nodes.CreateTableStmt) erro
 	if stmt.AppPeriodDuplicate {
 		return errMultipleAppPeriods() // 4154
 	}
-	if strings.EqualFold(tbl.AppPeriodStartCol, tbl.AppPeriodEndCol) {
-		return errColumnSpecifiedTwice(tbl.AppPeriodStartCol) // 1110
+	return validateAppPeriodColumns(tbl, tbl.AppPeriodName, tbl.AppPeriodStartCol, tbl.AppPeriodEndCol)
+}
+
+// validateAppPeriodColumns enforces the column-level rules for an application-
+// time period: distinct start/end (1110), the period name not colliding with a
+// column (1060), and both columns existing (1054) with a temporal type (1063).
+// Shared by CREATE TABLE and ALTER TABLE ... ADD PERIOD. Grounded vs 11.8.8.
+func validateAppPeriodColumns(tbl *Table, name, startCol, endCol string) error {
+	if strings.EqualFold(startCol, endCol) {
+		return errColumnSpecifiedTwice(startCol) // 1110
 	}
-	if tbl.GetColumn(tbl.AppPeriodName) != nil {
-		return errDupColumn(tbl.AppPeriodName) // 1060: period name collides with a column
+	if tbl.GetColumn(name) != nil {
+		return errDupColumn(name) // 1060: period name collides with a column
 	}
-	for _, colName := range []string{tbl.AppPeriodStartCol, tbl.AppPeriodEndCol} {
+	for _, colName := range []string{startCol, endCol} {
 		col := tbl.GetColumn(colName)
 		if col == nil {
-			return errNoSuchColumn(colName, tbl.AppPeriodName) // 1054
+			return errNoSuchColumn(colName, name) // 1054
 		}
 		if !isTemporalPeriodType(col.DataType) {
 			return errIncorrectColumnSpecifier(colName) // 1063
 		}
+	}
+	// Both columns must have the same type, including precision (e.g. date vs
+	// datetime, or datetime(3) vs datetime(6), is rejected).
+	if s, e := tbl.GetColumn(startCol), tbl.GetColumn(endCol); !strings.EqualFold(s.ColumnType, e.ColumnType) {
+		return errPeriodFieldsDifferentTypes(name) // 4153
 	}
 	return nil
 }

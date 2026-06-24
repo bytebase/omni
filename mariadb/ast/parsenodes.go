@@ -293,9 +293,11 @@ type AlterTableCmd struct {
 	WithValidation *bool            // for EXCHANGE PARTITION: true=WITH VALIDATION, false=WITHOUT VALIDATION, nil=not specified
 	OrderByItems   []*OrderByItem   // for ORDER BY operation
 	PartitionBy    *PartitionClause // for PARTITION BY (repartition)
-	// PeriodStartCol / PeriodEndCol carry ADD PERIOD FOR SYSTEM_TIME (start, end).
+	// PeriodStartCol / PeriodEndCol carry ADD PERIOD FOR <name> (start, end);
+	// PeriodName is the period name ("SYSTEM_TIME" or an application-time name).
 	PeriodStartCol string
 	PeriodEndCol   string
+	PeriodName     string
 }
 
 func (c *AlterTableCmd) nodeTag() {}

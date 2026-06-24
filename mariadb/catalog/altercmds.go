@@ -58,7 +58,7 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		// command through post-mutation validation when the table is already
 		// versioned or the command itself carries versioning metadata. Plain
 		// tables keep the no-clone fast path.
-		if !tbl.SystemVersioned && !cmdAffectsVersioning(cmd) {
+		if !alterNeedsFinalValidation(tbl, cmd) {
 			return c.execAlterCmd(db, tbl, cmd)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
@@ -70,6 +70,10 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 			return err
 		}
 		if err := validateSystemVersioning(tbl); err != nil {
+			*tbl = snapshot
+			return err
+		}
+		if err := validateApplicationTimeFinalState(tbl); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -100,6 +104,10 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	// Validate system-versioning consistency across the atomic ALTER as a whole
 	// ("ADD PERIOD ..., ADD SYSTEM VERSIONING" is valid; either one alone is not).
 	if err := validateSystemVersioning(tbl); err != nil {
+		rollback()
+		return err
+	}
+	if err := validateApplicationTimeFinalState(tbl); err != nil {
 		rollback()
 		return err
 	}
@@ -174,6 +182,9 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		tbl.SystemVersioned = false
 		return nil
 	case nodes.ATAddPeriod:
+		if !isSystemTimePeriodName(cmd.PeriodName) {
+			return c.alterAddAppPeriod(tbl, cmd)
+		}
 		if tbl.PeriodStartCol != "" {
 			return errAlreadySystemVersioned(tbl.Name)
 		}
@@ -181,6 +192,9 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		tbl.PeriodEndCol = cmd.PeriodEndCol
 		return nil
 	case nodes.ATDropPeriod:
+		if !isSystemTimePeriodName(cmd.PeriodName) {
+			return c.alterDropAppPeriod(tbl, cmd)
+		}
 		// Check period presence first so the result is independent of command
 		// order: a DROP SYSTEM VERSIONING earlier in the same statement flips the
 		// versioned flag but does not clear the period.
@@ -197,6 +211,65 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		// Unsupported alter command; silently ignore.
 		return nil
 	}
+}
+
+// isSystemTimePeriodName reports whether an ADD/DROP PERIOD command targets the
+// system-versioning period rather than an application-time period.
+func isSystemTimePeriodName(name string) bool {
+	return name == "" || strings.EqualFold(name, "SYSTEM_TIME")
+}
+
+// alterAddAppPeriod adds an application-time period to an existing table,
+// applying the same validations as CREATE (4154/1110/1060/1054/1063) and making
+// the period columns NOT NULL. Grounded vs 11.8.8.
+func (c *Catalog) alterAddAppPeriod(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if tbl.AppPeriodName != "" {
+		return errMultipleAppPeriods() // 4154
+	}
+	if err := validateAppPeriodColumns(tbl, cmd.PeriodName, cmd.PeriodStartCol, cmd.PeriodEndCol); err != nil {
+		return err
+	}
+	tbl.AppPeriodName = cmd.PeriodName
+	tbl.AppPeriodStartCol = cmd.PeriodStartCol
+	tbl.AppPeriodEndCol = cmd.PeriodEndCol
+	// MariaDB makes application-time period columns NOT NULL.
+	for _, colName := range []string{cmd.PeriodStartCol, cmd.PeriodEndCol} {
+		if col := tbl.GetColumn(colName); col != nil {
+			normalizeAppPeriodColumn(col)
+		}
+	}
+	return nil
+}
+
+// alterDropAppPeriod removes the application-time period: 1091 if no such period
+// exists. A WITHOUT OVERLAPS key still referencing it is caught by the
+// final-state pass (4156), so a later DROP KEY in the same statement can remove
+// the dependency first. The period columns keep their NOT NULL. Grounded vs 11.8.8.
+func (c *Catalog) alterDropAppPeriod(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	if tbl.AppPeriodName == "" || !strings.EqualFold(tbl.AppPeriodName, cmd.PeriodName) {
+		return errCantDropPeriod(cmd.PeriodName) // 1091
+	}
+	tbl.AppPeriodName = ""
+	tbl.AppPeriodStartCol = ""
+	tbl.AppPeriodEndCol = ""
+	return nil
+}
+
+// alterNeedsFinalValidation reports whether an ALTER command requires the
+// post-mutation consistency checks (system-versioning + application-time), so the
+// no-snapshot fast path is unsafe: the table is already system-versioned or has
+// an application-time period (any column change can invalidate it), the command
+// adds a key (a WITHOUT OVERLAPS key needs the final-state period check), or the
+// command carries versioning / period metadata.
+func alterNeedsFinalValidation(tbl *Table, cmd *nodes.AlterTableCmd) bool {
+	if tbl.SystemVersioned || tbl.AppPeriodName != "" {
+		return true
+	}
+	switch cmd.Type {
+	case nodes.ATAddIndex, nodes.ATAddConstraint:
+		return true
+	}
+	return cmdAffectsVersioning(cmd)
 }
 
 // cmdAffectsVersioning reports whether an ALTER command can change a table's
@@ -572,9 +645,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateColsWithoutOverlaps(tbl, "PRIMARY", idxCols); err != nil {
-			return err
-		}
 		pkIdx := &Index{
 			Name:      "PRIMARY",
 			Table:     tbl,
@@ -611,9 +681,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 		idxCols := buildIndexColumns(con)
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
-			return err
-		}
-		if err := validateColsWithoutOverlaps(tbl, idxName, idxCols); err != nil {
 			return err
 		}
 		tbl.Indexes = append(tbl.Indexes, &Index{
@@ -864,6 +931,13 @@ func (c *Catalog) alterRenameColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	}
 	if strings.EqualFold(tbl.PeriodEndCol, cmd.Name) {
 		tbl.PeriodEndCol = cmd.NewName
+	}
+	// Likewise keep the application-time period referencing the renamed column.
+	if strings.EqualFold(tbl.AppPeriodStartCol, cmd.Name) {
+		tbl.AppPeriodStartCol = cmd.NewName
+	}
+	if strings.EqualFold(tbl.AppPeriodEndCol, cmd.Name) {
+		tbl.AppPeriodEndCol = cmd.NewName
 	}
 	rebuildColIndex(tbl)
 	return nil

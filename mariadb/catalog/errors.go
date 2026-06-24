@@ -72,6 +72,7 @@ const (
 	ErrKeyPartZeroLength                 = 1391
 	ErrKeyColumnDoesNotExist             = 1072
 	ErrKeyIncludesPeriodColumn           = 4170
+	ErrPeriodFieldsDifferentTypes        = 4153
 )
 
 var sqlStateMap = map[int]string{
@@ -122,6 +123,7 @@ var sqlStateMap = map[int]string{
 	ErrKeyPartZeroLength:                 "HY000",
 	ErrKeyColumnDoesNotExist:             "42000",
 	ErrKeyIncludesPeriodColumn:           "HY000",
+	ErrPeriodFieldsDifferentTypes:        "HY000",
 	ErrWrongArguments:                    "HY000",
 	ErrWrongNameForIndex:                 "42000",
 	ErrInvalidOnUpdate:                   "HY000",
@@ -374,6 +376,19 @@ func errKeyIncludesPeriodColumn(keyName, colName string) error {
 func errColumnSpecifiedTwice(col string) error {
 	return &Error{Code: ErrColumnSpecifiedTwice, SQLState: sqlState(ErrColumnSpecifiedTwice),
 		Message: fmt.Sprintf("Column '%s' specified twice", col)}
+}
+
+// errCantDropPeriod reports DROP PERIOD for a period that does not exist. 1091.
+func errCantDropPeriod(name string) error {
+	return &Error{Code: ErrCantDropKey, SQLState: sqlState(ErrCantDropKey),
+		Message: fmt.Sprintf("Can't DROP PERIOD `%s`; check that it exists", name)}
+}
+
+// errPeriodFieldsDifferentTypes reports that a period's start and end columns
+// have different types — they must match exactly, including precision. 4153.
+func errPeriodFieldsDifferentTypes(name string) error {
+	return &Error{Code: ErrPeriodFieldsDifferentTypes, SQLState: sqlState(ErrPeriodFieldsDifferentTypes),
+		Message: fmt.Sprintf("Fields of PERIOD FOR `%s` have different types", name)}
 }
 
 func errPeriodNotFound(name string) error {
