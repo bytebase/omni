@@ -211,8 +211,12 @@ done:
 	// If no UNION/EXCEPT was encountered, left may still be a SetOpStmt
 	// produced by parseIntersectChain. Hoist for that case too.
 	if setOp == nil {
-		var ok bool
-		if setOp, ok = left.(*ast.SetOpStmt); !ok {
+		switch n := left.(type) {
+		case *ast.SetOpStmt:
+			setOp = n
+		case *ast.ParenSelect:
+			return p.parseTrailingClausesForParen(n)
+		default:
 			return left, nil
 		}
 	}
@@ -288,6 +292,61 @@ func (p *Parser) parseParenSelect() (*ast.ParenSelect, error) {
 		Sel: inner2,
 		Loc: ast.Loc{Start: openTok.Loc.Start, End: p.prev.Loc.End},
 	}, nil
+}
+
+// parseTrailingClausesForParen handles the case where a top-level ParenSelect
+// is followed by ORDER BY / LIMIT / OFFSET — e.g. (SELECT 1 UNION SELECT 2) LIMIT 5.
+// The clauses are attached to the inner node (SetOpStmt or SelectStmt).
+// If no trailing clauses are present, the ParenSelect is returned as-is.
+func (p *Parser) parseTrailingClausesForParen(paren *ast.ParenSelect) (ast.Node, error) {
+	if p.cur.Kind != kwORDER && p.cur.Kind != kwLIMIT {
+		return paren, nil
+	}
+
+	var orderBy []*ast.OrderByItem
+	var limit, offset ast.Node
+
+	if p.cur.Kind == kwORDER {
+		p.advance() // consume ORDER
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		var err error
+		orderBy, err = p.parseOrderByList()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwLIMIT {
+		var err error
+		limit, offset, err = p.parseLimitClause()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	switch inner := paren.Sel.(type) {
+	case *ast.SetOpStmt:
+		if len(orderBy) > 0 {
+			inner.OrderBy = orderBy
+		}
+		if limit != nil {
+			inner.Limit = limit
+			inner.Offset = offset
+		}
+		inner.Loc.End = p.prev.Loc.End
+	case *ast.SelectStmt:
+		if len(orderBy) > 0 {
+			inner.OrderBy = orderBy
+		}
+		if limit != nil {
+			inner.Limit = limit
+			inner.Offset = offset
+		}
+		inner.Loc.End = p.prev.Loc.End
+	}
+	paren.Loc.End = p.prev.Loc.End
+	return paren, nil
 }
 
 // hoistTrailingClauses moves ORDER BY / LIMIT / OFFSET from the rightmost

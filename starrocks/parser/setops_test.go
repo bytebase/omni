@@ -618,3 +618,93 @@ func TestExceptOuterLimit(t *testing.T) {
 		t.Errorf("Limit = %q, want %q", lit.Value, "3")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Parenthesized query with trailing ORDER BY / LIMIT / OFFSET
+// ---------------------------------------------------------------------------
+
+func TestParenSetOpTrailingLimit(t *testing.T) {
+	sql := "(SELECT 1 UNION SELECT 2) LIMIT 5"
+	file, errs := Parse(sql)
+	if len(errs) > 0 {
+		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+	}
+	if len(file.Stmts) == 0 {
+		t.Fatalf("Parse(%q) returned no statements", sql)
+	}
+
+	paren, ok := file.Stmts[0].(*ast.ParenSelect)
+	if !ok {
+		t.Fatalf("got %T, want *ast.ParenSelect", file.Stmts[0])
+	}
+
+	inner, ok := paren.Sel.(*ast.SetOpStmt)
+	if !ok {
+		t.Fatalf("ParenSelect.Sel = %T, want *ast.SetOpStmt", paren.Sel)
+	}
+	if inner.Limit == nil {
+		t.Fatal("inner SetOpStmt.Limit is nil, want LIMIT 5")
+	}
+	lit, ok := inner.Limit.(*ast.Literal)
+	if !ok {
+		t.Fatalf("Limit = %T, want *ast.Literal", inner.Limit)
+	}
+	if lit.Value != "5" {
+		t.Errorf("Limit = %q, want %q", lit.Value, "5")
+	}
+
+	if paren.Loc.End != len(sql) {
+		t.Errorf("ParenSelect.Loc.End = %d, want %d", paren.Loc.End, len(sql))
+	}
+}
+
+func TestParenSelectTrailingLimit(t *testing.T) {
+	sql := "(SELECT 1) LIMIT 5"
+	file, errs := Parse(sql)
+	if len(errs) > 0 {
+		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+	}
+	if len(file.Stmts) == 0 {
+		t.Fatalf("Parse(%q) returned no statements", sql)
+	}
+
+	paren, ok := file.Stmts[0].(*ast.ParenSelect)
+	if !ok {
+		t.Fatalf("got %T, want *ast.ParenSelect", file.Stmts[0])
+	}
+
+	inner, ok := paren.Sel.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("ParenSelect.Sel = %T, want *ast.SelectStmt", paren.Sel)
+	}
+	if inner.Limit == nil {
+		t.Fatal("inner SelectStmt.Limit is nil, want LIMIT 5")
+	}
+}
+
+func TestParenSetOpTrailingOrderByLimit(t *testing.T) {
+	sql := "(SELECT 1 UNION SELECT 2) ORDER BY 1 LIMIT 5"
+	file, errs := Parse(sql)
+	if len(errs) > 0 {
+		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+	}
+	if len(file.Stmts) == 0 {
+		t.Fatalf("Parse(%q) returned no statements", sql)
+	}
+
+	paren, ok := file.Stmts[0].(*ast.ParenSelect)
+	if !ok {
+		t.Fatalf("got %T, want *ast.ParenSelect", file.Stmts[0])
+	}
+
+	inner, ok := paren.Sel.(*ast.SetOpStmt)
+	if !ok {
+		t.Fatalf("ParenSelect.Sel = %T, want *ast.SetOpStmt", paren.Sel)
+	}
+	if len(inner.OrderBy) == 0 {
+		t.Fatal("inner SetOpStmt.OrderBy is empty, want ORDER BY")
+	}
+	if inner.Limit == nil {
+		t.Fatal("inner SetOpStmt.Limit is nil, want LIMIT 5")
+	}
+}
