@@ -68,6 +68,10 @@ const (
 	ErrMultipleAppPeriods                = 4154
 	ErrColumnSpecifiedTwice              = 1110
 	ErrIncorrectColumnSpecifier          = 1063
+	ErrPeriodNotFound                    = 4156
+	ErrKeyPartZeroLength                 = 1391
+	ErrKeyColumnDoesNotExist             = 1072
+	ErrKeyIncludesPeriodColumn           = 4170
 )
 
 var sqlStateMap = map[int]string{
@@ -114,6 +118,10 @@ var sqlStateMap = map[int]string{
 	ErrMultipleAppPeriods:                "HY000",
 	ErrColumnSpecifiedTwice:              "42000",
 	ErrIncorrectColumnSpecifier:          "42000",
+	ErrPeriodNotFound:                    "HY000",
+	ErrKeyPartZeroLength:                 "HY000",
+	ErrKeyColumnDoesNotExist:             "42000",
+	ErrKeyIncludesPeriodColumn:           "HY000",
 	ErrWrongArguments:                    "HY000",
 	ErrWrongNameForIndex:                 "42000",
 	ErrInvalidOnUpdate:                   "HY000",
@@ -341,9 +349,36 @@ func errMultipleAppPeriods() error {
 		Message: "Cannot specify more than one application-time period"}
 }
 
+// errKeyPartZeroLength reports a key part declared with an explicit zero-length
+// prefix, e.g. `KEY (c(0))`. MariaDB rejects this with 1391 on every key path
+// and column type; a zero-length prefix is distinct from no prefix at all.
+func errKeyPartZeroLength(name string) error {
+	return &Error{Code: ErrKeyPartZeroLength, SQLState: sqlState(ErrKeyPartZeroLength),
+		Message: fmt.Sprintf("Key part '%s' length cannot be 0", name)}
+}
+
+// errKeyColumnDoesNotExist reports a key referencing a name that is not a column
+// (a nonexistent column, or a period name used as an ordinary key part). 1072.
+func errKeyColumnDoesNotExist(name string) error {
+	return &Error{Code: ErrKeyColumnDoesNotExist, SQLState: sqlState(ErrKeyColumnDoesNotExist),
+		Message: fmt.Sprintf("Key column '%s' doesn't exist in table", name)}
+}
+
+// errKeyIncludesPeriodColumn reports an application-time period column used as an
+// ordinary part of a WITHOUT OVERLAPS key. 4170.
+func errKeyIncludesPeriodColumn(keyName, colName string) error {
+	return &Error{Code: ErrKeyIncludesPeriodColumn, SQLState: sqlState(ErrKeyIncludesPeriodColumn),
+		Message: fmt.Sprintf("Key `%s` cannot explicitly include column `%s`", keyName, colName)}
+}
+
 func errColumnSpecifiedTwice(col string) error {
 	return &Error{Code: ErrColumnSpecifiedTwice, SQLState: sqlState(ErrColumnSpecifiedTwice),
 		Message: fmt.Sprintf("Column '%s' specified twice", col)}
+}
+
+func errPeriodNotFound(name string) error {
+	return &Error{Code: ErrPeriodNotFound, SQLState: sqlState(ErrPeriodNotFound),
+		Message: fmt.Sprintf("Period `%s` is not found in table", name)}
 }
 
 func errIncorrectColumnSpecifier(col string) error {

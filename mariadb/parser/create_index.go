@@ -70,23 +70,12 @@ func (p *Parser) parseCreateIndexStmt(unique bool, fulltext bool, spatial bool) 
 	}
 	stmt.Table = tbl
 
-	// (key_part, ...)
-	if _, err := p.expect('('); err != nil {
+	// (key_part, ...) — WITHOUT OVERLAPS allowed only on a UNIQUE index.
+	cols, err := p.parseParenIndexKeyParts(stmt.Unique)
+	if err != nil {
 		return nil, err
 	}
-	for {
-		col, err := p.parseIndexKeyPart()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Columns = append(stmt.Columns, col)
-		if _, ok := p.match(','); !ok {
-			break
-		}
-	}
-	if _, err := p.expect(')'); err != nil {
-		return nil, err
-	}
+	stmt.Columns = cols
 
 	// [index_option] ...
 	for {
@@ -171,13 +160,15 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 			Column: colName,
 		}
 
-		// Optional (length)
+		// Optional (length) — when present, the length is required (no empty "()").
 		if p.cur.Type == '(' {
 			p.advance()
-			if p.cur.Type == tokICONST {
-				col.Length = int(p.cur.Ival)
-				p.advance()
+			if p.cur.Type != tokICONST {
+				return nil, p.syntaxErrorAtCur()
 			}
+			col.Length = int(p.cur.Ival)
+			col.HasPrefix = true
+			p.advance()
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
@@ -185,10 +176,24 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 	}
 
 	// Optional ASC | DESC
+	hasOrdering := false
 	if _, ok := p.match(kwASC); ok {
-		// ASC is default, nothing to set
+		hasOrdering = true // ASC is the default, but the token was given
 	} else if _, ok := p.match(kwDESC); ok {
 		col.Desc = true
+		hasOrdering = true
+	}
+
+	// Optional WITHOUT OVERLAPS — valid only on a bare column key part: no
+	// functional expression, no prefix length, no ordering token (else 1064).
+	// OVERLAPS is non-reserved (matched by text).
+	if p.cur.Type == kwWITHOUT && p.peekNext().Type == kwOVERLAPS {
+		if col.Functional || col.Length > 0 || hasOrdering {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // WITHOUT
+		p.advance() // OVERLAPS
+		col.WithoutOverlaps = true
 	}
 
 	col.Loc.End = p.pos()
@@ -207,10 +212,19 @@ func indexColumnsToNames(cols []*nodes.IndexColumn) []string {
 	return names
 }
 
-// parseParenIndexKeyParts parses a parenthesized list of index key parts.
+// constrAllowsOverlaps reports whether a table constraint type permits a
+// WITHOUT OVERLAPS key part (UNIQUE / PRIMARY KEY only).
+func constrAllowsOverlaps(t nodes.ConstraintType) bool {
+	return t == nodes.ConstrPrimaryKey || t == nodes.ConstrUnique
+}
+
+// parseParenIndexKeyParts parses a parenthesized list of index key parts:
 //
 //	(key_part [, key_part] ...)
-func (p *Parser) parseParenIndexKeyParts() ([]*nodes.IndexColumn, error) {
+//
+// allowOverlaps is true only for UNIQUE / PRIMARY KEY definitions, where a
+// WITHOUT OVERLAPS application-time period key part is valid.
+func (p *Parser) parseParenIndexKeyParts(allowOverlaps bool) ([]*nodes.IndexColumn, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
@@ -229,7 +243,31 @@ func (p *Parser) parseParenIndexKeyParts() ([]*nodes.IndexColumn, error) {
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
+	if err := p.validateOverlapsParts(cols, allowOverlaps); err != nil {
+		return nil, err
+	}
 	return cols, nil
+}
+
+// validateOverlapsParts enforces the WITHOUT OVERLAPS grammar rules (1064): it
+// is valid only on a UNIQUE/PRIMARY KEY, appearing exactly once as the last key
+// part, alongside at least one ordinary key part.
+func (p *Parser) validateOverlapsParts(cols []*nodes.IndexColumn, allowOverlaps bool) error {
+	overlaps, ordinary := 0, 0
+	for _, c := range cols {
+		if c.WithoutOverlaps {
+			overlaps++
+		} else {
+			ordinary++
+		}
+	}
+	if overlaps == 0 {
+		return nil
+	}
+	if !allowOverlaps || overlaps > 1 || ordinary == 0 || !cols[len(cols)-1].WithoutOverlaps {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
 }
 
 // parseIndexOption parses a single index_option.

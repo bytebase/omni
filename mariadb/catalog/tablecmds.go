@@ -477,6 +477,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// Process table-level constraints.
 	for _, con := range stmt.Constraints {
 		cols := extractColumnNames(con)
+		if err := validateKeyPartPrefixes(con.IndexColumns, con.Type == nodes.ConstrSpatialIndex); err != nil {
+			return err
+		}
 
 		switch con.Type {
 		case nodes.ConstrPrimaryKey:
@@ -726,8 +729,69 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// columns are present in the table.
 	c.analyzeTableExpressions(tbl, stmt)
 
+	if err := validateWithoutOverlaps(tbl); err != nil {
+		return err
+	}
+
 	db.Tables[key] = tbl
 	return nil
+}
+
+// validateWithoutOverlaps enforces that every WITHOUT OVERLAPS key part names
+// the table's application-time period (else 4156). Grounded vs 11.8.8.
+func validateWithoutOverlaps(tbl *Table) error {
+	for _, idx := range tbl.Indexes {
+		if err := validateColsWithoutOverlaps(tbl, idx.Name, idx.Columns); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateColsWithoutOverlaps validates a WITHOUT OVERLAPS key. Used by CREATE
+// TABLE, CREATE INDEX, and ALTER ADD — every path that builds a key. For a key
+// that carries a WO part: the flagged part must name the application-time period
+// (else 4156), and every ordinary (non-WO) column part must be a real column
+// (else 1072) that is not an application-time period column (else 4170). A
+// system-time period column is allowed as an ordinary part. Keys without a WO
+// part are not validated here. Grounded vs 11.8.8.
+func validateColsWithoutOverlaps(tbl *Table, keyName string, cols []*IndexColumn) error {
+	hasOverlaps := false
+	for _, ic := range cols {
+		if ic.WithoutOverlaps {
+			hasOverlaps = true
+			break
+		}
+	}
+	if !hasOverlaps {
+		return nil
+	}
+	for _, ic := range cols {
+		if ic.WithoutOverlaps {
+			if !strings.EqualFold(ic.Name, tbl.AppPeriodName) {
+				return errPeriodNotFound(ic.Name)
+			}
+			continue
+		}
+		if ic.Expr != "" {
+			continue // functional key part — not a simple column reference
+		}
+		if tbl.GetColumn(ic.Name) == nil {
+			return errKeyColumnDoesNotExist(ic.Name)
+		}
+		if isAppPeriodColumn(tbl, ic.Name) {
+			return errKeyIncludesPeriodColumn(keyName, ic.Name)
+		}
+	}
+	return nil
+}
+
+// isAppPeriodColumn reports whether colName is the start or end column of the
+// table's application-time period. System-time period columns are excluded —
+// MariaDB allows those as ordinary key parts.
+func isAppPeriodColumn(tbl *Table, colName string) bool {
+	return tbl.AppPeriodName != "" &&
+		(strings.EqualFold(colName, tbl.AppPeriodStartCol) || strings.EqualFold(colName, tbl.AppPeriodEndCol))
 }
 
 func errGIPKColumnNameReserved() error {
@@ -1530,8 +1594,9 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 		result := make([]*IndexColumn, 0, len(con.IndexColumns))
 		for _, ic := range con.IndexColumns {
 			idxCol := &IndexColumn{
-				Length:     ic.Length,
-				Descending: ic.Desc,
+				Length:          ic.Length,
+				Descending:      ic.Desc,
+				WithoutOverlaps: ic.WithoutOverlaps,
 			}
 			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 				idxCol.Name = cr.Column
@@ -1624,6 +1689,36 @@ func indexNameExists(tbl *Table, name string) bool {
 		}
 	}
 	return false
+}
+
+// validateKeyPartPrefixes rejects a key part with an explicit zero-length prefix
+// (e.g. `c(0)`), which MariaDB reports as 1391 on the CREATE TABLE, CREATE INDEX
+// and ALTER ADD key paths, across every column type and key kind including
+// FULLTEXT. The parser records whether a prefix was written (HasPrefix), so
+// `c(0)` (invalid) is distinct from a bare `c` (no prefix, valid). Runs before
+// validateIndexColumns so a BLOB/TEXT `b(0)` is reported as 1391 rather than the
+// 1170 missing-key-length error.
+//
+// SPATIAL keys are excluded: MariaDB forbids a prefix on a SPATIAL key part at
+// parse time (1064 for any length, not 1391), and omni's shared key-part parser
+// currently accepts such prefixes regardless of length — a pre-existing
+// parser-level gap independent of this zero-length check. Reporting a SPATIAL
+// `g(0)` as 1391 here would diverge from MariaDB's 1064, so leave it untouched.
+func validateKeyPartPrefixes(cols []*nodes.IndexColumn, spatial bool) error {
+	if spatial {
+		return nil
+	}
+	for _, ic := range cols {
+		if !ic.HasPrefix || ic.Length > 0 {
+			continue
+		}
+		name := ""
+		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok {
+			name = cr.Column
+		}
+		return errKeyPartZeroLength(name)
+	}
+	return nil
 }
 
 func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial bool) error {
@@ -2563,11 +2658,12 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		cols := make([]*IndexColumn, len(srcIdx.Columns))
 		for i, sc := range srcIdx.Columns {
 			cols[i] = &IndexColumn{
-				Name:       sc.Name,
-				Length:     sc.Length,
-				Descending: sc.Descending,
-				Expr:       sc.Expr,
-				ExprNode:   sc.ExprNode,
+				Name:            sc.Name,
+				Length:          sc.Length,
+				Descending:      sc.Descending,
+				Expr:            sc.Expr,
+				ExprNode:        sc.ExprNode,
+				WithoutOverlaps: sc.WithoutOverlaps,
 			}
 		}
 		idx.Columns = cols

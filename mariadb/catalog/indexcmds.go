@@ -36,8 +36,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	idxCols := make([]*IndexColumn, 0, len(stmt.Columns))
 	for _, ic := range stmt.Columns {
 		col := &IndexColumn{
-			Length:     ic.Length,
-			Descending: ic.Desc,
+			Length:          ic.Length,
+			Descending:      ic.Desc,
+			WithoutOverlaps: ic.WithoutOverlaps,
 		}
 		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 			col.Name = cr.Column
@@ -46,6 +47,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 			col.ExprNode = ic.Expr
 		}
 		idxCols = append(idxCols, col)
+	}
+	if err := validateKeyPartPrefixes(stmt.Columns, stmt.Spatial); err != nil {
+		return err
 	}
 	if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial); err != nil {
 		return err
@@ -73,6 +77,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 
 	applyIndexOptions(idx, stmt.Options)
 	if err := synthesizeFunctionalIndexColumns(tbl, idx); err != nil {
+		return err
+	}
+	if err := validateColsWithoutOverlaps(tbl, idx.Name, idx.Columns); err != nil {
 		return err
 	}
 

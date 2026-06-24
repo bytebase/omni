@@ -466,6 +466,9 @@ func showIndexColumn(ic *IndexColumn) string {
 	if ic.Descending {
 		b.WriteString(" DESC")
 	}
+	if ic.WithoutOverlaps {
+		b.WriteString(" WITHOUT OVERLAPS")
+	}
 	return b.String()
 }
 

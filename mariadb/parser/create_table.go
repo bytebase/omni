@@ -984,7 +984,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		// Optional index type
 		p.parseIndexTypeClause(constr)
-		idxCols, err := p.parseParenIndexKeyParts()
+		idxCols, err := p.parseParenIndexKeyParts(constrAllowsOverlaps(constr.Type))
 		if err != nil {
 			return nil, err
 		}
@@ -1002,7 +1002,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		}
 		// Optional index type
 		p.parseIndexTypeClause(constr)
-		idxCols, err := p.parseParenIndexKeyParts()
+		idxCols, err := p.parseParenIndexKeyParts(constrAllowsOverlaps(constr.Type))
 		if err != nil {
 			return nil, err
 		}
@@ -1099,7 +1099,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 			constr.Name, _, _ = p.parseIdent()
 		}
 		p.parseIndexTypeClause(constr)
-		idxCols, err := p.parseParenIndexKeyParts()
+		idxCols, err := p.parseParenIndexKeyParts(constrAllowsOverlaps(constr.Type))
 		if err != nil {
 			return nil, err
 		}
@@ -1114,7 +1114,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		if p.isIdentToken() && p.cur.Type != '(' {
 			constr.Name, _, _ = p.parseIdent()
 		}
-		idxCols, err := p.parseParenIndexKeyParts()
+		idxCols, err := p.parseParenIndexKeyParts(constrAllowsOverlaps(constr.Type))
 		if err != nil {
 			return nil, err
 		}
@@ -1129,7 +1129,7 @@ func (p *Parser) parseTableConstraint() (*nodes.Constraint, error) {
 		if p.isIdentToken() && p.cur.Type != '(' {
 			constr.Name, _, _ = p.parseIdent()
 		}
-		idxCols, err := p.parseParenIndexKeyParts()
+		idxCols, err := p.parseParenIndexKeyParts(constrAllowsOverlaps(constr.Type))
 		if err != nil {
 			return nil, err
 		}

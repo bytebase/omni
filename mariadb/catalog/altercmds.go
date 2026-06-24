@@ -415,15 +415,23 @@ func cleanupIndexesForDroppedColumn(tbl *Table, colName string) {
 	newIndexes := make([]*Index, 0, len(tbl.Indexes))
 	removedIndexNames := make(map[string]bool)
 	for _, idx := range tbl.Indexes {
-		// Remove the column from this index.
+		// Remove the column from this index, tracking whether any ordinary
+		// (non-WITHOUT OVERLAPS) key part remains.
 		newCols := make([]*IndexColumn, 0, len(idx.Columns))
+		ordinaryRemaining := false
 		for _, ic := range idx.Columns {
-			if toLower(ic.Name) != colKey {
-				newCols = append(newCols, ic)
+			if toLower(ic.Name) == colKey {
+				continue
+			}
+			newCols = append(newCols, ic)
+			if !ic.WithoutOverlaps {
+				ordinaryRemaining = true
 			}
 		}
-		if len(newCols) == 0 {
-			// Index has no columns left — remove it.
+		if !ordinaryRemaining {
+			// No ordinary key parts left — the index is empty, or only a
+			// WITHOUT OVERLAPS period part remains (not a real key column).
+			// Remove the index entirely, like MariaDB.
 			nameKey := toLower(idx.Name)
 			removedIndexNames[nameKey] = true
 			// Track for multi-command ALTER so explicit DROP INDEX succeeds.
@@ -541,6 +549,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	}
 
 	cols := extractColumnNames(con)
+	if err := validateKeyPartPrefixes(con.IndexColumns, con.Type == nodes.ConstrSpatialIndex); err != nil {
+		return err
+	}
 
 	switch con.Type {
 	case nodes.ConstrPrimaryKey:
@@ -561,6 +572,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
+		if err := validateColsWithoutOverlaps(tbl, "PRIMARY", idxCols); err != nil {
+			return err
+		}
 		pkIdx := &Index{
 			Name:      "PRIMARY",
 			Table:     tbl,
@@ -597,6 +611,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 		idxCols := buildIndexColumns(con)
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+			return err
+		}
+		if err := validateColsWithoutOverlaps(tbl, idxName, idxCols); err != nil {
 			return err
 		}
 		tbl.Indexes = append(tbl.Indexes, &Index{

@@ -17,9 +17,10 @@ type Index struct {
 }
 
 type IndexColumn struct {
-	Name       string
-	Expr       string
-	ExprNode   nodes.ExprNode
-	Length     int
-	Descending bool
+	Name            string
+	Expr            string
+	ExprNode        nodes.ExprNode
+	Length          int
+	Descending      bool
+	WithoutOverlaps bool // WITHOUT OVERLAPS (application-time period key part)
 }
