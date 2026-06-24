@@ -251,8 +251,8 @@ func (p *Parser) parseParenIndexKeyParts(allowOverlaps bool) ([]*nodes.IndexColu
 }
 
 // validateOverlapsParts enforces the WITHOUT OVERLAPS grammar rules (1064): it
-// is valid only on a UNIQUE/PRIMARY KEY, and the key must have at least one
-// ordinary key part besides the period.
+// is valid only on a UNIQUE/PRIMARY KEY, appearing exactly once as the last key
+// part, alongside at least one ordinary key part.
 func (p *Parser) validateOverlapsParts(cols []*nodes.IndexColumn, allowOverlaps bool) error {
 	overlaps, ordinary := 0, 0
 	for _, c := range cols {
@@ -262,7 +262,10 @@ func (p *Parser) validateOverlapsParts(cols []*nodes.IndexColumn, allowOverlaps 
 			ordinary++
 		}
 	}
-	if overlaps > 0 && (!allowOverlaps || ordinary == 0) {
+	if overlaps == 0 {
+		return nil
+	}
+	if !allowOverlaps || overlaps > 1 || ordinary == 0 || !cols[len(cols)-1].WithoutOverlaps {
 		return p.syntaxErrorAtCur()
 	}
 	return nil

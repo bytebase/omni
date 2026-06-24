@@ -68,3 +68,15 @@ func TestWithoutOverlapsBareOnly(t *testing.T) {
 		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
 	}
 }
+
+// TestWithoutOverlapsPositionReject: WITHOUT OVERLAPS must appear exactly once
+// as the last key part (else 1064 vs 11.8.8).
+func TestWithoutOverlapsPositionReject(t *testing.T) {
+	const sv = "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s, e), "
+	for _, sql := range []string{
+		sv + "UNIQUE (id, app_time WITHOUT OVERLAPS, e WITHOUT OVERLAPS))", // two overlaps parts
+		sv + "UNIQUE (app_time WITHOUT OVERLAPS, id))",                     // not the last part
+	} {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+}
