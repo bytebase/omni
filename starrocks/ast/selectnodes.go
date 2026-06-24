@@ -49,21 +49,42 @@ var _ Node = (*CTE)(nil)
 //	  [QUALIFY condition]
 //	  [ORDER BY expr [ASC|DESC] [NULLS FIRST|LAST], ...]
 //	  [LIMIT count [OFFSET offset]]
+//	  [INTO OUTFILE ...]
 type SelectStmt struct {
-	With     *WithClause   // optional WITH clause (nil if absent)
-	Distinct bool          // DISTINCT keyword present
-	All      bool          // ALL keyword present (explicit, rarely used)
-	Items    []*SelectItem // SELECT list
-	From     []Node        // FROM clause table references (TableRef or JoinClause)
-	Where    Node          // WHERE expression (nil if absent)
-	GroupBy  []Node        // GROUP BY expressions
-	Having   Node          // HAVING expression (nil if absent)
-	Qualify  Node          // QUALIFY expression (nil if absent)
-	OrderBy  []*OrderByItem // ORDER BY items
-	Limit    Node          // LIMIT expression (nil if absent)
-	Offset   Node          // OFFSET expression (nil if absent)
+	With     *WithClause        // optional WITH clause (nil if absent)
+	Distinct bool               // DISTINCT keyword present
+	All      bool               // ALL keyword present (explicit, rarely used)
+	Items    []*SelectItem      // SELECT list
+	From     []Node             // FROM clause table references (TableRef or JoinClause)
+	Where    Node               // WHERE expression (nil if absent)
+	GroupBy  []Node             // GROUP BY expressions
+	Having   Node               // HAVING expression (nil if absent)
+	Qualify  Node               // QUALIFY expression (nil if absent)
+	OrderBy  []*OrderByItem     // ORDER BY items
+	Limit    Node               // LIMIT expression (nil if absent)
+	Offset   Node               // OFFSET expression (nil if absent)
+	Into     *IntoOutfileClause // INTO OUTFILE clause (nil if absent)
 	Loc      Loc
 }
+
+// IntoOutfileClause represents an INTO OUTFILE clause for exporting query
+// results to a file (StarRocks supports S3, HDFS, etc.):
+//
+//	INTO OUTFILE 'path'
+//	  [FORMAT AS format_type]
+//	  [PROPERTIES ("key" = "value", ...)]
+type IntoOutfileClause struct {
+	Path       string     // file path (S3, HDFS, or local)
+	Format     string     // format type: CSV, PARQUET, ORC, etc. (empty if not specified)
+	Properties []*Property // PROPERTIES key-value pairs
+	Loc        Loc
+}
+
+// Tag implements Node.
+func (n *IntoOutfileClause) Tag() NodeTag { return T_IntoOutfileClause }
+
+// Compile-time assertion that *IntoOutfileClause satisfies Node.
+var _ Node = (*IntoOutfileClause)(nil)
 
 // Tag implements Node.
 func (n *SelectStmt) Tag() NodeTag { return T_SelectStmt }
@@ -214,17 +235,40 @@ const (
 
 // SetOpStmt represents a set operation between two queries.
 //
-//	left UNION [ALL|DISTINCT] right
+//	left UNION [ALL|DISTINCT] right [ORDER BY ...] [LIMIT count [OFFSET offset]]
 //	left INTERSECT [ALL|DISTINCT] right
 //	left EXCEPT [ALL|DISTINCT] right
 //	left MINUS [ALL|DISTINCT] right  -- MINUS is an alias for EXCEPT in Doris
+//
+// OrderBy, Limit, and Offset are outer-level clauses that apply to the
+// combined result of the set operation, not to any individual branch.
+// They are hoisted from the rightmost unparenthesized leaf during parsing
+// (see parseSetOpTail) so that branch-local clauses inside parenthesized
+// operands remain on the inner SelectStmt.
 type SetOpStmt struct {
-	Op    SetOperator // the set operator
-	All   bool        // true for ALL quantifier; false means DISTINCT (the default)
-	Left  Node        // SelectStmt or another SetOpStmt
-	Right Node        // SelectStmt or another SetOpStmt
-	Loc   Loc
+	Op      SetOperator    // the set operator
+	All     bool           // true for ALL quantifier; false means DISTINCT (the default)
+	Left    Node           // SelectStmt, ParenSelect, or another SetOpStmt
+	Right   Node           // SelectStmt, ParenSelect, or another SetOpStmt
+	OrderBy []*OrderByItem // outer ORDER BY applying to the combined result
+	Limit   Node           // outer LIMIT applying to the combined result
+	Offset  Node           // outer OFFSET applying to the combined result
+	Loc     Loc
 }
+
+// ParenSelect wraps a parenthesized query expression: (SELECT ...) or
+// (SELECT ... UNION SELECT ...). It distinguishes branch-local clauses
+// (on the inner statement) from outer clauses (on the enclosing SetOpStmt).
+type ParenSelect struct {
+	Sel Node // the inner SelectStmt or SetOpStmt
+	Loc Loc
+}
+
+// Tag implements Node.
+func (n *ParenSelect) Tag() NodeTag { return T_ParenSelect }
+
+// Compile-time assertion that *ParenSelect satisfies Node.
+var _ Node = (*ParenSelect)(nil)
 
 // Tag implements Node.
 func (n *SetOpStmt) Tag() NodeTag { return T_SetOpStmt }

@@ -425,6 +425,16 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return p.parseTruncateTable()
 
 	// DML
+	case int('('):
+		// Parenthesized query expression: (SELECT ...) [UNION ...]
+		if next := p.peekNext(); next.Kind == kwSELECT || next.Kind == kwWITH {
+			paren, err := p.parseParenSelect()
+			if err != nil {
+				return nil, err
+			}
+			return p.parseSetOpTail(paren)
+		}
+		return p.unsupported("(")
 	case kwSELECT:
 		left, err := p.parseSelectStmt()
 		if err != nil {

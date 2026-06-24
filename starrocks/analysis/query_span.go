@@ -147,17 +147,22 @@ func (w *spanWalker) visitSetOp(n *ast.SetOpStmt, outermost bool) {
 	if n == nil {
 		return
 	}
-	switch l := n.Left.(type) {
+	w.visitSetOpArm(n.Left, outermost)
+	w.visitSetOpArm(n.Right, false)
+}
+
+// visitSetOpArm dispatches on a set-op operand, which may be a SelectStmt,
+// another SetOpStmt, or a ParenSelect wrapper.
+func (w *spanWalker) visitSetOpArm(node ast.Node, outermost bool) {
+	switch n := node.(type) {
 	case *ast.SelectStmt:
-		w.visitSelect(l, outermost)
+		w.visitSelect(n, outermost)
 	case *ast.SetOpStmt:
-		w.visitSetOp(l, outermost)
-	}
-	switch r := n.Right.(type) {
-	case *ast.SelectStmt:
-		w.visitSelect(r, false)
-	case *ast.SetOpStmt:
-		w.visitSetOp(r, false)
+		w.visitSetOp(n, outermost)
+	case *ast.ParenSelect:
+		if n != nil {
+			w.visitSetOpArm(n.Sel, outermost)
+		}
 	}
 }
 
@@ -193,12 +198,7 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt, outermost bool) {
 			if cte == nil || cte.Query == nil {
 				continue
 			}
-			switch q := cte.Query.(type) {
-			case *ast.SelectStmt:
-				w.visitSelect(q, false)
-			case *ast.SetOpStmt:
-				w.visitSetOp(q, false)
-			}
+			w.visitSetOpArm(cte.Query, false)
 		}
 	}
 
@@ -371,12 +371,7 @@ func (w *spanWalker) analyzeSubqueryText(text string) {
 		return
 	}
 	for _, stmt := range file.Stmts {
-		switch n := stmt.(type) {
-		case *ast.SelectStmt:
-			w.visitSelect(n, false)
-		case *ast.SetOpStmt:
-			w.visitSetOp(n, false)
-		}
+		w.visitSetOpArm(stmt, false)
 	}
 }
 
