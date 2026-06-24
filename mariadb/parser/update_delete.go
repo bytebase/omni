@@ -52,13 +52,22 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 	}
 	stmt.Tables = tables
 
-	// FOR PORTION OF <period> FROM x TO y (application-time, single-table only).
-	if len(stmt.Tables) == 1 && p.cur.Type == kwFOR {
-		fp, err := p.parseForPortionOf()
-		if err != nil {
-			return nil, err
+	// FOR PORTION OF <period> FROM x TO y (application-time). Valid only on a
+	// single bare base table (no join, no alias before the clause); for UPDATE
+	// the alias, if any, follows the clause:
+	//   UPDATE t FOR PORTION OF p FROM x TO y [AS] alias SET ...
+	if p.cur.Type == kwFOR {
+		if tref := singleBaseTable(stmt.Tables); tref != nil && tref.Alias == "" {
+			fp, err := p.parseForPortionOf()
+			if err != nil {
+				return nil, err
+			}
+			stmt.ForPortionOf = fp
+			if err := p.parseOptionalTableAlias(tref); err != nil {
+				return nil, err
+			}
 		}
-		stmt.ForPortionOf = fp
+		// Otherwise the misplaced FOR is rejected by expect(kwSET) below (1064).
 	}
 
 	// SET clause (required)
@@ -168,6 +177,31 @@ func (p *Parser) parseForPortionOf() (*nodes.ForPortionOf, error) {
 		From:       from,
 		To:         to,
 	}, nil
+}
+
+// singleBaseTable returns the table reference when tables is a single bare base
+// table (not a join or comma-list), else nil.
+func singleBaseTable(tables []nodes.TableExpr) *nodes.TableRef {
+	if len(tables) != 1 {
+		return nil
+	}
+	tref, _ := tables[0].(*nodes.TableRef)
+	return tref
+}
+
+// parseOptionalTableAlias consumes an optional [AS] alias and records it on tref.
+func (p *Parser) parseOptionalTableAlias(tref *nodes.TableRef) error {
+	_, hasAS := p.match(kwAS)
+	if !hasAS && p.cur.Type != tokIDENT {
+		return nil
+	}
+	alias, _, err := p.parseIdent()
+	if err != nil {
+		return err
+	}
+	tref.Alias = alias
+	tref.Loc.End = p.pos()
+	return nil
 }
 
 // parseDeleteStmt parses a DELETE statement.
