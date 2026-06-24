@@ -97,3 +97,75 @@ func TestWithoutOverlapsValidationAllPaths(t *testing.T) {
 		})
 	}
 }
+
+// TestKeyPartZeroPrefixLength: an explicit zero-length key-part prefix `col(0)`
+// is rejected with 1391 on every key path and every column type (grounded vs
+// mariadb:11.8.8). `col(0)` is distinct from a bare `col` (no prefix) — the
+// latter is valid. This also closes the WITHOUT OVERLAPS bare-part bypass:
+// `app_time(0) WITHOUT OVERLAPS` parses past the bare-part check (Length 0) but
+// must still be rejected 1391 (length-0 outranks the WO-shape 1064).
+func TestKeyPartZeroPrefixLength(t *testing.T) {
+	// Negative: every CREATE TABLE key path rejects col(0) with 1391.
+	createCases := []struct{ name, ddl string }{
+		{"primary_key", "CREATE TABLE t (c VARCHAR(20), PRIMARY KEY (c(0)))"},
+		{"unique", "CREATE TABLE t (id INT, c VARCHAR(20), UNIQUE (c(0)))"},
+		{"key", "CREATE TABLE t (id INT, c VARCHAR(20), KEY (c(0)))"},
+		{"blob", "CREATE TABLE t (b BLOB, KEY (b(0)))"},                  // 1391, not 1170
+		{"fulltext", "CREATE TABLE t (t1 TEXT, FULLTEXT KEY k (t1(0)))"}, // FULLTEXT allows a prefix; 0 is still 1391
+		{"without_overlaps", "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s, e), UNIQUE (id, app_time(0) WITHOUT OVERLAPS))"},
+	}
+	for _, tc := range createCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := execErr(t, tc.ddl)
+			if catErr, ok := err.(*Error); !ok || catErr.Code != 1391 {
+				t.Fatalf("want *Error 1391, got %v", err)
+			}
+		})
+	}
+
+	// Negative: CREATE INDEX and ALTER ADD reject col(0) too.
+	stmtCases := []struct{ name, stmt string }{
+		{"create_index", "CREATE INDEX ix ON t (c(0))"},
+		{"alter_add_key", "ALTER TABLE t ADD KEY ix (c(0))"},
+	}
+	for _, tc := range stmtCases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			c.Exec("CREATE TABLE t (id INT, c VARCHAR(20))", nil)
+			r, _ := c.Exec(tc.stmt, &ExecOptions{ContinueOnError: true})
+			if catErr, ok := r[0].Error.(*Error); !ok || catErr.Code != 1391 {
+				t.Fatalf("want 1391, got %v", r[0].Error)
+			}
+		})
+	}
+
+	// Positive: a real prefix, no prefix, and a bare WITHOUT OVERLAPS stay valid.
+	okCases := []struct{ name, ddl string }{
+		{"valid_prefix", "CREATE TABLE t (id INT, c VARCHAR(20), KEY (c(5)))"},
+		{"no_prefix", "CREATE TABLE t (id INT, c VARCHAR(20), KEY (c))"},
+		{"fulltext_valid_prefix", "CREATE TABLE t (t1 TEXT, FULLTEXT KEY k (t1(5)))"},
+		{"bare_without_overlaps", "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s, e), UNIQUE (id, app_time WITHOUT OVERLAPS))"},
+	}
+	for _, tc := range okCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := execErr(t, tc.ddl); err != nil {
+				t.Fatalf("want success, got %v", err)
+			}
+		})
+	}
+}
+
+// TestKeyPartZeroPrefixSpatialExcluded documents that the zero-length prefix
+// check intentionally leaves SPATIAL keys alone. MariaDB rejects a prefix on a
+// SPATIAL key part at parse time (1064 for any length), not 1391 — a separate
+// pre-existing parser-level gap (omni currently accepts SPATIAL prefixes of any
+// length). validateKeyPartPrefixes must NOT report SPATIAL `g(0)` as 1391, which
+// would diverge from MariaDB's 1064.
+func TestKeyPartZeroPrefixSpatialExcluded(t *testing.T) {
+	err := execErr(t, "CREATE TABLE t (g GEOMETRY NOT NULL, SPATIAL KEY k (g(0)))")
+	if catErr, ok := err.(*Error); ok && catErr.Code == 1391 {
+		t.Fatalf("SPATIAL g(0) must not be reported as 1391 (MariaDB rejects it 1064 at parse); got %v", err)
+	}
+}

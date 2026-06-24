@@ -477,6 +477,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// Process table-level constraints.
 	for _, con := range stmt.Constraints {
 		cols := extractColumnNames(con)
+		if err := validateKeyPartPrefixes(con.IndexColumns, con.Type == nodes.ConstrSpatialIndex); err != nil {
+			return err
+		}
 
 		switch con.Type {
 		case nodes.ConstrPrimaryKey:
@@ -1651,6 +1654,36 @@ func indexNameExists(tbl *Table, name string) bool {
 		}
 	}
 	return false
+}
+
+// validateKeyPartPrefixes rejects a key part with an explicit zero-length prefix
+// (e.g. `c(0)`), which MariaDB reports as 1391 on the CREATE TABLE, CREATE INDEX
+// and ALTER ADD key paths, across every column type and key kind including
+// FULLTEXT. The parser records whether a prefix was written (HasPrefix), so
+// `c(0)` (invalid) is distinct from a bare `c` (no prefix, valid). Runs before
+// validateIndexColumns so a BLOB/TEXT `b(0)` is reported as 1391 rather than the
+// 1170 missing-key-length error.
+//
+// SPATIAL keys are excluded: MariaDB forbids a prefix on a SPATIAL key part at
+// parse time (1064 for any length, not 1391), and omni's shared key-part parser
+// currently accepts such prefixes regardless of length — a pre-existing
+// parser-level gap independent of this zero-length check. Reporting a SPATIAL
+// `g(0)` as 1391 here would diverge from MariaDB's 1064, so leave it untouched.
+func validateKeyPartPrefixes(cols []*nodes.IndexColumn, spatial bool) error {
+	if spatial {
+		return nil
+	}
+	for _, ic := range cols {
+		if !ic.HasPrefix || ic.Length > 0 {
+			continue
+		}
+		name := ""
+		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok {
+			name = cr.Column
+		}
+		return errKeyPartZeroLength(name)
+	}
+	return nil
 }
 
 func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial bool) error {

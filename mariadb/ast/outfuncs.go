@@ -3063,7 +3063,7 @@ func writeIndexColumn(sb *strings.Builder, n *IndexColumn) {
 	sb.WriteString("{IDX_COL")
 	fmt.Fprintf(sb, " :loc %d :expr ", n.Loc.Start)
 	writeNode(sb, n.Expr)
-	if n.Length > 0 {
+	if n.HasPrefix {
 		fmt.Fprintf(sb, " :len %d", n.Length)
 	}
 	if n.Desc {

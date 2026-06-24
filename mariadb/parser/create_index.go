@@ -167,6 +167,7 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			col.Length = int(p.cur.Ival)
+			col.HasPrefix = true
 			p.advance()
 			if _, err := p.expect(')'); err != nil {
 				return nil, err

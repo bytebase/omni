@@ -541,6 +541,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 	}
 
 	cols := extractColumnNames(con)
+	if err := validateKeyPartPrefixes(con.IndexColumns, con.Type == nodes.ConstrSpatialIndex); err != nil {
+		return err
+	}
 
 	switch con.Type {
 	case nodes.ConstrPrimaryKey:

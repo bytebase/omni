@@ -48,6 +48,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		}
 		idxCols = append(idxCols, col)
 	}
+	if err := validateKeyPartPrefixes(stmt.Columns, stmt.Spatial); err != nil {
+		return err
+	}
 	if err := validateIndexColumns(tbl, idxCols, stmt.Fulltext, stmt.Spatial); err != nil {
 		return err
 	}

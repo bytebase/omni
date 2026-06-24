@@ -69,6 +69,7 @@ const (
 	ErrColumnSpecifiedTwice              = 1110
 	ErrIncorrectColumnSpecifier          = 1063
 	ErrPeriodNotFound                    = 4156
+	ErrKeyPartZeroLength                 = 1391
 )
 
 var sqlStateMap = map[int]string{
@@ -116,6 +117,7 @@ var sqlStateMap = map[int]string{
 	ErrColumnSpecifiedTwice:              "42000",
 	ErrIncorrectColumnSpecifier:          "42000",
 	ErrPeriodNotFound:                    "HY000",
+	ErrKeyPartZeroLength:                 "HY000",
 	ErrWrongArguments:                    "HY000",
 	ErrWrongNameForIndex:                 "42000",
 	ErrInvalidOnUpdate:                   "HY000",
@@ -341,6 +343,14 @@ func errValuesOnlyForRange() error {
 func errMultipleAppPeriods() error {
 	return &Error{Code: ErrMultipleAppPeriods, SQLState: sqlState(ErrMultipleAppPeriods),
 		Message: "Cannot specify more than one application-time period"}
+}
+
+// errKeyPartZeroLength reports a key part declared with an explicit zero-length
+// prefix, e.g. `KEY (c(0))`. MariaDB rejects this with 1391 on every key path
+// and column type; a zero-length prefix is distinct from no prefix at all.
+func errKeyPartZeroLength(name string) error {
+	return &Error{Code: ErrKeyPartZeroLength, SQLState: sqlState(ErrKeyPartZeroLength),
+		Message: fmt.Sprintf("Key part '%s' length cannot be 0", name)}
 }
 
 func errColumnSpecifiedTwice(col string) error {

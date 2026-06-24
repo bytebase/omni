@@ -338,6 +338,7 @@ type IndexColumn struct {
 	Expr            ExprNode // column name or expression
 	Functional      bool     // true when parsed from functional key-part syntax: (expr)
 	Length          int      // prefix length
+	HasPrefix       bool     // an explicit (length) prefix was given (distinguishes c(0) from c)
 	Desc            bool     // DESC ordering
 	WithoutOverlaps bool     // WITHOUT OVERLAPS (application-time period key part)
 }
