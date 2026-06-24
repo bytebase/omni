@@ -51,7 +51,10 @@ func TestSystemVersioningAlterAST(t *testing.T) {
 		if cmd.PeriodStartCol != "rs" || cmd.PeriodEndCol != "re" {
 			t.Errorf("period cols = (%q, %q), want (rs, re)", cmd.PeriodStartCol, cmd.PeriodEndCol)
 		}
-		if got := ast.NodeToString(stmt); !strings.Contains(got, ":period_for_system_time (rs, re)") {
+		if cmd.PeriodName != "SYSTEM_TIME" {
+			t.Errorf("PeriodName = %q, want SYSTEM_TIME", cmd.PeriodName)
+		}
+		if got := ast.NodeToString(stmt); !strings.Contains(got, ":period_for SYSTEM_TIME (rs, re)") {
 			t.Errorf("NodeToString missing period clause:\n%s", got)
 		}
 	})

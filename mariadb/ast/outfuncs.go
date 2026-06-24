@@ -2849,8 +2849,12 @@ func writeAlterTableCmd(sb *strings.Builder, n *AlterTableCmd) {
 	if n.Name != "" {
 		fmt.Fprintf(sb, " :name %s", n.Name)
 	}
-	if n.PeriodStartCol != "" {
-		fmt.Fprintf(sb, " :period_for_system_time (%s, %s)", n.PeriodStartCol, n.PeriodEndCol)
+	if n.PeriodName != "" {
+		if n.PeriodStartCol != "" {
+			fmt.Fprintf(sb, " :period_for %s (%s, %s)", n.PeriodName, n.PeriodStartCol, n.PeriodEndCol)
+		} else {
+			fmt.Fprintf(sb, " :period_for %s", n.PeriodName)
+		}
 	}
 	if n.NewName != "" {
 		fmt.Fprintf(sb, " :new_name %s", n.NewName)
