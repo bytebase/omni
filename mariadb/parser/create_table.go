@@ -847,6 +847,21 @@ func (p *Parser) parseReferenceAction() nodes.ReferenceAction {
 	return nodes.RefActNone
 }
 
+// matchUnquotedKeyword consumes the current token when it is an UNQUOTED
+// identifier equal (case-insensitively) to kw. A backtick-quoted identifier
+// (e.g. `PERSISTENT`) is a quoted identifier, not the keyword, and must not match
+// — MariaDB rejects a quoted keyword in a keyword position (1064).
+func (p *Parser) matchUnquotedKeyword(kw string) bool {
+	if p.cur.Type != tokIDENT || !strings.EqualFold(p.cur.Str, kw) {
+		return false
+	}
+	if p.cur.Loc < len(p.lexer.input) && p.lexer.input[p.cur.Loc] == '`' {
+		return false
+	}
+	p.advance()
+	return true
+}
+
 // parseGeneratedColumn parses a GENERATED ALWAYS AS (expr) [VIRTUAL|STORED].
 func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 	start := p.pos()
@@ -903,9 +918,8 @@ func (p *Parser) parseGeneratedColumn() (*nodes.GeneratedColumn, error) {
 		gen.Stored = false
 	} else if _, ok := p.match(kwSTORED); ok {
 		gen.Stored = true
-	} else if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "PERSISTENT") {
+	} else if p.matchUnquotedKeyword("PERSISTENT") {
 		// PERSISTENT is MariaDB's non-reserved synonym for STORED.
-		p.advance()
 		gen.Stored = true
 	}
 
@@ -951,9 +965,8 @@ func (p *Parser) parseGeneratedColumnShorthand() (*nodes.GeneratedColumn, error)
 		gen.Stored = false
 	} else if _, ok := p.match(kwSTORED); ok {
 		gen.Stored = true
-	} else if p.cur.Type == tokIDENT && strings.EqualFold(p.cur.Str, "PERSISTENT") {
+	} else if p.matchUnquotedKeyword("PERSISTENT") {
 		// PERSISTENT is MariaDB's non-reserved synonym for STORED.
-		p.advance()
 		gen.Stored = true
 	}
 
@@ -1458,9 +1471,14 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 		optName := p.cur.Str
 		p.advance() // option name
 		p.advance() // '='
+		valStart := p.pos()
 		val, err := p.consumeOptionValue()
 		if err != nil {
 			return nil, false, err
+		}
+		if p.pos() == valStart {
+			// '=' with no value token — MariaDB rejects with 1064.
+			return nil, false, p.syntaxErrorAtCur()
 		}
 		return &nodes.TableOption{Loc: nodes.Loc{Start: start, End: p.pos()}, Name: optName, Value: val}, true, nil
 	}

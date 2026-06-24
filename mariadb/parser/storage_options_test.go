@@ -55,6 +55,39 @@ func TestTableOptionMixedWithStructured(t *testing.T) {
 	}
 }
 
+// TestGeneratedColumnPersistentQuotedReject: backtick-quoted `PERSISTENT` is a
+// quoted identifier, not the keyword — MariaDB 11.8.8 rejects it (1064). (STORED
+// and VIRTUAL match the keyword token, so they were never affected.)
+func TestGeneratedColumnPersistentQuotedReject(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TABLE t (a INT, b INT AS (a+1) `PERSISTENT`)",
+		"CREATE TABLE t (a INT, b INT GENERATED ALWAYS AS (a+1) `PERSISTENT`)",
+	} {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+}
+
+// TestTableOptionNoValueReject: a generic option with `=` but no value token is
+// a syntax error (1064 vs MariaDB 11.8.8) — consumeOptionValue returns "" at
+// EOF/non-value, so the fallback must confirm a value was actually consumed.
+func TestTableOptionNoValueReject(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TABLE t (a INT) PAGE_COMPRESSED=",
+		"CREATE TABLE t (a INT) FOOBAR=",
+	} {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+}
+
+// TestTableOptionQuotedNameAccept: a backtick-quoted option NAME is a valid
+// quoted identifier to MariaDB's parser (validated semantically), so omni must
+// keep accepting it — the quoting guard belongs on the keyword, not the name.
+func TestTableOptionQuotedNameAccept(t *testing.T) {
+	if _, err := Parse("CREATE TABLE t (a INT) `PAGE_COMPRESSED`=1"); err != nil {
+		t.Errorf("unexpected parse error: %v", err)
+	}
+}
+
 // TestTableOptionBareReject: a bare option name without `= value` is a syntax
 // error (1064 vs MariaDB 11.8.8) — the real parse rule the generic fallback keeps.
 func TestTableOptionBareReject(t *testing.T) {
