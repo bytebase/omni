@@ -70,6 +70,22 @@ func TestParseRowConstructor_Reject(t *testing.T) {
 	}
 }
 
+// TestParseRowConstructor_RowKeyword pins the ROW(...) keyword forms. The
+// equality form already parsed; ROW(...) IN (list-of-rows) is newly enabled
+// because each parenthesized list element is now a row constructor.
+func TestParseRowConstructor_RowKeyword(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT * FROM t WHERE ROW(a, b) = ROW(1, 2)",
+		"SELECT * FROM t WHERE ROW(a, b) IN ((1, 2), (3, 4))",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err != nil {
+				t.Errorf("Parse(%q): unexpected parse error: %v", sql, err)
+			}
+		})
+	}
+}
+
 // TestParseRowConstructor_InStatements covers the realized-value shapes the
 // SQL editor sees: composite-key IN, tuple comparison, keyset pagination, and
 // row subqueries. All are valid MariaDB 11.8.
