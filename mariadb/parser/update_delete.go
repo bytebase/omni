@@ -57,7 +57,10 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 	// the alias, if any, follows the clause:
 	//   UPDATE t FOR PORTION OF p FROM x TO y [AS] alias SET ...
 	if p.cur.Type == kwFOR {
-		if tref := singleBaseTable(stmt.Tables); tref != nil && tref.Alias == "" {
+		// A FOR SYSTEM_TIME-bearing target cannot also take FOR PORTION OF
+		// (MariaDB 11.8.8 rejects the combination); leave the trailing FOR to
+		// the expect(kwSET) below, which reports 1064.
+		if tref := singleBaseTable(stmt.Tables); tref != nil && tref.Alias == "" && tref.SystemTime == nil {
 			fp, err := p.parseForPortionOf()
 			if err != nil {
 				return nil, err
