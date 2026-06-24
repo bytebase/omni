@@ -279,11 +279,11 @@ func (p *Parser) parsePeriodFor(stmt *nodes.CreateTableStmt) error {
 func (p *Parser) parsePeriodForCols() (name, startCol, endCol string, err error) {
 	p.advance() // PERIOD
 	p.advance() // FOR
-	if p.cur.Type != tokIDENT {
-		return "", "", "", p.syntaxErrorAtCur()
+	// The period name follows the identifier rule (non-reserved keywords allowed),
+	// like the start/end column names below.
+	if name, _, err = p.parseIdent(); err != nil {
+		return "", "", "", err
 	}
-	name = p.cur.Str
-	p.advance() // period name
 	if _, err = p.expect('('); err != nil {
 		return "", "", "", err
 	}
