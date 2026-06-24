@@ -748,6 +748,26 @@ func validateWithoutOverlaps(tbl *Table) error {
 	return nil
 }
 
+// validateApplicationTimeFinalState validates the application-time period and its
+// WITHOUT OVERLAPS keys against the FINAL table state after an ALTER, so a
+// multi-command statement (ADD PERIOD then MODIFY a column, DROP KEY then DROP
+// PERIOD, or a reversed ADD UNIQUE … WITHOUT OVERLAPS / ADD PERIOD) is judged on
+// its end result like MariaDB. When an application-time period remains, its
+// columns are re-normalized to NOT NULL. Grounded vs 11.8.8.
+func validateApplicationTimeFinalState(tbl *Table) error {
+	if tbl.AppPeriodName != "" {
+		if err := validateAppPeriodColumns(tbl, tbl.AppPeriodName, tbl.AppPeriodStartCol, tbl.AppPeriodEndCol); err != nil {
+			return err
+		}
+		for _, colName := range []string{tbl.AppPeriodStartCol, tbl.AppPeriodEndCol} {
+			if col := tbl.GetColumn(colName); col != nil {
+				col.Nullable = false
+			}
+		}
+	}
+	return validateWithoutOverlaps(tbl)
+}
+
 // validateColsWithoutOverlaps validates a WITHOUT OVERLAPS key. Used by CREATE
 // TABLE, CREATE INDEX, and ALTER ADD — every path that builds a key. For a key
 // that carries a WO part: the flagged part must name the application-time period
@@ -2060,6 +2080,11 @@ func validateAppPeriodColumns(tbl *Table, name, startCol, endCol string) error {
 		if !isTemporalPeriodType(col.DataType) {
 			return errIncorrectColumnSpecifier(colName) // 1063
 		}
+	}
+	// Both columns must have the same type, including precision (e.g. date vs
+	// datetime, or datetime(3) vs datetime(6), is rejected).
+	if s, e := tbl.GetColumn(startCol), tbl.GetColumn(endCol); !strings.EqualFold(s.ColumnType, e.ColumnType) {
+		return errPeriodFieldsDifferentTypes(name) // 4153
 	}
 	return nil
 }

@@ -31,6 +31,8 @@ func TestApplicationTimePeriodValidation(t *testing.T) {
 		{"same_col", "CREATE TABLE t (id INT, s DATE, PERIOD FOR app_time(s, s))", 1110},
 		{"wrong_type", "CREATE TABLE t (id INT, s VARCHAR(10), e VARCHAR(10), PERIOD FOR app_time(s, e))", 1063},
 		{"name_is_column", "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR id(s, e))", 1060},
+		{"different_types", "CREATE TABLE t (id INT, s DATE, e DATETIME, PERIOD FOR app_time(s, e))", 4153},
+		{"different_precision", "CREATE TABLE t (id INT, s DATETIME(3), e DATETIME(6), PERIOD FOR app_time(s, e))", 4153},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -41,6 +43,83 @@ func TestApplicationTimePeriodValidation(t *testing.T) {
 			}
 			if catErr.Code != tc.code {
 				t.Errorf("Code = %d, want %d (message: %q)", catErr.Code, tc.code, catErr.Message)
+			}
+		})
+	}
+}
+
+// TestAlterApplicationTimeFinalState: the application-time period and its
+// WITHOUT OVERLAPS keys are validated on the FINAL ALTER state, not per command.
+// Column mutations that invalidate a period are caught; valid ones keep the
+// period columns NOT NULL; RENAME rewrites the period reference; and the
+// WITHOUT OVERLAPS ↔ period dependency holds regardless of command order.
+// Grounded vs mariadb:11.8.8.
+func TestAlterApplicationTimeFinalState(t *testing.T) {
+	// A column mutation that leaves the period invalid is rejected (final state).
+	for _, tc := range []struct {
+		name, create, alter string
+		code                int
+	}{
+		{"modify_period_col_nontemporal", "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s,e))", "ALTER TABLE t MODIFY s INT", 1063},
+		{"modify_period_col_type_mismatch", "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s,e))", "ALTER TABLE t MODIFY s DATETIME", 4153},
+		{"drop_period_col", "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s,e))", "ALTER TABLE t DROP COLUMN s", 1054},
+		{"multicmd_add_then_modify", "CREATE TABLE t (id INT, s DATE, e DATE)", "ALTER TABLE t ADD PERIOD FOR app_time(s,e), MODIFY s INT", 1063},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			c.Exec(tc.create, nil)
+			r, _ := c.Exec(tc.alter, &ExecOptions{ContinueOnError: true})
+			if catErr, ok := r[0].Error.(*Error); !ok || catErr.Code != tc.code {
+				t.Fatalf("want %d, got %v", tc.code, r[0].Error)
+			}
+		})
+	}
+	// A valid mutation keeps the period columns NOT NULL; RENAME follows.
+	for _, tc := range []struct{ name, create, alter, want string }{
+		{"modify_keeps_not_null", "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s,e))", "ALTER TABLE t MODIFY s DATE", "`s` date NOT NULL"},
+		{"rename_rewrites_period", "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s,e))", "ALTER TABLE t RENAME COLUMN s TO s2", "PERIOD FOR `app_time` (`s2`, `e`)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			c.Exec(tc.create, nil)
+			if r, _ := c.Exec(tc.alter, &ExecOptions{ContinueOnError: true}); r[0].Error != nil {
+				t.Fatalf("alter: %v", r[0].Error)
+			}
+			if show := c.ShowCreateTable("test", "t"); !strings.Contains(show, tc.want) {
+				t.Fatalf("want %q in:\n%s", tc.want, show)
+			}
+		})
+	}
+	// WITHOUT OVERLAPS ↔ period dependency is final-state: DROP in either order
+	// and reversed ADD both work; DROP PERIOD with the key still present fails.
+	wo := "PERIOD FOR app_time(s,e), UNIQUE uk (id, app_time WITHOUT OVERLAPS)"
+	for _, tc := range []struct {
+		name, create, alter string
+		wantErr             int // 0 = success
+	}{
+		{"drop_key_then_period", "CREATE TABLE t (id INT, s DATE, e DATE, " + wo + ")", "ALTER TABLE t DROP KEY uk, DROP PERIOD FOR app_time", 0},
+		{"drop_period_then_key", "CREATE TABLE t (id INT, s DATE, e DATE, " + wo + ")", "ALTER TABLE t DROP PERIOD FOR app_time, DROP KEY uk", 0},
+		{"reversed_add", "CREATE TABLE t (id INT, s DATE, e DATE)", "ALTER TABLE t ADD UNIQUE uk (id, app_time WITHOUT OVERLAPS), ADD PERIOD FOR app_time(s,e)", 0},
+		{"drop_period_key_remains", "CREATE TABLE t (id INT, s DATE, e DATE, " + wo + ")", "ALTER TABLE t DROP PERIOD FOR app_time", 4156},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			c.Exec(tc.create, nil)
+			r, _ := c.Exec(tc.alter, &ExecOptions{ContinueOnError: true})
+			if tc.wantErr == 0 {
+				if r[0].Error != nil {
+					t.Fatalf("want success, got %v", r[0].Error)
+				}
+				return
+			}
+			if catErr, ok := r[0].Error.(*Error); !ok || catErr.Code != tc.wantErr {
+				t.Fatalf("want %d, got %v", tc.wantErr, r[0].Error)
 			}
 		})
 	}

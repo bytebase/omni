@@ -58,7 +58,7 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 		// command through post-mutation validation when the table is already
 		// versioned or the command itself carries versioning metadata. Plain
 		// tables keep the no-clone fast path.
-		if !tbl.SystemVersioned && !cmdAffectsVersioning(cmd) {
+		if !alterNeedsFinalValidation(tbl, cmd) {
 			return c.execAlterCmd(db, tbl, cmd)
 		}
 		// Versioning commands need a post-mutation consistency check, so snapshot
@@ -70,6 +70,10 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 			return err
 		}
 		if err := validateSystemVersioning(tbl); err != nil {
+			*tbl = snapshot
+			return err
+		}
+		if err := validateApplicationTimeFinalState(tbl); err != nil {
 			*tbl = snapshot
 			return err
 		}
@@ -100,6 +104,10 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	// Validate system-versioning consistency across the atomic ALTER as a whole
 	// ("ADD PERIOD ..., ADD SYSTEM VERSIONING" is valid; either one alone is not).
 	if err := validateSystemVersioning(tbl); err != nil {
+		rollback()
+		return err
+	}
+	if err := validateApplicationTimeFinalState(tbl); err != nil {
 		rollback()
 		return err
 	}
@@ -234,23 +242,34 @@ func (c *Catalog) alterAddAppPeriod(tbl *Table, cmd *nodes.AlterTableCmd) error 
 }
 
 // alterDropAppPeriod removes the application-time period: 1091 if no such period
-// exists, or 4156 if a WITHOUT OVERLAPS key still references it. The period
-// columns keep their NOT NULL. Grounded vs 11.8.8.
+// exists. A WITHOUT OVERLAPS key still referencing it is caught by the
+// final-state pass (4156), so a later DROP KEY in the same statement can remove
+// the dependency first. The period columns keep their NOT NULL. Grounded vs 11.8.8.
 func (c *Catalog) alterDropAppPeriod(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	if tbl.AppPeriodName == "" || !strings.EqualFold(tbl.AppPeriodName, cmd.PeriodName) {
 		return errCantDropPeriod(cmd.PeriodName) // 1091
-	}
-	for _, idx := range tbl.Indexes {
-		for _, ic := range idx.Columns {
-			if ic.WithoutOverlaps && strings.EqualFold(ic.Name, tbl.AppPeriodName) {
-				return errPeriodNotFound(tbl.AppPeriodName) // 4156
-			}
-		}
 	}
 	tbl.AppPeriodName = ""
 	tbl.AppPeriodStartCol = ""
 	tbl.AppPeriodEndCol = ""
 	return nil
+}
+
+// alterNeedsFinalValidation reports whether an ALTER command requires the
+// post-mutation consistency checks (system-versioning + application-time), so the
+// no-snapshot fast path is unsafe: the table is already system-versioned or has
+// an application-time period (any column change can invalidate it), the command
+// adds a key (a WITHOUT OVERLAPS key needs the final-state period check), or the
+// command carries versioning / period metadata.
+func alterNeedsFinalValidation(tbl *Table, cmd *nodes.AlterTableCmd) bool {
+	if tbl.SystemVersioned || tbl.AppPeriodName != "" {
+		return true
+	}
+	switch cmd.Type {
+	case nodes.ATAddIndex, nodes.ATAddConstraint:
+		return true
+	}
+	return cmdAffectsVersioning(cmd)
 }
 
 // cmdAffectsVersioning reports whether an ALTER command can change a table's
@@ -626,9 +645,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateColsWithoutOverlaps(tbl, "PRIMARY", idxCols); err != nil {
-			return err
-		}
 		pkIdx := &Index{
 			Name:      "PRIMARY",
 			Table:     tbl,
@@ -665,9 +681,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 		idxCols := buildIndexColumns(con)
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
-			return err
-		}
-		if err := validateColsWithoutOverlaps(tbl, idxName, idxCols); err != nil {
 			return err
 		}
 		tbl.Indexes = append(tbl.Indexes, &Index{
@@ -918,6 +931,13 @@ func (c *Catalog) alterRenameColumn(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	}
 	if strings.EqualFold(tbl.PeriodEndCol, cmd.Name) {
 		tbl.PeriodEndCol = cmd.NewName
+	}
+	// Likewise keep the application-time period referencing the renamed column.
+	if strings.EqualFold(tbl.AppPeriodStartCol, cmd.Name) {
+		tbl.AppPeriodStartCol = cmd.NewName
+	}
+	if strings.EqualFold(tbl.AppPeriodEndCol, cmd.Name) {
+		tbl.AppPeriodEndCol = cmd.NewName
 	}
 	rebuildColIndex(tbl)
 	return nil
