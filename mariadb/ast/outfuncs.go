@@ -39,6 +39,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeUpdateStmt(sb, n)
 	case *DeleteStmt:
 		writeDeleteStmt(sb, n)
+	case *ForPortionOf:
+		writeForPortionOf(sb, n)
 	case *CreateTableStmt:
 		writeCreateTableStmt(sb, n)
 	case *AlterTableStmt:
@@ -713,6 +715,10 @@ func writeUpdateStmt(sb *strings.Builder, n *UpdateStmt) {
 		sb.WriteString(" :tables ")
 		writeTableExprList(sb, n.Tables)
 	}
+	if n.ForPortionOf != nil {
+		sb.WriteString(" :for_portion_of ")
+		writeNode(sb, n.ForPortionOf)
+	}
 	if len(n.SetList) > 0 {
 		sb.WriteString(" :set ")
 		for i, a := range n.SetList {
@@ -753,6 +759,10 @@ func writeDeleteStmt(sb *strings.Builder, n *DeleteStmt) {
 		sb.WriteString(" :tables ")
 		writeTableExprList(sb, n.Tables)
 	}
+	if n.ForPortionOf != nil {
+		sb.WriteString(" :for_portion_of ")
+		writeNode(sb, n.ForPortionOf)
+	}
 	if len(n.Using) > 0 {
 		sb.WriteString(" :using ")
 		writeTableExprList(sb, n.Using)
@@ -773,6 +783,15 @@ func writeDeleteStmt(sb *strings.Builder, n *DeleteStmt) {
 		sb.WriteString(" :returning ")
 		writeNodeList(sb, n.Returning)
 	}
+	sb.WriteString("}")
+}
+
+func writeForPortionOf(sb *strings.Builder, n *ForPortionOf) {
+	sb.WriteString("{FOR_PORTION_OF")
+	fmt.Fprintf(sb, " :period %s :from ", n.PeriodName)
+	writeNode(sb, n.From)
+	sb.WriteString(" :to ")
+	writeNode(sb, n.To)
 	sb.WriteString("}")
 }
 

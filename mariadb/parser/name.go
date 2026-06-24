@@ -233,6 +233,7 @@ var keywordCategories = map[int]keywordCategory{
 	kwDAY:                kwCatUnambiguous,
 	kwHISTORY:            kwCatUnambiguous,
 	kwOVERLAPS:           kwCatUnambiguous,
+	kwPORTION:            kwCatReserved,
 	kwREUSE:              kwCatUnambiguous,
 	kwOPTIONAL:           kwCatUnambiguous,
 	kwX509:               kwCatUnambiguous,

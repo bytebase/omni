@@ -1,6 +1,11 @@
 package parser
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	ast "github.com/bytebase/omni/mariadb/ast"
+)
 
 // TestApplicationTimePeriodCreate covers CREATE TABLE with a named (application-
 // time) PERIOD FOR <name> (start, end) — container-verified accepted by
@@ -100,4 +105,91 @@ func TestWithoutOverlapsQuotedKeywordReject(t *testing.T) {
 	sql := "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s, e), " +
 		"UNIQUE (id, app_time WITHOUT " + bt + "OVERLAPS" + bt + "))"
 	ParseExpectError(t, sql)
+}
+
+// TestForPortionOf covers the application-time FOR PORTION OF <period> FROM x TO y
+// clause on UPDATE / DELETE — container-verified accepted by mariadb:11.8.8.
+func TestForPortionOf(t *testing.T) {
+	for _, sql := range []string{
+		"UPDATE t FOR PORTION OF app_time FROM '2020-01-01' TO '2021-01-01' SET id = 1",
+		"DELETE FROM t FOR PORTION OF app_time FROM '2020-01-01' TO '2021-01-01'",
+		// Non-reserved keyword period names are valid.
+		"UPDATE t FOR PORTION OF history FROM '2020-01-01' TO '2021-01-01' SET id = 1",
+	} {
+		t.Run(sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
+// TestForPortionOfAST: the period name and FROM/TO bounds are captured.
+func TestForPortionOfAST(t *testing.T) {
+	u := parseSeqStmt[*ast.UpdateStmt](t, "UPDATE t FOR PORTION OF app_time FROM '2020-01-01' TO '2021-01-01' SET id = 1")
+	if u.ForPortionOf == nil || u.ForPortionOf.PeriodName != "app_time" || u.ForPortionOf.From == nil || u.ForPortionOf.To == nil {
+		t.Fatalf("UPDATE ForPortionOf = %+v", u.ForPortionOf)
+	}
+	if got := ast.NodeToString(u); !strings.Contains(got, ":for_portion_of {FOR_PORTION_OF :period app_time") {
+		t.Errorf("NodeToString missing for_portion_of:\n%s", got)
+	}
+	d := parseSeqStmt[*ast.DeleteStmt](t, "DELETE FROM t FOR PORTION OF app_time FROM '2020-01-01' TO '2021-01-01'")
+	if d.ForPortionOf == nil || d.ForPortionOf.PeriodName != "app_time" {
+		t.Fatalf("DELETE ForPortionOf = %+v", d.ForPortionOf)
+	}
+}
+
+// TestForPortionOfReject: SYSTEM_TIME is not a valid FOR PORTION OF period, and
+// PORTION must be the keyword (a quoted `PORTION` does not match) — 1064 vs 11.8.8.
+func TestForPortionOfReject(t *testing.T) {
+	for _, sql := range []string{
+		"UPDATE t FOR PORTION OF SYSTEM_TIME FROM '2020-01-01' TO '2021-01-01' SET id = 1",
+		"DELETE FROM t FOR PORTION OF SYSTEM_TIME FROM '2020-01-01' TO '2021-01-01'",
+		"UPDATE t FOR `PORTION` OF app_time FROM '2020-01-01' TO '2021-01-01' SET id = 1",
+	} {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+}
+
+// TestPortionReserved: PORTION is a reserved word in MariaDB 11.8.8 — usable as
+// an identifier (alias, table name, period name) only when quoted.
+func TestPortionReserved(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT 1 AS portion",
+		"CREATE TABLE portion (id INT)",
+		"CREATE TABLE t (s DATE, e DATE, PERIOD FOR portion(s, e))",
+	} {
+		t.Run("reject/"+sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+	for _, sql := range []string{
+		"SELECT 1 AS `portion`",
+		"CREATE TABLE `portion` (id INT)",
+	} {
+		t.Run("ok/"+sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+}
+
+// TestForPortionOfAliasPosition: the table alias goes AFTER FOR PORTION OF for
+// UPDATE (the target before the clause must be a bare base table — no alias, no
+// join) but BEFORE it for DELETE. Grounded vs mariadb:11.8.8.
+func TestForPortionOfAliasPosition(t *testing.T) {
+	const p = "FROM '2020-01-01' TO '2021-01-01'"
+	for _, sql := range []string{
+		"UPDATE t FOR PORTION OF app_time " + p + " AS x SET x.id = 1",             // UPDATE alias after (AS)
+		"UPDATE t FOR PORTION OF app_time " + p + " x SET x.id = 1",                // UPDATE alias after (implicit)
+		"UPDATE t FOR PORTION OF app_time " + p + " history SET history.id = 3",    // non-reserved keyword alias (implicit)
+		"UPDATE t FOR PORTION OF app_time " + p + " AS history SET history.id = 3", // non-reserved keyword alias (AS)
+		"DELETE FROM t AS x FOR PORTION OF app_time " + p,                          // DELETE alias before
+	} {
+		t.Run("ok/"+sql, func(t *testing.T) { ParseAndCheck(t, sql) })
+	}
+	for _, sql := range []string{
+		"UPDATE t AS x FOR PORTION OF app_time " + p + " SET x.id = 1",                  // UPDATE alias before (AS)
+		"UPDATE t x FOR PORTION OF app_time " + p + " SET x.id = 1",                     // UPDATE alias before (implicit)
+		"UPDATE t JOIN u ON t.id = u.id FOR PORTION OF app_time " + p + " SET t.id = 1", // joined target
+		"DELETE FROM t FOR PORTION OF app_time " + p + " AS x",                          // DELETE alias after
+	} {
+		t.Run("reject/"+sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+	// The alias after the clause is captured on the target table.
+	u := parseSeqStmt[*ast.UpdateStmt](t, "UPDATE t FOR PORTION OF app_time "+p+" AS x SET x.id = 1")
+	if tref, ok := u.Tables[0].(*ast.TableRef); !ok || tref.Alias != "x" || u.ForPortionOf == nil {
+		t.Fatalf("alias not captured after clause: %+v", u.Tables[0])
+	}
 }

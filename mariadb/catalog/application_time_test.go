@@ -18,6 +18,24 @@ func TestApplicationTimePeriodCatalog(t *testing.T) {
 	}
 }
 
+// TestForPortionOfAccepted: omni accepts FOR PORTION OF UPDATE/DELETE. DML is
+// parsed and skipped (omni does not catalog-validate DML references), so there
+// is no 4156 here — matching how omni treats all DML.
+func TestForPortionOfAccepted(t *testing.T) {
+	c := New()
+	c.Exec("CREATE DATABASE test", nil)
+	c.SetCurrentDatabase("test")
+	for _, sql := range []string{
+		"UPDATE t FOR PORTION OF app_time FROM '2020-01-01' TO '2021-01-01' SET id = 1",
+		"DELETE FROM t FOR PORTION OF app_time FROM '2020-01-01' TO '2021-01-01'",
+	} {
+		r, _ := c.Exec(sql, &ExecOptions{ContinueOnError: true})
+		if r[0].Error != nil {
+			t.Errorf("%q: %v", sql, r[0].Error)
+		}
+	}
+}
+
 // TestApplicationTimePeriodValidation pins the malformed-CREATE error codes,
 // grounded vs mariadb:11.8.8.
 func TestApplicationTimePeriodValidation(t *testing.T) {

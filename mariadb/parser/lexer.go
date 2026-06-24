@@ -559,6 +559,7 @@ const (
 	kwDAY
 	kwHISTORY
 	kwOVERLAPS
+	kwPORTION
 	kwREUSE
 	kwOPTIONAL
 	kwX509
@@ -1404,6 +1405,7 @@ var keywords = map[string]int{
 	"day":                 kwDAY,
 	"history":             kwHISTORY,
 	"overlaps":            kwOVERLAPS,
+	"portion":             kwPORTION,
 	"reuse":               kwREUSE,
 	"optional":            kwOPTIONAL,
 	"x509":                kwX509,

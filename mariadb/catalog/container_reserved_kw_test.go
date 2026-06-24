@@ -8,6 +8,17 @@ import (
 	mysqlparser "github.com/bytebase/omni/mariadb/parser"
 )
 
+// mariaDBReservedNotInMySQL lists keywords omni reserves because MariaDB
+// reserves them, but the MySQL 8.0 container oracle does not — so MySQL accepts
+// them as names while omni correctly rejects them. These are MariaDB-vs-MySQL
+// reserved-word differences, not omni bugs, so they are excluded from the
+// mismatch report. Grounded vs mariadb:11.8.8 (SELECT 1 AS <kw>,
+// CREATE INDEX <kw> ON …, SELECT … <kw> are all 1064).
+var mariaDBReservedNotInMySQL = map[string]bool{
+	"PORTION":   true, // FOR PORTION OF (application-time DML)
+	"RETURNING": true, // INSERT / DELETE … RETURNING
+}
+
 // TestContainer_ReservedKeywordAcceptance systematically tests whether omni
 // and MySQL 8.0 agree on which reserved keywords are accepted in various
 // syntactic "name" positions. A mismatch (MySQL accepts, omni rejects)
@@ -114,7 +125,7 @@ func TestContainer_ReservedKeywordAcceptance(t *testing.T) {
 				ctrOK := ctrErr == nil
 				omniOK := omniErr == nil
 
-				if ctrOK && !omniOK {
+				if ctrOK && !omniOK && !mariaDBReservedNotInMySQL[strings.ToUpper(kw)] {
 					mismatches = append(mismatches, fmt.Sprintf(
 						"  %s: MySQL accepts, omni rejects — %v", kw, omniErr))
 				}

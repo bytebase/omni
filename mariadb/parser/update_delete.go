@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -49,6 +51,24 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 		return nil, err
 	}
 	stmt.Tables = tables
+
+	// FOR PORTION OF <period> FROM x TO y (application-time). Valid only on a
+	// single bare base table (no join, no alias before the clause); for UPDATE
+	// the alias, if any, follows the clause:
+	//   UPDATE t FOR PORTION OF p FROM x TO y [AS] alias SET ...
+	if p.cur.Type == kwFOR {
+		if tref := singleBaseTable(stmt.Tables); tref != nil && tref.Alias == "" {
+			fp, err := p.parseForPortionOf()
+			if err != nil {
+				return nil, err
+			}
+			stmt.ForPortionOf = fp
+			if err := p.parseOptionalTableAlias(tref); err != nil {
+				return nil, err
+			}
+		}
+		// Otherwise the misplaced FOR is rejected by expect(kwSET) below (1064).
+	}
 
 	// SET clause (required)
 	if _, err := p.expect(kwSET); err != nil {
@@ -106,6 +126,82 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil
+}
+
+// parseForPortionOf parses the application-time clause
+//
+//	FOR PORTION OF <period> FROM <expr> TO <expr>
+//
+// on a single-table UPDATE / DELETE. FOR is the current token. The period name
+// follows the identifier rule (non-reserved keywords allowed); SYSTEM_TIME is
+// rejected (1064), matching MariaDB. PORTION is a non-reserved keyword.
+func (p *Parser) parseForPortionOf() (*nodes.ForPortionOf, error) {
+	start := p.pos()
+	p.advance() // FOR
+	if _, err := p.expect(kwPORTION); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwOF); err != nil {
+		return nil, err
+	}
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	if strings.EqualFold(name, "SYSTEM_TIME") {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	from, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if !p.collectMode() && from == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(kwTO); err != nil {
+		return nil, err
+	}
+	to, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if !p.collectMode() && to == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return &nodes.ForPortionOf{
+		Loc:        nodes.Loc{Start: start, End: p.pos()},
+		PeriodName: name,
+		From:       from,
+		To:         to,
+	}, nil
+}
+
+// singleBaseTable returns the table reference when tables is a single bare base
+// table (not a join or comma-list), else nil.
+func singleBaseTable(tables []nodes.TableExpr) *nodes.TableRef {
+	if len(tables) != 1 {
+		return nil
+	}
+	tref, _ := tables[0].(*nodes.TableRef)
+	return tref
+}
+
+// parseOptionalTableAlias consumes an optional [AS] alias and records it on tref.
+func (p *Parser) parseOptionalTableAlias(tref *nodes.TableRef) error {
+	_, hasAS := p.match(kwAS)
+	if !hasAS && !p.isIdentToken() {
+		return nil
+	}
+	alias, _, err := p.parseIdent()
+	if err != nil {
+		return err
+	}
+	tref.Alias = alias
+	tref.Loc.End = p.pos()
+	return nil
 }
 
 // parseDeleteStmt parses a DELETE statement.
@@ -221,6 +317,15 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 			return nil, err
 		}
 		stmt.Using = using
+	}
+
+	// FOR PORTION OF <period> FROM x TO y (application-time, single-table only).
+	if len(stmt.Tables) == 1 && len(stmt.Using) == 0 && p.cur.Type == kwFOR {
+		fp, err := p.parseForPortionOf()
+		if err != nil {
+			return nil, err
+		}
+		stmt.ForPortionOf = fp
 	}
 
 	// WHERE clause (optional)
