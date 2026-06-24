@@ -1167,6 +1167,30 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 
+	// A comma after the first expression makes this a row constructor:
+	// `(expr, expr, ...)` with >= 2 elements (e.g. `(a, b) IN ((1, 2))`,
+	// keyset `(a, b) > (?, ?)`). A single `(expr)` stays a ParenExpr; empty
+	// parens and a trailing comma remain syntax errors, matching MariaDB.
+	if p.cur.Type == ',' {
+		row := &nodes.RowExpr{Loc: nodes.Loc{Start: start}, Items: []nodes.ExprNode{expr}}
+		for p.cur.Type == ',' {
+			p.advance() // consume ','
+			item, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if item == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			row.Items = append(row.Items, item)
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		row.Loc.End = p.pos()
+		return row, nil
+	}
+
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
