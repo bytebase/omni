@@ -748,6 +748,14 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		return p.parseIdentExpr()
 	case kwTRY_CONVERT:
 		return p.parseTryConvert()
+	case kwLEFT, kwRIGHT:
+		if p.peekNext().Type == '(' {
+			return p.parseIdentExpr()
+		}
+		return nil, nil
+	case kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwSESSION_USER,
+		kwSYSTEM_USER, kwUSER, kwCURRENT_DATE, kwCURRENT_TIME:
+		return p.parseNiladicKeywordFunc()
 	case tokIDENT:
 		return p.parseIdentExpr()
 	default:
@@ -762,6 +770,16 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		}
 		return nil, nil
 	}
+}
+
+// parseNiladicKeywordFunc handles SQL-standard niladic functions that are
+// CoreKeywords and take no parentheses: CURRENT_TIMESTAMP, CURRENT_USER, etc.
+func (p *Parser) parseNiladicKeywordFunc() (nodes.ExprNode, error) {
+	tok := p.advance()
+	return &nodes.FuncCallExpr{
+		Name: &nodes.TableRef{Object: tok.Str, Loc: nodes.Loc{Start: tok.Loc, End: p.prevEnd()}},
+		Loc:  nodes.Loc{Start: tok.Loc, End: p.prevEnd()},
+	}, nil
 }
 
 // parseCast parses CAST(expr AS data_type).
