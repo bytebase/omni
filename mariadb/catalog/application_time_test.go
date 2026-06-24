@@ -48,6 +48,40 @@ func TestApplicationTimePeriodValidation(t *testing.T) {
 	}
 }
 
+// TestApplicationTimePeriodNotNullDefault: coercing an application-time period
+// column to NOT NULL drops an explicit DEFAULT NULL (MariaDB strips it) but
+// keeps a non-null default. Grounded vs mariadb:11.8.8.
+func TestApplicationTimePeriodNotNullDefault(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		stmts        []string
+		want, absent string
+	}{
+		{"create_strips_null_default", []string{"CREATE TABLE t (s DATE DEFAULT NULL, e DATE DEFAULT NULL, PERIOD FOR app_time(s,e))"}, "`s` date NOT NULL", "DEFAULT NULL"},
+		{"alter_add_strips_null_default", []string{"CREATE TABLE t (s DATE DEFAULT NULL, e DATE DEFAULT NULL)", "ALTER TABLE t ADD PERIOD FOR app_time(s,e)"}, "`s` date NOT NULL", "DEFAULT NULL"},
+		{"modify_strips_null_default", []string{"CREATE TABLE t (s DATE, e DATE, PERIOD FOR app_time(s,e))", "ALTER TABLE t MODIFY s DATE DEFAULT NULL"}, "`s` date NOT NULL", "DEFAULT NULL"},
+		{"keeps_non_null_default", []string{"CREATE TABLE t (s DATE DEFAULT '2020-01-01', e DATE DEFAULT '2020-01-01', PERIOD FOR app_time(s,e))"}, "`s` date NOT NULL DEFAULT '2020-01-01'", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			for _, s := range tc.stmts {
+				if r, _ := c.Exec(s, &ExecOptions{ContinueOnError: true}); r[0].Error != nil {
+					t.Fatalf("%q: %v", s, r[0].Error)
+				}
+			}
+			show := c.ShowCreateTable("test", "t")
+			if !strings.Contains(show, tc.want) {
+				t.Fatalf("want %q in:\n%s", tc.want, show)
+			}
+			if tc.absent != "" && strings.Contains(show, tc.absent) {
+				t.Fatalf("%q should be absent in:\n%s", tc.absent, show)
+			}
+		})
+	}
+}
+
 // TestAlterApplicationTimeFinalState: the application-time period and its
 // WITHOUT OVERLAPS keys are validated on the FINAL ALTER state, not per command.
 // Column mutations that invalidate a period are caught; valid ones keep the

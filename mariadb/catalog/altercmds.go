@@ -235,7 +235,7 @@ func (c *Catalog) alterAddAppPeriod(tbl *Table, cmd *nodes.AlterTableCmd) error 
 	// MariaDB makes application-time period columns NOT NULL.
 	for _, colName := range []string{cmd.PeriodStartCol, cmd.PeriodEndCol} {
 		if col := tbl.GetColumn(colName); col != nil {
-			col.Nullable = false
+			normalizeAppPeriodColumn(col)
 		}
 	}
 	return nil

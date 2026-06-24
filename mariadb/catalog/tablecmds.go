@@ -418,7 +418,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		for _, col := range tbl.Columns {
 			if strings.EqualFold(col.Name, tbl.AppPeriodStartCol) ||
 				strings.EqualFold(col.Name, tbl.AppPeriodEndCol) {
-				col.Nullable = false
+				normalizeAppPeriodColumn(col)
 			}
 		}
 	}
@@ -748,6 +748,16 @@ func validateWithoutOverlaps(tbl *Table) error {
 	return nil
 }
 
+// normalizeAppPeriodColumn coerces an application-time period column to NOT NULL
+// and drops an explicit DEFAULT NULL — MariaDB strips a NULL default when the
+// column becomes NOT NULL, while keeping a non-null default.
+func normalizeAppPeriodColumn(col *Column) {
+	col.Nullable = false
+	if col.Default != nil && strings.EqualFold(*col.Default, "NULL") {
+		col.Default = nil
+	}
+}
+
 // validateApplicationTimeFinalState validates the application-time period and its
 // WITHOUT OVERLAPS keys against the FINAL table state after an ALTER, so a
 // multi-command statement (ADD PERIOD then MODIFY a column, DROP KEY then DROP
@@ -761,7 +771,7 @@ func validateApplicationTimeFinalState(tbl *Table) error {
 		}
 		for _, colName := range []string{tbl.AppPeriodStartCol, tbl.AppPeriodEndCol} {
 			if col := tbl.GetColumn(colName); col != nil {
-				col.Nullable = false
+				normalizeAppPeriodColumn(col)
 			}
 		}
 	}
