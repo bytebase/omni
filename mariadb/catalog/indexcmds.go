@@ -79,7 +79,7 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	if err := synthesizeFunctionalIndexColumns(tbl, idx); err != nil {
 		return err
 	}
-	if err := validateColsWithoutOverlaps(tbl, idx.Columns); err != nil {
+	if err := validateColsWithoutOverlaps(tbl, idx.Name, idx.Columns); err != nil {
 		return err
 	}
 

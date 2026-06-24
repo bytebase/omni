@@ -741,22 +741,57 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 // the table's application-time period (else 4156). Grounded vs 11.8.8.
 func validateWithoutOverlaps(tbl *Table) error {
 	for _, idx := range tbl.Indexes {
-		if err := validateColsWithoutOverlaps(tbl, idx.Columns); err != nil {
+		if err := validateColsWithoutOverlaps(tbl, idx.Name, idx.Columns); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// validateColsWithoutOverlaps checks a single key's columns. Used by CREATE
-// TABLE, CREATE INDEX, and ALTER ADD — every path that builds a key.
-func validateColsWithoutOverlaps(tbl *Table, cols []*IndexColumn) error {
+// validateColsWithoutOverlaps validates a WITHOUT OVERLAPS key. Used by CREATE
+// TABLE, CREATE INDEX, and ALTER ADD — every path that builds a key. For a key
+// that carries a WO part: the flagged part must name the application-time period
+// (else 4156), and every ordinary (non-WO) column part must be a real column
+// (else 1072) that is not an application-time period column (else 4170). A
+// system-time period column is allowed as an ordinary part. Keys without a WO
+// part are not validated here. Grounded vs 11.8.8.
+func validateColsWithoutOverlaps(tbl *Table, keyName string, cols []*IndexColumn) error {
+	hasOverlaps := false
 	for _, ic := range cols {
-		if ic.WithoutOverlaps && !strings.EqualFold(ic.Name, tbl.AppPeriodName) {
-			return errPeriodNotFound(ic.Name)
+		if ic.WithoutOverlaps {
+			hasOverlaps = true
+			break
+		}
+	}
+	if !hasOverlaps {
+		return nil
+	}
+	for _, ic := range cols {
+		if ic.WithoutOverlaps {
+			if !strings.EqualFold(ic.Name, tbl.AppPeriodName) {
+				return errPeriodNotFound(ic.Name)
+			}
+			continue
+		}
+		if ic.Expr != "" {
+			continue // functional key part — not a simple column reference
+		}
+		if tbl.GetColumn(ic.Name) == nil {
+			return errKeyColumnDoesNotExist(ic.Name)
+		}
+		if isAppPeriodColumn(tbl, ic.Name) {
+			return errKeyIncludesPeriodColumn(keyName, ic.Name)
 		}
 	}
 	return nil
+}
+
+// isAppPeriodColumn reports whether colName is the start or end column of the
+// table's application-time period. System-time period columns are excluded —
+// MariaDB allows those as ordinary key parts.
+func isAppPeriodColumn(tbl *Table, colName string) bool {
+	return tbl.AppPeriodName != "" &&
+		(strings.EqualFold(colName, tbl.AppPeriodStartCol) || strings.EqualFold(colName, tbl.AppPeriodEndCol))
 }
 
 func errGIPKColumnNameReserved() error {

@@ -98,6 +98,110 @@ func TestWithoutOverlapsValidationAllPaths(t *testing.T) {
 	}
 }
 
+// TestWithoutOverlapsOrdinaryParts: in a WITHOUT OVERLAPS key, the ordinary
+// (non-WO) parts must be real columns (else 1072) that are NOT application-time
+// period columns (else 4170). A system-time period column is allowed as an
+// ordinary part (no 4170). Grounded vs mariadb:11.8.8.
+func TestWithoutOverlapsOrdinaryParts(t *testing.T) {
+	base := "CREATE TABLE t (id INT, x INT, s DATE, e DATE, PERIOD FOR app_time(s,e), %s)"
+	bad := []struct {
+		name, key string
+		code      int
+	}{
+		{"period_start_col", "UNIQUE (s, app_time WITHOUT OVERLAPS)", 4170},
+		{"period_end_col", "UNIQUE (e, app_time WITHOUT OVERLAPS)", 4170},
+		{"period_col_after_valid", "UNIQUE (id, s, app_time WITHOUT OVERLAPS)", 4170},
+		{"period_name_as_ordinary", "UNIQUE (app_time, app_time WITHOUT OVERLAPS)", 1072},
+		{"nonexistent_ordinary", "UNIQUE (nope, app_time WITHOUT OVERLAPS)", 1072},
+	}
+	for _, tc := range bad {
+		t.Run(tc.name, func(t *testing.T) {
+			err := execErr(t, strings.Replace(base, "%s", tc.key, 1))
+			if catErr, ok := err.(*Error); !ok || catErr.Code != tc.code {
+				t.Fatalf("want *Error %d, got %v", tc.code, err)
+			}
+		})
+	}
+	for _, key := range []string{
+		"UNIQUE (id, app_time WITHOUT OVERLAPS)",
+		"UNIQUE (id, x, app_time WITHOUT OVERLAPS)",
+	} {
+		t.Run("ok_"+key, func(t *testing.T) {
+			if err := execErr(t, strings.Replace(base, "%s", key, 1)); err != nil {
+				t.Fatalf("want success, got %v", err)
+			}
+		})
+	}
+}
+
+// TestWithoutOverlapsOrdinaryPartsAllPaths: the ordinary-part rules apply on
+// CREATE INDEX and ALTER ADD, not only CREATE TABLE.
+func TestWithoutOverlapsOrdinaryPartsAllPaths(t *testing.T) {
+	for _, tc := range []struct {
+		name, stmt string
+		code       int
+	}{
+		{"create_index_period_col", "CREATE UNIQUE INDEX ux ON t (s, app_time WITHOUT OVERLAPS)", 4170},
+		{"alter_add_period_col", "ALTER TABLE t ADD UNIQUE KEY ux (s, app_time WITHOUT OVERLAPS)", 4170},
+		{"create_index_nonexistent", "CREATE UNIQUE INDEX ux ON t (nope, app_time WITHOUT OVERLAPS)", 1072},
+		{"alter_add_nonexistent", "ALTER TABLE t ADD UNIQUE KEY ux (nope, app_time WITHOUT OVERLAPS)", 1072},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			c.Exec("CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s, e))", nil)
+			r, _ := c.Exec(tc.stmt, &ExecOptions{ContinueOnError: true})
+			if catErr, ok := r[0].Error.(*Error); !ok || catErr.Code != tc.code {
+				t.Fatalf("want %d, got %v", tc.code, r[0].Error)
+			}
+		})
+	}
+}
+
+// TestDropColumnRemovesOrphanedWithoutOverlapsKey: dropping the sole ordinary
+// column of a WITHOUT OVERLAPS key removes the whole key + constraint (MariaDB
+// 11.8.8 leaves no period-only key). Regular keys are unaffected: a sole column
+// drop removes the key; a composite key shrinks.
+func TestDropColumnRemovesOrphanedWithoutOverlapsKey(t *testing.T) {
+	for _, tc := range []struct {
+		name, create, drop, wantAbsent, wantPresent string
+	}{
+		{
+			"wo_single_ordinary",
+			"CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s, e), UNIQUE (id, app_time WITHOUT OVERLAPS))",
+			"ALTER TABLE t DROP COLUMN id", "WITHOUT OVERLAPS", "",
+		},
+		{
+			"regular_single_col",
+			"CREATE TABLE t (id INT, y INT, UNIQUE (id))",
+			"ALTER TABLE t DROP COLUMN id", "UNIQUE KEY", "",
+		},
+		{
+			"regular_composite_shrinks",
+			"CREATE TABLE t (id INT, x INT, UNIQUE (id, x))",
+			"ALTER TABLE t DROP COLUMN id", "", "`x`",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			c.Exec(tc.create, nil)
+			if r, _ := c.Exec(tc.drop, &ExecOptions{ContinueOnError: true}); r[0].Error != nil {
+				t.Fatalf("drop column: %v", r[0].Error)
+			}
+			show := c.ShowCreateTable("test", "t")
+			if tc.wantAbsent != "" && strings.Contains(show, tc.wantAbsent) {
+				t.Fatalf("%q should be absent after drop:\n%s", tc.wantAbsent, show)
+			}
+			if tc.wantPresent != "" && !strings.Contains(show, tc.wantPresent) {
+				t.Fatalf("%q should be present after drop:\n%s", tc.wantPresent, show)
+			}
+		})
+	}
+}
+
 // TestKeyPartZeroPrefixLength: an explicit zero-length key-part prefix `col(0)`
 // is rejected with 1391 on every key path and every column type (grounded vs
 // mariadb:11.8.8). `col(0)` is distinct from a bare `col` (no prefix) — the
