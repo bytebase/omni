@@ -77,3 +77,23 @@ func TestWithoutOverlapsValidation(t *testing.T) {
 		})
 	}
 }
+
+// TestWithoutOverlapsValidationAllPaths: the 4156 period-name check applies to
+// CREATE INDEX and ALTER ADD too, not just CREATE TABLE.
+func TestWithoutOverlapsValidationAllPaths(t *testing.T) {
+	for _, tc := range []struct{ name, stmt string }{
+		{"create_unique_index", "CREATE UNIQUE INDEX ux ON t (id, e WITHOUT OVERLAPS)"},
+		{"alter_add_unique_key", "ALTER TABLE t ADD UNIQUE KEY ux (id, e WITHOUT OVERLAPS)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := New()
+			c.Exec("CREATE DATABASE test", nil)
+			c.SetCurrentDatabase("test")
+			c.Exec("CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s, e))", nil)
+			r, _ := c.Exec(tc.stmt, &ExecOptions{ContinueOnError: true})
+			if catErr, ok := r[0].Error.(*Error); !ok || catErr.Code != 4156 {
+				t.Fatalf("want 4156, got %v", r[0].Error)
+			}
+		})
+	}
+}

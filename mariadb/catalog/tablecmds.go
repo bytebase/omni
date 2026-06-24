@@ -738,10 +738,19 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 // the table's application-time period (else 4156). Grounded vs 11.8.8.
 func validateWithoutOverlaps(tbl *Table) error {
 	for _, idx := range tbl.Indexes {
-		for _, ic := range idx.Columns {
-			if ic.WithoutOverlaps && !strings.EqualFold(ic.Name, tbl.AppPeriodName) {
-				return errPeriodNotFound(ic.Name)
-			}
+		if err := validateColsWithoutOverlaps(tbl, idx.Columns); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateColsWithoutOverlaps checks a single key's columns. Used by CREATE
+// TABLE, CREATE INDEX, and ALTER ADD — every path that builds a key.
+func validateColsWithoutOverlaps(tbl *Table, cols []*IndexColumn) error {
+	for _, ic := range cols {
+		if ic.WithoutOverlaps && !strings.EqualFold(ic.Name, tbl.AppPeriodName) {
+			return errPeriodNotFound(ic.Name)
 		}
 	}
 	return nil

@@ -72,23 +72,12 @@ func (p *Parser) parseCreateIndexStmt(unique bool, fulltext bool, spatial bool) 
 	}
 	stmt.Table = tbl
 
-	// (key_part, ...)
-	if _, err := p.expect('('); err != nil {
+	// (key_part, ...) — WITHOUT OVERLAPS allowed only on a UNIQUE index.
+	cols, err := p.parseParenIndexKeyParts(stmt.Unique)
+	if err != nil {
 		return nil, err
 	}
-	for {
-		col, err := p.parseIndexKeyPart()
-		if err != nil {
-			return nil, err
-		}
-		stmt.Columns = append(stmt.Columns, col)
-		if _, ok := p.match(','); !ok {
-			break
-		}
-	}
-	if _, err := p.expect(')'); err != nil {
-		return nil, err
-	}
+	stmt.Columns = cols
 
 	// [index_option] ...
 	for {
@@ -218,10 +207,19 @@ func indexColumnsToNames(cols []*nodes.IndexColumn) []string {
 	return names
 }
 
-// parseParenIndexKeyParts parses a parenthesized list of index key parts.
+// constrAllowsOverlaps reports whether a table constraint type permits a
+// WITHOUT OVERLAPS key part (UNIQUE / PRIMARY KEY only).
+func constrAllowsOverlaps(t nodes.ConstraintType) bool {
+	return t == nodes.ConstrPrimaryKey || t == nodes.ConstrUnique
+}
+
+// parseParenIndexKeyParts parses a parenthesized list of index key parts:
 //
 //	(key_part [, key_part] ...)
-func (p *Parser) parseParenIndexKeyParts() ([]*nodes.IndexColumn, error) {
+//
+// allowOverlaps is true only for UNIQUE / PRIMARY KEY definitions, where a
+// WITHOUT OVERLAPS application-time period key part is valid.
+func (p *Parser) parseParenIndexKeyParts(allowOverlaps bool) ([]*nodes.IndexColumn, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}
@@ -240,7 +238,16 @@ func (p *Parser) parseParenIndexKeyParts() ([]*nodes.IndexColumn, error) {
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
-	// A WITHOUT OVERLAPS key part requires at least one ordinary key column.
+	if err := p.validateOverlapsParts(cols, allowOverlaps); err != nil {
+		return nil, err
+	}
+	return cols, nil
+}
+
+// validateOverlapsParts enforces the WITHOUT OVERLAPS grammar rules (1064): it
+// is valid only on a UNIQUE/PRIMARY KEY, and the key must have at least one
+// ordinary key part besides the period.
+func (p *Parser) validateOverlapsParts(cols []*nodes.IndexColumn, allowOverlaps bool) error {
 	overlaps, ordinary := 0, 0
 	for _, c := range cols {
 		if c.WithoutOverlaps {
@@ -249,10 +256,10 @@ func (p *Parser) parseParenIndexKeyParts() ([]*nodes.IndexColumn, error) {
 			ordinary++
 		}
 	}
-	if overlaps > 0 && ordinary == 0 {
-		return nil, p.syntaxErrorAtCur()
+	if overlaps > 0 && (!allowOverlaps || ordinary == 0) {
+		return p.syntaxErrorAtCur()
 	}
-	return cols, nil
+	return nil
 }
 
 // parseIndexOption parses a single index_option.

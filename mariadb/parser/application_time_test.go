@@ -39,3 +39,18 @@ func TestWithoutOverlapsParse(t *testing.T) {
 func TestWithoutOverlapsReject(t *testing.T) {
 	ParseExpectError(t, "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s, e), UNIQUE (app_time WITHOUT OVERLAPS))")
 }
+
+// TestWithoutOverlapsGrammarReject: WITHOUT OVERLAPS is only valid on a
+// UNIQUE/PRIMARY KEY and needs an ordinary key column (else 1064 vs 11.8.8),
+// across table constraints, CREATE INDEX, and ALTER.
+func TestWithoutOverlapsGrammarReject(t *testing.T) {
+	const sv = "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s, e), "
+	for _, sql := range []string{
+		sv + "KEY k (id, app_time WITHOUT OVERLAPS))",             // non-unique table KEY
+		"CREATE INDEX k ON t (id, app_time WITHOUT OVERLAPS)",     // non-unique CREATE INDEX
+		"ALTER TABLE t ADD KEY k (id, app_time WITHOUT OVERLAPS)", // non-unique ALTER ADD KEY
+		"CREATE UNIQUE INDEX ux ON t (app_time WITHOUT OVERLAPS)", // unique, only-period
+	} {
+		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })
+	}
+}

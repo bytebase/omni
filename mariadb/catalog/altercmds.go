@@ -561,6 +561,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			}
 		}
 		idxCols := buildIndexColumns(con)
+		if err := validateColsWithoutOverlaps(tbl, idxCols); err != nil {
+			return err
+		}
 		pkIdx := &Index{
 			Name:      "PRIMARY",
 			Table:     tbl,
@@ -597,6 +600,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		}
 		idxCols := buildIndexColumns(con)
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+			return err
+		}
+		if err := validateColsWithoutOverlaps(tbl, idxCols); err != nil {
 			return err
 		}
 		tbl.Indexes = append(tbl.Indexes, &Index{
