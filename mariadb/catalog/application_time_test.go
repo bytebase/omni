@@ -157,6 +157,22 @@ func TestKeyPartZeroPrefixLength(t *testing.T) {
 	}
 }
 
+// TestCreateTableLikePreservesWithoutOverlaps: CREATE TABLE ... LIKE copies the
+// application-time period and the WITHOUT OVERLAPS modifier on its key (MariaDB
+// 11.8.8 preserves both). createTableLike copied the period but dropped the
+// per-key-part WithoutOverlaps flag.
+func TestCreateTableLikePreservesWithoutOverlaps(t *testing.T) {
+	c := New()
+	c.Exec("CREATE DATABASE test", nil)
+	c.SetCurrentDatabase("test")
+	c.Exec("CREATE TABLE src (id INT, s DATE, e DATE, PERIOD FOR app_time(s, e), UNIQUE (id, app_time WITHOUT OVERLAPS))", nil)
+	c.Exec("CREATE TABLE cpy LIKE src", nil)
+	show := c.ShowCreateTable("test", "cpy")
+	if !strings.Contains(show, "`app_time` WITHOUT OVERLAPS") {
+		t.Fatalf("CREATE TABLE LIKE should preserve WITHOUT OVERLAPS:\n%s", show)
+	}
+}
+
 // TestKeyPartZeroPrefixSpatialExcluded documents that the zero-length prefix
 // check intentionally leaves SPATIAL keys alone. MariaDB rejects a prefix on a
 // SPATIAL key part at parse time (1064 for any length), not 1391 — a separate

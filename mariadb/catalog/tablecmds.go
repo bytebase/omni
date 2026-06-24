@@ -2623,11 +2623,12 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 		cols := make([]*IndexColumn, len(srcIdx.Columns))
 		for i, sc := range srcIdx.Columns {
 			cols[i] = &IndexColumn{
-				Name:       sc.Name,
-				Length:     sc.Length,
-				Descending: sc.Descending,
-				Expr:       sc.Expr,
-				ExprNode:   sc.ExprNode,
+				Name:            sc.Name,
+				Length:          sc.Length,
+				Descending:      sc.Descending,
+				Expr:            sc.Expr,
+				ExprNode:        sc.ExprNode,
+				WithoutOverlaps: sc.WithoutOverlaps,
 			}
 		}
 		idx.Columns = cols
