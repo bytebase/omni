@@ -36,8 +36,9 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 	idxCols := make([]*IndexColumn, 0, len(stmt.Columns))
 	for _, ic := range stmt.Columns {
 		col := &IndexColumn{
-			Length:     ic.Length,
-			Descending: ic.Desc,
+			Length:          ic.Length,
+			Descending:      ic.Desc,
+			WithoutOverlaps: ic.WithoutOverlaps,
 		}
 		if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 			col.Name = cr.Column

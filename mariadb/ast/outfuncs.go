@@ -3069,6 +3069,9 @@ func writeIndexColumn(sb *strings.Builder, n *IndexColumn) {
 	if n.Desc {
 		sb.WriteString(" :desc true")
 	}
+	if n.WithoutOverlaps {
+		sb.WriteString(" :without_overlaps true")
+	}
 	sb.WriteString("}")
 }
 

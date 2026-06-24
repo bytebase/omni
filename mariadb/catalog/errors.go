@@ -68,6 +68,7 @@ const (
 	ErrMultipleAppPeriods                = 4154
 	ErrColumnSpecifiedTwice              = 1110
 	ErrIncorrectColumnSpecifier          = 1063
+	ErrPeriodNotFound                    = 4156
 )
 
 var sqlStateMap = map[int]string{
@@ -114,6 +115,7 @@ var sqlStateMap = map[int]string{
 	ErrMultipleAppPeriods:                "HY000",
 	ErrColumnSpecifiedTwice:              "42000",
 	ErrIncorrectColumnSpecifier:          "42000",
+	ErrPeriodNotFound:                    "HY000",
 	ErrWrongArguments:                    "HY000",
 	ErrWrongNameForIndex:                 "42000",
 	ErrInvalidOnUpdate:                   "HY000",
@@ -344,6 +346,11 @@ func errMultipleAppPeriods() error {
 func errColumnSpecifiedTwice(col string) error {
 	return &Error{Code: ErrColumnSpecifiedTwice, SQLState: sqlState(ErrColumnSpecifiedTwice),
 		Message: fmt.Sprintf("Column '%s' specified twice", col)}
+}
+
+func errPeriodNotFound(name string) error {
+	return &Error{Code: ErrPeriodNotFound, SQLState: sqlState(ErrPeriodNotFound),
+		Message: fmt.Sprintf("Period `%s` is not found in table", name)}
 }
 
 func errIncorrectColumnSpecifier(col string) error {

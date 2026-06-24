@@ -726,7 +726,24 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	// columns are present in the table.
 	c.analyzeTableExpressions(tbl, stmt)
 
+	if err := validateWithoutOverlaps(tbl); err != nil {
+		return err
+	}
+
 	db.Tables[key] = tbl
+	return nil
+}
+
+// validateWithoutOverlaps enforces that every WITHOUT OVERLAPS key part names
+// the table's application-time period (else 4156). Grounded vs 11.8.8.
+func validateWithoutOverlaps(tbl *Table) error {
+	for _, idx := range tbl.Indexes {
+		for _, ic := range idx.Columns {
+			if ic.WithoutOverlaps && !strings.EqualFold(ic.Name, tbl.AppPeriodName) {
+				return errPeriodNotFound(ic.Name)
+			}
+		}
+	}
 	return nil
 }
 
@@ -1530,8 +1547,9 @@ func buildIndexColumns(con *nodes.Constraint) []*IndexColumn {
 		result := make([]*IndexColumn, 0, len(con.IndexColumns))
 		for _, ic := range con.IndexColumns {
 			idxCol := &IndexColumn{
-				Length:     ic.Length,
-				Descending: ic.Desc,
+				Length:          ic.Length,
+				Descending:      ic.Desc,
+				WithoutOverlaps: ic.WithoutOverlaps,
 			}
 			if cr, ok := ic.Expr.(*nodes.ColumnRef); ok && !ic.Functional {
 				idxCol.Name = cr.Column

@@ -45,3 +45,35 @@ func TestApplicationTimePeriodValidation(t *testing.T) {
 		})
 	}
 }
+
+// TestWithoutOverlapsCatalog: WITHOUT OVERLAPS renders on the period key part.
+func TestWithoutOverlapsCatalog(t *testing.T) {
+	for _, tc := range []struct{ name, ddl, want string }{
+		{"unique", "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s, e), UNIQUE (id, app_time WITHOUT OVERLAPS))", "`app_time` WITHOUT OVERLAPS"},
+		{"primary", "CREATE TABLE t (id INT, s DATE, e DATE, PERIOD FOR app_time(s, e), PRIMARY KEY (id, app_time WITHOUT OVERLAPS))", "`app_time` WITHOUT OVERLAPS"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if ddl := defineAndShow(t, "t", tc.ddl); !strings.Contains(ddl, tc.want) {
+				t.Errorf("missing %q:\n%s", tc.want, ddl)
+			}
+		})
+	}
+}
+
+// TestWithoutOverlapsValidation: a WITHOUT OVERLAPS key part must name the
+// application-time period (else 4156). Grounded vs 11.8.8.
+func TestWithoutOverlapsValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name, ddl string
+	}{
+		{"non_period_col", "CREATE TABLE t (id INT, s DATE, e DATE, UNIQUE(id, e WITHOUT OVERLAPS))"},
+		{"no_period_at_all", "CREATE TABLE t (id INT, x INT, UNIQUE(id, x WITHOUT OVERLAPS))"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := execErr(t, tc.ddl)
+			if catErr, ok := err.(*Error); !ok || catErr.Code != 4156 {
+				t.Fatalf("want *Error 4156, got %v", err)
+			}
+		})
+	}
+}

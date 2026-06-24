@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -191,6 +193,15 @@ func (p *Parser) parseIndexKeyPart() (*nodes.IndexColumn, error) {
 		col.Desc = true
 	}
 
+	// Optional WITHOUT OVERLAPS (application-time period key part). OVERLAPS is
+	// non-reserved (matched by text).
+	if p.cur.Type == kwWITHOUT && p.peekNext().Type == tokIDENT &&
+		strings.EqualFold(p.peekNext().Str, "OVERLAPS") {
+		p.advance() // WITHOUT
+		p.advance() // OVERLAPS
+		col.WithoutOverlaps = true
+	}
+
 	col.Loc.End = p.pos()
 	return col, nil
 }
@@ -228,6 +239,18 @@ func (p *Parser) parseParenIndexKeyParts() ([]*nodes.IndexColumn, error) {
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
+	}
+	// A WITHOUT OVERLAPS key part requires at least one ordinary key column.
+	overlaps, ordinary := 0, 0
+	for _, c := range cols {
+		if c.WithoutOverlaps {
+			overlaps++
+		} else {
+			ordinary++
+		}
+	}
+	if overlaps > 0 && ordinary == 0 {
+		return nil, p.syntaxErrorAtCur()
 	}
 	return cols, nil
 }
