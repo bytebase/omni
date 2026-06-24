@@ -554,3 +554,23 @@ func TestSelectLimitBeforeIntoOutfile(t *testing.T) {
 		t.Fatal("Into is nil")
 	}
 }
+
+func TestSelectIntoOutfileWalkProperties(t *testing.T) {
+	sql := `SELECT * FROM orders INTO OUTFILE "s3://bucket/export/" FORMAT AS PARQUET PROPERTIES("s3.endpoint" = "s3.amazonaws.com", "s3.region" = "us-east-1")`
+	stmt := mustParseSelect(t, sql)
+
+	count := make(map[ast.NodeTag]int)
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if n != nil {
+			count[n.Tag()]++
+		}
+		return true
+	})
+
+	if count[ast.T_IntoOutfileClause] != 1 {
+		t.Errorf("T_IntoOutfileClause visited %d times, want 1", count[ast.T_IntoOutfileClause])
+	}
+	if count[ast.T_Property] != 2 {
+		t.Errorf("T_Property visited %d times, want 2", count[ast.T_Property])
+	}
+}

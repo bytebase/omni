@@ -504,3 +504,117 @@ func TestWithUnionLimit(t *testing.T) {
 		t.Error("SetOpStmt.Limit is nil, want outer LIMIT hoisted")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// INTERSECT outer LIMIT / ORDER BY hoisting
+// ---------------------------------------------------------------------------
+
+func TestIntersectOuterLimit(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT a FROM t1 INTERSECT SELECT b FROM t2 LIMIT 5")
+
+	if stmt.Op != ast.SetIntersect {
+		t.Errorf("Op = %v, want SetIntersect", stmt.Op)
+	}
+	if stmt.Limit == nil {
+		t.Fatal("SetOpStmt.Limit is nil, want outer LIMIT hoisted")
+	}
+	lit, ok := stmt.Limit.(*ast.Literal)
+	if !ok {
+		t.Fatalf("Limit = %T, want *ast.Literal", stmt.Limit)
+	}
+	if lit.Value != "5" {
+		t.Errorf("Limit = %q, want %q", lit.Value, "5")
+	}
+
+	right := assertIsSelectStmt(t, stmt.Right, "Right")
+	if right.Limit != nil {
+		t.Error("Right.Limit should be nil after hoisting")
+	}
+}
+
+func TestIntersectOuterOrderByLimit(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT a FROM t1 INTERSECT SELECT b FROM t2 ORDER BY a LIMIT 10")
+
+	if stmt.Op != ast.SetIntersect {
+		t.Errorf("Op = %v, want SetIntersect", stmt.Op)
+	}
+	if len(stmt.OrderBy) == 0 {
+		t.Fatal("SetOpStmt.OrderBy is empty, want outer ORDER BY hoisted")
+	}
+	if stmt.Limit == nil {
+		t.Fatal("SetOpStmt.Limit is nil, want outer LIMIT hoisted")
+	}
+
+	right := assertIsSelectStmt(t, stmt.Right, "Right")
+	if len(right.OrderBy) > 0 {
+		t.Error("Right.OrderBy should be empty after hoisting")
+	}
+	if right.Limit != nil {
+		t.Error("Right.Limit should be nil after hoisting")
+	}
+}
+
+func TestIntersectOuterLimitOffset(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT a FROM t1 INTERSECT SELECT b FROM t2 LIMIT 10 OFFSET 5")
+
+	if stmt.Limit == nil {
+		t.Fatal("SetOpStmt.Limit is nil")
+	}
+	if stmt.Offset == nil {
+		t.Fatal("SetOpStmt.Offset is nil")
+	}
+
+	right := assertIsSelectStmt(t, stmt.Right, "Right")
+	if right.Limit != nil {
+		t.Error("Right.Limit should be nil after hoisting")
+	}
+	if right.Offset != nil {
+		t.Error("Right.Offset should be nil after hoisting")
+	}
+}
+
+// Mixed UNION ... INTERSECT ... LIMIT: the outer LIMIT belongs to the
+// outermost SetOpStmt (UNION), not the inner INTERSECT.
+func TestMixedUnionIntersectLimit(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT 1 UNION SELECT 2 INTERSECT SELECT 3 LIMIT 5")
+
+	if stmt.Op != ast.SetUnion {
+		t.Errorf("outer Op = %v, want SetUnion", stmt.Op)
+	}
+	if stmt.Limit == nil {
+		t.Fatal("outer SetOpStmt.Limit is nil, want LIMIT hoisted to UNION")
+	}
+
+	inner, ok := stmt.Right.(*ast.SetOpStmt)
+	if !ok {
+		t.Fatalf("Right = %T, want *ast.SetOpStmt (INTERSECT)", stmt.Right)
+	}
+	if inner.Op != ast.SetIntersect {
+		t.Errorf("inner Op = %v, want SetIntersect", inner.Op)
+	}
+	if inner.Limit != nil {
+		t.Error("inner INTERSECT SetOpStmt.Limit should be nil")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// EXCEPT outer LIMIT hoisting
+// ---------------------------------------------------------------------------
+
+func TestExceptOuterLimit(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT a FROM t1 EXCEPT SELECT b FROM t2 LIMIT 3")
+
+	if stmt.Op != ast.SetExcept {
+		t.Errorf("Op = %v, want SetExcept", stmt.Op)
+	}
+	if stmt.Limit == nil {
+		t.Fatal("SetOpStmt.Limit is nil, want outer LIMIT hoisted")
+	}
+	lit, ok := stmt.Limit.(*ast.Literal)
+	if !ok {
+		t.Fatalf("Limit = %T, want *ast.Literal", stmt.Limit)
+	}
+	if lit.Value != "3" {
+		t.Errorf("Limit = %q, want %q", lit.Value, "3")
+	}
+}

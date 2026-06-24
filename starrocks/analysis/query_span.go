@@ -149,6 +149,18 @@ func (w *spanWalker) visitSetOp(n *ast.SetOpStmt, outermost bool) {
 	}
 	w.visitSetOpArm(n.Left, outermost)
 	w.visitSetOpArm(n.Right, false)
+
+	for _, o := range n.OrderBy {
+		if o != nil && o.Expr != nil {
+			w.walkExpr(o.Expr)
+		}
+	}
+	if n.Limit != nil {
+		w.walkExpr(n.Limit)
+	}
+	if n.Offset != nil {
+		w.walkExpr(n.Offset)
+	}
 }
 
 // visitSetOpArm dispatches on a set-op operand, which may be a SelectStmt,

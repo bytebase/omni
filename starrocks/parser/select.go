@@ -208,24 +208,18 @@ func (p *Parser) parseSetOpTail(left ast.Node) (ast.Node, error) {
 	}
 
 done:
+	// If no UNION/EXCEPT was encountered, left may still be a SetOpStmt
+	// produced by parseIntersectChain. Hoist for that case too.
 	if setOp == nil {
-		return left, nil
+		var ok bool
+		if setOp, ok = left.(*ast.SetOpStmt); !ok {
+			return left, nil
+		}
 	}
 
 	// Hoist trailing ORDER BY / LIMIT / OFFSET from the rightmost
 	// unparenthesized leaf onto the outermost SetOpStmt.
-	if leaf := rightmostUnparenLeaf(setOp); leaf != nil {
-		if len(leaf.OrderBy) > 0 {
-			setOp.OrderBy = leaf.OrderBy
-			leaf.OrderBy = nil
-		}
-		if leaf.Limit != nil {
-			setOp.Limit = leaf.Limit
-			leaf.Limit = nil
-			setOp.Offset = leaf.Offset
-			leaf.Offset = nil
-		}
-	}
+	hoistTrailingClauses(setOp)
 
 	// Parse any additional trailing ORDER BY / LIMIT / OFFSET that the
 	// rightmost leaf did not consume (e.g. when the right operand is
@@ -294,6 +288,25 @@ func (p *Parser) parseParenSelect() (*ast.ParenSelect, error) {
 		Sel: inner2,
 		Loc: ast.Loc{Start: openTok.Loc.Start, End: p.prev.Loc.End},
 	}, nil
+}
+
+// hoistTrailingClauses moves ORDER BY / LIMIT / OFFSET from the rightmost
+// unparenthesized SelectStmt leaf onto the given SetOpStmt. This implements
+// MySQL/standard SQL semantics: trailing clauses on the last bare SELECT
+// apply to the combined result, while parenthesized operands keep them local.
+func hoistTrailingClauses(setOp *ast.SetOpStmt) {
+	if leaf := rightmostUnparenLeaf(setOp); leaf != nil {
+		if len(leaf.OrderBy) > 0 {
+			setOp.OrderBy = leaf.OrderBy
+			leaf.OrderBy = nil
+		}
+		if leaf.Limit != nil {
+			setOp.Limit = leaf.Limit
+			leaf.Limit = nil
+			setOp.Offset = leaf.Offset
+			leaf.Offset = nil
+		}
+	}
 }
 
 // rightmostUnparenLeaf walks the right spine of a SetOpStmt tree and

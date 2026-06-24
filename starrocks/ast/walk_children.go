@@ -229,7 +229,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Sel)
 		}
 	case *IntoOutfileClause:
-		// Properties are string key-value pairs, no child nodes to walk.
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 
 	// DDL — CREATE TABLE nodes (T2.1).
 	case *CreateTableStmt:
