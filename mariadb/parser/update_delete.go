@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mariadb/ast"
 )
 
@@ -49,6 +51,15 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 		return nil, err
 	}
 	stmt.Tables = tables
+
+	// FOR PORTION OF <period> FROM x TO y (application-time, single-table only).
+	if len(stmt.Tables) == 1 && p.cur.Type == kwFOR {
+		fp, err := p.parseForPortionOf()
+		if err != nil {
+			return nil, err
+		}
+		stmt.ForPortionOf = fp
+	}
 
 	// SET clause (required)
 	if _, err := p.expect(kwSET); err != nil {
@@ -106,6 +117,57 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 
 	stmt.Loc.End = p.pos()
 	return stmt, nil
+}
+
+// parseForPortionOf parses the application-time clause
+//
+//	FOR PORTION OF <period> FROM <expr> TO <expr>
+//
+// on a single-table UPDATE / DELETE. FOR is the current token. The period name
+// follows the identifier rule (non-reserved keywords allowed); SYSTEM_TIME is
+// rejected (1064), matching MariaDB. PORTION is a non-reserved keyword.
+func (p *Parser) parseForPortionOf() (*nodes.ForPortionOf, error) {
+	start := p.pos()
+	p.advance() // FOR
+	if _, err := p.expect(kwPORTION); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwOF); err != nil {
+		return nil, err
+	}
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	if strings.EqualFold(name, "SYSTEM_TIME") {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	from, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if !p.collectMode() && from == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(kwTO); err != nil {
+		return nil, err
+	}
+	to, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if !p.collectMode() && to == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return &nodes.ForPortionOf{
+		Loc:        nodes.Loc{Start: start, End: p.pos()},
+		PeriodName: name,
+		From:       from,
+		To:         to,
+	}, nil
 }
 
 // parseDeleteStmt parses a DELETE statement.
@@ -221,6 +283,15 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 			return nil, err
 		}
 		stmt.Using = using
+	}
+
+	// FOR PORTION OF <period> FROM x TO y (application-time, single-table only).
+	if len(stmt.Tables) == 1 && len(stmt.Using) == 0 && p.cur.Type == kwFOR {
+		fp, err := p.parseForPortionOf()
+		if err != nil {
+			return nil, err
+		}
+		stmt.ForPortionOf = fp
 	}
 
 	// WHERE clause (optional)

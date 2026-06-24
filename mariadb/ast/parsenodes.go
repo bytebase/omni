@@ -139,14 +139,15 @@ const (
 
 // UpdateStmt represents an UPDATE statement.
 type UpdateStmt struct {
-	Loc         Loc
-	LowPriority bool
-	Ignore      bool
-	Tables      []TableExpr    // table references (multi-table update)
-	SetList     []*Assignment  // SET clause
-	Where       ExprNode       // WHERE condition
-	OrderBy     []*OrderByItem // ORDER BY
-	Limit       *Limit         // LIMIT
+	Loc          Loc
+	LowPriority  bool
+	Ignore       bool
+	Tables       []TableExpr    // table references (multi-table update)
+	ForPortionOf *ForPortionOf  // FOR PORTION OF <period> FROM x TO y (application-time)
+	SetList      []*Assignment  // SET clause
+	Where        ExprNode       // WHERE condition
+	OrderBy      []*OrderByItem // ORDER BY
+	Limit        *Limit         // LIMIT
 }
 
 func (s *UpdateStmt) nodeTag()  {}
@@ -154,20 +155,32 @@ func (s *UpdateStmt) stmtNode() {}
 
 // DeleteStmt represents a DELETE statement.
 type DeleteStmt struct {
-	Loc         Loc
-	LowPriority bool
-	Quick       bool
-	Ignore      bool
-	Tables      []TableExpr    // tables to delete from
-	Using       []TableExpr    // USING clause (multi-table delete)
-	Where       ExprNode       // WHERE condition
-	OrderBy     []*OrderByItem // ORDER BY
-	Limit       *Limit         // LIMIT
-	Returning   []Node         // RETURNING select-list (MariaDB; single-table DELETE only)
+	Loc          Loc
+	LowPriority  bool
+	Quick        bool
+	Ignore       bool
+	Tables       []TableExpr    // tables to delete from
+	ForPortionOf *ForPortionOf  // FOR PORTION OF <period> FROM x TO y (application-time)
+	Using        []TableExpr    // USING clause (multi-table delete)
+	Where        ExprNode       // WHERE condition
+	OrderBy      []*OrderByItem // ORDER BY
+	Limit        *Limit         // LIMIT
+	Returning    []Node         // RETURNING select-list (MariaDB; single-table DELETE only)
 }
 
 func (s *DeleteStmt) nodeTag()  {}
 func (s *DeleteStmt) stmtNode() {}
+
+// ForPortionOf is the application-time clause FOR PORTION OF <period> FROM x TO y
+// on a single-table UPDATE / DELETE.
+type ForPortionOf struct {
+	Loc        Loc
+	PeriodName string
+	From       ExprNode
+	To         ExprNode
+}
+
+func (n *ForPortionOf) nodeTag() {}
 
 // CreateTableStmt represents a CREATE TABLE statement.
 type CreateTableStmt struct {

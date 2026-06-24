@@ -370,6 +370,9 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.Tables {
 			Walk(v, item)
 		}
+		if n.ForPortionOf != nil {
+			Walk(v, n.ForPortionOf)
+		}
 		for _, item := range n.Using {
 			Walk(v, item)
 		}
@@ -449,6 +452,9 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, item)
 			}
 		}
+	case *ForPortionOf:
+		Walk(v, n.From)
+		Walk(v, n.To)
 	case *ForUpdate:
 		for _, item := range n.Tables {
 			if item != nil {
@@ -891,6 +897,9 @@ func walkChildren(v Visitor, node Node) {
 	case *UpdateStmt:
 		for _, item := range n.Tables {
 			Walk(v, item)
+		}
+		if n.ForPortionOf != nil {
+			Walk(v, n.ForPortionOf)
 		}
 		for _, item := range n.SetList {
 			if item != nil {
