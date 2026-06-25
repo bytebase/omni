@@ -184,6 +184,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Offset != nil {
 			Walk(v, n.Offset)
 		}
+		if n.Into != nil {
+			Walk(v, n.Into)
+		}
 	case *SelectItem:
 		if n.Expr != nil {
 			Walk(v, n.Expr)
@@ -212,6 +215,23 @@ func walkChildren(v Visitor, node Node) {
 	case *SetOpStmt:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
+		for _, item := range n.OrderBy {
+			Walk(v, item)
+		}
+		if n.Limit != nil {
+			Walk(v, n.Limit)
+		}
+		if n.Offset != nil {
+			Walk(v, n.Offset)
+		}
+	case *ParenSelect:
+		if n.Sel != nil {
+			Walk(v, n.Sel)
+		}
+	case *IntoOutfileClause:
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 
 	// DDL — CREATE TABLE nodes (T2.1).
 	case *CreateTableStmt:

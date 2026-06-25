@@ -153,6 +153,12 @@ const (
 	// T_SetOpStmt is the tag for *SetOpStmt (UNION/INTERSECT/EXCEPT/MINUS).
 	T_SetOpStmt
 
+	// T_ParenSelect is the tag for *ParenSelect (parenthesized query expression).
+	T_ParenSelect
+
+	// T_IntoOutfileClause is the tag for *IntoOutfileClause (INTO OUTFILE).
+	T_IntoOutfileClause
+
 	// DDL — CREATE TABLE nodes (T2.1).
 
 	// T_CreateTableStmt is the tag for *CreateTableStmt.
@@ -707,6 +713,10 @@ func (t NodeTag) String() string {
 		return "JoinClause"
 	case T_SetOpStmt:
 		return "SetOpStmt"
+	case T_ParenSelect:
+		return "ParenSelect"
+	case T_IntoOutfileClause:
+		return "IntoOutfileClause"
 	case T_CreateTableStmt:
 		return "CreateTableStmt"
 	case T_ColumnDef:

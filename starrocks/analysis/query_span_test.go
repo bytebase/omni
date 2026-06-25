@@ -46,17 +46,17 @@ func TestGetQuerySpan_Basics(t *testing.T) {
 			wantResults: []string{"a"},
 		},
 		{
-			name:       "qualified table",
-			sql:        "SELECT * FROM db.t",
-			wantType:   QueryTypeSelect,
-			wantTables: []tableSig{{Database: "db", Table: "t"}},
+			name:        "qualified table",
+			sql:         "SELECT * FROM db.t",
+			wantType:    QueryTypeSelect,
+			wantTables:  []tableSig{{Database: "db", Table: "t"}},
 			wantResults: []string{"*"},
 		},
 		{
-			name:       "three-part table name",
-			sql:        "SELECT * FROM catalog1.db1.t1",
-			wantType:   QueryTypeSelect,
-			wantTables: []tableSig{{Database: "db1", Table: "t1"}},
+			name:        "three-part table name",
+			sql:         "SELECT * FROM catalog1.db1.t1",
+			wantType:    QueryTypeSelect,
+			wantTables:  []tableSig{{Database: "db1", Table: "t1"}},
 			wantResults: []string{"*"},
 		},
 		{
@@ -448,5 +448,48 @@ func TestGetQuerySpan_CTEShadowsTable(t *testing.T) {
 	sigs := toSigs(span.AccessTables)
 	if len(sigs) != 1 || sigs[0].Table != "underlying" {
 		t.Errorf("AccessTables = %+v, want [underlying]", sigs)
+	}
+}
+
+func TestGetQuerySpan_SetOpOuterOrderBySubquery(t *testing.T) {
+	// After hoisting, ORDER BY with a subquery lives on SetOpStmt.OrderBy.
+	// visitSetOp must walk it so t3 appears in AccessTables.
+	span, err := GetQuerySpan("SELECT a FROM t1 UNION SELECT b FROM t2 ORDER BY (SELECT max(c) FROM t3)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	for _, want := range []string{"t1", "t2", "t3"} {
+		if !containsSig(sigs, tableSig{Table: want}) {
+			t.Errorf("AccessTables missing %s (got %+v)", want, sigs)
+		}
+	}
+}
+
+func TestGetQuerySpan_SetOpOuterLimitSubquery(t *testing.T) {
+	// Subquery in LIMIT expression on a set-op must be walked.
+	span, err := GetQuerySpan("SELECT a FROM t1 UNION SELECT b FROM t2 LIMIT (SELECT max(c) FROM t3)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	for _, want := range []string{"t1", "t2", "t3"} {
+		if !containsSig(sigs, tableSig{Table: want}) {
+			t.Errorf("AccessTables missing %s (got %+v)", want, sigs)
+		}
+	}
+}
+
+func TestGetQuerySpan_IntersectOuterOrderBySubquery(t *testing.T) {
+	// Same regression test but for INTERSECT (previously never hoisted).
+	span, err := GetQuerySpan("SELECT a FROM t1 INTERSECT SELECT b FROM t2 ORDER BY (SELECT max(c) FROM t3)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	for _, want := range []string{"t1", "t2", "t3"} {
+		if !containsSig(sigs, tableSig{Table: want}) {
+			t.Errorf("AccessTables missing %s (got %+v)", want, sigs)
+		}
 	}
 }

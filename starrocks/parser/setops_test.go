@@ -277,3 +277,434 @@ func TestPlainSelectUnchanged(t *testing.T) {
 		t.Fatalf("got %T, want *ast.SelectStmt", file.Stmts[0])
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Outer LIMIT hoisting on set operations
+// ---------------------------------------------------------------------------
+
+func TestUnionOuterLimit(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT a FROM t1 UNION SELECT b FROM t2 LIMIT 10")
+
+	if stmt.Limit == nil {
+		t.Fatal("SetOpStmt.Limit is nil, want outer LIMIT hoisted")
+	}
+	lit, ok := stmt.Limit.(*ast.Literal)
+	if !ok {
+		t.Fatalf("Limit = %T, want *ast.Literal", stmt.Limit)
+	}
+	if lit.Value != "10" {
+		t.Errorf("Limit = %q, want %q", lit.Value, "10")
+	}
+
+	// The rightmost SELECT should have its LIMIT removed (hoisted).
+	right := assertIsSelectStmt(t, stmt.Right, "Right")
+	if right.Limit != nil {
+		t.Error("Right.Limit should be nil after hoisting")
+	}
+}
+
+func TestUnionOuterOrderByLimit(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT a FROM t1 UNION SELECT b FROM t2 ORDER BY a LIMIT 5")
+
+	if len(stmt.OrderBy) == 0 {
+		t.Fatal("SetOpStmt.OrderBy is empty, want outer ORDER BY hoisted")
+	}
+	if stmt.Limit == nil {
+		t.Fatal("SetOpStmt.Limit is nil, want outer LIMIT hoisted")
+	}
+
+	right := assertIsSelectStmt(t, stmt.Right, "Right")
+	if len(right.OrderBy) > 0 {
+		t.Error("Right.OrderBy should be empty after hoisting")
+	}
+	if right.Limit != nil {
+		t.Error("Right.Limit should be nil after hoisting")
+	}
+}
+
+func TestUnionOuterLimitOffset(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT a FROM t1 UNION SELECT b FROM t2 LIMIT 10 OFFSET 5")
+
+	if stmt.Limit == nil {
+		t.Fatal("SetOpStmt.Limit is nil")
+	}
+	if stmt.Offset == nil {
+		t.Fatal("SetOpStmt.Offset is nil")
+	}
+
+	right := assertIsSelectStmt(t, stmt.Right, "Right")
+	if right.Limit != nil {
+		t.Error("Right.Limit should be nil after hoisting")
+	}
+	if right.Offset != nil {
+		t.Error("Right.Offset should be nil after hoisting")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Parenthesized set-op operands
+// ---------------------------------------------------------------------------
+
+func TestUnionParenRight(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT a FROM t1 UNION (SELECT b FROM t2)")
+
+	// Right side should be a ParenSelect.
+	paren, ok := stmt.Right.(*ast.ParenSelect)
+	if !ok {
+		t.Fatalf("Right = %T, want *ast.ParenSelect", stmt.Right)
+	}
+	assertIsSelectStmt(t, paren.Sel, "ParenSelect.Sel")
+}
+
+func TestUnionParenBranchLocalLimit(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT a FROM t1 UNION (SELECT b FROM t2 LIMIT 1)")
+
+	// The outer SetOpStmt should have NO LIMIT (it's branch-local).
+	if stmt.Limit != nil {
+		t.Error("SetOpStmt.Limit should be nil — the LIMIT is branch-local inside parens")
+	}
+
+	// The inner SELECT should still have its LIMIT.
+	paren, ok := stmt.Right.(*ast.ParenSelect)
+	if !ok {
+		t.Fatalf("Right = %T, want *ast.ParenSelect", stmt.Right)
+	}
+	inner := assertIsSelectStmt(t, paren.Sel, "inner")
+	if inner.Limit == nil {
+		t.Error("inner SELECT.Limit should be preserved inside parens")
+	}
+}
+
+func TestUnionParenRightWithOuterLimit(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT a FROM t1 UNION (SELECT b FROM t2 LIMIT 1) LIMIT 10")
+
+	// Outer LIMIT should be on SetOpStmt.
+	if stmt.Limit == nil {
+		t.Fatal("SetOpStmt.Limit is nil, want outer LIMIT 10")
+	}
+	lit, ok := stmt.Limit.(*ast.Literal)
+	if !ok {
+		t.Fatalf("Limit = %T, want *ast.Literal", stmt.Limit)
+	}
+	if lit.Value != "10" {
+		t.Errorf("outer Limit = %q, want %q", lit.Value, "10")
+	}
+
+	// Inner LIMIT should still be on the inner SELECT.
+	paren, ok := stmt.Right.(*ast.ParenSelect)
+	if !ok {
+		t.Fatalf("Right = %T, want *ast.ParenSelect", stmt.Right)
+	}
+	inner := assertIsSelectStmt(t, paren.Sel, "inner")
+	if inner.Limit == nil {
+		t.Error("inner SELECT.Limit should be preserved")
+	}
+}
+
+func TestUnionParenBothSides(t *testing.T) {
+	stmt := mustParseSetOp(t, "(SELECT a FROM t1) UNION (SELECT b FROM t2)")
+
+	_, ok := stmt.Left.(*ast.ParenSelect)
+	if !ok {
+		t.Fatalf("Left = %T, want *ast.ParenSelect", stmt.Left)
+	}
+	_, ok = stmt.Right.(*ast.ParenSelect)
+	if !ok {
+		t.Fatalf("Right = %T, want *ast.ParenSelect", stmt.Right)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Loc accuracy for set operations with outer clauses
+// ---------------------------------------------------------------------------
+
+func TestSetOpLocIncludesOuterLimit(t *testing.T) {
+	sql := "SELECT 1 UNION SELECT 2 LIMIT 5"
+	stmt := mustParseSetOp(t, sql)
+
+	loc := ast.NodeLoc(stmt)
+	if loc.End != len(sql) {
+		t.Errorf("SetOpStmt.Loc.End = %d, want %d (should include LIMIT)", loc.End, len(sql))
+	}
+}
+
+func TestSetOpLocIncludesOuterOrderByLimit(t *testing.T) {
+	sql := "SELECT 1 UNION SELECT 2 ORDER BY 1 LIMIT 5"
+	stmt := mustParseSetOp(t, sql)
+
+	loc := ast.NodeLoc(stmt)
+	if loc.End != len(sql) {
+		t.Errorf("SetOpStmt.Loc.End = %d, want %d", loc.End, len(sql))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Walk visits new SetOpStmt fields
+// ---------------------------------------------------------------------------
+
+func TestSetOpStmtWalkWithLimit(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT 1 UNION SELECT 2 ORDER BY 1 LIMIT 5 OFFSET 2")
+
+	count := make(map[ast.NodeTag]int)
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if n != nil {
+			count[n.Tag()]++
+		}
+		return true
+	})
+
+	if count[ast.T_SetOpStmt] != 1 {
+		t.Errorf("T_SetOpStmt visited %d times, want 1", count[ast.T_SetOpStmt])
+	}
+	if count[ast.T_SelectStmt] != 2 {
+		t.Errorf("T_SelectStmt visited %d times, want 2", count[ast.T_SelectStmt])
+	}
+	if count[ast.T_OrderByItem] < 1 {
+		t.Errorf("T_OrderByItem visited %d times, want >= 1", count[ast.T_OrderByItem])
+	}
+}
+
+func TestSetOpStmtWalkParenSelect(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT 1 UNION (SELECT 2)")
+
+	count := make(map[ast.NodeTag]int)
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if n != nil {
+			count[n.Tag()]++
+		}
+		return true
+	})
+
+	if count[ast.T_ParenSelect] != 1 {
+		t.Errorf("T_ParenSelect visited %d times, want 1", count[ast.T_ParenSelect])
+	}
+	if count[ast.T_SelectStmt] != 2 {
+		t.Errorf("T_SelectStmt visited %d times, want 2", count[ast.T_SelectStmt])
+	}
+}
+
+// ---------------------------------------------------------------------------
+// WITH ... UNION support
+// ---------------------------------------------------------------------------
+
+func TestWithUnionLimit(t *testing.T) {
+	sql := "WITH cte AS (SELECT 1) SELECT a FROM cte UNION SELECT b FROM t LIMIT 5"
+	file, errs := Parse(sql)
+	if len(errs) > 0 {
+		t.Fatalf("Parse errors: %v", errs)
+	}
+	if len(file.Stmts) == 0 {
+		t.Fatal("no statements")
+	}
+	stmt, ok := file.Stmts[0].(*ast.SetOpStmt)
+	if !ok {
+		t.Fatalf("got %T, want *ast.SetOpStmt", file.Stmts[0])
+	}
+	if stmt.Limit == nil {
+		t.Error("SetOpStmt.Limit is nil, want outer LIMIT hoisted")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// INTERSECT outer LIMIT / ORDER BY hoisting
+// ---------------------------------------------------------------------------
+
+func TestIntersectOuterLimit(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT a FROM t1 INTERSECT SELECT b FROM t2 LIMIT 5")
+
+	if stmt.Op != ast.SetIntersect {
+		t.Errorf("Op = %v, want SetIntersect", stmt.Op)
+	}
+	if stmt.Limit == nil {
+		t.Fatal("SetOpStmt.Limit is nil, want outer LIMIT hoisted")
+	}
+	lit, ok := stmt.Limit.(*ast.Literal)
+	if !ok {
+		t.Fatalf("Limit = %T, want *ast.Literal", stmt.Limit)
+	}
+	if lit.Value != "5" {
+		t.Errorf("Limit = %q, want %q", lit.Value, "5")
+	}
+
+	right := assertIsSelectStmt(t, stmt.Right, "Right")
+	if right.Limit != nil {
+		t.Error("Right.Limit should be nil after hoisting")
+	}
+}
+
+func TestIntersectOuterOrderByLimit(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT a FROM t1 INTERSECT SELECT b FROM t2 ORDER BY a LIMIT 10")
+
+	if stmt.Op != ast.SetIntersect {
+		t.Errorf("Op = %v, want SetIntersect", stmt.Op)
+	}
+	if len(stmt.OrderBy) == 0 {
+		t.Fatal("SetOpStmt.OrderBy is empty, want outer ORDER BY hoisted")
+	}
+	if stmt.Limit == nil {
+		t.Fatal("SetOpStmt.Limit is nil, want outer LIMIT hoisted")
+	}
+
+	right := assertIsSelectStmt(t, stmt.Right, "Right")
+	if len(right.OrderBy) > 0 {
+		t.Error("Right.OrderBy should be empty after hoisting")
+	}
+	if right.Limit != nil {
+		t.Error("Right.Limit should be nil after hoisting")
+	}
+}
+
+func TestIntersectOuterLimitOffset(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT a FROM t1 INTERSECT SELECT b FROM t2 LIMIT 10 OFFSET 5")
+
+	if stmt.Limit == nil {
+		t.Fatal("SetOpStmt.Limit is nil")
+	}
+	if stmt.Offset == nil {
+		t.Fatal("SetOpStmt.Offset is nil")
+	}
+
+	right := assertIsSelectStmt(t, stmt.Right, "Right")
+	if right.Limit != nil {
+		t.Error("Right.Limit should be nil after hoisting")
+	}
+	if right.Offset != nil {
+		t.Error("Right.Offset should be nil after hoisting")
+	}
+}
+
+// Mixed UNION ... INTERSECT ... LIMIT: the outer LIMIT belongs to the
+// outermost SetOpStmt (UNION), not the inner INTERSECT.
+func TestMixedUnionIntersectLimit(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT 1 UNION SELECT 2 INTERSECT SELECT 3 LIMIT 5")
+
+	if stmt.Op != ast.SetUnion {
+		t.Errorf("outer Op = %v, want SetUnion", stmt.Op)
+	}
+	if stmt.Limit == nil {
+		t.Fatal("outer SetOpStmt.Limit is nil, want LIMIT hoisted to UNION")
+	}
+
+	inner, ok := stmt.Right.(*ast.SetOpStmt)
+	if !ok {
+		t.Fatalf("Right = %T, want *ast.SetOpStmt (INTERSECT)", stmt.Right)
+	}
+	if inner.Op != ast.SetIntersect {
+		t.Errorf("inner Op = %v, want SetIntersect", inner.Op)
+	}
+	if inner.Limit != nil {
+		t.Error("inner INTERSECT SetOpStmt.Limit should be nil")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// EXCEPT outer LIMIT hoisting
+// ---------------------------------------------------------------------------
+
+func TestExceptOuterLimit(t *testing.T) {
+	stmt := mustParseSetOp(t, "SELECT a FROM t1 EXCEPT SELECT b FROM t2 LIMIT 3")
+
+	if stmt.Op != ast.SetExcept {
+		t.Errorf("Op = %v, want SetExcept", stmt.Op)
+	}
+	if stmt.Limit == nil {
+		t.Fatal("SetOpStmt.Limit is nil, want outer LIMIT hoisted")
+	}
+	lit, ok := stmt.Limit.(*ast.Literal)
+	if !ok {
+		t.Fatalf("Limit = %T, want *ast.Literal", stmt.Limit)
+	}
+	if lit.Value != "3" {
+		t.Errorf("Limit = %q, want %q", lit.Value, "3")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Parenthesized query with trailing ORDER BY / LIMIT / OFFSET
+// ---------------------------------------------------------------------------
+
+func TestParenSetOpTrailingLimit(t *testing.T) {
+	sql := "(SELECT 1 UNION SELECT 2) LIMIT 5"
+	file, errs := Parse(sql)
+	if len(errs) > 0 {
+		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+	}
+	if len(file.Stmts) == 0 {
+		t.Fatalf("Parse(%q) returned no statements", sql)
+	}
+
+	paren, ok := file.Stmts[0].(*ast.ParenSelect)
+	if !ok {
+		t.Fatalf("got %T, want *ast.ParenSelect", file.Stmts[0])
+	}
+
+	inner, ok := paren.Sel.(*ast.SetOpStmt)
+	if !ok {
+		t.Fatalf("ParenSelect.Sel = %T, want *ast.SetOpStmt", paren.Sel)
+	}
+	if inner.Limit == nil {
+		t.Fatal("inner SetOpStmt.Limit is nil, want LIMIT 5")
+	}
+	lit, ok := inner.Limit.(*ast.Literal)
+	if !ok {
+		t.Fatalf("Limit = %T, want *ast.Literal", inner.Limit)
+	}
+	if lit.Value != "5" {
+		t.Errorf("Limit = %q, want %q", lit.Value, "5")
+	}
+
+	if paren.Loc.End != len(sql) {
+		t.Errorf("ParenSelect.Loc.End = %d, want %d", paren.Loc.End, len(sql))
+	}
+}
+
+func TestParenSelectTrailingLimit(t *testing.T) {
+	sql := "(SELECT 1) LIMIT 5"
+	file, errs := Parse(sql)
+	if len(errs) > 0 {
+		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+	}
+	if len(file.Stmts) == 0 {
+		t.Fatalf("Parse(%q) returned no statements", sql)
+	}
+
+	paren, ok := file.Stmts[0].(*ast.ParenSelect)
+	if !ok {
+		t.Fatalf("got %T, want *ast.ParenSelect", file.Stmts[0])
+	}
+
+	inner, ok := paren.Sel.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("ParenSelect.Sel = %T, want *ast.SelectStmt", paren.Sel)
+	}
+	if inner.Limit == nil {
+		t.Fatal("inner SelectStmt.Limit is nil, want LIMIT 5")
+	}
+}
+
+func TestParenSetOpTrailingOrderByLimit(t *testing.T) {
+	sql := "(SELECT 1 UNION SELECT 2) ORDER BY 1 LIMIT 5"
+	file, errs := Parse(sql)
+	if len(errs) > 0 {
+		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+	}
+	if len(file.Stmts) == 0 {
+		t.Fatalf("Parse(%q) returned no statements", sql)
+	}
+
+	paren, ok := file.Stmts[0].(*ast.ParenSelect)
+	if !ok {
+		t.Fatalf("got %T, want *ast.ParenSelect", file.Stmts[0])
+	}
+
+	inner, ok := paren.Sel.(*ast.SetOpStmt)
+	if !ok {
+		t.Fatalf("ParenSelect.Sel = %T, want *ast.SetOpStmt", paren.Sel)
+	}
+	if len(inner.OrderBy) == 0 {
+		t.Fatal("inner SetOpStmt.OrderBy is empty, want ORDER BY")
+	}
+	if inner.Limit == nil {
+		t.Fatal("inner SetOpStmt.Limit is nil, want LIMIT 5")
+	}
+}

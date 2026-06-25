@@ -116,6 +116,15 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 		stmt.Offset = offset
 	}
 
+	// INTO OUTFILE clause
+	if p.cur.Kind == kwINTO {
+		into, err := p.parseIntoOutfileClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Into = into
+	}
+
 	// Set End location to the last consumed token.
 	stmt.Loc.End = p.prev.Loc.End
 
@@ -129,6 +138,12 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 // parseSetOpTail checks whether the token stream continues with a set
 // operator (UNION, INTERSECT, EXCEPT, MINUS). If so, it loops consuming
 // set-op tokens and building a left-associative SetOpStmt tree.
+//
+// After building the set-op tree, any trailing ORDER BY / LIMIT / OFFSET
+// is hoisted from the rightmost unparenthesized leaf onto the outermost
+// SetOpStmt. This matches MySQL/standard SQL semantics where
+// "SELECT a UNION SELECT b LIMIT 1" applies LIMIT to the combined result.
+// Parenthesized operands like "(SELECT b LIMIT 1)" keep their clauses local.
 //
 // Precedence note: The SQL standard gives INTERSECT higher precedence than
 // UNION/EXCEPT. This implementation uses a two-level loop:
@@ -146,6 +161,7 @@ func (p *Parser) parseSetOpTail(left ast.Node) (ast.Node, error) {
 	}
 
 	// Outer loop: UNION / EXCEPT (including MINUS alias) – left-associative.
+	var setOp *ast.SetOpStmt
 	for {
 		var op ast.SetOperator
 		switch p.cur.Kind {
@@ -154,43 +170,217 @@ func (p *Parser) parseSetOpTail(left ast.Node) (ast.Node, error) {
 		case kwEXCEPT, kwMINUS:
 			op = ast.SetExcept
 		default:
+			goto done
+		}
+
+		{
+			opTok := p.advance() // consume UNION / EXCEPT / MINUS
+			_ = opTok
+
+			// Optional ALL / DISTINCT quantifier
+			all := false
+			if p.cur.Kind == kwALL {
+				p.advance()
+				all = true
+			} else if p.cur.Kind == kwDISTINCT {
+				p.advance()
+			}
+
+			right, err := p.parseSetOpOperand()
+			if err != nil {
+				return nil, err
+			}
+			// Give INTERSECT a chance to grab more operands on the right.
+			right, err = p.parseIntersectChain(right)
+			if err != nil {
+				return nil, err
+			}
+
+			setOp = &ast.SetOpStmt{
+				Op:    op,
+				All:   all,
+				Left:  left,
+				Right: right,
+				Loc:   ast.Loc{Start: ast.NodeLoc(left).Start, End: ast.NodeLoc(right).End},
+			}
+			left = setOp
+		}
+	}
+
+done:
+	// If no UNION/EXCEPT was encountered, left may still be a SetOpStmt
+	// produced by parseIntersectChain. Hoist for that case too.
+	if setOp == nil {
+		switch n := left.(type) {
+		case *ast.SetOpStmt:
+			setOp = n
+		case *ast.ParenSelect:
+			return p.parseTrailingClausesForParen(n)
+		default:
 			return left, nil
 		}
+	}
 
-		opTok := p.advance() // consume UNION / EXCEPT / MINUS
-		_ = opTok
+	// Hoist trailing ORDER BY / LIMIT / OFFSET from the rightmost
+	// unparenthesized leaf onto the outermost SetOpStmt.
+	hoistTrailingClauses(setOp)
 
-		// Optional ALL / DISTINCT quantifier
-		all := false
-		if p.cur.Kind == kwALL {
-			p.advance()
-			all = true
-		} else if p.cur.Kind == kwDISTINCT {
-			p.advance()
-			// DISTINCT is the default — all stays false
+	// Parse any additional trailing ORDER BY / LIMIT / OFFSET that the
+	// rightmost leaf did not consume (e.g. when the right operand is
+	// parenthesized and has no trailing clauses).
+	if p.cur.Kind == kwORDER {
+		p.advance() // consume ORDER
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
 		}
-
-		// Parse the right-hand side: must start with SELECT.
-		if p.cur.Kind != kwSELECT {
-			return nil, p.syntaxErrorAtCur()
-		}
-		rightSelect, err := p.parseSelectStmt()
+		orderBy, err := p.parseOrderByList()
 		if err != nil {
 			return nil, err
 		}
-		// Give INTERSECT a chance to grab more operands on the right.
-		right, err := p.parseIntersectChain(rightSelect)
+		setOp.OrderBy = orderBy
+	}
+	if p.cur.Kind == kwLIMIT {
+		limit, offset, err := p.parseLimitClause()
 		if err != nil {
 			return nil, err
 		}
+		setOp.Limit = limit
+		setOp.Offset = offset
+	}
 
-		left = &ast.SetOpStmt{
-			Op:    op,
-			All:   all,
-			Left:  left,
-			Right: right,
-			Loc:   ast.Loc{Start: ast.NodeLoc(left).Start, End: ast.NodeLoc(right).End},
+	setOp.Loc.End = p.prev.Loc.End
+	return setOp, nil
+}
+
+// parseSetOpOperand parses the right-hand side of a set operation:
+// either a bare SELECT statement or a parenthesized query expression.
+func (p *Parser) parseSetOpOperand() (ast.Node, error) {
+	if p.cur.Kind == int('(') {
+		return p.parseParenSelect()
+	}
+	if p.cur.Kind != kwSELECT {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return p.parseSelectStmt()
+}
+
+// parseParenSelect parses a parenthesized query expression:
+//
+//	( SELECT ... )
+//	( SELECT ... UNION SELECT ... )
+func (p *Parser) parseParenSelect() (*ast.ParenSelect, error) {
+	openTok := p.advance() // consume '('
+
+	if p.cur.Kind != kwSELECT {
+		return nil, p.syntaxErrorAtCur()
+	}
+	inner, err := p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+	// Allow set operations inside the parens.
+	inner2, err := p.parseSetOpTail(inner)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+
+	return &ast.ParenSelect{
+		Sel: inner2,
+		Loc: ast.Loc{Start: openTok.Loc.Start, End: p.prev.Loc.End},
+	}, nil
+}
+
+// parseTrailingClausesForParen handles the case where a top-level ParenSelect
+// is followed by ORDER BY / LIMIT / OFFSET — e.g. (SELECT 1 UNION SELECT 2) LIMIT 5.
+// The clauses are attached to the inner node (SetOpStmt or SelectStmt).
+// If no trailing clauses are present, the ParenSelect is returned as-is.
+func (p *Parser) parseTrailingClausesForParen(paren *ast.ParenSelect) (ast.Node, error) {
+	if p.cur.Kind != kwORDER && p.cur.Kind != kwLIMIT {
+		return paren, nil
+	}
+
+	var orderBy []*ast.OrderByItem
+	var limit, offset ast.Node
+
+	if p.cur.Kind == kwORDER {
+		p.advance() // consume ORDER
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
 		}
+		var err error
+		orderBy, err = p.parseOrderByList()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Kind == kwLIMIT {
+		var err error
+		limit, offset, err = p.parseLimitClause()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	switch inner := paren.Sel.(type) {
+	case *ast.SetOpStmt:
+		if len(orderBy) > 0 {
+			inner.OrderBy = orderBy
+		}
+		if limit != nil {
+			inner.Limit = limit
+			inner.Offset = offset
+		}
+		inner.Loc.End = p.prev.Loc.End
+	case *ast.SelectStmt:
+		if len(orderBy) > 0 {
+			inner.OrderBy = orderBy
+		}
+		if limit != nil {
+			inner.Limit = limit
+			inner.Offset = offset
+		}
+		inner.Loc.End = p.prev.Loc.End
+	}
+	paren.Loc.End = p.prev.Loc.End
+	return paren, nil
+}
+
+// hoistTrailingClauses moves ORDER BY / LIMIT / OFFSET from the rightmost
+// unparenthesized SelectStmt leaf onto the given SetOpStmt. This implements
+// MySQL/standard SQL semantics: trailing clauses on the last bare SELECT
+// apply to the combined result, while parenthesized operands keep them local.
+func hoistTrailingClauses(setOp *ast.SetOpStmt) {
+	if leaf := rightmostUnparenLeaf(setOp); leaf != nil {
+		if len(leaf.OrderBy) > 0 {
+			setOp.OrderBy = leaf.OrderBy
+			leaf.OrderBy = nil
+		}
+		if leaf.Limit != nil {
+			setOp.Limit = leaf.Limit
+			leaf.Limit = nil
+			setOp.Offset = leaf.Offset
+			leaf.Offset = nil
+		}
+	}
+}
+
+// rightmostUnparenLeaf walks the right spine of a SetOpStmt tree and
+// returns the rightmost SelectStmt that is NOT wrapped in ParenSelect.
+// Returns nil if the rightmost operand is parenthesized.
+func rightmostUnparenLeaf(node ast.Node) *ast.SelectStmt {
+	switch n := node.(type) {
+	case *ast.SelectStmt:
+		return n
+	case *ast.SetOpStmt:
+		return rightmostUnparenLeaf(n.Right)
+	case *ast.ParenSelect:
+		return nil
+	default:
+		return nil
 	}
 }
 
@@ -209,10 +399,7 @@ func (p *Parser) parseIntersectChain(left ast.Node) (ast.Node, error) {
 			p.advance()
 		}
 
-		if p.cur.Kind != kwSELECT {
-			return nil, p.syntaxErrorAtCur()
-		}
-		right, err := p.parseSelectStmt()
+		right, err := p.parseSetOpOperand()
 		if err != nil {
 			return nil, err
 		}
@@ -1060,4 +1247,61 @@ func (p *Parser) parseLimitClause() (ast.Node, ast.Node, error) {
 	}
 
 	return limitExpr, offsetExpr, nil
+}
+
+// ---------------------------------------------------------------------------
+// INTO OUTFILE clause
+// ---------------------------------------------------------------------------
+
+// parseIntoOutfileClause parses:
+//
+//	INTO OUTFILE 'path'
+//	  [FORMAT AS format_type]
+//	  [PROPERTIES ("key" = "value", ...)]
+//
+// cur must be kwINTO on entry.
+func (p *Parser) parseIntoOutfileClause() (*ast.IntoOutfileClause, error) {
+	startLoc := p.cur.Loc
+	p.advance() // consume INTO
+
+	if _, err := p.expect(kwOUTFILE); err != nil {
+		return nil, err
+	}
+
+	if p.cur.Kind != tokString {
+		return nil, p.syntaxErrorAtCur()
+	}
+	path := p.cur.Str
+	p.advance() // consume path string
+
+	clause := &ast.IntoOutfileClause{
+		Path: path,
+		Loc:  ast.Loc{Start: startLoc.Start},
+	}
+
+	// Optional: FORMAT AS format_type
+	if p.cur.Kind == kwFORMAT {
+		p.advance() // consume FORMAT
+		if _, err := p.expect(kwAS); err != nil {
+			return nil, err
+		}
+		if p.cur.Kind == tokIdent || p.cur.Kind == tokQuotedIdent || p.cur.Kind >= 700 {
+			clause.Format = p.cur.Str
+			p.advance()
+		} else {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+
+	// Optional: PROPERTIES(...)
+	if p.cur.Kind == kwPROPERTIES {
+		props, err := p.parseProperties()
+		if err != nil {
+			return nil, err
+		}
+		clause.Properties = props
+	}
+
+	clause.Loc.End = p.prev.Loc.End
+	return clause, nil
 }

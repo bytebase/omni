@@ -111,7 +111,9 @@ func (p *Parser) parseWithStatement() (ast.Node, error) {
 	}
 	stmt.With = with
 	stmt.Loc.Start = with.Loc.Start
-	return stmt, nil
+
+	// A WITH … SELECT may continue with set operators (UNION/INTERSECT/EXCEPT).
+	return p.parseSetOpTail(stmt)
 }
 
 // parseCTE parses one CTE definition:

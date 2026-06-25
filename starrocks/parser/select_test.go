@@ -480,3 +480,97 @@ func TestSelectLoc(t *testing.T) {
 		t.Errorf("Loc.End = %d, want %d", stmt.Loc.End, len(input))
 	}
 }
+
+// ---------------------------------------------------------------------------
+// INTO OUTFILE
+// ---------------------------------------------------------------------------
+
+func TestSelectIntoOutfileBasic(t *testing.T) {
+	stmt := mustParseSelect(t, `SELECT * FROM orders INTO OUTFILE "s3://bucket/export/"`)
+
+	if stmt.Into == nil {
+		t.Fatal("Into is nil, want IntoOutfileClause")
+	}
+	if stmt.Into.Path != "s3://bucket/export/" {
+		t.Errorf("Into.Path = %q, want %q", stmt.Into.Path, "s3://bucket/export/")
+	}
+	if stmt.Into.Format != "" {
+		t.Errorf("Into.Format = %q, want empty", stmt.Into.Format)
+	}
+}
+
+func TestSelectIntoOutfileFormatAsParquet(t *testing.T) {
+	stmt := mustParseSelect(t, `SELECT * FROM orders INTO OUTFILE "s3://bucket/export/" FORMAT AS PARQUET`)
+
+	if stmt.Into == nil {
+		t.Fatal("Into is nil")
+	}
+	if stmt.Into.Path != "s3://bucket/export/" {
+		t.Errorf("Into.Path = %q", stmt.Into.Path)
+	}
+	if stmt.Into.Format != "PARQUET" {
+		t.Errorf("Into.Format = %q, want %q", stmt.Into.Format, "PARQUET")
+	}
+}
+
+func TestSelectIntoOutfileWithProperties(t *testing.T) {
+	sql := `SELECT * FROM orders INTO OUTFILE "s3://bucket/export/" FORMAT AS PARQUET PROPERTIES("s3.endpoint" = "s3.amazonaws.com")`
+	stmt := mustParseSelect(t, sql)
+
+	if stmt.Into == nil {
+		t.Fatal("Into is nil")
+	}
+	if stmt.Into.Format != "PARQUET" {
+		t.Errorf("Into.Format = %q", stmt.Into.Format)
+	}
+	if len(stmt.Into.Properties) != 1 {
+		t.Fatalf("Into.Properties len = %d, want 1", len(stmt.Into.Properties))
+	}
+	if stmt.Into.Properties[0].Key != "s3.endpoint" {
+		t.Errorf("property key = %q", stmt.Into.Properties[0].Key)
+	}
+	if stmt.Into.Properties[0].Value != "s3.amazonaws.com" {
+		t.Errorf("property value = %q", stmt.Into.Properties[0].Value)
+	}
+}
+
+func TestSelectIntoOutfileLoc(t *testing.T) {
+	sql := `SELECT * FROM orders INTO OUTFILE "s3://bucket/export/" FORMAT AS PARQUET PROPERTIES("s3.endpoint" = "s3.amazonaws.com")`
+	stmt := mustParseSelect(t, sql)
+
+	if stmt.Loc.End != len(sql) {
+		t.Errorf("SelectStmt.Loc.End = %d, want %d (should include INTO OUTFILE)", stmt.Loc.End, len(sql))
+	}
+}
+
+func TestSelectLimitBeforeIntoOutfile(t *testing.T) {
+	sql := `SELECT * FROM orders LIMIT 10 INTO OUTFILE "s3://bucket/export/"`
+	stmt := mustParseSelect(t, sql)
+
+	if stmt.Limit == nil {
+		t.Fatal("Limit is nil")
+	}
+	if stmt.Into == nil {
+		t.Fatal("Into is nil")
+	}
+}
+
+func TestSelectIntoOutfileWalkProperties(t *testing.T) {
+	sql := `SELECT * FROM orders INTO OUTFILE "s3://bucket/export/" FORMAT AS PARQUET PROPERTIES("s3.endpoint" = "s3.amazonaws.com", "s3.region" = "us-east-1")`
+	stmt := mustParseSelect(t, sql)
+
+	count := make(map[ast.NodeTag]int)
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if n != nil {
+			count[n.Tag()]++
+		}
+		return true
+	})
+
+	if count[ast.T_IntoOutfileClause] != 1 {
+		t.Errorf("T_IntoOutfileClause visited %d times, want 1", count[ast.T_IntoOutfileClause])
+	}
+	if count[ast.T_Property] != 2 {
+		t.Errorf("T_Property visited %d times, want 2", count[ast.T_Property])
+	}
+}
