@@ -101,7 +101,15 @@ func compareTable(key tableKey, from, to *Table, n *Normalizer) (TableDiffEntry,
 		From:     from,
 		To:       to,
 		Columns:  diffColumns(from, to, n),
-		// Indexes/Constraints/ForeignKeys/Checks/PartitionChanged: populated by breadth nodes.
+		// Table-level sub-object diffs, owned by the breadth nodes (mirroring PG's
+		// compareRelation, which calls diffConstraints/diffIndexes/... inline). Each is an
+		// inert no-op stub today (returns nil/false), so the breadth node only fills its own
+		// differ — compareTable and tableSubdiffsChanged already fold the result in.
+		Indexes:          diffIndexes(from, to, n),
+		Constraints:      diffConstraints(from, to, n),
+		ForeignKeys:      diffForeignKeys(from, to, n),
+		Checks:           diffChecks(from, to, n),
+		PartitionChanged: diffPartitions(from, to, n),
 	}
 
 	if !tableOptionsChanged(from, to, n) && !tableSubdiffsChanged(&entry) {

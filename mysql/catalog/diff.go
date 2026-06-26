@@ -234,20 +234,24 @@ func Diff(from, to *Catalog) *SchemaDiff {
 // default for `to`.
 //
 // The dispatcher mirrors PG: one diffX per object kind, packed into SchemaDiff. Only
-// the table differ (which descends into columns) is implemented in diff-core; the
-// breadth slices are left nil for later nodes.
+// the table differ (which descends into columns) carries real logic; every breadth
+// differ is wired here against an inert no-op stub (returns nil) until its owning node
+// implements it, so the breadth slices stay empty and a breadth node touches only its
+// own diff_<obj>.go.
 func DiffWithNormalizer(from, to *Catalog, n *Normalizer) *SchemaDiff {
 	if n == nil {
 		n = defaultNormalizer(to)
 	}
 	return &SchemaDiff{
 		Tables: diffTables(from, to, n),
-		// Breadth extension points — populated by later nodes:
-		//   Views:      diffViews(from, to, n),
-		//   Functions:  diffFunctions(from, to, n),
-		//   Procedures: diffProcedures(from, to, n),
-		//   Triggers:   diffTriggers(from, to, n),
-		//   Events:     diffEvents(from, to, n),
+		// Breadth object kinds (database-level). Each differ is an inert no-op stub today
+		// (returns nil), so the diff stays empty until the owning breadth node implements it —
+		// a breadth node then only fills its own diff_<obj>.go.
+		Views:      diffViews(from, to, n),
+		Functions:  diffFunctions(from, to, n),
+		Procedures: diffProcedures(from, to, n),
+		Triggers:   diffTriggers(from, to, n),
+		Events:     diffEvents(from, to, n),
 	}
 }
 

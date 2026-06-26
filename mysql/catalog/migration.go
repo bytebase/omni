@@ -31,9 +31,10 @@ package catalog
 // Scope of THIS node (omni:generate-core): the MigrationPlan / MigrationOp types,
 // GenerateMigration dispatcher, table DDL (migration_table.go), column DDL
 // (migration_column.go), and sortMigrationOps. The breadth object kinds (indexes, FKs,
-// constraints, checks, views, triggers, routines, events, partitions) have wired-but-empty
-// generate hooks here, mirroring PG's migration_<obj>.go layout and the empty SchemaDiff
-// slices diff-core left — a breadth node fills its slice and its hook with no change here.
+// constraints, checks, views, triggers, routines, events, partitions) are wired here against
+// inert no-op generate stubs (each returns nil), mirroring PG's migration_<obj>.go layout;
+// paired with the empty breadth SchemaDiff slices they contribute no ops, so a breadth node
+// fills its slice and its hook with no change here.
 
 import (
 	"sort"
@@ -216,17 +217,19 @@ func GenerateMigrationWithNormalizer(from, to *Catalog, diff *SchemaDiff, n *Nor
 	ops = append(ops, generateTableDDL(from, to, diff, n)...)
 	ops = append(ops, generateColumnDDL(from, to, diff, n)...)
 
-	// Breadth extension points — inert until the owning node fills the SchemaDiff slice and
-	// implements the hook (mirroring PG's per-object generators and diff-core's empty slices):
-	//   ops = append(ops, generateIndexDDL(from, to, diff, n)...)
-	//   ops = append(ops, generateConstraintDDL(from, to, diff, n)...)
-	//   ops = append(ops, generateForeignKeyDDL(from, to, diff, n)...)
-	//   ops = append(ops, generateCheckDDL(from, to, diff, n)...)
-	//   ops = append(ops, generateViewDDL(from, to, diff, n)...)
-	//   ops = append(ops, generateRoutineDDL(from, to, diff, n)...)
-	//   ops = append(ops, generateTriggerDDL(from, to, diff, n)...)
-	//   ops = append(ops, generateEventDDL(from, to, diff, n)...)
-	//   ops = append(ops, generatePartitionDDL(from, to, diff, n)...)
+	// Breadth object kinds (mirroring PG's per-object generators and diff-core's empty slices).
+	// Each generator is an inert no-op stub today (returns nil) — the matching SchemaDiff slice
+	// is empty, so these contribute no ops and the plan stays empty on a no-op release. A breadth
+	// node fills its slice and its generator with no change here.
+	ops = append(ops, generateIndexDDL(from, to, diff, n)...)
+	ops = append(ops, generateConstraintDDL(from, to, diff, n)...)
+	ops = append(ops, generateForeignKeyDDL(from, to, diff, n)...)
+	ops = append(ops, generateCheckDDL(from, to, diff, n)...)
+	ops = append(ops, generateViewDDL(from, to, diff, n)...)
+	ops = append(ops, generateRoutineDDL(from, to, diff, n)...)
+	ops = append(ops, generateTriggerDDL(from, to, diff, n)...)
+	ops = append(ops, generateEventDDL(from, to, diff, n)...)
+	ops = append(ops, generatePartitionDDL(from, to, diff, n)...)
 
 	ops = sortMigrationOps(ops)
 
