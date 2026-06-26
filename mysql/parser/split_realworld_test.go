@@ -377,6 +377,11 @@ SELECT 3;`,
 			sql:  "DELIMITER ;;\nCREATE PROCEDURE p() BEGIN\n  SELECT delimiter FROM t;\nEND;;\nDELIMITER ;\nCALL p();",
 			want: 2,
 		},
+		{
+			name: "delimiter as label name is not a directive",
+			sql:  "DELIMITER ;;\nCREATE PROCEDURE p() BEGIN\n  delimiter: LOOP\n    SELECT 1;\n    LEAVE delimiter;\n  END LOOP delimiter;\nEND;;\nDELIMITER ;\n",
+			want: 1,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

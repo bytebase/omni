@@ -202,30 +202,34 @@ func Split(sql string) []Segment {
 
 	for i < len(sql) {
 		// Check for DELIMITER directive (only at statement-start position).
+		// Require DELIMITER followed by whitespace to distinguish from labels
+		// like "delimiter: LOOP".
 		if atStmtStart && matchWord(sql, i, "DELIMITER") {
 			j := skipToEndOfWord(sql, i)
-			j = skipWhitespace(sql, j)
-			delimStart := j
-			for j < len(sql) && sql[j] != '\n' && sql[j] != '\r' {
-				j++
+			if j < len(sql) && (sql[j] == ' ' || sql[j] == '\t') {
+				j = skipWhitespace(sql, j)
+				delimStart := j
+				for j < len(sql) && sql[j] != '\n' && sql[j] != '\r' {
+					j++
+				}
+				delimEnd := j
+				for delimEnd > delimStart && (sql[delimEnd-1] == ' ' || sql[delimEnd-1] == '\t') {
+					delimEnd--
+				}
+				if delimEnd > delimStart {
+					delim = sql[delimStart:delimEnd]
+				}
+				if j < len(sql) && sql[j] == '\r' {
+					j++
+				}
+				if j < len(sql) && sql[j] == '\n' {
+					j++
+				}
+				i = j
+				stmtStart = i
+				atStmtStart = true
+				continue
 			}
-			delimEnd := j
-			for delimEnd > delimStart && (sql[delimEnd-1] == ' ' || sql[delimEnd-1] == '\t') {
-				delimEnd--
-			}
-			if delimEnd > delimStart {
-				delim = sql[delimStart:delimEnd]
-			}
-			if j < len(sql) && sql[j] == '\r' {
-				j++
-			}
-			if j < len(sql) && sql[j] == '\n' {
-				j++
-			}
-			i = j
-			stmtStart = i
-			atStmtStart = true
-			continue
 		}
 
 		b := sql[i]
