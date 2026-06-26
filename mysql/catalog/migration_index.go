@@ -99,11 +99,22 @@ func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationO
 			}
 			ops = append(ops, dropIndexOp(entry, table, ie.From))
 		case DiffModify:
-			// MySQL cannot ALTER an index in place: DROP then ADD. The drop (PhasePre) always
-			// precedes the add (PhaseMain), so the name is free when the new form is created.
 			if ie.From == nil || ie.To == nil {
 				continue
 			}
+			// The PRIMARY KEY is special: dropping it in one statement and re-adding it in a
+			// later one leaves an AUTO_INCREMENT member column unkeyed in between, which MySQL
+			// rejects (errno 1075, "there can be only one auto column and it must be defined as a
+			// key"). MySQL accepts DROP PRIMARY KEY + ADD PRIMARY KEY in a SINGLE ALTER, with no
+			// unkeyed window — and a combined statement is valid whenever the separate pair is —
+			// so a PK change is always emitted as one op. (A non-PK index has no such constraint;
+			// it is a normal DROP-then-ADD across phases.)
+			if ie.To.Primary || ie.From.Primary {
+				ops = append(ops, modifyPrimaryKeyOp(entry, table, ie.To, n))
+				continue
+			}
+			// MySQL cannot ALTER a secondary index in place: DROP then ADD. The drop (PhasePre)
+			// always precedes the add (PhaseMain), so the name is free when the new form is created.
 			ops = append(ops, dropIndexOp(entry, table, ie.From))
 			ops = append(ops, addIndexOp(entry, table, ie.To, n))
 		}
@@ -124,6 +135,28 @@ func addIndexOp(entry *TableDiffEntry, table string, idx *Index, n *Normalizer) 
 		Phase:        PhaseMain,
 		Priority:     priorityIndex,
 		sortName:     indexSortName(entry.Database, entry.Name, idx.Name),
+	}
+}
+
+// modifyPrimaryKeyOp builds a single combined ALTER TABLE ... DROP PRIMARY KEY, ADD PRIMARY KEY
+// (...) op for a PRIMARY KEY change. Combining the drop and re-add in one statement avoids the
+// transient unkeyed window a separate drop+add would create — which MySQL rejects for a table
+// with an AUTO_INCREMENT member (errno 1075). It runs in PhaseMain at priorityIndex; any NOT NULL
+// promotion a newly-added PK column needs is emitted independently by the column generator (the
+// column's canonical NOT NULL is PK-aware), and MySQL also auto-promotes PK members, so the
+// combined statement is correct regardless of the column op's relative order. `to` always has the
+// PRIMARY index for a PK change (the diff keys it by the PRIMARY name); the DROP PRIMARY KEY half
+// is unconditional because a PK modify always replaces an existing PK.
+func modifyPrimaryKeyOp(entry *TableDiffEntry, table string, to *Index, n *Normalizer) MigrationOp {
+	return MigrationOp{
+		Type:         OpAddIndex,
+		Database:     entry.Database,
+		ObjectName:   entry.Name,
+		ParentObject: entry.Name,
+		SQL:          fmt.Sprintf("ALTER TABLE %s DROP PRIMARY KEY, ADD %s", table, formatIndexDefinition(to, n)),
+		Phase:        PhaseMain,
+		Priority:     priorityIndex,
+		sortName:     indexSortName(entry.Database, entry.Name, to.Name),
 	}
 }
 

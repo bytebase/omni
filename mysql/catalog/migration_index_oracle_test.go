@@ -116,6 +116,17 @@ func indexMigrationProbes() []migrationProbe {
 		{"modify-pk-columns", "t",
 			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a))",
 			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b))", both()},
+		// PK change on an AUTO_INCREMENT table: the combined DROP+ADD PRIMARY KEY in one ALTER
+		// avoids the unkeyed window that leaves the AUTO_INCREMENT column without a key (errno
+		// 1075). `a` is promoted to NOT NULL to join the PK (column generator + MySQL auto-promote).
+		{"modify-pk-autoincrement", "t",
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a INT NOT NULL)",
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, PRIMARY KEY (id,a))", both()},
+		// PK swap to a different column on an AUTO_INCREMENT table (id stays auto-inc, still keyed
+		// by the new composite PK that includes it).
+		{"modify-pk-swap-autoincrement", "t",
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (id,a))",
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (id,b))", both()},
 		// 8.0-only: visibility flip and direction flip are MODIFYs.
 		{"modify-visibility", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a))",
