@@ -2317,6 +2317,9 @@ func writeCastExpr(sb *strings.Builder, n *CastExpr) {
 	writeNode(sb, n.Expr)
 	sb.WriteString(" :type ")
 	writeNode(sb, n.TypeName)
+	if n.Array {
+		sb.WriteString(" :array true")
+	}
 	sb.WriteString("}")
 }
 

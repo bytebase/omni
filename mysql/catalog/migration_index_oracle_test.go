@@ -50,6 +50,8 @@ func indexMigrationProbes() []migrationProbe {
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY va (a) /*!80000 INVISIBLE */)", only(MySQL80)},
 		{"create-with-functional", "t", "",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY fa ((a + 1)))", only(MySQL80)},
+		{"create-with-mv-index", "t", "",
+			"CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))", only(MySQL80)},
 		{"create-with-spatial", "t", "",
 			"CREATE TABLE t (id INT PRIMARY KEY, g GEOMETRY NOT NULL, SPATIAL KEY sg (g))", only(MySQL80)},
 
@@ -85,6 +87,9 @@ func indexMigrationProbes() []migrationProbe {
 		{"add-functional", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT)",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY fa ((a + 1)))", only(MySQL80)},
+		{"add-mv-index", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY, j JSON)",
+			"CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))", only(MySQL80)},
 
 		// ---- DROP INDEX (modified table) ----
 		{"drop-secondary", "t",
@@ -99,6 +104,9 @@ func indexMigrationProbes() []migrationProbe {
 		{"drop-one-of-many", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY ka (a), KEY kb (b))",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY kb (b))", both()},
+		{"drop-mv-index", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))",
+			"CREATE TABLE t (id INT PRIMARY KEY, j JSON)", only(MySQL80)},
 
 		// ---- MODIFY index (DROP+ADD): same name, changed shape ----
 		{"modify-columns", "t",

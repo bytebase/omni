@@ -56,6 +56,15 @@ func indexDiffProbes() []diffProbe {
 		{"invisible", "CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY va (a) /*!80000 INVISIBLE */)", "t", only(MySQL80)},
 		// Functional / expression index — 8.0 only.
 		{"functional", "CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY fa ((a + 1)), KEY fab ((a + b)))", "t", only(MySQL80)},
+		// Multi-valued (JSON array) functional index — 8.0.17+ only. The CAST(... AS <type> ARRAY)
+		// key part must parse, deparse with the trailing `array`, and round-trip empty. Cover the
+		// representative cast targets (UNSIGNED/CHAR(n)/DECIMAL(m,n)/DATE) MySQL allows in MV keys.
+		{"mv-unsigned", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.ids' AS UNSIGNED ARRAY))))", "t", only(MySQL80)},
+		{"mv-char", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.codes' AS CHAR(40) ARRAY))))", "t", only(MySQL80)},
+		{"mv-decimal", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.amts' AS DECIMAL(10,2) ARRAY))))", "t", only(MySQL80)},
+		{"mv-date", "CREATE TABLE t (id INT PRIMARY KEY, j JSON, KEY mv ((CAST(j->'$.days' AS DATE ARRAY))))", "t", only(MySQL80)},
+		// Composite MV index: a regular column part combined with an MV (array-cast) part.
+		{"mv-composite", "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(50), j JSON, KEY mv (name, (CAST(j->'$.ids' AS UNSIGNED ARRAY))))", "t", only(MySQL80)},
 		// FULLTEXT.
 		{"fulltext", "CREATE TABLE t (id INT PRIMARY KEY, body TEXT, ftcol VARCHAR(200), FULLTEXT KEY ftb (body), FULLTEXT KEY ftc (ftcol))", "t", both()},
 		// SPATIAL — needs a NOT NULL geometry column. 8.0 supports SPATIAL on InnoDB; 5.7 needs

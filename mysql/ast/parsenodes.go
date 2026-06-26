@@ -782,6 +782,11 @@ type CastExpr struct {
 	Loc      Loc
 	Expr     ExprNode
 	TypeName *DataType
+	// Array is set for the multi-valued-index form CAST(expr AS type ARRAY)
+	// (MySQL 8.0.17+). It maps to the grammar's opt_array_cast, an optional
+	// trailing ARRAY keyword after the cast target type. ARRAY is a
+	// non-reserved (contextual) keyword; it only attaches to CAST, never CONVERT.
+	Array bool
 }
 
 func (e *CastExpr) nodeTag()  {}

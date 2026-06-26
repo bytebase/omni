@@ -1190,6 +1190,14 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 		return nil, err
 	}
 
+	// Optional trailing ARRAY for multi-valued functional indexes (8.0.17+):
+	// CAST(expr AS type ARRAY). Maps to the grammar's opt_array_cast. ARRAY is a
+	// non-reserved keyword, consumed only in this cast-target position.
+	isArray := false
+	if _, ok := p.match(kwARRAY); ok {
+		isArray = true
+	}
+
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
@@ -1198,6 +1206,7 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 		Loc:      nodes.Loc{Start: start, End: p.pos()},
 		Expr:     expr,
 		TypeName: dt,
+		Array:    isArray,
 	}, nil
 }
 
