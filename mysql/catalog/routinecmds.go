@@ -174,13 +174,28 @@ func formatDataType(dt *nodes.DataType) string {
 		name = "json"
 	case "bool", "boolean":
 		name = "tinyint"
+	case "enum", "set":
+		// keep as-is; the member list is rendered below.
 	}
 
 	var b strings.Builder
 	b.WriteString(name)
 
-	// Length/precision.
-	if dt.Length > 0 {
+	// ENUM/SET carry a quoted member list, not a numeric length. MySQL stores and echoes the
+	// member list verbatim in a routine's parameter/return type (e.g. RETURNS enum('a','b')), so
+	// it must be rendered or the type is invalid DDL and loses identity. Mirrors the column
+	// renderer (tablecmds.go normalizedColumnDataType).
+	if len(dt.EnumValues) > 0 {
+		b.WriteString("(")
+		for i, v := range dt.EnumValues {
+			if i > 0 {
+				b.WriteString(",")
+			}
+			b.WriteString("'" + escapeEnumValue(v) + "'")
+		}
+		b.WriteString(")")
+	} else if dt.Length > 0 {
+		// Length/precision (non-ENUM/SET types).
 		if dt.Scale > 0 {
 			b.WriteString(fmt.Sprintf("(%d,%d)", dt.Length, dt.Scale))
 		} else {
@@ -196,9 +211,16 @@ func formatDataType(dt *nodes.DataType) string {
 }
 
 // formatParamType formats a DataType for display in a routine parameter list.
-// MySQL 8.0 shows parameter types in UPPERCASE (INT, VARCHAR(100), etc.)
+// MySQL 8.0 shows parameter types in UPPERCASE (INT, VARCHAR(100), etc.), but ENUM/SET member
+// VALUES are case-significant and must be preserved verbatim — upper-casing the whole rendered
+// string would corrupt 'Lower' into 'LOWER' and change the column domain on apply. So only the
+// portion up to the first '(' (the type keyword) is upper-cased; the parenthesized argument/member
+// list (and any trailing modifier) is kept as formatDataType rendered it.
 func formatParamType(dt *nodes.DataType) string {
 	raw := formatDataType(dt)
+	if open := strings.IndexByte(raw, '('); open >= 0 {
+		return strings.ToUpper(raw[:open]) + raw[open:]
+	}
 	return strings.ToUpper(raw)
 }
 
