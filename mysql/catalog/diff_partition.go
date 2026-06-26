@@ -48,22 +48,46 @@ func canonicalPartitionSpec(t *Table, n *Normalizer) string {
 	return showPartitioning(partitionSpecWithResolvedEngine(t, n))
 }
 
-// partitionSpecWithResolvedEngine returns a copy of the table's PartitionInfo with every
-// explicitly-defined partition's and subpartition's Engine resolved to the table's effective
-// storage engine when empty. The table default (InnoDB unless ENGINE=... says otherwise) is
-// what SHOW CREATE echoes per partition, so folding empty → that value makes the user form (no
-// per-partition ENGINE) and the stored form (every partition carries ENGINE = <engine>) compare
-// equal — including a MyISAM table, whose readback echoes ENGINE = MyISAM, not InnoDB.
+// keyAlgorithmDefault is the KEY-partitioning ALGORITHM that MySQL omits from SHOW CREATE: the
+// modern algorithm (2) is the default and is NOT echoed, while the legacy algorithm (1) IS echoed
+// (via a /*!50611 ALGORITHM = 1 */ split comment). The catalog uses 0 to mean "no ALGORITHM
+// written"; the loader stores 2 only when the user wrote it explicitly. Folding 2 → 0 makes an
+// explicit `KEY ALGORITHM=2` compare equal to the engine's stripped `KEY` form (verified on live
+// 5.7.25 + 8.0.32). Algorithm 1 is left intact so its echoed form round-trips. (Concern raised by
+// cross-family review and confirmed on both engines.)
+const keyAlgorithmDefault = 2
+
+// partitionSpecWithResolvedEngine returns a copy of the table's PartitionInfo canonicalized so that
+// the user form and the engine's SHOW CREATE readback collapse onto the same showPartitioning
+// output. Two surface differences are folded:
+//
+//   - per-partition / per-subpartition Engine: resolved to the table's effective storage engine
+//     when empty. The table default (InnoDB unless ENGINE=... says otherwise) is what SHOW CREATE
+//     echoes per partition, so folding empty → that value makes the user form (no per-partition
+//     ENGINE) and the stored form (every partition carries ENGINE = <engine>) compare equal —
+//     including a MyISAM table, whose readback echoes ENGINE = MyISAM, not InnoDB.
+//   - KEY partitioning ALGORITHM = 2: the default algorithm, stripped from SHOW CREATE, is folded
+//     to 0 (unspecified) so an explicit `ALGORITHM=2` matches the readback (keyAlgorithmDefault).
 //
 // HASH/KEY partitions defined only by PARTITIONS N (no explicit definitions) read back as
 // `PARTITIONS N` with NO per-partition engine on either side; showPartitioning renders that
-// PARTITIONS-N form without touching per-partition engines, so the resolution below is a no-op
+// PARTITIONS-N form without touching per-partition engines, so the engine resolution is a no-op
 // for them and they round-trip regardless.
+//
+// NOT folded — flagged idempotence limitation: a partition EXPRESSION or bound VALUE containing a
+// non-literal constant expression (e.g. `VALUES LESS THAN (TO_DAYS('2020-01-01'))`, `LESS THAN
+// (5+5)`) is constant-folded by the engine at storage time (→ `737790`, `10`) but kept verbatim by
+// the loader, so it phantom-diffs. Folding it requires a constant-expression evaluator — a
+// normalize-core/analyzer capability (the same one CanonicalGeneratedExpr would need to evaluate,
+// not just reformat), out of scope for this node. See the package doc / PR flag. Literal bounds
+// (the overwhelmingly common case) are unaffected.
 func partitionSpecWithResolvedEngine(t *Table, n *Normalizer) *PartitionInfo {
 	pi := t.Partitioning
 	engine := n.CanonicalEngine(t) // lower-cased effective engine; never returns ""
 
 	out := *pi
+	out.Algorithm = foldKeyAlgorithm(pi.Algorithm)
+	out.SubAlgo = foldKeyAlgorithm(pi.SubAlgo)
 	out.Partitions = make([]*PartitionDefInfo, len(pi.Partitions))
 	for i, pd := range pi.Partitions {
 		cp := *pd
@@ -92,4 +116,14 @@ func resolvePartitionEngine(declared, tableEngine string) string {
 		return tableEngine
 	}
 	return d
+}
+
+// foldKeyAlgorithm maps the default KEY-partitioning ALGORITHM (2) to 0 (unspecified), so an
+// explicit `ALGORITHM=2` and the engine's stripped readback compare equal. Algorithm 1 (legacy,
+// echoed by SHOW CREATE) and 0 (unwritten) pass through unchanged.
+func foldKeyAlgorithm(algo int) int {
+	if algo == keyAlgorithmDefault {
+		return 0
+	}
+	return algo
 }

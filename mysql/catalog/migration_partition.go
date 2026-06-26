@@ -31,14 +31,30 @@ import (
 // MySQL executes that comment as an ALTER suffix on every supported version (verified on live
 // 5.7.25 + 8.0.32), so the same DDL is valid on both engines.
 //
-// Ordering: partition ops run in PhaseMain at priorityPartition — AFTER the table CREATE
-// (priorityTable), the column adds/modifies (priorityColumn), and the index adds (priorityIndex),
-// because PARTITION BY requires its referenced columns to exist and every unique key (the PK
-// included) to cover the partitioning columns; the PK/indexes must therefore already be in place.
-// They run BEFORE deferred FKs (PhasePost): a table cannot be partitioned while it is the child
-// of a foreign key, so partitioning must be established before FKs are added. A table either
-// gains/changes partitioning or loses it in a single plan, never both, so at most one partition
-// op per table — ops are ordered by table name (sortName) alone.
+// Ordering has two cases, because a PARTITION BY and a REMOVE PARTITIONING have opposite
+// dependencies on the column ops:
+//
+//   - PARTITION BY (define / repartition) runs in PhaseMain at priorityPartition — AFTER the
+//     table CREATE (priorityTable), column adds/modifies (priorityColumn), and index adds
+//     (priorityIndex), because PARTITION BY requires its referenced columns to exist and every
+//     unique key (the PK included) to cover the partitioning columns. It runs BEFORE deferred
+//     FKs (PhasePost): a table cannot be partitioned while it is the child of a foreign key.
+//   - REMOVE PARTITIONING runs in PhasePre at priorityRemovePartitioning — BEFORE any column
+//     DROP (PhasePre, priorityColumn-1/priorityColumn). MySQL rejects dropping a column that the
+//     LIVE partition function/key still references (errno 1505/1054-class), so the table must be
+//     un-partitioned first when the same plan also drops an old partitioning column.
+//
+// A table either gains/changes partitioning or loses it in a single plan, never both, so at most
+// one partition op per table — ops are ordered by table name (sortName) alone.
+//
+// KNOWN LIMITATION (flagged, not handled): repartitioning a table (to stays partitioned) whose
+// OLD partition function references a column DROPPED in the same plan emits the new PARTITION BY
+// in PhaseMain, after the PhasePre column drop — which MySQL rejects because the column is still
+// bound by the live old partition function when the drop runs. Correct emission would require
+// stripping the old partitioning (a PhasePre REMOVE PARTITIONING) before the column drop AND then
+// applying the new scheme in PhaseMain — i.e. splitting one logical change across phases, which
+// the coarse bool diff does not model. The REMOVE-to-unpartitioned case IS handled (above); only
+// the drop-old-key-column-while-repartitioning combination is out of scope. Not in any probe.
 //
 // implemented by omni:partitions breadth node
 func generatePartitionDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []MigrationOp {
@@ -107,7 +123,10 @@ func partitionByOp(entry *TableDiffEntry, tbl *Table, n *Normalizer) (MigrationO
 	}, true
 }
 
-// removePartitioningOp builds an ALTER TABLE ... REMOVE PARTITIONING op.
+// removePartitioningOp builds an ALTER TABLE ... REMOVE PARTITIONING op. It runs in PhasePre at
+// priorityRemovePartitioning, ahead of any column DROP, so a table partitioned by a column that is
+// also dropped in the same plan is un-partitioned before the drop (which MySQL would otherwise
+// reject — the column is still bound by the live partition function).
 func removePartitioningOp(entry *TableDiffEntry, tbl *Table) MigrationOp {
 	return MigrationOp{
 		Type:         OpAlterTable,
@@ -115,15 +134,25 @@ func removePartitioningOp(entry *TableDiffEntry, tbl *Table) MigrationOp {
 		ObjectName:   entry.Name,
 		ParentObject: entry.Name,
 		SQL:          fmt.Sprintf("ALTER TABLE %s REMOVE PARTITIONING", tableIdent(tbl)),
-		Phase:        PhaseMain,
-		Priority:     priorityPartition,
+		Phase:        PhasePre,
+		Priority:     priorityRemovePartitioning,
 		sortName:     tableSortName(entry.Database, entry.Name),
 	}
 }
 
-// priorityPartition orders partition ops within PhaseMain after the table create (priorityTable),
-// column alters (priorityColumn), and index adds (priorityIndex) — PARTITION BY needs the columns
-// present and every unique key (PK) to cover the partitioning columns — and before deferred FKs
-// (PhasePost), since a table cannot be partitioned while it is an FK child. It sits just above
-// priorityForeignKey so partitioning is the last in-phase structural change before FKs.
+// priorityPartition orders a PARTITION BY op within PhaseMain after the table create
+// (priorityTable), column alters (priorityColumn), and index adds (priorityIndex) — PARTITION BY
+// needs the columns present and every unique key (PK) to cover the partitioning columns — and
+// before deferred FKs (PhasePost), since a table cannot be partitioned while it is an FK child. It
+// sits just above priorityForeignKey so partitioning is the last in-phase structural change before
+// FKs.
 const priorityPartition = priorityForeignKey - 1
+
+// priorityRemovePartitioning orders a REMOVE PARTITIONING op within PhasePre BEFORE every column
+// DROP. A column referenced by the live partition function cannot be dropped while the table is
+// partitioned, so the stripping must run first. Column drops run at priorityColumn-1 (generated) /
+// priorityColumn (plain) and index/PK drops at priorityIndexDrop/priorityPrimaryKeyDrop; this sits
+// below all of them so REMOVE PARTITIONING is the very first PhasePre statement. (Dropping
+// partitioning first is harmless when no partitioning column is dropped, so ordering it first
+// unconditionally is safe.)
+const priorityRemovePartitioning = priorityPrimaryKeyDrop - 1

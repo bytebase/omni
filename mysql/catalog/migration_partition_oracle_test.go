@@ -231,6 +231,18 @@ func partitionMigrationProbes() []migrationProbe {
 		{"add-column-keep-partitioning", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 4",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY HASH (id) PARTITIONS 4", both()},
+
+		// ---- REMOVE PARTITIONING while DROPPING a column the OLD partition function references:
+		//      the REMOVE must run (PhasePre) before the DROP COLUMN, else MySQL rejects dropping a
+		//      column bound by the live partition function. Regression guard for the ordering fix. ----
+		{"remove-partitioning-drop-key-column", "t",
+			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION pmax VALUES LESS THAN MAXVALUE)",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY)", both()},
+
+		// ---- KEY ALGORITHM=2 (the stripped default) defined on a fresh table: the generated
+		//      PARTITION BY must apply and read back equal to `to` (which folds ALGORITHM=2 away). ----
+		{"create-key-algorithm-2", "t", "",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY KEY ALGORITHM=2 (id) PARTITIONS 3", both()},
 	}
 }
 

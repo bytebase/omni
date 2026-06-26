@@ -53,6 +53,12 @@ func partitionDiffProbes() []diffProbe {
 		{"key-implicit", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY KEY () PARTITIONS 3", "t", both()},
 		// KEY over an explicit column.
 		{"key-explicit", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY KEY (id) PARTITIONS 3", "t", both()},
+		// KEY ALGORITHM=2 — the DEFAULT algorithm, STRIPPED from SHOW CREATE (`KEY (id)`), so the
+		// explicit user form must fold to the stripped stored form (keyAlgorithmDefault fold).
+		{"key-algorithm-2", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY KEY ALGORITHM=2 (id) PARTITIONS 3", "t", both()},
+		// KEY ALGORITHM=1 — the LEGACY algorithm, ECHOED by SHOW CREATE via a /*!50611 ALGORITHM = 1
+		// */ split comment, so it must round-trip WITHOUT being folded.
+		{"key-algorithm-1", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT) PARTITION BY KEY ALGORITHM=1 (id) PARTITIONS 3", "t", both()},
 		// LINEAR KEY.
 		{"linear-key", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY LINEAR KEY (id) PARTITIONS 2", "t", both()},
 		// Per-partition COMMENT (echoed as `COMMENT = '...' ENGINE = ...`).
