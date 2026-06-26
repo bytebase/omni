@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -112,14 +113,14 @@ func foreignKeysChanged(a, b *Constraint, n *Normalizer) bool {
 //     ACTION / absent onto one "default" key (see that function for the per-version echo
 //     evidence).
 //
-// The referencing columns, referenced database/table, and referenced columns are compared
+// The referencing columns, referenced table, and referenced columns are compared
 // case-insensitively and ORDER-SENSITIVELY (a composite FK's column order is significant). The
-// referenced database is folded to lower case but kept distinct from "" — a same-database FK
-// (SHOW CREATE omits the db qualifier → RefDatabase == "") and an explicitly-qualified one are
-// the same FK only when both resolve to the same schema; since the synced readback never
-// qualifies a same-db FK, "" is the canonical same-db form and is preserved verbatim. The
-// constraint NAME is the identity key (handled by the caller's map), not part of this content
-// key.
+// referenced database is canonicalized through canonicalRefDatabase: a SAME-database FK is the
+// canonical empty form, because SHOW CREATE STRIPS the database qualifier for a same-db reference
+// (verified on the live engine: `REFERENCES d.p(id)` reads back as `REFERENCES p (id)`). So a
+// user form that explicitly qualifies the FK's own database collapses onto the unqualified
+// readback; only a genuine CROSS-database reference contributes a non-empty refdb. The constraint
+// NAME is the identity key (handled by the caller's map), not part of this content key.
 //
 // The Normalizer is threaded for symmetry with the other differs and so the action
 // canonicalization can move to normalize-core later (it is version-independent for the
@@ -129,12 +130,29 @@ func foreignKeysChanged(a, b *Constraint, n *Normalizer) bool {
 func canonicalForeignKey(con *Constraint, _ *Normalizer) string {
 	return encodeKeyFields(
 		"cols", lowerJoin(con.Columns),
-		"refdb", toLower(con.RefDatabase),
+		"refdb", canonicalRefDatabase(con),
 		"reftbl", toLower(con.RefTable),
 		"refcols", lowerJoin(con.RefColumns),
 		"ondelete", canonicalFKAction(con.OnDelete),
 		"onupdate", canonicalFKAction(con.OnUpdate),
 	)
+}
+
+// canonicalRefDatabase returns the FK's referenced database lower-cased, EXCEPT a same-database
+// reference (RefDatabase equal to the FK's own table's database, or empty) folds to "" — the form
+// SHOW CREATE stores. The loader records RefDatabase = the parsed schema qualifier (con.RefTable.
+// Schema), so a user `REFERENCES mydb.p(id)` on a table in `mydb` loads RefDatabase = "mydb",
+// while the engine readback strips it to "". Folding same-db to "" keeps those two from
+// phantom-diffing while preserving a genuine cross-db reference (RefDatabase != own db) verbatim.
+func canonicalRefDatabase(con *Constraint) string {
+	refDB := toLower(con.RefDatabase)
+	if refDB == "" {
+		return ""
+	}
+	if con.Table != nil && con.Table.Database != nil && refDB == toLower(con.Table.Database.Name) {
+		return ""
+	}
+	return refDB
 }
 
 // canonicalFKAction folds a foreign-key referential action onto a canonical key for the
@@ -167,15 +185,23 @@ func canonicalFKAction(action string) string {
 	}
 }
 
-// lowerJoin lower-cases each element and joins with a comma, preserving order (FK column order
-// is significant). Used for both the referencing and referenced column lists.
+// lowerJoin lower-cases each element and encodes the list LENGTH-PREFIXED per element
+// ("<len>:<value>|"), preserving order (FK column order is significant). Length-prefixing (rather
+// than a plain comma join) keeps two different splits from colliding when an identifier itself
+// contains the delimiter — a column name CAN contain a comma when backtick-quoted, so ["a,b","c"]
+// and ["a","b,c"] must not both encode to the same key. Used for both the referencing and
+// referenced column lists.
 func lowerJoin(parts []string) string {
 	if len(parts) == 0 {
 		return ""
 	}
-	lowered := make([]string, len(parts))
-	for i, p := range parts {
-		lowered[i] = toLower(p)
+	var b strings.Builder
+	for _, p := range parts {
+		lower := toLower(p)
+		b.WriteString(strconv.Itoa(len(lower)))
+		b.WriteByte(':')
+		b.WriteString(lower)
+		b.WriteByte('|')
 	}
-	return strings.Join(lowered, ",")
+	return b.String()
 }

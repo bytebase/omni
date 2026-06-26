@@ -29,6 +29,68 @@ import (
 // describeDiff from the diff + normalize oracle tests; it skips cleanly when the engines are
 // unreachable.
 
+// TestForeignKeyCanonicalHelpers is a hermetic (no-engine) unit test for the canonicalization
+// helpers, locking in the action-default fold, the comma-safe column encoding, and the same-db
+// RefDatabase fold independently of the live oracle.
+func TestForeignKeyCanonicalHelpers(t *testing.T) {
+	// canonicalFKAction: RESTRICT / NO ACTION / "" all fold to the same key; CASCADE / SET NULL /
+	// SET DEFAULT stay distinct (case-insensitive).
+	def := canonicalFKAction("")
+	for _, a := range []string{"RESTRICT", "restrict", "NO ACTION", "no action", " No Action "} {
+		if canonicalFKAction(a) != def {
+			t.Errorf("canonicalFKAction(%q)=%q, want default %q", a, canonicalFKAction(a), def)
+		}
+	}
+	distinct := map[string]string{}
+	for _, a := range []string{"CASCADE", "SET NULL", "SET DEFAULT"} {
+		k := canonicalFKAction(a)
+		if k == def {
+			t.Errorf("canonicalFKAction(%q)=%q must differ from default", a, k)
+		}
+		if prev, ok := distinct[k]; ok {
+			t.Errorf("canonicalFKAction collision: %q and %q both → %q", a, prev, k)
+		}
+		distinct[k] = a
+	}
+	// canonicalFKAction is case-insensitive: cascade == CASCADE.
+	if canonicalFKAction("cascade") != canonicalFKAction("CASCADE") {
+		t.Errorf("canonicalFKAction must be case-insensitive for CASCADE")
+	}
+
+	// lowerJoin: different splits of comma-containing identifiers must NOT collide.
+	if lowerJoin([]string{"a,b", "c"}) == lowerJoin([]string{"a", "b,c"}) {
+		t.Errorf("lowerJoin must distinguish [a,b],[c] from [a],[b,c]")
+	}
+	// lowerJoin lower-cases and preserves order.
+	if lowerJoin([]string{"A", "B"}) == lowerJoin([]string{"B", "A"}) {
+		t.Errorf("lowerJoin must be order-sensitive")
+	}
+	if lowerJoin([]string{"A"}) != lowerJoin([]string{"a"}) {
+		t.Errorf("lowerJoin must be case-insensitive")
+	}
+
+	// canonicalRefDatabase: same-db (own database) and "" both fold to ""; a cross-db reference is
+	// kept verbatim (lower-cased).
+	db := &Database{Name: "mydb"}
+	tbl := &Table{Name: "c", Database: db}
+	sameDB := &Constraint{Type: ConForeignKey, Table: tbl, RefDatabase: "MyDB", RefTable: "p"}
+	noDB := &Constraint{Type: ConForeignKey, Table: tbl, RefDatabase: "", RefTable: "p"}
+	crossDB := &Constraint{Type: ConForeignKey, Table: tbl, RefDatabase: "otherdb", RefTable: "p"}
+	if canonicalRefDatabase(sameDB) != "" {
+		t.Errorf("canonicalRefDatabase(same-db) = %q, want empty", canonicalRefDatabase(sameDB))
+	}
+	if canonicalRefDatabase(noDB) != "" {
+		t.Errorf("canonicalRefDatabase(no-db) = %q, want empty", canonicalRefDatabase(noDB))
+	}
+	if canonicalRefDatabase(crossDB) != "otherdb" {
+		t.Errorf("canonicalRefDatabase(cross-db) = %q, want otherdb", canonicalRefDatabase(crossDB))
+	}
+	// A same-db FK and an unqualified FK must produce the same canonical key.
+	if canonicalForeignKey(sameDB, NormalizerFor(MySQL80)) != canonicalForeignKey(noDB, NormalizerFor(MySQL80)) {
+		t.Errorf("same-db-qualified and unqualified FK must canonicalize equal")
+	}
+}
+
 // fkDiffCase is a parent+child schema with one or more foreign keys, used to prove the FK diff
 // round-trips empty. childDDL defines table `c` referencing table `p`; parentDDL defines `p`.
 type fkDiffCase struct {
@@ -96,6 +158,70 @@ func fkDiffCases() []fkDiffCase {
 		// Multiple FKs on one child (two distinct parents' columns).
 		{"multiple-fks", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, pa INT, pb INT, CONSTRAINT fka FOREIGN KEY (pa) REFERENCES p(a), CONSTRAINT fkb FOREIGN KEY (pb) REFERENCES p(b))", both()},
+	}
+}
+
+// TestOracle_ForeignKeySameDBQualifierNoDiff proves the same-database-qualifier canonicalization
+// (canonicalRefDatabase): a FK written with an EXPLICIT same-database qualifier (REFERENCES
+// dbname.p(id)) must diff EMPTY against the engine's readback, which STRIPS the qualifier
+// (verified live: `REFERENCES d.p(id)` → `REFERENCES p (id)`). Without the fold this phantom-diffs
+// forever. The user form references the SAME db it lives in, so the schema is applied to a db of
+// that exact name and the FK resolves.
+func TestOracle_ForeignKeySameDBQualifierNoDiff(t *testing.T) {
+	if testing.Short() {
+		t.Skip("oracle test skipped in short mode")
+	}
+	for _, version := range both() {
+		o := connectOracle(t, version)
+		n := NormalizerFor(version)
+		sc := serverCharsetFor(o.version)
+		ctx := context.Background()
+		t.Run(o.name+"/same-db-qualifier", func(t *testing.T) {
+			const db = "fksdq"
+			// Apply with an explicit same-db qualifier in the real db named `fksdq`.
+			stmts := []string{
+				"DROP DATABASE IF EXISTS " + db,
+				fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", db, sc),
+				"USE " + db,
+				"CREATE TABLE p (id INT NOT NULL PRIMARY KEY)",
+				fmt.Sprintf("CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES %s.p(id))", db),
+			}
+			for _, s := range stmts {
+				if _, err := o.db.ExecContext(ctx, s); err != nil {
+					t.Skipf("[%s] setup: %q: %v", o.name, s, err)
+				}
+			}
+			// Stored form: read both tables back (the qualifier is stripped).
+			var stored strings.Builder
+			fmt.Fprintf(&stored, "CREATE DATABASE %s DEFAULT CHARSET=%s;\nUSE %s;\nSET foreign_key_checks=0;\n", db, sc, db)
+			for _, tbl := range []string{"p", "c"} {
+				var nm, ddl string
+				row := o.db.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s.%s", db, tbl))
+				if err := row.Scan(&nm, &ddl); err != nil {
+					t.Fatalf("[%s] SHOW CREATE %s: %v", o.name, tbl, err)
+				}
+				stored.WriteString(ddl + ";\n")
+			}
+			storedCat, err := LoadSQL(stored.String())
+			if err != nil {
+				t.Fatalf("[%s] reload stored: %v\n%s", o.name, err, stored.String())
+			}
+			// User form: the explicit-qualifier DDL, loaded into the SAME db name.
+			userWrapped := fmt.Sprintf(
+				"CREATE DATABASE %s DEFAULT CHARSET=%s;\nUSE %s;\nCREATE TABLE p (id INT NOT NULL PRIMARY KEY);\nCREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES %s.p(id));",
+				db, sc, db, db)
+			userCat, err := LoadSQL(userWrapped)
+			if err != nil {
+				t.Fatalf("[%s] load user form: %v\n%s", o.name, err, userWrapped)
+			}
+			if d := DiffWithNormalizer(userCat, storedCat, n); !d.IsEmpty() {
+				t.Errorf("[%s] same-db explicit qualifier phantom-diffs vs stripped readback: %s",
+					o.name, describeForeignKeyDiff(d))
+			}
+			if d := DiffWithNormalizer(storedCat, userCat, n); !d.IsEmpty() {
+				t.Errorf("[%s] (reverse) same-db qualifier phantom-diffs: %s", o.name, describeForeignKeyDiff(d))
+			}
+		})
 	}
 }
 

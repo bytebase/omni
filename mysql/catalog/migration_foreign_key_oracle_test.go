@@ -78,6 +78,15 @@ func fkMigrationCases() []fkMigrationCase {
 		{"drop-fk-unnamed", fkParentSingle,
 			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, FOREIGN KEY (pid) REFERENCES p(id))",
 			"CREATE TABLE c (id INT PRIMARY KEY, pid INT)", both()},
+		// Two plain same-column indexes (`pid`, `pid_2`) both matching the FK-implicit name/shape,
+		// plus an FK reusing one of them. Dropping the FK and `pid_2` while keeping `pid`: the FK
+		// node and the index node call the SAME fkImplicitIndexNames on the SAME `from` table, so
+		// they agree on which index is FK-implicit (the first match, `pid`). Because `pid` survives
+		// in `to`, the FK node drops only the FK; the index node drops `pid_2`. No orphan, no
+		// double-drop. (Guards the first-match edge case raised in review.)
+		{"drop-fk-two-covering-indexes", fkParentSingle,
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY pid (pid), KEY pid_2 (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY pid (pid))", both()},
 
 		// ---- MODIFY FK (DROP+ADD) ----
 		// Action change CASCADE→SET NULL: DROP the old FK, ADD the new one (same name).
@@ -241,6 +250,208 @@ func TestOracle_ForeignKeyMigrationIdempotence(t *testing.T) {
 			})
 		}
 	}
+}
+
+// fkMultiCase is an arbitrary multi-table from→to schema transition (BOTH tables may differ),
+// used to prove the cross-object DROP ordering: a FK constraint drop must precede a referenced
+// table drop (errno 3730), a referencing column drop (errno 1828), the index node's reshape of a
+// same-named FK-backing index (errno 1553), and the leftover backing-index drop must respect a
+// surviving FK sharing it. fromSQL/toSQL are full schemas (USE-prefixed by the harness).
+type fkMultiCase struct {
+	id       string
+	fromSQL  string // statements after USE; defines all tables
+	toSQL    string
+	tables   []string // tables to compare in the result (existing in `to`)
+	versions []Version
+}
+
+// fkMultiCases enumerate the cross-object DROP-ordering forms (the review-found ordering bugs).
+func fkMultiCases() []fkMultiCase {
+	return []fkMultiCase{
+		// Drop a column that a FK references, together with the FK: the FK constraint drop
+		// (PhasePre, priorityForeignKeyConstraintDrop) must precede the column drop (errno 1828).
+		{"drop-column-and-its-fk",
+			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
+			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY)",
+			[]string{"p", "c"}, both()},
+		// Drop a table that is REFERENCED by a surviving child's FK: the child's FK drop must
+		// precede the parent table drop (errno 3730). Child keeps its (now-FK-less) column.
+		{"drop-referenced-table",
+			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
+			"CREATE TABLE c (id INT PRIMARY KEY, pid INT)",
+			[]string{"c"}, both()},
+		// Two FKs on the SAME column share ONE backing index; drop BOTH: every FK constraint drop
+		// must precede the single backing-index drop (errno 1553 if interleaved).
+		{"drop-two-fks-sharing-index",
+			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fka FOREIGN KEY (pid) REFERENCES p(id), CONSTRAINT fkb FOREIGN KEY (pid) REFERENCES p(id))",
+			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT)",
+			[]string{"p", "c"}, both()},
+		// Two FKs sharing one backing index; drop only ONE: the shared backing index must SURVIVE
+		// because the other FK still needs it (errno 1553 if dropped).
+		{"drop-one-of-two-fks-sharing-index",
+			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fka FOREIGN KEY (pid) REFERENCES p(id), CONSTRAINT fkb FOREIGN KEY (pid) REFERENCES p(id))",
+			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT fkb FOREIGN KEY (pid) REFERENCES p(id))",
+			[]string{"p", "c"}, both()},
+		// Drop a FK whose auto backing index name (`fk`) is REUSED by the target as a differently
+		// shaped USER index: the FK constraint drop must precede the index node's DROP INDEX `fk`
+		// reshape (errno 1553 if the reshape runs while the FK lives).
+		{"drop-fk-reuse-name-for-other-index",
+			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, other_col INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
+			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, other_col INT, KEY fk (other_col))",
+			[]string{"p", "c"}, both()},
+	}
+}
+
+// TestOracle_ForeignKeyMultiTableApplyCorrectness proves the cross-object DROP ordering for the
+// review-found scenarios: each `from→to` schema is applied via the FULL generated plan and every
+// `to` table's canonical form must match.
+func TestOracle_ForeignKeyMultiTableApplyCorrectness(t *testing.T) {
+	if testing.Short() {
+		t.Skip("oracle test skipped in short mode")
+	}
+	for _, version := range both() {
+		o := connectOracle(t, version)
+		n := NormalizerFor(version)
+		for _, mc := range fkMultiCases() {
+			if !containsVersion(mc.versions, version) {
+				continue
+			}
+			t.Run(fmt.Sprintf("%s/%s", o.name, mc.id), func(t *testing.T) {
+				assertFKMultiApplyCorrect(t, o, n, mc)
+			})
+		}
+	}
+}
+
+// assertFKMultiApplyCorrect loads from/to catalogs by applying each full schema to the engine and
+// reading every table back (authentic stored form), generates the plan, builds the `from` state,
+// applies the plan one statement at a time, and asserts every `to` table's readback canonicalizes
+// equal to `to`.
+func assertFKMultiApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, mc fkMultiCase) {
+	t.Helper()
+	slug := strings.ReplaceAll(mc.id, "-", "_")
+	sc := serverCharsetFor(o.version)
+	ctx := context.Background()
+	const logicalDB = "fkmulti"
+
+	fromCat := loadMultiSchema(t, o, logicalDB, "fkmulti_f_"+slug, sc, mc.fromSQL)
+	toCat := loadMultiSchema(t, o, logicalDB, "fkmulti_t_"+slug, sc, mc.toSQL)
+
+	diff := DiffWithNormalizer(fromCat, toCat, n)
+	plan := GenerateMigrationWithNormalizer(fromCat, toCat, diff, n)
+
+	conn, err := o.db.Conn(ctx)
+	if err != nil {
+		t.Fatalf("[%s] grab conn: %v", o.name, err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	setup := []string{
+		"DROP DATABASE IF EXISTS " + logicalDB,
+		fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", logicalDB, sc),
+		"USE " + logicalDB,
+	}
+	setup = append(setup, splitSemiStatements(mc.fromSQL)...)
+	for _, s := range setup {
+		if _, err := conn.ExecContext(ctx, s); err != nil {
+			t.Skipf("[%s] could not set up `from` for %s: %q: %v", o.name, mc.id, s, err)
+		}
+	}
+	for _, op := range plan.Ops {
+		if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
+			t.Fatalf("[%s] APPLY FAILED for %s:\n  stmt: %s\n  err: %v\n  full plan:\n%s",
+				o.name, mc.id, op.SQL, err, plan.SQL())
+		}
+	}
+
+	// Read every `to` table back and compare to `to`. foreign_key_checks=0 guards a forward FK
+	// reference when tables are listed child-before-parent.
+	var b strings.Builder
+	fmt.Fprintf(&b, "CREATE DATABASE %s DEFAULT CHARSET=%s;\nUSE %s;\nSET foreign_key_checks=0;\n", logicalDB, sc, logicalDB)
+	for _, tbl := range mc.tables {
+		var nm, ddl string
+		row := conn.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s.%s", logicalDB, tbl))
+		if err := row.Scan(&nm, &ddl); err != nil {
+			t.Fatalf("[%s] %s: result table %s missing after apply:\n%s", o.name, mc.id, tbl, plan.SQL())
+		}
+		b.WriteString(ddl + ";\n")
+	}
+	resultCat, err := LoadSQL(b.String())
+	if err != nil {
+		t.Fatalf("[%s] reload result failed: %v\n%s", o.name, err, b.String())
+	}
+	if d := DiffWithNormalizer(resultCat, toCat, n); !d.IsEmpty() {
+		t.Errorf("[%s] APPLY-CORRECTNESS FAILED for %s: result != to\n  plan:\n%s\n  diff: %s",
+			o.name, mc.id, plan.SQL(), describeForeignKeyDiff(d))
+	}
+	if d := DiffWithNormalizer(toCat, resultCat, n); !d.IsEmpty() {
+		t.Errorf("[%s] APPLY-CORRECTNESS (reverse) FAILED for %s: %s", o.name, mc.id, describeForeignKeyDiff(d))
+	}
+}
+
+// loadMultiSchema applies a full multi-table schema to a throwaway db, reads every base table back,
+// and reloads all of them wrapped in a FIXED logical db (so the from/to catalogs share a database
+// identity and FK references resolve identically).
+func loadMultiSchema(t *testing.T, o *oracleConn, logicalDB, execDB, sc, schemaSQL string) *Catalog {
+	t.Helper()
+	ctx := context.Background()
+	setup := []string{
+		"DROP DATABASE IF EXISTS " + execDB,
+		fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", execDB, sc),
+		"USE " + execDB,
+	}
+	setup = append(setup, splitSemiStatements(schemaSQL)...)
+	for _, s := range setup {
+		if _, err := o.db.ExecContext(ctx, s); err != nil {
+			t.Skipf("[%s] setup failed (may be expected): %q: %v", o.name, s, err)
+		}
+	}
+	// Discover the base tables in deterministic order.
+	rows, err := o.db.QueryContext(ctx, fmt.Sprintf(
+		"SELECT table_name FROM information_schema.tables WHERE table_schema = '%s' AND table_type='BASE TABLE' ORDER BY table_name", execDB))
+	if err != nil {
+		t.Fatalf("[%s] list tables: %v", o.name, err)
+	}
+	var tables []string
+	for rows.Next() {
+		var nm string
+		if err := rows.Scan(&nm); err != nil {
+			_ = rows.Close()
+			t.Fatalf("[%s] scan table name: %v", o.name, err)
+		}
+		tables = append(tables, nm)
+	}
+	_ = rows.Close()
+
+	// Reload with foreign_key_checks=0 so a child table read back before its parent (tables are
+	// discovered alphabetically) does not fail on a forward FK reference (errno 1824). The omni
+	// loader honors this SET (exec.go).
+	var b strings.Builder
+	fmt.Fprintf(&b, "CREATE DATABASE %s DEFAULT CHARSET=%s;\nUSE %s;\nSET foreign_key_checks=0;\n", logicalDB, sc, logicalDB)
+	for _, tbl := range tables {
+		var nm, ddl string
+		row := o.db.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s.%s", execDB, tbl))
+		if err := row.Scan(&nm, &ddl); err != nil {
+			t.Fatalf("[%s] SHOW CREATE %s: %v", o.name, tbl, err)
+		}
+		b.WriteString(ddl + ";\n")
+	}
+	cat, err := LoadSQL(b.String())
+	if err != nil {
+		t.Fatalf("[%s] reload multi-schema failed: %v\n%s", o.name, err, b.String())
+	}
+	return cat
+}
+
+// splitSemiStatements splits a ";"-separated DDL string into trimmed, non-empty statements.
+func splitSemiStatements(s string) []string {
+	var out []string
+	for _, part := range strings.Split(s, ";") {
+		if p := strings.TrimSpace(part); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // TestOracle_ForeignKeyAddReusesExistingIndex proves the index↔FK ADD interaction at the plan

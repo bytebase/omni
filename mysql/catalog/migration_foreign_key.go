@@ -13,27 +13,35 @@ import (
 // FOREIGN KEY DDL. MySQL folds FK changes into ALTER TABLE; a FK cannot be altered in place, so
 // a modified FK is a DROP followed by an ADD.
 //
-// Phase ordering — the crux of coordinating with the index node:
+// Phase ordering — the crux of coordinating with the index node AND with the table/column
+// generators. FK ADDs and FK DROPs sit in OPPOSITE phases:
+//
 //   - FK ADDs run in PhasePost (priorityForeignKey=99), AFTER the index node's PhaseMain index
 //     ADDs (priorityIndex=30) and after table/column DDL. MySQL's ADD CONSTRAINT ... FOREIGN KEY
 //     auto-creates a backing index ONLY when no covering index already exists; by deferring the
 //     FK add to PhasePost, an index the user declared (added by the index node in PhaseMain) is
 //     in place first and is REUSED — no duplicate index, no errno 1061/1553. It also guarantees
 //     every referenced table/column exists before the FK is created (the reason PG defers FKs).
-//   - FK DROPs run in PhasePost too, but BEFORE the adds (priorityForeignKeyDrop) so a
-//     drop-then-add of the same constraint name never collides, and before the leftover backing
-//     index drop (errno 1553 — see below).
+//   - FK DROPs run in PhasePre, BEFORE every dependent drop: a referenced table (errno 3730), a
+//     referencing column (errno 1828), and the FK's own backing index (errno 1553). MySQL refuses
+//     to drop any object a live FK still needs, so the FK constraint must be released FIRST. FK
+//     constraint drops therefore use priorityForeignKeyConstraintDrop, ordered ahead of the
+//     table-drop / index-drop / column-drop priorities the other generators use in PhasePre.
 //
 // Backing-index lifecycle on DROP — owned HERE, by contract with the index node:
 //
 //	When a FK is dropped, MySQL LEAVES the auto-created backing index behind (verified on both
 //	live engines: after `ALTER TABLE c DROP FOREIGN KEY fk`, `KEY fk (pid)` remains). The index
 //	node EXCLUDES FK-implicit backing indexes from its diff (diff_index.go fkImplicitIndexNames),
-//	so it emits no DROP for that leftover — this node owns it. We drop the leftover index iff it
-//	was FK-implicit on the `from` side (plain, auto-named after the constraint/first column) AND
-//	the user's target has no USER index of that name (so the index node is not keeping it as a
-//	real index). The DROP INDEX is emitted AFTER the DROP FOREIGN KEY, because MySQL refuses to
-//	drop an index still needed by a FK (errno 1553).
+//	so it emits no DROP for that leftover — this node owns it. The leftover DROP INDEX runs in
+//	PhasePre at priorityForeignKeyBackingIndexDrop: AFTER all FK constraint drops (so a backing
+//	index SHARED by several FKs — MySQL keeps one index for FKs on the same columns — is not
+//	dropped while another of those FKs still references it, errno 1553) and BEFORE column drops (a
+//	DROP COLUMN auto-removes an index it empties, after which an explicit DROP INDEX fails errno
+//	1091 — same hazard the index node guards with priorityIndexDrop). We drop the leftover index
+//	only when (a) it was FK-implicit on the `from` side for `con`, (b) NO foreign key SURVIVING in
+//	`to` still needs it (no `to` FK whose columns it covers), and (c) the target keeps no USER
+//	index of that name — see leftoverBackingIndexToDrop.
 //
 // Rendering routes through the same canonical form show.go uses for the stored FK line, so the
 // readback of the emitted DDL canonicalizes equal to `to` and apply-correctness holds.
@@ -48,7 +56,11 @@ func generateForeignKeyDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []Mig
 		case DiffModify:
 			ops = append(ops, foreignKeyOpsForModifiedTable(entry)...)
 		case DiffDrop:
-			// DROP TABLE removes the FKs (and their backing indexes); nothing to emit.
+			// DROP TABLE removes the FKs (and their backing indexes); nothing to emit. A FK on a
+			// SURVIVING table that REFERENCES this dropped table is released by that surviving
+			// table's own DiffModify entry (its FK vanishes in `to`), whose constraint drop runs at
+			// priorityForeignKeyConstraintDrop — ahead of this table's DROP (priorityTable), so the
+			// reference is gone before the referenced table is dropped (errno 3730).
 		}
 	}
 
@@ -62,12 +74,20 @@ func generateForeignKeyDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []Mig
 	return ops
 }
 
-// priorityForeignKeyDrop orders FK DROPs (and the leftover-backing-index DROPs they own) within
-// PhasePost BEFORE the FK ADDs (priorityForeignKey=99). A drop-then-add of the same constraint
-// name (a MODIFY) must drop first so the name is free; and an FK that moves between tables in the
-// same plan must release the old one before the new one is added. It sits just below
-// priorityForeignKey so all FK releases precede all FK creations.
-const priorityForeignKeyDrop = priorityForeignKey - 1
+// priorityForeignKeyConstraintDrop orders FK CONSTRAINT drops at the very front of PhasePre —
+// ahead of table drops (priorityTable=10), index drops (priorityIndexDrop=15), and column drops
+// (priorityColumn-1=19 / priorityColumn=20). A live FK blocks dropping any object it needs (a
+// referenced table → errno 3730, a referencing column → errno 1828, its backing index → errno
+// 1553), so every FK constraint must be released before any of those drops run. It is negative so
+// it sorts before priorityTable without renumbering the shared constants.
+const priorityForeignKeyConstraintDrop = -10
+
+// priorityForeignKeyBackingIndexDrop orders the leftover-backing-index drop AFTER all FK
+// constraint drops (so a backing index shared by multiple same-column FKs survives until the last
+// of them is gone, errno 1553) and BEFORE column drops (a DROP COLUMN auto-removes the index,
+// after which an explicit DROP INDEX fails errno 1091). It sits just below priorityIndexDrop so it
+// shares the index node's "drop indexes before columns" guarantee.
+const priorityForeignKeyBackingIndexDrop = priorityIndexDrop - 1
 
 // addForeignKeyOpsForNewTable emits ADD CONSTRAINT ... FOREIGN KEY ops for every FK on a freshly
 // created table. formatCreateTable (migration_table.go) renders only columns and the inline
@@ -137,17 +157,16 @@ func addForeignKeyOp(entry *TableDiffEntry, table string, con *Constraint) Migra
 }
 
 // dropForeignKeyOps builds the ops to drop a foreign key: an ALTER TABLE ... DROP FOREIGN KEY
-// `name`, plus — when the FK leaves behind an auto-created backing index that the target no
-// longer keeps — an ALTER TABLE ... DROP INDEX `name` for that leftover. Both run in PhasePost at
-// priorityForeignKeyDrop; the DROP FOREIGN KEY is emitted first and the DROP INDEX second
-// (errno 1553 — MySQL refuses to drop an index a FK still needs).
+// `name` (PhasePre, priorityForeignKeyConstraintDrop — ahead of every dependent drop), plus —
+// when the FK leaves behind an auto-created backing index nothing surviving needs — an ALTER
+// TABLE ... DROP INDEX `name` for that leftover (PhasePre, priorityForeignKeyBackingIndexDrop —
+// after ALL FK constraint drops, before column drops). The two priorities (not a sortName
+// suffix) are what guarantee the constraint drop precedes the index drop globally, even across
+// multiple FKs sharing one backing index.
 //
-// The leftover index is dropped ONLY when it was FK-implicit on the `from` side (plain,
-// auto-named after the constraint / first FK column, reusing the index node's exact detection)
-// AND the `to` table has no USER index of that name. This is the mirror of the index node's
-// FK-implicit exclusion (diff_index.go diffableIndexMap with userIndexNameSet(to)): the index
-// node keeps a user-named index when its FK is dropped, so this node must NOT drop such an index;
-// it drops only the engine-synthesized backing index the index node deliberately ignores.
+// The leftover index is dropped ONLY when leftoverBackingIndexToDrop says so: it was FK-implicit
+// on `from` for `con`, no FK surviving in `to` still needs it, and the target keeps no USER index
+// of that name. See that function.
 func dropForeignKeyOps(entry *TableDiffEntry, con *Constraint) []MigrationOp {
 	if entry.From == nil {
 		return nil
@@ -159,22 +178,27 @@ func dropForeignKeyOps(entry *TableDiffEntry, con *Constraint) []MigrationOp {
 		ObjectName:   entry.Name,
 		ParentObject: entry.Name,
 		SQL:          fmt.Sprintf("ALTER TABLE %s DROP FOREIGN KEY %s", table, migrationQuoteIdent(con.Name)),
-		Phase:        PhasePost,
-		Priority:     priorityForeignKeyDrop,
-		sortName:     foreignKeySortName(entry.Database, entry.Name, con.Name) + ".0",
+		Phase:        PhasePre,
+		Priority:     priorityForeignKeyConstraintDrop,
+		sortName:     foreignKeySortName(entry.Database, entry.Name, con.Name),
 	}}
 
 	if idxName, ok := leftoverBackingIndexToDrop(entry, con); ok {
 		ops = append(ops, MigrationOp{
+			// Op-type is OpDropForeignKey (NOT OpDropIndex) even though the SQL is DROP INDEX: this
+			// index drop is part of the FK's lifecycle, owned by the FK node. Tagging it
+			// OpDropForeignKey keeps it out of the index node's op-type space, which its contract
+			// tests assert is empty on FK-only changes (no OpAddIndex/OpDropIndex). Nothing keys off
+			// OpDropForeignKey expecting only literal DROP FOREIGN KEY statements — the only consumer
+			// is MigrationPlan.SQL(), which concatenates op.SQL verbatim.
 			Type:         OpDropForeignKey,
 			Database:     entry.Database,
 			ObjectName:   entry.Name,
 			ParentObject: entry.Name,
 			SQL:          fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", table, migrationQuoteIdent(idxName)),
-			Phase:        PhasePost,
-			Priority:     priorityForeignKeyDrop,
-			// ".1" sorts after the DROP FOREIGN KEY ".0" for the same constraint (errno 1553).
-			sortName: foreignKeySortName(entry.Database, entry.Name, con.Name) + ".1",
+			Phase:        PhasePre,
+			Priority:     priorityForeignKeyBackingIndexDrop,
+			sortName:     foreignKeySortName(entry.Database, entry.Name, idxName),
 		})
 	}
 	return ops
@@ -182,14 +206,18 @@ func dropForeignKeyOps(entry *TableDiffEntry, con *Constraint) []MigrationOp {
 
 // leftoverBackingIndexToDrop decides whether dropping `con` (a FK on the `from` table) leaves an
 // auto-created backing index this node must drop, and returns its actual (original-case) name.
-// It returns the index iff:
+// It returns the index iff ALL of:
 //   - the `from` table has an FK-implicit backing index for `con` (the index node's exact
-//     detection: fkImplicitIndexNames over `from`), AND
-//   - the `to` table has no USER index of that name (so the index node is not keeping it).
+//     detection: fkImplicitIndexNames over `from` + isAutoBackingIndexName + isPlainBackingIndexFor);
+//   - NO foreign key SURVIVING in `to` still needs that index — i.e. no `to` FK whose columns the
+//     index covers (left-prefix). MySQL keeps a SINGLE backing index for several FKs on the same
+//     columns; dropping it while any of those FKs survives fails errno 1553. fkBackingIndexStillNeeded
+//     enforces this; AND
+//   - the `to` table keeps no USER index of that name (the index node owns a user-named index and
+//     leaves it intentionally — diff_index.go userIndexNameSet).
 //
-// When the `to` table keeps a user index of that name, the index node owns it and MySQL leaves it
-// intentionally; this node must not drop it. When `to` is absent (the whole table is being
-// dropped) this is never reached — DiffDrop tables emit nothing.
+// When `to` is absent (the whole table is being dropped) this is never reached — DiffDrop tables
+// emit nothing.
 func leftoverBackingIndexToDrop(entry *TableDiffEntry, con *Constraint) (string, bool) {
 	from := entry.From
 	if from == nil {
@@ -214,11 +242,53 @@ func leftoverBackingIndexToDrop(entry *TableDiffEntry, con *Constraint) (string,
 	if backing == nil {
 		return "", false
 	}
+	// Keep it if a surviving FK in `to` still needs it (shared backing index, errno 1553).
+	if fkBackingIndexStillNeeded(entry.To, backing) {
+		return "", false
+	}
 	// Keep it if the target still carries a USER index of that name (index node's domain).
 	if userIndexNameSet(entry.To)[toLower(backing.Name)] {
 		return "", false
 	}
 	return backing.Name, true
+}
+
+// fkBackingIndexStillNeeded reports whether any FOREIGN KEY surviving in `to` would still need
+// `idx` as a backing index — i.e. a `to` FK whose columns `idx` covers as a left-prefix. MySQL
+// maintains ONE backing index for all FKs on the same leading columns, so dropping `idx` while
+// such an FK survives fails errno 1553 ("needed in a foreign key constraint"). This mirrors the
+// engine's own rule for whether an index is still required. A nil `to` (no surviving table) needs
+// nothing.
+func fkBackingIndexStillNeeded(to *Table, idx *Index) bool {
+	if to == nil || idx == nil {
+		return false
+	}
+	for _, con := range to.Constraints {
+		if con == nil || con.Type != ConForeignKey || len(con.Columns) == 0 {
+			continue
+		}
+		if indexCoversColumns(idx, con.Columns) {
+			return true
+		}
+	}
+	return false
+}
+
+// indexCoversColumns reports whether idx's leading columns match fkCols in order (a left-prefix
+// cover), the condition under which MySQL treats idx as a usable backing index for an FK on
+// fkCols. Prefix lengths / expressions / direction are ignored here — they do not change whether
+// the index can back the FK for the purpose of the errno-1553 "still needed" check (this matches
+// hasIndexCoveringColumns in tablecmds.go, the loader's own cover test).
+func indexCoversColumns(idx *Index, fkCols []string) bool {
+	if len(idx.Columns) < len(fkCols) {
+		return false
+	}
+	for i, c := range fkCols {
+		if !strings.EqualFold(idx.Columns[i].Name, c) {
+			return false
+		}
+	}
+	return true
 }
 
 // orderedForeignKeys returns a table's FOREIGN KEY constraints in a deterministic order (by
