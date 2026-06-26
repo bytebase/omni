@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -466,6 +467,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Visible:   true,
 			}
 			applyIndexOptions(uqIdx, con.IndexOptions)
+			coerceInnoDBHashIndex(tbl, uqIdx)
 			if err := synthesizeFunctionalIndexColumns(tbl, uqIdx); err != nil {
 				return err
 			}
@@ -1209,6 +1211,14 @@ func validateUniqueKeysCoverPartitionColumns(tbl *Table, partCols []string) erro
 }
 
 // partitionValueToString converts a partition value node to SQL string.
+//
+// Each scalar bound expression is constant-folded (partitionValueItemSQL): MySQL evaluates a
+// non-literal RANGE/LIST bound at storage time (`5+5`→`10`, `100 DIV 3`→`33`, `TO_DAYS('2020-01-01')`
+// →`737790`) and SHOW CREATE echoes only the folded literal, so the user form must fold to the same
+// literal or it phantom-diffs against the readback (verified on live 5.7.25 + 8.0.32). Folding is
+// best-effort: anything the folder cannot evaluate (a non-deterministic function, a column
+// reference, an unsupported function) is rendered verbatim via nodeToSQL and round-trips only when
+// the user already wrote the engine's stored form.
 func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 	switch n := v.(type) {
 	case *nodes.String:
@@ -1223,19 +1233,31 @@ func partitionValueToString(v nodes.Node, ptype nodes.PartitionType) string {
 				// Tuple: (val1, val2) for multi-column LIST COLUMNS
 				subParts := make([]string, len(subList.Items))
 				for j, sub := range subList.Items {
-					subParts[j] = nodeToSQL(sub.(nodes.ExprNode))
+					subParts[j] = partitionValueItemSQL(sub.(nodes.ExprNode))
 				}
 				parts[i] = "(" + strings.Join(subParts, ",") + ")"
 			} else {
-				parts[i] = nodeToSQL(item.(nodes.ExprNode))
+				parts[i] = partitionValueItemSQL(item.(nodes.ExprNode))
 			}
 		}
 		return strings.Join(parts, ",")
 	case nodes.ExprNode:
-		return nodeToSQL(n)
+		return partitionValueItemSQL(n)
 	default:
 		return ""
 	}
+}
+
+// partitionValueItemSQL renders one scalar partition bound, constant-folding it to an integer
+// literal when the expression is a constant integer expression (integer arithmetic, or a supported
+// deterministic function on a literal — see foldConstIntExpr). On any non-foldable expression it
+// falls back to the verbatim deparse, so a literal bound (the common case) is rendered unchanged and
+// an unsupported expression is preserved (and flagged as a documented round-trip limitation).
+func partitionValueItemSQL(n nodes.ExprNode) string {
+	if v, ok := foldConstIntExpr(n); ok {
+		return strconv.FormatInt(v, 10)
+	}
+	return nodeToSQL(n)
 }
 
 // validateForeignKeys checks all FK constraints on a table against the referenced tables.
@@ -1523,10 +1545,37 @@ func fixedLengthStringColumnLimit(col *Column) (int, bool) {
 	return n, n > 0
 }
 
+// coerceInnoDBHashIndex folds a meaningless `USING HASH` on an InnoDB index to the no-explicit-type
+// form (IndexType ""), so a HASH index on InnoDB round-trips empty on both 5.7 and 8.0.
+//
+// InnoDB does not implement hash indexes: it silently treats `USING HASH` as BTREE. The SHOW CREATE
+// echo of that meaningless clause is version-, kind-, and engine-divergent (verified on live 5.7.25
+// + 8.0.32):
+//   - 8.0 InnoDB DROPS the clause entirely for every index kind (UNIQUE, plain KEY, CREATE INDEX);
+//   - 5.7 InnoDB KEEPS `USING HASH` in the echo for every kind;
+//   - `USING BTREE` on InnoDB is echoed verbatim on BOTH versions (BTREE is the real storage), so it
+//     is NOT folded — only HASH is meaningless;
+//   - MEMORY (and other engines where HASH is a real index type) KEEP `USING HASH` on both versions,
+//     so the engine guard below leaves them untouched.
+//
+// Folding HASH → "" (rather than → "BTREE") is what makes both echoes converge: a user's `USING
+// HASH`, 5.7's kept `USING HASH`, and 8.0's dropped clause all load to IndexType "" on InnoDB, which
+// the index differ (canonicalIndexType) and the index generator (formatIndexDefinition) both treat
+// as "no USING clause" — matching the plain no-USING readback on either version. (The earlier
+// HASH → "BTREE" fold matched 5.7's echo but still phantom-diffed against 8.0's dropped clause.)
 func coerceInnoDBHashIndex(tbl *Table, idx *Index) {
-	if strings.EqualFold(tbl.Engine, "InnoDB") && strings.EqualFold(idx.IndexType, "HASH") {
-		idx.IndexType = "BTREE"
+	if isInnoDBEngine(tbl.Engine) && strings.EqualFold(idx.IndexType, "HASH") {
+		idx.IndexType = ""
 	}
+}
+
+// isInnoDBEngine reports whether a table's declared engine is InnoDB, treating an empty (omitted)
+// engine as InnoDB — the MySQL default storage engine. The user form often omits ENGINE while the
+// SHOW CREATE readback always echoes ENGINE=InnoDB, so the HASH fold must apply to both or a `USING
+// HASH` written on an engine-less CREATE TABLE would phantom-diff against its InnoDB readback.
+func isInnoDBEngine(engine string) bool {
+	e := strings.TrimSpace(engine)
+	return e == "" || strings.EqualFold(e, "InnoDB")
 }
 
 func constraintNameExistsInTable(tbl *Table, typ ConstraintType, name string) bool {

@@ -258,6 +258,14 @@ func partitionMigrationProbes() []migrationProbe {
 		{"repartition-drop-special-col", "t",
 			"CREATE TABLE t (`a-b` INT NOT NULL, id INT NOT NULL, PRIMARY KEY (`a-b`, id)) PARTITION BY HASH (`a-b`) PARTITIONS 4",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 2", both()},
+
+		// ---- Constant-folded bounds in the GENERATED PARTITION BY (entry partition-constant-folding):
+		//      defining partitioning whose `to` was written with non-literal bounds must emit a
+		//      PARTITION BY whose folded literals apply and read back equal to `to`. ----
+		{"create-range-bound-arith", "t", "",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (5+5), PARTITION p1 VALUES LESS THAN (10*2), PARTITION pmax VALUES LESS THAN MAXVALUE)", both()},
+		{"create-range-bound-todays", "t", "",
+			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (TO_DAYS(dt)) (PARTITION p0 VALUES LESS THAN (TO_DAYS('2020-01-01')), PARTITION pmax VALUES LESS THAN MAXVALUE)", both()},
 	}
 }
 

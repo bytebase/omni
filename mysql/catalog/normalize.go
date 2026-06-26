@@ -26,6 +26,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
 // Version identifies the target MySQL major version whose stored form the
@@ -1185,4 +1187,391 @@ func (n *Normalizer) CheckSupported() bool { return n.is80() }
 // first; this still returns a normalized key for completeness.
 func (n *Normalizer) CanonicalCheckExpr(expr string) string {
 	return n.CanonicalGeneratedExpr(expr)
+}
+
+// ---------------------------------------------------------------------------
+// Partition bound / expression canonicalization (entry partition-constant-folding).
+//
+// MySQL constant-folds a non-literal RANGE/LIST partition BOUND at storage time and SHOW CREATE
+// echoes only the folded integer literal (verified on live 5.7.25 + 8.0.32):
+//
+//	VALUES LESS THAN (5+5)                  -> (10)
+//	VALUES LESS THAN (100 DIV 3)            -> (33)
+//	VALUES LESS THAN (TO_DAYS('2020-01-01'))-> (737790)
+//	VALUES IN (1+1, 2+2)                    -> (2,4)
+//
+// The partition EXPRESSION itself (RANGE (YEAR(`dt`)), HASH (`id`+0)) is NOT constant-folded by the
+// engine — it references columns — so only its surface (backticks/case) differs across versions,
+// which the loader already canonicalizes. The bound value is the residual phantom-diff.
+//
+// The bound fold is done at LOAD time (partitionValueItemSQL in tablecmds.go) using the parsed AST,
+// which is the only place the structured expression is available; foldConstIntExpr below is the
+// shared evaluator. The diff comparison key for a partition (showPartitioning over the resolved
+// spec) is built in diff_partition.go, which routes the stored bound/expression text through
+// CanonicalPartitionValue / CanonicalPartitionExpr so two equal-after-fold specs compare equal
+// regardless of incidental whitespace.
+//
+// FLAGGED RESIDUAL LIMITATION: a bound whose expression the folder cannot evaluate — a
+// non-deterministic or unsupported function, or any non-integer-constant expression — is kept
+// verbatim and only round-trips when the user already wrote the engine's folded form. Folding the
+// full general case needs a complete constant-expression evaluator; the common integer-arithmetic
+// and TO_DAYS/YEAR-on-literal cases are handled here. See the PR summary flag.
+// ---------------------------------------------------------------------------
+
+// CanonicalPartitionValue canonicalizes a stored partition bound value list (the text inside
+// `VALUES LESS THAN (...)` / `VALUES IN (...)`) for the partition comparison key. The integer
+// constant-folding itself happens at load (partitionValueItemSQL); this collapses incidental
+// whitespace around the comma/paren separators so two bound lists that fold to the same literals
+// compare equal. MAXVALUE and string literals pass through unchanged.
+func (n *Normalizer) CanonicalPartitionValue(value string) string {
+	return canonicalPartitionText(value)
+}
+
+// CanonicalPartitionExpr canonicalizes a stored partition expression (the text inside
+// `RANGE (...)` / `LIST (...)` / `HASH (...)`) for the partition comparison key. The loader already
+// folds the version-divergent surface (backtick quoting, function-name case) into one form; this
+// only normalizes incidental whitespace so the comparison is insensitive to it. The expression is
+// not constant-folded (it references columns).
+func (n *Normalizer) CanonicalPartitionExpr(expr string) string {
+	return canonicalPartitionText(expr)
+}
+
+// canonicalPartitionText normalizes incidental whitespace OUTSIDE quoted string literals in
+// partition bound/expression text: runs of spaces collapse to one and spaces around commas/parens
+// are removed, so two specs that fold to the same values do not diff on formatting alone. Content
+// INSIDE a single-quoted string literal (a LIST/RANGE COLUMNS string bound such as `'a, b'`) is
+// copied byte-for-byte — MySQL echoes string bounds verbatim, so collapsing spaces or commas inside
+// them would corrupt the value and could mask a real partition-bound change.
+func canonicalPartitionText(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	prevSpace := false
+	inString := false
+	bs := []byte(s)
+	for i := 0; i < len(bs); i++ {
+		c := bs[i]
+		if inString {
+			b.WriteByte(c)
+			switch {
+			case c == '\\' && i+1 < len(bs):
+				// Backslash escape: copy the escaped byte verbatim too.
+				i++
+				b.WriteByte(bs[i])
+			case c == '\'':
+				if i+1 < len(bs) && bs[i+1] == '\'' {
+					// Doubled '' escape inside the string: copy the second quote, stay in-string.
+					i++
+					b.WriteByte('\'')
+				} else {
+					inString = false
+				}
+			}
+			continue
+		}
+		if c == '\'' {
+			if prevSpace && b.Len() > 0 && lastWritten(&b) != ',' && lastWritten(&b) != '(' {
+				b.WriteByte(' ')
+			}
+			prevSpace = false
+			inString = true
+			b.WriteByte(c)
+			continue
+		}
+		if c == ' ' || c == '\t' || c == '\n' {
+			prevSpace = true
+			continue
+		}
+		if prevSpace {
+			// Drop the pending space around a comma/paren; otherwise keep a single separator.
+			if b.Len() > 0 && c != ',' && c != ')' && lastWritten(&b) != ',' && lastWritten(&b) != '(' {
+				b.WriteByte(' ')
+			}
+			prevSpace = false
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
+}
+
+func lastWritten(b *strings.Builder) byte {
+	s := b.String()
+	if len(s) == 0 {
+		return 0
+	}
+	return s[len(s)-1]
+}
+
+// foldConstIntExpr evaluates a partition bound expression to a signed 64-bit integer when it is a
+// constant integer expression, returning ok=false for anything it cannot fold. It is intentionally
+// conservative: a false result means "render verbatim", NEVER a wrong literal. It declines on
+// overflow, division by zero, non-even real division, column references, string/float results, and
+// any operator or function outside the supported set.
+//
+// Supported (deliberately narrow — the common RANGE/LIST bound idioms verified against the live
+// engine): integer literals; unary + and - (overflow-checked); the integer binary operators
+// + - * (overflow-checked), DIV (truncating integer division), and / (only when it divides evenly,
+// since otherwise MySQL stores a decimal this cannot represent); parenthesized subexpressions; and
+// the deterministic functions TO_DAYS, TO_SECONDS, YEAR on a single literal date string.
+//
+// Deliberately NOT supported (declined → verbatim): MOD and the bitwise/shift operators (& | ^ << >>
+// and ~). MySQL evaluates those with UNSIGNED 64-bit semantics that signed Go int64 does not match
+// (e.g. MySQL `~0` = 18446744073709551615, `-1 >> 1` = 9223372036854775807), and they are exotic in
+// partition bounds — folding them risks a WRONG literal, so they are left verbatim instead.
+func foldConstIntExpr(node nodes.ExprNode) (int64, bool) {
+	switch e := node.(type) {
+	case *nodes.IntLit:
+		return e.Value, true
+	case *nodes.ParenExpr:
+		return foldConstIntExpr(e.Expr)
+	case *nodes.UnaryExpr:
+		v, ok := foldConstIntExpr(e.Operand)
+		if !ok {
+			return 0, false
+		}
+		switch e.Op {
+		case nodes.UnaryPlus:
+			return v, true
+		case nodes.UnaryMinus:
+			// Negating math.MinInt64 overflows; decline rather than wrap.
+			if v == minInt64 {
+				return 0, false
+			}
+			return -v, true
+		}
+		return 0, false
+	case *nodes.BinaryExpr:
+		return foldConstIntBinary(e)
+	case *nodes.FuncCallExpr:
+		return foldConstIntFunc(e)
+	}
+	return 0, false
+}
+
+const (
+	minInt64 = int64(-1) << 63
+	maxInt64 = ^minInt64
+)
+
+// foldConstIntBinary folds a supported integer binary operation over two foldable integer operands,
+// declining (ok=false) on overflow or division by zero so the bound is rendered verbatim instead of
+// as a wrong literal.
+func foldConstIntBinary(e *nodes.BinaryExpr) (int64, bool) {
+	l, ok := foldConstIntExpr(e.Left)
+	if !ok {
+		return 0, false
+	}
+	r, ok := foldConstIntExpr(e.Right)
+	if !ok {
+		return 0, false
+	}
+	switch e.Op {
+	case nodes.BinOpAdd:
+		return addChecked(l, r)
+	case nodes.BinOpSub:
+		return subChecked(l, r)
+	case nodes.BinOpMul:
+		return mulChecked(l, r)
+	case nodes.BinOpDiv:
+		// Real division: fold only when it divides evenly to an integer; otherwise the engine
+		// stores a decimal this cannot represent, so decline. (`||` short-circuits, so l%r is not
+		// evaluated when r == 0.)
+		if r == 0 || l%r != 0 {
+			return 0, false
+		}
+		return l / r, true
+	case nodes.BinOpDivInt:
+		// MySQL DIV is truncating integer division. MinInt64 / -1 overflows; decline it.
+		if r == 0 || (l == minInt64 && r == -1) {
+			return 0, false
+		}
+		return l / r, true
+	}
+	return 0, false
+}
+
+// addChecked / subChecked / mulChecked return ok=false on signed 64-bit overflow so the folder
+// declines rather than emitting a wrapped (wrong) literal.
+func addChecked(a, b int64) (int64, bool) {
+	s := a + b
+	if (b > 0 && s < a) || (b < 0 && s > a) {
+		return 0, false
+	}
+	return s, true
+}
+
+func subChecked(a, b int64) (int64, bool) {
+	d := a - b
+	if (b < 0 && d < a) || (b > 0 && d > a) {
+		return 0, false
+	}
+	return d, true
+}
+
+func mulChecked(a, b int64) (int64, bool) {
+	if a == 0 || b == 0 {
+		return 0, true
+	}
+	p := a * b
+	// p/a == b detects overflow except for the MinInt64 * -1 edge, handled explicitly.
+	if (a == minInt64 && b == -1) || (b == minInt64 && a == -1) || p/a != b {
+		return 0, false
+	}
+	return p, true
+}
+
+// foldConstIntFunc folds a small set of deterministic date functions whose argument is a single
+// literal date string: TO_DAYS, TO_SECONDS, YEAR. These are the date idioms that appear in RANGE
+// partition bounds; the engine evaluates them at storage time to an integer. Any other function, or
+// a non-literal / non-parseable argument, declines (rendered verbatim).
+func foldConstIntFunc(e *nodes.FuncCallExpr) (int64, bool) {
+	if e.Schema != "" || len(e.Args) != 1 {
+		return 0, false
+	}
+	s, ok := stringLitValue(e.Args[0])
+	if !ok {
+		return 0, false
+	}
+	y, mo, d, hh, mi, ss, ok := parseDateTimeLiteral(s)
+	if !ok {
+		return 0, false
+	}
+	switch strings.ToUpper(e.Name) {
+	case "YEAR":
+		return int64(y), true
+	case "TO_DAYS":
+		return calcDayNumber(y, mo, d), true
+	case "TO_SECONDS":
+		// TO_SECONDS = TO_DAYS*86400 + time-of-day seconds (MySQL definition).
+		return calcDayNumber(y, mo, d)*86400 + int64(hh*3600+mi*60+ss), true
+	}
+	return 0, false
+}
+
+// stringLitValue extracts the string content of a string-literal argument (unwrapping a paren),
+// returning ok=false for any non-string-literal node.
+func stringLitValue(node nodes.ExprNode) (string, bool) {
+	switch e := node.(type) {
+	case *nodes.StringLit:
+		return e.Value, true
+	case *nodes.ParenExpr:
+		return stringLitValue(e.Expr)
+	}
+	return "", false
+}
+
+// parseDateTimeLiteral parses a MySQL date or datetime string literal in the canonical
+// `YYYY-MM-DD` or `YYYY-MM-DD HH:MM:SS` form into its components. It is deliberately strict: the
+// year MUST be exactly four digits and every other field exactly two (the fully zero-padded forms a
+// partition bound literal realistically uses), and the date is validated against the proleptic
+// Gregorian calendar. Anything else — notably a TWO-DIGIT year (which MySQL expands via its own
+// 70→1970 / 69→2069 rule that this folder does not reproduce) — declines, so the caller renders the
+// expression verbatim rather than risk a wrong fold.
+func parseDateTimeLiteral(s string) (y, mo, d, hh, mi, ss int, ok bool) {
+	s = strings.TrimSpace(s)
+	datePart := s
+	timePart := ""
+	if i := strings.IndexByte(s, ' '); i >= 0 {
+		datePart = s[:i]
+		timePart = strings.TrimSpace(s[i+1:])
+	}
+	dp := strings.Split(datePart, "-")
+	if len(dp) != 3 {
+		return 0, 0, 0, 0, 0, 0, false
+	}
+	y, ok = parseFixedWidthUint(dp[0], 4)
+	if !ok {
+		return 0, 0, 0, 0, 0, 0, false
+	}
+	mo, ok = parseFixedWidthUint(dp[1], 2)
+	if !ok {
+		return 0, 0, 0, 0, 0, 0, false
+	}
+	d, ok = parseFixedWidthUint(dp[2], 2)
+	if !ok {
+		return 0, 0, 0, 0, 0, 0, false
+	}
+	if !validGregorianDate(y, mo, d) {
+		return 0, 0, 0, 0, 0, 0, false
+	}
+	if timePart != "" {
+		tp := strings.Split(timePart, ":")
+		if len(tp) != 3 {
+			return 0, 0, 0, 0, 0, 0, false
+		}
+		hh, ok = parseFixedWidthUint(tp[0], 2)
+		if !ok || hh > 23 {
+			return 0, 0, 0, 0, 0, 0, false
+		}
+		mi, ok = parseFixedWidthUint(tp[1], 2)
+		if !ok || mi > 59 {
+			return 0, 0, 0, 0, 0, 0, false
+		}
+		ss, ok = parseFixedWidthUint(tp[2], 2)
+		if !ok || ss > 59 {
+			return 0, 0, 0, 0, 0, 0, false
+		}
+	}
+	return y, mo, d, hh, mi, ss, true
+}
+
+// parseFixedWidthUint parses an unsigned integer field of EXACTLY width digits (all zero-padded),
+// declining anything shorter or longer. The exact-width requirement is what rejects a two-digit
+// year, whose MySQL expansion rule this folder does not reproduce.
+func parseFixedWidthUint(s string, width int) (int, bool) {
+	if len(s) != width {
+		return 0, false
+	}
+	v := 0
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return 0, false
+		}
+		v = v*10 + int(r-'0')
+	}
+	return v, true
+}
+
+// validGregorianDate validates a (year, month, day) triple against the proleptic Gregorian
+// calendar (the calendar MySQL's date functions assume), including leap-year rules.
+func validGregorianDate(y, mo, d int) bool {
+	if mo < 1 || mo > 12 || d < 1 {
+		return false
+	}
+	return d <= daysInMonth(y, mo)
+}
+
+func daysInMonth(y, mo int) int {
+	switch mo {
+	case 1, 3, 5, 7, 8, 10, 12:
+		return 31
+	case 4, 6, 9, 11:
+		return 30
+	case 2:
+		if isLeapYear(y) {
+			return 29
+		}
+		return 28
+	}
+	return 0
+}
+
+func isLeapYear(y int) bool {
+	return (y%4 == 0 && y%100 != 0) || y%400 == 0
+}
+
+// calcDayNumber reproduces MySQL's calc_daynr (sql-common/my_time.cc): the number of days since
+// year 0, which is exactly what TO_DAYS returns. Verified against the live engine
+// (TO_DAYS('2020-01-01')=737790, TO_DAYS('2021-01-01')=738156).
+func calcDayNumber(y, mo, d int) int64 {
+	if y == 0 && mo == 0 {
+		return 0
+	}
+	delsum := int64(365*y + 31*(mo-1) + d)
+	if mo <= 2 {
+		y--
+	} else {
+		delsum -= int64((mo*4 + 23) / 10)
+	}
+	temp := int64((y/100 + 1) * 3 / 4)
+	return delsum + int64(y)/4 - temp
 }
