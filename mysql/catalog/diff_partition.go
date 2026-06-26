@@ -74,13 +74,14 @@ const keyAlgorithmDefault = 2
 // PARTITIONS-N form without touching per-partition engines, so the engine resolution is a no-op
 // for them and they round-trip regardless.
 //
-// NOT folded — flagged idempotence limitation: a partition EXPRESSION or bound VALUE containing a
-// non-literal constant expression (e.g. `VALUES LESS THAN (TO_DAYS('2020-01-01'))`, `LESS THAN
-// (5+5)`) is constant-folded by the engine at storage time (→ `737790`, `10`) but kept verbatim by
-// the loader, so it phantom-diffs. Folding it requires a constant-expression evaluator — a
-// normalize-core/analyzer capability (the same one CanonicalGeneratedExpr would need to evaluate,
-// not just reformat), out of scope for this node. See the package doc / PR flag. Literal bounds
-// (the overwhelmingly common case) are unaffected.
+// Partition BOUND values (`VALUES LESS THAN (...)` / `VALUES IN (...)`) and the partition
+// EXPRESSION are routed through n.CanonicalPartitionValue / n.CanonicalPartitionExpr. MySQL
+// constant-folds a non-literal bound at storage time (`5+5`→`10`, `TO_DAYS('2020-01-01')`→`737790`)
+// and echoes only the folded literal; the loader (partitionValueItemSQL) folds the user form the
+// same way at load, and these canonicalizers collapse incidental whitespace so the two compare
+// equal. A bound the folder cannot evaluate (an unsupported/non-deterministic function) is kept
+// verbatim — a flagged round-trip limitation (see normalize.go entry partition-constant-folding /
+// the PR flag); literal bounds (the common case) are unaffected.
 func partitionSpecWithResolvedEngine(t *Table, n *Normalizer) *PartitionInfo {
 	pi := t.Partitioning
 	engine := n.CanonicalEngine(t) // lower-cased effective engine; never returns ""
@@ -88,10 +89,13 @@ func partitionSpecWithResolvedEngine(t *Table, n *Normalizer) *PartitionInfo {
 	out := *pi
 	out.Algorithm = foldKeyAlgorithm(pi.Algorithm)
 	out.SubAlgo = foldKeyAlgorithm(pi.SubAlgo)
+	out.Expr = n.CanonicalPartitionExpr(pi.Expr)
+	out.SubExpr = n.CanonicalPartitionExpr(pi.SubExpr)
 	out.Partitions = make([]*PartitionDefInfo, len(pi.Partitions))
 	for i, pd := range pi.Partitions {
 		cp := *pd
 		cp.Engine = resolvePartitionEngine(pd.Engine, engine)
+		cp.ValueExpr = canonicalPartitionValueExpr(pd.ValueExpr, n)
 		if len(pd.SubPartitions) > 0 {
 			cp.SubPartitions = make([]*SubPartitionDefInfo, len(pd.SubPartitions))
 			for j, sp := range pd.SubPartitions {
@@ -103,6 +107,16 @@ func partitionSpecWithResolvedEngine(t *Table, n *Normalizer) *PartitionInfo {
 		out.Partitions[i] = &cp
 	}
 	return &out
+}
+
+// canonicalPartitionValueExpr canonicalizes a partition definition's bound value, preserving the
+// MAXVALUE sentinel verbatim (CanonicalPartitionValue's whitespace collapse must never rewrite it,
+// and showPartitioning special-cases it). Empty (HASH/KEY partitions carry no bound) stays empty.
+func canonicalPartitionValueExpr(value string, n *Normalizer) string {
+	if value == "" || value == "MAXVALUE" {
+		return value
+	}
+	return n.CanonicalPartitionValue(value)
 }
 
 // resolvePartitionEngine resolves a partition's declared engine against the table's effective

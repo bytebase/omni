@@ -168,20 +168,14 @@ func canonicalRowFormatValue(t *Table, n *Normalizer) string {
 // same normalize-core canonical form diff-core compares. It is the MySQL analog of PG's
 // FormatCreateTable (pg/catalog/migration_table.go:96).
 //
-// Scope: columns + table options + inline PRIMARY KEY. Secondary indexes, UNIQUE/foreign
-// keys, CHECK constraints, and partitioning are breadth concerns and are intentionally NOT
-// rendered here — a table created by this node carries its columns and PK; the index/FK/
-// check/partition nodes emit their own ALTER TABLE ADD ... follow-ups. (The PK is rendered
-// inline because a column's NOT NULL canonicalization is PK-aware and an AUTO_INCREMENT
-// column requires a key; emitting the PK inline keeps a single-table CREATE self-consistent
-// and apply-correct for the P0 slice.)
-//
-// KNOWN SCOPE-BOUNDARY LIMITATION: an AUTO_INCREMENT column whose ONLY supporting key is a
-// non-PK UNIQUE index renders here without that key (UNIQUE indexes are not in TableDiffEntry —
-// they belong to the index breadth node), so this CREATE TABLE would be rejected by MySQL
-// ("there can be only one auto column and it must be defined as a key") until the index node
-// supplies the key. The common AUTO_INCREMENT-as-PRIMARY-KEY case is rendered correctly and is
-// oracle-proven (probes create-autoinc, modify-add-autoinc).
+// Scope: columns + table options + inline PRIMARY KEY + (when needed) the AUTO_INCREMENT
+// column's supporting key. Other secondary indexes, foreign keys, CHECK constraints, and
+// partitioning are breadth concerns and are intentionally NOT rendered here — a table created
+// by this node carries its columns, PK, and the one key an AUTO_INCREMENT column must have;
+// the index/FK/check/partition nodes emit their own ALTER TABLE ADD ... follow-ups. (The PK is
+// rendered inline because a column's NOT NULL canonicalization is PK-aware; the AUTO_INCREMENT
+// supporting key is rendered inline because MySQL requires the AUTO_INCREMENT column to be the
+// first column of a key AT CREATE TIME — see autoIncSupportingIndex.)
 func formatCreateTable(tbl *Table, n *Normalizer) string {
 	var b strings.Builder
 	b.WriteString("CREATE TABLE ")
@@ -195,6 +189,15 @@ func formatCreateTable(tbl *Table, n *Normalizer) string {
 	if pk := formatInlinePrimaryKey(tbl); pk != "" {
 		lines = append(lines, "  "+pk)
 	}
+	// Inline the AUTO_INCREMENT column's supporting key when its only backing key is a non-PK
+	// index (a UNIQUE or secondary key). MySQL rejects CREATE TABLE for an AUTO_INCREMENT column
+	// that is not the first column of a key ("there can be only one auto column and it must be
+	// defined as a key", errno 1075), and the index node's ADD runs only AFTER the CREATE — so the
+	// CREATE itself would fail without the key inline. The index node skips this same index (it
+	// consults autoIncSupportingIndex) so the key is not also re-added.
+	if idx := autoIncSupportingIndex(tbl); idx != nil {
+		lines = append(lines, "  "+formatIndexDefinition(idx, n))
+	}
 	b.WriteString(strings.Join(lines, ",\n"))
 	b.WriteString("\n)")
 
@@ -204,6 +207,110 @@ func formatCreateTable(tbl *Table, n *Normalizer) string {
 	}
 
 	return b.String()
+}
+
+// autoIncSupportingIndex returns the index that formatCreateTable must inline so a table's
+// AUTO_INCREMENT column is the first column of a key at CREATE time (MySQL errno 1075), or nil
+// when no such inline is needed. It is the single shared predicate for the inline decision: the
+// table generator renders the returned index inline, and the index node (addIndexOpsForNewTable)
+// skips the SAME index so it is not also added by a follow-up ALTER (which would fail errno 1061,
+// duplicate key name).
+//
+// nil is returned when:
+//   - the table has no AUTO_INCREMENT column;
+//   - the AUTO_INCREMENT column is already the first column of the inline PRIMARY KEY (the PK
+//     satisfies errno 1075, and the PK is rendered by formatInlinePrimaryKey);
+//   - no key at all has the AUTO_INCREMENT column first (such a table is invalid in MySQL anyway
+//     and the engine would reject it regardless of how the CREATE is rendered).
+//
+// Selection prefers a USER index (UNIQUE over plain secondary; ties break on lower-cased name) so
+// the inline key matches the most common authoring. An FK-IMPLICIT backing index is used only as a
+// LAST RESORT — when the AUTO_INCREMENT column's only first-column key is the index MySQL
+// auto-creates for a FOREIGN KEY on it. That case is real (a `FOREIGN KEY (id)` on an
+// AUTO_INCREMENT `id` with no other key), and without inlining that backing index the CREATE TABLE
+// would have an unkeyed AUTO_INCREMENT column (errno 1075): the index node skips FK-implicit
+// indexes and the FK node adds the constraint only in a later phase. Inlining the backing index is
+// safe — the index node skips it (both because it is FK-implicit and because it is the inlined
+// index), and the deferred FK reuses the existing covering index rather than creating a duplicate.
+// The generated invisible primary key is never chosen.
+func autoIncSupportingIndex(tbl *Table) *Index {
+	autoCol := autoIncrementColumnName(tbl)
+	if autoCol == "" {
+		return nil
+	}
+	// If the inline PK already starts with the AUTO_INCREMENT column, the PK is the key — no
+	// extra inline. (A GIPK-only table has no AUTO_INCREMENT column, handled above.)
+	if pk := primaryKeyIndex(tbl); pk != nil && indexFirstColumnIs(pk, autoCol) {
+		return nil
+	}
+	skip := fkImplicitIndexNames(tbl)
+	var best, fkBackup *Index
+	for _, idx := range tbl.Indexes {
+		if idx == nil || idx.Primary || isGeneratedInvisiblePrimaryKeyIndex(idx) {
+			continue
+		}
+		if !indexFirstColumnIs(idx, autoCol) {
+			continue
+		}
+		if skip[toLower(idx.Name)] {
+			// FK-implicit backing index: remember it as a fallback only.
+			if fkBackup == nil || toLower(idx.Name) < toLower(fkBackup.Name) {
+				fkBackup = idx
+			}
+			continue
+		}
+		if best == nil || autoIncIndexPreferred(idx, best) {
+			best = idx
+		}
+	}
+	if best != nil {
+		return best
+	}
+	return fkBackup
+}
+
+// autoIncrementColumnName returns the name of the table's AUTO_INCREMENT column (MySQL allows at
+// most one), or "" when there is none. The generated invisible primary key column is never
+// AUTO_INCREMENT, so it is naturally excluded.
+func autoIncrementColumnName(tbl *Table) string {
+	for _, col := range tbl.Columns {
+		if col != nil && col.AutoIncrement {
+			return col.Name
+		}
+	}
+	return ""
+}
+
+// primaryKeyIndex returns the table's PRIMARY KEY index (excluding the generated invisible
+// primary key), or nil.
+func primaryKeyIndex(tbl *Table) *Index {
+	for _, idx := range tbl.Indexes {
+		if idx != nil && idx.Primary && !isGeneratedInvisiblePrimaryKeyIndex(idx) {
+			return idx
+		}
+	}
+	return nil
+}
+
+// indexFirstColumnIs reports whether the index's first key part is the named column (a plain
+// column reference, not an expression), case-insensitively. MySQL's errno-1075 rule is about the
+// FIRST column of a key, so only the leading part matters.
+func indexFirstColumnIs(idx *Index, col string) bool {
+	if idx == nil || len(idx.Columns) == 0 {
+		return false
+	}
+	first := idx.Columns[0]
+	return first.Expr == "" && strings.EqualFold(first.Name, col)
+}
+
+// autoIncIndexPreferred reports whether candidate should be chosen over current as the inlined
+// AUTO_INCREMENT supporting key: a UNIQUE key wins over a non-unique one; otherwise the
+// lower-cased index name breaks the tie deterministically.
+func autoIncIndexPreferred(candidate, current *Index) bool {
+	if candidate.Unique != current.Unique {
+		return candidate.Unique
+	}
+	return toLower(candidate.Name) < toLower(current.Name)
 }
 
 // formatInlinePrimaryKey renders the inline PRIMARY KEY clause for a CREATE TABLE, or ""

@@ -903,3 +903,139 @@ func TestCanonicalDefault_FloatFractionPreserved(t *testing.T) {
 	// A scaled float(10,2) DOES pad to scale.
 	eq("float(10,2)", "1.5", "'1.50'")
 }
+
+// TestPartitionConstantFold_DateHelpers locks the date helpers used by the partition bound
+// constant-folder (entry partition-constant-folding) without an engine: calcDayNumber reproduces
+// MySQL TO_DAYS exactly, and parseDateTimeLiteral is strict.
+func TestPartitionConstantFold_DateHelpers(t *testing.T) {
+	// calcDayNumber == MySQL TO_DAYS (verified values against the live engine).
+	days := []struct {
+		y, m, d int
+		want    int64
+	}{
+		{2020, 1, 1, 737790},
+		{2021, 1, 1, 738156},
+		{2010, 1, 1, 734138},
+		{0, 0, 0, 0},
+	}
+	for _, c := range days {
+		if got := calcDayNumber(c.y, c.m, c.d); got != c.want {
+			t.Errorf("calcDayNumber(%d,%d,%d) = %d, want %d", c.y, c.m, c.d, got, c.want)
+		}
+	}
+
+	// parseDateTimeLiteral accepts canonical date/datetime forms and rejects malformed ones.
+	if y, mo, d, _, _, _, ok := parseDateTimeLiteral("2020-06-15"); !ok || y != 2020 || mo != 6 || d != 15 {
+		t.Errorf("parseDateTimeLiteral(date) = %d-%d-%d ok=%v", y, mo, d, ok)
+	}
+	if _, _, _, hh, mi, ss, ok := parseDateTimeLiteral("2020-06-15 13:45:30"); !ok || hh != 13 || mi != 45 || ss != 30 {
+		t.Errorf("parseDateTimeLiteral(datetime) time = %d:%d:%d ok=%v", hh, mi, ss, ok)
+	}
+	for _, bad := range []string{"2020/06/15", "2020-13-01", "2020-02-30", "not-a-date", "2020-06-15 25:00:00", "20200615"} {
+		if _, _, _, _, _, _, ok := parseDateTimeLiteral(bad); ok {
+			t.Errorf("parseDateTimeLiteral(%q) unexpectedly ok", bad)
+		}
+	}
+}
+
+// TestPartitionConstantFold_Bounds locks the end-to-end load-time fold through the public LoadSQL
+// path: a non-literal bound folds to the engine's stored integer literal, an unsupported expression
+// stays verbatim (the flagged residual), and a literal bound is unchanged.
+func TestPartitionConstantFold_Bounds(t *testing.T) {
+	boundOf := func(sql, part string) string {
+		t.Helper()
+		cat, err := LoadSQL(sql)
+		if err != nil {
+			t.Fatalf("load %q: %v", sql, err)
+		}
+		for _, db := range cat.Databases() {
+			if tbl := db.GetTable("t"); tbl != nil && tbl.Partitioning != nil {
+				for _, pd := range tbl.Partitioning.Partitions {
+					if pd.Name == part {
+						return pd.ValueExpr
+					}
+				}
+			}
+		}
+		t.Fatalf("partition %q not found", part)
+		return ""
+	}
+	const hdr = "CREATE DATABASE d; USE d; "
+	cases := []struct {
+		name, sql, part, want string
+	}{
+		{"add", hdr + "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (5+5));", "p0", "10"},
+		{"mul", hdr + "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10*2));", "p0", "20"},
+		{"div-int", hdr + "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (100 DIV 3));", "p0", "33"},
+		{"neg-literal", hdr + "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (-10));", "p0", "-10"},
+		{"plain-literal", hdr + "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (100));", "p0", "100"},
+		{"todays", hdr + "CREATE TABLE t (id INT, dt DATE) PARTITION BY RANGE (TO_DAYS(dt)) (PARTITION p0 VALUES LESS THAN (TO_DAYS('2020-01-01')));", "p0", "737790"},
+		{"year-fn", hdr + "CREATE TABLE t (dt DATE) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (YEAR('2020-06-15')));", "p0", "2020"},
+		{"list-arith", hdr + "CREATE TABLE t (id INT) PARTITION BY LIST (id) (PARTITION p0 VALUES IN (1+1, 2+2));", "p0", "2,4"},
+		// Flagged residual: an unsupported function stays verbatim (does not get a wrong fold).
+		{"unsupported-verbatim", hdr + "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (ABS(-5)));", "p0", "abs(-5)"},
+		// Deliberately-declined operators stay verbatim rather than fold to a wrong literal. MySQL
+		// evaluates MOD and the bitwise/shift operators with UNSIGNED 64-bit semantics that signed
+		// int64 does not match, so foldConstIntExpr declines them (the value the engine actually
+		// stores is the verbatim expression on both versions; folding would phantom-diff).
+		{"mod-verbatim", hdr + "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10 MOD 3));", "p0", "(10 % 3)"},
+		{"bitand-verbatim", hdr + "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (6 & 3));", "p0", "(6 & 3)"},
+		{"shift-verbatim", hdr + "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (1 << 4));", "p0", "(1 << 4)"},
+		// Overflow is declined (not wrapped): the multiply would overflow int64, so the bound stays
+		// verbatim. A non-evenly-dividing `/` likewise declines (the engine stores a decimal).
+		{"overflow-verbatim", hdr + "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (9223372036854775807 * 2));", "p0", "(9223372036854775807 * 2)"},
+		{"uneven-div-verbatim", hdr + "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (10 / 3));", "p0", "(10 / 3)"},
+		// A two-digit-year date literal is declined (MySQL's 70→1970 expansion is not reproduced),
+		// so YEAR on it stays verbatim instead of folding to a wrong year.
+		{"two-digit-year-verbatim", hdr + "CREATE TABLE t (dt DATE) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (YEAR('20-06-15')));", "p0", "year('20-06-15')"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := boundOf(c.sql, c.part); got != c.want {
+				t.Errorf("ValueExpr = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+// TestCanonicalPartitionText locks the diff-time whitespace canonicalization (entry
+// partition-constant-folding) used by CanonicalPartitionValue/Expr. Incidental whitespace OUTSIDE a
+// quoted string literal is collapsed so two specs that fold to the same values compare equal, while
+// the content INSIDE a single-quoted string bound (a LIST/RANGE COLUMNS string value) is copied
+// byte-for-byte — MySQL echoes string bounds verbatim, so a space or comma inside one is part of the
+// value and must NOT be collapsed (doing so would mask a real bound change).
+func TestCanonicalPartitionText(t *testing.T) {
+	cases := []struct {
+		name, in, want string
+	}{
+		// Whitespace outside strings collapses; spaces around commas/parens are dropped.
+		{"collapse-runs", "10  +   5", "10 + 5"},
+		{"comma-spacing", "1 ,  2 , 3", "1,2,3"},
+		{"paren-spacing", "( 1 , 2 )", "(1,2)"},
+		{"tab-newline", "1\t,\n2", "1,2"},
+		// A quoted string bound is preserved exactly — interior spaces and commas are part of the
+		// value, not separators.
+		{"string-with-space", "'a b'", "'a b'"},
+		{"string-with-comma", "'a, b'", "'a, b'"},
+		{"tuple-mixed", "( 10 , 'x, y' )", "(10,'x, y')"},
+		// Escapes inside the string must not end it early: a backslash-escaped quote and a doubled
+		// '' quote both stay inside the literal.
+		{"backslash-escaped-quote", "'a\\'b, c'", "'a\\'b, c'"},
+		{"doubled-quote", "'a''b, c'", "'a''b, c'"},
+		// Two adjacent string values separated by a comma: each is preserved, the separator space is
+		// dropped.
+		{"two-strings", "'a, b' , 'c d'", "'a, b','c d'"},
+	}
+	n := NormalizerFor(MySQL80)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := n.CanonicalPartitionExpr(c.in); got != c.want {
+				t.Errorf("CanonicalPartitionExpr(%q) = %q, want %q", c.in, got, c.want)
+			}
+			// CanonicalPartitionValue shares the same text canonicalizer.
+			if got := n.CanonicalPartitionValue(c.in); got != c.want {
+				t.Errorf("CanonicalPartitionValue(%q) = %q, want %q", c.in, got, c.want)
+			}
+		})
+	}
+}

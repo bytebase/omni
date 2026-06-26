@@ -73,6 +73,26 @@ func partitionDiffProbes() []diffProbe {
 		// per-partition engine echo is ENGINE = MyISAM, so the empty→table-engine fold must use
 		// the table's engine, not a hardcoded InnoDB.
 		{"myisam-explicit", "CREATE TABLE t (id INT NOT NULL, c INT NOT NULL, PRIMARY KEY (id,c)) ENGINE=MyISAM PARTITION BY LIST (c) (PARTITION pa VALUES IN (1,2,3), PARTITION pb VALUES IN (4,5,6))", "t", only(MySQL57)},
+
+		// --- Constant-folded partition bounds (entry partition-constant-folding). The engine folds
+		//     a non-literal RANGE/LIST bound to an integer literal at storage time (verified on both
+		//     5.7 and 8.0); the loader must fold the user form identically or it phantom-diffs. ---
+		// Integer arithmetic in RANGE bounds: 5+5→10, 10*2→20.
+		{"range-bound-arith", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (5+5), PARTITION p1 VALUES LESS THAN (10*2), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", both()},
+		// DIV / parenthesized arithmetic (folded values must stay strictly increasing): 100 DIV 3 →
+		// 33, (20+5)*4 → 100.
+		{"range-bound-divmod", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (100 DIV 3), PARTITION p1 VALUES LESS THAN ((20+5)*4), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", both()},
+		// TO_DAYS on a literal date in a RANGE bound: TO_DAYS('2020-01-01') → 737790.
+		{"range-bound-todays", "CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (TO_DAYS(dt)) (PARTITION p0 VALUES LESS THAN (TO_DAYS('2020-01-01')), PARTITION p1 VALUES LESS THAN (TO_DAYS('2021-01-01')), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", both()},
+		// YEAR on a literal date in a RANGE bound: YEAR('2020-06-15') → 2020.
+		{"range-bound-year-fn", "CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (YEAR('2020-06-15')), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", both()},
+		// Arithmetic in LIST bounds: 1+1,2+2 → 2,4.
+		{"list-bound-arith", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY LIST (id) (PARTITION p0 VALUES IN (1+1, 2+2), PARTITION p1 VALUES IN (10, 20))", "t", both()},
+		// RANGE COLUMNS tuple: the integer position folds (5+5→10), the string position stays quoted.
+		{"range-columns-bound-arith", "CREATE TABLE t (a INT NOT NULL, b VARCHAR(10) NOT NULL, PRIMARY KEY (a,b)) PARTITION BY RANGE COLUMNS(a,b) (PARTITION p0 VALUES LESS THAN (5+5, 'm'), PARTITION p1 VALUES LESS THAN (MAXVALUE, MAXVALUE))", "t", both()},
+		// REGRESSION GUARD: already-literal bounds (the common case) must stay idempotent — folding
+		// must be a no-op on a plain integer literal and on a negative literal.
+		{"range-bound-literal-guard", "CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (-10), PARTITION p1 VALUES LESS THAN (0), PARTITION p2 VALUES LESS THAN (100), PARTITION pmax VALUES LESS THAN MAXVALUE)", "t", both()},
 	}
 }
 

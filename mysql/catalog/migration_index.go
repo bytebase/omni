@@ -68,10 +68,18 @@ func addIndexOpsForNewTable(entry *TableDiffEntry, n *Normalizer) []MigrationOp 
 		return nil
 	}
 	table := tableIdent(entry.To)
+	// The AUTO_INCREMENT column's supporting key is rendered inline by formatCreateTable (MySQL
+	// requires the AUTO_INCREMENT column to be a key at CREATE time, errno 1075). Skip that same
+	// index here so it is not also added by an ALTER (errno 1061, duplicate key name). The inline
+	// decision is the single shared predicate autoIncSupportingIndex (migration_table.go).
+	inlined := autoIncSupportingIndex(entry.To)
 	var ops []MigrationOp
 	for _, idx := range orderedDiffableIndexes(entry.To) {
 		if idx.Primary {
 			continue // inline in CREATE TABLE
+		}
+		if inlined != nil && idx == inlined {
+			continue // inline in CREATE TABLE (AUTO_INCREMENT supporting key)
 		}
 		ops = append(ops, addIndexOp(entry, table, idx, n))
 	}
