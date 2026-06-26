@@ -907,9 +907,11 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		}
 		if colDef.TypeName.Charset != "" {
 			col.Charset = normalizeCharsetName(colDef.TypeName.Charset)
+			col.CharsetExplicit = true
 		}
 		if colDef.TypeName.Collate != "" {
 			col.Collation = colDef.TypeName.Collate
+			col.CollationExplicit = true
 			if col.Charset == "" {
 				col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
 			}
@@ -961,8 +963,10 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		switch cc.Type {
 		case nodes.ColConstrNotNull:
 			col.Nullable = false
+			col.NullExplicit = true
 		case nodes.ColConstrNull:
 			col.Nullable = true
+			col.NullExplicit = true
 		case nodes.ColConstrDefault:
 			if cc.Expr != nil {
 				setColumnDefaultFromExpr(col, cc.Expr)
@@ -978,6 +982,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			if cc.Expr != nil {
 				if s, ok := cc.Expr.(*nodes.StringLit); ok {
 					col.Collation = s.Value
+					col.CollationExplicit = true
 				}
 			}
 		}

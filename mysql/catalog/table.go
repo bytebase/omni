@@ -74,17 +74,32 @@ type SubPartitionDefInfo struct {
 }
 
 type Column struct {
-	Position                     int
-	Name                         string
-	DataType                     string // normalized (int, varchar, etc.)
-	ColumnType                   string // full type string (varchar(100), int unsigned)
-	Nullable                     bool
-	Default                      *string
-	DefaultKind                  ColumnDefaultKind
-	DefaultDropped               bool // true when ALTER COLUMN DROP DEFAULT was used
-	AutoIncrement                bool
-	Charset                      string
-	Collation                    string
+	Position   int
+	Name       string
+	DataType   string // normalized (int, varchar, etc.)
+	ColumnType string // full type string (varchar(100), int unsigned)
+	Nullable   bool
+	// NullExplicit records whether the user wrote an explicit NULL or NOT NULL clause on
+	// the column. The diff-time canonicalizer needs it to apply MySQL's
+	// explicit_defaults_for_timestamp=OFF rule, which forces a TIMESTAMP to NOT NULL
+	// only when the column has NO explicit nullability clause — a bare `TIMESTAMP` and an
+	// explicit `TIMESTAMP NULL` are otherwise indistinguishable once loaded.
+	NullExplicit   bool
+	Default        *string
+	DefaultKind    ColumnDefaultKind
+	DefaultDropped bool // true when ALTER COLUMN DROP DEFAULT was used
+	AutoIncrement  bool
+	Charset        string
+	Collation      string
+	// CharsetExplicit / CollationExplicit record whether the user wrote a column-level
+	// CHARACTER SET / COLLATE clause, as opposed to the value being inherited from the
+	// table at load time. The diff-time canonicalizer (normalize.go) needs this to
+	// resolve the version-correct effective collation: a bare column inherits the
+	// table's collation, a CHARACTER-SET-only column resolves to the charset default,
+	// and an explicit COLLATE is honored verbatim — three cases that are otherwise
+	// indistinguishable once the loader fills Charset/Collation from inheritance.
+	CharsetExplicit              bool
+	CollationExplicit            bool
 	Comment                      string
 	OnUpdate                     string
 	OnUpdateKind                 ColumnDefaultKind
