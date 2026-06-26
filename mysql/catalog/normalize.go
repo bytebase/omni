@@ -150,12 +150,17 @@ func (n *Normalizer) ResolveColumnCharsetCollation(table *Table, c *Column) (cha
 	tableCharset := foldCharset(table.Charset)
 	tableCollation := n.effectiveTableCollation(table)
 
-	// Effective charset: the column's explicit charset if it wrote one, else the table's.
-	// (Col.CharsetExplicit distinguishes a user CHARACTER SET clause from the loader's
-	// inheritance fill.)
-	if c.CharsetExplicit && c.Charset != "" {
+	// Effective charset:
+	//   - an explicit column CHARACTER SET wins;
+	//   - an explicit column COLLATE (without CHARACTER SET) implies the collation's
+	//     charset — the loader derives c.Charset from the collation, so honor it;
+	//   - otherwise the column inherits the table charset.
+	switch {
+	case c.CharsetExplicit && c.Charset != "":
 		charset = foldCharset(c.Charset)
-	} else {
+	case c.CollationExplicit && c.Charset != "":
+		charset = foldCharset(c.Charset)
+	default:
 		charset = tableCharset
 	}
 
@@ -560,11 +565,21 @@ func numericDefaultKey(columnType, literal string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	scale, hasScale := decimalScaleOf(columnType)
-	if hasScale {
-		fracPart = fitFractionToScale(fracPart, scale)
+	if scale, hasScale := decimalScaleOf(columnType); hasScale {
+		// A numeric default on a scaled column is ROUNDED (half-up) to the column scale
+		// on storage, with carry into the integer part (MySQL: 0.999 → 1.00, 9.999 →
+		// 10.00, INT DEFAULT 1.9 → 2). Round rather than truncate.
+		intPart, fracPart = roundToScale(intPart, fracPart, scale)
+	} else if scale == 0 {
+		// Integer column (DECIMAL(M,0) or INT-family rendered as decimal(_,0)): round to
+		// zero fractional digits, again with carry (INT DEFAULT 1.9 → 2).
+		intPart, fracPart = roundToScale(intPart, fracPart, 0)
 	} else {
 		fracPart = strings.TrimRight(fracPart, "0")
+	}
+	// Re-normalize a negative zero produced by rounding (e.g. -0.4 at scale 0 → 0).
+	if sign == "-" && intPart == "0" && strings.Trim(fracPart, "0") == "" {
+		sign = ""
 	}
 	key := sign + intPart
 	if fracPart != "" {
@@ -575,7 +590,8 @@ func numericDefaultKey(columnType, literal string) (string, bool) {
 
 // parseDecimalLiteral splits a numeric literal into (sign, integerDigits, fractionDigits)
 // with leading integer zeros stripped (but a single "0" kept). Returns ok=false for
-// non-numeric input. Exponent notation is not used by MySQL stored numeric defaults.
+// non-numeric input or a literal with no digits at all. Exponent notation is not used by
+// MySQL stored numeric defaults.
 func parseDecimalLiteral(literal string) (sign, intPart, fracPart string, ok bool) {
 	s := strings.TrimSpace(literal)
 	if s == "" {
@@ -598,6 +614,10 @@ func parseDecimalLiteral(literal string) (sign, intPart, fracPart string, ok boo
 	if !allDigits(intDigits) || !allDigits(fracDigits) {
 		return "", "", "", false
 	}
+	// Require at least one digit somewhere (reject "." / "+" / "-").
+	if intDigits == "" && fracDigits == "" {
+		return "", "", "", false
+	}
 	intDigits = strings.TrimLeft(intDigits, "0")
 	if intDigits == "" {
 		intDigits = "0"
@@ -609,15 +629,40 @@ func parseDecimalLiteral(literal string) (sign, intPart, fracPart string, ok boo
 	return sign, intDigits, fracDigits, true
 }
 
-// fitFractionToScale pads or truncates a fraction-digit string to exactly scale digits.
-func fitFractionToScale(frac string, scale int) string {
-	if scale <= 0 {
-		return ""
+// roundToScale rounds (intPart, fracPart) half-up to exactly scale fractional digits,
+// propagating carry into the integer digits. Both inputs are bare digit strings; it
+// returns the rounded (integerDigits, fractionDigits). Operating on digit strings keeps
+// full precision for values beyond float64 range.
+func roundToScale(intPart, fracPart string, scale int) (string, string) {
+	if len(fracPart) <= scale {
+		// No rounding needed; pad to scale.
+		return intPart, fracPart + strings.Repeat("0", scale-len(fracPart))
 	}
-	if len(frac) >= scale {
-		return frac[:scale]
+	kept := fracPart[:scale]
+	roundUp := fracPart[scale] >= '5'
+	if !roundUp {
+		return intPart, kept
 	}
-	return frac + strings.Repeat("0", scale-len(frac))
+	// Increment the digit string formed by intPart+kept by one, then split back.
+	combined := incrementDigits(intPart + kept)
+	// combined may have grown by one digit (carry out of the most-significant place).
+	if scale == 0 {
+		return combined, ""
+	}
+	return combined[:len(combined)-scale], combined[len(combined)-scale:]
+}
+
+// incrementDigits returns the decimal digit string plus one (e.g. "999" → "1000").
+func incrementDigits(digits string) string {
+	b := []byte(digits)
+	for i := len(b) - 1; i >= 0; i-- {
+		if b[i] < '9' {
+			b[i]++
+			return string(b)
+		}
+		b[i] = '0'
+	}
+	return "1" + string(b)
 }
 
 func allDigits(s string) bool {
@@ -824,16 +869,20 @@ func collapseExprWhitespace(expr string) string {
 }
 
 // exprSpaceIsSignificant reports whether a whitespace run between the already-emitted
-// prefix and the next byte (expr[next]) must be preserved as a single space. Whitespace
-// is significant only when it separates two "word" bytes (identifier/number chars) —
-// e.g. between a keyword and an identifier — and is dropped at the boundaries or next to
-// punctuation/operators where MySQL never needs it.
+// prefix and the next source byte (expr[next]) must be preserved as a single space.
+// Whitespace is significant only when it separates two "word" tokens (identifier/number
+// runs) — e.g. between a keyword and an identifier — and is dropped at the boundaries or
+// next to punctuation/operators where MySQL never needs it. A backtick at expr[next]
+// starts an identifier token, so it counts as a word boundary even though the backtick
+// byte itself is not an identifier char (this is the fix for `a` and `b` → must stay
+// `a and b`, not `a andb`).
 func exprSpaceIsSignificant(emitted, expr string, next int) bool {
 	if emitted == "" || next >= len(expr) {
 		return false
 	}
 	prev := emitted[len(emitted)-1]
-	return isIdentByte(prev) && isIdentByte(expr[next])
+	nextStartsWord := isIdentByte(expr[next]) || expr[next] == '`'
+	return isIdentByte(prev) && nextStartsWord
 }
 
 // ---------------------------------------------------------------------------
@@ -908,11 +957,15 @@ func (n *Normalizer) CanonicalTimestampDefaults(table *Table, c *Column) (def, o
 	if n.ExplicitDefaultsForTimestamp {
 		return def, onUpdate
 	}
-	// EDFT OFF and this is the first TIMESTAMP column with no explicit nullability or
-	// default: inject the implicit DEFAULT CURRENT_TIMESTAMP(N) ON UPDATE
-	// CURRENT_TIMESTAMP(N), matching the column's fractional-seconds precision.
+	// EDFT OFF: the FIRST TIMESTAMP column gets an implicit
+	// DEFAULT CURRENT_TIMESTAMP(N) ON UPDATE CURRENT_TIMESTAMP(N) (matching its
+	// fractional-seconds precision) UNLESS it has an explicit default or is explicitly
+	// NULL. An explicit `TIMESTAMP NULL` suppresses the magic and reads back
+	// `NULL DEFAULT NULL`; an explicit `TIMESTAMP NOT NULL` still receives the magic. We
+	// key the condition off the canonical NOT NULL state (which already encodes the
+	// explicit-NULL / EDFT rules), so both bare and `NOT NULL` first columns get it.
 	if def == defaultAbsentKey && onUpdate == defaultAbsentKey &&
-		n.isFirstTimestampColumn(table, c) && !c.NullExplicit {
+		n.isFirstTimestampColumn(table, c) && n.CanonicalNotNull(table, c) {
 		ts := "ts:CURRENT_TIMESTAMP" + fractionalSecondsSuffix(c.ColumnType)
 		return ts, ts
 	}

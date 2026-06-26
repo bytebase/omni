@@ -1,6 +1,9 @@
 package catalog
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // The normalize-core module is the diff-time canonicalization layer. Its defining
 // property is phantom-diff elimination: for a given target engine version,
@@ -800,5 +803,79 @@ func TestCanonicalColumn_NoKeyInjectionViaComment(t *testing.T) {
 		Comment: "x", Generated: &GeneratedColumnInfo{Expr: "a+1", Stored: false}}
 	if n.CanonicalColumn(tbl, withComment) == n.CanonicalColumn(tbl, gen) {
 		t.Fatal("a comment mimicking field syntax must not collide with a generated column")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Regression tests for review round 2.
+// ---------------------------------------------------------------------------
+
+func TestCanonicalDefault_DecimalRoundsNotTruncates(t *testing.T) {
+	// MySQL ROUNDS a numeric default to the column scale on storage, with carry:
+	// 0.999 → '1.00', 9.999 → '10.00', INT DEFAULT 1.9 → '2'.
+	n := NormalizerFor(MySQL80)
+	eq := func(colType, lit, storedReadback string) {
+		a := n.CanonicalDefault(defCol(colType, sp(lit), ColumnDefaultConstant))
+		b := n.CanonicalDefault(defCol(colType, sp(storedReadback), ColumnDefaultConstant))
+		if a != b {
+			t.Errorf("%s DEFAULT %s must equal stored %s: %q vs %q", colType, lit, storedReadback, a, b)
+		}
+	}
+	eq("decimal(10,2)", "0.999", "'1.00'")
+	eq("decimal(10,2)", "9.999", "'10.00'")
+	eq("decimal(10,2)", "0.005", "'0.01'")
+	eq("int", "1.9", "'2'")
+	eq("decimal(10,2)", "0.994", "'0.99'") // rounds down
+	// Negative rounding to zero must normalize sign.
+	if n.CanonicalDefault(defCol("int", sp("-0.4"), ColumnDefaultConstant)) !=
+		n.CanonicalDefault(defCol("int", sp("0"), ColumnDefaultConstant)) {
+		t.Error("-0.4 at scale 0 must round to 0")
+	}
+}
+
+func TestCanonicalGeneratedExpr_SpaceBeforeBacktickPreserved(t *testing.T) {
+	// `a` and `b` must NOT become `a andb` — a space before a backticked identifier is a
+	// token boundary even though the backtick byte is not an identifier char.
+	n := NormalizerFor(MySQL80)
+	got := n.CanonicalGeneratedExpr("`a` and `b`")
+	if strings.Contains(got, "andb") {
+		t.Fatalf("space before backtick must be preserved, got %q", got)
+	}
+	// The bare user form and the 8.0 backticked readback must still compare equal.
+	if n.CanonicalGeneratedExpr("a and b") != n.CanonicalGeneratedExpr("`a` and `b`") {
+		t.Fatalf("user `a and b` must equal readback `\\`a\\` and \\`b\\``: %q vs %q",
+			n.CanonicalGeneratedExpr("a and b"), n.CanonicalGeneratedExpr("`a` and `b`"))
+	}
+}
+
+func TestResolveColumnCharsetCollation_CollateOnlyDerivesCharset(t *testing.T) {
+	// A column with only COLLATE (no CHARACTER SET) under a different-charset table: the
+	// effective charset is the collation's charset, not the table's.
+	tbl := &Table{Name: "t", Charset: "utf8mb4", Collation: "utf8mb4_0900_ai_ci"}
+	// Loader derives col.Charset=latin1 from the collation and sets CollationExplicit.
+	c := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)",
+		Charset: "latin1", Collation: "latin1_german1_ci", CollationExplicit: true, Nullable: true}
+	n := NormalizerFor(MySQL80)
+	cs, coll := n.ResolveColumnCharsetCollation(tbl, c)
+	if cs != "latin1" || coll != "latin1_german1_ci" {
+		t.Fatalf("COLLATE-only column must resolve to (latin1, latin1_german1_ci), got (%q,%q)", cs, coll)
+	}
+}
+
+func TestCanonicalTimestamp_NotNullFirstColumnGetsMagic(t *testing.T) {
+	// EDFT=0: the first TIMESTAMP column gets the implicit CURRENT_TIMESTAMP default even
+	// when explicitly NOT NULL (only an explicit NULL suppresses it).
+	n := &Normalizer{Version: MySQL57, ExplicitDefaultsForTimestamp: false}
+	a := &Column{Name: "a", DataType: "timestamp", ColumnType: "timestamp", Nullable: false, NullExplicit: true}
+	tbl := tsTable(a)
+	def, onUpdate := n.CanonicalTimestampDefaults(tbl, a)
+	if def != "ts:CURRENT_TIMESTAMP" || onUpdate != "ts:CURRENT_TIMESTAMP" {
+		t.Fatalf("first TIMESTAMP NOT NULL must get CURRENT_TIMESTAMP magic; got def=%q onUpdate=%q", def, onUpdate)
+	}
+	// Explicit NULL first column suppresses the magic.
+	b := &Column{Name: "a", DataType: "timestamp", ColumnType: "timestamp", Nullable: true, NullExplicit: true}
+	defB, _ := n.CanonicalTimestampDefaults(tsTable(b), b)
+	if defB != defaultAbsentKey {
+		t.Fatalf("first TIMESTAMP NULL must NOT get magic; got %q", defB)
 	}
 }
