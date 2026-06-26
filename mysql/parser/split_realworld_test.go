@@ -357,6 +357,31 @@ DELIMITER ;
 SELECT 3;`,
 			want: 3,
 		},
+		{
+			name: "delimiter as column name is not a directive",
+			sql:  "SELECT delimiter FROM t;",
+			want: 1,
+		},
+		{
+			name: "delimiter as column name in multi-statement",
+			sql:  "SELECT 1;\nSELECT delimiter FROM t;\nSELECT 2;",
+			want: 3,
+		},
+		{
+			name: "delimiter in CREATE TABLE column definition",
+			sql:  "CREATE TABLE t (\n  delimiter INT,\n  c INT\n);",
+			want: 1,
+		},
+		{
+			name: "delimiter identifier inside procedure body with DELIMITER directive",
+			sql:  "DELIMITER ;;\nCREATE PROCEDURE p() BEGIN\n  SELECT delimiter FROM t;\nEND;;\nDELIMITER ;\nCALL p();",
+			want: 2,
+		},
+		{
+			name: "delimiter as label name is not a directive",
+			sql:  "DELIMITER ;;\nCREATE PROCEDURE p() BEGIN\n  delimiter: LOOP\n    SELECT 1;\n    LEAVE delimiter;\n  END LOOP delimiter;\nEND;;\nDELIMITER ;\n",
+			want: 1,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
