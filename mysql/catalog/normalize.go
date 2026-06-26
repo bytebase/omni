@@ -184,23 +184,53 @@ func (n *Normalizer) ResolveColumnCharsetCollation(table *Table, c *Column) (cha
 }
 
 // effectiveTableCollation returns the table's collation, folded and re-resolved to the
-// target version. The omni loader bakes the 8.0 charset-default collation into
-// table.Collation when the table has no explicit COLLATE clause (it cannot know the
-// target version at load time). We detect that case — table.Collation equals the 8.0
-// default for table.Charset — and substitute the version-correct default; an explicit,
-// non-default table COLLATE is honored as-is.
+// target version. Two distinct "this is really the charset default" cases must both
+// collapse onto the version-correct default so a bare CHARSET table never phantom-diffs:
+//
+//   - The omni loader bakes the STATIC (8.0) charset-default collation into
+//     table.Collation when the table has no explicit COLLATE (it cannot know the target
+//     version at load time) — so a user's `... DEFAULT CHARSET=utf8mb4` arrives carrying
+//     utf8mb4_0900_ai_ci even when the target is 5.7.
+//   - The SYNCED side is dumped by MetadataToSDL with the server's STORED default spelled
+//     out as an explicit COLLATE (a 5.7 utf8mb4 table reads back
+//     `DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci`) — so it arrives carrying the
+//     version's stored default as an "explicit" clause.
+//
+// Both are the charset default for SOME version and are indistinguishable from a bare
+// charset on the engine, so we fold any collation equal to either the loader-baked
+// static default OR the version-appropriate default down to defaultCollationFor. A
+// genuinely non-default table COLLATE (e.g. utf8mb4_unicode_ci) is honored as-is.
 func (n *Normalizer) effectiveTableCollation(table *Table) string {
 	tableCharset := foldCharset(table.Charset)
 	tableCollation := foldCollation(table.Collation)
 	if tableCollation == "" {
 		return n.defaultCollationFor(tableCharset)
 	}
-	// If the stored table collation is the 8.0 charset default, the table had no explicit
-	// COLLATE (the loader filled the 8.0 default); re-resolve to the version default.
-	if tableCharset == "utf8mb4" && tableCollation == "utf8mb4_0900_ai_ci" {
-		return n.defaultCollationFor("utf8mb4")
+	if n.isCharsetDefaultCollation(tableCharset, tableCollation) {
+		return n.defaultCollationFor(tableCharset)
 	}
 	return tableCollation
+}
+
+// isCharsetDefaultCollation reports whether folded collation `coll` is "the default" for
+// folded charset `cs` for the purpose of effective-collation resolution: it matches
+// either the version-appropriate default (defaultCollationFor) or the static collation
+// the omni loader bakes for a bare charset (the 8.0 default, from
+// defaultCollationForCharset). The utf8mb4 case is the only one whose default diverges by
+// version (5.7 utf8mb4_general_ci vs 8.0 utf8mb4_0900_ai_ci); folding both spellings keeps
+// a 5.7-synced `COLLATE=utf8mb4_general_ci` and a loader-baked `utf8mb4_0900_ai_ci` equal
+// to each other and to a bare charset under either version's normalizer.
+func (n *Normalizer) isCharsetDefaultCollation(cs, coll string) bool {
+	if coll == "" {
+		return true
+	}
+	if coll == n.defaultCollationFor(cs) {
+		return true
+	}
+	if baked, ok := defaultCollationForCharset[cs]; ok && coll == foldCollation(baked) {
+		return true
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------

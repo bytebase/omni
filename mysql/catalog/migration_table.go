@@ -116,7 +116,12 @@ func tableOptionAlterOp(database, name string, from, to *Table, n *Normalizer) (
 		if cs != "" {
 			clauses = append(clauses, "DEFAULT CHARSET="+cs)
 		}
-		if coll != "" {
+		// Emit COLLATE only for a non-default collation. When `coll` is the charset's
+		// version default it is redundant — and emitting it risks naming a collation the
+		// target server lacks (utf8mb4_0900_ai_ci does not exist on 5.7). Omitting it lets
+		// the server apply its own default, which is valid on either version and reads back
+		// canonically equal (entry utf8mb4-default-collation).
+		if coll != "" && !n.isCharsetDefaultCollation(cs, coll) {
 			clauses = append(clauses, "COLLATE="+coll)
 		}
 	}
@@ -267,7 +272,10 @@ func formatCreateTableOptions(tbl *Table, n *Normalizer) string {
 
 	if cs := foldCharset(tbl.Charset); cs != "" {
 		parts = append(parts, "DEFAULT CHARSET="+cs)
-		if coll := n.effectiveTableCollation(tbl); coll != "" {
+		// Emit COLLATE only for a non-default collation (see tableOptionAlterOp): a bare
+		// CHARSET table renders no COLLATE, so the server applies its version default and
+		// the DDL is valid on both 5.7 and 8.0 (never naming a missing utf8mb4_0900_ai_ci).
+		if coll := n.effectiveTableCollation(tbl); coll != "" && !n.isCharsetDefaultCollation(cs, coll) {
 			parts = append(parts, "COLLATE="+coll)
 		}
 	}
