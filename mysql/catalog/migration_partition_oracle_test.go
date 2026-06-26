@@ -251,6 +251,13 @@ func partitionMigrationProbes() []migrationProbe {
 		{"repartition-drop-old-key-column", "t",
 			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION pmax VALUES LESS THAN MAXVALUE)",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 4", both()},
+		// ---- Same, but the OLD expression-partition column has a SPECIAL-CHARACTER name (`a-b`):
+		//      column references can't be extracted from the expression SQL text, so ANY drop while
+		//      expression-partitioned must conservatively strip first. Without that, the DROP COLUMN
+		//      fails errno 3855. Regression guard for the expression-path conservative strip. ----
+		{"repartition-drop-special-col", "t",
+			"CREATE TABLE t (`a-b` INT NOT NULL, id INT NOT NULL, PRIMARY KEY (`a-b`, id)) PARTITION BY HASH (`a-b`) PARTITIONS 4",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 2", both()},
 	}
 }
 

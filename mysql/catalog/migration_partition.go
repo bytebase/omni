@@ -3,7 +3,6 @@ package catalog
 import (
 	"fmt"
 	"sort"
-	"strings"
 )
 
 // MySQL SDL generate — table partitioning (ALTER TABLE ... PARTITION BY / REMOVE PARTITIONING).
@@ -110,13 +109,20 @@ func partitionModifyOps(entry *TableDiffEntry, n *Normalizer) []MigrationOp {
 	return []MigrationOp{op}
 }
 
-// oldPartitionColumnDropped reports whether any column the FROM partitioning references is being
-// DROPPED in this diff. A dropped partition-key column requires the old partitioning to be removed
-// first (a column bound by the live partition function cannot be dropped). Column references are
-// taken from the structured KEY/COLUMNS lists and, for expression partitioning (RANGE/LIST/HASH
-// over an expr), from an identifier scan of the expression — a superset that may also match a
-// column merely named inside the expression, which only ever causes an extra, harmless PhasePre
-// REMOVE PARTITIONING (the new PARTITION BY re-establishes the scheme regardless).
+// oldPartitionColumnDropped reports whether dropping a column in this diff could be blocked by the
+// table's OLD (from) partition function — in which case the partitioning must be stripped first.
+// MySQL rejects dropping a column bound by a live partition function (errno 3855), so this errs
+// toward stripping:
+//
+//   - COLUMNS / KEY partitioning lists its dependency columns verbatim in Columns/SubColumns; an
+//     exact (case-insensitive) match against the dropped set is reliable, including for names with
+//     special characters.
+//   - EXPRESSION partitioning (RANGE/LIST/HASH over Expr/SubExpr) embeds its columns inside SQL
+//     text whose identifiers cannot be extracted reliably for every column name (quoting, special
+//     characters). Rather than parse the expression, ANY column drop while the from is
+//     expression-partitioned triggers the strip. A REMOVE PARTITIONING that was not strictly needed
+//     is harmless: the PhaseMain PARTITION BY re-establishes the scheme regardless (and an
+//     expression-partitioned table dropping any column is already an uncommon, high-risk change).
 func oldPartitionColumnDropped(entry *TableDiffEntry) bool {
 	if entry.From == nil || entry.From.Partitioning == nil {
 		return false
@@ -125,7 +131,13 @@ func oldPartitionColumnDropped(entry *TableDiffEntry) bool {
 	if len(dropped) == 0 {
 		return false
 	}
-	for _, col := range partitionReferencedColumns(entry.From.Partitioning) {
+	pi := entry.From.Partitioning
+	if pi.Expr != "" || pi.SubExpr != "" {
+		// Expression partitioning: cannot reliably extract the referenced columns from SQL text;
+		// any drop conservatively strips first (harmless if unnecessary).
+		return true
+	}
+	for _, col := range append(append([]string{}, pi.Columns...), pi.SubColumns...) {
 		if dropped[toLower(col)] {
 			return true
 		}
@@ -145,51 +157,6 @@ func droppedColumnSet(entry *TableDiffEntry) map[string]bool {
 		}
 	}
 	return set
-}
-
-// partitionReferencedColumns returns the column names a partition spec depends on: the explicit
-// KEY / RANGE COLUMNS / LIST COLUMNS column lists (and subpartition columns), plus identifiers
-// scanned out of an expression-based partition/subpartition expression (RANGE/LIST/HASH over an
-// expr). The expression scan is a conservative superset (it may include non-column identifiers
-// such as function names), which is safe here: a false positive only adds a harmless REMOVE
-// PARTITIONING before the repartition.
-func partitionReferencedColumns(pi *PartitionInfo) []string {
-	var cols []string
-	cols = append(cols, pi.Columns...)
-	cols = append(cols, pi.SubColumns...)
-	cols = append(cols, identifiersInExpr(pi.Expr)...)
-	cols = append(cols, identifiersInExpr(pi.SubExpr)...)
-	return cols
-}
-
-// identifiersInExpr extracts identifier-like tokens from a partition expression, skipping
-// backtick-quoted and string-literal content boundaries. It is used only to spot a dropped column
-// referenced by an expression partition function; over-matching (e.g. catching a function name)
-// is harmless (see partitionReferencedColumns).
-func identifiersInExpr(expr string) []string {
-	if expr == "" {
-		return nil
-	}
-	var out []string
-	var b strings.Builder
-	flush := func() {
-		if b.Len() > 0 {
-			out = append(out, b.String())
-			b.Reset()
-		}
-	}
-	for _, r := range expr {
-		switch {
-		case r == '_' || r == '$' ||
-			(r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9'):
-			b.WriteRune(r)
-		default:
-			// Backticks, quotes, parentheses, operators, spaces all terminate an identifier run.
-			flush()
-		}
-	}
-	flush()
-	return out
 }
 
 // partitionByOp builds an ALTER TABLE ... PARTITION BY ... op that (re)defines tbl's
