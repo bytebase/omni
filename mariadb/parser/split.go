@@ -196,8 +196,8 @@ func Split(sql string) []Segment {
 	atStmtStart := true
 
 	for i < len(sql) {
-		// Check for DELIMITER directive.
-		if matchWord(sql, i, "DELIMITER") {
+		// Check for DELIMITER directive (only at statement-start position).
+		if atStmtStart && matchWord(sql, i, "DELIMITER") {
 			j := skipToEndOfWord(sql, i)
 			j = skipWhitespace(sql, j)
 			delimStart := j
