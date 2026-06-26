@@ -46,8 +46,9 @@ import (
 // Rendering routes through the same canonical form show.go uses for the stored FK line, so the
 // readback of the emitted DDL canonicalizes equal to `to` and apply-correctness holds.
 //
-// A per-table seenBackingDrop set deduplicates the leftover-backing-index DROP INDEX: MySQL keeps
-// ONE backing index for several FKs on the same leading columns (two unnamed FKs on `pid` share
+// A per-plan seenBackingDrop set (keyed by db.table.index, so it never conflates indexes on
+// different tables) deduplicates the leftover-backing-index DROP INDEX: MySQL keeps ONE backing
+// index for several FKs on the same leading columns (two unnamed FKs on `pid` share
 // `KEY pid (pid)`), so when both such FKs are dropped, each would otherwise select the same index
 // and emit a duplicate DROP INDEX — the second failing errno 1091. The set keeps exactly one drop
 // per (table, index).
