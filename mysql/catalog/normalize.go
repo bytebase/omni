@@ -132,12 +132,14 @@ func (n *Normalizer) defaultCollationFor(charset string) string {
 // while 8.0 KEEPS it as a full pair; resolving the effective pair on BOTH sides and
 // comparing that is version-robust.
 //
-// Resolution rules (entries column-charset-echo-57/-80, -only-collation-resolution):
-//   - charset: the column's own charset if set, else the table's charset.
-//   - collation: the column's own collation if set; else, if the column set a charset,
-//     that CHARSET's default collation (NOT the table's COLLATE — this is the subtle
-//     -only-collation-resolution rule); else the table's collation; else the table
-//     charset's default collation.
+// Resolution rules (entries column-charset-echo-57/-80, -only-collation-resolution),
+// driven by the loader's explicit-clause flags so the three cases MySQL distinguishes
+// are kept apart even though the loader fills Charset/Collation from inheritance:
+//   - charset: the column's explicit CHARACTER SET if it wrote one, else the table's.
+//   - collation: the column's explicit COLLATE if it wrote one; else, if it wrote only a
+//     CHARACTER SET, that charset's default collation (NOT the table COLLATE — the subtle
+//     -only-collation-resolution rule); else (a bare column) the table's effective
+//     collation, re-resolved to the target version.
 //
 // For non-string columns (no charset concept) it returns ("", "").
 func (n *Normalizer) ResolveColumnCharsetCollation(table *Table, c *Column) (charset, collation string) {
@@ -146,44 +148,54 @@ func (n *Normalizer) ResolveColumnCharsetCollation(table *Table, c *Column) (cha
 	}
 
 	tableCharset := foldCharset(table.Charset)
-	tableCollation := foldCollation(table.Collation)
+	tableCollation := n.effectiveTableCollation(table)
 
-	colCharset := foldCharset(c.Charset)
-	colCollation := foldCollation(c.Collation)
-
-	// Effective charset: the column's own charset if set, else the table's. (The omni
-	// loader pre-fills col.Charset from the table for bare columns, so an empty
-	// colCharset and colCharset==tableCharset are both treated as "inherits table".)
-	if colCharset == "" {
-		charset = tableCharset
+	// Effective charset: the column's explicit charset if it wrote one, else the table's.
+	// (Col.CharsetExplicit distinguishes a user CHARACTER SET clause from the loader's
+	// inheritance fill.)
+	if c.CharsetExplicit && c.Charset != "" {
+		charset = foldCharset(c.Charset)
 	} else {
-		charset = colCharset
+		charset = tableCharset
 	}
 
-	// Effective collation — the subtle part. The omni loader pre-fills col.Collation at
-	// load time using 8.0 rules, even when targeting 5.7 and even for bare/charset-only
-	// columns (where it wrongly copies the table COLLATE). So col.Collation cannot be
-	// read as "user explicitly set this". We re-derive the version-correct collation and
-	// honor col.Collation ONLY as a genuine override — detected as a value that differs
-	// from the table's collation (the loader's inheritance source). See flag
-	// column-collation-explicit-vs-inherited for the residual edge.
+	// Effective collation, resolved with the version-correct rules. The explicit flags
+	// let us tell apart the three otherwise-indistinguishable cases the loader collapses:
 	switch {
-	case colCollation != "" && colCollation != tableCollation:
-		// Genuine column-level override (differs from the loader's inheritance source).
-		collation = colCollation
-	case colCharset != "" && colCharset != tableCharset:
-		// Column set a charset different from the table: collation resolves from THAT
-		// charset's default, never the table COLLATE.
-		// (entry column-charset-only-collation-resolution)
-		collation = n.defaultCollationFor(colCharset)
+	case c.CollationExplicit && c.Collation != "":
+		// The user wrote COLLATE: honor it verbatim (folded).
+		collation = foldCollation(c.Collation)
+	case c.CharsetExplicit && c.Charset != "":
+		// The user wrote only CHARACTER SET: the collation is THAT charset's default,
+		// never the table COLLATE. (entry column-charset-only-collation-resolution)
+		collation = n.defaultCollationFor(c.Charset)
 	default:
-		// Bare column, or column whose charset/collation equals the table's: the
-		// effective collation is the version-correct default for the effective charset.
-		// This re-resolves the loader's baked-in 8.0 default to the target version's
-		// default (e.g. utf8mb4 → utf8mb4_general_ci on 5.7).
-		collation = n.defaultCollationFor(charset)
+		// Bare column: inherits the table's effective collation (re-resolved to the
+		// target version). MySQL stores a bare column with the table's collation, not the
+		// charset default — so a table-level COLLATE change must propagate to bare columns.
+		collation = tableCollation
 	}
 	return charset, collation
+}
+
+// effectiveTableCollation returns the table's collation, folded and re-resolved to the
+// target version. The omni loader bakes the 8.0 charset-default collation into
+// table.Collation when the table has no explicit COLLATE clause (it cannot know the
+// target version at load time). We detect that case — table.Collation equals the 8.0
+// default for table.Charset — and substitute the version-correct default; an explicit,
+// non-default table COLLATE is honored as-is.
+func (n *Normalizer) effectiveTableCollation(table *Table) string {
+	tableCharset := foldCharset(table.Charset)
+	tableCollation := foldCollation(table.Collation)
+	if tableCollation == "" {
+		return n.defaultCollationFor(tableCharset)
+	}
+	// If the stored table collation is the 8.0 charset default, the table had no explicit
+	// COLLATE (the loader filled the 8.0 default); re-resolve to the version default.
+	if tableCharset == "utf8mb4" && tableCollation == "utf8mb4_0900_ai_ci" {
+		return n.defaultCollationFor("utf8mb4")
+	}
+	return tableCollation
 }
 
 // ---------------------------------------------------------------------------
@@ -232,8 +244,14 @@ func parseColumnType(columnType string) parsedType {
 	}
 
 	if open := strings.IndexByte(low, '('); open >= 0 {
-		close := strings.LastIndexByte(low, ')')
-		argStr := low[open+1 : close]
+		closeIdx := strings.LastIndexByte(low, ')')
+		// Guard against a malformed type with no closing paren, or ')' before '('
+		// (e.g. a truncated readback "int(11"): treat the paren as absent.
+		if closeIdx <= open {
+			p.base = normalizedTypeName(strings.TrimSpace(low[:open]))
+			return p
+		}
+		argStr := low[open+1 : closeIdx]
 		name := strings.TrimSpace(low[:open])
 		p.base = normalizedTypeName(name)
 		args := strings.SplitN(argStr, ",", 2)
@@ -267,8 +285,9 @@ func (n *Normalizer) CanonicalColumnType(c *Column) string {
 
 func (n *Normalizer) canonicalType(p parsedType) string {
 	switch p.base {
-	case "boolean", "bool":
-		// BOOLEAN/BOOL → tinyint(1) on both versions.
+	case "boolean":
+		// BOOLEAN/BOOL → tinyint(1) on both versions. (parseColumnType already folds
+		// "bool" → "boolean" via normalizedTypeName, so only "boolean" reaches here.)
 		return "tinyint(1)"
 	case "serial":
 		return "bigint unsigned"
@@ -336,11 +355,10 @@ func (n *Normalizer) canonicalType(p parsedType) string {
 }
 
 // canonicalIntType applies the version-specific integer display-width rule.
+// p.base is already alias-folded by normalizedTypeName (integer→int), so it is one of
+// tinyint/smallint/mediumint/int/bigint here.
 func (n *Normalizer) canonicalIntType(p parsedType) string {
 	base := p.base
-	if base == "integer" {
-		base = "int"
-	}
 
 	// tinyint(1) is the boolean marker: width survives on BOTH versions (only when
 	// signed and not zerofill — tinyint(1) unsigned/zerofill is a plain narrow int).
@@ -532,20 +550,83 @@ func unquoteDefault(s string) (string, bool) {
 	return s, false
 }
 
-// numericDefaultKey parses a numeric default and renders a canonical value key, padded
-// to the column's DECIMAL scale where applicable so '0' and '0.00' compare equal.
+// numericDefaultKey renders a canonical value key for a numeric default by normalizing
+// the literal AS A DECIMAL STRING — never via float64, which would lose precision for
+// BIGINT/DECIMAL values beyond 2^53 and collide distinct defaults. It normalizes sign,
+// strips redundant leading/trailing zeros, and pads to the column's DECIMAL scale so
+// '0' and '0.00' compare equal while 9223372036854775806 and ...807 stay distinct.
 func numericDefaultKey(columnType, literal string) (string, bool) {
-	literal = strings.TrimSpace(literal)
-	f, err := strconv.ParseFloat(literal, 64)
-	if err != nil {
+	sign, intPart, fracPart, ok := parseDecimalLiteral(literal)
+	if !ok {
 		return "", false
 	}
-	// Scale: from a decimal(M,D) column type, else from the literal's own precision.
-	if scale, ok := decimalScaleOf(columnType); ok {
-		return "num:" + strconv.FormatFloat(f, 'f', scale, 64), true
+	scale, hasScale := decimalScaleOf(columnType)
+	if hasScale {
+		fracPart = fitFractionToScale(fracPart, scale)
+	} else {
+		fracPart = strings.TrimRight(fracPart, "0")
 	}
-	// Integer or unscaled: a canonical shortest form.
-	return "num:" + strconv.FormatFloat(f, 'f', -1, 64), true
+	key := sign + intPart
+	if fracPart != "" {
+		key += "." + fracPart
+	}
+	return "num:" + key, true
+}
+
+// parseDecimalLiteral splits a numeric literal into (sign, integerDigits, fractionDigits)
+// with leading integer zeros stripped (but a single "0" kept). Returns ok=false for
+// non-numeric input. Exponent notation is not used by MySQL stored numeric defaults.
+func parseDecimalLiteral(literal string) (sign, intPart, fracPart string, ok bool) {
+	s := strings.TrimSpace(literal)
+	if s == "" {
+		return "", "", "", false
+	}
+	if s[0] == '+' || s[0] == '-' {
+		if s[0] == '-' {
+			sign = "-"
+		}
+		s = s[1:]
+	}
+	if s == "" {
+		return "", "", "", false
+	}
+	intDigits, fracDigits := s, ""
+	if dot := strings.IndexByte(s, '.'); dot >= 0 {
+		intDigits = s[:dot]
+		fracDigits = s[dot+1:]
+	}
+	if !allDigits(intDigits) || !allDigits(fracDigits) {
+		return "", "", "", false
+	}
+	intDigits = strings.TrimLeft(intDigits, "0")
+	if intDigits == "" {
+		intDigits = "0"
+	}
+	// Normalize negative zero to positive.
+	if intDigits == "0" && strings.Trim(fracDigits, "0") == "" {
+		sign = ""
+	}
+	return sign, intDigits, fracDigits, true
+}
+
+// fitFractionToScale pads or truncates a fraction-digit string to exactly scale digits.
+func fitFractionToScale(frac string, scale int) string {
+	if scale <= 0 {
+		return ""
+	}
+	if len(frac) >= scale {
+		return frac[:scale]
+	}
+	return frac + strings.Repeat("0", scale-len(frac))
+}
+
+func allDigits(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // decimalScaleOf extracts the scale D from a decimal(M,D) column type.
@@ -621,6 +702,29 @@ func (n *Normalizer) CanonicalGeneratedExpr(expr string) string {
 	return s
 }
 
+// scanStringLiteral returns the index just past a single-quoted string literal that
+// starts at i (expr[i]=='\”), honoring doubled-quote escapes (”) and backslash
+// escapes (\'). If the literal is unterminated it returns len(expr). The returned index
+// is always a valid slice bound (≤ len(expr)), so callers never read past the end.
+func scanStringLiteral(expr string, i int) int {
+	j := i + 1
+	for j < len(expr) {
+		switch expr[j] {
+		case '\\':
+			j += 2 // skip the escaped char (\' \\ etc.)
+		case '\'':
+			if j+1 < len(expr) && expr[j+1] == '\'' {
+				j += 2 // doubled-quote escape
+				continue
+			}
+			return j + 1 // past the closing quote
+		default:
+			j++
+		}
+	}
+	return len(expr) // unterminated: consume to EOF
+}
+
 // stripCharsetIntroducers removes a charset introducer (e.g. _latin1, _utf8mb4) that
 // immediately precedes a single-quoted string literal, leaving the bare literal.
 func stripCharsetIntroducers(expr string) string {
@@ -629,27 +733,16 @@ func stripCharsetIntroducers(expr string) string {
 	for i < len(expr) {
 		c := expr[i]
 		if c == '\'' {
-			// Copy the whole string literal verbatim (respecting doubled quotes).
-			j := i + 1
-			for j < len(expr) {
-				if expr[j] == '\'' {
-					if j+1 < len(expr) && expr[j+1] == '\'' {
-						j += 2
-						continue
-					}
-					break
-				}
-				j++
-			}
-			b.WriteString(expr[i : j+1])
-			i = j + 1
+			end := scanStringLiteral(expr, i)
+			b.WriteString(expr[i:end])
+			i = end
 			continue
 		}
 		if c == '_' {
 			// Possible charset introducer: _<ident>' — drop the "_<ident>" if a quote
 			// follows the identifier run.
 			j := i + 1
-			for j < len(expr) && (isIdentByte(expr[j])) {
+			for j < len(expr) && isIdentByte(expr[j]) {
 				j++
 			}
 			if j < len(expr) && expr[j] == '\'' && j > i+1 {
@@ -669,9 +762,11 @@ func isIdentByte(b byte) bool {
 }
 
 // collapseExprWhitespace lowercases the expression outside string literals, strips
-// backtick identifier quoting (lowercasing the inner name), and removes all whitespace,
-// so cosmetic spacing and quoting differences do not diff. String literals are copied
-// verbatim (case and spacing inside them are significant).
+// backtick identifier quoting (lowercasing the inner name), and collapses each run of
+// whitespace to a SINGLE space, so cosmetic spacing and quoting differences do not diff
+// while token boundaries are preserved (e.g. `a` and `b` must not merge into `aandb`).
+// String literals are copied verbatim (case and spacing inside them are significant) and
+// unterminated literals/identifiers are consumed safely to EOF.
 func collapseExprWhitespace(expr string) string {
 	var b strings.Builder
 	i := 0
@@ -679,23 +774,13 @@ func collapseExprWhitespace(expr string) string {
 		c := expr[i]
 		switch c {
 		case '\'':
-			j := i + 1
-			for j < len(expr) {
-				if expr[j] == '\'' {
-					if j+1 < len(expr) && expr[j+1] == '\'' {
-						j += 2
-						continue
-					}
-					break
-				}
-				j++
-			}
-			b.WriteString(expr[i : j+1])
-			i = j + 1
+			end := scanStringLiteral(expr, i)
+			b.WriteString(expr[i:end])
+			i = end
 		case '`':
 			// Backticks are identifier quoting; drop them and lowercase the inner name
-			// so a backticked identifier and the bare identifier compare equal. The
-			// loader backticks both sides, but stripping is strictly more robust.
+			// so a backticked identifier and the bare identifier compare equal. An
+			// unterminated backtick is consumed to EOF.
 			j := i + 1
 			for j < len(expr) && expr[j] != '`' {
 				j++
@@ -709,13 +794,23 @@ func collapseExprWhitespace(expr string) string {
 					b.WriteByte(ch)
 				}
 			}
-			i = j + 1
+			if j < len(expr) {
+				j++ // past the closing backtick
+			}
+			i = j
 		case ' ', '\t', '\n', '\r':
-			// Skip whitespace entirely; tokens are re-joined without spaces. Operators
-			// and identifiers remain unambiguous because identifiers are backticked and
-			// numeric/keyword tokens are separated by punctuation in normalized MySQL
-			// expressions.
-			i++
+			// Collapse a run of whitespace to a single space, but only between tokens —
+			// drop it entirely at the start/end and adjacent to punctuation where it is
+			// never significant. Keeping one space preserves keyword/identifier
+			// boundaries so `a and b` does not become `aandb`.
+			j := i
+			for j < len(expr) && (expr[j] == ' ' || expr[j] == '\t' || expr[j] == '\n' || expr[j] == '\r') {
+				j++
+			}
+			if exprSpaceIsSignificant(b.String(), expr, j) {
+				b.WriteByte(' ')
+			}
+			i = j
 		default:
 			if c >= 'A' && c <= 'Z' {
 				b.WriteByte(c + ('a' - 'A'))
@@ -728,6 +823,19 @@ func collapseExprWhitespace(expr string) string {
 	return b.String()
 }
 
+// exprSpaceIsSignificant reports whether a whitespace run between the already-emitted
+// prefix and the next byte (expr[next]) must be preserved as a single space. Whitespace
+// is significant only when it separates two "word" bytes (identifier/number chars) —
+// e.g. between a keyword and an identifier — and is dropped at the boundaries or next to
+// punctuation/operators where MySQL never needs it.
+func exprSpaceIsSignificant(emitted, expr string, next int) bool {
+	if emitted == "" || next >= len(expr) {
+		return false
+	}
+	prev := emitted[len(emitted)-1]
+	return isIdentByte(prev) && isIdentByte(expr[next])
+}
+
 // ---------------------------------------------------------------------------
 // Nullability + PK + the TIMESTAMP magic (explicit_defaults_for_timestamp).
 // ---------------------------------------------------------------------------
@@ -736,11 +844,13 @@ func collapseExprWhitespace(expr string) string {
 // implicit rewrites:
 //   - a PRIMARY KEY member is forced NOT NULL regardless of its declaration
 //     (entry pk-implies-not-null);
-//   - when explicit_defaults_for_timestamp is OFF, every bare TIMESTAMP column (no
-//     explicit nullability) becomes NOT NULL (entry timestamp-magic-first-57). This is
+//   - when explicit_defaults_for_timestamp is OFF, a TIMESTAMP column with NO explicit
+//     nullability clause becomes NOT NULL (entry timestamp-magic-first-57). This is
 //     governed by the captured session variable, NOT the version (flag #3): a 5.7
 //     server with the variable ON leaves TIMESTAMP nullable, an 8.0 server with it OFF
-//     forces NOT NULL.
+//     forces NOT NULL. The Column.NullExplicit flag (set by the loader) tells a bare
+//     `TIMESTAMP` apart from an explicit `TIMESTAMP NULL`, so a genuinely-nullable
+//     `TIMESTAMP NULL` — even one with a constant default — is left nullable.
 //
 // For all other columns it returns the declared !Nullable.
 func (n *Normalizer) CanonicalNotNull(table *Table, c *Column) bool {
@@ -750,37 +860,10 @@ func (n *Normalizer) CanonicalNotNull(table *Table, c *Column) bool {
 	if n.columnInPrimaryKey(table, c) {
 		return true
 	}
-	// EDFT OFF: MySQL forces NOT NULL on a TIMESTAMP column that lacks an explicit NULL
-	// clause. The loader collapses `TIMESTAMP` (→ NOT NULL) and `TIMESTAMP NULL`
-	// (→ nullable) to the SAME catalog state (Nullable=true, no explicit-NULL flag), so
-	// in general they are indistinguishable. We force NOT NULL only where the catalog
-	// gives an unambiguous signal that the column is not the explicit-NULL form:
-	//   - it is the FIRST TIMESTAMP column (which also receives the implicit
-	//     DEFAULT CURRENT_TIMESTAMP — see CanonicalTimestampDefaults), or
-	//   - it carries a non-NULL explicit default (a `TIMESTAMP NULL` would have either no
-	//     default or DEFAULT NULL, never a real default).
-	// A non-first, default-less bare TIMESTAMP is indistinguishable from `TIMESTAMP NULL`
-	// post-load, so we conservatively keep it nullable to avoid a phantom nullability
-	// diff. This is the conservative ruling for the explicit_defaults_for_timestamp flag.
-	// See flag column-timestamp-explicit-null-lost.
-	if isTimestampType(c.DataType) && !n.ExplicitDefaultsForTimestamp && !c.userSetNullable() {
-		if n.isFirstTimestampColumn(table, c) || c.hasNonNullDefault() {
-			return true
-		}
+	if isTimestampType(c.DataType) && !n.ExplicitDefaultsForTimestamp && !c.NullExplicit {
+		return true
 	}
 	return false
-}
-
-// hasNonNullDefault reports whether the column carries an explicit non-NULL default.
-func (c *Column) hasNonNullDefault() bool {
-	return c.Default != nil && !strings.EqualFold(strings.TrimSpace(*c.Default), "NULL")
-}
-
-// userSetNullable reports whether the user explicitly chose this column nullable. The
-// catalog does not record an explicit-NULL flag distinct from the default, so we treat
-// a column carrying an explicit DEFAULT NULL (Default=="NULL") as user-chosen nullable.
-func (c *Column) userSetNullable() bool {
-	return c.Default != nil && strings.EqualFold(strings.TrimSpace(*c.Default), "NULL")
 }
 
 // columnInPrimaryKey reports whether the column participates in the table's PK.
@@ -825,12 +908,27 @@ func (n *Normalizer) CanonicalTimestampDefaults(table *Table, c *Column) (def, o
 	if n.ExplicitDefaultsForTimestamp {
 		return def, onUpdate
 	}
-	// EDFT OFF and this is the first TIMESTAMP column with no explicit default: inject
-	// the implicit CURRENT_TIMESTAMP default + on-update.
-	if def == defaultAbsentKey && onUpdate == defaultAbsentKey && n.isFirstTimestampColumn(table, c) && !c.userSetNullable() {
-		return "ts:CURRENT_TIMESTAMP", "ts:CURRENT_TIMESTAMP"
+	// EDFT OFF and this is the first TIMESTAMP column with no explicit nullability or
+	// default: inject the implicit DEFAULT CURRENT_TIMESTAMP(N) ON UPDATE
+	// CURRENT_TIMESTAMP(N), matching the column's fractional-seconds precision.
+	if def == defaultAbsentKey && onUpdate == defaultAbsentKey &&
+		n.isFirstTimestampColumn(table, c) && !c.NullExplicit {
+		ts := "ts:CURRENT_TIMESTAMP" + fractionalSecondsSuffix(c.ColumnType)
+		return ts, ts
 	}
 	return def, onUpdate
+}
+
+// fractionalSecondsSuffix returns "(N)" for a TIMESTAMP(N)/DATETIME(N) column type, or
+// "" when no fractional precision is declared, so the injected CURRENT_TIMESTAMP default
+// carries the same precision MySQL stores (entry timestamp-magic-first-57: TIMESTAMP(3)
+// → CURRENT_TIMESTAMP(3)).
+func fractionalSecondsSuffix(columnType string) string {
+	p := parseColumnType(columnType)
+	if p.hasLen && p.length > 0 {
+		return fmt.Sprintf("(%d)", p.length)
+	}
+	return ""
 }
 
 // canonicalOnUpdate returns the canonical ON UPDATE key for a column.
@@ -893,12 +991,13 @@ func (n *Normalizer) IgnoreRowFormat(table *Table) bool {
 // Comments — content comparison (decoded).
 // ---------------------------------------------------------------------------
 
-// CanonicalComment returns a comment's decoded content for comparison. Comments are
-// stored single-quoted with embedded single quotes doubled; the diff compares content,
-// not the quoted surface form (entry comment-escaping). The catalog already stores the
-// decoded content, but un-doubling here makes the key robust to either form.
+// CanonicalComment returns a comment's content for comparison. The omni loader already
+// stores the DECODED comment content (embedded single quotes un-doubled), so the stored
+// value IS the canonical content and is returned as-is. (entry comment-escaping: the diff
+// compares decoded content, not the quoted surface form.) Re-running an un-doubling pass
+// here would be wrong — it would collapse a genuine `a”b` content down to `a'b`.
 func (n *Normalizer) CanonicalComment(comment string) string {
-	return strings.ReplaceAll(comment, "''", "'")
+	return comment
 }
 
 // ---------------------------------------------------------------------------
@@ -946,36 +1045,44 @@ func (n *Normalizer) CanonicalColumn(table *Table, c *Column) string {
 	charset, collation := n.ResolveColumnCharsetCollation(table, c)
 	def, onUpdate := n.CanonicalTimestampDefaults(table, c)
 
-	var b strings.Builder
-	b.WriteString("name=")
-	b.WriteString(strings.ToLower(c.Name))
-	b.WriteString(";type=")
-	b.WriteString(n.CanonicalColumnType(c))
-	b.WriteString(";cs=")
-	b.WriteString(charset)
-	b.WriteString(";coll=")
-	b.WriteString(collation)
-	b.WriteString(";notnull=")
-	b.WriteString(strconv.FormatBool(n.CanonicalNotNull(table, c)))
-	b.WriteString(";default=")
-	b.WriteString(def)
-	b.WriteString(";onupdate=")
-	b.WriteString(onUpdate)
-	b.WriteString(";autoinc=")
-	b.WriteString(strconv.FormatBool(c.AutoIncrement))
-	b.WriteString(";comment=")
-	b.WriteString(n.CanonicalComment(c.Comment))
+	gen, stored := "", ""
 	if c.Generated != nil {
-		b.WriteString(";gen=")
-		b.WriteString(n.CanonicalGeneratedExpr(c.Generated.Expr))
-		b.WriteString(";stored=")
-		b.WriteString(strconv.FormatBool(c.Generated.Stored))
+		gen = n.CanonicalGeneratedExpr(c.Generated.Expr)
+		stored = strconv.FormatBool(c.Generated.Stored)
 	}
-	if c.Invisible {
-		b.WriteString(";invisible=true")
-	}
-	if c.SRID != 0 {
-		fmt.Fprintf(&b, ";srid=%d", c.SRID)
+	// Length-delimited field encoding: each value is prefixed with its byte length, so a
+	// value containing the field separator (e.g. a comment of ";gen=...") cannot be
+	// mistaken for another field and collide with a different column's key.
+	return encodeKeyFields(
+		"name", strings.ToLower(c.Name),
+		"type", n.CanonicalColumnType(c),
+		"cs", charset,
+		"coll", collation,
+		"notnull", strconv.FormatBool(n.CanonicalNotNull(table, c)),
+		"default", def,
+		"onupdate", onUpdate,
+		"autoinc", strconv.FormatBool(c.AutoIncrement),
+		"comment", n.CanonicalComment(c.Comment),
+		"gen", gen,
+		"stored", stored,
+		"invisible", strconv.FormatBool(c.Invisible),
+		"srid", strconv.Itoa(c.SRID),
+	)
+}
+
+// encodeKeyFields joins (label, value) pairs into an unambiguous comparison key. Each
+// value is written as "<label>:<len>:<value>" so no value byte sequence can be confused
+// with a delimiter or another field — making the aggregate key collision-free regardless
+// of value content (comments, defaults, expressions).
+func encodeKeyFields(pairs ...string) string {
+	var b strings.Builder
+	for i := 0; i+1 < len(pairs); i += 2 {
+		b.WriteString(pairs[i])
+		b.WriteByte(':')
+		b.WriteString(strconv.Itoa(len(pairs[i+1])))
+		b.WriteByte(':')
+		b.WriteString(pairs[i+1])
+		b.WriteByte('|')
 	}
 	return b.String()
 }

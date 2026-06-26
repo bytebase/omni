@@ -290,3 +290,54 @@ func containsVersion(vs []Version, v Version) bool {
 	}
 	return false
 }
+
+// TestOracle_MissedDiffGuards proves the canonical key DISTINGUISHES schemas that
+// genuinely differ — the dual of phantom-diff elimination. These lock in the review
+// findings where the canonicalizer was over-collapsing (a missed diff is as harmful as
+// a phantom one). Each asserts two real, different MySQL schemas produce different keys,
+// loaded through the real engine's SHOW CREATE so the catalog state is authentic.
+func TestOracle_MissedDiffGuards(t *testing.T) {
+	if testing.Short() {
+		t.Skip("oracle test skipped in short mode")
+	}
+	for _, version := range both() {
+		o := connectOracle(t, version)
+		sc := serverCharsetFor(o.version)
+		n := NormalizerFor(o.version)
+
+		t.Run(o.name+"/bare-column-follows-table-collation", func(t *testing.T) {
+			// A bare column inherits the table COLLATE; changing the table COLLATE must
+			// change the bare column's canonical key (else the column change is invisible).
+			ddlA := "CREATE TABLE t (a VARCHAR(10)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci"
+			ddlB := "CREATE TABLE t (a VARCHAR(10)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+			rbA, okA := o.showCreate(t, "mdg_a", ddlA, "t")
+			rbB, okB := o.showCreate(t, "mdg_b", ddlB, "t")
+			if !okA || !okB {
+				t.Skip("could not obtain readbacks")
+			}
+			tA, cA := loadColumn(t, sc, rbA, "t", "a")
+			tB, cB := loadColumn(t, sc, rbB, "t", "a")
+			if n.CanonicalColumn(tA, cA) == n.CanonicalColumn(tB, cB) {
+				t.Errorf("[%s] bare column must follow table COLLATE change:\n A=%s\n B=%s",
+					o.name, n.CanonicalColumn(tA, cA), n.CanonicalColumn(tB, cB))
+			}
+		})
+
+		if version == MySQL57 {
+			t.Run(o.name+"/timestamp-null-vs-notnull-with-default", func(t *testing.T) {
+				// EDFT=0: `TIMESTAMP NULL DEFAULT '<const>'` (nullable) must produce a
+				// different key from a bare `TIMESTAMP DEFAULT '<const>'` (NOT NULL).
+				ddl := "CREATE TABLE t (x INT, n TIMESTAMP NULL DEFAULT '2020-01-01 00:00:00', b TIMESTAMP DEFAULT '2020-01-01 00:00:00')"
+				rb, ok := o.showCreate(t, "mdg_ts", ddl, "t")
+				if !ok {
+					t.Skip("could not obtain readback")
+				}
+				tbl, nCol := loadColumn(t, sc, rb, "t", "n")
+				_, bCol := loadColumn(t, sc, rb, "t", "b")
+				if n.CanonicalColumn(tbl, nCol) == n.CanonicalColumn(tbl, bCol) {
+					t.Errorf("[%s] nullable TIMESTAMP NULL and NOT NULL TIMESTAMP must differ", o.name)
+				}
+			})
+		}
+	}
+}

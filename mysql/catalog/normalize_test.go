@@ -42,8 +42,8 @@ func TestResolveColumnCharsetCollation_57_StripsWhenEqualsTable(t *testing.T) {
 
 	// User target: explicit charset+collation equal to the table default.
 	userCol := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)",
-		Charset: "utf8mb4", Collation: "utf8mb4_general_ci", Nullable: true}
-	// Synced stored form: 5.7 stripped both clauses, leaving them empty.
+		Charset: "utf8mb4", CharsetExplicit: true, Collation: "utf8mb4_general_ci", CollationExplicit: true, Nullable: true}
+	// Synced stored form: 5.7 stripped both clauses, leaving them empty (inherited).
 	storedCol := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)",
 		Charset: "", Collation: "", Nullable: true}
 
@@ -63,9 +63,9 @@ func TestResolveColumnCharsetCollation_57_KeepsGenuineOverride(t *testing.T) {
 	// (`CHARACTER SET utf8` under a utf8mb4 table).
 	tbl := &Table{Name: "cu", Charset: "utf8mb4", Collation: "utf8mb4_general_ci"}
 	userCol := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)",
-		Charset: "utf8", Nullable: true} // user wrote CHARACTER SET utf8, no collate
+		Charset: "utf8", CharsetExplicit: true, Nullable: true} // user wrote CHARACTER SET utf8, no collate
 	storedCol := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)",
-		Charset: "utf8", Nullable: true} // 5.7 keeps `CHARACTER SET utf8`
+		Charset: "utf8", CharsetExplicit: true, Nullable: true} // 5.7 keeps `CHARACTER SET utf8`
 
 	n := NormalizerFor(MySQL57)
 	uc, ucol := n.ResolveColumnCharsetCollation(tbl, userCol)
@@ -89,9 +89,9 @@ func TestResolveColumnCharsetCollation_80_KeepsRedundantPair(t *testing.T) {
 
 	// `c` -> CHARACTER SET utf8mb4 (no collate). Stored as the resolved pair.
 	userCol := &Column{Name: "c", DataType: "varchar", ColumnType: "varchar(10)",
-		Charset: "utf8mb4", Nullable: true}
+		Charset: "utf8mb4", CharsetExplicit: true, Nullable: true}
 	storedCol := &Column{Name: "c", DataType: "varchar", ColumnType: "varchar(10)",
-		Charset: "utf8mb4", Collation: "utf8mb4_0900_ai_ci", Nullable: true}
+		Charset: "utf8mb4", CharsetExplicit: true, Collation: "utf8mb4_0900_ai_ci", CollationExplicit: true, Nullable: true}
 
 	n := NormalizerFor(MySQL80)
 	uc, ucol := n.ResolveColumnCharsetCollation(tbl, userCol)
@@ -123,7 +123,7 @@ func TestResolveColumnCharsetCollation_80_CharsetOnlyResolvesFromCharsetDefault(
 	// collation from the CHARSET default (utf8mb4_0900_ai_ci on 8.0), NOT the table COLLATE.
 	tbl := &Table{Name: "t_d1", Charset: "utf8mb4", Collation: "utf8mb4_unicode_ci"}
 	userCol := &Column{Name: "a", DataType: "varchar", ColumnType: "varchar(10)",
-		Charset: "utf8mb4", Nullable: true}
+		Charset: "utf8mb4", CharsetExplicit: true, Nullable: true}
 
 	n := NormalizerFor(MySQL80)
 	_, coll := n.ResolveColumnCharsetCollation(tbl, userCol)
@@ -470,18 +470,35 @@ func TestCanonicalTimestamp_EDFTOff_FirstBareGetsMagic(t *testing.T) {
 	}
 }
 
-func TestCanonicalTimestamp_EDFTOff_NonFirstRespectsLoadedNullability(t *testing.T) {
-	// EDFT=0: a TIMESTAMP that is NOT the first one keeps its loaded nullability. The
-	// loader collapses `TIMESTAMP` (NOT NULL) and `TIMESTAMP NULL` (nullable) to the
-	// same catalog state, so we cannot distinguish them; the conservative ruling keeps
-	// the loaded value to avoid phantom-diffing a genuine `TIMESTAMP NULL` against its
-	// readback (which reads back as `timestamp NULL DEFAULT NULL`). The first column,
-	// which is unambiguous, still gets NOT NULL (covered above).
+func TestCanonicalTimestamp_EDFTOff_NullExplicitDistinguishesBareFromNull(t *testing.T) {
+	// EDFT=0: a TIMESTAMP with NO explicit nullability clause is forced NOT NULL — even a
+	// non-first one — while an explicit `TIMESTAMP NULL` stays nullable. The loader's
+	// NullExplicit flag tells them apart (a bare TIMESTAMP and `TIMESTAMP NULL` are
+	// otherwise the same catalog state).
 	n := &Normalizer{Version: MySQL57, ExplicitDefaultsForTimestamp: false}
-	a, b := tsCol("a"), tsCol("b")
-	tbl := tsTable(a, b)
-	if n.CanonicalNotNull(tbl, b) {
-		t.Fatal("EDFT=0: non-first TIMESTAMP must respect loaded nullability (conservative)")
+	a := tsCol("a")            // first, bare
+	bare := tsCol("b")         // non-first, bare → NOT NULL
+	explicitNull := tsCol("c") // non-first, explicit NULL → nullable
+	explicitNull.NullExplicit = true
+	tbl := tsTable(a, bare, explicitNull)
+
+	if !n.CanonicalNotNull(tbl, bare) {
+		t.Fatal("EDFT=0: a non-first bare TIMESTAMP must be NOT NULL")
+	}
+	if n.CanonicalNotNull(tbl, explicitNull) {
+		t.Fatal("EDFT=0: an explicit `TIMESTAMP NULL` must stay nullable")
+	}
+}
+
+func TestCanonicalTimestamp_EDFTOff_FirstWithPrecisionGetsPreciseDefault(t *testing.T) {
+	// First TIMESTAMP(3) under EDFT=0 → DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE
+	// CURRENT_TIMESTAMP(3), matching the column's fractional precision.
+	n := &Normalizer{Version: MySQL57, ExplicitDefaultsForTimestamp: false}
+	a := &Column{Name: "a", DataType: "timestamp", ColumnType: "timestamp(3)", Nullable: true}
+	tbl := tsTable(a)
+	def, onUpdate := n.CanonicalTimestampDefaults(tbl, a)
+	if def != "ts:CURRENT_TIMESTAMP(3)" || onUpdate != "ts:CURRENT_TIMESTAMP(3)" {
+		t.Fatalf("TIMESTAMP(3) first column must inject CURRENT_TIMESTAMP(3); got def=%q onUpdate=%q", def, onUpdate)
 	}
 }
 
@@ -551,11 +568,13 @@ func TestIgnoreInDiff_RowFormatDefault(t *testing.T) {
 // Comments — content comparison, decoded. (entry comment-escaping)
 // ---------------------------------------------------------------------------
 
-func TestCanonicalComment_DecodedContent(t *testing.T) {
+func TestCanonicalComment_ContentIsAlreadyDecoded(t *testing.T) {
 	n := NormalizerFor(MySQL80)
-	// Embedded doubled single-quote decodes to a single quote; compare content.
-	if n.CanonicalComment("has ''quote'' inside") != n.CanonicalComment("has 'quote' inside") {
-		t.Fatal("comment comparison must be on decoded content")
+	// The loader stores DECODED comment content. The canonicalizer must NOT re-decode:
+	// a genuine content of `a''b` (from DDL COMMENT 'a''''b') must stay distinct from a
+	// content of `a'b` (from DDL COMMENT 'a''b').
+	if n.CanonicalComment("a''b") == n.CanonicalComment("a'b") {
+		t.Fatal("distinct decoded comments `a''b` and `a'b` must not collapse")
 	}
 	if n.CanonicalComment("") != "" {
 		t.Fatal("empty comment must yield empty key")
@@ -702,5 +721,84 @@ func TestIdempotence_CharsetCollation(t *testing.T) {
 		if cs != cs2 || coll != coll2 {
 			t.Errorf("[%v] charset/collation resolution not idempotent: (%q,%q) -> (%q,%q)", v, cs, coll, cs2, coll2)
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Regression tests for review findings (correctness fixes).
+// ---------------------------------------------------------------------------
+
+func TestCanonicalDefault_LargeBigintPrecisionPreserved(t *testing.T) {
+	// Numeric defaults must compare by full-precision decimal string, never float64,
+	// or large BIGINT values beyond 2^53 collide (a missed diff).
+	n := NormalizerFor(MySQL80)
+	a := defCol("bigint", sp("9223372036854775806"), ColumnDefaultConstant)
+	b := defCol("bigint", sp("9223372036854775807"), ColumnDefaultConstant)
+	if n.CanonicalDefault(a) == n.CanonicalDefault(b) {
+		t.Fatalf("distinct large bigint defaults must differ: %q vs %q", n.CanonicalDefault(a), n.CanonicalDefault(b))
+	}
+	// Quote-insensitivity and value-equality must still hold at full precision.
+	c := defCol("bigint", sp("'9223372036854775807'"), ColumnDefaultConstant)
+	if n.CanonicalDefault(b) != n.CanonicalDefault(c) {
+		t.Fatal("quoted and unquoted large bigint default must be equal")
+	}
+	// Negative and negative-zero handling.
+	if n.CanonicalDefault(defCol("int", sp("-0"), ColumnDefaultConstant)) !=
+		n.CanonicalDefault(defCol("int", sp("0"), ColumnDefaultConstant)) {
+		t.Fatal("-0 and 0 must be equal")
+	}
+	if n.CanonicalDefault(defCol("int", sp("-5"), ColumnDefaultConstant)) ==
+		n.CanonicalDefault(defCol("int", sp("5"), ColumnDefaultConstant)) {
+		t.Fatal("-5 and 5 must differ")
+	}
+}
+
+func TestCanonicalGeneratedExpr_TokenBoundaryPreserved(t *testing.T) {
+	// Whitespace must collapse to a single space between word tokens, not vanish, so
+	// `a` and `b` (an AND expression) does not merge into the identifier `aandb`.
+	n := NormalizerFor(MySQL80)
+	if n.CanonicalGeneratedExpr("`a` and `b`") == n.CanonicalGeneratedExpr("`aandb`") {
+		t.Fatal("`a` and `b` must not collapse to aandb")
+	}
+	// But spacing variants of the same expression are still equal.
+	if n.CanonicalGeneratedExpr("`a`  and  `b`") != n.CanonicalGeneratedExpr("`a` and `b`") {
+		t.Fatal("spacing variants of the same AND expression must be equal")
+	}
+}
+
+func TestExpressionTokenizers_NoPanicOnMalformedInput(t *testing.T) {
+	// The hand-written tokenizers must never panic on malformed/truncated input
+	// (unterminated quotes, backslash escapes, missing parens, unterminated backticks).
+	n := NormalizerFor(MySQL80)
+	inputs := []string{
+		"concat(`a`,'x",  // unterminated string
+		`concat(a,'\'')`, // backslash-escaped quote
+		"_latin1'x",      // introducer + unterminated literal
+		"`unterminated",  // unterminated backtick
+		"'",              // lone quote
+		"",               // empty
+		"((((",           // unbalanced parens
+	}
+	for _, in := range inputs {
+		_ = n.CanonicalGeneratedExpr(in) // must not panic
+	}
+	// parseColumnType on malformed types must not panic.
+	for _, in := range []string{"int(", "int(11", "a)b(c", "varchar(", "(", ")", "decimal(10,"} {
+		_ = n.CanonicalColumnType(col("x", in)) // must not panic
+	}
+}
+
+func TestCanonicalColumn_NoKeyInjectionViaComment(t *testing.T) {
+	// A column whose comment contains the field-delimiter syntax must not collide with a
+	// genuinely different column (length-delimited field encoding prevents injection).
+	tbl := &Table{Name: "t", Charset: "utf8mb4", Collation: "utf8mb4_0900_ai_ci"}
+	n := NormalizerFor(MySQL80)
+
+	withComment := &Column{Name: "a", DataType: "int", ColumnType: "int", Nullable: true,
+		Comment: "x|gen:3:a+1|stored:5:false|"}
+	gen := &Column{Name: "a", DataType: "int", ColumnType: "int", Nullable: true,
+		Comment: "x", Generated: &GeneratedColumnInfo{Expr: "a+1", Stored: false}}
+	if n.CanonicalColumn(tbl, withComment) == n.CanonicalColumn(tbl, gen) {
+		t.Fatal("a comment mimicking field syntax must not collide with a generated column")
 	}
 }

@@ -199,9 +199,11 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			}
 			if colDef.TypeName.Charset != "" {
 				col.Charset = normalizeCharsetName(colDef.TypeName.Charset)
+				col.CharsetExplicit = true
 			}
 			if colDef.TypeName.Collate != "" {
 				col.Collation = colDef.TypeName.Collate
+				col.CollationExplicit = true
 				if col.Charset == "" {
 					col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
 				}
@@ -268,8 +270,10 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			switch cc.Type {
 			case nodes.ColConstrNotNull:
 				col.Nullable = false
+				col.NullExplicit = true
 			case nodes.ColConstrNull:
 				col.Nullable = true
+				col.NullExplicit = true
 			case nodes.ColConstrDefault:
 				if cc.Expr != nil {
 					setColumnDefaultFromExpr(col, cc.Expr)
