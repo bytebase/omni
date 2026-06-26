@@ -160,6 +160,20 @@ const priorityPrimaryKeyDrop = priorityIndexDrop - 1
 // the dropped PK member; the combined form is chosen only when AUTO_INCREMENT keys the new PK and
 // no PK-member column drop forces the split. `to` always carries the PRIMARY index for a PK
 // change (the diff keys it by the PRIMARY name), so DROP PRIMARY KEY is unconditional.
+//
+// KNOWN LIMITATIONS (flagged, not handled) — both are rare AUTO_INCREMENT corner cases whose
+// correct emission needs control over the column generator's op ordering (cross-node), which this
+// node does not have; recorded for a follow-up rather than special-cased:
+//   - Relocating an AUTO_INCREMENT column OUT of the PK onto a NEW secondary index in the same
+//     migration (old PK has the auto-inc column, new PK does not, a new KEY covers it): the split
+//     path's standalone DROP PRIMARY KEY leaves the auto-inc column unkeyed before its new
+//     secondary key is added (errno 1075). Atomicity would require pairing the PK drop with that
+//     specific secondary-key ADD in one ALTER.
+//   - AUTO_INCREMENT keeps the PK while a DIFFERENT old-PK member is demoted to nullable in the
+//     same migration: combined is needed to avoid the unkeyed AUTO_INCREMENT window (errno 1075),
+//     but the column's MODIFY ... NULL runs (priorityColumn) before the combined PhaseMain op
+//     (priorityIndex) while the old PK still holds it (errno 1171). Satisfying both needs the PK
+//     change emitted before the column modify, i.e. a column-op ordering this node cannot impose.
 func primaryKeyModifyOps(entry *TableDiffEntry, table string, to *Index, n *Normalizer) []MigrationOp {
 	if canCombinePrimaryKeyModify(entry, to) {
 		return []MigrationOp{{
@@ -188,16 +202,22 @@ func primaryKeyModifyOps(entry *TableDiffEntry, table string, to *Index, n *Norm
 }
 
 // canCombinePrimaryKeyModify reports whether a PK change may be emitted as a single combined
-// DROP+ADD statement: the new PK must include an AUTO_INCREMENT column (the reason the combined
-// form is needed — to avoid an unkeyed AUTO_INCREMENT window, errno 1075) AND no column that was a
-// member of the OLD PK may be dropped in this diff (such a drop runs in PhasePre and auto-removes
-// the PK before the combined PhaseMain statement, breaking its DROP PRIMARY KEY half). Otherwise
-// the split form (DROP PK early, ADD PK late) is used.
+// DROP+ADD statement. Two conditions must hold:
+//   - the new PK must include an AUTO_INCREMENT column (the reason the combined form is needed — to
+//     avoid an unkeyed AUTO_INCREMENT window, errno 1075); and
+//   - no column that was a member of the OLD PK may be DROPPED or DEMOTED TO NULLABLE in this diff.
+//     Such a column change runs before the combined PhaseMain statement (a DROP COLUMN in PhasePre,
+//     a MODIFY ... NULL at priorityColumn=20 < priorityIndex=30) while the old PK still holds the
+//     column, so the combined statement's DROP PRIMARY KEY half would fail — errno 1091 (the column
+//     drop already auto-removed the PK) or errno 1171 (a still-PK column cannot be made nullable).
+//
+// Otherwise the split form (DROP PK early in PhasePre, ADD PK late in PhaseMain) is used, which
+// releases the PK before those column changes run.
 func canCombinePrimaryKeyModify(entry *TableDiffEntry, to *Index) bool {
 	if !newPrimaryKeyHasAutoIncrement(entry.To, to) {
 		return false
 	}
-	return !oldPrimaryKeyMemberDropped(entry)
+	return !oldPrimaryKeyMemberDroppedOrDemoted(entry)
 }
 
 // newPrimaryKeyHasAutoIncrement reports whether any column of the new PK is AUTO_INCREMENT.
@@ -213,9 +233,13 @@ func newPrimaryKeyHasAutoIncrement(tbl *Table, pk *Index) bool {
 	return false
 }
 
-// oldPrimaryKeyMemberDropped reports whether any column being dropped in this diff was a member of
-// the old PRIMARY KEY — the case that forces the split form (the column drop auto-removes the PK).
-func oldPrimaryKeyMemberDropped(entry *TableDiffEntry) bool {
+// oldPrimaryKeyMemberDroppedOrDemoted reports whether any column that was a member of the OLD
+// PRIMARY KEY is, in this diff, either dropped or demoted to nullable — the cases that force the
+// split form because they conflict with the old PK still being present when an earlier-phase column
+// op runs (a DROP COLUMN auto-removes the PK → errno 1091; a MODIFY ... NULL on a still-PK column →
+// errno 1171). A column that merely leaves the PK but stays NOT NULL (and is not dropped) is fine
+// for the combined form.
+func oldPrimaryKeyMemberDroppedOrDemoted(entry *TableDiffEntry) bool {
 	if entry.From == nil {
 		return false
 	}
@@ -232,7 +256,15 @@ func oldPrimaryKeyMemberDropped(entry *TableDiffEntry) bool {
 		return false
 	}
 	for _, ce := range entry.Columns {
-		if ce.Action == DiffDrop && oldPKCols[toLower(ce.Name)] {
+		if !oldPKCols[toLower(ce.Name)] {
+			continue
+		}
+		if ce.Action == DiffDrop {
+			return true
+		}
+		// A modify that makes the old-PK-member column nullable (it is no longer PK-forced NOT NULL
+		// in `to`) conflicts with the still-present old PK if emitted before the combined statement.
+		if ce.Action == DiffModify && ce.To != nil && ce.To.Nullable {
 			return true
 		}
 	}

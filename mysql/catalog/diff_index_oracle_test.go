@@ -121,6 +121,68 @@ func fkIndexCases() []fkIndexCase {
 	}
 }
 
+// TestOracle_IndexFKColumnChangeNoIndexOps proves the FK-implicit cross-side rule for a FK whose
+// COLUMNS change (the backing index name stays `fk` on both sides, but its columns differ): the
+// index node must emit NO ADD/DROP/MODIFY for that backing index (it is FK-implicit on both sides
+// and owned by the FK node) — dropping it would fail errno 1553 ("needed in a foreign key
+// constraint"). Proven via a multi-table schema loaded from real engine readbacks.
+func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
+	if testing.Short() {
+		t.Skip("oracle test skipped in short mode")
+	}
+	for _, version := range both() {
+		o := connectOracle(t, version)
+		sc := serverCharsetFor(o.version)
+		n := NormalizerFor(o.version)
+		ctx := context.Background()
+
+		// loadSchema applies parent+child in a throwaway db, then reloads BOTH tables wrapped in a
+		// FIXED logical db name (idxfkc) so that the from/to catalogs share a database identity and
+		// only the child's FK (not the database) differs in the diff.
+		loadSchema := func(execDB, childDDL string) *Catalog {
+			stmts := []string{
+				"DROP DATABASE IF EXISTS " + execDB,
+				fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", execDB, sc),
+				"USE " + execDB,
+				"CREATE TABLE p (a INT NOT NULL PRIMARY KEY, b INT NOT NULL, UNIQUE KEY ub (b))",
+				childDDL,
+			}
+			for _, s := range stmts {
+				if _, err := o.db.ExecContext(ctx, s); err != nil {
+					t.Skipf("[%s] setup: %q: %v", o.name, s, err)
+				}
+			}
+			var sb strings.Builder
+			fmt.Fprintf(&sb, "CREATE DATABASE idxfkc DEFAULT CHARSET=%s;\nUSE idxfkc;\n", sc)
+			for _, tbl := range []string{"p", "c"} {
+				var nm, ddl string
+				row := o.db.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s.%s", execDB, tbl))
+				if err := row.Scan(&nm, &ddl); err != nil {
+					t.Fatalf("[%s] show create %s: %v", o.name, tbl, err)
+				}
+				sb.WriteString(ddl + ";\n")
+			}
+			cat, err := LoadSQL(sb.String())
+			if err != nil {
+				t.Fatalf("[%s] reload: %v\n%s", o.name, err, sb.String())
+			}
+			return cat
+		}
+
+		t.Run(o.name+"/fk-column-change", func(t *testing.T) {
+			from := loadSchema("idxfkc_a", "CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (x) REFERENCES p(a))")
+			to := loadSchema("idxfkc_b", "CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (y) REFERENCES p(b))")
+			diff := DiffWithNormalizer(from, to, n)
+			plan := GenerateMigrationWithNormalizer(from, to, diff, n)
+			for _, op := range plan.Ops {
+				if op.Type == OpAddIndex || op.Type == OpDropIndex {
+					t.Errorf("[%s] FK column change must emit no index op, got: %s", o.name, op.SQL)
+				}
+			}
+		})
+	}
+}
+
 // TestOracle_IndexDiffFKImplicit proves the FK-implicit cross-reference: a schema with a foreign
 // key and its (auto-created) backing index self-diffs empty when loaded from the real engine
 // readbacks of BOTH tables. This is the multi-table analog of the idempotence probe — the

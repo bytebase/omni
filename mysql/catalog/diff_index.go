@@ -36,14 +36,15 @@ import (
 // foreign key constraint" (errno 1553) failure. So an index that exists solely to back a FK is
 // not a user-managed index change and is dropped from both sides of the diff.
 func diffIndexes(from, to *Table, n *Normalizer) []IndexDiffEntry {
-	// The FK-implicit exclusion is computed against the OTHER side's index names: an
-	// FK-implicit index is dropped from a side only when its name is absent on the other side.
-	// This keeps the exclusion symmetric for an index that exists on BOTH sides (so it is never
-	// spuriously reported as added/dropped just because a foreign key appeared or disappeared on
-	// one side), while still suppressing the backing index that genuinely rides with a one-sided
-	// FK add/drop. See diffableIndexMap.
-	fromMap := diffableIndexMap(from, indexNameSet(to))
-	toMap := diffableIndexMap(to, indexNameSet(from))
+	// The FK-implicit exclusion is computed against the OTHER side's USER-managed index names
+	// (its index names minus its own FK-implicit ones). An FK-implicit index is dropped from a
+	// side only when the other side has no USER index of that name. This keeps the exclusion
+	// symmetric for an index that is a genuine user index on at least one side (so it is never
+	// spuriously added/dropped just because a foreign key appeared/disappeared), while still
+	// suppressing a backing index that is FK-implicit on BOTH sides (a FK whose columns changed —
+	// owned by the FK node) or that rides with a one-sided FK add/drop. See diffableIndexMap.
+	fromMap := diffableIndexMap(from, userIndexNameSet(to))
+	toMap := diffableIndexMap(to, userIndexNameSet(from))
 
 	var result []IndexDiffEntry
 
@@ -94,17 +95,21 @@ func diffIndexes(from, to *Table, n *Normalizer) []IndexDiffEntry {
 // diffableColumns dropping the GIPK column) and the FK-implicit-backing indexes the FK node owns.
 // The result is the set of indexes whose lifecycle this node owns.
 //
-// otherSideNames is the lower-cased index-name set of the OTHER catalog being diffed. An
-// FK-implicit index is excluded ONLY when its name is NOT in otherSideNames — i.e. it does not
-// also exist on the other side. This is the firewall against the asymmetric-exclusion bug: an
-// index that exists on both sides (e.g. a user `KEY my_idx (pid)` that backs a FK on one side and
-// is a standalone index on the other after the FK is dropped) must be visible on both sides so it
-// is correctly seen as unchanged — never spuriously ADDed (errno 1061, duplicate key name) or
-// DROPped. A backing index that genuinely appears/disappears WITH a one-sided FK is absent from
-// the other side, so it is still excluded and left to the FK node. Pass nil to exclude all
-// FK-implicit indexes unconditionally (single-table contexts: orderedDiffableIndexes for a new
-// table, where there is no "other side").
-func diffableIndexMap(t *Table, otherSideNames map[string]bool) map[string]*Index {
+// otherSideUserNames is the lower-cased set of the OTHER catalog's USER-managed index names (its
+// index names minus its own FK-implicit ones). An FK-implicit index is excluded ONLY when the
+// other side has no USER index of that name. This is the firewall against two failure modes:
+//   - asymmetric exclusion (errno 1061, duplicate key name): a user `KEY my_idx (pid)` that backs
+//     a FK on one side and is a standalone index on the other (FK dropped, index kept) is a USER
+//     index on that other side, so it is NOT excluded and is correctly seen as unchanged;
+//   - dropping a FK-needed index (errno 1553): a backing index that is FK-implicit on BOTH sides
+//     (e.g. a FK whose columns changed, so the backing index columns changed but the name stayed)
+//     has no USER index of that name on the other side, so it stays excluded and the FK node owns
+//     the change.
+//
+// A backing index that genuinely appears/disappears WITH a one-sided FK is absent from the other
+// side entirely, so it is still excluded. Pass nil to exclude all FK-implicit indexes
+// unconditionally (single-table contexts: orderedDiffableIndexes for a new table, no other side).
+func diffableIndexMap(t *Table, otherSideUserNames map[string]bool) map[string]*Index {
 	if t == nil {
 		return map[string]*Index{}
 	}
@@ -118,8 +123,8 @@ func diffableIndexMap(t *Table, otherSideNames map[string]bool) map[string]*Inde
 			continue
 		}
 		name := toLower(idx.Name)
-		// Exclude an FK-implicit index only when it is not also present on the other side.
-		if skip[name] && !otherSideNames[name] {
+		// Exclude an FK-implicit index unless the other side has a USER index of the same name.
+		if skip[name] && !otherSideUserNames[name] {
 			continue
 		}
 		m[name] = idx
@@ -127,19 +132,25 @@ func diffableIndexMap(t *Table, otherSideNames map[string]bool) map[string]*Inde
 	return m
 }
 
-// indexNameSet returns the lower-cased set of a table's index names (excluding the
-// generated-invisible-primary-key index, which is never user-authored), used as the cross-side
-// reference for the FK-implicit exclusion in diffableIndexMap.
-func indexNameSet(t *Table) map[string]bool {
+// userIndexNameSet returns the lower-cased set of a table's USER-managed index names: every index
+// name except the generated-invisible-primary-key (never user-authored) and the FK-implicit
+// backing indexes (owned by the FK node). It is the cross-side reference for the FK-implicit
+// exclusion in diffableIndexMap — "does the other side carry a genuine user index of this name?".
+func userIndexNameSet(t *Table) map[string]bool {
 	s := make(map[string]bool)
 	if t == nil {
 		return s
 	}
+	skip := fkImplicitIndexNames(t)
 	for _, idx := range t.Indexes {
 		if idx == nil || isGeneratedInvisiblePrimaryKeyIndex(idx) {
 			continue
 		}
-		s[toLower(idx.Name)] = true
+		name := toLower(idx.Name)
+		if skip[name] {
+			continue
+		}
+		s[name] = true
 	}
 	return s
 }
