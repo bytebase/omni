@@ -19,10 +19,9 @@ import (
 // both the user form and the engine readback carry a concrete name — matching by name is the
 // stored-form identity. Equality is decided by a canonical key (canonicalForeignKey) that
 // folds the referencing columns, the referenced database+table+columns, and the ON DELETE/ON
-// UPDATE actions through the NORMALIZER's version-aware FK-action canonicalization
-// (CanonicalFKAction): RESTRICT, NO ACTION, and an absent clause are the same referential
-// behavior and must collapse onto one key. This is required because SHOW CREATE echoes the
-// "default" action differently per version (verified against both live engines):
+// UPDATE actions through canonicalFKAction: RESTRICT, NO ACTION, and an absent clause are the
+// same referential behavior and must collapse onto one key. This is required because SHOW CREATE
+// echoes the "default" action differently per version (verified against both live engines):
 //   - 8.0 OMITS NO ACTION (the implicit default) but ECHOES RESTRICT verbatim;
 //   - 5.7 OMITS RESTRICT (its implicit default) but ECHOES NO ACTION verbatim.
 //

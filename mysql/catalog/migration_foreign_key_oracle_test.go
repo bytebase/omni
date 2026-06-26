@@ -299,6 +299,21 @@ func fkMultiCases() []fkMultiCase {
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, other_col INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))",
 			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, other_col INT, KEY fk (other_col))",
 			[]string{"p", "c"}, both()},
+		// Drop BOTH a parent and a child table where the parent name sorts BEFORE the child
+		// (a_parent < z_child): all DROP TABLE ops share priorityTable and sort by name, so the
+		// parent would be dropped first — blocked by the child's FK (errno 3730/1451) — UNLESS the
+		// child's FK is released in PhasePre first. Guards the dropped-table FK-release path.
+		{"drop-parent-and-child-name-order",
+			"CREATE TABLE a_parent (id INT NOT NULL PRIMARY KEY); CREATE TABLE z_child (id INT PRIMARY KEY, pid INT, CONSTRAINT fk FOREIGN KEY (pid) REFERENCES a_parent(id))",
+			"",
+			nil, both()},
+		// Two UNNAMED FKs on the SAME column share ONE backing index (`KEY pid (pid)`); drop BOTH:
+		// each dropped FK selects the same implicit index, so the leftover DROP INDEX must be
+		// EMITTED ONCE (dedup) — else the second DROP INDEX fails errno 1091.
+		{"drop-two-unnamed-fks-sharing-index",
+			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT, FOREIGN KEY (pid) REFERENCES p(id), FOREIGN KEY (pid) REFERENCES p(id))",
+			"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT PRIMARY KEY, pid INT)",
+			[]string{"p", "c"}, both()},
 	}
 }
 

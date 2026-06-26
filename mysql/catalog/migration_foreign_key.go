@@ -45,8 +45,15 @@ import (
 //
 // Rendering routes through the same canonical form show.go uses for the stored FK line, so the
 // readback of the emitted DDL canonicalizes equal to `to` and apply-correctness holds.
+//
+// A per-table seenBackingDrop set deduplicates the leftover-backing-index DROP INDEX: MySQL keeps
+// ONE backing index for several FKs on the same leading columns (two unnamed FKs on `pid` share
+// `KEY pid (pid)`), so when both such FKs are dropped, each would otherwise select the same index
+// and emit a duplicate DROP INDEX — the second failing errno 1091. The set keeps exactly one drop
+// per (table, index).
 func generateForeignKeyDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []MigrationOp {
 	var ops []MigrationOp
+	seenBackingDrop := map[string]bool{}
 
 	for i := range diff.Tables {
 		entry := &diff.Tables[i]
@@ -54,13 +61,15 @@ func generateForeignKeyDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []Mig
 		case DiffAdd:
 			ops = append(ops, addForeignKeyOpsForNewTable(entry)...)
 		case DiffModify:
-			ops = append(ops, foreignKeyOpsForModifiedTable(entry)...)
+			ops = append(ops, foreignKeyOpsForModifiedTable(entry, seenBackingDrop)...)
 		case DiffDrop:
-			// DROP TABLE removes the FKs (and their backing indexes); nothing to emit. A FK on a
-			// SURVIVING table that REFERENCES this dropped table is released by that surviving
-			// table's own DiffModify entry (its FK vanishes in `to`), whose constraint drop runs at
-			// priorityForeignKeyConstraintDrop — ahead of this table's DROP (priorityTable), so the
-			// reference is gone before the referenced table is dropped (errno 3730).
+			// The table itself is being dropped, but its FKs must be RELEASED first: a FK on this
+			// table that references ANOTHER table being dropped in the same plan would otherwise
+			// block that table's DROP (errno 3730 / 1451) — table drops all share priorityTable, so
+			// the referenced parent can sort before this child. Emit DROP FOREIGN KEY for every FK
+			// here in PhasePre (priorityForeignKeyConstraintDrop), ahead of all table drops. No
+			// backing-index drop is needed — DROP TABLE removes the indexes.
+			ops = append(ops, dropForeignKeyConstraintOpsForDroppedTable(entry)...)
 		}
 	}
 
@@ -71,6 +80,31 @@ func generateForeignKeyDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []Mig
 		return ops[i].sortName < ops[j].sortName
 	})
 
+	return ops
+}
+
+// dropForeignKeyConstraintOpsForDroppedTable emits a DROP FOREIGN KEY for every FK on a table that
+// is itself being DROPPED, in PhasePre ahead of all table drops. This releases the references so a
+// referenced table dropped in the same plan is not blocked (errno 3730 / 1451). It deliberately
+// emits NO backing-index drop: DROP TABLE removes the indexes, and the table is gone regardless.
+func dropForeignKeyConstraintOpsForDroppedTable(entry *TableDiffEntry) []MigrationOp {
+	if entry.From == nil {
+		return nil
+	}
+	table := tableIdent(entry.From)
+	var ops []MigrationOp
+	for _, con := range orderedForeignKeys(entry.From) {
+		ops = append(ops, MigrationOp{
+			Type:         OpDropForeignKey,
+			Database:     entry.Database,
+			ObjectName:   entry.Name,
+			ParentObject: entry.Name,
+			SQL:          fmt.Sprintf("ALTER TABLE %s DROP FOREIGN KEY %s", table, migrationQuoteIdent(con.Name)),
+			Phase:        PhasePre,
+			Priority:     priorityForeignKeyConstraintDrop,
+			sortName:     foreignKeySortName(entry.Database, entry.Name, con.Name),
+		})
+	}
 	return ops
 }
 
@@ -106,10 +140,11 @@ func addForeignKeyOpsForNewTable(entry *TableDiffEntry) []MigrationOp {
 }
 
 // foreignKeyOpsForModifiedTable emits ADD / DROP / (DROP+ADD) ops from the per-FK diff of a
-// modified table. A MODIFY is a DROP followed by an ADD (an FK cannot be altered in place); the
-// drop in priorityForeignKeyDrop always precedes the add in priorityForeignKey, freeing the
-// constraint name for re-creation.
-func foreignKeyOpsForModifiedTable(entry *TableDiffEntry) []MigrationOp {
+// modified table. A MODIFY is a DROP followed by an ADD (an FK cannot be altered in place): the
+// DROP runs in PhasePre (priorityForeignKeyConstraintDrop) and the ADD in PhasePost
+// (priorityForeignKey), so the old constraint is fully released before the new one is created —
+// the name is free and any backing index the new FK needs is settled by then.
+func foreignKeyOpsForModifiedTable(entry *TableDiffEntry, seenBackingDrop map[string]bool) []MigrationOp {
 	if len(entry.ForeignKeys) == 0 {
 		return nil
 	}
@@ -125,14 +160,15 @@ func foreignKeyOpsForModifiedTable(entry *TableDiffEntry) []MigrationOp {
 			if fe.From == nil {
 				continue
 			}
-			ops = append(ops, dropForeignKeyOps(entry, fe.From)...)
+			ops = append(ops, dropForeignKeyOps(entry, fe.From, seenBackingDrop)...)
 		case DiffModify:
 			if fe.From == nil || fe.To == nil || entry.To == nil {
 				continue
 			}
-			// DROP the old FK (and its leftover backing index, if FK-implicit and not reused),
-			// then ADD the new one. The drop's PhasePost priority precedes the add's.
-			ops = append(ops, dropForeignKeyOps(entry, fe.From)...)
+			// DROP the old FK (and its leftover backing index, if FK-implicit and no longer
+			// needed), then ADD the new one. The DROP is in PhasePre, the ADD in PhasePost, so the
+			// drop always precedes the add.
+			ops = append(ops, dropForeignKeyOps(entry, fe.From, seenBackingDrop)...)
 			ops = append(ops, addForeignKeyOp(entry, tableIdent(entry.To), fe.To))
 		}
 	}
@@ -166,8 +202,10 @@ func addForeignKeyOp(entry *TableDiffEntry, table string, con *Constraint) Migra
 //
 // The leftover index is dropped ONLY when leftoverBackingIndexToDrop says so: it was FK-implicit
 // on `from` for `con`, no FK surviving in `to` still needs it, and the target keeps no USER index
-// of that name. See that function.
-func dropForeignKeyOps(entry *TableDiffEntry, con *Constraint) []MigrationOp {
+// of that name. seenBackingDrop deduplicates that DROP INDEX across FKs SHARING one backing index
+// (two unnamed FKs on `pid` share `KEY pid (pid)`; without dedup each FK drop would emit
+// `DROP INDEX pid` and the second fail errno 1091). The set is keyed by (db.table.index).
+func dropForeignKeyOps(entry *TableDiffEntry, con *Constraint, seenBackingDrop map[string]bool) []MigrationOp {
 	if entry.From == nil {
 		return nil
 	}
@@ -184,22 +222,26 @@ func dropForeignKeyOps(entry *TableDiffEntry, con *Constraint) []MigrationOp {
 	}}
 
 	if idxName, ok := leftoverBackingIndexToDrop(entry, con); ok {
-		ops = append(ops, MigrationOp{
-			// Op-type is OpDropForeignKey (NOT OpDropIndex) even though the SQL is DROP INDEX: this
-			// index drop is part of the FK's lifecycle, owned by the FK node. Tagging it
-			// OpDropForeignKey keeps it out of the index node's op-type space, which its contract
-			// tests assert is empty on FK-only changes (no OpAddIndex/OpDropIndex). Nothing keys off
-			// OpDropForeignKey expecting only literal DROP FOREIGN KEY statements — the only consumer
-			// is MigrationPlan.SQL(), which concatenates op.SQL verbatim.
-			Type:         OpDropForeignKey,
-			Database:     entry.Database,
-			ObjectName:   entry.Name,
-			ParentObject: entry.Name,
-			SQL:          fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", table, migrationQuoteIdent(idxName)),
-			Phase:        PhasePre,
-			Priority:     priorityForeignKeyBackingIndexDrop,
-			sortName:     foreignKeySortName(entry.Database, entry.Name, idxName),
-		})
+		key := foreignKeySortName(entry.Database, entry.Name, idxName)
+		if !seenBackingDrop[key] {
+			seenBackingDrop[key] = true
+			ops = append(ops, MigrationOp{
+				// Op-type is OpDropForeignKey (NOT OpDropIndex) even though the SQL is DROP INDEX:
+				// this index drop is part of the FK's lifecycle, owned by the FK node. Tagging it
+				// OpDropForeignKey keeps it out of the index node's op-type space, which its contract
+				// tests assert is empty on FK-only changes (no OpAddIndex/OpDropIndex). Nothing keys
+				// off OpDropForeignKey expecting only literal DROP FOREIGN KEY statements — the only
+				// consumer is MigrationPlan.SQL(), which concatenates op.SQL verbatim.
+				Type:         OpDropForeignKey,
+				Database:     entry.Database,
+				ObjectName:   entry.Name,
+				ParentObject: entry.Name,
+				SQL:          fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", table, migrationQuoteIdent(idxName)),
+				Phase:        PhasePre,
+				Priority:     priorityForeignKeyBackingIndexDrop,
+				sortName:     key,
+			})
+		}
 	}
 	return ops
 }
