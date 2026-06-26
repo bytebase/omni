@@ -714,7 +714,11 @@ func deparseExprAlias(node ast.ExprNode) string {
 		return "(" + deparseExprAlias(n.Expr) + ")"
 	case *ast.CastExpr:
 		// MySQL 8.0 auto-alias: "CAST(a AS CHAR)" — uppercase keywords, no charset.
-		return "CAST(" + deparseExprAlias(n.Expr) + " AS " + deparseDataTypeAlias(n.TypeName) + ")"
+		typeName := deparseDataTypeAlias(n.TypeName)
+		if n.Array {
+			typeName += " ARRAY"
+		}
+		return "CAST(" + deparseExprAlias(n.Expr) + " AS " + typeName + ")"
 	case *ast.ConvertExpr:
 		if n.Charset != "" {
 			return "CONVERT(" + deparseExprAlias(n.Expr) + " USING " + strings.ToLower(n.Charset) + ")"
@@ -1464,6 +1468,11 @@ func deparseCaseExpr(n *ast.CaseExpr) string {
 func deparseCastExpr(n *ast.CastExpr) string {
 	expr := deparseExpr(n.Expr)
 	typeName := deparseDataType(n.TypeName)
+	// Multi-valued-index form CAST(expr AS type ARRAY); MySQL stores the trailing
+	// ARRAY in lowercase in SHOW CREATE TABLE, so emit it to keep the round-trip stable.
+	if n.Array {
+		typeName += " array"
+	}
 	return "cast(" + expr + " as " + typeName + ")"
 }
 

@@ -12338,6 +12338,64 @@ func TestParseCastSIGNEDRegression(t *testing.T) {
 	}
 }
 
+// TestParseCastArray covers the multi-valued-index form CAST(expr AS type ARRAY)
+// (MySQL 8.0.17+): the optional trailing ARRAY keyword sets CastExpr.Array, the base
+// cast target type is unaffected, and ARRAY stays non-reserved (usable as an identifier).
+func TestParseCastArray(t *testing.T) {
+	arrayCases := []struct {
+		input    string
+		typeName string
+	}{
+		{"CAST(x AS UNSIGNED ARRAY)", "UNSIGNED"},
+		{"CAST(x AS SIGNED ARRAY)", "SIGNED"},
+		{"CAST(x AS CHAR(40) ARRAY)", "CHAR"},
+		{"CAST(x AS DECIMAL(10,2) ARRAY)", "DECIMAL"},
+		{"CAST(x AS DATE ARRAY)", "DATE"},
+		{"CAST(x AS TIME ARRAY)", "TIME"},
+		{"CAST(x AS DATETIME ARRAY)", "DATETIME"},
+		{"CAST(x AS BINARY(16) ARRAY)", "BINARY"},
+	}
+	for _, tt := range arrayCases {
+		t.Run(tt.input, func(t *testing.T) {
+			expr := parseExpr(t, tt.input)
+			ce, ok := expr.(*ast.CastExpr)
+			if !ok {
+				t.Fatalf("expected *ast.CastExpr, got %T", expr)
+			}
+			if !ce.Array {
+				t.Errorf("Array = false, want true for %q", tt.input)
+			}
+			if ce.TypeName.Name != tt.typeName {
+				t.Errorf("TypeName = %s, want %s", ce.TypeName.Name, tt.typeName)
+			}
+		})
+	}
+
+	// Without the trailing ARRAY, Array must stay false (no regression).
+	t.Run("no-array", func(t *testing.T) {
+		ce, ok := parseExpr(t, "CAST(x AS UNSIGNED)").(*ast.CastExpr)
+		if !ok {
+			t.Fatalf("expected *ast.CastExpr")
+		}
+		if ce.Array {
+			t.Errorf("Array = true, want false for CAST(x AS UNSIGNED)")
+		}
+	})
+
+	// ARRAY is contextual: it must remain usable as a bare and a quoted identifier.
+	t.Run("array-as-identifier", func(t *testing.T) {
+		for _, sql := range []string{
+			"CREATE TABLE t (array INT)",
+			"CREATE TABLE t (`array` INT)",
+			"SELECT array FROM t",
+		} {
+			if _, err := Parse(sql); err != nil {
+				t.Errorf("Parse(%q) error: %v (ARRAY must stay non-reserved)", sql, err)
+			}
+		}
+	})
+}
+
 // ============================================================================
 // Section 2.1: ALTER TABLE PARTITION BY
 // ============================================================================
