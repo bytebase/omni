@@ -143,8 +143,10 @@ func diffIdempotenceProbes() []diffProbe {
 		{"implicit-table-opts", "CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(10))", "t", both()},
 		// explicit table charset + column echo (version-flagged echo rules).
 		{"charset-echo", "CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(10) CHARACTER SET utf8mb4, b VARCHAR(10)) DEFAULT CHARSET=utf8mb4", "t", both()},
-		// comment escaping.
-		{"comment", "CREATE TABLE t (id INT PRIMARY KEY, a INT COMMENT 'has ''quote'' inside') COMMENT='tbl ''c''", "t", both()},
+		// comment escaping (table COMMENT carries an embedded single-quoted token `'c'` via
+		// doubled quotes; the closing quote balances the literal — the previous fixture dropped it,
+		// so MySQL rejected the DDL and the probe silently skipped on both engines).
+		{"comment", "CREATE TABLE t (id INT PRIMARY KEY, a INT COMMENT 'has ''quote'' inside') COMMENT='tbl ''c'''", "t", both()},
 		// AUTO_INCREMENT column attribute (real schema) + table counter (ignored).
 		{"autoinc", "CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, a INT) AUTO_INCREMENT=100", "t", both()},
 		// TIMESTAMP magic — opposite behavior across versions (EDFT box default).

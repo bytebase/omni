@@ -3,6 +3,9 @@ package catalog
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
+	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -232,31 +235,71 @@ func TestOracle_MigrationApplyCorrectness(t *testing.T) {
 func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationProbe) {
 	t.Helper()
 
-	// Hyphens are illegal in unquoted MySQL identifiers; slug the probe id for db names.
-	slug := strings.ReplaceAll(p.id, "-", "_")
+	// Each probe gets its OWN apply database (and its own throwaway readback databases) so the
+	// suite is hermetic: the shared apply harness used to contend on one fixed `diffdb` across the
+	// generate-core, index, and check apply suites — a pre-existing pooled-`USE` race that surfaced
+	// as `Unknown database 'diffdb'` when several apply suites ran in one process (or two
+	// concurrent `go test` processes). applyDBName derives a per-probe-unique, identifier-safe name
+	// (mirrors the partition harness's pa_<slug> convention; see assertPartitionApplyCorrect).
+	applyDB := applyDBName(t, p.id)
+	sc := serverCharsetFor(o.version)
+	ctx := context.Background()
 
-	// Build the `to` catalog from the engine's readback (authentic stored form).
+	// One pinned connection for ALL of this probe's statements (readbacks + setup + apply), so the
+	// pool never lands a `USE` on a different connection than the next statement.
+	conn, err := o.db.Conn(ctx)
+	if err != nil {
+		t.Fatalf("[%s] grab conn: %v", o.name, err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	// readbackVia applies a CREATE in a throwaway db on this connection and returns its SHOW
+	// CREATE (the engine's authentic stored form). The throwaway db name is derived per-probe so
+	// it never collides with another suite's readback db.
+	readbackVia := func(throwaway, createSQL, table string) (string, bool) {
+		for _, s := range []string{
+			"DROP DATABASE IF EXISTS " + throwaway,
+			fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", throwaway, sc),
+			"USE " + throwaway,
+			createSQL,
+		} {
+			if _, err := conn.ExecContext(ctx, s); err != nil {
+				t.Logf("[%s] %s readback setup failed (may be expected): %q: %v", o.name, p.id, s, err)
+				return "", false
+			}
+		}
+		var name, ddl string
+		row := conn.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s.%s", throwaway, table))
+		if err := row.Scan(&name, &ddl); err != nil {
+			t.Logf("[%s] %s SHOW CREATE failed: %v", o.name, p.id, err)
+			return "", false
+		}
+		return ddl, true
+	}
+
+	// Build `to` and `from` catalogs from the engine's own readbacks (authentic stored form),
+	// each wrapped in applyDB so the generated plan qualifies tables as `applyDB`.`t` — the same
+	// database we set up and apply in below.
 	var toCat *Catalog
 	tableInTo := strings.TrimSpace(p.toDDL) != ""
 	if tableInTo {
-		c, _, _, ok := o.catalogFromReadback(t, "gen_to_"+slug, p.toDDL, p.table)
+		rb, ok := readbackVia(applyDB+"_to", p.toDDL, p.table)
 		if !ok {
 			t.Skipf("[%s] could not obtain `to` readback for %s", o.name, p.id)
 		}
-		toCat = c
+		toCat, _ = loadOnePartTable(t, applyDB, sc, rb, p.table)
 	} else {
 		toCat = New()
 	}
 
-	// Build the `from` catalog likewise.
 	var fromCat *Catalog
 	tableInFrom := strings.TrimSpace(p.fromDDL) != ""
 	if tableInFrom {
-		c, _, _, ok := o.catalogFromReadback(t, "gen_from_"+slug, p.fromDDL, p.table)
+		rb, ok := readbackVia(applyDB+"_from", p.fromDDL, p.table)
 		if !ok {
 			t.Skipf("[%s] could not obtain `from` readback for %s", o.name, p.id)
 		}
-		fromCat = c
+		fromCat, _ = loadOnePartTable(t, applyDB, sc, rb, p.table)
 	} else {
 		fromCat = New()
 	}
@@ -265,22 +308,10 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 	diff := DiffWithNormalizer(fromCat, toCat, n)
 	plan := GenerateMigrationWithNormalizer(fromCat, toCat, diff, n)
 
-	// Build a real database in state `from` and apply the plan, all on ONE dedicated
-	// connection (database/sql pools connections, so a stray `USE` on the pool can land on a
-	// different connection than the next statement). The catalogs were loaded via loadOneTable,
-	// which wraps DDL in database `diffdb`, so the plan qualifies tables as `diffdb`.`t` — we
-	// must set up and apply in that same `diffdb`.
-	ctx := context.Background()
-	conn, err := o.db.Conn(ctx)
-	if err != nil {
-		t.Fatalf("[%s] grab conn: %v", o.name, err)
-	}
-	defer func() { _ = conn.Close() }()
-
-	const applyDB = "diffdb"
+	// Build a real database in state `from` and apply the plan, on the same pinned connection.
 	setup := []string{
 		"DROP DATABASE IF EXISTS " + applyDB,
-		fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", applyDB, serverCharsetFor(o.version)),
+		fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", applyDB, sc),
 		"USE " + applyDB,
 	}
 	if tableInFrom {
@@ -322,10 +353,12 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 	if !ok {
 		t.Fatalf("[%s] %s: result table %s missing after apply:\n%s", o.name, p.id, p.table, plan.SQL())
 	}
-	resultCat, _ := loadOneTable(t, serverCharsetFor(o.version), resultRB, p.table)
+	// Load the result into the SAME applyDB so it shares the (database, table) identity with toCat
+	// — loading into a different db name would phantom a whole-table DROP+ADD in the diff.
+	resultCat, _ := loadOnePartTable(t, applyDB, sc, resultRB, p.table)
 
 	if d := DiffWithNormalizer(resultCat, toCat, n); !d.IsEmpty() {
-		toRB, _ := o.readbackTable(t, "gen_to_"+slug, p.table)
+		toRB, _ := o.readbackTable(t, applyDB+"_to", p.table)
 		t.Errorf("[%s] APPLY-CORRECTNESS FAILED for %s: result != to\n  plan:\n%s\n  result: %s\n  want:   %s\n  diff: %s",
 			o.name, p.id, plan.SQL(), strings.TrimSpace(resultRB), strings.TrimSpace(toRB), describeDiff(d))
 	}
@@ -333,6 +366,27 @@ func assertApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p migrationP
 	if d := DiffWithNormalizer(toCat, resultCat, n); !d.IsEmpty() {
 		t.Errorf("[%s] APPLY-CORRECTNESS (reverse) FAILED for %s: %s", o.name, p.id, describeDiff(d))
 	}
+}
+
+// applyDBName builds a per-probe, identifier-safe apply-database name for the shared apply harness
+// so each probe (and each suite that reuses assertApplyCorrect) is isolated instead of contending
+// on one fixed `diffdb`. It combines the slugged probe id with a short hash of (process pid +
+// full test name): the test name (t.Name()) carries the suite path
+// (e.g. TestOracle_IndexMigrationApplyCorrectness/8.0/...) so two probes sharing an id across suites
+// get distinct databases within a process, and the pid salts the hash so two CONCURRENT `go test`
+// processes targeting the same engine never compute the same DROP/CREATE DATABASE name (the
+// remaining cross-process race the fixed `diffdb` had). The result stays well under MySQL's 64-char
+// identifier limit even with the harness's `_to` / `_from` throwaway suffixes appended. The `pa_`
+// prefix mirrors the partition harness's convention (assertPartitionApplyCorrect).
+func applyDBName(t *testing.T, probeID string) string {
+	t.Helper()
+	slug := strings.ReplaceAll(probeID, "-", "_")
+	if len(slug) > 40 {
+		slug = slug[:40]
+	}
+	h := fnv.New32a()
+	_, _ = fmt.Fprintf(h, "%d:%s", os.Getpid(), t.Name())
+	return "pa_" + slug + "_" + strconv.FormatUint(uint64(h.Sum32()), 16)
 }
 
 // TestOracle_MigrationIdempotence proves gate 1 (the spine): for a schema in its real stored
@@ -377,5 +431,64 @@ func TestOracle_MigrationIdempotence(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// fkDropTableEntry builds a DiffModify TableDiffEntry whose `from` table has a single foreign key
+// (named fkName, on column col) backed by a plain auto-created index of the SAME name, and whose
+// `to` table keeps neither — so dropForeignKeyOps emits both the DROP FOREIGN KEY and the
+// leftover-backing-index DROP INDEX. It is the minimal fixture that drives leftoverBackingIndexToDrop
+// down its positive branch.
+func fkDropTableEntry(dbName, table, fkName, col string) TableDiffEntry {
+	db := &Database{Name: dbName}
+	fk := &Constraint{Name: fkName, Type: ConForeignKey, Columns: []string{col}, RefTable: "ref", RefColumns: []string{"id"}}
+	backing := &Index{Name: fkName, Columns: []*IndexColumn{{Name: col}}, Visible: true}
+	from := &Table{Name: table, Database: db, Constraints: []*Constraint{fk}, Indexes: []*Index{backing}}
+	to := &Table{Name: table, Database: db} // FK gone, no surviving index of that name
+	return TableDiffEntry{
+		Action:      DiffModify,
+		Database:    dbName,
+		Name:        table,
+		From:        from,
+		To:          to,
+		ForeignKeys: []ForeignKeyDiffEntry{{Action: DiffDrop, Name: fkName, From: fk}},
+	}
+}
+
+// TestForeignKeyBackingDropDedupDottedIdentifiers is the regression for the FK dedup-key collision.
+// The leftover-backing-index DROP is deduplicated per (database, table, index). The old key joined
+// those three with '.', so two DISTINCT triples whose names contain a literal '.' could collapse to
+// the same string and wrongly suppress a legitimate second DROP INDEX:
+//
+//	(db "d", table "a",   index "b.c")  -> "d.a.b.c"
+//	(db "d", table "a.b", index "c")    -> "d.a.b.c"   // collision!
+//
+// Both tables legitimately need their backing index dropped, so a correct plan emits TWO DROP INDEX
+// ops. encodeKeyFields length-prefixes each field, so the two triples encode distinctly and both
+// drops survive. This test fails (only one DROP INDEX) under the dotted key and passes under the
+// collision-free key. It is a pure unit test (no engine) and ordinary-identifier behavior is
+// unaffected.
+func TestForeignKeyBackingDropDedupDottedIdentifiers(t *testing.T) {
+	diff := &SchemaDiff{Tables: []TableDiffEntry{
+		fkDropTableEntry("d", "a", "b.c", "x"),
+		fkDropTableEntry("d", "a.b", "c", "y"),
+	}}
+
+	ops := generateForeignKeyDDL(nil, nil, diff, NormalizerFor(MySQL80))
+
+	var dropIndex []string
+	for _, op := range ops {
+		if strings.Contains(op.SQL, "DROP INDEX") {
+			dropIndex = append(dropIndex, op.SQL)
+		}
+	}
+	if len(dropIndex) != 2 {
+		t.Fatalf("dotted-identifier dedup collision: want 2 DROP INDEX ops (one per table), got %d:\n%s",
+			len(dropIndex), strings.Join(dropIndex, "\n"))
+	}
+	// Both tables' leftover indexes must be present — the collision would drop exactly one of these.
+	joined := strings.Join(dropIndex, "\n")
+	if !strings.Contains(joined, "`d`.`a`") || !strings.Contains(joined, "`d`.`a.b`") {
+		t.Errorf("expected a DROP INDEX for both `d`.`a` and `d`.`a.b`, got:\n%s", joined)
 	}
 }
