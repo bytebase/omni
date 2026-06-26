@@ -1548,11 +1548,17 @@ func fixedLengthStringColumnLimit(col *Column) (int, bool) {
 // coerceInnoDBHashIndex folds a meaningless `USING HASH` on an InnoDB index to the no-explicit-type
 // form (IndexType ""), so a HASH index on InnoDB round-trips empty on both 5.7 and 8.0.
 //
+// It must be called from EVERY path that builds a *secondary* index from a user `USING HASH`, or
+// that path phantom-diffs. Call sites: CREATE TABLE UNIQUE + plain KEY (tablecmds.go), ALTER ADD
+// UNIQUE + plain KEY (altercmds.go), and standalone CREATE [UNIQUE] INDEX (indexcmds.go). The
+// PRIMARY KEY paths are intentionally excluded: they hard-code IndexType "" (MySQL never accepts or
+// echoes a USING clause on a PK, so there is nothing to fold).
+//
 // InnoDB does not implement hash indexes: it silently treats `USING HASH` as BTREE. The SHOW CREATE
 // echo of that meaningless clause is version-, kind-, and engine-divergent (verified on live 5.7.25
-// + 8.0.32):
-//   - 8.0 InnoDB DROPS the clause entirely for every index kind (UNIQUE, plain KEY, CREATE INDEX);
-//   - 5.7 InnoDB KEEPS `USING HASH` in the echo for every kind;
+// + 8.0.32, across all of the above authoring paths):
+//   - 8.0 InnoDB DROPS the clause entirely;
+//   - 5.7 InnoDB KEEPS `USING HASH` in the echo;
 //   - `USING BTREE` on InnoDB is echoed verbatim on BOTH versions (BTREE is the real storage), so it
 //     is NOT folded — only HASH is meaningless;
 //   - MEMORY (and other engines where HASH is a real index type) KEEP `USING HASH` on both versions,
@@ -1625,13 +1631,15 @@ func indexTypeOrDefault(indexType, defaultType string) string {
 	return defaultType
 }
 
-// resolveConstraintIndexType returns the index type from a constraint,
-// checking both IndexType (USING before key parts) and IndexOptions (USING after key parts).
-func resolveConstraintIndexType(con *nodes.Constraint) string {
-	if con.IndexType != "" {
-		return strings.ToUpper(con.IndexType)
+// resolveIndexUsingType returns the declared index type from the two grammar positions MySQL allows
+// a `USING {BTREE|HASH}` clause to appear in: before the key parts (the dedicated indexType slot)
+// and as a trailing index_option (scanned from opts). The leading slot wins; "" means no USING.
+// Shared by the constraint paths (resolveConstraintIndexType) and the standalone CREATE INDEX path.
+func resolveIndexUsingType(indexType string, opts []*nodes.IndexOption) string {
+	if indexType != "" {
+		return strings.ToUpper(indexType)
 	}
-	for _, opt := range con.IndexOptions {
+	for _, opt := range opts {
 		if strings.EqualFold(opt.Name, "USING") {
 			if s, ok := opt.Value.(*nodes.StringLit); ok {
 				return strings.ToUpper(s.Value)
@@ -1639,6 +1647,12 @@ func resolveConstraintIndexType(con *nodes.Constraint) string {
 		}
 	}
 	return ""
+}
+
+// resolveConstraintIndexType returns the index type from a constraint,
+// checking both IndexType (USING before key parts) and IndexOptions (USING after key parts).
+func resolveConstraintIndexType(con *nodes.Constraint) string {
+	return resolveIndexUsingType(con.IndexType, con.IndexOptions)
 }
 
 // applyIndexOptions extracts COMMENT, VISIBLE/INVISIBLE, and KEY_BLOCK_SIZE

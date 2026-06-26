@@ -67,9 +67,17 @@ func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
 		idx.Spatial = true
 		idx.IndexType = "SPATIAL"
 	default:
-		idx.IndexType = stmt.IndexType
+		// `USING {BTREE|HASH}` may appear in either grammar position — before ON
+		// (stmt.IndexType) or as a trailing index_option (stmt.Options). Resolve both via the
+		// shared helper (same as the constraint paths) so the trailing form is not silently
+		// dropped (applyIndexOptions ignores USING).
+		idx.IndexType = resolveIndexUsingType(stmt.IndexType, stmt.Options)
 		idx.Unique = stmt.Unique
 	}
+	// Fold a meaningless `USING HASH` on InnoDB to the no-explicit-type form so a HASH index
+	// authored via CREATE [UNIQUE] INDEX round-trips empty (Fulltext/Spatial are never HASH, so
+	// the fold is a no-op for them). Mirrors the CREATE TABLE / ALTER ADD paths.
+	coerceInnoDBHashIndex(tbl, idx)
 
 	applyIndexOptions(idx, stmt.Options)
 	if err := synthesizeFunctionalIndexColumns(tbl, idx); err != nil {

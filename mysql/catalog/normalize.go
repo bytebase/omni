@@ -1347,10 +1347,7 @@ func foldConstIntExpr(node nodes.ExprNode) (int64, bool) {
 	return 0, false
 }
 
-const (
-	minInt64 = int64(-1) << 63
-	maxInt64 = ^minInt64
-)
+const minInt64 = int64(-1) << 63
 
 // foldConstIntBinary folds a supported integer binary operation over two foldable integer operands,
 // declining (ok=false) on overflow or division by zero so the bound is rendered verbatim instead of
@@ -1448,10 +1445,19 @@ func foldConstIntFunc(e *nodes.FuncCallExpr) (int64, bool) {
 }
 
 // stringLitValue extracts the string content of a string-literal argument (unwrapping a paren),
-// returning ok=false for any non-string-literal node.
+// returning ok=false for any non-string-literal node. A DATE/TIMESTAMP temporal literal carries its
+// inner string in Value, so TO_DAYS(DATE '2020-01-01') folds symmetrically with the bare-string
+// TO_DAYS('2020-01-01') form. A TIME literal is excluded: its value is a clock string, not a date,
+// and a TIME spelled to look like a date (TIME '2020-01-01') is rejected by MySQL itself (error
+// 1525), so folding it would model a value the engine never stores — render verbatim instead.
 func stringLitValue(node nodes.ExprNode) (string, bool) {
 	switch e := node.(type) {
 	case *nodes.StringLit:
+		return e.Value, true
+	case *nodes.TemporalLit:
+		if strings.EqualFold(e.Type, "TIME") {
+			return "", false
+		}
 		return e.Value, true
 	case *nodes.ParenExpr:
 		return stringLitValue(e.Expr)

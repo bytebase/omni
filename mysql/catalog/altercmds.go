@@ -449,14 +449,16 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
 			return err
 		}
-		tbl.Indexes = append(tbl.Indexes, &Index{
+		uqIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,
 			Columns:   idxCols,
 			Unique:    true,
 			IndexType: resolveConstraintIndexType(con),
 			Visible:   true,
-		})
+		}
+		coerceInnoDBHashIndex(tbl, uqIdx)
+		tbl.Indexes = append(tbl.Indexes, uqIdx)
 		tbl.Constraints = append(tbl.Constraints, &Constraint{
 			Name:      idxName,
 			Type:      ConUniqueKey,

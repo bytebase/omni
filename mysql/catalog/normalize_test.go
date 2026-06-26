@@ -970,6 +970,14 @@ func TestPartitionConstantFold_Bounds(t *testing.T) {
 		{"neg-literal", hdr + "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (-10));", "p0", "-10"},
 		{"plain-literal", hdr + "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (100));", "p0", "100"},
 		{"todays", hdr + "CREATE TABLE t (id INT, dt DATE) PARTITION BY RANGE (TO_DAYS(dt)) (PARTITION p0 VALUES LESS THAN (TO_DAYS('2020-01-01')));", "p0", "737790"},
+		// A DATE/TIMESTAMP literal arg folds symmetrically with the bare-string form above (stringLitValue
+		// reads TemporalLit.Value), so DATE '2020-01-01' and '2020-01-01' canonicalize to the same bound.
+		{"todays-date-literal", hdr + "CREATE TABLE t (id INT, dt DATE) PARTITION BY RANGE (TO_DAYS(dt)) (PARTITION p0 VALUES LESS THAN (TO_DAYS(DATE '2020-01-01')));", "p0", "737790"},
+		{"todays-timestamp-literal", hdr + "CREATE TABLE t (id INT, dt DATETIME) PARTITION BY RANGE (TO_DAYS(dt)) (PARTITION p0 VALUES LESS THAN (TO_DAYS(TIMESTAMP '2020-01-01 00:00:00')));", "p0", "737790"},
+		// A TIME literal is NOT folded (even one spelled to look like a date): its value is a clock
+		// string, and TIME '2020-01-01' is rejected by MySQL itself — so the bound stays verbatim
+		// rather than fold to a wrong day number.
+		{"todays-time-literal-verbatim", hdr + "CREATE TABLE t (id INT, dt DATE) PARTITION BY RANGE (TO_DAYS(dt)) (PARTITION p0 VALUES LESS THAN (TO_DAYS(TIME '2020-01-01')));", "p0", "to_days(TIME'2020-01-01')"},
 		{"year-fn", hdr + "CREATE TABLE t (dt DATE) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (YEAR('2020-06-15')));", "p0", "2020"},
 		{"list-arith", hdr + "CREATE TABLE t (id INT) PARTITION BY LIST (id) (PARTITION p0 VALUES IN (1+1, 2+2));", "p0", "2,4"},
 		// Flagged residual: an unsupported function stays verbatim (does not get a wrong fold).
