@@ -557,24 +557,31 @@ func unquoteDefault(s string) (string, bool) {
 
 // numericDefaultKey renders a canonical value key for a numeric default by normalizing
 // the literal AS A DECIMAL STRING — never via float64, which would lose precision for
-// BIGINT/DECIMAL values beyond 2^53 and collide distinct defaults. It normalizes sign,
-// strips redundant leading/trailing zeros, and pads to the column's DECIMAL scale so
-// '0' and '0.00' compare equal while 9223372036854775806 and ...807 stay distinct.
+// BIGINT/DECIMAL values beyond 2^53 and collide distinct defaults. It normalizes sign and
+// leading zeros, then applies the column-kind-specific storage rule: scaled types
+// (decimal(M,D), float(M,D)) round to scale with carry; integer types and bare DECIMAL
+// round to integer; bare FLOAT/DOUBLE preserve their fraction (trailing zeros stripped).
+// So '0' and '0.00' compare equal while 9223372036854775806 and ...807 stay distinct.
 func numericDefaultKey(columnType, literal string) (string, bool) {
 	sign, intPart, fracPart, ok := parseDecimalLiteral(literal)
 	if !ok {
 		return "", false
 	}
-	if scale, hasScale := decimalScaleOf(columnType); hasScale {
-		// A numeric default on a scaled column is ROUNDED (half-up) to the column scale
-		// on storage, with carry into the integer part (MySQL: 0.999 → 1.00, 9.999 →
-		// 10.00, INT DEFAULT 1.9 → 2). Round rather than truncate.
-		intPart, fracPart = roundToScale(intPart, fracPart, scale)
-	} else if scale == 0 {
-		// Integer column (DECIMAL(M,0) or INT-family rendered as decimal(_,0)): round to
-		// zero fractional digits, again with carry (INT DEFAULT 1.9 → 2).
+	p := parseColumnType(columnType)
+	switch {
+	case p.hasScale:
+		// A scaled type — decimal(M,D) or float(M,D)/double(M,D) — ROUNDS the default
+		// (half-up) to the column scale on storage, with carry into the integer part
+		// (MySQL: decimal(10,2) 0.999 → '1.00', 9.999 → '10.00'; float(10,2) 1.5 → '1.50').
+		intPart, fracPart = roundToScale(intPart, fracPart, p.scale)
+	case isIntegerType(p.base) || p.base == "decimal":
+		// Integer types, and bare DECIMAL (which has implicit scale 0): round to zero
+		// fractional digits, with carry (INT DEFAULT 1.9 → '2', decimal(10,0) 0.9 → '1').
 		intPart, fracPart = roundToScale(intPart, fracPart, 0)
-	} else {
+	default:
+		// Bare FLOAT/DOUBLE/REAL (no explicit scale): the fraction is preserved verbatim
+		// with only trailing zeros stripped (MySQL: float 1.9 → '1.9', 2.0 → '2',
+		// double 3.14159 → '3.14159'). Rounding here would collapse distinct defaults.
 		fracPart = strings.TrimRight(fracPart, "0")
 	}
 	// Re-normalize a negative zero produced by rounding (e.g. -0.4 at scale 0 → 0).
@@ -672,15 +679,6 @@ func allDigits(s string) bool {
 		}
 	}
 	return true
-}
-
-// decimalScaleOf extracts the scale D from a decimal(M,D) column type.
-func decimalScaleOf(columnType string) (int, bool) {
-	p := parseColumnType(columnType)
-	if p.base == "decimal" && p.hasScale {
-		return p.scale, true
-	}
-	return 0, false
 }
 
 // isNumericType reports whether a base data type carries a numeric default.

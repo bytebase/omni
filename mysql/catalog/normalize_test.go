@@ -879,3 +879,27 @@ func TestCanonicalTimestamp_NotNullFirstColumnGetsMagic(t *testing.T) {
 		t.Fatalf("first TIMESTAMP NULL must NOT get magic; got %q", defB)
 	}
 }
+
+func TestCanonicalDefault_FloatFractionPreserved(t *testing.T) {
+	// Bare FLOAT/DOUBLE defaults preserve their fraction (NOT rounded to int): MySQL
+	// stores float 1.9 → '1.9', double 3.14159 → '3.14159', float 2.0 → '2'.
+	n := NormalizerFor(MySQL80)
+	// Distinct float defaults must NOT collapse.
+	if n.CanonicalDefault(defCol("float", sp("1.9"), ColumnDefaultConstant)) ==
+		n.CanonicalDefault(defCol("float", sp("2.1"), ColumnDefaultConstant)) {
+		t.Fatal("FLOAT DEFAULT 1.9 and 2.1 must not collapse")
+	}
+	// Value-equality with the quoted readback and trailing-zero stripping still hold.
+	eq := func(colType, lit, readback string) {
+		a := n.CanonicalDefault(defCol(colType, sp(lit), ColumnDefaultConstant))
+		b := n.CanonicalDefault(defCol(colType, sp(readback), ColumnDefaultConstant))
+		if a != b {
+			t.Errorf("%s DEFAULT %s must equal stored %s: %q vs %q", colType, lit, readback, a, b)
+		}
+	}
+	eq("float", "1.9", "'1.9'")
+	eq("double", "3.14159", "'3.14159'")
+	eq("float", "2.0", "'2'")
+	// A scaled float(10,2) DOES pad to scale.
+	eq("float(10,2)", "1.5", "'1.50'")
+}
