@@ -127,6 +127,17 @@ func indexMigrationProbes() []migrationProbe {
 		{"modify-pk-swap-autoincrement", "t",
 			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (id,a))",
 			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (id,b))", both()},
+		// PK change that ALSO drops a column which was a member of the old PK: the PK must be
+		// dropped (PhasePre) before the column drop auto-removes it, then re-added (PhaseMain) after
+		// — the split form (errno 1091 otherwise).
+		{"modify-pk-drop-old-member", "t",
+			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a))",
+			"CREATE TABLE t (b INT NOT NULL, c INT, PRIMARY KEY (b))", both()},
+		// PK shrink that demotes a removed PK member to nullable: the PK must be dropped before the
+		// MODIFY ... NULL (errno 1171 otherwise — a still-PK column cannot be made nullable).
+		{"modify-pk-shrink-demote-nullable", "t",
+			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b))",
+			"CREATE TABLE t (a INT NOT NULL, b INT NULL, PRIMARY KEY (a))", both()},
 		// 8.0-only: visibility flip and direction flip are MODIFYs.
 		{"modify-visibility", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a))",

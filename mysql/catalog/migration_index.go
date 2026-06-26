@@ -102,19 +102,13 @@ func indexOpsForModifiedTable(entry *TableDiffEntry, n *Normalizer) []MigrationO
 			if ie.From == nil || ie.To == nil {
 				continue
 			}
-			// The PRIMARY KEY is special: dropping it in one statement and re-adding it in a
-			// later one leaves an AUTO_INCREMENT member column unkeyed in between, which MySQL
-			// rejects (errno 1075, "there can be only one auto column and it must be defined as a
-			// key"). MySQL accepts DROP PRIMARY KEY + ADD PRIMARY KEY in a SINGLE ALTER, with no
-			// unkeyed window — and a combined statement is valid whenever the separate pair is —
-			// so a PK change is always emitted as one op. (A non-PK index has no such constraint;
-			// it is a normal DROP-then-ADD across phases.)
+			// The PRIMARY KEY interacts with column changes, so it needs special ordering — see
+			// primaryKeyModifyOps. A secondary index is independent: DROP then ADD (the drop in
+			// PhasePre always precedes the PhaseMain add, freeing the name for re-creation).
 			if ie.To.Primary || ie.From.Primary {
-				ops = append(ops, modifyPrimaryKeyOp(entry, table, ie.To, n))
+				ops = append(ops, primaryKeyModifyOps(entry, table, ie.To, n)...)
 				continue
 			}
-			// MySQL cannot ALTER a secondary index in place: DROP then ADD. The drop (PhasePre)
-			// always precedes the add (PhaseMain), so the name is free when the new form is created.
 			ops = append(ops, dropIndexOp(entry, table, ie.From))
 			ops = append(ops, addIndexOp(entry, table, ie.To, n))
 		}
@@ -138,26 +132,111 @@ func addIndexOp(entry *TableDiffEntry, table string, idx *Index, n *Normalizer) 
 	}
 }
 
-// modifyPrimaryKeyOp builds a single combined ALTER TABLE ... DROP PRIMARY KEY, ADD PRIMARY KEY
-// (...) op for a PRIMARY KEY change. Combining the drop and re-add in one statement avoids the
-// transient unkeyed window a separate drop+add would create — which MySQL rejects for a table
-// with an AUTO_INCREMENT member (errno 1075). It runs in PhaseMain at priorityIndex; any NOT NULL
-// promotion a newly-added PK column needs is emitted independently by the column generator (the
-// column's canonical NOT NULL is PK-aware), and MySQL also auto-promotes PK members, so the
-// combined statement is correct regardless of the column op's relative order. `to` always has the
-// PRIMARY index for a PK change (the diff keys it by the PRIMARY name); the DROP PRIMARY KEY half
-// is unconditional because a PK modify always replaces an existing PK.
-func modifyPrimaryKeyOp(entry *TableDiffEntry, table string, to *Index, n *Normalizer) MigrationOp {
-	return MigrationOp{
-		Type:         OpAddIndex,
+// priorityPrimaryKeyDrop orders a standalone DROP PRIMARY KEY within PhasePre BEFORE column drops
+// AND column NOT NULL→NULL demotions. When a PK change also drops a column that was a member of
+// the OLD PK, or demotes a removed PK member to nullable, the PK must be gone first: a PhasePre
+// DROP COLUMN of a PK member auto-removes the PK (then a later DROP PRIMARY KEY fails errno 1091),
+// and MySQL rejects making a still-PK column nullable (errno 1171). Dropping the PK first frees
+// both. It sits just below the index-drop priority so the PK is the very first thing released.
+const priorityPrimaryKeyDrop = priorityIndexDrop - 1
+
+// primaryKeyModifyOps renders a PRIMARY KEY change, choosing between two correct shapes because a
+// PK change interleaves with the column generator's ops (which this node does not control):
+//
+//   - COMBINED, one statement `ALTER TABLE ... DROP PRIMARY KEY, ADD PRIMARY KEY (...)` in
+//     PhaseMain. This is required when an AUTO_INCREMENT column is a member of the new PK: a
+//     standalone DROP PRIMARY KEY would leave that column momentarily unkeyed, which MySQL rejects
+//     (errno 1075). The combined statement has no unkeyed window. It is only valid, though, when no
+//     OLD-PK-member column is being dropped in the same diff — a PhasePre DROP COLUMN of a PK
+//     member auto-removes the PK before this PhaseMain statement runs, so its DROP PRIMARY KEY half
+//     would fail (errno 1091).
+//   - SPLIT: a standalone DROP PRIMARY KEY in PhasePre (at priorityPrimaryKeyDrop, before column
+//     drops and NOT NULL demotions) plus an ADD PRIMARY KEY in PhaseMain (at priorityIndex, after
+//     the column generator's adds/modifies at priorityColumn, so the new PK's columns are already
+//     present and NOT NULL). This is correct whenever a PK member is dropped or demoted, and for
+//     all non-AUTO_INCREMENT PK changes.
+//
+// The two cases are disjoint in practice: an AUTO_INCREMENT column must stay keyed, so it is never
+// the dropped PK member; the combined form is chosen only when AUTO_INCREMENT keys the new PK and
+// no PK-member column drop forces the split. `to` always carries the PRIMARY index for a PK
+// change (the diff keys it by the PRIMARY name), so DROP PRIMARY KEY is unconditional.
+func primaryKeyModifyOps(entry *TableDiffEntry, table string, to *Index, n *Normalizer) []MigrationOp {
+	if canCombinePrimaryKeyModify(entry, to) {
+		return []MigrationOp{{
+			Type:         OpAddIndex,
+			Database:     entry.Database,
+			ObjectName:   entry.Name,
+			ParentObject: entry.Name,
+			SQL:          fmt.Sprintf("ALTER TABLE %s DROP PRIMARY KEY, ADD %s", table, formatIndexDefinition(to, n)),
+			Phase:        PhaseMain,
+			Priority:     priorityIndex,
+			sortName:     indexSortName(entry.Database, entry.Name, to.Name),
+		}}
+	}
+	dropPK := MigrationOp{
+		Type:         OpDropIndex,
 		Database:     entry.Database,
 		ObjectName:   entry.Name,
 		ParentObject: entry.Name,
-		SQL:          fmt.Sprintf("ALTER TABLE %s DROP PRIMARY KEY, ADD %s", table, formatIndexDefinition(to, n)),
-		Phase:        PhaseMain,
-		Priority:     priorityIndex,
+		SQL:          fmt.Sprintf("ALTER TABLE %s DROP PRIMARY KEY", table),
+		Phase:        PhasePre,
+		Priority:     priorityPrimaryKeyDrop,
 		sortName:     indexSortName(entry.Database, entry.Name, to.Name),
 	}
+	addPK := addIndexOp(entry, table, to, n)
+	return []MigrationOp{dropPK, addPK}
+}
+
+// canCombinePrimaryKeyModify reports whether a PK change may be emitted as a single combined
+// DROP+ADD statement: the new PK must include an AUTO_INCREMENT column (the reason the combined
+// form is needed — to avoid an unkeyed AUTO_INCREMENT window, errno 1075) AND no column that was a
+// member of the OLD PK may be dropped in this diff (such a drop runs in PhasePre and auto-removes
+// the PK before the combined PhaseMain statement, breaking its DROP PRIMARY KEY half). Otherwise
+// the split form (DROP PK early, ADD PK late) is used.
+func canCombinePrimaryKeyModify(entry *TableDiffEntry, to *Index) bool {
+	if !newPrimaryKeyHasAutoIncrement(entry.To, to) {
+		return false
+	}
+	return !oldPrimaryKeyMemberDropped(entry)
+}
+
+// newPrimaryKeyHasAutoIncrement reports whether any column of the new PK is AUTO_INCREMENT.
+func newPrimaryKeyHasAutoIncrement(tbl *Table, pk *Index) bool {
+	if tbl == nil || pk == nil {
+		return false
+	}
+	for _, ic := range pk.Columns {
+		if col := tbl.GetColumn(ic.Name); col != nil && col.AutoIncrement {
+			return true
+		}
+	}
+	return false
+}
+
+// oldPrimaryKeyMemberDropped reports whether any column being dropped in this diff was a member of
+// the old PRIMARY KEY — the case that forces the split form (the column drop auto-removes the PK).
+func oldPrimaryKeyMemberDropped(entry *TableDiffEntry) bool {
+	if entry.From == nil {
+		return false
+	}
+	oldPKCols := make(map[string]bool)
+	for _, idx := range entry.From.Indexes {
+		if idx != nil && idx.Primary {
+			for _, ic := range idx.Columns {
+				oldPKCols[toLower(ic.Name)] = true
+			}
+			break
+		}
+	}
+	if len(oldPKCols) == 0 {
+		return false
+	}
+	for _, ce := range entry.Columns {
+		if ce.Action == DiffDrop && oldPKCols[toLower(ce.Name)] {
+			return true
+		}
+	}
+	return false
 }
 
 // priorityIndexDrop orders an index DROP within PhasePre BEFORE any column DROP. MySQL's
@@ -259,9 +338,11 @@ func formatIndexDefinition(idx *Index, _ *Normalizer) string {
 
 // orderedDiffableIndexes returns a table's diff-able indexes (GIPK + FK-implicit excluded, the
 // same set diffIndexes uses) in a deterministic order: by lower-cased name. Determinism keeps a
-// new table's ADD INDEX sequence stable across runs.
+// new table's ADD INDEX sequence stable across runs. This is a single-table (new-table) context
+// with no other side, so FK-implicit indexes are excluded unconditionally (nil other-side set) —
+// the FK node adds the backing index for a newly created table's foreign keys.
 func orderedDiffableIndexes(t *Table) []*Index {
-	m := diffableIndexMap(t)
+	m := diffableIndexMap(t, nil)
 	out := make([]*Index, 0, len(m))
 	for _, idx := range m {
 		out = append(out, idx)

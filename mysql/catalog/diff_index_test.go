@@ -146,7 +146,7 @@ func TestDiffIndex_FKImplicitExcluded(t *testing.T) {
 	if findIndex(child, "fk") == nil {
 		t.Fatal("precondition: loader should have synthesized backing index `fk`")
 	}
-	if _, present := diffableIndexMap(child)["fk"]; present {
+	if _, present := diffableIndexMap(child, nil)["fk"]; present {
 		t.Errorf("FK-implicit backing index `fk` must be excluded from the diff-able set")
 	}
 }
@@ -168,7 +168,7 @@ func TestDiffIndex_RicherIndexOnFKColumnsKept(t *testing.T) {
 			"CREATE TABLE c (id INT PRIMARY KEY, pid INT, UNIQUE KEY uq_pid (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id));"
 		cat := loadCat(t, sdl)
 		child := mustGetTable(t, cat, "c")
-		if _, present := diffableIndexMap(child)["uq_pid"]; !present {
+		if _, present := diffableIndexMap(child, nil)["uq_pid"]; !present {
 			t.Errorf("UNIQUE index on FK columns must remain diff-able (not a plain backing-index shape)")
 		}
 	})
@@ -178,7 +178,7 @@ func TestDiffIndex_RicherIndexOnFKColumnsKept(t *testing.T) {
 			"CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, z INT, KEY wide (x,y,z), CONSTRAINT fk FOREIGN KEY (x,y) REFERENCES p(a,b));"
 		cat := loadCat(t, sdl)
 		child := mustGetTable(t, cat, "c")
-		if _, present := diffableIndexMap(child)["wide"]; !present {
+		if _, present := diffableIndexMap(child, nil)["wide"]; !present {
 			t.Errorf("wider composite index covering the FK by left-prefix must remain diff-able")
 		}
 	})
@@ -194,6 +194,31 @@ func mustGetTable(t *testing.T, cat *Catalog, name string) *Table {
 	}
 	t.Fatalf("table %s not loaded", name)
 	return nil
+}
+
+// TestDiffIndex_FKDroppedExplicitIndexKept asserts the asymmetric-exclusion firewall: when a
+// foreign key is dropped but the plain user index that backed it is KEPT, the index must NOT be
+// reported as added (it exists on both sides). Without the cross-side exclusion check, the index
+// would be excluded on the FK side (from) but present on the no-FK side (to), producing a phantom
+// ADD that fails on apply with errno 1061 (duplicate key name).
+func TestDiffIndex_FKDroppedExplicitIndexKept(t *testing.T) {
+	from := loadCat(t, dbDDL+"CREATE TABLE p (id INT NOT NULL PRIMARY KEY);\n"+
+		"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id));")
+	to := loadCat(t, dbDDL+"CREATE TABLE p (id INT NOT NULL PRIMARY KEY);\n"+
+		"CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid));")
+	d := Diff(from, to)
+	if te := findTable(d, "c"); te != nil {
+		for _, ie := range te.Indexes {
+			t.Errorf("no index change expected on c (my_idx kept), got %s %s", ie.Action, ie.Name)
+		}
+	}
+	// And the reverse (FK added, index already present): must not DROP my_idx.
+	dRev := Diff(to, from)
+	if te := findTable(dRev, "c"); te != nil {
+		for _, ie := range te.Indexes {
+			t.Errorf("no index change expected on c (FK added, my_idx already present), got %s %s", ie.Action, ie.Name)
+		}
+	}
 }
 
 // TestDiffIndex_FKImplicitNameCollision asserts that an unnamed FK whose backing-index name was
@@ -218,7 +243,7 @@ func TestDiffIndex_FKImplicitNameCollision(t *testing.T) {
 	if findIndex(child, "pid_2") == nil {
 		t.Fatal("precondition: expected synthesized backing index `pid_2`")
 	}
-	dm := diffableIndexMap(child)
+	dm := diffableIndexMap(child, nil)
 	if _, present := dm["pid_2"]; present {
 		t.Errorf("FK-implicit backing index `pid_2` must be excluded despite the collision-suffixed name")
 	}
@@ -246,7 +271,7 @@ func TestDiffIndex_FKImplicitUserNamedConstraint(t *testing.T) {
 	if child == nil {
 		t.Fatal("table c not loaded")
 	}
-	dm := diffableIndexMap(child)
+	dm := diffableIndexMap(child, nil)
 	if _, present := dm["c_ibfk_1"]; present {
 		t.Errorf("FK backing index `c_ibfk_1` must be excluded even though the FK name matches the auto shape")
 	}
