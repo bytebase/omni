@@ -46,12 +46,13 @@ import (
 // Rendering routes through the same canonical form show.go uses for the stored FK line, so the
 // readback of the emitted DDL canonicalizes equal to `to` and apply-correctness holds.
 //
-// A per-plan seenBackingDrop set (keyed by db.table.index, so it never conflates indexes on
-// different tables) deduplicates the leftover-backing-index DROP INDEX: MySQL keeps ONE backing
-// index for several FKs on the same leading columns (two unnamed FKs on `pid` share
+// A per-plan seenBackingDrop set (keyed by the collision-free encodeKeyFields(db, table, index),
+// so it never conflates indexes on different tables — and stays unambiguous even when an identifier
+// contains a literal `.`) deduplicates the leftover-backing-index DROP INDEX: MySQL keeps ONE
+// backing index for several FKs on the same leading columns (two unnamed FKs on `pid` share
 // `KEY pid (pid)`), so when both such FKs are dropped, each would otherwise select the same index
 // and emit a duplicate DROP INDEX — the second failing errno 1091. The set keeps exactly one drop
-// per (table, index).
+// per (database, table, index).
 func generateForeignKeyDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []MigrationOp {
 	var ops []MigrationOp
 	seenBackingDrop := map[string]bool{}
@@ -223,9 +224,15 @@ func dropForeignKeyOps(entry *TableDiffEntry, con *Constraint, seenBackingDrop m
 	}}
 
 	if idxName, ok := leftoverBackingIndexToDrop(entry, con); ok {
-		key := foreignKeySortName(entry.Database, entry.Name, idxName)
-		if !seenBackingDrop[key] {
-			seenBackingDrop[key] = true
+		// Dedup the leftover-backing-index DROP across FKs sharing one index using a COLLISION-FREE
+		// key (encodeKeyFields length-prefixes each field), not the dotted db.table.index string:
+		// the dotted form is ambiguous when an identifier itself contains a `.` (e.g. db `d`, table
+		// `a`, index `b.c` and db `d`, table `a.b`, index `c` both fold to `d.a.b.c`), which would
+		// suppress a legitimate second DROP. The op's sortName stays the dotted form so ordinary
+		// identifiers keep their existing ordering.
+		dedupKey := encodeKeyFields("db", entry.Database, "table", entry.Name, "index", idxName)
+		if !seenBackingDrop[dedupKey] {
+			seenBackingDrop[dedupKey] = true
 			ops = append(ops, MigrationOp{
 				// Op-type is OpDropForeignKey (NOT OpDropIndex) even though the SQL is DROP INDEX:
 				// this index drop is part of the FK's lifecycle, owned by the FK node. Tagging it
@@ -240,7 +247,7 @@ func dropForeignKeyOps(entry *TableDiffEntry, con *Constraint, seenBackingDrop m
 				SQL:          fmt.Sprintf("ALTER TABLE %s DROP INDEX %s", table, migrationQuoteIdent(idxName)),
 				Phase:        PhasePre,
 				Priority:     priorityForeignKeyBackingIndexDrop,
-				sortName:     key,
+				sortName:     foreignKeySortName(entry.Database, entry.Name, idxName),
 			})
 		}
 	}
@@ -259,8 +266,10 @@ func dropForeignKeyOps(entry *TableDiffEntry, con *Constraint, seenBackingDrop m
 //   - the `to` table keeps no USER index of that name (the index node owns a user-named index and
 //     leaves it intentionally — diff_index.go userIndexNameSet).
 //
-// When `to` is absent (the whole table is being dropped) this is never reached — DiffDrop tables
-// emit nothing.
+// A whole-table DROP (DiffDrop) never reaches this helper: that path goes through
+// dropForeignKeyConstraintOpsForDroppedTable, which releases the FK constraints but emits NO
+// backing-index drop (DROP TABLE removes the indexes), so it never consults leftoverBackingIndexToDrop.
+// This helper therefore always runs with a non-nil entry.To (the DiffModify path).
 func leftoverBackingIndexToDrop(entry *TableDiffEntry, con *Constraint) (string, bool) {
 	from := entry.From
 	if from == nil {

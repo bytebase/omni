@@ -26,9 +26,11 @@ package catalog
 //
 // Scope of THIS node (omni:diff-core): the dispatcher, the SchemaDiff aggregate, the
 // table differ (diff_table.go), and the column differ (diff_column.go). The breadth
-// object kinds (indexes, foreign keys, constraints, checks, views, triggers, routines,
-// events, partitions) have their extension points wired here — empty diff sections and
-// per-kind seams — but are populated by later nodes, mirroring PG's diff_<obj>.go layout.
+// object kinds (indexes, foreign keys, checks, views, triggers, routines, events,
+// partitions) have their extension points wired here — diff sections and per-kind seams
+// — and are now implemented by their owning breadth nodes in diff_<obj>.go, mirroring
+// PG's layout. (PRIMARY KEY / UNIQUE constraints are folded into the index differ, so
+// diff_constraint.go's diffConstraints stays a deliberate no-op — omni:constraints deferred.)
 
 // DiffAction describes what happened to an object between two catalog states.
 type DiffAction int
@@ -233,20 +235,18 @@ func Diff(from, to *Catalog) *SchemaDiff {
 // delegates to it with a default normalizer. A nil normalizer falls back to the
 // default for `to`.
 //
-// The dispatcher mirrors PG: one diffX per object kind, packed into SchemaDiff. Only
-// the table differ (which descends into columns) carries real logic; every breadth
-// differ is wired here against an inert no-op stub (returns nil) until its owning node
-// implements it, so the breadth slices stay empty and a breadth node touches only its
-// own diff_<obj>.go.
+// The dispatcher mirrors PG: one diffX per object kind, packed into SchemaDiff. The
+// table differ (which descends into columns) and every database-level breadth differ
+// are wired here; each diffX lives in its own diff_<obj>.go owned by its breadth node,
+// so adding or revising an object kind touches only that file.
 func DiffWithNormalizer(from, to *Catalog, n *Normalizer) *SchemaDiff {
 	if n == nil {
 		n = defaultNormalizer(to)
 	}
 	return &SchemaDiff{
 		Tables: diffTables(from, to, n),
-		// Breadth object kinds (database-level). Each differ is an inert no-op stub today
-		// (returns nil), so the diff stays empty until the owning breadth node implements it —
-		// a breadth node then only fills its own diff_<obj>.go.
+		// Database-level breadth object kinds, each implemented in its own diff_<obj>.go by the
+		// owning breadth node.
 		Views:      diffViews(from, to, n),
 		Functions:  diffFunctions(from, to, n),
 		Procedures: diffProcedures(from, to, n),

@@ -101,10 +101,11 @@ func compareTable(key tableKey, from, to *Table, n *Normalizer) (TableDiffEntry,
 		From:     from,
 		To:       to,
 		Columns:  diffColumns(from, to, n),
-		// Table-level sub-object diffs, owned by the breadth nodes (mirroring PG's
-		// compareRelation, which calls diffConstraints/diffIndexes/... inline). Each is an
-		// inert no-op stub today (returns nil/false), so the breadth node only fills its own
-		// differ — compareTable and tableSubdiffsChanged already fold the result in.
+		// Table-level sub-object diffs, each owned by a breadth node in its own differ (mirroring
+		// PG's compareRelation, which calls diffConstraints/diffIndexes/... inline). compareTable
+		// and tableSubdiffsChanged fold their results into the "is this table modified?" decision.
+		// diffConstraints alone stays a deliberate no-op (PK/UNIQUE are folded into diffIndexes;
+		// omni:constraints deferred).
 		Indexes:          diffIndexes(from, to, n),
 		Constraints:      diffConstraints(from, to, n),
 		ForeignKeys:      diffForeignKeys(from, to, n),
