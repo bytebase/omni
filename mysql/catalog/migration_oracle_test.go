@@ -148,6 +148,21 @@ func migrationProbes() []migrationProbe {
 		{"modify-default", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, v INT DEFAULT 0)",
 			"CREATE TABLE t (id INT PRIMARY KEY, v INT DEFAULT 1)", both()},
+		// bug: changing TO the BIGINT UNSIGNED max default must generate a MODIFY that applies
+		// to the EXACT value 18446744073709551615 (not int64-clamped 9223372036854775807). The
+		// apply-correctness diff catches a corrupted value; TestOracle_BigintUnsignedExactValue
+		// additionally asserts the literal survives byte-for-byte.
+		{"modify-default-bigint-unsigned-max", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY, big BIGINT UNSIGNED NOT NULL DEFAULT 0)",
+			"CREATE TABLE t (id INT PRIMARY KEY, big BIGINT UNSIGNED NOT NULL DEFAULT 18446744073709551615)", both()},
+		// bug: changing TO a BIT default written as hex (0x05) must apply as b'101'.
+		{"modify-default-bit-hex", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY, f BIT(8) NOT NULL DEFAULT b'0')",
+			"CREATE TABLE t (id INT PRIMARY KEY, f BIT(8) NOT NULL DEFAULT 0x05)", both()},
+		// bug: changing TO a numeric YEAR default (2000) must apply and round-trip vs '2000'.
+		{"modify-default-year", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY, y YEAR NOT NULL DEFAULT 1999)",
+			"CREATE TABLE t (id INT PRIMARY KEY, y YEAR NOT NULL DEFAULT 2000)", both()},
 		{"modify-charset", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, v VARCHAR(10) CHARACTER SET latin1) DEFAULT CHARSET=utf8mb4",
 			"CREATE TABLE t (id INT PRIMARY KEY, v VARCHAR(10) CHARACTER SET utf8mb4) DEFAULT CHARSET=utf8mb4", both()},
@@ -428,6 +443,124 @@ func TestOracle_MigrationIdempotence(t *testing.T) {
 				if rtPlan.SQL() != "" {
 					t.Errorf("[%s] NON-EMPTY ROUND-TRIP PLAN (user vs stored) for %s:\n  user:   %s\n  stored: %s\n  plan:\n%s",
 						o.name, probe.id, strings.TrimSpace(probe.create), strings.TrimSpace(rb), rtPlan.SQL())
+				}
+			})
+		}
+	}
+}
+
+// TestOracle_BigintUnsignedExactValue is the dedicated bug-1 proof: a generated migration to
+// a BIGINT UNSIGNED default of the uint64 maximum (18446744073709551615) must, when applied to
+// a real database, store the EXACT value — not the int64-clamped 9223372036854775807. It
+// asserts the literal survives byte-for-byte in the readback (the apply-correctness diff alone
+// could be satisfied by both sides being equally corrupted; this checks the absolute value).
+// It also covers the other integer boundaries that overflow int64 on the way in.
+func TestOracle_BigintUnsignedExactValue(t *testing.T) {
+	if testing.Short() {
+		t.Skip("oracle test skipped in short mode")
+	}
+	cases := []struct {
+		id      string
+		colType string
+		def     string // exact decimal literal the user writes (and that must be stored)
+	}{
+		{"uint64-max", "BIGINT UNSIGNED", "18446744073709551615"},
+		{"int64-max-plus-1", "BIGINT UNSIGNED", "9223372036854775808"},
+		{"int64-max", "BIGINT", "9223372036854775807"},
+		{"int64-min", "BIGINT", "-9223372036854775808"},
+	}
+	for _, version := range both() {
+		o := connectOracle(t, version)
+		n := NormalizerFor(version)
+		sc := serverCharsetFor(o.version)
+		ctx := context.Background()
+		for _, c := range cases {
+			t.Run(o.name+"/"+c.id, func(t *testing.T) {
+				applyDB := applyDBName(t, "bigexact_"+c.id)
+				fromDDL := fmt.Sprintf("CREATE TABLE t (id INT PRIMARY KEY, big %s NOT NULL DEFAULT 0)", c.colType)
+				toDDL := fmt.Sprintf("CREATE TABLE t (id INT PRIMARY KEY, big %s NOT NULL DEFAULT %s)", c.colType, c.def)
+
+				// One pinned connection for all statements so a pooled USE never lands on a
+				// different connection than the next statement.
+				conn, err := o.db.Conn(ctx)
+				if err != nil {
+					t.Fatalf("[%s] grab conn: %v", o.name, err)
+				}
+				defer func() { _ = conn.Close() }()
+
+				readbackVia := func(throwaway, createSQL string) (string, bool) {
+					for _, s := range []string{
+						"DROP DATABASE IF EXISTS " + throwaway,
+						fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", throwaway, sc),
+						"USE " + throwaway,
+						createSQL,
+					} {
+						if _, err := conn.ExecContext(ctx, s); err != nil {
+							t.Logf("[%s] readback setup failed: %q: %v", o.name, s, err)
+							return "", false
+						}
+					}
+					var name, ddl string
+					row := conn.QueryRowContext(ctx, fmt.Sprintf("SHOW CREATE TABLE %s.t", throwaway))
+					if err := row.Scan(&name, &ddl); err != nil {
+						return "", false
+					}
+					return ddl, true
+				}
+
+				// Load from/to into applyDB-named catalogs (authentic stored form) so the plan
+				// qualifies tables as `applyDB`.`t` — the db we set up and apply in below.
+				fromRB, ok := readbackVia(applyDB+"_from", fromDDL)
+				if !ok {
+					t.Skipf("[%s] could not obtain `from` readback", o.name)
+				}
+				toRB, ok := readbackVia(applyDB+"_to", toDDL)
+				if !ok {
+					t.Skipf("[%s] could not obtain `to` readback", o.name)
+				}
+				fromCat, _ := loadOnePartTable(t, applyDB, sc, fromRB, "t")
+				toCat, _ := loadOnePartTable(t, applyDB, sc, toRB, "t")
+
+				diff := DiffWithNormalizer(fromCat, toCat, n)
+				plan := GenerateMigrationWithNormalizer(fromCat, toCat, diff, n)
+				if plan.SQL() == "" {
+					t.Fatalf("[%s] expected a MODIFY plan changing the default to %s, got empty", o.name, c.def)
+				}
+				// The generated DDL itself must carry the exact literal, never the clamped value.
+				if !strings.Contains(plan.SQL(), c.def) {
+					t.Errorf("[%s] generated plan must carry exact default %s:\n%s", o.name, c.def, plan.SQL())
+				}
+				if c.def != "9223372036854775807" && strings.Contains(plan.SQL(), "9223372036854775807") {
+					t.Errorf("[%s] generated plan leaked int64-clamped value:\n%s", o.name, plan.SQL())
+				}
+
+				// Build a real from-state database and apply the plan on the pinned connection.
+				for _, s := range []string{
+					"DROP DATABASE IF EXISTS " + applyDB,
+					fmt.Sprintf("CREATE DATABASE %s DEFAULT CHARSET=%s", applyDB, sc),
+					"USE " + applyDB,
+					fromDDL,
+				} {
+					if _, err := conn.ExecContext(ctx, s); err != nil {
+						t.Skipf("[%s] could not set up from-state: %q: %v", o.name, s, err)
+					}
+				}
+				for _, op := range plan.Ops {
+					if _, err := conn.ExecContext(ctx, op.SQL); err != nil {
+						t.Fatalf("[%s] APPLY FAILED: %s: %v", o.name, op.SQL, err)
+					}
+				}
+				// COLUMN_DEFAULT is NOT NULL for these columns; COALESCE guards against a driver
+				// surfacing it as NULL so a plain string scan is safe.
+				var storedDefault string
+				row := conn.QueryRowContext(ctx,
+					"SELECT COALESCE(COLUMN_DEFAULT, '') FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME='t' AND COLUMN_NAME='big'", applyDB)
+				if err := row.Scan(&storedDefault); err != nil {
+					t.Fatalf("[%s] reading stored default failed: %v", o.name, err)
+				}
+				if storedDefault != c.def {
+					t.Errorf("[%s] EXACT-VALUE CORRUPTION: stored default = %q, want %q (plan:\n%s)",
+						o.name, storedDefault, c.def, plan.SQL())
 				}
 			})
 		}

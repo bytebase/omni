@@ -24,6 +24,7 @@ package catalog
 
 import (
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -528,18 +529,57 @@ func (n *Normalizer) CanonicalDefault(c *Column) string {
 		return "expr:" + n.CanonicalGeneratedExpr(stripOuterParens(raw))
 	}
 
+	// BIT column: every default form collapses onto the single integer the bits encode, so
+	// the diff compares that value (entry bit-length-default; bug: bit/hex default phantom
+	// diff). MySQL maps each input shape into one value space and stores it as `b'<binary>'`:
+	//   - a bit-literal  b'101' / 0b101            -> base-2 value (5)
+	//   - a hex-literal   0x05 / x'05'             -> base-16 value (5)
+	//   - a bare integer  5                        -> that integer (5)
+	//   - a quoted string 'AB'                     -> big-endian integer of its bytes (16706)
+	// (verified on live 5.7.25 + 8.0.32). Keying by the value makes b'101', 0x05, 0b101,
+	// b'00000101', and bare 5 all compare equal, while the byte-string default 'AB' stays a
+	// distinct value (and 'A' = 65 differs from b'101' = 5).
+	if c.DataType == "bit" {
+		if v, ok := bitColumnDefaultValue(raw); ok {
+			return "bit:" + v
+		}
+		// Unparseable (an expression default already handled above, or an exotic form):
+		// fall through to the generic handling so we never lose the default entirely.
+	}
+
 	// Constant. Decide numeric vs string by the column's data type and the literal shape.
 	unq, wasQuoted := unquoteDefault(raw)
+
+	// Bit-literal default on a NON-BIT column (b'...' / 0b...) — rare, but a binary column
+	// can carry one. Key by the bit value so quoting/zero-padding variants match. Hex (0x..)
+	// is NOT folded here: on a binary column 0x.. is a raw byte string, a different space.
+	if looksLikeBitLiteral(raw) {
+		if v, ok := bitColumnDefaultValue(raw); ok {
+			return "bit:" + v
+		}
+	}
+
+	// YEAR column: MySQL expands a short YEAR default to four digits at storage and the
+	// expansion is QUOTE-SENSITIVE for zero (oracle-verified, both versions):
+	//   - numeric 0        -> 0000 (the "zero year")
+	//   - string '0'/'00'/'000' (fewer than 4 digits, value 0) -> 2000
+	//   - any 4-digit form ('0000', '2000', numeric 2000)      -> the literal value
+	//   - 1..69  -> 2001..2069 ; 70..99 -> 1970..1999 (numeric and string alike)
+	// So `DEFAULT 99` and `DEFAULT '1999'` must compare equal, while numeric `DEFAULT 0`
+	// ('0000') must stay DISTINCT from string `DEFAULT '0'` (2000). expandYearLiteral takes
+	// the surface form + whether it was quoted to honor the zero asymmetry.
+	// (entry year-width; bug: YEAR numeric-vs-quoted default phantom diff.)
+	if c.DataType == "year" {
+		if key, ok := numericDefaultKey(c.ColumnType, expandYearLiteral(unq, wasQuoted)); ok {
+			return key
+		}
+	}
 
 	if isNumericType(c.DataType) {
 		// Numeric column: compare by numeric value, padded to the column's scale.
 		if key, ok := numericDefaultKey(c.ColumnType, unq); ok {
 			return key
 		}
-	}
-	// Bit literal default (b'...' / 0b...).
-	if looksLikeBitLiteral(raw) {
-		return "bit:" + canonicalBitLiteral(raw)
 	}
 	// If it parses as a number and the column is not obviously a string type, key by value.
 	if !wasQuoted && !isStringType(c.DataType) && !isEnumSetType(c.DataType) {
@@ -713,19 +753,112 @@ func allDigits(s string) bool {
 	return true
 }
 
-// isNumericType reports whether a base data type carries a numeric default.
+// isNumericType reports whether a base data type carries a numeric default — one MySQL
+// stores as a value the diff compares numerically, not as a quoted string. YEAR is
+// included: although SHOW CREATE single-quotes a YEAR default (`DEFAULT '2000'`), the
+// value is an integer year and a user-written numeric `DEFAULT 2000` must compare equal to
+// it (entry year-width; bug: numeric-vs-quoted YEAR default phantom diff).
 func isNumericType(dt string) bool {
 	switch dt {
 	case "tinyint", "smallint", "mediumint", "int", "integer", "bigint",
-		"decimal", "numeric", "dec", "fixed", "float", "double", "real", "bit":
+		"decimal", "numeric", "dec", "fixed", "float", "double", "real", "bit", "year":
 		return true
 	}
 	return false
 }
 
+// expandYearLiteral applies MySQL's YEAR default expansion to the unquoted digits of a YEAR
+// default literal, honoring the quote-sensitive zero asymmetry (all oracle-verified, both
+// versions). `wasQuoted` reports whether the original literal was a quoted string.
+//
+//   - A four-digit surface ('0000', '2000') or numeric input is treated as a literal year
+//     value EXCEPT for the short forms below — so '0000' -> 0000 and '2000' -> 2000.
+//   - A short (fewer-than-four-digit) form expands: value 1..69 -> 2001..2069,
+//     70..99 -> 1970..1999. Zero is the asymmetry: numeric 0 stays 0 (the "zero year",
+//     read back '0000'), while a short quoted '0'/'00'/'000' becomes 2000.
+//
+// Non-digit or out-of-int input is returned unchanged (the caller renders it verbatim).
+func expandYearLiteral(lit string, wasQuoted bool) string {
+	s := strings.TrimSpace(lit)
+	if s == "" || !allDigits(s) {
+		return lit
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return lit // out of int range — not a realistic YEAR, leave as-is
+	}
+	// A four-or-more-digit surface is a full year value, used as written (e.g. '0000', '2000').
+	if len(s) >= 4 {
+		return lit
+	}
+	switch {
+	case v == 0:
+		// numeric 0 -> zero year (0); short quoted '0'/'00'/'000' -> 2000.
+		if wasQuoted {
+			return "2000"
+		}
+		return lit
+	case v <= 69:
+		return strconv.Itoa(2000 + v)
+	default: // 70..99
+		return strconv.Itoa(1900 + v)
+	}
+}
+
+// looksLikeBitLiteral reports whether a default literal is an UNAMBIGUOUS bit literal
+// (b'...' or 0b...). Hex (0x..) is intentionally excluded: it is a bit value only on a BIT
+// column (handled directly in CanonicalDefault), whereas on a binary column it is a raw
+// byte string.
 func looksLikeBitLiteral(s string) bool {
 	low := strings.ToLower(strings.TrimSpace(s))
 	return strings.HasPrefix(low, "b'") || strings.HasPrefix(low, "0b")
+}
+
+// bitColumnDefaultValue returns the decimal value (as a string) that a BIT column's default
+// literal encodes, using math/big so a BIT(64) default up to 2^64-1 round-trips exactly
+// (int64/uint64 would overflow). It models every input shape MySQL accepts for a BIT
+// default, all of which it stores as `b'<binary>'` (verified on live 5.7.25 + 8.0.32):
+//   - bit-literal   b'101' / 0b101   -> base-2  value
+//   - hex-literal    0x05 / x'05'    -> base-16 value
+//   - quoted string  'AB'            -> big-endian integer of the raw bytes (A=0x41 high)
+//   - bare integer   5               -> that decimal integer
+//
+// The empty string ” yields 0 (MySQL stores b'0'). Returns ok=false for a form it cannot
+// interpret (e.g. CURRENT_TIMESTAMP — handled earlier by DefaultKind, never reaching here),
+// so the caller can fall back rather than fabricate a value.
+func bitColumnDefaultValue(raw string) (string, bool) {
+	s := strings.TrimSpace(raw)
+	low := strings.ToLower(s)
+	val := new(big.Int)
+
+	switch {
+	case strings.HasPrefix(low, "b'") && strings.HasSuffix(s, "'") && len(s) >= 3:
+		if _, ok := val.SetString(s[2:len(s)-1], 2); !ok {
+			return "", false
+		}
+	case strings.HasPrefix(low, "0b"):
+		if _, ok := val.SetString(s[2:], 2); !ok {
+			return "", false
+		}
+	case strings.HasPrefix(low, "x'") && strings.HasSuffix(s, "'") && len(s) >= 3:
+		if _, ok := val.SetString(s[2:len(s)-1], 16); !ok {
+			return "", false
+		}
+	case strings.HasPrefix(low, "0x"):
+		if _, ok := val.SetString(s[2:], 16); !ok {
+			return "", false
+		}
+	case len(s) >= 2 && (s[0] == '\'' || s[0] == '"') && s[len(s)-1] == s[0]:
+		// Quoted byte string: big-endian integer of the (un-doubled) bytes.
+		inner, _ := unquoteDefault(s)
+		val.SetBytes([]byte(inner))
+	default:
+		// Bare numeric literal.
+		if _, ok := val.SetString(s, 10); !ok {
+			return "", false
+		}
+	}
+	return val.String(), true
 }
 
 // stripOuterParens removes one balanced layer of outer parentheses, used to normalize

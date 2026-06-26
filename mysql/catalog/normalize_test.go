@@ -756,6 +756,153 @@ func TestCanonicalDefault_LargeBigintPrecisionPreserved(t *testing.T) {
 	}
 }
 
+// TestCanonicalDefault_YearNumericVsQuoted covers bug 3: a YEAR column's stored default
+// is single-quoted (`'2000'`) while the user writes it numeric (`2000`). Both forms must
+// canonicalize to the same value-based key so a YEAR default produces no phantom diff on
+// either version. (Oracle: `YEAR NOT NULL DEFAULT 2000` reads back `DEFAULT '2000'` on
+// 5.7 and 8.0.)
+func TestCanonicalDefault_YearNumericVsQuoted(t *testing.T) {
+	for _, v := range []Version{MySQL57, MySQL80} {
+		ct := "year"
+		if v == MySQL57 {
+			ct = "year(4)"
+		}
+		// Numeric user form vs quoted stored readback.
+		defaultKeyEq(t, v,
+			defCol(ct, sp("2000"), ColumnDefaultConstant),
+			defCol(ct, sp("'2000'"), ColumnDefaultConstant))
+		// MySQL expands a short YEAR default at storage: 1..69 → 2001..2069, 70..99 →
+		// 1970..1999 (oracle: DEFAULT 99 → '1999', DEFAULT 70 → '1970', DEFAULT 5 → '2005'),
+		// for numeric and string alike. The canonical key applies the same expansion so the
+		// user's short form and the four-digit readback compare equal.
+		defaultKeyEq(t, v,
+			defCol(ct, sp("99"), ColumnDefaultConstant),
+			defCol(ct, sp("'1999'"), ColumnDefaultConstant))
+		defaultKeyEq(t, v,
+			defCol(ct, sp("70"), ColumnDefaultConstant),
+			defCol(ct, sp("'1970'"), ColumnDefaultConstant))
+		defaultKeyEq(t, v,
+			defCol(ct, sp("1"), ColumnDefaultConstant),
+			defCol(ct, sp("'2001'"), ColumnDefaultConstant))
+		defaultKeyEq(t, v,
+			defCol(ct, sp("5"), ColumnDefaultConstant),
+			defCol(ct, sp("'2005'"), ColumnDefaultConstant))
+		// Numeric DEFAULT 0 is the special "zero year": it stays 0 (NOT 2000), stored '0000'.
+		defaultKeyEq(t, v,
+			defCol(ct, sp("0"), ColumnDefaultConstant),
+			defCol(ct, sp("'0000'"), ColumnDefaultConstant))
+		// QUOTE ASYMMETRY (the Codex-found case): a SHORT quoted '0'/'00'/'000' expands to
+		// 2000, unlike numeric 0. Oracle: DEFAULT '0' → '2000', DEFAULT '00' → '2000',
+		// DEFAULT '000' → '2000'. These must equal the four-digit '2000', NOT the zero year.
+		defaultKeyEq(t, v,
+			defCol(ct, sp("'0'"), ColumnDefaultConstant),
+			defCol(ct, sp("'2000'"), ColumnDefaultConstant))
+		defaultKeyEq(t, v,
+			defCol(ct, sp("'00'"), ColumnDefaultConstant),
+			defCol(ct, sp("'2000'"), ColumnDefaultConstant))
+		defaultKeyEq(t, v,
+			defCol(ct, sp("'000'"), ColumnDefaultConstant),
+			defCol(ct, sp("'2000'"), ColumnDefaultConstant))
+	}
+	n := NormalizerFor(MySQL80)
+	yc := func(def string) string {
+		return n.CanonicalDefault(defCol("year", sp(def), ColumnDefaultConstant))
+	}
+	// Distinct YEAR defaults must still differ (guard against over-collapsing).
+	if yc("2000") == yc("2001") {
+		t.Fatal("YEAR DEFAULT 2000 and 2001 must differ")
+	}
+	// The zero year (numeric 0 → '0000') must NOT collapse onto 2000.
+	if yc("0") == yc("2000") {
+		t.Fatal("YEAR numeric DEFAULT 0 (zero year) and 2000 must differ")
+	}
+	// CRITICAL (Codex blocker): numeric 0 ('0000') and string '0' (2000) are genuinely
+	// different stored values and MUST NOT share a key.
+	if yc("0") == yc("'0'") {
+		t.Fatal("YEAR numeric DEFAULT 0 and string DEFAULT '0' must differ (0000 vs 2000)")
+	}
+	if yc("0") == yc("'00'") {
+		t.Fatal("YEAR numeric DEFAULT 0 and string DEFAULT '00' must differ")
+	}
+	// And string '0000' (zero year) must differ from string '0' (2000).
+	if yc("'0000'") == yc("'0'") {
+		t.Fatal("YEAR string DEFAULT '0000' (zero year) and '0' (2000) must differ")
+	}
+}
+
+// TestCanonicalDefault_BitLiteralValueBased covers bug 2: a BIT column's default may be
+// written as a bit-literal (`b'101'`, `0b101`) or a hex-literal (`0x05`, `x'05'`), and
+// MySQL stores them all as the `b'...'` form (`0x05` → `b'101'`). All literal forms of the
+// SAME bit value must canonicalize equal, and the canonical key is value-based so the
+// minimal (`b'0'`) and zero-padded (`b'00000000'`) spellings of the same value also match.
+func TestCanonicalDefault_BitLiteralValueBased(t *testing.T) {
+	for _, v := range []Version{MySQL57, MySQL80} {
+		// b'0' (the task's stated case) round-trips: user b'0' vs stored b'0'.
+		defaultKeyEq(t, v,
+			defCol("bit(8)", sp("b'0'"), ColumnDefaultConstant),
+			defCol("bit(8)", sp("b'0'"), ColumnDefaultConstant))
+		// Hex user form 0x05 vs stored bit form b'101' (both == decimal 5).
+		defaultKeyEq(t, v,
+			defCol("bit(8)", sp("0x05"), ColumnDefaultConstant),
+			defCol("bit(8)", sp("b'101'"), ColumnDefaultConstant))
+		// x'05' hex form vs stored b'101'.
+		defaultKeyEq(t, v,
+			defCol("bit(8)", sp("x'05'"), ColumnDefaultConstant),
+			defCol("bit(8)", sp("b'101'"), ColumnDefaultConstant))
+		// 0b prefix form vs b'' form.
+		defaultKeyEq(t, v,
+			defCol("bit(8)", sp("0b101"), ColumnDefaultConstant),
+			defCol("bit(8)", sp("b'101'"), ColumnDefaultConstant))
+		// Zero-padded vs minimal spelling of the same value.
+		defaultKeyEq(t, v,
+			defCol("bit(8)", sp("b'00000101'"), ColumnDefaultConstant),
+			defCol("bit(8)", sp("b'101'"), ColumnDefaultConstant))
+	}
+	// Distinct bit values must differ (guard against over-collapsing).
+	n := NormalizerFor(MySQL80)
+	if n.CanonicalDefault(defCol("bit(8)", sp("b'101'"), ColumnDefaultConstant)) ==
+		n.CanonicalDefault(defCol("bit(8)", sp("b'100'"), ColumnDefaultConstant)) {
+		t.Fatal("BIT DEFAULT b'101' (5) and b'100' (4) must differ")
+	}
+	// A hex default on a non-BIT binary column is raw bytes, NOT a bit value, and must
+	// not be folded into the bit-value key space (it would mask a real change).
+	if strings.HasPrefix(n.CanonicalDefault(defCol("binary(4)", sp("0x05"), ColumnDefaultConstant)), "bit:") {
+		t.Fatal("hex default on a BINARY column must not be keyed as a bit value")
+	}
+}
+
+// TestCanonicalDefault_BigintUnsignedMaxExact covers bug 1 at the comparison layer: a
+// BIGINT UNSIGNED column whose default is the max uint64 (18446744073709551615) must
+// compare equal between the (unquoted) user form and the (quoted) stored readback WITHOUT
+// truncating to int64 — and the full-precision value must survive as the key, never
+// clamped to int64-max 9223372036854775807. The end-to-end exactness (the lexer no longer
+// clamping the literal) is proven by the oracle test; this locks the value-based key.
+func TestCanonicalDefault_BigintUnsignedMaxExact(t *testing.T) {
+	const maxU64 = "18446744073709551615"
+	const maxI64 = "9223372036854775807"
+	for _, v := range []Version{MySQL57, MySQL80} {
+		ct := "bigint unsigned"
+		if v == MySQL57 {
+			ct = "bigint(20) unsigned"
+		}
+		// Unquoted user form vs quoted stored readback at the uint64 max.
+		defaultKeyEq(t, v,
+			defCol(ct, sp(maxU64), ColumnDefaultConstant),
+			defCol(ct, sp("'"+maxU64+"'"), ColumnDefaultConstant))
+	}
+	// The uint64-max key must NOT collide with the int64-max key (the clamped value).
+	n := NormalizerFor(MySQL80)
+	if n.CanonicalDefault(defCol("bigint unsigned", sp(maxU64), ColumnDefaultConstant)) ==
+		n.CanonicalDefault(defCol("bigint unsigned", sp(maxI64), ColumnDefaultConstant)) {
+		t.Fatalf("uint64-max and int64-max bigint defaults must produce distinct keys (no clamp)")
+	}
+	// And the key must literally carry the full value, not the clamped one.
+	key := n.CanonicalDefault(defCol("bigint unsigned", sp(maxU64), ColumnDefaultConstant))
+	if !strings.Contains(key, maxU64) {
+		t.Fatalf("bigint unsigned max default key must carry %s, got %q", maxU64, key)
+	}
+}
+
 func TestCanonicalGeneratedExpr_TokenBoundaryPreserved(t *testing.T) {
 	// Whitespace must collapse to a single space between word tokens, not vanish, so
 	// `a` and `b` (an AND expression) does not merge into the identifier `aandb`.

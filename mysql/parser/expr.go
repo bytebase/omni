@@ -342,7 +342,11 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	switch p.cur.Type {
 	case tokICONST:
 		tok := p.advance()
-		return &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.pos()}, Value: tok.Ival}, nil
+		// Carry the exact source digits in Text: tok.Ival is clamped to math.MaxInt64 for
+		// an unsigned literal beyond int64 range (e.g. BIGINT UNSIGNED DEFAULT
+		// 18446744073709551615), so consumers that must round-trip the literal exactly
+		// (column defaults) read Text instead of the truncated Value.
+		return &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.pos()}, Value: tok.Ival, Text: tok.Str}, nil
 
 	case tokFCONST:
 		tok := p.advance()
