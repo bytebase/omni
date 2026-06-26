@@ -111,6 +111,13 @@ func fkIndexCases() []fkIndexCase {
 		{"fk-explicit-covering", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, KEY my_idx (pid), CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p(id))", both()},
 		// Composite FK with its own auto-created composite backing index.
 		{"fk-composite", "CREATE TABLE c (id INT PRIMARY KEY, x INT, y INT, CONSTRAINT fk FOREIGN KEY (x,y) REFERENCES p(a,b))", both()},
+		// Unnamed FK whose first-column index name collides with a user index, so MySQL/the loader
+		// names the backing index `pid_2` (allocIndexName suffix). The structural FK-implicit
+		// detection must still exclude `pid_2` while keeping the user's `KEY pid (a)`.
+		{"fk-backing-name-collision", "CREATE TABLE c (id INT PRIMARY KEY, a INT, pid INT, KEY pid (a), FOREIGN KEY (pid) REFERENCES p(id))", both()},
+		// FK with a user-chosen constraint name that matches the auto `<table>_ibfk_N` shape; the
+		// backing index is named after the constraint and must be excluded structurally.
+		{"fk-user-named-ibfk", "CREATE TABLE c (id INT PRIMARY KEY, pid INT, CONSTRAINT c_ibfk_1 FOREIGN KEY (pid) REFERENCES p(id))", both()},
 	}
 }
 

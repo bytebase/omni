@@ -123,6 +123,28 @@ func indexMigrationProbes() []migrationProbe {
 		{"modify-direction", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a))",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a DESC))", only(MySQL80)},
+
+		// ---- index DROP + column DROP interplay (ordering: DROP INDEX before DROP COLUMN) ----
+		// MySQL auto-drops a single-column index when its column is dropped; an explicit DROP INDEX
+		// after the column is gone fails errno 1091. The index drop must precede the column drop.
+		{"drop-column-and-its-single-col-index", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))",
+			"CREATE TABLE t (id INT PRIMARY KEY)", both()},
+		// Composite index on (a,b); dropping BOTH columns auto-drops the index → the explicit DROP
+		// INDEX must still come first.
+		{"drop-columns-and-their-composite-index", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY kab (a,b))",
+			"CREATE TABLE t (id INT PRIMARY KEY)", both()},
+		// Drop one column of a composite index but keep the index name on the remaining column:
+		// k (a,b) → k (b) while dropping a. This is a MODIFY (DROP+ADD) racing a column DROP; the
+		// index DROP (PhasePre) precedes the column DROP, and the re-ADD (PhaseMain) lands after.
+		{"modify-index-shrink-with-column-drop", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, KEY k (a,b))",
+			"CREATE TABLE t (id INT PRIMARY KEY, b INT, KEY k (b))", both()},
+		// Add a column AND an index on it in the same plan (ADD COLUMN then ADD INDEX).
+		{"add-column-and-index-on-it", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY)",
+			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY ka (a))", both()},
 	}
 }
 

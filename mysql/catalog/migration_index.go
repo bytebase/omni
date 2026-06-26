@@ -127,9 +127,23 @@ func addIndexOp(entry *TableDiffEntry, table string, idx *Index, n *Normalizer) 
 	}
 }
 
+// priorityIndexDrop orders an index DROP within PhasePre BEFORE any column DROP. MySQL's
+// ALTER TABLE ... DROP COLUMN auto-removes an index that the dropped column leaves empty (a
+// single-column index, or the last remaining column of a composite one), after which an
+// explicit DROP INDEX for that index fails with errno 1091 ("Can't DROP 'k'; check that
+// column/key exists"). Because the migration plan is applied one statement at a time, the index
+// DROP must precede the column DROP. Column drops run at priorityColumn-1 (generated) /
+// priorityColumn (plain) within PhasePre, and table drops at priorityTable=10; this sits below
+// the column-drop range and above the table-drop, so the order is:
+// table-drop (10) < index-drop (15) < generated-col-drop (19) < plain-col-drop (20).
+// Dropping an index whose columns are NOT being dropped is harmless to sequence first (it is
+// independent), so always ordering index drops ahead of column drops is safe and simple.
+const priorityIndexDrop = priorityColumn - 5
+
 // dropIndexOp builds an ALTER TABLE ... DROP op. A PRIMARY KEY uses DROP PRIMARY KEY (it has no
-// user name); every other index uses DROP INDEX `name`. The op runs in PhasePre so all index
-// drops precede any add, and so a dropped index name is free for re-creation in the same plan.
+// user name); every other index uses DROP INDEX `name`. The op runs in PhasePre at
+// priorityIndexDrop so all index drops precede any add AND precede column drops (see
+// priorityIndexDrop), and so a dropped index name is free for re-creation in the same plan.
 func dropIndexOp(entry *TableDiffEntry, table string, idx *Index) MigrationOp {
 	var clause string
 	if idx.Primary {
@@ -144,7 +158,7 @@ func dropIndexOp(entry *TableDiffEntry, table string, idx *Index) MigrationOp {
 		ParentObject: entry.Name,
 		SQL:          fmt.Sprintf("ALTER TABLE %s %s", table, clause),
 		Phase:        PhasePre,
-		Priority:     priorityIndex,
+		Priority:     priorityIndexDrop,
 		sortName:     indexSortName(entry.Database, entry.Name, idx.Name),
 	}
 }

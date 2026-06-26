@@ -109,94 +109,54 @@ func diffableIndexMap(t *Table) map[string]*Index {
 }
 
 // fkImplicitIndexNames returns the lower-cased names of indexes that exist solely to back a
-// foreign key — the ones MySQL auto-creates (and the loader synthesizes via
+// foreign key — the index MySQL auto-creates (and the loader synthesizes via
 // ensureFKBackingIndex) when no user index already covers the FK columns. These are owned by
-// the FK breadth node, not by this node, so they are excluded from the index diff.
+// the FK breadth node, not by this node, so they are excluded from the index diff. Excluding
+// them is symmetric (applied to both sides), so it never breaks idempotence; it prevents the
+// index node from emitting an ADD/DROP for an index whose lifecycle the FK node manages — which
+// would duplicate the FK node's work (duplicate-key-name on ADD) or fail with errno 1553
+// ("needed in a foreign key constraint") on DROP.
 //
-// Detection mirrors ensureFKBackingIndex (tablecmds.go) exactly, so it classifies precisely
-// the indexes that function produced and never a user-declared index:
-//   - For each FK constraint on the table, the backing index it would create has the FK's
-//     index columns and a name of either the constraint name (when the FK was named) or the
-//     first column's auto-allocated name (when the FK was unnamed, matching allocIndexName).
-//     MySQL stores an unnamed FK as `<table>_ibfk_N`; for such a constraint the backing index
-//     is named after the first column, so we resolve the name the same way.
-//   - The candidate index must (a) carry only the plain attributes a synthesized backing index
-//     has — non-unique, non-fulltext, non-spatial, default USING type, no comment, visible, no
-//     prefix/expr/DESC parts, no KEY_BLOCK_SIZE — and (b) have column parts exactly equal to
-//     the FK's columns. A UNIQUE/named/prefixed index a user wrote on the FK columns therefore
-//     stays user-managed (it does not match the plain-backing signature) — and MySQL would have
-//     reused it rather than creating an implicit one, so there is no implicit index to skip.
+// Detection is STRUCTURAL, not name-based: an index is FK-implicit when it has exactly the
+// shape ensureFKBackingIndex produces — a plain (non-unique/fulltext/spatial), default-type,
+// visible, comment-less, block-size-less index whose column parts are some FK's columns
+// verbatim (no prefix, expression, or DESC). Matching by structure rather than reconstructing
+// the synthesized NAME is robust against the two cases name reconstruction gets wrong: an
+// unnamed FK whose first-column index name collided and was suffixed by allocIndexName (e.g.
+// `pid_2`), and a user-chosen FK constraint name that happens to look auto-generated
+// (`<table>_ibfk_N`). A user index that genuinely differs (UNIQUE, prefixed, named with extra
+// attributes, or covering MORE/FEWER columns than the FK) does NOT match and stays user-managed
+// — and MySQL would have reused such an index rather than synthesizing one, so there is no
+// implicit index to skip. A user index that is byte-for-byte what MySQL would have synthesized
+// is, by the work-order's contract, treated as FK-implicit (the FK node owns it); it could not
+// be independently dropped anyway while the FK exists (errno 1553).
 //
-// When more than one FK could claim the same index, the first match wins (the index is skipped
-// once); the per-FK ownership is the FK node's concern.
+// Each FK claims at most one index (the first structural match not already claimed by another
+// FK), mirroring the one-backing-index-per-FK the engine maintains.
 func fkImplicitIndexNames(t *Table) map[string]bool {
 	skip := make(map[string]bool)
 	if t == nil {
 		return skip
 	}
 	for _, con := range t.Constraints {
-		if con == nil || con.Type != ConForeignKey {
+		if con == nil || con.Type != ConForeignKey || len(con.Columns) == 0 {
 			continue
 		}
-		backingName := fkBackingIndexName(t, con)
-		if backingName == "" {
-			continue
-		}
-		key := toLower(backingName)
-		if skip[key] {
-			continue
-		}
-		idx := findIndexByName(t, backingName)
-		if idx == nil {
-			continue
-		}
-		if isPlainBackingIndexFor(idx, con.Columns) {
-			skip[key] = true
+		for _, idx := range t.Indexes {
+			if idx == nil {
+				continue
+			}
+			key := toLower(idx.Name)
+			if skip[key] {
+				continue
+			}
+			if isPlainBackingIndexFor(idx, con.Columns) {
+				skip[key] = true
+				break
+			}
 		}
 	}
 	return skip
-}
-
-// fkBackingIndexName returns the name MySQL/the loader uses for the index backing a foreign
-// key: the constraint's IndexName if recorded, else the constraint name when it is a
-// user-declared name, else the first FK column (the allocIndexName fallback for an unnamed FK,
-// which MySQL records as `<table>_ibfk_N`). It returns "" for a column-less FK (defensive).
-func fkBackingIndexName(t *Table, con *Constraint) string {
-	if con.IndexName != "" {
-		return con.IndexName
-	}
-	if len(con.Columns) == 0 {
-		return ""
-	}
-	// An unnamed FK is stored as `<table>_ibfk_N`; its backing index is named after the first
-	// column (allocIndexName), not the constraint. A user-named FK names its backing index
-	// after the constraint. Distinguish by the auto-generated `_ibfk_` shape.
-	if con.Name == "" || isAutoFKName(t.Name, con.Name) {
-		return con.Columns[0]
-	}
-	return con.Name
-}
-
-// isAutoFKName reports whether name is an auto-generated InnoDB FK constraint name of the form
-// `<table>_ibfk_<digits>` (the shape MySQL assigns an unnamed FK; see tablecmds.go
-// nextFKGeneratedNumber). Comparison is case-insensitive on the table prefix to match the
-// catalog's case-insensitive identifier handling.
-func isAutoFKName(tableName, conName string) bool {
-	prefix := toLower(tableName) + "_ibfk_"
-	low := toLower(conName)
-	if !strings.HasPrefix(low, prefix) {
-		return false
-	}
-	digits := low[len(prefix):]
-	if digits == "" {
-		return false
-	}
-	for _, r := range digits {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return true
 }
 
 // isPlainBackingIndexFor reports whether idx has exactly the shape ensureFKBackingIndex
@@ -223,17 +183,6 @@ func isPlainBackingIndexFor(idx *Index, fkCols []string) bool {
 		}
 	}
 	return true
-}
-
-// findIndexByName returns the table's index with the given name (case-insensitive), or nil.
-func findIndexByName(t *Table, name string) *Index {
-	key := toLower(name)
-	for _, idx := range t.Indexes {
-		if idx != nil && toLower(idx.Name) == key {
-			return idx
-		}
-	}
-	return nil
 }
 
 // indexesChanged reports whether two same-name indexes differ, comparing their canonical keys
