@@ -164,22 +164,26 @@ func userIndexNameSet(t *Table) map[string]bool {
 // would duplicate the FK node's work (duplicate-key-name on ADD) or fail with errno 1553
 // ("needed in a foreign key constraint") on DROP.
 //
-// Detection is STRUCTURAL, not name-based: an index is FK-implicit when it has exactly the
-// shape ensureFKBackingIndex produces — a plain (non-unique/fulltext/spatial), default-type,
-// visible, comment-less, block-size-less index whose column parts are some FK's columns
-// verbatim (no prefix, expression, or DESC). Matching by structure rather than reconstructing
-// the synthesized NAME is robust against the two cases name reconstruction gets wrong: an
-// unnamed FK whose first-column index name collided and was suffixed by allocIndexName (e.g.
-// `pid_2`), and a user-chosen FK constraint name that happens to look auto-generated
-// (`<table>_ibfk_N`). A user index that genuinely differs (UNIQUE, prefixed, named with extra
-// attributes, or covering MORE/FEWER columns than the FK) does NOT match and stays user-managed
-// — and MySQL would have reused such an index rather than synthesizing one, so there is no
-// implicit index to skip. A user index that is byte-for-byte what MySQL would have synthesized
-// is, by the work-order's contract, treated as FK-implicit (the FK node owns it); it could not
-// be independently dropped anyway while the FK exists (errno 1553).
+// Detection combines STRUCTURE and NAME. An index is FK-implicit only when BOTH hold:
+//   - it has exactly the shape ensureFKBackingIndex produces — a plain (non-unique/fulltext/
+//     spatial), default-type, visible, comment-less, block-size-less index whose column parts are
+//     the FK's columns verbatim (no prefix/expression/DESC) — isPlainBackingIndexFor; AND
+//   - its name is the AUTO-DERIVED backing name for that FK — isAutoBackingIndexName: the
+//     constraint name, the first FK column, or a `<firstFKcol>_<digits>` allocIndexName collision
+//     suffix (e.g. `pid_2`). MySQL/the loader names the backing index this way.
 //
-// Each FK claims at most one index (the first structural match not already claimed by another
-// FK), mirroring the one-backing-index-per-FK the engine maintains.
+// The name check is what distinguishes a user's EXPLICITLY-named index from the synthesized one.
+// If a user writes `KEY idx_pid (pid)` alongside a `CONSTRAINT fk_c_p FOREIGN KEY (pid)`, the
+// index name `idx_pid` is neither the constraint name nor a first-column-derived name, so it is
+// NOT FK-implicit — it is a user index this node must emit (else, when the FK is added, the FK
+// node would auto-create a differently-named backing index and the user's chosen name `idx_pid`
+// would be lost). When the user's index name DOES match the auto-derived form (the constraint
+// name, or the column-default name MySQL would pick anyway), excluding it is correct — the FK
+// node recreates an identically-named index, and it could not be independently dropped while the
+// FK exists (errno 1553). The structural part still keeps a UNIQUE/prefixed/wider index visible.
+//
+// Each FK claims at most one index (the first match not already claimed by another FK), mirroring
+// the one-backing-index-per-FK the engine maintains.
 func fkImplicitIndexNames(t *Table) map[string]bool {
 	skip := make(map[string]bool)
 	if t == nil {
@@ -197,13 +201,43 @@ func fkImplicitIndexNames(t *Table) map[string]bool {
 			if skip[key] {
 				continue
 			}
-			if isPlainBackingIndexFor(idx, con.Columns) {
+			if isPlainBackingIndexFor(idx, con.Columns) && isAutoBackingIndexName(idx.Name, con) {
 				skip[key] = true
 				break
 			}
 		}
 	}
 	return skip
+}
+
+// isAutoBackingIndexName reports whether idxName is the name MySQL/ensureFKBackingIndex would
+// assign to the index backing con: the constraint name, the first FK column, or a
+// `<firstFKcol>_<digits>` collision suffix that allocIndexName produces when the first-column name
+// is already taken. A user index named anything else (e.g. `idx_pid` for an FK on `pid`) is a
+// deliberately-named user index and is not treated as the implicit backing index, so this node
+// emits it and the FK reuses it — preserving the user's chosen name.
+func isAutoBackingIndexName(idxName string, con *Constraint) bool {
+	name := toLower(idxName)
+	if con.Name != "" && name == toLower(con.Name) {
+		return true
+	}
+	if len(con.Columns) == 0 {
+		return false
+	}
+	first := toLower(con.Columns[0])
+	if name == first {
+		return true
+	}
+	// allocIndexName collision form: "<firstcol>_<digits>".
+	if rest, ok := strings.CutPrefix(name, first+"_"); ok && rest != "" {
+		for _, r := range rest {
+			if r < '0' || r > '9' {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 // isPlainBackingIndexFor reports whether idx has exactly the shape ensureFKBackingIndex

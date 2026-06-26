@@ -221,6 +221,36 @@ func TestDiffIndex_FKDroppedExplicitIndexKept(t *testing.T) {
 	}
 }
 
+// TestDiffIndex_ExplicitlyNamedIndexBackingFKEmitted asserts that a user index named DIFFERENTLY
+// from the FK's auto-backing name (constraint name / first column) is NOT treated as FK-implicit:
+// the user deliberately named it, so it must be diff-able and emitted (otherwise, when the FK is
+// added, the FK node would auto-create a differently-named backing index and the user's chosen
+// name would be lost). The pure-implicit FK (no explicit KEY) still emits nothing.
+func TestDiffIndex_ExplicitlyNamedIndexBackingFKEmitted(t *testing.T) {
+	// User explicitly names the backing index `idx_pid` (≠ constraint `fk_c_p`, ≠ column `pid`).
+	from := loadCat(t, dbDDL+"CREATE TABLE p (id INT PRIMARY KEY);\nCREATE TABLE c (pid INT);")
+	to := loadCat(t, dbDDL+"CREATE TABLE p (id INT PRIMARY KEY);\n"+
+		"CREATE TABLE c (pid INT, KEY idx_pid (pid), CONSTRAINT fk_c_p FOREIGN KEY (pid) REFERENCES p(id));")
+	d := Diff(from, to)
+	te := findTable(d, "c")
+	if te == nil || findIndexDiff(te, "idx_pid") == nil || findIndexDiff(te, "idx_pid").Action != DiffAdd {
+		t.Fatalf("expected ADD of user-named index idx_pid, got %s", describeDiff(d))
+	}
+
+	// The user index `idx_pid` is diff-able even with the FK present (it is not the auto name).
+	toChild := mustGetTable(t, to, "c")
+	if _, present := diffableIndexMap(toChild, nil)["idx_pid"]; !present {
+		t.Errorf("user-named idx_pid must remain diff-able alongside the FK")
+	}
+
+	// Counter-check: an index named like the auto-backing name (the column `pid`) IS excluded.
+	toAuto := loadCat(t, dbDDL+"CREATE TABLE p (id INT PRIMARY KEY);\n"+
+		"CREATE TABLE c (pid INT, KEY pid (pid), CONSTRAINT fk_c_p FOREIGN KEY (pid) REFERENCES p(id));")
+	if _, present := diffableIndexMap(mustGetTable(t, toAuto, "c"), nil)["pid"]; present {
+		t.Errorf("index named `pid` (the auto-backing name) must be excluded as FK-implicit")
+	}
+}
+
 // TestDiffIndex_FKImplicitNameCollision asserts that an unnamed FK whose backing-index name was
 // suffixed by allocIndexName on collision (here `pid_2`, because the user wrote `KEY pid (a)`) is
 // still detected as FK-implicit and excluded — structural detection does not depend on the
