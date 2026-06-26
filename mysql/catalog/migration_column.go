@@ -213,12 +213,23 @@ func formatColumnDefinition(tbl *Table, c *Column, n *Normalizer) string {
 		if cs != tcs {
 			b.WriteString(" CHARACTER SET ")
 			b.WriteString(cs)
-			if coll != "" {
+			// The column declares a DIFFERENT charset than the table, so it cannot inherit the
+			// table COLLATE; a bare `CHARACTER SET cs` falls back to cs's SERVER default. Emit
+			// COLLATE only when the target collation is NOT that charset's version default — so
+			// a column whose collation IS the default renders no COLLATE (valid on 5.7 and 8.0,
+			// never naming a collation the target lacks), while a non-default one is explicit.
+			if coll != "" && !n.isCharsetDefaultCollation(cs, coll) {
 				b.WriteString(" COLLATE ")
 				b.WriteString(coll)
 			}
 		} else if coll != "" && coll != tcoll {
-			// Same charset as table but a non-inherited collation → COLLATE only.
+			// Same charset as the table but a collation that differs from what the column would
+			// INHERIT from the table (tcoll) → emit COLLATE. The comparison is against the
+			// table's effective collation, NOT the charset default: when the table itself
+			// carries a non-default collation, a column at the charset default still differs
+			// from the table and MUST be rendered explicitly, or it would wrongly inherit the
+			// table's collation on apply (non-convergent). tcoll is already the version-correct
+			// effective table collation, so this stays version-robust.
 			b.WriteString(" COLLATE ")
 			b.WriteString(coll)
 		}
