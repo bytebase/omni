@@ -210,6 +210,34 @@ func normalizationProbes() []ruleProbe {
 		{"bit-length-default",
 			"CREATE TABLE t_bit (c BIT, d BIT(8))",
 			"t_bit", []string{"c", "d"}, both()},
+		// bug: BIT column default — every literal form (bit-literal, hex, bare int, quoted
+		// byte string) is stored as b'<binary>' and must canonicalize by VALUE. b'0' is the
+		// task's stated case; 0x05/x'05'/0b101/5 all equal b'101', while 'A' (=65) and the
+		// byte string 'AB' stay distinct values.
+		{"bit-default-bitliteral",
+			"CREATE TABLE t_bitd (a BIT(8) NOT NULL DEFAULT b'0', b BIT(8) NOT NULL DEFAULT b'101', c BIT(8) NOT NULL DEFAULT b'00000101')",
+			"t_bitd", []string{"a", "b", "c"}, both()},
+		{"bit-default-hex",
+			"CREATE TABLE t_bithex (a BIT(8) NOT NULL DEFAULT 0x05, b BIT(8) NOT NULL DEFAULT x'05', c BIT(16) NOT NULL DEFAULT 0xABCD)",
+			"t_bithex", []string{"a", "b", "c"}, both()},
+		{"bit-default-numeric-and-string",
+			"CREATE TABLE t_bitns (a BIT(8) NOT NULL DEFAULT 5, b BIT(8) NOT NULL DEFAULT 0b101, c BIT(16) NOT NULL DEFAULT 'AB')",
+			"t_bitns", []string{"a", "b", "c"}, both()},
+		// bug: YEAR default — stored single-quoted ('2000') but written numeric (2000); the
+		// two forms must compare equal by value. Two-digit YEAR is expanded at storage
+		// (99 -> '1999', 5 -> '2005'), and 0 stays the zero year ('0000').
+		{"year-default-numeric",
+			"CREATE TABLE t_yeard (a YEAR NOT NULL DEFAULT 2000, b YEAR NOT NULL DEFAULT 1999, c YEAR NOT NULL DEFAULT 0, d YEAR NOT NULL DEFAULT 99, e YEAR NOT NULL DEFAULT 5)",
+			"t_yeard", []string{"a", "b", "c", "d", "e"}, both()},
+		// bug: BIGINT UNSIGNED max default (18446744073709551615) must not be int64-clamped;
+		// the unquoted user form and the quoted stored readback must compare equal at the
+		// exact uint64 value. Signed-bigint boundaries (int64 min/max) are covered too.
+		{"bigint-unsigned-max-default",
+			"CREATE TABLE t_bigmax (big BIGINT UNSIGNED NOT NULL DEFAULT 18446744073709551615, mid BIGINT UNSIGNED NOT NULL DEFAULT 9223372036854775808)",
+			"t_bigmax", []string{"big", "mid"}, both()},
+		{"bigint-signed-boundary-default",
+			"CREATE TABLE t_bigbnd (lo BIGINT NOT NULL DEFAULT -9223372036854775808, hi BIGINT NOT NULL DEFAULT 9223372036854775807)",
+			"t_bigbnd", []string{"lo", "hi"}, both()},
 		{"time-json-date-stable",
 			"CREATE TABLE t_tjd (e JSON, f DATE, g TIME, h TIME(3))",
 			"t_tjd", []string{"e", "f", "g", "h"}, both()},
@@ -320,6 +348,24 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 			if n.CanonicalColumn(tA, cA) == n.CanonicalColumn(tB, cB) {
 				t.Errorf("[%s] bare column must follow table COLLATE change:\n A=%s\n B=%s",
 					o.name, n.CanonicalColumn(tA, cA), n.CanonicalColumn(tB, cB))
+			}
+		})
+
+		t.Run(o.name+"/year-numeric-zero-vs-string-zero", func(t *testing.T) {
+			// YEAR over-collapse guard: numeric DEFAULT 0 stores the zero year (0000) while
+			// string DEFAULT '0' stores 2000 — genuinely different values that must NOT share
+			// a canonical key. Loaded from the real engine's readback so the stored forms are
+			// authentic (oracle: num 0 -> '0000', '0' -> '2000').
+			ddl := "CREATE TABLE t (n YEAR DEFAULT 0, s YEAR DEFAULT '0')"
+			rb, ok := o.showCreate(t, "mdg_year0", ddl, "t")
+			if !ok {
+				t.Skip("could not obtain readback")
+			}
+			tbl, nCol := loadColumn(t, sc, rb, "t", "n")
+			_, sCol := loadColumn(t, sc, rb, "t", "s")
+			if n.CanonicalColumn(tbl, nCol) == n.CanonicalColumn(tbl, sCol) {
+				t.Errorf("[%s] YEAR numeric 0 (0000) and string '0' (2000) must differ:\n  n=%s\n  s=%s",
+					o.name, n.CanonicalDefault(nCol), n.CanonicalDefault(sCol))
 			}
 		})
 

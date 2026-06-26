@@ -856,9 +856,17 @@ const (
 )
 
 // IntLit represents an integer literal.
+//
+// Value is the int64 form used by consumers that need an integer (constant folding,
+// deparse). Text preserves the EXACT source digits, which matters for an unsigned literal
+// larger than math.MaxInt64 (e.g. a BIGINT UNSIGNED DEFAULT 18446744073709551615): Value
+// would be clamped to math.MaxInt64 by the lexer, so anything that must round-trip the
+// literal exactly (a column default) reads Text. Text may be empty for synthesized nodes;
+// callers fall back to Value when it is.
 type IntLit struct {
 	Loc   Loc
 	Value int64
+	Text  string
 }
 
 func (l *IntLit) nodeTag()  {}

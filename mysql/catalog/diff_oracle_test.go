@@ -133,6 +133,19 @@ func diffIdempotenceProbes() []diffProbe {
 		{"char-bit-year", "CREATE TABLE t (id INT PRIMARY KEY, a CHAR, d BINARY, c BIT, y YEAR)", "t", both()},
 		// literal default quoting (numeric + string), decimal scale padding, boolean default.
 		{"defaults", "CREATE TABLE t (id INT PRIMARY KEY, a INT DEFAULT 0, b INT DEFAULT '7', f DECIMAL(10,2) DEFAULT 0, c VARCHAR(20) DEFAULT 'x', j BOOLEAN DEFAULT TRUE)", "t", both()},
+		// bug: BIGINT UNSIGNED max default (18446744073709551615) — must not int64-truncate;
+		// the unquoted user form and the quoted stored readback ('18446744073709551615') must
+		// diff empty. mid (9223372036854775808 = int64-max+1) also overflows int64.
+		{"bigint-unsigned-max-default", "CREATE TABLE t (id INT PRIMARY KEY, big BIGINT UNSIGNED NOT NULL DEFAULT 18446744073709551615, mid BIGINT UNSIGNED NOT NULL DEFAULT 9223372036854775808)", "t", both()},
+		// bug: signed-bigint boundaries — int64-min default (-9223372036854775808) must not
+		// render off-by-one; int64-max round-trips too.
+		{"bigint-signed-boundary-default", "CREATE TABLE t (id INT PRIMARY KEY, lo BIGINT NOT NULL DEFAULT -9223372036854775808, hi BIGINT NOT NULL DEFAULT 9223372036854775807)", "t", both()},
+		// bug: BIT column default — bit-literal / hex / bare-int / quoted-byte-string forms are
+		// all stored as b'<binary>' and must canonicalize by value (b'0' is the stated case).
+		{"bit-default-forms", "CREATE TABLE t (id INT PRIMARY KEY, a BIT(8) NOT NULL DEFAULT b'0', b BIT(8) NOT NULL DEFAULT 0x05, c BIT(8) NOT NULL DEFAULT 5, d BIT(16) NOT NULL DEFAULT 'AB')", "t", both()},
+		// bug: YEAR default — stored single-quoted ('2000') but written numeric (2000);
+		// two-digit YEAR is expanded at storage (99 -> '1999'), 0 stays '0000'.
+		{"year-default", "CREATE TABLE t (id INT PRIMARY KEY, a YEAR NOT NULL DEFAULT 2000, b YEAR NOT NULL DEFAULT 1999, c YEAR NOT NULL DEFAULT 99, d YEAR NOT NULL DEFAULT 0)", "t", both()},
 		// nullability collapse to DEFAULT NULL; PK forces NOT NULL.
 		{"nullability", "CREATE TABLE t (id INT, a INT NULL, b INT DEFAULT NULL, d VARCHAR(10) NULL, PRIMARY KEY (id))", "t", both()},
 		// enum/set quoting + order.

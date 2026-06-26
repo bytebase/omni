@@ -1029,6 +1029,32 @@ func columnDefaultValue(expr nodes.ExprNode) (string, ColumnDefaultKind) {
 		return "0", ColumnDefaultConstant
 	case *nodes.BitLit:
 		return canonicalBitLiteral(e.Value), ColumnDefaultConstant
+	case *nodes.IntLit:
+		// Use the exact source digits when present: deparse renders IntLit from its int64
+		// Value, which the lexer clamps to math.MaxInt64 for an unsigned literal beyond
+		// int64 range (BIGINT UNSIGNED DEFAULT 18446744073709551615 would otherwise be
+		// stored as 9223372036854775807 and silently corrupt the column default).
+		if s, ok := exactIntLiteral(e, ""); ok {
+			return s, ColumnDefaultConstant
+		}
+		return nodeToSQL(expr), ColumnDefaultConstant
+	case *nodes.UnaryExpr:
+		// A signed integer default (DEFAULT -9223372036854775808) is a unary minus over an
+		// IntLit. The magnitude 9223372036854775808 overflows int64 on the way in (clamped
+		// to MaxInt64, then negated to -MaxInt64), so render the sign + exact digits to keep
+		// the int64-MIN boundary exact rather than off-by-one.
+		if e.Op == nodes.UnaryMinus || e.Op == nodes.UnaryPlus {
+			if lit, ok := e.Operand.(*nodes.IntLit); ok {
+				sign := ""
+				if e.Op == nodes.UnaryMinus {
+					sign = "-"
+				}
+				if s, ok := exactIntLiteral(lit, sign); ok {
+					return s, ColumnDefaultConstant
+				}
+			}
+		}
+		return nodeToSQL(expr), ColumnDefaultConstant
 	default:
 		if ts, ok := currentTimestampExpr(expr); ok {
 			return ts, ColumnDefaultCurrentTimestamp
@@ -1058,6 +1084,22 @@ func currentTimestampExpr(expr nodes.ExprNode) (string, bool) {
 		return ts, true
 	}
 	return "CURRENT_TIMESTAMP", true
+}
+
+// exactIntLiteral renders an integer literal default from its exact source digits
+// (lit.Text) with an optional leading sign, so a literal whose magnitude exceeds int64
+// range round-trips exactly instead of being clamped to math.MaxInt64. It returns ok=false
+// when Text is absent (a synthesized node) so the caller falls back to int64-based deparse.
+// A negative all-zero magnitude drops the sign (e.g. "-0"/"-00" -> the digits as-is, never
+// a "-0"-prefixed string) so a signed-zero default does not render with a leading minus.
+func exactIntLiteral(lit *nodes.IntLit, sign string) (string, bool) {
+	if lit.Text == "" {
+		return "", false
+	}
+	if sign == "-" && strings.Trim(lit.Text, "0") == "" {
+		return lit.Text, true
+	}
+	return sign + lit.Text, true
 }
 
 func canonicalBitLiteral(bits string) string {
