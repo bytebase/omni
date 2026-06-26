@@ -1917,7 +1917,12 @@ func formatColumnType(dt *nodes.DataType) string {
 		} else if dt.Zerofill {
 			width := dt.Length
 			if width == 0 {
-				width = defaultIntDisplayWidth(name, dt.Unsigned)
+				// ZEROFILL forces the column UNSIGNED, so a bare INT ZEROFILL takes the
+				// UNSIGNED default width (int → 10), not the signed default (11). MySQL
+				// stores `int(10) unsigned zerofill` for `INT ZEROFILL`. (Passing
+				// dt.Unsigned here was a bug: the zerofill-implies-unsigned promotion has
+				// not yet flipped dt.Unsigned at this point.)
+				width = defaultIntDisplayWidth(name, true)
 			}
 			fmt.Fprintf(&buf, "(%d)", width)
 		}
