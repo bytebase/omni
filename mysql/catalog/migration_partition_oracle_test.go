@@ -243,6 +243,14 @@ func partitionMigrationProbes() []migrationProbe {
 		//      PARTITION BY must apply and read back equal to `to` (which folds ALGORITHM=2 away). ----
 		{"create-key-algorithm-2", "t", "",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY KEY ALGORITHM=2 (id) PARTITIONS 3", both()},
+
+		// ---- REPARTITION while DROPPING a column the OLD partition function references: the old
+		//      RANGE(YEAR(dt)) scheme references dt, which `to` drops while repartitioning to
+		//      HASH(id). Must emit PhasePre REMOVE PARTITIONING before the dt drop, then PhaseMain
+		//      PARTITION BY HASH. Regression guard for oldPartitionColumnDropped. ----
+		{"repartition-drop-old-key-column", "t",
+			"CREATE TABLE t (id INT NOT NULL, dt DATE NOT NULL, PRIMARY KEY (id, dt)) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (2010), PARTITION pmax VALUES LESS THAN MAXVALUE)",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY) PARTITION BY HASH (id) PARTITIONS 4", both()},
 	}
 }
 

@@ -3,6 +3,7 @@ package catalog
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // MySQL SDL generate — table partitioning (ALTER TABLE ... PARTITION BY / REMOVE PARTITIONING).
@@ -44,17 +45,11 @@ import (
 //     LIVE partition function/key still references (errno 1505/1054-class), so the table must be
 //     un-partitioned first when the same plan also drops an old partitioning column.
 //
-// A table either gains/changes partitioning or loses it in a single plan, never both, so at most
-// one partition op per table — ops are ordered by table name (sortName) alone.
-//
-// KNOWN LIMITATION (flagged, not handled): repartitioning a table (to stays partitioned) whose
-// OLD partition function references a column DROPPED in the same plan emits the new PARTITION BY
-// in PhaseMain, after the PhasePre column drop — which MySQL rejects because the column is still
-// bound by the live old partition function when the drop runs. Correct emission would require
-// stripping the old partitioning (a PhasePre REMOVE PARTITIONING) before the column drop AND then
-// applying the new scheme in PhaseMain — i.e. splitting one logical change across phases, which
-// the coarse bool diff does not model. The REMOVE-to-unpartitioned case IS handled (above); only
-// the drop-old-key-column-while-repartitioning combination is out of scope. Not in any probe.
+// Repartitioning a table whose OLD partition function references a column DROPPED in the same plan
+// is handled by splitting the change across phases: a PhasePre REMOVE PARTITIONING (so the column
+// drop is no longer blocked by the live partition function) followed by the PhaseMain PARTITION BY
+// that establishes the new scheme (see partitionModifyOps / oldPartitionColumnDropped). Otherwise a
+// table emits at most one partition op, ordered by table name (sortName).
 //
 // implemented by omni:partitions breadth node
 func generatePartitionDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []MigrationOp {
@@ -88,8 +83,12 @@ func generatePartitionDDL(_, _ *Catalog, diff *SchemaDiff, n *Normalizer) []Migr
 	return ops
 }
 
-// partitionModifyOps renders the partition change for a modified table: REMOVE PARTITIONING when
-// the target is unpartitioned, otherwise a wholesale PARTITION BY re-definition.
+// partitionModifyOps renders the partition change for a modified table:
+//   - to unpartitioned  → a single PhasePre REMOVE PARTITIONING.
+//   - to (re)partitioned → a PhaseMain PARTITION BY. When the same plan ALSO drops a column the
+//     OLD partition function references, a PhasePre REMOVE PARTITIONING is prepended so the table
+//     is un-partitioned before that column drop runs (MySQL rejects dropping a column bound by the
+//     live partition function); the PhaseMain PARTITION BY then re-establishes the new scheme.
 func partitionModifyOps(entry *TableDiffEntry, n *Normalizer) []MigrationOp {
 	if entry.To == nil {
 		return nil
@@ -98,10 +97,99 @@ func partitionModifyOps(entry *TableDiffEntry, n *Normalizer) []MigrationOp {
 		// from was partitioned (PartitionChanged true + to unpartitioned), so strip it.
 		return []MigrationOp{removePartitioningOp(entry, entry.To)}
 	}
-	if op, ok := partitionByOp(entry, entry.To, n); ok {
-		return []MigrationOp{op}
+	op, ok := partitionByOp(entry, entry.To, n)
+	if !ok {
+		return nil
 	}
-	return nil
+	// Repartition: if a column referenced by the OLD partitioning is dropped in this plan, the
+	// PhasePre DROP COLUMN would fail while the table is still partitioned by it — strip the old
+	// partitioning first (PhasePre), then apply the new scheme (PhaseMain).
+	if oldPartitionColumnDropped(entry) {
+		return []MigrationOp{removePartitioningOp(entry, entry.To), op}
+	}
+	return []MigrationOp{op}
+}
+
+// oldPartitionColumnDropped reports whether any column the FROM partitioning references is being
+// DROPPED in this diff. A dropped partition-key column requires the old partitioning to be removed
+// first (a column bound by the live partition function cannot be dropped). Column references are
+// taken from the structured KEY/COLUMNS lists and, for expression partitioning (RANGE/LIST/HASH
+// over an expr), from an identifier scan of the expression — a superset that may also match a
+// column merely named inside the expression, which only ever causes an extra, harmless PhasePre
+// REMOVE PARTITIONING (the new PARTITION BY re-establishes the scheme regardless).
+func oldPartitionColumnDropped(entry *TableDiffEntry) bool {
+	if entry.From == nil || entry.From.Partitioning == nil {
+		return false
+	}
+	dropped := droppedColumnSet(entry)
+	if len(dropped) == 0 {
+		return false
+	}
+	for _, col := range partitionReferencedColumns(entry.From.Partitioning) {
+		if dropped[toLower(col)] {
+			return true
+		}
+	}
+	return false
+}
+
+// droppedColumnSet returns the lower-cased names of columns dropped in this table diff.
+func droppedColumnSet(entry *TableDiffEntry) map[string]bool {
+	var set map[string]bool
+	for _, ce := range entry.Columns {
+		if ce.Action == DiffDrop {
+			if set == nil {
+				set = make(map[string]bool)
+			}
+			set[toLower(ce.Name)] = true
+		}
+	}
+	return set
+}
+
+// partitionReferencedColumns returns the column names a partition spec depends on: the explicit
+// KEY / RANGE COLUMNS / LIST COLUMNS column lists (and subpartition columns), plus identifiers
+// scanned out of an expression-based partition/subpartition expression (RANGE/LIST/HASH over an
+// expr). The expression scan is a conservative superset (it may include non-column identifiers
+// such as function names), which is safe here: a false positive only adds a harmless REMOVE
+// PARTITIONING before the repartition.
+func partitionReferencedColumns(pi *PartitionInfo) []string {
+	var cols []string
+	cols = append(cols, pi.Columns...)
+	cols = append(cols, pi.SubColumns...)
+	cols = append(cols, identifiersInExpr(pi.Expr)...)
+	cols = append(cols, identifiersInExpr(pi.SubExpr)...)
+	return cols
+}
+
+// identifiersInExpr extracts identifier-like tokens from a partition expression, skipping
+// backtick-quoted and string-literal content boundaries. It is used only to spot a dropped column
+// referenced by an expression partition function; over-matching (e.g. catching a function name)
+// is harmless (see partitionReferencedColumns).
+func identifiersInExpr(expr string) []string {
+	if expr == "" {
+		return nil
+	}
+	var out []string
+	var b strings.Builder
+	flush := func() {
+		if b.Len() > 0 {
+			out = append(out, b.String())
+			b.Reset()
+		}
+	}
+	for _, r := range expr {
+		switch {
+		case r == '_' || r == '$' ||
+			(r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9'):
+			b.WriteRune(r)
+		default:
+			// Backticks, quotes, parentheses, operators, spaces all terminate an identifier run.
+			flush()
+		}
+	}
+	flush()
+	return out
 }
 
 // partitionByOp builds an ALTER TABLE ... PARTITION BY ... op that (re)defines tbl's
