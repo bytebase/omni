@@ -1150,6 +1150,26 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 
+	if p.cur.Type == ',' {
+		row := &nodes.RowExpr{Loc: nodes.Loc{Start: start}, Items: []nodes.ExprNode{expr}}
+		for p.cur.Type == ',' {
+			p.advance()
+			item, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if item == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			row.Items = append(row.Items, item)
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		row.Loc.End = p.pos()
+		return row, nil
+	}
+
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
 	}
