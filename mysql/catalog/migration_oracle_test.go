@@ -166,6 +166,19 @@ func migrationProbes() []migrationProbe {
 		{"modify-charset", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, v VARCHAR(10) CHARACTER SET latin1) DEFAULT CHARSET=utf8mb4",
 			"CREATE TABLE t (id INT PRIMARY KEY, v VARCHAR(10) CHARACTER SET utf8mb4) DEFAULT CHARSET=utf8mb4", both()},
+		// bug (Roundcube et al.): the legacy `BINARY` string-column modifier resolves to the
+		// charset's `_bin` collation. The generated DDL for a `varchar BINARY` target must
+		// apply to a real engine and yield a column whose stored form (COLLATE <cs>_bin) equals
+		// the target — i.e. ADD/MODIFY emits the resolved _bin collation, not the table default.
+		// (entry char-binary-attribute)
+		{"add-column-binary-modifier", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY) DEFAULT CHARSET=utf8mb4",
+			"CREATE TABLE t (id INT PRIMARY KEY, k VARCHAR(128) BINARY NOT NULL) DEFAULT CHARSET=utf8mb4", both()},
+		// MODIFY a plain column TO its BINARY (_bin) form — a genuine collation change that must
+		// be emitted and applied (proves the fix doesn't make plain↔BINARY an invisible no-op).
+		{"modify-column-to-binary-modifier", "t",
+			"CREATE TABLE t (id INT PRIMARY KEY, v VARCHAR(10)) DEFAULT CHARSET=utf8mb4",
+			"CREATE TABLE t (id INT PRIMARY KEY, v VARCHAR(10) BINARY) DEFAULT CHARSET=utf8mb4", both()},
 		{"modify-comment", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, v INT COMMENT 'a')",
 			"CREATE TABLE t (id INT PRIMARY KEY, v INT COMMENT 'b')", both()},
