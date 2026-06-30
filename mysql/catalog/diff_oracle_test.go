@@ -156,6 +156,15 @@ func diffIdempotenceProbes() []diffProbe {
 		{"implicit-table-opts", "CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(10))", "t", both()},
 		// explicit table charset + column echo (version-flagged echo rules).
 		{"charset-echo", "CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(10) CHARACTER SET utf8mb4, b VARCHAR(10)) DEFAULT CHARSET=utf8mb4", "t", both()},
+		// bug (Roundcube et al.): the legacy `BINARY` string-column modifier resolves to the
+		// charset's `_bin` collation (stored as CHARACTER SET <cs> COLLATE <cs>_bin on both
+		// versions). The user's `varchar(n) BINARY` form must diff EMPTY against that stored
+		// pair — the regression was a phantom MODIFY COLUMN on every no-op. Covers varchar/char/
+		// text/tinytext on a utf8mb4 table (-> utf8mb4_bin) plus an explicit ascii column
+		// (-> ascii_bin). (entry char-binary-attribute)
+		{"binary-modifier-utf8mb4", "CREATE TABLE t (id INT PRIMARY KEY, k VARCHAR(128) BINARY NOT NULL, c CHAR(5) BINARY, tx TEXT BINARY, ti TINYTEXT BINARY, ac VARCHAR(10) CHARACTER SET ascii BINARY) DEFAULT CHARSET=utf8mb4", "t", both()},
+		// latin1 table -> latin1_bin.
+		{"binary-modifier-latin1", "CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(50) BINARY) DEFAULT CHARSET=latin1", "t", both()},
 		// comment escaping (table COMMENT carries an embedded single-quoted token `'c'` via
 		// doubled quotes; the closing quote balances the literal — the previous fixture dropped it,
 		// so MySQL rejected the DDL and the probe silently skipped on both engines).

@@ -201,6 +201,41 @@ func normalizationProbes() []ruleProbe {
 		{"char-binary-length-default",
 			"CREATE TABLE t_char (a CHAR, b CHAR(10), d BINARY, e BINARY(16), f VARBINARY(32))",
 			"t_char", []string{"a", "b", "d", "e", "f"}, both()},
+		// bug (Roundcube/phpBB/MediaWiki dumps): the legacy `BINARY` column modifier on a
+		// string type is NOT the BINARY data type — it means "use the binary collation of
+		// the column's charset", which MySQL stores as an explicit
+		// `CHARACTER SET <cs> COLLATE <cs>_bin` pair on BOTH 5.7 and 8.0. The user's
+		// `varchar(n) BINARY` form must canonicalize onto that stored `<cs>_bin` pair, else
+		// every declarative no-op emits a phantom `MODIFY COLUMN`. (entry char-binary-attribute)
+		// The string-charset-attribute family (varchar/char/text/tinytext/mediumtext/longtext)
+		// all resolve to <table-charset>_bin; explicit table CHARSET keeps it version-stable.
+		{"char-binary-attribute-utf8mb4",
+			"CREATE TABLE t_binu (k VARCHAR(128) BINARY NOT NULL, c CHAR(5) BINARY, t TEXT BINARY, ti TINYTEXT BINARY, me MEDIUMTEXT BINARY, lo LONGTEXT BINARY) DEFAULT CHARSET=utf8mb4",
+			"t_binu", []string{"k", "c", "t", "ti", "me", "lo"}, both()},
+		// latin1 table → latin1_bin (the column inherits the table charset, BINARY picks its _bin).
+		{"char-binary-attribute-latin1",
+			"CREATE TABLE t_binl (a VARCHAR(50) BINARY, c CHAR(8) BINARY) DEFAULT CHARSET=latin1",
+			"t_binl", []string{"a", "c"}, both()},
+		// explicit column CHARACTER SET ascii + BINARY → ascii_bin (column charset, not table's).
+		{"char-binary-attribute-ascii-explicit",
+			"CREATE TABLE t_bina (a VARCHAR(10) CHARACTER SET ascii BINARY, c CHAR(4) CHARACTER SET ascii BINARY) DEFAULT CHARSET=utf8mb4",
+			"t_bina", []string{"a", "c"}, both()},
+		// utf8/utf8mb3 alias + BINARY → utf8_bin (5.7) / utf8mb3_bin (8.0); the fold must collapse them.
+		{"char-binary-attribute-utf8-alias",
+			"CREATE TABLE t_binm (a VARCHAR(10) CHARACTER SET utf8 BINARY, b VARCHAR(10) CHARACTER SET utf8mb3 BINARY) DEFAULT CHARSET=utf8mb4",
+			"t_binm", []string{"a", "b"}, both()},
+		// precedence edge: `BINARY` after the type silently OVERRIDES a trailing explicit
+		// COLLATE — MySQL stores utf8mb4_bin, NOT utf8mb4_unicode_ci (verified on the engine;
+		// the reversed order `COLLATE ... BINARY` is a syntax error MySQL rejects). So the
+		// BINARY-derived _bin collation must win the canonical key.
+		{"char-binary-attribute-collate-precedence",
+			"CREATE TABLE t_binp (a VARCHAR(10) BINARY COLLATE utf8mb4_unicode_ci) DEFAULT CHARSET=utf8mb4",
+			"t_binp", []string{"a"}, both()},
+		// don't over-match: a real BINARY/VARBINARY DATA TYPE column carries no charset/collation
+		// and must NOT be touched by the BINARY-modifier resolution (it has no _bin pair).
+		{"char-binary-attribute-real-binary-type",
+			"CREATE TABLE t_binr (a BINARY(8), b VARBINARY(16), c BLOB) DEFAULT CHARSET=utf8mb4",
+			"t_binr", []string{"a", "b", "c"}, both()},
 		{"text-blob-no-default-null",
 			"CREATE TABLE t_tb (g TEXT, h BLOB, j LONGTEXT, k TINYTEXT)",
 			"t_tb", []string{"g", "h", "j", "k"}, both()},
@@ -348,6 +383,26 @@ func TestOracle_MissedDiffGuards(t *testing.T) {
 			if n.CanonicalColumn(tA, cA) == n.CanonicalColumn(tB, cB) {
 				t.Errorf("[%s] bare column must follow table COLLATE change:\n A=%s\n B=%s",
 					o.name, n.CanonicalColumn(tA, cA), n.CanonicalColumn(tB, cB))
+			}
+		})
+
+		t.Run(o.name+"/binary-modifier-vs-plain-collation", func(t *testing.T) {
+			// BINARY-modifier over-collapse guard: `varchar BINARY` resolves to the
+			// `<cs>_bin` collation, which is a GENUINE difference from a plain `varchar`
+			// (table-default collation). The fix must not make them share a key, else a
+			// real collation change (plain → BINARY) would be an invisible diff. Loaded
+			// from the engine's authentic readbacks (binary side stores COLLATE utf8mb4_bin,
+			// plain side stores the table default).
+			ddl := "CREATE TABLE t (b VARCHAR(10) BINARY, p VARCHAR(10)) DEFAULT CHARSET=utf8mb4"
+			rb, ok := o.showCreate(t, "mdg_bin", ddl, "t")
+			if !ok {
+				t.Skip("could not obtain readback")
+			}
+			tbl, bCol := loadColumn(t, sc, rb, "t", "b")
+			_, pCol := loadColumn(t, sc, rb, "t", "p")
+			if n.CanonicalColumn(tbl, bCol) == n.CanonicalColumn(tbl, pCol) {
+				t.Errorf("[%s] varchar BINARY (_bin) and plain varchar (default) must differ:\n  b=%s\n  p=%s",
+					o.name, n.CanonicalColumn(tbl, bCol), n.CanonicalColumn(tbl, pCol))
 			}
 		})
 

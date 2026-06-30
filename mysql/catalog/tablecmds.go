@@ -1844,11 +1844,26 @@ func convertToBinaryType(col *Column, dt *nodes.DataType) *Column {
 	return col
 }
 
+// applyBinaryModifierCollation resolves the legacy BINARY column modifier
+// (e.g. `VARCHAR(n) BINARY`, `CHAR(n) BINARY`, `TEXT BINARY`) to the binary
+// collation of the column's effective charset. MySQL treats the trailing
+// BINARY attribute as shorthand for `COLLATE <charset>_bin` and stores the
+// column with an explicit `CHARACTER SET <cs> COLLATE <cs>_bin` pair (verified
+// on 5.7 + 8.0; see normalization.md entry char-binary-attribute). The charset
+// is resolved by the caller (column charset if specified, else table/db
+// default) before this runs, so col.Charset already holds the effective
+// charset. Both the charset and the derived collation must be flagged explicit
+// so the normalizer's ResolveColumnCharsetCollation honors the _bin collation
+// instead of falling back to the table-default collation — otherwise the
+// user's `BINARY` form and the stored `<cs>_bin` form canonicalize differently
+// and phantom-diff forever.
 func applyBinaryModifierCollation(col *Column, dt *nodes.DataType) {
 	if col == nil || dt == nil || !dt.Binary || col.Charset == "" {
 		return
 	}
 	col.Collation = fmt.Sprintf("%s_bin", normalizeCharsetName(col.Charset))
+	col.CharsetExplicit = true
+	col.CollationExplicit = true
 }
 
 // nodeToSQLGenerated converts an AST expression to SQL for use in a generated
