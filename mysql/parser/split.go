@@ -34,6 +34,12 @@ func (s Segment) Empty() bool {
 			if i+2 < len(t) && t[i+2] == '!' {
 				return false
 			}
+			// An unterminated block comment (no closing */ before EOF) is malformed
+			// input, not empty whitespace: keep the segment so the lexer surfaces a
+			// clean "unterminated comment" error instead of Split silently dropping it.
+			if !blockCommentTerminated(t, i) {
+				return false
+			}
 			prev := i
 			i = skipBlockCommentMySQL(t, i)
 			if i == prev {
@@ -539,4 +545,24 @@ func skipBlockCommentMySQL(sql string, i int) int {
 		}
 	}
 	return i
+}
+
+// blockCommentTerminated reports whether the block comment starting at i (on "/*")
+// has a matching closing */ before EOF. Used by Segment.Empty to distinguish a
+// well-formed empty comment from malformed, unterminated input.
+func blockCommentTerminated(sql string, i int) bool {
+	i += 2 // skip /*
+	depth := 1
+	for i < len(sql) && depth > 0 {
+		if sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*' {
+			depth++
+			i += 2
+		} else if sql[i] == '*' && i+1 < len(sql) && sql[i+1] == '/' {
+			depth--
+			i += 2
+		} else {
+			i++
+		}
+	}
+	return depth == 0
 }
