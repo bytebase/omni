@@ -49,6 +49,81 @@ func TestParenthesizedJoinGroup(t *testing.T) {
 	}
 }
 
+// TestParenthesizedJoinCompoundOn pins the residual case #356 did not cover: an
+// aliased parenthesized join group whose ON condition is COMPOUND (AND/OR), used
+// as the left operand of a further top-level join. MySQL's SHOW CREATE VIEW
+// double-wraps a compound ON — `on(((a = b) and (c = d)))` — and a redundant
+// single-condition wrap — `on(((a = b)))`. The leading `((` inside such an ON
+// must parse as a parenthesized scalar expression, NOT a subquery. This is the
+// exact shape of the employees `current_dept_emp` view.
+func TestParenthesizedJoinCompoundOn(t *testing.T) {
+	for _, sql := range []string{
+		// compound (AND) ON inside a parenthesized aliased join group
+		"SELECT * FROM (`a` `d` JOIN `b` `l` ON((`d`.`x` = `l`.`x`) AND (`d`.`y` = `l`.`y`)))",
+		// double-wrapped compound ON (the exact SHOW CREATE VIEW rendering)
+		"SELECT * FROM (`a` `d` JOIN `b` `l` ON(((`d`.`x` = `l`.`x`) AND (`d`.`y` = `l`.`y`))))",
+		// redundant-wrapped single-condition ON
+		"SELECT * FROM (`a` `d` JOIN `b` `l` ON(((`d`.`x` = `l`.`x`))))",
+		// aliased compound-ON paren group as LEFT operand of a further join (employees shape)
+		"SELECT * FROM (`a` `d` JOIN `b` `l` ON(((`d`.`x` = `l`.`x`) AND (`d`.`y` = `l`.`y`)))) JOIN `c` `dp` ON((`d`.`z` = `dp`.`z`))",
+		// the exact employees current_dept_emp FROM clause
+		"SELECT 1 FROM ((`dept_emp` `d` JOIN `dept_emp_latest_date` `l` ON(((`d`.`emp_no` = `l`.`emp_no`) AND (`d`.`from_date` = `l`.`from_date`)))) JOIN `departments` `dp` ON((`d`.`dept_no` = `dp`.`dept_no`)))",
+		// the full employees current_dept_emp CREATE VIEW (engine-emitted canonical form)
+		"CREATE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `current_dept_emp` AS select `l`.`emp_no` AS `emp_no`,`d`.`dept_no` AS `dept_no`,`l`.`from_date` AS `from_date`,`l`.`to_date` AS `to_date` from ((`dept_emp` `d` join `dept_emp_latest_date` `l` on(((`d`.`emp_no` = `l`.`emp_no`) and (`d`.`from_date` = `l`.`from_date`)))) join `departments` `dp` on((`d`.`dept_no` = `dp`.`dept_no`)))",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// TestParenthesizedScalarExprNotSubquery guards the disambiguation on the
+// expression side: a doubly (or more) parenthesized SCALAR expression `((expr))`
+// — anywhere an expression is parsed — must NOT be misread as a subquery. These
+// are the redundant-paren forms MySQL emits and that a fixed one-token '(('
+// lookahead wrongly classified as a query expression.
+func TestParenthesizedScalarExprNotSubquery(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT ((1))",
+		"SELECT (((1 + 2)))",
+		"SELECT ((a = b)) FROM t",
+		"SELECT * FROM t WHERE ((a = b) AND (c = d))",
+		"SELECT * FROM t WHERE (((a = b)))",
+		"SELECT * FROM t WHERE ((a > 1))",
+		"SELECT ((a)) + ((b)) FROM t",
+		"SELECT * FROM t WHERE a IN ((1), (2))",
+		"SELECT (SELECT ((1)))",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// TestParenthesizedSubqueryStillSubquery guards the OTHER side of the same
+// disambiguation: a '(' run that ultimately opens a query primary must still be
+// read as a subquery in expression contexts (scalar subquery, IN, EXISTS,
+// quantified), including the doubly-parenthesized set-op forms.
+func TestParenthesizedSubqueryStillSubquery(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT (SELECT 1)",
+		"SELECT ((SELECT 1))",
+		"SELECT (((SELECT 1)))",
+		"SELECT * FROM t WHERE a IN (SELECT x FROM u)",
+		"SELECT * FROM t WHERE a IN ((SELECT x FROM u))",
+		"SELECT * FROM t WHERE EXISTS (SELECT 1)",
+		"SELECT * FROM t WHERE EXISTS ((SELECT 1))",
+		"SELECT * FROM t WHERE a = (SELECT MAX(x) FROM u)",
+		"SELECT * FROM t WHERE a > ALL (SELECT x FROM u)",
+		"SELECT * FROM t WHERE a > ALL ((SELECT x FROM u))",
+		"SELECT * FROM t WHERE a = ((SELECT 1) UNION (SELECT 2))",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
 // TestParenthesizedJoinGroupRegression guards the derived-table side of the
 // disambiguation: a '(' run that ultimately opens a query primary must still be
 // parsed as a derived-table subquery (with its alias / column list), and plain /

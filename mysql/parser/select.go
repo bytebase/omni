@@ -408,8 +408,14 @@ func (p *Parser) isQueryExpressionStart() bool {
 	if p.cur.Type != '(' {
 		return false
 	}
-	next := p.peekNext()
-	return isQueryPrimaryStartToken(next.Type) || next.Type == '('
+	// A leading run of '(' may open either a parenthesized query expression
+	// — `((SELECT ...))`, `((SELECT 1) UNION (SELECT 2))` — or a parenthesized
+	// scalar expression — `((a = b))`, the redundant-paren form MySQL emits for
+	// a view's join ON condition (SHOW CREATE VIEW renders `on(((a) and (b)))`).
+	// A fixed one-token lookahead cannot tell them apart; scan past the run of
+	// '(' to the first non-'(' token — a query primary (SELECT/WITH/TABLE/VALUES)
+	// means a query expression, anything else means a scalar expression.
+	return isQueryPrimaryStartToken(p.firstTokenPastParens().Type)
 }
 
 // scanState captures the full lexical scan position so a speculative lookahead
@@ -438,13 +444,16 @@ func (p *Parser) restoreScan(s scanState) {
 
 // firstTokenPastParens returns the first token at or after the current position
 // that is not an opening parenthesis, without consuming input. It is the
-// disambiguator for a FROM-clause table factor that begins with '(': a run of
-// '(' may open either a (possibly nested) derived-table subquery
-// — `((SELECT ...))` — or a (possibly nested) parenthesized join group
-// — `((a JOIN b) JOIN c)`. MySQL's grammar distinguishes them by whether the
-// innermost head is a query primary (SELECT/WITH/TABLE/VALUES) or a table
-// reference; a fixed one-token lookahead on '(' cannot, so we scan past the
-// parens speculatively and rewind.
+// disambiguator for constructs that begin with a run of '(' whose meaning turns
+// on the innermost head:
+//   - a FROM-clause table factor — a (possibly nested) derived-table subquery
+//     `((SELECT ...))` vs. a parenthesized join group `((a JOIN b) JOIN c)`;
+//   - an expression '(' — a parenthesized query expression `((SELECT ...))` vs.
+//     a parenthesized scalar expression `((a = b))`.
+//
+// In each case MySQL's grammar distinguishes by whether the innermost head is a
+// query primary (SELECT/WITH/TABLE/VALUES) or not; a fixed one-token lookahead
+// on '(' cannot, so we scan past the parens speculatively and rewind.
 func (p *Parser) firstTokenPastParens() Token {
 	saved := p.saveScan()
 	defer p.restoreScan(saved)
