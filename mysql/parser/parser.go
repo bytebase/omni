@@ -69,10 +69,18 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 		}
 		stmt, err := p.parseStmt()
 		if err != nil {
+			// A lexing error (unterminated comment/string/identifier) is the more
+			// specific cause; report it in preference to the derived syntax error.
+			if lexErr := p.lexerError(); lexErr != nil {
+				return nil, p.enrichError(lexErr)
+			}
 			return nil, p.enrichError(err)
 		}
 		if stmt == nil {
 			// parseStmt returned nil without error — unconsumed tokens remain.
+			if lexErr := p.lexerError(); lexErr != nil {
+				return nil, p.enrichError(lexErr)
+			}
 			if p.cur.Type != tokEOF {
 				return nil, p.syntaxErrorAtCur()
 			}
@@ -81,10 +89,29 @@ func parseSingle(sql string, baseOffset int) (*nodes.List, error) {
 		stmts = append(stmts, stmt)
 	}
 
+	// A malformed token that ran to EOF without its closing delimiter is recorded
+	// on the lexer rather than panicking; surface it as a clean parse error even
+	// when the statements otherwise parsed successfully.
+	if lexErr := p.lexerError(); lexErr != nil {
+		return nil, p.enrichError(lexErr)
+	}
+
 	if len(stmts) == 0 {
 		return &nodes.List{}, nil
 	}
 	return &nodes.List{Items: stmts}, nil
+}
+
+// lexerError converts a recorded lexer error, if any, into a ParseError with an
+// absolute position. It returns nil when the lexer recorded no error.
+func (p *Parser) lexerError() *ParseError {
+	if !p.lexer.hasErr {
+		return nil
+	}
+	return &ParseError{
+		Message:  p.lexer.errMsg,
+		Position: p.lexer.errPos + p.lexer.baseOffset,
+	}
 }
 
 // advance consumes the current token and moves to the next one.
@@ -306,4 +333,3 @@ func extractLineStatic(input string, offset int) string {
 	}
 	return line
 }
-

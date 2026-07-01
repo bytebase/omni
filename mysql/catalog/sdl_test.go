@@ -168,6 +168,55 @@ func TestSDLValidation(t *testing.T) {
 	}
 }
 
+// TestSDLLoad_UnterminatedComment_NoPanic guards the declarative entry point
+// against malformed input. An unterminated /*! ... */ executable comment (no
+// closing */) once panicked the lexer with "slice bounds out of range"; a
+// malformed schema submitted to LoadSDL must return a clean error, never crash.
+func TestSDLLoad_UnterminatedComment_NoPanic(t *testing.T) {
+	cases := []struct {
+		name string
+		sql  string
+	}{
+		// The confirmed real-world repro (no closing */ on the version comment).
+		{"versioned_partition_comment", "CREATE TABLE `t` (`id` int NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB /*!50100 PARTITION BY HASH (`id`)"},
+		{"bare_exec_comment", "CREATE TABLE `t` (`id` int) /*! FOO"},
+		{"plain_block_comment", "CREATE TABLE `t` (`id` int) /* nope"},
+		{"unterminated_string", "CREATE TABLE `t` (`id` int) COMMENT='oops"},
+		{"unterminated_ident", "CREATE TABLE `t"},
+		// Trailing unterminated comment after a valid statement — the trailing
+		// segment must not be silently dropped by the splitter.
+		{"trailing_unterminated_comment", "CREATE TABLE `t` (`id` int); /*!50100"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Fatalf("LoadSDL panicked on %q: %v", tc.sql, r)
+				}
+			}()
+			c, err := LoadSDL(tc.sql)
+			if err == nil {
+				t.Fatalf("expected a clean error for malformed input, got nil (catalog=%v)", c)
+			}
+		})
+	}
+}
+
+// TestSDLLoad_ValidVersionComment_Partition confirms the fix did not break the
+// valid, terminated version-comment form: a /*!50100 PARTITION BY ... */ clause
+// still loads and the table carries its partitioning.
+func TestSDLLoad_ValidVersionComment_Partition(t *testing.T) {
+	sql := "CREATE DATABASE app;\nUSE app;\nCREATE TABLE `t` (`id` int NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB /*!50100 PARTITION BY HASH (`id`) PARTITIONS 4 */;"
+	db := loadSDLForDB(t, sql, "app")
+	tbl := db.GetTable("t")
+	if tbl == nil {
+		t.Fatal("expected table t")
+	}
+	if tbl.Partitioning == nil {
+		t.Error("expected partitioning to survive the /*!50100 ... */ version comment, got none")
+	}
+}
+
 // TestSDLForwardForeignKey verifies a table with a forward FK reference (the
 // referenced table is declared *after* the referencing table) loads cleanly.
 // LoadSQL would fail here because foreign_key_checks defaults on and the parent

@@ -1696,6 +1696,78 @@ type Lexer struct {
 	prevToken    int // type of the previously emitted token
 	prevTokenEnd int // end position of the previously emitted token (for adjacency checks)
 	baseOffset   int // added to all token Loc values for absolute positioning
+
+	// errMsg/errPos record the first lexing error (unterminated comment, string,
+	// or quoted identifier). A malformed token that runs to EOF without its closing
+	// delimiter must never index past the buffer; instead the scan stops at EOF and
+	// records the error here, which the parser surfaces as a clean ParseError.
+	// errPos is stored in ORIGINAL-input coordinates (see spliceGaps).
+	errMsg string
+	errPos int
+	hasErr bool
+
+	// spliceGaps records byte ranges removed from l.input by executable-comment
+	// splices, so a position in the mutated buffer maps back to the original input.
+	// Splicing /*!NNNNN ... */ into just its inner content deletes two disjoint
+	// runs — the leading "/*!NNNNN" and the trailing "*/" — at two different mutated
+	// offsets. A position maps back by adding the sizes of every gap that begins at
+	// or before it (see originalPos): a position INSIDE the retained body is shifted
+	// only by the leading gap, one AFTER the body by both.
+	spliceGaps []spliceGap
+}
+
+// spliceGap is one run of bytes removed from l.input at mutated offset `at`.
+type spliceGap struct {
+	at      int // offset in the mutated buffer where the bytes were removed
+	removed int // number of bytes removed there
+}
+
+// originalPos maps a position in the current (spliced) l.input back to an offset
+// in the original input by adding every gap that starts at or before it.
+func (l *Lexer) originalPos(pos int) int {
+	orig := pos
+	for _, g := range l.spliceGaps {
+		if g.at <= pos {
+			orig += g.removed
+		}
+	}
+	return orig
+}
+
+// shiftGapsForSplice keeps existing spliceGaps in current-buffer coordinates when a
+// splice deletes two disjoint byte ranges from the CURRENT buffer: the leading run
+// [l.pos, vpos) and the trailing run [closeStart, closeStart+2) (vpos <= closeStart).
+// Both membership tests are evaluated against each gap's pre-splice offset and the
+// combined left-shift is applied once, so the two deletions don't interfere. Any gap
+// recorded by an earlier splice that lies to the right of a deleted range (e.g. an
+// outer comment's trailing "*/" when this is a nested comment inside its body) moves
+// left accordingly, preventing its at from drifting stale.
+func (l *Lexer) shiftGapsForSplice(leadStart, leadEnd, tailStart int) {
+	lead := leadEnd - leadStart
+	for i := range l.spliceGaps {
+		at := l.spliceGaps[i].at
+		shift := 0
+		if at >= leadEnd { // past the leading run [leadStart, leadEnd)
+			shift += lead
+		}
+		if at >= tailStart+2 { // past the trailing "*/" [tailStart, tailStart+2)
+			shift += 2
+		}
+		l.spliceGaps[i].at = at - shift
+	}
+}
+
+// setError records the first lexing error and ignores any later ones. Because the
+// lexer scans strictly left-to-right, the first error recorded is also the leftmost
+// (earliest) in the input. pos is a position in the current (possibly spliced)
+// l.input; it is translated back to original-input coordinates.
+func (l *Lexer) setError(msg string, pos int) {
+	if l.hasErr {
+		return
+	}
+	l.hasErr = true
+	l.errMsg = msg
+	l.errPos = l.originalPos(pos)
 }
 
 // NewLexer creates a new MySQL lexer for the given input.
@@ -1860,6 +1932,7 @@ func (l *Lexer) skipWhitespaceAndComments() {
 
 		// Block comment: /* ... */
 		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+			commentStart := l.pos
 			// MySQL conditional comments: /*!NNNNN ... */ or /*! ... */
 			// These should be parsed as SQL, not skipped.
 			if l.pos+2 < len(l.input) && l.input[l.pos+2] == '!' {
@@ -1870,13 +1943,16 @@ func (l *Lexer) skipWhitespaceAndComments() {
 				for vpos < len(l.input) && l.input[vpos] >= '0' && l.input[vpos] <= '9' {
 					vpos++
 				}
-				// Find the matching */
+				// Find the matching */. closeStart marks the '*' of the closing "*/"
+				// when found; it stays -1 if EOF is reached first.
 				end := vpos
+				closeStart := -1
 				depth := 1
 				for end < len(l.input) && depth > 0 {
 					if l.input[end] == '*' && end+1 < len(l.input) && l.input[end+1] == '/' {
 						depth--
 						if depth == 0 {
+							closeStart = end
 							break
 						}
 						end += 2
@@ -1887,16 +1963,37 @@ func (l *Lexer) skipWhitespaceAndComments() {
 						end++
 					}
 				}
+				if closeStart < 0 {
+					// Unterminated executable comment: no closing */ before EOF.
+					// Do NOT slice past the buffer (the historical `l.input[end+2:]`
+					// panicked here). Consume to EOF and record a clean lex error.
+					l.setError("unterminated comment", commentStart)
+					l.pos = len(l.input)
+					return
+				}
 				// Extract the inner content and splice it into the input,
-				// replacing the conditional comment with its content.
-				inner := l.input[vpos:end]
-				l.input = l.input[:l.pos] + inner + l.input[end+2:]
+				// replacing the conditional comment with its content. closeStart+2
+				// is in-bounds because closeStart points at '*' and closeStart+1 at '/'.
+				inner := l.input[vpos:closeStart]
+				// This splice deletes two disjoint byte ranges from the CURRENT
+				// buffer: the leading "/*!NNNNN" at [l.pos, vpos) and the trailing
+				// "*/" at [closeStart, closeStart+2). All spliceGaps.at values are kept
+				// in current-buffer coordinates, so first shift any earlier gaps that
+				// sit to the right of these ranges (nested-comment case), then record
+				// this splice's own two gaps. After the leading run is removed the
+				// trailing "*/" sits at l.pos+len(inner).
+				l.shiftGapsForSplice(l.pos, vpos, closeStart)
+				if leading := vpos - l.pos; leading > 0 {
+					l.spliceGaps = append(l.spliceGaps, spliceGap{at: l.pos, removed: leading})
+				}
+				l.spliceGaps = append(l.spliceGaps, spliceGap{at: l.pos + len(inner), removed: 2})
+				l.input = l.input[:l.pos] + inner + l.input[closeStart+2:]
 				// Don't advance l.pos — re-scan from the start of the inner content.
 				continue
 			}
 
 			l.pos += 2
-			// Regular block comment: skip everything.
+			// Regular block comment: skip everything up to the closing */.
 			depth := 1
 			for l.pos < len(l.input) && depth > 0 {
 				if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
@@ -1908,6 +2005,11 @@ func (l *Lexer) skipWhitespaceAndComments() {
 				} else {
 					l.pos++
 				}
+			}
+			if depth > 0 {
+				// Unterminated block comment: reached EOF before the closing */.
+				l.setError("unterminated comment", commentStart)
+				return
 			}
 			continue
 		}
@@ -1937,6 +2039,11 @@ func (l *Lexer) scanVariable() Token {
 		name = l.input[nameStart:l.pos]
 		if l.pos < len(l.input) {
 			l.pos++ // skip closing backtick
+		} else {
+			// EOF reached before the closing backtick: unterminated `-quoted
+			// variable name. Record a clean error rather than accepting a
+			// half-open identifier (mirrors scanBacktickIdent).
+			l.setError("unterminated quoted identifier", start)
 		}
 	} else {
 		nameStart := l.pos
@@ -1958,6 +2065,7 @@ func (l *Lexer) scanBacktickIdent() Token {
 	start := l.pos
 	l.pos++ // skip opening backtick
 	var sb strings.Builder
+	closed := false
 	for l.pos < len(l.input) {
 		if l.input[l.pos] == '`' {
 			// Double backtick is an escape
@@ -1966,12 +2074,16 @@ func (l *Lexer) scanBacktickIdent() Token {
 				l.pos += 2
 			} else {
 				l.pos++ // skip closing backtick
+				closed = true
 				break
 			}
 		} else {
 			sb.WriteByte(l.input[l.pos])
 			l.pos++
 		}
+	}
+	if !closed {
+		l.setError("unterminated quoted identifier", start)
 	}
 	return Token{Type: tokIDENT, Str: sb.String(), Loc: start}
 }
@@ -1980,6 +2092,7 @@ func (l *Lexer) scanString(quote byte) Token {
 	start := l.pos
 	l.pos++ // skip opening quote
 	var sb strings.Builder
+	closed := false
 	for l.pos < len(l.input) {
 		ch := l.input[l.pos]
 		if ch == quote {
@@ -1989,6 +2102,7 @@ func (l *Lexer) scanString(quote byte) Token {
 				l.pos += 2
 			} else {
 				l.pos++ // skip closing quote
+				closed = true
 				break
 			}
 		} else if ch == '\\' {
@@ -2029,6 +2143,9 @@ func (l *Lexer) scanString(quote byte) Token {
 			sb.WriteByte(ch)
 			l.pos++
 		}
+	}
+	if !closed {
+		l.setError("unterminated string literal", start)
 	}
 	return Token{Type: tokSCONST, Str: sb.String(), Loc: start}
 }
