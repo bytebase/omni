@@ -132,6 +132,31 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 			"CREATE VIEW base AS SELECT t.a AS a, u.y AS y, w.n AS n FROM t JOIN u ON t.c = u.x JOIN w ON u.y = w.m",
 			"CREATE VIEW v AS SELECT a, n FROM base WHERE a > 0",
 		}, []string{"t", "u", "w"}, []string{"base", "v"}, both()},
+		// Aliased parenthesized join group as the LEFT operand of a further top-level
+		// join, with a COMPOUND (AND) ON condition — the exact employees current_dept_emp
+		// shape. The engine stores the compound ON double-wrapped: `on(((a) and (b)))`, and
+		// the leading `((` there must be read as a parenthesized scalar expression, not a
+		// subquery. This is the residual gap #356's un-aliased/simple-ON guards did not
+		// cover; the join is also over a base VIEW (dept_emp_latest_date).
+		{"join-aliased-compound-on", []string{
+			"CREATE TABLE dept_emp (emp_no INT NOT NULL, dept_no CHAR(4) NOT NULL, from_date DATE NOT NULL, to_date DATE NOT NULL, PRIMARY KEY (emp_no, dept_no))",
+			"CREATE TABLE departments (dept_no CHAR(4) NOT NULL, dept_name VARCHAR(40) NOT NULL, PRIMARY KEY (dept_no))",
+			"CREATE VIEW dept_emp_latest_date AS SELECT emp_no, MAX(from_date) AS from_date, MAX(to_date) AS to_date FROM dept_emp GROUP BY emp_no",
+			"CREATE VIEW current_dept_emp AS SELECT l.emp_no, d.dept_no, l.from_date, l.to_date " +
+				"FROM dept_emp d " +
+				"JOIN dept_emp_latest_date l ON d.emp_no = l.emp_no AND d.from_date = l.from_date " +
+				"JOIN departments dp ON d.dept_no = dp.dept_no",
+		}, []string{"dept_emp", "departments"}, []string{"dept_emp_latest_date", "current_dept_emp"}, both()},
+		// Aliased 3-table LEFT/INNER mix with a compound ON on the parenthesized left
+		// operand (compound-ON on both the nested and the outer join).
+		{"join-aliased-left-inner-compound-on", []string{
+			"CREATE TABLE a (id INT, k INT, v INT)",
+			"CREATE TABLE b (id INT, k INT, w INT)",
+			"CREATE TABLE c (id INT, k INT, z INT)",
+			"CREATE VIEW v AS SELECT x.v, y.w, q.z FROM a x " +
+				"LEFT JOIN b y ON x.id = y.id AND x.k = y.k " +
+				"INNER JOIN c q ON y.id = q.id AND y.k = q.k",
+		}, []string{"a", "b", "c"}, []string{"v"}, both()},
 		// Derived table (subquery) in FROM — must still parse as a subquery, not a
 		// join group (regression guard for the disambiguation).
 		{"derived-table-from", []string{
@@ -415,6 +440,21 @@ func viewMigrationProbes() []viewMigrationProbe {
 					"JOIN actor ON film_actor.actor_id = actor.actor_id "+
 					"GROUP BY film.film_id"),
 			[]string{"category", "film_category", "film", "film_actor", "actor"}, []string{"v"}, both()},
+		// CREATE the employees current_dept_emp shape: an aliased parenthesized join
+		// group (compound AND ON) as the left operand of a further join, over a base
+		// view. Guards the `((expr))` scalar-vs-subquery disambiguation end-to-end.
+		{"create-employees-current-dept-emp",
+			base("CREATE TABLE dept_emp (emp_no INT NOT NULL, dept_no CHAR(4) NOT NULL, from_date DATE NOT NULL, to_date DATE NOT NULL, PRIMARY KEY (emp_no, dept_no))",
+				"CREATE TABLE departments (dept_no CHAR(4) NOT NULL, dept_name VARCHAR(40) NOT NULL, PRIMARY KEY (dept_no))",
+				"CREATE VIEW dept_emp_latest_date AS SELECT emp_no, MAX(from_date) AS from_date, MAX(to_date) AS to_date FROM dept_emp GROUP BY emp_no"),
+			base("CREATE TABLE dept_emp (emp_no INT NOT NULL, dept_no CHAR(4) NOT NULL, from_date DATE NOT NULL, to_date DATE NOT NULL, PRIMARY KEY (emp_no, dept_no))",
+				"CREATE TABLE departments (dept_no CHAR(4) NOT NULL, dept_name VARCHAR(40) NOT NULL, PRIMARY KEY (dept_no))",
+				"CREATE VIEW dept_emp_latest_date AS SELECT emp_no, MAX(from_date) AS from_date, MAX(to_date) AS to_date FROM dept_emp GROUP BY emp_no",
+				"CREATE VIEW current_dept_emp AS SELECT l.emp_no, d.dept_no, l.from_date, l.to_date "+
+					"FROM dept_emp d "+
+					"JOIN dept_emp_latest_date l ON d.emp_no = l.emp_no AND d.from_date = l.from_date "+
+					"JOIN departments dp ON d.dept_no = dp.dept_no"),
+			[]string{"dept_emp", "departments"}, []string{"dept_emp_latest_date", "current_dept_emp"}, both()},
 		// REPLACE a single-table body with a multi-table-join body.
 		{"replace-into-multi-join",
 			base("CREATE TABLE t (a INT, c INT)", "CREATE TABLE u (x INT, y INT)", "CREATE TABLE w (m INT, n INT)",
