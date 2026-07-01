@@ -78,6 +78,72 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 			"CREATE TABLE u (x INT, y INT)",
 			"CREATE VIEW v AS SELECT t.a, u.y FROM t LEFT JOIN u ON t.c = u.x",
 		}, []string{"t", "u"}, []string{"v"}, both()},
+		// Multi-table joins: the engine stores these as nested parenthesized join
+		// groups — `((t join u on(..)) join w on(..))` — the canonical SHOW CREATE
+		// VIEW form that the FROM-clause table_reference parser must accept. These
+		// are the regression guards for the parenthesized-join-group parser fix.
+		{"join-3-table", []string{
+			"CREATE TABLE t (a INT, c INT)",
+			"CREATE TABLE u (x INT, y INT)",
+			"CREATE TABLE w (m INT, n INT)",
+			"CREATE VIEW v AS SELECT t.a, u.y, w.n FROM t JOIN u ON t.c = u.x JOIN w ON u.y = w.m",
+		}, []string{"t", "u", "w"}, []string{"v"}, both()},
+		{"join-4-table", []string{
+			"CREATE TABLE t (a INT, c INT)",
+			"CREATE TABLE u (x INT, y INT)",
+			"CREATE TABLE w (m INT, n INT)",
+			"CREATE TABLE z (p INT, q INT)",
+			"CREATE VIEW v AS SELECT t.a FROM t JOIN u ON t.c = u.x JOIN w ON u.y = w.m JOIN z ON w.n = z.p",
+		}, []string{"t", "u", "w", "z"}, []string{"v"}, both()},
+		// LEFT/INNER mix over 3+ tables (the sakila film_list join shape).
+		{"join-left-inner-mix", []string{
+			"CREATE TABLE category (category_id INT, name VARCHAR(50))",
+			"CREATE TABLE film_category (film_id INT, category_id INT)",
+			"CREATE TABLE film (film_id INT, title VARCHAR(50))",
+			"CREATE TABLE film_actor (actor_id INT, film_id INT)",
+			"CREATE TABLE actor (actor_id INT, name VARCHAR(50))",
+			"CREATE VIEW v AS SELECT film.film_id AS FID, category.name AS category, actor.name AS actor " +
+				"FROM category " +
+				"LEFT JOIN film_category ON category.category_id = film_category.category_id " +
+				"LEFT JOIN film ON film_category.film_id = film.film_id " +
+				"JOIN film_actor ON film.film_id = film_actor.film_id " +
+				"JOIN actor ON film_actor.actor_id = actor.actor_id",
+		}, []string{"category", "film_category", "film", "film_actor", "actor"}, []string{"v"}, both()},
+		// GROUP BY over a multi-table join (full sakila film_list shape).
+		{"join-group-by", []string{
+			"CREATE TABLE category (category_id INT, name VARCHAR(50))",
+			"CREATE TABLE film_category (film_id INT, category_id INT)",
+			"CREATE TABLE film (film_id INT, title VARCHAR(50))",
+			"CREATE TABLE film_actor (actor_id INT, film_id INT)",
+			"CREATE TABLE actor (actor_id INT, name VARCHAR(50))",
+			"CREATE VIEW v AS SELECT film.film_id AS FID, COUNT(*) AS n " +
+				"FROM category " +
+				"LEFT JOIN film_category ON category.category_id = film_category.category_id " +
+				"LEFT JOIN film ON film_category.film_id = film.film_id " +
+				"JOIN film_actor ON film.film_id = film_actor.film_id " +
+				"JOIN actor ON film_actor.actor_id = actor.actor_id " +
+				"GROUP BY film.film_id",
+		}, []string{"category", "film_category", "film", "film_actor", "actor"}, []string{"v"}, both()},
+		// view-on-view layered over a multi-table-join base view.
+		{"view-on-multi-join-view", []string{
+			"CREATE TABLE t (a INT, c INT)",
+			"CREATE TABLE u (x INT, y INT)",
+			"CREATE TABLE w (m INT, n INT)",
+			"CREATE VIEW base AS SELECT t.a AS a, u.y AS y, w.n AS n FROM t JOIN u ON t.c = u.x JOIN w ON u.y = w.m",
+			"CREATE VIEW v AS SELECT a, n FROM base WHERE a > 0",
+		}, []string{"t", "u", "w"}, []string{"base", "v"}, both()},
+		// Derived table (subquery) in FROM — must still parse as a subquery, not a
+		// join group (regression guard for the disambiguation).
+		{"derived-table-from", []string{
+			"CREATE TABLE t (a INT, b INT)",
+			"CREATE VIEW v AS SELECT d.a FROM (SELECT a, b FROM t WHERE b > 0) d",
+		}, []string{"t"}, []string{"v"}, both()},
+		// Derived table joined to a base table inside the FROM (mixed subquery + join).
+		{"derived-table-join", []string{
+			"CREATE TABLE t (a INT, c INT)",
+			"CREATE TABLE u (x INT, y INT)",
+			"CREATE VIEW v AS SELECT t.a, d.y FROM t JOIN (SELECT x, y FROM u) d ON t.c = d.x",
+		}, []string{"t", "u"}, []string{"v"}, both()},
 		{"algorithm-merge", []string{
 			"CREATE TABLE t (a INT)",
 			"CREATE ALGORITHM=MERGE VIEW v AS SELECT a FROM t",
@@ -322,6 +388,40 @@ func viewMigrationProbes() []viewMigrationProbe {
 			base("CREATE TABLE t (id INT)"),
 			base("CREATE TABLE t (id INT)", "CREATE VIEW a AS SELECT id AS b FROM t", "CREATE VIEW b AS SELECT b FROM a"),
 			[]string{"t"}, []string{"a", "b"}, both()},
+		// ---- multi-table-join views (parenthesized-join-group apply-correctness) ----
+		// CREATE a view whose stored body is a nested parenthesized join group.
+		{"create-multi-join",
+			base("CREATE TABLE t (a INT, c INT)", "CREATE TABLE u (x INT, y INT)", "CREATE TABLE w (m INT, n INT)"),
+			base("CREATE TABLE t (a INT, c INT)", "CREATE TABLE u (x INT, y INT)", "CREATE TABLE w (m INT, n INT)",
+				"CREATE VIEW v AS SELECT t.a, u.y, w.n FROM t JOIN u ON t.c = u.x JOIN w ON u.y = w.m"),
+			[]string{"t", "u", "w"}, []string{"v"}, both()},
+		// CREATE the sakila film_list join shape (5-table LEFT/INNER mix + GROUP BY).
+		{"create-sakila-film-list",
+			base("CREATE TABLE category (category_id INT, name VARCHAR(50))",
+				"CREATE TABLE film_category (film_id INT, category_id INT)",
+				"CREATE TABLE film (film_id INT, title VARCHAR(50))",
+				"CREATE TABLE film_actor (actor_id INT, film_id INT)",
+				"CREATE TABLE actor (actor_id INT, name VARCHAR(50))"),
+			base("CREATE TABLE category (category_id INT, name VARCHAR(50))",
+				"CREATE TABLE film_category (film_id INT, category_id INT)",
+				"CREATE TABLE film (film_id INT, title VARCHAR(50))",
+				"CREATE TABLE film_actor (actor_id INT, film_id INT)",
+				"CREATE TABLE actor (actor_id INT, name VARCHAR(50))",
+				"CREATE VIEW v AS SELECT film.film_id AS FID, category.name AS category, actor.name AS actor "+
+					"FROM category "+
+					"LEFT JOIN film_category ON category.category_id = film_category.category_id "+
+					"LEFT JOIN film ON film_category.film_id = film.film_id "+
+					"JOIN film_actor ON film.film_id = film_actor.film_id "+
+					"JOIN actor ON film_actor.actor_id = actor.actor_id "+
+					"GROUP BY film.film_id"),
+			[]string{"category", "film_category", "film", "film_actor", "actor"}, []string{"v"}, both()},
+		// REPLACE a single-table body with a multi-table-join body.
+		{"replace-into-multi-join",
+			base("CREATE TABLE t (a INT, c INT)", "CREATE TABLE u (x INT, y INT)", "CREATE TABLE w (m INT, n INT)",
+				"CREATE VIEW v AS SELECT a FROM t"),
+			base("CREATE TABLE t (a INT, c INT)", "CREATE TABLE u (x INT, y INT)", "CREATE TABLE w (m INT, n INT)",
+				"CREATE VIEW v AS SELECT t.a, w.n FROM t JOIN u ON t.c = u.x JOIN w ON u.y = w.m"),
+			[]string{"t", "u", "w"}, []string{"v"}, both()},
 		// ---- REPLACE (modify body / options) ----
 		{"replace-body",
 			base("CREATE TABLE t (a INT, b INT)", "CREATE VIEW v AS SELECT a FROM t"),

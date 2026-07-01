@@ -412,6 +412,48 @@ func (p *Parser) isQueryExpressionStart() bool {
 	return isQueryPrimaryStartToken(next.Type) || next.Type == '('
 }
 
+// scanState captures the full lexical scan position so a speculative lookahead
+// can rewind without consuming input. The Lexer is a flat value (string + ints),
+// so a shallow copy snapshots its position; the buffered next token and the
+// current/previous tokens complete the parser's scan cursor.
+type scanState struct {
+	lexer   Lexer
+	cur     Token
+	prev    Token
+	nextBuf Token
+	hasNext bool
+}
+
+func (p *Parser) saveScan() scanState {
+	return scanState{lexer: *p.lexer, cur: p.cur, prev: p.prev, nextBuf: p.nextBuf, hasNext: p.hasNext}
+}
+
+func (p *Parser) restoreScan(s scanState) {
+	*p.lexer = s.lexer
+	p.cur = s.cur
+	p.prev = s.prev
+	p.nextBuf = s.nextBuf
+	p.hasNext = s.hasNext
+}
+
+// firstTokenPastParens returns the first token at or after the current position
+// that is not an opening parenthesis, without consuming input. It is the
+// disambiguator for a FROM-clause table factor that begins with '(': a run of
+// '(' may open either a (possibly nested) derived-table subquery
+// — `((SELECT ...))` — or a (possibly nested) parenthesized join group
+// — `((a JOIN b) JOIN c)`. MySQL's grammar distinguishes them by whether the
+// innermost head is a query primary (SELECT/WITH/TABLE/VALUES) or a table
+// reference; a fixed one-token lookahead on '(' cannot, so we scan past the
+// parens speculatively and rewind.
+func (p *Parser) firstTokenPastParens() Token {
+	saved := p.saveScan()
+	defer p.restoreScan(saved)
+	for p.cur.Type == '(' {
+		p.advance()
+	}
+	return p.cur
+}
+
 // parseSelectWithParens parses a parenthesized query expression (PostgreSQL's
 // select_with_parens): '(' select_no_parens ')'. It returns a WRAPPER node
 // whose ParenSource is the inner query; the wrapper's own ORDER BY / LIMIT hold
@@ -1127,9 +1169,15 @@ func (p *Parser) parseTableFactor() (nodes.TableExpr, error) {
 		startPos := p.pos()
 		p.advance()
 
-		// Subquery (derived table): (query_expression), including
-		// parenthesized set operations like ((SELECT ...) UNION (...)).
-		if p.isQueryExpressionStart() {
+		// Disambiguate the parenthesized table factor. A leading run of '(' may
+		// open either a derived-table subquery — `(SELECT ...)`, `((SELECT ...))`,
+		// `((SELECT ...) UNION (...))` — or a parenthesized join group using
+		// MySQL nested-join semantics — `(a JOIN b ON ...)`,
+		// `((a LEFT JOIN b ON ...) JOIN c ON ...)` (the canonical SHOW CREATE VIEW
+		// form for multi-table joins). The deciding token is the first one past
+		// the parens: a query primary (SELECT/WITH/TABLE/VALUES) means a subquery,
+		// anything else (a table reference) means a join group.
+		if isQueryPrimaryStartToken(p.firstTokenPastParens().Type) {
 			sel, err := p.parseSelectStmt()
 			if err != nil {
 				return nil, err
