@@ -532,10 +532,17 @@ func autoAlias(expr ast.ExprNode, exprStr string, position int) string {
 	case *ast.FloatLit:
 		return n.Value
 	case *ast.StringLit:
-		if n.Value == "" {
+		// An adjacent-literal run is named after its FIRST segment, not the
+		// folded value; an empty first segment falls back to Name_exp_N
+		// (oracle: SELECT '' 'b' → value 'b' named Name_exp_1).
+		name := n.Value
+		if n.Concatenated {
+			name = n.FirstSegment
+		}
+		if name == "" {
 			return fmt.Sprintf("Name_exp_%d", position)
 		}
-		return n.Value
+		return name
 	case *ast.NullLit:
 		return "NULL"
 	case *ast.BoolLit:

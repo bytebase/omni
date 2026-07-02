@@ -184,6 +184,18 @@ func diffIdempotenceProbes() []diffProbe {
 		// user form and the readback both carry it → empty diff). Idempotence guard for the
 		// rowFormatChanged gate.
 		{"row-format-explicit", "CREATE TABLE t (id INT PRIMARY KEY) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8", "t", both()},
+		// adjacent string-literal concatenation in a bare column DEFAULT: the user form
+		// DEFAULT 'x' 'y' ('x' 'y' 'z', "x" 'y') is stored as the folded DEFAULT 'xy'
+		// ('xyz', 'xy') — the user form must diff EMPTY against that readback.
+		{"adjacent-literal-default", `CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(20) DEFAULT 'x' 'y', b VARCHAR(20) DEFAULT 'x' 'y' 'z', c VARCHAR(20) DEFAULT "x" 'y')`, "t", both()},
+		// adjacency inside LIST COLUMNS partition values: VALUES IN ('a' 'b') is stored
+		// folded as VALUES IN ('ab').
+		{"adjacent-literal-partition", "CREATE TABLE t (c VARCHAR(10) NOT NULL PRIMARY KEY) PARTITION BY LIST COLUMNS(c) (PARTITION p0 VALUES IN ('a' 'b'), PARTITION p1 VALUES IN ('z'))", "t", both()},
+		// charset-introduced string defaults, single and folded: the introducer is not
+		// part of the stored default (SHOW CREATE echoes DEFAULT 'xy' / DEFAULT 'z'), so
+		// the user form must diff EMPTY against the readback and never render
+		// DEFAULT '_utf8mb4'xy'' (invalid SQL, the codex-review P2 case).
+		{"adjacent-literal-default-introducer", "CREATE TABLE t (id INT PRIMARY KEY, a VARCHAR(20) CHARACTER SET utf8mb4 DEFAULT _utf8mb4'x' 'y', b VARCHAR(20) CHARACTER SET utf8mb4 DEFAULT _utf8mb4'z') DEFAULT CHARSET=utf8mb4", "t", both()},
 	}
 }
 

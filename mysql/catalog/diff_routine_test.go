@@ -79,6 +79,11 @@ func routineIdempotenceProbes() []routineProbe {
 		{"proc-default-in-direction", "PROCEDURE", "p", "CREATE PROCEDURE p(x INT, y INT) BEGIN SET @v = x + y; END", both()},
 		{"proc-all-characteristics", "PROCEDURE", "p", "CREATE PROCEDURE p(IN a INT) DETERMINISTIC READS SQL DATA SQL SECURITY INVOKER COMMENT 'pc' BEGIN SET @v = a; END", both()},
 		{"proc-explicit-defaults", "PROCEDURE", "p", "CREATE PROCEDURE p(IN a INT) NOT DETERMINISTIC CONTAINS SQL SQL SECURITY DEFINER BEGIN SET @v = a; END", both()},
+		// Adjacent string-literal concatenation in the body ('...' '...' across a line
+		// break — the stock-8.0 sys.ps_trace_thread shape). Bodies are stored VERBATIM,
+		// so the engine readback still carries the adjacency and the reload re-parses
+		// it; before adjacency support that failed with "unexpected token".
+		{"proc-adjacent-literals", "PROCEDURE", "p", "CREATE PROCEDURE p()\nBEGIN\n    SELECT CONCAT('tmp disk tables: ', 3, '\\n'\n                  'select scan: ', 4, '\\n');\nEND", both()},
 	}
 }
 
@@ -174,6 +179,38 @@ func TestOracle_RoutineDiffIdempotence(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestOracle_SysProcedureAdjacentLiterals proves the real-world motivation for
+// adjacent string-literal support against the engine's OWN schema: the stock
+// sys.ps_trace_thread body (shipped in every 5.7/8.0 server) contains an
+// adjacent-literal run ('tmp disk tables: ...\n' followed by 'select scan: ...'
+// with no comma), so its SHOW CREATE readback must parse, load through LoadSDL,
+// and self-diff empty. Before adjacency support this failed with "unexpected
+// token" — hard-blocking the declarative path for any dump containing sys.
+func TestOracle_SysProcedureAdjacentLiterals(t *testing.T) {
+	if testing.Short() {
+		t.Skip("oracle test skipped in short mode")
+	}
+	for _, version := range both() {
+		o := connectOracle(t, version)
+		n := NormalizerFor(o.version)
+		t.Run(o.name, func(t *testing.T) {
+			rb, ok := o.showCreateRoutine(t, "sys", "PROCEDURE", "ps_trace_thread")
+			if !ok {
+				t.Skipf("[%s] sys.ps_trace_thread unavailable (stripped sys schema?)", o.name)
+			}
+			sdl := "CREATE DATABASE sysdump;\nUSE sysdump;\n" + rb + ";\n"
+			cat, err := LoadSDL(sdl)
+			if err != nil {
+				t.Fatalf("[%s] LoadSDL of stock sys.ps_trace_thread failed: %v", o.name, err)
+			}
+			if d := DiffWithNormalizer(cat, cat, n); !d.IsEmpty() {
+				t.Errorf("[%s] self-diff of stock sys.ps_trace_thread not empty: %s",
+					o.name, describeRoutineDiff(d))
+			}
+		})
 	}
 }
 

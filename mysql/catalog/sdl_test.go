@@ -737,3 +737,71 @@ CREATE TABLE derived AS SELECT id FROM src;
 		t.Fatalf("expected CTAS rejection error mentioning SELECT, got: %v", err)
 	}
 }
+
+// TestSDLAdjacentStringLiterals covers MySQL's adjacent string-literal
+// concatenation ('a' 'b' → 'ab') through the SDL loader. The stock MySQL 8.0
+// sys schema relies on it: ps_trace_thread's body concatenates '\n' with the
+// next segment across a line break, so a canonical dump of sys was unloadable
+// before adjacency support. Bodies are stored verbatim; the loaded catalog must
+// also self-diff empty so the adjacency never phantom-diffs.
+func TestSDLAdjacentStringLiterals(t *testing.T) {
+	sql := `
+CREATE DATABASE app;
+USE app;
+CREATE TABLE t (a varchar(40) DEFAULT 'x' 'y');
+CREATE PROCEDURE p()
+BEGIN
+    SELECT CONCAT('tmp disk tables: ', 3, '\n'
+                  'select scan: ', 4, '\n');
+END;
+`
+	db := loadSDLForDB(t, sql, "app")
+	if db.Procedures["p"] == nil {
+		t.Fatal("procedure p not loaded")
+	}
+	if !strings.Contains(db.Procedures["p"].Body, "'select scan: '") {
+		t.Errorf("procedure body not stored verbatim: %q", db.Procedures["p"].Body)
+	}
+
+	c, err := LoadSDL(sql)
+	if err != nil {
+		t.Fatalf("LoadSDL error: %v", err)
+	}
+	if d := Diff(c, c); !d.IsEmpty() {
+		t.Errorf("self-diff of SDL with adjacent literals not empty")
+	}
+}
+
+// TestSDLIntroducerDefaultRendersBareValue pins that a charset-introduced
+// string default — single (_utf8mb4'x') or folded (_utf8mb4'x' 'y') — is
+// stored and rendered by VALUE, the way MySQL stores it (SHOW CREATE TABLE
+// echoes DEFAULT 'x' / DEFAULT 'xy'; oracle 8.0.32 + 5.7.25). Deparsing the
+// introducer into the default rendered DEFAULT '_utf8mb4'x” — invalid SQL
+// the engine rejects with 1064 on apply.
+func TestSDLIntroducerDefaultRendersBareValue(t *testing.T) {
+	target, err := LoadSDL(`
+CREATE DATABASE d1;
+USE d1;
+CREATE TABLE t (
+    a varchar(10) CHARSET utf8mb4 DEFAULT _utf8mb4'x' 'y',
+    b varchar(10) CHARSET utf8mb4 DEFAULT _utf8mb4'x'
+);
+`)
+	if err != nil {
+		t.Fatalf("LoadSDL error: %v", err)
+	}
+	empty, err := LoadSDL("CREATE DATABASE d1;\n")
+	if err != nil {
+		t.Fatalf("LoadSDL(empty) error: %v", err)
+	}
+	sql := GenerateMigration(empty, target, Diff(empty, target)).SQL()
+	if !strings.Contains(sql, "DEFAULT 'xy'") || !strings.Contains(sql, "DEFAULT 'x'") {
+		t.Errorf("generated DDL must carry bare folded defaults, got:\n%s", sql)
+	}
+	if strings.Contains(sql, "_utf8mb4") {
+		t.Errorf("generated DDL leaked the charset introducer into a default:\n%s", sql)
+	}
+	if d := Diff(target, target); !d.IsEmpty() {
+		t.Errorf("self-diff of introducer-default SDL not empty")
+	}
+}
