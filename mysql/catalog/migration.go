@@ -113,16 +113,26 @@ type MigrationOp struct {
 // table/column subset the only ordering that matters is: a table's own CREATE/DROP versus
 // the column ALTERs on a surviving table. Breadth priorities are reserved so later nodes
 // slot in without renumbering.
+//
+// Routines are direction-split: their PhaseMain ops (CREATE/ALTER) run at
+// priorityRoutineCreate, BEFORE view creates, because CREATE VIEW eagerly validates the
+// functions its body calls (Error 1305 when missing — live-verified on 8.0.32 and 5.7.25)
+// while a routine body is lazily validated (a CREATE FUNCTION referencing a missing
+// function/view/table is accepted on both versions), so hoisting every routine above every
+// view is unconditionally safe and needs no per-edge dependency detection. Routine DROPs
+// stay at priorityRoutine, AFTER view drops (priorityView) in PhasePre, so a dropped
+// dependent view goes before the function it calls.
 const (
-	priorityTable      = 10
-	priorityColumn     = 20
-	priorityIndex      = 30
-	priorityConstraint = 40
-	priorityView       = 50
-	priorityRoutine    = 60
-	priorityTrigger    = 70
-	priorityEvent      = 80
-	priorityForeignKey = 99 // FK deferred to PhasePost (breadth)
+	priorityTable         = 10
+	priorityColumn        = 20
+	priorityIndex         = 30
+	priorityConstraint    = 40
+	priorityRoutineCreate = 45 // routine CREATE/ALTER (PhaseMain): before view creates
+	priorityView          = 50
+	priorityRoutine       = 60 // routine DROP (PhasePre): after view drops
+	priorityTrigger       = 70
+	priorityEvent         = 80
+	priorityForeignKey    = 99 // FK deferred to PhasePost (breadth)
 )
 
 // MigrationPlan holds an ordered list of DDL operations that transform one catalog state

@@ -24,10 +24,13 @@ import (
 //   - DiffDrop → DROP VIEW IF EXISTS.
 //
 // PHASE / ORDERING (apply-correctness, oracle-verified):
-//   - CREATE runs in PhaseMain at priorityView (=50), AFTER table creation (priorityTable=10) and
-//     column ALTERs (priorityColumn=20). A view over a freshly created/altered table therefore
-//     applies against the final table — creating a view whose referenced table does not yet exist
-//     fails (live-verified), so this ordering is required.
+//   - CREATE runs in PhaseMain at priorityView (=50), AFTER table creation (priorityTable=10),
+//     column ALTERs (priorityColumn=20), and routine CREATEs (priorityRoutineCreate=45). A view
+//     over a freshly created/altered table therefore applies against the final table — creating a
+//     view whose referenced table does not yet exist fails (live-verified), and creating a view
+//     whose body calls a not-yet-created stored function fails with Error 1305 (live-verified on
+//     both versions; see migration_routine.go for the routine-side ordering rationale) — so this
+//     ordering is required.
 //   - view-on-view: a view that references another view being created in the SAME plan must be
 //     created AFTER it (the dependency must exist first — live-verified to fail otherwise). The
 //     ops all share priorityView, so the intra-priority tie-break (sortName, then stable original
