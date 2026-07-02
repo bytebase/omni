@@ -46,6 +46,15 @@ import (
 // Ops participate only through the grouping metadata their constructors set (alterClause,
 // addsIndex, dropsIndex on MigrationOp); everything else — checks, views, options, FK
 // constraint adds — is invisible to the pass and never regrouped.
+//
+// FLAGGED LIMITATION (not handled): a storage-ENGINE conversion in the same plan. The
+// table-option ALTER (ENGINE=...) runs at PhaseMain/priorityTable, before every column/index
+// statement, and carries no grouping metadata — so converting a MyISAM table whose auto column
+// is covered only in a NON-first key position to InnoDB fails errno 1075 on the ENGINE
+// statement itself, even when the plan adds a first-position key later. Fixing it would mean
+// grouping table-option clauses (a different op family) or hoisting index adds above
+// priorityTable; both are out of this pass's contract. Such a plan also failed before the pass
+// existed — nothing regresses.
 
 // primaryIndexKey is the dropsIndex marker for the PRIMARY KEY, which has no user-facing name.
 // MySQL reserves the name PRIMARY for it, so the lower-cased form cannot collide with a
@@ -72,21 +81,42 @@ func mergeAutoIncrementKeyOps(ops []MigrationOp, diff *SchemaDiff, n *Normalizer
 }
 
 // aiMerger tracks the clause lists of the ops while hazards are resolved. clauses[i] is nil
-// until op i is touched; consumed[i] marks an op whose clauses moved into another statement.
+// until op i is touched; consumed[i] marks an op whose clauses moved into another statement,
+// and mergedInto[i] records which statement (so later analysis knows WHEN the clauses now run).
+// byTable groups the op indices by owning table once, so the per-table role collection does not
+// rescan the whole plan for every AUTO_INCREMENT-bearing table.
 type aiMerger struct {
-	ops      []MigrationOp
-	clauses  [][]string
-	consumed []bool
-	touched  []bool
+	ops        []MigrationOp
+	clauses    [][]string
+	consumed   []bool
+	touched    []bool
+	mergedInto []int
+	byTable    map[string][]int
 }
 
 func newAIMerger(ops []MigrationOp) *aiMerger {
-	return &aiMerger{
-		ops:      ops,
-		clauses:  make([][]string, len(ops)),
-		consumed: make([]bool, len(ops)),
-		touched:  make([]bool, len(ops)),
+	m := &aiMerger{
+		ops:        ops,
+		clauses:    make([][]string, len(ops)),
+		consumed:   make([]bool, len(ops)),
+		touched:    make([]bool, len(ops)),
+		mergedInto: make([]int, len(ops)),
+		byTable:    make(map[string][]int),
 	}
+	for i := range m.mergedInto {
+		m.mergedInto[i] = -1
+	}
+	for i, op := range ops {
+		key := aiTableKey(op.Database, op.ObjectName)
+		m.byTable[key] = append(m.byTable[key], i)
+	}
+	return m
+}
+
+// aiTableKey is the collision-free per-table grouping key (encodeKeyFields length-prefixes the
+// fields, so identifiers containing separator characters cannot alias another table).
+func aiTableKey(database, table string) string {
+	return encodeKeyFields("db", database, "table", table)
 }
 
 // clausesOf returns op i's current clause list, initializing it from alterClause.
@@ -114,6 +144,7 @@ func (m *aiMerger) mergeInto(target int, prepend bool, srcs ...int) {
 	var moved []string
 	for _, s := range srcs {
 		moved = append(moved, m.consume(s)...)
+		m.mergedInto[s] = target
 		if w := m.ops[s].Warning; w != "" && !strings.Contains(m.ops[target].Warning, w) {
 			if m.ops[target].Warning != "" {
 				m.ops[target].Warning += "; "
@@ -178,8 +209,9 @@ func (m *aiMerger) collectRoles(entry *TableDiffEntry) *tableOpRoles {
 	for _, ce := range entry.Columns {
 		colSort[columnSortName(entry.Database, entry.Name, ce.Name)] = toLower(ce.Name)
 	}
-	for i, op := range m.ops {
-		if m.consumed[i] || op.Database != entry.Database || op.ObjectName != entry.Name {
+	for _, i := range m.byTable[aiTableKey(entry.Database, entry.Name)] {
+		op := m.ops[i]
+		if m.consumed[i] {
 			continue
 		}
 		if op.alterClause == "" || !strings.HasSuffix(op.SQL, op.alterClause) {
@@ -279,8 +311,27 @@ func (m *aiMerger) mergeDropHazard(entry *TableDiffEntry, roles *tableOpRoles, f
 		// after it — the oracle-proven shape); a standalone ADD takes the drops in front.
 		prepend := m.ops[cand].dropsIndex == ""
 		m.mergeInto(cand, prepend, drops...)
+		// When the split-path PRIMARY KEY drop moved into this statement, the split's
+		// standalone ADD PRIMARY KEY (same priority, name-sorted) could otherwise run BEFORE
+		// it — while the old PK still exists (errno 1068). Pull the replacement PK add into
+		// the same statement (oracle-proven single-statement form).
+		if pkDropIn(m.ops, drops) {
+			if pa, ok := roles.idxAdd[primaryIndexKey]; ok && pa != cand && !m.consumed[pa] {
+				m.mergeInto(cand, false, pa)
+			}
+		}
 		m.pullDemotedPKMembers(entry, roles, cand, drops)
 	}
+}
+
+// pkDropIn reports whether any of the ops drops the PRIMARY KEY.
+func pkDropIn(ops []MigrationOp, indices []int) bool {
+	for _, i := range indices {
+		if ops[i].dropsIndex == primaryIndexKey {
+			return true
+		}
+	}
+	return false
 }
 
 // pullDemotedPKMembers completes a merged statement that carries the PRIMARY KEY drop: an old
@@ -289,14 +340,7 @@ func (m *aiMerger) mergeDropHazard(entry *TableDiffEntry, roles *tableOpRoles, f
 // once the PK drop moved into a PhaseMain statement. Folding the demoting MODIFYs into the same
 // statement satisfies both rules at once (oracle-probed on both versions).
 func (m *aiMerger) pullDemotedPKMembers(entry *TableDiffEntry, roles *tableOpRoles, target int, drops []int) {
-	pkDropped := false
-	for _, di := range drops {
-		if m.ops[di].dropsIndex == primaryIndexKey {
-			pkDropped = true
-			break
-		}
-	}
-	if !pkDropped || m.ops[target].Phase != PhaseMain {
+	if !pkDropIn(m.ops, drops) || m.ops[target].Phase != PhaseMain {
 		return
 	}
 	oldPK := primaryKeyIndex(entry.From)
@@ -305,6 +349,9 @@ func (m *aiMerger) pullDemotedPKMembers(entry *TableDiffEntry, roles *tableOpRol
 	}
 	var demotes []int
 	for _, ic := range oldPK.Columns {
+		if ic == nil {
+			continue
+		}
 		name := toLower(ic.Name)
 		mi, ok := roles.colModify[name]
 		if !ok || m.consumed[mi] || mi == target {
@@ -375,15 +422,20 @@ func (m *aiMerger) mergeAddHazard(entry *TableDiffEntry, roles *tableOpRoles, fr
 
 // addSideCovered reports whether a from-side key still covers the target auto column at its
 // column statement: the column must not be re-created in this plan (its own PhasePre DROP
-// strips it from every index) and the key's PhasePre drop, if any, must not have survived the
-// DROP-direction merges (a drop folded into a later statement keeps covering until then).
+// strips it from every index) and the key must still exist when the PhaseMain column statement
+// runs — either no statement drops it, or its drop was folded into a PhaseMain statement by the
+// DROP-direction merges (a drop folded into a PhasePre statement, e.g. another column's DROP,
+// still removes the key before PhaseMain).
 func (m *aiMerger) addSideCovered(entry *TableDiffEntry, roles *tableOpRoles, toAI string) bool {
 	if _, recreated := roles.colDrop[toAI]; recreated {
 		return false
 	}
 	for _, idx := range coveringIndexes(entry.From, toAI, entry.To.Engine) {
 		di, dropped := roles.idxDrop[coveredIndexKey(idx)]
-		if !dropped || m.consumed[di] {
+		if !dropped {
+			return true
+		}
+		if m.consumed[di] && m.mergedInto[di] >= 0 && m.ops[m.mergedInto[di]].Phase == PhaseMain {
 			return true
 		}
 	}
@@ -393,7 +445,11 @@ func (m *aiMerger) addSideCovered(entry *TableDiffEntry, roles *tableOpRoles, to
 // pullReferencedColumnAdds moves the ADD COLUMN statements of the backing key's OTHER new
 // columns into the grouped statement (the key clause must be able to reference them), plain
 // columns first, then generated ones, each name-ordered — matching the standalone emission
-// order of the column generator.
+// order of the column generator. When a GENERATED key part is pulled, ALL of the table's plain
+// column adds come along: the generated expression may reference a new plain column that is not
+// itself a key part, and leaving that column's ADD in its own name-sorted statement could run
+// it after this one (extra plain ADD clauses in the grouped statement are harmless,
+// oracle-proven).
 func (m *aiMerger) pullReferencedColumnAdds(roles *tableOpRoles, target int, idx *Index, toAI string, entry *TableDiffEntry) {
 	var plain, generated []string
 	for _, ic := range idx.Columns {
@@ -411,6 +467,17 @@ func (m *aiMerger) pullReferencedColumnAdds(roles *tableOpRoles, target int, idx
 			generated = append(generated, name)
 		} else {
 			plain = append(plain, name)
+		}
+	}
+	if len(generated) > 0 {
+		plain = plain[:0]
+		for name, ai := range roles.colAdd {
+			if name == toAI || m.consumed[ai] || ai == target {
+				continue
+			}
+			if col := entry.To.GetColumn(name); col != nil && col.Generated == nil {
+				plain = append(plain, name)
+			}
 		}
 	}
 	sort.Strings(plain)

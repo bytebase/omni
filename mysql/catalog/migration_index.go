@@ -172,19 +172,13 @@ const priorityPrimaryKeyDrop = priorityIndexDrop - 1
 // no PK-member column drop forces the split. `to` always carries the PRIMARY index for a PK
 // change (the diff keys it by the PRIMARY name), so DROP PRIMARY KEY is unconditional.
 //
-// KNOWN LIMITATIONS (flagged, not handled) — both are rare AUTO_INCREMENT corner cases whose
-// correct emission needs control over the column generator's op ordering (cross-node), which this
-// node does not have; recorded for a follow-up rather than special-cased:
-//   - Relocating an AUTO_INCREMENT column OUT of the PK onto a NEW secondary index in the same
-//     migration (old PK has the auto-inc column, new PK does not, a new KEY covers it): the split
-//     path's standalone DROP PRIMARY KEY leaves the auto-inc column unkeyed before its new
-//     secondary key is added (errno 1075). Atomicity would require pairing the PK drop with that
-//     specific secondary-key ADD in one ALTER.
-//   - AUTO_INCREMENT keeps the PK while a DIFFERENT old-PK member is demoted to nullable in the
-//     same migration: combined is needed to avoid the unkeyed AUTO_INCREMENT window (errno 1075),
-//     but the column's MODIFY ... NULL runs (priorityColumn) before the combined PhaseMain op
-//     (priorityIndex) while the old PK still holds it (errno 1171). Satisfying both needs the PK
-//     change emitted before the column modify, i.e. a column-op ordering this node cannot impose.
+// The two AUTO_INCREMENT corner cases this function used to flag as unhandled — relocating the
+// auto column OUT of the PK onto a new secondary key, and keeping it in the PK while a different
+// old-PK member is demoted to nullable — are resolved by the AUTO_INCREMENT grouping pass
+// (mergeAutoIncrementKeyOps, migration_autoinc.go), which folds the split path's DROP PRIMARY
+// KEY, the covering key ADD, and any demoting MODIFY into one statement after this generator
+// runs. This function only picks the combined-vs-split shape; the pass owns the cross-op
+// statement grouping.
 func primaryKeyModifyOps(entry *TableDiffEntry, table string, to *Index, n *Normalizer) []MigrationOp {
 	if canCombinePrimaryKeyModify(entry, to) {
 		clause := "DROP PRIMARY KEY, ADD " + formatIndexDefinition(to, n)

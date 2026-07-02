@@ -236,6 +236,83 @@ func TestAutoIncGrouping_Determinism(t *testing.T) {
 	requireOneStatementWith(t, p, "DROP INDEX `uk1`", "DROP INDEX `k2`", "ADD UNIQUE KEY `uk3` (`c`)")
 }
 
+func TestAutoIncGrouping_PKRelocateToSecondary(t *testing.T) {
+	// The PK moves off the auto column onto b while a NEW secondary key (name sorting AFTER
+	// "primary") takes over the coverage: split DROP PRIMARY KEY, the covering ADD KEY, and the
+	// replacement ADD PRIMARY KEY must share ONE statement — a standalone ADD PRIMARY KEY would
+	// sort before it and run while the old PK still exists (errno 1068).
+	p := aigPlan(t,
+		"CREATE TABLE t (c INT NOT NULL AUTO_INCREMENT, b INT NOT NULL, x INT, PRIMARY KEY (c));",
+		"CREATE TABLE t (c INT NOT NULL AUTO_INCREMENT, b INT NOT NULL, x INT, PRIMARY KEY (b), KEY zz_c (c));")
+	op := requireOneStatementWith(t, p, "DROP PRIMARY KEY", "ADD KEY `zz_c` (`c`)", "ADD PRIMARY KEY (`b`)")
+	if len(p.Ops) != 1 {
+		t.Errorf("want 1 grouped op, got %d:\n%s", len(p.Ops), p.SQL())
+	}
+	if strings.Count(op.SQL, "PRIMARY KEY") != 2 {
+		t.Errorf("statement must carry exactly the drop and one re-add: %s", op.SQL)
+	}
+}
+
+func TestAutoIncGrouping_DemotedMemberJoinsPKStatement(t *testing.T) {
+	// The auto column keeps the shrinking PK while another old-PK member is demoted to
+	// nullable: the demoting MODIFY joins the grouped DROP+ADD PRIMARY KEY statement (errno
+	// 1171 if it ran earlier, errno 1075 if the PK drop ran alone).
+	p := aigPlan(t,
+		"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, PRIMARY KEY (id, a));",
+		"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NULL, PRIMARY KEY (id));")
+	requireOneStatementWith(t, p, "DROP PRIMARY KEY", "ADD PRIMARY KEY (`id`)", "MODIFY COLUMN `a`")
+	if len(p.Ops) != 1 {
+		t.Errorf("want 1 grouped op, got %d:\n%s", len(p.Ops), p.SQL())
+	}
+}
+
+func TestAutoIncGrouping_GeneratedKeyPartPullsPlainAdds(t *testing.T) {
+	// A generated key part g rides in the backing key and references a new plain column d that
+	// is NOT itself a key part: d's ADD must be pulled into the grouped statement before g's.
+	p := aigPlan(t,
+		"CREATE TABLE t (id INT NOT NULL PRIMARY KEY);",
+		"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, seq INT NOT NULL AUTO_INCREMENT, d INT NOT NULL, g INT GENERATED ALWAYS AS (d+1) VIRTUAL, UNIQUE KEY uk_sg (seq, g));")
+	op := requireOneStatementWith(t, p, "ADD COLUMN `seq`", "ADD COLUMN `d`", "ADD COLUMN `g`", "ADD UNIQUE KEY `uk_sg`")
+	if strings.Index(op.SQL, "ADD COLUMN `d`") > strings.Index(op.SQL, "ADD COLUMN `g`") {
+		t.Errorf("plain add must precede the generated add that references it: %s", op.SQL)
+	}
+	if len(p.Ops) != 1 {
+		t.Errorf("want 1 grouped op, got %d:\n%s", len(p.Ops), p.SQL())
+	}
+}
+
+func TestAutoIncGrouping_FKBackingDropJoinsColumnDrop(t *testing.T) {
+	// The AUTO_INCREMENT column's only covering key is the FK-implicit backing index and both
+	// the FK and the column leave: the FK node's leftover DROP INDEX (PhasePre, before column
+	// drops) would strand the still-AUTO_INCREMENT column, so its clause must join the DROP
+	// COLUMN statement — and it must NOT vanish from the plan when consumed.
+	p := aigPlan(t,
+		"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE t (id INT NOT NULL PRIMARY KEY, c INT NOT NULL AUTO_INCREMENT, CONSTRAINT fk_c FOREIGN KEY (c) REFERENCES p (id));",
+		"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE t (id INT NOT NULL PRIMARY KEY);")
+	op := requireOneStatementWith(t, p, "DROP INDEX `fk_c`", "DROP COLUMN `c`")
+	if op.Phase != PhasePre {
+		t.Errorf("grouped drop must stay in PhasePre, got %d", op.Phase)
+	}
+	// The FK constraint drop stays its own earlier statement.
+	requireOneStatementWith(t, p, "DROP FOREIGN KEY `fk_c`")
+	// No DROP INDEX clause may be lost: exactly one occurrence across the whole plan.
+	if got := strings.Count(p.SQL(), "DROP INDEX `fk_c`"); got != 1 {
+		t.Errorf("want the backing DROP INDEX exactly once in the plan, got %d:\n%s", got, p.SQL())
+	}
+}
+
+func TestAutoIncGrouping_MyISAMSharedKeyAIMigration(t *testing.T) {
+	// MyISAM corner: the composite key covers BOTH the old and the new auto column (any-position
+	// rule). The old column and the shared key drop in PhasePre, so the gaining MODIFY must
+	// still be grouped with the NEW backing key — a consumed covering drop that lands in a
+	// PhasePre statement does not keep covering PhaseMain.
+	p := aigPlan(t,
+		"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, c1 INT NOT NULL AUTO_INCREMENT, c2 INT NOT NULL, KEY k (c1, c2)) ENGINE=MyISAM;",
+		"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, c2 INT NOT NULL AUTO_INCREMENT, KEY k2 (c2)) ENGINE=MyISAM;")
+	requireOneStatementWith(t, p, "DROP INDEX `k`", "DROP COLUMN `c1`")
+	requireOneStatementWith(t, p, "MODIFY COLUMN `c2`", "ADD KEY `k2` (`c2`)")
+}
+
 func TestAutoIncGrouping_IdempotenceHermetic(t *testing.T) {
 	// Self-diff of every grouped target form stays an empty plan under both normalizers.
 	schemas := []string{

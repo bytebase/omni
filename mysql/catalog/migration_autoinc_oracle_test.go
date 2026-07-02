@@ -89,6 +89,12 @@ func autoIncMigrationProbes() []migrationProbe {
 		{"aig-myisam-gain-ai-existing-nonleftmost", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, c INT NOT NULL, KEY k (a, c)) ENGINE=MyISAM",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, c INT NOT NULL AUTO_INCREMENT, KEY k (a, c)) ENGINE=MyISAM", both()},
+		// MyISAM shared composite key covering BOTH the old and the new auto column: the old
+		// column and the shared key leave in PhasePre, so the gaining MODIFY must still group
+		// with the NEW backing key (the consumed PhasePre drop does not cover PhaseMain).
+		{"aig-myisam-shared-key-ai-migrate", "t",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, c1 INT NOT NULL AUTO_INCREMENT, c2 INT NOT NULL, KEY k (c1, c2)) ENGINE=MyISAM",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, c2 INT NOT NULL AUTO_INCREMENT, KEY k2 (c2)) ENGINE=MyISAM", both()},
 		// 8.0-only backing-key shapes that still satisfy errno 1075 (probed): DESC first column,
 		// INVISIBLE index, and a trailing functional part behind the plain first column.
 		{"aig-add-col-desc-key", "t",
@@ -153,6 +159,26 @@ func autoIncMigrationProbes() []migrationProbe {
 		{"aig-pk-swap-drop-secondary", "t",
 			"CREATE TABLE t (x INT NOT NULL, c INT NOT NULL AUTO_INCREMENT, UNIQUE KEY uk_c (c), PRIMARY KEY (x))",
 			"CREATE TABLE t (x INT NOT NULL, c INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (c))", both()},
+		// The PK moves OFF the AUTO_INCREMENT column onto another column while a NEW secondary
+		// key takes over the coverage: the split DROP PRIMARY KEY, the covering ADD KEY, and the
+		// replacement ADD PRIMARY KEY must all share one statement (the key name `zz_c` sorts
+		// AFTER `primary`, pinning the ordering hazard where the PK re-add would otherwise run
+		// while the old PK still exists — errno 1068).
+		{"aig-pk-relocate-ai-to-secondary", "t",
+			"CREATE TABLE t (c INT NOT NULL AUTO_INCREMENT, b INT NOT NULL, x INT, PRIMARY KEY (c))",
+			"CREATE TABLE t (c INT NOT NULL AUTO_INCREMENT, b INT NOT NULL, x INT, PRIMARY KEY (b), KEY zz_c (c))", both()},
+		// The AUTO_INCREMENT column keeps the (shrinking) PK while a DIFFERENT old-PK member is
+		// demoted to nullable: the demoting MODIFY joins the DROP+ADD PRIMARY KEY statement
+		// (formerly a flagged known limitation of primaryKeyModifyOps).
+		{"aig-pk-keep-ai-demote-member", "t",
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, PRIMARY KEY (id, a))",
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NULL, PRIMARY KEY (id))", both()},
+		// A GENERATED key part rides in the backing key: its ADD and the plain column its
+		// expression references (not itself a key part) are both pulled into the grouped
+		// statement, plain adds first.
+		{"aig-generated-keypart-pullin", "t",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY)",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, seq INT NOT NULL AUTO_INCREMENT, d INT NOT NULL, g INT GENERATED ALWAYS AS (d+1) VIRTUAL, UNIQUE KEY uk_sg (seq, g))", both()},
 		// The AUTO_INCREMENT column keeps its attribute but is REDEFINED (type widen) while the
 		// backing key is reshaped in the same plan: the widen MODIFY stays its own statement
 		// (still covered by the old key) and the reshape is grouped.
@@ -230,21 +256,39 @@ func TestOracle_AutoIncGroupingFKImplicitBacking(t *testing.T) {
 	if testing.Short() {
 		t.Skip("oracle test skipped in short mode")
 	}
-	mc := fkMultiCase{
-		id: "aig-fk-implicit-backing",
-		fromSQL: "CREATE TABLE p (id INT NOT NULL PRIMARY KEY); " +
-			"CREATE TABLE c (id INT NOT NULL PRIMARY KEY, x INT)",
-		toSQL: "CREATE TABLE p (id INT NOT NULL PRIMARY KEY); " +
-			"CREATE TABLE c (id INT NOT NULL PRIMARY KEY, x INT, seq INT NOT NULL AUTO_INCREMENT, " +
-			"CONSTRAINT fk_seq FOREIGN KEY (seq) REFERENCES p (id))",
-		tables:   []string{"p", "c"},
-		versions: both(),
+	cases := []fkMultiCase{
+		{
+			id: "aig-fk-implicit-backing",
+			fromSQL: "CREATE TABLE p (id INT NOT NULL PRIMARY KEY); " +
+				"CREATE TABLE c (id INT NOT NULL PRIMARY KEY, x INT)",
+			toSQL: "CREATE TABLE p (id INT NOT NULL PRIMARY KEY); " +
+				"CREATE TABLE c (id INT NOT NULL PRIMARY KEY, x INT, seq INT NOT NULL AUTO_INCREMENT, " +
+				"CONSTRAINT fk_seq FOREIGN KEY (seq) REFERENCES p (id))",
+			tables:   []string{"p", "c"},
+			versions: both(),
+		},
+		// DROP direction of the FK-implicit form: the auto column's only covering key is the
+		// FK's backing index and both the FK and the column leave — the FK node's leftover
+		// DROP INDEX must join the DROP COLUMN statement (after the constraint drop released
+		// the index, errno 1553; ungrouped it fails errno 1075).
+		{
+			id: "aig-fk-implicit-backing-drop",
+			fromSQL: "CREATE TABLE p (id INT NOT NULL PRIMARY KEY); " +
+				"CREATE TABLE c (id INT NOT NULL PRIMARY KEY, x INT, seq INT NOT NULL AUTO_INCREMENT, " +
+				"CONSTRAINT fk_seq FOREIGN KEY (seq) REFERENCES p (id))",
+			toSQL: "CREATE TABLE p (id INT NOT NULL PRIMARY KEY); " +
+				"CREATE TABLE c (id INT NOT NULL PRIMARY KEY, x INT)",
+			tables:   []string{"p", "c"},
+			versions: both(),
+		},
 	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
-		t.Run(fmt.Sprintf("%s/%s", o.name, mc.id), func(t *testing.T) {
-			assertFKMultiApplyCorrect(t, o, n, mc)
-		})
+		for _, mc := range cases {
+			t.Run(fmt.Sprintf("%s/%s", o.name, mc.id), func(t *testing.T) {
+				assertFKMultiApplyCorrect(t, o, n, mc)
+			})
+		}
 	}
 }
