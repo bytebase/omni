@@ -182,9 +182,9 @@ func (p *Parser) parseIndexColumnList() (*nodes.List, error) {
 			return nil, errCollecting
 		}
 		loc := p.pos()
-		name, ok := p.parseIdentifier()
-		if !ok {
-			return nil, p.unexpectedToken()
+		name, err := p.parseIndexColumnName()
+		if err != nil {
+			return nil, err
 		}
 		dir := nodes.SortDefault
 		if _, ok := p.match(kwASC); ok {

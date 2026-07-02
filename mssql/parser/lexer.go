@@ -1502,12 +1502,17 @@ func (l *Lexer) nextTokenInner() Token {
 	}
 
 	// Currency-symbol money constant (£10, €7, ...). Unicode currency symbols
-	// are not valid identifier-start characters in T-SQL; the engine lexes them
-	// as money constants. Must be checked before the identifier path, which
-	// otherwise swallows any byte >= 128.
+	// are not valid identifier-start characters in T-SQL; the engine lexes the
+	// documented money-table symbols as money constants and rejects the rest
+	// (₹, ₿, ... — Msg 102), so neither falls into the identifier path.
 	if ch >= 128 {
-		if r, size := utf8.DecodeRuneInString(l.input[l.pos:]); unicode.Is(unicode.Sc, r) {
+		r, size := utf8.DecodeRuneInString(l.input[l.pos:])
+		if isMoneySign(r) {
 			return l.lexMoney(size)
+		}
+		if unicode.Is(unicode.Sc, r) {
+			l.pos += size
+			return Token{Type: int(ch), Str: string(r), Loc: l.start}
 		}
 	}
 
@@ -1563,6 +1568,26 @@ func (l *Lexer) lexMoney(symLen int) Token {
 		l.pos = start + symLen
 	}
 	return Token{Type: tokMONEY, Str: l.input[start:l.pos], Loc: l.start}
+}
+
+// isMoneySign reports whether r is one of the currency symbols T-SQL accepts
+// on money constants, per the documented table (money-and-smallmoney docs) —
+// a fixed list, NOT the whole Unicode Sc category: the engine accepts ₭
+// (U+20AD) and full-width ￥ but rejects ₹ (U+20B9) and ₿ (U+20BF), both Sc
+// (verified on SQL Server 2022). '$' (U+0024) is handled by lexDollar.
+func isMoneySign(r rune) bool {
+	switch r {
+	case '¢', '£', '¤', '¥', // U+00A2..U+00A5
+		'৲', '৳', // Bengali Rupee mark/sign (U+09F2, U+09F3)
+		'฿',                    // Thai Baht (U+0E3F)
+		'៛',                    // Khmer Riel (U+17DB)
+		'﷼',                    // Rial (U+FDFC)
+		'﹩',                    // Small Dollar (U+FE69)
+		'＄',                    // Full-width Dollar (U+FF04)
+		'￠', '￡', '￥', '￦': // Full-width Cent/Pound/Yen/Won (U+FFE0, U+FFE1, U+FFE5, U+FFE6)
+		return true
+	}
+	return r >= 0x20A0 && r <= 0x20B1 // ₠ through ₱ (currency block subset in the docs table)
 }
 
 // moneyAmountEnd scans a money amount starting at i, just past the currency

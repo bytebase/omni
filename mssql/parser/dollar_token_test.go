@@ -44,6 +44,9 @@ OUTPUT $action, INSERTED.k, INSERTED.v;`,
 		"INSERT INTO e ($from_id, $to_id) VALUES ('a', 'b');",
 		"INSERT INTO e ($from_id, $to_id) SELECT p1.$node_id, p2.$node_id FROM Person p1, Person p2;",
 		"MERGE INTO e AS t USING s ON t.x = s.x WHEN NOT MATCHED THEN INSERT ($from_id, $to_id) VALUES (s.f, s.g);",
+		// Graph pseudo-columns are valid index key columns.
+		"CREATE INDEX ix ON Person ($node_id);",
+		"CREATE UNIQUE INDEX ix ON e ($from_id, $to_id) INCLUDE (weight);",
 		// `$` inside identifiers and bracketed names are ordinary columns.
 		"SELECT a$b FROM t;",
 		"SELECT [$action] FROM t;",
@@ -69,6 +72,9 @@ OUTPUT $action, INSERTED.k, INSERTED.v;`,
 		// Two qualifiers before $PARTITION exceed the grammar's single
 		// optional database qualifier.
 		"SELECT a.b.$PARTITION.pf1(10);",
+		// $PARTITION requires at least one argument (engine: Msg 102).
+		"SELECT $PARTITION.pf1();",
+		"SELECT db1.$PARTITION.pf1();",
 		// $CUID: ScriptDom accepts it (PseudoColumnCuid) but no shipped engine
 		// does — SQL Server 2022 rejects with Msg 126 like any unknown
 		// pseudo-column, and it is undocumented in T-SQL. We follow the engine.
@@ -130,6 +136,13 @@ func TestMoneyLiterals(t *testing.T) {
 		"SELECT $ -4.78;",
 		"SELECT £-5;",
 		"SELECT £ 10;",
+		// Symbols from the documented money table beyond the common ones
+		// (engine-verified accepts).
+		"SELECT ¢5;",
+		"SELECT ₩100;",
+		"SELECT ₭5;",
+		"SELECT ￥5;",
+		"SELECT ＄5;",
 	}
 	for _, sql := range accept {
 		t.Run(sql, func(t *testing.T) {
@@ -137,6 +150,30 @@ func TestMoneyLiterals(t *testing.T) {
 				t.Errorf("Parse(%q): unexpected error: %v", sql, err)
 			}
 		})
+	}
+}
+
+// TestMoneyRejects pins the reject space: symbols outside the documented
+// money table stay invalid even though Unicode classes them as currency
+// (engine: Msg 102), and exponent forms are money + alias in the engine —
+// `SELECT $1e2` returns money 1.0000 aliased `e2`, and `SELECT $1e2 AS x` is
+// Msg 156 — so tokMONEY must NOT consume the exponent (deliberate divergence
+// from TSql170.g's Money rule, which permits an Exponent the engine rejects).
+func TestMoneyRejects(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT ₹100;", // U+20B9 Indian Rupee — outside the documented table
+		"SELECT ₿10;",  // U+20BF Bitcoin — outside the documented table
+		"SELECT $1e2 AS x;",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q): expected parse error, got nil", sql)
+			}
+		})
+	}
+	// `SELECT $1e2` (no AS) parses as money $1 aliased e2 — engine-identical.
+	if _, err := Parse("SELECT $1e2;"); err != nil {
+		t.Errorf("Parse(SELECT $1e2): unexpected error: %v", err)
 	}
 }
 
