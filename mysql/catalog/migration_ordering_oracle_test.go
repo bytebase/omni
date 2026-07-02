@@ -79,6 +79,17 @@ func orderingProbes() []orderingProbe {
 				"CREATE VIEW v1 AS SELECT fn_base() AS n",
 				"CREATE VIEW v2 AS SELECT n FROM v1"),
 			[]string{"t"}, []string{"v1", "v2"}, []string{"fn_base"}, both()},
+		// The lazy-direction teeth: the function's body SELECTs from a view created in the SAME
+		// plan. The global hoist deliberately creates the function FIRST (before the view exists),
+		// so this apply succeeds only because routine bodies are lazily validated — the
+		// load-bearing safety claim behind hoisting routines above views. An engine that eagerly
+		// validated routine bodies would fail this probe.
+		{"create-function-selecting-view",
+			base("CREATE TABLE t (a INT)"),
+			base("CREATE TABLE t (a INT)",
+				"CREATE VIEW v_src AS SELECT a FROM t",
+				"CREATE FUNCTION fn_over_view() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM v_src)"),
+			[]string{"t"}, []string{"v_src"}, []string{"fn_over_view"}, both()},
 		// A body change forces the routine DROP+CREATE path; a NEW view calling the function lands
 		// in the same plan. Order must be DROP FUNCTION (PhasePre) → CREATE FUNCTION → CREATE VIEW.
 		{"modify-function-add-view",
@@ -177,16 +188,17 @@ func assertOrderingApplyCorrect(t *testing.T, o *oracleConn, n *Normalizer, p or
 	if err != nil {
 		t.Fatalf("[%s] %s: reload of result failed: %v\n%s", o.name, p.id, err, resultSDL)
 	}
-	if d := DiffWithNormalizer(resultCat, toCat, n); !d.IsEmpty() {
+	resultDiff := DiffWithNormalizer(resultCat, toCat, n)
+	if !resultDiff.IsEmpty() {
 		t.Errorf("[%s] APPLY-CORRECTNESS FAILED for %s: result != to\n  plan:\n%s\n  result SDL:\n%s\n  diff: %s",
-			o.name, p.id, plan.SQL(), resultSDL, describeOrderingDiff(d))
+			o.name, p.id, plan.SQL(), resultSDL, describeOrderingDiff(resultDiff))
 	}
 	if d := DiffWithNormalizer(toCat, resultCat, n); !d.IsEmpty() {
 		t.Errorf("[%s] APPLY-CORRECTNESS (reverse) FAILED for %s: %s", o.name, p.id, describeOrderingDiff(d))
 	}
 
 	// CONVERGENCE: the follow-up plan from the applied result to `to` must be EMPTY.
-	followUp := GenerateMigrationWithNormalizer(resultCat, toCat, DiffWithNormalizer(resultCat, toCat, n), n)
+	followUp := GenerateMigrationWithNormalizer(resultCat, toCat, resultDiff, n)
 	if sql := followUp.SQL(); sql != "" {
 		t.Errorf("[%s] CONVERGENCE FAILED for %s: follow-up plan not empty:\n%s", o.name, p.id, sql)
 	}
