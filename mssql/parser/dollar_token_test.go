@@ -14,12 +14,12 @@ import (
 // them anywhere a column reference is legal — same as SqlScriptDOM.
 func TestDollarPseudoColumns(t *testing.T) {
 	accept := []string{
-		// $action in MERGE OUTPUT — the customer shape from BYT-9813.
-		`MERGE INTO TargetTable AS T
-USING SourceTable AS S ON T.Id = S.Id
-WHEN MATCHED THEN UPDATE SET T.Name = S.Name
-WHEN NOT MATCHED THEN INSERT (Id, Name) VALUES (S.Id, S.Name)
-OUTPUT $action, INSERTED.Id, INSERTED.Name;`,
+		// $action in MERGE OUTPUT — the shape that motivated BYT-9813.
+		`MERGE INTO dst AS d
+USING src AS s ON d.k = s.k
+WHEN MATCHED THEN UPDATE SET d.v = s.v
+WHEN NOT MATCHED THEN INSERT (k, v) VALUES (s.k, s.v)
+OUTPUT $action, INSERTED.k, INSERTED.v;`,
 		"MERGE INTO t AS T USING s AS S ON T.Id = S.Id WHEN MATCHED THEN UPDATE SET T.Name = S.Name OUTPUT $ACTION;",
 		"MERGE INTO t AS T USING s AS S ON T.Id = S.Id WHEN MATCHED THEN UPDATE SET T.Name = S.Name OUTPUT $action AS act, INSERTED.Id INTO @changes;",
 		"INSERT INTO t (a) OUTPUT $action VALUES (1);",
