@@ -516,8 +516,12 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 			}, nil
 		}
 
-		// Charset introducer: _utf8mb4'hello', _latin1'world'
-		if p.cur.Type == tokIDENT && strings.HasPrefix(p.cur.Str, "_") && p.peekNext().Type == tokSCONST {
+		// Charset introducer: _utf8mb4'hello', _latin1'world'. Only a real
+		// charset name forms an introducer — MySQL lexes _typo'abc' as an
+		// identifier followed by a separate string literal (oracle 8.0.32 +
+		// 5.7.25: SELECT _typo'abc' → 1054 unknown column, not a syntax
+		// error), so an unknown name falls through to identifier parsing.
+		if p.cur.Type == tokIDENT && isCharsetIntroducer(p.cur.Str) && p.peekNext().Type == tokSCONST {
 			charsetTok := p.advance() // consume the charset identifier
 			strTok := p.advance()     // consume the string literal
 			lit := &nodes.StringLit{

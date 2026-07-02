@@ -771,3 +771,37 @@ END;
 		t.Errorf("self-diff of SDL with adjacent literals not empty")
 	}
 }
+
+// TestSDLIntroducerDefaultRendersBareValue pins that a charset-introduced
+// string default — single (_utf8mb4'x') or folded (_utf8mb4'x' 'y') — is
+// stored and rendered by VALUE, the way MySQL stores it (SHOW CREATE TABLE
+// echoes DEFAULT 'x' / DEFAULT 'xy'; oracle 8.0.32 + 5.7.25). Deparsing the
+// introducer into the default rendered DEFAULT '_utf8mb4'x” — invalid SQL
+// the engine rejects with 1064 on apply.
+func TestSDLIntroducerDefaultRendersBareValue(t *testing.T) {
+	target, err := LoadSDL(`
+CREATE DATABASE d1;
+USE d1;
+CREATE TABLE t (
+    a varchar(10) CHARSET utf8mb4 DEFAULT _utf8mb4'x' 'y',
+    b varchar(10) CHARSET utf8mb4 DEFAULT _utf8mb4'x'
+);
+`)
+	if err != nil {
+		t.Fatalf("LoadSDL error: %v", err)
+	}
+	empty, err := LoadSDL("CREATE DATABASE d1;\n")
+	if err != nil {
+		t.Fatalf("LoadSDL(empty) error: %v", err)
+	}
+	sql := GenerateMigration(empty, target, Diff(empty, target)).SQL()
+	if !strings.Contains(sql, "DEFAULT 'xy'") || !strings.Contains(sql, "DEFAULT 'x'") {
+		t.Errorf("generated DDL must carry bare folded defaults, got:\n%s", sql)
+	}
+	if strings.Contains(sql, "_utf8mb4") {
+		t.Errorf("generated DDL leaked the charset introducer into a default:\n%s", sql)
+	}
+	if d := Diff(target, target); !d.IsEmpty() {
+		t.Errorf("self-diff of introducer-default SDL not empty")
+	}
+}

@@ -1022,6 +1022,21 @@ func columnDefaultValue(expr nodes.ExprNode) (string, ColumnDefaultKind) {
 			return ts, ColumnDefaultCurrentTimestamp
 		}
 		return nodeToSQL(e.Expr), ColumnDefaultExpression
+	case *nodes.StringLit:
+		// MySQL stores a bare string default by VALUE: a charset introducer is
+		// not part of the stored default — SHOW CREATE TABLE echoes
+		// DEFAULT _utf8mb4'x' as DEFAULT 'x' (oracle 8.0.32 + 5.7.25; same for
+		// the folded _utf8mb4'x' 'y' form). Deparsing the introducer into the
+		// stored value would render DEFAULT '_utf8mb4'x'' — invalid SQL that
+		// also phantom-diffs against the engine readback. Expression defaults
+		// (the ParenExpr case above) legitimately keep the introducer: the
+		// engine itself stores DEFAULT (_utf8mb4'xy').
+		if e.Charset != "" {
+			stripped := *e
+			stripped.Charset = ""
+			return nodeToSQL(&stripped), ColumnDefaultConstant
+		}
+		return nodeToSQL(expr), ColumnDefaultConstant
 	case *nodes.BoolLit:
 		if e.Value {
 			return "1", ColumnDefaultConstant

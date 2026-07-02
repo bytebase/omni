@@ -203,6 +203,60 @@ func TestAdjacentStringLiteralAliasInterplay(t *testing.T) {
 	}
 }
 
+// TestCharsetIntroducerRecognition pins which _ident prefixes form a charset
+// introducer. MySQL's lexer only builds an introducer for real charset names,
+// case-insensitively; anything else is an ordinary identifier followed by a
+// separate string literal (oracle 8.0.32 + 5.7.25: SELECT _typo'abc' → 1054
+// unknown column '_typo', SELECT CONCAT(_typo'abc') → 1583 — never a folded
+// string and never a syntax error at the introducer position).
+func TestCharsetIntroducerRecognition(t *testing.T) {
+	t.Run("known charsets fold, case-insensitive", func(t *testing.T) {
+		for _, tc := range []struct {
+			sql         string
+			wantCharset string
+			wantValue   string
+		}{
+			{`SELECT _utf8mb4'a' 'b'`, "_utf8mb4", "ab"},
+			{`SELECT _UTF8MB4'a' 'b'`, "_UTF8MB4", "ab"},
+			{`SELECT _Utf8'a'`, "_Utf8", "a"},
+			{`SELECT _utf8mb3'a'`, "_utf8mb3", "a"},
+			{`SELECT _latin1'a'`, "_latin1", "a"},
+			{`SELECT _binary'a'`, "_binary", "a"},
+		} {
+			item := firstSelectItem(t, tc.sql)
+			lit, ok := item.(*ast.StringLit)
+			if !ok {
+				t.Fatalf("%s: expected *ast.StringLit, got %T", tc.sql, item)
+			}
+			if lit.Charset != tc.wantCharset || lit.Value != tc.wantValue {
+				t.Errorf("%s: got Charset %q Value %q, want %q %q",
+					tc.sql, lit.Charset, lit.Value, tc.wantCharset, tc.wantValue)
+			}
+		}
+	})
+	t.Run("unknown _ident is an identifier, not an introducer", func(t *testing.T) {
+		// SELECT _typo'abc' — MySQL parses column ref _typo with implicit
+		// string alias 'abc' (1054 at resolution). The parser must do the
+		// same, not fold a StringLit with a bogus charset.
+		item := firstSelectItem(t, `SELECT _typo'abc'`)
+		rt, ok := item.(*ast.ResTarget)
+		if !ok {
+			t.Fatalf("expected aliased column ref, got %T", item)
+		}
+		col, ok := rt.Val.(*ast.ColumnRef)
+		if !ok || col.Column != "_typo" || rt.Name != "abc" {
+			t.Fatalf("expected ColumnRef _typo aliased 'abc', got %#v alias %q", rt.Val, rt.Name)
+		}
+	})
+	t.Run("unknown _ident in function args rejects", func(t *testing.T) {
+		// MySQL: CONCAT(_typo'abc') → 1583 (alias not allowed to a native
+		// function). The parser rejects at the dangling string.
+		if _, err := Parse(`SELECT CONCAT(_typo'abc')`); err == nil {
+			t.Fatal("Parse succeeded; MySQL rejects CONCAT(_typo'abc')")
+		}
+	})
+}
+
 // TestAdjacentStringLiteralRejects pins the forms MySQL rejects (1064 on both
 // 8.0.32 and 5.7.25): a continuation segment cannot carry a charset introducer,
 // a string cannot continue a hex literal inside an expression argument, and the
