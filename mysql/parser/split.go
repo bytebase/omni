@@ -419,7 +419,7 @@ func Split(sql string) []Segment {
 }
 
 // skipSingleQuoteMySQL skips a single-quoted string starting at position i.
-// Handles ” escape and \ backslash escape. Returns position after the closing
+// Handles '' escape and \ backslash escape. Returns position after the closing
 // quote (or end of input if unterminated).
 func skipSingleQuoteMySQL(sql string, i int) int {
 	i++ // skip opening '
@@ -468,7 +468,7 @@ func skipDoubleQuoteMySQL(sql string, i int) int {
 }
 
 // skipBacktick skips a backtick-quoted identifier starting at position i.
-// Only “ (double backtick) is an escape. Returns position after the closing
+// Only `` (double backtick) is an escape. Returns position after the closing
 // backtick (or end of input if unterminated).
 func skipBacktick(sql string, i int) int {
 	i++ // skip opening `
