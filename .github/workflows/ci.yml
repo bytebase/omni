@@ -32,6 +32,17 @@ jobs:
       - name: Test
         run: go test -short ./...
 
+      # Build-tag-gated test code must at least compile on every PR,
+      # even when the tests themselves run elsewhere (container jobs,
+      # nightly, or local-only like the scriptdom .NET harness).
+      # `go test -run '^$'` compiles the test binary (including test
+      # files, which `go build` skips) without running any tests.
+      - name: Compile build-tagged test code
+        run: |
+          go test -tags=oracle -run '^$' -count=1 ./pg/parser/ ./redshift/parser/ ./redshift/catalog/
+          go test -tags=oracle_ref -run '^$' -count=1 ./oracle/parser/
+          go test -tags=scriptdom -run '^$' -count=1 ./mssql/parser/
+
       # SCENARIOS-pg-paren-dispatch.md §5.3 — PAREN_AUDIT lint gate.
       # Runs on every PR/push; fails CI when a new `(` / `)` dispatch
       # site is added without a matching row in PAREN_AUDIT.json or

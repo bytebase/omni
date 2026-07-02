@@ -240,6 +240,11 @@ func scenariosSkipIfNoDocker(t *testing.T) {
 		t.Skip("SKIP_SCENARIO_TESTS=1 set; skipping scenario test")
 	}
 	if !dockerAvailable() {
+		// In CI a missing Docker daemon must fail the job, not silently
+		// turn the container gate into a green no-op.
+		if os.Getenv("CI") != "" {
+			t.Fatal("Docker required in CI but daemon not reachable")
+		}
 		t.Skip("Docker daemon not reachable; skipping scenario test")
 	}
 }

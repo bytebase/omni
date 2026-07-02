@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -86,6 +87,11 @@ func startTiDBForCatalog(t *testing.T) *tidbCatalogContainer {
 	})
 
 	if tidbCatalogInitErr != nil {
+		// In CI a startup failure must fail the job, not silently turn
+		// the container gate into a green no-op.
+		if os.Getenv("CI") != "" {
+			t.Fatalf("TiDB container required in CI but not available: %v", tidbCatalogInitErr)
+		}
 		t.Skipf("TiDB container not available: %v", tidbCatalogInitErr)
 	}
 	return tidbCatalogInst

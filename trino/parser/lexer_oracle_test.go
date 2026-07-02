@@ -145,7 +145,7 @@ func TestLexer_OracleDifferential(t *testing.T) {
 	ver, err := o.Ping(pingCtx)
 	pingCancel()
 	if err != nil {
-		t.Skipf("trino oracle not reachable (start: docker run -d -p 18080:8080 %s): %v",
+		trinooracle.SkipOrFailUnreachable(t, "trino oracle not reachable (start: docker run -d -p 18080:8080 %s): %v",
 			trinooracle.DefaultImage, err)
 	}
 	t.Logf("connected to Trino %s", ver)
