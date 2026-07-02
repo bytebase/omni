@@ -56,7 +56,7 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 		te := &TargetEntryQ{
 			Expr:    analyzed,
 			ResNo:   *resNo,
-			ResName: deriveColumnName(item, analyzed),
+			ResName: deriveColumnName(item, analyzed, *resNo),
 		}
 		fillProvenance(te, q)
 		*resNo++
@@ -71,7 +71,7 @@ func analyzeTargetEntry(c *Catalog, item nodes.ExprNode, q *Query, scope *analyz
 		te := &TargetEntryQ{
 			Expr:    analyzed,
 			ResNo:   *resNo,
-			ResName: deriveColumnName(item, analyzed),
+			ResName: deriveColumnName(item, analyzed, *resNo),
 		}
 		fillProvenance(te, q)
 		*resNo++
@@ -150,8 +150,10 @@ func expandScopeEntry(e scopeEntry, q *Query, scope *analyzerScope, resNo *int) 
 	return result, nil
 }
 
-// deriveColumnName generates the output column name for an unaliased expression.
-func deriveColumnName(astNode nodes.ExprNode, _ AnalyzedExpr) string {
+// deriveColumnName generates the output column name for an unaliased
+// expression. position is the 1-based select-item position, used for MySQL's
+// positional Name_exp_N fallback when a string literal derives an empty name.
+func deriveColumnName(astNode nodes.ExprNode, _ AnalyzedExpr, position int) string {
 	switch n := astNode.(type) {
 	case *nodes.ColumnRef:
 		return n.Column
@@ -159,11 +161,17 @@ func deriveColumnName(astNode nodes.ExprNode, _ AnalyzedExpr) string {
 		return strconv.FormatInt(n.Value, 10)
 	case *nodes.StringLit:
 		// An adjacent-literal run ('a' 'b') is named after its FIRST segment,
-		// not the folded value (MySQL: SELECT 'a' 'b' → column "a").
+		// not the folded value; an empty name falls back to the positional
+		// Name_exp_N form (MySQL: SELECT 'a' 'b' → column "a", SELECT '' 'b' →
+		// Name_exp_1, SELECT '' → Name_exp_1).
+		name := n.Value
 		if n.Concatenated {
-			return n.FirstSegment
+			name = n.FirstSegment
 		}
-		return n.Value
+		if name == "" {
+			return fmt.Sprintf("Name_exp_%d", position)
+		}
+		return name
 	case *nodes.FloatLit:
 		return n.Value
 	case *nodes.BoolLit:
@@ -176,7 +184,7 @@ func deriveColumnName(astNode nodes.ExprNode, _ AnalyzedExpr) string {
 	case *nodes.FuncCallExpr:
 		return n.Name
 	case *nodes.ParenExpr:
-		return deriveColumnName(n.Expr, nil)
+		return deriveColumnName(n.Expr, nil, position)
 	default:
 		return "?"
 	}

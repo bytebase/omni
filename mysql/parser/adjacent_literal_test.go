@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/mysql/ast"
@@ -46,19 +45,20 @@ func TestAdjacentStringLiteralConcat(t *testing.T) {
 		sql          string
 		wantValue    string
 		wantCharset  string
+		wantConcat   bool
 		wantFirstSeg string // FirstSegment when the run concatenated; "" for aliasless single
 	}{
-		{name: "two literals", sql: `SELECT 'a' 'b'`, wantValue: "ab", wantFirstSeg: "a"},
-		{name: "three literals", sql: `SELECT 'a' 'b' 'c'`, wantValue: "abc", wantFirstSeg: "a"},
-		{name: "newline between", sql: "SELECT 'a'\n'b'", wantValue: "ab", wantFirstSeg: "a"},
-		{name: "block comment between", sql: `SELECT 'a' /* c */ 'b'`, wantValue: "ab", wantFirstSeg: "a"},
-		{name: "line comment between", sql: "SELECT 'a' -- c\n'b'", wantValue: "ab", wantFirstSeg: "a"},
-		{name: "double-quote mix", sql: `SELECT 'a' "b"`, wantValue: "ab", wantFirstSeg: "a"},
-		{name: "double-quote first", sql: `SELECT "a" 'b'`, wantValue: "ab", wantFirstSeg: "a"},
-		{name: "empty middle segment", sql: `SELECT 'a' '' 'b'`, wantValue: "ab", wantFirstSeg: "a"},
-		{name: "empty first segment", sql: `SELECT '' 'b'`, wantValue: "b", wantFirstSeg: ""},
-		{name: "escaped quote in segment", sql: `SELECT 'a''x' 'b'`, wantValue: "a'xb", wantFirstSeg: "a'x"},
-		{name: "introducer on first", sql: `SELECT _utf8mb4'a' 'b'`, wantValue: "ab", wantCharset: "_utf8mb4", wantFirstSeg: "a"},
+		{name: "two literals", sql: `SELECT 'a' 'b'`, wantValue: "ab", wantConcat: true, wantFirstSeg: "a"},
+		{name: "three literals", sql: `SELECT 'a' 'b' 'c'`, wantValue: "abc", wantConcat: true, wantFirstSeg: "a"},
+		{name: "newline between", sql: "SELECT 'a'\n'b'", wantValue: "ab", wantConcat: true, wantFirstSeg: "a"},
+		{name: "block comment between", sql: `SELECT 'a' /* c */ 'b'`, wantValue: "ab", wantConcat: true, wantFirstSeg: "a"},
+		{name: "line comment between", sql: "SELECT 'a' -- c\n'b'", wantValue: "ab", wantConcat: true, wantFirstSeg: "a"},
+		{name: "double-quote mix", sql: `SELECT 'a' "b"`, wantValue: "ab", wantConcat: true, wantFirstSeg: "a"},
+		{name: "double-quote first", sql: `SELECT "a" 'b'`, wantValue: "ab", wantConcat: true, wantFirstSeg: "a"},
+		{name: "empty middle segment", sql: `SELECT 'a' '' 'b'`, wantValue: "ab", wantConcat: true, wantFirstSeg: "a"},
+		{name: "empty first segment", sql: `SELECT '' 'b'`, wantValue: "b", wantConcat: true, wantFirstSeg: ""},
+		{name: "escaped quote in segment", sql: `SELECT 'a''x' 'b'`, wantValue: "a'xb", wantConcat: true, wantFirstSeg: "a'x"},
+		{name: "introducer on first", sql: `SELECT _utf8mb4'a' 'b'`, wantValue: "ab", wantCharset: "_utf8mb4", wantConcat: true, wantFirstSeg: "a"},
 		{name: "single literal unchanged", sql: `SELECT 'a'`, wantValue: "a"},
 		{name: "single introducer unchanged", sql: `SELECT _utf8mb4'a'`, wantValue: "a", wantCharset: "_utf8mb4"},
 	}
@@ -75,9 +75,8 @@ func TestAdjacentStringLiteralConcat(t *testing.T) {
 			if lit.Charset != tc.wantCharset {
 				t.Errorf("Charset = %q, want %q", lit.Charset, tc.wantCharset)
 			}
-			wantConcat := strings.Count(tc.sql, "'")+strings.Count(tc.sql, `"`) > 2
-			if lit.Concatenated != wantConcat {
-				t.Errorf("Concatenated = %v, want %v", lit.Concatenated, wantConcat)
+			if lit.Concatenated != tc.wantConcat {
+				t.Errorf("Concatenated = %v, want %v", lit.Concatenated, tc.wantConcat)
 			}
 			if lit.FirstSegment != tc.wantFirstSeg {
 				t.Errorf("FirstSegment = %q, want %q", lit.FirstSegment, tc.wantFirstSeg)
@@ -215,6 +214,7 @@ func TestAdjacentStringLiteralRejects(t *testing.T) {
 		`CREATE TABLE t (a int) COMMENT 'x' 'y'`,
 		`CREATE TABLE t (a int COMMENT 'x' 'y')`,
 		`CREATE TABLE t (e ENUM('a' 'b'))`,
+		`CREATE PROCEDURE p() COMMENT 'x' 'y' SELECT 1`,
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {

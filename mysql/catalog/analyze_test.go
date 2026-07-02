@@ -2788,3 +2788,37 @@ func TestAnalyze_15_5_ViewFunctionTypeFlow(t *testing.T) {
 		t.Errorf("TargetList[2].ResName: want cnt, got %s", q.TargetList[2].ResName)
 	}
 }
+
+// TestAnalyze_AdjacentLiteralResName pins the implicit output column name for
+// adjacent string-literal runs: MySQL names the item after the FIRST segment
+// ('a' 'b' → "a"), and an empty derived name falls back to the positional
+// Name_exp_N form (SELECT ” 'b' → Name_exp_1, SELECT ” → Name_exp_1; second
+// position → Name_exp_2). Oracle: MySQL 8.0.32 + 5.7.25 SHOW CREATE VIEW.
+func TestAnalyze_AdjacentLiteralResName(t *testing.T) {
+	c := wtSetup(t)
+	cases := []struct {
+		sql   string
+		names []string
+	}{
+		{`SELECT 'a' 'b'`, []string{"a"}},
+		{`SELECT '' 'b'`, []string{"Name_exp_1"}},
+		{`SELECT ''`, []string{"Name_exp_1"}},
+		{`SELECT 1, '' 'b'`, []string{"1", "Name_exp_2"}},
+		{`SELECT 'a' '' 'b'`, []string{"a"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.sql, func(t *testing.T) {
+			sel := parseSelect(t, tc.sql)
+			q, err := c.AnalyzeSelectStmt(sel)
+			assertNoError(t, err)
+			if len(q.TargetList) != len(tc.names) {
+				t.Fatalf("TargetList: want %d entries, got %d", len(tc.names), len(q.TargetList))
+			}
+			for i, want := range tc.names {
+				if q.TargetList[i].ResName != want {
+					t.Errorf("TargetList[%d].ResName: want %q, got %q", i, want, q.TargetList[i].ResName)
+				}
+			}
+		})
+	}
+}
