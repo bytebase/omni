@@ -48,12 +48,14 @@ func startPGContainer(t *testing.T) *pgContainer {
 			}
 		}()
 
-		if err := dockerPreflight(2 * time.Second); err != nil {
+		if err := dockerPreflight(10 * time.Second); err != nil {
 			pgContainerErr = fmt.Errorf("docker preflight failed: %w", err)
 			return
 		}
 
-		startCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		// Generous timeout: on a clean CI runner the image pull alone
+		// can exceed the 15s this used to allow.
+		startCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 		defer cancel()
 
 		container, err := tcpg.Run(startCtx, "postgres:16-alpine",
@@ -97,9 +99,17 @@ func startPGContainer(t *testing.T) *pgContainer {
 		}
 	})
 	if pgContainerErr != nil {
+		// In CI a startup failure must fail the job, not silently turn
+		// the container gate into a green no-op.
+		if os.Getenv("CI") != "" {
+			t.Fatalf("PG container required in CI but not available: %v", pgContainerErr)
+		}
 		t.Skipf("skipping container test: requires Docker: %v", pgContainerErr)
 	}
 	if pgContainerInst == nil {
+		if os.Getenv("CI") != "" {
+			t.Fatal("PG container required in CI but not available")
+		}
 		t.Skip("skipping container test: requires Docker")
 	}
 	t.Cleanup(func() {
