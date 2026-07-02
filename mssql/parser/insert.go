@@ -93,11 +93,7 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 				p.addRuleCandidate("columnref")
 				return nil, errCollecting
 			}
-			colName, ok := p.parseIdentifier()
-			if !ok {
-				return nil, p.unexpectedToken()
-			}
-			return &nodes.String{Str: colName}, nil
+			return p.parseInsertColumnName()
 		})
 		if err != nil {
 			return nil, err
