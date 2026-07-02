@@ -47,6 +47,23 @@ const DefaultURL = "http://localhost:18080"
 // EnvURL is the environment variable that overrides the oracle endpoint.
 const EnvURL = "TRINO_ORACLE_URL"
 
+// SkipOrFailUnreachable is the standard guard when the oracle cannot be
+// reached at test start. Locally it skips so developers without a Trino
+// aren't blocked; in CI (CI env var set, as on GitHub Actions) it fails
+// hard — the CI container job starts a Trino first, so unreachable there
+// means the gate would otherwise silently turn into a green no-op.
+func SkipOrFailUnreachable(t interface {
+	Helper()
+	Fatalf(format string, args ...any)
+	Skipf(format string, args ...any)
+}, format string, args ...any) {
+	t.Helper()
+	if os.Getenv("CI") != "" {
+		t.Fatalf(format, args...)
+	}
+	t.Skipf(format, args...)
+}
+
 // syntaxErrorName is Trino's errorName for a parser rejection.
 const syntaxErrorName = "SYNTAX_ERROR"
 

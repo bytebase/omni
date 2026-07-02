@@ -25,7 +25,7 @@ func connectOracle(t *testing.T) *trinooracle.Oracle {
 	defer cancel()
 	ver, err := o.Ping(ctx)
 	if err != nil {
-		t.Skipf("trino oracle not reachable (start a Trino server and set %s if needed): %v", trinooracle.EnvURL, err)
+		trinooracle.SkipOrFailUnreachable(t, "trino oracle not reachable (start a Trino server and set %s if needed): %v", trinooracle.EnvURL, err)
 	}
 	t.Logf("connected to Trino %s", ver)
 	return o
