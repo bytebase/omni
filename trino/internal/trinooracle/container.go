@@ -8,8 +8,11 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 )
 
-// DefaultImage is the Trino image used by StartContainer.
-const DefaultImage = "trinodb/trino:latest"
+// DefaultImage is the Trino image used by StartContainer. Pinned so
+// differential results are reproducible — a floating `latest` tag lets new
+// Trino releases silently shift the accept/reject oracle. Bump deliberately
+// and re-run the differentials when moving to a new Trino version.
+const DefaultImage = "trinodb/trino:482"
 
 // StartContainer starts a disposable Trino server via testcontainers and returns
 // an Oracle pointed at it plus a terminate func. Trino's JVM takes ~30-60s to
