@@ -147,11 +147,9 @@ func indexMigrationProbes() []migrationProbe {
 			"CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b))",
 			"CREATE TABLE t (a INT NOT NULL, b INT NULL, PRIMARY KEY (a))", both()},
 		// NOTE: the combination "AUTO_INCREMENT keeps the PK AND a different old-PK member is
-		// demoted to nullable in the same migration" is a FLAGGED known limitation (see
-		// primaryKeyModifyOps): combined-vs-split cannot satisfy both the no-unkeyed-AUTO_INCREMENT
-		// constraint (needs combined) and the demote-after-PK-drop constraint (needs split) without
-		// reordering the column generator's ops, which this node does not control. It is recorded,
-		// not proven here.
+		// demoted to nullable in the same migration" is handled by the AUTO_INCREMENT grouping
+		// pass (mergeAutoIncrementKeyOps) and proven by the aig-pk-keep-ai-demote-member probe in
+		// migration_autoinc_oracle_test.go.
 		// 8.0-only: visibility flip and direction flip are MODIFYs.
 		{"modify-visibility", "t",
 			"CREATE TABLE t (id INT PRIMARY KEY, a INT, KEY k (a))",

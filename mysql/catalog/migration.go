@@ -107,6 +107,15 @@ type MigrationOp struct {
 	Phase    MigrationPhase
 	Priority int    // tie-breaker within a phase (lower = earlier)
 	sortName string // stable secondary key (table name, or table+column for column ops)
+
+	// AUTO_INCREMENT-hazard grouping metadata (mergeAutoIncrementKeyOps,
+	// migration_autoinc.go), set by the constructors of single-statement ALTER TABLE ops.
+	// alterClause is the clause rendered after "ALTER TABLE <ident> " (empty for ops that
+	// never participate in grouping); addsIndex/dropsIndex identify the index the op's own
+	// statement adds / drops ("primary" stands for the PRIMARY KEY, which has no user name).
+	alterClause string
+	addsIndex   *Index
+	dropsIndex  string
 }
 
 // Priority constants for tie-breaking within a phase. Lower runs earlier. For the
@@ -240,6 +249,11 @@ func GenerateMigrationWithNormalizer(from, to *Catalog, diff *SchemaDiff, n *Nor
 	ops = append(ops, generateTriggerDDL(from, to, diff, n)...)
 	ops = append(ops, generateEventDDL(from, to, diff, n)...)
 	ops = append(ops, generatePartitionDDL(from, to, diff, n)...)
+
+	// Group the clauses that MySQL requires to land in ONE statement: an AUTO_INCREMENT
+	// column and its backing key must never be separated by a statement boundary (errno 1075
+	// checks every ALTER's end state) — see migration_autoinc.go.
+	ops = mergeAutoIncrementKeyOps(ops, diff, n)
 
 	ops = sortMigrationOps(ops)
 
