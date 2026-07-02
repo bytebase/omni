@@ -397,7 +397,7 @@ CREATE VIEW v1 AS SELECT fn_base() AS n;`)
 	if pos[0] < 0 || pos[1] < 0 || pos[2] < 0 {
 		t.Fatalf("missing ops: fn=%d v1=%d v2=%d\n%s", pos[0], pos[1], pos[2], plan.SQL())
 	}
-	if !(pos[0] < pos[1] && pos[1] < pos[2]) {
+	if pos[0] >= pos[1] || pos[1] >= pos[2] {
 		t.Errorf("chain order wrong (want fn < v1 < v2): fn=%d v1=%d v2=%d\n%s",
 			pos[0], pos[1], pos[2], plan.SQL())
 	}
@@ -419,7 +419,7 @@ CREATE VIEW v1 AS SELECT fn_base() AS n;`)
 	if pos[0] < 0 || pos[1] < 0 || pos[2] < 0 {
 		t.Fatalf("missing ops: drop=%d create=%d view=%d\n%s", pos[0], pos[1], pos[2], plan.SQL())
 	}
-	if !(pos[0] < pos[1] && pos[1] < pos[2]) {
+	if pos[0] >= pos[1] || pos[1] >= pos[2] {
 		t.Errorf("order wrong (want DROP FUNCTION < CREATE FUNCTION < CREATE VIEW): drop=%d create=%d view=%d\n%s",
 			pos[0], pos[1], pos[2], plan.SQL())
 	}
