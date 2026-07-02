@@ -116,6 +116,8 @@ var callableKeywordManifest = []callableKeyword{
 	{keyword: "SYSTEM_USER", role: roleNiladic, acceptSample: "SELECT SYSTEM_USER"},
 	{keyword: "USER", role: roleNiladic, acceptSample: "SELECT USER"},
 	{keyword: "CURRENT_DATE", role: roleNiladic, acceptSample: "SELECT CURRENT_DATE"},
+	{keyword: "IDENTITYCOL", role: roleNiladic, acceptSample: "SELECT IDENTITYCOL FROM t"},
+	{keyword: "ROWGUIDCOL", role: roleNiladic, acceptSample: "SELECT ROWGUIDCOL FROM t"},
 }
 
 // rejectContexts are the "wrong-context" shapes we spray each keyword into

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Token type constants for the T-SQL lexer.
@@ -19,6 +21,8 @@ const (
 	tokIDENT                    // identifier (regular or [bracketed])
 	tokVARIABLE                 // @variable
 	tokSYSVARIABLE              // @@system_variable
+	tokMONEY                    // money constant ($12.50, £10, €7)
+	tokPSEUDOCOL                // $-prefixed pseudo-column ($action, $IDENTITY, $PARTITION, ...)
 
 	// Multi-character operators
 	tokNOTEQUAL   // <> or !=
@@ -1492,6 +1496,21 @@ func (l *Lexer) nextTokenInner() Token {
 		return l.lexNumber()
 	}
 
+	// $-prefixed tokens: money constant ($12.50) or pseudo-column ($action).
+	if ch == '$' {
+		return l.lexDollar()
+	}
+
+	// Currency-symbol money constant (£10, €7, ...). Unicode currency symbols
+	// are not valid identifier-start characters in T-SQL; the engine lexes them
+	// as money constants. Must be checked before the identifier path, which
+	// otherwise swallows any byte >= 128.
+	if ch >= 128 {
+		if r, size := utf8.DecodeRuneInString(l.input[l.pos:]); unicode.Is(unicode.Sc, r) {
+			return l.lexMoney(size)
+		}
+	}
+
 	// Single-character tokens
 	if isSingleChar(ch) {
 		l.pos++
@@ -1506,6 +1525,55 @@ func (l *Lexer) nextTokenInner() Token {
 	// Unknown character - return as itself
 	l.pos++
 	return Token{Type: int(ch), Str: string(ch), Loc: l.start}
+}
+
+// lexDollar lexes a token starting with '$': a money constant when digits
+// follow ($12, $12.50, $.5), or a pseudo-column candidate when an identifier
+// follows ($action, $IDENTITY, $PARTITION — validated against the known set by
+// the parser, mirroring the engine's Msg 126 for unknown ones). A bare '$'
+// stays an unknown single-char token (syntax error downstream): SQL Server
+// itself lexes a lone '$' as money 0.0000, but SqlScriptDOM rejects it — we
+// deliberately follow SqlScriptDOM here.
+func (l *Lexer) lexDollar() Token {
+	if l.pos+1 < len(l.input) {
+		next := l.input[l.pos+1]
+		if isDigit(next) || (next == '.' && l.pos+2 < len(l.input) && isDigit(l.input[l.pos+2])) {
+			return l.lexMoney(1)
+		}
+		if isIdentStart(next) {
+			start := l.pos
+			l.pos++ // consume $
+			for l.pos < len(l.input) && isIdentCont(l.input[l.pos]) {
+				l.pos++
+			}
+			return Token{Type: tokPSEUDOCOL, Str: l.input[start:l.pos], Loc: l.start}
+		}
+	}
+	l.pos++
+	return Token{Type: int('$'), Str: "$", Loc: l.start}
+}
+
+// lexMoney lexes a money constant: a currency symbol of symLen bytes followed
+// by digits with at most one decimal point. A symbol with no digits lexes as
+// money zero, matching the engine (e.g. `SELECT £` returns 0.0000).
+func (l *Lexer) lexMoney(symLen int) Token {
+	start := l.pos
+	l.pos += symLen
+	seenDot := false
+	for l.pos < len(l.input) {
+		ch := l.input[l.pos]
+		if isDigit(ch) {
+			l.pos++
+			continue
+		}
+		if ch == '.' && !seenDot && l.pos+1 < len(l.input) && isDigit(l.input[l.pos+1]) {
+			seenDot = true
+			l.pos++
+			continue
+		}
+		break
+	}
+	return Token{Type: tokMONEY, Str: l.input[start:l.pos], Loc: l.start}
 }
 
 func (l *Lexer) skipWhitespace() {
