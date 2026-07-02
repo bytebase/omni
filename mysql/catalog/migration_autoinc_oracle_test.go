@@ -186,6 +186,33 @@ func autoIncMigrationProbes() []migrationProbe {
 		{"aig-generated-keypart-pullin", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY)",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, seq INT NOT NULL AUTO_INCREMENT, d INT NOT NULL, g INT GENERATED ALWAYS AS (d+1) VIRTUAL, UNIQUE KEY uk_sg (seq, g))", both()},
+		// PR-review scenarios (bot P2s on #364), each proven end-to-end on both engines:
+		// A FUNCTIONAL key part references a column added in the same plan that sorts after the
+		// auto column: its ADD must be pulled into the grouped statement (errno 1054 otherwise).
+		{"aig-funcpart-new-col", "t",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY)",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, seq INT NOT NULL AUTO_INCREMENT, z INT, KEY k_sz (seq, (z + 1)))", only(MySQL80)},
+		// A PREFIX key part over an existing column widened in the same plan: the widening
+		// MODIFY must join the grouped statement (errno 1089 against the old length otherwise;
+		// in one statement MySQL validates against the post-MODIFY shape).
+		{"aig-prefix-over-widened", "t",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, v VARCHAR(100))",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, v VARCHAR(500), seq INT NOT NULL AUTO_INCREMENT, KEY k_sv (seq, v(300)))", both()},
+		// REFUTED-claim pins (reviewer scenarios that pass without special handling):
+		// dropping a composite-PK member column SHRINKS the PK (it never auto-removes a PK the
+		// auto column remains a member of), so the grouped DROP PRIMARY KEY still finds a PK.
+		{"aig-pk-drop-member-drop-newkey", "t",
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, PRIMARY KEY (id, a))",
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, KEY k_id (id))", both()},
+		{"aig-pk-shrink-member-drop", "t",
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, a INT NOT NULL, PRIMARY KEY (id, a))",
+			"CREATE TABLE t (id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id))", both()},
+		// A pulled generated key part whose BASE column is widened in the same plan: MySQL
+		// permits adding the generated column against the old base type and widening it after
+		// (order-free, probed), so no base-MODIFY pull is required for convergence.
+		{"aig-genpart-base-widened", "t",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, z INT)",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, z BIGINT, seq INT NOT NULL AUTO_INCREMENT, g INT GENERATED ALWAYS AS (z + 1) VIRTUAL, UNIQUE KEY uk_sg (seq, g))", both()},
 		// The AUTO_INCREMENT column keeps its attribute but is REDEFINED (type widen) while the
 		// backing key is reshaped in the same plan: the widen MODIFY stays its own statement
 		// (still covered by the old key) and the reshape is grouped.
@@ -285,6 +312,19 @@ func TestOracle_AutoIncGroupingFKImplicitBacking(t *testing.T) {
 				"CONSTRAINT fk_seq FOREIGN KEY (seq) REFERENCES p (id))",
 			toSQL: "CREATE TABLE p (id INT NOT NULL PRIMARY KEY); " +
 				"CREATE TABLE c (id INT NOT NULL PRIMARY KEY, x INT)",
+			tables:   []string{"p", "c"},
+			versions: both(),
+		},
+		// An FK re-pointed from an old column to a NEW auto column KEEPING its constraint name
+		// (PR-review scenario): the old implicit backing index of the SAME name is dropped in
+		// PhasePre, so the name is free again and the backing synthesis must not be blocked by
+		// its mere presence on the from side (errno 1075 ungrouped).
+		{
+			id: "aig-fk-rename-in-place-to-ai",
+			fromSQL: "CREATE TABLE p (id INT NOT NULL PRIMARY KEY); " +
+				"CREATE TABLE c (id INT NOT NULL PRIMARY KEY, old_id INT, CONSTRAINT fk FOREIGN KEY (old_id) REFERENCES p (id))",
+			toSQL: "CREATE TABLE p (id INT NOT NULL PRIMARY KEY); " +
+				"CREATE TABLE c (id INT NOT NULL PRIMARY KEY, old_id INT, seq INT NOT NULL AUTO_INCREMENT, CONSTRAINT fk FOREIGN KEY (seq) REFERENCES p (id))",
 			tables:   []string{"p", "c"},
 			versions: both(),
 		},

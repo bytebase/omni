@@ -332,6 +332,48 @@ func TestAutoIncGrouping_MyISAMSharedKeyAIMigration(t *testing.T) {
 	requireOneStatementWith(t, p, "MODIFY COLUMN `c2`", "ADD KEY `k2` (`c2`)")
 }
 
+func TestAutoIncGrouping_FunctionalKeyPartPullsColumnAdds(t *testing.T) {
+	// PR-review fix: a FUNCTIONAL key part may reference columns added in this plan; all
+	// column adds are pulled into the grouped statement so the expression resolves (1054).
+	p := aigPlan(t,
+		"CREATE TABLE t (id INT NOT NULL PRIMARY KEY);",
+		"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, seq INT NOT NULL AUTO_INCREMENT, z INT, KEY k_sz (seq, (z + 1)));")
+	op := requireOneStatementWith(t, p, "ADD COLUMN `seq`", "ADD COLUMN `z`", "ADD KEY `k_sz`")
+	if strings.Index(op.SQL, "ADD COLUMN `z`") > strings.Index(op.SQL, "ADD KEY") {
+		t.Errorf("referenced column add must precede the key clause: %s", op.SQL)
+	}
+	if len(p.Ops) != 1 {
+		t.Errorf("want 1 grouped op, got %d:\n%s", len(p.Ops), p.SQL())
+	}
+}
+
+func TestAutoIncGrouping_PrefixKeyPullsWideningModify(t *testing.T) {
+	// PR-review fix: a prefix part over an existing column widened in this plan pulls the
+	// widening MODIFY into the grouped statement (1089 against the old length otherwise).
+	p := aigPlan(t,
+		"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, v VARCHAR(100));",
+		"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, v VARCHAR(500), seq INT NOT NULL AUTO_INCREMENT, KEY k_sv (seq, v(300)));")
+	requireOneStatementWith(t, p, "ADD COLUMN `seq`", "MODIFY COLUMN `v` varchar(500)", "ADD KEY `k_sv` (`seq`,`v`(300))")
+	if len(p.Ops) != 1 {
+		t.Errorf("want 1 grouped op, got %d:\n%s", len(p.Ops), p.SQL())
+	}
+}
+
+func TestAutoIncGrouping_FKRenameInPlaceSynthesis(t *testing.T) {
+	// PR-review fix: an FK re-pointed to a new auto column KEEPING its constraint name — the
+	// old implicit backing index (same name) is dropped in PhasePre, so the name is free and
+	// the backing synthesis must proceed.
+	p := aigPlan(t,
+		"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT NOT NULL PRIMARY KEY, old_id INT, CONSTRAINT fk FOREIGN KEY (old_id) REFERENCES p (id));",
+		"CREATE TABLE p (id INT NOT NULL PRIMARY KEY); CREATE TABLE c (id INT NOT NULL PRIMARY KEY, old_id INT, seq INT NOT NULL AUTO_INCREMENT, CONSTRAINT fk FOREIGN KEY (seq) REFERENCES p (id));")
+	requireOneStatementWith(t, p, "ADD COLUMN `seq`", "ADD KEY `fk` (`seq`)")
+	// The old backing index drop and the FK constraint churn stay their own statements.
+	requireOneStatementWith(t, p, "DROP FOREIGN KEY `fk`")
+	if got := strings.Count(p.SQL(), "ADD KEY `fk` (`seq`)"); got != 1 {
+		t.Errorf("want the synthesized backing key exactly once, got %d:\n%s", got, p.SQL())
+	}
+}
+
 func TestAutoIncGrouping_IdempotenceHermetic(t *testing.T) {
 	// Self-diff of every grouped target form stays an empty plan under both normalizers.
 	schemas := []string{

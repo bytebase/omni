@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"slices"
 	"sort"
 	"strings"
 )
@@ -404,7 +405,7 @@ func (m *aiMerger) mergeAddHazard(entry *TableDiffEntry, roles *tableOpRoles, fr
 	synthesized := ""
 	if cand >= 0 {
 		candIdx = m.ops[cand].addsIndex
-	} else if idx := fkImplicitBackingToSynthesize(entry, toAI); idx != nil {
+	} else if idx := m.fkImplicitBackingToSynthesize(entry, roles, toAI, target); idx != nil {
 		candIdx = idx
 		synthesized = "ADD " + formatIndexDefinition(idx, n)
 	}
@@ -412,7 +413,7 @@ func (m *aiMerger) mergeAddHazard(entry *TableDiffEntry, roles *tableOpRoles, fr
 		return // no in-plan backing — the target is invalid and MySQL reports it
 	}
 
-	m.pullReferencedColumnAdds(roles, target, candIdx, toAI, entry)
+	m.pullReferencedColumnOps(roles, target, candIdx, toAI, entry)
 	if synthesized != "" {
 		m.appendClause(target, synthesized)
 	} else {
@@ -471,46 +472,77 @@ func (m *aiMerger) opExecutesBefore(i, j int) bool {
 	return i < j
 }
 
-// pullReferencedColumnAdds moves the ADD COLUMN statements of the backing key's OTHER new
-// columns into the grouped statement (the key clause must be able to reference them), plain
-// columns first, then generated ones, each name-ordered — matching the standalone emission
-// order of the column generator. When a GENERATED key part is pulled, ALL of the table's plain
-// column adds come along: the generated expression may reference a new plain column that is not
-// itself a key part, and leaving that column's ADD in its own name-sorted statement could run
-// it after this one (extra plain ADD clauses in the grouped statement are harmless,
-// oracle-proven).
-func (m *aiMerger) pullReferencedColumnAdds(roles *tableOpRoles, target int, idx *Index, toAI string, entry *TableDiffEntry) {
-	var plain, generated []string
+// pullReferencedColumnOps moves the column statements the backing key depends on into the
+// grouped statement, so the key clause always references columns that exist in their final
+// shape at its end-of-statement:
+//
+//   - ADD COLUMN of every other NEW plain key-part column, then of generated ones (plain
+//     before generated, each name-ordered — matching the column generator's emission order);
+//   - MODIFY COLUMN of every EXISTING plain key-part column changed in this plan (a prefix
+//     part over a column widened in-plan would otherwise be validated against the old type —
+//     errno 1089 — because the grouped statement runs at the auto column's name slot, possibly
+//     before that MODIFY; in-statement, MySQL validates against the post-MODIFY shape,
+//     oracle-proven both clause orders);
+//   - when the key has GENERATED or FUNCTIONAL (expression) parts, ALL of the table's plain
+//     column adds: the expression may reference a new plain column that is not itself a key
+//     part (errno 1054 otherwise), and for functional parts additionally the generated adds.
+//     Conservative pulling is deterministic and harmless — extra clauses in the grouped
+//     statement are oracle-proven no-ops semantically.
+func (m *aiMerger) pullReferencedColumnOps(roles *tableOpRoles, target int, idx *Index, toAI string, entry *TableDiffEntry) {
+	var plain, generated, modifies []string
+	pullAllAdds, pullGeneratedAdds := false, false
 	for _, ic := range idx.Columns {
-		if ic == nil || ic.Expr != "" {
+		if ic == nil {
+			continue
+		}
+		if ic.Expr != "" {
+			// Functional part: its expression may reference any column added in this plan.
+			pullAllAdds, pullGeneratedAdds = true, true
 			continue
 		}
 		name := toLower(ic.Name)
 		if name == toAI {
 			continue
 		}
-		if _, ok := roles.colAdd[name]; !ok {
+		if _, ok := roles.colAdd[name]; ok {
+			if col := entry.To.GetColumn(ic.Name); col != nil && col.Generated != nil {
+				generated = append(generated, name)
+				pullAllAdds = true // its expression may reference a non-key-part new column
+			} else {
+				plain = append(plain, name)
+			}
 			continue
 		}
-		if col := entry.To.GetColumn(ic.Name); col != nil && col.Generated != nil {
-			generated = append(generated, name)
-		} else {
-			plain = append(plain, name)
+		if _, ok := roles.colModify[name]; ok {
+			modifies = append(modifies, name)
 		}
 	}
-	if len(generated) > 0 {
+	if pullAllAdds {
 		plain = plain[:0]
 		for name, ai := range roles.colAdd {
 			if name == toAI || m.consumed[ai] || ai == target {
 				continue
 			}
-			if col := entry.To.GetColumn(name); col != nil && col.Generated == nil {
+			col := entry.To.GetColumn(name)
+			if col == nil {
+				continue
+			}
+			if col.Generated == nil {
 				plain = append(plain, name)
+			} else if pullGeneratedAdds && !slices.Contains(generated, name) {
+				generated = append(generated, name)
 			}
 		}
 	}
+	sort.Strings(modifies)
 	sort.Strings(plain)
 	sort.Strings(generated)
+	for _, name := range modifies {
+		mi := roles.colModify[name]
+		if !m.consumed[mi] && mi != target {
+			m.mergeInto(target, false, mi)
+		}
+	}
 	for _, name := range append(plain, generated...) {
 		ai := roles.colAdd[name]
 		if !m.consumed[ai] && ai != target {
@@ -637,10 +669,14 @@ func columnEntry(entry *TableDiffEntry, col string) *ColumnDiffEntry {
 // into the grouped column statement when NO diffed key covers the new auto column — the ALTER
 // analog of formatCreateTable's last-resort inline. The index must cover the column, be
 // FK-implicit on the target (the index differ excludes it, so no ADD op exists), and its name
-// must be free on the from side (otherwise adding it would collide, errno 1061). The deferred
-// PhasePost FK ADD then reuses the pre-created index instead of auto-creating a duplicate
-// (oracle-probed). Candidates iterate in name order for determinism.
-func fkImplicitBackingToSynthesize(entry *TableDiffEntry, col string) *Index {
+// must be FREE when the grouped statement runs: either absent on the from side, or freed by an
+// in-plan DROP whose statement executes at or before the target (an FK re-pointed to the new
+// auto column keeps its constraint name, so the OLD implicit backing index of the SAME name is
+// dropped in PhasePre — the name is available again by the time the group runs; adding it
+// while the old one still existed would collide, errno 1061). The deferred PhasePost FK ADD
+// then reuses the pre-created index instead of auto-creating a duplicate (oracle-probed).
+// Candidates iterate in name order for determinism.
+func (m *aiMerger) fkImplicitBackingToSynthesize(entry *TableDiffEntry, roles *tableOpRoles, col string, target int) *Index {
 	implicit := fkImplicitIndexNames(entry.To)
 	if len(implicit) == 0 {
 		return nil
@@ -651,9 +687,20 @@ func fkImplicitBackingToSynthesize(entry *TableDiffEntry, col string) *Index {
 			fromNames[toLower(idx.Name)] = true
 		}
 	}
+	nameFree := func(name string) bool {
+		if !fromNames[name] {
+			return true
+		}
+		di, dropped := roles.idxDrop[name]
+		if !dropped {
+			return false
+		}
+		final := m.resolveMergedTarget(di)
+		return final == target || m.opExecutesBefore(final, target)
+	}
 	var best *Index
 	for _, idx := range entry.To.Indexes {
-		if idx == nil || idx.Primary || !implicit[toLower(idx.Name)] || fromNames[toLower(idx.Name)] {
+		if idx == nil || idx.Primary || !implicit[toLower(idx.Name)] || !nameFree(toLower(idx.Name)) {
 			continue
 		}
 		if !indexBacksAutoColumn(idx, col, entry.To.Engine) {
