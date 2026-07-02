@@ -100,7 +100,7 @@ func TestDeparse_ParenSubqueryOperandForms(t *testing.T) {
 }
 
 // An explicit alias containing a literal backtick must be re-escaped on
-// emission (the lexer folds “ on the way in) and reach a parse→deparse
+// emission (the lexer folds `` on the way in) and reach a parse→deparse
 // fixed point without double-escaping.
 func TestDeparse_AliasBacktickEscaping(t *testing.T) {
 	sql := "SELECT 1 AS `a``b`"
