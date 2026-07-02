@@ -337,6 +337,31 @@ func (p *Parser) parseUnaryExpr(op nodes.UnaryOp) (nodes.ExprNode, error) {
 	}, nil
 }
 
+// foldAdjacentStringLits folds MySQL's adjacent string-literal concatenation
+// into lit: quoted strings placed next to each other are a single literal whose
+// value is the concatenation of the segments ('a' 'b' → 'ab', manual 9.1.1).
+// The rule lives on text_literal only — continuation segments must be bare
+// quoted strings (never a charset introducer, hex/bit literal, or temporal
+// literal; MySQL 8.0.32 and 5.7.25 both reject or alias those forms), and the
+// character set of the run is that of the first segment. FirstSegment records
+// the first segment's value because the implicit output column name derives
+// from it, not from the folded value (SELECT 'a' 'b' → column "a", value "ab").
+func (p *Parser) foldAdjacentStringLits(lit *nodes.StringLit) {
+	if p.cur.Type != tokSCONST {
+		return
+	}
+	var sb strings.Builder
+	sb.WriteString(lit.Value)
+	lit.FirstSegment = lit.Value
+	lit.Concatenated = true
+	for p.cur.Type == tokSCONST {
+		next := p.advance()
+		sb.WriteString(next.Str)
+	}
+	lit.Value = sb.String()
+	lit.Loc.End = p.pos()
+}
+
 // parsePrimaryExpr parses atoms: literals, column refs, subqueries, func calls, parenthesized exprs.
 func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	switch p.cur.Type {
@@ -354,7 +379,9 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 
 	case tokSCONST:
 		tok := p.advance()
-		return &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: p.pos()}, Value: tok.Str}, nil
+		lit := &nodes.StringLit{Loc: nodes.Loc{Start: tok.Loc, End: p.pos()}, Value: tok.Str}
+		p.foldAdjacentStringLits(lit)
+		return lit, nil
 
 	case tokXCONST:
 		tok := p.advance()
@@ -493,11 +520,13 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 		if p.cur.Type == tokIDENT && strings.HasPrefix(p.cur.Str, "_") && p.peekNext().Type == tokSCONST {
 			charsetTok := p.advance() // consume the charset identifier
 			strTok := p.advance()     // consume the string literal
-			return &nodes.StringLit{
+			lit := &nodes.StringLit{
 				Loc:     nodes.Loc{Start: charsetTok.Loc, End: strTok.Loc + len(strTok.Str) + 2},
 				Value:   strTok.Str,
 				Charset: charsetTok.Str,
-			}, nil
+			}
+			p.foldAdjacentStringLits(lit)
+			return lit, nil
 		}
 
 		// Identifier — could be column ref or function call

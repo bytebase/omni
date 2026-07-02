@@ -891,6 +891,14 @@ type StringLit struct {
 	Loc     Loc
 	Value   string
 	Charset string // optional charset introducer (_utf8, etc.)
+	// Concatenated marks a literal folded from ADJACENT quoted segments per
+	// MySQL's adjacent string-literal concatenation ('a' 'b' → "ab"). Value
+	// holds the folded result; FirstSegment holds the first segment's value,
+	// because MySQL derives the implicit output column name from the first
+	// segment only (SELECT 'a' 'b' → column named "a" with value "ab", and an
+	// empty first segment falls back to the positional Name_exp_N form).
+	Concatenated bool
+	FirstSegment string
 }
 
 func (l *StringLit) nodeTag()  {}

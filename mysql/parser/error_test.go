@@ -246,6 +246,56 @@ func TestLineCol(t *testing.T) {
 	}
 }
 
+// TestParseErrorLineExact pins that Parse reports the error line/column against
+// the EXACT input it was handed — across leading comments, blank lines,
+// multi-statement input, compound bodies, and DELIMITER directives. Callers
+// that prepend a synthetic prologue (e.g. "CREATE DATABASE d;\nUSE d;\n")
+// before parsing must translate reported lines back themselves; the parser
+// does not drift.
+func TestParseErrorLineExact(t *testing.T) {
+	cases := []struct {
+		name     string
+		sql      string
+		wantLine int
+		wantCol  int
+	}{
+		{
+			name:     "error on line 6 of an 8-line compound input",
+			sql:      "-- a comment\n\nCREATE PROCEDURE p()\nBEGIN\n    SELECT CONCAT('a',\n                  ,, 'b');\nEND;\n-- trailing",
+			wantLine: 6,
+			wantCol:  19,
+		},
+		{
+			name:     "error after a DELIMITER directive",
+			sql:      "DELIMITER $$\nCREATE PROCEDURE p()\nBEGIN\n    SELECT CONCAT('a',\n                  ,, 'b');\nEND$$\nDELIMITER ;",
+			wantLine: 5,
+			wantCol:  19,
+		},
+		{
+			name:     "error in the second statement",
+			sql:      "SELECT 1;\nSELECT CONCAT('a',\n,, 'b');",
+			wantLine: 3,
+			wantCol:  1,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.sql)
+			if err == nil {
+				t.Fatal("expected parse error, got nil")
+			}
+			pe, ok := err.(*ParseError)
+			if !ok {
+				t.Fatalf("expected *ParseError, got %T: %v", err, err)
+			}
+			if pe.Line != tc.wantLine || pe.Column != tc.wantCol {
+				t.Errorf("error at line %d col %d, want line %d col %d\nerror: %v",
+					pe.Line, pe.Column, tc.wantLine, tc.wantCol, err)
+			}
+		})
+	}
+}
+
 func TestParseError_Section_2_1_ArithmeticOperators(t *testing.T) {
 	cases := []struct {
 		name     string

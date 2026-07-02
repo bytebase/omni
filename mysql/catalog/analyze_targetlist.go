@@ -158,6 +158,11 @@ func deriveColumnName(astNode nodes.ExprNode, _ AnalyzedExpr) string {
 	case *nodes.IntLit:
 		return strconv.FormatInt(n.Value, 10)
 	case *nodes.StringLit:
+		// An adjacent-literal run ('a' 'b') is named after its FIRST segment,
+		// not the folded value (MySQL: SELECT 'a' 'b' → column "a").
+		if n.Concatenated {
+			return n.FirstSegment
+		}
 		return n.Value
 	case *nodes.FloatLit:
 		return n.Value

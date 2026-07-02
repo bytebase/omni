@@ -2472,6 +2472,9 @@ func writeStringLit(sb *strings.Builder, n *StringLit) {
 	if n.Charset != "" {
 		fmt.Fprintf(sb, " :charset %s", n.Charset)
 	}
+	if n.Concatenated {
+		fmt.Fprintf(sb, " :first-segment %q", n.FirstSegment)
+	}
 	sb.WriteString("}")
 }
 

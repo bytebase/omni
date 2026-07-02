@@ -737,3 +737,37 @@ CREATE TABLE derived AS SELECT id FROM src;
 		t.Fatalf("expected CTAS rejection error mentioning SELECT, got: %v", err)
 	}
 }
+
+// TestSDLAdjacentStringLiterals covers MySQL's adjacent string-literal
+// concatenation ('a' 'b' → 'ab') through the SDL loader. The stock MySQL 8.0
+// sys schema relies on it: ps_trace_thread's body concatenates '\n' with the
+// next segment across a line break, so a canonical dump of sys was unloadable
+// before adjacency support. Bodies are stored verbatim; the loaded catalog must
+// also self-diff empty so the adjacency never phantom-diffs.
+func TestSDLAdjacentStringLiterals(t *testing.T) {
+	sql := `
+CREATE DATABASE app;
+USE app;
+CREATE TABLE t (a varchar(40) DEFAULT 'x' 'y');
+CREATE PROCEDURE p()
+BEGIN
+    SELECT CONCAT('tmp disk tables: ', 3, '\n'
+                  'select scan: ', 4, '\n');
+END;
+`
+	db := loadSDLForDB(t, sql, "app")
+	if db.Procedures["p"] == nil {
+		t.Fatal("procedure p not loaded")
+	}
+	if !strings.Contains(db.Procedures["p"].Body, "'select scan: '") {
+		t.Errorf("procedure body not stored verbatim: %q", db.Procedures["p"].Body)
+	}
+
+	c, err := LoadSDL(sql)
+	if err != nil {
+		t.Fatalf("LoadSDL error: %v", err)
+	}
+	if d := Diff(c, c); !d.IsEmpty() {
+		t.Errorf("self-diff of SDL with adjacent literals not empty")
+	}
+}
