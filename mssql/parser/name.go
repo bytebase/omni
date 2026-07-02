@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
@@ -297,6 +298,54 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	}, nil
 }
 
+// knownPseudoColumns are the $-prefixed pseudo-columns SQL Server accepts as
+// column references (lowercased): $action (MERGE OUTPUT), $IDENTITY, $ROWGUID,
+// and the graph-table pseudo-columns. $PARTITION is handled separately as a
+// partition-function call prefix. The engine rejects anything else with
+// Msg 126 "Invalid pseudocolumn"; context restrictions (e.g. $action outside
+// MERGE OUTPUT) are binding-time errors in the engine, not parse errors, so
+// the parser does not enforce them.
+var knownPseudoColumns = map[string]bool{
+	"$action":   true,
+	"$identity": true,
+	"$rowguid":  true,
+	"$node_id":  true,
+	"$edge_id":  true,
+	"$from_id":  true,
+	"$to_id":    true,
+}
+
+// parsePseudoColumn parses a $-prefixed pseudo-column token in expression
+// position: a known pseudo-column becomes a ColumnRef, $PARTITION.fn(args)
+// becomes a schema-qualified function call, anything else is an error.
+func (p *Parser) parsePseudoColumn() (nodes.ExprNode, error) {
+	tok := p.advance()
+	// Not keyword matching: pseudo-columns are tokPSEUDOCOL tokens, never
+	// keywords, so the comparison is on the token's raw text.
+	if strings.ToLower(tok.Str) == "$partition" {
+		// $PARTITION.partition_function_name(expr)
+		if _, err := p.expect('.'); err != nil {
+			return nil, err
+		}
+		if !p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		fname := p.cur.Str
+		p.advance()
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseFuncCallWithSchema(tok.Str, fname, tok.Loc)
+	}
+	if !knownPseudoColumns[strings.ToLower(tok.Str)] {
+		return nil, p.newParseError(tok.Loc, fmt.Sprintf("invalid pseudocolumn %q", tok.Str))
+	}
+	return &nodes.ColumnRef{
+		Column: tok.Str,
+		Loc:    nodes.Loc{Start: tok.Loc, End: p.prevEnd()},
+	}, nil
+}
+
 // parseQualifiedRef parses a dot-qualified column reference or star expression.
 // The first part has already been consumed.
 //
@@ -323,6 +372,17 @@ func (p *Parser) parseQualifiedRef(first string, loc int) (nodes.ExprNode, error
 				Qualifier: qualifier,
 				Loc:       nodes.Loc{Start: loc, End: p.prevEnd()},
 			}, nil
+		}
+
+		// Qualified pseudo-column (t.$IDENTITY, Person.$node_id) or keyword
+		// column (t.IDENTITYCOL, t.ROWGUIDCOL). Both terminate the chain.
+		if p.cur.Type == tokPSEUDOCOL || p.cur.Type == kwIDENTITYCOL || p.cur.Type == kwROWGUIDCOL {
+			if p.cur.Type == tokPSEUDOCOL && !knownPseudoColumns[strings.ToLower(p.cur.Str)] {
+				return nil, p.newParseError(p.cur.Loc, fmt.Sprintf("invalid pseudocolumn %q", p.cur.Str))
+			}
+			parts = append(parts, p.cur.Str)
+			p.advance()
+			break
 		}
 
 		// Accept identifier or keyword-as-identifier after dot

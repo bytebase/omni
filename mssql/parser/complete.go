@@ -30,7 +30,8 @@ func TokenName(tokenType int) string {
 	switch tokenType {
 	case tokIDENT:
 		return ""
-	case tokICONST, tokFCONST, tokSCONST, tokNSCONST, tokVARIABLE, tokSYSVARIABLE:
+	case tokICONST, tokFCONST, tokSCONST, tokNSCONST, tokVARIABLE, tokSYSVARIABLE,
+		tokMONEY, tokPSEUDOCOL:
 		return ""
 	}
 	return ""

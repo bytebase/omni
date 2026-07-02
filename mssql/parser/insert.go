@@ -208,9 +208,11 @@ func (p *Parser) parseOutputClause() (*nodes.OutputClause, error) {
 	loc := p.pos()
 	p.advance() // consume OUTPUT
 
-	// Completion: after OUTPUT → columnref (for inserted.*, deleted.*)
+	// Completion: after OUTPUT → columnref (for inserted.*, deleted.*) and the
+	// $action pseudo-column (MERGE OUTPUT).
 	if p.collectMode() {
 		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("pseudocolumn_action")
 		return nil, errCollecting
 	}
 
