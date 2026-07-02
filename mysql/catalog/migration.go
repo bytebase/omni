@@ -113,13 +113,23 @@ type MigrationOp struct {
 // table/column subset the only ordering that matters is: a table's own CREATE/DROP versus
 // the column ALTERs on a surviving table. Breadth priorities are reserved so later nodes
 // slot in without renumbering.
+//
+// Routines are direction-split (like priorityIndexDrop / priorityCheckDrop): their
+// PhaseMain ops (CREATE/ALTER) run at priorityRoutine, BEFORE view creates, because
+// CREATE VIEW eagerly validates the functions its body calls (Error 1305 when missing —
+// live-verified on 8.0.32 and 5.7.25) while a routine body is lazily validated (a CREATE
+// FUNCTION referencing a missing function/view/table is accepted on both versions), so
+// hoisting every routine above every view is unconditionally safe and needs no per-edge
+// dependency detection. Routine DROPs run at priorityRoutineDrop (migration_routine.go),
+// AFTER view drops (priorityView) in PhasePre, so a dropped dependent view goes before
+// the function it calls.
 const (
 	priorityTable      = 10
 	priorityColumn     = 20
 	priorityIndex      = 30
 	priorityConstraint = 40
+	priorityRoutine    = 45 // routine CREATE/ALTER (PhaseMain): before view creates
 	priorityView       = 50
-	priorityRoutine    = 60
 	priorityTrigger    = 70
 	priorityEvent      = 80
 	priorityForeignKey = 99 // FK deferred to PhasePost (breadth)

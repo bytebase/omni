@@ -313,6 +313,108 @@ CREATE VIEW v1 AS SELECT a FROM t;`)
 	}
 }
 
+// opWant identifies one plan op by type and (case-insensitive) object name for position asserts.
+type opWant struct {
+	typ  MigrationOpType
+	name string
+}
+
+// opPositions returns the plan index of the first op matching each want, -1 when absent.
+func opPositions(plan *MigrationPlan, wants []opWant) []int {
+	pos := make([]int, len(wants))
+	for i := range pos {
+		pos[i] = -1
+	}
+	for i, op := range plan.Ops {
+		for w, want := range wants {
+			if pos[w] < 0 && op.Type == want.typ && strings.EqualFold(op.ObjectName, want.name) {
+				pos[w] = i
+			}
+		}
+	}
+	return pos
+}
+
+// A view whose body calls a stored function created in the SAME plan must be created AFTER the
+// function: MySQL eagerly validates function references at CREATE VIEW time (Error 1305 "FUNCTION
+// does not exist", live-verified on 8.0.32 and 5.7.25), while a routine body is lazily validated
+// (a CREATE FUNCTION referencing a missing function/view/table is accepted, live-verified) — so
+// routine creates are hoisted before view creates unconditionally. Regression for the enterprise
+// SDL smoke failure (view-before-function plan → Error 1305 on apply).
+func TestGenerateView_ViewAfterFunction(t *testing.T) {
+	for _, version := range []Version{MySQL57, MySQL80} {
+		plan := viewPlanFor(t, version,
+			`CREATE TABLE users (id INT PRIMARY KEY);`,
+			`CREATE TABLE users (id INT PRIMARY KEY);
+CREATE FUNCTION ent_ucount() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM users);
+CREATE VIEW ent_v_fn AS SELECT ent_ucount() AS n;`)
+		pos := opPositions(plan, []opWant{{OpCreateFunction, "ent_ucount"}, {OpCreateView, "ent_v_fn"}})
+		if pos[0] < 0 || pos[1] < 0 {
+			t.Fatalf("[v%d] missing ops: function=%d view=%d\n%s", version, pos[0], pos[1], plan.SQL())
+		}
+		if pos[0] > pos[1] {
+			t.Errorf("[v%d] CREATE FUNCTION must precede the CREATE VIEW that calls it:\n%s", version, plan.SQL())
+		}
+	}
+}
+
+// The inverse drop direction: when a view and the function it calls are BOTH dropped in one plan,
+// the view is dropped first (drop the dependent before its dependency). MySQL tolerates dropping a
+// function a view still references (live-verified — the view merely goes invalid), so this is the
+// safe semantic order rather than an apply-success requirement.
+func TestGenerateView_DropViewBeforeDropFunction(t *testing.T) {
+	plan := viewPlanFor(t, MySQL80,
+		`CREATE TABLE users (id INT PRIMARY KEY);
+CREATE FUNCTION ent_ucount() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM users);
+CREATE VIEW ent_v_fn AS SELECT ent_ucount() AS n;`,
+		`CREATE TABLE users (id INT PRIMARY KEY);`)
+	pos := opPositions(plan, []opWant{{OpDropView, "ent_v_fn"}, {OpDropFunction, "ent_ucount"}})
+	if pos[0] < 0 || pos[1] < 0 {
+		t.Fatalf("missing ops: view=%d function=%d\n%s", pos[0], pos[1], plan.SQL())
+	}
+	if pos[0] > pos[1] {
+		t.Errorf("DROP VIEW must precede DROP FUNCTION of a function it calls:\n%s", plan.SQL())
+	}
+}
+
+// Transitive: function ← view ← view. Combining routine-before-view (priority) with view-on-view
+// depth ordering must yield fn < v1 < v2.
+func TestGenerateView_FunctionViewViewChainOrdering(t *testing.T) {
+	plan := viewPlanFor(t, MySQL80,
+		`CREATE TABLE t (a INT);`,
+		`CREATE TABLE t (a INT);
+CREATE FUNCTION fn_base() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM t);
+CREATE VIEW v2 AS SELECT n FROM v1;
+CREATE VIEW v1 AS SELECT fn_base() AS n;`)
+	pos := opPositions(plan, []opWant{{OpCreateFunction, "fn_base"}, {OpCreateView, "v1"}, {OpCreateView, "v2"}})
+	if pos[0] < 0 || pos[1] < 0 || pos[2] < 0 {
+		t.Fatalf("missing ops: fn=%d v1=%d v2=%d\n%s", pos[0], pos[1], pos[2], plan.SQL())
+	}
+	if pos[0] >= pos[1] || pos[1] >= pos[2] {
+		t.Errorf("chain order wrong (want fn < v1 < v2): fn=%d v1=%d v2=%d\n%s",
+			pos[0], pos[1], pos[2], plan.SQL())
+	}
+}
+
+// A body-modified function (DROP+CREATE path) with a NEW view calling it: the function's re-CREATE
+// (PhaseMain) must still precede the view's CREATE, and its DROP stays in PhasePre.
+func TestGenerateView_ViewAfterModifiedFunction(t *testing.T) {
+	plan := viewPlanFor(t, MySQL80,
+		`CREATE TABLE t (a INT);
+CREATE FUNCTION fn_base() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM t);`,
+		`CREATE TABLE t (a INT);
+CREATE FUNCTION fn_base() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) + 1 FROM t);
+CREATE VIEW v1 AS SELECT fn_base() AS n;`)
+	pos := opPositions(plan, []opWant{{OpDropFunction, "fn_base"}, {OpCreateFunction, "fn_base"}, {OpCreateView, "v1"}})
+	if pos[0] < 0 || pos[1] < 0 || pos[2] < 0 {
+		t.Fatalf("missing ops: drop=%d create=%d view=%d\n%s", pos[0], pos[1], pos[2], plan.SQL())
+	}
+	if pos[0] >= pos[1] || pos[1] >= pos[2] {
+		t.Errorf("order wrong (want DROP FUNCTION < CREATE FUNCTION < CREATE VIEW): drop=%d create=%d view=%d\n%s",
+			pos[0], pos[1], pos[2], plan.SQL())
+	}
+}
+
 // All drops precede all creates: a view dropped and another created in one plan must not interleave
 // such that a create lands before the drops (PhasePre vs PhaseMain).
 func TestGenerateView_DropsBeforeCreates(t *testing.T) {
