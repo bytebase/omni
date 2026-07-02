@@ -313,12 +313,14 @@ CREATE VIEW v1 AS SELECT a FROM t;`)
 	}
 }
 
-// opPositions returns the plan index of the first op matching each (type, name) request, -1 when
-// absent. Names are compared case-insensitively.
-func opPositions(plan *MigrationPlan, wants []struct {
+// opWant identifies one plan op by type and (case-insensitive) object name for position asserts.
+type opWant struct {
 	typ  MigrationOpType
 	name string
-}) []int {
+}
+
+// opPositions returns the plan index of the first op matching each want, -1 when absent.
+func opPositions(plan *MigrationPlan, wants []opWant) []int {
 	pos := make([]int, len(wants))
 	for i := range pos {
 		pos[i] = -1
@@ -346,10 +348,7 @@ func TestGenerateView_ViewAfterFunction(t *testing.T) {
 			`CREATE TABLE users (id INT PRIMARY KEY);
 CREATE FUNCTION ent_ucount() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM users);
 CREATE VIEW ent_v_fn AS SELECT ent_ucount() AS n;`)
-		pos := opPositions(plan, []struct {
-			typ  MigrationOpType
-			name string
-		}{{OpCreateFunction, "ent_ucount"}, {OpCreateView, "ent_v_fn"}})
+		pos := opPositions(plan, []opWant{{OpCreateFunction, "ent_ucount"}, {OpCreateView, "ent_v_fn"}})
 		if pos[0] < 0 || pos[1] < 0 {
 			t.Fatalf("[v%d] missing ops: function=%d view=%d\n%s", version, pos[0], pos[1], plan.SQL())
 		}
@@ -369,10 +368,7 @@ func TestGenerateView_DropViewBeforeDropFunction(t *testing.T) {
 CREATE FUNCTION ent_ucount() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM users);
 CREATE VIEW ent_v_fn AS SELECT ent_ucount() AS n;`,
 		`CREATE TABLE users (id INT PRIMARY KEY);`)
-	pos := opPositions(plan, []struct {
-		typ  MigrationOpType
-		name string
-	}{{OpDropView, "ent_v_fn"}, {OpDropFunction, "ent_ucount"}})
+	pos := opPositions(plan, []opWant{{OpDropView, "ent_v_fn"}, {OpDropFunction, "ent_ucount"}})
 	if pos[0] < 0 || pos[1] < 0 {
 		t.Fatalf("missing ops: view=%d function=%d\n%s", pos[0], pos[1], plan.SQL())
 	}
@@ -390,10 +386,7 @@ func TestGenerateView_FunctionViewViewChainOrdering(t *testing.T) {
 CREATE FUNCTION fn_base() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM t);
 CREATE VIEW v2 AS SELECT n FROM v1;
 CREATE VIEW v1 AS SELECT fn_base() AS n;`)
-	pos := opPositions(plan, []struct {
-		typ  MigrationOpType
-		name string
-	}{{OpCreateFunction, "fn_base"}, {OpCreateView, "v1"}, {OpCreateView, "v2"}})
+	pos := opPositions(plan, []opWant{{OpCreateFunction, "fn_base"}, {OpCreateView, "v1"}, {OpCreateView, "v2"}})
 	if pos[0] < 0 || pos[1] < 0 || pos[2] < 0 {
 		t.Fatalf("missing ops: fn=%d v1=%d v2=%d\n%s", pos[0], pos[1], pos[2], plan.SQL())
 	}
@@ -412,10 +405,7 @@ CREATE FUNCTION fn_base() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FRO
 		`CREATE TABLE t (a INT);
 CREATE FUNCTION fn_base() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) + 1 FROM t);
 CREATE VIEW v1 AS SELECT fn_base() AS n;`)
-	pos := opPositions(plan, []struct {
-		typ  MigrationOpType
-		name string
-	}{{OpDropFunction, "fn_base"}, {OpCreateFunction, "fn_base"}, {OpCreateView, "v1"}})
+	pos := opPositions(plan, []opWant{{OpDropFunction, "fn_base"}, {OpCreateFunction, "fn_base"}, {OpCreateView, "v1"}})
 	if pos[0] < 0 || pos[1] < 0 || pos[2] < 0 {
 		t.Fatalf("missing ops: drop=%d create=%d view=%d\n%s", pos[0], pos[1], pos[2], plan.SQL())
 	}

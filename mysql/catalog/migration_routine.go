@@ -12,7 +12,7 @@ import (
 // single generate hook covers both routine kinds: wired into GenerateMigrationWithNormalizer
 // (migration.go), it consumes BOTH SchemaDiff.Functions and SchemaDiff.Procedures and emits the
 // CREATE / DROP / ALTER ops (OpCreateFunction / OpDropFunction / OpCreateProcedure /
-// OpDropProcedure, priorityRoutineCreate for PhaseMain ops, priorityRoutine for drops).
+// OpDropProcedure, priorityRoutine for PhaseMain ops, priorityRoutineDrop for drops).
 //
 // MySQL has NO `CREATE OR REPLACE` and NO `ALTER` for a routine's body/params/RETURNS. So a
 // change to any of those is a DROP followed by a CREATE. `ALTER FUNCTION/PROCEDURE` can change
@@ -25,19 +25,19 @@ import (
 //   - DiffModify, ALTER insufficient → DROP + CREATE.
 //
 // Ordering (mirrors the index node's drop-before-add discipline): DROPs run in PhasePre at
-// priorityRoutine, CREATEs and ALTERs in PhaseMain at priorityRoutineCreate. So a MODIFY's DROP
+// priorityRoutineDrop, CREATEs and ALTERs in PhaseMain at priorityRoutine. So a MODIFY's DROP
 // (PhasePre) always precedes its CREATE (PhaseMain) — the name is free for re-creation — and a
 // routine dropped in one place and created in another never reverses. sortMigrationOps re-imposes
 // the global phase/priority/name order.
 //
 // The priorities are direction-split against VIEWS (live-verified on 8.0.32 and 5.7.25):
-//   - CREATE/ALTER at priorityRoutineCreate (< priorityView): CREATE VIEW eagerly validates the
+//   - CREATE/ALTER at priorityRoutine (< priorityView): CREATE VIEW eagerly validates the
 //     functions its body calls (Error 1305 when one is missing), while a routine body is lazily
 //     validated (CREATE FUNCTION referencing a missing function/view/table is accepted), so every
 //     routine created in a plan is hoisted above every view create — unconditionally safe, no
 //     dependency detection needed, and a function→view→view chain composes with the view node's
 //     own depth ordering.
-//   - DROP at priorityRoutine (> priorityView): a dropped dependent view goes before the function
+//   - DROP at priorityRoutineDrop (> priorityView): a dropped dependent view goes before the function
 //     it calls. MySQL tolerates dropping a function a view still references (the view merely goes
 //     invalid), so this is the safe semantic order rather than an apply-success requirement.
 //
@@ -95,7 +95,7 @@ func routineOps(e *RoutineDiffEntry, n *Normalizer) []MigrationOp {
 	return nil
 }
 
-// createRoutineOp builds a CREATE FUNCTION/PROCEDURE op (PhaseMain, priorityRoutineCreate — before
+// createRoutineOp builds a CREATE FUNCTION/PROCEDURE op (PhaseMain, priorityRoutine — before
 // view creates; see the file doc). The SQL is the DEFINER-less stored form.
 func createRoutineOp(e *RoutineDiffEntry, r *Routine, n *Normalizer) MigrationOp {
 	return MigrationOp{
@@ -104,12 +104,19 @@ func createRoutineOp(e *RoutineDiffEntry, r *Routine, n *Normalizer) MigrationOp
 		ObjectName: e.Name,
 		SQL:        renderCreateRoutine(e.Database, r, n),
 		Phase:      PhaseMain,
-		Priority:   priorityRoutineCreate,
+		Priority:   priorityRoutine,
 		sortName:   routineSortName(e.Database, e.Name),
 	}
 }
 
-// dropRoutineOp builds a DROP FUNCTION/PROCEDURE op (PhasePre at priorityRoutine, so it precedes
+// priorityRoutineDrop orders a routine DROP within PhasePre AFTER view drops (priorityView): when
+// a view and a function it calls are both dropped, the dependent view goes first. MySQL tolerates
+// the reverse (live-verified — the view merely goes invalid), so this is the safe semantic order
+// rather than an apply-success requirement. The PhaseMain side (CREATE/ALTER) uses priorityRoutine
+// (migration.go), which sorts routines BEFORE view creates; see the file doc for the evidence.
+const priorityRoutineDrop = priorityView + 10
+
+// dropRoutineOp builds a DROP FUNCTION/PROCEDURE op (PhasePre at priorityRoutineDrop, so it precedes
 // any re-CREATE in the same plan and follows view drops — a dropped dependent view goes first).
 // IF EXISTS is NOT used: the diff already established the routine is present in `from`, and an
 // unconditional DROP keeps the emitted DDL minimal and explicit (matching the table node's DROP
@@ -125,7 +132,7 @@ func dropRoutineOp(e *RoutineDiffEntry, r *Routine) MigrationOp {
 		ObjectName: e.Name,
 		SQL:        fmt.Sprintf("DROP %s %s", kw, routineIdent(e.Database, r.Name)),
 		Phase:      PhasePre,
-		Priority:   priorityRoutine,
+		Priority:   priorityRoutineDrop,
 		sortName:   routineSortName(e.Database, e.Name),
 	}
 }
@@ -135,7 +142,7 @@ func dropRoutineOp(e *RoutineDiffEntry, r *Routine) MigrationOp {
 // form. It re-states ALL three (not just the changed ones): re-applying a characteristic to its
 // existing value is a harmless no-op, and emitting the whole set keeps the op self-contained and
 // order-independent of what the synced side held. The op runs in PhaseMain at
-// priorityRoutineCreate (grouped with routine CREATEs; an ALTER touches an existing routine, so
+// priorityRoutine (grouped with routine CREATEs; an ALTER touches an existing routine, so
 // its position relative to views is immaterial — the shared priority just keeps routine PhaseMain
 // ops together).
 //
@@ -158,7 +165,7 @@ func alterRoutineOp(e *RoutineDiffEntry, to *Routine) MigrationOp {
 		ObjectName: e.Name,
 		SQL:        b.String(),
 		Phase:      PhaseMain,
-		Priority:   priorityRoutineCreate,
+		Priority:   priorityRoutine,
 		sortName:   routineSortName(e.Database, e.Name),
 	}
 }

@@ -21,9 +21,9 @@ import (
 //     and 5.7.25) — so the pre-fix plan (view first) fails to apply. Routine bodies are lazily
 //     validated (a CREATE FUNCTION referencing a missing function/view/table is accepted on both
 //     versions), so hoisting every routine create above every view create is unconditionally safe:
-//     routine CREATE/ALTER runs at priorityRoutineCreate < priorityView (migration.go).
+//     routine CREATE/ALTER runs at priorityRoutine < priorityView (migration.go).
 //   - DROP direction (inverse): when a view and a function it calls are BOTH dropped, the view is
-//     dropped first (view DROP at priorityView < routine DROP at priorityRoutine in PhasePre).
+//     dropped first (view DROP at priorityView < routine DROP at priorityRoutineDrop in PhasePre).
 //     MySQL tolerates dropping a function a view still references (live-verified — the view merely
 //     goes invalid), so this is the safe semantic order rather than an apply-success requirement.
 //   - Transitive: function ← view ← view composes the routine-before-view priority with the view
@@ -49,10 +49,11 @@ type orderingProbe struct {
 }
 
 // orderingProbes enumerates the cross-object ordering FORMS: function+view created together (the
-// enterprise-SDL-smoke repro), both dropped together, the transitive function←view←view chain, and
-// a body-modified function (DROP+CREATE path) combined with a new dependent view. Functions
-// declare READS SQL DATA so they create on the 8.0 box (log_bin_trust_function_creators off →
-// error 1418 for a function with no binlog-safe characteristic).
+// enterprise-SDL-smoke repro), both dropped together, the transitive function←view←view chain, a
+// function created together with a view its body SELECTs from (the lazy-direction teeth), and a
+// body-modified function (DROP+CREATE path) combined with a new dependent view. Functions declare
+// READS SQL DATA so they create on the 8.0 box (log_bin_trust_function_creators off → error 1418
+// for a function with no binlog-safe characteristic).
 func orderingProbes() []orderingProbe {
 	base := func(ss ...string) []string { return ss }
 	return []orderingProbe{
@@ -64,7 +65,7 @@ func orderingProbes() []orderingProbe {
 				"CREATE FUNCTION ent_ucount() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM users)",
 				"CREATE VIEW ent_v_fn AS SELECT ent_ucount() AS n"),
 			[]string{"users"}, []string{"ent_v_fn"}, []string{"ent_ucount"}, both()},
-		// Inverse: drop both. View drops first (PhasePre priorityView < priorityRoutine).
+		// Inverse: drop both. View drops first (PhasePre priorityView < priorityRoutineDrop).
 		{"drop-function-and-view",
 			base("CREATE TABLE users (id INT PRIMARY KEY)",
 				"CREATE FUNCTION ent_ucount() RETURNS INT READS SQL DATA RETURN (SELECT COUNT(*) FROM users)",
@@ -243,9 +244,10 @@ func assertOrderingObjectsGone(t *testing.T, o *oracleConn, conn *sql.Conn, appl
 
 // dumpOrderingSchemaSDL reads back SHOW CREATE for the named tables, views, AND functions on conn
 // and assembles a reloadable SDL string under the logical database. Tables and views route through
-// dumpViewSchemaSDL (which re-homes the physical-db qualifier); function readbacks are appended
-// with the same qualifier rewrite (defensive — both engines store view-body function calls and the
-// function's own CREATE unqualified, live-verified).
+// dumpViewSchemaSDL, which re-homes the physical-db qualifier; function readbacks are appended
+// as-is — no rewrite is needed because SHOW CREATE FUNCTION returns an unqualified name and a
+// verbatim-stored body (the probes never db-qualify), live-verified on both versions, unlike
+// SHOW CREATE VIEW whose stored body IS db-qualified.
 func (o *oracleConn) dumpOrderingSchemaSDL(t *testing.T, conn *sql.Conn, physDB, logicalDB string, tables, views, functions []string) (string, bool) {
 	t.Helper()
 	sdl, ok := o.dumpViewSchemaSDL(t, conn, physDB, logicalDB, tables, views)
@@ -254,14 +256,12 @@ func (o *oracleConn) dumpOrderingSchemaSDL(t *testing.T, conn *sql.Conn, physDB,
 	}
 	var b strings.Builder
 	b.WriteString(sdl)
-	physPrefix := "`" + physDB + "`."
-	logicalPrefix := "`" + logicalDB + "`."
 	for _, fn := range functions {
 		rb, ok := o.showCreateRoutine(t, physDB, "FUNCTION", fn)
 		if !ok {
 			return "", false
 		}
-		b.WriteString(strings.ReplaceAll(rb, physPrefix, logicalPrefix))
+		b.WriteString(rb)
 		b.WriteString(";\n")
 	}
 	return b.String(), true

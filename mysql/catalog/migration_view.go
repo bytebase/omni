@@ -25,7 +25,7 @@ import (
 //
 // PHASE / ORDERING (apply-correctness, oracle-verified):
 //   - CREATE runs in PhaseMain at priorityView (=50), AFTER table creation (priorityTable=10),
-//     column ALTERs (priorityColumn=20), and routine CREATEs (priorityRoutineCreate=45). A view
+//     column ALTERs (priorityColumn=20), and routine CREATEs (priorityRoutine=45). A view
 //     over a freshly created/altered table therefore applies against the final table — creating a
 //     view whose referenced table does not yet exist fails (live-verified), and creating a view
 //     whose body calls a not-yet-created stored function fails with Error 1305 (live-verified on
