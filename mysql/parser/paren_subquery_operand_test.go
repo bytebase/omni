@@ -134,6 +134,8 @@ func TestParenSubqueryOperandParses(t *testing.T) {
 		// Quantified comparison keeps working around these shapes.
 		"SELECT (1 = ANY ((SELECT a FROM t)))",
 		"SELECT ((SELECT max(a) FROM t) = ANY (SELECT a FROM t))",
+		// The `= 1` here belongs to the select item, not a continuation.
+		"SELECT (SELECT 1 = 1)",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)
@@ -150,6 +152,20 @@ func TestParenSubqueryOperandRejected(t *testing.T) {
 		"SELECT ((SELECT 1) = ",
 		"SELECT ((SELECT 1) = 1",
 		"SELECT ((SELECT 1) =)",
+		// A BARE query head followed by an operator is rejected by MySQL
+		// (1064 on 8.0.32 + 5.7.25): only a subquery wrapped in its own
+		// parens may continue as a scalar operand.
+		"SELECT (TABLE t2 = 1)",
+		"SELECT (VALUES ROW(1) = 1)",
+		"SELECT 1 IN (TABLE t2 = 1)",
+		"SELECT 1 IN (VALUES ROW(1) = 1)",
+		// Unparenthesized trailing clauses before the operator are rejected
+		// too (1064 both versions; the legal spelling parenthesizes them:
+		// `(((SELECT 1) LIMIT 1) = 1)`). The LIMIT variant of this shape is
+		// not pinned: parseLimitClause pre-datedly accepts an expression
+		// count (`SELECT 1 LIMIT 1 = 1` parses on main), which swallows the
+		// operator before the continuation gate can reject it.
+		"SELECT ((SELECT 1) ORDER BY 1 DESC = 1)",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			ParseExpectError(t, sql)
@@ -283,5 +299,22 @@ func TestParenSubqueryOperandAST(t *testing.T) {
 	}
 	if _, ok := bin.Left.(*ast.SubqueryExpr); !ok {
 		t.Errorf("if(): comparison Left = %T, want *ast.SubqueryExpr", bin.Left)
+	}
+}
+
+// TestParenSubqueryCompletionRewind pins that a speculative subquery parse
+// that crosses the completion cursor and then rewinds does not leave the
+// collect latch armed: without restoring `collecting` in restoreScan, the
+// post-rewind reparse would re-enter collect mode at PRE-cursor positions and
+// emit spurious candidates (e.g. DISTINCT for the inner SELECT-item position
+// while the cursor sits after `1`).
+func TestParenSubqueryCompletionRewind(t *testing.T) {
+	sql := "SELECT ((SELECT 1"
+	cs := Collect(sql, len(sql))
+	if cs == nil {
+		t.Fatal("Collect returned nil")
+	}
+	if cs.HasToken(kwDISTINCT) {
+		t.Error("spurious DISTINCT candidate: collect latch leaked across the speculative-parse rewind")
 	}
 }

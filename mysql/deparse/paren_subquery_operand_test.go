@@ -73,6 +73,13 @@ func TestDeparse_ParenSubqueryOperandForms(t *testing.T) {
 			expected: "select ((select count(0) from `t`) = 0) AS `((SELECT COUNT(0) FROM t) = 0)`",
 		},
 		{
+			// The alias here is omni's re-rendered APPROXIMATION, pinned for
+			// stability and validity — not the engine's stored name (MySQL
+			// derives auto-aliases from the original source text verbatim,
+			// e.g. `((SELECT 1), 2) = ROW(1,2)`, which an AST re-render
+			// cannot reproduce; the engine also expands row-compare BODIES,
+			// so unaliased row-compare view items are a flagged pre-existing
+			// canonicalization gap either way).
 			name:     "row_with_subquery_head",
 			input:    "SELECT ((SELECT 1), 2) = ROW(1,2)",
 			expected: "select (row((select 1),2) = row(1,2)) AS `((SELECT 1), 2) = (1, 2)`",
@@ -89,5 +96,20 @@ func TestDeparse_ParenSubqueryOperandForms(t *testing.T) {
 				t.Errorf("DeparseSelect(%q) =\n  %q\nwant:\n  %q", tc.input, got, tc.expected)
 			}
 		})
+	}
+}
+
+// An explicit alias containing a literal backtick must be re-escaped on
+// emission (the lexer folds “ on the way in) and reach a parse→deparse
+// fixed point without double-escaping.
+func TestDeparse_AliasBacktickEscaping(t *testing.T) {
+	sql := "SELECT 1 AS `a``b`"
+	d1 := DeparseSelect(parseSelect(t, sql))
+	want := "select 1 AS `a``b`"
+	if d1 != want {
+		t.Fatalf("DeparseSelect(%q) = %q, want %q", sql, d1, want)
+	}
+	if d2 := DeparseSelect(parseSelect(t, d1)); d2 != d1 {
+		t.Errorf("not a fixed point (double-escape?):\n  cycle 1: %q\n  cycle 2: %q", d1, d2)
 	}
 }
