@@ -43,7 +43,7 @@ func deparseSelectStmtCtx(stmt *ast.SelectStmt, suppressAlias bool) string {
 	// LIMIT held on the wrapper. Materialize the parens — a dropped ParenSource
 	// silently loses the inner query.
 	if stmt.ParenSource != nil {
-		return deparseParenSource(stmt)
+		return deparseParenSource(stmt, suppressAlias)
 	}
 
 	if stmt.TableSource != nil {
@@ -225,7 +225,7 @@ func deparseForUpdate(fu *ast.ForUpdate) string {
 // '(' inner ')', and the OUTER trailing ORDER BY / LIMIT held on the wrapper.
 // The inner query keeps its own clauses, so both scopes round-trip (e.g.
 // "(select 1 limit 5) limit 2").
-func deparseParenSource(stmt *ast.SelectStmt) string {
+func deparseParenSource(stmt *ast.SelectStmt, suppressAlias bool) string {
 	var b strings.Builder
 
 	if len(stmt.CTEs) > 0 {
@@ -234,7 +234,11 @@ func deparseParenSource(stmt *ast.SelectStmt) string {
 	}
 
 	b.WriteString("(")
-	b.WriteString(deparseSelectStmt(stmt.ParenSource))
+	// Propagate the caller's alias context: top-level parenthesized query
+	// expressions (set-op ARMs, stacked LIMIT) keep select-item aliases like
+	// every stored form, while wrappers reached through expression-subquery
+	// rendering suppress them like every sibling subquery path.
+	b.WriteString(deparseSelectStmtCtx(stmt.ParenSource, suppressAlias))
 	b.WriteString(")")
 
 	// Outer ORDER BY (applies to the parenthesized result).

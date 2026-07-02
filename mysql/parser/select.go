@@ -2138,8 +2138,14 @@ func (p *Parser) parseValuesStmt() (*nodes.ValuesStmt, error) {
 // comparison) as exactly `(select ...)` in SHOW CREATE VIEW bodies, so keeping
 // the extra layers would phantom-diff the user form against the stored form.
 // A wrapper holding outer clauses (WITH / ORDER BY / LIMIT / locking)
-// keeps its parens — they scope those clauses, and the engine keeps that pair
-// too (`(((select 1) limit 1) = 1)` is stored verbatim).
+// keeps its parens — they scope those clauses. The engine does NOT keep that
+// pair: it merges wrapper clauses into the leaf and drops the parens
+// (`(((SELECT 1) LIMIT 1) = 1)` is stored as `((select 1 limit 1) = 1)`;
+// `((SELECT 1 LIMIT 2) LIMIT 1)` even discards the inner LIMIT). Keeping the
+// wrapper is still safe — readbacks never contain the wrapper form — but
+// user-form SDL written with clause-bearing wrappers phantom-diffs against
+// the stored form (a perpetual no-op view replace), the same residual class
+// as the unexpanded row-compare and set-op ARM paren forms.
 func (p *Parser) parseSubqueryExpr() (*nodes.SubqueryExpr, error) {
 	start := p.pos()
 	sel, err := p.parseSelectStmt()

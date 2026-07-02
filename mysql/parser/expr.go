@@ -1230,10 +1230,17 @@ func (p *Parser) parseSubqueryHead() (*nodes.SubqueryExpr, subqueryHeadOutcome, 
 		// Trailing tokens after a query expression that did NOT end at its
 		// own ')': a BARE head — `(TABLE t = 1)`, `(VALUES ROW(1) = 1)` — or
 		// unparenthesized trailing clauses — `((SELECT 1) LIMIT 1 = 1)`,
-		// `((SELECT 1) ORDER BY 1 DESC = 1)`. MySQL rejects all of these
+		// `((SELECT 1) ORDER BY 1 DESC = 1)`. MySQL rejects these forms
 		// (1064 on 8.0.32 and 5.7.25; the legal spellings are
 		// `((SELECT 1)) = 1` and `(((SELECT 1) LIMIT 1) = 1)`). Keep the
 		// pre-fix hard ')' expectation and error position.
+		//
+		// The operand gate above (prev == ')') is a deliberate harmless
+		// SUPERSET: it also matches the closing paren of a right set-op ARM,
+		// so `((SELECT 1) UNION (SELECT 2) = 1)` parses here even though the
+		// engine 1064s it (both versions). The accepted parse deparses to the
+		// legal extra-wrapped spelling, and readbacks never contain the raw
+		// form, so nothing invalid round-trips.
 		_, errP := p.expect(')')
 		return nil, 0, errP
 	case nested:
