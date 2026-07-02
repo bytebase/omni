@@ -67,16 +67,17 @@ func generateColumnDDL(_, to *Catalog, diff *SchemaDiff, n *Normalizer) []Migrat
 					ops = append(ops, addColumnOp(entry, table, col.To, n))
 					continue
 				}
+				clause := fmt.Sprintf("MODIFY COLUMN %s", formatColumnDefinition(entry.To, col.To, n))
 				ops = append(ops, MigrationOp{
 					Type:         OpModifyColumn,
 					Database:     entry.Database,
 					ObjectName:   entry.Name,
 					ParentObject: entry.Name,
-					SQL: fmt.Sprintf("ALTER TABLE %s MODIFY COLUMN %s",
-						table, formatColumnDefinition(entry.To, col.To, n)),
-					Phase:    PhaseMain,
-					Priority: priorityColumn,
-					sortName: columnSortName(entry.Database, entry.Name, col.Name),
+					SQL:          fmt.Sprintf("ALTER TABLE %s %s", table, clause),
+					Phase:        PhaseMain,
+					Priority:     priorityColumn,
+					sortName:     columnSortName(entry.Database, entry.Name, col.Name),
+					alterClause:  clause,
 				})
 			}
 		}
@@ -105,15 +106,17 @@ func generateColumnDDL(_, to *Catalog, diff *SchemaDiff, n *Normalizer) []Migrat
 // dropColumnOp's generated-first rule (generated columns drop before, and add after, the plain
 // columns they depend on). The global sortMigrationOps honors Priority within PhaseMain.
 func addColumnOp(entry *TableDiffEntry, table string, to *Column, n *Normalizer) MigrationOp {
+	clause := fmt.Sprintf("ADD COLUMN %s", formatColumnDefinition(entry.To, to, n))
 	return MigrationOp{
 		Type:         OpAddColumn,
 		Database:     entry.Database,
 		ObjectName:   entry.Name,
 		ParentObject: entry.Name,
-		SQL:          fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s", table, formatColumnDefinition(entry.To, to, n)),
+		SQL:          fmt.Sprintf("ALTER TABLE %s %s", table, clause),
 		Phase:        PhaseMain,
 		Priority:     columnAddPriority(to),
 		sortName:     columnSortName(entry.Database, entry.Name, to.Name),
+		alterClause:  clause,
 	}
 }
 
@@ -131,15 +134,17 @@ func columnAddPriority(c *Column) int {
 // column a generated column depends on — error 3108). The global sortMigrationOps also honors
 // Priority within PhasePre, so the ordering holds across the whole plan.
 func dropColumnOp(entry *TableDiffEntry, table, colName string, from *Column) MigrationOp {
+	clause := fmt.Sprintf("DROP COLUMN %s", migrationQuoteIdent(colName))
 	return MigrationOp{
 		Type:         OpDropColumn,
 		Database:     entry.Database,
 		ObjectName:   entry.Name,
 		ParentObject: entry.Name,
-		SQL:          fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s", table, migrationQuoteIdent(colName)),
+		SQL:          fmt.Sprintf("ALTER TABLE %s %s", table, clause),
 		Phase:        PhasePre,
 		Priority:     columnDropPriority(from),
 		sortName:     columnSortName(entry.Database, entry.Name, colName),
+		alterClause:  clause,
 	}
 }
 

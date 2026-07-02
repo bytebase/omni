@@ -239,7 +239,9 @@ func dropForeignKeyOps(entry *TableDiffEntry, con *Constraint, seenBackingDrop m
 				// OpDropForeignKey keeps it out of the index node's op-type space, which its contract
 				// tests assert is empty on FK-only changes (no OpAddIndex/OpDropIndex). Nothing keys
 				// off OpDropForeignKey expecting only literal DROP FOREIGN KEY statements — the only
-				// consumer is MigrationPlan.SQL(), which concatenates op.SQL verbatim.
+				// consumer is MigrationPlan.SQL(), which concatenates op.SQL verbatim. The grouping
+				// metadata (alterClause/dropsIndex) still marks it as an index drop so the
+				// AUTO_INCREMENT hazard pass sees the coverage it removes (migration_autoinc.go).
 				Type:         OpDropForeignKey,
 				Database:     entry.Database,
 				ObjectName:   entry.Name,
@@ -248,6 +250,8 @@ func dropForeignKeyOps(entry *TableDiffEntry, con *Constraint, seenBackingDrop m
 				Phase:        PhasePre,
 				Priority:     priorityForeignKeyBackingIndexDrop,
 				sortName:     foreignKeySortName(entry.Database, entry.Name, idxName),
+				alterClause:  "DROP INDEX " + migrationQuoteIdent(idxName),
+				dropsIndex:   toLower(idxName),
 			})
 		}
 	}
