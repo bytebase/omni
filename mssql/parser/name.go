@@ -321,6 +321,33 @@ var knownPseudoColumns = map[string]bool{
 	"$to_id":    true,
 }
 
+// graphPseudoColumns is the subset valid in index key column lists
+// (engine-verified: `CREATE INDEX ix ON Person ($node_id)` succeeds).
+var graphPseudoColumns = map[string]bool{
+	"$node_id": true,
+	"$edge_id": true,
+	"$from_id": true,
+	"$to_id":   true,
+}
+
+// parseIndexColumnName parses one index key column name: a regular identifier
+// or a graph pseudo-column.
+func (p *Parser) parseIndexColumnName() (string, error) {
+	if p.cur.Type == tokPSEUDOCOL {
+		if !graphPseudoColumns[strings.ToLower(p.cur.Str)] {
+			return "", p.newParseError(p.cur.Loc, fmt.Sprintf("invalid pseudocolumn %q", p.cur.Str))
+		}
+		name := p.cur.Str
+		p.advance()
+		return name, nil
+	}
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return "", p.unexpectedToken()
+	}
+	return name, nil
+}
+
 // parsePseudoColumn parses a $-prefixed pseudo-column token in expression
 // position: a known pseudo-column becomes a ColumnRef, $PARTITION.fn(args)
 // becomes a schema-qualified function call, anything else is an error.
@@ -341,7 +368,14 @@ func (p *Parser) parsePseudoColumn() (nodes.ExprNode, error) {
 		if p.cur.Type != '(' {
 			return nil, p.syntaxErrorAtCur()
 		}
-		return p.parseFuncCallWithSchema(tok.Str, fname, tok.Loc)
+		fc, err := p.parseFuncCallWithSchema(tok.Str, fname, tok.Loc)
+		if err != nil {
+			return nil, err
+		}
+		if err := requirePartitionArgs(p, fc); err != nil {
+			return nil, err
+		}
+		return fc, nil
 	}
 	if !knownPseudoColumns[strings.ToLower(tok.Str)] {
 		return nil, p.newParseError(tok.Loc, fmt.Sprintf("invalid pseudocolumn %q", tok.Str))
@@ -350,6 +384,16 @@ func (p *Parser) parsePseudoColumn() (nodes.ExprNode, error) {
 		Column: tok.Str,
 		Loc:    nodes.Loc{Start: tok.Loc, End: p.prevEnd()},
 	}, nil
+}
+
+// requirePartitionArgs rejects $PARTITION.fn() with no arguments — the
+// engine requires an expression list (Msg 102, verified on SQL Server 2022);
+// the generic function-call parser would otherwise accept empty parens.
+func requirePartitionArgs(p *Parser, fc nodes.ExprNode) error {
+	if f, ok := fc.(*nodes.FuncCallExpr); ok && (f.Star || f.Args == nil || len(f.Args.Items) == 0) {
+		return p.newParseError(f.Loc.End, "$PARTITION function requires at least one argument")
+	}
+	return nil
 }
 
 // parseInsertColumnName parses one name in an INSERT/MERGE column list: a
@@ -422,6 +466,9 @@ func (p *Parser) parseQualifiedRef(first string, loc int) (nodes.ExprNode, error
 			}
 			fc, err := p.parseFuncCallWithSchema(partName, fname, loc)
 			if err != nil {
+				return nil, err
+			}
+			if err := requirePartitionArgs(p, fc); err != nil {
 				return nil, err
 			}
 			if f, ok := fc.(*nodes.FuncCallExpr); ok && f.Name != nil {
