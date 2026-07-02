@@ -805,3 +805,47 @@ CREATE TABLE t (
 		t.Errorf("self-diff of introducer-default SDL not empty")
 	}
 }
+
+// TestSDLParenSubqueryOperand covers a parenthesized scalar subquery used as
+// the LEFT operand of a binary operator with the comparison itself inside
+// parentheses — the stock MySQL 8.0 sys.metrics shape:
+//
+//	if(((select count(0) from performance_schema.setup_instruments
+//	     where (... and ...))) = 0),'NO','YES')
+//
+// The paren-expression parser used to classify the leading '(' run as a
+// parenthesized query expression and hard-expect ')' after the subquery, so
+// the `= 0` was "unexpected token" and any dump containing sys.metrics was
+// unloadable. The loaded catalog must also self-diff empty: the engine
+// collapses redundant parens around a subquery to one pair in stored bodies
+// (oracle 8.0.32 + 5.7.25), so the depth-2 user form and the collapsed stored
+// form must canonicalize equal (see TestOracle_ViewIdempotence probes).
+func TestSDLParenSubqueryOperand(t *testing.T) {
+	sql := `
+CREATE DATABASE app;
+USE app;
+CREATE TABLE t (a int);
+CREATE VIEW v1 AS SELECT if(((SELECT count(0) FROM t WHERE (a > 0 AND a < 9)) = 0),'NO','YES') AS x;
+CREATE VIEW v2 AS SELECT if((((SELECT count(0) FROM t)) = 0),'NO','YES') AS x;
+CREATE VIEW v3 AS SELECT ((SELECT max(a) FROM t) + 1) AS x, (1 IN ((SELECT max(a) FROM t) + 1, 2)) AS y;
+`
+	db := loadSDLForDB(t, sql, "app")
+	for _, name := range []string{"v1", "v2", "v3"} {
+		if db.Views[name] == nil {
+			t.Fatalf("view %s not loaded", name)
+		}
+	}
+	// v1 and v2 differ only in redundant subquery parens; both canonicalize
+	// to the single-pair form the engine stores.
+	if b1, b2 := db.Views["v1"].Definition, db.Views["v2"].Definition; !strings.Contains(b2, "((select count(0) from `t`) = 0)") {
+		t.Errorf("v2 wrapper parens not collapsed: %q (v1: %q)", b2, b1)
+	}
+
+	c, err := LoadSDL(sql)
+	if err != nil {
+		t.Fatalf("LoadSDL error: %v", err)
+	}
+	if d := Diff(c, c); !d.IsEmpty() {
+		t.Errorf("self-diff of SDL with paren-subquery operands not empty")
+	}
+}

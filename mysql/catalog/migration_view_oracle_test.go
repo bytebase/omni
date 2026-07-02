@@ -218,6 +218,72 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 			"CREATE VIEW base (x, y) AS SELECT a, b FROM t",
 			"CREATE VIEW v AS SELECT x FROM base",
 		}, []string{"t"}, []string{"base", "v"}, only(MySQL80)},
+		// Parenthesized subquery as the LEFT operand of a binary operator, with
+		// the comparison itself inside parens — the stock sys.metrics shape
+		// (`if(((select count(0) from ... where (...))) = 0),'NO','YES')`).
+		// The engine COLLAPSES redundant parens around a subquery to exactly
+		// one pair in the stored body (8.0.32 + 5.7.25: `((SELECT ...)) = 0`
+		// stores as `((select ...) = 0)`), so the depth-2 user form must
+		// canonicalize equal to the collapsed stored form. These are the
+		// regression guards for the paren-subquery-operand parser fix.
+		{"paren-subquery-compare-if", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE VIEW v AS SELECT if(((SELECT count(0) FROM t) = 0),'NO','YES') AS x",
+		}, []string{"t"}, []string{"v"}, both()},
+		{"paren-subquery-compare-if-depth2", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE VIEW v AS SELECT if((((SELECT count(0) FROM t)) = 0),'NO','YES') AS x",
+		}, []string{"t"}, []string{"v"}, both()},
+		// Wrapper-collapse in the other expression positions the engine
+		// canonicalizes the same way: pure select item, IN subquery, EXISTS,
+		// and a set-operation subquery as a comparison operand.
+		{"paren-subquery-pure-depth2", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE VIEW v AS SELECT ((SELECT count(0) FROM t)) AS x",
+		}, []string{"t"}, []string{"v"}, both()},
+		{"paren-subquery-in-depth2", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE VIEW v AS SELECT (1 IN ((SELECT max(a) FROM t))) AS x",
+		}, []string{"t"}, []string{"v"}, both()},
+		{"paren-exists-depth2", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE VIEW v AS SELECT (EXISTS((SELECT 1 FROM t))) AS x",
+		}, []string{"t"}, []string{"v"}, both()},
+		{"paren-subquery-setop-compare", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE VIEW v AS SELECT ((SELECT 1 UNION SELECT 1) = 1) AS x",
+		}, []string{"t"}, []string{"v"}, both()},
+		{"paren-subquery-arith", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE VIEW v AS SELECT ((SELECT max(a) FROM t) + 1) AS x",
+		}, []string{"t"}, []string{"v"}, both()},
+		{"paren-subquery-where", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE VIEW v AS SELECT a FROM t WHERE ((SELECT count(0) FROM t) > 0)",
+		}, []string{"t"}, []string{"v"}, both()},
+		{"paren-subquery-both-operands", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE VIEW v AS SELECT ((SELECT min(a) FROM t) = (SELECT max(a) FROM t)) AS x",
+		}, []string{"t"}, []string{"v"}, both()},
+		{"paren-subquery-in-list", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE VIEW v AS SELECT (1 IN ((SELECT max(a) FROM t) + 1, 2)) AS x",
+		}, []string{"t"}, []string{"v"}, both()},
+		{"paren-exists-compare", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE VIEW v AS SELECT ((EXISTS(SELECT 1 FROM t)) = 1) AS x",
+		}, []string{"t"}, []string{"v"}, both()},
+		// The engine EXPANDS a row-constructor comparison into AND-ed scalar
+		// compares when storing a view body, so the expanded form (which
+		// contains `((select 1) = 1)` — a paren-subquery compare) is what a
+		// readback contains; probe that form directly. A user writing the
+		// UNEXPANDED `((SELECT 1), 2) = ROW(1,2)` in SDL is a separate,
+		// pre-existing normalization gap (omni does not reproduce the row
+		// expansion) — flagged, not covered here.
+		{"paren-subquery-row-expanded", []string{
+			"CREATE TABLE t (a INT)",
+			"CREATE VIEW v AS SELECT (((SELECT 1) = 1) AND (2 = 2)) AS x",
+		}, []string{"t"}, []string{"v"}, both()},
 	}
 }
 
@@ -462,6 +528,14 @@ func viewMigrationProbes() []viewMigrationProbe {
 			base("CREATE TABLE t (a INT, c INT)", "CREATE TABLE u (x INT, y INT)", "CREATE TABLE w (m INT, n INT)",
 				"CREATE VIEW v AS SELECT t.a, w.n FROM t JOIN u ON t.c = u.x JOIN w ON u.y = w.m"),
 			[]string{"t", "u", "w"}, []string{"v"}, both()},
+		// CREATE a view whose body compares a parenthesized subquery (the
+		// sys.metrics if-shape) — the generated DDL must apply cleanly and
+		// read back canonically equal (paren-subquery-operand fix).
+		{"create-paren-subquery-compare",
+			base("CREATE TABLE t (a INT)"),
+			base("CREATE TABLE t (a INT)",
+				"CREATE VIEW v AS SELECT if(((SELECT count(0) FROM t) = 0),'NO','YES') AS x"),
+			[]string{"t"}, []string{"v"}, both()},
 		// ---- REPLACE (modify body / options) ----
 		{"replace-body",
 			base("CREATE TABLE t (a INT, b INT)", "CREATE VIEW v AS SELECT a FROM t"),
@@ -680,4 +754,71 @@ func firstIdentAfter(s string, pos int) string {
 		ident = ident[dot+1:]
 	}
 	return ident
+}
+
+// TestOracle_SysMetricsViewRoundTrip is the north-star gate for the
+// paren-subquery-operand parser fix: the STOCK MySQL 8.0 sys.metrics view —
+// whose stored body contains `if((((select count(0) from
+// performance_schema.setup_instruments where ...))) = 0),'NO',...)`-shaped
+// expressions — must load through LoadSDL from its live SHOW CREATE VIEW
+// readback (unparseable before the fix), self-diff empty, and reach a
+// dump→load fixed point: the catalog's regenerated CREATE statement reloads
+// into a catalog that diffs empty against the first load in both directions.
+// 8.0 only: 5.7 ships a different sys version without the metrics view.
+func TestOracle_SysMetricsViewRoundTrip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("oracle test skipped in short mode")
+	}
+	o := connectOracle(t, MySQL80)
+	n := NormalizerFor(MySQL80)
+	ctx := context.Background()
+
+	var name, ddl, csClient, coll string
+	row := o.db.QueryRowContext(ctx, "SHOW CREATE VIEW sys.metrics")
+	if err := row.Scan(&name, &ddl, &csClient, &coll); err != nil {
+		t.Skipf("[%s] SHOW CREATE VIEW sys.metrics failed (sys schema not installed?): %v", o.name, err)
+	}
+
+	readbackSDL := "CREATE DATABASE sys;\nUSE sys;\n" + ddl + ";\n"
+	cat1, err := LoadSDLWithVersion(readbackSDL, MySQL80)
+	if err != nil {
+		t.Fatalf("[%s] LoadSDL(sys.metrics readback) failed: %v\n%s", o.name, err, readbackSDL)
+	}
+	if d := DiffWithNormalizer(cat1, cat1, n); !d.IsEmpty() {
+		t.Errorf("[%s] sys.metrics self-diff not empty: %s", o.name, describeViewDiff(d))
+	}
+
+	db1 := cat1.GetDatabase("sys")
+	if db1 == nil {
+		t.Fatalf("[%s] loaded catalog has no sys database", o.name)
+	}
+	v1 := db1.Views["metrics"]
+	if v1 == nil {
+		t.Fatalf("[%s] loaded catalog has no sys.metrics view", o.name)
+	}
+
+	// Second generation: regenerate the CREATE from the loaded catalog (the
+	// canonical stored form the migration generator emits) and reload it.
+	regenSDL := "CREATE DATABASE sys;\nUSE sys;\n" + formatCreateOrReplaceView(v1) + ";\n"
+	cat2, err := LoadSDLWithVersion(regenSDL, MySQL80)
+	if err != nil {
+		t.Fatalf("[%s] LoadSDL(regenerated sys.metrics) failed: %v\n%s", o.name, err, regenSDL)
+	}
+	if d := DiffWithNormalizer(cat1, cat2, n); !d.IsEmpty() {
+		t.Errorf("[%s] DUMP FIXED POINT: first load vs regenerated load not empty: %s\n  regen SDL:\n%s",
+			o.name, describeViewDiff(d), regenSDL)
+	}
+	if d := DiffWithNormalizer(cat2, cat1, n); !d.IsEmpty() {
+		t.Errorf("[%s] DUMP FIXED POINT (reverse): %s", o.name, describeViewDiff(d))
+	}
+
+	// Third generation must equal the second textually (fixed point reached).
+	db2 := cat2.GetDatabase("sys")
+	if db2 == nil || db2.Views["metrics"] == nil {
+		t.Fatalf("[%s] regenerated catalog lost sys.metrics", o.name)
+	}
+	if v2 := db2.Views["metrics"]; v2.Definition != v1.Definition {
+		t.Errorf("[%s] view Definition not a fixed point:\n  gen1: %s\n  gen2: %s",
+			o.name, v1.Definition, v2.Definition)
+	}
 }

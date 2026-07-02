@@ -39,7 +39,16 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	return p.parseInfixExprPrec(left, minPrec)
+}
 
+// parseInfixExprPrec continues Pratt parsing with an already-parsed left
+// operand, folding infix operators of at least minPrec. Split from
+// parseExprPrec so callers that produce the leading primary themselves — a
+// parenthesized query expression that turns out to be the left operand of a
+// scalar expression, `((SELECT ...) = 0)` — can resume the operator loop.
+func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, minPrec int) (nodes.ExprNode, error) {
+	var err error
 	for {
 		// MEMBER OF special handling (not in infixPrecedence since it's keyword-based)
 		if p.cur.Type == kwMEMBER {
@@ -1156,31 +1165,154 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 	return fc, nil
 }
 
+// subqueryHeadOutcome classifies what a '(' run that looked like a query
+// expression (isQueryExpressionStart) actually turned out to be.
+type subqueryHeadOutcome int
+
+const (
+	// subqueryHeadClosed: the query expression parsed and the next token is
+	// ')' — plain subquery parens. The caller consumes the ')' and owns the
+	// Loc fixups.
+	subqueryHeadClosed subqueryHeadOutcome = iota
+	// subqueryHeadOperand: the query expression parsed but more tokens follow
+	// inside the parens — the subquery heads a scalar expression
+	// (`((SELECT ...) = 0)`) or list. The caller resumes the infix loop.
+	subqueryHeadOperand
+	// subqueryHeadScalar: the query parse failed on a head nested behind
+	// extra parens — a scalar paren layer wraps a subquery-headed expression
+	// (`(((SELECT 1) = 0))`). The scan has been rewound; the caller reparses
+	// as a scalar expression. The discarded speculative error accompanies
+	// this outcome (see parseSubqueryHead) for furthest-error reporting.
+	subqueryHeadScalar
+)
+
+// furthestErr picks the error that made it furthest into the input — the
+// standard heuristic when two alternative parses of the same region both
+// fail. Used to keep error positions truthful when a rewound speculative
+// query parse failed DEEPER than the scalar reparse does (e.g.
+// `((SELECT 1) UNION (SELECT 2 FROM))`: the speculation reports the real
+// mistake after FROM, while the scalar reparse only gets as far as UNION).
+func furthestErr(reparse, speculative error) error {
+	rp, ok1 := reparse.(*ParseError)
+	sp, ok2 := speculative.(*ParseError)
+	if ok1 && ok2 && sp.Position > rp.Position {
+		return speculative
+	}
+	return reparse
+}
+
+// parseSubqueryHead speculatively parses the query expression behind a '('
+// run that isQueryExpressionStart matched, and classifies the result. Only
+// tokens PAST the query expression distinguish `((SELECT 1))` from
+// `((SELECT 1) = 0)` from `(((SELECT 1) = 0))`, so the parse must be
+// speculative when the query-primary head is nested behind more parens:
+// on failure there, the scan (and the completion collect latch — see
+// scanState) is rewound and the caller re-reads the run as a scalar
+// expression, peeling one paren per recursion level. When the head token
+// itself is the query primary there is nothing to unwrap, so a parse error
+// is a real subquery syntax error and is returned at its true position.
+func (p *Parser) parseSubqueryHead() (*nodes.SubqueryExpr, subqueryHeadOutcome, error) {
+	nested := p.cur.Type == '('
+	var save scanState
+	if nested {
+		save = p.saveScan() // only the nested-head failure path rewinds
+	}
+	sub, err := p.parseSubqueryExpr()
+	switch {
+	case err == nil && p.cur.Type == ')':
+		return sub, subqueryHeadClosed, nil
+	case err == nil && nested && p.prev.Type == ')':
+		// The query expression ended at a closing paren and more tokens
+		// follow: the parenthesized subquery is a scalar operand.
+		sub.Loc.End = p.prev.End
+		return sub, subqueryHeadOperand, nil
+	case err == nil:
+		// Trailing tokens after a query expression that did NOT end at its
+		// own ')': a BARE head — `(TABLE t = 1)`, `(VALUES ROW(1) = 1)` — or
+		// unparenthesized trailing clauses — `((SELECT 1) LIMIT 1 = 1)`,
+		// `((SELECT 1) ORDER BY 1 DESC = 1)`. MySQL rejects these forms
+		// (1064 on 8.0.32 and 5.7.25; the legal spellings are
+		// `((SELECT 1)) = 1` and `(((SELECT 1) LIMIT 1) = 1)`). Keep the
+		// pre-fix hard ')' expectation and error position.
+		//
+		// The operand gate above (prev == ')') is a deliberate harmless
+		// SUPERSET: it also matches the closing paren of a right set-op ARM,
+		// so `((SELECT 1) UNION (SELECT 2) = 1)` parses here even though the
+		// engine 1064s it (both versions). The accepted parse deparses to the
+		// legal extra-wrapped spelling, and readbacks never contain the raw
+		// form, so nothing invalid round-trips.
+		_, errP := p.expect(')')
+		return nil, 0, errP
+	case nested:
+		// Rewind and let the caller reparse as a scalar expression. The
+		// discarded error rides along with the scalar outcome (it is NOT a
+		// failure): if the reparse also fails, the caller reports whichever
+		// error lies further into the input.
+		p.restoreScan(save)
+		return nil, subqueryHeadScalar, err
+	default:
+		return nil, 0, err
+	}
+}
+
 // parseParenExpr parses a parenthesized expression or subquery.
 func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume '('
 
-	// Check for subquery.
+	var expr nodes.ExprNode
+	var specErr error // discarded speculative error (subqueryHeadScalar only)
+	// Check for subquery. isQueryExpressionStart scans past a leading run of
+	// '(' to the innermost head, so `((SELECT ...` lands here whether the
+	// parens wrap a query expression — `((SELECT 1))`, `((SELECT 1) UNION
+	// (SELECT 2))` — or a scalar expression whose first primary is a
+	// parenthesized subquery — `((SELECT 1) = 0)`, `(((SELECT 1) = 0))`.
 	if p.isQueryExpressionStart() {
-		sub, err := p.parseSubqueryExpr()
-		if err != nil {
+		sub, outcome, err := p.parseSubqueryHead()
+		if outcome == subqueryHeadScalar {
+			specErr = err
+		} else if err != nil {
 			return nil, err
 		}
-		if _, errP := p.expect(')'); errP != nil {
-			return nil, errP
+		switch outcome {
+		case subqueryHeadClosed:
+			// Plain parenthesized query expression `(SELECT ...)`.
+			p.advance()
+			sub.Loc.Start = start
+			sub.Loc.End = p.prev.End
+			return sub, nil
+		case subqueryHeadOperand:
+			// The query expression is the LEFT operand of a scalar expression
+			// inside the parens — `((SELECT ...) = 0)`, `(((SELECT ...)) + 1)`
+			// — or the first item of a row constructor `((SELECT ...), 2)`.
+			// MySQL 8.0.32 and 5.7.25 both accept every binary operator here
+			// (oracle-probed; the stock sys.metrics view stores this shape).
+			// Resume the infix loop with the subquery as the parsed primary
+			// and fall through to the shared row-constructor / ')' handling.
+			expr, err = p.parseInfixExprPrec(sub, precAssign)
+			if err != nil {
+				return nil, err
+			}
+		default: // subqueryHeadScalar
+			// The paren run was not a query expression after all: a scalar
+			// paren layer wraps a subquery-headed expression, e.g. the
+			// `(((SELECT 1) = 0))` shape. The scan was rewound; expr stays
+			// nil and the shared scalar parse below re-reads the content —
+			// the recursion (parsePrimaryExpr → this function) peels exactly
+			// one paren per level and re-decides, so it terminates, and the
+			// innermost level reports real subquery syntax errors at their
+			// true position.
 		}
-		sub.Loc.Start = start
-		sub.Loc.End = p.prev.End
-		return sub, nil
-	}
-
-	expr, err := p.parseExpr()
-	if err != nil {
-		return nil, err
 	}
 	if expr == nil {
-		return nil, p.syntaxErrorAtCur()
+		var err error
+		expr, err = p.parseExpr()
+		if err != nil {
+			return nil, furthestErr(err, specErr)
+		}
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	if p.cur.Type == ',' {
@@ -1189,7 +1321,7 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 			p.advance()
 			item, err := p.parseExpr()
 			if err != nil {
-				return nil, err
+				return nil, furthestErr(err, specErr)
 			}
 			if item == nil {
 				return nil, p.syntaxErrorAtCur()
@@ -1197,14 +1329,14 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 			row.Items = append(row.Items, item)
 		}
 		if _, err := p.expect(')'); err != nil {
-			return nil, err
+			return nil, furthestErr(err, specErr)
 		}
 		row.Loc.End = p.pos()
 		return row, nil
 	}
 
 	if _, err := p.expect(')'); err != nil {
-		return nil, err
+		return nil, furthestErr(err, specErr)
 	}
 
 	return &nodes.ParenExpr{
@@ -1499,38 +1631,58 @@ func (p *Parser) parseInExpr(left nodes.ExprNode) (nodes.ExprNode, error) {
 		Expr: left,
 	}
 
-	// Check for subquery.
+	// Check for subquery. Speculative for the same reason as parseParenExpr:
+	// `IN ((SELECT ...))` is a table subquery, but the same leading tokens may
+	// open a VALUE list instead — `IN ((SELECT 1) = 1)`, `IN ((SELECT 1), 2)`,
+	// `IN (((SELECT 1) = 1))` (all accepted by MySQL 8.0.32 and 5.7.25).
+	var specErr error // discarded speculative error (subqueryHeadScalar only)
 	if p.isQueryExpressionStart() {
-		sub, err := p.parseSubqueryExpr()
-		if err != nil {
+		sub, outcome, err := p.parseSubqueryHead()
+		if outcome == subqueryHeadScalar {
+			specErr = err
+		} else if err != nil {
 			return nil, err
 		}
-		if _, errP := p.expect(')'); errP != nil {
-			return nil, errP
+		switch outcome {
+		case subqueryHeadClosed:
+			// Table subquery: `x IN (SELECT ...)` / `x IN ((SELECT ...))`.
+			p.advance()
+			inExpr.Select = sub.Select
+			inExpr.Loc.End = p.prev.End
+			return inExpr, nil
+		case subqueryHeadOperand:
+			// The query expression starts the first VALUE-LIST element:
+			// resume the infix loop for that element and seed the shared
+			// value-list loop below with it.
+			first, err := p.parseInfixExprPrec(sub, precAssign)
+			if err != nil {
+				return nil, err
+			}
+			inExpr.List = append(inExpr.List, first)
+		default: // subqueryHeadScalar
+			// A scalar paren layer wraps the subquery-headed first element,
+			// e.g. `IN (((SELECT 1) = 1))`; the scan was rewound — parse as
+			// an ordinary value list below.
 		}
-		inExpr.Select = sub.Select
-		inExpr.Loc.End = p.prev.End
-		return inExpr, nil
 	}
 
-	// Value list
-	for {
+	// Value list; may already be seeded with a subquery-headed first element.
+	for len(inExpr.List) == 0 || p.cur.Type == ',' {
+		if len(inExpr.List) > 0 {
+			p.advance() // consume ','
+		}
 		val, err := p.parseExpr()
 		if err != nil {
-			return nil, err
+			return nil, furthestErr(err, specErr)
 		}
 		if val == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
 		inExpr.List = append(inExpr.List, val)
-		if p.cur.Type != ',' {
-			break
-		}
-		p.advance()
 	}
 
 	if _, err := p.expect(')'); err != nil {
-		return nil, err
+		return nil, furthestErr(err, specErr)
 	}
 
 	inExpr.Loc.End = p.prev.End

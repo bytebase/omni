@@ -421,17 +421,32 @@ func (p *Parser) isQueryExpressionStart() bool {
 // scanState captures the full lexical scan position so a speculative lookahead
 // can rewind without consuming input. The Lexer is a flat value (string + ints),
 // so a shallow copy snapshots its position; the buffered next token and the
-// current/previous tokens complete the parser's scan cursor.
+// current/previous tokens complete the parser's scan cursor. The completion
+// `collecting` latch is position-derived (it arms when the scan reaches the
+// cursor offset), so rewinding the scan rewinds it too — a speculative parse
+// that crossed the cursor must not leave collect mode armed for the reparse.
 type scanState struct {
-	lexer   Lexer
-	cur     Token
-	prev    Token
-	nextBuf Token
-	hasNext bool
+	lexer      Lexer
+	cur        Token
+	prev       Token
+	nextBuf    Token
+	hasNext    bool
+	collecting bool
+	// Lengths of the CandidateSet's position slices at save time. Unlike the
+	// set-valued token/rule candidates, these are plain appends, so a rewound
+	// speculative parse would duplicate every offset it recorded; restore
+	// truncates back to the snapshot.
+	ctePosLen   int
+	aliasPosLen int
 }
 
 func (p *Parser) saveScan() scanState {
-	return scanState{lexer: *p.lexer, cur: p.cur, prev: p.prev, nextBuf: p.nextBuf, hasNext: p.hasNext}
+	s := scanState{lexer: *p.lexer, cur: p.cur, prev: p.prev, nextBuf: p.nextBuf, hasNext: p.hasNext, collecting: p.collecting}
+	if p.candidates != nil {
+		s.ctePosLen = len(p.candidates.CTEPositions)
+		s.aliasPosLen = len(p.candidates.SelectAliasPositions)
+	}
+	return s
 }
 
 func (p *Parser) restoreScan(s scanState) {
@@ -440,6 +455,15 @@ func (p *Parser) restoreScan(s scanState) {
 	p.prev = s.prev
 	p.nextBuf = s.nextBuf
 	p.hasNext = s.hasNext
+	p.collecting = s.collecting
+	if p.candidates != nil {
+		if len(p.candidates.CTEPositions) > s.ctePosLen {
+			p.candidates.CTEPositions = p.candidates.CTEPositions[:s.ctePosLen]
+		}
+		if len(p.candidates.SelectAliasPositions) > s.aliasPosLen {
+			p.candidates.SelectAliasPositions = p.candidates.SelectAliasPositions[:s.aliasPosLen]
+		}
+	}
 }
 
 // firstTokenPastParens returns the first token at or after the current position
@@ -2106,11 +2130,31 @@ func (p *Parser) parseValuesStmt() (*nodes.ValuesStmt, error) {
 // parseSubqueryExpr parses a subquery expression: SELECT ... or a
 // parenthesized query expression. The caller owns the surrounding subquery
 // parentheses used by IN/EXISTS/scalar-subquery syntax.
+//
+// Redundant bare paren-wrapper layers are folded into the SubqueryExpr, whose
+// rendering owns the single canonical pair. This matches the engine: MySQL
+// 8.0.32 and 5.7.25 both store `((SELECT ...))` (any extra depth, in any
+// expression position — select item, binary operand, IN, EXISTS, quantified
+// comparison) as exactly `(select ...)` in SHOW CREATE VIEW bodies, so keeping
+// the extra layers would phantom-diff the user form against the stored form.
+// A wrapper holding outer clauses (WITH / ORDER BY / LIMIT / locking)
+// keeps its parens — they scope those clauses. The engine does NOT keep that
+// pair: it merges wrapper clauses into the leaf and drops the parens
+// (`(((SELECT 1) LIMIT 1) = 1)` is stored as `((select 1 limit 1) = 1)`;
+// `((SELECT 1 LIMIT 2) LIMIT 1)` even discards the inner LIMIT). Keeping the
+// wrapper is still safe — readbacks never contain the wrapper form — but
+// user-form SDL written with clause-bearing wrappers phantom-diffs against
+// the stored form (a perpetual no-op view replace), the same residual class
+// as the unexpanded row-compare and set-op ARM paren forms.
 func (p *Parser) parseSubqueryExpr() (*nodes.SubqueryExpr, error) {
 	start := p.pos()
 	sel, err := p.parseSelectStmt()
 	if err != nil {
 		return nil, err
+	}
+	for sel != nil && sel.ParenSource != nil && len(sel.CTEs) == 0 &&
+		len(sel.OrderBy) == 0 && sel.Limit == nil && sel.ForUpdate == nil {
+		sel = sel.ParenSource
 	}
 	return &nodes.SubqueryExpr{
 		Loc:    nodes.Loc{Start: start, End: p.pos()},

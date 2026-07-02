@@ -43,7 +43,7 @@ func deparseSelectStmtCtx(stmt *ast.SelectStmt, suppressAlias bool) string {
 	// LIMIT held on the wrapper. Materialize the parens — a dropped ParenSource
 	// silently loses the inner query.
 	if stmt.ParenSource != nil {
-		return deparseParenSource(stmt)
+		return deparseParenSource(stmt, suppressAlias)
 	}
 
 	if stmt.TableSource != nil {
@@ -225,7 +225,7 @@ func deparseForUpdate(fu *ast.ForUpdate) string {
 // '(' inner ')', and the OUTER trailing ORDER BY / LIMIT held on the wrapper.
 // The inner query keeps its own clauses, so both scopes round-trip (e.g.
 // "(select 1 limit 5) limit 2").
-func deparseParenSource(stmt *ast.SelectStmt) string {
+func deparseParenSource(stmt *ast.SelectStmt, suppressAlias bool) string {
 	var b strings.Builder
 
 	if len(stmt.CTEs) > 0 {
@@ -234,7 +234,11 @@ func deparseParenSource(stmt *ast.SelectStmt) string {
 	}
 
 	b.WriteString("(")
-	b.WriteString(deparseSelectStmt(stmt.ParenSource))
+	// Propagate the caller's alias context: top-level parenthesized query
+	// expressions (set-op ARMs, stacked LIMIT) keep select-item aliases like
+	// every stored form, while wrappers reached through expression-subquery
+	// rendering suppress them like every sibling subquery path.
+	b.WriteString(deparseSelectStmtCtx(stmt.ParenSource, suppressAlias))
 	b.WriteString(")")
 
 	// Outer ORDER BY (applies to the parenthesized result).
@@ -494,6 +498,12 @@ func deparseResTarget(node ast.ExprNode, position int) string {
 	if alias == "" {
 		alias = autoAlias(expr, exprStr, position)
 	}
+
+	// The lexer folds `` escapes when reading quoted identifiers, so the alias
+	// must be re-escaped on the way out (an alias containing a backtick — from
+	// a quoted identifier or a derived expression text with a string literal —
+	// would otherwise render as unparseable SQL).
+	alias = strings.ReplaceAll(alias, "`", "``")
 
 	// MySQL 8.0 uses double-space before AS for window function expressions.
 	// The OVER clause already ends with " )", and MySQL adds an extra space.
@@ -826,6 +836,15 @@ func deparseExprAlias(node ast.ExprNode) string {
 			return "(" + deparseSelectStmtAlias(n.Select) + ")"
 		}
 		return "(/* subquery */)"
+	case *ast.RowExpr:
+		// Row constructor: "(a, b)" — alias-style items (no backtick quoting,
+		// no inner column aliases). Reachable unaliased since a parenthesized
+		// subquery may head a row: ((SELECT 1), 2) = ROW(1,2).
+		items := make([]string, len(n.Items))
+		for i, item := range n.Items {
+			items[i] = deparseExprAlias(item)
+		}
+		return "(" + strings.Join(items, ", ") + ")"
 	case *ast.CollateExpr:
 		// MySQL 8.0 auto-alias: "a COLLATE utf8mb4_unicode_ci" — uppercase COLLATE, no parens.
 		return deparseExprAlias(n.Expr) + " COLLATE " + n.Collation
