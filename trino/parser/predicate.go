@@ -43,9 +43,9 @@ import (
 // `a IN (1) IN (2)`, `a IS NULL IS NULL`, `a BETWEEN 1 AND 2 BETWEEN 3 AND 4` are
 // all SYNTAX_ERRORs. parsePredicateSuffix therefore consumes at most one
 // predicate and never loops; a trailing predicate operator is left for the
-// caller, where it surfaces as the syntax error Trino reports. Note Trino has NO
-// `IS [NOT] TRUE/FALSE/UNKNOWN` predicate (those spellings are rejected) — only
-// IS [NOT] NULL and IS [NOT] DISTINCT FROM.
+// caller, where it surfaces as the syntax error Trino reports. The IS forms
+// are IS [NOT] NULL, IS [NOT] DISTINCT FROM, and the boolean test
+// IS [NOT] TRUE/FALSE/UNKNOWN (engine-verified on Trino 482).
 
 // ComparisonExpr is `left <op> right` where <op> is one of = <> < <= > >=
 // (the comparison predicate). Op holds the source operator spelling.
