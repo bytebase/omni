@@ -305,6 +305,12 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 // Msg 126 "Invalid pseudocolumn"; context restrictions (e.g. $action outside
 // MERGE OUTPUT) are binding-time errors in the engine, not parse errors, so
 // the parser does not enforce them.
+//
+// Deliberate divergence from SqlScriptDOM: ScriptDom also accepts $CUID
+// (ColumnType.PseudoColumnCuid, present since its SQL 2008 grammar), but no
+// shipped engine does — SQL Server 2022 rejects `SELECT $CUID` with Msg 126
+// exactly like an unknown pseudo-column, and $CUID appears nowhere in the
+// T-SQL documentation. We follow the engine.
 var knownPseudoColumns = map[string]bool{
 	"$action":   true,
 	"$identity": true,
@@ -346,6 +352,26 @@ func (p *Parser) parsePseudoColumn() (nodes.ExprNode, error) {
 	}, nil
 }
 
+// parseInsertColumnName parses one name in an INSERT/MERGE column list: a
+// regular identifier or a known pseudo-column — graph edge-table inserts name
+// $from_id/$to_id as target columns (engine-verified:
+// `INSERT INTO e ($from_id, $to_id) SELECT ...` executes).
+func (p *Parser) parseInsertColumnName() (nodes.Node, error) {
+	if p.cur.Type == tokPSEUDOCOL {
+		if !knownPseudoColumns[strings.ToLower(p.cur.Str)] {
+			return nil, p.newParseError(p.cur.Loc, fmt.Sprintf("invalid pseudocolumn %q", p.cur.Str))
+		}
+		name := p.cur.Str
+		p.advance()
+		return &nodes.String{Str: name}, nil
+	}
+	colName, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.unexpectedToken()
+	}
+	return &nodes.String{Str: colName}, nil
+}
+
 // parseQualifiedRef parses a dot-qualified column reference or star expression.
 // The first part has already been consumed.
 //
@@ -372,6 +398,36 @@ func (p *Parser) parseQualifiedRef(first string, loc int) (nodes.ExprNode, error
 				Qualifier: qualifier,
 				Loc:       nodes.Loc{Start: loc, End: p.prevEnd()},
 			}, nil
+		}
+
+		// db.$PARTITION.fn(args) — the partition function accepts one optional
+		// database qualifier (engine-verified: `db.$PARTITION.pf(10)` executes;
+		// more than one qualifier is a syntax error).
+		if p.cur.Type == tokPSEUDOCOL && strings.ToLower(p.cur.Str) == "$partition" {
+			if len(parts) != 1 {
+				return nil, p.syntaxErrorAtCur()
+			}
+			partName := p.cur.Str
+			p.advance()
+			if _, err := p.expect('.'); err != nil {
+				return nil, err
+			}
+			if !p.isIdentLike() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			fname := p.cur.Str
+			p.advance()
+			if p.cur.Type != '(' {
+				return nil, p.syntaxErrorAtCur()
+			}
+			fc, err := p.parseFuncCallWithSchema(partName, fname, loc)
+			if err != nil {
+				return nil, err
+			}
+			if f, ok := fc.(*nodes.FuncCallExpr); ok && f.Name != nil {
+				f.Name.Database = parts[0]
+			}
+			return fc, nil
 		}
 
 		// Qualified pseudo-column (t.$IDENTITY, Person.$node_id) or keyword

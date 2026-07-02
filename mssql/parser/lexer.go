@@ -1527,53 +1527,77 @@ func (l *Lexer) nextTokenInner() Token {
 	return Token{Type: int(ch), Str: string(ch), Loc: l.start}
 }
 
-// lexDollar lexes a token starting with '$': a money constant when digits
-// follow ($12, $12.50, $.5), or a pseudo-column candidate when an identifier
-// follows ($action, $IDENTITY, $PARTITION — validated against the known set by
-// the parser, mirroring the engine's Msg 126 for unknown ones). A bare '$'
-// stays an unknown single-char token (syntax error downstream): SQL Server
-// itself lexes a lone '$' as money 0.0000, but SqlScriptDOM rejects it — we
-// deliberately follow SqlScriptDOM here.
+// lexDollar lexes a token starting with '$': a money constant when an amount
+// follows ($12, $12.50, $.5, $-4.78, $ 4), or a pseudo-column candidate when
+// an identifier follows ($action, $IDENTITY, $PARTITION — validated against
+// the known set by the parser, mirroring the engine's Msg 126 for unknown
+// ones). A bare '$' stays an unknown single-char token (syntax error
+// downstream): SQL Server itself lexes a lone '$' as money 0.0000, but
+// SqlScriptDOM rejects it — we deliberately follow SqlScriptDOM here.
 func (l *Lexer) lexDollar() Token {
-	if l.pos+1 < len(l.input) {
-		next := l.input[l.pos+1]
-		if isDigit(next) || (next == '.' && l.pos+2 < len(l.input) && isDigit(l.input[l.pos+2])) {
-			return l.lexMoney(1)
+	if end, ok := l.moneyAmountEnd(l.pos + 1); ok {
+		tok := Token{Type: tokMONEY, Str: l.input[l.pos:end], Loc: l.start}
+		l.pos = end
+		return tok
+	}
+	if l.pos+1 < len(l.input) && isIdentStart(l.input[l.pos+1]) {
+		start := l.pos
+		l.pos++ // consume $
+		for l.pos < len(l.input) && isIdentCont(l.input[l.pos]) {
+			l.pos++
 		}
-		if isIdentStart(next) {
-			start := l.pos
-			l.pos++ // consume $
-			for l.pos < len(l.input) && isIdentCont(l.input[l.pos]) {
-				l.pos++
-			}
-			return Token{Type: tokPSEUDOCOL, Str: l.input[start:l.pos], Loc: l.start}
-		}
+		return Token{Type: tokPSEUDOCOL, Str: l.input[start:l.pos], Loc: l.start}
 	}
 	l.pos++
 	return Token{Type: int('$'), Str: "$", Loc: l.start}
 }
 
 // lexMoney lexes a money constant: a currency symbol of symLen bytes followed
-// by digits with at most one decimal point. A symbol with no digits lexes as
-// money zero, matching the engine (e.g. `SELECT £` returns 0.0000).
+// by an optional amount. A symbol with no amount lexes as money zero,
+// matching the engine (e.g. `SELECT £` returns 0.0000).
 func (l *Lexer) lexMoney(symLen int) Token {
 	start := l.pos
-	l.pos += symLen
+	if end, ok := l.moneyAmountEnd(start + symLen); ok {
+		l.pos = end
+	} else {
+		l.pos = start + symLen
+	}
+	return Token{Type: tokMONEY, Str: l.input[start:l.pos], Loc: l.start}
+}
+
+// moneyAmountEnd scans a money amount starting at i, just past the currency
+// symbol: optional spaces, an optional single +/- sign, then digits with at
+// most one decimal point — the engine accepts $-4.78, $ 4, and $+2 as money
+// constants (verified on SQL Server 2022). Returns the end offset and true
+// when at least one digit is present; false leaves the caller to fall back
+// (pseudo-column, bare symbol, or bare '$').
+func (l *Lexer) moneyAmountEnd(i int) (int, bool) {
+	for i < len(l.input) && l.input[i] == ' ' {
+		i++
+	}
+	if i < len(l.input) && (l.input[i] == '-' || l.input[i] == '+') {
+		i++
+	}
+	digits := 0
 	seenDot := false
-	for l.pos < len(l.input) {
-		ch := l.input[l.pos]
+	for i < len(l.input) {
+		ch := l.input[i]
 		if isDigit(ch) {
-			l.pos++
+			digits++
+			i++
 			continue
 		}
-		if ch == '.' && !seenDot && l.pos+1 < len(l.input) && isDigit(l.input[l.pos+1]) {
+		if ch == '.' && !seenDot {
 			seenDot = true
-			l.pos++
+			i++
 			continue
 		}
 		break
 	}
-	return Token{Type: tokMONEY, Str: l.input[start:l.pos], Loc: l.start}
+	if digits == 0 {
+		return 0, false
+	}
+	return i, true
 }
 
 func (l *Lexer) skipWhitespace() {

@@ -36,9 +36,14 @@ OUTPUT $action, INSERTED.k, INSERTED.v;`,
 		"SELECT Person.$node_id FROM Person;",
 		"SELECT $from_id, $to_id FROM Likes;",
 		"SELECT $edge_id FROM Likes;",
-		// $PARTITION system partition function.
+		// $PARTITION system partition function, bare and database-qualified.
 		"SELECT $PARTITION.pf1(10);",
 		"SELECT $partition.pf1(o.OrderDate) FROM Orders o;",
+		"SELECT db1.$PARTITION.pf1(10);",
+		// Graph edge-table INSERT names pseudo-columns in the column list.
+		"INSERT INTO e ($from_id, $to_id) VALUES ('a', 'b');",
+		"INSERT INTO e ($from_id, $to_id) SELECT p1.$node_id, p2.$node_id FROM Person p1, Person p2;",
+		"MERGE INTO e AS t USING s ON t.x = s.x WHEN NOT MATCHED THEN INSERT ($from_id, $to_id) VALUES (s.f, s.g);",
 		// `$` inside identifiers and bracketed names are ordinary columns.
 		"SELECT a$b FROM t;",
 		"SELECT [$action] FROM t;",
@@ -61,6 +66,15 @@ OUTPUT $action, INSERTED.k, INSERTED.v;`,
 		"SELECT $ FROM t;",
 		"SELECT $PARTITION FROM t;",
 		"SELECT $PARTITION.pf1 FROM t;",
+		// Two qualifiers before $PARTITION exceed the grammar's single
+		// optional database qualifier.
+		"SELECT a.b.$PARTITION.pf1(10);",
+		// $CUID: ScriptDom accepts it (PseudoColumnCuid) but no shipped engine
+		// does — SQL Server 2022 rejects with Msg 126 like any unknown
+		// pseudo-column, and it is undocumented in T-SQL. We follow the engine.
+		"SELECT $CUID FROM t;",
+		"SELECT t.$CUID FROM t;",
+		"INSERT INTO t ($foo) VALUES (1);",
 	}
 	for _, sql := range reject {
 		t.Run(sql, func(t *testing.T) {
@@ -108,6 +122,14 @@ func TestMoneyLiterals(t *testing.T) {
 		"SELECT ¥100;",
 		"INSERT INTO t (price) VALUES ($19.99);",
 		"SELECT * FROM t WHERE price > $100;",
+		// The engine allows spaces and a sign between the symbol and digits
+		// (verified on SQL Server 2022: all of these execute).
+		"SELECT $-4.78;",
+		"SELECT $+2;",
+		"SELECT $ 4;",
+		"SELECT $ -4.78;",
+		"SELECT £-5;",
+		"SELECT £ 10;",
 	}
 	for _, sql := range accept {
 		t.Run(sql, func(t *testing.T) {
