@@ -180,9 +180,11 @@ jobs:
       # connect to a running Trino at localhost:18080 (DefaultURL in
       # trino/internal/trinooracle) and SILENTLY SKIP when unreachable.
       # Start one here, otherwise this job is a no-op that looks green.
+      # Image pinned to the corpus-verified version — keep in sync with
+      # trinooracle.DefaultImage (see omni PR #367).
       - name: Start Trino oracle server
         run: |
-          docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:latest
+          docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:482
           echo "Waiting for Trino to be ready..."
           for i in $(seq 1 60); do
             if curl -sf http://localhost:18080/v1/info | grep -q '"starting":false'; then
