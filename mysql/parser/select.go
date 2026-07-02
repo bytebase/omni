@@ -2106,11 +2106,25 @@ func (p *Parser) parseValuesStmt() (*nodes.ValuesStmt, error) {
 // parseSubqueryExpr parses a subquery expression: SELECT ... or a
 // parenthesized query expression. The caller owns the surrounding subquery
 // parentheses used by IN/EXISTS/scalar-subquery syntax.
+//
+// Redundant bare paren-wrapper layers are folded into the SubqueryExpr, whose
+// rendering owns the single canonical pair. This matches the engine: MySQL
+// 8.0.32 and 5.7.25 both store `((SELECT ...))` (any extra depth, in any
+// expression position — select item, binary operand, IN, EXISTS, quantified
+// comparison) as exactly `(select ...)` in SHOW CREATE VIEW bodies, so keeping
+// the extra layers would phantom-diff the user form against the stored form.
+// A wrapper holding outer clauses (WITH / ORDER BY / LIMIT / locking / INTO)
+// keeps its parens — they scope those clauses, and the engine keeps that pair
+// too (`(((select 1) limit 1) = 1)` is stored verbatim).
 func (p *Parser) parseSubqueryExpr() (*nodes.SubqueryExpr, error) {
 	start := p.pos()
 	sel, err := p.parseSelectStmt()
 	if err != nil {
 		return nil, err
+	}
+	for sel != nil && sel.ParenSource != nil && len(sel.CTEs) == 0 &&
+		len(sel.OrderBy) == 0 && sel.Limit == nil && sel.ForUpdate == nil && sel.Into == nil {
+		sel = sel.ParenSource
 	}
 	return &nodes.SubqueryExpr{
 		Loc:    nodes.Loc{Start: start, End: p.pos()},

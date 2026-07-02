@@ -495,6 +495,12 @@ func deparseResTarget(node ast.ExprNode, position int) string {
 		alias = autoAlias(expr, exprStr, position)
 	}
 
+	// The lexer folds `` escapes when reading quoted identifiers, so the alias
+	// must be re-escaped on the way out (an alias containing a backtick — from
+	// a quoted identifier or a derived expression text with a string literal —
+	// would otherwise render as unparseable SQL).
+	alias = strings.ReplaceAll(alias, "`", "``")
+
 	// MySQL 8.0 uses double-space before AS for window function expressions.
 	// The OVER clause already ends with " )", and MySQL adds an extra space.
 	if hasWindowFunction(expr) {
@@ -826,6 +832,15 @@ func deparseExprAlias(node ast.ExprNode) string {
 			return "(" + deparseSelectStmtAlias(n.Select) + ")"
 		}
 		return "(/* subquery */)"
+	case *ast.RowExpr:
+		// Row constructor: "(a, b)" — alias-style items (no backtick quoting,
+		// no inner column aliases). Reachable unaliased since a parenthesized
+		// subquery may head a row: ((SELECT 1), 2) = ROW(1,2).
+		items := make([]string, len(n.Items))
+		for i, item := range n.Items {
+			items[i] = deparseExprAlias(item)
+		}
+		return "(" + strings.Join(items, ", ") + ")"
 	case *ast.CollateExpr:
 		// MySQL 8.0 auto-alias: "a COLLATE utf8mb4_unicode_ci" — uppercase COLLATE, no parens.
 		return deparseExprAlias(n.Expr) + " COLLATE " + n.Collation
