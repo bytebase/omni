@@ -71,6 +71,12 @@ func renderSExpr(e Expr) string {
 			not = "!"
 		}
 		return fmt.Sprintf("(%sdistinct %s %s)", not, renderSExpr(n.Value), renderSExpr(n.Right))
+	case *IsBooleanExpr:
+		not := ""
+		if n.Not {
+			not = "!"
+		}
+		return fmt.Sprintf("(%sis%s %s)", not, strings.ToLower(n.Test), renderSExpr(n.Value))
 	case *LikeExpr:
 		not := ""
 		if n.Not {
@@ -125,6 +131,11 @@ func TestExpr_Precedence(t *testing.T) {
 		{"a BETWEEN 1 + 1 AND 2 * 2", "(between a (+ 1 1) (* 2 2))"},
 		// LIKE / DISTINCT FROM operate on value expressions
 		{"a IS DISTINCT FROM b + c", "(distinct a (+ b c))"},
+		// boolean test binds the whole value expression, NOT tighter than +
+		{"a IS TRUE", "(istrue a)"},
+		{"a IS NOT FALSE", "(!isfalse a)"},
+		{"a + b IS UNKNOWN", "(isunknown (+ a b))"},
+		{"a IS NOT UNKNOWN", "(!isunknown a)"},
 	}
 	for _, tc := range cases {
 		t.Run(truncateName(tc.expr), func(t *testing.T) {
@@ -324,6 +335,14 @@ func writeExpr(b *strings.Builder, e Expr) {
 			b.WriteString(" IS DISTINCT FROM ")
 		}
 		writeExpr(b, n.Right)
+	case *IsBooleanExpr:
+		writeExpr(b, n.Value)
+		if n.Not {
+			b.WriteString(" IS NOT ")
+		} else {
+			b.WriteString(" IS ")
+		}
+		b.WriteString(n.Test)
 	case *CaseExpr:
 		b.WriteString("CASE")
 		if n.Operand != nil {

@@ -633,6 +633,8 @@ func (ew exprWalk) walk(expr parser.Expr) {
 	case *parser.IsDistinctFromExpr:
 		ew.walk(e.Value)
 		ew.walk(e.Right)
+	case *parser.IsBooleanExpr:
+		ew.walk(e.Value)
 	case *parser.FuncCall:
 		ew.walkList(e.Args)
 		for _, item := range e.OrderBy {

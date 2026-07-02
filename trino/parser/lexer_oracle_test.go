@@ -50,7 +50,11 @@ var oracleCorpus = []string{
 	"SELECT a <> b, a != b, a <= b, a >= b, a < b, a > b FROM t",
 	"SELECT a + b - c * d / e % f FROM t",
 	"SELECT count(*) FILTER (WHERE a > 0) FROM t",
-	"SELECT \"quoted col\", `backtick col` FROM \"quoted tbl\"",
+	// Backtick identifiers deliberately excluded: Trino's lexer tokenizes
+	// BACKQUOTED_IDENTIFIER_ (as does omni's) but the statement is a parser
+	// SYNTAX_ERROR, and this corpus must be all-Trino-accepted. Backtick
+	// tokenization is pinned by the identifier unit tests instead.
+	"SELECT \"quoted col\" FROM \"quoted tbl\"",
 	"SELECT timestamp '2012-10-31 01:00 UTC' AT TIME ZONE 'America/Los_Angeles'",
 	"SELECT ARRAY[1, 2, 3], ROW(1, 'a')",
 	"SELECT filter(ARRAY[1,2,3], x -> x > 1)",
