@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Token type constants for the T-SQL lexer.
@@ -19,6 +21,8 @@ const (
 	tokIDENT                    // identifier (regular or [bracketed])
 	tokVARIABLE                 // @variable
 	tokSYSVARIABLE              // @@system_variable
+	tokMONEY                    // money constant ($12.50, £10, €7)
+	tokPSEUDOCOL                // $-prefixed pseudo-column ($action, $IDENTITY, $PARTITION, ...)
 
 	// Multi-character operators
 	tokNOTEQUAL   // <> or !=
@@ -1492,6 +1496,26 @@ func (l *Lexer) nextTokenInner() Token {
 		return l.lexNumber()
 	}
 
+	// $-prefixed tokens: money constant ($12.50) or pseudo-column ($action).
+	if ch == '$' {
+		return l.lexDollar()
+	}
+
+	// Currency-symbol money constant (£10, €7, ...). Unicode currency symbols
+	// are not valid identifier-start characters in T-SQL; the engine lexes the
+	// documented money-table symbols as money constants and rejects the rest
+	// (₹, ₿, ... — Msg 102), so neither falls into the identifier path.
+	if ch >= 128 {
+		r, size := utf8.DecodeRuneInString(l.input[l.pos:])
+		if isMoneySign(r) {
+			return l.lexMoney(size)
+		}
+		if unicode.Is(unicode.Sc, r) {
+			l.pos += size
+			return Token{Type: int(ch), Str: string(r), Loc: l.start}
+		}
+	}
+
 	// Single-character tokens
 	if isSingleChar(ch) {
 		l.pos++
@@ -1506,6 +1530,99 @@ func (l *Lexer) nextTokenInner() Token {
 	// Unknown character - return as itself
 	l.pos++
 	return Token{Type: int(ch), Str: string(ch), Loc: l.start}
+}
+
+// lexDollar lexes a token starting with '$': a money constant when an amount
+// follows ($12, $12.50, $.5, $-4.78, $ 4), or a pseudo-column candidate when
+// an identifier follows ($action, $IDENTITY, $PARTITION — validated against
+// the known set by the parser, mirroring the engine's Msg 126 for unknown
+// ones). A bare '$' stays an unknown single-char token (syntax error
+// downstream): SQL Server itself lexes a lone '$' as money 0.0000, but
+// SqlScriptDOM rejects it — we deliberately follow SqlScriptDOM here.
+func (l *Lexer) lexDollar() Token {
+	if end, ok := l.moneyAmountEnd(l.pos + 1); ok {
+		tok := Token{Type: tokMONEY, Str: l.input[l.pos:end], Loc: l.start}
+		l.pos = end
+		return tok
+	}
+	if l.pos+1 < len(l.input) && isIdentStart(l.input[l.pos+1]) {
+		start := l.pos
+		l.pos++ // consume $
+		for l.pos < len(l.input) && isIdentCont(l.input[l.pos]) {
+			l.pos++
+		}
+		return Token{Type: tokPSEUDOCOL, Str: l.input[start:l.pos], Loc: l.start}
+	}
+	l.pos++
+	return Token{Type: int('$'), Str: "$", Loc: l.start}
+}
+
+// lexMoney lexes a money constant: a currency symbol of symLen bytes followed
+// by an optional amount. A symbol with no amount lexes as money zero,
+// matching the engine (e.g. `SELECT £` returns 0.0000).
+func (l *Lexer) lexMoney(symLen int) Token {
+	start := l.pos
+	if end, ok := l.moneyAmountEnd(start + symLen); ok {
+		l.pos = end
+	} else {
+		l.pos = start + symLen
+	}
+	return Token{Type: tokMONEY, Str: l.input[start:l.pos], Loc: l.start}
+}
+
+// isMoneySign reports whether r is one of the currency symbols T-SQL accepts
+// on money constants, per the documented table (money-and-smallmoney docs) —
+// a fixed list, NOT the whole Unicode Sc category: the engine accepts ₭
+// (U+20AD) and full-width ￥ but rejects ₹ (U+20B9) and ₿ (U+20BF), both Sc
+// (verified on SQL Server 2022). '$' (U+0024) is handled by lexDollar.
+func isMoneySign(r rune) bool {
+	switch r {
+	case '¢', '£', '¤', '¥', // U+00A2..U+00A5
+		'৲', '৳', // Bengali Rupee mark/sign (U+09F2, U+09F3)
+		'฿',                    // Thai Baht (U+0E3F)
+		'៛',                    // Khmer Riel (U+17DB)
+		'﷼',                    // Rial (U+FDFC)
+		'﹩',                    // Small Dollar (U+FE69)
+		'＄',                    // Full-width Dollar (U+FF04)
+		'￠', '￡', '￥', '￦': // Full-width Cent/Pound/Yen/Won (U+FFE0, U+FFE1, U+FFE5, U+FFE6)
+		return true
+	}
+	return r >= 0x20A0 && r <= 0x20B1 // ₠ through ₱ (currency block subset in the docs table)
+}
+
+// moneyAmountEnd scans a money amount starting at i, just past the currency
+// symbol: optional spaces, an optional single +/- sign, then digits with at
+// most one decimal point — the engine accepts $-4.78, $ 4, and $+2 as money
+// constants (verified on SQL Server 2022). Returns the end offset and true
+// when at least one digit is present; false leaves the caller to fall back
+// (pseudo-column, bare symbol, or bare '$').
+func (l *Lexer) moneyAmountEnd(i int) (int, bool) {
+	for i < len(l.input) && l.input[i] == ' ' {
+		i++
+	}
+	if i < len(l.input) && (l.input[i] == '-' || l.input[i] == '+') {
+		i++
+	}
+	digits := 0
+	seenDot := false
+	for i < len(l.input) {
+		ch := l.input[i]
+		if isDigit(ch) {
+			digits++
+			i++
+			continue
+		}
+		if ch == '.' && !seenDot {
+			seenDot = true
+			i++
+			continue
+		}
+		break
+	}
+	if digits == 0 {
+		return 0, false
+	}
+	return i, true
 }
 
 func (l *Lexer) skipWhitespace() {

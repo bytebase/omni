@@ -668,6 +668,15 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 			Type: nodes.LitDefault,
 			Loc:  nodes.Loc{Start: tok.Loc, End: p.prevEnd()},
 		}, nil
+	case tokMONEY:
+		tok := p.advance()
+		return &nodes.Literal{
+			Type: nodes.LitMoney,
+			Str:  tok.Str,
+			Loc:  nodes.Loc{Start: tok.Loc, End: p.prevEnd()},
+		}, nil
+	case tokPSEUDOCOL:
+		return p.parsePseudoColumn()
 	case tokVARIABLE:
 		tok := p.advance()
 		return &nodes.VariableRef{
@@ -756,6 +765,14 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	case kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwSESSION_USER,
 		kwSYSTEM_USER, kwUSER, kwCURRENT_DATE:
 		return p.parseNiladicKeywordFunc()
+	case kwIDENTITYCOL, kwROWGUIDCOL:
+		// IDENTITYCOL / ROWGUIDCOL reference the identity / rowguid column of a
+		// table without naming it. Keyword-only column references; no parens.
+		tok := p.advance()
+		return &nodes.ColumnRef{
+			Column: tok.Str,
+			Loc:    nodes.Loc{Start: tok.Loc, End: p.prevEnd()},
+		}, nil
 	case tokIDENT:
 		return p.parseIdentExpr()
 	default:

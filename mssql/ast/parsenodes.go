@@ -1930,6 +1930,7 @@ const (
 	LitFloat
 	LitNull
 	LitDefault
+	LitMoney // money constant, Str holds the raw text including currency symbol ($12.50)
 )
 
 // SubqueryExpr represents a scalar subquery in an expression.
