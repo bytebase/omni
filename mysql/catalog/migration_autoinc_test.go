@@ -301,6 +301,25 @@ func TestAutoIncGrouping_FKBackingDropJoinsColumnDrop(t *testing.T) {
 	}
 }
 
+func TestAutoIncGrouping_MyISAMSharedKeyAIMigrationBothSurvive(t *testing.T) {
+	// MyISAM corner (cross-family review find): the shared key covers BOTH columns and the old
+	// auto column SURVIVES (de-AUTO_INCREMENTed), so the shared key's drop first folds into
+	// a's MODIFY, which is then pulled into b's gaining statement — the drop now executes IN
+	// the target statement itself, so b is NOT covered there and the replacement key must
+	// still be grouped in (4-clause statement, oracle-proven; 3-clause fails errno 1075).
+	p := aigPlan(t,
+		"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT NOT NULL AUTO_INCREMENT, b INT NOT NULL, KEY k (a, b)) ENGINE=MyISAM;",
+		"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, b INT NOT NULL AUTO_INCREMENT, KEY k2 (b)) ENGINE=MyISAM;")
+	op := requireOneStatementWith(t, p,
+		"MODIFY COLUMN `a`", "DROP INDEX `k`", "MODIFY COLUMN `b`", "ADD KEY `k2` (`b`)")
+	if len(p.Ops) != 1 {
+		t.Errorf("want 1 grouped op, got %d:\n%s", len(p.Ops), p.SQL())
+	}
+	if op.Phase != PhaseMain {
+		t.Errorf("grouped statement must run in PhaseMain, got %d", op.Phase)
+	}
+}
+
 func TestAutoIncGrouping_MyISAMSharedKeyAIMigration(t *testing.T) {
 	// MyISAM corner: the composite key covers BOTH the old and the new auto column (any-position
 	// rule). The old column and the shared key drop in PhasePre, so the gaining MODIFY must

@@ -95,6 +95,13 @@ func autoIncMigrationProbes() []migrationProbe {
 		{"aig-myisam-shared-key-ai-migrate", "t",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, c1 INT NOT NULL AUTO_INCREMENT, c2 INT NOT NULL, KEY k (c1, c2)) ENGINE=MyISAM",
 			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, c2 INT NOT NULL AUTO_INCREMENT, KEY k2 (c2)) ENGINE=MyISAM", both()},
+		// Same shared-key shape but the old auto column SURVIVES (de-AUTO_INCREMENTed): the
+		// shared key's drop folds into a's MODIFY, which is pulled into b's gaining statement —
+		// the drop then executes IN that statement, so the replacement key must join it too
+		// (4-clause statement; the 3-clause form without the new key fails errno 1075, probed).
+		{"aig-myisam-shared-key-ai-migrate-survive", "t",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT NOT NULL AUTO_INCREMENT, b INT NOT NULL, KEY k (a, b)) ENGINE=MyISAM",
+			"CREATE TABLE t (id INT NOT NULL PRIMARY KEY, a INT NOT NULL, b INT NOT NULL AUTO_INCREMENT, KEY k2 (b)) ENGINE=MyISAM", both()},
 		// 8.0-only backing-key shapes that still satisfy errno 1075 (probed): DESC first column,
 		// INVISIBLE index, and a trailing functional part behind the plain first column.
 		{"aig-add-col-desc-key", "t",

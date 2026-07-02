@@ -395,7 +395,7 @@ func (m *aiMerger) mergeAddHazard(entry *TableDiffEntry, roles *tableOpRoles, fr
 		}
 	}
 
-	if m.addSideCovered(entry, roles, toAI) {
+	if m.addSideCovered(entry, roles, toAI, target) {
 		return
 	}
 
@@ -420,13 +420,15 @@ func (m *aiMerger) mergeAddHazard(entry *TableDiffEntry, roles *tableOpRoles, fr
 	}
 }
 
-// addSideCovered reports whether a from-side key still covers the target auto column at its
-// column statement: the column must not be re-created in this plan (its own PhasePre DROP
-// strips it from every index) and the key must still exist when the PhaseMain column statement
-// runs — either no statement drops it, or its drop was folded into a PhaseMain statement by the
-// DROP-direction merges (a drop folded into a PhasePre statement, e.g. another column's DROP,
-// still removes the key before PhaseMain).
-func (m *aiMerger) addSideCovered(entry *TableDiffEntry, roles *tableOpRoles, toAI string) bool {
+// addSideCovered reports whether a from-side key still covers the target auto column at the
+// END of the target statement: the column must not be re-created in this plan (its own
+// PhasePre DROP strips it from every index) and the key must survive PAST the target. A
+// dropped key survives only when its DROP clause finally executes in a statement STRICTLY
+// AFTER the target — resolved transitively through the merge chain, because a drop first
+// folded into the old auto column's de-AUTO_INCREMENT MODIFY lands in the TARGET ITSELF once
+// that MODIFY is pulled in, and the key is then already gone at the target's own
+// end-of-statement (the exact errno-1075 window this pass closes; MyISAM shared-key probe).
+func (m *aiMerger) addSideCovered(entry *TableDiffEntry, roles *tableOpRoles, toAI string, target int) bool {
 	if _, recreated := roles.colDrop[toAI]; recreated {
 		return false
 	}
@@ -435,11 +437,38 @@ func (m *aiMerger) addSideCovered(entry *TableDiffEntry, roles *tableOpRoles, to
 		if !dropped {
 			return true
 		}
-		if m.consumed[di] && m.mergedInto[di] >= 0 && m.ops[m.mergedInto[di]].Phase == PhaseMain {
+		final := m.resolveMergedTarget(di)
+		if final != target && m.opExecutesBefore(target, final) {
 			return true
 		}
 	}
 	return false
+}
+
+// resolveMergedTarget follows the mergedInto chain to the statement that finally carries op
+// i's clauses (an op merged into an op that was itself merged onward moves with it).
+func (m *aiMerger) resolveMergedTarget(i int) int {
+	for m.consumed[i] && m.mergedInto[i] >= 0 && m.mergedInto[i] != i {
+		i = m.mergedInto[i]
+	}
+	return i
+}
+
+// opExecutesBefore reports whether op i's statement runs before op j's under
+// sortMigrationOps' total order (phase, priority, sortName, then original position — the
+// same stable tie-break the sort applies to equal keys).
+func (m *aiMerger) opExecutesBefore(i, j int) bool {
+	a, b := m.ops[i], m.ops[j]
+	if a.Phase != b.Phase {
+		return a.Phase < b.Phase
+	}
+	if a.Priority != b.Priority {
+		return a.Priority < b.Priority
+	}
+	if a.sortName != b.sortName {
+		return a.sortName < b.sortName
+	}
+	return i < j
 }
 
 // pullReferencedColumnAdds moves the ADD COLUMN statements of the backing key's OTHER new
