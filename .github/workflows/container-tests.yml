@@ -1,6 +1,8 @@
 name: Container Tests
 
 on:
+  pull_request:
+    branches: [main]
   schedule:
     # Run daily at 08:00 UTC (17:00 JST)
     - cron: '0 8 * * *'
@@ -56,6 +58,9 @@ jobs:
     # fresh mismatch doesn't auto-fail the nightly build; the
     # timestamped artefact under testdata/paren-fuzz-defer/ is the
     # triage signal.
+    # Skipped on pull_request: ci.yml already runs the N=1000 PR gate,
+    # and the wide-N run takes up to 55 minutes.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
