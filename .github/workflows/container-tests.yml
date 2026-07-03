@@ -157,13 +157,8 @@ jobs:
         run: go test -tags=oracle -timeout 25m -run '^(TestParenOracle|TestFunctionBodyReferenceOracle)' -skip '^TestParenOracleFuzz$' ./pg/parser/ -count=1
 
   trino-container-tests:
-    # Schedule/dispatch-only for now: with the oracle actually running
-    # (see the start step below), the differential surfaced real parity
-    # gaps — omni rejects boolean IS predicates (a IS TRUE / IS NOT
-    # FALSE / IS UNKNOWN) that Trino accepts, plus a quoted-identifier
-    # lexer mismatch. Pre-existing, not PR-caused. Flip to PR +
-    # required once the parser gaps are fixed.
-    if: github.event_name != 'pull_request'
+    # PR-gating: the parser parity gaps the first run surfaced (boolean
+    # IS predicates, quoted-identifier lexer) were fixed in PR #367.
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
