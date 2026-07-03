@@ -905,9 +905,67 @@ func balancedFirstParenWrapsAll(s string) bool {
 // readback of the same logical expression all compare equal.
 func (n *Normalizer) CanonicalGeneratedExpr(expr string) string {
 	s := stripCharsetIntroducers(expr)
+	s = stripCastCharsets(s)
 	s = stripOuterParens(s)
 	s = collapseExprWhitespace(s)
 	return s
+}
+
+// stripCastCharsets removes the charset attribute of CAST targets
+// (" charset utf8mb4" and the like) outside string literals and backtick
+// quotes. Like the string-literal introducer above, the charset the engine
+// stores for a charset-less CHAR cast is the CONNECTION charset of the
+// creating session (oracle 8.0.32: the same CAST(s AS CHAR(4)) generated
+// column stores "charset latin1" or "charset utf8mb4" depending only on the
+// session that created it), so it is connection-dependent noise for
+// comparison purposes: stripping it lets a user's charset-less cast compare
+// equal to any readback. "charset binary" is kept — it changes the cast's
+// type (the WEIGHT_STRING(... AS BINARY(n)) desugar) and must not compare
+// equal to a plain CHAR cast.
+func stripCastCharsets(expr string) string {
+	var b strings.Builder
+	b.Grow(len(expr))
+	i := 0
+	for i < len(expr) {
+		c := expr[i]
+		if c == '\'' {
+			end := scanStringLiteral(expr, i)
+			b.WriteString(expr[i:end])
+			i = end
+			continue
+		}
+		if c == '`' {
+			j := i + 1
+			for j < len(expr) {
+				if expr[j] == '`' {
+					if j+1 < len(expr) && expr[j+1] == '`' {
+						j += 2 // doubled-backtick escape inside the identifier
+						continue
+					}
+					j++
+					break
+				}
+				j++
+			}
+			b.WriteString(expr[i:j])
+			i = j
+			continue
+		}
+		if c == ' ' && strings.HasPrefix(expr[i:], " charset ") {
+			j := i + len(" charset ")
+			k := j
+			for k < len(expr) && isIdentByte(expr[k]) {
+				k++
+			}
+			if k > j && !strings.EqualFold(expr[j:k], "binary") {
+				i = k // drop " charset <name>"
+				continue
+			}
+		}
+		b.WriteByte(c)
+		i++
+	}
+	return b.String()
 }
 
 // scanStringLiteral returns the index just past a single-quoted string literal that

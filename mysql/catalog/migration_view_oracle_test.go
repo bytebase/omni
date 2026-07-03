@@ -348,7 +348,7 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 		// explicitly so the user form matches the engine-stored level list.
 		{"weight-string-level", []string{
 			"CREATE TABLE t (s VARCHAR(20))",
-			"CREATE VIEW v AS SELECT WEIGHT_STRING(s LEVEL 1) AS c1, WEIGHT_STRING(s AS CHAR(4) LEVEL 1) AS c2 FROM t",
+			"CREATE VIEW v AS SELECT WEIGHT_STRING(s LEVEL 1) AS c1, WEIGHT_STRING(s AS CHAR(4) LEVEL 1) AS c2, WEIGHT_STRING(s LEVEL 1 DESC REVERSE) AS c3 FROM t",
 		}, []string{"t"}, []string{"v"}, only(MySQL57)},
 	}
 }

@@ -70,6 +70,7 @@ func TestTemporalUnitStoredFormRoundTrip(t *testing.T) {
 		{"weight-string-level", "select weight_string('ab' level 1) AS `x`"},
 		{"weight-string-level-desc", "select weight_string('ab' level 1 desc) AS `x`"},
 		{"weight-string-level-reverse", "select weight_string('ab' level 1 reverse) AS `x`"},
+		{"weight-string-level-desc-reverse", "select weight_string('ab' level 1 desc reverse) AS `x`"},
 		{"weight-string-as-char-level", "select weight_string('ab' as char(4) level 1) AS `x`"},
 		// TRIM: directional and the direction-less remstr FROM form.
 		{"trim-both", "select trim(both 'x' from 'xax') AS `x`"},
@@ -224,7 +225,7 @@ func TestTemporalUnitGeneratedColumnRoundTrip(t *testing.T) {
 func TestTemporalUnitViewColumnNullability(t *testing.T) {
 	sdl := "CREATE DATABASE d;\nUSE d;\n" +
 		"CREATE TABLE `t` (`nc` varchar(10) DEFAULT NULL, `nn` varchar(10) NOT NULL, `dt` datetime DEFAULT NULL);\n" +
-		"CREATE VIEW `v` AS select weight_string(`nc` as char(4)) AS `w1`, weight_string(`nn` as char(4)) AS `w2`, extract(day from `dt`) AS `e1`, (`dt` + interval 1 day) AS `i1` from `t`;\n"
+		"CREATE VIEW `v` AS select weight_string(`nc` as char(4)) AS `w1`, weight_string(`nn` as char(4)) AS `w2`, weight_string(`nc` as binary(4)) AS `w3`, cast(`nc` as char(4)) AS `c1`, extract(day from `dt`) AS `e1`, (`dt` + interval 1 day) AS `i1` from `t`;\n"
 	cat, err := LoadSDL(sdl)
 	if err != nil {
 		t.Fatalf("LoadSDL failed: %v", err)
@@ -236,6 +237,8 @@ func TestTemporalUnitViewColumnNullability(t *testing.T) {
 	want := map[string]bool{
 		"w1": true,  // nullable column through WEIGHT_STRING AS CHAR
 		"w2": false, // arg-propagation parity with the plain function path
+		"w3": true,  // nullable column through the AS BINARY cast desugar
+		"c1": true,  // nullable column through a plain CAST
 		"e1": true,  // nullable column through EXTRACT
 		"i1": true,  // nullable column through INTERVAL arithmetic
 	}
@@ -292,6 +295,12 @@ func TestTemporalUnitParserRejections(t *testing.T) {
 		{"get-format-year", "select get_format(YEAR,'USA') AS `x`"},
 		{"get-format-string", "select get_format('DATE','USA') AS `x`"},
 		{"extract-quoted-unit", "select extract(`day` from '2020-01-01') AS `x`"},
+		// WEIGHT_STRING grammar edges the engine rejects with 1064
+		// (oracle 8.0.32 + 5.7.25): a zero AS length, and REVERSE before the
+		// direction (the grammar is n [ASC|DESC] [REVERSE], in that order).
+		{"weight-string-as-char-0", "select weight_string('ab' as char(0)) AS `x`"},
+		{"weight-string-as-binary-0", "select weight_string('ab' as binary(0)) AS `x`"},
+		{"weight-string-level-reverse-desc", "select weight_string('ab' level 1 reverse desc) AS `x`"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.id, func(t *testing.T) {
@@ -302,5 +311,37 @@ func TestTemporalUnitParserRejections(t *testing.T) {
 				t.Logf("rejected (as expected): %v", err)
 			}
 		})
+	}
+}
+
+// The charset the engine stores for a charset-less CHAR cast is the
+// CONNECTION charset of the creating session (oracle 8.0.32: the same
+// CAST(s AS CHAR(4)) generated column stores "charset latin1" via a latin1
+// session and "charset utf8mb4" via a utf8mb4 session) — connection-dependent
+// noise, exactly like the string-literal introducer CanonicalGeneratedExpr
+// already strips. A user's charset-less cast must compare equal to any
+// readback, while "charset binary" (the WEIGHT_STRING AS BINARY desugar)
+// stays semantically distinct.
+func TestGeneratedCastCharsetComparison(t *testing.T) {
+	user := "CREATE DATABASE d;\nUSE d;\nCREATE TABLE `g` (`s` varchar(10), `c` char(4) GENERATED ALWAYS AS (CAST(`s` AS CHAR(4))) VIRTUAL);\n"
+	stored := "CREATE DATABASE d;\nUSE d;\nCREATE TABLE `g` (`s` varchar(10) DEFAULT NULL, `c` char(4) GENERATED ALWAYS AS (cast(`s` as char(4) charset utf8mb4)) VIRTUAL);\n"
+	binform := "CREATE DATABASE d;\nUSE d;\nCREATE TABLE `g` (`s` varchar(10) DEFAULT NULL, `c` char(4) GENERATED ALWAYS AS (cast(`s` as char(4) charset binary)) VIRTUAL);\n"
+	cu, err := LoadSDL(user)
+	if err != nil {
+		t.Fatalf("LoadSDL(user) failed: %v", err)
+	}
+	cs, err := LoadSDL(stored)
+	if err != nil {
+		t.Fatalf("LoadSDL(stored) failed: %v", err)
+	}
+	cb, err := LoadSDL(binform)
+	if err != nil {
+		t.Fatalf("LoadSDL(binary) failed: %v", err)
+	}
+	if d := Diff(cu, cs); !d.IsEmpty() {
+		t.Errorf("charset-less cast vs connection-charset readback must compare equal (phantom diff)")
+	}
+	if d := Diff(cu, cb); d.IsEmpty() {
+		t.Errorf("plain CHAR cast and charset-binary cast must stay distinct")
 	}
 }

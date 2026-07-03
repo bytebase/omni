@@ -1965,8 +1965,11 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 				b.WriteString(",")
 			}
 			fmt.Fprintf(&b, "%d", lv.Level)
-			if lv.Dir != "" {
-				b.WriteString(" " + strings.ToLower(lv.Dir))
+			if lv.Desc {
+				b.WriteString(" desc")
+			}
+			if lv.Reverse {
+				b.WriteString(" reverse")
 			}
 		}
 		b.WriteString(")")

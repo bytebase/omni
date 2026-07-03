@@ -1900,10 +1900,14 @@ type WeightStringExpr struct {
 func (e *WeightStringExpr) nodeTag()  {}
 func (e *WeightStringExpr) exprNode() {}
 
-// WeightStringLevel is one element of a WEIGHT_STRING LEVEL list.
+// WeightStringLevel is one element of a WEIGHT_STRING LEVEL list. The 5.7
+// grammar allows a direction and REVERSE together, in that order — LEVEL 1
+// DESC REVERSE stores as "level 1 desc reverse", while REVERSE DESC is a
+// syntax error and ASC normalizes away (oracle 5.7.25).
 type WeightStringLevel struct {
-	Level int
-	Dir   string // "", "DESC", or "REVERSE" (ASC normalizes to "")
+	Level   int
+	Desc    bool
+	Reverse bool
 }
 
 // CollateExpr represents a COLLATE expression.

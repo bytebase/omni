@@ -1328,6 +1328,11 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 		if p.cur.Type != tokICONST {
 			return nil, &ParseError{Message: "expected length", Position: p.cur.Loc}
 		}
+		if p.cur.Ival < 1 {
+			// The engine requires N >= 1: WEIGHT_STRING('x' AS CHAR(0)) is a
+			// 1064 syntax error (oracle 8.0.32 + 5.7.25).
+			return nil, &ParseError{Message: "WEIGHT_STRING AS length must be at least 1", Position: p.cur.Loc}
+		}
 		lenTok := p.advance()
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
@@ -1360,22 +1365,27 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 			}
 			lvTok := p.advance()
 			level := nodes.WeightStringLevel{Level: int(lvTok.Ival)}
+			// Grammar: n [ASC|DESC] [REVERSE] — direction first, then an
+			// optional REVERSE (LEVEL 1 DESC REVERSE stores as
+			// "level 1 desc reverse"; REVERSE DESC is a 1064 and ASC
+			// normalizes away — oracle 5.7.25).
 			switch p.cur.Type {
 			case kwASC:
 				p.advance() // ASC is the default; normalize away
 			case kwDESC:
 				p.advance()
-				level.Dir = "DESC"
-			case kwREVERSE:
+				level.Desc = true
+			}
+			if p.cur.Type == kwREVERSE {
 				p.advance()
-				level.Dir = "REVERSE"
+				level.Reverse = true
 			}
 			ws.Levels = append(ws.Levels, level)
 			// Range form LEVEL n - m: expand to the full list. Weight levels
 			// are 1..6 per the MySQL reference (no collation has more), so
 			// the expansion is capped — an absurd range like LEVEL 1 - 1e18
 			// parses without materializing entries beyond the domain.
-			if len(ws.Levels) == 1 && level.Dir == "" && p.cur.Type == '-' {
+			if len(ws.Levels) == 1 && !level.Desc && !level.Reverse && p.cur.Type == '-' {
 				p.advance()
 				if p.cur.Type != tokICONST {
 					return nil, &ParseError{Message: "expected level number", Position: p.cur.Loc}

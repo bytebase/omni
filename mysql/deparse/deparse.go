@@ -875,8 +875,11 @@ func deparseExprAlias(node ast.ExprNode) string {
 				b.WriteString(", ")
 			}
 			fmt.Fprintf(&b, "%d", lv.Level)
-			if lv.Dir != "" {
-				b.WriteString(" " + lv.Dir)
+			if lv.Desc {
+				b.WriteString(" DESC")
+			}
+			if lv.Reverse {
+				b.WriteString(" REVERSE")
 			}
 		}
 		b.WriteString(")")
@@ -1641,8 +1644,11 @@ func deparseWeightStringExpr(n *ast.WeightStringExpr) string {
 			sb.WriteString(",")
 		}
 		fmt.Fprintf(&sb, "%d", lv.Level)
-		if lv.Dir != "" {
-			sb.WriteString(" " + strings.ToLower(lv.Dir))
+		if lv.Desc {
+			sb.WriteString(" desc")
+		}
+		if lv.Reverse {
+			sb.WriteString(" reverse")
 		}
 	}
 	sb.WriteString(")")

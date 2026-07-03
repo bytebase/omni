@@ -2373,8 +2373,11 @@ func writeWeightStringExpr(sb *strings.Builder, n *WeightStringExpr) {
 	}
 	for _, lv := range n.Levels {
 		fmt.Fprintf(sb, " :level %d", lv.Level)
-		if lv.Dir != "" {
-			fmt.Fprintf(sb, " %s", lv.Dir)
+		if lv.Desc {
+			sb.WriteString(" desc")
+		}
+		if lv.Reverse {
+			sb.WriteString(" reverse")
 		}
 	}
 	sb.WriteString("}")
