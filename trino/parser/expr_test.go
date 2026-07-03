@@ -112,6 +112,12 @@ var exprAcceptCorpus = []string{
 	"a IS NOT NULL",              // nullPredicate
 	"a IS DISTINCT FROM b",       // distinctFrom
 	"a IS NOT DISTINCT FROM b",   // distinctFrom (negated)
+	"a IS TRUE",                  // boolean test (engine-verified: Trino 482 accepts)
+	"a IS NOT TRUE",              // boolean test (negated)
+	"a IS FALSE",                 // boolean test
+	"a IS NOT FALSE",             // boolean test (negated)
+	"a IS UNKNOWN",               // boolean test
+	"a IS NOT UNKNOWN",           // boolean test (negated)
 	"a || b = c",                 // || binds tighter than predicate (P2)
 
 	// --- constructors (rowConstructor/arrayConstructor) ---
@@ -257,11 +263,6 @@ var exprRejectCorpus = []string{
 	"a IN (1) IN (2)",
 	"a IS NULL IS NULL",
 	"a BETWEEN 1 AND 2 BETWEEN 3 AND 4",
-
-	// IS variants Trino does not have
-	"a IS TRUE",
-	"a IS NOT FALSE",
-	"a IS UNKNOWN",
 
 	// reserved special-function keywords reject ordinary readings
 	"trim",              // reserved: not a bare column reference

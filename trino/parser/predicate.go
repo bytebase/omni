@@ -1,6 +1,10 @@
 package parser
 
-import "github.com/bytebase/omni/trino/ast"
+import (
+	"strings"
+
+	"github.com/bytebase/omni/trino/ast"
+)
 
 // This file is part of the `expressions` DAG node (with expr.go and
 // function.go): it implements the predicate suffix of Trino's `booleanExpression`
@@ -39,9 +43,9 @@ import "github.com/bytebase/omni/trino/ast"
 // `a IN (1) IN (2)`, `a IS NULL IS NULL`, `a BETWEEN 1 AND 2 BETWEEN 3 AND 4` are
 // all SYNTAX_ERRORs. parsePredicateSuffix therefore consumes at most one
 // predicate and never loops; a trailing predicate operator is left for the
-// caller, where it surfaces as the syntax error Trino reports. Note Trino has NO
-// `IS [NOT] TRUE/FALSE/UNKNOWN` predicate (those spellings are rejected) — only
-// IS [NOT] NULL and IS [NOT] DISTINCT FROM.
+// caller, where it surfaces as the syntax error Trino reports. The IS forms
+// are IS [NOT] NULL, IS [NOT] DISTINCT FROM, and the boolean test
+// IS [NOT] TRUE/FALSE/UNKNOWN (engine-verified on Trino 482).
 
 // ComparisonExpr is `left <op> right` where <op> is one of = <> < <= > >=
 // (the comparison predicate). Op holds the source operator spelling.
@@ -137,6 +141,18 @@ type IsDistinctFromExpr struct {
 
 func (n *IsDistinctFromExpr) Span() ast.Loc { return n.Loc }
 func (*IsDistinctFromExpr) exprNode()       {}
+
+// IsBooleanExpr is the boolean test `value IS [NOT] TRUE | FALSE | UNKNOWN`.
+// Test holds the uppercased test keyword ("TRUE", "FALSE", or "UNKNOWN").
+type IsBooleanExpr struct {
+	Not   bool
+	Value Expr
+	Test  string
+	Loc   ast.Loc
+}
+
+func (n *IsBooleanExpr) Span() ast.Loc { return n.Loc }
+func (*IsBooleanExpr) exprNode()       {}
 
 // parsePredicateSuffix attaches at most one predicate to the already-parsed
 // valueExpression `left`, returning `left` unchanged when no predicate follows.
@@ -330,10 +346,11 @@ func (p *Parser) parseLike(left Expr, not bool, start int) (Expr, error) {
 	return like, nil
 }
 
-// parseIsPredicate parses `IS [NOT] NULL` or `IS [NOT] DISTINCT FROM right`
-// (IS already current). Trino has no other IS predicate — `IS TRUE`, `IS FALSE`,
-// `IS UNKNOWN` are SYNTAX_ERRORs, so a token other than NULL/DISTINCT after the
-// optional NOT is an error.
+// parseIsPredicate parses `IS [NOT] NULL`, `IS [NOT] DISTINCT FROM right`, or
+// the boolean test `IS [NOT] TRUE | FALSE | UNKNOWN` (IS already current).
+// The boolean test is engine-verified: Trino 482 accepts `a IS TRUE`,
+// `a IS NOT FALSE`, and `a IS UNKNOWN` (CI differential caught omni rejecting
+// them).
 func (p *Parser) parseIsPredicate(left Expr) (Expr, error) {
 	isTok := p.advance() // consume IS
 	not := false
@@ -364,10 +381,16 @@ func (p *Parser) parseIsPredicate(left Expr) (Expr, error) {
 			Right: right,
 			Loc:   ast.Loc{Start: left.Span().Start, End: right.Span().End},
 		}, nil
+	case kwTRUE, kwFALSE, kwUNKNOWN:
+		boolTok := p.advance()
+		return &IsBooleanExpr{
+			Not:   not,
+			Value: left,
+			Test:  strings.ToUpper(boolTok.Str),
+			Loc:   ast.Loc{Start: left.Span().Start, End: boolTok.Loc.End},
+		}, nil
 	default:
-		// Point the error at IS so the diagnostic is actionable for the common
-		// `IS TRUE` / `IS UNKNOWN` mistake.
-		return nil, &ParseError{Loc: isTok.Loc, Msg: "expected NULL or DISTINCT FROM after IS"}
+		return nil, &ParseError{Loc: isTok.Loc, Msg: "expected NULL, DISTINCT FROM, TRUE, FALSE, or UNKNOWN after IS"}
 	}
 }
 
