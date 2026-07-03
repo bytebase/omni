@@ -39,9 +39,10 @@ jobs:
       # files, which `go build` skips) without running any tests.
       - name: Compile build-tagged test code
         run: |
-          go test -tags=oracle -run '^$' -count=1 ./pg/parser/ ./redshift/parser/ ./redshift/catalog/
+          go test -tags=oracle -run '^$' -count=1 ./pg/parser/ ./pg/catalog/ ./redshift/parser/ ./redshift/catalog/
           go test -tags=oracle_ref -run '^$' -count=1 ./oracle/parser/
           go test -tags=scriptdom -run '^$' -count=1 ./mssql/parser/
+          go test -tags=googlesql_oracle -run '^$' -count=1 ./googlesql/parser/ ./googlesql/analysis/
 
       # SCENARIOS-pg-paren-dispatch.md §5.3 — PAREN_AUDIT lint gate.
       # Runs on every PR/push; fails CI when a new `(` / `)` dispatch

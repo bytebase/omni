@@ -67,7 +67,9 @@ func StartParenOracle(t *testing.T) *ParenOracle {
 			return
 		}
 
-		startCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		// Generous timeout: on a clean CI runner the image pull alone
+		// can exceed the 15s this used to allow.
+		startCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 		defer cancel()
 
 		container, err := tcpg.Run(startCtx, "postgres:17-alpine",

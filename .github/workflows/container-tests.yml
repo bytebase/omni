@@ -154,7 +154,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
 
       - name: PG paren oracle corpus (excl. fuzz)
-        run: go test -tags=oracle -timeout 25m -run '^(TestParenOracle|TestFunctionBodyReferenceOracle)' -skip '^TestParenOracleFuzz$' ./pg/parser/ -count=1
+        run: go test -tags=oracle -timeout 25m -run '^(TestParenOracle|TestFunctionBodyReferenceOracle|TestLoaderCompat)' -skip '^TestParenOracleFuzz$' ./pg/parser/ ./pg/catalog/ -count=1
 
   trino-container-tests:
     # PR-gating: the parser parity gaps the first run surfaced (boolean
@@ -193,7 +193,10 @@ jobs:
           exit 1
 
       - name: Container tests (Trino, full engine without -short)
-        run: go test -timeout 35m -v ./trino/... -count=1
+        # -p 1: every package's tests hit the single shared Trino at
+        # localhost:18080, and the oracle can execute DDL/DML side
+        # effects — parallel package binaries could interfere.
+        run: go test -p 1 -timeout 35m -v ./trino/... -count=1
 
   starrocks-container-tests:
     runs-on: ubuntu-latest
