@@ -47,6 +47,11 @@ OUTPUT $action, INSERTED.k, INSERTED.v;`,
 		// Graph pseudo-columns are valid index key columns.
 		"CREATE INDEX ix ON Person ($node_id);",
 		"CREATE UNIQUE INDEX ix ON e ($from_id, $to_id) INCLUDE (weight);",
+		// Pseudo-columns as UPDATE SET targets parse; mutability is a
+		// binding-time error in the engine (Msg 271 / Msg 8102).
+		"UPDATE e SET $from_id = 'x';",
+		"UPDATE t SET $identity = 5;",
+		"MERGE INTO e AS t USING s ON t.x = s.x WHEN MATCHED THEN UPDATE SET $to_id = s.g;",
 		// `$` inside identifiers and bracketed names are ordinary columns.
 		"SELECT a$b FROM t;",
 		"SELECT [$action] FROM t;",
@@ -81,6 +86,10 @@ OUTPUT $action, INSERTED.k, INSERTED.v;`,
 		"SELECT $CUID FROM t;",
 		"SELECT t.$CUID FROM t;",
 		"INSERT INTO t ($foo) VALUES (1);",
+		"UPDATE t SET $foo = 1;",
+		// Table-qualified pseudo-column SET target is a syntax error in the
+		// engine (Msg 102).
+		"UPDATE e SET e.$from_id = 'x';",
 	}
 	for _, sql := range reject {
 		t.Run(sql, func(t *testing.T) {
