@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
+	"github.com/bytebase/omni/mysql/deparse"
 )
 
 func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
@@ -954,8 +955,14 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		setColumnOnUpdateFromExpr(col, colDef.OnUpdate)
 	}
 	if colDef.Generated != nil {
+		// Generated expressions are stored by the engine in resolver-rewritten
+		// form — TIMESTAMPADD/DATE_ADD fold to interval arithmetic, NOT folds
+		// to inverted comparisons — identical to view bodies (oracle 8.0.32:
+		// AS (TIMESTAMPADD(HOUR,1,a)) stores as ((`a` + interval 1 hour)),
+		// AS (NOT a) as ((0 = `a`))). Apply the same rewrite pass before
+		// rendering so user-declared SDL canonicalizes to the stored form.
 		col.Generated = &GeneratedColumnInfo{
-			Expr:   nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+			Expr:   nodeToSQLGenerated(deparse.RewriteExpr(colDef.Generated.Expr), tbl.Charset),
 			Stored: colDef.Generated.Stored,
 		}
 	}

@@ -179,6 +179,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCollateExpr(sb, n)
 	case *IntervalExpr:
 		writeIntervalExpr(sb, n)
+	case *KeywordArg:
+		writeKeywordArg(sb, n)
+	case *WeightStringExpr:
+		writeWeightStringExpr(sb, n)
 	case *MatchExpr:
 		writeMatchExpr(sb, n)
 	case *ConvertExpr:
@@ -2350,6 +2354,32 @@ func writeIntervalExpr(sb *strings.Builder, n *IntervalExpr) {
 	fmt.Fprintf(sb, " :loc %d :val ", n.Loc.Start)
 	writeNode(sb, n.Value)
 	fmt.Fprintf(sb, " :unit %s", n.Unit)
+	sb.WriteString("}")
+}
+
+func writeKeywordArg(sb *strings.Builder, n *KeywordArg) {
+	sb.WriteString("{KEYWORDARG")
+	fmt.Fprintf(sb, " :loc %d :keyword %s", n.Loc.Start, n.Keyword)
+	sb.WriteString("}")
+}
+
+func writeWeightStringExpr(sb *strings.Builder, n *WeightStringExpr) {
+	sb.WriteString("{WEIGHTSTRING")
+	fmt.Fprintf(sb, " :loc %d :expr ", n.Loc.Start)
+	writeNode(sb, n.Expr)
+	if n.AsChar != nil {
+		sb.WriteString(" :aschar ")
+		writeNode(sb, n.AsChar)
+	}
+	for _, lv := range n.Levels {
+		fmt.Fprintf(sb, " :level %d", lv.Level)
+		if lv.Desc {
+			sb.WriteString(" desc")
+		}
+		if lv.Reverse {
+			sb.WriteString(" reverse")
+		}
+	}
 	sb.WriteString("}")
 }
 

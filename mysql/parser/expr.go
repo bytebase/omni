@@ -689,6 +689,22 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		return p.parseGroupConcatFunc(fc)
 	}
 
+	// Keyword-argument builtins: their first argument (or a trailing clause)
+	// is a bare keyword the engine lexes as a token, never an identifier —
+	// a backtick-quoted unit is a syntax error (oracle 8.0.32 + 5.7.25).
+	// Only the unqualified builtin has this shape; a schema-qualified name is
+	// a stored function whose arguments are ordinary expressions.
+	if schema == "" {
+		switch upperName {
+		case "TIMESTAMPDIFF", "TIMESTAMPADD":
+			return p.parseTimestampFunc(fc)
+		case "GET_FORMAT":
+			return p.parseGetFormatFunc(fc)
+		case "WEIGHT_STRING":
+			return p.parseWeightStringFunc(fc)
+		}
+	}
+
 	// Completion: at the start of the function argument list (including
 	// empty parens), offer columnref/func_name candidates.
 	p.checkCursor()
@@ -1025,6 +1041,13 @@ func (p *Parser) parseTrimFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
 		if str == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
+		if fc.Name == "TRIM" {
+			// No direction keyword: TRIM(remstr FROM str). The engine keeps
+			// this form as-is in stored bodies — trim(' x' from 'axa'), not
+			// a comma-argument call (oracle 8.0.32 + 5.7.25) — so mark it
+			// for the deparser the same way the directional forms are.
+			fc.Name = "TRIM_FROM"
+		}
 		fc.Args = []nodes.ExprNode{arg, str}
 	} else {
 		fc.Args = []nodes.ExprNode{arg}
@@ -1099,6 +1122,309 @@ func (p *Parser) parseSubstringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, err
 	}
 	fc.Loc.End = p.prev.End
 	return fc, nil
+}
+
+// sqlTSIUnits maps the SQL_TSI_-prefixed unit synonyms MySQL's lexer
+// registers to their canonical unit. Only these eight exist —
+// SQL_TSI_MICROSECOND is not a token and the engine rejects it
+// (oracle 8.0.32 + 5.7.25: error 1064).
+var sqlTSIUnits = map[string]string{
+	"SQL_TSI_SECOND":  "SECOND",
+	"SQL_TSI_MINUTE":  "MINUTE",
+	"SQL_TSI_HOUR":    "HOUR",
+	"SQL_TSI_DAY":     "DAY",
+	"SQL_TSI_WEEK":    "WEEK",
+	"SQL_TSI_MONTH":   "MONTH",
+	"SQL_TSI_QUARTER": "QUARTER",
+	"SQL_TSI_YEAR":    "YEAR",
+}
+
+// normalizeTimeUnit uppercases unit and folds a SQL_TSI_ synonym to its
+// canonical name. This mirrors the engine's stored form: SHOW CREATE VIEW
+// renders timestampdiff(sql_tsi_second,...) as timestampdiff(SECOND,...)
+// (oracle 8.0.32 + 5.7.25).
+func normalizeTimeUnit(unit string) string {
+	u := strings.ToUpper(unit)
+	if canon, ok := sqlTSIUnits[u]; ok {
+		return canon
+	}
+	return u
+}
+
+// simpleTimeUnits is the unit set TIMESTAMPDIFF/TIMESTAMPADD accept
+// (interval_time_stamp in sql_yacc.yy): the nine simple units only.
+// Compound units are a syntax error there (oracle 8.0.32 + 5.7.25:
+// TIMESTAMPDIFF(DAY_HOUR,...) → 1064).
+var simpleTimeUnits = map[string]bool{
+	"MICROSECOND": true,
+	"SECOND":      true,
+	"MINUTE":      true,
+	"HOUR":        true,
+	"DAY":         true,
+	"WEEK":        true,
+	"MONTH":       true,
+	"QUARTER":     true,
+	"YEAR":        true,
+}
+
+// parseTimeUnitKeyword parses a bare temporal-unit keyword and returns it as
+// a normalized KeywordArg. The engine lexes the unit as a keyword token —
+// quoted identifiers and string literals are syntax errors in this position
+// (oracle 8.0.32 + 5.7.25) — so only keyword tokens are accepted; all valid
+// units are registered keywords. simpleOnly restricts to the
+// TIMESTAMPDIFF/TIMESTAMPADD set; otherwise the full interval-unit set
+// (including compound units) is allowed.
+func (p *Parser) parseTimeUnitKeyword(simpleOnly bool) (*nodes.KeywordArg, error) {
+	if p.cur.Type < 700 {
+		return nil, &ParseError{Message: "expected time unit keyword", Position: p.cur.Loc}
+	}
+	tok := p.advance()
+	unit := normalizeTimeUnit(tok.Str)
+	valid := isValidIntervalUnit(unit)
+	if simpleOnly {
+		valid = simpleTimeUnits[unit]
+	}
+	if !valid {
+		return nil, &ParseError{Message: "invalid time unit: " + tok.Str, Position: tok.Loc}
+	}
+	return &nodes.KeywordArg{
+		Loc:     nodes.Loc{Start: tok.Loc, End: p.pos()},
+		Keyword: unit,
+	}, nil
+}
+
+// parseTimestampFunc parses TIMESTAMPDIFF(unit, expr, expr) and
+// TIMESTAMPADD(unit, expr, expr) — the unit is a bare keyword argument.
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/date-and-time-functions.html#function_timestampdiff
+func (p *Parser) parseTimestampFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
+	// Completion parity with the generic argument path.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, &ParseError{Message: "collecting"}
+	}
+	unit, err := p.parseTimeUnitKeyword(true)
+	if err != nil {
+		return nil, err
+	}
+	fc.Args = append(fc.Args, unit)
+	for range 2 {
+		if _, err := p.expect(','); err != nil {
+			return nil, err
+		}
+		arg, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if arg == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		fc.Args = append(fc.Args, arg)
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	fc.Loc.End = p.prev.End
+	return fc, nil
+}
+
+// parseGetFormatFunc parses GET_FORMAT({DATE|TIME|DATETIME|TIMESTAMP}, expr).
+// The first argument is a bare keyword; TIMESTAMP is a synonym the engine
+// stores as DATETIME, and anything else — including YEAR and string
+// literals — is a syntax error (oracle 8.0.32 + 5.7.25).
+//
+// Ref: https://dev.mysql.com/doc/refman/8.0/en/date-and-time-functions.html#function_get-format
+func (p *Parser) parseGetFormatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
+	// Completion parity with the generic argument path.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, &ParseError{Message: "collecting"}
+	}
+	if p.cur.Type < 700 {
+		return nil, &ParseError{Message: "expected DATE, TIME, DATETIME, or TIMESTAMP", Position: p.cur.Loc}
+	}
+	tok := p.advance()
+	kind := strings.ToUpper(tok.Str)
+	switch kind {
+	case "DATE", "TIME", "DATETIME":
+	case "TIMESTAMP":
+		kind = "DATETIME"
+	default:
+		return nil, &ParseError{Message: "invalid GET_FORMAT type: " + tok.Str, Position: tok.Loc}
+	}
+	fc.Args = append(fc.Args, &nodes.KeywordArg{
+		Loc:     nodes.Loc{Start: tok.Loc, End: p.pos()},
+		Keyword: kind,
+	})
+	if _, err := p.expect(','); err != nil {
+		return nil, err
+	}
+	arg, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if arg == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	fc.Args = append(fc.Args, arg)
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	fc.Loc.End = p.prev.End
+	return fc, nil
+}
+
+// parseWeightStringFunc parses
+//
+//	WEIGHT_STRING(expr [AS {CHAR|BINARY}(n)] [LEVEL n [ASC|DESC|REVERSE] [, ...] | LEVEL n - n])
+//
+// The plain no-suffix form stays a generic FuncCallExpr (its round-trip
+// predates this parser and is pinned by tests); AS/LEVEL forms build a
+// WeightStringExpr. AS BINARY(n) is not stored by the engine — it desugars
+// to weight_string(cast(expr as char(n) charset binary)) (oracle 8.0.32 +
+// 5.7.25), so the parser produces that shape directly. LEVEL is 5.7-only
+// syntax (8.0 rejects it); 5.7 stores a plain level list such as
+// "level 1 desc", with ASC dropped and ranges collapsed.
+//
+// Ref: https://dev.mysql.com/doc/refman/5.7/en/string-functions.html#function_weight-string
+func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
+	// Completion parity with the generic argument path.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addRuleCandidate("columnref")
+		p.addRuleCandidate("func_name")
+		return nil, &ParseError{Message: "collecting"}
+	}
+	arg, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	if arg == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	ws := &nodes.WeightStringExpr{Loc: fc.Loc, Expr: arg}
+	asBinary := false
+
+	if p.cur.Type == kwAS {
+		p.advance()
+		var typeName string
+		switch p.cur.Type {
+		case kwCHAR:
+			typeName = "CHAR"
+		case kwBINARY:
+			typeName = "BINARY"
+		default:
+			return nil, &ParseError{Message: "expected CHAR or BINARY", Position: p.cur.Loc}
+		}
+		typeTok := p.advance()
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		if p.cur.Type != tokICONST {
+			return nil, &ParseError{Message: "expected length", Position: p.cur.Loc}
+		}
+		if p.cur.Ival < 1 {
+			// The engine requires N >= 1: WEIGHT_STRING('x' AS CHAR(0)) is a
+			// 1064 syntax error (oracle 8.0.32 + 5.7.25).
+			return nil, &ParseError{Message: "WEIGHT_STRING AS length must be at least 1", Position: p.cur.Loc}
+		}
+		lenTok := p.advance()
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		dt := &nodes.DataType{
+			Loc:    nodes.Loc{Start: typeTok.Loc, End: p.pos()},
+			Name:   "CHAR",
+			Length: int(lenTok.Ival),
+		}
+		if typeName == "BINARY" {
+			// Engine-stored form of AS BINARY(n):
+			// weight_string(cast(expr as char(n) charset binary)).
+			dt.Charset = "binary"
+			asBinary = true
+			ws.Expr = &nodes.CastExpr{
+				Loc:      nodes.Loc{Start: typeTok.Loc, End: p.pos()},
+				Expr:     arg,
+				TypeName: dt,
+			}
+		} else {
+			ws.AsChar = dt
+		}
+	}
+
+	if p.cur.Type == kwLEVEL {
+		p.advance()
+		for {
+			if p.cur.Type != tokICONST {
+				return nil, &ParseError{Message: "expected level number", Position: p.cur.Loc}
+			}
+			lvTok := p.advance()
+			// The engine clamps out-of-range levels rather than rejecting:
+			// LEVEL 0 stores as level 1 (oracle 5.7.25). The collation-max
+			// upper clamp (LEVEL 7 also stored level 1 on a single-level
+			// collation) is collation-dependent and stays a flagged
+			// user-form residual.
+			lvNum := int(lvTok.Ival)
+			if lvNum < 1 {
+				lvNum = 1
+			}
+			level := nodes.WeightStringLevel{Level: lvNum}
+			// Grammar: n [ASC|DESC] [REVERSE] — direction first, then an
+			// optional REVERSE (LEVEL 1 DESC REVERSE stores as
+			// "level 1 desc reverse"; REVERSE DESC is a 1064 and ASC
+			// normalizes away — oracle 5.7.25).
+			switch p.cur.Type {
+			case kwASC:
+				p.advance() // ASC is the default; normalize away
+			case kwDESC:
+				p.advance()
+				level.Desc = true
+			}
+			if p.cur.Type == kwREVERSE {
+				p.advance()
+				level.Reverse = true
+			}
+			ws.Levels = append(ws.Levels, level)
+			// Range form LEVEL n - m: expand to the full list. Weight levels
+			// are 1..6 per the MySQL reference (no collation has more), so
+			// the expansion is capped — an absurd range like LEVEL 1 - 1e18
+			// parses without materializing entries beyond the domain.
+			if len(ws.Levels) == 1 && !level.Desc && !level.Reverse && p.cur.Type == '-' {
+				p.advance()
+				if p.cur.Type != tokICONST {
+					return nil, &ParseError{Message: "expected level number", Position: p.cur.Loc}
+				}
+				hiTok := p.advance()
+				const maxWeightLevels = 6
+				for l := level.Level + 1; l <= int(hiTok.Ival) && len(ws.Levels) < maxWeightLevels; l++ {
+					ws.Levels = append(ws.Levels, nodes.WeightStringLevel{Level: l})
+				}
+				break
+			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+	}
+
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+
+	if ws.AsChar == nil && !asBinary && len(ws.Levels) == 0 {
+		// Plain WEIGHT_STRING(expr) — keep the generic function-call shape.
+		fc.Args = append(fc.Args, arg)
+		fc.Loc.End = p.prev.End
+		return fc, nil
+	}
+	ws.Loc.End = p.prev.End
+	return ws, nil
 }
 
 // parseGroupConcatFunc parses GROUP_CONCAT([DISTINCT] expr [, expr ...] [ORDER BY ...] [SEPARATOR str]).
@@ -1408,8 +1734,12 @@ func (p *Parser) parseExtractExpr() (nodes.ExprNode, error) {
 		return nil, err
 	}
 
-	// Parse unit keyword (DAY, HOUR, MINUTE, SECOND, MONTH, YEAR, etc.)
-	unit, _, err := p.parseIdentifier()
+	// Parse the unit keyword. EXTRACT accepts the full interval-unit set,
+	// including compound units (DAY_HOUR, YEAR_MONTH, ...), which are
+	// reserved keywords — so this must accept keyword tokens, not
+	// identifiers (oracle 8.0.32 + 5.7.25: extract(day_hour from ...) is
+	// the engine-stored form).
+	unit, err := p.parseTimeUnitKeyword(false)
 	if err != nil {
 		return nil, err
 	}
@@ -1432,7 +1762,7 @@ func (p *Parser) parseExtractExpr() (nodes.ExprNode, error) {
 
 	return &nodes.ExtractExpr{
 		Loc:  nodes.Loc{Start: start, End: p.pos()},
-		Unit: strings.ToUpper(unit),
+		Unit: unit.Keyword,
 		Expr: expr,
 	}, nil
 }
@@ -1885,13 +2215,15 @@ func (p *Parser) parseIntervalExpr() (nodes.ExprNode, error) {
 
 	// Parse unit: DAY, HOUR, MINUTE, SECOND, MONTH, YEAR, etc.
 	// Use parseKeywordOrIdent because compound interval units (DAY_HOUR, etc.)
-	// are registered as reserved keywords.
+	// are registered as reserved keywords. SQL_TSI_ synonyms fold to their
+	// canonical unit, matching the engine's stored form (oracle 8.0.32 +
+	// 5.7.25: INTERVAL 1 SQL_TSI_DAY stores as interval 1 day).
 	unit, _, err := p.parseKeywordOrIdent()
 	if err != nil {
 		return nil, err
 	}
 
-	upper := strings.ToUpper(unit)
+	upper := normalizeTimeUnit(unit)
 	if !isValidIntervalUnit(upper) {
 		return nil, &ParseError{
 			Position: p.pos(),

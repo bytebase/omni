@@ -910,6 +910,153 @@ func (n *Normalizer) CanonicalGeneratedExpr(expr string) string {
 	return s
 }
 
+// castCharsetAt records one CAST charset attribute found in an expression
+// text: the byte offset in the STRIPPED text where it was attached, and the
+// charset name.
+type castCharsetAt struct {
+	off  int
+	name string
+}
+
+// stripAndCollectCastCharsets removes the charset attribute of CAST targets
+// (" charset utf8mb4" and the like) outside string literals and backtick
+// quotes, returning the stripped text plus the ordered list of removed
+// attributes keyed by their offset in the stripped text. The charset the
+// engine stores for a charset-less CHAR cast is the CONNECTION charset of the
+// creating session (oracle 8.0.32: the same CAST(s AS CHAR(4)) generated
+// column stores "charset latin1" or "charset utf8mb4" depending only on the
+// session that created it), while an EXPLICIT CHARACTER SET survives readback
+// distinctly (oracle 8.0.32: explicit latin1 under a utf8mb4 session reads
+// back "charset latin1"). "charset binary" is never treated as an attribute —
+// it changes the cast's type (the AS BINARY desugar) and always stays part of
+// the text.
+func stripAndCollectCastCharsets(expr string) (string, []castCharsetAt) {
+	var b strings.Builder
+	b.Grow(len(expr))
+	var found []castCharsetAt
+	i := 0
+	for i < len(expr) {
+		c := expr[i]
+		if c == '\'' {
+			end := scanStringLiteral(expr, i)
+			b.WriteString(expr[i:end])
+			i = end
+			continue
+		}
+		if c == '`' {
+			j := i + 1
+			for j < len(expr) {
+				if expr[j] == '`' {
+					if j+1 < len(expr) && expr[j+1] == '`' {
+						j += 2 // doubled-backtick escape inside the identifier
+						continue
+					}
+					j++
+					break
+				}
+				j++
+			}
+			b.WriteString(expr[i:j])
+			i = j
+			continue
+		}
+		// The canonical collapse drops spaces around parens, so the attribute
+		// appears either as " charset <name>" (after a word: char charset x)
+		// or as "charset <name>" directly after a ')' (char(4)charset x).
+		attrStart := -1
+		if c == ' ' && strings.HasPrefix(expr[i+1:], "charset ") {
+			attrStart = i + 1 // the separator space is dropped with the attribute
+		} else if strings.HasPrefix(expr[i:], "charset ") && i > 0 && !isIdentByte(expr[i-1]) && expr[i-1] != ' ' {
+			attrStart = i
+		}
+		if attrStart >= 0 {
+			j := attrStart + len("charset ")
+			k := j
+			for k < len(expr) && isIdentByte(expr[k]) {
+				k++
+			}
+			if k > j && !strings.EqualFold(expr[j:k], "binary") {
+				found = append(found, castCharsetAt{off: b.Len(), name: expr[j:k]})
+				i = k // drop the attribute (and its leading space when present)
+				continue
+			}
+		}
+		b.WriteByte(c)
+		i++
+	}
+	return b.String(), found
+}
+
+func stripCastCharsets(expr string) string {
+	s, _ := stripAndCollectCastCharsets(expr)
+	return s
+}
+
+// castCharsetsCompatible reports whether two canonical expression texts are
+// equal up to cast charset attributes with WILDCARD-on-absent semantics: the
+// charset-stripped texts must be identical, and wherever BOTH sides carry an
+// attribute at the same position the names must match (an explicit
+// latin1 -> utf8mb4 cast change is a real migration), while an attribute
+// present on only one side — a charset-less user cast against the connection
+// charset the engine stored — matches anything.
+func castCharsetsCompatible(a, b string) bool {
+	if a == b {
+		return true
+	}
+	sa, la := stripAndCollectCastCharsets(a)
+	sb, lb := stripAndCollectCastCharsets(b)
+	if sa != sb {
+		return false
+	}
+	ia, ib := 0, 0
+	for ia < len(la) && ib < len(lb) {
+		switch {
+		case la[ia].off == lb[ib].off:
+			if !strings.EqualFold(la[ia].name, lb[ib].name) {
+				return false
+			}
+			ia++
+			ib++
+		case la[ia].off < lb[ib].off:
+			ia++ // attribute only on a — wildcard against an omitted cast charset on b
+		default:
+			ib++
+		}
+	}
+	return true
+}
+
+// columnsCastCharsetWildcardEqual reports whether two same-name columns whose
+// aggregate keys differ are nonetheless equal under cast-charset WILDCARD
+// semantics: every non-expression aspect identical, expression texts identical
+// after stripping cast charsets, and the charsets themselves compatible
+// (equal where both sides carry one; free where one side omitted it). This is
+// the pairwise complement to keeping explicit charsets in the canonical KEY:
+// an explicit CHARACTER SET latin1 -> utf8mb4 change stays a real diff, while
+// a charset-less user cast does not phantom-diff against the connection
+// charset its readback carries.
+func (n *Normalizer) columnsCastCharsetWildcardEqual(fromTbl, toTbl *Table, a, b *Column) bool {
+	if n.canonicalColumn(fromTbl, a, true) != n.canonicalColumn(toTbl, b, true) {
+		return false
+	}
+	ga, gb := "", ""
+	if a.Generated != nil {
+		ga = n.CanonicalGeneratedExpr(a.Generated.Expr)
+	}
+	if b.Generated != nil {
+		gb = n.CanonicalGeneratedExpr(b.Generated.Expr)
+	}
+	if !castCharsetsCompatible(ga, gb) {
+		return false
+	}
+	da, _ := n.CanonicalTimestampDefaults(fromTbl, a)
+	db, _ := n.CanonicalTimestampDefaults(toTbl, b)
+	if strings.HasPrefix(da, "expr:") || strings.HasPrefix(db, "expr:") {
+		return castCharsetsCompatible(strings.TrimPrefix(da, "expr:"), strings.TrimPrefix(db, "expr:"))
+	}
+	return true
+}
+
 // scanStringLiteral returns the index just past a single-quoted string literal that
 // starts at i (expr[i]=='\”), honoring doubled-quote escapes (”) and backslash
 // escapes (\'). If the literal is unterminated it returns len(expr). The returned index
@@ -1258,12 +1405,26 @@ func (n *Normalizer) CanonicalIndexColumn(ic *IndexColumn) string {
 // It is the primary entry point; the individual Canonical*/Resolve* methods are exposed
 // for differs that need a single aspect (e.g. an ALTER that only touches the default).
 func (n *Normalizer) CanonicalColumn(table *Table, c *Column) string {
+	return n.canonicalColumn(table, c, false)
+}
+
+// canonicalColumn builds the aggregate key; with stripCastCS it strips the
+// cast charset attributes from the two expression-bearing fields (generated
+// expression and expression default) — the wildcard half of the cast-charset
+// comparison in columnsCastCharsetWildcardEqual.
+func (n *Normalizer) canonicalColumn(table *Table, c *Column, stripCastCS bool) string {
 	charset, collation := n.ResolveColumnCharsetCollation(table, c)
 	def, onUpdate := n.CanonicalTimestampDefaults(table, c)
+	if stripCastCS && strings.HasPrefix(def, "expr:") {
+		def = "expr:" + stripCastCharsets(def[len("expr:"):])
+	}
 
 	gen, stored := "", ""
 	if c.Generated != nil {
 		gen = n.CanonicalGeneratedExpr(c.Generated.Expr)
+		if stripCastCS {
+			gen = stripCastCharsets(gen)
+		}
 		stored = strconv.FormatBool(c.Generated.Stored)
 	}
 	// Length-delimited field encoding: each value is prefixed with its byte length, so a

@@ -190,6 +190,7 @@ func allKnownNodes() []Node {
 		&IsExpr{}, &ExistsExpr{}, &SubqueryExpr{},
 		&FuncCallExpr{}, &CastExpr{}, &ConvertExpr{}, &ExtractExpr{},
 		&CaseExpr{}, &CaseWhen{}, &IntervalExpr{}, &CollateExpr{},
+		&KeywordArg{}, &WeightStringExpr{},
 		&ParenExpr{}, &RowExpr{},
 		&MatchExpr{}, &MemberOfExpr{}, &VariableRef{},
 		&ValuesStmt{}, // also an expression in some contexts

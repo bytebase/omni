@@ -43,7 +43,9 @@ func TestDeparse_Section_1_1_IntFloatNull(t *testing.T) {
 	}{
 		// Integer literals
 		{"integer_1", "1", "1"},
-		{"negative_integer", "-5", "-5"},
+		// MySQL parenthesizes the operand of unary minus, literals included
+		// (oracle 8.0.32 + 5.7.25: SELECT -5 stores as -(5)).
+		{"negative_integer", "-5", "-(5)"},
 		{"large_integer", "9999999999", "9999999999"},
 		{"zero", "0", "0"},
 

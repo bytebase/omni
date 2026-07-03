@@ -254,8 +254,14 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			setColumnOnUpdateFromExpr(col, colDef.OnUpdate)
 		}
 		if colDef.Generated != nil {
+			// Generated expressions are stored by the engine in resolver-rewritten
+			// form — TIMESTAMPADD/DATE_ADD fold to interval arithmetic, NOT folds
+			// to inverted comparisons — identical to view bodies (oracle 8.0.32:
+			// AS (TIMESTAMPADD(HOUR,1,a)) stores as ((`a` + interval 1 hour)),
+			// AS (NOT a) as ((0 = `a`))). Apply the same rewrite pass before
+			// rendering so user-declared SDL canonicalizes to the stored form.
 			col.Generated = &GeneratedColumnInfo{
-				Expr:   nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+				Expr:   nodeToSQLGenerated(deparse.RewriteExpr(colDef.Generated.Expr), tbl.Charset),
 				Stored: colDef.Generated.Stored,
 			}
 		}
@@ -1929,6 +1935,51 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		return "b'" + val + "'"
 	case *nodes.ParenExpr:
 		return "(" + nodeToSQLGenerated(n.Expr, charset) + ")"
+	case *nodes.KeywordArg:
+		// Bare keyword argument (timestampdiff unit, get_format type) —
+		// stored unquoted in generated-column bodies exactly like view
+		// bodies (oracle 8.0.32: AS (timestampdiff(SECOND,`a`,`b`))).
+		return n.Keyword
+	case *nodes.ExtractExpr:
+		// Oracle 8.0.32 stored form: extract(day_hour from `a`).
+		return "extract(" + strings.ToLower(n.Unit) + " from " + nodeToSQLGenerated(n.Expr, charset) + ")"
+	case *nodes.IntervalExpr:
+		// Oracle 8.0.32 stored form: ((`a` + interval 1 day)).
+		return "interval " + nodeToSQLGenerated(n.Value, charset) + " " + strings.ToLower(n.Unit)
+	case *nodes.CastExpr:
+		// Oracle 8.0.32 stored forms: cast(`a` as char(4) charset latin1),
+		// cast(`s` as signed), and the WEIGHT_STRING(... AS BINARY(n))
+		// desugar weight_string(cast(`s` as char(4) charset binary)).
+		result := "cast(" + nodeToSQLGenerated(n.Expr, charset) + " as " + castTypeToSQLGenerated(n.TypeName)
+		if n.Array {
+			// Multi-valued index form: stored with a lowercase trailing array.
+			result += " array"
+		}
+		return result + ")"
+	case *nodes.WeightStringExpr:
+		// Oracle 8.0.32 stored form: weight_string(`s` as char(4)).
+		var b strings.Builder
+		b.WriteString("weight_string(")
+		b.WriteString(nodeToSQLGenerated(n.Expr, charset))
+		if n.AsChar != nil {
+			fmt.Fprintf(&b, " as char(%d)", n.AsChar.Length)
+		}
+		for i, lv := range n.Levels {
+			if i == 0 {
+				b.WriteString(" level ")
+			} else {
+				b.WriteString(",")
+			}
+			fmt.Fprintf(&b, "%d", lv.Level)
+			if lv.Desc {
+				b.WriteString(" desc")
+			}
+			if lv.Reverse {
+				b.WriteString(" reverse")
+			}
+		}
+		b.WriteString(")")
+		return b.String()
 	case *nodes.BinaryExpr:
 		left := nodeToSQLGenerated(n.Left, charset)
 		right := nodeToSQLGenerated(n.Right, charset)
@@ -1956,6 +2007,48 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 	default:
 		return "(?)"
 	}
+}
+
+// castTypeToSQLGenerated renders a CAST target type in the form SHOW CREATE
+// TABLE stores inside generated-column expressions (oracle 8.0.32 + 5.7.25):
+// lowercase names, length/precision kept, and the charset attribute rendered
+// only when the parsed type carries one — readbacks always do for CHAR
+// (cast(`a` as char(4) charset latin1)); a user form without a charset is
+// rendered as written.
+func castTypeToSQLGenerated(dt *nodes.DataType) string {
+	if dt == nil {
+		return ""
+	}
+	name := strings.ToLower(dt.Name)
+	if name == "binary" {
+		// CAST(x AS BINARY[(n)]) is stored as cast(x as char[(n)] charset
+		// binary) — same rewrite the view deparser applies (oracle 8.0.32 +
+		// 5.7.25, view/generated/CHECK positions alike).
+		result := "char"
+		if dt.Length > 0 {
+			result += fmt.Sprintf("(%d)", dt.Length)
+		}
+		return result + " charset binary"
+	}
+	result := name
+	switch name {
+	case "decimal":
+		if dt.Length > 0 || dt.Scale > 0 {
+			result += fmt.Sprintf("(%d,%d)", dt.Length, dt.Scale)
+		}
+	case "datetime", "time":
+		if dt.Length > 0 {
+			result += fmt.Sprintf("(%d)", dt.Length)
+		}
+	default:
+		if dt.Length > 0 {
+			result += fmt.Sprintf("(%d)", dt.Length)
+		}
+	}
+	if dt.Charset != "" {
+		result += " charset " + strings.ToLower(dt.Charset)
+	}
+	return result
 }
 
 func nodeToSQL(node nodes.ExprNode) string {

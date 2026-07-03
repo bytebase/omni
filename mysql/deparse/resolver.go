@@ -493,6 +493,12 @@ func (r *Resolver) resolveExpr(node ast.ExprNode, sc *scopepkg.Scope) ast.ExprNo
 	case *ast.IntervalExpr:
 		n.Value = r.resolveExpr(n.Value, sc)
 		return n
+	case *ast.ExtractExpr:
+		n.Expr = r.resolveExpr(n.Expr, sc)
+		return n
+	case *ast.WeightStringExpr:
+		n.Expr = r.resolveExpr(n.Expr, sc)
+		return n
 	case *ast.RowExpr:
 		for i, item := range n.Items {
 			n.Items[i] = r.resolveExpr(item, sc)
@@ -763,6 +769,10 @@ func (r *Resolver) resolveCastCharsets(node ast.ExprNode) {
 		for _, arg := range n.Args {
 			r.resolveCastCharsets(arg)
 		}
+	case *ast.ExtractExpr:
+		r.resolveCastCharsets(n.Expr)
+	case *ast.WeightStringExpr:
+		r.resolveCastCharsets(n.Expr)
 	case *ast.CaseExpr:
 		r.resolveCastCharsets(n.Operand)
 		for _, w := range n.Whens {

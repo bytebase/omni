@@ -3,6 +3,8 @@
 package deparse
 
 import (
+	"strings"
+
 	ast "github.com/bytebase/omni/mysql/ast"
 )
 
@@ -109,6 +111,18 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		for i, arg := range n.Args {
 			n.Args[i] = rewriteExpr(arg)
 		}
+		return rewriteDateArith(n)
+
+	case *ast.ExtractExpr:
+		n.Expr = rewriteExpr(n.Expr)
+		return n
+
+	case *ast.IntervalExpr:
+		n.Value = rewriteExpr(n.Value)
+		return n
+
+	case *ast.WeightStringExpr:
+		n.Expr = rewriteExpr(n.Expr)
 		return n
 
 	case *ast.CastExpr:
@@ -127,6 +141,57 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		// Leaf nodes (literals, column refs, etc.) — no rewriting needed
 		return node
 	}
+}
+
+// rewriteDateArith folds the date-arithmetic function family into INTERVAL
+// arithmetic, matching the engine's resolver: TIMESTAMPADD, DATE_ADD/ADDDATE
+// and DATE_SUB/SUBDATE never appear in a stored body — they are stored as
+// (expr + interval n unit) / (expr - interval n unit) (oracle 8.0.32 +
+// 5.7.25, all units). ADDDATE/SUBDATE with a bare count means days:
+// adddate(d, 31) stores as (d + interval 31 day). A schema-qualified name
+// is a stored function, not the builtin, and is left alone.
+func rewriteDateArith(n *ast.FuncCallExpr) ast.ExprNode {
+	if n.Schema != "" {
+		return n
+	}
+	switch strings.ToUpper(n.Name) {
+	case "TIMESTAMPADD":
+		if len(n.Args) == 3 {
+			if unit, ok := n.Args[0].(*ast.KeywordArg); ok {
+				return &ast.BinaryExpr{
+					Op:   ast.BinOpAdd,
+					Left: n.Args[2],
+					Right: &ast.IntervalExpr{
+						Value: n.Args[1],
+						Unit:  unit.Keyword,
+					},
+				}
+			}
+		}
+	case "DATE_ADD", "ADDDATE":
+		return rewriteDateAddSub(n, ast.BinOpAdd)
+	case "DATE_SUB", "SUBDATE":
+		return rewriteDateAddSub(n, ast.BinOpSub)
+	}
+	return n
+}
+
+// rewriteDateAddSub folds DATE_ADD/DATE_SUB/ADDDATE/SUBDATE into interval
+// arithmetic. DATE_ADD/DATE_SUB require INTERVAL syntax for the second
+// argument; only ADDDATE/SUBDATE also have the bare-days form.
+func rewriteDateAddSub(n *ast.FuncCallExpr, op ast.BinaryOp) ast.ExprNode {
+	if len(n.Args) != 2 {
+		return n
+	}
+	iv, ok := n.Args[1].(*ast.IntervalExpr)
+	if !ok {
+		name := strings.ToUpper(n.Name)
+		if name != "ADDDATE" && name != "SUBDATE" {
+			return n
+		}
+		iv = &ast.IntervalExpr{Value: n.Args[1], Unit: "DAY"}
+	}
+	return &ast.BinaryExpr{Op: op, Left: n.Args[0], Right: iv}
 }
 
 // invertOp maps comparison operators to their NOT-inverted counterparts.

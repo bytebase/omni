@@ -253,6 +253,18 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 		return inferViewExprNullable(e.Left, relations) || inferViewExprNullable(e.Right, relations)
 	case *nodes.UnaryExpr:
 		return inferViewExprNullable(e.Operand, relations)
+	case *nodes.WeightStringExpr:
+		// Propagate like the plain WEIGHT_STRING(expr) function-call path.
+		return inferViewExprNullable(e.Expr, relations)
+	case *nodes.ExtractExpr:
+		return inferViewExprNullable(e.Expr, relations)
+	case *nodes.IntervalExpr:
+		return inferViewExprNullable(e.Value, relations)
+	case *nodes.CastExpr:
+		// Covers plain casts and the WEIGHT_STRING(... AS BINARY(n)) desugar,
+		// whose WeightStringExpr.Expr is a CastExpr (oracle 8.0.32:
+		// IS_NULLABLE=YES for both over a nullable column).
+		return inferViewExprNullable(e.Expr, relations)
 	case *nodes.NullLit:
 		return true
 	default:

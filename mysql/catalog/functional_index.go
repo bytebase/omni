@@ -355,6 +355,17 @@ func containsDisallowedFunctionalIndexExpr(expr nodes.ExprNode) bool {
 			containsDisallowedFunctionalIndexExpr(e.High)
 	case *nodes.IsExpr:
 		return containsDisallowedFunctionalIndexExpr(e.Expr)
+	case *nodes.WeightStringExpr:
+		// KEY ((weight_string(now() as char(4)))) is rejected by the engine
+		// exactly like KEY ((now())) — error 3758 (oracle 8.0.32).
+		return containsDisallowedFunctionalIndexExpr(e.Expr)
+	case *nodes.ExtractExpr:
+		// KEY ((extract(day from now()))) → 3758; extract over a column is
+		// allowed (oracle 8.0.32).
+		return containsDisallowedFunctionalIndexExpr(e.Expr)
+	case *nodes.IntervalExpr:
+		// KEY ((a + interval (day(now())) day)) → 3758 (oracle 8.0.32).
+		return containsDisallowedFunctionalIndexExpr(e.Value)
 	}
 	return false
 }
