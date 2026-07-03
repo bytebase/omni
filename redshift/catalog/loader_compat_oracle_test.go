@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -73,6 +74,11 @@ func startLoaderCompatOracle(t *testing.T) *loaderCompatOracle {
 	})
 
 	if loaderCompatOracleSetupErr != nil {
+		// In CI a startup failure must fail the job, not silently turn
+		// the oracle gate into a green no-op.
+		if os.Getenv("CI") != "" {
+			t.Fatalf("loader compatibility oracle required in CI: %v", loaderCompatOracleSetupErr)
+		}
 		t.Skipf("loader compatibility oracle unavailable: %v", loaderCompatOracleSetupErr)
 	}
 	return loaderCompatOracleInst

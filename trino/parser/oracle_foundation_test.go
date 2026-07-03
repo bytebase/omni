@@ -44,7 +44,7 @@ func connectOracle(t *testing.T) *trinooracle.Oracle {
 	defer cancel()
 	ver, err := o.Ping(ctx)
 	if err != nil {
-		t.Skipf("trino oracle not reachable (start: docker run -d -p 18080:8080 %s): %v",
+		trinooracle.SkipOrFailUnreachable(t, "trino oracle not reachable (start: docker run -d -p 18080:8080 %s): %v",
 			trinooracle.DefaultImage, err)
 	}
 	t.Logf("connected to Trino %s", ver)

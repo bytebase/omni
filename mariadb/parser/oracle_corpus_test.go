@@ -44,6 +44,11 @@ func startMariaDB(t *testing.T) *parserOracle {
 		// no WithUsername("root"): root is the module default; setting it errors.
 	)
 	if err != nil {
+		// In CI a startup failure must fail the job, not silently turn
+		// the container gate into a green no-op.
+		if os.Getenv("CI") != "" {
+			t.Fatalf("MariaDB container required in CI but unavailable: %v", err)
+		}
 		t.Skipf("MariaDB container unavailable: %v", err)
 	}
 	t.Cleanup(func() { _ = testcontainers.TerminateContainer(c) })

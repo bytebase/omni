@@ -51,6 +51,213 @@ jobs:
       - name: Container tests (MySQL catalog / ${{ matrix.shard }})
         run: ./scripts/test-mysql.sh container-shards '${{ matrix.shard }}'
 
+  mariadb-container-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        go-version: ['1.25']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Container tests (MariaDB, full engine without -short)
+        run: go test -timeout 25m -v ./mariadb/... -count=1
+
+  tidb-container-tests:
+    # Schedule/dispatch-only for now: the first CI run surfaced real
+    # SHOW CREATE TABLE parity mismatches between the omni tidb
+    # catalog and TiDB v8.5.5 (pre-existing, not PR-caused), and the
+    # unsharded suite takes ~16 minutes. Flip to PR + required once
+    # the parity gaps are fixed and the suite is sharded.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        go-version: ['1.25']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Container tests (TiDB, full engine without -short)
+        run: go test -timeout 25m -v ./tidb/... -count=1
+
+  redshift-container-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        go-version: ['1.25']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Container tests (Redshift, full engine without -short)
+        run: go test -timeout 25m -v ./redshift/... -count=1
+
+  redshift-paren-oracle:
+    # Mirror of the pg PR-gate paren jobs for the redshift fork:
+    # corpus differential + N=1000 fuzz in defer mode against a real
+    # PG 17 container. Also runs the -tags=oracle catalog loader
+    # compat corpus.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        go-version: ['1.25']
+    env:
+      PAREN_FUZZ_SIZE: '1000'
+      PAREN_FUZZ_DEFER: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Redshift paren oracle corpus + fuzz (N=1000, defer mode)
+        run: go test -tags=oracle -timeout 25m -run '^(TestParenOracle|TestLoaderCompat)' ./redshift/parser/ ./redshift/catalog/ -count=1
+
+      - name: Upload deferred-mismatch artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redshift-paren-fuzz-defer
+          path: redshift/parser/testdata/paren-fuzz-defer/*.txt
+          if-no-files-found: ignore
+
+  pg-paren-corpus:
+    # The pg -tags=oracle corpus differential tests (harness, FROM
+    # variants, array, IN, lateral, function-body reference). The fuzz
+    # variant is excluded here — ci.yml runs the N=1000 PR gate and
+    # paren-fuzz-nightly runs the wide-N sweep.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        go-version: ['1.25']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: PG paren oracle corpus (excl. fuzz)
+        run: go test -tags=oracle -timeout 25m -run '^(TestParenOracle|TestFunctionBodyReferenceOracle|TestLoaderCompat)' -skip '^TestParenOracleFuzz$' ./pg/parser/ ./pg/catalog/ -count=1
+
+  trino-container-tests:
+    # PR-gating: the parser parity gaps the first run surfaced (boolean
+    # IS predicates, quoted-identifier lexer) were fixed in PR #367.
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      matrix:
+        go-version: ['1.25']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      # The trino oracle tests do not start their own container — they
+      # connect to a running Trino at localhost:18080 (DefaultURL in
+      # trino/internal/trinooracle) and SILENTLY SKIP when unreachable.
+      # Start one here, otherwise this job is a no-op that looks green.
+      # Image pinned to the corpus-verified version — keep in sync with
+      # trinooracle.DefaultImage (see omni PR #367).
+      - name: Start Trino oracle server
+        run: |
+          docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:482
+          echo "Waiting for Trino to be ready..."
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:18080/v1/info | grep -q '"starting":false'; then
+              echo "Trino ready after ~$((i*3))s"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Trino failed to become ready" >&2
+          docker logs trino-oracle | tail -50 >&2
+          exit 1
+
+      - name: Container tests (Trino, full engine without -short)
+        # -p 1: every package's tests hit the single shared Trino at
+        # localhost:18080, and the oracle can execute DDL/DML side
+        # effects — parallel package binaries could interfere.
+        run: go test -p 1 -timeout 35m -v ./trino/... -count=1
+
+  starrocks-container-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      matrix:
+        go-version: ['1.25']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Container tests (StarRocks, full engine without -short)
+        run: go test -timeout 35m -v ./starrocks/... -count=1
+
+  mssql-container-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      matrix:
+        go-version: ['1.25']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Container tests (MSSQL, full engine without -short)
+        run: go test -timeout 35m -v ./mssql/... -count=1
+
+  oracle-ref-tests:
+    # Oracle 23ai Free reference differential (-tags=oracle_ref).
+    # ORACLE_PARSER_REF_CONTAINER=1 makes the harness start a
+    # gvenzl/oracle-free container instead of requiring an external
+    # DSN.
+    # Schedule/dispatch-only for now: the first CI run surfaced two
+    # corpus mismatches (ref_006, ref_030) where Oracle rejects due to
+    # session state (invalid trigger, type-body compile error) while
+    # omni accepts — pre-existing, needs triage. Flip to PR + required
+    # once the corpus is green.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      matrix:
+        go-version: ['1.25']
+    env:
+      ORACLE_PARSER_REF_CONTAINER: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Oracle reference tests (full engine without -short, -tags=oracle_ref)
+        run: go test -tags=oracle_ref -timeout 35m -v ./oracle/... -count=1
+
   paren-fuzz-nightly:
     # SCENARIOS-pg-paren-dispatch.md §5.2 — wide-N nightly fuzz run.
     # N=10000 catches low-frequency paren-dispatch drift that the
