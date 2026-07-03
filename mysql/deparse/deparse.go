@@ -692,6 +692,10 @@ func deparseExprAlias(node ast.ExprNode) string {
 			if len(n.Args) == 2 {
 				return "TRIM(BOTH " + deparseExprAlias(n.Args[0]) + " FROM " + deparseExprAlias(n.Args[1]) + ")"
 			}
+		case "TRIM_FROM":
+			if len(n.Args) == 2 {
+				return "TRIM(" + deparseExprAlias(n.Args[0]) + " FROM " + deparseExprAlias(n.Args[1]) + ")"
+			}
 		}
 
 		// Handle GROUP_CONCAT: alias includes ORDER BY and SEPARATOR
@@ -851,6 +855,32 @@ func deparseExprAlias(node ast.ExprNode) string {
 	case *ast.IntervalExpr:
 		// MySQL 8.0 auto-alias: "INTERVAL 1 DAY" — uppercase keywords.
 		return "INTERVAL " + deparseExprAlias(n.Value) + " " + strings.ToUpper(n.Unit)
+	case *ast.KeywordArg:
+		return n.Keyword
+	case *ast.ExtractExpr:
+		// Alias approximation with the uppercase-keyword convention:
+		// "EXTRACT(DAY_HOUR FROM a)".
+		return "EXTRACT(" + n.Unit + " FROM " + deparseExprAlias(n.Expr) + ")"
+	case *ast.WeightStringExpr:
+		var b strings.Builder
+		b.WriteString("WEIGHT_STRING(")
+		b.WriteString(deparseExprAlias(n.Expr))
+		if n.AsChar != nil {
+			fmt.Fprintf(&b, " AS CHAR(%d)", n.AsChar.Length)
+		}
+		for i, lv := range n.Levels {
+			if i == 0 {
+				b.WriteString(" LEVEL ")
+			} else {
+				b.WriteString(", ")
+			}
+			fmt.Fprintf(&b, "%d", lv.Level)
+			if lv.Dir != "" {
+				b.WriteString(" " + lv.Dir)
+			}
+		}
+		b.WriteString(")")
+		return b.String()
 	default:
 		// Fallback: use the regular deparsed text
 		return deparseExpr(node)
@@ -1157,6 +1187,15 @@ func deparseExpr(node ast.ExprNode) string {
 		return deparseConvertExpr(n)
 	case *ast.IntervalExpr:
 		return deparseIntervalExpr(n)
+	case *ast.KeywordArg:
+		// Bare keyword argument (timestampdiff unit, get_format type) —
+		// never quoted: the engine stores timestampdiff(SECOND,...) and
+		// rejects a backtick-quoted unit (oracle 8.0.32 + 5.7.25).
+		return n.Keyword
+	case *ast.ExtractExpr:
+		return deparseExtractExpr(n)
+	case *ast.WeightStringExpr:
+		return deparseWeightStringExpr(n)
 	case *ast.CollateExpr:
 		return deparseCollateExpr(n)
 	case *ast.FuncCallExpr:
@@ -1362,13 +1401,11 @@ func deparseUnaryExpr(n *ast.UnaryExpr) string {
 	operand := deparseExpr(n.Operand)
 	switch n.Op {
 	case ast.UnaryMinus:
-		// MySQL 8.0 wraps non-literal operands in parens: -(`t`.`a`) but keeps -5
-		switch n.Operand.(type) {
-		case *ast.IntLit, *ast.FloatLit:
-			return "-" + operand
-		default:
-			return "-(" + operand + ")"
-		}
+		// MySQL parenthesizes the operand of unary minus, literals included:
+		// SELECT -5 stores as -(5) (oracle 8.0.32 + 5.7.25 — views, generated
+		// columns, DEFAULT expressions, CHECK constraints, and the 8.0
+		// partition-function printer all agree).
+		return "-(" + operand + ")"
 	case ast.UnaryPlus:
 		// MySQL drops unary plus entirely
 		return operand
@@ -1579,6 +1616,39 @@ func deparseIntervalExpr(n *ast.IntervalExpr) string {
 	return "interval " + val + " " + strings.ToLower(n.Unit)
 }
 
+// deparseExtractExpr renders EXTRACT in the engine-stored form:
+// extract(day_hour from `t`.`a`) — lowercase unit, never quoted
+// (oracle 8.0.32 + 5.7.25, all simple and compound units).
+func deparseExtractExpr(n *ast.ExtractExpr) string {
+	return "extract(" + strings.ToLower(n.Unit) + " from " + deparseExpr(n.Expr) + ")"
+}
+
+// deparseWeightStringExpr renders WEIGHT_STRING in the engine-stored form:
+// weight_string('ab' as char(4)) on 8.0, with 5.7 readbacks additionally
+// carrying a level list — weight_string('ab' as char(4) level 1)
+// (oracle 8.0.32 + 5.7.25).
+func deparseWeightStringExpr(n *ast.WeightStringExpr) string {
+	var sb strings.Builder
+	sb.WriteString("weight_string(")
+	sb.WriteString(deparseExpr(n.Expr))
+	if n.AsChar != nil {
+		fmt.Fprintf(&sb, " as char(%d)", n.AsChar.Length)
+	}
+	for i, lv := range n.Levels {
+		if i == 0 {
+			sb.WriteString(" level ")
+		} else {
+			sb.WriteString(",")
+		}
+		fmt.Fprintf(&sb, "%d", lv.Level)
+		if lv.Dir != "" {
+			sb.WriteString(" " + strings.ToLower(lv.Dir))
+		}
+	}
+	sb.WriteString(")")
+	return sb.String()
+}
+
 func deparseCollateExpr(n *ast.CollateExpr) string {
 	expr := deparseExpr(n.Expr)
 	return "(" + expr + " collate " + n.Collation + ")"
@@ -1624,6 +1694,21 @@ func deparseFuncCallExpr(n *ast.FuncCallExpr) string {
 		return deparseTrimDirectional("trailing", n.Args)
 	case "TRIM_BOTH":
 		return deparseTrimDirectional("both", n.Args)
+	case "TRIM_FROM":
+		// TRIM(remstr FROM str) without a direction keyword — the engine
+		// stores this form verbatim, not as comma arguments
+		// (oracle 8.0.32 + 5.7.25: trim(' x' from 'axa')).
+		if len(n.Args) == 2 {
+			return "trim(" + deparseExpr(n.Args[0]) + " from " + deparseExpr(n.Args[1]) + ")"
+		}
+	case "GET_FORMAT":
+		// Stored with a space after the keyword argument's comma:
+		// get_format(DATE, 'USA') (oracle 8.0.32 + 5.7.25). Only the bare
+		// builtin — a schema-qualified name is a stored function and takes
+		// the generic path, keeping its qualifier.
+		if n.Schema == "" && len(n.Args) == 2 {
+			return "get_format(" + deparseExpr(n.Args[0]) + ", " + deparseExpr(n.Args[1]) + ")"
+		}
 	}
 
 	// GROUP_CONCAT has special formatting

@@ -1128,7 +1128,10 @@ func TestPartitionConstantFold_Bounds(t *testing.T) {
 		{"year-fn", hdr + "CREATE TABLE t (dt DATE) PARTITION BY RANGE (YEAR(dt)) (PARTITION p0 VALUES LESS THAN (YEAR('2020-06-15')));", "p0", "2020"},
 		{"list-arith", hdr + "CREATE TABLE t (id INT) PARTITION BY LIST (id) (PARTITION p0 VALUES IN (1+1, 2+2));", "p0", "2,4"},
 		// Flagged residual: an unsupported function stays verbatim (does not get a wrong fold).
-		{"unsupported-verbatim", hdr + "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (ABS(-5)));", "p0", "abs(-5)"},
+		// The rendered fallback uses the engine's unary-minus print form -(5)
+		// (oracle 8.0.32 + 5.7.25: the engine parenthesizes unary-minus operands,
+		// literals included, everywhere it re-prints an expression).
+		{"unsupported-verbatim", hdr + "CREATE TABLE t (id INT) PARTITION BY RANGE (id) (PARTITION p0 VALUES LESS THAN (ABS(-5)));", "p0", "abs(-(5))"},
 		// Deliberately-declined operators stay verbatim rather than fold to a wrong literal. MySQL
 		// evaluates MOD and the bitwise/shift operators with UNSIGNED 64-bit semantics that signed
 		// int64 does not match, so foldConstIntExpr declines them (the value the engine actually

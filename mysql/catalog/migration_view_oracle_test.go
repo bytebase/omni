@@ -284,6 +284,72 @@ func viewIdempotenceProbes() []viewSchemaProbe {
 			"CREATE TABLE t (a INT)",
 			"CREATE VIEW v AS SELECT (((SELECT 1) = 1) AND (2 = 2)) AS x",
 		}, []string{"t"}, []string{"v"}, both()},
+		// ---- temporal-unit keyword arguments ----
+		// The engine stores these units as BARE keywords; a backtick-quoted
+		// unit is a syntax error (8.0.32 + 5.7.25: 1064). These probes prove
+		// user forms and engine readbacks canonicalize equal for every
+		// keyword-argument position.
+		// TIMESTAMPDIFF: unit stored bare UPPERCASE, case-folded, SQL_TSI_
+		// synonyms folded. All nine simple units in one view.
+		{"tsdiff-all-units", []string{
+			"CREATE TABLE t (a DATETIME, b DATETIME)",
+			"CREATE VIEW v AS SELECT TIMESTAMPDIFF(MICROSECOND,a,b) AS c1, timestampdiff(second,a,b) AS c2, TIMESTAMPDIFF(MINUTE,a,b) AS c3, TIMESTAMPDIFF(HOUR,a,b) AS c4, TIMESTAMPDIFF(DAY,a,b) AS c5, TIMESTAMPDIFF(WEEK,a,b) AS c6, TIMESTAMPDIFF(MONTH,a,b) AS c7, TIMESTAMPDIFF(SQL_TSI_QUARTER,a,b) AS c8, TIMESTAMPDIFF(YEAR,a,b) AS c9 FROM t",
+		}, []string{"t"}, []string{"v"}, both()},
+		// The stock sys.innodb_lock_waits shape (the dogfood bug): a
+		// timestampdiff over a column and now().
+		{"tsdiff-column-now", []string{
+			"CREATE TABLE t (id INT NOT NULL, created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id))",
+			"CREATE VIEW v AS SELECT id, TIMESTAMPDIFF(SECOND, created, NOW()) AS age_secs FROM t",
+		}, []string{"t"}, []string{"v"}, both()},
+		// TIMESTAMPADD + the DATE_ADD family: never stored as function calls —
+		// the engine folds them all into (expr ± interval n unit).
+		{"date-arith-family", []string{
+			"CREATE TABLE t (a DATETIME)",
+			"CREATE VIEW v AS SELECT TIMESTAMPADD(HOUR, 1, a) AS c1, DATE_ADD(a, INTERVAL 1 DAY) AS c2, DATE_SUB(a, INTERVAL 30 MINUTE) AS c3, ADDDATE(a, INTERVAL 1 WEEK) AS c4, ADDDATE(a, 31) AS c5, SUBDATE(a, INTERVAL 1 MONTH) AS c6, SUBDATE(a, 31) AS c7 FROM t",
+		}, []string{"t"}, []string{"v"}, both()},
+		// Bare INTERVAL arithmetic: compound units, expression values,
+		// negative counts, and the interval-first commuted form.
+		{"interval-forms", []string{
+			"CREATE TABLE t (a DATETIME, n INT)",
+			"CREATE VIEW v AS SELECT a + INTERVAL 1 DAY AS c1, a - INTERVAL 30 MINUTE AS c2, a + INTERVAL '1:1' DAY_HOUR AS c3, a + INTERVAL '1-1' YEAR_MONTH AS c4, a + INTERVAL (n + 1) DAY AS c5, ADDDATE(a, -5) AS c6, INTERVAL 1 DAY + a AS c7 FROM t",
+		}, []string{"t"}, []string{"v"}, both()},
+		// EXTRACT: lowercase unit, simple + compound, over a column.
+		{"extract-units", []string{
+			"CREATE TABLE t (a DATETIME)",
+			"CREATE VIEW v AS SELECT EXTRACT(SECOND FROM a) AS c1, extract(day from a) AS c2, EXTRACT(QUARTER FROM a) AS c3, EXTRACT(DAY_HOUR FROM a) AS c4, EXTRACT(YEAR_MONTH FROM a) AS c5, EXTRACT(HOUR_MICROSECOND FROM a) AS c6, EXTRACT(SQL_TSI_WEEK FROM a) AS c7 FROM t",
+		}, []string{"t"}, []string{"v"}, both()},
+		// GET_FORMAT: bare UPPERCASE first argument, TIMESTAMP folds to
+		// DATETIME, and the stored form keeps a space after the first comma.
+		{"get-format-kinds", []string{
+			"CREATE VIEW v AS SELECT GET_FORMAT(DATE, 'USA') AS c1, get_format(time, 'ISO') AS c2, GET_FORMAT(DATETIME, 'EUR') AS c3, GET_FORMAT(TIMESTAMP, 'JIS') AS c4",
+		}, nil, []string{"v"}, both()},
+		// TRIM keyword forms, including the direction-less remstr FROM form
+		// the engine stores verbatim (not as comma arguments).
+		{"trim-keyword-forms", []string{
+			"CREATE TABLE t (s VARCHAR(20))",
+			"CREATE VIEW v AS SELECT TRIM(BOTH 'x' FROM s) AS c1, TRIM(LEADING 'x' FROM s) AS c2, TRIM(TRAILING 'x' FROM s) AS c3, TRIM('x' FROM s) AS c4, TRIM(s) AS c5 FROM t",
+		}, []string{"t"}, []string{"v"}, both()},
+		// SUBSTRING keyword forms: the engine rewrites FROM/FOR into the
+		// comma form under the substr name (regression pin — worked before).
+		{"substring-keyword-forms", []string{
+			"CREATE TABLE t (s VARCHAR(20))",
+			"CREATE VIEW v AS SELECT SUBSTRING(s FROM 2) AS c1, SUBSTRING(s FROM 2 FOR 3) AS c2, SUBSTRING(s, 2, 3) AS c3 FROM t",
+		}, []string{"t"}, []string{"v"}, both()},
+		// WEIGHT_STRING: plain and AS CHAR(n); AS BINARY(n) desugars to the
+		// cast-charset-binary form. 8.0 only: 5.7 auto-appends `level 1` to
+		// the STORED body, which omni does not reproduce for user-declared
+		// SDL (FLAGGED; a 5.7 user can write LEVEL 1 explicitly, and 5.7
+		// readbacks — which always carry the level list — round-trip fine).
+		{"weight-string-forms", []string{
+			"CREATE TABLE t (s VARCHAR(20))",
+			"CREATE VIEW v AS SELECT WEIGHT_STRING(s) AS c1, WEIGHT_STRING(s AS CHAR(4)) AS c2, WEIGHT_STRING(s AS BINARY(4)) AS c3 FROM t",
+		}, []string{"t"}, []string{"v"}, only(MySQL80)},
+		// WEIGHT_STRING LEVEL: 5.7-only syntax (8.0 rejects LEVEL), written
+		// explicitly so the user form matches the engine-stored level list.
+		{"weight-string-level", []string{
+			"CREATE TABLE t (s VARCHAR(20))",
+			"CREATE VIEW v AS SELECT WEIGHT_STRING(s LEVEL 1) AS c1, WEIGHT_STRING(s AS CHAR(4) LEVEL 1) AS c2 FROM t",
+		}, []string{"t"}, []string{"v"}, only(MySQL57)},
 	}
 }
 
@@ -575,6 +641,24 @@ func viewMigrationProbes() []viewMigrationProbe {
 			base("CREATE TABLE t (id INT)"),
 			base("CREATE TABLE t (id INT)", "CREATE VIEW base AS SELECT id FROM t", "CREATE VIEW tv AS TABLE base"),
 			[]string{"t"}, []string{"base", "tv"}, only(MySQL80)},
+		// ---- temporal-unit keyword arguments ----
+		// CREATE the sys.innodb_lock_waits shape from a table-only state:
+		// the generated body must carry timestampdiff(SECOND,...) with a
+		// BARE unit — the quoted form the deparser used to emit is a 1064
+		// syntax error on apply (the sys-schema dogfood bug).
+		{"create-tsdiff-view",
+			base("CREATE TABLE t (id INT NOT NULL, created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id))"),
+			base("CREATE TABLE t (id INT NOT NULL, created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id))",
+				"CREATE VIEW v AS SELECT id, TIMESTAMPDIFF(SECOND, created, NOW()) AS age_secs FROM t"),
+			[]string{"t"}, []string{"v"}, both()},
+		// REPLACE a plain body with one exercising every temporal keyword
+		// position at once: the generated CREATE OR REPLACE must apply and
+		// read back canonically equal.
+		{"replace-into-temporal-medley",
+			base("CREATE TABLE t (a DATETIME, s VARCHAR(20))", "CREATE VIEW v AS SELECT a FROM t"),
+			base("CREATE TABLE t (a DATETIME, s VARCHAR(20))",
+				"CREATE VIEW v AS SELECT TIMESTAMPDIFF(DAY, a, NOW()) AS c1, TIMESTAMPADD(HOUR, 1, a) AS c2, EXTRACT(DAY_HOUR FROM a) AS c3, GET_FORMAT(DATE, 'USA') AS c4, a + INTERVAL '1:1' DAY_HOUR AS c5, TRIM('x' FROM s) AS c6 FROM t"),
+			[]string{"t"}, []string{"v"}, both()},
 	}
 }
 

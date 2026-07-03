@@ -1929,6 +1929,38 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 		return "b'" + val + "'"
 	case *nodes.ParenExpr:
 		return "(" + nodeToSQLGenerated(n.Expr, charset) + ")"
+	case *nodes.KeywordArg:
+		// Bare keyword argument (timestampdiff unit, get_format type) —
+		// stored unquoted in generated-column bodies exactly like view
+		// bodies (oracle 8.0.32: AS (timestampdiff(SECOND,`a`,`b`))).
+		return n.Keyword
+	case *nodes.ExtractExpr:
+		// Oracle 8.0.32 stored form: extract(day_hour from `a`).
+		return "extract(" + strings.ToLower(n.Unit) + " from " + nodeToSQLGenerated(n.Expr, charset) + ")"
+	case *nodes.IntervalExpr:
+		// Oracle 8.0.32 stored form: ((`a` + interval 1 day)).
+		return "interval " + nodeToSQLGenerated(n.Value, charset) + " " + strings.ToLower(n.Unit)
+	case *nodes.WeightStringExpr:
+		// Oracle 8.0.32 stored form: weight_string(`s` as char(4)).
+		var b strings.Builder
+		b.WriteString("weight_string(")
+		b.WriteString(nodeToSQLGenerated(n.Expr, charset))
+		if n.AsChar != nil {
+			fmt.Fprintf(&b, " as char(%d)", n.AsChar.Length)
+		}
+		for i, lv := range n.Levels {
+			if i == 0 {
+				b.WriteString(" level ")
+			} else {
+				b.WriteString(",")
+			}
+			fmt.Fprintf(&b, "%d", lv.Level)
+			if lv.Dir != "" {
+				b.WriteString(" " + strings.ToLower(lv.Dir))
+			}
+		}
+		b.WriteString(")")
+		return b.String()
 	case *nodes.BinaryExpr:
 		left := nodeToSQLGenerated(n.Left, charset)
 		right := nodeToSQLGenerated(n.Right, charset)

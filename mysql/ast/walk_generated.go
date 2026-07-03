@@ -871,6 +871,11 @@ func walkChildren(v Visitor, node Node) {
 		if n.Limit != nil {
 			Walk(v, n.Limit)
 		}
+	case *WeightStringExpr:
+		Walk(v, n.Expr)
+		if n.AsChar != nil {
+			Walk(v, n.AsChar)
+		}
 	case *WhileStmt:
 		Walk(v, n.Cond)
 		for _, item := range n.Stmts {

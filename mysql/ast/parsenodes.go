@@ -1869,6 +1869,43 @@ type IntervalExpr struct {
 func (e *IntervalExpr) nodeTag()  {}
 func (e *IntervalExpr) exprNode() {}
 
+// KeywordArg represents a bare keyword in a function argument position: the
+// temporal unit of TIMESTAMPDIFF/TIMESTAMPADD (timestampdiff(SECOND,a,b)) or
+// the format type of GET_FORMAT (get_format(DATE,'USA')). MySQL lexes these
+// positions as keywords, never identifiers — a quoted `SECOND` is a syntax
+// error (oracle 8.0.32 + 5.7.25) — so deparse must render Keyword unquoted.
+// Keyword is stored normalized: uppercase, SQL_TSI_ prefix stripped, and
+// GET_FORMAT's TIMESTAMP folded to DATETIME, matching SHOW CREATE VIEW.
+type KeywordArg struct {
+	Loc     Loc
+	Keyword string
+}
+
+func (e *KeywordArg) nodeTag()  {}
+func (e *KeywordArg) exprNode() {}
+
+// WeightStringExpr represents WEIGHT_STRING(expr [AS CHAR(n)] [LEVEL ...]).
+// The AS BINARY(n) input form is not stored: MySQL desugars it to
+// weight_string(cast(expr as char(n) charset binary)) (oracle 8.0.32 +
+// 5.7.25), so the parser produces that CastExpr shape instead. LEVEL is
+// accepted by 5.7 only; 5.7 readbacks always carry an explicit level list
+// (e.g. "1" or "1 desc"), while 8.0 rejects LEVEL entirely.
+type WeightStringExpr struct {
+	Loc    Loc
+	Expr   ExprNode
+	AsChar *DataType // optional AS CHAR(n); nil when absent
+	Levels []WeightStringLevel
+}
+
+func (e *WeightStringExpr) nodeTag()  {}
+func (e *WeightStringExpr) exprNode() {}
+
+// WeightStringLevel is one element of a WEIGHT_STRING LEVEL list.
+type WeightStringLevel struct {
+	Level int
+	Dir   string // "", "DESC", or "REVERSE" (ASC normalizes to "")
+}
+
 // CollateExpr represents a COLLATE expression.
 type CollateExpr struct {
 	Loc       Loc
