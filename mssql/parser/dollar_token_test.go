@@ -46,12 +46,15 @@ OUTPUT $action, INSERTED.k, INSERTED.v;`,
 		"MERGE INTO e AS t USING s ON t.x = s.x WHEN NOT MATCHED THEN INSERT ($from_id, $to_id) VALUES (s.f, s.g);",
 		// Graph pseudo-columns are valid index key columns, and — despite
 		// TSql170.g's narrower uniqueTableConstraint rule — the engine also
-		// accepts them in PRIMARY KEY / UNIQUE constraints and CREATE
-		// STATISTICS column lists (all engine-verified executes).
+		// parses them in PRIMARY KEY / UNIQUE constraints: full execution
+		// succeeds on AS NODE tables; on a plain table the engine reports
+		// Msg 13929 at binding, not a syntax error, so the parser accepts
+		// both shapes.
 		"CREATE INDEX ix ON Person ($node_id);",
 		"CREATE UNIQUE INDEX ix ON e ($from_id, $to_id) INCLUDE (weight);",
-		"CREATE TABLE p2 (id int, PRIMARY KEY ($node_id));",
-		"CREATE TABLE p3 (id int, UNIQUE ($node_id));",
+		"CREATE TABLE p2 (id int, PRIMARY KEY ($node_id)) AS NODE;",
+		"CREATE TABLE p3 (id int, UNIQUE ($node_id)) AS NODE;",
+		"CREATE TABLE p4 (id int, PRIMARY KEY ($node_id));",
 		"CREATE STATISTICS st ON Person ($node_id);",
 		"CREATE STATISTICS st2 ON e (weight, $from_id);",
 		// Pseudo-columns as UPDATE SET targets parse; mutability is a
