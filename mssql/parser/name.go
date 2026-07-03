@@ -386,12 +386,23 @@ func (p *Parser) parsePseudoColumn() (nodes.ExprNode, error) {
 	}, nil
 }
 
-// requirePartitionArgs rejects $PARTITION.fn() with no arguments — the
-// engine requires an expression list (Msg 102, verified on SQL Server 2022);
-// the generic function-call parser would otherwise accept empty parens.
+// requirePartitionArgs rejects $PARTITION.fn() with no or malformed
+// arguments — the engine requires an expression list and rejects empty,
+// comma-only, and trailing-comma forms (all Msg 102, verified on SQL Server
+// 2022). The generic function-call parser appends a nil item when an
+// expression slot fails to parse, so nil items are rejected here too.
 func requirePartitionArgs(p *Parser, fc nodes.ExprNode) error {
-	if f, ok := fc.(*nodes.FuncCallExpr); ok && (f.Star || f.Args == nil || len(f.Args.Items) == 0) {
+	f, ok := fc.(*nodes.FuncCallExpr)
+	if !ok {
+		return nil
+	}
+	if f.Star || f.Args == nil || len(f.Args.Items) == 0 {
 		return p.newParseError(f.Loc.End, "$PARTITION function requires at least one argument")
+	}
+	for _, a := range f.Args.Items {
+		if a == nil {
+			return p.newParseError(f.Loc.End, "$PARTITION function has a malformed argument list")
+		}
 	}
 	return nil
 }
@@ -629,7 +640,13 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 			p.addExpressionCandidates()
 			return nil, errCollecting
 		}
-		arg, _ := p.parseExpr()
+		arg, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if arg == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		args = append(args, arg)
 		if _, ok := p.match(','); !ok {
 			break
@@ -637,6 +654,11 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 		if p.collectMode() {
 			p.addExpressionCandidates()
 			return nil, errCollecting
+		}
+		// A trailing comma before ')' is a syntax error (engine: Msg 102),
+		// matching the unqualified parseFuncCall path.
+		if p.cur.Type == ')' {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 	fc.Args = &nodes.List{Items: args}

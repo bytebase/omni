@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
@@ -56,12 +57,19 @@ func (p *Parser) parseCreateStatisticsStmt() (*nodes.CreateStatisticsStmt, error
 		}
 	}
 
-	// Column list
+	// Column list. Graph pseudo-columns are valid here (engine-verified:
+	// CREATE STATISTICS st ON Person ($node_id) executes).
 	if p.cur.Type == '(' {
 		p.advance()
 		var cols []nodes.Node
 		for p.cur.Type != ')' && p.cur.Type != tokEOF {
-			if p.isIdentLike() {
+			if p.cur.Type == tokPSEUDOCOL {
+				if !graphPseudoColumns[strings.ToLower(p.cur.Str)] {
+					return nil, p.newParseError(p.cur.Loc, fmt.Sprintf("invalid pseudocolumn %q", p.cur.Str))
+				}
+				cols = append(cols, &nodes.String{Str: p.cur.Str})
+				p.advance()
+			} else if p.isIdentLike() {
 				cols = append(cols, &nodes.String{Str: p.cur.Str})
 				p.advance()
 			}

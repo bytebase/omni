@@ -44,9 +44,16 @@ OUTPUT $action, INSERTED.k, INSERTED.v;`,
 		"INSERT INTO e ($from_id, $to_id) VALUES ('a', 'b');",
 		"INSERT INTO e ($from_id, $to_id) SELECT p1.$node_id, p2.$node_id FROM Person p1, Person p2;",
 		"MERGE INTO e AS t USING s ON t.x = s.x WHEN NOT MATCHED THEN INSERT ($from_id, $to_id) VALUES (s.f, s.g);",
-		// Graph pseudo-columns are valid index key columns.
+		// Graph pseudo-columns are valid index key columns, and — despite
+		// TSql170.g's narrower uniqueTableConstraint rule — the engine also
+		// accepts them in PRIMARY KEY / UNIQUE constraints and CREATE
+		// STATISTICS column lists (all engine-verified executes).
 		"CREATE INDEX ix ON Person ($node_id);",
 		"CREATE UNIQUE INDEX ix ON e ($from_id, $to_id) INCLUDE (weight);",
+		"CREATE TABLE p2 (id int, PRIMARY KEY ($node_id));",
+		"CREATE TABLE p3 (id int, UNIQUE ($node_id));",
+		"CREATE STATISTICS st ON Person ($node_id);",
+		"CREATE STATISTICS st2 ON e (weight, $from_id);",
 		// Pseudo-columns as UPDATE SET targets parse; mutability is a
 		// binding-time error in the engine (Msg 271 / Msg 8102).
 		"UPDATE e SET $from_id = 'x';",
@@ -77,9 +84,12 @@ OUTPUT $action, INSERTED.k, INSERTED.v;`,
 		// Two qualifiers before $PARTITION exceed the grammar's single
 		// optional database qualifier.
 		"SELECT a.b.$PARTITION.pf1(10);",
-		// $PARTITION requires at least one argument (engine: Msg 102).
+		// $PARTITION requires at least one argument; comma-only and
+		// trailing-comma lists are also rejected (engine: Msg 102).
 		"SELECT $PARTITION.pf1();",
 		"SELECT db1.$PARTITION.pf1();",
+		"SELECT $PARTITION.pf1(,);",
+		"SELECT $PARTITION.pf1(1,);",
 		// $CUID: ScriptDom accepts it (PseudoColumnCuid) but no shipped engine
 		// does — SQL Server 2022 rejects with Msg 126 like any unknown
 		// pseudo-column, and it is undocumented in T-SQL. We follow the engine.
