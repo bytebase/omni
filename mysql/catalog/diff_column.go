@@ -88,7 +88,14 @@ func diffColumns(from, to *Table, n *Normalizer) []ColumnDiffEntry {
 // identity.) `from`/`to` are passed for the table context CanonicalColumn needs to
 // resolve table-inherited charset/collation, PK membership, and the first-TIMESTAMP rule.
 func columnsChanged(fromTbl, toTbl *Table, a, b *Column, n *Normalizer) bool {
-	return n.CanonicalColumn(fromTbl, a) != n.CanonicalColumn(toTbl, b)
+	if n.CanonicalColumn(fromTbl, a) == n.CanonicalColumn(toTbl, b) {
+		return false
+	}
+	// Cast-charset wildcard: a charset-less CHAR cast in user SDL must not
+	// phantom-diff against the connection charset its readback carries, while
+	// an EXPLICIT charset change stays a real diff (both engine-verified; see
+	// columnsCastCharsetWildcardEqual).
+	return !n.columnsCastCharsetWildcardEqual(fromTbl, toTbl, a, b)
 }
 
 // diffableColumns returns the columns of a table that participate in a declarative diff:

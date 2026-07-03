@@ -1364,7 +1364,16 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 				return nil, &ParseError{Message: "expected level number", Position: p.cur.Loc}
 			}
 			lvTok := p.advance()
-			level := nodes.WeightStringLevel{Level: int(lvTok.Ival)}
+			// The engine clamps out-of-range levels rather than rejecting:
+			// LEVEL 0 stores as level 1 (oracle 5.7.25). The collation-max
+			// upper clamp (LEVEL 7 also stored level 1 on a single-level
+			// collation) is collation-dependent and stays a flagged
+			// user-form residual.
+			lvNum := int(lvTok.Ival)
+			if lvNum < 1 {
+				lvNum = 1
+			}
+			level := nodes.WeightStringLevel{Level: lvNum}
 			// Grammar: n [ASC|DESC] [REVERSE] — direction first, then an
 			// optional REVERSE (LEVEL 1 DESC REVERSE stores as
 			// "level 1 desc reverse"; REVERSE DESC is a 1064 and ASC

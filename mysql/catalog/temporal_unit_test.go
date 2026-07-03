@@ -131,6 +131,15 @@ func TestTemporalUnitUserFormCanonicalization(t *testing.T) {
 		{"extract-sql-tsi", "select EXTRACT(SQL_TSI_DAY FROM '2020-01-01') AS `x`", "select extract(day from '2020-01-01') AS `x`"},
 		{"weight-string-as-binary", "select WEIGHT_STRING('ab' AS BINARY(4)) AS `x`", "select weight_string(cast('ab' as char(4) charset binary)) AS `x`"},
 		{"weight-string-level-asc", "select WEIGHT_STRING('ab' LEVEL 1 ASC) AS `x`", "select weight_string('ab' level 1) AS `x`"},
+		// The engine clamps an out-of-range level instead of rejecting:
+		// LEVEL 0 stores as level 1 (oracle 5.7.25).
+		{"weight-string-level-0-clamps", "select WEIGHT_STRING('ab' LEVEL 0) AS `x`", "select weight_string('ab' level 1) AS `x`"},
+		// CAST/CONVERT to BINARY(n) desugar to the engine-stored
+		// char-charset-binary form in every expression position
+		// (oracle 8.0.32 + 5.7.25).
+		{"cast-as-binary", "select CAST('ab' AS BINARY(4)) AS `x`", "select cast('ab' as char(4) charset binary) AS `x`"},
+		{"cast-as-binary-nolen", "select CAST('ab' AS BINARY) AS `x`", "select cast('ab' as char charset binary) AS `x`"},
+		{"convert-binary", "select CONVERT('ab', BINARY(4)) AS `x`", "select cast('ab' as char(4) charset binary) AS `x`"},
 		{"substring-from-for", "select SUBSTRING('abcd' FROM 2 FOR 2) AS `x`", "select substr('abcd',2,2) AS `x`"},
 		// A schema-qualified name is a stored function, not the builtin: its
 		// arguments are ordinary expressions and the qualifier must survive
@@ -315,17 +324,73 @@ func TestTemporalUnitParserRejections(t *testing.T) {
 }
 
 // The charset the engine stores for a charset-less CHAR cast is the
-// CONNECTION charset of the creating session (oracle 8.0.32: the same
-// CAST(s AS CHAR(4)) generated column stores "charset latin1" via a latin1
-// session and "charset utf8mb4" via a utf8mb4 session) — connection-dependent
-// noise, exactly like the string-literal introducer CanonicalGeneratedExpr
-// already strips. A user's charset-less cast must compare equal to any
-// readback, while "charset binary" (the WEIGHT_STRING AS BINARY desugar)
-// stays semantically distinct.
+// CONNECTION charset of the creating session, while an EXPLICIT CHARACTER SET
+// survives readback distinctly (oracle 8.0.32: explicit latin1 under a
+// utf8mb4 session reads back charset latin1, and the same charset-less cast
+// stores latin1 or utf8mb4 depending only on the session). The comparison
+// therefore uses WILDCARD semantics: a charset-less user cast matches any
+// stored connection charset (no phantom diff), but an explicit
+// latin1 -> utf8mb4 change stays a REAL diff (hiding it would suppress a real
+// migration), and "charset binary" (the AS BINARY desugar) stays a distinct
+// type in every direction.
 func TestGeneratedCastCharsetComparison(t *testing.T) {
-	user := "CREATE DATABASE d;\nUSE d;\nCREATE TABLE `g` (`s` varchar(10), `c` char(4) GENERATED ALWAYS AS (CAST(`s` AS CHAR(4))) VIRTUAL);\n"
-	stored := "CREATE DATABASE d;\nUSE d;\nCREATE TABLE `g` (`s` varchar(10) DEFAULT NULL, `c` char(4) GENERATED ALWAYS AS (cast(`s` as char(4) charset utf8mb4)) VIRTUAL);\n"
-	binform := "CREATE DATABASE d;\nUSE d;\nCREATE TABLE `g` (`s` varchar(10) DEFAULT NULL, `c` char(4) GENERATED ALWAYS AS (cast(`s` as char(4) charset binary)) VIRTUAL);\n"
+	hdr := "CREATE DATABASE d;\nUSE d;\n"
+	mk := func(expr string) string {
+		return hdr + "CREATE TABLE `g` (`s` varchar(10), `c` char(4) GENERATED ALWAYS AS (" + expr + ") VIRTUAL);\n"
+	}
+	omitted := mk("CAST(`s` AS CHAR(4))")
+	expLatin := mk("cast(`s` as char(4) charset latin1)")
+	expUtf := mk("cast(`s` as char(4) charset utf8mb4)")
+	binform := mk("cast(`s` as char(4) charset binary)")
+	load := func(sdl string) *Catalog {
+		c, err := LoadSDL(sdl)
+		if err != nil {
+			t.Fatalf("LoadSDL failed: %v", err)
+		}
+		return c
+	}
+	cases := []struct {
+		id    string
+		a, b  string
+		empty bool
+	}{
+		{"omitted-vs-stored-utf8mb4", omitted, expUtf, true},
+		{"omitted-vs-stored-latin1", omitted, expLatin, true},
+		{"stored-utf8mb4-vs-omitted", expUtf, omitted, true},
+		{"explicit-latin1-vs-explicit-utf8mb4", expLatin, expUtf, false},
+		{"omitted-vs-binary", omitted, binform, false},
+		{"explicit-utf8mb4-vs-binary", expUtf, binform, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.id, func(t *testing.T) {
+			d := Diff(load(tc.a), load(tc.b))
+			if d.IsEmpty() != tc.empty {
+				t.Errorf("diff empty = %v, want %v", d.IsEmpty(), tc.empty)
+			}
+		})
+	}
+}
+
+// Generated expressions are stored by the engine in resolver-rewritten form,
+// identical to view bodies (oracle 8.0.32: AS (TIMESTAMPADD(HOUR,1,a)) stores
+// as ((`a` + interval 1 hour)), AS (NOT a) as ((0 = `a`)), AS (CAST(s AS
+// BINARY(4))) as (cast(`s` as char(4) charset binary))). User-declared SDL
+// must canonicalize to those stored forms, and the stored forms must be
+// fixed points.
+func TestGeneratedColumnRewriteCanonicalization(t *testing.T) {
+	hdr := "CREATE DATABASE d;\nUSE d;\n"
+	user := hdr + "CREATE TABLE `t` (`a` datetime, `n` int, `s` varchar(10)," +
+		" `c1` datetime GENERATED ALWAYS AS (TIMESTAMPADD(HOUR, 1, `a`)) VIRTUAL," +
+		" `c2` datetime GENERATED ALWAYS AS (DATE_ADD(`a`, INTERVAL 1 DAY)) VIRTUAL," +
+		" `c3` int GENERATED ALWAYS AS (NOT `n`) VIRTUAL," +
+		" `c4` varbinary(8) GENERATED ALWAYS AS (CAST(`s` AS BINARY(4))) VIRTUAL," +
+		" `c5` varbinary(20) GENERATED ALWAYS AS (CAST(`s` AS BINARY)) VIRTUAL);\n"
+	stored := hdr + "CREATE TABLE `t` (`a` datetime DEFAULT NULL, `n` int DEFAULT NULL, `s` varchar(10) DEFAULT NULL," +
+		" `c1` datetime GENERATED ALWAYS AS ((`a` + interval 1 hour)) VIRTUAL," +
+		" `c2` datetime GENERATED ALWAYS AS ((`a` + interval 1 day)) VIRTUAL," +
+		" `c3` int GENERATED ALWAYS AS ((0 = `n`)) VIRTUAL," +
+		" `c4` varbinary(8) GENERATED ALWAYS AS (cast(`s` as char(4) charset binary)) VIRTUAL," +
+		" `c5` varbinary(20) GENERATED ALWAYS AS (cast(`s` as char charset binary)) VIRTUAL);\n"
 	cu, err := LoadSDL(user)
 	if err != nil {
 		t.Fatalf("LoadSDL(user) failed: %v", err)
@@ -334,14 +399,23 @@ func TestGeneratedCastCharsetComparison(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadSDL(stored) failed: %v", err)
 	}
-	cb, err := LoadSDL(binform)
-	if err != nil {
-		t.Fatalf("LoadSDL(binary) failed: %v", err)
-	}
 	if d := Diff(cu, cs); !d.IsEmpty() {
-		t.Errorf("charset-less cast vs connection-charset readback must compare equal (phantom diff)")
+		t.Errorf("user forms must canonicalize to the engine-stored rewritten forms (diff not empty)")
 	}
-	if d := Diff(cu, cb); d.IsEmpty() {
-		t.Errorf("plain CHAR cast and charset-binary cast must stay distinct")
+	if d := Diff(cs, cu); !d.IsEmpty() {
+		t.Errorf("reverse direction not empty")
+	}
+	plan := GenerateMigration(New(), cu, Diff(New(), cu))
+	sql := plan.SQL()
+	for _, want := range []string{
+		"((`a` + interval 1 hour))",
+		"((`a` + interval 1 day))",
+		"((0 = `n`))",
+		"(cast(`s` as char(4) charset binary))",
+		"(cast(`s` as char charset binary))",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("generated plan missing engine-stored fragment %q:\n%s", want, sql)
+		}
 	}
 }
