@@ -2258,6 +2258,8 @@ func writeLiteral(sb *strings.Builder, n *Literal) {
 		sb.WriteString(" :null true")
 	case LitDefault:
 		sb.WriteString(" :default true")
+	case LitMoney:
+		sb.WriteString(fmt.Sprintf(" :str \"%s\"", n.Str))
 	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

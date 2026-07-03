@@ -53,6 +53,12 @@ func resolveRule(rule string, cat interface{}, sql string, cursorOffset int) []C
 		return resolveTypeNames()
 	}
 
+	// pseudocolumn_action suggests the $action pseudo-column (OUTPUT clause);
+	// static, no catalog needed.
+	if rule == "pseudocolumn_action" {
+		return []Candidate{{Text: "$action", Type: CandidateColumn}}
+	}
+
 	// All other rules require a catalog.
 	if cat == nil {
 		return nil

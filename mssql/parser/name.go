@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
@@ -297,6 +298,135 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	}, nil
 }
 
+// knownPseudoColumns are the $-prefixed pseudo-columns SQL Server accepts as
+// column references (lowercased): $action (MERGE OUTPUT), $IDENTITY, $ROWGUID,
+// and the graph-table pseudo-columns. $PARTITION is handled separately as a
+// partition-function call prefix. The engine rejects anything else with
+// Msg 126 "Invalid pseudocolumn"; context restrictions (e.g. $action outside
+// MERGE OUTPUT) are binding-time errors in the engine, not parse errors, so
+// the parser does not enforce them.
+//
+// Deliberate divergence from SqlScriptDOM: ScriptDom also accepts $CUID
+// (ColumnType.PseudoColumnCuid, present since its SQL 2008 grammar), but no
+// shipped engine does — SQL Server 2022 rejects `SELECT $CUID` with Msg 126
+// exactly like an unknown pseudo-column, and $CUID appears nowhere in the
+// T-SQL documentation. We follow the engine.
+var knownPseudoColumns = map[string]bool{
+	"$action":   true,
+	"$identity": true,
+	"$rowguid":  true,
+	"$node_id":  true,
+	"$edge_id":  true,
+	"$from_id":  true,
+	"$to_id":    true,
+}
+
+// graphPseudoColumns is the subset valid in index key column lists
+// (engine-verified: `CREATE INDEX ix ON Person ($node_id)` succeeds).
+var graphPseudoColumns = map[string]bool{
+	"$node_id": true,
+	"$edge_id": true,
+	"$from_id": true,
+	"$to_id":   true,
+}
+
+// parseIndexColumnName parses one index key column name: a regular identifier
+// or a graph pseudo-column.
+func (p *Parser) parseIndexColumnName() (string, error) {
+	if p.cur.Type == tokPSEUDOCOL {
+		if !graphPseudoColumns[strings.ToLower(p.cur.Str)] {
+			return "", p.newParseError(p.cur.Loc, fmt.Sprintf("invalid pseudocolumn %q", p.cur.Str))
+		}
+		name := p.cur.Str
+		p.advance()
+		return name, nil
+	}
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return "", p.unexpectedToken()
+	}
+	return name, nil
+}
+
+// parsePseudoColumn parses a $-prefixed pseudo-column token in expression
+// position: a known pseudo-column becomes a ColumnRef, $PARTITION.fn(args)
+// becomes a schema-qualified function call, anything else is an error.
+func (p *Parser) parsePseudoColumn() (nodes.ExprNode, error) {
+	tok := p.advance()
+	// Not keyword matching: pseudo-columns are tokPSEUDOCOL tokens, never
+	// keywords, so the comparison is on the token's raw text.
+	if strings.ToLower(tok.Str) == "$partition" {
+		// $PARTITION.partition_function_name(expr)
+		if _, err := p.expect('.'); err != nil {
+			return nil, err
+		}
+		if !p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		fname := p.cur.Str
+		p.advance()
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		fc, err := p.parseFuncCallWithSchema(tok.Str, fname, tok.Loc)
+		if err != nil {
+			return nil, err
+		}
+		if err := requirePartitionArgs(p, fc); err != nil {
+			return nil, err
+		}
+		return fc, nil
+	}
+	if !knownPseudoColumns[strings.ToLower(tok.Str)] {
+		return nil, p.newParseError(tok.Loc, fmt.Sprintf("invalid pseudocolumn %q", tok.Str))
+	}
+	return &nodes.ColumnRef{
+		Column: tok.Str,
+		Loc:    nodes.Loc{Start: tok.Loc, End: p.prevEnd()},
+	}, nil
+}
+
+// requirePartitionArgs rejects $PARTITION.fn() with no or malformed
+// arguments — the engine requires an expression list and rejects empty,
+// comma-only, and trailing-comma forms (all Msg 102, verified on SQL Server
+// 2022). The generic function-call parser appends a nil item when an
+// expression slot fails to parse, so nil items are rejected here too.
+func requirePartitionArgs(p *Parser, fc nodes.ExprNode) error {
+	f, ok := fc.(*nodes.FuncCallExpr)
+	if !ok {
+		return nil
+	}
+	if f.Star || f.Args == nil || len(f.Args.Items) == 0 {
+		return p.newParseError(f.Loc.End, "$PARTITION function requires at least one argument")
+	}
+	for _, a := range f.Args.Items {
+		if a == nil {
+			return p.newParseError(f.Loc.End, "$PARTITION function has a malformed argument list")
+		}
+	}
+	return nil
+}
+
+// parseInsertColumnName parses one name in an INSERT/MERGE column list: a
+// regular identifier or a known pseudo-column — graph edge-table inserts name
+// $from_id/$to_id as target columns (engine-verified:
+// `INSERT INTO e ($from_id, $to_id) SELECT ...` executes).
+func (p *Parser) parseInsertColumnName() (nodes.Node, error) {
+	if p.cur.Type == tokPSEUDOCOL {
+		if !knownPseudoColumns[strings.ToLower(p.cur.Str)] {
+			return nil, p.newParseError(p.cur.Loc, fmt.Sprintf("invalid pseudocolumn %q", p.cur.Str))
+		}
+		name := p.cur.Str
+		p.advance()
+		return &nodes.String{Str: name}, nil
+	}
+	colName, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.unexpectedToken()
+	}
+	return &nodes.String{Str: colName}, nil
+}
+
 // parseQualifiedRef parses a dot-qualified column reference or star expression.
 // The first part has already been consumed.
 //
@@ -323,6 +453,50 @@ func (p *Parser) parseQualifiedRef(first string, loc int) (nodes.ExprNode, error
 				Qualifier: qualifier,
 				Loc:       nodes.Loc{Start: loc, End: p.prevEnd()},
 			}, nil
+		}
+
+		// db.$PARTITION.fn(args) — the partition function accepts one optional
+		// database qualifier (engine-verified: `db.$PARTITION.pf(10)` executes;
+		// more than one qualifier is a syntax error).
+		if p.cur.Type == tokPSEUDOCOL && strings.ToLower(p.cur.Str) == "$partition" {
+			if len(parts) != 1 {
+				return nil, p.syntaxErrorAtCur()
+			}
+			partName := p.cur.Str
+			p.advance()
+			if _, err := p.expect('.'); err != nil {
+				return nil, err
+			}
+			if !p.isIdentLike() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			fname := p.cur.Str
+			p.advance()
+			if p.cur.Type != '(' {
+				return nil, p.syntaxErrorAtCur()
+			}
+			fc, err := p.parseFuncCallWithSchema(partName, fname, loc)
+			if err != nil {
+				return nil, err
+			}
+			if err := requirePartitionArgs(p, fc); err != nil {
+				return nil, err
+			}
+			if f, ok := fc.(*nodes.FuncCallExpr); ok && f.Name != nil {
+				f.Name.Database = parts[0]
+			}
+			return fc, nil
+		}
+
+		// Qualified pseudo-column (t.$IDENTITY, Person.$node_id) or keyword
+		// column (t.IDENTITYCOL, t.ROWGUIDCOL). Both terminate the chain.
+		if p.cur.Type == tokPSEUDOCOL || p.cur.Type == kwIDENTITYCOL || p.cur.Type == kwROWGUIDCOL {
+			if p.cur.Type == tokPSEUDOCOL && !knownPseudoColumns[strings.ToLower(p.cur.Str)] {
+				return nil, p.newParseError(p.cur.Loc, fmt.Sprintf("invalid pseudocolumn %q", p.cur.Str))
+			}
+			parts = append(parts, p.cur.Str)
+			p.advance()
+			break
 		}
 
 		// Accept identifier or keyword-as-identifier after dot
@@ -466,7 +640,13 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 			p.addExpressionCandidates()
 			return nil, errCollecting
 		}
-		arg, _ := p.parseExpr()
+		arg, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if arg == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
 		args = append(args, arg)
 		if _, ok := p.match(','); !ok {
 			break
@@ -474,6 +654,11 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 		if p.collectMode() {
 			p.addExpressionCandidates()
 			return nil, errCollecting
+		}
+		// A trailing comma before ')' is a syntax error (engine: Msg 102),
+		// matching the unqualified parseFuncCall path.
+		if p.cur.Type == ')' {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 	fc.Args = &nodes.List{Items: args}

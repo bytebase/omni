@@ -284,11 +284,7 @@ func (p *Parser) parseMergeInsertAction() (*nodes.MergeInsertAction, error) {
 	if p.cur.Type == '(' {
 		p.advance()
 		cols, err := p.parseCommaList(')', commaListStrict, func() (nodes.Node, error) {
-			colName, ok := p.parseIdentifier()
-			if !ok {
-				return nil, p.unexpectedToken()
-			}
-			return &nodes.String{Str: colName}, nil
+			return p.parseInsertColumnName()
 		})
 		if err != nil {
 			return nil, err

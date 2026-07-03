@@ -2,6 +2,9 @@
 package parser
 
 import (
+	"fmt"
+	"strings"
+
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
@@ -443,9 +446,26 @@ func (p *Parser) parseSetClause() (*nodes.SetExpr, error) {
 	return se, nil
 }
 
-// parseSetTarget parses the left side of a SET assignment (qualified column name).
+// parseSetTarget parses the left side of a SET assignment (qualified column
+// name). Bare known pseudo-columns are accepted like the engine does —
+// mutability and context are binding-time errors there (UPDATE e SET
+// $from_id = ... is Msg 271, SET $identity is Msg 8102), while unknown $foo
+// is Msg 126. The table-qualified form (e.$from_id) is a syntax error in the
+// engine (Msg 102) and stays rejected.
 func (p *Parser) parseSetTarget() (*nodes.ColumnRef, error) {
 	loc := p.pos()
+
+	if p.cur.Type == tokPSEUDOCOL {
+		if !knownPseudoColumns[strings.ToLower(p.cur.Str)] {
+			return nil, p.newParseError(p.cur.Loc, fmt.Sprintf("invalid pseudocolumn %q", p.cur.Str))
+		}
+		ref := &nodes.ColumnRef{
+			Column: p.cur.Str,
+			Loc:    nodes.Loc{Start: loc, End: p.cur.End},
+		}
+		p.advance()
+		return ref, nil
+	}
 
 	name, ok := p.parseIdentifier()
 	if !ok {
