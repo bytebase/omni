@@ -253,6 +253,13 @@ func inferViewExprNullable(expr nodes.ExprNode, relations map[string]viewRelatio
 		return inferViewExprNullable(e.Left, relations) || inferViewExprNullable(e.Right, relations)
 	case *nodes.UnaryExpr:
 		return inferViewExprNullable(e.Operand, relations)
+	case *nodes.WeightStringExpr:
+		// Propagate like the plain WEIGHT_STRING(expr) function-call path.
+		return inferViewExprNullable(e.Expr, relations)
+	case *nodes.ExtractExpr:
+		return inferViewExprNullable(e.Expr, relations)
+	case *nodes.IntervalExpr:
+		return inferViewExprNullable(e.Value, relations)
 	case *nodes.NullLit:
 		return true
 	default:

@@ -1940,6 +1940,16 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 	case *nodes.IntervalExpr:
 		// Oracle 8.0.32 stored form: ((`a` + interval 1 day)).
 		return "interval " + nodeToSQLGenerated(n.Value, charset) + " " + strings.ToLower(n.Unit)
+	case *nodes.CastExpr:
+		// Oracle 8.0.32 stored forms: cast(`a` as char(4) charset latin1),
+		// cast(`s` as signed), and the WEIGHT_STRING(... AS BINARY(n))
+		// desugar weight_string(cast(`s` as char(4) charset binary)).
+		result := "cast(" + nodeToSQLGenerated(n.Expr, charset) + " as " + castTypeToSQLGenerated(n.TypeName)
+		if n.Array {
+			// Multi-valued index form: stored with a lowercase trailing array.
+			result += " array"
+		}
+		return result + ")"
 	case *nodes.WeightStringExpr:
 		// Oracle 8.0.32 stored form: weight_string(`s` as char(4)).
 		var b strings.Builder
@@ -1988,6 +1998,38 @@ func nodeToSQLGenerated(node nodes.ExprNode, charset string) string {
 	default:
 		return "(?)"
 	}
+}
+
+// castTypeToSQLGenerated renders a CAST target type in the form SHOW CREATE
+// TABLE stores inside generated-column expressions (oracle 8.0.32 + 5.7.25):
+// lowercase names, length/precision kept, and the charset attribute rendered
+// only when the parsed type carries one — readbacks always do for CHAR
+// (cast(`a` as char(4) charset latin1)); a user form without a charset is
+// rendered as written.
+func castTypeToSQLGenerated(dt *nodes.DataType) string {
+	if dt == nil {
+		return ""
+	}
+	name := strings.ToLower(dt.Name)
+	result := name
+	switch name {
+	case "decimal":
+		if dt.Length > 0 || dt.Scale > 0 {
+			result += fmt.Sprintf("(%d,%d)", dt.Length, dt.Scale)
+		}
+	case "datetime", "time":
+		if dt.Length > 0 {
+			result += fmt.Sprintf("(%d)", dt.Length)
+		}
+	default:
+		if dt.Length > 0 {
+			result += fmt.Sprintf("(%d)", dt.Length)
+		}
+	}
+	if dt.Charset != "" {
+		result += " charset " + strings.ToLower(dt.Charset)
+	}
+	return result
 }
 
 func nodeToSQL(node nodes.ExprNode) string {

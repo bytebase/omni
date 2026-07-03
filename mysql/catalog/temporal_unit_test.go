@@ -177,7 +177,10 @@ func TestTemporalUnitGeneratedColumnRoundTrip(t *testing.T) {
 		"  `c2` int GENERATED ALWAYS AS (extract(day_hour from `a`)) VIRTUAL,\n" +
 		"  `c3` datetime GENERATED ALWAYS AS ((`a` + interval 1 day)) VIRTUAL,\n" +
 		"  `c4` int GENERATED ALWAYS AS (abs(-(5))) VIRTUAL,\n" +
-		"  `c5` varbinary(16) GENERATED ALWAYS AS (weight_string(`s` as char(4))) VIRTUAL\n" +
+		"  `c5` varbinary(16) GENERATED ALWAYS AS (weight_string(`s` as char(4))) VIRTUAL,\n" +
+		"  `c6` varbinary(16) GENERATED ALWAYS AS (weight_string(cast(`s` as char(4) charset binary))) VIRTUAL,\n" +
+		"  `c7` char(4) GENERATED ALWAYS AS (cast(`a` as char(4) charset latin1)) VIRTUAL,\n" +
+		"  `c8` int GENERATED ALWAYS AS (cast(`s` as signed)) VIRTUAL\n" +
 		") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;\n"
 	cat, err := LoadSDL(sdl)
 	if err != nil {
@@ -201,11 +204,78 @@ func TestTemporalUnitGeneratedColumnRoundTrip(t *testing.T) {
 		"((`a` + interval 1 day))",
 		"(abs(-(5)))",
 		"(weight_string(`s` as char(4)))",
+		"(weight_string(cast(`s` as char(4) charset binary)))",
+		"(cast(`a` as char(4) charset latin1))",
+		"(cast(`s` as signed))",
 		"((timestampdiff(SECOND,`a`,`b`)))",
 	} {
 		if !strings.Contains(sql, want) {
 			t.Errorf("generated plan missing the engine-stored fragment %q:\n%s", want, sql)
 		}
+	}
+}
+
+// View-column nullability must propagate through the new expression nodes the
+// same way it does through the plain function-call path: WEIGHT_STRING(nc AS
+// CHAR(4)) over a nullable column is a nullable view column (oracle 8.0.32:
+// IS_NULLABLE=YES). (The engine additionally reports YES for most functions
+// even over NOT NULL columns — upper(nn) included — a long-standing,
+// platform-wide inference divergence that predates these nodes.)
+func TestTemporalUnitViewColumnNullability(t *testing.T) {
+	sdl := "CREATE DATABASE d;\nUSE d;\n" +
+		"CREATE TABLE `t` (`nc` varchar(10) DEFAULT NULL, `nn` varchar(10) NOT NULL, `dt` datetime DEFAULT NULL);\n" +
+		"CREATE VIEW `v` AS select weight_string(`nc` as char(4)) AS `w1`, weight_string(`nn` as char(4)) AS `w2`, extract(day from `dt`) AS `e1`, (`dt` + interval 1 day) AS `i1` from `t`;\n"
+	cat, err := LoadSDL(sdl)
+	if err != nil {
+		t.Fatalf("LoadSDL failed: %v", err)
+	}
+	v := cat.GetDatabase("d").Views["v"]
+	if v == nil {
+		t.Fatal("view not loaded")
+	}
+	want := map[string]bool{
+		"w1": true,  // nullable column through WEIGHT_STRING AS CHAR
+		"w2": false, // arg-propagation parity with the plain function path
+		"e1": true,  // nullable column through EXTRACT
+		"i1": true,  // nullable column through INTERVAL arithmetic
+	}
+	seen := 0
+	for _, col := range v.ColumnMetadata {
+		expect, ok := want[col.Name]
+		if !ok {
+			continue
+		}
+		seen++
+		if col.Nullable != expect {
+			t.Errorf("view column %s: Nullable = %v, want %v", col.Name, col.Nullable, expect)
+		}
+	}
+	if seen != len(want) {
+		t.Errorf("only %d of %d expected view columns had metadata", seen, len(want))
+	}
+}
+
+// Functional-index validation must see through the new expression nodes: the
+// engine rejects a nondeterministic function anywhere in the index expression
+// with error 3758 (oracle 8.0.32), including wrapped in WEIGHT_STRING/EXTRACT/
+// INTERVAL forms, while the deterministic column-based forms are accepted.
+func TestTemporalUnitFunctionalIndexValidation(t *testing.T) {
+	hdr := "CREATE DATABASE d;\nUSE d;\n"
+	rejected := []struct{ id, ddl string }{
+		{"weight-string-now", hdr + "CREATE TABLE t (s VARCHAR(10), KEY ((weight_string(now() as char(4)))));"},
+		{"extract-now", hdr + "CREATE TABLE t (a DATETIME, KEY ((extract(day from now()))));"},
+		{"interval-now", hdr + "CREATE TABLE t (a DATETIME, KEY ((a + interval (day(now())) day)));"},
+	}
+	for _, tc := range rejected {
+		t.Run(tc.id, func(t *testing.T) {
+			if _, err := LoadSDL(tc.ddl); err == nil {
+				t.Errorf("expected functional-index rejection (engine: error 3758), got success")
+			}
+		})
+	}
+	// extract over a column is deterministic and accepted by the engine.
+	if _, err := LoadSDL(hdr + "CREATE TABLE t (a DATETIME, KEY ((extract(day from a))));"); err != nil {
+		t.Errorf("extract-over-column functional index should load (engine accepts): %v", err)
 	}
 }
 
