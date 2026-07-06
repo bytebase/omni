@@ -2406,6 +2406,11 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Invisible:                    srcCol.Invisible,
 			GeneratedInvisiblePrimaryKey: srcCol.GeneratedInvisiblePrimaryKey,
 			Hidden:                       srcCol.Hidden,
+			// SRID copied by presence: MySQL's CREATE TABLE ... LIKE preserves the source
+			// column's SRID clause (incl. an explicit `SRID 0`), so the cloned column must
+			// carry both the value and its presence flag, not silently drop to no-SRID.
+			SRID:    srcCol.SRID,
+			HasSRID: srcCol.HasSRID,
 		}
 		if srcCol.Default != nil {
 			def := *srcCol.Default

@@ -67,6 +67,88 @@ func sridIdempotenceProbes() []diffProbe {
 	}
 }
 
+// TestOracle_SRIDPresenceCreateTableLike proves the CREATE TABLE ... LIKE clone path copies
+// the source column's SRID presence. MySQL's LIKE preserves the SRID clause (verified live:
+// a clone of a `SRID 0` column keeps `/*!80003 SRID 0 */`), so the omni loader's
+// createTableLike must copy SRID + HasSRID onto the cloned column — otherwise the clone loads
+// as no-SRID and its canonical form disagrees with the engine's readback of the clone.
+//
+// This uses a focused assertion (not the shared assertDiffEmptyAgainstReadback) because the
+// user-form SDL declares TWO tables (the source + the LIKE clone) while the readback is of
+// the clone alone; comparing the clone's column `g` canonical key against the engine's
+// readback of `g` isolates the SRID-copy behavior without a spurious whole-table diff on the
+// source table.
+func TestOracle_SRIDPresenceCreateTableLike(t *testing.T) {
+	if testing.Short() {
+		t.Skip("oracle test skipped in short mode")
+	}
+	cases := []struct {
+		id     string
+		src    string // the source-table DDL (defines column g)
+		srsID  string // information_schema SRS_ID we expect on the clone's g ("" = NULL/absent)
+		expSQL string // substring the clone's g must render as ("" = no SRID clause)
+	}{
+		{"clone-srid-zero", "CREATE TABLE src (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0)", "0", "/*!80003 SRID 0 */"},
+		{"clone-srid-4326", "CREATE TABLE src (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 4326)", "4326", "/*!80003 SRID 4326 */"},
+		{"clone-srid-none", "CREATE TABLE src (id INT PRIMARY KEY, g GEOMETRY NOT NULL)", "", ""},
+	}
+	for _, version := range only(MySQL80) {
+		o := connectOracle(t, version)
+		sc := serverCharsetFor(o.version)
+		n := NormalizerFor(o.version)
+		for _, c := range cases {
+			t.Run(o.name+"/"+c.id, func(t *testing.T) {
+				// Apply source + LIKE clone on the engine, read back the CLONE.
+				createBoth := c.src + ";\nCREATE TABLE clone LIKE src"
+				rbClone, ok := o.showCreate(t, "srid_like_"+strings.ReplaceAll(c.id, "-", "_"), createBoth, "clone")
+				if !ok {
+					t.Skipf("[%s] could not obtain clone readback", o.name)
+				}
+				// User side: load the two-statement SDL and pull the clone's column g (this
+				// exercises the omni loader's createTableLike). Stored side: load the engine's
+				// readback of the clone.
+				wrappedUser := fmt.Sprintf("CREATE DATABASE ld DEFAULT CHARSET=%s;\nUSE ld;\n%s", sc, createBoth)
+				userCat, err := LoadSQL(wrappedUser)
+				if err != nil {
+					t.Fatalf("[%s] LoadSQL of source+LIKE failed: %v", o.name, err)
+				}
+				var userTbl *Table
+				for _, db := range userCat.Databases() {
+					if tt := db.GetTable("clone"); tt != nil {
+						userTbl = tt
+						break
+					}
+				}
+				if userTbl == nil {
+					t.Fatalf("[%s] clone table not found after LoadSQL", o.name)
+				}
+				userCol := userTbl.GetColumn("g")
+				storTbl, storCol := loadColumn(t, sc, rbClone, "clone", "g")
+				if userCol == nil || storCol == nil {
+					t.Fatalf("[%s] column g missing (user=%v stored=%v)", o.name, userCol != nil, storCol != nil)
+				}
+
+				// The clone's g must carry the same SRID presence as the engine stores.
+				if userCol.HasSRID != (c.srsID != "") {
+					t.Errorf("[%s] %s: clone g HasSRID=%v, want %v (engine SRS_ID=%q)", o.name, c.id, userCol.HasSRID, c.srsID != "", c.srsID)
+				}
+				// Canonical keys of the user-loaded clone column and the engine readback must match.
+				if uk, sk := n.CanonicalColumn(userTbl, userCol), n.CanonicalColumn(storTbl, storCol); uk != sk {
+					t.Errorf("[%s] %s: clone g phantom-diffs vs engine readback:\n  user:  %s\n  store: %s", o.name, c.id, uk, sk)
+				}
+				// The rendered column definition must (or must not) carry the SRID clause.
+				got := showColumnWithTable(userCol, userTbl)
+				if c.expSQL != "" && !strings.Contains(got, c.expSQL) {
+					t.Errorf("[%s] %s: clone g render %q must contain %q", o.name, c.id, got, c.expSQL)
+				}
+				if c.expSQL == "" && strings.Contains(got, "SRID") {
+					t.Errorf("[%s] %s: clone g render %q must NOT contain a SRID clause", o.name, c.id, got)
+				}
+			})
+		}
+	}
+}
+
 // TestOracle_SRIDPresenceIdempotence proves gate 1 for every SRID form: user DDL vs its
 // engine readback diffs EMPTY, and the stored form self-diffs empty and self-plans empty,
 // on MySQL 8.0.
