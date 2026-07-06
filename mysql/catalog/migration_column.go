@@ -273,8 +273,10 @@ func formatColumnDefinition(tbl *Table, c *Column, n *Normalizer) string {
 		b.WriteString(" NULL")
 	}
 
-	// SRID (spatial) — MySQL places it after NOT NULL, before DEFAULT.
-	if c.SRID != 0 {
+	// SRID (spatial) — MySQL places it after NOT NULL, before DEFAULT. Emit on PRESENCE so
+	// an explicit `SRID 0` round-trips (SHOW CREATE echoes `/*!80003 SRID 0 */`); a no-SRID
+	// column leaves HasSRID false and emits nothing.
+	if c.HasSRID {
 		fmt.Fprintf(&b, " /*!80003 SRID %d */", c.SRID)
 	}
 

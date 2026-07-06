@@ -236,9 +236,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 			applyBinaryModifierCollation(col, colDef.TypeName)
 		}
 
-		// Top-level column properties.
-		if colDef.TypeName != nil && colDef.TypeName.SRID != 0 {
+		// Top-level column properties. Copy SRID by PRESENCE (HasSRID), not by a nonzero
+		// value: MySQL keeps `SRID 0` as a distinct, present clause, so a `SRID 0` column
+		// (SRID==0, HasSRID==true) must not be mistaken for a no-SRID column.
+		if colDef.TypeName != nil && colDef.TypeName.HasSRID {
 			col.SRID = colDef.TypeName.SRID
+			col.HasSRID = true
 		}
 		if colDef.AutoIncrement {
 			col.AutoIncrement = true
@@ -2403,6 +2406,11 @@ func (c *Catalog) createTableLike(db *Database, tableName, key string, stmt *nod
 			Invisible:                    srcCol.Invisible,
 			GeneratedInvisiblePrimaryKey: srcCol.GeneratedInvisiblePrimaryKey,
 			Hidden:                       srcCol.Hidden,
+			// SRID copied by presence: MySQL's CREATE TABLE ... LIKE preserves the source
+			// column's SRID clause (incl. an explicit `SRID 0`), so the cloned column must
+			// carry both the value and its presence flag, not silently drop to no-SRID.
+			SRID:    srcCol.SRID,
+			HasSRID: srcCol.HasSRID,
 		}
 		if srcCol.Default != nil {
 			def := *srcCol.Default

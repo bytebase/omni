@@ -107,9 +107,15 @@ type Column struct {
 	Invisible                    bool
 	GeneratedInvisiblePrimaryKey bool // true for MySQL-generated my_row_id GIPK
 	Hidden                       ColumnHiddenKind
-	SRID                         int          // Spatial Reference ID (0 = not set)
-	DefaultAnalyzed              AnalyzedExpr // Phase 3: analyzed DEFAULT expression
-	GeneratedAnalyzed            AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
+	SRID                         int // Spatial Reference ID (valid only when HasSRID)
+	// HasSRID records whether the column carries an explicit spatial SRID clause. MySQL
+	// treats `SRID 0` as present-and-distinct from a column with no SRID clause (SHOW
+	// CREATE echoes `/*!80003 SRID 0 */`; ST_GEOMETRY_COLUMNS.SRS_ID is 0 vs NULL), so
+	// presence cannot be derived from SRID != 0. Emit and diff gate on HasSRID; a
+	// non-spatial column leaves it false.
+	HasSRID           bool
+	DefaultAnalyzed   AnalyzedExpr // Phase 3: analyzed DEFAULT expression
+	GeneratedAnalyzed AnalyzedExpr // Phase 3: analyzed GENERATED ALWAYS AS expression
 }
 
 type ColumnDefaultKind int
