@@ -255,8 +255,10 @@ func showColumnWithTable(col *Column, tbl *Table) string {
 		b.WriteString(" NULL")
 	}
 
-	// SRID for spatial types — MySQL 8.0 places it after NOT NULL, before DEFAULT.
-	if col.SRID != 0 {
+	// SRID for spatial types — MySQL 8.0 places it after NOT NULL, before DEFAULT. Emit on
+	// PRESENCE so an explicit `SRID 0` round-trips (SHOW CREATE echoes `/*!80003 SRID 0 */`);
+	// a no-SRID column leaves HasSRID false and emits nothing.
+	if col.HasSRID {
 		b.WriteString(fmt.Sprintf(" /*!80003 SRID %d */", col.SRID))
 	}
 

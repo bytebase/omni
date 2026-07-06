@@ -592,13 +592,16 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		return true, nil
 	}
 
-	// SRID column option (now lexes as kwSRID keyword token)
+	// SRID column option (now lexes as kwSRID keyword token). Record presence even for
+	// `SRID 0`: MySQL keeps `SRID 0` as a distinct, present clause (SHOW CREATE echoes it),
+	// so HasSRID — not SRID != 0 — is what downstream emit/diff must gate on.
 	if p.cur.Type == kwSRID {
 		p.advance()
 		if p.cur.Type != tokICONST {
 			return false, nil
 		}
 		col.TypeName.SRID = int(p.cur.Ival)
+		col.TypeName.HasSRID = true
 		p.advance()
 		return true, nil
 	}

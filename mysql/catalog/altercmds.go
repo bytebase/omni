@@ -948,6 +948,12 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	if colDef.Comment != "" {
 		col.Comment = colDef.Comment
 	}
+	// SRID, copied by PRESENCE (HasSRID) so an explicit `SRID 0` on an ALTER ADD/MODIFY
+	// COLUMN is preserved and distinct from a no-SRID column (mirrors tablecmds.go).
+	if colDef.TypeName != nil && colDef.TypeName.HasSRID {
+		col.SRID = colDef.TypeName.SRID
+		col.HasSRID = true
+	}
 	if colDef.DefaultValue != nil {
 		setColumnDefaultFromExpr(col, colDef.DefaultValue)
 	}

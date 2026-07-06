@@ -1408,6 +1408,20 @@ func (n *Normalizer) CanonicalColumn(table *Table, c *Column) string {
 	return n.canonicalColumn(table, c, false)
 }
 
+// canonicalSRID keys a column's spatial SRID by PRESENCE, not by value. MySQL treats an
+// explicit `SRID 0` as present-and-distinct from a column with no SRID clause (SHOW CREATE
+// echoes `/*!80003 SRID 0 */`; ST_GEOMETRY_COLUMNS.SRS_ID is 0 vs NULL). Keying on the raw
+// int would collapse `SRID 0` and no-SRID onto the same "0" — making an add/remove of an
+// explicit `SRID 0` an invisible no-op. The absent case uses a sentinel ("-") that no
+// present value can produce (a present SRID renders as a non-negative decimal), so present
+// and absent never share a key.
+func canonicalSRID(c *Column) string {
+	if !c.HasSRID {
+		return "-"
+	}
+	return strconv.Itoa(c.SRID)
+}
+
 // canonicalColumn builds the aggregate key; with stripCastCS it strips the
 // cast charset attributes from the two expression-bearing fields (generated
 // expression and expression default) — the wildcard half of the cast-charset
@@ -1443,7 +1457,7 @@ func (n *Normalizer) canonicalColumn(table *Table, c *Column, stripCastCS bool) 
 		"gen", gen,
 		"stored", stored,
 		"invisible", strconv.FormatBool(c.Invisible),
-		"srid", strconv.Itoa(c.SRID),
+		"srid", canonicalSRID(c),
 	)
 }
 

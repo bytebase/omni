@@ -2837,6 +2837,11 @@ func writeDataType(sb *strings.Builder, n *DataType) {
 	if n.ArrayDim > 0 {
 		fmt.Fprintf(sb, " :array_dim %d", n.ArrayDim)
 	}
+	// Dump the SRID clause on presence, not on a nonzero value — `SRID 0` is a distinct,
+	// present clause and must be visible in the AST dump (and separable from no-SRID).
+	if n.HasSRID {
+		fmt.Fprintf(sb, " :srid %d", n.SRID)
+	}
 	sb.WriteString("}")
 }
 
