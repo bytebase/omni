@@ -59,7 +59,11 @@ type Row struct {
 // classify computes the row class. Ground truth precedence: container
 // adjudication beats the upstream label; label-vs-container disagreement is
 // INDETERMINATE (extraction bug / stale label / context loss), per design §2.
+// Idempotent: rows are re-classified after container adjudication, so fields
+// derived here are reset up front rather than left over from the prior pass.
 func classify(r *Row) {
+	r.ClassifierReason = ""
+	r.DivergenceKey = ""
 	truth := r.Expected
 	if r.EngineVerdict != VerdictNone {
 		if r.Expected != VerdictNone && r.Expected != r.EngineVerdict {
@@ -68,6 +72,13 @@ func classify(r *Row) {
 			return
 		}
 		truth = r.EngineVerdict
+	}
+	if r.OmniVerdict == VerdictNone {
+		// Defensive: an unparsed row must never count toward OVER, a reported
+		// metric.
+		r.Class = ClassIndeterminate
+		r.ClassifierReason = "no_omni_verdict"
+		return
 	}
 	switch {
 	case truth == VerdictNone:
@@ -130,14 +141,22 @@ func classifyFamily(sql string) string {
 }
 
 var (
-	numRe    = regexp.MustCompile(`\d+`)
+	numRe = regexp.MustCompile(`\d+`)
+	// quotedRe is deliberately coarse: a prose apostrophe (MySQL's "You
+	// can't specify...") opens a quote span and swallows text up to the next
+	// one. Acceptable for clustering; the JSONL keeps the raw message.
 	quotedRe = regexp.MustCompile("(`[^`]*`|'[^']*'|\"[^\"]*\")")
 	spaceRe  = regexp.MustCompile(`\s+`)
 )
 
 // clusterKey normalizes an error message so one grammar divergence maps to
-// one cluster: strips positions, numbers, and quoted identifiers.
+// one cluster: strips positions, numbers, and quoted identifiers. Only the
+// first line contributes — omni's Parse errors append "\nrelated text: <raw
+// source line>", which would otherwise leave one cluster per statement.
 func clusterKey(msg string) string {
+	if i := strings.IndexByte(msg, '\n'); i >= 0 {
+		msg = msg[:i]
+	}
 	m := quotedRe.ReplaceAllString(msg, "?")
 	m = numRe.ReplaceAllString(m, "N")
 	m = spaceRe.ReplaceAllString(strings.TrimSpace(m), " ")
@@ -150,7 +169,8 @@ func leadingTokens(sql string, n int) string {
 	if len(fields) > n {
 		fields = fields[:n]
 	}
-	return strings.Join(fields, " ")
+	// Digits normalize away so t1/t2-style names share a key.
+	return numRe.ReplaceAllString(strings.Join(fields, " "), "N")
 }
 
 func stmtHash(sql string) string {

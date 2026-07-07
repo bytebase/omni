@@ -59,8 +59,20 @@ func TestClusterKey(t *testing.T) {
 	if got, want := clusterKey("unknown column `x1` in `t23`"), "unknown column ? in ?"; got != want {
 		t.Errorf("clusterKey backtick form = %q, want %q", got, want)
 	}
-	if got, want := clusterKey("  a  b\n\tc  "), "a b c"; got != want {
+	if got, want := clusterKey("  a  b\t c  "), "a b c"; got != want {
 		t.Errorf("clusterKey whitespace collapse = %q, want %q", got, want)
+	}
+
+	// omni's real Parse error format appends "\nrelated text: <raw source
+	// line>" (tidb/parser/parser.go); the related text never normalizes, so
+	// only the first line may contribute to the key.
+	a = clusterKey("syntax error at or near \"LIKEX\" (line 1, column 25)\nrelated text: SELECT 1 FROM t WHERE a LIKEX 'p'")
+	b = clusterKey("syntax error at or near \"LIKEX\" (line 1, column 26)\nrelated text: SELECT 2 FROM u WHERE zz LIKEX 'q'")
+	if a != b {
+		t.Errorf("multi-line cluster keys differ: %q vs %q", a, b)
+	}
+	if want := "syntax error at or near ? (line N, column N)"; a != want {
+		t.Errorf("multi-line clusterKey = %q, want %q", a, want)
 	}
 }
 
@@ -125,6 +137,16 @@ func TestClassify(t *testing.T) {
 			wantKey:   "BOGUS TOKEN",
 		},
 		{
+			name: "OVER leading-token key normalizes numbered identifiers",
+			row: Row{
+				SQL:         "ALTER TABLE t42 BOGUS x",
+				Expected:    VerdictReject,
+				OmniVerdict: VerdictAccept,
+			},
+			wantClass: ClassOver,
+			wantKey:   "ALTER TABLE TN BOGUS",
+		},
+		{
 			name: "adjudicated OVER upgrades the key to the engine message",
 			row: Row{
 				SQL:             "ALTER TABLE t BOGUS",
@@ -175,6 +197,12 @@ func TestClassify(t *testing.T) {
 			wantClass:  ClassIndeterminate,
 			wantReason: "no_ground_truth",
 		},
+		{
+			name:       "missing omni verdict is INDETERMINATE, not OVER",
+			row:        Row{SQL: "SELECT 1", Expected: VerdictReject},
+			wantClass:  ClassIndeterminate,
+			wantReason: "no_omni_verdict",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -190,5 +218,42 @@ func TestClassify(t *testing.T) {
 				t.Errorf("divergence key = %q, want %q", r.DivergenceKey, c.wantKey)
 			}
 		})
+	}
+}
+
+func TestClassify_Reclassification(t *testing.T) {
+	// Rows are re-classified after container adjudication; fields from the
+	// first pass must not leak into the second.
+	r := Row{SQL: "SELECT 1", OmniVerdict: VerdictReject, OmniError: "unexpected token FOO"}
+	classify(&r)
+	if r.Class != ClassIndeterminate || r.ClassifierReason != "no_ground_truth" {
+		t.Fatalf("first pass = %q/%q, want INDETERMINATE/no_ground_truth", r.Class, r.ClassifierReason)
+	}
+	r.EngineVerdict = VerdictAccept
+	classify(&r)
+	if r.Class != ClassGap {
+		t.Fatalf("second pass class = %q, want %q", r.Class, ClassGap)
+	}
+	if r.ClassifierReason != "" {
+		t.Errorf("stale classifier reason survived re-classification: %q", r.ClassifierReason)
+	}
+	if r.DivergenceKey != "unexpected token FOO" {
+		t.Errorf("divergence key = %q, want %q", r.DivergenceKey, "unexpected token FOO")
+	}
+
+	// The reverse leak: an OVER divergence key must clear when adjudication
+	// turns the row INDETERMINATE.
+	r2 := Row{SQL: "ALTER TABLE t BOGUS", Expected: VerdictReject, OmniVerdict: VerdictAccept}
+	classify(&r2)
+	if r2.Class != ClassOver || r2.DivergenceKey == "" {
+		t.Fatalf("first pass = %q key %q, want OVER with a key", r2.Class, r2.DivergenceKey)
+	}
+	r2.EngineVerdict = VerdictAccept
+	classify(&r2)
+	if r2.Class != ClassIndeterminate || r2.ClassifierReason != "label_container_disagree" {
+		t.Fatalf("second pass = %q/%q, want INDETERMINATE/label_container_disagree", r2.Class, r2.ClassifierReason)
+	}
+	if r2.DivergenceKey != "" {
+		t.Errorf("stale divergence key survived re-classification: %q", r2.DivergenceKey)
 	}
 }
