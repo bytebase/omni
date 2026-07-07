@@ -3,7 +3,7 @@
 | meta | value |
 |---|---|
 | engine_version | v8.5.5 |
-| omni_sha | 6f60bbbd477e900a3a747a07cc17483179691262 |
+| omni_sha | 0df0e512aeff928e4bb9526e2b004142bbcf61f0 |
 | corpus_tag | v8.5.5 |
 | container_digest | - |
 | classifier_version | 1 |
@@ -18,7 +18,8 @@
 | OVER | 159 |
 | INDETERMINATE | 0 |
 | SKIP | 1 |
-| duplicate_count | 57 |
+| duplicates_dropped | 57 |
+| duplicate_label_conflicts | 0 |
 | total | 3781 |
 
 GAP clusters: 71
@@ -49,7 +50,7 @@ Clusters are the work unit; statement counts are coverage context.
 | 16 | CREATE TABLE | 20 | syntax error at or near ? (line N, column N) | `CREATE TABLE t (a int) STATS_TOPN=1` | corpus/tidb/pkg/parser/parser_test.go:4057 |
 | 17 | CREATE TABLE | 19 | expected data type (line N, column N) | `CREATE TABLE t (a VECTOR)` | corpus/tidb/pkg/parser/parser_test.go:7688 |
 | 18 | LOAD | 17 | syntax error at or near ? (line N, column N) | `import into t from '/file.csv'` | corpus/tidb/pkg/parser/parser_test.go:781 |
-| 19 | EXPLAIN | 16 | expected identifier or keyword (line N, column N) | `EXPLAIN FORMAT = 'dot' SELECT 1` | corpus/tidb/pkg/parser/parser_test.go:5600 |
+| 19 | EXPLAIN | 16 | expected identifier or keyword (line N, column N) | `EXPLAIN FORMAT = 'ROW' SELECT 1` | corpus/tidb/pkg/parser/parser_test.go:5603 |
 | 20 | SELECT | 16 | expected identifier (line N, column N) | `select * from 1db.1table;` | corpus/tidb/pkg/parser/parser_test.go:1126 |
 | 21 | SET | 14 | unexpected token (line N, column N) | `SET SESSION_STATES 'x'` | corpus/tidb/pkg/parser/parser_test.go:1154 |
 | 22 | TXN | 13 | syntax error at or near ? (line N, column N) | `begin optimistic` | corpus/tidb/pkg/parser/parser_test.go:1099 |
@@ -67,7 +68,7 @@ Clusters are the work unit; statement counts are coverage context.
 | 34 | DROP | 5 | expected identifier (line N, column N) | `drop index if exists a on t` | corpus/tidb/pkg/parser/parser_test.go:3437 |
 | 35 | INSERT | 4 | expected identifier (line N, column N) | `INSERT INTO foo () VALUES ()` | corpus/tidb/pkg/parser/parser_test.go:595 |
 | 36 | SET | 4 | expected identifier (line N, column N) | `set names binary` | corpus/tidb/pkg/parser/parser_test.go:1405 |
-| 37 | ALTER TABLE | 3 | syntax error at end of input (line N, column N) | `alter table t reorganize partition;` | corpus/tidb/pkg/parser/parser_test.go:3338 |
+| 37 | ALTER TABLE | 3 | syntax error at end of input (line N, column N) | `ALTER TABLE employees ADD PARTITION` | corpus/tidb/pkg/parser/parser_test.go:3090 |
 | 38 | CREATE TABLE | 3 | expected CHAR or VARCHAR after NATIONAL (line N, column N) | `create table t (a national character);` | corpus/tidb/pkg/parser/parser_test.go:3591 |
 | 39 | CREATE TABLE | 3 | expected HASH, KEY, RANGE, or LIST after PARTITION BY (line N, column N) | `create table t1 (a int) partition by system_time (partition x history, partition y current)` | corpus/tidb/pkg/parser/parser_test.go:6391 |
 | 40 | CREATE VIEW | 3 | expected SELECT or ? (line N, column N) | `CREATE VIEW v AS TABLE t` | corpus/tidb/pkg/parser/parser_test.go:666 |
@@ -117,7 +118,7 @@ Clusters are the work unit; statement counts are coverage context.
 | 8 | ALTER TABLE | 2 | ALTER TABLE T PARTITION | `alter table t partition by range(a)` | corpus/tidb/pkg/parser/parser_test.go:3309 |
 | 9 | CREATE INDEX | 2 | CREATE INDEX IDX ON | `CREATE INDEX idx ON t ( a ) ALGORITHM ident` | corpus/tidb/pkg/parser/parser_test.go:3431 |
 | 10 | CREATE TABLE | 2 | CREATE TABLE T (C | `create table t (c int) comment comment` | corpus/tidb/pkg/parser/parser_test.go:5155 |
-| 11 | CREATE TABLE | 2 | CREATE TABLE T (CN | `CREATE TABLE t  (c1 integer ,c2 integer) PARTITION BY LINEAR KEY ALGORITHM = 3 (c1,c2) PARTITIONS 4` | corpus/tidb/pkg/parser/parser_test.go:7216 |
+| 11 | CREATE TABLE | 2 | CREATE TABLE T (CN | `CREATE TABLE t  (c1 integer ,c2 integer) PARTITION BY LINEAR KEY ALGORITHM = 0 (c1,c2) PARTITIONS 4` | corpus/tidb/pkg/parser/parser_test.go:7215 |
 | 12 | DELETE | 2 | DELETE TN, TN FROM | `DELETE t1, t2 FROM t1 INNER JOIN t2 INNER JOIN t3 WHERE t1.id=t2.id AND t2.id=t3.id limit 10;` | corpus/tidb/pkg/parser/parser_test.go:907 |
 | 13 | LOAD | 2 | LOAD DATA INFILE '/TMP/T.CSV' | `load data infile '/tmp/t.csv' into table t fields escaped by 'aa'` | corpus/tidb/pkg/parser/parser_test.go:756 |
 | 14 | SELECT | 2 | SELECT * FROM TN | `select * from t1 right join t2 using (id) left join t3` | corpus/tidb/pkg/parser/parser_test.go:833 |
