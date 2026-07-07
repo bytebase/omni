@@ -66,11 +66,17 @@ func extractTiDBFile(path string) ([]CorpusEntry, error) {
 				return true
 			}
 			for _, elt := range cl.Elts {
-				e, ok := elt.(*ast.CompositeLit)
-				if !ok {
-					continue
+				var entry CorpusEntry
+				if e, ok := elt.(*ast.CompositeLit); ok {
+					entry = parseTestCaseLit(e, fset)
+				} else {
+					// Zero-loss invariant: every slice element yields an entry
+					// with provenance, even ones we can't read statically.
+					entry = CorpusEntry{
+						Line:       fset.Position(elt.Pos()).Line,
+						SkipReason: "non_composite_element",
+					}
 				}
-				entry := parseTestCaseLit(e, fset)
 				entry.SourcePath = relCorpusPath(path)
 				entry.TestName = fn.Name.Name
 				out = append(out, entry)
@@ -81,7 +87,10 @@ func extractTiDBFile(path string) ([]CorpusEntry, error) {
 	return out, nil
 }
 
-// isTestCaseSlice matches []testCase{...} composite literals.
+// isTestCaseSlice matches []testCase{...} composite literals. Purely
+// syntactic: it matches the type identifier by name with no type resolution —
+// correct while the corpus package declares a single testCase type; re-verify
+// that assumption before reusing this for another engine's corpus.
 func isTestCaseSlice(cl *ast.CompositeLit) bool {
 	arr, ok := cl.Type.(*ast.ArrayType)
 	if !ok {

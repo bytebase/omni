@@ -17,6 +17,20 @@ func TestDMLStmt(t *testing.T) {
 		{buildSQL(), true, ""},
 		// concatenated literals must be joined
 		{"SELECT " + "1 + 1", true, ""},
+		// escape sequences must resolve to exact bytes
+		{"SELECT 'a\r\nb' WHERE x = \"q\"", true, ""},
+		// multi-line raw strings keep interior newlines
+		{`CREATE TABLE t (
+	a INT
+)`, true, ""},
+	}
+	RunTest(t, table, false)
+}
+
+func TestNonCompositeElement(t *testing.T) {
+	table := []testCase{
+		{"SELECT 2", true, "SELECT 2"},
+		someVar,
 	}
 	RunTest(t, table, false)
 }

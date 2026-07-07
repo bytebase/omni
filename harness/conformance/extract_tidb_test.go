@@ -18,12 +18,13 @@ func TestExtractTiDBFixture(t *testing.T) {
 			rejects++
 		}
 	}
-	if accepts != 4 || rejects != 1 || skips != 1 {
-		t.Fatalf("got accepts=%d rejects=%d skips=%d, want 4/1/1", accepts, rejects, skips)
+	if accepts != 7 || rejects != 1 || skips != 2 {
+		t.Fatalf("got accepts=%d rejects=%d skips=%d, want 7/1/2", accepts, rejects, skips)
 	}
+	// Every entry — skips included — must carry test-function provenance.
 	for _, e := range entries {
-		if e.SkipReason == "" && e.TestName != "TestDMLStmt" {
-			t.Errorf("test name = %q, want TestDMLStmt", e.TestName)
+		if e.TestName != "TestDMLStmt" && e.TestName != "TestNonCompositeElement" {
+			t.Errorf("test name = %q, want TestDMLStmt or TestNonCompositeElement", e.TestName)
 		}
 	}
 }
@@ -35,8 +36,8 @@ func TestExtractTiDBFixtureEntries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 6 {
-		t.Fatalf("got %d entries, want 6", len(entries))
+	if len(entries) != 10 {
+		t.Fatalf("got %d entries, want 10", len(entries))
 	}
 	want := []struct {
 		sql        string
@@ -50,6 +51,12 @@ func TestExtractTiDBFixtureEntries(t *testing.T) {
 		{"DELETE FROM t", VerdictAccept, 15, ""}, // keyed form
 		{"", VerdictNone, 17, "non_literal"},     // buildSQL() call
 		{"SELECT 1 + 1", VerdictAccept, 19, ""},  // "a" + "b" concatenation
+		// exact bytes: \r\n escapes and escaped quotes resolve
+		{"SELECT 'a\r\nb' WHERE x = \"q\"", VerdictAccept, 21, ""},
+		// exact bytes: multi-line raw string keeps interior newlines
+		{"CREATE TABLE t (\n\ta INT\n)", VerdictAccept, 23, ""},
+		{"SELECT 2", VerdictAccept, 32, ""},            // second table
+		{"", VerdictNone, 33, "non_composite_element"}, // bare identifier element
 	}
 	for i, w := range want {
 		e := entries[i]
