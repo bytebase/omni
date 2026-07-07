@@ -76,7 +76,9 @@ func routineOps(e *RoutineDiffEntry, n *Normalizer) []MigrationOp {
 		if e.To == nil {
 			return nil
 		}
-		return []MigrationOp{createRoutineOp(e, e.To, n)}
+		// A brand-new routine emits a BARE CREATE (→ server-default session): there is no
+		// original context to preserve (nil framing source).
+		return []MigrationOp{createRoutineOp(e, e.To, nil, n)}
 	case DiffDrop:
 		if e.From == nil {
 			return nil
@@ -90,22 +92,41 @@ func routineOps(e *RoutineDiffEntry, n *Normalizer) []MigrationOp {
 			return []MigrationOp{alterRoutineOp(e, e.To)}
 		}
 		// Body/params/RETURNS/DETERMINISTIC changed → DROP (PhasePre) then CREATE (PhaseMain).
-		return []MigrationOp{dropRoutineOp(e, e.From), createRoutineOp(e, e.To, n)}
+		// The recreate runs under the OLD routine's session context (e.From), so a routine
+		// authored under a non-default sql_mode/charset/collation is re-created identically.
+		return []MigrationOp{dropRoutineOp(e, e.From), createRoutineOp(e, e.To, e.From, n)}
 	}
 	return nil
 }
 
 // createRoutineOp builds a CREATE FUNCTION/PROCEDURE op (PhaseMain, priorityRoutine — before
-// view creates; see the file doc). The SQL is the DEFINER-less stored form.
-func createRoutineOp(e *RoutineDiffEntry, r *Routine, n *Normalizer) MigrationOp {
+// view creates; see the file doc). The SQL is the DEFINER-less stored form. When `from` is
+// non-nil AND carries synced session context, the emitted CREATE is wrapped in a save/restore
+// of that OLD context (renderWithSessionContext) so a recreate preserves the routine's
+// original sql_mode/charset/collation; on a first-time create `from` is nil → bare CREATE.
+func createRoutineOp(e *RoutineDiffEntry, r, from *Routine, n *Normalizer) MigrationOp {
+	sql := renderCreateRoutine(e.Database, r, n)
+	if from != nil && from.HasSessionContext {
+		sql = renderWithSessionContext(sql, routineSessionContext(from), false)
+	}
 	return MigrationOp{
 		Type:       createRoutineOpType(e.IsProcedure),
 		Database:   e.Database,
 		ObjectName: e.Name,
-		SQL:        renderCreateRoutine(e.Database, r, n),
+		SQL:        sql,
 		Phase:      PhaseMain,
 		Priority:   priorityRoutine,
 		sortName:   routineSortName(e.Database, e.Name),
+	}
+}
+
+// routineSessionContext bundles a routine's captured session context for the recreate
+// framing (routines have no time_zone axis).
+func routineSessionContext(r *Routine) SessionContext {
+	return SessionContext{
+		SQLMode:             r.SQLMode,
+		CharacterSetClient:  r.CharacterSetClient,
+		CollationConnection: r.CollationConnection,
 	}
 }
 

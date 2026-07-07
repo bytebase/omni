@@ -172,6 +172,26 @@ type Routine struct {
 	Returns         string // return type string for functions (empty for procedures)
 	Body            string
 	Characteristics map[string]string // name -> value (DETERMINISTIC, COMMENT, etc.)
+
+	// Session context captured when the routine was created: sql_mode,
+	// character_set_client, collation_connection. These are NOT part of the routine's
+	// declarative identity — canonicalRoutine excludes them, so a mode-only difference
+	// never triggers a diff — and the SDL text never carries them. They are populated
+	// out-of-band via Catalog.ApplySessionContext from the synced metadata. On a
+	// DROP+CREATE recreate the generator wraps the emitted CREATE in a save/restore of
+	// these values (sourced from the OLD object) so the routine is re-created under its
+	// original session, matching mysqldump's framing. The database default collation is
+	// deliberately not carried — it is a schema property, not session-settable per-object
+	// (see session_context.go).
+	SQLMode             string
+	CharacterSetClient  string
+	CollationConnection string
+	// HasSessionContext records whether the fields above were populated from the synced
+	// metadata (via ApplySessionContext). It gates the recreate framing: an authored empty
+	// sql_mode ('') round-trips only when the context is known to be present, so the
+	// generator distinguishes "context applied, modes empty" (emit SET sql_mode='') from
+	// "no context" (bare CREATE).
+	HasSessionContext bool
 }
 
 // RoutineParam represents a parameter of a stored routine.
@@ -183,17 +203,31 @@ type RoutineParam struct {
 
 // Trigger represents a trigger in the catalog.
 type Trigger struct {
-	Name                string
-	Database            *Database
-	Table               string // table name the trigger is on
-	Timing              string // BEFORE, AFTER
-	Event               string // INSERT, UPDATE, DELETE
-	Definer             string
-	Body                string
+	Name     string
+	Database *Database
+	Table    string // table name the trigger is on
+	Timing   string // BEFORE, AFTER
+	Event    string // INSERT, UPDATE, DELETE
+	Definer  string
+	Body     string
+	// Session context. DatabaseCollation is snapshotted by createTrigger from the loading
+	// session's database (pre-existing; the database default collation is a schema property,
+	// not part of the recreate framing). SQLMode / CharacterSetClient / CollationConnection
+	// are populated out-of-band via Catalog.ApplySessionContext from the synced metadata (the
+	// SDL text carries no session context). None are part of the trigger's declarative
+	// identity — triggersChanged excludes them — but on a DROP+CREATE recreate the generator
+	// wraps the emitted CREATE in a save/restore of sql_mode/charset/collation sourced from
+	// the OLD trigger. See session_context.go.
+	SQLMode             string
 	CharacterSetClient  string
 	CollationConnection string
 	DatabaseCollation   string
-	Order               *TriggerOrderInfo
+	// HasSessionContext records whether the synced session context was populated (via
+	// ApplySessionContext); it gates the recreate framing. Note createTrigger always snapshots
+	// CharacterSetClient/CollationConnection at load, so the gate is on HasSessionContext, not
+	// on those fields being non-empty, to keep a trigger loaded without synced context bare.
+	HasSessionContext bool
+	Order             *TriggerOrderInfo
 }
 
 // TriggerOrderInfo represents FOLLOWS/PRECEDES ordering.
@@ -212,6 +246,25 @@ type Event struct {
 	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE, or "" (default ENABLE)
 	Comment      string
 	Body         string
+
+	// Session context captured when the event was created: sql_mode, character_set_client,
+	// collation_connection, and the session time_zone (events only). These are NOT part of
+	// the event's declarative identity — eventCanonicalKey excludes them — and the SDL text
+	// never carries them; they are populated out-of-band via Catalog.ApplySessionContext
+	// from the synced metadata. Both event emission paths preserve them: a DROP+CREATE
+	// recreate AND an ALTER EVENT … DO (which empirically re-stamps sql_mode/charset/
+	// collation) are wrapped in a save/restore sourced from the OLD event. time_zone is
+	// framed too (harmless on the ALTER path, which does not re-stamp it). The database
+	// default collation is deliberately not carried — it is a schema property, not
+	// session-settable per-object (see session_context.go).
+	SQLMode             string
+	CharacterSetClient  string
+	CollationConnection string
+	TimeZone            string
+	// HasSessionContext records whether the session context (including time_zone) was
+	// populated from the synced metadata (via ApplySessionContext); it gates the recreate/
+	// ALTER framing so an authored empty sql_mode ('') round-trips.
+	HasSessionContext bool
 }
 
 // cloneTable returns a deep copy of the table's mutable state.

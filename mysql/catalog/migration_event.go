@@ -42,6 +42,8 @@ func generateEventDDL(_, _ *Catalog, diff *SchemaDiff, _ *Normalizer) []Migratio
 		e := &diff.Events[i]
 		switch e.Action {
 		case DiffAdd:
+			// A brand-new event emits a BARE CREATE (→ server-default session): no original
+			// context to preserve.
 			ops = append(ops, MigrationOp{
 				Type:       OpCreateEvent,
 				Database:   e.Database,
@@ -57,7 +59,8 @@ func generateEventDDL(_, _ *Catalog, diff *SchemaDiff, _ *Normalizer) []Migratio
 				// case: 5.7's ALTER EVENT … ON SCHEDULE does NOT clear an existing ENDS — verified
 				// on live 5.7.25, where the old ENDS survives; 8.0.32 clears it). Fall back to
 				// DROP + CREATE, which is always correct: a PhasePre DROP removes the old event
-				// before the PhaseMain CREATE re-establishes the target with no ENDS.
+				// before the PhaseMain CREATE re-establishes the target with no ENDS. The recreate
+				// runs under the OLD event's session context (e.From), including its time_zone.
 				ops = append(ops,
 					MigrationOp{
 						Type:       OpDropEvent,
@@ -72,7 +75,7 @@ func generateEventDDL(_, _ *Catalog, diff *SchemaDiff, _ *Normalizer) []Migratio
 						Type:       OpCreateEvent,
 						Database:   e.Database,
 						ObjectName: e.Name,
-						SQL:        renderCreateEvent(e.To),
+						SQL:        renderCreateEventWithContext(e.To, e.From),
 						Phase:      PhaseMain,
 						Priority:   priorityEvent,
 						sortName:   eventSortName(e.Database, e.Name),
@@ -80,11 +83,15 @@ func generateEventDDL(_, _ *Catalog, diff *SchemaDiff, _ *Normalizer) []Migratio
 				)
 				continue
 			}
+			// ALTER EVENT … DO <body> RE-STAMPS the event's sql_mode / character_set_client /
+			// collation_connection from the executing session (verified on live 8.0.32 — a bare
+			// ALTER EVENT DO under a different session flips ROUTINES/EVENTS.SQL_MODE), so the
+			// ALTER must run under the OLD event's context too, not just the DROP+CREATE path.
 			ops = append(ops, MigrationOp{
 				Type:       OpCreateEvent, // forward (PhaseMain) op; SQL is ALTER EVENT (see file doc)
 				Database:   e.Database,
 				ObjectName: e.Name,
-				SQL:        renderAlterEvent(e.To),
+				SQL:        renderAlterEventWithContext(e.To, e.From),
 				Phase:      PhaseMain,
 				Priority:   priorityEvent,
 				sortName:   eventSortName(e.Database, e.Name),
@@ -149,6 +156,46 @@ func renderCreateEvent(e *Event) string {
 	b.WriteString(quoteIdent(e.Name))
 	writeEventBodyClauses(&b, e)
 	return b.String()
+}
+
+// renderCreateEventWithContext renders the target event's CREATE and, when the OLD event
+// (`from`) carries synced session context, wraps it in a save/restore of that context —
+// sql_mode, character_set_client, collation_connection, AND the session time_zone — so an
+// event re-created via DROP+CREATE keeps the schedule/behavior it had under its original
+// session (a non-UTC time_zone in particular changes how a literal schedule is
+// interpreted). Without synced context (`from` nil / unset) it is a bare CREATE.
+func renderCreateEventWithContext(to, from *Event) string {
+	return frameEventWithContext(renderCreateEvent(to), from)
+}
+
+// renderAlterEventWithContext renders the target event's ALTER and, when the OLD event
+// (`from`) carries synced session context, wraps it in the same save/restore. This is
+// REQUIRED, not cosmetic: ALTER EVENT … DO <body> re-stamps sql_mode/charset/collation from
+// the executing session (verified on live 8.0.32), so a bare ALTER under the deploy session
+// would rewrite the event's stored modes. time_zone is not re-stamped by ALTER, but framing
+// it is harmless and keeps the CREATE and ALTER paths uniform.
+func renderAlterEventWithContext(to, from *Event) string {
+	return frameEventWithContext(renderAlterEvent(to), from)
+}
+
+// frameEventWithContext wraps an event CREATE/ALTER statement in a save/restore of the OLD
+// event's session context when that context is present; otherwise returns the bare statement.
+func frameEventWithContext(stmtSQL string, from *Event) string {
+	if from != nil && from.HasSessionContext {
+		return renderWithSessionContext(stmtSQL, eventSessionContext(from), true)
+	}
+	return stmtSQL
+}
+
+// eventSessionContext bundles an event's captured session context for the framing, including
+// the event-only time_zone axis.
+func eventSessionContext(e *Event) SessionContext {
+	return SessionContext{
+		SQLMode:             e.SQLMode,
+		CharacterSetClient:  e.CharacterSetClient,
+		CollationConnection: e.CollationConnection,
+		TimeZone:            e.TimeZone,
+	}
 }
 
 // renderAlterEvent renders an ALTER EVENT that re-establishes every mutable aspect of the target
