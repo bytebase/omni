@@ -8,13 +8,16 @@ mkdir -p corpus
 
 TIDB_TAG="v8.5.5"
 
-if [ ! -d corpus/tidb ]; then
+if [ "$(git -C corpus/tidb describe --tags 2>/dev/null || true)" != "$TIDB_TAG" ] ||
+   [ ! -f corpus/tidb/pkg/parser/parser_test.go ]; then
+  rm -rf corpus/tidb
   git clone --depth 1 --branch "$TIDB_TAG" --filter=blob:none --sparse \
     https://github.com/pingcap/tidb.git corpus/tidb
   git -C corpus/tidb sparse-checkout set pkg/parser
 else
   echo "corpus/tidb already present ($(git -C corpus/tidb describe --tags))"
 fi
+echo "corpus/tidb at $(git -C corpus/tidb rev-parse HEAD)"
 
 echo "corpus ready:"
-ls corpus/tidb/pkg/parser/*_test.go | head
+ls corpus/tidb/pkg/parser/*_test.go
