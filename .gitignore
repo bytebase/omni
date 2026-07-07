@@ -36,3 +36,4 @@ Thumbs.db
 # Conformance harness runtime data (fetch-don't-vendor: corpora are upstream clones)
 harness/conformance/corpus/
 harness/conformance/out/
+harness/conformance/conformance
