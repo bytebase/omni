@@ -39,8 +39,11 @@ import (
 // (observed once in the v8.5.5 sweep: 1102 on an accept-labeled row). Such a
 // collision misreads runtime-reject as parse-reject, which classify() then
 // fails closed into INDETERMINATE label_container_disagree — a manual-queue
-// row, never a silently wrong class. Re-derive this set when the pinned
-// engine version changes.
+// row, never a silently wrong class. That net requires an upstream label:
+// a label-less row (H3-cleared duplicate_label_conflict) hitting such a
+// collision classifies from the container verdict alone and would land in
+// OVER/AGREE_REJECT silently. Re-derive this set when the pinned engine
+// version changes.
 var tidbParseRejectCodes = map[uint16]bool{
 	1064: true, 1149: true,
 	1083: true, 1102: true, 1115: true, 1210: true, 1221: true, 1273: true,
@@ -159,11 +162,9 @@ func applyContainerVerdict(r *Row, execErr error) (infra bool) {
 	return false
 }
 
-// adjudicateTiDB probes every non-agreeing row (GAP/OVER/INDETERMINATE)
-// against the live container and reclassifies with the container as ground
-// truth. Agreeing rows are left alone — label and omni concur; adjudicating
-// them would only re-derive the label. Returns the container image digest
-// (TIDB_CONTAINER_DIGEST, may be empty) for run meta.
+// adjudicateTiDB probes every non-agreeing row against the live container
+// and reclassifies with the container as ground truth. Returns the container
+// image digest (TIDB_CONTAINER_DIGEST, may be empty) for run meta.
 func adjudicateTiDB(rows []Row) (string, error) {
 	dsn := os.Getenv("TIDB_DSN")
 	if dsn == "" {
@@ -187,35 +188,58 @@ func adjudicateTiDB(rows []Row) (string, error) {
 		return "", fmt.Errorf("TiDB not reachable (is ./start_tidb.sh running?): %w", err)
 	}
 
-	var candidates []int
-	for i := range rows {
-		switch rows[i].Class {
-		case ClassGap, ClassOver, ClassIndeterminate:
-			candidates = append(candidates, i)
-		}
-	}
+	candidates := adjudicationCandidates(rows)
 	log.Printf("adjudicating %d rows against the container", len(candidates))
 	start := time.Now()
 	prevSQL := "(none)"
 	for n, i := range candidates {
+		if n > 0 && n%200 == 0 {
+			log.Printf("adjudicated %d/%d rows", n, len(candidates))
+		}
 		r := &rows[i]
-		if prepareAdjudication(r) {
-			_, execErr := db.Exec(r.SQL)
-			if infra := applyContainerVerdict(r, execErr); infra {
-				if pingErr := pingRetry(db); pingErr != nil {
-					return "", fmt.Errorf(
-						"container died after executing %q (%s:%d; previous statement %q) — extend the unsafe-statement list: %w",
-						r.SQL, r.SourcePath, r.Line, prevSQL, pingErr)
-				}
-			}
-			prevSQL = r.SQL
+		if !prepareAdjudication(r) {
+			continue // unsafe — never touches the container
 		}
-		if (n+1)%200 == 0 {
-			log.Printf("adjudicated %d/%d rows", n+1, len(candidates))
+		if err := probeRow(db, r, prevSQL); err != nil {
+			return "", err
 		}
+		prevSQL = r.SQL
 	}
 	log.Printf("adjudication complete: %d rows in %s", len(candidates), time.Since(start).Round(time.Second))
 	return os.Getenv("TIDB_CONTAINER_DIGEST"), nil
+}
+
+// adjudicationCandidates returns the indexes of the rows the container should
+// arbitrate: the non-agreeing classes (GAP/OVER/INDETERMINATE). Agreeing rows
+// are left alone — label and omni concur; adjudicating them would only
+// re-derive the label.
+func adjudicationCandidates(rows []Row) []int {
+	var idx []int
+	for i := range rows {
+		switch rows[i].Class {
+		case ClassGap, ClassOver, ClassIndeterminate:
+			idx = append(idx, i)
+		}
+	}
+	return idx
+}
+
+// probeRow sends one prepared row to the container and folds the outcome in.
+// After an infra error it verifies the oracle is still alive: a dead
+// container aborts the sweep, naming the statements that preceded the death
+// (so the unsafe-statement list can be extended), instead of silently
+// poisoning every remaining row with infra_error.
+func probeRow(db *sql.DB, r *Row, prevSQL string) error {
+	_, execErr := db.Exec(r.SQL)
+	if infra := applyContainerVerdict(r, execErr); !infra {
+		return nil
+	}
+	if pingErr := pingRetry(db); pingErr != nil {
+		return fmt.Errorf(
+			"container died after executing %q (%s:%d; previous statement %q) — extend the unsafe-statement list: %w",
+			r.SQL, r.SourcePath, r.Line, prevSQL, pingErr)
+	}
+	return nil
 }
 
 // pingRetry gives the server a few chances: the start script only waits for

@@ -22,6 +22,7 @@ func TestClassifyTiDBExecError(t *testing.T) {
 		{"1149 ErrSyntax is parse reject", &mysql.MySQLError{Number: 1149, Message: "You have an error in your SQL syntax"}, VerdictReject, 1149, "You have an error in your SQL syntax"},
 		{"1221 grammar-action abort is parse reject", &mysql.MySQLError{Number: 1221, Message: "Incorrect usage of ALL and DISTINCT"}, VerdictReject, 1221, "Incorrect usage of ALL and DISTINCT"},
 		{"1492 ast-validator abort is parse reject", &mysql.MySQLError{Number: 1492, Message: "For LIST partitions each partition must be defined"}, VerdictReject, 1492, "For LIST partitions each partition must be defined"},
+		{"1102 wrong-db-name is parse reject (runtime collisions fail closed via the label)", &mysql.MySQLError{Number: 1102, Message: "Incorrect database name ''"}, VerdictReject, 1102, "Incorrect database name ''"},
 		{"8108 unsupported-type is parsed", &mysql.MySQLError{Number: 8108, Message: "Unsupported type"}, VerdictAccept, 8108, "Unsupported type"},
 		{"1146 no-such-table is parsed", &mysql.MySQLError{Number: 1146, Message: "no such table"}, VerdictAccept, 1146, "no such table"},
 		{"1105 runtime unknown-error is parsed", &mysql.MySQLError{Number: 1105, Message: "unknown error"}, VerdictAccept, 1105, "unknown error"},
@@ -59,6 +60,9 @@ func TestUnsafeToAdjudicate(t *testing.T) {
 		{"  /* c */ shutdown", true},
 		{"-- c\nshutdown", true},
 		{"shutdown;select 1", true},
+		// First-statement-only is deliberate: a mid-batch unsafe statement is
+		// caught by the container-death abort backstop, not this predicate.
+		{"select 1; shutdown", false},
 
 		// First-keyword only: unsafe words elsewhere are fine.
 		{"select shutdown_col from t", false},
