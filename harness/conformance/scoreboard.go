@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 // RunMeta is the run-level metadata block (design doc §3/§4). One per run file.
@@ -17,19 +19,29 @@ type RunMeta struct {
 	ContainerDigest   string `json:"container_digest,omitempty"`
 	ClassifierVersion string `json:"classifier_version"`
 	DuplicatesDropped int    `json:"duplicates_dropped"`
+	// DuplicateLabelConflicts counts dropped duplicates whose upstream label
+	// conflicted with the kept row's; the kept row flips to INDETERMINATE.
+	DuplicateLabelConflicts int `json:"duplicate_label_conflicts"`
 }
 
 const classifierVersion = "1" // bump when classify()/clusterKey() semantics change
 
 // writeJSONL writes one meta line followed by all rows sorted by stmt_hash,
-// so run files diff cleanly across harvests. Sorts rows in place.
-func writeJSONL(path string, meta RunMeta, rows []Row) error {
+// so run files diff cleanly across harvests. Sorts rows in place. Buffered;
+// flush and close errors are propagated (a run file must never be silently
+// truncated).
+func writeJSONL(path string, meta RunMeta, rows []Row) (err error) {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	enc := json.NewEncoder(f)
+	defer func() {
+		if cerr := f.Close(); err == nil {
+			err = cerr
+		}
+	}()
+	w := bufio.NewWriter(f)
+	enc := json.NewEncoder(w)
 	if err := enc.Encode(map[string]any{"meta": meta}); err != nil {
 		return err
 	}
@@ -39,7 +51,7 @@ func writeJSONL(path string, meta RunMeta, rows []Row) error {
 			return err
 		}
 	}
-	return nil
+	return w.Flush()
 }
 
 type cluster struct {
@@ -50,10 +62,14 @@ type cluster struct {
 	ExemplarSrc string
 }
 
+// clusterRows groups upstream-lane rows of one class by family+divergence key,
+// matching the headline counts filter. The exemplar choice is total — shortest
+// SQL, then lexicographic, with Count==1 marking the first row (an empty-SQL
+// sentinel would be order-dependent) — so rendering never depends on row order.
 func clusterRows(rows []Row, class Class) []cluster {
 	m := map[string]*cluster{}
 	for _, r := range rows {
-		if r.Class != class {
+		if r.Lane != "upstream" || r.Class != class {
 			continue
 		}
 		k := r.Family + "\x00" + r.DivergenceKey
@@ -63,7 +79,8 @@ func clusterRows(rows []Row, class Class) []cluster {
 			m[k] = c
 		}
 		c.Count++
-		if c.Exemplar == "" || len(r.SQL) < len(c.Exemplar) {
+		if c.Count == 1 || len(r.SQL) < len(c.Exemplar) ||
+			(len(r.SQL) == len(c.Exemplar) && r.SQL < c.Exemplar) {
 			c.Exemplar = r.SQL
 			c.ExemplarSrc = fmt.Sprintf("%s:%d", r.SourcePath, r.Line)
 		}
@@ -112,7 +129,8 @@ func renderScoreboard(meta RunMeta, rows []Row) string {
 	for _, c := range []Class{ClassAgreeAccept, ClassAgreeReject, ClassGap, ClassOver, ClassIndeterminate, ClassSkip} {
 		fmt.Fprintf(&b, "| %s | %d |\n", c, counts[c])
 	}
-	fmt.Fprintf(&b, "| duplicate_count | %d |\n", meta.DuplicatesDropped)
+	fmt.Fprintf(&b, "| duplicates_dropped | %d |\n", meta.DuplicatesDropped)
+	fmt.Fprintf(&b, "| duplicate_label_conflicts | %d |\n", meta.DuplicateLabelConflicts)
 	fmt.Fprintf(&b, "| total | %d |\n\n", total)
 	fmt.Fprintf(&b, "GAP clusters: %d\n\nOVER clusters: %d\n\nClusters are the work unit; statement counts are coverage context.\n\n", len(gapClusters), len(overClusters))
 
@@ -135,11 +153,14 @@ func writeClusterSection(b *strings.Builder, title string, cs []cluster) {
 	fmt.Fprintf(b, "\n")
 }
 
-// truncate is byte-based; a cut landing mid-UTF-8-rune is acceptable for
-// display (the JSONL keeps the raw text).
+// truncate cuts at a rune boundary (backing off from a mid-rune position) so
+// display strings stay valid UTF-8; the JSONL keeps the raw text.
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
 	}
 	return s[:n] + "..."
 }

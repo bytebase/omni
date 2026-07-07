@@ -30,8 +30,9 @@ func main() {
 		log.Fatal(err)
 	}
 	meta := RunMeta{Engine: "tidb", EngineVersion: "v8.5.5", OmniSHA: *omniSHA, CorpusTag: "v8.5.5", ClassifierVersion: classifierVersion}
-	rows, duplicates := buildRows(entries)
-	meta.DuplicatesDropped = duplicates
+	rows, stats := buildRows(entries)
+	meta.DuplicatesDropped = stats.duplicatesDropped
+	meta.DuplicateLabelConflicts = stats.duplicateLabelConflicts
 
 	if err := os.MkdirAll(*outDir, 0o755); err != nil {
 		log.Fatal(err)
@@ -49,18 +50,25 @@ func main() {
 	fmt.Print(board)
 }
 
-// buildRows converts extracted corpus entries into evaluated, classified rows,
-// returning the rows and the duplicate count for run meta.
+// buildStats summarizes what buildRows dropped or flagged, for run meta.
+type buildStats struct {
+	duplicatesDropped       int
+	duplicateLabelConflicts int
+}
+
+// buildRows converts extracted corpus entries into evaluated, classified rows.
 //
 // Skip entries (SkipReason != "") pass through as Class=SKIP without omni
 // evaluation and without classify() — classify would overwrite Class — and are
 // never deduped. Non-skip entries are deduped by stmt_hash: the first
 // occurrence (extraction order is deterministic) keeps its provenance;
-// subsequent duplicates are dropped and counted.
-func buildRows(entries []CorpusEntry) ([]Row, int) {
-	seen := map[string]bool{}
+// subsequent duplicates are dropped and counted. A dropped duplicate whose
+// upstream label conflicts with the kept row's flips the kept row to
+// INDETERMINATE: the label is context-dependent, so it is not ground truth.
+func buildRows(entries []CorpusEntry) ([]Row, buildStats) {
+	kept := map[string]int{} // stmt hash -> index of kept row
 	rows := make([]Row, 0, len(entries))
-	var duplicates int
+	var stats buildStats
 	for _, e := range entries {
 		r := Row{
 			Engine: "tidb", Lane: "upstream",
@@ -73,14 +81,20 @@ func buildRows(entries []CorpusEntry) ([]Row, int) {
 			rows = append(rows, r)
 			continue
 		}
-		if seen[r.StmtHash] {
-			duplicates++
+		if i, dup := kept[r.StmtHash]; dup {
+			stats.duplicatesDropped++
+			if rows[i].Expected != e.Expected {
+				stats.duplicateLabelConflicts++
+				rows[i].Class = ClassIndeterminate
+				rows[i].ClassifierReason = "duplicate_label_conflict"
+				rows[i].DivergenceKey = "" // INDETERMINATE rows are not clustered
+			}
 			continue
 		}
-		seen[r.StmtHash] = true
+		kept[r.StmtHash] = len(rows)
 		r.OmniVerdict, r.OmniError = omniTiDBVerdict(e.SQL)
 		classify(&r)
 		rows = append(rows, r)
 	}
-	return rows, duplicates
+	return rows, stats
 }
