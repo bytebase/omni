@@ -15,14 +15,11 @@ func main() {
 		outDir     = flag.String("out", "out", "JSONL output dir (gitignored)")
 		boardDir   = flag.String("scoreboards", "scoreboards", "committed scoreboard dir")
 		omniSHA    = flag.String("omni-sha", "unknown", "omni commit under test (git rev-parse HEAD)")
-		adjudicate = flag.Bool("adjudicate", false, "probe divergences against a live container (Task 7)")
+		adjudicate = flag.Bool("adjudicate", false, "probe divergences against a live TiDB container (TIDB_DSN; see start_tidb.sh)")
 	)
 	flag.Parse()
 	if *engine != "tidb" {
 		log.Fatalf("engine %q not implemented in slice 1", *engine)
-	}
-	if *adjudicate {
-		log.Fatal("adjudicate mode lands in Task 7")
 	}
 
 	entries, err := extractTiDBCorpus(*corpus)
@@ -33,6 +30,13 @@ func main() {
 	rows, stats := buildRows(entries)
 	meta.DuplicatesDropped = stats.duplicatesDropped
 	meta.DuplicateLabelConflicts = stats.duplicateLabelConflicts
+	if *adjudicate {
+		digest, err := adjudicateTiDB(rows)
+		if err != nil {
+			log.Fatal(err)
+		}
+		meta.ContainerDigest = digest
+	}
 
 	if err := os.MkdirAll(*outDir, 0o755); err != nil {
 		log.Fatal(err)
