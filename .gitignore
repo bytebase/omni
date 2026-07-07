@@ -32,3 +32,7 @@ dashboard
 .DS_Store
 Thumbs.db
 .worktrees/
+
+# Conformance harness runtime data (fetch-don't-vendor: corpora are upstream clones)
+harness/conformance/corpus/
+harness/conformance/out/
