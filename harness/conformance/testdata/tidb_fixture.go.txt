@@ -1,0 +1,22 @@
+package parser
+
+type testCase struct {
+	src     string
+	ok      bool
+	restore string
+}
+
+func TestDMLStmt(t *testing.T) {
+	table := []testCase{
+		{"SELECT 1", true, "SELECT 1"},
+		{`INSERT INTO t VALUES (1)`, true, "INSERT INTO `t` VALUES (1)"},
+		{"SELECT FROM WHERE", false, ""},
+		// keyed form appears too
+		{src: "DELETE FROM t", ok: true, restore: "DELETE FROM `t`"},
+		// non-literal src must be skipped, not crash
+		{buildSQL(), true, ""},
+		// concatenated literals must be joined
+		{"SELECT " + "1 + 1", true, ""},
+	}
+	RunTest(t, table, false)
+}
