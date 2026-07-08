@@ -4,10 +4,15 @@ Scoreboard generator for omni engine parsers against pinned real engines. It
 harvests an engine's own test corpus (pre-labeled statements), runs every
 statement through the omni parser, adjudicates divergences against a live
 engine container, and emits a committed deterministic scoreboard. Harvesting
-is zero-loss over **static test-table literals**; loop-generated runtime cases
+is zero-loss over **self-labeled test tables** — `{src, ok}` `testCase` and
+`{src, err}` `testErrMsgCase` literals; loop-generated runtime cases
 appear as unexpanded generator-site SKIP rows, counted on the board — so
 committed totals measure the static literal corpus, not full runtime-upstream
-coverage. The bar is
+coverage. The documented out-of-scope static shapes — `[]string` tables whose
+labels live in the consuming assertions (e.g. `TestTableSample`),
+`RunRestoreTest`-style pairs, and inline `Parse` calls — are follow-up harvest
+candidates bundled with the next corpus-tag re-baseline, not part of the
+current corpus. The bar is
 **GAP = 0 on the upstream lane**: omni must never falsely reject SQL the
 engine accepts at the pinned version. OVER (omni accepts what the engine
 rejects) is triaged, not chased. INDETERMINATE is surfaced in the scoreboard

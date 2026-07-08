@@ -24,6 +24,16 @@ type CorpusEntry struct {
 // extractTiDBCorpus walks the sparse-cloned pkg/parser dir (top level only —
 // sub-packages don't use the {src, ok, restore} table shape) and extracts
 // every testCase composite literal.
+//
+// Harvest boundary: self-labeled tables only — {src, ok} testCase and
+// {src, err} testErrMsgCase literals, where the verdict lives in the literal
+// itself. Known out-of-scope static shapes, deliberately not harvested here
+// (follow-up candidates, bundled with the next corpus-tag re-baseline):
+//   - []string tables whose labels live in the consuming assertions — e.g.
+//     TestTableSample's `cases := []string{...}` accept-only loop,
+//     corpus parser_test.go ~line 6171 at the pinned v8.5.5 tag;
+//   - RunRestoreTest-style {src, restore} pairs;
+//   - inline Parse/ParseOneStmt calls on string literals.
 func extractTiDBCorpus(corpusDir string) ([]CorpusEntry, error) {
 	dir := filepath.Join(corpusDir, "tidb", "pkg", "parser")
 	files, err := filepath.Glob(filepath.Join(dir, "*_test.go"))
