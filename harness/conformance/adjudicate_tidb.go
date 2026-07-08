@@ -13,8 +13,8 @@ import (
 )
 
 // tidbParseRejectCodes is the parse-abort error space of the pinned oracle,
-// enumerated from the vendored pingcap/tidb v8.5.5 parser source (the corpus
-// checkout). TiDB rejects statements at parse time through three paths, and
+// enumerated from the parser source in the pinned pingcap/tidb v8.5.5 corpus
+// checkout. TiDB rejects statements at parse time through three paths, and
 // only the first uses the classic parse-error codes:
 //
 //   - yacc/scanner errors: ErrParse 1064 (plain scanner errors are wrapped to

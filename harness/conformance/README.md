@@ -39,6 +39,9 @@ selects the code.
 - `scoreboards/<engine>.md` — **committed.** Deterministic (stable ordering,
   stable cluster keys): regenerating without an omni/corpus/container change
   is byte-identical, and the file's git history is the progress report.
+  The committed board is the **adjudicated** one; a label-only quickstart run
+  overwrites it locally (GAP 1141, container_digest `-`) — don't commit a
+  label-only regen over an adjudicated board.
 - `out/<engine>.jsonl` — **gitignored artifact.** One meta line first (engine
   version, omni SHA, corpus tag, container digest, classifier version), then
   one row per statement with full provenance: source path/line, SQL, both
