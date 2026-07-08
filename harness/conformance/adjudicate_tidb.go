@@ -123,11 +123,15 @@ func unsafeToAdjudicate(sql string) bool {
 }
 
 // unsafeStatement checks a single statement: a first keyword in
-// unsafeKeywords, or a SET whose target outlives the probe's session (see
-// unsafeSetTarget). First-keyword match only — "SELECT shutdown_col FROM t"
-// is safe — and identifier characters extend the token, so KILLER is not
-// KILL. Leading comments are stripped the same way classifyFamily does.
+// unsafeKeywords, a SET whose target outlives the probe's session (see
+// unsafeSetTarget), or an account-mutation DCL statement (see
+// accountMutationKeywords). First-keyword match only — "SELECT shutdown_col
+// FROM t" is safe — and identifier characters extend the token, so KILLER is
+// not KILL. Executable comments are neutralized first (their content is
+// EXECUTED, so it must be scanned); ordinary leading comments are then
+// stripped the same way classifyFamily does.
 func unsafeStatement(stmt string) bool {
+	stmt = neutralizeExecutableComments(stmt)
 	s := strings.TrimSpace(leadingComment.ReplaceAllString(stmt, ""))
 	first, rest := nextKeyword(s)
 	if unsafeKeywords[first] {
@@ -136,7 +140,71 @@ func unsafeStatement(stmt string) bool {
 	if first == "SET" {
 		return unsafeSetTarget(rest)
 	}
+	if accountMutationKeywords[first] {
+		second, _ := nextKeyword(rest)
+		return second == "USER"
+	}
 	return false
+}
+
+// accountMutationKeywords lead the account-mutation DCL forms — <keyword>
+// USER — that can change the identity every later probe connection
+// handshakes with: the corpus tests these on 'root' itself, and a probed
+// `ALTER USER root IDENTIFIED BY 'x'` (container-verified on the pinned
+// oracle) makes every later fresh handshake fail 1045. Same handshake-poison
+// channel as SET PASSWORD: the container stays up, so the ping-abort
+// backstop never fires. Deliberately NOT blocked: GRANT/REVOKE —
+// container-verified unable to change our connection identity (no user
+// auto-create: 1410 "You are not allowed to create a user with GRANT", and a
+// 5.7-style `GRANT ... IDENTIFIED BY` on an existing user executes but
+// leaves its credentials untouched) — and blocking them would move
+// legitimately divergent DCL rows out of adjudication.
+var accountMutationKeywords = map[string]bool{"CREATE": true, "ALTER": true, "DROP": true, "RENAME": true}
+
+// neutralizeExecutableComments makes MySQL executable comments visible to the
+// deny-list scan. `/*! SET PASSWORD = 'x' */` and `/*!40101 SET GLOBAL ... */`
+// look like comments but are EXECUTED by TiDB/MySQL, so comment-stripping
+// them would wave an unsafe statement through. Each `/*!` marker plus its
+// optional version digits is blanked, as is its matching `*/` closer, so the
+// content survives as plain scannable SQL; ordinary `/* ... */` comments keep
+// their delimiters and still strip. A marker inside a string literal
+// over-matches (the row skips to INDETERMINATE) — acceptable, the deny-list
+// errs conservative.
+func neutralizeExecutableComments(stmt string) string {
+	if !strings.Contains(stmt, "/*!") {
+		return stmt
+	}
+	b := []byte(stmt)
+	i := 0
+	for i+1 < len(b) {
+		if b[i] != '/' || b[i+1] != '*' {
+			i++
+			continue
+		}
+		if i+2 >= len(b) || b[i+2] != '!' {
+			// Ordinary comment: leave it intact for the comment-stripper.
+			end := strings.Index(stmt[i+2:], "*/")
+			if end < 0 {
+				break
+			}
+			i += 2 + end + 2
+			continue
+		}
+		j := i + 3
+		for j < len(b) && b[j] >= '0' && b[j] <= '9' {
+			j++
+		}
+		for k := i; k < j; k++ {
+			b[k] = ' '
+		}
+		end := strings.Index(stmt[j:], "*/")
+		if end < 0 {
+			break
+		}
+		b[j+end], b[j+end+1] = ' ', ' '
+		i = j + end + 2
+	}
+	return string(b)
 }
 
 // unsafeSetTarget reports whether a SET statement's tail mutates state that

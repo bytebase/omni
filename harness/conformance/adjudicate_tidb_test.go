@@ -111,6 +111,31 @@ func TestUnsafeToAdjudicate(t *testing.T) {
 		{"SET @@session.sql_mode=''", false},
 		{"SET @v = 1", false},
 		{"select password from t", false},
+
+		// Executable comments: /*! ... */ (with optional version digits) is
+		// EXECUTED by TiDB/MySQL, so its content must be scanned, not stripped.
+		{"/*! SET PASSWORD = 'x' */", true},
+		{"/*!40101 SET GLOBAL sql_mode='ANSI_QUOTES' */", true},
+		{"/*! KILL 5 */", true},
+		// Safe executable-comment content stays adjudicable.
+		{"/*!40101 SET NAMES utf8 */", false},
+		// Ordinary comments still strip — their content is never executed.
+		{"/* comment */ SELECT 1", false},
+		{"/* SET PASSWORD = 'x' */ SELECT 1", false},
+		// Mixed: a leading ordinary comment must not mask an executable one.
+		{"/* c */ /*!40101 SET GLOBAL sql_mode='' */", true},
+
+		// Account-mutation DCL poisons later handshakes (identity channel).
+		{"CREATE USER 'root'@'127.0.0.1' IDENTIFIED BY 'x'", true},
+		{"ALTER USER root IDENTIFIED BY 'x'", true},
+		{"DROP USER u", true},
+		{"RENAME USER a TO b", true},
+		// Second keyword must be USER: ordinary DDL stays adjudicable.
+		{"CREATE TABLE user (a int)", false},
+		{"DROP TABLE users", false},
+		// GRANT/REVOKE cannot change our connection identity — not blocked.
+		{"GRANT ALL ON *.* TO u", false},
+		{"REVOKE ALL ON *.* FROM u", false},
 	}
 	for _, c := range cases {
 		if got := unsafeToAdjudicate(c.sql); got != c.want {
