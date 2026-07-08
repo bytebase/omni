@@ -103,18 +103,26 @@ func classifyTiDBExecError(err error) (Verdict, int, string) {
 var unsafeKeywords = map[string]bool{"SHUTDOWN": true, "KILL": true, "RESTART": true}
 
 // unsafeToAdjudicate reports whether any statement in sql is unsafe to
-// execute against the shared oracle. Every statement in the batch is
-// scanned, not just the first: a mid-batch SHUTDOWN kills the oracle just
-// as dead as a leading one, and a mid-batch SET PASSWORD doesn't kill it at
-// all — it poisons the handshake of every later fresh connection, so the
-// ping-abort backstop never fires. The `;` split is naive: a semicolon
-// inside a string literal splits too, which can only over-match (a safe row
-// skipped into INDETERMINATE unsafe_to_adjudicate), never miss an unsafe
-// statement — the deny-list deliberately errs conservative. Best-effort
-// deny-list, not a safety proof: the ping-abort in probeRow and the
-// disposable container remain the backstop.
+// execute against the shared oracle. One normalization pipeline, mirroring
+// how the server reads the text: (1) executable-comment markers are
+// neutralized — their content is EXECUTED, so it must survive as scannable
+// SQL; (2) all remaining ordinary comments are stripped — the server treats
+// them as whitespace ANYWHERE, so `SET /*c*/ PASSWORD` must not blind the
+// keyword scan, and stripping before the split means a `;` inside an
+// ordinary comment cannot fabricate a phantom statement (its content is
+// never executed); (3) the text splits on `;` and every statement in the
+// batch is scanned, not just the first: a mid-batch SHUTDOWN kills the
+// oracle just as dead as a leading one, and a mid-batch SET PASSWORD doesn't
+// kill it at all — it poisons the handshake of every later fresh connection,
+// so the ping-abort backstop never fires. The `;` split is naive: a
+// semicolon inside a string literal splits too, which can only over-match (a
+// safe row skipped into INDETERMINATE unsafe_to_adjudicate), never miss an
+// unsafe statement — the deny-list deliberately errs conservative.
+// Best-effort deny-list, not a safety proof: the ping-abort in probeRow and
+// the disposable container remain the backstop.
 func unsafeToAdjudicate(sql string) bool {
-	for _, stmt := range strings.Split(sql, ";") {
+	s := stripComments(neutralizeExecutableComments(sql))
+	for _, stmt := range strings.Split(s, ";") {
 		if unsafeStatement(stmt) {
 			return true
 		}
@@ -122,18 +130,15 @@ func unsafeToAdjudicate(sql string) bool {
 	return false
 }
 
-// unsafeStatement checks a single statement: a first keyword in
-// unsafeKeywords, a SET whose target outlives the probe's session (see
-// unsafeSetTarget), or an account-mutation DCL statement (see
+// unsafeStatement checks a single comment-free statement (unsafeToAdjudicate
+// has already neutralized executable comments and stripped ordinary ones): a
+// first keyword in unsafeKeywords, a SET whose target outlives the probe's
+// session (see unsafeSetTarget), or an account-mutation DCL statement (see
 // accountMutationKeywords). First-keyword match only — "SELECT shutdown_col
 // FROM t" is safe — and identifier characters extend the token, so KILLER is
-// not KILL. Executable comments are neutralized first (their content is
-// EXECUTED, so it must be scanned); ordinary leading comments are then
-// stripped the same way classifyFamily does.
+// not KILL.
 func unsafeStatement(stmt string) bool {
-	stmt = neutralizeExecutableComments(stmt)
-	s := strings.TrimSpace(leadingComment.ReplaceAllString(stmt, ""))
-	first, rest := nextKeyword(s)
+	first, rest := nextKeyword(stmt)
 	if unsafeKeywords[first] {
 		return true
 	}
@@ -161,17 +166,19 @@ func unsafeStatement(stmt string) bool {
 // legitimately divergent DCL rows out of adjudication.
 var accountMutationKeywords = map[string]bool{"CREATE": true, "ALTER": true, "DROP": true, "RENAME": true}
 
-// neutralizeExecutableComments makes MySQL executable comments visible to the
-// deny-list scan. `/*! SET PASSWORD = 'x' */` and `/*!40101 SET GLOBAL ... */`
-// look like comments but are EXECUTED by TiDB/MySQL, so comment-stripping
-// them would wave an unsafe statement through. Each `/*!` marker plus its
-// optional version digits is blanked, as is its matching `*/` closer, so the
-// content survives as plain scannable SQL; ordinary `/* ... */` comments keep
-// their delimiters and still strip. A marker inside a string literal
-// over-matches (the row skips to INDETERMINATE) — acceptable, the deny-list
-// errs conservative.
+// neutralizeExecutableComments makes executable comments visible to the
+// deny-list scan. `/*! SET PASSWORD = 'x' */`, `/*!40101 SET GLOBAL ... */`
+// and TiDB's `/*T! ... */` look like comments but are EXECUTED by the server,
+// so comment-stripping them would wave an unsafe statement through. The
+// marker forms mirror omni's own splitter (tidb/parser/split.go,
+// Segment.Empty): `/*!` and `/*T!` (uppercase T), matched by prefix. Each
+// marker plus its optional version digits is blanked, as is its matching
+// `*/` closer, so the content survives as plain scannable SQL; ordinary
+// `/* ... */` comments keep their delimiters for stripComments. A marker
+// inside a string literal over-matches (the row skips to INDETERMINATE) —
+// acceptable, the deny-list errs conservative.
 func neutralizeExecutableComments(stmt string) string {
-	if !strings.Contains(stmt, "/*!") {
+	if !strings.Contains(stmt, "/*!") && !strings.Contains(stmt, "/*T!") {
 		return stmt
 	}
 	b := []byte(stmt)
@@ -181,8 +188,15 @@ func neutralizeExecutableComments(stmt string) string {
 			i++
 			continue
 		}
-		if i+2 >= len(b) || b[i+2] != '!' {
-			// Ordinary comment: leave it intact for the comment-stripper.
+		markerLen := 0
+		switch {
+		case i+2 < len(b) && b[i+2] == '!':
+			markerLen = 3
+		case i+3 < len(b) && b[i+2] == 'T' && b[i+3] == '!':
+			markerLen = 4
+		}
+		if markerLen == 0 {
+			// Ordinary comment: leave it intact for stripComments.
 			end := strings.Index(stmt[i+2:], "*/")
 			if end < 0 {
 				break
@@ -190,7 +204,7 @@ func neutralizeExecutableComments(stmt string) string {
 			i += 2 + end + 2
 			continue
 		}
-		j := i + 3
+		j := i + markerLen
 		for j < len(b) && b[j] >= '0' && b[j] <= '9' {
 			j++
 		}
@@ -205,6 +219,90 @@ func neutralizeExecutableComments(stmt string) string {
 		i = j + end + 2
 	}
 	return string(b)
+}
+
+// stripComments replaces every ordinary comment — `/* ... */` anywhere,
+// `-- ` and `#` line comments to end-of-line — with a single space, the way
+// the server's lexer treats them. Executable-comment markers must already be
+// neutralized, or their content (which the server EXECUTES) would be
+// stripped here as if it were ordinary. String literals and backtick
+// identifiers are skipped: a comment opener inside a literal is literal
+// text, and stripping from it would swallow the real statements that follow
+// (`SELECT 'a -- b'; KILL 5`) — the one direction the deny-list must never
+// err. The literal lexing is still best-effort (default escape rules; a
+// session sql_mode could diverge): divergence mangles comment-like literal
+// text, which can only over-match into a conservative unsafe skip.
+func stripComments(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	i := 0
+	for i < len(s) {
+		c := s[i]
+		switch {
+		case c == '\'' || c == '"' || c == '`':
+			end := skipQuoted(s, i)
+			b.WriteString(s[i:end])
+			i = end
+		case c == '/' && i+1 < len(s) && s[i+1] == '*':
+			b.WriteByte(' ')
+			end := strings.Index(s[i+2:], "*/")
+			if end < 0 {
+				return b.String() // unterminated: comment runs to end of input
+			}
+			i += 2 + end + 2
+		case c == '#', isDashCommentStart(s, i):
+			b.WriteByte(' ')
+			for i < len(s) && s[i] != '\n' {
+				i++
+			}
+		default:
+			b.WriteByte(c)
+			i++
+		}
+	}
+	return b.String()
+}
+
+// isDashCommentStart reports whether s[i:] starts a MySQL `--` line comment:
+// the dashes must be followed by whitespace or end of input (`--x` is a
+// double negation, not a comment) — same rule as tidb/parser/split.go's
+// isDashComment.
+func isDashCommentStart(s string, i int) bool {
+	if s[i] != '-' || i+1 >= len(s) || s[i+1] != '-' {
+		return false
+	}
+	if i+2 >= len(s) {
+		return true
+	}
+	c := s[i+2]
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+}
+
+// skipQuoted returns the index just past the quoted region opening at s[i]
+// (', ", or `), using MySQL lexing: doubled-quote escapes for all three,
+// backslash escapes for ' and " — mirroring tidb/parser/split.go's skip
+// helpers. An unterminated region runs to end of input.
+func skipQuoted(s string, i int) int {
+	q := s[i]
+	i++
+	for i < len(s) {
+		c := s[i]
+		if c == '\\' && q != '`' {
+			i += 2
+			continue
+		}
+		if c != q {
+			i++
+			continue
+		}
+		i++
+		if i < len(s) && s[i] == q {
+			i++ // doubled-quote escape
+			continue
+		}
+		return i
+	}
+	return i
 }
 
 // unsafeSetTarget reports whether a SET statement's tail mutates state that

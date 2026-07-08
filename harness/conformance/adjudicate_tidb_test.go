@@ -119,11 +119,34 @@ func TestUnsafeToAdjudicate(t *testing.T) {
 		{"/*! KILL 5 */", true},
 		// Safe executable-comment content stays adjudicable.
 		{"/*!40101 SET NAMES utf8 */", false},
+		// TiDB-specific executable comments: omni's own splitter treats /*T!
+		// as executable SQL too (tidb/parser/split.go, Segment.Empty), and its
+		// prefix match covers digit forms like /*T!50000 the same way.
+		{"/*T! SET GLOBAL sql_mode='ANSI_QUOTES' */", true},
+		{"/*T!50000 KILL 5 */", true},
+		// Safe TiDB executable-comment content stays adjudicable.
+		{"/*T!40101 SET NAMES utf8 */", false},
 		// Ordinary comments still strip — their content is never executed.
 		{"/* comment */ SELECT 1", false},
 		{"/* SET PASSWORD = 'x' */ SELECT 1", false},
 		// Mixed: a leading ordinary comment must not mask an executable one.
 		{"/* c */ /*!40101 SET GLOBAL sql_mode='' */", true},
+		// The server treats ordinary comments as whitespace ANYWHERE, not just
+		// statement-leading: a comment between keywords must not blind the scan.
+		{"SET /*c*/ PASSWORD = 'x'", true},
+		{"SET /*a*/ /*b*/ GLOBAL sql_mode=''", true},
+		{"CREATE /*c*/ USER 'root'@'127.0.0.1' IDENTIFIED BY 'x'", true},
+		{"ALTER -- c\nUSER u IDENTIFIED BY 'x'", true},
+		// An unsafe statement hiding inside an ORDINARY comment is never
+		// executed by the server, and comments are stripped before the `;`
+		// split, so the commented-out `;` cannot fabricate a phantom segment:
+		// false is genuinely correct here, not an accepted miss.
+		{"SELECT 1 /* ; SET PASSWORD='x' */", false},
+		// Comment openers inside string literals are literal text, not
+		// comments: stripping them would swallow the real statements that
+		// follow — the one direction the deny-list must never err.
+		{"SELECT 'a -- b'; KILL 5", true},
+		{"SELECT '/*'; KILL 5", true},
 
 		// Account-mutation DCL poisons later handshakes (identity channel).
 		{"CREATE USER 'root'@'127.0.0.1' IDENTIFIED BY 'x'", true},
