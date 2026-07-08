@@ -22,6 +22,8 @@
 | duplicate_label_conflicts | 0 |
 | total | 3798 |
 
+Unexpanded generator sites (runtime-built srcs, each representing multiple upstream cases): 13
+
 GAP clusters: 71
 
 OVER clusters: 46
@@ -154,4 +156,3 @@ Clusters are the work unit; statement counts are coverage context.
 | 44 | SELECT | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `select """;` | corpus/tidb/pkg/parser/parser_test.go:5571 |
 | 45 | SELECT | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `select 0X11` | corpus/tidb/pkg/parser/parser_test.go:4968 |
 | 46 | SELECT | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `select 1/*` | corpus/tidb/pkg/parser/parser_test.go:5188 |
-
