@@ -32,6 +32,14 @@ jobs:
       - name: Test
         run: go test -short ./...
 
+      # harness/conformance is its own Go module, so the root ./... above
+      # never compiles it — a break there would ship silently. -short skips
+      # everything that needs the fetched corpus or a live container, keeping
+      # this hermetic and fast; the container lane stays out of CI by design.
+      - name: Conformance harness unit tests
+        working-directory: harness/conformance
+        run: go test -short ./...
+
       # Build-tag-gated test code must at least compile on every PR,
       # even when the tests themselves run elsewhere (container jobs,
       # nightly, or local-only like the scriptdom .NET harness).
