@@ -120,8 +120,35 @@ var unsafeKeywords = map[string]bool{"SHUTDOWN": true, "KILL": true, "RESTART": 
 // unsafe statement — the deny-list deliberately errs conservative.
 // Best-effort deny-list, not a safety proof: the ping-abort in probeRow and
 // the disposable container remain the backstop.
+//
+// Feature-gated markers force a two-interpretation scan. A `/*T![feature] ...
+// */` block is EXECUTED only when every feature id is supported; otherwise the
+// oracle IGNORES the whole comment and executes the SQL that FOLLOWS it
+// (corpus/tidb/pkg/parser/tidb/features.go CanParseFeature, lexer.go:537-548).
+// We cannot replicate the version-specific feature table, so when such a
+// marker is present we scan BOTH normalized variants — content-visible (marker
+// neutralized, inner text scanned in place) and content-stripped (feature-
+// gated comment removed entirely, trailing SQL scanned) — and flag unsafe if
+// EITHER trips. Plain `/*!`/`/*T!` markers (incl. digit forms like `/*!40101`,
+// `/*T!50000`) are executed unconditionally by the oracle (CanParseFeature
+// with no/empty ids returns true), so their single content-visible view is
+// exact — the second variant is computed only for the `/*T![` bracket form.
 func unsafeToAdjudicate(sql string) bool {
-	s := stripComments(neutralizeExecutableComments(sql))
+	if unsafeNormalized(sql, false) {
+		return true
+	}
+	if strings.Contains(sql, "/*T![") {
+		return unsafeNormalized(sql, true)
+	}
+	return false
+}
+
+// unsafeNormalized runs the deny-list scan over one normalization of sql.
+// stripFeatureGated selects the interpretation of `/*T![feature] ... */`
+// markers: false keeps their content visible (feature supported), true removes
+// the whole comment as ordinary (feature unsupported). See unsafeToAdjudicate.
+func unsafeNormalized(sql string, stripFeatureGated bool) bool {
+	s := stripComments(neutralizeExecutableComments(sql, stripFeatureGated))
 	for _, stmt := range strings.Split(s, ";") {
 		if unsafeStatement(stmt) {
 			return true
@@ -148,6 +175,15 @@ func unsafeStatement(stmt string) bool {
 	if accountMutationKeywords[first] {
 		second, _ := nextKeyword(rest)
 		return second == "USER"
+	}
+	if first == "QUERY" {
+		// QUERY WATCH ADD/REMOVE persists runaway-query watch rules in the
+		// shared resource-control state: an ACTION KILL rule kills every later
+		// probe whose SQL text/digest matches the watched pattern, so the board
+		// becomes order-dependent, and the container stays up (the ping-abort
+		// backstop never fires). Both mutation directions are blocked.
+		second, _ := nextKeyword(rest)
+		return second == "WATCH"
 	}
 	return false
 }
@@ -180,16 +216,33 @@ var accountMutationKeywords = map[string]bool{"CREATE": true, "ALTER": true, "DR
 // without a closer, since an unterminated executable comment's content
 // still executes (container-verified on v8.5.5: `/*T![ttl] SELECT 1` with
 // no closer → OK). Ordinary `/* ... */` comments keep their delimiters for
-// stripComments. Deliberate over-matches (a marker inside a string literal;
-// an unsupported feature id, whose whole comment the oracle ignores) skip
-// the row to INDETERMINATE — the deny-list errs conservative.
-func neutralizeExecutableComments(stmt string) string {
+// stripComments.
+//
+// Quoted regions are skipped with the SAME helper stripComments uses
+// (skipQuoted): a `/*` inside a string literal or backtick identifier is DATA,
+// not a comment, so `SELECT '/*'; /*! SET PASSWORD='x' */` must not read the
+// in-string `/*` as an ordinary comment and jump PAST the real `/*!` marker —
+// that jump would leave the executable comment for stripComments to remove as
+// ordinary, waving the SET through unseen. A marker entirely inside a string
+// (`SELECT '/*! SET PASSWORD */'`) is likewise data and left untouched.
+//
+// stripFeatureGated selects how a `/*T![feature] ... */` marker is handled
+// (see unsafeToAdjudicate's two-interpretation scan): false neutralizes the
+// marker so its content stays visible (feature supported); true leaves the
+// marker intact as an ordinary comment so stripComments removes the whole
+// block (feature unsupported → the oracle ignores it). Plain `/*!`/`/*T!`
+// markers (incl. digit forms) are neutralized under both.
+func neutralizeExecutableComments(stmt string, stripFeatureGated bool) string {
 	if !strings.Contains(stmt, "/*!") && !strings.Contains(stmt, "/*T!") {
 		return stmt
 	}
 	b := []byte(stmt)
 	i := 0
 	for i+1 < len(b) {
+		if b[i] == '\'' || b[i] == '"' || b[i] == '`' {
+			i = skipQuoted(stmt, i) // in-string `/*` is data, not a comment
+			continue
+		}
 		if b[i] != '/' || b[i+1] != '*' {
 			i++
 			continue
@@ -216,15 +269,27 @@ func neutralizeExecutableComments(stmt string) string {
 		}
 		if markerLen == 4 && j < len(b) && b[j] == '[' {
 			// /*T![feature_id,...]: the bracket group is part of the marker —
-			// the content after `]` is what the oracle executes (corpus
-			// lexer.go:543-548; container-verified: `/*T![ttl] SELECT FROM */`
-			// → 1064). Only a group closed before the comment's closer is
-			// skipped; a malformed group is re-scanned by the oracle as
-			// content whose leading `[` junk parse-errors the whole batch —
-			// nothing executes (parse-first) — so leaving it visible to the
-			// scan stays verdict-correct.
+			// the content after `]` is what the oracle executes when every
+			// feature is supported (corpus lexer.go:543-548; container-verified:
+			// `/*T![ttl] SELECT FROM */` → 1064). Only a group closed before the
+			// comment's closer is well-formed; a malformed group is re-scanned
+			// by the oracle as content whose leading `[` junk parse-errors the
+			// whole batch — nothing executes (parse-first) — so leaving it
+			// visible to the scan stays verdict-correct.
 			if rb := strings.IndexByte(stmt[j:], ']'); rb >= 0 {
 				if ce := strings.Index(stmt[j:], "*/"); ce < 0 || rb < ce {
+					if stripFeatureGated {
+						// Content-stripped view: an unsupported feature id makes
+						// the oracle IGNORE the whole block and execute the SQL
+						// that FOLLOWS, so leave the marker intact and let
+						// stripComments remove it as an ordinary comment.
+						end := strings.Index(stmt[i+2:], "*/")
+						if end < 0 {
+							break
+						}
+						i += 2 + end + 2
+						continue
+					}
 					j += rb + 1
 				}
 			}
@@ -336,24 +401,41 @@ func skipQuoted(s string, i int) int {
 }
 
 // unsafeSetTarget reports whether a SET statement's tail mutates state that
-// outlives the probe's session. Fresh-connection-per-row guards session
-// state only: SET PASSWORD invalidates the credentials every later handshake
-// uses (parser_test.go:1386-1387), GLOBAL/PERSIST mutations (e.g. a
-// global sql_mode of ANSI_QUOTES) change how every later probe *parses*,
-// and SET CONFIG writes dynamic cluster/component configuration (TiKV/PD/
-// TiDB instance settings) — the CONFIG arm keys on the keyword, which
-// always precedes the target, because the target may be a string literal
-// (`SET CONFIG '127.0.0.1:20180' log.level='info'`), not a keyword.
-// The @@GLOBAL/@@PERSIST forms are matched by prefix, not by token, because
-// no space follows the scope in `@@global.sql_mode`; SET NAMES /
-// SET sql_mode / SET @@session.x / SET @v stay adjudicable.
+// outlives the probe's session. A SET can assign several comma-separated
+// targets (`SET @v=1, @@GLOBAL.sql_mode='ANSI_QUOTES'`), and only ONE of them
+// needs to be session-transcending to poison the sweep, so every target is
+// scanned — not just the first. Splitting on comma is naive: a comma inside a
+// quoted value (`SET @v = ', @@GLOBAL.x'`) splits too and over-matches that
+// target into a conservative unsafe skip, but it can never miss a real
+// GLOBAL/PERSIST/PASSWORD/CONFIG mutation — the deny-list errs conservative.
 func unsafeSetTarget(rest string) bool {
-	second, _ := nextKeyword(rest)
-	if second == "PASSWORD" || second == "GLOBAL" || second == "PERSIST" || second == "CONFIG" {
+	for _, target := range strings.Split(rest, ",") {
+		if unsafeSetAssignment(target) {
+			return true
+		}
+	}
+	return false
+}
+
+// unsafeSetAssignment reports whether one comma-separated SET target mutates
+// state that outlives the probe's session. Fresh-connection-per-row guards
+// session state only: SET PASSWORD invalidates the credentials every later
+// handshake uses (parser_test.go:1386-1387), GLOBAL/PERSIST mutations (e.g. a
+// global sql_mode of ANSI_QUOTES) change how every later probe *parses*, and
+// SET CONFIG writes dynamic cluster/component configuration (TiKV/PD/TiDB
+// instance settings) — the CONFIG arm keys on the keyword, which always
+// precedes the target, because the target may be a string literal (`SET CONFIG
+// '127.0.0.1:20180' log.level='info'`), not a keyword. The @@GLOBAL/@@PERSIST
+// forms are matched by prefix, not by token, because no space follows the
+// scope in `@@global.sql_mode`; SET NAMES / SET sql_mode / SET @@session.x /
+// SET @v stay adjudicable.
+func unsafeSetAssignment(target string) bool {
+	kw, _ := nextKeyword(target)
+	if kw == "PASSWORD" || kw == "GLOBAL" || kw == "PERSIST" || kw == "CONFIG" {
 		return true
 	}
-	r := strings.ToUpper(strings.TrimSpace(rest))
-	return strings.HasPrefix(r, "@@GLOBAL") || strings.HasPrefix(r, "@@PERSIST")
+	t := strings.ToUpper(strings.TrimSpace(target))
+	return strings.HasPrefix(t, "@@GLOBAL") || strings.HasPrefix(t, "@@PERSIST")
 }
 
 // nextKeyword returns s's leading identifier-shaped token upper-cased, plus

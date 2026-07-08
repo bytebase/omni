@@ -111,6 +111,18 @@ func TestUnsafeToAdjudicate(t *testing.T) {
 		{"SET @@session.sql_mode=''", false},
 		{"SET @v = 1", false},
 		{"select password from t", false},
+		// Multi-assignment SET: every comma-separated target is scanned, not
+		// just the first. `SET @v=1, @@GLOBAL.sql_mode='ANSI_QUOTES'` mutates
+		// the global parse mode through its SECOND target and would otherwise
+		// pass. Splitting on comma is naive — a comma inside a quoted value
+		// (`SET @v = ', @@GLOBAL.x'`) splits too — but that can only over-match
+		// into a conservative skip, never miss a real GLOBAL/PERSIST mutation.
+		{"SET @v=1, @@GLOBAL.sql_mode='ANSI_QUOTES'", true},
+		{"SET @a=1, @b=2", false},
+		{"SET SESSION sql_mode='', @@GLOBAL.max_connections=10", true},
+		// GLOBAL appears only as a quoted VALUE, not a target keyword/prefix:
+		// the scan keys on the target token, so this stays adjudicable.
+		{"SET @v = 'GLOBAL'", false},
 		// SET CONFIG mutates dynamic cluster/component configuration
 		// (TiKV/PD/TiDB instance settings) — state that outlives the probe's
 		// session, same channel as GLOBAL/PERSIST. The arm keys on the
@@ -211,6 +223,37 @@ func TestUnsafeToAdjudicate(t *testing.T) {
 		// GRANT/REVOKE cannot change our connection identity — not blocked.
 		{"GRANT ALL ON *.* TO u", false},
 		{"REVOKE ALL ON *.* FROM u", false},
+
+		// QUERY WATCH ADD/REMOVE persists runaway-query watch rules server-side
+		// (resource-control family); an ACTION KILL rule can KILL every later
+		// probe whose SQL text/digest matches the watched pattern — silent
+		// order-dependence across the sweep, and the container stays up so the
+		// ping-abort never fires. Arm keys on QUERY + WATCH (both mutation
+		// directions).
+		{"QUERY WATCH ADD ACTION KILL SQL TEXT EXACT TO 'select 1'", true},
+		{"QUERY WATCH REMOVE 1", true},
+		// A table named `query` is not the QUERY WATCH statement.
+		{"SELECT * FROM query", false},
+
+		// String-aware neutralizer: a `/*` inside a string literal is DATA, so
+		// the neutralizer must skip quoted regions exactly like stripComments.
+		// Otherwise it reads the in-string `/*` as an ordinary comment and
+		// jumps PAST the real `/*!` marker; string-aware stripComments then
+		// removes the executable comment as ordinary → the SET executes unseen.
+		{"SELECT '/*'; /*! SET PASSWORD='x' */", true},
+		// A marker entirely inside a string literal is data, not executed SQL.
+		{"SELECT '/*! SET PASSWORD */'", false},
+
+		// Feature-gate union scan: TiDB IGNORES the whole /*T![feature] ... */
+		// block when the feature id is unsupported (features.go CanParseFeature),
+		// executing the SQL that FOLLOWS. We cannot replicate the version-
+		// specific feature table, so scan BOTH interpretations — content-visible
+		// (feature supported: inner text executes in place) and content-stripped
+		// (feature unsupported: the whole comment is removed, trailing SQL
+		// executes) — and flag if EITHER trips.
+		{"/*T![no_such_feature] SELECT 1 */ SET PASSWORD='x'", true}, // stripped view trips
+		{"/*T![ttl] KILL 5 */", true},                                // visible view trips
+		{"/*T![ttl] SELECT 1 */ SELECT 2", false},                    // safe under both views
 	}
 	for _, c := range cases {
 		if got := unsafeToAdjudicate(c.sql); got != c.want {
