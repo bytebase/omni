@@ -14,9 +14,9 @@
 |---|---|
 | AGREE_ACCEPT | 2004 |
 | AGREE_REJECT | 479 |
-| GAP | 1107 |
+| GAP | 1093 |
 | OVER | 160 |
-| INDETERMINATE | 35 |
+| INDETERMINATE | 49 |
 | SKIP | 13 |
 | duplicates_dropped | 58 |
 | duplicate_label_conflicts | 0 |
@@ -32,7 +32,7 @@ Clusters are the work unit; statement counts are coverage context.
 
 | n | family | count | divergence | exemplar | source |
 |---|---|---|---|---|---|
-| 1 | OTHER | 170 | syntax error at or near ? (line N, column N) | `trace begin` | corpus/tidb/pkg/parser/parser_test.go:5666 |
+| 1 | OTHER | 156 | syntax error at or near ? (line N, column N) | `trace begin` | corpus/tidb/pkg/parser/parser_test.go:5666 |
 | 2 | SELECT | 112 | syntax error at or near ? (line N, column N) | `SELECT SCHEMA();` | corpus/tidb/pkg/parser/parser_test.go:1678 |
 | 3 | ADMIN | 76 | syntax error at or near ? (line N, column N) | `admin show ddl;` | corpus/tidb/pkg/parser/parser_test.go:489 |
 | 4 | CREATE OTHER | 73 | unexpected token after CREATE (line N, column N) | `create sequence seq` | corpus/tidb/pkg/parser/parser_test.go:3762 |
