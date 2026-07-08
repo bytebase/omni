@@ -24,11 +24,18 @@ go run . -omni-sha "$(git -C ../.. rev-parse HEAD)"
 Adjudicated sweep (divergences arbitrated by a live TiDB):
 
 ```sh
-./start_tidb.sh                                      # pingcap/tidb:v8.5.5 on :14001
+./start_tidb.sh                                      # pingcap/tidb:v8.5.5 on 127.0.0.1:14001
 # run the two export lines it prints (TIDB_DSN, TIDB_CONTAINER_DIGEST)
 go run . -adjudicate -omni-sha "$(git -C ../.. rev-parse HEAD)"
 docker rm -f tidb-conformance                        # cleanup
 ```
+
+The DSN carries no default schema
+(`root@tcp(127.0.0.1:14001)/?multiStatements=true&...`): a default schema is
+droppable by adjudicated DDL, after which every later fresh connection fails
+its handshake with 1049 — without one, unqualified-name statements fail
+statement-level 1046, which classifies identically as "parsed"
+(`normalizeTiDBDSN` forces this even on user-supplied DSNs).
 
 The module `replace`s omni to `../..`, so the parser under test is always the
 working tree; `-omni-sha` is provenance recorded in the output, not what

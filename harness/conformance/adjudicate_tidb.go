@@ -53,17 +53,42 @@ var tidbParseRejectCodes = map[uint16]bool{
 	4113: true, 4128: true,
 }
 
+// tidbConnectionScopeCodes are MySQL-coded errors that describe the
+// connection, not the statement — they are infra (VerdictNone), never a
+// parse verdict. The sweep connects as root with the container's real
+// credentials, so 1045 ER_ACCESS_DENIED_ERROR can never occur statement-
+// level: it appears only when a probed batch mutated the credentials
+// mid-sweep (e.g. `SELECT 1; SET PASSWORD = 'x'` — the container stays up,
+// so the ping-abort never fires on its own) and every later fresh
+// connection fails its HANDSHAKE with 1045. Mapping that to "parsed" would
+// silently poison every remaining verdict; VerdictNone routes it to
+// probeRow's ping-abort, which names the culprit statement.
+//
+// Deliberately NOT in this set:
+//   - 1049 ER_BAD_DB_ERROR: a statement-level `USE nonexistent` on a healthy
+//     connection legitimately returns 1049 for a statement that parsed.
+//     Connection-level 1049 (handshake against a dropped default schema) is
+//     made impossible instead: normalizeTiDBDSN forces an empty default
+//     schema, so the handshake names nothing droppable.
+//   - 1044 (db access denied) / 1046 (no database selected): statement-level
+//     semantic codes — they prove the statement parsed.
+var tidbConnectionScopeCodes = map[uint16]bool{1045: true}
+
 // classifyTiDBExecError maps a driver error to an engine parse verdict:
 // tidbParseRejectCodes = the parser rejected; anything else MySQL-coded =
 // parsed (8108 "Unsupported type" = parsed but unexecutable; semantic and
-// runtime errors = parsed). Non-MySQL errors are infra — VerdictNone, never
-// accept/reject (fail-closed).
+// runtime errors = parsed) — except tidbConnectionScopeCodes, which are
+// about the connection, not the statement. Non-MySQL errors are infra —
+// VerdictNone, never accept/reject (fail-closed).
 func classifyTiDBExecError(err error) (Verdict, int, string) {
 	if err == nil {
 		return VerdictAccept, 0, ""
 	}
 	var me *mysql.MySQLError
 	if !errors.As(err, &me) {
+		return VerdictNone, 0, err.Error()
+	}
+	if tidbConnectionScopeCodes[me.Number] {
 		return VerdictNone, 0, err.Error()
 	}
 	if tidbParseRejectCodes[me.Number] {
@@ -77,25 +102,58 @@ func classifyTiDBExecError(err error) (Verdict, int, string) {
 // `shutdown`, `restart`, and KILL variants (parser_test.go:5958-5968).
 var unsafeKeywords = map[string]bool{"SHUTDOWN": true, "KILL": true, "RESTART": true}
 
-// unsafeToAdjudicate reports whether sql leads with a statement unsafe to
-// execute against the shared oracle: a first keyword in unsafeKeywords, or
-// SET PASSWORD (would change the oracle's credentials mid-sweep,
-// parser_test.go:1386-1387). First-statement match only — "SELECT
-// shutdown_col FROM t" is safe — and identifier characters extend the token,
-// so KILLER is not KILL. Leading comments are stripped the same way
-// classifyFamily does. Best-effort deny-list, not a safety proof: the
-// ping-abort in probeRow and the disposable container remain the backstop.
+// unsafeToAdjudicate reports whether any statement in sql is unsafe to
+// execute against the shared oracle. Every statement in the batch is
+// scanned, not just the first: a mid-batch SHUTDOWN kills the oracle just
+// as dead as a leading one, and a mid-batch SET PASSWORD doesn't kill it at
+// all — it poisons the handshake of every later fresh connection, so the
+// ping-abort backstop never fires. The `;` split is naive: a semicolon
+// inside a string literal splits too, which can only over-match (a safe row
+// skipped into INDETERMINATE unsafe_to_adjudicate), never miss an unsafe
+// statement — the deny-list deliberately errs conservative. Best-effort
+// deny-list, not a safety proof: the ping-abort in probeRow and the
+// disposable container remain the backstop.
 func unsafeToAdjudicate(sql string) bool {
-	s := strings.TrimSpace(leadingComment.ReplaceAllString(sql, ""))
+	for _, stmt := range strings.Split(sql, ";") {
+		if unsafeStatement(stmt) {
+			return true
+		}
+	}
+	return false
+}
+
+// unsafeStatement checks a single statement: a first keyword in
+// unsafeKeywords, or a SET whose target outlives the probe's session (see
+// unsafeSetTarget). First-keyword match only — "SELECT shutdown_col FROM t"
+// is safe — and identifier characters extend the token, so KILLER is not
+// KILL. Leading comments are stripped the same way classifyFamily does.
+func unsafeStatement(stmt string) bool {
+	s := strings.TrimSpace(leadingComment.ReplaceAllString(stmt, ""))
 	first, rest := nextKeyword(s)
 	if unsafeKeywords[first] {
 		return true
 	}
 	if first == "SET" {
-		second, _ := nextKeyword(rest)
-		return second == "PASSWORD"
+		return unsafeSetTarget(rest)
 	}
 	return false
+}
+
+// unsafeSetTarget reports whether a SET statement's tail mutates state that
+// outlives the probe's session. Fresh-connection-per-row guards session
+// state only: SET PASSWORD invalidates the credentials every later handshake
+// uses (parser_test.go:1386-1387), and GLOBAL/PERSIST mutations (e.g. a
+// global sql_mode of ANSI_QUOTES) change how every later probe *parses*.
+// The @@GLOBAL/@@PERSIST forms are matched by prefix, not by token, because
+// no space follows the scope in `@@global.sql_mode`; SET NAMES /
+// SET sql_mode / SET @@session.x / SET @v stay adjudicable.
+func unsafeSetTarget(rest string) bool {
+	second, _ := nextKeyword(rest)
+	if second == "PASSWORD" || second == "GLOBAL" || second == "PERSIST" {
+		return true
+	}
+	r := strings.ToUpper(strings.TrimSpace(rest))
+	return strings.HasPrefix(r, "@@GLOBAL") || strings.HasPrefix(r, "@@PERSIST")
 }
 
 // nextKeyword returns s's leading identifier-shaped token upper-cased, plus
@@ -115,16 +173,22 @@ func isIdentByte(c byte) bool {
 
 // normalizeTiDBDSN forces the settings the sweep is incorrect or unbounded
 // without (H1): multiStatements=true (corpus rows contain multi-statement
-// SQL; without it the server 1064s the whole batch — false parse-rejects)
-// and dial/read/write timeouts (a hanging statement must not stall the
-// sweep; a driver timeout is a non-MySQL error, so the row lands in
-// INDETERMINATE infra_error). Explicit timeouts in the DSN are respected.
+// SQL; without it the server 1064s the whole batch — false parse-rejects),
+// no default schema (a default schema is droppable by adjudicated DDL —
+// `DROP DATABASE test` — after which every later fresh connection fails its
+// handshake with 1049, silently poisoning the sweep; without one,
+// unqualified-name statements fail statement-level 1046, which classifies
+// identically as "parsed"), and dial/read/write timeouts (a hanging
+// statement must not stall the sweep; a driver timeout is a non-MySQL
+// error, so the row lands in INDETERMINATE infra_error). Explicit timeouts
+// in the DSN are respected.
 func normalizeTiDBDSN(dsn string) (string, error) {
 	cfg, err := mysql.ParseDSN(dsn)
 	if err != nil {
 		return "", fmt.Errorf("invalid TIDB_DSN: %w", err)
 	}
 	cfg.MultiStatements = true
+	cfg.DBName = ""
 	if cfg.Timeout == 0 {
 		cfg.Timeout = 5 * time.Second
 	}

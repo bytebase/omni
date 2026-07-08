@@ -28,6 +28,18 @@ func TestClassifyTiDBExecError(t *testing.T) {
 		{"1105 runtime unknown-error is parsed", &mysql.MySQLError{Number: 1105, Message: "unknown error"}, VerdictAccept, 1105, "unknown error"},
 		{"wrapped 1064 unwraps", fmt.Errorf("exec: %w", &mysql.MySQLError{Number: 1064, Message: "syntax error"}), VerdictReject, 1064, "syntax error"},
 		{"infra error is none", errors.New("driver: bad connection"), VerdictNone, 0, "driver: bad connection"},
+
+		// Connection-scope: as root, 1045 can only be a failed handshake after a
+		// probed batch mutated the credentials — infra, never a parse verdict.
+		{"1045 access-denied is connection-scope infra", &mysql.MySQLError{Number: 1045, Message: "Access denied for user 'root'@'127.0.0.1'"}, VerdictNone, 0, "Error 1045: Access denied for user 'root'@'127.0.0.1'"},
+		{"wrapped 1045 unwraps to connection-scope infra", fmt.Errorf("exec: %w", &mysql.MySQLError{Number: 1045, Message: "Access denied"}), VerdictNone, 0, "exec: Error 1045: Access denied"},
+		// Statement-level schema/privilege codes prove the statement parsed:
+		// `USE nonexistent` → 1049, unqualified name with no default schema →
+		// 1046, denied database → 1044. None of them are connection-scope here
+		// (the DSN carries no default schema and we connect as root).
+		{"1049 unknown-database is parsed", &mysql.MySQLError{Number: 1049, Message: "Unknown database 'nonexistent_db_xyz'"}, VerdictAccept, 1049, "Unknown database 'nonexistent_db_xyz'"},
+		{"1046 no-database-selected is parsed", &mysql.MySQLError{Number: 1046, Message: "No database selected"}, VerdictAccept, 1046, "No database selected"},
+		{"1044 database-access-denied is parsed", &mysql.MySQLError{Number: 1044, Message: "Access denied for user 'root'@'%' to database 'x'"}, VerdictAccept, 1044, "Access denied for user 'root'@'%' to database 'x'"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -60,9 +72,17 @@ func TestUnsafeToAdjudicate(t *testing.T) {
 		{"  /* c */ shutdown", true},
 		{"-- c\nshutdown", true},
 		{"shutdown;select 1", true},
-		// First-statement-only is deliberate: a mid-batch unsafe statement is
-		// caught by the container-death abort backstop, not this predicate.
-		{"select 1; shutdown", false},
+		// Every statement in the batch is scanned: a mid-batch SHUTDOWN kills
+		// the oracle just as dead, and a mid-batch SET PASSWORD doesn't kill it
+		// at all — it poisons the handshake of every later fresh connection,
+		// so the ping-abort backstop never fires.
+		{"select 1; shutdown", true},
+		{"SELECT 1; SET PASSWORD = 'x'", true},
+		// Documented false-positive: the `;` split is naive, so an unsafe word
+		// inside a string literal over-matches. Conservative direction only —
+		// the row lands in INDETERMINATE unsafe_to_adjudicate, never executes.
+		{"SELECT 'x; shutdown'", true},
+		{"SELECT 1; SELECT 2", false},
 
 		// First-keyword only: unsafe words elsewhere are fine.
 		{"select shutdown_col from t", false},
@@ -76,9 +96,20 @@ func TestUnsafeToAdjudicate(t *testing.T) {
 		// SET PASSWORD would change the oracle's credentials mid-sweep.
 		{"SET PASSWORD = 'x'", true},
 		{"set password for u = 'x'", true},
-		// Other SET forms stay adjudicable.
+		// GLOBAL/PERSIST mutations outlive the probe's session: fresh-conn-
+		// per-row guards session state only, and e.g. a global sql_mode of
+		// ANSI_QUOTES changes how every later probe parses.
+		{"SET GLOBAL sql_mode = 'ANSI_QUOTES'", true},
+		{"set global max_connections = 100", true},
+		{"SET PERSIST sql_mode = ''", true},
+		{"SET @@GLOBAL.sql_mode = ''", true},
+		{"set @@global.sql_mode=''", true},
+		{"SET @@PERSIST.max_connections = 100", true},
+		// Session-scoped SET forms stay adjudicable.
 		{"SET NAMES utf8", false},
 		{"SET sql_mode=''", false},
+		{"SET @@session.sql_mode=''", false},
+		{"SET @v = 1", false},
 		{"select password from t", false},
 	}
 	for _, c := range cases {
@@ -100,6 +131,17 @@ func TestNormalizeTiDBDSN(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("normalized DSN %q missing %q", got, want)
 		}
+	}
+
+	// A default schema is droppable by adjudicated DDL, after which every
+	// later fresh connection fails its handshake with 1049 — so the schema is
+	// forced empty even when a user-supplied DSN names one.
+	cfg, err := mysql.ParseDSN(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.DBName != "" {
+		t.Errorf("normalized DSN %q kept default schema %q, want none", got, cfg.DBName)
 	}
 
 	// Explicit timeouts are respected, not clobbered.
