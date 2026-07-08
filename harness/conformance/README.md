@@ -42,6 +42,10 @@ selects the code.
   The committed board is the **adjudicated** one; a label-only quickstart run
   overwrites it locally (GAP 1141, container_digest `-`) — don't commit a
   label-only regen over an adjudicated board.
+  Committed boards must record a **main-reachable** `omni_sha` — intermediate
+  branch commits become unreachable after a squash-merge. On harness-only
+  branches (no parser change) that is the merge-base,
+  `git merge-base origin/main HEAD`: the parser under test is identical there.
 - `out/<engine>.jsonl` — **gitignored artifact.** One meta line first (engine
   version, omni SHA, corpus tag, container digest, classifier version), then
   one row per statement with full provenance: source path/line, SQL, both
