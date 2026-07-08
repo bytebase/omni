@@ -47,7 +47,9 @@ func generateTriggerDDL(_, to *Catalog, diff *SchemaDiff, _ *Normalizer) []Migra
 			if te.To == nil {
 				continue
 			}
-			ops = append(ops, buildCreateTriggerOp(te.Database, te.To))
+			// A brand-new trigger emits a BARE CREATE (→ server-default session): no original
+			// context to preserve (nil framing source).
+			ops = append(ops, buildCreateTriggerOp(te.Database, te.To, nil))
 		case DiffDrop:
 			if te.From == nil || dropTriggerSuppressed(to, te.From) {
 				continue
@@ -65,7 +67,10 @@ func generateTriggerDDL(_, to *Catalog, diff *SchemaDiff, _ *Normalizer) []Migra
 				ops = append(ops, buildDropTriggerOp(te.Database, te.From))
 			}
 			if te.To != nil {
-				ops = append(ops, buildCreateTriggerOp(te.Database, te.To))
+				// The recreate runs under the OLD trigger's session context (te.From), so a
+				// trigger authored under a non-default sql_mode/charset/collation is re-created
+				// identically.
+				ops = append(ops, buildCreateTriggerOp(te.Database, te.To, te.From))
 			}
 		}
 	}
@@ -108,7 +113,11 @@ func dropTriggerSuppressed(to *Catalog, trig *Trigger) bool {
 // default) the stored object name is case-significant, so the DDL must reproduce the declared
 // casing, the same rationale as tableIdent in migration_table.go. `database` (the lower-cased diff
 // key) is retained only for the Database/sortName ordering metadata.
-func buildCreateTriggerOp(database string, trig *Trigger) MigrationOp {
+// When `from` is non-nil AND carries synced session context, the emitted CREATE is wrapped
+// in a save/restore of that OLD context (renderWithSessionContext) so a recreate preserves
+// the trigger's original sql_mode/charset/collation; on a first-time create `from` is nil →
+// bare CREATE. Triggers have no time_zone axis.
+func buildCreateTriggerOp(database string, trig, from *Trigger) MigrationOp {
 	dbName := triggerDatabaseName(trig)
 	trigIdent := qualifiedTriggerIdent(dbName, trig.Name)
 	onTableIdent := qualifiedTriggerIdent(dbName, trig.Table)
@@ -121,15 +130,30 @@ func buildCreateTriggerOp(database string, trig *Trigger) MigrationOp {
 		b.WriteString(body)
 	}
 
+	sql := b.String()
+	if from != nil && from.HasSessionContext {
+		sql = renderWithSessionContext(sql, triggerSessionContext(from), false)
+	}
+
 	return MigrationOp{
 		Type:         OpCreateTrigger,
 		Database:     database,
 		ObjectName:   trig.Name,
 		ParentObject: trig.Table,
-		SQL:          b.String(),
+		SQL:          sql,
 		Phase:        PhaseMain,
 		Priority:     priorityTrigger,
 		sortName:     triggerSortName(database, trig.Name),
+	}
+}
+
+// triggerSessionContext bundles a trigger's captured session context for the recreate
+// framing (triggers have no time_zone axis).
+func triggerSessionContext(t *Trigger) SessionContext {
+	return SessionContext{
+		SQLMode:             t.SQLMode,
+		CharacterSetClient:  t.CharacterSetClient,
+		CollationConnection: t.CollationConnection,
 	}
 }
 
