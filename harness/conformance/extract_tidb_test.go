@@ -18,11 +18,11 @@ func TestExtractTiDBFixture(t *testing.T) {
 			rejects++
 		}
 	}
-	if accepts != 8 || rejects != 1 || skips != 3 {
-		t.Fatalf("got accepts=%d rejects=%d skips=%d, want 8/1/3", accepts, rejects, skips)
+	if accepts != 10 || rejects != 3 || skips != 4 {
+		t.Fatalf("got accepts=%d rejects=%d skips=%d, want 10/3/4", accepts, rejects, skips)
 	}
 	// Every entry — skips included — must carry test-function provenance.
-	fixtureTests := map[string]bool{"TestDMLStmt": true, "TestNonCompositeElement": true, "TestAppendForm": true}
+	fixtureTests := map[string]bool{"TestDMLStmt": true, "TestNonCompositeElement": true, "TestAppendForm": true, "TestErrMsgTable": true}
 	for _, e := range entries {
 		if !fixtureTests[e.TestName] {
 			t.Errorf("test name = %q, want a fixture test function", e.TestName)
@@ -37,8 +37,8 @@ func TestExtractTiDBFixtureEntries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 12 {
-		t.Fatalf("got %d entries, want 12", len(entries))
+	if len(entries) != 17 {
+		t.Fatalf("got %d entries, want 17", len(entries))
 	}
 	want := []struct {
 		sql        string
@@ -46,22 +46,32 @@ func TestExtractTiDBFixtureEntries(t *testing.T) {
 		line       int
 		skipReason string
 	}{
-		{"SELECT 1", VerdictAccept, 11, ""},
-		{"INSERT INTO t VALUES (1)", VerdictAccept, 12, ""}, // backtick raw string
-		{"SELECT FROM WHERE", VerdictReject, 13, ""},
-		{"DELETE FROM t", VerdictAccept, 15, ""}, // keyed form
-		{"", VerdictNone, 17, "non_literal"},     // buildSQL() call
-		{"SELECT 1 + 1", VerdictAccept, 19, ""},  // "a" + "b" concatenation
+		{"SELECT 1", VerdictAccept, 16, ""},
+		{"INSERT INTO t VALUES (1)", VerdictAccept, 17, ""}, // backtick raw string
+		{"SELECT FROM WHERE", VerdictReject, 18, ""},
+		{"DELETE FROM t", VerdictAccept, 20, ""}, // keyed form
+		{"", VerdictNone, 22, "non_literal"},     // buildSQL() call
+		{"SELECT 1 + 1", VerdictAccept, 24, ""},  // "a" + "b" concatenation
 		// exact bytes: \r\n escapes and escaped quotes resolve
-		{"SELECT 'a\r\nb' WHERE x = \"q\"", VerdictAccept, 21, ""},
+		{"SELECT 'a\r\nb' WHERE x = \"q\"", VerdictAccept, 26, ""},
 		// exact bytes: multi-line raw string keeps interior newlines
-		{"CREATE TABLE t (\n\ta INT\n)", VerdictAccept, 23, ""},
-		{"SELECT 2", VerdictAccept, 32, ""},            // second table
-		{"", VerdictNone, 33, "non_composite_element"}, // bare identifier element
+		{"CREATE TABLE t (\n\ta INT\n)", VerdictAccept, 28, ""},
+		{"SELECT 2", VerdictAccept, 37, ""},            // second table
+		{"", VerdictNone, 38, "non_composite_element"}, // bare identifier element
 		// bare testCase literal in append form: a literal src extracts for real
-		{"SELECT 77", VerdictAccept, 41, ""},
+		{"SELECT 77", VerdictAccept, 46, ""},
 		// bare literal with a non-literal src still yields a SKIP row
-		{"", VerdictNone, 42, "non_literal"},
+		{"", VerdictNone, 47, "non_literal"},
+		// testErrMsgCase table: nil err means the parse must succeed — accept
+		{"SELECT 100", VerdictAccept, 54, ""},
+		// non-nil err (errors.New call): parse must fail — reject
+		{"select 1/*", VerdictReject, 56, ""},
+		// non-literal src in a testErrMsgCase still yields a SKIP row
+		{"", VerdictNone, 58, "non_literal"},
+		// keyed form with an ErrXxx selector: non-nil — reject
+		{"SELECT FROM ERRMSG", VerdictReject, 60, ""},
+		// keyed form with err omitted: the zero value is nil — accept
+		{"SELECT 102", VerdictAccept, 62, ""},
 	}
 	for i, w := range want {
 		e := entries[i]

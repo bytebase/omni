@@ -6,6 +6,11 @@ type testCase struct {
 	restore string
 }
 
+type testErrMsgCase struct {
+	src string
+	err error
+}
+
 func TestDMLStmt(t *testing.T) {
 	table := []testCase{
 		{"SELECT 1", true, "SELECT 1"},
@@ -41,4 +46,20 @@ func TestAppendForm(t *testing.T) {
 	table2 = append(table2, testCase{"SELECT 77", true, ""})
 	table2 = append(table2, testCase{buildSQL(), true, ""})
 	RunTest(t, table2, false)
+}
+
+func TestErrMsgTable(t *testing.T) {
+	cases := []testErrMsgCase{
+		// nil err: the parse must succeed — accept
+		{"SELECT 100", nil},
+		// non-nil err (any expression): the parse must fail — reject
+		{"select 1/*", errors.New("near '/*' at line 1")},
+		// non-literal src must be skipped, not crash
+		{buildSQL(), nil},
+		// keyed form: an ErrXxx selector is non-nil — reject
+		{src: "SELECT FROM ERRMSG", err: parser.ErrSyntax},
+		// keyed form with the err field omitted: zero value is nil — accept
+		{src: "SELECT 102"},
+	}
+	RunErrMsgTest(t, cases)
 }

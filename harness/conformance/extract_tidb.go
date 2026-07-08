@@ -67,23 +67,11 @@ func extractTiDBFile(path string) ([]CorpusEntry, error) {
 			}
 			switch {
 			case isTestCaseSlice(cl):
-				for _, elt := range cl.Elts {
-					var entry CorpusEntry
-					if e, ok := elt.(*ast.CompositeLit); ok {
-						entry = parseTestCaseLit(e, fset)
-					} else {
-						// Zero-loss invariant: every slice element yields an entry
-						// with provenance, even ones we can't read statically.
-						entry = CorpusEntry{
-							Line:       fset.Position(elt.Pos()).Line,
-							SkipReason: "non_composite_element",
-						}
-					}
-					entry.SourcePath = relCorpusPath(path)
-					entry.TestName = fn.Name.Name
-					out = append(out, entry)
-				}
+				out = append(out, sliceElements(cl, fset, path, fn.Name.Name, parseTestCaseLit)...)
 				return false // don't descend into the slice again
+			case isTestErrMsgCaseSlice(cl):
+				out = append(out, sliceElements(cl, fset, path, fn.Name.Name, parseTestErrMsgCaseLit)...)
+				return false
 			case isTestCaseLit(cl):
 				// Bare testCase{...} literals — append-form rows like
 				// append(testcases, testCase{...}). Elements inside a matched
@@ -100,6 +88,28 @@ func extractTiDBFile(path string) ([]CorpusEntry, error) {
 	return out, nil
 }
 
+// sliceElements extracts every element of a matched test-table slice literal
+// through the per-shape literal parser. Zero-loss invariant: every slice
+// element yields an entry with provenance, even ones we can't read statically.
+func sliceElements(cl *ast.CompositeLit, fset *token.FileSet, path, testName string, parseLit func(*ast.CompositeLit, *token.FileSet) CorpusEntry) []CorpusEntry {
+	out := make([]CorpusEntry, 0, len(cl.Elts))
+	for _, elt := range cl.Elts {
+		var entry CorpusEntry
+		if e, ok := elt.(*ast.CompositeLit); ok {
+			entry = parseLit(e, fset)
+		} else {
+			entry = CorpusEntry{
+				Line:       fset.Position(elt.Pos()).Line,
+				SkipReason: "non_composite_element",
+			}
+		}
+		entry.SourcePath = relCorpusPath(path)
+		entry.TestName = testName
+		out = append(out, entry)
+	}
+	return out
+}
+
 // isTestCaseSlice matches []testCase{...} composite literals. Purely
 // syntactic: it matches the type identifier by name with no type resolution —
 // correct while the corpus package declares a single testCase type; re-verify
@@ -113,6 +123,17 @@ func isTestCaseSlice(cl *ast.CompositeLit) bool {
 	return ok && id.Name == "testCase"
 }
 
+// isTestErrMsgCaseSlice matches []testErrMsgCase{...} composite literals.
+// Same name-only caveat as isTestCaseSlice.
+func isTestErrMsgCaseSlice(cl *ast.CompositeLit) bool {
+	arr, ok := cl.Type.(*ast.ArrayType)
+	if !ok {
+		return false
+	}
+	id, ok := arr.Elt.(*ast.Ident)
+	return ok && id.Name == "testErrMsgCase"
+}
+
 // isTestCaseLit matches bare testCase{...} composite literals (append-form
 // rows). Same name-only caveat as isTestCaseSlice. Untyped elements inside a
 // []testCase{...} slice have a nil Type and can never match.
@@ -121,32 +142,45 @@ func isTestCaseLit(cl *ast.CompositeLit) bool {
 	return ok && id.Name == "testCase"
 }
 
+// fieldExprs pulls two named struct fields out of a composite literal, keyed
+// or positional. Positional literals map fields 0 and 1 (both target structs
+// lead with them; Go requires positional literals to be complete, so a
+// shorter one cannot occur in compiling corpus code — it yields nils, which
+// the resolvers skip). A keyed literal may omit a field: that expr stays nil.
+func fieldExprs(e *ast.CompositeLit, first, second string) (ast.Expr, ast.Expr) {
+	if len(e.Elts) == 0 {
+		return nil, nil
+	}
+	if _, keyed := e.Elts[0].(*ast.KeyValueExpr); !keyed {
+		if len(e.Elts) >= 2 {
+			return e.Elts[0], e.Elts[1]
+		}
+		return nil, nil
+	}
+	var a, b ast.Expr
+	for _, el := range e.Elts {
+		kv, ok := el.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		key, ok := kv.Key.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		switch key.Name {
+		case first:
+			a = kv.Value
+		case second:
+			b = kv.Value
+		}
+	}
+	return a, b
+}
+
 // parseTestCaseLit reads one {src, ok, restore} literal — positional or keyed.
 func parseTestCaseLit(e *ast.CompositeLit, fset *token.FileSet) CorpusEntry {
 	entry := CorpusEntry{Line: fset.Position(e.Pos()).Line}
-	var srcExpr, okExpr ast.Expr
-	if len(e.Elts) > 0 {
-		if _, keyed := e.Elts[0].(*ast.KeyValueExpr); keyed {
-			for _, el := range e.Elts {
-				kv, ok := el.(*ast.KeyValueExpr)
-				if !ok {
-					continue
-				}
-				key, ok := kv.Key.(*ast.Ident)
-				if !ok {
-					continue
-				}
-				switch key.Name {
-				case "src":
-					srcExpr = kv.Value
-				case "ok":
-					okExpr = kv.Value
-				}
-			}
-		} else if len(e.Elts) >= 2 {
-			srcExpr, okExpr = e.Elts[0], e.Elts[1]
-		}
-	}
+	srcExpr, okExpr := fieldExprs(e, "src", "ok")
 	sql, ok1 := stringValue(srcExpr)
 	okVal, ok2 := boolValue(okExpr)
 	if !ok1 || !ok2 {
@@ -160,6 +194,42 @@ func parseTestCaseLit(e *ast.CompositeLit, fset *token.FileSet) CorpusEntry {
 		entry.Expected = VerdictReject
 	}
 	return entry
+}
+
+// parseTestErrMsgCaseLit reads one {src, err} literal — positional or keyed.
+// Verdict semantics are grounded in the corpus's RunErrMsgTest
+// (parser_test.go): a non-nil err demands terror.ErrorEqual(err, tbl.err) —
+// never satisfiable by a nil parse error — so the parse must REJECT; a nil
+// err demands require.NoError — the parse must ACCEPT. The err VALUE only
+// pins the message upstream; its non-nil-ness is the verdict. Hence: the
+// `nil` ident (or a keyed literal omitting err — zero value nil) is accept,
+// and ANY other expression (ErrXxx selectors, errors.New calls, ...) is
+// reject.
+func parseTestErrMsgCaseLit(e *ast.CompositeLit, fset *token.FileSet) CorpusEntry {
+	entry := CorpusEntry{Line: fset.Position(e.Pos()).Line}
+	srcExpr, errExpr := fieldExprs(e, "src", "err")
+	sql, ok := stringValue(srcExpr)
+	if !ok {
+		entry.SkipReason = "non_literal"
+		return entry
+	}
+	entry.SQL = sql
+	if isNilErr(errExpr) {
+		entry.Expected = VerdictAccept
+	} else {
+		entry.Expected = VerdictReject
+	}
+	return entry
+}
+
+// isNilErr reports whether the err field expression is statically nil: the
+// `nil` ident, or absent (a keyed literal omitting err — Go zero value nil).
+func isNilErr(e ast.Expr) bool {
+	if e == nil {
+		return true
+	}
+	id, ok := e.(*ast.Ident)
+	return ok && id.Name == "nil"
 }
 
 // stringValue resolves string literals and simple "a" + "b" concatenations.

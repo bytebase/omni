@@ -71,10 +71,10 @@ func countTestCaseElements(t *testing.T) int {
 			if !ok {
 				return true
 			}
-			// Mirror the extractor's two arms; return false on both so slice
+			// Mirror the extractor's arms; return false on all so slice
 			// elements are never double-counted as bare literals.
 			switch {
-			case isTestCaseSlice(cl):
+			case isTestCaseSlice(cl), isTestErrMsgCaseSlice(cl):
 				count += len(cl.Elts)
 				return false
 			case isTestCaseLit(cl):
