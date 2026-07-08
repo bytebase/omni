@@ -1,0 +1,65 @@
+package parser
+
+type testCase struct {
+	src     string
+	ok      bool
+	restore string
+}
+
+type testErrMsgCase struct {
+	src string
+	err error
+}
+
+func TestDMLStmt(t *testing.T) {
+	table := []testCase{
+		{"SELECT 1", true, "SELECT 1"},
+		{`INSERT INTO t VALUES (1)`, true, "INSERT INTO `t` VALUES (1)"},
+		{"SELECT FROM WHERE", false, ""},
+		// keyed form appears too
+		{src: "DELETE FROM t", ok: true, restore: "DELETE FROM `t`"},
+		// non-literal src must be skipped, not crash
+		{buildSQL(), true, ""},
+		// concatenated literals must be joined
+		{"SELECT " + "1 + 1", true, ""},
+		// escape sequences must resolve to exact bytes
+		{"SELECT 'a\r\nb' WHERE x = \"q\"", true, ""},
+		// multi-line raw strings keep interior newlines
+		{`CREATE TABLE t (
+	a INT
+)`, true, ""},
+	}
+	RunTest(t, table, false)
+}
+
+func TestNonCompositeElement(t *testing.T) {
+	table := []testCase{
+		{"SELECT 2", true, "SELECT 2"},
+		someVar,
+	}
+	RunTest(t, table, false)
+}
+
+func TestAppendForm(t *testing.T) {
+	table2 := make([]testCase, 0, 2)
+	// bare testCase literals (append-form rows) must be captured too
+	table2 = append(table2, testCase{"SELECT 77", true, ""})
+	table2 = append(table2, testCase{buildSQL(), true, ""})
+	RunTest(t, table2, false)
+}
+
+func TestErrMsgTable(t *testing.T) {
+	cases := []testErrMsgCase{
+		// nil err: the parse must succeed — accept
+		{"SELECT 100", nil},
+		// non-nil err (any expression): the parse must fail — reject
+		{"select 1/*", errors.New("near '/*' at line 1")},
+		// non-literal src must be skipped, not crash
+		{buildSQL(), nil},
+		// keyed form: an ErrXxx selector is non-nil — reject
+		{src: "SELECT FROM ERRMSG", err: parser.ErrSyntax},
+		// keyed form with the err field omitted: zero value is nil — accept
+		{src: "SELECT 102"},
+	}
+	RunErrMsgTest(t, cases)
+}

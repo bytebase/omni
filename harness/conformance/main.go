@@ -1,0 +1,126 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	var (
+		engine     = flag.String("engine", "tidb", "engine to sweep (tidb)")
+		corpus     = flag.String("corpus", "corpus", "corpus root (from fetch_corpus.sh)")
+		outDir     = flag.String("out", "out", "JSONL output dir (gitignored)")
+		boardDir   = flag.String("scoreboards", "scoreboards", "committed scoreboard dir")
+		omniSHA    = flag.String("omni-sha", "unknown", "omni commit under test (git rev-parse HEAD)")
+		adjudicate = flag.Bool("adjudicate", false, "probe divergences against a live TiDB container (TIDB_DSN; see start_tidb.sh)")
+		writeBoard = flag.Bool("write-scoreboard", false, "write the committed scoreboard dir even on a label-only run (intentional baseline); otherwise label-only boards land in -out")
+	)
+	flag.Parse()
+	if *engine != "tidb" {
+		log.Fatalf("engine %q not implemented in slice 1", *engine)
+	}
+
+	entries, err := extractTiDBCorpus(*corpus)
+	if err != nil {
+		log.Fatal(err)
+	}
+	meta := RunMeta{Engine: "tidb", EngineVersion: "v8.5.5", OmniSHA: *omniSHA, CorpusTag: "v8.5.5", ClassifierVersion: classifierVersion}
+	rows, stats := buildRows(entries)
+	meta.DuplicatesDropped = stats.duplicatesDropped
+	meta.DuplicateLabelConflicts = stats.duplicateLabelConflicts
+	if *adjudicate {
+		// A failed adjudication — including a tripped sweep-integrity canary
+		// (verifyNoDrift) — fatals HERE, before any JSONL or board is written
+		// below. That ordering is the guarantee that a possibly order-dependent
+		// board is never committed: on canary failure no partial artifact is
+		// left behind, and the operator recreates the container as instructed.
+		digest, err := adjudicateTiDB(rows)
+		if err != nil {
+			log.Fatal(err)
+		}
+		meta.ContainerDigest = digest
+	}
+
+	if err := os.MkdirAll(*outDir, 0o755); err != nil {
+		log.Fatal(err)
+	}
+	if err := writeJSONL(filepath.Join(*outDir, "tidb.jsonl"), meta, rows); err != nil {
+		log.Fatal(err)
+	}
+	board := renderScoreboard(meta, rows)
+	boardPath := filepath.Join(*outDir, "tidb.scoreboard.md")
+	if writeCommittedBoard(*adjudicate, *writeBoard) {
+		if err := os.MkdirAll(*boardDir, 0o755); err != nil {
+			log.Fatal(err)
+		}
+		boardPath = filepath.Join(*boardDir, "tidb.md")
+	} else {
+		log.Printf("label-only run: board written to %s; committed %s untouched (rerun with -adjudicate or -write-scoreboard to write it)",
+			boardPath, filepath.Join(*boardDir, "tidb.md"))
+	}
+	if err := os.WriteFile(boardPath, []byte(board), 0o644); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Print(board)
+}
+
+// writeCommittedBoard decides whether a run may write the committed
+// scoreboards dir. Adjudicated runs always do (unchanged default); label-only
+// runs write only the gitignored out dir unless -write-scoreboard opts in
+// (an intentional label-only baseline) — so a quickstart `go run .` can never
+// overwrite the committed adjudicated board with a label-only one.
+func writeCommittedBoard(adjudicated, writeBoardOptIn bool) bool {
+	return adjudicated || writeBoardOptIn
+}
+
+// buildStats summarizes what buildRows dropped or flagged, for run meta.
+type buildStats struct {
+	duplicatesDropped       int
+	duplicateLabelConflicts int
+}
+
+// buildRows converts extracted corpus entries into evaluated, classified rows.
+//
+// Skip entries (SkipReason != "") pass through as Class=SKIP without omni
+// evaluation and without classify() — classify would overwrite Class — and are
+// never deduped. Non-skip entries are deduped by stmt_hash: the first
+// occurrence (extraction order is deterministic) keeps its provenance;
+// subsequent duplicates are dropped and counted. A dropped duplicate whose
+// upstream label conflicts with the kept row's flips the kept row to
+// INDETERMINATE: the label is context-dependent, so it is not ground truth.
+func buildRows(entries []CorpusEntry) ([]Row, buildStats) {
+	kept := map[string]int{} // stmt hash -> index of kept row
+	rows := make([]Row, 0, len(entries))
+	var stats buildStats
+	for _, e := range entries {
+		r := Row{
+			Engine: "tidb", Lane: "upstream",
+			SourcePath: e.SourcePath, Line: e.Line, TestName: e.TestName,
+			SQL: e.SQL, StmtHash: stmtHash(e.SQL),
+			Expected: e.Expected, Family: classifyFamily(e.SQL), SkipReason: e.SkipReason,
+		}
+		if e.SkipReason != "" {
+			r.Class = ClassSkip
+			rows = append(rows, r)
+			continue
+		}
+		if i, dup := kept[r.StmtHash]; dup {
+			stats.duplicatesDropped++
+			if rows[i].Expected != e.Expected {
+				stats.duplicateLabelConflicts++
+				rows[i].Class = ClassIndeterminate
+				rows[i].ClassifierReason = "duplicate_label_conflict"
+				rows[i].DivergenceKey = "" // INDETERMINATE rows are not clustered
+			}
+			continue
+		}
+		kept[r.StmtHash] = len(rows)
+		r.OmniVerdict, r.OmniError = omniTiDBVerdict(e.SQL)
+		classify(&r)
+		rows = append(rows, r)
+	}
+	return rows, stats
+}
