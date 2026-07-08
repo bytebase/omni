@@ -72,6 +72,14 @@ func TestUnsafeToAdjudicate(t *testing.T) {
 		{"killer stmt", false},
 		{"shutdown_proc()", false},
 		{"", false},
+
+		// SET PASSWORD would change the oracle's credentials mid-sweep.
+		{"SET PASSWORD = 'x'", true},
+		{"set password for u = 'x'", true},
+		// Other SET forms stay adjudicable.
+		{"SET NAMES utf8", false},
+		{"SET sql_mode=''", false},
+		{"select password from t", false},
 	}
 	for _, c := range cases {
 		if got := unsafeToAdjudicate(c.sql); got != c.want {

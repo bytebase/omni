@@ -18,13 +18,14 @@ func TestExtractTiDBFixture(t *testing.T) {
 			rejects++
 		}
 	}
-	if accepts != 7 || rejects != 1 || skips != 2 {
-		t.Fatalf("got accepts=%d rejects=%d skips=%d, want 7/1/2", accepts, rejects, skips)
+	if accepts != 8 || rejects != 1 || skips != 3 {
+		t.Fatalf("got accepts=%d rejects=%d skips=%d, want 8/1/3", accepts, rejects, skips)
 	}
 	// Every entry — skips included — must carry test-function provenance.
+	fixtureTests := map[string]bool{"TestDMLStmt": true, "TestNonCompositeElement": true, "TestAppendForm": true}
 	for _, e := range entries {
-		if e.TestName != "TestDMLStmt" && e.TestName != "TestNonCompositeElement" {
-			t.Errorf("test name = %q, want TestDMLStmt or TestNonCompositeElement", e.TestName)
+		if !fixtureTests[e.TestName] {
+			t.Errorf("test name = %q, want a fixture test function", e.TestName)
 		}
 	}
 }
@@ -36,8 +37,8 @@ func TestExtractTiDBFixtureEntries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 10 {
-		t.Fatalf("got %d entries, want 10", len(entries))
+	if len(entries) != 12 {
+		t.Fatalf("got %d entries, want 12", len(entries))
 	}
 	want := []struct {
 		sql        string
@@ -57,6 +58,10 @@ func TestExtractTiDBFixtureEntries(t *testing.T) {
 		{"CREATE TABLE t (\n\ta INT\n)", VerdictAccept, 23, ""},
 		{"SELECT 2", VerdictAccept, 32, ""},            // second table
 		{"", VerdictNone, 33, "non_composite_element"}, // bare identifier element
+		// bare testCase literal in append form: a literal src extracts for real
+		{"SELECT 77", VerdictAccept, 41, ""},
+		// bare literal with a non-literal src still yields a SKIP row
+		{"", VerdictNone, 42, "non_literal"},
 	}
 	for i, w := range want {
 		e := entries[i]

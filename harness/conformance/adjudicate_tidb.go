@@ -77,17 +77,36 @@ func classifyTiDBExecError(err error) (Verdict, int, string) {
 // `shutdown`, `restart`, and KILL variants (parser_test.go:5958-5968).
 var unsafeKeywords = map[string]bool{"SHUTDOWN": true, "KILL": true, "RESTART": true}
 
-// unsafeToAdjudicate reports whether sql's first keyword is unsafe to execute
-// against the shared oracle. First-keyword match only — "SELECT shutdown_col
-// FROM t" is safe — and identifier characters extend the token, so KILLER is
-// not KILL. Leading comments are stripped the same way classifyFamily does.
+// unsafeToAdjudicate reports whether sql leads with a statement unsafe to
+// execute against the shared oracle: a first keyword in unsafeKeywords, or
+// SET PASSWORD (would change the oracle's credentials mid-sweep,
+// parser_test.go:1386-1387). First-statement match only — "SELECT
+// shutdown_col FROM t" is safe — and identifier characters extend the token,
+// so KILLER is not KILL. Leading comments are stripped the same way
+// classifyFamily does. Best-effort deny-list, not a safety proof: the
+// ping-abort in probeRow and the disposable container remain the backstop.
 func unsafeToAdjudicate(sql string) bool {
 	s := strings.TrimSpace(leadingComment.ReplaceAllString(sql, ""))
+	first, rest := nextKeyword(s)
+	if unsafeKeywords[first] {
+		return true
+	}
+	if first == "SET" {
+		second, _ := nextKeyword(rest)
+		return second == "PASSWORD"
+	}
+	return false
+}
+
+// nextKeyword returns s's leading identifier-shaped token upper-cased, plus
+// the remainder after it. Empty token when s starts with a non-ident byte.
+func nextKeyword(s string) (string, string) {
+	s = strings.TrimSpace(s)
 	end := 0
 	for end < len(s) && isIdentByte(s[end]) {
 		end++
 	}
-	return unsafeKeywords[strings.ToUpper(s[:end])]
+	return strings.ToUpper(s[:end]), s[end:]
 }
 
 func isIdentByte(c byte) bool {

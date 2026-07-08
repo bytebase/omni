@@ -46,9 +46,10 @@ func TestSmokeRealCorpus(t *testing.T) {
 }
 
 // countTestCaseElements independently counts every []testCase{...} slice
-// element across the corpus test files with a flat whole-file walk — unlike
-// the extractor's FuncDecl scope, it would also see package-level tables —
-// so extraction can never silently lose rows on a future corpus tag bump.
+// element plus every bare testCase{...} literal (append-form rows) across the
+// corpus test files with a flat whole-file walk — unlike the extractor's
+// FuncDecl scope, it would also see package-level tables — so extraction can
+// never silently lose rows on a future corpus tag bump.
 func countTestCaseElements(t *testing.T) int {
 	t.Helper()
 	files, err := filepath.Glob(filepath.Join("corpus", "tidb", "pkg", "parser", "*_test.go"))
@@ -66,8 +67,19 @@ func countTestCaseElements(t *testing.T) int {
 			t.Fatal(err)
 		}
 		ast.Inspect(f, func(n ast.Node) bool {
-			if cl, ok := n.(*ast.CompositeLit); ok && isTestCaseSlice(cl) {
+			cl, ok := n.(*ast.CompositeLit)
+			if !ok {
+				return true
+			}
+			// Mirror the extractor's two arms; return false on both so slice
+			// elements are never double-counted as bare literals.
+			switch {
+			case isTestCaseSlice(cl):
 				count += len(cl.Elts)
+				return false
+			case isTestCaseLit(cl):
+				count++
+				return false
 			}
 			return true
 		})

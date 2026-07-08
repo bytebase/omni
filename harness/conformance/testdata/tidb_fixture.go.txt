@@ -34,3 +34,11 @@ func TestNonCompositeElement(t *testing.T) {
 	}
 	RunTest(t, table, false)
 }
+
+func TestAppendForm(t *testing.T) {
+	table2 := make([]testCase, 0, 2)
+	// bare testCase literals (append-form rows) must be captured too
+	table2 = append(table2, testCase{"SELECT 77", true, ""})
+	table2 = append(table2, testCase{buildSQL(), true, ""})
+	RunTest(t, table2, false)
+}

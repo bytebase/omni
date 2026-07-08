@@ -62,26 +62,39 @@ func extractTiDBFile(path string) ([]CorpusEntry, error) {
 		}
 		ast.Inspect(fn, func(n ast.Node) bool {
 			cl, ok := n.(*ast.CompositeLit)
-			if !ok || !isTestCaseSlice(cl) {
+			if !ok {
 				return true
 			}
-			for _, elt := range cl.Elts {
-				var entry CorpusEntry
-				if e, ok := elt.(*ast.CompositeLit); ok {
-					entry = parseTestCaseLit(e, fset)
-				} else {
-					// Zero-loss invariant: every slice element yields an entry
-					// with provenance, even ones we can't read statically.
-					entry = CorpusEntry{
-						Line:       fset.Position(elt.Pos()).Line,
-						SkipReason: "non_composite_element",
+			switch {
+			case isTestCaseSlice(cl):
+				for _, elt := range cl.Elts {
+					var entry CorpusEntry
+					if e, ok := elt.(*ast.CompositeLit); ok {
+						entry = parseTestCaseLit(e, fset)
+					} else {
+						// Zero-loss invariant: every slice element yields an entry
+						// with provenance, even ones we can't read statically.
+						entry = CorpusEntry{
+							Line:       fset.Position(elt.Pos()).Line,
+							SkipReason: "non_composite_element",
+						}
 					}
+					entry.SourcePath = relCorpusPath(path)
+					entry.TestName = fn.Name.Name
+					out = append(out, entry)
 				}
+				return false // don't descend into the slice again
+			case isTestCaseLit(cl):
+				// Bare testCase{...} literals — append-form rows like
+				// append(testcases, testCase{...}). Elements inside a matched
+				// slice never reach this arm: the slice arm returns false.
+				entry := parseTestCaseLit(cl, fset)
 				entry.SourcePath = relCorpusPath(path)
 				entry.TestName = fn.Name.Name
 				out = append(out, entry)
+				return false
 			}
-			return false // don't descend into the slice again
+			return true
 		})
 	}
 	return out, nil
@@ -97,6 +110,14 @@ func isTestCaseSlice(cl *ast.CompositeLit) bool {
 		return false
 	}
 	id, ok := arr.Elt.(*ast.Ident)
+	return ok && id.Name == "testCase"
+}
+
+// isTestCaseLit matches bare testCase{...} composite literals (append-form
+// rows). Same name-only caveat as isTestCaseSlice. Untyped elements inside a
+// []testCase{...} slice have a nil Type and can never match.
+func isTestCaseLit(cl *ast.CompositeLit) bool {
+	id, ok := cl.Type.(*ast.Ident)
 	return ok && id.Name == "testCase"
 }
 
