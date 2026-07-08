@@ -111,6 +111,15 @@ func TestUnsafeToAdjudicate(t *testing.T) {
 		{"SET @@session.sql_mode=''", false},
 		{"SET @v = 1", false},
 		{"select password from t", false},
+		// SET CONFIG mutates dynamic cluster/component configuration
+		// (TiKV/PD/TiDB instance settings) — state that outlives the probe's
+		// session, same channel as GLOBAL/PERSIST. The arm keys on the
+		// CONFIG keyword, which always precedes the target: the target
+		// itself may be a string literal, not a keyword.
+		{"SET CONFIG tikv log.level='info'", true},
+		{"SET CONFIG '127.0.0.1:20180' log.level='info'", true},
+		{"set config pd log.level='info'", true},
+		{"SET character_set_client = utf8", false},
 
 		// Executable comments: /*! ... */ (with optional version digits) is
 		// EXECUTED by TiDB/MySQL, so its content must be scanned, not stripped.
@@ -119,13 +128,40 @@ func TestUnsafeToAdjudicate(t *testing.T) {
 		{"/*! KILL 5 */", true},
 		// Safe executable-comment content stays adjudicable.
 		{"/*!40101 SET NAMES utf8 */", false},
-		// TiDB-specific executable comments: omni's own splitter treats /*T!
-		// as executable SQL too (tidb/parser/split.go, Segment.Empty), and its
-		// prefix match covers digit forms like /*T!50000 the same way.
+		// TiDB-specific executable comments: the oracle's scanner executes
+		// /*T! content (corpus/tidb/pkg/parser/lexer.go:537-548); the prefix
+		// match covers digit forms like /*T!50000 the same way (the oracle
+		// re-scans digit junk as content, which parse-errors the batch —
+		// flagging it anyway is an accepted over-match).
 		{"/*T! SET GLOBAL sql_mode='ANSI_QUOTES' */", true},
 		{"/*T!50000 KILL 5 */", true},
 		// Safe TiDB executable-comment content stays adjudicable.
 		{"/*T!40101 SET NAMES utf8 */", false},
+		// Feature-gated executable comments /*T![feature_id,...] ... */: the
+		// bracket group is part of the marker, and the content after `]` is
+		// EXECUTED when every feature is supported (scanFeatureIDs, corpus
+		// lexer.go:543-548,972-1015; container-verified on v8.5.5:
+		// `/*T![ttl] SELECT FROM */` → 1064, `/*T![ttl] SELECT 1 */` → OK).
+		// The group must not blind the keyword scan.
+		{"/*T![ttl] SET GLOBAL sql_mode='x' */", true},
+		{"/*T![clustered_index] CREATE USER u */", true},
+		{"/*T![ttl,clustered_index] SET PASSWORD='x' */", true},
+		{"/*T![ttl] SELECT 1 */", false},
+		// An unterminated executable comment's content still executes
+		// (container-verified: `/*T![ttl] SELECT 1` with no closer → OK), so
+		// the scan must still see it.
+		{"/*T![ttl] KILL 5", true},
+		// Unsupported feature id: the oracle ignores the whole comment
+		// (container-verified: `/*T![no_such_feature] SELECT FROM */ SELECT
+		// 1` → OK). The harness does not replicate the feature table, so
+		// this over-matches into a conservative unsafe skip.
+		{"/*T![no_such_feature] SET PASSWORD='x' */", true},
+		// Malformed bracket group (no `]` before the closer): the oracle
+		// rewinds and executes the content from `[`, whose bracket junk
+		// parse-errors the whole batch — nothing executes (parse-first), so
+		// the row stays adjudicable (container-verified: `/*T![x-y] SELECT 1
+		// */` → 1064).
+		{"/*T![x KILL 5 */", false},
 		// Ordinary comments still strip — their content is never executed.
 		{"/* comment */ SELECT 1", false},
 		{"/* SET PASSWORD = 'x' */ SELECT 1", false},
@@ -147,6 +183,22 @@ func TestUnsafeToAdjudicate(t *testing.T) {
 		// follow — the one direction the deny-list must never err.
 		{"SELECT 'a -- b'; KILL 5", true},
 		{"SELECT '/*'; KILL 5", true},
+		// Block comments do NOT nest in the oracle: its scanner ends every
+		// block comment at the FIRST */ with no depth counter (corpus
+		// lexer.go:578-600). NOTE: omni's own lexer and splitter
+		// (tidb/parser/lexer.go:2065-2078, tidb/parser/split.go:526-541) DO
+		// nest — an omni-vs-TiDB divergence the board measures; the safety
+		// scan mirrors the oracle, not omni. Text after the first */ of a
+		// "nested" comment is live and EXECUTES (container-verified on
+		// v8.5.5: `/* a /* b */ INSERT INTO t VALUES (1)` inserts a row).
+		{"/* a /* b */ KILL 5", true},
+		{"/* a /* b */ SET PASSWORD='x'", true},
+		// A closed-looking nested comment leaves a stray */ behind, which
+		// parse-errors the whole batch — nothing executes (parse-first,
+		// container-verified: `/* a /* b */ */ SELECT 1` → 1064) — so the
+		// row stays adjudicable.
+		{"/* a /* b */ */ SET PASSWORD='x'", false},
+		{"/* a /* b */ */ SELECT 1", false},
 
 		// Account-mutation DCL poisons later handshakes (identity channel).
 		{"CREATE USER 'root'@'127.0.0.1' IDENTIFIED BY 'x'", true},

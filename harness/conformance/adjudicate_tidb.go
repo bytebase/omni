@@ -167,16 +167,22 @@ func unsafeStatement(stmt string) bool {
 var accountMutationKeywords = map[string]bool{"CREATE": true, "ALTER": true, "DROP": true, "RENAME": true}
 
 // neutralizeExecutableComments makes executable comments visible to the
-// deny-list scan. `/*! SET PASSWORD = 'x' */`, `/*!40101 SET GLOBAL ... */`
-// and TiDB's `/*T! ... */` look like comments but are EXECUTED by the server,
-// so comment-stripping them would wave an unsafe statement through. The
-// marker forms mirror omni's own splitter (tidb/parser/split.go,
-// Segment.Empty): `/*!` and `/*T!` (uppercase T), matched by prefix. Each
-// marker plus its optional version digits is blanked, as is its matching
-// `*/` closer, so the content survives as plain scannable SQL; ordinary
-// `/* ... */` comments keep their delimiters for stripComments. A marker
-// inside a string literal over-matches (the row skips to INDETERMINATE) —
-// acceptable, the deny-list errs conservative.
+// deny-list scan. `/*! SET PASSWORD = 'x' */`, `/*!40101 SET GLOBAL ... */`,
+// TiDB's `/*T! ... */` and its feature-gated `/*T![ttl] ... */` look like
+// comments but are EXECUTED by the server, so comment-stripping them would
+// wave an unsafe statement through. The marker grammar is the pinned
+// oracle's scanner (corpus/tidb/pkg/parser/lexer.go:530-548): `/*!` takes
+// only optional version digits — never a bracket group — while `/*T!` takes
+// an optional `[feature_id,...]` group (scanFeatureIDs, lexer.go:972-1015)
+// that gates the content on feature support. Each marker plus its optional
+// digits and well-formed bracket group is blanked, as is its matching `*/`
+// closer, so the content survives as plain scannable SQL — necessary even
+// without a closer, since an unterminated executable comment's content
+// still executes (container-verified on v8.5.5: `/*T![ttl] SELECT 1` with
+// no closer → OK). Ordinary `/* ... */` comments keep their delimiters for
+// stripComments. Deliberate over-matches (a marker inside a string literal;
+// an unsupported feature id, whose whole comment the oracle ignores) skip
+// the row to INDETERMINATE — the deny-list errs conservative.
 func neutralizeExecutableComments(stmt string) string {
 	if !strings.Contains(stmt, "/*!") && !strings.Contains(stmt, "/*T!") {
 		return stmt
@@ -208,6 +214,21 @@ func neutralizeExecutableComments(stmt string) string {
 		for j < len(b) && b[j] >= '0' && b[j] <= '9' {
 			j++
 		}
+		if markerLen == 4 && j < len(b) && b[j] == '[' {
+			// /*T![feature_id,...]: the bracket group is part of the marker —
+			// the content after `]` is what the oracle executes (corpus
+			// lexer.go:543-548; container-verified: `/*T![ttl] SELECT FROM */`
+			// → 1064). Only a group closed before the comment's closer is
+			// skipped; a malformed group is re-scanned by the oracle as
+			// content whose leading `[` junk parse-errors the whole batch —
+			// nothing executes (parse-first) — so leaving it visible to the
+			// scan stays verdict-correct.
+			if rb := strings.IndexByte(stmt[j:], ']'); rb >= 0 {
+				if ce := strings.Index(stmt[j:], "*/"); ce < 0 || rb < ce {
+					j += rb + 1
+				}
+			}
+		}
 		for k := i; k < j; k++ {
 			b[k] = ' '
 		}
@@ -223,15 +244,24 @@ func neutralizeExecutableComments(stmt string) string {
 
 // stripComments replaces every ordinary comment — `/* ... */` anywhere,
 // `-- ` and `#` line comments to end-of-line — with a single space, the way
-// the server's lexer treats them. Executable-comment markers must already be
-// neutralized, or their content (which the server EXECUTES) would be
-// stripped here as if it were ordinary. String literals and backtick
-// identifiers are skipped: a comment opener inside a literal is literal
-// text, and stripping from it would swallow the real statements that follow
-// (`SELECT 'a -- b'; KILL 5`) — the one direction the deny-list must never
-// err. The literal lexing is still best-effort (default escape rules; a
-// session sql_mode could diverge): divergence mangles comment-like literal
-// text, which can only over-match into a conservative unsafe skip.
+// the server's lexer treats them. Block comments deliberately do NOT nest:
+// the oracle's scanner ends every block comment at the FIRST `*/` with no
+// depth counter (corpus/tidb/pkg/parser/lexer.go:578-600), so the text
+// after the first `*/` of `/* a /* b */ KILL 5` is live SQL that EXECUTES
+// (container-verified on v8.5.5: `/* a /* b */ INSERT ...` inserts a row).
+// NOTE: omni's own lexer and splitter (tidb/parser/lexer.go:2065-2078,
+// tidb/parser/split.go:526-541) DO nest block comments — an omni-vs-TiDB
+// divergence the board measures; a nesting-aware strip here would mirror
+// omni instead of the oracle and wave that live KILL through. Executable-
+// comment markers must already be neutralized, or their content (which the
+// server EXECUTES) would be stripped here as if it were ordinary. String
+// literals and backtick identifiers are skipped: a comment opener inside a
+// literal is literal text, and stripping from it would swallow the real
+// statements that follow (`SELECT 'a -- b'; KILL 5`) — the one direction
+// the deny-list must never err. The literal lexing is still best-effort
+// (default escape rules; a session sql_mode could diverge): divergence
+// mangles comment-like literal text, which can only over-match into a
+// conservative unsafe skip.
 func stripComments(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
@@ -308,14 +338,18 @@ func skipQuoted(s string, i int) int {
 // unsafeSetTarget reports whether a SET statement's tail mutates state that
 // outlives the probe's session. Fresh-connection-per-row guards session
 // state only: SET PASSWORD invalidates the credentials every later handshake
-// uses (parser_test.go:1386-1387), and GLOBAL/PERSIST mutations (e.g. a
-// global sql_mode of ANSI_QUOTES) change how every later probe *parses*.
+// uses (parser_test.go:1386-1387), GLOBAL/PERSIST mutations (e.g. a
+// global sql_mode of ANSI_QUOTES) change how every later probe *parses*,
+// and SET CONFIG writes dynamic cluster/component configuration (TiKV/PD/
+// TiDB instance settings) — the CONFIG arm keys on the keyword, which
+// always precedes the target, because the target may be a string literal
+// (`SET CONFIG '127.0.0.1:20180' log.level='info'`), not a keyword.
 // The @@GLOBAL/@@PERSIST forms are matched by prefix, not by token, because
 // no space follows the scope in `@@global.sql_mode`; SET NAMES /
 // SET sql_mode / SET @@session.x / SET @v stay adjudicable.
 func unsafeSetTarget(rest string) bool {
 	second, _ := nextKeyword(rest)
-	if second == "PASSWORD" || second == "GLOBAL" || second == "PERSIST" {
+	if second == "PASSWORD" || second == "GLOBAL" || second == "PERSIST" || second == "CONFIG" {
 		return true
 	}
 	r := strings.ToUpper(strings.TrimSpace(rest))
@@ -474,6 +508,17 @@ func adjudicationCandidates(rows []Row) []int {
 }
 
 // probeRow sends one prepared row to the container and folds the outcome in.
+//
+// Whole-batch Exec is verdict-correct for multi-statement rows: TiDB parses
+// the FULL batch before executing anything, so a parse error in ANY
+// statement surfaces as a whole-batch 1064 and no statement executes — an
+// earlier statement's runtime error (1046, 1146, ...) can never mask a
+// later statement's parse error. Container-verified on the pinned oracle
+// (v8.5.5): `CREATE TABLE t(a int); SELECT FROM` → 1064 (not 1046),
+// `SELECT * FROM test.missing; SELECT FROM` → 1064 (not 1146), reversed
+// order also 1064, and the CREATE in such a batch provably never executes
+// (its table does not exist afterwards).
+//
 // After an infra error it verifies the oracle is still alive: a dead
 // container aborts the sweep, naming the statements that preceded the death
 // (so the unsafe-statement list can be extended), instead of silently
