@@ -14,9 +14,9 @@
 |---|---|
 | AGREE_ACCEPT | 2004 |
 | AGREE_REJECT | 479 |
-| GAP | 1113 |
+| GAP | 1107 |
 | OVER | 160 |
-| INDETERMINATE | 29 |
+| INDETERMINATE | 35 |
 | SKIP | 13 |
 | duplicates_dropped | 58 |
 | duplicate_label_conflicts | 0 |
@@ -51,14 +51,14 @@ Clusters are the work unit; statement counts are coverage context.
 | 17 | LOAD | 17 | syntax error at or near ? (line N, column N) | `import into t from '/file.csv'` | corpus/tidb/pkg/parser/parser_test.go:781 |
 | 18 | EXPLAIN | 16 | expected identifier or keyword (line N, column N) | `EXPLAIN FORMAT = 'ROW' SELECT 1` | corpus/tidb/pkg/parser/parser_test.go:5603 |
 | 19 | SELECT | 16 | expected identifier (line N, column N) | `select * from 1db.1table;` | corpus/tidb/pkg/parser/parser_test.go:1126 |
-| 20 | SET | 14 | unexpected token (line N, column N) | `SET SESSION_STATES 'x'` | corpus/tidb/pkg/parser/parser_test.go:1154 |
-| 21 | TXN | 13 | syntax error at or near ? (line N, column N) | `begin optimistic` | corpus/tidb/pkg/parser/parser_test.go:1099 |
-| 22 | ALTER DATABASE | 12 | expected identifier (line N, column N) | `ALTER DATABASE t COLLATE = binary` | corpus/tidb/pkg/parser/parser_test.go:3056 |
-| 23 | OTHER | 11 | unexpected token after ALTER (line N, column N) | `alter sequence seq restart` | corpus/tidb/pkg/parser/parser_test.go:3851 |
-| 24 | ALTER TABLE | 10 | expected BY after PARTITION (line N, column N) | `ALTER TABLE t PARTITION p ATTRIBUTES='str'` | corpus/tidb/pkg/parser/parser_test.go:3357 |
-| 25 | OTHER | 10 | expected identifier (line N, column N) | `ALTER SCHEMA t DEFAULT CHARSET = 'UTF8'` | corpus/tidb/pkg/parser/parser_test.go:3054 |
-| 26 | INSERT | 8 | syntax error at or near ? (line N, column N) | `INSERT INTO foo VALUE ()` | corpus/tidb/pkg/parser/parser_test.go:596 |
-| 27 | SELECT | 8 | unexpected token (line N, column N) | `Select (1, 1) > (1, 1)` | corpus/tidb/pkg/parser/parser_test.go:1728 |
+| 20 | TXN | 13 | syntax error at or near ? (line N, column N) | `begin optimistic` | corpus/tidb/pkg/parser/parser_test.go:1099 |
+| 21 | ALTER DATABASE | 12 | expected identifier (line N, column N) | `ALTER DATABASE t COLLATE = binary` | corpus/tidb/pkg/parser/parser_test.go:3056 |
+| 22 | OTHER | 11 | unexpected token after ALTER (line N, column N) | `alter sequence seq restart` | corpus/tidb/pkg/parser/parser_test.go:3851 |
+| 23 | ALTER TABLE | 10 | expected BY after PARTITION (line N, column N) | `ALTER TABLE t PARTITION p ATTRIBUTES='str'` | corpus/tidb/pkg/parser/parser_test.go:3357 |
+| 24 | OTHER | 10 | expected identifier (line N, column N) | `ALTER SCHEMA t DEFAULT CHARSET = 'UTF8'` | corpus/tidb/pkg/parser/parser_test.go:3054 |
+| 25 | INSERT | 8 | syntax error at or near ? (line N, column N) | `INSERT INTO foo VALUE ()` | corpus/tidb/pkg/parser/parser_test.go:596 |
+| 26 | SELECT | 8 | unexpected token (line N, column N) | `Select (1, 1) > (1, 1)` | corpus/tidb/pkg/parser/parser_test.go:1728 |
+| 27 | SET | 8 | unexpected token (line N, column N) | `SET SESSION_STATES 'x'` | corpus/tidb/pkg/parser/parser_test.go:1154 |
 | 28 | STATS | 8 | expected identifier (line N, column N) | `analyze table t with 4 topn` | corpus/tidb/pkg/parser/parser_test.go:6091 |
 | 29 | DROP | 6 | syntax error at or near ? (line N, column N) | `drop index idx on t lock default` | corpus/tidb/pkg/parser/parser_test.go:3445 |
 | 30 | ALTER TABLE | 5 | expected data type (line N, column N) | `ALTER TABLE t ADD VECTOR INDEX ((lower(a))) USING HNSW COMMENT 'a'` | corpus/tidb/pkg/parser/parser_test.go:3222 |
