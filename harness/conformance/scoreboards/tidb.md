@@ -12,19 +12,19 @@
 
 | class | statements |
 |---|---|
-| AGREE_ACCEPT | 2001 |
+| AGREE_ACCEPT | 2004 |
 | AGREE_REJECT | 479 |
-| GAP | 1133 |
-| OVER | 158 |
-| INDETERMINATE | 9 |
+| GAP | 1113 |
+| OVER | 160 |
+| INDETERMINATE | 29 |
 | SKIP | 13 |
-| duplicates_dropped | 57 |
+| duplicates_dropped | 58 |
 | duplicate_label_conflicts | 0 |
-| total | 3793 |
+| total | 3798 |
 
 GAP clusters: 71
 
-OVER clusters: 45
+OVER clusters: 46
 
 Clusters are the work unit; statement counts are coverage context.
 
@@ -32,7 +32,7 @@ Clusters are the work unit; statement counts are coverage context.
 
 | n | family | count | divergence | exemplar | source |
 |---|---|---|---|---|---|
-| 1 | OTHER | 173 | syntax error at or near ? (line N, column N) | `trace begin` | corpus/tidb/pkg/parser/parser_test.go:5666 |
+| 1 | OTHER | 170 | syntax error at or near ? (line N, column N) | `trace begin` | corpus/tidb/pkg/parser/parser_test.go:5666 |
 | 2 | SELECT | 112 | syntax error at or near ? (line N, column N) | `SELECT SCHEMA();` | corpus/tidb/pkg/parser/parser_test.go:1678 |
 | 3 | ADMIN | 76 | syntax error at or near ? (line N, column N) | `admin show ddl;` | corpus/tidb/pkg/parser/parser_test.go:489 |
 | 4 | CREATE OTHER | 73 | unexpected token after CREATE (line N, column N) | `create sequence seq` | corpus/tidb/pkg/parser/parser_test.go:3762 |
@@ -46,26 +46,26 @@ Clusters are the work unit; statement counts are coverage context.
 | 12 | ALTER TABLE | 27 | unexpected token (line N, column N) | `ALTER TABLE d_n.t_n ADD PARTITION LOCAL` | corpus/tidb/pkg/parser/parser_test.go:3332 |
 | 13 | SELECT | 27 | expected SELECT or ? (line N, column N) | `(TABLE t)` | corpus/tidb/pkg/parser/parser_test.go:650 |
 | 14 | STATS | 22 | syntax error at or near ? (line N, column N) | `analyze table t1 index` | corpus/tidb/pkg/parser/parser_test.go:6087 |
-| 15 | DCL | 21 | syntax error at or near ? (line N, column N) | `CREATE USER uesr1@LOCALhost` | corpus/tidb/pkg/parser/parser_test.go:5024 |
-| 16 | CREATE TABLE | 20 | syntax error at or near ? (line N, column N) | `CREATE TABLE t (a int) STATS_TOPN=1` | corpus/tidb/pkg/parser/parser_test.go:4057 |
-| 17 | CREATE TABLE | 19 | expected data type (line N, column N) | `CREATE TABLE t (a VECTOR)` | corpus/tidb/pkg/parser/parser_test.go:7688 |
-| 18 | LOAD | 17 | syntax error at or near ? (line N, column N) | `import into t from '/file.csv'` | corpus/tidb/pkg/parser/parser_test.go:781 |
-| 19 | EXPLAIN | 16 | expected identifier or keyword (line N, column N) | `EXPLAIN FORMAT = 'ROW' SELECT 1` | corpus/tidb/pkg/parser/parser_test.go:5603 |
-| 20 | SELECT | 16 | expected identifier (line N, column N) | `select * from 1db.1table;` | corpus/tidb/pkg/parser/parser_test.go:1126 |
-| 21 | SET | 14 | unexpected token (line N, column N) | `SET SESSION_STATES 'x'` | corpus/tidb/pkg/parser/parser_test.go:1154 |
-| 22 | TXN | 13 | syntax error at or near ? (line N, column N) | `begin optimistic` | corpus/tidb/pkg/parser/parser_test.go:1099 |
-| 23 | ALTER DATABASE | 12 | expected identifier (line N, column N) | `ALTER DATABASE t COLLATE = binary` | corpus/tidb/pkg/parser/parser_test.go:3056 |
-| 24 | OTHER | 11 | unexpected token after ALTER (line N, column N) | `alter sequence seq restart` | corpus/tidb/pkg/parser/parser_test.go:3851 |
-| 25 | ALTER TABLE | 10 | expected BY after PARTITION (line N, column N) | `ALTER TABLE t PARTITION p ATTRIBUTES='str'` | corpus/tidb/pkg/parser/parser_test.go:3357 |
-| 26 | OTHER | 10 | expected identifier (line N, column N) | `ALTER SCHEMA t DEFAULT CHARSET = 'UTF8'` | corpus/tidb/pkg/parser/parser_test.go:3054 |
-| 27 | INSERT | 8 | syntax error at or near ? (line N, column N) | `INSERT INTO foo VALUE ()` | corpus/tidb/pkg/parser/parser_test.go:596 |
-| 28 | SELECT | 8 | unexpected token (line N, column N) | `Select (1, 1) > (1, 1)` | corpus/tidb/pkg/parser/parser_test.go:1728 |
-| 29 | STATS | 8 | expected identifier (line N, column N) | `analyze table t with 4 topn` | corpus/tidb/pkg/parser/parser_test.go:6091 |
-| 30 | DROP | 6 | syntax error at or near ? (line N, column N) | `drop index idx on t lock default` | corpus/tidb/pkg/parser/parser_test.go:3445 |
-| 31 | ALTER TABLE | 5 | expected data type (line N, column N) | `ALTER TABLE t ADD VECTOR INDEX ((lower(a))) USING HNSW COMMENT 'a'` | corpus/tidb/pkg/parser/parser_test.go:3222 |
-| 32 | CREATE INDEX | 5 | syntax error at or near ? (line N, column N) | `create index i on t (a) local` | corpus/tidb/pkg/parser/parser_test.go:3045 |
-| 33 | DCL | 5 | expected privilege name (line N, column N) | `GRANT 'u1' TO 'u1';` | corpus/tidb/pkg/parser/parser_test.go:5111 |
-| 34 | DROP | 5 | expected identifier (line N, column N) | `drop index if exists a on t` | corpus/tidb/pkg/parser/parser_test.go:3437 |
+| 15 | CREATE TABLE | 20 | syntax error at or near ? (line N, column N) | `CREATE TABLE t (a int) STATS_TOPN=1` | corpus/tidb/pkg/parser/parser_test.go:4057 |
+| 16 | CREATE TABLE | 19 | expected data type (line N, column N) | `CREATE TABLE t (a VECTOR)` | corpus/tidb/pkg/parser/parser_test.go:7688 |
+| 17 | LOAD | 17 | syntax error at or near ? (line N, column N) | `import into t from '/file.csv'` | corpus/tidb/pkg/parser/parser_test.go:781 |
+| 18 | EXPLAIN | 16 | expected identifier or keyword (line N, column N) | `EXPLAIN FORMAT = 'ROW' SELECT 1` | corpus/tidb/pkg/parser/parser_test.go:5603 |
+| 19 | SELECT | 16 | expected identifier (line N, column N) | `select * from 1db.1table;` | corpus/tidb/pkg/parser/parser_test.go:1126 |
+| 20 | SET | 14 | unexpected token (line N, column N) | `SET SESSION_STATES 'x'` | corpus/tidb/pkg/parser/parser_test.go:1154 |
+| 21 | TXN | 13 | syntax error at or near ? (line N, column N) | `begin optimistic` | corpus/tidb/pkg/parser/parser_test.go:1099 |
+| 22 | ALTER DATABASE | 12 | expected identifier (line N, column N) | `ALTER DATABASE t COLLATE = binary` | corpus/tidb/pkg/parser/parser_test.go:3056 |
+| 23 | OTHER | 11 | unexpected token after ALTER (line N, column N) | `alter sequence seq restart` | corpus/tidb/pkg/parser/parser_test.go:3851 |
+| 24 | ALTER TABLE | 10 | expected BY after PARTITION (line N, column N) | `ALTER TABLE t PARTITION p ATTRIBUTES='str'` | corpus/tidb/pkg/parser/parser_test.go:3357 |
+| 25 | OTHER | 10 | expected identifier (line N, column N) | `ALTER SCHEMA t DEFAULT CHARSET = 'UTF8'` | corpus/tidb/pkg/parser/parser_test.go:3054 |
+| 26 | INSERT | 8 | syntax error at or near ? (line N, column N) | `INSERT INTO foo VALUE ()` | corpus/tidb/pkg/parser/parser_test.go:596 |
+| 27 | SELECT | 8 | unexpected token (line N, column N) | `Select (1, 1) > (1, 1)` | corpus/tidb/pkg/parser/parser_test.go:1728 |
+| 28 | STATS | 8 | expected identifier (line N, column N) | `analyze table t with 4 topn` | corpus/tidb/pkg/parser/parser_test.go:6091 |
+| 29 | DROP | 6 | syntax error at or near ? (line N, column N) | `drop index idx on t lock default` | corpus/tidb/pkg/parser/parser_test.go:3445 |
+| 30 | ALTER TABLE | 5 | expected data type (line N, column N) | `ALTER TABLE t ADD VECTOR INDEX ((lower(a))) USING HNSW COMMENT 'a'` | corpus/tidb/pkg/parser/parser_test.go:3222 |
+| 31 | CREATE INDEX | 5 | syntax error at or near ? (line N, column N) | `create index i on t (a) local` | corpus/tidb/pkg/parser/parser_test.go:3045 |
+| 32 | DCL | 5 | expected privilege name (line N, column N) | `GRANT 'u1' TO 'u1';` | corpus/tidb/pkg/parser/parser_test.go:5111 |
+| 33 | DROP | 5 | expected identifier (line N, column N) | `drop index if exists a on t` | corpus/tidb/pkg/parser/parser_test.go:3437 |
+| 34 | DCL | 4 | syntax error at or near ? (line N, column N) | `grant all privileges on zabbix.* to 'zabbix'@'localhost' identified by 'password';` | corpus/tidb/pkg/parser/parser_test.go:5106 |
 | 35 | INSERT | 4 | expected identifier (line N, column N) | `INSERT INTO foo () VALUES ()` | corpus/tidb/pkg/parser/parser_test.go:595 |
 | 36 | SET | 4 | expected identifier (line N, column N) | `set names binary` | corpus/tidb/pkg/parser/parser_test.go:1405 |
 | 37 | ALTER TABLE | 3 | syntax error at end of input (line N, column N) | `ALTER TABLE employees ADD PARTITION` | corpus/tidb/pkg/parser/parser_test.go:3090 |
@@ -122,35 +122,36 @@ Clusters are the work unit; statement counts are coverage context.
 | 12 | CREATE TABLE | 2 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `create table t (created_at datetime) TTL_ENABLE = 'test_case'` | corpus/tidb/pkg/parser/parser_test.go:7619 |
 | 13 | CREATE TABLE | 2 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `create table t (created_at datetime) TTL_JOB_INTERVAL = '10hourxx'` | corpus/tidb/pkg/parser/parser_test.go:7625 |
 | 14 | CREATE TABLE | 2 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `create table t (a int) stats_auto_recalc 2;` | corpus/tidb/pkg/parser/parser_test.go:3636 |
-| 15 | DROP | 2 | Unknown ALGORITHM ? | `drop index idx on t algorithm algorithm_type` | corpus/tidb/pkg/parser/parser_test.go:3453 |
-| 16 | DROP | 2 | Unknown LOCK type ? | `drop index idx on t lock lock_type` | corpus/tidb/pkg/parser/parser_test.go:3455 |
-| 17 | LOAD | 2 | Field separator argument is not what is expected; check the manual | `load data infile '/tmp/t.csv' into table t fields escaped by 'aa'` | corpus/tidb/pkg/parser/parser_test.go:756 |
-| 18 | SELECT | 2 | Incorrect usage of ALL and DISTINCT | `SELECT DISTINCT ALL * FROM t` | corpus/tidb/pkg/parser/parser_test.go:587 |
-| 19 | SELECT | 2 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `select date_add("2011-11-11 10:10:10.123456", "11,11")` | corpus/tidb/pkg/parser/parser_test.go:2068 |
-| 20 | TXN | 2 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `COMMIT AND CHAIN RELEASE` | corpus/tidb/pkg/parser/parser_test.go:626 |
-| 21 | UPDATE | 2 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `UPDATE items,month SET items.price=month.price WHERE items.id=month.id LIMIT 10;` | corpus/tidb/pkg/parser/parser_test.go:933 |
-| 22 | ALTER TABLE | 1 | For RANGE partitions each partition must be defined | `alter table t partition by range(a)` | corpus/tidb/pkg/parser/parser_test.go:3309 |
-| 23 | ALTER TABLE | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `alter table t /*T![ttl] TTL_ENABLE = 'test_case' */` | corpus/tidb/pkg/parser/parser_test.go:7621 |
-| 24 | CREATE INDEX | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `CREATE UNIQUE INDEX ident USING HNSW ON d_n.t_n ( ident , ident ASC )` | corpus/tidb/pkg/parser/parser_test.go:3417 |
-| 25 | CREATE OTHER | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `CREATE ROLE RESOURCE` | corpus/tidb/pkg/parser/parser_test.go:4050 |
-| 26 | CREATE TABLE | 1 | Cannot have more than one value for this type of RANGE partitioning | `create table t1 (a int, b int) partition by range (a) (partition x values less than (10, 20))` | corpus/tidb/pkg/parser/parser_test.go:6404 |
-| 27 | CREATE TABLE | 1 | For LIST partitions each partition must be defined | `create table t1 (a int) partition by list (a)` | corpus/tidb/pkg/parser/parser_test.go:6397 |
-| 28 | CREATE TABLE | 1 | For RANGE partitions each partition must be defined | `create table t1 (a int) partition by range (a)` | corpus/tidb/pkg/parser/parser_test.go:6396 |
-| 29 | CREATE TABLE | 1 | Incorrect usage of AUTO_INCREMENT and generated column | `create table t (a bigint, b bigint as (a) primary key auto_increment);` | corpus/tidb/pkg/parser/parser_test.go:3500 |
-| 30 | CREATE TABLE | 1 | Incorrect usage of DEFAULT and generated column | `create table t (a bigint, b bigint as (a) not null default 10);` | corpus/tidb/pkg/parser/parser_test.go:3501 |
-| 31 | CREATE TABLE | 1 | Incorrect usage of ON UPDATE and generated column | `create table t (a timestamp, b timestamp as (a) not null on update current_timestamp);` | corpus/tidb/pkg/parser/parser_test.go:3499 |
-| 32 | CREATE TABLE | 1 | It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning fo... | `create table t1 (a int, b int) partition by range (a) (partition x values less than (10) (subpartiti...` | corpus/tidb/pkg/parser/parser_test.go:6441 |
-| 33 | CREATE TABLE | 1 | Number of partitions = N is not an allowed value | `create table t1 (a int) partition by hash (a) partitions 0` | corpus/tidb/pkg/parser/parser_test.go:6442 |
-| 34 | CREATE TABLE | 1 | Number of subpartitions = N is not an allowed value | `create table t1 (a int, b int) partition by range (a) subpartition by hash (b) subpartitions 0 (part...` | corpus/tidb/pkg/parser/parser_test.go:6443 |
-| 35 | CREATE TABLE | 1 | Row expressions in VALUES IN only allowed for multi-field column partitioning | `create table t1 (a int, b int) partition by list (a) (partition x values in ((10, 20)))` | corpus/tidb/pkg/parser/parser_test.go:6409 |
-| 36 | CREATE TABLE | 1 | Syntax : LIST PARTITIONING requires definition of VALUES IN for each partition | `create table t1 (a int) partition by list (a) (partition x, partition y)` | corpus/tidb/pkg/parser/parser_test.go:6366 |
-| 37 | CREATE TABLE | 1 | Syntax : RANGE PARTITIONING requires definition of VALUES LESS THAN for each par... | `create table t1 (a int) partition by range (a) (partition x, partition y)` | corpus/tidb/pkg/parser/parser_test.go:6365 |
-| 38 | CREATE TABLE | 1 | Wrong number of partitions defined, mismatch with previous setting | `create table t1 (a int) partition by hash (a) partitions 2 (partition x)` | corpus/tidb/pkg/parser/parser_test.go:6429 |
-| 39 | CREATE TABLE | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `create table t (created_at datetime) TTL_JOB_INTERVAL = '10.10.255h'` | corpus/tidb/pkg/parser/parser_test.go:7626 |
-| 40 | DELETE | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `delete from t where a = 7 or 1=1/*' and b = 'p'` | corpus/tidb/pkg/parser/parser_test.go:5161 |
+| 15 | DELETE | 2 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `delete from t where a = 7 or 1=1/*' and b = 'p'` | corpus/tidb/pkg/parser/parser_test.go:5161 |
+| 16 | DROP | 2 | Unknown ALGORITHM ? | `drop index idx on t algorithm algorithm_type` | corpus/tidb/pkg/parser/parser_test.go:3453 |
+| 17 | DROP | 2 | Unknown LOCK type ? | `drop index idx on t lock lock_type` | corpus/tidb/pkg/parser/parser_test.go:3455 |
+| 18 | LOAD | 2 | Field separator argument is not what is expected; check the manual | `load data infile '/tmp/t.csv' into table t fields escaped by 'aa'` | corpus/tidb/pkg/parser/parser_test.go:756 |
+| 19 | SELECT | 2 | Incorrect usage of ALL and DISTINCT | `SELECT DISTINCT ALL * FROM t` | corpus/tidb/pkg/parser/parser_test.go:587 |
+| 20 | SELECT | 2 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `select date_add("2011-11-11 10:10:10.123456", "11,11")` | corpus/tidb/pkg/parser/parser_test.go:2068 |
+| 21 | TXN | 2 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `COMMIT AND CHAIN RELEASE` | corpus/tidb/pkg/parser/parser_test.go:626 |
+| 22 | UPDATE | 2 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `UPDATE items,month SET items.price=month.price WHERE items.id=month.id LIMIT 10;` | corpus/tidb/pkg/parser/parser_test.go:933 |
+| 23 | ALTER TABLE | 1 | For RANGE partitions each partition must be defined | `alter table t partition by range(a)` | corpus/tidb/pkg/parser/parser_test.go:3309 |
+| 24 | ALTER TABLE | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `alter table t /*T![ttl] TTL_ENABLE = 'test_case' */` | corpus/tidb/pkg/parser/parser_test.go:7621 |
+| 25 | CREATE INDEX | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `CREATE UNIQUE INDEX ident USING HNSW ON d_n.t_n ( ident , ident ASC )` | corpus/tidb/pkg/parser/parser_test.go:3417 |
+| 26 | CREATE OTHER | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `CREATE ROLE RESOURCE` | corpus/tidb/pkg/parser/parser_test.go:4050 |
+| 27 | CREATE TABLE | 1 | Cannot have more than one value for this type of RANGE partitioning | `create table t1 (a int, b int) partition by range (a) (partition x values less than (10, 20))` | corpus/tidb/pkg/parser/parser_test.go:6404 |
+| 28 | CREATE TABLE | 1 | For LIST partitions each partition must be defined | `create table t1 (a int) partition by list (a)` | corpus/tidb/pkg/parser/parser_test.go:6397 |
+| 29 | CREATE TABLE | 1 | For RANGE partitions each partition must be defined | `create table t1 (a int) partition by range (a)` | corpus/tidb/pkg/parser/parser_test.go:6396 |
+| 30 | CREATE TABLE | 1 | Incorrect usage of AUTO_INCREMENT and generated column | `create table t (a bigint, b bigint as (a) primary key auto_increment);` | corpus/tidb/pkg/parser/parser_test.go:3500 |
+| 31 | CREATE TABLE | 1 | Incorrect usage of DEFAULT and generated column | `create table t (a bigint, b bigint as (a) not null default 10);` | corpus/tidb/pkg/parser/parser_test.go:3501 |
+| 32 | CREATE TABLE | 1 | Incorrect usage of ON UPDATE and generated column | `create table t (a timestamp, b timestamp as (a) not null on update current_timestamp);` | corpus/tidb/pkg/parser/parser_test.go:3499 |
+| 33 | CREATE TABLE | 1 | It is only possible to mix RANGE/LIST partitioning with HASH/KEY partitioning fo... | `create table t1 (a int, b int) partition by range (a) (partition x values less than (10) (subpartiti...` | corpus/tidb/pkg/parser/parser_test.go:6441 |
+| 34 | CREATE TABLE | 1 | Number of partitions = N is not an allowed value | `create table t1 (a int) partition by hash (a) partitions 0` | corpus/tidb/pkg/parser/parser_test.go:6442 |
+| 35 | CREATE TABLE | 1 | Number of subpartitions = N is not an allowed value | `create table t1 (a int, b int) partition by range (a) subpartition by hash (b) subpartitions 0 (part...` | corpus/tidb/pkg/parser/parser_test.go:6443 |
+| 36 | CREATE TABLE | 1 | Row expressions in VALUES IN only allowed for multi-field column partitioning | `create table t1 (a int, b int) partition by list (a) (partition x values in ((10, 20)))` | corpus/tidb/pkg/parser/parser_test.go:6409 |
+| 37 | CREATE TABLE | 1 | Syntax : LIST PARTITIONING requires definition of VALUES IN for each partition | `create table t1 (a int) partition by list (a) (partition x, partition y)` | corpus/tidb/pkg/parser/parser_test.go:6366 |
+| 38 | CREATE TABLE | 1 | Syntax : RANGE PARTITIONING requires definition of VALUES LESS THAN for each par... | `create table t1 (a int) partition by range (a) (partition x, partition y)` | corpus/tidb/pkg/parser/parser_test.go:6365 |
+| 39 | CREATE TABLE | 1 | Wrong number of partitions defined, mismatch with previous setting | `create table t1 (a int) partition by hash (a) partitions 2 (partition x)` | corpus/tidb/pkg/parser/parser_test.go:6429 |
+| 40 | CREATE TABLE | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `create table t (created_at datetime) TTL_JOB_INTERVAL = '10.10.255h'` | corpus/tidb/pkg/parser/parser_test.go:7626 |
 | 41 | INSERT | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `INSERT INTO t (a) SET a=1` | corpus/tidb/pkg/parser/parser_test.go:918 |
 | 42 | SELECT | 1 | Incorrect arguments to ESCAPE | `select "abc_" like "abc\\_" escape '\|\|'` | corpus/tidb/pkg/parser/parser_test.go:5443 |
 | 43 | SELECT | 1 | Too-big precision N specified for ?. Maximum is N. | `select cast(1 as float(54));` | corpus/tidb/pkg/parser/parser_test.go:1753 |
 | 44 | SELECT | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `select """;` | corpus/tidb/pkg/parser/parser_test.go:5571 |
 | 45 | SELECT | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `select 0X11` | corpus/tidb/pkg/parser/parser_test.go:4968 |
+| 46 | SELECT | 1 | You have an error in your SQL syntax; check the manual that corresponds to your ... | `select 1/*` | corpus/tidb/pkg/parser/parser_test.go:5188 |
 
