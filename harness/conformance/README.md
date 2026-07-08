@@ -37,6 +37,18 @@ its handshake with 1049 — without one, unqualified-name statements fail
 statement-level 1046, which classifies identically as "parsed"
 (`normalizeTiDBDSN` forces this even on user-supplied DSNs).
 
+The `unsafeToAdjudicate` deny-list is a best-effort enumeration of statements
+that would poison the shared oracle (`SHUTDOWN`/`KILL`/`RESTART`, `SET
+GLOBAL`/`PERSIST`/`PASSWORD`/`CONFIG`, account-mutation `... USER`, `QUERY
+WATCH`), not a proof — a novel bypass is always possible. The *guarantees* are
+elsewhere: a **sweep-integrity canary** (`verifyNoDrift`) snapshots the
+parse-affecting global state at sweep start and re-checks it — plus a fresh
+auth `Ping` — at the end, failing the whole sweep loudly (and recreating no
+board) if anything drifted; the 1045-abort in `probeRow`; the schemaless DSN;
+the loopback-only bind; and the disposable per-run container. So a deny-list
+bypass is a **detected loud failure that recreates the container**, never
+silent board corruption.
+
 The module `replace`s omni to `../..`, so the parser under test is always the
 working tree; `-omni-sha` is provenance recorded in the output, not what
 selects the code.

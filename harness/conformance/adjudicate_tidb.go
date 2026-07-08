@@ -527,6 +527,83 @@ func applyContainerVerdict(r *Row, execErr error) (infra bool) {
 	return false
 }
 
+// parseAffectingGlobals are the session-independent global variables the
+// sweep-integrity canary snapshots at start and re-reads at end (see
+// verifyNoDrift). The list is deliberately small and skewed to state that
+// changes how a LATER row PARSES or what the parser/catalog ACCEPTS — the
+// exact channel through which a deny-list bypass would poison the board
+// silently and make it order-dependent. Each is read as @@global (not
+// @@session): the sweep uses fresh sessions, so only a persisted global
+// mutation survives across rows.
+var parseAffectingGlobals = []string{
+	"@@global.sql_mode",                        // ANSI_QUOTES etc. flip identifier/string quoting and which grammar arms parse
+	"@@global.character_set_server",            // default charset for new schemas — changes literal/identifier interpretation
+	"@@global.collation_server",                // pairs with character_set_server
+	"@@global.default_week_format",             // default mode for WEEK()/date functions — changes date-function probe results
+	"@@global.sql_require_primary_key",         // toggles whether CREATE/ALTER TABLE without a primary key is accepted
+	"@@global.tidb_skip_isolation_level_check", // toggles acceptance of SET TRANSACTION ISOLATION LEVEL ...
+}
+
+// snapshotGlobals reads parseAffectingGlobals into a name->value map through a
+// fresh session. A variable absent on the pinned engine is a programming error
+// — the list is derived from the live engine, so a missing one surfaces as an
+// error rather than a silent skip that would blind the canary.
+func snapshotGlobals(db *sql.DB, vars []string) (map[string]string, error) {
+	state := make(map[string]string, len(vars))
+	for _, v := range vars {
+		var val sql.NullString
+		if err := db.QueryRow("SELECT " + v).Scan(&val); err != nil {
+			return nil, fmt.Errorf("reading %s: %w", v, err)
+		}
+		state[v] = val.String
+	}
+	return state, nil
+}
+
+// diffGlobals returns the first parse-affecting global that differs between two
+// snapshots (scanned in list order, so the culprit name is deterministic), or
+// drifted=false if none changed.
+func diffGlobals(vars []string, before, after map[string]string) (name, was, now string, drifted bool) {
+	for _, v := range vars {
+		if before[v] != after[v] {
+			return v, before[v], after[v], true
+		}
+	}
+	return "", "", "", false
+}
+
+// verifyNoDrift is the sweep-integrity canary. It re-reads the globals
+// snapshotted at sweep start and confirms the root credentials still
+// authenticate. Any drift means a probed statement bypassed the deny-list and
+// mutated shared state, so the board would be order-dependent — the sweep
+// FAILS loudly, naming the drifted state and the remediation, rather than
+// committing a possibly poisoned board. adjudicateTiDB returns this error and
+// main.go fatals on it before writing any board or JSONL, so a tripped canary
+// never leaves a partial artifact behind.
+func verifyNoDrift(db *sql.DB, before map[string]string) error {
+	after, err := snapshotGlobals(db, parseAffectingGlobals)
+	if err != nil {
+		return fmt.Errorf("re-reading parse-affecting globals for the integrity canary: %w", err)
+	}
+	if name, was, now, drifted := diffGlobals(parseAffectingGlobals, before, after); drifted {
+		return fmt.Errorf(
+			"sweep-integrity canary tripped: parse-affecting global %s drifted during the sweep (%q -> %q) — "+
+				"a probed statement bypassed the deny-list and mutated shared state, so the board is order-dependent. "+
+				"Recreate the container before rerunning: docker rm -f tidb-conformance && ./start_tidb.sh",
+			name, was, now)
+	}
+	// Auth canary: an account/password mutation poisons every later handshake
+	// without killing the container, so the ping-abort backstop never fires. A
+	// fresh Ping proves the root credentials the DSN carries still work.
+	if err := db.Ping(); err != nil {
+		return fmt.Errorf(
+			"sweep-integrity canary tripped: root credentials no longer authenticate after the sweep (%w) — "+
+				"a probed statement mutated the account. Recreate the container: docker rm -f tidb-conformance && ./start_tidb.sh",
+			err)
+	}
+	return nil
+}
+
 // adjudicateTiDB probes every non-agreeing row against the live container
 // and reclassifies with the container as ground truth. Returns the container
 // image digest (TIDB_CONTAINER_DIGEST, may be empty) for run meta.
@@ -553,6 +630,14 @@ func adjudicateTiDB(rows []Row) (string, error) {
 		return "", fmt.Errorf("TiDB not reachable (is ./start_tidb.sh running?): %w", err)
 	}
 
+	// Sweep-integrity canary: snapshot parse-affecting global state before the
+	// first probe; verifyNoDrift re-checks it at the end. Drift => the board is
+	// order-dependent and the sweep fails loudly (see verifyNoDrift).
+	globalsBefore, err := snapshotGlobals(db, parseAffectingGlobals)
+	if err != nil {
+		return "", fmt.Errorf("snapshotting parse-affecting globals for the integrity canary: %w", err)
+	}
+
 	candidates := adjudicationCandidates(rows)
 	log.Printf("adjudicating %d rows against the container", len(candidates))
 	start := time.Now()
@@ -569,6 +654,9 @@ func adjudicateTiDB(rows []Row) (string, error) {
 			return "", err
 		}
 		prevSQL = r.SQL
+	}
+	if err := verifyNoDrift(db, globalsBefore); err != nil {
+		return "", err
 	}
 	log.Printf("adjudication complete: %d rows in %s", len(candidates), time.Since(start).Round(time.Second))
 	return os.Getenv("TIDB_CONTAINER_DIGEST"), nil

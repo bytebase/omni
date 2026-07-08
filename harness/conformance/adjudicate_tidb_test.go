@@ -301,6 +301,37 @@ func TestNormalizeTiDBDSN(t *testing.T) {
 	}
 }
 
+func TestDiffGlobals(t *testing.T) {
+	vars := []string{"@@global.sql_mode", "@@global.character_set_server"}
+
+	t.Run("no drift on identical snapshots", func(t *testing.T) {
+		snap := map[string]string{"@@global.sql_mode": "ANSI", "@@global.character_set_server": "utf8mb4"}
+		if _, _, _, drifted := diffGlobals(vars, snap, snap); drifted {
+			t.Fatal("reported drift on identical snapshots")
+		}
+	})
+
+	t.Run("drift names the variable and both values", func(t *testing.T) {
+		before := map[string]string{"@@global.sql_mode": "", "@@global.character_set_server": "utf8mb4"}
+		after := map[string]string{"@@global.sql_mode": "ANSI_QUOTES", "@@global.character_set_server": "utf8mb4"}
+		name, was, now, drifted := diffGlobals(vars, before, after)
+		if !drifted {
+			t.Fatal("missed a drifted variable")
+		}
+		if name != "@@global.sql_mode" || was != "" || now != "ANSI_QUOTES" {
+			t.Errorf("got (%q, %q, %q), want (@@global.sql_mode, \"\", ANSI_QUOTES)", name, was, now)
+		}
+	})
+
+	t.Run("culprit is deterministic: first drifted var in list order", func(t *testing.T) {
+		before := map[string]string{"@@global.sql_mode": "a", "@@global.character_set_server": "b"}
+		after := map[string]string{"@@global.sql_mode": "A", "@@global.character_set_server": "B"}
+		if name, _, _, _ := diffGlobals(vars, before, after); name != "@@global.sql_mode" {
+			t.Errorf("culprit = %q, want the first drifted var in list order", name)
+		}
+	})
+}
+
 func TestPrepareAdjudication(t *testing.T) {
 	t.Run("unsafe row is marked indeterminate without touching the container", func(t *testing.T) {
 		r := Row{

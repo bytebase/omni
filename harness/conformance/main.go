@@ -31,6 +31,11 @@ func main() {
 	meta.DuplicatesDropped = stats.duplicatesDropped
 	meta.DuplicateLabelConflicts = stats.duplicateLabelConflicts
 	if *adjudicate {
+		// A failed adjudication — including a tripped sweep-integrity canary
+		// (verifyNoDrift) — fatals HERE, before any JSONL or board is written
+		// below. That ordering is the guarantee that a possibly order-dependent
+		// board is never committed: on canary failure no partial artifact is
+		// left behind, and the operator recreates the container as instructed.
 		digest, err := adjudicateTiDB(rows)
 		if err != nil {
 			log.Fatal(err)
