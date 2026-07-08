@@ -114,13 +114,16 @@ func renderScoreboard(meta RunMeta, rows []Row) string {
 	fmt.Fprintf(&b, "| classifier_version | %s |\n\n", meta.ClassifierVersion)
 
 	counts := map[Class]int{}
-	var total int
+	var total, generatorSites int
 	for _, r := range rows {
 		if r.Lane != "upstream" {
 			continue
 		}
 		counts[r.Class]++
 		total++
+		if r.Class == ClassSkip && r.SkipReason == "non_literal" {
+			generatorSites++
+		}
 	}
 	gapClusters := clusterRows(rows, ClassGap)
 	overClusters := clusterRows(rows, ClassOver)
@@ -132,11 +135,19 @@ func renderScoreboard(meta RunMeta, rows []Row) string {
 	fmt.Fprintf(&b, "| duplicates_dropped | %d |\n", meta.DuplicatesDropped)
 	fmt.Fprintf(&b, "| duplicate_label_conflicts | %d |\n", meta.DuplicateLabelConflicts)
 	fmt.Fprintf(&b, "| total | %d |\n\n", total)
+	// non_literal SKIP rows are loop-generated runtime srcs (fmt.Sprintf over
+	// token tables etc.) that static extraction records as ONE row each while
+	// upstream runs many cases from them — so the totals above measure the
+	// static literal corpus, not full runtime-upstream coverage. Expanding them
+	// would need a static mini-interpreter — explicitly out of scope.
+	fmt.Fprintf(&b, "Unexpanded generator sites (runtime-built srcs, each representing multiple upstream cases): %d\n\n", generatorSites)
 	fmt.Fprintf(&b, "GAP clusters: %d\n\nOVER clusters: %d\n\nClusters are the work unit; statement counts are coverage context.\n\n", len(gapClusters), len(overClusters))
 
 	writeClusterSection(&b, "GAP clusters (engine accepts, omni rejects) — the burn-down list", gapClusters)
 	writeClusterSection(&b, "OVER clusters (engine rejects, omni accepts) — triage: structural vs leniency", overClusters)
-	return b.String()
+	// Exactly one trailing newline: the final section otherwise leaves a blank
+	// line at EOF, which git diff --check flags on the committed board.
+	return strings.TrimRight(b.String(), "\n") + "\n"
 }
 
 func writeClusterSection(b *strings.Builder, title string, cs []cluster) {

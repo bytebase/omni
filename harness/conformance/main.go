@@ -16,6 +16,7 @@ func main() {
 		boardDir   = flag.String("scoreboards", "scoreboards", "committed scoreboard dir")
 		omniSHA    = flag.String("omni-sha", "unknown", "omni commit under test (git rev-parse HEAD)")
 		adjudicate = flag.Bool("adjudicate", false, "probe divergences against a live TiDB container (TIDB_DSN; see start_tidb.sh)")
+		writeBoard = flag.Bool("write-scoreboard", false, "write the committed scoreboard dir even on a label-only run (intentional baseline); otherwise label-only boards land in -out")
 	)
 	flag.Parse()
 	if *engine != "tidb" {
@@ -49,14 +50,30 @@ func main() {
 	if err := writeJSONL(filepath.Join(*outDir, "tidb.jsonl"), meta, rows); err != nil {
 		log.Fatal(err)
 	}
-	if err := os.MkdirAll(*boardDir, 0o755); err != nil {
-		log.Fatal(err)
-	}
 	board := renderScoreboard(meta, rows)
-	if err := os.WriteFile(filepath.Join(*boardDir, "tidb.md"), []byte(board), 0o644); err != nil {
+	boardPath := filepath.Join(*outDir, "tidb.scoreboard.md")
+	if writeCommittedBoard(*adjudicate, *writeBoard) {
+		if err := os.MkdirAll(*boardDir, 0o755); err != nil {
+			log.Fatal(err)
+		}
+		boardPath = filepath.Join(*boardDir, "tidb.md")
+	} else {
+		log.Printf("label-only run: board written to %s; committed %s untouched (rerun with -adjudicate or -write-scoreboard to write it)",
+			boardPath, filepath.Join(*boardDir, "tidb.md"))
+	}
+	if err := os.WriteFile(boardPath, []byte(board), 0o644); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Print(board)
+}
+
+// writeCommittedBoard decides whether a run may write the committed
+// scoreboards dir. Adjudicated runs always do (unchanged default); label-only
+// runs write only the gitignored out dir unless -write-scoreboard opts in
+// (an intentional label-only baseline) — so a quickstart `go run .` can never
+// overwrite the committed adjudicated board with a label-only one.
+func writeCommittedBoard(adjudicated, writeBoardOptIn bool) bool {
+	return adjudicated || writeBoardOptIn
 }
 
 // buildStats summarizes what buildRows dropped or flagged, for run meta.

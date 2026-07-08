@@ -3,7 +3,11 @@
 Scoreboard generator for omni engine parsers against pinned real engines. It
 harvests an engine's own test corpus (pre-labeled statements), runs every
 statement through the omni parser, adjudicates divergences against a live
-engine container, and emits a committed deterministic scoreboard. The bar is
+engine container, and emits a committed deterministic scoreboard. Harvesting
+is zero-loss over **static test-table literals**; loop-generated runtime cases
+appear as unexpanded generator-site SKIP rows, counted on the board — so
+committed totals measure the static literal corpus, not full runtime-upstream
+coverage. The bar is
 **GAP = 0 on the upstream lane**: omni must never falsely reject SQL the
 engine accepts at the pinned version. OVER (omni accepts what the engine
 rejects) is triaged, not chased. INDETERMINATE is surfaced in the scoreboard
@@ -20,6 +24,11 @@ Label-only sweep (no container):
 ./fetch_corpus.sh                                    # sparse-clones pingcap/tidb v8.5.5 into corpus/ (gitignored)
 go run . -omni-sha "$(git -C ../.. rev-parse HEAD)"
 ```
+
+This prints the board and writes it to `out/tidb.scoreboard.md` (gitignored);
+the committed `scoreboards/tidb.md` is untouched. Only adjudicated runs — or
+an explicit `-write-scoreboard` (intentional label-only baseline) — write the
+committed dir.
 
 Adjudicated sweep (divergences arbitrated by a live TiDB):
 
@@ -58,9 +67,10 @@ selects the code.
 - `scoreboards/<engine>.md` — **committed.** Deterministic (stable ordering,
   stable cluster keys): regenerating without an omni/corpus/container change
   is byte-identical, and the file's git history is the progress report.
-  The committed board is the **adjudicated** one; a label-only quickstart run
-  overwrites it locally (GAP 1141, container_digest `-`) — don't commit a
-  label-only regen over an adjudicated board.
+  The committed board is the **adjudicated** one, and only adjudicated runs
+  write this dir by default; a label-only run prints the board and writes
+  `out/<engine>.scoreboard.md` instead (pass `-write-scoreboard` to commit an
+  intentional label-only baseline).
   Committed boards must record a **main-reachable** `omni_sha` — intermediate
   branch commits become unreachable after a squash-merge. On harness-only
   branches (no parser change) that is the merge-base,

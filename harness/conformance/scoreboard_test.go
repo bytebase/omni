@@ -46,6 +46,30 @@ func TestScoreboardDeterministic(t *testing.T) {
 	if !strings.Contains(a, "| duplicate_label_conflicts | 0 |") {
 		t.Errorf("expected duplicate_label_conflicts line in counts:\n%s", a)
 	}
+	// exactly one trailing newline — a blank line at EOF trips git diff --check
+	// on the committed board
+	if !strings.HasSuffix(a, "\n") || strings.HasSuffix(a, "\n\n") {
+		t.Errorf("scoreboard must end with exactly one trailing newline, got tail %q", a[len(a)-2:])
+	}
+}
+
+// TestScoreboardGeneratorSiteLine: the board must surface how many SKIP rows
+// are unexpanded generator sites (runtime-built srcs) — each stands for
+// multiple upstream cases, so committed totals measure the static literal
+// corpus only. The extractor fixture carries 3 non_literal rows plus 1
+// non_composite_element row; only the former are generator sites.
+func TestScoreboardGeneratorSiteLine(t *testing.T) {
+	entries, err := extractTiDBFile("testdata/tidb_fixture.go.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, _ := buildRows(entries)
+	meta := RunMeta{Engine: "tidb", ClassifierVersion: classifierVersion}
+	a := renderScoreboard(meta, rows)
+	want := "Unexpanded generator sites (runtime-built srcs, each representing multiple upstream cases): 3\n"
+	if !strings.Contains(a, want) {
+		t.Errorf("expected generator-site line %q in scoreboard:\n%s", want, a)
+	}
 }
 
 // TestRenderDeterministicUnderPermutation: rendering must not depend on row
