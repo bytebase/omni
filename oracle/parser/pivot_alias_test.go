@@ -225,17 +225,55 @@ func TestPivotChaining(t *testing.T) {
 
 func TestIncompletePivotRejected(t *testing.T) {
 	// PIVOT/UNPIVOT not followed by the clause body must not silently become
-	// an empty clause plus an alias (Oracle: ORA-03049 on `PIVOT p`).
+	// an empty clause plus an alias (Oracle: ORA-03049 on `PIVOT p`), and the
+	// body itself requires FOR (ORA-02000) and IN (ORA-01738).
 	// LATERAL views cannot be pivoted at all (Oracle: ORA-56905).
 	for _, sql := range []string{
 		`SELECT * FROM t1 PIVOT p`,
 		`SELECT * FROM t1 PIVOT`,
 		`SELECT * FROM t1 UNPIVOT u`,
 		`SELECT * FROM t1 PIVOT XML junk`,
+		`SELECT * FROM t1 PIVOT (SUM(b)) p`,
+		`SELECT * FROM t1 PIVOT (SUM(b) FOR m) p`,
+		`SELECT * FROM t1 UNPIVOT (v) u`,
+		`SELECT * FROM t1 UNPIVOT (v FOR q) u`,
 		`SELECT * FROM LATERAL (SELECT a, m FROM t1) PIVOT (SUM(a) FOR m IN (1))`,
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("expected parse error for %q", sql)
 		}
+	}
+}
+
+func TestPivotAfterSourceAlias(t *testing.T) {
+	// Oracle accepts the pivot after an already-aliased source
+	// (t alias PIVOT (...) p), despite the documented grammar ordering the
+	// alias last. Verified on 23ai Free for all forms below.
+	for _, sql := range []string{
+		`SELECT * FROM t1 c PIVOT (SUM(b) FOR m IN (1, 2)) p`,
+		`SELECT * FROM (SELECT a, b, m FROM t1) c PIVOT (SUM(b) FOR m IN (1)) p`,
+		`SELECT * FROM (t1) c PIVOT (SUM(b) FOR m IN (1)) p`,
+		`SELECT * FROM TABLE(f()) c PIVOT (COUNT(*) FOR x IN (1)) p`,
+		`SELECT * FROM t1 c UNPIVOT (v FOR q IN (a, b)) u`,
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("parse failed: %v; sql: %s", err, sql)
+		}
+	}
+	// The aliased source stays intact under the pivot.
+	item := fromItem(t, `SELECT * FROM t1 c PIVOT (SUM(b) FOR m IN (1)) p`)
+	pc, ok := item.(*ast.PivotClause)
+	if !ok {
+		t.Fatalf("expected PivotClause from-item, got %T", item)
+	}
+	src, ok := pc.Source.(*ast.TableRef)
+	if !ok {
+		t.Fatalf("pivot source = %T, want *TableRef", pc.Source)
+	}
+	if src.Alias == nil || src.Alias.Name != "C" {
+		t.Fatalf("source alias = %v, want C", src.Alias)
+	}
+	if pc.Alias == nil || pc.Alias.Name != "P" {
+		t.Fatalf("pivot alias = %v, want P", pc.Alias)
 	}
 }

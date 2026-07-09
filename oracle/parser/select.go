@@ -799,7 +799,9 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 	}
 
 	tr.Loc.End = p.prev.End
-	return tr, nil
+	// Oracle also accepts the pivot after an alias (t alias PIVOT (...)),
+	// even though the documented grammar orders the alias last.
+	return p.parsePivotSuffix(tr)
 }
 
 // isTableAliasCandidate checks if current token can be a table alias.
@@ -873,7 +875,7 @@ func (p *Parser) parseSubqueryRef(start int) (nodes.TableExpr, error) {
 	}
 
 	ref.Loc.End = p.prev.End
-	return ref, nil
+	return p.parsePivotSuffix(ref)
 }
 
 func (p *Parser) parseParenthesizedTableRef(start int) (nodes.TableExpr, error) {
@@ -927,7 +929,7 @@ func (p *Parser) parseParenthesizedTableRef(start int) (nodes.TableExpr, error) 
 		n.Loc.Start = start
 		n.Loc.End = p.prev.End
 	}
-	return tref, nil
+	return p.parsePivotSuffix(tref)
 }
 
 // parseInlineExternalTable parses Oracle's inline external table source.
@@ -2381,8 +2383,11 @@ func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
 		}
 	}
 
-	// FOR column | ( column, column, ... )
-	if p.cur.Type == kwFOR {
+	// FOR column | ( column, column, ... ) — mandatory (Oracle: ORA-02000)
+	if p.cur.Type != kwFOR {
+		return nil, p.syntaxErrorAtCur()
+	}
+	{
 		p.advance() // consume FOR
 		pc.ForColumns = &nodes.List{}
 		if p.cur.Type == '(' {
@@ -2429,9 +2434,16 @@ func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
 		}
 	}
 
-	if p.cur.Type == kwIN {
+	// IN ( ... ) — mandatory (Oracle: ORA-01738)
+	if p.cur.Type != kwIN {
+		return nil, p.syntaxErrorAtCur()
+	}
+	{
 		p.advance() // consume IN
-		if p.cur.Type == '(' {
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		{
 			if pc.XML && p.peekNext().Type == kwSELECT {
 				// PIVOT XML allows a subquery in the IN clause
 				p.advance() // consume '('
@@ -2470,9 +2482,10 @@ func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
 		}
 	}
 
-	if p.cur.Type == ')' {
-		p.advance() // consume outer ')'
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance() // consume outer ')'
 
 	pc.Loc.End = p.prev.End
 	return pc, nil
@@ -2666,7 +2679,11 @@ func (p *Parser) parseUnpivotClause() (*nodes.UnpivotClause, error) {
 		uc.ValueCol, _ = uc.ValueColumns.Items[0].(nodes.ExprNode)
 	}
 
-	if p.cur.Type == kwFOR {
+	// FOR column — mandatory (Oracle: ORA-02000)
+	if p.cur.Type != kwFOR {
+		return nil, p.syntaxErrorAtCur()
+	}
+	{
 		p.advance()
 		var parseErr1040 error
 		uc.PivotColumn, parseErr1040 = p.parseColumnRef()
@@ -2679,9 +2696,16 @@ func (p *Parser) parseUnpivotClause() (*nodes.UnpivotClause, error) {
 		uc.PivotCol = uc.PivotColumn
 	}
 
-	if p.cur.Type == kwIN {
+	// IN ( ... ) — mandatory (Oracle: ORA-01738)
+	if p.cur.Type != kwIN {
+		return nil, p.syntaxErrorAtCur()
+	}
+	{
 		p.advance()
-		if p.cur.Type == '(' {
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		{
 			p.advance()
 			uc.InList = &nodes.List{}
 			uc.InputMappings = &nodes.List{}
