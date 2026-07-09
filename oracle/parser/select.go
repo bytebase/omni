@@ -138,32 +138,8 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		}
 	}
 
-	if p.cur.Type == kwPIVOT {
-		var parseErr945 error
-		sel.Pivot, parseErr945 = p.parsePivotClause()
-		if parseErr945 != nil {
-			return nil, parseErr945
-		}
-		if sel.FromClause != nil && sel.FromClause.Len() > 0 {
-			if src, ok := sel.FromClause.Items[sel.FromClause.Len()-1].(nodes.TableExpr); ok {
-				sel.Pivot.Source = src
-			}
-		}
-	} else if p.cur.Type == kwUNPIVOT {
-		var parseErr946 error
-		sel.Unpivot, parseErr946 = p.parseUnpivotClause()
-		if parseErr946 !=
-
-			// WHERE
-			nil {
-			return nil, parseErr946
-		}
-		if sel.FromClause != nil && sel.FromClause.Len() > 0 {
-			if src, ok := sel.FromClause.Items[sel.FromClause.Len()-1].(nodes.TableExpr); ok {
-				sel.Unpivot.Source = src
-			}
-		}
-	}
+	// PIVOT / UNPIVOT are parsed inside the table_reference chain
+	// (parsePivotSuffix); nothing to do at the select level.
 
 	if p.cur.Type == kwWHERE {
 		p.advance()
@@ -659,17 +635,29 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 
 	// XMLTABLE(...)
 	if p.cur.Type == kwXMLTABLE {
-		return p.parseXmlTableRef(start)
+		ref, err := p.parseXmlTableRef(start)
+		if err != nil {
+			return nil, err
+		}
+		return p.parsePivotSuffix(ref)
 	}
 
 	// JSON_TABLE(...)
 	if p.cur.Type == kwJSON_TABLE {
-		return p.parseJsonTableRef(start)
+		ref, err := p.parseJsonTableRef(start)
+		if err != nil {
+			return nil, err
+		}
+		return p.parsePivotSuffix(ref)
 	}
 
 	// TABLE(collection_expression) — table collection expression
 	if p.cur.Type == kwTABLE && p.peekNext().Type == '(' {
-		return p.parseTableCollectionExpr(start)
+		ref, err := p.parseTableCollectionExpr(start)
+		if err != nil {
+			return nil, err
+		}
+		return p.parsePivotSuffix(ref)
 	}
 
 	// EXTERNAL ((columns) TYPE ... DEFAULT DIRECTORY ... LOCATION ...)
@@ -679,10 +667,18 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 
 	// CONTAINERS(table) or SHARDS(table)
 	if p.isIdentLikeStr("CONTAINERS") && p.peekNext().Type == '(' {
-		return p.parseContainersOrShards(start, false)
+		ref, err := p.parseContainersOrShards(start, false)
+		if err != nil {
+			return nil, err
+		}
+		return p.parsePivotSuffix(ref)
 	}
 	if p.isIdentLikeStr("SHARDS") && p.peekNext().Type == '(' {
-		return p.parseContainersOrShards(start, true)
+		ref, err := p.parseContainersOrShards(start, true)
+		if err != nil {
+			return nil, err
+		}
+		return p.parsePivotSuffix(ref)
 	}
 
 	// Subquery: ( SELECT ... )
@@ -696,7 +692,11 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 
 	// MATCH_RECOGNIZE as standalone (rare, usually post-table)
 	if p.isIdentLikeStr("MATCH_RECOGNIZE") {
-		return p.parseMatchRecognize(start)
+		ref, err := p.parseMatchRecognize(start)
+		if err != nil {
+			return nil, err
+		}
+		return p.parsePivotSuffix(ref)
 	}
 
 	// Table name
@@ -762,6 +762,11 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		}
 	}
 
+	if p.pivotClauseAhead() || p.unpivotClauseAhead() {
+		tr.Loc.End = p.prev.End
+		return p.parsePivotSuffix(tr)
+	}
+
 	if p.isIdentLikeStr("MATCH_RECOGNIZE") {
 		mrStart := p.pos()
 		mrRef, parseErr976 := p.parseMatchRecognize(mrStart)
@@ -772,7 +777,7 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 			// Wrap: the table ref becomes the left side of a join-like construct
 			// For simplicity, return the MATCH_RECOGNIZE with the table ref embedded
 			mrClause.Source = tr
-			return mrRef, nil
+			return p.parsePivotSuffix(mrRef)
 		}
 	}
 
@@ -794,7 +799,9 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 	}
 
 	tr.Loc.End = p.prev.End
-	return tr, nil
+	// Oracle also accepts the pivot after an alias (t alias PIVOT (...)),
+	// even though the documented grammar orders the alias last.
+	return p.parsePivotSuffix(tr)
 }
 
 // isTableAliasCandidate checks if current token can be a table alias.
@@ -846,6 +853,11 @@ func (p *Parser) parseSubqueryRef(start int) (nodes.TableExpr, error) {
 		Loc:      nodes.Loc{Start: start},
 	}
 
+	if p.pivotClauseAhead() || p.unpivotClauseAhead() {
+		ref.Loc.End = p.prev.End
+		return p.parsePivotSuffix(ref)
+	}
+
 	// Optional alias
 	if p.cur.Type == kwAS {
 		p.advance()
@@ -863,7 +875,7 @@ func (p *Parser) parseSubqueryRef(start int) (nodes.TableExpr, error) {
 	}
 
 	ref.Loc.End = p.prev.End
-	return ref, nil
+	return p.parsePivotSuffix(ref)
 }
 
 func (p *Parser) parseParenthesizedTableRef(start int) (nodes.TableExpr, error) {
@@ -884,6 +896,10 @@ func (p *Parser) parseParenthesizedTableRef(start int) (nodes.TableExpr, error) 
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
+
+	if p.pivotClauseAhead() || p.unpivotClauseAhead() {
+		return p.parsePivotSuffix(tref)
+	}
 
 	if aliasable, ok := tref.(*nodes.TableRef); ok {
 		if p.cur.Type == kwAS {
@@ -913,7 +929,7 @@ func (p *Parser) parseParenthesizedTableRef(start int) (nodes.TableExpr, error) 
 		n.Loc.Start = start
 		n.Loc.End = p.prev.End
 	}
-	return tref, nil
+	return p.parsePivotSuffix(tref)
 }
 
 // parseInlineExternalTable parses Oracle's inline external table source.
@@ -2236,6 +2252,75 @@ func (p *Parser) parseCTECycleClause() (*nodes.CTECycleClause, error) {
 	return cc, nil
 }
 
+// pivotClauseAhead reports whether the current position starts a real
+// pivot_clause: the PIVOT keyword followed by '(' or XML. PIVOT and UNPIVOT
+// are non-reserved in Oracle, so a trailing PIVOT not followed by its body is
+// an alias position, not a clause.
+func (p *Parser) pivotClauseAhead() bool {
+	if p.cur.Type != kwPIVOT {
+		return false
+	}
+	nxt := p.peekNext()
+	return nxt.Type == '(' || (nxt.Type == tokIDENT && strings.EqualFold(nxt.Str, "XML"))
+}
+
+// unpivotClauseAhead reports whether the current position starts a real
+// unpivot_clause: UNPIVOT followed by '(' or INCLUDE/EXCLUDE NULLS.
+func (p *Parser) unpivotClauseAhead() bool {
+	if p.cur.Type != kwUNPIVOT {
+		return false
+	}
+	nxt := p.peekNext()
+	return nxt.Type == '(' || nxt.Type == kwINCLUDE ||
+		(nxt.Type == tokIDENT && strings.EqualFold(nxt.Str, "EXCLUDE"))
+}
+
+// parsePivotSuffix attaches any PIVOT / UNPIVOT clauses — each with its
+// optional trailing t_alias — to a just-parsed table reference, per the
+// table_reference grammar: query_table_expression
+// [pivot_clause | unpivot_clause] [t_alias]. The clause becomes the from-item
+// itself (both implement TableExpr), so join continuations and the alias
+// participate in the FROM chain like any other table reference. Oracle also
+// accepts chained clauses (t PIVOT (...) a PIVOT (...) b), so this loops.
+// A bare identifier alias is accepted; AS stays rejected (Oracle t_alias
+// takes no AS keyword). No-op when no clause follows.
+func (p *Parser) parsePivotSuffix(source nodes.TableExpr) (nodes.TableExpr, error) {
+	for {
+		switch {
+		case p.pivotClauseAhead():
+			pc, err := p.parsePivotClause()
+			if err != nil {
+				return nil, err
+			}
+			pc.Source = source
+			if p.isTableAliasCandidate() {
+				pc.Alias, err = p.parseAlias()
+				if err != nil {
+					return nil, err
+				}
+				pc.Loc.End = p.prev.End
+			}
+			source = pc
+		case p.unpivotClauseAhead():
+			uc, err := p.parseUnpivotClause()
+			if err != nil {
+				return nil, err
+			}
+			uc.Source = source
+			if p.isTableAliasCandidate() {
+				uc.Alias, err = p.parseAlias()
+				if err != nil {
+					return nil, err
+				}
+				uc.Loc.End = p.prev.End
+			}
+			source = uc
+		default:
+			return source, nil
+		}
+	}
+}
+
 // parsePivotClause parses a PIVOT clause.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/SELECT.html
@@ -2262,8 +2347,7 @@ func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
 	}
 
 	if p.cur.Type != '(' {
-		pc.Loc.End = p.prev.End
-		return pc, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // consume '('
 
@@ -2299,8 +2383,11 @@ func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
 		}
 	}
 
-	// FOR column | ( column, column, ... )
-	if p.cur.Type == kwFOR {
+	// FOR column | ( column, column, ... ) — mandatory (Oracle: ORA-02000)
+	if p.cur.Type != kwFOR {
+		return nil, p.syntaxErrorAtCur()
+	}
+	{
 		p.advance() // consume FOR
 		pc.ForColumns = &nodes.List{}
 		if p.cur.Type == '(' {
@@ -2347,9 +2434,16 @@ func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
 		}
 	}
 
-	if p.cur.Type == kwIN {
+	// IN ( ... ) — mandatory (Oracle: ORA-01738)
+	if p.cur.Type != kwIN {
+		return nil, p.syntaxErrorAtCur()
+	}
+	{
 		p.advance() // consume IN
-		if p.cur.Type == '(' {
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		{
 			if pc.XML && p.peekNext().Type == kwSELECT {
 				// PIVOT XML allows a subquery in the IN clause
 				p.advance() // consume '('
@@ -2388,9 +2482,10 @@ func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
 		}
 	}
 
-	if p.cur.Type == ')' {
-		p.advance() // consume outer ')'
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance() // consume outer ')'
 
 	pc.Loc.End = p.prev.End
 	return pc, nil
@@ -2569,8 +2664,7 @@ func (p *Parser) parseUnpivotClause() (*nodes.UnpivotClause, error) {
 	}
 
 	if p.cur.Type != '(' {
-		uc.Loc.End = p.prev.End
-		return uc, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
 	var // consume '('
@@ -2585,7 +2679,11 @@ func (p *Parser) parseUnpivotClause() (*nodes.UnpivotClause, error) {
 		uc.ValueCol, _ = uc.ValueColumns.Items[0].(nodes.ExprNode)
 	}
 
-	if p.cur.Type == kwFOR {
+	// FOR column — mandatory (Oracle: ORA-02000)
+	if p.cur.Type != kwFOR {
+		return nil, p.syntaxErrorAtCur()
+	}
+	{
 		p.advance()
 		var parseErr1040 error
 		uc.PivotColumn, parseErr1040 = p.parseColumnRef()
@@ -2598,9 +2696,16 @@ func (p *Parser) parseUnpivotClause() (*nodes.UnpivotClause, error) {
 		uc.PivotCol = uc.PivotColumn
 	}
 
-	if p.cur.Type == kwIN {
+	// IN ( ... ) — mandatory (Oracle: ORA-01738)
+	if p.cur.Type != kwIN {
+		return nil, p.syntaxErrorAtCur()
+	}
+	{
 		p.advance()
-		if p.cur.Type == '(' {
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		{
 			p.advance()
 			uc.InList = &nodes.List{}
 			uc.InputMappings = &nodes.List{}

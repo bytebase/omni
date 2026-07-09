@@ -48,24 +48,25 @@ func TestBytebasePivotTypedOutputShape(t *testing.T) {
 		t.Fatalf("expected SelectStmt")
 	}
 
-	if stmt.Pivot == nil {
-		t.Fatal("expected PIVOT")
+	pivot, ok := stmt.FromClause.Items[0].(*ast.PivotClause)
+	if !ok {
+		t.Fatalf("expected PivotClause as from-item, got %T", stmt.FromClause.Items[0])
 	}
-	if stmt.Pivot.Aggregates == nil || stmt.Pivot.Aggregates.Len() != 2 {
-		t.Fatalf("expected 2 typed aggregates, got %v", stmt.Pivot.Aggregates)
+	if pivot.Aggregates == nil || pivot.Aggregates.Len() != 2 {
+		t.Fatalf("expected 2 typed aggregates, got %v", pivot.Aggregates)
 	}
-	agg := stmt.Pivot.Aggregates.Items[0].(*ast.PivotAggregate)
+	agg := pivot.Aggregates.Items[0].(*ast.PivotAggregate)
 	if agg.Alias != "TOTAL" {
 		t.Fatalf("aggregate alias = %q, want TOTAL", agg.Alias)
 	}
-	if stmt.Pivot.InItems == nil || stmt.Pivot.InItems.Len() != 2 {
-		t.Fatalf("expected 2 pivot in-items, got %v", stmt.Pivot.InItems)
+	if pivot.InItems == nil || pivot.InItems.Len() != 2 {
+		t.Fatalf("expected 2 pivot in-items, got %v", pivot.InItems)
 	}
-	in := stmt.Pivot.InItems.Items[0].(*ast.PivotInItem)
+	in := pivot.InItems.Items[0].(*ast.PivotInItem)
 	if in.Alias != "Q1" || in.Values == nil || in.Values.Len() != 1 {
 		t.Fatalf("unexpected pivot in-item: %+v", in)
 	}
-	if stmt.Pivot.Source == nil {
+	if pivot.Source == nil {
 		t.Fatal("expected PIVOT source table expression")
 	}
 }
@@ -76,23 +77,24 @@ func TestBytebaseUnpivotTypedMappings(t *testing.T) {
 		t.Fatalf("expected SelectStmt")
 	}
 
-	if stmt.Unpivot == nil {
-		t.Fatal("expected UNPIVOT")
+	unpivot, ok := stmt.FromClause.Items[0].(*ast.UnpivotClause)
+	if !ok {
+		t.Fatalf("expected UnpivotClause as from-item, got %T", stmt.FromClause.Items[0])
 	}
-	if stmt.Unpivot.ValueColumns == nil || stmt.Unpivot.ValueColumns.Len() != 2 {
-		t.Fatalf("expected 2 value columns, got %v", stmt.Unpivot.ValueColumns)
+	if unpivot.ValueColumns == nil || unpivot.ValueColumns.Len() != 2 {
+		t.Fatalf("expected 2 value columns, got %v", unpivot.ValueColumns)
 	}
-	if stmt.Unpivot.InputMappings == nil || stmt.Unpivot.InputMappings.Len() != 2 {
-		t.Fatalf("expected 2 input mappings, got %v", stmt.Unpivot.InputMappings)
+	if unpivot.InputMappings == nil || unpivot.InputMappings.Len() != 2 {
+		t.Fatalf("expected 2 input mappings, got %v", unpivot.InputMappings)
 	}
-	mapping := stmt.Unpivot.InputMappings.Items[0].(*ast.UnpivotInItem)
+	mapping := unpivot.InputMappings.Items[0].(*ast.UnpivotInItem)
 	if mapping.InputColumns == nil || mapping.InputColumns.Len() != 2 {
 		t.Fatalf("expected 2 input columns, got %v", mapping.InputColumns)
 	}
 	if mapping.Alias != "Q1" {
 		t.Fatalf("mapping alias = %q, want Q1", mapping.Alias)
 	}
-	if stmt.Unpivot.Source == nil {
+	if unpivot.Source == nil {
 		t.Fatal("expected UNPIVOT source table expression")
 	}
 }
