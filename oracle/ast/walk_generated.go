@@ -729,10 +729,10 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.Options)
 	case *CubeClause:
 		walkList(v, n.Args)
-	case *CursorExpr:
-		Walk(v, n.Subquery)
 	case *CursorAttributeExpr:
 		Walk(v, n.Cursor)
+	case *CursorExpr:
+		Walk(v, n.Subquery)
 	case *DDLOption:
 		walkList(v, n.Items)
 	case *DatafileClause:
@@ -836,6 +836,8 @@ func walkChildren(v Visitor, node Node) {
 	case *FetchFirstClause:
 		Walk(v, n.Offset)
 		Walk(v, n.Count)
+	case *FieldAccessExpr:
+		Walk(v, n.Expr)
 	case *FlashbackClause:
 		Walk(v, n.Expr)
 		Walk(v, n.VersionsLow)
@@ -860,8 +862,6 @@ func walkChildren(v Visitor, node Node) {
 	case *ForUpdateClause:
 		walkList(v, n.Tables)
 		Walk(v, n.Wait)
-	case *FieldAccessExpr:
-		Walk(v, n.Expr)
 	case *FuncCallExpr:
 		if n.FuncName != nil {
 			Walk(v, n.FuncName)
@@ -874,8 +874,6 @@ func walkChildren(v Visitor, node Node) {
 		if n.Over != nil {
 			Walk(v, n.Over)
 		}
-	case *NamedArgExpr:
-		Walk(v, n.Expr)
 	case *GrantStmt:
 		walkList(v, n.Privileges)
 		if n.OnObject != nil {
@@ -1103,6 +1101,8 @@ func walkChildren(v Visitor, node Node) {
 	case *MultisetExpr:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
+	case *NamedArgExpr:
+		Walk(v, n.Expr)
 	case *NoauditStmt:
 		if n.Object != nil {
 			Walk(v, n.Object)
@@ -1290,12 +1290,6 @@ func walkChildren(v Visitor, node Node) {
 		}
 		if n.FetchFirst != nil {
 			Walk(v, n.FetchFirst)
-		}
-		if n.Pivot != nil {
-			Walk(v, n.Pivot)
-		}
-		if n.Unpivot != nil {
-			Walk(v, n.Unpivot)
 		}
 		walkList(v, n.Hints)
 		if n.Larg != nil {

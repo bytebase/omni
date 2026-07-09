@@ -138,32 +138,8 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		}
 	}
 
-	if p.cur.Type == kwPIVOT {
-		var parseErr945 error
-		sel.Pivot, parseErr945 = p.parsePivotClause()
-		if parseErr945 != nil {
-			return nil, parseErr945
-		}
-		if sel.FromClause != nil && sel.FromClause.Len() > 0 {
-			if src, ok := sel.FromClause.Items[sel.FromClause.Len()-1].(nodes.TableExpr); ok {
-				sel.Pivot.Source = src
-			}
-		}
-	} else if p.cur.Type == kwUNPIVOT {
-		var parseErr946 error
-		sel.Unpivot, parseErr946 = p.parseUnpivotClause()
-		if parseErr946 !=
-
-			// WHERE
-			nil {
-			return nil, parseErr946
-		}
-		if sel.FromClause != nil && sel.FromClause.Len() > 0 {
-			if src, ok := sel.FromClause.Items[sel.FromClause.Len()-1].(nodes.TableExpr); ok {
-				sel.Unpivot.Source = src
-			}
-		}
-	}
+	// PIVOT / UNPIVOT are parsed inside the table_reference chain
+	// (parsePivotSuffix); nothing to do at the select level.
 
 	if p.cur.Type == kwWHERE {
 		p.advance()
@@ -762,6 +738,11 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		}
 	}
 
+	if p.cur.Type == kwPIVOT || p.cur.Type == kwUNPIVOT {
+		tr.Loc.End = p.prev.End
+		return p.parsePivotSuffix(tr)
+	}
+
 	if p.isIdentLikeStr("MATCH_RECOGNIZE") {
 		mrStart := p.pos()
 		mrRef, parseErr976 := p.parseMatchRecognize(mrStart)
@@ -846,6 +827,11 @@ func (p *Parser) parseSubqueryRef(start int) (nodes.TableExpr, error) {
 		Loc:      nodes.Loc{Start: start},
 	}
 
+	if p.cur.Type == kwPIVOT || p.cur.Type == kwUNPIVOT {
+		ref.Loc.End = p.prev.End
+		return p.parsePivotSuffix(ref)
+	}
+
 	// Optional alias
 	if p.cur.Type == kwAS {
 		p.advance()
@@ -884,6 +870,10 @@ func (p *Parser) parseParenthesizedTableRef(start int) (nodes.TableExpr, error) 
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
+
+	if p.cur.Type == kwPIVOT || p.cur.Type == kwUNPIVOT {
+		return p.parsePivotSuffix(tref)
+	}
 
 	if aliasable, ok := tref.(*nodes.TableRef); ok {
 		if p.cur.Type == kwAS {
@@ -2234,6 +2224,48 @@ func (p *Parser) parseCTECycleClause() (*nodes.CTECycleClause, error) {
 
 	cc.Loc.End = p.prev.End
 	return cc, nil
+}
+
+// parsePivotSuffix attaches a PIVOT / UNPIVOT clause — with its optional
+// trailing t_alias — to a just-parsed table reference, per the table_reference
+// grammar: query_table_expression [pivot_clause | unpivot_clause] [t_alias].
+// The clause becomes the from-item itself (both implement TableExpr), so join
+// continuations and the alias participate in the FROM chain like any other
+// table reference. A bare identifier alias is accepted; AS stays rejected
+// (Oracle t_alias takes no AS keyword).
+func (p *Parser) parsePivotSuffix(source nodes.TableExpr) (nodes.TableExpr, error) {
+	switch p.cur.Type {
+	case kwPIVOT:
+		pc, err := p.parsePivotClause()
+		if err != nil {
+			return nil, err
+		}
+		pc.Source = source
+		if p.isTableAliasCandidate() {
+			pc.Alias, err = p.parseAlias()
+			if err != nil {
+				return nil, err
+			}
+			pc.Loc.End = p.prev.End
+		}
+		return pc, nil
+	case kwUNPIVOT:
+		uc, err := p.parseUnpivotClause()
+		if err != nil {
+			return nil, err
+		}
+		uc.Source = source
+		if p.isTableAliasCandidate() {
+			uc.Alias, err = p.parseAlias()
+			if err != nil {
+				return nil, err
+			}
+			uc.Loc.End = p.prev.End
+		}
+		return uc, nil
+	default:
+		return source, nil
+	}
 }
 
 // parsePivotClause parses a PIVOT clause.

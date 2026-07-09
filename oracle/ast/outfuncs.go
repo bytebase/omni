@@ -2322,14 +2322,6 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 		sb.WriteString(" :fetchFirst ")
 		writeNode(sb, n.FetchFirst)
 	}
-	if n.Pivot != nil {
-		sb.WriteString(" :pivot ")
-		writeNode(sb, n.Pivot)
-	}
-	if n.Unpivot != nil {
-		sb.WriteString(" :unpivot ")
-		writeNode(sb, n.Unpivot)
-	}
 	if n.Op != SETOP_NONE {
 		sb.WriteString(fmt.Sprintf(" :op %d", n.Op))
 	}

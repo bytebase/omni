@@ -998,8 +998,6 @@ type SelectStmt struct {
 	SiblingsOrder bool                // ORDER SIBLINGS BY
 	ForUpdate     *ForUpdateClause    // FOR UPDATE
 	FetchFirst    *FetchFirstClause   // FETCH FIRST / OFFSET
-	Pivot         *PivotClause        // PIVOT clause
-	Unpivot       *UnpivotClause      // UNPIVOT clause
 	Hints         *List               // optimizer hints (list of *Hint)
 
 	// Set operations
