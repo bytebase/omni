@@ -635,17 +635,29 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 
 	// XMLTABLE(...)
 	if p.cur.Type == kwXMLTABLE {
-		return p.parseXmlTableRef(start)
+		ref, err := p.parseXmlTableRef(start)
+		if err != nil {
+			return nil, err
+		}
+		return p.parsePivotSuffix(ref)
 	}
 
 	// JSON_TABLE(...)
 	if p.cur.Type == kwJSON_TABLE {
-		return p.parseJsonTableRef(start)
+		ref, err := p.parseJsonTableRef(start)
+		if err != nil {
+			return nil, err
+		}
+		return p.parsePivotSuffix(ref)
 	}
 
 	// TABLE(collection_expression) — table collection expression
 	if p.cur.Type == kwTABLE && p.peekNext().Type == '(' {
-		return p.parseTableCollectionExpr(start)
+		ref, err := p.parseTableCollectionExpr(start)
+		if err != nil {
+			return nil, err
+		}
+		return p.parsePivotSuffix(ref)
 	}
 
 	// EXTERNAL ((columns) TYPE ... DEFAULT DIRECTORY ... LOCATION ...)
@@ -655,10 +667,18 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 
 	// CONTAINERS(table) or SHARDS(table)
 	if p.isIdentLikeStr("CONTAINERS") && p.peekNext().Type == '(' {
-		return p.parseContainersOrShards(start, false)
+		ref, err := p.parseContainersOrShards(start, false)
+		if err != nil {
+			return nil, err
+		}
+		return p.parsePivotSuffix(ref)
 	}
 	if p.isIdentLikeStr("SHARDS") && p.peekNext().Type == '(' {
-		return p.parseContainersOrShards(start, true)
+		ref, err := p.parseContainersOrShards(start, true)
+		if err != nil {
+			return nil, err
+		}
+		return p.parsePivotSuffix(ref)
 	}
 
 	// Subquery: ( SELECT ... )
@@ -672,7 +692,11 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 
 	// MATCH_RECOGNIZE as standalone (rare, usually post-table)
 	if p.isIdentLikeStr("MATCH_RECOGNIZE") {
-		return p.parseMatchRecognize(start)
+		ref, err := p.parseMatchRecognize(start)
+		if err != nil {
+			return nil, err
+		}
+		return p.parsePivotSuffix(ref)
 	}
 
 	// Table name
@@ -738,7 +762,7 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 		}
 	}
 
-	if p.cur.Type == kwPIVOT || p.cur.Type == kwUNPIVOT {
+	if p.pivotClauseAhead() || p.unpivotClauseAhead() {
 		tr.Loc.End = p.prev.End
 		return p.parsePivotSuffix(tr)
 	}
@@ -753,7 +777,7 @@ func (p *Parser) parseTableRef() (nodes.TableExpr, error) {
 			// Wrap: the table ref becomes the left side of a join-like construct
 			// For simplicity, return the MATCH_RECOGNIZE with the table ref embedded
 			mrClause.Source = tr
-			return mrRef, nil
+			return p.parsePivotSuffix(mrRef)
 		}
 	}
 
@@ -827,7 +851,7 @@ func (p *Parser) parseSubqueryRef(start int) (nodes.TableExpr, error) {
 		Loc:      nodes.Loc{Start: start},
 	}
 
-	if p.cur.Type == kwPIVOT || p.cur.Type == kwUNPIVOT {
+	if p.pivotClauseAhead() || p.unpivotClauseAhead() {
 		ref.Loc.End = p.prev.End
 		return p.parsePivotSuffix(ref)
 	}
@@ -871,7 +895,7 @@ func (p *Parser) parseParenthesizedTableRef(start int) (nodes.TableExpr, error) 
 	}
 	p.advance()
 
-	if p.cur.Type == kwPIVOT || p.cur.Type == kwUNPIVOT {
+	if p.pivotClauseAhead() || p.unpivotClauseAhead() {
 		return p.parsePivotSuffix(tref)
 	}
 
@@ -2226,45 +2250,72 @@ func (p *Parser) parseCTECycleClause() (*nodes.CTECycleClause, error) {
 	return cc, nil
 }
 
-// parsePivotSuffix attaches a PIVOT / UNPIVOT clause — with its optional
-// trailing t_alias — to a just-parsed table reference, per the table_reference
-// grammar: query_table_expression [pivot_clause | unpivot_clause] [t_alias].
-// The clause becomes the from-item itself (both implement TableExpr), so join
-// continuations and the alias participate in the FROM chain like any other
-// table reference. A bare identifier alias is accepted; AS stays rejected
-// (Oracle t_alias takes no AS keyword).
+// pivotClauseAhead reports whether the current position starts a real
+// pivot_clause: the PIVOT keyword followed by '(' or XML. PIVOT and UNPIVOT
+// are non-reserved in Oracle, so a trailing PIVOT not followed by its body is
+// an alias position, not a clause.
+func (p *Parser) pivotClauseAhead() bool {
+	if p.cur.Type != kwPIVOT {
+		return false
+	}
+	nxt := p.peekNext()
+	return nxt.Type == '(' || (nxt.Type == tokIDENT && strings.EqualFold(nxt.Str, "XML"))
+}
+
+// unpivotClauseAhead reports whether the current position starts a real
+// unpivot_clause: UNPIVOT followed by '(' or INCLUDE/EXCLUDE NULLS.
+func (p *Parser) unpivotClauseAhead() bool {
+	if p.cur.Type != kwUNPIVOT {
+		return false
+	}
+	nxt := p.peekNext()
+	return nxt.Type == '(' || nxt.Type == kwINCLUDE ||
+		(nxt.Type == tokIDENT && strings.EqualFold(nxt.Str, "EXCLUDE"))
+}
+
+// parsePivotSuffix attaches any PIVOT / UNPIVOT clauses — each with its
+// optional trailing t_alias — to a just-parsed table reference, per the
+// table_reference grammar: query_table_expression
+// [pivot_clause | unpivot_clause] [t_alias]. The clause becomes the from-item
+// itself (both implement TableExpr), so join continuations and the alias
+// participate in the FROM chain like any other table reference. Oracle also
+// accepts chained clauses (t PIVOT (...) a PIVOT (...) b), so this loops.
+// A bare identifier alias is accepted; AS stays rejected (Oracle t_alias
+// takes no AS keyword). No-op when no clause follows.
 func (p *Parser) parsePivotSuffix(source nodes.TableExpr) (nodes.TableExpr, error) {
-	switch p.cur.Type {
-	case kwPIVOT:
-		pc, err := p.parsePivotClause()
-		if err != nil {
-			return nil, err
-		}
-		pc.Source = source
-		if p.isTableAliasCandidate() {
-			pc.Alias, err = p.parseAlias()
+	for {
+		switch {
+		case p.pivotClauseAhead():
+			pc, err := p.parsePivotClause()
 			if err != nil {
 				return nil, err
 			}
-			pc.Loc.End = p.prev.End
-		}
-		return pc, nil
-	case kwUNPIVOT:
-		uc, err := p.parseUnpivotClause()
-		if err != nil {
-			return nil, err
-		}
-		uc.Source = source
-		if p.isTableAliasCandidate() {
-			uc.Alias, err = p.parseAlias()
+			pc.Source = source
+			if p.isTableAliasCandidate() {
+				pc.Alias, err = p.parseAlias()
+				if err != nil {
+					return nil, err
+				}
+				pc.Loc.End = p.prev.End
+			}
+			source = pc
+		case p.unpivotClauseAhead():
+			uc, err := p.parseUnpivotClause()
 			if err != nil {
 				return nil, err
 			}
-			uc.Loc.End = p.prev.End
+			uc.Source = source
+			if p.isTableAliasCandidate() {
+				uc.Alias, err = p.parseAlias()
+				if err != nil {
+					return nil, err
+				}
+				uc.Loc.End = p.prev.End
+			}
+			source = uc
+		default:
+			return source, nil
 		}
-		return uc, nil
-	default:
-		return source, nil
 	}
 }
 
@@ -2294,8 +2345,7 @@ func (p *Parser) parsePivotClause() (*nodes.PivotClause, error) {
 	}
 
 	if p.cur.Type != '(' {
-		pc.Loc.End = p.prev.End
-		return pc, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // consume '('
 
@@ -2601,8 +2651,7 @@ func (p *Parser) parseUnpivotClause() (*nodes.UnpivotClause, error) {
 	}
 
 	if p.cur.Type != '(' {
-		uc.Loc.End = p.prev.End
-		return uc, nil
+		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
 	var // consume '('

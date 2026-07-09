@@ -1335,6 +1335,10 @@ func writePivotClause(sb *strings.Builder, n *PivotClause) {
 		sb.WriteString(" :inList ")
 		writeNode(sb, n.InList)
 	}
+	if n.Source != nil {
+		sb.WriteString(" :source ")
+		writeNode(sb, n.Source)
+	}
 	if n.Alias != nil {
 		sb.WriteString(" :alias ")
 		writeNode(sb, n.Alias)
@@ -1359,6 +1363,10 @@ func writeUnpivotClause(sb *strings.Builder, n *UnpivotClause) {
 	}
 	if n.IncludeNulls {
 		sb.WriteString(" :includeNulls true")
+	}
+	if n.Source != nil {
+		sb.WriteString(" :source ")
+		writeNode(sb, n.Source)
 	}
 	if n.Alias != nil {
 		sb.WriteString(" :alias ")

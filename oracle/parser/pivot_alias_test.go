@@ -135,11 +135,107 @@ END;`
 }
 
 func TestPivotAliasOutputShape(t *testing.T) {
-	// The pivoted from-item serializes with its alias so downstream consumers
-	// (span extraction) can resolve alias-qualified column references.
+	// The pivoted from-item serializes with its alias AND its source: the
+	// base relation now lives only in PivotClause.Source, so dropping it
+	// from outfuncs would lose the table entirely.
 	stmt := rawStmt(t, `SELECT p.a FROM t1 PIVOT (SUM(b) FOR m IN (1, 2)) p`)
 	out := ast.NodeToString(stmt)
-	if !strings.Contains(out, ":alias") {
-		t.Fatalf("expected :alias in output, got %s", out)
+	for _, want := range []string{":alias", ":source", "T1"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %s in output, got %s", want, out)
+		}
+	}
+
+	stmt = rawStmt(t, `SELECT u.q FROM t1 UNPIVOT (v FOR q IN (c1, c2)) u`)
+	out = ast.NodeToString(stmt)
+	for _, want := range []string{":alias", ":source", "T1"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("expected %s in unpivot output, got %s", want, out)
+		}
+	}
+}
+
+// Oracle accepts pivot_clause / unpivot_clause after every
+// query_table_expression form below (verified on 23ai Free), so each source
+// parser must feed the pivot suffix rather than returning early.
+func TestPivotAfterEveryTableSource(t *testing.T) {
+	sources := []struct {
+		name string
+		from string
+	}{
+		{"table", `t1`},
+		{"subquery", `(SELECT a, b, m FROM t1)`},
+		{"parenthesized table", `(t1)`},
+		{"table collection", `TABLE(f())`},
+		{"xmltable", `XMLTABLE('/r' PASSING x COLUMNS m NUMBER PATH '@m', b NUMBER PATH '@b')`},
+		{"json_table", `JSON_TABLE(j, '$[*]' COLUMNS (m NUMBER PATH '$.m', b NUMBER PATH '$.b'))`},
+		{"containers", `CONTAINERS(t1)`},
+		{"shards", `SHARDS(t1)`},
+		{"sample", `t1 SAMPLE (10)`},
+		{"flashback", `t1 AS OF SCN 1`},
+		{"match_recognize", `t1 MATCH_RECOGNIZE (MEASURES 1 AS m ALL ROWS PER MATCH PATTERN (a) DEFINE a AS 1 = 1)`},
+	}
+	suffixes := []struct {
+		name   string
+		suffix string
+	}{
+		{"pivot", `PIVOT (SUM(b) FOR m IN (1, 2)) p`},
+		{"unpivot", `UNPIVOT (v FOR q IN (m, b)) u`},
+	}
+	for _, src := range sources {
+		for _, sfx := range suffixes {
+			t.Run(src.name+"/"+sfx.name, func(t *testing.T) {
+				sql := `SELECT * FROM ` + src.from + ` ` + sfx.suffix
+				if _, err := Parse(sql); err != nil {
+					t.Fatalf("parse failed: %v; sql: %s", err, sql)
+				}
+			})
+		}
+	}
+}
+
+func TestPivotChaining(t *testing.T) {
+	// Oracle chains pivot/unpivot clauses, optionally aliased per step.
+	for _, sql := range []string{
+		`SELECT * FROM t1 PIVOT (SUM(b) FOR m IN (1, 2)) PIVOT (COUNT(*) FOR a IN (1))`,
+		`SELECT * FROM t1 PIVOT (SUM(b) FOR m IN (1, 2)) p PIVOT (COUNT(*) FOR a IN (1)) q`,
+		`SELECT * FROM t1 PIVOT (SUM(b) FOR m IN (1, 2)) UNPIVOT (v FOR q IN (a))`,
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("parse failed: %v; sql: %s", err, sql)
+		}
+	}
+	// The chain nests: outer clause's Source is the inner clause.
+	item := fromItem(t, `SELECT * FROM t1 PIVOT (SUM(b) FOR m IN (1)) p PIVOT (COUNT(*) FOR a IN (1)) q`)
+	outer, ok := item.(*ast.PivotClause)
+	if !ok {
+		t.Fatalf("expected outer PivotClause, got %T", item)
+	}
+	if outer.Alias == nil || outer.Alias.Name != "Q" {
+		t.Fatalf("outer alias = %v, want Q", outer.Alias)
+	}
+	inner, ok := outer.Source.(*ast.PivotClause)
+	if !ok {
+		t.Fatalf("outer source = %T, want inner *PivotClause", outer.Source)
+	}
+	if inner.Alias == nil || inner.Alias.Name != "P" {
+		t.Fatalf("inner alias = %v, want P", inner.Alias)
+	}
+}
+
+func TestIncompletePivotRejected(t *testing.T) {
+	// PIVOT/UNPIVOT not followed by the clause body must not silently become
+	// an empty clause plus an alias (Oracle: ORA-03049 on `PIVOT p`).
+	// LATERAL views cannot be pivoted at all (Oracle: ORA-56905).
+	for _, sql := range []string{
+		`SELECT * FROM t1 PIVOT p`,
+		`SELECT * FROM t1 PIVOT`,
+		`SELECT * FROM t1 UNPIVOT u`,
+		`SELECT * FROM t1 PIVOT XML junk`,
+		`SELECT * FROM LATERAL (SELECT a, m FROM t1) PIVOT (SUM(a) FOR m IN (1))`,
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("expected parse error for %q", sql)
+		}
 	}
 }
