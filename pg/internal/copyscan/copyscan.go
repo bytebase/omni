@@ -53,3 +53,19 @@ func IsTerminatorLine(sql string, i int) bool {
 	}
 	return j >= len(sql) || sql[j] == '\n'
 }
+
+// RestOfLineBlank reports whether only whitespace remains between position
+// i and the end of the current line (or end of input). psql buffers
+// same-line SQL after a COPY statement and executes it after the data is
+// consumed — an ordering a contiguous segment model cannot represent — so
+// data mode only engages when the statement ends its line; anything else
+// fails loudly downstream instead of silently swallowing statements.
+func RestOfLineBlank(sql string, i int) bool {
+	for i < len(sql) && sql[i] != '\n' {
+		if sql[i] != ' ' && sql[i] != '\t' && sql[i] != '\r' {
+			return false
+		}
+		i++
+	}
+	return true
+}

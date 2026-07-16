@@ -19,6 +19,9 @@ type Segment struct {
 func (s Segment) Empty() bool {
 	t := s.Text
 	i := 0
+	if strings.HasPrefix(t, "\xEF\xBB\xBF") {
+		i = 3
+	}
 	for i < len(t) {
 		b := t[i]
 		// psql metacommand line: statement-less.
@@ -78,6 +81,11 @@ func Split(sql string) []Segment {
 	var segments []Segment
 	start := 0
 	i := 0
+	// A UTF-8 BOM at the start of the script is trivia: psql strips it
+	// before scanning (mainloop.c). The bytes stay in the first segment.
+	if strings.HasPrefix(sql, "\xEF\xBB\xBF") {
+		i = 3
+	}
 	// Statement-separating semicolons only occur at parenthesis depth zero:
 	// PG's grammar nests semicolons inside parentheses (CREATE RULE's
 	// multi-action list), and psqlscan likewise never splits inside parens.
@@ -153,7 +161,7 @@ func Split(sql string) []Segment {
 			// plain-format output carry the data in the SQL stream, and the
 			// data may contain semicolons that are not boundaries. Keep the
 			// statement, its data, and the terminator as one segment.
-			if isCopyFromStdin(sql[start:i]) {
+			if isCopyFromStdin(sql[start:i]) && copyscan.RestOfLineBlank(sql, i) {
 				i = copyscan.SkipData(sql, i)
 			}
 			segments = append(segments, Segment{
@@ -202,11 +210,13 @@ func matchKeyword(sql string, i int, kw string) bool {
 			return false
 		}
 	}
-	// Check word boundaries.
-	if i > 0 && isIdentChar(sql[i-1]) {
+	// Check word boundaries with scan.l identifier bytes: '$' and
+	// multibyte bytes continue identifiers (x$BEGIN is one identifier),
+	// so they block a keyword match just like letters do.
+	if i > 0 && isIdentByte(sql[i-1]) {
 		return false
 	}
-	if i+n < len(sql) && isIdentChar(sql[i+n]) {
+	if i+n < len(sql) && isIdentByte(sql[i+n]) {
 		return false
 	}
 	return true
@@ -437,6 +447,12 @@ func skipBeginAtomic(sql string, i int) int {
 		b := sql[i]
 
 		switch {
+		// Metacommand lines are trivia here too: psql executes them
+		// mid-buffer and the body continues, so their words (\echo END)
+		// must not count as block delimiters. Context is preserved, same
+		// as comments.
+		case metacmd.IsLineStart(sql, i, i > 0 && sql[i-1] == '\n'):
+			i = metacmd.SkipLine(sql, i)
 		case b == ' ' || b == '\t' || b == '\n' || b == '\r':
 			i++
 		case b == '\'':
@@ -498,6 +514,9 @@ func skipBeginAtomic(sql string, i int) int {
 // strings, comments, and dollar-quotes with the same helpers as Split.
 func isCopyFromStdin(stmt string) bool {
 	i := 0
+	if strings.HasPrefix(stmt, "\xEF\xBB\xBF") {
+		i = 3 // leading UTF-8 BOM is trivia, same as in Split
+	}
 	depth := 0
 	sawCopy := false
 	prevWord := ""
@@ -546,7 +565,10 @@ func isCopyFromStdin(stmt string) bool {
 					return false
 				}
 				sawCopy = true
-			} else if depth == 0 && word == "STDIN" && prevWord == "FROM" {
+			} else if depth == 0 && (word == "STDIN" || word == "STDOUT") && prevWord == "FROM" {
+				// gram.y maps both STDIN and STDOUT to a NULL filename, and
+				// the server runs copy-in for either spelling of COPY FROM
+				// (engine-verified: inline data loads via FROM STDOUT).
 				return true
 			}
 			if depth == 0 {

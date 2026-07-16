@@ -184,3 +184,39 @@ func TestParseRealPgDumpPipeline(t *testing.T) {
 		t.Fatal("no COPY statement with inline data found in dump")
 	}
 }
+
+// TestParseCommentSweepFollowups pins the parse-layer halves of the review
+// sweep fixes: BOM'd scripts parse (psql strips the BOM), and same-line SQL
+// after a COPY statement stays a real statement instead of being swallowed
+// into InlineData.
+func TestParseCommentSweepFollowups(t *testing.T) {
+	t.Run("BOM script parses", func(t *testing.T) {
+		stmts, err := Parse("\xEF\xBB\xBFSELECT 1;")
+		if err != nil {
+			t.Fatalf("parse failed: %v", err)
+		}
+		if len(stmts) != 1 {
+			t.Fatalf("expected 1 statement, got %d", len(stmts))
+		}
+	})
+
+	t.Run("BOM copy pipeline", func(t *testing.T) {
+		stmts, err := Parse("\xEF\xBB\xBFCOPY t FROM stdin;\na\t1\n\\.\nSELECT 2;")
+		if err != nil {
+			t.Fatalf("parse failed: %v", err)
+		}
+		if len(stmts) != 2 {
+			t.Fatalf("expected 2 statements, got %d", len(stmts))
+		}
+	})
+
+	t.Run("same-line SQL after copy is not swallowed", func(t *testing.T) {
+		stmts, err := Parse("COPY t FROM stdin; SELECT 42;")
+		if err != nil {
+			t.Fatalf("parse failed: %v", err)
+		}
+		if len(stmts) != 2 {
+			t.Fatalf("expected 2 statements, got %d: the trailing SELECT must stay a statement", len(stmts))
+		}
+	})
+}

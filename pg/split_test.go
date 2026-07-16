@@ -996,3 +996,92 @@ func TestSplitCopyAfterMetacommand(t *testing.T) {
 		})
 	}
 }
+
+// TestSplitCommentSweepFollowups pins the fixes from the post-merge review
+// sweep of the D1-D6b series, each engine-verified on PostgreSQL 17.
+func TestSplitCommentSweepFollowups(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			// psql strips a leading UTF-8 BOM (mainloop.c) and the COPY
+			// data loads; the BOM must not shadow COPY as the first word.
+			name:  "BOM then copy enters data mode",
+			input: "\xEF\xBB\xBFCOPY t FROM stdin;\na;b\t1\n\\.\nSELECT 2;",
+			want:  []string{"\xEF\xBB\xBFCOPY t FROM stdin;\na;b\t1\n\\.\n", "SELECT 2;"},
+		},
+		{
+			// Engine-verified: the server maps FROM STDIN and FROM STDOUT
+			// both to a NULL filename and runs copy-in, and psql loads the
+			// inline data. Swallowing the data lines IS the engine
+			// behavior — do not "fix" this back to a rejection.
+			name:  "copy from stdout is copy-in like the engine",
+			input: "COPY t FROM STDOUT;\nviastdout\t9\n\\.\nSELECT 2;",
+			want:  []string{"COPY t FROM STDOUT;\nviastdout\t9\n\\.\n", "SELECT 2;"},
+		},
+		{
+			// psql buffers same-line SQL after a COPY statement and runs it
+			// after the data — unrepresentable in contiguous segments. Data
+			// mode disengages so the remainder stays a real statement and
+			// the data lines fail loudly instead of being silently
+			// swallowed together with the trailing SQL.
+			name:  "same-line SQL after copy disables data mode",
+			input: "COPY t FROM stdin; SELECT 42 AS marker;\nsameline\t2\n\\.\n",
+			want:  []string{"COPY t FROM stdin;", " SELECT 42 AS marker;", "\nsameline\t2\n\\.\n"},
+		},
+		{
+			// psql executes metacommands mid-buffer and the function body
+			// continues (engine-verified: \echo END inside BEGIN ATOMIC,
+			// function created, body has both statements).
+			name:  "metacommand inside begin atomic body is trivia",
+			input: "CREATE FUNCTION fm() RETURNS int BEGIN ATOMIC\nSELECT 1;\n\\echo END\nSELECT 2;\nEND; SELECT 3;",
+			want:  []string{"CREATE FUNCTION fm() RETURNS int BEGIN ATOMIC\nSELECT 1;\n\\echo END\nSELECT 2;\nEND;", " SELECT 3;"},
+		},
+		{
+			// scan.l: x$BEGIN is one identifier — the BEGIN ATOMIC dispatch
+			// must not fire on an identifier tail.
+			name:  "identifier tail BEGIN does not open atomic block",
+			input: "SELECT 1 AS x$BEGIN ATOMIC; SELECT 2;",
+			want:  []string{"SELECT 1 AS x$BEGIN ATOMIC;", " SELECT 2;"},
+		},
+		{
+			name:  "BOM only script",
+			input: "\xEF\xBB\xBFSELECT 1;",
+			want:  []string{"\xEF\xBB\xBFSELECT 1;"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			segs := Split(tt.input)
+
+			var rebuilt []byte
+			for _, s := range segs {
+				if s.Text != tt.input[s.ByteStart:s.ByteEnd] {
+					t.Fatalf("segment text %q does not match input[%d:%d]", s.Text, s.ByteStart, s.ByteEnd)
+				}
+				rebuilt = append(rebuilt, s.Text...)
+			}
+			if string(rebuilt) != tt.input {
+				t.Fatalf("segments do not reconstruct input:\ngot  %q\nwant %q", rebuilt, tt.input)
+			}
+
+			var got []string
+			for _, s := range segs {
+				if !s.Empty() {
+					got = append(got, s.Text)
+				}
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d non-empty segments %q, want %d %q", len(got), got, len(tt.want), tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
