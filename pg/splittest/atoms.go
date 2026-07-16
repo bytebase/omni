@@ -116,6 +116,26 @@ var Atoms = []Atom{
 		},
 	},
 	{
+		Class: "C3-unicode-string",
+		Gen: func(r *rand.Rand) string {
+			// U&'...' lexes with plain-string quote rules: '' doubling,
+			// backslash NOT special at the string boundary (UESCAPE
+			// processing happens after lexing). Audit-verified.
+			inner := strings.ReplaceAll(payload(r), "'", "''")
+			return "U&'" + inner + "'"
+		},
+	},
+	{
+		Class: "C4-bit-string",
+		Gen: func(r *rand.Rand) string {
+			// B''/X'' consume to the closing quote like plain strings;
+			// the splitter does not validate content, so a semicolon
+			// inside must stay sealed even though the value is invalid.
+			prefix := []string{"B", "b", "X", "x"}[r.Intn(4)]
+			return prefix + "'01;10'"
+		},
+	},
+	{
 		Class: "C7-line-comment",
 		Gen: func(r *rand.Rand) string {
 			// Line comment swallows a semicolon; newline ends it so
