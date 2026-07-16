@@ -45,6 +45,11 @@ func TestSplitEscapeString(t *testing.T) {
 			want: []string{`SELECT 'a\';`, ` SELECT 2;`},
 		},
 		{
+			name: "E-string at input start (lookback boundary)",
+			sql:  `E'a\';b'; SELECT 2;`,
+			want: []string{`E'a\';b';`, ` SELECT 2;`},
+		},
+		{
 			name: "E as identifier tail is not an escape prefix",
 			sql:  `SELECT abcE'x\'; SELECT 2;`,
 			want: []string{`SELECT abcE'x\';`, ` SELECT 2;`},
