@@ -26,6 +26,10 @@ import (
 
 // S3 server-side differential (v1.2 S line, framework G4 proposition).
 //
+// Local runs need the build tag or the tests are silently absent:
+//
+//	S3DIFF_N=300 go test -tags=oracle ./pg/splittest/ -run TestS3
+//
 // The server is the ultimate splitting authority: a multi-statement
 // script sent as ONE simple-query message is split by PostgreSQL
 // itself, and any error it reports carries a 1-based byte Position
