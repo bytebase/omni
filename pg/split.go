@@ -162,7 +162,7 @@ func matchKeyword(sql string, i int, kw string) bool {
 }
 
 // skipSingleQuote skips a single-quoted string starting at position i.
-// Handles ” escape. Returns position after the closing quote (or end of input).
+// Handles the doubled-quote escape. Returns position after the closing quote (or end of input).
 func skipSingleQuote(sql string, i int) int {
 	i++ // skip opening '
 	for i < len(sql) {
@@ -207,7 +207,7 @@ func isIdentByte(b byte) bool {
 
 // skipEscapeString skips an E'...' string body starting at the opening
 // quote. Unlike plain strings, backslash escapes the next character
-// (including \' and \\); ” doubling is also honored. Returns the
+// (including \' and \\); a doubled single quote is also honored. Returns the
 // position after the closing quote, or len(sql) if unterminated.
 func skipEscapeString(sql string, i int) int {
 	i++ // skip opening '
@@ -251,9 +251,20 @@ func skipDoubleQuote(sql string, i int) int {
 }
 
 // isDollarQuoteStart checks if position i starts a valid dollar-quote tag.
-// A dollar-quote is $$ or $tag$ where tag is [a-zA-Z_][a-zA-Z0-9_]*.
+// A dollar-quote is $$ or $tag$ where tag is [a-zA-Z_][a-zA-Z0-9_]*, and the
+// '$' must not continue a preceding identifier.
 func isDollarQuoteStart(sql string, i int) bool {
 	if i >= len(sql) || sql[i] != '$' {
+		return false
+	}
+	// scan.l: '$' is an identifier-continuation byte ({ident_cont} includes
+	// '$'), so abc$tag$y is a single identifier, not "abc" followed by a
+	// dollar-quote. An opening delimiter is only recognized when the '$'
+	// starts a new token. (Known documented divergence: PG lexes tokens, so
+	// 123$t$...$t$ is number+string there but stays unsplit here; adjacent
+	// number/param + string is never valid grammar, so the difference only
+	// moves the boundary of an error — accepted in the splitter audit.)
+	if i > 0 && isIdentByte(sql[i-1]) {
 		return false
 	}
 	j := i + 1

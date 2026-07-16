@@ -50,8 +50,8 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
-			name: "multiline",
-			sql:  "SELECT\n  1;\nSELECT\n  2;",
+			name:      "multiline",
+			sql:       "SELECT\n  1;\nSELECT\n  2;",
 			wantCount: 2,
 			checks: func(t *testing.T, stmts []Statement) {
 				if stmts[0].Start.Line != 1 {

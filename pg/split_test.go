@@ -6,10 +6,10 @@ import (
 
 func TestSplit(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
-		want     []Segment
-		empties  []bool // expected Empty() for each segment
+		name    string
+		input   string
+		want    []Segment
+		empties []bool // expected Empty() for each segment
 	}{
 		// Basic cases.
 		{
@@ -287,7 +287,7 @@ $$; SELECT 1;`,
 			empties: []bool{false, false},
 		},
 		{
-			name: "BEGIN TRANSACTION is normal split",
+			name:  "BEGIN TRANSACTION is normal split",
 			input: "BEGIN TRANSACTION; SELECT 1; COMMIT;",
 			want: []Segment{
 				{Text: "BEGIN TRANSACTION;", ByteStart: 0, ByteEnd: 18},
@@ -297,7 +297,7 @@ $$; SELECT 1;`,
 			empties: []bool{false, false, false},
 		},
 		{
-			name: "BEGIN WORK is normal split",
+			name:  "BEGIN WORK is normal split",
 			input: "BEGIN WORK; SELECT 1; END WORK;",
 			want: []Segment{
 				{Text: "BEGIN WORK;", ByteStart: 0, ByteEnd: 11},
@@ -410,6 +410,110 @@ $$; SELECT 1;`,
 					if g.Empty() != tt.empties[i] {
 						t.Errorf("segment[%d].Empty() = %v, want %v (text=%q)", i, g.Empty(), tt.empties[i], g.Text)
 					}
+				}
+			}
+		})
+	}
+}
+
+// TestSplitDollarIdentAdjacency pins the scan.l rule that '$' continues an
+// identifier: abc$x$y is one identifier, not "abc" + dollar-quote $x$. A
+// mis-lex here swallows all input from the false opening tag to EOF (or, in
+// the other direction, splits inside a real dollar-quote). Engine-verified
+// on PostgreSQL 17: SELECT 1 AS abc$x$y, 名$x$y, _a$t$b all parse as plain
+// aliases; $tag$ after a non-identifier byte opens a quote as usual.
+func TestSplitDollarIdentAdjacency(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string // exact non-empty segment texts
+	}{
+		{
+			name:  "identifier with dollar then real statement",
+			input: `SELECT 1 AS abc$x$y; SELECT 2;`,
+			want:  []string{`SELECT 1 AS abc$x$y;`, ` SELECT 2;`},
+		},
+		{
+			name:  "identifier with multiple dollars",
+			input: `SELECT 1 AS abc$x$y$z; SELECT 2;`,
+			want:  []string{`SELECT 1 AS abc$x$y$z;`, ` SELECT 2;`},
+		},
+		{
+			name:  "multibyte identifier tail dollar",
+			input: "SELECT 1 AS 名$x$y; SELECT 2;",
+			want:  []string{"SELECT 1 AS 名$x$y;", " SELECT 2;"},
+		},
+		{
+			name:  "underscore identifier tail dollar",
+			input: `SELECT 1 AS _a$t$b; SELECT 2;`,
+			want:  []string{`SELECT 1 AS _a$t$b;`, ` SELECT 2;`},
+		},
+		{
+			name:  "identifier absorbs double dollar (scan.l x$$a is one identifier)",
+			input: `SELECT 1 AS x$$a;b$$; SELECT 2;`,
+			want:  []string{`SELECT 1 AS x$$a;`, `b$$;`, ` SELECT 2;`},
+		},
+		{
+			name:  "dollar quote still opens after operator",
+			input: `SELECT $tag$a;b$tag$; SELECT 2;`,
+			want:  []string{`SELECT $tag$a;b$tag$;`, ` SELECT 2;`},
+		},
+		{
+			name:  "dollar quote at input start",
+			input: `$t$;$t$; SELECT 2;`,
+			want:  []string{`$t$;$t$;`, ` SELECT 2;`},
+		},
+		{
+			name:  "dollar quote after open paren",
+			input: `SELECT f($q$a;b$q$); SELECT 2;`,
+			want:  []string{`SELECT f($q$a;b$q$);`, ` SELECT 2;`},
+		},
+		{
+			// Documented divergence: PG lexes tokens, so 123$t$a;b$t$ is
+			// number + string there (single grammar-INVALID statement, since
+			// a literal cannot be adjacent to a number). The byte scanner
+			// keeps '$' after a digit as identifier continuation and splits
+			// at the inner semicolon. Both sides reject the input; only the
+			// error boundary differs. Accepted in the splitter audit.
+			name:  "digit-adjacent dollar stays byte-scanned (known divergence)",
+			input: `SELECT 123$t$a;b$t$`,
+			want:  []string{`SELECT 123$t$a;`, `b$t$`},
+		},
+		{
+			name:  "dollar quote inside BEGIN ATOMIC after identifier",
+			input: "CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT 1 AS a$x$b; END; SELECT 2;",
+			want:  []string{"CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT 1 AS a$x$b; END;", " SELECT 2;"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			segs := Split(tt.input)
+
+			// Lossless invariant: offsets must reconstruct the input.
+			var rebuilt []byte
+			for _, s := range segs {
+				if s.Text != tt.input[s.ByteStart:s.ByteEnd] {
+					t.Fatalf("segment text %q does not match input[%d:%d]", s.Text, s.ByteStart, s.ByteEnd)
+				}
+				rebuilt = append(rebuilt, s.Text...)
+			}
+			if string(rebuilt) != tt.input {
+				t.Fatalf("segments do not reconstruct input:\ngot  %q\nwant %q", rebuilt, tt.input)
+			}
+
+			var got []string
+			for _, s := range segs {
+				if !s.Empty() {
+					got = append(got, s.Text)
+				}
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d non-empty segments %q, want %d %q", len(got), got, len(tt.want), tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
 				}
 			}
 		})
