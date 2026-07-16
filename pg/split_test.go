@@ -717,3 +717,92 @@ func TestSplitCopyFromStdin(t *testing.T) {
 		})
 	}
 }
+
+// TestSplitBeginAtomicKeywordContext pins context-aware keyword counting
+// inside BEGIN ATOMIC bodies: dot-qualified references (t.end, t . case),
+// AS aliases (AS end), and bare unreserved BEGIN as a column name are
+// ordinary identifiers, not block delimiters. All positive shapes
+// engine-verified on PostgreSQL 17 (server-side; psql's own client
+// scanner mis-splits the dot/AS shapes — see KnownBetterThanPsql).
+func TestSplitBeginAtomicKeywordContext(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "dot-qualified end does not close block",
+			input: "CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT t4.end FROM t4; END; SELECT 3;",
+			want:  []string{"CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT t4.end FROM t4; END;", " SELECT 3;"},
+		},
+		{
+			name:  "spaced dot-qualified end",
+			input: "CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT t4 . end FROM t4; END; SELECT 3;",
+			want:  []string{"CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT t4 . end FROM t4; END;", " SELECT 3;"},
+		},
+		{
+			name:  "AS end alias does not close block",
+			input: "CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT 1 AS end; END; SELECT 3;",
+			want:  []string{"CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT 1 AS end; END;", " SELECT 3;"},
+		},
+		{
+			name:  "dot-qualified case does not open block",
+			input: "CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT t4.end + t4.case FROM t4; END; SELECT 3;",
+			want:  []string{"CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT t4.end + t4.case FROM t4; END;", " SELECT 3;"},
+		},
+		{
+			name:  "bare begin column does not open block",
+			input: "CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT begin FROM t4; END; SELECT 3;",
+			want:  []string{"CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT begin FROM t4; END;", " SELECT 3;"},
+		},
+		{
+			name:  "case expression still counts",
+			input: "CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT CASE WHEN t.end > 0 THEN 1 ELSE 2 END FROM t; END; SELECT 3;",
+			want:  []string{"CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT CASE WHEN t.end > 0 THEN 1 ELSE 2 END FROM t; END;", " SELECT 3;"},
+		},
+		{
+			// Lexical contract: nested BEGIN ATOMIC opens a nested block
+			// (grammar validity aside); bare BEGIN no longer does.
+			name:  "nested begin atomic still counts",
+			input: "CREATE PROCEDURE p() BEGIN ATOMIC BEGIN ATOMIC SELECT 1; END; END; SELECT 3;",
+			want:  []string{"CREATE PROCEDURE p() BEGIN ATOMIC BEGIN ATOMIC SELECT 1; END; END;", " SELECT 3;"},
+		},
+		{
+			name:  "quoted end identifier does not close block",
+			input: `CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT "end" FROM t4; END; SELECT 3;`,
+			want:  []string{`CREATE FUNCTION f() RETURNS int BEGIN ATOMIC SELECT "end" FROM t4; END;`, ` SELECT 3;`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			segs := Split(tt.input)
+
+			var rebuilt []byte
+			for _, s := range segs {
+				if s.Text != tt.input[s.ByteStart:s.ByteEnd] {
+					t.Fatalf("segment text %q does not match input[%d:%d]", s.Text, s.ByteStart, s.ByteEnd)
+				}
+				rebuilt = append(rebuilt, s.Text...)
+			}
+			if string(rebuilt) != tt.input {
+				t.Fatalf("segments do not reconstruct input:\ngot  %q\nwant %q", rebuilt, tt.input)
+			}
+
+			var got []string
+			for _, s := range segs {
+				if !s.Empty() {
+					got = append(got, s.Text)
+				}
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d non-empty segments %q, want %d %q", len(got), got, len(tt.want), tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}

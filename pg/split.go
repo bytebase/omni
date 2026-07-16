@@ -405,34 +405,66 @@ func skipBeginAtomic(sql string, i int) int {
 	i += 6 // skip "ATOMIC"
 
 	depth := 1
+	// Keyword occurrences only count when they appear in statement position:
+	// dot-qualified references (t.end, t . case) and AS aliases (AS end) use
+	// reserved words as column labels, and bare unreserved BEGIN can be a
+	// plain column reference — none of them open or close a block
+	// (engine-verified on PostgreSQL 17). Track just enough left context to
+	// tell the difference; whitespace and comments preserve it.
+	afterDot := false
+	afterAS := false
 	for i < len(sql) && depth > 0 {
 		b := sql[i]
 
 		switch {
+		case b == ' ' || b == '\t' || b == '\n' || b == '\r':
+			i++
 		case b == '\'':
 			if isEscapeStringQuote(sql, i) {
 				i = skipEscapeString(sql, i)
 			} else {
 				i = skipSingleQuote(sql, i)
 			}
+			afterDot, afterAS = false, false
 		case b == '"':
 			i = skipDoubleQuote(sql, i)
+			afterDot, afterAS = false, false
 		case b == '$' && isDollarQuoteStart(sql, i):
 			i = skipDollarQuote(sql, i)
+			afterDot, afterAS = false, false
 		case b == '/' && i+1 < len(sql) && sql[i+1] == '*':
 			i = skipBlockComment(sql, i)
 		case b == '-' && i+1 < len(sql) && sql[i+1] == '-':
 			i = skipLineComment(sql, i)
-		case (b == 'c' || b == 'C') && matchKeyword(sql, i, "CASE"):
-			depth++
-			i += 4
-		case (b == 'b' || b == 'B') && matchKeyword(sql, i, "BEGIN"):
-			depth++
-			i += 5
-		case (b == 'e' || b == 'E') && matchKeyword(sql, i, "END"):
-			depth--
-			i += 3
+		case b == '.':
+			afterDot = true
+			afterAS = false
+			i++
+		case isIdentByte(b):
+			j := i
+			for j < len(sql) && isIdentByte(sql[j]) {
+				j++
+			}
+			word := strings.ToUpper(sql[i:j])
+			if !afterDot && !afterAS {
+				switch word {
+				case "CASE":
+					depth++
+				case "BEGIN":
+					// Only a nested BEGIN ATOMIC opens a block; bare BEGIN
+					// is an unreserved keyword usable as an identifier.
+					if isFollowedByAtomic(sql, j) {
+						depth++
+					}
+				case "END":
+					depth--
+				}
+			}
+			afterAS = word == "AS"
+			afterDot = false
+			i = j
 		default:
+			afterDot, afterAS = false, false
 			i++
 		}
 	}
