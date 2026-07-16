@@ -72,9 +72,15 @@ func Split(sql string) []Segment {
 		b := sql[i]
 
 		switch {
-		// Single-quoted string.
+		// Single-quoted string. E'...' (escape string) processes
+		// backslash escapes; plain '...' does not (PG default
+		// standard_conforming_strings=on).
 		case b == '\'':
-			i = skipSingleQuote(sql, i)
+			if isEscapeStringQuote(sql, i) {
+				i = skipEscapeString(sql, i)
+			} else {
+				i = skipSingleQuote(sql, i)
+			}
 
 		// Double-quoted identifier.
 		case b == '"':
@@ -156,7 +162,7 @@ func matchKeyword(sql string, i int, kw string) bool {
 }
 
 // skipSingleQuote skips a single-quoted string starting at position i.
-// Handles '' escape. Returns position after the closing quote (or end of input).
+// Handles ” escape. Returns position after the closing quote (or end of input).
 func skipSingleQuote(sql string, i int) int {
 	i++ // skip opening '
 	for i < len(sql) {
@@ -169,6 +175,59 @@ func skipSingleQuote(sql string, i int) int {
 			return i
 		}
 		i++
+	}
+	return i // unterminated
+}
+
+// isEscapeStringQuote reports whether the quote at position i opens an
+// E'...' escape string: the quote is directly preceded by a lone E/e
+// that is not the tail of an identifier (scan.l: {xestart} = [eE]{quote},
+// only recognized when E starts a token).
+func isEscapeStringQuote(sql string, i int) bool {
+	if i == 0 {
+		return false
+	}
+	prev := sql[i-1]
+	if prev != 'e' && prev != 'E' {
+		return false
+	}
+	if i >= 2 && isIdentByte(sql[i-2]) {
+		return false // E is the tail of an identifier like abcE'...'
+	}
+	return true
+}
+
+// isIdentByte reports whether b can appear in a PG identifier
+// (letters, digits, underscore, dollar, or any multibyte byte).
+func isIdentByte(b byte) bool {
+	return b == '_' || b == '$' ||
+		(b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') ||
+		(b >= '0' && b <= '9') || b >= 0x80
+}
+
+// skipEscapeString skips an E'...' string body starting at the opening
+// quote. Unlike plain strings, backslash escapes the next character
+// (including \' and \\); ” doubling is also honored. Returns the
+// position after the closing quote, or len(sql) if unterminated.
+func skipEscapeString(sql string, i int) int {
+	i++ // skip opening '
+	for i < len(sql) {
+		switch sql[i] {
+		case '\\':
+			if i+1 >= len(sql) {
+				return len(sql) // trailing backslash at EOF
+			}
+			i += 2
+		case '\'':
+			i++
+			if i < len(sql) && sql[i] == '\'' {
+				i++ // escaped ''
+				continue
+			}
+			return i
+		default:
+			i++
+		}
 	}
 	return i // unterminated
 }
@@ -309,7 +368,11 @@ func skipBeginAtomic(sql string, i int) int {
 
 		switch {
 		case b == '\'':
-			i = skipSingleQuote(sql, i)
+			if isEscapeStringQuote(sql, i) {
+				i = skipEscapeString(sql, i)
+			} else {
+				i = skipSingleQuote(sql, i)
+			}
 		case b == '"':
 			i = skipDoubleQuote(sql, i)
 		case b == '$' && isDollarQuoteStart(sql, i):
