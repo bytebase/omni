@@ -38,7 +38,7 @@ func scale() (n int, seed int64) {
 func TestConstructive(t *testing.T) {
 	n, seed := scale()
 	r := rand.New(rand.NewSource(seed))
-	atoms := EnabledAtoms("D3" /* D3 fixed in #375; enable "D2","D5" as fixes land */)
+	atoms := EnabledAtoms("D2", "D3", "D5" /* all splitter audit fixes merged (#374-#379) */)
 	t.Logf("constructive: n=%d seed=%d atoms=%d", n, seed, len(atoms))
 	fails := 0
 	for i := 0; i < n; i++ {
@@ -59,7 +59,15 @@ func TestConstructive(t *testing.T) {
 func TestPairCoverage(t *testing.T) {
 	_, seed := scale()
 	r := rand.New(rand.NewSource(seed + 1))
-	atoms := EnabledAtoms("D3")
+	// Whole-statement constructs cannot appear mid-statement by
+	// definition; their sequencing coverage lives in TestConstructive
+	// (Compose emits them as full segments among normal statements).
+	var atoms []Atom
+	for _, a := range EnabledAtoms("D2", "D3", "D5") {
+		if !a.WholeStatement {
+			atoms = append(atoms, a)
+		}
+	}
 	const perPair = 5
 	for ai := range atoms {
 		for bi := range atoms {
@@ -112,7 +120,7 @@ func TestInvariantsOverPgregress(t *testing.T) {
 func TestByteMutation(t *testing.T) {
 	n, seed := scale()
 	r := rand.New(rand.NewSource(seed + 2))
-	atoms := EnabledAtoms("D3")
+	atoms := EnabledAtoms("D2", "D3", "D5")
 	hot := []byte{'\'', '"', ';', '\\', '$', '-', '*', '/', 'E'}
 	for i := 0; i < n/2; i++ {
 		script := Compose(r, atoms, 1+r.Intn(3))

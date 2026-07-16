@@ -32,6 +32,12 @@ type Atom struct {
 	// must land before this atom can be enabled in the composer. Empty
 	// means the construct is safe on current main.
 	RequiresFix string
+	// WholeStatement marks constructs that are only meaningful as a
+	// complete statement (e.g. COPY FROM stdin, whose data mode
+	// requires COPY as the statement's first word). The composer emits
+	// them verbatim as full segments and never embeds them mid-statement.
+	// Their Gen output must carry its own statement terminator.
+	WholeStatement bool
 }
 
 // identChars are safe identifier-continuation characters for generated names.
@@ -191,10 +197,16 @@ var Atoms = []Atom{
 		},
 	},
 	{
-		Class:       "C12-copy-stdin",
-		RequiresFix: "D5",
+		Class:          "C12-copy-stdin",
+		RequiresFix:    "D5",
+		WholeStatement: true,
 		Gen: func(r *rand.Rand) string {
-			return "COPY t FROM stdin;\na;b\nc;d\n\\."
+			// Complete segment: statement, its semicolon, data lines
+			// (with sealed semicolons), terminator line and its newline
+			// (contract: the terminator's newline belongs to this segment).
+			rows := []string{"a;b", "1\t\\N", "c;d;e"}
+			data := rows[r.Intn(len(rows))] + "\n" + rows[r.Intn(len(rows))]
+			return "COPY " + randIdent(r, 3) + " FROM stdin;\n" + data + "\n\\.\n"
 		},
 	},
 }
@@ -230,8 +242,12 @@ func Statement(r *rand.Rand, atoms []Atom) string {
 	n := 1 + r.Intn(3)
 	b.WriteString(glue(r))
 	for i := 0; i < n; i++ {
+		a := atoms[r.Intn(len(atoms))]
+		for a.WholeStatement {
+			a = atoms[r.Intn(len(atoms))]
+		}
 		b.WriteString(" ")
-		b.WriteString(atoms[r.Intn(len(atoms))].Gen(r))
+		b.WriteString(a.Gen(r))
 		b.WriteString(" ")
 		b.WriteString(glue(r))
 	}
@@ -267,11 +283,24 @@ func trivia(r *rand.Rand) string {
 // as a boundary is placed by this function; every other semicolon is
 // sealed inside an atom. That is the constructive-truth guarantee.
 func Compose(r *rand.Rand, atoms []Atom, n int) Script {
+	var whole []Atom
+	for _, a := range atoms {
+		if a.WholeStatement {
+			whole = append(whole, a)
+		}
+	}
 	var sql strings.Builder
 	var want []string
 	pending := "" // trivia belonging to the upcoming segment
 	for i := 0; i < n; i++ {
-		stmt := pending + Statement(r, atoms) + ";"
+		var stmt string
+		if len(whole) > 0 && r.Intn(4) == 0 {
+			// Whole-statement construct: emitted verbatim, carries its
+			// own terminator (e.g. COPY block through the \. line).
+			stmt = pending + whole[r.Intn(len(whole))].Gen(r)
+		} else {
+			stmt = pending + Statement(r, atoms) + ";"
+		}
 		sql.WriteString(stmt)
 		want = append(want, stmt)
 		pending = trivia(r)
