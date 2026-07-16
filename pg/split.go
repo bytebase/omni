@@ -1,6 +1,10 @@
 package pg
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/bytebase/omni/pg/internal/copyscan"
+)
 
 // Segment represents a portion of SQL text delimited by top-level semicolons.
 type Segment struct {
@@ -130,7 +134,7 @@ func Split(sql string) []Segment {
 			// data may contain semicolons that are not boundaries. Keep the
 			// statement, its data, and the terminator as one segment.
 			if isCopyFromStdin(sql[start:i]) {
-				i = skipCopyData(sql, i)
+				i = copyscan.SkipData(sql, i)
 			}
 			segments = append(segments, Segment{
 				Text:      sql[start:i],
@@ -494,53 +498,4 @@ func isCopyFromStdin(stmt string) bool {
 		}
 	}
 	return false
-}
-
-// skipCopyData consumes the inline COPY data block starting at position i
-// (just past the COPY statement's semicolon): the remainder of that line,
-// then data lines up to and including a line containing only "\." (psql
-// recognizes the terminator only at the start of a line). Without a
-// terminator the data runs to end of input, matching psql reading to EOF.
-func skipCopyData(sql string, i int) int {
-	// Finish the line the semicolon is on; data starts on the next line.
-	for i < len(sql) && sql[i] != '\n' {
-		i++
-	}
-	if i < len(sql) {
-		i++ // consume the newline
-	}
-	for i < len(sql) {
-		// i is at the start of a data line.
-		if isCopyTerminatorLine(sql, i) {
-			// Consume through the terminator line's newline (or EOF).
-			for i < len(sql) && sql[i] != '\n' {
-				i++
-			}
-			if i < len(sql) {
-				i++
-			}
-			return i
-		}
-		for i < len(sql) && sql[i] != '\n' {
-			i++
-		}
-		if i < len(sql) {
-			i++
-		}
-	}
-	return i
-}
-
-// isCopyTerminatorLine reports whether the line starting at i consists of
-// exactly "\." (optionally followed by a carriage return before the
-// newline or end of input).
-func isCopyTerminatorLine(sql string, i int) bool {
-	if i+1 >= len(sql) || sql[i] != '\\' || sql[i+1] != '.' {
-		return false
-	}
-	j := i + 2
-	if j < len(sql) && sql[j] == '\r' {
-		j++
-	}
-	return j >= len(sql) || sql[j] == '\n'
 }

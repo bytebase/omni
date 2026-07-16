@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	nodes "github.com/bytebase/omni/pg/ast"
+	"github.com/bytebase/omni/pg/internal/copyscan"
 )
 
 // Parser is a recursive descent parser for PostgreSQL SQL.
@@ -64,6 +65,25 @@ func Parse(sql string) (*nodes.List, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			break
+		}
+		// COPY ... FROM STDIN in a script is followed by inline data lines
+		// ending at a "\." line. The data is not SQL: capture it on the
+		// statement node and reposition the lexer past the block. This also
+		// discards any token lookahead into the data region (and a lexer
+		// error it may have produced).
+		if cs, ok := stmt.(*nodes.CopyStmt); ok &&
+			cs.IsFrom && cs.Filename == "" && !cs.IsProgram && cs.Query == nil &&
+			p.cur.Type == ';' {
+			semiEnd := p.cur.End
+			dataEnd := copyscan.SkipData(p.source, semiEnd)
+			cs.InlineData = p.source[semiEnd:dataEnd]
+			stmts = append(stmts, &nodes.RawStmt{
+				Stmt: stmt,
+				Loc:  nodes.Loc{Start: stmtStart, End: dataEnd},
+			})
+			p.resetLexerTo(dataEnd)
+			needSeparator = false
+			continue
 		}
 		if p.lexer.Err != nil {
 			return nil, p.lexerError()
@@ -225,7 +245,9 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 		loc := p.pos()
 		p.advance() // consume REFRESH
 		stmt, err := p.parseRefreshMatViewStmt()
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		if stmt != nil {
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		}
 		return stmt, err
 	case BEGIN_P, START, COMMIT, END_P, ABORT_P, SAVEPOINT, RELEASE:
 		return p.parseTransactionStmt()
@@ -386,7 +408,9 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			return p.parseCreateFunctionStmt(createLoc, true)
 		case TRIGGER, CONSTRAINT:
 			stmt, err := p.parseCreateTrigStmt(true)
-			if stmt != nil { stmt.Loc = nodes.Loc{Start: createLoc, End: p.prev.End} }
+			if stmt != nil {
+				stmt.Loc = nodes.Loc{Start: createLoc, End: p.prev.End}
+			}
 			return stmt, err
 		case TRUSTED, PROCEDURAL, LANGUAGE:
 			return p.parseCreatePLangStmt(true)
@@ -398,7 +422,9 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			return p.parseCreateTransformStmt(true, createLoc)
 		default:
 			stmt, err := p.parseViewStmt(true)
-			if stmt != nil { stmt.Loc = nodes.Loc{Start: createLoc, End: p.prev.End} }
+			if stmt != nil {
+				stmt.Loc = nodes.Loc{Start: createLoc, End: p.prev.End}
+			}
 			return stmt, err
 		}
 	case VIEW:
@@ -406,14 +432,18 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		loc := p.pos()
 		p.advance() // consume CREATE
 		stmt, err := p.parseViewStmt(false)
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		if stmt != nil {
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		}
 		return stmt, err
 	case RECURSIVE:
 		// CREATE RECURSIVE VIEW ...
 		loc := p.pos()
 		p.advance() // consume CREATE
 		stmt, err := p.parseViewStmt(false)
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		if stmt != nil {
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		}
 		return stmt, err
 	case MATERIALIZED:
 		// CREATE MATERIALIZED VIEW ...
@@ -422,7 +452,9 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		relpersistence := byte(nodes.RELPERSISTENCE_PERMANENT)
 		p.advance() // consume MATERIALIZED
 		stmt, err := p.parseCreateMatViewStmt(relpersistence)
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		if stmt != nil {
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		}
 		return stmt, err
 	case TABLE:
 		// CREATE TABLE ... (could be regular CREATE TABLE or CREATE TABLE AS)
@@ -441,14 +473,18 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		loc := p.pos()
 		p.advance() // consume CREATE
 		stmt, err := p.parseIndexStmt()
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		if stmt != nil {
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		}
 		return stmt, err
 	case INDEX:
 		// CREATE INDEX ...
 		loc := p.pos()
 		p.advance() // consume CREATE
 		stmt, err := p.parseIndexStmt()
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		if stmt != nil {
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		}
 		return stmt, err
 	case SEQUENCE:
 		// CREATE SEQUENCE ...
@@ -521,14 +557,18 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		loc := p.pos()
 		p.advance() // consume CREATE
 		stmt, err := p.parseCreateTrigStmt(false)
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		if stmt != nil {
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		}
 		return stmt, err
 	case CONSTRAINT:
 		// CREATE CONSTRAINT TRIGGER ...
 		loc := p.pos()
 		p.advance() // consume CREATE
 		stmt, err := p.parseCreateTrigStmt(false)
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		if stmt != nil {
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		}
 		return stmt, err
 	case EVENT:
 		// CREATE EVENT TRIGGER ...
@@ -536,7 +576,9 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		p.advance() // consume CREATE
 		p.advance() // consume EVENT
 		stmt, err := p.parseCreateEventTrigStmt()
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		if stmt != nil {
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		}
 		return stmt, err
 	case FOREIGN:
 		// CREATE FOREIGN DATA WRAPPER or CREATE FOREIGN TABLE
@@ -665,7 +707,9 @@ func (p *Parser) parseCreateTempDispatch() (nodes.Node, error) {
 	// Determine if this is CTAS or regular CREATE TABLE.
 	if p.cur.Type == '(' {
 		node, err := p.parseCreateTableOrCTASAfterParen(names, relpersistence, ifNotExists)
-		if err != nil { return node, err }
+		if err != nil {
+			return node, err
+		}
 		if node != nil {
 			switch n := node.(type) {
 			case *nodes.CreateStmt:
@@ -680,13 +724,17 @@ func (p *Parser) parseCreateTempDispatch() (nodes.Node, error) {
 	// No '(' - check for AS (CTAS with no column list), PARTITION, OF
 	if p.cur.Type == AS || p.cur.Type == USING {
 		stmt, err := p.finishCTAS(names, nil, relpersistence, ifNotExists)
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		if stmt != nil {
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		}
 		return stmt, err
 	}
 
 	// Must be PARTITION OF, OF, or error
 	stmt, err := p.finishCreateStmt(names, relpersistence, ifNotExists)
-	if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+	if stmt != nil {
+		stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+	}
 	return stmt, err
 }
 
@@ -701,7 +749,9 @@ func (p *Parser) parseCreateUnloggedDispatch() (nodes.Node, error) {
 	if p.cur.Type == MATERIALIZED {
 		p.advance() // consume MATERIALIZED
 		stmt, err := p.parseCreateMatViewStmt(relpersistence)
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		if stmt != nil {
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		}
 		return stmt, err
 	}
 
@@ -736,7 +786,9 @@ func (p *Parser) parseCreateUnloggedDispatch() (nodes.Node, error) {
 
 	if p.cur.Type == '(' {
 		node, err := p.parseCreateTableOrCTASAfterParen(names, relpersistence, ifNotExists)
-		if err != nil { return node, err }
+		if err != nil {
+			return node, err
+		}
 		if node != nil {
 			switch n := node.(type) {
 			case *nodes.CreateStmt:
@@ -750,12 +802,16 @@ func (p *Parser) parseCreateUnloggedDispatch() (nodes.Node, error) {
 
 	if p.cur.Type == AS || p.cur.Type == USING {
 		stmt, err := p.finishCTAS(names, nil, relpersistence, ifNotExists)
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		if stmt != nil {
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		}
 		return stmt, err
 	}
 
 	stmt, err := p.finishCreateStmt(names, relpersistence, ifNotExists)
-	if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+	if stmt != nil {
+		stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+	}
 	return stmt, err
 }
 
@@ -784,7 +840,9 @@ func (p *Parser) parseCreateOrCTAS() (nodes.Node, error) {
 	// Determine if this is CTAS or regular CREATE TABLE.
 	if p.cur.Type == '(' {
 		node, err := p.parseCreateTableOrCTASAfterParen(names, relpersistence, ifNotExists)
-		if err != nil { return node, err }
+		if err != nil {
+			return node, err
+		}
 		if node != nil {
 			switch n := node.(type) {
 			case *nodes.CreateStmt:
@@ -799,13 +857,17 @@ func (p *Parser) parseCreateOrCTAS() (nodes.Node, error) {
 	// No '(' - check for AS or USING (CTAS with no column list)
 	if p.cur.Type == AS || p.cur.Type == USING {
 		stmt, err := p.finishCTAS(names, nil, relpersistence, ifNotExists)
-		if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+		if stmt != nil {
+			stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+		}
 		return stmt, err
 	}
 
 	// PARTITION OF, OF, etc.
 	stmt, err := p.finishCreateStmt(names, relpersistence, ifNotExists)
-	if stmt != nil { stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End} }
+	if stmt != nil {
+		stmt.Loc = nodes.Loc{Start: loc, End: p.prev.End}
+	}
 	return stmt, err
 }
 
@@ -1327,4 +1389,18 @@ func (p *Parser) lexerError() *ParseError {
 		msg = p.lexer.Err.Error()
 	}
 	return &ParseError{Message: msg, Position: p.cur.Loc}
+}
+
+// resetLexerTo repositions token scanning at the given byte offset,
+// dropping any buffered lookahead (and any lexer error produced by
+// scanning bytes that are not SQL, such as inline COPY data).
+func (p *Parser) resetLexerTo(off int) {
+	lx := NewLexer(p.source)
+	lx.pos = off
+	lx.StandardConformingStrings = p.lexer.StandardConformingStrings
+	lx.BackslashQuote = p.lexer.BackslashQuote
+	lx.EscapeStringWarning = p.lexer.EscapeStringWarning
+	p.lexer = lx
+	p.hasNext = false
+	p.advance()
 }
