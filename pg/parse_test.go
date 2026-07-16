@@ -1,6 +1,7 @@
 package pg
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/pg/ast"
@@ -125,5 +126,32 @@ func TestParseError(t *testing.T) {
 	_, err := Parse("SELECTT FROM")
 	if err == nil {
 		t.Fatal("expected parse error")
+	}
+}
+
+// TestParseCopyInlineDataPipeline verifies the full pg.Parse pipeline on the
+// pg_dump plain-format shape: statement texts reconstruct the input
+// losslessly and the COPY statement's text includes its inline data block.
+func TestParseCopyInlineDataPipeline(t *testing.T) {
+	sql := "COPY t (a, b) FROM stdin;\nx;y\t1\n\\N\t2\n\\.\nSELECT 1;"
+	stmts, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("parse failed: %v", err)
+	}
+	if len(stmts) != 2 {
+		t.Fatalf("expected 2 statements, got %d", len(stmts))
+	}
+	var rebuilt string
+	for _, s := range stmts {
+		rebuilt += s.Text
+	}
+	if rebuilt != sql {
+		t.Fatalf("statement texts do not reconstruct input:\ngot  %q\nwant %q", rebuilt, sql)
+	}
+	if !strings.HasSuffix(stmts[0].Text, "\\.\n") {
+		t.Fatalf("COPY statement text %q does not include its data block", stmts[0].Text)
+	}
+	if stmts[1].Text != "SELECT 1;" {
+		t.Fatalf("second statement text = %q, want %q", stmts[1].Text, "SELECT 1;")
 	}
 }
