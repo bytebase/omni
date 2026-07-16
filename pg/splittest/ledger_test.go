@@ -97,11 +97,25 @@ func TestLedgerLint(t *testing.T) {
 }
 
 // TestLedgerCoversKnownBetter pins that every KnownBetterThanPsql input
-// stays anchored in the executable ledger family: each must still split
-// to a single non-empty statement (the property S3 differencing will
-// whitelist). Guards the whitelist from rotting apart from the code.
+// is (a) registered in the coverage ledger by exact SQL, so a new
+// whitelist entry cannot be added without a documented ledger row, and
+// (b) still splits to a single non-empty statement. Without the ledger
+// lookup this would just duplicate TestKnownBetterThanPsqlSplitAsSingle-
+// Statements and the advertised anti-rot guarantee would be hollow.
 func TestLedgerCoversKnownBetter(t *testing.T) {
+	entries, err := LoadLedger()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ledgerSQL := make(map[string]bool, len(entries))
+	for _, e := range entries {
+		ledgerSQL[e.SQL] = true
+	}
+
 	for i, sql := range KnownBetterThanPsql {
+		if !ledgerSQL[sql] {
+			t.Errorf("known-better[%d] is not registered in SPLIT_COVERAGE.json — add a ledger entry: %q", i, sql)
+		}
 		segs := pg.Split(sql)
 		nonEmpty := 0
 		for _, s := range segs {
