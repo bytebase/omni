@@ -235,9 +235,25 @@ func glue(r *rand.Rand) string {
 	return pieces[r.Intn(len(pieces))]
 }
 
+// hasEmbeddable reports whether any atom may appear mid-statement (i.e.
+// is not a whole-statement construct).
+func hasEmbeddable(atoms []Atom) bool {
+	for _, a := range atoms {
+		if !a.WholeStatement {
+			return true
+		}
+	}
+	return false
+}
+
 // Statement composes 1..k atoms with glue into a statement containing
-// no top-level semicolon by construction.
+// no top-level semicolon by construction. Whole-statement atoms are
+// rejection-sampled away; the guard prevents an unbounded loop when a
+// caller passes an all-whole atom slice (e.g. a C12-only focused run).
 func Statement(r *rand.Rand, atoms []Atom) string {
+	if !hasEmbeddable(atoms) {
+		return glue(r) + " " + glue(r)
+	}
 	var b strings.Builder
 	n := 1 + r.Intn(3)
 	b.WriteString(glue(r))

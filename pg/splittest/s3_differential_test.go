@@ -22,6 +22,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/bytebase/omni/pg"
+	"github.com/bytebase/omni/pg/internal/metacmd"
 )
 
 // S3 server-side differential (v1.2 S line, framework G4 proposition).
@@ -71,6 +72,16 @@ func s3Conn(t *testing.T) *sql.DB {
 			s3InitErr = fmt.Errorf("connection string: %w", err)
 			return
 		}
+		// Force the simple query protocol explicitly. The whole-script
+		// oracle depends on PostgreSQL splitting a multi-command string
+		// itself; pgx's default (extended, cache_statement) prepares
+		// single statements and would not exercise the server splitter.
+		// Do not rely on pgx's arg-less heuristic — pin it.
+		if strings.Contains(connStr, "?") {
+			connStr += "&default_query_exec_mode=simple_protocol"
+		} else {
+			connStr += "?default_query_exec_mode=simple_protocol"
+		}
 		db, err := sql.Open("pgx", connStr)
 		if err != nil {
 			s3InitErr = fmt.Errorf("open: %w", err)
@@ -117,11 +128,33 @@ func wholeScriptError(ctx context.Context, db *sql.DB, script string) (*pgconn.P
 	return pgErr, pos, nil
 }
 
+// sqlForServer returns the SQL a segment would actually send to the
+// database: metacommand lines are trivia in the real pipeline (parsed
+// out before execution), so they must be stripped before handing the
+// text to PostgreSQL, which has no notion of psql backslash commands.
+func sqlForServer(text string) string {
+	var b strings.Builder
+	i := 0
+	for i < len(text) {
+		if metacmd.IsLineStart(text, i, i == 0 || text[i-1] == '\n') {
+			i = metacmd.SkipLine(text, i)
+			continue
+		}
+		b.WriteByte(text[i])
+		i++
+	}
+	return b.String()
+}
+
 // segmentedRun executes the non-empty segments one by one inside an
 // explicit transaction (normalizing the simple-query batch's implicit
 // transaction). It returns the index (into segs) of the first failing
-// segment and the error, or -1 on full success.
-func segmentedRun(ctx context.Context, db *sql.DB, segs []pg.Segment) (int, *pgconn.PgError, error) {
+// segment and the error, or -1 on full success. Each segment must
+// contain exactly one statement — if a splitter regression leaves a
+// top-level semicolon inside a segment, executing it as a batch would
+// hide the very drift this differential exists to catch, so that is a
+// hard error.
+func segmentedRun(t *testing.T, ctx context.Context, db *sql.DB, segs []pg.Segment) (int, *pgconn.PgError, error) {
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		return -1, nil, err
@@ -135,7 +168,10 @@ func segmentedRun(ctx context.Context, db *sql.DB, segs []pg.Segment) (int, *pgc
 		if s.Empty() {
 			continue
 		}
-		if _, execErr := conn.ExecContext(ctx, s.Text); execErr != nil {
+		if sub := pg.Split(s.Text); nonEmptyCount(sub) > 1 {
+			t.Errorf("segment %d contains %d statements (splitter drift): %q", i, nonEmptyCount(sub), s.Text)
+		}
+		if _, execErr := conn.ExecContext(ctx, sqlForServer(s.Text)); execErr != nil {
 			var pgErr *pgconn.PgError
 			if !errors.As(execErr, &pgErr) {
 				return i, nil, fmt.Errorf("non-PG error at segment %d: %w", i, execErr)
@@ -144,6 +180,17 @@ func segmentedRun(ctx context.Context, db *sql.DB, segs []pg.Segment) (int, *pgc
 		}
 	}
 	return -1, nil, nil
+}
+
+// nonEmptyCount counts the non-Empty segments in a slice.
+func nonEmptyCount(segs []pg.Segment) int {
+	n := 0
+	for _, s := range segs {
+		if !s.Empty() {
+			n++
+		}
+	}
+	return n
 }
 
 // segmentContaining maps a 0-based byte position in the script to the
@@ -208,8 +255,12 @@ func TestS3Differential(t *testing.T) {
 			if s.Empty() {
 				continue
 			}
+			// Send what the real pipeline sends: the segment with its
+			// metacommand trivia lines stripped. Writing the raw
+			// backslash lines would make the server 42601 at the
+			// metacommand, so A2 could pass for the wrong reason.
 			start := batch.Len()
-			batch.WriteString(s.Text)
+			batch.WriteString(sqlForServer(s.Text))
 			spans = append(spans, span{si, start, batch.Len()})
 			live = append(live, s)
 		}
@@ -229,7 +280,7 @@ func TestS3Differential(t *testing.T) {
 		if infra != nil {
 			t.Fatalf("case %d: infra: %v", i, infra)
 		}
-		segIdx, segErr, infra := segmentedRun(ctx, db, segs)
+		segIdx, segErr, infra := segmentedRun(t, ctx, db, segs)
 		if infra != nil {
 			t.Fatalf("case %d: infra: %v", i, infra)
 		}
@@ -253,7 +304,8 @@ func TestS3Differential(t *testing.T) {
 					i, wholePos, batch.String())
 				break
 			}
-			soloErr, _, infra := wholeScriptError(ctx, db, segs[wantIdx].Text)
+			// The pointed-at segment must itself be a syntax error alone.
+			soloErr, _, infra := wholeScriptError(ctx, db, sqlForServer(segs[wantIdx].Text))
 			if infra != nil {
 				t.Fatalf("case %d: infra: %v", i, infra)
 			}
@@ -264,6 +316,17 @@ func TestS3Differential(t *testing.T) {
 				}
 				t.Errorf("case %d: server syntax error points into segment %d, but that segment alone yields %s — boundary drift\nsegment: %q\nbatch: %q",
 					i, wantIdx, got, segs[wantIdx].Text, batch.String())
+			}
+			// Cross-check the segmented run: since a 42601 in the batch
+			// means SOME segment is invalid, the segmented run must also
+			// fail with 42601, and no EARLIER segment may fail first (an
+			// extra boundary before wantIdx would surface here).
+			if segErr == nil {
+				t.Errorf("case %d: batch syntax-errored (pos %d, segment %d) but segmented run succeeded\nscript: %q",
+					i, wholePos, wantIdx, script.SQL)
+			} else if segErr.Code == "42601" && segIdx > wantIdx {
+				t.Errorf("case %d: segmented run failed at segment %d, before the server's error segment %d — extra boundary\nscript: %q",
+					i, segIdx, wantIdx, script.SQL)
 			}
 		default:
 			// A3: batch parsed clean; execution order is preserved on
@@ -297,7 +360,7 @@ func TestS3KnownBetterWhitelist(t *testing.T) {
 	db := s3Conn(t)
 	ctx := context.Background()
 	for i, input := range KnownBetterThanPsql {
-		wholeErr, _, infra := wholeScriptError(ctx, db, input)
+		wholeErr, _, infra := wholeScriptError(ctx, db, sqlForServer(input))
 		if infra != nil {
 			t.Fatalf("whitelist[%d]: infra: %v", i, infra)
 		}
