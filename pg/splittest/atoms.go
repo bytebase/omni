@@ -265,15 +265,26 @@ type Script struct {
 }
 
 // trivia is inter-statement noise attached to the start of the next
-// segment: whitespace and full-line comments.
+// segment: whitespace, full-line comments, and psql meta-command lines
+// (C18b — boundary-neutral per the D6 trivia model; a meta-command is
+// only recognized after a real newline, so every variant here starts
+// with one).
 func trivia(r *rand.Rand) string {
-	switch r.Intn(4) {
+	switch r.Intn(7) {
 	case 0:
 		return " "
 	case 1:
 		return "\n"
 	case 2:
 		return " -- trailing note;\n"
+	case 3:
+		return "\n\\restrict aAbB0 \n"
+	case 4:
+		return "\n\\unrestrict aAbB0\n\\connect mydb\n"
+	case 5:
+		// Meta-command content must stay boundary-neutral even when it
+		// carries quotes, parens, and semicolons (D6 counterexample class).
+		return "\n\\if (bogus; 'q\n"
 	default:
 		return ""
 	}
