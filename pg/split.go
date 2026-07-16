@@ -504,6 +504,14 @@ func isCopyFromStdin(stmt string) bool {
 	for i < len(stmt) {
 		b := stmt[i]
 		switch {
+		// Metacommand lines are trivia (same as in Split): a statement
+		// segment may carry leading \connect/\restrict lines — pg_dumpall
+		// emits \connect right before each database's statements — and they
+		// must not shadow COPY as the first word. The line-start rule is the
+		// same strict one the scan loop uses (a true preceding newline), so
+		// splitting a segment's text again reproduces the same decision.
+		case metacmd.IsLineStart(stmt, i, i > 0 && stmt[i-1] == '\n'):
+			i = metacmd.SkipLine(stmt, i)
 		case b == '\'':
 			if isEscapeStringQuote(stmt, i) {
 				i = skipEscapeString(stmt, i)

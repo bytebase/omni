@@ -928,3 +928,71 @@ func TestSplitRealPgDump(t *testing.T) {
 		t.Fatalf("expected 18 statements in dump, got %d", nonEmpty)
 	}
 }
+
+// TestSplitCopyAfterMetacommand pins the D5×D6 interaction: a COPY ... FROM
+// STDIN statement whose segment carries leading metacommand trivia
+// (pg_dumpall emits \connect right before each database's statements) must
+// still enter data mode — the metacommand words must not shadow COPY as
+// the statement's first word.
+func TestSplitCopyAfterMetacommand(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "restrict then copy",
+			input: "SELECT 0;\n\\restrict x\nCOPY t FROM stdin;\na;b\n\\.\n",
+			want:  []string{"SELECT 0;", "\n\\restrict x\nCOPY t FROM stdin;\na;b\n\\.\n"},
+		},
+		{
+			// pg_dumpall output has comment headers before \connect, so the
+			// metacommand is always newline-preceded in practice.
+			name:  "pg_dumpall shape connect then copy",
+			input: "-- pg_dumpall\n\\connect mydb\nCOPY t FROM stdin;\np;q\n\\.\nSELECT 1;",
+			want:  []string{"-- pg_dumpall\n\\connect mydb\nCOPY t FROM stdin;\np;q\n\\.\n", "SELECT 1;"},
+		},
+		{
+			name:  "consecutive metacommands then copy",
+			input: "--\n\\restrict A\n\\connect db\nCOPY t FROM stdin;\nx;y\n\\.\nSELECT 1;",
+			want:  []string{"--\n\\restrict A\n\\connect db\nCOPY t FROM stdin;\nx;y\n\\.\n", "SELECT 1;"},
+		},
+		{
+			name:  "metacommand-lookalike inside copy options is not trivia",
+			input: "COPY t FROM stdin WITH (DELIMITER ';');\na;b\n\\.\nSELECT 1;",
+			want:  []string{"COPY t FROM stdin WITH (DELIMITER ';');\na;b\n\\.\n", "SELECT 1;"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			segs := Split(tt.input)
+
+			var rebuilt []byte
+			for _, s := range segs {
+				if s.Text != tt.input[s.ByteStart:s.ByteEnd] {
+					t.Fatalf("segment text %q does not match input[%d:%d]", s.Text, s.ByteStart, s.ByteEnd)
+				}
+				rebuilt = append(rebuilt, s.Text...)
+			}
+			if string(rebuilt) != tt.input {
+				t.Fatalf("segments do not reconstruct input:\ngot  %q\nwant %q", rebuilt, tt.input)
+			}
+
+			var got []string
+			for _, s := range segs {
+				if !s.Empty() {
+					got = append(got, s.Text)
+				}
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d non-empty segments %q, want %d %q", len(got), got, len(tt.want), tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
