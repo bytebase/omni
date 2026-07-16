@@ -1,6 +1,7 @@
 package pg
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -153,5 +154,33 @@ func TestParseCopyInlineDataPipeline(t *testing.T) {
 	}
 	if stmts[1].Text != "SELECT 1;" {
 		t.Fatalf("second statement text = %q, want %q", stmts[1].Text, "SELECT 1;")
+	}
+}
+
+// TestParseRealPgDumpPipeline runs the committed real pg_dump 17.7 output
+// (verbatim, including \restrict/\unrestrict bracket lines — corpus rule
+// C19) through the full pg.Parse pipeline: zero errors and all statements
+// recovered.
+func TestParseRealPgDumpPipeline(t *testing.T) {
+	data, err := os.ReadFile("testdata/pg_dump_17_restrict.sql")
+	if err != nil {
+		t.Fatalf("read dump: %v", err)
+	}
+	stmts, err := Parse(string(data))
+	if err != nil {
+		t.Fatalf("pipeline failed on real pg_dump output: %v", err)
+	}
+	if len(stmts) != 18 {
+		t.Fatalf("expected 18 statements, got %d", len(stmts))
+	}
+	// COPY inline data must ride along inside its statement.
+	foundCopy := false
+	for _, s := range stmts {
+		if cs, ok := s.AST.(*ast.CopyStmt); ok && cs.InlineData != "" {
+			foundCopy = true
+		}
+	}
+	if !foundCopy {
+		t.Fatal("no COPY statement with inline data found in dump")
 	}
 }

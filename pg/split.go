@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/pg/internal/copyscan"
+	"github.com/bytebase/omni/pg/internal/metacmd"
 )
 
 // Segment represents a portion of SQL text delimited by top-level semicolons.
@@ -13,12 +14,18 @@ type Segment struct {
 	ByteEnd   int    // byte offset of end (exclusive) in original sql
 }
 
-// Empty returns true if the segment contains only whitespace, comments, and semicolons.
+// Empty returns true if the segment contains only whitespace, comments,
+// semicolons, and psql metacommand lines (which are not SQL statements).
 func (s Segment) Empty() bool {
 	t := s.Text
 	i := 0
 	for i < len(t) {
 		b := t[i]
+		// psql metacommand line: statement-less.
+		if metacmd.IsLineStart(t, i, i == 0 || t[i-1] == '\n') {
+			i = metacmd.SkipLine(t, i)
+			continue
+		}
 		// Skip whitespace and semicolons.
 		if b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == ';' {
 			i++
@@ -80,6 +87,19 @@ func Split(sql string) []Segment {
 		b := sql[i]
 
 		switch {
+		// psql metacommand line (\restrict, \connect, ...): not SQL — the
+		// line is consumed like a comment, so its content never affects
+		// boundaries, and it rides along as trivia of the segment it sits
+		// in. pg_dump plain format has emitted \restrict/\unrestrict since
+		// the CVE-2025-8714 point releases. Recognition requires a true
+		// preceding newline: a segment that merely begins with a backslash
+		// (after a mid-line semicolon boundary) is not reinterpreted, which
+		// keeps re-splitting stable. A metacommand at byte zero of a script
+		// is glued here but skipped by the parser, so the pipeline still
+		// works on header-stripped dumps.
+		case metacmd.IsLineStart(sql, i, i > 0 && sql[i-1] == '\n'):
+			i = metacmd.SkipLine(sql, i)
+
 		// Single-quoted string. E'...' (escape string) processes
 		// backslash escapes; plain '...' does not (PG default
 		// standard_conforming_strings=on).
