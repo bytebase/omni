@@ -280,6 +280,28 @@ jobs:
       - name: PG splitter framework (nightly N=10^6)
         run: go test ./pg/splittest/ -count=1 -v
 
+  splittest-s3-differential:
+    # S3 server-side differential (framework G4): generated scripts
+    # dual-run against PG 17 — the server's own error positions audit
+    # our segment boundaries. Nightly N=2000.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        go-version: ['1.25']
+    env:
+      S3DIFF_N: '2000'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: S3 server-side differential (N=2000)
+        run: go test -tags=oracle ./pg/splittest/ -run 'TestS3' -count=1 -v
+
   paren-fuzz-nightly:
     # SCENARIOS-pg-paren-dispatch.md §5.2 — wide-N nightly fuzz run.
     # N=10000 catches low-frequency paren-dispatch drift that the
