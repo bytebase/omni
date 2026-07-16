@@ -519,3 +519,94 @@ func TestSplitDollarIdentAdjacency(t *testing.T) {
 		})
 	}
 }
+
+// TestSplitParenDepth pins the rule that statement-separating semicolons
+// only occur at parenthesis depth zero. PG's grammar nests semicolons
+// inside parentheses (CREATE RULE multi-action lists), and psqlscan never
+// splits inside parens. Engine-verified on PostgreSQL 17: the rule
+// statement executes as ONE statement; a stray ')' splits normally
+// (clamped); an unclosed '(' buffers the remainder to end of input.
+func TestSplitParenDepth(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string // exact non-empty segment texts
+	}{
+		{
+			// Audit shape (3 wrong segments before the fix).
+			name:  "rule multi-action then statement",
+			input: `CREATE RULE r AS ON UPDATE TO t DO ALSO (SELECT 1; SELECT 2); SELECT 3;`,
+			want:  []string{`CREATE RULE r AS ON UPDATE TO t DO ALSO (SELECT 1; SELECT 2);`, ` SELECT 3;`},
+		},
+		{
+			// Cross-validation shape (2 wrong segments before the fix).
+			name:  "rule multi-action alone",
+			input: `CREATE RULE r AS ON DELETE TO t DO INSTEAD (DELETE FROM a; DELETE FROM b);`,
+			want:  []string{`CREATE RULE r AS ON DELETE TO t DO INSTEAD (DELETE FROM a; DELETE FROM b);`},
+		},
+		{
+			name:  "deeply nested semicolon",
+			input: `CREATE RULE r AS ON UPDATE TO t DO ALSO (UPDATE a SET x = (1); DELETE FROM b); SELECT 2;`,
+			want:  []string{`CREATE RULE r AS ON UPDATE TO t DO ALSO (UPDATE a SET x = (1); DELETE FROM b);`, ` SELECT 2;`},
+		},
+		{
+			// Resilience: unclosed '(' leaves the remainder as one segment —
+			// psql buffers to end of input the same way. Fenced so a future
+			// "fix" does not silently change it.
+			name:  "unclosed paren swallows remainder",
+			input: `SELECT (1; SELECT 2;`,
+			want:  []string{`SELECT (1; SELECT 2;`},
+		},
+		{
+			// A stray ')' must not corrupt depth: clamp at zero and split
+			// normally (engine: statement 1 errors, statement 2 runs).
+			name:  "stray close paren splits normally",
+			input: `SELECT 1); SELECT 2;`,
+			want:  []string{`SELECT 1);`, ` SELECT 2;`},
+		},
+		{
+			// Parens inside strings, comments, and dollar-quotes do not
+			// count toward depth.
+			name:  "paren-like bytes in literals do not count",
+			input: `SELECT '(', $t$($t$ /* ( */; SELECT 2;`,
+			want:  []string{`SELECT '(', $t$($t$ /* ( */;`, ` SELECT 2;`},
+		},
+		{
+			name:  "function call args with semicolon in dollar quote",
+			input: `SELECT f($q$a;b$q$, 1); SELECT 2;`,
+			want:  []string{`SELECT f($q$a;b$q$, 1);`, ` SELECT 2;`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			segs := Split(tt.input)
+
+			var rebuilt []byte
+			for _, s := range segs {
+				if s.Text != tt.input[s.ByteStart:s.ByteEnd] {
+					t.Fatalf("segment text %q does not match input[%d:%d]", s.Text, s.ByteStart, s.ByteEnd)
+				}
+				rebuilt = append(rebuilt, s.Text...)
+			}
+			if string(rebuilt) != tt.input {
+				t.Fatalf("segments do not reconstruct input:\ngot  %q\nwant %q", rebuilt, tt.input)
+			}
+
+			var got []string
+			for _, s := range segs {
+				if !s.Empty() {
+					got = append(got, s.Text)
+				}
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d non-empty segments %q, want %d %q", len(got), got, len(tt.want), tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}

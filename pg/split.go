@@ -67,6 +67,10 @@ func Split(sql string) []Segment {
 	var segments []Segment
 	start := 0
 	i := 0
+	// Statement-separating semicolons only occur at parenthesis depth zero:
+	// PG's grammar nests semicolons inside parentheses (CREATE RULE's
+	// multi-action list), and psqlscan likewise never splits inside parens.
+	parenDepth := 0
 
 	for i < len(sql) {
 		b := sql[i]
@@ -102,8 +106,23 @@ func Split(sql string) []Segment {
 		case (b == 'b' || b == 'B') && matchKeyword(sql, i, "BEGIN") && isFollowedByAtomic(sql, i+5):
 			i = skipBeginAtomic(sql, i)
 
-		// Top-level semicolon — split here.
-		case b == ';':
+		case b == '(':
+			parenDepth++
+			i++
+
+		case b == ')':
+			// Clamp at zero: a stray ')' does not open a "negative" group,
+			// matching psqlscan (paren_depth only decremented when > 0).
+			if parenDepth > 0 {
+				parenDepth--
+			}
+			i++
+
+		// Top-level semicolon — split here. Inside parentheses the
+		// semicolon is part of the statement; an unclosed '(' therefore
+		// leaves the remainder as a single segment, same as psql
+		// buffering to end of input.
+		case b == ';' && parenDepth == 0:
 			i++
 			segments = append(segments, Segment{
 				Text:      sql[start:i],
