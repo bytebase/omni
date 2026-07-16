@@ -124,6 +124,14 @@ func Split(sql string) []Segment {
 		// buffering to end of input.
 		case b == ';' && parenDepth == 0:
 			i++
+			// COPY ... FROM STDIN is followed by inline data lines that end
+			// at a line containing only "\.": psql scripts and pg_dump
+			// plain-format output carry the data in the SQL stream, and the
+			// data may contain semicolons that are not boundaries. Keep the
+			// statement, its data, and the terminator as one segment.
+			if isCopyFromStdin(sql[start:i]) {
+				i = skipCopyData(sql, i)
+			}
 			segments = append(segments, Segment{
 				Text:      sql[start:i],
 				ByteStart: start,
@@ -425,4 +433,114 @@ func skipBeginAtomic(sql string, i int) int {
 		}
 	}
 	return i
+}
+
+// isCopyFromStdin reports whether the statement text is a COPY command
+// reading inline data: the first word is COPY and the words FROM STDIN
+// appear in sequence at parenthesis depth zero (so a relation named
+// "stdin" inside a COPY (query) form does not match). Word scanning skips
+// strings, comments, and dollar-quotes with the same helpers as Split.
+func isCopyFromStdin(stmt string) bool {
+	i := 0
+	depth := 0
+	sawCopy := false
+	prevWord := ""
+	for i < len(stmt) {
+		b := stmt[i]
+		switch {
+		case b == '\'':
+			if isEscapeStringQuote(stmt, i) {
+				i = skipEscapeString(stmt, i)
+			} else {
+				i = skipSingleQuote(stmt, i)
+			}
+		case b == '"':
+			i = skipDoubleQuote(stmt, i)
+		case b == '$' && isDollarQuoteStart(stmt, i):
+			i = skipDollarQuote(stmt, i)
+		case b == '/' && i+1 < len(stmt) && stmt[i+1] == '*':
+			i = skipBlockComment(stmt, i)
+		case b == '-' && i+1 < len(stmt) && stmt[i+1] == '-':
+			i = skipLineComment(stmt, i)
+		case b == '(':
+			depth++
+			i++
+		case b == ')':
+			if depth > 0 {
+				depth--
+			}
+			i++
+		case isIdentByte(b):
+			j := i
+			for j < len(stmt) && isIdentByte(stmt[j]) {
+				j++
+			}
+			word := strings.ToUpper(stmt[i:j])
+			if !sawCopy {
+				// The statement must start with COPY.
+				if word != "COPY" {
+					return false
+				}
+				sawCopy = true
+			} else if depth == 0 && word == "STDIN" && prevWord == "FROM" {
+				return true
+			}
+			if depth == 0 {
+				prevWord = word
+			}
+			i = j
+		default:
+			i++
+		}
+	}
+	return false
+}
+
+// skipCopyData consumes the inline COPY data block starting at position i
+// (just past the COPY statement's semicolon): the remainder of that line,
+// then data lines up to and including a line containing only "\." (psql
+// recognizes the terminator only at the start of a line). Without a
+// terminator the data runs to end of input, matching psql reading to EOF.
+func skipCopyData(sql string, i int) int {
+	// Finish the line the semicolon is on; data starts on the next line.
+	for i < len(sql) && sql[i] != '\n' {
+		i++
+	}
+	if i < len(sql) {
+		i++ // consume the newline
+	}
+	for i < len(sql) {
+		// i is at the start of a data line.
+		if isCopyTerminatorLine(sql, i) {
+			// Consume through the terminator line's newline (or EOF).
+			for i < len(sql) && sql[i] != '\n' {
+				i++
+			}
+			if i < len(sql) {
+				i++
+			}
+			return i
+		}
+		for i < len(sql) && sql[i] != '\n' {
+			i++
+		}
+		if i < len(sql) {
+			i++
+		}
+	}
+	return i
+}
+
+// isCopyTerminatorLine reports whether the line starting at i consists of
+// exactly "\." (optionally followed by a carriage return before the
+// newline or end of input).
+func isCopyTerminatorLine(sql string, i int) bool {
+	if i+1 >= len(sql) || sql[i] != '\\' || sql[i+1] != '.' {
+		return false
+	}
+	j := i + 2
+	if j < len(sql) && sql[j] == '\r' {
+		j++
+	}
+	return j >= len(sql) || sql[j] == '\n'
 }

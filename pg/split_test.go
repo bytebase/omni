@@ -610,3 +610,110 @@ func TestSplitParenDepth(t *testing.T) {
 		})
 	}
 }
+
+// TestSplitCopyFromStdin pins inline COPY data handling: psql scripts and
+// pg_dump plain-format output carry the data lines in the SQL stream, the
+// data may contain semicolons, and the block ends only at a line that is
+// exactly "\.". The statement, its data, and the terminator stay one
+// segment. Engine-verified on PostgreSQL 17 (lowercase copy, WITH options,
+// column lists, semicolons in data all load correctly via psql).
+func TestSplitCopyFromStdin(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "pg_dump shape with semicolons in data",
+			input: "COPY t (a, b) FROM stdin;\nx;y\t1\np;q;r\t2\n\\.\nSELECT 2;",
+			want:  []string{"COPY t (a, b) FROM stdin;\nx;y\t1\np;q;r\t2\n\\.\n", "SELECT 2;"},
+		},
+		{
+			name:  "lowercase with options",
+			input: "copy t from stdin with (format text);\na;b\t1\n\\.\nSELECT 2;",
+			want:  []string{"copy t from stdin with (format text);\na;b\t1\n\\.\n", "SELECT 2;"},
+		},
+		{
+			name:  "two copy blocks",
+			input: "COPY a FROM stdin;\n1;\n\\.\nCOPY b FROM stdin;\n2;\n\\.\n",
+			want:  []string{"COPY a FROM stdin;\n1;\n\\.\n", "COPY b FROM stdin;\n2;\n\\.\n"},
+		},
+		{
+			name:  "missing terminator swallows to EOF like psql",
+			input: "COPY t FROM stdin;\na;b\t1\nSELECT 2;",
+			want:  []string{"COPY t FROM stdin;\na;b\t1\nSELECT 2;"},
+		},
+		{
+			name:  "terminator only at line start",
+			input: "COPY t FROM stdin;\ndata \\. not end\n\\.\nSELECT 2;",
+			want:  []string{"COPY t FROM stdin;\ndata \\. not end\n\\.\n", "SELECT 2;"},
+		},
+		{
+			name:  "terminator line with more content is data",
+			input: "COPY t FROM stdin;\n\\.x\n\\.\nSELECT 2;",
+			want:  []string{"COPY t FROM stdin;\n\\.x\n\\.\n", "SELECT 2;"},
+		},
+		{
+			name:  "terminator at EOF without newline",
+			input: "COPY t FROM stdin;\na\t1\n\\.",
+			want:  []string{"COPY t FROM stdin;\na\t1\n\\."},
+		},
+		{
+			name:  "CRLF data and terminator",
+			input: "COPY t FROM stdin;\r\na;b\t1\r\n\\.\r\nSELECT 2;",
+			want:  []string{"COPY t FROM stdin;\r\na;b\t1\r\n\\.\r\n", "SELECT 2;"},
+		},
+		{
+			name:  "copy from file does not enter data mode",
+			input: "COPY t FROM 'x.csv'; SELECT 2;",
+			want:  []string{"COPY t FROM 'x.csv';", " SELECT 2;"},
+		},
+		{
+			name:  "copy to stdout does not enter data mode",
+			input: "COPY t TO stdout; SELECT 2;",
+			want:  []string{"COPY t TO stdout;", " SELECT 2;"},
+		},
+		{
+			name:  "relation named stdin inside copy query form does not match",
+			input: "COPY (SELECT a FROM stdin) TO stdout; SELECT 2;",
+			want:  []string{"COPY (SELECT a FROM stdin) TO stdout;", " SELECT 2;"},
+		},
+		{
+			name:  "non-copy statement mentioning from stdin in string",
+			input: "SELECT 'COPY t FROM stdin;'; SELECT 2;",
+			want:  []string{"SELECT 'COPY t FROM stdin;';", " SELECT 2;"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			segs := Split(tt.input)
+
+			var rebuilt []byte
+			for _, s := range segs {
+				if s.Text != tt.input[s.ByteStart:s.ByteEnd] {
+					t.Fatalf("segment text %q does not match input[%d:%d]", s.Text, s.ByteStart, s.ByteEnd)
+				}
+				rebuilt = append(rebuilt, s.Text...)
+			}
+			if string(rebuilt) != tt.input {
+				t.Fatalf("segments do not reconstruct input:\ngot  %q\nwant %q", rebuilt, tt.input)
+			}
+
+			var got []string
+			for _, s := range segs {
+				if !s.Empty() {
+					got = append(got, s.Text)
+				}
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d non-empty segments %q, want %d %q", len(got), got, len(tt.want), tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
