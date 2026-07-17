@@ -22,7 +22,6 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/bytebase/omni/pg"
-	"github.com/bytebase/omni/pg/internal/metacmd"
 )
 
 // S3 server-side differential (v1.2 S line, framework G4 proposition).
@@ -133,17 +132,7 @@ func wholeScriptError(ctx context.Context, db *sql.DB, script string) (*pgconn.P
 // out before execution), so they must be stripped before handing the
 // text to PostgreSQL, which has no notion of psql backslash commands.
 func sqlForServer(text string) string {
-	var b strings.Builder
-	i := 0
-	for i < len(text) {
-		if metacmd.IsMetaCommand(text, i) {
-			i = metacmd.SkipLine(text, i)
-			continue
-		}
-		b.WriteByte(text[i])
-		i++
-	}
-	return b.String()
+	return pg.StripTopLevelMetacommands(text)
 }
 
 // segmentedRun executes the non-empty segments one by one inside an
@@ -324,7 +313,7 @@ func TestS3Differential(t *testing.T) {
 			if segErr == nil {
 				t.Errorf("case %d: batch syntax-errored (pos %d, segment %d) but segmented run succeeded\nscript: %q",
 					i, wholePos, wantIdx, script.SQL)
-			} else if segErr.Code == "42601" && segIdx > wantIdx {
+			} else if segErr.Code == "42601" && segIdx < wantIdx {
 				t.Errorf("case %d: segmented run failed at segment %d, before the server's error segment %d — extra boundary\nscript: %q",
 					i, segIdx, wantIdx, script.SQL)
 			}

@@ -581,3 +581,51 @@ func isCopyFromStdin(stmt string) bool {
 	}
 	return false
 }
+
+// StripTopLevelMetacommands returns text with psql metacommand lines
+// removed, but only where a backslash sits in top-level scan state — not
+// inside a string, comment, dollar-quote, or COPY data. It walks with
+// the same construct-skipping logic as Split, so a backslash that is
+// really string content (e.g. 'a \restrict b') is preserved. Used to
+// derive the SQL a segment would actually send to the server, since the
+// database has no notion of psql backslash commands.
+func StripTopLevelMetacommands(text string) string {
+	var b strings.Builder
+	i := 0
+	start := 0
+	for i < len(text) {
+		c := text[i]
+		switch {
+		case metacmd.IsMetaCommand(text, i):
+			b.WriteString(text[start:i])
+			i = metacmd.SkipLine(text, i)
+			start = i
+		case c == '\'':
+			if isEscapeStringQuote(text, i) {
+				i = skipEscapeString(text, i)
+			} else {
+				i = skipSingleQuote(text, i)
+			}
+		case c == '"':
+			i = skipDoubleQuote(text, i)
+		case c == '$' && isDollarQuoteStart(text, i):
+			i = skipDollarQuote(text, i)
+		case c == '/' && i+1 < len(text) && text[i+1] == '*':
+			i = skipBlockComment(text, i)
+		case c == '-' && i+1 < len(text) && text[i+1] == '-':
+			i = skipLineComment(text, i)
+		case c == ';':
+			i++
+			// Same data-mode gate as Split: same-line SQL after the COPY
+			// statement keeps data mode off, so stripping and splitting
+			// walk the bytes identically.
+			if isCopyFromStdin(text[start:i]) && copyscan.RestOfLineBlank(text, i) {
+				i = copyscan.SkipData(text, i)
+			}
+		default:
+			i++
+		}
+	}
+	b.WriteString(text[start:])
+	return b.String()
+}
