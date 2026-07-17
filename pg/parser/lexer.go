@@ -4,6 +4,7 @@ package parser
 
 import (
 	"fmt"
+	"github.com/bytebase/omni/pg/internal/metacmd"
 	"strconv"
 	"strings"
 	"unicode"
@@ -198,6 +199,15 @@ func (l *Lexer) lexInitial() Token {
 
 	// Check for SQL comment
 	if ch == '-' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '-' {
+		l.skipLineComment()
+		return l.NextToken()
+	}
+
+	// psql metacommand (\restrict, \echo, ...): backslash + letter at any
+	// top-level position is never valid SQL, and psql consumes it through
+	// end of line. Treat it like a comment so scripts written for psql —
+	// pg_dump/pg_dumpall output included — lex cleanly.
+	if metacmd.IsMetaCommand(l.input, l.pos) {
 		l.skipLineComment()
 		return l.NextToken()
 	}

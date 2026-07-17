@@ -9,7 +9,6 @@ import (
 
 	nodes "github.com/bytebase/omni/pg/ast"
 	"github.com/bytebase/omni/pg/internal/copyscan"
-	"github.com/bytebase/omni/pg/internal/metacmd"
 	"strings"
 )
 
@@ -50,15 +49,6 @@ func Parse(sql string) (*nodes.List, error) {
 	var stmts []nodes.Node
 	needSeparator := false
 	for p.cur.Type != 0 {
-		// psql metacommand line (\restrict, \connect, ...): not SQL.
-		// Skip the line and resume; repositioning also discards the lexer
-		// error the backslash token produced. pg_dump plain format emits
-		// \restrict/\unrestrict since the CVE-2025-8714 point releases.
-		if off := p.cur.Loc; off < len(p.source) &&
-			metacmd.IsLineStart(p.source, off, off == 0 || p.source[off-1] == '\n') {
-			p.resetLexerTo(metacmd.SkipLine(p.source, off))
-			continue
-		}
 		if p.cur.Type == ';' {
 			p.advance()
 			needSeparator = false

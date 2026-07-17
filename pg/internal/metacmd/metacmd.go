@@ -25,13 +25,6 @@ func IsMetaCommand(sql string, i int) bool {
 	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
 }
 
-// IsLineStart is the line-start-gated variant retained for the parser's
-// statement-boundary hook until that hook is removed; new call sites must
-// use IsMetaCommand.
-func IsLineStart(sql string, i int, lineStart bool) bool {
-	return lineStart && IsMetaCommand(sql, i)
-}
-
 // SkipLine consumes the metacommand line starting at position i, returning
 // the position just past its newline (or end of input).
 func SkipLine(sql string, i int) int {

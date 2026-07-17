@@ -1090,3 +1090,97 @@ func TestSplitCommentSweepFollowups(t *testing.T) {
 		})
 	}
 }
+
+// TestSplitMetacommandAnywhere pins the position-context-free metacommand
+// rule (D7): psql recognizes backslash commands at ANY top-level position,
+// not only line starts (engine-verified: SELECT 1; \echo MIDLINE executes,
+// mid-line \g buffer-sends), and a top-level backslash is never valid SQL,
+// so consuming backslash+letter to end of line can never eat a legal
+// statement. Being context-free is what makes re-splitting stable: the two
+// line-start rules each broke re-split idempotence at segment offset zero
+// in opposite directions.
+func TestSplitMetacommandAnywhere(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "byte-zero metacommand is trivia",
+			input: "\\restrict abc\nSELECT 1;",
+			want:  []string{"\\restrict abc\nSELECT 1;"},
+		},
+		{
+			name:  "byte-zero metacommand then copy enters data mode",
+			input: "\\connect db\nCOPY t FROM stdin;\na;b\t1\n\\.\nSELECT 2;",
+			want:  []string{"\\connect db\nCOPY t FROM stdin;\na;b\t1\n\\.\n", "SELECT 2;"},
+		},
+		{
+			name:  "mid-line metacommand after semicolon",
+			input: "SELECT 1; \\echo mid\nSELECT 2;",
+			want:  []string{"SELECT 1;", " \\echo mid\nSELECT 2;"},
+		},
+		{
+			// The lenient line-start rule's counterexample: the quote inside
+			// the metacommand line is trivia in BOTH passes — the line is
+			// consumed to its newline, and the next line's semicolon splits
+			// identically on re-split.
+			name:  "mid-line metacommand with quote content",
+			input: "SELECT 1;\\echo 'x\n;y';",
+			want:  []string{"SELECT 1;", "y';"},
+		},
+		{
+			// The strict rule's counterexample (the D7 case): a byte-zero
+			// metacommand line with quotes and semicolons is one trivia-only
+			// (statement-less) segment, stable under re-split.
+			name:  "byte-zero metacommand with boundary-active content",
+			input: "\\col U&'; ;' 1 x +; -- note;\n",
+			want:  nil,
+		},
+		{
+			name:  "backslash inside string untouched",
+			input: "SELECT 'has \\backslash;inside'; SELECT 2;",
+			want:  []string{"SELECT 'has \\backslash;inside';", " SELECT 2;"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			segs := Split(tt.input)
+
+			var rebuilt []byte
+			for _, s := range segs {
+				if s.Text != tt.input[s.ByteStart:s.ByteEnd] {
+					t.Fatalf("segment text %q does not match input[%d:%d]", s.Text, s.ByteStart, s.ByteEnd)
+				}
+				rebuilt = append(rebuilt, s.Text...)
+			}
+			if string(rebuilt) != tt.input {
+				t.Fatalf("segments do not reconstruct input:\ngot  %q\nwant %q", rebuilt, tt.input)
+			}
+
+			// Re-split stability: every segment re-splits to itself.
+			for _, s := range segs {
+				re := Split(s.Text)
+				if len(re) != 1 || re[0].Text != s.Text {
+					t.Fatalf("segment %q re-splits into %d segments", s.Text, len(re))
+				}
+			}
+
+			var got []string
+			for _, s := range segs {
+				if !s.Empty() {
+					got = append(got, s.Text)
+				}
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d non-empty segments %q, want %d %q", len(got), got, len(tt.want), tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}

@@ -220,3 +220,38 @@ func TestParseCommentSweepFollowups(t *testing.T) {
 		}
 	})
 }
+
+// TestParseMetacommandAnywhere pins parse-layer metacommand handling under
+// the D7 anywhere rule: the lexer consumes backslash+letter through end of
+// line like a comment, so metacommands work at statement boundaries, at
+// byte zero, and mid-statement (engine-verified: psql executes \echo
+// mid-buffer and the SQL continues around it).
+func TestParseMetacommandAnywhere(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+		want  int
+	}{
+		{"byte-zero header", "\\restrict abc\nSELECT 1;", 1},
+		{"mid-statement metacommand", "SELECT\n\\echo hi\n1;", 1},
+		{"mid-line after semicolon", "SELECT 1; \\echo mid\nSELECT 2;", 2},
+		{"metacommand only", "\\restrict abc\n", 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			stmts, err := Parse(tc.input)
+			if err != nil {
+				t.Fatalf("parse failed: %v", err)
+			}
+			n := 0
+			for _, s := range stmts {
+				if !s.Empty() {
+					n++
+				}
+			}
+			if n != tc.want {
+				t.Fatalf("got %d statements, want %d", n, tc.want)
+			}
+		})
+	}
+}
