@@ -25,7 +25,7 @@ func (s Segment) Empty() bool {
 	for i < len(t) {
 		b := t[i]
 		// psql metacommand line: statement-less.
-		if metacmd.IsLineStart(t, i, i == 0 || t[i-1] == '\n') {
+		if metacmd.IsMetaCommand(t, i) {
 			i = metacmd.SkipLine(t, i)
 			continue
 		}
@@ -105,7 +105,7 @@ func Split(sql string) []Segment {
 		// keeps re-splitting stable. A metacommand at byte zero of a script
 		// is glued here but skipped by the parser, so the pipeline still
 		// works on header-stripped dumps.
-		case metacmd.IsLineStart(sql, i, i > 0 && sql[i-1] == '\n'):
+		case metacmd.IsMetaCommand(sql, i):
 			i = metacmd.SkipLine(sql, i)
 
 		// Single-quoted string. E'...' (escape string) processes
@@ -408,7 +408,10 @@ func isFollowedByAtomic(sql string, i int) bool {
 	return matchKeyword(sql, i, "ATOMIC")
 }
 
-// skipWhitespaceAndComments skips whitespace, line comments, and block comments.
+// skipWhitespaceAndComments skips whitespace, line comments, block
+// comments, and psql metacommand lines — everything the scanner treats as
+// trivia (engine-verified: BEGIN \echo x␤ATOMIC creates a SQL-standard
+// body function; psql consumes the command and the keywords join up).
 func skipWhitespaceAndComments(sql string, i int) int {
 	for i < len(sql) {
 		b := sql[i]
@@ -418,6 +421,8 @@ func skipWhitespaceAndComments(sql string, i int) int {
 			i = skipLineComment(sql, i)
 		} else if b == '/' && i+1 < len(sql) && sql[i+1] == '*' {
 			i = skipBlockComment(sql, i)
+		} else if metacmd.IsMetaCommand(sql, i) {
+			i = metacmd.SkipLine(sql, i)
 		} else {
 			break
 		}
@@ -451,7 +456,7 @@ func skipBeginAtomic(sql string, i int) int {
 		// mid-buffer and the body continues, so their words (\echo END)
 		// must not count as block delimiters. Context is preserved, same
 		// as comments.
-		case metacmd.IsLineStart(sql, i, i > 0 && sql[i-1] == '\n'):
+		case metacmd.IsMetaCommand(sql, i):
 			i = metacmd.SkipLine(sql, i)
 		case b == ' ' || b == '\t' || b == '\n' || b == '\r':
 			i++
@@ -529,7 +534,7 @@ func isCopyFromStdin(stmt string) bool {
 		// must not shadow COPY as the first word. The line-start rule is the
 		// same strict one the scan loop uses (a true preceding newline), so
 		// splitting a segment's text again reproduces the same decision.
-		case metacmd.IsLineStart(stmt, i, i > 0 && stmt[i-1] == '\n'):
+		case metacmd.IsMetaCommand(stmt, i):
 			i = metacmd.SkipLine(stmt, i)
 		case b == '\'':
 			if isEscapeStringQuote(stmt, i) {
@@ -580,4 +585,69 @@ func isCopyFromStdin(stmt string) bool {
 		}
 	}
 	return false
+}
+
+// StripTopLevelMetacommands returns text with psql metacommand lines
+// removed, but only where a backslash sits in top-level scan state — not
+// inside a string, comment, dollar-quote, or COPY data. It walks with
+// the same construct-skipping logic as Split, so a backslash that is
+// really string content (e.g. 'a \restrict b') is preserved. Used to
+// derive the SQL a segment would actually send to the server, since the
+// database has no notion of psql backslash commands.
+func StripTopLevelMetacommands(text string) string {
+	var b strings.Builder
+	i := 0
+	// start is the emit bookkeeping (last strip point); stmtStart anchors
+	// the CURRENT statement for COPY detection, advancing at depth-zero
+	// semicolons exactly like Split's segment boundaries do. Stripping a
+	// metacommand does not move stmtStart: isCopyFromStdin skips
+	// metacommand trivia itself, so a statement's COPY-ness is judged from
+	// its true first word even with metacommand lines before or inside it.
+	start := 0
+	stmtStart := 0
+	parenDepth := 0
+	for i < len(text) {
+		c := text[i]
+		switch {
+		case metacmd.IsMetaCommand(text, i):
+			b.WriteString(text[start:i])
+			i = metacmd.SkipLine(text, i)
+			start = i
+		case c == '\'':
+			if isEscapeStringQuote(text, i) {
+				i = skipEscapeString(text, i)
+			} else {
+				i = skipSingleQuote(text, i)
+			}
+		case c == '"':
+			i = skipDoubleQuote(text, i)
+		case c == '$' && isDollarQuoteStart(text, i):
+			i = skipDollarQuote(text, i)
+		case c == '/' && i+1 < len(text) && text[i+1] == '*':
+			i = skipBlockComment(text, i)
+		case c == '-' && i+1 < len(text) && text[i+1] == '-':
+			i = skipLineComment(text, i)
+		case c == '(':
+			parenDepth++
+			i++
+		case c == ')':
+			if parenDepth > 0 {
+				parenDepth--
+			}
+			i++
+		case c == ';' && parenDepth == 0:
+			i++
+			// Same data-mode gate as Split: same-line SQL after the COPY
+			// statement keeps data mode off, so stripping and splitting
+			// walk the bytes identically.
+			if isCopyFromStdin(text[stmtStart:i]) && copyscan.RestOfLineBlank(text, i) {
+				i = copyscan.SkipData(text, i)
+			}
+			stmtStart = i
+		default:
+			i++
+		}
+	}
+	b.WriteString(text[start:])
+	return b.String()
 }

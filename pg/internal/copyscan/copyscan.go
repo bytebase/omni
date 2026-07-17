@@ -5,6 +5,8 @@
 // the block with the same rules.
 package copyscan
 
+import "github.com/bytebase/omni/pg/internal/metacmd"
+
 // SkipData consumes the inline COPY data block starting at position i
 // (just past the COPY statement's semicolon): the remainder of that line,
 // then data lines up to and including a line containing only "\." (psql
@@ -54,14 +56,20 @@ func IsTerminatorLine(sql string, i int) bool {
 	return j >= len(sql) || sql[j] == '\n'
 }
 
-// RestOfLineBlank reports whether only whitespace remains between position
-// i and the end of the current line (or end of input). psql buffers
-// same-line SQL after a COPY statement and executes it after the data is
-// consumed — an ordering a contiguous segment model cannot represent — so
-// data mode only engages when the statement ends its line; anything else
-// fails loudly downstream instead of silently swallowing statements.
+// RestOfLineBlank reports whether only trivia remains between position i
+// and the end of the current line (or end of input): whitespace, or a psql
+// metacommand, which consumes the rest of the line (engine-verified:
+// COPY t FROM stdin; \echo X — the command executes and the data loads).
+// psql buffers same-line SQL after a COPY statement and executes it after
+// the data is consumed — an ordering a contiguous segment model cannot
+// represent — so data mode only engages when nothing meaningful follows on
+// the statement's line; real SQL there fails loudly downstream instead of
+// being silently swallowed.
 func RestOfLineBlank(sql string, i int) bool {
 	for i < len(sql) && sql[i] != '\n' {
+		if metacmd.IsMetaCommand(sql, i) {
+			return true // the command consumes the rest of the line
+		}
 		if sql[i] != ' ' && sql[i] != '\t' && sql[i] != '\r' {
 			return false
 		}

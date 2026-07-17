@@ -177,7 +177,9 @@ func TestParenStmtCountParityKB2Closed(t *testing.T) {
 	cases := []string{
 		`SELECT * FROM (SELECT 1) SELECT 1`,
 		`SELECT 1 SELECT 2`,
-		`SELECT 1\nSELECT 2`,
+		// A real newline (the raw-string form previously here was a
+		// literal backslash-n, which is now psql metacommand trivia).
+		"SELECT 1\nSELECT 2",
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {

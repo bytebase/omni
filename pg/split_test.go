@@ -860,7 +860,12 @@ func TestSplitPsqlMetacommandLines(t *testing.T) {
 			want:  []string{"COPY t FROM stdin;\n\\N\n\\.\n", "SELECT 2;"},
 		},
 		{
-			name:  "mid-line backslash is not a metacommand",
+			// psql recognizes backslash commands mid-line too (engine-
+			// verified); \gset is consumed to end of line as trivia. The
+			// buffer-send semantics (\g sends the query) are NOT simulated —
+			// the statement runs on to the semicolon, a documented loud
+			// divergence for interactive idioms.
+			name:  "mid-line metacommand is trivia to end of line",
 			input: "SELECT 1 \\gset\n; SELECT 2;",
 			want:  []string{"SELECT 1 \\gset\n;", " SELECT 2;"},
 		},
@@ -1081,6 +1086,170 @@ func TestSplitCommentSweepFollowups(t *testing.T) {
 				if got[i] != tt.want[i] {
 					t.Fatalf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
 				}
+			}
+		})
+	}
+}
+
+// TestSplitMetacommandAnywhere pins the position-context-free metacommand
+// rule (D7): psql recognizes backslash commands at ANY top-level position,
+// not only line starts (engine-verified: SELECT 1; \echo MIDLINE executes,
+// mid-line \g buffer-sends), and a top-level backslash is never valid SQL,
+// so consuming backslash+letter to end of line can never eat a legal
+// statement. Being context-free is what makes re-splitting stable: the two
+// line-start rules each broke re-split idempotence at segment offset zero
+// in opposite directions.
+func TestSplitMetacommandAnywhere(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "byte-zero metacommand is trivia",
+			input: "\\restrict abc\nSELECT 1;",
+			want:  []string{"\\restrict abc\nSELECT 1;"},
+		},
+		{
+			name:  "byte-zero metacommand then copy enters data mode",
+			input: "\\connect db\nCOPY t FROM stdin;\na;b\t1\n\\.\nSELECT 2;",
+			want:  []string{"\\connect db\nCOPY t FROM stdin;\na;b\t1\n\\.\n", "SELECT 2;"},
+		},
+		{
+			name:  "mid-line metacommand after semicolon",
+			input: "SELECT 1; \\echo mid\nSELECT 2;",
+			want:  []string{"SELECT 1;", " \\echo mid\nSELECT 2;"},
+		},
+		{
+			// The lenient line-start rule's counterexample: the quote inside
+			// the metacommand line is trivia in BOTH passes — the line is
+			// consumed to its newline, and the next line's semicolon splits
+			// identically on re-split.
+			name:  "mid-line metacommand with quote content",
+			input: "SELECT 1;\\echo 'x\n;y';",
+			want:  []string{"SELECT 1;", "y';"},
+		},
+		{
+			// The strict rule's counterexample (the D7 case): a byte-zero
+			// metacommand line with quotes and semicolons is one trivia-only
+			// (statement-less) segment, stable under re-split.
+			name:  "byte-zero metacommand with boundary-active content",
+			input: "\\col U&'; ;' 1 x +; -- note;\n",
+			want:  nil,
+		},
+		{
+			// A same-line metacommand after COPY's semicolon consumes the
+			// rest of the line, so data mode engages (engine-verified: the
+			// command executes and the data loads).
+			name:  "same-line metacommand after copy semicolon",
+			input: "COPY t FROM stdin; \\echo SAMELINE\nrow;1\t1\n\\.\nSELECT 2;",
+			want:  []string{"COPY t FROM stdin; \\echo SAMELINE\nrow;1\t1\n\\.\n", "SELECT 2;"},
+		},
+		{
+			// isFollowedByAtomic must see through metacommand trivia too
+			// (engine-verified: psql consumes the command and the server
+			// receives BEGIN ATOMIC).
+			name:  "metacommand between BEGIN and ATOMIC",
+			input: "CREATE FUNCTION fx() RETURNS int BEGIN \\echo x\nATOMIC SELECT 5; END; SELECT 2;",
+			want:  []string{"CREATE FUNCTION fx() RETURNS int BEGIN \\echo x\nATOMIC SELECT 5; END;", " SELECT 2;"},
+		},
+		{
+			name:  "backslash inside string untouched",
+			input: "SELECT 'has \\backslash;inside'; SELECT 2;",
+			want:  []string{"SELECT 'has \\backslash;inside';", " SELECT 2;"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			segs := Split(tt.input)
+
+			var rebuilt []byte
+			for _, s := range segs {
+				if s.Text != tt.input[s.ByteStart:s.ByteEnd] {
+					t.Fatalf("segment text %q does not match input[%d:%d]", s.Text, s.ByteStart, s.ByteEnd)
+				}
+				rebuilt = append(rebuilt, s.Text...)
+			}
+			if string(rebuilt) != tt.input {
+				t.Fatalf("segments do not reconstruct input:\ngot  %q\nwant %q", rebuilt, tt.input)
+			}
+
+			// Re-split stability: every segment re-splits to itself.
+			for _, s := range segs {
+				re := Split(s.Text)
+				if len(re) != 1 || re[0].Text != s.Text {
+					t.Fatalf("segment %q re-splits into %d segments", s.Text, len(re))
+				}
+			}
+
+			var got []string
+			for _, s := range segs {
+				if !s.Empty() {
+					got = append(got, s.Text)
+				}
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d non-empty segments %q, want %d %q", len(got), got, len(tt.want), tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+// TestStripTopLevelMetacommands pins the strip walker's byte parity with
+// Split: statement anchoring at depth-zero semicolons (a COPY that is not
+// the first statement must still enter data mode, so backslash-letter
+// lines inside its data are preserved), and only true top-level
+// metacommands are removed.
+func TestStripTopLevelMetacommands(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			// The review counterexample: COPY preceded by another statement.
+			name: "copy after another statement keeps data lines",
+			in:   "SELECT 1;\nCOPY t FROM stdin;\na\tb\n\\x in data\n\\.\nSELECT 2;",
+			want: "SELECT 1;\nCOPY t FROM stdin;\na\tb\n\\x in data\n\\.\nSELECT 2;",
+		},
+		{
+			// Consecutive COPY blocks: the second anchor depends on
+			// stmtStart advancing past the first data block.
+			name: "two consecutive copies keep both data blocks",
+			in:   "COPY a FROM stdin;\n\\x1\n\\.\nCOPY b FROM stdin;\n\\x2\n\\.\n",
+			want: "COPY a FROM stdin;\n\\x1\n\\.\nCOPY b FROM stdin;\n\\x2\n\\.\n",
+		},
+		{
+			name: "metacommand between statements is stripped",
+			in:   "SELECT 1;\n\\connect db\nCOPY t FROM stdin;\n\\N\n\\.\n",
+			want: "SELECT 1;\nCOPY t FROM stdin;\n\\N\n\\.\n",
+		},
+		{
+			name: "string content preserved",
+			in:   "SELECT 'a\n\\restrict b';",
+			want: "SELECT 'a\n\\restrict b';",
+		},
+		{
+			name: "rule parens do not advance the anchor",
+			in:   "CREATE RULE r AS ON UPDATE TO t DO ALSO (SELECT 1; SELECT 2);\nCOPY t FROM stdin;\n\\x\n\\.\n",
+			want: "CREATE RULE r AS ON UPDATE TO t DO ALSO (SELECT 1; SELECT 2);\nCOPY t FROM stdin;\n\\x\n\\.\n",
+		},
+		{
+			name: "top-level metacommand stripped mid-line",
+			in:   "SELECT 1; \\echo mid\nSELECT 2;",
+			want: "SELECT 1; SELECT 2;",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := StripTopLevelMetacommands(tt.in); got != tt.want {
+				t.Fatalf("strip mismatch:\ngot  %q\nwant %q", got, tt.want)
 			}
 		})
 	}
