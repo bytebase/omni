@@ -592,7 +592,15 @@ func isCopyFromStdin(stmt string) bool {
 func StripTopLevelMetacommands(text string) string {
 	var b strings.Builder
 	i := 0
+	// start is the emit bookkeeping (last strip point); stmtStart anchors
+	// the CURRENT statement for COPY detection, advancing at depth-zero
+	// semicolons exactly like Split's segment boundaries do. Stripping a
+	// metacommand does not move stmtStart: isCopyFromStdin skips
+	// metacommand trivia itself, so a statement's COPY-ness is judged from
+	// its true first word even with metacommand lines before or inside it.
 	start := 0
+	stmtStart := 0
+	parenDepth := 0
 	for i < len(text) {
 		c := text[i]
 		switch {
@@ -614,14 +622,23 @@ func StripTopLevelMetacommands(text string) string {
 			i = skipBlockComment(text, i)
 		case c == '-' && i+1 < len(text) && text[i+1] == '-':
 			i = skipLineComment(text, i)
-		case c == ';':
+		case c == '(':
+			parenDepth++
+			i++
+		case c == ')':
+			if parenDepth > 0 {
+				parenDepth--
+			}
+			i++
+		case c == ';' && parenDepth == 0:
 			i++
 			// Same data-mode gate as Split: same-line SQL after the COPY
 			// statement keeps data mode off, so stripping and splitting
 			// walk the bytes identically.
-			if isCopyFromStdin(text[start:i]) && copyscan.RestOfLineBlank(text, i) {
+			if isCopyFromStdin(text[stmtStart:i]) && copyscan.RestOfLineBlank(text, i) {
 				i = copyscan.SkipData(text, i)
 			}
+			stmtStart = i
 		default:
 			i++
 		}

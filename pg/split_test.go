@@ -1184,3 +1184,57 @@ func TestSplitMetacommandAnywhere(t *testing.T) {
 		})
 	}
 }
+
+// TestStripTopLevelMetacommands pins the strip walker's byte parity with
+// Split: statement anchoring at depth-zero semicolons (a COPY that is not
+// the first statement must still enter data mode, so backslash-letter
+// lines inside its data are preserved), and only true top-level
+// metacommands are removed.
+func TestStripTopLevelMetacommands(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			// The review counterexample: COPY preceded by another statement.
+			name: "copy after another statement keeps data lines",
+			in:   "SELECT 1;\nCOPY t FROM stdin;\na\tb\n\\x in data\n\\.\nSELECT 2;",
+			want: "SELECT 1;\nCOPY t FROM stdin;\na\tb\n\\x in data\n\\.\nSELECT 2;",
+		},
+		{
+			// Consecutive COPY blocks: the second anchor depends on
+			// stmtStart advancing past the first data block.
+			name: "two consecutive copies keep both data blocks",
+			in:   "COPY a FROM stdin;\n\\x1\n\\.\nCOPY b FROM stdin;\n\\x2\n\\.\n",
+			want: "COPY a FROM stdin;\n\\x1\n\\.\nCOPY b FROM stdin;\n\\x2\n\\.\n",
+		},
+		{
+			name: "metacommand between statements is stripped",
+			in:   "SELECT 1;\n\\connect db\nCOPY t FROM stdin;\n\\N\n\\.\n",
+			want: "SELECT 1;\nCOPY t FROM stdin;\n\\N\n\\.\n",
+		},
+		{
+			name: "string content preserved",
+			in:   "SELECT 'a\n\\restrict b';",
+			want: "SELECT 'a\n\\restrict b';",
+		},
+		{
+			name: "rule parens do not advance the anchor",
+			in:   "CREATE RULE r AS ON UPDATE TO t DO ALSO (SELECT 1; SELECT 2);\nCOPY t FROM stdin;\n\\x\n\\.\n",
+			want: "CREATE RULE r AS ON UPDATE TO t DO ALSO (SELECT 1; SELECT 2);\nCOPY t FROM stdin;\n\\x\n\\.\n",
+		},
+		{
+			name: "top-level metacommand stripped mid-line",
+			in:   "SELECT 1; \\echo mid\nSELECT 2;",
+			want: "SELECT 1; SELECT 2;",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := StripTopLevelMetacommands(tt.in); got != tt.want {
+				t.Fatalf("strip mismatch:\ngot  %q\nwant %q", got, tt.want)
+			}
+		})
+	}
+}
