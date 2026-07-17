@@ -408,7 +408,10 @@ func isFollowedByAtomic(sql string, i int) bool {
 	return matchKeyword(sql, i, "ATOMIC")
 }
 
-// skipWhitespaceAndComments skips whitespace, line comments, and block comments.
+// skipWhitespaceAndComments skips whitespace, line comments, block
+// comments, and psql metacommand lines — everything the scanner treats as
+// trivia (engine-verified: BEGIN \echo x␤ATOMIC creates a SQL-standard
+// body function; psql consumes the command and the keywords join up).
 func skipWhitespaceAndComments(sql string, i int) int {
 	for i < len(sql) {
 		b := sql[i]
@@ -418,6 +421,8 @@ func skipWhitespaceAndComments(sql string, i int) int {
 			i = skipLineComment(sql, i)
 		} else if b == '/' && i+1 < len(sql) && sql[i+1] == '*' {
 			i = skipBlockComment(sql, i)
+		} else if metacmd.IsMetaCommand(sql, i) {
+			i = metacmd.SkipLine(sql, i)
 		} else {
 			break
 		}

@@ -1138,6 +1138,14 @@ func TestSplitMetacommandAnywhere(t *testing.T) {
 			want:  nil,
 		},
 		{
+			// isFollowedByAtomic must see through metacommand trivia too
+			// (engine-verified: psql consumes the command and the server
+			// receives BEGIN ATOMIC).
+			name:  "metacommand between BEGIN and ATOMIC",
+			input: "CREATE FUNCTION fx() RETURNS int BEGIN \\echo x\nATOMIC SELECT 5; END; SELECT 2;",
+			want:  []string{"CREATE FUNCTION fx() RETURNS int BEGIN \\echo x\nATOMIC SELECT 5; END;", " SELECT 2;"},
+		},
+		{
 			name:  "backslash inside string untouched",
 			input: "SELECT 'has \\backslash;inside'; SELECT 2;",
 			want:  []string{"SELECT 'has \\backslash;inside';", " SELECT 2;"},
