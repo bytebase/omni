@@ -1138,6 +1138,14 @@ func TestSplitMetacommandAnywhere(t *testing.T) {
 			want:  nil,
 		},
 		{
+			// A same-line metacommand after COPY's semicolon consumes the
+			// rest of the line, so data mode engages (engine-verified: the
+			// command executes and the data loads).
+			name:  "same-line metacommand after copy semicolon",
+			input: "COPY t FROM stdin; \\echo SAMELINE\nrow;1\t1\n\\.\nSELECT 2;",
+			want:  []string{"COPY t FROM stdin; \\echo SAMELINE\nrow;1\t1\n\\.\n", "SELECT 2;"},
+		},
+		{
 			// isFollowedByAtomic must see through metacommand trivia too
 			// (engine-verified: psql consumes the command and the server
 			// receives BEGIN ATOMIC).
