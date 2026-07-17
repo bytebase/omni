@@ -25,7 +25,7 @@ func (s Segment) Empty() bool {
 	for i < len(t) {
 		b := t[i]
 		// psql metacommand line: statement-less.
-		if metacmd.IsLineStart(t, i, i == 0 || t[i-1] == '\n') {
+		if metacmd.IsMetaCommand(t, i) {
 			i = metacmd.SkipLine(t, i)
 			continue
 		}
@@ -105,7 +105,7 @@ func Split(sql string) []Segment {
 		// keeps re-splitting stable. A metacommand at byte zero of a script
 		// is glued here but skipped by the parser, so the pipeline still
 		// works on header-stripped dumps.
-		case metacmd.IsLineStart(sql, i, i > 0 && sql[i-1] == '\n'):
+		case metacmd.IsMetaCommand(sql, i):
 			i = metacmd.SkipLine(sql, i)
 
 		// Single-quoted string. E'...' (escape string) processes
@@ -451,7 +451,7 @@ func skipBeginAtomic(sql string, i int) int {
 		// mid-buffer and the body continues, so their words (\echo END)
 		// must not count as block delimiters. Context is preserved, same
 		// as comments.
-		case metacmd.IsLineStart(sql, i, i > 0 && sql[i-1] == '\n'):
+		case metacmd.IsMetaCommand(sql, i):
 			i = metacmd.SkipLine(sql, i)
 		case b == ' ' || b == '\t' || b == '\n' || b == '\r':
 			i++
@@ -529,7 +529,7 @@ func isCopyFromStdin(stmt string) bool {
 		// must not shadow COPY as the first word. The line-start rule is the
 		// same strict one the scan loop uses (a true preceding newline), so
 		// splitting a segment's text again reproduces the same decision.
-		case metacmd.IsLineStart(stmt, i, i > 0 && stmt[i-1] == '\n'):
+		case metacmd.IsMetaCommand(stmt, i):
 			i = metacmd.SkipLine(stmt, i)
 		case b == '\'':
 			if isEscapeStringQuote(stmt, i) {

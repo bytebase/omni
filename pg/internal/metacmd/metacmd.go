@@ -7,17 +7,29 @@
 // letter and stays the COPY inline-data terminator.
 package metacmd
 
-// IsLineStart reports whether position i begins a psql metacommand line:
-// i is at the start of a line (or of the input) and the bytes are a
-// backslash followed by an ASCII letter. Callers must be in top-level scan
-// state (not inside strings, comments, dollar-quotes, or COPY data), where
-// a backslash can never begin a SQL statement.
-func IsLineStart(sql string, i int, lineStart bool) bool {
-	if !lineStart || i+1 >= len(sql) || sql[i] != '\\' {
+// IsMetaCommand reports whether position i begins a psql metacommand: a
+// backslash followed by an ASCII letter, at ANY top-level position. psql
+// recognizes backslash commands anywhere outside quotes — not only at line
+// starts (engine-verified: SELECT 1; \echo MIDLINE executes) — and a
+// top-level backslash is never valid SQL (scan.l's operator charset has no
+// backslash), so this can never consume legal statements. Being
+// position-context-free is what makes re-splitting stable: a segment's own
+// text always reproduces the decision made on the full script. Callers
+// must be in top-level scan state (not inside strings, comments,
+// dollar-quotes, or COPY data).
+func IsMetaCommand(sql string, i int) bool {
+	if i+1 >= len(sql) || sql[i] != '\\' {
 		return false
 	}
 	b := sql[i+1]
 	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
+}
+
+// IsLineStart is the line-start-gated variant retained for the parser's
+// statement-boundary hook until that hook is removed; new call sites must
+// use IsMetaCommand.
+func IsLineStart(sql string, i int, lineStart bool) bool {
+	return lineStart && IsMetaCommand(sql, i)
 }
 
 // SkipLine consumes the metacommand line starting at position i, returning

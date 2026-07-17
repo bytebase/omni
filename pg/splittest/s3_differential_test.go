@@ -136,7 +136,7 @@ func sqlForServer(text string) string {
 	var b strings.Builder
 	i := 0
 	for i < len(text) {
-		if metacmd.IsLineStart(text, i, i == 0 || text[i-1] == '\n') {
+		if metacmd.IsMetaCommand(text, i) {
 			i = metacmd.SkipLine(text, i)
 			continue
 		}

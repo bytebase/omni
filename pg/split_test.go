@@ -860,7 +860,12 @@ func TestSplitPsqlMetacommandLines(t *testing.T) {
 			want:  []string{"COPY t FROM stdin;\n\\N\n\\.\n", "SELECT 2;"},
 		},
 		{
-			name:  "mid-line backslash is not a metacommand",
+			// psql recognizes backslash commands mid-line too (engine-
+			// verified); \gset is consumed to end of line as trivia. The
+			// buffer-send semantics (\g sends the query) are NOT simulated —
+			// the statement runs on to the semicolon, a documented loud
+			// divergence for interactive idioms.
+			name:  "mid-line metacommand is trivia to end of line",
 			input: "SELECT 1 \\gset\n; SELECT 2;",
 			want:  []string{"SELECT 1 \\gset\n;", " SELECT 2;"},
 		},
