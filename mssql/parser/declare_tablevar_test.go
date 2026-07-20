@@ -21,6 +21,11 @@ func TestDeclareTableVariableConstraints(t *testing.T) {
 		{"inline column pk control", "DECLARE @t TABLE (value NVARCHAR(100) PRIMARY KEY);"},
 		{"customer shape", "DECLARE @nhom_ns TABLE (value NVARCHAR(100) PRIMARY KEY);\nDECLARE @y TABLE (p_year INT, PRIMARY KEY CLUSTERED (p_year));"},
 	}
+	// Documented over-accept (parser-unsure -> accept direction): a
+	// trailing comma before ')' is accepted here while SQL Server rejects
+	// it. Recorded by cross-validation; revisit only with engine-anchored
+	// tightening.
+
 	for _, tc := range accepts {
 		t.Run(tc.name, func(t *testing.T) {
 			if _, err := Parse(tc.sql); err != nil {
