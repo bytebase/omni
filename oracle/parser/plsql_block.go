@@ -375,6 +375,10 @@ func (p *Parser) parsePLSQLStatement() (nodes.StmtNode, error) {
 			if err != nil {
 				return nil, err
 			}
+			if name == "" {
+				// <<>> is not a label (engine: PLS-00103).
+				return nil, p.syntaxErrorAtCur()
+			}
 			labels = append(labels, name)
 			if p.cur.Type != tokLABELCLOSE {
 				return nil, p.syntaxErrorAtCur()
@@ -390,11 +394,13 @@ func (p *Parser) parsePLSQLStatement() (nodes.StmtNode, error) {
 			if s.Label == "" {
 				s.Label = labels[0]
 				labels = labels[1:]
+				s.Loc.Start = start // the block's range covers its label
 			}
 		case *nodes.PLSQLLoop:
 			if s.Label == "" {
 				s.Label = labels[0]
 				labels = labels[1:]
+				s.Loc.Start = start
 			}
 		}
 		if len(labels) == 0 {

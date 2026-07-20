@@ -4796,7 +4796,9 @@ func writePLSQLLabeledStatement(sb *strings.Builder, n *PLSQLLabeledStatement) {
 			if i > 0 {
 				sb.WriteString(" ")
 			}
-			sb.WriteString(l)
+			// Quote: labels may be quoted identifiers with spaces
+			// (<<"a b">> is legal), which would otherwise be ambiguous.
+			sb.WriteString(fmt.Sprintf("%q", l))
 		}
 		sb.WriteString(")")
 	}

@@ -54,6 +54,49 @@ func TestPLSQLStatementLabels(t *testing.T) {
 		}
 	})
 
+	t.Run("empty label rejected", func(t *testing.T) {
+		// Engine: PLS-00103 at <<>>.
+		if _, err := Parse("BEGIN <<>> NULL; END;"); err == nil {
+			t.Fatal("expected parse error for empty label")
+		}
+	})
+
+	t.Run("quoted label with space accepted and quoted in output", func(t *testing.T) {
+		// Engine-verified: <<"a b">> is legal PL/SQL.
+		list, err := Parse(`BEGIN <<"a b">> NULL; END;`)
+		if err != nil {
+			t.Fatalf("parse failed: %v", err)
+		}
+		out := nodes.NodeToString(list)
+		if !strings.Contains(out, `"a b"`) {
+			t.Fatalf("expected quoted label in output, got %s", out)
+		}
+	})
+
+	t.Run("mismatched end loop label stays accepted like the engine", func(t *testing.T) {
+		// Engine-verified: Oracle ACCEPTS <<a>> LOOP ... END LOOP b; —
+		// review-flagged as a candidate reject, refuted by the engine.
+		if _, err := Parse("BEGIN <<a>> LOOP EXIT; END LOOP b; END;"); err != nil {
+			t.Fatalf("parse failed: %v", err)
+		}
+	})
+
+	t.Run("labeled block range covers its label", func(t *testing.T) {
+		sql := "BEGIN <<x>> BEGIN NULL; END; END;"
+		list, err := Parse(sql)
+		if err != nil {
+			t.Fatalf("parse failed: %v", err)
+		}
+		outer := list.Items[0].(*nodes.RawStmt).Stmt.(*nodes.PLSQLBlock)
+		inner := outer.Statements.Items[0].(*nodes.PLSQLBlock)
+		if got := sql[inner.Loc.Start:]; !strings.HasPrefix(got, "<<x>>") {
+			t.Fatalf("inner block starts at %q, want at the label", got[:10])
+		}
+		if nodes.NodeLoc(&nodes.PLSQLLabeledStatement{Loc: nodes.Loc{Start: 1, End: 2}}).Start != 1 {
+			t.Fatal("NodeLoc missing PLSQLLabeledStatement case")
+		}
+	})
+
 	t.Run("loop keeps first label on its Label field", func(t *testing.T) {
 		list, err := Parse("BEGIN <<lp>> LOOP EXIT lp; END LOOP lp; END;")
 		if err != nil {
