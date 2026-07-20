@@ -361,10 +361,56 @@ func (p *Parser) parsePLSQLStatements() (*nodes.List, error) {
 }
 
 func (p *Parser) parsePLSQLStatement() (nodes.StmtNode, error) {
-	// Handle optional label before statement
+	// One or more <<label>> prefixes may precede ANY statement (engine-
+	// verified), not only blocks: consume them all, parse the statement,
+	// then attach — blocks and loops keep their first label on their own
+	// Label field (END-label matching); everything else, and any extra
+	// labels, ride on a PLSQLLabeledStatement wrapper.
 	if p.cur.Type == tokLABELOPEN {
-		// This could be a labeled block or labeled loop
-		return p.parsePLSQLBlock()
+		start := p.pos()
+		var labels []string
+		for p.cur.Type == tokLABELOPEN {
+			p.advance() // consume <<
+			name, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			if name == "" {
+				// <<>> is not a label (engine: PLS-00103).
+				return nil, p.syntaxErrorAtCur()
+			}
+			labels = append(labels, name)
+			if p.cur.Type != tokLABELCLOSE {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume >>
+		}
+		stmt, err := p.parsePLSQLStatement()
+		if err != nil {
+			return nil, err
+		}
+		switch s := stmt.(type) {
+		case *nodes.PLSQLBlock:
+			if s.Label == "" {
+				s.Label = labels[0]
+				labels = labels[1:]
+				s.Loc.Start = start // the block's range covers its label
+			}
+		case *nodes.PLSQLLoop:
+			if s.Label == "" {
+				s.Label = labels[0]
+				labels = labels[1:]
+				s.Loc.Start = start
+			}
+		}
+		if len(labels) == 0 {
+			return stmt, nil
+		}
+		return &nodes.PLSQLLabeledStatement{
+			Labels:    labels,
+			Statement: stmt,
+			Loc:       nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 	}
 
 	switch p.cur.Type {

@@ -254,3 +254,4 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.PLSQLPipeRow	plsql	covered	CREATE FUNCTION f RETURN NUMBER PIPELINED IS BEGIN PIPE ROW (1); RETURN; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.PLSQLPragma	plsql	covered	DECLARE PRAGMA AUTONOMOUS_TRANSACTION; BEGIN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.ExceptionHandler	plsql	covered	BEGIN RAISE; EXCEPTION WHEN OTHERS THEN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLLabeledStatement	plsql	covered	BEGIN <<a>> <<b>> x := 1; END;	labeled statement wrapper span (BYT-9909 label support)	none	covered	keep_regression_guard

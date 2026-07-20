@@ -940,6 +940,7 @@ func walkChildren(v Visitor, node Node) {
 		}
 		walkList(v, n.Columns)
 		walkList(v, n.Values)
+		Walk(v, n.ValuesRecord)
 		walkList(v, n.SetClauses)
 		if n.Select != nil {
 			Walk(v, n.Select)
@@ -1159,6 +1160,8 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.Then)
 		walkList(v, n.ElsIfs)
 		walkList(v, n.Else)
+	case *PLSQLLabeledStatement:
+		Walk(v, n.Statement)
 	case *PLSQLLoop:
 		Walk(v, n.Condition)
 		Walk(v, n.LowerBound)

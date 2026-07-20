@@ -475,6 +475,8 @@ func NodeLoc(n Node) Loc {
 	// PL/SQL nodes
 	case *PLSQLBlock:
 		return v.Loc
+	case *PLSQLLabeledStatement:
+		return v.Loc
 	case *PLSQLVarDecl:
 		return v.Loc
 	case *PLSQLCursorDecl:

@@ -539,6 +539,8 @@ func writeNode(sb *strings.Builder, node Node) {
 	// PL/SQL nodes
 	case *PLSQLBlock:
 		writePLSQLBlock(sb, n)
+	case *PLSQLLabeledStatement:
+		writePLSQLLabeledStatement(sb, n)
 	case *ExceptionHandler:
 		writeExceptionHandler(sb, n)
 	case *PLSQLIf:
@@ -2373,6 +2375,10 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 	if n.Values != nil {
 		sb.WriteString(" :values ")
 		writeNode(sb, n.Values)
+	}
+	if n.ValuesRecord != nil {
+		sb.WriteString(" :valuesRecord ")
+		writeNode(sb, n.ValuesRecord)
 	}
 	if n.SetClauses != nil {
 		sb.WriteString(" :setClauses ")
@@ -4781,6 +4787,28 @@ func writeDisassociateStatisticsStmt(sb *strings.Builder, n *DisassociateStatist
 // ---------------------------------------------------------------------------
 // PL/SQL nodes
 // ---------------------------------------------------------------------------
+
+func writePLSQLLabeledStatement(sb *strings.Builder, n *PLSQLLabeledStatement) {
+	sb.WriteString("{PLSQLLABELEDSTATEMENT")
+	if len(n.Labels) > 0 {
+		sb.WriteString(" :labels (")
+		for i, l := range n.Labels {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			// Quote: labels may be quoted identifiers with spaces
+			// (<<"a b">> is legal), which would otherwise be ambiguous.
+			sb.WriteString(fmt.Sprintf("%q", l))
+		}
+		sb.WriteString(")")
+	}
+	if n.Statement != nil {
+		sb.WriteString(" :statement ")
+		writeNode(sb, n.Statement)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
 
 func writePLSQLBlock(sb *strings.Builder, n *PLSQLBlock) {
 	sb.WriteString("{PLSQLBLOCK")
