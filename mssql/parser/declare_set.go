@@ -134,11 +134,12 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 			p.advance()
 			var cols []nodes.Node
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				// Same element grammar as CREATE TABLE: a table variable
-				// body takes column definitions, table constraints
-				// (PRIMARY KEY/UNIQUE/CHECK, optionally CLUSTERED or
-				// NONCLUSTERED), and indexes.
-				if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwPRIMARY ||
+				// Near-CREATE TABLE element grammar: a table variable body
+				// takes column definitions, UNNAMED table constraints
+				// (PRIMARY KEY/UNIQUE/CHECK — the CONSTRAINT name prefix is
+				// rejected by the engine in this context, verified on SQL
+				// Server 2019: Msg 156), and indexes.
+				if p.cur.Type == kwPRIMARY ||
 					p.cur.Type == kwUNIQUE || p.cur.Type == kwCHECK {
 					constraint, err := p.parseTableConstraint()
 					if err != nil {
