@@ -134,9 +134,32 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 			p.advance()
 			var cols []nodes.Node
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				col, _ := p.parseColumnDef()
-				if col != nil {
-					cols = append(cols, col)
+				// Same element grammar as CREATE TABLE: a table variable
+				// body takes column definitions, table constraints
+				// (PRIMARY KEY/UNIQUE/CHECK, optionally CLUSTERED or
+				// NONCLUSTERED), and indexes.
+				if p.cur.Type == kwCONSTRAINT || p.cur.Type == kwPRIMARY ||
+					p.cur.Type == kwUNIQUE || p.cur.Type == kwCHECK {
+					constraint, err := p.parseTableConstraint()
+					if err != nil {
+						return nil, err
+					}
+					if constraint != nil {
+						cols = append(cols, constraint)
+					}
+				} else if p.cur.Type == kwINDEX {
+					idx, err := p.parseInlineTableIndex()
+					if err != nil {
+						return nil, err
+					}
+					if idx != nil {
+						cols = append(cols, idx)
+					}
+				} else {
+					col, _ := p.parseColumnDef()
+					if col != nil {
+						cols = append(cols, col)
+					}
 				}
 				if _, ok := p.match(','); !ok {
 					break
