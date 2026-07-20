@@ -2276,6 +2276,19 @@ type PLSQLBlock struct {
 func (n *PLSQLBlock) nodeTag()  {}
 func (n *PLSQLBlock) stmtNode() {}
 
+// PLSQLLabeledStatement carries one or more <<label>> prefixes attached to
+// a PL/SQL statement. Blocks and loops store their (first) label on their
+// own Label field for END-label matching; this wrapper holds labels on any
+// other statement kind, and any labels beyond the first on blocks/loops.
+type PLSQLLabeledStatement struct {
+	Labels    []string // label names, in source order
+	Statement StmtNode // the labeled statement
+	Loc       Loc      // start location (first label)
+}
+
+func (n *PLSQLLabeledStatement) nodeTag()  {}
+func (n *PLSQLLabeledStatement) stmtNode() {}
+
 // ExceptionHandler represents an exception handler in a PL/SQL block.
 type ExceptionHandler struct {
 	Exceptions *List // exception names (list of *String)
