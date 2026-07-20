@@ -2376,6 +2376,10 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 		sb.WriteString(" :values ")
 		writeNode(sb, n.Values)
 	}
+	if n.ValuesRecord != nil {
+		sb.WriteString(" :valuesRecord ")
+		writeNode(sb, n.ValuesRecord)
+	}
 	if n.SetClauses != nil {
 		sb.WriteString(" :setClauses ")
 		writeNode(sb, n.SetClauses)

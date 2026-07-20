@@ -195,7 +195,17 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 	case p.cur.Type == kwVALUES:
 		p.advance()
 		if p.cur.Type != '(' {
-			return nil, p.syntaxErrorAtCur()
+			// INSERT ... VALUES record — the PL/SQL record form (engine-
+			// verified, incl. FORALL collection elements: VALUES arr(i)).
+			var parseErrRec error
+			stmt.ValuesRecord, parseErrRec = p.parseExpr()
+			if parseErrRec != nil {
+				return nil, parseErrRec
+			}
+			if stmt.ValuesRecord == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			break
 		}
 		p.advance()
 		var parseErr780 error

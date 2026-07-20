@@ -1393,6 +1393,7 @@ type InsertStmt struct {
 	Alias        *Alias              // table alias
 	Columns      *List               // column list (list of *ColumnRef)
 	Values       *List               // VALUES list (list of expressions)
+	ValuesRecord ExprNode            // VALUES record form (PL/SQL record/collection element)
 	SetClauses   *List               // INSERT SET col=expr form (list of *SetClause)
 	ByName       bool                // BY NAME subquery
 	ByPosition   bool                // BY POSITION subquery
