@@ -40,6 +40,14 @@ func TestPLSQLStatementLabels(t *testing.T) {
 		})
 	}
 
+	// Documented over-accepts (parser-unsure -> accept direction, per the
+	// failure-direction contract; the engine rejects these):
+	//   - a label inside a DECLARE section
+	//   - INSERT INTO t (a, b) VALUES rec (column list with record form)
+	//   - the record form in plain SQL outside PL/SQL
+	// Recorded by cross-validation; revisit only with engine-anchored
+	// tightening.
+
 	t.Run("unclosed label rejected", func(t *testing.T) {
 		if _, err := Parse("BEGIN <<lbl x := 1; END;"); err == nil {
 			t.Fatal("expected parse error for unclosed label")
