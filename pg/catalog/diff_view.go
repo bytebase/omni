@@ -132,9 +132,9 @@ func getViewDef(c *Catalog, key relKey, rel *Relation) string {
 	var def string
 	var err error
 	if rel.RelKind == 'm' {
-		def, err = c.GetMatViewDefinition(key.schema, key.name)
+		def, err = c.GetMatViewDefinition(key.schema, key.name, false)
 	} else {
-		def, err = c.GetViewDefinition(key.schema, key.name)
+		def, err = c.GetViewDefinition(key.schema, key.name, false)
 	}
 	if err != nil {
 		return ""

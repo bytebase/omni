@@ -139,7 +139,7 @@ func generateViewDDL(from, to *Catalog, diff *SchemaDiff) []MigrationOp {
 // buildCreateViewOp creates a CREATE VIEW op for an added view.
 func buildCreateViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
-	def, _ := to.GetViewDefinition(entry.SchemaName, entry.Name)
+	def, _ := to.GetViewDefinition(entry.SchemaName, entry.Name, false)
 
 	var b strings.Builder
 	b.WriteString("CREATE VIEW ")
@@ -171,7 +171,7 @@ func buildCreateViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
 // buildCreateMatViewOp creates a CREATE MATERIALIZED VIEW op.
 func buildCreateMatViewOp(to *Catalog, entry RelationDiffEntry) MigrationOp {
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
-	def, _ := to.GetMatViewDefinition(entry.SchemaName, entry.Name)
+	def, _ := to.GetMatViewDefinition(entry.SchemaName, entry.Name, false)
 
 	sql := fmt.Sprintf("CREATE MATERIALIZED VIEW %s AS %s",
 		qn, strings.TrimRight(def, " \t\n\r;"))
@@ -218,7 +218,7 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 	}
 
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
-	def, _ := to.GetViewDefinition(entry.SchemaName, entry.Name)
+	def, _ := to.GetViewDefinition(entry.SchemaName, entry.Name, false)
 
 	var b strings.Builder
 	b.WriteString("CREATE OR REPLACE VIEW ")
@@ -252,7 +252,7 @@ func buildModifyViewOps(from, to *Catalog, entry RelationDiffEntry) []MigrationO
 // Materialized views don't support CREATE OR REPLACE.
 func buildModifyMatViewOps(to *Catalog, entry RelationDiffEntry) []MigrationOp {
 	qn := migrationQualifiedName(entry.SchemaName, entry.Name)
-	def, _ := to.GetMatViewDefinition(entry.SchemaName, entry.Name)
+	def, _ := to.GetMatViewDefinition(entry.SchemaName, entry.Name, false)
 
 	dropOp := MigrationOp{
 		Type:          OpDropView,
@@ -306,7 +306,7 @@ func findDependentViews(c *Catalog, schemaName, viewName string) []viewRef {
 				continue
 			}
 			// Check if this view references the target view.
-			def, err := c.GetViewDefinition(s.Name, rel.Name)
+			def, err := c.GetViewDefinition(s.Name, rel.Name, false)
 			if err != nil {
 				continue
 			}

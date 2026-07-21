@@ -48,7 +48,7 @@ func viewDef(t *testing.T, c *Catalog, sql string) string {
 			item = raw.Stmt
 		}
 		if vs, ok := item.(*nodes.ViewStmt); ok {
-			def, err := c.GetViewDefinition("", vs.View.Relname)
+			def, err := c.GetViewDefinition("", vs.View.Relname, false)
 			if err != nil {
 				t.Fatalf("get view def: %v", err)
 			}
