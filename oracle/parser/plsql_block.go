@@ -130,6 +130,21 @@ func (p *Parser) parsePLSQLDeclaration() (nodes.Node, error) {
 		}
 	}
 
+	// Local subprogram declaration or definition. The grammar is identical
+	// to package-item subprograms (name, optional parameters, IS|AS body or
+	// forward-declaration semicolon), so the package parsers are reused;
+	// engine-verified on Oracle 23ai for parameterized, parameterless,
+	// nested, and forward-declared forms. Known documented over-accept:
+	// the engine requires item declarations to precede subprograms in a
+	// declaration section (PLS-00103); declaration order is not enforced
+	// here (parser-unsure -> accept direction).
+	if p.cur.Type == kwPROCEDURE {
+		return p.parsePackageProcDecl()
+	}
+	if p.cur.Type == kwFUNCTION {
+		return p.parsePackageFuncDecl()
+	}
+
 	// Variable declaration: name [CONSTANT] type [NOT NULL] [:= | DEFAULT expr] ;
 	if p.isIdentLike() {
 		return p.parsePLSQLVarDecl()
