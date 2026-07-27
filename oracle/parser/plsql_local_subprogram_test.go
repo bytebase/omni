@@ -112,3 +112,31 @@ func TestPLSQLLocalSubprograms(t *testing.T) {
 		}
 	})
 }
+
+// TestPLSQLLocalSubprogramDocumentedOverAccepts pins review-flagged shapes
+// that stay ACCEPTED, with dual-context engine evidence (Oracle 23ai):
+// each hard-rejects inside an executed anonymous block (PLS-00157/00103),
+// but the engine ACCEPTS the same shape in DDL contexts — CREATE
+// PACKAGE/PROCEDURE/FUNCTION succeed "with compilation errors" (statement
+// accepted, errors deferred to compilation). parsePLSQLDeclaration serves
+// both contexts, so rejecting would over-reject engine-accepted DDL — the
+// parser's fatal direction. Documented over-accepts per the
+// parser-unsure -> accept contract; revisit only with context-aware
+// declaration parsing.
+func TestPLSQLLocalSubprogramDocumentedOverAccepts(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		sql  string
+	}{
+		{"authid on local function", "DECLARE FUNCTION f RETURN NUMBER AUTHID CURRENT_USER IS BEGIN RETURN 1; END; BEGIN NULL; END;"},
+		{"qualified local name", "DECLARE PROCEDURE sc.p IS BEGIN NULL; END; BEGIN NULL; END;"},
+		{"trailing comma in parameters", "DECLARE PROCEDURE p(x NUMBER,) IS BEGIN NULL; END; BEGIN NULL; END;"},
+		{"DECLARE after IS in routine body", "DECLARE FUNCTION f RETURN NUMBER IS DECLARE x NUMBER; BEGIN RETURN 1; END; BEGIN NULL; END;"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := Parse(tc.sql); err != nil {
+				t.Fatalf("documented over-accept regressed to rejection: %v", err)
+			}
+		})
+	}
+}
