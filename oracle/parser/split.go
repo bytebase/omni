@@ -764,20 +764,18 @@ func splitSkipLineComment(sql string, i int) int {
 	return i
 }
 
+// splitSkipBlockComment advances past an Oracle block comment. Oracle block
+// comments do not nest — the first */ terminates the comment (engine-verified;
+// see lexBlockCommentOrHint) — so the scan must stay byte-identical to the
+// lexer's rule or the splitter and parser would disagree on statement
+// boundaries around comments containing a stray /*.
 func splitSkipBlockComment(sql string, i int) (int, bool) {
 	i += 2
-	depth := 1
-	for i < len(sql) && depth > 0 {
-		switch {
-		case sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*':
-			depth++
-			i += 2
-		case sql[i] == '*' && i+1 < len(sql) && sql[i+1] == '/':
-			depth--
-			i += 2
-		default:
-			i++
+	for i < len(sql) {
+		if sql[i] == '*' && i+1 < len(sql) && sql[i+1] == '/' {
+			return i + 2, true
 		}
+		i++
 	}
-	return i, depth == 0
+	return i, false
 }
