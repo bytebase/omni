@@ -233,29 +233,26 @@ func (l *Lexer) lexBlockCommentOrHint() Token {
 		l.pos++ // skip +
 	}
 
+	// Oracle block comments do not nest: the first */ terminates the
+	// comment regardless of any /* sequences inside it. Engine-verified in
+	// both directions on 11gR2: SELECT 1 /* a /* b */ FROM dual succeeds,
+	// while appending a second */ is ORA-00936 — the shape that would be
+	// legal under nesting semantics. (PostgreSQL nests; this is a genuine
+	// per-engine divergence, so the PG lexer must keep its counting.)
 	var buf strings.Builder
-	depth := 1
+	terminated := false
 
-	for l.pos < len(l.input) && depth > 0 {
-		if l.input[l.pos] == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
-			depth++
-			buf.WriteString("/*")
-			l.pos += 2
-			continue
-		}
+	for l.pos < len(l.input) {
 		if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
-			depth--
-			if depth > 0 {
-				buf.WriteString("*/")
-			}
 			l.pos += 2
-			continue
+			terminated = true
+			break
 		}
 		buf.WriteByte(l.input[l.pos])
 		l.pos++
 	}
 
-	if depth > 0 {
+	if !terminated {
 		l.Err = fmt.Errorf("unterminated block comment")
 		return Token{Type: tokEOF, Loc: l.start}
 	}
