@@ -1697,6 +1697,11 @@ type Lexer struct {
 	prevTokenEnd int // end position of the previously emitted token (for adjacency checks)
 	baseOffset   int // added to all token Loc values for absolute positioning
 
+	// hasExecutableComment records whether lexing encountered MySQL's
+	// executable-comment opener (/*!). It is set even when the comment is
+	// unterminated or its version prefix is unknown so callers can fail closed.
+	hasExecutableComment bool
+
 	// errMsg/errPos record the first lexing error (unterminated comment, string,
 	// or quoted identifier). A malformed token that runs to EOF without its closing
 	// delimiter must never index past the buffer; instead the scan stops at EOF and
@@ -1936,6 +1941,7 @@ func (l *Lexer) skipWhitespaceAndComments() {
 			// MySQL conditional comments: /*!NNNNN ... */ or /*! ... */
 			// These should be parsed as SQL, not skipped.
 			if l.pos+2 < len(l.input) && l.input[l.pos+2] == '!' {
+				l.hasExecutableComment = true
 				// Skip /*!
 				innerStart := l.pos + 3
 				// Skip optional version number (digits)
