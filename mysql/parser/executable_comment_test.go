@@ -107,13 +107,34 @@ func TestContainsExecutableComment(t *testing.T) {
 			sql:  "-- /*!50000 line comment\nSELECT 1",
 			want: false,
 		},
+		{
+			name: "line_comment_form_feed",
+			sql:  "--\f/*!50000 DROP TABLE t*/",
+			want: false,
+		},
+		{
+			name: "line_comment_vertical_tab",
+			sql:  "--\v/*!50000 DROP TABLE t*/",
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := parser.ContainsExecutableComment(tt.sql); got != tt.want {
+			if got := parser.ContainsExecutableComment(tt.sql, parser.ExecutableCommentOptions{}); got != tt.want {
 				t.Fatalf("ContainsExecutableComment(%q) = %v, want %v", tt.sql, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestContainsExecutableCommentNoBackslashEscapes(t *testing.T) {
+	sql := "SELECT 'x\\' /*!50000 + 1 */"
+
+	if got := parser.ContainsExecutableComment(sql, parser.ExecutableCommentOptions{}); got {
+		t.Fatalf("ContainsExecutableComment(%q, default mode) = true, want false", sql)
+	}
+	if got := parser.ContainsExecutableComment(sql, parser.ExecutableCommentOptions{NoBackslashEscapes: true}); !got {
+		t.Fatalf("ContainsExecutableComment(%q, NO_BACKSLASH_ESCAPES) = false, want true", sql)
 	}
 }

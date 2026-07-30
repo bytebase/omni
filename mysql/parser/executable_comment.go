@@ -1,13 +1,11 @@
 package parser
 
-// HasExecutableComment reports whether the lexer has encountered a MySQL
-// executable comment (/*! ... */). Callers using the streaming lexer should
-// consume the input through EOF before consulting this method.
-//
-// Unknown version prefixes and unterminated executable comments are reported
-// as present so security-sensitive callers can fail closed.
-func (l *Lexer) HasExecutableComment() bool {
-	return l.hasExecutableComment
+// ExecutableCommentOptions configures SQL modes that affect lexical comment
+// recognition.
+type ExecutableCommentOptions struct {
+	// NoBackslashEscapes must match the session's NO_BACKSLASH_ESCAPES SQL
+	// mode. When true, backslashes in string literals are ordinary bytes.
+	NoBackslashEscapes bool
 }
 
 // ContainsExecutableComment reports whether sql contains a MySQL executable
@@ -16,9 +14,18 @@ func (l *Lexer) HasExecutableComment() bool {
 // hints, and line comments is not reported.
 //
 // Unknown version prefixes and unterminated executable comments return true.
-func ContainsExecutableComment(sql string) bool {
+func ContainsExecutableComment(sql string, options ExecutableCommentOptions) bool {
 	lexer := NewLexer(sql)
-	for lexer.NextToken().Type != tokEOF {
+	lexer.noBackslashEscapes = options.NoBackslashEscapes
+	lexer.stopAtExecutableComment = true
+
+	for {
+		tok := lexer.NextToken()
+		if lexer.hasExecutableComment {
+			return true
+		}
+		if tok.Type == tokEOF {
+			return false
+		}
 	}
-	return lexer.HasExecutableComment()
 }
