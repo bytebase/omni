@@ -50,18 +50,20 @@ func TestParseStrict(t *testing.T) {
 	})
 }
 
-// TestParseCreateIndexArithmetic pins the BYT-9950 statement: createIndex with
-// a constant arithmetic TTL expression must parse through the public API.
+// TestParseCreateIndexArithmetic pins the BYT-9950 statement: arithmetic
+// expressions are not supported, and the strict Parse must surface the error
+// instead of silently dropping the statement.
 func TestParseCreateIndexArithmetic(t *testing.T) {
 	input := `db.cs_customer_frequency.createIndex(
   { trans_date: 1 },
   { expireAfterSeconds: 90 * 24 * 60 * 60, name: "cs_customer_frequency_idx2" }
 );`
-	stmts, err := mongo.Parse(input)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	_, err := mongo.Parse(input)
+	if err == nil {
+		t.Fatal("expected parse error for arithmetic expression")
 	}
-	if len(stmts) != 1 {
-		t.Fatalf("expected 1 statement, got %d", len(stmts))
+	var pe *parser.ParseError
+	if !errors.As(err, &pe) {
+		t.Fatalf("expected *parser.ParseError, got %T: %v", err, err)
 	}
 }
