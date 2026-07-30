@@ -46,13 +46,13 @@ type ParseResult struct {
 // Parse splits and parses a mongosh input string into statements.
 // Each statement includes the text, AST, and byte/line positions.
 //
-// On syntax error the parser recovers by skipping to the next statement
-// boundary and continues parsing. Returns a non-nil error only when no
-// statements could be parsed at all. Use ParseBestEffort for both partial
-// results and errors.
+// Parse is strict: it returns a non-nil error (the first one encountered)
+// when any statement in the input fails to parse, so callers never silently
+// lose statements. Use ParseBestEffort to recover partial results together
+// with all errors.
 func Parse(input string) ([]Statement, error) {
 	result := ParseBestEffort(input)
-	if len(result.Statements) == 0 && len(result.Errors) > 0 {
+	if len(result.Errors) > 0 {
 		return nil, result.Errors[0]
 	}
 	return result.Statements, nil
