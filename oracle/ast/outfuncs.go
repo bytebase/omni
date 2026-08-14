@@ -2879,6 +2879,10 @@ func writeCreateViewStmt(sb *strings.Builder, n *CreateViewStmt) {
 		sb.WriteString(" :columns ")
 		writeNode(sb, n.Columns)
 	}
+	if n.Constraints != nil {
+		sb.WriteString(" :constraints ")
+		writeNode(sb, n.Constraints)
+	}
 	if n.Query != nil {
 		sb.WriteString(" :query ")
 		writeNode(sb, n.Query)

@@ -1818,6 +1818,7 @@ type CreateViewStmt struct {
 	Materialized      bool        // MATERIALIZED VIEW
 	Name              *ObjectName // view name
 	Columns           *List       // column aliases
+	Constraints       *List       // out-of-line view constraints (list of *TableConstraint)
 	Query             StmtNode    // AS SELECT ...
 	WithCheckOpt      bool        // WITH CHECK OPTION
 	WithReadOnly      bool        // WITH READ ONLY

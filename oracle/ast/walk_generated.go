@@ -723,6 +723,7 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Name)
 		}
 		walkList(v, n.Columns)
+		walkList(v, n.Constraints)
 		Walk(v, n.Query)
 		Walk(v, n.StartWith)
 		Walk(v, n.Next)

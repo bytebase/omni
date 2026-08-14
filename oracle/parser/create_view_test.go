@@ -181,6 +181,16 @@ func TestParseCreateViewOutOfLineConstraint(t *testing.T) {
 			if cv.Columns == nil || cv.Columns.Len() == 0 {
 				t.Error("expected view columns to be preserved")
 			}
+			if cv.Constraints == nil || cv.Constraints.Len() != 1 {
+				t.Fatal("expected 1 view constraint in AST")
+			}
+			tc := cv.Constraints.Items[0].(*ast.TableConstraint)
+			if tc.Name == "" {
+				t.Error("expected view constraint name to be preserved")
+			}
+			if tc.Columns == nil || tc.Columns.Len() == 0 {
+				t.Error("expected view constraint columns to be preserved")
+			}
 		})
 	}
 }
