@@ -400,6 +400,9 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 		if err := p.parseConstraintState(&cs); err != nil {
 			return nil, err
 		}
+		if err := p.parseExceptionsIntoClause(); err != nil {
+			return nil, err
+		}
 		if p.cur.Type == kwCASCADE {
 			p.advance()
 		}
@@ -428,6 +431,9 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 		if err := p.parseConstraintState(&cs); err != nil {
 			return nil, err
 		}
+		if err := p.parseExceptionsIntoClause(); err != nil {
+			return nil, err
+		}
 		if p.cur.Type == kwCASCADE {
 			p.advance()
 		}
@@ -446,6 +452,9 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 		}
 		var cs constraintState
 		if err := p.parseConstraintState(&cs); err != nil {
+			return nil, err
+		}
+		if err := p.parseExceptionsIntoClause(); err != nil {
 			return nil, err
 		}
 		if p.cur.Type == kwCASCADE {
@@ -1296,20 +1305,11 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 	}
 
 	// [ EXCEPTIONS INTO table ]
-	if p.isIdentLikeStr("EXCEPTIONS") {
-		p.advance()
-		if p.cur.Type == kwINTO {
-			p.advance()
-			parseDiscard181, parseErr180 := p.parseObjectName()
-			_ = parseDiscard181
-
-			// [ CASCADE ]
-			if parseErr180 != nil {
-				return nil, parseErr180
-			}
-		}
+	if err := p.parseExceptionsIntoClause(); err != nil {
+		return nil, err
 	}
 
+	// [ CASCADE ]
 	if p.cur.Type == kwCASCADE {
 		p.advance()
 	}

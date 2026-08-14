@@ -720,11 +720,33 @@ func TestParseCreateTableConstraintStateClauses(t *testing.T) {
 		{"ck_enable_validate", `CREATE TABLE t (a NUMBER, CONSTRAINT ck CHECK (a > 0) ENABLE VALIDATE)`},
 		{"fk_rely_disable_novalidate", `CREATE TABLE t (a NUMBER, CONSTRAINT fk FOREIGN KEY (a) REFERENCES p (id) RELY DISABLE NOVALIDATE)`},
 		{"pk_deferrable_enable", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) DEFERRABLE INITIALLY DEFERRED ENABLE)`},
-		{"pk_enable_before_deferrable", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) ENABLE NOVALIDATE NOT DEFERRABLE)`},
+		{"pk_initially_before_deferrable", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) INITIALLY DEFERRED DEFERRABLE)`},
+		{"pk_full_documented_order", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) RELY USING INDEX ENABLE NOVALIDATE)`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ParseAndCheck(t, tt.sql)
+		})
+	}
+}
+
+// TestParseCreateTableConstraintStateOrder tests that out-of-order
+// constraint_state subclauses are rejected, matching Oracle (ORA-03075,
+// verified against Oracle 23ai).
+func TestParseCreateTableConstraintStateOrder(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"enable_before_using_index", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) ENABLE USING INDEX)`},
+		{"novalidate_before_enable", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) NOVALIDATE ENABLE)`},
+		{"disable_before_rely", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) DISABLE RELY)`},
+		{"using_index_before_rely", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX RELY)`},
+		{"enable_before_deferrable", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) ENABLE NOVALIDATE NOT DEFERRABLE)`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ParseShouldFail(t, tt.sql)
 		})
 	}
 }

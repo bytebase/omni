@@ -11,29 +11,42 @@ type constraintState struct {
 	UsingIndexLocal bool   // USING INDEX LOCAL
 }
 
-// parseConstraintState parses Oracle's constraint_state clause, whose
-// subclauses may appear in any order after a constraint body:
+// parseConstraintState parses Oracle's constraint_state clause. Oracle
+// enforces the documented slot order (verified against Oracle 23ai, which
+// raises ORA-03075 for out-of-order subclauses such as ENABLE USING INDEX
+// or DISABLE RELY):
 //
-//	[ [NOT] DEFERRABLE ] [ INITIALLY { DEFERRED | IMMEDIATE } ]
+//	[ [NOT] DEFERRABLE ] [ INITIALLY { DEFERRED | IMMEDIATE } ]  -- either order
 //	[ RELY | NORELY ]
 //	[ using_index_clause ]
-//	[ ENABLE | DISABLE ] [ VALIDATE | NOVALIDATE ]
-//	[ EXCEPTIONS INTO [schema.]table ]
+//	[ ENABLE | DISABLE ]
+//	[ VALIDATE | NOVALIDATE ]
+//
+// EXCEPTIONS INTO is not part of this clause: Oracle rejects it inside a
+// CREATE TABLE constraint (ORA-00922) and accepts it only in ALTER TABLE
+// enable/modify-constraint contexts — see parseExceptionsIntoClause.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/constraint.html
 func (p *Parser) parseConstraintState(cs *constraintState) error {
+	// [NOT] DEFERRABLE and INITIALLY {DEFERRED|IMMEDIATE}: one group, either
+	// order within it (Oracle accepts INITIALLY DEFERRED DEFERRABLE), each at
+	// most once.
+	seenDeferrable, seenInitially := false, false
 	for {
-		switch {
-		case p.cur.Type == kwDEFERRABLE:
+		if !seenDeferrable && p.cur.Type == kwDEFERRABLE {
 			cs.Deferrable = true
+			seenDeferrable = true
 			p.advance()
-
-		case p.cur.Type == kwNOT && p.peekNext().Type == kwDEFERRABLE:
+			continue
+		}
+		if !seenDeferrable && p.cur.Type == kwNOT && p.peekNext().Type == kwDEFERRABLE {
 			p.advance() // consume NOT
 			p.advance() // consume DEFERRABLE
 			cs.Deferrable = false
-
-		case p.cur.Type == kwINITIALLY:
+			seenDeferrable = true
+			continue
+		}
+		if !seenInitially && p.cur.Type == kwINITIALLY {
 			p.advance() // consume INITIALLY
 			switch p.cur.Type {
 			case kwDEFERRED:
@@ -45,36 +58,54 @@ func (p *Parser) parseConstraintState(cs *constraintState) error {
 			default:
 				return p.syntaxErrorAtCur()
 			}
+			seenInitially = true
+			continue
+		}
+		break
+	}
 
-		case p.cur.Type == kwRELY || p.isIdentLikeStr("NORELY"):
-			p.advance()
+	// [ RELY | NORELY ]
+	if p.cur.Type == kwRELY || p.isIdentLikeStr("NORELY") {
+		p.advance()
+	}
 
-		case p.cur.Type == kwENABLE || p.cur.Type == kwDISABLE:
-			p.advance()
-
-		case p.cur.Type == kwVALIDATE || p.isIdentLikeStr("NOVALIDATE"):
-			p.advance()
-
-		case p.cur.Type == kwUSING && p.peekNext().Type == kwINDEX:
-			if err := p.parseUsingIndexClause(cs); err != nil {
-				return err
-			}
-
-		case p.isIdentLikeStr("EXCEPTIONS") && p.peekNext().Type == kwINTO:
-			p.advance() // consume EXCEPTIONS
-			p.advance() // consume INTO
-			name, err := p.parseObjectName()
-			if err != nil {
-				return err
-			}
-			if name == nil || name.Name == "" {
-				return p.syntaxErrorAtCur()
-			}
-
-		default:
-			return nil
+	// [ using_index_clause ]
+	if p.cur.Type == kwUSING && p.peekNext().Type == kwINDEX {
+		if err := p.parseUsingIndexClause(cs); err != nil {
+			return err
 		}
 	}
+
+	// [ ENABLE | DISABLE ]
+	if p.cur.Type == kwENABLE || p.cur.Type == kwDISABLE {
+		p.advance()
+	}
+
+	// [ VALIDATE | NOVALIDATE ]
+	if p.cur.Type == kwVALIDATE || p.isIdentLikeStr("NOVALIDATE") {
+		p.advance()
+	}
+
+	return nil
+}
+
+// parseExceptionsIntoClause parses [ EXCEPTIONS INTO [schema.]table ] if
+// present. Oracle allows this only in ALTER TABLE enable/modify-constraint
+// contexts, not inside CREATE TABLE constraints.
+func (p *Parser) parseExceptionsIntoClause() error {
+	if !p.isIdentLikeStr("EXCEPTIONS") || p.peekNext().Type != kwINTO {
+		return nil
+	}
+	p.advance() // consume EXCEPTIONS
+	p.advance() // consume INTO
+	name, err := p.parseObjectName()
+	if err != nil {
+		return err
+	}
+	if name == nil || name.Name == "" {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
 }
 
 // identLikeUsingIndexProperties are index_properties that lex as plain

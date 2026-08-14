@@ -391,3 +391,13 @@ func TestParseAlterTableEnableConstraintUsingIndex(t *testing.T) {
 		})
 	}
 }
+
+// TestParseAlterTableModifyConstraintExceptions tests EXCEPTIONS INTO in
+// ALTER contexts (legal) — it is rejected inside CREATE TABLE constraints,
+// matching Oracle 23ai.
+func TestParseAlterTableModifyConstraintExceptions(t *testing.T) {
+	ParseAndCheck(t, "ALTER TABLE t MODIFY CONSTRAINT pk ENABLE VALIDATE EXCEPTIONS INTO bad_rows")
+	ParseAndCheck(t, "ALTER TABLE t MODIFY PRIMARY KEY ENABLE VALIDATE EXCEPTIONS INTO s.bad_rows")
+	ParseShouldFail(t, "CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) EXCEPTIONS INTO bad_rows DISABLE)")
+	ParseShouldFail(t, "CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) ENABLE VALIDATE EXCEPTIONS INTO bad_rows)")
+}
