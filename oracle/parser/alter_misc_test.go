@@ -146,3 +146,17 @@ func TestParseAlterLocSet(t *testing.T) {
 		t.Errorf("expected Loc.End > Loc.Start, got End=%d", stmt.Loc.End)
 	}
 }
+
+// TestParseAlterMaterializedViewUsingIndex tests ALTER MATERIALIZED VIEW
+// USING INDEX index_properties.
+func TestParseAlterMaterializedViewUsingIndex(t *testing.T) {
+	result := ParseAndCheck(t, "ALTER MATERIALIZED VIEW mv USING INDEX PCTFREE 10")
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt, ok := raw.Stmt.(*ast.AlterMaterializedViewStmt)
+	if !ok {
+		t.Fatalf("expected AlterMaterializedViewStmt, got %T", raw.Stmt)
+	}
+	if stmt.Action != "USING_INDEX" {
+		t.Errorf("expected action USING_INDEX, got %q", stmt.Action)
+	}
+}

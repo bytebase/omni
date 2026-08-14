@@ -161,3 +161,46 @@ func TestParseCreateViewLoc(t *testing.T) {
 		t.Errorf("expected Loc.End > Loc.Start, got %d", stmt.Loc.End)
 	}
 }
+
+// TestParseCreateViewOutOfLineConstraint tests declarative view constraints
+// (always RELY DISABLE NOVALIDATE in practice).
+func TestParseCreateViewOutOfLineConstraint(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"pk_rely", `CREATE VIEW v (a, b, CONSTRAINT pk_v PRIMARY KEY (a) RELY DISABLE NOVALIDATE) AS SELECT 1, 2 FROM dual`},
+		{"uq_rely", `CREATE VIEW v (a, CONSTRAINT uq_v UNIQUE (a) RELY DISABLE NOVALIDATE) AS SELECT 1 FROM dual`},
+		{"fk_rely", `CREATE VIEW v (a, CONSTRAINT fk_v FOREIGN KEY (a) REFERENCES t (id) RELY DISABLE NOVALIDATE) AS SELECT 1 FROM dual`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			raw := result.Items[0].(*ast.RawStmt)
+			cv := raw.Stmt.(*ast.CreateViewStmt)
+			if cv.Columns == nil || cv.Columns.Len() == 0 {
+				t.Error("expected view columns to be preserved")
+			}
+		})
+	}
+}
+
+// TestParseCreateMaterializedViewUsingIndex tests the mview USING INDEX /
+// USING NO INDEX / USING ... CONSTRAINTS clauses.
+func TestParseCreateMaterializedViewUsingIndex(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"using_index_tablespace", `CREATE MATERIALIZED VIEW mv USING INDEX TABLESPACE ts1 AS SELECT * FROM t`},
+		{"using_index_attrs", `CREATE MATERIALIZED VIEW mv USING INDEX PCTFREE 10 INITRANS 2 MAXTRANS 255 AS SELECT * FROM t`},
+		{"using_no_index", `CREATE MATERIALIZED VIEW mv USING NO INDEX AS SELECT * FROM t`},
+		{"refresh_then_using_index", `CREATE MATERIALIZED VIEW mv REFRESH FAST WITH PRIMARY KEY USING INDEX AS SELECT * FROM t`},
+		{"using_trusted_constraints", `CREATE MATERIALIZED VIEW mv REFRESH FORCE USING TRUSTED CONSTRAINTS AS SELECT * FROM t`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ParseAndCheck(t, tt.sql)
+		})
+	}
+}

@@ -1332,6 +1332,14 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) (nodes.StmtNode, erro
 		stmt.Action = "NOCACHE"
 		p.advance()
 
+	case p.cur.Type == kwUSING && p.peekNext().Type == kwINDEX:
+		// USING INDEX index_properties
+		stmt.Action = "USING_INDEX"
+		var cs constraintState
+		if err := p.parseUsingIndexClause(&cs); err != nil {
+			return nil, err
+		}
+
 	case p.cur.Type == kwPARALLEL:
 		stmt.Action = "PARALLEL"
 		p.advance() // consume PARALLEL

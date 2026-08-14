@@ -593,3 +593,221 @@ func TestParseCreateTableTablespace(t *testing.T) {
 		t.Errorf("expected tablespace USERS, got %q", ct.Tablespace)
 	}
 }
+
+// TestParseCreateTableConstraintUsingIndexLocal tests the minimal
+// PRIMARY KEY (...) USING INDEX LOCAL form (BYT-10010).
+func TestParseCreateTableConstraintUsingIndexLocal(t *testing.T) {
+	sql := `CREATE TABLE t (
+		a NUMBER,
+		b DATE,
+		CONSTRAINT pk_t PRIMARY KEY (a, b) USING INDEX LOCAL
+	)`
+	result := ParseAndCheck(t, sql)
+	raw := result.Items[0].(*ast.RawStmt)
+	ct := raw.Stmt.(*ast.CreateTableStmt)
+	if ct.Constraints.Len() != 1 {
+		t.Fatalf("expected 1 table constraint, got %d", ct.Constraints.Len())
+	}
+	tc := ct.Constraints.Items[0].(*ast.TableConstraint)
+	if tc.Type != ast.CONSTRAINT_PRIMARY {
+		t.Errorf("expected PRIMARY constraint, got %d", tc.Type)
+	}
+	if tc.Columns.Len() != 2 {
+		t.Errorf("expected 2 constraint columns, got %d", tc.Columns.Len())
+	}
+	if !tc.UsingIndexLocal {
+		t.Error("expected UsingIndexLocal to be true")
+	}
+}
+
+// TestParseCreateTablePartitionedPKUsingIndexLocal tests the full customer
+// statement from BYT-10010: an interval-partitioned table whose primary key
+// is backed by a local index.
+func TestParseCreateTablePartitionedPKUsingIndexLocal(t *testing.T) {
+	sql := `CREATE TABLE DATA.RC_FT_ADJ_CONFIG
+(
+    RC_FT_ADJ_CODE        VARCHAR2(250) NOT NULL,
+    RC_CODE               VARCHAR2(150),
+    DATE_REPORT           DATE,
+    IS_CHECK              VARCHAR2(255),
+    IS_ACTION             VARCHAR2(255),
+    CREATE_DATE           DATE DEFAULT SYSDATE NOT NULL,
+    CREATE_USER           VARCHAR2(50) DEFAULT 'ETL_USER',
+    UPDATE_DATE           DATE DEFAULT SYSDATE,
+    UPDATE_USER           VARCHAR2(50) DEFAULT 'ETL_USER',
+    TYPE                  VARCHAR2(50),
+    RC_FT_ADJ_STATUS      VARCHAR2(255),
+    PARENT_RC_FT_ADJ_CODE VARCHAR2(250),
+    E_STATUS              NUMBER,
+
+    CONSTRAINT PK_RC_FT_ADJ_CONFIG
+        PRIMARY KEY (RC_FT_ADJ_CODE, CREATE_DATE) USING INDEX LOCAL
+)
+PARTITION BY RANGE (CREATE_DATE)
+INTERVAL (NUMTOYMINTERVAL(1, 'MONTH'))
+(
+    PARTITION P202607
+        VALUES LESS THAN (DATE '2026-07-01')
+)`
+	result := ParseAndCheck(t, sql)
+	raw := result.Items[0].(*ast.RawStmt)
+	ct := raw.Stmt.(*ast.CreateTableStmt)
+	if ct.Columns.Len() != 13 {
+		t.Fatalf("expected 13 columns, got %d", ct.Columns.Len())
+	}
+	if ct.Constraints.Len() != 1 {
+		t.Fatalf("expected 1 table constraint, got %d", ct.Constraints.Len())
+	}
+	tc := ct.Constraints.Items[0].(*ast.TableConstraint)
+	if tc.Name != "PK_RC_FT_ADJ_CONFIG" {
+		t.Errorf("expected constraint name PK_RC_FT_ADJ_CONFIG, got %q", tc.Name)
+	}
+	if !tc.UsingIndexLocal {
+		t.Error("expected UsingIndexLocal to be true")
+	}
+	if ct.Partition == nil {
+		t.Error("expected partition clause to be preserved")
+	}
+}
+
+// TestParseCreateTableConstraintUsingIndexForms tests the remaining
+// using_index_clause forms on table constraints.
+func TestParseCreateTableConstraintUsingIndexForms(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"bare", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX)`},
+		{"index_name", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX idx1)`},
+		{"schema_qualified_index", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX s.idx1)`},
+		{"create_index_stmt", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX (CREATE INDEX idx1 ON t (a) TABLESPACE ts1))`},
+		{"attributes", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX PCTFREE 10 INITRANS 2 STORAGE (INITIAL 64K) NOLOGGING)`},
+		{"tablespace_then_enable", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX TABLESPACE ts1 ENABLE)`},
+		{"unique_local", `CREATE TABLE t (a NUMBER, CONSTRAINT uq UNIQUE (a) USING INDEX LOCAL)`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ParseAndCheck(t, tt.sql)
+		})
+	}
+}
+
+// TestParseCreateTableConstraintUsingIndexTablespace tests that USING INDEX
+// TABLESPACE populates TableConstraint.Tablespace.
+func TestParseCreateTableConstraintUsingIndexTablespace(t *testing.T) {
+	sql := `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX TABLESPACE ts1)`
+	result := ParseAndCheck(t, sql)
+	raw := result.Items[0].(*ast.RawStmt)
+	ct := raw.Stmt.(*ast.CreateTableStmt)
+	tc := ct.Constraints.Items[0].(*ast.TableConstraint)
+	if tc.Tablespace != "TS1" {
+		t.Errorf("expected Tablespace TS1, got %q", tc.Tablespace)
+	}
+	if tc.UsingIndexLocal {
+		t.Error("expected UsingIndexLocal to be false")
+	}
+}
+
+// TestParseCreateTableConstraintStateClauses tests ENABLE/DISABLE,
+// VALIDATE/NOVALIDATE and RELY/NORELY on table constraints.
+func TestParseCreateTableConstraintStateClauses(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"pk_enable", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) ENABLE)`},
+		{"uq_disable", `CREATE TABLE t (a NUMBER, CONSTRAINT uq UNIQUE (a) DISABLE)`},
+		{"ck_enable_validate", `CREATE TABLE t (a NUMBER, CONSTRAINT ck CHECK (a > 0) ENABLE VALIDATE)`},
+		{"fk_rely_disable_novalidate", `CREATE TABLE t (a NUMBER, CONSTRAINT fk FOREIGN KEY (a) REFERENCES p (id) RELY DISABLE NOVALIDATE)`},
+		{"pk_deferrable_enable", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) DEFERRABLE INITIALLY DEFERRED ENABLE)`},
+		{"pk_enable_before_deferrable", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) ENABLE NOVALIDATE NOT DEFERRABLE)`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ParseAndCheck(t, tt.sql)
+		})
+	}
+}
+
+// TestParseCreateTableColumnConstraintState tests constraint_state on
+// column-level constraints, including the implicit NOT NULL constraint.
+func TestParseCreateTableColumnConstraintState(t *testing.T) {
+	sql := `CREATE TABLE t (
+		a VARCHAR2(10) UNIQUE USING INDEX TABLESPACE ts1,
+		b NUMBER NOT NULL ENABLE,
+		c NUMBER PRIMARY KEY USING INDEX LOCAL,
+		d NUMBER CONSTRAINT nn_d NOT NULL ENABLE NOVALIDATE,
+		e NUMBER NULL ENABLE
+	)`
+	result := ParseAndCheck(t, sql)
+	raw := result.Items[0].(*ast.RawStmt)
+	ct := raw.Stmt.(*ast.CreateTableStmt)
+	if ct.Columns.Len() != 5 {
+		t.Fatalf("expected 5 columns, got %d", ct.Columns.Len())
+	}
+
+	colA := ct.Columns.Items[0].(*ast.ColumnDef)
+	ccA := colA.Constraints.Items[0].(*ast.ColumnConstraint)
+	if ccA.Type != ast.CONSTRAINT_UNIQUE {
+		t.Errorf("expected UNIQUE constraint on a, got %d", ccA.Type)
+	}
+	if ccA.Tablespace != "TS1" {
+		t.Errorf("expected Tablespace TS1 on a, got %q", ccA.Tablespace)
+	}
+
+	colB := ct.Columns.Items[1].(*ast.ColumnDef)
+	if !colB.NotNull {
+		t.Error("expected b to be NOT NULL")
+	}
+
+	colC := ct.Columns.Items[2].(*ast.ColumnDef)
+	ccC := colC.Constraints.Items[0].(*ast.ColumnConstraint)
+	if ccC.Type != ast.CONSTRAINT_PRIMARY {
+		t.Errorf("expected PRIMARY constraint on c, got %d", ccC.Type)
+	}
+	if !ccC.UsingIndexLocal {
+		t.Error("expected UsingIndexLocal on c")
+	}
+
+	colD := ct.Columns.Items[3].(*ast.ColumnDef)
+	if !colD.NotNull {
+		t.Error("expected d to be NOT NULL")
+	}
+}
+
+// TestParseCreateTableDBMSMetadataStyle tests a DBMS_METADATA.GET_DDL-style
+// dump: USING INDEX with physical attributes and COMPUTE STATISTICS, plus
+// table-level MAXTRANS.
+func TestParseCreateTableDBMSMetadataStyle(t *testing.T) {
+	sql := `CREATE TABLE "S"."T"
+   (	"A" NUMBER(*,0) NOT NULL ENABLE,
+	"B" VARCHAR2(20) DEFAULT NULL,
+	 CONSTRAINT "PK_T" PRIMARY KEY ("A")
+  USING INDEX PCTFREE 10 INITRANS 2 MAXTRANS 255 COMPUTE STATISTICS
+  STORAGE(INITIAL 65536 NEXT 1048576 MINEXTENTS 1 MAXEXTENTS 2147483645
+  PCTINCREASE 0 FREELISTS 1 FREELIST GROUPS 1 BUFFER_POOL DEFAULT FLASH_CACHE DEFAULT CELL_FLASH_CACHE DEFAULT)
+  TABLESPACE "USERS"  ENABLE
+   ) SEGMENT CREATION IMMEDIATE
+  PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255
+ NOCOMPRESS LOGGING
+  TABLESPACE "USERS"`
+	result := ParseAndCheck(t, sql)
+	raw := result.Items[0].(*ast.RawStmt)
+	ct := raw.Stmt.(*ast.CreateTableStmt)
+	tc := ct.Constraints.Items[0].(*ast.TableConstraint)
+	if tc.Tablespace != "USERS" {
+		t.Errorf("expected Tablespace USERS, got %q", tc.Tablespace)
+	}
+}
+
+// TestParseCreateTableIOTOptions tests index-organized table options
+// PCTTHRESHOLD and OVERFLOW.
+func TestParseCreateTableIOTOptions(t *testing.T) {
+	sql := `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a)) ORGANIZATION INDEX PCTTHRESHOLD 20 OVERFLOW TABLESPACE ts2`
+	result := ParseAndCheck(t, sql)
+	raw := result.Items[0].(*ast.RawStmt)
+	ct := raw.Stmt.(*ast.CreateTableStmt)
+	if ct.Organization != "INDEX" {
+		t.Errorf("expected ORGANIZATION INDEX, got %q", ct.Organization)
+	}
+}

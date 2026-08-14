@@ -396,13 +396,20 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 			return nil, parseErr141
 		}
 
-		p.skipConstraintState()
+		var cs constraintState
+		if err := p.parseConstraintState(&cs); err != nil {
+			return nil, err
+		}
 		if p.cur.Type == kwCASCADE {
 			p.advance()
 		}
 		tc := &nodes.TableConstraint{
-			Name: name,
-			Loc:  nodes.Loc{Start: start, End: p.prev.End},
+			Name:            name,
+			Deferrable:      cs.Deferrable,
+			Initially:       cs.Initially,
+			Tablespace:      cs.Tablespace,
+			UsingIndexLocal: cs.UsingIndexLocal,
+			Loc:             nodes.Loc{Start: start, End: p.prev.End},
 		}
 		return &nodes.AlterTableCmd{
 			Action:     nodes.AT_MODIFY_CONSTRAINT,
@@ -417,7 +424,10 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 		if p.cur.Type == kwKEY {
 			p.advance() // consume KEY
 		}
-		p.skipConstraintState()
+		var cs constraintState
+		if err := p.parseConstraintState(&cs); err != nil {
+			return nil, err
+		}
 		if p.cur.Type == kwCASCADE {
 			p.advance()
 		}
@@ -434,7 +444,10 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 		if p.cur.Type == '(' {
 			p.skipParenthesized()
 		}
-		p.skipConstraintState()
+		var cs constraintState
+		if err := p.parseConstraintState(&cs); err != nil {
+			return nil, err
+		}
 		if p.cur.Type == kwCASCADE {
 			p.advance()
 		}
@@ -1275,16 +1288,10 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 	}
 
 	// [ USING INDEX ... ]
-	if p.cur.Type == kwUSING {
-		p.advance()
-		if p.cur.Type == kwINDEX {
-			p.advance()
-		}
-		if p.cur.Type == '(' {
-			p.skipParenthesized()
-		} else if p.isIdentLike() && !p.isAlterTableActionStart() {
-			// index attributes or index name
-			p.collectAlterTableClauseDetails()
+	if p.cur.Type == kwUSING && p.peekNext().Type == kwINDEX {
+		var cs constraintState
+		if err := p.parseUsingIndexClause(&cs); err != nil {
+			return nil, err
 		}
 	}
 
@@ -2278,65 +2285,6 @@ func (p *Parser) parsePartitionNameOrFor() (string, error) {
 		return p.parseIdentifier()
 	}
 	return "", nil
-}
-
-// skipConstraintState skips constraint state tokens:
-// [ [NOT] DEFERRABLE [INITIALLY {DEFERRED|IMMEDIATE}] ]
-// [ RELY | NORELY ]
-// [ USING INDEX ... ]
-// [ { ENABLE | DISABLE } ]
-// [ { VALIDATE | NOVALIDATE } ]
-// [ exceptions_clause ]
-func (p *Parser) skipConstraintState() {
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		switch p.cur.Type {
-		case kwNOT:
-			p.advance()
-			if p.cur.Type == kwDEFERRED || p.isIdentLikeStr("DEFERRABLE") {
-				p.advance()
-			}
-		case kwDEFERRED:
-			p.advance()
-		case kwIMMEDIATE:
-			p.advance()
-		case kwENABLE, kwDISABLE:
-			p.advance()
-		case kwVALIDATE:
-			p.advance()
-		case kwUSING:
-			p.advance()
-			if p.cur.Type == kwINDEX {
-				p.advance()
-			}
-			if p.cur.Type == '(' {
-				p.skipParenthesized()
-			} else if p.isIdentLike() && !p.isAlterTableActionStart() {
-				p.parseIdentifier()
-			}
-		default:
-			if p.isIdentLikeStr("DEFERRABLE") || p.isIdentLikeStr("INITIALLY") {
-				p.advance()
-				continue
-			}
-			if p.isIdentLikeStr("NOVALIDATE") || p.isIdentLikeStr("NORELY") {
-				p.advance()
-				continue
-			}
-			if p.cur.Type == kwRELY {
-				p.advance()
-				continue
-			}
-			if p.isIdentLikeStr("EXCEPTIONS") {
-				p.advance()
-				if p.cur.Type == kwINTO {
-					p.advance()
-					p.parseObjectName()
-				}
-				continue
-			}
-			return
-		}
-	}
 }
 
 // skipDropColumnTrailing skips CASCADE CONSTRAINTS, INVALIDATE, CHECKPOINT, ONLINE after DROP COLUMN.

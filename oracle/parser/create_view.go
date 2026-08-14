@@ -142,6 +142,22 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.Create
 			if p.cur.Type == ')' || p.cur.Type == tokEOF {
 				return nil, p.syntaxErrorAtCur()
 			}
+			// Out-of-line view constraint: CONSTRAINT name { PRIMARY KEY |
+			// UNIQUE | FOREIGN KEY } (cols) constraint_state. View constraints
+			// are declarative only (RELY DISABLE NOVALIDATE); the parsed
+			// constraint is validated but not yet preserved in the AST.
+			if p.isTableConstraintStart() {
+				viewConstraint, err := p.parseTableConstraint()
+				if err != nil {
+					return nil, err
+				}
+				_ = viewConstraint
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
+				continue
+			}
 			name, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err
@@ -401,6 +417,32 @@ func (p *Parser) parseMaterializedViewOptions(stmt *nodes.CreateViewStmt) error 
 					p.advance()
 				}
 			}
+
+		case p.cur.Type == kwUSING && p.peekNext().Type == kwINDEX:
+			// USING INDEX index_properties (default index storage for the mview)
+			var cs constraintState
+			if err := p.parseUsingIndexClause(&cs); err != nil {
+				return err
+			}
+
+		case p.cur.Type == kwUSING && p.isIdentLikeStrAt(p.peekNext(), "NO"):
+			// USING NO INDEX
+			p.advance() // consume USING
+			p.advance() // consume NO
+			if p.cur.Type != kwINDEX {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance() // consume INDEX
+
+		case p.cur.Type == kwUSING &&
+			(p.isIdentLikeStrAt(p.peekNext(), "TRUSTED") || p.isIdentLikeStrAt(p.peekNext(), "ENFORCED")):
+			// USING { TRUSTED | ENFORCED } CONSTRAINTS
+			p.advance() // consume USING
+			p.advance() // consume TRUSTED/ENFORCED
+			if p.cur.Type != kwCONSTRAINTS {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance() // consume CONSTRAINTS
 
 		case p.cur.Type == kwENABLE:
 			p.advance()

@@ -782,6 +782,10 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 				p.advance() // consume NOT
 				p.advance() // consume NULL
 				col.NotNull = true
+				var cs constraintState
+				if err := p.parseConstraintState(&cs); err != nil {
+					return err
+				}
 			} else {
 				return nil
 			}
@@ -789,6 +793,10 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 		case kwNULL:
 			p.advance() // consume NULL
 			col.Null = true
+			var cs constraintState
+			if err := p.parseConstraintState(&cs); err != nil {
+				return err
+			}
 
 		case kwINVISIBLE:
 			p.advance()
@@ -1149,29 +1157,14 @@ func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) 
 		return nil, nil
 	}
 
-	if p.cur.Type == kwDEFERRABLE {
-		cc.Deferrable = true
-		p.advance()
-	} else if p.cur.Type == kwNOT {
-		next := p.peekNext()
-		if next.Type == kwDEFERRABLE {
-			p.advance() // consume NOT
-			p.advance() // consume DEFERRABLE
-			cc.Deferrable = false
-		}
+	var cs constraintState
+	if err := p.parseConstraintState(&cs); err != nil {
+		return nil, err
 	}
-
-	// INITIALLY DEFERRED / INITIALLY IMMEDIATE
-	if p.cur.Type == kwINITIALLY {
-		p.advance() // consume INITIALLY
-		if p.cur.Type == kwDEFERRED {
-			cc.Initially = "DEFERRED"
-			p.advance()
-		} else if p.cur.Type == kwIMMEDIATE {
-			cc.Initially = "IMMEDIATE"
-			p.advance()
-		}
-	}
+	cc.Deferrable = cs.Deferrable
+	cc.Initially = cs.Initially
+	cc.Tablespace = cs.Tablespace
+	cc.UsingIndexLocal = cs.UsingIndexLocal
 
 	cc.Loc.End = p.prev.End
 	return cc, nil
@@ -1319,29 +1312,14 @@ func (p *Parser) parseTableConstraint() (*nodes.TableConstraint, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 
-	if p.cur.Type == kwDEFERRABLE {
-		tc.Deferrable = true
-		p.advance()
-	} else if p.cur.Type == kwNOT {
-		next := p.peekNext()
-		if next.Type == kwDEFERRABLE {
-			p.advance() // consume NOT
-			p.advance() // consume DEFERRABLE
-			tc.Deferrable = false
-		}
+	var cs constraintState
+	if err := p.parseConstraintState(&cs); err != nil {
+		return nil, err
 	}
-
-	// INITIALLY DEFERRED / INITIALLY IMMEDIATE
-	if p.cur.Type == kwINITIALLY {
-		p.advance() // consume INITIALLY
-		if p.cur.Type == kwDEFERRED {
-			tc.Initially = "DEFERRED"
-			p.advance()
-		} else if p.cur.Type == kwIMMEDIATE {
-			tc.Initially = "IMMEDIATE"
-			p.advance()
-		}
-	}
+	tc.Deferrable = cs.Deferrable
+	tc.Initially = cs.Initially
+	tc.Tablespace = cs.Tablespace
+	tc.UsingIndexLocal = cs.UsingIndexLocal
 
 	tc.Loc.End = p.prev.End
 	return tc, nil
@@ -1668,6 +1646,17 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 					}
 				case "INITRANS":
 					p.advance() // consume INITRANS
+					if p.cur.Type == tokICONST {
+						p.advance()
+					}
+				case "MAXTRANS":
+					p.advance() // consume MAXTRANS
+					if p.cur.Type == tokICONST {
+						p.advance()
+					}
+				case "PCTTHRESHOLD":
+					// PCTTHRESHOLD integer (index-organized tables)
+					p.advance() // consume PCTTHRESHOLD
 					if p.cur.Type == tokICONST {
 						p.advance()
 					}
