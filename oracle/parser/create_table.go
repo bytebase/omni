@@ -1170,10 +1170,33 @@ func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) 
 	return cc, nil
 }
 
-// parseTableConstraint parses a table-level constraint.
+// parseTableConstraint parses a table-level constraint including its
+// trailing constraint_state clause.
 //
-//	[ CONSTRAINT name ] { PRIMARY KEY (cols) | UNIQUE (cols) | CHECK (expr) | FOREIGN KEY (cols) REFERENCES ... }
+//	[ CONSTRAINT name ] { PRIMARY KEY (cols) | UNIQUE (cols) | CHECK (expr) | FOREIGN KEY (cols) REFERENCES ... } constraint_state
 func (p *Parser) parseTableConstraint() (*nodes.TableConstraint, error) {
+	tc, err := p.parseTableConstraintBody()
+	if err != nil {
+		return nil, err
+	}
+
+	var cs constraintState
+	if err := p.parseConstraintState(&cs); err != nil {
+		return nil, err
+	}
+	tc.Deferrable = cs.Deferrable
+	tc.Initially = cs.Initially
+	tc.Tablespace = cs.Tablespace
+	tc.UsingIndexLocal = cs.UsingIndexLocal
+
+	tc.Loc.End = p.prev.End
+	return tc, nil
+}
+
+// parseTableConstraintBody parses a table-level constraint without its
+// constraint_state clause. Used directly by view constraint parsing, where
+// the allowed state differs — see parseViewConstraintState.
+func (p *Parser) parseTableConstraintBody() (*nodes.TableConstraint, error) {
 	start := p.pos()
 	tc := &nodes.TableConstraint{
 		Loc: nodes.Loc{Start: start},
@@ -1311,15 +1334,6 @@ func (p *Parser) parseTableConstraint() (*nodes.TableConstraint, error) {
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
-
-	var cs constraintState
-	if err := p.parseConstraintState(&cs); err != nil {
-		return nil, err
-	}
-	tc.Deferrable = cs.Deferrable
-	tc.Initially = cs.Initially
-	tc.Tablespace = cs.Tablespace
-	tc.UsingIndexLocal = cs.UsingIndexLocal
 
 	tc.Loc.End = p.prev.End
 	return tc, nil

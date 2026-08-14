@@ -214,3 +214,20 @@ func TestParseCreateMaterializedViewUsingIndex(t *testing.T) {
 		})
 	}
 }
+
+// TestParseCreateViewConstraintStateRestrictions tests that view constraints
+// accept only [RELY|NORELY] DISABLE [NOVALIDATE] — verified against Oracle
+// 23ai (DISABLE mandatory per ORA-02000, VALIDATE rejected per ORA-03082,
+// table-only clauses rejected).
+func TestParseCreateViewConstraintStateRestrictions(t *testing.T) {
+	ParseAndCheck(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a) DISABLE) AS SELECT 1 FROM dual`)
+	ParseAndCheck(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a) NORELY DISABLE NOVALIDATE) AS SELECT 1 FROM dual`)
+	ParseShouldFail(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a)) AS SELECT 1 FROM dual`)
+	ParseShouldFail(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a) RELY) AS SELECT 1 FROM dual`)
+	ParseShouldFail(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a) DEFERRABLE INITIALLY DEFERRED) AS SELECT 1 FROM dual`)
+	ParseShouldFail(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a) USING INDEX RELY DISABLE NOVALIDATE) AS SELECT 1 FROM dual`)
+	ParseShouldFail(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a) ENABLE NOVALIDATE) AS SELECT 1 FROM dual`)
+	ParseShouldFail(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a) DISABLE VALIDATE) AS SELECT 1 FROM dual`)
+	ParseShouldFail(t, `ALTER VIEW v ADD CONSTRAINT uq UNIQUE (b) ENABLE`)
+	ParseAndCheck(t, `ALTER VIEW v ADD CONSTRAINT uq UNIQUE (b) RELY DISABLE NOVALIDATE`)
+}

@@ -2849,13 +2849,16 @@ func (p *Parser) parseAlterViewStmt(start int) (nodes.StmtNode, error) {
 
 	case p.cur.Type == kwADD:
 		stmt.Action = "ADD_CONSTRAINT"
-		p.advance()
-		var // consume ADD
-		parseErr81 error
-		stmt.Constraint, parseErr81 = p.parseTableConstraint()
+		p.advance() // consume ADD
+		tc, parseErr81 := p.parseTableConstraintBody()
 		if parseErr81 != nil {
 			return nil, parseErr81
 		}
+		if err := p.parseViewConstraintState(); err != nil {
+			return nil, err
+		}
+		tc.Loc.End = p.prev.End
+		stmt.Constraint = tc
 
 	case p.cur.Type == kwMODIFY:
 		p.advance() // consume MODIFY

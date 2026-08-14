@@ -89,6 +89,28 @@ func (p *Parser) parseConstraintState(cs *constraintState) error {
 	return nil
 }
 
+// parseViewConstraintState parses the constraint state allowed on view
+// constraints. Verified against Oracle 23ai: DISABLE is mandatory
+// (ORA-02000 "missing DISABLE keyword" otherwise), RELY|NORELY may precede
+// it, NOVALIDATE may follow it, and VALIDATE is rejected outright
+// (ORA-03082). Table-only clauses (DEFERRABLE, INITIALLY, USING INDEX,
+// ENABLE) are not accepted.
+//
+//	[ RELY | NORELY ] DISABLE [ NOVALIDATE ]
+func (p *Parser) parseViewConstraintState() error {
+	if p.cur.Type == kwRELY || p.isIdentLikeStr("NORELY") {
+		p.advance()
+	}
+	if p.cur.Type != kwDISABLE {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // consume DISABLE
+	if p.isIdentLikeStr("NOVALIDATE") {
+		p.advance()
+	}
+	return nil
+}
+
 // parseExceptionsIntoClause parses [ EXCEPTIONS INTO [schema.]table ] if
 // present. Oracle allows this only in ALTER TABLE enable/modify-constraint
 // contexts, not inside CREATE TABLE constraints.
@@ -122,6 +144,7 @@ var identLikeUsingIndexProperties = map[string]bool{
 	"VISIBLE":    true,
 	"INVISIBLE":  true,
 	"STORE":      true,
+	"INDEXING":   true,
 	"NORELY":     true,
 	"NOVALIDATE": true,
 	"EXCEPTIONS": true,
@@ -140,9 +163,31 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 	p.advance() // consume USING
 	p.advance() // consume INDEX
 
-	// (create_index_statement)
+	// (create_index_statement) — validate the CREATE [UNIQUE|BITMAP] INDEX
+	// prefix (Oracle raises ORA-02000 "missing CREATE keyword" for anything
+	// else), then skip the balanced remainder.
 	if p.cur.Type == '(' {
-		p.skipParenthesized()
+		p.advance() // consume '('
+		if p.cur.Type != kwCREATE {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance() // consume CREATE
+		if p.cur.Type == kwUNIQUE || p.cur.Type == kwBITMAP {
+			p.advance()
+		}
+		if p.cur.Type != kwINDEX {
+			return p.syntaxErrorAtCur()
+		}
+		depth := 1
+		for depth > 0 && p.cur.Type != tokEOF {
+			switch p.cur.Type {
+			case '(':
+				depth++
+			case ')':
+				depth--
+			}
+			p.advance()
+		}
 		return nil
 	}
 
@@ -236,13 +281,34 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 			p.advance() // consume STATISTICS
 
 		case p.cur.Type == kwCOMPRESS:
+			// COMPRESS [ integer | ADVANCED [ LOW | HIGH ] ]
+			p.advance()
+			if p.cur.Type == tokICONST {
+				p.advance()
+			} else if p.isIdentLikeStr("ADVANCED") {
+				p.advance()
+				if p.isIdentLikeStr("LOW") || p.isIdentLikeStr("HIGH") {
+					p.advance()
+				}
+			}
+
+		case p.cur.Type == kwPARALLEL:
 			p.advance()
 			if p.cur.Type == tokICONST {
 				p.advance()
 			}
 
+		case p.isIdentLikeStr("INDEXING"):
+			// INDEXING { FULL | PARTIAL }
+			p.advance()
+			if !p.isIdentLikeStr("FULL") && !p.isIdentLikeStr("PARTIAL") {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance()
+
 		case p.cur.Type == kwLOGGING || p.cur.Type == kwNOLOGGING ||
-			p.cur.Type == kwONLINE || p.cur.Type == kwREVERSE:
+			p.cur.Type == kwONLINE || p.cur.Type == kwREVERSE ||
+			p.cur.Type == kwNOPARALLEL:
 			p.advance()
 
 		case p.isIdentLikeStr("NOCOMPRESS") || p.isIdentLikeStr("SORT") ||

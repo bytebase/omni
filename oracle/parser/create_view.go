@@ -143,13 +143,18 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.Create
 				return nil, p.syntaxErrorAtCur()
 			}
 			// Out-of-line view constraint: CONSTRAINT name { PRIMARY KEY |
-			// UNIQUE | FOREIGN KEY } (cols) constraint_state. View constraints
-			// are declarative only (RELY DISABLE NOVALIDATE).
+			// UNIQUE | FOREIGN KEY } (cols) [RELY|NORELY] DISABLE [NOVALIDATE].
+			// View constraints are declarative only; the table-only state
+			// clauses are rejected — see parseViewConstraintState.
 			if p.isTableConstraintStart() {
-				viewConstraint, err := p.parseTableConstraint()
+				viewConstraint, err := p.parseTableConstraintBody()
 				if err != nil {
 					return nil, err
 				}
+				if err := p.parseViewConstraintState(); err != nil {
+					return nil, err
+				}
+				viewConstraint.Loc.End = p.prev.End
 				if stmt.Constraints == nil {
 					stmt.Constraints = &nodes.List{}
 				}

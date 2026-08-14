@@ -833,3 +833,34 @@ func TestParseCreateTableIOTOptions(t *testing.T) {
 		t.Errorf("expected ORGANIZATION INDEX, got %q", ct.Organization)
 	}
 }
+
+// TestParseCreateTableUsingIndexMoreAttributes tests index attributes flagged
+// in review: PARALLEL/NOPARALLEL, INDEXING FULL|PARTIAL, COMPRESS ADVANCED.
+// All verified as syntactically valid against Oracle 23ai.
+func TestParseCreateTableUsingIndexMoreAttributes(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"parallel", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX PARALLEL 4)`},
+		{"noparallel", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX NOPARALLEL)`},
+		{"indexing_full", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX INDEXING FULL)`},
+		{"indexing_partial", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX INDEXING PARTIAL)`},
+		{"compress_advanced", `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX COMPRESS ADVANCED)`},
+		{"compress_advanced_low", `CREATE TABLE t (a NUMBER, b NUMBER, CONSTRAINT pk PRIMARY KEY (a, b) USING INDEX COMPRESS ADVANCED LOW)`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ParseAndCheck(t, tt.sql)
+		})
+	}
+}
+
+// TestParseCreateTableUsingIndexParenValidation tests that the parenthesized
+// using_index form requires a CREATE [UNIQUE|BITMAP] INDEX statement,
+// matching Oracle's ORA-02000 "missing CREATE keyword".
+func TestParseCreateTableUsingIndexParenValidation(t *testing.T) {
+	ParseAndCheck(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX (CREATE UNIQUE INDEX idx ON t (a)))`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX (garbage))`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX (CREATE TABLE x (y NUMBER)))`)
+}
