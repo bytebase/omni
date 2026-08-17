@@ -267,7 +267,8 @@ func (p *Parser) parseUsingIndexProperties(cs *constraintState) error {
 			if p.isIdentLikeStr("STORE") && p.peekNext().Type == kwIN {
 				p.advance() // consume STORE
 				p.advance() // consume IN
-				if p.cur.Type != '(' {
+				if p.cur.Type != '(' || p.peekNext().Type == ')' {
+					// STORE IN requires at least one tablespace (ORA-02216).
 					return p.syntaxErrorAtCur()
 				}
 				p.skipParenthesized()
@@ -295,6 +296,11 @@ func (p *Parser) parseUsingIndexProperties(cs *constraintState) error {
 					return p.syntaxErrorAtCur()
 				}
 				p.skipParenthesized()
+				// RANGE requires explicit partition specs (ORA-00906);
+				// for HASH the payload is optional (verified on 23ai).
+				if !isHash && p.cur.Type != '(' {
+					return p.syntaxErrorAtCur()
+				}
 				if isHash && p.isIdentLikeStr("PARTITIONS") {
 					// hash_partitions_by_quantity: PARTITIONS n [STORE IN (...)].
 					// HASH only — Oracle rejects the quantity form for RANGE.
@@ -306,7 +312,8 @@ func (p *Parser) parseUsingIndexProperties(cs *constraintState) error {
 					if p.isIdentLikeStr("STORE") && p.peekNext().Type == kwIN {
 						p.advance() // consume STORE
 						p.advance() // consume IN
-						if p.cur.Type != '(' {
+						if p.cur.Type != '(' || p.peekNext().Type == ')' {
+							// STORE IN requires at least one tablespace (ORA-02216).
 							return p.syntaxErrorAtCur()
 						}
 						p.skipParenthesized()

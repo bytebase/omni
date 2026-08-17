@@ -281,3 +281,20 @@ func TestParseCreateMaterializedViewUsingIndexPropertiesOnly(t *testing.T) {
 	ParseShouldFail(t, `CREATE MATERIALIZED VIEW mv USING INDEX (CREATE INDEX cidx ON mv (id)) AS SELECT * FROM t`)
 	ParseAndCheck(t, `CREATE MATERIALIZED VIEW mv USING INDEX INITRANS 2 STORAGE (NEXT 1M) AS SELECT * FROM t`)
 }
+
+// TestParseCreateViewBareConstraintKeywordAliases locks in engine-verified
+// behavior: PRIMARY and FOREIGN are legal bare view aliases on Oracle 23ai;
+// they start a constraint only when followed by KEY.
+func TestParseCreateViewBareConstraintKeywordAliases(t *testing.T) {
+	result := ParseAndCheck(t, `CREATE VIEW v (primary) AS SELECT 1 FROM dual`)
+	raw := result.Items[0].(*ast.RawStmt)
+	cv := raw.Stmt.(*ast.CreateViewStmt)
+	if cv.Columns == nil || cv.Columns.Len() != 1 {
+		t.Fatalf("expected 1 alias, got %v", cv.Columns)
+	}
+	if got := cv.Columns.Items[0].(*ast.String).Str; got != "PRIMARY" {
+		t.Errorf("expected alias PRIMARY, got %q", got)
+	}
+	ParseAndCheck(t, `CREATE VIEW v (foreign) AS SELECT 1 FROM dual`)
+	ParseAndCheck(t, `CREATE VIEW v (a, PRIMARY KEY (a) DISABLE) AS SELECT 1 FROM dual`)
+}

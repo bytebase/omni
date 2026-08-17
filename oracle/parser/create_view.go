@@ -87,6 +87,23 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 	return p.finishCreateViewStmt(stmt)
 }
 
+// isViewConstraintStart reports whether the current position starts an
+// out-of-line view constraint. CONSTRAINT is unambiguous in a view alias
+// list; PRIMARY, FOREIGN, and UNIQUE are legal bare aliases (Oracle 23ai
+// accepts CREATE VIEW v (primary) AS ...), so they count only when followed
+// by their mandatory next token. CHECK constraints do not exist on views.
+func (p *Parser) isViewConstraintStart() bool {
+	switch p.cur.Type {
+	case kwCONSTRAINT:
+		return true
+	case kwPRIMARY, kwFOREIGN:
+		return p.peekNext().Type == kwKEY
+	case kwUNIQUE:
+		return p.peekNext().Type == '('
+	}
+	return false
+}
+
 // finishCreateViewStmt finishes parsing a CREATE VIEW statement after the
 // MATERIALIZED/FORCE/VIEW prefix has been consumed.
 func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.CreateViewStmt, error) {
@@ -150,7 +167,10 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.Create
 			// datatype ambiguity: CONSTRAINT always starts a constraint here
 			// (a constraint name may be a nonreserved datatype word like BLOB,
 			// while a bare alias named CONSTRAINT is rejected by Oracle).
-			if p.cur.Type == kwCONSTRAINT || p.isTableConstraintStart() {
+			// PRIMARY/FOREIGN/UNIQUE, however, are legal bare aliases
+			// (verified on 23ai), so they start a constraint only when the
+			// required following token is present.
+			if p.isViewConstraintStart() {
 				viewConstraint, err := p.parseTableConstraintBody()
 				if err != nil {
 					return nil, err

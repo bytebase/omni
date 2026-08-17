@@ -928,3 +928,17 @@ func TestParseCreateTableRound5EngineVerified(t *testing.T) {
 	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX store.idx)`)
 	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX PCTUSED 40)`)
 }
+
+// TestParseCreateTableRound6EngineVerified locks in sixth-round review
+// dispositions, each cross-checked against Oracle 23ai:
+//   - STORE IN requires at least one tablespace (ORA-02216)
+//   - GLOBAL PARTITION BY RANGE requires explicit partition specs
+//     (ORA-00906) while the HASH payload is optional
+//   - USING INDEX hash is rejected by Oracle itself (ORA-14071): property
+//     words take precedence over an index name even when such an index exists
+func TestParseCreateTableRound6EngineVerified(t *testing.T) {
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX LOCAL STORE IN ()) PARTITION BY HASH (a) PARTITIONS 2`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX GLOBAL PARTITION BY RANGE (a))`)
+	ParseAndCheck(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX GLOBAL PARTITION BY HASH (a))`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX HASH)`)
+}
