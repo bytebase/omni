@@ -2067,6 +2067,12 @@ func writeColumnConstraint(sb *strings.Builder, n *ColumnConstraint) {
 	if n.Initially != "" {
 		sb.WriteString(fmt.Sprintf(" :initially %q", n.Initially))
 	}
+	if n.Tablespace != "" {
+		sb.WriteString(fmt.Sprintf(" :tablespace %q", n.Tablespace))
+	}
+	if n.UsingIndexLocal {
+		sb.WriteString(" :usingIndexLocal true")
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -2104,6 +2110,9 @@ func writeTableConstraint(sb *strings.Builder, n *TableConstraint) {
 	}
 	if n.Tablespace != "" {
 		sb.WriteString(fmt.Sprintf(" :tablespace %q", n.Tablespace))
+	}
+	if n.UsingIndexLocal {
+		sb.WriteString(" :usingIndexLocal true")
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -2869,6 +2878,10 @@ func writeCreateViewStmt(sb *strings.Builder, n *CreateViewStmt) {
 	if n.Columns != nil {
 		sb.WriteString(" :columns ")
 		writeNode(sb, n.Columns)
+	}
+	if n.Constraints != nil {
+		sb.WriteString(" :constraints ")
+		writeNode(sb, n.Constraints)
 	}
 	if n.Query != nil {
 		sb.WriteString(" :query ")

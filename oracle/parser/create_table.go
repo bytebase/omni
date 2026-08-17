@@ -782,6 +782,10 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 				p.advance() // consume NOT
 				p.advance() // consume NULL
 				col.NotNull = true
+				var cs constraintState
+				if err := p.parseConstraintState(&cs); err != nil {
+					return err
+				}
 			} else {
 				return nil
 			}
@@ -789,6 +793,10 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 		case kwNULL:
 			p.advance() // consume NULL
 			col.Null = true
+			var cs constraintState
+			if err := p.parseConstraintState(&cs); err != nil {
+				return err
+			}
 
 		case kwINVISIBLE:
 			p.advance()
@@ -1149,38 +1157,46 @@ func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) 
 		return nil, nil
 	}
 
-	if p.cur.Type == kwDEFERRABLE {
-		cc.Deferrable = true
-		p.advance()
-	} else if p.cur.Type == kwNOT {
-		next := p.peekNext()
-		if next.Type == kwDEFERRABLE {
-			p.advance() // consume NOT
-			p.advance() // consume DEFERRABLE
-			cc.Deferrable = false
-		}
+	var cs constraintState
+	if err := p.parseConstraintState(&cs); err != nil {
+		return nil, err
 	}
-
-	// INITIALLY DEFERRED / INITIALLY IMMEDIATE
-	if p.cur.Type == kwINITIALLY {
-		p.advance() // consume INITIALLY
-		if p.cur.Type == kwDEFERRED {
-			cc.Initially = "DEFERRED"
-			p.advance()
-		} else if p.cur.Type == kwIMMEDIATE {
-			cc.Initially = "IMMEDIATE"
-			p.advance()
-		}
-	}
+	cc.Deferrable = cs.Deferrable
+	cc.Initially = cs.Initially
+	cc.Tablespace = cs.Tablespace
+	cc.UsingIndexLocal = cs.UsingIndexLocal
 
 	cc.Loc.End = p.prev.End
 	return cc, nil
 }
 
-// parseTableConstraint parses a table-level constraint.
+// parseTableConstraint parses a table-level constraint including its
+// trailing constraint_state clause.
 //
-//	[ CONSTRAINT name ] { PRIMARY KEY (cols) | UNIQUE (cols) | CHECK (expr) | FOREIGN KEY (cols) REFERENCES ... }
+//	[ CONSTRAINT name ] { PRIMARY KEY (cols) | UNIQUE (cols) | CHECK (expr) | FOREIGN KEY (cols) REFERENCES ... } constraint_state
 func (p *Parser) parseTableConstraint() (*nodes.TableConstraint, error) {
+	tc, err := p.parseTableConstraintBody()
+	if err != nil {
+		return nil, err
+	}
+
+	var cs constraintState
+	if err := p.parseConstraintState(&cs); err != nil {
+		return nil, err
+	}
+	tc.Deferrable = cs.Deferrable
+	tc.Initially = cs.Initially
+	tc.Tablespace = cs.Tablespace
+	tc.UsingIndexLocal = cs.UsingIndexLocal
+
+	tc.Loc.End = p.prev.End
+	return tc, nil
+}
+
+// parseTableConstraintBody parses a table-level constraint without its
+// constraint_state clause. Used directly by view constraint parsing, where
+// the allowed state differs — see parseViewConstraintState.
+func (p *Parser) parseTableConstraintBody() (*nodes.TableConstraint, error) {
 	start := p.pos()
 	tc := &nodes.TableConstraint{
 		Loc: nodes.Loc{Start: start},
@@ -1317,30 +1333,6 @@ func (p *Parser) parseTableConstraint() (*nodes.TableConstraint, error) {
 
 	default:
 		return nil, p.syntaxErrorAtCur()
-	}
-
-	if p.cur.Type == kwDEFERRABLE {
-		tc.Deferrable = true
-		p.advance()
-	} else if p.cur.Type == kwNOT {
-		next := p.peekNext()
-		if next.Type == kwDEFERRABLE {
-			p.advance() // consume NOT
-			p.advance() // consume DEFERRABLE
-			tc.Deferrable = false
-		}
-	}
-
-	// INITIALLY DEFERRED / INITIALLY IMMEDIATE
-	if p.cur.Type == kwINITIALLY {
-		p.advance() // consume INITIALLY
-		if p.cur.Type == kwDEFERRED {
-			tc.Initially = "DEFERRED"
-			p.advance()
-		} else if p.cur.Type == kwIMMEDIATE {
-			tc.Initially = "IMMEDIATE"
-			p.advance()
-		}
 	}
 
 	tc.Loc.End = p.prev.End
@@ -1658,19 +1650,39 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 					stmt.RowDependencies = "NOROWDEPENDENCIES"
 				case "PCTFREE":
 					p.advance() // consume PCTFREE
-					if p.cur.Type == tokICONST {
-						p.advance()
+					if p.cur.Type != tokICONST {
+						return p.syntaxErrorAtCur()
 					}
+					p.advance()
 				case "PCTUSED":
 					p.advance() // consume PCTUSED
-					if p.cur.Type == tokICONST {
-						p.advance()
+					if p.cur.Type != tokICONST {
+						return p.syntaxErrorAtCur()
 					}
+					p.advance()
 				case "INITRANS":
 					p.advance() // consume INITRANS
-					if p.cur.Type == tokICONST {
-						p.advance()
+					if p.cur.Type != tokICONST {
+						return p.syntaxErrorAtCur()
 					}
+					p.advance()
+				case "MAXTRANS":
+					p.advance() // consume MAXTRANS
+					if p.cur.Type != tokICONST {
+						return p.syntaxErrorAtCur()
+					}
+					p.advance()
+				case "PCTTHRESHOLD":
+					// PCTTHRESHOLD integer — index-organized tables only;
+					// Oracle rejects it on heap tables (ORA-00922).
+					if stmt.Organization != "INDEX" {
+						return p.syntaxErrorAtCur()
+					}
+					p.advance() // consume PCTTHRESHOLD
+					if p.cur.Type != tokICONST {
+						return p.syntaxErrorAtCur()
+					}
+					p.advance()
 				case "COLUMN":
 					// COLUMN STORE COMPRESS FOR { QUERY | ARCHIVE } [ LOW | HIGH ]
 					next := p.peekNext()

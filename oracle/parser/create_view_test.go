@@ -161,3 +161,140 @@ func TestParseCreateViewLoc(t *testing.T) {
 		t.Errorf("expected Loc.End > Loc.Start, got %d", stmt.Loc.End)
 	}
 }
+
+// TestParseCreateViewOutOfLineConstraint tests declarative view constraints
+// (always RELY DISABLE NOVALIDATE in practice).
+func TestParseCreateViewOutOfLineConstraint(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"pk_rely", `CREATE VIEW v (a, b, CONSTRAINT pk_v PRIMARY KEY (a) RELY DISABLE NOVALIDATE) AS SELECT 1, 2 FROM dual`},
+		{"uq_rely", `CREATE VIEW v (a, CONSTRAINT uq_v UNIQUE (a) RELY DISABLE NOVALIDATE) AS SELECT 1 FROM dual`},
+		{"fk_rely", `CREATE VIEW v (a, CONSTRAINT fk_v FOREIGN KEY (a) REFERENCES t (id) RELY DISABLE NOVALIDATE) AS SELECT 1 FROM dual`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			raw := result.Items[0].(*ast.RawStmt)
+			cv := raw.Stmt.(*ast.CreateViewStmt)
+			if cv.Columns == nil || cv.Columns.Len() == 0 {
+				t.Error("expected view columns to be preserved")
+			}
+			if cv.Constraints == nil || cv.Constraints.Len() != 1 {
+				t.Fatal("expected 1 view constraint in AST")
+			}
+			tc := cv.Constraints.Items[0].(*ast.TableConstraint)
+			if tc.Name == "" {
+				t.Error("expected view constraint name to be preserved")
+			}
+			if tc.Columns == nil || tc.Columns.Len() == 0 {
+				t.Error("expected view constraint columns to be preserved")
+			}
+		})
+	}
+}
+
+// TestParseCreateMaterializedViewUsingIndex tests the mview USING INDEX /
+// USING NO INDEX / USING ... CONSTRAINTS clauses.
+func TestParseCreateMaterializedViewUsingIndex(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"using_index_tablespace", `CREATE MATERIALIZED VIEW mv USING INDEX TABLESPACE ts1 AS SELECT * FROM t`},
+		{"using_index_attrs", `CREATE MATERIALIZED VIEW mv USING INDEX PCTFREE 10 INITRANS 2 MAXTRANS 255 AS SELECT * FROM t`},
+		{"using_no_index", `CREATE MATERIALIZED VIEW mv USING NO INDEX AS SELECT * FROM t`},
+		{"refresh_then_using_index", `CREATE MATERIALIZED VIEW mv REFRESH FAST WITH PRIMARY KEY USING INDEX AS SELECT * FROM t`},
+		{"using_trusted_constraints", `CREATE MATERIALIZED VIEW mv REFRESH FORCE USING TRUSTED CONSTRAINTS AS SELECT * FROM t`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ParseAndCheck(t, tt.sql)
+		})
+	}
+}
+
+// TestParseCreateViewConstraintStateRestrictions tests that view constraints
+// accept only [RELY|NORELY] DISABLE [NOVALIDATE] — verified against Oracle
+// 23ai (DISABLE mandatory per ORA-02000, VALIDATE rejected per ORA-03082,
+// table-only clauses rejected).
+func TestParseCreateViewConstraintStateRestrictions(t *testing.T) {
+	ParseAndCheck(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a) DISABLE) AS SELECT 1 FROM dual`)
+	ParseAndCheck(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a) NORELY DISABLE NOVALIDATE) AS SELECT 1 FROM dual`)
+	ParseShouldFail(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a)) AS SELECT 1 FROM dual`)
+	ParseShouldFail(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a) RELY) AS SELECT 1 FROM dual`)
+	ParseShouldFail(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a) DEFERRABLE INITIALLY DEFERRED) AS SELECT 1 FROM dual`)
+	ParseShouldFail(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a) USING INDEX RELY DISABLE NOVALIDATE) AS SELECT 1 FROM dual`)
+	ParseShouldFail(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a) ENABLE NOVALIDATE) AS SELECT 1 FROM dual`)
+	ParseShouldFail(t, `CREATE VIEW v (a, CONSTRAINT pk PRIMARY KEY (a) DISABLE VALIDATE) AS SELECT 1 FROM dual`)
+	ParseShouldFail(t, `ALTER VIEW v ADD CONSTRAINT uq UNIQUE (b) ENABLE`)
+	ParseAndCheck(t, `ALTER VIEW v ADD CONSTRAINT uq UNIQUE (b) RELY DISABLE NOVALIDATE`)
+}
+
+// TestParseCreateMaterializedViewTrustedRequiresRefresh tests that USING
+// TRUSTED/ENFORCED CONSTRAINTS is only accepted after a REFRESH clause,
+// matching Oracle 23ai (ORA-00906 for the standalone form).
+func TestParseCreateMaterializedViewTrustedRequiresRefresh(t *testing.T) {
+	ParseAndCheck(t, `CREATE MATERIALIZED VIEW mv REFRESH FORCE USING TRUSTED CONSTRAINTS AS SELECT * FROM t`)
+	ParseShouldFail(t, `CREATE MATERIALIZED VIEW mv USING TRUSTED CONSTRAINTS AS SELECT * FROM t`)
+	ParseShouldFail(t, `CREATE MATERIALIZED VIEW mv USING ENFORCED CONSTRAINTS AS SELECT * FROM t`)
+}
+
+// TestParseCreateViewAliasAfterConstraint locks in engine-verified behavior:
+// Oracle 23ai accepts column aliases after an out-of-line view constraint,
+// contrary to the documented BNF ordering.
+func TestParseCreateViewAliasAfterConstraint(t *testing.T) {
+	result := ParseAndCheck(t, `CREATE VIEW v (a, PRIMARY KEY (a) DISABLE, b) AS SELECT 1, 2 FROM dual`)
+	raw := result.Items[0].(*ast.RawStmt)
+	cv := raw.Stmt.(*ast.CreateViewStmt)
+	if cv.Columns == nil || cv.Columns.Len() != 2 {
+		t.Fatalf("expected 2 column aliases, got %v", cv.Columns)
+	}
+	if cv.Constraints == nil || cv.Constraints.Len() != 1 {
+		t.Fatal("expected 1 view constraint")
+	}
+}
+
+// TestParseCreateViewConstraintDatatypeName tests that a view constraint
+// whose name is a nonreserved datatype word parses (Oracle 23ai accepts
+// CONSTRAINT blob PRIMARY KEY ... on views; a bare alias named CONSTRAINT
+// is rejected by Oracle with ORA-02250).
+func TestParseCreateViewConstraintDatatypeName(t *testing.T) {
+	result := ParseAndCheck(t, `CREATE VIEW v (a, CONSTRAINT blob PRIMARY KEY (a) DISABLE) AS SELECT 1 FROM dual`)
+	raw := result.Items[0].(*ast.RawStmt)
+	cv := raw.Stmt.(*ast.CreateViewStmt)
+	if cv.Constraints == nil || cv.Constraints.Len() != 1 {
+		t.Fatal("expected 1 view constraint")
+	}
+	tc := cv.Constraints.Items[0].(*ast.TableConstraint)
+	if tc.Name != "BLOB" {
+		t.Errorf("expected constraint name BLOB, got %q", tc.Name)
+	}
+}
+
+// TestParseCreateMaterializedViewUsingIndexPropertiesOnly tests that mview
+// USING INDEX accepts only index properties — Oracle rejects an index name
+// or a nested CREATE INDEX there (ORA-02000, verified on 23ai).
+func TestParseCreateMaterializedViewUsingIndexPropertiesOnly(t *testing.T) {
+	ParseShouldFail(t, `CREATE MATERIALIZED VIEW mv USING INDEX existing_idx AS SELECT * FROM t`)
+	ParseShouldFail(t, `CREATE MATERIALIZED VIEW mv USING INDEX (CREATE INDEX cidx ON mv (id)) AS SELECT * FROM t`)
+	ParseAndCheck(t, `CREATE MATERIALIZED VIEW mv USING INDEX INITRANS 2 STORAGE (NEXT 1M) AS SELECT * FROM t`)
+}
+
+// TestParseCreateViewBareConstraintKeywordAliases locks in engine-verified
+// behavior: PRIMARY and FOREIGN are legal bare view aliases on Oracle 23ai;
+// they start a constraint only when followed by KEY.
+func TestParseCreateViewBareConstraintKeywordAliases(t *testing.T) {
+	result := ParseAndCheck(t, `CREATE VIEW v (primary) AS SELECT 1 FROM dual`)
+	raw := result.Items[0].(*ast.RawStmt)
+	cv := raw.Stmt.(*ast.CreateViewStmt)
+	if cv.Columns == nil || cv.Columns.Len() != 1 {
+		t.Fatalf("expected 1 alias, got %v", cv.Columns)
+	}
+	if got := cv.Columns.Items[0].(*ast.String).Str; got != "PRIMARY" {
+		t.Errorf("expected alias PRIMARY, got %q", got)
+	}
+	ParseAndCheck(t, `CREATE VIEW v (foreign) AS SELECT 1 FROM dual`)
+	ParseAndCheck(t, `CREATE VIEW v (a, PRIMARY KEY (a) DISABLE) AS SELECT 1 FROM dual`)
+}

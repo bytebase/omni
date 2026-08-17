@@ -1332,6 +1332,19 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) (nodes.StmtNode, erro
 		stmt.Action = "NOCACHE"
 		p.advance()
 
+	case p.cur.Type == kwUSING && p.peekNext().Type == kwINDEX:
+		// USING INDEX index_properties (properties only, like CREATE MV).
+		// Deliberately lenient: Oracle 23ai rejects PCTFREE here (ORA-02243)
+		// while accepting INITRANS/STORAGE, but this parser accepts the full
+		// property set.
+		stmt.Action = "USING_INDEX"
+		p.advance() // consume USING
+		p.advance() // consume INDEX
+		var cs constraintState
+		if err := p.parseUsingIndexProperties(&cs); err != nil {
+			return nil, err
+		}
+
 	case p.cur.Type == kwPARALLEL:
 		stmt.Action = "PARALLEL"
 		p.advance() // consume PARALLEL
@@ -2839,13 +2852,16 @@ func (p *Parser) parseAlterViewStmt(start int) (nodes.StmtNode, error) {
 
 	case p.cur.Type == kwADD:
 		stmt.Action = "ADD_CONSTRAINT"
-		p.advance()
-		var // consume ADD
-		parseErr81 error
-		stmt.Constraint, parseErr81 = p.parseTableConstraint()
+		p.advance() // consume ADD
+		tc, parseErr81 := p.parseTableConstraintBody()
 		if parseErr81 != nil {
 			return nil, parseErr81
 		}
+		if err := p.parseViewConstraintState(); err != nil {
+			return nil, err
+		}
+		tc.Loc.End = p.prev.End
+		stmt.Constraint = tc
 
 	case p.cur.Type == kwMODIFY:
 		p.advance() // consume MODIFY

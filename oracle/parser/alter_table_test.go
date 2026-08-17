@@ -312,3 +312,131 @@ func findAlterTableOption(cmd *ast.AlterTableCmd, key string) *ast.DDLOption {
 	}
 	return nil
 }
+
+// TestParseAlterTableAddConstraintUsingIndex tests ALTER TABLE ADD CONSTRAINT
+// with a using_index_clause (BYT-10010).
+func TestParseAlterTableAddConstraintUsingIndex(t *testing.T) {
+	result := ParseAndCheck(t, "ALTER TABLE t ADD CONSTRAINT pk PRIMARY KEY (a) USING INDEX TABLESPACE ts1")
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt := raw.Stmt.(*ast.AlterTableStmt)
+	cmd := stmt.Actions.Items[0].(*ast.AlterTableCmd)
+	if cmd.Action != ast.AT_ADD_CONSTRAINT {
+		t.Errorf("expected AT_ADD_CONSTRAINT, got %d", cmd.Action)
+	}
+	if cmd.Constraint == nil {
+		t.Fatal("expected non-nil Constraint")
+	}
+	if cmd.Constraint.Tablespace != "TS1" {
+		t.Errorf("expected Tablespace TS1, got %q", cmd.Constraint.Tablespace)
+	}
+}
+
+// TestParseAlterTableAddConstraintUsingIndexLocal tests ALTER TABLE ADD
+// CONSTRAINT with USING INDEX LOCAL.
+func TestParseAlterTableAddConstraintUsingIndexLocal(t *testing.T) {
+	result := ParseAndCheck(t, "ALTER TABLE t ADD CONSTRAINT pk PRIMARY KEY (a, b) USING INDEX LOCAL ENABLE")
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt := raw.Stmt.(*ast.AlterTableStmt)
+	cmd := stmt.Actions.Items[0].(*ast.AlterTableCmd)
+	if cmd.Constraint == nil || !cmd.Constraint.UsingIndexLocal {
+		t.Error("expected UsingIndexLocal on added constraint")
+	}
+}
+
+// TestParseAlterTableModifyConstraintState tests MODIFY CONSTRAINT / PRIMARY
+// KEY / UNIQUE followed by constraint_state clauses.
+func TestParseAlterTableModifyConstraintState(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"modify_pk_using_index_tablespace", "ALTER TABLE t MODIFY PRIMARY KEY USING INDEX TABLESPACE ts1"},
+		{"modify_constraint_enable_novalidate", "ALTER TABLE t MODIFY CONSTRAINT pk ENABLE NOVALIDATE"},
+		{"modify_constraint_using_index", "ALTER TABLE t MODIFY CONSTRAINT pk USING INDEX TABLESPACE ts1"},
+		{"modify_unique_disable", "ALTER TABLE t MODIFY UNIQUE (a) DISABLE"},
+		{"modify_pk_rely", "ALTER TABLE t MODIFY PRIMARY KEY RELY DISABLE NOVALIDATE"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt := raw.Stmt.(*ast.AlterTableStmt)
+			cmd := stmt.Actions.Items[0].(*ast.AlterTableCmd)
+			if cmd.Action != ast.AT_MODIFY_CONSTRAINT {
+				t.Errorf("expected AT_MODIFY_CONSTRAINT, got %d", cmd.Action)
+			}
+		})
+	}
+}
+
+// TestParseAlterTableEnableConstraintUsingIndex tests ENABLE ... USING INDEX.
+func TestParseAlterTableEnableConstraintUsingIndex(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+	}{
+		{"enable_pk_using_index_tablespace", "ALTER TABLE t ENABLE PRIMARY KEY USING INDEX TABLESPACE ts1"},
+		{"enable_validate_constraint_using_index_name", "ALTER TABLE t ENABLE VALIDATE CONSTRAINT pk USING INDEX idx1"},
+		{"enable_constraint_using_index_exceptions", "ALTER TABLE t ENABLE CONSTRAINT pk USING INDEX EXCEPTIONS INTO bad_rows"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			raw := result.Items[0].(*ast.RawStmt)
+			stmt := raw.Stmt.(*ast.AlterTableStmt)
+			cmd := stmt.Actions.Items[0].(*ast.AlterTableCmd)
+			if cmd.Action != ast.AT_ENABLE_DISABLE {
+				t.Errorf("expected AT_ENABLE_DISABLE, got %d", cmd.Action)
+			}
+		})
+	}
+}
+
+// TestParseAlterTableModifyConstraintExceptions tests EXCEPTIONS INTO in
+// ALTER contexts (legal) — it is rejected inside CREATE TABLE constraints,
+// matching Oracle 23ai.
+func TestParseAlterTableModifyConstraintExceptions(t *testing.T) {
+	ParseAndCheck(t, "ALTER TABLE t MODIFY CONSTRAINT pk ENABLE VALIDATE EXCEPTIONS INTO bad_rows")
+	ParseAndCheck(t, "ALTER TABLE t MODIFY PRIMARY KEY ENABLE VALIDATE EXCEPTIONS INTO s.bad_rows")
+	ParseShouldFail(t, "CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) EXCEPTIONS INTO bad_rows DISABLE)")
+	ParseShouldFail(t, "CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) ENABLE VALIDATE EXCEPTIONS INTO bad_rows)")
+}
+
+// TestParseAlterTableModifyPKPreservesState tests that MODIFY PRIMARY KEY /
+// UNIQUE attach the parsed constraint_state to the AST instead of
+// discarding it.
+func TestParseAlterTableModifyPKPreservesState(t *testing.T) {
+	result := ParseAndCheck(t, "ALTER TABLE t MODIFY PRIMARY KEY USING INDEX LOCAL")
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt := raw.Stmt.(*ast.AlterTableStmt)
+	cmd := stmt.Actions.Items[0].(*ast.AlterTableCmd)
+	if cmd.Constraint == nil {
+		t.Fatal("expected non-nil Constraint on MODIFY PRIMARY KEY")
+	}
+	if cmd.Constraint.Type != ast.CONSTRAINT_PRIMARY {
+		t.Errorf("expected CONSTRAINT_PRIMARY, got %d", cmd.Constraint.Type)
+	}
+	if !cmd.Constraint.UsingIndexLocal {
+		t.Error("expected UsingIndexLocal to be preserved")
+	}
+
+	result = ParseAndCheck(t, "ALTER TABLE t MODIFY UNIQUE (a) USING INDEX TABLESPACE ts1")
+	raw = result.Items[0].(*ast.RawStmt)
+	stmt = raw.Stmt.(*ast.AlterTableStmt)
+	cmd = stmt.Actions.Items[0].(*ast.AlterTableCmd)
+	if cmd.Constraint == nil || cmd.Constraint.Tablespace != "TS1" {
+		t.Fatalf("expected Tablespace TS1 on MODIFY UNIQUE, got %+v", cmd.Constraint)
+	}
+}
+
+// TestParseAlterTableAddConstraintExceptions tests EXCEPTIONS INTO on ADD
+// CONSTRAINT, verified accepted by Oracle 23ai.
+func TestParseAlterTableAddConstraintExceptions(t *testing.T) {
+	result := ParseAndCheck(t, "ALTER TABLE t ADD CONSTRAINT pk PRIMARY KEY (a) ENABLE VALIDATE EXCEPTIONS INTO bad_rows")
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt := raw.Stmt.(*ast.AlterTableStmt)
+	cmd := stmt.Actions.Items[0].(*ast.AlterTableCmd)
+	if cmd.Action != ast.AT_ADD_CONSTRAINT || cmd.Constraint == nil {
+		t.Fatal("expected ADD_CONSTRAINT with constraint")
+	}
+}

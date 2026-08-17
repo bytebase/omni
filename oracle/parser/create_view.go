@@ -87,6 +87,23 @@ func (p *Parser) parseCreateViewStmt(start int, orReplace bool) (*nodes.CreateVi
 	return p.finishCreateViewStmt(stmt)
 }
 
+// isViewConstraintStart reports whether the current position starts an
+// out-of-line view constraint. CONSTRAINT is unambiguous in a view alias
+// list; PRIMARY, FOREIGN, and UNIQUE are legal bare aliases (Oracle 23ai
+// accepts CREATE VIEW v (primary) AS ...), so they count only when followed
+// by their mandatory next token. CHECK constraints do not exist on views.
+func (p *Parser) isViewConstraintStart() bool {
+	switch p.cur.Type {
+	case kwCONSTRAINT:
+		return true
+	case kwPRIMARY, kwFOREIGN:
+		return p.peekNext().Type == kwKEY
+	case kwUNIQUE:
+		return p.peekNext().Type == '('
+	}
+	return false
+}
+
 // finishCreateViewStmt finishes parsing a CREATE VIEW statement after the
 // MATERIALIZED/FORCE/VIEW prefix has been consumed.
 func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.CreateViewStmt, error) {
@@ -141,6 +158,36 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.Create
 		for {
 			if p.cur.Type == ')' || p.cur.Type == tokEOF {
 				return nil, p.syntaxErrorAtCur()
+			}
+			// Out-of-line view constraint: CONSTRAINT name { PRIMARY KEY |
+			// UNIQUE | FOREIGN KEY } (cols) [RELY|NORELY] DISABLE [NOVALIDATE].
+			// View constraints are declarative only; the table-only state
+			// clauses are rejected — see parseViewConstraintState.
+			// Unlike a CREATE TABLE column list, a view alias list has no
+			// datatype ambiguity: CONSTRAINT always starts a constraint here
+			// (a constraint name may be a nonreserved datatype word like BLOB,
+			// while a bare alias named CONSTRAINT is rejected by Oracle).
+			// PRIMARY/FOREIGN/UNIQUE, however, are legal bare aliases
+			// (verified on 23ai), so they start a constraint only when the
+			// required following token is present.
+			if p.isViewConstraintStart() {
+				viewConstraint, err := p.parseTableConstraintBody()
+				if err != nil {
+					return nil, err
+				}
+				if err := p.parseViewConstraintState(); err != nil {
+					return nil, err
+				}
+				viewConstraint.Loc.End = p.prev.End
+				if stmt.Constraints == nil {
+					stmt.Constraints = &nodes.List{}
+				}
+				stmt.Constraints.Items = append(stmt.Constraints.Items, viewConstraint)
+				if p.cur.Type != ',' {
+					break
+				}
+				p.advance()
+				continue
 			}
 			name, err := p.parseIdentifier()
 			if err != nil {
@@ -271,6 +318,7 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.Create
 
 // parseMaterializedViewOptions parses BUILD, REFRESH, and other options for materialized views.
 func (p *Parser) parseMaterializedViewOptions(stmt *nodes.CreateViewStmt) error {
+	seenRefresh := false
 	for {
 		switch {
 		case p.isIdentLike() && p.cur.Str == "BUILD":
@@ -320,6 +368,7 @@ func (p *Parser) parseMaterializedViewOptions(stmt *nodes.CreateViewStmt) error 
 			stmt.NeverRefresh = true
 
 		case p.cur.Type == kwREFRESH:
+			seenRefresh = true
 			p.advance()
 			// FAST | COMPLETE | FORCE
 			if p.isIdentLike() && p.cur.Str == "FAST" {
@@ -401,6 +450,37 @@ func (p *Parser) parseMaterializedViewOptions(stmt *nodes.CreateViewStmt) error 
 					p.advance()
 				}
 			}
+
+		case p.cur.Type == kwUSING && p.peekNext().Type == kwINDEX:
+			// USING INDEX index_properties (default index storage for the
+			// mview). Properties only: Oracle rejects an index name or a
+			// nested CREATE INDEX here (ORA-02000).
+			p.advance() // consume USING
+			p.advance() // consume INDEX
+			var cs constraintState
+			if err := p.parseUsingIndexProperties(&cs); err != nil {
+				return err
+			}
+
+		case p.cur.Type == kwUSING && p.isIdentLikeStrAt(p.peekNext(), "NO"):
+			// USING NO INDEX
+			p.advance() // consume USING
+			p.advance() // consume NO
+			if p.cur.Type != kwINDEX {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance() // consume INDEX
+
+		case seenRefresh && p.cur.Type == kwUSING &&
+			(p.isIdentLikeStrAt(p.peekNext(), "TRUSTED") || p.isIdentLikeStrAt(p.peekNext(), "ENFORCED")):
+			// USING { TRUSTED | ENFORCED } CONSTRAINTS — part of create_mv_refresh;
+			// Oracle rejects it without a preceding REFRESH clause.
+			p.advance() // consume USING
+			p.advance() // consume TRUSTED/ENFORCED
+			if p.cur.Type != kwCONSTRAINTS {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance() // consume CONSTRAINTS
 
 		case p.cur.Type == kwENABLE:
 			p.advance()

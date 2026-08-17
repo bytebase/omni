@@ -1608,32 +1608,35 @@ func (n *IdentityClause) nodeTag() {}
 
 // ColumnConstraint represents a column-level constraint.
 type ColumnConstraint struct {
-	Name       string         // constraint name (nil if unnamed)
-	Type       ConstraintType // constraint type
-	Expr       ExprNode       // CHECK expression
-	RefTable   *ObjectName    // REFERENCES table
-	RefColumns *List          // REFERENCES columns
-	OnDelete   string         // ON DELETE action
-	Deferrable bool           // DEFERRABLE
-	Initially  string         // INITIALLY DEFERRED/IMMEDIATE
-	Loc        Loc            // start location
+	Name            string         // constraint name (nil if unnamed)
+	Type            ConstraintType // constraint type
+	Expr            ExprNode       // CHECK expression
+	RefTable        *ObjectName    // REFERENCES table
+	RefColumns      *List          // REFERENCES columns
+	OnDelete        string         // ON DELETE action
+	Deferrable      bool           // DEFERRABLE
+	Initially       string         // INITIALLY DEFERRED/IMMEDIATE
+	Tablespace      string         // USING INDEX TABLESPACE
+	UsingIndexLocal bool           // USING INDEX LOCAL
+	Loc             Loc            // start location
 }
 
 func (n *ColumnConstraint) nodeTag() {}
 
 // TableConstraint represents a table-level constraint.
 type TableConstraint struct {
-	Name       string         // constraint name
-	Type       ConstraintType // constraint type
-	Columns    *List          // constraint columns (list of *String)
-	Expr       ExprNode       // CHECK expression
-	RefTable   *ObjectName    // REFERENCES table
-	RefColumns *List          // REFERENCES columns
-	OnDelete   string         // ON DELETE action
-	Deferrable bool           // DEFERRABLE
-	Initially  string         // INITIALLY DEFERRED/IMMEDIATE
-	Tablespace string         // USING INDEX TABLESPACE
-	Loc        Loc            // start location
+	Name            string         // constraint name
+	Type            ConstraintType // constraint type
+	Columns         *List          // constraint columns (list of *String)
+	Expr            ExprNode       // CHECK expression
+	RefTable        *ObjectName    // REFERENCES table
+	RefColumns      *List          // REFERENCES columns
+	OnDelete        string         // ON DELETE action
+	Deferrable      bool           // DEFERRABLE
+	Initially       string         // INITIALLY DEFERRED/IMMEDIATE
+	Tablespace      string         // USING INDEX TABLESPACE
+	UsingIndexLocal bool           // USING INDEX LOCAL
+	Loc             Loc            // start location
 }
 
 func (n *TableConstraint) nodeTag() {}
@@ -1815,6 +1818,7 @@ type CreateViewStmt struct {
 	Materialized      bool        // MATERIALIZED VIEW
 	Name              *ObjectName // view name
 	Columns           *List       // column aliases
+	Constraints       *List       // out-of-line view constraints (list of *TableConstraint)
 	Query             StmtNode    // AS SELECT ...
 	WithCheckOpt      bool        // WITH CHECK OPTION
 	WithReadOnly      bool        // WITH READ ONLY
