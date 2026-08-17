@@ -163,9 +163,11 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 	p.advance() // consume USING
 	p.advance() // consume INDEX
 
-	// (create_index_statement) — validate the CREATE [UNIQUE|BITMAP] INDEX
-	// prefix (Oracle raises ORA-02000 "missing CREATE keyword" for anything
-	// else), then skip the balanced remainder.
+	// (create_index_statement) — validate the required structure CREATE
+	// [UNIQUE|BITMAP] INDEX name ON table (...) before skipping the balanced
+	// remainder (index attributes). Oracle raises ORA-02000 for a missing
+	// CREATE keyword, ORA-00953 for a missing index name, and ORA-00969 for
+	// a missing ON.
 	if p.cur.Type == '(' {
 		p.advance() // consume '('
 		if p.cur.Type != kwCREATE {
@@ -178,7 +180,29 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 		if p.cur.Type != kwINDEX {
 			return p.syntaxErrorAtCur()
 		}
-		depth := 1
+		p.advance() // consume INDEX
+		indexName, err := p.parseObjectName()
+		if err != nil {
+			return err
+		}
+		if indexName == nil || indexName.Name == "" {
+			return p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != kwON {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance() // consume ON
+		tableName, err := p.parseObjectName()
+		if err != nil {
+			return err
+		}
+		if tableName == nil || tableName.Name == "" {
+			return p.syntaxErrorAtCur()
+		}
+		if p.cur.Type != '(' {
+			return p.syntaxErrorAtCur()
+		}
+		depth := 1 // the outer '(' consumed above is still open
 		for depth > 0 && p.cur.Type != tokEOF {
 			switch p.cur.Type {
 			case '(':
@@ -238,7 +262,8 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 
 		case p.cur.Type == kwGLOBAL:
 			p.advance() // consume GLOBAL
-			// GLOBAL [ PARTITION BY { RANGE | HASH } (cols) [ (partition specs) ] ]
+			// GLOBAL [ PARTITION BY { RANGE | HASH } (cols)
+			//   { (partition specs) | PARTITIONS n [ STORE IN (ts, ...) ] } ]
 			if p.cur.Type == kwPARTITION {
 				p.advance() // consume PARTITION
 				if p.cur.Type != kwBY {
@@ -252,7 +277,22 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 					return p.syntaxErrorAtCur()
 				}
 				p.skipParenthesized()
-				if p.cur.Type == '(' {
+				if p.isIdentLikeStr("PARTITIONS") {
+					// hash_partitions_by_quantity: PARTITIONS n [STORE IN (...)]
+					p.advance() // consume PARTITIONS
+					if p.cur.Type != tokICONST {
+						return p.syntaxErrorAtCur()
+					}
+					p.advance()
+					if p.isIdentLikeStr("STORE") && p.peekNext().Type == kwIN {
+						p.advance() // consume STORE
+						p.advance() // consume IN
+						if p.cur.Type != '(' {
+							return p.syntaxErrorAtCur()
+						}
+						p.skipParenthesized()
+					}
+				} else if p.cur.Type == '(' {
 					p.skipParenthesized()
 				}
 			}

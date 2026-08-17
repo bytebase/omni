@@ -401,3 +401,30 @@ func TestParseAlterTableModifyConstraintExceptions(t *testing.T) {
 	ParseShouldFail(t, "CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) EXCEPTIONS INTO bad_rows DISABLE)")
 	ParseShouldFail(t, "CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) ENABLE VALIDATE EXCEPTIONS INTO bad_rows)")
 }
+
+// TestParseAlterTableModifyPKPreservesState tests that MODIFY PRIMARY KEY /
+// UNIQUE attach the parsed constraint_state to the AST instead of
+// discarding it.
+func TestParseAlterTableModifyPKPreservesState(t *testing.T) {
+	result := ParseAndCheck(t, "ALTER TABLE t MODIFY PRIMARY KEY USING INDEX LOCAL")
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt := raw.Stmt.(*ast.AlterTableStmt)
+	cmd := stmt.Actions.Items[0].(*ast.AlterTableCmd)
+	if cmd.Constraint == nil {
+		t.Fatal("expected non-nil Constraint on MODIFY PRIMARY KEY")
+	}
+	if cmd.Constraint.Type != ast.CONSTRAINT_PRIMARY {
+		t.Errorf("expected CONSTRAINT_PRIMARY, got %d", cmd.Constraint.Type)
+	}
+	if !cmd.Constraint.UsingIndexLocal {
+		t.Error("expected UsingIndexLocal to be preserved")
+	}
+
+	result = ParseAndCheck(t, "ALTER TABLE t MODIFY UNIQUE (a) USING INDEX TABLESPACE ts1")
+	raw = result.Items[0].(*ast.RawStmt)
+	stmt = raw.Stmt.(*ast.AlterTableStmt)
+	cmd = stmt.Actions.Items[0].(*ast.AlterTableCmd)
+	if cmd.Constraint == nil || cmd.Constraint.Tablespace != "TS1" {
+		t.Fatalf("expected Tablespace TS1 on MODIFY UNIQUE, got %+v", cmd.Constraint)
+	}
+}

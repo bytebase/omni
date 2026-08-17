@@ -440,7 +440,15 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 		return &nodes.AlterTableCmd{
 			Action:  nodes.AT_MODIFY_CONSTRAINT,
 			Subtype: "PRIMARY KEY",
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+			Constraint: &nodes.TableConstraint{
+				Type:            nodes.CONSTRAINT_PRIMARY,
+				Deferrable:      cs.Deferrable,
+				Initially:       cs.Initially,
+				Tablespace:      cs.Tablespace,
+				UsingIndexLocal: cs.UsingIndexLocal,
+				Loc:             nodes.Loc{Start: start, End: p.prev.End},
+			},
+			Loc: nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 	}
 
@@ -463,7 +471,15 @@ func (p *Parser) parseAlterTableModify() (*nodes.AlterTableCmd, error) {
 		return &nodes.AlterTableCmd{
 			Action:  nodes.AT_MODIFY_CONSTRAINT,
 			Subtype: "UNIQUE",
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+			Constraint: &nodes.TableConstraint{
+				Type:            nodes.CONSTRAINT_UNIQUE,
+				Deferrable:      cs.Deferrable,
+				Initially:       cs.Initially,
+				Tablespace:      cs.Tablespace,
+				UsingIndexLocal: cs.UsingIndexLocal,
+				Loc:             nodes.Loc{Start: start, End: p.prev.End},
+			},
+			Loc: nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 	}
 

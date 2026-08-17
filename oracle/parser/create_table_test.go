@@ -864,3 +864,22 @@ func TestParseCreateTableUsingIndexParenValidation(t *testing.T) {
 	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX (garbage))`)
 	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX (CREATE TABLE x (y NUMBER)))`)
 }
+
+// TestParseCreateTableUsingIndexGlobalHashQuantity tests the
+// hash_partitions_by_quantity form of a global partitioned index
+// (verified against Oracle 23ai).
+func TestParseCreateTableUsingIndexGlobalHashQuantity(t *testing.T) {
+	ParseAndCheck(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX GLOBAL PARTITION BY HASH (a) PARTITIONS 4)`)
+	ParseAndCheck(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX GLOBAL PARTITION BY HASH (a) PARTITIONS 2 STORE IN (ts1, ts2))`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX GLOBAL PARTITION BY HASH (a) PARTITIONS)`)
+}
+
+// TestParseCreateTableUsingIndexParenStructure tests that the nested CREATE
+// INDEX must carry its required structure — Oracle raises ORA-00953 for a
+// missing index name and ORA-00969 for a missing ON clause.
+func TestParseCreateTableUsingIndexParenStructure(t *testing.T) {
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX (CREATE INDEX))`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX (CREATE INDEX idx))`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX (CREATE INDEX idx ON t))`)
+	ParseAndCheck(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX (CREATE INDEX s.idx ON s.t (a) TABLESPACE ts1))`)
+}
