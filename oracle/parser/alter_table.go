@@ -224,6 +224,11 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		if parseErr134 != nil {
 			return nil, parseErr134
 		}
+		// [ EXCEPTIONS INTO table ] — legal on ADD CONSTRAINT (unlike
+		// CREATE TABLE constraints), verified against Oracle 23ai.
+		if err := p.parseExceptionsIntoClause(); err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Action:     nodes.AT_ADD_CONSTRAINT,
 			Constraint: tc,

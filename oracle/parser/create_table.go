@@ -1650,24 +1650,28 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 					stmt.RowDependencies = "NOROWDEPENDENCIES"
 				case "PCTFREE":
 					p.advance() // consume PCTFREE
-					if p.cur.Type == tokICONST {
-						p.advance()
+					if p.cur.Type != tokICONST {
+						return p.syntaxErrorAtCur()
 					}
+					p.advance()
 				case "PCTUSED":
 					p.advance() // consume PCTUSED
-					if p.cur.Type == tokICONST {
-						p.advance()
+					if p.cur.Type != tokICONST {
+						return p.syntaxErrorAtCur()
 					}
+					p.advance()
 				case "INITRANS":
 					p.advance() // consume INITRANS
-					if p.cur.Type == tokICONST {
-						p.advance()
+					if p.cur.Type != tokICONST {
+						return p.syntaxErrorAtCur()
 					}
+					p.advance()
 				case "MAXTRANS":
 					p.advance() // consume MAXTRANS
-					if p.cur.Type == tokICONST {
-						p.advance()
+					if p.cur.Type != tokICONST {
+						return p.syntaxErrorAtCur()
 					}
+					p.advance()
 				case "PCTTHRESHOLD":
 					// PCTTHRESHOLD integer — index-organized tables only;
 					// Oracle rejects it on heap tables (ORA-00922).
@@ -1675,9 +1679,10 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 						return p.syntaxErrorAtCur()
 					}
 					p.advance() // consume PCTTHRESHOLD
-					if p.cur.Type == tokICONST {
-						p.advance()
+					if p.cur.Type != tokICONST {
+						return p.syntaxErrorAtCur()
 					}
+					p.advance()
 				case "COLUMN":
 					// COLUMN STORE COMPRESS FOR { QUERY | ARCHIVE } [ LOW | HIGH ]
 					next := p.peekNext()

@@ -428,3 +428,15 @@ func TestParseAlterTableModifyPKPreservesState(t *testing.T) {
 		t.Fatalf("expected Tablespace TS1 on MODIFY UNIQUE, got %+v", cmd.Constraint)
 	}
 }
+
+// TestParseAlterTableAddConstraintExceptions tests EXCEPTIONS INTO on ADD
+// CONSTRAINT, verified accepted by Oracle 23ai.
+func TestParseAlterTableAddConstraintExceptions(t *testing.T) {
+	result := ParseAndCheck(t, "ALTER TABLE t ADD CONSTRAINT pk PRIMARY KEY (a) ENABLE VALIDATE EXCEPTIONS INTO bad_rows")
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt := raw.Stmt.(*ast.AlterTableStmt)
+	cmd := stmt.Actions.Items[0].(*ast.AlterTableCmd)
+	if cmd.Action != ast.AT_ADD_CONSTRAINT || cmd.Constraint == nil {
+		t.Fatal("expected ADD_CONSTRAINT with constraint")
+	}
+}

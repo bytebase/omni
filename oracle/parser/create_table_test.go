@@ -900,3 +900,18 @@ func TestParseCreateTableUsingIndexEngineVerifiedRestrictions(t *testing.T) {
 	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX (CREATE INDEX IF NOT EXISTS idx ON t (a)))`)
 	ParseShouldFail(t, `CREATE TABLE t (a NUMBER) PCTTHRESHOLD 20`)
 }
+
+// TestParseCreateTableRound4EngineVerified locks in fourth-round review
+// findings, each cross-checked against Oracle 23ai:
+//   - PARTITION BY requires RANGE or HASH (ORA-14151)
+//   - the nested CREATE INDEX column list must be non-empty (ORA-00936)
+//   - ANNOTATIONS (...) is a valid using_index property
+//   - physical attributes require their integer operand (ORA-02209/02211)
+func TestParseCreateTableRound4EngineVerified(t *testing.T) {
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX GLOBAL PARTITION BY (a) (PARTITION p1 VALUES LESS THAN (MAXVALUE)))`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX (CREATE INDEX idx ON t ()))`)
+	ParseAndCheck(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX ANNOTATIONS (classification 'pii'))`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER) MAXTRANS`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER) PCTFREE`)
+	ParseAndCheck(t, `CREATE TABLE t (a NUMBER) PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255`)
+}

@@ -146,7 +146,11 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.Create
 			// UNIQUE | FOREIGN KEY } (cols) [RELY|NORELY] DISABLE [NOVALIDATE].
 			// View constraints are declarative only; the table-only state
 			// clauses are rejected — see parseViewConstraintState.
-			if p.isTableConstraintStart() {
+			// Unlike a CREATE TABLE column list, a view alias list has no
+			// datatype ambiguity: CONSTRAINT always starts a constraint here
+			// (a constraint name may be a nonreserved datatype word like BLOB,
+			// while a bare alias named CONSTRAINT is rejected by Oracle).
+			if p.cur.Type == kwCONSTRAINT || p.isTableConstraintStart() {
 				viewConstraint, err := p.parseTableConstraintBody()
 				if err != nil {
 					return nil, err

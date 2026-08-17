@@ -255,3 +255,20 @@ func TestParseCreateViewAliasAfterConstraint(t *testing.T) {
 		t.Fatal("expected 1 view constraint")
 	}
 }
+
+// TestParseCreateViewConstraintDatatypeName tests that a view constraint
+// whose name is a nonreserved datatype word parses (Oracle 23ai accepts
+// CONSTRAINT blob PRIMARY KEY ... on views; a bare alias named CONSTRAINT
+// is rejected by Oracle with ORA-02250).
+func TestParseCreateViewConstraintDatatypeName(t *testing.T) {
+	result := ParseAndCheck(t, `CREATE VIEW v (a, CONSTRAINT blob PRIMARY KEY (a) DISABLE) AS SELECT 1 FROM dual`)
+	raw := result.Items[0].(*ast.RawStmt)
+	cv := raw.Stmt.(*ast.CreateViewStmt)
+	if cv.Constraints == nil || cv.Constraints.Len() != 1 {
+		t.Fatal("expected 1 view constraint")
+	}
+	tc := cv.Constraints.Items[0].(*ast.TableConstraint)
+	if tc.Name != "BLOB" {
+		t.Errorf("expected constraint name BLOB, got %q", tc.Name)
+	}
+}

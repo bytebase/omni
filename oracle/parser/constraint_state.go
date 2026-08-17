@@ -134,20 +134,21 @@ func (p *Parser) parseExceptionsIntoClause() error {
 // identifiers rather than keywords. They must not be mistaken for an index
 // name after USING INDEX.
 var identLikeUsingIndexProperties = map[string]bool{
-	"PCTUSED":    true,
-	"INITRANS":   true,
-	"MAXTRANS":   true,
-	"COMPUTE":    true,
-	"NOCOMPRESS": true,
-	"SORT":       true,
-	"NOSORT":     true,
-	"VISIBLE":    true,
-	"INVISIBLE":  true,
-	"STORE":      true,
-	"INDEXING":   true,
-	"NORELY":     true,
-	"NOVALIDATE": true,
-	"EXCEPTIONS": true,
+	"PCTUSED":     true,
+	"INITRANS":    true,
+	"MAXTRANS":    true,
+	"COMPUTE":     true,
+	"NOCOMPRESS":  true,
+	"SORT":        true,
+	"NOSORT":      true,
+	"VISIBLE":     true,
+	"INVISIBLE":   true,
+	"STORE":       true,
+	"INDEXING":    true,
+	"ANNOTATIONS": true,
+	"NORELY":      true,
+	"NOVALIDATE":  true,
+	"EXCEPTIONS":  true,
 }
 
 // parseUsingIndexClause parses using_index_clause:
@@ -200,6 +201,12 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 			return p.syntaxErrorAtCur()
 		}
 		if p.cur.Type != '(' {
+			return p.syntaxErrorAtCur()
+		}
+		if p.peekNext().Type == ')' {
+			// Empty column list — Oracle raises ORA-00936. Deeper column
+			// expression validation is deliberately left to the engine.
+			p.advance()
 			return p.syntaxErrorAtCur()
 		}
 		depth := 1 // the outer '(' consumed above is still open
@@ -271,10 +278,12 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 					return p.syntaxErrorAtCur()
 				}
 				p.advance() // consume BY
-				isHash := p.cur.Type == kwHASH
-				if p.cur.Type == kwRANGE || p.cur.Type == kwHASH {
-					p.advance()
+				// Oracle requires RANGE or HASH here (ORA-14151 otherwise).
+				if p.cur.Type != kwRANGE && p.cur.Type != kwHASH {
+					return p.syntaxErrorAtCur()
 				}
+				isHash := p.cur.Type == kwHASH
+				p.advance()
 				if p.cur.Type != '(' {
 					return p.syntaxErrorAtCur()
 				}
@@ -348,6 +357,15 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 				return p.syntaxErrorAtCur()
 			}
 			p.advance()
+
+		case p.isIdentLikeStr("ANNOTATIONS"):
+			// ANNOTATIONS ( annotation [, ...] ) — accepted by Oracle 23ai
+			// inside using_index_clause.
+			p.advance()
+			if p.cur.Type != '(' {
+				return p.syntaxErrorAtCur()
+			}
+			p.skipParenthesized()
 
 		case p.cur.Type == kwLOGGING || p.cur.Type == kwNOLOGGING ||
 			p.cur.Type == kwONLINE || p.cur.Type == kwREVERSE ||
