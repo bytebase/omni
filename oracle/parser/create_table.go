@@ -1669,7 +1669,11 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt) error {
 						p.advance()
 					}
 				case "PCTTHRESHOLD":
-					// PCTTHRESHOLD integer (index-organized tables)
+					// PCTTHRESHOLD integer — index-organized tables only;
+					// Oracle rejects it on heap tables (ORA-00922).
+					if stmt.Organization != "INDEX" {
+						return p.syntaxErrorAtCur()
+					}
 					p.advance() // consume PCTTHRESHOLD
 					if p.cur.Type == tokICONST {
 						p.advance()

@@ -247,7 +247,9 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 		case p.cur.Type == kwLOCAL:
 			p.advance() // consume LOCAL
 			cs.UsingIndexLocal = true
-			// LOCAL [ STORE IN (tablespace [, ...]) ] [ (partition specs) ]
+			// LOCAL { STORE IN (tablespace [, ...]) | (partition specs) }.
+			// The two forms are mutually exclusive — Oracle 23ai raises
+			// ORA-14153 when both are given.
 			if p.isIdentLikeStr("STORE") && p.peekNext().Type == kwIN {
 				p.advance() // consume STORE
 				p.advance() // consume IN
@@ -255,8 +257,7 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 					return p.syntaxErrorAtCur()
 				}
 				p.skipParenthesized()
-			}
-			if p.cur.Type == '(' {
+			} else if p.cur.Type == '(' {
 				p.skipParenthesized()
 			}
 
@@ -270,6 +271,7 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 					return p.syntaxErrorAtCur()
 				}
 				p.advance() // consume BY
+				isHash := p.cur.Type == kwHASH
 				if p.cur.Type == kwRANGE || p.cur.Type == kwHASH {
 					p.advance()
 				}
@@ -277,8 +279,9 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 					return p.syntaxErrorAtCur()
 				}
 				p.skipParenthesized()
-				if p.isIdentLikeStr("PARTITIONS") {
-					// hash_partitions_by_quantity: PARTITIONS n [STORE IN (...)]
+				if isHash && p.isIdentLikeStr("PARTITIONS") {
+					// hash_partitions_by_quantity: PARTITIONS n [STORE IN (...)].
+					// HASH only — Oracle rejects the quantity form for RANGE.
 					p.advance() // consume PARTITIONS
 					if p.cur.Type != tokICONST {
 						return p.syntaxErrorAtCur()

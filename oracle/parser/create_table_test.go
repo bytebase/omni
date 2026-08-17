@@ -883,3 +883,20 @@ func TestParseCreateTableUsingIndexParenStructure(t *testing.T) {
 	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX (CREATE INDEX idx ON t))`)
 	ParseAndCheck(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX (CREATE INDEX s.idx ON s.t (a) TABLESPACE ts1))`)
 }
+
+// TestParseCreateTableUsingIndexEngineVerifiedRestrictions locks in
+// behavior cross-checked against Oracle 23ai for the third review round:
+//   - PARTITIONS quantity is HASH-only (RANGE rejected, ORA-00906)
+//   - LOCAL STORE IN and explicit partition specs are mutually exclusive
+//     (ORA-14153 / ORA-03075)
+//   - IF NOT EXISTS is NOT accepted inside the nested CREATE INDEX form
+//     (ORA-00969), although it is valid in a standalone CREATE INDEX
+//   - PCTTHRESHOLD requires ORGANIZATION INDEX (ORA-00922 on heap tables)
+func TestParseCreateTableUsingIndexEngineVerifiedRestrictions(t *testing.T) {
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX GLOBAL PARTITION BY RANGE (a) PARTITIONS 4)`)
+	ParseAndCheck(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX GLOBAL PARTITION BY RANGE (a) (PARTITION p1 VALUES LESS THAN (MAXVALUE)))`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX LOCAL (PARTITION p1) STORE IN (ts1)) PARTITION BY HASH (a) PARTITIONS 2`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX LOCAL STORE IN (ts1) (PARTITION p1)) PARTITION BY HASH (a) PARTITIONS 2`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX (CREATE INDEX IF NOT EXISTS idx ON t (a)))`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER) PCTTHRESHOLD 20`)
+}

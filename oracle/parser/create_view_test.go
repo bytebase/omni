@@ -231,3 +231,27 @@ func TestParseCreateViewConstraintStateRestrictions(t *testing.T) {
 	ParseShouldFail(t, `ALTER VIEW v ADD CONSTRAINT uq UNIQUE (b) ENABLE`)
 	ParseAndCheck(t, `ALTER VIEW v ADD CONSTRAINT uq UNIQUE (b) RELY DISABLE NOVALIDATE`)
 }
+
+// TestParseCreateMaterializedViewTrustedRequiresRefresh tests that USING
+// TRUSTED/ENFORCED CONSTRAINTS is only accepted after a REFRESH clause,
+// matching Oracle 23ai (ORA-00906 for the standalone form).
+func TestParseCreateMaterializedViewTrustedRequiresRefresh(t *testing.T) {
+	ParseAndCheck(t, `CREATE MATERIALIZED VIEW mv REFRESH FORCE USING TRUSTED CONSTRAINTS AS SELECT * FROM t`)
+	ParseShouldFail(t, `CREATE MATERIALIZED VIEW mv USING TRUSTED CONSTRAINTS AS SELECT * FROM t`)
+	ParseShouldFail(t, `CREATE MATERIALIZED VIEW mv USING ENFORCED CONSTRAINTS AS SELECT * FROM t`)
+}
+
+// TestParseCreateViewAliasAfterConstraint locks in engine-verified behavior:
+// Oracle 23ai accepts column aliases after an out-of-line view constraint,
+// contrary to the documented BNF ordering.
+func TestParseCreateViewAliasAfterConstraint(t *testing.T) {
+	result := ParseAndCheck(t, `CREATE VIEW v (a, PRIMARY KEY (a) DISABLE, b) AS SELECT 1, 2 FROM dual`)
+	raw := result.Items[0].(*ast.RawStmt)
+	cv := raw.Stmt.(*ast.CreateViewStmt)
+	if cv.Columns == nil || cv.Columns.Len() != 2 {
+		t.Fatalf("expected 2 column aliases, got %v", cv.Columns)
+	}
+	if cv.Constraints == nil || cv.Constraints.Len() != 1 {
+		t.Fatal("expected 1 view constraint")
+	}
+}

@@ -294,6 +294,7 @@ func (p *Parser) finishCreateViewStmt(stmt *nodes.CreateViewStmt) (*nodes.Create
 
 // parseMaterializedViewOptions parses BUILD, REFRESH, and other options for materialized views.
 func (p *Parser) parseMaterializedViewOptions(stmt *nodes.CreateViewStmt) error {
+	seenRefresh := false
 	for {
 		switch {
 		case p.isIdentLike() && p.cur.Str == "BUILD":
@@ -343,6 +344,7 @@ func (p *Parser) parseMaterializedViewOptions(stmt *nodes.CreateViewStmt) error 
 			stmt.NeverRefresh = true
 
 		case p.cur.Type == kwREFRESH:
+			seenRefresh = true
 			p.advance()
 			// FAST | COMPLETE | FORCE
 			if p.isIdentLike() && p.cur.Str == "FAST" {
@@ -441,9 +443,10 @@ func (p *Parser) parseMaterializedViewOptions(stmt *nodes.CreateViewStmt) error 
 			}
 			p.advance() // consume INDEX
 
-		case p.cur.Type == kwUSING &&
+		case seenRefresh && p.cur.Type == kwUSING &&
 			(p.isIdentLikeStrAt(p.peekNext(), "TRUSTED") || p.isIdentLikeStrAt(p.peekNext(), "ENFORCED")):
-			// USING { TRUSTED | ENFORCED } CONSTRAINTS
+			// USING { TRUSTED | ENFORCED } CONSTRAINTS — part of create_mv_refresh;
+			// Oracle rejects it without a preceding REFRESH clause.
 			p.advance() // consume USING
 			p.advance() // consume TRUSTED/ENFORCED
 			if p.cur.Type != kwCONSTRAINTS {
