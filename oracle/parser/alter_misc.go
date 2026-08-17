@@ -1333,12 +1333,15 @@ func (p *Parser) parseAlterMaterializedViewStmt(start int) (nodes.StmtNode, erro
 		p.advance()
 
 	case p.cur.Type == kwUSING && p.peekNext().Type == kwINDEX:
-		// USING INDEX index_properties. Deliberately lenient: Oracle 23ai
-		// rejects PCTFREE here (ORA-02243) while accepting INITRANS/STORAGE,
-		// but this parser accepts the full property set.
+		// USING INDEX index_properties (properties only, like CREATE MV).
+		// Deliberately lenient: Oracle 23ai rejects PCTFREE here (ORA-02243)
+		// while accepting INITRANS/STORAGE, but this parser accepts the full
+		// property set.
 		stmt.Action = "USING_INDEX"
+		p.advance() // consume USING
+		p.advance() // consume INDEX
 		var cs constraintState
-		if err := p.parseUsingIndexClause(&cs); err != nil {
+		if err := p.parseUsingIndexProperties(&cs); err != nil {
 			return nil, err
 		}
 

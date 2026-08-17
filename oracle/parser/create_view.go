@@ -432,9 +432,13 @@ func (p *Parser) parseMaterializedViewOptions(stmt *nodes.CreateViewStmt) error 
 			}
 
 		case p.cur.Type == kwUSING && p.peekNext().Type == kwINDEX:
-			// USING INDEX index_properties (default index storage for the mview)
+			// USING INDEX index_properties (default index storage for the
+			// mview). Properties only: Oracle rejects an index name or a
+			// nested CREATE INDEX here (ORA-02000).
+			p.advance() // consume USING
+			p.advance() // consume INDEX
 			var cs constraintState
-			if err := p.parseUsingIndexClause(&cs); err != nil {
+			if err := p.parseUsingIndexProperties(&cs); err != nil {
 				return err
 			}
 

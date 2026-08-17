@@ -915,3 +915,16 @@ func TestParseCreateTableRound4EngineVerified(t *testing.T) {
 	ParseShouldFail(t, `CREATE TABLE t (a NUMBER) PCTFREE`)
 	ParseAndCheck(t, `CREATE TABLE t (a NUMBER) PCTFREE 10 PCTUSED 40 INITRANS 1 MAXTRANS 255`)
 }
+
+// TestParseCreateTableRound5EngineVerified locks in fifth-round review
+// dispositions, each cross-checked against Oracle 23ai:
+//   - bare USING INDEX GLOBAL is ACCEPTED by Oracle (review claim refuted)
+//   - a property-word schema qualifier (store.idx) is REJECTED by Oracle
+//     with ORA-03075 — Oracle's own parser gives property words precedence
+//     (review claim refuted)
+//   - PCTUSED inside using_index_clause is rejected (ORA-14071)
+func TestParseCreateTableRound5EngineVerified(t *testing.T) {
+	ParseAndCheck(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX GLOBAL)`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX store.idx)`)
+	ParseShouldFail(t, `CREATE TABLE t (a NUMBER, CONSTRAINT pk PRIMARY KEY (a) USING INDEX PCTUSED 40)`)
+}

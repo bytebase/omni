@@ -272,3 +272,12 @@ func TestParseCreateViewConstraintDatatypeName(t *testing.T) {
 		t.Errorf("expected constraint name BLOB, got %q", tc.Name)
 	}
 }
+
+// TestParseCreateMaterializedViewUsingIndexPropertiesOnly tests that mview
+// USING INDEX accepts only index properties — Oracle rejects an index name
+// or a nested CREATE INDEX there (ORA-02000, verified on 23ai).
+func TestParseCreateMaterializedViewUsingIndexPropertiesOnly(t *testing.T) {
+	ParseShouldFail(t, `CREATE MATERIALIZED VIEW mv USING INDEX existing_idx AS SELECT * FROM t`)
+	ParseShouldFail(t, `CREATE MATERIALIZED VIEW mv USING INDEX (CREATE INDEX cidx ON mv (id)) AS SELECT * FROM t`)
+	ParseAndCheck(t, `CREATE MATERIALIZED VIEW mv USING INDEX INITRANS 2 STORAGE (NEXT 1M) AS SELECT * FROM t`)
+}

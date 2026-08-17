@@ -238,6 +238,13 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 	}
 
 	// index_properties
+	return p.parseUsingIndexProperties(cs)
+}
+
+// parseUsingIndexProperties parses the index_properties alternative of
+// using_index_clause. Materialized-view USING INDEX accepts only this form —
+// Oracle rejects an index name or a nested CREATE INDEX there (ORA-02000).
+func (p *Parser) parseUsingIndexProperties(cs *constraintState) error {
 	for {
 		switch {
 		case p.cur.Type == kwTABLESPACE:
@@ -309,7 +316,7 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 				}
 			}
 
-		case p.cur.Type == kwPCTFREE || p.isIdentLikeStr("PCTUSED") ||
+		case p.cur.Type == kwPCTFREE ||
 			p.isIdentLikeStr("INITRANS") || p.isIdentLikeStr("MAXTRANS"):
 			p.advance()
 			if p.cur.Type != tokICONST {
