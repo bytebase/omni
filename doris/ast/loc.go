@@ -54,6 +54,18 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *CastExpr:
 		return v.Loc
+	case *ExtractExpr:
+		return v.Loc
+	case *VariableRef:
+		return v.Loc
+	case *LambdaExpr:
+		return v.Loc
+	case *ArrayLiteral:
+		return v.Loc
+	case *MapLiteral:
+		return v.Loc
+	case *MapEntry:
+		return v.Loc
 	case *CaseExpr:
 		return v.Loc
 	case *WhenClause:

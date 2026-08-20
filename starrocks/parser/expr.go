@@ -413,6 +413,10 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 		}
 		return p.parseIdentExpr()
 
+	case int('{'):
+		// Untyped map constructor: { k: v, ... }.
+		return p.finishMapLiteral(p.cur.Loc.Start, nil)
+
 	case int('['):
 		// Untyped array constructor: [ e, ... ].
 		return p.finishArrayLiteral(p.cur.Loc.Start, nil)
@@ -426,11 +430,27 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 	case kwTRY_CAST:
 		return p.parseCastExpr(true)
 
+	case kwCONVERT:
+		// CONVERT is non-reserved, so only treat it specially when applied.
+		if p.peekNext().Kind == int('(') {
+			return p.parseConvertExpr()
+		}
+		return p.parseIdentExpr()
+
+	case kwEXTRACT:
+		return p.parseExtractExpr()
+
 	// Nilary functions: CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP,
 	// CURRENT_USER, SESSION_USER, LOCALTIME, LOCALTIMESTAMP.
 	case kwCURRENT_DATE, kwCURRENT_TIME, kwCURRENT_TIMESTAMP,
 		kwCURRENT_USER, kwSESSION_USER, kwLOCALTIME, kwLOCALTIMESTAMP:
 		return p.parseNilaryFunction()
+
+	case tokDoubleAt:
+		return p.parseVariableRef(true)
+
+	case int('@'):
+		return p.parseVariableRef(false)
 
 	case tokPlaceholder:
 		tok := p.advance()
@@ -441,6 +461,15 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 		}, nil
 
 	default:
+		// A reserved keyword that the grammar still allows as a function name,
+		// but only when it is immediately applied: `TRIM(s)` is a call,
+		// `LEFT JOIN` is not.
+		if isFunctionNameKeyword(p.cur.Kind) && p.peekNext().Kind == int('(') {
+			tok := p.advance()
+			name := &ast.ObjectName{Parts: []string{strings.ToUpper(tok.Str)}, Loc: tok.Loc}
+			return p.parseFuncCall(name)
+		}
+
 		// Identifier-based: column ref or function call.
 		if p.isExprIdentToken() {
 			return p.parseIdentExpr()
@@ -448,6 +477,20 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 
 		return nil, p.syntaxErrorAtCur()
 	}
+}
+
+// isFunctionNameKeyword reports whether kind is a reserved keyword that is
+// nonetheless usable as a function name. It mirrors the grammar's
+// functionNameIdentifier rule; without it `IF(a,1,2)`, `LEFT(s,2)`, `TRIM(s)`
+// and `DATABASE()` all fail to parse even though the engine accepts them.
+func isFunctionNameKeyword(kind TokenKind) bool {
+	switch kind {
+	case kwADD, kwCONNECTION_ID, kwCURRENT_CATALOG, kwCURRENT_USER, kwDATABASE,
+		kwIF, kwLEFT, kwLIKE, kwPASSWORD, kwREGEXP, kwRIGHT, kwSCHEMA,
+		kwSESSION_USER, kwTRIM, kwUSER:
+		return true
+	}
+	return false
 }
 
 // isExprIdentToken reports whether the current token is usable as an identifier
@@ -599,7 +642,7 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 	}
 
 	if p.cur.Kind != int(')') {
-		args, err := p.parseExprList()
+		args, err := p.parseFuncArgList()
 		if err != nil {
 			return nil, err
 		}
@@ -619,6 +662,17 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 				}
 				fc.Args = append(fc.Args, arg)
 			}
+		}
+
+		// Trailing USING charset, as in CHAR(65 USING utf8). parseExprList
+		// stops at USING because it is not a comma, so it is consumed here.
+		if p.cur.Kind == kwUSING {
+			p.advance() // consume USING
+			charset, ok := p.identOrKeywordToken()
+			if !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+			fc.Using = strings.ToUpper(charset.Str)
 		}
 
 		// Optional ORDER BY within aggregate functions (e.g., GROUP_CONCAT)
@@ -853,6 +907,33 @@ func (p *Parser) parseWindowFrameBound() (string, ast.Node, error) {
 			return "", nil, &ParseError{Loc: p.cur.Loc, Msg: "expected PRECEDING or FOLLOWING in window frame bound"}
 		}
 	}
+}
+
+// parseFuncArgList parses a function-call argument list. Unlike a plain
+// expression list it also accepts a lambda (`x -> body`), which the grammar
+// permits only here, as an argument to a higher-order array function. Keeping
+// lambdas scoped to this position means a stray `->` anywhere else stays a
+// syntax error — matching the engine, which has no `->` JSON operator.
+func (p *Parser) parseFuncArgList() ([]ast.Node, error) {
+	var list []ast.Node
+	for {
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if p.cur.Kind == tokArrow {
+			expr, err = p.parseLambdaExpr(expr)
+			if err != nil {
+				return nil, err
+			}
+		}
+		list = append(list, expr)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	return list, nil
 }
 
 // parseExprList parses a comma-separated list of expressions.
@@ -1101,6 +1182,222 @@ func (p *Parser) parseCastExpr(tryCast bool) (*ast.CastExpr, error) {
 	}, nil
 }
 
+// parseExtractExpr parses EXTRACT(unit FROM expr).
+//
+// EXTRACT is a reserved keyword, so without a production for it the whole
+// statement fails to parse at the EXTRACT token.
+func (p *Parser) parseExtractExpr() (ast.Node, error) {
+	extractTok := p.advance() // consume EXTRACT
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	unit, err := p.parseExtractUnit()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	return &ast.ExtractExpr{
+		Expr: expr,
+		Unit: unit,
+		Loc:  ast.Loc{Start: extractTok.Loc.Start, End: closeTok.Loc.End},
+	}, nil
+}
+
+// parseExtractUnit parses the unit of EXTRACT(unit FROM expr).
+//
+// The grammar takes an identifier, which covers plain identifiers (DAYOFWEEK,
+// DOY, ...) and the non-reserved unit keywords (YEAR, MONTH, WEEK, ...). The
+// compound units DAY_HOUR, DAY_SECOND and MINUTE_SECOND lex as reserved
+// keywords, so they are accepted explicitly.
+func (p *Parser) parseExtractUnit() (string, error) {
+	switch p.cur.Kind {
+	case kwDAY_HOUR, kwDAY_SECOND, kwMINUTE_SECOND:
+		tok := p.advance()
+		return strings.ToUpper(tok.Str), nil
+	default:
+		if p.isExprIdentToken() {
+			tok := p.advance()
+			return strings.ToUpper(tok.Str), nil
+		}
+		return "", &ParseError{
+			Loc: p.cur.Loc,
+			Msg: fmt.Sprintf("expected EXTRACT unit, got %q", p.cur.Str),
+		}
+	}
+}
+
+// parseLambdaExpr parses `params -> body`, given the already-parsed expression
+// to the left of the arrow.
+func (p *Parser) parseLambdaExpr(left ast.Node) (ast.Node, error) {
+	arrowTok := p.advance() // consume '->'
+
+	params, ok := lambdaParams(left)
+	if !ok {
+		return nil, &ParseError{
+			Loc: arrowTok.Loc,
+			Msg: "invalid lambda parameter list before '->'",
+		}
+	}
+	body, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	return &ast.LambdaExpr{
+		Params: params,
+		Body:   body,
+		Loc:    ast.Loc{Start: ast.NodeLoc(left).Start, End: ast.NodeLoc(body).End},
+	}, nil
+}
+
+// lambdaParams extracts parameter names from the expression left of '->'. The
+// parameters parse as ordinary column references (`x`, or `(x, y)` as a
+// parenthesized row), so they are reinterpreted here rather than lexed
+// specially.
+func lambdaParams(n ast.Node) ([]string, bool) {
+	switch v := n.(type) {
+	case *ast.ColumnRef:
+		if v.Name == nil || len(v.Name.Parts) != 1 {
+			return nil, false
+		}
+		return []string{v.Name.Parts[0]}, true
+	case *ast.ParenExpr:
+		// `(x) -> ...`. The multi-parameter form `(x, y) -> ...` is not
+		// supported: a parenthesized list is not an expression here, so the
+		// parameters never reach this point as a single node.
+		return lambdaParams(v.Expr)
+	}
+	return nil, false
+}
+
+// parseGroupingElementCall parses a reserved-keyword grouping element such as
+// CUBE(a, b) as a function call, keeping GROUP BY items uniform with ROLLUP and
+// GROUPING SETS (both non-reserved, so they already take the expression path).
+func (p *Parser) parseGroupingElementCall() (*ast.FuncCallExpr, error) {
+	tok := p.advance()
+	name := &ast.ObjectName{Parts: []string{strings.ToUpper(tok.Str)}, Loc: tok.Loc}
+	return p.parseFuncCall(name)
+}
+
+// parseConvertExpr parses the two CONVERT forms:
+//
+//	CONVERT(expr USING charset)  -- transcoding; kept as a CONVERT call
+//	CONVERT(expr, type)          -- CAST spelled differently, so it becomes a CastExpr
+func (p *Parser) parseConvertExpr() (ast.Node, error) {
+	convertTok := p.advance() // consume CONVERT
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.cur.Kind == kwUSING {
+		p.advance() // consume USING
+		charset, ok := p.identOrKeywordToken()
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		closeTok, err := p.expect(int(')'))
+		if err != nil {
+			return nil, err
+		}
+		return &ast.FuncCallExpr{
+			Name:  &ast.ObjectName{Parts: []string{"CONVERT"}, Loc: convertTok.Loc},
+			Args:  []ast.Node{expr},
+			Using: strings.ToUpper(charset.Str),
+			Loc:   ast.Loc{Start: convertTok.Loc.Start, End: closeTok.Loc.End},
+		}, nil
+	}
+
+	if _, err := p.expect(int(',')); err != nil {
+		return nil, err
+	}
+	typeName, err := p.parseConvertTargetType()
+	if err != nil {
+		return nil, err
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	return &ast.CastExpr{
+		Expr:     expr,
+		TypeName: typeName,
+		Loc:      ast.Loc{Start: convertTok.Loc.Start, End: closeTok.Loc.End},
+	}, nil
+}
+
+// parseConvertTargetType parses the target type of CONVERT(expr, type). It
+// additionally accepts SIGNED / UNSIGNED [INTEGER], which are cast-only type
+// names rather than column types and so are unknown to parseDataType.
+func (p *Parser) parseConvertTargetType() (*ast.TypeName, error) {
+	switch p.cur.Kind {
+	case kwSIGNED, kwUNSIGNED:
+		tok := p.advance()
+		tn := &ast.TypeName{Name: strings.ToUpper(tok.Str), Loc: tok.Loc}
+		if p.cur.Kind == kwINTEGER || p.cur.Kind == kwINT {
+			end := p.advance()
+			tn.Loc.End = end.Loc.End
+		}
+		return tn, nil
+	}
+	return p.parseDataType()
+}
+
+// parseVariableRef parses a system variable (@@name, @@scope.name) or a
+// user-defined variable (@name).
+func (p *Parser) parseVariableRef(system bool) (ast.Node, error) {
+	atTok := p.advance() // consume '@@' or '@'
+
+	first, ok := p.identOrKeywordToken()
+	if !ok {
+		return nil, p.syntaxErrorAtCur()
+	}
+	v := &ast.VariableRef{
+		System: system,
+		Name:   first.Str,
+		Loc:    ast.Loc{Start: atTok.Loc.Start, End: first.Loc.End},
+	}
+	// @@session.x / @@global.x — the scope qualifier only exists for system
+	// variables.
+	if system && p.cur.Kind == int('.') {
+		p.advance() // consume '.'
+		second, ok := p.identOrKeywordToken()
+		if !ok {
+			return nil, p.syntaxErrorAtCur()
+		}
+		v.Scope = strings.ToUpper(v.Name)
+		v.Name = second.Str
+		v.Loc.End = second.Loc.End
+	}
+	return v, nil
+}
+
+// identOrKeywordToken accepts any identifier- or keyword-shaped token, for
+// positions where there is no ambiguity: after an @ / @@ prefix, or after
+// USING. Scope names (SESSION, GLOBAL), charset names and many variable names
+// are themselves keywords.
+func (p *Parser) identOrKeywordToken() (Token, bool) {
+	switch {
+	case p.cur.Kind == tokIdent || p.cur.Kind == tokQuotedIdent:
+		return p.advance(), true
+	case p.cur.Kind >= 700: // any keyword
+		return p.advance(), true
+	}
+	return Token{}, false
+}
+
 // parseNilaryFunction parses zero-argument keyword functions like
 // CURRENT_DATE, CURRENT_TIMESTAMP, etc.
 func (p *Parser) parseNilaryFunction() (ast.Node, error) {
@@ -1118,6 +1415,14 @@ func (p *Parser) parseNilaryFunction() (ast.Node, error) {
 	}
 	if p.cur.Kind == int('(') {
 		p.advance() // consume '('
+		// Optional fractional-seconds precision: CURRENT_TIMESTAMP(3).
+		if p.cur.Kind != int(')') {
+			args, err := p.parseExprList()
+			if err != nil {
+				return nil, err
+			}
+			fc.Args = args
+		}
 		closeTok, err := p.expect(int(')'))
 		if err != nil {
 			return nil, err

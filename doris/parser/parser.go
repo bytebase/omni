@@ -26,6 +26,24 @@ type Parser struct {
 	errors     []ParseError // collected errors for best-effort mode
 }
 
+// nextToken returns the next token from the lexer, transparently skipping
+// optimizer-hint spans (/*+ ... */). Hints carry no syntax of their own that
+// any production needs to see, so skipping them here keeps every production
+// hint-agnostic instead of threading an optional hint through each one.
+func (p *Parser) nextToken() Token {
+	tok := p.lexer.NextToken()
+	for tok.Kind == tokHintStart {
+		for tok.Kind != tokHintEnd && tok.Kind != tokEOF {
+			tok = p.lexer.NextToken()
+		}
+		if tok.Kind == tokEOF {
+			return tok
+		}
+		tok = p.lexer.NextToken()
+	}
+	return tok
+}
+
 // advance consumes the current token and moves to the next one.
 // Returns the token that was just consumed (the new "previous" token).
 func (p *Parser) advance() Token {
@@ -34,7 +52,7 @@ func (p *Parser) advance() Token {
 		p.cur = p.nextBuf
 		p.hasNext = false
 	} else {
-		p.cur = p.lexer.NextToken()
+		p.cur = p.nextToken()
 	}
 	return p.prev
 }
@@ -49,7 +67,7 @@ func (p *Parser) peek() Token {
 // token following the current position.
 func (p *Parser) peekNext() Token {
 	if !p.hasNext {
-		p.nextBuf = p.lexer.NextToken()
+		p.nextBuf = p.nextToken()
 		p.hasNext = true
 	}
 	return p.nextBuf

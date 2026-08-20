@@ -831,6 +831,16 @@ func (p *Parser) parseGroupByClause() ([]ast.Node, error) {
 		return nil, err
 	}
 
+	// CUBE is a reserved keyword, so `GROUP BY CUBE(a, b)` cannot reach the
+	// ordinary expression path the way ROLLUP and GROUPING SETS do.
+	if p.cur.Kind == kwCUBE && p.peekNext().Kind == int('(') {
+		fc, err := p.parseGroupingElementCall()
+		if err != nil {
+			return nil, err
+		}
+		return []ast.Node{fc}, nil
+	}
+
 	return p.parseExprList()
 }
 

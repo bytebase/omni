@@ -103,6 +103,26 @@ func walkChildren(v Visitor, node Node) {
 	case *CastExpr:
 		Walk(v, n.Expr)
 		Walk(v, n.TypeName)
+	case *ExtractExpr:
+		Walk(v, n.Expr)
+	case *VariableRef:
+		// leaf
+	case *LambdaExpr:
+		Walk(v, n.Body)
+	case *ArrayLiteral:
+		if n.ElemType != nil {
+			Walk(v, n.ElemType)
+		}
+		for _, e := range n.Elements {
+			Walk(v, e)
+		}
+	case *MapLiteral:
+		for _, e := range n.Entries {
+			Walk(v, e)
+		}
+	case *MapEntry:
+		Walk(v, n.Key)
+		Walk(v, n.Value)
 	case *CaseExpr:
 		if n.Operand != nil {
 			Walk(v, n.Operand)

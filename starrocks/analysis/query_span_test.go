@@ -493,3 +493,49 @@ func TestGetQuerySpan_IntersectOuterOrderBySubquery(t *testing.T) {
 		}
 	}
 }
+
+func TestGetQuerySpan_ExtractSourceColumns(t *testing.T) {
+	// EXTRACT(unit FROM col) must expose col as a source column so masking and
+	// lineage see through the expression.
+	span, err := GetQuerySpan("SELECT EXTRACT(YEAR FROM created_at) AS y FROM t")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.Results) != 1 {
+		t.Fatalf("Results len = %d, want 1 (%+v)", len(span.Results), span.Results)
+	}
+	r := span.Results[0]
+	if r.Name != "y" {
+		t.Errorf("Results[0].Name = %q, want y", r.Name)
+	}
+	want := []ColumnRef{{Column: "created_at"}}
+	if len(r.SourceColumns) != len(want) {
+		t.Fatalf("SourceColumns = %+v, want %+v", r.SourceColumns, want)
+	}
+	for i, w := range want {
+		if r.SourceColumns[i] != w {
+			t.Errorf("SourceColumns[%d] = %+v, want %+v", i, r.SourceColumns[i], w)
+		}
+	}
+}
+
+func TestGetQuerySpan_LambdaAndArraySourceColumns(t *testing.T) {
+	// Columns referenced inside a lambda body and inside an array literal must
+	// still reach lineage — the walker has to descend into both node types.
+	span, err := GetQuerySpan("SELECT array_map(x -> x + bonus, scores) AS adj FROM t")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.Results) != 1 {
+		t.Fatalf("Results len = %d, want 1 (%+v)", len(span.Results), span.Results)
+	}
+	got := map[string]bool{}
+	for _, sc := range span.Results[0].SourceColumns {
+		got[sc.Column] = true
+	}
+	for _, want := range []string{"bonus", "scores"} {
+		if !got[want] {
+			t.Errorf("SourceColumns %+v missing %q", span.Results[0].SourceColumns, want)
+		}
+	}
+}

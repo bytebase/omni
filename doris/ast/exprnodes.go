@@ -98,6 +98,7 @@ const (
 	UnaryPlus                   // +
 	UnaryBitNot                 // ~
 	UnaryNot                    // NOT
+	UnaryBinary                 // BINARY
 )
 
 // String returns the SQL text form of the unary operator.
@@ -126,6 +127,8 @@ const (
 	LitBool                   // TRUE or FALSE
 	LitNull                   // NULL
 	LitKeyword                // keyword used as literal value, e.g. DEFAULT
+	LitHex                    // hex literal, X'1f'
+	LitBit                    // bit literal, B'101'
 )
 
 // CaseKind classifies a CASE expression as simple or searched.
@@ -233,6 +236,7 @@ type FuncCallExpr struct {
 	Star     bool   // COUNT(*)
 	OrderBy  []*OrderByItem // optional ORDER BY in aggregate (GROUP_CONCAT)
 	Separator string // optional SEPARATOR value for GROUP_CONCAT
+	Using     string // optional USING charset, as in CONVERT(x USING utf8)
 	Over     *WindowSpec // optional OVER (...) window specification
 	Loc      Loc
 }
@@ -283,6 +287,79 @@ type CastExpr struct {
 func (n *CastExpr) Tag() NodeTag { return T_CastExpr }
 
 var _ Node = (*CastExpr)(nil)
+
+// ExtractExpr represents EXTRACT(unit FROM expr).
+//
+// The grammar takes the unit as an identifier
+// (EXTRACT '(' field=identifier FROM source=valueExpression ')'), so Unit holds
+// the upper-cased source text rather than a closed enum.
+type ExtractExpr struct {
+	Expr Node
+	Unit string // e.g., "YEAR", "MONTH", "DAY_HOUR"
+	Loc  Loc
+}
+
+func (n *ExtractExpr) Tag() NodeTag { return T_ExtractExpr }
+
+var _ Node = (*ExtractExpr)(nil)
+
+// VariableRef represents a system variable (@@name, @@session.name,
+// @@global.name) or a user-defined variable (@name). It is deliberately not a
+// ColumnRef so that lineage and masking do not mistake it for a column.
+type VariableRef struct {
+	Name   string // variable name, without the @/@@ prefix and scope qualifier
+	Scope  string // "SESSION" or "GLOBAL"; empty when unqualified
+	System bool   // true for @@ (system) variables, false for @ (user) variables
+	Loc    Loc
+}
+
+func (n *VariableRef) Tag() NodeTag { return T_VariableRef }
+
+var _ Node = (*VariableRef)(nil)
+
+// LambdaExpr represents a lambda passed to a higher-order array function:
+// `x -> x + 1` or `(x, y) -> x + y`.
+type LambdaExpr struct {
+	Params []string
+	Body   Node
+	Loc    Loc
+}
+
+func (n *LambdaExpr) Tag() NodeTag { return T_LambdaExpr }
+
+var _ Node = (*LambdaExpr)(nil)
+
+// ArrayLiteral represents an array constructor: [e, ...].
+type ArrayLiteral struct {
+	ElemType *TypeName // array<t> element type for the typed form; nil for [...]
+	Elements []Node
+	Loc      Loc
+}
+
+func (n *ArrayLiteral) Tag() NodeTag { return T_ArrayLiteral }
+
+var _ Node = (*ArrayLiteral)(nil)
+
+// MapLiteral represents a map constructor: {k: v, ...}.
+type MapLiteral struct {
+	Entries []*MapEntry
+	Loc     Loc
+}
+
+func (n *MapLiteral) Tag() NodeTag { return T_MapLiteral }
+
+var _ Node = (*MapLiteral)(nil)
+
+// MapEntry is one key:value pair inside a MapLiteral.
+type MapEntry struct {
+	Key   Node
+	Value Node
+	Loc   Loc
+}
+
+func (n *MapEntry) Tag() NodeTag { return T_MapEntry }
+
+var _ Node = (*MapEntry)(nil)
 
 // CaseExpr represents CASE [operand] WHEN...THEN...ELSE...END.
 type CaseExpr struct {

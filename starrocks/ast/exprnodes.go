@@ -238,6 +238,7 @@ type FuncCallExpr struct {
 	Star     bool   // COUNT(*)
 	OrderBy  []*OrderByItem // optional ORDER BY in aggregate (GROUP_CONCAT)
 	Separator string // optional SEPARATOR value for GROUP_CONCAT
+	Using     string // optional USING charset, as in CONVERT(x USING utf8)
 	IgnoreNulls bool // IGNORE NULLS null-treatment (FIRST_VALUE/LAST_VALUE/LEAD/LAG)
 	Over     *WindowSpec // optional OVER (...) window specification
 	Loc      Loc
@@ -289,6 +290,47 @@ type CastExpr struct {
 func (n *CastExpr) Tag() NodeTag { return T_CastExpr }
 
 var _ Node = (*CastExpr)(nil)
+
+// ExtractExpr represents EXTRACT(unit FROM expr).
+//
+// The grammar takes the unit as an identifier
+// (EXTRACT '(' field=identifier FROM source=valueExpression ')'), so Unit holds
+// the upper-cased source text rather than a closed enum.
+type ExtractExpr struct {
+	Expr Node
+	Unit string // e.g., "YEAR", "MONTH", "DAY_HOUR"
+	Loc  Loc
+}
+
+func (n *ExtractExpr) Tag() NodeTag { return T_ExtractExpr }
+
+var _ Node = (*ExtractExpr)(nil)
+
+// VariableRef represents a system variable (@@name, @@session.name,
+// @@global.name) or a user-defined variable (@name). It is deliberately not a
+// ColumnRef so that lineage and masking do not mistake it for a column.
+type VariableRef struct {
+	Name   string // variable name, without the @/@@ prefix and scope qualifier
+	Scope  string // "SESSION" or "GLOBAL"; empty when unqualified
+	System bool   // true for @@ (system) variables, false for @ (user) variables
+	Loc    Loc
+}
+
+func (n *VariableRef) Tag() NodeTag { return T_VariableRef }
+
+var _ Node = (*VariableRef)(nil)
+
+// LambdaExpr represents a lambda passed to a higher-order array function:
+// `x -> x + 1` or `(x, y) -> x + y`.
+type LambdaExpr struct {
+	Params []string
+	Body   Node
+	Loc    Loc
+}
+
+func (n *LambdaExpr) Tag() NodeTag { return T_LambdaExpr }
+
+var _ Node = (*LambdaExpr)(nil)
 
 // CaseExpr represents CASE [operand] WHEN...THEN...ELSE...END.
 type CaseExpr struct {
