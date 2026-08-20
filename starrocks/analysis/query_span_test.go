@@ -519,23 +519,57 @@ func TestGetQuerySpan_ExtractSourceColumns(t *testing.T) {
 	}
 }
 
-func TestGetQuerySpan_LambdaAndArraySourceColumns(t *testing.T) {
-	// Columns referenced inside a lambda body and inside an array literal must
-	// still reach lineage — the walker has to descend into both node types.
-	span, err := GetQuerySpan("SELECT array_map(x -> x + bonus, scores) AS adj FROM t")
-	if err != nil {
-		t.Fatalf("GetQuerySpan returned error: %v", err)
+func TestGetQuerySpan_LambdaSourceColumns(t *testing.T) {
+	// Columns referenced inside a lambda body must reach lineage, but the
+	// lambda's own parameters must not: they are local bindings, not columns,
+	// and reporting one would feed a nonexistent column to masking.
+	tests := []struct {
+		name    string
+		sql     string
+		want    []string
+		notWant []string
+	}{
+		{
+			name:    "single parameter",
+			sql:     "SELECT array_map(x -> x + bonus, scores) AS adj FROM t",
+			want:    []string{"bonus", "scores"},
+			notWant: []string{"x"},
+		},
+		{
+			name:    "multiple parameters",
+			sql:     "SELECT array_map((x, y) -> x + y + bonus, a, b) AS adj FROM t",
+			want:    []string{"bonus", "a", "b"},
+			notWant: []string{"x", "y"},
+		},
+		{
+			name: "qualified name is a column even when it shadows a parameter",
+			sql:  "SELECT array_map(x -> t.x + bonus, scores) AS adj FROM t",
+			want: []string{"x", "bonus", "scores"},
+		},
 	}
-	if len(span.Results) != 1 {
-		t.Fatalf("Results len = %d, want 1 (%+v)", len(span.Results), span.Results)
-	}
-	got := map[string]bool{}
-	for _, sc := range span.Results[0].SourceColumns {
-		got[sc.Column] = true
-	}
-	for _, want := range []string{"bonus", "scores"} {
-		if !got[want] {
-			t.Errorf("SourceColumns %+v missing %q", span.Results[0].SourceColumns, want)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			span, err := GetQuerySpan(tt.sql)
+			if err != nil {
+				t.Fatalf("GetQuerySpan returned error: %v", err)
+			}
+			if len(span.Results) != 1 {
+				t.Fatalf("Results len = %d, want 1 (%+v)", len(span.Results), span.Results)
+			}
+			got := map[string]bool{}
+			for _, sc := range span.Results[0].SourceColumns {
+				got[sc.Column] = true
+			}
+			for _, want := range tt.want {
+				if !got[want] {
+					t.Errorf("SourceColumns %+v missing %q", span.Results[0].SourceColumns, want)
+				}
+			}
+			for _, notWant := range tt.notWant {
+				if got[notWant] {
+					t.Errorf("SourceColumns %+v contains lambda parameter %q", span.Results[0].SourceColumns, notWant)
+				}
+			}
+		})
 	}
 }

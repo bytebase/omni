@@ -112,6 +112,8 @@ func (op UnaryOp) String() string {
 		return "~"
 	case UnaryNot:
 		return "NOT"
+	case UnaryBinary:
+		return "BINARY"
 	default:
 		return "?"
 	}

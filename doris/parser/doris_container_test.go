@@ -259,12 +259,21 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		// Lambdas in higher-order array functions.
 		{"lambda_array_map", "SELECT array_map(x -> x + 1, [1, 2, 3])", true},
 		{"lambda_array_filter", "SELECT array_filter(x -> x > 1, [1, 2, 3])", true},
+		{"lambda_multi_param", "SELECT array_map((x, y) -> x + y, [1, 2], [3, 4])", true},
+		{"lambda_three_param", "SELECT array_map((x, y, z) -> x + y + z, [1], [2], [3])", true},
+		// A single parameter must be written bare; the parenthesized form
+		// requires at least two.
+		{"lambda_single_param_parenthesized", "SELECT array_map((x) -> x + 1, [1, 2])", false},
 
 		// Optimizer hints.
 		{"set_var_hint", "SELECT /*+ SET_VAR(query_timeout = 100) */ 1", true},
 
-		// Grouping elements.
+		// Grouping elements. CUBE is the whole grouping specification: a
+		// trailing list after it is a parse error, so accepting one here would
+		// silently discard everything past the comma.
 		{"group_by_cube", "SELECT a, SUM(b) FROM t GROUP BY CUBE(a)", true},
+		{"group_by_cube_trailing_item", "SELECT a, b, SUM(c) FROM t GROUP BY CUBE(a), b", false},
+		{"group_by_cube_trailing_cube", "SELECT a, SUM(b) FROM t GROUP BY CUBE(a), CUBE(b)", false},
 		{"group_by_rollup", "SELECT a, SUM(b) FROM t GROUP BY ROLLUP(a)", true},
 		{"group_by_grouping_sets", "SELECT a, SUM(b) FROM t GROUP BY GROUPING SETS ((a), ())", true},
 
@@ -272,6 +281,10 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"convert_using", "SELECT CONVERT('abc' USING utf8)", true},
 		{"convert_type", "SELECT CONVERT('1', SIGNED)", true},
 		{"char_using", "SELECT CHAR(65 USING utf8)", true},
+		{"char_multi_arg_using", "SELECT CHAR(65, 66 USING utf8)", true},
+		// The trailing USING clause belongs to CHAR and CONVERT only.
+		{"using_on_aggregate", "SELECT SUM(a USING utf8) FROM t", false},
+		{"using_on_scalar", "SELECT abs(1 USING utf8)", false},
 
 		// BINARY operator.
 		{"binary_operator", "SELECT BINARY 'abc'", true},

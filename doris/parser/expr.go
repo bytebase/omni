@@ -527,9 +527,12 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 		}
 		fc.Args = args
 
-		// Trailing USING charset, as in CHAR(65 USING utf8). parseExprList
-		// stops at USING because it is not a comma, so it is consumed here.
-		if p.cur.Kind == kwUSING {
+		// Trailing USING charset, as in CHAR(65 USING utf8): the argument
+		// parser stops at USING because it is not a comma. Only CHAR takes it
+		// on this generic path — CONVERT has its own production, and the engine
+		// rejects the clause on anything else (`SUM(a USING utf8)` is a syntax
+		// error), so it must not be consumed for arbitrary function names.
+		if funcName == "CHAR" && p.cur.Kind == kwUSING {
 			p.advance() // consume USING
 			charset, ok := p.identOrKeywordToken()
 			if !ok {
@@ -735,6 +738,57 @@ func (p *Parser) parseWindowFrameBound() (string, ast.Node, error) {
 	}
 }
 
+// tryParseParenLambda speculatively parses the parenthesized multi-parameter
+// lambda form `(x, y) -> body`, rolling the parser back and reporting ok=false
+// when the input turns out to be an ordinary parenthesized expression.
+//
+// The grammar requires at least two parameters in this form; a single
+// parameter must be written bare (`x -> ...`), and the engine rejects
+// `(x) -> ...`. That is why len(params) < 2 backtracks rather than accepting.
+func (p *Parser) tryParseParenLambda() (ast.Node, bool, error) {
+	if p.cur.Kind != int('(') {
+		return nil, false, nil
+	}
+	saved := p.save()
+	start := p.cur.Loc.Start
+	p.advance() // consume '('
+
+	var params []string
+	for {
+		if !p.isExprIdentToken() {
+			p.restore(saved)
+			return nil, false, nil
+		}
+		params = append(params, p.advance().Str)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	if len(params) < 2 || p.cur.Kind != int(')') {
+		p.restore(saved)
+		return nil, false, nil
+	}
+	p.advance() // consume ')'
+	if p.cur.Kind != tokArrow {
+		p.restore(saved)
+		return nil, false, nil
+	}
+	p.advance() // consume '->'
+
+	// Past the arrow the shape is unambiguous, so a bad body is a real error
+	// rather than a reason to backtrack.
+	body, err := p.parseExpr()
+	if err != nil {
+		return nil, false, err
+	}
+	return &ast.LambdaExpr{
+		Params: params,
+		Body:   body,
+		Loc:    ast.Loc{Start: start, End: ast.NodeLoc(body).End},
+	}, true, nil
+}
+
 // parseFuncArgList parses a function-call argument list. Unlike a plain
 // expression list it also accepts a lambda (`x -> body`), which the grammar
 // permits only here, as an argument to a higher-order array function. Keeping
@@ -743,17 +797,23 @@ func (p *Parser) parseWindowFrameBound() (string, ast.Node, error) {
 func (p *Parser) parseFuncArgList() ([]ast.Node, error) {
 	var list []ast.Node
 	for {
-		expr, err := p.parseExpr()
+		lam, ok, err := p.tryParseParenLambda()
 		if err != nil {
 			return nil, err
 		}
-		if p.cur.Kind == tokArrow {
-			expr, err = p.parseLambdaExpr(expr)
+		if !ok {
+			lam, err = p.parseExpr()
 			if err != nil {
 				return nil, err
 			}
+			if p.cur.Kind == tokArrow {
+				lam, err = p.parseLambdaExpr(lam)
+				if err != nil {
+					return nil, err
+				}
+			}
 		}
-		list = append(list, expr)
+		list = append(list, lam)
 		if p.cur.Kind != int(',') {
 			break
 		}
@@ -1176,11 +1236,6 @@ func lambdaParams(n ast.Node) ([]string, bool) {
 			return nil, false
 		}
 		return []string{v.Name.Parts[0]}, true
-	case *ast.ParenExpr:
-		// `(x) -> ...`. The multi-parameter form `(x, y) -> ...` is not
-		// supported: a parenthesized list is not an expression here, so the
-		// parameters never reach this point as a single node.
-		return lambdaParams(v.Expr)
 	}
 	return nil, false
 }

@@ -57,6 +57,46 @@ func (p *Parser) advance() Token {
 	return p.prev
 }
 
+// parserCheckpoint snapshots the parser + lexer position so a speculative parse
+// can be rolled back. It is a bounded backtracking primitive for prefix-
+// ambiguous grammar — `(x, y) -> ...` is a lambda parameter list, `(x + y)` is
+// a parenthesized expression, and the two are only told apart at the arrow.
+// It is NOT safe across input-rewriting lexer paths (conditional comments),
+// which do not occur inside the constructs it is used for.
+type parserCheckpoint struct {
+	cur, prev, nextBuf Token
+	hasNext            bool
+	lexPos, lexStart   int
+	errLen, lexErrLen  int
+}
+
+// save captures the current parser state.
+func (p *Parser) save() parserCheckpoint {
+	return parserCheckpoint{
+		cur:       p.cur,
+		prev:      p.prev,
+		nextBuf:   p.nextBuf,
+		hasNext:   p.hasNext,
+		lexPos:    p.lexer.pos,
+		lexStart:  p.lexer.start,
+		errLen:    len(p.errors),
+		lexErrLen: len(p.lexer.errors),
+	}
+}
+
+// restore rolls the parser + lexer back to a saved checkpoint, discarding any
+// tokens consumed and errors collected since.
+func (p *Parser) restore(c parserCheckpoint) {
+	p.cur = c.cur
+	p.prev = c.prev
+	p.nextBuf = c.nextBuf
+	p.hasNext = c.hasNext
+	p.lexer.pos = c.lexPos
+	p.lexer.start = c.lexStart
+	p.errors = p.errors[:c.errLen]
+	p.lexer.errors = p.lexer.errors[:c.lexErrLen]
+}
+
 // peek returns the current token without consuming it.
 func (p *Parser) peek() Token {
 	return p.cur

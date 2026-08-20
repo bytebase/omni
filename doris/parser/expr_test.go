@@ -1621,3 +1621,61 @@ func TestStmtGroupByCube(t *testing.T) {
 		}
 	}
 }
+
+func TestExprLambdaMultiParameter(t *testing.T) {
+	node := mustParseExpr(t, "array_map((x, y) -> x + y, a, b)")
+	fc, ok := node.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected *ast.FuncCallExpr, got %T", node)
+	}
+	lam, ok := fc.Args[0].(*ast.LambdaExpr)
+	if !ok {
+		t.Fatalf("args[0] = %T, want *ast.LambdaExpr", fc.Args[0])
+	}
+	if len(lam.Params) != 2 || lam.Params[0] != "x" || lam.Params[1] != "y" {
+		t.Errorf("params = %v, want [x y]", lam.Params)
+	}
+}
+
+func TestExprLambdaSingleParameterMustBeBare(t *testing.T) {
+	// The engine accepts `x -> ...` and `(x, y) -> ...` but rejects `(x) -> ...`.
+	if _, err := parseExprFrom("array_map((x) -> x + 1, arr)"); err == nil {
+		t.Error("(x) -> ... parsed, want syntax error")
+	}
+	// An ordinary parenthesized argument must be unaffected by the speculative
+	// lambda parse.
+	mustParseExpr(t, "foo((a + b), c)")
+	mustParseExpr(t, "foo((a), b)")
+}
+
+func TestExprTrailingUsingIsCharOnly(t *testing.T) {
+	// CHAR takes a trailing USING on the generic call path; CONVERT has its own
+	// production. Every other function must reject it, as the engine does.
+	mustParseExpr(t, "CHAR(65 USING utf8)")
+	mustParseExpr(t, "CHAR(65, 66 USING utf8)")
+	mustParseExpr(t, "CONVERT(s USING utf8)")
+	for _, input := range []string{"SUM(a USING utf8)", "foo(a USING utf8)"} {
+		if _, err := parseExprFrom(input); err == nil {
+			t.Errorf("parseExpr(%q) = nil error, want syntax error", input)
+		}
+	}
+}
+
+func TestStmtGroupByCubeIsWholeSpecification(t *testing.T) {
+	// The engine rejects a grouping list after CUBE. Accepting it here would
+	// silently discard everything past the comma.
+	for _, sql := range []string{
+		"SELECT a, b, SUM(c) FROM t GROUP BY CUBE(a), b",
+		"SELECT a, SUM(b) FROM t GROUP BY CUBE(a), CUBE(b)",
+	} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want syntax error", sql)
+		}
+	}
+}
+
+func TestUnaryBinaryRenders(t *testing.T) {
+	if got := ast.UnaryBinary.String(); got != "BINARY" {
+		t.Errorf("UnaryBinary.String() = %q, want BINARY", got)
+	}
+}

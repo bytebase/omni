@@ -838,6 +838,13 @@ func (p *Parser) parseGroupByClause() ([]ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		// CUBE(...) is the entire grouping specification — the engine rejects
+		// both `GROUP BY CUBE(a), b` and `GROUP BY CUBE(a), CUBE(b)`. Without
+		// this check, returning here would silently discard everything after
+		// the comma and hand downstream analysis an incomplete GROUP BY.
+		if p.cur.Kind == int(',') {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return []ast.Node{fc}, nil
 	}
 
