@@ -279,8 +279,58 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 		return p.parseIntervalExpr()
 
 	default:
-		return p.parsePrimaryExpr()
+		node, err := p.parsePrimaryExpr()
+		if err != nil {
+			return nil, err
+		}
+		return p.parsePostfixSubscripts(node)
 	}
+}
+
+// parsePostfixSubscripts parses any chain of element-access / slice suffixes
+// after a primary expression: m['k'], arr[1][2], arr[1:3], arr[2:]. The
+// grammar (elementAt, arraySlice) applies these to primaryExpression, so they
+// bind tighter than any operator. The index and bounds are valueExpressions —
+// comparisons are allowed but AND/OR/NOT are not, hence bpNot+1.
+func (p *Parser) parsePostfixSubscripts(node ast.Node) (ast.Node, error) {
+	for p.cur.Kind == int('[') {
+		p.advance() // consume '['
+		begin, err := p.parseExprPrec(bpNot + 1)
+		if err != nil {
+			return nil, err
+		}
+		if p.cur.Kind == int(':') {
+			p.advance() // consume ':'
+			var end ast.Node
+			if p.cur.Kind != int(']') {
+				end, err = p.parseExprPrec(bpNot + 1)
+				if err != nil {
+					return nil, err
+				}
+			}
+			closeTok, err := p.expect(int(']'))
+			if err != nil {
+				return nil, err
+			}
+			node = &ast.ArraySliceExpr{
+				Value: node,
+				Begin: begin,
+				End:   end,
+				Loc:   ast.Loc{Start: ast.NodeLoc(node).Start, End: closeTok.Loc.End},
+			}
+			continue
+		}
+		closeTok, err := p.expect(int(']'))
+		if err != nil {
+			return nil, err
+		}
+		node = &ast.ElementAtExpr{
+			Value: node,
+			Index: begin,
+			Loc:   ast.Loc{Start: ast.NodeLoc(node).Start, End: closeTok.Loc.End},
+		}
+	}
+	return node, nil
 }
 
 // ---------------------------------------------------------------------------

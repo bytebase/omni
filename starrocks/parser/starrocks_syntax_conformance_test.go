@@ -81,6 +81,22 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		{"substring_from", "SELECT SUBSTRING('abcdef' FROM 2)", false},
 		{"trim_both_from", "SELECT TRIM(BOTH 'x' FROM 'xax')", false},
 		{"position_in", "SELECT POSITION('b' IN 'abc')", false},
+
+		// --- Constructs previously hidden by the trailing-token swallow
+		// (BYT-10084): each parsed as a valid prefix and silently dropped the
+		// rest of the statement.
+		{"limit_offset_comma", "SELECT * FROM t LIMIT 5, 10", true},
+		{"string_alias", `SELECT (1 + 1) AS "20%"`, true},
+		{"element_at_literal", "SELECT [1, 2, 3][1]", true},
+		{"element_at_column", "SELECT c1[1] FROM t", true},
+		{"array_slice", "SELECT [1, 2, 3][1:2]", true},
+		{"group_by_with_rollup", "SELECT a, SUM(b) FROM t GROUP BY a WITH ROLLUP", true},
+		{"grouping_sets", "SELECT a, SUM(b) FROM t GROUP BY GROUPING SETS ((a), ())", true},
+		{"grouping_sets_trailing_item", "SELECT a FROM t GROUP BY GROUPING SETS ((a)), b", false},
+		{"tablet_tablesample", "SELECT * FROM t TABLET(10001) TABLESAMPLE(1000 ROWS) REPEATABLE 2", true},
+		{"show_databases_from", "SHOW DATABASES FROM default_catalog", true},
+		{"build_index_partition", "BUILD INDEX index1 ON table1 PARTITION(p1, p2)", true},
+		{"create_table_primary_key", "CREATE TABLE conf_pk (id BIGINT NOT NULL, v VARCHAR(64)) PRIMARY KEY(id) DISTRIBUTED BY HASH(id)", true},
 	}
 
 	for _, tc := range cases {

@@ -573,3 +573,26 @@ func TestGetQuerySpan_LambdaSourceColumns(t *testing.T) {
 		})
 	}
 }
+
+func TestGetQuerySpan_SubscriptKeepsTableAccess(t *testing.T) {
+	// Before BYT-10084 the parser silently dropped everything after `[`, so
+	// this query lost its FROM clause and the span reported no table access —
+	// a fail-open blind spot for masking.
+	span, err := GetQuerySpan("SELECT secret_col[1] FROM sensitive_table")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "sensitive_table" {
+		t.Fatalf("AccessTables = %+v, want [sensitive_table]", span.AccessTables)
+	}
+	if len(span.Results) != 1 {
+		t.Fatalf("Results = %+v, want one column", span.Results)
+	}
+	got := map[string]bool{}
+	for _, sc := range span.Results[0].SourceColumns {
+		got[sc.Column] = true
+	}
+	if !got["secret_col"] {
+		t.Errorf("SourceColumns %+v missing secret_col", span.Results[0].SourceColumns)
+	}
+}

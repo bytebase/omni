@@ -227,3 +227,16 @@ func TestSplit_Mixed(t *testing.T) {
 	}
 	runSplitCases(t, cases)
 }
+
+func TestSplit_BeginWithLabelIsTCL(t *testing.T) {
+	segs := Split("BEGIN WITH LABEL load_1; COMMIT")
+	if len(segs) != 2 {
+		t.Fatalf("Split returned %d segments, want 2: %+v", len(segs), segs)
+	}
+
+	// A compound block whose first statement is a CTE must stay one segment.
+	segs = Split("BEGIN WITH c AS (SELECT 1) SELECT * FROM c; END")
+	if len(segs) != 1 {
+		t.Fatalf("Split returned %d segments, want 1 (compound block): %+v", len(segs), segs)
+	}
+}

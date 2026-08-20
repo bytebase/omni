@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/doris/ast"
 )
 
@@ -66,11 +68,12 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 
 	// GROUP BY clause
 	if p.cur.Kind == kwGROUP {
-		groupBy, err := p.parseGroupByClause()
+		groupBy, withRollup, err := p.parseGroupByClause()
 		if err != nil {
 			return nil, err
 		}
 		stmt.GroupBy = groupBy
+		stmt.GroupByWithRollup = withRollup
 	}
 
 	// HAVING clause
@@ -323,7 +326,7 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 				Expr: fc,
 				Loc:  ast.Loc{Start: startLoc.Start},
 			}
-			alias := p.parseOptionalAlias()
+			alias := p.parseOptionalAlias(true)
 			if alias != "" {
 				item.Alias = alias
 			}
@@ -340,7 +343,7 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 			Expr: colRef,
 			Loc:  ast.Loc{Start: startLoc.Start},
 		}
-		alias := p.parseOptionalAlias()
+		alias := p.parseOptionalAlias(true)
 		if alias != "" {
 			item.Alias = alias
 		}
@@ -359,7 +362,7 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 		Loc:  ast.Loc{Start: startLoc.Start},
 	}
 
-	alias := p.parseOptionalAlias()
+	alias := p.parseOptionalAlias(true)
 	if alias != "" {
 		item.Alias = alias
 	}
@@ -379,11 +382,18 @@ func (p *Parser) isSelectIdentToken() bool {
 //
 // Alias forms:
 //   - AS identifier
+//   - AS 'string' (SELECT items only: identifierOrText allows AS "20%",
+//     while a table alias is a strictIdentifier and rejects strings)
 //   - identifier (implicit, if not a clause keyword)
-func (p *Parser) parseOptionalAlias() string {
+//
+// stringOK selects between those two grammar rules.
+func (p *Parser) parseOptionalAlias(stringOK bool) string {
 	// Explicit: AS alias
 	if p.cur.Kind == kwAS {
 		p.advance() // consume AS
+		if stringOK && p.cur.Kind == tokString {
+			return p.advance().Str
+		}
 		name, _, err := p.parseAliasIdentifier()
 		if err != nil {
 			return ""
@@ -507,7 +517,7 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 			ref := &ast.TableRef{
 				Loc: ast.Loc{Start: startLoc.Start},
 			}
-			alias := p.parseOptionalAlias()
+			alias := p.parseOptionalAlias(false)
 			if alias != "" {
 				ref.Alias = alias
 			}
@@ -549,7 +559,9 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 	return p.parseTableRef()
 }
 
-// parseTableRef parses one simple table reference: object_name [AS alias].
+// parseTableRef parses one simple table reference with its suffixes, in
+// grammar order (relationPrimary): name — or a table-valued function call —
+// then TABLET(...), then the alias, then TABLESAMPLE(...) [REPEATABLE seed].
 func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 	name, err := p.parseMultipartIdentifier()
 	if err != nil {
@@ -561,13 +573,102 @@ func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 		Loc:  ast.Loc{Start: name.Loc.Start},
 	}
 
-	alias := p.parseOptionalAlias()
+	// Table-valued function: BACKENDS(), numbers("number" = "10"). The grammar
+	// (#tableValuedFunction) takes a single identifier as the function name.
+	if p.cur.Kind == int('(') && len(name.Parts) == 1 {
+		p.advance() // consume '('
+		fc := &ast.FuncCallExpr{
+			Name: name,
+			Loc:  ast.Loc{Start: name.Loc.Start},
+		}
+		if p.cur.Kind != int(')') {
+			args, err := p.parseExprList()
+			if err != nil {
+				return nil, err
+			}
+			fc.Args = args
+		}
+		closeTok, err := p.expect(int(')'))
+		if err != nil {
+			return nil, err
+		}
+		fc.Loc.End = closeTok.Loc.End
+		ref.Func = fc
+	}
+
+	// TABLET(id, ...) sits between the name and the alias (grammar:
+	// tabletList? tableAlias). Only TABLET followed by '(' is the clause.
+	if p.cur.Kind == kwTABLET && p.peekNext().Kind == int('(') {
+		p.advance() // consume TABLET
+		p.advance() // consume '('
+		for {
+			idTok, err := p.expect(tokInt)
+			if err != nil {
+				return nil, err
+			}
+			ref.TabletIDs = append(ref.TabletIDs, idTok.Ival)
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
+	}
+
+	alias := p.parseOptionalAlias(false)
 	if alias != "" {
 		ref.Alias = alias
 	}
 
+	// TABLESAMPLE(...) [REPEATABLE seed] follows the alias (grammar:
+	// tableAlias sample?).
+	if p.cur.Kind == kwTABLESAMPLE && p.peekNext().Kind == int('(') {
+		sample, err := p.parseTableSample()
+		if err != nil {
+			return nil, err
+		}
+		ref.Sample = sample
+	}
+
 	ref.Loc.End = p.prev.Loc.End
 	return ref, nil
+}
+
+// parseTableSample parses TABLESAMPLE(n ROWS | n PERCENT | ) [REPEATABLE seed].
+// On entry cur is TABLESAMPLE with '(' next.
+func (p *Parser) parseTableSample() (*ast.TableSample, error) {
+	p.advance() // consume TABLESAMPLE
+	p.advance() // consume '('
+
+	sample := &ast.TableSample{}
+	if p.cur.Kind != int(')') {
+		valTok, err := p.expect(tokInt)
+		if err != nil {
+			return nil, err
+		}
+		sample.Value = &ast.Literal{Kind: ast.LitInt, Value: valTok.Str, Loc: valTok.Loc}
+		switch p.cur.Kind {
+		case kwROWS, kwPERCENT:
+			sample.Unit = strings.ToUpper(p.advance().Str)
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+
+	if p.cur.Kind == kwREPEATABLE {
+		p.advance() // consume REPEATABLE
+		seedTok, err := p.expect(tokInt)
+		if err != nil {
+			return nil, err
+		}
+		sample.Seed = &ast.Literal{Kind: ast.LitInt, Value: seedTok.Str, Loc: seedTok.Loc}
+	}
+	return sample, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -823,12 +924,14 @@ func (p *Parser) consumeDirectionAndJoin() ast.JoinType {
 // GROUP BY clause
 // ---------------------------------------------------------------------------
 
-// parseGroupByClause parses GROUP BY expr, expr, ...
-// Returns the list of GROUP BY expressions.
-func (p *Parser) parseGroupByClause() ([]ast.Node, error) {
+// parseGroupByClause parses the grouping specification after GROUP BY: a
+// plain expression list (optionally followed by WITH ROLLUP), or exactly one
+// of CUBE(...) / GROUPING SETS (...). Returns the grouping items and whether
+// WITH ROLLUP was present.
+func (p *Parser) parseGroupByClause() ([]ast.Node, bool, error) {
 	p.advance() // consume GROUP
 	if _, err := p.expect(kwBY); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	// CUBE is a reserved keyword, so `GROUP BY CUBE(a, b)` cannot reach the
@@ -836,19 +939,85 @@ func (p *Parser) parseGroupByClause() ([]ast.Node, error) {
 	if p.cur.Kind == kwCUBE && p.peekNext().Kind == int('(') {
 		fc, err := p.parseGroupingElementCall()
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		// CUBE(...) is the entire grouping specification — the engine rejects
 		// both `GROUP BY CUBE(a), b` and `GROUP BY CUBE(a), CUBE(b)`. Without
 		// this check, returning here would silently discard everything after
 		// the comma and hand downstream analysis an incomplete GROUP BY.
 		if p.cur.Kind == int(',') {
-			return nil, p.syntaxErrorAtCur()
+			return nil, false, p.syntaxErrorAtCur()
 		}
-		return []ast.Node{fc}, nil
+		return []ast.Node{fc}, false, nil
 	}
 
-	return p.parseExprList()
+	// GROUPING SETS (...) — like CUBE, the entire grouping specification.
+	// GROUPING alone stays an ordinary identifier (it is non-reserved), so a
+	// column named grouping still groups normally.
+	if p.cur.Kind == kwGROUPING && p.peekNext().Kind == kwSETS {
+		gs, err := p.parseGroupingSets()
+		if err != nil {
+			return nil, false, err
+		}
+		if p.cur.Kind == int(',') {
+			return nil, false, p.syntaxErrorAtCur()
+		}
+		return []ast.Node{gs}, false, nil
+	}
+
+	list, err := p.parseExprList()
+	if err != nil {
+		return nil, false, err
+	}
+
+	// Optional WITH ROLLUP — the grammar allows it only on the plain
+	// expression-list form, not after CUBE / GROUPING SETS.
+	if p.cur.Kind == kwWITH && p.peekNext().Kind == kwROLLUP {
+		p.advance() // consume WITH
+		p.advance() // consume ROLLUP
+		return list, true, nil
+	}
+	return list, false, nil
+}
+
+// parseGroupingSets parses GROUPING SETS ((a, b), (a), ()). On entry cur is
+// GROUPING with SETS next. Every set is itself parenthesized and may be empty.
+func (p *Parser) parseGroupingSets() (ast.Node, error) {
+	startTok := p.advance() // consume GROUPING
+	p.advance()             // consume SETS
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+
+	gs := &ast.GroupingSetsExpr{}
+	for {
+		if _, err := p.expect(int('(')); err != nil {
+			return nil, err
+		}
+		var set []ast.Node
+		if p.cur.Kind != int(')') {
+			exprs, err := p.parseExprList()
+			if err != nil {
+				return nil, err
+			}
+			set = exprs
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
+		gs.Sets = append(gs.Sets, set)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	gs.Loc = ast.Loc{Start: startTok.Loc.Start, End: closeTok.Loc.End}
+	return gs, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -866,7 +1035,17 @@ func (p *Parser) parseLimitClause() (ast.Node, ast.Node, error) {
 	}
 
 	var offsetExpr ast.Node
-	if p.cur.Kind == kwOFFSET {
+	switch p.cur.Kind {
+	case int(','):
+		// MySQL form LIMIT offset, row_count: the expression parsed first is
+		// the offset and the one after the comma is the count.
+		p.advance() // consume ','
+		offsetExpr = limitExpr
+		limitExpr, err = p.parseExpr()
+		if err != nil {
+			return nil, nil, err
+		}
+	case kwOFFSET:
 		p.advance() // consume OFFSET
 		offsetExpr, err = p.parseExpr()
 		if err != nil {

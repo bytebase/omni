@@ -123,6 +123,21 @@ func walkChildren(v Visitor, node Node) {
 	case *MapEntry:
 		Walk(v, n.Key)
 		Walk(v, n.Value)
+	case *ElementAtExpr:
+		Walk(v, n.Value)
+		Walk(v, n.Index)
+	case *ArraySliceExpr:
+		Walk(v, n.Value)
+		Walk(v, n.Begin)
+		if n.End != nil {
+			Walk(v, n.End)
+		}
+	case *GroupingSetsExpr:
+		for _, set := range n.Sets {
+			for _, e := range set {
+				Walk(v, e)
+			}
+		}
 	case *CaseExpr:
 		if n.Operand != nil {
 			Walk(v, n.Operand)
@@ -199,6 +214,17 @@ func walkChildren(v Visitor, node Node) {
 	case *TableRef:
 		if n.Name != nil {
 			Walk(v, n.Name)
+		}
+		if n.Func != nil {
+			Walk(v, n.Func)
+		}
+		if n.Sample != nil {
+			if n.Sample.Value != nil {
+				Walk(v, n.Sample.Value)
+			}
+			if n.Sample.Seed != nil {
+				Walk(v, n.Sample.Seed)
+			}
 		}
 	case *JoinClause:
 		Walk(v, n.Left)

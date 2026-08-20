@@ -148,11 +148,21 @@ func (p *Parser) parseShowTables(stmt *ast.ShowStmt) (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseShowDatabases parses: SHOW DATABASES [LIKE 'pat'] [WHERE ...]
+// parseShowDatabases parses: SHOW DATABASES [FROM catalog] [LIKE 'pat'] [WHERE ...]
 // On entry, cur == kwDATABASES or kwSCHEMAS.
 func (p *Parser) parseShowDatabases(stmt *ast.ShowStmt) (ast.Node, error) {
 	p.advance() // consume DATABASES/SCHEMAS
 	stmt.Type = "DATABASES"
+
+	// Optional FROM/IN <catalog>: SHOW DATABASES FROM hms_catalog.
+	if p.cur.Kind == kwFROM || p.cur.Kind == kwIN {
+		p.advance() // consume FROM/IN
+		catalog, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.From = catalog
+	}
 
 	p.parseShowLikeWhere(stmt)
 

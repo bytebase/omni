@@ -227,3 +227,21 @@ func TestSplit_Mixed(t *testing.T) {
 	}
 	runSplitCases(t, cases)
 }
+
+func TestSplit_BeginWithLabelIsTCL(t *testing.T) {
+	// BEGIN WITH LABEL is the transaction form: the ; after it must split.
+	segs := Split("BEGIN WITH LABEL load_1; COMMIT")
+	if len(segs) != 2 {
+		t.Fatalf("Split returned %d segments, want 2: %+v", len(segs), segs)
+	}
+	if segs[0].Text != "BEGIN WITH LABEL load_1" || segs[1].Text != " COMMIT" {
+		t.Errorf("segments = %q, %q", segs[0].Text, segs[1].Text)
+	}
+
+	// A compound block whose first statement is a CTE must stay one segment:
+	// WITH alone does not make BEGIN a transaction.
+	segs = Split("BEGIN WITH c AS (SELECT 1) SELECT * FROM c; END")
+	if len(segs) != 1 {
+		t.Fatalf("Split returned %d segments, want 1 (compound block): %+v", len(segs), segs)
+	}
+}

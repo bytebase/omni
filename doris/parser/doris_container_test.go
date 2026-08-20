@@ -289,6 +289,26 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		// BINARY operator.
 		{"binary_operator", "SELECT BINARY 'abc'", true},
 
+		// --- Constructs previously hidden by the trailing-token swallow
+		// (BYT-10084): each parsed as a valid prefix and silently dropped the
+		// rest of the statement.
+		{"limit_offset_comma", "SELECT * FROM t LIMIT 5, 10", true},
+		{"string_alias", `SELECT (1 + 1) AS "20%"`, true},
+		{"string_alias_single_quoted", "SELECT 1 AS 'x'", true},
+		{"element_at_literal", "SELECT [1, 2, 3][1]", true},
+		{"element_at_map", "SELECT {'a': 1}['a']", true},
+		{"element_at_column", "SELECT c1[1] FROM t", true},
+		{"array_slice", "SELECT [1, 2, 3][1:2]", true},
+		{"array_slice_open", "SELECT [1, 2, 3][2:]", true},
+		{"element_at_two_indexes", "SELECT [1, 2][1, 2]", false},
+		{"array_slice_no_begin", "SELECT [1, 2][:2]", false},
+		{"group_by_with_rollup", "SELECT a, SUM(b) FROM t GROUP BY a WITH ROLLUP", true},
+		{"grouping_sets_trailing_item", "SELECT a FROM t GROUP BY GROUPING SETS ((a)), b", false},
+		{"from_tvf_backends", "SELECT * FROM BACKENDS()", true},
+		{"tablet_tablesample", "SELECT * FROM t TABLET(10001) TABLESAMPLE(1000 ROWS) REPEATABLE 2", true},
+		{"show_databases_from", "SHOW DATABASES FROM internal", true},
+		{"build_index_partition", "BUILD INDEX index1 ON table1 PARTITION(p1, p2)", true},
+
 		// --- Negative arm: the grammar file allows these, the engine does not.
 		{"substring_from_for", "SELECT SUBSTRING('abcdef' FROM 2 FOR 3)", false},
 		{"substring_from", "SELECT SUBSTRING('abcdef' FROM 2)", false},
