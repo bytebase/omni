@@ -15,7 +15,7 @@ SELECT t1.name, t2.salary FROM employee AS t1 INNER JOIN info AS t2 ON t1.name =
 SELECT t1.name, t2.salary FROM employee t1 INNER JOIN info t2 ON t1.name = t2.name;
 SELECT left_tbl.* FROM left_tbl LEFT JOIN right_tbl ON left_tbl.id = right_tbl.id WHERE right_tbl.id IS NULL;
 SELECT * FROM t1 RIGHT JOIN t2 ON (t1.a = t2.a);
-SELECT * FROM t1 TABLET(10001) TABLESAMPLE(1000 ROWS) REPEATABLE 2 LIMIT 1000;
+SELECT * FROM t1 TABLET(10001) LIMIT 1000;
 SELECT college, region, seed FROM tournament ORDER BY region, seed;
 SELECT college, region AS r, seed AS s FROM tournament ORDER BY r, s;
 SELECT college, region, seed FROM tournament ORDER BY 2, 3;

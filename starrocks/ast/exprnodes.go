@@ -429,19 +429,6 @@ func (n *ElementAtExpr) Tag() NodeTag { return T_ElementAtExpr }
 
 var _ Node = (*ElementAtExpr)(nil)
 
-// ArraySliceExpr represents an array slice: value[begin : end]
-// (grammar: arraySlice). End is nil for the open-ended form value[begin:].
-type ArraySliceExpr struct {
-	Value Node
-	Begin Node
-	End   Node // nil when omitted: value[begin:]
-	Loc   Loc
-}
-
-func (n *ArraySliceExpr) Tag() NodeTag { return T_ArraySliceExpr }
-
-var _ Node = (*ArraySliceExpr)(nil)
-
 // GroupingSetsExpr represents GROUP BY GROUPING SETS ((a, b), (a), ()).
 // Each set is one parenthesized expression list; the empty set () is a nil
 // entry. Like CUBE, GROUPING SETS is the entire grouping specification.

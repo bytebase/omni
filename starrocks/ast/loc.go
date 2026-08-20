@@ -76,8 +76,6 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *ElementAtExpr:
 		return v.Loc
-	case *ArraySliceExpr:
-		return v.Loc
 	case *GroupingSetsExpr:
 		return v.Loc
 	case *ArrayLiteral:

@@ -119,9 +119,6 @@ const (
 	// T_ElementAtExpr is the tag for *ElementAtExpr (value[index]).
 	T_ElementAtExpr
 
-	// T_ArraySliceExpr is the tag for *ArraySliceExpr (value[begin:end]).
-	T_ArraySliceExpr
-
 	// T_GroupingSetsExpr is the tag for *GroupingSetsExpr (GROUPING SETS (...)).
 	T_GroupingSetsExpr
 
@@ -711,8 +708,6 @@ func (t NodeTag) String() string {
 		return "MapEntry"
 	case T_ElementAtExpr:
 		return "ElementAtExpr"
-	case T_ArraySliceExpr:
-		return "ArraySliceExpr"
 	case T_GroupingSetsExpr:
 		return "GroupingSetsExpr"
 	case T_ArrayLiteral:

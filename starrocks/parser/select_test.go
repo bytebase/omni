@@ -603,17 +603,6 @@ func TestSelectStringAlias(t *testing.T) {
 	}
 }
 
-func TestSelectGroupByWithRollup(t *testing.T) {
-	stmt := mustParseSelect(t, "SELECT a, SUM(b) FROM t GROUP BY a WITH ROLLUP")
-	if !stmt.GroupByWithRollup {
-		t.Error("GroupByWithRollup = false, want true")
-	}
-	stmt = mustParseSelect(t, "SELECT a FROM t GROUP BY a")
-	if stmt.GroupByWithRollup {
-		t.Error("GroupByWithRollup = true, want false")
-	}
-}
-
 func TestSelectGroupByGroupingSets(t *testing.T) {
 	stmt := mustParseSelect(t, "SELECT a, SUM(b) FROM t GROUP BY GROUPING SETS ((a, b), (a), ())")
 	gs, ok := stmt.GroupBy[0].(*ast.GroupingSetsExpr)
@@ -630,16 +619,15 @@ func TestSelectGroupByGroupingSets(t *testing.T) {
 	}
 }
 
-func TestSelectFromTabletAndTableSample(t *testing.T) {
-	stmt := mustParseSelect(t, "SELECT * FROM t1 TABLET(10001) TABLESAMPLE(1000 ROWS) REPEATABLE 2 LIMIT 1000")
+func TestSelectFromTablet(t *testing.T) {
+	// TABLET(...) is engine-valid; TABLESAMPLE is not a StarRocks clause
+	// (engine-verified), so unlike Doris none is parsed here.
+	stmt := mustParseSelect(t, "SELECT * FROM t1 TABLET(10001) LIMIT 1000")
 	ref := stmt.From[0].(*ast.TableRef)
 	if len(ref.TabletIDs) != 1 || ref.TabletIDs[0] != 10001 {
 		t.Errorf("TabletIDs = %v, want [10001]", ref.TabletIDs)
 	}
-	if ref.Sample == nil || ref.Sample.Unit != "ROWS" {
-		t.Fatalf("Sample = %+v, want 1000 ROWS", ref.Sample)
-	}
 	if stmt.Limit == nil {
-		t.Error("LIMIT after the sample clause was lost")
+		t.Error("LIMIT after the tablet clause was lost")
 	}
 }

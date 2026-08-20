@@ -1677,17 +1677,9 @@ func TestExprElementAtAndSlice(t *testing.T) {
 		t.Errorf("chained access: Value = %T, want *ast.ElementAtExpr", outer.Value)
 	}
 
-	node = mustParseExpr(t, "arr[1:2]")
-	sl, ok := node.(*ast.ArraySliceExpr)
-	if !ok || sl.Begin == nil || sl.End == nil {
-		t.Fatalf("node = %+v, want slice with both bounds", node)
-	}
-	node = mustParseExpr(t, "arr[2:]")
-	if sl := node.(*ast.ArraySliceExpr); sl.End != nil {
-		t.Errorf("open slice End = %+v, want nil", sl.End)
-	}
-
-	for _, bad := range []string{"SELECT arr[1, 2]", "SELECT arr[:2]", "SELECT arr[]"} {
+	// Unlike Doris, the slice form arr[b:e] is engine-rejected, so ':' inside
+	// the brackets stays a syntax error.
+	for _, bad := range []string{"SELECT arr[1:2]", "SELECT arr[2:]", "SELECT arr[1, 2]", "SELECT arr[:2]", "SELECT arr[]"} {
 		if _, errs := Parse(bad); len(errs) == 0 {
 			t.Errorf("Parse(%q) succeeded, want error", bad)
 		}

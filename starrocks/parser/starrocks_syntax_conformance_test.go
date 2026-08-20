@@ -89,13 +89,16 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		{"string_alias", `SELECT (1 + 1) AS "20%"`, true},
 		{"element_at_literal", "SELECT [1, 2, 3][1]", true},
 		{"element_at_column", "SELECT c1[1] FROM t", true},
-		{"array_slice", "SELECT [1, 2, 3][1:2]", true},
-		{"group_by_with_rollup", "SELECT a, SUM(b) FROM t GROUP BY a WITH ROLLUP", true},
+		// Unlike Doris, the slice form is engine-rejected here.
+		{"array_slice_rejected", "SELECT [1, 2, 3][1:2]", false},
 		{"grouping_sets", "SELECT a, SUM(b) FROM t GROUP BY GROUPING SETS ((a), ())", true},
 		{"grouping_sets_trailing_item", "SELECT a FROM t GROUP BY GROUPING SETS ((a)), b", false},
-		{"tablet_tablesample", "SELECT * FROM t TABLET(10001) TABLESAMPLE(1000 ROWS) REPEATABLE 2", true},
+		// TABLET is engine-valid; TABLESAMPLE and GROUP BY ... WITH ROLLUP are
+		// not StarRocks syntax (engine-verified) — their negative arms land
+		// with the strict trailing-token check (BYT-10085), because until
+		// then the parser still swallows them as trailing junk.
+		{"tablet", "SELECT * FROM t TABLET(10001)", true},
 		{"show_databases_from", "SHOW DATABASES FROM default_catalog", true},
-		{"build_index_partition", "BUILD INDEX index1 ON table1 PARTITION(p1, p2)", true},
 		{"create_table_primary_key", "CREATE TABLE conf_pk (id BIGINT NOT NULL, v VARCHAR(64)) PRIMARY KEY(id) DISTRIBUTED BY HASH(id)", true},
 	}
 

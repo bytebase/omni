@@ -141,12 +141,6 @@ func walkChildren(v Visitor, node Node) {
 	case *ElementAtExpr:
 		Walk(v, n.Value)
 		Walk(v, n.Index)
-	case *ArraySliceExpr:
-		Walk(v, n.Value)
-		Walk(v, n.Begin)
-		if n.End != nil {
-			Walk(v, n.End)
-		}
 	case *GroupingSetsExpr:
 		for _, set := range n.Sets {
 			for _, e := range set {
@@ -218,14 +212,6 @@ func walkChildren(v Visitor, node Node) {
 	case *TableRef:
 		if n.Name != nil {
 			Walk(v, n.Name)
-		}
-		if n.Sample != nil {
-			if n.Sample.Value != nil {
-				Walk(v, n.Sample.Value)
-			}
-			if n.Sample.Seed != nil {
-				Walk(v, n.Sample.Seed)
-			}
 		}
 	case *InlineTable:
 		for _, row := range n.Rows {

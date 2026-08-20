@@ -51,21 +51,20 @@ var _ Node = (*CTE)(nil)
 //	  [LIMIT count [OFFSET offset]]
 //	  [INTO OUTFILE ...]
 type SelectStmt struct {
-	With              *WithClause        // optional WITH clause (nil if absent)
-	Distinct          bool               // DISTINCT keyword present
-	All               bool               // ALL keyword present (explicit, rarely used)
-	Items             []*SelectItem      // SELECT list
-	From              []Node             // FROM clause table references (TableRef or JoinClause)
-	Where             Node               // WHERE expression (nil if absent)
-	GroupBy           []Node             // GROUP BY expressions
-	GroupByWithRollup bool               // GROUP BY ... WITH ROLLUP
-	Having            Node               // HAVING expression (nil if absent)
-	Qualify           Node               // QUALIFY expression (nil if absent)
-	OrderBy           []*OrderByItem     // ORDER BY items
-	Limit             Node               // LIMIT expression (nil if absent)
-	Offset            Node               // OFFSET expression (nil if absent)
-	Into              *IntoOutfileClause // INTO OUTFILE clause (nil if absent)
-	Loc               Loc
+	With     *WithClause        // optional WITH clause (nil if absent)
+	Distinct bool               // DISTINCT keyword present
+	All      bool               // ALL keyword present (explicit, rarely used)
+	Items    []*SelectItem      // SELECT list
+	From     []Node             // FROM clause table references (TableRef or JoinClause)
+	Where    Node               // WHERE expression (nil if absent)
+	GroupBy  []Node             // GROUP BY expressions
+	Having   Node               // HAVING expression (nil if absent)
+	Qualify  Node               // QUALIFY expression (nil if absent)
+	OrderBy  []*OrderByItem     // ORDER BY items
+	Limit    Node               // LIMIT expression (nil if absent)
+	Offset   Node               // OFFSET expression (nil if absent)
+	Into     *IntoOutfileClause // INTO OUTFILE clause (nil if absent)
+	Loc      Loc
 }
 
 // IntoOutfileClause represents an INTO OUTFILE clause for exporting query
@@ -135,18 +134,7 @@ type TableRef struct {
 	// appears between the table name and the alias.
 	TabletIDs []int64
 
-	// Sample holds TABLESAMPLE(...) [REPEATABLE seed], which follows the alias.
-	Sample *TableSample
-
 	Loc Loc
-}
-
-// TableSample is the TABLESAMPLE(...) [REPEATABLE seed] suffix of a table
-// reference: TABLESAMPLE(1000 ROWS), TABLESAMPLE(20 PERCENT), TABLESAMPLE().
-type TableSample struct {
-	Value Node   // sample size; nil for the bare TABLESAMPLE() form
-	Unit  string // "ROWS" or "PERCENT"; empty when Value is nil
-	Seed  Node   // REPEATABLE seed; nil if absent
 }
 
 // Tag implements Node.

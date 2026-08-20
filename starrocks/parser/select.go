@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strings"
-
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
@@ -68,12 +66,11 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 
 	// GROUP BY clause
 	if p.cur.Kind == kwGROUP {
-		groupBy, withRollup, err := p.parseGroupByClause()
+		groupBy, err := p.parseGroupByClause()
 		if err != nil {
 			return nil, err
 		}
 		stmt.GroupBy = groupBy
-		stmt.GroupByWithRollup = withRollup
 	}
 
 	// HAVING clause
@@ -836,53 +833,8 @@ func (p *Parser) parseTableOrFunction() (ast.Node, error) {
 		ref.Alias = alias
 	}
 
-	// TABLESAMPLE(...) [REPEATABLE seed] follows the alias (grammar:
-	// tableAlias sample?).
-	if p.cur.Kind == kwTABLESAMPLE && p.peekNext().Kind == int('(') {
-		sample, err := p.parseTableSample()
-		if err != nil {
-			return nil, err
-		}
-		ref.Sample = sample
-	}
-
 	ref.Loc.End = p.prev.Loc.End
 	return ref, nil
-}
-
-// parseTableSample parses TABLESAMPLE(n ROWS | n PERCENT | ) [REPEATABLE seed].
-// On entry cur is TABLESAMPLE with '(' next.
-func (p *Parser) parseTableSample() (*ast.TableSample, error) {
-	p.advance() // consume TABLESAMPLE
-	p.advance() // consume '('
-
-	sample := &ast.TableSample{}
-	if p.cur.Kind != int(')') {
-		valTok, err := p.expect(tokInt)
-		if err != nil {
-			return nil, err
-		}
-		sample.Value = &ast.Literal{Kind: ast.LitInt, Value: valTok.Str, Loc: valTok.Loc}
-		switch p.cur.Kind {
-		case kwROWS, kwPERCENT:
-			sample.Unit = strings.ToUpper(p.advance().Str)
-		default:
-			return nil, p.syntaxErrorAtCur()
-		}
-	}
-	if _, err := p.expect(int(')')); err != nil {
-		return nil, err
-	}
-
-	if p.cur.Kind == kwREPEATABLE {
-		p.advance() // consume REPEATABLE
-		seedTok, err := p.expect(tokInt)
-		if err != nil {
-			return nil, err
-		}
-		sample.Seed = &ast.Literal{Kind: ast.LitInt, Value: seedTok.Str, Loc: seedTok.Loc}
-	}
-	return sample, nil
 }
 
 // parseTableFunction parses a table-function relation primary:
@@ -1292,10 +1244,10 @@ func (p *Parser) consumeDirectionAndJoin() ast.JoinType {
 
 // parseGroupByClause parses GROUP BY expr, expr, ...
 // Returns the list of GROUP BY expressions.
-func (p *Parser) parseGroupByClause() ([]ast.Node, bool, error) {
+func (p *Parser) parseGroupByClause() ([]ast.Node, error) {
 	p.advance() // consume GROUP
 	if _, err := p.expect(kwBY); err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
 	// CUBE is a reserved keyword, so `GROUP BY CUBE(a, b)` cannot reach the
@@ -1303,45 +1255,35 @@ func (p *Parser) parseGroupByClause() ([]ast.Node, bool, error) {
 	if p.cur.Kind == kwCUBE && p.peekNext().Kind == int('(') {
 		fc, err := p.parseGroupingElementCall()
 		if err != nil {
-			return nil, false, err
+			return nil, err
 		}
 		// CUBE(...) is the entire grouping specification — the engine rejects
 		// both `GROUP BY CUBE(a), b` and `GROUP BY CUBE(a), CUBE(b)`. Without
 		// this check, returning here would silently discard everything after
 		// the comma and hand downstream analysis an incomplete GROUP BY.
 		if p.cur.Kind == int(',') {
-			return nil, false, p.syntaxErrorAtCur()
+			return nil, p.syntaxErrorAtCur()
 		}
-		return []ast.Node{fc}, false, nil
+		return []ast.Node{fc}, nil
 	}
 
 	// GROUPING SETS (...) — like CUBE, the entire grouping specification.
 	// GROUPING alone stays an ordinary identifier (it is non-reserved), so a
-	// column named grouping still groups normally.
+	// column named grouping still groups normally. Unlike Doris, StarRocks
+	// has no `GROUP BY ... WITH ROLLUP` form (engine-verified), so none is
+	// parsed here.
 	if p.cur.Kind == kwGROUPING && p.peekNext().Kind == kwSETS {
 		gs, err := p.parseGroupingSets()
 		if err != nil {
-			return nil, false, err
+			return nil, err
 		}
 		if p.cur.Kind == int(',') {
-			return nil, false, p.syntaxErrorAtCur()
+			return nil, p.syntaxErrorAtCur()
 		}
-		return []ast.Node{gs}, false, nil
+		return []ast.Node{gs}, nil
 	}
 
-	list, err := p.parseExprList()
-	if err != nil {
-		return nil, false, err
-	}
-
-	// Optional WITH ROLLUP — the grammar allows it only on the plain
-	// expression-list form, not after CUBE / GROUPING SETS.
-	if p.cur.Kind == kwWITH && p.peekNext().Kind == kwROLLUP {
-		p.advance() // consume WITH
-		p.advance() // consume ROLLUP
-		return list, true, nil
-	}
-	return list, false, nil
+	return p.parseExprList()
 }
 
 // parseGroupingSets parses GROUPING SETS ((a, b), (a), ()). On entry cur is

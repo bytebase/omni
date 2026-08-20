@@ -181,30 +181,19 @@ func (p *Parser) parseBuildIndex(startLoc ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 
-	// Optional partition restriction (grammar: specifiedPartition):
-	// PARTITION p1, PARTITION (p1, p2, ...), or PARTITIONS (p1, p2, ...).
+	// Optional PARTITIONS(p1, p2, ...).
 	var partitions []string
-	if p.cur.Kind == kwPARTITIONS || p.cur.Kind == kwPARTITION {
-		singular := p.cur.Kind == kwPARTITION
+	if p.cur.Kind == kwPARTITIONS {
 		p.advance()
-		if singular && p.cur.Kind != int('(') {
-			// PARTITION with a single bare identifier.
-			name, _, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			partitions = []string{name}
-		} else {
-			if _, err := p.expect(int('(')); err != nil {
-				return nil, err
-			}
-			partitions, err = p.parseIdentifierList()
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(int(')')); err != nil {
-				return nil, err
-			}
+		if _, err := p.expect(int('(')); err != nil {
+			return nil, err
+		}
+		partitions, err = p.parseIdentifierList()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
 		}
 	}
 
