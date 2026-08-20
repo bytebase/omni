@@ -413,10 +413,6 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 		}
 		return p.parseIdentExpr()
 
-	case int('{'):
-		// Untyped map constructor: { k: v, ... }.
-		return p.finishMapLiteral(p.cur.Loc.Start, nil)
-
 	case int('['):
 		// Untyped array constructor: [ e, ... ].
 		return p.finishArrayLiteral(p.cur.Loc.Start, nil)
@@ -662,20 +658,6 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 				}
 				fc.Args = append(fc.Args, arg)
 			}
-		}
-
-		// Trailing USING charset, as in CHAR(65 USING utf8): the argument
-		// parser stops at USING because it is not a comma. Only CHAR takes it
-		// on this generic path — CONVERT has its own production, and the engine
-		// rejects the clause on anything else (`SUM(a USING utf8)` is a syntax
-		// error), so it must not be consumed for arbitrary function names.
-		if funcName == "CHAR" && p.cur.Kind == kwUSING {
-			p.advance() // consume USING
-			charset, ok := p.identOrKeywordToken()
-			if !ok {
-				return nil, p.syntaxErrorAtCur()
-			}
-			fc.Using = strings.ToUpper(charset.Str)
 		}
 
 		// Optional ORDER BY within aggregate functions (e.g., GROUP_CONCAT)
@@ -1330,6 +1312,10 @@ func lambdaParams(n ast.Node) ([]string, bool) {
 			return nil, false
 		}
 		return []string{v.Name.Parts[0]}, true
+	case *ast.ParenExpr:
+		// `(x) -> ...`. Unlike Doris, this engine accepts the parenthesized
+		// form with a single parameter as well as the bare one.
+		return lambdaParams(v.Expr)
 	}
 	return nil, false
 }
@@ -1343,10 +1329,9 @@ func (p *Parser) parseGroupingElementCall() (*ast.FuncCallExpr, error) {
 	return p.parseFuncCall(name)
 }
 
-// parseConvertExpr parses the two CONVERT forms:
-//
-//	CONVERT(expr USING charset)  -- transcoding; kept as a CONVERT call
-//	CONVERT(expr, type)          -- CAST spelled differently, so it becomes a CastExpr
+// parseConvertExpr parses CONVERT(expr, type), which is CAST spelled
+// differently and so becomes a CastExpr. The transcoding form
+// CONVERT(expr USING charset) is not accepted by this engine.
 func (p *Parser) parseConvertExpr() (ast.Node, error) {
 	convertTok := p.advance() // consume CONVERT
 	if _, err := p.expect(int('(')); err != nil {
@@ -1355,24 +1340,6 @@ func (p *Parser) parseConvertExpr() (ast.Node, error) {
 	expr, err := p.parseExpr()
 	if err != nil {
 		return nil, err
-	}
-
-	if p.cur.Kind == kwUSING {
-		p.advance() // consume USING
-		charset, ok := p.identOrKeywordToken()
-		if !ok {
-			return nil, p.syntaxErrorAtCur()
-		}
-		closeTok, err := p.expect(int(')'))
-		if err != nil {
-			return nil, err
-		}
-		return &ast.FuncCallExpr{
-			Name:  &ast.ObjectName{Parts: []string{"CONVERT"}, Loc: convertTok.Loc},
-			Args:  []ast.Node{expr},
-			Using: strings.ToUpper(charset.Str),
-			Loc:   ast.Loc{Start: convertTok.Loc.Start, End: closeTok.Loc.End},
-		}, nil
 	}
 
 	if _, err := p.expect(int(',')); err != nil {
@@ -1470,13 +1437,20 @@ func (p *Parser) parseNilaryFunction() (ast.Node, error) {
 	}
 	if p.cur.Kind == int('(') {
 		p.advance() // consume '('
-		// Optional fractional-seconds precision: CURRENT_TIMESTAMP(3).
+		// Only CURRENT_TIMESTAMP takes a fractional-seconds precision, and only
+		// one. The rest are strictly nilary: the engine rejects CURRENT_TIME(3),
+		// LOCALTIME(3), CURRENT_DATE(1) and CURRENT_USER(1, 2) alike. Parsing a
+		// single expression also rejects CURRENT_TIMESTAMP(foo, bar), since the
+		// closing paren is then expected at the comma.
 		if p.cur.Kind != int(')') {
-			args, err := p.parseExprList()
+			if name != "CURRENT_TIMESTAMP" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			arg, err := p.parseExpr()
 			if err != nil {
 				return nil, err
 			}
-			fc.Args = args
+			fc.Args = []ast.Node{arg}
 		}
 		closeTok, err := p.expect(int(')'))
 		if err != nil {

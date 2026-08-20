@@ -238,7 +238,6 @@ type FuncCallExpr struct {
 	Star     bool   // COUNT(*)
 	OrderBy  []*OrderByItem // optional ORDER BY in aggregate (GROUP_CONCAT)
 	Separator string // optional SEPARATOR value for GROUP_CONCAT
-	Using     string // optional USING charset, as in CONVERT(x USING utf8)
 	IgnoreNulls bool // IGNORE NULLS null-treatment (FIRST_VALUE/LAST_VALUE/LEAD/LAG)
 	Over     *WindowSpec // optional OVER (...) window specification
 	Loc      Loc

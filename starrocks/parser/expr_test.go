@@ -1414,22 +1414,26 @@ func TestExprFunctionNameKeywordRequiresCall(t *testing.T) {
 }
 
 func TestExprNilaryFunctionPrecision(t *testing.T) {
+	// CURRENT_TIMESTAMP is the only one of these that takes a fractional-seconds
+	// precision; the engine rejects an argument on any of the others.
+	node := mustParseExpr(t, "CURRENT_TIMESTAMP(3)")
+	fc, ok := node.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected *ast.FuncCallExpr, got %T", node)
+	}
+	if len(fc.Args) != 1 {
+		t.Fatalf("args = %d, want 1", len(fc.Args))
+	}
 	for _, input := range []string{
-		"CURRENT_TIMESTAMP(3)", "CURRENT_TIME(3)", "LOCALTIME(3)", "LOCALTIMESTAMP(3)",
+		"CURRENT_TIME(3)", "LOCALTIME(3)", "LOCALTIMESTAMP(3)",
+		"CURRENT_DATE(1)", "CURRENT_USER(1, 2)", "CURRENT_TIMESTAMP(foo, bar)",
 	} {
-		t.Run(input, func(t *testing.T) {
-			node := mustParseExpr(t, input)
-			fc, ok := node.(*ast.FuncCallExpr)
-			if !ok {
-				t.Fatalf("expected *ast.FuncCallExpr, got %T", node)
-			}
-			if len(fc.Args) != 1 {
-				t.Fatalf("args = %d, want 1", len(fc.Args))
-			}
-		})
+		if _, err := parseExprFrom(input); err == nil {
+			t.Errorf("parseExpr(%q) = nil error, want syntax error", input)
+		}
 	}
 	// The bare and empty-paren forms must keep working.
-	for _, input := range []string{"CURRENT_TIMESTAMP", "CURRENT_DATE()"} {
+	for _, input := range []string{"CURRENT_TIMESTAMP", "CURRENT_DATE()", "CURRENT_TIME()"} {
 		node := mustParseExpr(t, input)
 		if fc, ok := node.(*ast.FuncCallExpr); !ok || len(fc.Args) != 0 {
 			t.Errorf("%s = %T with args, want a zero-arg FuncCallExpr", input, node)
@@ -1467,7 +1471,11 @@ func TestExprArrayLiteral(t *testing.T) {
 }
 
 func TestExprMapLiteral(t *testing.T) {
-	node := mustParseExpr(t, "{'a': 1, 'b': 2}")
+	// This engine requires the MAP prefix; a bare `{...}` is a syntax error.
+	if _, err := parseExprFrom("{'a': 1}"); err == nil {
+		t.Error("bare {'a': 1} parsed, want syntax error")
+	}
+	node := mustParseExpr(t, "map{'a': 1, 'b': 2}")
 	lit, ok := node.(*ast.MapLiteral)
 	if !ok {
 		t.Fatalf("expected *ast.MapLiteral, got %T", node)
@@ -1540,17 +1548,10 @@ func TestExprLambdaInFunctionArg(t *testing.T) {
 // CONVERT / USING charset / BINARY
 // ---------------------------------------------------------------------------
 
-func TestExprConvertUsing(t *testing.T) {
-	node := mustParseExpr(t, "CONVERT(s USING utf8)")
-	fc, ok := node.(*ast.FuncCallExpr)
-	if !ok {
-		t.Fatalf("expected *ast.FuncCallExpr, got %T", node)
-	}
-	if fc.Using != "UTF8" {
-		t.Errorf("Using = %q, want UTF8", fc.Using)
-	}
-	if len(fc.Args) != 1 {
-		t.Errorf("args = %d, want 1", len(fc.Args))
+func TestExprConvertUsingIsRejected(t *testing.T) {
+	// Unlike Doris, this engine has no CONVERT(expr USING charset) form.
+	if _, err := parseExprFrom("CONVERT(s USING utf8)"); err == nil {
+		t.Error("CONVERT(s USING utf8) parsed, want syntax error")
 	}
 }
 
@@ -1566,14 +1567,13 @@ func TestExprConvertToType(t *testing.T) {
 	}
 }
 
-func TestExprCharUsing(t *testing.T) {
-	node := mustParseExpr(t, "CHAR(65 USING utf8)")
-	fc, ok := node.(*ast.FuncCallExpr)
-	if !ok {
-		t.Fatalf("expected *ast.FuncCallExpr, got %T", node)
-	}
-	if fc.Using != "UTF8" {
-		t.Errorf("Using = %q, want UTF8", fc.Using)
+func TestExprCharUsingIsRejected(t *testing.T) {
+	// The trailing USING clause is not accepted on any function here.
+	mustParseExpr(t, "CHAR(65)")
+	for _, input := range []string{"CHAR(65 USING utf8)", "SUM(a USING utf8)", "foo(a USING utf8)"} {
+		if _, err := parseExprFrom(input); err == nil {
+			t.Errorf("parseExpr(%q) = nil error, want syntax error", input)
+		}
 	}
 }
 
@@ -1637,28 +1637,13 @@ func TestExprLambdaMultiParameter(t *testing.T) {
 	}
 }
 
-func TestExprLambdaSingleParameterMustBeBare(t *testing.T) {
-	// The engine accepts `x -> ...` and `(x, y) -> ...` but rejects `(x) -> ...`.
-	if _, err := parseExprFrom("array_map((x) -> x + 1, arr)"); err == nil {
-		t.Error("(x) -> ... parsed, want syntax error")
-	}
+func TestExprLambdaSingleParameterParenthesized(t *testing.T) {
+	// Unlike Doris, this engine accepts the parenthesized single-parameter form.
+	mustParseExpr(t, "array_map((x) -> x + 1, arr)")
 	// An ordinary parenthesized argument must be unaffected by the speculative
 	// lambda parse.
 	mustParseExpr(t, "foo((a + b), c)")
 	mustParseExpr(t, "foo((a), b)")
-}
-
-func TestExprTrailingUsingIsCharOnly(t *testing.T) {
-	// CHAR takes a trailing USING on the generic call path; CONVERT has its own
-	// production. Every other function must reject it, as the engine does.
-	mustParseExpr(t, "CHAR(65 USING utf8)")
-	mustParseExpr(t, "CHAR(65, 66 USING utf8)")
-	mustParseExpr(t, "CONVERT(s USING utf8)")
-	for _, input := range []string{"SUM(a USING utf8)", "foo(a USING utf8)"} {
-		if _, err := parseExprFrom(input); err == nil {
-			t.Errorf("parseExpr(%q) = nil error, want syntax error", input)
-		}
-	}
 }
 
 func TestStmtGroupByCubeIsWholeSpecification(t *testing.T) {
