@@ -478,3 +478,23 @@ func TestGetQuerySpan_TableFunctionIsNotTableAccess(t *testing.T) {
 		t.Fatalf("AccessTables = %+v, want none for a table function", span.AccessTables)
 	}
 }
+
+func TestGetQuerySpan_FailsClosedOnParseError(t *testing.T) {
+	// Engine-invalid SQL the parser used to swallow must now yield an error,
+	// never a silently smaller span (BYT-10085).
+	if _, err := GetQuerySpan("SELECT j->'$.a' FROM t"); err == nil {
+		t.Fatal("GetQuerySpan accepted a statement with trailing junk")
+	}
+
+	// A subquery that does not fully parse fails the whole span: its table
+	// reads would otherwise vanish from AccessTables.
+	if _, err := GetQuerySpan("SELECT (SELECT j->'$.a' FROM t2) x FROM t1"); err == nil {
+		t.Fatal("GetQuerySpan accepted an unparseable subquery")
+	}
+
+	// Empty input keeps the zero-span contract.
+	span, err := GetQuerySpan("")
+	if err != nil || span == nil || span.Type != QueryTypeUnknown {
+		t.Fatalf("empty input: span=%+v err=%v, want zero span and nil error", span, err)
+	}
+}

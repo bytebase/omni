@@ -61,11 +61,18 @@ type ColumnRef struct {
 // GetQuerySpan analyzes a SQL statement and returns its query span: the set
 // of tables it reads from, the CTE names it defines, and its output columns.
 //
-// GetQuerySpan is tolerant of parse errors — if the parser produces a partial
-// AST, whatever was parsed is still analyzed. On empty input it returns a
-// zero-valued span with Type=QueryTypeUnknown.
+// GetQuerySpan fails closed on parse errors. Masking and access checks
+// consume the span, and a partial AST understates what the statement reads —
+// before the strict Parse (BYT-10085), `SELECT secret_col[1] FROM
+// sensitive_table` analyzed as a table-less SELECT. A statement (or any of
+// its subqueries) that does not fully parse therefore yields an error, never
+// a silently smaller span. On empty input it returns a zero-valued span with
+// Type=QueryTypeUnknown.
 func GetQuerySpan(statement string) (*QuerySpan, error) {
-	file, _ := parser.Parse(statement)
+	file, errs := parser.Parse(statement)
+	if len(errs) > 0 {
+		return nil, &errs[0]
+	}
 	span := &QuerySpan{
 		Type: Classify(statement),
 	}
@@ -78,6 +85,9 @@ func GetQuerySpan(statement string) (*QuerySpan, error) {
 		w.analyzeStmt(stmt)
 	}
 	w.finalize()
+	if w.parseErr != nil {
+		return nil, w.parseErr
+	}
 	return span, nil
 }
 
@@ -109,6 +119,10 @@ func (s *cteScope) isCTE(name string) bool {
 //   - a deduplication map of (database, table) pairs for AccessTables
 //   - a flag indicating whether the outermost SELECT has populated Results yet
 type spanWalker struct {
+	// parseErr records the first subquery parse failure; GetQuerySpan fails
+	// closed on it rather than returning a span missing that subquery's reads.
+	parseErr error
+
 	span     *QuerySpan
 	scope    *cteScope
 	accessed map[tableKey]int // maps key -> index in span.AccessTables
@@ -341,13 +355,20 @@ func looksLikeSubquery(s string) bool {
 
 // analyzeSubqueryText re-parses subquery text (from SubqueryExpr.RawText or
 // a FROM-subquery's packed Parts[0]) and recurses into any resulting SELECT.
-// Errors are swallowed — if the subquery is unparseable, the consumer of
-// QuerySpan still gets whatever tables were already discovered.
+// A subquery that does not fully parse records w.parseErr — its table reads
+// would otherwise silently vanish from AccessTables, so the span fails
+// closed instead.
 func (w *spanWalker) analyzeSubqueryText(text string) {
 	if strings.TrimSpace(text) == "" {
 		return
 	}
-	file, _ := parser.Parse(text)
+	file, errs := parser.Parse(text)
+	if len(errs) > 0 {
+		if w.parseErr == nil {
+			w.parseErr = &errs[0]
+		}
+		return
+	}
 	if file == nil {
 		return
 	}

@@ -702,23 +702,41 @@ type ParseResult struct {
 }
 
 // Parse is the strict entry point: returns all errors encountered while
-// parsing the full input. The returned *ast.File always reflects whatever
+// parsing the full input, and — unlike ParseBestEffort — rejects a segment
+// whose statement parse succeeds without consuming every token. Before this
+// check, any valid statement prefix with an unparseable tail was silently
+// accepted with a truncated AST (`SELECT a[1] FROM t` once parsed as
+// `SELECT a` with no FROM at all), which downstream analysis could not tell
+// from a complete parse. The returned *ast.File always reflects whatever
 // statements parsed successfully — even in the error case, the File may
 // be non-empty.
 func Parse(input string) (*ast.File, []ParseError) {
-	result := ParseBestEffort(input)
+	result := parseAll(input, true)
 	return result.File, result.Errors
 }
 
 // ParseBestEffort runs Split to segment the input, then parses each segment
 // via parseSingle. Errors from individual segments are collected; all
 // successfully-parsed statements are appended to the result File.
+//
+// Unlike Parse, ParseBestEffort TOLERATES unconsumed trailing tokens after a
+// successfully-parsed statement prefix: partial or in-progress input still
+// yields whatever prefix parsed. Completion and other partial-input callers
+// depend on this tolerance — do not add the strict trailing-token check here.
 func ParseBestEffort(input string) *ParseResult {
+	return parseAll(input, false)
+}
+
+// parseAll is the shared implementation behind Parse and ParseBestEffort:
+// Split the input, parse each segment, collect nodes and errors.
+// strictTrailing selects whether parseSingle rejects unconsumed trailing
+// tokens.
+func parseAll(input string, strictTrailing bool) *ParseResult {
 	file := &ast.File{Loc: ast.Loc{Start: 0, End: len(input)}}
 	result := &ParseResult{File: file}
 
 	for _, seg := range Split(input) {
-		node, errs := parseSingle(seg.Text, seg.ByteStart)
+		node, errs := parseSingle(seg.Text, seg.ByteStart, strictTrailing)
 		if node != nil {
 			file.Stmts = append(file.Stmts, node)
 		}
@@ -737,7 +755,7 @@ func ParseBestEffort(input string) *ParseResult {
 // from Segment.Text. baseOffset is the byte offset of segText within the
 // original input — passed to NewLexerWithOffset so token Loc values are
 // absolute.
-func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
+func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node, []ParseError) {
 	p := &Parser{
 		lexer:      NewLexerWithOffset(segText, baseOffset),
 		input:      segText,
@@ -757,6 +775,17 @@ func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
 					Msg: err.Error(),
 				})
 			}
+		}
+		// A statement must be followed by end-of-input: parseStmt succeeded
+		// but left tokens behind, so the segment is NOT one well-formed
+		// statement. Without this check the tail is silently dropped
+		// (stmts=1, errs=0) and downstream analysis sees a truncated AST.
+		// EOF is asserted only on the success path — a parse that already
+		// errored left cur mid-statement, and asserting EOF there would
+		// emit a spurious second diagnostic.
+		if strictTrailing && err == nil && p.cur.Kind != tokEOF {
+			p.errors = append(p.errors, *p.syntaxErrorAtCur())
+			node = nil
 		}
 		result = node
 	}

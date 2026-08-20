@@ -97,11 +97,18 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		{"grouping_sets", "SELECT a, SUM(b) FROM t GROUP BY GROUPING SETS ((a), ())", true},
 		{"grouping_sets_trailing_item", "SELECT a FROM t GROUP BY GROUPING SETS ((a)), b", false},
 		// TABLET is engine-valid; TABLESAMPLE and GROUP BY ... WITH ROLLUP are
-		// not StarRocks syntax (engine-verified) — their negative arms land
-		// with the strict trailing-token check (BYT-10085), because until
-		// then the parser still swallows them as trailing junk.
+		// not StarRocks syntax (engine-verified) and, with the strict
+		// trailing-token check (BYT-10085), stay rejected instead of being
+		// swallowed as trailing junk.
 		{"tablet", "SELECT * FROM t TABLET(10001)", true},
+		{"tablesample_rejected", "SELECT * FROM t TABLESAMPLE(1000 ROWS)", false},
+		{"group_by_with_rollup_rejected", "SELECT a, SUM(b) FROM t GROUP BY a WITH ROLLUP", false},
 		{"show_databases_from", "SHOW DATABASES FROM default_catalog", true},
+		// Unlike Doris, StarRocks HAS the -> JSON path operator (the engine
+		// accepts SELECT j->'$.a'); omni's rejection is a known gap tracked
+		// separately — a conformance case would assert the wrong side, and
+		// parsing it as a lambda would shadow the column out of lineage.
+		{"stray_comment_close_rejected", "SELECT 1 */ 2", false},
 		{"create_table_primary_key", "CREATE TABLE conf_pk (id BIGINT NOT NULL, v VARCHAR(64)) PRIMARY KEY(id) DISTRIBUTED BY HASH(id)", true},
 	}
 

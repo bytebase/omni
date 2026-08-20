@@ -312,6 +312,11 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"show_databases_from", "SHOW DATABASES FROM internal", true},
 		{"build_index_partition", "BUILD INDEX index1 ON table1 PARTITION(p1, p2)", true},
 
+		// With the strict trailing-token check (BYT-10085), junk after a
+		// valid prefix is rejected instead of silently dropped.
+		{"json_arrow_rejected", "SELECT j->'$.a' FROM t", false},
+		{"stray_comment_close_rejected", "SELECT 1 */ 2", false},
+
 		// --- Negative arm: the grammar file allows these, the engine does not.
 		{"substring_from_for", "SELECT SUBSTRING('abcdef' FROM 2 FOR 3)", false},
 		{"substring_from", "SELECT SUBSTRING('abcdef' FROM 2)", false},
