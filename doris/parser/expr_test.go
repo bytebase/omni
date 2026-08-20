@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/doris/ast"
@@ -1263,5 +1264,418 @@ func TestExprParseSuccess(t *testing.T) {
 				t.Errorf("parseExpr(%q) returned nil", tt.input)
 			}
 		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// EXTRACT expressions
+// ---------------------------------------------------------------------------
+
+func TestExprExtractUnits(t *testing.T) {
+	// Every unit documented for EXTRACT: plain identifiers, non-reserved unit
+	// keywords, and the compound units that lex as reserved keywords.
+	units := []string{
+		"YEAR", "QUARTER", "MONTH", "WEEK", "DAY", "HOUR", "MINUTE", "SECOND",
+		"YEAR_MONTH", "DAY_HOUR", "DAY_MINUTE", "DAY_SECOND", "DAY_MICROSECOND",
+		"HOUR_MINUTE", "HOUR_SECOND", "HOUR_MICROSECOND",
+		"MINUTE_SECOND", "MINUTE_MICROSECOND", "SECOND_MICROSECOND",
+		"DAYOFWEEK", "DOW", "DAYOFYEAR", "DOY",
+	}
+	for _, unit := range units {
+		t.Run(unit, func(t *testing.T) {
+			node := mustParseExpr(t, "EXTRACT("+unit+" FROM d)")
+			ex, ok := node.(*ast.ExtractExpr)
+			if !ok {
+				t.Fatalf("expected *ast.ExtractExpr, got %T", node)
+			}
+			if ex.Unit != unit {
+				t.Errorf("unit = %q, want %q", ex.Unit, unit)
+			}
+			if _, ok := ex.Expr.(*ast.ColumnRef); !ok {
+				t.Errorf("expr = %T, want *ast.ColumnRef", ex.Expr)
+			}
+		})
+	}
+}
+
+func TestExprExtractUnitNormalized(t *testing.T) {
+	node := mustParseExpr(t, "extract(year from d)")
+	ex, ok := node.(*ast.ExtractExpr)
+	if !ok {
+		t.Fatalf("expected *ast.ExtractExpr, got %T", node)
+	}
+	if ex.Unit != "YEAR" {
+		t.Errorf("unit = %q, want YEAR", ex.Unit)
+	}
+}
+
+func TestExprExtractNestedFuncCall(t *testing.T) {
+	node := mustParseExpr(t, "EXTRACT(YEAR FROM MONTHS_ADD(NOW(), -1))")
+	ex, ok := node.(*ast.ExtractExpr)
+	if !ok {
+		t.Fatalf("expected *ast.ExtractExpr, got %T", node)
+	}
+	fc, ok := ex.Expr.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expr = %T, want *ast.FuncCallExpr", ex.Expr)
+	}
+	if got := fc.Name.Parts[len(fc.Name.Parts)-1]; got != "MONTHS_ADD" {
+		t.Errorf("func name = %q, want MONTHS_ADD", got)
+	}
+}
+
+func TestExprExtractInsideCTEStatement(t *testing.T) {
+	// The reported shape: EXTRACT inside a CTE body, spread over several lines.
+	sql := `WITH c AS (
+  SELECT year_num
+  FROM currency_record
+  WHERE year_num = EXTRACT(
+    YEAR
+    FROM
+      MONTHS_ADD(NOW(), -1)
+  )
+)
+SELECT * FROM c`
+	file, errs := Parse(sql)
+	if len(errs) > 0 {
+		t.Fatalf("Parse returned errors: %v", errs)
+	}
+	if len(file.Stmts) != 1 {
+		t.Fatalf("Stmts len = %d, want 1", len(file.Stmts))
+	}
+	if _, ok := file.Stmts[0].(*ast.SelectStmt); !ok {
+		t.Fatalf("stmt = %T, want *ast.SelectStmt", file.Stmts[0])
+	}
+}
+
+func TestExprExtractSyntaxErrors(t *testing.T) {
+	for _, input := range []string{
+		"EXTRACT(YEAR d)",     // missing FROM
+		"EXTRACT(FROM d)",     // missing unit
+		"EXTRACT(YEAR FROM)",  // missing source expression
+		"EXTRACT YEAR FROM d", // missing parentheses
+	} {
+		if _, err := parseExprFrom(input); err == nil {
+			t.Errorf("parseExpr(%q) = nil error, want syntax error", input)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Reserved keywords usable as function names (functionNameIdentifier)
+// ---------------------------------------------------------------------------
+
+func TestExprFunctionNameKeywords(t *testing.T) {
+	tests := []struct {
+		input string
+		name  string
+		args  int
+	}{
+		{"TRIM(s)", "TRIM", 1},
+		{"TRIM(s, 'x')", "TRIM", 2},
+		{"LEFT(s, 2)", "LEFT", 2},
+		{"RIGHT(s, 2)", "RIGHT", 2},
+		{"IF(a, 1, 2)", "IF", 3},
+		{"DATABASE()", "DATABASE", 0},
+		{"SCHEMA()", "SCHEMA", 0},
+		{"ADD(1, 2)", "ADD", 2},
+		{"REGEXP(1)", "REGEXP", 1},
+		{"LIKE(1)", "LIKE", 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			node := mustParseExpr(t, tt.input)
+			fc, ok := node.(*ast.FuncCallExpr)
+			if !ok {
+				t.Fatalf("expected *ast.FuncCallExpr, got %T", node)
+			}
+			if got := fc.Name.Parts[len(fc.Name.Parts)-1]; !strings.EqualFold(got, tt.name) {
+				t.Errorf("name = %q, want %q", got, tt.name)
+			}
+			if len(fc.Args) != tt.args {
+				t.Errorf("args = %d, want %d", len(fc.Args), tt.args)
+			}
+		})
+	}
+}
+
+func TestExprFunctionNameKeywordRequiresCall(t *testing.T) {
+	// The keyword is only a function name when directly applied — `LEFT JOIN`
+	// must still parse as a join, and a bare `LEFT` is still not an identifier.
+	if _, errs := Parse("SELECT * FROM a LEFT JOIN b ON a.x = b.x"); len(errs) > 0 {
+		t.Errorf("LEFT JOIN broke: %v", errs)
+	}
+	if _, errs := Parse("SELECT * FROM a RIGHT JOIN b ON a.x = b.x"); len(errs) > 0 {
+		t.Errorf("RIGHT JOIN broke: %v", errs)
+	}
+	if _, errs := Parse("SELECT LEFT FROM t"); len(errs) == 0 {
+		t.Error("bare LEFT as a column parsed, want syntax error")
+	}
+}
+
+func TestExprNilaryFunctionPrecision(t *testing.T) {
+	for _, input := range []string{
+		"CURRENT_TIMESTAMP(3)", "CURRENT_TIME(3)", "LOCALTIME(3)", "LOCALTIMESTAMP(3)",
+	} {
+		t.Run(input, func(t *testing.T) {
+			node := mustParseExpr(t, input)
+			fc, ok := node.(*ast.FuncCallExpr)
+			if !ok {
+				t.Fatalf("expected *ast.FuncCallExpr, got %T", node)
+			}
+			if len(fc.Args) != 1 {
+				t.Fatalf("args = %d, want 1", len(fc.Args))
+			}
+		})
+	}
+	// The bare and empty-paren forms must keep working.
+	for _, input := range []string{"CURRENT_TIMESTAMP", "CURRENT_DATE()"} {
+		node := mustParseExpr(t, input)
+		if fc, ok := node.(*ast.FuncCallExpr); !ok || len(fc.Args) != 0 {
+			t.Errorf("%s = %T with args, want a zero-arg FuncCallExpr", input, node)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Literals: hex, bit, array, map
+// ---------------------------------------------------------------------------
+
+func TestExprHexAndBitLiterals(t *testing.T) {
+	hex := mustParseExpr(t, "x'1f'")
+	if lit, ok := hex.(*ast.Literal); !ok || lit.Kind != ast.LitHex {
+		t.Errorf("x'1f' = %T (%v), want LitHex literal", hex, hex)
+	}
+	bit := mustParseExpr(t, "b'101'")
+	if lit, ok := bit.(*ast.Literal); !ok || lit.Kind != ast.LitBit {
+		t.Errorf("b'101' = %T, want LitBit literal", bit)
+	}
+}
+
+func TestExprArrayLiteral(t *testing.T) {
+	node := mustParseExpr(t, "[1, 2, 3]")
+	lit, ok := node.(*ast.ArrayLiteral)
+	if !ok {
+		t.Fatalf("expected *ast.ArrayLiteral, got %T", node)
+	}
+	if len(lit.Elements) != 3 {
+		t.Errorf("elements = %d, want 3", len(lit.Elements))
+	}
+	if empty, ok := mustParseExpr(t, "[]").(*ast.ArrayLiteral); !ok || len(empty.Elements) != 0 {
+		t.Error("[] did not parse as an empty array literal")
+	}
+}
+
+func TestExprMapLiteral(t *testing.T) {
+	node := mustParseExpr(t, "{'a': 1, 'b': 2}")
+	lit, ok := node.(*ast.MapLiteral)
+	if !ok {
+		t.Fatalf("expected *ast.MapLiteral, got %T", node)
+	}
+	if len(lit.Entries) != 2 {
+		t.Fatalf("entries = %d, want 2", len(lit.Entries))
+	}
+	if lit.Entries[0].Key == nil || lit.Entries[0].Value == nil {
+		t.Error("first entry has a nil key or value")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Session and user variables
+// ---------------------------------------------------------------------------
+
+func TestExprVariableRef(t *testing.T) {
+	tests := []struct {
+		input  string
+		name   string
+		scope  string
+		system bool
+	}{
+		{"@@version_comment", "version_comment", "", true},
+		{"@@session.query_timeout", "query_timeout", "SESSION", true},
+		{"@@global.query_timeout", "query_timeout", "GLOBAL", true},
+		{"@uservar", "uservar", "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			node := mustParseExpr(t, tt.input)
+			v, ok := node.(*ast.VariableRef)
+			if !ok {
+				t.Fatalf("expected *ast.VariableRef, got %T", node)
+			}
+			if !strings.EqualFold(v.Name, tt.name) || v.Scope != tt.scope || v.System != tt.system {
+				t.Errorf("got {Name:%q Scope:%q System:%v}, want {%q %q %v}",
+					v.Name, v.Scope, v.System, tt.name, tt.scope, tt.system)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Lambdas
+// ---------------------------------------------------------------------------
+
+func TestExprLambdaInFunctionArg(t *testing.T) {
+	node := mustParseExpr(t, "array_map(x -> x + 1, arr)")
+	fc, ok := node.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected *ast.FuncCallExpr, got %T", node)
+	}
+	if len(fc.Args) != 2 {
+		t.Fatalf("args = %d, want 2", len(fc.Args))
+	}
+	lam, ok := fc.Args[0].(*ast.LambdaExpr)
+	if !ok {
+		t.Fatalf("args[0] = %T, want *ast.LambdaExpr", fc.Args[0])
+	}
+	if len(lam.Params) != 1 || lam.Params[0] != "x" {
+		t.Errorf("params = %v, want [x]", lam.Params)
+	}
+	if _, ok := lam.Body.(*ast.BinaryExpr); !ok {
+		t.Errorf("body = %T, want *ast.BinaryExpr", lam.Body)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// CONVERT / USING charset / BINARY
+// ---------------------------------------------------------------------------
+
+func TestExprConvertUsing(t *testing.T) {
+	node := mustParseExpr(t, "CONVERT(s USING utf8)")
+	fc, ok := node.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected *ast.FuncCallExpr, got %T", node)
+	}
+	if fc.Using != "UTF8" {
+		t.Errorf("Using = %q, want UTF8", fc.Using)
+	}
+	if len(fc.Args) != 1 {
+		t.Errorf("args = %d, want 1", len(fc.Args))
+	}
+}
+
+func TestExprConvertToType(t *testing.T) {
+	// CONVERT(expr, type) is CAST spelled differently.
+	node := mustParseExpr(t, "CONVERT(s, SIGNED)")
+	cast, ok := node.(*ast.CastExpr)
+	if !ok {
+		t.Fatalf("expected *ast.CastExpr, got %T", node)
+	}
+	if cast.TypeName == nil || cast.TypeName.Name != "SIGNED" {
+		t.Errorf("type = %+v, want SIGNED", cast.TypeName)
+	}
+}
+
+func TestExprCharUsing(t *testing.T) {
+	node := mustParseExpr(t, "CHAR(65 USING utf8)")
+	fc, ok := node.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected *ast.FuncCallExpr, got %T", node)
+	}
+	if fc.Using != "UTF8" {
+		t.Errorf("Using = %q, want UTF8", fc.Using)
+	}
+}
+
+func TestExprBinaryOperator(t *testing.T) {
+	node := mustParseExpr(t, "BINARY s")
+	un, ok := node.(*ast.UnaryExpr)
+	if !ok {
+		t.Fatalf("expected *ast.UnaryExpr, got %T", node)
+	}
+	if un.Op != ast.UnaryBinary {
+		t.Errorf("op = %v, want UnaryBinary", un.Op)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Statement-level: optimizer hints, GROUP BY CUBE
+// ---------------------------------------------------------------------------
+
+func TestStmtOptimizerHintIsSkipped(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT /*+ SET_VAR(query_timeout = 100) */ 1",
+		"SELECT /*+ SET_VAR(a = 1) */ /* ordinary comment */ 1",
+		"SELECT /*+ SET_VAR(a = 1) */ a FROM t WHERE a > 1",
+	} {
+		file, errs := Parse(sql)
+		if len(errs) > 0 {
+			t.Errorf("Parse(%q) errors: %v", sql, errs)
+			continue
+		}
+		if len(file.Stmts) != 1 {
+			t.Errorf("Parse(%q) produced %d statements, want 1", sql, len(file.Stmts))
+		}
+	}
+}
+
+func TestStmtGroupByCube(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT a, SUM(b) FROM t GROUP BY CUBE(a)",
+		"SELECT a, SUM(b) FROM t GROUP BY CUBE(a, c)",
+		"SELECT a, SUM(b) FROM t GROUP BY ROLLUP(a)",
+		"SELECT a, SUM(b) FROM t GROUP BY GROUPING SETS ((a), ())",
+	} {
+		if _, errs := Parse(sql); len(errs) > 0 {
+			t.Errorf("Parse(%q) errors: %v", sql, errs)
+		}
+	}
+}
+
+func TestExprLambdaMultiParameter(t *testing.T) {
+	node := mustParseExpr(t, "array_map((x, y) -> x + y, a, b)")
+	fc, ok := node.(*ast.FuncCallExpr)
+	if !ok {
+		t.Fatalf("expected *ast.FuncCallExpr, got %T", node)
+	}
+	lam, ok := fc.Args[0].(*ast.LambdaExpr)
+	if !ok {
+		t.Fatalf("args[0] = %T, want *ast.LambdaExpr", fc.Args[0])
+	}
+	if len(lam.Params) != 2 || lam.Params[0] != "x" || lam.Params[1] != "y" {
+		t.Errorf("params = %v, want [x y]", lam.Params)
+	}
+}
+
+func TestExprLambdaSingleParameterMustBeBare(t *testing.T) {
+	// The engine accepts `x -> ...` and `(x, y) -> ...` but rejects `(x) -> ...`.
+	if _, err := parseExprFrom("array_map((x) -> x + 1, arr)"); err == nil {
+		t.Error("(x) -> ... parsed, want syntax error")
+	}
+	// An ordinary parenthesized argument must be unaffected by the speculative
+	// lambda parse.
+	mustParseExpr(t, "foo((a + b), c)")
+	mustParseExpr(t, "foo((a), b)")
+}
+
+func TestExprTrailingUsingIsCharOnly(t *testing.T) {
+	// CHAR takes a trailing USING on the generic call path; CONVERT has its own
+	// production. Every other function must reject it, as the engine does.
+	mustParseExpr(t, "CHAR(65 USING utf8)")
+	mustParseExpr(t, "CHAR(65, 66 USING utf8)")
+	mustParseExpr(t, "CONVERT(s USING utf8)")
+	for _, input := range []string{"SUM(a USING utf8)", "foo(a USING utf8)"} {
+		if _, err := parseExprFrom(input); err == nil {
+			t.Errorf("parseExpr(%q) = nil error, want syntax error", input)
+		}
+	}
+}
+
+func TestStmtGroupByCubeIsWholeSpecification(t *testing.T) {
+	// The engine rejects a grouping list after CUBE. Accepting it here would
+	// silently discard everything past the comma.
+	for _, sql := range []string{
+		"SELECT a, b, SUM(c) FROM t GROUP BY CUBE(a), b",
+		"SELECT a, SUM(b) FROM t GROUP BY CUBE(a), CUBE(b)",
+	} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want syntax error", sql)
+		}
+	}
+}
+
+func TestUnaryBinaryRenders(t *testing.T) {
+	if got := ast.UnaryBinary.String(); got != "BINARY" {
+		t.Errorf("UnaryBinary.String() = %q, want BINARY", got)
 	}
 }

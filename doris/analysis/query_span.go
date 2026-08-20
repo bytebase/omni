@@ -430,11 +430,36 @@ func renderColumnName(expr ast.Node) string {
 
 // collectColumnRefs returns every ColumnRef directly mentioned in expr.
 func collectColumnRefs(expr ast.Node) []ColumnRef {
+	return collectColumnRefsScoped(expr, nil)
+}
+
+// collectColumnRefsScoped collects direct column references, skipping any name
+// bound by an enclosing lambda. In array_map(x -> x + bonus, scores) the
+// parameter x is local to the lambda and is not a column of any table, so
+// reporting it would feed a nonexistent column into lineage and masking.
+func collectColumnRefsScoped(expr ast.Node, bound map[string]bool) []ColumnRef {
 	var refs []ColumnRef
 	ast.Inspect(expr, func(n ast.Node) bool {
 		switch node := n.(type) {
+		case *ast.LambdaExpr:
+			// Inspect has no post-order hook to pop a scope with, so recurse
+			// into the body with the widened binding set instead.
+			inner := make(map[string]bool, len(bound)+len(node.Params))
+			for name := range bound {
+				inner[name] = true
+			}
+			for _, param := range node.Params {
+				inner[strings.ToLower(param)] = true
+			}
+			refs = append(refs, collectColumnRefsScoped(node.Body, inner)...)
+			return false
 		case *ast.ColumnRef:
 			if node.Name == nil || len(node.Name.Parts) == 0 {
+				return false
+			}
+			// Only an unqualified name can be a lambda parameter; `t.x` is a
+			// column even when a parameter happens to be called x.
+			if len(node.Name.Parts) == 1 && bound[strings.ToLower(node.Name.Parts[0])] {
 				return false
 			}
 			refs = append(refs, columnRefFromObjectName(node.Name))

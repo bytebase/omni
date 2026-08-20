@@ -86,6 +86,24 @@ const (
 	// T_CastExpr is the tag for *CastExpr (CAST/TRY_CAST).
 	T_CastExpr
 
+	// T_ExtractExpr is the tag for *ExtractExpr (EXTRACT(unit FROM expr)).
+	T_ExtractExpr
+
+	// T_VariableRef is the tag for *VariableRef (@@var / @var).
+	T_VariableRef
+
+	// T_LambdaExpr is the tag for *LambdaExpr (x -> body).
+	T_LambdaExpr
+
+	// T_ArrayLiteral is the tag for *ArrayLiteral ([e, ...]).
+	T_ArrayLiteral
+
+	// T_MapLiteral is the tag for *MapLiteral ({k: v, ...}).
+	T_MapLiteral
+
+	// T_MapEntry is the tag for *MapEntry (one k: v pair).
+	T_MapEntry
+
 	// T_CaseExpr is the tag for *CaseExpr (CASE...END).
 	T_CaseExpr
 
@@ -650,6 +668,18 @@ func (t NodeTag) String() string {
 		return "FuncCallExpr"
 	case T_CastExpr:
 		return "CastExpr"
+	case T_ExtractExpr:
+		return "ExtractExpr"
+	case T_VariableRef:
+		return "VariableRef"
+	case T_LambdaExpr:
+		return "LambdaExpr"
+	case T_ArrayLiteral:
+		return "ArrayLiteral"
+	case T_MapLiteral:
+		return "MapLiteral"
+	case T_MapEntry:
+		return "MapEntry"
 	case T_CaseExpr:
 		return "CaseExpr"
 	case T_WhenClause:

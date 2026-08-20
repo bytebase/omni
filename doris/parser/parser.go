@@ -26,6 +26,24 @@ type Parser struct {
 	errors     []ParseError // collected errors for best-effort mode
 }
 
+// nextToken returns the next token from the lexer, transparently skipping
+// optimizer-hint spans (/*+ ... */). Hints carry no syntax of their own that
+// any production needs to see, so skipping them here keeps every production
+// hint-agnostic instead of threading an optional hint through each one.
+func (p *Parser) nextToken() Token {
+	tok := p.lexer.NextToken()
+	for tok.Kind == tokHintStart {
+		for tok.Kind != tokHintEnd && tok.Kind != tokEOF {
+			tok = p.lexer.NextToken()
+		}
+		if tok.Kind == tokEOF {
+			return tok
+		}
+		tok = p.lexer.NextToken()
+	}
+	return tok
+}
+
 // advance consumes the current token and moves to the next one.
 // Returns the token that was just consumed (the new "previous" token).
 func (p *Parser) advance() Token {
@@ -34,9 +52,49 @@ func (p *Parser) advance() Token {
 		p.cur = p.nextBuf
 		p.hasNext = false
 	} else {
-		p.cur = p.lexer.NextToken()
+		p.cur = p.nextToken()
 	}
 	return p.prev
+}
+
+// parserCheckpoint snapshots the parser + lexer position so a speculative parse
+// can be rolled back. It is a bounded backtracking primitive for prefix-
+// ambiguous grammar — `(x, y) -> ...` is a lambda parameter list, `(x + y)` is
+// a parenthesized expression, and the two are only told apart at the arrow.
+// It is NOT safe across input-rewriting lexer paths (conditional comments),
+// which do not occur inside the constructs it is used for.
+type parserCheckpoint struct {
+	cur, prev, nextBuf Token
+	hasNext            bool
+	lexPos, lexStart   int
+	errLen, lexErrLen  int
+}
+
+// save captures the current parser state.
+func (p *Parser) save() parserCheckpoint {
+	return parserCheckpoint{
+		cur:       p.cur,
+		prev:      p.prev,
+		nextBuf:   p.nextBuf,
+		hasNext:   p.hasNext,
+		lexPos:    p.lexer.pos,
+		lexStart:  p.lexer.start,
+		errLen:    len(p.errors),
+		lexErrLen: len(p.lexer.errors),
+	}
+}
+
+// restore rolls the parser + lexer back to a saved checkpoint, discarding any
+// tokens consumed and errors collected since.
+func (p *Parser) restore(c parserCheckpoint) {
+	p.cur = c.cur
+	p.prev = c.prev
+	p.nextBuf = c.nextBuf
+	p.hasNext = c.hasNext
+	p.lexer.pos = c.lexPos
+	p.lexer.start = c.lexStart
+	p.errors = p.errors[:c.errLen]
+	p.lexer.errors = p.lexer.errors[:c.lexErrLen]
 }
 
 // peek returns the current token without consuming it.
@@ -49,7 +107,7 @@ func (p *Parser) peek() Token {
 // token following the current position.
 func (p *Parser) peekNext() Token {
 	if !p.hasNext {
-		p.nextBuf = p.lexer.NextToken()
+		p.nextBuf = p.nextToken()
 		p.hasNext = true
 	}
 	return p.nextBuf
