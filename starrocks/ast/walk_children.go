@@ -210,7 +210,12 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.TableName)
 		}
 	case *TableRef:
-		if n.Name != nil {
+		// A FROM-subquery packs its raw text into Name.Parts[0]; walking the
+		// Subquery node instead keeps generic visitors from mistaking that
+		// text for an identifier.
+		if n.Subquery != nil {
+			Walk(v, n.Subquery)
+		} else if n.Name != nil {
 			Walk(v, n.Name)
 		}
 	case *InlineTable:

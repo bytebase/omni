@@ -24,6 +24,12 @@ type Parser struct {
 	nextBuf    Token        // buffered lookahead token
 	hasNext    bool         // whether nextBuf is valid
 	errors     []ParseError // collected errors for best-effort mode
+
+	// strictTrailing mirrors the parseSingle mode: strict entry points
+	// reject unconsumed trailing tokens and refuse best-effort fallbacks
+	// (such as EXPLAIN's raw-query recovery) that would mask a nested
+	// parse failure.
+	strictTrailing bool
 }
 
 // nextToken returns the next token from the lexer, transparently skipping
@@ -748,9 +754,10 @@ func parseAll(input string, strictTrailing bool) *ParseResult {
 // absolute.
 func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node, []ParseError) {
 	p := &Parser{
-		lexer:      NewLexerWithOffset(segText, baseOffset),
-		input:      segText,
-		baseOffset: baseOffset,
+		lexer:          NewLexerWithOffset(segText, baseOffset),
+		input:          segText,
+		baseOffset:     baseOffset,
+		strictTrailing: strictTrailing,
 	}
 	p.advance() // prime cur with the first token
 
@@ -777,6 +784,13 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 		if strictTrailing && err == nil && p.cur.Kind != tokEOF {
 			p.errors = append(p.errors, *p.syntaxErrorAtCur())
 			node = nil
+			// Drain the rest of the segment: the lexer is lazy, so any
+			// lexical error past this point (an unterminated string, say)
+			// has not been reached yet and Errors() below could not
+			// promote it into the diagnostics.
+			for p.cur.Kind != tokEOF {
+				p.advance()
+			}
 		}
 		result = node
 	}

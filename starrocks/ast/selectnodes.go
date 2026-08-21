@@ -135,6 +135,10 @@ type TableRef struct {
 	Name  *ObjectName // table name (may be qualified: db.table or catalog.db.table)
 	Alias string      // optional alias; empty if absent
 
+	// Subquery is set when this FROM item is a parenthesized subquery;
+	// Name.Parts[0] mirrors its raw text for legacy consumers.
+	Subquery *SubqueryExpr
+
 	// TabletIDs holds TABLET(id, ...) — a physical-tablet restriction that
 	// appears between the table name and the alias.
 	TabletIDs []int64

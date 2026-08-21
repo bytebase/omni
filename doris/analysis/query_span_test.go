@@ -1,7 +1,10 @@
 package analysis
 
 import (
+	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/doris/parser"
 )
 
 // tableSig is a compact form of TableAccess used for order-insensitive
@@ -496,5 +499,72 @@ func TestGetQuerySpan_FailsClosedOnParseError(t *testing.T) {
 	span, err := GetQuerySpan("")
 	if err != nil || span == nil || span.Type != QueryTypeUnknown {
 		t.Fatalf("empty input: span=%+v err=%v, want zero span and nil error", span, err)
+	}
+}
+
+func TestGetQuerySpan_TableNamesResemblingKeywords(t *testing.T) {
+	// The FROM-subquery detection is an explicit AST discriminator, not a
+	// prefix heuristic: tables named selected/within (and a quoted `select`)
+	// are ordinary tables, not query text to re-parse.
+	for _, tc := range []struct{ sql, table string }{
+		{"SELECT * FROM selected", "selected"},
+		{"SELECT * FROM within", "within"},
+		{"SELECT * FROM `select`", "select"},
+	} {
+		span, err := GetQuerySpan(tc.sql)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q) error: %v", tc.sql, err)
+		}
+		if len(span.AccessTables) != 1 || span.AccessTables[0].Table != tc.table {
+			t.Errorf("GetQuerySpan(%q) AccessTables = %+v, want [%s]", tc.sql, span.AccessTables, tc.table)
+		}
+	}
+}
+
+func TestGetQuerySpan_DMLSubqueriesFailClosed(t *testing.T) {
+	// The fail-closed contract holds for statements that produce no lineage
+	// of their own: a malformed subquery inside DML surfaces as an error.
+	if _, err := GetQuerySpan("DELETE FROM t WHERE id IN (SELECT 1 */ 2 FROM secret)"); err == nil {
+		t.Fatal("malformed DML subquery accepted")
+	}
+	// A well-formed one contributes its table reads.
+	span, err := GetQuerySpan("DELETE FROM t WHERE id IN (SELECT id FROM other)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	found := false
+	for _, a := range span.AccessTables {
+		if a.Table == "other" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("AccessTables = %+v, want to include other", span.AccessTables)
+	}
+}
+
+func TestGetQuerySpan_SubqueryErrorLocationsAreOuter(t *testing.T) {
+	// Errors from re-parsing a subquery's raw text must be shifted into the
+	// outer statement's coordinates so diagnostics highlight the right spot.
+	sql := "SELECT (SELECT 1 */ 2 FROM t2) x FROM t1"
+	_, err := GetQuerySpan(sql)
+	if err == nil {
+		t.Fatal("malformed subquery accepted")
+	}
+	pe, ok := err.(*parser.ParseError)
+	if !ok {
+		t.Fatalf("err = %T, want *parser.ParseError", err)
+	}
+	want := strings.Index(sql, "*/")
+	if pe.Loc.Start != want {
+		t.Errorf("error Loc.Start = %d, want %d (the */ in the outer text)", pe.Loc.Start, want)
+	}
+}
+
+func TestGetQuerySpan_TableFunctionArgSubqueriesFailClosed(t *testing.T) {
+	// Subqueries embedded in table-function arguments are validated too: the
+	// function call is walked, so a malformed one fails the span.
+	if _, err := GetQuerySpan("SELECT * FROM numbers(EXISTS (SELECT 1 */ 2 FROM secret)) x"); err == nil {
+		t.Fatal("malformed subquery in table-function argument accepted")
 	}
 }

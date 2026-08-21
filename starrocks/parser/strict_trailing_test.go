@@ -111,3 +111,57 @@ func TestParseBestEffortToleratesTrailingTokens(t *testing.T) {
 		t.Errorf("ParseBestEffort stmts = %d, want the parsed prefix", len(result.File.Stmts))
 	}
 }
+
+func TestStrictParseDrainsLexErrorsAfterTrailingJunk(t *testing.T) {
+	// The lexer is lazy: without draining the segment after the first
+	// trailing-token error, the unterminated string would never be lexed and
+	// its diagnostic would be lost.
+	_, errs := Parse("SELECT 1 ))) 'unterminated")
+	if len(errs) < 2 {
+		t.Fatalf("errs = %v, want the trailing-token error AND the lex error", errs)
+	}
+}
+
+func TestStrictParseRejectsMalformedExplain(t *testing.T) {
+	// The RawQuery fallback is best-effort recovery only; on the strict path
+	// it must not swallow a nested parse failure.
+	for _, sql := range []string{"EXPLAIN SELECT * FROM", "EXPLAIN SELECT (", "EXPLAIN BOGUS x"} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want nested error", sql)
+		}
+		if r := ParseBestEffort(sql); len(r.Errors) != 0 {
+			t.Errorf("ParseBestEffort(%q) errors = %v, want fallback recovery", sql, r.Errors)
+		}
+	}
+	// A well-formed explained statement still parses strictly.
+	if _, errs := Parse("EXPLAIN SELECT 1"); len(errs) != 0 {
+		t.Errorf("EXPLAIN SELECT 1 errors: %v", errs)
+	}
+}
+
+func TestSetTransactionCharacteristics(t *testing.T) {
+	// SET TRANSACTION used to raw-capture to EOF, hiding any junk from the
+	// strict check. The characteristics are now parsed for real.
+	for _, sql := range []string{
+		"SET TRANSACTION READ ONLY",
+		"SET TRANSACTION READ WRITE",
+		"SET TRANSACTION ISOLATION LEVEL READ COMMITTED",
+		"SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED",
+		"SET TRANSACTION ISOLATION LEVEL REPEATABLE READ",
+		"SET TRANSACTION ISOLATION LEVEL SERIALIZABLE, READ ONLY",
+	} {
+		if _, errs := Parse(sql); len(errs) != 0 {
+			t.Errorf("Parse(%q) errors: %v", sql, errs)
+		}
+	}
+	for _, sql := range []string{
+		"SET TRANSACTION",
+		"SET TRANSACTION BOGUS",
+		"SET TRANSACTION READ ONLY )))",
+		"SET TRANSACTION ISOLATION LEVEL READ",
+	} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want error", sql)
+		}
+	}
+}

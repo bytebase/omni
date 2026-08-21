@@ -360,7 +360,13 @@ var _ Node = (*WhenClause)(nil)
 // raw text between parentheses.
 type SubqueryExpr struct {
 	RawText string // raw SQL text of the subquery (without outer parens)
-	Loc     Loc
+
+	// TextStart is the byte offset of RawText's first character in the
+	// original input, so errors from re-parsing the raw text can be shifted
+	// back into the outer statement's coordinates.
+	TextStart int
+
+	Loc Loc
 }
 
 func (n *SubqueryExpr) Tag() NodeTag { return T_SubqueryExpr }

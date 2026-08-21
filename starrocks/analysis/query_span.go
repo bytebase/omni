@@ -151,7 +151,25 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 		w.visitSelect(n, true /* outermost */)
 	case *ast.SetOpStmt:
 		w.visitSetOp(n, true /* outermost */)
+	default:
+		w.validateEmbeddedSubqueries(node)
 	}
+}
+
+// validateEmbeddedSubqueries walks a statement that produces no lineage of
+// its own (DML, most DDL) and analyzes every embedded raw subquery, so the
+// fail-closed contract holds there too: in
+// DELETE FROM t WHERE id IN (SELECT <malformed>) the malformed subquery must
+// surface as an error instead of silently returning an empty span, and a
+// well-formed one contributes its table reads to AccessTables.
+func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
+	ast.Inspect(node, func(n ast.Node) bool {
+		if sq, ok := n.(*ast.SubqueryExpr); ok {
+			w.analyzeSubqueryText(sq.RawText, sq.TextStart)
+			return false
+		}
+		return true
+	})
 }
 
 // visitSetOp walks a UNION/INTERSECT/EXCEPT tree. The left arm is the one
@@ -332,11 +350,11 @@ func (w *spanWalker) visitTableRef(ref *ast.TableRef) {
 		return
 	}
 
-	// Detect FROM-subquery: parser stores the subquery's raw body in Parts[0].
-	// A legitimate table name cannot contain whitespace, and every subquery
-	// body starts with SELECT or WITH.
-	if len(ref.Name.Parts) == 1 && looksLikeSubquery(ref.Name.Parts[0]) {
-		w.analyzeSubqueryText(ref.Name.Parts[0])
+	// The parser marks FROM-subqueries explicitly; Name.Parts[0] mirrors the
+	// raw text only for legacy consumers. Never classify by the text itself —
+	// a table named `selected` or a quoted `SELECT` is not a subquery.
+	if ref.Subquery != nil {
+		w.analyzeSubqueryText(ref.Subquery.RawText, ref.Subquery.TextStart)
 		return
 	}
 
@@ -370,33 +388,26 @@ func (w *spanWalker) visitTableRef(ref *ast.TableRef) {
 	})
 }
 
-// looksLikeSubquery heuristically detects text the parser stuffed into
-// ObjectName.Parts when it encountered a FROM-subquery. Bare identifiers
-// (even quoted ones) don't contain these leading keywords.
-func looksLikeSubquery(s string) bool {
-	trimmed := strings.TrimSpace(s)
-	if trimmed == "" {
-		return false
-	}
-	upper := strings.ToUpper(trimmed)
-	return strings.HasPrefix(upper, "SELECT") ||
-		strings.HasPrefix(upper, "WITH") ||
-		strings.HasPrefix(upper, "(")
-}
-
-// analyzeSubqueryText re-parses subquery text (from SubqueryExpr.RawText or
-// a FROM-subquery's packed Parts[0]) and recurses into any resulting SELECT.
-// A subquery that does not fully parse records w.parseErr — its table reads
-// would otherwise silently vanish from AccessTables, so the span fails
-// closed instead.
-func (w *spanWalker) analyzeSubqueryText(text string) {
+// analyzeSubqueryText re-parses subquery text (SubqueryExpr.RawText) and
+// recurses into any resulting SELECT. A subquery that does not fully parse
+// records w.parseErr — its table reads would otherwise silently vanish from
+// AccessTables, so the span fails closed instead.
+//
+// base is the byte offset of text within the outer statement
+// (SubqueryExpr.TextStart): nested parse errors carry positions relative to
+// the extracted text, and are shifted back into the outer statement's
+// coordinates so editor diagnostics highlight the right spot.
+func (w *spanWalker) analyzeSubqueryText(text string, base int) {
 	if strings.TrimSpace(text) == "" {
 		return
 	}
 	file, errs := parser.Parse(text)
 	if len(errs) > 0 {
 		if w.parseErr == nil {
-			w.parseErr = &errs[0]
+			e := errs[0]
+			e.Loc.Start += base
+			e.Loc.End += base
+			w.parseErr = &e
 		}
 		return
 	}
@@ -428,11 +439,11 @@ func (v *exprVisitor) Visit(node ast.Node) ast.Visitor {
 	}
 	switch n := node.(type) {
 	case *ast.SubqueryExpr:
-		v.w.analyzeSubqueryText(n.RawText)
+		v.w.analyzeSubqueryText(n.RawText, n.TextStart)
 		return nil // raw-text body, no parsed children
 	case *ast.ExistsExpr:
 		if n.Subquery != nil {
-			v.w.analyzeSubqueryText(n.Subquery.RawText)
+			v.w.analyzeSubqueryText(n.Subquery.RawText, n.Subquery.TextStart)
 		}
 		return nil
 	case *ast.ColumnRef:

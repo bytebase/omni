@@ -617,11 +617,19 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 		// No modifier — empty Type.
 	}
 
-	// Parse the explained query (best-effort; use RawQuery as fallback).
+	// Parse the explained query. The RawQuery fallback is best-effort
+	// recovery only: on the strict path it would swallow the nested failure
+	// (EXPLAIN SELECT * FROM would parse clean with the garbage packed into
+	// raw text), so strict mode propagates the error instead.
 	if p.cur.Kind != tokEOF {
 		query, err := p.parseStmt()
 		if err == nil && query != nil {
 			stmt.Query = query
+		} else if p.strictTrailing {
+			if err == nil {
+				err = p.syntaxErrorAtCur()
+			}
+			return nil, err
 		} else {
 			// Fallback: wrap remaining tokens as a RawQuery.
 			stmt.Query = &ast.RawQuery{RawText: p.collectRemainingRaw(), Loc: p.cur.Loc}
@@ -782,7 +790,63 @@ func (p *Parser) parseSetTransaction(startLoc ast.Loc) (ast.Node, error) {
 	p.advance() // consume TRANSACTION
 	stmt := &ast.SetStmt{Loc: startLoc, Type: "TRANSACTION"}
 
-	item := &ast.SetItem{Name: "transaction", Raw: p.collectRemainingRaw()}
+	// transaction_characteristic (, transaction_characteristic)*:
+	//   ISOLATION LEVEL {READ UNCOMMITTED | READ COMMITTED | REPEATABLE READ
+	//   | SERIALIZABLE} | READ ONLY | READ WRITE
+	// Parsed for real rather than raw-captured to EOF — the raw capture ate
+	// everything, so the strict trailing-token check could never see junk
+	// like SET TRANSACTION BOGUS.
+	var parts []string
+	for {
+		switch p.cur.Kind {
+		case kwISOLATION:
+			p.advance() // consume ISOLATION
+			if _, err := p.expect(kwLEVEL); err != nil {
+				return nil, err
+			}
+			switch p.cur.Kind {
+			case kwREAD:
+				p.advance() // consume READ
+				switch p.cur.Kind {
+				case kwUNCOMMITTED, kwCOMMITTED:
+					parts = append(parts, "ISOLATION LEVEL READ "+strings.ToUpper(p.advance().Str))
+				default:
+					return nil, p.syntaxErrorAtCur()
+				}
+			case kwREPEATABLE:
+				p.advance() // consume REPEATABLE
+				if _, err := p.expect(kwREAD); err != nil {
+					return nil, err
+				}
+				parts = append(parts, "ISOLATION LEVEL REPEATABLE READ")
+			case kwSERIALIZABLE:
+				p.advance()
+				parts = append(parts, "ISOLATION LEVEL SERIALIZABLE")
+			default:
+				return nil, p.syntaxErrorAtCur()
+			}
+		case kwREAD:
+			p.advance() // consume READ
+			switch p.cur.Kind {
+			case kwONLY:
+				p.advance()
+				parts = append(parts, "READ ONLY")
+			case kwWRITE:
+				p.advance()
+				parts = append(parts, "READ WRITE")
+			default:
+				return nil, p.syntaxErrorAtCur()
+			}
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+
+	item := &ast.SetItem{Name: "transaction", Raw: strings.Join(parts, ", ")}
 	stmt.Items = []*ast.SetItem{item}
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil

@@ -316,6 +316,8 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		// valid prefix is rejected instead of silently dropped.
 		{"json_arrow_rejected", "SELECT j->'$.a' FROM t", false},
 		{"stray_comment_close_rejected", "SELECT 1 */ 2", false},
+		{"explain_incomplete_rejected", "EXPLAIN SELECT * FROM", false},
+		{"from_table_named_selected", "SELECT * FROM selected", true},
 
 		// --- Negative arm: the grammar file allows these, the engine does not.
 		{"substring_from_for", "SELECT SUBSTRING('abcdef' FROM 2 FOR 3)", false},
