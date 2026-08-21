@@ -466,3 +466,15 @@ func TestGetQuerySpan_QualifiedSubscriptKeepsTableAccess(t *testing.T) {
 		t.Fatalf("AccessTables = %+v, want [sensitive_table]", span.AccessTables)
 	}
 }
+
+func TestGetQuerySpan_TableFunctionIsNotTableAccess(t *testing.T) {
+	// A table-valued function is not a physical table: BACKENDS() must not
+	// surface as an accessed table for authorization or lineage.
+	span, err := GetQuerySpan("SELECT * FROM BACKENDS()")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.AccessTables) != 0 {
+		t.Fatalf("AccessTables = %+v, want none for a table function", span.AccessTables)
+	}
+}
