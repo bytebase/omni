@@ -142,7 +142,9 @@ func (p *Parser) parseShowTables(stmt *ast.ShowStmt) (ast.Node, error) {
 	p.advance() // consume TABLES
 	stmt.Type = "TABLES"
 
-	p.parseShowFromLikeWhere(stmt)
+	if err := p.parseShowFromLikeWhere(stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -164,7 +166,9 @@ func (p *Parser) parseShowDatabases(stmt *ast.ShowStmt) (ast.Node, error) {
 		stmt.From = catalog
 	}
 
-	p.parseShowLikeWhere(stmt)
+	if err := p.parseShowLikeWhere(stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -196,7 +200,9 @@ func (p *Parser) parseShowColumns(stmt *ast.ShowStmt) (ast.Node, error) {
 		stmt.From = dbName
 	}
 
-	p.parseShowLikeWhere(stmt)
+	if err := p.parseShowLikeWhere(stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -261,7 +267,9 @@ func (p *Parser) parseShowVariables(stmt *ast.ShowStmt) (ast.Node, error) {
 	p.advance() // consume VARIABLES
 	stmt.Type = "VARIABLES"
 
-	p.parseShowLikeWhere(stmt)
+	if err := p.parseShowLikeWhere(stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -335,7 +343,9 @@ func (p *Parser) parseShowTableStatus(stmt *ast.ShowStmt) (ast.Node, error) {
 		stmt.Type = "TABLE STATUS"
 	}
 
-	p.parseShowFromLikeWhere(stmt)
+	if err := p.parseShowFromLikeWhere(stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -347,7 +357,9 @@ func (p *Parser) parseShowCatalogs(stmt *ast.ShowStmt) (ast.Node, error) {
 	p.advance() // consume CATALOGS
 	stmt.Type = "CATALOGS"
 
-	p.parseShowLikeWhere(stmt)
+	if err := p.parseShowLikeWhere(stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -461,7 +473,7 @@ func (p *Parser) parseShowGeneric(stmt *ast.ShowStmt) (ast.Node, error) {
 
 // parseShowFromLikeWhere optionally consumes [FROM db] [LIKE 'pat'] [WHERE expr]
 // for SHOW TABLES and similar forms.
-func (p *Parser) parseShowFromLikeWhere(stmt *ast.ShowStmt) {
+func (p *Parser) parseShowFromLikeWhere(stmt *ast.ShowStmt) error {
 	// Optional FROM db
 	if p.cur.Kind == kwFROM || p.cur.Kind == kwIN {
 		p.advance()
@@ -472,26 +484,32 @@ func (p *Parser) parseShowFromLikeWhere(stmt *ast.ShowStmt) {
 			}
 		}
 	}
-	p.parseShowLikeWhere(stmt)
+	return p.parseShowLikeWhere(stmt)
 }
 
 // parseShowLikeWhere optionally consumes [LIKE 'pat'] [WHERE expr].
-func (p *Parser) parseShowLikeWhere(stmt *ast.ShowStmt) {
+func (p *Parser) parseShowLikeWhere(stmt *ast.ShowStmt) error {
 	if p.cur.Kind == kwLIKE {
 		p.advance() // consume LIKE
 		if p.cur.Kind == tokString {
 			stmt.Like = p.cur.Str
 			p.advance()
 		}
-		return
+		return nil
 	}
 	if p.cur.Kind == kwWHERE {
 		p.advance() // consume WHERE
 		expr, err := p.parseExpr()
 		if err == nil {
 			stmt.Where = expr
+		} else if p.strictTrailing {
+			// The clause parser may have consumed to EOF before failing
+			// (SHOW TABLES WHERE '('), so the leftover-token check alone
+			// cannot catch this — the error has to propagate.
+			return err
 		}
 	}
+	return nil
 }
 
 // collectRemainingRaw consumes all remaining tokens (up to EOF) and returns
@@ -722,8 +740,15 @@ func (p *Parser) parseGenericSet(startLoc ast.Loc) (ast.Node, error) {
 	if p.cur.Kind == kwCHARSET {
 		return p.parseSetCharset(startLoc)
 	}
-	// TRANSACTION form
+	// TRANSACTION form, with or without a leading scope keyword — the scoped
+	// spelling must not fall through to the generic assignment path, whose
+	// strict mode would reject the engine-valid SET SESSION TRANSACTION ...
 	if p.cur.Kind == kwTRANSACTION {
+		return p.parseSetTransaction(startLoc)
+	}
+	if (p.cur.Kind == kwGLOBAL || p.cur.Kind == kwSESSION || p.cur.Kind == kwLOCAL) &&
+		p.peekNext().Kind == kwTRANSACTION {
+		p.advance() // consume the scope keyword
 		return p.parseSetTransaction(startLoc)
 	}
 
@@ -899,12 +924,18 @@ func (p *Parser) parseSetItem() (*ast.SetItem, error) {
 	}
 
 	// Consume = or :=
+	hasAssign := false
 	if p.cur.Kind == int('=') || p.cur.Kind == tokAssign {
+		hasAssign = true
 		p.advance()
 	}
 
 	// Parse the value expression.
 	if p.cur.Kind != tokEOF && p.cur.Kind != int(',') {
+		if p.strictTrailing && !hasAssign {
+			// SET x 1 — the engine requires the assignment separator.
+			return nil, p.syntaxErrorAtCur()
+		}
 		expr, err := p.parseExpr()
 		if err == nil {
 			item.Value = expr
@@ -917,6 +948,11 @@ func (p *Parser) parseSetItem() (*ast.SetItem, error) {
 			// Fallback to raw.
 			item.Raw = p.collectUntilCommaOrEOF()
 		}
+	} else if p.strictTrailing {
+		// SET x / SET x = / SET x, y — the assignment value is required, and
+		// the bare-name forms used to reach EOF or the comma before the
+		// strict check could see anything wrong.
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	item.Loc.End = p.prev.Loc.End

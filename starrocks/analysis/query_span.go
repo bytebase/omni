@@ -157,6 +157,11 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 		w.visitSelect(n, true /* outermost */)
 	case *ast.SetOpStmt:
 		w.visitSetOp(n, true /* outermost */)
+	case *ast.ParenSelect:
+		// A top-level parenthesized query — (SELECT * FROM secret) — is a
+		// query statement, not an embedded child: dispatch it as outermost so
+		// its tables AND its Results populate.
+		w.visitSetOpArm(n, true /* outermost */)
 	default:
 		w.validateEmbeddedSubqueries(node)
 	}
@@ -183,8 +188,18 @@ func (w *spanWalker) noteNonQuerySubquery(loc ast.Loc) {
 // well-formed one contributes its table reads to AccessTables.
 func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 	ast.Inspect(node, func(n ast.Node) bool {
-		if sq, ok := n.(*ast.SubqueryExpr); ok {
-			w.analyzeSubqueryText(sq.RawText, sq.TextStart)
+		switch q := n.(type) {
+		case *ast.SubqueryExpr:
+			w.analyzeSubqueryText(q.RawText, q.TextStart)
+			return false
+		case *ast.SelectStmt:
+			// A parsed query child (INSERT INTO dest SELECT * FROM secret)
+			// carries real table reads; route it through the SELECT analyzer
+			// so they land in AccessTables.
+			w.visitSelect(q, false)
+			return false
+		case *ast.SetOpStmt:
+			w.visitSetOp(q, false)
 			return false
 		}
 		return true

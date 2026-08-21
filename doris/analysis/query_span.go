@@ -183,8 +183,18 @@ func (w *spanWalker) noteNonQuerySubquery(loc ast.Loc) {
 // well-formed one contributes its table reads to AccessTables.
 func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 	ast.Inspect(node, func(n ast.Node) bool {
-		if sq, ok := n.(*ast.SubqueryExpr); ok {
-			w.analyzeSubqueryText(sq.RawText, sq.TextStart)
+		switch q := n.(type) {
+		case *ast.SubqueryExpr:
+			w.analyzeSubqueryText(q.RawText, q.TextStart)
+			return false
+		case *ast.SelectStmt:
+			// A parsed query child (INSERT INTO dest SELECT * FROM secret)
+			// carries real table reads; route it through the SELECT analyzer
+			// so they land in AccessTables.
+			w.visitSelect(q, false)
+			return false
+		case *ast.SetOpStmt:
+			w.visitSetOp(q, false)
 			return false
 		}
 		return true

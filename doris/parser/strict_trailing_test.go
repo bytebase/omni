@@ -178,3 +178,56 @@ func TestStrictParseRejectsMalformedSetExpressions(t *testing.T) {
 		t.Errorf("well-formed SET errors: %v", errs)
 	}
 }
+
+func TestStrictParseRejectsValuelessSetAssignments(t *testing.T) {
+	// The bare-name forms reached EOF or the comma before the strict check
+	// could see anything; the engine requires the separator and a value.
+	for _, sql := range []string{"SET x", "SET x =", "SET x, y", "SET x 1"} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want error", sql)
+		}
+	}
+	// Engine-valid forms keep parsing, including the scoped TRANSACTION
+	// spelling that must not fall into the generic assignment path.
+	for _, sql := range []string{
+		"SET NAMES utf8",
+		"SET PASSWORD = PASSWORD('123456')",
+		"SET GLOBAL exec_mem_limit = 137438953472",
+		"SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ",
+		"SET GLOBAL TRANSACTION READ ONLY",
+	} {
+		if _, errs := Parse(sql); len(errs) != 0 {
+			t.Errorf("Parse(%q) errors: %v", sql, errs)
+		}
+	}
+}
+
+func TestStrictParseRejectsMalformedShowClauses(t *testing.T) {
+	// parseShowLikeWhere consumed to EOF before failing, so the leftover
+	// check alone never saw SHOW TABLES WHERE ( go wrong.
+	for _, sql := range []string{"SHOW TABLES WHERE (", "SHOW DATABASES WHERE 1 +"} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want error", sql)
+		}
+	}
+	if _, errs := Parse("SHOW TABLES WHERE table_name LIKE 'a%'"); len(errs) != 0 {
+		t.Errorf("well-formed SHOW WHERE errors: %v", errs)
+	}
+}
+
+func TestStrictParsePromotesFilteredSegmentLexErrors(t *testing.T) {
+	// Split drops comment-only segments, and their lex errors with them; the
+	// strict full-input sweep has to bring those diagnostics back.
+	for _, sql := range []string{"/* unterminated", "SELECT 1; /* unterminated"} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want unterminated-comment error", sql)
+		}
+	}
+	// The full-input sweep must not duplicate an error a segment already
+	// reported: the segment pairs a syntax error at the invalid token with
+	// the promoted lex error, and the sweep adds nothing on top.
+	_, errs := Parse("SELECT 'unterminated")
+	if len(errs) != 2 {
+		t.Errorf("Parse(SELECT 'unterminated) errs = %v, want the segment's two", errs)
+	}
+}

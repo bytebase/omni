@@ -749,3 +749,36 @@ func TestGetQuerySpan_EmptySubqueryPlaceholdersFailClosed(t *testing.T) {
 		}
 	}
 }
+
+func TestGetQuerySpan_InsertSelectRecordsReads(t *testing.T) {
+	// A parsed query child inside DML carries real table reads: the SELECT
+	// side of INSERT ... SELECT must land in AccessTables.
+	span, err := GetQuerySpan("INSERT INTO dest SELECT * FROM secret")
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	found := false
+	for _, a := range span.AccessTables {
+		if a.Table == "secret" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("AccessTables = %+v, want to include secret", span.AccessTables)
+	}
+}
+
+func TestGetQuerySpan_TopLevelParenSelect(t *testing.T) {
+	// (SELECT * FROM secret) parses as ParenSelect; it is the outermost query,
+	// so both its table reads and its Results must populate.
+	span, err := GetQuerySpan("(SELECT * FROM secret)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "secret" {
+		t.Fatalf("AccessTables = %+v, want [secret]", span.AccessTables)
+	}
+	if len(span.Results) != 1 {
+		t.Errorf("Results = %+v, want the wrapped SELECT's output", span.Results)
+	}
+}

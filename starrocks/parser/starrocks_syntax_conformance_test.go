@@ -112,6 +112,9 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		{"explain_incomplete_rejected", "EXPLAIN SELECT * FROM", false},
 		{"explain_bare_rejected", "EXPLAIN", false},
 		{"set_expr_incomplete_rejected", "SET x = 1 +", false},
+		{"set_valueless_rejected", "SET x", false},
+		{"show_where_incomplete_rejected", "SHOW TABLES WHERE (", false},
+		{"paren_select", "(SELECT 1)", true},
 		{"from_table_named_selected", "SELECT * FROM selected", true},
 		{"create_table_primary_key", "CREATE TABLE conf_pk (id BIGINT NOT NULL, v VARCHAR(64)) PRIMARY KEY(id) DISTRIBUTED BY HASH(id)", true},
 	}
