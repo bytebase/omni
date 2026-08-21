@@ -90,6 +90,8 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		{"string_alias_empty", "SELECT 1 AS ''", true},
 		{"element_at_literal", "SELECT [1, 2, 3][1]", true},
 		{"element_at_column", "SELECT c1[1] FROM t", true},
+		{"element_at_qualified", "SELECT t.c1[1] FROM t", true},
+		{"qualified_column_arith", "SELECT t.a + 1 FROM t", true},
 		// Unlike Doris, the slice form is engine-rejected here.
 		{"array_slice_rejected", "SELECT [1, 2, 3][1:2]", false},
 		{"grouping_sets", "SELECT a, SUM(b) FROM t GROUP BY GROUPING SETS ((a), ())", true},

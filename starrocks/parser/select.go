@@ -477,18 +477,19 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 		return item, nil
 	}
 
-	// Try to detect table.* pattern:
-	// If we see an identifier followed by '.', it might be table.* or table.col.
-	// We need to check for qualified star: ident.* or ident.ident.*
+	// Qualified star: ident.* or ident.ident.*. This lookahead exists ONLY
+	// for the star form — any other qualified name must go through the
+	// general expression path below, because an expression can continue
+	// after it (t.a + 1, t.arr[1], db.f(1) OVER (...)); returning a bare
+	// ColumnRef here would hand that continuation to the trailing-token
+	// swallow. The multipart identifier is re-parsed after the rollback —
+	// a few tokens, same cost class as the paren-lambda speculation.
 	if p.isSelectIdentToken() && p.peekNext().Kind == int('.') {
-		// Save state to potentially backtrack.
-		// Parse the multipart identifier first, then check for .*
+		saved := p.save()
 		name, err := p.parseMultipartIdentifier()
 		if err != nil {
 			return nil, err
 		}
-
-		// Check for .* after the multipart identifier
 		if p.cur.Kind == int('.') && p.peekNext().Kind == int('*') {
 			p.advance() // consume '.'
 			p.advance() // consume '*'
@@ -498,43 +499,7 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 				Loc:       ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End},
 			}, nil
 		}
-
-		// Not a qualified star — the multipart identifier is a column ref or
-		// function call. Check if it's a function call.
-		if p.cur.Kind == int('(') {
-			fc, err := p.parseFuncCall(name)
-			if err != nil {
-				return nil, err
-			}
-			item := &ast.SelectItem{
-				Expr: fc,
-				Loc:  ast.Loc{Start: startLoc.Start},
-			}
-			alias, aliased := p.parseOptionalAlias(true)
-			if aliased {
-				item.Alias = alias
-				item.Aliased = true
-			}
-			item.Loc.End = p.prev.Loc.End
-			return item, nil
-		}
-
-		// Plain column reference — check for alias.
-		colRef := &ast.ColumnRef{
-			Name: name,
-			Loc:  name.Loc,
-		}
-		item := &ast.SelectItem{
-			Expr: colRef,
-			Loc:  ast.Loc{Start: startLoc.Start},
-		}
-		alias, aliased := p.parseOptionalAlias(true)
-		if aliased {
-			item.Alias = alias
-			item.Aliased = true
-		}
-		item.Loc.End = p.prev.Loc.End
-		return item, nil
+		p.restore(saved)
 	}
 
 	// General expression

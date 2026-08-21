@@ -608,3 +608,15 @@ func TestGetQuerySpan_EmptyStringAlias(t *testing.T) {
 		t.Fatalf("Results = %+v, want one column named \"\"", span.Results)
 	}
 }
+
+func TestGetQuerySpan_QualifiedSubscriptKeepsTableAccess(t *testing.T) {
+	// The qualified twin of the subscript fail-open: the select-item fast
+	// path used to bypass the expression parser for t.col and drop the rest.
+	span, err := GetQuerySpan("SELECT t.secret_col[1] FROM sensitive_table t")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "sensitive_table" {
+		t.Fatalf("AccessTables = %+v, want [sensitive_table]", span.AccessTables)
+	}
+}

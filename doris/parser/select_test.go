@@ -644,3 +644,38 @@ func TestSelectTableFunctionNameWalkedOnce(t *testing.T) {
 		t.Errorf("ObjectName visited %d times, want 1", count)
 	}
 }
+
+func TestSelectQualifiedColumnContinuations(t *testing.T) {
+	// A select item starting with a qualified column must flow through the
+	// general expression parser: the old fast path returned a bare ColumnRef
+	// and handed any continuation to the trailing-token swallow.
+	stmt := mustParseSelect(t, "SELECT t.secret_col[1] FROM sensitive_table t")
+	if _, ok := stmt.Items[0].Expr.(*ast.ElementAtExpr); !ok {
+		t.Fatalf("Items[0].Expr = %T, want *ast.ElementAtExpr", stmt.Items[0].Expr)
+	}
+	if len(stmt.From) != 1 {
+		t.Fatal("FROM clause lost after qualified subscript")
+	}
+
+	stmt = mustParseSelect(t, "SELECT t.a + 1 FROM t")
+	if _, ok := stmt.Items[0].Expr.(*ast.BinaryExpr); !ok {
+		t.Fatalf("Items[0].Expr = %T, want *ast.BinaryExpr", stmt.Items[0].Expr)
+	}
+	if len(stmt.From) != 1 {
+		t.Fatal("FROM clause lost after qualified arithmetic")
+	}
+
+	// The plain and star forms keep their shapes.
+	stmt = mustParseSelect(t, "SELECT t.a AS x FROM t")
+	if _, ok := stmt.Items[0].Expr.(*ast.ColumnRef); !ok || stmt.Items[0].Alias != "x" {
+		t.Fatalf("Items[0] = %+v, want aliased ColumnRef", stmt.Items[0])
+	}
+	stmt = mustParseSelect(t, "SELECT t.* FROM t")
+	if !stmt.Items[0].Star || stmt.Items[0].TableName == nil {
+		t.Fatalf("Items[0] = %+v, want qualified star", stmt.Items[0])
+	}
+	stmt = mustParseSelect(t, "SELECT db.f(1) FROM t")
+	if _, ok := stmt.Items[0].Expr.(*ast.FuncCallExpr); !ok {
+		t.Fatalf("Items[0].Expr = %T, want *ast.FuncCallExpr", stmt.Items[0].Expr)
+	}
+}

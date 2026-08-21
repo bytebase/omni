@@ -299,6 +299,8 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"element_at_literal", "SELECT [1, 2, 3][1]", true},
 		{"element_at_map", "SELECT {'a': 1}['a']", true},
 		{"element_at_column", "SELECT c1[1] FROM t", true},
+		{"element_at_qualified", "SELECT t.c1[1] FROM t", true},
+		{"qualified_column_arith", "SELECT t.a + 1 FROM t", true},
 		{"array_slice", "SELECT [1, 2, 3][1:2]", true},
 		{"array_slice_open", "SELECT [1, 2, 3][2:]", true},
 		{"element_at_two_indexes", "SELECT [1, 2][1, 2]", false},
