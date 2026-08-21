@@ -162,6 +162,19 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 	}
 }
 
+// noteNonQuerySubquery records the fail-closed error for a subquery
+// placeholder whose body is not a query: empty (EXISTS ()), comment-only, or
+// a cleanly-parsing non-query statement (EXISTS (DELETE ...)). loc is in
+// outer-statement coordinates.
+func (w *spanWalker) noteNonQuerySubquery(loc ast.Loc) {
+	if w.parseErr == nil {
+		w.parseErr = &parser.ParseError{
+			Loc: loc,
+			Msg: "subquery must be a SELECT statement",
+		}
+	}
+}
+
 // validateEmbeddedSubqueries walks a statement that produces no lineage of
 // its own (DML, most DDL) and analyzes every embedded raw subquery, so the
 // fail-closed contract holds there too: in
@@ -373,12 +386,16 @@ func (w *spanWalker) visitTableRef(ref *ast.TableRef) {
 // the extracted text, and are shifted back into the outer statement's
 // coordinates so editor diagnostics highlight the right spot.
 func (w *spanWalker) analyzeSubqueryText(text string, base int) {
-	if strings.TrimSpace(text) == "" {
-		return
-	}
 	// base is relative to the text this walker is currently inside; abs is
 	// the position in the original statement, accumulated across levels.
 	abs := w.textBase + base
+	if strings.TrimSpace(text) == "" {
+		// An empty placeholder body — EXISTS () — is not a query; the engine
+		// rejects the form, and returning silently would skip the query-node
+		// validation below entirely.
+		w.noteNonQuerySubquery(ast.Loc{Start: abs, End: abs})
+		return
+	}
 	file, errs := parser.Parse(text)
 	if len(errs) > 0 {
 		if w.parseErr == nil {
@@ -389,7 +406,10 @@ func (w *spanWalker) analyzeSubqueryText(text string, base int) {
 		}
 		return
 	}
-	if file == nil {
+	if file == nil || len(file.Stmts) == 0 {
+		// Comment-only bodies parse to zero statements and would bypass the
+		// query-node validation below.
+		w.noteNonQuerySubquery(ast.Loc{Start: abs, End: abs + len(text)})
 		return
 	}
 	saved := w.textBase
@@ -406,13 +426,8 @@ func (w *spanWalker) analyzeSubqueryText(text string, base int) {
 			// than a query (EXISTS (DELETE FROM secret) FROM public) is not a
 			// valid subquery — the engine rejects it, and ignoring it here
 			// would hide its reads from the span. Fail closed.
-			if w.parseErr == nil {
-				loc := ast.NodeLoc(stmt)
-				w.parseErr = &parser.ParseError{
-					Loc: ast.Loc{Start: loc.Start + abs, End: loc.End + abs},
-					Msg: "subquery must be a SELECT statement",
-				}
-			}
+			loc := ast.NodeLoc(stmt)
+			w.noteNonQuerySubquery(ast.Loc{Start: loc.Start + abs, End: loc.End + abs})
 		}
 	}
 }

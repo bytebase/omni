@@ -318,6 +318,7 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"stray_comment_close_rejected", "SELECT 1 */ 2", false},
 		{"explain_incomplete_rejected", "EXPLAIN SELECT * FROM", false},
 		{"explain_bare_rejected", "EXPLAIN", false},
+		{"set_expr_incomplete_rejected", "SET x = 1 +", false},
 		{"from_table_named_selected", "SELECT * FROM selected", true},
 
 		// --- Negative arm: the grammar file allows these, the engine does not.

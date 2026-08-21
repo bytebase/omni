@@ -736,3 +736,16 @@ func TestGetQuerySpan_NonQuerySubqueryFailsClosed(t *testing.T) {
 		t.Fatal("EXISTS with a DML body accepted")
 	}
 }
+
+func TestGetQuerySpan_EmptySubqueryPlaceholdersFailClosed(t *testing.T) {
+	// Empty or comment-only placeholder bodies parse to zero statements and
+	// used to bypass the query-node validation entirely.
+	for _, sql := range []string{
+		"SELECT EXISTS () FROM public",
+		"SELECT EXISTS (/*comment*/) FROM public",
+	} {
+		if _, err := GetQuerySpan(sql); err == nil {
+			t.Errorf("GetQuerySpan(%q) accepted an empty subquery body", sql)
+		}
+	}
+}

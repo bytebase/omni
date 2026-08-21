@@ -908,6 +908,11 @@ func (p *Parser) parseSetItem() (*ast.SetItem, error) {
 		expr, err := p.parseExpr()
 		if err == nil {
 			item.Value = expr
+		} else if p.strictTrailing {
+			// The raw fallback would consume to the comma or EOF and hide the
+			// malformed expression from the strict trailing-token check
+			// (SET x = ( parsed clean). Strict mode propagates instead.
+			return nil, err
 		} else {
 			// Fallback to raw.
 			item.Raw = p.collectUntilCommaOrEOF()

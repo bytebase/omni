@@ -162,3 +162,19 @@ func TestSetTransactionCharacteristics(t *testing.T) {
 		}
 	}
 }
+
+func TestStrictParseRejectsMalformedSetExpressions(t *testing.T) {
+	// parseSetItem's raw fallback consumed to the comma or EOF on an
+	// expression error, hiding the failure from the strict check.
+	for _, sql := range []string{"SET x = (", "SET x = 1 +", "SET x = EXISTS ("} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want error", sql)
+		}
+		if r := ParseBestEffort(sql); len(r.Errors) != 0 {
+			t.Errorf("ParseBestEffort(%q) errors = %v, want fallback recovery", sql, r.Errors)
+		}
+	}
+	if _, errs := Parse("SET x = 1, y = 'a'"); len(errs) != 0 {
+		t.Errorf("well-formed SET errors: %v", errs)
+	}
+}
