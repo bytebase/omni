@@ -574,3 +574,106 @@ func TestSelectIntoOutfileWalkProperties(t *testing.T) {
 		t.Errorf("T_Property visited %d times, want 2", count[ast.T_Property])
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Constructs previously hidden by the trailing-token swallow (BYT-10084)
+// ---------------------------------------------------------------------------
+
+func TestSelectLimitOffsetComma(t *testing.T) {
+	stmt := mustParseSelect(t, "SELECT * FROM tbl LIMIT 5, 10")
+	lit, ok := stmt.Limit.(*ast.Literal)
+	if !ok || lit.Value != "10" {
+		t.Fatalf("Limit = %+v, want literal 10", stmt.Limit)
+	}
+	off, ok := stmt.Offset.(*ast.Literal)
+	if !ok || off.Value != "5" {
+		t.Fatalf("Offset = %+v, want literal 5", stmt.Offset)
+	}
+}
+
+func TestSelectStringAlias(t *testing.T) {
+	// AS "string": the alias used to be dropped together with everything
+	// after it, so the span lost the FROM table.
+	stmt := mustParseSelect(t, `SELECT *, (price * 0.8) AS "20%" FROM tb_book`)
+	if len(stmt.Items) != 2 || stmt.Items[1].Alias != "20%" {
+		t.Fatalf("Items[1].Alias = %+v, want 20%%", stmt.Items)
+	}
+	if len(stmt.From) != 1 {
+		t.Fatalf("From = %+v, want tb_book to survive the alias", stmt.From)
+	}
+
+	// The empty alias AS '' is engine-valid and distinct from no alias:
+	// presence is carried by Aliased, not by the string value.
+	stmt = mustParseSelect(t, "SELECT c AS '' FROM t")
+	if !stmt.Items[0].Aliased || stmt.Items[0].Alias != "" {
+		t.Errorf("AS '': Aliased=%v Alias=%q, want true and empty", stmt.Items[0].Aliased, stmt.Items[0].Alias)
+	}
+	stmt = mustParseSelect(t, "SELECT c FROM t")
+	if stmt.Items[0].Aliased {
+		t.Error("unaliased item reports Aliased=true")
+	}
+}
+
+func TestSelectGroupByGroupingSets(t *testing.T) {
+	stmt := mustParseSelect(t, "SELECT a, SUM(b) FROM t GROUP BY GROUPING SETS ((a, b), (a), ())")
+	gs, ok := stmt.GroupBy[0].(*ast.GroupingSetsExpr)
+	if !ok {
+		t.Fatalf("GroupBy[0] = %T, want *ast.GroupingSetsExpr", stmt.GroupBy[0])
+	}
+	if len(gs.Sets) != 3 || len(gs.Sets[0]) != 2 || len(gs.Sets[2]) != 0 {
+		t.Fatalf("Sets shape = %v, want [2 1 0]", gs.Sets)
+	}
+
+	_, errs := Parse("SELECT a FROM t GROUP BY GROUPING SETS ((a)), b")
+	if len(errs) == 0 {
+		t.Error("GROUPING SETS with a trailing item parsed, want error")
+	}
+}
+
+func TestSelectFromTablet(t *testing.T) {
+	// TABLET(...) is engine-valid; TABLESAMPLE is not a StarRocks clause
+	// (engine-verified), so unlike Doris none is parsed here.
+	stmt := mustParseSelect(t, "SELECT * FROM t1 TABLET(10001) LIMIT 1000")
+	ref := stmt.From[0].(*ast.TableRef)
+	if len(ref.TabletIDs) != 1 || ref.TabletIDs[0] != 10001 {
+		t.Errorf("TabletIDs = %v, want [10001]", ref.TabletIDs)
+	}
+	if stmt.Limit == nil {
+		t.Error("LIMIT after the tablet clause was lost")
+	}
+}
+
+func TestSelectQualifiedColumnContinuations(t *testing.T) {
+	// A select item starting with a qualified column must flow through the
+	// general expression parser: the old fast path returned a bare ColumnRef
+	// and handed any continuation to the trailing-token swallow.
+	stmt := mustParseSelect(t, "SELECT t.secret_col[1] FROM sensitive_table t")
+	if _, ok := stmt.Items[0].Expr.(*ast.ElementAtExpr); !ok {
+		t.Fatalf("Items[0].Expr = %T, want *ast.ElementAtExpr", stmt.Items[0].Expr)
+	}
+	if len(stmt.From) != 1 {
+		t.Fatal("FROM clause lost after qualified subscript")
+	}
+
+	stmt = mustParseSelect(t, "SELECT t.a + 1 FROM t")
+	if _, ok := stmt.Items[0].Expr.(*ast.BinaryExpr); !ok {
+		t.Fatalf("Items[0].Expr = %T, want *ast.BinaryExpr", stmt.Items[0].Expr)
+	}
+	if len(stmt.From) != 1 {
+		t.Fatal("FROM clause lost after qualified arithmetic")
+	}
+
+	// The plain and star forms keep their shapes.
+	stmt = mustParseSelect(t, "SELECT t.a AS x FROM t")
+	if _, ok := stmt.Items[0].Expr.(*ast.ColumnRef); !ok || stmt.Items[0].Alias != "x" {
+		t.Fatalf("Items[0] = %+v, want aliased ColumnRef", stmt.Items[0])
+	}
+	stmt = mustParseSelect(t, "SELECT t.* FROM t")
+	if !stmt.Items[0].Star || stmt.Items[0].TableName == nil {
+		t.Fatalf("Items[0] = %+v, want qualified star", stmt.Items[0])
+	}
+	stmt = mustParseSelect(t, "SELECT db.f(1) FROM t")
+	if _, ok := stmt.Items[0].Expr.(*ast.FuncCallExpr); !ok {
+		t.Fatalf("Items[0].Expr = %T, want *ast.FuncCallExpr", stmt.Items[0].Expr)
+	}
+}

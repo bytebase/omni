@@ -26,8 +26,8 @@ func (s Segment) Empty() bool {
 type splitState int
 
 const (
-	stateTop      splitState = iota
-	stateInBlock              // inside a BEGIN..END compound block
+	stateTop     splitState = iota
+	stateInBlock            // inside a BEGIN..END compound block
 )
 
 // Split extracts top-level SQL statements from input.
@@ -40,7 +40,7 @@ const (
 // should use NewLexer(input).Errors() directly.
 //
 // Split correctly handles:
-//   - Single-quoted strings with '' and \ escapes
+//   - Single-quoted strings with ” and \ escapes
 //   - Double-quoted strings with "" escapes
 //   - Backtick-quoted identifiers
 //   - X'...' hex literals and B'...' bit literals
@@ -60,23 +60,30 @@ func Split(input string) []Segment {
 	state := stateTop
 	depth := 0
 
-	// We need one-token lookahead after kwBEGIN to disambiguate TCL from
-	// compound block. Use a one-slot buffered lookahead.
-	var pending *Token
+	// We need lookahead after kwBEGIN to disambiguate TCL from a compound
+	// block: one token for most followers, two for BEGIN WITH LABEL (WITH
+	// alone could open a block whose first statement is a CTE). Use a small
+	// buffered queue.
+	var pending []Token
 	nextToken := func() Token {
-		if pending != nil {
-			t := *pending
-			pending = nil
+		if len(pending) > 0 {
+			t := pending[0]
+			pending = pending[1:]
 			return t
 		}
 		return l.NextToken()
 	}
 	peekToken := func() Token {
-		if pending == nil {
-			t := l.NextToken()
-			pending = &t
+		if len(pending) == 0 {
+			pending = append(pending, l.NextToken())
 		}
-		return *pending
+		return pending[0]
+	}
+	peekToken2 := func() Token {
+		for len(pending) < 2 {
+			pending = append(pending, l.NextToken())
+		}
+		return pending[1]
 	}
 
 	// emit creates a Segment covering input[stmtStart:end] — where end is
@@ -104,7 +111,12 @@ func Split(input string) []Segment {
 			switch tok.Kind {
 			case kwBEGIN:
 				next := peekToken()
-				if isDorisTCLBeginFollower(next) {
+				// BEGIN WITH LABEL x is the transaction form. WITH alone does
+				// not decide — a compound block's first statement can be a
+				// CTE — so the LABEL after it is what disambiguates.
+				isTCL := isDorisTCLBeginFollower(next) ||
+					(next.Kind == kwWITH && peekToken2().Kind == kwLABEL)
+				if isTCL {
 					// TCL: BEGIN;, BEGIN TRANSACTION, BEGIN WORK, BEGIN EOF.
 					// Stay in stateTop; the buffered peek will be returned
 					// by the next nextToken() call and handled normally.

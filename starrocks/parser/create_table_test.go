@@ -968,3 +968,15 @@ func TestCreateTable_LegacyCorpus(t *testing.T) {
 		}
 	}
 }
+
+func TestCreateTablePrimaryKeyDesc(t *testing.T) {
+	// The PRIMARY KEY(...) after the column list used to be silently dropped
+	// together with everything that followed it (BYT-10084).
+	stmt := parseCreateTableStmt(t, "CREATE TABLE pk (id BIGINT, v VARCHAR(64)) PRIMARY KEY(id) DISTRIBUTED BY HASH(id)")
+	if stmt.KeyDesc == nil || stmt.KeyDesc.Type != "PRIMARY" {
+		t.Fatalf("KeyDesc = %+v, want PRIMARY KEY", stmt.KeyDesc)
+	}
+	if len(stmt.KeyDesc.Columns) != 1 || stmt.KeyDesc.Columns[0] != "id" {
+		t.Errorf("KeyDesc.Columns = %v, want [id]", stmt.KeyDesc.Columns)
+	}
+}

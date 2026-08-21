@@ -586,7 +586,7 @@ func (p *Parser) parseTableConstraint() (*ast.TableConstraint, error) {
 		}
 		tc.Type = ast.ConstraintPrimaryKey
 	case kwUNIQUE:
-		p.advance() // consume UNIQUE
+		p.advance()    // consume UNIQUE
 		p.match(kwKEY) // optional KEY
 		tc.Type = ast.ConstraintUnique
 	default:
@@ -628,7 +628,7 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 			stmt.Engine = engineName
 			continue
 
-		case kwAGGREGATE, kwUNIQUE, kwDUPLICATE:
+		case kwAGGREGATE, kwUNIQUE, kwDUPLICATE, kwPRIMARY:
 			keyDesc, err := p.parseKeyDesc()
 			if err != nil {
 				return err

@@ -469,3 +469,16 @@ func TestShowLocValid(t *testing.T) {
 		t.Errorf("Loc.Start = %d, want 0", n.Loc.Start)
 	}
 }
+
+func TestShowDatabasesFromCatalog(t *testing.T) {
+	for _, sql := range []string{"SHOW DATABASES FROM hive_catalog", "SHOW DATABASES IN hive_catalog"} {
+		file, errs := Parse(sql)
+		if len(errs) != 0 {
+			t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		}
+		n := file.Stmts[0].(*ast.ShowStmt)
+		if n.Type != "DATABASES" || n.From != "hive_catalog" {
+			t.Errorf("Parse(%q) = Type %q From %q, want DATABASES hive_catalog", sql, n.Type, n.From)
+		}
+	}
+}

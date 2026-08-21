@@ -46,17 +46,17 @@ func TestGetQuerySpan_Basics(t *testing.T) {
 			wantResults: []string{"a"},
 		},
 		{
-			name:       "qualified table",
-			sql:        "SELECT * FROM db.t",
-			wantType:   QueryTypeSelect,
-			wantTables: []tableSig{{Database: "db", Table: "t"}},
+			name:        "qualified table",
+			sql:         "SELECT * FROM db.t",
+			wantType:    QueryTypeSelect,
+			wantTables:  []tableSig{{Database: "db", Table: "t"}},
 			wantResults: []string{"*"},
 		},
 		{
-			name:       "three-part table name",
-			sql:        "SELECT * FROM catalog1.db1.t1",
-			wantType:   QueryTypeSelect,
-			wantTables: []tableSig{{Database: "db1", Table: "t1"}},
+			name:        "three-part table name",
+			sql:         "SELECT * FROM catalog1.db1.t1",
+			wantType:    QueryTypeSelect,
+			wantTables:  []tableSig{{Database: "db1", Table: "t1"}},
 			wantResults: []string{"*"},
 		},
 		{
@@ -417,5 +417,64 @@ func TestGetQuerySpan_LambdaSourceColumns(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGetQuerySpan_SubscriptKeepsTableAccess(t *testing.T) {
+	// Before BYT-10084 the parser silently dropped everything after `[`, so
+	// this query lost its FROM clause and the span reported no table access —
+	// a fail-open blind spot for masking.
+	span, err := GetQuerySpan("SELECT secret_col[1] FROM sensitive_table")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "sensitive_table" {
+		t.Fatalf("AccessTables = %+v, want [sensitive_table]", span.AccessTables)
+	}
+	if len(span.Results) != 1 {
+		t.Fatalf("Results = %+v, want one column", span.Results)
+	}
+	got := map[string]bool{}
+	for _, sc := range span.Results[0].SourceColumns {
+		got[sc.Column] = true
+	}
+	if !got["secret_col"] {
+		t.Errorf("SourceColumns %+v missing secret_col", span.Results[0].SourceColumns)
+	}
+}
+
+func TestGetQuerySpan_EmptyStringAlias(t *testing.T) {
+	// SELECT c AS '' names the result column with the explicit empty alias;
+	// it must not fall back to the expression name.
+	span, err := GetQuerySpan("SELECT c AS '' FROM t")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.Results) != 1 || span.Results[0].Name != "" {
+		t.Fatalf("Results = %+v, want one column named \"\"", span.Results)
+	}
+}
+
+func TestGetQuerySpan_QualifiedSubscriptKeepsTableAccess(t *testing.T) {
+	// The qualified twin of the subscript fail-open: the select-item fast
+	// path used to bypass the expression parser for t.col and drop the rest.
+	span, err := GetQuerySpan("SELECT t.secret_col[1] FROM sensitive_table t")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "sensitive_table" {
+		t.Fatalf("AccessTables = %+v, want [sensitive_table]", span.AccessTables)
+	}
+}
+
+func TestGetQuerySpan_TableFunctionIsNotTableAccess(t *testing.T) {
+	// A table-valued function is not a physical table: BACKENDS() must not
+	// surface as an accessed table for authorization or lineage.
+	span, err := GetQuerySpan("SELECT * FROM BACKENDS()")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.AccessTables) != 0 {
+		t.Fatalf("AccessTables = %+v, want none for a table function", span.AccessTables)
 	}
 }

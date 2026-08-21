@@ -12,30 +12,30 @@ type BinaryOp int
 const (
 	// Logical operators.
 	BinOr  BinaryOp = iota // OR, ||
-	BinAnd                  // AND, &&
-	BinXor                  // XOR
+	BinAnd                 // AND, &&
+	BinXor                 // XOR
 
 	// Comparison operators.
-	BinEq        // =
-	BinNe        // <> or !=
-	BinLt        // <
-	BinGt        // >
-	BinLe        // <=
-	BinGe        // >=
+	BinEq         // =
+	BinNe         // <> or !=
+	BinLt         // <
+	BinGt         // >
+	BinLe         // <=
+	BinGe         // >=
 	BinNullSafeEq // <=>
 
 	// Arithmetic operators.
-	BinAdd // +
-	BinSub // -
-	BinMul // *
-	BinDiv // /
-	BinMod // % or MOD
+	BinAdd    // +
+	BinSub    // -
+	BinMul    // *
+	BinDiv    // /
+	BinMod    // % or MOD
 	BinIntDiv // DIV
 
 	// Bitwise operators.
-	BinBitOr  // |
-	BinBitAnd // &
-	BinBitXor // ^
+	BinBitOr      // |
+	BinBitAnd     // &
+	BinBitXor     // ^
 	BinShiftLeft  // <<
 	BinShiftRight // >>
 )
@@ -95,10 +95,10 @@ type UnaryOp int
 
 const (
 	UnaryMinus  UnaryOp = iota // -
-	UnaryPlus                   // +
-	UnaryBitNot                 // ~
-	UnaryNot                    // NOT
-	UnaryBinary                 // BINARY (cast-to-binary operator)
+	UnaryPlus                  // +
+	UnaryBitNot                // ~
+	UnaryNot                   // NOT
+	UnaryBinary                // BINARY (cast-to-binary operator)
 )
 
 // String returns the SQL text form of the unary operator.
@@ -138,7 +138,7 @@ type CaseKind int
 
 const (
 	CaseSearched CaseKind = iota // CASE WHEN ...
-	CaseSimple                    // CASE operand WHEN ...
+	CaseSimple                   // CASE operand WHEN ...
 )
 
 // ---------------------------------------------------------------------------
@@ -170,10 +170,10 @@ var _ Node = (*UnaryExpr)(nil)
 
 // IsExpr represents expr IS [NOT] NULL / TRUE / FALSE.
 type IsExpr struct {
-	Expr    Node
-	Not     bool
-	IsWhat  string // "NULL", "TRUE", "FALSE"
-	Loc     Loc
+	Expr   Node
+	Not    bool
+	IsWhat string // "NULL", "TRUE", "FALSE"
+	Loc    Loc
 }
 
 func (n *IsExpr) Tag() NodeTag { return T_IsExpr }
@@ -195,10 +195,10 @@ var _ Node = (*BetweenExpr)(nil)
 
 // InExpr represents expr [NOT] IN (values...) or expr [NOT] IN (subquery).
 type InExpr struct {
-	Expr     Node
-	Values   []Node // list of values; for subquery, contains one SubqueryExpr
-	Not      bool
-	Loc      Loc
+	Expr   Node
+	Values []Node // list of values; for subquery, contains one SubqueryExpr
+	Not    bool
+	Loc    Loc
 }
 
 func (n *InExpr) Tag() NodeTag { return T_InExpr }
@@ -232,15 +232,15 @@ var _ Node = (*RegexpExpr)(nil)
 
 // FuncCallExpr represents a function call: name(args...).
 type FuncCallExpr struct {
-	Name     *ObjectName
-	Args     []Node
-	Distinct bool   // COUNT(DISTINCT x)
-	Star     bool   // COUNT(*)
-	OrderBy  []*OrderByItem // optional ORDER BY in aggregate (GROUP_CONCAT)
-	Separator string // optional SEPARATOR value for GROUP_CONCAT
-	IgnoreNulls bool // IGNORE NULLS null-treatment (FIRST_VALUE/LAST_VALUE/LEAD/LAG)
-	Over     *WindowSpec // optional OVER (...) window specification
-	Loc      Loc
+	Name        *ObjectName
+	Args        []Node
+	Distinct    bool           // COUNT(DISTINCT x)
+	Star        bool           // COUNT(*)
+	OrderBy     []*OrderByItem // optional ORDER BY in aggregate (GROUP_CONCAT)
+	Separator   string         // optional SEPARATOR value for GROUP_CONCAT
+	IgnoreNulls bool           // IGNORE NULLS null-treatment (FIRST_VALUE/LAST_VALUE/LEAD/LAG)
+	Over        *WindowSpec    // optional OVER (...) window specification
+	Loc         Loc
 }
 
 func (n *FuncCallExpr) Tag() NodeTag { return T_FuncCallExpr }
@@ -334,9 +334,9 @@ var _ Node = (*LambdaExpr)(nil)
 // CaseExpr represents CASE [operand] WHEN...THEN...ELSE...END.
 type CaseExpr struct {
 	Kind    CaseKind
-	Operand Node          // nil for searched CASE
+	Operand Node // nil for searched CASE
 	Whens   []*WhenClause
-	Else    Node          // nil if no ELSE
+	Else    Node // nil if no ELSE
 	Loc     Loc
 }
 
@@ -417,6 +417,30 @@ func (n *MapEntry) Tag() NodeTag { return T_MapEntry }
 
 var _ Node = (*MapEntry)(nil)
 
+// ElementAtExpr represents collection element access: value[index]
+// (grammar: elementAt). Applies to array, map and struct values alike.
+type ElementAtExpr struct {
+	Value Node
+	Index Node
+	Loc   Loc
+}
+
+func (n *ElementAtExpr) Tag() NodeTag { return T_ElementAtExpr }
+
+var _ Node = (*ElementAtExpr)(nil)
+
+// GroupingSetsExpr represents GROUP BY GROUPING SETS ((a, b), (a), ()).
+// Each set is one parenthesized expression list; the empty set () is a nil
+// entry. Like CUBE, GROUPING SETS is the entire grouping specification.
+type GroupingSetsExpr struct {
+	Sets [][]Node
+	Loc  Loc
+}
+
+func (n *GroupingSetsExpr) Tag() NodeTag { return T_GroupingSetsExpr }
+
+var _ Node = (*GroupingSetsExpr)(nil)
+
 // ArrayLiteral represents an array constructor literal:
 //
 //	array<t>[ e, ... ]   (typed)
@@ -468,8 +492,8 @@ var _ Node = (*IntervalExpr)(nil)
 // OrderByItem represents an expression with optional ASC/DESC and NULLS FIRST/LAST.
 type OrderByItem struct {
 	Expr       Node
-	Desc       bool   // true for DESC, false for ASC (default)
-	NullsFirst *bool  // nil if not specified; true for NULLS FIRST, false for NULLS LAST
+	Desc       bool  // true for DESC, false for ASC (default)
+	NullsFirst *bool // nil if not specified; true for NULLS FIRST, false for NULLS LAST
 	Loc        Loc
 }
 

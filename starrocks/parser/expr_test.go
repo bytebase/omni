@@ -1664,3 +1664,24 @@ func TestUnaryBinaryRenders(t *testing.T) {
 		t.Errorf("UnaryBinary.String() = %q, want BINARY", got)
 	}
 }
+
+func TestExprElementAtAndSlice(t *testing.T) {
+	node := mustParseExpr(t, "arr[1]")
+	if _, ok := node.(*ast.ElementAtExpr); !ok {
+		t.Fatalf("node = %T, want *ast.ElementAtExpr", node)
+	}
+
+	node = mustParseExpr(t, "m['a']['b']")
+	outer := node.(*ast.ElementAtExpr)
+	if _, ok := outer.Value.(*ast.ElementAtExpr); !ok {
+		t.Errorf("chained access: Value = %T, want *ast.ElementAtExpr", outer.Value)
+	}
+
+	// Unlike Doris, the slice form arr[b:e] is engine-rejected, so ':' inside
+	// the brackets stays a syntax error.
+	for _, bad := range []string{"SELECT arr[1:2]", "SELECT arr[2:]", "SELECT arr[1, 2]", "SELECT arr[:2]", "SELECT arr[]"} {
+		if _, errs := Parse(bad); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want error", bad)
+		}
+	}
+}

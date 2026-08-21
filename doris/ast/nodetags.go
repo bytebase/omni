@@ -104,6 +104,15 @@ const (
 	// T_MapEntry is the tag for *MapEntry (one k: v pair).
 	T_MapEntry
 
+	// T_ElementAtExpr is the tag for *ElementAtExpr (value[index]).
+	T_ElementAtExpr
+
+	// T_ArraySliceExpr is the tag for *ArraySliceExpr (value[begin:end]).
+	T_ArraySliceExpr
+
+	// T_GroupingSetsExpr is the tag for *GroupingSetsExpr (GROUPING SETS (...)).
+	T_GroupingSetsExpr
+
 	// T_CaseExpr is the tag for *CaseExpr (CASE...END).
 	T_CaseExpr
 
@@ -680,6 +689,12 @@ func (t NodeTag) String() string {
 		return "MapLiteral"
 	case T_MapEntry:
 		return "MapEntry"
+	case T_ElementAtExpr:
+		return "ElementAtExpr"
+	case T_ArraySliceExpr:
+		return "ArraySliceExpr"
+	case T_GroupingSetsExpr:
+		return "GroupingSetsExpr"
 	case T_CaseExpr:
 		return "CaseExpr"
 	case T_WhenClause:

@@ -272,7 +272,18 @@ func (w *spanWalker) visitFromItem(node ast.Node) {
 // trying to re-parse the text and, if it's a SELECT/set-op, recurse into it
 // instead of treating it as a physical table.
 func (w *spanWalker) visitTableRef(ref *ast.TableRef) {
-	if ref == nil || ref.Name == nil || len(ref.Name.Parts) == 0 {
+	if ref == nil {
+		return
+	}
+	// A table-valued function is not a physical table access. Mirror the
+	// StarRocks TableFunctionRef handling: walk the call's arguments for
+	// lineage and record no table — authorization would otherwise be asked
+	// about a nonexistent table named BACKENDS or numbers.
+	if ref.Func != nil {
+		w.walkExpr(ref.Func)
+		return
+	}
+	if ref.Name == nil || len(ref.Name.Parts) == 0 {
 		return
 	}
 
@@ -401,7 +412,7 @@ func (w *spanWalker) makeColumnInfo(item *ast.SelectItem) ColumnInfo {
 		}
 		return info
 	}
-	if item.Alias != "" {
+	if item.Aliased {
 		info.Name = item.Alias
 	} else if item.Expr != nil {
 		info.Name = renderColumnName(item.Expr)

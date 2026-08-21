@@ -438,7 +438,7 @@ func (w *spanWalker) makeColumnInfo(item *ast.SelectItem) ColumnInfo {
 		}
 		return info
 	}
-	if item.Alias != "" {
+	if item.Aliased {
 		info.Name = item.Alias
 	} else if item.Expr != nil {
 		info.Name = renderColumnName(item.Expr)

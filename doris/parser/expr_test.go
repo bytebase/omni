@@ -1679,3 +1679,57 @@ func TestUnaryBinaryRenders(t *testing.T) {
 		t.Errorf("UnaryBinary.String() = %q, want BINARY", got)
 	}
 }
+
+func TestExprElementAtAndSlice(t *testing.T) {
+	node := mustParseExpr(t, "arr[1]")
+	ea, ok := node.(*ast.ElementAtExpr)
+	if !ok {
+		t.Fatalf("node = %T, want *ast.ElementAtExpr", node)
+	}
+	if _, ok := ea.Value.(*ast.ColumnRef); !ok {
+		t.Errorf("Value = %T, want *ast.ColumnRef", ea.Value)
+	}
+
+	// Access chains left-associate.
+	node = mustParseExpr(t, "m['a']['b']")
+	outer := node.(*ast.ElementAtExpr)
+	if _, ok := outer.Value.(*ast.ElementAtExpr); !ok {
+		t.Errorf("chained access: Value = %T, want *ast.ElementAtExpr", outer.Value)
+	}
+
+	// Element access on an array literal.
+	node = mustParseExpr(t, "[1, 2, 3][1]")
+	ea = node.(*ast.ElementAtExpr)
+	if _, ok := ea.Value.(*ast.ArrayLiteral); !ok {
+		t.Errorf("Value = %T, want *ast.ArrayLiteral", ea.Value)
+	}
+
+	// Slices, closed and open-ended.
+	node = mustParseExpr(t, "arr[1:2]")
+	sl, ok := node.(*ast.ArraySliceExpr)
+	if !ok || sl.Begin == nil || sl.End == nil {
+		t.Fatalf("node = %+v, want slice with both bounds", node)
+	}
+	node = mustParseExpr(t, "arr[2:]")
+	sl = node.(*ast.ArraySliceExpr)
+	if sl.End != nil {
+		t.Errorf("open slice End = %+v, want nil", sl.End)
+	}
+
+	// Subscripts bind tighter than unary minus.
+	node = mustParseExpr(t, "-arr[1]")
+	un, ok := node.(*ast.UnaryExpr)
+	if !ok || un.Op != ast.UnaryMinus {
+		t.Fatalf("node = %T, want unary minus", node)
+	}
+	if _, ok := un.Expr.(*ast.ElementAtExpr); !ok {
+		t.Errorf("operand = %T, want *ast.ElementAtExpr", un.Expr)
+	}
+
+	// The index is a single valueExpression; a slice needs its begin bound.
+	for _, bad := range []string{"SELECT arr[1, 2]", "SELECT arr[:2]", "SELECT arr[]"} {
+		if _, errs := Parse(bad); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want error", bad)
+		}
+	}
+}

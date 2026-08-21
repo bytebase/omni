@@ -138,6 +138,15 @@ func walkChildren(v Visitor, node Node) {
 	case *MapEntry:
 		Walk(v, n.Key)
 		Walk(v, n.Value)
+	case *ElementAtExpr:
+		Walk(v, n.Value)
+		Walk(v, n.Index)
+	case *GroupingSetsExpr:
+		for _, set := range n.Sets {
+			for _, e := range set {
+				Walk(v, e)
+			}
+		}
 	case *ArrayLiteral:
 		if n.ElemType != nil {
 			Walk(v, n.ElemType)

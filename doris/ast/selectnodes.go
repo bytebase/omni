@@ -50,19 +50,20 @@ var _ Node = (*CTE)(nil)
 //	  [ORDER BY expr [ASC|DESC] [NULLS FIRST|LAST], ...]
 //	  [LIMIT count [OFFSET offset]]
 type SelectStmt struct {
-	With     *WithClause   // optional WITH clause (nil if absent)
-	Distinct bool          // DISTINCT keyword present
-	All      bool          // ALL keyword present (explicit, rarely used)
-	Items    []*SelectItem // SELECT list
-	From     []Node        // FROM clause table references (TableRef or JoinClause)
-	Where    Node          // WHERE expression (nil if absent)
-	GroupBy  []Node        // GROUP BY expressions
-	Having   Node          // HAVING expression (nil if absent)
-	Qualify  Node          // QUALIFY expression (nil if absent)
-	OrderBy  []*OrderByItem // ORDER BY items
-	Limit    Node          // LIMIT expression (nil if absent)
-	Offset   Node          // OFFSET expression (nil if absent)
-	Loc      Loc
+	With              *WithClause    // optional WITH clause (nil if absent)
+	Distinct          bool           // DISTINCT keyword present
+	All               bool           // ALL keyword present (explicit, rarely used)
+	Items             []*SelectItem  // SELECT list
+	From              []Node         // FROM clause table references (TableRef or JoinClause)
+	Where             Node           // WHERE expression (nil if absent)
+	GroupBy           []Node         // GROUP BY expressions
+	GroupByWithRollup bool           // GROUP BY ... WITH ROLLUP
+	Having            Node           // HAVING expression (nil if absent)
+	Qualify           Node           // QUALIFY expression (nil if absent)
+	OrderBy           []*OrderByItem // ORDER BY items
+	Limit             Node           // LIMIT expression (nil if absent)
+	Offset            Node           // OFFSET expression (nil if absent)
+	Loc               Loc
 }
 
 // Tag implements Node.
@@ -82,7 +83,12 @@ var _ Node = (*SelectStmt)(nil)
 type SelectItem struct {
 	Expr  Node   // the expression; for *, this is nil
 	Alias string // optional alias name; empty if absent
-	Star  bool   // true for * or table.*
+
+	// Aliased reports whether an explicit alias was present. It is what
+	// distinguishes the engine-valid empty alias (SELECT c AS '') from no
+	// alias at all — Alias alone cannot, since "" is its absent value.
+	Aliased bool
+	Star    bool // true for * or table.*
 	// For table.*, TableName holds the qualifier ObjectName.
 	TableName *ObjectName
 	// For SELECT * EXCEPT (col1, col2, ...) — list of column names to exclude.
@@ -108,7 +114,27 @@ var _ Node = (*SelectItem)(nil)
 type TableRef struct {
 	Name  *ObjectName // table name (may be qualified: db.table or catalog.db.table)
 	Alias string      // optional alias; empty if absent
-	Loc   Loc
+
+	// Func is set when the source is a table-valued function such as
+	// BACKENDS() or numbers("number" = "10"); Name mirrors the function name.
+	Func *FuncCallExpr
+
+	// TabletIDs holds TABLET(id, ...) — a physical-tablet restriction that
+	// appears between the table name and the alias.
+	TabletIDs []int64
+
+	// Sample holds TABLESAMPLE(...) [REPEATABLE seed], which follows the alias.
+	Sample *TableSample
+
+	Loc Loc
+}
+
+// TableSample is the TABLESAMPLE(...) [REPEATABLE seed] suffix of a table
+// reference: TABLESAMPLE(1000 ROWS), TABLESAMPLE(20 PERCENT), TABLESAMPLE().
+type TableSample struct {
+	Value Node   // sample size; nil for the bare TABLESAMPLE() form
+	Unit  string // "ROWS" or "PERCENT"; empty when Value is nil
+	Seed  Node   // REPEATABLE seed; nil if absent
 }
 
 // Tag implements Node.

@@ -279,8 +279,38 @@ func (p *Parser) parsePrefixExpr() (ast.Node, error) {
 		return p.parseIntervalExpr()
 
 	default:
-		return p.parsePrimaryExpr()
+		node, err := p.parsePrimaryExpr()
+		if err != nil {
+			return nil, err
+		}
+		return p.parsePostfixSubscripts(node)
 	}
+}
+
+// parsePostfixSubscripts parses any chain of element-access suffixes after a
+// primary expression: m['k'], arr[1][2]. Subscripts bind tighter than any
+// operator. The index is a valueExpression — comparisons are allowed but
+// AND/OR/NOT are not, hence bpNot+1. Unlike Doris, the slice form
+// `arr[begin:end]` is engine-rejected here, so a ':' inside the brackets
+// stays a syntax error.
+func (p *Parser) parsePostfixSubscripts(node ast.Node) (ast.Node, error) {
+	for p.cur.Kind == int('[') {
+		p.advance() // consume '['
+		index, err := p.parseExprPrec(bpNot + 1)
+		if err != nil {
+			return nil, err
+		}
+		closeTok, err := p.expect(int(']'))
+		if err != nil {
+			return nil, err
+		}
+		node = &ast.ElementAtExpr{
+			Value: node,
+			Index: index,
+			Loc:   ast.Loc{Start: ast.NodeLoc(node).Start, End: closeTok.Loc.End},
+		}
+	}
+	return node, nil
 }
 
 // ---------------------------------------------------------------------------

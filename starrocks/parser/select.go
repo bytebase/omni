@@ -477,18 +477,19 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 		return item, nil
 	}
 
-	// Try to detect table.* pattern:
-	// If we see an identifier followed by '.', it might be table.* or table.col.
-	// We need to check for qualified star: ident.* or ident.ident.*
+	// Qualified star: ident.* or ident.ident.*. This lookahead exists ONLY
+	// for the star form — any other qualified name must go through the
+	// general expression path below, because an expression can continue
+	// after it (t.a + 1, t.arr[1], db.f(1) OVER (...)); returning a bare
+	// ColumnRef here would hand that continuation to the trailing-token
+	// swallow. The multipart identifier is re-parsed after the rollback —
+	// a few tokens, same cost class as the paren-lambda speculation.
 	if p.isSelectIdentToken() && p.peekNext().Kind == int('.') {
-		// Save state to potentially backtrack.
-		// Parse the multipart identifier first, then check for .*
+		saved := p.save()
 		name, err := p.parseMultipartIdentifier()
 		if err != nil {
 			return nil, err
 		}
-
-		// Check for .* after the multipart identifier
 		if p.cur.Kind == int('.') && p.peekNext().Kind == int('*') {
 			p.advance() // consume '.'
 			p.advance() // consume '*'
@@ -498,41 +499,7 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 				Loc:       ast.Loc{Start: startLoc.Start, End: p.prev.Loc.End},
 			}, nil
 		}
-
-		// Not a qualified star — the multipart identifier is a column ref or
-		// function call. Check if it's a function call.
-		if p.cur.Kind == int('(') {
-			fc, err := p.parseFuncCall(name)
-			if err != nil {
-				return nil, err
-			}
-			item := &ast.SelectItem{
-				Expr: fc,
-				Loc:  ast.Loc{Start: startLoc.Start},
-			}
-			alias := p.parseOptionalAlias()
-			if alias != "" {
-				item.Alias = alias
-			}
-			item.Loc.End = p.prev.Loc.End
-			return item, nil
-		}
-
-		// Plain column reference — check for alias.
-		colRef := &ast.ColumnRef{
-			Name: name,
-			Loc:  name.Loc,
-		}
-		item := &ast.SelectItem{
-			Expr: colRef,
-			Loc:  ast.Loc{Start: startLoc.Start},
-		}
-		alias := p.parseOptionalAlias()
-		if alias != "" {
-			item.Alias = alias
-		}
-		item.Loc.End = p.prev.Loc.End
-		return item, nil
+		p.restore(saved)
 	}
 
 	// General expression
@@ -546,9 +513,10 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 		Loc:  ast.Loc{Start: startLoc.Start},
 	}
 
-	alias := p.parseOptionalAlias()
-	if alias != "" {
+	alias, aliased := p.parseOptionalAlias(true)
+	if aliased {
 		item.Alias = alias
+		item.Aliased = true
 	}
 
 	item.Loc.End = p.prev.Loc.End
@@ -566,16 +534,27 @@ func (p *Parser) isSelectIdentToken() bool {
 //
 // Alias forms:
 //   - AS identifier
+//   - AS 'string' (SELECT items only: identifierOrText allows AS "20%",
+//     while a table alias is a strictIdentifier and rejects strings)
 //   - identifier (implicit, if not a clause keyword)
-func (p *Parser) parseOptionalAlias() string {
+//
+// stringOK selects between those two grammar rules.
+//
+// The second return reports whether an alias was present at all: the empty
+// string alias AS ” is engine-valid and distinct from "no alias", so the
+// value alone cannot carry presence.
+func (p *Parser) parseOptionalAlias(stringOK bool) (string, bool) {
 	// Explicit: AS alias
 	if p.cur.Kind == kwAS {
 		p.advance() // consume AS
+		if stringOK && p.cur.Kind == tokString {
+			return p.advance().Str, true
+		}
 		name, _, err := p.parseAliasIdentifier()
 		if err != nil {
-			return ""
+			return "", false
 		}
-		return name
+		return name, true
 	}
 
 	// Implicit alias: current token is an identifier or non-reserved keyword
@@ -583,12 +562,12 @@ func (p *Parser) parseOptionalAlias() string {
 	if p.isAliasIdentToken() {
 		name, _, err := p.parseAliasIdentifier()
 		if err != nil {
-			return ""
+			return "", false
 		}
-		return name
+		return name, true
 	}
 
-	return ""
+	return "", false
 }
 
 // isAliasIdentToken reports whether the current token can be used as an
@@ -700,7 +679,7 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 			ref := &ast.TableRef{
 				Loc: ast.Loc{Start: startLoc.Start},
 			}
-			alias := p.parseOptionalAlias()
+			alias, _ := p.parseOptionalAlias(false)
 			if alias != "" {
 				ref.Alias = alias
 			}
@@ -800,9 +779,32 @@ func (p *Parser) parseTableOrFunction() (ast.Node, error) {
 		Name: name,
 		Loc:  ast.Loc{Start: name.Loc.Start},
 	}
-	if alias := p.parseOptionalAlias(); alias != "" {
+
+	// TABLET(id, ...) sits between the name and the alias (grammar:
+	// tabletList? tableAlias). Only TABLET followed by '(' is the clause.
+	if p.cur.Kind == kwTABLET && p.peekNext().Kind == int('(') {
+		p.advance() // consume TABLET
+		p.advance() // consume '('
+		for {
+			idTok, err := p.expect(tokInt)
+			if err != nil {
+				return nil, err
+			}
+			ref.TabletIDs = append(ref.TabletIDs, idTok.Ival)
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
+	}
+
+	if alias, _ := p.parseOptionalAlias(false); alias != "" {
 		ref.Alias = alias
 	}
+
 	ref.Loc.End = p.prev.Loc.End
 	return ref, nil
 }
@@ -823,7 +825,7 @@ func (p *Parser) parseTableFunction(name *ast.ObjectName) (ast.Node, error) {
 		Call: call,
 		Loc:  ast.Loc{Start: name.Loc.Start},
 	}
-	if alias := p.parseOptionalAlias(); alias != "" {
+	if alias, _ := p.parseOptionalAlias(false); alias != "" {
 		tf.Alias = alias
 		if p.cur.Kind == int('(') {
 			cols, err := p.parseColumnAliasList()
@@ -861,7 +863,7 @@ func (p *Parser) parseInlineTable(start int) (ast.Node, error) {
 	}
 
 	// Optional alias, then an optional column-alias list (requires the alias).
-	alias := p.parseOptionalAlias()
+	alias, _ := p.parseOptionalAlias(false)
 	if alias != "" {
 		tbl.Alias = alias
 		if p.cur.Kind == int('(') {
@@ -1237,7 +1239,63 @@ func (p *Parser) parseGroupByClause() ([]ast.Node, error) {
 		return []ast.Node{fc}, nil
 	}
 
+	// GROUPING SETS (...) — like CUBE, the entire grouping specification.
+	// GROUPING alone stays an ordinary identifier (it is non-reserved), so a
+	// column named grouping still groups normally. Unlike Doris, StarRocks
+	// has no `GROUP BY ... WITH ROLLUP` form (engine-verified), so none is
+	// parsed here.
+	if p.cur.Kind == kwGROUPING && p.peekNext().Kind == kwSETS {
+		gs, err := p.parseGroupingSets()
+		if err != nil {
+			return nil, err
+		}
+		if p.cur.Kind == int(',') {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return []ast.Node{gs}, nil
+	}
+
 	return p.parseExprList()
+}
+
+// parseGroupingSets parses GROUPING SETS ((a, b), (a), ()). On entry cur is
+// GROUPING with SETS next. Every set is itself parenthesized and may be empty.
+func (p *Parser) parseGroupingSets() (ast.Node, error) {
+	startTok := p.advance() // consume GROUPING
+	p.advance()             // consume SETS
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+
+	gs := &ast.GroupingSetsExpr{}
+	for {
+		if _, err := p.expect(int('(')); err != nil {
+			return nil, err
+		}
+		var set []ast.Node
+		if p.cur.Kind != int(')') {
+			exprs, err := p.parseExprList()
+			if err != nil {
+				return nil, err
+			}
+			set = exprs
+		}
+		if _, err := p.expect(int(')')); err != nil {
+			return nil, err
+		}
+		gs.Sets = append(gs.Sets, set)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	gs.Loc = ast.Loc{Start: startTok.Loc.Start, End: closeTok.Loc.End}
+	return gs, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -1255,7 +1313,17 @@ func (p *Parser) parseLimitClause() (ast.Node, ast.Node, error) {
 	}
 
 	var offsetExpr ast.Node
-	if p.cur.Kind == kwOFFSET {
+	switch p.cur.Kind {
+	case int(','):
+		// MySQL form LIMIT offset, row_count: the expression parsed first is
+		// the offset and the one after the comma is the count.
+		p.advance() // consume ','
+		offsetExpr = limitExpr
+		limitExpr, err = p.parseExpr()
+		if err != nil {
+			return nil, nil, err
+		}
+	case kwOFFSET:
 		p.advance() // consume OFFSET
 		offsetExpr, err = p.parseExpr()
 		if err != nil {

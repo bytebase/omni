@@ -334,3 +334,29 @@ func TestDropTableNowSupported(t *testing.T) {
 		t.Errorf("expected *ast.DropTableStmt, got %T", file.Stmts[0])
 	}
 }
+
+func TestBuildIndexPartitionForms(t *testing.T) {
+	cases := []struct {
+		sql  string
+		want []string
+	}{
+		{"BUILD INDEX index1 ON table1 PARTITION(p1, p2)", []string{"p1", "p2"}},
+		{"BUILD INDEX index1 ON table1 PARTITION p1", []string{"p1"}},
+		{"BUILD INDEX index1 ON table1 PARTITIONS(p1)", []string{"p1"}},
+	}
+	for _, tc := range cases {
+		file, errs := Parse(tc.sql)
+		if len(errs) != 0 {
+			t.Fatalf("Parse(%q) errors: %v", tc.sql, errs)
+		}
+		n := file.Stmts[0].(*ast.BuildIndexStmt)
+		if len(n.Partitions) != len(tc.want) {
+			t.Fatalf("Parse(%q) Partitions = %v, want %v", tc.sql, n.Partitions, tc.want)
+		}
+		for i := range tc.want {
+			if n.Partitions[i] != tc.want[i] {
+				t.Errorf("Parse(%q) Partitions[%d] = %q, want %q", tc.sql, i, n.Partitions[i], tc.want[i])
+			}
+		}
+	}
+}

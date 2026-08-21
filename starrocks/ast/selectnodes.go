@@ -74,8 +74,8 @@ type SelectStmt struct {
 //	  [FORMAT AS format_type]
 //	  [PROPERTIES ("key" = "value", ...)]
 type IntoOutfileClause struct {
-	Path       string     // file path (S3, HDFS, or local)
-	Format     string     // format type: CSV, PARQUET, ORC, etc. (empty if not specified)
+	Path       string      // file path (S3, HDFS, or local)
+	Format     string      // format type: CSV, PARQUET, ORC, etc. (empty if not specified)
 	Properties []*Property // PROPERTIES key-value pairs
 	Loc        Loc
 }
@@ -103,7 +103,12 @@ var _ Node = (*SelectStmt)(nil)
 type SelectItem struct {
 	Expr  Node   // the expression; for *, this is nil
 	Alias string // optional alias name; empty if absent
-	Star  bool   // true for * or table.*
+
+	// Aliased reports whether an explicit alias was present. It is what
+	// distinguishes the engine-valid empty alias (SELECT c AS '') from no
+	// alias at all — Alias alone cannot, since "" is its absent value.
+	Aliased bool
+	Star    bool // true for * or table.*
 	// For table.*, TableName holds the qualifier ObjectName.
 	TableName *ObjectName
 	// For SELECT * EXCEPT (col1, col2, ...) — list of column names to exclude.
@@ -129,7 +134,12 @@ var _ Node = (*SelectItem)(nil)
 type TableRef struct {
 	Name  *ObjectName // table name (may be qualified: db.table or catalog.db.table)
 	Alias string      // optional alias; empty if absent
-	Loc   Loc
+
+	// TabletIDs holds TABLET(id, ...) — a physical-tablet restriction that
+	// appears between the table name and the alias.
+	TabletIDs []int64
+
+	Loc Loc
 }
 
 // Tag implements Node.
