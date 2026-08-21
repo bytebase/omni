@@ -519,6 +519,17 @@ func TestSelectStringAlias(t *testing.T) {
 	if stmt.Items[0].Alias != "x" {
 		t.Errorf("Alias = %q, want x", stmt.Items[0].Alias)
 	}
+
+	// The empty alias AS '' is engine-valid and distinct from no alias:
+	// presence is carried by Aliased, not by the string value.
+	stmt = mustParseSelect(t, "SELECT c AS '' FROM t")
+	if !stmt.Items[0].Aliased || stmt.Items[0].Alias != "" {
+		t.Errorf("AS '': Aliased=%v Alias=%q, want true and empty", stmt.Items[0].Aliased, stmt.Items[0].Alias)
+	}
+	stmt = mustParseSelect(t, "SELECT c FROM t")
+	if stmt.Items[0].Aliased {
+		t.Error("unaliased item reports Aliased=true")
+	}
 }
 
 func TestSelectGroupByWithRollup(t *testing.T) {
@@ -615,5 +626,21 @@ func TestSelectFromTabletAndTableSample(t *testing.T) {
 	stmt = mustParseSelect(t, "SELECT * FROM t1 TABLET(1) x TABLESAMPLE(10 ROWS)")
 	if ref := stmt.From[0].(*ast.TableRef); ref.Alias != "x" || len(ref.TabletIDs) != 1 || ref.Sample == nil {
 		t.Errorf("ref = %+v, want tablet+alias+sample", stmt.From[0])
+	}
+}
+
+func TestSelectTableFunctionNameWalkedOnce(t *testing.T) {
+	// TableRef.Name mirrors Func.Name for a table-valued function (same
+	// *ObjectName); the walker must visit it once, not twice.
+	stmt := mustParseSelect(t, "SELECT * FROM BACKENDS()")
+	count := 0
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if _, ok := n.(*ast.ObjectName); ok {
+			count++
+		}
+		return true
+	})
+	if count != 1 {
+		t.Errorf("ObjectName visited %d times, want 1", count)
 	}
 }

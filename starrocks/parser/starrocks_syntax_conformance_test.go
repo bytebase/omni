@@ -87,6 +87,7 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		// rest of the statement.
 		{"limit_offset_comma", "SELECT * FROM t LIMIT 5, 10", true},
 		{"string_alias", `SELECT (1 + 1) AS "20%"`, true},
+		{"string_alias_empty", "SELECT 1 AS ''", true},
 		{"element_at_literal", "SELECT [1, 2, 3][1]", true},
 		{"element_at_column", "SELECT c1[1] FROM t", true},
 		// Unlike Doris, the slice form is engine-rejected here.

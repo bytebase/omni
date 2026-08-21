@@ -212,11 +212,13 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.TableName)
 		}
 	case *TableRef:
-		if n.Name != nil {
-			Walk(v, n.Name)
-		}
+		// For a table-valued function, Name mirrors Func.Name (the same
+		// *ObjectName); walking both would visit that node twice, so the
+		// bare Name is walked only when there is no Func to cover it.
 		if n.Func != nil {
 			Walk(v, n.Func)
+		} else if n.Name != nil {
+			Walk(v, n.Name)
 		}
 		if n.Sample != nil {
 			if n.Sample.Value != nil {

@@ -98,7 +98,7 @@ func (p *Parser) parseMergeSource() (ast.Node, string, error) {
 		if err != nil {
 			return nil, "", err
 		}
-		alias := p.parseOptionalAlias(false)
+		alias, _ := p.parseOptionalAlias(false)
 		return subq, alias, nil
 	}
 
@@ -111,7 +111,7 @@ func (p *Parser) parseMergeSource() (ast.Node, string, error) {
 		Name: name,
 		Loc:  name.Loc,
 	}
-	alias := p.parseOptionalAlias(false)
+	alias, _ := p.parseOptionalAlias(false)
 	if alias != "" {
 		ref.Alias = alias
 		ref.Loc.End = p.prev.Loc.End

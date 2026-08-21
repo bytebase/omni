@@ -295,6 +295,7 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"limit_offset_comma", "SELECT * FROM t LIMIT 5, 10", true},
 		{"string_alias", `SELECT (1 + 1) AS "20%"`, true},
 		{"string_alias_single_quoted", "SELECT 1 AS 'x'", true},
+		{"string_alias_empty", "SELECT 1 AS ''", true},
 		{"element_at_literal", "SELECT [1, 2, 3][1]", true},
 		{"element_at_map", "SELECT {'a': 1}['a']", true},
 		{"element_at_column", "SELECT c1[1] FROM t", true},

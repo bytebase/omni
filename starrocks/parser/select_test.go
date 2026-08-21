@@ -601,6 +601,17 @@ func TestSelectStringAlias(t *testing.T) {
 	if len(stmt.From) != 1 {
 		t.Fatalf("From = %+v, want tb_book to survive the alias", stmt.From)
 	}
+
+	// The empty alias AS '' is engine-valid and distinct from no alias:
+	// presence is carried by Aliased, not by the string value.
+	stmt = mustParseSelect(t, "SELECT c AS '' FROM t")
+	if !stmt.Items[0].Aliased || stmt.Items[0].Alias != "" {
+		t.Errorf("AS '': Aliased=%v Alias=%q, want true and empty", stmt.Items[0].Aliased, stmt.Items[0].Alias)
+	}
+	stmt = mustParseSelect(t, "SELECT c FROM t")
+	if stmt.Items[0].Aliased {
+		t.Error("unaliased item reports Aliased=true")
+	}
 }
 
 func TestSelectGroupByGroupingSets(t *testing.T) {

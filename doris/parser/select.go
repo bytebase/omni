@@ -326,9 +326,10 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 				Expr: fc,
 				Loc:  ast.Loc{Start: startLoc.Start},
 			}
-			alias := p.parseOptionalAlias(true)
-			if alias != "" {
+			alias, aliased := p.parseOptionalAlias(true)
+			if aliased {
 				item.Alias = alias
+				item.Aliased = true
 			}
 			item.Loc.End = p.prev.Loc.End
 			return item, nil
@@ -343,9 +344,10 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 			Expr: colRef,
 			Loc:  ast.Loc{Start: startLoc.Start},
 		}
-		alias := p.parseOptionalAlias(true)
-		if alias != "" {
+		alias, aliased := p.parseOptionalAlias(true)
+		if aliased {
 			item.Alias = alias
+			item.Aliased = true
 		}
 		item.Loc.End = p.prev.Loc.End
 		return item, nil
@@ -362,9 +364,10 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 		Loc:  ast.Loc{Start: startLoc.Start},
 	}
 
-	alias := p.parseOptionalAlias(true)
-	if alias != "" {
+	alias, aliased := p.parseOptionalAlias(true)
+	if aliased {
 		item.Alias = alias
+		item.Aliased = true
 	}
 
 	item.Loc.End = p.prev.Loc.End
@@ -387,18 +390,22 @@ func (p *Parser) isSelectIdentToken() bool {
 //   - identifier (implicit, if not a clause keyword)
 //
 // stringOK selects between those two grammar rules.
-func (p *Parser) parseOptionalAlias(stringOK bool) string {
+//
+// The second return reports whether an alias was present at all: the empty
+// string alias AS ” is engine-valid and distinct from "no alias", so the
+// value alone cannot carry presence.
+func (p *Parser) parseOptionalAlias(stringOK bool) (string, bool) {
 	// Explicit: AS alias
 	if p.cur.Kind == kwAS {
 		p.advance() // consume AS
 		if stringOK && p.cur.Kind == tokString {
-			return p.advance().Str
+			return p.advance().Str, true
 		}
 		name, _, err := p.parseAliasIdentifier()
 		if err != nil {
-			return ""
+			return "", false
 		}
-		return name
+		return name, true
 	}
 
 	// Implicit alias: current token is an identifier or non-reserved keyword
@@ -406,12 +413,12 @@ func (p *Parser) parseOptionalAlias(stringOK bool) string {
 	if p.isAliasIdentToken() {
 		name, _, err := p.parseAliasIdentifier()
 		if err != nil {
-			return ""
+			return "", false
 		}
-		return name
+		return name, true
 	}
 
-	return ""
+	return "", false
 }
 
 // isAliasIdentToken reports whether the current token can be used as an
@@ -517,7 +524,7 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 			ref := &ast.TableRef{
 				Loc: ast.Loc{Start: startLoc.Start},
 			}
-			alias := p.parseOptionalAlias(false)
+			alias, _ := p.parseOptionalAlias(false)
 			if alias != "" {
 				ref.Alias = alias
 			}
@@ -617,7 +624,7 @@ func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 		}
 	}
 
-	alias := p.parseOptionalAlias(false)
+	alias, _ := p.parseOptionalAlias(false)
 	if alias != "" {
 		ref.Alias = alias
 	}

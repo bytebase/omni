@@ -596,3 +596,15 @@ func TestGetQuerySpan_SubscriptKeepsTableAccess(t *testing.T) {
 		t.Errorf("SourceColumns %+v missing secret_col", span.Results[0].SourceColumns)
 	}
 }
+
+func TestGetQuerySpan_EmptyStringAlias(t *testing.T) {
+	// SELECT c AS '' names the result column with the explicit empty alias;
+	// it must not fall back to the expression name.
+	span, err := GetQuerySpan("SELECT c AS '' FROM t")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.Results) != 1 || span.Results[0].Name != "" {
+		t.Fatalf("Results = %+v, want one column named \"\"", span.Results)
+	}
+}

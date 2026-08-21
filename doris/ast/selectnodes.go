@@ -83,7 +83,12 @@ var _ Node = (*SelectStmt)(nil)
 type SelectItem struct {
 	Expr  Node   // the expression; for *, this is nil
 	Alias string // optional alias name; empty if absent
-	Star  bool   // true for * or table.*
+
+	// Aliased reports whether an explicit alias was present. It is what
+	// distinguishes the engine-valid empty alias (SELECT c AS '') from no
+	// alias at all — Alias alone cannot, since "" is its absent value.
+	Aliased bool
+	Star    bool // true for * or table.*
 	// For table.*, TableName holds the qualifier ObjectName.
 	TableName *ObjectName
 	// For SELECT * EXCEPT (col1, col2, ...) — list of column names to exclude.
