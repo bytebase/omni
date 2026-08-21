@@ -390,7 +390,12 @@ func (w *spanWalker) visitTableRef(ref *ast.TableRef) {
 		Database: database,
 		Table:    table,
 		Alias:    ref.Alias,
-		Loc:      ref.Loc,
+		Loc: ast.Loc{
+			// Rebased into outer-statement coordinates: inside a reparsed
+			// subquery ref.Loc is relative to the extracted text.
+			Start: ref.Loc.Start + w.textBase,
+			End:   ref.Loc.End + w.textBase,
+		},
 	})
 }
 

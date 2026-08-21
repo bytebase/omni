@@ -806,3 +806,46 @@ func TestGetQuerySpan_DMLSourceTablesRecorded(t *testing.T) {
 		}
 	}
 }
+
+func TestGetQuerySpan_ReparsedTableAccessLocationsAreOuter(t *testing.T) {
+	// TableAccess locations from a reparsed subquery must be rebased into
+	// outer-statement coordinates, like the parse errors already are.
+	sql := "UPDATE dest SET x=(SELECT x FROM secret)"
+	span, err := GetQuerySpan(sql)
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	if len(span.AccessTables) != 1 {
+		t.Fatalf("AccessTables = %+v, want [secret]", span.AccessTables)
+	}
+	if want := strings.Index(sql, "secret"); span.AccessTables[0].Loc.Start != want {
+		t.Errorf("Loc.Start = %d, want %d", span.AccessTables[0].Loc.Start, want)
+	}
+}
+
+func TestGetQuerySpan_DMLWithClauseScopesCTEs(t *testing.T) {
+	// WITH-prefixed DML: the CTE name must not surface as a physical table —
+	// an access check against nonexistent `c` could falsely deny the query —
+	// and the CTE body's real read must.
+	span, err := GetQuerySpan("WITH c AS (SELECT id FROM secret) DELETE FROM dest WHERE id IN (SELECT id FROM c)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	for _, a := range span.AccessTables {
+		if a.Table == "c" {
+			t.Errorf("CTE c reported as physical table: %+v", span.AccessTables)
+		}
+	}
+	foundSecret := false
+	for _, a := range span.AccessTables {
+		if a.Table == "secret" {
+			foundSecret = true
+		}
+	}
+	if !foundSecret {
+		t.Errorf("AccessTables = %+v, want secret from the CTE body", span.AccessTables)
+	}
+	if len(span.CTEs) != 1 || span.CTEs[0] != "c" {
+		t.Errorf("CTEs = %v, want [c]", span.CTEs)
+	}
+}

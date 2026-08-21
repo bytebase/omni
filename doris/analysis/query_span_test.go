@@ -649,3 +649,19 @@ func TestGetQuerySpan_DMLSourceTablesRecorded(t *testing.T) {
 		}
 	}
 }
+
+func TestGetQuerySpan_ReparsedTableAccessLocationsAreOuter(t *testing.T) {
+	// TableAccess locations from a reparsed subquery must be rebased into
+	// outer-statement coordinates, like the parse errors already are.
+	sql := "UPDATE dest SET x=(SELECT x FROM secret)"
+	span, err := GetQuerySpan(sql)
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	if len(span.AccessTables) != 1 {
+		t.Fatalf("AccessTables = %+v, want [secret]", span.AccessTables)
+	}
+	if want := strings.Index(sql, "secret"); span.AccessTables[0].Loc.Start != want {
+		t.Errorf("Loc.Start = %d, want %d", span.AccessTables[0].Loc.Start, want)
+	}
+}

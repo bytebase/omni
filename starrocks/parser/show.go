@@ -856,13 +856,37 @@ func (p *Parser) parseSetTransaction(startLoc ast.Loc, scope string) (ast.Node, 
 	// Parsed for real rather than raw-captured to EOF — the raw capture ate
 	// everything, so the strict trailing-token check could never see junk
 	// like SET TRANSACTION BOGUS.
+	parts, err := p.parseTransactionCharacteristics()
+	if err != nil {
+		if p.strictTrailing {
+			return nil, err
+		}
+		// Best-effort keeps its recovery contract: completion-style partial
+		// input (SET TRANSACTION ISOLATION LEVEL READ) still yields the
+		// statement, with the unparsed remainder captured raw.
+		if rest := p.collectRemainingRaw(); rest != "" {
+			parts = append(parts, rest)
+		}
+	}
+
+	item := &ast.SetItem{Name: "transaction", Scope: scope, Raw: strings.Join(parts, ", ")}
+	stmt.Items = []*ast.SetItem{item}
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// parseTransactionCharacteristics parses the characteristic list of
+// SET TRANSACTION, returning whatever parsed cleanly plus the error that
+// stopped it, so the caller can choose strict propagation or best-effort
+// recovery.
+func (p *Parser) parseTransactionCharacteristics() ([]string, error) {
 	var parts []string
 	for {
 		switch p.cur.Kind {
 		case kwISOLATION:
 			p.advance() // consume ISOLATION
 			if _, err := p.expect(kwLEVEL); err != nil {
-				return nil, err
+				return parts, err
 			}
 			switch p.cur.Kind {
 			case kwREAD:
@@ -871,19 +895,19 @@ func (p *Parser) parseSetTransaction(startLoc ast.Loc, scope string) (ast.Node, 
 				case kwUNCOMMITTED, kwCOMMITTED:
 					parts = append(parts, "ISOLATION LEVEL READ "+strings.ToUpper(p.advance().Str))
 				default:
-					return nil, p.syntaxErrorAtCur()
+					return parts, p.syntaxErrorAtCur()
 				}
 			case kwREPEATABLE:
 				p.advance() // consume REPEATABLE
 				if _, err := p.expect(kwREAD); err != nil {
-					return nil, err
+					return parts, err
 				}
 				parts = append(parts, "ISOLATION LEVEL REPEATABLE READ")
 			case kwSERIALIZABLE:
 				p.advance()
 				parts = append(parts, "ISOLATION LEVEL SERIALIZABLE")
 			default:
-				return nil, p.syntaxErrorAtCur()
+				return parts, p.syntaxErrorAtCur()
 			}
 		case kwREAD:
 			p.advance() // consume READ
@@ -895,21 +919,17 @@ func (p *Parser) parseSetTransaction(startLoc ast.Loc, scope string) (ast.Node, 
 				p.advance()
 				parts = append(parts, "READ WRITE")
 			default:
-				return nil, p.syntaxErrorAtCur()
+				return parts, p.syntaxErrorAtCur()
 			}
 		default:
-			return nil, p.syntaxErrorAtCur()
+			return parts, p.syntaxErrorAtCur()
 		}
 		if p.cur.Kind != int(',') {
 			break
 		}
 		p.advance() // consume ','
 	}
-
-	item := &ast.SetItem{Name: "transaction", Scope: scope, Raw: strings.Join(parts, ", ")}
-	stmt.Items = []*ast.SetItem{item}
-	stmt.Loc.End = p.prev.Loc.End
-	return stmt, nil
+	return parts, nil
 }
 
 // parseSetItem parses a single SET assignment:

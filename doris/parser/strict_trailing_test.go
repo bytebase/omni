@@ -259,3 +259,15 @@ func TestStrictParseRejectsIncompleteSetNamesCharset(t *testing.T) {
 		}
 	}
 }
+
+func TestParseBestEffortKeepsSetTransactionRecovery(t *testing.T) {
+	// Completion-style partial input must still yield a statement in
+	// best-effort mode; only strict Parse rejects it.
+	r := ParseBestEffort("SET TRANSACTION ISOLATION LEVEL READ")
+	if len(r.Errors) != 0 || len(r.File.Stmts) != 1 {
+		t.Fatalf("ParseBestEffort: stmts=%d errs=%v, want recovered statement", len(r.File.Stmts), r.Errors)
+	}
+	if _, errs := Parse("SET TRANSACTION ISOLATION LEVEL READ"); len(errs) == 0 {
+		t.Error("strict Parse accepted the incomplete characteristic")
+	}
+}
