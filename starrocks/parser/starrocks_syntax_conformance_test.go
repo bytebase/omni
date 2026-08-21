@@ -110,6 +110,7 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		// parsing it as a lambda would shadow the column out of lineage.
 		{"stray_comment_close_rejected", "SELECT 1 */ 2", false},
 		{"explain_incomplete_rejected", "EXPLAIN SELECT * FROM", false},
+		{"explain_bare_rejected", "EXPLAIN", false},
 		{"from_table_named_selected", "SELECT * FROM selected", true},
 		{"create_table_primary_key", "CREATE TABLE conf_pk (id BIGINT NOT NULL, v VARCHAR(64)) PRIMARY KEY(id) DISTRIBUTED BY HASH(id)", true},
 	}

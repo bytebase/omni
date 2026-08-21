@@ -123,6 +123,12 @@ type spanWalker struct {
 	// closed on it rather than returning a span missing that subquery's reads.
 	parseErr error
 
+	// textBase is the absolute offset, in the original statement, of the
+	// subquery text currently being walked (0 while walking the statement
+	// itself). Each nesting level's TextStart is relative to its own
+	// extracted text, so bases accumulate as the walker descends.
+	textBase int
+
 	span     *QuerySpan
 	scope    *cteScope
 	accessed map[tableKey]int // maps key -> index in span.AccessTables
@@ -401,12 +407,15 @@ func (w *spanWalker) analyzeSubqueryText(text string, base int) {
 	if strings.TrimSpace(text) == "" {
 		return
 	}
+	// base is relative to the text this walker is currently inside; abs is
+	// the position in the original statement, accumulated across levels.
+	abs := w.textBase + base
 	file, errs := parser.Parse(text)
 	if len(errs) > 0 {
 		if w.parseErr == nil {
 			e := errs[0]
-			e.Loc.Start += base
-			e.Loc.End += base
+			e.Loc.Start += abs
+			e.Loc.End += abs
 			w.parseErr = &e
 		}
 		return
@@ -414,8 +423,26 @@ func (w *spanWalker) analyzeSubqueryText(text string, base int) {
 	if file == nil {
 		return
 	}
+	saved := w.textBase
+	w.textBase = abs
+	defer func() { w.textBase = saved }()
 	for _, stmt := range file.Stmts {
-		w.visitSetOpArm(stmt, false)
+		switch stmt.(type) {
+		case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
+			w.visitSetOpArm(stmt, false)
+		default:
+			// A placeholder body that parses cleanly as something other than
+			// a query (EXISTS (DELETE FROM secret) FROM public) is not a
+			// valid subquery — the engine rejects it, and ignoring it here
+			// would hide its reads from the span. Fail closed.
+			if w.parseErr == nil {
+				loc := ast.NodeLoc(stmt)
+				w.parseErr = &parser.ParseError{
+					Loc: ast.Loc{Start: loc.Start + abs, End: loc.End + abs},
+					Msg: "subquery must be a SELECT statement",
+				}
+			}
+		}
 	}
 }
 

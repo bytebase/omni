@@ -568,3 +568,29 @@ func TestGetQuerySpan_TableFunctionArgSubqueriesFailClosed(t *testing.T) {
 		t.Fatal("malformed subquery in table-function argument accepted")
 	}
 }
+
+func TestGetQuerySpan_NestedSubqueryErrorLocationsAccumulate(t *testing.T) {
+	// Each nesting level's TextStart is relative to its own extracted text;
+	// the walker must accumulate ancestor bases so a deeply nested error
+	// still points into the original statement.
+	sql := "SELECT (SELECT (SELECT 1 */ 2 FROM t3) FROM t2) FROM t1"
+	_, err := GetQuerySpan(sql)
+	if err == nil {
+		t.Fatal("malformed nested subquery accepted")
+	}
+	pe, ok := err.(*parser.ParseError)
+	if !ok {
+		t.Fatalf("err = %T, want *parser.ParseError", err)
+	}
+	if want := strings.Index(sql, "*/"); pe.Loc.Start != want {
+		t.Errorf("error Loc.Start = %d, want %d", pe.Loc.Start, want)
+	}
+}
+
+func TestGetQuerySpan_NonQuerySubqueryFailsClosed(t *testing.T) {
+	// A placeholder body that parses cleanly as a non-query statement is not
+	// a valid subquery; accepting it would hide its reads from the span.
+	if _, err := GetQuerySpan("SELECT EXISTS (DELETE FROM secret) FROM public"); err == nil {
+		t.Fatal("EXISTS with a DML body accepted")
+	}
+}

@@ -636,6 +636,13 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 		}
 	}
 
+	// A bare EXPLAIN (or EXPLAIN followed only by a modifier or trivia) has
+	// no explained statement; the engine requires one, so strict mode does
+	// not accept the empty form.
+	if p.strictTrailing && stmt.Query == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
 }

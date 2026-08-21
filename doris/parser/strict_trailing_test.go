@@ -122,7 +122,7 @@ func TestStrictParseDrainsLexErrorsAfterTrailingJunk(t *testing.T) {
 func TestStrictParseRejectsMalformedExplain(t *testing.T) {
 	// The RawQuery fallback is best-effort recovery only; on the strict path
 	// it must not swallow a nested parse failure.
-	for _, sql := range []string{"EXPLAIN SELECT * FROM", "EXPLAIN SELECT (", "EXPLAIN BOGUS x"} {
+	for _, sql := range []string{"EXPLAIN SELECT * FROM", "EXPLAIN SELECT (", "EXPLAIN BOGUS x", "EXPLAIN", "EXPLAIN /*comment*/"} {
 		if _, errs := Parse(sql); len(errs) == 0 {
 			t.Errorf("Parse(%q) succeeded, want nested error", sql)
 		}
