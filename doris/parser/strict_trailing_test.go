@@ -200,6 +200,18 @@ func TestStrictParseRejectsValuelessSetAssignments(t *testing.T) {
 			t.Errorf("Parse(%q) errors: %v", sql, errs)
 		}
 	}
+
+	// The scoped spelling keeps its qualifier on the AST — SET SESSION
+	// TRANSACTION must stay distinguishable from SET TRANSACTION.
+	file, _ := Parse("SET GLOBAL TRANSACTION READ ONLY")
+	item := file.Stmts[0].(*ast.SetStmt).Items[0]
+	if item.Scope != "GLOBAL" || item.Raw != "READ ONLY" {
+		t.Errorf("scoped transaction item = %+v, want Scope GLOBAL Raw READ ONLY", item)
+	}
+	file, _ = Parse("SET TRANSACTION READ WRITE")
+	if got := file.Stmts[0].(*ast.SetStmt).Items[0].Scope; got != "" {
+		t.Errorf("unqualified transaction Scope = %q, want empty", got)
+	}
 }
 
 func TestStrictParseRejectsMalformedShowClauses(t *testing.T) {

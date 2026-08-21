@@ -495,6 +495,8 @@ func (p *Parser) parseShowLikeWhere(stmt *ast.ShowStmt) error {
 			stmt.Like = p.cur.Str
 			p.advance()
 		}
+		// A bare LIKE with no pattern is engine-accepted here
+		// (container-verified; StarRocks rejects it and its helper differs).
 		return nil
 	}
 	if p.cur.Kind == kwWHERE {
@@ -744,12 +746,18 @@ func (p *Parser) parseGenericSet(startLoc ast.Loc) (ast.Node, error) {
 	// spelling must not fall through to the generic assignment path, whose
 	// strict mode would reject the engine-valid SET SESSION TRANSACTION ...
 	if p.cur.Kind == kwTRANSACTION {
-		return p.parseSetTransaction(startLoc)
+		return p.parseSetTransaction(startLoc, "")
 	}
 	if (p.cur.Kind == kwGLOBAL || p.cur.Kind == kwSESSION || p.cur.Kind == kwLOCAL) &&
 		p.peekNext().Kind == kwTRANSACTION {
+		// LOCAL is a synonym for SESSION, matching the generic-assignment
+		// scope normalization.
+		scope := "SESSION"
+		if p.cur.Kind == kwGLOBAL {
+			scope = "GLOBAL"
+		}
 		p.advance() // consume the scope keyword
-		return p.parseSetTransaction(startLoc)
+		return p.parseSetTransaction(startLoc, scope)
 	}
 
 	// One or more variable assignments.
@@ -818,7 +826,10 @@ func (p *Parser) parseSetCharset(startLoc ast.Loc) (ast.Node, error) {
 
 // parseSetTransaction parses: SET TRANSACTION { READ ONLY | READ WRITE | ISOLATION LEVEL ... }
 // On entry cur == kwTRANSACTION; startLoc is the SET Loc.
-func (p *Parser) parseSetTransaction(startLoc ast.Loc) (ast.Node, error) {
+// scope carries the optional GLOBAL/SESSION qualifier consumed by the
+// caller, so SET SESSION TRANSACTION ... stays distinguishable from the
+// unqualified form.
+func (p *Parser) parseSetTransaction(startLoc ast.Loc, scope string) (ast.Node, error) {
 	p.advance() // consume TRANSACTION
 	stmt := &ast.SetStmt{Loc: startLoc, Type: "TRANSACTION"}
 
@@ -878,7 +889,7 @@ func (p *Parser) parseSetTransaction(startLoc ast.Loc) (ast.Node, error) {
 		p.advance() // consume ','
 	}
 
-	item := &ast.SetItem{Name: "transaction", Raw: strings.Join(parts, ", ")}
+	item := &ast.SetItem{Name: "transaction", Scope: scope, Raw: strings.Join(parts, ", ")}
 	stmt.Items = []*ast.SetItem{item}
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
