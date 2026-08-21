@@ -321,6 +321,11 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"set_expr_incomplete_rejected", "SET x = 1 +", false},
 		{"set_valueless_rejected", "SET x", false},
 		{"show_where_incomplete_rejected", "SHOW TABLES WHERE (", false},
+		{"show_from_missing_db_rejected", "SHOW TABLES FROM", false},
+		{"set_names_missing_charset_rejected", "SET NAMES", false},
+		{"set_names_dangling_collate_rejected", "SET NAMES utf8 COLLATE", false},
+		{"set_names", "SET NAMES utf8", true},
+		{"set_names_collate", "SET NAMES utf8 COLLATE utf8_general_ci", true},
 		// Unlike StarRocks, the engine tolerates a bare LIKE with no pattern.
 		{"show_like_no_pattern", "SHOW TABLES LIKE", true},
 		{"from_table_named_selected", "SELECT * FROM selected", true},

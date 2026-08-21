@@ -220,7 +220,7 @@ func TestStrictParseRejectsValuelessSetAssignments(t *testing.T) {
 func TestStrictParseRejectsMalformedShowClauses(t *testing.T) {
 	// parseShowLikeWhere consumed to EOF before failing, so the leftover
 	// check alone never saw SHOW TABLES WHERE ( go wrong.
-	for _, sql := range []string{"SHOW TABLES WHERE (", "SHOW DATABASES WHERE 1 +", "SHOW TABLES LIKE"} {
+	for _, sql := range []string{"SHOW TABLES WHERE (", "SHOW DATABASES WHERE 1 +", "SHOW TABLES LIKE", "SHOW TABLES FROM", "SHOW TABLES IN"} {
 		if _, errs := Parse(sql); len(errs) == 0 {
 			t.Errorf("Parse(%q) succeeded, want error", sql)
 		}
@@ -244,5 +244,21 @@ func TestStrictParsePromotesFilteredSegmentLexErrors(t *testing.T) {
 	_, errs := Parse("SELECT 'unterminated")
 	if len(errs) != 2 {
 		t.Errorf("Parse(SELECT 'unterminated) errs = %v, want the segment's two", errs)
+	}
+}
+
+func TestStrictParseRejectsIncompleteSetNamesCharset(t *testing.T) {
+	// The specialized SET forms finished at EOF with their operands missing,
+	// invisible to the leftover-token check. Engine-verified rejects on both
+	// engines.
+	for _, sql := range []string{"SET NAMES", "SET CHARSET", "SET NAMES utf8 COLLATE"} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want error", sql)
+		}
+	}
+	for _, sql := range []string{"SET NAMES utf8", "SET NAMES utf8 COLLATE utf8_general_ci", "SET CHARSET utf8"} {
+		if _, errs := Parse(sql); len(errs) != 0 {
+			t.Errorf("Parse(%q) errors: %v", sql, errs)
+		}
 	}
 }

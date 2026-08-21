@@ -625,3 +625,27 @@ func TestGetQuerySpan_InsertSelectRecordsReads(t *testing.T) {
 		t.Errorf("AccessTables = %+v, want to include secret", span.AccessTables)
 	}
 }
+
+func TestGetQuerySpan_DMLSourceTablesRecorded(t *testing.T) {
+	// Physical tables read by DML — UPDATE ... FROM, DELETE ... USING,
+	// MERGE ... USING — must reach AccessTables for access checks.
+	for _, sql := range []string{
+		"UPDATE target SET x = secret.x FROM secret",
+		"DELETE FROM target USING secret",
+		"MERGE INTO target USING secret ON target.id = secret.id WHEN MATCHED THEN UPDATE SET x = 1",
+	} {
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q) error: %v", sql, err)
+		}
+		found := false
+		for _, a := range span.AccessTables {
+			if a.Table == "secret" {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("GetQuerySpan(%q) AccessTables = %+v, want to include secret", sql, span.AccessTables)
+		}
+	}
+}

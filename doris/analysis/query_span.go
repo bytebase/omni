@@ -196,6 +196,14 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 		case *ast.SetOpStmt:
 			w.visitSetOp(q, false)
 			return false
+		case *ast.TableRef:
+			// A physical table referenced by DML — UPDATE ... FROM secret,
+			// DELETE ... USING secret, MERGE ... USING secret — is a read the
+			// span must report. This deliberately over-approximates by also
+			// recording the write target: for access checks the safe error is
+			// an extra entry, never a missing one.
+			w.visitTableRef(q)
+			return false
 		}
 		return true
 	})

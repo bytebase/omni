@@ -482,6 +482,10 @@ func (p *Parser) parseShowFromLikeWhere(stmt *ast.ShowStmt) error {
 			if err == nil {
 				stmt.From = dbName
 			}
+		} else if p.strictTrailing {
+			// SHOW TABLES FROM with no database name ends at EOF, invisible
+			// to the leftover-token check; the operand is required.
+			return p.syntaxErrorAtCur()
 		}
 	}
 	return p.parseShowLikeWhere(stmt)
@@ -789,6 +793,11 @@ func (p *Parser) parseSetNames(startLoc ast.Loc) (ast.Node, error) {
 			item.Raw = val
 			item.Loc = loc
 		}
+	} else if p.strictTrailing {
+		// SET NAMES with no charset ends at EOF, invisible to the
+		// leftover-token check; the operand is required (engine-verified on
+		// both engines).
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// Optional COLLATE
@@ -797,6 +806,9 @@ func (p *Parser) parseSetNames(startLoc ast.Loc) (ast.Node, error) {
 		collation, _, _ := p.parseIdentifierOrString()
 		if collation != "" {
 			item.Raw += " COLLATE " + collation
+		} else if p.strictTrailing {
+			// A dangling COLLATE needs its collation name.
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
@@ -818,6 +830,9 @@ func (p *Parser) parseSetCharset(startLoc ast.Loc) (ast.Node, error) {
 			item.Raw = val
 			item.Loc = loc
 		}
+	} else if p.strictTrailing {
+		// SET CHARSET with no charset name — the operand is required.
+		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Items = []*ast.SetItem{item}
 	stmt.Loc.End = p.prev.Loc.End
