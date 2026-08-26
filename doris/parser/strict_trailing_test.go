@@ -267,6 +267,18 @@ func TestParseBestEffortKeepsSetTransactionRecovery(t *testing.T) {
 	if len(r.Errors) != 0 || len(r.File.Stmts) != 1 {
 		t.Fatalf("ParseBestEffort: stmts=%d errs=%v, want recovered statement", len(r.File.Stmts), r.Errors)
 	}
+	// The partially-consumed characteristic text survives into Raw so a
+	// completion-style consumer can see what was being entered.
+	if raw := r.File.Stmts[0].(*ast.SetStmt).Items[0].Raw; raw != "ISOLATION LEVEL READ" {
+		t.Errorf("recovered Raw = %q, want ISOLATION LEVEL READ", raw)
+	}
+	r = ParseBestEffort("SET TRANSACTION READ ONLY, ISOLATION LEVEL READ")
+	if len(r.File.Stmts) != 1 {
+		t.Fatalf("ParseBestEffort mixed: stmts=%d, want 1", len(r.File.Stmts))
+	}
+	if raw := r.File.Stmts[0].(*ast.SetStmt).Items[0].Raw; raw != "READ ONLY, ISOLATION LEVEL READ" {
+		t.Errorf("mixed recovered Raw = %q, want both characteristics", raw)
+	}
 	if _, errs := Parse("SET TRANSACTION ISOLATION LEVEL READ"); len(errs) == 0 {
 		t.Error("strict Parse accepted the incomplete characteristic")
 	}

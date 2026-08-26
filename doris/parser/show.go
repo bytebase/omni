@@ -880,11 +880,12 @@ func (p *Parser) parseSetTransaction(startLoc ast.Loc, scope string) (ast.Node, 
 func (p *Parser) parseTransactionCharacteristics() ([]string, error) {
 	var parts []string
 	for {
+		iterStart := p.cur.Loc.Start
 		switch p.cur.Kind {
 		case kwISOLATION:
 			p.advance() // consume ISOLATION
 			if _, err := p.expect(kwLEVEL); err != nil {
-				return parts, err
+				return p.appendConsumedCharacteristic(parts, iterStart), err
 			}
 			switch p.cur.Kind {
 			case kwREAD:
@@ -893,19 +894,19 @@ func (p *Parser) parseTransactionCharacteristics() ([]string, error) {
 				case kwUNCOMMITTED, kwCOMMITTED:
 					parts = append(parts, "ISOLATION LEVEL READ "+strings.ToUpper(p.advance().Str))
 				default:
-					return parts, p.syntaxErrorAtCur()
+					return p.appendConsumedCharacteristic(parts, iterStart), p.syntaxErrorAtCur()
 				}
 			case kwREPEATABLE:
 				p.advance() // consume REPEATABLE
 				if _, err := p.expect(kwREAD); err != nil {
-					return parts, err
+					return p.appendConsumedCharacteristic(parts, iterStart), err
 				}
 				parts = append(parts, "ISOLATION LEVEL REPEATABLE READ")
 			case kwSERIALIZABLE:
 				p.advance()
 				parts = append(parts, "ISOLATION LEVEL SERIALIZABLE")
 			default:
-				return parts, p.syntaxErrorAtCur()
+				return p.appendConsumedCharacteristic(parts, iterStart), p.syntaxErrorAtCur()
 			}
 		case kwREAD:
 			p.advance() // consume READ
@@ -917,10 +918,10 @@ func (p *Parser) parseTransactionCharacteristics() ([]string, error) {
 				p.advance()
 				parts = append(parts, "READ WRITE")
 			default:
-				return parts, p.syntaxErrorAtCur()
+				return p.appendConsumedCharacteristic(parts, iterStart), p.syntaxErrorAtCur()
 			}
 		default:
-			return parts, p.syntaxErrorAtCur()
+			return p.appendConsumedCharacteristic(parts, iterStart), p.syntaxErrorAtCur()
 		}
 		if p.cur.Kind != int(',') {
 			break
@@ -928,6 +929,19 @@ func (p *Parser) parseTransactionCharacteristics() ([]string, error) {
 		p.advance() // consume ','
 	}
 	return parts, nil
+}
+
+// appendConsumedCharacteristic preserves the text of a characteristic that a
+// parse error interrupted mid-way, so best-effort recovery does not lose it:
+// ParseBestEffort("SET TRANSACTION ISOLATION LEVEL READ") keeps
+// "ISOLATION LEVEL READ" in the item's Raw even though the tokens were
+// already consumed when the error surfaced.
+func (p *Parser) appendConsumedCharacteristic(parts []string, start int) []string {
+	consumed := strings.TrimSpace(p.input[start-p.baseOffset : p.cur.Loc.Start-p.baseOffset])
+	if consumed != "" {
+		parts = append(parts, consumed)
+	}
+	return parts
 }
 
 // parseSetItem parses a single SET assignment:
