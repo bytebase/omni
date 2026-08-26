@@ -1,7 +1,10 @@
 package analysis
 
 import (
+	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/starrocks/parser"
 )
 
 // tableSig is a compact form of TableAccess used for order-insensitive
@@ -618,5 +621,260 @@ func TestGetQuerySpan_QualifiedSubscriptKeepsTableAccess(t *testing.T) {
 	}
 	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "sensitive_table" {
 		t.Fatalf("AccessTables = %+v, want [sensitive_table]", span.AccessTables)
+	}
+}
+
+func TestGetQuerySpan_FailsClosedOnParseError(t *testing.T) {
+	// Engine-invalid SQL the parser used to swallow must now yield an error,
+	// never a silently smaller span (BYT-10085).
+	if _, err := GetQuerySpan("SELECT j->'$.a' FROM t"); err == nil {
+		t.Fatal("GetQuerySpan accepted a statement with trailing junk")
+	}
+
+	// A subquery that does not fully parse fails the whole span: its table
+	// reads would otherwise vanish from AccessTables.
+	if _, err := GetQuerySpan("SELECT (SELECT j->'$.a' FROM t2) x FROM t1"); err == nil {
+		t.Fatal("GetQuerySpan accepted an unparseable subquery")
+	}
+
+	// Empty input keeps the zero-span contract.
+	span, err := GetQuerySpan("")
+	if err != nil || span == nil || span.Type != QueryTypeUnknown {
+		t.Fatalf("empty input: span=%+v err=%v, want zero span and nil error", span, err)
+	}
+}
+
+func TestGetQuerySpan_TableNamesResemblingKeywords(t *testing.T) {
+	// The FROM-subquery detection is an explicit AST discriminator, not a
+	// prefix heuristic: tables named selected/within (and a quoted `select`)
+	// are ordinary tables, not query text to re-parse.
+	for _, tc := range []struct{ sql, table string }{
+		{"SELECT * FROM selected", "selected"},
+		{"SELECT * FROM within", "within"},
+		{"SELECT * FROM `select`", "select"},
+	} {
+		span, err := GetQuerySpan(tc.sql)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q) error: %v", tc.sql, err)
+		}
+		if len(span.AccessTables) != 1 || span.AccessTables[0].Table != tc.table {
+			t.Errorf("GetQuerySpan(%q) AccessTables = %+v, want [%s]", tc.sql, span.AccessTables, tc.table)
+		}
+	}
+}
+
+func TestGetQuerySpan_DMLSubqueriesFailClosed(t *testing.T) {
+	// The fail-closed contract holds for statements that produce no lineage
+	// of their own: a malformed subquery inside DML surfaces as an error.
+	if _, err := GetQuerySpan("DELETE FROM t WHERE id IN (SELECT 1 */ 2 FROM secret)"); err == nil {
+		t.Fatal("malformed DML subquery accepted")
+	}
+	// A well-formed one contributes its table reads.
+	span, err := GetQuerySpan("DELETE FROM t WHERE id IN (SELECT id FROM other)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	found := false
+	for _, a := range span.AccessTables {
+		if a.Table == "other" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("AccessTables = %+v, want to include other", span.AccessTables)
+	}
+}
+
+func TestGetQuerySpan_SubqueryErrorLocationsAreOuter(t *testing.T) {
+	// Errors from re-parsing a subquery's raw text must be shifted into the
+	// outer statement's coordinates so diagnostics highlight the right spot.
+	sql := "SELECT (SELECT 1 */ 2 FROM t2) x FROM t1"
+	_, err := GetQuerySpan(sql)
+	if err == nil {
+		t.Fatal("malformed subquery accepted")
+	}
+	pe, ok := err.(*parser.ParseError)
+	if !ok {
+		t.Fatalf("err = %T, want *parser.ParseError", err)
+	}
+	want := strings.Index(sql, "*/")
+	if pe.Loc.Start != want {
+		t.Errorf("error Loc.Start = %d, want %d (the */ in the outer text)", pe.Loc.Start, want)
+	}
+}
+
+func TestGetQuerySpan_TableFunctionArgSubqueriesFailClosed(t *testing.T) {
+	// Subqueries embedded in table-function arguments are validated too: the
+	// function call is walked, so a malformed one fails the span.
+	if _, err := GetQuerySpan("SELECT * FROM numbers(EXISTS (SELECT 1 */ 2 FROM secret)) x"); err == nil {
+		t.Fatal("malformed subquery in table-function argument accepted")
+	}
+}
+
+func TestGetQuerySpan_NestedSubqueryErrorLocationsAccumulate(t *testing.T) {
+	// Each nesting level's TextStart is relative to its own extracted text;
+	// the walker must accumulate ancestor bases so a deeply nested error
+	// still points into the original statement.
+	sql := "SELECT (SELECT (SELECT 1 */ 2 FROM t3) FROM t2) FROM t1"
+	_, err := GetQuerySpan(sql)
+	if err == nil {
+		t.Fatal("malformed nested subquery accepted")
+	}
+	pe, ok := err.(*parser.ParseError)
+	if !ok {
+		t.Fatalf("err = %T, want *parser.ParseError", err)
+	}
+	if want := strings.Index(sql, "*/"); pe.Loc.Start != want {
+		t.Errorf("error Loc.Start = %d, want %d", pe.Loc.Start, want)
+	}
+}
+
+func TestGetQuerySpan_NonQuerySubqueryFailsClosed(t *testing.T) {
+	// A placeholder body that parses cleanly as a non-query statement is not
+	// a valid subquery; accepting it would hide its reads from the span.
+	if _, err := GetQuerySpan("SELECT EXISTS (DELETE FROM secret) FROM public"); err == nil {
+		t.Fatal("EXISTS with a DML body accepted")
+	}
+}
+
+func TestGetQuerySpan_EmptySubqueryPlaceholdersFailClosed(t *testing.T) {
+	// Empty or comment-only placeholder bodies parse to zero statements and
+	// used to bypass the query-node validation entirely.
+	for _, sql := range []string{
+		"SELECT EXISTS () FROM public",
+		"SELECT EXISTS (/*comment*/) FROM public",
+	} {
+		if _, err := GetQuerySpan(sql); err == nil {
+			t.Errorf("GetQuerySpan(%q) accepted an empty subquery body", sql)
+		}
+	}
+}
+
+func TestGetQuerySpan_InsertSelectRecordsReads(t *testing.T) {
+	// A parsed query child inside DML carries real table reads: the SELECT
+	// side of INSERT ... SELECT must land in AccessTables.
+	span, err := GetQuerySpan("INSERT INTO dest SELECT * FROM secret")
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	found := false
+	for _, a := range span.AccessTables {
+		if a.Table == "secret" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("AccessTables = %+v, want to include secret", span.AccessTables)
+	}
+}
+
+func TestGetQuerySpan_TopLevelParenSelect(t *testing.T) {
+	// (SELECT * FROM secret) parses as ParenSelect; it is the outermost query,
+	// so both its table reads and its Results must populate.
+	span, err := GetQuerySpan("(SELECT * FROM secret)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "secret" {
+		t.Fatalf("AccessTables = %+v, want [secret]", span.AccessTables)
+	}
+	if len(span.Results) != 1 {
+		t.Errorf("Results = %+v, want the wrapped SELECT's output", span.Results)
+	}
+}
+
+func TestGetQuerySpan_DMLSourceTablesRecorded(t *testing.T) {
+	// Physical tables read by DML — UPDATE ... FROM, DELETE ... USING,
+	// MERGE ... USING — must reach AccessTables for access checks.
+	for _, sql := range []string{
+		"UPDATE target SET x = secret.x FROM secret",
+		"DELETE FROM target USING secret",
+		"MERGE INTO target USING secret ON target.id = secret.id WHEN MATCHED THEN UPDATE SET x = 1",
+	} {
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q) error: %v", sql, err)
+		}
+		found := false
+		for _, a := range span.AccessTables {
+			if a.Table == "secret" {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("GetQuerySpan(%q) AccessTables = %+v, want to include secret", sql, span.AccessTables)
+		}
+	}
+}
+
+func TestGetQuerySpan_ReparsedTableAccessLocationsAreOuter(t *testing.T) {
+	// TableAccess locations from a reparsed subquery must be rebased into
+	// outer-statement coordinates, like the parse errors already are.
+	sql := "UPDATE dest SET x=(SELECT x FROM secret)"
+	span, err := GetQuerySpan(sql)
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	if len(span.AccessTables) != 1 {
+		t.Fatalf("AccessTables = %+v, want [secret]", span.AccessTables)
+	}
+	if want := strings.Index(sql, "secret"); span.AccessTables[0].Loc.Start != want {
+		t.Errorf("Loc.Start = %d, want %d", span.AccessTables[0].Loc.Start, want)
+	}
+}
+
+func TestGetQuerySpan_DMLWithClauseScopesCTEs(t *testing.T) {
+	// WITH-prefixed DML: the CTE name must not surface as a physical table —
+	// an access check against nonexistent `c` could falsely deny the query —
+	// and the CTE body's real read must.
+	span, err := GetQuerySpan("WITH c AS (SELECT id FROM secret) DELETE FROM dest WHERE id IN (SELECT id FROM c)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	for _, a := range span.AccessTables {
+		if a.Table == "c" {
+			t.Errorf("CTE c reported as physical table: %+v", span.AccessTables)
+		}
+	}
+	foundSecret := false
+	for _, a := range span.AccessTables {
+		if a.Table == "secret" {
+			foundSecret = true
+		}
+	}
+	if !foundSecret {
+		t.Errorf("AccessTables = %+v, want secret from the CTE body", span.AccessTables)
+	}
+	if len(span.CTEs) != 1 || span.CTEs[0] != "c" {
+		t.Errorf("CTEs = %v, want [c]", span.CTEs)
+	}
+}
+
+func TestGetQuerySpan_CTASReadsRecordedAndValidated(t *testing.T) {
+	// CTAS keeps its query as raw text; the read it performs must reach
+	// AccessTables, and a malformed body must fail the span.
+	span, err := GetQuerySpan("CREATE TABLE dest AS SELECT * FROM secret")
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	found := false
+	for _, a := range span.AccessTables {
+		if a.Table == "secret" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("AccessTables = %+v, want to include secret", span.AccessTables)
+	}
+	if _, err := GetQuerySpan("CREATE TABLE dest AS SELECT 1 */ 2 FROM secret"); err == nil {
+		t.Error("malformed CTAS body accepted")
+	}
+}
+
+func TestGetQuerySpan_MultiStatementPlaceholderFailsClosed(t *testing.T) {
+	// A subquery placeholder must hold exactly one query; embedded delimiters
+	// smuggle in extra statements the engine would reject.
+	if _, err := GetQuerySpan("SELECT EXISTS (SELECT * FROM secret; SELECT * FROM other)"); err == nil {
+		t.Fatal("multi-statement placeholder accepted")
 	}
 }

@@ -1014,9 +1014,11 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int) (*ast.SubqueryExpr, e
 	rawText := p.input[subStart-p.baseOffset : subEnd-p.baseOffset]
 	closeTok := p.advance() // consume ')'
 
+	trimmedFromStart := len(rawText) - len(strings.TrimLeft(rawText, " \t\r\n"))
 	return &ast.SubqueryExpr{
-		RawText: strings.TrimSpace(rawText),
-		Loc:     ast.Loc{Start: startOffset, End: closeTok.Loc.End},
+		RawText:   strings.TrimSpace(rawText),
+		TextStart: subStart + trimmedFromStart,
+		Loc:       ast.Loc{Start: startOffset, End: closeTok.Loc.End},
 	}, nil
 }
 

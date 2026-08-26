@@ -214,10 +214,15 @@ func walkChildren(v Visitor, node Node) {
 	case *TableRef:
 		// For a table-valued function, Name mirrors Func.Name (the same
 		// *ObjectName); walking both would visit that node twice, so the
-		// bare Name is walked only when there is no Func to cover it.
-		if n.Func != nil {
+		// bare Name is walked only when there is no Func to cover it. The
+		// same mirroring applies to a FROM-subquery, whose raw text is
+		// packed into Name.Parts[0].
+		switch {
+		case n.Subquery != nil:
+			Walk(v, n.Subquery)
+		case n.Func != nil:
 			Walk(v, n.Func)
-		} else if n.Name != nil {
+		case n.Name != nil:
 			Walk(v, n.Name)
 		}
 		if n.Sample != nil {

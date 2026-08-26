@@ -119,6 +119,10 @@ type TableRef struct {
 	// BACKENDS() or numbers("number" = "10"); Name mirrors the function name.
 	Func *FuncCallExpr
 
+	// Subquery is set when this FROM item is a parenthesized subquery;
+	// Name.Parts[0] mirrors its raw text for legacy consumers.
+	Subquery *SubqueryExpr
+
 	// TabletIDs holds TABLET(id, ...) — a physical-tablet restriction that
 	// appears between the table name and the alias.
 	TabletIDs []int64

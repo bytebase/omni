@@ -142,7 +142,9 @@ func (p *Parser) parseShowTables(stmt *ast.ShowStmt) (ast.Node, error) {
 	p.advance() // consume TABLES
 	stmt.Type = "TABLES"
 
-	p.parseShowFromLikeWhere(stmt)
+	if err := p.parseShowFromLikeWhere(stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -164,7 +166,9 @@ func (p *Parser) parseShowDatabases(stmt *ast.ShowStmt) (ast.Node, error) {
 		stmt.From = catalog
 	}
 
-	p.parseShowLikeWhere(stmt)
+	if err := p.parseShowLikeWhere(stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -196,7 +200,9 @@ func (p *Parser) parseShowColumns(stmt *ast.ShowStmt) (ast.Node, error) {
 		stmt.From = dbName
 	}
 
-	p.parseShowLikeWhere(stmt)
+	if err := p.parseShowLikeWhere(stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -261,7 +267,9 @@ func (p *Parser) parseShowVariables(stmt *ast.ShowStmt) (ast.Node, error) {
 	p.advance() // consume VARIABLES
 	stmt.Type = "VARIABLES"
 
-	p.parseShowLikeWhere(stmt)
+	if err := p.parseShowLikeWhere(stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -335,7 +343,9 @@ func (p *Parser) parseShowTableStatus(stmt *ast.ShowStmt) (ast.Node, error) {
 		stmt.Type = "TABLE STATUS"
 	}
 
-	p.parseShowFromLikeWhere(stmt)
+	if err := p.parseShowFromLikeWhere(stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -347,7 +357,9 @@ func (p *Parser) parseShowCatalogs(stmt *ast.ShowStmt) (ast.Node, error) {
 	p.advance() // consume CATALOGS
 	stmt.Type = "CATALOGS"
 
-	p.parseShowLikeWhere(stmt)
+	if err := p.parseShowLikeWhere(stmt); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
@@ -461,7 +473,7 @@ func (p *Parser) parseShowGeneric(stmt *ast.ShowStmt) (ast.Node, error) {
 
 // parseShowFromLikeWhere optionally consumes [FROM db] [LIKE 'pat'] [WHERE expr]
 // for SHOW TABLES and similar forms.
-func (p *Parser) parseShowFromLikeWhere(stmt *ast.ShowStmt) {
+func (p *Parser) parseShowFromLikeWhere(stmt *ast.ShowStmt) error {
 	// Optional FROM db
 	if p.cur.Kind == kwFROM || p.cur.Kind == kwIN {
 		p.advance()
@@ -470,28 +482,40 @@ func (p *Parser) parseShowFromLikeWhere(stmt *ast.ShowStmt) {
 			if err == nil {
 				stmt.From = dbName
 			}
+		} else if p.strictTrailing {
+			// SHOW TABLES FROM with no database name ends at EOF, invisible
+			// to the leftover-token check; the operand is required.
+			return p.syntaxErrorAtCur()
 		}
 	}
-	p.parseShowLikeWhere(stmt)
+	return p.parseShowLikeWhere(stmt)
 }
 
 // parseShowLikeWhere optionally consumes [LIKE 'pat'] [WHERE expr].
-func (p *Parser) parseShowLikeWhere(stmt *ast.ShowStmt) {
+func (p *Parser) parseShowLikeWhere(stmt *ast.ShowStmt) error {
 	if p.cur.Kind == kwLIKE {
 		p.advance() // consume LIKE
 		if p.cur.Kind == tokString {
 			stmt.Like = p.cur.Str
 			p.advance()
 		}
-		return
+		// A bare LIKE with no pattern is engine-accepted here
+		// (container-verified; StarRocks rejects it and its helper differs).
+		return nil
 	}
 	if p.cur.Kind == kwWHERE {
 		p.advance() // consume WHERE
 		expr, err := p.parseExpr()
 		if err == nil {
 			stmt.Where = expr
+		} else if p.strictTrailing {
+			// The clause parser may have consumed to EOF before failing
+			// (SHOW TABLES WHERE '('), so the leftover-token check alone
+			// cannot catch this — the error has to propagate.
+			return err
 		}
 	}
+	return nil
 }
 
 // collectRemainingRaw consumes all remaining tokens (up to EOF) and returns
@@ -617,15 +641,30 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 		// No modifier — empty Type.
 	}
 
-	// Parse the explained query (best-effort; use RawQuery as fallback).
+	// Parse the explained query. The RawQuery fallback is best-effort
+	// recovery only: on the strict path it would swallow the nested failure
+	// (EXPLAIN SELECT * FROM would parse clean with the garbage packed into
+	// raw text), so strict mode propagates the error instead.
 	if p.cur.Kind != tokEOF {
 		query, err := p.parseStmt()
 		if err == nil && query != nil {
 			stmt.Query = query
+		} else if p.strictTrailing {
+			if err == nil {
+				err = p.syntaxErrorAtCur()
+			}
+			return nil, err
 		} else {
 			// Fallback: wrap remaining tokens as a RawQuery.
 			stmt.Query = &ast.RawQuery{RawText: p.collectRemainingRaw(), Loc: p.cur.Loc}
 		}
+	}
+
+	// A bare EXPLAIN (or EXPLAIN followed only by a modifier or trivia) has
+	// no explained statement; the engine requires one, so strict mode does
+	// not accept the empty form.
+	if p.strictTrailing && stmt.Query == nil {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	stmt.Loc.End = p.prev.Loc.End
@@ -707,9 +746,22 @@ func (p *Parser) parseGenericSet(startLoc ast.Loc) (ast.Node, error) {
 	if p.cur.Kind == kwCHARSET {
 		return p.parseSetCharset(startLoc)
 	}
-	// TRANSACTION form
+	// TRANSACTION form, with or without a leading scope keyword — the scoped
+	// spelling must not fall through to the generic assignment path, whose
+	// strict mode would reject the engine-valid SET SESSION TRANSACTION ...
 	if p.cur.Kind == kwTRANSACTION {
-		return p.parseSetTransaction(startLoc)
+		return p.parseSetTransaction(startLoc, "")
+	}
+	if (p.cur.Kind == kwGLOBAL || p.cur.Kind == kwSESSION || p.cur.Kind == kwLOCAL) &&
+		p.peekNext().Kind == kwTRANSACTION {
+		// LOCAL is a synonym for SESSION, matching the generic-assignment
+		// scope normalization.
+		scope := "SESSION"
+		if p.cur.Kind == kwGLOBAL {
+			scope = "GLOBAL"
+		}
+		p.advance() // consume the scope keyword
+		return p.parseSetTransaction(startLoc, scope)
 	}
 
 	// One or more variable assignments.
@@ -735,12 +787,24 @@ func (p *Parser) parseSetNames(startLoc ast.Loc) (ast.Node, error) {
 	stmt := &ast.SetStmt{Loc: startLoc, Type: "NAMES"}
 
 	item := &ast.SetItem{Name: "names"}
-	if p.cur.Kind == tokString || isIdentifierToken(p.cur.Kind) {
+	if p.cur.Kind == kwDEFAULT {
+		// SET NAMES DEFAULT — DEFAULT lexes as a reserved keyword, so the
+		// identifier/string gate below would misread the engine-valid form
+		// as a missing charset (container-verified accept on both engines).
+		tok := p.advance()
+		item.Raw = "DEFAULT"
+		item.Loc = tok.Loc
+	} else if p.cur.Kind == tokString || isIdentifierToken(p.cur.Kind) {
 		val, loc, err := p.parseIdentifierOrString()
 		if err == nil {
 			item.Raw = val
 			item.Loc = loc
 		}
+	} else if p.strictTrailing {
+		// SET NAMES with no charset ends at EOF, invisible to the
+		// leftover-token check; the operand is required (engine-verified on
+		// both engines).
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	// Optional COLLATE
@@ -749,6 +813,9 @@ func (p *Parser) parseSetNames(startLoc ast.Loc) (ast.Node, error) {
 		collation, _, _ := p.parseIdentifierOrString()
 		if collation != "" {
 			item.Raw += " COLLATE " + collation
+		} else if p.strictTrailing {
+			// A dangling COLLATE needs its collation name.
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 
@@ -770,6 +837,9 @@ func (p *Parser) parseSetCharset(startLoc ast.Loc) (ast.Node, error) {
 			item.Raw = val
 			item.Loc = loc
 		}
+	} else if p.strictTrailing {
+		// SET CHARSET with no charset name — the operand is required.
+		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Items = []*ast.SetItem{item}
 	stmt.Loc.End = p.prev.Loc.End
@@ -778,14 +848,105 @@ func (p *Parser) parseSetCharset(startLoc ast.Loc) (ast.Node, error) {
 
 // parseSetTransaction parses: SET TRANSACTION { READ ONLY | READ WRITE | ISOLATION LEVEL ... }
 // On entry cur == kwTRANSACTION; startLoc is the SET Loc.
-func (p *Parser) parseSetTransaction(startLoc ast.Loc) (ast.Node, error) {
+// scope carries the optional GLOBAL/SESSION qualifier consumed by the
+// caller, so SET SESSION TRANSACTION ... stays distinguishable from the
+// unqualified form.
+func (p *Parser) parseSetTransaction(startLoc ast.Loc, scope string) (ast.Node, error) {
 	p.advance() // consume TRANSACTION
 	stmt := &ast.SetStmt{Loc: startLoc, Type: "TRANSACTION"}
 
-	item := &ast.SetItem{Name: "transaction", Raw: p.collectRemainingRaw()}
+	// transaction_characteristic (, transaction_characteristic)*:
+	//   ISOLATION LEVEL {READ UNCOMMITTED | READ COMMITTED | REPEATABLE READ
+	//   | SERIALIZABLE} | READ ONLY | READ WRITE
+	// Parsed for real rather than raw-captured to EOF — the raw capture ate
+	// everything, so the strict trailing-token check could never see junk
+	// like SET TRANSACTION BOGUS.
+	parts, partial, err := p.parseTransactionCharacteristics()
+	if err != nil {
+		if p.strictTrailing {
+			return nil, err
+		}
+		// Best-effort keeps its recovery contract: completion-style partial
+		// input (SET TRANSACTION ISOLATION LEVEL READ) still yields the
+		// statement. The interrupted characteristic and the unparsed
+		// remainder stay one fragment — joining them as separate parts would
+		// invent a comma the user never typed.
+		if frag := strings.TrimSpace(partial + " " + p.collectRemainingRaw()); frag != "" {
+			parts = append(parts, frag)
+		}
+	}
+
+	item := &ast.SetItem{Name: "transaction", Scope: scope, Raw: strings.Join(parts, ", ")}
 	stmt.Items = []*ast.SetItem{item}
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// parseTransactionCharacteristics parses the characteristic list of
+// SET TRANSACTION, returning whatever parsed cleanly plus the error that
+// stopped it, so the caller can choose strict propagation or best-effort
+// recovery.
+func (p *Parser) parseTransactionCharacteristics() ([]string, string, error) {
+	var parts []string
+	for {
+		iterStart := p.cur.Loc.Start
+		switch p.cur.Kind {
+		case kwISOLATION:
+			p.advance() // consume ISOLATION
+			if _, err := p.expect(kwLEVEL); err != nil {
+				return parts, p.consumedCharacteristicText(iterStart), err
+			}
+			switch p.cur.Kind {
+			case kwREAD:
+				p.advance() // consume READ
+				switch p.cur.Kind {
+				case kwUNCOMMITTED, kwCOMMITTED:
+					parts = append(parts, "ISOLATION LEVEL READ "+strings.ToUpper(p.advance().Str))
+				default:
+					return parts, p.consumedCharacteristicText(iterStart), p.syntaxErrorAtCur()
+				}
+			case kwREPEATABLE:
+				p.advance() // consume REPEATABLE
+				if _, err := p.expect(kwREAD); err != nil {
+					return parts, p.consumedCharacteristicText(iterStart), err
+				}
+				parts = append(parts, "ISOLATION LEVEL REPEATABLE READ")
+			case kwSERIALIZABLE:
+				p.advance()
+				parts = append(parts, "ISOLATION LEVEL SERIALIZABLE")
+			default:
+				return parts, p.consumedCharacteristicText(iterStart), p.syntaxErrorAtCur()
+			}
+		case kwREAD:
+			p.advance() // consume READ
+			switch p.cur.Kind {
+			case kwONLY:
+				p.advance()
+				parts = append(parts, "READ ONLY")
+			case kwWRITE:
+				p.advance()
+				parts = append(parts, "READ WRITE")
+			default:
+				return parts, p.consumedCharacteristicText(iterStart), p.syntaxErrorAtCur()
+			}
+		default:
+			return parts, p.consumedCharacteristicText(iterStart), p.syntaxErrorAtCur()
+		}
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	return parts, "", nil
+}
+
+// consumedCharacteristicText returns the text of the characteristic a parse
+// error interrupted mid-way, so best-effort recovery does not lose it:
+// ParseBestEffort("SET TRANSACTION ISOLATION LEVEL READ") keeps
+// "ISOLATION LEVEL READ" in the item's Raw even though the tokens were
+// already consumed when the error surfaced.
+func (p *Parser) consumedCharacteristicText(start int) string {
+	return strings.TrimSpace(p.input[start-p.baseOffset : p.cur.Loc.Start-p.baseOffset])
 }
 
 // parseSetItem parses a single SET assignment:
@@ -828,19 +989,35 @@ func (p *Parser) parseSetItem() (*ast.SetItem, error) {
 	}
 
 	// Consume = or :=
+	hasAssign := false
 	if p.cur.Kind == int('=') || p.cur.Kind == tokAssign {
+		hasAssign = true
 		p.advance()
 	}
 
 	// Parse the value expression.
 	if p.cur.Kind != tokEOF && p.cur.Kind != int(',') {
+		if p.strictTrailing && !hasAssign {
+			// SET x 1 — the engine requires the assignment separator.
+			return nil, p.syntaxErrorAtCur()
+		}
 		expr, err := p.parseExpr()
 		if err == nil {
 			item.Value = expr
+		} else if p.strictTrailing {
+			// The raw fallback would consume to the comma or EOF and hide the
+			// malformed expression from the strict trailing-token check
+			// (SET x = ( parsed clean). Strict mode propagates instead.
+			return nil, err
 		} else {
 			// Fallback to raw.
 			item.Raw = p.collectUntilCommaOrEOF()
 		}
+	} else if p.strictTrailing {
+		// SET x / SET x = / SET x, y — the assignment value is required, and
+		// the bare-name forms used to reach EOF or the comma before the
+		// strict check could see anything wrong.
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	item.Loc.End = p.prev.Loc.End

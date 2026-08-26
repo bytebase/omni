@@ -14,6 +14,13 @@ func (p *Parser) parseBeginStmt() (ast.Node, error) {
 	stmt := &ast.BeginStmt{}
 	endLoc := startTok.Loc
 
+	// Optional WORK qualifier: BEGIN WORK is engine-valid here
+	// (container-verified; Doris rejects it, and both engines reject
+	// BEGIN TRANSACTION, so neither is consumed in the doris parser).
+	if p.cur.Kind == kwWORK {
+		endLoc = p.advance().Loc
+	}
+
 	// Optional WITH LABEL label_name
 	if p.cur.Kind == kwWITH {
 		p.advance() // consume WITH

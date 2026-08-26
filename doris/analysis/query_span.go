@@ -61,11 +61,18 @@ type ColumnRef struct {
 // GetQuerySpan analyzes a SQL statement and returns its query span: the set
 // of tables it reads from, the CTE names it defines, and its output columns.
 //
-// GetQuerySpan is tolerant of parse errors — if the parser produces a partial
-// AST, whatever was parsed is still analyzed. On empty input it returns a
-// zero-valued span with Type=QueryTypeUnknown.
+// GetQuerySpan fails closed on parse errors. Masking and access checks
+// consume the span, and a partial AST understates what the statement reads —
+// before the strict Parse (BYT-10085), `SELECT secret_col[1] FROM
+// sensitive_table` analyzed as a table-less SELECT. A statement (or any of
+// its subqueries) that does not fully parse therefore yields an error, never
+// a silently smaller span. On empty input it returns a zero-valued span with
+// Type=QueryTypeUnknown.
 func GetQuerySpan(statement string) (*QuerySpan, error) {
-	file, _ := parser.Parse(statement)
+	file, errs := parser.Parse(statement)
+	if len(errs) > 0 {
+		return nil, &errs[0]
+	}
 	span := &QuerySpan{
 		Type: Classify(statement),
 	}
@@ -78,6 +85,9 @@ func GetQuerySpan(statement string) (*QuerySpan, error) {
 		w.analyzeStmt(stmt)
 	}
 	w.finalize()
+	if w.parseErr != nil {
+		return nil, w.parseErr
+	}
 	return span, nil
 }
 
@@ -109,6 +119,16 @@ func (s *cteScope) isCTE(name string) bool {
 //   - a deduplication map of (database, table) pairs for AccessTables
 //   - a flag indicating whether the outermost SELECT has populated Results yet
 type spanWalker struct {
+	// parseErr records the first subquery parse failure; GetQuerySpan fails
+	// closed on it rather than returning a span missing that subquery's reads.
+	parseErr error
+
+	// textBase is the absolute offset, in the original statement, of the
+	// subquery text currently being walked (0 while walking the statement
+	// itself). Each nesting level's TextStart is relative to its own
+	// extracted text, so bases accumulate as the walker descends.
+	textBase int
+
 	span     *QuerySpan
 	scope    *cteScope
 	accessed map[tableKey]int // maps key -> index in span.AccessTables
@@ -137,7 +157,62 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 		w.visitSelect(n, true /* outermost */)
 	case *ast.SetOpStmt:
 		w.visitSetOp(n, true /* outermost */)
+	default:
+		w.validateEmbeddedSubqueries(node)
 	}
+}
+
+// noteNonQuerySubquery records the fail-closed error for a subquery
+// placeholder whose body is not a query: empty (EXISTS ()), comment-only, or
+// a cleanly-parsing non-query statement (EXISTS (DELETE ...)). loc is in
+// outer-statement coordinates.
+func (w *spanWalker) noteNonQuerySubquery(loc ast.Loc) {
+	if w.parseErr == nil {
+		w.parseErr = &parser.ParseError{
+			Loc: loc,
+			Msg: "subquery must be a SELECT statement",
+		}
+	}
+}
+
+// validateEmbeddedSubqueries walks a statement that produces no lineage of
+// its own (DML, most DDL) and analyzes every embedded raw subquery, so the
+// fail-closed contract holds there too: in
+// DELETE FROM t WHERE id IN (SELECT <malformed>) the malformed subquery must
+// surface as an error instead of silently returning an empty span, and a
+// well-formed one contributes its table reads to AccessTables.
+func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
+	ast.Inspect(node, func(n ast.Node) bool {
+		switch q := n.(type) {
+		case *ast.SubqueryExpr:
+			w.analyzeSubqueryText(q.RawText, q.TextStart)
+			return false
+		case *ast.RawQuery:
+			// CREATE TABLE dest AS SELECT * FROM secret keeps its query as
+			// raw text; the read it performs must reach AccessTables, and a
+			// malformed body must fail the span like any other subquery.
+			w.analyzeSubqueryText(q.RawText, q.TextStart)
+			return false
+		case *ast.SelectStmt:
+			// A parsed query child (INSERT INTO dest SELECT * FROM secret)
+			// carries real table reads; route it through the SELECT analyzer
+			// so they land in AccessTables.
+			w.visitSelect(q, false)
+			return false
+		case *ast.SetOpStmt:
+			w.visitSetOp(q, false)
+			return false
+		case *ast.TableRef:
+			// A physical table referenced by DML — UPDATE ... FROM secret,
+			// DELETE ... USING secret, MERGE ... USING secret — is a read the
+			// span must report. This deliberately over-approximates by also
+			// recording the write target: for access checks the safe error is
+			// an extra entry, never a missing one.
+			w.visitTableRef(q)
+			return false
+		}
+		return true
+	})
 }
 
 // visitSetOp walks a UNION/INTERSECT/EXCEPT tree. The left arm is the one
@@ -287,11 +362,11 @@ func (w *spanWalker) visitTableRef(ref *ast.TableRef) {
 		return
 	}
 
-	// Detect FROM-subquery: parser stores the subquery's raw body in Parts[0].
-	// A legitimate table name cannot contain whitespace, and every subquery
-	// body starts with SELECT or WITH.
-	if len(ref.Name.Parts) == 1 && looksLikeSubquery(ref.Name.Parts[0]) {
-		w.analyzeSubqueryText(ref.Name.Parts[0])
+	// The parser marks FROM-subqueries explicitly; Name.Parts[0] mirrors the
+	// raw text only for legacy consumers. Never classify by the text itself —
+	// a table named `selected` or a quoted `SELECT` is not a subquery.
+	if ref.Subquery != nil {
+		w.analyzeSubqueryText(ref.Subquery.RawText, ref.Subquery.TextStart)
 		return
 	}
 
@@ -321,42 +396,68 @@ func (w *spanWalker) visitTableRef(ref *ast.TableRef) {
 		Database: database,
 		Table:    table,
 		Alias:    ref.Alias,
-		Loc:      ref.Loc,
+		Loc: ast.Loc{
+			// Rebased into outer-statement coordinates: inside a reparsed
+			// subquery ref.Loc is relative to the extracted text.
+			Start: ref.Loc.Start + w.textBase,
+			End:   ref.Loc.End + w.textBase,
+		},
 	})
 }
 
-// looksLikeSubquery heuristically detects text the parser stuffed into
-// ObjectName.Parts when it encountered a FROM-subquery. Bare identifiers
-// (even quoted ones) don't contain these leading keywords.
-func looksLikeSubquery(s string) bool {
-	trimmed := strings.TrimSpace(s)
-	if trimmed == "" {
-		return false
-	}
-	upper := strings.ToUpper(trimmed)
-	return strings.HasPrefix(upper, "SELECT") ||
-		strings.HasPrefix(upper, "WITH") ||
-		strings.HasPrefix(upper, "(")
-}
-
-// analyzeSubqueryText re-parses subquery text (from SubqueryExpr.RawText or
-// a FROM-subquery's packed Parts[0]) and recurses into any resulting SELECT.
-// Errors are swallowed — if the subquery is unparseable, the consumer of
-// QuerySpan still gets whatever tables were already discovered.
-func (w *spanWalker) analyzeSubqueryText(text string) {
+// analyzeSubqueryText re-parses subquery text (SubqueryExpr.RawText) and
+// recurses into any resulting SELECT. A subquery that does not fully parse
+// records w.parseErr — its table reads would otherwise silently vanish from
+// AccessTables, so the span fails closed instead.
+//
+// base is the byte offset of text within the outer statement
+// (SubqueryExpr.TextStart): nested parse errors carry positions relative to
+// the extracted text, and are shifted back into the outer statement's
+// coordinates so editor diagnostics highlight the right spot.
+func (w *spanWalker) analyzeSubqueryText(text string, base int) {
+	// base is relative to the text this walker is currently inside; abs is
+	// the position in the original statement, accumulated across levels.
+	abs := w.textBase + base
 	if strings.TrimSpace(text) == "" {
+		// An empty placeholder body — EXISTS () — is not a query; the engine
+		// rejects the form, and returning silently would skip the query-node
+		// validation below entirely.
+		w.noteNonQuerySubquery(ast.Loc{Start: abs, End: abs})
 		return
 	}
-	file, _ := parser.Parse(text)
-	if file == nil {
+	file, errs := parser.Parse(text)
+	if len(errs) > 0 {
+		if w.parseErr == nil {
+			e := errs[0]
+			e.Loc.Start += abs
+			e.Loc.End += abs
+			w.parseErr = &e
+		}
 		return
 	}
+	if file == nil || len(file.Stmts) != 1 {
+		// Comment-only bodies parse to zero statements; a body with embedded
+		// delimiters parses to several. A subquery placeholder must hold
+		// exactly one query — the engine rejects both shapes.
+		w.noteNonQuerySubquery(ast.Loc{Start: abs, End: abs + len(text)})
+		return
+	}
+	saved := w.textBase
+	w.textBase = abs
+	defer func() { w.textBase = saved }()
 	for _, stmt := range file.Stmts {
 		switch n := stmt.(type) {
 		case *ast.SelectStmt:
 			w.visitSelect(n, false)
 		case *ast.SetOpStmt:
 			w.visitSetOp(n, false)
+		default:
+			// N2: a placeholder body that parses cleanly as something other
+			// than a query (EXISTS (DELETE FROM secret) FROM public) is not a
+			// valid subquery — the engine rejects it, and ignoring it here
+			// would hide its reads from the span. Fail closed.
+			loc := ast.NodeLoc(stmt)
+			w.noteNonQuerySubquery(ast.Loc{Start: loc.Start + abs, End: loc.End + abs})
 		}
 	}
 }
@@ -381,11 +482,11 @@ func (v *exprVisitor) Visit(node ast.Node) ast.Visitor {
 	}
 	switch n := node.(type) {
 	case *ast.SubqueryExpr:
-		v.w.analyzeSubqueryText(n.RawText)
+		v.w.analyzeSubqueryText(n.RawText, n.TextStart)
 		return nil // raw-text body, no parsed children
 	case *ast.ExistsExpr:
 		if n.Subquery != nil {
-			v.w.analyzeSubqueryText(n.Subquery.RawText)
+			v.w.analyzeSubqueryText(n.Subquery.RawText, n.Subquery.TextStart)
 		}
 		return nil
 	case *ast.ColumnRef:

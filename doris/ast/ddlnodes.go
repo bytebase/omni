@@ -202,7 +202,14 @@ var _ Node = (*RollupDef)(nil)
 // fully parsed. Used for CTAS (CREATE TABLE ... AS SELECT ...).
 type RawQuery struct {
 	RawText string
-	Loc     Loc
+
+	// TextStart is the byte offset of RawText's first character within the
+	// input the parser was given (0 when RawText was reconstructed from
+	// tokens rather than sliced), so re-parse diagnostics can be shifted
+	// back into the outer statement's coordinates.
+	TextStart int
+
+	Loc Loc
 }
 
 // Tag implements Node.

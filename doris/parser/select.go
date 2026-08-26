@@ -493,7 +493,10 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 			if alias != "" {
 				ref.Alias = alias
 			}
-			// Store the subquery raw text in the table name for now
+			// Legacy consumers still read the raw text out of Name.Parts[0];
+			// Subquery is the discriminator — table names like `selected` or
+			// a quoted `SELECT` must never be mistaken for query text.
+			ref.Subquery = subq
 			ref.Name = &ast.ObjectName{
 				Parts: []string{subq.RawText},
 				Loc:   subq.Loc,

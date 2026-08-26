@@ -97,11 +97,37 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		{"grouping_sets", "SELECT a, SUM(b) FROM t GROUP BY GROUPING SETS ((a), ())", true},
 		{"grouping_sets_trailing_item", "SELECT a FROM t GROUP BY GROUPING SETS ((a)), b", false},
 		// TABLET is engine-valid; TABLESAMPLE and GROUP BY ... WITH ROLLUP are
-		// not StarRocks syntax (engine-verified) — their negative arms land
-		// with the strict trailing-token check (BYT-10085), because until
-		// then the parser still swallows them as trailing junk.
+		// not StarRocks syntax (engine-verified) and, with the strict
+		// trailing-token check (BYT-10085), stay rejected instead of being
+		// swallowed as trailing junk.
 		{"tablet", "SELECT * FROM t TABLET(10001)", true},
+		{"tablesample_rejected", "SELECT * FROM t TABLESAMPLE(1000 ROWS)", false},
+		{"group_by_with_rollup_rejected", "SELECT a, SUM(b) FROM t GROUP BY a WITH ROLLUP", false},
 		{"show_databases_from", "SHOW DATABASES FROM default_catalog", true},
+		// Unlike Doris, StarRocks HAS the -> JSON path operator (the engine
+		// accepts SELECT j->'$.a'); omni's rejection is a known gap tracked
+		// separately — a conformance case would assert the wrong side, and
+		// parsing it as a lambda would shadow the column out of lineage.
+		{"stray_comment_close_rejected", "SELECT 1 */ 2", false},
+		{"explain_incomplete_rejected", "EXPLAIN SELECT * FROM", false},
+		{"explain_bare_rejected", "EXPLAIN", false},
+		{"set_expr_incomplete_rejected", "SET x = 1 +", false},
+		{"set_valueless_rejected", "SET x", false},
+		{"show_where_incomplete_rejected", "SHOW TABLES WHERE (", false},
+		{"show_from_missing_db_rejected", "SHOW TABLES FROM", false},
+		{"set_names_missing_charset_rejected", "SET NAMES", false},
+		{"set_names_dangling_collate_rejected", "SET NAMES utf8 COLLATE", false},
+		{"set_names", "SET NAMES utf8", true},
+		{"set_names_default", "SET NAMES DEFAULT", true},
+		{"set_role", "SET ROLE admin_role", true},
+		{"set_role_default", "SET ROLE DEFAULT", true},
+		{"set_default_role_missing_to_rejected", "SET DEFAULT ROLE r1", false},
+		{"set_default_role_qualified_user", "SET DEFAULT ROLE r1 TO 'alice'@'%'", true},
+		{"set_role_none_combined", "SET ROLE NONE, r2", true},
+		{"set_names_collate", "SET NAMES utf8 COLLATE utf8_general_ci", true},
+		{"show_like_missing_pattern_rejected", "SHOW TABLES LIKE", false},
+		{"paren_select", "(SELECT 1)", true},
+		{"from_table_named_selected", "SELECT * FROM selected", true},
 		{"create_table_primary_key", "CREATE TABLE conf_pk (id BIGINT NOT NULL, v VARCHAR(64)) PRIMARY KEY(id) DISTRIBUTED BY HASH(id)", true},
 	}
 

@@ -312,6 +312,27 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"show_databases_from", "SHOW DATABASES FROM internal", true},
 		{"build_index_partition", "BUILD INDEX index1 ON table1 PARTITION(p1, p2)", true},
 
+		// With the strict trailing-token check (BYT-10085), junk after a
+		// valid prefix is rejected instead of silently dropped.
+		{"json_arrow_rejected", "SELECT j->'$.a' FROM t", false},
+		{"stray_comment_close_rejected", "SELECT 1 */ 2", false},
+		{"explain_incomplete_rejected", "EXPLAIN SELECT * FROM", false},
+		{"explain_bare_rejected", "EXPLAIN", false},
+		{"set_expr_incomplete_rejected", "SET x = 1 +", false},
+		{"set_valueless_rejected", "SET x", false},
+		{"show_where_incomplete_rejected", "SHOW TABLES WHERE (", false},
+		{"show_from_missing_db_rejected", "SHOW TABLES FROM", false},
+		{"set_names_missing_charset_rejected", "SET NAMES", false},
+		{"set_names_dangling_collate_rejected", "SET NAMES utf8 COLLATE", false},
+		{"set_names", "SET NAMES utf8", true},
+		{"set_names_default", "SET NAMES DEFAULT", true},
+		// Unlike StarRocks, the engine rejects the SET ROLE family.
+		{"set_role_rejected", "SET ROLE admin_role", false},
+		{"set_names_collate", "SET NAMES utf8 COLLATE utf8_general_ci", true},
+		// Unlike StarRocks, the engine tolerates a bare LIKE with no pattern.
+		{"show_like_no_pattern", "SHOW TABLES LIKE", true},
+		{"from_table_named_selected", "SELECT * FROM selected", true},
+
 		// --- Negative arm: the grammar file allows these, the engine does not.
 		{"substring_from_for", "SELECT SUBSTRING('abcdef' FROM 2 FOR 3)", false},
 		{"substring_from", "SELECT SUBSTRING('abcdef' FROM 2)", false},
