@@ -319,10 +319,22 @@ func TestStrictParseSetRoleForms(t *testing.T) {
 		"SET ROLE DEFAULT",
 		"SET ROLE ALL EXCEPT r1, r2",
 		"SET DEFAULT ROLE ALL TO u",
+		"SET DEFAULT ROLE r1 TO 'alice'@'%'",
+		"SET ROLE NONE, r2",
 	} {
 		if _, errs := Parse(sql); len(errs) != 0 {
 			t.Errorf("Parse(%q) errors: %v", sql, errs)
 		}
+	}
+
+	// Raw keeps the list structure and user identities verbatim.
+	file, _ := Parse("SET DEFAULT ROLE r1, r2 TO u1, 'alice'@'%'")
+	if raw := file.Stmts[0].(*ast.SetStmt).Items[0].Raw; raw != "r1, r2 TO u1, 'alice'@'%'" {
+		t.Errorf("Raw = %q, want list separators and identities preserved", raw)
+	}
+	file, _ = Parse("SET ROLE r1, r2")
+	if raw := file.Stmts[0].(*ast.SetStmt).Items[0].Raw; raw != "r1, r2" {
+		t.Errorf("Raw = %q, want r1, r2", raw)
 	}
 	for _, sql := range []string{"SET ROLE", "SET ROLE admin_role )))", "SET DEFAULT ROLE r1", "SET ROLE r1 TO u1"} {
 		if _, errs := Parse(sql); len(errs) == 0 {

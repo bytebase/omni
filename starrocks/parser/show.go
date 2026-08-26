@@ -796,12 +796,13 @@ func (p *Parser) parseGenericSet(startLoc ast.Loc) (ast.Node, error) {
 }
 
 // parseSetRoleTail parses the role specification after SET ROLE or
-// SET DEFAULT ROLE: NONE, ALL [EXCEPT r, ...], or a role list, optionally
-// followed by TO user [, ...] for the DEFAULT form. StarRocks-only — the
+// SET DEFAULT ROLE: DEFAULT, ALL [EXCEPT r, ...], or a role list — NONE is an
+// ordinary identifier and rides the list path (the engine even accepts it
+// combined with named roles). The DEFAULT form requires TO user [, ...] and
+// the plain form excludes it (both container-verified). StarRocks-only — the
 // Doris engine rejects every SET ROLE spelling.
 func (p *Parser) parseSetRoleTail(startLoc ast.Loc, name string) (ast.Node, error) {
 	stmt := &ast.SetStmt{Loc: startLoc, Type: "VARIABLE"}
-	var parts []string
 
 	roleItem := func() (string, error) {
 		if p.cur.Kind == tokString || isIdentifierToken(p.cur.Kind) {
@@ -810,70 +811,73 @@ func (p *Parser) parseSetRoleTail(startLoc ast.Loc, name string) (ast.Node, erro
 		}
 		return "", p.syntaxErrorAtCur()
 	}
+	roleList := func() (string, error) {
+		var roles []string
+		for {
+			r, err := roleItem()
+			if err != nil {
+				return "", err
+			}
+			roles = append(roles, r)
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance()
+		}
+		return strings.Join(roles, ", "), nil
+	}
 
-	// NONE lexes as an ordinary identifier and flows through the role-list
-	// path below.
+	var raw string
 	switch p.cur.Kind {
 	case kwDEFAULT:
 		// SET ROLE DEFAULT — reserved, so the role-list path would misread
 		// the engine-valid reset form (container-verified).
 		p.advance()
-		parts = append(parts, "DEFAULT")
+		raw = "DEFAULT"
 	case kwALL:
 		p.advance()
-		parts = append(parts, "ALL")
+		raw = "ALL"
 		if p.cur.Kind == kwEXCEPT {
 			p.advance()
-			parts = append(parts, "EXCEPT")
-			for {
-				r, err := roleItem()
-				if err != nil {
-					return nil, err
-				}
-				parts = append(parts, r)
-				if p.cur.Kind != int(',') {
-					break
-				}
-				p.advance()
-			}
-		}
-	default:
-		for {
-			r, err := roleItem()
+			list, err := roleList()
 			if err != nil {
 				return nil, err
 			}
-			parts = append(parts, r)
-			if p.cur.Kind != int(',') {
-				break
-			}
-			p.advance()
+			raw += " EXCEPT " + list
 		}
+	default:
+		list, err := roleList()
+		if err != nil {
+			return nil, err
+		}
+		raw = list
 	}
 
 	// TO user [, ...] is required for SET DEFAULT ROLE and excluded from the
 	// ordinary SET ROLE (container-verified: the engine rejects both
-	// SET DEFAULT ROLE r and SET ROLE r TO u). In the plain form a TO here is
-	// simply left unconsumed for the strict trailing-token check to reject.
+	// SET DEFAULT ROLE r and SET ROLE r TO u). In the plain form a stray TO
+	// is left for the strict trailing-token check. Targets are full user
+	// identities — 'alice'@'%' is engine-valid — captured verbatim.
 	if name == "default role" {
 		if _, err := p.expect(kwTO); err != nil {
 			return nil, err
 		}
-		parts = append(parts, "TO")
+		var users []string
 		for {
-			u, err := roleItem()
-			if err != nil {
+			start := p.cur.Loc.Start
+			if _, err := p.parseUserIdentity(); err != nil {
 				return nil, err
 			}
-			parts = append(parts, u)
+			users = append(users, p.input[start-p.baseOffset:p.prev.Loc.End-p.baseOffset])
 			if p.cur.Kind != int(',') {
 				break
 			}
 			p.advance()
 		}
+		raw += " TO " + strings.Join(users, ", ")
 	}
 
-	stmt.Items = []*ast.SetItem{{Name: name, Raw: strings.Join(parts, " ")}}
+	stmt.Items = []*ast.SetItem{{Name: name, Raw: raw}}
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
 }

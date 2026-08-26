@@ -122,6 +122,8 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		{"set_role", "SET ROLE admin_role", true},
 		{"set_role_default", "SET ROLE DEFAULT", true},
 		{"set_default_role_missing_to_rejected", "SET DEFAULT ROLE r1", false},
+		{"set_default_role_qualified_user", "SET DEFAULT ROLE r1 TO 'alice'@'%'", true},
+		{"set_role_none_combined", "SET ROLE NONE, r2", true},
 		{"set_names_collate", "SET NAMES utf8 COLLATE utf8_general_ci", true},
 		{"show_like_missing_pattern_rejected", "SHOW TABLES LIKE", false},
 		{"paren_select", "(SELECT 1)", true},
