@@ -748,6 +748,19 @@ func (p *Parser) parseGenericSet(startLoc ast.Loc) (ast.Node, error) {
 	if p.cur.Kind == kwCHARSET {
 		return p.parseSetCharset(startLoc)
 	}
+	// ROLE forms — StarRocks-only (container-verified: Doris rejects them):
+	//   SET ROLE NONE | ALL [EXCEPT r, ...] | r [, r ...]
+	//   SET DEFAULT ROLE <same spec> TO user [, user ...]
+	if p.cur.Kind == kwROLE {
+		p.advance() // consume ROLE
+		return p.parseSetRoleTail(startLoc, "role")
+	}
+	if p.cur.Kind == kwDEFAULT && p.peekNext().Kind == kwROLE {
+		p.advance() // consume DEFAULT
+		p.advance() // consume ROLE
+		return p.parseSetRoleTail(startLoc, "default role")
+	}
+
 	// TRANSACTION form, with or without a leading scope keyword — the scoped
 	// spelling must not fall through to the generic assignment path, whose
 	// strict mode would reject the engine-valid SET SESSION TRANSACTION ...
@@ -778,6 +791,78 @@ func (p *Parser) parseGenericSet(startLoc ast.Loc) (ast.Node, error) {
 		}
 	}
 
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// parseSetRoleTail parses the role specification after SET ROLE or
+// SET DEFAULT ROLE: NONE, ALL [EXCEPT r, ...], or a role list, optionally
+// followed by TO user [, ...] for the DEFAULT form. StarRocks-only — the
+// Doris engine rejects every SET ROLE spelling.
+func (p *Parser) parseSetRoleTail(startLoc ast.Loc, name string) (ast.Node, error) {
+	stmt := &ast.SetStmt{Loc: startLoc, Type: "VARIABLE"}
+	var parts []string
+
+	roleItem := func() (string, error) {
+		if p.cur.Kind == tokString || isIdentifierToken(p.cur.Kind) {
+			val, _, err := p.parseIdentifierOrString()
+			return val, err
+		}
+		return "", p.syntaxErrorAtCur()
+	}
+
+	// NONE lexes as an ordinary identifier and flows through the role-list
+	// path below.
+	switch p.cur.Kind {
+	case kwALL:
+		p.advance()
+		parts = append(parts, "ALL")
+		if p.cur.Kind == kwEXCEPT {
+			p.advance()
+			parts = append(parts, "EXCEPT")
+			for {
+				r, err := roleItem()
+				if err != nil {
+					return nil, err
+				}
+				parts = append(parts, r)
+				if p.cur.Kind != int(',') {
+					break
+				}
+				p.advance()
+			}
+		}
+	default:
+		for {
+			r, err := roleItem()
+			if err != nil {
+				return nil, err
+			}
+			parts = append(parts, r)
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance()
+		}
+	}
+
+	if p.cur.Kind == kwTO {
+		p.advance()
+		parts = append(parts, "TO")
+		for {
+			u, err := roleItem()
+			if err != nil {
+				return nil, err
+			}
+			parts = append(parts, u)
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance()
+		}
+	}
+
+	stmt.Items = []*ast.SetItem{{Name: name, Raw: strings.Join(parts, " ")}}
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
 }

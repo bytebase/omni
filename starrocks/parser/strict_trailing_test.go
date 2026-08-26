@@ -308,3 +308,24 @@ func TestStrictParseBeginQualifiers(t *testing.T) {
 		}
 	}
 }
+
+func TestStrictParseSetRoleForms(t *testing.T) {
+	// StarRocks accepts the SET ROLE family (container-verified; Doris
+	// rejects every spelling — see its twin test).
+	for _, sql := range []string{
+		"SET ROLE admin_role",
+		"SET ROLE 'admin_role'",
+		"SET ROLE NONE",
+		"SET ROLE ALL EXCEPT r1, r2",
+		"SET DEFAULT ROLE ALL TO u",
+	} {
+		if _, errs := Parse(sql); len(errs) != 0 {
+			t.Errorf("Parse(%q) errors: %v", sql, errs)
+		}
+	}
+	for _, sql := range []string{"SET ROLE", "SET ROLE admin_role )))"} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want error", sql)
+		}
+	}
+}

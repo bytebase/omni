@@ -305,3 +305,13 @@ func TestStrictParseBeginQualifiers(t *testing.T) {
 		}
 	}
 }
+
+func TestStrictParseSetRoleRejected(t *testing.T) {
+	// Container-verified: the Doris engine rejects every SET ROLE spelling
+	// (StarRocks accepts the family — see its twin test).
+	for _, sql := range []string{"SET ROLE admin_role", "SET ROLE NONE", "SET DEFAULT ROLE ALL TO u"} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want error", sql)
+		}
+	}
+}

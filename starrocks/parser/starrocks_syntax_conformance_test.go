@@ -119,6 +119,7 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		{"set_names_dangling_collate_rejected", "SET NAMES utf8 COLLATE", false},
 		{"set_names", "SET NAMES utf8", true},
 		{"set_names_default", "SET NAMES DEFAULT", true},
+		{"set_role", "SET ROLE admin_role", true},
 		{"set_names_collate", "SET NAMES utf8 COLLATE utf8_general_ci", true},
 		{"show_like_missing_pattern_rejected", "SHOW TABLES LIKE", false},
 		{"paren_select", "(SELECT 1)", true},

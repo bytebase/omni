@@ -665,3 +665,32 @@ func TestGetQuerySpan_ReparsedTableAccessLocationsAreOuter(t *testing.T) {
 		t.Errorf("Loc.Start = %d, want %d", span.AccessTables[0].Loc.Start, want)
 	}
 }
+
+func TestGetQuerySpan_CTASReadsRecordedAndValidated(t *testing.T) {
+	// CTAS keeps its query as raw text; the read it performs must reach
+	// AccessTables, and a malformed body must fail the span.
+	span, err := GetQuerySpan("CREATE TABLE dest AS SELECT * FROM secret")
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	found := false
+	for _, a := range span.AccessTables {
+		if a.Table == "secret" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("AccessTables = %+v, want to include secret", span.AccessTables)
+	}
+	if _, err := GetQuerySpan("CREATE TABLE dest AS SELECT 1 */ 2 FROM secret"); err == nil {
+		t.Error("malformed CTAS body accepted")
+	}
+}
+
+func TestGetQuerySpan_MultiStatementPlaceholderFailsClosed(t *testing.T) {
+	// A subquery placeholder must hold exactly one query; embedded delimiters
+	// smuggle in extra statements the engine would reject.
+	if _, err := GetQuerySpan("SELECT EXISTS (SELECT * FROM secret; SELECT * FROM other)"); err == nil {
+		t.Fatal("multi-statement placeholder accepted")
+	}
+}

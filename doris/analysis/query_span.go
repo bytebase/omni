@@ -187,6 +187,12 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 		case *ast.SubqueryExpr:
 			w.analyzeSubqueryText(q.RawText, q.TextStart)
 			return false
+		case *ast.RawQuery:
+			// CREATE TABLE dest AS SELECT * FROM secret keeps its query as
+			// raw text; the read it performs must reach AccessTables, and a
+			// malformed body must fail the span like any other subquery.
+			w.analyzeSubqueryText(q.RawText, q.TextStart)
+			return false
 		case *ast.SelectStmt:
 			// A parsed query child (INSERT INTO dest SELECT * FROM secret)
 			// carries real table reads; route it through the SELECT analyzer
@@ -429,9 +435,10 @@ func (w *spanWalker) analyzeSubqueryText(text string, base int) {
 		}
 		return
 	}
-	if file == nil || len(file.Stmts) == 0 {
-		// Comment-only bodies parse to zero statements and would bypass the
-		// query-node validation below.
+	if file == nil || len(file.Stmts) != 1 {
+		// Comment-only bodies parse to zero statements; a body with embedded
+		// delimiters parses to several. A subquery placeholder must hold
+		// exactly one query — the engine rejects both shapes.
 		w.noteNonQuerySubquery(ast.Loc{Start: abs, End: abs + len(text)})
 		return
 	}

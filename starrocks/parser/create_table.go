@@ -1465,10 +1465,13 @@ func (p *Parser) parseRawQuery() (*ast.RawQuery, error) {
 	}
 done:
 	end := p.prev.Loc.End
-	rawText := strings.TrimSpace(p.input[start-p.baseOffset : end-p.baseOffset])
+	sliced := p.input[start-p.baseOffset : end-p.baseOffset]
+	rawText := strings.TrimSpace(sliced)
+	trimmedFromStart := len(sliced) - len(strings.TrimLeft(sliced, " \t\r\n"))
 
 	return &ast.RawQuery{
-		RawText: rawText,
-		Loc:     ast.Loc{Start: startLoc.Start, End: end},
+		RawText:   rawText,
+		TextStart: start + trimmedFromStart,
+		Loc:       ast.Loc{Start: startLoc.Start, End: end},
 	}, nil
 }
