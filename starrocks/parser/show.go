@@ -851,8 +851,14 @@ func (p *Parser) parseSetRoleTail(startLoc ast.Loc, name string) (ast.Node, erro
 		}
 	}
 
-	if p.cur.Kind == kwTO {
-		p.advance()
+	// TO user [, ...] is required for SET DEFAULT ROLE and excluded from the
+	// ordinary SET ROLE (container-verified: the engine rejects both
+	// SET DEFAULT ROLE r and SET ROLE r TO u). In the plain form a TO here is
+	// simply left unconsumed for the strict trailing-token check to reject.
+	if name == "default role" {
+		if _, err := p.expect(kwTO); err != nil {
+			return nil, err
+		}
 		parts = append(parts, "TO")
 		for {
 			u, err := roleItem()

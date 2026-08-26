@@ -324,7 +324,7 @@ func TestStrictParseSetRoleForms(t *testing.T) {
 			t.Errorf("Parse(%q) errors: %v", sql, errs)
 		}
 	}
-	for _, sql := range []string{"SET ROLE", "SET ROLE admin_role )))"} {
+	for _, sql := range []string{"SET ROLE", "SET ROLE admin_role )))", "SET DEFAULT ROLE r1", "SET ROLE r1 TO u1"} {
 		if _, errs := Parse(sql); len(errs) == 0 {
 			t.Errorf("Parse(%q) succeeded, want error", sql)
 		}
