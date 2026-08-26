@@ -456,6 +456,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return nil, err
 		}
 		return p.parseSetOpTail(left)
+	case int('('):
+		return p.parseParenQueryStmt()
 	case kwWITH:
 		return p.parseWithSelect()
 	case kwINSERT:

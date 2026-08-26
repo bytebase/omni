@@ -878,3 +878,13 @@ func TestGetQuerySpan_MultiStatementPlaceholderFailsClosed(t *testing.T) {
 		t.Fatal("multi-statement placeholder accepted")
 	}
 }
+
+func TestGetQuerySpan_NestedParenSelect(t *testing.T) {
+	span, err := GetQuerySpan("((SELECT * FROM secret))")
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "secret" {
+		t.Fatalf("AccessTables = %+v, want [secret]", span.AccessTables)
+	}
+}

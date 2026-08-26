@@ -286,8 +286,33 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"using_on_aggregate", "SELECT SUM(a USING utf8) FROM t", false},
 		{"using_on_scalar", "SELECT abs(1 USING utf8)", false},
 
-		// BINARY operator.
+		// BINARY operator — primary-level only: an identifier or string
+		// literal (StarRocks differs and accepts the general prefix form).
 		{"binary_operator", "SELECT BINARY 'abc'", true},
+		{"binary_column", "SELECT BINARY a FROM t", true},
+		{"binary_int_rejected", "SELECT BINARY 1", false},
+		{"binary_paren_rejected", "SELECT BINARY (1)", false},
+		{"binary_func_rejected", "SELECT BINARY now()", false},
+
+		// Collection literal elements are constants: literals and nested
+		// collection literals only (StarRocks arrays take full expressions).
+		{"array_nested_literal", "SELECT [[1],[2]]", true},
+		{"array_mixed_literals", "SELECT [NULL, 1]", true},
+		{"array_signed_number_rejected", "SELECT [-1, +2]", false},
+		{"array_expr_element_rejected", "SELECT [1+1]", false},
+		{"array_column_element_rejected", "SELECT [a] FROM t", false},
+		{"map_nested_literal", "SELECT {'a': [1,2]}", true},
+		{"map_expr_value_rejected", "SELECT {'a': 1+1}", false},
+		{"struct_literal", "SELECT {1, 2}", true},
+		{"struct_single_element", "SELECT {'a'}", true},
+
+		// String-form user variables.
+		{"user_var_string", "SELECT @'quoted'", true},
+
+		// Top-level parenthesized queries.
+		{"paren_select_stmt", "(SELECT 1)", true},
+		{"paren_select_nested", "((SELECT 1))", true},
+		{"paren_select_union", "(SELECT 1) UNION (SELECT 2)", true},
 
 		// --- Constructs previously hidden by the trailing-token swallow
 		// (BYT-10084): each parsed as a valid prefix and silently dropped the

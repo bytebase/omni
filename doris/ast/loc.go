@@ -66,6 +66,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *MapEntry:
 		return v.Loc
+	case *StructLiteral:
+		return v.Loc
 	case *ElementAtExpr:
 		return v.Loc
 	case *ArraySliceExpr:

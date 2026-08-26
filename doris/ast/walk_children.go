@@ -123,6 +123,10 @@ func walkChildren(v Visitor, node Node) {
 	case *MapEntry:
 		Walk(v, n.Key)
 		Walk(v, n.Value)
+	case *StructLiteral:
+		for _, e := range n.Elements {
+			Walk(v, e)
+		}
 	case *ElementAtExpr:
 		Walk(v, n.Value)
 		Walk(v, n.Index)

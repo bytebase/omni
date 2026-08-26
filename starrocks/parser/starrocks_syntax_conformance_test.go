@@ -76,6 +76,15 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		{"char_using", "SELECT CHAR(65 USING utf8)", false},
 		{"using_on_aggregate", "SELECT SUM(a USING utf8) FROM t", false},
 		{"binary_operator", "SELECT BINARY 'abc'", true},
+		// Unlike Doris, the general prefix form is engine-valid here.
+		{"binary_int", "SELECT BINARY 1", true},
+		{"binary_func", "SELECT BINARY now()", true},
+		// Unlike Doris, array literal elements take full expressions.
+		{"array_expr_element", "SELECT [1+1]", true},
+		{"array_column_element", "SELECT [a] FROM t", true},
+		{"user_var_string", "SELECT @'quoted'", true},
+		{"paren_select_nested", "((SELECT 1))", true},
+		{"build_index_rejected", "BUILD INDEX index1 ON table1", false},
 
 		// Forms the parser deliberately still rejects.
 		{"substring_from", "SELECT SUBSTRING('abcdef' FROM 2)", false},

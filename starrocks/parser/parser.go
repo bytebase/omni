@@ -450,8 +450,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 
 	// DML
 	case int('('):
-		// Parenthesized query expression: (SELECT ...) [UNION ...]
-		if next := p.peekNext(); next.Kind == kwSELECT || next.Kind == kwWITH {
+		// Parenthesized query expression: (SELECT ...) [UNION ...] — parens
+		// nest freely, so a further '(' is admitted too (engine-verified:
+		// ((SELECT 1)) parses).
+		if next := p.peekNext(); next.Kind == kwSELECT || next.Kind == kwWITH || next.Kind == int('(') {
 			paren, err := p.parseParenSelect()
 			if err != nil {
 				return nil, err
@@ -685,13 +687,11 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		cleanTok := p.advance() // consume CLEAN
 		return p.parseClean(cleanTok.Loc)
 
-	// Index async build
+	// BUILD INDEX came with the doris fork, but the StarRocks engine rejects
+	// the statement in every form (container-verified) — index builds happen
+	// through ALTER TABLE here. Rejecting keeps parity with the engine.
 	case kwBUILD:
-		buildTok := p.advance() // consume BUILD
-		if p.cur.Kind == kwINDEX {
-			return p.parseBuildIndex(buildTok.Loc)
-		}
-		return p.unsupported("BUILD")
+		return nil, p.unknownStatementError()
 
 	default:
 		return nil, p.unknownStatementError()

@@ -363,6 +363,18 @@ func (n *MapEntry) Tag() NodeTag { return T_MapEntry }
 
 var _ Node = (*MapEntry)(nil)
 
+// StructLiteral represents the brace constructor without key:value pairs:
+// {c1, c2, ...} (grammar: structLiteral; at least one element — empty braces
+// are a MapLiteral). Elements are constants, like every collection literal.
+type StructLiteral struct {
+	Elements []Node
+	Loc      Loc
+}
+
+func (n *StructLiteral) Tag() NodeTag { return T_StructLiteral }
+
+var _ Node = (*StructLiteral)(nil)
+
 // ElementAtExpr represents collection element access: value[index]
 // (grammar: elementAt). Applies to array, map and struct values alike.
 type ElementAtExpr struct {

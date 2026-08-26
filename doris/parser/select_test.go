@@ -679,3 +679,29 @@ func TestSelectQualifiedColumnContinuations(t *testing.T) {
 		t.Fatalf("Items[0].Expr = %T, want *ast.FuncCallExpr", stmt.Items[0].Expr)
 	}
 }
+
+func TestParenQueryStatements(t *testing.T) {
+	// Top-level parenthesized queries are engine-valid; the parens are
+	// grouping only, so the inner node comes back directly.
+	file, errs := Parse("(SELECT 1)")
+	if len(errs) != 0 {
+		t.Fatalf("(SELECT 1) errors: %v", errs)
+	}
+	if _, ok := file.Stmts[0].(*ast.SelectStmt); !ok {
+		t.Fatalf("stmt = %T, want *ast.SelectStmt", file.Stmts[0])
+	}
+	file, errs = Parse("((SELECT 1))")
+	if len(errs) != 0 {
+		t.Fatalf("((SELECT 1)) errors: %v", errs)
+	}
+	file, errs = Parse("(SELECT 1) UNION (SELECT 2)")
+	if len(errs) != 0 {
+		t.Fatalf("union errors: %v", errs)
+	}
+	if _, ok := file.Stmts[0].(*ast.SetOpStmt); !ok {
+		t.Fatalf("stmt = %T, want *ast.SetOpStmt", file.Stmts[0])
+	}
+	if _, errs := Parse("(INSERT INTO t VALUES (1))"); len(errs) == 0 {
+		t.Error("(INSERT ...) parsed, want error")
+	}
+}

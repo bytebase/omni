@@ -677,3 +677,14 @@ func TestSelectQualifiedColumnContinuations(t *testing.T) {
 		t.Fatalf("Items[0].Expr = %T, want *ast.FuncCallExpr", stmt.Items[0].Expr)
 	}
 }
+
+func TestParenSelectNesting(t *testing.T) {
+	// Parens nest freely at the top level (engine-verified).
+	file, errs := Parse("((SELECT 1))")
+	if len(errs) != 0 {
+		t.Fatalf("((SELECT 1)) errors: %v", errs)
+	}
+	if _, ok := file.Stmts[0].(*ast.ParenSelect); !ok {
+		t.Fatalf("stmt = %T, want *ast.ParenSelect", file.Stmts[0])
+	}
+}

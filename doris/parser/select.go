@@ -173,11 +173,16 @@ func (p *Parser) parseSetOpTail(left ast.Node) (ast.Node, error) {
 			// DISTINCT is the default — all stays false
 		}
 
-		// Parse the right-hand side: must start with SELECT.
-		if p.cur.Kind != kwSELECT {
+		// Parse the right-hand side: a SELECT or a parenthesized operand.
+		var rightSelect ast.Node
+		var err error
+		if p.cur.Kind == int('(') {
+			rightSelect, err = p.parseParenQueryOperand()
+		} else if p.cur.Kind == kwSELECT {
+			rightSelect, err = p.parseSelectStmt()
+		} else {
 			return nil, p.syntaxErrorAtCur()
 		}
-		rightSelect, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}
@@ -197,6 +202,49 @@ func (p *Parser) parseSetOpTail(left ast.Node) (ast.Node, error) {
 	}
 }
 
+// parseParenQueryStmt parses a top-level parenthesized query — (SELECT 1),
+// ((SELECT 1)), (SELECT 1) UNION (SELECT 2) — all engine-verified accepts.
+// The parens are grouping only: the inner query node is returned directly,
+// so analysis sees an ordinary SelectStmt/SetOpStmt.
+func (p *Parser) parseParenQueryStmt() (ast.Node, error) {
+	inner, err := p.parseParenQueryOperand()
+	if err != nil {
+		return nil, err
+	}
+	return p.parseSetOpTail(inner)
+}
+
+// parseParenQueryOperand parses one parenthesized query operand, nesting
+// freely: '(' followed by a SELECT query, a WITH query, or another
+// parenthesized operand, then ')'.
+func (p *Parser) parseParenQueryOperand() (ast.Node, error) {
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	var inner ast.Node
+	var err error
+	switch p.cur.Kind {
+	case int('('):
+		inner, err = p.parseParenQueryOperand()
+	case kwSELECT:
+		inner, err = p.parseSelectStmt()
+		if err == nil {
+			inner, err = p.parseSetOpTail(inner)
+		}
+	case kwWITH:
+		inner, err = p.parseWithSelect()
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return inner, nil
+}
+
 // parseIntersectChain collects a left-associative chain of INTERSECT clauses
 // starting from an already-parsed left node.
 func (p *Parser) parseIntersectChain(left ast.Node) (ast.Node, error) {
@@ -212,10 +260,15 @@ func (p *Parser) parseIntersectChain(left ast.Node) (ast.Node, error) {
 			p.advance()
 		}
 
-		if p.cur.Kind != kwSELECT {
+		var right ast.Node
+		var err error
+		if p.cur.Kind == int('(') {
+			right, err = p.parseParenQueryOperand()
+		} else if p.cur.Kind == kwSELECT {
+			right, err = p.parseSelectStmt()
+		} else {
 			return nil, p.syntaxErrorAtCur()
 		}
-		right, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}

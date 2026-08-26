@@ -271,10 +271,19 @@ func (p *Parser) parseSetOpOperand() (ast.Node, error) {
 func (p *Parser) parseParenSelect() (*ast.ParenSelect, error) {
 	openTok := p.advance() // consume '('
 
-	if p.cur.Kind != kwSELECT {
+	var inner ast.Node
+	var err error
+	switch p.cur.Kind {
+	case int('('):
+		// Parens nest freely: ((SELECT 1)) is engine-verified valid.
+		inner, err = p.parseParenSelect()
+	case kwSELECT:
+		inner, err = p.parseSelectStmt()
+	case kwWITH:
+		inner, err = p.parseWithStatement()
+	default:
 		return nil, p.syntaxErrorAtCur()
 	}
-	inner, err := p.parseSelectStmt()
 	if err != nil {
 		return nil, err
 	}

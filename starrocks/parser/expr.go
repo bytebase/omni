@@ -1414,6 +1414,18 @@ func (p *Parser) parseConvertTargetType() (*ast.TypeName, error) {
 func (p *Parser) parseVariableRef(system bool) (ast.Node, error) {
 	atTok := p.advance() // consume '@@' or '@'
 
+	// A user variable name may also be a quoted string — @'name' / @"name"
+	// (grammar: ATSIGN identifierOrText; engine-verified accept on both
+	// engines). System variables stay identifier-shaped.
+	if !system && p.cur.Kind == tokString {
+		tok := p.advance()
+		return &ast.VariableRef{
+			System: false,
+			Name:   tok.Str,
+			Loc:    ast.Loc{Start: atTok.Loc.Start, End: tok.Loc.End},
+		}, nil
+	}
+
 	first, ok := p.identOrKeywordToken()
 	if !ok {
 		return nil, p.syntaxErrorAtCur()
