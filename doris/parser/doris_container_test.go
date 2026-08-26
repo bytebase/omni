@@ -325,6 +325,7 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"set_names_missing_charset_rejected", "SET NAMES", false},
 		{"set_names_dangling_collate_rejected", "SET NAMES utf8 COLLATE", false},
 		{"set_names", "SET NAMES utf8", true},
+		{"set_names_default", "SET NAMES DEFAULT", true},
 		{"set_names_collate", "SET NAMES utf8 COLLATE utf8_general_ci", true},
 		// Unlike StarRocks, the engine tolerates a bare LIKE with no pattern.
 		{"show_like_no_pattern", "SHOW TABLES LIKE", true},

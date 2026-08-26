@@ -256,7 +256,7 @@ func TestStrictParseRejectsIncompleteSetNamesCharset(t *testing.T) {
 			t.Errorf("Parse(%q) succeeded, want error", sql)
 		}
 	}
-	for _, sql := range []string{"SET NAMES utf8", "SET NAMES utf8 COLLATE utf8_general_ci", "SET CHARSET utf8"} {
+	for _, sql := range []string{"SET NAMES utf8", "SET NAMES utf8 COLLATE utf8_general_ci", "SET CHARSET utf8", "SET NAMES DEFAULT"} {
 		if _, errs := Parse(sql); len(errs) != 0 {
 			t.Errorf("Parse(%q) errors: %v", sql, errs)
 		}
@@ -282,7 +282,29 @@ func TestParseBestEffortKeepsSetTransactionRecovery(t *testing.T) {
 	if raw := r.File.Stmts[0].(*ast.SetStmt).Items[0].Raw; raw != "READ ONLY, ISOLATION LEVEL READ" {
 		t.Errorf("mixed recovered Raw = %q, want both characteristics", raw)
 	}
+	// The interrupted characteristic and the unparsed remainder stay one
+	// fragment — no invented comma between them.
+	r = ParseBestEffort("SET TRANSACTION ISOLATION LEVEL READ FOO")
+	if raw := r.File.Stmts[0].(*ast.SetStmt).Items[0].Raw; raw != "ISOLATION LEVEL READ FOO" {
+		t.Errorf("suffix recovery Raw = %q, want ISOLATION LEVEL READ FOO", raw)
+	}
 	if _, errs := Parse("SET TRANSACTION ISOLATION LEVEL READ"); len(errs) == 0 {
 		t.Error("strict Parse accepted the incomplete characteristic")
+	}
+}
+
+func TestStrictParseBeginQualifiers(t *testing.T) {
+	// Container-verified: StarRocks accepts BEGIN WORK but rejects
+	// BEGIN TRANSACTION (Doris rejects both).
+	if _, errs := Parse("BEGIN WORK"); len(errs) != 0 {
+		t.Errorf("Parse(BEGIN WORK) errors: %v", errs)
+	}
+	if _, errs := Parse("BEGIN TRANSACTION"); len(errs) == 0 {
+		t.Error("Parse(BEGIN TRANSACTION) succeeded, want error")
+	}
+	for _, sql := range []string{"BEGIN", "BEGIN WITH LABEL lbl1"} {
+		if _, errs := Parse(sql); len(errs) != 0 {
+			t.Errorf("Parse(%q) errors: %v", sql, errs)
+		}
 	}
 }

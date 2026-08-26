@@ -789,7 +789,14 @@ func (p *Parser) parseSetNames(startLoc ast.Loc) (ast.Node, error) {
 	stmt := &ast.SetStmt{Loc: startLoc, Type: "NAMES"}
 
 	item := &ast.SetItem{Name: "names"}
-	if p.cur.Kind == tokString || isIdentifierToken(p.cur.Kind) {
+	if p.cur.Kind == kwDEFAULT {
+		// SET NAMES DEFAULT — DEFAULT lexes as a reserved keyword, so the
+		// identifier/string gate below would misread the engine-valid form
+		// as a missing charset (container-verified accept on both engines).
+		tok := p.advance()
+		item.Raw = "DEFAULT"
+		item.Loc = tok.Loc
+	} else if p.cur.Kind == tokString || isIdentifierToken(p.cur.Kind) {
 		val, loc, err := p.parseIdentifierOrString()
 		if err == nil {
 			item.Raw = val
@@ -856,16 +863,18 @@ func (p *Parser) parseSetTransaction(startLoc ast.Loc, scope string) (ast.Node, 
 	// Parsed for real rather than raw-captured to EOF — the raw capture ate
 	// everything, so the strict trailing-token check could never see junk
 	// like SET TRANSACTION BOGUS.
-	parts, err := p.parseTransactionCharacteristics()
+	parts, partial, err := p.parseTransactionCharacteristics()
 	if err != nil {
 		if p.strictTrailing {
 			return nil, err
 		}
 		// Best-effort keeps its recovery contract: completion-style partial
 		// input (SET TRANSACTION ISOLATION LEVEL READ) still yields the
-		// statement, with the unparsed remainder captured raw.
-		if rest := p.collectRemainingRaw(); rest != "" {
-			parts = append(parts, rest)
+		// statement. The interrupted characteristic and the unparsed
+		// remainder stay one fragment — joining them as separate parts would
+		// invent a comma the user never typed.
+		if frag := strings.TrimSpace(partial + " " + p.collectRemainingRaw()); frag != "" {
+			parts = append(parts, frag)
 		}
 	}
 
@@ -879,7 +888,7 @@ func (p *Parser) parseSetTransaction(startLoc ast.Loc, scope string) (ast.Node, 
 // SET TRANSACTION, returning whatever parsed cleanly plus the error that
 // stopped it, so the caller can choose strict propagation or best-effort
 // recovery.
-func (p *Parser) parseTransactionCharacteristics() ([]string, error) {
+func (p *Parser) parseTransactionCharacteristics() ([]string, string, error) {
 	var parts []string
 	for {
 		iterStart := p.cur.Loc.Start
@@ -887,7 +896,7 @@ func (p *Parser) parseTransactionCharacteristics() ([]string, error) {
 		case kwISOLATION:
 			p.advance() // consume ISOLATION
 			if _, err := p.expect(kwLEVEL); err != nil {
-				return p.appendConsumedCharacteristic(parts, iterStart), err
+				return parts, p.consumedCharacteristicText(iterStart), err
 			}
 			switch p.cur.Kind {
 			case kwREAD:
@@ -896,19 +905,19 @@ func (p *Parser) parseTransactionCharacteristics() ([]string, error) {
 				case kwUNCOMMITTED, kwCOMMITTED:
 					parts = append(parts, "ISOLATION LEVEL READ "+strings.ToUpper(p.advance().Str))
 				default:
-					return p.appendConsumedCharacteristic(parts, iterStart), p.syntaxErrorAtCur()
+					return parts, p.consumedCharacteristicText(iterStart), p.syntaxErrorAtCur()
 				}
 			case kwREPEATABLE:
 				p.advance() // consume REPEATABLE
 				if _, err := p.expect(kwREAD); err != nil {
-					return p.appendConsumedCharacteristic(parts, iterStart), err
+					return parts, p.consumedCharacteristicText(iterStart), err
 				}
 				parts = append(parts, "ISOLATION LEVEL REPEATABLE READ")
 			case kwSERIALIZABLE:
 				p.advance()
 				parts = append(parts, "ISOLATION LEVEL SERIALIZABLE")
 			default:
-				return p.appendConsumedCharacteristic(parts, iterStart), p.syntaxErrorAtCur()
+				return parts, p.consumedCharacteristicText(iterStart), p.syntaxErrorAtCur()
 			}
 		case kwREAD:
 			p.advance() // consume READ
@@ -920,30 +929,26 @@ func (p *Parser) parseTransactionCharacteristics() ([]string, error) {
 				p.advance()
 				parts = append(parts, "READ WRITE")
 			default:
-				return p.appendConsumedCharacteristic(parts, iterStart), p.syntaxErrorAtCur()
+				return parts, p.consumedCharacteristicText(iterStart), p.syntaxErrorAtCur()
 			}
 		default:
-			return p.appendConsumedCharacteristic(parts, iterStart), p.syntaxErrorAtCur()
+			return parts, p.consumedCharacteristicText(iterStart), p.syntaxErrorAtCur()
 		}
 		if p.cur.Kind != int(',') {
 			break
 		}
 		p.advance() // consume ','
 	}
-	return parts, nil
+	return parts, "", nil
 }
 
-// appendConsumedCharacteristic preserves the text of a characteristic that a
-// parse error interrupted mid-way, so best-effort recovery does not lose it:
+// consumedCharacteristicText returns the text of the characteristic a parse
+// error interrupted mid-way, so best-effort recovery does not lose it:
 // ParseBestEffort("SET TRANSACTION ISOLATION LEVEL READ") keeps
 // "ISOLATION LEVEL READ" in the item's Raw even though the tokens were
 // already consumed when the error surfaced.
-func (p *Parser) appendConsumedCharacteristic(parts []string, start int) []string {
-	consumed := strings.TrimSpace(p.input[start-p.baseOffset : p.cur.Loc.Start-p.baseOffset])
-	if consumed != "" {
-		parts = append(parts, consumed)
-	}
-	return parts
+func (p *Parser) consumedCharacteristicText(start int) string {
+	return strings.TrimSpace(p.input[start-p.baseOffset : p.cur.Loc.Start-p.baseOffset])
 }
 
 // parseSetItem parses a single SET assignment:
