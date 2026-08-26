@@ -316,6 +316,7 @@ func TestStrictParseSetRoleForms(t *testing.T) {
 		"SET ROLE admin_role",
 		"SET ROLE 'admin_role'",
 		"SET ROLE NONE",
+		"SET ROLE DEFAULT",
 		"SET ROLE ALL EXCEPT r1, r2",
 		"SET DEFAULT ROLE ALL TO u",
 	} {

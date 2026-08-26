@@ -814,6 +814,11 @@ func (p *Parser) parseSetRoleTail(startLoc ast.Loc, name string) (ast.Node, erro
 	// NONE lexes as an ordinary identifier and flows through the role-list
 	// path below.
 	switch p.cur.Kind {
+	case kwDEFAULT:
+		// SET ROLE DEFAULT — reserved, so the role-list path would misread
+		// the engine-valid reset form (container-verified).
+		p.advance()
+		parts = append(parts, "DEFAULT")
 	case kwALL:
 		p.advance()
 		parts = append(parts, "ALL")
