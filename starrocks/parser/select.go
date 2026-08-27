@@ -281,6 +281,19 @@ func (p *Parser) parseParenSelect() (*ast.ParenSelect, error) {
 		inner, err = p.parseSelectStmt()
 	case kwWITH:
 		inner, err = p.parseWithStatement()
+		if err == nil {
+			switch inner.(type) {
+			case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
+			default:
+				// (WITH c AS (...) DELETE ...) — the production is a
+				// parenthesized query expression, and the engine rejects
+				// parenthesized DML (container-verified).
+				return nil, &ParseError{
+					Loc: ast.NodeLoc(inner),
+					Msg: "parenthesized query expected, got a non-query statement",
+				}
+			}
+		}
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -334,7 +347,18 @@ func (p *Parser) parseTrailingClausesForParen(paren *ast.ParenSelect) (ast.Node,
 		}
 	}
 
-	switch inner := paren.Sel.(type) {
+	// Parens nest, so the query node the clauses belong to may sit several
+	// ParenSelect layers down — ((SELECT 1)) LIMIT 5 must not consume the
+	// LIMIT and then drop it.
+	sel := paren.Sel
+	for {
+		ps, ok := sel.(*ast.ParenSelect)
+		if !ok {
+			break
+		}
+		sel = ps.Sel
+	}
+	switch inner := sel.(type) {
 	case *ast.SetOpStmt:
 		if len(orderBy) > 0 {
 			inner.OrderBy = orderBy

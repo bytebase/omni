@@ -208,7 +208,14 @@ type SetOpStmt struct {
 	All   bool        // true for ALL quantifier; false means DISTINCT (the default)
 	Left  Node        // SelectStmt or another SetOpStmt
 	Right Node        // SelectStmt or another SetOpStmt
-	Loc   Loc
+
+	// Trailing clauses applied to the combined result, as in
+	// (SELECT 1) UNION (SELECT 2) ORDER BY 1 LIMIT 5.
+	OrderBy []*OrderByItem
+	Limit   Node
+	Offset  Node
+
+	Loc Loc
 }
 
 // Tag implements Node.

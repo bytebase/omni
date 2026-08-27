@@ -705,3 +705,63 @@ func TestParenQueryStatements(t *testing.T) {
 		t.Error("(INSERT ...) parsed, want error")
 	}
 }
+
+func TestParenQuerySetOpTails(t *testing.T) {
+	// A set-op tail follows any operand kind inside the parens
+	// (engine-verified accepts).
+	for _, sql := range []string{
+		"((SELECT 1) UNION SELECT 2)",
+		"((SELECT 1) UNION SELECT 2 UNION SELECT 3)",
+		"((SELECT 1) INTERSECT SELECT 2)",
+		"(WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2)",
+	} {
+		file, errs := Parse(sql)
+		if len(errs) != 0 {
+			t.Fatalf("%s errors: %v", sql, errs)
+		}
+		if _, ok := file.Stmts[0].(*ast.SetOpStmt); !ok {
+			t.Fatalf("%s: stmt = %T, want *ast.SetOpStmt", sql, file.Stmts[0])
+		}
+	}
+}
+
+func TestParenQueryTrailingClauses(t *testing.T) {
+	// Outer ORDER BY / LIMIT attach to the grouped query rather than being
+	// consumed and dropped.
+	file, errs := Parse("(SELECT 1) ORDER BY 1 LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	sel, ok := file.Stmts[0].(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.SelectStmt", file.Stmts[0])
+	}
+	if len(sel.OrderBy) != 1 || sel.Limit == nil {
+		t.Fatalf("clauses dropped: OrderBy=%d Limit=%v", len(sel.OrderBy), sel.Limit)
+	}
+
+	file, errs = Parse("((SELECT 1)) LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	if sel := file.Stmts[0].(*ast.SelectStmt); sel.Limit == nil {
+		t.Fatal("LIMIT dropped on nested paren query")
+	}
+
+	file, errs = Parse("(SELECT 1) UNION (SELECT 2) ORDER BY 1 LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	setOp, ok := file.Stmts[0].(*ast.SetOpStmt)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.SetOpStmt", file.Stmts[0])
+	}
+	if len(setOp.OrderBy) != 1 || setOp.Limit == nil {
+		t.Fatalf("clauses dropped: OrderBy=%d Limit=%v", len(setOp.OrderBy), setOp.Limit)
+	}
+
+	// The strict trailing-token check still applies after the clauses.
+	if _, errs := Parse("(SELECT 1) ORDER BY 1 LIMIT 5 x"); len(errs) == 0 {
+		t.Error("junk after trailing clauses parsed, want error")
+	}
+}

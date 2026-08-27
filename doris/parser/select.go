@@ -211,7 +211,44 @@ func (p *Parser) parseParenQueryStmt() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.parseSetOpTail(inner)
+	node, err := p.parseSetOpTail(inner)
+	if err != nil {
+		return nil, err
+	}
+
+	// Outer ORDER BY / LIMIT apply to the grouped query —
+	// (SELECT 1) ORDER BY 1 LIMIT 5 is engine-verified valid.
+	if p.cur.Kind == kwORDER {
+		p.advance() // consume ORDER
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		orderBy, err := p.parseOrderByList()
+		if err != nil {
+			return nil, err
+		}
+		switch n := node.(type) {
+		case *ast.SelectStmt:
+			n.OrderBy = orderBy
+		case *ast.SetOpStmt:
+			n.OrderBy = orderBy
+		}
+	}
+	if p.cur.Kind == kwLIMIT {
+		limit, offset, err := p.parseLimitClause()
+		if err != nil {
+			return nil, err
+		}
+		switch n := node.(type) {
+		case *ast.SelectStmt:
+			n.Limit = limit
+			n.Offset = offset
+		case *ast.SetOpStmt:
+			n.Limit = limit
+			n.Offset = offset
+		}
+	}
+	return node, nil
 }
 
 // parseParenQueryOperand parses one parenthesized query operand, nesting
@@ -228,14 +265,18 @@ func (p *Parser) parseParenQueryOperand() (ast.Node, error) {
 		inner, err = p.parseParenQueryOperand()
 	case kwSELECT:
 		inner, err = p.parseSelectStmt()
-		if err == nil {
-			inner, err = p.parseSetOpTail(inner)
-		}
 	case kwWITH:
 		inner, err = p.parseWithSelect()
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
+	if err != nil {
+		return nil, err
+	}
+	// A set-op tail may follow any operand inside the parens —
+	// ((SELECT 1) UNION SELECT 2) and (WITH ... SELECT 1 UNION SELECT 2)
+	// are both engine-verified accepts.
+	inner, err = p.parseSetOpTail(inner)
 	if err != nil {
 		return nil, err
 	}

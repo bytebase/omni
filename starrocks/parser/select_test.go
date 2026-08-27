@@ -688,3 +688,69 @@ func TestParenSelectNesting(t *testing.T) {
 		t.Fatalf("stmt = %T, want *ast.ParenSelect", file.Stmts[0])
 	}
 }
+
+// unwrapParens strips nested ParenSelect layers for assertions.
+func unwrapParens(n ast.Node) ast.Node {
+	for {
+		ps, ok := n.(*ast.ParenSelect)
+		if !ok {
+			return n
+		}
+		n = ps.Sel
+	}
+}
+
+func TestParenSelectNonQueryWithRejected(t *testing.T) {
+	// A parenthesized WITH must resolve to a query; the engine rejects
+	// parenthesized DML (container-verified).
+	if _, errs := Parse("(WITH c AS (SELECT 1) DELETE FROM t)"); len(errs) == 0 {
+		t.Error("(WITH ... DELETE ...) parsed, want error")
+	}
+	file, errs := Parse("(WITH c AS (SELECT 1) SELECT * FROM c)")
+	if len(errs) != 0 {
+		t.Fatalf("(WITH ... SELECT ...) errors: %v", errs)
+	}
+	if _, ok := unwrapParens(file.Stmts[0]).(*ast.SelectStmt); !ok {
+		t.Fatalf("inner = %T, want *ast.SelectStmt", unwrapParens(file.Stmts[0]))
+	}
+}
+
+func TestParenSelectNestedTrailingClauses(t *testing.T) {
+	// Trailing clauses reach through nested parens instead of being
+	// consumed and dropped.
+	file, errs := Parse("((SELECT 1)) LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	sel, ok := unwrapParens(file.Stmts[0]).(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("inner = %T, want *ast.SelectStmt", unwrapParens(file.Stmts[0]))
+	}
+	if sel.Limit == nil {
+		t.Fatal("LIMIT dropped on nested paren query")
+	}
+
+	file, errs = Parse("(((SELECT 1))) ORDER BY 1 LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	sel, ok = unwrapParens(file.Stmts[0]).(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("inner = %T, want *ast.SelectStmt", unwrapParens(file.Stmts[0]))
+	}
+	if len(sel.OrderBy) != 1 || sel.Limit == nil {
+		t.Fatalf("clauses dropped: OrderBy=%d Limit=%v", len(sel.OrderBy), sel.Limit)
+	}
+
+	file, errs = Parse("((SELECT 1 UNION SELECT 2)) LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	setOp, ok := unwrapParens(file.Stmts[0]).(*ast.SetOpStmt)
+	if !ok {
+		t.Fatalf("inner = %T, want *ast.SetOpStmt", unwrapParens(file.Stmts[0]))
+	}
+	if setOp.Limit == nil {
+		t.Fatal("LIMIT dropped on nested paren set operation")
+	}
+}

@@ -84,6 +84,12 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		{"array_column_element", "SELECT [a] FROM t", true},
 		{"user_var_string", "SELECT @'quoted'", true},
 		{"paren_select_nested", "((SELECT 1))", true},
+		{"paren_setop_after_nested", "((SELECT 1) UNION SELECT 2)", true},
+		{"paren_setop_after_with", "(WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2)", true},
+		{"paren_trailing_clauses", "(SELECT 1) ORDER BY 1 LIMIT 5", true},
+		{"paren_nested_trailing_limit", "((SELECT 1)) LIMIT 5", true},
+		{"paren_double_order_by", "(SELECT 1 ORDER BY 1) ORDER BY 1", true},
+		{"paren_with_dml_rejected", "(WITH c AS (SELECT 1) DELETE FROM t)", false},
 		{"build_index_rejected", "BUILD INDEX index1 ON table1", false},
 
 		// Forms the parser deliberately still rejects.

@@ -313,6 +313,12 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"paren_select_stmt", "(SELECT 1)", true},
 		{"paren_select_nested", "((SELECT 1))", true},
 		{"paren_select_union", "(SELECT 1) UNION (SELECT 2)", true},
+		{"paren_setop_after_nested", "((SELECT 1) UNION SELECT 2)", true},
+		{"paren_setop_after_with", "(WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2)", true},
+		{"paren_trailing_clauses", "(SELECT 1) ORDER BY 1 LIMIT 5", true},
+		{"paren_nested_trailing_limit", "((SELECT 1)) LIMIT 5", true},
+		{"paren_double_order_by", "(SELECT 1 ORDER BY 1) ORDER BY 1", true},
+		{"paren_with_dml_rejected", "(WITH c AS (SELECT 1) DELETE FROM t)", false},
 
 		// --- Constructs previously hidden by the trailing-token swallow
 		// (BYT-10084): each parsed as a valid prefix and silently dropped the
