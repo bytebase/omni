@@ -831,6 +831,66 @@ func TestQueryTailStatementLevel(t *testing.T) {
 	}
 }
 
+func TestGroupedQueryWrapOnConflict(t *testing.T) {
+	// A trailing group that repeats a clause the query already carries wraps
+	// in GroupedQuery instead of overwriting — both layers stay in the tree.
+	file, errs := Parse("(SELECT 1 ORDER BY 1) ORDER BY 2")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	g, ok := file.Stmts[0].(*ast.GroupedQuery)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.GroupedQuery", file.Stmts[0])
+	}
+	if len(g.OrderBy) != 1 {
+		t.Fatalf("outer OrderBy = %d, want 1", len(g.OrderBy))
+	}
+	inner, ok := g.Query.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("Query = %T, want *ast.SelectStmt", g.Query)
+	}
+	if len(inner.OrderBy) != 1 {
+		t.Fatal("inner ORDER BY overwritten by the outer group")
+	}
+
+	file, errs = Parse("SELECT 1 LIMIT 1 LIMIT 2")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	g, ok = file.Stmts[0].(*ast.GroupedQuery)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.GroupedQuery", file.Stmts[0])
+	}
+	if g.Limit == nil || g.Query.(*ast.SelectStmt).Limit == nil {
+		t.Fatal("one of the LIMIT layers was lost")
+	}
+
+	// No conflict — no wrapper: the group attaches in place.
+	file, errs = Parse("(SELECT 1) ORDER BY 1")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	if _, ok := file.Stmts[0].(*ast.SelectStmt); !ok {
+		t.Fatalf("stmt = %T, want *ast.SelectStmt (no wrapper without conflict)", file.Stmts[0])
+	}
+
+	// Both clause layers are reachable from Walk.
+	file, errs = Parse("SELECT 1 ORDER BY a ORDER BY b")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	count := 0
+	ast.Inspect(file.Stmts[0], func(n ast.Node) bool {
+		if n != nil && n.Tag() == ast.T_ColumnRef {
+			count++
+		}
+		return true
+	})
+	if count != 2 {
+		t.Errorf("ColumnRef visited %d times, want 2 (both ORDER BY layers)", count)
+	}
+}
+
 func TestParenQueryLocCoversParens(t *testing.T) {
 	// The parens are grouping only, but NodeLoc must cover the delimiters
 	// and any trailing clauses, or source extraction drops them.
@@ -840,6 +900,7 @@ func TestParenQueryLocCoversParens(t *testing.T) {
 		"(SELECT 1) ORDER BY 1 LIMIT 5",
 		"((SELECT 1) UNION SELECT 2)",
 		"SELECT 1 UNION (SELECT 2) LIMIT 5",
+		"(SELECT 1 ORDER BY 1) ORDER BY 2",
 	} {
 		file, errs := Parse(sql)
 		if len(errs) != 0 {

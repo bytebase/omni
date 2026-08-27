@@ -223,3 +223,23 @@ func (n *SetOpStmt) Tag() NodeTag { return T_SetOpStmt }
 
 // Compile-time assertion that *SetOpStmt satisfies Node.
 var _ Node = (*SetOpStmt)(nil)
+
+// GroupedQuery carries a trailing ORDER BY / LIMIT group applied to a query
+// that already carries that clause itself — (SELECT 1 ORDER BY 1) ORDER BY 2,
+// or the engine-lenient bare repetition SELECT 1 ORDER BY 1 ORDER BY 2 (both
+// engine-verified accepts). The engine applies the outer group; keeping the
+// groups on distinct nodes means no inner expression (and no subquery table
+// read inside one) is lost from the tree.
+type GroupedQuery struct {
+	Query   Node // SelectStmt, SetOpStmt, or nested GroupedQuery
+	OrderBy []*OrderByItem
+	Limit   Node
+	Offset  Node
+	Loc     Loc
+}
+
+// Tag implements Node.
+func (n *GroupedQuery) Tag() NodeTag { return T_GroupedQuery }
+
+// Compile-time assertion that *GroupedQuery satisfies Node.
+var _ Node = (*GroupedQuery)(nil)

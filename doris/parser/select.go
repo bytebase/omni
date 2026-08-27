@@ -231,10 +231,13 @@ func (p *Parser) parseQueryTail(node ast.Node) (ast.Node, error) {
 
 // parseTrailingQueryClauses parses trailing ORDER BY / LIMIT groups
 // following a query and attaches them to the node, extending its range over
-// the consumed clauses.
+// the consumed clauses. A group that would repeat a clause the node already
+// carries — (SELECT 1 ORDER BY 1) ORDER BY 2, SELECT 1 ORDER BY 1 ORDER
+// BY 2 — wraps the node in a GroupedQuery instead of overwriting it, so the
+// inner clause (and any subquery table read inside it) stays in the tree.
 func (p *Parser) parseTrailingQueryClauses(node ast.Node) (ast.Node, error) {
 	switch node.(type) {
-	case *ast.SelectStmt, *ast.SetOpStmt:
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.GroupedQuery:
 	default:
 		return node, nil
 	}
@@ -259,28 +262,62 @@ func (p *Parser) parseTrailingQueryClauses(node ast.Node) (ast.Node, error) {
 				return nil, err
 			}
 		}
-		switch n := node.(type) {
-		case *ast.SelectStmt:
-			if len(orderBy) > 0 {
-				n.OrderBy = orderBy
-			}
-			if limit != nil {
-				n.Limit = limit
-				n.Offset = offset
-			}
-			n.Loc.End = p.prev.Loc.End
-		case *ast.SetOpStmt:
-			if len(orderBy) > 0 {
-				n.OrderBy = orderBy
-			}
-			if limit != nil {
-				n.Limit = limit
-				n.Offset = offset
-			}
-			n.Loc.End = p.prev.Loc.End
-		}
+		node = attachTrailingClauses(node, orderBy, limit, offset, p.prev.Loc.End)
 	}
 	return node, nil
+}
+
+// attachTrailingClauses stores one parsed trailing group on node, wrapping in
+// a GroupedQuery when a slot is already occupied.
+func attachTrailingClauses(node ast.Node, orderBy []*ast.OrderByItem, limit, offset ast.Node, end int) ast.Node {
+	var haveOrder, haveLimit bool
+	switch n := node.(type) {
+	case *ast.SelectStmt:
+		haveOrder, haveLimit = len(n.OrderBy) > 0, n.Limit != nil
+	case *ast.SetOpStmt:
+		haveOrder, haveLimit = len(n.OrderBy) > 0, n.Limit != nil
+	case *ast.GroupedQuery:
+		haveOrder, haveLimit = len(n.OrderBy) > 0, n.Limit != nil
+	}
+	if (len(orderBy) > 0 && haveOrder) || (limit != nil && haveLimit) {
+		return &ast.GroupedQuery{
+			Query:   node,
+			OrderBy: orderBy,
+			Limit:   limit,
+			Offset:  offset,
+			Loc:     ast.Loc{Start: ast.NodeLoc(node).Start, End: end},
+		}
+	}
+	switch n := node.(type) {
+	case *ast.SelectStmt:
+		if len(orderBy) > 0 {
+			n.OrderBy = orderBy
+		}
+		if limit != nil {
+			n.Limit = limit
+			n.Offset = offset
+		}
+		n.Loc.End = end
+	case *ast.SetOpStmt:
+		if len(orderBy) > 0 {
+			n.OrderBy = orderBy
+		}
+		if limit != nil {
+			n.Limit = limit
+			n.Offset = offset
+		}
+		n.Loc.End = end
+	case *ast.GroupedQuery:
+		if len(orderBy) > 0 {
+			n.OrderBy = orderBy
+		}
+		if limit != nil {
+			n.Limit = limit
+			n.Offset = offset
+		}
+		n.Loc.End = end
+	}
+	return node
 }
 
 // parseParenQueryOperand parses one parenthesized query operand, nesting
@@ -323,6 +360,9 @@ func (p *Parser) parseParenQueryOperand() (ast.Node, error) {
 		n.Loc.Start = openTok.Loc.Start
 		n.Loc.End = closeTok.Loc.End
 	case *ast.SetOpStmt:
+		n.Loc.Start = openTok.Loc.Start
+		n.Loc.End = closeTok.Loc.End
+	case *ast.GroupedQuery:
 		n.Loc.Start = openTok.Loc.Start
 		n.Loc.End = closeTok.Loc.End
 	}

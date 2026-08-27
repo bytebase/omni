@@ -168,6 +168,10 @@ const (
 	// T_SetOpStmt is the tag for *SetOpStmt (UNION/INTERSECT/EXCEPT/MINUS).
 	T_SetOpStmt
 
+	// T_GroupedQuery is the tag for *GroupedQuery (a repeated trailing
+	// ORDER BY / LIMIT group on an already-clause-bearing query).
+	T_GroupedQuery
+
 	// DDL — CREATE TABLE nodes (T2.1).
 
 	// T_CreateTableStmt is the tag for *CreateTableStmt.
@@ -732,6 +736,8 @@ func (t NodeTag) String() string {
 		return "JoinClause"
 	case T_SetOpStmt:
 		return "SetOpStmt"
+	case T_GroupedQuery:
+		return "GroupedQuery"
 	case T_CreateTableStmt:
 		return "CreateTableStmt"
 	case T_ColumnDef:

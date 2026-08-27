@@ -254,6 +254,26 @@ func (w *spanWalker) visitSetOp(n *ast.SetOpStmt, outermost bool) {
 	if n == nil {
 		return
 	}
+	// WITH on the leftmost SELECT scopes over the entire set operation —
+	// WITH c AS (...) SELECT 1 UNION SELECT * FROM c resolves c in the right
+	// arm too (engine-verified) — so install its names before walking the
+	// arms, or the right arm's c is misreported as a physical table. The
+	// names are installed here only; visitSelect records span.CTEs and walks
+	// the bodies when it reaches the left arm. A parenthesized left arm keeps
+	// its WITH scoped inside the parens, so the spine stops at ParenSelect.
+	if with := leftmostWith(n); with != nil {
+		scope := &cteScope{names: make(map[string]bool), parent: w.scope}
+		for _, cte := range with.CTEs {
+			if cte == nil || cte.Name == "" {
+				continue
+			}
+			scope.names[strings.ToLower(cte.Name)] = true
+		}
+		saved := w.scope
+		w.scope = scope
+		defer func() { w.scope = saved }()
+	}
+
 	w.visitSetOpArm(n.Left, outermost)
 	w.visitSetOpArm(n.Right, false)
 
@@ -267,6 +287,23 @@ func (w *spanWalker) visitSetOp(n *ast.SetOpStmt, outermost bool) {
 	}
 	if n.Offset != nil {
 		w.walkExpr(n.Offset)
+	}
+}
+
+// leftmostWith walks the left spine of a set-operation tree to the leading
+// SelectStmt and returns its WITH clause, whose names scope over the whole
+// tree. A ParenSelect boundary stops the walk: a WITH inside parens is
+// scoped to that group only.
+func leftmostWith(node ast.Node) *ast.WithClause {
+	for {
+		switch n := node.(type) {
+		case *ast.SetOpStmt:
+			node = n.Left
+		case *ast.SelectStmt:
+			return n.With
+		default:
+			return nil
+		}
 	}
 }
 

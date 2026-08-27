@@ -724,3 +724,38 @@ func TestGetQuerySpan_SetOpOuterLimitSubquery(t *testing.T) {
 		}
 	}
 }
+
+func TestGetQuerySpan_RepeatedClauseKeepsSubquery(t *testing.T) {
+	// A repeated trailing group must not erase the inner one: the subquery
+	// table read inside the inner ORDER BY stays in AccessTables.
+	for _, sql := range []string{
+		"(SELECT 1 ORDER BY (SELECT x FROM secret) LIMIT 1) ORDER BY 2",
+		"SELECT 1 ORDER BY (SELECT x FROM secret) ORDER BY 2",
+	} {
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q) returned error: %v", sql, err)
+		}
+		sigs := toSigs(span.AccessTables)
+		if !containsSig(sigs, tableSig{Table: "secret"}) {
+			t.Errorf("%s: AccessTables missing secret (got %+v)", sql, sigs)
+		}
+	}
+}
+
+func TestGetQuerySpan_CTEScopeCoversSetOp(t *testing.T) {
+	// The WITH clause on the leftmost SELECT scopes over the whole set
+	// operation (engine-verified): the right arm's c is a CTE reference,
+	// not a physical table.
+	span, err := GetQuerySpan("WITH c AS (SELECT * FROM secret) SELECT 1 UNION SELECT * FROM c")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	if !containsSig(sigs, tableSig{Table: "secret"}) {
+		t.Errorf("AccessTables missing secret (got %+v)", sigs)
+	}
+	if containsSig(sigs, tableSig{Table: "c"}) {
+		t.Errorf("CTE c misreported as a physical table (got %+v)", sigs)
+	}
+}

@@ -157,8 +157,38 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 		w.visitSelect(n, true /* outermost */)
 	case *ast.SetOpStmt:
 		w.visitSetOp(n, true /* outermost */)
+	case *ast.GroupedQuery:
+		w.visitGroupedQuery(n, true /* outermost */)
 	default:
 		w.validateEmbeddedSubqueries(node)
+	}
+}
+
+// visitGroupedQuery analyzes a repeated trailing-clause group: the inner
+// query first, then the group's own expressions — both clause layers carry
+// table reads that must land in AccessTables.
+func (w *spanWalker) visitGroupedQuery(n *ast.GroupedQuery, outermost bool) {
+	if n == nil {
+		return
+	}
+	switch q := n.Query.(type) {
+	case *ast.SelectStmt:
+		w.visitSelect(q, outermost)
+	case *ast.SetOpStmt:
+		w.visitSetOp(q, outermost)
+	case *ast.GroupedQuery:
+		w.visitGroupedQuery(q, outermost)
+	}
+	for _, o := range n.OrderBy {
+		if o != nil && o.Expr != nil {
+			w.walkExpr(o.Expr)
+		}
+	}
+	if n.Limit != nil {
+		w.walkExpr(n.Limit)
+	}
+	if n.Offset != nil {
+		w.walkExpr(n.Offset)
 	}
 }
 
@@ -202,6 +232,9 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 		case *ast.SetOpStmt:
 			w.visitSetOp(q, false)
 			return false
+		case *ast.GroupedQuery:
+			w.visitGroupedQuery(q, false)
+			return false
 		case *ast.TableRef:
 			// A physical table referenced by DML — UPDATE ... FROM secret,
 			// DELETE ... USING secret, MERGE ... USING secret — is a read the
@@ -222,17 +255,41 @@ func (w *spanWalker) visitSetOp(n *ast.SetOpStmt, outermost bool) {
 	if n == nil {
 		return
 	}
+
+	// WITH on the leftmost SELECT scopes over the entire set operation —
+	// WITH c AS (...) SELECT 1 UNION SELECT * FROM c resolves c in the right
+	// arm too (engine-verified) — so install its names before walking the
+	// arms, or the right arm's c is misreported as a physical table. The
+	// names are installed here only; visitSelect records span.CTEs and walks
+	// the bodies when it reaches the left arm.
+	if with := leftmostWith(n); with != nil {
+		scope := &cteScope{names: make(map[string]bool), parent: w.scope}
+		for _, cte := range with.CTEs {
+			if cte == nil || cte.Name == "" {
+				continue
+			}
+			scope.names[strings.ToLower(cte.Name)] = true
+		}
+		saved := w.scope
+		w.scope = scope
+		defer func() { w.scope = saved }()
+	}
+
 	switch l := n.Left.(type) {
 	case *ast.SelectStmt:
 		w.visitSelect(l, outermost)
 	case *ast.SetOpStmt:
 		w.visitSetOp(l, outermost)
+	case *ast.GroupedQuery:
+		w.visitGroupedQuery(l, outermost)
 	}
 	switch r := n.Right.(type) {
 	case *ast.SelectStmt:
 		w.visitSelect(r, false)
 	case *ast.SetOpStmt:
 		w.visitSetOp(r, false)
+	case *ast.GroupedQuery:
+		w.visitGroupedQuery(r, false)
 	}
 
 	// Trailing clauses on the combined result — (SELECT 1) UNION (SELECT 2)
@@ -248,6 +305,24 @@ func (w *spanWalker) visitSetOp(n *ast.SetOpStmt, outermost bool) {
 	}
 	if n.Offset != nil {
 		w.walkExpr(n.Offset)
+	}
+}
+
+// leftmostWith walks the left spine of a set-operation tree to the leading
+// SelectStmt and returns its WITH clause, whose names scope over the whole
+// tree. Returns nil when the leftmost operand is not a plain SelectStmt.
+func leftmostWith(node ast.Node) *ast.WithClause {
+	for {
+		switch n := node.(type) {
+		case *ast.SetOpStmt:
+			node = n.Left
+		case *ast.GroupedQuery:
+			node = n.Query
+		case *ast.SelectStmt:
+			return n.With
+		default:
+			return nil
+		}
 	}
 }
 

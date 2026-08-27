@@ -255,6 +255,17 @@ func walkChildren(v Visitor, node Node) {
 		if n.Offset != nil {
 			Walk(v, n.Offset)
 		}
+	case *GroupedQuery:
+		Walk(v, n.Query)
+		for _, item := range n.OrderBy {
+			Walk(v, item)
+		}
+		if n.Limit != nil {
+			Walk(v, n.Limit)
+		}
+		if n.Offset != nil {
+			Walk(v, n.Offset)
+		}
 
 	// DDL — CREATE TABLE nodes (T2.1).
 	case *CreateTableStmt:

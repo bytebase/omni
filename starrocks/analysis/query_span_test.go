@@ -918,3 +918,20 @@ func TestGetQuerySpan_ParenInnerClausesPreserved(t *testing.T) {
 		}
 	}
 }
+
+func TestGetQuerySpan_CTEScopeCoversSetOp(t *testing.T) {
+	// The WITH clause on the leftmost SELECT scopes over the whole set
+	// operation (engine-verified): the right arm's c is a CTE reference,
+	// not a physical table.
+	span, err := GetQuerySpan("WITH c AS (SELECT * FROM secret) SELECT 1 UNION SELECT * FROM c")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	if !containsSig(sigs, tableSig{Table: "secret"}) {
+		t.Errorf("AccessTables missing secret (got %+v)", sigs)
+	}
+	if containsSig(sigs, tableSig{Table: "c"}) {
+		t.Errorf("CTE c misreported as a physical table (got %+v)", sigs)
+	}
+}
