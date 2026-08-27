@@ -319,6 +319,21 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"paren_nested_trailing_limit", "((SELECT 1)) LIMIT 5", true},
 		{"paren_double_order_by", "(SELECT 1 ORDER BY 1) ORDER BY 1", true},
 		{"paren_with_dml_rejected", "(WITH c AS (SELECT 1) DELETE FROM t)", false},
+		{"union_paren_rhs_limit", "SELECT 1 UNION (SELECT 2) LIMIT 5", true},
+		{"union_paren_rhs_order_limit", "SELECT 1 UNION (SELECT 2) ORDER BY 1 LIMIT 5", true},
+		{"intersect_paren_rhs_limit", "SELECT 1 INTERSECT (SELECT 2) LIMIT 3", true},
+		{"with_union", "WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2", true},
+		{"with_union_paren_rhs_limit", "WITH c AS (SELECT 1) SELECT 1 UNION (SELECT 2) LIMIT 5", true},
+		{"cte_body_union", "WITH c AS (SELECT 1 UNION SELECT 2) SELECT * FROM c", true},
+		{"paren_inner_trailing_limit", "(SELECT 1 UNION (SELECT 2) LIMIT 5)", true},
+		// Unlike StarRocks, clause order and repetition are lenient here.
+		{"select_limit_then_order", "SELECT 1 LIMIT 5 ORDER BY 1", true},
+		{"union_limit_then_order", "SELECT 1 UNION SELECT 2 LIMIT 5 ORDER BY 1", true},
+		{"select_double_order_by", "SELECT 1 ORDER BY 1 ORDER BY 2", true},
+		{"paren_nested_double_order", "((SELECT 1 ORDER BY 1) ORDER BY 1)", true},
+		{"order_by_subquery", "SELECT 1 ORDER BY (SELECT 1)", true},
+		{"setop_order_by_subquery", "(SELECT 1) UNION (SELECT 2) ORDER BY (SELECT 1)", true},
+		{"insert_union_paren_limit", "INSERT INTO t SELECT 1 UNION (SELECT 2) LIMIT 5", true},
 
 		// --- Constructs previously hidden by the trailing-token swallow
 		// (BYT-10084): each parsed as a valid prefix and silently dropped the

@@ -211,41 +211,73 @@ func (p *Parser) parseParenQueryStmt() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	node, err := p.parseSetOpTail(inner)
+	return p.parseQueryTail(inner)
+}
+
+// parseQueryTail applies the set-operator tail to a parsed query operand,
+// then any trailing ORDER BY / LIMIT the operands did not consume. The
+// engine is lenient here — SELECT 1 LIMIT 5 ORDER BY 1, SELECT 1 UNION
+// (SELECT 2) LIMIT 5, and even repeated groups like SELECT 1 ORDER BY 1
+// ORDER BY 2 or (SELECT 1 ORDER BY 1) ORDER BY 1 are all engine-verified
+// accepts — so the attach loops, and where a clause repeats the outer
+// (last, semantically governing) one wins.
+func (p *Parser) parseQueryTail(node ast.Node) (ast.Node, error) {
+	node, err := p.parseSetOpTail(node)
 	if err != nil {
 		return nil, err
 	}
+	return p.parseTrailingQueryClauses(node)
+}
 
-	// Outer ORDER BY / LIMIT apply to the grouped query —
-	// (SELECT 1) ORDER BY 1 LIMIT 5 is engine-verified valid.
-	if p.cur.Kind == kwORDER {
-		p.advance() // consume ORDER
-		if _, err := p.expect(kwBY); err != nil {
-			return nil, err
-		}
-		orderBy, err := p.parseOrderByList()
-		if err != nil {
-			return nil, err
-		}
-		switch n := node.(type) {
-		case *ast.SelectStmt:
-			n.OrderBy = orderBy
-		case *ast.SetOpStmt:
-			n.OrderBy = orderBy
-		}
+// parseTrailingQueryClauses parses trailing ORDER BY / LIMIT groups
+// following a query and attaches them to the node, extending its range over
+// the consumed clauses.
+func (p *Parser) parseTrailingQueryClauses(node ast.Node) (ast.Node, error) {
+	switch node.(type) {
+	case *ast.SelectStmt, *ast.SetOpStmt:
+	default:
+		return node, nil
 	}
-	if p.cur.Kind == kwLIMIT {
-		limit, offset, err := p.parseLimitClause()
-		if err != nil {
-			return nil, err
+	for p.cur.Kind == kwORDER || p.cur.Kind == kwLIMIT {
+		var orderBy []*ast.OrderByItem
+		var limit, offset ast.Node
+		if p.cur.Kind == kwORDER {
+			p.advance() // consume ORDER
+			if _, err := p.expect(kwBY); err != nil {
+				return nil, err
+			}
+			var err error
+			orderBy, err = p.parseOrderByList()
+			if err != nil {
+				return nil, err
+			}
+		}
+		if p.cur.Kind == kwLIMIT {
+			var err error
+			limit, offset, err = p.parseLimitClause()
+			if err != nil {
+				return nil, err
+			}
 		}
 		switch n := node.(type) {
 		case *ast.SelectStmt:
-			n.Limit = limit
-			n.Offset = offset
+			if len(orderBy) > 0 {
+				n.OrderBy = orderBy
+			}
+			if limit != nil {
+				n.Limit = limit
+				n.Offset = offset
+			}
+			n.Loc.End = p.prev.Loc.End
 		case *ast.SetOpStmt:
-			n.Limit = limit
-			n.Offset = offset
+			if len(orderBy) > 0 {
+				n.OrderBy = orderBy
+			}
+			if limit != nil {
+				n.Limit = limit
+				n.Offset = offset
+			}
+			n.Loc.End = p.prev.Loc.End
 		}
 	}
 	return node, nil
@@ -255,11 +287,11 @@ func (p *Parser) parseParenQueryStmt() (ast.Node, error) {
 // freely: '(' followed by a SELECT query, a WITH query, or another
 // parenthesized operand, then ')'.
 func (p *Parser) parseParenQueryOperand() (ast.Node, error) {
-	if _, err := p.expect(int('(')); err != nil {
+	openTok, err := p.expect(int('('))
+	if err != nil {
 		return nil, err
 	}
 	var inner ast.Node
-	var err error
 	switch p.cur.Kind {
 	case int('('):
 		inner, err = p.parseParenQueryOperand()
@@ -273,15 +305,26 @@ func (p *Parser) parseParenQueryOperand() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	// A set-op tail may follow any operand inside the parens —
-	// ((SELECT 1) UNION SELECT 2) and (WITH ... SELECT 1 UNION SELECT 2)
-	// are both engine-verified accepts.
-	inner, err = p.parseSetOpTail(inner)
+	// A set-op tail (and, after one, trailing clauses) may follow any operand
+	// inside the parens — ((SELECT 1) UNION SELECT 2) and (SELECT 1 UNION
+	// (SELECT 2) LIMIT 5) are engine-verified accepts.
+	inner, err = p.parseQueryTail(inner)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := p.expect(int(')')); err != nil {
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
 		return nil, err
+	}
+	// The parens are grouping only, but the statement's source range must
+	// still cover them, or consumers slicing by NodeLoc drop the delimiters.
+	switch n := inner.(type) {
+	case *ast.SelectStmt:
+		n.Loc.Start = openTok.Loc.Start
+		n.Loc.End = closeTok.Loc.End
+	case *ast.SetOpStmt:
+		n.Loc.Start = openTok.Loc.Start
+		n.Loc.End = closeTok.Loc.End
 	}
 	return inner, nil
 }

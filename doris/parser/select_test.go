@@ -765,3 +765,89 @@ func TestParenQueryTrailingClauses(t *testing.T) {
 		t.Error("junk after trailing clauses parsed, want error")
 	}
 }
+
+func TestQueryTailStatementLevel(t *testing.T) {
+	// Trailing clauses after a set operation whose right operand is
+	// parenthesized (engine-verified accepts).
+	file, errs := Parse("SELECT 1 UNION (SELECT 2) LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	setOp := file.Stmts[0].(*ast.SetOpStmt)
+	if setOp.Limit == nil {
+		t.Fatal("LIMIT not attached to statement-level set operation")
+	}
+
+	file, errs = Parse("SELECT 1 UNION (SELECT 2) ORDER BY 1 LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	setOp = file.Stmts[0].(*ast.SetOpStmt)
+	if len(setOp.OrderBy) != 1 || setOp.Limit == nil {
+		t.Fatalf("clauses dropped: OrderBy=%d Limit=%v", len(setOp.OrderBy), setOp.Limit)
+	}
+
+	// WITH ... SELECT continues with set operators at statement level.
+	file, errs = Parse("WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2")
+	if len(errs) != 0 {
+		t.Fatalf("WITH union errors: %v", errs)
+	}
+	setOp, ok := file.Stmts[0].(*ast.SetOpStmt)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.SetOpStmt", file.Stmts[0])
+	}
+	left, ok := setOp.Left.(*ast.SelectStmt)
+	if !ok || left.With == nil {
+		t.Fatalf("WITH clause lost from left arm (%T, With=%v)", setOp.Left, ok && left.With != nil)
+	}
+
+	// A CTE body takes a set-op tail too.
+	file, errs = Parse("WITH c AS (SELECT 1 UNION SELECT 2) SELECT * FROM c")
+	if len(errs) != 0 {
+		t.Fatalf("CTE body union errors: %v", errs)
+	}
+	sel := file.Stmts[0].(*ast.SelectStmt)
+	if _, ok := sel.With.CTEs[0].Query.(*ast.SetOpStmt); !ok {
+		t.Fatalf("CTE query = %T, want *ast.SetOpStmt", sel.With.CTEs[0].Query)
+	}
+
+	// The engine is lenient about clause order and repetition
+	// (container-verified): the last group wins.
+	file, errs = Parse("SELECT 1 LIMIT 5 ORDER BY 1")
+	if len(errs) != 0 {
+		t.Fatalf("LIMIT-then-ORDER errors: %v", errs)
+	}
+	sel = file.Stmts[0].(*ast.SelectStmt)
+	if len(sel.OrderBy) != 1 || sel.Limit == nil {
+		t.Fatalf("clauses dropped: OrderBy=%d Limit=%v", len(sel.OrderBy), sel.Limit)
+	}
+	if _, errs := Parse("SELECT 1 ORDER BY 1 ORDER BY 2"); len(errs) != 0 {
+		t.Fatalf("repeated ORDER BY errors: %v", errs)
+	}
+
+	// Junk after the clauses still errors.
+	if _, errs := Parse("SELECT 1 UNION (SELECT 2) GARBAGE"); len(errs) == 0 {
+		t.Error("junk after set operation parsed, want error")
+	}
+}
+
+func TestParenQueryLocCoversParens(t *testing.T) {
+	// The parens are grouping only, but NodeLoc must cover the delimiters
+	// and any trailing clauses, or source extraction drops them.
+	for _, sql := range []string{
+		"(SELECT 1)",
+		"((SELECT 1))",
+		"(SELECT 1) ORDER BY 1 LIMIT 5",
+		"((SELECT 1) UNION SELECT 2)",
+		"SELECT 1 UNION (SELECT 2) LIMIT 5",
+	} {
+		file, errs := Parse(sql)
+		if len(errs) != 0 {
+			t.Fatalf("%s errors: %v", sql, errs)
+		}
+		loc := ast.NodeLoc(file.Stmts[0])
+		if loc.Start != 0 || loc.End != len(sql) {
+			t.Errorf("%s: NodeLoc = [%d,%d), want [0,%d)", sql, loc.Start, loc.End, len(sql))
+		}
+	}
+}

@@ -281,6 +281,20 @@ func (w *spanWalker) visitSetOpArm(node ast.Node, outermost bool) {
 	case *ast.ParenSelect:
 		if n != nil {
 			w.visitSetOpArm(n.Sel, outermost)
+			// Clauses attached to the wrapper from outside the parens —
+			// (SELECT 1) ORDER BY (SELECT x FROM secret) — carry table
+			// reads of their own.
+			for _, o := range n.OrderBy {
+				if o != nil && o.Expr != nil {
+					w.walkExpr(o.Expr)
+				}
+			}
+			if n.Limit != nil {
+				w.walkExpr(n.Limit)
+			}
+			if n.Offset != nil {
+				w.walkExpr(n.Offset)
+			}
 		}
 	}
 }

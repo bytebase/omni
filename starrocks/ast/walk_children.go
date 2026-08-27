@@ -248,6 +248,15 @@ func walkChildren(v Visitor, node Node) {
 		if n.Sel != nil {
 			Walk(v, n.Sel)
 		}
+		for _, item := range n.OrderBy {
+			Walk(v, item)
+		}
+		if n.Limit != nil {
+			Walk(v, n.Limit)
+		}
+		if n.Offset != nil {
+			Walk(v, n.Offset)
+		}
 	case *IntoOutfileClause:
 		for _, prop := range n.Properties {
 			Walk(v, prop)

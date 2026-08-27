@@ -167,13 +167,16 @@ func (p *Parser) parseCreateMTMV(startLoc ast.Loc) (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		queryNode = wq
+		queryNode, err = p.parseQueryTail(wq)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		query, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}
-		queryNode, err = p.parseSetOpTail(query)
+		queryNode, err = p.parseQueryTail(query)
 		if err != nil {
 			return nil, err
 		}

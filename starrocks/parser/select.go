@@ -227,8 +227,11 @@ done:
 
 	// Parse any additional trailing ORDER BY / LIMIT / OFFSET that the
 	// rightmost leaf did not consume (e.g. when the right operand is
-	// parenthesized and has no trailing clauses).
-	if p.cur.Kind == kwORDER {
+	// parenthesized and has no trailing clauses). Clauses the set-op already
+	// carries (hoisted from the rightmost leaf) must NOT repeat: the engine
+	// rejects SELECT 1 UNION SELECT 2 LIMIT 5 ORDER BY 1 (container-verified),
+	// so a leftover ORDER/LIMIT falls through to the strict trailing check.
+	if p.cur.Kind == kwORDER && len(setOp.OrderBy) == 0 && setOp.Limit == nil {
 		p.advance() // consume ORDER
 		if _, err := p.expect(kwBY); err != nil {
 			return nil, err
@@ -239,7 +242,7 @@ done:
 		}
 		setOp.OrderBy = orderBy
 	}
-	if p.cur.Kind == kwLIMIT {
+	if p.cur.Kind == kwLIMIT && setOp.Limit == nil {
 		limit, offset, err := p.parseLimitClause()
 		if err != nil {
 			return nil, err
@@ -347,36 +350,16 @@ func (p *Parser) parseTrailingClausesForParen(paren *ast.ParenSelect) (ast.Node,
 		}
 	}
 
-	// Parens nest, so the query node the clauses belong to may sit several
-	// ParenSelect layers down — ((SELECT 1)) LIMIT 5 must not consume the
-	// LIMIT and then drop it.
-	sel := paren.Sel
-	for {
-		ps, ok := sel.(*ast.ParenSelect)
-		if !ok {
-			break
-		}
-		sel = ps.Sel
+	// The clauses land on the wrapper, not the inner query: the inner node
+	// may sit behind further ParenSelect layers, and in
+	// ((SELECT 1 LIMIT 1)) LIMIT 2 its own LIMIT must survive alongside the
+	// outer one.
+	if len(orderBy) > 0 {
+		paren.OrderBy = orderBy
 	}
-	switch inner := sel.(type) {
-	case *ast.SetOpStmt:
-		if len(orderBy) > 0 {
-			inner.OrderBy = orderBy
-		}
-		if limit != nil {
-			inner.Limit = limit
-			inner.Offset = offset
-		}
-		inner.Loc.End = p.prev.Loc.End
-	case *ast.SelectStmt:
-		if len(orderBy) > 0 {
-			inner.OrderBy = orderBy
-		}
-		if limit != nil {
-			inner.Limit = limit
-			inner.Offset = offset
-		}
-		inner.Loc.End = p.prev.Loc.End
+	if limit != nil {
+		paren.Limit = limit
+		paren.Offset = offset
 	}
 	paren.Loc.End = p.prev.Loc.End
 	return paren, nil

@@ -90,6 +90,15 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		{"paren_nested_trailing_limit", "((SELECT 1)) LIMIT 5", true},
 		{"paren_double_order_by", "(SELECT 1 ORDER BY 1) ORDER BY 1", true},
 		{"paren_with_dml_rejected", "(WITH c AS (SELECT 1) DELETE FROM t)", false},
+		{"union_paren_rhs_limit", "SELECT 1 UNION (SELECT 2) LIMIT 5", true},
+		{"paren_inner_trailing_limit", "(SELECT 1 UNION (SELECT 2) LIMIT 5)", true},
+		{"paren_double_limit_nested", "((SELECT 1 LIMIT 1)) LIMIT 2", true},
+		{"paren_double_order_nested", "((SELECT 1 ORDER BY 1)) ORDER BY 2", true},
+		{"paren_order_by_subquery", "(SELECT 1) ORDER BY (SELECT 1)", true},
+		// Unlike Doris, clause order is strict here: a trailing ORDER BY
+		// after the set operation's LIMIT is engine-rejected.
+		{"union_limit_then_order_rejected", "SELECT 1 UNION SELECT 2 LIMIT 5 ORDER BY 1", false},
+		{"select_limit_then_order_rejected", "SELECT 1 LIMIT 5 ORDER BY 1", false},
 		{"build_index_rejected", "BUILD INDEX index1 ON table1", false},
 
 		// Forms the parser deliberately still rejects.

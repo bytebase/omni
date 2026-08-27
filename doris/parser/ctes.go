@@ -119,12 +119,14 @@ func (p *Parser) parseCTE() (*ast.CTE, error) {
 	if p.cur.Kind == kwWITH {
 		innerStmt, err = p.parseWithSelect()
 	} else {
-		sel, err2 := p.parseSelectStmt()
-		if err2 != nil {
-			return nil, err2
-		}
-		innerStmt, err = p.parseSetOpTail(sel)
+		innerStmt, err = p.parseSelectStmt()
 	}
+	if err != nil {
+		return nil, err
+	}
+	// Either operand form continues with set operators and, after one,
+	// trailing clauses — WITH c AS (SELECT 1 UNION (SELECT 2) LIMIT 5) ...
+	innerStmt, err = p.parseQueryTail(innerStmt)
 	if err != nil {
 		return nil, err
 	}

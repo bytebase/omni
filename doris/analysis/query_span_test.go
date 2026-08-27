@@ -694,3 +694,33 @@ func TestGetQuerySpan_MultiStatementPlaceholderFailsClosed(t *testing.T) {
 		t.Fatal("multi-statement placeholder accepted")
 	}
 }
+
+func TestGetQuerySpan_SetOpOuterOrderBySubquery(t *testing.T) {
+	// ORDER BY with a subquery on a grouped set operation lives on
+	// SetOpStmt.OrderBy; visitSetOp must walk it so t3 appears in
+	// AccessTables.
+	span, err := GetQuerySpan("(SELECT a FROM t1) UNION (SELECT b FROM t2) ORDER BY (SELECT max(c) FROM t3)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	for _, want := range []string{"t1", "t2", "t3"} {
+		if !containsSig(sigs, tableSig{Table: want}) {
+			t.Errorf("AccessTables missing %s (got %+v)", want, sigs)
+		}
+	}
+}
+
+func TestGetQuerySpan_SetOpOuterLimitSubquery(t *testing.T) {
+	// Subquery in a LIMIT expression on a set-op must be walked.
+	span, err := GetQuerySpan("SELECT a FROM t1 UNION (SELECT b FROM t2) LIMIT (SELECT max(c) FROM t3)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	for _, want := range []string{"t1", "t2", "t3"} {
+		if !containsSig(sigs, tableSig{Table: want}) {
+			t.Errorf("AccessTables missing %s (got %+v)", want, sigs)
+		}
+	}
+}

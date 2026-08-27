@@ -234,6 +234,21 @@ func (w *spanWalker) visitSetOp(n *ast.SetOpStmt, outermost bool) {
 	case *ast.SetOpStmt:
 		w.visitSetOp(r, false)
 	}
+
+	// Trailing clauses on the combined result — (SELECT 1) UNION (SELECT 2)
+	// ORDER BY (SELECT x FROM secret) — carry expressions whose table reads
+	// must land in AccessTables like any other clause.
+	for _, o := range n.OrderBy {
+		if o != nil && o.Expr != nil {
+			w.walkExpr(o.Expr)
+		}
+	}
+	if n.Limit != nil {
+		w.walkExpr(n.Limit)
+	}
+	if n.Offset != nil {
+		w.walkExpr(n.Offset)
+	}
 }
 
 // visitSelect processes one SelectStmt. It pushes a new CTE scope so the
