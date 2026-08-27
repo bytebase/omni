@@ -501,14 +501,6 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	// Show / Info
 	case kwSHOW:
 		return p.parseShow()
-		showTok := p.advance() // consume SHOW
-		if p.cur.Kind == kwJOB {
-			return p.parseShowJob(showTok.Loc)
-		}
-		// Return unsupported, but we already consumed SHOW so we need to emit the error at cur.
-		return p.unsupported("SHOW")
-		p.advance() // consume SHOW; dispatch inside parseShow
-		return p.parseShow()
 	case kwDESCRIBE:
 		return p.parseDescribe()
 	case kwDESC:
