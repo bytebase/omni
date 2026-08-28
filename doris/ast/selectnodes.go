@@ -130,7 +130,20 @@ type TableRef struct {
 	// Sample holds TABLESAMPLE(...) [REPEATABLE seed], which follows the alias.
 	Sample *TableSample
 
+	// LateralViews holds the Hive-style LATERAL VIEW suffixes that follow
+	// the alias: LATERAL VIEW generator(args) tableAlias AS col [, col...],
+	// chainable. The engine requires both the table alias and the AS column
+	// list and has no OUTER variant (container-verified).
+	LateralViews []*LateralView
+
 	Loc Loc
+}
+
+// LateralView is one LATERAL VIEW suffix of a table reference.
+type LateralView struct {
+	Func       *FuncCallExpr // the generator call, e.g. EXPLODE([1, 2])
+	TableAlias string        // required by the engine
+	Columns    []string      // AS col [, col ...] — at least one
 }
 
 // TableSample is the TABLESAMPLE(...) [REPEATABLE seed] suffix of a table

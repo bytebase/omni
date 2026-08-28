@@ -340,6 +340,17 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"paren_scoped_cte_union", "(WITH c AS (SELECT 1) SELECT 1) UNION SELECT * FROM c", true},
 		{"exists_grouped_subquery", "SELECT EXISTS (SELECT 1 FROM t ORDER BY 1 ORDER BY 2)", true},
 
+		// LATERAL VIEW — previously hidden by the trailing-token swallow.
+		{"lateral_view", "SELECT * FROM person LATERAL VIEW EXPLODE(ARRAY(30, 60)) tableName AS c_age", true},
+		{"lateral_view_multi_col", "SELECT * FROM t LATERAL VIEW EXPLODE_SPLIT(s, ',') tmp AS c1, c2", true},
+		{"lateral_view_chained", "SELECT * FROM t LATERAL VIEW EXPLODE([1]) a AS x LATERAL VIEW EXPLODE([2]) b AS y", true},
+		{"lateral_view_after_alias", "SELECT * FROM t tt LATERAL VIEW EXPLODE([1]) tmp AS c", true},
+		{"lateral_view_then_clauses", "SELECT * FROM t LATERAL VIEW EXPLODE([1]) tmp AS c WHERE c > 0 ORDER BY c LIMIT 1", true},
+		{"lateral_view_outer_rejected", "SELECT * FROM t LATERAL VIEW OUTER EXPLODE([1]) tmp AS c", false},
+		{"lateral_view_no_alias_rejected", "SELECT * FROM t LATERAL VIEW EXPLODE([1]) tmp", false},
+		{"lateral_view_no_table_alias_rejected", "SELECT * FROM t LATERAL VIEW EXPLODE([1]) AS c", false},
+		{"lateral_view_junk_rejected", "SELECT * FROM t LATERAL VIEW EXPLODE([1]) tmp AS c zzz", false},
+
 		// --- Constructs previously hidden by the trailing-token swallow
 		// (BYT-10084): each parsed as a valid prefix and silently dropped the
 		// rest of the statement.

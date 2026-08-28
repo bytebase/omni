@@ -237,6 +237,11 @@ func walkChildren(v Visitor, node Node) {
 				Walk(v, n.Sample.Seed)
 			}
 		}
+		for _, lv := range n.LateralViews {
+			if lv.Func != nil {
+				Walk(v, lv.Func)
+			}
+		}
 	case *JoinClause:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
