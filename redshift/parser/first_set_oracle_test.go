@@ -52,40 +52,28 @@ func startFirstSetOracle(t *testing.T) *firstSetOracle {
 			return
 		}
 
-		startCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
-
-		container, err := tcpg.Run(startCtx, "postgres:17-alpine",
-			tcpg.WithDatabase("omni_fs"),
-			tcpg.WithUsername("postgres"),
-			tcpg.WithPassword("test"),
-			testcontainers.WithWaitStrategy(
-				wait.ForLog("database system is ready to accept connections").
-					WithOccurrence(2)),
-		)
-		if err != nil {
-			oracleSetupError = fmt.Errorf("container start: %w", err)
-			return
+		// Container creation is retried because a busy CI runner can
+		// transiently blow one creation deadline (image pull, dockerd
+		// contention) or lose a fresh container to the Ryuk reaper race —
+		// observed as "create container: context deadline exceeded" flakes
+		// in the redshift-container-tests job. Genuine unavailability
+		// still fails loudly: every attempt's error is preserved and the
+		// CI branch below turns the joined error into a test failure.
+		const oracleStartAttempts = 3
+		var attemptErrs []error
+		for attempt := 1; attempt <= oracleStartAttempts; attempt++ {
+			if attempt > 1 {
+				time.Sleep(2 * time.Second)
+			}
+			db, err := startFirstSetOracleAttempt()
+			if err == nil {
+				firstSetOracleInst = &firstSetOracle{db: db, ctx: context.Background()}
+				return
+			}
+			t.Logf("first-set oracle start attempt %d/%d failed: %v", attempt, oracleStartAttempts, err)
+			attemptErrs = append(attemptErrs, fmt.Errorf("attempt %d/%d: %w", attempt, oracleStartAttempts, err))
 		}
-		connStr, err := container.ConnectionString(startCtx, "sslmode=disable")
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			oracleSetupError = fmt.Errorf("conn string: %w", err)
-			return
-		}
-		db, err := sql.Open("pgx", connStr)
-		if err != nil {
-			_ = testcontainers.TerminateContainer(container)
-			oracleSetupError = fmt.Errorf("db open: %w", err)
-			return
-		}
-		if err := db.PingContext(startCtx); err != nil {
-			db.Close()
-			_ = testcontainers.TerminateContainer(container)
-			oracleSetupError = fmt.Errorf("ping: %w", err)
-			return
-		}
-		firstSetOracleInst = &firstSetOracle{db: db, ctx: context.Background()}
+		oracleSetupError = errors.Join(attemptErrs...)
 	})
 
 	if oracleSetupError != nil {
@@ -98,6 +86,52 @@ func startFirstSetOracle(t *testing.T) *firstSetOracle {
 		t.Skipf("first-set oracle unavailable (local dev): %v", oracleSetupError)
 	}
 	return firstSetOracleInst
+}
+
+// startFirstSetOracleAttempt makes one full container-bootstrap attempt:
+// create the PG 17 container, resolve the connection string, open the
+// pool, and verify liveness with a ping. It either returns an open DB or
+// tears down every partially-created resource and returns the error, so
+// the retry loop in startFirstSetOracle can begin the next attempt from
+// a clean slate.
+func startFirstSetOracleAttempt() (*sql.DB, error) {
+	// Generous per-attempt timeout: on a clean CI runner the image pull
+	// alone can exceed the 15s this used to allow. Mirrors
+	// paren_oracle_test.go and redshift/catalog's container helper.
+	startCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	container, err := tcpg.Run(startCtx, "postgres:17-alpine",
+		tcpg.WithDatabase("omni_fs"),
+		tcpg.WithUsername("postgres"),
+		tcpg.WithPassword("test"),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2)),
+	)
+	if err != nil {
+		// Run can return a partially-created container alongside its
+		// error; terminate it (nil-safe) so retries don't accumulate
+		// leaked containers on the runner.
+		_ = testcontainers.TerminateContainer(container)
+		return nil, fmt.Errorf("container start: %w", err)
+	}
+	connStr, err := container.ConnectionString(startCtx, "sslmode=disable")
+	if err != nil {
+		_ = testcontainers.TerminateContainer(container)
+		return nil, fmt.Errorf("conn string: %w", err)
+	}
+	db, err := sql.Open("pgx", connStr)
+	if err != nil {
+		_ = testcontainers.TerminateContainer(container)
+		return nil, fmt.Errorf("db open: %w", err)
+	}
+	if err := db.PingContext(startCtx); err != nil {
+		db.Close()
+		_ = testcontainers.TerminateContainer(container)
+		return nil, fmt.Errorf("ping: %w", err)
+	}
+	return db, nil
 }
 
 // isCI reports whether we're running under continuous integration.
