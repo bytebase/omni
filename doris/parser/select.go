@@ -813,8 +813,76 @@ func (p *Parser) parseTableRef() (*ast.TableRef, error) {
 		ref.Sample = sample
 	}
 
+	// LATERAL VIEW generator(args) tableAlias AS col[, col...] — chainable.
+	// Engine-verified: the table alias and AS list are required, and the
+	// OUTER variant is rejected.
+	for p.cur.Kind == kwLATERAL {
+		lv, err := p.parseLateralView()
+		if err != nil {
+			return nil, err
+		}
+		ref.LateralViews = append(ref.LateralViews, lv)
+	}
+
 	ref.Loc.End = p.prev.Loc.End
 	return ref, nil
+}
+
+// parseLateralView parses one LATERAL VIEW suffix. On entry cur is LATERAL.
+func (p *Parser) parseLateralView() (*ast.LateralView, error) {
+	p.advance() // consume LATERAL
+	if _, err := p.expect(kwVIEW); err != nil {
+		return nil, err
+	}
+
+	name, nameLoc, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	fc := &ast.FuncCallExpr{
+		Name: &ast.ObjectName{Parts: []string{name}, Loc: nameLoc},
+		Loc:  ast.Loc{Start: nameLoc.Start},
+	}
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	if p.cur.Kind != int(')') {
+		args, err := p.parseExprList()
+		if err != nil {
+			return nil, err
+		}
+		fc.Args = args
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	fc.Loc.End = closeTok.Loc.End
+
+	lv := &ast.LateralView{Func: fc}
+	alias, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	lv.TableAlias = alias
+
+	if _, err := p.expect(kwAS); err != nil {
+		return nil, err
+	}
+	col, _, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	lv.Columns = append(lv.Columns, col)
+	for p.cur.Kind == int(',') {
+		p.advance() // consume ','
+		col, _, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		lv.Columns = append(lv.Columns, col)
+	}
+	return lv, nil
 }
 
 // parseTableSample parses TABLESAMPLE(n ROWS | n PERCENT | ) [REPEATABLE seed].

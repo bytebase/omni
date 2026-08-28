@@ -99,6 +99,10 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		// after the set operation's LIMIT is engine-rejected.
 		{"union_limit_then_order_rejected", "SELECT 1 UNION SELECT 2 LIMIT 5 ORDER BY 1", false},
 		{"select_limit_then_order_rejected", "SELECT 1 LIMIT 5 ORDER BY 1", false},
+		// Unlike Doris, StarRocks has no Hive-style LATERAL VIEW at all —
+		// its lateral form is `, [LATERAL] unnest(...)` (engine-verified).
+		{"lateral_view_rejected", "SELECT * FROM person LATERAL VIEW EXPLODE(ARRAY(30, 60)) tableName AS c_age", false},
+		{"lateral_view_chained_rejected", "SELECT * FROM t LATERAL VIEW EXPLODE([1]) a AS x LATERAL VIEW EXPLODE([2]) b AS y", false},
 		{"build_index_rejected", "BUILD INDEX index1 ON table1", false},
 
 		// Forms the parser deliberately still rejects.

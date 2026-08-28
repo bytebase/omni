@@ -819,3 +819,22 @@ func TestGetQuerySpan_GroupedClausesOutsideCTEScope(t *testing.T) {
 		}
 	}
 }
+
+func TestGetQuerySpan_LateralViewGeneratorSubquery(t *testing.T) {
+	// The generator's arguments are real expressions: a subquery inside one
+	// contributes its table read, and the lateral alias itself is not a
+	// physical table.
+	span, err := GetQuerySpan("SELECT * FROM t LATERAL VIEW EXPLODE((SELECT arr FROM t3 LIMIT 1)) tmp AS c")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	for _, want := range []string{"t", "t3"} {
+		if !containsSig(sigs, tableSig{Table: want}) {
+			t.Errorf("AccessTables missing %s (got %+v)", want, sigs)
+		}
+	}
+	if containsSig(sigs, tableSig{Table: "tmp"}) {
+		t.Errorf("lateral alias misreported as a table (got %+v)", sigs)
+	}
+}

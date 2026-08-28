@@ -967,3 +967,59 @@ func TestParenQueryLocCoversParens(t *testing.T) {
 		}
 	}
 }
+
+func TestLateralView(t *testing.T) {
+	// LATERAL VIEW generator(args) tableAlias AS col[, col...] — the engine
+	// requires the table alias and AS list and has no OUTER variant
+	// (container-verified).
+	file, errs := Parse("SELECT * FROM t LATERAL VIEW EXPLODE_SPLIT(s, ',') tmp AS c1, c2")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	sel := file.Stmts[0].(*ast.SelectStmt)
+	ref := sel.From[0].(*ast.TableRef)
+	if len(ref.LateralViews) != 1 {
+		t.Fatalf("LateralViews = %d, want 1", len(ref.LateralViews))
+	}
+	lv := ref.LateralViews[0]
+	if lv.Func == nil || lv.Func.Name.Parts[0] != "EXPLODE_SPLIT" {
+		t.Fatalf("Func = %+v, want EXPLODE_SPLIT call", lv.Func)
+	}
+	if lv.TableAlias != "tmp" || len(lv.Columns) != 2 {
+		t.Fatalf("alias/columns = %q/%v, want tmp/[c1 c2]", lv.TableAlias, lv.Columns)
+	}
+
+	// Chained lateral views.
+	file, errs = Parse("SELECT * FROM t LATERAL VIEW EXPLODE([1]) a AS x LATERAL VIEW EXPLODE([2]) b AS y")
+	if len(errs) != 0 {
+		t.Fatalf("chained errors: %v", errs)
+	}
+	ref = file.Stmts[0].(*ast.SelectStmt).From[0].(*ast.TableRef)
+	if len(ref.LateralViews) != 2 {
+		t.Fatalf("LateralViews = %d, want 2", len(ref.LateralViews))
+	}
+
+	// Generator args are reachable from Walk (lineage depends on it).
+	count := 0
+	ast.Inspect(file.Stmts[0], func(n ast.Node) bool {
+		if n != nil && n.Tag() == ast.T_FuncCallExpr {
+			count++
+		}
+		return true
+	})
+	if count != 2 {
+		t.Errorf("FuncCallExpr visited %d times, want 2", count)
+	}
+
+	// Engine-rejected forms stay rejected.
+	for _, sql := range []string{
+		"SELECT * FROM t LATERAL VIEW OUTER EXPLODE([1]) tmp AS c",
+		"SELECT * FROM t LATERAL VIEW EXPLODE([1]) tmp",
+		"SELECT * FROM t LATERAL VIEW EXPLODE([1]) AS c",
+		"SELECT * FROM t LATERAL VIEW EXPLODE([1]) tmp AS c zzz",
+	} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("%s parsed, want error", sql)
+		}
+	}
+}
