@@ -544,6 +544,10 @@ func (w *spanWalker) analyzeSubqueryText(text string, base int) {
 			w.visitSelect(n, false)
 		case *ast.SetOpStmt:
 			w.visitSetOp(n, false)
+		case *ast.GroupedQuery:
+			// EXISTS (SELECT 1 FROM t ORDER BY 1 ORDER BY 2) is engine-valid;
+			// the repeated clause group must analyze like any other query.
+			w.visitGroupedQuery(n, false)
 		default:
 			// N2: a placeholder body that parses cleanly as something other
 			// than a query (EXISTS (DELETE FROM secret) FROM public) is not a

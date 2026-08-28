@@ -338,6 +338,7 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"cte_body_double_order", "WITH c AS (SELECT 1 ORDER BY 1 ORDER BY 2) SELECT * FROM c", true},
 		{"paren_limit_then_outer_order", "(SELECT 1 LIMIT 1) ORDER BY 1", true},
 		{"paren_scoped_cte_union", "(WITH c AS (SELECT 1) SELECT 1) UNION SELECT * FROM c", true},
+		{"exists_grouped_subquery", "SELECT EXISTS (SELECT 1 FROM t ORDER BY 1 ORDER BY 2)", true},
 
 		// --- Constructs previously hidden by the trailing-token swallow
 		// (BYT-10084): each parsed as a valid prefix and silently dropped the
