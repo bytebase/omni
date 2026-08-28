@@ -116,9 +116,13 @@ func (p *Parser) parseCTE() (*ast.CTE, error) {
 	// Inner SELECT statement. If it starts with WITH, recurse; otherwise parse
 	// a plain SELECT followed by optional set-operator tail (UNION/INTERSECT/EXCEPT).
 	var innerStmt ast.Node
-	if p.cur.Kind == kwWITH {
+	switch p.cur.Kind {
+	case kwWITH:
 		innerStmt, err = p.parseWithSelect()
-	} else {
+	case int('('):
+		// WITH c AS ((SELECT 1)) ... is engine-verified valid.
+		innerStmt, err = p.parseParenQueryOperand()
+	default:
 		innerStmt, err = p.parseSelectStmt()
 	}
 	if err != nil {

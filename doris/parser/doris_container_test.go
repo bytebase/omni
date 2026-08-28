@@ -334,6 +334,10 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"order_by_subquery", "SELECT 1 ORDER BY (SELECT 1)", true},
 		{"setop_order_by_subquery", "(SELECT 1) UNION (SELECT 2) ORDER BY (SELECT 1)", true},
 		{"insert_union_paren_limit", "INSERT INTO t SELECT 1 UNION (SELECT 2) LIMIT 5", true},
+		{"cte_body_paren", "WITH c AS ((SELECT 1)) SELECT * FROM c", true},
+		{"cte_body_double_order", "WITH c AS (SELECT 1 ORDER BY 1 ORDER BY 2) SELECT * FROM c", true},
+		{"paren_limit_then_outer_order", "(SELECT 1 LIMIT 1) ORDER BY 1", true},
+		{"paren_scoped_cte_union", "(WITH c AS (SELECT 1) SELECT 1) UNION SELECT * FROM c", true},
 
 		// --- Constructs previously hidden by the trailing-token swallow
 		// (BYT-10084): each parsed as a valid prefix and silently dropped the

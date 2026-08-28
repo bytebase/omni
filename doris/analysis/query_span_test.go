@@ -759,3 +759,32 @@ func TestGetQuerySpan_CTEScopeCoversSetOp(t *testing.T) {
 		t.Errorf("CTE c misreported as a physical table (got %+v)", sigs)
 	}
 }
+
+func TestGetQuerySpan_ParenBoundsCTEScope(t *testing.T) {
+	// The engine scopes a WITH inside parens to that group only
+	// (container-verified: the outer reference fails with "Table [c] does
+	// not exist"), so the right arm's c is a physical table read.
+	span, err := GetQuerySpan("(WITH c AS (SELECT * FROM secret) SELECT 1) UNION SELECT * FROM c")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	for _, want := range []string{"secret", "c"} {
+		if !containsSig(sigs, tableSig{Table: want}) {
+			t.Errorf("AccessTables missing %s (got %+v)", want, sigs)
+		}
+	}
+}
+
+func TestGetQuerySpan_GroupedCTEBody(t *testing.T) {
+	// A CTE body that parses to a GroupedQuery (repeated clause groups) must
+	// still be walked: its table read stays in AccessTables.
+	span, err := GetQuerySpan("WITH c AS (SELECT 1 FROM secret ORDER BY 1 ORDER BY 2) SELECT * FROM c")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	if !containsSig(sigs, tableSig{Table: "secret"}) {
+		t.Errorf("AccessTables missing secret (got %+v)", sigs)
+	}
+}

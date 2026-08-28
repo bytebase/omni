@@ -279,7 +279,11 @@ func attachTrailingClauses(node ast.Node, orderBy []*ast.OrderByItem, limit, off
 	case *ast.GroupedQuery:
 		haveOrder, haveLimit = len(n.OrderBy) > 0, n.Limit != nil
 	}
-	if (len(orderBy) > 0 && haveOrder) || (limit != nil && haveLimit) {
+	// Any clause already on the node forces a wrapper — including a
+	// different kind: (SELECT a FROM t LIMIT 1) ORDER BY a is NOT
+	// SELECT a FROM t ORDER BY a LIMIT 1 (the grouped form limits first,
+	// then orders), so the two groups must stay on distinct nodes.
+	if haveOrder || haveLimit {
 		return &ast.GroupedQuery{
 			Query:   node,
 			OrderBy: orderBy,
@@ -366,7 +370,32 @@ func (p *Parser) parseParenQueryOperand() (ast.Node, error) {
 		n.Loc.Start = openTok.Loc.Start
 		n.Loc.End = closeTok.Loc.End
 	}
+	// A WITH inside the parens is scoped to this group only — the engine
+	// rejects (WITH c AS (SELECT 1) SELECT 1) UNION SELECT * FROM c with
+	// "Table [c] does not exist" (container-verified) — so a group whose
+	// leading query carries a WITH keeps an explicit boundary node that
+	// analysis will not hoist the CTE names across.
+	if leadingWith(inner) != nil {
+		inner = &ast.GroupedQuery{Query: inner, Loc: ast.NodeLoc(inner)}
+	}
 	return inner, nil
+}
+
+// leadingWith walks the left spine of a query to its leading SelectStmt and
+// returns that SELECT's WITH clause. A GroupedQuery is a scope boundary (it
+// only arises from parens or repeated clause groups), so the walk stops
+// there — mirroring analysis's leftmostWith.
+func leadingWith(node ast.Node) *ast.WithClause {
+	for {
+		switch n := node.(type) {
+		case *ast.SetOpStmt:
+			node = n.Left
+		case *ast.SelectStmt:
+			return n.With
+		default:
+			return nil
+		}
+	}
 }
 
 // parseIntersectChain collects a left-associative chain of INTERSECT clauses

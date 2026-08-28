@@ -8,11 +8,11 @@ import (
 type QueryType int
 
 const (
-	QueryTypeUnknown         QueryType = iota
-	QueryTypeSelect                    // User SELECT query
-	QueryTypeSelectInfoSchema          // SELECT from system tables, or SHOW/DESCRIBE
-	QueryTypeDML                       // INSERT, UPDATE, DELETE, MERGE, LOAD, EXPORT, TRUNCATE, COPY
-	QueryTypeDDL                       // CREATE, ALTER, DROP, plus GRANT, REVOKE, ADMIN, transaction control, KILL, SET, etc.
+	QueryTypeUnknown          QueryType = iota
+	QueryTypeSelect                     // User SELECT query
+	QueryTypeSelectInfoSchema           // SELECT from system tables, or SHOW/DESCRIBE
+	QueryTypeDML                        // INSERT, UPDATE, DELETE, MERGE, LOAD, EXPORT, TRUNCATE, COPY
+	QueryTypeDDL                        // CREATE, ALTER, DROP, plus GRANT, REVOKE, ADMIN, transaction control, KILL, SET, etc.
 )
 
 // String returns a human-readable name for the QueryType.
@@ -122,6 +122,12 @@ const tokEOF parser.TokenKind = 0
 func Classify(statement string) QueryType {
 	l := parser.NewLexer(statement)
 	tok := l.NextToken()
+	// Query-grouping parentheses are transparent for classification:
+	// (SELECT ...) and ((SELECT ...)) are SELECT statements
+	// (engine-verified accepts).
+	for tok.Kind == parser.TokenKind('(') {
+		tok = l.NextToken()
+	}
 	if tok.Kind == tokEOF {
 		return QueryTypeUnknown
 	}
