@@ -418,15 +418,31 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 		return p.finishArrayLiteral(p.cur.Loc.Start)
 
 	case kwBINARY:
-		// BINARY <expr> cast-to-binary operator. The operand is a
-		// booleanExpression: it spans comparisons/predicates but stops below
-		// AND/OR/NOT, so `BINARY a = 'x'` is BINARY(a = 'x') while
-		// `BINARY a AND b` is (BINARY a) AND b.
+		// BINARY binds at PRIMARY level to an identifier or a string literal
+		// only (grammar: BINARY? identifier #columnReference and
+		// BINARY? STRING_LITERAL #stringLiteral; engine-verified: BINARY 1,
+		// BINARY (1) and BINARY now() are all syntax errors, and
+		// BINARY a = 'x' parses as (BINARY a) = 'x'). StarRocks differs — its
+		// engine accepts the general prefix form, so its parser keeps it.
 		start := p.cur.Loc
 		p.advance()
-		operand, err := p.parseExprPrec(bpNot + 1)
-		if err != nil {
-			return nil, err
+		var operand ast.Node
+		switch {
+		case p.cur.Kind == tokString:
+			tok := p.advance()
+			operand = &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}
+		case p.isExprIdentToken():
+			name, err := p.parseMultipartIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			if p.cur.Kind == int('(') {
+				// BINARY fn(...) is not in the grammar; the engine rejects it.
+				return nil, p.syntaxErrorAtCur()
+			}
+			operand = &ast.ColumnRef{Name: name, Loc: name.Loc}
+		default:
+			return nil, p.syntaxErrorAtCur()
 		}
 		return &ast.UnaryExpr{
 			Op:   ast.UnaryBinary,
@@ -1176,25 +1192,59 @@ func (p *Parser) parseExtractUnit() (string, error) {
 
 // finishMapLiteral parses the { key: value, ... } body of a map constructor.
 func (p *Parser) finishMapLiteral(start int) (ast.Node, error) {
-	lit := &ast.MapLiteral{}
-
 	if _, err := p.expect(int('{')); err != nil {
 		return nil, err
 	}
-	if p.cur.Kind != int('}') {
-		entry, err := p.parseMapEntry()
+
+	// Empty braces are a map literal (the struct form requires at least one
+	// element — both grammar rules and the engine agree).
+	if p.cur.Kind == int('}') {
+		closeTok := p.advance()
+		return &ast.MapLiteral{Loc: ast.Loc{Start: start, End: closeTok.Loc.End}}, nil
+	}
+
+	// The first constant decides the form: a following ':' makes this a map
+	// ({k: v, ...}), anything else a struct ({c1, c2, ...}).
+	first, err := p.parseCollectionConstant()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.cur.Kind == int(':') {
+		lit := &ast.MapLiteral{}
+		entry, err := p.finishMapEntry(first)
 		if err != nil {
 			return nil, err
 		}
 		lit.Entries = append(lit.Entries, entry)
 		for p.cur.Kind == int(',') {
 			p.advance() // consume ','
-			entry, err = p.parseMapEntry()
+			key, err := p.parseCollectionConstant()
+			if err != nil {
+				return nil, err
+			}
+			entry, err = p.finishMapEntry(key)
 			if err != nil {
 				return nil, err
 			}
 			lit.Entries = append(lit.Entries, entry)
 		}
+		closeTok, err := p.expect(int('}'))
+		if err != nil {
+			return nil, err
+		}
+		lit.Loc = ast.Loc{Start: start, End: closeTok.Loc.End}
+		return lit, nil
+	}
+
+	lit := &ast.StructLiteral{Elements: []ast.Node{first}}
+	for p.cur.Kind == int(',') {
+		p.advance() // consume ','
+		el, err := p.parseCollectionConstant()
+		if err != nil {
+			return nil, err
+		}
+		lit.Elements = append(lit.Elements, el)
 	}
 	closeTok, err := p.expect(int('}'))
 	if err != nil {
@@ -1204,16 +1254,32 @@ func (p *Parser) finishMapLiteral(start int) (ast.Node, error) {
 	return lit, nil
 }
 
-// parseMapEntry parses one `key: value` pair of a map constructor.
-func (p *Parser) parseMapEntry() (*ast.MapEntry, error) {
-	key, err := p.parseExpr()
-	if err != nil {
-		return nil, err
+// parseCollectionConstant parses one element of an array/map/struct literal.
+// The grammar (constant) admits literals and nested collection literals only —
+// engine-verified: [1+1], [a] and {'a': 1+1} are syntax errors while
+// [[1],[2]], [NULL, 1] and {'a': [1,2]} parse. StarRocks differs: its array
+// literals take full expressions and its parser keeps them.
+func (p *Parser) parseCollectionConstant() (ast.Node, error) {
+	// No sign arm: the engine rejects even [-1] — a signed number is an
+	// expression, not a constant (container-verified).
+	switch p.cur.Kind {
+	case tokInt, tokFloat, tokString, tokHexLiteral, tokBitLiteral,
+		kwTRUE, kwFALSE, kwNULL:
+		return p.parsePrimaryExpr()
+	case int('['):
+		return p.finishArrayLiteral(p.cur.Loc.Start)
+	case int('{'):
+		return p.finishMapLiteral(p.cur.Loc.Start)
 	}
+	return nil, p.syntaxErrorAtCur()
+}
+
+// finishMapEntry completes one `key: value` pair, the key already parsed.
+func (p *Parser) finishMapEntry(key ast.Node) (*ast.MapEntry, error) {
 	if _, err := p.expect(int(':')); err != nil {
 		return nil, err
 	}
-	value, err := p.parseExpr()
+	value, err := p.parseCollectionConstant()
 	if err != nil {
 		return nil, err
 	}
@@ -1232,14 +1298,14 @@ func (p *Parser) finishArrayLiteral(start int) (ast.Node, error) {
 		return nil, err
 	}
 	if p.cur.Kind != int(']') {
-		el, err := p.parseExpr()
+		el, err := p.parseCollectionConstant()
 		if err != nil {
 			return nil, err
 		}
 		lit.Elements = append(lit.Elements, el)
 		for p.cur.Kind == int(',') {
 			p.advance() // consume ','
-			el, err = p.parseExpr()
+			el, err = p.parseCollectionConstant()
 			if err != nil {
 				return nil, err
 			}
@@ -1372,6 +1438,18 @@ func (p *Parser) parseConvertTargetType() (*ast.TypeName, error) {
 // user-defined variable (@name).
 func (p *Parser) parseVariableRef(system bool) (ast.Node, error) {
 	atTok := p.advance() // consume '@@' or '@'
+
+	// A user variable name may also be a quoted string — @'name' / @"name"
+	// (grammar: ATSIGN identifierOrText; engine-verified accept on both
+	// engines). System variables stay identifier-shaped.
+	if !system && p.cur.Kind == tokString {
+		tok := p.advance()
+		return &ast.VariableRef{
+			System: false,
+			Name:   tok.Str,
+			Loc:    ast.Loc{Start: atTok.Loc.Start, End: tok.Loc.End},
+		}, nil
+	}
 
 	first, ok := p.identOrKeywordToken()
 	if !ok {

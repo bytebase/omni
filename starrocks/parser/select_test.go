@@ -677,3 +677,93 @@ func TestSelectQualifiedColumnContinuations(t *testing.T) {
 		t.Fatalf("Items[0].Expr = %T, want *ast.FuncCallExpr", stmt.Items[0].Expr)
 	}
 }
+
+func TestParenSelectNesting(t *testing.T) {
+	// Parens nest freely at the top level (engine-verified).
+	file, errs := Parse("((SELECT 1))")
+	if len(errs) != 0 {
+		t.Fatalf("((SELECT 1)) errors: %v", errs)
+	}
+	if _, ok := file.Stmts[0].(*ast.ParenSelect); !ok {
+		t.Fatalf("stmt = %T, want *ast.ParenSelect", file.Stmts[0])
+	}
+}
+
+// unwrapParens strips nested ParenSelect layers for assertions.
+func unwrapParens(n ast.Node) ast.Node {
+	for {
+		ps, ok := n.(*ast.ParenSelect)
+		if !ok {
+			return n
+		}
+		n = ps.Sel
+	}
+}
+
+func TestParenSelectNonQueryWithRejected(t *testing.T) {
+	// A parenthesized WITH must resolve to a query; the engine rejects
+	// parenthesized DML (container-verified).
+	if _, errs := Parse("(WITH c AS (SELECT 1) DELETE FROM t)"); len(errs) == 0 {
+		t.Error("(WITH ... DELETE ...) parsed, want error")
+	}
+	file, errs := Parse("(WITH c AS (SELECT 1) SELECT * FROM c)")
+	if len(errs) != 0 {
+		t.Fatalf("(WITH ... SELECT ...) errors: %v", errs)
+	}
+	if _, ok := unwrapParens(file.Stmts[0]).(*ast.SelectStmt); !ok {
+		t.Fatalf("inner = %T, want *ast.SelectStmt", unwrapParens(file.Stmts[0]))
+	}
+}
+
+func TestParenSelectNestedTrailingClauses(t *testing.T) {
+	// Trailing clauses outside the parens land on the outermost wrapper —
+	// never consumed-and-dropped, and never overwriting a clause the inner
+	// query already carries.
+	file, errs := Parse("((SELECT 1)) LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	outer, ok := file.Stmts[0].(*ast.ParenSelect)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.ParenSelect", file.Stmts[0])
+	}
+	if outer.Limit == nil {
+		t.Fatal("LIMIT dropped on nested paren query")
+	}
+
+	file, errs = Parse("(((SELECT 1))) ORDER BY 1 LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	outer = file.Stmts[0].(*ast.ParenSelect)
+	if len(outer.OrderBy) != 1 || outer.Limit == nil {
+		t.Fatalf("clauses dropped: OrderBy=%d Limit=%v", len(outer.OrderBy), outer.Limit)
+	}
+
+	file, errs = Parse("((SELECT 1 UNION SELECT 2)) LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	outer = file.Stmts[0].(*ast.ParenSelect)
+	if outer.Limit == nil {
+		t.Fatal("LIMIT dropped on nested paren set operation")
+	}
+
+	// Inner clauses survive alongside the outer ones (engine-verified:
+	// ((SELECT 1 LIMIT 1)) LIMIT 2 is accepted, and both limits are real).
+	file, errs = Parse("((SELECT 1 LIMIT 1)) LIMIT 2")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	outer = file.Stmts[0].(*ast.ParenSelect)
+	if outer.Limit == nil {
+		t.Fatal("outer LIMIT dropped")
+	}
+	sel, ok := unwrapParens(outer).(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("inner = %T, want *ast.SelectStmt", unwrapParens(outer))
+	}
+	if sel.Limit == nil {
+		t.Fatal("inner LIMIT overwritten by outer one")
+	}
+}

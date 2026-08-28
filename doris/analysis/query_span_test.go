@@ -694,3 +694,128 @@ func TestGetQuerySpan_MultiStatementPlaceholderFailsClosed(t *testing.T) {
 		t.Fatal("multi-statement placeholder accepted")
 	}
 }
+
+func TestGetQuerySpan_SetOpOuterOrderBySubquery(t *testing.T) {
+	// ORDER BY with a subquery on a grouped set operation lives on
+	// SetOpStmt.OrderBy; visitSetOp must walk it so t3 appears in
+	// AccessTables.
+	span, err := GetQuerySpan("(SELECT a FROM t1) UNION (SELECT b FROM t2) ORDER BY (SELECT max(c) FROM t3)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	for _, want := range []string{"t1", "t2", "t3"} {
+		if !containsSig(sigs, tableSig{Table: want}) {
+			t.Errorf("AccessTables missing %s (got %+v)", want, sigs)
+		}
+	}
+}
+
+func TestGetQuerySpan_SetOpOuterLimitSubquery(t *testing.T) {
+	// Subquery in a LIMIT expression on a set-op must be walked.
+	span, err := GetQuerySpan("SELECT a FROM t1 UNION (SELECT b FROM t2) LIMIT (SELECT max(c) FROM t3)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	for _, want := range []string{"t1", "t2", "t3"} {
+		if !containsSig(sigs, tableSig{Table: want}) {
+			t.Errorf("AccessTables missing %s (got %+v)", want, sigs)
+		}
+	}
+}
+
+func TestGetQuerySpan_RepeatedClauseKeepsSubquery(t *testing.T) {
+	// A repeated trailing group must not erase the inner one: the subquery
+	// table read inside the inner ORDER BY stays in AccessTables.
+	for _, sql := range []string{
+		"(SELECT 1 ORDER BY (SELECT x FROM secret) LIMIT 1) ORDER BY 2",
+		"SELECT 1 ORDER BY (SELECT x FROM secret) ORDER BY 2",
+	} {
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("GetQuerySpan(%q) returned error: %v", sql, err)
+		}
+		sigs := toSigs(span.AccessTables)
+		if !containsSig(sigs, tableSig{Table: "secret"}) {
+			t.Errorf("%s: AccessTables missing secret (got %+v)", sql, sigs)
+		}
+	}
+}
+
+func TestGetQuerySpan_CTEScopeCoversSetOp(t *testing.T) {
+	// The WITH clause on the leftmost SELECT scopes over the whole set
+	// operation (engine-verified): the right arm's c is a CTE reference,
+	// not a physical table.
+	span, err := GetQuerySpan("WITH c AS (SELECT * FROM secret) SELECT 1 UNION SELECT * FROM c")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	if !containsSig(sigs, tableSig{Table: "secret"}) {
+		t.Errorf("AccessTables missing secret (got %+v)", sigs)
+	}
+	if containsSig(sigs, tableSig{Table: "c"}) {
+		t.Errorf("CTE c misreported as a physical table (got %+v)", sigs)
+	}
+}
+
+func TestGetQuerySpan_ParenBoundsCTEScope(t *testing.T) {
+	// The engine scopes a WITH inside parens to that group only
+	// (container-verified: the outer reference fails with "Table [c] does
+	// not exist"), so the right arm's c is a physical table read.
+	span, err := GetQuerySpan("(WITH c AS (SELECT * FROM secret) SELECT 1) UNION SELECT * FROM c")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	for _, want := range []string{"secret", "c"} {
+		if !containsSig(sigs, tableSig{Table: want}) {
+			t.Errorf("AccessTables missing %s (got %+v)", want, sigs)
+		}
+	}
+}
+
+func TestGetQuerySpan_GroupedCTEBody(t *testing.T) {
+	// A CTE body that parses to a GroupedQuery (repeated clause groups) must
+	// still be walked: its table read stays in AccessTables.
+	span, err := GetQuerySpan("WITH c AS (SELECT 1 FROM secret ORDER BY 1 ORDER BY 2) SELECT * FROM c")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	if !containsSig(sigs, tableSig{Table: "secret"}) {
+		t.Errorf("AccessTables missing secret (got %+v)", sigs)
+	}
+}
+
+func TestGetQuerySpan_GroupedSubqueryBody(t *testing.T) {
+	// A subquery body with repeated trailing clause groups is engine-valid
+	// and must analyze instead of erroring as a non-query.
+	span, err := GetQuerySpan("SELECT EXISTS (SELECT 1 FROM secret ORDER BY 1 ORDER BY 2)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	if !containsSig(sigs, tableSig{Table: "secret"}) {
+		t.Errorf("AccessTables missing secret (got %+v)", sigs)
+	}
+}
+
+func TestGetQuerySpan_GroupedClausesOutsideCTEScope(t *testing.T) {
+	// Engine-verified: a repeated trailing clause group sits OUTSIDE the
+	// query's WITH scope — WITH zzg AS (SELECT 1) SELECT 1 LIMIT 1 ORDER BY
+	// (SELECT count(*) FROM zzg) fails with "Table [zzg] does not exist".
+	// The wrapper's subquery therefore reads a physical table c, and the
+	// span must keep reporting it.
+	span, err := GetQuerySpan("WITH c AS (SELECT * FROM secret) SELECT 1 LIMIT 1 ORDER BY (SELECT count(*) FROM c)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	for _, want := range []string{"secret", "c"} {
+		if !containsSig(sigs, tableSig{Table: want}) {
+			t.Errorf("AccessTables missing %s (got %+v)", want, sigs)
+		}
+	}
+}

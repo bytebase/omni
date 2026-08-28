@@ -76,6 +76,30 @@ func TestStarRocksSyntaxConformance(t *testing.T) {
 		{"char_using", "SELECT CHAR(65 USING utf8)", false},
 		{"using_on_aggregate", "SELECT SUM(a USING utf8) FROM t", false},
 		{"binary_operator", "SELECT BINARY 'abc'", true},
+		// Unlike Doris, the general prefix form is engine-valid here.
+		{"binary_int", "SELECT BINARY 1", true},
+		{"binary_func", "SELECT BINARY now()", true},
+		// Unlike Doris, array literal elements take full expressions.
+		{"array_expr_element", "SELECT [1+1]", true},
+		{"array_column_element", "SELECT [a] FROM t", true},
+		{"user_var_string", "SELECT @'quoted'", true},
+		{"paren_select_nested", "((SELECT 1))", true},
+		{"paren_setop_after_nested", "((SELECT 1) UNION SELECT 2)", true},
+		{"paren_setop_after_with", "(WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2)", true},
+		{"paren_trailing_clauses", "(SELECT 1) ORDER BY 1 LIMIT 5", true},
+		{"paren_nested_trailing_limit", "((SELECT 1)) LIMIT 5", true},
+		{"paren_double_order_by", "(SELECT 1 ORDER BY 1) ORDER BY 1", true},
+		{"paren_with_dml_rejected", "(WITH c AS (SELECT 1) DELETE FROM t)", false},
+		{"union_paren_rhs_limit", "SELECT 1 UNION (SELECT 2) LIMIT 5", true},
+		{"paren_inner_trailing_limit", "(SELECT 1 UNION (SELECT 2) LIMIT 5)", true},
+		{"paren_double_limit_nested", "((SELECT 1 LIMIT 1)) LIMIT 2", true},
+		{"paren_double_order_nested", "((SELECT 1 ORDER BY 1)) ORDER BY 2", true},
+		{"paren_order_by_subquery", "(SELECT 1) ORDER BY (SELECT 1)", true},
+		// Unlike Doris, clause order is strict here: a trailing ORDER BY
+		// after the set operation's LIMIT is engine-rejected.
+		{"union_limit_then_order_rejected", "SELECT 1 UNION SELECT 2 LIMIT 5 ORDER BY 1", false},
+		{"select_limit_then_order_rejected", "SELECT 1 LIMIT 5 ORDER BY 1", false},
+		{"build_index_rejected", "BUILD INDEX index1 ON table1", false},
 
 		// Forms the parser deliberately still rejects.
 		{"substring_from", "SELECT SUBSTRING('abcdef' FROM 2)", false},

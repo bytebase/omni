@@ -123,6 +123,10 @@ func walkChildren(v Visitor, node Node) {
 	case *MapEntry:
 		Walk(v, n.Key)
 		Walk(v, n.Value)
+	case *StructLiteral:
+		for _, e := range n.Elements {
+			Walk(v, e)
+		}
 	case *ElementAtExpr:
 		Walk(v, n.Value)
 		Walk(v, n.Index)
@@ -242,6 +246,26 @@ func walkChildren(v Visitor, node Node) {
 	case *SetOpStmt:
 		Walk(v, n.Left)
 		Walk(v, n.Right)
+		for _, item := range n.OrderBy {
+			Walk(v, item)
+		}
+		if n.Limit != nil {
+			Walk(v, n.Limit)
+		}
+		if n.Offset != nil {
+			Walk(v, n.Offset)
+		}
+	case *GroupedQuery:
+		Walk(v, n.Query)
+		for _, item := range n.OrderBy {
+			Walk(v, item)
+		}
+		if n.Limit != nil {
+			Walk(v, n.Limit)
+		}
+		if n.Offset != nil {
+			Walk(v, n.Offset)
+		}
 
 	// DDL — CREATE TABLE nodes (T2.1).
 	case *CreateTableStmt:

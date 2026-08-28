@@ -679,3 +679,291 @@ func TestSelectQualifiedColumnContinuations(t *testing.T) {
 		t.Fatalf("Items[0].Expr = %T, want *ast.FuncCallExpr", stmt.Items[0].Expr)
 	}
 }
+
+func TestParenQueryStatements(t *testing.T) {
+	// Top-level parenthesized queries are engine-valid; the parens are
+	// grouping only, so the inner node comes back directly.
+	file, errs := Parse("(SELECT 1)")
+	if len(errs) != 0 {
+		t.Fatalf("(SELECT 1) errors: %v", errs)
+	}
+	if _, ok := file.Stmts[0].(*ast.SelectStmt); !ok {
+		t.Fatalf("stmt = %T, want *ast.SelectStmt", file.Stmts[0])
+	}
+	file, errs = Parse("((SELECT 1))")
+	if len(errs) != 0 {
+		t.Fatalf("((SELECT 1)) errors: %v", errs)
+	}
+	file, errs = Parse("(SELECT 1) UNION (SELECT 2)")
+	if len(errs) != 0 {
+		t.Fatalf("union errors: %v", errs)
+	}
+	if _, ok := file.Stmts[0].(*ast.SetOpStmt); !ok {
+		t.Fatalf("stmt = %T, want *ast.SetOpStmt", file.Stmts[0])
+	}
+	if _, errs := Parse("(INSERT INTO t VALUES (1))"); len(errs) == 0 {
+		t.Error("(INSERT ...) parsed, want error")
+	}
+}
+
+func TestParenQuerySetOpTails(t *testing.T) {
+	// A set-op tail follows any operand kind inside the parens
+	// (engine-verified accepts).
+	for _, sql := range []string{
+		"((SELECT 1) UNION SELECT 2)",
+		"((SELECT 1) UNION SELECT 2 UNION SELECT 3)",
+		"((SELECT 1) INTERSECT SELECT 2)",
+	} {
+		file, errs := Parse(sql)
+		if len(errs) != 0 {
+			t.Fatalf("%s errors: %v", sql, errs)
+		}
+		if _, ok := file.Stmts[0].(*ast.SetOpStmt); !ok {
+			t.Fatalf("%s: stmt = %T, want *ast.SetOpStmt", sql, file.Stmts[0])
+		}
+	}
+
+	// A WITH-bearing group keeps its scope-boundary wrapper.
+	file, errs := Parse("(WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2)")
+	if len(errs) != 0 {
+		t.Fatalf("paren WITH union errors: %v", errs)
+	}
+	g, ok := file.Stmts[0].(*ast.GroupedQuery)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.GroupedQuery (CTE scope boundary)", file.Stmts[0])
+	}
+	if _, ok := g.Query.(*ast.SetOpStmt); !ok {
+		t.Fatalf("Query = %T, want *ast.SetOpStmt", g.Query)
+	}
+}
+
+func TestParenBoundsCTEScope(t *testing.T) {
+	// (WITH c AS (...) SELECT 1) UNION SELECT * FROM c: the engine scopes c
+	// to the parens ("Table [c] does not exist", container-verified), so the
+	// left arm stays wrapped in the boundary node.
+	file, errs := Parse("(WITH c AS (SELECT 1) SELECT 1) UNION SELECT * FROM c")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	setOp, ok := file.Stmts[0].(*ast.SetOpStmt)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.SetOpStmt", file.Stmts[0])
+	}
+	if _, ok := setOp.Left.(*ast.GroupedQuery); !ok {
+		t.Fatalf("Left = %T, want *ast.GroupedQuery (scope boundary)", setOp.Left)
+	}
+
+	// A CTE body may itself be parenthesized (engine-verified).
+	if _, errs := Parse("WITH c AS ((SELECT 1)) SELECT * FROM c"); len(errs) != 0 {
+		t.Fatalf("paren CTE body errors: %v", errs)
+	}
+}
+
+func TestParenQueryTrailingClauses(t *testing.T) {
+	// Outer ORDER BY / LIMIT attach to the grouped query rather than being
+	// consumed and dropped.
+	file, errs := Parse("(SELECT 1) ORDER BY 1 LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	sel, ok := file.Stmts[0].(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.SelectStmt", file.Stmts[0])
+	}
+	if len(sel.OrderBy) != 1 || sel.Limit == nil {
+		t.Fatalf("clauses dropped: OrderBy=%d Limit=%v", len(sel.OrderBy), sel.Limit)
+	}
+
+	file, errs = Parse("((SELECT 1)) LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	if sel := file.Stmts[0].(*ast.SelectStmt); sel.Limit == nil {
+		t.Fatal("LIMIT dropped on nested paren query")
+	}
+
+	file, errs = Parse("(SELECT 1) UNION (SELECT 2) ORDER BY 1 LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	setOp, ok := file.Stmts[0].(*ast.SetOpStmt)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.SetOpStmt", file.Stmts[0])
+	}
+	if len(setOp.OrderBy) != 1 || setOp.Limit == nil {
+		t.Fatalf("clauses dropped: OrderBy=%d Limit=%v", len(setOp.OrderBy), setOp.Limit)
+	}
+
+	// The strict trailing-token check still applies after the clauses.
+	if _, errs := Parse("(SELECT 1) ORDER BY 1 LIMIT 5 x"); len(errs) == 0 {
+		t.Error("junk after trailing clauses parsed, want error")
+	}
+}
+
+func TestQueryTailStatementLevel(t *testing.T) {
+	// Trailing clauses after a set operation whose right operand is
+	// parenthesized (engine-verified accepts).
+	file, errs := Parse("SELECT 1 UNION (SELECT 2) LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	setOp := file.Stmts[0].(*ast.SetOpStmt)
+	if setOp.Limit == nil {
+		t.Fatal("LIMIT not attached to statement-level set operation")
+	}
+
+	file, errs = Parse("SELECT 1 UNION (SELECT 2) ORDER BY 1 LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	setOp = file.Stmts[0].(*ast.SetOpStmt)
+	if len(setOp.OrderBy) != 1 || setOp.Limit == nil {
+		t.Fatalf("clauses dropped: OrderBy=%d Limit=%v", len(setOp.OrderBy), setOp.Limit)
+	}
+
+	// WITH ... SELECT continues with set operators at statement level.
+	file, errs = Parse("WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2")
+	if len(errs) != 0 {
+		t.Fatalf("WITH union errors: %v", errs)
+	}
+	setOp, ok := file.Stmts[0].(*ast.SetOpStmt)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.SetOpStmt", file.Stmts[0])
+	}
+	left, ok := setOp.Left.(*ast.SelectStmt)
+	if !ok || left.With == nil {
+		t.Fatalf("WITH clause lost from left arm (%T, With=%v)", setOp.Left, ok && left.With != nil)
+	}
+
+	// A CTE body takes a set-op tail too.
+	file, errs = Parse("WITH c AS (SELECT 1 UNION SELECT 2) SELECT * FROM c")
+	if len(errs) != 0 {
+		t.Fatalf("CTE body union errors: %v", errs)
+	}
+	sel := file.Stmts[0].(*ast.SelectStmt)
+	if _, ok := sel.With.CTEs[0].Query.(*ast.SetOpStmt); !ok {
+		t.Fatalf("CTE query = %T, want *ast.SetOpStmt", sel.With.CTEs[0].Query)
+	}
+
+	// The engine is lenient about clause order and repetition
+	// (container-verified). A second group lands on a wrapper so the two
+	// stay ordered: LIMIT-first-then-ORDER is not ORDER-then-LIMIT.
+	file, errs = Parse("SELECT 1 LIMIT 5 ORDER BY 1")
+	if len(errs) != 0 {
+		t.Fatalf("LIMIT-then-ORDER errors: %v", errs)
+	}
+	g, ok := file.Stmts[0].(*ast.GroupedQuery)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.GroupedQuery", file.Stmts[0])
+	}
+	if len(g.OrderBy) != 1 || g.Query.(*ast.SelectStmt).Limit == nil {
+		t.Fatalf("clause layers wrong: outer OrderBy=%d inner Limit=%v", len(g.OrderBy), g.Query.(*ast.SelectStmt).Limit)
+	}
+	if _, errs := Parse("SELECT 1 ORDER BY 1 ORDER BY 2"); len(errs) != 0 {
+		t.Fatalf("repeated ORDER BY errors: %v", errs)
+	}
+
+	// Junk after the clauses still errors.
+	if _, errs := Parse("SELECT 1 UNION (SELECT 2) GARBAGE"); len(errs) == 0 {
+		t.Error("junk after set operation parsed, want error")
+	}
+}
+
+func TestGroupedQueryWrapOnConflict(t *testing.T) {
+	// A trailing group that repeats a clause the query already carries wraps
+	// in GroupedQuery instead of overwriting — both layers stay in the tree.
+	file, errs := Parse("(SELECT 1 ORDER BY 1) ORDER BY 2")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	g, ok := file.Stmts[0].(*ast.GroupedQuery)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.GroupedQuery", file.Stmts[0])
+	}
+	if len(g.OrderBy) != 1 {
+		t.Fatalf("outer OrderBy = %d, want 1", len(g.OrderBy))
+	}
+	inner, ok := g.Query.(*ast.SelectStmt)
+	if !ok {
+		t.Fatalf("Query = %T, want *ast.SelectStmt", g.Query)
+	}
+	if len(inner.OrderBy) != 1 {
+		t.Fatal("inner ORDER BY overwritten by the outer group")
+	}
+
+	file, errs = Parse("SELECT 1 LIMIT 1 LIMIT 2")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	g, ok = file.Stmts[0].(*ast.GroupedQuery)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.GroupedQuery", file.Stmts[0])
+	}
+	if g.Limit == nil || g.Query.(*ast.SelectStmt).Limit == nil {
+		t.Fatal("one of the LIMIT layers was lost")
+	}
+
+	// Different clause kinds also wrap: (SELECT a FROM t LIMIT 1) ORDER BY a
+	// limits first and then orders, which is not the same operation as
+	// SELECT a FROM t ORDER BY a LIMIT 1.
+	file, errs = Parse("(SELECT a FROM t LIMIT 1) ORDER BY a")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	g, ok = file.Stmts[0].(*ast.GroupedQuery)
+	if !ok {
+		t.Fatalf("stmt = %T, want *ast.GroupedQuery", file.Stmts[0])
+	}
+	if len(g.OrderBy) != 1 || g.Query.(*ast.SelectStmt).Limit == nil {
+		t.Fatal("cross-kind clause layers lost")
+	}
+
+	// No clause on the node — no wrapper: the group attaches in place.
+	file, errs = Parse("(SELECT 1) ORDER BY 1")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	if _, ok := file.Stmts[0].(*ast.SelectStmt); !ok {
+		t.Fatalf("stmt = %T, want *ast.SelectStmt (no wrapper without conflict)", file.Stmts[0])
+	}
+
+	// Both clause layers are reachable from Walk.
+	file, errs = Parse("SELECT 1 ORDER BY a ORDER BY b")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	count := 0
+	ast.Inspect(file.Stmts[0], func(n ast.Node) bool {
+		if n != nil && n.Tag() == ast.T_ColumnRef {
+			count++
+		}
+		return true
+	})
+	if count != 2 {
+		t.Errorf("ColumnRef visited %d times, want 2 (both ORDER BY layers)", count)
+	}
+}
+
+func TestParenQueryLocCoversParens(t *testing.T) {
+	// The parens are grouping only, but NodeLoc must cover the delimiters
+	// and any trailing clauses, or source extraction drops them.
+	for _, sql := range []string{
+		"(SELECT 1)",
+		"((SELECT 1))",
+		"(SELECT 1) ORDER BY 1 LIMIT 5",
+		"((SELECT 1) UNION SELECT 2)",
+		"SELECT 1 UNION (SELECT 2) LIMIT 5",
+		"(SELECT 1 ORDER BY 1) ORDER BY 2",
+		"(SELECT 1 LIMIT 1) ORDER BY 2",
+		"(WITH c AS (SELECT 1) SELECT 1)",
+	} {
+		file, errs := Parse(sql)
+		if len(errs) != 0 {
+			t.Fatalf("%s errors: %v", sql, errs)
+		}
+		loc := ast.NodeLoc(file.Stmts[0])
+		if loc.Start != 0 || loc.End != len(sql) {
+			t.Errorf("%s: NodeLoc = [%d,%d), want [0,%d)", sql, loc.Start, loc.End, len(sql))
+		}
+	}
+}

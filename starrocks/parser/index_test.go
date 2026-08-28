@@ -191,51 +191,18 @@ func TestDropIndexIfExists(t *testing.T) {
 	}
 }
 
-func TestBuildIndexBasic(t *testing.T) {
-	sql := "BUILD INDEX idx ON t"
-	node := parseIndexStmt(t, sql)
-
-	stmt, ok := node.(*ast.BuildIndexStmt)
-	if !ok {
-		t.Fatalf("expected *ast.BuildIndexStmt, got %T", node)
-	}
-	if stmt.Name.String() != "idx" {
-		t.Errorf("Name = %q, want %q", stmt.Name.String(), "idx")
-	}
-	if stmt.Table.String() != "t" {
-		t.Errorf("Table = %q, want %q", stmt.Table.String(), "t")
-	}
-	if len(stmt.Partitions) != 0 {
-		t.Errorf("Partitions = %v, want empty", stmt.Partitions)
-	}
-}
-
-func TestBuildIndexWithPartitions(t *testing.T) {
-	sql := "BUILD INDEX idx ON t PARTITIONS(p1, p2)"
-	node := parseIndexStmt(t, sql)
-
-	stmt, ok := node.(*ast.BuildIndexStmt)
-	if !ok {
-		t.Fatalf("expected *ast.BuildIndexStmt, got %T", node)
-	}
-	if len(stmt.Partitions) != 2 {
-		t.Fatalf("Partitions = %v, want 2 partitions", stmt.Partitions)
-	}
-	if stmt.Partitions[0] != "p1" || stmt.Partitions[1] != "p2" {
-		t.Errorf("Partitions = %v, want [p1 p2]", stmt.Partitions)
-	}
-}
-
-func TestBuildIndexQualifiedTable(t *testing.T) {
-	sql := "BUILD INDEX idx ON db.t PARTITIONS(p1)"
-	node := parseIndexStmt(t, sql)
-
-	stmt, ok := node.(*ast.BuildIndexStmt)
-	if !ok {
-		t.Fatalf("expected *ast.BuildIndexStmt, got %T", node)
-	}
-	if stmt.Table.String() != "db.t" {
-		t.Errorf("Table = %q, want %q", stmt.Table.String(), "db.t")
+func TestBuildIndexRejected(t *testing.T) {
+	// BUILD INDEX came with the doris fork, but the StarRocks engine rejects
+	// the statement in every form (container-verified); index builds happen
+	// through ALTER TABLE here.
+	for _, sql := range []string{
+		"BUILD INDEX idx ON t",
+		"BUILD INDEX idx ON t PARTITIONS(p1, p2)",
+		"BUILD INDEX idx ON db.t PARTITIONS(p1)",
+	} {
+		if _, errs := Parse(sql); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want rejection", sql)
+		}
 	}
 }
 
@@ -258,16 +225,6 @@ func TestDropIndexLocIsSet(t *testing.T) {
 	node := parseIndexStmt(t, sql)
 
 	stmt := node.(*ast.DropIndexStmt)
-	if !stmt.Loc.IsValid() {
-		t.Errorf("Loc = %v, want valid location", stmt.Loc)
-	}
-}
-
-func TestBuildIndexLocIsSet(t *testing.T) {
-	sql := "BUILD INDEX idx ON t"
-	node := parseIndexStmt(t, sql)
-
-	stmt := node.(*ast.BuildIndexStmt)
 	if !stmt.Loc.IsValid() {
 		t.Errorf("Loc = %v, want valid location", stmt.Loc)
 	}

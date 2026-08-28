@@ -66,6 +66,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *MapEntry:
 		return v.Loc
+	case *StructLiteral:
+		return v.Loc
 	case *ElementAtExpr:
 		return v.Loc
 	case *ArraySliceExpr:
@@ -103,6 +105,8 @@ func NodeLoc(n Node) Loc {
 	case *JoinClause:
 		return v.Loc
 	case *SetOpStmt:
+		return v.Loc
+	case *GroupedQuery:
 		return v.Loc
 	case *CreateTableStmt:
 		return v.Loc

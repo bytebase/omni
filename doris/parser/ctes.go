@@ -116,15 +116,21 @@ func (p *Parser) parseCTE() (*ast.CTE, error) {
 	// Inner SELECT statement. If it starts with WITH, recurse; otherwise parse
 	// a plain SELECT followed by optional set-operator tail (UNION/INTERSECT/EXCEPT).
 	var innerStmt ast.Node
-	if p.cur.Kind == kwWITH {
+	switch p.cur.Kind {
+	case kwWITH:
 		innerStmt, err = p.parseWithSelect()
-	} else {
-		sel, err2 := p.parseSelectStmt()
-		if err2 != nil {
-			return nil, err2
-		}
-		innerStmt, err = p.parseSetOpTail(sel)
+	case int('('):
+		// WITH c AS ((SELECT 1)) ... is engine-verified valid.
+		innerStmt, err = p.parseParenQueryOperand()
+	default:
+		innerStmt, err = p.parseSelectStmt()
 	}
+	if err != nil {
+		return nil, err
+	}
+	// Either operand form continues with set operators and, after one,
+	// trailing clauses — WITH c AS (SELECT 1 UNION (SELECT 2) LIMIT 5) ...
+	innerStmt, err = p.parseQueryTail(innerStmt)
 	if err != nil {
 		return nil, err
 	}

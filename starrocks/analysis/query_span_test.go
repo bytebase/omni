@@ -878,3 +878,60 @@ func TestGetQuerySpan_MultiStatementPlaceholderFailsClosed(t *testing.T) {
 		t.Fatal("multi-statement placeholder accepted")
 	}
 }
+
+func TestGetQuerySpan_NestedParenSelect(t *testing.T) {
+	span, err := GetQuerySpan("((SELECT * FROM secret))")
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "secret" {
+		t.Fatalf("AccessTables = %+v, want [secret]", span.AccessTables)
+	}
+}
+
+func TestGetQuerySpan_ParenOuterOrderBySubquery(t *testing.T) {
+	// Clauses outside the parens live on the ParenSelect wrapper;
+	// visitSetOpArm must walk them so t3 appears in AccessTables.
+	span, err := GetQuerySpan("(SELECT a FROM t1) ORDER BY (SELECT max(c) FROM t3)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	for _, want := range []string{"t1", "t3"} {
+		if !containsSig(sigs, tableSig{Table: want}) {
+			t.Errorf("AccessTables missing %s (got %+v)", want, sigs)
+		}
+	}
+}
+
+func TestGetQuerySpan_ParenInnerClausesPreserved(t *testing.T) {
+	// An outer clause must not erase an inner one: the subquery inside the
+	// inner ORDER BY keeps contributing its table read.
+	span, err := GetQuerySpan("((SELECT a FROM t1 ORDER BY (SELECT max(c) FROM t3))) ORDER BY 1")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	for _, want := range []string{"t1", "t3"} {
+		if !containsSig(sigs, tableSig{Table: want}) {
+			t.Errorf("AccessTables missing %s (got %+v)", want, sigs)
+		}
+	}
+}
+
+func TestGetQuerySpan_CTEScopeCoversSetOp(t *testing.T) {
+	// The WITH clause on the leftmost SELECT scopes over the whole set
+	// operation (engine-verified): the right arm's c is a CTE reference,
+	// not a physical table.
+	span, err := GetQuerySpan("WITH c AS (SELECT * FROM secret) SELECT 1 UNION SELECT * FROM c")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	sigs := toSigs(span.AccessTables)
+	if !containsSig(sigs, tableSig{Table: "secret"}) {
+		t.Errorf("AccessTables missing secret (got %+v)", sigs)
+	}
+	if containsSig(sigs, tableSig{Table: "c"}) {
+		t.Errorf("CTE c misreported as a physical table (got %+v)", sigs)
+	}
+}

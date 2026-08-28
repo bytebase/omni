@@ -119,7 +119,7 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		result, err := p.parseSetOpTail(sel)
+		result, err := p.parseQueryTail(sel)
 		if err != nil {
 			return nil, err
 		}
@@ -130,7 +130,11 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		stmt.Query = withStmt
+		result, err := p.parseQueryTail(withStmt)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Query = result
 
 	default:
 		return nil, p.syntaxErrorAtCur()

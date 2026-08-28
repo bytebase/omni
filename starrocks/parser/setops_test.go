@@ -638,16 +638,16 @@ func TestParenSetOpTrailingLimit(t *testing.T) {
 		t.Fatalf("got %T, want *ast.ParenSelect", file.Stmts[0])
 	}
 
-	inner, ok := paren.Sel.(*ast.SetOpStmt)
-	if !ok {
+	if _, ok := paren.Sel.(*ast.SetOpStmt); !ok {
 		t.Fatalf("ParenSelect.Sel = %T, want *ast.SetOpStmt", paren.Sel)
 	}
-	if inner.Limit == nil {
-		t.Fatal("inner SetOpStmt.Limit is nil, want LIMIT 5")
+	// The clause sits outside the parens, so it lands on the wrapper.
+	if paren.Limit == nil {
+		t.Fatal("ParenSelect.Limit is nil, want LIMIT 5")
 	}
-	lit, ok := inner.Limit.(*ast.Literal)
+	lit, ok := paren.Limit.(*ast.Literal)
 	if !ok {
-		t.Fatalf("Limit = %T, want *ast.Literal", inner.Limit)
+		t.Fatalf("Limit = %T, want *ast.Literal", paren.Limit)
 	}
 	if lit.Value != "5" {
 		t.Errorf("Limit = %q, want %q", lit.Value, "5")
@@ -673,12 +673,11 @@ func TestParenSelectTrailingLimit(t *testing.T) {
 		t.Fatalf("got %T, want *ast.ParenSelect", file.Stmts[0])
 	}
 
-	inner, ok := paren.Sel.(*ast.SelectStmt)
-	if !ok {
+	if _, ok := paren.Sel.(*ast.SelectStmt); !ok {
 		t.Fatalf("ParenSelect.Sel = %T, want *ast.SelectStmt", paren.Sel)
 	}
-	if inner.Limit == nil {
-		t.Fatal("inner SelectStmt.Limit is nil, want LIMIT 5")
+	if paren.Limit == nil {
+		t.Fatal("ParenSelect.Limit is nil, want LIMIT 5")
 	}
 }
 
@@ -697,14 +696,22 @@ func TestParenSetOpTrailingOrderByLimit(t *testing.T) {
 		t.Fatalf("got %T, want *ast.ParenSelect", file.Stmts[0])
 	}
 
-	inner, ok := paren.Sel.(*ast.SetOpStmt)
-	if !ok {
+	if _, ok := paren.Sel.(*ast.SetOpStmt); !ok {
 		t.Fatalf("ParenSelect.Sel = %T, want *ast.SetOpStmt", paren.Sel)
 	}
-	if len(inner.OrderBy) == 0 {
-		t.Fatal("inner SetOpStmt.OrderBy is empty, want ORDER BY")
+	if len(paren.OrderBy) == 0 {
+		t.Fatal("ParenSelect.OrderBy is empty, want ORDER BY")
 	}
-	if inner.Limit == nil {
-		t.Fatal("inner SetOpStmt.Limit is nil, want LIMIT 5")
+	if paren.Limit == nil {
+		t.Fatal("ParenSelect.Limit is nil, want LIMIT 5")
+	}
+}
+
+func TestUnionLimitThenOrderRejected(t *testing.T) {
+	// The engine rejects a trailing ORDER BY once the set operation already
+	// carries a LIMIT (container-verified), so the statement-level attach
+	// must not consume it.
+	if _, errs := Parse("SELECT 1 UNION SELECT 2 LIMIT 5 ORDER BY 1"); len(errs) == 0 {
+		t.Error("LIMIT-then-ORDER on a union parsed, want error")
 	}
 }

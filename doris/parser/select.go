@@ -173,11 +173,16 @@ func (p *Parser) parseSetOpTail(left ast.Node) (ast.Node, error) {
 			// DISTINCT is the default — all stays false
 		}
 
-		// Parse the right-hand side: must start with SELECT.
-		if p.cur.Kind != kwSELECT {
+		// Parse the right-hand side: a SELECT or a parenthesized operand.
+		var rightSelect ast.Node
+		var err error
+		if p.cur.Kind == int('(') {
+			rightSelect, err = p.parseParenQueryOperand()
+		} else if p.cur.Kind == kwSELECT {
+			rightSelect, err = p.parseSelectStmt()
+		} else {
 			return nil, p.syntaxErrorAtCur()
 		}
-		rightSelect, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}
@@ -197,6 +202,202 @@ func (p *Parser) parseSetOpTail(left ast.Node) (ast.Node, error) {
 	}
 }
 
+// parseParenQueryStmt parses a top-level parenthesized query — (SELECT 1),
+// ((SELECT 1)), (SELECT 1) UNION (SELECT 2) — all engine-verified accepts.
+// The parens are grouping only: the inner query node is returned directly,
+// so analysis sees an ordinary SelectStmt/SetOpStmt.
+func (p *Parser) parseParenQueryStmt() (ast.Node, error) {
+	inner, err := p.parseParenQueryOperand()
+	if err != nil {
+		return nil, err
+	}
+	return p.parseQueryTail(inner)
+}
+
+// parseQueryTail applies the set-operator tail to a parsed query operand,
+// then any trailing ORDER BY / LIMIT the operands did not consume. The
+// engine is lenient here — SELECT 1 LIMIT 5 ORDER BY 1, SELECT 1 UNION
+// (SELECT 2) LIMIT 5, and even repeated groups like SELECT 1 ORDER BY 1
+// ORDER BY 2 or (SELECT 1 ORDER BY 1) ORDER BY 1 are all engine-verified
+// accepts — so the attach loops, and where a clause repeats the outer
+// (last, semantically governing) one wins.
+func (p *Parser) parseQueryTail(node ast.Node) (ast.Node, error) {
+	node, err := p.parseSetOpTail(node)
+	if err != nil {
+		return nil, err
+	}
+	return p.parseTrailingQueryClauses(node)
+}
+
+// parseTrailingQueryClauses parses trailing ORDER BY / LIMIT groups
+// following a query and attaches them to the node, extending its range over
+// the consumed clauses. A group that would repeat a clause the node already
+// carries — (SELECT 1 ORDER BY 1) ORDER BY 2, SELECT 1 ORDER BY 1 ORDER
+// BY 2 — wraps the node in a GroupedQuery instead of overwriting it, so the
+// inner clause (and any subquery table read inside it) stays in the tree.
+func (p *Parser) parseTrailingQueryClauses(node ast.Node) (ast.Node, error) {
+	switch node.(type) {
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.GroupedQuery:
+	default:
+		return node, nil
+	}
+	for p.cur.Kind == kwORDER || p.cur.Kind == kwLIMIT {
+		var orderBy []*ast.OrderByItem
+		var limit, offset ast.Node
+		if p.cur.Kind == kwORDER {
+			p.advance() // consume ORDER
+			if _, err := p.expect(kwBY); err != nil {
+				return nil, err
+			}
+			var err error
+			orderBy, err = p.parseOrderByList()
+			if err != nil {
+				return nil, err
+			}
+		}
+		if p.cur.Kind == kwLIMIT {
+			var err error
+			limit, offset, err = p.parseLimitClause()
+			if err != nil {
+				return nil, err
+			}
+		}
+		node = attachTrailingClauses(node, orderBy, limit, offset, p.prev.Loc.End)
+	}
+	return node, nil
+}
+
+// attachTrailingClauses stores one parsed trailing group on node, wrapping in
+// a GroupedQuery when a slot is already occupied.
+func attachTrailingClauses(node ast.Node, orderBy []*ast.OrderByItem, limit, offset ast.Node, end int) ast.Node {
+	var haveOrder, haveLimit bool
+	switch n := node.(type) {
+	case *ast.SelectStmt:
+		haveOrder, haveLimit = len(n.OrderBy) > 0, n.Limit != nil
+	case *ast.SetOpStmt:
+		haveOrder, haveLimit = len(n.OrderBy) > 0, n.Limit != nil
+	case *ast.GroupedQuery:
+		haveOrder, haveLimit = len(n.OrderBy) > 0, n.Limit != nil
+	}
+	// Any clause already on the node forces a wrapper — including a
+	// different kind: (SELECT a FROM t LIMIT 1) ORDER BY a is NOT
+	// SELECT a FROM t ORDER BY a LIMIT 1 (the grouped form limits first,
+	// then orders), so the two groups must stay on distinct nodes.
+	if haveOrder || haveLimit {
+		return &ast.GroupedQuery{
+			Query:   node,
+			OrderBy: orderBy,
+			Limit:   limit,
+			Offset:  offset,
+			Loc:     ast.Loc{Start: ast.NodeLoc(node).Start, End: end},
+		}
+	}
+	switch n := node.(type) {
+	case *ast.SelectStmt:
+		if len(orderBy) > 0 {
+			n.OrderBy = orderBy
+		}
+		if limit != nil {
+			n.Limit = limit
+			n.Offset = offset
+		}
+		n.Loc.End = end
+	case *ast.SetOpStmt:
+		if len(orderBy) > 0 {
+			n.OrderBy = orderBy
+		}
+		if limit != nil {
+			n.Limit = limit
+			n.Offset = offset
+		}
+		n.Loc.End = end
+	case *ast.GroupedQuery:
+		if len(orderBy) > 0 {
+			n.OrderBy = orderBy
+		}
+		if limit != nil {
+			n.Limit = limit
+			n.Offset = offset
+		}
+		n.Loc.End = end
+	}
+	return node
+}
+
+// parseParenQueryOperand parses one parenthesized query operand, nesting
+// freely: '(' followed by a SELECT query, a WITH query, or another
+// parenthesized operand, then ')'.
+func (p *Parser) parseParenQueryOperand() (ast.Node, error) {
+	openTok, err := p.expect(int('('))
+	if err != nil {
+		return nil, err
+	}
+	var inner ast.Node
+	switch p.cur.Kind {
+	case int('('):
+		inner, err = p.parseParenQueryOperand()
+	case kwSELECT:
+		inner, err = p.parseSelectStmt()
+	case kwWITH:
+		inner, err = p.parseWithSelect()
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	if err != nil {
+		return nil, err
+	}
+	// A set-op tail (and, after one, trailing clauses) may follow any operand
+	// inside the parens — ((SELECT 1) UNION SELECT 2) and (SELECT 1 UNION
+	// (SELECT 2) LIMIT 5) are engine-verified accepts.
+	inner, err = p.parseQueryTail(inner)
+	if err != nil {
+		return nil, err
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	// The parens are grouping only, but the statement's source range must
+	// still cover them, or consumers slicing by NodeLoc drop the delimiters.
+	switch n := inner.(type) {
+	case *ast.SelectStmt:
+		n.Loc.Start = openTok.Loc.Start
+		n.Loc.End = closeTok.Loc.End
+	case *ast.SetOpStmt:
+		n.Loc.Start = openTok.Loc.Start
+		n.Loc.End = closeTok.Loc.End
+	case *ast.GroupedQuery:
+		n.Loc.Start = openTok.Loc.Start
+		n.Loc.End = closeTok.Loc.End
+	}
+	// A WITH inside the parens is scoped to this group only — the engine
+	// rejects (WITH c AS (SELECT 1) SELECT 1) UNION SELECT * FROM c with
+	// "Table [c] does not exist" (container-verified) — so a group whose
+	// leading query carries a WITH keeps an explicit boundary node that
+	// analysis will not hoist the CTE names across.
+	if leadingWith(inner) != nil {
+		inner = &ast.GroupedQuery{Query: inner, Loc: ast.NodeLoc(inner)}
+	}
+	return inner, nil
+}
+
+// leadingWith walks the left spine of a query to its leading SelectStmt and
+// returns that SELECT's WITH clause. A GroupedQuery is a scope boundary (it
+// only arises from parens or repeated clause groups), so the walk stops
+// there — mirroring analysis's leftmostWith.
+func leadingWith(node ast.Node) *ast.WithClause {
+	for {
+		switch n := node.(type) {
+		case *ast.SetOpStmt:
+			node = n.Left
+		case *ast.SelectStmt:
+			return n.With
+		default:
+			return nil
+		}
+	}
+}
+
 // parseIntersectChain collects a left-associative chain of INTERSECT clauses
 // starting from an already-parsed left node.
 func (p *Parser) parseIntersectChain(left ast.Node) (ast.Node, error) {
@@ -212,10 +413,15 @@ func (p *Parser) parseIntersectChain(left ast.Node) (ast.Node, error) {
 			p.advance()
 		}
 
-		if p.cur.Kind != kwSELECT {
+		var right ast.Node
+		var err error
+		if p.cur.Kind == int('(') {
+			right, err = p.parseParenQueryOperand()
+		} else if p.cur.Kind == kwSELECT {
+			right, err = p.parseSelectStmt()
+		} else {
 			return nil, p.syntaxErrorAtCur()
 		}
-		right, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
 		}

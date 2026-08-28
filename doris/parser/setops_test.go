@@ -261,6 +261,28 @@ func TestSetOpStmtWalk(t *testing.T) {
 	}
 }
 
+func TestSetOpStmtWalkTrailingClauses(t *testing.T) {
+	// The ORDER BY / LIMIT attached to a grouped set operation must be
+	// reachable from Walk, or their column refs vanish from analysis.
+	file, errs := Parse("(SELECT 1) UNION (SELECT 2) ORDER BY c LIMIT 5")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	count := make(map[ast.NodeTag]int)
+	ast.Inspect(file.Stmts[0], func(n ast.Node) bool {
+		if n != nil {
+			count[n.Tag()]++
+		}
+		return true
+	})
+	if count[ast.T_OrderByItem] != 1 {
+		t.Errorf("T_OrderByItem visited %d times, want 1", count[ast.T_OrderByItem])
+	}
+	if count[ast.T_ColumnRef] != 1 {
+		t.Errorf("T_ColumnRef visited %d times, want 1", count[ast.T_ColumnRef])
+	}
+}
+
 // ---------------------------------------------------------------------------
 // No-op: plain SELECT still returns *ast.SelectStmt (not wrapped)
 // ---------------------------------------------------------------------------

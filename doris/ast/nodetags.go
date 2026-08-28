@@ -104,6 +104,9 @@ const (
 	// T_MapEntry is the tag for *MapEntry (one k: v pair).
 	T_MapEntry
 
+	// T_StructLiteral is the tag for *StructLiteral ({c1, c2, ...}).
+	T_StructLiteral
+
 	// T_ElementAtExpr is the tag for *ElementAtExpr (value[index]).
 	T_ElementAtExpr
 
@@ -164,6 +167,10 @@ const (
 
 	// T_SetOpStmt is the tag for *SetOpStmt (UNION/INTERSECT/EXCEPT/MINUS).
 	T_SetOpStmt
+
+	// T_GroupedQuery is the tag for *GroupedQuery (a repeated trailing
+	// ORDER BY / LIMIT group on an already-clause-bearing query).
+	T_GroupedQuery
 
 	// DDL — CREATE TABLE nodes (T2.1).
 
@@ -689,6 +696,8 @@ func (t NodeTag) String() string {
 		return "MapLiteral"
 	case T_MapEntry:
 		return "MapEntry"
+	case T_StructLiteral:
+		return "StructLiteral"
 	case T_ElementAtExpr:
 		return "ElementAtExpr"
 	case T_ArraySliceExpr:
@@ -727,6 +736,8 @@ func (t NodeTag) String() string {
 		return "JoinClause"
 	case T_SetOpStmt:
 		return "SetOpStmt"
+	case T_GroupedQuery:
+		return "GroupedQuery"
 	case T_CreateTableStmt:
 		return "CreateTableStmt"
 	case T_ColumnDef:

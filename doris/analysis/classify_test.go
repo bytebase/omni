@@ -13,6 +13,8 @@ func TestClassify(t *testing.T) {
 		{"SELECT 1", QueryTypeSelect},
 		{"select * from t", QueryTypeSelect},
 		{"WITH cte AS (SELECT 1) SELECT * FROM cte", QueryTypeSelect},
+		{"((SELECT 1))", QueryTypeSelect},
+		{"(SELECT 1) UNION SELECT 2", QueryTypeSelect},
 		{"with cte as (select 1) select * from cte", QueryTypeSelect},
 
 		// Info-schema / admin reads
@@ -87,7 +89,9 @@ func TestClassify(t *testing.T) {
 		{"", QueryTypeUnknown},
 		{"FOOBAR", QueryTypeUnknown},
 		{"42", QueryTypeUnknown},
-		{"(SELECT 1)", QueryTypeUnknown}, // leading '(' is not a keyword
+		// Query-grouping parens are transparent: (SELECT 1) is a SELECT
+		// (engine-verified; the paren dispatch parses it as one).
+		{"(SELECT 1)", QueryTypeSelect},
 	}
 
 	for _, tc := range tests {

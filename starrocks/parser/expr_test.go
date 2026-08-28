@@ -1685,3 +1685,11 @@ func TestExprElementAtAndSlice(t *testing.T) {
 		}
 	}
 }
+
+func TestExprStringUserVariable(t *testing.T) {
+	node := mustParseExpr(t, "@'quoted'")
+	v, ok := node.(*ast.VariableRef)
+	if !ok || v.System || v.Name != "quoted" {
+		t.Fatalf("node = %+v, want user VariableRef quoted", node)
+	}
+}

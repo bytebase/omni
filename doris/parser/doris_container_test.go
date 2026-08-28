@@ -286,8 +286,59 @@ func TestDorisSyntaxConformance(t *testing.T) {
 		{"using_on_aggregate", "SELECT SUM(a USING utf8) FROM t", false},
 		{"using_on_scalar", "SELECT abs(1 USING utf8)", false},
 
-		// BINARY operator.
+		// BINARY operator — primary-level only: an identifier or string
+		// literal (StarRocks differs and accepts the general prefix form).
 		{"binary_operator", "SELECT BINARY 'abc'", true},
+		{"binary_column", "SELECT BINARY a FROM t", true},
+		{"binary_int_rejected", "SELECT BINARY 1", false},
+		{"binary_paren_rejected", "SELECT BINARY (1)", false},
+		{"binary_func_rejected", "SELECT BINARY now()", false},
+
+		// Collection literal elements are constants: literals and nested
+		// collection literals only (StarRocks arrays take full expressions).
+		{"array_nested_literal", "SELECT [[1],[2]]", true},
+		{"array_mixed_literals", "SELECT [NULL, 1]", true},
+		{"array_signed_number_rejected", "SELECT [-1, +2]", false},
+		{"array_expr_element_rejected", "SELECT [1+1]", false},
+		{"array_column_element_rejected", "SELECT [a] FROM t", false},
+		{"map_nested_literal", "SELECT {'a': [1,2]}", true},
+		{"map_expr_value_rejected", "SELECT {'a': 1+1}", false},
+		{"struct_literal", "SELECT {1, 2}", true},
+		{"struct_single_element", "SELECT {'a'}", true},
+
+		// String-form user variables.
+		{"user_var_string", "SELECT @'quoted'", true},
+
+		// Top-level parenthesized queries.
+		{"paren_select_stmt", "(SELECT 1)", true},
+		{"paren_select_nested", "((SELECT 1))", true},
+		{"paren_select_union", "(SELECT 1) UNION (SELECT 2)", true},
+		{"paren_setop_after_nested", "((SELECT 1) UNION SELECT 2)", true},
+		{"paren_setop_after_with", "(WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2)", true},
+		{"paren_trailing_clauses", "(SELECT 1) ORDER BY 1 LIMIT 5", true},
+		{"paren_nested_trailing_limit", "((SELECT 1)) LIMIT 5", true},
+		{"paren_double_order_by", "(SELECT 1 ORDER BY 1) ORDER BY 1", true},
+		{"paren_with_dml_rejected", "(WITH c AS (SELECT 1) DELETE FROM t)", false},
+		{"union_paren_rhs_limit", "SELECT 1 UNION (SELECT 2) LIMIT 5", true},
+		{"union_paren_rhs_order_limit", "SELECT 1 UNION (SELECT 2) ORDER BY 1 LIMIT 5", true},
+		{"intersect_paren_rhs_limit", "SELECT 1 INTERSECT (SELECT 2) LIMIT 3", true},
+		{"with_union", "WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2", true},
+		{"with_union_paren_rhs_limit", "WITH c AS (SELECT 1) SELECT 1 UNION (SELECT 2) LIMIT 5", true},
+		{"cte_body_union", "WITH c AS (SELECT 1 UNION SELECT 2) SELECT * FROM c", true},
+		{"paren_inner_trailing_limit", "(SELECT 1 UNION (SELECT 2) LIMIT 5)", true},
+		// Unlike StarRocks, clause order and repetition are lenient here.
+		{"select_limit_then_order", "SELECT 1 LIMIT 5 ORDER BY 1", true},
+		{"union_limit_then_order", "SELECT 1 UNION SELECT 2 LIMIT 5 ORDER BY 1", true},
+		{"select_double_order_by", "SELECT 1 ORDER BY 1 ORDER BY 2", true},
+		{"paren_nested_double_order", "((SELECT 1 ORDER BY 1) ORDER BY 1)", true},
+		{"order_by_subquery", "SELECT 1 ORDER BY (SELECT 1)", true},
+		{"setop_order_by_subquery", "(SELECT 1) UNION (SELECT 2) ORDER BY (SELECT 1)", true},
+		{"insert_union_paren_limit", "INSERT INTO t SELECT 1 UNION (SELECT 2) LIMIT 5", true},
+		{"cte_body_paren", "WITH c AS ((SELECT 1)) SELECT * FROM c", true},
+		{"cte_body_double_order", "WITH c AS (SELECT 1 ORDER BY 1 ORDER BY 2) SELECT * FROM c", true},
+		{"paren_limit_then_outer_order", "(SELECT 1 LIMIT 1) ORDER BY 1", true},
+		{"paren_scoped_cte_union", "(WITH c AS (SELECT 1) SELECT 1) UNION SELECT * FROM c", true},
+		{"exists_grouped_subquery", "SELECT EXISTS (SELECT 1 FROM t ORDER BY 1 ORDER BY 2)", true},
 
 		// --- Constructs previously hidden by the trailing-token swallow
 		// (BYT-10084): each parsed as a valid prefix and silently dropped the

@@ -1733,3 +1733,82 @@ func TestExprElementAtAndSlice(t *testing.T) {
 		}
 	}
 }
+
+func TestExprBinaryPrimaryOnly(t *testing.T) {
+	// BINARY binds at primary level to an identifier or string literal only
+	// (engine-verified); anything else is a syntax error, and the operand
+	// never swallows a comparison.
+	for _, bad := range []string{"SELECT BINARY 1", "SELECT BINARY (1)", "SELECT BINARY now()", "SELECT BINARY concat('a','b')"} {
+		if _, errs := Parse(bad); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want error", bad)
+		}
+	}
+
+	node := mustParseExpr(t, "BINARY 'abc'")
+	un := node.(*ast.UnaryExpr)
+	if _, ok := un.Expr.(*ast.Literal); !ok {
+		t.Errorf("BINARY 'abc' operand = %T, want *ast.Literal", un.Expr)
+	}
+
+	// The engine shape is (BINARY a) = 'x', not BINARY(a = 'x').
+	node = mustParseExpr(t, "BINARY a = 'x'")
+	cmp, ok := node.(*ast.BinaryExpr)
+	if !ok || cmp.Op != ast.BinEq {
+		t.Fatalf("node = %+v, want equality at the top", node)
+	}
+	lhs, ok := cmp.Left.(*ast.UnaryExpr)
+	if !ok || lhs.Op != ast.UnaryBinary {
+		t.Fatalf("Left = %T, want BINARY unary", cmp.Left)
+	}
+	if _, ok := lhs.Expr.(*ast.ColumnRef); !ok {
+		t.Errorf("BINARY operand = %T, want *ast.ColumnRef", lhs.Expr)
+	}
+}
+
+func TestExprCollectionConstants(t *testing.T) {
+	// Collection literal elements are constants (engine-verified): literals
+	// and nested collection literals, nothing computed.
+	for _, bad := range []string{"SELECT [1+1]", "SELECT [a] FROM t", "SELECT {'a': 1+1}", "SELECT {'a': b} FROM t", "SELECT [now()]", "SELECT [-1]"} {
+		if _, errs := Parse(bad); len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want error", bad)
+		}
+	}
+	for _, good := range []string{"SELECT [[1],[2]]", "SELECT [NULL, 1]", "SELECT ['x', 1]", "SELECT {'a': [1,2]}", "SELECT {}", "SELECT {'a': 1}"} {
+		if _, errs := Parse(good); len(errs) != 0 {
+			t.Errorf("Parse(%q) errors: %v", good, errs)
+		}
+	}
+
+	// Braces without a colon are a struct literal.
+	node := mustParseExpr(t, "{1, 2}")
+	st, ok := node.(*ast.StructLiteral)
+	if !ok || len(st.Elements) != 2 {
+		t.Fatalf("node = %+v, want StructLiteral with 2 elements", node)
+	}
+	node = mustParseExpr(t, "{'a'}")
+	if _, ok := node.(*ast.StructLiteral); !ok {
+		t.Fatalf("node = %T, want *ast.StructLiteral", node)
+	}
+	// Empty braces stay a map; a colon keeps the map form.
+	if _, ok := mustParseExpr(t, "{}").(*ast.MapLiteral); !ok {
+		t.Error("{} did not parse as MapLiteral")
+	}
+	if _, ok := mustParseExpr(t, "{'a': 1}").(*ast.MapLiteral); !ok {
+		t.Error("{'a': 1} did not parse as MapLiteral")
+	}
+}
+
+func TestExprStringUserVariable(t *testing.T) {
+	node := mustParseExpr(t, "@'quoted'")
+	v, ok := node.(*ast.VariableRef)
+	if !ok || v.System || v.Name != "quoted" {
+		t.Fatalf("node = %+v, want user VariableRef quoted", node)
+	}
+	if _, ok := mustParseExpr(t, `@"dquoted"`).(*ast.VariableRef); !ok {
+		t.Error(`@"dquoted" did not parse as VariableRef`)
+	}
+	// System variables stay identifier-shaped.
+	if _, errs := Parse("SELECT @@'x'"); len(errs) == 0 {
+		t.Error("@@'x' parsed, want error")
+	}
+}

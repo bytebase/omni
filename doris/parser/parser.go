@@ -455,9 +455,17 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return p.parseSetOpTail(left)
+		return p.parseQueryTail(left)
+	case int('('):
+		return p.parseParenQueryStmt()
 	case kwWITH:
-		return p.parseWithSelect()
+		stmt, err := p.parseWithSelect()
+		if err != nil {
+			return nil, err
+		}
+		// WITH ... SELECT continues with set operators and their trailing
+		// clauses just like a bare SELECT (engine-verified).
+		return p.parseQueryTail(stmt)
 	case kwINSERT:
 		return p.parseInsert()
 	case kwUPDATE:

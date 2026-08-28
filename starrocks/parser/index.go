@@ -156,57 +156,6 @@ func (p *Parser) parseDropIndex(startLoc ast.Loc) (ast.Node, error) {
 	return stmt, nil
 }
 
-// parseBuildIndex parses a BUILD INDEX statement.
-//
-//	BUILD INDEX index_name ON table_name [PARTITIONS(p1, p2, ...)]
-//
-// cur is kwINDEX on entry (BUILD has already been consumed).
-// startLoc is the Loc of the BUILD token.
-func (p *Parser) parseBuildIndex(startLoc ast.Loc) (ast.Node, error) {
-	// Consume INDEX.
-	p.advance()
-
-	// Index name.
-	indexName, err := p.parseMultipartIdentifier()
-	if err != nil {
-		return nil, err
-	}
-
-	// ON table_name.
-	if _, err := p.expect(kwON); err != nil {
-		return nil, err
-	}
-	tableName, err := p.parseMultipartIdentifier()
-	if err != nil {
-		return nil, err
-	}
-
-	// Optional PARTITIONS(p1, p2, ...).
-	var partitions []string
-	if p.cur.Kind == kwPARTITIONS {
-		p.advance()
-		if _, err := p.expect(int('(')); err != nil {
-			return nil, err
-		}
-		partitions, err = p.parseIdentifierList()
-		if err != nil {
-			return nil, err
-		}
-		if _, err := p.expect(int(')')); err != nil {
-			return nil, err
-		}
-	}
-
-	endLoc := p.prev.Loc
-	stmt := &ast.BuildIndexStmt{
-		Name:       indexName,
-		Table:      tableName,
-		Partitions: partitions,
-		Loc:        ast.Loc{Start: startLoc.Start, End: endLoc.End},
-	}
-	return stmt, nil
-}
-
 // parseIdentifierList parses a comma-separated list of bare identifiers.
 // Used for column lists and partition name lists.
 // The surrounding parentheses are NOT consumed here.
