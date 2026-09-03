@@ -271,6 +271,70 @@ func TestMigrationComment(t *testing.T) {
 		}
 	})
 
+	t.Run("single quotes in a comment are doubled", func(t *testing.T) {
+		fromSQL := `CREATE TABLE t (id int);`
+		toSQL := `
+			CREATE TABLE t (id int);
+			COMMENT ON TABLE t IS 'User''s table';
+		`
+		from, err := LoadSQL(fromSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		to, err := LoadSQL(toSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		diff := Diff(from, to)
+		plan := GenerateMigration(from, to, diff)
+		ops := plan.Filter(func(op MigrationOp) bool {
+			return op.Type == OpComment
+		}).Ops
+		if len(ops) != 1 {
+			t.Fatalf("expected 1 Comment op, got %d; ops: %v", len(ops), opsSQL(plan))
+		}
+		// The catalog holds the comment unescaped. Rendering it back with a bare
+		// quote closes the literal early and the statement no longer parses, so
+		// the whole literal has to be checked, not just the text around it.
+		if !strings.Contains(ops[0].SQL, `IS 'User''s table'`) {
+			t.Errorf("expected the quote doubled in the emitted literal, got: %s", ops[0].SQL)
+		}
+	})
+
+	t.Run("dropping a procedure leaves an unrelated function's comment alone", func(t *testing.T) {
+		const survivor = `
+			CREATE FUNCTION audit_log() RETURNS void
+			LANGUAGE plpgsql AS $$ BEGIN NULL; END; $$;
+			COMMENT ON FUNCTION audit_log() IS 'Writes the audit log';
+		`
+		fromSQL := survivor + `
+			CREATE PROCEDURE purge_rows() LANGUAGE plpgsql AS $$ BEGIN NULL; END; $$;
+			COMMENT ON PROCEDURE purge_rows() IS 'Purges old rows';
+		`
+		toSQL := survivor
+		from, err := LoadSQL(fromSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		to, err := LoadSQL(toSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		diff := Diff(from, to)
+		plan := GenerateMigration(from, to, diff)
+		// Procedures and functions share one catalog, so a comment differ that
+		// keys on the bare name rather than the full signature reports the
+		// dropped procedure's comment as a change to the surviving function.
+		if ops := filterOps(plan, OpDropFunction); len(ops) != 1 {
+			t.Fatalf("expected 1 DropFunction op for the procedure, got %d; ops: %v", len(ops), opsSQL(plan))
+		}
+		for _, op := range plan.Ops {
+			if op.Type == OpComment && strings.Contains(op.SQL, "audit_log") {
+				t.Errorf("the surviving function's comment must not change: %s", op.SQL)
+			}
+		}
+	})
+
 	t.Run("COMMENT ON PROCEDURE uses PROCEDURE not FUNCTION", func(t *testing.T) {
 		fromSQL := `
 			CREATE PROCEDURE do_work(x integer)

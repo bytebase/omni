@@ -192,6 +192,27 @@ CREATE INDEX idx_t_name ON t (name, email);`,
 			},
 		},
 		{
+			name:    "EXCLUDE backing index NOT generated",
+			fromSQL: `CREATE TABLE t (id int, r int4range);`,
+			toSQL:   `CREATE TABLE t (id int, r int4range, CONSTRAINT t_r_excl EXCLUDE USING gist (r WITH &&));`,
+			check: func(t *testing.T, plan *MigrationPlan) {
+				// EXCLUDE carries its own index the way PK and UNIQUE do, so the
+				// ADD CONSTRAINT is the whole change. A CREATE INDEX beside it
+				// would fail on apply: the name is already taken by the
+				// constraint's index.
+				if ops := filterOps(plan, OpCreateIndex); len(ops) != 0 {
+					t.Errorf("expected no CreateIndex op for EXCLUDE backing index, got %d: %s", len(ops), ops[0].SQL)
+				}
+				ops := filterOps(plan, OpAddConstraint)
+				if len(ops) != 1 {
+					t.Fatalf("expected 1 AddConstraint op, got %d", len(ops))
+				}
+				if !strings.Contains(ops[0].SQL, "EXCLUDE") {
+					t.Errorf("expected EXCLUDE in constraint DDL, got %s", ops[0].SQL)
+				}
+			},
+		},
+		{
 			name:    "PK/UNIQUE backing indexes NOT generated",
 			fromSQL: `CREATE TABLE t (id int);`,
 			toSQL:   `CREATE TABLE t (id int PRIMARY KEY);`,
