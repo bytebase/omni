@@ -301,15 +301,19 @@ func TestMigrationComment(t *testing.T) {
 		}
 	})
 
-	t.Run("dropping a procedure leaves an unrelated function's comment alone", func(t *testing.T) {
+	t.Run("dropping a procedure leaves a same-named function's comment alone", func(t *testing.T) {
+		// Procedures and functions share one catalog, and these two share a name
+		// as well — only the argument list separates them. That is the shape a
+		// comment differ keyed on the bare name gets wrong: it reads the dropped
+		// procedure's comment as a change to the surviving function.
 		const survivor = `
-			CREATE FUNCTION audit_log() RETURNS void
+			CREATE FUNCTION routine_x() RETURNS void
 			LANGUAGE plpgsql AS $$ BEGIN NULL; END; $$;
-			COMMENT ON FUNCTION audit_log() IS 'Writes the audit log';
+			COMMENT ON FUNCTION routine_x() IS 'The function';
 		`
 		fromSQL := survivor + `
-			CREATE PROCEDURE purge_rows() LANGUAGE plpgsql AS $$ BEGIN NULL; END; $$;
-			COMMENT ON PROCEDURE purge_rows() IS 'Purges old rows';
+			CREATE PROCEDURE routine_x(n integer) LANGUAGE plpgsql AS $$ BEGIN NULL; END; $$;
+			COMMENT ON PROCEDURE routine_x(integer) IS 'The procedure';
 		`
 		toSQL := survivor
 		from, err := LoadSQL(fromSQL)
@@ -322,14 +326,15 @@ func TestMigrationComment(t *testing.T) {
 		}
 		diff := Diff(from, to)
 		plan := GenerateMigration(from, to, diff)
-		// Procedures and functions share one catalog, so a comment differ that
-		// keys on the bare name rather than the full signature reports the
-		// dropped procedure's comment as a change to the surviving function.
 		if ops := filterOps(plan, OpDropFunction); len(ops) != 1 {
 			t.Fatalf("expected 1 DropFunction op for the procedure, got %d; ops: %v", len(ops), opsSQL(plan))
 		}
+		// routine_x() is the survivor, routine_x(integer) the one being dropped.
+		// The plan still clears the dropped routine's comment, which is issue
+		// #408 and not what this case is about; matching on the full signature
+		// keeps the two apart.
 		for _, op := range plan.Ops {
-			if op.Type == OpComment && strings.Contains(op.SQL, "audit_log") {
+			if op.Type == OpComment && strings.Contains(op.SQL, "routine_x()") {
 				t.Errorf("the surviving function's comment must not change: %s", op.SQL)
 			}
 		}
