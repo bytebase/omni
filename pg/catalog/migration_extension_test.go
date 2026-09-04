@@ -87,6 +87,27 @@ func TestMigrationExtension(t *testing.T) {
 			},
 		},
 		{
+			name:    "Extension name does not become a schema",
+			fromSQL: "",
+			toSQL:   "CREATE EXTENSION test_ext; CREATE TABLE t1 (id int);",
+			check: func(t *testing.T, plan *MigrationPlan) {
+				// CREATE EXTENSION names an extension, not a schema. Registering
+				// one under its own name would emit a CREATE SCHEMA that fails on
+				// any database where the extension is already installed.
+				extOps := plan.Filter(func(op MigrationOp) bool {
+					return op.Type == OpCreateExtension
+				})
+				if len(extOps.Ops) != 1 {
+					t.Fatalf("expected 1 CreateExtension op, got %d", len(extOps.Ops))
+				}
+				for _, op := range plan.Ops {
+					if op.Type == OpCreateSchema {
+						t.Errorf("extension must not produce a schema, got: %s", op.SQL)
+					}
+				}
+			},
+		},
+		{
 			name:    "Extension operations ordered before types and tables",
 			fromSQL: "",
 			toSQL:   "CREATE EXTENSION test_ext; CREATE TABLE t1 (id int);",

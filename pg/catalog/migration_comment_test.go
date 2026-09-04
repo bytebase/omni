@@ -271,6 +271,75 @@ func TestMigrationComment(t *testing.T) {
 		}
 	})
 
+	t.Run("single quotes in a comment are doubled", func(t *testing.T) {
+		fromSQL := `CREATE TABLE t (id int);`
+		toSQL := `
+			CREATE TABLE t (id int);
+			COMMENT ON TABLE t IS 'User''s table';
+		`
+		from, err := LoadSQL(fromSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		to, err := LoadSQL(toSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		diff := Diff(from, to)
+		plan := GenerateMigration(from, to, diff)
+		ops := plan.Filter(func(op MigrationOp) bool {
+			return op.Type == OpComment
+		}).Ops
+		if len(ops) != 1 {
+			t.Fatalf("expected 1 Comment op, got %d; ops: %v", len(ops), opsSQL(plan))
+		}
+		// The catalog holds the comment unescaped. Rendering it back with a bare
+		// quote closes the literal early and the statement no longer parses, so
+		// the whole literal has to be checked, not just the text around it.
+		if !strings.Contains(ops[0].SQL, `IS 'User''s table'`) {
+			t.Errorf("expected the quote doubled in the emitted literal, got: %s", ops[0].SQL)
+		}
+	})
+
+	t.Run("dropping a procedure leaves a same-named function's comment alone", func(t *testing.T) {
+		// Procedures and functions share one catalog, and these two share a name
+		// as well — only the argument list separates them. That is the shape a
+		// comment differ keyed on the bare name gets wrong: it reads the dropped
+		// procedure's comment as a change to the surviving function.
+		const survivor = `
+			CREATE FUNCTION routine_x() RETURNS void
+			LANGUAGE plpgsql AS $$ BEGIN NULL; END; $$;
+			COMMENT ON FUNCTION routine_x() IS 'The function';
+		`
+		fromSQL := survivor + `
+			CREATE PROCEDURE routine_x(n integer) LANGUAGE plpgsql AS $$ BEGIN NULL; END; $$;
+			COMMENT ON PROCEDURE routine_x(integer) IS 'The procedure';
+		`
+		toSQL := survivor
+		from, err := LoadSQL(fromSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		to, err := LoadSQL(toSQL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		diff := Diff(from, to)
+		plan := GenerateMigration(from, to, diff)
+		if ops := filterOps(plan, OpDropFunction); len(ops) != 1 {
+			t.Fatalf("expected 1 DropFunction op for the procedure, got %d; ops: %v", len(ops), opsSQL(plan))
+		}
+		// routine_x() is the survivor, routine_x(integer) the one being dropped.
+		// The plan still clears the dropped routine's comment, which is issue
+		// #408 and not what this case is about; matching on the full signature
+		// keeps the two apart.
+		for _, op := range plan.Ops {
+			if op.Type == OpComment && strings.Contains(op.SQL, "routine_x()") {
+				t.Errorf("the surviving function's comment must not change: %s", op.SQL)
+			}
+		}
+	})
+
 	t.Run("COMMENT ON PROCEDURE uses PROCEDURE not FUNCTION", func(t *testing.T) {
 		fromSQL := `
 			CREATE PROCEDURE do_work(x integer)
