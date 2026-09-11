@@ -95,12 +95,17 @@ func (c *Catalog) reanalyzeViews(ctx context.Context, views []*metadataObject) e
 }
 
 func (c *Catalog) viewAnalyzed(name string) bool {
+	v := c.installedView(name)
+	return v != nil && v.AnalyzedQuery != nil
+}
+
+// installedView returns the view of that name in the database being loaded.
+func (c *Catalog) installedView(name string) *View {
 	db := c.GetDatabase(c.CurrentDatabase())
 	if db == nil {
-		return false
+		return nil
 	}
-	v := db.Views[toLower(name)]
-	return v != nil && v.AnalyzedQuery != nil
+	return db.Views[toLower(name)]
 }
 
 // --- Objects ---
@@ -164,7 +169,14 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		if err != nil {
 			return err
 		}
-		return c.DefineView(stmt)
+		if err := c.DefineView(stmt); err != nil {
+			return err
+		}
+		// A * or an unaliased expression leaves the body naming fewer columns
+		// than the snapshot records, so the snapshot names the rest. They are
+		// not a column list the view was created with, so they stay inferred.
+		nameViewColumns(c.installedView(o.name), metadataViewColumnNames(o.view))
+		return nil
 	}
 	stmt, err := metadataTableStmt(o.table)
 	if err != nil {
@@ -316,9 +328,14 @@ func typeTakesDefault(typ string) bool {
 }
 
 // metadataIndexConstraint builds an index from its key parts. The index type
-// holds either the kind, FULLTEXT, or the access method.
+// holds either the kind, FULLTEXT, or the access method. Sync reports the
+// access method a key without USING gets too, and TiDB's is BTREE, so that one
+// stays unwritten.
 func metadataIndexConstraint(idx *metadata.IndexMetadata) *nodes.Constraint {
 	indexType := strings.ToUpper(strings.TrimSpace(idx.GetType()))
+	if indexType == "BTREE" {
+		indexType = ""
+	}
 	c := &nodes.Constraint{Name: idx.GetName()}
 	switch {
 	case idx.GetPrimary():
@@ -428,12 +445,7 @@ func metadataViewStmt(v *metadata.ViewMetadata) (*nodes.CreateViewStmt, error) {
 	stmt := &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: v.GetDefinition()}
 	// A stored definition drops the column list of CREATE VIEW v (a, b), so the
 	// snapshot's columns become one only where they differ from the body's.
-	var names []string
-	for _, col := range v.GetColumns() {
-		if col.GetName() != "" {
-			names = append(names, col.GetName())
-		}
-	}
+	names := metadataViewColumnNames(v)
 	// A * or an unaliased expression is named only once the catalog resolves the
 	// body, and extractViewColumns leaves such a target out, so the body names
 	// nothing to compare unless it names every one of them.
@@ -443,6 +455,25 @@ func metadataViewStmt(v *metadata.ViewMetadata) (*nodes.CreateViewStmt, error) {
 		stmt.Columns = names
 	}
 	return stmt, nil
+}
+
+// metadataViewColumnNames lists the column names the snapshot records for a
+// view.
+func metadataViewColumnNames(v *metadata.ViewMetadata) []string {
+	var names []string
+	for _, col := range v.GetColumns() {
+		if col.GetName() != "" {
+			names = append(names, col.GetName())
+		}
+	}
+	return names
+}
+
+// nameViewColumns names the columns a view's body left unnamed.
+func nameViewColumns(v *View, names []string) {
+	if v != nil && len(v.Columns) < len(names) {
+		v.Columns = names
+	}
 }
 
 // --- Stand-ins ---
@@ -540,6 +571,10 @@ func parseExpr(expr string) (nodes.ExprNode, error) {
 	target, ok := sel.TargetList[0].(*nodes.ResTarget)
 	if !ok {
 		return nil, fmt.Errorf("expression %q: parsed as %T", expr, sel.TargetList[0])
+	}
+	// The probe's parentheses are not part of the expression.
+	if p, ok := target.Val.(*nodes.ParenExpr); ok {
+		return p.Expr, nil
 	}
 	return target.Val, nil
 }

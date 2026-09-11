@@ -136,6 +136,14 @@ func TestLoadMetadataInstallsTables(t *testing.T) {
 	if gen := child.GetColumn("total").Generated; gen == nil || !gen.Stored {
 		t.Errorf("total generated = %+v, want stored", gen)
 	}
+	// The loaded expression is the one a CREATE TABLE gives, carrying none of
+	// the parentheses the parse probe adds.
+	if _, err := c.Exec("CREATE TABLE ddl (parent_id BIGINT UNSIGNED, total INT AS (parent_id + 1) STORED);", nil); err != nil {
+		t.Fatalf("CREATE TABLE: %v", err)
+	}
+	if loaded, fromDDL := child.GetColumn("total").Generated, requireTable(t, c, "ddl").GetColumn("total").Generated; loaded == nil || fromDDL == nil || loaded.Expr != fromDDL.Expr {
+		t.Errorf("generated expression = %+v, want the DDL's %+v", loaded, fromDDL)
+	}
 	for _, name := range []string{"payload", "notes"} {
 		if col := child.GetColumn(name); col.Default != nil {
 			t.Errorf("%s default = %q, want none", name, *col.Default)
@@ -162,6 +170,10 @@ func TestLoadMetadataInstallsTables(t *testing.T) {
 	}
 	if idx := indexes["idx_hidden"]; idx == nil || idx.Comment != "rarely used" {
 		t.Errorf("idx_hidden = %+v, want its comment", idx)
+	}
+	// The access method a key without USING gets stays unwritten.
+	if idx := indexes["idx_parent_id"]; idx == nil || idx.IndexType != "" {
+		t.Errorf("idx_parent_id = %+v, want no index type", idx)
 	}
 	var fk *Constraint
 	for _, con := range child.Constraints {
@@ -221,16 +233,19 @@ func TestLoadMetadataKeepsViewColumnListsOnlyWhereNeeded(t *testing.T) {
 			{Name: "star", Definition: "SELECT * FROM users", Columns: []*metadata.ColumnMetadata{{Name: "id"}}},
 			{Name: "star_qualified", Definition: "SELECT u.* FROM users u", Columns: []*metadata.ColumnMetadata{{Name: "id"}}},
 			{Name: "expr", Definition: "SELECT count(*) FROM users", Columns: []*metadata.ColumnMetadata{{Name: "count(*)"}}},
+			// A body that does not resolve names nothing of its own.
+			{Name: "unresolved", Definition: "SELECT * FROM missing", Columns: []*metadata.ColumnMetadata{{Name: "a"}, {Name: "b"}}},
 		},
 	}))
 	requireReport(t, report)
 	if v := requireView(t, c, "renamed"); !v.ExplicitColumns || !slices.Equal(v.Columns, []string{"user_id"}) {
 		t.Errorf("renamed = explicit %v, columns %v; want the snapshot's user_id", v.ExplicitColumns, v.Columns)
 	}
-	// A body naming no target of its own keeps the columns it resolves to.
-	for _, name := range []string{"same", "star", "star_qualified", "expr"} {
-		if v := requireView(t, c, name); v.ExplicitColumns {
-			t.Errorf("%s = explicit columns %v, want the body's", name, v.Columns)
+	// A body naming no target of its own keeps the columns it resolves to, and
+	// the snapshot names what a body that does not resolve leaves unnamed.
+	for name, want := range map[string][]string{"same": {"id"}, "star": {"id"}, "star_qualified": {"id"}, "expr": {"COUNT(*)"}, "unresolved": {"a", "b"}} {
+		if v := requireView(t, c, name); v.ExplicitColumns || !slices.Equal(v.Columns, want) {
+			t.Errorf("%s = explicit %v, columns %v; want %v inferred", name, v.ExplicitColumns, v.Columns, want)
 		}
 	}
 }
