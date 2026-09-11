@@ -9,27 +9,17 @@ import (
 )
 
 // tidbSupportedFeatures lists TiDB v8.5 feature IDs recognized in /*T![feature] */ comments.
+// Mirrors pkg/parser/tidb/features.go featureIDs at v8.5.5.
 var tidbSupportedFeatures = map[string]bool{
 	"auto_rand":       true,
 	"auto_id_cache":   true,
 	"auto_rand_base":  true,
 	"clustered_index": true,
+	"force_inc":       true,
 	"placement":       true,
 	"ttl":             true,
-}
-
-// allTiDBFeaturesSupported checks if all comma-separated feature IDs are supported.
-func allTiDBFeaturesSupported(featureStr string) bool {
-	for _, f := range strings.Split(featureStr, ",") {
-		f = strings.TrimSpace(f)
-		if f == "" {
-			continue
-		}
-		if !tidbSupportedFeatures[f] {
-			return false
-		}
-	}
-	return true
+	"global_index":    true,
+	"affinity":        true,
 }
 
 // Token type constants for literals and operators.
@@ -56,6 +46,7 @@ const (
 	tokJsonExtract // ->
 	tokJsonUnquote // ->>
 	tokAt2         // @@ (system variable prefix)
+	tokInvalid     // lexically invalid input, e.g. an unclosed block comment
 )
 
 // Keyword token constants. Values start at 700.
@@ -1806,7 +1797,9 @@ func (l *Lexer) NextToken() Token {
 }
 
 func (l *Lexer) nextToken() Token {
-	l.skipWhitespaceAndComments()
+	if bad := l.skipWhitespaceAndComments(); bad != nil {
+		return *bad
+	}
 
 	if l.pos >= len(l.input) {
 		return Token{Type: tokEOF, Loc: l.pos}
@@ -1911,7 +1904,10 @@ func (l *Lexer) nextToken() Token {
 	return Token{Type: int(ch), Str: string(ch), Loc: l.start}
 }
 
-func (l *Lexer) skipWhitespaceAndComments() {
+// skipWhitespaceAndComments advances past whitespace and comments. It
+// returns a non-nil tokInvalid token when the input ends inside an unclosed
+// regular block comment (a parse error in TiDB).
+func (l *Lexer) skipWhitespaceAndComments() *Token {
 	for l.pos < len(l.input) {
 		ch := l.input[l.pos]
 
@@ -1946,141 +1942,268 @@ func (l *Lexer) skipWhitespaceAndComments() {
 
 		// Block comment: /* ... */
 		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
-			// TiDB comments: /*T! ... */ or /*T![feature] ... */
-			if l.pos+3 < len(l.input) && l.input[l.pos+2] == 'T' && l.input[l.pos+3] == '!' {
-				innerStart := l.pos + 4 // after /*T!
-
-				// Check for feature bracket: /*T![feature_id]
-				if innerStart < len(l.input) && l.input[innerStart] == '[' {
-					bracketEnd := innerStart + 1
-					for bracketEnd < len(l.input) && l.input[bracketEnd] != ']' {
-						bracketEnd++
-					}
-					if bracketEnd >= len(l.input) {
-						// Malformed: no closing bracket, skip as regular comment.
-						l.pos += 2
-						depth := 1
-						for l.pos < len(l.input) && depth > 0 {
-							if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
-								depth--
-								l.pos += 2
-							} else if l.input[l.pos] == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
-								depth++
-								l.pos += 2
-							} else {
-								l.pos++
-							}
-						}
-						continue
-					}
-					featureStr := l.input[innerStart+1 : bracketEnd]
-					if !allTiDBFeaturesSupported(featureStr) {
-						// Unsupported feature — skip entire comment.
-						l.pos += 2
-						depth := 1
-						for l.pos < len(l.input) && depth > 0 {
-							if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
-								depth--
-								l.pos += 2
-							} else if l.input[l.pos] == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
-								depth++
-								l.pos += 2
-							} else {
-								l.pos++
-							}
-						}
-						continue
-					}
-					innerStart = bracketEnd + 1 // SQL starts after ]
-				}
-
-				// Find matching */
-				end := innerStart
-				depth := 1
-				for end < len(l.input) && depth > 0 {
-					if l.input[end] == '*' && end+1 < len(l.input) && l.input[end+1] == '/' {
-						depth--
-						if depth == 0 {
-							break
-						}
-						end += 2
-					} else if l.input[end] == '/' && end+1 < len(l.input) && l.input[end+1] == '*' {
-						depth++
-						end += 2
-					} else {
-						end++
-					}
-				}
-				// If comment is unclosed (no matching */), treat as regular block comment.
-				if depth > 0 {
-					l.pos = len(l.input)
-					continue
-				}
-				// Splice inner SQL into the input buffer, replacing the comment construct.
-				// Note: this in-place mutation means Loc offsets on subsequent tokens are
-				// relative to the rewritten buffer, not the original source text. This matches
-				// the MySQL /*!*/ handling below and is an accepted invariant — no downstream
-				// code in the TiDB engine currently relies on byte-accurate Loc against the
-				// original input.
-				inner := l.input[innerStart:end]
-				l.input = l.input[:l.pos] + inner + l.input[end+2:]
-				continue
-			}
-
-			// MySQL conditional comments: /*!NNNNN ... */ or /*! ... */
-			// These should be parsed as SQL, not skipped.
-			if l.pos+2 < len(l.input) && l.input[l.pos+2] == '!' {
-				// Skip /*!
-				innerStart := l.pos + 3
-				// Skip optional version number (digits)
-				vpos := innerStart
-				for vpos < len(l.input) && l.input[vpos] >= '0' && l.input[vpos] <= '9' {
-					vpos++
-				}
-				// Find the matching */
-				end := vpos
-				depth := 1
-				for end < len(l.input) && depth > 0 {
-					if l.input[end] == '*' && end+1 < len(l.input) && l.input[end+1] == '/' {
-						depth--
-						if depth == 0 {
-							break
-						}
-						end += 2
-					} else if l.input[end] == '/' && end+1 < len(l.input) && l.input[end+1] == '*' {
-						depth++
-						end += 2
-					} else {
-						end++
-					}
-				}
-				// Extract the inner content and splice it into the input,
-				// replacing the conditional comment with its content.
-				inner := l.input[vpos:end]
-				l.input = l.input[:l.pos] + inner + l.input[end+2:]
-				// Don't advance l.pos — re-scan from the start of the inner content.
-				continue
-			}
-
-			l.pos += 2
-			// Regular block comment: skip everything.
-			depth := 1
-			for l.pos < len(l.input) && depth > 0 {
-				if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
-					depth--
-					l.pos += 2
-				} else if l.input[l.pos] == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
-					depth++
-					l.pos += 2
-				} else {
-					l.pos++
-				}
+			if bad := l.scanBlockComment(); bad != nil {
+				return bad
 			}
 			continue
 		}
 
 		break
 	}
+	return nil
+}
+
+// scanBlockComment handles a block-comment construct starting at l.pos
+// (guaranteed "/*"). Mirrors TiDB v8.5.5 pkg/parser/lexer.go
+// startWithSlash/startWithStar:
+//   - /*! with exactly five version digits (or none) and /*T! with a
+//     supported feature list are bang comments: their content is SQL and is
+//     spliced into the input buffer;
+//   - a well-formed /*T![...] list containing an unsupported ID makes the
+//     whole construct a regular comment; a malformed list resets, so the
+//     construct is a bang comment whose content starts at the '[';
+//   - everything else is a regular comment ending at the FIRST */ — block
+//     comments do not nest — and an unclosed regular comment is a parse
+//     error, surfaced as a tokInvalid token.
+func (l *Lexer) scanBlockComment() *Token {
+	start := l.pos
+	// TiDB comments: /*T! ... */ or /*T![feature,...] ... */
+	if l.pos+3 < len(l.input) && l.input[l.pos+2] == 'T' && l.input[l.pos+3] == '!' {
+		p := l.pos + 4
+		if p < len(l.input) && l.input[p] == '[' {
+			ids, after, wellFormed := scanTiDBFeatureIDs(l.input, p)
+			if !wellFormed {
+				l.spliceBangComment(p)
+				return nil
+			}
+			for _, id := range ids {
+				if !tidbSupportedFeatures[id] {
+					return l.skipRegularBlockComment(start)
+				}
+			}
+			l.spliceBangComment(after)
+			return nil
+		}
+		l.spliceBangComment(p)
+		return nil
+	}
+
+	// MySQL conditional comments: /*!NNNNN ... */ or /*! ... */
+	if l.pos+2 < len(l.input) && l.input[l.pos+2] == '!' {
+		inner := l.pos + 3
+		// Exactly five version digits or none (TiDB scanVersionDigits(5, 5));
+		// a shorter digit run and the sixth-and-later digits are SQL content.
+		d := inner
+		for d < len(l.input) && d-inner < 5 && l.input[d] >= '0' && l.input[d] <= '9' {
+			d++
+		}
+		if d-inner == 5 {
+			inner = d
+		}
+		l.spliceBangComment(inner)
+		return nil
+	}
+
+	return l.skipRegularBlockComment(start)
+}
+
+// skipRegularBlockComment skips a non-nesting block comment starting at
+// start ("/*"): the first */ closes it. An unclosed comment is a parse error
+// in TiDB; surface it as a tokInvalid token at the comment start and park
+// the lexer at end of input so the next token is EOF.
+func (l *Lexer) skipRegularBlockComment(start int) *Token {
+	for i := start + 2; i+1 < len(l.input); i++ {
+		if l.input[i] == '*' && l.input[i+1] == '/' {
+			l.pos = i + 2
+			return nil
+		}
+	}
+	l.pos = len(l.input)
+	return &Token{Type: tokInvalid, Str: "/*", Loc: start}
+}
+
+// spliceBangComment splices the content of a bang comment (/*! or supported
+// /*T!) into the input buffer, replacing the construct, and leaves l.pos at
+// the splice point for re-scanning. The construct closes at the first */
+// not consumed by a string literal, backtick identifier, line comment, or
+// inner regular block comment — TiDB lexes bang content as SQL, so those
+// constructs hide */. Inner bang markers are replaced with a single space:
+// TiDB's inBangComment is a bool, so nested markers do not stack and the
+// first unconsumed */ closes everything. An unclosed construct is tolerated
+// (TiDB reaches EOF in bang mode without error): the content simply runs to
+// end of input.
+// Note: this rewrites l.input in place like the previous implementation, so
+// Loc offsets on subsequent tokens are relative to the rewritten buffer, not
+// the original source text — an accepted invariant; no downstream code
+// relies on byte-accurate Loc against the original input.
+func (l *Lexer) spliceBangComment(innerStart int) {
+	var sb strings.Builder
+	i := innerStart
+	end := -1 // position of the closing */
+scan:
+	for i < len(l.input) {
+		ch := l.input[i]
+		switch {
+		case ch == '*' && i+1 < len(l.input) && l.input[i+1] == '/':
+			end = i
+			break scan
+		case ch == '\'' || ch == '"' || ch == '`':
+			i = appendQuoted(&sb, l.input, i)
+		case ch == '#':
+			i = appendLineComment(&sb, l.input, i)
+		case ch == '-' && i+1 < len(l.input) && l.input[i+1] == '-' &&
+			(i+2 >= len(l.input) || l.input[i+2] == ' ' || l.input[i+2] == '\t' || l.input[i+2] == '\n' || l.input[i+2] == '\r'):
+			i = appendLineComment(&sb, l.input, i)
+		case ch == '/' && i+1 < len(l.input) && l.input[i+1] == '*':
+			i = l.appendInnerComment(&sb, i)
+		default:
+			sb.WriteByte(ch)
+			i++
+		}
+	}
+	if end >= 0 {
+		// The closing */ is a token boundary in TiDB (its scanner emits the
+		// token before it, exits bang mode, and scans fresh after it), so
+		// replace it with one space: without it, content and suffix bytes
+		// would butt into a single token (x*/YZ must lex as x then YZ).
+		l.input = l.input[:l.pos] + sb.String() + " " + l.input[end+2:]
+	} else {
+		l.input = l.input[:l.pos] + sb.String()
+	}
+}
+
+// appendInnerComment handles a /* opener inside bang-comment content at
+// position i. Bang markers (/*!NNNNN, /*T!, and supported /*T![...]) are
+// replaced with a single space — TiDB's bool inBangComment means they do not
+// stack, and the marker is a token boundary, so deleting it outright would
+// butt adjacent content bytes into phantom tokens (2//*!50000*3 must lex as
+// 2 / * 3, not reconstruct a /* opener). Regular comments (including
+// well-formed unsupported-feature /*T![...]) are copied through to their
+// closing */ so they hide any */ inside.
+// Returns the position content scanning resumes at.
+func (l *Lexer) appendInnerComment(sb *strings.Builder, i int) int {
+	if i+3 < len(l.input) && l.input[i+2] == 'T' && l.input[i+3] == '!' {
+		p := i + 4
+		if p < len(l.input) && l.input[p] == '[' {
+			ids, after, wellFormed := scanTiDBFeatureIDs(l.input, p)
+			if !wellFormed {
+				sb.WriteByte(' ')
+				return p // strip marker; content resumes at '['
+			}
+			for _, id := range ids {
+				if !tidbSupportedFeatures[id] {
+					return appendRegularComment(sb, l.input, i)
+				}
+			}
+			sb.WriteByte(' ')
+			return after // strip marker including feature list
+		}
+		sb.WriteByte(' ')
+		return p
+	}
+	if i+2 < len(l.input) && l.input[i+2] == '!' {
+		p := i + 3
+		d := p
+		for d < len(l.input) && d-p < 5 && l.input[d] >= '0' && l.input[d] <= '9' {
+			d++
+		}
+		sb.WriteByte(' ')
+		if d-p == 5 {
+			return d
+		}
+		return p
+	}
+	return appendRegularComment(sb, l.input, i)
+}
+
+// appendRegularComment copies a regular block comment (non-nesting: the
+// first */ closes it) into sb, returning the position after the closing */
+// or end of input when unclosed.
+func appendRegularComment(sb *strings.Builder, input string, i int) int {
+	for j := i + 2; j+1 < len(input); j++ {
+		if input[j] == '*' && input[j+1] == '/' {
+			sb.WriteString(input[i : j+2])
+			return j + 2
+		}
+	}
+	sb.WriteString(input[i:])
+	return len(input)
+}
+
+// appendQuoted copies a quoted region (string literal or backtick
+// identifier) into sb, honoring backslash escapes (strings only) and
+// doubled-quote escapes, returning the position after the closing quote or
+// end of input when unclosed.
+func appendQuoted(sb *strings.Builder, input string, i int) int {
+	quote := input[i]
+	j := i + 1
+	for j < len(input) {
+		ch := input[j]
+		if ch == '\\' && quote != '`' && j+1 < len(input) {
+			j += 2
+			continue
+		}
+		if ch == quote {
+			if j+1 < len(input) && input[j+1] == quote {
+				j += 2
+				continue
+			}
+			j++
+			break
+		}
+		j++
+	}
+	sb.WriteString(input[i:j])
+	return j
+}
+
+// appendLineComment copies a # or -- line comment into sb up to (not
+// including) the terminating newline, returning the newline position (or end
+// of input).
+func appendLineComment(sb *strings.Builder, input string, i int) int {
+	j := i
+	for j < len(input) && input[j] != '\n' {
+		j++
+	}
+	sb.WriteString(input[i:j])
+	return j
+}
+
+// scanTiDBFeatureIDs parses the '[feature1,feature2,...]' list of a /*T!
+// comment starting at the '[' (mirrors TiDB pkg/parser scanFeatureIDs). It
+// returns the IDs, the position just after ']', and whether the list is
+// well-formed; a malformed list (empty segment, invalid character, or
+// missing ']') returns wellFormed=false and the caller lexes from '[' as
+// bang-comment content.
+func scanTiDBFeatureIDs(input string, p int) (ids []string, after int, wellFormed bool) {
+	i := p + 1 // after '['
+	var b strings.Builder
+	expectChar := true // each segment needs at least one identifier char
+	for i < len(input) {
+		ch := input[i]
+		switch {
+		case isTiDBFeatureIdentChar(ch):
+			b.WriteByte(ch)
+			expectChar = false
+		case ch == ',' && !expectChar:
+			ids = append(ids, b.String())
+			b.Reset()
+			expectChar = true
+		case ch == ']' && !expectChar:
+			ids = append(ids, b.String())
+			return ids, i + 1, true
+		default:
+			return nil, p, false
+		}
+		i++
+	}
+	return nil, p, false
+}
+
+// isTiDBFeatureIdentChar mirrors TiDB's isIdentChar for feature IDs.
+func isTiDBFeatureIdentChar(ch byte) bool {
+	return ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' ||
+		ch >= '0' && ch <= '9' || ch == '_' || ch == '$' || ch >= 0x80
 }
 
 func (l *Lexer) scanVariable() Token {

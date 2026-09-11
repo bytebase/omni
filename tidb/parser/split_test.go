@@ -176,9 +176,19 @@ func TestSplitQuotingAndComments(t *testing.T) {
 			want: []string{"SELECT 1 # ;\n", " SELECT 2"},
 		},
 		{
+			// Non-nesting: the first */ closes the comment; the ; inside the
+			// comment still doesn't split, the top-level one does.
 			name: "nested block comments",
 			sql:  "SELECT /* /* ; */ */ 1; SELECT 2;",
 			want: []string{"SELECT /* /* ; */ */ 1", " SELECT 2"},
+		},
+		{
+			// A pseudo-nested comment closes at the first */, so the ; after
+			// it is a real separator (nesting semantics used to swallow the
+			// rest of the input into one segment).
+			name: "pseudo-nested comment closes at first */",
+			sql:  "SELECT /* a /* b */ 1; SELECT 2;",
+			want: []string{"SELECT /* a /* b */ 1", " SELECT 2"},
 		},
 		{
 			name: "-- without space is not comment",

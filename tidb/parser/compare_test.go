@@ -171,7 +171,10 @@ func TestLexerComments(t *testing.T) {
 		{"SELECT -- comment\n1", []int{kwSELECT, tokICONST}},
 		{"SELECT # comment\n1", []int{kwSELECT, tokICONST}},
 		{"SELECT /* comment */ 1", []int{kwSELECT, tokICONST}},
-		{"SELECT /* nested /* comment */ */ 1", []int{kwSELECT, tokICONST}},
+		// Block comments do not nest: the first */ closes, so the trailing
+		// */ lexes as '*' and '/' operator tokens (TiDB v8.5.5 rejects this
+		// statement for exactly that reason).
+		{"SELECT /* nested /* comment */ */ 1", []int{kwSELECT, '*', '/', tokICONST}},
 	}
 
 	for _, tt := range tests {

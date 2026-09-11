@@ -1,5 +1,7 @@
 package parser
 
+import "strings"
+
 // Segment represents a portion of SQL text delimited by top-level semicolons.
 type Segment struct {
 	Text      string // the raw text of this segment (without trailing semicolon)
@@ -38,11 +40,12 @@ func (s Segment) Empty() bool {
 			if i+3 < len(t) && t[i+2] == 'T' && t[i+3] == '!' {
 				return false
 			}
-			prev := i
-			i = skipBlockCommentMySQL(t, i)
-			if i == prev {
+			// An unclosed comment is a parse error, not emptiness: the
+			// segment must reach the lexer so it can reject.
+			if !strings.Contains(t[i+2:], "*/") {
 				return false
 			}
+			i = skipBlockCommentMySQL(t, i)
 			continue
 		}
 		// Found a non-whitespace, non-comment character.
@@ -520,22 +523,15 @@ func skipHashComment(sql string, i int) int {
 }
 
 // skipBlockCommentMySQL skips a block comment starting at position i.
-// Supports nesting. Handles both regular /* ... */ and conditional /*!...*/
+// Block comments do NOT nest (TiDB/MySQL semantics): the first */ closes the
+// construct. Handles both regular /* ... */ and conditional /*!...*/
 // comments (for Split purposes, the entire construct is skipped).
-// Returns position after the closing */ (or end of input).
+// Returns position after the closing */ (or end of input when unclosed).
 func skipBlockCommentMySQL(sql string, i int) int {
-	i += 2 // skip /*
-	depth := 1
-	for i < len(sql) && depth > 0 {
-		if sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*' {
-			depth++
-			i += 2
-		} else if sql[i] == '*' && i+1 < len(sql) && sql[i+1] == '/' {
-			depth--
-			i += 2
-		} else {
-			i++
+	for i += 2; i+1 < len(sql); i++ {
+		if sql[i] == '*' && sql[i+1] == '/' {
+			return i + 2
 		}
 	}
-	return i
+	return len(sql)
 }
