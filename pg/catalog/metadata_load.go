@@ -228,6 +228,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 				o.ownedSequences = owned[t.GetName()]
 			}
 			out = append(out, o)
+			out = appendPartitionObjects(out, schema, t)
 		}
 		// A foreign table loads as a plain table: query analysis needs only its columns.
 		for _, et := range s.GetExternalTables() {
@@ -280,6 +281,28 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			out = appendIndexObjects(out, schema, mv.GetName(), mv.GetIndexes())
 		}
 	}
+	return out
+}
+
+// appendPartitionObjects adds t's partitions, and theirs, as plain tables with
+// t's column names and types: query analysis needs only those, and t keeps the
+// columns' defaults and sequences.
+func appendPartitionObjects(out []*metadataObject, schema string, t *metadata.TableMetadata) []*metadataObject {
+	if len(t.GetPartitions()) == 0 {
+		return out
+	}
+	columns := make([]*metadata.ColumnMetadata, 0, len(t.GetColumns()))
+	for _, col := range t.GetColumns() {
+		columns = append(columns, &metadata.ColumnMetadata{Name: col.GetName(), Type: col.GetType(), Nullable: col.GetNullable(), Collation: col.GetCollation()})
+	}
+	var add func(partitions []*metadata.TablePartitionMetadata)
+	add = func(partitions []*metadata.TablePartitionMetadata) {
+		for _, p := range partitions {
+			out = append(out, &metadataObject{kind: metadataTable, schema: schema, name: p.GetName(), table: &metadata.TableMetadata{Name: p.GetName(), Columns: columns}})
+			add(p.GetSubpartitions())
+		}
+	}
+	add(t.GetPartitions())
 	return out
 }
 

@@ -69,6 +69,10 @@ func TestLoadMetadataInstallsSnapshot(t *testing.T) {
 				{Name: "status", Type: "public.task_status", Nullable: true},
 				{Name: "amount", Type: "numeric(10,2)", Nullable: true},
 			},
+			Partitions: []*metadata.TablePartitionMetadata{{
+				Name:          "tasks_2024",
+				Subpartitions: []*metadata.TablePartitionMetadata{{Name: "tasks_2024_q1"}},
+			}},
 		}},
 		ExternalTables: []*metadata.ExternalTableMetadata{{
 			Name:    "remote_orders",
@@ -82,6 +86,11 @@ func TestLoadMetadataInstallsSnapshot(t *testing.T) {
 	})
 	requireCleanReport(t, report)
 	requireRelation(t, c, "public", "remote_orders")
+	for _, name := range []string{"tasks_2024", "tasks_2024_q1"} {
+		if got := columnTypes(c, requireRelation(t, c, "public", name)); len(got) != 3 || got["status"] != "task_status" {
+			t.Errorf("partition %s columns = %v, want the parent's", name, got)
+		}
+	}
 
 	tasks := requireRelation(t, c, "public", "tasks")
 	if !tasks.Columns[0].NotNull || tasks.Columns[1].NotNull {
@@ -425,6 +434,8 @@ func TestLoadMetadataFull(t *testing.T) {
 					{Name: "users_adult_email_idx", Unique: true, Definition: "CREATE UNIQUE INDEX users_adult_email_idx ON public.users USING btree (email) WHERE (age > 18)"},
 				},
 				CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "users_age_check", Expression: "(age > 0)"}},
+				// Shares the identity column, so it adds no sequence of its own.
+				Partitions: []*metadata.TablePartitionMetadata{{Name: "users_2024"}},
 			},
 			{
 				Name: "rooms",
