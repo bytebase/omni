@@ -98,25 +98,6 @@ func TestSignatureArgTypes(t *testing.T) {
 	}
 }
 
-func TestNextvalSequence(t *testing.T) {
-	tests := []struct {
-		def          string
-		schema, name string
-	}{
-		{def: "nextval('public.users_id_seq'::regclass)", schema: "public", name: "users_id_seq"},
-		{def: "nextval('users_id_seq'::regclass)", schema: "app", name: "users_id_seq"},
-		{def: `nextval('"My Schema"."My Seq"'::regclass)`, schema: "My Schema", name: "My Seq"},
-		{def: `nextval('"My Seq"'::regclass)`, schema: "app", name: "My Seq"},
-		{def: "now()"},
-	}
-	for _, tt := range tests {
-		schema, name, ok := nextvalSequence(tt.def, "app")
-		if ok != (tt.name != "") || schema != tt.schema || name != tt.name {
-			t.Errorf("nextvalSequence(%q) = %q, %q, %v; want %q, %q", tt.def, schema, name, ok, tt.schema, tt.name)
-		}
-	}
-}
-
 func TestCollateClause(t *testing.T) {
 	names := func(c *nodes.CollateClause) []string {
 		var out []string
@@ -173,20 +154,29 @@ func TestMetadataIndexStmt(t *testing.T) {
 }
 
 func TestMetadataFunctionStmtFallsBackToSignature(t *testing.T) {
-	stmt, err := metadataFunctionStmt("public", &metadata.FunctionMetadata{
-		Name:       "fn",
-		Signature:  "fn(integer, text)",
-		Definition: "CREATE FUNCTION with a body omni cannot parse",
-	})
-	if err != nil {
-		t.Fatalf("metadataFunctionStmt: %v", err)
-	}
-	if stmt.Parameters == nil || len(stmt.Parameters.Items) != 2 {
-		t.Fatalf("want the signature's two parameters, got %+v", stmt.Parameters)
-	}
 	c := New()
-	if err := c.CreateFunctionStmt(stmt); err != nil {
-		t.Fatalf("CreateFunctionStmt: %v", err)
+	for _, procedure := range []bool{false, true} {
+		name := "fn"
+		if procedure {
+			name = "proc"
+		}
+		stmt, err := metadataFunctionStmt("public", &metadata.FunctionMetadata{
+			Name:       name,
+			Signature:  name + "(integer, text)",
+			Definition: "CREATE FUNCTION with a body omni cannot parse",
+		}, procedure)
+		if err != nil {
+			t.Fatalf("metadataFunctionStmt: %v", err)
+		}
+		if stmt.Parameters == nil || len(stmt.Parameters.Items) != 2 {
+			t.Fatalf("want the signature's two parameters, got %+v", stmt.Parameters)
+		}
+		if err := c.CreateFunctionStmt(stmt); err != nil {
+			t.Fatalf("CreateFunctionStmt: %v", err)
+		}
+	}
+	if procs := c.LookupProcByName("proc"); len(procs) != 1 || procs[0].Kind != 'p' {
+		t.Errorf("a procedure's fallback must install as a procedure, got %+v", procs)
 	}
 }
 

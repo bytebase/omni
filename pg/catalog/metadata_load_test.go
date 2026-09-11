@@ -57,6 +57,10 @@ func TestLoadMetadataInstallsSnapshot(t *testing.T) {
 				{Name: "amount", Type: "numeric(10,2)", Nullable: true},
 			},
 		}},
+		ExternalTables: []*metadata.ExternalTableMetadata{{
+			Name:    "remote_orders",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "integer"}},
+		}},
 		Views: []*metadata.ViewMetadata{{
 			Name:              "open_tasks",
 			Definition:        " SELECT tasks.id, tasks.status FROM tasks;",
@@ -64,6 +68,7 @@ func TestLoadMetadataInstallsSnapshot(t *testing.T) {
 		}},
 	})
 	requireCleanReport(t, report)
+	requireRelation(t, c, "public", "remote_orders")
 
 	tasks := requireRelation(t, c, "public", "tasks")
 	if !tasks.Columns[0].NotNull || tasks.Columns[1].NotNull {
@@ -98,12 +103,20 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 		EnumTypes: []*metadata.EnumTypeMetadata{{Name: "zz_status", Values: []string{"a"}}},
 		Views: []*metadata.ViewMetadata{{
 			Name:              "aa_view",
-			Definition:        "SELECT id FROM zz_orders",
+			Definition:        "SELECT id, public.zz_code(id) AS code FROM zz_orders",
 			DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "zz_orders", Column: "id"}},
 		}},
 		Functions: []*metadata.FunctionMetadata{
 			{Name: "aa_fn", Signature: "aa_fn(public.zz_base)"},
 			{Name: "aa_fn", Signature: "aa_fn(public.zz_orders)"},
+			{
+				Name:             "aa_rows",
+				Signature:        "aa_rows()",
+				Definition:       "CREATE FUNCTION public.aa_rows() RETURNS SETOF public.zz_orders LANGUAGE sql AS $$ SELECT * FROM zz_orders $$;",
+				DependencyTables: []*metadata.DependencyTable{{Schema: "public", Table: "zz_orders"}},
+			},
+			// Called by a default, an index expression, and a view body.
+			{Name: "zz_code", Signature: "zz_code(integer)", Definition: "CREATE FUNCTION public.zz_code(x integer) RETURNS integer IMMUTABLE LANGUAGE sql AS $$ SELECT x $$;"},
 		},
 		Tables: []*metadata.TableMetadata{
 			{
@@ -112,13 +125,37 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 					{Name: "id", Type: "integer", Default: "nextval('public.zz_seq'::regclass)"},
 					{Name: "order_id", Type: "integer"},
 					{Name: "order_snapshot", Type: "public.zz_orders", Nullable: true},
+					{Name: "code", Type: "integer", Default: "public.zz_code(0)"},
 				},
-				ForeignKeys: []*metadata.ForeignKeyMetadata{{
-					Name:              "aa_items_order_fk",
-					Columns:           []string{"order_id"},
-					ReferencedSchema:  "public",
-					ReferencedTable:   "zz_orders",
-					ReferencedColumns: []string{"id"},
+				Indexes: []*metadata.IndexMetadata{{
+					Name:       "aa_items_code_idx",
+					Definition: "CREATE INDEX aa_items_code_idx ON public.aa_items USING btree (zz_code(order_id))",
+				}},
+				ForeignKeys: []*metadata.ForeignKeyMetadata{
+					{
+						Name:              "aa_items_order_fk",
+						Columns:           []string{"order_id"},
+						ReferencedSchema:  "public",
+						ReferencedTable:   "zz_orders",
+						ReferencedColumns: []string{"id"},
+					},
+					{
+						Name:              "aa_items_ref_fk",
+						Columns:           []string{"order_id"},
+						ReferencedTable:   "zz_ref",
+						ReferencedColumns: []string{"code"},
+					},
+				},
+			},
+			{
+				Name:    "zz_ref",
+				Columns: []*metadata.ColumnMetadata{{Name: "code", Type: "integer"}},
+				// A standalone unique index, not a constraint, can back an FK.
+				Indexes: []*metadata.IndexMetadata{{
+					Name:        "zz_ref_code_key",
+					Unique:      true,
+					Expressions: []string{"code"},
+					Definition:  "CREATE UNIQUE INDEX zz_ref_code_key ON public.zz_ref USING btree (code)",
 				}},
 			},
 			{
@@ -310,13 +347,29 @@ func TestLoadMetadataFull(t *testing.T) {
 						Type: metadata.GenerationMetadata_TYPE_STORED, Expression: "lower(email)",
 					}},
 					{Name: "age", Type: "integer", Nullable: true},
+					{Name: "code", Type: "text", Nullable: true, Collation: "C"},
+					{Name: "bad_gen", Type: "text", Nullable: true, Generation: &metadata.GenerationMetadata{
+						Type: metadata.GenerationMetadata_TYPE_STORED, Expression: "lower(((",
+					}},
 				},
 				Indexes: []*metadata.IndexMetadata{
 					{Name: "users_pkey", Expressions: []string{"id"}, Primary: true, Unique: true, IsConstraint: true, Type: "btree"},
 					{Name: "users_email_key", Expressions: []string{"email"}, Unique: true, IsConstraint: true, Type: "btree"},
 					{Name: "users_lower_email_idx", Expressions: []string{"lower(email)", "age"}, Descending: []bool{false, true}, Type: "btree"},
+					{Name: "users_adult_email_idx", Unique: true, Definition: "CREATE UNIQUE INDEX users_adult_email_idx ON public.users USING btree (email) WHERE (age > 18)"},
 				},
 				CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "users_age_check", Expression: "(age > 0)"}},
+			},
+			{
+				Name: "rooms",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "room", Type: "integer"},
+					{Name: "during", Type: "tsrange"},
+				},
+				ExcludeConstraints: []*metadata.ExcludeConstraintMetadata{{
+					Name:       "rooms_no_overlap",
+					Expression: "EXCLUDE USING gist (room WITH =, during WITH &&)",
+				}},
 			},
 			{
 				Name:    "posts",
@@ -331,15 +384,20 @@ func TestLoadMetadataFull(t *testing.T) {
 			},
 		},
 		Sequences: []*metadata.SequenceMetadata{
+			{Name: "counter_seq", DataType: "integer", Start: "0", MinValue: "0", MaxValue: "100", Increment: "1", CacheSize: "1"},
 			{Name: "users_seq_no_seq", DataType: "bigint", Increment: "5", Start: "10", Cycle: true},
 			// Owned by the identity column, which creates it.
 			{Name: "users_id_seq", DataType: "bigint", OwnerTable: "users", OwnerColumn: "id"},
 		},
-		Procedures: []*metadata.ProcedureMetadata{{
-			Name:       "touch",
-			Signature:  "touch()",
-			Definition: "CREATE PROCEDURE public.touch() LANGUAGE sql AS $$ SELECT 1 $$;",
-		}},
+		Procedures: []*metadata.ProcedureMetadata{
+			{
+				Name:       "touch",
+				Signature:  "touch()",
+				Definition: "CREATE PROCEDURE public.touch() LANGUAGE sql AS $$ SELECT 1 $$;",
+			},
+			// No definition: installs from the signature, still as a procedure.
+			{Name: "touch_by", Signature: "touch_by(integer)"},
+		},
 	}
 
 	c, report := loadSnapshot(t, true, schema)
@@ -359,12 +417,21 @@ func TestLoadMetadataFull(t *testing.T) {
 	if byName["email_lower"].Generated != 's' {
 		t.Errorf("email_lower generated = %q, want stored", byName["email_lower"].Generated)
 	}
+	if byName["bad_gen"].Generated != 0 {
+		t.Error("a generation expression that does not parse must be dropped, not leave the column marked generated")
+	}
+	if byName["code"].CollationName != "C" {
+		t.Errorf("code collation = %q, want C", byName["code"].CollationName)
+	}
 	var indexes []string
 	for _, idx := range c.IndexesOf(users.OID) {
 		indexes = append(indexes, idx.Name)
+		if idx.Name == "users_adult_email_idx" && idx.WhereClause == "" {
+			t.Error("the partial index lost its predicate")
+		}
 	}
 	slices.Sort(indexes)
-	if want := []string{"users_email_key", "users_lower_email_idx", "users_pkey"}; !slices.Equal(indexes, want) {
+	if want := []string{"users_adult_email_idx", "users_email_key", "users_lower_email_idx", "users_pkey"}; !slices.Equal(indexes, want) {
 		t.Errorf("indexes = %v, want %v", indexes, want)
 	}
 	constraints := make(map[string]ConstraintType)
@@ -374,6 +441,10 @@ func TestLoadMetadataFull(t *testing.T) {
 	if constraints["users_pkey"] != ConstraintPK || constraints["users_email_key"] != ConstraintUnique || constraints["users_age_check"] != ConstraintCheck {
 		t.Errorf("users constraints = %v", constraints)
 	}
+	rooms := requireRelation(t, c, "public", "rooms")
+	if excl := c.ConstraintsOf(rooms.OID); len(excl) != 1 || excl[0].Type != ConstraintExclude || !slices.Equal(excl[0].ExclOps, []string{"=", "&&"}) {
+		t.Errorf("rooms constraints = %+v, want the EXCLUDE with its operators", excl)
+	}
 	posts := requireRelation(t, c, "public", "posts")
 	fks := c.ConstraintsOf(posts.OID)
 	if len(fks) != 1 || fks[0].Type != ConstraintFK || fks[0].FKDelAction != 'c' {
@@ -382,13 +453,18 @@ func TestLoadMetadataFull(t *testing.T) {
 	var sequences []string
 	for _, seq := range c.SequencesOf("public") {
 		sequences = append(sequences, seq.Name)
+		if seq.Name == "counter_seq" && (seq.TypeOID != INT4OID || seq.Start != 0 || seq.MinValue != 0) {
+			t.Errorf("counter_seq = %+v, want an integer sequence starting at 0", seq)
+		}
 	}
 	slices.Sort(sequences)
-	if want := []string{"users_id_seq", "users_seq_no_seq"}; !slices.Equal(sequences, want) {
-		t.Errorf("sequences = %v, want the explicit one and the identity column's", sequences)
+	if want := []string{"counter_seq", "users_id_seq", "users_seq_no_seq"}; !slices.Equal(sequences, want) {
+		t.Errorf("sequences = %v, want the explicit ones and the identity column's", sequences)
 	}
-	if len(c.LookupProcByName("touch")) != 1 {
-		t.Error("procedure touch not installed")
+	for _, name := range []string{"touch", "touch_by"} {
+		if procs := c.LookupProcByName(name); len(procs) != 1 || procs[0].Kind != 'p' {
+			t.Errorf("%s: want one procedure, got %+v", name, procs)
+		}
 	}
 
 	// Without Full, only the shapes install.
@@ -478,7 +554,7 @@ func TestOrderMetadataObjectsIsDeterministic(t *testing.T) {
 	}
 	objects := collectMetadataObjects(&metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{schema}}, false)
 	want := keys(orderMetadataObjects(objects))
-	if !slices.Equal(want, []string{"schema:public", "rel:public.a", "rel:public.c", "type:public.e", "rel:public.b", "rel:public.v1", "rel:public.v2"}) {
+	if !slices.Equal(want, []string{"schema:public", "type:public.e", "rel:public.a", "rel:public.b", "rel:public.c", "rel:public.v1", "rel:public.v2"}) {
 		t.Fatalf("order = %v", want)
 	}
 	r := rand.New(rand.NewSource(1))

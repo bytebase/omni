@@ -3,7 +3,6 @@ package catalog
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -46,10 +45,11 @@ func metadataCompositeTypeStmt(schema string, ct *metadata.CompositeTypeMetadata
 	}, nil
 }
 
-// metadataSequenceStmt treats an empty or zero option as unset; sync reports
-// zero for options the sequence leaves at their defaults.
 func metadataSequenceStmt(schema string, seq *metadata.SequenceMetadata) *nodes.CreateSeqStmt {
 	var opts []nodes.Node
+	if tn, err := parseTypeName(seq.GetDataType()); err == nil {
+		opts = append(opts, &nodes.DefElem{Defname: "as", Arg: tn})
+	}
 	for _, o := range []struct{ name, value string }{
 		{"increment", seq.GetIncrement()},
 		{"minvalue", seq.GetMinValue()},
@@ -57,7 +57,7 @@ func metadataSequenceStmt(schema string, seq *metadata.SequenceMetadata) *nodes.
 		{"start", seq.GetStart()},
 		{"cache", seq.GetCacheSize()},
 	} {
-		if o.value == "" || o.value == "0" {
+		if o.value == "" {
 			continue
 		}
 		v, _ := strconv.ParseInt(o.value, 10, 64)
@@ -92,6 +92,10 @@ func metadataTableStmt(schema string, t *metadata.TableMetadata, full bool) (*no
 			return nil, fmt.Errorf("column %q: %w", col.GetName(), err)
 		}
 		def := &nodes.ColumnDef{Colname: col.GetName(), TypeName: tn, IsNotNull: !col.GetNullable()}
+		if col.GetCollation() != "" {
+			// Sync reports a column's collation by its bare name.
+			def.CollClause = &nodes.CollateClause{Collname: metadataNameList("", col.GetCollation())}
+		}
 		if full {
 			setColumnValueProperties(def, col)
 		}
@@ -110,8 +114,8 @@ func setColumnValueProperties(def *nodes.ColumnDef, col *metadata.ColumnMetadata
 		}
 	}
 	if gen := col.GetGeneration(); gen.GetType() == metadata.GenerationMetadata_TYPE_STORED && gen.GetExpression() != "" {
-		def.Generated = 's'
 		if expr, err := parseScalar("SELECT (" + gen.GetExpression() + ")"); err == nil {
+			def.Generated = 's'
 			def.Constraints = &nodes.List{Items: []nodes.Node{
 				&nodes.Constraint{Contype: nodes.CONSTR_GENERATED, RawExpr: expr},
 			}}
@@ -161,15 +165,12 @@ func matViewStmt(schema, name string, sel *nodes.SelectStmt) *nodes.CreateTableA
 }
 
 // metadataFunctionStmt parses the function's CREATE statement. When the
-// snapshot has none that parses, it builds a SQL function from the signature,
-// with the argument types and a text result, so calls by name still resolve.
-func metadataFunctionStmt(schema string, fn *metadata.FunctionMetadata) (*nodes.CreateFunctionStmt, error) {
-	if fn.GetDefinition() != "" {
-		if list, err := pgparser.Parse(fn.GetDefinition()); err == nil && list != nil && len(list.Items) == 1 {
-			if stmt, ok := unwrapRawStmt(list.Items[0]).(*nodes.CreateFunctionStmt); ok {
-				return stmt, nil
-			}
-		}
+// snapshot has none that parses, it builds one from the signature, with the
+// argument types and, unless it is a procedure, a text result, so calls by
+// name still resolve.
+func metadataFunctionStmt(schema string, fn *metadata.FunctionMetadata, procedure bool) (*nodes.CreateFunctionStmt, error) {
+	if stmt, err := parseStatement[*nodes.CreateFunctionStmt](fn.GetDefinition()); err == nil {
+		return stmt, nil
 	}
 	argTypes, err := signatureArgTypes(fn.GetSignature())
 	if err != nil {
@@ -179,6 +180,10 @@ func metadataFunctionStmt(schema string, fn *metadata.FunctionMetadata) (*nodes.
 		Funcname:   metadataNameList(schema, fn.GetName()),
 		ReturnType: textTypeName(),
 		Options:    sqlFunctionBody("SELECT NULL::text"),
+	}
+	if procedure {
+		stmt.ReturnType = nil
+		stmt.Options.Items = append(stmt.Options.Items, &nodes.DefElem{Defname: "isProcedure", Arg: &nodes.Boolean{Boolval: true}})
 	}
 	if len(argTypes) > 0 {
 		params := make([]nodes.Node, 0, len(argTypes))
@@ -212,10 +217,15 @@ func metadataKeyConstraint(idx *metadata.IndexMetadata) ConstraintDef {
 	return def
 }
 
-// metadataIndexStmt reads each key as a column name unless it looks like an
-// expression, in pg_get_indexdef's shape: a function call or a parenthesized,
-// cast, or spaced expression.
+// metadataIndexStmt parses the index's definition, which keeps a partial
+// index's predicate. Without one that parses, it rebuilds the index from its
+// keys, reading each as a column name unless it looks like an expression in
+// pg_get_indexdef's shape: a function call or a parenthesized, cast, or spaced
+// expression.
 func metadataIndexStmt(schema, relation string, idx *metadata.IndexMetadata) (*nodes.IndexStmt, error) {
+	if stmt, err := parseStatement[*nodes.IndexStmt](idx.GetDefinition()); err == nil {
+		return stmt, nil
+	}
 	if idx.GetName() == "" {
 		return nil, errors.New("index has no name")
 	}
@@ -250,29 +260,33 @@ func metadataIndexStmt(schema, relation string, idx *metadata.IndexMetadata) (*n
 	}, nil
 }
 
-func metadataConstraintDef(o *metadataObject) ConstraintDef {
-	switch {
-	case o.fk != nil:
-		refSchema := o.fk.GetReferencedSchema()
-		if refSchema == "" {
-			refSchema = o.schema
-		}
-		return ConstraintDef{
-			Name:        o.fk.GetName(),
-			Type:        ConstraintFK,
-			Columns:     o.fk.GetColumns(),
-			RefSchema:   refSchema,
-			RefTable:    o.fk.GetReferencedTable(),
-			RefColumns:  o.fk.GetReferencedColumns(),
-			FKUpdAction: fkActionCode(o.fk.GetOnUpdate()),
-			FKDelAction: fkActionCode(o.fk.GetOnDelete()),
-			FKMatchType: fkMatchCode(o.fk.GetMatchType()),
-		}
-	case o.check != nil:
-		return ConstraintDef{Name: o.check.GetName(), Type: ConstraintCheck, CheckExpr: o.check.GetExpression()}
-	default:
-		return ConstraintDef{Name: o.exclude.GetName(), Type: ConstraintExclude, CheckExpr: o.exclude.GetExpression()}
+func metadataForeignKey(schema string, fk *metadata.ForeignKeyMetadata) ConstraintDef {
+	refSchema := fk.GetReferencedSchema()
+	if refSchema == "" {
+		refSchema = schema
 	}
+	return ConstraintDef{
+		Name:        fk.GetName(),
+		Type:        ConstraintFK,
+		Columns:     fk.GetColumns(),
+		RefSchema:   refSchema,
+		RefTable:    fk.GetReferencedTable(),
+		RefColumns:  fk.GetReferencedColumns(),
+		FKUpdAction: fkActionCode(fk.GetOnUpdate()),
+		FKDelAction: fkActionCode(fk.GetOnDelete()),
+		FKMatchType: fkMatchCode(fk.GetMatchType()),
+	}
+}
+
+// metadataConstraintStmt parses a CHECK or EXCLUDE constraint from its
+// pg_get_constraintdef text; sync strips the CHECK keyword from checks.
+func metadataConstraintStmt(o *metadataObject) (*nodes.AlterTableStmt, error) {
+	def := o.exclude.GetExpression()
+	if o.check != nil {
+		def = "CHECK " + o.check.GetExpression()
+	}
+	return parseStatement[*nodes.AlterTableStmt](fmt.Sprintf("ALTER TABLE %s.%s ADD CONSTRAINT %s %s",
+		quoteIdent(o.schema), quoteIdent(o.parent), quoteIdent(o.name), def))
 }
 
 func fkActionCode(action string) byte {
@@ -431,24 +445,29 @@ func parseScalar(sql string) (nodes.Node, error) {
 	return rt.Val, nil
 }
 
-// parseSelect parses exactly one SELECT statement.
 func parseSelect(sql string) (*nodes.SelectStmt, error) {
+	return parseStatement[*nodes.SelectStmt](sql)
+}
+
+// parseStatement parses sql as exactly one statement of type T.
+func parseStatement[T nodes.Node](sql string) (T, error) {
+	var zero T
 	list, err := pgparser.Parse(sql)
 	if err != nil {
-		return nil, err
+		return zero, err
 	}
 	if list == nil || len(list.Items) != 1 {
 		n := 0
 		if list != nil {
 			n = len(list.Items)
 		}
-		return nil, fmt.Errorf("expected one statement, got %d", n)
+		return zero, fmt.Errorf("expected one statement, got %d", n)
 	}
-	sel, ok := unwrapRawStmt(list.Items[0]).(*nodes.SelectStmt)
+	stmt, ok := unwrapRawStmt(list.Items[0]).(T)
 	if !ok {
-		return nil, fmt.Errorf("expected SELECT, got %T", unwrapRawStmt(list.Items[0]))
+		return zero, fmt.Errorf("expected %T, got %T", zero, unwrapRawStmt(list.Items[0]))
 	}
-	return sel, nil
+	return stmt, nil
 }
 
 // userTypeRef returns the schema and name a type string refers to when it is
@@ -463,21 +482,6 @@ func userTypeRef(typ string) (schema, name string, ok bool) {
 		s = strings.TrimSpace(before)
 	}
 	return splitQualifiedIdent(s)
-}
-
-var nextvalRef = regexp.MustCompile(`nextval\('([^']+)'`)
-
-// nextvalSequence returns the sequence a nextval('...') default draws from,
-// resolving an unqualified name to the table's schema.
-func nextvalSequence(defaultExpr, tableSchema string) (schema, name string, ok bool) {
-	m := nextvalRef.FindStringSubmatch(defaultExpr)
-	if m == nil {
-		return "", "", false
-	}
-	if schema, name, ok := splitQualifiedIdent(m[1]); ok {
-		return schema, name, true
-	}
-	return tableSchema, unquoteIdent(m[1]), true
 }
 
 // signatureArgTypes splits the argument types out of a signature such as

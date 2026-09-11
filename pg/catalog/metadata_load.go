@@ -104,6 +104,8 @@ type metadataObject struct {
 	fk        *metadata.ForeignKeyMetadata
 	check     *metadata.CheckConstraintMetadata
 	exclude   *metadata.ExcludeConstraintMetadata
+	// procedure marks a function that comes from the snapshot's procedures.
+	procedure bool
 }
 
 func (o *metadataObject) key() string {
@@ -126,9 +128,9 @@ func (o *metadataObject) key() string {
 }
 
 // sortKey orders objects the dependency graph leaves unordered, including the
-// members of a cycle.
+// members of a cycle: by kind, then name.
 func (o *metadataObject) sortKey() string {
-	key := o.schema + "\x00" + o.name + "\x00" + metadataKindLabels[o.kind]
+	key := metadataKindLabels[o.kind] + "\x00" + o.schema + "\x00" + o.name
 	switch o.kind {
 	case metadataFunction:
 		key += "\x00" + metadataFunctionIdentity(o.function)
@@ -139,15 +141,20 @@ func (o *metadataObject) sortKey() string {
 	return key
 }
 
+// metadataKindLabels orders kinds. Functions come before relations because
+// CreateFunctionStmt does not analyze a body, while a default, an index
+// expression, or a view body is analyzed as it installs and needs every
+// function it calls. Sequences come before the defaults that draw from them,
+// and constraints after the indexes an FK can reference.
 var metadataKindLabels = map[metadataObjectKind]string{
 	metadataSchema:     "0schema",
 	metadataEnum:       "1enum",
 	metadataComposite:  "1composite",
 	metadataSequence:   "2seq",
-	metadataTable:      "3table",
-	metadataView:       "4view",
-	metadataMatView:    "5matview",
-	metadataFunction:   "6function",
+	metadataFunction:   "3function",
+	metadataTable:      "4table",
+	metadataView:       "5view",
+	metadataMatView:    "6matview",
 	metadataIndex:      "7index",
 	metadataConstraint: "8constraint",
 }
@@ -182,6 +189,13 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 		for _, t := range s.GetTables() {
 			out = append(out, &metadataObject{kind: metadataTable, schema: schema, name: t.GetName(), table: t})
 		}
+		// A foreign table loads as a plain table: query analysis needs only its columns.
+		for _, et := range s.GetExternalTables() {
+			out = append(out, &metadataObject{kind: metadataTable, schema: schema, name: et.GetName(), table: &metadata.TableMetadata{
+				Name:    et.GetName(),
+				Columns: et.GetColumns(),
+			}})
+		}
 		for _, v := range s.GetViews() {
 			out = append(out, &metadataObject{kind: metadataView, schema: schema, name: v.GetName(), view: v})
 		}
@@ -202,7 +216,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			out = append(out, &metadataObject{kind: metadataSequence, schema: schema, name: seq.GetName(), sequence: seq})
 		}
 		for _, p := range s.GetProcedures() {
-			out = append(out, &metadataObject{kind: metadataFunction, schema: schema, name: p.GetName(), function: &metadata.FunctionMetadata{
+			out = append(out, &metadataObject{kind: metadataFunction, schema: schema, name: p.GetName(), procedure: true, function: &metadata.FunctionMetadata{
 				Name:       p.GetName(),
 				Definition: p.GetDefinition(),
 				Signature:  p.GetSignature(),
@@ -258,7 +272,7 @@ func isKeyIndex(idx *metadata.IndexMetadata) bool {
 }
 
 // orderMetadataObjects returns objects in an order that installs each one's
-// dependencies first. A dependency cycle installs its lexically first member
+// dependencies first. A dependency cycle installs its first member by sortKey
 // first; that member fails and gets a stand-in, and the rest install against it.
 func orderMetadataObjects(objects []*metadataObject) []*metadataObject {
 	if len(objects) == 0 {
@@ -341,15 +355,6 @@ func (q *componentQueue) Pop() any {
 // metadataDependencies maps each object's key to the keys of the objects it
 // needs installed first. It records only dependencies the snapshot contains.
 func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataObject) map[string][]string {
-	// keyIndexes maps "schema.table" to the keys of the table's PRIMARY KEY
-	// and UNIQUE constraint indexes, which a referencing FK needs.
-	keyIndexes := make(map[string][]string)
-	for _, o := range objects {
-		if o.kind == metadataIndex && isKeyIndex(o.index) {
-			keyIndexes[o.schema+"."+o.parent] = append(keyIndexes[o.schema+"."+o.parent], o.key())
-		}
-	}
-
 	edges := make(map[string][]string, len(objects))
 	for _, o := range objects {
 		self := o.key()
@@ -377,9 +382,6 @@ func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataO
 		case metadataTable:
 			for _, col := range o.table.GetColumns() {
 				addType(col.GetType())
-				if schema, name, ok := nextvalSequence(col.GetDefault(), o.schema); ok {
-					add(metadataSequenceKey(schema, name))
-				}
 			}
 		case metadataView:
 			for _, dep := range o.view.GetDependencyColumns() {
@@ -394,6 +396,10 @@ func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataO
 			for _, t := range argTypes {
 				addType(t)
 			}
+			// The tables whose row type the function returns.
+			for _, dep := range o.function.GetDependencyTables() {
+				add(metadataRelationKey(dep.GetSchema(), dep.GetTable()))
+			}
 		case metadataIndex:
 			add(metadataRelationKey(o.schema, o.parent))
 		case metadataConstraint:
@@ -404,9 +410,6 @@ func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataO
 					refSchema = o.schema
 				}
 				add(metadataRelationKey(refSchema, o.fk.GetReferencedTable()))
-				for _, k := range keyIndexes[refSchema+"."+o.fk.GetReferencedTable()] {
-					add(k)
-				}
 			}
 		default:
 		}
@@ -511,7 +514,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		}
 		return c.ExecCreateTableAs(stmt)
 	case metadataFunction:
-		stmt, err := metadataFunctionStmt(o.schema, o.function)
+		stmt, err := metadataFunctionStmt(o.schema, o.function, o.procedure)
 		if err != nil {
 			return err
 		}
@@ -526,7 +529,14 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		}
 		return c.DefineIndex(stmt)
 	case metadataConstraint:
-		return c.AddConstraint(o.schema, o.parent, metadataConstraintDef(o))
+		if o.fk != nil {
+			return c.AddConstraint(o.schema, o.parent, metadataForeignKey(o.schema, o.fk))
+		}
+		stmt, err := metadataConstraintStmt(o)
+		if err != nil {
+			return err
+		}
+		return c.AlterTableStmt(stmt)
 	default:
 		return fmt.Errorf("unknown metadata object kind %d", o.kind)
 	}
