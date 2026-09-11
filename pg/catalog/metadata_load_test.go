@@ -281,8 +281,6 @@ func TestLoadMetadataStandsInForFailedObjects(t *testing.T) {
 		Functions: []*metadata.FunctionMetadata{
 			// Parses, but omni does not know the language.
 			{Name: "js_fn", Signature: "js_fn(integer)", Definition: "CREATE FUNCTION public.js_fn(x integer) RETURNS integer LANGUAGE plv8 AS $$ return x $$;"},
-			// Sync lists procedures among the functions.
-			{Name: "js_proc", Signature: "js_proc(integer)", Definition: "CREATE PROCEDURE public.js_proc(x integer) LANGUAGE plv8 AS $$ return $$;"},
 			// No definition; the signature names a table that sorts after it.
 			{Name: "a_sig", Signature: "a_sig(public.unknown_type)"},
 		},
@@ -298,7 +296,7 @@ func TestLoadMetadataStandsInForFailedObjects(t *testing.T) {
 		}},
 	})
 
-	for _, key := range []string{"type:public.dup_status", "rel:public.unknown_type", "rel:public.bad_body", "rel:public.mv_alias", "func:public.js_fn|js_fn(integer)", "func:public.js_proc|js_proc(integer)", "func:public.a_sig|a_sig(public.unknown_type)"} {
+	for _, key := range []string{"type:public.dup_status", "rel:public.unknown_type", "rel:public.bad_body", "rel:public.mv_alias", "func:public.js_fn|js_fn(integer)", "func:public.a_sig|a_sig(public.unknown_type)"} {
 		if report.Degraded[key] == nil {
 			t.Errorf("%s: want degraded to a stand-in, report %v", key, report.Degraded)
 		}
@@ -325,9 +323,6 @@ func TestLoadMetadataStandsInForFailedObjects(t *testing.T) {
 		if len(c.LookupProcByName(fn)) != 1 {
 			t.Errorf("%s: want its signature stand-in installed", fn)
 		}
-	}
-	if procs := c.LookupProcByName("js_proc"); len(procs) != 1 || procs[0].Kind != 'p' {
-		t.Errorf("js_proc: want a procedure stand-in, got %+v", procs)
 	}
 }
 
@@ -501,10 +496,16 @@ func TestLoadMetadataFull(t *testing.T) {
 			// No definition: its signature stand-in is still a procedure.
 			{Name: "touch_by", Signature: "touch_by(integer)"},
 		},
+		// PostgreSQL sync lists procedures among the functions.
+		Functions: []*metadata.FunctionMetadata{
+			{Name: "sweep", Signature: "sweep()", Definition: "CREATE PROCEDURE public.sweep() LANGUAGE sql AS $$ SELECT 1 $$;"},
+			// Parses, but omni does not know the language.
+			{Name: "js_proc", Signature: "js_proc(integer)", Definition: "CREATE PROCEDURE public.js_proc(x integer) LANGUAGE plv8 AS $$ return $$;"},
+		},
 	}
 
 	c, report := loadSnapshot(t, true, schema)
-	requireDegraded(t, report, "func:public.touch_by|touch_by(integer)", "rel:public.broken")
+	requireDegraded(t, report, "func:public.touch_by|touch_by(integer)", "func:public.js_proc|js_proc(integer)", "rel:public.broken")
 
 	users := requireRelation(t, c, "public", "users")
 	byName := make(map[string]*Column, len(users.Columns))
@@ -584,7 +585,7 @@ func TestLoadMetadataFull(t *testing.T) {
 	if want := []string{"broken_id_seq", "counter_seq", "users_id_custom", "users_seq_no_seq"}; !slices.Equal(sequences, want) {
 		t.Errorf("sequences = %v, want the explicit ones and the identity column's", sequences)
 	}
-	for _, name := range []string{"touch", "touch_by"} {
+	for _, name := range []string{"touch", "touch_by", "sweep", "js_proc"} {
 		if procs := c.LookupProcByName(name); len(procs) != 1 || procs[0].Kind != 'p' {
 			t.Errorf("%s: want one procedure, got %+v", name, procs)
 		}
@@ -600,7 +601,7 @@ func TestLoadMetadataFull(t *testing.T) {
 	if users.Columns[0].Identity != 0 || users.Columns[2].HasDefault {
 		t.Error("identity and defaults must wait for Full")
 	}
-	if len(c.SequencesOf("public")) != 0 || len(c.LookupProcByName("touch")) != 0 {
+	if len(c.SequencesOf("public")) != 0 || len(c.LookupProcByName("touch")) != 0 || len(c.LookupProcByName("sweep")) != 0 {
 		t.Error("sequences and procedures must wait for Full")
 	}
 }

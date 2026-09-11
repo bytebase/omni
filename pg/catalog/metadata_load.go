@@ -246,7 +246,10 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			out = append(out, &metadataObject{kind: metadataMatView, schema: schema, name: mv.GetName(), matView: mv, body: body, bodyErr: err})
 		}
 		for _, fn := range s.GetFunctions() {
-			out = append(out, functionObject(schema, fn, false))
+			// Procedures listed here wait for full, as the snapshot's own do.
+			if o := functionObject(schema, fn, false); full || !o.procedure {
+				out = append(out, o)
+			}
 		}
 		if !full {
 			continue
