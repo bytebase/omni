@@ -1711,6 +1711,13 @@ func writeLoadDataStmt(sb *strings.Builder, n *LoadDataStmt) {
 	if n.Infile != "" {
 		fmt.Fprintf(sb, " :infile %q", n.Infile)
 	}
+	if n.FromS3 {
+		sb.WriteString(" :from_s3 true")
+		if n.S3Kind != "" {
+			fmt.Fprintf(sb, " :s3_kind %s", n.S3Kind)
+		}
+		fmt.Fprintf(sb, " :s3_uri %q", n.S3URI)
+	}
 	if n.Replace {
 		sb.WriteString(" :replace true")
 	}
@@ -3100,6 +3107,9 @@ func writeForUpdate(sb *strings.Builder, n *ForUpdate) {
 func writeIntoClause(sb *strings.Builder, n *IntoClause) {
 	sb.WriteString("{INTO")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OutfileS3 {
+		sb.WriteString(" :outfile_s3 true")
+	}
 	if n.Outfile != "" {
 		fmt.Fprintf(sb, " :outfile %q", n.Outfile)
 	}
@@ -3108,6 +3118,12 @@ func writeIntoClause(sb *strings.Builder, n *IntoClause) {
 	}
 	if n.Charset != "" {
 		fmt.Fprintf(sb, " :charset %q", n.Charset)
+	}
+	if n.Format != "" {
+		fmt.Fprintf(sb, " :format %s", n.Format)
+	}
+	if n.Header {
+		sb.WriteString(" :header true")
 	}
 	if n.HasFieldsClause {
 		sb.WriteString(" :fields true")
@@ -3131,6 +3147,18 @@ func writeIntoClause(sb *strings.Builder, n *IntoClause) {
 		}
 		if n.LinesTerminatedBy != "" {
 			fmt.Fprintf(sb, " :lines_terminated_by %q", n.LinesTerminatedBy)
+		}
+	}
+	if n.Manifest != "" {
+		fmt.Fprintf(sb, " :manifest %s", n.Manifest)
+	}
+	if n.Overwrite != "" {
+		fmt.Fprintf(sb, " :overwrite %s", n.Overwrite)
+	}
+	if n.Encryption != "" {
+		fmt.Fprintf(sb, " :encryption %s", n.Encryption)
+		if n.EncryptionKey != "" {
+			fmt.Fprintf(sb, " :encryption_key %q", n.EncryptionKey)
 		}
 	}
 	if len(n.Vars) > 0 {

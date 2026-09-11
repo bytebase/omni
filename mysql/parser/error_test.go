@@ -206,6 +206,16 @@ func TestParseError_Section_1_4_DMLIgnoredErrors(t *testing.T) {
 		// load_data.go: charset/file identifier (2 sites)
 		{"load_data_charset_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARACTER SET", "at end of input"},
 		{"load_data_charset_short_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARSET", "at end of input"},
+		// load_data.go: Aurora S3 source at EOF (3 sites)
+		{"load_data_from_trunc", "LOAD DATA FROM", "at end of input"},
+		{"load_data_from_s3_trunc", "LOAD DATA FROM S3", "at end of input"},
+		{"load_data_from_s3_kind_trunc", "LOAD DATA FROM S3 MANIFEST", "at end of input"},
+		// select.go: Aurora INTO OUTFILE S3 options at EOF (5 sites)
+		{"outfile_s3_trunc", "SELECT 1 INTO OUTFILE S3", "at end of input"},
+		{"outfile_s3_format_trunc", "SELECT 1 INTO OUTFILE S3 'u' FORMAT", "at end of input"},
+		{"outfile_s3_manifest_trunc", "SELECT 1 INTO OUTFILE S3 'u' MANIFEST", "at end of input"},
+		{"outfile_s3_overwrite_trunc", "SELECT 1 INTO OUTFILE S3 'u' OVERWRITE", "at end of input"},
+		{"outfile_s3_encryption_trunc", "SELECT 1 INTO OUTFILE S3 'u' ENCRYPTION", "at end of input"},
 		// replication.go: channel identifier (UNTIL pos name)
 		{"repl_until_pos_trunc", "START REPLICA UNTIL SOURCE_LOG_FILE = 'f',", "at end of input"},
 		// utility.go: identifier (2 sites — RESET bare, HELP bare)

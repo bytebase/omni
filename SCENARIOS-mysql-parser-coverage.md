@@ -269,3 +269,54 @@ Verify omni matches MySQL 8.0 rejection behavior.
 - [x] `ALTER TABLE t PARTITION BY` — rejected: incomplete partition spec
 - [x] `ALTER TABLE t PARTITION BY RANGE(id)` — rejected: missing partition definitions for RANGE
 - [~] `SELECT DATE_ADD(d, INTERVAL 1 INVALID_UNIT) FROM t` — MISMATCH: omni accepts, MySQL rejects (parser doesn't validate interval units)
+
+---
+
+## Phase 4: Engine Extensions Accepted by the MySQL Parser
+
+Aurora MySQL registers in Bytebase as the `MYSQL` engine, so its S3 statements must parse under the plain MySQL grammar. Stock MySQL 8.0 rejects every statement below with ER_PARSE_ERROR (1064), so none of them are oracle-verified and none belong in the oracle corpus. Grammar: `mysql/parser/bnf/aurora-s3.bnf`. Tracked by BYT-10141 / bytebase/bytebase#21231.
+
+### 4.1 Aurora MySQL — LOAD DATA FROM S3
+
+- [x] `LOAD DATA FROM S3 's3://mybucket/data.txt' INTO TABLE t1 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n'` — the reported reproduction; FromS3 + S3URI populated, Infile empty
+- [x] `LOAD DATA S3 's3://b/x' INTO TABLE t1` — FROM optional (Aurora MySQL 3.05+)
+- [x] `LOAD DATA FROM S3 FILE 's3://b/x' REPLACE INTO TABLE t1` — explicit FILE kind
+- [x] `LOAD DATA FROM S3 PREFIX 's3-us-west-2://b/employee_data' IGNORE INTO TABLE employees (ID, FIRSTNAME) SET x = 1` — PREFIX kind, region-qualified URI, column list and SET
+- [x] `LOAD DATA FROM S3 MANIFEST 's3://b/q1.json' INTO TABLE sales PARTITION (p0) CHARACTER SET utf8mb4 IGNORE 1 LINES` — MANIFEST kind with trailing INFILE clauses
+- [x] `LOAD DATA LOW_PRIORITY FROM S3 's3://b/x' INTO TABLE t1` — INFILE prefix modifiers still accepted
+- [x] `LOAD DATA LOCAL FROM S3 's3://b/x' INTO TABLE t` — rejected: LOCAL is not allowed with an S3 source
+- [x] `LOAD DATA FROM S3 INTO TABLE t` — rejected: URI literal is mandatory
+- [x] `LOAD DATA FROM S3 FILE PREFIX 's3://b/x' INTO TABLE t` — rejected: one source kind only
+- [x] `LOAD DATA FROM 's3://b/x' INTO TABLE t` — rejected: FROM must be followed by S3
+- [x] `LOAD DATA INFILE S3 's3://b/x' INTO TABLE t` — rejected: INFILE form unchanged
+
+### 4.2 Aurora MySQL — LOAD XML FROM S3
+
+- [x] `LOAD XML FROM S3 's3://b/data.xml' INTO TABLE t1 ROWS IDENTIFIED BY '<row>'` — XML form with ROWS IDENTIFIED BY
+- [x] `LOAD XML FROM S3 PREFIX 's3://b/data' INTO TABLE t1` — PREFIX kind
+- [x] `LOAD XML FROM S3 MANIFEST 's3://b/x' INTO TABLE t` — rejected: MANIFEST is documented for LOAD DATA only
+
+### 4.3 Aurora MySQL — SELECT ... INTO OUTFILE S3
+
+- [x] `SELECT * FROM employees INTO OUTFILE S3 's3://b/prefix' FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' MANIFEST ON OVERWRITE ON` — OutfileS3 + Manifest/Overwrite
+- [x] `SELECT * FROM t INTO OUTFILE S3 's3://b/p' CHARACTER SET utf8mb4 FORMAT CSV HEADER FIELDS TERMINATED BY ',' MANIFEST OFF OVERWRITE OFF ENCRYPTION SSE_KMS 'arn:aws:kms:key'` — every option, documented order
+- [x] `SELECT * FROM t INTO OUTFILE S3 's3://b/p' FORMAT TEXT ENCRYPTION ON` — FORMAT TEXT, ENCRYPTION ON
+- [x] `SELECT * FROM t INTO OUTFILE S3 's3://b/p' ENCRYPTION SSE_S3` — SSE_S3 mode
+- [x] `SELECT a INTO OUTFILE S3 's3://b/p' FROM t` — INTO before FROM
+- [x] `TABLE t1 INTO OUTFILE S3 's3://b/p'` — TABLE statement shares the INTO clause
+- [x] `SELECT * FROM t INTO OUTFILE S3 FIELDS TERMINATED BY ','` — rejected: URI literal is mandatory
+- [x] `SELECT * FROM t INTO OUTFILE S3 's3://b/p' MANIFEST MAYBE` — rejected: ON | OFF only
+- [x] `SELECT * FROM t INTO OUTFILE S3 's3://b/p' FORMAT JSON` — rejected: CSV | TEXT only
+- [x] `SELECT * FROM t INTO OUTFILE '/tmp/x' MANIFEST ON` — rejected: Aurora options need OUTFILE S3
+- [x] `SELECT * FROM t INTO OUTFILE '/tmp/x' FORMAT CSV` — rejected: Aurora options need OUTFILE S3
+- [x] `SELECT * FROM t INTO DUMPFILE S3 's3://b/p'` — rejected: DUMPFILE has no S3 form
+
+### 4.4 Aurora MySQL — New Keywords Stay Non-Reserved
+
+New tokens: CSV, MANIFEST, OVERWRITE, PREFIX, SSE_KMS, SSE_S3 (kwCatUnambiguous; excluded from the MySQL 8.0 `IsKeyword` API like S3 and HEADER).
+
+- [x] `SELECT manifest, prefix, csv, overwrite, s3, header, encryption FROM sse_s3 AS sse_kms` — as column, table and alias names
+- [x] `CREATE TABLE manifest (prefix INT, csv INT, overwrite INT, s3 INT, sse_s3 INT, sse_kms INT)` — as table and column names
+- [x] `SET manifest = 1, prefix = 2, overwrite = 3` — as SET targets
+- [x] `CREATE PROCEDURE p() BEGIN manifest: LOOP LEAVE manifest; END LOOP; END` — as a label
+- [x] `CREATE ROLE csv, overwrite` — as role names

@@ -12686,3 +12686,128 @@ func TestLvalueIdentRejectsAmbiguous4(t *testing.T) {
 		}
 	})
 }
+
+// Aurora MySQL S3 extensions: LOAD DATA [FROM] S3, LOAD XML FROM S3, and
+// SELECT ... INTO OUTFILE S3. Aurora registers as the MYSQL engine, so the
+// parser accepts these unconditionally; stock MySQL 8.0 rejects them with
+// ER_PARSE_ERROR, which is why none of them belong in the oracle corpus.
+// Ref: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Integrating.LoadFromS3.html
+// Ref: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Integrating.SaveIntoS3.html
+
+func TestAuroraLoadDataFromS3(t *testing.T) {
+	// The reproduction from bytebase/bytebase#21231.
+	ParseAndCompare(t,
+		"LOAD DATA FROM S3 's3://mybucket/data.txt' INTO TABLE t1 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n'",
+		`{LOAD_DATA :loc 0 :from_s3 true :s3_uri "s3://mybucket/data.txt" :table {TABLEREF :loc 54 :name t1} :lines_terminated "\n" :fields_terminated ","}`)
+
+	// FROM is optional since Aurora MySQL 3.05.
+	ParseAndCompare(t,
+		"LOAD DATA S3 's3://b/x' INTO TABLE t1",
+		`{LOAD_DATA :loc 0 :from_s3 true :s3_uri "s3://b/x" :table {TABLEREF :loc 35 :name t1}}`)
+
+	// Explicit FILE / PREFIX / MANIFEST source kinds.
+	ParseAndCompare(t,
+		"LOAD DATA FROM S3 FILE 's3://b/x' REPLACE INTO TABLE t1",
+		`{LOAD_DATA :loc 0 :from_s3 true :s3_kind FILE :s3_uri "s3://b/x" :replace true :table {TABLEREF :loc 53 :name t1}}`)
+	ParseAndCompare(t,
+		"LOAD DATA FROM S3 PREFIX 's3-us-west-2://b/employee_data' IGNORE INTO TABLE employees (ID, FIRSTNAME) SET x = 1",
+		`{LOAD_DATA :loc 0 :from_s3 true :s3_kind PREFIX :s3_uri "s3-us-west-2://b/employee_data" :ignore true :table {TABLEREF :loc 76 :name employees} :columns {COLREF :loc 87 :col ID} {COLREF :loc 91 :col FIRSTNAME} :set {ASSIGN :loc 106 :col {COLREF :loc 106 :col x} :val {INT_LIT :val 1 :loc 110}}}`)
+	ParseAndCompare(t,
+		"LOAD DATA FROM S3 MANIFEST 's3://b/q1.json' INTO TABLE sales PARTITION (p0) CHARACTER SET utf8mb4 IGNORE 1 LINES",
+		`{LOAD_DATA :loc 0 :from_s3 true :s3_kind MANIFEST :s3_uri "s3://b/q1.json" :table {TABLEREF :loc 55 :name sales} :partitions (p0) :charset utf8mb4 :ignore_rows 1}`)
+
+	// Every trailing clause of the INFILE form still applies.
+	ParseAndCheck(t, "LOAD DATA LOW_PRIORITY FROM S3 's3://b/x' INTO TABLE t1")
+	ParseAndCheck(t, "LOAD DATA CONCURRENT FROM S3 's3://b/x' INTO TABLE t1")
+	ParseAndCheck(t, "LOAD DATA FROM S3 's3://b/x' INTO TABLE db1.t1 PARTITION (p0) CHARACTER SET utf8mb4 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES STARTING BY '>>' TERMINATED BY '\\n' IGNORE 1 LINES (col1, @var1) SET col2 = @var1/100")
+}
+
+func TestAuroraLoadXMLFromS3(t *testing.T) {
+	ParseAndCompare(t,
+		"LOAD XML FROM S3 's3://b/data.xml' INTO TABLE t1 ROWS IDENTIFIED BY '<row>'",
+		`{LOAD_XML :loc 0 :from_s3 true :s3_uri "s3://b/data.xml" :table {TABLEREF :loc 46 :name t1} :rows_identified_by "<row>"}`)
+	ParseAndCompare(t,
+		"LOAD XML FROM S3 PREFIX 's3://b/data' INTO TABLE t1",
+		`{LOAD_XML :loc 0 :from_s3 true :s3_kind PREFIX :s3_uri "s3://b/data" :table {TABLEREF :loc 49 :name t1}}`)
+	ParseAndCheck(t, "LOAD XML FROM S3 FILE 's3://b/data.xml' REPLACE INTO TABLE t1 CHARACTER SET utf8 IGNORE 1 ROWS (column1, @var1) SET table_column2 = @var1/100")
+}
+
+func TestAuroraLoadFromS3Rejects(t *testing.T) {
+	// LOCAL is not allowed with an S3 source.
+	ParseExpectError(t, "LOAD DATA LOCAL FROM S3 's3://b/x' INTO TABLE t")
+	// The URI literal is mandatory.
+	ParseExpectError(t, "LOAD DATA FROM S3 INTO TABLE t")
+	ParseExpectError(t, "LOAD DATA FROM S3 FILE INTO TABLE t")
+	ParseExpectError(t, "LOAD DATA FROM S3")
+	// At most one source kind.
+	ParseExpectError(t, "LOAD DATA FROM S3 FILE PREFIX 's3://b/x' INTO TABLE t")
+	// MANIFEST is documented for LOAD DATA only.
+	ParseExpectError(t, "LOAD XML FROM S3 MANIFEST 's3://b/x' INTO TABLE t")
+	// FROM must be followed by S3.
+	ParseExpectError(t, "LOAD DATA FROM 's3://b/x' INTO TABLE t")
+	// The INFILE form is unchanged and still does not take S3 options.
+	ParseExpectError(t, "LOAD DATA INFILE S3 's3://b/x' INTO TABLE t")
+}
+
+func TestAuroraSelectIntoOutfileS3(t *testing.T) {
+	ParseAndCompare(t,
+		"SELECT * FROM employees INTO OUTFILE S3 's3://b/prefix' FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n' MANIFEST ON OVERWRITE ON",
+		`{SELECT :loc 0 :targets ({STAR :loc 7}) :from ({TABLEREF :loc 14 :name employees}) :into {INTO :loc 29 :outfile_s3 true :outfile "s3://b/prefix" :fields true :fields_terminated_by "," :lines true :lines_terminated_by "\n" :manifest ON :overwrite ON}}`)
+	ParseAndCompare(t,
+		"SELECT * FROM t INTO OUTFILE S3 's3://b/p' CHARACTER SET utf8mb4 FORMAT CSV HEADER FIELDS TERMINATED BY ',' MANIFEST OFF OVERWRITE OFF ENCRYPTION SSE_KMS 'arn:aws:kms:key'",
+		`{SELECT :loc 0 :targets ({STAR :loc 7}) :from ({TABLEREF :loc 14 :name t}) :into {INTO :loc 21 :outfile_s3 true :outfile "s3://b/p" :charset "utf8mb4" :format CSV :header true :fields true :fields_terminated_by "," :manifest OFF :overwrite OFF :encryption SSE_KMS :encryption_key "arn:aws:kms:key"}}`)
+	ParseAndCompare(t,
+		"SELECT * FROM t INTO OUTFILE S3 's3://b/p' FORMAT TEXT ENCRYPTION ON",
+		`{SELECT :loc 0 :targets ({STAR :loc 7}) :from ({TABLEREF :loc 14 :name t}) :into {INTO :loc 21 :outfile_s3 true :outfile "s3://b/p" :format TEXT :encryption ON}}`)
+	// INTO before FROM, as MySQL allows.
+	ParseAndCompare(t,
+		"SELECT a INTO OUTFILE S3 's3://b/p' FROM t",
+		`{SELECT :loc 0 :targets ({COLREF :loc 7 :col a}) :from ({TABLEREF :loc 41 :name t}) :into {INTO :loc 14 :outfile_s3 true :outfile "s3://b/p"}}`)
+
+	for _, sql := range []string{
+		"SELECT * FROM t INTO OUTFILE S3 's3://b/p'",
+		"SELECT * FROM t INTO OUTFILE S3 's3://b/p' ENCRYPTION OFF",
+		"SELECT * FROM t INTO OUTFILE S3 's3://b/p' ENCRYPTION SSE_S3",
+		"SELECT * FROM t INTO OUTFILE S3 's3://b/p' ENCRYPTION SSE_KMS",
+		"SELECT * FROM t INTO OUTFILE S3 's3://b/p' FORMAT CSV",
+		"SELECT * FROM t INTO OUTFILE S3 's3://b/p' COLUMNS TERMINATED BY '|' OPTIONALLY ENCLOSED BY '\"' ESCAPED BY '\\\\' LINES STARTING BY 'X' TERMINATED BY '\\n' MANIFEST ON OVERWRITE ON ENCRYPTION ON",
+		"SELECT a, COUNT(*) AS cnt FROM t GROUP BY a HAVING cnt > 1 INTO OUTFILE S3 's3://b/p' ORDER BY a",
+		"SELECT a FROM t FOR UPDATE INTO OUTFILE S3 's3://b/p'",
+		"TABLE t1 INTO OUTFILE S3 's3://b/p'",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+func TestAuroraSelectIntoOutfileS3Rejects(t *testing.T) {
+	// The URI literal is mandatory after S3.
+	ParseExpectError(t, "SELECT * FROM t INTO OUTFILE S3 FIELDS TERMINATED BY ','")
+	// ON | OFF only.
+	ParseExpectError(t, "SELECT * FROM t INTO OUTFILE S3 's3://b/p' MANIFEST MAYBE")
+	ParseExpectError(t, "SELECT * FROM t INTO OUTFILE S3 's3://b/p' OVERWRITE")
+	// CSV | TEXT only.
+	ParseExpectError(t, "SELECT * FROM t INTO OUTFILE S3 's3://b/p' FORMAT JSON")
+	ParseExpectError(t, "SELECT * FROM t INTO OUTFILE S3 's3://b/p' FORMAT")
+	// ENCRYPTION needs a mode.
+	ParseExpectError(t, "SELECT * FROM t INTO OUTFILE S3 's3://b/p' ENCRYPTION")
+	// Aurora-only options are not accepted on a plain OUTFILE.
+	ParseExpectError(t, "SELECT * FROM t INTO OUTFILE '/tmp/x' MANIFEST ON")
+	ParseExpectError(t, "SELECT * FROM t INTO OUTFILE '/tmp/x' FORMAT CSV")
+	ParseExpectError(t, "SELECT * FROM t INTO OUTFILE '/tmp/x' OVERWRITE ON")
+	// Documented option order: MANIFEST, OVERWRITE, ENCRYPTION.
+	ParseExpectError(t, "SELECT * FROM t INTO OUTFILE S3 's3://b/p' OVERWRITE ON MANIFEST ON")
+	// DUMPFILE has no S3 form.
+	ParseExpectError(t, "SELECT * FROM t INTO DUMPFILE S3 's3://b/p'")
+}
+
+func TestAuroraS3KeywordsRemainIdentifiers(t *testing.T) {
+	// The new tokens are non-reserved: usable as column, table, alias,
+	// SET-target and label names.
+	ParseAndCheck(t, "SELECT manifest, prefix, csv, overwrite, s3, header, encryption FROM sse_s3 AS sse_kms")
+	ParseAndCheck(t, "CREATE TABLE manifest (prefix INT, csv INT, overwrite INT, s3 INT, sse_s3 INT, sse_kms INT)")
+	ParseAndCheck(t, "SET manifest = 1, prefix = 2, overwrite = 3")
+	ParseAndCheck(t, "CREATE PROCEDURE p() BEGIN manifest: LOOP LEAVE manifest; END LOOP; END")
+	ParseAndCheck(t, "CREATE ROLE csv, overwrite")
+}

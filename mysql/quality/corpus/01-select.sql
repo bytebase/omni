@@ -284,3 +284,18 @@ SELECT CASE WHEN 1 THEN 'a' END
 -- @valid: true
 -- @source: SCENARIOS-mysql-strict.md section 3.4
 SELECT CASE x WHEN 1 THEN 'a' ELSE 'b' END
+
+-- @name: aurora select into outfile s3
+-- @valid: true
+-- @source: Aurora MySQL User Guide (AuroraMySQL.Integrating.SaveIntoS3); rejected by stock MySQL 8.0
+SELECT * FROM employees INTO OUTFILE S3 's3-us-west-2://aurora-select-into-s3-pdx/sample_employee_data' FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' MANIFEST ON OVERWRITE ON
+
+-- @name: aurora select into outfile s3 csv header encryption
+-- @valid: true
+-- @source: Aurora MySQL User Guide (AuroraMySQL.Integrating.SaveIntoS3); rejected by stock MySQL 8.0
+SELECT id, name FROM t INTO OUTFILE S3 's3://b/p' FORMAT CSV HEADER ENCRYPTION SSE_KMS 'arn:aws:kms:us-east-1:123:key/abc'
+
+-- @name: plain outfile does not take aurora options
+-- @valid: false
+-- @source: Aurora options are only valid after OUTFILE S3
+SELECT * FROM t INTO OUTFILE '/tmp/x' MANIFEST ON

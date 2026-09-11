@@ -39,6 +39,25 @@ import (
 //	    [IGNORE number {LINES | ROWS}]
 //	    [(field_name_or_user_var [, field_name_or_user_var] ...)]
 //	    [SET col_name={expr | DEFAULT} [, col_name={expr | DEFAULT}] ...]
+//
+// Aurora MySQL extension — the file source may be an S3 object instead of
+// INFILE. Aurora registers as the MYSQL engine, so the extension is accepted
+// unconditionally; stock MySQL 8.0 rejects it with ER_PARSE_ERROR (1064).
+//
+// Ref: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Integrating.LoadFromS3.html
+//
+//	LOAD DATA [FROM] S3 [FILE | PREFIX | MANIFEST] 'S3-URI'
+//	    [REPLACE | IGNORE]
+//	    INTO TABLE tbl_name
+//	    ... (same trailing clauses as LOAD DATA INFILE)
+//
+//	LOAD XML FROM S3 [FILE | PREFIX] 'S3-URI'
+//	    [REPLACE | IGNORE]
+//	    INTO TABLE tbl_name
+//	    ... (same trailing clauses as LOAD XML INFILE)
+//
+// FROM is optional since Aurora MySQL 3.05. LOCAL is not allowed with the S3
+// form, and MANIFEST is only documented for LOAD DATA (not LOAD XML).
 func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	isXML := p.cur.Type == kwXML
 	p.advance() // consume DATA or XML
@@ -60,13 +79,27 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		p.advance()
 	}
 
-	// INFILE 'file_name'
-	if _, err := p.expect(kwINFILE); err != nil {
-		return nil, err
+	// INFILE 'file_name' | [FROM] S3 [FILE | PREFIX | MANIFEST] 'S3-URI'
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwINFILE)
+		p.addTokenCandidate(kwFROM)
+		p.addTokenCandidate(kwS3)
+		return nil, &ParseError{Message: "collecting"}
 	}
-	if p.cur.Type == tokSCONST {
-		stmt.Infile = p.cur.Str
-		p.advance()
+	switch p.cur.Type {
+	case kwFROM, kwS3:
+		if err := p.parseLoadDataS3Source(stmt); err != nil {
+			return nil, err
+		}
+	default:
+		if _, err := p.expect(kwINFILE); err != nil {
+			return nil, err
+		}
+		if p.cur.Type == tokSCONST {
+			stmt.Infile = p.cur.Str
+			p.advance()
+		}
 	}
 
 	// [REPLACE | IGNORE]
@@ -206,6 +239,59 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseLoadDataS3Source parses the Aurora MySQL S3 source of a LOAD DATA /
+// LOAD XML statement, positioned on FROM or S3:
+//
+//	[FROM] S3 [FILE | PREFIX | MANIFEST] 'S3-URI'
+//
+// The URI literal is mandatory. LOCAL cannot be combined with an S3 source,
+// and MANIFEST is not a documented LOAD XML source kind.
+func (p *Parser) parseLoadDataS3Source(stmt *nodes.LoadDataStmt) error {
+	if stmt.Local {
+		// Aurora: "You can't use the LOCAL keyword ... if you're loading data
+		// from an Amazon S3 bucket."
+		return p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == kwFROM {
+		p.advance()
+	}
+	if _, err := p.expect(kwS3); err != nil {
+		return err
+	}
+	stmt.FromS3 = true
+
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwFILE)
+		p.addTokenCandidate(kwPREFIX)
+		if !stmt.IsXML {
+			p.addTokenCandidate(kwMANIFEST)
+		}
+		return &ParseError{Message: "collecting"}
+	}
+	switch p.cur.Type {
+	case kwFILE:
+		stmt.S3Kind = "FILE"
+		p.advance()
+	case kwPREFIX:
+		stmt.S3Kind = "PREFIX"
+		p.advance()
+	case kwMANIFEST:
+		if stmt.IsXML {
+			return p.syntaxErrorAtCur()
+		}
+		stmt.S3Kind = "MANIFEST"
+		p.advance()
+	}
+
+	if p.cur.Type != tokSCONST {
+		return p.syntaxErrorAtCur()
+	}
+	stmt.S3URI = p.cur.Str
+	p.advance()
+	return nil
 }
 
 // parseFieldsClause parses FIELDS/COLUMNS clause options.
