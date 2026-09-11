@@ -4,49 +4,18 @@
 Reads JSON lines from stdin (claude --output-format stream-json --verbose),
 extracts meaningful progress info, and displays it on the terminal.
 Also writes the full final text to the log file specified as arg.
-Optionally records structured metrics to SQLite via metrics.py.
 
 Usage:
     claude -p "..." --output-format stream-json --verbose | \
-        python3 stream-filter.py <logfile> [--engine ENGINE --phase PHASE --metrics-db DB]
+        python3 stream-filter.py <logfile>
 """
 
 import json
-import os
 import sys
 import re
 import time
 
-# Parse arguments: positional logfile, then optional --engine/--phase/--metrics-db
-log_file = None
-metrics_engine = None
-metrics_phase = None
-metrics_db_path = None
-
-args = sys.argv[1:]
-i = 0
-while i < len(args):
-    if args[i] == "--engine" and i + 1 < len(args):
-        metrics_engine = args[i + 1]
-        i += 2
-    elif args[i] == "--phase" and i + 1 < len(args):
-        metrics_phase = args[i + 1]
-        i += 2
-    elif args[i] == "--metrics-db" and i + 1 < len(args):
-        metrics_db_path = args[i + 1]
-        i += 2
-    elif not args[i].startswith("--"):
-        log_file = args[i]
-        i += 1
-    else:
-        i += 1
-
-# Import metrics if all options provided
-metrics_db = None
-if metrics_engine and metrics_phase and metrics_db_path:
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from metrics import MetricsDB
-    metrics_db = MetricsDB(metrics_db_path)
+log_file = sys.argv[1] if len(sys.argv) > 1 else None
 full_text_parts = []
 start_time = time.time()
 last_progress_line = None
@@ -154,24 +123,9 @@ for raw_line in sys.stdin:
         elif sub == "error":
             err = event.get("error", "unknown")
             show(f"Error: {err} ({dur_s:.0f}s)", RED)
-        # Record metrics to SQLite
-        if metrics_db:
-            try:
-                metrics_db.record_invocation(
-                    engine=metrics_engine,
-                    phase=metrics_phase,
-                    result_event=event,
-                    log_file=log_file,
-                )
-            except Exception as e:
-                show(f"Metrics write error: {e}", YELLOW)
         continue
 
 # Write full output to log
 if log_file:
     with open(log_file, "w") as f:
         f.write("\n".join(full_text_parts))
-
-# Close metrics DB
-if metrics_db:
-    metrics_db.close()

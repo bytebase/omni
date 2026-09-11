@@ -2,7 +2,7 @@
 
 You are extracting BNF syntax definitions from MySQL 8.0 Reference Manual documentation.
 
-**Working directory:** `/Users/rebeliceyang/Github/omni`
+**Working directory:** `<repo root>`
 **Catalog:** `mysql/parser/MYSQL_BNF_CATALOG.json`
 **Output directory:** `mysql/parser/bnf/`
 

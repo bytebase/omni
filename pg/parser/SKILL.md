@@ -2,7 +2,7 @@
 
 You are implementing a recursive descent PostgreSQL parser.
 
-**Working directory:** `/Users/rebeliceyang/Github/omni`
+**Working directory:** `<repo root>`
 **Parser source:** `pg/parser/`
 **Reference grammar:** `pg/yacc/gram.y`
 **AST definitions:** `pg/ast/`
@@ -119,13 +119,13 @@ Run these commands in order:
 
 ```bash
 # Must compile
-cd /Users/rebeliceyang/Github/omni && go build ./pg/parser/
+go build ./pg/parser/
 
 # Run batch-specific tests
-cd /Users/rebeliceyang/Github/omni && go test -v -count=1 ./pg/parsertest/ -run "TestXxx|TestYyy"
+go test -v -count=1 ./pg/parsertest/ -run "TestXxx|TestYyy"
 
 # Run full test suite (no regressions)
-cd /Users/rebeliceyang/Github/omni && go test ./...
+go test ./...
 ```
 
 **Test strategy:**

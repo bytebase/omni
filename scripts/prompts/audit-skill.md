@@ -2,7 +2,7 @@
 
 You are auditing a parser engine for syntax completeness. Your job is to find gaps and generate new batches.
 
-**Working directory:** `/Users/rebeliceyang/Github/omni`
+**Working directory:** `<repo root>`
 **Engine:** {{ENGINE}}
 **Parser source:** `{{ENGINE}}/parser/`
 **AST definitions:** `{{ENGINE}}/ast/`

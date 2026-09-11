@@ -6,7 +6,7 @@
 # Engines: oracle, mysql, mssql
 # Each engine needs:
 #   - {engine}/parser/{ENGINE}_BNF_CATALOG.json (with url_ok entries)
-#   - scripts/{engine}-extract-bnf-skill.md
+#   - scripts/prompts/{engine}-extract-bnf-skill.md
 
 set -euo pipefail
 
@@ -33,7 +33,7 @@ ENGINE_UPPER=$(echo "$ENGINE" | tr '[:lower:]' '[:upper:]')
 CATALOG="$OMNI_DIR/$ENGINE/parser/${ENGINE_UPPER}_BNF_CATALOG.json"
 BNF_DIR="$OMNI_DIR/$ENGINE/parser/bnf"
 LOG_DIR="$OMNI_DIR/$ENGINE/parser/logs"
-SKILL_FILE="$SCRIPT_DIR/${ENGINE}-extract-bnf-skill.md"
+SKILL_FILE="$SCRIPT_DIR/prompts/${ENGINE}-extract-bnf-skill.md"
 
 if [ ! -f "$CATALOG" ]; then
     echo "Error: $CATALOG not found"

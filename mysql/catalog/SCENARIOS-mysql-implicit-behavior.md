@@ -468,7 +468,7 @@ Expected: `int`.
 
 **omni assertion:** column type renders as `int`.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/lex.h:342` —
+**Anchor:** `../mysql-server/sql/lex.h:342` —
 `{SYM("INTEGER", INT_SYM)}` — INTEGER is a lexer-level alias for INT.
 omni handles this in `mysql/parser/type.go:59` (`case kwINT, kwINTEGER`).
 
@@ -489,7 +489,7 @@ Expected: `tinyint(1)`.
 
 **omni assertion:** column type renders as `tinyint(1)`.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/sql_yacc.yy:7092-7099`
+**Anchor:** `../mysql-server/sql/sql_yacc.yy:7092-7099`
 — both `BOOL_SYM` and `BOOLEAN_SYM` produce `PT_boolean_type`, which maps
 to `MYSQL_TYPE_TINY` with length 1.
 
@@ -521,7 +521,7 @@ Expected:
 
 **omni assertion:** each column renders to the normalized form above.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/lex.h:337-341` —
+**Anchor:** `../mysql-server/sql/lex.h:337-341` —
 ```
 {SYM("INT1", TINYINT_SYM)},
 {SYM("INT2", SMALLINT_SYM)},
@@ -548,7 +548,7 @@ Expected: `mediumint`.
 
 **omni assertion:** column type renders as `mediumint`.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/lex.h:442` —
+**Anchor:** `../mysql-server/sql/lex.h:442` —
 `{SYM("MIDDLEINT", MEDIUMINT_SYM)}, /* For powerbuilder */`.
 omni handles this at `mysql/parser/type.go:344-348`.
 
@@ -569,11 +569,11 @@ Expected: `int` (display width stripped in 8.0.17+; warning ER_WARN_DEPRECATED_I
 
 **omni assertion:** `formatColumnType` emits `int`, not `int(11)`, when
 no ZEROFILL. Verified by spot-read of
-`/Users/rebeliceyang/Github/omni/mysql/catalog/tablecmds.go:1293-1306`
+`mysql/catalog/tablecmds.go:1293-1306`
 (isIntType branch strips display width unless zerofill).
 
 **Anchor:**
-`/Users/rebeliceyang/Github/mysql-server/sql/parse_tree_column_attrs.h:668-672`
+`../mysql-server/sql/parse_tree_column_attrs.h:668-672`
 — `PT_numeric_type` pushes `ER_WARN_DEPRECATED_INTEGER_DISPLAY_WIDTH`
 warning when length is explicit for an integer type.
 Behavior since MySQL 8.0.17 per
@@ -601,7 +601,7 @@ width is preserved when ZEROFILL).
 **omni assertion:** `formatColumnType` emits `int(5) unsigned zerofill`.
 See `mysql/catalog/tablecmds.go:1297-1305`.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/sql_yacc.yy:7396-7401`
+**Anchor:** `../mysql-server/sql/sql_yacc.yy:7396-7401`
 — `ZEROFILL_SYM` sets `ZEROFILL_FLAG` and pushes deprecation warning.
 `PT_numeric_type::get_type_flags` at parse_tree_column_attrs.h:675-677
 adds `UNSIGNED_FLAG` whenever `ZEROFILL_FLAG` is set. MySQL 8.0
@@ -639,7 +639,7 @@ Expected:
 UNIQUE). `formatColumnType` returns `"bigint unsigned"` at :1284.
 
 **Anchor:**
-`/Users/rebeliceyang/Github/mysql-server/sql/parse_tree_column_attrs.h:925-932`
+`../mysql-server/sql/parse_tree_column_attrs.h:925-932`
 — `PT_serial_type` sets
 `AUTO_INCREMENT_FLAG | NOT_NULL_FLAG | UNSIGNED_FLAG | UNIQUE_FLAG`
 over `MYSQL_TYPE_LONGLONG`. Docs confirm at
@@ -665,7 +665,7 @@ Expected: `decimal(10,2)`.
 keeps `"NUMERIC"` as the Name (`type.go:114-119`) but `formatColumnType`
 lowercases and rewrites to `decimal` at `tablecmds.go:1282-1283`.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/sql_yacc.yy:7325`
+**Anchor:** `../mysql-server/sql/sql_yacc.yy:7325`
 — `NUMERIC_SYM { $$= Numeric_type::DECIMAL; }`. Docs:
 https://dev.mysql.com/doc/refman/8.0/en/other-vendor-data-types.html
 ("NUMERIC ... : Synonym for DECIMAL.").
@@ -688,7 +688,7 @@ Expected: both `decimal(6,2)`.
 **omni assertion:** both render as `decimal(6,2)`. omni parser rewrites
 to `"DECIMAL"` at `mysql/parser/type.go:124-129`.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/sql_yacc.yy:7324-7326`
+**Anchor:** `../mysql-server/sql/sql_yacc.yy:7324-7326`
 — `DECIMAL_SYM`, `NUMERIC_SYM`, and `FIXED_SYM` all map to
 `Numeric_type::DECIMAL`. `DEC` is a lexer alias for `DECIMAL_SYM`.
 
@@ -710,7 +710,7 @@ Expected: `double`.
 **omni assertion:** column renders as `double`. omni parser consumes the
 optional PRECISION keyword at `mysql/parser/type.go:99-102`.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/sql_yacc.yy:7313-7314`
+**Anchor:** `../mysql-server/sql/sql_yacc.yy:7313-7314`
 and `7317-7320` — `DOUBLE_SYM opt_PRECISION` where `opt_PRECISION` is
 `%empty | PRECISION`.
 
@@ -732,7 +732,7 @@ Expected: `a` → `float`, `b` → `double`.
 **omni assertion:** as above. omni handles this at
 `mysql/parser/type.go:349-358`.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/lex.h:272-273` —
+**Anchor:** `../mysql-server/sql/lex.h:272-273` —
 ```
 {SYM("FLOAT4", FLOAT_SYM)},
 {SYM("FLOAT8", DOUBLE_SYM)},
@@ -762,7 +762,7 @@ Expected: `a` → `float`, `b` → `double`.
 captures length only; `tablecmds.go:1274+` does not implement the
 precision split. Likely mis-normalizes `FLOAT(25)`.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/create_field.cc:433-448`
+**Anchor:** `../mysql-server/sql/create_field.cc:433-448`
 — `Create_field::init` rewrites `MYSQL_TYPE_FLOAT` to `MYSQL_TYPE_DOUBLE`
 when `tmp_length > PRECISION_FOR_FLOAT` (24). Docs:
 https://dev.mysql.com/doc/refman/8.0/en/numeric-type-syntax.html
@@ -793,7 +793,7 @@ warning `ER_WARN_DEPRECATED_FLOAT_DIGITS`).
 outputs the `(length,scale)` form via `parseOptionalPrecision` +
 formatColumnType tail at `tablecmds.go:1319-1320`.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/parse_tree_column_attrs.h:649-653`
+**Anchor:** `../mysql-server/sql/parse_tree_column_attrs.h:649-653`
 emits `ER_WARN_DEPRECATED_FLOAT_DIGITS` whenever a float-family type
 receives a `dec` (scale). Docs call this a nonstandard MySQL extension.
 
@@ -816,7 +816,7 @@ Expected: `a` → `char(10)`, `b` → `varchar(20)`.
 **omni assertion:** renders as above. CHARACTER is a lexer alias for
 CHAR_SYM; `varchar:` rule in yacc accepts `CHAR_SYM VARYING`.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/sql_yacc.yy:7286-7289`
+**Anchor:** `../mysql-server/sql/sql_yacc.yy:7286-7289`
 — `varchar: CHAR_SYM VARYING {} | VARCHAR_SYM {}`. Lexer:
 `CHARACTER` is a reserved keyword entry for `CHAR_SYM`. Docs:
 https://dev.mysql.com/doc/refman/8.0/en/other-vendor-data-types.html
@@ -846,7 +846,7 @@ Expected: both columns `char(10)` with `CHARACTER_SET_NAME = 'utf8mb3'`.
 `utf8mb3`. omni handles this at `mysql/parser/type.go:282-310`
 (hardcodes `"utf8mb3"`).
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/sql_yacc.yy:7110-7127,7281-7284`
+**Anchor:** `../mysql-server/sql/sql_yacc.yy:7110-7127,7281-7284`
 — `nchar` rule with `NCHAR_SYM` or `NATIONAL_SYM CHAR_SYM` maps to
 `PT_char_type(Char_type::CHAR, ..., national_charset_info)` plus
 `warn_about_deprecated_national`. `national_charset_info` defaults to
@@ -884,7 +884,7 @@ handles `NVARCHAR` and `NATIONAL VARCHAR` (type.go:290-317) but
 CHAR VARYING**. Confirm by grep — all five forms in the yacc rule must
 round-trip.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/sql_yacc.yy:7291-7297`
+**Anchor:** `../mysql-server/sql/sql_yacc.yy:7291-7297`
 — `nvarchar: NATIONAL_SYM VARCHAR_SYM | NVARCHAR_SYM |
 NCHAR_SYM VARCHAR_SYM | NATIONAL_SYM CHAR_SYM VARYING |
 NCHAR_SYM VARYING`.
@@ -911,7 +911,7 @@ Expected: `a` and `b` → `mediumtext`; `c` → `mediumblob`.
 **omni assertion:** rendered as above. omni handles this at
 `mysql/parser/type.go:359-372`.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/sql_yacc.yy:7210-7218,7247-7251`
+**Anchor:** `../mysql-server/sql/sql_yacc.yy:7210-7218,7247-7251`
 — `LONG_SYM VARBINARY_SYM` → `PT_blob_type(MEDIUM, my_charset_bin)`,
 `LONG_SYM varchar ...` → MEDIUM text with given charset, bare
 `LONG_SYM opt_charset_with_opt_binary` → MEDIUMTEXT (or MEDIUMBLOB if
@@ -935,7 +935,7 @@ Expected: `a` → `char(1)`, `b` → `binary(1)`.
 **omni assertion:** `formatColumnType` emits `char(1)` / `binary(1)`
 when `dt.Length == 0`. See `mysql/catalog/tablecmds.go:1316-1318`.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/sql_yacc.yy:7105-7109,7132-7134`
+**Anchor:** `../mysql-server/sql/sql_yacc.yy:7105-7109,7132-7134`
 — the bare `CHAR_SYM opt_charset_with_opt_binary` and `BINARY_SYM`
 alternatives construct `PT_char_type` without a length; the length
 defaults to 1 in `Create_field::init`. Docs:
@@ -961,7 +961,7 @@ column definition (syntax error — VARCHAR requires a length).
 **omni assertion:** parse error. Confirm omni rejects this with a
 parser error; the bare `VARCHAR_SYM` alone is NOT in the `type` rule.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/sql_yacc.yy:7136-7140`
+**Anchor:** `../mysql-server/sql/sql_yacc.yy:7136-7140`
 — `varchar field_length opt_charset_with_opt_binary` is the only
 production; `varchar` has no production without `field_length`.
 
@@ -996,7 +996,7 @@ Expected:
 `parseOptionalLength` at `mysql/parser/type.go:171-193`; `formatColumnType`
 renders the `(N)` only when Length > 0.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/sql_yacc.yy:7181-7192,7365-7368`
+**Anchor:** `../mysql-server/sql/sql_yacc.yy:7181-7192,7365-7368`
 — `type_datetime_precision: %empty { $$= NULL; } | '(' NUM ')'`. When
 fsp is NULL, `PT_time_type` / `PT_timestamp_type` default to 0. Docs:
 https://dev.mysql.com/doc/refman/8.0/en/date-and-time-type-syntax.html
@@ -1023,7 +1023,7 @@ Expected: `year` (no display width in 8.0+). A deprecation warning
 **omni assertion:** `formatColumnType` elides the length for YEAR —
 see `mysql/catalog/tablecmds.go:1314-1315`.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/sql_yacc.yy:7154-7176`
+**Anchor:** `../mysql-server/sql/sql_yacc.yy:7154-7176`
 — `YEAR_SYM opt_field_length field_options` rule: if length is
 non-null it must be 4 (else `ER_INVALID_YEAR_COLUMN_LENGTH`), then
 `push_deprecated_warn("YEAR(4)", "YEAR")`. Length is then ignored
@@ -1050,7 +1050,7 @@ but does NOT set a default of 1 when absent; `tablecmds.go:1274+` does
 not special-case `bit` the way it does `char`/`binary`. Likely renders
 as `bit` (missing `(1)`).
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/parse_tree_column_attrs.h:687-695`
+**Anchor:** `../mysql-server/sql/parse_tree_column_attrs.h:687-695`
 — `PT_bit_type() : PT_type(MYSQL_TYPE_BIT), length("1") {}` (default
 ctor sets length to "1"). Grammar at sql_yacc.yy:7084-7091.
 
@@ -1079,7 +1079,7 @@ In strict mode the same DDL fails with
 (non-strict). **omni gap:** no byte-length → TEXT-family conversion in
 `mysql/catalog/tablecmds.go` — verify the current behavior.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/sql_table.cc:8495-8521`
+**Anchor:** `../mysql-server/sql/sql_table.cc:8495-8521`
 — `prepare_blob_field` rewrites `sql_type` via `get_blob_type_from_length`
 when `max_display_width_in_bytes() > MAX_FIELD_VARCHARLENGTH` and the
 field has no BLOB_FLAG; pushes `ER_AUTO_CONVERT` note. Errors in
@@ -1114,7 +1114,7 @@ at `mysql/catalog/tablecmds.go:1310-1313` simply *strips* the length
 from `text` / `blob`, leaving the column as `text` regardless of N.
 Does not promote to tinytext/mediumtext/longtext.
 
-**Anchor:** `/Users/rebeliceyang/Github/mysql-server/sql/sql_table.cc:8546-8565`
+**Anchor:** `../mysql-server/sql/sql_table.cc:8546-8565`
 — `prepare_blob_field` calls `get_blob_type_from_length` to pick
 TINY/MEDIUM/LONG per explicit display width. Docs:
 https://dev.mysql.com/doc/refman/8.0/en/blob.html
@@ -3660,8 +3660,8 @@ push_deprecated_warn(YYTHD, "YEAR(4)", "YEAR");
 > - MySQL 8.0: `sql/item.h` (`DTCollation`, `Derivation` enum, l.150-247)
 > - MySQL 8.0: `sql/item.cc` (`DTCollation::aggregate`, l.2400-2510; `my_coll_agg_error`, l.2513)
 > - MySQL 8.0: `sql/item_strfunc.cc` (`Item_func_concat::resolve_type` l.1109, `Item_func_concat_ws::resolve_type` l.1166, `Item_func_replace::resolve_type` l.1297, `Item_func_repeat::resolve_type` l.2581, `Item_func_rpad::resolve_type` l.2724, `Item_func_lpad::resolve_type` l.2822)
-> - omni: `/Users/rebeliceyang/Github/omni/mysql/catalog/function_types.go` (no per-call collation derivation)
-> - omni: `/Users/rebeliceyang/Github/omni/mysql/catalog/analyze_expr.go` (no collation tracking at all)
+> - omni: `mysql/catalog/function_types.go` (no per-call collation derivation)
+> - omni: `mysql/catalog/analyze_expr.go` (no collation tracking at all)
 >
 > **Derivation levels** (from `enum Derivation` in `sql/item.h` — lower
 > number = "stronger", wins aggregation):
@@ -5112,7 +5112,7 @@ offending clause.
 ## Section C21: Parser-level implicit defaults
 
 > **Expansion note (Wave 3):** grew from 1 to 10 scenarios via systematic
-> walk of `/Users/rebeliceyang/Github/mysql-server/sql/sql_yacc.yy` grammar
+> walk of `../mysql-server/sql/sql_yacc.yy` grammar
 > action blocks. These are "invisible" grammar-level defaults — the rules
 > fire action code on the empty production and don't appear in reference
 > manual syntax diagrams. Category anchors: `sql_yacc.yy`, `sql_lex.cc`,
@@ -5513,7 +5513,7 @@ must set the session variable.
 > ALTER into several statements, or warn the user that a generated migration
 > will rebuild the table under an EXCLUSIVE lock.
 >
-> **MySQL source anchors (all relative to `/Users/rebeliceyang/Github/mysql-server`):**
+> **MySQL source anchors (all relative to `../mysql-server`):**
 > - `sql/sql_alter.h:354-365` — `enum enum_alter_table_algorithm { ALTER_TABLE_ALGORITHM_DEFAULT, INPLACE, INSTANT, COPY }`.
 > - `sql/sql_alter.h:374-383` — `enum enum_alter_table_lock { DEFAULT, NONE, SHARED, EXCLUSIVE }`.
 > - `sql/sql_alter.h:467-468` — constructor defaults both fields to `..._DEFAULT`.

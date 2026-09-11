@@ -8,12 +8,17 @@ dashboard
 # Go
 *.test
 
+# Python
+__pycache__/
+*.pyc
+
 # Pipeline runtime files
 **/parser/logs/
 **/parser/driver.sh
 **/parser/status.sh
 **/parser/.phase
 **/parser/PROGRESS_SUMMARY.json
+**/logs/*.log
 
 # WIP files
 *.wip

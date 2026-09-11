@@ -2,7 +2,7 @@
 
 You are reviewing a recursive descent MySQL 8.0 parser against its BNF specification files.
 
-**Working directory:** `/Users/rebeliceyang/Github/omni`
+**Working directory:** `<repo root>`
 **Parser source:** `mysql/parser/`
 **AST definitions:** `mysql/ast/`
 **BNF catalog:** `mysql/parser/MYSQL_BNF_CATALOG.json`
@@ -111,13 +111,13 @@ For each gap:
 
 ```bash
 # Must compile
-cd /Users/rebeliceyang/Github/omni && go build ./mysql/...
+go build ./mysql/...
 
 # Run batch-specific tests
-cd /Users/rebeliceyang/Github/omni && go test -v -count=1 ./mysql/parser/ -run "TestXxx"
+go test -v -count=1 ./mysql/parser/ -run "TestXxx"
 
 # Run full test suite (no regressions)
-cd /Users/rebeliceyang/Github/omni && go test ./mysql/...
+go test ./mysql/...
 ```
 
 ### Step 7: Update Progress and Commit
@@ -238,7 +238,7 @@ The MySQL lexer handles these MySQL-specific constructs:
 ## Important Constraints
 
 - Do NOT modify any files outside `mysql/`
-- The `go.mod` at `/Users/rebeliceyang/Github/omni/go.mod` already exists
+- The `go.mod` at the repo root already exists
 - Run `gofmt -w` on all created/modified files
 - Use random sleep (1-3s) before git operations to avoid lock contention with other engine pipelines
 - Every parse function MUST have the COMPLETE BNF in its comment
