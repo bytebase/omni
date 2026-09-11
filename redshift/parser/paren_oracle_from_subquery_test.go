@@ -4,7 +4,7 @@ package parser
 
 import "testing"
 
-// TestParenOracleFromSubquery transcribes SCENARIOS-pg-paren-dispatch.md §2.3
+// TestParenOracleFromSubquery transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.3
 // (FROM-clause subquery-shape corpus) into oracle probes. Each case asserts
 // the OmniStatus omni must emit to be PG-17 aligned for a paren-wrapped
 // SELECT/VALUES/TABLE/WITH/set-op subquery FROM item.

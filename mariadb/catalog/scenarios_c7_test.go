@@ -6,7 +6,7 @@ import (
 )
 
 // TestScenario_C7 covers section C7 (Index defaults) from
-// SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that
+// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that
 // both real MySQL 8.0 and the omni catalog agree on default index
 // behaviour for a given DDL input.
 //

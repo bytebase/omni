@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// TestParenOracleIn transcribes SCENARIOS-pg-paren-dispatch.md §3.1
+// TestParenOracleIn transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §3.1
 // (parseInExpr oracle corpus) into PG 17 testcontainer-backed parity
 // probes. The §1.1 handwritten tests in paren_in_expr_test.go cover
 // omni's accept/reject + AST-shape obligations. §3.1 extends those to

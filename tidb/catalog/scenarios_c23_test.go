@@ -29,7 +29,7 @@ import (
 //      string values into the test (oracle ground truth).
 //   4. Record the omni gap: the View struct has no per-column nullability
 //      info, so omni cannot answer "is column c1 of view v nullable?" —
-//      this is the declared bug, documented in scenarios_bug_queue/c23.md.
+//      this is the declared bug, documented in mysql/catalog/scenarios_bug_queue/c23.md.
 //
 // Failed omni assertions are NOT proof failures — they are recorded in
 // mysql/catalog/scenarios_bug_queue/c23.md.

@@ -8,7 +8,7 @@ import (
 	nodes "github.com/bytebase/omni/redshift/ast"
 )
 
-// TestParenOracleLateral transcribes SCENARIOS-pg-paren-dispatch.md §3.2
+// TestParenOracleLateral transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §3.2
 // (parseLateralTableRef oracle corpus) into PG 17 testcontainer-backed
 // parity probes plus direct AST-shape inspection. §2.6 already carries
 // the baseline LATERAL accept/reject matrix; §3.2 extends it with:

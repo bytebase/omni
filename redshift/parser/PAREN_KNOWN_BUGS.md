@@ -23,7 +23,7 @@ so the signal isn't lost when future work reads those files.
   closing `)` because `JOIN` (and `INNER JOIN`, `LEFT JOIN`,
   `RIGHT JOIN`, `FULL JOIN`) require `join_qual`. Only `CROSS JOIN`
   and the `NATURAL` family elide `join_qual`.
-- **Discovery context:** `SCENARIOS-pg-paren-dispatch.md` §2.7
+- **Discovery context:** `pg/parser/SCENARIOS-pg-paren-dispatch.md` §2.7
   ("FROM-clause degenerate / malformed"), §2.8 (fuzz). Reproduced at
   three depths by the fuzz corpus:
   - `SELECT * FROM (T JOIN U)`
@@ -57,7 +57,7 @@ so the signal isn't lost when future work reads those files.
   `OmniSubquery`. Downstream analyze would fail on the degenerate
   subquery body, but raw-parse silently accepts the token sequence.
 - **PG correct behavior:** 42601 syntax_error at the closing `)`.
-- **Discovery context:** `SCENARIOS-pg-paren-dispatch.md` §3.2
+- **Discovery context:** `pg/parser/SCENARIOS-pg-paren-dispatch.md` §3.2
   ("parseLateralTableRef oracle corpus"), scenario 4 (invalid LATERAL
   shapes). Surfaced by the §3.2 test
   `TestParenOracleLateral/invalid_shapes_rejected/LATERAL_empty_parens`.
@@ -155,7 +155,7 @@ Keep the oracle signal:
   discarded without surfacing an error.
 - **PG correct behavior:** 42601 "syntax error at or near `SELECT`"
   at the start of the trailing statement.
-- **Discovery context:** `SCENARIOS-pg-paren-dispatch.md` §2.7, §2.8.
+- **Discovery context:** `pg/parser/SCENARIOS-pg-paren-dispatch.md` §2.7, §2.8.
   Originally surfaced in the fuzz mismatches list; on review the
   divergence was recognized as NOT a `(` dispatch bug — the first
   statement is correctly routed to `select_with_parens`. The bug sits

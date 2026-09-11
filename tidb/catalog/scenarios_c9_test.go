@@ -6,7 +6,7 @@ import (
 )
 
 // TestScenario_C9 covers Section C9 "Generated column defaults" from
-// SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL against both
+// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL against both
 // a real MySQL 8.0 container and the omni catalog, then asserts that both
 // agree on the effective default for a given generated-column behavior.
 //
@@ -77,7 +77,7 @@ func TestScenario_C9(t *testing.T) {
 
 	// --- 9.2 FK on generated column — dual-agreement test -------------------
 	//
-	// SCENARIOS-mysql-implicit-behavior.md claims MySQL rejects FK where the
+	// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md claims MySQL rejects FK where the
 	// child column is a STORED generated column (`ER_FK_CANNOT_USE_VIRTUAL_COLUMN`).
 	// Empirical oracle check: MySQL 8.0.45 ALLOWS FK on a child STORED gcol;
 	// only VIRTUAL gcols are rejected on the child side. The scenario's

@@ -6,7 +6,7 @@ import (
 )
 
 // TestScenario_C14 covers section C14 (Constraint enforcement defaults) from
-// SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that both real
+// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that both real
 // MySQL 8.0 and the omni catalog agree on CHECK-constraint enforcement and
 // validation behavior.
 //

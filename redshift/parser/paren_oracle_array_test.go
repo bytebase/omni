@@ -9,7 +9,7 @@ import (
 	nodes "github.com/bytebase/omni/redshift/ast"
 )
 
-// TestParenOracleArray transcribes SCENARIOS-pg-paren-dispatch.md §3.3
+// TestParenOracleArray transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §3.3
 // (parseArrayCExpr oracle corpus) into PG 17 testcontainer-backed
 // parity probes. The §1.3 and §1.4 handwritten tests in
 // paren_array_expr_test.go carry omni's AST-shape obligations

@@ -6,7 +6,7 @@ import (
 )
 
 // TestScenario_C17 covers section C17 (String function charset / collation
-// propagation) from SCENARIOS-mysql-implicit-behavior.md. 8 scenarios, each
+// propagation) from mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. 8 scenarios, each
 // asserted on both a MySQL 8.0 container and the omni catalog. Every C17
 // scenario verifies omni's view column charset/collation metadata and
 // collation conflict rejection against MySQL 8.0 behavior.
@@ -191,7 +191,7 @@ func TestScenario_C17(t *testing.T) {
 			}
 		}
 		if omniAccepted {
-			t.Errorf("omni: KNOWN BUG — soft-accept of illegal-mix comparison (17.3); should error 1267. See scenarios_bug_queue/c17.md")
+			t.Errorf("omni: KNOWN BUG — soft-accept of illegal-mix comparison (17.3); should error 1267. See mysql/catalog/scenarios_bug_queue/c17.md")
 		}
 	})
 

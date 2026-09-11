@@ -4,7 +4,7 @@ package parser
 
 import "testing"
 
-// TestParenOracleFromMixed transcribes SCENARIOS-pg-paren-dispatch.md §2.5
+// TestParenOracleFromMixed transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.5
 // (FROM-clause mixed shapes corpus) into oracle probes. Each case asserts
 // the OmniStatus omni must emit to be PG-17 aligned for paren-wrapped
 // joined_tables whose operands are subqueries, VALUES, TABLE, or bare

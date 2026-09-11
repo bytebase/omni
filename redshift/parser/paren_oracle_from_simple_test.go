@@ -4,7 +4,7 @@ package parser
 
 import "testing"
 
-// TestParenOracleFromSimple transcribes SCENARIOS-pg-paren-dispatch.md §2.2
+// TestParenOracleFromSimple transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.2
 // (FROM-clause simple-shape corpus) into oracle probes. Each case names the
 // canonical FROM-item shape and asserts the OmniStatus the harness must see
 // to be PG-17 aligned. Table fixtures T, U, V, W are pre-created by
