@@ -219,9 +219,9 @@ func metadataKeyConstraint(idx *metadata.IndexMetadata) ConstraintDef {
 
 // metadataIndexStmt parses the index's definition, which keeps a partial
 // index's predicate. Without one that parses, it rebuilds the index from its
-// keys, reading each as a column name unless it looks like an expression in
-// pg_get_indexdef's shape: a function call or a parenthesized, cast, or spaced
-// expression.
+// keys: a quoted identifier is a column, and so is a bare key unless it looks
+// like an expression in pg_get_indexdef's shape, a function call or a
+// parenthesized, cast, or spaced expression.
 func metadataIndexStmt(schema, relation string, idx *metadata.IndexMetadata) (*nodes.IndexStmt, error) {
 	if stmt, err := parseStatement[*nodes.IndexStmt](idx.GetDefinition()); err == nil {
 		return stmt, nil
@@ -239,7 +239,7 @@ func metadataIndexStmt(schema, relation string, idx *metadata.IndexMetadata) (*n
 			elem.Ordering = nodes.SORTBY_DESC
 		}
 		name := unquoteIdent(expr)
-		if strings.ContainsAny(name, "( ") || strings.Contains(name, "::") {
+		if name == expr && (strings.ContainsAny(name, "( ") || strings.Contains(name, "::")) {
 			if parsed, err := parseScalar("SELECT (" + expr + ")"); err == nil {
 				elem.Expr = parsed
 			} else {
@@ -500,8 +500,14 @@ func signatureArgTypes(signature string) ([]string, error) {
 		return nil, nil
 	}
 	var args []string
-	depth, start := 0, 0
+	depth, start, quoted := 0, 0, false
 	for i := 0; i < len(inner); i++ {
+		if inner[i] == '"' {
+			quoted = !quoted
+		}
+		if quoted {
+			continue
+		}
 		switch inner[i] {
 		case '(':
 			depth++

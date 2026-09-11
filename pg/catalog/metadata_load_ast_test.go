@@ -88,6 +88,7 @@ func TestSignatureArgTypes(t *testing.T) {
 		{signature: "fn(integer)", want: []string{"integer"}},
 		{signature: "fn(  int4 , text )", want: []string{"int4", "text"}},
 		{signature: "fn(numeric(10,2), public.status[])", want: []string{"numeric(10,2)", "public.status[]"}},
+		{signature: `fn(public."row,type", integer)`, want: []string{`public."row,type"`, "integer"}},
 		{signature: "fn(integer", wantErr: true},
 	}
 	for _, tt := range tests {
@@ -129,17 +130,17 @@ func TestMetadataIndexStmt(t *testing.T) {
 	stmt, err := metadataIndexStmt("public", "t", &metadata.IndexMetadata{
 		Name:        "t_idx",
 		Type:        "btree",
-		Expressions: []string{"id", `"Name"`, "lower(email)", "(payload ->> 'k'::text)"},
+		Expressions: []string{"id", `"Name"`, `"Full Name"`, "lower(email)", "(payload ->> 'k'::text)"},
 		Descending:  []bool{false, true},
 	})
 	if err != nil {
 		t.Fatalf("metadataIndexStmt: %v", err)
 	}
 	elems := stmt.IndexParams.Items
-	if len(elems) != 4 {
-		t.Fatalf("got %d index keys, want 4", len(elems))
+	if len(elems) != 5 {
+		t.Fatalf("got %d index keys, want 5", len(elems))
 	}
-	for i, want := range []string{"id", "Name", "", ""} {
+	for i, want := range []string{"id", "Name", "Full Name", "", ""} {
 		elem := elems[i].(*nodes.IndexElem)
 		if elem.Name != want || (want == "") != (elem.Expr != nil) {
 			t.Errorf("key %d: name %q, expr %v; want name %q", i, elem.Name, elem.Expr, want)
