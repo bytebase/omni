@@ -281,6 +281,8 @@ func TestLoadMetadataStandsInForFailedObjects(t *testing.T) {
 		Functions: []*metadata.FunctionMetadata{
 			// Parses, but omni does not know the language.
 			{Name: "js_fn", Signature: "js_fn(integer)", Definition: "CREATE FUNCTION public.js_fn(x integer) RETURNS integer LANGUAGE plv8 AS $$ return x $$;"},
+			// Sync lists procedures among the functions.
+			{Name: "js_proc", Signature: "js_proc(integer)", Definition: "CREATE PROCEDURE public.js_proc(x integer) LANGUAGE plv8 AS $$ return $$;"},
 			// No definition; the signature names a table that sorts after it.
 			{Name: "a_sig", Signature: "a_sig(public.unknown_type)"},
 		},
@@ -296,7 +298,7 @@ func TestLoadMetadataStandsInForFailedObjects(t *testing.T) {
 		}},
 	})
 
-	for _, key := range []string{"type:public.dup_status", "rel:public.unknown_type", "rel:public.bad_body", "rel:public.mv_alias", "func:public.js_fn|js_fn(integer)", "func:public.a_sig|a_sig(public.unknown_type)"} {
+	for _, key := range []string{"type:public.dup_status", "rel:public.unknown_type", "rel:public.bad_body", "rel:public.mv_alias", "func:public.js_fn|js_fn(integer)", "func:public.js_proc|js_proc(integer)", "func:public.a_sig|a_sig(public.unknown_type)"} {
 		if report.Degraded[key] == nil {
 			t.Errorf("%s: want degraded to a stand-in, report %v", key, report.Degraded)
 		}
@@ -323,6 +325,9 @@ func TestLoadMetadataStandsInForFailedObjects(t *testing.T) {
 		if len(c.LookupProcByName(fn)) != 1 {
 			t.Errorf("%s: want its signature stand-in installed", fn)
 		}
+	}
+	if procs := c.LookupProcByName("js_proc"); len(procs) != 1 || procs[0].Kind != 'p' {
+		t.Errorf("js_proc: want a procedure stand-in, got %+v", procs)
 	}
 }
 
