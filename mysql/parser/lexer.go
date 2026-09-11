@@ -1709,6 +1709,17 @@ type Lexer struct {
 	prevTokenEnd int // end position of the previously emitted token (for adjacency checks)
 	baseOffset   int // added to all token Loc values for absolute positioning
 
+	// hasExecutableComment records whether lexing encountered MySQL's
+	// executable-comment opener (/*!). It is set even when the comment is
+	// unterminated or its version prefix is unknown so callers can fail closed.
+	hasExecutableComment bool
+	// stopAtExecutableComment lets the public detection helper return at the
+	// first opener without splicing the remaining input.
+	stopAtExecutableComment bool
+	// noBackslashEscapes mirrors MySQL's NO_BACKSLASH_ESCAPES SQL mode for
+	// string-boundary recognition.
+	noBackslashEscapes bool
+
 	// errMsg/errPos record the first lexing error (unterminated comment, string,
 	// or quoted identifier). A malformed token that runs to EOF without its closing
 	// delimiter must never index past the buffer; instead the scan stops at EOF and
@@ -1919,10 +1930,10 @@ func (l *Lexer) skipWhitespaceAndComments() {
 			continue
 		}
 
-		// Line comment: -- must be followed by a space, tab, newline, or end-of-input (per MySQL spec).
+		// Line comment: -- must be followed by whitespace/control or end-of-input.
 		if ch == '-' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '-' {
-			// Check third character: must be space, tab, newline, or end of input.
-			if l.pos+2 >= len(l.input) || l.input[l.pos+2] == ' ' || l.input[l.pos+2] == '\t' || l.input[l.pos+2] == '\n' || l.input[l.pos+2] == '\r' {
+			// The third character must be whitespace/control or end-of-input.
+			if l.pos+2 >= len(l.input) || isMySQLSpaceOrControl(l.input[l.pos+2]) {
 				l.pos += 2
 				for l.pos < len(l.input) && l.input[l.pos] != '\n' {
 					l.pos++
@@ -1948,6 +1959,10 @@ func (l *Lexer) skipWhitespaceAndComments() {
 			// MySQL conditional comments: /*!NNNNN ... */ or /*! ... */
 			// These should be parsed as SQL, not skipped.
 			if l.pos+2 < len(l.input) && l.input[l.pos+2] == '!' {
+				l.hasExecutableComment = true
+				if l.stopAtExecutableComment {
+					return
+				}
 				// Skip /*!
 				innerStart := l.pos + 3
 				// Skip optional version number (digits)
@@ -2117,7 +2132,7 @@ func (l *Lexer) scanString(quote byte) Token {
 				closed = true
 				break
 			}
-		} else if ch == '\\' {
+		} else if ch == '\\' && !l.noBackslashEscapes {
 			l.pos++
 			if l.pos < len(l.input) {
 				esc := l.input[l.pos]
@@ -2160,6 +2175,12 @@ func (l *Lexer) scanString(quote byte) Token {
 		l.setError("unterminated string literal", start)
 	}
 	return Token{Type: tokSCONST, Str: sb.String(), Loc: start}
+}
+
+// isMySQLSpaceOrControl reports the ASCII bytes MySQL accepts after "--" to
+// introduce a line comment.
+func isMySQLSpaceOrControl(ch byte) bool {
+	return ch <= ' ' || ch == 0x7f
 }
 
 func (l *Lexer) scanNumber() Token {
