@@ -198,8 +198,8 @@ func metadataTypeKey(schema, name string) string     { return "type:" + schema +
 func metadataSequenceKey(schema, name string) string { return "seq:" + schema + "." + name }
 func metadataRelationKey(schema, name string) string { return "rel:" + schema + "." + name }
 
-// metadataFunctionIdentity distinguishes overloads; sync leaves Signature empty for
-// some functions, so the definition stands in.
+// metadataFunctionIdentity distinguishes overloads. A snapshot synced before
+// sync recorded signatures has none, so the definition stands in.
 func metadataFunctionIdentity(fn *metadata.FunctionMetadata) string {
 	if fn.GetSignature() != "" {
 		return fn.GetSignature()
