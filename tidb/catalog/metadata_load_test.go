@@ -82,6 +82,8 @@ func TestLoadMetadataInstallsTables(t *testing.T) {
 				{Name: "payload", Type: "json", Nullable: true, Default: "NULL"},
 				{Name: "notes", Type: "text", Nullable: true, Default: "NULL"},
 				{Name: "name", Type: "varchar(255)", Nullable: true, Default: "NULL"},
+				// Sync quotes a literal default, so it loads as a literal.
+				{Name: "label", Type: "varchar(32)", Nullable: true, Default: "'hello world'"},
 			},
 			Indexes: []*metadata.IndexMetadata{
 				{Name: "PRIMARY", Type: "BTREE", Primary: true, Unique: true, Expressions: []string{"id"}},
@@ -151,6 +153,9 @@ func TestLoadMetadataInstallsTables(t *testing.T) {
 	}
 	if name := child.GetColumn("name"); name.Default == nil {
 		t.Error("name lost its DEFAULT NULL")
+	}
+	if label := child.GetColumn("label"); label.Default == nil || !strings.Contains(*label.Default, "hello world") {
+		t.Errorf("label default = %v, want the quoted literal", label.Default)
 	}
 	indexes := make(map[string]*Index)
 	for _, idx := range child.Indexes {
@@ -235,11 +240,15 @@ func TestLoadMetadataKeepsViewColumnListsOnlyWhereNeeded(t *testing.T) {
 			{Name: "expr", Definition: "SELECT count(*) FROM users", Columns: []*metadata.ColumnMetadata{{Name: "count(*)"}}},
 			// A body that does not resolve names nothing of its own.
 			{Name: "unresolved", Definition: "SELECT * FROM missing", Columns: []*metadata.ColumnMetadata{{Name: "a"}, {Name: "b"}}},
+			// Created as CREATE VIEW star_renamed (user_id) AS SELECT * FROM users.
+			{Name: "star_renamed", Definition: "SELECT * FROM users", Columns: []*metadata.ColumnMetadata{{Name: "user_id"}}},
 		},
 	}))
 	requireReport(t, report)
-	if v := requireView(t, c, "renamed"); !v.ExplicitColumns || !slices.Equal(v.Columns, []string{"user_id"}) {
-		t.Errorf("renamed = explicit %v, columns %v; want the snapshot's user_id", v.ExplicitColumns, v.Columns)
+	for _, name := range []string{"renamed", "star_renamed"} {
+		if v := requireView(t, c, name); !v.ExplicitColumns || !slices.Equal(v.Columns, []string{"user_id"}) {
+			t.Errorf("%s = explicit %v, columns %v; want the snapshot's user_id", name, v.ExplicitColumns, v.Columns)
+		}
 	}
 	// A body naming no target of its own keeps the columns it resolves to, and
 	// the snapshot names what a body that does not resolve leaves unnamed.

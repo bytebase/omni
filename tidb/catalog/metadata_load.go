@@ -436,25 +436,14 @@ func referenceAction(action string) nodes.ReferenceAction {
 
 // metadataViewStmt keeps the view's text as it is along with its parsed body.
 // DefineView installs a view whose body does not analyze, so a view may name
-// one that installs after it; reanalyzeViews retries it then.
+// one that installs after it; reanalyzeViews retries it then. nameViewColumns
+// names the columns once the body resolves.
 func metadataViewStmt(v *metadata.ViewMetadata) (*nodes.CreateViewStmt, error) {
 	sel, err := parseFirstStatement[*nodes.SelectStmt](v.GetDefinition())
 	if err != nil {
 		return nil, err
 	}
-	stmt := &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: v.GetDefinition()}
-	// A stored definition drops the column list of CREATE VIEW v (a, b), so the
-	// snapshot's columns become one only where they differ from the body's.
-	names := metadataViewColumnNames(v)
-	// A * or an unaliased expression is named only once the catalog resolves the
-	// body, and extractViewColumns leaves such a target out, so the body names
-	// nothing to compare unless it names every one of them.
-	derived := extractViewColumns(sel)
-	if len(names) > 0 && len(derived) == len(nodes.LeftmostQueryLeaf(sel).TargetList) &&
-		!slices.EqualFunc(names, derived, strings.EqualFold) {
-		stmt.Columns = names
-	}
-	return stmt, nil
+	return &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: v.GetDefinition()}, nil
 }
 
 // metadataViewColumnNames lists the column names the snapshot records for a
@@ -469,10 +458,21 @@ func metadataViewColumnNames(v *metadata.ViewMetadata) []string {
 	return names
 }
 
-// nameViewColumns names the columns a view's body left unnamed.
+// nameViewColumns names a view's columns from the snapshot: the ones its
+// resolved body left unnamed, and, where the body names as many by other names,
+// the snapshot's as a column list. A stored definition drops the column list of
+// CREATE VIEW v (a, b), and only a view created with one has names its body
+// does not give.
 func nameViewColumns(v *View, names []string) {
-	if v != nil && len(v.Columns) < len(names) {
+	if v == nil || len(names) == 0 {
+		return
+	}
+	if len(v.Columns) < len(names) {
 		v.Columns = names
+		return
+	}
+	if len(v.Columns) == len(names) && !slices.EqualFunc(v.Columns, names, strings.EqualFold) {
+		v.Columns, v.ExplicitColumns = names, true
 	}
 }
 
