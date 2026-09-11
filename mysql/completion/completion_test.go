@@ -2902,6 +2902,41 @@ func TestComplete_AuroraLoadDataFromS3(t *testing.T) {
 		}
 	})
 
+	// LOAD DATA FROM | → S3 is the only continuation
+	t.Run("load_data_from_offers_s3", func(t *testing.T) {
+		sql := "LOAD DATA FROM "
+		candidates := Complete(sql, len(sql), cat)
+		if !containsCandidate(candidates, "S3", CandidateKeyword) {
+			t.Errorf("missing keyword S3; got %v", candidates)
+		}
+		if containsCandidate(candidates, "SELECT", CandidateKeyword) {
+			t.Errorf("fell back to top-level statement keywords; got %v", candidates)
+		}
+	})
+
+	// LOAD XML | → INFILE / FROM, but not the FROM-less S3 spelling
+	t.Run("load_xml_source_keywords", func(t *testing.T) {
+		sql := "LOAD XML "
+		candidates := Complete(sql, len(sql), cat)
+		for _, kw := range []string{"INFILE", "FROM"} {
+			if !containsCandidate(candidates, kw, CandidateKeyword) {
+				t.Errorf("missing keyword %q; got %v", kw, candidates)
+			}
+		}
+		if containsCandidate(candidates, "S3", CandidateKeyword) {
+			t.Errorf("bare S3 is LOAD DATA only; got %v", candidates)
+		}
+	})
+
+	// LOAD XML FROM | → S3
+	t.Run("load_xml_from_offers_s3", func(t *testing.T) {
+		sql := "LOAD XML FROM "
+		candidates := Complete(sql, len(sql), cat)
+		if !containsCandidate(candidates, "S3", CandidateKeyword) {
+			t.Errorf("missing keyword S3; got %v", candidates)
+		}
+	})
+
 	// LOAD DATA FROM S3 | → FILE / PREFIX / MANIFEST source kinds
 	t.Run("load_data_s3_kind_keywords", func(t *testing.T) {
 		sql := "LOAD DATA FROM S3 "

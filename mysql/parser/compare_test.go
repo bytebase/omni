@@ -12743,6 +12743,9 @@ func TestAuroraLoadFromS3Rejects(t *testing.T) {
 	ParseExpectError(t, "LOAD DATA FROM S3 FILE PREFIX 's3://b/x' INTO TABLE t")
 	// MANIFEST is documented for LOAD DATA only.
 	ParseExpectError(t, "LOAD XML FROM S3 MANIFEST 's3://b/x' INTO TABLE t")
+	// The FROM-less spelling is documented for LOAD DATA only.
+	ParseExpectError(t, "LOAD XML S3 's3://b/x' INTO TABLE t")
+	ParseExpectError(t, "LOAD XML S3 PREFIX 's3://b/x' INTO TABLE t")
 	// FROM must be followed by S3.
 	ParseExpectError(t, "LOAD DATA FROM 's3://b/x' INTO TABLE t")
 	// The INFILE form is unchanged and still does not take S3 options.

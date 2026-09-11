@@ -295,6 +295,7 @@ Aurora MySQL registers in Bytebase as the `MYSQL` engine, so its S3 statements m
 - [x] `LOAD XML FROM S3 's3://b/data.xml' INTO TABLE t1 ROWS IDENTIFIED BY '<row>'` — XML form with ROWS IDENTIFIED BY
 - [x] `LOAD XML FROM S3 PREFIX 's3://b/data' INTO TABLE t1` — PREFIX kind
 - [x] `LOAD XML FROM S3 MANIFEST 's3://b/x' INTO TABLE t` — rejected: MANIFEST is documented for LOAD DATA only
+- [x] `LOAD XML S3 's3://b/x' INTO TABLE t` — rejected: the FROM-less spelling is documented for LOAD DATA only
 
 ### 4.3 Aurora MySQL — SELECT ... INTO OUTFILE S3
 

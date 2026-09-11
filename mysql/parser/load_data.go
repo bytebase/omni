@@ -80,15 +80,19 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	}
 
 	// INFILE 'file_name' | [FROM] S3 [FILE | PREFIX | MANIFEST] 'S3-URI'
+	// The FROM-less spelling is documented for LOAD DATA only; LOAD XML
+	// always takes FROM S3.
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwINFILE)
 		p.addTokenCandidate(kwFROM)
-		p.addTokenCandidate(kwS3)
+		if !isXML {
+			p.addTokenCandidate(kwS3)
+		}
 		return nil, &ParseError{Message: "collecting"}
 	}
-	switch p.cur.Type {
-	case kwFROM, kwS3:
+	switch {
+	case p.cur.Type == kwFROM, p.cur.Type == kwS3 && !isXML:
 		if err := p.parseLoadDataS3Source(stmt); err != nil {
 			return nil, err
 		}
@@ -247,7 +251,8 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 //	[FROM] S3 [FILE | PREFIX | MANIFEST] 'S3-URI'
 //
 // The URI literal is mandatory. LOCAL cannot be combined with an S3 source,
-// and MANIFEST is not a documented LOAD XML source kind.
+// and MANIFEST is not a documented LOAD XML source kind. The caller decides
+// whether a leading S3 without FROM is admissible (LOAD DATA only).
 func (p *Parser) parseLoadDataS3Source(stmt *nodes.LoadDataStmt) error {
 	if stmt.Local {
 		// Aurora: "You can't use the LOCAL keyword ... if you're loading data
@@ -256,6 +261,12 @@ func (p *Parser) parseLoadDataS3Source(stmt *nodes.LoadDataStmt) error {
 	}
 	if p.cur.Type == kwFROM {
 		p.advance()
+		// Completion: LOAD DATA FROM | → the only valid continuation is S3.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwS3)
+			return &ParseError{Message: "collecting"}
+		}
 	}
 	if _, err := p.expect(kwS3); err != nil {
 		return err
