@@ -51,26 +51,48 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 	if err := ctx.Err(); err != nil {
 		return report, err
 	}
-	for _, o := range orderMetadataObjects(collectMetadataObjects(meta, opts.Full)) {
-		if err := ctx.Err(); err != nil {
-			return report, err
+	for _, group := range orderMetadataObjects(collectMetadataObjects(meta, opts.Full)) {
+		// A group is one object or the members of a dependency cycle, which can
+		// be false: a view waits for every overload of a function it calls. Each
+		// pass retries the members that failed, since they may be waiting on one
+		// another. When a pass installs nothing, one member is replaced by its
+		// stand-in: the first view, whose stand-in needs nothing, if any.
+		for len(group) > 0 {
+			var failed []*metadataObject
+			var errs []error
+			for _, o := range group {
+				if err := ctx.Err(); err != nil {
+					return report, err
+				}
+				if err := c.installMetadataObject(o, opts.Full); err != nil {
+					failed = append(failed, o)
+					errs = append(errs, err)
+				}
+			}
+			if len(failed) == len(group) {
+				i := max(slices.IndexFunc(failed, isViewObject), 0)
+				c.installStandIn(failed[i], errs[i], report)
+				failed = slices.Delete(failed, i, i+1)
+			}
+			group = failed
 		}
-		err := c.installMetadataObject(o, opts.Full)
-		if err == nil {
-			continue
-		}
-		standIn := metadataStandIn(o)
-		if standIn == nil {
-			report.Missing[o.key()] = err
-			continue
-		}
-		if standInErr := standIn(c); standInErr != nil {
-			report.Missing[o.key()] = standInErr
-			continue
-		}
-		report.Degraded[o.key()] = err
 	}
 	return report, nil
+}
+
+// installStandIn replaces o, whose definition failed with err, by its stand-in
+// and records the outcome in report.
+func (c *Catalog) installStandIn(o *metadataObject, err error, report *LoadMetadataReport) {
+	standIn := metadataStandIn(o)
+	if standIn == nil {
+		report.Missing[o.key()] = err
+		return
+	}
+	if standInErr := standIn(c); standInErr != nil {
+		report.Missing[o.key()] = standInErr
+		return
+	}
+	report.Degraded[o.key()] = err
 }
 
 type metadataObjectKind int
@@ -116,7 +138,8 @@ type metadataObject struct {
 	// body is a view's parsed query, or nil with bodyErr saying why.
 	body    *nodes.SelectStmt
 	bodyErr error
-	// ownedSequences maps a table's columns to the sequences they own.
+	// ownedSequences maps a table's columns to the sequences they own, which
+	// install only with Full.
 	ownedSequences map[string]*metadata.SequenceMetadata
 }
 
@@ -200,7 +223,11 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			out = append(out, &metadataObject{kind: metadataComposite, schema: schema, name: ct.GetName(), composite: ct})
 		}
 		for _, t := range s.GetTables() {
-			out = append(out, &metadataObject{kind: metadataTable, schema: schema, name: t.GetName(), table: t, ownedSequences: owned[t.GetName()]})
+			o := &metadataObject{kind: metadataTable, schema: schema, name: t.GetName(), table: t}
+			if full {
+				o.ownedSequences = owned[t.GetName()]
+			}
+			out = append(out, o)
 		}
 		// A foreign table loads as a plain table: query analysis needs only its columns.
 		for _, et := range s.GetExternalTables() {
@@ -306,16 +333,10 @@ func isKeyIndex(idx *metadata.IndexMetadata) bool {
 	return idx.GetPrimary() || (idx.GetIsConstraint() && idx.GetUnique())
 }
 
-// orderMetadataObjects returns objects in an order that installs each one's
-// dependencies first. A dependency cycle installs one member first, which gets
-// a stand-in if it fails, and the rest of the cycle is ordered again with that
-// member counted as installed.
-//
-// A view waits for every overload of a function it calls, so those edges can
-// be false. A cycle therefore starts at a view that waits on nothing else in
-// the cycle, which installs as defined when they are. Failing that, it starts
-// at its first view, whose stand-in needs nothing.
-func orderMetadataObjects(objects []*metadataObject) []*metadataObject {
+// orderMetadataObjects groups objects into the strongly connected components
+// of their dependencies, each sorted by sortKey, and orders the groups so each
+// one follows the groups it depends on.
+func orderMetadataObjects(objects []*metadataObject) [][]*metadataObject {
 	if len(objects) == 0 {
 		return nil
 	}
@@ -358,29 +379,10 @@ func orderMetadataObjects(objects []*metadataObject) []*metadataObject {
 		}
 	}
 	heap.Init(ready)
-	ordered := make([]*metadataObject, 0, len(objects))
+	ordered := make([][]*metadataObject, 0, len(sccs))
 	for ready.Len() > 0 {
 		next := heap.Pop(ready).(int)
-		scc := sccs[next]
-		if len(scc) > 1 {
-			// callsOnly reports whether o is a view that waits on nothing in the
-			// cycle but functions.
-			callsOnly := func(o *metadataObject) bool {
-				for _, dep := range edges[o.key()] {
-					if sccOf[dep] == next && byKey[dep].kind != metadataFunction {
-						return false
-					}
-				}
-				return isViewObject(o)
-			}
-			start := slices.IndexFunc(scc, callsOnly)
-			if start < 0 {
-				start = max(slices.IndexFunc(scc, isViewObject), 0)
-			}
-			scc[0], scc[start] = scc[start], scc[0]
-		}
-		ordered = append(ordered, scc[0])
-		ordered = append(ordered, orderMetadataObjects(scc[1:])...)
+		ordered = append(ordered, sccs[next])
 		for _, d := range dependents[next] {
 			inDegree[d]--
 			if inDegree[d] == 0 {
@@ -487,7 +489,7 @@ func (o *metadataObject) dependencies(byKey map[string]*metadataObject, function
 			add("rel:" + ref)
 		}
 		// A call does not say which overload it uses, so the view waits for
-		// all of them; orderMetadataObjects handles the cycles that closes.
+		// all of them; LoadMetadata retries the cycles that can close.
 		for _, ref := range funcRefs {
 			for _, key := range functionKeys[ref] {
 				add(key)
@@ -609,9 +611,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		if err := c.DefineRelation(stmt, 'r'); err != nil {
 			return err
 		}
-		if full {
-			c.ownSerialSequences(o)
-		}
+		c.ownSerialSequences(o)
 		return nil
 	case metadataView:
 		if o.body == nil {
@@ -655,8 +655,8 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 }
 
 // ownSerialSequences gives the sequences the table's non-identity columns own
-// their owner, as SERIAL does, so dropping the table drops them. Errors are
-// ignored: the table itself installed.
+// their owner, as SERIAL does, so dropping the table, or its stand-in, drops
+// them. Errors are ignored: the table itself installed.
 func (c *Catalog) ownSerialSequences(o *metadataObject) {
 	for _, col := range o.table.GetColumns() {
 		seq := o.ownedSequences[col.GetName()]
@@ -694,7 +694,11 @@ func metadataStandIn(o *metadataObject) func(*Catalog) error {
 		}
 	case metadataTable:
 		return func(c *Catalog) error {
-			return c.DefineRelation(standInTableStmt(o.schema, o.name, tableColumnNames(o.table)), 'r')
+			if err := c.DefineRelation(standInTableStmt(o.schema, o.name, tableColumnNames(o.table)), 'r'); err != nil {
+				return err
+			}
+			c.ownSerialSequences(o)
+			return nil
 		}
 	case metadataView:
 		return func(c *Catalog) error {

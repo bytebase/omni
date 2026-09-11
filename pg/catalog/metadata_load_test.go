@@ -131,6 +131,10 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 			// of aa_reads_caller, which reads zz_calls_h.
 			{Name: "aa_reads_caller", Definition: "SELECT x FROM public.zz_calls_h"},
 			{Name: "zz_calls_h", Definition: "SELECT public.h(1) AS x"},
+			// aa_calls_k calls k, whose only overload returns zz_calls_m's rows;
+			// zz_calls_m calls m(integer), and the other m takes aa_calls_k's row type.
+			{Name: "aa_calls_k", Definition: "SELECT public.k(1) AS r"},
+			{Name: "zz_calls_m", Definition: "SELECT public.m(1) AS x"},
 			{Name: "zz_view", Definition: "SELECT id FROM public.zz_orders"},
 		},
 		MaterializedViews: []*metadata.MaterializedViewMetadata{
@@ -156,6 +160,9 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 			{Name: "f", Signature: "f(public.aa_calls_overload)", Definition: "CREATE FUNCTION public.f(v public.aa_calls_overload) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
 			{Name: "h", Signature: "h(integer)", Definition: "CREATE FUNCTION public.h(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;"},
 			{Name: "h", Signature: "h(public.aa_reads_caller)", Definition: "CREATE FUNCTION public.h(r public.aa_reads_caller) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
+			{Name: "k", Signature: "k(integer)", Definition: "CREATE FUNCTION public.k(x integer) RETURNS public.zz_calls_m LANGUAGE sql AS $$ SELECT 1 $$;"},
+			{Name: "m", Signature: "m(integer)", Definition: "CREATE FUNCTION public.m(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;"},
+			{Name: "m", Signature: "m(public.aa_calls_k)", Definition: "CREATE FUNCTION public.m(r public.aa_calls_k) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
 			{Name: "f", Signature: "f(public.aa_wraps_view)", Definition: "CREATE FUNCTION public.f(w public.aa_wraps_view) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
 			// Called by a default, an index expression, and a view body.
 			{Name: "zz_code", Signature: "zz_code(integer)", Definition: "CREATE FUNCTION public.zz_code(x integer) RETURNS integer IMMUTABLE LANGUAGE sql AS $$ SELECT x $$;"},
@@ -332,8 +339,7 @@ func TestLoadMetadataCompositeStandInKeepsAttributeNames(t *testing.T) {
 func TestLoadMetadataBreaksCycles(t *testing.T) {
 	// a reads b, b reads c, and c reads a. Only a, the first member, needs a
 	// stand-in: c installs against it, then b against c. v_f calls fv, which
-	// returns v_f's rows; that cycle starts at the view, whose stand-in needs
-	// nothing.
+	// returns v_f's rows; the stand-in goes to the view, which needs nothing.
 	view := func(name, def string) *metadata.ViewMetadata {
 		return &metadata.ViewMetadata{Name: name, Definition: def, Columns: []*metadata.ColumnMetadata{{Name: "id"}}}
 	}
@@ -449,8 +455,17 @@ func TestLoadMetadataFull(t *testing.T) {
 					OnDelete:          "CASCADE",
 				}},
 			},
+			{
+				// Degrades to a stand-in, which still owns its serial sequence.
+				Name: "broken",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Type: "integer", Default: "nextval('public.broken_id_seq'::regclass)"},
+					{Name: "geom", Type: "public.not_in_snapshot"},
+				},
+			},
 		},
 		Sequences: []*metadata.SequenceMetadata{
+			{Name: "broken_id_seq", DataType: "integer", OwnerTable: "broken", OwnerColumn: "id"},
 			{Name: "counter_seq", DataType: "integer", Start: "0", MinValue: "0", MaxValue: "100", Increment: "1", CacheSize: "1"},
 			// Owned by a plain column, as SERIAL creates it.
 			{Name: "users_seq_no_seq", DataType: "bigint", Increment: "5", Start: "10", Cycle: true, OwnerTable: "users", OwnerColumn: "seq_no"},
@@ -469,7 +484,7 @@ func TestLoadMetadataFull(t *testing.T) {
 	}
 
 	c, report := loadSnapshot(t, true, schema)
-	requireDegraded(t, report, "func:public.touch_by|touch_by(integer)")
+	requireDegraded(t, report, "func:public.touch_by|touch_by(integer)", "rel:public.broken")
 
 	users := requireRelation(t, c, "public", "users")
 	byName := make(map[string]*Column, len(users.Columns))
@@ -533,9 +548,12 @@ func TestLoadMetadataFull(t *testing.T) {
 		if seq.Name == "users_seq_no_seq" && seq.OwnerRelOID != users.OID {
 			t.Errorf("users_seq_no_seq = %+v, want it owned by users.seq_no", seq)
 		}
+		if seq.Name == "broken_id_seq" && seq.OwnerRelOID != requireRelation(t, c, "public", "broken").OID {
+			t.Errorf("broken_id_seq = %+v, want it owned by the stand-in for broken", seq)
+		}
 	}
 	slices.Sort(sequences)
-	if want := []string{"counter_seq", "users_id_custom", "users_seq_no_seq"}; !slices.Equal(sequences, want) {
+	if want := []string{"broken_id_seq", "counter_seq", "users_id_custom", "users_seq_no_seq"}; !slices.Equal(sequences, want) {
 		t.Errorf("sequences = %v, want the explicit ones and the identity column's", sequences)
 	}
 	for _, name := range []string{"touch", "touch_by"} {
@@ -546,7 +564,7 @@ func TestLoadMetadataFull(t *testing.T) {
 
 	// Without Full, only the shapes install.
 	c, report = loadSnapshot(t, false, schema)
-	requireCleanReport(t, report)
+	requireDegraded(t, report, "rel:public.broken")
 	users = requireRelation(t, c, "public", "users")
 	if len(c.IndexesOf(users.OID)) != 0 || len(c.ConstraintsOf(users.OID)) != 0 {
 		t.Error("indexes and constraints must wait for Full")
@@ -640,10 +658,12 @@ func TestOrderMetadataObjectsIsDeterministic(t *testing.T) {
 			{Name: "v2", Definition: "SELECT * FROM public.v1"},
 		},
 	}
-	keys := func(objects []*metadataObject) []string {
+	keys := func(groups [][]*metadataObject) []string {
 		var out []string
-		for _, o := range objects {
-			out = append(out, o.key())
+		for _, group := range groups {
+			for _, o := range group {
+				out = append(out, o.key())
+			}
 		}
 		return out
 	}
