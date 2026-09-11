@@ -27,12 +27,13 @@ type LoadMetadataReport struct {
 }
 
 // LoadMetadata installs a Bytebase schema snapshot of a MySQL database into
-// the database meta.Name, creating it if needed, and leaves that database
-// selected. Foreign key checks are off during the load, so a table may
-// reference one that installs after it. A view may likewise name a view that
-// installs after it. Generated invisible primary keys are off and
-// explicit_defaults_for_timestamp is on, so each table installs as the snapshot
-// records it. The caller's settings are restored afterward.
+// the database meta.Name, creating it if needed, gives the database the
+// snapshot's character set and collation, and leaves it selected. Foreign key
+// checks are off during the load, so a table may reference one that installs
+// after it. A view may likewise name a view that installs after it. Generated
+// invisible primary keys are off and explicit_defaults_for_timestamp is on, so
+// each table installs as the snapshot records it. The caller's settings are
+// restored afterward.
 //
 // An object that fails to install does not stop the load. A table is replaced
 // by a stand-in with the same column names, all TEXT; a view by one that
@@ -48,8 +49,11 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 		return report, err
 	}
 	if name := meta.GetName(); name != "" {
+		stmt := metadataDatabaseStmt(meta)
 		if c.GetDatabase(name) == nil {
-			_ = c.DefineDatabase(metadataDatabaseStmt(meta))
+			_ = c.DefineDatabase(stmt)
+		} else if len(stmt.Options) > 0 {
+			_ = c.alterDatabase(&nodes.AlterDatabaseStmt{Name: name, Options: stmt.Options})
 		}
 		c.SetCurrentDatabase(name)
 	}

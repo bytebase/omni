@@ -126,15 +126,21 @@ func TestLoadMetadataCreatesAndSelectsDatabase(t *testing.T) {
 	if !c.ForeignKeyChecks() || !c.generateGIPK || c.session.ExplicitDefaultsForTimestamp {
 		t.Error("the caller's session settings must be back after the load")
 	}
-	// Loading into an existing database adds to it.
-	if _, err := c.LoadMetadata(context.Background(), snapshotWithTables(&metadata.TableMetadata{
+	// Loading into an existing database adds to it and takes the snapshot's
+	// defaults.
+	meta = snapshotWithTables(&metadata.TableMetadata{
 		Name:    "u",
 		Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}},
-	})); err != nil {
+	})
+	meta.CharacterSet, meta.Collation = "utf8mb4", "utf8mb4_bin"
+	if _, err := c.LoadMetadata(context.Background(), meta); err != nil {
 		t.Fatalf("second LoadMetadata: %v", err)
 	}
 	requireTable(t, c, "t")
 	requireTable(t, c, "u")
+	if db := snapshotDatabase(t, c); db.Charset != "utf8mb4" || db.Collation != "utf8mb4_bin" {
+		t.Errorf("database charset %q, collation %q; want the second snapshot's utf8mb4, utf8mb4_bin", db.Charset, db.Collation)
+	}
 }
 
 func TestLoadMetadataInstallsTable(t *testing.T) {
