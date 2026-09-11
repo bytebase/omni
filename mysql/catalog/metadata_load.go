@@ -33,8 +33,9 @@ type LoadMetadataReport struct {
 // after it. A view may likewise name a view that installs after it. Generated
 // invisible primary keys are off and explicit_defaults_for_timestamp is on, so
 // each table installs as the snapshot records it. The caller's settings are
-// restored afterward. Each routine, trigger, and event takes the session context
-// the snapshot records for it, as ApplySessionContext stamps it.
+// restored afterward. Each routine, trigger, and event in the database takes
+// the session context the snapshot records for it, as ApplySessionContext
+// stamps it.
 //
 // An object that fails to install does not stop the load. A table is replaced
 // by a stand-in with the same column names, all TEXT; a view by one that
@@ -89,7 +90,9 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 	if err := c.reanalyzeViews(ctx, views); err != nil {
 		return report, err
 	}
-	c.ApplySessionContext(sessionContexts(meta))
+	if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
+		applyDatabaseSessionContext(db, sessionContexts(meta))
+	}
 	return report, nil
 }
 

@@ -92,30 +92,36 @@ func (c *Catalog) ApplySessionContext(m SessionContextMap) {
 		return
 	}
 	for _, db := range c.Databases() {
-		applyRoutineContext(db.Functions, m.Functions)
-		applyRoutineContext(db.Procedures, m.Procedures)
-		for key, tr := range db.Triggers {
-			if tr == nil {
-				continue
-			}
-			if ctx, ok := lookupContext(m.Triggers, key, tr.Name); ok {
-				tr.SQLMode = ctx.SQLMode
-				tr.CharacterSetClient = ctx.CharacterSetClient
-				tr.CollationConnection = ctx.CollationConnection
-				tr.HasSessionContext = true
-			}
+		applyDatabaseSessionContext(db, m)
+	}
+}
+
+// applyDatabaseSessionContext stamps the routines, triggers, and events of one
+// database with their entries in m.
+func applyDatabaseSessionContext(db *Database, m SessionContextMap) {
+	applyRoutineContext(db.Functions, m.Functions)
+	applyRoutineContext(db.Procedures, m.Procedures)
+	for key, tr := range db.Triggers {
+		if tr == nil {
+			continue
 		}
-		for key, e := range db.Events {
-			if e == nil {
-				continue
-			}
-			if ctx, ok := lookupContext(m.Events, key, e.Name); ok {
-				e.SQLMode = ctx.SQLMode
-				e.CharacterSetClient = ctx.CharacterSetClient
-				e.CollationConnection = ctx.CollationConnection
-				e.TimeZone = ctx.TimeZone
-				e.HasSessionContext = true
-			}
+		if ctx, ok := lookupContext(m.Triggers, key, tr.Name); ok {
+			tr.SQLMode = ctx.SQLMode
+			tr.CharacterSetClient = ctx.CharacterSetClient
+			tr.CollationConnection = ctx.CollationConnection
+			tr.HasSessionContext = true
+		}
+	}
+	for key, e := range db.Events {
+		if e == nil {
+			continue
+		}
+		if ctx, ok := lookupContext(m.Events, key, e.Name); ok {
+			e.SQLMode = ctx.SQLMode
+			e.CharacterSetClient = ctx.CharacterSetClient
+			e.CollationConnection = ctx.CollationConnection
+			e.TimeZone = ctx.TimeZone
+			e.HasSessionContext = true
 		}
 	}
 }

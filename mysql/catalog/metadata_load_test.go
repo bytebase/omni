@@ -473,6 +473,24 @@ func TestLoadMetadataInstallsRoutines(t *testing.T) {
 	}
 }
 
+func TestLoadMetadataStampsOnlyTheLoadedDatabase(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE other; USE other; CREATE FUNCTION add_one(x INT) RETURNS int DETERMINISTIC RETURN x + 1;", nil); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+	if _, err := c.LoadMetadata(context.Background(), snapshot(&metadata.SchemaMetadata{Functions: []*metadata.FunctionMetadata{
+		{Name: "add_one", Definition: "CREATE FUNCTION `add_one`(x INT) RETURNS int DETERMINISTIC RETURN x + 1", SqlMode: "PIPES_AS_CONCAT"},
+	}})); err != nil {
+		t.Fatalf("LoadMetadata: %v", err)
+	}
+	if fn := snapshotDatabase(t, c).Functions["add_one"]; fn == nil || fn.SQLMode != "PIPES_AS_CONCAT" {
+		t.Errorf("testdb add_one = %+v, want the snapshot's context", fn)
+	}
+	if fn := c.GetDatabase("other").Functions["add_one"]; fn == nil || fn.HasSessionContext {
+		t.Errorf("other add_one = %+v, want its own context untouched", fn)
+	}
+}
+
 func TestLoadMetadataStandsInForFailedObjects(t *testing.T) {
 	c, report := loadMySQLSnapshot(t, snapshot(&metadata.SchemaMetadata{
 		Tables: []*metadata.TableMetadata{
