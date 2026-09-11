@@ -6,6 +6,8 @@ import (
 	"github.com/bytebase/omni/metadata"
 )
 
+// The snapshot's names go in folded, so every lookup here spells them the way
+// a statement does.
 func TestLoadMetadata(t *testing.T) {
 	c := New()
 	c.LoadMetadata(&metadata.DatabaseSchemaMetadata{
@@ -24,30 +26,25 @@ func TestLoadMetadata(t *testing.T) {
 		}},
 	})
 
-	database := c.GetCatalog("Hive")
+	database := c.GetCatalog(Normalize("Hive"))
 	if database == nil {
 		t.Fatalf("catalog not loaded; catalogs %v", c.Catalogs())
 	}
-	schema := database.GetSchema("Sales")
+	schema := database.GetSchema(Normalize("Sales"))
 	if schema == nil {
 		t.Fatalf("schema not loaded; schemas %v", database.Schemas())
 	}
-	table := schema.GetTable("Orders")
+	table := schema.GetTable(Normalize("Orders"))
 	if table == nil || len(table.Columns()) != 2 {
 		t.Fatalf("table = %+v, want Orders with two columns", table)
 	}
-	if id := table.GetColumn("ID"); id == nil || id.Type != "bigint" || id.Nullable {
+	if id := table.GetColumn(Normalize("ID")); id == nil || id.Type != "bigint" || id.Nullable {
 		t.Errorf("ID = %+v, want a non-null bigint", id)
 	}
-	if note := table.GetColumn("note"); note == nil || !note.Nullable {
+	if note := table.GetColumn(Normalize("note")); note == nil || !note.Nullable {
 		t.Errorf("note = %+v, want a nullable column", note)
 	}
-	// A statement spelling the name unquoted resolves it folded, so it must not
-	// find the mixed-case one.
-	if schema.GetTable(Normalize("Orders")) != nil {
-		t.Error("the folded name resolves the table the connector reports as Orders")
-	}
-	view := schema.GetView("Recent")
+	view := schema.GetView(Normalize("Recent"))
 	if view == nil || view.Definition != "SELECT id FROM orders" || len(view.Columns()) != 1 {
 		t.Errorf("view = %+v, want Recent with its definition and one column", view)
 	}
