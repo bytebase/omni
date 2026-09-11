@@ -33,7 +33,8 @@ type LoadMetadataReport struct {
 // after it. A view may likewise name a view that installs after it. Generated
 // invisible primary keys are off and explicit_defaults_for_timestamp is on, so
 // each table installs as the snapshot records it. The caller's settings are
-// restored afterward.
+// restored afterward. Each routine, trigger, and event takes the session context
+// the snapshot records for it, as ApplySessionContext stamps it.
 //
 // An object that fails to install does not stop the load. A table is replaced
 // by a stand-in with the same column names, all TEXT; a view by one that
@@ -85,7 +86,45 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 			report.Missing[o.key()] = standInErr
 		}
 	}
-	return report, c.reanalyzeViews(ctx, views)
+	if err := c.reanalyzeViews(ctx, views); err != nil {
+		return report, err
+	}
+	c.ApplySessionContext(sessionContexts(meta))
+	return report, nil
+}
+
+// sessionContexts collects the creation context the snapshot records for each
+// routine, trigger, and event. An object with none recorded is left out, so it
+// keeps a bare recreate.
+func sessionContexts(meta *metadata.DatabaseSchemaMetadata) SessionContextMap {
+	m := SessionContextMap{
+		Functions:  make(map[string]SessionContext),
+		Procedures: make(map[string]SessionContext),
+		Triggers:   make(map[string]SessionContext),
+		Events:     make(map[string]SessionContext),
+	}
+	add := func(into map[string]SessionContext, name string, ctx SessionContext) {
+		if ctx != (SessionContext{}) {
+			into[toLower(name)] = ctx
+		}
+	}
+	for _, s := range meta.GetSchemas() {
+		for _, fn := range s.GetFunctions() {
+			add(m.Functions, fn.GetName(), SessionContext{SQLMode: fn.GetSqlMode(), CharacterSetClient: fn.GetCharacterSetClient(), CollationConnection: fn.GetCollationConnection()})
+		}
+		for _, p := range s.GetProcedures() {
+			add(m.Procedures, p.GetName(), SessionContext{SQLMode: p.GetSqlMode(), CharacterSetClient: p.GetCharacterSetClient(), CollationConnection: p.GetCollationConnection()})
+		}
+		for _, t := range s.GetTables() {
+			for _, tr := range t.GetTriggers() {
+				add(m.Triggers, tr.GetName(), SessionContext{SQLMode: tr.GetSqlMode(), CharacterSetClient: tr.GetCharacterSetClient(), CollationConnection: tr.GetCollationConnection()})
+			}
+		}
+		for _, e := range s.GetEvents() {
+			add(m.Events, e.GetName(), SessionContext{SQLMode: e.GetSqlMode(), CharacterSetClient: e.GetCharacterSetClient(), CollationConnection: e.GetCollationConnection(), TimeZone: e.GetTimeZone()})
+		}
+	}
+	return m
 }
 
 // reanalyzeViews reinstalls each view whose body did not analyze while a pass
@@ -351,8 +390,13 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (*nodes.ColumnDef, error) {
 		typeName.HasSRID = true
 	}
 	def := &nodes.ColumnDef{Name: col.GetName(), TypeName: typeName, Comment: col.GetComment()}
-	if !col.GetNullable() {
+	switch {
+	case !col.GetNullable():
 		def.Constraints = append(def.Constraints, &nodes.ColumnConstraint{Type: nodes.ColConstrNotNull})
+	case strings.EqualFold(typeName.Name, "timestamp"):
+		// A nullable TIMESTAMP says NULL, as SHOW CREATE TABLE prints it, so
+		// explicit_defaults_for_timestamp=OFF cannot read it as NOT NULL.
+		def.Constraints = append(def.Constraints, &nodes.ColumnConstraint{Type: nodes.ColConstrNull})
 	}
 	if col.GetIsInvisible() {
 		def.Constraints = append(def.Constraints, &nodes.ColumnConstraint{Type: nodes.ColConstrInvisible})

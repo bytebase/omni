@@ -105,7 +105,7 @@ func TestLoadMetadataCreatesAndSelectsDatabase(t *testing.T) {
 	}
 	meta := snapshotWithTables(&metadata.TableMetadata{
 		Name:    "t",
-		Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "ts", Type: "timestamp", Nullable: true}},
+		Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "at", Type: "timestamp"}, {Name: "ts", Type: "timestamp", Nullable: true}},
 	})
 	meta.CharacterSet, meta.Collation = "latin1", "latin1_bin"
 	report, err := c.LoadMetadata(context.Background(), meta)
@@ -114,8 +114,12 @@ func TestLoadMetadataCreatesAndSelectsDatabase(t *testing.T) {
 	}
 	requireReport(t, report, nil, nil)
 	// Neither a generated primary key nor the legacy TIMESTAMP rules apply.
-	if tbl := requireTable(t, c, "t"); tbl.GetColumn("my_row_id") != nil || !tbl.GetColumn("ts").Nullable {
-		t.Errorf("t = %+v, want id and a nullable ts only", tbl.Columns)
+	tbl := requireTable(t, c, "t")
+	if tbl.GetColumn("my_row_id") != nil || !tbl.GetColumn("ts").Nullable || !tbl.GetColumn("ts").NullExplicit {
+		t.Errorf("t = %+v, want no generated key and an explicitly nullable ts", tbl.Columns)
+	}
+	if at := tbl.GetColumn("at"); at.Default != nil || at.OnUpdate != "" {
+		t.Errorf("at = %+v, want no implicit default", at)
 	}
 	if db := snapshotDatabase(t, c); db.Charset != "latin1" || db.Collation != "latin1_bin" {
 		t.Errorf("database charset %q, collation %q; want the snapshot's latin1, latin1_bin", db.Charset, db.Collation)
@@ -388,7 +392,7 @@ func TestLoadMetadataInstallsTriggers(t *testing.T) {
 		}
 	}
 	c, report := loadMySQLSnapshot(t, snapshotWithTables(account(
-		&metadata.TriggerMetadata{Name: "ins_sum", Timing: "BEFORE", Event: "INSERT", Body: "SET @sum = @sum + NEW.amount"},
+		&metadata.TriggerMetadata{Name: "ins_sum", Timing: "BEFORE", Event: "INSERT", Body: "SET @sum = @sum + NEW.amount", SqlMode: "ANSI_QUOTES"},
 		&metadata.TriggerMetadata{Name: "upd_check", Timing: "BEFORE", Event: "UPDATE", Body: `BEGIN
 			IF NEW.amount < 0 THEN
 				SET NEW.amount = 0;
@@ -417,12 +421,15 @@ func TestLoadMetadataInstallsTriggers(t *testing.T) {
 			t.Errorf("%s = %s %s ON %s, body %q", tt.name, trg.Timing, trg.Event, trg.Table, trg.Body)
 		}
 	}
+	if trg := requireTrigger(t, c, "ins_sum"); !trg.HasSessionContext || trg.SQLMode != "ANSI_QUOTES" {
+		t.Errorf("ins_sum sql_mode = %q (context %v), want the snapshot's ANSI_QUOTES", trg.SQLMode, trg.HasSessionContext)
+	}
 }
 
 func TestLoadMetadataInstallsEvents(t *testing.T) {
 	c, report := loadMySQLSnapshot(t, snapshot(&metadata.SchemaMetadata{Events: []*metadata.EventMetadata{
 		{Name: "myevent", Definition: "CREATE EVENT `myevent` ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO UPDATE mytable SET mycol = mycol + 1"},
-		{Name: "e_hourly", Definition: "CREATE EVENT `e_hourly` ON SCHEDULE EVERY 1 HOUR COMMENT 'Clears out sessions table each hour.' DO DELETE FROM site_activity.sessions"},
+		{Name: "e_hourly", Definition: "CREATE EVENT `e_hourly` ON SCHEDULE EVERY 1 HOUR COMMENT 'Clears out sessions table each hour.' DO DELETE FROM site_activity.sessions", TimeZone: "+08:00"},
 		{Name: "e_daily", Definition: "CREATE EVENT `e_daily` ON SCHEDULE EVERY 1 DAY STARTS CURRENT_TIMESTAMP + INTERVAL 5 HOUR COMMENT 'Saves total then clears each day' " +
 			"DO BEGIN INSERT INTO totals (time, total) SELECT NOW(), COUNT(*) FROM sessions; DELETE FROM sessions; END"},
 	}}))
@@ -436,12 +443,15 @@ func TestLoadMetadataInstallsEvents(t *testing.T) {
 	if ev := requireEvent(t, c, "e_hourly"); !strings.Contains(ev.Comment, "sessions") {
 		t.Errorf("e_hourly comment = %q", ev.Comment)
 	}
+	if ev := requireEvent(t, c, "e_hourly"); !ev.HasSessionContext || ev.TimeZone != "+08:00" {
+		t.Errorf("e_hourly time zone = %q (context %v), want the snapshot's +08:00", ev.TimeZone, ev.HasSessionContext)
+	}
 }
 
 func TestLoadMetadataInstallsRoutines(t *testing.T) {
 	c, report := loadMySQLSnapshot(t, snapshot(&metadata.SchemaMetadata{
 		Functions: []*metadata.FunctionMetadata{
-			{Name: "add_one", Definition: "CREATE FUNCTION `add_one`(x INT) RETURNS int DETERMINISTIC RETURN x + 1"},
+			{Name: "add_one", Definition: "CREATE FUNCTION `add_one`(x INT) RETURNS int DETERMINISTIC RETURN x + 1", SqlMode: "PIPES_AS_CONCAT", CharacterSetClient: "utf8mb4", CollationConnection: "utf8mb4_0900_ai_ci"},
 			{Name: "broken_fn", Definition: "not a function"},
 		},
 		Procedures: []*metadata.ProcedureMetadata{
@@ -453,6 +463,13 @@ func TestLoadMetadataInstallsRoutines(t *testing.T) {
 	db := snapshotDatabase(t, c)
 	if db.Functions[strings.ToLower("add_one")] == nil || db.Procedures[strings.ToLower("touch")] == nil {
 		t.Errorf("functions %v, procedures %v; want add_one and touch", db.Functions, db.Procedures)
+	}
+	// A routine takes the context the snapshot records; one with none stays bare.
+	if fn := db.Functions["add_one"]; fn == nil || !fn.HasSessionContext || fn.SQLMode != "PIPES_AS_CONCAT" || fn.CollationConnection != "utf8mb4_0900_ai_ci" {
+		t.Errorf("add_one = %+v, want the snapshot's session context", fn)
+	}
+	if p := db.Procedures["touch"]; p == nil || p.HasSessionContext {
+		t.Errorf("touch = %+v, want no session context", p)
 	}
 }
 
