@@ -267,7 +267,7 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (*nodes.ColumnDef, error) {
 	autoIncrement := strings.EqualFold(col.GetDefault(), autoIncrementDefault)
 	def.AutoIncrement = autoIncrement
 	// Sync reports DEFAULT NULL for every nullable column, including types that
-	// take no DEFAULT clause, which would fail the whole table.
+	// show no default.
 	if !autoIncrement && col.GetDefault() != "" && col.GetGeneration() == nil &&
 		(!strings.EqualFold(col.GetDefault(), "NULL") || typeTakesDefault(col.GetType())) {
 		if expr, err := parseExpr(col.GetDefault()); err == nil {
@@ -287,15 +287,15 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (*nodes.ColumnDef, error) {
 	return def, nil
 }
 
-// typeTakesDefault reports whether a column type accepts a literal DEFAULT
-// clause, which the BLOB types and JSON do not.
+// typeTakesDefault reports whether a column type shows a DEFAULT NULL clause,
+// which the BLOB, TEXT, and JSON types never do.
 func typeTakesDefault(typ string) bool {
 	head := strings.ToLower(strings.TrimSpace(typ))
 	if i := strings.IndexAny(head, " ("); i >= 0 {
 		head = head[:i]
 	}
 	switch head {
-	case "blob", "tinyblob", "mediumblob", "longblob", "json":
+	case "blob", "tinyblob", "mediumblob", "longblob", "text", "tinytext", "mediumtext", "longtext", "json":
 		return false
 	default:
 		return true
@@ -404,10 +404,16 @@ func metadataViewStmt(v *metadata.ViewMetadata) (*nodes.CreateViewStmt, error) {
 		return nil, err
 	}
 	stmt := &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: v.GetDefinition()}
+	// A stored definition drops the column list of CREATE VIEW v (a, b), so the
+	// snapshot's columns become one only where they differ from the body's.
+	var names []string
 	for _, col := range v.GetColumns() {
 		if col.GetName() != "" {
-			stmt.Columns = append(stmt.Columns, col.GetName())
+			names = append(names, col.GetName())
 		}
+	}
+	if len(names) > 0 && !slices.EqualFunc(names, extractViewColumns(sel), strings.EqualFold) {
+		stmt.Columns = names
 	}
 	return stmt, nil
 }

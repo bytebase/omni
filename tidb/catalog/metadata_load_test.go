@@ -78,8 +78,9 @@ func TestLoadMetadataInstallsTables(t *testing.T) {
 					Type: metadata.GenerationMetadata_TYPE_STORED, Expression: "parent_id + 1",
 				}},
 				// Sync reports DEFAULT NULL for every nullable column, including
-				// types that take no DEFAULT clause.
+				// types that show no default.
 				{Name: "payload", Type: "json", Nullable: true, Default: "NULL"},
+				{Name: "notes", Type: "text", Nullable: true, Default: "NULL"},
 				{Name: "name", Type: "varchar(255)", Nullable: true, Default: "NULL"},
 			},
 			Indexes: []*metadata.IndexMetadata{
@@ -135,8 +136,10 @@ func TestLoadMetadataInstallsTables(t *testing.T) {
 	if gen := child.GetColumn("total").Generated; gen == nil || !gen.Stored {
 		t.Errorf("total generated = %+v, want stored", gen)
 	}
-	if payload := child.GetColumn("payload"); payload.Default != nil {
-		t.Errorf("payload default = %q, want none", *payload.Default)
+	for _, name := range []string{"payload", "notes"} {
+		if col := child.GetColumn(name); col.Default != nil {
+			t.Errorf("%s default = %q, want none", name, *col.Default)
+		}
 	}
 	if name := child.GetColumn("name"); name.Default == nil {
 		t.Error("name lost its DEFAULT NULL")
@@ -205,6 +208,24 @@ func TestLoadMetadataInstallsViewsInAnyOrder(t *testing.T) {
 		if v := requireView(t, c, name); v.AnalyzedQuery == nil {
 			t.Errorf("%s was not analyzed once the view it reads installed", name)
 		}
+	}
+}
+
+func TestLoadMetadataKeepsViewColumnListsOnlyWhereNeeded(t *testing.T) {
+	c, report := loadTiDBSnapshot(t, snapshot(&metadata.SchemaMetadata{
+		Tables: []*metadata.TableMetadata{{Name: "users", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}}},
+		Views: []*metadata.ViewMetadata{
+			// Created as CREATE VIEW renamed (user_id) AS SELECT id FROM users.
+			{Name: "renamed", Definition: "SELECT id FROM users", Columns: []*metadata.ColumnMetadata{{Name: "user_id"}}},
+			{Name: "same", Definition: "SELECT id FROM users", Columns: []*metadata.ColumnMetadata{{Name: "ID"}}},
+		},
+	}))
+	requireReport(t, report)
+	if v := requireView(t, c, "renamed"); !v.ExplicitColumns || !slices.Equal(v.Columns, []string{"user_id"}) {
+		t.Errorf("renamed = explicit %v, columns %v; want the snapshot's user_id", v.ExplicitColumns, v.Columns)
+	}
+	if v := requireView(t, c, "same"); v.ExplicitColumns {
+		t.Errorf("same = explicit columns %v, want the body's", v.Columns)
 	}
 }
 
