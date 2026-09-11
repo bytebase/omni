@@ -26,16 +26,17 @@ type LoadMetadataReport struct {
 	Missing map[string]error
 }
 
-// LoadMetadata installs a Bytebase schema snapshot of a MySQL database into
-// the database meta.Name, creating it if needed, gives the database the
-// snapshot's character set and collation, and leaves it selected. Foreign key
-// checks are off during the load, so a table may reference one that installs
-// after it. A view may likewise name a view that installs after it. Generated
-// invisible primary keys are off and explicit_defaults_for_timestamp is on, so
-// each table installs as the snapshot records it. The caller's settings are
-// restored afterward. Each routine, trigger, and event the load installs takes
-// the session context the snapshot records for it, as ApplySessionContext
-// stamps it.
+// LoadMetadata installs a Bytebase schema snapshot of a MySQL database into the
+// database meta.Name, creating it if needed with the snapshot's character set
+// and collation, and leaves that database selected.
+//
+// The settings that would rewrite what it installs are off for the length of
+// the load, and the caller's are restored afterward: a table may reference one
+// that installs after it, and each table installs as the snapshot records it. A
+// view may likewise name a view that installs after it, since views whose
+// bodies did not analyze are reinstalled once everything is in. Each routine,
+// trigger, and event the load installs takes the session context the snapshot
+// records for it, as ApplySessionContext stamps it.
 //
 // An object that fails to install does not stop the load. A table is replaced
 // by a stand-in with the same column names, all TEXT; a view by one that
@@ -50,21 +51,9 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 	if err := ctx.Err(); err != nil {
 		return report, err
 	}
-	if name := meta.GetName(); name != "" {
-		stmt := metadataDatabaseStmt(meta)
-		if c.GetDatabase(name) == nil {
-			_ = c.DefineDatabase(stmt)
-		} else if len(stmt.Options) > 0 {
-			_ = c.alterDatabase(&nodes.AlterDatabaseStmt{Name: name, Options: stmt.Options})
-		}
-		c.SetCurrentDatabase(name)
-	}
-	fkChecks := c.ForeignKeyChecks()
-	c.SetForeignKeyChecks(false)
-	defer c.SetForeignKeyChecks(fkChecks)
-	gipk, explicitDefaults := c.generateGIPK, c.session.ExplicitDefaultsForTimestamp
-	c.generateGIPK, c.session.ExplicitDefaultsForTimestamp = false, true
-	defer func() { c.generateGIPK, c.session.ExplicitDefaultsForTimestamp = gipk, explicitDefaults }()
+	c.selectMetadataDatabase(meta)
+	restore := c.loadSessionSettings()
+	defer restore()
 
 	var views, installed []*metadataObject
 	for _, o := range collectMetadataObjects(meta) {
@@ -96,6 +85,38 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 		applyDatabaseSessionContext(db, sessionContexts(installed))
 	}
 	return report, nil
+}
+
+// selectMetadataDatabase creates the snapshot's database where the catalog
+// lacks it, gives it the snapshot's character set and collation, and selects
+// it.
+func (c *Catalog) selectMetadataDatabase(meta *metadata.DatabaseSchemaMetadata) {
+	name := meta.GetName()
+	if name == "" {
+		return
+	}
+	stmt := metadataDatabaseStmt(meta)
+	if c.GetDatabase(name) == nil {
+		_ = c.DefineDatabase(stmt)
+	} else if len(stmt.Options) > 0 {
+		_ = c.alterDatabase(&nodes.AlterDatabaseStmt{Name: name, Options: stmt.Options})
+	}
+	c.SetCurrentDatabase(name)
+}
+
+// loadSessionSettings turns off the session settings that rewrite what a table
+// installs as: foreign key checks reject a forward reference, generated
+// invisible primary keys add a column, and explicit_defaults_for_timestamp=OFF
+// rewrites a TIMESTAMP column. It returns a function restoring the caller's.
+func (c *Catalog) loadSessionSettings() func() {
+	fkChecks, gipk := c.ForeignKeyChecks(), c.generateGIPK
+	explicitDefaults := c.session.ExplicitDefaultsForTimestamp
+	c.SetForeignKeyChecks(false)
+	c.generateGIPK, c.session.ExplicitDefaultsForTimestamp = false, true
+	return func() {
+		c.SetForeignKeyChecks(fkChecks)
+		c.generateGIPK, c.session.ExplicitDefaultsForTimestamp = gipk, explicitDefaults
+	}
 }
 
 // sessionContexts collects the creation context the snapshot records for each
@@ -402,16 +423,8 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (*nodes.ColumnDef, error) {
 	if col.GetIsInvisible() {
 		def.Constraints = append(def.Constraints, &nodes.ColumnConstraint{Type: nodes.ColConstrInvisible})
 	}
-	autoIncrement := strings.EqualFold(col.GetDefault(), autoIncrementDefault)
-	def.AutoIncrement = autoIncrement
-	// Sync reports DEFAULT NULL for every nullable column, including types that
-	// show no default.
-	if !autoIncrement && col.GetDefault() != "" && col.GetGeneration() == nil &&
-		(!strings.EqualFold(col.GetDefault(), "NULL") || typeTakesDefault(col.GetType())) {
-		if expr, err := parseExpr(col.GetDefault()); err == nil {
-			def.DefaultValue = expr
-		}
-	}
+	def.AutoIncrement = strings.EqualFold(col.GetDefault(), autoIncrementDefault)
+	def.DefaultValue = columnDefault(col)
 	if col.GetOnUpdate() != "" {
 		if expr, err := parseExpr(col.GetOnUpdate()); err == nil {
 			def.OnUpdate = expr
@@ -423,6 +436,27 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (*nodes.ColumnDef, error) {
 		}
 	}
 	return def, nil
+}
+
+// columnDefault parses the default the snapshot records for a column, or
+// returns nil where the catalog takes none: AUTO_INCREMENT is a flag rather
+// than a default, a generated column has no default, and sync reports DEFAULT
+// NULL even for the types that show no default.
+func columnDefault(col *metadata.ColumnMetadata) nodes.ExprNode {
+	value := col.GetDefault()
+	switch {
+	case value == "" || col.GetGeneration() != nil:
+		return nil
+	case strings.EqualFold(value, autoIncrementDefault):
+		return nil
+	case strings.EqualFold(value, "NULL") && !typeTakesDefault(col.GetType()):
+		return nil
+	}
+	expr, err := parseExpr(value)
+	if err != nil {
+		return nil
+	}
+	return expr
 }
 
 // typeTakesDefault reports whether a column type shows a DEFAULT NULL clause,
@@ -438,8 +472,7 @@ func typeTakesDefault(typ string) bool {
 // metadataIndexConstraint builds an index from its key parts. The index type
 // holds either the kind, FULLTEXT or SPATIAL, or the access method. Sync reports
 // the access method a key without USING gets too, so the engine's default one
-// stays unwritten. A key part that is an expression, or that has a length or
-// descends, goes into IndexColumns; plain columns go into Columns.
+// stays unwritten.
 func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) *nodes.Constraint {
 	indexType := strings.ToUpper(strings.TrimSpace(idx.GetType()))
 	if indexType == defaultIndexType(engine) {
@@ -458,6 +491,20 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) *nodes.
 	default:
 		c.Type, c.IndexType = nodes.ConstrIndex, indexType
 	}
+	c.Columns, c.IndexColumns = indexKeyParts(idx)
+	// A primary key is always visible.
+	if !idx.GetVisible() && !idx.GetPrimary() {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "INVISIBLE"})
+	}
+	if idx.GetComment() != "" {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "COMMENT", Value: &nodes.StringLit{Value: idx.GetComment()}})
+	}
+	return c
+}
+
+// indexKeyParts splits an index's key parts: plain column names, or, where a
+// part is an expression or has a length or descends, an IndexColumn for each.
+func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn) {
 	length := func(i int) int {
 		if i < len(idx.GetKeyLength()) {
 			return int(idx.GetKeyLength()[i])
@@ -471,11 +518,15 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) *nodes.
 			plain = false
 		}
 	}
-	for i, expr := range idx.GetExpressions() {
-		if plain {
-			c.Columns = append(c.Columns, unquoteIdent(expr))
-			continue
+	if plain {
+		var columns []string
+		for _, expr := range idx.GetExpressions() {
+			columns = append(columns, unquoteIdent(expr))
 		}
+		return columns, nil
+	}
+	var keys []*nodes.IndexColumn
+	for i, expr := range idx.GetExpressions() {
 		key := &nodes.IndexColumn{Expr: &nodes.ColumnRef{Column: unquoteIdent(expr)}, Desc: descending(i)}
 		if l := length(i); l > 0 {
 			key.Length = l
@@ -486,16 +537,9 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) *nodes.
 				key.Expr = parsed
 			}
 		}
-		c.IndexColumns = append(c.IndexColumns, key)
+		keys = append(keys, key)
 	}
-	// A primary key is always visible.
-	if !idx.GetVisible() && !idx.GetPrimary() {
-		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "INVISIBLE"})
-	}
-	if idx.GetComment() != "" {
-		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "COMMENT", Value: &nodes.StringLit{Value: idx.GetComment()}})
-	}
-	return c
+	return nil, keys
 }
 
 // defaultIndexType is the access method a key without USING gets.
