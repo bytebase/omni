@@ -18,6 +18,12 @@ func Walk(v Visitor, node Node) {
 	if node == nil {
 		return
 	}
+	// The generated walker has no case for a List inside a List, such as each
+	// function of a RangeFunction.
+	if list, ok := node.(*List); ok {
+		walkList(v, list)
+		return
+	}
 	w := v.Visit(node)
 	if w == nil {
 		return

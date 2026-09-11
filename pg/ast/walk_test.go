@@ -52,6 +52,23 @@ func TestWalkSelectStmt(t *testing.T) {
 	}
 }
 
+func TestWalkNestedLists(t *testing.T) {
+	// FROM f() holds each function in a list inside RangeFunction.Functions.
+	tree := &RangeFunction{Functions: &List{Items: []Node{
+		&List{Items: []Node{&FuncCall{Funcname: &List{Items: []Node{&String{Str: "f"}}}}}},
+	}}}
+	found := false
+	Inspect(tree, func(n Node) bool {
+		if _, ok := n.(*FuncCall); ok {
+			found = true
+		}
+		return true
+	})
+	if !found {
+		t.Error("the function in a nested list was not visited")
+	}
+}
+
 func TestWalkNil(t *testing.T) {
 	// Should not panic on nil.
 	Walk(inspector(func(Node) bool { return true }), nil)

@@ -38,7 +38,8 @@ func collectExprDeps(expr nodes.Node) (funcRefs, relRefs, typeRefs []string) {
 				}
 			}
 		case *nodes.RangeVar:
-			if x.Relname != "" && !cteNames[x.Relname] {
+			// A CTE reference is never schema-qualified.
+			if x.Relname != "" && (x.Schemaname != "" || !cteNames[x.Relname]) {
 				relRefs = append(relRefs, qualifiedRangeVar(x))
 			}
 		case *nodes.TypeCast:
