@@ -2902,6 +2902,33 @@ func TestComplete_AuroraLoadDataFromS3(t *testing.T) {
 		}
 	})
 
+	// LOAD DATA LOCAL | → INFILE only; LOCAL is incompatible with an S3 source
+	t.Run("load_data_local_offers_infile_only", func(t *testing.T) {
+		for _, sql := range []string{"LOAD DATA LOCAL ", "LOAD XML LOCAL "} {
+			candidates := Complete(sql, len(sql), cat)
+			if !containsCandidate(candidates, "INFILE", CandidateKeyword) {
+				t.Errorf("%q: missing keyword INFILE; got %v", sql, candidates)
+			}
+			for _, kw := range []string{"FROM", "S3"} {
+				if containsCandidate(candidates, kw, CandidateKeyword) {
+					t.Errorf("%q: %s must not be offered after LOCAL; got %v", sql, kw, candidates)
+				}
+			}
+		}
+	})
+
+	// SELECT ... INTO OUTFILE | → S3 (the alternative is a file literal)
+	t.Run("into_outfile_offers_s3", func(t *testing.T) {
+		sql := "SELECT 1 INTO OUTFILE "
+		candidates := Complete(sql, len(sql), cat)
+		if !containsCandidate(candidates, "S3", CandidateKeyword) {
+			t.Errorf("missing keyword S3; got %v", candidates)
+		}
+		if containsCandidate(candidates, "SELECT", CandidateKeyword) {
+			t.Errorf("fell back to top-level statement keywords; got %v", candidates)
+		}
+	})
+
 	// LOAD DATA FROM | → S3 is the only continuation
 	t.Run("load_data_from_offers_s3", func(t *testing.T) {
 		sql := "LOAD DATA FROM "

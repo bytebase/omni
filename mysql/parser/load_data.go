@@ -85,9 +85,13 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	p.checkCursor()
 	if p.collectMode() {
 		p.addTokenCandidate(kwINFILE)
-		p.addTokenCandidate(kwFROM)
-		if !isXML {
-			p.addTokenCandidate(kwS3)
+		// LOCAL is incompatible with an S3 source, so after LOCAL the only
+		// valid continuation is INFILE.
+		if !stmt.Local {
+			p.addTokenCandidate(kwFROM)
+			if !isXML {
+				p.addTokenCandidate(kwS3)
+			}
 		}
 		return nil, &ParseError{Message: "collecting"}
 	}

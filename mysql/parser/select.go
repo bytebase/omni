@@ -1791,6 +1791,12 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 	switch p.cur.Type {
 	case kwOUTFILE:
 		p.advance()
+		// Completion: INTO OUTFILE | → a file literal or the Aurora S3 form.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwS3)
+			return nil, &ParseError{Message: "collecting"}
+		}
 		// Aurora MySQL: INTO OUTFILE S3 's3_uri'
 		if p.cur.Type == kwS3 {
 			p.advance()
