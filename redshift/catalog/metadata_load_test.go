@@ -109,6 +109,25 @@ func TestUseMetadataResolvesRelationsWhenNamed(t *testing.T) {
 	}
 }
 
+func TestUseMetadataResolvesEarlierSchemasFirst(t *testing.T) {
+	c := New()
+	c.SetSearchPath([]string{"tenant", "public"})
+	c.UseMetadata(&metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{
+		{Name: "tenant", Tables: []*metadata.TableMetadata{{Name: "accounts", Columns: []*metadata.ColumnMetadata{{Name: "tenant_id", Type: "integer"}}}}},
+		{Name: "public", Tables: []*metadata.TableMetadata{{Name: "accounts", Columns: []*metadata.ColumnMetadata{{Name: "legacy_id", Type: "integer"}}}}},
+	}})
+	// public.accounts is in the catalog before the unqualified name resolves.
+	if _, err := c.Exec("CREATE VIEW public.a AS SELECT legacy_id FROM public.accounts; CREATE VIEW public.b AS SELECT tenant_id FROM accounts;", nil); err != nil {
+		t.Fatalf("Exec: %v", err)
+	}
+	if c.GetRelation("public", "a") == nil {
+		t.Fatal("public.a was not created")
+	}
+	if c.GetRelation("public", "b") == nil {
+		t.Error("accounts bound to public.accounts, not tenant.accounts earlier on the search path")
+	}
+}
+
 func TestMetadataResolverResolvesSpecs(t *testing.T) {
 	r := newMetadataResolver(redshiftSnapshot())
 	resolve := func(schema, name string, searchPath ...string) *RelationSpec {
@@ -201,6 +220,10 @@ func TestCoarseType(t *testing.T) {
 		"time without time zone":      "time",
 		"timetz":                      "time",
 		"super":                       "text",
+		"int8":                        "bigint",
+		"float8":                      "double precision",
+		"float":                       "double precision",
+		"float4":                      "real",
 		"interval":                    "interval",
 		"interval year to month":      "interval",
 	} {

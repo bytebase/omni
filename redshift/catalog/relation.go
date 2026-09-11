@@ -96,6 +96,22 @@ type Relation struct {
 
 // findRelation locates a relation by schema (or search path) and name.
 func (c *Catalog) findRelation(schemaName, relName string) (*Schema, *Relation, error) {
+	if schemaName == "" && c.relationResolver != nil {
+		// Resolve schema by schema along the search path, so a relation the
+		// catalog already has cannot hide one the resolver holds in an earlier
+		// schema.
+		for _, name := range c.resolverSearchPath() {
+			if schema, rel := c.lookupRelation(name, relName); rel != nil {
+				return schema, rel, nil
+			}
+			if err := c.resolveMissingRelation(name, relName); err != nil {
+				return nil, nil, err
+			}
+			if schema, rel := c.lookupRelation(name, relName); rel != nil {
+				return schema, rel, nil
+			}
+		}
+	}
 	if schema, rel := c.lookupRelation(schemaName, relName); rel != nil {
 		return schema, rel, nil
 	}

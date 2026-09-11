@@ -126,7 +126,7 @@ func coarseType(typ string) string {
 	switch {
 	case strings.Contains(lower, "interval"):
 		return "interval"
-	case strings.Contains(lower, "bigint"):
+	case strings.Contains(lower, "bigint"), strings.Contains(lower, "int8"):
 		return "bigint"
 	case strings.Contains(lower, "int"):
 		return "integer"
@@ -136,10 +136,10 @@ func coarseType(typ string) string {
 		return "text"
 	case strings.Contains(lower, "numeric"), strings.Contains(lower, "decimal"):
 		return "numeric"
-	case strings.Contains(lower, "double"):
-		return "double precision"
-	case strings.Contains(lower, "float"), strings.Contains(lower, "real"):
+	case strings.Contains(lower, "real"), strings.Contains(lower, "float4"):
 		return "real"
+	case strings.Contains(lower, "double"), strings.Contains(lower, "float"):
+		return "double precision"
 	case strings.Contains(lower, "date"):
 		return "date"
 	case strings.Contains(lower, "timestamp"):
