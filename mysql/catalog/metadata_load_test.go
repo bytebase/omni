@@ -473,21 +473,28 @@ func TestLoadMetadataInstallsRoutines(t *testing.T) {
 	}
 }
 
-func TestLoadMetadataStampsOnlyTheLoadedDatabase(t *testing.T) {
+func TestLoadMetadataStampsOnlyObjectsItInstalls(t *testing.T) {
 	c := New()
-	if _, err := c.Exec("CREATE DATABASE other; USE other; CREATE FUNCTION add_one(x INT) RETURNS int DETERMINISTIC RETURN x + 1;", nil); err != nil {
+	// Same-named functions in another database, and already in the destination.
+	if _, err := c.Exec("CREATE DATABASE other; USE other; CREATE FUNCTION add_one(x INT) RETURNS int DETERMINISTIC RETURN x + 1; CREATE DATABASE testdb; USE testdb; CREATE FUNCTION dup(x INT) RETURNS int DETERMINISTIC RETURN x;", nil); err != nil {
 		t.Fatalf("setup: %v", err)
 	}
-	if _, err := c.LoadMetadata(context.Background(), snapshot(&metadata.SchemaMetadata{Functions: []*metadata.FunctionMetadata{
+	report, err := c.LoadMetadata(context.Background(), snapshot(&metadata.SchemaMetadata{Functions: []*metadata.FunctionMetadata{
 		{Name: "add_one", Definition: "CREATE FUNCTION `add_one`(x INT) RETURNS int DETERMINISTIC RETURN x + 1", SqlMode: "PIPES_AS_CONCAT"},
-	}})); err != nil {
+		{Name: "dup", Definition: "CREATE FUNCTION `dup`(x INT) RETURNS int DETERMINISTIC RETURN x", SqlMode: "PIPES_AS_CONCAT"},
+	}}))
+	if err != nil {
 		t.Fatalf("LoadMetadata: %v", err)
 	}
-	if fn := snapshotDatabase(t, c).Functions["add_one"]; fn == nil || fn.SQLMode != "PIPES_AS_CONCAT" {
+	requireReport(t, report, nil, []string{"function:dup"})
+	db := snapshotDatabase(t, c)
+	if fn := db.Functions["add_one"]; fn == nil || fn.SQLMode != "PIPES_AS_CONCAT" {
 		t.Errorf("testdb add_one = %+v, want the snapshot's context", fn)
 	}
-	if fn := c.GetDatabase("other").Functions["add_one"]; fn == nil || fn.HasSessionContext {
-		t.Errorf("other add_one = %+v, want its own context untouched", fn)
+	for name, fn := range map[string]*Routine{"other add_one": c.GetDatabase("other").Functions["add_one"], "testdb dup": db.Functions["dup"]} {
+		if fn == nil || fn.HasSessionContext {
+			t.Errorf("%s = %+v, want its own context untouched", name, fn)
+		}
 	}
 }
 

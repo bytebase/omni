@@ -33,7 +33,7 @@ type LoadMetadataReport struct {
 // after it. A view may likewise name a view that installs after it. Generated
 // invisible primary keys are off and explicit_defaults_for_timestamp is on, so
 // each table installs as the snapshot records it. The caller's settings are
-// restored afterward. Each routine, trigger, and event in the database takes
+// restored afterward. Each routine, trigger, and event the load installs takes
 // the session context the snapshot records for it, as ApplySessionContext
 // stamps it.
 //
@@ -66,13 +66,14 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 	c.generateGIPK, c.session.ExplicitDefaultsForTimestamp = false, true
 	defer func() { c.generateGIPK, c.session.ExplicitDefaultsForTimestamp = gipk, explicitDefaults }()
 
-	var views []*metadataObject
+	var views, installed []*metadataObject
 	for _, o := range collectMetadataObjects(meta) {
 		if err := ctx.Err(); err != nil {
 			return report, err
 		}
 		err := c.installMetadataObject(o)
 		if err == nil {
+			installed = append(installed, o)
 			if o.kind == metadataView {
 				views = append(views, o)
 			}
@@ -80,6 +81,7 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 		}
 		switch standInErr := c.installStandIn(o); {
 		case standInErr == nil:
+			installed = append(installed, o)
 			report.Degraded[o.key()] = err
 		case errors.Is(standInErr, errNoStandIn):
 			report.Missing[o.key()] = err
@@ -91,15 +93,15 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 		return report, err
 	}
 	if db := c.GetDatabase(c.CurrentDatabase()); db != nil {
-		applyDatabaseSessionContext(db, sessionContexts(meta))
+		applyDatabaseSessionContext(db, sessionContexts(installed))
 	}
 	return report, nil
 }
 
 // sessionContexts collects the creation context the snapshot records for each
-// routine, trigger, and event. An object with none recorded is left out, so it
-// keeps a bare recreate.
-func sessionContexts(meta *metadata.DatabaseSchemaMetadata) SessionContextMap {
+// routine, trigger, and event in objects. An object with none recorded is left
+// out, so it keeps a bare recreate.
+func sessionContexts(objects []*metadataObject) SessionContextMap {
 	m := SessionContextMap{
 		Functions:  make(map[string]SessionContext),
 		Procedures: make(map[string]SessionContext),
@@ -111,20 +113,16 @@ func sessionContexts(meta *metadata.DatabaseSchemaMetadata) SessionContextMap {
 			into[toLower(name)] = ctx
 		}
 	}
-	for _, s := range meta.GetSchemas() {
-		for _, fn := range s.GetFunctions() {
-			add(m.Functions, fn.GetName(), SessionContext{SQLMode: fn.GetSqlMode(), CharacterSetClient: fn.GetCharacterSetClient(), CollationConnection: fn.GetCollationConnection()})
-		}
-		for _, p := range s.GetProcedures() {
-			add(m.Procedures, p.GetName(), SessionContext{SQLMode: p.GetSqlMode(), CharacterSetClient: p.GetCharacterSetClient(), CollationConnection: p.GetCollationConnection()})
-		}
-		for _, t := range s.GetTables() {
-			for _, tr := range t.GetTriggers() {
-				add(m.Triggers, tr.GetName(), SessionContext{SQLMode: tr.GetSqlMode(), CharacterSetClient: tr.GetCharacterSetClient(), CollationConnection: tr.GetCollationConnection()})
-			}
-		}
-		for _, e := range s.GetEvents() {
-			add(m.Events, e.GetName(), SessionContext{SQLMode: e.GetSqlMode(), CharacterSetClient: e.GetCharacterSetClient(), CollationConnection: e.GetCollationConnection(), TimeZone: e.GetTimeZone()})
+	for _, o := range objects {
+		switch o.kind {
+		case metadataFunction:
+			add(m.Functions, o.name, SessionContext{SQLMode: o.function.GetSqlMode(), CharacterSetClient: o.function.GetCharacterSetClient(), CollationConnection: o.function.GetCollationConnection()})
+		case metadataProcedure:
+			add(m.Procedures, o.name, SessionContext{SQLMode: o.procedure.GetSqlMode(), CharacterSetClient: o.procedure.GetCharacterSetClient(), CollationConnection: o.procedure.GetCollationConnection()})
+		case metadataTrigger:
+			add(m.Triggers, o.name, SessionContext{SQLMode: o.trigger.GetSqlMode(), CharacterSetClient: o.trigger.GetCharacterSetClient(), CollationConnection: o.trigger.GetCollationConnection()})
+		case metadataEvent:
+			add(m.Events, o.name, SessionContext{SQLMode: o.event.GetSqlMode(), CharacterSetClient: o.event.GetCharacterSetClient(), CollationConnection: o.event.GetCollationConnection(), TimeZone: o.event.GetTimeZone()})
 		}
 	}
 	return m
