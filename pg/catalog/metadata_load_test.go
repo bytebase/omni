@@ -110,10 +110,9 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 			{Name: "aa_fn", Signature: "aa_fn(public.zz_base)"},
 			{Name: "aa_fn", Signature: "aa_fn(public.zz_orders)"},
 			{
-				Name:             "aa_rows",
-				Signature:        "aa_rows()",
-				Definition:       "CREATE FUNCTION public.aa_rows() RETURNS SETOF public.zz_orders LANGUAGE sql AS $$ SELECT * FROM zz_orders $$;",
-				DependencyTables: []*metadata.DependencyTable{{Schema: "public", Table: "zz_orders"}},
+				Name:       "aa_rows",
+				Signature:  "aa_rows()",
+				Definition: "CREATE FUNCTION public.aa_rows() RETURNS SETOF public.zz_orders LANGUAGE sql AS $$ SELECT * FROM zz_orders $$;",
 			},
 			// Called by a default, an index expression, and a view body.
 			{Name: "zz_code", Signature: "zz_code(integer)", Definition: "CREATE FUNCTION public.zz_code(x integer) RETURNS integer IMMUTABLE LANGUAGE sql AS $$ SELECT x $$;"},
@@ -165,6 +164,11 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 			},
 		},
 		Sequences: []*metadata.SequenceMetadata{{Name: "zz_seq", DataType: "bigint"}},
+		Procedures: []*metadata.ProcedureMetadata{{
+			Name:       "aa_proc",
+			Signature:  "aa_proc()",
+			Definition: "CREATE PROCEDURE public.aa_proc(OUT o public.zz_orders) LANGUAGE sql AS $$ SELECT * FROM zz_orders $$;",
+		}},
 	})
 	requireCleanReport(t, report)
 

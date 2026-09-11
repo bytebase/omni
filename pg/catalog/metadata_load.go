@@ -106,6 +106,9 @@ type metadataObject struct {
 	exclude   *metadata.ExcludeConstraintMetadata
 	// procedure marks a function that comes from the snapshot's procedures.
 	procedure bool
+	// createStmt is a function's parsed definition, or nil when the snapshot
+	// has none that parses.
+	createStmt *nodes.CreateFunctionStmt
 }
 
 func (o *metadataObject) key() string {
@@ -203,7 +206,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			out = append(out, &metadataObject{kind: metadataMatView, schema: schema, name: mv.GetName(), matView: mv})
 		}
 		for _, fn := range s.GetFunctions() {
-			out = append(out, &metadataObject{kind: metadataFunction, schema: schema, name: fn.GetName(), function: fn})
+			out = append(out, functionObject(schema, fn, false))
 		}
 		if !full {
 			continue
@@ -216,11 +219,11 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			out = append(out, &metadataObject{kind: metadataSequence, schema: schema, name: seq.GetName(), sequence: seq})
 		}
 		for _, p := range s.GetProcedures() {
-			out = append(out, &metadataObject{kind: metadataFunction, schema: schema, name: p.GetName(), procedure: true, function: &metadata.FunctionMetadata{
+			out = append(out, functionObject(schema, &metadata.FunctionMetadata{
 				Name:       p.GetName(),
 				Definition: p.GetDefinition(),
 				Signature:  p.GetSignature(),
-			}})
+			}, true))
 		}
 		for _, t := range s.GetTables() {
 			out = appendIndexObjects(out, schema, t.GetName(), t.GetIndexes())
@@ -239,6 +242,11 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 		}
 	}
 	return out
+}
+
+func functionObject(schema string, fn *metadata.FunctionMetadata, procedure bool) *metadataObject {
+	stmt, _ := parseStatement[*nodes.CreateFunctionStmt](fn.GetDefinition())
+	return &metadataObject{kind: metadataFunction, schema: schema, name: fn.GetName(), function: fn, procedure: procedure, createStmt: stmt}
 }
 
 func appendIndexObjects(out []*metadataObject, schema, relation string, indexes []*metadata.IndexMetadata) []*metadataObject {
@@ -364,11 +372,24 @@ func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataO
 				deps = append(deps, key)
 			}
 		}
+		addRef := func(schema, name string) {
+			add(metadataTypeKey(schema, name))
+			// A column, attribute, or parameter may use a relation's row type.
+			add(metadataRelationKey(schema, name))
+		}
 		addType := func(typeStr string) {
 			if schema, name, ok := userTypeRef(typeStr); ok {
-				add(metadataTypeKey(schema, name))
-				// A composite attribute or column may use a relation's row type.
-				add(metadataRelationKey(schema, name))
+				addRef(schema, name)
+			}
+		}
+		addTypeName := func(tn *nodes.TypeName) {
+			if tn == nil || tn.Names == nil || len(tn.Names.Items) != 2 {
+				return
+			}
+			schema, schemaOK := tn.Names.Items[0].(*nodes.String)
+			name, nameOK := tn.Names.Items[1].(*nodes.String)
+			if schemaOK && nameOK {
+				addRef(schema.Str, name.Str)
 			}
 		}
 		if o.kind != metadataSchema {
@@ -392,14 +413,22 @@ func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataO
 				add(metadataRelationKey(dep.GetSchema(), dep.GetTable()))
 			}
 		case metadataFunction:
-			argTypes, _ := signatureArgTypes(o.function.GetSignature())
-			for _, t := range argTypes {
-				addType(t)
+			if o.createStmt == nil {
+				argTypes, _ := signatureArgTypes(o.function.GetSignature())
+				for _, t := range argTypes {
+					addType(t)
+				}
+				break
 			}
-			// The tables whose row type the function returns.
-			for _, dep := range o.function.GetDependencyTables() {
-				add(metadataRelationKey(dep.GetSchema(), dep.GetTable()))
+			// Every parameter, including OUT and TABLE ones, and the result.
+			if params := o.createStmt.Parameters; params != nil {
+				for _, item := range params.Items {
+					if p, ok := item.(*nodes.FunctionParameter); ok {
+						addTypeName(p.ArgType)
+					}
+				}
 			}
+			addTypeName(o.createStmt.ReturnType)
 		case metadataIndex:
 			add(metadataRelationKey(o.schema, o.parent))
 		case metadataConstraint:
@@ -514,9 +543,12 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		}
 		return c.ExecCreateTableAs(stmt)
 	case metadataFunction:
-		stmt, err := metadataFunctionStmt(o.schema, o.function, o.procedure)
-		if err != nil {
-			return err
+		stmt := o.createStmt
+		if stmt == nil {
+			var err error
+			if stmt, err = signatureFunctionStmt(o.schema, o.function, o.procedure); err != nil {
+				return err
+			}
 		}
 		return c.CreateFunctionStmt(stmt)
 	case metadataIndex:

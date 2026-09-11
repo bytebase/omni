@@ -164,14 +164,10 @@ func matViewStmt(schema, name string, sel *nodes.SelectStmt) *nodes.CreateTableA
 	}
 }
 
-// metadataFunctionStmt parses the function's CREATE statement. When the
-// snapshot has none that parses, it builds one from the signature, with the
-// argument types and, unless it is a procedure, a text result, so calls by
-// name still resolve.
-func metadataFunctionStmt(schema string, fn *metadata.FunctionMetadata, procedure bool) (*nodes.CreateFunctionStmt, error) {
-	if stmt, err := parseStatement[*nodes.CreateFunctionStmt](fn.GetDefinition()); err == nil {
-		return stmt, nil
-	}
+// signatureFunctionStmt builds a function whose definition the snapshot lacks
+// or omni cannot parse from its signature: the argument types and, unless it
+// is a procedure, a text result, so calls by name still resolve.
+func signatureFunctionStmt(schema string, fn *metadata.FunctionMetadata, procedure bool) (*nodes.CreateFunctionStmt, error) {
 	argTypes, err := signatureArgTypes(fn.GetSignature())
 	if err != nil {
 		return nil, fmt.Errorf("function %q: %w", fn.GetName(), err)
@@ -478,8 +474,15 @@ func userTypeRef(typ string) (schema, name string, ok bool) {
 	for strings.HasSuffix(s, "[]") {
 		s = strings.TrimSpace(strings.TrimSuffix(s, "[]"))
 	}
-	if before, _, found := strings.Cut(s, "("); found {
-		s = strings.TrimSpace(before)
+	// Drop type modifiers, which start at the first parenthesis outside quotes.
+	quoted := false
+	for i := 0; i < len(s); i++ {
+		if s[i] == '"' {
+			quoted = !quoted
+		} else if s[i] == '(' && !quoted {
+			s = strings.TrimSpace(s[:i])
+			break
+		}
 	}
 	return splitQualifiedIdent(s)
 }

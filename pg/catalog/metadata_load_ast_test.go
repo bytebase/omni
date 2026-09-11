@@ -39,6 +39,7 @@ func TestUserTypeRef(t *testing.T) {
 		{typ: "public.money_amount(10,2)", schema: "public", name: "money_amount"},
 		{typ: `"My Schema"."My Type"`, schema: "My Schema", name: "My Type"},
 		{typ: `"a""b".c`, schema: `a"b`, name: "c"},
+		{typ: `public."row(type"`, schema: "public", name: "row(type"},
 		// Built-in and array types are unqualified; sync qualifies every user type.
 		{typ: "integer"},
 		{typ: "character varying(255)"},
@@ -154,20 +155,19 @@ func TestMetadataIndexStmt(t *testing.T) {
 	}
 }
 
-func TestMetadataFunctionStmtFallsBackToSignature(t *testing.T) {
+func TestSignatureFunctionStmt(t *testing.T) {
 	c := New()
 	for _, procedure := range []bool{false, true} {
 		name := "fn"
 		if procedure {
 			name = "proc"
 		}
-		stmt, err := metadataFunctionStmt("public", &metadata.FunctionMetadata{
-			Name:       name,
-			Signature:  name + "(integer, text)",
-			Definition: "CREATE FUNCTION with a body omni cannot parse",
+		stmt, err := signatureFunctionStmt("public", &metadata.FunctionMetadata{
+			Name:      name,
+			Signature: name + "(integer, text)",
 		}, procedure)
 		if err != nil {
-			t.Fatalf("metadataFunctionStmt: %v", err)
+			t.Fatalf("signatureFunctionStmt: %v", err)
 		}
 		if stmt.Parameters == nil || len(stmt.Parameters.Items) != 2 {
 			t.Fatalf("want the signature's two parameters, got %+v", stmt.Parameters)
