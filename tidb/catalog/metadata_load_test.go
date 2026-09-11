@@ -3,6 +3,7 @@ package catalog
 import (
 	"context"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -61,12 +62,13 @@ func snapshot(s *metadata.SchemaMetadata) *metadata.DatabaseSchemaMetadata {
 func TestLoadMetadataInstallsTables(t *testing.T) {
 	c := New()
 	c.SetForeignKeyChecks(true)
-	report, err := c.LoadMetadata(context.Background(), snapshot(&metadata.SchemaMetadata{Tables: []*metadata.TableMetadata{
+	meta := snapshot(&metadata.SchemaMetadata{Tables: []*metadata.TableMetadata{
 		{
 			// Sorts first and references z_parent.
-			Name:    "a_child",
-			Charset: "utf8mb4",
-			Comment: "children",
+			Name:           "a_child",
+			Charset:        "utf8mb4",
+			Comment:        "children",
+			PrimaryKeyType: "CLUSTERED",
 			Columns: []*metadata.ColumnMetadata{
 				{Name: "id", Type: "bigint unsigned", Default: autoIncrementDefault},
 				{Name: "parent_id", Type: "bigint unsigned"},
@@ -85,6 +87,8 @@ func TestLoadMetadataInstallsTables(t *testing.T) {
 				{Name: "idx_parent_id", Type: "BTREE", Expressions: []string{"parent_id"}},
 				{Name: "idx_lower_name", Type: "BTREE", Expressions: []string{"(lower(`name`))"}},
 				{Name: "idx_prefix", Type: "BTREE", Expressions: []string{"name"}, KeyLength: []int64{10}, Descending: []bool{true}},
+				{Name: "idx_shown", Type: "BTREE", Expressions: []string{"parent_id"}, Visible: true},
+				{Name: "idx_hidden", Type: "BTREE", Expressions: []string{"parent_id"}, Comment: "rarely used"},
 			},
 			ForeignKeys: []*metadata.ForeignKeyMetadata{{
 				Name:              "fk_child_parent",
@@ -95,17 +99,24 @@ func TestLoadMetadataInstallsTables(t *testing.T) {
 			}},
 		},
 		{
-			Name:    "z_parent",
-			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "bigint unsigned", Default: autoIncrementDefault}},
-			Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Type: "BTREE", Primary: true, Unique: true, Expressions: []string{"id"}}},
+			Name:           "z_parent",
+			Columns:        []*metadata.ColumnMetadata{{Name: "id", Type: "bigint unsigned", Default: autoIncrementDefault}},
+			Indexes:        []*metadata.IndexMetadata{{Name: "PRIMARY", Type: "BTREE", Primary: true, Unique: true, Expressions: []string{"id"}}},
+			PrimaryKeyType: "NONCLUSTERED",
 		},
-	}}))
+	}})
+	meta.CharacterSet, meta.Collation = "latin1", "latin1_bin"
+	report, err := c.LoadMetadata(context.Background(), meta)
 	if err != nil {
 		t.Fatalf("LoadMetadata: %v", err)
 	}
 	requireReport(t, report)
 	if c.CurrentDatabase() != snapshotDB || !c.ForeignKeyChecks() {
 		t.Errorf("current database %q, foreign key checks %v; want %s and checks back on", c.CurrentDatabase(), c.ForeignKeyChecks(), snapshotDB)
+	}
+
+	if db := c.GetDatabase(snapshotDB); db.Charset != "latin1" || db.Collation != "latin1_bin" {
+		t.Errorf("database charset %q, collation %q; want the snapshot's latin1, latin1_bin", db.Charset, db.Collation)
 	}
 
 	child := requireTable(t, c, "a_child")
@@ -140,6 +151,15 @@ func TestLoadMetadataInstallsTables(t *testing.T) {
 	if idx := indexes["idx_prefix"]; idx == nil || len(idx.Columns) != 1 || idx.Columns[0].Length != 10 || !idx.Columns[0].Descending {
 		t.Errorf("idx_prefix = %+v, want name(10) DESC", idx)
 	}
+	// The primary key is visible though the snapshot does not say so.
+	for name, visible := range map[string]bool{"PRIMARY": true, "idx_shown": true, "idx_hidden": false} {
+		if idx := indexes[name]; idx == nil || idx.Visible != visible {
+			t.Errorf("%s = %+v, want visible %v", name, idx, visible)
+		}
+	}
+	if idx := indexes["idx_hidden"]; idx == nil || idx.Comment != "rarely used" {
+		t.Errorf("idx_hidden = %+v, want its comment", idx)
+	}
 	var fk *Constraint
 	for _, con := range child.Constraints {
 		if con.Type == ConForeignKey && con.Name == "fk_child_parent" {
@@ -149,17 +169,30 @@ func TestLoadMetadataInstallsTables(t *testing.T) {
 	if fk == nil || !strings.EqualFold(fk.OnDelete, "CASCADE") {
 		t.Errorf("fk_child_parent = %+v, want ON DELETE CASCADE", fk)
 	}
+	clustered := func(table string) string {
+		for _, con := range requireTable(t, c, table).Constraints {
+			if con.Type == ConPrimaryKey && con.Clustered != nil {
+				return strconv.FormatBool(*con.Clustered)
+			}
+		}
+		return "unset"
+	}
+	if got := clustered("a_child") + " " + clustered("z_parent"); got != "true false" {
+		t.Errorf("primary keys clustered = %s, want true false", got)
+	}
 }
 
 func TestLoadMetadataInstallsViewsInAnyOrder(t *testing.T) {
-	// a_view reads z_view, which installs after it.
+	// Each view reads the next, which installs after it, and m_view's columns
+	// come only from analyzing its body.
 	c, report := loadTiDBSnapshot(t, snapshot(&metadata.SchemaMetadata{
 		Tables: []*metadata.TableMetadata{{
 			Name:    "users",
 			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "name", Type: "varchar(255)", Nullable: true}},
 		}},
 		Views: []*metadata.ViewMetadata{
-			{Name: "a_view", Definition: "SELECT id FROM z_view"},
+			{Name: "a_view", Definition: "SELECT id FROM m_view"},
+			{Name: "m_view", Definition: "SELECT * FROM z_view"},
 			{Name: "z_view", Definition: "SELECT id, name FROM users"},
 		},
 	}))
@@ -168,15 +201,27 @@ func TestLoadMetadataInstallsViewsInAnyOrder(t *testing.T) {
 	if v := requireView(t, c, "z_view"); !slices.Equal(v.Columns, []string{"id", "name"}) {
 		t.Errorf("z_view columns = %v, want id, name", v.Columns)
 	}
-	requireView(t, c, "a_view")
+	for _, name := range []string{"a_view", "m_view"} {
+		if v := requireView(t, c, name); v.AnalyzedQuery == nil {
+			t.Errorf("%s was not analyzed once the view it reads installed", name)
+		}
+	}
 }
 
-func TestLoadMetadataStandsInForFailedTables(t *testing.T) {
-	c, report := loadTiDBSnapshot(t, snapshot(&metadata.SchemaMetadata{Tables: []*metadata.TableMetadata{{
-		Name:    "broken",
-		Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "bad", Type: "varchar((("}},
-	}}}))
-	requireReport(t, report, "table:broken")
+func TestLoadMetadataStandsInForFailedObjects(t *testing.T) {
+	c, report := loadTiDBSnapshot(t, snapshot(&metadata.SchemaMetadata{
+		Tables: []*metadata.TableMetadata{{
+			Name:    "broken",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "bad", Type: "varchar((("}},
+		}},
+		Views: []*metadata.ViewMetadata{
+			{Name: "bad_view", Definition: "SELEC nonsense", Columns: []*metadata.ColumnMetadata{{Name: "x"}}},
+		},
+	}))
+	requireReport(t, report, "table:broken", "view:bad_view")
+	if cols := requireView(t, c, "bad_view").Columns; !slices.Equal(cols, []string{"x"}) {
+		t.Errorf("bad_view stand-in columns = %v, want x", cols)
+	}
 	cols := requireTable(t, c, "broken").Columns
 	if len(cols) != 2 {
 		t.Fatalf("stand-in has %d columns, want 2", len(cols))
@@ -221,6 +266,10 @@ func TestLoadMetadataStopsWhenContextIsDone(t *testing.T) {
 	}{
 		{name: "before planning", checks: 0, meta: snapshot(&metadata.SchemaMetadata{})},
 		{name: "before an install", checks: 1, meta: snapshot(&metadata.SchemaMetadata{Tables: []*metadata.TableMetadata{{Name: "t"}}})},
+		{name: "before a view reinstall", checks: 3, meta: snapshot(&metadata.SchemaMetadata{Views: []*metadata.ViewMetadata{
+			{Name: "a", Definition: "SELECT id FROM z"},
+			{Name: "z", Definition: "SELECT 1 AS id"},
+		}})},
 	} {
 		if _, err := New().LoadMetadata(&doneAfter{Context: context.Background(), checks: tt.checks}, tt.meta); err != context.Canceled {
 			t.Errorf("%s: err = %v, want context.Canceled", tt.name, err)

@@ -27,7 +27,8 @@ type LoadMetadataReport struct {
 // LoadMetadata installs a Bytebase schema snapshot of a TiDB database into the
 // database meta.Name, creating it if needed, and leaves that database
 // selected. Foreign key checks are off during the load, so a table may
-// reference one that installs after it.
+// reference one that installs after it. A view may likewise name a view that
+// installs after it.
 //
 // An object that fails to install does not stop the load: a table is replaced
 // by a stand-in with the same column names, all TEXT, and a view by one that
@@ -43,8 +44,7 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 	}
 	if name := meta.GetName(); name != "" {
 		if c.GetDatabase(name) == nil {
-			// A database without options always installs.
-			_ = c.DefineDatabase(&nodes.CreateDatabaseStmt{Name: name})
+			_ = c.DefineDatabase(metadataDatabaseStmt(meta))
 		}
 		c.SetCurrentDatabase(name)
 	}
@@ -52,12 +52,16 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 	c.SetForeignKeyChecks(false)
 	defer c.SetForeignKeyChecks(fkChecks)
 
+	var views []*metadataObject
 	for _, o := range collectMetadataObjects(meta) {
 		if err := ctx.Err(); err != nil {
 			return report, err
 		}
 		err := c.installMetadataObject(o)
 		if err == nil {
+			if o.kind == metadataView {
+				views = append(views, o)
+			}
 			continue
 		}
 		if standInErr := c.installStandIn(o); standInErr != nil {
@@ -66,7 +70,37 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 		}
 		report.Degraded[o.key()] = err
 	}
-	return report, nil
+	return report, c.reanalyzeViews(ctx, views)
+}
+
+// reanalyzeViews reinstalls each view whose body did not analyze while a pass
+// analyzes more of them: a body analyzes only once the views it names are
+// installed, and those may install after it.
+func (c *Catalog) reanalyzeViews(ctx context.Context, views []*metadataObject) error {
+	for progress := true; progress; {
+		progress = false
+		for _, o := range views {
+			if c.viewAnalyzed(o.name) {
+				continue
+			}
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if c.installMetadataObject(o) == nil && c.viewAnalyzed(o.name) {
+				progress = true
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Catalog) viewAnalyzed(name string) bool {
+	db := c.GetDatabase(c.CurrentDatabase())
+	if db == nil {
+		return false
+	}
+	v := db.Views[toLower(name)]
+	return v != nil && v.AnalyzedQuery != nil
 }
 
 // --- Objects ---
@@ -126,7 +160,11 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 
 func (c *Catalog) installMetadataObject(o *metadataObject) error {
 	if o.kind == metadataView {
-		return c.DefineView(metadataViewStmt(o.view))
+		stmt, err := metadataViewStmt(o.view)
+		if err != nil {
+			return err
+		}
+		return c.DefineView(stmt)
 	}
 	stmt, err := metadataTableStmt(o.table)
 	if err != nil {
@@ -145,6 +183,19 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 // AUTO_INCREMENT column.
 const autoIncrementDefault = "AUTO_INCREMENT"
 
+func metadataDatabaseStmt(meta *metadata.DatabaseSchemaMetadata) *nodes.CreateDatabaseStmt {
+	stmt := &nodes.CreateDatabaseStmt{Name: meta.GetName()}
+	for _, opt := range []*nodes.DatabaseOption{
+		{Name: "CHARACTER SET", Value: meta.GetCharacterSet()},
+		{Name: "COLLATE", Value: meta.GetCollation()},
+	} {
+		if opt.Value != "" {
+			stmt.Options = append(stmt.Options, opt)
+		}
+	}
+	return stmt
+}
+
 // metadataTableStmt fails on a column whose type does not parse, so the table
 // gets a stand-in rather than a partial definition. A default, ON UPDATE,
 // generation, or CHECK expression that does not parse is dropped instead.
@@ -162,9 +213,16 @@ func metadataTableStmt(t *metadata.TableMetadata) (*nodes.CreateTableStmt, error
 		stmt.Columns = append(stmt.Columns, def)
 	}
 	for _, idx := range t.GetIndexes() {
-		if len(idx.GetExpressions()) > 0 {
-			stmt.Constraints = append(stmt.Constraints, metadataIndexConstraint(idx))
+		if len(idx.GetExpressions()) == 0 {
+			continue
 		}
+		con := metadataIndexConstraint(idx)
+		// Sync reports TIDB_PK_TYPE, CLUSTERED or NONCLUSTERED.
+		if idx.GetPrimary() && t.GetPrimaryKeyType() != "" {
+			clustered := strings.EqualFold(t.GetPrimaryKeyType(), "CLUSTERED")
+			con.Clustered = &clustered
+		}
+		stmt.Constraints = append(stmt.Constraints, con)
 	}
 	for _, fk := range t.GetForeignKeys() {
 		stmt.Constraints = append(stmt.Constraints, metadataForeignKey(fk))
@@ -291,6 +349,13 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) *nodes.Constraint {
 		}
 		c.IndexColumns = append(c.IndexColumns, key)
 	}
+	// A primary key is always visible.
+	if !idx.GetVisible() && !idx.GetPrimary() {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "INVISIBLE"})
+	}
+	if idx.GetComment() != "" {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "COMMENT", Value: &nodes.StringLit{Value: idx.GetComment()}})
+	}
 	return c
 }
 
@@ -330,20 +395,21 @@ func referenceAction(action string) nodes.ReferenceAction {
 	}
 }
 
-// metadataViewStmt keeps the view's text as it is and its parsed body when it
-// parses. DefineView installs a view whose body does not analyze, so a view
-// may name one that installs after it.
-func metadataViewStmt(v *metadata.ViewMetadata) *nodes.CreateViewStmt {
-	stmt := &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, SelectText: v.GetDefinition()}
+// metadataViewStmt keeps the view's text as it is along with its parsed body.
+// DefineView installs a view whose body does not analyze, so a view may name
+// one that installs after it; reanalyzeViews retries it then.
+func metadataViewStmt(v *metadata.ViewMetadata) (*nodes.CreateViewStmt, error) {
+	sel, err := parseFirstStatement[*nodes.SelectStmt](v.GetDefinition())
+	if err != nil {
+		return nil, err
+	}
+	stmt := &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: v.GetDefinition()}
 	for _, col := range v.GetColumns() {
 		if col.GetName() != "" {
 			stmt.Columns = append(stmt.Columns, col.GetName())
 		}
 	}
-	if sel, err := parseFirstStatement[*nodes.SelectStmt](v.GetDefinition()); err == nil {
-		stmt.Select = sel
-	}
-	return stmt
+	return stmt, nil
 }
 
 // --- Stand-ins ---
