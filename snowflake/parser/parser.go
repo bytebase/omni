@@ -7,7 +7,7 @@
 // CREATE, etc.) is added by Tier 1+ DAG nodes that replace specific
 // dispatch cases in parseStmt below.
 //
-// See docs/superpowers/specs/2026-04-09-snowflake-parser-entry-design.md
+// See docs/specs/2026-04-09-snowflake-parser-entry-design.md
 // for the design rationale.
 package parser
 

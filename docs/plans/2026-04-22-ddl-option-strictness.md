@@ -33,7 +33,7 @@ ALTER DATABASE foo SET RECOVERY SELECT
 ## What `mssql-strict` already did vs. didn't
 
 ### Did (NAME side — 17 section headers)
-`SCENARIOS-mssql-strict.md` closed the option-NAME whitelist at every `WITH (NAME = value)` entry:
+`docs/scenarios/mssql/SCENARIOS-mssql-strict.md` closed the option-NAME whitelist at every `WITH (NAME = value)` entry:
 - SET predicate (25 names), ALTER DATABASE SET, index WITH, table WITH, proc WITH, view WITH, query hints, FOR XML/JSON, cursor, backup/restore, bulk insert, fulltext, service broker NAMES, availability group, endpoint protocol
 - All verified via `TestKeywordOracleOptionPositions` → 0 mismatch
 
@@ -172,9 +172,9 @@ Similar to A, but in less common positions (e.g. role names, schema names in nes
 
 ## Starmap integration
 
-This plan is a natural extension of `SCENARIOS-mssql-strict.md`. Recommend:
+This plan is a natural extension of `docs/scenarios/mssql/SCENARIOS-mssql-strict.md`. Recommend:
 
-1. Add a **Phase 7 block** to `SCENARIOS-mssql-strict.md` titled "Option VALUE strictness" with sections 7.1 through 7.N matching the SqlScriptDOM helper classes enumerated above.
+1. Add a **Phase 7 block** to `docs/scenarios/mssql/SCENARIOS-mssql-strict.md` titled "Option VALUE strictness" with sections 7.1 through 7.N matching the SqlScriptDOM helper classes enumerated above.
 2. Reuse `mssql-strict-worker` / `mssql-strict-driver` skills — the scenario shape matches (one helper class per section).
 3. Track in `PROGRESS.json` alongside the existing option-NAME work.
 
