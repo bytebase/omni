@@ -30,7 +30,9 @@ type LoadMetadataReport struct {
 // the database meta.Name, creating it if needed, and leaves that database
 // selected. Foreign key checks are off during the load, so a table may
 // reference one that installs after it. A view may likewise name a view that
-// installs after it.
+// installs after it. Generated invisible primary keys are off and
+// explicit_defaults_for_timestamp is on, so each table installs as the snapshot
+// records it. The caller's settings are restored afterward.
 //
 // An object that fails to install does not stop the load. A table is replaced
 // by a stand-in with the same column names, all TEXT; a view by one that
@@ -54,6 +56,9 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 	fkChecks := c.ForeignKeyChecks()
 	c.SetForeignKeyChecks(false)
 	defer c.SetForeignKeyChecks(fkChecks)
+	gipk, explicitDefaults := c.generateGIPK, c.session.ExplicitDefaultsForTimestamp
+	c.generateGIPK, c.session.ExplicitDefaultsForTimestamp = false, true
+	defer func() { c.generateGIPK, c.session.ExplicitDefaultsForTimestamp = gipk, explicitDefaults }()
 
 	var views []*metadataObject
 	for _, o := range collectMetadataObjects(meta) {
@@ -351,7 +356,7 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (*nodes.ColumnDef, error) {
 	autoIncrement := strings.EqualFold(col.GetDefault(), autoIncrementDefault)
 	def.AutoIncrement = autoIncrement
 	// Sync reports DEFAULT NULL for every nullable column, including types that
-	// take no DEFAULT clause, which would fail the whole table.
+	// show no default.
 	if !autoIncrement && col.GetDefault() != "" && col.GetGeneration() == nil &&
 		(!strings.EqualFold(col.GetDefault(), "NULL") || typeTakesDefault(col.GetType())) {
 		if expr, err := parseExpr(col.GetDefault()); err == nil {
@@ -371,19 +376,14 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (*nodes.ColumnDef, error) {
 	return def, nil
 }
 
-// typeTakesDefault reports whether a column type accepts a literal DEFAULT
-// clause, which the BLOB types, JSON, and GEOMETRY do not.
+// typeTakesDefault reports whether a column type shows a DEFAULT NULL clause,
+// which the BLOB, TEXT, JSON, and spatial types never do.
 func typeTakesDefault(typ string) bool {
 	head := strings.ToLower(strings.TrimSpace(typ))
 	if i := strings.IndexAny(head, " ("); i >= 0 {
 		head = head[:i]
 	}
-	switch head {
-	case "blob", "tinyblob", "mediumblob", "longblob", "json", "geometry":
-		return false
-	default:
-		return true
-	}
+	return !isLiteralDefaultForbiddenType(head)
 }
 
 // metadataIndexConstraint builds an index from its key parts. The index type
@@ -490,10 +490,16 @@ func metadataViewStmt(v *metadata.ViewMetadata) (*nodes.CreateViewStmt, error) {
 		return nil, err
 	}
 	stmt := &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: v.GetDefinition()}
+	// A stored definition drops the column list of CREATE VIEW v (a, b), so the
+	// snapshot's columns become one only where they differ from the body's.
+	var names []string
 	for _, col := range v.GetColumns() {
 		if col.GetName() != "" {
-			stmt.Columns = append(stmt.Columns, col.GetName())
+			names = append(names, col.GetName())
 		}
+	}
+	if len(names) > 0 && !slices.EqualFunc(names, extractViewColumns(sel), strings.EqualFold) {
+		stmt.Columns = names
 	}
 	return stmt, nil
 }

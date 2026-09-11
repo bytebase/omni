@@ -100,9 +100,12 @@ func snapshotWithTables(tables ...*metadata.TableMetadata) *metadata.DatabaseSch
 func TestLoadMetadataCreatesAndSelectsDatabase(t *testing.T) {
 	c := New()
 	c.SetForeignKeyChecks(true)
+	if _, err := c.Exec("SET sql_generate_invisible_primary_key = ON; SET explicit_defaults_for_timestamp = OFF;", nil); err != nil {
+		t.Fatalf("SET: %v", err)
+	}
 	meta := snapshotWithTables(&metadata.TableMetadata{
 		Name:    "t",
-		Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}},
+		Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "ts", Type: "timestamp", Nullable: true}},
 	})
 	meta.CharacterSet, meta.Collation = "latin1", "latin1_bin"
 	report, err := c.LoadMetadata(context.Background(), meta)
@@ -110,15 +113,18 @@ func TestLoadMetadataCreatesAndSelectsDatabase(t *testing.T) {
 		t.Fatalf("LoadMetadata: %v", err)
 	}
 	requireReport(t, report, nil, nil)
-	requireTable(t, c, "t")
+	// Neither a generated primary key nor the legacy TIMESTAMP rules apply.
+	if tbl := requireTable(t, c, "t"); tbl.GetColumn("my_row_id") != nil || !tbl.GetColumn("ts").Nullable {
+		t.Errorf("t = %+v, want id and a nullable ts only", tbl.Columns)
+	}
 	if db := snapshotDatabase(t, c); db.Charset != "latin1" || db.Collation != "latin1_bin" {
 		t.Errorf("database charset %q, collation %q; want the snapshot's latin1, latin1_bin", db.Charset, db.Collation)
 	}
 	if c.CurrentDatabase() != snapshotDB {
 		t.Errorf("current database = %q, want %q", c.CurrentDatabase(), snapshotDB)
 	}
-	if !c.ForeignKeyChecks() {
-		t.Error("foreign key checks must be back on after the load")
+	if !c.ForeignKeyChecks() || !c.generateGIPK || c.session.ExplicitDefaultsForTimestamp {
+		t.Error("the caller's session settings must be back after the load")
 	}
 	// Loading into an existing database adds to it.
 	if _, err := c.LoadMetadata(context.Background(), snapshotWithTables(&metadata.TableMetadata{
@@ -298,14 +304,13 @@ func TestLoadMetadataInstallsColumnValues(t *testing.T) {
 				Type: metadata.GenerationMetadata_TYPE_STORED, Expression: "a + b",
 			}},
 			// Sync reports DEFAULT NULL for every nullable column, including
-			// types that take no DEFAULT clause.
+			// types that show no default.
 			{Name: "payload_json", Type: "json", Nullable: true, Default: "NULL"},
 			{Name: "blob_body", Type: "blob", Nullable: true, Default: "NULL"},
 			{Name: "location", Type: "geometry", Nullable: true, Default: "NULL"},
-			{Name: "name", Type: "varchar(255)", Nullable: true, Default: "NULL"},
-			// TEXT and the spatial subtypes take DEFAULT NULL, though no other literal.
 			{Name: "notes", Type: "text", Nullable: true, Default: "NULL"},
 			{Name: "spot", Type: "point", Nullable: true, Default: "NULL"},
+			{Name: "name", Type: "varchar(255)", Nullable: true, Default: "NULL"},
 		},
 	}))
 	requireReport(t, report, nil, nil)
@@ -314,7 +319,7 @@ func TestLoadMetadataInstallsColumnValues(t *testing.T) {
 	if gen := tbl.GetColumn("c").Generated; gen == nil || !gen.Stored || !strings.Contains(gen.Expr, "a") {
 		t.Errorf("generated column = %+v, want stored a + b", gen)
 	}
-	for _, name := range []string{"payload_json", "blob_body", "location"} {
+	for _, name := range []string{"payload_json", "blob_body", "location", "notes", "spot"} {
 		if col := tbl.GetColumn(name); col.Default != nil {
 			t.Errorf("%s: default = %q, want none", name, *col.Default)
 		}
@@ -347,6 +352,24 @@ func TestLoadMetadataInstallsViewsInAnyOrder(t *testing.T) {
 		if v := requireView(t, c, name); v.AnalyzedQuery == nil {
 			t.Errorf("%s was not analyzed once the view it reads installed", name)
 		}
+	}
+}
+
+func TestLoadMetadataKeepsViewColumnListsOnlyWhereNeeded(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshot(&metadata.SchemaMetadata{
+		Tables: []*metadata.TableMetadata{{Name: "users", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}}},
+		Views: []*metadata.ViewMetadata{
+			// Created as CREATE VIEW renamed (user_id) AS SELECT id FROM users.
+			{Name: "renamed", Definition: "SELECT id FROM users", Columns: []*metadata.ColumnMetadata{{Name: "user_id"}}},
+			{Name: "same", Definition: "SELECT id FROM users", Columns: []*metadata.ColumnMetadata{{Name: "ID"}}},
+		},
+	}))
+	requireReport(t, report, nil, nil)
+	if v := requireView(t, c, "renamed"); !v.ExplicitColumns || !slices.Equal(v.Columns, []string{"user_id"}) {
+		t.Errorf("renamed = explicit %v, columns %v; want the snapshot's user_id", v.ExplicitColumns, v.Columns)
+	}
+	if v := requireView(t, c, "same"); v.ExplicitColumns {
+		t.Errorf("same = explicit columns %v, want the body's", v.Columns)
 	}
 }
 
