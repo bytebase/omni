@@ -337,7 +337,7 @@ func metadataTableStmt(t *metadata.TableMetadata) (*nodes.CreateTableStmt, error
 	}
 	for _, idx := range t.GetIndexes() {
 		if len(idx.GetExpressions()) > 0 {
-			stmt.Constraints = append(stmt.Constraints, metadataIndexConstraint(idx))
+			stmt.Constraints = append(stmt.Constraints, metadataIndexConstraint(idx, t.GetEngine()))
 		}
 	}
 	for _, fk := range t.GetForeignKeys() {
@@ -436,11 +436,15 @@ func typeTakesDefault(typ string) bool {
 }
 
 // metadataIndexConstraint builds an index from its key parts. The index type
-// holds either the kind, FULLTEXT or SPATIAL, or the access method. A key part
-// that is an expression, or that has a length or descends, goes into
-// IndexColumns; plain columns go into Columns.
-func metadataIndexConstraint(idx *metadata.IndexMetadata) *nodes.Constraint {
+// holds either the kind, FULLTEXT or SPATIAL, or the access method. Sync reports
+// the access method a key without USING gets too, so the engine's default one
+// stays unwritten. A key part that is an expression, or that has a length or
+// descends, goes into IndexColumns; plain columns go into Columns.
+func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) *nodes.Constraint {
 	indexType := strings.ToUpper(strings.TrimSpace(idx.GetType()))
+	if indexType == defaultIndexType(engine) {
+		indexType = ""
+	}
 	c := &nodes.Constraint{Name: idx.GetName()}
 	switch {
 	case idx.GetPrimary():
@@ -492,6 +496,14 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) *nodes.Constraint {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "COMMENT", Value: &nodes.StringLit{Value: idx.GetComment()}})
 	}
 	return c
+}
+
+// defaultIndexType is the access method a key without USING gets.
+func defaultIndexType(engine string) string {
+	if strings.EqualFold(engine, "MEMORY") || strings.EqualFold(engine, "HEAP") {
+		return "HASH"
+	}
+	return "BTREE"
 }
 
 // isExpressionKey reports whether a key part is a functional expression, as
@@ -547,10 +559,32 @@ func metadataViewStmt(v *metadata.ViewMetadata) (*nodes.CreateViewStmt, error) {
 			names = append(names, col.GetName())
 		}
 	}
-	if len(names) > 0 && !slices.EqualFunc(names, extractViewColumns(sel), strings.EqualFold) {
+	// A * names its columns only once the catalog resolves it, so the body
+	// gives no names to compare.
+	if len(names) > 0 && !selectsStar(sel) && !slices.EqualFunc(names, extractViewColumns(sel), strings.EqualFold) {
 		stmt.Columns = names
 	}
 	return stmt, nil
+}
+
+// selectsStar reports whether a view body's output list has a *, as in SELECT *
+// or SELECT t.*.
+func selectsStar(sel *nodes.SelectStmt) bool {
+	for _, target := range nodes.LeftmostQueryLeaf(sel).TargetList {
+		expr := target
+		if rt, ok := target.(*nodes.ResTarget); ok {
+			expr = rt.Val
+		}
+		switch t := expr.(type) {
+		case *nodes.StarExpr:
+			return true
+		case *nodes.ColumnRef:
+			if t.Star {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // metadataTriggerStmt builds a trigger from its parts. Sync stores the body
@@ -692,6 +726,10 @@ func parseExpr(expr string) (nodes.ExprNode, error) {
 	target, ok := sel.TargetList[0].(*nodes.ResTarget)
 	if !ok {
 		return nil, fmt.Errorf("expression %q: parsed as %T", expr, sel.TargetList[0])
+	}
+	// The probe's parentheses are not part of the expression.
+	if p, ok := target.Val.(*nodes.ParenExpr); ok {
+		return p.Expr, nil
 	}
 	return target.Val, nil
 }

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -160,6 +161,9 @@ func TestLoadMetadataInstallsTable(t *testing.T) {
 			{Name: "email", Type: "varchar(255)", CharacterSet: "latin1"},
 			{Name: "created_at", Type: "timestamp", Default: "CURRENT_TIMESTAMP", OnUpdate: "CURRENT_TIMESTAMP"},
 			{Name: "bio", Type: "text", Nullable: true, Comment: "free form text"},
+			{Name: "status", Type: "varchar(16)", Default: "'active'"},
+			{Name: "score", Type: "int", Default: "0"},
+			{Name: "seed", Type: "double", Default: "(rand())"},
 		},
 		Indexes: []*metadata.IndexMetadata{
 			{Name: "PRIMARY", Type: "BTREE", Primary: true, Unique: true, Expressions: []string{"id"}},
@@ -169,7 +173,7 @@ func TestLoadMetadataInstallsTable(t *testing.T) {
 	requireReport(t, report, nil, nil)
 
 	tbl := requireTable(t, c, "users")
-	if len(tbl.Columns) != 4 || tbl.Engine != "InnoDB" || tbl.Charset != "utf8mb4" || tbl.Comment != "users table" {
+	if len(tbl.Columns) != 7 || tbl.Engine != "InnoDB" || tbl.Charset != "utf8mb4" || tbl.Comment != "users table" {
 		t.Errorf("table = %d columns, engine %q, charset %q, comment %q", len(tbl.Columns), tbl.Engine, tbl.Charset, tbl.Comment)
 	}
 	id := tbl.GetColumn("id")
@@ -188,6 +192,12 @@ func TestLoadMetadataInstallsTable(t *testing.T) {
 	}
 	if bio := tbl.GetColumn("bio"); bio.Comment != "free form text" {
 		t.Errorf("bio comment = %q", bio.Comment)
+	}
+	// A literal default stays a constant; a parenthesized one stays an expression.
+	for name, constant := range map[string]bool{"status": true, "score": true, "seed": false} {
+		if col := tbl.GetColumn(name); (col.DefaultKind == ColumnDefaultConstant) != constant {
+			t.Errorf("%s default kind = %v, want constant %v", name, col.DefaultKind, constant)
+		}
 	}
 	var hasPK, hasUnique bool
 	for _, con := range tbl.Constraints {
@@ -257,6 +267,28 @@ func TestLoadMetadataInstallsIndexKinds(t *testing.T) {
 	}
 	if idx := indexes["idx_hidden"]; idx == nil || idx.Comment != "rarely used" {
 		t.Errorf("idx_hidden = %+v, want its comment", idx)
+	}
+}
+
+func TestLoadMetadataLeavesDefaultIndexTypesUnwritten(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshotWithTables(
+		&metadata.TableMetadata{Name: "disk", Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "int"}}, Indexes: []*metadata.IndexMetadata{
+			{Name: "k", Type: "BTREE", Expressions: []string{"a"}},
+		}},
+		&metadata.TableMetadata{Name: "mem", Engine: "MEMORY", Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "int"}}, Indexes: []*metadata.IndexMetadata{
+			{Name: "k_hash", Type: "HASH", Expressions: []string{"a"}},
+			{Name: "k_btree", Type: "BTREE", Expressions: []string{"a"}},
+		}},
+	))
+	requireReport(t, report, nil, nil)
+	types := make(map[string]string)
+	for _, name := range []string{"disk", "mem"} {
+		for _, idx := range requireTable(t, c, name).Indexes {
+			types[name+"."+idx.Name] = idx.IndexType
+		}
+	}
+	if want := map[string]string{"disk.k": "", "mem.k_hash": "", "mem.k_btree": "BTREE"}; !maps.Equal(types, want) {
+		t.Errorf("index types = %v, want %v", types, want)
 	}
 }
 
@@ -372,14 +404,18 @@ func TestLoadMetadataKeepsViewColumnListsOnlyWhereNeeded(t *testing.T) {
 			// Created as CREATE VIEW renamed (user_id) AS SELECT id FROM users.
 			{Name: "renamed", Definition: "SELECT id FROM users", Columns: []*metadata.ColumnMetadata{{Name: "user_id"}}},
 			{Name: "same", Definition: "SELECT id FROM users", Columns: []*metadata.ColumnMetadata{{Name: "ID"}}},
+			{Name: "star", Definition: "SELECT * FROM users", Columns: []*metadata.ColumnMetadata{{Name: "id"}}},
+			{Name: "star_qualified", Definition: "SELECT u.* FROM users u", Columns: []*metadata.ColumnMetadata{{Name: "id"}}},
 		},
 	}))
 	requireReport(t, report, nil, nil)
 	if v := requireView(t, c, "renamed"); !v.ExplicitColumns || !slices.Equal(v.Columns, []string{"user_id"}) {
 		t.Errorf("renamed = explicit %v, columns %v; want the snapshot's user_id", v.ExplicitColumns, v.Columns)
 	}
-	if v := requireView(t, c, "same"); v.ExplicitColumns {
-		t.Errorf("same = explicit columns %v, want the body's", v.Columns)
+	for _, name := range []string{"same", "star", "star_qualified"} {
+		if v := requireView(t, c, name); v.ExplicitColumns {
+			t.Errorf("%s = explicit columns %v, want the body's", name, v.Columns)
+		}
 	}
 }
 
