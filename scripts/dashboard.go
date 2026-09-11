@@ -207,7 +207,7 @@ func auditHandler(root string) http.HandlerFunc {
 				auditMu.Unlock()
 			}()
 
-			auditSkill := filepath.Join(root, "scripts", "audit-skill.md")
+			auditSkill := filepath.Join(root, "scripts", "prompts", "audit-skill.md")
 			skillData, err := os.ReadFile(auditSkill)
 			if err != nil {
 				auditMu.Lock()

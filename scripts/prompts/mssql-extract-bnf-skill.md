@@ -4,7 +4,7 @@ You are extracting BNF syntax definitions for T-SQL statements. You have TWO sou
 1. **Primary**: `mssql/parser/bnf/TSql170.g` — the official ANTLR grammar from Microsoft's sqlscriptdom (35000 lines)
 2. **Secondary**: Microsoft T-SQL documentation for additional context and human-readable BNF
 
-**Working directory:** `/Users/rebeliceyang/Github/omni`
+**Working directory:** `<repo root>`
 **Catalog:** `mssql/parser/MSSQL_BNF_CATALOG.json`
 **Grammar file:** `mssql/parser/bnf/TSql170.g`
 **Output directory:** `mssql/parser/bnf/`

@@ -2,7 +2,7 @@
 
 You are extracting BNF syntax definitions from Oracle SQL Reference documentation.
 
-**Working directory:** `/Users/rebeliceyang/Github/omni`
+**Working directory:** `<repo root>`
 **Catalog:** `oracle/parser/ORACLE_BNF_CATALOG.json`
 **Output directory:** `oracle/parser/bnf/`
 
