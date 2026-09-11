@@ -264,16 +264,8 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (*nodes.ColumnDef, error) {
 	if col.GetIsInvisible() {
 		def.Constraints = append(def.Constraints, &nodes.ColumnConstraint{Type: nodes.ColConstrInvisible})
 	}
-	autoIncrement := strings.EqualFold(col.GetDefault(), autoIncrementDefault)
-	def.AutoIncrement = autoIncrement
-	// Sync reports DEFAULT NULL for every nullable column, including types that
-	// show no default.
-	if !autoIncrement && col.GetDefault() != "" && col.GetGeneration() == nil &&
-		(!strings.EqualFold(col.GetDefault(), "NULL") || typeTakesDefault(col.GetType())) {
-		if expr, err := parseExpr(col.GetDefault()); err == nil {
-			def.DefaultValue = expr
-		}
-	}
+	def.AutoIncrement = strings.EqualFold(col.GetDefault(), autoIncrementDefault)
+	def.DefaultValue = columnDefault(col)
 	if col.GetOnUpdate() != "" {
 		if expr, err := parseExpr(col.GetOnUpdate()); err == nil {
 			def.OnUpdate = expr
@@ -285,6 +277,27 @@ func metadataColumnDef(col *metadata.ColumnMetadata) (*nodes.ColumnDef, error) {
 		}
 	}
 	return def, nil
+}
+
+// columnDefault parses the default the snapshot records for a column, or
+// returns nil where the catalog takes none: AUTO_INCREMENT is a flag rather
+// than a default, a generated column has no default, and sync reports DEFAULT
+// NULL even for the types that show no default.
+func columnDefault(col *metadata.ColumnMetadata) nodes.ExprNode {
+	value := col.GetDefault()
+	switch {
+	case value == "" || col.GetGeneration() != nil:
+		return nil
+	case strings.EqualFold(value, autoIncrementDefault):
+		return nil
+	case strings.EqualFold(value, "NULL") && !typeTakesDefault(col.GetType()):
+		return nil
+	}
+	expr, err := parseExpr(value)
+	if err != nil {
+		return nil
+	}
+	return expr
 }
 
 // typeTakesDefault reports whether a column type shows a DEFAULT NULL clause,
@@ -303,9 +316,7 @@ func typeTakesDefault(typ string) bool {
 }
 
 // metadataIndexConstraint builds an index from its key parts. The index type
-// holds either the kind, FULLTEXT, or the access method. A key part that is an
-// expression, or that has a length or descends, goes into IndexColumns; plain
-// columns go into Columns.
+// holds either the kind, FULLTEXT, or the access method.
 func metadataIndexConstraint(idx *metadata.IndexMetadata) *nodes.Constraint {
 	indexType := strings.ToUpper(strings.TrimSpace(idx.GetType()))
 	c := &nodes.Constraint{Name: idx.GetName()}
@@ -319,6 +330,20 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) *nodes.Constraint {
 	default:
 		c.Type, c.IndexType = nodes.ConstrIndex, indexType
 	}
+	c.Columns, c.IndexColumns = indexKeyParts(idx)
+	// A primary key is always visible.
+	if !idx.GetVisible() && !idx.GetPrimary() {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "INVISIBLE"})
+	}
+	if idx.GetComment() != "" {
+		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "COMMENT", Value: &nodes.StringLit{Value: idx.GetComment()}})
+	}
+	return c
+}
+
+// indexKeyParts splits an index's key parts: plain column names, or, where a
+// part is an expression or has a length or descends, an IndexColumn for each.
+func indexKeyParts(idx *metadata.IndexMetadata) ([]string, []*nodes.IndexColumn) {
 	length := func(i int) int {
 		if i < len(idx.GetKeyLength()) {
 			return int(idx.GetKeyLength()[i])
@@ -332,11 +357,15 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) *nodes.Constraint {
 			plain = false
 		}
 	}
-	for i, expr := range idx.GetExpressions() {
-		if plain {
-			c.Columns = append(c.Columns, unquoteIdent(expr))
-			continue
+	if plain {
+		var columns []string
+		for _, expr := range idx.GetExpressions() {
+			columns = append(columns, unquoteIdent(expr))
 		}
+		return columns, nil
+	}
+	var keys []*nodes.IndexColumn
+	for i, expr := range idx.GetExpressions() {
 		key := &nodes.IndexColumn{Expr: &nodes.ColumnRef{Column: unquoteIdent(expr)}, Desc: descending(i)}
 		if l := length(i); l > 0 {
 			key.Length = l
@@ -347,16 +376,9 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata) *nodes.Constraint {
 				key.Expr = parsed
 			}
 		}
-		c.IndexColumns = append(c.IndexColumns, key)
+		keys = append(keys, key)
 	}
-	// A primary key is always visible.
-	if !idx.GetVisible() && !idx.GetPrimary() {
-		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "INVISIBLE"})
-	}
-	if idx.GetComment() != "" {
-		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "COMMENT", Value: &nodes.StringLit{Value: idx.GetComment()}})
-	}
-	return c
+	return nil, keys
 }
 
 // isExpressionKey reports whether a key part is a functional expression, as
