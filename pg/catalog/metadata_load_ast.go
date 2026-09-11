@@ -164,9 +164,9 @@ func matViewStmt(schema, name string, sel *nodes.SelectStmt) *nodes.CreateTableA
 	}
 }
 
-// signatureFunctionStmt builds a function whose definition the snapshot lacks
-// or omni cannot parse from its signature: the argument types and, unless it
-// is a procedure, a text result, so calls by name still resolve.
+// signatureFunctionStmt builds a function's stand-in from its signature: the
+// argument types and, unless it is a procedure, a text result, so calls by
+// name still resolve.
 func signatureFunctionStmt(schema string, fn *metadata.FunctionMetadata, procedure bool) (*nodes.CreateFunctionStmt, error) {
 	argTypes, err := signatureArgTypes(fn.GetSignature())
 	if err != nil {

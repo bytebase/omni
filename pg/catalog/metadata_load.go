@@ -37,8 +37,9 @@ type LoadMetadataReport struct {
 // LoadMetadata installs the objects of a Bytebase schema snapshot into c in
 // dependency order. An object that fails to install does not stop the load:
 // an enum, composite type, table, view, or materialized view is replaced by a
-// stand-in with the same name and column names, all typed text, so the objects
-// that depend on it still install as defined. Other kinds are left out.
+// stand-in with the same name and column names, all typed text, and a function
+// by one built from its signature that returns text, so the objects that
+// depend on it still install as defined. Other kinds are left out.
 //
 // View bodies are analyzed as they install, so set the search path and session
 // user before loading. The error is non-nil only when ctx is done.
@@ -543,14 +544,10 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		}
 		return c.ExecCreateTableAs(stmt)
 	case metadataFunction:
-		stmt := o.createStmt
-		if stmt == nil {
-			var err error
-			if stmt, err = signatureFunctionStmt(o.schema, o.function, o.procedure); err != nil {
-				return err
-			}
+		if o.createStmt == nil {
+			return errors.New("no definition that parses")
 		}
-		return c.CreateFunctionStmt(stmt)
+		return c.CreateFunctionStmt(o.createStmt)
 	case metadataIndex:
 		if isKeyIndex(o.index) {
 			return c.AddConstraint(o.schema, o.parent, metadataKeyConstraint(o.index))
@@ -574,11 +571,19 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 	}
 }
 
-// metadataStandIn returns the installer of an object's text-typed stand-in, or
-// nil for kinds without one. A function has none because a text-typed overload
-// would win overload resolution calls meant for other overloads.
+// metadataStandIn returns the installer of an object's stand-in, or nil for
+// kinds without one. A function's stand-in keeps its argument types, so it
+// cannot win calls meant for another overload.
 func metadataStandIn(o *metadataObject) func(*Catalog) error {
 	switch o.kind {
+	case metadataFunction:
+		return func(c *Catalog) error {
+			stmt, err := signatureFunctionStmt(o.schema, o.function, o.procedure)
+			if err != nil {
+				return err
+			}
+			return c.CreateFunctionStmt(stmt)
+		}
 	case metadataEnum:
 		return func(c *Catalog) error {
 			return c.DefineEnum(&nodes.CreateEnumStmt{TypeName: metadataNameList(o.schema, o.name), Vals: &nodes.List{}})

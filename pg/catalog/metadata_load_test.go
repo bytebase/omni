@@ -23,8 +23,21 @@ func loadSnapshot(t *testing.T, full bool, schemas ...*metadata.SchemaMetadata) 
 
 func requireCleanReport(t *testing.T, report *LoadMetadataReport) {
 	t.Helper()
-	if len(report.Degraded) != 0 || len(report.Missing) != 0 {
-		t.Fatalf("want every object installed as defined, got degraded %v, missing %v", report.Degraded, report.Missing)
+	requireDegraded(t, report)
+}
+
+// requireDegraded fails unless exactly the given objects were replaced by
+// stand-ins and nothing is missing.
+func requireDegraded(t *testing.T, report *LoadMetadataReport, keys ...string) {
+	t.Helper()
+	var got []string
+	for key := range report.Degraded {
+		got = append(got, key)
+	}
+	slices.Sort(got)
+	slices.Sort(keys)
+	if !slices.Equal(got, keys) || len(report.Missing) != 0 {
+		t.Fatalf("want degraded %v and nothing missing, got degraded %v, missing %v", keys, report.Degraded, report.Missing)
 	}
 }
 
@@ -107,8 +120,8 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 			DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "zz_orders", Column: "id"}},
 		}},
 		Functions: []*metadata.FunctionMetadata{
-			{Name: "aa_fn", Signature: "aa_fn(public.zz_base)"},
-			{Name: "aa_fn", Signature: "aa_fn(public.zz_orders)"},
+			{Name: "aa_fn", Signature: "aa_fn(public.zz_base)", Definition: "CREATE FUNCTION public.aa_fn(b public.zz_base) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
+			{Name: "aa_fn", Signature: "aa_fn(public.zz_orders)", Definition: "CREATE FUNCTION public.aa_fn(o public.zz_orders) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
 			{
 				Name:       "aa_rows",
 				Signature:  "aa_rows()",
@@ -219,6 +232,12 @@ func TestLoadMetadataStandsInForFailedObjects(t *testing.T) {
 				Columns: []*metadata.ColumnMetadata{{Name: "s", Type: "public.dup_status"}},
 			},
 		},
+		Functions: []*metadata.FunctionMetadata{
+			// Parses, but omni does not know the language.
+			{Name: "js_fn", Signature: "js_fn(integer)", Definition: "CREATE FUNCTION public.js_fn(x integer) RETURNS integer LANGUAGE plv8 AS $$ return x $$;"},
+			// No definition; the signature names a table that sorts after it.
+			{Name: "a_sig", Signature: "a_sig(public.unknown_type)"},
+		},
 		Views: []*metadata.ViewMetadata{
 			{
 				Name:              "over_stand_in",
@@ -234,7 +253,7 @@ func TestLoadMetadataStandsInForFailedObjects(t *testing.T) {
 		},
 	})
 
-	for _, key := range []string{"type:public.dup_status", "rel:public.unknown_type", "rel:public.bad_body"} {
+	for _, key := range []string{"type:public.dup_status", "rel:public.unknown_type", "rel:public.bad_body", "func:public.js_fn|js_fn(integer)", "func:public.a_sig|a_sig(public.unknown_type)"} {
 		if report.Degraded[key] == nil {
 			t.Errorf("%s: want degraded to a stand-in, report %v", key, report.Degraded)
 		}
@@ -254,6 +273,11 @@ func TestLoadMetadataStandsInForFailedObjects(t *testing.T) {
 		t.Errorf("view stand-in columns = %v, want the view's own column names", got)
 	}
 	requireRelation(t, c, "public", "over_stand_in")
+	for _, fn := range []string{"js_fn", "a_sig"} {
+		if len(c.LookupProcByName(fn)) != 1 {
+			t.Errorf("%s: want its signature stand-in installed", fn)
+		}
+	}
 }
 
 func TestLoadMetadataCompositeStandInKeepsAttributeNames(t *testing.T) {
@@ -327,11 +351,11 @@ func TestLoadMetadataInstallsFunctionOverloads(t *testing.T) {
 		Functions: []*metadata.FunctionMetadata{
 			{Name: "fn", Signature: "fn(integer)", Definition: "CREATE OR REPLACE FUNCTION public.fn(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT $1 $$;"},
 			{Name: "fn", Signature: "fn(text)", Definition: "CREATE OR REPLACE FUNCTION public.fn(x text) RETURNS text LANGUAGE sql AS $$ SELECT $1 $$;"},
-			// No definition: installs from the signature.
+			// No definition: its signature stand-in takes its place.
 			{Name: "fn", Signature: "fn(integer, integer)"},
 		},
 	})
-	requireCleanReport(t, report)
+	requireDegraded(t, report, "func:public.fn|fn(integer, integer)")
 	if got := len(c.LookupProcByName("fn")); got != 3 {
 		t.Errorf("installed %d overloads of fn, want 3", got)
 	}
@@ -399,13 +423,13 @@ func TestLoadMetadataFull(t *testing.T) {
 				Signature:  "touch()",
 				Definition: "CREATE PROCEDURE public.touch() LANGUAGE sql AS $$ SELECT 1 $$;",
 			},
-			// No definition: installs from the signature, still as a procedure.
+			// No definition: its signature stand-in is still a procedure.
 			{Name: "touch_by", Signature: "touch_by(integer)"},
 		},
 	}
 
 	c, report := loadSnapshot(t, true, schema)
-	requireCleanReport(t, report)
+	requireDegraded(t, report, "func:public.touch_by|touch_by(integer)")
 
 	users := requireRelation(t, c, "public", "users")
 	byName := make(map[string]*Column, len(users.Columns))
