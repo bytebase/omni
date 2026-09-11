@@ -1,11 +1,11 @@
 // Code generated from MySQL 8.0 reference list — DO NOT EDIT BY HAND.
-// See sysvars_source.md for the dump procedure.
+// See mysql/validate/sysvars_source.md for the dump procedure.
 
 package validate
 
 // knownSystemVariables is the MySQL 8.0 set of session/global system
 // variable names, lowercased. Dumped from performance_schema on
-// mysql:8.0 (see sysvars_source.md). Used by isSystemVariable for the
+// mysql:8.0 (see mysql/validate/sysvars_source.md). Used by isSystemVariable for the
 // sp_head::find_variable fallback: a bare SET target that isn't a
 // declared local or parameter resolves here before emitting
 // undeclared_variable.

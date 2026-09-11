@@ -42,7 +42,7 @@ type Token struct {
 
 // Keyword token constants. Values start at 700 and grow with iota.
 // Generated from /Users/h3n4l/OpenSource/parser/snowflake/SnowflakeLexer.g4
-// via the extraction pipeline in docs/superpowers/plans/2026-04-07-snowflake-lexer.md.
+// via the extraction pipeline in docs/plans/2026-04-07-snowflake-lexer.md.
 // Numeric values are NOT stable across edits — do not persist them.
 const (
 	// KEYWORD_CONSTANTS_BEGIN — populated from SnowflakeLexer.g4

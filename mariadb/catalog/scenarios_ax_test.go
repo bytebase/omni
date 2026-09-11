@@ -7,7 +7,7 @@ import (
 )
 
 // TestScenario_AX covers section AX (ALTER TABLE sub-command implicit
-// behaviors) from SCENARIOS-mysql-implicit-behavior.md. Each subtest
+// behaviors) from mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest
 // asserts that real MySQL 8.0 and the omni catalog agree on the
 // post-ALTER state (column order, index list, constraint presence,
 // error behavior) for a given ALTER TABLE sequence.

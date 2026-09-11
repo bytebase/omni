@@ -42,7 +42,7 @@ fi
 PARSER_DIR="$OMNI_DIR/$ENGINE/parser"
 PROGRESS_FILE="$PARSER_DIR/PROGRESS.json"
 SKILL_FILE="$PARSER_DIR/SKILL.md"
-AUDIT_SKILL="$SCRIPT_DIR/audit-skill.md"
+AUDIT_SKILL="$SCRIPT_DIR/prompts/audit-skill.md"
 LOG_DIR="$PARSER_DIR/logs"
 
 if [ ! -f "$PROGRESS_FILE" ]; then

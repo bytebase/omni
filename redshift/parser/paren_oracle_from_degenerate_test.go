@@ -4,7 +4,7 @@ package parser
 
 import "testing"
 
-// TestParenOracleFromDegenerate transcribes SCENARIOS-pg-paren-dispatch.md §2.7
+// TestParenOracleFromDegenerate transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.7
 // (FROM-clause degenerate / malformed corpus) into oracle probes. Every case
 // here is a syntactically invalid paren arrangement in FROM: empty parens,
 // unbalanced parens, missing join operands, qualifiers on join types that

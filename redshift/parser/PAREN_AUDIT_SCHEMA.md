@@ -48,7 +48,7 @@ dispatch site in `pg/parser/*.go`.
 ### `aligned`
 
 - `yes` — omni's `(` dispatch matches PG 17's grammar reduction for every reachable caller. Requires non-empty `proof_notes`.
-- `no` — known divergence. `proof_notes` should describe the bug. Rare; all such rows should have an open scenario in `SCENARIOS-pg-paren-dispatch.md`.
+- `no` — known divergence. `proof_notes` should describe the bug. Rare; all such rows should have an open scenario in `pg/parser/SCENARIOS-pg-paren-dispatch.md`.
 - `blocked` — cannot align without an upstream change. Must set `blocked_by`.
 - `unclear` — audit could not determine alignment. Should be re-audited before being closed.
 

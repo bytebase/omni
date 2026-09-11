@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// TestParenOracleFuzz implements SCENARIOS-pg-paren-dispatch.md §2.8 — a
+// TestParenOracleFuzz implements pg/parser/SCENARIOS-pg-paren-dispatch.md §2.8 — a
 // property-based fuzz corpus that generates balanced-paren FROM-clause SQL
 // and compares omni's routing against PG 17 accept/reject. It complements
 // §2.2–§2.7 (hand-written shape corpora) by exercising depth/composition

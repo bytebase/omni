@@ -6,7 +6,7 @@ import (
 )
 
 // TestScenario_C4 covers Section C4 "Charset / collation inheritance" from
-// SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL against both a
+// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL against both a
 // real MySQL 8.0 container and the omni catalog, then asserts that both agree
 // on charset/collation resolution.
 //
@@ -619,6 +619,6 @@ func TestScenario_C4(t *testing.T) {
 
 		// Best-effort: omni's catalog currently does not expose a SELECT
 		// expression evaluator with DTCollation, so the 4 query-time checks
-		// above are oracle-only. See scenarios_bug_queue/c4.md for the gap.
+		// above are oracle-only. See mysql/catalog/scenarios_bug_queue/c4.md for the gap.
 	})
 }

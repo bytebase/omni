@@ -4,7 +4,7 @@ package parser
 
 import "testing"
 
-// TestParenOracleFromLateral transcribes SCENARIOS-pg-paren-dispatch.md §2.6
+// TestParenOracleFromLateral transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.6
 // (FROM-clause LATERAL interactions corpus) into oracle probes. Each case
 // asserts the OmniStatus omni must emit to be PG-17 aligned for a FROM list
 // whose second item is LATERAL-prefixed.

@@ -2,7 +2,7 @@
 
 You are implementing a recursive descent Oracle PL/SQL parser using a BNF-first methodology.
 
-**Working directory:** `/Users/rebeliceyang/Github/omni`
+**Working directory:** `<repo root>`
 **Parser source:** `oracle/parser/`
 **AST definitions:** `oracle/ast/`
 **Tests:** `oracle/parser/compare_test.go`
@@ -141,13 +141,13 @@ func (p *Parser) parseCreateTableStmt() *ast.CreateTableStmt {
 
 ```bash
 # Must compile
-cd /Users/rebeliceyang/Github/omni && go build ./oracle/...
+go build ./oracle/...
 
 # Run batch-specific tests
-cd /Users/rebeliceyang/Github/omni && go test -v -count=1 ./oracle/parser/ -run "TestXxx"
+go test -v -count=1 ./oracle/parser/ -run "TestXxx"
 
 # Run full test suite (no regressions)
-cd /Users/rebeliceyang/Github/omni && go test ./oracle/...
+go test ./oracle/...
 ```
 
 **NEVER mark `"done"` if `go build` or `go test` fails.**
@@ -301,7 +301,6 @@ Precedence levels (from low to high, matching Oracle):
 
 After each batch:
 ```bash
-cd /Users/rebeliceyang/Github/omni
 go build ./oracle/...
 go test -v ./oracle/...
 ```

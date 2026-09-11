@@ -4,7 +4,7 @@ package parser
 
 import "testing"
 
-// TestParenOracleFromJoined transcribes SCENARIOS-pg-paren-dispatch.md §2.4
+// TestParenOracleFromJoined transcribes pg/parser/SCENARIOS-pg-paren-dispatch.md §2.4
 // (FROM-clause joined_table-shape corpus) into oracle probes. Each case
 // asserts the OmniStatus omni must emit to be PG-17 aligned for a paren-
 // wrapped joined_table FROM item and for its nested/aliased/LATERAL

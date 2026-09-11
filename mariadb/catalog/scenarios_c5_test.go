@@ -6,7 +6,7 @@ import (
 )
 
 // TestScenario_C5 covers section C5 (Constraint defaults) from
-// SCENARIOS-mysql-implicit-behavior.md. It checks FK and CHECK
+// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. It checks FK and CHECK
 // constraint defaults: ON DELETE/ON UPDATE/MATCH defaults, FK
 // SET DEFAULT InnoDB rejection, FK column type compatibility,
 // FK on virtual gcol rejection, CHECK ENFORCED default,

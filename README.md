@@ -9,14 +9,39 @@ SQL toolchain for multiple database engines. Each engine provides a parser, AST,
 - **Position tracking** -- every AST node carries byte-offset location info
 - **Beyond parsing** -- catalog simulation, DDL semantic analysis, and more per engine
 
-## Status
+## Engines
 
-| Engine | Parser | Catalog | Completion |
-|--------|--------|---------|------------|
-| PostgreSQL | :white_check_mark: | :white_check_mark: | Planned |
-| MySQL | :construction: | Planned | Planned |
-| SQL Server | :construction: | Planned | Planned |
-| Oracle | :construction: | Planned | Planned |
+Every engine lives in its own top-level directory and follows the same shape: `ast/` holds the node types, `parser/` the hand-written recursive descent parser, and further packages add capabilities on top. The table lists the packages each engine ships today.
+
+| Engine | Directory | Packages beyond `ast` + `parser` |
+|--------|-----------|----------------------------------|
+| PostgreSQL | `pg/` | `catalog`, `completion`, `plpgsql`, `pgregress`, `splittest` |
+| Amazon Redshift | `redshift/` | `catalog`, `completion`, `analysis`, `plpgsql`, `compat`, `pgregress` |
+| MySQL | `mysql/` | `catalog`, `completion`, `deparse`, `validate`, `scope`, `quality` |
+| MariaDB | `mariadb/` | `catalog`, `completion`, `deparse`, `validate`, `scope`, `quality` |
+| TiDB | `tidb/` | `catalog`, `completion`, `deparse`, `scope`, `quality` |
+| SQL Server (T-SQL) | `mssql/` | `completion` |
+| Oracle | `oracle/` | `quality` |
+| Snowflake | `snowflake/` | `analysis`, `deparse`, `diagnostics`, `advisor` |
+| Trino | `trino/` | `catalog`, `completion`, `analysis`, `deparse` |
+| GoogleSQL (BigQuery, Spanner) | `googlesql/` | `analysis`, `diagnostics` |
+| Apache Doris | `doris/` | `analysis` |
+| StarRocks | `starrocks/` | `analysis` |
+| PartiQL (DynamoDB) | `partiql/` | `catalog`, `completion`, `analysis` |
+| Apache Cassandra (CQL) | `cassandra/` | -- |
+| MongoDB (mongosh) | `mongo/` | `catalog`, `completion`, `analysis` |
+| Azure Cosmos DB | `cosmosdb/` | `analysis` |
+| Elasticsearch (Dev Console) | `elasticsearch/` | `analysis` |
+
+Package roles:
+
+- `catalog` -- in-memory schema simulation: apply DDL, diff two schemas, generate migrations
+- `completion` -- parser-native SQL autocompletion
+- `analysis` / `diagnostics` -- statement classification, query spans, changed-resource extraction, error diagnostics
+- `deparse` -- AST back to SQL text
+- `validate` / `scope` -- post-parse semantic checks and name resolution
+- `quality` -- parser quality corpora and verifiers
+- `compat` / `pgregress` / `splittest` -- compatibility and regression harnesses against the upstream engine
 
 ## Quick Start
 
@@ -48,44 +73,47 @@ func main() {
 }
 ```
 
-## Architecture
+Engines with a root package (`pg`, `redshift`, `mssql`, `oracle`, `mongo`, `cassandra`, `cosmosdb`, `partiql`, `elasticsearch`) expose `Parse` and friends directly. For the others, import `<engine>/parser`.
+
+## Repository Layout
 
 ```
 omni/
-├── pg/                     PostgreSQL
-│   ├── parse.go            Public API: Parse(sql) → []Statement
-│   ├── ast/                210+ AST node types
-│   ├── parser/             Recursive descent parser (~29K lines)
-│   ├── catalog/            In-memory catalog simulation & DDL analysis
-│   ├── parsertest/         746 test cases
-│   └── pgregress/          PostgreSQL regression test compatibility
-├── mysql/                  MySQL
+├── <engine>/               One directory per engine (see table above)
 │   ├── ast/                AST node types
-│   ├── parser/             Recursive descent parser
-│   └── parsertest/         Test cases
-├── mssql/                  SQL Server (T-SQL)
-│   ├── ast/                AST node types
-│   ├── parser/             Recursive descent parser
-│   └── parsertest/         Test cases
-├── oracle/                 Oracle
-│   ├── ast/                AST node types
-│   └── parser/             Recursive descent parser
+│   ├── parser/             Recursive descent parser + BNF reference material
+│   ├── parsertest/         Parser test cases (where present)
+│   └── ...                 catalog, completion, analysis, ... per engine
 ├── metadata/               Database schema snapshot types, generated from proto/
 ├── proto/                  Protobuf sources (`make proto` regenerates)
-└── scripts/                Shared build & audit tooling
+├── harness/                Standalone differential harnesses against real engines
+│                           (separate Go modules / .NET project, not built by ./...)
+├── scripts/                Build, test, and agent-pipeline tooling
+│   └── prompts/            Prompt templates used by the pipeline scripts
+└── docs/
+    ├── engine-capability-guide.md   How an engine is built up, layer by layer
+    ├── PARSER-DEFENSE-MATRIX.md     Defensive test coverage per engine
+    ├── scenarios/<engine>/          Scenario checklists that drove each capability
+    ├── plans/                       Dated implementation plans
+    ├── specs/                       Dated design specs
+    └── migration/<engine>/          Bytebase migration analyses
 ```
+
+Some engines also keep working documents next to the code they describe (for example `pg/parser/PAREN_AUDIT.json` is read by a lint test, and `mysql/catalog/SCENARIOS-*.md` are the source for the catalog scenario tests).
 
 ## Development
 
 ```bash
-# Run all tests
+# Hermetic suite, same as CI on every PR
+make test-short
+
+# Full suite (several engines start database containers)
 make test
 
-# Test a specific engine
+# One engine
 make test-pg
 make test-mysql
-make test-mssql
-make test-oracle
+make test-redshift
 
 # Build everything
 make build

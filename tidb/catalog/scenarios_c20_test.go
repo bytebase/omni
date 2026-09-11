@@ -21,7 +21,7 @@ import (
 // not the exact message.
 //
 // All failures use t.Error rather than t.Fatal so the whole section runs
-// and each omni gap is captured in scenarios_bug_queue/c20.md.
+// and each omni gap is captured in mysql/catalog/scenarios_bug_queue/c20.md.
 func TestScenario_C20(t *testing.T) {
 	scenariosSkipIfShort(t)
 	scenariosSkipIfNoDocker(t)

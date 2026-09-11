@@ -6,7 +6,7 @@ import (
 )
 
 // TestScenario_C8 covers Section C8 "Table option defaults" from
-// SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL against both
+// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL against both
 // a real MySQL 8.0 container and the omni catalog, then asserts that both
 // agree on the effective default for a given table-level option.
 //
@@ -252,7 +252,7 @@ func TestScenario_C8(t *testing.T) {
 			}
 		}
 		// Intentional: document that Compression is not modeled.
-		// This is a MED-severity omni gap. See scenarios_bug_queue/c8.md.
+		// This is a MED-severity omni gap. See mysql/catalog/scenarios_bug_queue/c8.md.
 		_ = c.GetDatabase("testdb").GetTable("t_cmp")
 	})
 

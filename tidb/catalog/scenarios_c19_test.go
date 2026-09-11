@@ -18,7 +18,7 @@ import (
 //   - DROP INDEX "cascade" (19.6) is vacuous for the same reason
 //
 // Every subtest here is expected to fail on the omni side and is documented
-// in scenarios_bug_queue/c19.md. We use t.Error (not t.Fatal) so all six
+// in mysql/catalog/scenarios_bug_queue/c19.md. We use t.Error (not t.Fatal) so all six
 // scenarios run in one pass.
 func TestScenario_C19(t *testing.T) {
 	scenariosSkipIfShort(t)

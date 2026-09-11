@@ -6,7 +6,7 @@ import (
 )
 
 // TestScenario_C3 covers section C3 (Nullability & default promotion) from
-// SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that both real
+// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that both real
 // MySQL 8.0 and the omni catalog agree on the implicit nullability/default
 // rules MySQL applies during CREATE TABLE.
 //

@@ -11,7 +11,7 @@
 ## Source Material
 
 - `pg/` in this worktree is the implementation base.
-- `SCENARIOS-redshift-omni.md` is the coverage contract.
+- `docs/scenarios/redshift/SCENARIOS-redshift-omni.md` is the coverage contract.
 - Legacy examples live in the Go module cache under `github.com/bytebase/parser/redshift/examples/redshift`.
 - Bytebase Redshift consumers live in `backend/plugin/parser/redshift`, `backend/common/engine.go`, SQL Editor, export resources, LSP completion, and statement report.
 

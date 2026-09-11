@@ -16,7 +16,7 @@ This package is a pure MySQL-grammar recognizer. It accepts everything
 MySQL's `sql_yacc.yy` accepts and raises `ParseError` for grammar
 violations only. All semantic checks — undeclared variable/cursor/label,
 duplicate DECLARE, missing RETURN, RETURN outside a function, etc. —
-live in `mariadb/validate`. See [mariadb/validate/SKILL.md](../validate/SKILL.md).
+live in `mariadb/validate`. See [mysql/validate/SKILL.md](../../mysql/validate/SKILL.md).
 
 Two checks intentionally stay inside the parser because they mirror
 yacc-level grammar rules rather than post-parse semantics:

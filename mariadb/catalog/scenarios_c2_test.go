@@ -6,12 +6,12 @@ import (
 )
 
 // TestScenario_C2 runs the "Type normalization" section of
-// SCENARIOS-mysql-implicit-behavior.md (section C2). Each subtest executes a
+// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md (section C2). Each subtest executes a
 // DDL against both a real MySQL 8.0 container and the omni catalog, then
 // asserts that both agree on the expected normalized type rendering.
 //
 // Per the worker protocol, failed omni assertions are NOT test infrastructure
-// failures — they are tracked as discovered bugs in scenarios_bug_queue/c2.md.
+// failures — they are tracked as discovered bugs in mysql/catalog/scenarios_bug_queue/c2.md.
 // The test uses t.Error (not t.Fatal) so every scenario reports all its
 // diffs in a single run.
 func TestScenario_C2(t *testing.T) {
@@ -579,7 +579,7 @@ func TestScenario_C2(t *testing.T) {
 		// NOTE: SCENARIOS says a TEXT(100) → tinytext, but with default
 		// utf8mb4 charset 100 chars = 400 bytes, exceeding tinytext's
 		// 255-byte cap, so MySQL promotes to text. Trust the oracle —
-		// see scenarios_bug_queue/c2.md for the scenario-doc mismatch.
+		// see mysql/catalog/scenarios_bug_queue/c2.md for the scenario-doc mismatch.
 		cases := []struct {
 			name, want string
 		}{
