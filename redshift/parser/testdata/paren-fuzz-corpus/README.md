@@ -1,6 +1,6 @@
 # paren-fuzz-corpus
 
-Property-based fuzz corpus for SCENARIOS-pg-paren-dispatch.md §2.8. Driven by
+Property-based fuzz corpus for pg/parser/SCENARIOS-pg-paren-dispatch.md §2.8. Driven by
 `TestParenOracleFuzz` in `pg/parser/paren_oracle_fuzz_test.go` (build tag
 `oracle`).
 

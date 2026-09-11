@@ -9,7 +9,7 @@ import (
 )
 
 // TestScenario_C21 covers section C21 (Parser-level implicit defaults) from
-// SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that both real
+// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that both real
 // MySQL 8.0 and the omni AST / catalog agree on the default value that the
 // grammar fills in when the user omits a clause.
 //

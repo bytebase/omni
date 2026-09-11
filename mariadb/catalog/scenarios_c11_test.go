@@ -6,7 +6,7 @@ import (
 )
 
 // TestScenario_C11 covers Section C11 "Trigger defaults" from
-// SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL on both a real
+// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL on both a real
 // MySQL 8.0 container and the omni catalog, then asserts they agree on
 // trigger metadata defaults: DEFINER, SQL SECURITY (no INVOKER option),
 // charset/collation snapshot, ACTION_ORDER sequencing, NEW/OLD pseudo-row

@@ -12,7 +12,7 @@ import (
 )
 
 // TestPARENAuditLint enforces PAREN_AUDIT.json governance
-// (SCENARIOS-pg-paren-dispatch.md §5.3).
+// (pg/parser/SCENARIOS-pg-paren-dispatch.md §5.3).
 //
 // It runs on the default build tag — no testcontainer, no oracle — so
 // every PR gate picks it up via `.github/workflows/ci.yml` without

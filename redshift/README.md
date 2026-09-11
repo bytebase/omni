@@ -1,13 +1,13 @@
-# pg -- PostgreSQL Parser
+# redshift -- Amazon Redshift Parser
 
-Recursive descent parser for PostgreSQL 17, producing a full AST with position tracking.
+Recursive descent parser for Amazon Redshift SQL, producing a full AST with position tracking. The engine is a fork of `pg/` that tracks Redshift's PostgreSQL 8.0 heritage plus its own extensions (COPY/UNLOAD, DISTKEY/SORTKEY, external schemas, and so on).
 
 ## Public API
 
 ```go
-import "github.com/bytebase/omni/pg"
+import "github.com/bytebase/omni/redshift"
 
-stmts, err := pg.Parse(sql)
+stmts, err := redshift.Parse(sql)
 ```
 
 ### `Parse(sql string) ([]Statement, error)`
@@ -27,12 +27,32 @@ type Statement struct {
 }
 ```
 
+### Bytebase runtime surfaces
+
+The root package also exposes the helpers Bytebase wires into its product features:
+
+| Function | Purpose |
+|----------|---------|
+| `Split` | Statement splitting without building an AST |
+| `StatementRanges` | Byte ranges of each statement |
+| `Diagnose` | Syntax diagnostics for the SQL editor |
+| `ValidateSQLForEditor` | Read-only check for the SQL editor |
+| `ClassifyStatement`, `GetStatementTypes` | Statement classification and report |
+| `ExtractChangedResources` | Tables touched by DDL/DML |
+| `CollectCompletion` | Parser-native autocompletion |
+
 ## Packages
 
 | Package | Description |
 |---------|-------------|
-| `pg/ast` | 210+ AST node types matching PostgreSQL internals |
-| `pg/parser` | Recursive descent parser (~29,000 lines, 39 files) |
-| `pg/catalog` | In-memory catalog simulation, DDL semantic analysis, type resolution |
-| `pg/parsertest` | 746 test cases organized by SQL feature |
-| `pg/pgregress` | PostgreSQL official regression test compatibility |
+| `redshift/ast` | AST node types, forked from `pg/ast` |
+| `redshift/parser` | Recursive descent parser |
+| `redshift/catalog` | In-memory catalog simulation, DDL semantic analysis |
+| `redshift/completion` | Parser-native C3-style SQL completion |
+| `redshift/analysis` | Statement classification, query span, changed resources |
+| `redshift/plpgsql` | PL/pgSQL parser for function bodies |
+| `redshift/compat` | Compatibility report against the AWS command manifest |
+| `redshift/parsertest` | Parser test cases organized by SQL feature |
+| `redshift/pgregress` | PostgreSQL regression test compatibility |
+
+Parser maintenance conventions are shared with `pg/parser`; see `redshift/parser/CLAUDE.md`.

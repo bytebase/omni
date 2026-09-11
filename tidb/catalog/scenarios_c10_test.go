@@ -6,7 +6,7 @@ import (
 )
 
 // TestScenario_C10 covers Section C10 "View metadata defaults" from
-// SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL against both
+// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest runs DDL against both
 // a real MySQL 8.0 container and the omni catalog, then asserts that both
 // agree on the effective default for a given view-metadata behavior.
 //

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// TestScenario_PS covers section PS of SCENARIOS-mysql-implicit-behavior.md
+// TestScenario_PS covers section PS of mysql/catalog/SCENARIOS-mysql-implicit-behavior.md
 // — "Path-split behaviors (CREATE vs ALTER)". Each subtest runs the scenario's
 // DDL against both a real MySQL 8.0 container and the omni catalog and asserts
 // both match the expected value. Existing TestBugFix_* tests remain unchanged;

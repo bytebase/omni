@@ -189,7 +189,7 @@ PRs that introduce hand-written multi-token clusters in probe positions without 
 - `type.go` — `parseSimpleTypename` and friends (the dispatch switch that `isSimpleTypenameStart` mirrors)
 
 **Documentation:**
-- `docs/first-set-audit.md` — the Phase 3.1 audit output (one-time snapshot; re-run if a future audit is needed)
+- `pg/parser/docs/first-set-audit.md` — the Phase 3.1 audit output (one-time snapshot; re-run if a future audit is needed)
 - `docs/plans/2026-04-14-pg-first-sets.md` (in repo root) — original implementation plan with full rationale and grammar references
 
 ## Backtracking discipline

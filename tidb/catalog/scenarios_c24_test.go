@@ -17,7 +17,7 @@ import (
 // `show_gipk_in_create_table_and_information_schema=ON` is also set.
 //
 // omni's catalog does NOT implement GIPK generation today — these scenarios
-// document that gap. Failures are recorded in scenarios_bug_queue/c24.md.
+// document that gap. Failures are recorded in mysql/catalog/scenarios_bug_queue/c24.md.
 //
 // All session settings are issued on the pinned single-conn pool from
 // scenarioContainer so they persist for the duration of each subtest. The

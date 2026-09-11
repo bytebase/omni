@@ -7,7 +7,7 @@ import (
 )
 
 // TestScenario_C1 covers section C1 (Name auto-generation) from
-// SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that
+// mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. Each subtest asserts that
 // both real MySQL 8.0 and the omni catalog agree on the auto-generated
 // name for a given DDL input.
 //

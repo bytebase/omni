@@ -6,9 +6,9 @@ import (
 )
 
 // TestScenario_C16 covers section C16 (Date/time function precision defaults)
-// from SCENARIOS-mysql-implicit-behavior.md. 12 scenarios, each asserted on
+// from mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. 12 scenarios, each asserted on
 // both MySQL 8.0 container and the omni catalog. Failures in omni assertions
-// are documented in scenarios_bug_queue/c16.md (NOT proof failures).
+// are documented in mysql/catalog/scenarios_bug_queue/c16.md (NOT proof failures).
 func TestScenario_C16(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
@@ -156,7 +156,7 @@ func TestScenario_C16(t *testing.T) {
 			}
 		}
 		if omniErr == nil {
-			t.Errorf("omni: KNOWN BUG — DATETIME(7) should be rejected (fsp > 6), see scenarios_bug_queue/c16.md")
+			t.Errorf("omni: KNOWN BUG — DATETIME(7) should be rejected (fsp > 6), see mysql/catalog/scenarios_bug_queue/c16.md")
 		}
 	})
 
@@ -192,7 +192,7 @@ func TestScenario_C16(t *testing.T) {
 			}
 		}
 		if omniAccepted {
-			t.Errorf("omni: KNOWN BUG — CURDATE(6) should fail parse, see scenarios_bug_queue/c16.md")
+			t.Errorf("omni: KNOWN BUG — CURDATE(6) should fail parse, see mysql/catalog/scenarios_bug_queue/c16.md")
 		}
 	})
 
@@ -231,7 +231,7 @@ func TestScenario_C16(t *testing.T) {
 			}
 		}
 		if omniAccepted {
-			t.Errorf("omni: KNOWN BUG — CURTIME(7) should be rejected (ER_TOO_BIG_PRECISION), see scenarios_bug_queue/c16.md")
+			t.Errorf("omni: KNOWN BUG — CURTIME(7) should be rejected (ER_TOO_BIG_PRECISION), see mysql/catalog/scenarios_bug_queue/c16.md")
 		}
 	})
 
@@ -249,7 +249,7 @@ func TestScenario_C16(t *testing.T) {
 			t.Errorf("oracle: DATETIME DEFAULT SYSDATE() unexpectedly accepted")
 		}
 		if omniErr == nil {
-			t.Errorf("omni: KNOWN BUG — DATETIME DEFAULT SYSDATE should error (not a NOW_FUNC), see scenarios_bug_queue/c16.md")
+			t.Errorf("omni: KNOWN BUG — DATETIME DEFAULT SYSDATE should error (not a NOW_FUNC), see mysql/catalog/scenarios_bug_queue/c16.md")
 		}
 	})
 
@@ -278,7 +278,7 @@ func TestScenario_C16(t *testing.T) {
 			t.Errorf("oracle: DATETIME DEFAULT UTC_TIMESTAMP unexpectedly accepted")
 		}
 		if omniErr == nil {
-			t.Errorf("omni: KNOWN BUG — DATETIME DEFAULT UTC_TIMESTAMP should error, see scenarios_bug_queue/c16.md")
+			t.Errorf("omni: KNOWN BUG — DATETIME DEFAULT UTC_TIMESTAMP should error, see mysql/catalog/scenarios_bug_queue/c16.md")
 		}
 	})
 
@@ -371,7 +371,7 @@ func TestScenario_C16(t *testing.T) {
 				t.Errorf("oracle: %q unexpected error: %v", ddl, oracleErr)
 			}
 			if omniErr == nil {
-				t.Errorf("omni: KNOWN BUG — %q should error (fsp mismatch), see scenarios_bug_queue/c16.md", ddl)
+				t.Errorf("omni: KNOWN BUG — %q should error (fsp mismatch), see mysql/catalog/scenarios_bug_queue/c16.md", ddl)
 			}
 		}
 
@@ -393,7 +393,7 @@ func TestScenario_C16(t *testing.T) {
 			t.Errorf("oracle: %q unexpectedly accepted", ddl)
 		}
 		if omniErr == nil {
-			t.Errorf("omni: KNOWN BUG — ON UPDATE NOW() fsp 0 on DATETIME(6) should error, see scenarios_bug_queue/c16.md")
+			t.Errorf("omni: KNOWN BUG — ON UPDATE NOW() fsp 0 on DATETIME(6) should error, see mysql/catalog/scenarios_bug_queue/c16.md")
 		}
 
 		// DATE ON UPDATE NOW() → not allowed (ON UPDATE only on TIMESTAMP/DATETIME).
@@ -405,7 +405,7 @@ func TestScenario_C16(t *testing.T) {
 			t.Errorf("oracle: %q unexpectedly accepted", ddl2)
 		}
 		if mErr == nil {
-			t.Errorf("omni: KNOWN BUG — DATE ON UPDATE NOW() should error, see scenarios_bug_queue/c16.md")
+			t.Errorf("omni: KNOWN BUG — DATE ON UPDATE NOW() should error, see mysql/catalog/scenarios_bug_queue/c16.md")
 		}
 	})
 
@@ -486,7 +486,7 @@ func TestScenario_C16(t *testing.T) {
 				t.Errorf("oracle: YEAR(%s) unexpectedly accepted", n)
 			}
 			if mErr == nil {
-				t.Errorf("omni: KNOWN BUG — YEAR(%s) should error (ER_INVALID_YEAR_COLUMN_LENGTH), see scenarios_bug_queue/c16.md", n)
+				t.Errorf("omni: KNOWN BUG — YEAR(%s) should error (ER_INVALID_YEAR_COLUMN_LENGTH), see mysql/catalog/scenarios_bug_queue/c16.md", n)
 			}
 		}
 
@@ -555,15 +555,15 @@ func TestScenario_C16(t *testing.T) {
 			return
 		}
 		if col.Default == nil {
-			t.Errorf("omni: KNOWN GAP — expected DEFAULT CURRENT_TIMESTAMP(3) after first-col TIMESTAMP promotion, see scenarios_bug_queue/c16.md")
+			t.Errorf("omni: KNOWN GAP — expected DEFAULT CURRENT_TIMESTAMP(3) after first-col TIMESTAMP promotion, see mysql/catalog/scenarios_bug_queue/c16.md")
 		} else {
 			lo := strings.ToLower(*col.Default)
 			if !strings.Contains(lo, "current_timestamp(3)") && !strings.Contains(lo, "now(3)") {
-				t.Errorf("omni: KNOWN BUG — DEFAULT = %q, expected CURRENT_TIMESTAMP(3), see scenarios_bug_queue/c16.md", *col.Default)
+				t.Errorf("omni: KNOWN BUG — DEFAULT = %q, expected CURRENT_TIMESTAMP(3), see mysql/catalog/scenarios_bug_queue/c16.md", *col.Default)
 			}
 		}
 		if col.OnUpdate == "" {
-			t.Errorf("omni: KNOWN GAP — expected ON UPDATE CURRENT_TIMESTAMP(3) after promotion, see scenarios_bug_queue/c16.md")
+			t.Errorf("omni: KNOWN GAP — expected ON UPDATE CURRENT_TIMESTAMP(3) after promotion, see mysql/catalog/scenarios_bug_queue/c16.md")
 		} else if !strings.Contains(strings.ToLower(col.OnUpdate), "current_timestamp(3)") &&
 			!strings.Contains(strings.ToLower(col.OnUpdate), "now(3)") {
 			t.Errorf("omni: KNOWN BUG — ON UPDATE = %q, expected CURRENT_TIMESTAMP(3)", col.OnUpdate)

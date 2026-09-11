@@ -6,11 +6,11 @@ import (
 )
 
 // TestScenario_C17 covers section C17 (String function charset / collation
-// propagation) from SCENARIOS-mysql-implicit-behavior.md. 8 scenarios, each
+// propagation) from mysql/catalog/SCENARIOS-mysql-implicit-behavior.md. 8 scenarios, each
 // asserted on both a MySQL 8.0 container and the omni catalog. Every C17
 // scenario is expected to currently fail on omni because analyze_expr.go /
 // function_types.go do not track charset, collation, or derivation
-// coercibility. Each omni failure is documented in scenarios_bug_queue/c17.md
+// coercibility. Each omni failure is documented in mysql/catalog/scenarios_bug_queue/c17.md
 // and reported via t.Errorf as KNOWN BUG so proof stays compile-clean.
 func TestScenario_C17(t *testing.T) {
 	mc, cleanup := scenarioContainer(t)
@@ -114,7 +114,7 @@ func TestScenario_C17(t *testing.T) {
 		if !c17OmniViewExists(c, "v1") {
 			t.Errorf("omni: view v1 not created")
 		} else {
-			t.Errorf("omni: KNOWN GAP — CONCAT result carries no charset/collation metadata (17.1), see scenarios_bug_queue/c17.md")
+			t.Errorf("omni: KNOWN GAP — CONCAT result carries no charset/collation metadata (17.1), see mysql/catalog/scenarios_bug_queue/c17.md")
 		}
 	})
 
@@ -179,7 +179,7 @@ func TestScenario_C17(t *testing.T) {
 			}
 		}
 		if omniAccepted {
-			t.Errorf("omni: KNOWN BUG — soft-accept of illegal-mix comparison (17.3); should error 1267. See scenarios_bug_queue/c17.md")
+			t.Errorf("omni: KNOWN BUG — soft-accept of illegal-mix comparison (17.3); should error 1267. See mysql/catalog/scenarios_bug_queue/c17.md")
 		}
 	})
 
@@ -323,7 +323,7 @@ func TestScenario_C17(t *testing.T) {
 			}
 		}
 		if omniAccepted {
-			t.Errorf("omni: KNOWN GAP — CONVERT ... USING cs accepted but charset not pinned on result (17.7), see scenarios_bug_queue/c17.md")
+			t.Errorf("omni: KNOWN GAP — CONVERT ... USING cs accepted but charset not pinned on result (17.7), see mysql/catalog/scenarios_bug_queue/c17.md")
 		}
 	})
 
@@ -381,7 +381,7 @@ func TestScenario_C17(t *testing.T) {
 			t.Errorf("oracle v8b unexpected error: %v", oracleErr)
 		}
 		if omniErr == nil {
-			t.Errorf("omni: KNOWN BUG — two EXPLICIT COLLATE sides silently accepted (17.8), see scenarios_bug_queue/c17.md")
+			t.Errorf("omni: KNOWN BUG — two EXPLICIT COLLATE sides silently accepted (17.8), see mysql/catalog/scenarios_bug_queue/c17.md")
 		}
 	})
 }
