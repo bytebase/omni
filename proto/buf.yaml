@@ -1,0 +1,7 @@
+version: v2
+lint:
+  use:
+    - BASIC
+breaking:
+  use:
+    - WIRE_JSON
