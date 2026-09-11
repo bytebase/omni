@@ -171,12 +171,17 @@ func (c *Catalog) reanalyzeViews(ctx context.Context, views []*metadataObject) e
 }
 
 func (c *Catalog) viewAnalyzed(name string) bool {
+	v := c.installedView(name)
+	return v != nil && v.AnalyzedQuery != nil
+}
+
+// installedView returns the view of that name in the database being loaded.
+func (c *Catalog) installedView(name string) *View {
 	db := c.GetDatabase(c.CurrentDatabase())
 	if db == nil {
-		return false
+		return nil
 	}
-	v := db.Views[toLower(name)]
-	return v != nil && v.AnalyzedQuery != nil
+	return db.Views[toLower(name)]
 }
 
 // --- Objects ---
@@ -290,7 +295,11 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		if err != nil {
 			return err
 		}
-		return c.DefineView(stmt)
+		if err := c.DefineView(stmt); err != nil {
+			return err
+		}
+		nameViewColumns(c.installedView(o.name), metadataViewColumnNames(o.view))
+		return nil
 	case metadataFunction:
 		stmt, err := parseRoutine(o.function.GetDefinition(), false)
 		if err != nil {
@@ -588,47 +597,44 @@ func referenceAction(action string) nodes.ReferenceAction {
 
 // metadataViewStmt keeps the view's text as it is along with its parsed body.
 // DefineView installs a view whose body does not analyze, so a view may name
-// one that installs after it; reanalyzeViews retries it then.
+// one that installs after it; reanalyzeViews retries it then. nameViewColumns
+// names the columns once the body resolves.
 func metadataViewStmt(v *metadata.ViewMetadata) (*nodes.CreateViewStmt, error) {
 	sel, err := parseFirstStatement[*nodes.SelectStmt](v.GetDefinition())
 	if err != nil {
 		return nil, err
 	}
-	stmt := &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: v.GetDefinition()}
-	// A stored definition drops the column list of CREATE VIEW v (a, b), so the
-	// snapshot's columns become one only where they differ from the body's.
+	return &nodes.CreateViewStmt{OrReplace: true, Name: &nodes.TableRef{Name: v.GetName()}, Select: sel, SelectText: v.GetDefinition()}, nil
+}
+
+// metadataViewColumnNames lists the column names the snapshot records for a
+// view.
+func metadataViewColumnNames(v *metadata.ViewMetadata) []string {
 	var names []string
 	for _, col := range v.GetColumns() {
 		if col.GetName() != "" {
 			names = append(names, col.GetName())
 		}
 	}
-	// A * names its columns only once the catalog resolves it, so the body
-	// gives no names to compare.
-	if len(names) > 0 && !selectsStar(sel) && !slices.EqualFunc(names, extractViewColumns(sel), strings.EqualFold) {
-		stmt.Columns = names
-	}
-	return stmt, nil
+	return names
 }
 
-// selectsStar reports whether a view body's output list has a *, as in SELECT *
-// or SELECT t.*.
-func selectsStar(sel *nodes.SelectStmt) bool {
-	for _, target := range nodes.LeftmostQueryLeaf(sel).TargetList {
-		expr := target
-		if rt, ok := target.(*nodes.ResTarget); ok {
-			expr = rt.Val
-		}
-		switch t := expr.(type) {
-		case *nodes.StarExpr:
-			return true
-		case *nodes.ColumnRef:
-			if t.Star {
-				return true
-			}
-		}
+// nameViewColumns names a view's columns from the snapshot: the ones its
+// resolved body left unnamed, and, where the body named as many by other names,
+// the snapshot's as a column list. A stored definition drops the column list of
+// CREATE VIEW v (a, b), and only a view created with one has names its body
+// does not give.
+func nameViewColumns(v *View, names []string) {
+	if v == nil || len(names) == 0 {
+		return
 	}
-	return false
+	if len(v.Columns) < len(names) {
+		v.Columns = names
+		return
+	}
+	if len(v.Columns) == len(names) && !slices.EqualFunc(v.Columns, names, strings.EqualFold) {
+		v.Columns, v.ExplicitColumns = names, true
+	}
 }
 
 // metadataTriggerStmt builds a trigger from its parts. Sync stores the body

@@ -406,15 +406,23 @@ func TestLoadMetadataKeepsViewColumnListsOnlyWhereNeeded(t *testing.T) {
 			{Name: "same", Definition: "SELECT id FROM users", Columns: []*metadata.ColumnMetadata{{Name: "ID"}}},
 			{Name: "star", Definition: "SELECT * FROM users", Columns: []*metadata.ColumnMetadata{{Name: "id"}}},
 			{Name: "star_qualified", Definition: "SELECT u.* FROM users u", Columns: []*metadata.ColumnMetadata{{Name: "id"}}},
+			// Created as CREATE VIEW star_renamed (user_id) AS SELECT * FROM users.
+			{Name: "star_renamed", Definition: "SELECT * FROM users", Columns: []*metadata.ColumnMetadata{{Name: "user_id"}}},
+			// A body that does not resolve names nothing of its own.
+			{Name: "unresolved", Definition: "SELECT * FROM missing", Columns: []*metadata.ColumnMetadata{{Name: "a"}, {Name: "b"}}},
 		},
 	}))
 	requireReport(t, report, nil, nil)
-	if v := requireView(t, c, "renamed"); !v.ExplicitColumns || !slices.Equal(v.Columns, []string{"user_id"}) {
-		t.Errorf("renamed = explicit %v, columns %v; want the snapshot's user_id", v.ExplicitColumns, v.Columns)
+	for _, name := range []string{"renamed", "star_renamed"} {
+		if v := requireView(t, c, name); !v.ExplicitColumns || !slices.Equal(v.Columns, []string{"user_id"}) {
+			t.Errorf("%s = explicit %v, columns %v; want the snapshot's user_id", name, v.ExplicitColumns, v.Columns)
+		}
 	}
-	for _, name := range []string{"same", "star", "star_qualified"} {
-		if v := requireView(t, c, name); v.ExplicitColumns {
-			t.Errorf("%s = explicit columns %v, want the body's", name, v.Columns)
+	// A body naming its own columns keeps them; one that does not resolve takes
+	// the snapshot's, inferred.
+	for name, want := range map[string][]string{"same": {"id"}, "star": {"id"}, "star_qualified": {"id"}, "unresolved": {"a", "b"}} {
+		if v := requireView(t, c, name); v.ExplicitColumns || !slices.Equal(v.Columns, want) {
+			t.Errorf("%s = explicit %v, columns %v; want %v inferred", name, v.ExplicitColumns, v.Columns, want)
 		}
 	}
 }
