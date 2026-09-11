@@ -129,31 +129,6 @@ func setColumnValueProperties(def *nodes.ColumnDef, col *metadata.ColumnMetadata
 	}
 }
 
-func metadataViewStmt(schema string, v *metadata.ViewMetadata) (*nodes.ViewStmt, error) {
-	if v.GetDefinition() == "" {
-		return nil, errors.New("empty view definition")
-	}
-	sel, err := parseSelect(v.GetDefinition())
-	if err != nil {
-		return nil, fmt.Errorf("view %q: %w", v.GetName(), err)
-	}
-	return &nodes.ViewStmt{
-		View:  &nodes.RangeVar{Schemaname: schema, Relname: v.GetName(), Relpersistence: 'p'},
-		Query: sel,
-	}, nil
-}
-
-func metadataMatViewStmt(schema string, mv *metadata.MaterializedViewMetadata) (*nodes.CreateTableAsStmt, error) {
-	if mv.GetDefinition() == "" {
-		return nil, errors.New("empty materialized view definition")
-	}
-	sel, err := parseSelect(mv.GetDefinition())
-	if err != nil {
-		return nil, fmt.Errorf("materialized view %q: %w", mv.GetName(), err)
-	}
-	return matViewStmt(schema, mv.GetName(), sel), nil
-}
-
 func matViewStmt(schema, name string, sel *nodes.SelectStmt) *nodes.CreateTableAsStmt {
 	return &nodes.CreateTableAsStmt{
 		Query:   sel,
@@ -168,7 +143,7 @@ func matViewStmt(schema, name string, sel *nodes.SelectStmt) *nodes.CreateTableA
 // argument types and, unless it is a procedure, a text result, so calls by
 // name still resolve.
 func signatureFunctionStmt(schema string, fn *metadata.FunctionMetadata, procedure bool) (*nodes.CreateFunctionStmt, error) {
-	argTypes, err := signatureArgTypes(fn.GetSignature())
+	argTypes, err := signatureArgTypes(fn.GetName(), fn.GetSignature())
 	if err != nil {
 		return nil, fmt.Errorf("function %q: %w", fn.GetName(), err)
 	}
@@ -487,9 +462,11 @@ func userTypeRef(typ string) (schema, name string, ok bool) {
 	return splitQualifiedIdent(s)
 }
 
-// signatureArgTypes splits the argument types out of a signature such as
-// "fn(integer, numeric(10,2))".
-func signatureArgTypes(signature string) ([]string, error) {
+// signatureArgTypes splits the argument types out of a signature, which sync
+// writes as the function's name followed by its arguments in parentheses, as
+// in "fn(integer, numeric(10,2))". The name can itself contain parentheses.
+func signatureArgTypes(name, signature string) ([]string, error) {
+	signature = strings.TrimPrefix(signature, name)
 	open := strings.Index(signature, "(")
 	if open < 0 {
 		return nil, nil

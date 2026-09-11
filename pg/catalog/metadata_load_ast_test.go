@@ -80,22 +80,23 @@ func TestSplitQualifiedIdent(t *testing.T) {
 
 func TestSignatureArgTypes(t *testing.T) {
 	tests := []struct {
-		signature string
-		want      []string
-		wantErr   bool
+		name, signature string
+		want            []string
+		wantErr         bool
 	}{
-		{signature: "fn()"},
-		{signature: "fn"},
-		{signature: "fn(integer)", want: []string{"integer"}},
-		{signature: "fn(  int4 , text )", want: []string{"int4", "text"}},
-		{signature: "fn(numeric(10,2), public.status[])", want: []string{"numeric(10,2)", "public.status[]"}},
-		{signature: `fn(public."row,type", integer)`, want: []string{`public."row,type"`, "integer"}},
-		{signature: "fn(integer", wantErr: true},
+		{name: "fn", signature: "fn()"},
+		{name: "fn", signature: "fn"},
+		{name: "fn", signature: "fn(integer)", want: []string{"integer"}},
+		{name: "fn", signature: "fn(  int4 , text )", want: []string{"int4", "text"}},
+		{name: "fn", signature: "fn(numeric(10,2), public.status[])", want: []string{"numeric(10,2)", "public.status[]"}},
+		{name: "fn", signature: `fn(public."row,type", integer)`, want: []string{`public."row,type"`, "integer"}},
+		{name: "f(", signature: "f((integer)", want: []string{"integer"}},
+		{name: "fn", signature: "fn(integer", wantErr: true},
 	}
 	for _, tt := range tests {
-		got, err := signatureArgTypes(tt.signature)
+		got, err := signatureArgTypes(tt.name, tt.signature)
 		if (err != nil) != tt.wantErr || !slices.Equal(got, tt.want) {
-			t.Errorf("signatureArgTypes(%q) = %q, %v; want %q", tt.signature, got, err, tt.want)
+			t.Errorf("signatureArgTypes(%q, %q) = %q, %v; want %q", tt.name, tt.signature, got, err, tt.want)
 		}
 	}
 }

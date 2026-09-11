@@ -110,6 +110,9 @@ type metadataObject struct {
 	// createStmt is a function's parsed definition, or nil when the snapshot
 	// has none that parses.
 	createStmt *nodes.CreateFunctionStmt
+	// body is a view's parsed query, or nil with bodyErr saying why.
+	body    *nodes.SelectStmt
+	bodyErr error
 }
 
 func (o *metadataObject) key() string {
@@ -201,10 +204,12 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			}})
 		}
 		for _, v := range s.GetViews() {
-			out = append(out, &metadataObject{kind: metadataView, schema: schema, name: v.GetName(), view: v})
+			body, err := parseSelect(v.GetDefinition())
+			out = append(out, &metadataObject{kind: metadataView, schema: schema, name: v.GetName(), view: v, body: body, bodyErr: err})
 		}
 		for _, mv := range s.GetMaterializedViews() {
-			out = append(out, &metadataObject{kind: metadataMatView, schema: schema, name: mv.GetName(), matView: mv})
+			body, err := parseSelect(mv.GetDefinition())
+			out = append(out, &metadataObject{kind: metadataMatView, schema: schema, name: mv.GetName(), matView: mv, body: body, bodyErr: err})
 		}
 		for _, fn := range s.GetFunctions() {
 			out = append(out, functionObject(schema, fn, false))
@@ -252,6 +257,10 @@ func functionObject(schema string, fn *metadata.FunctionMetadata, procedure bool
 
 func appendIndexObjects(out []*metadataObject, schema, relation string, indexes []*metadata.IndexMetadata) []*metadataObject {
 	for _, idx := range indexes {
+		// The index behind an EXCLUDE constraint installs with the constraint.
+		if idx.GetIsConstraint() && !isKeyIndex(idx) {
+			continue
+		}
 		out = append(out, &metadataObject{kind: metadataIndex, schema: schema, name: idx.GetName(), parent: relation, index: idx})
 	}
 	return out
@@ -364,6 +373,14 @@ func (q *componentQueue) Pop() any {
 // metadataDependencies maps each object's key to the keys of the objects it
 // needs installed first. It records only dependencies the snapshot contains.
 func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataObject) map[string][]string {
+	// functionKeys maps "schema.name" to the keys of the function's overloads.
+	functionKeys := make(map[string][]string)
+	for _, o := range objects {
+		if o.kind == metadataFunction {
+			functionKeys[o.schema+"."+o.name] = append(functionKeys[o.schema+"."+o.name], o.key())
+		}
+	}
+
 	edges := make(map[string][]string, len(objects))
 	for _, o := range objects {
 		self := o.key()
@@ -405,17 +422,26 @@ func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataO
 			for _, col := range o.table.GetColumns() {
 				addType(col.GetType())
 			}
-		case metadataView:
-			for _, dep := range o.view.GetDependencyColumns() {
-				add(metadataRelationKey(dep.GetSchema(), dep.GetTable()))
+		case metadataView, metadataMatView:
+			// Sync qualifies every name in a view's body, which reads as "schema.name".
+			if o.body == nil {
+				break
 			}
-		case metadataMatView:
-			for _, dep := range o.matView.GetDependencyColumns() {
-				add(metadataRelationKey(dep.GetSchema(), dep.GetTable()))
+			funcRefs, relRefs, typeRefs := collectExprDeps(o.body)
+			for _, ref := range relRefs {
+				add("rel:" + ref)
+			}
+			for _, ref := range typeRefs {
+				add("type:" + ref)
+			}
+			for _, ref := range funcRefs {
+				for _, key := range functionKeys[ref] {
+					add(key)
+				}
 			}
 		case metadataFunction:
 			if o.createStmt == nil {
-				argTypes, _ := signatureArgTypes(o.function.GetSignature())
+				argTypes, _ := signatureArgTypes(o.function.GetName(), o.function.GetSignature())
 				for _, t := range argTypes {
 					addType(t)
 				}
@@ -532,17 +558,18 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		}
 		return c.DefineRelation(stmt, 'r')
 	case metadataView:
-		stmt, err := metadataViewStmt(o.schema, o.view)
-		if err != nil {
-			return err
+		if o.body == nil {
+			return fmt.Errorf("view %q: %w", o.name, o.bodyErr)
 		}
-		return c.DefineView(stmt)
+		return c.DefineView(&nodes.ViewStmt{
+			View:  &nodes.RangeVar{Schemaname: o.schema, Relname: o.name, Relpersistence: 'p'},
+			Query: o.body,
+		})
 	case metadataMatView:
-		stmt, err := metadataMatViewStmt(o.schema, o.matView)
-		if err != nil {
-			return err
+		if o.body == nil {
+			return fmt.Errorf("materialized view %q: %w", o.name, o.bodyErr)
 		}
-		return c.ExecCreateTableAs(stmt)
+		return c.ExecCreateTableAs(matViewStmt(o.schema, o.name, o.body))
 	case metadataFunction:
 		if o.createStmt == nil {
 			return errors.New("no definition that parses")

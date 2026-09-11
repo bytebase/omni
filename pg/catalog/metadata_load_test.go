@@ -114,11 +114,16 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 			{Name: "aa_row_holder", Attributes: []*metadata.CompositeTypeAttribute{{Name: "o", Type: "public.zz_orders"}}},
 		},
 		EnumTypes: []*metadata.EnumTypeMetadata{{Name: "zz_status", Values: []string{"a"}}},
-		Views: []*metadata.ViewMetadata{{
-			Name:              "aa_view",
-			Definition:        "SELECT id, public.zz_code(id) AS code FROM zz_orders",
-			DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "zz_orders", Column: "id"}},
-		}},
+		Views: []*metadata.ViewMetadata{
+			{Name: "aa_view", Definition: "SELECT id, public.zz_code(id) AS code FROM public.zz_orders"},
+			// Reads no column of the materialized view, so sync records no dependency column.
+			{Name: "aa_count", Definition: "SELECT count(*) AS n FROM public.zz_mview"},
+			{Name: "aa_uses_fn", Definition: "SELECT public.aa_view_row() AS row"},
+			{Name: "zz_view", Definition: "SELECT id FROM public.zz_orders"},
+		},
+		MaterializedViews: []*metadata.MaterializedViewMetadata{
+			{Name: "zz_mview", Definition: "SELECT id FROM public.zz_orders"},
+		},
 		Functions: []*metadata.FunctionMetadata{
 			{Name: "aa_fn", Signature: "aa_fn(public.zz_base)", Definition: "CREATE FUNCTION public.aa_fn(b public.zz_base) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
 			{Name: "aa_fn", Signature: "aa_fn(public.zz_orders)", Definition: "CREATE FUNCTION public.aa_fn(o public.zz_orders) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
@@ -126,6 +131,11 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 				Name:       "aa_rows",
 				Signature:  "aa_rows()",
 				Definition: "CREATE FUNCTION public.aa_rows() RETURNS SETOF public.zz_orders LANGUAGE sql AS $$ SELECT * FROM zz_orders $$;",
+			},
+			{
+				Name:       "aa_view_row",
+				Signature:  "aa_view_row()",
+				Definition: "CREATE FUNCTION public.aa_view_row() RETURNS public.zz_view LANGUAGE sql AS $$ SELECT * FROM zz_view $$;",
 			},
 			// Called by a default, an index expression, and a view body.
 			{Name: "zz_code", Signature: "zz_code(integer)", Definition: "CREATE FUNCTION public.zz_code(x integer) RETURNS integer IMMUTABLE LANGUAGE sql AS $$ SELECT x $$;"},
@@ -394,6 +404,13 @@ func TestLoadMetadataFull(t *testing.T) {
 					{Name: "room", Type: "integer"},
 					{Name: "during", Type: "tsrange"},
 				},
+				// Sync lists the EXCLUDE constraint's backing index too.
+				Indexes: []*metadata.IndexMetadata{{
+					Name:         "rooms_no_overlap",
+					IsConstraint: true,
+					Type:         "gist",
+					Definition:   "CREATE INDEX rooms_no_overlap ON public.rooms USING gist (room, during)",
+				}},
 				ExcludeConstraints: []*metadata.ExcludeConstraintMetadata{{
 					Name:       "rooms_no_overlap",
 					Expression: "EXCLUDE USING gist (room WITH =, during WITH &&)",
@@ -470,6 +487,9 @@ func TestLoadMetadataFull(t *testing.T) {
 		t.Errorf("users constraints = %v", constraints)
 	}
 	rooms := requireRelation(t, c, "public", "rooms")
+	if idx := c.IndexesOf(rooms.OID); len(idx) != 1 {
+		t.Errorf("rooms has %d indexes, want only the EXCLUDE constraint's", len(idx))
+	}
 	if excl := c.ConstraintsOf(rooms.OID); len(excl) != 1 || excl[0].Type != ConstraintExclude || !slices.Equal(excl[0].ExclOps, []string{"=", "&&"}) {
 		t.Errorf("rooms constraints = %+v, want the EXCLUDE with its operators", excl)
 	}
