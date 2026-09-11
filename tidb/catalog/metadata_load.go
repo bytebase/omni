@@ -434,7 +434,12 @@ func metadataViewStmt(v *metadata.ViewMetadata) (*nodes.CreateViewStmt, error) {
 			names = append(names, col.GetName())
 		}
 	}
-	if len(names) > 0 && !slices.EqualFunc(names, extractViewColumns(sel), strings.EqualFold) {
+	// A * or an unaliased expression is named only once the catalog resolves the
+	// body, and extractViewColumns leaves such a target out, so the body names
+	// nothing to compare unless it names every one of them.
+	derived := extractViewColumns(sel)
+	if len(names) > 0 && len(derived) == len(nodes.LeftmostQueryLeaf(sel).TargetList) &&
+		!slices.EqualFunc(names, derived, strings.EqualFold) {
 		stmt.Columns = names
 	}
 	return stmt, nil

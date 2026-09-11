@@ -218,14 +218,20 @@ func TestLoadMetadataKeepsViewColumnListsOnlyWhereNeeded(t *testing.T) {
 			// Created as CREATE VIEW renamed (user_id) AS SELECT id FROM users.
 			{Name: "renamed", Definition: "SELECT id FROM users", Columns: []*metadata.ColumnMetadata{{Name: "user_id"}}},
 			{Name: "same", Definition: "SELECT id FROM users", Columns: []*metadata.ColumnMetadata{{Name: "ID"}}},
+			{Name: "star", Definition: "SELECT * FROM users", Columns: []*metadata.ColumnMetadata{{Name: "id"}}},
+			{Name: "star_qualified", Definition: "SELECT u.* FROM users u", Columns: []*metadata.ColumnMetadata{{Name: "id"}}},
+			{Name: "expr", Definition: "SELECT count(*) FROM users", Columns: []*metadata.ColumnMetadata{{Name: "count(*)"}}},
 		},
 	}))
 	requireReport(t, report)
 	if v := requireView(t, c, "renamed"); !v.ExplicitColumns || !slices.Equal(v.Columns, []string{"user_id"}) {
 		t.Errorf("renamed = explicit %v, columns %v; want the snapshot's user_id", v.ExplicitColumns, v.Columns)
 	}
-	if v := requireView(t, c, "same"); v.ExplicitColumns {
-		t.Errorf("same = explicit columns %v, want the body's", v.Columns)
+	// A body naming no target of its own keeps the columns it resolves to.
+	for _, name := range []string{"same", "star", "star_qualified", "expr"} {
+		if v := requireView(t, c, name); v.ExplicitColumns {
+			t.Errorf("%s = explicit columns %v, want the body's", name, v.Columns)
+		}
 	}
 }
 
