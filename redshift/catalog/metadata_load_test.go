@@ -32,6 +32,8 @@ func redshiftSnapshot() *metadata.DatabaseSchemaMetadata {
 				{Name: "recent", Definition: "SELECT id FROM orders", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "bigint"}}},
 				// No definition: it resolves as a table of its columns.
 				{Name: "bare", Columns: []*metadata.ColumnMetadata{{Name: "x", Type: "integer"}}},
+				// A definition that does not parse resolves the same way.
+				{Name: "odd", Definition: "SELEC nonsense", Columns: []*metadata.ColumnMetadata{{Name: "x", Type: "integer"}}},
 			},
 			MaterializedViews: []*metadata.MaterializedViewMetadata{
 				{Name: "totals", Definition: "SELECT count(*) AS n FROM orders"},
@@ -87,7 +89,9 @@ func TestLoadMetadataInstallsSnapshot(t *testing.T) {
 
 func TestUseMetadataResolvesRelationsWhenNamed(t *testing.T) {
 	c := New()
-	c.SetSearchPath([]string{"sales", "public"})
+	// $user expands to the session user.
+	c.SetSessionUser("sales")
+	c.SetSearchPath([]string{"$user", "public"})
 	c.UseMetadata(redshiftSnapshot())
 	if c.GetRelation("sales", "orders") != nil {
 		t.Fatal("a relation must resolve only when a statement names it")
@@ -128,8 +132,10 @@ func TestMetadataResolverResolvesSpecs(t *testing.T) {
 	if got, want := columns(resolve("sales", "orders")), []RelationColumnSpec{{"id", "bigint"}, {"note", "text"}, {"geo", "text"}, {"ttl", "interval"}}; !slices.Equal(got, want) {
 		t.Errorf("orders columns = %v, want %v", got, want)
 	}
-	if spec := resolve("", "bare", "sales"); spec == nil || spec.Kind != RelationKindTable || !slices.Equal(spec.Columns, []RelationColumnSpec{{"x", "integer"}}) {
-		t.Errorf("bare = %+v, want a table of its columns", spec)
+	for _, name := range []string{"bare", "odd"} {
+		if spec := resolve("", name, "sales"); spec == nil || spec.Kind != RelationKindTable || !slices.Equal(spec.Columns, []RelationColumnSpec{{"x", "integer"}}) {
+			t.Errorf("%s = %+v, want a table of its columns", name, spec)
+		}
 	}
 	if got := columns(resolve("", "order_ids", "sales")); len(got) != 3 || got[0].Name != "last_value" {
 		t.Errorf("order_ids columns = %v, want the sequence's", got)
@@ -168,11 +174,13 @@ func TestMetadataResolverQualifiesViewDefinitions(t *testing.T) {
 		"CREATE MATERIALIZED VIEW sales.m AS SELECT id FROM orders":                                       `CREATE MATERIALIZED VIEW sales.m AS SELECT id FROM "sales".orders`,
 		"SELECT id FROM sales.orders":                                                                     "SELECT id FROM sales.orders",
 		"SELECT id FROM unknown":                                                                          "SELECT id FROM unknown",
-		"SELEC nonsense":                                                                                  "SELEC nonsense",
 	} {
-		if got := r.qualify(definition, "sales"); got != want {
+		if got, _ := r.qualify(definition, "sales"); got != want {
 			t.Errorf("qualify(%q) = %q, want %q", definition, got, want)
 		}
+	}
+	if _, ok := r.qualify("SELEC nonsense", "sales"); ok {
+		t.Error("qualify accepted a definition that does not parse")
 	}
 }
 
@@ -188,6 +196,10 @@ func TestCoarseType(t *testing.T) {
 		"real":                        "real",
 		"date":                        "date",
 		"timestamp without time zone": "timestamp",
+		"timestamp with time zone":    "timestamp",
+		"time":                        "time",
+		"time without time zone":      "time",
+		"timetz":                      "time",
 		"super":                       "text",
 		"interval":                    "interval",
 		"interval year to month":      "interval",

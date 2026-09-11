@@ -142,8 +142,10 @@ func coarseType(typ string) string {
 		return "real"
 	case strings.Contains(lower, "date"):
 		return "date"
-	case strings.Contains(lower, "time"):
+	case strings.Contains(lower, "timestamp"):
 		return "timestamp"
+	case strings.Contains(lower, "time"):
+		return "time"
 	default:
 		return "text"
 	}
@@ -202,13 +204,18 @@ func (r *metadataResolver) ResolveRelation(schemaName, relationName string, sear
 		return nil, nil
 	}
 	spec := &RelationSpec{SchemaName: schemaName, Name: relationName, Kind: rel.kind}
-	switch definition := strings.TrimSpace(rel.definition); {
+	definition, parsed := "", false
+	if rel.kind != RelationKindTable {
+		definition, parsed = r.qualify(rel.definition, schemaName)
+	}
+	switch {
 	case rel.sequence:
 		spec.Columns = []RelationColumnSpec{{Name: "last_value", Type: "bigint"}, {Name: "log_cnt", Type: "bigint"}, {Name: "is_called", Type: "boolean"}}
-	case rel.kind != RelationKindTable && definition != "":
-		spec.Definition = r.qualify(definition, schemaName)
+	case parsed:
+		spec.Definition = definition
 	default:
-		// A view without a definition resolves as a table of its columns.
+		// A view whose definition is empty or does not parse resolves as a
+		// table of its columns.
 		spec.Kind = RelationKindTable
 		spec.Columns = metadataColumnSpecs(rel.columns)
 	}
@@ -240,12 +247,12 @@ func metadataColumnSpecs(columns []*metadata.ColumnMetadata) []RelationColumnSpe
 }
 
 // qualify schema-qualifies each relation a view definition names without a
-// schema, resolving it from the view's own schema. A definition that does not
-// parse stays as it is.
-func (r *metadataResolver) qualify(definition, schema string) string {
+// schema, resolving it from the view's own schema. It reports whether the
+// definition parses as one query.
+func (r *metadataResolver) qualify(definition, schema string) (string, bool) {
 	list, err := pgparser.Parse(definition)
 	if err != nil || list == nil || len(list.Items) != 1 {
-		return definition
+		return "", false
 	}
 	var query nodes.Node
 	switch stmt := unwrapRawStmt(list.Items[0]).(type) {
@@ -258,7 +265,7 @@ func (r *metadataResolver) qualify(definition, schema string) string {
 	default:
 	}
 	if query == nil {
-		return definition
+		return "", false
 	}
 	searchPath := []string{"public"}
 	if schema != "" {
@@ -273,7 +280,7 @@ func (r *metadataResolver) qualify(definition, schema string) string {
 			definition = definition[:edit.offset] + metadataQuoteIdent(edit.schema) + "." + definition[edit.offset:]
 		}
 	}
-	return definition
+	return definition, true
 }
 
 // qualification inserts schema before the relation name at offset.

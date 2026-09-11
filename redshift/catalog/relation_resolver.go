@@ -14,7 +14,8 @@ const (
 	RelationKindMaterializedView byte = 'm'
 )
 
-// RelationResolver lazily supplies relation metadata for catalog misses.
+// RelationResolver lazily supplies relation metadata for catalog misses. It
+// gets the catalog's search path with $user expanded to the current user.
 type RelationResolver interface {
 	ResolveRelation(schemaName, relationName string, searchPath []string) (*RelationSpec, error)
 }
@@ -49,7 +50,15 @@ func (c *Catalog) resolveMissingRelation(schemaName, relName string) error {
 	c.relationResolutionStack[requestKey] = true
 	defer delete(c.relationResolutionStack, requestKey)
 
-	searchPath := append([]string(nil), c.searchPath...)
+	searchPath := make([]string, 0, len(c.searchPath))
+	for _, name := range c.searchPath {
+		if name == "$user" {
+			name = c.currentUser
+		}
+		if name != "" {
+			searchPath = append(searchPath, name)
+		}
+	}
 	spec, err := c.relationResolver.ResolveRelation(schemaName, relName, searchPath)
 	if err != nil {
 		return err
