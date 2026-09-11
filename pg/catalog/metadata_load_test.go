@@ -119,6 +119,14 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 			// Reads no column of the materialized view, so sync records no dependency column.
 			{Name: "aa_count", Definition: "SELECT count(*) AS n FROM public.zz_mview"},
 			{Name: "aa_uses_fn", Definition: "SELECT public.aa_view_row() AS row"},
+			// Calls f(integer); the other overload takes this view's row type.
+			{Name: "aa_calls_overload", Definition: "SELECT public.f(1) AS x"},
+			// The CTE shares its name with the qualified view it reads.
+			{
+				Name:              "aa_cte",
+				Definition:        "WITH zz_view AS (SELECT 1 AS id) SELECT public.zz_view.id FROM public.zz_view",
+				DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "zz_view", Column: "id"}},
+			},
 			{Name: "zz_view", Definition: "SELECT id FROM public.zz_orders"},
 		},
 		MaterializedViews: []*metadata.MaterializedViewMetadata{
@@ -137,6 +145,8 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 				Signature:  "aa_view_row()",
 				Definition: "CREATE FUNCTION public.aa_view_row() RETURNS public.zz_view LANGUAGE sql AS $$ SELECT * FROM zz_view $$;",
 			},
+			{Name: "f", Signature: "f(integer)", Definition: "CREATE FUNCTION public.f(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;"},
+			{Name: "f", Signature: "f(public.aa_calls_overload)", Definition: "CREATE FUNCTION public.f(v public.aa_calls_overload) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
 			// Called by a default, an index expression, and a view body.
 			{Name: "zz_code", Signature: "zz_code(integer)", Definition: "CREATE FUNCTION public.zz_code(x integer) RETURNS integer IMMUTABLE LANGUAGE sql AS $$ SELECT x $$;"},
 		},
@@ -310,29 +320,24 @@ func TestLoadMetadataCompositeStandInKeepsAttributeNames(t *testing.T) {
 }
 
 func TestLoadMetadataBreaksCycles(t *testing.T) {
+	// a reads b, b reads c, and c reads a. Only a, the first member, needs a
+	// stand-in: c installs against it, then b against c.
+	view := func(name, reads string) *metadata.ViewMetadata {
+		return &metadata.ViewMetadata{
+			Name:              name,
+			Definition:        "SELECT id FROM public." + reads,
+			Columns:           []*metadata.ColumnMetadata{{Name: "id"}},
+			DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: reads, Column: "id"}},
+		}
+	}
 	c, report := loadSnapshot(t, false, &metadata.SchemaMetadata{
-		Name: "public",
-		Views: []*metadata.ViewMetadata{
-			{
-				Name:              "v_beta",
-				Definition:        "SELECT id FROM v_alpha",
-				DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "v_alpha", Column: "id"}},
-			},
-			{
-				Name:              "v_alpha",
-				Definition:        "SELECT id FROM v_beta",
-				DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "v_beta", Column: "id"}},
-			},
-		},
+		Name:  "public",
+		Views: []*metadata.ViewMetadata{view("v_b", "v_c"), view("v_c", "v_a"), view("v_a", "v_b")},
 	})
-	if report.Degraded["rel:public.v_alpha"] == nil {
-		t.Errorf("the cycle's lexically first member must install first and fall back, report %v", report.Degraded)
+	requireDegraded(t, report, "rel:public.v_a")
+	for _, name := range []string{"v_a", "v_b", "v_c"} {
+		requireRelation(t, c, "public", name)
 	}
-	if report.Degraded["rel:public.v_beta"] != nil {
-		t.Errorf("v_beta must install as defined against v_alpha's stand-in: %v", report.Degraded["rel:public.v_beta"])
-	}
-	requireRelation(t, c, "public", "v_alpha")
-	requireRelation(t, c, "public", "v_beta")
 }
 
 func TestLoadMetadataReportsMissingObjects(t *testing.T) {

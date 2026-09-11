@@ -291,7 +291,8 @@ func isKeyIndex(idx *metadata.IndexMetadata) bool {
 
 // orderMetadataObjects returns objects in an order that installs each one's
 // dependencies first. A dependency cycle installs its first member by sortKey
-// first; that member fails and gets a stand-in, and the rest install against it.
+// first; that member fails and gets a stand-in, and the rest of the cycle is
+// ordered again with that member counted as installed.
 func orderMetadataObjects(objects []*metadataObject) []*metadataObject {
 	if len(objects) == 0 {
 		return nil
@@ -338,7 +339,8 @@ func orderMetadataObjects(objects []*metadataObject) []*metadataObject {
 	ordered := make([]*metadataObject, 0, len(objects))
 	for ready.Len() > 0 {
 		next := heap.Pop(ready).(int)
-		ordered = append(ordered, sccs[next]...)
+		ordered = append(ordered, sccs[next][0])
+		ordered = append(ordered, orderMetadataObjects(sccs[next][1:])...)
 		for _, d := range dependents[next] {
 			inDegree[d]--
 			if inDegree[d] == 0 {
@@ -423,6 +425,13 @@ func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataO
 				addType(col.GetType())
 			}
 		case metadataView, metadataMatView:
+			deps := o.view.GetDependencyColumns()
+			if o.kind == metadataMatView {
+				deps = o.matView.GetDependencyColumns()
+			}
+			for _, dep := range deps {
+				add(metadataRelationKey(dep.GetSchema(), dep.GetTable()))
+			}
 			// Sync qualifies every name in a view's body, which reads as "schema.name".
 			if o.body == nil {
 				break
@@ -434,9 +443,11 @@ func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataO
 			for _, ref := range typeRefs {
 				add("type:" + ref)
 			}
+			// A call cannot say which of several overloads it uses, and depending
+			// on all of them could invent a cycle.
 			for _, ref := range funcRefs {
-				for _, key := range functionKeys[ref] {
-					add(key)
+				if keys := functionKeys[ref]; len(keys) == 1 {
+					add(keys[0])
 				}
 			}
 		case metadataFunction:
