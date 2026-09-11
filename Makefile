@@ -1,30 +1,25 @@
-.PHONY: build test test-pg test-mysql test-mysql-full test-mysql-containers test-mssql test-oracle proto proto-breaking clean
+ENGINES := cassandra cosmosdb doris elasticsearch googlesql mariadb mongo mssql mysql oracle partiql pg redshift snowflake starrocks tidb trino
+
+.PHONY: build test proto proto-breaking clean $(addprefix test-,$(ENGINES)) test-mysql-full test-mysql-containers
 
 BUF := go run github.com/bufbuild/buf/cmd/buf@v1.72.0
 
 build:
 	go build ./...
 
+# Full suite, same as CI. Several engines start real database containers.
 test:
 	go test ./...
 
-test-pg:
-	go test ./pg/...
-
-test-mysql:
-	go test ./mysql/...
+# Per-engine targets: make test-pg, make test-mysql, ...
+$(addprefix test-,$(ENGINES)): test-%:
+	go test ./$*/...
 
 test-mysql-full:
 	./scripts/test-mysql.sh full
 
 test-mysql-containers:
 	./scripts/test-mysql.sh container-shards
-
-test-mssql:
-	go test ./mssql/...
-
-test-oracle:
-	go test ./oracle/...
 
 proto:
 	cd proto && $(BUF) format -w && $(BUF) lint && $(BUF) generate
