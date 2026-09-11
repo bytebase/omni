@@ -435,7 +435,11 @@ func TestLoadMetadataFull(t *testing.T) {
 				},
 				CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "users_age_check", Expression: "(age > 0)"}},
 				// Shares the identity column, so it adds no sequence of its own.
-				Partitions: []*metadata.TablePartitionMetadata{{Name: "users_2024"}},
+				Partitions: []*metadata.TablePartitionMetadata{{
+					Name:             "users_2024",
+					Indexes:          []*metadata.IndexMetadata{{Name: "users_2024_pkey", Expressions: []string{"id"}, Primary: true, Unique: true, IsConstraint: true, Type: "btree"}},
+					CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "users_age_check", Expression: "(age > 0)"}},
+				}},
 			},
 			{
 				Name: "rooms",
@@ -534,6 +538,14 @@ func TestLoadMetadataFull(t *testing.T) {
 	}
 	if constraints["users_pkey"] != ConstraintPK || constraints["users_email_key"] != ConstraintUnique || constraints["users_age_check"] != ConstraintCheck {
 		t.Errorf("users constraints = %v", constraints)
+	}
+	partition := requireRelation(t, c, "public", "users_2024")
+	partitionConstraints := make(map[string]ConstraintType)
+	for _, con := range c.ConstraintsOf(partition.OID) {
+		partitionConstraints[con.Name] = con.Type
+	}
+	if len(partitionConstraints) != 2 || partitionConstraints["users_2024_pkey"] != ConstraintPK || partitionConstraints["users_age_check"] != ConstraintCheck {
+		t.Errorf("users_2024 constraints = %v, want its own primary key and check", partitionConstraints)
 	}
 	rooms := requireRelation(t, c, "public", "rooms")
 	if idx := c.IndexesOf(rooms.OID); len(idx) != 1 {

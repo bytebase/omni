@@ -228,7 +228,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 				o.ownedSequences = owned[t.GetName()]
 			}
 			out = append(out, o)
-			out = appendPartitionObjects(out, schema, t)
+			out = appendPartitionObjects(out, schema, t, full)
 		}
 		// A foreign table loads as a plain table: query analysis needs only its columns.
 		for _, et := range s.GetExternalTables() {
@@ -266,15 +266,9 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			}, true))
 		}
 		for _, t := range s.GetTables() {
-			out = appendIndexObjects(out, schema, t.GetName(), t.GetIndexes())
+			out = appendConstraintObjects(out, schema, t.GetName(), t.GetIndexes(), t.GetCheckConstraints(), t.GetExcludeConstraints())
 			for _, fk := range t.GetForeignKeys() {
 				out = append(out, &metadataObject{kind: metadataConstraint, schema: schema, name: fk.GetName(), parent: t.GetName(), fk: fk})
-			}
-			for _, check := range t.GetCheckConstraints() {
-				out = append(out, &metadataObject{kind: metadataConstraint, schema: schema, name: check.GetName(), parent: t.GetName(), check: check})
-			}
-			for _, exclude := range t.GetExcludeConstraints() {
-				out = append(out, &metadataObject{kind: metadataConstraint, schema: schema, name: exclude.GetName(), parent: t.GetName(), exclude: exclude})
 			}
 		}
 		for _, mv := range s.GetMaterializedViews() {
@@ -285,9 +279,9 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 }
 
 // appendPartitionObjects adds t's partitions, and theirs, as plain tables with
-// t's column names and types: query analysis needs only those, and t keeps the
-// columns' defaults and sequences.
-func appendPartitionObjects(out []*metadataObject, schema string, t *metadata.TableMetadata) []*metadataObject {
+// t's column names and types, and with full their own indexes and constraints.
+// t keeps the columns' defaults and sequences.
+func appendPartitionObjects(out []*metadataObject, schema string, t *metadata.TableMetadata, full bool) []*metadataObject {
 	if len(t.GetPartitions()) == 0 {
 		return out
 	}
@@ -299,10 +293,26 @@ func appendPartitionObjects(out []*metadataObject, schema string, t *metadata.Ta
 	add = func(partitions []*metadata.TablePartitionMetadata) {
 		for _, p := range partitions {
 			out = append(out, &metadataObject{kind: metadataTable, schema: schema, name: p.GetName(), table: &metadata.TableMetadata{Name: p.GetName(), Columns: columns}})
+			if full {
+				out = appendConstraintObjects(out, schema, p.GetName(), p.GetIndexes(), p.GetCheckConstraints(), p.GetExcludeConstraints())
+			}
 			add(p.GetSubpartitions())
 		}
 	}
 	add(t.GetPartitions())
+	return out
+}
+
+// appendConstraintObjects adds a table's indexes and its CHECK and EXCLUDE
+// constraints.
+func appendConstraintObjects(out []*metadataObject, schema, table string, indexes []*metadata.IndexMetadata, checks []*metadata.CheckConstraintMetadata, excludes []*metadata.ExcludeConstraintMetadata) []*metadataObject {
+	out = appendIndexObjects(out, schema, table, indexes)
+	for _, check := range checks {
+		out = append(out, &metadataObject{kind: metadataConstraint, schema: schema, name: check.GetName(), parent: table, check: check})
+	}
+	for _, exclude := range excludes {
+		out = append(out, &metadataObject{kind: metadataConstraint, schema: schema, name: exclude.GetName(), parent: table, exclude: exclude})
+	}
 	return out
 }
 
