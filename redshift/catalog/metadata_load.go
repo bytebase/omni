@@ -124,6 +124,8 @@ func metadataMatViewDDL(schema, name, definition string) string {
 func coarseType(typ string) string {
 	lower := strings.ToLower(strings.TrimSpace(typ))
 	switch {
+	case strings.Contains(lower, "interval"):
+		return "interval"
 	case strings.Contains(lower, "bigint"):
 		return "bigint"
 	case strings.Contains(lower, "int"):
@@ -281,7 +283,8 @@ type qualification struct {
 }
 
 // collectQualifications finds the unqualified relation names in node that are
-// not CTE references and resolve along searchPath.
+// not CTE references and resolve along searchPath. CTE names match as parsed:
+// unquoted names folded to lower case, quoted ones as written.
 func (r *metadataResolver) collectQualifications(searchPath []string, node nodes.Node, ctes map[string]bool, edits *[]qualification) {
 	if node == nil {
 		return
@@ -296,7 +299,7 @@ func (r *metadataResolver) collectQualifications(searchPath []string, node nodes
 			return false
 		}
 		rv, ok := n.(*nodes.RangeVar)
-		if !ok || rv == nil || rv.Relname == "" || rv.Schemaname != "" || rv.Catalogname != "" || rv.Loc.Start < 0 || ctes[strings.ToLower(rv.Relname)] {
+		if !ok || rv == nil || rv.Relname == "" || rv.Schemaname != "" || rv.Catalogname != "" || rv.Loc.Start < 0 || ctes[rv.Relname] {
 			return true
 		}
 		if schema := r.search(searchPath, rv.Relname); schema != "" {
@@ -316,7 +319,7 @@ func (r *metadataResolver) collectSelectQualifications(searchPath []string, sel 
 		if sel.WithClause.Recursive {
 			for _, item := range sel.WithClause.Ctes.Items {
 				if cte, ok := item.(*nodes.CommonTableExpr); ok && cte.Ctename != "" {
-					scope[strings.ToLower(cte.Ctename)] = true
+					scope[cte.Ctename] = true
 				}
 			}
 		}
@@ -326,9 +329,8 @@ func (r *metadataResolver) collectSelectQualifications(searchPath []string, sel 
 				continue
 			}
 			r.collectQualifications(searchPath, cte.Ctequery, scope, edits)
-			name := strings.ToLower(cte.Ctename)
-			scope[name] = true
-			local[name] = true
+			scope[cte.Ctename] = true
+			local[cte.Ctename] = true
 		}
 	}
 	for _, n := range []nodes.Node{sel.WhereClause, sel.HavingClause, sel.QualifyClause, sel.LimitOffset, sel.LimitCount} {

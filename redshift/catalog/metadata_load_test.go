@@ -19,6 +19,7 @@ func redshiftSnapshot() *metadata.DatabaseSchemaMetadata {
 						{Name: "id", Type: "bigint"},
 						{Name: "note", Type: "character varying(256)"},
 						{Name: "geo", Type: "geometry"},
+						{Name: "ttl", Type: "interval"},
 					},
 				},
 				{Name: "empty"},
@@ -61,7 +62,7 @@ func TestLoadMetadataInstallsSnapshot(t *testing.T) {
 	for _, col := range c.GetRelation("sales", "orders").Columns {
 		types = append(types, c.FormatType(col.TypeOID, col.TypeMod))
 	}
-	if want := []string{"bigint", "text", "text"}; !slices.Equal(types, want) {
+	if want := []string{"bigint", "text", "text", "interval"}; !slices.Equal(types, want) {
 		t.Errorf("orders column types = %v, want the coarse %v", types, want)
 	}
 	if recent := c.GetRelation("sales", "recent"); recent.RelKind != 'v' || len(recent.Columns) != 1 || recent.Columns[0].Name != "id" {
@@ -124,7 +125,7 @@ func TestMetadataResolverResolvesSpecs(t *testing.T) {
 	if spec := resolve("", "recent", "sales", "public"); spec == nil || spec.SchemaName != "sales" || spec.Kind != RelationKindView || spec.Definition != `SELECT id FROM "sales".orders` {
 		t.Errorf("recent = %+v, want a view with its relation qualified", spec)
 	}
-	if got, want := columns(resolve("sales", "orders")), []RelationColumnSpec{{"id", "bigint"}, {"note", "text"}, {"geo", "text"}}; !slices.Equal(got, want) {
+	if got, want := columns(resolve("sales", "orders")), []RelationColumnSpec{{"id", "bigint"}, {"note", "text"}, {"geo", "text"}, {"ttl", "interval"}}; !slices.Equal(got, want) {
 		t.Errorf("orders columns = %v, want %v", got, want)
 	}
 	if spec := resolve("", "bare", "sales"); spec == nil || spec.Kind != RelationKindTable || !slices.Equal(spec.Columns, []RelationColumnSpec{{"x", "integer"}}) {
@@ -160,6 +161,7 @@ func TestMetadataResolverQualifiesViewDefinitions(t *testing.T) {
 		"SELECT id FROM orders WHERE id IN (SELECT id FROM recent)":                                       `SELECT id FROM "sales".orders WHERE id IN (SELECT id FROM "sales".recent)`,
 		"WITH orders AS (SELECT 1 AS id) SELECT id FROM orders":                                           "WITH orders AS (SELECT 1 AS id) SELECT id FROM orders",
 		"WITH o AS (SELECT id FROM orders) SELECT id FROM o":                                              `WITH o AS (SELECT id FROM "sales".orders) SELECT id FROM o`,
+		`WITH "Orders" AS (SELECT 1 AS id) SELECT id FROM orders`:                                         `WITH "Orders" AS (SELECT 1 AS id) SELECT id FROM "sales".orders`,
 		"WITH orders AS (SELECT id FROM orders) SELECT id FROM orders":                                    `WITH orders AS (SELECT id FROM "sales".orders) SELECT id FROM orders`,
 		"WITH orders AS (SELECT 1 AS id), later AS (SELECT id FROM orders) SELECT id FROM later":          "WITH orders AS (SELECT 1 AS id), later AS (SELECT id FROM orders) SELECT id FROM later",
 		"WITH RECURSIVE orders AS (SELECT 1 AS id UNION ALL SELECT id FROM orders) SELECT id FROM orders": "WITH RECURSIVE orders AS (SELECT 1 AS id UNION ALL SELECT id FROM orders) SELECT id FROM orders",
@@ -187,6 +189,8 @@ func TestCoarseType(t *testing.T) {
 		"date":                        "date",
 		"timestamp without time zone": "timestamp",
 		"super":                       "text",
+		"interval":                    "interval",
+		"interval year to month":      "interval",
 	} {
 		if got := coarseType(typ); got != want {
 			t.Errorf("coarseType(%q) = %q, want %q", typ, got, want)
