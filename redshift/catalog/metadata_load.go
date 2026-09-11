@@ -11,19 +11,29 @@ import (
 	pgparser "github.com/bytebase/omni/redshift/parser"
 )
 
+// --- Loading a snapshot ---
+
 // LoadMetadata installs the schemas, tables, views, materialized views, and
 // sequences of a Bytebase schema snapshot into c, as completion needs them.
 // Columns take a coarse type and a view selects NULL under its column names,
 // so no object depends on another. A materialized view installs from its
-// definition when that runs, and like a view otherwise. An object that still
-// fails to install is left out.
+// definition once the relations it names are in, and like a view otherwise. An
+// object that still fails to install is left out.
 func (c *Catalog) LoadMetadata(meta *metadata.DatabaseSchemaMetadata) {
 	defer c.SetSearchPath(slices.Clone(c.searchPath))
-	type matView struct {
-		schema string
-		mv     *metadata.MaterializedViewMetadata
-	}
-	var matViews []matView
+	c.installMetadataMatViews(c.installMetadataRelations(meta))
+}
+
+// metadataMatView is a materialized view waiting for what its definition names.
+type metadataMatView struct {
+	schema string
+	mv     *metadata.MaterializedViewMetadata
+}
+
+// installMetadataRelations installs the schemas, tables, views, and sequences a
+// materialized view's definition may name, and returns the materialized views.
+func (c *Catalog) installMetadataRelations(meta *metadata.DatabaseSchemaMetadata) []metadataMatView {
+	var matViews []metadataMatView
 	for _, s := range meta.GetSchemas() {
 		schema := s.GetName()
 		c.execMetadataDDL(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;", metadataQuoteIdent(schema)))
@@ -40,14 +50,18 @@ func (c *Catalog) LoadMetadata(meta *metadata.DatabaseSchemaMetadata) {
 			c.execMetadataDDL(fmt.Sprintf("CREATE SEQUENCE %s.%s;", metadataQuoteIdent(schema), metadataQuoteIdent(seq.GetName())))
 		}
 		for _, mv := range s.GetMaterializedViews() {
-			matViews = append(matViews, matView{schema, mv})
+			matViews = append(matViews, metadataMatView{schema, mv})
 		}
 	}
-	// A materialized view's definition may name any relation, another
-	// materialized view included, so definitions install last and the failed
-	// ones retry while a pass installs more. The rest install like views.
+	return matViews
+}
+
+// installMetadataMatViews installs each definition, retrying the failed ones
+// while a pass installs more, since a definition may name another materialized
+// view. Once a pass installs none, the rest install like views.
+func (c *Catalog) installMetadataMatViews(matViews []metadataMatView) {
 	for len(matViews) > 0 {
-		var failed []matView
+		var failed []metadataMatView
 		for _, m := range matViews {
 			// The definition may name relations of its own schema unqualified.
 			c.SetSearchPath([]string{m.schema, "public"})
@@ -59,7 +73,7 @@ func (c *Catalog) LoadMetadata(meta *metadata.DatabaseSchemaMetadata) {
 			for _, m := range failed {
 				c.execMetadataDDL(metadataViewDDL("MATERIALIZED VIEW", m.schema, m.mv.GetName(), nil))
 			}
-			break
+			return
 		}
 		matViews = failed
 	}
@@ -102,6 +116,8 @@ func (c *Catalog) execMetadataDDL(sql string) bool {
 	}
 	return true
 }
+
+// --- DDL text ---
 
 // metadataPlaceholderColumn names the one column of a view or resolved table
 // the snapshot lists no columns for, since each needs one.
@@ -175,6 +191,8 @@ func coarseType(typ string) string {
 func metadataQuoteIdent(name string) string {
 	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }
+
+// --- Resolving relations lazily ---
 
 // metadataResolver resolves relations from a snapshot, matching names exactly
 // as Redshift sync reports them.
@@ -266,6 +284,8 @@ func metadataColumnSpecs(columns []*metadata.ColumnMetadata) []RelationColumnSpe
 	}
 	return specs
 }
+
+// --- Qualifying a view definition ---
 
 // qualify schema-qualifies each relation a view definition names without a
 // schema, resolving it from the view's own schema. It reports whether the
