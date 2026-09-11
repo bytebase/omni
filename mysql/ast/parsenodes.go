@@ -1114,6 +1114,16 @@ type IntoClause struct {
 	LinesTerminatedBy  string // LINES TERMINATED BY 'string'
 	HasFieldsClause    bool   // true if FIELDS/COLUMNS clause present
 	HasLinesClause     bool   // true if LINES clause present
+
+	// Aurora MySQL: SELECT ... INTO OUTFILE S3 's3-uri' export options.
+	// Ref: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Integrating.SaveIntoS3.html
+	OutfileS3     bool   // INTO OUTFILE S3 (Outfile then holds the S3 URI)
+	Format        string // FORMAT {CSV | TEXT}; empty when omitted
+	Header        bool   // FORMAT ... HEADER
+	Manifest      string // MANIFEST {ON | OFF}; empty when omitted
+	Overwrite     string // OVERWRITE {ON | OFF}; empty when omitted
+	Encryption    string // ENCRYPTION {ON | OFF | SSE_S3 | SSE_KMS}; empty when omitted
+	EncryptionKey string // ENCRYPTION SSE_KMS 'cmk_id'
 }
 
 func (c *IntoClause) nodeTag() {}
@@ -1646,7 +1656,10 @@ type LoadDataStmt struct {
 	LowPriority        bool // LOW_PRIORITY modifier
 	Concurrent         bool // CONCURRENT modifier
 	Local              bool
-	Infile             string
+	Infile             string // INFILE 'file_name' (empty for the Aurora S3 form)
+	FromS3             bool   // Aurora MySQL: LOAD DATA [FROM] S3 ... / LOAD XML FROM S3 ...
+	S3Kind             string // Aurora MySQL: FILE | PREFIX | MANIFEST (empty when omitted; FILE is the server default)
+	S3URI              string // Aurora MySQL: the 's3[-region]://bucket/key' literal after S3 [FILE | PREFIX | MANIFEST]
 	Replace            bool
 	Ignore             bool
 	Table              *TableRef

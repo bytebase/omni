@@ -2922,11 +2922,24 @@
       "rules": ["parseTableOption"],
       "depends_on": [7, 121],
       "tests": ["TestParseCreateTableDataDirectory", "TestParseCreateTableIndexDirectory"]
+    },
+    {
+      "id": 123,
+      "name": "aurora_s3_extensions",
+      "file": "load_data.go",
+      "status": "done",
+      "description": "Aurora MySQL extension (BYT-10141, bytebase/bytebase#21231): LOAD DATA [FROM] S3 [FILE | PREFIX | MANIFEST] 'uri', LOAD XML FROM S3 [FILE | PREFIX] 'uri', and SELECT ... INTO OUTFILE S3 'uri' [FORMAT {CSV|TEXT} [HEADER]] [MANIFEST ON|OFF] [OVERWRITE ON|OFF] [ENCRYPTION ON|OFF|SSE_S3|SSE_KMS ['cmk']]. New keywords CSV, MANIFEST, OVERWRITE, PREFIX, SSE_KMS, SSE_S3 (unambiguous, excluded from the MySQL 8.0 IsKeyword API). Accepted unconditionally because Aurora registers as the MYSQL engine; not oracle-verified since MySQL 8.0 rejects the syntax.",
+      "effort": "extension",
+      "bnf_files": ["aurora-s3.bnf"],
+      "review_files": ["load_data.go", "select.go"],
+      "rules": ["parseLoadDataS3Source", "parseOutfileS3Options", "parseOnOff"],
+      "depends_on": [110],
+      "tests": ["TestAuroraLoadDataFromS3", "TestAuroraLoadXMLFromS3", "TestAuroraLoadFromS3Rejects", "TestAuroraSelectIntoOutfileS3", "TestAuroraSelectIntoOutfileS3Rejects", "TestAuroraS3KeywordsRemainIdentifiers"]
     }
   ],
   "stats": {
-    "total": 123,
-    "done": 123,
+    "total": 124,
+    "done": 124,
     "pending": 0,
     "failed": 0,
     "in_progress": 0

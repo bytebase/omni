@@ -127,3 +127,23 @@ DO SLEEP(1)
 -- @valid: true
 -- @source: MySQL 8.0 Reference Manual
 LOAD DATA INFILE '/tmp/data.csv' INTO TABLE employees
+
+-- @name: aurora load data from s3
+-- @valid: true
+-- @source: Aurora MySQL User Guide (AuroraMySQL.Integrating.LoadFromS3); rejected by stock MySQL 8.0
+LOAD DATA FROM S3 's3://mybucket/data.txt' INTO TABLE t1 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n'
+
+-- @name: aurora load data from s3 manifest
+-- @valid: true
+-- @source: Aurora MySQL User Guide (AuroraMySQL.Integrating.LoadFromS3); rejected by stock MySQL 8.0
+LOAD DATA FROM S3 MANIFEST 's3-us-west-2://aurora-bucket/customer.manifest' INTO TABLE CUSTOMER FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' (ID, FIRSTNAME, LASTNAME, EMAIL)
+
+-- @name: aurora load xml from s3
+-- @valid: true
+-- @source: Aurora MySQL User Guide (AuroraMySQL.Integrating.LoadFromS3); rejected by stock MySQL 8.0
+LOAD XML FROM S3 's3://mybucket/data.xml' INTO TABLE table1 (column1, @var1) SET table_column2 = @var1/100
+
+-- @name: aurora load data local from s3 rejected
+-- @valid: false
+-- @source: Aurora MySQL User Guide: LOCAL cannot be used with an S3 source
+LOAD DATA LOCAL FROM S3 's3://mybucket/data.txt' INTO TABLE t1

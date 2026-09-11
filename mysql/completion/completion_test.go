@@ -2881,3 +2881,141 @@ func TestCompletionAfterSetSysVarInRoutine(t *testing.T) {
 		t.Errorf("missing function candidate COUNT at SELECT position inside routine body; got %d candidates", len(candidates))
 	}
 }
+
+// --- Aurora MySQL S3 extensions: LOAD DATA FROM S3 / INTO OUTFILE S3 ---
+
+func TestComplete_AuroraLoadDataFromS3(t *testing.T) {
+	cat := catalog.New()
+	mustExec(t, cat, "CREATE DATABASE testdb")
+	cat.SetCurrentDatabase("testdb")
+	mustExec(t, cat, "CREATE TABLE t (a INT, b INT)")
+	mustExec(t, cat, "CREATE TABLE t1 (x INT)")
+
+	// LOAD DATA | → INFILE / FROM / S3 source keywords
+	t.Run("load_data_source_keywords", func(t *testing.T) {
+		sql := "LOAD DATA "
+		candidates := Complete(sql, len(sql), cat)
+		for _, kw := range []string{"INFILE", "FROM", "S3"} {
+			if !containsCandidate(candidates, kw, CandidateKeyword) {
+				t.Errorf("missing keyword %q; got %v", kw, candidates)
+			}
+		}
+	})
+
+	// LOAD DATA LOCAL | → INFILE only; LOCAL is incompatible with an S3 source
+	t.Run("load_data_local_offers_infile_only", func(t *testing.T) {
+		for _, sql := range []string{"LOAD DATA LOCAL ", "LOAD XML LOCAL "} {
+			candidates := Complete(sql, len(sql), cat)
+			if !containsCandidate(candidates, "INFILE", CandidateKeyword) {
+				t.Errorf("%q: missing keyword INFILE; got %v", sql, candidates)
+			}
+			for _, kw := range []string{"FROM", "S3"} {
+				if containsCandidate(candidates, kw, CandidateKeyword) {
+					t.Errorf("%q: %s must not be offered after LOCAL; got %v", sql, kw, candidates)
+				}
+			}
+		}
+	})
+
+	// SELECT ... INTO OUTFILE | → S3 (the alternative is a file literal)
+	t.Run("into_outfile_offers_s3", func(t *testing.T) {
+		sql := "SELECT 1 INTO OUTFILE "
+		candidates := Complete(sql, len(sql), cat)
+		if !containsCandidate(candidates, "S3", CandidateKeyword) {
+			t.Errorf("missing keyword S3; got %v", candidates)
+		}
+		if containsCandidate(candidates, "SELECT", CandidateKeyword) {
+			t.Errorf("fell back to top-level statement keywords; got %v", candidates)
+		}
+	})
+
+	// LOAD DATA FROM | → S3 is the only continuation
+	t.Run("load_data_from_offers_s3", func(t *testing.T) {
+		sql := "LOAD DATA FROM "
+		candidates := Complete(sql, len(sql), cat)
+		if !containsCandidate(candidates, "S3", CandidateKeyword) {
+			t.Errorf("missing keyword S3; got %v", candidates)
+		}
+		if containsCandidate(candidates, "SELECT", CandidateKeyword) {
+			t.Errorf("fell back to top-level statement keywords; got %v", candidates)
+		}
+	})
+
+	// LOAD XML | → INFILE / FROM, but not the FROM-less S3 spelling
+	t.Run("load_xml_source_keywords", func(t *testing.T) {
+		sql := "LOAD XML "
+		candidates := Complete(sql, len(sql), cat)
+		for _, kw := range []string{"INFILE", "FROM"} {
+			if !containsCandidate(candidates, kw, CandidateKeyword) {
+				t.Errorf("missing keyword %q; got %v", kw, candidates)
+			}
+		}
+		if containsCandidate(candidates, "S3", CandidateKeyword) {
+			t.Errorf("bare S3 is LOAD DATA only; got %v", candidates)
+		}
+	})
+
+	// LOAD XML FROM | → S3
+	t.Run("load_xml_from_offers_s3", func(t *testing.T) {
+		sql := "LOAD XML FROM "
+		candidates := Complete(sql, len(sql), cat)
+		if !containsCandidate(candidates, "S3", CandidateKeyword) {
+			t.Errorf("missing keyword S3; got %v", candidates)
+		}
+	})
+
+	// LOAD DATA FROM S3 | → FILE / PREFIX / MANIFEST source kinds
+	t.Run("load_data_s3_kind_keywords", func(t *testing.T) {
+		sql := "LOAD DATA FROM S3 "
+		candidates := Complete(sql, len(sql), cat)
+		for _, kw := range []string{"FILE", "PREFIX", "MANIFEST"} {
+			if !containsCandidate(candidates, kw, CandidateKeyword) {
+				t.Errorf("missing keyword %q; got %v", kw, candidates)
+			}
+		}
+	})
+
+	// LOAD XML FROM S3 | → FILE / PREFIX only (MANIFEST is LOAD DATA only)
+	t.Run("load_xml_s3_kind_keywords", func(t *testing.T) {
+		sql := "LOAD XML FROM S3 "
+		candidates := Complete(sql, len(sql), cat)
+		for _, kw := range []string{"FILE", "PREFIX"} {
+			if !containsCandidate(candidates, kw, CandidateKeyword) {
+				t.Errorf("missing keyword %q; got %v", kw, candidates)
+			}
+		}
+		if containsCandidate(candidates, "MANIFEST", CandidateKeyword) {
+			t.Errorf("MANIFEST must not be offered for LOAD XML; got %v", candidates)
+		}
+	})
+
+	// LOAD DATA FROM S3 's3://b/x' INTO TABLE | → table_ref, same as the INFILE form
+	t.Run("load_data_s3_into_table_ref", func(t *testing.T) {
+		sql := "LOAD DATA FROM S3 's3://b/x' INTO TABLE "
+		candidates := Complete(sql, len(sql), cat)
+		if !containsCandidate(candidates, "t", CandidateTable) {
+			t.Errorf("missing table 't'; got %v", candidates)
+		}
+		if !containsCandidate(candidates, "t1", CandidateTable) {
+			t.Errorf("missing table 't1'; got %v", candidates)
+		}
+	})
+
+	// LOAD DATA FROM S3 MANIFEST 's3://b/x.json' INTO TABLE | → table_ref
+	t.Run("load_data_s3_manifest_into_table_ref", func(t *testing.T) {
+		sql := "LOAD DATA FROM S3 MANIFEST 's3://b/x.json' INTO TABLE "
+		candidates := Complete(sql, len(sql), cat)
+		if !containsCandidate(candidates, "t", CandidateTable) {
+			t.Errorf("missing table 't'; got %v", candidates)
+		}
+	})
+
+	// The INFILE form must be unaffected by the new source branch.
+	t.Run("load_data_infile_into_table_ref_unchanged", func(t *testing.T) {
+		sql := "LOAD DATA INFILE 'f' INTO TABLE "
+		candidates := Complete(sql, len(sql), cat)
+		if !containsCandidate(candidates, "t", CandidateTable) {
+			t.Errorf("missing table 't'; got %v", candidates)
+		}
+	})
+}

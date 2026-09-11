@@ -623,6 +623,7 @@ const (
 	kwCONSTRAINT_SCHEMA
 	kwCONTEXT
 	kwCPU
+	kwCSV
 	kwCURDATE
 	kwCURSOR_NAME
 	kwCURTIME
@@ -682,6 +683,7 @@ const (
 	kwLOCKS
 	kwLOG
 	kwLONG
+	kwMANIFEST
 	kwMANUAL
 	kwMATERIALIZED
 	kwMAX_CONNECTIONS_PER_HOUR
@@ -709,6 +711,7 @@ const (
 	kwOFF
 	kwOJ
 	kwOTHERS
+	kwOVERWRITE
 	kwOWNER
 	kwPACK_KEYS
 	kwPAGE
@@ -719,6 +722,7 @@ const (
 	kwPERSIST_ONLY
 	kwPLUGIN_DIR
 	kwPORT
+	kwPREFIX
 	kwPRIVILEGE_CHECKS_USER
 	kwQUALIFY
 	kwQUARTER
@@ -800,6 +804,8 @@ const (
 	kwSQL_TSI_SECOND
 	kwSQL_TSI_WEEK
 	kwSQL_TSI_YEAR
+	kwSSE_KMS
+	kwSSE_S3
 	kwST_COLLECT
 	kwSTATS_AUTO_RECALC
 	kwSTATS_PERSISTENT
@@ -1455,6 +1461,7 @@ var keywords = map[string]int{
 	"constraint_schema":                      kwCONSTRAINT_SCHEMA,
 	"context":                                kwCONTEXT,
 	"cpu":                                    kwCPU,
+	"csv":                                    kwCSV,
 	"curdate":                                kwCURDATE,
 	"cursor_name":                            kwCURSOR_NAME,
 	"curtime":                                kwCURTIME,
@@ -1514,6 +1521,7 @@ var keywords = map[string]int{
 	"locks":                                  kwLOCKS,
 	"log":                                    kwLOG,
 	"long":                                   kwLONG,
+	"manifest":                               kwMANIFEST,
 	"manual":                                 kwMANUAL,
 	"materialized":                           kwMATERIALIZED,
 	"max_connections_per_hour":               kwMAX_CONNECTIONS_PER_HOUR,
@@ -1541,6 +1549,7 @@ var keywords = map[string]int{
 	"off":                                    kwOFF,
 	"oj":                                     kwOJ,
 	"others":                                 kwOTHERS,
+	"overwrite":                              kwOVERWRITE,
 	"owner":                                  kwOWNER,
 	"pack_keys":                              kwPACK_KEYS,
 	"page":                                   kwPAGE,
@@ -1551,6 +1560,7 @@ var keywords = map[string]int{
 	"persist_only":                           kwPERSIST_ONLY,
 	"plugin_dir":                             kwPLUGIN_DIR,
 	"port":                                   kwPORT,
+	"prefix":                                 kwPREFIX,
 	"privilege_checks_user":                  kwPRIVILEGE_CHECKS_USER,
 	"qualify":                                kwQUALIFY,
 	"quarter":                                kwQUARTER,
@@ -1632,6 +1642,8 @@ var keywords = map[string]int{
 	"sql_tsi_second":                         kwSQL_TSI_SECOND,
 	"sql_tsi_week":                           kwSQL_TSI_WEEK,
 	"sql_tsi_year":                           kwSQL_TSI_YEAR,
+	"sse_kms":                                kwSSE_KMS,
+	"sse_s3":                                 kwSSE_S3,
 	"st_collect":                             kwST_COLLECT,
 	"stats_auto_recalc":                      kwSTATS_AUTO_RECALC,
 	"stats_persistent":                       kwSTATS_PERSISTENT,

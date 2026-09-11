@@ -472,6 +472,19 @@ var keywordCategories = map[int]keywordCategory{
 	kwRESOURCE:            kwCatAmbiguous3,
 	// Ambiguous 4 (not lvalue)
 	kwPERSIST:             kwCatAmbiguous4,
+	// --- Aurora MySQL S3 extension keywords (LOAD DATA FROM S3, SELECT ... INTO OUTFILE S3) ---
+	// Not MySQL 8.0 keywords; unambiguous so they stay usable as identifiers,
+	// labels, role names and SET targets.
+	kwCSV:                kwCatUnambiguous,
+	kwMANIFEST:           kwCatUnambiguous,
+	kwOVERWRITE:          kwCatUnambiguous,
+	kwPREFIX:             kwCatUnambiguous,
+	kwSSE_KMS:            kwCatUnambiguous,
+	kwSSE_S3:             kwCatUnambiguous,
+	// MySQL 8.0 unambiguous keywords that the Aurora syntax consumes as tokens.
+	kwENCRYPTION:         kwCatUnambiguous,
+	kwHEADER:             kwCatUnambiguous,
+	kwS3:                 kwCatUnambiguous,
 }
 
 // isReserved returns true if the token type is a reserved keyword that cannot

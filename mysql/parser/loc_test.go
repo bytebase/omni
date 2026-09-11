@@ -369,6 +369,11 @@ func TestLocAudit(t *testing.T) {
 
 		// LOAD DATA
 		"LOAD DATA INFILE '/tmp/data.txt' INTO TABLE t",
+		// Aurora MySQL S3 forms
+		"LOAD DATA FROM S3 's3://b/x' INTO TABLE t",
+		"LOAD DATA FROM S3 MANIFEST 's3://b/x.json' INTO TABLE t",
+		"LOAD XML FROM S3 's3://b/x.xml' INTO TABLE t",
+		"SELECT * FROM t INTO OUTFILE S3 's3://b/p' FORMAT CSV HEADER MANIFEST ON OVERWRITE ON ENCRYPTION SSE_KMS 'k'",
 
 		// Multi-statement
 		"SELECT 1; SELECT 2",

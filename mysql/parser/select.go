@@ -1686,6 +1686,69 @@ func (p *Parser) parseLockInShareMode() (*nodes.ForUpdate, error) {
 	}, nil
 }
 
+// parseOutfileS3Options parses the trailing Aurora MySQL export options of
+// INTO OUTFILE S3, in documented order:
+//
+//	[MANIFEST {ON | OFF}]
+//	[OVERWRITE {ON | OFF}]
+//	[ENCRYPTION {ON | OFF | SSE_S3 | SSE_KMS ['cmk_id']}]
+func (p *Parser) parseOutfileS3Options(into *nodes.IntoClause) error {
+	if p.cur.Type == kwMANIFEST {
+		p.advance()
+		v, err := p.parseOnOff()
+		if err != nil {
+			return err
+		}
+		into.Manifest = v
+	}
+	if p.cur.Type == kwOVERWRITE {
+		p.advance()
+		v, err := p.parseOnOff()
+		if err != nil {
+			return err
+		}
+		into.Overwrite = v
+	}
+	if p.cur.Type == kwENCRYPTION {
+		p.advance()
+		switch p.cur.Type {
+		case kwON:
+			into.Encryption = "ON"
+			p.advance()
+		case kwOFF:
+			into.Encryption = "OFF"
+			p.advance()
+		case kwSSE_S3:
+			into.Encryption = "SSE_S3"
+			p.advance()
+		case kwSSE_KMS:
+			into.Encryption = "SSE_KMS"
+			p.advance()
+			if p.cur.Type == tokSCONST {
+				into.EncryptionKey = p.cur.Str
+				p.advance()
+			}
+		default:
+			return p.syntaxErrorAtCur()
+		}
+	}
+	return nil
+}
+
+// parseOnOff consumes ON or OFF and returns its canonical spelling.
+func (p *Parser) parseOnOff() (string, error) {
+	switch p.cur.Type {
+	case kwON:
+		p.advance()
+		return "ON", nil
+	case kwOFF:
+		p.advance()
+		return "OFF", nil
+	default:
+		return "", p.syntaxErrorAtCur()
+	}
+}
+
 // parseIntoClause parses INTO OUTFILE / DUMPFILE / var_list.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/select.html
@@ -1705,6 +1768,22 @@ func (p *Parser) parseLockInShareMode() (*nodes.ForUpdate, error) {
 //	  | INTO DUMPFILE 'file_name'
 //	  | INTO var_name [, var_name] ...
 //	}
+//
+// Aurora MySQL extension — export straight to S3. Aurora registers as the
+// MYSQL engine, so the extension is accepted unconditionally; stock MySQL 8.0
+// rejects it with ER_PARSE_ERROR (1064). The Aurora-only options (FORMAT,
+// HEADER, MANIFEST, OVERWRITE, ENCRYPTION) are accepted only after OUTFILE S3.
+//
+// Ref: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Integrating.SaveIntoS3.html
+//
+//	INTO OUTFILE S3 's3_uri'
+//	    [CHARACTER SET charset_name]
+//	    [FORMAT {CSV | TEXT} [HEADER]]
+//	    [{FIELDS | COLUMNS} ...]
+//	    [LINES ...]
+//	    [MANIFEST {ON | OFF}]
+//	    [OVERWRITE {ON | OFF}]
+//	    [ENCRYPTION {ON | OFF | SSE_S3 | SSE_KMS ['cmk_id']}]
 func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 	start := p.pos()
 	into := &nodes.IntoClause{Loc: nodes.Loc{Start: start}}
@@ -1712,6 +1791,20 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 	switch p.cur.Type {
 	case kwOUTFILE:
 		p.advance()
+		// Completion: INTO OUTFILE | → a file literal or the Aurora S3 form.
+		p.checkCursor()
+		if p.collectMode() {
+			p.addTokenCandidate(kwS3)
+			return nil, &ParseError{Message: "collecting"}
+		}
+		// Aurora MySQL: INTO OUTFILE S3 's3_uri'
+		if p.cur.Type == kwS3 {
+			p.advance()
+			into.OutfileS3 = true
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
 		if p.cur.Type == tokSCONST {
 			into.Outfile = p.cur.Str
 			p.advance()
@@ -1733,6 +1826,24 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 				return nil, csErr
 			}
 			into.Charset = charset
+		}
+
+		// Aurora MySQL: [FORMAT {CSV | TEXT} [HEADER]]
+		if into.OutfileS3 && p.cur.Type == kwFORMAT {
+			p.advance()
+			switch p.cur.Type {
+			case kwCSV:
+				into.Format = "CSV"
+			case kwTEXT:
+				into.Format = "TEXT"
+			default:
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance()
+			if p.cur.Type == kwHEADER {
+				into.Header = true
+				p.advance()
+			}
 		}
 
 		// [{FIELDS | COLUMNS} ...]
@@ -1798,6 +1909,14 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 					into.LinesTerminatedBy = p.cur.Str
 					p.advance()
 				}
+			}
+		}
+
+		// Aurora MySQL: [MANIFEST {ON | OFF}] [OVERWRITE {ON | OFF}]
+		//               [ENCRYPTION {ON | OFF | SSE_S3 | SSE_KMS ['cmk_id']}]
+		if into.OutfileS3 {
+			if err := p.parseOutfileS3Options(into); err != nil {
+				return nil, err
 			}
 		}
 
