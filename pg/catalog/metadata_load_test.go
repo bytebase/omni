@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
+	nodes "github.com/bytebase/omni/pg/ast"
 )
 
 func loadSnapshot(t *testing.T, full bool, schemas ...*metadata.SchemaMetadata) (*Catalog, *LoadMetadataReport) {
@@ -121,33 +122,10 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 			}},
 			// A table's row type.
 			{Name: "aa_row_holder", Attributes: []*metadata.CompositeTypeAttribute{{Name: "o", Type: "public.zz_orders"}}},
-			{Name: "aa_wraps_view", Attributes: []*metadata.CompositeTypeAttribute{{Name: "v", Type: "public.aa_calls_overload"}}},
 		},
 		EnumTypes: []*metadata.EnumTypeMetadata{{Name: "zz_status", Values: []string{"a"}}},
 		Views: []*metadata.ViewMetadata{
 			{Name: "aa_view", Definition: "SELECT id, public.zz_code(id) AS code FROM public.zz_orders"},
-			{Name: "aa_count", Definition: "SELECT count(*) AS n FROM public.zz_mview"},
-			{Name: "aa_uses_fn", Definition: "SELECT public.aa_view_row() AS row"},
-			{Name: "aa_from_fn", Definition: "SELECT id FROM public.aa_view_row()"},
-			{Name: "aa_calls_g", Definition: "SELECT public.g(1) AS r"},
-			{Name: "aa_cast", Definition: "SELECT NULL::public.zz_view AS r"},
-			// The CTE shares its name with the qualified view it reads.
-			{Name: "aa_cte_count", Definition: "WITH zz_view AS (SELECT 1 AS id) SELECT count(*) AS n FROM public.zz_view"},
-			// Calls f(integer); the other overloads take this view's row type,
-			// directly or through aa_wraps_view.
-			{Name: "aa_calls_overload", Definition: "SELECT public.f(1) AS x"},
-			// zz_calls_h calls h(integer); the other overload takes the row type
-			// of aa_reads_caller, which reads zz_calls_h.
-			{Name: "aa_reads_caller", Definition: "SELECT x FROM public.zz_calls_h"},
-			{Name: "zz_calls_h", Definition: "SELECT public.h(1) AS x"},
-			// aa_calls_k calls k, whose only overload returns zz_calls_m's rows;
-			// zz_calls_m calls m(integer), and the other m takes aa_calls_k's row type.
-			{Name: "aa_calls_k", Definition: "SELECT public.k(1) AS r"},
-			{Name: "zz_calls_m", Definition: "SELECT public.m(1) AS x"},
-			{Name: "zz_view", Definition: "SELECT id FROM public.zz_orders"},
-		},
-		MaterializedViews: []*metadata.MaterializedViewMetadata{
-			{Name: "zz_mview", Definition: "SELECT id FROM public.zz_orders"},
 		},
 		Functions: []*metadata.FunctionMetadata{
 			{Name: "aa_fn", Signature: "aa_fn(public.zz_base)", Definition: "CREATE FUNCTION public.aa_fn(b public.zz_base) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
@@ -157,22 +135,6 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 				Signature:  "aa_rows()",
 				Definition: "CREATE FUNCTION public.aa_rows() RETURNS SETOF public.zz_orders LANGUAGE sql AS $$ SELECT * FROM zz_orders $$;",
 			},
-			{
-				Name:       "aa_view_row",
-				Signature:  "aa_view_row()",
-				Definition: "CREATE FUNCTION public.aa_view_row() RETURNS public.zz_view LANGUAGE sql AS $$ SELECT * FROM zz_view $$;",
-			},
-			{Name: "f", Signature: "f(integer)", Definition: "CREATE FUNCTION public.f(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;"},
-			// Both overloads return a later view's rows.
-			{Name: "g", Signature: "g(integer)", Definition: "CREATE FUNCTION public.g(x integer) RETURNS public.zz_view LANGUAGE sql AS $$ SELECT * FROM zz_view $$;"},
-			{Name: "g", Signature: "g(text)", Definition: "CREATE FUNCTION public.g(x text) RETURNS public.zz_view LANGUAGE sql AS $$ SELECT * FROM zz_view $$;"},
-			{Name: "f", Signature: "f(public.aa_calls_overload)", Definition: "CREATE FUNCTION public.f(v public.aa_calls_overload) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
-			{Name: "h", Signature: "h(integer)", Definition: "CREATE FUNCTION public.h(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;"},
-			{Name: "h", Signature: "h(public.aa_reads_caller)", Definition: "CREATE FUNCTION public.h(r public.aa_reads_caller) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
-			{Name: "k", Signature: "k(integer)", Definition: "CREATE FUNCTION public.k(x integer) RETURNS public.zz_calls_m LANGUAGE sql AS $$ SELECT 1 $$;"},
-			{Name: "m", Signature: "m(integer)", Definition: "CREATE FUNCTION public.m(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;"},
-			{Name: "m", Signature: "m(public.aa_calls_k)", Definition: "CREATE FUNCTION public.m(r public.aa_calls_k) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
-			{Name: "f", Signature: "f(public.aa_wraps_view)", Definition: "CREATE FUNCTION public.f(w public.aa_wraps_view) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
 			// Called by a default, an index expression, and a view body.
 			{Name: "zz_code", Signature: "zz_code(integer)", Definition: "CREATE FUNCTION public.zz_code(x integer) RETURNS integer IMMUTABLE LANGUAGE sql AS $$ SELECT x $$;"},
 		},
@@ -239,6 +201,74 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 	}
 }
 
+func TestLoadMetadataOrdersViewsByTheirBodies(t *testing.T) {
+	// Each aa_ view needs a zz_ relation, which sorts after it, and only the
+	// view's body says so.
+	_, report := loadSnapshot(t, false, &metadata.SchemaMetadata{
+		Name:   "public",
+		Tables: []*metadata.TableMetadata{{Name: "zz_orders", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "integer"}}}},
+		Views: []*metadata.ViewMetadata{
+			{Name: "aa_count", Definition: "SELECT count(*) AS n FROM public.zz_mview"},
+			{Name: "aa_uses_fn", Definition: "SELECT public.view_row() AS row"},
+			{Name: "aa_from_fn", Definition: "SELECT id FROM public.view_row()"},
+			{Name: "aa_cast", Definition: "SELECT NULL::public.zz_view AS r"},
+			// The CTE shares its name with the qualified view it reads.
+			{Name: "aa_cte_count", Definition: "WITH zz_view AS (SELECT 1 AS id) SELECT count(*) AS n FROM public.zz_view"},
+			{Name: "zz_view", Definition: "SELECT id FROM public.zz_orders"},
+		},
+		MaterializedViews: []*metadata.MaterializedViewMetadata{
+			{Name: "zz_mview", Definition: "SELECT id FROM public.zz_orders"},
+		},
+		Functions: []*metadata.FunctionMetadata{{
+			Name:       "view_row",
+			Signature:  "view_row()",
+			Definition: "CREATE FUNCTION public.view_row() RETURNS public.zz_view LANGUAGE sql AS $$ SELECT * FROM zz_view $$;",
+		}},
+	})
+	requireCleanReport(t, report)
+}
+
+func TestLoadMetadataInstallsAroundOverloadedCalls(t *testing.T) {
+	// A call does not say which overload it uses, so a view waits for all of
+	// them. In each case below, an overload the view does not call waits on
+	// something sorted after the view, or on the view itself.
+	_, report := loadSnapshot(t, false, &metadata.SchemaMetadata{
+		Name: "public",
+		CompositeTypes: []*metadata.CompositeTypeMetadata{
+			{Name: "aa_wraps_view", Attributes: []*metadata.CompositeTypeAttribute{{Name: "v", Type: "public.aa_calls_f"}}},
+		},
+		Views: []*metadata.ViewMetadata{
+			// Both overloads of g return zz_view's rows.
+			{Name: "aa_calls_g", Definition: "SELECT public.g(1) AS r"},
+			{Name: "zz_view", Definition: "SELECT 1 AS id"},
+			// Calls f(integer); the other overloads take this view's row type,
+			// directly or through aa_wraps_view.
+			{Name: "aa_calls_f", Definition: "SELECT public.f(1) AS x"},
+			// zz_calls_h calls h(integer); the other h takes the row type of
+			// aa_reads_caller, which reads zz_calls_h.
+			{Name: "aa_reads_caller", Definition: "SELECT x FROM public.zz_calls_h"},
+			{Name: "zz_calls_h", Definition: "SELECT public.h(1) AS x"},
+			// aa_calls_k calls k, whose only overload returns zz_calls_m's rows;
+			// zz_calls_m calls m(integer), and the other m takes aa_calls_k's row type.
+			{Name: "aa_calls_k", Definition: "SELECT public.k(1) AS r"},
+			{Name: "zz_calls_m", Definition: "SELECT public.m(1) AS x"},
+		},
+		Functions: []*metadata.FunctionMetadata{
+			{Name: "g", Signature: "g(integer)", Definition: "CREATE FUNCTION public.g(x integer) RETURNS public.zz_view LANGUAGE sql AS $$ SELECT * FROM zz_view $$;"},
+			{Name: "g", Signature: "g(text)", Definition: "CREATE FUNCTION public.g(x text) RETURNS public.zz_view LANGUAGE sql AS $$ SELECT * FROM zz_view $$;"},
+			{Name: "f", Signature: "f(integer)", Definition: "CREATE FUNCTION public.f(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;"},
+			{Name: "f", Signature: "f(public.aa_calls_f)", Definition: "CREATE FUNCTION public.f(v public.aa_calls_f) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
+			{Name: "f", Signature: "f(public.aa_wraps_view)", Definition: "CREATE FUNCTION public.f(w public.aa_wraps_view) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
+			{Name: "h", Signature: "h(integer)", Definition: "CREATE FUNCTION public.h(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;"},
+			{Name: "h", Signature: "h(public.aa_reads_caller)", Definition: "CREATE FUNCTION public.h(r public.aa_reads_caller) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
+			{Name: "k", Signature: "k(integer)", Definition: "CREATE FUNCTION public.k(x integer) RETURNS public.zz_calls_m LANGUAGE sql AS $$ SELECT 1 $$;"},
+			{Name: "m", Signature: "m(integer)", Definition: "CREATE FUNCTION public.m(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;"},
+			{Name: "m", Signature: "m(public.aa_calls_k)", Definition: "CREATE FUNCTION public.m(r public.aa_calls_k) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
+		},
+	})
+	requireCleanReport(t, report)
+}
+
 func TestLoadMetadataRecordsSequenceDependencies(t *testing.T) {
 	// The table sorts first; the sequence must still install before it, or the
 	// default records no dependency on it.
@@ -257,6 +287,71 @@ func TestLoadMetadataRecordsSequenceDependencies(t *testing.T) {
 	}
 	if results[0].Error == nil {
 		t.Error("dropping a sequence a column default draws from must fail")
+	}
+}
+
+func TestLoadMetadataBreaksCycles(t *testing.T) {
+	// a reads b, b reads c, and c reads a. Only a, the first member, needs a
+	// stand-in: c installs against it, then b against c. v_f calls fv, which
+	// returns v_f's rows; the stand-in goes to the view, which needs nothing.
+	view := func(name, def string) *metadata.ViewMetadata {
+		return &metadata.ViewMetadata{Name: name, Definition: def, Columns: []*metadata.ColumnMetadata{{Name: "id"}}}
+	}
+	c, report := loadSnapshot(t, false, &metadata.SchemaMetadata{
+		Name: "public",
+		Views: []*metadata.ViewMetadata{
+			view("v_b", "SELECT id FROM public.v_c"),
+			view("v_c", "SELECT id FROM public.v_a"),
+			view("v_a", "SELECT id FROM public.v_b"),
+			view("v_f", "SELECT id FROM public.fv()"),
+		},
+		Functions: []*metadata.FunctionMetadata{{
+			Name:       "fv",
+			Signature:  "fv()",
+			Definition: "CREATE FUNCTION public.fv() RETURNS SETOF public.v_f LANGUAGE sql AS $$ SELECT 1 $$;",
+		}},
+	})
+	requireDegraded(t, report, "rel:public.v_a", "rel:public.v_f")
+	for _, name := range []string{"v_a", "v_b", "v_c", "v_f"} {
+		requireRelation(t, c, "public", name)
+	}
+}
+
+func TestOrderMetadataObjectsIsDeterministic(t *testing.T) {
+	schema := &metadata.SchemaMetadata{
+		Name:      "public",
+		EnumTypes: []*metadata.EnumTypeMetadata{{Name: "e"}},
+		Tables: []*metadata.TableMetadata{
+			{Name: "b", Columns: []*metadata.ColumnMetadata{{Name: "x", Type: "public.e"}}},
+			{Name: "a"},
+			{Name: "c"},
+		},
+		Views: []*metadata.ViewMetadata{
+			{Name: "v1", Definition: "SELECT * FROM public.v2"},
+			{Name: "v2", Definition: "SELECT * FROM public.v1"},
+		},
+	}
+	keys := func(groups [][]*metadataObject) []string {
+		var out []string
+		for _, group := range groups {
+			for _, o := range group {
+				out = append(out, o.key())
+			}
+		}
+		return out
+	}
+	objects := collectMetadataObjects(&metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{schema}}, false)
+	want := keys(orderMetadataObjects(objects))
+	if !slices.Equal(want, []string{"schema:public", "type:public.e", "rel:public.a", "rel:public.b", "rel:public.c", "rel:public.v1", "rel:public.v2"}) {
+		t.Fatalf("order = %v", want)
+	}
+	r := rand.New(rand.NewSource(1))
+	for range 20 {
+		shuffled := slices.Clone(objects)
+		r.Shuffle(len(shuffled), func(i, j int) { shuffled[i], shuffled[j] = shuffled[j], shuffled[i] })
+		if got := keys(orderMetadataObjects(shuffled)); !slices.Equal(got, want) {
+			t.Fatalf("order depends on input order: %v, want %v", got, want)
+		}
 	}
 }
 
@@ -342,33 +437,6 @@ func TestLoadMetadataCompositeStandInKeepsAttributeNames(t *testing.T) {
 	rel := requireRelation(t, c, "public", "with_domain")
 	if len(rel.Columns) != 2 || rel.Columns[0].Name != "p" || rel.Columns[1].Name != "note" {
 		t.Errorf("stand-in attributes = %v, want p and note", columnTypes(c, rel))
-	}
-}
-
-func TestLoadMetadataBreaksCycles(t *testing.T) {
-	// a reads b, b reads c, and c reads a. Only a, the first member, needs a
-	// stand-in: c installs against it, then b against c. v_f calls fv, which
-	// returns v_f's rows; the stand-in goes to the view, which needs nothing.
-	view := func(name, def string) *metadata.ViewMetadata {
-		return &metadata.ViewMetadata{Name: name, Definition: def, Columns: []*metadata.ColumnMetadata{{Name: "id"}}}
-	}
-	c, report := loadSnapshot(t, false, &metadata.SchemaMetadata{
-		Name: "public",
-		Views: []*metadata.ViewMetadata{
-			view("v_b", "SELECT id FROM public.v_c"),
-			view("v_c", "SELECT id FROM public.v_a"),
-			view("v_a", "SELECT id FROM public.v_b"),
-			view("v_f", "SELECT id FROM public.fv()"),
-		},
-		Functions: []*metadata.FunctionMetadata{{
-			Name:       "fv",
-			Signature:  "fv()",
-			Definition: "CREATE FUNCTION public.fv() RETURNS SETOF public.v_f LANGUAGE sql AS $$ SELECT 1 $$;",
-		}},
-	})
-	requireDegraded(t, report, "rel:public.v_a", "rel:public.v_f")
-	for _, name := range []string{"v_a", "v_b", "v_c", "v_f"} {
-		requireRelation(t, c, "public", name)
 	}
 }
 
@@ -637,6 +705,213 @@ func (c *doneAfter) Err() error {
 	return nil
 }
 
+func TestMetadataIndexStmt(t *testing.T) {
+	stmt, err := metadataIndexStmt("public", "t", &metadata.IndexMetadata{
+		Name:        "t_idx",
+		Type:        "btree",
+		Expressions: []string{"id", `"Name"`, `"Full Name"`, "lower(email)", "(payload ->> 'k'::text)"},
+		Descending:  []bool{false, true},
+	})
+	if err != nil {
+		t.Fatalf("metadataIndexStmt: %v", err)
+	}
+	elems := stmt.IndexParams.Items
+	if len(elems) != 5 {
+		t.Fatalf("got %d index keys, want 5", len(elems))
+	}
+	for i, want := range []string{"id", "Name", "Full Name", "", ""} {
+		elem := elems[i].(*nodes.IndexElem)
+		if elem.Name != want || (want == "") != (elem.Expr != nil) {
+			t.Errorf("key %d: name %q, expr %v; want name %q", i, elem.Name, elem.Expr, want)
+		}
+	}
+	if elems[1].(*nodes.IndexElem).Ordering != nodes.SORTBY_DESC {
+		t.Error("second key must be descending")
+	}
+	if _, err := metadataIndexStmt("public", "t", &metadata.IndexMetadata{Expressions: []string{"id"}}); err == nil {
+		t.Error("an index without a name must fail")
+	}
+}
+
+func TestStandInFunctionStmt(t *testing.T) {
+	c := New()
+	for _, procedure := range []bool{false, true} {
+		name := "fn"
+		if procedure {
+			name = "proc"
+		}
+		stmt, err := standInFunctionStmt("public", &metadata.FunctionMetadata{
+			Name:      name,
+			Signature: name + "(integer, text)",
+		}, procedure)
+		if err != nil {
+			t.Fatalf("standInFunctionStmt: %v", err)
+		}
+		if stmt.Parameters == nil || len(stmt.Parameters.Items) != 2 {
+			t.Fatalf("want the signature's two parameters, got %+v", stmt.Parameters)
+		}
+		if err := c.CreateFunctionStmt(stmt); err != nil {
+			t.Fatalf("CreateFunctionStmt: %v", err)
+		}
+	}
+	if procs := c.LookupProcByName("proc"); len(procs) != 1 || procs[0].Kind != 'p' {
+		t.Errorf("a procedure's stand-in must install as a procedure, got %+v", procs)
+	}
+}
+
+func TestStandInSelectQuotesColumnNames(t *testing.T) {
+	c := New()
+	stmt, err := standInViewStmt("public", "v", []string{"id", "Mixed Case", `quote"d`, "select"})
+	if err != nil {
+		t.Fatalf("standInViewStmt: %v", err)
+	}
+	if err := c.DefineView(stmt); err != nil {
+		t.Fatalf("DefineView: %v", err)
+	}
+	var got []string
+	for _, col := range c.GetRelation("public", "v").Columns {
+		got = append(got, col.Name)
+	}
+	if want := []string{"id", "Mixed Case", `quote"d`, "select"}; !slices.Equal(got, want) {
+		t.Errorf("stand-in view columns = %q, want %q", got, want)
+	}
+}
+
+func TestParseTypeName(t *testing.T) {
+	for _, typ := range []string{
+		"integer",
+		"numeric(10,2)",
+		"timestamp(3) with time zone",
+		"character varying(255)",
+		"text[]",
+		"public.task_status",
+		`"My Schema"."My Type"`,
+	} {
+		if tn, err := parseTypeName(typ); err != nil || tn == nil {
+			t.Errorf("parseTypeName(%q) = %v, %v", typ, tn, err)
+		}
+	}
+	for _, typ := range []string{"", "integer; DROP TABLE t"} {
+		if _, err := parseTypeName(typ); err == nil {
+			t.Errorf("parseTypeName(%q) succeeded, want an error", typ)
+		}
+	}
+}
+
+func TestUserTypeRef(t *testing.T) {
+	tests := []struct {
+		typ          string
+		schema, name string
+	}{
+		{typ: "public.task_status", schema: "public", name: "task_status"},
+		{typ: "public.task_status[]", schema: "public", name: "task_status"},
+		{typ: "public.money_amount(10,2)", schema: "public", name: "money_amount"},
+		{typ: `"My Schema"."My Type"`, schema: "My Schema", name: "My Type"},
+		{typ: `"a""b".c`, schema: `a"b`, name: "c"},
+		{typ: `public."row(type"`, schema: "public", name: "row(type"},
+		// Built-in and array types are unqualified; sync qualifies every user type.
+		{typ: "integer"},
+		{typ: "character varying(255)"},
+		{typ: "timestamp(3) with time zone"},
+		{typ: "_int4"},
+		{typ: ""},
+	}
+	for _, tt := range tests {
+		schema, name, ok := userTypeRef(tt.typ)
+		if ok != (tt.schema != "") || schema != tt.schema || name != tt.name {
+			t.Errorf("userTypeRef(%q) = %q, %q, %v; want %q, %q", tt.typ, schema, name, ok, tt.schema, tt.name)
+		}
+	}
+}
+
+func TestIsProcedureDefinition(t *testing.T) {
+	for def, want := range map[string]bool{
+		"CREATE OR REPLACE PROCEDURE public.p(x integer)\n LANGUAGE sql\nAS $procedure$ SELECT 1 $procedure$": true,
+		"create procedure p() language sql as ''":                                                             true,
+		"CREATE OR REPLACE PROCEDURE public.cut(":                                                             true,
+		"CREATE OR REPLACE FUNCTION public.f()\n RETURNS integer":                                             false,
+		"CREATE OR REPLACE FUNCTION public.procedure()":                                                       false,
+		"": false,
+	} {
+		if got := isProcedureDefinition(def); got != want {
+			t.Errorf("isProcedureDefinition(%q) = %v, want %v", def, got, want)
+		}
+	}
+}
+
+func TestSignatureArgTypes(t *testing.T) {
+	tests := []struct {
+		name, signature string
+		want            []string
+		wantErr         bool
+	}{
+		{name: "fn", signature: "fn()"},
+		{name: "fn", signature: "fn"},
+		{name: "fn", signature: "fn(integer)", want: []string{"integer"}},
+		{name: "fn", signature: "fn(  int4 , text )", want: []string{"int4", "text"}},
+		{name: "fn", signature: "fn(numeric(10,2), public.status[])", want: []string{"numeric(10,2)", "public.status[]"}},
+		{name: "fn", signature: `fn(public."row,type", integer)`, want: []string{`public."row,type"`, "integer"}},
+		{name: "f(", signature: "f((integer)", want: []string{"integer"}},
+		{name: "fn", signature: "fn(integer", wantErr: true},
+	}
+	for _, tt := range tests {
+		got, err := signatureArgTypes(tt.name, tt.signature)
+		if (err != nil) != tt.wantErr || !slices.Equal(got, tt.want) {
+			t.Errorf("signatureArgTypes(%q, %q) = %q, %v; want %q", tt.name, tt.signature, got, err, tt.want)
+		}
+	}
+}
+
+func TestSplitQualifiedIdent(t *testing.T) {
+	tests := []struct {
+		in           string
+		schema, name string
+		ok           bool
+	}{
+		{in: "public.foo", schema: "public", name: "foo", ok: true},
+		{in: `"weird name"."another"`, schema: "weird name", name: "another", ok: true},
+		{in: `"has.dot".x`, schema: "has.dot", name: "x", ok: true},
+		{in: "foo"},
+		{in: "a.b.c"},
+		{in: `"unterminated.x`},
+		{in: `"a"b.c`},
+		{in: ".x"},
+	}
+	for _, tt := range tests {
+		schema, name, ok := splitQualifiedIdent(tt.in)
+		if schema != tt.schema || name != tt.name || ok != tt.ok {
+			t.Errorf("splitQualifiedIdent(%q) = %q, %q, %v; want %q, %q, %v", tt.in, schema, name, ok, tt.schema, tt.name, tt.ok)
+		}
+	}
+}
+
+func TestCollateClause(t *testing.T) {
+	names := func(c *nodes.CollateClause) []string {
+		var out []string
+		for _, item := range c.Collname.Items {
+			out = append(out, item.(*nodes.String).Str)
+		}
+		return out
+	}
+	if collateClause("") != nil {
+		t.Error("an empty collation must produce no clause")
+	}
+	for in, want := range map[string][]string{
+		`"C"`:             {"C"},
+		"und":             {"und"},
+		`"en_US"`:         {"en_US"},
+		"locale.en_us":    {"locale", "en_us"},
+		`"My Schema".x`:   {"My Schema", "x"},
+		`"say ""hi"""`:    {`say "hi"`},
+		`"a.b"`:           {"a.b"},
+		`public."C.utf8"`: {"public", "C.utf8"},
+	} {
+		if got := names(collateClause(in)); !slices.Equal(got, want) {
+			t.Errorf("collateClause(%q) names %q, want %q", in, got, want)
+		}
+	}
+}
+
 // BenchmarkLoadMetadata loads 2,000 tables, each with a primary key, and 200
 // views over them.
 func BenchmarkLoadMetadata(b *testing.B) {
@@ -672,43 +947,5 @@ func BenchmarkLoadMetadata(b *testing.B) {
 				}
 			}
 		})
-	}
-}
-
-func TestOrderMetadataObjectsIsDeterministic(t *testing.T) {
-	schema := &metadata.SchemaMetadata{
-		Name:      "public",
-		EnumTypes: []*metadata.EnumTypeMetadata{{Name: "e"}},
-		Tables: []*metadata.TableMetadata{
-			{Name: "b", Columns: []*metadata.ColumnMetadata{{Name: "x", Type: "public.e"}}},
-			{Name: "a"},
-			{Name: "c"},
-		},
-		Views: []*metadata.ViewMetadata{
-			{Name: "v1", Definition: "SELECT * FROM public.v2"},
-			{Name: "v2", Definition: "SELECT * FROM public.v1"},
-		},
-	}
-	keys := func(groups [][]*metadataObject) []string {
-		var out []string
-		for _, group := range groups {
-			for _, o := range group {
-				out = append(out, o.key())
-			}
-		}
-		return out
-	}
-	objects := collectMetadataObjects(&metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{schema}}, false)
-	want := keys(orderMetadataObjects(objects))
-	if !slices.Equal(want, []string{"schema:public", "type:public.e", "rel:public.a", "rel:public.b", "rel:public.c", "rel:public.v1", "rel:public.v2"}) {
-		t.Fatalf("order = %v", want)
-	}
-	r := rand.New(rand.NewSource(1))
-	for range 20 {
-		shuffled := slices.Clone(objects)
-		r.Shuffle(len(shuffled), func(i, j int) { shuffled[i], shuffled[j] = shuffled[j], shuffled[i] })
-		if got := keys(orderMetadataObjects(shuffled)); !slices.Equal(got, want) {
-			t.Fatalf("order depends on input order: %v, want %v", got, want)
-		}
 	}
 }
