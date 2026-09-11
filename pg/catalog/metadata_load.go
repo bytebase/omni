@@ -113,6 +113,9 @@ type metadataObject struct {
 	// body is a view's parsed query, or nil with bodyErr saying why.
 	body    *nodes.SelectStmt
 	bodyErr error
+	// identitySequences maps a table's identity columns to the sequences
+	// behind them.
+	identitySequences map[string]*metadata.SequenceMetadata
 }
 
 func (o *metadataObject) key() string {
@@ -187,6 +190,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 		}
 		schema := s.GetName()
 		out = append(out, &metadataObject{kind: metadataSchema, schema: schema, name: schema})
+		identitySeqs := identitySequences(s)
 		for _, e := range s.GetEnumTypes() {
 			out = append(out, &metadataObject{kind: metadataEnum, schema: schema, name: e.GetName(), enum: e})
 		}
@@ -194,7 +198,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			out = append(out, &metadataObject{kind: metadataComposite, schema: schema, name: ct.GetName(), composite: ct})
 		}
 		for _, t := range s.GetTables() {
-			out = append(out, &metadataObject{kind: metadataTable, schema: schema, name: t.GetName(), table: t})
+			out = append(out, &metadataObject{kind: metadataTable, schema: schema, name: t.GetName(), table: t, identitySequences: identitySeqs[t.GetName()]})
 		}
 		// A foreign table loads as a plain table: query analysis needs only its columns.
 		for _, et := range s.GetExternalTables() {
@@ -218,8 +222,8 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			continue
 		}
 		for _, seq := range s.GetSequences() {
-			// DefineRelation creates the sequence behind an identity column.
-			if ownedByIdentityColumn(seq, s.GetTables()) {
+			// The identity column creates its own sequence.
+			if identitySeqs[seq.GetOwnerTable()][seq.GetOwnerColumn()] == seq {
 				continue
 			}
 			out = append(out, &metadataObject{kind: metadataSequence, schema: schema, name: seq.GetName(), sequence: seq})
@@ -266,21 +270,28 @@ func appendIndexObjects(out []*metadataObject, schema, relation string, indexes 
 	return out
 }
 
-func ownedByIdentityColumn(seq *metadata.SequenceMetadata, tables []*metadata.TableMetadata) bool {
-	if seq.GetOwnerTable() == "" || seq.GetOwnerColumn() == "" {
-		return false
-	}
-	for _, t := range tables {
-		if t.GetName() != seq.GetOwnerTable() {
-			continue
-		}
+// identitySequences maps each table and identity column in s to the sequence
+// that backs the column.
+func identitySequences(s *metadata.SchemaMetadata) map[string]map[string]*metadata.SequenceMetadata {
+	identity := make(map[string]bool)
+	for _, t := range s.GetTables() {
 		for _, col := range t.GetColumns() {
-			if col.GetName() == seq.GetOwnerColumn() && col.GetIsIdentity() {
-				return true
+			if col.GetIsIdentity() {
+				identity[t.GetName()+"\x00"+col.GetName()] = true
 			}
 		}
 	}
-	return false
+	out := make(map[string]map[string]*metadata.SequenceMetadata)
+	for _, seq := range s.GetSequences() {
+		if !identity[seq.GetOwnerTable()+"\x00"+seq.GetOwnerColumn()] {
+			continue
+		}
+		if out[seq.GetOwnerTable()] == nil {
+			out[seq.GetOwnerTable()] = make(map[string]*metadata.SequenceMetadata)
+		}
+		out[seq.GetOwnerTable()][seq.GetOwnerColumn()] = seq
+	}
+	return out
 }
 
 // isKeyIndex reports whether an index backs a PRIMARY KEY or UNIQUE
@@ -384,7 +395,7 @@ func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataO
 	}
 
 	edges := make(map[string][]string, len(objects))
-	for _, o := range objects {
+	depsOf := func(o *metadataObject) []string {
 		self := o.key()
 		var deps []string
 		add := func(key string) {
@@ -443,11 +454,13 @@ func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataO
 			for _, ref := range typeRefs {
 				add("type:" + ref)
 			}
-			// A call cannot say which of several overloads it uses, and depending
-			// on all of them could invent a cycle.
+			// A view cannot call an overload that uses its own row type: that
+			// overload cannot exist before the view does.
 			for _, ref := range funcRefs {
-				if keys := functionKeys[ref]; len(keys) == 1 {
-					add(keys[0])
+				for _, key := range functionKeys[ref] {
+					if !slices.Contains(edges[key], self) {
+						add(key)
+					}
 				}
 			}
 		case metadataFunction:
@@ -480,8 +493,17 @@ func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataO
 			}
 		default:
 		}
-		if len(deps) > 0 {
-			edges[self] = deps
+		return deps
+	}
+	// A view reads the edges of the functions it calls, so views go second.
+	for _, views := range []bool{false, true} {
+		for _, o := range objects {
+			if (o.kind == metadataView || o.kind == metadataMatView) != views {
+				continue
+			}
+			if deps := depsOf(o); len(deps) > 0 {
+				edges[o.key()] = deps
+			}
 		}
 	}
 	return edges
@@ -563,7 +585,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 	case metadataSequence:
 		return c.DefineSequence(metadataSequenceStmt(o.schema, o.sequence))
 	case metadataTable:
-		stmt, err := metadataTableStmt(o.schema, o.table, full)
+		stmt, err := metadataTableStmt(o.schema, o.table, full, o.identitySequences)
 		if err != nil {
 			return err
 		}

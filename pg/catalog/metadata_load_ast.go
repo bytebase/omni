@@ -50,6 +50,19 @@ func metadataSequenceStmt(schema string, seq *metadata.SequenceMetadata) *nodes.
 	if tn, err := parseTypeName(seq.GetDataType()); err == nil {
 		opts = append(opts, &nodes.DefElem{Defname: "as", Arg: tn})
 	}
+	opts = append(opts, sequenceOptions(seq)...)
+	stmt := &nodes.CreateSeqStmt{
+		Sequence: &nodes.RangeVar{Schemaname: schema, Relname: seq.GetName(), Relpersistence: 'p'},
+	}
+	if len(opts) > 0 {
+		stmt.Options = &nodes.List{Items: opts}
+	}
+	return stmt
+}
+
+// sequenceOptions returns a sequence's settings other than its type.
+func sequenceOptions(seq *metadata.SequenceMetadata) []nodes.Node {
+	var opts []nodes.Node
 	for _, o := range []struct{ name, value string }{
 		{"increment", seq.GetIncrement()},
 		{"minvalue", seq.GetMinValue()},
@@ -66,19 +79,13 @@ func metadataSequenceStmt(schema string, seq *metadata.SequenceMetadata) *nodes.
 	if seq.GetCycle() {
 		opts = append(opts, &nodes.DefElem{Defname: "cycle", Arg: &nodes.Boolean{Boolval: true}})
 	}
-	stmt := &nodes.CreateSeqStmt{
-		Sequence: &nodes.RangeVar{Schemaname: schema, Relname: seq.GetName(), Relpersistence: 'p'},
-	}
-	if len(opts) > 0 {
-		stmt.Options = &nodes.List{Items: opts}
-	}
-	return stmt
+	return opts
 }
 
 // metadataTableStmt fails on any column whose type does not parse, so the
 // table gets a stand-in rather than a partial definition. With full, a default
 // or generation expression that does not parse is dropped instead.
-func metadataTableStmt(schema string, t *metadata.TableMetadata, full bool) (*nodes.CreateStmt, error) {
+func metadataTableStmt(schema string, t *metadata.TableMetadata, full bool, identitySequences map[string]*metadata.SequenceMetadata) (*nodes.CreateStmt, error) {
 	items := make([]nodes.Node, 0, len(t.GetColumns()))
 	for _, col := range t.GetColumns() {
 		if col.GetName() == "" {
@@ -97,7 +104,7 @@ func metadataTableStmt(schema string, t *metadata.TableMetadata, full bool) (*no
 			def.CollClause = &nodes.CollateClause{Collname: metadataNameList("", col.GetCollation())}
 		}
 		if full {
-			setColumnValueProperties(def, col)
+			setColumnValueProperties(schema, def, col, identitySequences[col.GetName()])
 		}
 		items = append(items, def)
 	}
@@ -107,7 +114,9 @@ func metadataTableStmt(schema string, t *metadata.TableMetadata, full bool) (*no
 	}, nil
 }
 
-func setColumnValueProperties(def *nodes.ColumnDef, col *metadata.ColumnMetadata) {
+// setColumnValueProperties sets a column's default, generation, and identity;
+// seq is the sequence behind an identity column, when the snapshot has it.
+func setColumnValueProperties(schema string, def *nodes.ColumnDef, col *metadata.ColumnMetadata, seq *metadata.SequenceMetadata) {
 	if col.GetDefault() != "" && col.GetGeneration() == nil {
 		if expr, err := parseScalar("SELECT " + col.GetDefault()); err == nil {
 			def.RawDefault = expr
@@ -122,10 +131,18 @@ func setColumnValueProperties(def *nodes.ColumnDef, col *metadata.ColumnMetadata
 		}
 	}
 	if col.GetIsIdentity() {
-		def.Identity = 'd'
+		identity := &nodes.Constraint{Contype: nodes.CONSTR_IDENTITY, GeneratedWhen: 'd'}
 		if col.GetIdentityGeneration() == metadata.ColumnMetadata_ALWAYS {
-			def.Identity = 'a'
+			identity.GeneratedWhen = 'a'
 		}
+		if seq != nil {
+			opts := append([]nodes.Node{&nodes.DefElem{Defname: "sequence_name", Arg: metadataNameList(schema, seq.GetName())}}, sequenceOptions(seq)...)
+			identity.Options = &nodes.List{Items: opts}
+		}
+		if def.Constraints == nil {
+			def.Constraints = &nodes.List{}
+		}
+		def.Constraints.Items = append(def.Constraints.Items, identity)
 	}
 }
 

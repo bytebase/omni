@@ -119,6 +119,8 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 			// Reads no column of the materialized view, so sync records no dependency column.
 			{Name: "aa_count", Definition: "SELECT count(*) AS n FROM public.zz_mview"},
 			{Name: "aa_uses_fn", Definition: "SELECT public.aa_view_row() AS row"},
+			{Name: "aa_calls_g", Definition: "SELECT public.g(1) AS r"},
+			{Name: "aa_cte_count", Definition: "WITH zz_view AS (SELECT 1 AS id) SELECT count(*) AS n FROM public.zz_view"},
 			// Calls f(integer); the other overload takes this view's row type.
 			{Name: "aa_calls_overload", Definition: "SELECT public.f(1) AS x"},
 			// The CTE shares its name with the qualified view it reads.
@@ -146,6 +148,9 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 				Definition: "CREATE FUNCTION public.aa_view_row() RETURNS public.zz_view LANGUAGE sql AS $$ SELECT * FROM zz_view $$;",
 			},
 			{Name: "f", Signature: "f(integer)", Definition: "CREATE FUNCTION public.f(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;"},
+			// Both overloads return a later view's rows.
+			{Name: "g", Signature: "g(integer)", Definition: "CREATE FUNCTION public.g(x integer) RETURNS public.zz_view LANGUAGE sql AS $$ SELECT * FROM zz_view $$;"},
+			{Name: "g", Signature: "g(text)", Definition: "CREATE FUNCTION public.g(x text) RETURNS public.zz_view LANGUAGE sql AS $$ SELECT * FROM zz_view $$;"},
 			{Name: "f", Signature: "f(public.aa_calls_overload)", Definition: "CREATE FUNCTION public.f(v public.aa_calls_overload) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
 			// Called by a default, an index expression, and a view body.
 			{Name: "zz_code", Signature: "zz_code(integer)", Definition: "CREATE FUNCTION public.zz_code(x integer) RETURNS integer IMMUTABLE LANGUAGE sql AS $$ SELECT x $$;"},
@@ -436,8 +441,8 @@ func TestLoadMetadataFull(t *testing.T) {
 		Sequences: []*metadata.SequenceMetadata{
 			{Name: "counter_seq", DataType: "integer", Start: "0", MinValue: "0", MaxValue: "100", Increment: "1", CacheSize: "1"},
 			{Name: "users_seq_no_seq", DataType: "bigint", Increment: "5", Start: "10", Cycle: true},
-			// Owned by the identity column, which creates it.
-			{Name: "users_id_seq", DataType: "bigint", OwnerTable: "users", OwnerColumn: "id"},
+			// Behind the identity column, renamed and tuned.
+			{Name: "users_id_custom", DataType: "bigint", Start: "100", Increment: "10", OwnerTable: "users", OwnerColumn: "id"},
 		},
 		Procedures: []*metadata.ProcedureMetadata{
 			{
@@ -509,9 +514,12 @@ func TestLoadMetadataFull(t *testing.T) {
 		if seq.Name == "counter_seq" && (seq.TypeOID != INT4OID || seq.Start != 0 || seq.MinValue != 0) {
 			t.Errorf("counter_seq = %+v, want an integer sequence starting at 0", seq)
 		}
+		if seq.Name == "users_id_custom" && (seq.Start != 100 || seq.Increment != 10 || seq.OwnerRelOID != users.OID) {
+			t.Errorf("users_id_custom = %+v, want the identity column's sequence starting at 100 by 10", seq)
+		}
 	}
 	slices.Sort(sequences)
-	if want := []string{"counter_seq", "users_id_seq", "users_seq_no_seq"}; !slices.Equal(sequences, want) {
+	if want := []string{"counter_seq", "users_id_custom", "users_seq_no_seq"}; !slices.Equal(sequences, want) {
 		t.Errorf("sequences = %v, want the explicit ones and the identity column's", sequences)
 	}
 	for _, name := range []string{"touch", "touch_by"} {
