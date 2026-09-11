@@ -169,8 +169,14 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 					}
 					tblRef.Alias = alias
 					tblRef.Loc.End = p.prev.End
-				} else if p.cur.Type == tokIDENT {
-					alias, _, _ := p.parseIdent()
+				} else if p.isIdentToken() {
+					// MySQL's opt_table_alias is `opt_AS ident`, so a bare
+					// alias may be any non-reserved keyword, exactly as in
+					// UPDATE and SELECT.
+					alias, _, err := p.parseIdent()
+					if err != nil {
+						return nil, err
+					}
 					tblRef.Alias = alias
 					tblRef.Loc.End = p.prev.End
 				}

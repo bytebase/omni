@@ -12814,3 +12814,54 @@ func TestAuroraS3KeywordsRemainIdentifiers(t *testing.T) {
 	ParseAndCheck(t, "CREATE PROCEDURE p() BEGIN manifest: LOOP LEAVE manifest; END LOOP; END")
 	ParseAndCheck(t, "CREATE ROLE csv, overwrite")
 }
+
+// Non-reserved keywords in identifier positions. MySQL's `ident` rule (and
+// its label_ident / role_ident / lvalue_ident variants) accept every
+// non-reserved keyword; these pin the positions that used to demand a plain
+// tokIDENT or an explicit keywordCategories entry. Each accepted statement
+// was checked against the mysql:8.0 oracle container.
+
+func TestDeleteBareAliasAcceptsNonReservedKeywords(t *testing.T) {
+	// opt_table_alias: opt_AS ident — same as UPDATE and SELECT.
+	for _, kw := range []string{"status", "header", "manifest", "data", "after", "s3"} {
+		ParseAndCheck(t, "DELETE FROM t "+kw+" WHERE id = 1")
+		ParseAndCheck(t, "DELETE FROM t AS "+kw+" WHERE id = 1")
+		ParseAndCheck(t, "DELETE FROM t "+kw+" PARTITION (p0) WHERE id = 1")
+	}
+	ParseAndCompare(t,
+		"DELETE FROM t status WHERE id = 1",
+		`{DELETE :loc 0 :tables ({TABLEREF :loc 12 :name t :alias status}) :where {BINEXPR :op = :loc 30 :left {COLREF :loc 27 :col id} :right {INT_LIT :val 1 :loc 32}}}`)
+	// Reserved words are still not aliases.
+	ParseExpectError(t, "DELETE FROM t select WHERE id = 1")
+	ParseExpectError(t, "DELETE FROM t from WHERE id = 1")
+}
+
+func TestUncategorizedKeywordsAreUnambiguous(t *testing.T) {
+	// Registered keywords without a keywordCategories entry default to
+	// unambiguous, so they work as labels, role names and SET targets.
+	for _, kw := range []string{"status", "data", "after", "host", "type", "mode"} {
+		ParseAndCheck(t, "CREATE PROCEDURE p() BEGIN "+kw+": LOOP LEAVE "+kw+"; END LOOP; END")
+		ParseAndCheck(t, "CREATE ROLE "+kw)
+		ParseAndCheck(t, "SET "+kw+" = 1")
+		ParseAndCheck(t, "SET @@session."+kw+" = 1")
+	}
+	// Explicitly categorized keywords keep their restrictions. (role_ident
+	// is not exercised here: the CREATE ROLE / GRANT ... TO paths do not yet
+	// go through parseRoleIdent, a separate pre-existing gap.)
+	ParseExpectError(t, "CREATE PROCEDURE p() BEGIN begin: LOOP LEAVE begin; END LOOP; END") // ambiguous_2: not a label
+	ParseExpectError(t, "SET global = 1")                                                    // ambiguous_4: not an lvalue
+}
+
+func TestLoadDataXMLShareTrailingClauses(t *testing.T) {
+	// sql_yacc.yy has one load_stmt rule for DATA and XML, so PARTITION and
+	// ROWS IDENTIFIED BY parse for both; MySQL 8.0 rejects the odd pairings
+	// semantically (1747 / 1290), not with ER_PARSE_ERROR.
+	ParseAndCompare(t,
+		"LOAD XML INFILE '/x' INTO TABLE t PARTITION (p0)",
+		`{LOAD_XML :loc 0 :infile "/x" :table {TABLEREF :loc 32 :name t} :partitions (p0)}`)
+	ParseAndCompare(t,
+		"LOAD DATA INFILE '/x' INTO TABLE t ROWS IDENTIFIED BY '<row>'",
+		`{LOAD_DATA :loc 0 :infile "/x" :table {TABLEREF :loc 33 :name t} :rows_identified_by "<row>"}`)
+	ParseAndCheck(t, "LOAD XML FROM S3 's3://b/x' INTO TABLE t PARTITION (p0, p1) ROWS IDENTIFIED BY '<row>'")
+	ParseAndCheck(t, "LOAD DATA FROM S3 's3://b/x' INTO TABLE t PARTITION (p0) ROWS IDENTIFIED BY '<row>' FIELDS TERMINATED BY ','")
+}

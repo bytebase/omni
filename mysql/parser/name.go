@@ -20,12 +20,14 @@ const (
 	kwCatAmbiguous4                         // ident_keywords_ambiguous_4_system_variables — NOT allowed as lvalue
 )
 
-// keywordCategories maps keyword token types to their category. Keywords not
-// present in this map are not registered keywords (they lex as tokIDENT).
+// keywordCategories maps keyword token types to their category.
 //
-// All 65 original reserved keywords are migrated here with kwCatReserved.
-// All other registered keywords default to kwCatUnambiguous and will be
-// refined to their correct ambiguous category in later sections.
+// A registered keyword that has no entry here is unambiguous: it is accepted
+// in every identifier context (plain identifiers, labels, role names and
+// SET targets). Only reserved keywords and the four ambiguous categories need
+// an explicit entry. categoryOf() is the single lookup that applies this
+// default; TestKeywordClassification pins the MySQL 8.0 keywords whose real
+// category is not unambiguous.
 var keywordCategories = map[int]keywordCategory{
 	kwSELECT:     kwCatReserved,
 	kwINSERT:     kwCatReserved,
@@ -487,6 +489,16 @@ var keywordCategories = map[int]keywordCategory{
 	kwS3:                 kwCatUnambiguous,
 }
 
+// categoryOf returns the category of a keyword token. Registered keywords
+// without an explicit keywordCategories entry are unambiguous. The helpers
+// below guard on t >= 700 themselves: a non-keyword token has no category.
+func categoryOf(t int) keywordCategory {
+	if cat, ok := keywordCategories[t]; ok {
+		return cat
+	}
+	return kwCatUnambiguous
+}
+
 // isReserved returns true if the token type is a reserved keyword that cannot
 // be used as an unquoted identifier.
 func isReserved(t int) bool {
@@ -498,18 +510,17 @@ func isReserved(t int) bool {
 // can be used as an identifier. This covers all 5 non-reserved categories:
 // unambiguous, ambiguous_1, ambiguous_2, ambiguous_3, and ambiguous_4.
 func isIdentKeyword(t int) bool {
-	cat, ok := keywordCategories[t]
-	return ok && cat != kwCatReserved
+	return t >= 700 && categoryOf(t) != kwCatReserved
 }
 
 // isLabelKeyword returns true if the token type is a non-reserved keyword that
 // can be used as a statement label. Includes: unambiguous, ambiguous_3, ambiguous_4.
 // Excludes: ambiguous_1 (not label, not role), ambiguous_2 (not label).
 func isLabelKeyword(t int) bool {
-	cat, ok := keywordCategories[t]
-	if !ok {
+	if t < 700 {
 		return false
 	}
+	cat := categoryOf(t)
 	return cat == kwCatUnambiguous || cat == kwCatAmbiguous3 || cat == kwCatAmbiguous4
 }
 
@@ -517,10 +528,10 @@ func isLabelKeyword(t int) bool {
 // can be used as a role name. Includes: unambiguous, ambiguous_2, ambiguous_4.
 // Excludes: ambiguous_1 (not label, not role), ambiguous_3 (not role).
 func isRoleKeyword(t int) bool {
-	cat, ok := keywordCategories[t]
-	if !ok {
+	if t < 700 {
 		return false
 	}
+	cat := categoryOf(t)
 	return cat == kwCatUnambiguous || cat == kwCatAmbiguous2 || cat == kwCatAmbiguous4
 }
 
@@ -528,10 +539,10 @@ func isRoleKeyword(t int) bool {
 // can be used as an lvalue (SET target). Includes: unambiguous, ambiguous_1, ambiguous_2, ambiguous_3.
 // Excludes: ambiguous_4 (system variables like GLOBAL, SESSION, LOCAL).
 func isLvalueKeyword(t int) bool {
-	cat, ok := keywordCategories[t]
-	if !ok {
+	if t < 700 {
 		return false
 	}
+	cat := categoryOf(t)
 	return cat == kwCatUnambiguous || cat == kwCatAmbiguous1 || cat == kwCatAmbiguous2 || cat == kwCatAmbiguous3
 }
 
