@@ -87,6 +87,23 @@ func TestLoadMetadataInstallsSnapshot(t *testing.T) {
 	}
 }
 
+func TestLoadMetadataInstallsMaterializedViewsAfterWhatTheyName(t *testing.T) {
+	c := New()
+	c.LoadMetadata(&metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{
+		{Name: "reports", MaterializedViews: []*metadata.MaterializedViewMetadata{
+			// a_totals names z_counts, which names a table of a later schema.
+			{Name: "a_totals", Definition: "SELECT n FROM reports.z_counts"},
+			{Name: "z_counts", Definition: "SELECT count(*) AS n FROM sales.orders"},
+		}},
+		{Name: "sales", Tables: []*metadata.TableMetadata{{Name: "orders", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "bigint"}}}}},
+	}})
+	for _, name := range []string{"a_totals", "z_counts"} {
+		if mv := c.GetRelation("reports", name); mv == nil || len(mv.Columns) != 1 || mv.Columns[0].Name != "n" {
+			t.Errorf("%s did not install from its definition", name)
+		}
+	}
+}
+
 func TestUseMetadataResolvesRelationsWhenNamed(t *testing.T) {
 	c := New()
 	// $user expands to the session user.

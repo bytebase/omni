@@ -19,6 +19,11 @@ import (
 // fails to install is left out.
 func (c *Catalog) LoadMetadata(meta *metadata.DatabaseSchemaMetadata) {
 	defer c.SetSearchPath(slices.Clone(c.searchPath))
+	type matView struct {
+		schema string
+		mv     *metadata.MaterializedViewMetadata
+	}
+	var matViews []matView
 	for _, s := range meta.GetSchemas() {
 		schema := s.GetName()
 		c.execMetadataDDL(fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s;", metadataQuoteIdent(schema)))
@@ -31,16 +36,32 @@ func (c *Catalog) LoadMetadata(meta *metadata.DatabaseSchemaMetadata) {
 		for _, v := range s.GetViews() {
 			c.execMetadataDDL(metadataViewDDL("VIEW", schema, v.GetName(), v.GetColumns()))
 		}
-		for _, mv := range s.GetMaterializedViews() {
-			// The definition may name relations of its own schema unqualified.
-			c.SetSearchPath([]string{schema, "public"})
-			if mv.GetDefinition() == "" || !c.execMetadataDDL(metadataMatViewDDL(schema, mv.GetName(), mv.GetDefinition())) {
-				c.execMetadataDDL(metadataViewDDL("MATERIALIZED VIEW", schema, mv.GetName(), nil))
-			}
-		}
 		for _, seq := range s.GetSequences() {
 			c.execMetadataDDL(fmt.Sprintf("CREATE SEQUENCE %s.%s;", metadataQuoteIdent(schema), metadataQuoteIdent(seq.GetName())))
 		}
+		for _, mv := range s.GetMaterializedViews() {
+			matViews = append(matViews, matView{schema, mv})
+		}
+	}
+	// A materialized view's definition may name any relation, another
+	// materialized view included, so definitions install last and the failed
+	// ones retry while a pass installs more. The rest install like views.
+	for len(matViews) > 0 {
+		var failed []matView
+		for _, m := range matViews {
+			// The definition may name relations of its own schema unqualified.
+			c.SetSearchPath([]string{m.schema, "public"})
+			if m.mv.GetDefinition() == "" || !c.execMetadataDDL(metadataMatViewDDL(m.schema, m.mv.GetName(), m.mv.GetDefinition())) {
+				failed = append(failed, m)
+			}
+		}
+		if len(failed) == len(matViews) {
+			for _, m := range failed {
+				c.execMetadataDDL(metadataViewDDL("MATERIALIZED VIEW", m.schema, m.mv.GetName(), nil))
+			}
+			break
+		}
+		matViews = failed
 	}
 }
 
