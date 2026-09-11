@@ -112,23 +112,21 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 			}},
 			// A table's row type.
 			{Name: "aa_row_holder", Attributes: []*metadata.CompositeTypeAttribute{{Name: "o", Type: "public.zz_orders"}}},
+			{Name: "aa_wraps_view", Attributes: []*metadata.CompositeTypeAttribute{{Name: "v", Type: "public.aa_calls_overload"}}},
 		},
 		EnumTypes: []*metadata.EnumTypeMetadata{{Name: "zz_status", Values: []string{"a"}}},
 		Views: []*metadata.ViewMetadata{
 			{Name: "aa_view", Definition: "SELECT id, public.zz_code(id) AS code FROM public.zz_orders"},
-			// Reads no column of the materialized view, so sync records no dependency column.
 			{Name: "aa_count", Definition: "SELECT count(*) AS n FROM public.zz_mview"},
 			{Name: "aa_uses_fn", Definition: "SELECT public.aa_view_row() AS row"},
+			{Name: "aa_from_fn", Definition: "SELECT id FROM public.aa_view_row()"},
 			{Name: "aa_calls_g", Definition: "SELECT public.g(1) AS r"},
-			{Name: "aa_cte_count", Definition: "WITH zz_view AS (SELECT 1 AS id) SELECT count(*) AS n FROM public.zz_view"},
-			// Calls f(integer); the other overload takes this view's row type.
-			{Name: "aa_calls_overload", Definition: "SELECT public.f(1) AS x"},
+			{Name: "aa_cast", Definition: "SELECT NULL::public.zz_view AS r"},
 			// The CTE shares its name with the qualified view it reads.
-			{
-				Name:              "aa_cte",
-				Definition:        "WITH zz_view AS (SELECT 1 AS id) SELECT public.zz_view.id FROM public.zz_view",
-				DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "zz_view", Column: "id"}},
-			},
+			{Name: "aa_cte_count", Definition: "WITH zz_view AS (SELECT 1 AS id) SELECT count(*) AS n FROM public.zz_view"},
+			// Calls f(integer); the other overloads take this view's row type,
+			// directly or through aa_wraps_view.
+			{Name: "aa_calls_overload", Definition: "SELECT public.f(1) AS x"},
 			{Name: "zz_view", Definition: "SELECT id FROM public.zz_orders"},
 		},
 		MaterializedViews: []*metadata.MaterializedViewMetadata{
@@ -152,6 +150,7 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 			{Name: "g", Signature: "g(integer)", Definition: "CREATE FUNCTION public.g(x integer) RETURNS public.zz_view LANGUAGE sql AS $$ SELECT * FROM zz_view $$;"},
 			{Name: "g", Signature: "g(text)", Definition: "CREATE FUNCTION public.g(x text) RETURNS public.zz_view LANGUAGE sql AS $$ SELECT * FROM zz_view $$;"},
 			{Name: "f", Signature: "f(public.aa_calls_overload)", Definition: "CREATE FUNCTION public.f(v public.aa_calls_overload) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
+			{Name: "f", Signature: "f(public.aa_wraps_view)", Definition: "CREATE FUNCTION public.f(w public.aa_wraps_view) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
 			// Called by a default, an index expression, and a view body.
 			{Name: "zz_code", Signature: "zz_code(integer)", Definition: "CREATE FUNCTION public.zz_code(x integer) RETURNS integer IMMUTABLE LANGUAGE sql AS $$ SELECT x $$;"},
 		},
@@ -326,21 +325,28 @@ func TestLoadMetadataCompositeStandInKeepsAttributeNames(t *testing.T) {
 
 func TestLoadMetadataBreaksCycles(t *testing.T) {
 	// a reads b, b reads c, and c reads a. Only a, the first member, needs a
-	// stand-in: c installs against it, then b against c.
-	view := func(name, reads string) *metadata.ViewMetadata {
-		return &metadata.ViewMetadata{
-			Name:              name,
-			Definition:        "SELECT id FROM public." + reads,
-			Columns:           []*metadata.ColumnMetadata{{Name: "id"}},
-			DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: reads, Column: "id"}},
-		}
+	// stand-in: c installs against it, then b against c. v_f calls fv, which
+	// returns v_f's rows; that cycle starts at the view, whose stand-in needs
+	// nothing.
+	view := func(name, def string) *metadata.ViewMetadata {
+		return &metadata.ViewMetadata{Name: name, Definition: def, Columns: []*metadata.ColumnMetadata{{Name: "id"}}}
 	}
 	c, report := loadSnapshot(t, false, &metadata.SchemaMetadata{
-		Name:  "public",
-		Views: []*metadata.ViewMetadata{view("v_b", "v_c"), view("v_c", "v_a"), view("v_a", "v_b")},
+		Name: "public",
+		Views: []*metadata.ViewMetadata{
+			view("v_b", "SELECT id FROM public.v_c"),
+			view("v_c", "SELECT id FROM public.v_a"),
+			view("v_a", "SELECT id FROM public.v_b"),
+			view("v_f", "SELECT id FROM public.fv()"),
+		},
+		Functions: []*metadata.FunctionMetadata{{
+			Name:       "fv",
+			Signature:  "fv()",
+			Definition: "CREATE FUNCTION public.fv() RETURNS SETOF public.v_f LANGUAGE sql AS $$ SELECT 1 $$;",
+		}},
 	})
-	requireDegraded(t, report, "rel:public.v_a")
-	for _, name := range []string{"v_a", "v_b", "v_c"} {
+	requireDegraded(t, report, "rel:public.v_a", "rel:public.v_f")
+	for _, name := range []string{"v_a", "v_b", "v_c", "v_f"} {
 		requireRelation(t, c, "public", name)
 	}
 }
@@ -440,7 +446,8 @@ func TestLoadMetadataFull(t *testing.T) {
 		},
 		Sequences: []*metadata.SequenceMetadata{
 			{Name: "counter_seq", DataType: "integer", Start: "0", MinValue: "0", MaxValue: "100", Increment: "1", CacheSize: "1"},
-			{Name: "users_seq_no_seq", DataType: "bigint", Increment: "5", Start: "10", Cycle: true},
+			// Owned by a plain column, as SERIAL creates it.
+			{Name: "users_seq_no_seq", DataType: "bigint", Increment: "5", Start: "10", Cycle: true, OwnerTable: "users", OwnerColumn: "seq_no"},
 			// Behind the identity column, renamed and tuned.
 			{Name: "users_id_custom", DataType: "bigint", Start: "100", Increment: "10", OwnerTable: "users", OwnerColumn: "id"},
 		},
@@ -516,6 +523,9 @@ func TestLoadMetadataFull(t *testing.T) {
 		}
 		if seq.Name == "users_id_custom" && (seq.Start != 100 || seq.Increment != 10 || seq.OwnerRelOID != users.OID) {
 			t.Errorf("users_id_custom = %+v, want the identity column's sequence starting at 100 by 10", seq)
+		}
+		if seq.Name == "users_seq_no_seq" && seq.OwnerRelOID != users.OID {
+			t.Errorf("users_seq_no_seq = %+v, want it owned by users.seq_no", seq)
 		}
 	}
 	slices.Sort(sequences)
@@ -602,8 +612,8 @@ func TestOrderMetadataObjectsIsDeterministic(t *testing.T) {
 			{Name: "c"},
 		},
 		Views: []*metadata.ViewMetadata{
-			{Name: "v1", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "v2"}}},
-			{Name: "v2", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "v1"}}},
+			{Name: "v1", Definition: "SELECT * FROM public.v2"},
+			{Name: "v2", Definition: "SELECT * FROM public.v1"},
 		},
 	}
 	keys := func(objects []*metadataObject) []string {

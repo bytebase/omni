@@ -85,8 +85,8 @@ const (
 	metadataConstraint
 )
 
-// metadataObject is one install step. Exactly one metadata pointer is set,
-// matching kind; a constraint sets one of fk, check, or exclude.
+// metadataObject is one install step. Every kind but a schema sets the metadata
+// pointer matching it; a constraint sets one of fk, check, or exclude.
 type metadataObject struct {
 	kind   metadataObjectKind
 	schema string
@@ -113,9 +113,8 @@ type metadataObject struct {
 	// body is a view's parsed query, or nil with bodyErr saying why.
 	body    *nodes.SelectStmt
 	bodyErr error
-	// identitySequences maps a table's identity columns to the sequences
-	// behind them.
-	identitySequences map[string]*metadata.SequenceMetadata
+	// ownedSequences maps a table's columns to the sequences they own.
+	ownedSequences map[string]*metadata.SequenceMetadata
 }
 
 func (o *metadataObject) key() string {
@@ -190,7 +189,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 		}
 		schema := s.GetName()
 		out = append(out, &metadataObject{kind: metadataSchema, schema: schema, name: schema})
-		identitySeqs := identitySequences(s)
+		owned, identity := sequenceOwners(s)
 		for _, e := range s.GetEnumTypes() {
 			out = append(out, &metadataObject{kind: metadataEnum, schema: schema, name: e.GetName(), enum: e})
 		}
@@ -198,7 +197,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			out = append(out, &metadataObject{kind: metadataComposite, schema: schema, name: ct.GetName(), composite: ct})
 		}
 		for _, t := range s.GetTables() {
-			out = append(out, &metadataObject{kind: metadataTable, schema: schema, name: t.GetName(), table: t, identitySequences: identitySeqs[t.GetName()]})
+			out = append(out, &metadataObject{kind: metadataTable, schema: schema, name: t.GetName(), table: t, ownedSequences: owned[t.GetName()]})
 		}
 		// A foreign table loads as a plain table: query analysis needs only its columns.
 		for _, et := range s.GetExternalTables() {
@@ -222,8 +221,8 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, full bool) []
 			continue
 		}
 		for _, seq := range s.GetSequences() {
-			// The identity column creates its own sequence.
-			if identitySeqs[seq.GetOwnerTable()][seq.GetOwnerColumn()] == seq {
+			// An identity column creates its own sequence.
+			if identity[seq.GetOwnerTable()+"\x00"+seq.GetOwnerColumn()] {
 				continue
 			}
 			out = append(out, &metadataObject{kind: metadataSequence, schema: schema, name: seq.GetName(), sequence: seq})
@@ -270,10 +269,10 @@ func appendIndexObjects(out []*metadataObject, schema, relation string, indexes 
 	return out
 }
 
-// identitySequences maps each table and identity column in s to the sequence
-// that backs the column.
-func identitySequences(s *metadata.SchemaMetadata) map[string]map[string]*metadata.SequenceMetadata {
-	identity := make(map[string]bool)
+// sequenceOwners maps each table in s to the sequences its columns own, and
+// returns the identity columns, keyed "table\x00column".
+func sequenceOwners(s *metadata.SchemaMetadata) (owned map[string]map[string]*metadata.SequenceMetadata, identity map[string]bool) {
+	identity = make(map[string]bool)
 	for _, t := range s.GetTables() {
 		for _, col := range t.GetColumns() {
 			if col.GetIsIdentity() {
@@ -281,17 +280,21 @@ func identitySequences(s *metadata.SchemaMetadata) map[string]map[string]*metada
 			}
 		}
 	}
-	out := make(map[string]map[string]*metadata.SequenceMetadata)
+	owned = make(map[string]map[string]*metadata.SequenceMetadata)
 	for _, seq := range s.GetSequences() {
-		if !identity[seq.GetOwnerTable()+"\x00"+seq.GetOwnerColumn()] {
+		if seq.GetOwnerTable() == "" || seq.GetOwnerColumn() == "" {
 			continue
 		}
-		if out[seq.GetOwnerTable()] == nil {
-			out[seq.GetOwnerTable()] = make(map[string]*metadata.SequenceMetadata)
+		if owned[seq.GetOwnerTable()] == nil {
+			owned[seq.GetOwnerTable()] = make(map[string]*metadata.SequenceMetadata)
 		}
-		out[seq.GetOwnerTable()][seq.GetOwnerColumn()] = seq
+		owned[seq.GetOwnerTable()][seq.GetOwnerColumn()] = seq
 	}
-	return out
+	return owned, identity
+}
+
+func isViewObject(o *metadataObject) bool {
+	return o.kind == metadataView || o.kind == metadataMatView
 }
 
 // isKeyIndex reports whether an index backs a PRIMARY KEY or UNIQUE
@@ -301,9 +304,11 @@ func isKeyIndex(idx *metadata.IndexMetadata) bool {
 }
 
 // orderMetadataObjects returns objects in an order that installs each one's
-// dependencies first. A dependency cycle installs its first member by sortKey
-// first; that member fails and gets a stand-in, and the rest of the cycle is
-// ordered again with that member counted as installed.
+// dependencies first. A dependency cycle installs one member first, which gets
+// a stand-in if it fails, and the rest of the cycle is ordered again with that
+// member counted as installed. That member is the cycle's first view if it has
+// one: a view waits for every overload of a function it calls, so its edges
+// can be false, and when they are the view installs as defined.
 func orderMetadataObjects(objects []*metadataObject) []*metadataObject {
 	if len(objects) == 0 {
 		return nil
@@ -350,8 +355,12 @@ func orderMetadataObjects(objects []*metadataObject) []*metadataObject {
 	ordered := make([]*metadataObject, 0, len(objects))
 	for ready.Len() > 0 {
 		next := heap.Pop(ready).(int)
-		ordered = append(ordered, sccs[next][0])
-		ordered = append(ordered, orderMetadataObjects(sccs[next][1:])...)
+		scc := sccs[next]
+		if i := slices.IndexFunc(scc, isViewObject); i > 0 {
+			scc[0], scc[i] = scc[i], scc[0]
+		}
+		ordered = append(ordered, scc[0])
+		ordered = append(ordered, orderMetadataObjects(scc[1:])...)
 		for _, d := range dependents[next] {
 			inDegree[d]--
 			if inDegree[d] == 0 {
@@ -395,118 +404,106 @@ func metadataDependencies(objects []*metadataObject, byKey map[string]*metadataO
 	}
 
 	edges := make(map[string][]string, len(objects))
-	depsOf := func(o *metadataObject) []string {
-		self := o.key()
-		var deps []string
-		add := func(key string) {
-			if byKey[key] != nil && key != self && !slices.Contains(deps, key) {
-				deps = append(deps, key)
-			}
-		}
-		addRef := func(schema, name string) {
-			add(metadataTypeKey(schema, name))
-			// A column, attribute, or parameter may use a relation's row type.
-			add(metadataRelationKey(schema, name))
-		}
-		addType := func(typeStr string) {
-			if schema, name, ok := userTypeRef(typeStr); ok {
-				addRef(schema, name)
-			}
-		}
-		addTypeName := func(tn *nodes.TypeName) {
-			if tn == nil || tn.Names == nil || len(tn.Names.Items) != 2 {
-				return
-			}
-			schema, schemaOK := tn.Names.Items[0].(*nodes.String)
-			name, nameOK := tn.Names.Items[1].(*nodes.String)
-			if schemaOK && nameOK {
-				addRef(schema.Str, name.Str)
-			}
-		}
-		if o.kind != metadataSchema {
-			add("schema:" + o.schema)
-		}
-		switch o.kind {
-		case metadataComposite:
-			for _, a := range o.composite.GetAttributes() {
-				addType(a.GetType())
-			}
-		case metadataTable:
-			for _, col := range o.table.GetColumns() {
-				addType(col.GetType())
-			}
-		case metadataView, metadataMatView:
-			deps := o.view.GetDependencyColumns()
-			if o.kind == metadataMatView {
-				deps = o.matView.GetDependencyColumns()
-			}
-			for _, dep := range deps {
-				add(metadataRelationKey(dep.GetSchema(), dep.GetTable()))
-			}
-			// Sync qualifies every name in a view's body, which reads as "schema.name".
-			if o.body == nil {
-				break
-			}
-			funcRefs, relRefs, typeRefs := collectExprDeps(o.body)
-			for _, ref := range relRefs {
-				add("rel:" + ref)
-			}
-			for _, ref := range typeRefs {
-				add("type:" + ref)
-			}
-			// A view cannot call an overload that uses its own row type: that
-			// overload cannot exist before the view does.
-			for _, ref := range funcRefs {
-				for _, key := range functionKeys[ref] {
-					if !slices.Contains(edges[key], self) {
-						add(key)
-					}
-				}
-			}
-		case metadataFunction:
-			if o.createStmt == nil {
-				argTypes, _ := signatureArgTypes(o.function.GetName(), o.function.GetSignature())
-				for _, t := range argTypes {
-					addType(t)
-				}
-				break
-			}
-			// Every parameter, including OUT and TABLE ones, and the result.
-			if params := o.createStmt.Parameters; params != nil {
-				for _, item := range params.Items {
-					if p, ok := item.(*nodes.FunctionParameter); ok {
-						addTypeName(p.ArgType)
-					}
-				}
-			}
-			addTypeName(o.createStmt.ReturnType)
-		case metadataIndex:
-			add(metadataRelationKey(o.schema, o.parent))
-		case metadataConstraint:
-			add(metadataRelationKey(o.schema, o.parent))
-			if o.fk != nil {
-				refSchema := o.fk.GetReferencedSchema()
-				if refSchema == "" {
-					refSchema = o.schema
-				}
-				add(metadataRelationKey(refSchema, o.fk.GetReferencedTable()))
-			}
-		default:
-		}
-		return deps
-	}
-	// A view reads the edges of the functions it calls, so views go second.
-	for _, views := range []bool{false, true} {
-		for _, o := range objects {
-			if (o.kind == metadataView || o.kind == metadataMatView) != views {
-				continue
-			}
-			if deps := depsOf(o); len(deps) > 0 {
-				edges[o.key()] = deps
-			}
+	for _, o := range objects {
+		if deps := o.dependencies(byKey, functionKeys); len(deps) > 0 {
+			edges[o.key()] = deps
 		}
 	}
 	return edges
+}
+
+func (o *metadataObject) dependencies(byKey map[string]*metadataObject, functionKeys map[string][]string) []string {
+	self := o.key()
+	var deps []string
+	add := func(key string) {
+		if byKey[key] != nil && key != self && !slices.Contains(deps, key) {
+			deps = append(deps, key)
+		}
+	}
+	addRef := func(schema, name string) {
+		add(metadataTypeKey(schema, name))
+		// A column, attribute, or parameter may use a relation's row type.
+		add(metadataRelationKey(schema, name))
+	}
+	addType := func(typeStr string) {
+		if schema, name, ok := userTypeRef(typeStr); ok {
+			addRef(schema, name)
+		}
+	}
+	addTypeName := func(tn *nodes.TypeName) {
+		if tn == nil || tn.Names == nil || len(tn.Names.Items) != 2 {
+			return
+		}
+		schema, schemaOK := tn.Names.Items[0].(*nodes.String)
+		name, nameOK := tn.Names.Items[1].(*nodes.String)
+		if schemaOK && nameOK {
+			addRef(schema.Str, name.Str)
+		}
+	}
+	if o.kind != metadataSchema {
+		add("schema:" + o.schema)
+	}
+	switch o.kind {
+	case metadataComposite:
+		for _, a := range o.composite.GetAttributes() {
+			addType(a.GetType())
+		}
+	case metadataTable:
+		for _, col := range o.table.GetColumns() {
+			addType(col.GetType())
+		}
+	case metadataView, metadataMatView:
+		// A view whose body does not parse installs as a stand-in, which needs nothing.
+		if o.body == nil {
+			break
+		}
+		// Sync qualifies every name in a view's body, which reads as "schema.name".
+		funcRefs, relRefs, typeRefs := collectExprDeps(o.body)
+		for _, ref := range relRefs {
+			add("rel:" + ref)
+		}
+		for _, ref := range typeRefs {
+			add("type:" + ref)
+			add("rel:" + ref)
+		}
+		// A call does not say which overload it uses, so the view waits for
+		// all of them; orderMetadataObjects handles the cycles that closes.
+		for _, ref := range funcRefs {
+			for _, key := range functionKeys[ref] {
+				add(key)
+			}
+		}
+	case metadataFunction:
+		if o.createStmt == nil {
+			argTypes, _ := signatureArgTypes(o.function.GetName(), o.function.GetSignature())
+			for _, t := range argTypes {
+				addType(t)
+			}
+			break
+		}
+		// Every parameter, including OUT and TABLE ones, and the result.
+		if params := o.createStmt.Parameters; params != nil {
+			for _, item := range params.Items {
+				if p, ok := item.(*nodes.FunctionParameter); ok {
+					addTypeName(p.ArgType)
+				}
+			}
+		}
+		addTypeName(o.createStmt.ReturnType)
+	case metadataIndex:
+		add(metadataRelationKey(o.schema, o.parent))
+	case metadataConstraint:
+		add(metadataRelationKey(o.schema, o.parent))
+		if o.fk != nil {
+			refSchema := o.fk.GetReferencedSchema()
+			if refSchema == "" {
+				refSchema = o.schema
+			}
+			add(metadataRelationKey(refSchema, o.fk.GetReferencedTable()))
+		}
+	default:
+	}
+	return deps
 }
 
 // stronglyConnectedObjects runs Tarjan's algorithm, visiting keys in sorted
@@ -585,11 +582,17 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 	case metadataSequence:
 		return c.DefineSequence(metadataSequenceStmt(o.schema, o.sequence))
 	case metadataTable:
-		stmt, err := metadataTableStmt(o.schema, o.table, full, o.identitySequences)
+		stmt, err := metadataTableStmt(o.schema, o.table, full, o.ownedSequences)
 		if err != nil {
 			return err
 		}
-		return c.DefineRelation(stmt, 'r')
+		if err := c.DefineRelation(stmt, 'r'); err != nil {
+			return err
+		}
+		if full {
+			c.ownSerialSequences(o)
+		}
+		return nil
 	case metadataView:
 		if o.body == nil {
 			return fmt.Errorf("view %q: %w", o.name, o.bodyErr)
@@ -628,6 +631,23 @@ func (c *Catalog) installMetadataObject(o *metadataObject, full bool) error {
 		return c.AlterTableStmt(stmt)
 	default:
 		return fmt.Errorf("unknown metadata object kind %d", o.kind)
+	}
+}
+
+// ownSerialSequences gives the sequences the table's non-identity columns own
+// their owner, as SERIAL does, so dropping the table drops them. Errors are
+// ignored: the table itself installed.
+func (c *Catalog) ownSerialSequences(o *metadataObject) {
+	for _, col := range o.table.GetColumns() {
+		seq := o.ownedSequences[col.GetName()]
+		if seq == nil || col.GetIsIdentity() {
+			continue
+		}
+		stmt, err := parseStatement[*nodes.AlterSeqStmt](fmt.Sprintf("ALTER SEQUENCE %s.%s OWNED BY %s.%s.%s",
+			quoteIdent(o.schema), quoteIdent(seq.GetName()), quoteIdent(o.schema), quoteIdent(o.name), quoteIdent(col.GetName())))
+		if err == nil {
+			_ = c.AlterSequenceStmt(stmt)
+		}
 	}
 }
 

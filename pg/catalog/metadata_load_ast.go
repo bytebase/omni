@@ -85,7 +85,7 @@ func sequenceOptions(seq *metadata.SequenceMetadata) []nodes.Node {
 // metadataTableStmt fails on any column whose type does not parse, so the
 // table gets a stand-in rather than a partial definition. With full, a default
 // or generation expression that does not parse is dropped instead.
-func metadataTableStmt(schema string, t *metadata.TableMetadata, full bool, identitySequences map[string]*metadata.SequenceMetadata) (*nodes.CreateStmt, error) {
+func metadataTableStmt(schema string, t *metadata.TableMetadata, full bool, ownedSequences map[string]*metadata.SequenceMetadata) (*nodes.CreateStmt, error) {
 	items := make([]nodes.Node, 0, len(t.GetColumns()))
 	for _, col := range t.GetColumns() {
 		if col.GetName() == "" {
@@ -104,7 +104,7 @@ func metadataTableStmt(schema string, t *metadata.TableMetadata, full bool, iden
 			def.CollClause = &nodes.CollateClause{Collname: metadataNameList("", col.GetCollation())}
 		}
 		if full {
-			setColumnValueProperties(schema, def, col, identitySequences[col.GetName()])
+			setColumnValueProperties(schema, def, col, ownedSequences[col.GetName()])
 		}
 		items = append(items, def)
 	}
@@ -115,7 +115,7 @@ func metadataTableStmt(schema string, t *metadata.TableMetadata, full bool, iden
 }
 
 // setColumnValueProperties sets a column's default, generation, and identity;
-// seq is the sequence behind an identity column, when the snapshot has it.
+// seq is the sequence the column owns, when the snapshot has one.
 func setColumnValueProperties(schema string, def *nodes.ColumnDef, col *metadata.ColumnMetadata, seq *metadata.SequenceMetadata) {
 	if col.GetDefault() != "" && col.GetGeneration() == nil {
 		if expr, err := parseScalar("SELECT " + col.GetDefault()); err == nil {
