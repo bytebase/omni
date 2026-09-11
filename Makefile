@@ -1,4 +1,4 @@
-.PHONY: build test test-pg test-mysql test-mysql-quick test-mysql-full test-mysql-containers test-mssql test-oracle proto clean
+.PHONY: build test test-pg test-mysql test-mysql-quick test-mysql-full test-mysql-containers test-mssql test-oracle proto proto-breaking clean
 
 BUF := go run github.com/bufbuild/buf/cmd/buf@v1.72.0
 
@@ -31,6 +31,9 @@ test-oracle:
 
 proto:
 	cd proto && $(BUF) format -w && $(BUF) lint && $(BUF) generate
+
+proto-breaking:
+	cd proto && $(BUF) breaking --against 'https://github.com/bytebase/omni.git#branch=main,subdir=proto'
 
 clean:
 	go clean ./...
