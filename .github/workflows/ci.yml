@@ -26,6 +26,14 @@ jobs:
           go generate ./mssql/ast/...
           git diff --exit-code pg/ast/walk_generated.go mysql/ast/walk_generated.go mssql/ast/walk_generated.go
 
+      - name: Check proto is formatted, linted, and generated
+        run: |
+          make proto
+          if [ -n "$(git status --porcelain proto metadata)" ]; then
+            git status --porcelain proto metadata
+            exit 1
+          fi
+
       - name: Build
         run: go build ./...
 

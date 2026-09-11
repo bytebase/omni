@@ -70,6 +70,8 @@ omni/
 ├── oracle/                 Oracle
 │   ├── ast/                AST node types
 │   └── parser/             Recursive descent parser
+├── metadata/               Database schema snapshot types, generated from proto/
+├── proto/                  Protobuf sources (`make proto` regenerates)
 └── scripts/                Shared build & audit tooling
 ```
 

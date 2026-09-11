@@ -1,0 +1,6 @@
+version: v2
+plugins:
+  # Runs the protoc-gen-go version go.mod pins, instead of a remote BSR plugin.
+  - local: ["go", "run", "google.golang.org/protobuf/cmd/protoc-gen-go"]
+    out: ..
+    opt: module=github.com/bytebase/omni
