@@ -12,7 +12,7 @@ import (
 // When pretty is true, matches pg_get_viewdef(oid, true) (PRETTYFLAG_INDENT | PRETTYFLAG_PAREN).
 //
 // pg: src/backend/utils/adt/ruleutils.c — pg_get_viewdef_worker
-func (c *Catalog) GetViewDefinition(schema, name string, pretty ...bool) (string, error) {
+func (c *Catalog) GetViewDefinition(schema, name string, pretty bool) (string, error) {
 	rel := c.GetRelation(schema, name)
 	if rel == nil {
 		return "", errUndefinedTable(name)
@@ -20,11 +20,7 @@ func (c *Catalog) GetViewDefinition(schema, name string, pretty ...bool) (string
 	if rel.RelKind != 'v' {
 		return "", errWrongObjectType(name, "a view")
 	}
-	p := false
-	if len(pretty) > 0 {
-		p = pretty[0]
-	}
-	return c.deparseRelationQuery(rel, p)
+	return c.deparseRelationQuery(rel, pretty)
 }
 
 // GetMatViewDefinition returns the SQL definition of a materialized view,
@@ -34,7 +30,7 @@ func (c *Catalog) GetViewDefinition(schema, name string, pretty ...bool) (string
 // When pretty is true, matches pg_get_viewdef(oid, true) (PRETTYFLAG_INDENT | PRETTYFLAG_PAREN).
 //
 // pg: src/backend/utils/adt/ruleutils.c — pg_get_viewdef_worker
-func (c *Catalog) GetMatViewDefinition(schema, name string, pretty ...bool) (string, error) {
+func (c *Catalog) GetMatViewDefinition(schema, name string, pretty bool) (string, error) {
 	rel := c.GetRelation(schema, name)
 	if rel == nil {
 		return "", errUndefinedTable(name)
@@ -42,11 +38,7 @@ func (c *Catalog) GetMatViewDefinition(schema, name string, pretty ...bool) (str
 	if rel.RelKind != 'm' {
 		return "", errWrongObjectType(name, "a materialized view")
 	}
-	p := false
-	if len(pretty) > 0 {
-		p = pretty[0]
-	}
-	return c.deparseRelationQuery(rel, p)
+	return c.deparseRelationQuery(rel, pretty)
 }
 
 // deparseRelationQuery deparses the AnalyzedQuery of a view or matview.

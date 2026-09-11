@@ -354,7 +354,7 @@ func TestPhase5_ExistingRangeStillWorks(t *testing.T) {
 
 func assertViewDefContains(t *testing.T, c *Catalog, viewName, expected string) {
 	t.Helper()
-	def, err := c.GetViewDefinition("", viewName)
+	def, err := c.GetViewDefinition("", viewName, false)
 	if err != nil {
 		t.Fatalf("get view def: %v", err)
 	}
