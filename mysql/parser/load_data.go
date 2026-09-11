@@ -58,6 +58,12 @@ import (
 //
 // FROM is optional since Aurora MySQL 3.05. LOCAL is not allowed with the S3
 // form, and MANIFEST is only documented for LOAD DATA (not LOAD XML).
+//
+// Note on the DATA/XML split: sql_yacc.yy implements both with one load_stmt
+// rule, so the clauses the manual lists under only one of them (PARTITION for
+// LOAD DATA, ROWS IDENTIFIED BY for LOAD XML) are accepted syntactically for
+// both; MySQL 8.0 then fails them semantically. This parser mirrors the
+// grammar, matching the existing treatment of FIELDS / LINES on LOAD XML.
 func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	isXML := p.cur.Type == kwXML
 	p.advance() // consume DATA or XML
@@ -135,8 +141,12 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	}
 	stmt.Table = ref
 
-	// [PARTITION (partition_name, ...)] (LOAD DATA only)
-	if !isXML && p.cur.Type == kwPARTITION {
+	// [PARTITION (partition_name, ...)]
+	// The reference manual documents PARTITION for LOAD DATA only, but
+	// sql_yacc.yy has one shared load_stmt rule, so MySQL 8.0 parses it for
+	// LOAD XML too (and then fails semantically, ER_PARTITION_CLAUSE_ON_NONPARTITIONED
+	// or similar). Mirror the grammar, not the manual.
+	if p.cur.Type == kwPARTITION {
 		p.advance()
 		parts, err := p.parseParenIdentList()
 		if err != nil {
@@ -163,17 +173,24 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 		stmt.CharacterSet = name
 	}
 
-	// [ROWS IDENTIFIED BY '<tagname>'] (LOAD XML only)
-	if isXML && p.cur.Type == kwROWS {
+	// [ROWS IDENTIFIED BY '<tagname>']
+	// Documented for LOAD XML only, but the shared load_stmt rule makes
+	// MySQL 8.0 accept it syntactically for LOAD DATA as well.
+	// ROWS at this position can only start this clause (IGNORE n ROWS is
+	// introduced by IGNORE), and MySQL requires every token of it.
+	if p.cur.Type == kwROWS {
 		p.advance()
-		if p.cur.Type == kwIDENTIFIED {
-			p.advance()
-			p.match(kwBY)
-			if p.cur.Type == tokSCONST {
-				stmt.RowsIdentifiedBy = p.cur.Str
-				p.advance()
-			}
+		if _, err := p.expect(kwIDENTIFIED); err != nil {
+			return nil, err
 		}
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.RowsIdentifiedBy = p.cur.Str
+		p.advance()
 	}
 
 	// [{FIELDS | COLUMNS} ...]

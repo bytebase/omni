@@ -158,7 +158,13 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 		}
 		stmt.Tables = tables
 
-		// Single-table: optional [AS] alias and PARTITION
+		// Single-table: optional [AS] alias and PARTITION. Either one commits
+		// the statement to the single-table form: in the multi-table
+		// `DELETE FROM tbl_list USING table_references` form the list before
+		// USING holds bare table names (or aliases declared in USING), so an
+		// alias or PARTITION there followed by USING is a syntax error in
+		// MySQL.
+		singleTableOnly := false
 		if len(tables) == 1 {
 			if tblRef, ok := tables[0].(*nodes.TableRef); ok {
 				// Optional [AS] alias
@@ -169,10 +175,18 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 					}
 					tblRef.Alias = alias
 					tblRef.Loc.End = p.prev.End
-				} else if p.cur.Type == tokIDENT {
-					alias, _, _ := p.parseIdent()
+					singleTableOnly = true
+				} else if p.isIdentToken() {
+					// MySQL's opt_table_alias is `opt_AS ident`, so a bare
+					// alias may be any non-reserved keyword, exactly as in
+					// UPDATE and SELECT.
+					alias, _, err := p.parseIdent()
+					if err != nil {
+						return nil, err
+					}
 					tblRef.Alias = alias
 					tblRef.Loc.End = p.prev.End
+					singleTableOnly = true
 				}
 				// Optional PARTITION (p0, p1, ...)
 				if p.cur.Type == kwPARTITION {
@@ -183,17 +197,26 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 					}
 					tblRef.Partitions = parts
 					tblRef.Loc.End = p.prev.End
+					singleTableOnly = true
 				}
 			}
 		}
 
-		// Completion: after DELETE FROM table, offer WHERE/ORDER/LIMIT/USING.
+		// Completion: after DELETE FROM table, offer WHERE/ORDER/LIMIT, and
+		// USING unless an alias / PARTITION already ruled it out.
 		p.checkCursor()
 		if p.collectMode() {
-			for _, tok := range []int{kwWHERE, kwORDER, kwLIMIT, kwUSING} {
+			for _, tok := range []int{kwWHERE, kwORDER, kwLIMIT} {
 				p.addTokenCandidate(tok)
 			}
+			if !singleTableOnly {
+				p.addTokenCandidate(kwUSING)
+			}
 			return nil, &ParseError{Message: "collecting"}
+		}
+
+		if singleTableOnly && p.cur.Type == kwUSING {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 		// Check for USING (multi-table syntax 2)
