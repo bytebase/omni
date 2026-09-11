@@ -370,23 +370,48 @@ func tableColumnNames(t *metadata.TableMetadata) []string {
 	return names
 }
 
-// viewColumnNames prefers the view's own columns, which sync does not always
-// report, over the columns it reads.
-func viewColumnNames(v *metadata.ViewMetadata) []string {
-	if len(v.GetColumns()) == 0 {
-		return dependencyColumnNames(v.GetDependencyColumns())
-	}
-	names := make([]string, 0, len(v.GetColumns()))
-	for _, col := range v.GetColumns() {
+// standInColumnNames returns the columns a view's or materialized view's
+// stand-in exposes: the view's own columns when sync reports them, else the
+// ones its body outputs, else, when the body does not parse, the ones it reads.
+func standInColumnNames(o *metadataObject) []string {
+	var names []string
+	for _, col := range o.view.GetColumns() {
 		names = appendUniqueName(names, col.GetName())
+	}
+	if len(names) > 0 {
+		return names
+	}
+	if o.body != nil {
+		return targetColumnNames(o.body)
+	}
+	deps := o.view.GetDependencyColumns()
+	if o.kind == metadataMatView {
+		deps = o.matView.GetDependencyColumns()
+	}
+	for _, dep := range deps {
+		names = appendUniqueName(names, dep.GetColumn())
 	}
 	return names
 }
 
-func dependencyColumnNames(deps []*metadata.DependencyColumn) []string {
+// targetColumnNames returns the names of the columns a query outputs; a set
+// operation takes them from its first branch.
+func targetColumnNames(sel *nodes.SelectStmt) []string {
+	for sel.Larg != nil {
+		sel = sel.Larg
+	}
+	if sel.TargetList == nil {
+		return nil
+	}
 	var names []string
-	for _, dep := range deps {
-		names = appendUniqueName(names, dep.GetColumn())
+	for _, item := range sel.TargetList.Items {
+		if rt, ok := item.(*nodes.ResTarget); ok {
+			name := rt.Name
+			if name == "" {
+				name = figureColName(rt.Val)
+			}
+			names = appendUniqueName(names, name)
+		}
 	}
 	return names
 }

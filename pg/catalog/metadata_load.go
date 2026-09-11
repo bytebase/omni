@@ -48,6 +48,9 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 		Degraded: make(map[string]error),
 		Missing:  make(map[string]error),
 	}
+	if err := ctx.Err(); err != nil {
+		return report, err
+	}
 	for _, o := range orderMetadataObjects(collectMetadataObjects(meta, opts.Full)) {
 		if err := ctx.Err(); err != nil {
 			return report, err
@@ -306,9 +309,12 @@ func isKeyIndex(idx *metadata.IndexMetadata) bool {
 // orderMetadataObjects returns objects in an order that installs each one's
 // dependencies first. A dependency cycle installs one member first, which gets
 // a stand-in if it fails, and the rest of the cycle is ordered again with that
-// member counted as installed. That member is the cycle's first view if it has
-// one: a view waits for every overload of a function it calls, so its edges
-// can be false, and when they are the view installs as defined.
+// member counted as installed.
+//
+// A view waits for every overload of a function it calls, so those edges can
+// be false. A cycle therefore starts at a view that waits on nothing else in
+// the cycle, which installs as defined when they are. Failing that, it starts
+// at its first view, whose stand-in needs nothing.
 func orderMetadataObjects(objects []*metadataObject) []*metadataObject {
 	if len(objects) == 0 {
 		return nil
@@ -356,8 +362,22 @@ func orderMetadataObjects(objects []*metadataObject) []*metadataObject {
 	for ready.Len() > 0 {
 		next := heap.Pop(ready).(int)
 		scc := sccs[next]
-		if i := slices.IndexFunc(scc, isViewObject); i > 0 {
-			scc[0], scc[i] = scc[i], scc[0]
+		if len(scc) > 1 {
+			// callsOnly reports whether o is a view that waits on nothing in the
+			// cycle but functions.
+			callsOnly := func(o *metadataObject) bool {
+				for _, dep := range edges[o.key()] {
+					if sccOf[dep] == next && byKey[dep].kind != metadataFunction {
+						return false
+					}
+				}
+				return isViewObject(o)
+			}
+			start := slices.IndexFunc(scc, callsOnly)
+			if start < 0 {
+				start = max(slices.IndexFunc(scc, isViewObject), 0)
+			}
+			scc[0], scc[start] = scc[start], scc[0]
 		}
 		ordered = append(ordered, scc[0])
 		ordered = append(ordered, orderMetadataObjects(scc[1:])...)
@@ -678,7 +698,7 @@ func metadataStandIn(o *metadataObject) func(*Catalog) error {
 		}
 	case metadataView:
 		return func(c *Catalog) error {
-			stmt, err := standInViewStmt(o.schema, o.name, viewColumnNames(o.view))
+			stmt, err := standInViewStmt(o.schema, o.name, standInColumnNames(o))
 			if err != nil {
 				return err
 			}
@@ -686,7 +706,7 @@ func metadataStandIn(o *metadataObject) func(*Catalog) error {
 		}
 	case metadataMatView:
 		return func(c *Catalog) error {
-			stmt, err := standInMatViewStmt(o.schema, o.name, dependencyColumnNames(o.matView.GetDependencyColumns()))
+			stmt, err := standInMatViewStmt(o.schema, o.name, standInColumnNames(o))
 			if err != nil {
 				return err
 			}

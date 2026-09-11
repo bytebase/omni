@@ -127,6 +127,10 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 			// Calls f(integer); the other overloads take this view's row type,
 			// directly or through aa_wraps_view.
 			{Name: "aa_calls_overload", Definition: "SELECT public.f(1) AS x"},
+			// zz_calls_h calls h(integer); the other overload takes the row type
+			// of aa_reads_caller, which reads zz_calls_h.
+			{Name: "aa_reads_caller", Definition: "SELECT x FROM public.zz_calls_h"},
+			{Name: "zz_calls_h", Definition: "SELECT public.h(1) AS x"},
 			{Name: "zz_view", Definition: "SELECT id FROM public.zz_orders"},
 		},
 		MaterializedViews: []*metadata.MaterializedViewMetadata{
@@ -150,6 +154,8 @@ func TestLoadMetadataInstallsDependenciesFirst(t *testing.T) {
 			{Name: "g", Signature: "g(integer)", Definition: "CREATE FUNCTION public.g(x integer) RETURNS public.zz_view LANGUAGE sql AS $$ SELECT * FROM zz_view $$;"},
 			{Name: "g", Signature: "g(text)", Definition: "CREATE FUNCTION public.g(x text) RETURNS public.zz_view LANGUAGE sql AS $$ SELECT * FROM zz_view $$;"},
 			{Name: "f", Signature: "f(public.aa_calls_overload)", Definition: "CREATE FUNCTION public.f(v public.aa_calls_overload) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
+			{Name: "h", Signature: "h(integer)", Definition: "CREATE FUNCTION public.h(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$;"},
+			{Name: "h", Signature: "h(public.aa_reads_caller)", Definition: "CREATE FUNCTION public.h(r public.aa_reads_caller) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
 			{Name: "f", Signature: "f(public.aa_wraps_view)", Definition: "CREATE FUNCTION public.f(w public.aa_wraps_view) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"},
 			// Called by a default, an index expression, and a view body.
 			{Name: "zz_code", Signature: "zz_code(integer)", Definition: "CREATE FUNCTION public.zz_code(x integer) RETURNS integer IMMUTABLE LANGUAGE sql AS $$ SELECT x $$;"},
@@ -263,21 +269,18 @@ func TestLoadMetadataStandsInForFailedObjects(t *testing.T) {
 			{Name: "a_sig", Signature: "a_sig(public.unknown_type)"},
 		},
 		Views: []*metadata.ViewMetadata{
-			{
-				Name:              "over_stand_in",
-				Definition:        "SELECT id, geom FROM unknown_type",
-				DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "unknown_type", Column: "id"}},
-			},
-			{
-				Name:              "bad_body",
-				Definition:        "SELEC nonsense",
-				Columns:           []*metadata.ColumnMetadata{{Name: "a"}, {Name: "b"}},
-				DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "unknown_type", Column: "id"}},
-			},
+			{Name: "over_stand_in", Definition: "SELECT id, geom FROM unknown_type"},
+			{Name: "bad_body", Definition: "SELEC nonsense", Columns: []*metadata.ColumnMetadata{{Name: "a"}, {Name: "b"}}},
+			{Name: "over_mv", Definition: "SELECT exposed FROM public.mv_alias"},
 		},
+		MaterializedViews: []*metadata.MaterializedViewMetadata{{
+			Name:              "mv_alias",
+			Definition:        "SELECT id AS exposed FROM public.unknown_type WHERE public.missing_fn(id)",
+			DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "unknown_type", Column: "id"}},
+		}},
 	})
 
-	for _, key := range []string{"type:public.dup_status", "rel:public.unknown_type", "rel:public.bad_body", "func:public.js_fn|js_fn(integer)", "func:public.a_sig|a_sig(public.unknown_type)"} {
+	for _, key := range []string{"type:public.dup_status", "rel:public.unknown_type", "rel:public.bad_body", "rel:public.mv_alias", "func:public.js_fn|js_fn(integer)", "func:public.a_sig|a_sig(public.unknown_type)"} {
 		if report.Degraded[key] == nil {
 			t.Errorf("%s: want degraded to a stand-in, report %v", key, report.Degraded)
 		}
@@ -285,7 +288,7 @@ func TestLoadMetadataStandsInForFailedObjects(t *testing.T) {
 	if len(report.Missing) != 0 {
 		t.Errorf("stand-ins must install, missing %v", report.Missing)
 	}
-	for _, key := range []string{"rel:public.uses_enum", "rel:public.over_stand_in"} {
+	for _, key := range []string{"rel:public.uses_enum", "rel:public.over_stand_in", "rel:public.over_mv"} {
 		if report.Degraded[key] != nil {
 			t.Errorf("%s depends only on stand-ins and must install as defined: %v", key, report.Degraded[key])
 		}
@@ -295,6 +298,9 @@ func TestLoadMetadataStandsInForFailedObjects(t *testing.T) {
 	}
 	if got := columnTypes(c, requireRelation(t, c, "public", "bad_body")); len(got) != 2 || got["a"] != "text" || got["b"] != "text" {
 		t.Errorf("view stand-in columns = %v, want the view's own column names", got)
+	}
+	if got := columnTypes(c, requireRelation(t, c, "public", "mv_alias")); len(got) != 1 || got["exposed"] != "text" {
+		t.Errorf("materialized view stand-in columns = %v, want the names its body outputs", got)
 	}
 	requireRelation(t, c, "public", "over_stand_in")
 	for _, fn := range []string{"js_fn", "a_sig"} {
@@ -554,14 +560,32 @@ func TestLoadMetadataFull(t *testing.T) {
 }
 
 func TestLoadMetadataStopsWhenContextIsDone(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	_, err := New().LoadMetadata(ctx, &metadata.DatabaseSchemaMetadata{
-		Schemas: []*metadata.SchemaMetadata{{Name: "public"}},
-	}, LoadMetadataOptions{})
-	if err != context.Canceled {
-		t.Errorf("err = %v, want context.Canceled", err)
+	for _, tt := range []struct {
+		name   string
+		checks int
+		meta   *metadata.DatabaseSchemaMetadata
+	}{
+		{name: "before planning", checks: 0, meta: &metadata.DatabaseSchemaMetadata{}},
+		{name: "before an install", checks: 1, meta: &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{Name: "public"}}}},
+	} {
+		if _, err := New().LoadMetadata(&doneAfter{Context: context.Background(), checks: tt.checks}, tt.meta, LoadMetadataOptions{}); err != context.Canceled {
+			t.Errorf("%s: err = %v, want context.Canceled", tt.name, err)
+		}
 	}
+}
+
+// doneAfter is a context that is done once Err has been called checks times.
+type doneAfter struct {
+	context.Context
+	checks int
+}
+
+func (c *doneAfter) Err() error {
+	if c.checks == 0 {
+		return context.Canceled
+	}
+	c.checks--
+	return nil
 }
 
 // BenchmarkLoadMetadata loads 2,000 tables, each with a primary key, and 200
