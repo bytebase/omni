@@ -10,7 +10,7 @@
 // or PatternNode for compile-time position discipline. A handful of small
 // clause helpers (e.g. TargetEntry, CaseWhen) are bare Node.
 //
-// See docs/superpowers/specs/2026-04-08-partiql-ast-core-design.md for the
+// See docs/specs/2026-04-08-partiql-ast-core-design.md for the
 // design rationale.
 package ast
 

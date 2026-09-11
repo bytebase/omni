@@ -100,7 +100,7 @@
 ## Task 8: Final Verification And Status
 
 **Files:**
-- Modify: `SCENARIOS-oracle-completion.md`
+- Modify: `docs/scenarios/oracle/SCENARIOS-oracle-completion.md`
 - Modify: `docs/PARSER-DEFENSE-MATRIX.md`
 - Modify: `docs/engine-capability-guide.md`
 

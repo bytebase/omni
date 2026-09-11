@@ -52,7 +52,7 @@ Source at `/Users/rebeliceyang/Github/SqlScriptDOM` (sibling checkout).
 
 ### Phase 0 — Audit
 
-Deliverable: `SCENARIOS-mssql-syntax-gaps.md` with numbered scenarios covering:
+Deliverable: `docs/scenarios/mssql/SCENARIOS-mssql-syntax-gaps.md` with numbered scenarios covering:
 - all T-SQL SELECT list item forms (vs. SqlScriptDOM `SelectElement` subclasses)
 - all T-SQL `TableReference` subclasses vs. omni parse dispatch
 

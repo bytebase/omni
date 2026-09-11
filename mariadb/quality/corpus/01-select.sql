@@ -115,42 +115,42 @@ SELECT * FROM t WHERE x = 1
 
 -- @name: unclosed parenthesis in expression rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.1
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.1
 SELECT (1 + 2 FROM t
 
 -- @name: unclosed nested parenthesis rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.1
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.1
 SELECT ((1 + 2) FROM t
 
 -- @name: unclosed parenthesis in WHERE rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.1
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.1
 SELECT * FROM t WHERE (a = 1 AND b = 2
 
 -- @name: unclosed subquery parenthesis rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.1
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.1
 SELECT * FROM (SELECT 1
 
 -- @name: unclosed function call parenthesis rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.1
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.1
 SELECT COUNT(
 
 -- @name: balanced parentheses accepted
 -- @valid: true
--- @source: SCENARIOS-mysql-strict.md section 3.1
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.1
 SELECT (1 + 2)
 
 -- @name: nested balanced parentheses accepted
 -- @valid: true
--- @source: SCENARIOS-mysql-strict.md section 3.1
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.1
 SELECT ((1 + 2))
 
 -- @name: subquery with closing paren accepted
 -- @valid: true
--- @source: SCENARIOS-mysql-strict.md section 3.1
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.1
 SELECT * FROM (SELECT 1) AS sub
 
 -- ============================================================
@@ -159,42 +159,42 @@ SELECT * FROM (SELECT 1) AS sub
 
 -- @name: missing right operand for + rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.2
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.2
 SELECT 1 +
 
 -- @name: missing right operand for * rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.2
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.2
 SELECT 1 *
 
 -- @name: missing right operand for = rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.2
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.2
 SELECT * FROM t WHERE a =
 
 -- @name: missing right operand for AND rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.2
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.2
 SELECT * FROM t WHERE a AND
 
 -- @name: missing right operand for OR rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.2
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.2
 SELECT * FROM t WHERE a OR
 
 -- @name: missing operand for NOT rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.2
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.2
 SELECT * FROM t WHERE NOT
 
 -- @name: complete binary expression accepted
 -- @valid: true
--- @source: SCENARIOS-mysql-strict.md section 3.2
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.2
 SELECT 1 + 2
 
 -- @name: complete compound condition accepted
 -- @valid: true
--- @source: SCENARIOS-mysql-strict.md section 3.2
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.2
 SELECT * FROM t WHERE a = 1 AND b = 2
 
 -- ============================================================
@@ -203,57 +203,57 @@ SELECT * FROM t WHERE a = 1 AND b = 2
 
 -- @name: missing parenthesized list after IN rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.3
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.3
 SELECT * FROM t WHERE id IN
 
 -- @name: unclosed IN list rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.3
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.3
 SELECT * FROM t WHERE id IN (
 
 -- @name: missing AND in BETWEEN rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.3
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.3
 SELECT * FROM t WHERE id BETWEEN 1
 
 -- @name: missing range in BETWEEN rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.3
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.3
 SELECT * FROM t WHERE id BETWEEN
 
 -- @name: missing pattern after LIKE rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.3
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.3
 SELECT * FROM t WHERE name LIKE
 
 -- @name: missing pattern after REGEXP rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.3
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.3
 SELECT * FROM t WHERE name REGEXP
 
 -- @name: IN with value list accepted
 -- @valid: true
--- @source: SCENARIOS-mysql-strict.md section 3.3
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.3
 SELECT * FROM t WHERE id IN (1, 2, 3)
 
 -- @name: BETWEEN with range accepted
 -- @valid: true
--- @source: SCENARIOS-mysql-strict.md section 3.3
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.3
 SELECT * FROM t WHERE id BETWEEN 1 AND 10
 
 -- @name: NOT IN accepted
 -- @valid: true
--- @source: SCENARIOS-mysql-strict.md section 3.3
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.3
 SELECT * FROM t WHERE id NOT IN (1, 2)
 
 -- @name: NOT BETWEEN accepted
 -- @valid: true
--- @source: SCENARIOS-mysql-strict.md section 3.3
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.3
 SELECT * FROM t WHERE id NOT BETWEEN 1 AND 10
 
 -- @name: LIKE with pattern accepted
 -- @valid: true
--- @source: SCENARIOS-mysql-strict.md section 3.3
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.3
 SELECT * FROM t WHERE name LIKE '%foo%'
 
 -- ============================================================
@@ -262,25 +262,25 @@ SELECT * FROM t WHERE name LIKE '%foo%'
 
 -- @name: CASE missing THEN and END rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.4
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.4
 SELECT CASE WHEN 1 FROM t
 
 -- @name: CASE missing END rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.4
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.4
 SELECT CASE WHEN 1 THEN 'a'
 
 -- @name: CASE missing WHEN clause rejected
 -- @valid: false
--- @source: SCENARIOS-mysql-strict.md section 3.4
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.4
 SELECT CASE END
 
 -- @name: CASE WHEN THEN END accepted
 -- @valid: true
--- @source: SCENARIOS-mysql-strict.md section 3.4
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.4
 SELECT CASE WHEN 1 THEN 'a' END
 
 -- @name: simple CASE with ELSE accepted
 -- @valid: true
--- @source: SCENARIOS-mysql-strict.md section 3.4
+-- @source: docs/scenarios/mysql/SCENARIOS-mysql-strict.md section 3.4
 SELECT CASE x WHEN 1 THEN 'a' ELSE 'b' END

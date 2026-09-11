@@ -5,7 +5,7 @@
 // Category, and ClassifySQL, which parses a raw SQL string and classifies
 // its first statement.
 //
-// See docs/superpowers/specs/2026-04-15-snowflake-stmt-classify-design.md
+// See docs/specs/2026-04-15-snowflake-stmt-classify-design.md
 // for the design rationale.
 package analysis
 

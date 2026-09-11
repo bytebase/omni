@@ -7,7 +7,7 @@
 // carries a source range (line, column, byte offset) and a human-readable
 // message, ready for use in language servers, linters, or test assertions.
 //
-// See docs/superpowers/specs/2026-04-15-snowflake-diagnostics-design.md
+// See docs/specs/2026-04-15-snowflake-diagnostics-design.md
 // for the design rationale.
 package diagnostics
 

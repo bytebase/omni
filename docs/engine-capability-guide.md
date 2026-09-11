@@ -419,12 +419,12 @@ The following rules are distilled from PG experience and **must be strictly foll
 
 | File | Scenarios | Completion | Coverage |
 |------|-----------|------------|---------|
-| `SCENARIOS-pg-loc.md` | 137 | 98.5% | AST node position tracking |
-| `SCENARIOS-pg-diff.md` | 131 | 100% | Schema diff detection |
-| `SCENARIOS-pg-migration.md` | 120 | 98.3% | DDL migration generation |
-| `SCENARIOS-pg-container.md` | 110 | 90% | Real PG verification |
-| `SCENARIOS-pg-sdl.md` | 82 | 100% | Declarative schema loading |
-| `SCENARIOS-pg-expr.md` | 61 | 29.5% | Expression deparsing |
-| `SCENARIOS-pg-ruleutils.md` | 52 | 0% | ruleutils alignment |
-| `SCENARIOS-plpgsql.md` | 208 | 100% | PL/pgSQL parsing |
+| `docs/scenarios/pg/SCENARIOS-pg-loc.md` | 137 | 98.5% | AST node position tracking |
+| `docs/scenarios/pg/SCENARIOS-pg-diff.md` | 131 | 100% | Schema diff detection |
+| `docs/scenarios/pg/SCENARIOS-pg-migration.md` | 120 | 98.3% | DDL migration generation |
+| `docs/scenarios/pg/SCENARIOS-pg-container.md` | 110 | 90% | Real PG verification |
+| `docs/scenarios/pg/SCENARIOS-pg-sdl.md` | 82 | 100% | Declarative schema loading |
+| `docs/scenarios/pg/SCENARIOS-pg-expr.md` | 61 | 29.5% | Expression deparsing |
+| `docs/scenarios/pg/SCENARIOS-pg-ruleutils.md` | 52 | 0% | ruleutils alignment |
+| `docs/scenarios/pg/SCENARIOS-plpgsql.md` | 208 | 100% | PL/pgSQL parsing |
 | `pg/parser/SCENARIOS-soft-fail.md` | ~60 | 100% | Error handling quality |

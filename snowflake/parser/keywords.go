@@ -138,7 +138,7 @@ var keywordReserved = map[int]bool{
 
 // keywordMap maps lowercased keyword text to its kw* constant.
 // Generated from /Users/h3n4l/OpenSource/parser/snowflake/SnowflakeLexer.g4
-// via the extraction pipeline in docs/superpowers/plans/2026-04-07-snowflake-lexer.md.
+// via the extraction pipeline in docs/plans/2026-04-07-snowflake-lexer.md.
 var keywordMap = map[string]int{
 	// KEYWORD_MAP_BEGIN — populated from SnowflakeLexer.g4
 	"abort":                           kwABORT,
