@@ -206,6 +206,10 @@ func TestParseError_Section_1_4_DMLIgnoredErrors(t *testing.T) {
 		// load_data.go: charset/file identifier (2 sites)
 		{"load_data_charset_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARACTER SET", "at end of input"},
 		{"load_data_charset_short_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARSET", "at end of input"},
+		// load_data.go: ROWS IDENTIFIED BY at EOF (3 sites)
+		{"load_rows_trunc", "LOAD XML INFILE 'f' INTO TABLE t ROWS", "at end of input"},
+		{"load_rows_identified_trunc", "LOAD XML INFILE 'f' INTO TABLE t ROWS IDENTIFIED", "at end of input"},
+		{"load_rows_identified_by_trunc", "LOAD DATA INFILE 'f' INTO TABLE t ROWS IDENTIFIED BY", "at end of input"},
 		// load_data.go: Aurora S3 source at EOF (3 sites)
 		{"load_data_from_trunc", "LOAD DATA FROM", "at end of input"},
 		{"load_data_from_s3_trunc", "LOAD DATA FROM S3", "at end of input"},

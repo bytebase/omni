@@ -329,6 +329,9 @@ Oracle-verified against `mysql:8.0`: MySQL's `ident` / `label_ident` / `role_ide
 - [x] `DELETE FROM t status WHERE id = 1` — bare alias may be a non-reserved keyword (was tokIDENT-only; UPDATE / SELECT already accepted it)
 - [x] `DELETE FROM t manifest PARTITION (p0) WHERE id = 1` — keyword alias followed by PARTITION
 - [x] `DELETE FROM t select WHERE id = 1` — rejected: reserved
+- [x] `DELETE FROM t foo USING t AS foo WHERE foo.id = 1` — rejected: an alias on the target commits to the single-table form, USING may not follow
+- [x] `DELETE FROM t PARTITION (p0) USING t WHERE t.id = 1` — rejected: same for PARTITION
+- [x] `DELETE FROM foo USING t AS foo WHERE foo.id = 1` — multi-table form: the pre-USING name refers to an alias declared in USING
 - [x] `CREATE PROCEDURE p() BEGIN status: LOOP LEAVE status; END LOOP; END` — uncategorized keyword as label
 - [x] `SET status = 1` / `SET data = 1` — uncategorized keyword as SET target
 - [x] `CREATE ROLE status` — uncategorized keyword as role name
@@ -342,3 +345,4 @@ Oracle-verified against `mysql:8.0`: MySQL's `ident` / `label_ident` / `role_ide
 
 - [x] `LOAD XML INFILE '/x' INTO TABLE t PARTITION (p0)` — PARTITION accepted on LOAD XML
 - [x] `LOAD DATA INFILE '/x' INTO TABLE t ROWS IDENTIFIED BY '<row>'` — ROWS IDENTIFIED BY accepted on LOAD DATA
+- [x] `LOAD DATA INFILE '/x' INTO TABLE t ROWS` / `... ROWS IDENTIFIED BY` — rejected: the clause must be complete once ROWS is seen

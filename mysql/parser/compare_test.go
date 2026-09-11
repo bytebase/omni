@@ -12836,6 +12836,23 @@ func TestDeleteBareAliasAcceptsNonReservedKeywords(t *testing.T) {
 	ParseExpectError(t, "DELETE FROM t from WHERE id = 1")
 }
 
+func TestDeleteAliasOrPartitionExcludesUsing(t *testing.T) {
+	// In `DELETE FROM tbl_list USING table_references` the list before USING
+	// holds table names or aliases declared in USING; declaring an alias or
+	// PARTITION there is ER_PARSE_ERROR in MySQL 8.0 (oracle-verified).
+	ParseExpectError(t, "DELETE FROM t status USING t AS status WHERE status.id = 1")
+	ParseExpectError(t, "DELETE FROM t foo USING t AS foo WHERE foo.id = 1")
+	ParseExpectError(t, "DELETE FROM t AS foo USING t AS foo WHERE foo.id = 1")
+	ParseExpectError(t, "DELETE FROM t PARTITION (p0) USING t WHERE t.id = 1")
+	// The multi-table form itself is unchanged.
+	ParseAndCheck(t, "DELETE FROM t USING t WHERE t.id = 1")
+	ParseAndCheck(t, "DELETE FROM foo USING t AS foo WHERE foo.id = 1")
+	ParseAndCheck(t, "DELETE FROM status USING t AS status WHERE status.id = 1")
+	ParseAndCheck(t, "DELETE FROM t, t2 USING t JOIN t2 ON t.id = t2.id")
+	// And so is the single-table form with alias / PARTITION.
+	ParseAndCheck(t, "DELETE FROM t AS foo PARTITION (p0) WHERE foo.id = 1 ORDER BY id LIMIT 1")
+}
+
 func TestUncategorizedKeywordsAreUnambiguous(t *testing.T) {
 	// Registered keywords without a keywordCategories entry default to
 	// unambiguous, so they work as labels, role names and SET targets.
@@ -12864,4 +12881,16 @@ func TestLoadDataXMLShareTrailingClauses(t *testing.T) {
 		`{LOAD_DATA :loc 0 :infile "/x" :table {TABLEREF :loc 33 :name t} :rows_identified_by "<row>"}`)
 	ParseAndCheck(t, "LOAD XML FROM S3 's3://b/x' INTO TABLE t PARTITION (p0, p1) ROWS IDENTIFIED BY '<row>'")
 	ParseAndCheck(t, "LOAD DATA FROM S3 's3://b/x' INTO TABLE t PARTITION (p0) ROWS IDENTIFIED BY '<row>' FIELDS TERMINATED BY ','")
+
+	// The clause must be complete once ROWS is seen (oracle-verified: 1064).
+	for _, form := range []string{"LOAD DATA", "LOAD XML"} {
+		ParseExpectError(t, form+" INFILE '/x' INTO TABLE t ROWS")
+		ParseExpectError(t, form+" INFILE '/x' INTO TABLE t ROWS IDENTIFIED")
+		ParseExpectError(t, form+" INFILE '/x' INTO TABLE t ROWS IDENTIFIED BY")
+		ParseExpectError(t, form+" INFILE '/x' INTO TABLE t ROWS BY '<row>'")
+		ParseExpectError(t, form+" INFILE '/x' INTO TABLE t ROWS IDENTIFIED BY row")
+	}
+	// IGNORE n ROWS is a different clause and still parses.
+	ParseAndCheck(t, "LOAD DATA INFILE '/x' INTO TABLE t IGNORE 1 ROWS")
+	ParseAndCheck(t, "LOAD XML INFILE '/x' INTO TABLE t ROWS IDENTIFIED BY '<row>' IGNORE 2 ROWS")
 }

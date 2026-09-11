@@ -176,16 +176,21 @@ func (p *Parser) parseLoadDataStmt(start int) (*nodes.LoadDataStmt, error) {
 	// [ROWS IDENTIFIED BY '<tagname>']
 	// Documented for LOAD XML only, but the shared load_stmt rule makes
 	// MySQL 8.0 accept it syntactically for LOAD DATA as well.
+	// ROWS at this position can only start this clause (IGNORE n ROWS is
+	// introduced by IGNORE), and MySQL requires every token of it.
 	if p.cur.Type == kwROWS {
 		p.advance()
-		if p.cur.Type == kwIDENTIFIED {
-			p.advance()
-			p.match(kwBY)
-			if p.cur.Type == tokSCONST {
-				stmt.RowsIdentifiedBy = p.cur.Str
-				p.advance()
-			}
+		if _, err := p.expect(kwIDENTIFIED); err != nil {
+			return nil, err
 		}
+		if _, err := p.expect(kwBY); err != nil {
+			return nil, err
+		}
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.RowsIdentifiedBy = p.cur.Str
+		p.advance()
 	}
 
 	// [{FIELDS | COLUMNS} ...]
