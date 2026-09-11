@@ -320,12 +320,10 @@ func appendConstraintObjects(out []*metadataObject, schema, table string, indexe
 }
 
 // functionObject collects a function or procedure. PostgreSQL sync lists
-// procedures among the functions, so a definition that parses says which.
+// procedures among the functions, so the definition says which.
 func functionObject(schema string, fn *metadata.FunctionMetadata, procedure bool) *metadataObject {
 	stmt, _ := parseStatement[*nodes.CreateFunctionStmt](fn.GetDefinition())
-	if stmt != nil && createFunctionStmtIsProcedure(stmt) {
-		procedure = true
-	}
+	procedure = procedure || isProcedureDefinition(fn.GetDefinition())
 	return &metadataObject{kind: metadataFunction, schema: schema, name: fn.GetName(), function: fn, procedure: procedure, createStmt: stmt}
 }
 

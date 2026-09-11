@@ -504,6 +504,14 @@ func userTypeRef(typ string) (schema, name string, ok bool) {
 	return splitQualifiedIdent(s)
 }
 
+// isProcedureDefinition reports whether a definition creates a procedure, even
+// one that does not parse; pg_get_functiondef starts it CREATE OR REPLACE
+// PROCEDURE.
+func isProcedureDefinition(def string) bool {
+	head := strings.Join(strings.Fields(strings.ToUpper(def[:min(len(def), 64)])), " ")
+	return strings.HasPrefix(head, "CREATE PROCEDURE ") || strings.HasPrefix(head, "CREATE OR REPLACE PROCEDURE ")
+}
+
 // signatureArgTypes splits the argument types out of a signature, which sync
 // writes as the function's name followed by its arguments in parentheses, as
 // in "fn(integer, numeric(10,2))". The name can itself contain parentheses.

@@ -101,6 +101,21 @@ func TestSignatureArgTypes(t *testing.T) {
 	}
 }
 
+func TestIsProcedureDefinition(t *testing.T) {
+	for def, want := range map[string]bool{
+		"CREATE OR REPLACE PROCEDURE public.p(x integer)\n LANGUAGE sql\nAS $procedure$ SELECT 1 $procedure$": true,
+		"create procedure p() language sql as ''":                                                             true,
+		"CREATE OR REPLACE PROCEDURE public.cut(":                                                             true,
+		"CREATE OR REPLACE FUNCTION public.f()\n RETURNS integer":                                             false,
+		"CREATE OR REPLACE FUNCTION public.procedure()":                                                       false,
+		"": false,
+	} {
+		if got := isProcedureDefinition(def); got != want {
+			t.Errorf("isProcedureDefinition(%q) = %v, want %v", def, got, want)
+		}
+	}
+}
+
 func TestCollateClause(t *testing.T) {
 	names := func(c *nodes.CollateClause) []string {
 		var out []string

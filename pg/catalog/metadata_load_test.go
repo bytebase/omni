@@ -501,11 +501,13 @@ func TestLoadMetadataFull(t *testing.T) {
 			{Name: "sweep", Signature: "sweep()", Definition: "CREATE PROCEDURE public.sweep() LANGUAGE sql AS $$ SELECT 1 $$;"},
 			// Parses, but omni does not know the language.
 			{Name: "js_proc", Signature: "js_proc(integer)", Definition: "CREATE PROCEDURE public.js_proc(x integer) LANGUAGE plv8 AS $$ return $$;"},
+			// Does not parse, but still reads as a procedure.
+			{Name: "cut_proc", Signature: "cut_proc(integer)", Definition: "CREATE OR REPLACE PROCEDURE public.cut_proc(x integer)\n LANGUAGE sql\nAS"},
 		},
 	}
 
 	c, report := loadSnapshot(t, true, schema)
-	requireDegraded(t, report, "func:public.touch_by|touch_by(integer)", "func:public.js_proc|js_proc(integer)", "rel:public.broken")
+	requireDegraded(t, report, "func:public.touch_by|touch_by(integer)", "func:public.js_proc|js_proc(integer)", "func:public.cut_proc|cut_proc(integer)", "rel:public.broken")
 
 	users := requireRelation(t, c, "public", "users")
 	byName := make(map[string]*Column, len(users.Columns))
@@ -585,7 +587,7 @@ func TestLoadMetadataFull(t *testing.T) {
 	if want := []string{"broken_id_seq", "counter_seq", "users_id_custom", "users_seq_no_seq"}; !slices.Equal(sequences, want) {
 		t.Errorf("sequences = %v, want the explicit ones and the identity column's", sequences)
 	}
-	for _, name := range []string{"touch", "touch_by", "sweep", "js_proc"} {
+	for _, name := range []string{"touch", "touch_by", "sweep", "js_proc", "cut_proc"} {
 		if procs := c.LookupProcByName(name); len(procs) != 1 || procs[0].Kind != 'p' {
 			t.Errorf("%s: want one procedure, got %+v", name, procs)
 		}
@@ -601,7 +603,7 @@ func TestLoadMetadataFull(t *testing.T) {
 	if users.Columns[0].Identity != 0 || users.Columns[2].HasDefault {
 		t.Error("identity and defaults must wait for Full")
 	}
-	if len(c.SequencesOf("public")) != 0 || len(c.LookupProcByName("touch")) != 0 || len(c.LookupProcByName("sweep")) != 0 {
+	if len(c.SequencesOf("public")) != 0 || len(c.LookupProcByName("touch")) != 0 || len(c.LookupProcByName("sweep")) != 0 || len(c.LookupProcByName("cut_proc")) != 0 {
 		t.Error("sequences and procedures must wait for Full")
 	}
 }
