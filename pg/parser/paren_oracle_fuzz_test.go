@@ -1,5 +1,3 @@
-//go:build oracle
-
 package parser
 
 import (
@@ -53,8 +51,8 @@ import (
 // predict the target shape (that's §2.2–§2.7's job), only that the
 // accept/reject decision agrees.
 const (
-	fuzzSeed               int64 = 0xBADC0DE1 // stable across CI runs
-	fuzzCorpusSizeDefault  int   = 100
+	fuzzSeed              int64 = 0xBADC0DE1 // stable across CI runs
+	fuzzCorpusSizeDefault int   = 100
 
 	// fuzzCorpusDir is relative to the test binary's working directory
 	// (pg/parser/). seed-cases.txt, mismatches.txt, and

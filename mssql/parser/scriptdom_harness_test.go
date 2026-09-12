@@ -1,6 +1,5 @@
-//go:build scriptdom
-
-// Run with: go test -tags scriptdom ./mssql/parser/ -run TestScriptDOMDiff
+// Run with: go test ./mssql/parser/ -run TestScriptDOMDiff. The .NET harness builds
+// and runs inside the dotnet/sdk:8.0 image, so only Docker is needed.
 //
 // This test compares omni's AST shape against SqlScriptDOM by shelling out
 // to the .NET harness at harness/mssql-scriptdom. The harness parses with
@@ -52,17 +51,21 @@ func getHarness(t *testing.T) *scriptdomHarness {
 			return
 		}
 
-		// Ensure the harness is built.
-		build := exec.Command("dotnet", "build", "-c", "Release", "-v", "minimal", "--nologo")
-		build.Dir = projDir
-		if out, err := build.CombinedOutput(); err != nil {
-			harnessInitErr = fmt.Errorf("dotnet build failed: %v\n%s", err, out)
+		// Build and run the .NET harness inside the official SDK image, so the
+		// only host requirement is Docker. --user keeps bin/, obj/ and the NuGet
+		// cache owned by the invoking user; the cache dir persists across runs.
+		cache := filepath.Join(os.TempDir(), "omni-scriptdom-nuget")
+		if err := os.MkdirAll(cache, 0o755); err != nil {
+			harnessInitErr = err
 			return
 		}
-
-		dll := filepath.Join(projDir, "bin", "Release", "net8.0", "mssql-scriptdom-harness.dll")
-		cmd := exec.Command("dotnet", dll)
-		cmd.Env = append(os.Environ(), "MSSQL_HARNESS_LINE=1")
+		cmd := exec.Command("docker", "run", "-i", "--rm",
+			"--user", fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid()),
+			"-v", projDir+":/src", "-v", cache+":/nuget", "-w", "/src",
+			"-e", "HOME=/tmp", "-e", "DOTNET_CLI_HOME=/tmp", "-e", "NUGET_PACKAGES=/nuget",
+			"-e", "DOTNET_CLI_TELEMETRY_OPTOUT=1", "-e", "DOTNET_NOLOGO=1", "-e", "MSSQL_HARNESS_LINE=1",
+			"mcr.microsoft.com/dotnet/sdk:8.0", "sh", "-c",
+			"dotnet build -c Release -v quiet --nologo 1>&2 && exec dotnet bin/Release/net8.0/mssql-scriptdom-harness.dll")
 		stdin, err := cmd.StdinPipe()
 		if err != nil {
 			harnessInitErr = err

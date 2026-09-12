@@ -5,9 +5,6 @@ import (
 )
 
 func TestContainerInfra(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	t.Run("container_starts", func(t *testing.T) {

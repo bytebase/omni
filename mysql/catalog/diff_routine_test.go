@@ -135,9 +135,6 @@ func (o *oracleConn) showCreateRoutine(t *testing.T, dbName, kind, name string) 
 // TestOracle_RoutineDiffIdempotence proves gate 1 & 2 for every routine form: the user DDL vs its
 // engine readback diffs EMPTY, and the stored form self-diffs empty, on every supported version.
 func TestOracle_RoutineDiffIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -190,9 +187,6 @@ func TestOracle_RoutineDiffIdempotence(t *testing.T) {
 // and self-diff empty. Before adjacency support this failed with "unexpected
 // token" — hard-blocking the declarative path for any dump containing sys.
 func TestOracle_SysProcedureAdjacentLiterals(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(o.version)

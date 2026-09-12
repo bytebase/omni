@@ -15,9 +15,6 @@ import (
 // The test uses t.Error (not t.Fatal) so every scenario reports all its
 // diffs in a single run.
 func TestScenario_C2(t *testing.T) {
-	scenariosSkipIfShort(t)
-	scenariosSkipIfNoDocker(t)
-
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 

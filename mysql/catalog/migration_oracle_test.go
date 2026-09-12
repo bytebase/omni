@@ -29,8 +29,8 @@ import (
 //     rendering (or an upstream normalization gap → flagged, not patched here).
 //
 // The harness reuses connectOracle / showCreate / serverCharsetFor / loadOneTable / both()
-// from the diff + normalize oracle tests. It skips cleanly when the engines are unreachable,
-// so the unit suite stays hermetic (go test -short skips it).
+// from the diff + normalize oracle tests. It falls back to a shared testcontainer per
+// version when the local engines are unreachable (oracle_fallback_test.go).
 
 // readbackTable returns the SHOW CREATE TABLE for a table in an existing database.
 func (o *oracleConn) readbackTable(t *testing.T, dbName, table string) (string, bool) {
@@ -240,9 +240,6 @@ func migrationProbes() []migrationProbe {
 // TestOracle_MigrationApplyCorrectness proves gate 2 (apply-correctness) for every probe:
 // the generated DDL transforms a real `from` database into a `to`-equal one.
 func TestOracle_MigrationApplyCorrectness(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -421,9 +418,6 @@ func applyDBName(t *testing.T, probeID string) string {
 // form, the generated no-op plan is EMPTY — and the full round-trip (apply → dump → reload →
 // diff → generate) emits nothing. A non-empty no-op plan is a bug.
 func TestOracle_MigrationIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -469,9 +463,6 @@ func TestOracle_MigrationIdempotence(t *testing.T) {
 // could be satisfied by both sides being equally corrupted; this checks the absolute value).
 // It also covers the other integer boundaries that overflow int64 on the way in.
 func TestOracle_BigintUnsignedExactValue(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	cases := []struct {
 		id      string
 		colType string

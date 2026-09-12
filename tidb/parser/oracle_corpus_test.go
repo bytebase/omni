@@ -3,9 +3,6 @@ package parser
 import "testing"
 
 func TestOracleCorpus(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
-	}
 	oracle := startParserOracle(t)
 
 	// Create a dummy table for SELECT statements that reference 't'.

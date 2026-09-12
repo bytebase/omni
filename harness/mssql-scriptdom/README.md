@@ -29,7 +29,7 @@ this harness in batch mode and diffs omni's AST against the ScriptDOM shape.
 
 Run with:
 ```bash
-go test -tags scriptdom ./mssql/parser/ -run TestScriptDOMDiff -v
+go test ./mssql/parser/ -run TestScriptDOMDiff -v
 ```
 
 ## Shape covered

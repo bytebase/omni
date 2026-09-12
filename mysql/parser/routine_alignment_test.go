@@ -15,8 +15,8 @@ import (
 //   - omni:  Parse(sql) returned no error?
 //   - mysql: container exec(sql) returned no error of any kind?
 //
-// Alignment is exact when both decisions agree. The test is gated by
-// -short (the existing oracle convention in this package). It does not
+// Alignment is exact when both decisions agree. The test uses the
+// package-shared MySQL 8.0 container (startParserOracle). It does not
 // fail on disagreement; it logs a structured matrix so reviewers can
 // see exactly where omni and MySQL diverge.
 //

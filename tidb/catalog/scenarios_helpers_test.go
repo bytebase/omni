@@ -1,14 +1,8 @@
 package catalog
 
 import (
-	"context"
-	"os"
 	"strings"
-	"sync"
 	"testing"
-	"time"
-
-	"github.com/testcontainers/testcontainers-go"
 )
 
 // This file provides the shared infrastructure used by the "mysql-implicit-behavior"
@@ -24,7 +18,7 @@ import (
 //
 // IMPORTANT: pins the underlying *sql.DB pool to a single connection. Many
 // scenario tests rely on connection-scoped state (USE testdb, SET SESSION
-// explicit_defaults_for_timestamp=0, SET SESSION sql_mode='', etc.) that
+// explicit_defaults_for_timestamp=0, SET SESSION sql_mode=”, etc.) that
 // only affects the current MySQL session. Without pinning, subsequent
 // queries may execute on a different pool connection and silently run
 // against the wrong schema or session settings, producing nondeterministic
@@ -220,60 +214,6 @@ func assertBoolEq(t *testing.T, label string, got, want bool) {
 	if got != want {
 		t.Errorf("%s: got %v, want %v", label, got, want)
 	}
-}
-
-// scenariosSkipIfShort skips the calling test when testing.Short() is true.
-func scenariosSkipIfShort(t *testing.T) {
-	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping scenario test in short mode")
-	}
-}
-
-// scenariosSkipIfNoDocker skips the calling test when SKIP_SCENARIO_TESTS=1
-// is set OR when the Docker daemon is not reachable. Probing the daemon
-// avoids a panic from testcontainers in environments without Docker.
-// (Codex phase review finding.)
-func scenariosSkipIfNoDocker(t *testing.T) {
-	t.Helper()
-	if os.Getenv("SKIP_SCENARIO_TESTS") == "1" {
-		t.Skip("SKIP_SCENARIO_TESTS=1 set; skipping scenario test")
-	}
-	if !dockerAvailable() {
-		t.Skip("Docker daemon not reachable; skipping scenario test")
-	}
-}
-
-var (
-	dockerAvailableOnce sync.Once
-	dockerAvailableVal  bool
-)
-
-func dockerAvailable() bool {
-	dockerAvailableOnce.Do(func() {
-		// testcontainers.NewDockerProvider can panic via MustExtractDockerHost
-		// when DOCKER_HOST is unset and no socket is reachable, so wrap the
-		// probe in recover() to guarantee a clean skip instead of a panic.
-		defer func() {
-			if r := recover(); r != nil {
-				dockerAvailableVal = false
-			}
-		}()
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		provider, err := testcontainers.NewDockerProvider()
-		if err != nil {
-			dockerAvailableVal = false
-			return
-		}
-		defer provider.Close()
-		if err := provider.Health(ctx); err != nil {
-			dockerAvailableVal = false
-			return
-		}
-		dockerAvailableVal = true
-	})
-	return dockerAvailableVal
 }
 
 // mysqlAtLeast reports whether the VERSION() string reports a server at

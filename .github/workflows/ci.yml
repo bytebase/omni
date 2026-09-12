@@ -6,100 +6,81 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: ['1.25']
+  ci:
+    # One job on the org's self-hosted runners. A PR runs the tests of the
+    # engines it touches (scripts/affected-packages.sh); a push to main runs
+    # everything. Every test runs here; nothing is skipped and nothing is nightly.
+    runs-on: self-hosted
+    timeout-minutes: 30
+    env:
+      # Sweep sizes the old nightly used; they add ~20 s here, so every PR gets them.
+      PAREN_FUZZ_SIZE: '10000'
+      SPLITTEST_N: '1000000'
+      S3DIFF_N: '2000'
+    services:
+      trino:
+        # The trino oracle tests need a live Trino; the runner waits for the
+        # image's health check. Keep the tag in sync with trinooracle.DefaultImage.
+        image: trinodb/trino:482
+        ports: ['8080']
+      spanner:
+        # The googlesql differentials record verdicts from this exact emulator
+        # build (sha256:caf1bd24…); newer builds drift, so keep it pinned.
+        image: gcr.io/cloud-spanner-emulator/emulator:1.5.54
+        ports: ['9010']
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # affected-packages.sh diffs against the base branch
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: '1.25'
+          cache: false # the runner keeps GOCACHE/GOMODCACHE between runs
 
-      - name: Check generated code is up to date
+      - name: Generated code and proto are in sync
         run: |
-          go generate ./pg/ast/...
-          go generate ./mysql/ast/...
-          go generate ./mssql/ast/...
-          git diff --exit-code pg/ast/walk_generated.go mysql/ast/walk_generated.go mssql/ast/walk_generated.go
-
-      - name: Check proto is formatted, linted, and generated
-        run: |
-          make proto
-          if [ -n "$(git status --porcelain proto metadata)" ]; then
-            git status --porcelain proto metadata
-            exit 1
-          fi
-
-      - name: Check proto for breaking changes against main
-        run: make proto-breaking
+          go generate ./pg/ast/... ./mysql/ast/... ./mssql/ast/...
+          make proto proto-breaking
+          git status --porcelain
+          test -z "$(git status --porcelain)"
 
       - name: Build
         run: go build ./...
 
-      - name: Test
-        run: go test -short ./...
-
-      # harness/conformance is its own Go module, so the root ./... above
-      # never compiles it — a break there would ship silently. -short skips
-      # everything that needs the fetched corpus or a live container, keeping
-      # this hermetic and fast; the container lane stays out of CI by design.
-      - name: Conformance harness unit tests
-        working-directory: harness/conformance
-        run: go test -short ./...
-
-      # Build-tag-gated test code must at least compile on every PR,
-      # even when the tests themselves run elsewhere (container jobs,
-      # nightly, or local-only like the scriptdom .NET harness).
-      # `go test -run '^$'` compiles the test binary (including test
-      # files, which `go build` skips) without running any tests.
-      - name: Compile build-tagged test code
+      - name: Affected packages
+        id: affected
         run: |
-          go test -tags=oracle -run '^$' -count=1 ./pg/parser/ ./pg/catalog/ ./redshift/parser/ ./redshift/catalog/
-          go test -tags=oracle_ref -run '^$' -count=1 ./oracle/parser/
-          go test -tags=scriptdom -run '^$' -count=1 ./mssql/parser/
-          go test -tags=googlesql_oracle -run '^$' -count=1 ./googlesql/parser/ ./googlesql/analysis/
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            pkgs=$(scripts/affected-packages.sh origin/${{ github.base_ref }})
+          else
+            pkgs=./...
+          fi
+          echo "pkgs=$pkgs" | tee -a "$GITHUB_OUTPUT"
 
-      # SCENARIOS-pg-paren-dispatch.md §5.3 — PAREN_AUDIT lint gate.
-      # Runs on every PR/push; fails CI when a new `(` / `)` dispatch
-      # site is added without a matching row in PAREN_AUDIT.json or
-      # when an aligned=yes row loses its proof_notes.
-      - name: PAREN_AUDIT lint
-        run: go test -run TestPARENAuditLint ./pg/parser/... -count=1 -v
+      - name: Test
+        if: steps.affected.outputs.pkgs != ''
+        env:
+          TRINO_ORACLE_URL: http://localhost:${{ job.services.trino.ports['8080'] }}
+          SPANNER_EMULATOR_HOST: localhost:${{ job.services.spanner.ports['9010'] }}
+        # The trino packages share the one Trino service and run stateful DDL
+        # against the same names, so they run one at a time, after the rest.
+        run: |
+          pkgs=$(go list ${{ steps.affected.outputs.pkgs }})
+          { grep -v /trino/ <<< "$pkgs" || true; } | xargs -r go test -p=8 -count=1
+          { grep /trino/ <<< "$pkgs" || true; } | xargs -r go test -p=1 -count=1
 
-  paren-fuzz:
-    # SCENARIOS-pg-paren-dispatch.md §5.2 — property-based fuzz corpus
-    # run against a PG 17 testcontainer. PAREN_FUZZ_DEFER keeps the job
-    # non-blocking: new mismatches are persisted to
-    # testdata/paren-fuzz-defer/<timestamp>.txt for human triage rather
-    # than auto-failing the pipeline. The strict set-equality gate
-    # (without PAREN_FUZZ_DEFER) remains the developer-side promote
-    # check.
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      matrix:
-        go-version: ['1.25']
-    env:
-      PAREN_FUZZ_SIZE: '1000'
-      PAREN_FUZZ_DEFER: '1'
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go-version }}
-
-      - name: Paren fuzz (N=1000, defer mode)
-        run: go test -tags=oracle -timeout 15m -run TestParenOracleFuzz ./pg/parser/... -count=1 -v
-
-      - name: Upload deferred-mismatch artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: paren-fuzz-defer
-          path: pg/parser/testdata/paren-fuzz-defer/*.txt
-          if-no-files-found: ignore
+      - name: Nested modules (own go.mod, not reached by ./...)
+        env:
+          SPANNER_EMULATOR_HOST: localhost:${{ job.services.spanner.ports['9010'] }}
+        run: |
+          (cd harness/conformance && go test -count=1 ./...)
+          (cd harness/googlesql-spanner && go test -count=1 ./...)

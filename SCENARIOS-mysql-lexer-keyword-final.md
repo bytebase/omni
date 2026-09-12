@@ -1,7 +1,7 @@
 # MySQL Parser Keyword & Lexer Final Alignment Scenarios
 
 > Goal: Drive all 3 golden tests to zero — TestKeywordCompleteness (253→0), TestKeywordClassification (132→0), TestNoEqFoldForRegisteredKeywords (5→0) — plus fix related lexer gaps
-> Verification: `go test -short ./mysql/parser/... -run "TestKeyword|TestNoEqFold" -count=1` + `go test -short ./mysql/parser/... -count=1` (full suite, no regressions)
+> Verification: `go test ./mysql/parser/... -run "TestKeyword|TestNoEqFold" -count=1` + `go test ./mysql/parser/... -count=1` (full suite, no regressions)
 > Reference sources: mysql-server sql/lex.h, sql/sql_yacc.yy, sql/sql_lex.cc; golden list in keyword_completeness_test.go
 
 Status: [ ] pending, [x] passing, [~] partial

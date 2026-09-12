@@ -22,9 +22,6 @@ import (
 // Failures in omni assertions are NOT proof failures — they are recorded in
 // mysql/catalog/scenarios_bug_queue/c25.md.
 func TestScenario_C25(t *testing.T) {
-	scenariosSkipIfShort(t)
-	scenariosSkipIfNoDocker(t)
-
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 

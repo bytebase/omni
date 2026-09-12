@@ -127,7 +127,7 @@ var sequenceOracleCorpus = []string{
 }
 
 // TestMariaDBSequenceOracle asserts omni's parser agrees with a live MariaDB
-// 11.8.8 on every statement in sequenceOracleCorpus (Short-gated container test).
+// 11.8.8 on every statement in sequenceOracleCorpus (container test).
 func TestMariaDBSequenceOracle(t *testing.T) {
 	o := startMariaDB(t)
 

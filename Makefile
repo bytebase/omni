@@ -1,4 +1,4 @@
-.PHONY: build test test-pg test-mysql test-mysql-quick test-mysql-full test-mysql-containers test-mssql test-oracle proto proto-breaking clean
+.PHONY: build test test-pg test-mysql test-mysql-full test-mysql-containers test-mssql test-oracle proto proto-breaking clean
 
 BUF := go run github.com/bufbuild/buf/cmd/buf@v1.72.0
 
@@ -13,9 +13,6 @@ test-pg:
 
 test-mysql:
 	go test ./mysql/...
-
-test-mysql-quick:
-	./scripts/test-mysql.sh quick
 
 test-mysql-full:
 	./scripts/test-mysql.sh full

@@ -79,7 +79,7 @@ Estimate scope: if > 20 scenarios, escalate to starmap (`mssql-syntax-gaps-drive
 | B5 | OPENJSON WITH column list no longer discarded | S-5* |
 | B6+ | Any audit findings | TBD |
 
-Each batch: parser change + corpus entries + any needed deparser/walker adjustments. `go test ./mssql/... -short` must be green before moving on.
+Each batch: parser change + corpus entries + any needed deparser/walker adjustments. `go test ./mssql/...` must be green before moving on.
 
 ### Phase 3 — SqlScriptDOM AST diff harness
 
@@ -98,7 +98,7 @@ mssql/parser/scriptdom_harness_test.go   # Go side: drives dotnet, compares AST 
 
 ### Phase 4 — Verify + decide PR strategy
 
-- `go build ./mssql/... && go test ./mssql/... -count=1 -short`
+- `go build ./mssql/... && go test ./mssql/... -count=1`
 - Run oracle testcontainer suite
 - Run ScriptDOM harness over full scenario fixture
 - If scope grew: create starmap skills

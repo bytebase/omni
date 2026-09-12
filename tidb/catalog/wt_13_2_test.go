@@ -7,7 +7,7 @@ import (
 
 // --- Section 9.2: SHOW CREATE TABLE Fidelity (9 scenarios) ---
 // File target: wt_13_2_test.go
-// Proof: go test ./mysql/catalog/ -short -count=1 -run "TestWalkThrough_13_2"
+// Proof: go test ./mysql/catalog/ -count=1 -run "TestWalkThrough_13_2"
 
 func TestWalkThrough_13_2_ShowCreateTableFidelity(t *testing.T) {
 	// Scenario 1: Table with no explicit options — ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 rendered

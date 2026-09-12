@@ -10,7 +10,7 @@ Eliminate all "omni too permissive" oracle mismatches where omni accepts invalid
 - Oracle: SQL Server 2022 via testcontainers (`SET PARSEONLY ON`)
 - SqlScriptDOM OptionsHelper classes: `../SqlScriptDOM/SqlScriptDom/Parser/TSql/*.cs`
 - Build check: `go build ./mssql/...`
-- Full regression: `go test ./mssql/... -count=1 -short`
+- Full regression: `go test ./mssql/... -count=1`
 
 ## Current state
 
@@ -29,7 +29,7 @@ Eliminate all "omni too permissive" oracle mismatches where omni accepts invalid
 - [x] enforcement test: `TestOptionValidation` verifies valid options accepted, invalid rejected
 - [x] framework does not break any existing parser tests
 
-Verification: `go build ./mssql/...` + `go test ./mssql/... -count=1 -short`
+Verification: `go build ./mssql/...` + `go test ./mssql/... -count=1`
 
 ---
 
@@ -212,4 +212,4 @@ Verification: oracle test `endpoint/*` → 0 mismatches
 Each section: its oracle test subcases show 0 mismatches.
 
 ### Global proof
-After all sections: `TestKeywordOracleOptionPositions` → 0 mismatches total. `go test ./mssql/... -count=1 -short` all green.
+After all sections: `TestKeywordOracleOptionPositions` → 0 mismatches total. `go test ./mssql/... -count=1` all green.

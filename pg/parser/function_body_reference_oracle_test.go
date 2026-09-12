@@ -1,12 +1,9 @@
-//go:build oracle
-
 package parser_test
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"testing"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -167,10 +164,7 @@ func startFunctionBodyOracle(t *testing.T) (*sql.DB, func()) {
 		}
 	}()
 	if setupErr != nil {
-		if isFunctionBodyOracleCI() {
-			t.Fatalf("function body oracle unavailable in CI: %v", setupErr)
-		}
-		t.Skipf("function body oracle unavailable (local dev): %v", setupErr)
+		t.Fatalf("function body oracle unavailable in CI: %v", setupErr)
 	}
 
 	connStr, err := container.ConnectionString(ctx, "sslmode=disable")
@@ -194,8 +188,4 @@ func startFunctionBodyOracle(t *testing.T) (*sql.DB, func()) {
 		_ = testcontainers.TerminateContainer(container)
 	}
 	return db, cleanup
-}
-
-func isFunctionBodyOracleCI() bool {
-	return os.Getenv("CI") == "true" || os.Getenv("CI") == "1"
 }

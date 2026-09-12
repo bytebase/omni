@@ -106,9 +106,6 @@ func orderingProbes() []orderingProbe {
 // TestOracle_CrossObjectOrderingApplyCorrectness proves gate 2 for every ordering probe on both
 // engines: the generated plan applies cleanly in emitted order and converges.
 func TestOracle_CrossObjectOrderingApplyCorrectness(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)

@@ -1,10 +1,8 @@
-//go:build googlesql_oracle
-
 // Differential gate for the parser-gql node (GQL graph queries +
 // CREATE PROPERTY GRAPH) against the live Cloud Spanner emulator. Run with:
 //
 //	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test -tags googlesql_oracle ./googlesql/parser/ -run TestGQLOracle
+//	  go test ./googlesql/parser/ -run TestGQLOracle
 //
 // EMPIRICAL FINDING (probed 2026-06-05, this node) — GQL is NOT a "BigQuery-only
 // blind spot" on this emulator. The analysis corpus (oracle.md) listed GQL among
@@ -32,12 +30,11 @@
 // accept, and we DEFEND omni. Divergence ledger ids 136 (IF NOT EXISTS optional +
 // mutually exclusive with OR REPLACE — a TRUE outer-grammar reject the harness
 // catches) and 137 (the inner-grammar misclassification). Reuses the ddlHarness
-// plumbing from ddl_oracle_test.go under the shared googlesql_oracle tag.
+// plumbing from ddl_oracle_test.go .
 
 package parser
 
 import (
-	"os"
 	"testing"
 )
 
@@ -189,9 +186,6 @@ var gqlDivergentFixtures = []gqlOracleExpectation{
 }
 
 func TestGQLOracleDifferential(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live GQL oracle differential")
-	}
 	h := newDDLHarness(t)
 	defer h.close()
 

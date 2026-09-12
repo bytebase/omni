@@ -185,9 +185,6 @@ func indexMigrationProbes() []migrationProbe {
 // TestOracle_IndexMigrationApplyCorrectness proves gate 2 for every index probe: the generated
 // DDL transforms a real `from` database into a `to`-equal one (compared via canonical readback).
 func TestOracle_IndexMigrationApplyCorrectness(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -208,9 +205,6 @@ func TestOracle_IndexMigrationApplyCorrectness(t *testing.T) {
 // This guards against the index node fighting the FK node (duplicate-key-name on ADD, errno 1553
 // on DROP). Proven via a multi-table schema loaded from real engine readbacks.
 func TestOracle_IndexGenerateFKOnlyChangeEmitsNoIndexOps(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)

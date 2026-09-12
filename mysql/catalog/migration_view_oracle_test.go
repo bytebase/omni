@@ -26,8 +26,8 @@ import (
 //     canonicalize equal to `to` — including view-on-table and view-on-view dependency ordering.
 //
 // The harness reuses connectOracle / serverCharsetFor / both() / only() / containsVersion from the
-// normalize + diff oracle tests, and skips cleanly when the engines are unreachable (go test
-// -short skips it).
+// normalize + diff oracle tests, and falls back to a shared testcontainer per version when the
+// local engines are unreachable (oracle_fallback_test.go).
 //
 // 5.7-vs-8.0 view-body divergences this file exercises (oracle-verified, see diff_view.go):
 //   - column qualification: 8.0 qualifies same-db refs with the database, 5.7 (for view-on-view)
@@ -445,9 +445,6 @@ func describeViewDiff(d *SchemaDiff) string {
 // TestOracle_ViewIdempotence proves gates 1 & 2 for every view form: the user-declared schema and
 // its engine-stored readback diff EMPTY (both directions), and each side self-diffs empty.
 func TestOracle_ViewIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -666,9 +663,6 @@ func viewMigrationProbes() []viewMigrationProbe {
 // generated DDL transforms a real `from` database into a `to`-equal one (compared via canonical
 // readback of the full schema).
 func TestOracle_ViewMigrationApplyCorrectness(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -850,9 +844,6 @@ func firstIdentAfter(s string, pos int) string {
 // into a catalog that diffs empty against the first load in both directions.
 // 8.0 only: 5.7 ships a different sys version without the metrics view.
 func TestOracle_SysMetricsViewRoundTrip(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	o := connectOracle(t, MySQL80)
 	n := NormalizerFor(MySQL80)
 	ctx := context.Background()

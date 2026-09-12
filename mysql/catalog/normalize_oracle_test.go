@@ -23,8 +23,9 @@ import (
 // canonicalizer disagrees with what the engine actually stores, which would produce a
 // phantom diff forever. These tests are the correctness spine (correctness-protocol.md).
 //
-// Connection: the local oracle instances from the work order, overridable via env.
-// They skip cleanly when the engines are unreachable so the unit suite stays hermetic.
+// Connection: the local oracle instances from the work order, overridable via env,
+// with a shared testcontainer fallback per version when neither is reachable
+// (oracle_fallback_test.go), so the proof also runs unattended in CI.
 
 type oracleConn struct {
 	db      *sql.DB
@@ -39,30 +40,45 @@ func dsnOr(env, def string) string {
 	return def
 }
 
-// connectOracle dials one engine; returns nil (and skips) if unreachable.
+// connectOracle dials one engine: the OMNI_MYSQL{57,80}_DSN override if set,
+// else the conventional local instance, else the package-shared testcontainer
+// fallback (oracle_fallback_test.go).
 func connectOracle(t *testing.T, version Version) *oracleConn {
 	t.Helper()
-	var dsn, name string
+	var env, def, name string
 	switch version {
 	case MySQL80:
-		dsn = dsnOr("OMNI_MYSQL80_DSN", "root:010424@tcp(127.0.0.1:13306)/?multiStatements=true")
-		name = "8.0"
+		env, def, name = "OMNI_MYSQL80_DSN", "root:010424@tcp(127.0.0.1:13306)/?multiStatements=true", "8.0"
 	case MySQL57:
-		dsn = dsnOr("OMNI_MYSQL57_DSN", "root:010424@tcp(127.0.0.1:13307)/?multiStatements=true&tls=false")
-		name = "5.7"
+		env, def, name = "OMNI_MYSQL57_DSN", "root:010424@tcp(127.0.0.1:13307)/?multiStatements=true&tls=false", "5.7"
 	}
+	dsn, explicit := os.Getenv(env), true
+	if dsn == "" {
+		dsn, explicit = def, false
+	}
+	db, err := dialOracle(dsn)
+	if err == nil {
+		t.Cleanup(func() { _ = db.Close() })
+		return &oracleConn{db: db, version: version, name: name}
+	}
+	if explicit {
+		t.Fatalf("oracle %s at $%s unreachable in CI: %v", name, env, err)
+	}
+	return &oracleConn{db: fallbackOracle(t, version, name), version: version, name: name}
+}
+
+func dialOracle(dsn string) (*sql.DB, error) {
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		t.Skipf("oracle %s unavailable (open): %v", name, err)
+		return nil, err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	if err := db.PingContext(ctx); err != nil {
 		_ = db.Close()
-		t.Skipf("oracle %s unavailable (ping): %v", name, err)
+		return nil, err
 	}
-	t.Cleanup(func() { _ = db.Close() })
-	return &oracleConn{db: db, version: version, name: name}
+	return db, nil
 }
 
 // showCreate applies the CREATE statements in a throwaway database and returns the
@@ -326,9 +342,6 @@ func normalizationProbes() []ruleProbe {
 }
 
 func TestOracle_PhantomDiffElimination(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		for _, probe := range normalizationProbes() {
@@ -360,9 +373,6 @@ func containsVersion(vs []Version, v Version) bool {
 // a phantom one). Each asserts two real, different MySQL schemas produce different keys,
 // loaded through the real engine's SHOW CREATE so the catalog state is authentic.
 func TestOracle_MissedDiffGuards(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)

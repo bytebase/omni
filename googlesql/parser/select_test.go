@@ -12,7 +12,7 @@ import (
 // Unit tests for the parser-select node (the GoogleSQL query stack: SELECT,
 // FROM, joins, set-ops, CTEs, GROUP BY, HAVING, QUALIFY, WINDOW, ORDER/LIMIT,
 // UNNEST). The accept/reject behavior is also proven against the live Cloud
-// Spanner emulator in select_oracle_test.go (build tag googlesql_oracle); these
+// Spanner emulator in select_oracle_test.go; these
 // hand-written tests assert the AST STRUCTURE (the structural gate — accept/
 // reject alone does not catch wrong nesting/precedence) and cover BigQuery-only
 // forms the Spanner emulator feature-rejects (QUALIFY, WITH RECURSIVE,

@@ -218,7 +218,7 @@ func tidbRejectedSyntax(err error) bool {
 
 // TestBatchTiDBOracle lockstep-verifies every batchCase against real TiDB
 // v8.5.5: our parser's accept/reject must match TiDB's syntax acceptance.
-// Skips under -short (CI) and when the container is unavailable.
+// Skips when the container is unavailable (fails in CI).
 func TestBatchTiDBOracle(t *testing.T) {
 	tc := startTiDB(t)
 

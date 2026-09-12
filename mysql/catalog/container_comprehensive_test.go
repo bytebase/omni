@@ -3,9 +3,6 @@ package catalog
 import "testing"
 
 func TestDDLWorkflow_Container(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -60,9 +57,6 @@ func TestDDLWorkflow_Container(t *testing.T) {
 }
 
 func TestShowCreateTable_ContainerComparison(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 

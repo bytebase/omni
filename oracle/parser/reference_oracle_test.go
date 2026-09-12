@@ -1,5 +1,3 @@
-//go:build oracle_ref
-
 package parser
 
 import (
@@ -8,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -105,15 +104,8 @@ func openOracleReferenceDB(t *testing.T) (context.Context, *sql.DB) {
 		}
 		return ctx, db
 	}
-	if os.Getenv("ORACLE_PARSER_REF_CONTAINER") == "1" {
-		oracle := startOracleDB(t)
-		return oracle.ctx, oracle.db
-	}
-	if os.Getenv("ORACLE_PARSER_REF_STRICT") == "1" {
-		t.Fatal("strict Oracle reference mode requires ORACLE_PARSER_REF_DSN or ORACLE_PARSER_REF_CONTAINER=1")
-	}
-	t.Skip("ORACLE_PARSER_REF_DSN is not set; set ORACLE_PARSER_REF_CONTAINER=1 to run against Oracle Free")
-	return nil, nil
+	oracle := startOracleDB(t)
+	return oracle.ctx, oracle.db
 }
 
 func openOracleReservedWordsDB(t *testing.T) (context.Context, *sql.DB) {
@@ -132,11 +124,11 @@ func openOracleReservedWordsDB(t *testing.T) (context.Context, *sql.DB) {
 		}
 		return ctx, db
 	}
-	if os.Getenv("ORACLE_PARSER_REF_CONTAINER") == "1" {
-		oracle := startOracleDB(t)
-		return oracle.ctx, oracle.adminDB
+	if os.Getenv("ORACLE_PARSER_REF_DSN") != "" {
+		return openOracleReferenceDB(t)
 	}
-	return openOracleReferenceDB(t)
+	oracle := startOracleDB(t)
+	return oracle.ctx, oracle.adminDB
 }
 
 func openOraclePrivilegedReferenceDB(t *testing.T) (context.Context, *sql.DB) {
@@ -169,12 +161,8 @@ func openOraclePrivilegedReferenceDB(t *testing.T) (context.Context, *sql.DB) {
 		}
 		return ctx, db
 	}
-	if os.Getenv("ORACLE_PARSER_REF_CONTAINER") == "1" {
-		oracle := startOracleDB(t)
-		return oracle.ctx, oracle.adminDB
-	}
-	t.Skip("Oracle privileged reference DSN is not set; set ORACLE_PARSER_REF_PRIVILEGED_DSN, ORACLE_PARSER_REF_ADMIN_DSN, or ORACLE_PARSER_REF_CONTAINER=1")
-	return nil, nil
+	oracle := startOracleDB(t)
+	return oracle.ctx, oracle.adminDB
 }
 
 func oracleReferenceSQL(sqlText, runID string) string {
@@ -216,5 +204,38 @@ BEGIN
   END;
 END;`
 	_, err := db.ExecContext(ctx, block, sqlText)
+	if err != nil && strings.Contains(err.Error(), "ORA-24344") {
+		// "A compilation error occurred while creating an object": the SQL
+		// layer accepted the DDL and created the PL/SQL object with errors.
+		// Those errors are either the compiler's parse errors (PLS-00103,
+		// a genuine syntax rejection, e.g. a type body missing its END) or
+		// semantic ones (PLS-00201 undeclared identifier, PLS-00304 body
+		// without its spec) that say nothing about syntax. USER_ERRORS tells
+		// them apart.
+		if kind, name, ok := plsqlObjectOf(sqlText); ok {
+			var syntaxErrors int
+			row := db.QueryRowContext(ctx,
+				`SELECT COUNT(*) FROM user_errors WHERE name = :1 AND type = :2 AND text LIKE 'PLS-00103%'`, name, kind)
+			if scanErr := row.Scan(&syntaxErrors); scanErr == nil && syntaxErrors == 0 {
+				return nil
+			}
+		}
+	}
 	return err
+}
+
+var plsqlObjectRE = regexp.MustCompile(`(?is)^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:(?:NON)?EDITIONABLE\s+)?(TYPE\s+BODY|PACKAGE\s+BODY|TYPE|PACKAGE|PROCEDURE|FUNCTION|TRIGGER)\s+(?:"([^"]+)"|([A-Za-z0-9_$#]+))`)
+
+// plsqlObjectOf returns the USER_ERRORS (type, name) of the PL/SQL object a
+// CREATE statement defines.
+func plsqlObjectOf(sqlText string) (kind, name string, ok bool) {
+	m := plsqlObjectRE.FindStringSubmatch(sqlText)
+	if m == nil {
+		return "", "", false
+	}
+	kind = strings.ToUpper(strings.Join(strings.Fields(m[1]), " "))
+	if m[2] != "" {
+		return kind, m[2], true
+	}
+	return kind, strings.ToUpper(m[3]), true
 }

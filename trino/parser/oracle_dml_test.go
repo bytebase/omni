@@ -154,9 +154,6 @@ var dmlOracleCorpus = []string{
 // TestDML_OracleDifferential is the authoritative accept/reject gate: omni's
 // Parse verdict must equal Trino 481's verdict for every corpus statement.
 func TestDML_OracleDifferential(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 	for _, sql := range dmlOracleCorpus {
 		sql := sql
@@ -195,9 +192,6 @@ var dmlBranchDivergenceCorpus = []string{
 // ledger and this corpus are revisited and the cases promoted into the parity
 // gate.
 func TestDML_BranchDivergence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 	for _, sql := range dmlBranchDivergenceCorpus {
 		sql := sql

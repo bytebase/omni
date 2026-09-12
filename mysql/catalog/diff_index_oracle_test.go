@@ -81,9 +81,6 @@ func indexDiffProbes() []diffProbe {
 // vs its engine readback diffs EMPTY, and the stored form self-diffs empty, on every supported
 // version.
 func TestOracle_IndexDiffIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		for _, probe := range indexDiffProbes() {
@@ -136,9 +133,6 @@ func fkIndexCases() []fkIndexCase {
 // and owned by the FK node) — dropping it would fail errno 1553 ("needed in a foreign key
 // constraint"). Proven via a multi-table schema loaded from real engine readbacks.
 func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
@@ -197,9 +191,6 @@ func TestOracle_IndexFKColumnChangeNoIndexOps(t *testing.T) {
 // readbacks of BOTH tables. This is the multi-table analog of the idempotence probe — the
 // single-table harness cannot resolve the FK's referenced table.
 func TestOracle_IndexDiffFKImplicit(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)

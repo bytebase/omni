@@ -55,7 +55,7 @@ var returningOracleCorpus = []string{
 }
 
 // TestMariaDBReturningOracle asserts omni agrees with a live MariaDB 11.8.8 on
-// every RETURNING statement (Short-gated container test).
+// every RETURNING statement (container test).
 func TestMariaDBReturningOracle(t *testing.T) {
 	o := startMariaDB(t)
 

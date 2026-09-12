@@ -85,8 +85,8 @@ git diff --check
 Optional Oracle reference proof:
 
 ```bash
-ORACLE_PARSER_REF_DSN="$ORACLE_PARSER_REF_DSN" go test -tags oracle_ref -run 'TestOracleReference|TestOracleVReservedWordsKeywordAudit' -count=1 -v ./oracle/parser
-ORACLE_PARSER_REF_CONTAINER=1 go test -tags oracle_ref -run 'TestOracleReference|TestOracleVReservedWordsKeywordAudit' -count=1 -v ./oracle/parser
+ORACLE_PARSER_REF_DSN="$ORACLE_PARSER_REF_DSN" go test -run 'TestOracleReference|TestOracleVReservedWordsKeywordAudit' -count=1 -v ./oracle/parser
+go test -run 'TestOracleReference|TestOracleVReservedWordsKeywordAudit' -count=1 -v ./oracle/parser
 ```
 
 ## Task 1: Add P2 BNF Manifest

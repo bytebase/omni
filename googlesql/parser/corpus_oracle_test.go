@@ -1,10 +1,8 @@
-//go:build googlesql_oracle
-
 // Whole-corpus differential for googlesql/corpus-closure against the live Cloud
 // Spanner emulator oracle. Run with:
 //
 //	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test -tags googlesql_oracle ./googlesql/parser/ -run TestCorpusSpannerDifferential
+//	  go test ./googlesql/parser/ -run TestCorpusSpannerDifferential
 //
 // This is the PROVE gate for the corpus-closure node (correctness-protocol.md):
 // it drives the ENTIRE Spanner truth1 corpus (docs/migration/googlesql/truth1/
@@ -42,12 +40,11 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/bytebase/omni/googlesql/internal/spannertest"
 )
 
 func TestCorpusSpannerDifferential(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live corpus differential")
-	}
 	blocks := collectOfficialCorpus(t)
 
 	h := newCorpusHarness(t)
@@ -192,6 +189,7 @@ type corpusHarness struct {
 
 func newCorpusHarness(t *testing.T) *corpusHarness {
 	t.Helper()
+	spannertest.Host(t)
 	_, thisFile, _, _ := runtime.Caller(0)
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
 	projDir := filepath.Join(repoRoot, "harness", "googlesql-spanner")

@@ -13,9 +13,6 @@ import (
 // column synthesis, expression typing and validation, visibility suppression,
 // JSON expression normalization, and hidden-column lifecycle.
 func TestScenario_C19(t *testing.T) {
-	scenariosSkipIfShort(t)
-	scenariosSkipIfNoDocker(t)
-
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 

@@ -296,9 +296,6 @@ func TestVersionDispatch_ColumnDefaultUnderNonDefaultTable(t *testing.T) {
 //  3. generates the change DDL for a real modification, applies it to the real 5.7/8.0 DB
 //     (proving no Error 1273), and asserts convergence (re-diff empty).
 func TestOracle_VersionDispatchBareCharset(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	const userTarget = "CREATE TABLE t (id INT NOT NULL PRIMARY KEY, name VARCHAR(50)) DEFAULT CHARSET=utf8mb4"
 
 	for _, v := range both() {

@@ -7,7 +7,7 @@ import (
 
 // --- Section 3.1 (Phase 3): RANGE Partitioning (8 scenarios) ---
 // File target: wt_7_1_test.go
-// Proof: go test ./mysql/catalog/ -short -count=1 -run "TestWalkThrough_7_1"
+// Proof: go test ./mysql/catalog/ -count=1 -run "TestWalkThrough_7_1"
 
 func TestWalkThrough_7_1_RangePartitioning(t *testing.T) {
 	t.Run("range_expr_3_partitions_maxvalue", func(t *testing.T) {

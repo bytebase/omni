@@ -2,7 +2,6 @@
 # Local MySQL test driver.
 #
 # Usage:
-#   scripts/test-mysql.sh quick
 #   scripts/test-mysql.sh full
 #   scripts/test-mysql.sh list-shards
 #   scripts/test-mysql.sh container-shards [shard-name...]
@@ -55,7 +54,7 @@ shard_regex() {
 }
 
 usage() {
-    sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 run_go_test() {
@@ -123,9 +122,6 @@ fi
 shift
 
 case "$mode" in
-    quick)
-        run_go_test -short ./mysql/... -count=1
-        ;;
     full)
         run_go_test ./mysql/... -count=1 -timeout=20m
         ;;

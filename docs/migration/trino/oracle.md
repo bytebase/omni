@@ -35,9 +35,9 @@ keeps even `SELECT … FROM tpch.sf1.*` checks sub-second.
 - **Boot time.** The Trino JVM takes ~40–60s to become ready (`/v1/info` →
   `starting:false`). Prefer one long-lived container + `TRINO_ORACLE_URL` for
   iterative work; `StartContainer` (≈1 min) is for self-contained CI.
-- **Gating.** `TestOracleClassification` (15 cases) skips cleanly in `-short`
-  mode or when no oracle is reachable, so `go test ./...` stays green without a
-  running Trino.
+- **Gating.** `TestOracleClassification` (15 cases) skips cleanly when no oracle is reachable
+  (and fails in CI, which always starts one), so a local `go test ./...` stays
+  green without a running Trino.
 - **Verified.** `go vet ./trino/...` clean; self-test green against Trino 481
   (valid / Trino-specific / semantic-accept / syntax-reject all classified
   correctly).

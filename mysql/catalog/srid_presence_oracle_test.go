@@ -29,8 +29,8 @@ import (
 //
 // The harness reuses connectOracle / showCreate / assertDiffEmptyAgainstReadback /
 // assertApplyCorrect / loadColumn / serverCharsetFor / loadOneTable / both() / only() from
-// the sibling oracle tests. It skips cleanly when the engine is unreachable (go test -short
-// skips it entirely), so the unit suite stays hermetic.
+// the sibling oracle tests. It falls back to a shared testcontainer when the local
+// engine is unreachable (oracle_fallback_test.go).
 
 // sridIdempotenceProbes enumerates the spatial-column FORMS that must round-trip EMPTY: an
 // explicit `SRID 0`, a nonzero SRID, a no-SRID spatial column, and a spatial column with a
@@ -79,9 +79,6 @@ func sridIdempotenceProbes() []diffProbe {
 // readback of `g` isolates the SRID-copy behavior without a spurious whole-table diff on the
 // source table.
 func TestOracle_SRIDPresenceCreateTableLike(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	cases := []struct {
 		id     string
 		src    string // the source-table DDL (defines column g)
@@ -153,9 +150,6 @@ func TestOracle_SRIDPresenceCreateTableLike(t *testing.T) {
 // engine readback diffs EMPTY, and the stored form self-diffs empty and self-plans empty,
 // on MySQL 8.0.
 func TestOracle_SRIDPresenceIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range only(MySQL80) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -194,9 +188,6 @@ func TestOracle_SRIDPresenceIdempotence(t *testing.T) {
 // canonical keys — otherwise add/remove/change of an explicit SRID 0 is an invisible no-op.
 // Each pair is loaded from the real engine's SHOW CREATE so the stored forms are authentic.
 func TestOracle_SRIDPresenceDistinctness(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range only(MySQL80) {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
@@ -282,9 +273,6 @@ func sridMigrationProbes() []migrationProbe {
 // add/remove/change: the generated DDL transforms a real from-state database into a to-equal
 // one, on MySQL 8.0. A non-empty result diff (or a failed apply) is a bug.
 func TestOracle_SRIDPresenceApplyCorrectness(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range only(MySQL80) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -306,9 +294,6 @@ func TestOracle_SRIDPresenceApplyCorrectness(t *testing.T) {
 // itself, and directly pins the "MODIFY re-renders WITHOUT SRID 0" regression: a remove must
 // emit no SRID clause, an add of SRID 0 must emit `SRID 0`.
 func TestOracle_SRIDPresenceEmitsClause(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range only(MySQL80) {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)

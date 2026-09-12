@@ -278,9 +278,6 @@ Add to the same file:
 
 ```go
 func TestOracleSmoke(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
-	}
 
 	oracle, cleanup := startOracle(t)
 	defer cleanup()
@@ -1015,9 +1012,6 @@ func TestCreateDatabaseCharset(t *testing.T) {
 
 // TestCreateDatabase_Oracle verifies our behavior matches real MySQL.
 func TestCreateDatabase_Oracle(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
-	}
 	oracle, cleanup := startOracle(t)
 	defer cleanup()
 
@@ -1047,7 +1041,7 @@ func TestCreateDatabase_Oracle(t *testing.T) {
 
 **Step 2: Run tests to see them fail**
 
-Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run TestCreateDatabase -v -short`
+Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run TestCreateDatabase -v`
 Expected: FAIL (stub returns nil, database not created)
 
 **Step 3: Implement dbcmds.go**
@@ -1138,7 +1132,7 @@ Remove `createDatabase`, `dropDatabase`, `alterDatabase` from `stubs.go`.
 
 **Step 5: Run tests**
 
-Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run 'TestCreateDatabase|TestDropDatabase' -v -short`
+Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run 'TestCreateDatabase|TestDropDatabase' -v`
 Expected: all PASS
 
 **Step 6: Run oracle test**
@@ -1289,9 +1283,6 @@ func TestCreateTableNoDatabaseSelected(t *testing.T) {
 
 // Oracle test: compare SHOW CREATE TABLE output.
 func TestCreateTable_Oracle(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
-	}
 	oracle, cleanup := startOracle(t)
 	defer cleanup()
 
@@ -1338,7 +1329,7 @@ func normalizeWhitespace(s string) string {
 
 **Step 2: Run tests to see them fail**
 
-Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run TestCreateTable -v -short`
+Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run TestCreateTable -v`
 Expected: FAIL (stub returns nil)
 
 **Step 3: Implement tablecmds.go**
@@ -1875,7 +1866,7 @@ Verify these types exist in `mysql/ast/parsenodes.go`. If `StringLit` or `NullLi
 
 **Step 6: Run tests**
 
-Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run TestCreateTable -v -short`
+Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run TestCreateTable -v`
 Expected: PASS for unit tests
 
 **Step 7: Commit**
@@ -1908,9 +1899,6 @@ import (
 )
 
 func TestShowCreateTable_Oracle(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
-	}
 	oracle, cleanup := startOracle(t)
 	defer cleanup()
 
@@ -2143,7 +2131,7 @@ func formatCheckDef(con *Constraint) string {
 
 **Step 3: Run unit tests**
 
-Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run TestShowCreateTable -v -short`
+Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run TestShowCreateTable -v`
 Expected: tests that don't require oracle should pass
 
 **Step 4: Run oracle tests**
@@ -2228,7 +2216,7 @@ func TestTruncateTable(t *testing.T) {
 
 **Step 2: Run to see failures**
 
-Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run 'TestDropTable|TestTruncate' -v -short`
+Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run 'TestDropTable|TestTruncate' -v`
 
 **Step 3: Implement dropcmds.go**
 
@@ -2284,7 +2272,7 @@ func (c *Catalog) truncateTable(stmt *nodes.TruncateStmt) error {
 
 **Step 4: Remove stubs, run tests**
 
-Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run 'TestDropTable|TestTruncate' -v -short`
+Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run 'TestDropTable|TestTruncate' -v`
 Expected: PASS
 
 **Step 5: Commit**
@@ -2680,7 +2668,7 @@ func (c *Catalog) rebuildColIndex(tbl *Table) {
 
 **Step 4: Run tests**
 
-Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run TestAlterTable -v -short`
+Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run TestAlterTable -v`
 Expected: PASS
 
 **Step 5: Commit**
@@ -2885,7 +2873,7 @@ Verify `mysql/ast/parsenodes.go` has `DropIndexStmt` with `IndexName`, `Table`, 
 
 **Step 4: Remove stubs, run tests**
 
-Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run 'TestCreateIndex|TestDropIndex' -v -short`
+Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -run 'TestCreateIndex|TestDropIndex' -v`
 Expected: PASS
 
 **Step 5: Commit**
@@ -3010,7 +2998,7 @@ func (c *Catalog) renameTable(stmt *nodes.RenameTableStmt) error {
 
 **Step 4: Run full test suite**
 
-Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -v -short`
+Run: `cd /Users/rebeliceyang/Github/omni && go test ./mysql/catalog/ -v`
 Expected: all PASS
 
 **Step 5: Commit**
@@ -3040,9 +3028,6 @@ import (
 )
 
 func TestDDLWorkflow_Oracle(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
-	}
 	oracle, cleanup := startOracle(t)
 	defer cleanup()
 

@@ -10,25 +10,13 @@ import (
 )
 
 // connectOracle dials the live Trino oracle for the round-trip gate, mirroring
-// the skip discipline the parser nodes use: skipped (not failed) in -short mode
-// or when no Trino server is reachable, so the suite stays green offline while
-// exercising the real parser when a server is up. Start one with:
+// the skip discipline the parser nodes use: skipped (not failed) locally when no
+// Trino server is reachable, and failed in CI, which always starts one (ci.yml). Start one with:
 //
 //	docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:latest
 func connectOracle(t *testing.T) *trinooracle.Oracle {
 	t.Helper()
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
-	o := trinooracle.Connect("")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	ver, err := o.Ping(ctx)
-	if err != nil {
-		trinooracle.SkipOrFailUnreachable(t, "trino oracle not reachable (start a Trino server and set %s if needed): %v", trinooracle.EnvURL, err)
-	}
-	t.Logf("connected to Trino %s", ver)
-	return o
+	return trinooracle.ForTest(t)
 }
 
 // TestGeneratedSDLParsesOnTrino is the deparse round-trip / structural gate

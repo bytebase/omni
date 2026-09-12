@@ -165,8 +165,8 @@ Similar to A, but in less common positions (e.g. role names, schema names in nes
 ## What to verify after each phase
 
 1. `go build ./mssql/...`
-2. `go test ./mssql/... -count=1 -short` — full mssql suite
-3. `go test -tags scriptdom ./mssql/parser/ -run TestScriptDOM` — harness
+2. `go test ./mssql/... -count=1` — full mssql suite
+3. `go test ./mssql/parser/ -run TestScriptDOM` — harness
 4. `TestKeywordOracleOptionPositions` — existing oracle strictness fence (must stay 0 mismatch)
 5. New reject fixtures added for the phase-specific enum
 

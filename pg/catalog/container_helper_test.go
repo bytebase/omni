@@ -26,7 +26,8 @@ var (
 	pgContainerOnce    sync.Once
 	pgContainerInst    *pgContainer
 	pgContainerCleanup func()
-	pgSchemaCounter atomic.Int64
+	pgContainerErr     error
+	pgSchemaCounter    atomic.Int64
 )
 
 // startPGContainer starts a shared PostgreSQL 16 container. The container is reused
@@ -44,25 +45,29 @@ func startPGContainer(t *testing.T) *pgContainer {
 					WithOccurrence(2)),
 		)
 		if err != nil {
-			panic(fmt.Sprintf("failed to start PG container: %v", err))
+			pgContainerErr = fmt.Errorf("failed to start PG container: %w", err)
+			return
 		}
 
 		connStr, err := container.ConnectionString(ctx, "sslmode=disable")
 		if err != nil {
 			_ = testcontainers.TerminateContainer(container)
-			panic(fmt.Sprintf("failed to get connection string: %v", err))
+			pgContainerErr = fmt.Errorf("failed to get connection string: %w", err)
+			return
 		}
 
 		db, err := sql.Open("pgx", connStr)
 		if err != nil {
 			_ = testcontainers.TerminateContainer(container)
-			panic(fmt.Sprintf("failed to open database: %v", err))
+			pgContainerErr = fmt.Errorf("failed to open database: %w", err)
+			return
 		}
 
 		if err := db.PingContext(ctx); err != nil {
 			db.Close()
 			_ = testcontainers.TerminateContainer(container)
-			panic(fmt.Sprintf("failed to ping: %v", err))
+			pgContainerErr = fmt.Errorf("failed to ping: %w", err)
+			return
 		}
 
 		pgContainerInst = &pgContainer{db: db, ctx: ctx}
@@ -71,6 +76,11 @@ func startPGContainer(t *testing.T) *pgContainer {
 			_ = testcontainers.TerminateContainer(container)
 		}
 	})
+	if pgContainerErr != nil {
+		// In CI a startup failure must fail the job, not silently turn
+		// the container gate into a green no-op.
+		t.Fatalf("PG container required in CI but not available: %v", pgContainerErr)
+	}
 	t.Cleanup(func() {
 		// Don't cleanup here — container shared across tests.
 		// Will be cleaned up when process exits.
@@ -123,8 +133,8 @@ func (o *pgContainer) execInSchema(t *testing.T, schema, ddl string) {
 // ---------------------------------------------------------------------------
 
 type tableRow struct {
-	name     string
-	relkind  string
+	name    string
+	relkind string
 }
 
 type columnRow struct {

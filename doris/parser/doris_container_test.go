@@ -34,13 +34,10 @@ var (
 )
 
 // startDoris starts (once) the Doris container and returns a ready
-// dorisContainer. Skipped in -short mode — omni CI runs `go test -short ./...`,
-// so container tests must be Short-gated (mirrors starrocks_container_test.go).
+// dorisContainer. Fails the test when the container cannot start (mirrors
+// starrocks_container_test.go).
 func startDoris(t *testing.T) *dorisContainer {
 	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping Doris container test in short mode")
-	}
 
 	dorisOnce.Do(func() {
 		ctx := context.Background()

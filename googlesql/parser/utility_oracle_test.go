@@ -1,10 +1,8 @@
-//go:build googlesql_oracle
-
 // Differential test for the `parser-utility` node against the live Cloud Spanner
 // emulator oracle. Run with:
 //
 //	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test -tags googlesql_oracle ./googlesql/parser/ -run TestUtilityDifferential
+//	  go test ./googlesql/parser/ -run TestUtilityDifferential
 //
 // It is the PROVE gate for googlesql/parser-utility (correctness-protocol.md):
 // for every fixture it (1) feeds the statement to the emulator via the
@@ -43,7 +41,6 @@
 package parser
 
 import (
-	"os"
 	"testing"
 )
 
@@ -145,9 +142,6 @@ var utilityFixtures = []utilityFixture{
 }
 
 func TestUtilityDifferential(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
-	}
 	h := newSelectHarness(t)
 	defer h.close()
 

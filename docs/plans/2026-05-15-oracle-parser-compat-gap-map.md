@@ -43,8 +43,8 @@ Commands run:
 
 ```bash
 go test ./oracle/parser -run 'TestVerifyCorpus|TestOracle(ParserProgress|Coverage|BNF|HighValue|ScenarioTargets|ReferenceManifest)$' -count=1 -v
-go test -tags=oracle_ref ./oracle/parser -run 'TestOracleReference|TestOracleVReservedWordsKeywordAudit' -count=1 -v
-ORACLE_PARSER_REF_CONTAINER=1 go test -tags=oracle_ref ./oracle/parser -run TestOracleCompatibilityReferenceReport -count=1 -v -timeout=12m
+go test ./oracle/parser -run 'TestOracleReference|TestOracleVReservedWordsKeywordAudit' -count=1 -v
+go test ./oracle/parser -run TestOracleCompatibilityReferenceReport -count=1 -v -timeout=12m
 ```
 
 Results:
@@ -253,7 +253,7 @@ go run ./oracle/parser/cmd/compatreport -manifest oracle/parser/testdata/coverag
 Generate the same summary with an Oracle reference result log included:
 
 ```bash
-TESTCONTAINERS_RYUK_DISABLED=true ORACLE_PARSER_REF_CONTAINER=1 go test -tags oracle_ref ./oracle/parser -run TestOracleCompatibilityReferenceReport -count=1 -v | tee /tmp/oracle-compat-ref.log
+go test ./oracle/parser -run TestOracleCompatibilityReferenceReport -count=1 -v | tee /tmp/oracle-compat-ref.log
 go run ./oracle/parser/cmd/compatreport -manifest oracle/parser/testdata/coverage/compat_oracle.tsv -local=false -reference-log /tmp/oracle-compat-ref.log
 go run ./oracle/parser/cmd/compatreport -manifest oracle/parser/testdata/coverage/compat_oracle.tsv -reference-log /tmp/oracle-compat-ref.log -out /tmp/oracle-compat-report-with-ref.md
 go run ./oracle/parser/cmd/compatreport -manifest oracle/parser/testdata/coverage/compat_oracle.tsv -reference-log /tmp/oracle-compat-ref.log -update-doc docs/plans/2026-05-15-oracle-parser-compat-gap-map.md
@@ -262,7 +262,7 @@ go run ./oracle/parser/cmd/compatreport -manifest oracle/parser/testdata/coverag
 Generate a combined standard plus privileged reference summary:
 
 ```bash
-TESTCONTAINERS_RYUK_DISABLED=true ORACLE_PARSER_REF_CONTAINER=1 go test -tags oracle_ref ./oracle/parser -run 'TestOracleCompatibility(ReferenceReport|PrivilegedReferenceReport)' -count=1 -v | tee /tmp/oracle-compat-priv-ref.log
+go test ./oracle/parser -run 'TestOracleCompatibility(ReferenceReport|PrivilegedReferenceReport)' -count=1 -v | tee /tmp/oracle-compat-priv-ref.log
 go run ./oracle/parser/cmd/compatreport -manifest oracle/parser/testdata/coverage/compat_oracle.tsv -reference-log /tmp/oracle-compat-priv-ref.log -out /tmp/oracle-compat-report-with-ref.md
 go run ./oracle/parser/cmd/compatreport -manifest oracle/parser/testdata/coverage/compat_oracle.tsv -reference-log /tmp/oracle-compat-priv-ref.log -update-doc docs/plans/2026-05-15-oracle-parser-compat-gap-map.md
 ```
@@ -593,13 +593,13 @@ Fixture calibrations applied before the Oracle-backed report:
 - `compat_keyword_071`: simplified cleanup for the reserved index-name reject row so cleanup does not issue an invalid unquoted `DROP INDEX SELECT`.
 - `compat_admin_066`: added a generated index fixture before `ANALYZE INDEX` so the reference row measures syntax instead of missing-index catalog state.
 
-The real Oracle report runner is available behind `oracle_ref`:
+The real Oracle report runner:
 
 ```bash
-TESTCONTAINERS_RYUK_DISABLED=true ORACLE_PARSER_REF_CONTAINER=1 go test -tags=oracle_ref ./oracle/parser -run TestOracleCompatibilityReferenceReport -count=1 -v
-TESTCONTAINERS_RYUK_DISABLED=true ORACLE_PARSER_REF_CONTAINER=1 go test -tags=oracle_ref ./oracle/parser -run TestOracleCompatibilityPrivilegedReferenceReport -count=1 -v
-ORACLE_PARSER_REF_DSN="$ORACLE_PARSER_REF_DSN" go test -tags=oracle_ref ./oracle/parser -run TestOracleCompatibilityReferenceReport -count=1 -v
-ORACLE_PARSER_REF_PRIVILEGED_DSN="$ORACLE_PARSER_REF_PRIVILEGED_DSN" go test -tags=oracle_ref ./oracle/parser -run TestOracleCompatibilityPrivilegedReferenceReport -count=1 -v
+go test ./oracle/parser -run TestOracleCompatibilityReferenceReport -count=1 -v
+go test ./oracle/parser -run TestOracleCompatibilityPrivilegedReferenceReport -count=1 -v
+ORACLE_PARSER_REF_DSN="$ORACLE_PARSER_REF_DSN" go test ./oracle/parser -run TestOracleCompatibilityReferenceReport -count=1 -v
+ORACLE_PARSER_REF_PRIVILEGED_DSN="$ORACLE_PARSER_REF_PRIVILEGED_DSN" go test ./oracle/parser -run TestOracleCompatibilityPrivilegedReferenceReport -count=1 -v
 ```
 
 In the current environment Docker Desktop is available, but testcontainers' Ryuk reaper can time out while checking container state. Use `TESTCONTAINERS_RYUK_DISABLED=true` for the container-backed reference run in this workspace.

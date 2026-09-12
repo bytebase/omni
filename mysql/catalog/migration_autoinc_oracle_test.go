@@ -226,9 +226,6 @@ func autoIncMigrationProbes() []migrationProbe {
 // generated plan, applied statement-by-statement to a real `from` database, must yield `to`.
 // Before the merge pass, the hazard probes fail on the first ungrouped statement (errno 1075).
 func TestOracle_AutoIncGroupingApplyCorrectness(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -247,9 +244,6 @@ func TestOracle_AutoIncGroupingApplyCorrectness(t *testing.T) {
 // loaded from the engine's own readback, must self-plan to an EMPTY migration (the merge pass
 // must never manufacture ops on a no-op release), and the user-form round-trip must be empty.
 func TestOracle_AutoIncGroupingIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -287,9 +281,6 @@ func TestOracle_AutoIncGroupingIdempotence(t *testing.T) {
 // synthesized into the grouped ADD COLUMN statement; the deferred PhasePost FK then reuses that
 // index instead of auto-creating a duplicate (probed live: both versions accept the sequence).
 func TestOracle_AutoIncGroupingFKImplicitBacking(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	cases := []fkMultiCase{
 		{
 			id: "aig-fk-implicit-backing",

@@ -7,7 +7,7 @@ import (
 
 // --- Section 6.1 (Phase 6): Basic LIKE Completeness (9 scenarios) ---
 // File target: wt_10_1_test.go
-// Proof: go test ./mysql/catalog/ -short -count=1 -run "TestWalkThrough_10_1"
+// Proof: go test ./mysql/catalog/ -count=1 -run "TestWalkThrough_10_1"
 
 func TestWalkThrough_10_1_BasicLIKECompleteness(t *testing.T) {
 	// Scenario 1: LIKE copies all column definitions (name, type, nullability, default, comment)

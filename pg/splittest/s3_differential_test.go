@@ -1,5 +1,3 @@
-//go:build oracle
-
 package splittest
 
 import (
@@ -28,7 +26,7 @@ import (
 //
 // Local runs need the build tag or the tests are silently absent:
 //
-//	S3DIFF_N=300 go test -tags=oracle ./pg/splittest/ -run TestS3
+//	S3DIFF_N=300 go test ./pg/splittest/ -run TestS3
 //
 // The server is the ultimate splitting authority: a multi-statement
 // script sent as ONE simple-query message is split by PostgreSQL
@@ -48,9 +46,6 @@ var (
 
 func s3Conn(t *testing.T) *sql.DB {
 	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping S3 differential in short mode")
-	}
 	s3Once.Do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 		defer cancel()
@@ -95,10 +90,7 @@ func s3Conn(t *testing.T) *sql.DB {
 	if s3InitErr != nil {
 		// In CI a startup failure must fail the job, not silently turn
 		// the differential into a green no-op.
-		if os.Getenv("CI") != "" {
-			t.Fatalf("PG container required in CI: %v", s3InitErr)
-		}
-		t.Skipf("PG container unavailable: %v", s3InitErr)
+		t.Fatalf("PG container required in CI: %v", s3InitErr)
 	}
 	return s3DB
 }

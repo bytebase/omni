@@ -248,8 +248,7 @@ Current measured gate: `TestOracleParserProgress` reports 445/445 parser `parse*
 - [x] Direct Loc fixture coverage has a floor of 80 rows and currently covers 152 rows.
 - [x] Deferred Loc-node rows have explicit debt class, approval, and next action metadata.
 - [x] Optional reference-oracle manifest has at least 20 rows across parser families.
-- [x] Reference-oracle execution is build-tag gated and skipped unless `ORACLE_PARSER_REF_DSN` or `ORACLE_PARSER_REF_CONTAINER=1` is set.
-- [x] Reference-oracle execution can also use an explicit Oracle Free testcontainer with `ORACLE_PARSER_REF_CONTAINER=1`.
+- [x] Reference-oracle execution runs with the package: `ORACLE_PARSER_REF_DSN` when set, else an Oracle Free testcontainer.
 - [x] Strict reference mode fails when no real Oracle backend is provided.
 - [x] Oracle Free testcontainer reference proof passes all 20 manifest rows.
 - [x] Oracle Free `V$RESERVED_WORDS` proof checks 107 word-like reserved/context entries against the local manifest.

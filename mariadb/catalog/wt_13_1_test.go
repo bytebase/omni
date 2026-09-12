@@ -4,7 +4,7 @@ import "testing"
 
 // --- Section 9.1 (Phase 9): SET Variable Effects (7 scenarios) ---
 // File target: wt_13_1_test.go
-// Proof: go test ./mysql/catalog/ -short -count=1 -run "TestWalkThrough_13_1"
+// Proof: go test ./mysql/catalog/ -count=1 -run "TestWalkThrough_13_1"
 
 func TestWalkThrough_13_1_SetVariableEffects(t *testing.T) {
 	// Scenario 1: SET foreign_key_checks = 0 then CREATE TABLE with invalid FK — succeeds

@@ -1,5 +1,3 @@
-//go:build oracle_ref
-
 package parser
 
 import (

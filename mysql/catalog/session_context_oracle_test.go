@@ -44,9 +44,6 @@ func execUnderSession(t *testing.T, conn *sql.Conn, ctx context.Context, sqlMode
 // TestOracle_RoutineRecreatePreservesSQLMode proves the routine DROP+CREATE recreate framing
 // preserves sql_mode on the live engine.
 func TestOracle_RoutineRecreatePreservesSQLMode(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	const origMode = "PIPES_AS_CONCAT,NO_BACKSLASH_ESCAPES"
 	for _, version := range both() {
 		o := connectOracle(t, version)
@@ -114,9 +111,6 @@ func TestOracle_RoutineRecreatePreservesSQLMode(t *testing.T) {
 // TestOracle_EventAlterPreservesSQLMode proves the ALTER EVENT framing preserves sql_mode on
 // the live engine — the case that a bare ALTER would silently re-stamp.
 func TestOracle_EventAlterPreservesSQLMode(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	const origMode = "PIPES_AS_CONCAT"
 	const origTZ = "+08:00"
 	for _, version := range both() {

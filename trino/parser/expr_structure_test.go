@@ -629,9 +629,6 @@ func TestExpr_RoundTrip(t *testing.T) {
 // expression syntax. Skipped without an oracle. JSON forms are not in the corpus
 // (deferred), so every entry is expected to render to valid SQL.
 func TestExpr_RoundTripOracle(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 	for _, expr := range exprAcceptCorpus {
 		expr := expr

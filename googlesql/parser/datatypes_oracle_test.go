@@ -1,10 +1,8 @@
-//go:build googlesql_oracle
-
 // Differential test for the `types` node against the live Cloud Spanner
 // emulator oracle. Run with:
 //
 //	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test -tags googlesql_oracle ./googlesql/parser/ -run TestTypeDifferential
+//	  go test ./googlesql/parser/ -run TestTypeDifferential
 //
 // It is the PROVE gate for googlesql/types (correctness-protocol.md): for every
 // fixture it (1) feeds a full statement embedding the type to the emulator via
@@ -36,6 +34,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/bytebase/omni/googlesql/internal/spannertest"
 )
 
 // typeFixture pairs a bare type (fed to omni's parseType) with a full statement
@@ -145,9 +145,6 @@ var typeFixtures = []typeFixture{
 }
 
 func TestTypeDifferential(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
-	}
 	h := newTypeHarness(t)
 	defer h.close()
 
@@ -206,6 +203,7 @@ type typeHarness struct {
 
 func newTypeHarness(t *testing.T) *typeHarness {
 	t.Helper()
+	spannertest.Host(t)
 	_, thisFile, _, _ := runtime.Caller(0)
 	// googlesql/parser/datatypes_oracle_test.go → repo root is ../..
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))

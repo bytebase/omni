@@ -99,7 +99,7 @@ func TestKindOf(t *testing.T) {
 // when SPANNER_EMULATOR_HOST is unset or the emulator is unreachable.
 func TestOracleLive(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		t.Skip("SPANNER_EMULATOR_HOST unset; skipping live oracle test")
+		t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
 	}
 	ctx := context.Background()
 	o, err := newOracle(ctx)

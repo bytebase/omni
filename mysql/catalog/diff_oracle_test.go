@@ -202,9 +202,6 @@ func diffIdempotenceProbes() []diffProbe {
 // TestOracle_DiffIdempotence proves gate 1 & 2 for every form: user DDL vs its engine
 // readback diffs EMPTY, and the stored form self-diffs empty, on every supported version.
 func TestOracle_DiffIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		for _, probe := range diffIdempotenceProbes() {
@@ -223,9 +220,6 @@ func TestOracle_DiffIdempotence(t *testing.T) {
 // and an index) loaded from its real engine readbacks self-diffs empty — the realistic
 // release-path idempotence check, not just single-table forms.
 func TestOracle_DiffMultiTableRoundTrip(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)
@@ -274,9 +268,6 @@ func TestOracle_DiffMultiTableRoundTrip(t *testing.T) {
 // (Apply-correctness — that the generated DDL transforms from into to — is generate-
 // core's gate; here we assert the SchemaDiff content is structurally right.)
 func TestOracle_DiffNonEmptyCorrect(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)

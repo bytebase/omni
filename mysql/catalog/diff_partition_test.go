@@ -100,9 +100,6 @@ func partitionDiffProbes() []diffProbe {
 // vs its engine readback diffs EMPTY (PartitionChanged=false), and the stored form self-diffs
 // empty, on every supported version.
 func TestOracle_PartitionDiffIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		for _, probe := range partitionDiffProbes() {
@@ -173,9 +170,6 @@ func partitionChangeCases() []partitionChangeCase {
 // marked DiffModify. Run from real readbacks so it exercises the same canonical path as the
 // idempotence proof.
 func TestOracle_PartitionChangeDetected(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)

@@ -13,9 +13,6 @@ import (
 // both match the expected value. Existing TestBugFix_* tests remain unchanged;
 // these TestScenario_PS tests are the durable dual-assertion versions.
 func TestScenario_PS(t *testing.T) {
-	scenariosSkipIfShort(t)
-	scenariosSkipIfNoDocker(t)
-
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 
