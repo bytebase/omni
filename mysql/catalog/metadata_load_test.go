@@ -406,16 +406,60 @@ func TestLoadMetadataKeepsViewColumnListsOnlyWhereNeeded(t *testing.T) {
 			{Name: "same", Definition: "SELECT id FROM users", Columns: []*metadata.ColumnMetadata{{Name: "ID"}}},
 			{Name: "star", Definition: "SELECT * FROM users", Columns: []*metadata.ColumnMetadata{{Name: "id"}}},
 			{Name: "star_qualified", Definition: "SELECT u.* FROM users u", Columns: []*metadata.ColumnMetadata{{Name: "id"}}},
+			// Created as CREATE VIEW star_renamed (user_id) AS SELECT * FROM users.
+			{Name: "star_renamed", Definition: "SELECT * FROM users", Columns: []*metadata.ColumnMetadata{{Name: "user_id"}}},
+			// A body that does not resolve names nothing of its own. A qualified
+			// star leaves one unnamed column behind rather than none.
+			{Name: "unresolved", Definition: "SELECT * FROM missing", Columns: []*metadata.ColumnMetadata{{Name: "a"}, {Name: "b"}}},
+			{Name: "unresolved_qualified", Definition: "SELECT m.* FROM missing m", Columns: []*metadata.ColumnMetadata{{Name: "a"}}},
 		},
 	}))
 	requireReport(t, report, nil, nil)
-	if v := requireView(t, c, "renamed"); !v.ExplicitColumns || !slices.Equal(v.Columns, []string{"user_id"}) {
-		t.Errorf("renamed = explicit %v, columns %v; want the snapshot's user_id", v.ExplicitColumns, v.Columns)
-	}
-	for _, name := range []string{"same", "star", "star_qualified"} {
-		if v := requireView(t, c, name); v.ExplicitColumns {
-			t.Errorf("%s = explicit columns %v, want the body's", name, v.Columns)
+	for _, name := range []string{"renamed", "star_renamed"} {
+		if v := requireView(t, c, name); !v.ExplicitColumns || !slices.Equal(v.Columns, []string{"user_id"}) {
+			t.Errorf("%s = explicit %v, columns %v; want the snapshot's user_id", name, v.ExplicitColumns, v.Columns)
 		}
+	}
+	// A body naming its own columns keeps them; one that does not resolve takes
+	// the snapshot's, inferred.
+	for name, want := range map[string][]string{"same": {"id"}, "star": {"id"}, "star_qualified": {"id"}, "unresolved": {"a", "b"}, "unresolved_qualified": {"a"}} {
+		if v := requireView(t, c, name); v.ExplicitColumns || !slices.Equal(v.Columns, want) {
+			t.Errorf("%s = explicit %v, columns %v; want %v inferred", name, v.ExplicitColumns, v.Columns, want)
+		}
+	}
+	// Whatever a view ends up advertising, its inferred column metadata answers
+	// to the same names.
+	for _, name := range []string{"renamed", "same", "star", "star_qualified", "star_renamed", "unresolved", "unresolved_qualified"} {
+		v := requireView(t, c, name)
+		var inferred []string
+		for _, col := range v.ColumnMetadata {
+			inferred = append(inferred, col.Name)
+		}
+		if !slices.Equal(inferred, v.Columns) {
+			t.Errorf("%s = columns %v, column metadata %v; want them named alike", name, v.Columns, inferred)
+		}
+	}
+}
+
+func TestLoadMetadataDropsViewColumnMetadataAnUnresolvedStarShifts(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshot(&metadata.SchemaMetadata{
+		Tables: []*metadata.TableMetadata{{Name: "users", Columns: []*metadata.ColumnMetadata{{Name: "name", Type: "varchar(8)", Nullable: true}}}},
+		Views: []*metadata.ViewMetadata{
+			{Name: "shifted", Definition: "SELECT m.*, u.name FROM missing m, users u", Columns: []*metadata.ColumnMetadata{{Name: "a"}, {Name: "b"}, {Name: "name"}}},
+			{Name: "aligned", Definition: "SELECT u.name FROM users u", Columns: []*metadata.ColumnMetadata{{Name: "label"}}},
+		},
+	}))
+	requireReport(t, report, nil, nil)
+	// A star the catalog cannot expand shifts every column after it, so what the
+	// body inferred belongs to none of the names the snapshot gives.
+	for i, col := range requireView(t, c, "shifted").ColumnMetadata {
+		if col.Collation != "" || col.Nullable {
+			t.Errorf("shifted column %d (%s) = nullable %v, collation %q; want nothing carried over", i, col.Name, col.Nullable, col.Collation)
+		}
+	}
+	// A body with a column for each of the snapshot's keeps what it inferred.
+	if col := requireView(t, c, "aligned").ColumnMetadata[0]; col.Name != "label" || !col.Nullable || col.Collation == "" {
+		t.Errorf("aligned column = %+v; want users.name's inferred nullability and collation under label", col)
 	}
 }
 
