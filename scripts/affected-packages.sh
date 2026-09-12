@@ -11,7 +11,7 @@
 set -euo pipefail
 
 base=${1:?usage: affected-packages.sh <base-ref>}
-changed=$(git diff --name-only "$base...HEAD" | grep -vE '^(docs/|[^/]+\.md$)' |
+changed=$(git diff --name-only "$base...HEAD" | { grep -vE '^(docs/|[^/]+\.md$)' || true; } |
 	awk -F/ '{ print (NF > 1 ? $1 : ".") }' | sort -u | xargs)
 [ -n "$changed" ] || exit 0
 for d in $changed; do
