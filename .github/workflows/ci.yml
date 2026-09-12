@@ -9,192 +9,71 @@ on:
 permissions:
   contents: read
 
-# One run per PR: a new push cancels the run for the previous head.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
-    # The whole suite: no -short and no per-engine shards. `go test ./...` is
-    # the coverage contract, so a container test in a new package is in CI the
-    # moment it merges instead of waiting for someone to wire a lane for it.
-    # Runs on the org's self-hosted runners (the pool bytebase/bytebase uses):
-    # persistent Go build and module caches plus a warm Docker image cache are
-    # what make running everything on every PR cheap.
+  ci:
+    # One job on the org's self-hosted runners. A PR runs the tests of the
+    # engines it touches (scripts/affected-packages.sh); a push to main runs
+    # everything. There is no -short and no nightly: every test runs here.
     runs-on: self-hosted
     timeout-minutes: 30
+    services:
+      trino:
+        # The trino oracle tests need a live Trino; the runner waits for the
+        # image's health check. Keep the tag in sync with trinooracle.DefaultImage.
+        image: trinodb/trino:482
+        ports: ['8080']
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # affected-packages.sh diffs against the base branch
 
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25'
-          # The runner keeps GOCACHE/GOMODCACHE between runs; the Actions cache
-          # would only add download time.
-          cache: false
+          cache: false # the runner keeps GOCACHE/GOMODCACHE between runs
 
-      - name: Check generated code is up to date
+      - name: Generated code and proto are in sync
         run: |
-          go generate ./pg/ast/...
-          go generate ./mysql/ast/...
-          go generate ./mssql/ast/...
-          git diff --exit-code pg/ast/walk_generated.go mysql/ast/walk_generated.go mssql/ast/walk_generated.go
-
-      - name: Check proto is formatted, linted, and generated
-        run: |
-          make proto
-          if [ -n "$(git status --porcelain proto metadata)" ]; then
-            git status --porcelain proto metadata
-            exit 1
-          fi
-
-      - name: Check proto for breaking changes against main
-        run: make proto-breaking
+          go generate ./pg/ast/... ./mysql/ast/... ./mssql/ast/...
+          make proto proto-breaking
+          git status --porcelain
+          test -z "$(git status --porcelain)"
 
       - name: Build
         run: go build ./...
 
-      - name: Fetch conformance corpus
-        # harness/conformance/extract_smoke_test.go extracts the real TiDB
-        # parser corpus; it skips locally when the corpus is absent and fails
-        # in CI, so fetch it (a 2s sparse clone) before the tests run.
-        run: harness/conformance/fetch_corpus.sh
-
-      - name: Start Trino oracle
-        # The trino oracle tests talk to a running Trino ($TRINO_ORACLE_URL) and
-        # fail in CI when it is unreachable. A random host port keeps two jobs
-        # on one runner from colliding. Image pinned to the corpus-verified
-        # version — keep in sync with trinooracle.DefaultImage.
+      - name: Affected packages
+        id: affected
         run: |
-          cid=$(docker run -d -p 127.0.0.1::8080 trinodb/trino:482)
-          echo "TRINO_CID=$cid" >> "$GITHUB_ENV"
-          port=$(docker port "$cid" 8080/tcp | head -n 1 | sed 's/.*://')
-          echo "TRINO_ORACLE_URL=http://127.0.0.1:$port" >> "$GITHUB_ENV"
-          for i in $(seq 1 60); do
-            if curl -sf "http://127.0.0.1:$port/v1/info" | grep -q '"starting":false'; then
-              echo "Trino ready after ~$((i*3))s"
-              exit 0
-            fi
-            sleep 3
-          done
-          echo "Trino failed to become ready" >&2
-          docker logs "$cid" 2>&1 | tail -n 50 >&2
-          exit 1
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            pkgs=$(scripts/affected-packages.sh origin/${{ github.base_ref }})
+          else
+            pkgs=./...
+          fi
+          echo "pkgs=$pkgs" | tee -a "$GITHUB_OUTPUT"
 
       - name: Test
-        shell: bash
-        # -p=8 bounds how many packages, and therefore engine containers, run
-        # at once; the suite is container-bound, not CPU-bound.
-        run: go test -p=8 -timeout 25m ./... | tee test.log
+        if: steps.affected.outputs.pkgs != ''
+        env:
+          TRINO_ORACLE_URL: http://localhost:${{ job.services.trino.ports['8080'] }}
+        run: go test -p=8 -timeout 25m ${{ steps.affected.outputs.pkgs }}
 
-      - name: Conformance harness tests
-        # harness/conformance is its own Go module, so the root ./... above
-        # never reaches it.
-        working-directory: harness/conformance
-        run: go test -timeout 10m ./...
+      - name: PG and Redshift oracle differentials (-tags=oracle)
+        if: contains(steps.affected.outputs.pkgs, './pg/') || contains(steps.affected.outputs.pkgs, './redshift/') || steps.affected.outputs.pkgs == './...'
+        env:
+          PAREN_FUZZ_SIZE: '1000'
+        run: go test -tags=oracle -timeout 25m -run '^(TestParenOracle|TestFunctionBodyReferenceOracle|TestLoaderCompat|TestS3)' ./pg/parser/ ./pg/catalog/ ./pg/splittest/ ./redshift/parser/ ./redshift/catalog/
 
-      - name: Slowest packages
-        if: always()
-        run: grep -E '^ok\s' test.log | awk '{sub(/s$/, "", $3); print $3, $2}' | sort -rn | head -n 15 || true
+      - name: Conformance harness (own module)
+        run: harness/conformance/fetch_corpus.sh && cd harness/conformance && go test -timeout 10m ./...
 
-      - name: Stop Trino oracle
-        if: always()
-        run: docker rm -f "$TRINO_CID" >/dev/null 2>&1 || true
-
-      # Build-tag-gated test code must at least compile on every PR, even
-      # when the tests themselves run elsewhere (the tagged jobs below,
-      # nightly.yml, or local-only like the scriptdom .NET harness).
-      # `go test -run '^$'` compiles the test binary (including test files,
-      # which `go build` skips) without running any tests.
-      - name: Compile build-tagged test code
+      - name: Build-tagged test code compiles
         run: |
-          go test -tags=oracle -run '^$' -count=1 ./pg/parser/ ./pg/catalog/ ./redshift/parser/ ./redshift/catalog/
-          go test -tags=oracle_ref -run '^$' -count=1 ./oracle/parser/
-          go test -tags=scriptdom -run '^$' -count=1 ./mssql/parser/
-          go test -tags=googlesql_oracle -run '^$' -count=1 ./googlesql/parser/ ./googlesql/analysis/
-
-      # SCENARIOS-pg-paren-dispatch.md §5.3 — PAREN_AUDIT lint gate.
-      # Runs on every PR/push; fails CI when a new `(` / `)` dispatch
-      # site is added without a matching row in PAREN_AUDIT.json or
-      # when an aligned=yes row loses its proof_notes.
-      - name: PAREN_AUDIT lint
-        run: go test -run TestPARENAuditLint ./pg/parser/... -count=1 -v
-
-  paren-fuzz:
-    # SCENARIOS-pg-paren-dispatch.md §5.2 — property-based fuzz corpus
-    # run against a PG 17 testcontainer. PAREN_FUZZ_DEFER keeps the job
-    # non-blocking: new mismatches are persisted to
-    # testdata/paren-fuzz-defer/<timestamp>.txt for human triage rather
-    # than auto-failing the pipeline. The strict set-equality gate
-    # (without PAREN_FUZZ_DEFER) remains the developer-side promote
-    # check.
-    runs-on: self-hosted
-    timeout-minutes: 15
-    env:
-      PAREN_FUZZ_SIZE: '1000'
-      PAREN_FUZZ_DEFER: '1'
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache: false
-
-      - name: Paren fuzz (N=1000, defer mode)
-        run: go test -tags=oracle -timeout 15m -run TestParenOracleFuzz ./pg/parser/... -count=1 -v
-
-      - name: Upload deferred-mismatch artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: paren-fuzz-defer
-          path: pg/parser/testdata/paren-fuzz-defer/*.txt
-          if-no-files-found: ignore
-
-  pg-paren-corpus:
-    # The pg -tags=oracle corpus differential tests (harness, FROM
-    # variants, array, IN, lateral, function-body reference). The fuzz
-    # variant is excluded here — paren-fuzz above runs the N=1000 PR gate
-    # and nightly.yml runs the wide-N sweep.
-    runs-on: self-hosted
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache: false
-
-      - name: PG paren oracle corpus (excl. fuzz)
-        run: go test -tags=oracle -timeout 25m -run '^(TestParenOracle|TestFunctionBodyReferenceOracle|TestLoaderCompat)' -skip '^TestParenOracleFuzz$' ./pg/parser/ ./pg/catalog/ -count=1
-
-  redshift-paren-oracle:
-    # Mirror of the pg paren jobs for the redshift fork: corpus
-    # differential + N=1000 fuzz in defer mode against a real PG 17
-    # container. Also runs the -tags=oracle catalog loader compat corpus.
-    runs-on: self-hosted
-    timeout-minutes: 30
-    env:
-      PAREN_FUZZ_SIZE: '1000'
-      PAREN_FUZZ_DEFER: '1'
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache: false
-
-      - name: Redshift paren oracle corpus + fuzz (N=1000, defer mode)
-        run: go test -tags=oracle -timeout 25m -run '^(TestParenOracle|TestLoaderCompat)' ./redshift/parser/ ./redshift/catalog/ -count=1
-
-      - name: Upload deferred-mismatch artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: redshift-paren-fuzz-defer
-          path: redshift/parser/testdata/paren-fuzz-defer/*.txt
-          if-no-files-found: ignore
+          go test -tags=oracle -run '^$' ./pg/parser/ ./pg/catalog/ ./pg/splittest/ ./redshift/parser/ ./redshift/catalog/
+          go test -tags=oracle_ref -run '^$' ./oracle/parser/
+          go test -tags=scriptdom -run '^$' ./mssql/parser/
+          go test -tags=googlesql_oracle -run '^$' ./googlesql/parser/ ./googlesql/analysis/

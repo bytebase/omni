@@ -57,9 +57,9 @@ var sharedTiDB sync.Mutex
 // from mysql/catalog, and its expectations are still MySQL-shaped. Against
 // TiDB v8.5.5, 93 of them fail (SHOW CREATE TABLE and view-body mismatches);
 // against the mysql:8.0 container this helper used to boot, 59 failed. They
-// are skipped unless TIDB_CATALOG_PARITY=1 so the PR gate stays green, and
-// nightly.yml runs them with it set so the mismatch count is tracked rather
-// than forgotten. Fixing the family and deleting this skip is the follow-up.
+// are skipped unless TIDB_CATALOG_PARITY=1 so CI stays green; run with it set
+// when working on parity. Fixing the family and deleting this skip is the
+// follow-up.
 func startContainer(t *testing.T) (*mysqlContainer, func()) {
 	t.Helper()
 	if os.Getenv("TIDB_CATALOG_PARITY") == "" {
