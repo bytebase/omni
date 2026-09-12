@@ -441,6 +441,28 @@ func TestLoadMetadataKeepsViewColumnListsOnlyWhereNeeded(t *testing.T) {
 	}
 }
 
+func TestLoadMetadataDropsViewColumnMetadataAnUnresolvedStarShifts(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshot(&metadata.SchemaMetadata{
+		Tables: []*metadata.TableMetadata{{Name: "users", Columns: []*metadata.ColumnMetadata{{Name: "name", Type: "varchar(8)", Nullable: true}}}},
+		Views: []*metadata.ViewMetadata{
+			{Name: "shifted", Definition: "SELECT m.*, u.name FROM missing m, users u", Columns: []*metadata.ColumnMetadata{{Name: "a"}, {Name: "b"}, {Name: "name"}}},
+			{Name: "aligned", Definition: "SELECT u.name FROM users u", Columns: []*metadata.ColumnMetadata{{Name: "label"}}},
+		},
+	}))
+	requireReport(t, report, nil, nil)
+	// A star the catalog cannot expand shifts every column after it, so what the
+	// body inferred belongs to none of the names the snapshot gives.
+	for i, col := range requireView(t, c, "shifted").ColumnMetadata {
+		if col.Collation != "" || col.Nullable {
+			t.Errorf("shifted column %d (%s) = nullable %v, collation %q; want nothing carried over", i, col.Name, col.Nullable, col.Collation)
+		}
+	}
+	// A body with a column for each of the snapshot's keeps what it inferred.
+	if col := requireView(t, c, "aligned").ColumnMetadata[0]; col.Name != "label" || !col.Nullable || col.Collation == "" {
+		t.Errorf("aligned column = %+v; want users.name's inferred nullability and collation under label", col)
+	}
+}
+
 func TestLoadMetadataInstallsTriggers(t *testing.T) {
 	account := func(triggers ...*metadata.TriggerMetadata) *metadata.TableMetadata {
 		return &metadata.TableMetadata{

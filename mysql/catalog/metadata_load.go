@@ -641,17 +641,20 @@ func nameViewColumns(v *View, names []string) {
 	default:
 		return
 	}
-	nameViewColumnMetadata(v)
+	nameViewColumnMetadata(v, names)
 }
 
 // nameViewColumnMetadata carries the view's column names into the metadata
-// DefineView inferred alongside them, which is indexed the same way. A column
-// the body never resolved has no inferred metadata of its own.
-func nameViewColumnMetadata(v *View) {
-	for len(v.ColumnMetadata) < len(v.Columns) {
-		v.ColumnMetadata = append(v.ColumnMetadata, ViewColumn{})
+// DefineView inferred alongside them. A body with a column for each of the
+// snapshot's kept them in that order, so only the names change. One with fewer
+// expanded a star the catalog could not resolve, which shifts every column
+// after it: what the body inferred belongs to no column the snapshot names,
+// and the names stand on their own.
+func nameViewColumnMetadata(v *View, names []string) {
+	if len(v.ColumnMetadata) != len(names) {
+		v.ColumnMetadata = make([]ViewColumn, len(names))
 	}
-	for i, name := range v.Columns {
+	for i, name := range names {
 		v.ColumnMetadata[i].Name = name
 	}
 }
