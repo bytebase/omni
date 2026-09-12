@@ -11,7 +11,7 @@ func TestLoadMetadata(t *testing.T) {
 	c.LoadMetadata(&metadata.DatabaseSchemaMetadata{
 		Name: "dynamo",
 		Schemas: []*metadata.SchemaMetadata{{
-			Tables: []*metadata.TableMetadata{{Name: "Orders"}, {Name: "users"}},
+			Tables: []*metadata.TableMetadata{{Name: "Orders"}, {Name: "users"}, {Name: ""}},
 		}},
 	})
 	for _, name := range []string{"Orders", "users"} {

@@ -122,6 +122,22 @@ func TestLoadMetadataInstallsTables(t *testing.T) {
 		t.Errorf("database charset %q, collation %q; want the snapshot's latin1, latin1_bin", db.Charset, db.Collation)
 	}
 
+	// Loading into an existing database adds to it and takes the snapshot's
+	// defaults, so a table that overrides neither resolves the same as it would
+	// in an empty catalog.
+	second := snapshot(&metadata.SchemaMetadata{Tables: []*metadata.TableMetadata{
+		{Name: "u", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}},
+	}})
+	second.CharacterSet, second.Collation = "utf8mb4", "utf8mb4_bin"
+	if _, err := c.LoadMetadata(context.Background(), second); err != nil {
+		t.Fatalf("second LoadMetadata: %v", err)
+	}
+	requireTable(t, c, "a_child")
+	requireTable(t, c, "u")
+	if db := c.GetDatabase(snapshotDB); db.Charset != "utf8mb4" || db.Collation != "utf8mb4_bin" {
+		t.Errorf("database charset %q, collation %q; want the second snapshot's utf8mb4, utf8mb4_bin", db.Charset, db.Collation)
+	}
+
 	child := requireTable(t, c, "a_child")
 	if child.Comment != "children" || child.Charset != "utf8mb4" {
 		t.Errorf("a_child comment %q, charset %q", child.Comment, child.Charset)

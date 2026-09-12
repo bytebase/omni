@@ -6,7 +6,9 @@ import "github.com/bytebase/omni/metadata"
 func (c *Catalog) LoadMetadata(meta *metadata.DatabaseSchemaMetadata) {
 	for _, s := range meta.GetSchemas() {
 		for _, t := range s.GetTables() {
-			c.AddTable(t.GetName())
+			if t.GetName() != "" {
+				c.AddTable(t.GetName())
+			}
 		}
 	}
 }

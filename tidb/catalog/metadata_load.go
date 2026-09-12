@@ -43,8 +43,15 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchem
 		return report, err
 	}
 	if name := meta.GetName(); name != "" {
+		// A database already in the catalog keeps its own character set and
+		// collation otherwise, and a table that overrides neither would resolve
+		// its columns differently than the same snapshot loaded into an empty
+		// catalog.
+		stmt := metadataDatabaseStmt(meta)
 		if c.GetDatabase(name) == nil {
-			_ = c.DefineDatabase(metadataDatabaseStmt(meta))
+			_ = c.DefineDatabase(stmt)
+		} else if len(stmt.Options) > 0 {
+			_ = c.alterDatabase(&nodes.AlterDatabaseStmt{Name: name, Options: stmt.Options})
 		}
 		c.SetCurrentDatabase(name)
 	}
