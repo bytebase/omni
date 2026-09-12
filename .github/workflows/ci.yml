@@ -48,6 +48,9 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         # mssql/parser's ScriptDom differential builds harness/mssql-scriptdom.
+        # The runner is not root: install into its tool cache, not /usr/share.
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}/dotnet
         with:
           dotnet-version: '8.0.x'
 
