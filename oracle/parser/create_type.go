@@ -145,9 +145,10 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 				return nil, parseErr578
 			}
 
-			if p.cur.Type == kwEND {
-				p.advance()
+			if p.cur.Type != kwEND {
+				return nil, p.syntaxErrorAtCur()
 			}
+			p.advance()
 			// Optional type name after END
 			if p.isIdentLike() && p.cur.Type != ';' && p.cur.Type != tokEOF {
 				p.advance()

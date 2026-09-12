@@ -6,14 +6,13 @@
 # their tests, import it. A change outside any Go directory (go.mod, proto,
 # workflows, root files), under scripts/ (the CI drivers themselves) or under
 # harness/ (external harnesses that tests exec rather than import) means
-# ./... . Markdown under docs/ or at the root cannot affect a test and is
-# ignored.
+# ./... . That includes docs/: some tests read their corpus from there.
 #
 # Usage: scripts/affected-packages.sh origin/main
 set -euo pipefail
 
 base=${1:?usage: affected-packages.sh <base-ref>}
-changed=$(git diff --name-only "$base...HEAD" | { grep -vE '^(docs/|[^/]+\.md$)' || true; } |
+changed=$(git diff --name-only "$base...HEAD" |
 	awk -F/ '{ print (NF > 1 ? $1 : ".") }' | sort -u | xargs)
 [ -n "$changed" ] || exit 0
 for d in $changed; do
