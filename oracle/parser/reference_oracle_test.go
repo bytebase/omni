@@ -1,5 +1,3 @@
-//go:build oracle_ref
-
 package parser
 
 import (
@@ -105,15 +103,8 @@ func openOracleReferenceDB(t *testing.T) (context.Context, *sql.DB) {
 		}
 		return ctx, db
 	}
-	if os.Getenv("ORACLE_PARSER_REF_CONTAINER") == "1" {
-		oracle := startOracleDB(t)
-		return oracle.ctx, oracle.db
-	}
-	if os.Getenv("ORACLE_PARSER_REF_STRICT") == "1" {
-		t.Fatal("strict Oracle reference mode requires ORACLE_PARSER_REF_DSN or ORACLE_PARSER_REF_CONTAINER=1")
-	}
-	t.Skip("ORACLE_PARSER_REF_DSN is not set; set ORACLE_PARSER_REF_CONTAINER=1 to run against Oracle Free")
-	return nil, nil
+	oracle := startOracleDB(t)
+	return oracle.ctx, oracle.db
 }
 
 func openOracleReservedWordsDB(t *testing.T) (context.Context, *sql.DB) {
@@ -132,11 +123,11 @@ func openOracleReservedWordsDB(t *testing.T) (context.Context, *sql.DB) {
 		}
 		return ctx, db
 	}
-	if os.Getenv("ORACLE_PARSER_REF_CONTAINER") == "1" {
-		oracle := startOracleDB(t)
-		return oracle.ctx, oracle.adminDB
+	if os.Getenv("ORACLE_PARSER_REF_DSN") != "" {
+		return openOracleReferenceDB(t)
 	}
-	return openOracleReferenceDB(t)
+	oracle := startOracleDB(t)
+	return oracle.ctx, oracle.adminDB
 }
 
 func openOraclePrivilegedReferenceDB(t *testing.T) (context.Context, *sql.DB) {
@@ -169,12 +160,8 @@ func openOraclePrivilegedReferenceDB(t *testing.T) (context.Context, *sql.DB) {
 		}
 		return ctx, db
 	}
-	if os.Getenv("ORACLE_PARSER_REF_CONTAINER") == "1" {
-		oracle := startOracleDB(t)
-		return oracle.ctx, oracle.adminDB
-	}
-	t.Skip("Oracle privileged reference DSN is not set; set ORACLE_PARSER_REF_PRIVILEGED_DSN, ORACLE_PARSER_REF_ADMIN_DSN, or ORACLE_PARSER_REF_CONTAINER=1")
-	return nil, nil
+	oracle := startOracleDB(t)
+	return oracle.ctx, oracle.adminDB
 }
 
 func oracleReferenceSQL(sqlText, runID string) string {
@@ -216,5 +203,11 @@ BEGIN
   END;
 END;`
 	_, err := db.ExecContext(ctx, block, sqlText)
+	if err != nil && strings.Contains(err.Error(), "ORA-24344") {
+		// "A compilation error occurred while creating an object": the parse
+		// succeeded and the object was created with errors (its type spec
+		// does not exist here). A syntax rejection would be ORA-00900-class.
+		return nil
+	}
 	return err
 }

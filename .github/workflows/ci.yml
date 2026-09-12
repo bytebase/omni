@@ -79,12 +79,10 @@ jobs:
           (cd harness/googlesql-spanner && go test -count=1 ./...)
 
       - name: Build-tagged test code compiles
-        # Three lanes stay behind build tags because they cannot gate a PR
-        # yet: oracle_ref (Oracle 23ai, two open corpus mismatches),
-        # googlesql_oracle (Spanner emulator drifted from the recorded
-        # verdicts), scriptdom (needs the .NET harness). Compile them so a
-        # PR cannot break them invisibly.
+        # Two lanes stay behind build tags because they cannot gate a PR:
+        # googlesql_oracle (the Spanner emulator drifted from the recorded
+        # verdicts) and scriptdom (needs the .NET harness). Compile them so
+        # a PR cannot break them invisibly.
         run: |
-          go test -tags=oracle_ref -run '^$' ./oracle/parser/
           go test -tags=scriptdom -run '^$' ./mssql/parser/
           go test -tags=googlesql_oracle -run '^$' ./googlesql/parser/ ./googlesql/analysis/

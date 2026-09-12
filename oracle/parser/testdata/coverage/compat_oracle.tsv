@@ -375,7 +375,7 @@ compat_plsql_005	C	plsql	CREATE-TYPE.bnf	parse_only	accept	syntax	CREATE TYPE co
 compat_plsql_006	C	plsql	CREATE-PROCEDURE.bnf	parse_only	reject	syntax	CREATE PROCEDURE compat_bad_p_{run} IS BEGIN NULL;	none	none	23ai	procedure missing end
 compat_plsql_007	C	plsql	CREATE-FUNCTION.bnf	parse_only	reject	syntax	CREATE FUNCTION compat_bad_f_{run} RETURN NUMBER IS BEGIN RETURN;	none	none	23ai	function missing end
 compat_plsql_008	C	plsql	CREATE-PACKAGE.bnf	parse_only	reject	syntax	CREATE PACKAGE compat_bad_pkg_{run} IS PROCEDURE p	none	none	23ai	package missing end
-compat_plsql_009	C	plsql	CREATE-TRIGGER.bnf	parse_only	reject	syntax	CREATE TRIGGER compat_bad_tr_{run} BEFORE INSERT ON t BEGIN	none	none	23ai	trigger missing body end
+compat_plsql_009	C	plsql	CREATE-TRIGGER.bnf	parse_only	reject	syntax	CREATE TRIGGER compat_bad_tr_{run} BEFORE INSERT ON t BEGIN	none	DROP TRIGGER compat_bad_tr_{run}	23ai	trigger missing body end
 compat_plsql_010	C	plsql	CREATE-TYPE.bnf	parse_only	reject	syntax	CREATE TYPE compat_bad_obj_{run} AS OBJECT	none	none	23ai	type missing body
 compat_block_001	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	BEGIN NULL; END;	none	none	23ai	anonymous block
 compat_block_002	C	plsql	CREATE-PROCEDURE.bnf	parse_only	accept	syntax	DECLARE x NUMBER; BEGIN x := 1; END;	none	none	23ai	declare block
@@ -410,8 +410,8 @@ compat_plsql_034	C	plsql	CREATE-FUNCTION.bnf	parse_only	reject	syntax	CREATE FUN
 compat_plsql_035	C	plsql	CREATE-FUNCTION.bnf	parse_only	reject	syntax	CREATE FUNCTION compat_bad_f_type_{run} RETURN IS BEGIN RETURN 1; END;	none	none	23ai	function return missing type
 compat_plsql_036	C	plsql	CREATE-PACKAGE.bnf	parse_only	reject	syntax	CREATE PACKAGE compat_bad_pkg2_{run} END;	none	none	23ai	package missing is
 compat_plsql_037	C	plsql	CREATE-PACKAGE.bnf	parse_only	reject	syntax	CREATE PACKAGE compat_bad_pkg3_{run} IS FUNCTION f RETURN; END;	none	none	23ai	package function return missing type
-compat_plsql_038	C	plsql	CREATE-TRIGGER.bnf	parse_only	reject	syntax	CREATE TRIGGER compat_bad_tr2_{run} BEFORE INSERT BEGIN NULL; END;	none	none	23ai	trigger missing on target
-compat_plsql_039	C	plsql	CREATE-TRIGGER.bnf	parse_only	reject	syntax	CREATE TRIGGER compat_bad_tr3_{run} BEFORE ON t BEGIN NULL; END;	none	none	23ai	trigger missing event
+compat_plsql_038	C	plsql	CREATE-TRIGGER.bnf	parse_only	reject	syntax	CREATE TRIGGER compat_bad_tr2_{run} BEFORE INSERT BEGIN NULL; END;	none	DROP TRIGGER compat_bad_tr2_{run}	23ai	trigger missing on target
+compat_plsql_039	C	plsql	CREATE-TRIGGER.bnf	parse_only	reject	syntax	CREATE TRIGGER compat_bad_tr3_{run} BEFORE ON t BEGIN NULL; END;	none	DROP TRIGGER compat_bad_tr3_{run}	23ai	trigger missing event
 compat_plsql_040	C	plsql	CREATE-TYPE.bnf	parse_only	reject	syntax	CREATE TYPE compat_bad_type2_{run} AS VARRAY OF NUMBER	none	none	23ai	varray missing size
 compat_plsql_041	C	plsql	CREATE-TYPE.bnf	parse_only	reject	syntax	CREATE TYPE compat_bad_type3_{run} AS TABLE OF	none	none	23ai	nested table missing element type
 compat_plsql_042	C	plsql	CREATE-TYPE.bnf	parse_only	reject	syntax	CREATE TYPE compat_bad_type4_{run} AS OBJECT (a)	none	none	23ai	object attribute missing type
