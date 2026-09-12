@@ -238,8 +238,10 @@ func TestLoadMetadataKeepsViewColumnListsOnlyWhereNeeded(t *testing.T) {
 			{Name: "star", Definition: "SELECT * FROM users", Columns: []*metadata.ColumnMetadata{{Name: "id"}}},
 			{Name: "star_qualified", Definition: "SELECT u.* FROM users u", Columns: []*metadata.ColumnMetadata{{Name: "id"}}},
 			{Name: "expr", Definition: "SELECT count(*) FROM users", Columns: []*metadata.ColumnMetadata{{Name: "count(*)"}}},
-			// A body that does not resolve names nothing of its own.
+			// A body that does not resolve names nothing of its own. A qualified
+			// star leaves one unnamed column behind rather than none.
 			{Name: "unresolved", Definition: "SELECT * FROM missing", Columns: []*metadata.ColumnMetadata{{Name: "a"}, {Name: "b"}}},
+			{Name: "unresolved_qualified", Definition: "SELECT m.* FROM missing m", Columns: []*metadata.ColumnMetadata{{Name: "a"}}},
 			// Created as CREATE VIEW star_renamed (user_id) AS SELECT * FROM users.
 			{Name: "star_renamed", Definition: "SELECT * FROM users", Columns: []*metadata.ColumnMetadata{{Name: "user_id"}}},
 		},
@@ -252,7 +254,7 @@ func TestLoadMetadataKeepsViewColumnListsOnlyWhereNeeded(t *testing.T) {
 	}
 	// A body naming no target of its own keeps the columns it resolves to, and
 	// the snapshot names what a body that does not resolve leaves unnamed.
-	for name, want := range map[string][]string{"same": {"id"}, "star": {"id"}, "star_qualified": {"id"}, "expr": {"COUNT(*)"}, "unresolved": {"a", "b"}} {
+	for name, want := range map[string][]string{"same": {"id"}, "star": {"id"}, "star_qualified": {"id"}, "expr": {"COUNT(*)"}, "unresolved": {"a", "b"}, "unresolved_qualified": {"a"}} {
 		if v := requireView(t, c, name); v.ExplicitColumns || !slices.Equal(v.Columns, want) {
 			t.Errorf("%s = explicit %v, columns %v; want %v inferred", name, v.ExplicitColumns, v.Columns, want)
 		}

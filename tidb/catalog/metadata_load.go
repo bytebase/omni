@@ -464,14 +464,18 @@ func metadataViewColumnNames(v *metadata.ViewMetadata) []string {
 // CREATE VIEW v (a, b), and only a view created with one has names its body
 // does not give.
 func nameViewColumns(v *View, names []string) {
-	if v == nil || len(names) == 0 {
+	if v == nil || len(names) == 0 || len(v.Columns) > len(names) {
 		return
 	}
-	if len(v.Columns) < len(names) {
+	// Only a body that named every column of its own can disagree with the
+	// snapshot over a name. One that left a column unnamed did not resolve: a
+	// star over a missing relation expands to fewer columns, or to a single
+	// unnamed one, and names them all from the snapshot instead.
+	bodyNamedAll := len(v.Columns) == len(names) && !slices.Contains(v.Columns, "")
+	switch {
+	case !bodyNamedAll:
 		v.Columns = names
-		return
-	}
-	if len(v.Columns) == len(names) && !slices.EqualFunc(v.Columns, names, strings.EqualFold) {
+	case !slices.EqualFunc(v.Columns, names, strings.EqualFold):
 		v.Columns, v.ExplicitColumns = names, true
 	}
 }
