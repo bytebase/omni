@@ -13,10 +13,14 @@ func (c *Catalog) LoadMetadata(meta *metadata.DatabaseSchemaMetadata) {
 	for _, s := range meta.GetSchemas() {
 		schema := database.EnsureSchema(Normalize(s.GetName()))
 		for _, t := range s.GetTables() {
-			schema.AddTable(Normalize(t.GetName()), metadataColumns(t.GetColumns())...)
+			if t.GetName() != "" {
+				schema.AddTable(Normalize(t.GetName()), metadataColumns(t.GetColumns())...)
+			}
 		}
 		for _, v := range s.GetViews() {
-			schema.AddView(Normalize(v.GetName()), metadataColumns(v.GetColumns())...).Definition = v.GetDefinition()
+			if v.GetName() != "" {
+				schema.AddView(Normalize(v.GetName()), metadataColumns(v.GetColumns())...).Definition = v.GetDefinition()
+			}
 		}
 	}
 }

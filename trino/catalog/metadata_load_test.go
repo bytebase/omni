@@ -17,12 +17,12 @@ func TestLoadMetadata(t *testing.T) {
 			Tables: []*metadata.TableMetadata{{
 				Name:    "Orders",
 				Columns: []*metadata.ColumnMetadata{{Name: "ID", Type: "bigint"}, {Name: "note", Type: "varchar", Nullable: true}},
-			}},
+			}, {Name: ""}},
 			Views: []*metadata.ViewMetadata{{
 				Name:       "Recent",
 				Definition: "SELECT id FROM orders",
 				Columns:    []*metadata.ColumnMetadata{{Name: "id", Type: "bigint"}},
-			}},
+			}, {Name: ""}},
 		}},
 	})
 
@@ -47,5 +47,9 @@ func TestLoadMetadata(t *testing.T) {
 	view := schema.GetView(Normalize("Recent"))
 	if view == nil || view.Definition != "SELECT id FROM orders" || len(view.Columns()) != 1 {
 		t.Errorf("view = %+v, want Recent with its definition and one column", view)
+	}
+	// An unnamed relation would complete as a blank candidate.
+	if len(schema.Tables()) != 1 || len(schema.Views()) != 1 {
+		t.Errorf("tables %v, views %v; want only the named ones", schema.Tables(), schema.Views())
 	}
 }
