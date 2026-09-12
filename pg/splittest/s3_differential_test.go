@@ -1,5 +1,3 @@
-//go:build oracle
-
 package splittest
 
 import (
@@ -28,7 +26,7 @@ import (
 //
 // Local runs need the build tag or the tests are silently absent:
 //
-//	S3DIFF_N=300 go test -tags=oracle ./pg/splittest/ -run TestS3
+//	S3DIFF_N=300 go test ./pg/splittest/ -run TestS3
 //
 // The server is the ultimate splitting authority: a multi-statement
 // script sent as ONE simple-query message is split by PostgreSQL

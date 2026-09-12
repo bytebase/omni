@@ -1,5 +1,3 @@
-//go:build oracle
-
 package catalog
 
 import (

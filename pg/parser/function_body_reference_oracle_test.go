@@ -1,5 +1,3 @@
-//go:build oracle
-
 package parser_test
 
 import (

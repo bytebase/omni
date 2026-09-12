@@ -67,10 +67,6 @@ jobs:
           TRINO_ORACLE_URL: http://localhost:${{ job.services.trino.ports['8080'] }}
         run: go test -p=8 -count=1 ${{ steps.affected.outputs.pkgs }}
 
-      - name: PG and Redshift oracle differentials (-tags=oracle)
-        if: contains(steps.affected.outputs.pkgs, './pg/') || contains(steps.affected.outputs.pkgs, './redshift/') || steps.affected.outputs.pkgs == './...'
-        run: go test -tags=oracle -count=1 -run '^(TestParenOracle|TestFunctionBodyReferenceOracle|TestLoaderCompat|TestS3)' ./pg/parser/ ./pg/catalog/ ./pg/splittest/ ./redshift/parser/ ./redshift/catalog/
-
       - name: Nested modules (own go.mod, not reached by ./...)
         run: |
           harness/conformance/fetch_corpus.sh
@@ -78,8 +74,12 @@ jobs:
           (cd harness/googlesql-spanner && go test -count=1 ./...)
 
       - name: Build-tagged test code compiles
+        # Three lanes stay behind build tags because they cannot gate a PR
+        # yet: oracle_ref (Oracle 23ai, two open corpus mismatches),
+        # googlesql_oracle (Spanner emulator drifted from the recorded
+        # verdicts), scriptdom (needs the .NET harness). Compile them so a
+        # PR cannot break them invisibly.
         run: |
-          go test -tags=oracle -run '^$' ./pg/parser/ ./pg/catalog/ ./pg/splittest/ ./redshift/parser/ ./redshift/catalog/
           go test -tags=oracle_ref -run '^$' ./oracle/parser/
           go test -tags=scriptdom -run '^$' ./mssql/parser/
           go test -tags=googlesql_oracle -run '^$' ./googlesql/parser/ ./googlesql/analysis/
