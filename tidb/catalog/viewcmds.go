@@ -189,14 +189,18 @@ func extractViewColumns(sel *nodes.SelectStmt) []string {
 	sel = nodes.LeftmostQueryLeaf(sel)
 	var cols []string
 	for _, target := range sel.TargetList {
-		rt, ok := target.(*nodes.ResTarget)
-		if !ok {
-			continue
-		}
-		if rt.Name != "" {
-			cols = append(cols, rt.Name)
-		} else if cr, ok := rt.Val.(*nodes.ColumnRef); ok {
-			cols = append(cols, cr.Column)
+		switch t := target.(type) {
+		case *nodes.ResTarget:
+			if t.Name != "" {
+				cols = append(cols, t.Name)
+			} else if cr, ok := t.Val.(*nodes.ColumnRef); ok {
+				cols = append(cols, cr.Column)
+			}
+		case *nodes.ColumnRef:
+			// An unaliased column parses as a bare column reference.
+			if !t.Star {
+				cols = append(cols, t.Column)
+			}
 		}
 	}
 	return cols
