@@ -20,6 +20,11 @@ jobs:
     # everything. There is no -short and no nightly: every test runs here.
     runs-on: self-hosted
     timeout-minutes: 30
+    env:
+      # Sweep sizes the old nightly used; they add ~20 s here, so every PR gets them.
+      PAREN_FUZZ_SIZE: '10000'
+      SPLITTEST_N: '1000000'
+      S3DIFF_N: '2000'
     services:
       trino:
         # The trino oracle tests need a live Trino; the runner waits for the
@@ -64,12 +69,13 @@ jobs:
 
       - name: PG and Redshift oracle differentials (-tags=oracle)
         if: contains(steps.affected.outputs.pkgs, './pg/') || contains(steps.affected.outputs.pkgs, './redshift/') || steps.affected.outputs.pkgs == './...'
-        env:
-          PAREN_FUZZ_SIZE: '1000'
         run: go test -tags=oracle -count=1 -run '^(TestParenOracle|TestFunctionBodyReferenceOracle|TestLoaderCompat|TestS3)' ./pg/parser/ ./pg/catalog/ ./pg/splittest/ ./redshift/parser/ ./redshift/catalog/
 
-      - name: Conformance harness (own module)
-        run: harness/conformance/fetch_corpus.sh && cd harness/conformance && go test -count=1 ./...
+      - name: Nested modules (own go.mod, not reached by ./...)
+        run: |
+          harness/conformance/fetch_corpus.sh
+          (cd harness/conformance && go test -count=1 ./...)
+          (cd harness/googlesql-spanner && go test -count=1 ./...)
 
       - name: Build-tagged test code compiles
         run: |
