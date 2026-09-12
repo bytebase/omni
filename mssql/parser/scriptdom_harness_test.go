@@ -1,6 +1,5 @@
-//go:build scriptdom
-
-// Run with: go test -tags scriptdom ./mssql/parser/ -run TestScriptDOMDiff
+// Run with: go test ./mssql/parser/ -run TestScriptDOMDiff (needs the .NET 8 SDK on PATH;
+// skips locally without it, fails in CI, which installs it).
 //
 // This test compares omni's AST shape against SqlScriptDOM by shelling out
 // to the .NET harness at harness/mssql-scriptdom. The harness parses with
@@ -85,7 +84,10 @@ func getHarness(t *testing.T) *scriptdomHarness {
 		}
 	})
 	if harnessInitErr != nil {
-		t.Fatalf("harness init: %v", harnessInitErr)
+		if os.Getenv("CI") != "" {
+			t.Fatalf("harness init: %v", harnessInitErr)
+		}
+		t.Skipf("harness init (skipped outside CI): %v", harnessInitErr)
 	}
 	return harnessInstance
 }

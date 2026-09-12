@@ -41,6 +41,11 @@ jobs:
           go-version: '1.25'
           cache: false # the runner keeps GOCACHE/GOMODCACHE between runs
 
+      - uses: actions/setup-dotnet@v4
+        # mssql/parser's ScriptDom differential builds harness/mssql-scriptdom.
+        with:
+          dotnet-version: '8.0.x'
+
       - name: Generated code and proto are in sync
         run: |
           go generate ./pg/ast/... ./mysql/ast/... ./mssql/ast/...
@@ -79,10 +84,7 @@ jobs:
           (cd harness/googlesql-spanner && go test -count=1 ./...)
 
       - name: Build-tagged test code compiles
-        # Two lanes stay behind build tags because they cannot gate a PR:
+        # One lane stays behind a build tag because it cannot gate a PR yet:
         # googlesql_oracle (the Spanner emulator drifted from the recorded
-        # verdicts) and scriptdom (needs the .NET harness). Compile them so
-        # a PR cannot break them invisibly.
-        run: |
-          go test -tags=scriptdom -run '^$' ./mssql/parser/
-          go test -tags=googlesql_oracle -run '^$' ./googlesql/parser/ ./googlesql/analysis/
+        # verdicts). Compile it so a PR cannot break it invisibly.
+        run: go test -tags=googlesql_oracle -run '^$' ./googlesql/parser/ ./googlesql/analysis/
