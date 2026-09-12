@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -101,7 +102,10 @@ func startOracleDB(t *testing.T) *oracleDB {
 	})
 
 	if oracleInitErr != nil {
-		t.Fatalf("Oracle container not available: %v", oracleInitErr)
+		if os.Getenv("CI") != "" {
+			t.Fatalf("Oracle container not available: %v", oracleInitErr)
+		}
+		t.Skipf("Oracle container not available (skipped outside CI): %v", oracleInitErr)
 	}
 	return oracleInst
 }

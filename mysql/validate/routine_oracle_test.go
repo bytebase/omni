@@ -3,6 +3,7 @@ package validate
 import (
 	"context"
 	"database/sql"
+	"os"
 	"strings"
 	"testing"
 
@@ -28,7 +29,10 @@ func startRoutineValidationOracle(t *testing.T) *routineValidationOracle {
 		tcmysql.WithPassword("test"),
 	)
 	if err != nil {
-		t.Fatalf("failed to start MySQL container: %v", err)
+		if os.Getenv("CI") != "" {
+			t.Fatalf("failed to start MySQL container: %v", err)
+		}
+		t.Skipf("failed to start MySQL container (skipped outside CI): %v", err)
 	}
 	t.Cleanup(func() { _ = testcontainers.TerminateContainer(container) })
 

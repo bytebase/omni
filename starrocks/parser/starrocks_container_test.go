@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -116,7 +117,10 @@ func startStarRocks(t *testing.T) *srContainer {
 	})
 
 	if srInitErr != nil {
-		t.Fatalf("StarRocks container: %v", srInitErr)
+		if os.Getenv("CI") != "" {
+			t.Fatalf("StarRocks container: %v", srInitErr)
+		}
+		t.Skipf("StarRocks container (skipped outside CI): %v", srInitErr)
 	}
 	return srInst
 }

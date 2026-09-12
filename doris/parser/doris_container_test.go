@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -126,7 +127,10 @@ func startDoris(t *testing.T) *dorisContainer {
 	})
 
 	if dorisInitErr != nil {
-		t.Fatalf("Doris container: %v", dorisInitErr)
+		if os.Getenv("CI") != "" {
+			t.Fatalf("Doris container: %v", dorisInitErr)
+		}
+		t.Skipf("Doris container (skipped outside CI): %v", dorisInitErr)
 	}
 	return dorisInst
 }

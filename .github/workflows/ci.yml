@@ -60,16 +60,16 @@ jobs:
         if: steps.affected.outputs.pkgs != ''
         env:
           TRINO_ORACLE_URL: http://localhost:${{ job.services.trino.ports['8080'] }}
-        run: go test -p=8 -timeout 25m ${{ steps.affected.outputs.pkgs }}
+        run: go test -p=8 -count=1 ${{ steps.affected.outputs.pkgs }}
 
       - name: PG and Redshift oracle differentials (-tags=oracle)
         if: contains(steps.affected.outputs.pkgs, './pg/') || contains(steps.affected.outputs.pkgs, './redshift/') || steps.affected.outputs.pkgs == './...'
         env:
           PAREN_FUZZ_SIZE: '1000'
-        run: go test -tags=oracle -timeout 25m -run '^(TestParenOracle|TestFunctionBodyReferenceOracle|TestLoaderCompat|TestS3)' ./pg/parser/ ./pg/catalog/ ./pg/splittest/ ./redshift/parser/ ./redshift/catalog/
+        run: go test -tags=oracle -count=1 -run '^(TestParenOracle|TestFunctionBodyReferenceOracle|TestLoaderCompat|TestS3)' ./pg/parser/ ./pg/catalog/ ./pg/splittest/ ./redshift/parser/ ./redshift/catalog/
 
       - name: Conformance harness (own module)
-        run: harness/conformance/fetch_corpus.sh && cd harness/conformance && go test -timeout 10m ./...
+        run: harness/conformance/fetch_corpus.sh && cd harness/conformance && go test -count=1 ./...
 
       - name: Build-tagged test code compiles
         run: |
