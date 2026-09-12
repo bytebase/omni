@@ -408,8 +408,10 @@ func TestLoadMetadataKeepsViewColumnListsOnlyWhereNeeded(t *testing.T) {
 			{Name: "star_qualified", Definition: "SELECT u.* FROM users u", Columns: []*metadata.ColumnMetadata{{Name: "id"}}},
 			// Created as CREATE VIEW star_renamed (user_id) AS SELECT * FROM users.
 			{Name: "star_renamed", Definition: "SELECT * FROM users", Columns: []*metadata.ColumnMetadata{{Name: "user_id"}}},
-			// A body that does not resolve names nothing of its own.
+			// A body that does not resolve names nothing of its own. A qualified
+			// star leaves one unnamed column behind rather than none.
 			{Name: "unresolved", Definition: "SELECT * FROM missing", Columns: []*metadata.ColumnMetadata{{Name: "a"}, {Name: "b"}}},
+			{Name: "unresolved_qualified", Definition: "SELECT m.* FROM missing m", Columns: []*metadata.ColumnMetadata{{Name: "a"}}},
 		},
 	}))
 	requireReport(t, report, nil, nil)
@@ -420,9 +422,21 @@ func TestLoadMetadataKeepsViewColumnListsOnlyWhereNeeded(t *testing.T) {
 	}
 	// A body naming its own columns keeps them; one that does not resolve takes
 	// the snapshot's, inferred.
-	for name, want := range map[string][]string{"same": {"id"}, "star": {"id"}, "star_qualified": {"id"}, "unresolved": {"a", "b"}} {
+	for name, want := range map[string][]string{"same": {"id"}, "star": {"id"}, "star_qualified": {"id"}, "unresolved": {"a", "b"}, "unresolved_qualified": {"a"}} {
 		if v := requireView(t, c, name); v.ExplicitColumns || !slices.Equal(v.Columns, want) {
 			t.Errorf("%s = explicit %v, columns %v; want %v inferred", name, v.ExplicitColumns, v.Columns, want)
+		}
+	}
+	// Whatever a view ends up advertising, its inferred column metadata answers
+	// to the same names.
+	for _, name := range []string{"renamed", "same", "star", "star_qualified", "star_renamed", "unresolved", "unresolved_qualified"} {
+		v := requireView(t, c, name)
+		var inferred []string
+		for _, col := range v.ColumnMetadata {
+			inferred = append(inferred, col.Name)
+		}
+		if !slices.Equal(inferred, v.Columns) {
+			t.Errorf("%s = columns %v, column metadata %v; want them named alike", name, v.Columns, inferred)
 		}
 	}
 }
