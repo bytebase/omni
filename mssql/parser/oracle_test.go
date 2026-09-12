@@ -82,10 +82,7 @@ func startParserOracle(t *testing.T) *parserOracle {
 		sharedMSSQL.container, sharedMSSQL.db = container, db
 	})
 	if sharedMSSQL.err != nil {
-		if os.Getenv("CI") != "" {
-			t.Fatalf("SQL Server oracle required in CI but unavailable: %v", sharedMSSQL.err)
-		}
-		t.Skipf("SQL Server oracle unavailable: %v", sharedMSSQL.err)
+		t.Fatalf("SQL Server oracle required in CI but unavailable: %v", sharedMSSQL.err)
 	}
 	return &parserOracle{db: sharedMSSQL.db, ctx: context.Background()}
 }

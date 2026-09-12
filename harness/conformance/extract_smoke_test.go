@@ -5,19 +5,18 @@ import (
 	goparser "go/parser"
 	"go/token"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
 
-// TestSmokeRealCorpus guards extraction health against the fetched corpus.
-// CI fetches it (fetch_corpus.sh) before running the tests; locally the test
-// skips when the corpus is absent.
+// TestSmokeRealCorpus guards extraction health against the real TiDB corpus,
+// fetching it (a 2 s sparse clone) when it is not there yet.
 func TestSmokeRealCorpus(t *testing.T) {
 	if _, err := os.Stat("corpus/tidb"); err != nil {
-		if os.Getenv("CI") != "" {
-			t.Fatalf("corpus not fetched — run ./fetch_corpus.sh: %v", err)
+		if out, err := exec.Command("./fetch_corpus.sh").CombinedOutput(); err != nil {
+			t.Fatalf("fetch corpus: %v\n%s", err, out)
 		}
-		t.Skip("corpus not fetched — run ./fetch_corpus.sh")
 	}
 	entries, err := extractTiDBCorpus("corpus")
 	if err != nil {

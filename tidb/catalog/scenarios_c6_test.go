@@ -15,8 +15,6 @@ import (
 //
 // Section-local helpers use the `c6` prefix to avoid collisions.
 func TestScenario_C6(t *testing.T) {
-	scenariosSkipIfNoDocker(t)
-
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 

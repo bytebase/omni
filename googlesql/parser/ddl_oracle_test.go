@@ -3,7 +3,7 @@
 // with:
 //
 //	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test -tags googlesql_oracle ./googlesql/parser/ -run TestDDLDifferential
+//	  go test ./googlesql/parser/ -run TestDDLDifferential
 //
 // It is the PROVE gate for googlesql/parser-ddl (correctness-protocol.md): for
 // every fixture it (1) feeds the full DDL statement to the emulator via the
@@ -47,6 +47,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/bytebase/omni/googlesql/internal/spannertest"
 )
 
 // ddlFixture is a full DDL statement (no trailing ';') fed to BOTH the oracle and
@@ -186,12 +188,6 @@ var ddlFixtures = []ddlFixture{
 }
 
 func TestDDLDifferential(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		if os.Getenv("CI") != "" {
-			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
-		}
-		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
-	}
 	h := newDDLHarness(t)
 	defer h.close()
 
@@ -235,7 +231,7 @@ func TestDDLDifferential(t *testing.T) {
 
 // --- harness plumbing (one persistent batch process; mirrors the type/select/
 // expr oracle harnesses in this package — each names its own type to avoid a
-// duplicate-symbol collision under the shared googlesql_oracle build tag) ---
+// duplicate-symbol collision) ---
 
 type ddlHarnessVerdict struct {
 	Verdict string `json:"verdict"`
@@ -252,22 +248,9 @@ type ddlHarness struct {
 	mu     sync.Mutex
 }
 
-// requireEmulator skips the test locally when no Spanner emulator is
-// configured and fails it in CI, where ci.yml always provides one. Every
-// harness constructor calls it, so no differential can run without one.
-func requireEmulator(t *testing.T) {
-	t.Helper()
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		if os.Getenv("CI") != "" {
-			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
-		}
-		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
-	}
-}
-
 func newDDLHarness(t *testing.T) *ddlHarness {
 	t.Helper()
-	requireEmulator(t)
+	spannertest.Host(t)
 	_, thisFile, _, _ := runtime.Caller(0)
 	// googlesql/parser/ddl_oracle_test.go → repo root is ../..
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))

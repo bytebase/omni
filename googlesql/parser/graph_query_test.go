@@ -17,7 +17,7 @@ import (
 // full GQL syntax OUT (INDEX.md), so the authoritative reference for the grammar
 // shape is the pinned legacy GoogleSQLParser.g4. The accept/reject of these forms
 // against the live Spanner emulator is recorded in graph_query_oracle_test.go
-// (build tag googlesql_oracle).
+//.
 
 // gqlStmtOf parses sql and asserts the single statement is a *GQLStmt.
 func gqlStmtOf(t *testing.T, sql string) *ast.GQLStmt {

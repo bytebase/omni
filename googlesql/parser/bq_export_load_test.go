@@ -14,7 +14,7 @@ import (
 // GoogleSQLParser.g4 §2.8 + the BigQuery truth1 corpus (OTHER-001 / OTHER-003).
 // These tests assert the AST STRUCTURE (accept/reject alone does not catch a
 // dropped clause or wrong nesting); the live-oracle triangulation guard for these
-// forms lives in bq_ddl_oracle_test.go (build tag googlesql_oracle).
+// forms lives in bq_ddl_oracle_test.go.
 
 func exportDataOf(t *testing.T, sql string) *ast.ExportDataStmt {
 	t.Helper()

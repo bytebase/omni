@@ -16,7 +16,7 @@ import (
 // VIRTUAL) which are NON-AUTHORITATIVE against that oracle and triangulated from
 // the legacy GoogleSQLParser.g4 + the BigQuery truth1 corpus. The accept/reject
 // behavior of the Spanner-authoritative forms is also proven against the live
-// emulator in the *_oracle_test.go files (build tag googlesql_oracle).
+// emulator in the *_oracle_test.go files.
 
 // parseDDL parses a single DDL statement and fails the test on any parse error.
 func parseDDL(t *testing.T, sql string) ast.Node {

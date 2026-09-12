@@ -10,8 +10,6 @@ import (
 // both MySQL 8.0 container and the omni catalog. Failures in omni assertions
 // are documented in scenarios_bug_queue/c16.md (NOT proof failures).
 func TestScenario_C16(t *testing.T) {
-	scenariosSkipIfNoDocker(t)
-
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 

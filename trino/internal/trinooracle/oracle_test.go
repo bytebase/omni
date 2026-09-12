@@ -14,15 +14,7 @@ import (
 //	docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:latest
 func testOracle(t *testing.T) *Oracle {
 	t.Helper()
-	o := Connect("")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	ver, err := o.Ping(ctx)
-	if err != nil {
-		SkipOrFailUnreachable(t, "trino oracle not reachable at %s (start: docker run -d -p 18080:8080 %s): %v", o.baseURL, DefaultImage, err)
-	}
-	t.Logf("connected to Trino %s at %s", ver, o.baseURL)
-	return o
+	return ForTest(t)
 }
 
 // TestOracleClassification proves the oracle distinguishes a Trino parser

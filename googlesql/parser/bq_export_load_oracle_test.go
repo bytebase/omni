@@ -2,7 +2,7 @@
 // Cloud Spanner emulator. Run with:
 //
 //	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test -tags googlesql_oracle ./googlesql/parser/ -run TestExportLoadClone
+//	  go test ./googlesql/parser/ -run TestExportLoadClone
 //
 // EMPIRICAL FINDING (probed 2026-06-05, this node) — these forms are NOT a
 // grammar gap on the emulator. The analysis corpus (analysis.md / oracle.md)
@@ -23,11 +23,10 @@
 // recorded oracle=accept would drift to reject and this test fails, forcing a
 // fresh look. omni's accept/reject + AST correctness is proven by the unit tests
 // in bq_export_load_test.go; this file ties those to the live oracle. (Reuses the
-// newDDLHarness plumbing from ddl_oracle_test.go under the googlesql_oracle tag.)
+// newDDLHarness plumbing from ddl_oracle_test.go.)
 package parser
 
 import (
-	"os"
 	"testing"
 )
 
@@ -87,12 +86,6 @@ var exportLoadCloneDivergentFixtures = []bqOracleExpectation{
 // TestExportLoadCloneTriangulation is the positive polarity: every documented
 // BigQuery data-movement form, asserted oracle=accept (semantic) AND omni=accept.
 func TestExportLoadCloneTriangulation(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		if os.Getenv("CI") != "" {
-			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
-		}
-		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live triangulation guard")
-	}
 	h := newDDLHarness(t)
 	defer h.close()
 	for _, fx := range exportLoadCloneOracleFixtures {
@@ -106,12 +99,6 @@ func TestExportLoadCloneTriangulation(t *testing.T) {
 // docs); the looser live emulator ACCEPTs (semantic). A DEFENDED divergence — the
 // authoritative grammar + docs win over the non-authoritative emulator.
 func TestExportLoadCloneDivergence(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		if os.Getenv("CI") != "" {
-			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
-		}
-		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live triangulation guard")
-	}
 	h := newDDLHarness(t)
 	defer h.close()
 	for _, fx := range exportLoadCloneDivergentFixtures {

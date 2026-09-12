@@ -131,10 +131,7 @@ func StartParenOracle(t *testing.T) *ParenOracle {
 	if parenOracleSetupError != nil {
 		// CI must fail — silently skipping erases the entire regression
 		// fence this harness exists to provide.
-		if isCI() {
-			t.Fatalf("paren oracle unavailable in CI: %v", parenOracleSetupError)
-		}
-		t.Skipf("paren oracle unavailable (local dev): %v", parenOracleSetupError)
+		t.Fatalf("paren oracle unavailable in CI: %v", parenOracleSetupError)
 	}
 	return parenOracleInst
 }

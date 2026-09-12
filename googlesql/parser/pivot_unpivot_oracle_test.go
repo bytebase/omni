@@ -2,7 +2,7 @@
 // Spanner emulator oracle. Run with:
 //
 //	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test -tags googlesql_oracle ./googlesql/parser/ -run TestQueryClausesDifferential
+//	  go test ./googlesql/parser/ -run TestQueryClausesDifferential
 //
 // It is the PROVE gate for googlesql/parser-query-clauses (correctness-
 // protocol.md): for every fixture it (1) feeds the full query to the emulator
@@ -44,6 +44,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/bytebase/omni/googlesql/internal/spannertest"
 )
 
 // qcFixture is a full query statement (no trailing ';') fed to BOTH the oracle
@@ -135,12 +137,6 @@ var queryClausesFixtures = []qcFixture{
 }
 
 func TestQueryClausesDifferential(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		if os.Getenv("CI") != "" {
-			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
-		}
-		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
-	}
 	h := newQCHarness(t)
 	defer h.close()
 
@@ -195,7 +191,7 @@ type qcHarness struct {
 
 func newQCHarness(t *testing.T) *qcHarness {
 	t.Helper()
-	requireEmulator(t)
+	spannertest.Host(t)
 	_, thisFile, _, _ := runtime.Caller(0)
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
 	projDir := filepath.Join(repoRoot, "harness", "googlesql-spanner")

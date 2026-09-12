@@ -2,7 +2,7 @@
 // emulator oracle. Run with:
 //
 //	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test -tags googlesql_oracle ./googlesql/parser/ -run TestDMLDifferential
+//	  go test ./googlesql/parser/ -run TestDMLDifferential
 //
 // It is a PROVE gate for googlesql/parser-dml (correctness-protocol.md): for
 // every fixture it (1) feeds the statement to the emulator via the
@@ -41,7 +41,6 @@
 package parser
 
 import (
-	"os"
 	"testing"
 )
 
@@ -140,12 +139,6 @@ var dmlFixtures = []dmlFixture{
 }
 
 func TestDMLDifferential(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		if os.Getenv("CI") != "" {
-			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
-		}
-		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
-	}
 	h := newSelectHarness(t)
 	defer h.close()
 

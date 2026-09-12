@@ -3,7 +3,7 @@
 // against the live Cloud Spanner emulator oracle. Run with:
 //
 //	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test -tags googlesql_oracle ./googlesql/parser/ -run TestSpannerDDLDifferential
+//	  go test ./googlesql/parser/ -run TestSpannerDDLDifferential
 //
 // It is the PROVE gate for googlesql/parser-ddl-spanner (correctness-protocol.md):
 // for every fixture it feeds the full DDL statement to the emulator via the
@@ -37,6 +37,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/bytebase/omni/googlesql/internal/spannertest"
 )
 
 // spannerDDLFixture is a full DDL statement (no trailing ';') fed to BOTH the
@@ -205,7 +207,7 @@ func TestSpannerDDLDifferential(t *testing.T) {
 }
 
 // --- harness plumbing (one persistent batch process; names its own type to avoid
-// a duplicate-symbol collision under the shared googlesql_oracle build tag) ---
+// a duplicate-symbol collision) ---
 
 type spannerDDLHarnessVerdict struct {
 	Verdict string `json:"verdict"`
@@ -224,7 +226,7 @@ type spannerDDLHarness struct {
 
 func newSpannerDDLHarness(t *testing.T) *spannerDDLHarness {
 	t.Helper()
-	requireEmulator(t)
+	spannertest.Host(t)
 	_, thisFile, _, _ := runtime.Caller(0)
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
 	projDir := filepath.Join(repoRoot, "harness", "googlesql-spanner")

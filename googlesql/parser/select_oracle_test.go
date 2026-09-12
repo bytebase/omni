@@ -2,7 +2,7 @@
 // emulator oracle. Run with:
 //
 //	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test -tags googlesql_oracle ./googlesql/parser/ -run TestSelectDifferential
+//	  go test ./googlesql/parser/ -run TestSelectDifferential
 //
 // It is the PROVE gate for googlesql/parser-select (correctness-protocol.md):
 // for every fixture it (1) feeds the full query to the emulator via the
@@ -46,6 +46,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/bytebase/omni/googlesql/internal/spannertest"
 )
 
 // selectFixture is a full query statement (no trailing ';') fed to BOTH the
@@ -179,12 +181,6 @@ var selectFixtures = []selectFixture{
 }
 
 func TestSelectDifferential(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		if os.Getenv("CI") != "" {
-			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
-		}
-		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
-	}
 	h := newSelectHarness(t)
 	defer h.close()
 
@@ -242,7 +238,7 @@ type selectHarness struct {
 
 func newSelectHarness(t *testing.T) *selectHarness {
 	t.Helper()
-	requireEmulator(t)
+	spannertest.Host(t)
 	_, thisFile, _, _ := runtime.Caller(0)
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
 	projDir := filepath.Join(repoRoot, "harness", "googlesql-spanner")

@@ -15,8 +15,6 @@ import (
 // recorded as t.Error (not t.Fatal) so all 15 scenarios run in one pass, and
 // each omni gap is documented in mysql/catalog/scenarios_bug_queue/c18.md.
 func TestScenario_C18(t *testing.T) {
-	scenariosSkipIfNoDocker(t)
-
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 

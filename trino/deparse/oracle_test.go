@@ -16,15 +16,7 @@ import (
 //	docker run -d --name trino-oracle -p 18080:8080 trinodb/trino:latest
 func connectOracle(t *testing.T) *trinooracle.Oracle {
 	t.Helper()
-	o := trinooracle.Connect("")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	ver, err := o.Ping(ctx)
-	if err != nil {
-		trinooracle.SkipOrFailUnreachable(t, "trino oracle not reachable (start a Trino server and set %s if needed): %v", trinooracle.EnvURL, err)
-	}
-	t.Logf("connected to Trino %s", ver)
-	return o
+	return trinooracle.ForTest(t)
 }
 
 // TestGeneratedSDLParsesOnTrino is the deparse round-trip / structural gate

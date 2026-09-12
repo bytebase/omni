@@ -2,7 +2,7 @@
 // emulator oracle. Run with:
 //
 //	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test -tags googlesql_oracle ./googlesql/parser/ -run TestExprDifferential
+//	  go test ./googlesql/parser/ -run TestExprDifferential
 //
 // It is the PROVE gate for googlesql/expressions (correctness-protocol.md): for
 // every fixture it (1) feeds a full statement embedding the expression to the
@@ -40,6 +40,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/bytebase/omni/googlesql/internal/spannertest"
 )
 
 // exprFixture pairs a bare expression (fed to omni's ParseExpression) with a
@@ -235,12 +237,6 @@ var exprFixtures = []exprFixture{
 }
 
 func TestExprDifferential(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		if os.Getenv("CI") != "" {
-			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
-		}
-		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
-	}
 	h := newExprHarness(t)
 	defer h.close()
 
@@ -298,7 +294,7 @@ type exprHarness struct {
 
 func newExprHarness(t *testing.T) *exprHarness {
 	t.Helper()
-	requireEmulator(t)
+	spannertest.Host(t)
 	_, thisFile, _, _ := runtime.Caller(0)
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
 	projDir := filepath.Join(repoRoot, "harness", "googlesql-spanner")

@@ -21,8 +21,6 @@ import (
 // in scenarios_bug_queue/c19.md. We use t.Error (not t.Fatal) so all six
 // scenarios run in one pass.
 func TestScenario_C19(t *testing.T) {
-	scenariosSkipIfNoDocker(t)
-
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 

@@ -24,8 +24,6 @@ import (
 // session vars are reset to OFF at the end of each subtest so other workers
 // (or later subtests) start from a known state.
 func TestScenario_C24(t *testing.T) {
-	scenariosSkipIfNoDocker(t)
-
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 

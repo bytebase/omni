@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"sync"
 	"testing"
 
@@ -79,10 +78,7 @@ func fallbackOracle(t *testing.T, version Version, name string) *sql.DB {
 		eng.container, eng.db = container, db
 	})
 	if eng.err != nil {
-		if os.Getenv("CI") != "" {
-			t.Fatalf("oracle %s required in CI but unavailable: %v", name, eng.err)
-		}
-		t.Skipf("oracle %s unavailable: %v", name, eng.err)
+		t.Fatalf("oracle %s required in CI but unavailable: %v", name, eng.err)
 	}
 	return eng.db
 }

@@ -3,7 +3,6 @@ package parser
 import (
 	"context"
 	"database/sql"
-	"os"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
@@ -30,10 +29,7 @@ func startParserOracle(t *testing.T) *parserOracle {
 		tcmysql.WithPassword("test"),
 	)
 	if err != nil {
-		if os.Getenv("CI") != "" {
-			t.Fatalf("failed to start MySQL container: %v", err)
-		}
-		t.Skipf("failed to start MySQL container (skipped outside CI): %v", err)
+		t.Fatalf("failed to start MySQL container: %v", err)
 	}
 	t.Cleanup(func() { _ = testcontainers.TerminateContainer(container) })
 

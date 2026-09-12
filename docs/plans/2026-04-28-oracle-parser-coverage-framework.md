@@ -33,7 +33,7 @@ This plan has been implemented through Phase 7. Current parser-layer gates:
 - BNF coverage has `171` classified rows with `0` unknown rows.
 - High-value BNF families have no `missing` or `unknown` rows.
 - Loc-node coverage has `249` classified rows with `0` unknown rows and `152` direct SQL fixtures.
-- Optional reference-oracle coverage has a `20`-row manifest and skips cleanly without `ORACLE_PARSER_REF_DSN` or explicit `ORACLE_PARSER_REF_CONTAINER=1`.
+- Optional reference-oracle coverage has a `20`-row manifest and starts an Oracle Free testcontainer unless `ORACLE_PARSER_REF_DSN` points at a server.
 - Completion remains a separate scoped plan: `docs/plans/2026-04-28-oracle-completion-scope.md`.
 
 ## Non-Goals
@@ -57,8 +57,8 @@ git diff --check
 Optional reference-oracle proof, skipped by default:
 
 ```bash
-ORACLE_PARSER_REF_DSN="$ORACLE_PARSER_REF_DSN" go test -tags oracle_ref -run 'TestOracleReference|TestOracleVReservedWordsKeywordAudit' -count=1 -v ./oracle/parser
-ORACLE_PARSER_REF_CONTAINER=1 go test -tags oracle_ref -run 'TestOracleReference|TestOracleVReservedWordsKeywordAudit' -count=1 -v ./oracle/parser
+ORACLE_PARSER_REF_DSN="$ORACLE_PARSER_REF_DSN" go test -run 'TestOracleReference|TestOracleVReservedWordsKeywordAudit' -count=1 -v ./oracle/parser
+go test -run 'TestOracleReference|TestOracleVReservedWordsKeywordAudit' -count=1 -v ./oracle/parser
 ```
 
 Repository-wide proof is informational for this plan because non-Oracle packages may have unrelated container/catalog dependencies:
@@ -292,10 +292,9 @@ Expected after Phase 3: no unknown Loc-bearing node types, corpus Loc verifier s
 Add a build-tagged test file:
 
 ```go
-//go:build oracle_ref
 ```
 
-The test runs only when `ORACLE_PARSER_REF_DSN` is set or `ORACLE_PARSER_REF_CONTAINER=1` is explicitly requested. It should skip by default.
+The test uses `ORACLE_PARSER_REF_DSN` when set and otherwise starts an Oracle Free testcontainer.
 
 Reference strategy:
 
@@ -315,8 +314,8 @@ Comparison rule:
 **Proof:**
 
 ```bash
-ORACLE_PARSER_REF_DSN="$ORACLE_PARSER_REF_DSN" go test -tags oracle_ref -run 'TestOracleReference|TestOracleVReservedWordsKeywordAudit' -count=1 -v ./oracle/parser
-ORACLE_PARSER_REF_CONTAINER=1 go test -tags oracle_ref -run 'TestOracleReference|TestOracleVReservedWordsKeywordAudit' -count=1 -v ./oracle/parser
+ORACLE_PARSER_REF_DSN="$ORACLE_PARSER_REF_DSN" go test -run 'TestOracleReference|TestOracleVReservedWordsKeywordAudit' -count=1 -v ./oracle/parser
+go test -run 'TestOracleReference|TestOracleVReservedWordsKeywordAudit' -count=1 -v ./oracle/parser
 ```
 
 Expected without DSN/container: skipped. Expected with DSN or explicit container: mismatch report grouped by family plus a `V$RESERVED_WORDS` keyword audit.

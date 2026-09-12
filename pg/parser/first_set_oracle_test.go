@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -85,20 +84,9 @@ func startFirstSetOracle(t *testing.T) *firstSetOracle {
 		// CI must fail loudly — otherwise a misconfigured CI silently
 		// skips every FIRST-set test and disables the entire guardrail.
 		// Local dev without docker is allowed to skip.
-		if isCI() {
-			t.Fatalf("first-set oracle unavailable in CI: %v", oracleSetupError)
-		}
-		t.Skipf("first-set oracle unavailable (local dev): %v", oracleSetupError)
+		t.Fatalf("first-set oracle unavailable in CI: %v", oracleSetupError)
 	}
 	return firstSetOracleInst
-}
-
-// isCI reports whether we're running under continuous integration.
-// Matches omni's existing conventions and major CI providers.
-func isCI() bool {
-	// Respect the standard CI env var set by GitHub Actions, CircleCI,
-	// GitLab CI, etc. If omni has a project-specific variable, add it here.
-	return os.Getenv("CI") == "true" || os.Getenv("CI") == "1"
 }
 
 // probeResult classifies a PG error into accept/reject for FIRST-set purposes.
@@ -111,7 +99,7 @@ const (
 	// tokens before reaching name resolution. For FIRST-set purposes,
 	// "syntactically valid" is the question, not "semantically valid".
 	probeAccept probeResult = iota
-	probeReject                    // syntax_error (42601)
+	probeReject             // syntax_error (42601)
 )
 
 func classifyProbeErr(err error) probeResult {

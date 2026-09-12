@@ -11,8 +11,6 @@ import (
 // scenario verifies omni's view column charset/collation metadata and
 // collation conflict rejection against MySQL 8.0 behavior.
 func TestScenario_C17(t *testing.T) {
-	scenariosSkipIfNoDocker(t)
-
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 

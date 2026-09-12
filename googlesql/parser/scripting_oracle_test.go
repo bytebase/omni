@@ -2,7 +2,7 @@
 // Spanner emulator oracle. Run with:
 //
 //	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test -tags googlesql_oracle ./googlesql/parser/ -run TestScriptingDifferential
+//	  go test ./googlesql/parser/ -run TestScriptingDifferential
 //
 // It is the PROVE gate for googlesql/parser-scripting (correctness-protocol.md):
 // for every AUTHORITATIVE fixture it (1) feeds the statement to the emulator via
@@ -96,12 +96,6 @@ var scriptingAuthoritative = []scriptingFixture{
 }
 
 func TestScriptingDifferential(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		if os.Getenv("CI") != "" {
-			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
-		}
-		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
-	}
 	h := newSelectHarness(t)
 	defer h.close()
 

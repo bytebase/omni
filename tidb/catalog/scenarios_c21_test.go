@@ -21,8 +21,6 @@ import (
 //
 // Failures are recorded in mysql/catalog/scenarios_bug_queue/c21.md.
 func TestScenario_C21(t *testing.T) {
-	scenariosSkipIfNoDocker(t)
-
 	mc, cleanup := scenarioContainer(t)
 	defer cleanup()
 

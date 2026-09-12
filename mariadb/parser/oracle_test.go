@@ -52,10 +52,7 @@ func (e *sharedEngine) acquire(t *testing.T, start func(ctx context.Context) (te
 		e.container, e.db = container, db
 	})
 	if e.err != nil {
-		if os.Getenv("CI") != "" {
-			t.Fatalf("container required in CI but unavailable: %v", e.err)
-		}
-		t.Skipf("container unavailable: %v", e.err)
+		t.Fatalf("container required in CI but unavailable: %v", e.err)
 	}
 	for _, stmt := range []string{"DROP DATABASE IF EXISTS test", "CREATE DATABASE test", "USE test"} {
 		if _, err := e.db.ExecContext(ctx, stmt); err != nil {

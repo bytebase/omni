@@ -61,10 +61,7 @@ func startContainer(t *testing.T) (*mysqlContainer, func()) {
 	ctr, err := getSharedContainer()
 	if err != nil {
 		sharedMySQL.Unlock()
-		if os.Getenv("CI") != "" {
-			t.Fatalf("failed to start shared MySQL container: %v", err)
-		}
-		t.Skipf("failed to start shared MySQL container (skipped outside CI): %v", err)
+		t.Fatalf("failed to start shared MySQL container: %v", err)
 	}
 	if err := resetSharedContainer(ctr); err != nil {
 		sharedMySQL.Unlock()
@@ -85,10 +82,7 @@ func startDedicatedContainer(t *testing.T) (*mysqlContainer, func()) {
 		tcmysql.WithPassword("test"),
 	)
 	if err != nil {
-		if os.Getenv("CI") != "" {
-			t.Fatalf("failed to start MySQL container: %v", err)
-		}
-		t.Skipf("failed to start MySQL container (skipped outside CI): %v", err)
+		t.Fatalf("failed to start MySQL container: %v", err)
 	}
 
 	connStr, err := container.ConnectionString(ctx, "parseTime=true", "multiStatements=true")

@@ -90,10 +90,7 @@ func s3Conn(t *testing.T) *sql.DB {
 	if s3InitErr != nil {
 		// In CI a startup failure must fail the job, not silently turn
 		// the differential into a green no-op.
-		if os.Getenv("CI") != "" {
-			t.Fatalf("PG container required in CI: %v", s3InitErr)
-		}
-		t.Skipf("PG container unavailable: %v", s3InitErr)
+		t.Fatalf("PG container required in CI: %v", s3InitErr)
 	}
 	return s3DB
 }

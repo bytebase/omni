@@ -419,7 +419,7 @@ the same commit. Add `TestAlterDatabaseRefreshCollation`.
 `alter_table.go` mirroring SET STORAGE. Add
 `TestAlterTableSetCompressionDefault`.
 
-**Commit 9**: Run `go test -short ./pg/pgregress/...`; note which
+**Commit 9**: Run `go test ./pg/pgregress/...`; note which
 entries in `known_failures.json` are now fixed; remove them.
 
 **Commit 10**: Final codex review on the impl diff.
@@ -453,7 +453,7 @@ following the pattern established by `create_function_json_test.go`
 
 ### known_failures.json cleanup
 
-After all fixes land, re-run `go test -short ./pg/pgregress/...`. Each
+After all fixes land, re-run `go test ./pg/pgregress/...`. Each
 "FIXED" report corresponds to a removable entry. Expect ~45 entries
 removed, bringing the total from 350 → ~305.
 

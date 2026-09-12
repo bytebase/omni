@@ -141,15 +141,7 @@ func TestLexer_CorpusNoSpuriousErrors(t *testing.T) {
 // every corpus statement Trino's parser accepts (no SYNTAX_ERROR), the lexer
 // must not emit a hard error. Skipped when no Trino is reachable.
 func TestLexer_OracleDifferential(t *testing.T) {
-	o := trinooracle.Connect("")
-	pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	ver, err := o.Ping(pingCtx)
-	pingCancel()
-	if err != nil {
-		trinooracle.SkipOrFailUnreachable(t, "trino oracle not reachable (start: docker run -d -p 18080:8080 %s): %v",
-			trinooracle.DefaultImage, err)
-	}
-	t.Logf("connected to Trino %s", ver)
+	o := trinooracle.ForTest(t)
 
 	for _, sql := range oracleCorpus {
 		sql := sql

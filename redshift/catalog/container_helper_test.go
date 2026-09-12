@@ -101,16 +101,10 @@ func startPGContainer(t *testing.T) *pgContainer {
 	if pgContainerErr != nil {
 		// In CI a startup failure must fail the job, not silently turn
 		// the container gate into a green no-op.
-		if os.Getenv("CI") != "" {
-			t.Fatalf("PG container required in CI but not available: %v", pgContainerErr)
-		}
-		t.Skipf("skipping container test: requires Docker: %v", pgContainerErr)
+		t.Fatalf("PG container required in CI but not available: %v", pgContainerErr)
 	}
 	if pgContainerInst == nil {
-		if os.Getenv("CI") != "" {
-			t.Fatal("PG container required in CI but not available")
-		}
-		t.Skip("skipping container test: requires Docker")
+		t.Fatal("PG container required in CI but not available")
 	}
 	t.Cleanup(func() {
 		// Don't cleanup here — container shared across tests.

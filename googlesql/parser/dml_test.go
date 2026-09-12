@@ -17,7 +17,7 @@ import (
 //     the legacy ANTLR grammar bytebase consumes is a hand-port of that ZetaSQL
 //     reference, so the corpus is the breadth oracle (TestDML_LegacyCorpusAccepts);
 //   - the live Cloud Spanner emulator — the differential is in dml_oracle_test.go
-//     (build tag `googlesql_oracle`), covering the SHARED + Spanner-only forms.
+//    , covering the SHARED + Spanner-only forms.
 //
 // BigQuery-only forms (MERGE, TRUNCATE, dashed table paths, the bare `INSERT …
 // SELECT … ON CONFLICT` reject) are NON-authoritative on the Spanner emulator

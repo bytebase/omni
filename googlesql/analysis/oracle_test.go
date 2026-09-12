@@ -2,7 +2,7 @@
 // Spanner emulator oracle. Run with:
 //
 //	SPANNER_EMULATOR_HOST=localhost:9010 \
-//	  go test -tags googlesql_oracle ./googlesql/analysis/ -run TestAnalysisDifferential
+//	  go test ./googlesql/analysis/ -run TestAnalysisDifferential
 //
 // analysis is a FEATURE node, so the oracle is NOT used to adjudicate a grammar
 // accept/reject — that is the parser nodes' job (parser/*_oracle_test.go). What
@@ -39,6 +39,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/bytebase/omni/googlesql/internal/spannertest"
 
 	"github.com/bytebase/omni/googlesql/ast"
 	"github.com/bytebase/omni/googlesql/parser"
@@ -88,12 +90,6 @@ var classifyCorpus = []struct {
 // against the live emulator and that the analysis classifier's read-only verdict
 // agrees with the statement's true (read-only vs data/schema-changing) nature.
 func TestAnalysisDifferential(t *testing.T) {
-	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
-		if os.Getenv("CI") != "" {
-			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
-		}
-		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
-	}
 	h := newAnalysisHarness(t)
 	defer h.close()
 
@@ -154,6 +150,7 @@ type analysisHarness struct {
 
 func newAnalysisHarness(t *testing.T) *analysisHarness {
 	t.Helper()
+	spannertest.Host(t)
 	_, thisFile, _, _ := runtime.Caller(0)
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
 	projDir := filepath.Join(repoRoot, "harness", "googlesql-spanner")

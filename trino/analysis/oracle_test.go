@@ -24,16 +24,7 @@ import (
 // connectOracle dials the live Trino oracle, skipping the test when unreachable.
 func connectOracle(t *testing.T) *trinooracle.Oracle {
 	t.Helper()
-	o := trinooracle.Connect("")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	ver, err := o.Ping(ctx)
-	if err != nil {
-		trinooracle.SkipOrFailUnreachable(t, "trino oracle not reachable (start: docker run -d -p 18080:8080 %s): %v",
-			trinooracle.DefaultImage, err)
-	}
-	t.Logf("connected to Trino %s", ver)
-	return o
+	return trinooracle.ForTest(t)
 }
 
 func oracleAccepts(t *testing.T, o *trinooracle.Oracle, sql string) (accepted, ok bool) {

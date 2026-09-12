@@ -62,10 +62,7 @@ func connectOracle(t *testing.T, version Version) *oracleConn {
 		return &oracleConn{db: db, version: version, name: name}
 	}
 	if explicit {
-		if os.Getenv("CI") != "" {
-			t.Fatalf("oracle %s at $%s unreachable in CI: %v", name, env, err)
-		}
-		t.Skipf("oracle %s at $%s unreachable: %v", name, env, err)
+		t.Fatalf("oracle %s at $%s unreachable in CI: %v", name, env, err)
 	}
 	return &oracleConn{db: fallbackOracle(t, version, name), version: version, name: name}
 }

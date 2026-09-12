@@ -17,7 +17,7 @@ jobs:
   ci:
     # One job on the org's self-hosted runners. A PR runs the tests of the
     # engines it touches (scripts/affected-packages.sh); a push to main runs
-    # everything. There is no -short and no nightly: every test runs here.
+    # everything. Every test runs here; nothing is skipped and nothing is nightly.
     runs-on: self-hosted
     timeout-minutes: 30
     env:
@@ -45,14 +45,6 @@ jobs:
         with:
           go-version: '1.25'
           cache: false # the runner keeps GOCACHE/GOMODCACHE between runs
-
-      - uses: actions/setup-dotnet@v4
-        # mssql/parser's ScriptDom differential builds harness/mssql-scriptdom.
-        # The runner is not root: install into its tool cache, not /usr/share.
-        env:
-          DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}/dotnet
-        with:
-          dotnet-version: '8.0.x'
 
       - name: Generated code and proto are in sync
         run: |
@@ -90,6 +82,5 @@ jobs:
         env:
           SPANNER_EMULATOR_HOST: localhost:${{ job.services.spanner.ports['9010'] }}
         run: |
-          harness/conformance/fetch_corpus.sh
           (cd harness/conformance && go test -count=1 ./...)
           (cd harness/googlesql-spanner && go test -count=1 ./...)
