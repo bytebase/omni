@@ -34,6 +34,8 @@ func redshiftSnapshot() *metadata.DatabaseSchemaMetadata {
 				{Name: "bare", Columns: []*metadata.ColumnMetadata{{Name: "x", Type: "integer"}}},
 				// A definition that does not parse resolves the same way.
 				{Name: "odd", Definition: "SELEC nonsense", Columns: []*metadata.ColumnMetadata{{Name: "x", Type: "integer"}}},
+				// A definition that parses but does not install falls back too.
+				{Name: "unanalyzable", Definition: "SELECT no_such_fn(id) AS x FROM orders", Columns: []*metadata.ColumnMetadata{{Name: "x", Type: "integer"}}},
 			},
 			MaterializedViews: []*metadata.MaterializedViewMetadata{
 				{Name: "totals", Definition: "SELECT count(*) AS n FROM orders"},
@@ -94,13 +96,37 @@ func TestLoadMetadataInstallsMaterializedViewsAfterWhatTheyName(t *testing.T) {
 			// a_totals names z_counts, which names a table of a later schema.
 			{Name: "a_totals", Definition: "SELECT n FROM reports.z_counts"},
 			{Name: "z_counts", Definition: "SELECT count(*) AS n FROM sales.orders"},
+			// Calls a function of a later schema.
+			{Name: "doubled", Definition: "SELECT sales.double_it(id) AS n FROM sales.orders"},
+			// needs_broken names one that can never install.
+			{Name: "broken_mv", Definition: "SELEC nonsense"},
+			{Name: "needs_broken", Definition: "SELECT count(*) AS n FROM reports.broken_mv"},
 		}},
-		{Name: "sales", Tables: []*metadata.TableMetadata{{Name: "orders", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "bigint"}}}}},
+		{
+			Name:      "sales",
+			Tables:    []*metadata.TableMetadata{{Name: "orders", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "bigint"}}}},
+			Functions: []*metadata.FunctionMetadata{{Name: "double_it", Definition: "CREATE FUNCTION sales.double_it(bigint) RETURNS bigint STABLE AS $$ SELECT $1 * 2 $$ LANGUAGE sql;"}},
+		},
 	}})
-	for _, name := range []string{"a_totals", "z_counts"} {
+	for _, name := range []string{"a_totals", "z_counts", "doubled", "needs_broken"} {
 		if mv := c.GetRelation("reports", name); mv == nil || len(mv.Columns) != 1 || mv.Columns[0].Name != "n" {
 			t.Errorf("%s did not install from its definition", name)
 		}
+	}
+	if mv := c.GetRelation("reports", "broken_mv"); mv == nil || len(mv.Columns) != 1 || mv.Columns[0].Name != metadataPlaceholderColumn {
+		t.Errorf("broken_mv = %+v, want the stand-in", mv)
+	}
+}
+
+func TestUseMetadataDegradesAViewThatDoesNotInstall(t *testing.T) {
+	c := New()
+	c.SetSearchPath([]string{"sales", "public"})
+	c.UseMetadata(redshiftSnapshot())
+	if _, err := c.Exec("CREATE VIEW public.u AS SELECT x FROM unanalyzable;", nil); err != nil {
+		t.Fatalf("Exec: %v", err)
+	}
+	if c.GetRelation("public", "u") == nil {
+		t.Error("a view whose definition does not install did not fall back to its columns")
 	}
 }
 

@@ -17,11 +17,13 @@ import (
 // sequences of a Bytebase schema snapshot into c, as completion needs them.
 // Columns take a coarse type and a view selects NULL under its column names,
 // so no object depends on another. A materialized view installs from its
-// definition once the relations it names are in, and like a view otherwise. An
-// object that still fails to install is left out.
+// definition once the relations and functions it names are in, and like a view
+// otherwise. An object that still fails to install is left out.
 func (c *Catalog) LoadMetadata(meta *metadata.DatabaseSchemaMetadata) {
 	defer c.SetSearchPath(slices.Clone(c.searchPath))
-	c.installMetadataMatViews(c.installMetadataRelations(meta))
+	matViews := c.installMetadataRelations(meta)
+	c.installMetadataFunctions(meta)
+	c.installMetadataMatViews(matViews)
 }
 
 // metadataMatView is a materialized view waiting for what its definition names.
@@ -58,7 +60,8 @@ func (c *Catalog) installMetadataRelations(meta *metadata.DatabaseSchemaMetadata
 
 // installMetadataMatViews installs each definition, retrying the failed ones
 // while a pass installs more, since a definition may name another materialized
-// view. Once a pass installs none, the rest install like views.
+// view. Once a pass installs none, the first failure installs like a view and
+// the rest retry against it.
 func (c *Catalog) installMetadataMatViews(matViews []metadataMatView) {
 	for len(matViews) > 0 {
 		var failed []metadataMatView
@@ -69,13 +72,15 @@ func (c *Catalog) installMetadataMatViews(matViews []metadataMatView) {
 				failed = append(failed, m)
 			}
 		}
-		if len(failed) == len(matViews) {
-			for _, m := range failed {
-				c.execMetadataDDL(metadataViewDDL("MATERIALIZED VIEW", m.schema, m.mv.GetName(), nil))
-			}
-			return
+		if len(failed) < len(matViews) {
+			matViews = failed
+			continue
 		}
-		matViews = failed
+		// No definition installed this pass, so the first one installs like a
+		// view and the rest retry against it: one blocked only by that
+		// definition still installs from its own.
+		c.execMetadataDDL(metadataViewDDL("MATERIALIZED VIEW", failed[0].schema, failed[0].mv.GetName(), nil))
+		matViews = failed[1:]
 	}
 }
 
@@ -86,6 +91,12 @@ func (c *Catalog) installMetadataMatViews(matViews []metadataMatView) {
 // view's own schema, so the definition reads the same under c's search path.
 func (c *Catalog) UseMetadata(meta *metadata.DatabaseSchemaMetadata) {
 	c.SetRelationResolver(newMetadataResolver(meta))
+	c.installMetadataFunctions(meta)
+}
+
+// installMetadataFunctions installs the snapshot's functions, so a definition
+// that calls one installs too.
+func (c *Catalog) installMetadataFunctions(meta *metadata.DatabaseSchemaMetadata) {
 	for _, s := range meta.GetSchemas() {
 		if len(s.GetFunctions()) == 0 {
 			continue
@@ -251,7 +262,8 @@ func (r *metadataResolver) ResolveRelation(schemaName, relationName string, sear
 	case rel.sequence:
 		spec.Columns = []RelationColumnSpec{{Name: "last_value", Type: "bigint"}, {Name: "log_cnt", Type: "bigint"}, {Name: "is_called", Type: "boolean"}}
 	case parsed:
-		spec.Definition = definition
+		// The columns stand in where the definition does not install.
+		spec.Definition, spec.Columns = definition, metadataColumnSpecs(rel.columns)
 	default:
 		// A view whose definition is empty or does not parse resolves as a
 		// table of its columns.

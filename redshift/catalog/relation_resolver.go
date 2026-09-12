@@ -124,22 +124,32 @@ func (c *Catalog) materializeRelationSpec(spec *RelationSpec) error {
 		return c.materializeResolvedTable(spec)
 	case RelationKindView:
 		stmt, err := parseRelationDefinitionView(spec)
-		if err != nil {
-			return err
+		if err == nil {
+			err = c.DefineView(stmt)
 		}
-		return c.DefineView(stmt)
+		return c.orResolvedTable(spec, err)
 	case RelationKindMaterializedView:
 		stmt, err := parseRelationDefinitionMaterializedView(spec)
-		if err != nil {
-			return err
+		if err == nil {
+			err = c.ExecCreateTableAs(stmt)
 		}
-		return c.ExecCreateTableAs(stmt)
+		return c.orResolvedTable(spec, err)
 	default:
 		return &Error{
 			Code:    CodeFeatureNotSupported,
 			Message: fmt.Sprintf("relation resolver returned unsupported relation kind %q", spec.Kind),
 		}
 	}
+}
+
+// orResolvedTable falls back to a table of the spec's columns where a view's
+// definition does not install: it may name what the catalog does not have, and
+// a relation of the right columns still resolves the statement.
+func (c *Catalog) orResolvedTable(spec *RelationSpec, err error) error {
+	if err == nil || len(spec.Columns) == 0 {
+		return err
+	}
+	return c.materializeResolvedTable(spec)
 }
 
 func (c *Catalog) ensureResolverSchema(schemaName string) error {
