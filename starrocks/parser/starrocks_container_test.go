@@ -32,13 +32,10 @@ var (
 )
 
 // startStarRocks starts (once) the StarRocks 3.4 container and returns a ready
-// srContainer. Skipped in -short mode — omni CI runs `go test -short ./...`, so
-// container tests must be Short-gated (mirrors tidb/parser/tidb_container_test.go).
+// srContainer. Fails the test when the container cannot start (mirrors
+// tidb/parser/tidb_container_test.go).
 func startStarRocks(t *testing.T) *srContainer {
 	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping StarRocks container test in short mode")
-	}
 
 	srOnce.Do(func() {
 		ctx := context.Background()

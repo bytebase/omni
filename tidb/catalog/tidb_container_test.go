@@ -20,8 +20,9 @@ import (
 // information_schema — the goal is to catch regressions where omni
 // parses TiDB syntax but the catalog fails to execute, or vice versa.
 type tidbCatalogContainer struct {
-	db  *sql.DB
-	ctx context.Context
+	container testcontainers.Container
+	db        *sql.DB
+	ctx       context.Context
 }
 
 var (
@@ -32,9 +33,6 @@ var (
 
 func startTiDBForCatalog(t *testing.T) *tidbCatalogContainer {
 	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping TiDB catalog container test in short mode")
-	}
 
 	tidbCatalogOnce.Do(func() {
 		ctx := context.Background()
@@ -76,14 +74,19 @@ func startTiDBForCatalog(t *testing.T) *tidbCatalogContainer {
 			return
 		}
 
-		if err := db.PingContext(ctx); err != nil {
+		if err := pingTiDBUntilReady(ctx, db); err != nil {
 			db.Close()
 			_ = testcontainers.TerminateContainer(container)
 			tidbCatalogInitErr = fmt.Errorf("failed to ping TiDB: %w", err)
 			return
 		}
 
-		tidbCatalogInst = &tidbCatalogContainer{db: db, ctx: ctx}
+		// USE and SET SESSION are per-connection state and startContainer resets
+		// them between tests: pin the pool to one connection so they stick.
+		db.SetMaxOpenConns(1)
+		db.SetMaxIdleConns(1)
+
+		tidbCatalogInst = &tidbCatalogContainer{container: container, db: db, ctx: ctx}
 	})
 
 	if tidbCatalogInitErr != nil {
@@ -216,5 +219,22 @@ func mustExecTiDB(t *testing.T, tc *tidbCatalogContainer, sqlStr string) {
 	t.Helper()
 	if _, err := tc.db.ExecContext(tc.ctx, sqlStr); err != nil {
 		t.Fatalf("TiDB setup exec failed for %q: %v", sqlStr, err)
+	}
+}
+
+// pingTiDBUntilReady retries the first ping. TiDB's port starts listening a
+// moment before the server accepts connections, so a single ping right after
+// wait.ForListeningPort can fail with "invalid connection" on a busy host.
+func pingTiDBUntilReady(ctx context.Context, db *sql.DB) error {
+	deadline := time.Now().Add(90 * time.Second)
+	for {
+		err := db.PingContext(ctx)
+		if err == nil {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
 }

@@ -272,9 +272,6 @@ func partitionMigrationProbes() []migrationProbe {
 // TestOracle_PartitionApplyCorrectness proves gate 2 for every partition transition: the generated
 // DDL, applied to a real `from` database, yields a table whose canonical form equals `to`.
 func TestOracle_PartitionApplyCorrectness(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -293,9 +290,6 @@ func TestOracle_PartitionApplyCorrectness(t *testing.T) {
 // table in its real stored form generates an EMPTY plan, and the user-form-vs-stored round-trip
 // plan is empty too. A non-empty no-op plan is a partition normalization/ordering bug.
 func TestOracle_PartitionMigrationIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)

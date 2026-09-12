@@ -23,7 +23,6 @@ import (
 // issued on the catalog instance under test, because GIPK is session-state
 // driven on both sides.
 func TestScenario_C24(t *testing.T) {
-	scenariosSkipIfShort(t)
 	scenariosSkipIfNoDocker(t)
 
 	mc, cleanup := scenarioContainer(t)

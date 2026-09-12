@@ -120,9 +120,6 @@ func routineMigrationProbes() []routineMigrationProbe {
 // DDL transforms a real `from` database into a `to`-equal one (compared via canonical readback),
 // and the chosen path (ALTER vs DROP+CREATE) matches the probe's expectation.
 func TestOracle_RoutineMigrationApplyCorrectness(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -268,9 +265,6 @@ func classifyRoutineOps(ops []MigrationOp) (alter, create, drop int) {
 // (loaded from real engine readbacks) self-diffs empty and yields an empty plan — the realistic
 // release-path idempotence check across the whole routine set, not just single forms.
 func TestOracle_RoutineMultiObjectRoundTrip(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(o.version)

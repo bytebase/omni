@@ -6,7 +6,7 @@ import "testing"
 // FROM-side query features: the VALUES inline-table constructor and (added in
 // the LATERAL task) LATERAL table functions. Each StarRocks construct is
 // asserted accepted by BOTH the omni parser and StarRocks 3.4, and each
-// sibling-arm negative rejected by both. Short-gated via startStarRocks.
+// sibling-arm negative rejected by both. Container-gated via startStarRocks.
 //
 // Reject probes are chosen so the failure occurs INSIDE the construct: the omni
 // parser does not enforce trailing-EOF, so trailing-garbage rejects (e.g. a

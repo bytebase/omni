@@ -6,7 +6,7 @@ import "testing"
 // expr-side query features: IGNORE NULLS null-treatment, binary/hex literals +
 // the BINARY operator, and map/array collection literals. Each construct is
 // asserted accepted by BOTH the omni parser and StarRocks 3.4, and each
-// sibling-arm negative rejected by both. Short-gated via startStarRocks.
+// sibling-arm negative rejected by both. Container-gated via startStarRocks.
 func TestPR4bParity(t *testing.T) {
 	c := startStarRocks(t)
 

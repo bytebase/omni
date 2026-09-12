@@ -105,9 +105,6 @@ func resolveDeparseOracleSelect(t *testing.T, sel *nodes.SelectStmt) {
 
 // TestDeparse_Section_4_1_Container verifies NOT folding against MySQL 8.0.
 func TestDeparse_Section_4_1_Container(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -164,9 +161,6 @@ func TestDeparse_Section_4_1_Container(t *testing.T) {
 
 // TestDeparse_Section_3_2_Container verifies TRIM special forms against MySQL 8.0.
 func TestDeparse_Section_3_2_Container(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -244,9 +238,6 @@ func extractSelectBody(showCreate string) string {
 // output matches MySQL 8.0's output for simple view definitions.
 // For each view, we compare the SELECT body portion (after "AS ").
 func TestDeparse_Section_7_2_SimpleViews(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -314,9 +305,6 @@ func TestDeparse_Section_7_2_SimpleViews(t *testing.T) {
 // output matches MySQL 8.0's output for views with JOINs (INNER JOIN, LEFT JOIN,
 // multiple tables, subquery in FROM).
 func TestDeparse_Section_7_4_JoinViews(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -410,9 +398,6 @@ func TestDeparse_Section_7_4_JoinViews(t *testing.T) {
 // output matches MySQL 8.0's output for advanced view definitions: UNION, CTE,
 // window functions, nested subqueries, boolean expressions, and combined rewrites.
 func TestDeparse_Section_7_5_AdvancedViews(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -500,13 +485,10 @@ func stripDatabasePrefix(s string) string {
 }
 
 // TestDeparse_Section_7_6_Regression verifies that the deparser integration does not
-// break existing tests (scenarios 1-2 are covered by running go test ./mysql/catalog/ -short
-// and go test ./mysql/parser/ -short separately) and that views with explicit column
+// break existing tests (scenarios 1-2 are covered by running go test ./mysql/catalog/
+// and go test ./mysql/parser/ separately) and that views with explicit column
 // aliases match MySQL 8.0 output exactly.
 func TestDeparse_Section_7_6_Regression(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -624,9 +606,6 @@ func TestDeparse_Section_7_6_Regression(t *testing.T) {
 // Covers: ROW_NUMBER, SUM OVER PARTITION BY+ORDER BY, ROWS frame, RANGE frame,
 // named window, multiple window functions, LAG/LEAD.
 func TestDeparseContainer_7_1_WindowFunctions(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -710,9 +689,6 @@ func TestDeparseContainer_7_1_WindowFunctions(t *testing.T) {
 // TestDeparseContainer_1_1_ArithmeticComparison verifies arithmetic and comparison operators
 // against MySQL 8.0 SHOW CREATE VIEW output.
 func TestDeparseContainer_1_1_ArithmeticComparison(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -785,9 +761,6 @@ func TestDeparseContainer_1_1_ArithmeticComparison(t *testing.T) {
 // output matches MySQL 8.0's output for views with expressions (arithmetic, functions,
 // CASE, CAST, aggregates).
 func TestDeparse_Section_7_3_ExpressionViews(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -853,9 +826,6 @@ func TestDeparse_Section_7_3_ExpressionViews(t *testing.T) {
 // TestDeparseContainer_1_3_LiteralsSpacing verifies literals and spacing rules
 // against MySQL 8.0 SHOW CREATE VIEW output.
 func TestDeparseContainer_1_3_LiteralsSpacing(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -941,9 +911,6 @@ func TestDeparseContainer_1_3_LiteralsSpacing(t *testing.T) {
 // TestDeparseContainer_1_2_LogicalBitwiseIS verifies logical, bitwise, and IS operators
 // against MySQL 8.0 SHOW CREATE VIEW output.
 func TestDeparseContainer_1_2_LogicalBitwiseIS(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1019,9 +986,6 @@ func TestDeparseContainer_1_2_LogicalBitwiseIS(t *testing.T) {
 // CURRENT_TIME->curtime(), CURRENT_USER->current_user(), NOW()->now(),
 // COUNT(*)->count(0), COUNT(DISTINCT).
 func TestDeparseContainer_Section_2_1_FunctionNameRewrites(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1091,9 +1055,6 @@ func TestDeparseContainer_Section_2_1_FunctionNameRewrites(t *testing.T) {
 // TestDeparseContainer_2_2_RegularFunctionsAggregates verifies regular functions and aggregates
 // against MySQL 8.0 SHOW CREATE VIEW output.
 func TestDeparseContainer_2_2_RegularFunctionsAggregates(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1162,9 +1123,6 @@ func TestDeparseContainer_2_2_RegularFunctionsAggregates(t *testing.T) {
 // REGEXP→regexp_like, NOT REGEXP, -> (json_extract), ->> (json_unquote(json_extract))
 // against MySQL 8.0 SHOW CREATE VIEW output.
 func TestDeparseContainer_2_4_CastConvertOperatorRewrites(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1260,9 +1218,6 @@ func TestDeparseContainer_2_4_CastConvertOperatorRewrites(t *testing.T) {
 // TestDeparseContainer_2_3_SpecialFunctions verifies TRIM, GROUP_CONCAT, and simple CASE
 // against MySQL 8.0 SHOW CREATE VIEW output.
 func TestDeparseContainer_2_3_SpecialFunctions(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1338,9 +1293,6 @@ func TestDeparseContainer_2_3_SpecialFunctions(t *testing.T) {
 // in boolean context (AND/OR) get (0 <> ...) wrapping to match MySQL 8.0's
 // SHOW CREATE VIEW output.
 func TestDeparseContainer_3_1_BooleanContextWrapping(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1423,9 +1375,6 @@ func TestDeparseContainer_3_1_BooleanContextWrapping(t *testing.T) {
 //   - IS/LIKE in AND are NOT wrapped
 //   - EXISTS in AND is NOT wrapped
 func TestDeparseContainer_3_2_NotFoldingNoDoubleWrap(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1492,9 +1441,6 @@ func TestDeparseContainer_3_2_NotFoldingNoDoubleWrap(t *testing.T) {
 // TestDeparseContainer_3_3_ComplexPrecedence verifies complex operator precedence
 // against MySQL 8.0 SHOW CREATE VIEW output.
 func TestDeparseContainer_3_3_ComplexPrecedence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1563,9 +1509,6 @@ func TestDeparseContainer_3_3_ComplexPrecedence(t *testing.T) {
 // SHOW CREATE VIEW output: INNER JOIN, LEFT JOIN, RIGHT JOIN→LEFT swap,
 // CROSS JOIN, NATURAL JOIN expanded, STRAIGHT_JOIN, USING expanded, comma→explicit join.
 func TestDeparseContainer_4_1_AllJoinTypes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1658,9 +1601,6 @@ func TestDeparseContainer_4_1_AllJoinTypes(t *testing.T) {
 // TestDeparseContainer_4_2_MultiTableDerived verifies multi-table JOINs, chained LEFT JOINs,
 // derived tables, and table aliases against MySQL 8.0 SHOW CREATE VIEW output.
 func TestDeparseContainer_4_2_MultiTableDerived(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1756,9 +1696,6 @@ func TestDeparseContainer_4_2_MultiTableDerived(t *testing.T) {
 // output matches MySQL 8.0's output for views with WHERE, GROUP BY, HAVING, ORDER BY,
 // LIMIT, OFFSET, DISTINCT, and expression-based GROUP BY.
 func TestDeparseContainer_Section_5_1_SelectClauses(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1842,9 +1779,6 @@ func TestDeparseContainer_Section_5_1_SelectClauses(t *testing.T) {
 // multiple UNION, INTERSECT, EXCEPT, UNION+ORDER BY+LIMIT) against MySQL 8.0.
 // INTERSECT/EXCEPT require MySQL 8.0.31+; if rejected, the test is skipped.
 func TestDeparseContainer_5_2_SetOperations(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1924,9 +1858,6 @@ func TestDeparseContainer_5_2_SetOperations(t *testing.T) {
 // TestDeparseContainer_5_3_ColumnAliasPatterns verifies column and alias patterns
 // against MySQL 8.0 SHOW CREATE VIEW output.
 func TestDeparseContainer_5_3_ColumnAliasPatterns(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -2047,9 +1978,6 @@ func TestDeparseContainer_5_3_ColumnAliasPatterns(t *testing.T) {
 // TestDeparseContainer_Section_6_1_SubqueryPatterns verifies that subquery patterns
 // in views match MySQL 8.0 SHOW CREATE VIEW output.
 func TestDeparseContainer_Section_6_1_SubqueryPatterns(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -2154,9 +2082,6 @@ func TestDeparseContainer_Section_6_1_SubqueryPatterns(t *testing.T) {
 }
 
 func TestDeparseContainer_Section_6_2_CTEPatterns(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -2290,9 +2215,6 @@ func TestDeparseContainer_Section_6_2_CTEPatterns(t *testing.T) {
 // many-column views, reserved word aliases, CASE without ELSE, and BETWEEN
 // with column bounds against MySQL 8.0.
 func TestDeparseContainer_8_1_ViewOfViewComplexStructures(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -2415,9 +2337,6 @@ func TestDeparseContainer_8_1_ViewOfViewComplexStructures(t *testing.T) {
 // TestDeparseContainer_8_2_ExpressionEdgeCases verifies expression edge cases and stress tests
 // against real MySQL 8.0 SHOW CREATE VIEW output.
 func TestDeparseContainer_8_2_ExpressionEdgeCases(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 

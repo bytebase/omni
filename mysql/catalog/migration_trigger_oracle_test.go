@@ -29,7 +29,8 @@ import (
 // GATE 2 — APPLY-CORRECTNESS: for representative (from, to) pairs, GenerateMigration(from,to).SQL()
 // applied to a real `from` database yields a trigger set whose stored form equals `to`'s.
 //
-// The harness skips cleanly when the engines are unreachable (go test -short skips it).
+// The harness falls back to a shared testcontainer per version when the local engines
+// are unreachable (oracle_fallback_test.go).
 
 // triggerOracleDB is the database the trigger harness applies generated plans into (mirrors the
 // table harness's diffdb convention but kept distinct so parallel oracle tests don't collide).
@@ -175,9 +176,6 @@ func triggerIdempotenceProbes() []triggerIdemProbe {
 // and the no-op plan is empty, and the user form vs its engine readback is empty (canonicalization
 // — DEFINER, whitespace and FOLLOWS must not phantom-diff). Probed on every supported version.
 func TestOracle_TriggerIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -227,9 +225,6 @@ func TestOracle_TriggerIdempotence(t *testing.T) {
 // empty. The FOLLOWS is dropped by the readback (order-not-modelled flag): the stored form and the
 // user form must still collapse to empty.
 func TestOracle_TriggerMultiPerTableIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -360,9 +355,6 @@ func triggerMigrationProbes() []triggerMigProbe {
 // `from` database's trigger set into a `to`-equal one (compared via information_schema readback,
 // reloaded and diffed).
 func TestOracle_TriggerMigrationApplyCorrectness(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)

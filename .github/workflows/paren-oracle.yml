@@ -31,17 +31,15 @@ on:
 
 jobs:
   paren-oracle:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 10
-    strategy:
-      matrix:
-        go-version: ['1.25']
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: '1.25'
+          cache: false
 
       - name: Paren oracle (PG 17 testcontainer)
         run: go test -tags=oracle -timeout 10m ./pg/parser/... -count=1 -v

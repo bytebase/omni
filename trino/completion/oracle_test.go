@@ -100,9 +100,6 @@ func seedMemorySchema(t *testing.T, o *trinooracle.Oracle) {
 // plus a `pick` predicate selecting the candidate to substitute; the resulting
 // statement (prefix + candidate + suffix) must be accepted.
 func TestCompletion_ContextsAreValidSyntax(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 	seedMemorySchema(t, o)
 	cat := oracleCatalog()
@@ -179,9 +176,6 @@ func pickCandidate(cands []Candidate, typ CandidateType, want string) string {
 // completion is a SYNTAX error, while the correct shape is accepted), so the two
 // can never silently drift apart.
 func TestCompletion_ContextNegativesMatchOracle(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 	seedMemorySchema(t, o)
 	cat := oracleCatalog()
@@ -251,9 +245,6 @@ func TestCompletion_ContextNegativesMatchOracle(t *testing.T) {
 //   - A reserved keyword used as a bare identifier is a SYNTAX error, but quoted
 //     it is accepted — so the completer must quote a reserved-word object name.
 func TestCompletion_QuotingRuleMatchesOracle(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 
 	// (1) Reserved word as a bare identifier => SYNTAX rejected; quoted =>

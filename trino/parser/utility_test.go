@@ -395,9 +395,6 @@ func TestUtility_RejectCorpusRejected(t *testing.T) {
 // every form in both corpora, this node's accept/reject must equal Trino 481's
 // accept/reject of the same statement. Skipped when no oracle is reachable.
 func TestUtility_OracleDifferential(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 
 	check := func(t *testing.T, sql string) {

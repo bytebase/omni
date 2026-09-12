@@ -80,9 +80,6 @@ func checkDiffProbes() []diffProbe {
 // TestOracle_CheckDiffIdempotence proves gates 1 & 2 for every 8.0 CHECK form: the user DDL vs its
 // engine readback diffs EMPTY, and the stored form self-diffs empty.
 func TestOracle_CheckDiffIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		for _, probe := range checkDiffProbes() {
@@ -121,9 +118,6 @@ func check57Cases() []diffProbe {
 //     dropped the CHECK), and diff the user form vs the readback under the 5.7 normalizer; the
 //     result must be EMPTY despite the user side carrying a ConCheck the readback lacks.
 func TestOracle_CheckDiff57NoPhantom(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	o := connectOracle(t, MySQL57)
 	n := NormalizerFor(MySQL57)
 	sc := serverCharsetFor(MySQL57)
@@ -172,9 +166,6 @@ func TestOracle_CheckDiff57NoPhantom(t *testing.T) {
 // (from, to) check changes on 8.0 (loaded from real engine readbacks): an added, dropped, modified
 // (expression change), and enforced-state-flipped check each produce the expected CheckDiffEntry.
 func TestOracle_CheckDiffNonEmptyCorrect(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	o := connectOracle(t, MySQL80)
 	n := NormalizerFor(MySQL80)
 	sc := serverCharsetFor(MySQL80)

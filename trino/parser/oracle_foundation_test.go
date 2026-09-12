@@ -98,9 +98,6 @@ var qualifiedNameCandidates = []string{
 // accept/reject of the standalone name must equal Trino's accept/reject of the
 // wrapped statement.
 func TestFoundation_QualifiedNameDifferential(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 	for _, name := range qualifiedNameCandidates {
 		name := name
@@ -224,9 +221,6 @@ func TestFoundation_SplitMatchesCount(t *testing.T) {
 // independently accepted by Trino — proving Split cut on real boundaries and
 // never mid-statement. Skipped without an oracle.
 func TestFoundation_SplitRoundTripOracle(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 	for _, tc := range multiStatementCorpus {
 		tc := tc

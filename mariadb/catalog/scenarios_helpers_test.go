@@ -222,14 +222,6 @@ func assertBoolEq(t *testing.T, label string, got, want bool) {
 	}
 }
 
-// scenariosSkipIfShort skips the calling test when testing.Short() is true.
-func scenariosSkipIfShort(t *testing.T) {
-	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping scenario test in short mode")
-	}
-}
-
 // scenariosSkipIfNoDocker skips the calling test when SKIP_SCENARIO_TESTS=1
 // is set OR when the Docker daemon is not reachable. Probing the daemon
 // avoids a panic from testcontainers in environments without Docker.

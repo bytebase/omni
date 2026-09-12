@@ -120,9 +120,6 @@ func fkMigrationCases() []fkMigrationCase {
 // DDL transforms a real `from` database into a `to`-equal one (child compared via canonical
 // readback), including the PhasePost ordering and backing-index handling.
 func TestOracle_ForeignKeyMigrationApplyCorrectness(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -228,9 +225,6 @@ func loadResultChildSchema(t *testing.T, o *oracleConn, logicalDB, sc, childDDL 
 // schema in its real stored form, the generated no-op plan is EMPTY — including the FK ops. A
 // non-empty no-op plan is a normalization/ordering bug.
 func TestOracle_ForeignKeyMigrationIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -321,9 +315,6 @@ func fkMultiCases() []fkMultiCase {
 // review-found scenarios: each `from→to` schema is applied via the FULL generated plan and every
 // `to` table's canonical form must match.
 func TestOracle_ForeignKeyMultiTableApplyCorrectness(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -474,9 +465,6 @@ func splitSemiStatements(s string) []string {
 // also emit an ADD INDEX (the index is reused), and applying the plan does not create a duplicate
 // index. This is the generate-side guard against errno 1061 (duplicate key name).
 func TestOracle_ForeignKeyAddReusesExistingIndex(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)

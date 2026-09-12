@@ -62,9 +62,6 @@ func TestWindow_RejectCorpusRejected(t *testing.T) {
 }
 
 func TestWindow_OracleDifferential(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 	check := func(t *testing.T, sql string) {
 		_, errs := Parse(sql)
@@ -169,9 +166,6 @@ func TestSelect_DivergenceFlaggedRejected(t *testing.T) {
 // flagged form — confirming the divergence is real (omni rejects, 481 accepts).
 // This is the evidence half of the divergence packet; skipped without an oracle.
 func TestSelect_DivergenceFlaggedOracleAccepts(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 	for _, d := range divergenceFlaggedForms {
 		t.Run(d.name, func(t *testing.T) {

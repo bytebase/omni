@@ -332,9 +332,6 @@ CREATE POLICY users_see_own ON users FOR SELECT USING (active = true);
 `
 
 func TestContainerRealWorld(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// -------------------------------------------------------------------

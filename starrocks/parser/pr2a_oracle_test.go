@@ -5,7 +5,7 @@ import "testing"
 // TestPR2aParity is the container-grounded conformance matrix for the PR2a
 // CREATE TABLE divergences (#10–13): each StarRocks construct is asserted to be
 // accepted by BOTH the omni parser and StarRocks 3.4 (and the sibling-arm
-// negative rejected by both). Short-gated via startStarRocks.
+// negative rejected by both). Container-gated via startStarRocks.
 func TestPR2aParity(t *testing.T) {
 	c := startStarRocks(t)
 

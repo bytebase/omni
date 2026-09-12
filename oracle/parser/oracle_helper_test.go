@@ -32,9 +32,6 @@ var (
 // Docker is unavailable or the container fails to start.
 func startOracleDB(t *testing.T) *oracleDB {
 	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping Oracle DB test in short mode")
-	}
 
 	oracleOnce.Do(func() {
 		ctx := context.Background()

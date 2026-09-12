@@ -10,9 +10,6 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestContainerFunc(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// Base function used by most tests:
@@ -97,9 +94,6 @@ COMMENT ON PROCEDURE do_log() IS 'Logs a message';`
 // ---------------------------------------------------------------------------
 
 func TestContainerFuncParams(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// --- Function with OUT parameter ---
@@ -136,9 +130,6 @@ func TestContainerFuncParams(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestContainerView(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// Base:
@@ -204,9 +195,6 @@ CREATE VIEW v1 AS SELECT id, name FROM t1 WHERE active
 // ---------------------------------------------------------------------------
 
 func TestContainerFuncEdgeCases(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	t.Run("function_parameter_name_change_only", func(t *testing.T) {
@@ -245,9 +233,6 @@ func TestContainerFuncEdgeCases(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestContainerViewEdgeCases(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	t.Run("view_with_select_star_column_reorder", func(t *testing.T) {

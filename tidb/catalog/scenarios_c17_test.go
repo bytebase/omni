@@ -13,7 +13,6 @@ import (
 // coercibility. Each omni failure is documented in scenarios_bug_queue/c17.md
 // and reported via t.Errorf as KNOWN BUG so proof stays compile-clean.
 func TestScenario_C17(t *testing.T) {
-	scenariosSkipIfShort(t)
 	scenariosSkipIfNoDocker(t)
 
 	mc, cleanup := scenarioContainer(t)

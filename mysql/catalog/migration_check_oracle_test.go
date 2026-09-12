@@ -105,9 +105,6 @@ func checkMigrationProbes() []migrationProbe {
 // TestOracle_CheckMigrationApplyCorrectness proves gate 2 for every check probe: the generated DDL
 // transforms a real `from` database into a `to`-equal one (compared via canonical readback).
 func TestOracle_CheckMigrationApplyCorrectness(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	// CHECK is 8.0-only; the generator emits nothing on 5.7 (proven on the diff side). Apply
 	// correctness is therefore an 8.0-only concern.
 	o := connectOracle(t, MySQL80)

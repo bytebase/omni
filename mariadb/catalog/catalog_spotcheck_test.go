@@ -71,9 +71,6 @@ func asString(v any) string {
 }
 
 func TestSpotCheck_CatalogVerification(t *testing.T) {
-	if testing.Short() {
-		t.Skip("spot-check requires container")
-	}
 	mc, cleanup := startContainer(t)
 	defer cleanup()
 

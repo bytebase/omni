@@ -6,18 +6,33 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+# One run per PR: a new push cancels the run for the previous head.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        go-version: ['1.25']
+    # The whole suite: no -short and no per-engine shards. `go test ./...` is
+    # the coverage contract, so a container test in a new package is in CI the
+    # moment it merges instead of waiting for someone to wire a lane for it.
+    # Runs on the org's self-hosted runners (the pool bytebase/bytebase uses):
+    # persistent Go build and module caches plus a warm Docker image cache are
+    # what make running everything on every PR cheap.
+    runs-on: self-hosted
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: '1.25'
+          # The runner keeps GOCACHE/GOMODCACHE between runs; the Actions cache
+          # would only add download time.
+          cache: false
 
       - name: Check generated code is up to date
         run: |
@@ -40,22 +55,58 @@ jobs:
       - name: Build
         run: go build ./...
 
+      - name: Fetch conformance corpus
+        # harness/conformance/extract_smoke_test.go extracts the real TiDB
+        # parser corpus; it skips locally when the corpus is absent and fails
+        # in CI, so fetch it (a 2s sparse clone) before the tests run.
+        run: harness/conformance/fetch_corpus.sh
+
+      - name: Start Trino oracle
+        # The trino oracle tests talk to a running Trino ($TRINO_ORACLE_URL) and
+        # fail in CI when it is unreachable. A random host port keeps two jobs
+        # on one runner from colliding. Image pinned to the corpus-verified
+        # version — keep in sync with trinooracle.DefaultImage.
+        run: |
+          cid=$(docker run -d -p 127.0.0.1::8080 trinodb/trino:482)
+          echo "TRINO_CID=$cid" >> "$GITHUB_ENV"
+          port=$(docker port "$cid" 8080/tcp | head -n 1 | sed 's/.*://')
+          echo "TRINO_ORACLE_URL=http://127.0.0.1:$port" >> "$GITHUB_ENV"
+          for i in $(seq 1 60); do
+            if curl -sf "http://127.0.0.1:$port/v1/info" | grep -q '"starting":false'; then
+              echo "Trino ready after ~$((i*3))s"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Trino failed to become ready" >&2
+          docker logs "$cid" 2>&1 | tail -n 50 >&2
+          exit 1
+
       - name: Test
-        run: go test -short ./...
+        shell: bash
+        # -p=8 bounds how many packages, and therefore engine containers, run
+        # at once; the suite is container-bound, not CPU-bound.
+        run: go test -p=8 -timeout 25m ./... | tee test.log
 
-      # harness/conformance is its own Go module, so the root ./... above
-      # never compiles it — a break there would ship silently. -short skips
-      # everything that needs the fetched corpus or a live container, keeping
-      # this hermetic and fast; the container lane stays out of CI by design.
-      - name: Conformance harness unit tests
+      - name: Conformance harness tests
+        # harness/conformance is its own Go module, so the root ./... above
+        # never reaches it.
         working-directory: harness/conformance
-        run: go test -short ./...
+        run: go test -timeout 10m ./...
 
-      # Build-tag-gated test code must at least compile on every PR,
-      # even when the tests themselves run elsewhere (container jobs,
-      # nightly, or local-only like the scriptdom .NET harness).
-      # `go test -run '^$'` compiles the test binary (including test
-      # files, which `go build` skips) without running any tests.
+      - name: Slowest packages
+        if: always()
+        run: grep -E '^ok\s' test.log | awk '{sub(/s$/, "", $3); print $3, $2}' | sort -rn | head -n 15 || true
+
+      - name: Stop Trino oracle
+        if: always()
+        run: docker rm -f "$TRINO_CID" >/dev/null 2>&1 || true
+
+      # Build-tag-gated test code must at least compile on every PR, even
+      # when the tests themselves run elsewhere (the tagged jobs below,
+      # nightly.yml, or local-only like the scriptdom .NET harness).
+      # `go test -run '^$'` compiles the test binary (including test files,
+      # which `go build` skips) without running any tests.
       - name: Compile build-tagged test code
         run: |
           go test -tags=oracle -run '^$' -count=1 ./pg/parser/ ./pg/catalog/ ./redshift/parser/ ./redshift/catalog/
@@ -78,11 +129,8 @@ jobs:
     # than auto-failing the pipeline. The strict set-equality gate
     # (without PAREN_FUZZ_DEFER) remains the developer-side promote
     # check.
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 15
-    strategy:
-      matrix:
-        go-version: ['1.25']
     env:
       PAREN_FUZZ_SIZE: '1000'
       PAREN_FUZZ_DEFER: '1'
@@ -91,7 +139,8 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          go-version: '1.25'
+          cache: false
 
       - name: Paren fuzz (N=1000, defer mode)
         run: go test -tags=oracle -timeout 15m -run TestParenOracleFuzz ./pg/parser/... -count=1 -v
@@ -102,4 +151,50 @@ jobs:
         with:
           name: paren-fuzz-defer
           path: pg/parser/testdata/paren-fuzz-defer/*.txt
+          if-no-files-found: ignore
+
+  pg-paren-corpus:
+    # The pg -tags=oracle corpus differential tests (harness, FROM
+    # variants, array, IN, lateral, function-body reference). The fuzz
+    # variant is excluded here — paren-fuzz above runs the N=1000 PR gate
+    # and nightly.yml runs the wide-N sweep.
+    runs-on: self-hosted
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: false
+
+      - name: PG paren oracle corpus (excl. fuzz)
+        run: go test -tags=oracle -timeout 25m -run '^(TestParenOracle|TestFunctionBodyReferenceOracle|TestLoaderCompat)' -skip '^TestParenOracleFuzz$' ./pg/parser/ ./pg/catalog/ -count=1
+
+  redshift-paren-oracle:
+    # Mirror of the pg paren jobs for the redshift fork: corpus
+    # differential + N=1000 fuzz in defer mode against a real PG 17
+    # container. Also runs the -tags=oracle catalog loader compat corpus.
+    runs-on: self-hosted
+    timeout-minutes: 30
+    env:
+      PAREN_FUZZ_SIZE: '1000'
+      PAREN_FUZZ_DEFER: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: false
+
+      - name: Redshift paren oracle corpus + fuzz (N=1000, defer mode)
+        run: go test -tags=oracle -timeout 25m -run '^(TestParenOracle|TestLoaderCompat)' ./redshift/parser/ ./redshift/catalog/ -count=1
+
+      - name: Upload deferred-mismatch artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redshift-paren-fuzz-defer
+          path: redshift/parser/testdata/paren-fuzz-defer/*.txt
           if-no-files-found: ignore

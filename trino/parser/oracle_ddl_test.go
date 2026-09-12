@@ -426,9 +426,6 @@ var ddlOracleCorpus = []string{
 // TestDDL_OracleDifferential is the authoritative accept/reject gate: omni's
 // Parse verdict must equal Trino 481's verdict for every corpus statement.
 func TestDDL_OracleDifferential(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 	for _, sql := range ddlOracleCorpus {
 		sql := sql

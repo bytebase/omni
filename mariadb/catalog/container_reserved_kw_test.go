@@ -27,9 +27,6 @@ var mariaDBReservedNotInMySQL = map[string]bool{
 // This is a diagnostic test — it reports all mismatches rather than failing
 // on the first one, so we get a complete gap picture.
 func TestContainer_ReservedKeywordAcceptance(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 

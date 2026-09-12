@@ -20,9 +20,6 @@ type routineValidationOracle struct {
 
 func startRoutineValidationOracle(t *testing.T) *routineValidationOracle {
 	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
-	}
 
 	ctx := context.Background()
 	container, err := tcmysql.Run(ctx, "mysql:8.0",

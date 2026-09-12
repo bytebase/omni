@@ -3,6 +3,7 @@ package parser
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,50 +29,44 @@ import (
 // feature-gated (1235) rejections. "Inventory pinned" != "MariaDB parity".
 // ============================================================================
 
-// startMariaDB starts mariadb:11.8.8 via the testcontainers mariadb module. The
-// module's wait strategy handles MariaDB's double-start entrypoint (temp init
-// server → shutdown → real server) that a bare port-wait would race.
+// startMariaDB returns the shared mariadb:11.8.8 oracle with an empty `test`
+// database selected. The testcontainers mariadb module's wait strategy handles
+// MariaDB's double-start entrypoint (temp init server → shutdown → real server)
+// that a bare port-wait would race.
 func startMariaDB(t *testing.T) *parserOracle {
 	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping MariaDB container oracle in short mode")
-	}
-	ctx := context.Background()
-
-	c, err := mariadb.Run(ctx, "mariadb:11.8.8",
-		mariadb.WithDatabase("test"),
-		mariadb.WithPassword("test"),
-		// no WithUsername("root"): root is the module default; setting it errors.
-	)
-	if err != nil {
-		// In CI a startup failure must fail the job, not silently turn
-		// the container gate into a green no-op.
-		if os.Getenv("CI") != "" {
-			t.Fatalf("MariaDB container required in CI but unavailable: %v", err)
+	return sharedMariaDB118.acquire(t, func(ctx context.Context) (testcontainers.Container, *sql.DB, error) {
+		c, err := mariadb.Run(ctx, "mariadb:11.8.8",
+			mariadb.WithDatabase("test"),
+			mariadb.WithPassword("test"),
+			// no WithUsername("root"): root is the module default; setting it errors.
+		)
+		if err != nil {
+			return nil, nil, fmt.Errorf("start MariaDB container: %w", err)
 		}
-		t.Skipf("MariaDB container unavailable: %v", err)
-	}
-	t.Cleanup(func() { _ = testcontainers.TerminateContainer(c) })
-
-	// Server-side guards (seconds) on every pooled conn via DSN system-vars: the
-	// server aborts a slow/locked statement so the conn stays healthy (a client
-	// context cancel leaves the query running server-side and poisons the pool).
-	connStr, err := c.ConnectionString(ctx,
-		"multiStatements=true", "parseTime=true",
-		"max_statement_time=5", "lock_wait_timeout=2",
-	)
-	if err != nil {
-		t.Fatalf("connection string: %v", err)
-	}
-	db, err := sql.Open("mysql", connStr)
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
-	t.Cleanup(func() { db.Close() })
-	if err := db.PingContext(ctx); err != nil {
-		t.Fatalf("ping: %v", err)
-	}
-	return &parserOracle{db: db, ctx: ctx}
+		// Server-side guards (seconds) on every pooled conn via DSN system-vars: the
+		// server aborts a slow/locked statement so the conn stays healthy (a client
+		// context cancel leaves the query running server-side and poisons the pool).
+		connStr, err := c.ConnectionString(ctx,
+			"multiStatements=true", "parseTime=true",
+			"max_statement_time=5", "lock_wait_timeout=2",
+		)
+		if err != nil {
+			_ = testcontainers.TerminateContainer(c)
+			return nil, nil, fmt.Errorf("connection string: %w", err)
+		}
+		db, err := sql.Open("mysql", connStr)
+		if err != nil {
+			_ = testcontainers.TerminateContainer(c)
+			return nil, nil, fmt.Errorf("open db: %w", err)
+		}
+		if err := db.PingContext(ctx); err != nil {
+			_ = db.Close()
+			_ = testcontainers.TerminateContainer(c)
+			return nil, nil, fmt.Errorf("ping: %w", err)
+		}
+		return c, db, nil
+	})
 }
 
 type verdict int

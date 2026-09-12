@@ -87,9 +87,6 @@ var readOnlyCorpus = []struct {
 // INSERT/DELETE/UPDATE/CREATE/DROP is not) — the classifier must put each
 // statement on the correct side of that line.
 func TestAnalysis_ClassificationDifferential(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 
 	// Seed the schema objects so the corpus statements reach Trino's PARSER

@@ -5,7 +5,7 @@ import "testing"
 // TestPR2bParity is the container-grounded conformance matrix for the PR2b
 // CREATE/ALTER TABLE divergences (#14–17): each StarRocks construct is asserted
 // accepted by BOTH the omni parser and StarRocks 3.4, plus regressions proving
-// the new branches don't break the pre-existing forms. Short-gated via
+// the new branches don't break the pre-existing forms. Container-gated via
 // startStarRocks.
 func TestPR2bParity(t *testing.T) {
 	c := startStarRocks(t)

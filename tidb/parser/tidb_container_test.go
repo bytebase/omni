@@ -27,9 +27,6 @@ var (
 
 func startTiDB(t *testing.T) *tidbContainer {
 	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping TiDB container test in short mode")
-	}
 
 	tidbOnce.Do(func() {
 		ctx := context.Background()
@@ -71,7 +68,7 @@ func startTiDB(t *testing.T) *tidbContainer {
 			return
 		}
 
-		if err := db.PingContext(ctx); err != nil {
+		if err := pingTiDBUntilReady(ctx, db); err != nil {
 			db.Close()
 			_ = testcontainers.TerminateContainer(container)
 			tidbInitErr = fmt.Errorf("failed to ping TiDB: %w", err)
@@ -254,5 +251,22 @@ func TestTiDBContainerOracle(t *testing.T) {
 				tc.db.ExecContext(tc.ctx, tt.cleanup)
 			}
 		})
+	}
+}
+
+// pingTiDBUntilReady retries the first ping. TiDB's port starts listening a
+// moment before the server accepts connections, so a single ping right after
+// wait.ForListeningPort can fail with "invalid connection" on a busy host.
+func pingTiDBUntilReady(ctx context.Context, db *sql.DB) error {
+	deadline := time.Now().Add(90 * time.Second)
+	for {
+		err := db.PingContext(ctx)
+		if err == nil {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
 }

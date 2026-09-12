@@ -218,9 +218,6 @@ var matchRecognizeOracleCorpus = []string{
 // TestMatchRecognize_OracleDifferential is the authoritative accept/reject gate:
 // omni's Parse verdict must equal Trino 481's verdict for every corpus statement.
 func TestMatchRecognize_OracleDifferential(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 	for _, sql := range matchRecognizeOracleCorpus {
 		sql := sql

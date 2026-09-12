@@ -15,7 +15,6 @@ import (
 // Failures in omni assertions are NOT proof failures — they are
 // recorded in mysql/catalog/scenarios_bug_queue/ax.md.
 func TestScenario_AX(t *testing.T) {
-	scenariosSkipIfShort(t)
 	scenariosSkipIfNoDocker(t)
 
 	mc, cleanup := scenarioContainer(t)

@@ -9,9 +9,6 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestContainerExprDefault_ValueExpressions(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// 1.1 Value Expressions in DEFAULT
@@ -60,9 +57,6 @@ func TestContainerExprDefault_ValueExpressions(t *testing.T) {
 }
 
 func TestContainerExprDefault_FunctionLikeExpressions(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// 1.2 Function-Like Expressions in DEFAULT
@@ -111,9 +105,6 @@ func TestContainerExprDefault_FunctionLikeExpressions(t *testing.T) {
 }
 
 func TestContainerExprDefault_TypeAndArrayExpressions(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// 1.3 Type and Array Expressions in DEFAULT
@@ -166,9 +157,6 @@ func TestContainerExprDefault_TypeAndArrayExpressions(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestContainerExprCheck(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// 2.1 CHECK Constraint Expressions
@@ -255,9 +243,6 @@ func TestContainerExprCheck(t *testing.T) {
 }
 
 func TestContainerExprPolicy(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// 2.2 Policy USING and WITH CHECK Expressions
@@ -317,9 +302,6 @@ func TestContainerExprPolicy(t *testing.T) {
 }
 
 func TestContainerExprDomain(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// 2.3 Domain CHECK Expressions
@@ -367,9 +349,6 @@ func TestContainerExprDomain(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestContainerExprGenerated(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// 3.1 Generated Column Expressions
@@ -411,9 +390,6 @@ func TestContainerExprGenerated(t *testing.T) {
 }
 
 func TestContainerExprIndex(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// 3.2 Index Expressions and WHERE Clauses
@@ -469,9 +445,6 @@ func TestContainerExprIndex(t *testing.T) {
 }
 
 func TestContainerExprTrigger(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// 3.3 Trigger WHEN Clause
@@ -528,9 +501,6 @@ func TestContainerExprTrigger(t *testing.T) {
 }
 
 func TestContainerExprSemanticEquivalence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 
 	// 3.4 Semantic Equivalence (False Positive Prevention)
 	// These tests verify that identical schemas produce no diff.
@@ -589,9 +559,6 @@ func TestContainerExprSemanticEquivalence(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestContainerExprPhase1CoreTypes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// SubscriptingRef: array subscript in generated column
@@ -648,9 +615,6 @@ func TestContainerExprPhase1CoreTypes(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestContainerExprPhase2Ruleutils(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// GROUP BY ROLLUP

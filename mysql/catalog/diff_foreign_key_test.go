@@ -168,9 +168,6 @@ func fkDiffCases() []fkDiffCase {
 // forever. The user form references the SAME db it lives in, so the schema is applied to a db of
 // that exact name and the FK resolves.
 func TestOracle_ForeignKeySameDBQualifierNoDiff(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -265,9 +262,6 @@ func loadFKSchema(t *testing.T, o *oracleConn, logicalDB, execDB, parentDDL, chi
 // form self-diffs empty, AND the user form vs the engine's stored form diffs empty (action-default
 // + auto-name normalization), on every supported version.
 func TestOracle_ForeignKeyDiffIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -343,9 +337,6 @@ func describeForeignKeyDiff(d *SchemaDiff) string {
 // schemas (the dual of idempotence — a missed FK diff is as harmful as a phantom one). Each case
 // loads two real engine readbacks and asserts the expected FK DiffAction.
 func TestOracle_ForeignKeyDiffNonEmptyCorrect(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)

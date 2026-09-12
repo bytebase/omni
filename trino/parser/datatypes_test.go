@@ -635,9 +635,6 @@ func TestDataType_RejectCorpusRejected(t *testing.T) {
 // both corpora, omni's ParseDataType accept/reject must equal Trino 481's
 // accept/reject of `CAST(NULL AS <type>)`. Skipped when no oracle is reachable.
 func TestDataType_OracleDifferential(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 
 	check := func(t *testing.T, typ string) {
@@ -699,9 +696,6 @@ func TestDataType_RoundTrip(t *testing.T) {
 // accepted type is itself accepted by Trino — proving deparse emits valid Trino
 // type syntax. Skipped without an oracle.
 func TestDataType_RoundTripOracle(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 	for _, typ := range typeAcceptCorpus {
 		typ := typ

@@ -165,9 +165,6 @@ func TestRelation_RejectCorpusRejected(t *testing.T) {
 }
 
 func TestRelation_OracleDifferential(t *testing.T) {
-	if testing.Short() {
-		t.Skip("trino oracle: skipped in -short mode")
-	}
 	o := connectOracle(t)
 	check := func(t *testing.T, sql string) {
 		_, errs := Parse(sql)

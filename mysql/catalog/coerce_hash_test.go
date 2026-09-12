@@ -153,9 +153,6 @@ func hashRoundTripProbes() []hashProbe {
 // TestOracle_InnoDBHashRoundTrip proves the USING HASH fold against the LIVE engines (5.7 :13307,
 // 8.0 :13306): every probe's user form vs its engine readback diffs empty on both versions.
 func TestOracle_InnoDBHashRoundTrip(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		for _, p := range hashRoundTripProbes() {

@@ -10,12 +10,13 @@ import (
 )
 
 // TestSmokeRealCorpus guards extraction health against the fetched corpus.
-// Short-gated: omni CI runs -short and must never require the corpus.
+// CI fetches it (fetch_corpus.sh) before running the tests; locally the test
+// skips when the corpus is absent.
 func TestSmokeRealCorpus(t *testing.T) {
-	if testing.Short() {
-		t.Skip("corpus smoke test skipped in short mode")
-	}
 	if _, err := os.Stat("corpus/tidb"); err != nil {
+		if os.Getenv("CI") != "" {
+			t.Fatalf("corpus not fetched — run ./fetch_corpus.sh: %v", err)
+		}
 		t.Skip("corpus not fetched — run ./fetch_corpus.sh")
 	}
 	entries, err := extractTiDBCorpus("corpus")

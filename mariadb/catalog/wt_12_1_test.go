@@ -7,7 +7,7 @@ import (
 
 // --- Section 8.1 (Phase 8): Prefix and Expression Index Rendering (8 scenarios) ---
 // File target: wt_12_1_test.go
-// Proof: go test ./mysql/catalog/ -short -count=1 -run "TestWalkThrough_12_1"
+// Proof: go test ./mysql/catalog/ -count=1 -run "TestWalkThrough_12_1"
 
 func TestWalkThrough_12_1_PrefixAndExpressionIndexRendering(t *testing.T) {
 	// Scenario 1: KEY idx (col(10)) — prefix length rendered in SHOW CREATE

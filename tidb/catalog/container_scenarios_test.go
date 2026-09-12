@@ -9,9 +9,6 @@ import (
 )
 
 func TestContainer_Section_1_2_StringTypes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -68,9 +65,6 @@ func TestContainer_Section_1_2_StringTypes(t *testing.T) {
 }
 
 func TestContainer_Section_1_4_DateTimeTypes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -119,9 +113,6 @@ func TestContainer_Section_1_4_DateTimeTypes(t *testing.T) {
 }
 
 func TestContainer_Section_1_1_NumericTypes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -182,9 +173,6 @@ func TestContainer_Section_1_1_NumericTypes(t *testing.T) {
 }
 
 func TestContainer_Section_1_10_ColumnAttributesCombination(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -232,9 +220,6 @@ func TestContainer_Section_1_10_ColumnAttributesCombination(t *testing.T) {
 }
 
 func TestContainer_Section_1_7_DefaultValues(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -297,9 +282,6 @@ func TestContainer_Section_1_7_DefaultValues(t *testing.T) {
 }
 
 func TestContainer_Section_1_11_PrimaryKey(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -345,9 +327,6 @@ func TestContainer_Section_1_11_PrimaryKey(t *testing.T) {
 }
 
 func TestContainer_Section_1_13_RegularIndexes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -395,9 +374,6 @@ func TestContainer_Section_1_13_RegularIndexes(t *testing.T) {
 }
 
 func TestContainer_Section_1_17_ForeignKeys(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -557,9 +533,6 @@ func TestContainer_Section_1_17_ForeignKeys(t *testing.T) {
 }
 
 func TestContainer_Section_1_12_UniqueKeys(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -604,9 +577,6 @@ func TestContainer_Section_1_12_UniqueKeys(t *testing.T) {
 }
 
 func TestContainer_Section_1_18_CheckConstraints(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -652,9 +622,6 @@ func TestContainer_Section_1_18_CheckConstraints(t *testing.T) {
 }
 
 func TestContainer_Section_1_19_TableOptions(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -707,9 +674,6 @@ func TestContainer_Section_1_19_TableOptions(t *testing.T) {
 }
 
 func TestContainer_Section_1_8_OnUpdate(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -753,9 +717,6 @@ func TestContainer_Section_1_8_OnUpdate(t *testing.T) {
 }
 
 func TestContainer_Section_1_20_CharsetCollationInheritance(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -855,9 +816,6 @@ func TestContainer_Section_1_20_CharsetCollationInheritance(t *testing.T) {
 }
 
 func TestContainer_Section_1_9_GeneratedColumns(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -932,9 +890,6 @@ func TestContainer_Section_1_9_GeneratedColumns(t *testing.T) {
 }
 
 func TestContainer_Section_1_3_BinaryTypes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -982,9 +937,6 @@ func TestContainer_Section_1_3_BinaryTypes(t *testing.T) {
 }
 
 func TestContainer_Section_1_6_JSONType(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1026,9 +978,6 @@ func TestContainer_Section_1_6_JSONType(t *testing.T) {
 }
 
 func TestContainer_Section_1_5_SpatialTypes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1079,9 +1028,6 @@ func TestContainer_Section_1_5_SpatialTypes(t *testing.T) {
 }
 
 func TestContainer_Section_1_14_FulltextSpatialIndexes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1125,9 +1071,6 @@ func TestContainer_Section_1_14_FulltextSpatialIndexes(t *testing.T) {
 }
 
 func TestContainer_Section_1_15_ExpressionIndexes(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1171,9 +1114,6 @@ func TestContainer_Section_1_15_ExpressionIndexes(t *testing.T) {
 }
 
 func TestContainer_Section_1_16_IndexOptions(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1217,9 +1157,6 @@ func TestContainer_Section_1_16_IndexOptions(t *testing.T) {
 }
 
 func TestContainer_Section_2_1_CreateTableVariants(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1350,9 +1287,6 @@ func TestContainer_Section_2_1_CreateTableVariants(t *testing.T) {
 }
 
 func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1612,9 +1546,6 @@ func TestContainer_Section_2_2_AlterTableColumnOps(t *testing.T) {
 }
 
 func TestContainer_Section_2_3_AlterTableIndexOps(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1775,9 +1706,6 @@ func TestContainer_Section_2_3_AlterTableIndexOps(t *testing.T) {
 }
 
 func TestContainer_Section_2_4_AlterTableConstraintOps(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1885,9 +1813,6 @@ func TestContainer_Section_2_4_AlterTableConstraintOps(t *testing.T) {
 }
 
 func TestContainer_Section_2_5_AlterTableTableLevel(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -1994,9 +1919,6 @@ func TestContainer_Section_2_5_AlterTableTableLevel(t *testing.T) {
 }
 
 func TestContainer_Section_2_6_DropTable(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -2167,9 +2089,6 @@ func TestContainer_Section_2_6_DropTable(t *testing.T) {
 }
 
 func TestContainer_Section_2_7_TruncateTable(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -2249,9 +2168,6 @@ func TestContainer_Section_2_7_TruncateTable(t *testing.T) {
 }
 
 func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -2466,9 +2382,6 @@ func TestContainer_Section_2_8_CreateDropIndex(t *testing.T) {
 }
 
 func TestContainer_Section_2_9_RenameTable(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -2632,9 +2545,6 @@ func TestContainer_Section_2_9_RenameTable(t *testing.T) {
 }
 
 func TestContainer_Section_2_10_CreateDropView(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -2890,9 +2800,6 @@ func TestContainer_Section_2_10_CreateDropView(t *testing.T) {
 }
 
 func TestContainer_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -3165,9 +3072,6 @@ func TestContainer_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 }
 
 func TestContainer_Section_3_1_DatabaseErrors(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -3316,9 +3220,6 @@ func TestContainer_Section_3_1_DatabaseErrors(t *testing.T) {
 }
 
 func TestContainer_Section_3_2_TableErrors(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -3463,9 +3364,6 @@ func TestContainer_Section_3_2_TableErrors(t *testing.T) {
 }
 
 func TestContainer_Section_3_3_ColumnErrors(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -3611,9 +3509,6 @@ func TestContainer_Section_3_3_ColumnErrors(t *testing.T) {
 }
 
 func TestContainer_Section_3_4_IndexKeyErrors(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -3720,9 +3615,6 @@ func TestContainer_Section_3_4_IndexKeyErrors(t *testing.T) {
 }
 
 func TestContainer_Section_3_5_FKErrors(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -3873,9 +3765,6 @@ func TestContainer_Section_3_5_FKErrors(t *testing.T) {
 }
 
 func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -4282,9 +4171,6 @@ func TestContainer_Section_3_6_ErrorContext(t *testing.T) {
 }
 
 func TestContainer_Section_4_1_Partitioning(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -4619,9 +4505,6 @@ func TestContainer_Section_4_1_Partitioning(t *testing.T) {
 }
 
 func TestContainer_Section_4_2_StoredRoutines(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -4728,9 +4611,6 @@ func extractViewPreamble(ddl string) string {
 }
 
 func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -4918,9 +4798,6 @@ func TestContainer_Section_4_5_ViewsDeep(t *testing.T) {
 }
 
 func TestContainer_Section_5_1_UseStatement(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -5017,9 +4894,6 @@ func TestContainer_Section_5_1_UseStatement(t *testing.T) {
 }
 
 func TestContainer_Section_5_2_SetVariables(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -5160,9 +5034,6 @@ func TestContainer_Section_5_2_SetVariables(t *testing.T) {
 // These are marked [~] partial because the in-memory catalog does not actually
 // store users, roles, or privileges — it just silently accepts them.
 func TestContainer_Section_5_3_UserRoleManagement(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -5255,9 +5126,6 @@ func TestContainer_Section_5_3_UserRoleManagement(t *testing.T) {
 }
 
 func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -5474,9 +5342,6 @@ func TestContainer_Section_6_1_ShowCreateTableIntegration(t *testing.T) {
 // output against real MySQL 8.0. This complements sections 4.2-4.5 by testing additional patterns
 // and verifying SHOW CREATE as a query API surface.
 func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 
@@ -5566,9 +5431,6 @@ func TestContainer_Section_6_2_ShowCreateOtherObjects(t *testing.T) {
 // INFORMATION_SCHEMA query engine — users cannot run SELECT ... FROM
 // INFORMATION_SCHEMA.* against the in-memory catalog.
 func TestContainer_Section_6_3_InformationSchemaConsistency(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
 

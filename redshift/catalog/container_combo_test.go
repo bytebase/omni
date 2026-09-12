@@ -105,9 +105,6 @@ func generateMigrationSQL(t *testing.T, beforeDDL, afterDDL string) string {
 // ---------------------------------------------------------------------------
 
 func TestContainerCombo(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// -------------------------------------------------------------------
@@ -430,9 +427,6 @@ CREATE TABLE b (
 // ---------------------------------------------------------------------------
 
 func TestContainerIdentifierQuoting(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	t.Run("camelCase_column_names", func(t *testing.T) {
@@ -534,9 +528,6 @@ CREATE TABLE "order" (
 // ---------------------------------------------------------------------------
 
 func TestContainerMultiColumnAndCrossSchema(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	t.Run("multi_column_primary_key", func(t *testing.T) {

@@ -179,9 +179,6 @@ const allTypesDDL = typeEnumDDL + "\n" +
 // ---------------------------------------------------------------------------
 
 func TestContainerFullyLoaded(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// -----------------------------------------------------------------------

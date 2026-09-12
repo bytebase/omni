@@ -266,6 +266,7 @@ func TestMain(m *testing.M) {
 		sharedMySQL.container = nil
 	}
 	sharedMySQL.Unlock()
+	terminateOracleFallbacks()
 	os.Exit(code)
 }
 
@@ -497,9 +498,6 @@ func normalizeWhitespace(s string) string {
 }
 
 func TestContainerSmoke(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 
 	ctr, cleanup := startContainer(t)
 	defer cleanup()
@@ -540,9 +538,6 @@ func TestContainerSmoke(t *testing.T) {
 }
 
 func TestSharedContainerResetsStateBetweenUses(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test in short mode")
-	}
 
 	ctr1, cleanup1 := startContainer(t)
 	var host1 string

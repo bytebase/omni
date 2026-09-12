@@ -7,7 +7,7 @@ import (
 
 // --- Section 6.2 (Phase 6): LIKE Edge Cases (7 scenarios) ---
 // File target: wt_10_2_test.go
-// Proof: go test ./mysql/catalog/ -short -count=1 -run "TestWalkThrough_10_2"
+// Proof: go test ./mysql/catalog/ -count=1 -run "TestWalkThrough_10_2"
 
 func TestWalkThrough_10_2_LIKEEdgeCases(t *testing.T) {
 	// Scenario 1: LIKE copies generated columns — expression and VIRTUAL/STORED preserved

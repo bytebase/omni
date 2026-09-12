@@ -4,7 +4,7 @@ import "testing"
 
 // --- Section 7.1 (Phase 7): Catalog State Isolation (8 scenarios) ---
 // File target: wt_11_1_test.go
-// Proof: go test ./mysql/catalog/ -short -count=1 -run "TestWalkThrough_11_1"
+// Proof: go test ./mysql/catalog/ -count=1 -run "TestWalkThrough_11_1"
 
 func TestWalkThrough_11_1_CatalogStateIsolation(t *testing.T) {
 	t.Run("separate_catalogs_independent", func(t *testing.T) {

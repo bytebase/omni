@@ -6,7 +6,7 @@ import "testing"
 // features: INSERT divergences (OVERWRITE no-TABLE, BY NAME, FILES target),
 // CTE-prefixed DELETE/UPDATE, and the async-MV REFRESH ASYNC EVERY schedule.
 // Each construct is asserted accepted by BOTH the omni parser and StarRocks 3.4,
-// and each sibling-arm negative rejected by both. Short-gated via startStarRocks.
+// and each sibling-arm negative rejected by both. Container-gated via startStarRocks.
 //
 // Reject probes fail INSIDE the construct (the parser does not enforce
 // end-of-input, so trailing-garbage rejects would be false-accepted).

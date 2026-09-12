@@ -31,9 +31,6 @@ import (
 // unrelated surface; the enterprise-baseline harness leg this test
 // replicates (TestSDLEnterpriseBaseline/mysql80/sys) targets 8.0.
 func TestOracle_SysSchemaDogfood(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	o := connectOracle(t, MySQL80)
 	n := NormalizerFor(MySQL80)
 	ctx := context.Background()

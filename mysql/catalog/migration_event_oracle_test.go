@@ -27,8 +27,8 @@ import (
 //     comment, body). When nothing changed the plan is empty.
 //
 // The harness reuses connectOracle / serverCharsetFor / both / only / containsVersion /
-// NormalizerFor from the existing oracle tests; it skips cleanly when the engines are unreachable,
-// so the unit suite stays hermetic (go test -short skips it). Event DDL applies regardless of
+// NormalizerFor from the existing oracle tests; it falls back to a shared testcontainer per version
+// when the local engines are unreachable (oracle_fallback_test.go). Event DDL applies regardless of
 // event_scheduler state, so these run with the scheduler at the box default.
 
 // loadOneEvent loads a CREATE EVENT (wrapped in a database whose default charset matches the
@@ -121,9 +121,6 @@ func eventIdempotenceProbes() []struct {
 // diffs EMPTY, the stored form self-diffs empty, and the no-op plan is "", on every supported
 // version.
 func TestOracle_EventIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(version)
@@ -223,9 +220,6 @@ func eventMigrationProbes() []struct {
 // TestOracle_EventApplyCorrectness proves gate 2: the generated plan transforms a real `from`
 // event-database into a `to`-equal one, for CREATE / DROP / ALTER across every form.
 func TestOracle_EventApplyCorrectness(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		sc := serverCharsetFor(version)

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
+	"sync"
 	"testing"
 
 	_ "github.com/microsoft/go-mssqldb"
@@ -11,59 +13,92 @@ import (
 	tcmssql "github.com/testcontainers/testcontainers-go/modules/mssql"
 )
 
-// parserOracle wraps a SQL Server container for syntax-level oracle testing.
 type parserOracle struct {
 	db  *sql.DB
 	ctx context.Context
 }
 
-// startParserOracle starts SQL Server 2022 via testcontainers and returns a
-// parserOracle. The container is cleaned up automatically when the test ends.
+// sharedMSSQL is the package-wide SQL Server 2022 oracle. SQL Server takes
+// 15-20s to boot, so one container serves every test in the package instead
+// of one per test. The tests only ever run SET PARSEONLY ON checks, which
+// execute nothing, so there is no state to isolate between them.
+var sharedMSSQL struct {
+	once      sync.Once
+	container *tcmssql.MSSQLServerContainer
+	db        *sql.DB
+	err       error
+}
+
+// startParserOracle returns the shared SQL Server oracle, starting it on first
+// use. It fails the test in CI when the container cannot start and skips
+// locally, so a laptop without Docker still runs the rest of the package.
 func startParserOracle(t *testing.T) *parserOracle {
 	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
-	}
-
-	ctx := context.Background()
-
-	container, err := tcmssql.Run(ctx, "mcr.microsoft.com/mssql/server:2022-latest",
-		tcmssql.WithAcceptEULA(),
-		tcmssql.WithPassword("Str0ngPa$$w0rd!"),
-	)
-	if err != nil {
-		t.Fatalf("failed to start SQL Server container: %v", err)
-	}
-	t.Cleanup(func() { _ = testcontainers.TerminateContainer(container) })
-
-	connStr, err := container.ConnectionString(ctx)
-	if err != nil {
-		t.Fatalf("failed to get connection string: %v", err)
-	}
-
-	db, err := sql.Open("sqlserver", connStr)
-	if err != nil {
-		t.Fatalf("failed to open database: %v", err)
-	}
-	t.Cleanup(func() { db.Close() })
-
-	if err := db.PingContext(ctx); err != nil {
-		t.Fatalf("failed to ping SQL Server: %v", err)
-	}
-
-	// Create a test database and table for queries that reference objects
-	setupSQL := []string{
-		"CREATE DATABASE testdb",
-		"USE testdb",
-		"CREATE TABLE dbo.t (a INT, col INT, partition INT, encryption INT, window INT, bucket INT)",
-	}
-	for _, s := range setupSQL {
-		if _, err := db.ExecContext(ctx, s); err != nil {
-			t.Fatalf("setup SQL failed (%s): %v", s, err)
+	sharedMSSQL.once.Do(func() {
+		ctx := context.Background()
+		container, err := tcmssql.Run(ctx, "mcr.microsoft.com/mssql/server:2022-latest",
+			tcmssql.WithAcceptEULA(),
+			tcmssql.WithPassword("Str0ngPa$$w0rd!"),
+		)
+		if err != nil {
+			sharedMSSQL.err = fmt.Errorf("start SQL Server container: %w", err)
+			return
 		}
+		fail := func(err error) {
+			_ = testcontainers.TerminateContainer(container)
+			sharedMSSQL.err = err
+		}
+		connStr, err := container.ConnectionString(ctx)
+		if err != nil {
+			fail(fmt.Errorf("connection string: %w", err))
+			return
+		}
+		db, err := sql.Open("sqlserver", connStr)
+		if err != nil {
+			fail(fmt.Errorf("open database: %w", err))
+			return
+		}
+		// SET PARSEONLY and USE are session state: pin the pool to one
+		// connection so every statement sees them.
+		db.SetMaxOpenConns(1)
+		db.SetMaxIdleConns(1)
+		if err := db.PingContext(ctx); err != nil {
+			_ = db.Close()
+			fail(fmt.Errorf("ping SQL Server: %w", err))
+			return
+		}
+		// Create a test database and table for queries that reference objects.
+		for _, s := range []string{
+			"CREATE DATABASE testdb",
+			"USE testdb",
+			"CREATE TABLE dbo.t (a INT, col INT, partition INT, encryption INT, window INT, bucket INT)",
+		} {
+			if _, err := db.ExecContext(ctx, s); err != nil {
+				_ = db.Close()
+				fail(fmt.Errorf("setup SQL failed (%s): %w", s, err))
+				return
+			}
+		}
+		sharedMSSQL.container, sharedMSSQL.db = container, db
+	})
+	if sharedMSSQL.err != nil {
+		if os.Getenv("CI") != "" {
+			t.Fatalf("SQL Server oracle required in CI but unavailable: %v", sharedMSSQL.err)
+		}
+		t.Skipf("SQL Server oracle unavailable: %v", sharedMSSQL.err)
 	}
+	return &parserOracle{db: sharedMSSQL.db, ctx: context.Background()}
+}
 
-	return &parserOracle{db: db, ctx: ctx}
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if sharedMSSQL.db != nil {
+		_ = sharedMSSQL.db.Close()
+	}
+	if sharedMSSQL.container != nil {
+		_ = testcontainers.TerminateContainer(sharedMSSQL.container)
+	}
+	os.Exit(code)
 }
 
 // canParse tests whether SQL Server accepts the given SQL without execution errors.

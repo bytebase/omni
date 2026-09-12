@@ -30,9 +30,6 @@ COMMENT ON TABLE t1 IS 'Test table';
 // ---------------------------------------------------------------------------
 
 func TestContainerTable_ColumnChanges(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// --- Change column type: varchar(100) → varchar(200) ---
@@ -383,9 +380,6 @@ CREATE TABLE t1 (
 // ---------------------------------------------------------------------------
 
 func TestContainerTable_ConstraintChanges(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// --- Add PRIMARY KEY ---
@@ -688,9 +682,6 @@ CREATE TABLE t1 (
 // ---------------------------------------------------------------------------
 
 func TestContainerTable_AttachedObjectChanges(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// --- Add standalone index ---
@@ -1243,9 +1234,6 @@ CREATE TABLE t1 (
 // ---------------------------------------------------------------------------
 
 func TestContainerTable_TriggerGaps(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// --- Trigger BEFORE DELETE ---
@@ -1349,9 +1337,6 @@ CREATE TRIGGER t1_after_delete_ref
 // ---------------------------------------------------------------------------
 
 func TestContainerTable_PolicyGaps(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// --- Policy AS RESTRICTIVE ---
@@ -1482,9 +1467,6 @@ CREATE POLICY t1_pub ON t1 FOR SELECT TO PUBLIC USING (true);
 // ---------------------------------------------------------------------------
 
 func TestContainerTable_PolicyAlterVariants(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	t.Run("alter_policy_change_using_expression", func(t *testing.T) {
@@ -1614,9 +1596,6 @@ ALTER TABLE t1 ENABLE ROW LEVEL SECURITY;
 // ---------------------------------------------------------------------------
 
 func TestContainerTable_ConstraintTriggerAndLike(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	t.Run("constraint_trigger_deferrable", func(t *testing.T) {

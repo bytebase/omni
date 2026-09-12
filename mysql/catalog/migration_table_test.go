@@ -82,9 +82,6 @@ func autoIncFKProbes() []struct {
 // generated multi-table plan (parent + child + deferred FK) applies cleanly and the child reads
 // back equal to its stored form.
 func TestOracle_AutoIncFKImplicitApply(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -174,9 +171,6 @@ func assertAutoIncFKApply(t *testing.T, o *oracleConn, n *Normalizer, id, parent
 // TestOracle_AutoIncSupportingKeyApply proves the generated plan for an AUTO_INCREMENT column backed
 // only by a non-PK key applies cleanly on a real engine and reads back equal to `to`.
 func TestOracle_AutoIncSupportingKeyApply(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		n := NormalizerFor(version)
@@ -265,9 +259,6 @@ func assertAutoIncApply(t *testing.T, o *oracleConn, n *Normalizer, p autoIncPro
 // round-trip empty: the stored form self-diffs empty and the user form vs the stored form diffs
 // empty (no phantom diff introduced by the inlined key).
 func TestOracle_AutoIncSupportingKeyIdempotence(t *testing.T) {
-	if testing.Short() {
-		t.Skip("oracle test skipped in short mode")
-	}
 	for _, version := range both() {
 		o := connectOracle(t, version)
 		for _, p := range autoIncSupportProbes() {

@@ -48,9 +48,6 @@ var (
 
 func s3Conn(t *testing.T) *sql.DB {
 	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping S3 differential in short mode")
-	}
 	s3Once.Do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 		defer cancel()

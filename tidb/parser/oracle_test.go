@@ -20,9 +20,6 @@ type parserOracle struct {
 // parserOracle. The container is cleaned up automatically when the test ends.
 func startParserOracle(t *testing.T) *parserOracle {
 	t.Helper()
-	if testing.Short() {
-		t.Skip("skipping oracle test in short mode")
-	}
 
 	ctx := context.Background()
 

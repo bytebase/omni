@@ -7,9 +7,6 @@ import (
 
 // TestContainerType covers section 2.6: Type/Sequence/Extension Changes.
 func TestContainerType(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// -----------------------------------------------------------------------
@@ -313,9 +310,6 @@ func TestContainerType(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestContainerCommentGaps(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// --- COMMENT ON INDEX ---
@@ -432,9 +426,6 @@ COMMENT ON TRIGGER t1_trig ON t1 IS 'Update trigger';
 // ---------------------------------------------------------------------------
 
 func TestContainerIndexGaps(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// --- Index USING hash ---
@@ -479,9 +470,6 @@ CREATE INDEX idx_created_brin ON t1 USING brin (created_at);
 // ---------------------------------------------------------------------------
 
 func TestContainerInherits(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	// --- Table INHERITS ---
@@ -510,9 +498,6 @@ CREATE TABLE child_tbl (
 // ---------------------------------------------------------------------------
 
 func TestContainerDomainWithFunctionCheck(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping container test: requires Docker")
-	}
 	ctr := startPGContainer(t)
 
 	t.Run("domain_with_function_in_check_change_function_body", func(t *testing.T) {
