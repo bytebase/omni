@@ -25,7 +25,7 @@ declare -a SHARD_NAMES=(
 shard_regex() {
     case "$1" in
         smoke-and-misc)
-            printf '%s\n' '^(TestDDLWorkflow_Container|TestShowCreateTable_ContainerComparison|TestContainerSmoke|TestContainer_ReservedKeywordAcceptance|TestSpotCheck_CatalogVerification|TestMySQL_DeparseRules)$'
+            printf '%s\n' '^(TestDDLWorkflow_Container|TestShowCreateTable_ContainerComparison|TestContainerSmoke|TestContainer_ReservedKeywordAcceptance|TestSpotCheck_CatalogVerification|TestMySQL_DeparseRules|TestContainer_LoadMetadataIndexTypesMatchEngine)$'
             ;;
         section-1-core)
             printf '%s\n' '^TestContainer_Section_1_([1-9]|10|11|12)_'
