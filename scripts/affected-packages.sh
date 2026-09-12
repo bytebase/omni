@@ -4,9 +4,10 @@
 # The engines are independent Go trees (only metadata is shared), so a change
 # maps to its top-level directory plus every directory whose packages, or
 # their tests, import it. A change outside any Go directory (go.mod, proto,
-# workflows, root files) or under scripts/, which holds the CI drivers
-# themselves, means ./... . Markdown under docs/ or at the root cannot affect a
-# test and is ignored.
+# workflows, root files), under scripts/ (the CI drivers themselves) or under
+# harness/ (external harnesses that tests exec rather than import) means
+# ./... . Markdown under docs/ or at the root cannot affect a test and is
+# ignored.
 #
 # Usage: scripts/affected-packages.sh origin/main
 set -euo pipefail
@@ -16,7 +17,8 @@ changed=$(git diff --name-only "$base...HEAD" | { grep -vE '^(docs/|[^/]+\.md$)'
 	awk -F/ '{ print (NF > 1 ? $1 : ".") }' | sort -u | xargs)
 [ -n "$changed" ] || exit 0
 for d in $changed; do
-	[ "$d" != . ] && [ "$d" != scripts ] && [ -n "$(find "$d" -name '*.go' -print -quit)" ] || { echo ./...; exit 0; }
+	case "$d" in .|scripts|harness) echo ./...; exit 0 ;; esac
+	[ -n "$(find "$d" -name '*.go' -print -quit)" ] || { echo ./...; exit 0; }
 done
 
 mod=$(go list -m)/
