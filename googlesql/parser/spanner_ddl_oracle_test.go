@@ -1,5 +1,3 @@
-//go:build googlesql_oracle
-
 // Differential test for the parser-ddl-spanner node (Spanner DDL: CHANGE STREAM,
 // SEQUENCE, ROLE, LOCALITY GROUP, PROTO BUNDLE, and role-based GRANT/REVOKE)
 // against the live Cloud Spanner emulator oracle. Run with:
@@ -59,7 +57,7 @@ var spannerDDLFixtures = []spannerDDLFixture{
 	{"ALTER CHANGE STREAM MyStream DROP FOR ALL", true},
 	{"ALTER CHANGE STREAM MyStream SET OPTIONS (retention_period = '2d')", true},
 	{"DROP CHANGE STREAM MyStream", true},
-	{"CREATE CHANGE STREAM cs_sch FOR myschema.Singers", true},          // schema-qualified table
+	{"CREATE CHANGE STREAM cs_sch FOR myschema.Singers", true},                  // schema-qualified table
 	{"CREATE CHANGE STREAM cs_cols FOR Singers(`select`, key), Albums()", true}, // keyword/quoted cols, empty parens
 	// reject — ALL is not a table name; FOR ALL cannot be in a list; no trailing comma.
 	{"CREATE CHANGE STREAM cs FOR Singers, ALL", false},
@@ -67,10 +65,10 @@ var spannerDDLFixtures = []spannerDDLFixture{
 	{"CREATE CHANGE STREAM cs FOR Singers(a,)", false}, // trailing comma in column list NOT allowed
 	{"CREATE CHANGE STREAM cs FOR Singers,", false},    // trailing comma in table list NOT allowed
 	// reject
-	{"CREATE CHANGE STREAM cs FOR", false},        // dangling FOR
-	{"ALTER CHANGE STREAM cs DROP FOR", false},    // DROP FOR without ALL
-	{"ALTER CHANGE STREAM cs SET", false},         // SET with nothing
-	{"ALTER CHANGE STREAM cs", false},             // no action
+	{"CREATE CHANGE STREAM cs FOR", false},     // dangling FOR
+	{"ALTER CHANGE STREAM cs DROP FOR", false}, // DROP FOR without ALL
+	{"ALTER CHANGE STREAM cs SET", false},      // SET with nothing
+	{"ALTER CHANGE STREAM cs", false},          // no action
 
 	// ===================== SEQUENCE =====================
 	{"CREATE SEQUENCE Seq1 OPTIONS (sequence_kind = 'bit_reversed_positive')", true},
@@ -99,8 +97,8 @@ var spannerDDLFixtures = []spannerDDLFixture{
 	{"ALTER LOCALITY GROUP lg_bare", true}, // SET OPTIONS is OPTIONAL for LOCALITY GROUP (unlike SEQUENCE)
 	{"DROP LOCALITY GROUP lg_cold", true},
 	// reject
-	{"ALTER LOCALITY GROUP g SET", false},          // SET with no OPTIONS
-	{"ALTER LOCALITY GROUP g RENAME TO h", false},  // not a valid action
+	{"ALTER LOCALITY GROUP g SET", false},         // SET with no OPTIONS
+	{"ALTER LOCALITY GROUP g RENAME TO h", false}, // not a valid action
 
 	// ===================== PROTO BUNDLE =====================
 	// CREATE PROTO BUNDLE with an empty descriptor file is a SEMANTIC failure
@@ -117,7 +115,7 @@ var spannerDDLFixtures = []spannerDDLFixture{
 	{"ALTER PROTO BUNDLE INSERT (`a.b.C`), UPDATE (`a.b.D`)", false}, // comma between groups
 	{"ALTER PROTO BUNDLE INSERT (`a.b.C`) INSERT (`a.b.D`)", false},  // repeated group
 	{"ALTER PROTO BUNDLE UPDATE (`a.b.C`) INSERT (`a.b.D`)", false},  // out of order
-	{"ALTER PROTO BUNDLE INSERT", false},                            // INSERT with no parens
+	{"ALTER PROTO BUNDLE INSERT", false},                             // INSERT with no parens
 
 	// ===================== role-based GRANT / REVOKE =====================
 	{"GRANT SELECT ON TABLE T_grant TO ROLE r_g", true},
@@ -226,6 +224,7 @@ type spannerDDLHarness struct {
 
 func newSpannerDDLHarness(t *testing.T) *spannerDDLHarness {
 	t.Helper()
+	requireEmulator(t)
 	_, thisFile, _, _ := runtime.Caller(0)
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
 	projDir := filepath.Join(repoRoot, "harness", "googlesql-spanner")

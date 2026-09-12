@@ -31,6 +31,11 @@ jobs:
         # image's health check. Keep the tag in sync with trinooracle.DefaultImage.
         image: trinodb/trino:482
         ports: ['8080']
+      spanner:
+        # The googlesql differentials record verdicts from this exact emulator
+        # build (sha256:caf1bd24…); newer builds drift, so keep it pinned.
+        image: gcr.io/cloud-spanner-emulator/emulator:1.5.54
+        ports: ['9010']
     steps:
       - uses: actions/checkout@v4
         with:
@@ -70,6 +75,7 @@ jobs:
         if: steps.affected.outputs.pkgs != ''
         env:
           TRINO_ORACLE_URL: http://localhost:${{ job.services.trino.ports['8080'] }}
+          SPANNER_EMULATOR_HOST: localhost:${{ job.services.spanner.ports['9010'] }}
         # The trino packages share the one Trino service and run stateful DDL
         # against the same names, so they run one at a time, after the rest.
         run: |
@@ -78,13 +84,9 @@ jobs:
           grep /trino/ <<< "$pkgs" | xargs -r go test -p=1 -count=1
 
       - name: Nested modules (own go.mod, not reached by ./...)
+        env:
+          SPANNER_EMULATOR_HOST: localhost:${{ job.services.spanner.ports['9010'] }}
         run: |
           harness/conformance/fetch_corpus.sh
           (cd harness/conformance && go test -count=1 ./...)
           (cd harness/googlesql-spanner && go test -count=1 ./...)
-
-      - name: Build-tagged test code compiles
-        # One lane stays behind a build tag because it cannot gate a PR yet:
-        # googlesql_oracle (the Spanner emulator drifted from the recorded
-        # verdicts). Compile it so a PR cannot break it invisibly.
-        run: go test -tags=googlesql_oracle -run '^$' ./googlesql/parser/ ./googlesql/analysis/

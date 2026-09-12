@@ -1,5 +1,3 @@
-//go:build googlesql_oracle
-
 // Differential / triangulation gate for the parser-ddl-bigquery node against the
 // live Cloud Spanner emulator. Run with:
 //
@@ -80,6 +78,9 @@ var bqOracleFixtures = []bqOracleExpectation{
 
 func TestBQDDLTriangulation(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		if os.Getenv("CI") != "" {
+			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
+		}
 		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live triangulation guard")
 	}
 	h := newDDLHarness(t)

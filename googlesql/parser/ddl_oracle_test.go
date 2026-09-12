@@ -1,5 +1,3 @@
-//go:build googlesql_oracle
-
 // Differential test for the parser-ddl node (core DDL: CREATE/ALTER/DROP TABLE/
 // VIEW/INDEX/SCHEMA/DATABASE) against the live Cloud Spanner emulator oracle. Run
 // with:
@@ -189,6 +187,9 @@ var ddlFixtures = []ddlFixture{
 
 func TestDDLDifferential(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		if os.Getenv("CI") != "" {
+			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
+		}
 		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
 	}
 	h := newDDLHarness(t)
@@ -251,8 +252,22 @@ type ddlHarness struct {
 	mu     sync.Mutex
 }
 
+// requireEmulator skips the test locally when no Spanner emulator is
+// configured and fails it in CI, where ci.yml always provides one. Every
+// harness constructor calls it, so no differential can run without one.
+func requireEmulator(t *testing.T) {
+	t.Helper()
+	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		if os.Getenv("CI") != "" {
+			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
+		}
+		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
+	}
+}
+
 func newDDLHarness(t *testing.T) *ddlHarness {
 	t.Helper()
+	requireEmulator(t)
 	_, thisFile, _, _ := runtime.Caller(0)
 	// googlesql/parser/ddl_oracle_test.go → repo root is ../..
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))

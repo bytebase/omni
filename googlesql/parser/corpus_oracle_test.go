@@ -1,5 +1,3 @@
-//go:build googlesql_oracle
-
 // Whole-corpus differential for googlesql/corpus-closure against the live Cloud
 // Spanner emulator oracle. Run with:
 //
@@ -46,6 +44,9 @@ import (
 
 func TestCorpusSpannerDifferential(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		if os.Getenv("CI") != "" {
+			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
+		}
 		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live corpus differential")
 	}
 	blocks := collectOfficialCorpus(t)
@@ -192,6 +193,7 @@ type corpusHarness struct {
 
 func newCorpusHarness(t *testing.T) *corpusHarness {
 	t.Helper()
+	requireEmulator(t)
 	_, thisFile, _, _ := runtime.Caller(0)
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
 	projDir := filepath.Join(repoRoot, "harness", "googlesql-spanner")

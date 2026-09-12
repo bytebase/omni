@@ -1,5 +1,3 @@
-//go:build googlesql_oracle
-
 // Differential test for the googlesql/analysis node against the live Cloud
 // Spanner emulator oracle. Run with:
 //
@@ -91,6 +89,9 @@ var classifyCorpus = []struct {
 // agrees with the statement's true (read-only vs data/schema-changing) nature.
 func TestAnalysisDifferential(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		if os.Getenv("CI") != "" {
+			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
+		}
 		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
 	}
 	h := newAnalysisHarness(t)

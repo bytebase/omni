@@ -80,10 +80,16 @@ import (
 const (
 	project    = "test-project"
 	instanceID = "test-instance"
-	dbID       = "googlesql_harness"
 	parent     = "projects/" + project + "/instances/" + instanceID
-	dbPath     = parent + "/databases/" + dbID
 	configName = "projects/" + project + "/instanceConfigs/emulator-config"
+)
+
+// Each harness process gets its own scratch database, so test binaries that
+// run in parallel against one emulator (googlesql/parser, googlesql/analysis)
+// cannot drop or bootstrap each other's. close() drops it again.
+var (
+	dbID   = fmt.Sprintf("googlesql_harness_%d", os.Getpid())
+	dbPath = parent + "/databases/" + dbID
 )
 
 // errAbort rolls back a DML validation transaction once the statement has
@@ -187,8 +193,7 @@ func newOracle(ctx context.Context) (*oracle, error) {
 	if err != nil {
 		return nil, fmt.Errorf("database admin client: %w", err)
 	}
-	// Fresh, empty scratch database each run for deterministic verdicts.
-	_ = dbAdmin.DropDatabase(ctx, &databasepb.DropDatabaseRequest{Database: dbPath})
+	// Fresh, empty, per-process scratch database for deterministic verdicts.
 	op, err := dbAdmin.CreateDatabase(ctx, &databasepb.CreateDatabaseRequest{
 		Parent:          parent,
 		CreateStatement: "CREATE DATABASE `" + dbID + "`",
@@ -208,6 +213,9 @@ func newOracle(ctx context.Context) (*oracle, error) {
 }
 
 func (o *oracle) close() {
+	if o.dbAdmin != nil {
+		_ = o.dbAdmin.DropDatabase(context.Background(), &databasepb.DropDatabaseRequest{Database: dbPath})
+	}
 	if o.cli != nil {
 		o.cli.Close()
 	}

@@ -1,5 +1,3 @@
-//go:build googlesql_oracle
-
 // Differential / triangulation gate for the parser-dml-ext node against the live
 // Cloud Spanner emulator. Run with:
 //
@@ -90,6 +88,9 @@ var exportLoadCloneDivergentFixtures = []bqOracleExpectation{
 // BigQuery data-movement form, asserted oracle=accept (semantic) AND omni=accept.
 func TestExportLoadCloneTriangulation(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		if os.Getenv("CI") != "" {
+			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
+		}
 		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live triangulation guard")
 	}
 	h := newDDLHarness(t)
@@ -106,6 +107,9 @@ func TestExportLoadCloneTriangulation(t *testing.T) {
 // authoritative grammar + docs win over the non-authoritative emulator.
 func TestExportLoadCloneDivergence(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		if os.Getenv("CI") != "" {
+			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
+		}
 		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live triangulation guard")
 	}
 	h := newDDLHarness(t)

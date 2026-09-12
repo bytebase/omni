@@ -1,5 +1,3 @@
-//go:build googlesql_oracle
-
 // Differential test for the `parser-dml` node against the live Cloud Spanner
 // emulator oracle. Run with:
 //
@@ -143,6 +141,9 @@ var dmlFixtures = []dmlFixture{
 
 func TestDMLDifferential(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		if os.Getenv("CI") != "" {
+			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
+		}
 		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
 	}
 	h := newSelectHarness(t)

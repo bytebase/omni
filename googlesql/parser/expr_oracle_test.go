@@ -1,5 +1,3 @@
-//go:build googlesql_oracle
-
 // Differential test for the `expressions` node against the live Cloud Spanner
 // emulator oracle. Run with:
 //
@@ -238,6 +236,9 @@ var exprFixtures = []exprFixture{
 
 func TestExprDifferential(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		if os.Getenv("CI") != "" {
+			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
+		}
 		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
 	}
 	h := newExprHarness(t)
@@ -297,6 +298,7 @@ type exprHarness struct {
 
 func newExprHarness(t *testing.T) *exprHarness {
 	t.Helper()
+	requireEmulator(t)
 	_, thisFile, _, _ := runtime.Caller(0)
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
 	projDir := filepath.Join(repoRoot, "harness", "googlesql-spanner")

@@ -1,5 +1,3 @@
-//go:build googlesql_oracle
-
 // Differential test for the `types` node against the live Cloud Spanner
 // emulator oracle. Run with:
 //
@@ -146,6 +144,9 @@ var typeFixtures = []typeFixture{
 
 func TestTypeDifferential(t *testing.T) {
 	if os.Getenv("SPANNER_EMULATOR_HOST") == "" {
+		if os.Getenv("CI") != "" {
+			t.Fatal("SPANNER_EMULATOR_HOST not set in CI")
+		}
 		t.Skip("SPANNER_EMULATOR_HOST not set; skipping live differential")
 	}
 	h := newTypeHarness(t)
@@ -206,6 +207,7 @@ type typeHarness struct {
 
 func newTypeHarness(t *testing.T) *typeHarness {
 	t.Helper()
+	requireEmulator(t)
 	_, thisFile, _, _ := runtime.Caller(0)
 	// googlesql/parser/datatypes_oracle_test.go → repo root is ../..
 	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
