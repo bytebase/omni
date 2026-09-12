@@ -75,8 +75,8 @@ jobs:
         # against the same names, so they run one at a time, after the rest.
         run: |
           pkgs=$(go list ${{ steps.affected.outputs.pkgs }})
-          grep -v /trino/ <<< "$pkgs" | xargs -r go test -p=8 -count=1
-          grep /trino/ <<< "$pkgs" | xargs -r go test -p=1 -count=1
+          { grep -v /trino/ <<< "$pkgs" || true; } | xargs -r go test -p=8 -count=1
+          { grep /trino/ <<< "$pkgs" || true; } | xargs -r go test -p=1 -count=1
 
       - name: Nested modules (own go.mod, not reached by ./...)
         env:
