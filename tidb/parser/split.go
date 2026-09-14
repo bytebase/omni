@@ -1,5 +1,7 @@
 package parser
 
+import "strings"
+
 // Segment represents a portion of SQL text delimited by top-level semicolons.
 type Segment struct {
 	Text      string // the raw text of this segment (without trailing semicolon)
@@ -523,12 +525,21 @@ func skipHashComment(sql string, i int) int {
 // comment (/*!...*/ or TiDB's /*T!...*/). The lexer searches for THAT
 // comment's own close by depth-counting nested /* sequences (lexer.go), so
 // Split must agree on where it ends; only an ordinary comment closes at the
-// first */.
+// first */. Like the lexer, a /*T![...] gate with a malformed bracket or an
+// unsupported feature is an ordinary comment.
 func isExecutableCommentStart(sql string, i int) bool {
 	if i+2 < len(sql) && sql[i] == '/' && sql[i+1] == '*' && sql[i+2] == '!' {
 		return true
 	}
-	return i+3 < len(sql) && sql[i] == '/' && sql[i+1] == '*' && sql[i+2] == 'T' && sql[i+3] == '!'
+	if !(i+3 < len(sql) && sql[i] == '/' && sql[i+1] == '*' && sql[i+2] == 'T' && sql[i+3] == '!') {
+		return false
+	}
+	gate := i + 4
+	if gate >= len(sql) || sql[gate] != '[' {
+		return true
+	}
+	bracketEnd := strings.IndexByte(sql[gate+1:], ']')
+	return bracketEnd >= 0 && allTiDBFeaturesSupported(sql[gate+1:gate+1+bracketEnd])
 }
 
 // skipBlockCommentMySQL skips a block comment starting at position i. An

@@ -205,6 +205,14 @@ func TestSplitQuotingAndComments(t *testing.T) {
 			want: []string{"/*T! /* c */ SELECT 1; */ SELECT 2"},
 		},
 		{
+			// An unsupported /*T![feature] gate is an ordinary comment to the
+			// lexer (it never splices the content in), so it closes at the first
+			// */ like any other plain comment.
+			name: "unsupported TiDB feature gate is an ordinary comment",
+			sql:  "SELECT 1 /*T![future] /* c */; DROP TABLE t; -- */",
+			want: []string{"SELECT 1 /*T![future] /* c */", " DROP TABLE t"},
+		},
+		{
 			name: "-- without space is not comment",
 			sql:  "SELECT 1--2; SELECT 3;",
 			want: []string{"SELECT 1--2", " SELECT 3"},

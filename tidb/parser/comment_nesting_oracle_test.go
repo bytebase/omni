@@ -15,25 +15,34 @@ import (
 // and Parse must describe the same two statements.
 func TestBlockCommentDoesNotNest_Oracle(t *testing.T) {
 	tc := startTiDB(t)
-	tc.db.ExecContext(tc.ctx, "CREATE DATABASE IF NOT EXISTS comment_nest_1")
-	tc.db.ExecContext(tc.ctx, "USE comment_nest_1")
-	defer tc.db.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS comment_nest_1")
+	// USE is session state: a dedicated connection keeps every statement
+	// below on the database it selects, rather than an arbitrary connection
+	// from the shared pool.
+	conn, err := tc.db.Conn(tc.ctx)
+	if err != nil {
+		t.Fatalf("acquire connection: %v", err)
+	}
+	defer conn.Close()
 
-	if _, err := tc.db.ExecContext(tc.ctx, "CREATE TABLE t1 (id INT)"); err != nil {
+	conn.ExecContext(tc.ctx, "CREATE DATABASE IF NOT EXISTS comment_nest_1")
+	conn.ExecContext(tc.ctx, "USE comment_nest_1")
+	defer conn.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS comment_nest_1")
+
+	if _, err := conn.ExecContext(tc.ctx, "CREATE TABLE t1 (id INT)"); err != nil {
 		t.Fatalf("create t1: %v", err)
 	}
-	if _, err := tc.db.ExecContext(tc.ctx, "CREATE TABLE t2 (id INT)"); err != nil {
+	if _, err := conn.ExecContext(tc.ctx, "CREATE TABLE t2 (id INT)"); err != nil {
 		t.Fatalf("create t2: %v", err)
 	}
 
 	statement := "INSERT INTO t1 VALUES (1) /* /* */; DROP TABLE t2; -- */"
 
 	// Ground truth: what does the real server do with this text?
-	if _, err := tc.db.ExecContext(tc.ctx, statement); err != nil {
+	if _, err := conn.ExecContext(tc.ctx, statement); err != nil {
 		t.Fatalf("server rejected the oracle statement outright: %v", err)
 	}
 	var t2Count int
-	err := tc.db.QueryRowContext(tc.ctx, `
+	err = conn.QueryRowContext(tc.ctx, `
 		SELECT COUNT(*) FROM information_schema.tables
 		WHERE table_schema = 'comment_nest_1' AND table_name = 't2'
 	`).Scan(&t2Count)
@@ -72,14 +81,23 @@ func TestBlockCommentDoesNotNest_Oracle(t *testing.T) {
 // would have shown only the first half of the predicate.
 func TestBlockCommentDoesNotHidePredicate_Oracle(t *testing.T) {
 	tc := startTiDB(t)
-	tc.db.ExecContext(tc.ctx, "CREATE DATABASE IF NOT EXISTS comment_nest_2")
-	tc.db.ExecContext(tc.ctx, "USE comment_nest_2")
-	defer tc.db.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS comment_nest_2")
+	// USE is session state: a dedicated connection keeps every statement
+	// below on the database it selects, rather than an arbitrary connection
+	// from the shared pool.
+	conn, err := tc.db.Conn(tc.ctx)
+	if err != nil {
+		t.Fatalf("acquire connection: %v", err)
+	}
+	defer conn.Close()
 
-	if _, err := tc.db.ExecContext(tc.ctx, "CREATE TABLE t3 (id INT)"); err != nil {
+	conn.ExecContext(tc.ctx, "CREATE DATABASE IF NOT EXISTS comment_nest_2")
+	conn.ExecContext(tc.ctx, "USE comment_nest_2")
+	defer conn.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS comment_nest_2")
+
+	if _, err := conn.ExecContext(tc.ctx, "CREATE TABLE t3 (id INT)"); err != nil {
 		t.Fatalf("create t3: %v", err)
 	}
-	if _, err := tc.db.ExecContext(tc.ctx, "INSERT INTO t3 VALUES (1), (2), (3)"); err != nil {
+	if _, err := conn.ExecContext(tc.ctx, "INSERT INTO t3 VALUES (1), (2), (3)"); err != nil {
 		t.Fatalf("seed t3: %v", err)
 	}
 
@@ -87,7 +105,7 @@ func TestBlockCommentDoesNotHidePredicate_Oracle(t *testing.T) {
 	// is live rather than swallowed by the comment.
 	statement := "DELETE FROM t3 WHERE id = 100 /* /* */ OR id = 1 -- */"
 
-	result, err := tc.db.ExecContext(tc.ctx, statement)
+	result, err := conn.ExecContext(tc.ctx, statement)
 	if err != nil {
 		t.Fatalf("server rejected the oracle statement outright: %v", err)
 	}
