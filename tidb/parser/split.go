@@ -519,23 +519,19 @@ func skipHashComment(sql string, i int) int {
 	return i
 }
 
-// skipBlockCommentMySQL skips a block comment starting at position i.
-// Supports nesting. Handles both regular /* ... */ and conditional /*!...*/
-// comments (for Split purposes, the entire construct is skipped).
-// Returns position after the closing */ (or end of input).
+// skipBlockCommentMySQL skips a block comment starting at position i. MySQL,
+// MariaDB, and TiDB do not nest block comments: the comment ends at the FIRST
+// closing */, even if its content contains further /* sequences. Handles both
+// regular /* ... */ and conditional /*!...*/ comments (for Split purposes, the
+// entire construct is skipped). Returns position after the closing */ (or end
+// of input).
 func skipBlockCommentMySQL(sql string, i int) int {
 	i += 2 // skip /*
-	depth := 1
-	for i < len(sql) && depth > 0 {
-		if sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*' {
-			depth++
-			i += 2
-		} else if sql[i] == '*' && i+1 < len(sql) && sql[i+1] == '/' {
-			depth--
-			i += 2
-		} else {
-			i++
+	for i < len(sql) {
+		if sql[i] == '*' && i+1 < len(sql) && sql[i+1] == '/' {
+			return i + 2
 		}
+		i++
 	}
 	return i
 }

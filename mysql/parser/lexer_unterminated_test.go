@@ -39,8 +39,6 @@ func TestLexer_UnterminatedComment_NoPanic(t *testing.T) {
 		{"exec_comment_star_at_eof", "SELECT 1 /*!50100 abc*"},
 		// Plain (non-executable) block comment, no closing */.
 		{"plain_block_comment", "CREATE TABLE `t` (`id` int) /* unterminated"},
-		// Nested block comment where the inner one closes but the outer does not.
-		{"nested_block_comment", "SELECT 1 /* outer /* inner */"},
 		// Executable comment opened right at EOF.
 		{"exec_comment_only", "/*!50100"},
 		// Bare plain block comment as the whole input: Split must NOT drop it as an
@@ -130,7 +128,9 @@ func TestLexer_ValidCommentsAndDelimiters_StillParse(t *testing.T) {
 		{"exec_comment", "SELECT 1 /*! + 2 */"},
 		{"versioned_exec_comment", "SELECT 1 /*!50100 + 2 */"},
 		{"versioned_partition", "CREATE TABLE `t` (`id` int NOT NULL, PRIMARY KEY (`id`)) ENGINE=InnoDB /*!50100 PARTITION BY HASH (`id`) */"},
-		{"nested_block_comment", "SELECT 1 /* outer /* inner */ still-outer */ + 2"},
+		// The comment closes at the FIRST */ (non-nesting), so only the inner
+		// "/* inner */" is consumed; the rest is live SQL.
+		{"comment_then_more_sql", "SELECT 1 /* a /* b */ + 2"},
 		{"line_comment", "SELECT 1 -- trailing\n+ 2"},
 		{"hash_comment", "SELECT 1 # trailing\n+ 2"},
 		{"single_quote_string", "SELECT 'hello world'"},

@@ -171,7 +171,9 @@ func TestLexerComments(t *testing.T) {
 		{"SELECT -- comment\n1", []int{kwSELECT, tokICONST}},
 		{"SELECT # comment\n1", []int{kwSELECT, tokICONST}},
 		{"SELECT /* comment */ 1", []int{kwSELECT, tokICONST}},
-		{"SELECT /* nested /* comment */ */ 1", []int{kwSELECT, tokICONST}},
+		// MySQL and MariaDB do not nest block comments: this comment closes at the
+		// FIRST */ (after "comment "), leaving "*/ 1" as three more live tokens.
+		{"SELECT /* nested /* comment */ */ 1", []int{kwSELECT, int('*'), int('/'), tokICONST}},
 	}
 
 	for _, tt := range tests {
@@ -12630,4 +12632,25 @@ func TestLvalueIdentRejectsAmbiguous4(t *testing.T) {
 			t.Fatal("expected error for FETCH INTO global (GLOBAL is ambiguous_4, not allowed as lvalue)")
 		}
 	})
+}
+
+// TestBlockCommentDoesNotHidePredicate guards against the depth-nesting bug
+// where a "/* /* */ ... */"-shaped comment read through to the LAST */,
+// silently swallowing a trailing predicate as comment text. MySQL and MariaDB
+// close a block comment at the FIRST */, so the OR clause below is live SQL,
+// not part of the comment: the parsed WHERE must retain it.
+func TestBlockCommentDoesNotHidePredicate(t *testing.T) {
+	sql := "DELETE FROM t WHERE id < 1 /* /* */ OR id > 100 -- */"
+	list := ParseAndCheck(t, sql)
+	del, ok := list.Items[0].(*ast.DeleteStmt)
+	if !ok {
+		t.Fatalf("expected *ast.DeleteStmt, got %T", list.Items[0])
+	}
+	where, ok := del.Where.(*ast.BinaryExpr)
+	if !ok {
+		t.Fatalf("expected WHERE to be a binary expression, got %T (comment may have swallowed the OR clause)", del.Where)
+	}
+	if where.Op != ast.BinOpOr {
+		t.Errorf("expected top-level WHERE operator OR, got %v", where.Op)
+	}
 }

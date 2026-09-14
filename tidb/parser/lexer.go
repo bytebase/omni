@@ -1958,37 +1958,13 @@ func (l *Lexer) skipWhitespaceAndComments() {
 					}
 					if bracketEnd >= len(l.input) {
 						// Malformed: no closing bracket, skip as regular comment.
-						l.pos += 2
-						depth := 1
-						for l.pos < len(l.input) && depth > 0 {
-							if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
-								depth--
-								l.pos += 2
-							} else if l.input[l.pos] == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
-								depth++
-								l.pos += 2
-							} else {
-								l.pos++
-							}
-						}
+						l.pos, _ = l.skipToBlockCommentClose(l.pos + 2)
 						continue
 					}
 					featureStr := l.input[innerStart+1 : bracketEnd]
 					if !allTiDBFeaturesSupported(featureStr) {
 						// Unsupported feature — skip entire comment.
-						l.pos += 2
-						depth := 1
-						for l.pos < len(l.input) && depth > 0 {
-							if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
-								depth--
-								l.pos += 2
-							} else if l.input[l.pos] == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
-								depth++
-								l.pos += 2
-							} else {
-								l.pos++
-							}
-						}
+						l.pos, _ = l.skipToBlockCommentClose(l.pos + 2)
 						continue
 					}
 					innerStart = bracketEnd + 1 // SQL starts after ]
@@ -2062,25 +2038,28 @@ func (l *Lexer) skipWhitespaceAndComments() {
 				continue
 			}
 
-			l.pos += 2
-			// Regular block comment: skip everything.
-			depth := 1
-			for l.pos < len(l.input) && depth > 0 {
-				if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
-					depth--
-					l.pos += 2
-				} else if l.input[l.pos] == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
-					depth++
-					l.pos += 2
-				} else {
-					l.pos++
-				}
-			}
+			// Regular block comment: MySQL, MariaDB, and TiDB do not nest block
+			// comments, so this skips to the FIRST closing */, not a depth-matched one.
+			l.pos, _ = l.skipToBlockCommentClose(l.pos + 2)
 			continue
 		}
 
 		break
 	}
+}
+
+// skipToBlockCommentClose returns the position just after the first "*/" at or
+// after pos, and whether one was found (false means it hit EOF first). MySQL,
+// MariaDB, and TiDB do not nest block comments: a comment ends at the first "*/"
+// it contains, regardless of any "/*" that appears in its content.
+func (l *Lexer) skipToBlockCommentClose(pos int) (int, bool) {
+	for pos < len(l.input) {
+		if l.input[pos] == '*' && pos+1 < len(l.input) && l.input[pos+1] == '/' {
+			return pos + 2, true
+		}
+		pos++
+	}
+	return pos, false
 }
 
 func (l *Lexer) scanVariable() Token {

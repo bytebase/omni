@@ -1923,18 +1923,14 @@ func (l *Lexer) skipWhitespaceAndComments() {
 			}
 
 			l.pos += 2
-			// Regular block comment: skip everything.
-			depth := 1
-			for l.pos < len(l.input) && depth > 0 {
+			// Regular block comment: MySQL and MariaDB do not nest block comments,
+			// so this skips to the FIRST closing */, not a depth-matched one.
+			for l.pos < len(l.input) {
 				if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
-					depth--
 					l.pos += 2
-				} else if l.input[l.pos] == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
-					depth++
-					l.pos += 2
-				} else {
-					l.pos++
+					break
 				}
+				l.pos++
 			}
 			continue
 		}

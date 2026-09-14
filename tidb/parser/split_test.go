@@ -181,6 +181,15 @@ func TestSplitQuotingAndComments(t *testing.T) {
 			want: []string{"SELECT /* /* ; */ */ 1", " SELECT 2"},
 		},
 		{
+			// MySQL and MariaDB close a block comment at the first */, so text
+			// after it -- including a ';' -- is live SQL, not comment content.
+			// The depth-nesting bug used to read through to the LAST */ and
+			// swallow the DROP TABLE statement as part of the comment.
+			name: "text after a nested-looking comment is a live statement",
+			sql:  "INSERT INTO t3 SELECT * FROM t /* /* */; DROP TABLE t4; -- */",
+			want: []string{"INSERT INTO t3 SELECT * FROM t /* /* */", " DROP TABLE t4"},
+		},
+		{
 			name: "-- without space is not comment",
 			sql:  "SELECT 1--2; SELECT 3;",
 			want: []string{"SELECT 1--2", " SELECT 3"},
