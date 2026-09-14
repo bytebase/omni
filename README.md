@@ -73,7 +73,14 @@ func main() {
 }
 ```
 
-Engines with a root package (`pg`, `redshift`, `mssql`, `oracle`, `mongo`, `cassandra`, `cosmosdb`, `partiql`, `elasticsearch`) expose `Parse` and friends directly. For the others, import `<engine>/parser`.
+Root-package entry points differ per engine:
+
+| Engine | Root package exports |
+|--------|----------------------|
+| `pg`, `redshift`, `mssql`, `oracle`, `mongo`, `cassandra`, `cosmosdb` | `Parse` (plus `Split`, `CollectCompletion`, and engine-specific helpers where present) |
+| `partiql` | `Split` only; parsing is in `partiql/parser` |
+| `elasticsearch` | `ParseElasticsearchREST`, `SplitMultiSQL`, `ClassifyRequest`, `Diagnose`, `GetQuerySpan`, `GetStatementRanges` |
+| all others | no root package; import `<engine>/parser` |
 
 ## Repository Layout
 
