@@ -111,8 +111,12 @@ Some engines also keep working documents next to the code they describe (for exa
 ## Development
 
 ```bash
-# Full suite, same as CI (several engines start database containers)
+# Every engine plus the conformance harness (several engines start database containers)
 make test
+
+# Spanner differential harness; needs a running emulator (SPANNER_EMULATOR_HOST).
+# CI runs this too, so a green `make test` alone is not the full CI result.
+make test-spanner
 
 # One engine
 make test-pg
