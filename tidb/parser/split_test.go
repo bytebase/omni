@@ -190,6 +190,21 @@ func TestSplitQuotingAndComments(t *testing.T) {
 			want: []string{"INSERT INTO t3 SELECT * FROM t /* /* */", " DROP TABLE t4"},
 		},
 		{
+			// An executable comment's OWN close is still found by depth-counting
+			// (matching the lexer's exec-comment scan), so a plain comment nested
+			// inside it does not end the executable comment early.
+			name: "nested plain comment inside an executable comment",
+			sql:  "/*! /* c */ SELECT 1; */ SELECT 2;",
+			want: []string{"/*! /* c */ SELECT 1; */ SELECT 2"},
+		},
+		{
+			// TiDB's own /*T!...*/ executable comment gets the same depth-counted
+			// close as /*!...*/.
+			name: "nested plain comment inside a TiDB executable comment",
+			sql:  "/*T! /* c */ SELECT 1; */ SELECT 2;",
+			want: []string{"/*T! /* c */ SELECT 1; */ SELECT 2"},
+		},
+		{
 			name: "-- without space is not comment",
 			sql:  "SELECT 1--2; SELECT 3;",
 			want: []string{"SELECT 1--2", " SELECT 3"},

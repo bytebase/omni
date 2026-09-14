@@ -526,12 +526,23 @@ func skipHashComment(sql string, i int) int {
 	return i
 }
 
-// skipBlockCommentMySQL skips a block comment starting at position i. MySQL and
-// MariaDB do not nest block comments: the comment ends at the FIRST closing */,
-// even if its content contains further /* sequences. Handles both regular
-// /* ... */ and conditional /*!...*/ comments (for Split purposes, the entire
-// construct is skipped). Returns position after the closing */ (or end of input).
+// isExecutableCommentStart reports whether sql[i:] opens an executable
+// comment (/*!...*/). The lexer searches for THAT comment's own close by
+// depth-counting nested /* sequences (lexer.go), so Split must agree on where
+// it ends; only an ordinary comment closes at the first */.
+func isExecutableCommentStart(sql string, i int) bool {
+	return i+2 < len(sql) && sql[i] == '/' && sql[i+1] == '*' && sql[i+2] == '!'
+}
+
+// skipBlockCommentMySQL skips a block comment starting at position i. An
+// ordinary MySQL or MariaDB block comment ends at the FIRST closing */, even
+// if its content contains further /* sequences; an executable comment
+// (/*!...*/) is depth-counted instead, matching how the lexer finds its
+// close. Returns position after the closing */ (or end of input).
 func skipBlockCommentMySQL(sql string, i int) int {
+	if isExecutableCommentStart(sql, i) {
+		return skipBlockCommentDepthCounted(sql, i)
+	}
 	i += 2 // skip /*
 	for i < len(sql) {
 		if sql[i] == '*' && i+1 < len(sql) && sql[i+1] == '/' {
@@ -542,10 +553,31 @@ func skipBlockCommentMySQL(sql string, i int) int {
 	return i
 }
 
-// blockCommentTerminated reports whether the block comment starting at i (on "/*")
-// has a matching closing */ before EOF — the FIRST */, since MySQL and MariaDB do
-// not nest block comments. Used by Segment.Empty to distinguish a well-formed
-// empty comment from malformed, unterminated input.
+// skipBlockCommentDepthCounted finds the close of an executable comment
+// (/*!...*/) by depth-counting nested /* sequences, matching the lexer's own
+// exec-comment scan. Returns position after the closing */ (or end of input).
+func skipBlockCommentDepthCounted(sql string, i int) int {
+	i += 2 // skip /*
+	depth := 1
+	for i < len(sql) && depth > 0 {
+		if sql[i] == '/' && i+1 < len(sql) && sql[i+1] == '*' {
+			depth++
+			i += 2
+		} else if sql[i] == '*' && i+1 < len(sql) && sql[i+1] == '/' {
+			depth--
+			i += 2
+		} else {
+			i++
+		}
+	}
+	return i
+}
+
+// blockCommentTerminated reports whether the block comment starting at i (on
+// "/*") has a matching closing */ before EOF — the FIRST */, since ordinary
+// MySQL and MariaDB comments don't nest. Only called on non-executable
+// comments (Segment.Empty checks for /*! first). Used to distinguish a
+// well-formed empty comment from malformed, unterminated input.
 func blockCommentTerminated(sql string, i int) bool {
 	i += 2 // skip /*
 	for i < len(sql) {

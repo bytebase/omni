@@ -1,65 +1,10 @@
 package parser
 
 import (
-	"context"
-	"database/sql"
 	"testing"
-	"time"
-
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/bytebase/omni/tidb/ast"
 )
-
-// startTiDBOracle starts a real TiDB server (not the MySQL-8.0 stand-in used
-// by startParserOracle elsewhere in this package) so the comment-nesting
-// tests below check omni's parser against the actual target server, which
-// speaks the MySQL wire protocol but is a different implementation.
-func startTiDBOracle(t *testing.T) *parserOracle {
-	t.Helper()
-	ctx := context.Background()
-
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "pingcap/tidb:v8.5.0",
-			ExposedPorts: []string{"4000/tcp"},
-			WaitingFor:   wait.ForLog("server is running MySQL protocol").WithStartupTimeout(3 * time.Minute),
-		},
-		Started: true,
-	})
-	if err != nil {
-		t.Fatalf("failed to start TiDB container: %v", err)
-	}
-	t.Cleanup(func() { _ = testcontainers.TerminateContainer(container) })
-
-	host, err := container.Host(ctx)
-	if err != nil {
-		t.Fatalf("failed to get container host: %v", err)
-	}
-	port, err := container.MappedPort(ctx, "4000/tcp")
-	if err != nil {
-		t.Fatalf("failed to get mapped port: %v", err)
-	}
-
-	db, err := sql.Open("mysql", "root@tcp("+host+":"+port.Port()+")/test?multiStatements=true&tls=false")
-	if err != nil {
-		t.Fatalf("failed to open database: %v", err)
-	}
-	t.Cleanup(func() { db.Close() })
-
-	if err := db.PingContext(ctx); err != nil {
-		t.Fatalf("failed to ping database: %v", err)
-	}
-	if _, err := db.ExecContext(ctx, "CREATE DATABASE IF NOT EXISTS test"); err != nil {
-		t.Fatalf("failed to create test database: %v", err)
-	}
-	if _, err := db.ExecContext(ctx, "USE test"); err != nil {
-		t.Fatalf("failed to select test database: %v", err)
-	}
-
-	return &parserOracle{db: db, ctx: ctx}
-}
 
 // TestBlockCommentDoesNotNest_Oracle proves against a live TiDB container
 // that omni's TiDB parser now agrees with the server: a "/* /* */ ... */"-
@@ -69,25 +14,28 @@ func startTiDBOracle(t *testing.T) *parserOracle {
 // server's own comment handling decides what actually executes; omni's Split
 // and Parse must describe the same two statements.
 func TestBlockCommentDoesNotNest_Oracle(t *testing.T) {
-	o := startTiDBOracle(t)
+	tc := startTiDB(t)
+	tc.db.ExecContext(tc.ctx, "CREATE DATABASE IF NOT EXISTS comment_nest_1")
+	tc.db.ExecContext(tc.ctx, "USE comment_nest_1")
+	defer tc.db.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS comment_nest_1")
 
-	if _, err := o.db.ExecContext(o.ctx, "CREATE TABLE t1 (id INT)"); err != nil {
+	if _, err := tc.db.ExecContext(tc.ctx, "CREATE TABLE t1 (id INT)"); err != nil {
 		t.Fatalf("create t1: %v", err)
 	}
-	if _, err := o.db.ExecContext(o.ctx, "CREATE TABLE t2 (id INT)"); err != nil {
+	if _, err := tc.db.ExecContext(tc.ctx, "CREATE TABLE t2 (id INT)"); err != nil {
 		t.Fatalf("create t2: %v", err)
 	}
 
 	statement := "INSERT INTO t1 VALUES (1) /* /* */; DROP TABLE t2; -- */"
 
 	// Ground truth: what does the real server do with this text?
-	if _, err := o.db.ExecContext(o.ctx, statement); err != nil {
+	if _, err := tc.db.ExecContext(tc.ctx, statement); err != nil {
 		t.Fatalf("server rejected the oracle statement outright: %v", err)
 	}
 	var t2Count int
-	err := o.db.QueryRowContext(o.ctx, `
+	err := tc.db.QueryRowContext(tc.ctx, `
 		SELECT COUNT(*) FROM information_schema.tables
-		WHERE table_schema = 'test' AND table_name = 't2'
+		WHERE table_schema = 'comment_nest_1' AND table_name = 't2'
 	`).Scan(&t2Count)
 	if err != nil {
 		t.Fatalf("check t2 existence: %v", err)
@@ -123,12 +71,15 @@ func TestBlockCommentDoesNotNest_Oracle(t *testing.T) {
 // depth-nesting scanner read the OR clause as comment content, so omni's AST
 // would have shown only the first half of the predicate.
 func TestBlockCommentDoesNotHidePredicate_Oracle(t *testing.T) {
-	o := startTiDBOracle(t)
+	tc := startTiDB(t)
+	tc.db.ExecContext(tc.ctx, "CREATE DATABASE IF NOT EXISTS comment_nest_2")
+	tc.db.ExecContext(tc.ctx, "USE comment_nest_2")
+	defer tc.db.ExecContext(tc.ctx, "DROP DATABASE IF EXISTS comment_nest_2")
 
-	if _, err := o.db.ExecContext(o.ctx, "CREATE TABLE t3 (id INT)"); err != nil {
+	if _, err := tc.db.ExecContext(tc.ctx, "CREATE TABLE t3 (id INT)"); err != nil {
 		t.Fatalf("create t3: %v", err)
 	}
-	if _, err := o.db.ExecContext(o.ctx, "INSERT INTO t3 VALUES (1), (2), (3)"); err != nil {
+	if _, err := tc.db.ExecContext(tc.ctx, "INSERT INTO t3 VALUES (1), (2), (3)"); err != nil {
 		t.Fatalf("seed t3: %v", err)
 	}
 
@@ -136,7 +87,7 @@ func TestBlockCommentDoesNotHidePredicate_Oracle(t *testing.T) {
 	// is live rather than swallowed by the comment.
 	statement := "DELETE FROM t3 WHERE id = 100 /* /* */ OR id = 1 -- */"
 
-	result, err := o.db.ExecContext(o.ctx, statement)
+	result, err := tc.db.ExecContext(tc.ctx, statement)
 	if err != nil {
 		t.Fatalf("server rejected the oracle statement outright: %v", err)
 	}
