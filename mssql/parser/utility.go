@@ -1284,7 +1284,7 @@ func (p *Parser) parseCreateExternalTableAsSelectStmt() (*nodes.CreateExternalTa
 	if p.cur.Type == kwAS {
 		p.advance() // consume AS
 		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-			stmt.Query, _ = p.parseSelectStmt()
+			stmt.Query, _ = p.parseSelectStmtWithCTE()
 		}
 	}
 
@@ -1544,7 +1544,7 @@ func (p *Parser) parseCreateRemoteTableAsSelectStmt() (*nodes.CreateRemoteTableA
 	if p.cur.Type == kwAS {
 		p.advance() // consume AS
 		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-			stmt.Query, _ = p.parseSelectStmt()
+			stmt.Query, _ = p.parseSelectStmtWithCTE()
 		}
 	}
 

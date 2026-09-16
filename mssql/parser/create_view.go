@@ -99,7 +99,7 @@ func (p *Parser) parseCreateViewStmt(orAlter bool) (*nodes.CreateViewStmt, error
 	}
 
 	// SELECT query
-	query, err := p.parseSelectStmt()
+	query, err := p.parseSelectStmtWithCTE()
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +214,7 @@ func (p *Parser) parseCreateMaterializedViewStmt() (*nodes.CreateMaterializedVie
 	p.match(kwAS)
 
 	// SELECT query
-	query, err := p.parseSelectStmt()
+	query, err := p.parseSelectStmtWithCTE()
 	if err != nil {
 		return nil, err
 	}

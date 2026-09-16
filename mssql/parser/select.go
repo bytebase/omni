@@ -7,7 +7,9 @@ import (
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
 
-// parseSelectStmt parses a full SELECT statement.
+// parseSelectStmt parses a SELECT statement in a nested position: a derived
+// table, a scalar/EXISTS/IN/quantified subquery, a CTE body, a set-operation
+// operand, or the source of an INSERT.
 //
 // BNF: mssql/parser/bnf/select-transact-sql.bnf
 //
@@ -34,6 +36,27 @@ import (
 //	    [ HAVING <search_condition> ]
 //	    [ WINDOW windowDefinition [ , windowDefinition ]* ]
 func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
+	// A CTE list belongs to a statement (parseWithStmt) or to one of the
+	// object bodies that call parseSelectStmtWithCTE. Every other position
+	// (derived table, subquery, CTE body, set-operation operand, INSERT
+	// source) is a query expression, and SQL Server reports a syntax error
+	// at the WITH keyword there.
+	if p.cur.Type == kwWITH {
+		return nil, p.unexpectedToken()
+	}
+	if p.cur.Type != kwSELECT {
+		return nil, nil
+	}
+	return p.parseSelectStmtAfterWith(p.pos(), nil)
+}
+
+// parseSelectStmtWithCTE parses [ WITH <cte> [ , ...n ] ] SELECT ... for the
+// object bodies whose select_statement carries its own CTE list in T-SQL:
+// CREATE/ALTER VIEW, an inline table-valued function's RETURN, DECLARE
+// CURSOR FOR, and the CREATE ... TABLE AS SELECT family. Statement-level
+// WITH is handled by parseWithStmt, and nested query expressions must use
+// parseSelectStmt, which rejects a leading WITH.
+func (p *Parser) parseSelectStmtWithCTE() (*nodes.SelectStmt, error) {
 	loc := p.pos()
 
 	// WITH clause (CTE)

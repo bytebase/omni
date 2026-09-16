@@ -432,7 +432,7 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 			hasParen = true
 			p.advance()
 		}
-		selectStmt, err := p.parseSelectStmt()
+		selectStmt, err := p.parseSelectStmtWithCTE()
 		if err != nil {
 			return nil, err
 		}

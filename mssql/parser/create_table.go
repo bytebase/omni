@@ -1623,7 +1623,7 @@ func (p *Parser) parseCreateTableAsSelectStmt() (*nodes.CreateTableAsSelectStmt,
 	}
 
 	// Parse the SELECT statement
-	stmt.Query, err = p.parseSelectStmt()
+	stmt.Query, err = p.parseSelectStmtWithCTE()
 	if err != nil {
 		return nil, err
 	}

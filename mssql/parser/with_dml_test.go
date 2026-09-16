@@ -290,7 +290,7 @@ func TestWithClauseDMLErrors(t *testing.T) {
 		{"exec", "WITH t AS (SELECT 1 AS a) EXEC p", `syntax error at or near "EXEC"`},
 		{"trailing comma before insert", "WITH t AS (SELECT 1 AS a), INSERT INTO x (a) SELECT a FROM t", `syntax error at or near "INSERT"`},
 		{"trailing comma before select", "WITH t AS (SELECT 1 AS a), SELECT a FROM t", `syntax error at or near "SELECT"`},
-		{"cte in subquery position", "SELECT * FROM (WITH t AS (SELECT 1 AS a) INSERT INTO x SELECT a FROM t) d", `syntax error at or near "INSERT"`},
+		{"cte in subquery position", "SELECT * FROM (WITH t AS (SELECT 1 AS a) INSERT INTO x SELECT a FROM t) d", `syntax error at or near "WITH"`},
 		{"cte in view body", "CREATE VIEW v AS WITH t AS (SELECT 1 AS a) INSERT INTO x SELECT a FROM t", `syntax error at or near "INSERT"`},
 		{"empty cte list before insert", "WITH INSERT INTO x (a) VALUES (1)", `syntax error at or near "INSERT"`},
 		{"empty cte list before select", "WITH SELECT 1", `syntax error at or near "SELECT"`},
@@ -346,10 +346,8 @@ func TestWithClauseDMLOracle(t *testing.T) {
 		{"with_xmlnamespaces_comma_cte_insert", "WITH XMLNAMESPACES ('http://x' AS ns), c AS (SELECT a FROM dbo.t) INSERT INTO dbo.t (a) SELECT a FROM c"},
 		{"with_xmlnamespaces_dangling_comma_insert_invalid", "WITH XMLNAMESPACES ('http://x' AS ns), INSERT INTO dbo.t (a) SELECT a FROM dbo.t"},
 		{"with_xmlnamespaces_dangling_comma_select_invalid", "WITH XMLNAMESPACES ('http://x' AS ns), SELECT a FROM dbo.t"},
-		// Not covered here: SQL Server rejects a CTE inside a derived table
-		// (SELECT * FROM (WITH c AS (...) SELECT ...) d) while omni accepts
-		// it. That leniency predates the WITH ... DML fix and needs its own
-		// oracle pass over every nested SELECT position.
+		// A CTE in a nested SELECT position (derived table, subquery, ...)
+		// is covered by TestWithClauseNestedOracle.
 	}
 
 	for _, tc := range tests {

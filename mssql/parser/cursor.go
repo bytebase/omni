@@ -94,7 +94,7 @@ func (p *Parser) parseDeclareCursorStmt() (*nodes.DeclareCursorStmt, error) {
 			p.addTokenCandidate(kwSELECT)
 			return nil, errCollecting
 		}
-		stmt.Query, _ = p.parseSelectStmt()
+		stmt.Query, _ = p.parseSelectStmtWithCTE()
 	}
 
 	// Optional: FOR { READ_ONLY | UPDATE [ OF column_name [,...n] ] }
