@@ -14,18 +14,26 @@ import (
 )
 
 type parserOracle struct {
-	db  *sql.DB
-	ctx context.Context
+	conn *sql.Conn
+	ctx  context.Context
 }
 
 // sharedMSSQL is the package-wide SQL Server 2022 oracle. SQL Server takes
 // 15-20s to boot, so one container serves every test in the package instead
 // of one per test. The tests only ever run SET PARSEONLY ON checks, which
 // execute nothing, so there is no state to isolate between them.
+//
+// Every check runs on conn, a single dedicated session. Going through the
+// *sql.DB pool would not work: database/sql calls ResetSession when it hands
+// out a pooled connection, and go-mssqldb then sends the next batch with the
+// RESETCONNECTION flag, which clears SET options and the database context.
+// SET PARSEONLY ON and USE testdb issued through the pool never reach the
+// statement under test, which then executes for real.
 var sharedMSSQL struct {
 	once      sync.Once
 	container *tcmssql.MSSQLServerContainer
 	db        *sql.DB
+	conn      *sql.Conn
 	err       error
 }
 
@@ -58,13 +66,17 @@ func startParserOracle(t *testing.T) *parserOracle {
 			fail(fmt.Errorf("open database: %w", err))
 			return
 		}
-		// SET PARSEONLY and USE are session state: pin the pool to one
-		// connection so every statement sees them.
-		db.SetMaxOpenConns(1)
-		db.SetMaxIdleConns(1)
 		if err := db.PingContext(ctx); err != nil {
 			_ = db.Close()
 			fail(fmt.Errorf("ping SQL Server: %w", err))
+			return
+		}
+		// SET PARSEONLY and USE are session state: hold one connection for
+		// the whole package so the pool never resets it between statements.
+		conn, err := db.Conn(ctx)
+		if err != nil {
+			_ = db.Close()
+			fail(fmt.Errorf("dedicated connection: %w", err))
 			return
 		}
 		// Create a test database and table for queries that reference objects.
@@ -73,22 +85,26 @@ func startParserOracle(t *testing.T) *parserOracle {
 			"USE testdb",
 			"CREATE TABLE dbo.t (a INT, col INT, partition INT, encryption INT, window INT, bucket INT)",
 		} {
-			if _, err := db.ExecContext(ctx, s); err != nil {
+			if _, err := conn.ExecContext(ctx, s); err != nil {
+				_ = conn.Close()
 				_ = db.Close()
 				fail(fmt.Errorf("setup SQL failed (%s): %w", s, err))
 				return
 			}
 		}
-		sharedMSSQL.container, sharedMSSQL.db = container, db
+		sharedMSSQL.container, sharedMSSQL.db, sharedMSSQL.conn = container, db, conn
 	})
 	if sharedMSSQL.err != nil {
 		t.Fatalf("SQL Server oracle required in CI but unavailable: %v", sharedMSSQL.err)
 	}
-	return &parserOracle{db: sharedMSSQL.db, ctx: context.Background()}
+	return &parserOracle{conn: sharedMSSQL.conn, ctx: context.Background()}
 }
 
 func TestMain(m *testing.M) {
 	code := m.Run()
+	if sharedMSSQL.conn != nil {
+		_ = sharedMSSQL.conn.Close()
+	}
 	if sharedMSSQL.db != nil {
 		_ = sharedMSSQL.db.Close()
 	}
@@ -112,13 +128,13 @@ func (o *parserOracle) canParse(sql string) (bool, error) {
 // nil when SQL Server accepts the syntax. The second result reports a failure
 // of the oracle itself.
 func (o *parserOracle) parseError(sql string) (parseErr error, err error) {
-	_, err = o.db.ExecContext(o.ctx, "SET PARSEONLY ON")
+	_, err = o.conn.ExecContext(o.ctx, "SET PARSEONLY ON")
 	if err != nil {
 		return nil, fmt.Errorf("SET PARSEONLY ON: %w", err)
 	}
-	defer o.db.ExecContext(o.ctx, "SET PARSEONLY OFF") //nolint:errcheck
+	defer o.conn.ExecContext(o.ctx, "SET PARSEONLY OFF") //nolint:errcheck
 
-	_, parseErr = o.db.ExecContext(o.ctx, sql)
+	_, parseErr = o.conn.ExecContext(o.ctx, sql)
 	return parseErr, nil
 }
 
