@@ -11,7 +11,8 @@ import (
 // statement level, each with a leading CTE list. SQL Server treats a nested
 // SELECT as a query expression, which has no WITH clause, so the CTE is a
 // syntax error at the WITH keyword. Only an object body whose grammar names
-// select_statement (view, inline TVF, cursor) carries its own CTE list.
+// select_statement (view, parenthesized inline TVF RETURN, cursor) carries its
+// own CTE list.
 var nestedWithCases = []struct {
 	name    string
 	sql     string
@@ -35,13 +36,15 @@ var nestedWithCases = []struct {
 	{"create_view", "CREATE VIEW dbo.v AS WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c", true},
 	{"alter_view", "ALTER VIEW dbo.v AS WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c", true},
 	{"inline_tvf_return_paren", "CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c)", true},
-	{"inline_tvf_return_no_paren", "CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c", true},
+	// Without the parentheses the CTE list is a syntax error at WITH.
+	{"inline_tvf_return_no_paren", "CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c", false},
 	{"declare_cursor_for", "DECLARE cur CURSOR FOR WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c", true},
 
 	// Controls: the same positions without a CTE are fine.
 	{"derived_table_plain", "SELECT * FROM (SELECT a FROM dbo.t) d", true},
 	{"union_plain", "SELECT a FROM dbo.t UNION SELECT a FROM dbo.t", true},
 	{"insert_source_plain", "INSERT INTO dbo.t (a) SELECT a FROM dbo.t", true},
+	{"inline_tvf_return_no_paren_plain", "CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN SELECT a FROM dbo.t", true},
 }
 
 // TestWithClauseNested checks that omni accepts a CTE list only where T-SQL

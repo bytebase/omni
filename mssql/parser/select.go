@@ -52,8 +52,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 
 // parseSelectStmtWithCTE parses [ WITH <cte> [ , ...n ] ] SELECT ... for the
 // object bodies whose select_statement carries its own CTE list in T-SQL:
-// CREATE/ALTER VIEW, an inline table-valued function's RETURN, DECLARE
-// CURSOR FOR, and the CREATE ... TABLE AS SELECT family. Statement-level
+// CREATE/ALTER VIEW, an inline table-valued function's parenthesized
+// RETURN ( ... ), DECLARE CURSOR FOR, and the CREATE ... TABLE AS SELECT
+// family. Statement-level
 // WITH is handled by parseWithStmt, and nested query expressions must use
 // parseSelectStmt, which rejects a leading WITH.
 func (p *Parser) parseSelectStmtWithCTE() (*nodes.SelectStmt, error) {

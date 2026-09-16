@@ -425,6 +425,8 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 		stmt.ExternalName = p.parseMethodSpecifier()
 	} else if p.cur.Type == kwRETURN {
 		// Inline table-valued function: RETURN [ ( ] select_stmt [ ) ]
+		// SQL Server accepts a CTE list here only inside the parentheses:
+		// RETURN (WITH c AS (...) SELECT ...) parses, RETURN WITH ... does not.
 		retLoc := p.pos()
 		p.advance() // consume RETURN
 		hasParen := false
@@ -432,7 +434,13 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 			hasParen = true
 			p.advance()
 		}
-		selectStmt, err := p.parseSelectStmtWithCTE()
+		var selectStmt *nodes.SelectStmt
+		var err error
+		if hasParen {
+			selectStmt, err = p.parseSelectStmtWithCTE()
+		} else {
+			selectStmt, err = p.parseSelectStmt()
+		}
 		if err != nil {
 			return nil, err
 		}
