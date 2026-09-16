@@ -424,28 +424,24 @@ func (p *Parser) parseCreateFunctionStmt(orAlter bool) (*nodes.CreateFunctionStm
 		}
 		stmt.ExternalName = p.parseMethodSpecifier()
 	} else if p.cur.Type == kwRETURN {
-		// Inline table-valued function: RETURN [ ( ] select_stmt [ ) ]
-		// SQL Server accepts a CTE list here only inside the parentheses:
-		// RETURN (WITH c AS (...) SELECT ...) parses, RETURN WITH ... does not.
+		// Inline table-valued function: RETURN ( select_stmt )
+		// The docs write the parentheses as optional, but SQL Server 2022
+		// rejects RETURN SELECT ... and RETURN WITH ... without them, so
+		// they are required here and the select inside may carry a CTE list.
 		retLoc := p.pos()
 		p.advance() // consume RETURN
-		hasParen := false
-		if p.cur.Type == '(' {
-			hasParen = true
-			p.advance()
+		if _, err := p.expect('('); err != nil {
+			return nil, err
 		}
-		var selectStmt *nodes.SelectStmt
-		var err error
-		if hasParen {
-			selectStmt, err = p.parseSelectStmtWithCTE()
-		} else {
-			selectStmt, err = p.parseSelectStmt()
-		}
+		selectStmt, err := p.parseSelectStmtWithCTE()
 		if err != nil {
 			return nil, err
 		}
-		if hasParen {
-			p.match(')')
+		if selectStmt == nil {
+			return nil, p.unexpectedToken()
+		}
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
 		}
 		stmt.Body = &nodes.ReturnStmt{
 			Value: &nodes.SubqueryExpr{Query: selectStmt, Loc: nodes.Loc{Start: retLoc, End: -1}},

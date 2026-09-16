@@ -36,7 +36,8 @@ var nestedWithCases = []struct {
 	{"create_view", "CREATE VIEW dbo.v AS WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c", true},
 	{"alter_view", "ALTER VIEW dbo.v AS WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c", true},
 	{"inline_tvf_return_paren", "CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c)", true},
-	// Without the parentheses the CTE list is a syntax error at WITH.
+	// SQL Server requires the parentheses on an inline TVF RETURN, with or
+	// without a CTE list, so both unparenthesized forms are syntax errors.
 	{"inline_tvf_return_no_paren", "CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c", false},
 	{"declare_cursor_for", "DECLARE cur CURSOR FOR WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c", true},
 
@@ -44,7 +45,8 @@ var nestedWithCases = []struct {
 	{"derived_table_plain", "SELECT * FROM (SELECT a FROM dbo.t) d", true},
 	{"union_plain", "SELECT a FROM dbo.t UNION SELECT a FROM dbo.t", true},
 	{"insert_source_plain", "INSERT INTO dbo.t (a) SELECT a FROM dbo.t", true},
-	{"inline_tvf_return_no_paren_plain", "CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN SELECT a FROM dbo.t", true},
+	{"inline_tvf_return_paren_plain", "CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT a FROM dbo.t)", true},
+	{"inline_tvf_return_no_paren_plain", "CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN SELECT a FROM dbo.t", false},
 }
 
 // TestWithClauseNested checks that omni accepts a CTE list only where T-SQL
@@ -55,10 +57,14 @@ func TestWithClauseNested(t *testing.T) {
 			list, err := Parse(tc.sql)
 			if !tc.accepts {
 				if err == nil {
-					t.Fatalf("Parse(%q) succeeded, want a syntax error at WITH", tc.sql)
+					t.Fatalf("Parse(%q) succeeded, want a syntax error", tc.sql)
 				}
-				if !strings.Contains(err.Error(), `syntax error at or near "WITH"`) {
-					t.Errorf("Parse(%q) error = %q, want it at the WITH keyword", tc.sql, err.Error())
+				want := `syntax error at or near "WITH"`
+				if !strings.Contains(tc.sql, "WITH c") {
+					want = `syntax error at or near "SELECT"`
+				}
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("Parse(%q) error = %q, want %q", tc.sql, err.Error(), want)
 				}
 				return
 			}
