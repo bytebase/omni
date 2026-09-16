@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -12,8 +11,7 @@ import (
 // statement level, each with a leading CTE list. SQL Server treats a nested
 // SELECT as a query expression, which has no WITH clause, so the CTE is a
 // syntax error at the WITH keyword. Only an object body whose grammar names
-// select_statement (view, parenthesized inline TVF RETURN, cursor) carries its
-// own CTE list.
+// select_statement (view, inline TVF RETURN, cursor) carries its own CTE list.
 var nestedWithCases = []struct {
 	name    string
 	sql     string
@@ -37,9 +35,7 @@ var nestedWithCases = []struct {
 	{"create_view", "CREATE VIEW dbo.v AS WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c", true},
 	{"alter_view", "ALTER VIEW dbo.v AS WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c", true},
 	{"inline_tvf_return_paren", "CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c)", true},
-	// SQL Server requires the parentheses on an inline TVF RETURN, with or
-	// without a CTE list, so both unparenthesized forms are syntax errors.
-	{"inline_tvf_return_no_paren", "CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c", false},
+	{"inline_tvf_return_no_paren", "CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c", true},
 	{"declare_cursor_for", "DECLARE cur CURSOR FOR WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c", true},
 
 	// Controls: the same positions without a CTE are fine.
@@ -47,7 +43,7 @@ var nestedWithCases = []struct {
 	{"union_plain", "SELECT a FROM dbo.t UNION SELECT a FROM dbo.t", true},
 	{"insert_source_plain", "INSERT INTO dbo.t (a) SELECT a FROM dbo.t", true},
 	{"inline_tvf_return_paren_plain", "CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT a FROM dbo.t)", true},
-	{"inline_tvf_return_no_paren_plain", "CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN SELECT a FROM dbo.t", false},
+	{"inline_tvf_return_no_paren_plain", "CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN SELECT a FROM dbo.t", true},
 }
 
 // TestWithClauseNested checks that omni accepts a CTE list only where T-SQL
@@ -58,14 +54,10 @@ func TestWithClauseNested(t *testing.T) {
 			list, err := Parse(tc.sql)
 			if !tc.accepts {
 				if err == nil {
-					t.Fatalf("Parse(%q) succeeded, want a syntax error", tc.sql)
+					t.Fatalf("Parse(%q) succeeded, want a syntax error at WITH", tc.sql)
 				}
-				want := `syntax error at or near "WITH"`
-				if !strings.Contains(tc.sql, "WITH c") {
-					want = `syntax error at or near "SELECT"`
-				}
-				if !strings.Contains(err.Error(), want) {
-					t.Errorf("Parse(%q) error = %q, want %q", tc.sql, err.Error(), want)
+				if !strings.Contains(err.Error(), `syntax error at or near "WITH"`) {
+					t.Errorf("Parse(%q) error = %q, want it at the WITH keyword", tc.sql, err.Error())
 				}
 				return
 			}
@@ -117,33 +109,3 @@ func TestWithClauseNestedOracle(t *testing.T) {
 	}
 }
 
-// TestInlineTVFReturnOracleDiag is a temporary diagnostic: it prints SQL
-// Server's verdict and error text for inline TVF RETURN variants.
-func TestInlineTVFReturnOracleDiag(t *testing.T) {
-	oracle := startParserOracle(t)
-	for _, sql := range []string{
-		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT a FROM dbo.t)",
-		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c)",
-		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN SELECT a FROM dbo.t",
-		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c",
-		"CREATE FUNCTION dbo.f (@p INT) RETURNS TABLE AS RETURN (SELECT a FROM dbo.t WHERE a = @p)",
-		"CREATE FUNCTION dbo.f (@p INT) RETURNS TABLE AS RETURN SELECT a FROM dbo.t WHERE a = @p",
-		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT 1 AS a)",
-		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT a FROM dbo.t);",
-		"CREATE FUNCTION dbo.f() RETURNS TABLE\nAS\nRETURN\n(\n    SELECT a FROM dbo.t\n)",
-		"CREATE FUNCTION f() RETURNS TABLE AS RETURN (SELECT a FROM dbo.t)",
-		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT a FROM nosuch)",
-		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT t.a FROM dbo.t AS t)",
-		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT col FROM dbo.t)",
-		"CREATE FUNCTION dbo.f() RETURNS TABLE WITH SCHEMABINDING AS RETURN (SELECT a FROM dbo.t)",
-		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT a FROM dbo.t UNION ALL SELECT a FROM dbo.t)",
-		"CREATE OR ALTER FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT a FROM dbo.t)",
-		"ALTER FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT a FROM dbo.t)",
-	} {
-		ssErr, err := oracle.parseError(sql)
-		if err != nil {
-			t.Fatalf("oracle error: %v", err)
-		}
-		fmt.Printf("DIAG %s | %v | %s\n", boolToAcceptReject(ssErr == nil), ssErr, sql)
-	}
-}

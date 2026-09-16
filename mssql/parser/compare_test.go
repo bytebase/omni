@@ -2184,7 +2184,7 @@ func TestParseCreateProc(t *testing.T) {
 	})
 
 	t.Run("table valued function", func(t *testing.T) {
-		sql := `CREATE FUNCTION fn_test (@id int) RETURNS TABLE AS RETURN (SELECT * FROM t WHERE id = @id)`
+		sql := `CREATE FUNCTION fn_test (@id int) RETURNS TABLE AS RETURN SELECT * FROM t WHERE id = @id`
 		ParseAndCheck(t, sql)
 	})
 }
@@ -3114,7 +3114,7 @@ func TestParseAlterObjects(t *testing.T) {
 		// ALTER FUNCTION - inline TVF
 		{
 			name: "alter_function_tvf",
-			sql:  "ALTER FUNCTION dbo.fn_emp(@dept INT) RETURNS TABLE AS RETURN (SELECT * FROM employees WHERE dept_id = @dept)",
+			sql:  "ALTER FUNCTION dbo.fn_emp(@dept INT) RETURNS TABLE AS RETURN SELECT * FROM employees WHERE dept_id = @dept",
 		},
 	}
 
@@ -20258,7 +20258,7 @@ func TestParseRoutinesBnfReview(t *testing.T) {
 		sqls := []string{
 			"CREATE PROCEDURE sp1 @p1 int, @p2 varchar(50) = 'hello' OUTPUT AS SELECT 1",
 			"CREATE PROC sp1 @p1 int READONLY AS SELECT 1",
-			"CREATE FUNCTION fn1 (@p1 int) RETURNS TABLE AS RETURN (SELECT * FROM t)",
+			"CREATE FUNCTION fn1 (@p1 int) RETURNS TABLE AS RETURN SELECT * FROM t",
 			"CREATE FUNCTION fn1 (@p1 int) RETURNS @t TABLE (id int, name varchar(50)) AS BEGIN RETURN END",
 			"EXEC sp1 1, 'hello', @p3 = 42 OUTPUT",
 			"EXECUTE @result = dbo.sp1 @p1 = 1",
