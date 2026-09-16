@@ -34,15 +34,6 @@ import (
 //	    [ HAVING <search_condition> ]
 //	    [ WINDOW windowDefinition [ , windowDefinition ]* ]
 func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
-	// Entering a SELECT (top-level or subquery) resets the search-condition
-	// depth so that the select list / scalar subexpressions are parsed as
-	// scalar expressions even if we entered from an outer WHERE or HAVING.
-	// The SELECT's own WHERE / HAVING / JOIN ON clauses will increment the
-	// depth back for their duration.
-	savedDepth := p.searchCondDepth
-	p.searchCondDepth = 0
-	defer func() { p.searchCondDepth = savedDepth }()
-
 	loc := p.pos()
 
 	// WITH clause (CTE)
@@ -53,11 +44,36 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		if err != nil {
 			return nil, err
 		}
+		if p.cur.Type != kwSELECT {
+			// The CTE list has been consumed, so returning nil here would
+			// silently drop it and leave the caller with a typed-nil
+			// statement. A WITH that is not followed by SELECT is only
+			// legal at statement level (WITH ... INSERT/UPDATE/DELETE/MERGE),
+			// which parseWithStmt handles before ever reaching here.
+			return nil, p.unexpectedToken()
+		}
 	}
 
 	if p.cur.Type != kwSELECT {
 		return nil, nil
 	}
+	return p.parseSelectStmtAfterWith(loc, withClause)
+}
+
+// parseSelectStmtAfterWith parses a SELECT statement whose optional WITH
+// clause has already been consumed. loc is the start of the whole statement
+// (the WITH keyword when present, otherwise SELECT). The current token must
+// be SELECT.
+func (p *Parser) parseSelectStmtAfterWith(loc int, withClause *nodes.WithClause) (*nodes.SelectStmt, error) {
+	// Entering a SELECT (top-level or subquery) resets the search-condition
+	// depth so that the select list / scalar subexpressions are parsed as
+	// scalar expressions even if we entered from an outer WHERE or HAVING.
+	// The SELECT's own WHERE / HAVING / JOIN ON clauses will increment the
+	// depth back for their duration.
+	savedDepth := p.searchCondDepth
+	p.searchCondDepth = 0
+	defer func() { p.searchCondDepth = savedDepth }()
+
 	p.advance() // consume SELECT
 
 	// Completion: after SELECT keyword → target list candidates
@@ -429,7 +445,7 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 	// name, which lets us break the loop cleanly at non-SELECT DML statements.
 	// parseCommaList's single-terminator contract does not fit here.
 	var ctes []nodes.Node
-	for p.cur.Type != kwSELECT && p.cur.Type != tokEOF && p.cur.Type != ';' {
+	for !p.atWithClauseEnd() {
 		cte, err := p.parseCTE()
 		if err != nil {
 			return nil, err
@@ -443,13 +459,24 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 		}
 		// Reject trailing comma: after consuming ',', we must have another CTE
 		// before a terminator.
-		if p.cur.Type == kwSELECT || p.cur.Type == tokEOF || p.cur.Type == ';' {
+		if p.atWithClauseEnd() {
 			return nil, p.unexpectedToken()
 		}
 	}
 	wc.CTEs = &nodes.List{Items: ctes}
 	wc.Loc.End = p.prevEnd()
 	return wc, nil
+}
+
+// atWithClauseEnd reports whether the current token ends a CTE list: the
+// statement the CTEs belong to (SELECT / INSERT / UPDATE / DELETE / MERGE),
+// or end of input.
+func (p *Parser) atWithClauseEnd() bool {
+	switch p.cur.Type {
+	case kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwMERGE, tokEOF, ';':
+		return true
+	}
+	return false
 }
 
 // parseXmlNamespaces parses XMLNAMESPACES ( namespace_decl [, ...n] ).

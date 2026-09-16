@@ -52,6 +52,27 @@ func TestWalkNil(t *testing.T) {
 	Walk(inspector(func(n Node) bool { return true }), nil)
 }
 
+// TestWalkTypedNil guards against a nil concrete pointer stored in the Node
+// interface. walkChildren type-switches on the concrete type and dereferences
+// its fields, so without the guard this is a nil pointer panic (BYT-10223).
+func TestWalkTypedNil(t *testing.T) {
+	for _, n := range []Node{
+		(*SelectStmt)(nil),
+		(*InsertStmt)(nil),
+		(*List)(nil),
+		(*ColumnRef)(nil),
+	} {
+		visited := 0
+		Inspect(n, func(Node) bool {
+			visited++
+			return true
+		})
+		if visited != 0 {
+			t.Errorf("%T: visited %d nodes, want 0", n, visited)
+		}
+	}
+}
+
 func TestInspectPruning(t *testing.T) {
 	stmt := &SelectStmt{
 		WhereClause: &BinaryExpr{

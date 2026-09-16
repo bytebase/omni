@@ -446,9 +446,24 @@ func TestCollect_CTEWithClause(t *testing.T) {
 			wantToks: []int{kwSELECT},
 		},
 		{
+			name:     "WITH cte AS (SELECT * FROM t) |",
+			sql:      "WITH cte AS (SELECT * FROM t) ",
+			wantToks: []int{kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwMERGE},
+		},
+		{
 			name:      "WITH cte AS (SELECT * FROM t) SELECT |",
 			sql:       "WITH cte AS (SELECT * FROM t) SELECT ",
 			wantRules: []string{"columnref", "func_name"},
+		},
+		{
+			name:      "WITH cte AS (SELECT * FROM t) INSERT INTO |",
+			sql:       "WITH cte AS (SELECT * FROM t) INSERT INTO ",
+			wantRules: []string{"table_ref"},
+		},
+		{
+			name:      "WITH cte AS (SELECT * FROM t) INSERT INTO x SELECT * FROM |",
+			sql:       "WITH cte AS (SELECT * FROM t) INSERT INTO x SELECT * FROM ",
+			wantRules: []string{"table_ref"},
 		},
 		{
 			name:      "WITH cte AS (SELECT * FROM t) SELECT * FROM |",

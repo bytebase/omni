@@ -2,6 +2,8 @@
 
 package ast
 
+import "reflect"
+
 // Visitor defines the interface for AST traversal.
 // Visit is called for each node during a depth-first walk.
 // If Visit returns a non-nil Visitor, Walk recurses into the node's children
@@ -15,7 +17,7 @@ type Visitor interface {
 // if that returns a non-nil visitor w, it walks each child node with w,
 // then calls w.Visit(nil).
 func Walk(v Visitor, node Node) {
-	if node == nil {
+	if isNilNode(node) {
 		return
 	}
 	w := v.Visit(node)
@@ -30,6 +32,17 @@ func Walk(v Visitor, node Node) {
 // If f returns true, Inspect recurses into the node's children.
 func Inspect(node Node, f func(Node) bool) {
 	Walk(inspector(f), node)
+}
+
+// isNilNode reports whether node is nil, including a typed nil such as a
+// (*SelectStmt)(nil) stored in the interface. walkChildren type-switches on
+// the concrete type and dereferences it, so a typed nil must stop here.
+func isNilNode(node Node) bool {
+	if node == nil {
+		return true
+	}
+	v := reflect.ValueOf(node)
+	return v.Kind() == reflect.Ptr && v.IsNil()
 }
 
 type inspector func(Node) bool

@@ -1,8 +1,11 @@
 package mssql
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/mssql/ast"
 )
 
 func TestBuildLineIndex(t *testing.T) {
@@ -140,5 +143,69 @@ func TestOffsetToPosition(t *testing.T) {
 				t.Errorf("offsetToPosition(idx, %d) = %+v, want %+v", tt.offset, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestParseWithClauseDML is the end-to-end shape of BYT-10223: a CTE followed
+// by INSERT must come back as one statement whose text spans the whole input
+// and whose AST can be walked. Before the fix Parse returned a typed-nil
+// *ast.SelectStmt holding all the text plus an InsertStmt with none, and
+// ast.Inspect on the first one panicked inside every SQL review rule.
+func TestParseWithClauseDML(t *testing.T) {
+	sql := `-- txn-mode = off
+
+;WITH TargetVenues AS (
+    SELECT v.VenueId
+    FROM Venue v
+    WHERE v.IsActive = 1
+)
+INSERT INTO VenueMeta (VenueId, Attribute)
+SELECT tv.VenueId, 'Roller.Venue.Cap'
+FROM TargetVenues tv
+WHERE NOT EXISTS (
+    SELECT 1 FROM VenueMeta vm WHERE vm.VenueId = tv.VenueId
+);`
+
+	stmts, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse error: %v", err)
+	}
+	if len(stmts) != 1 {
+		t.Fatalf("got %d statements, want 1", len(stmts))
+	}
+	s := stmts[0]
+	ins, ok := s.AST.(*ast.InsertStmt)
+	if !ok {
+		t.Fatalf("AST is %T, want *ast.InsertStmt", s.AST)
+	}
+	if ins.WithClause == nil || ins.WithClause.CTEs == nil || len(ins.WithClause.CTEs.Items) != 1 {
+		t.Fatalf("WithClause = %+v, want one CTE", ins.WithClause)
+	}
+	if s.Text != sql {
+		t.Errorf("Text = %q, want the whole input", s.Text)
+	}
+	if s.ByteStart != 0 || s.ByteEnd != len(sql) {
+		t.Errorf("ByteStart/ByteEnd = %d/%d, want 0/%d", s.ByteStart, s.ByteEnd, len(sql))
+	}
+	// Start points at the WITH keyword (line 3, after the leading semicolon).
+	if s.Start.Line != 3 || s.Start.Column != 2 {
+		t.Errorf("Start = %d:%d, want 3:2", s.Start.Line, s.Start.Column)
+	}
+
+	// Every advisor rule walks the AST; this must not panic and must reach
+	// both the CTE body and the INSERT source.
+	var seen []string
+	ast.Inspect(s.AST, func(n ast.Node) bool {
+		switch n.(type) {
+		case *ast.CommonTableExpr, *ast.SelectStmt, *ast.InsertStmt:
+			seen = append(seen, fmt.Sprintf("%T", n))
+		}
+		return true
+	})
+	joined := strings.Join(seen, " ")
+	for _, want := range []string{"*ast.InsertStmt", "*ast.CommonTableExpr", "*ast.SelectStmt"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("Inspect did not visit %s; visited: %s", want, joined)
+		}
 	}
 }

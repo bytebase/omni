@@ -6,6 +6,7 @@ package parser
 
 import (
 	"fmt"
+	"reflect"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
 )
@@ -75,7 +76,7 @@ func Parse(sql string) (*nodes.List, error) {
 		if p.lexer.Err != nil {
 			return nil, p.lexerError()
 		}
-		if stmt == nil {
+		if isNilNode(stmt) {
 			if p.cur.Type != tokEOF {
 				return nil, p.syntaxErrorAtCur()
 			}
@@ -88,6 +89,87 @@ func Parse(sql string) (*nodes.List, error) {
 		return &nodes.List{}, nil
 	}
 	return &nodes.List{Items: stmts}, nil
+}
+
+// isNilNode reports whether n is nil, including a typed nil such as a
+// (*nodes.SelectStmt)(nil) stored in the interface. Sub-parsers return
+// concrete pointer types, so a nil result converts to a non-nil interface
+// that a plain == nil check would let through as a statement.
+func isNilNode(n nodes.Node) bool {
+	if n == nil {
+		return true
+	}
+	v := reflect.ValueOf(n)
+	return v.Kind() == reflect.Ptr && v.IsNil()
+}
+
+// parseWithStmt parses a statement that starts with a WITH (CTE) clause.
+//
+// BNF: mssql/parser/bnf/select-transact-sql.bnf
+//
+//	[ WITH <common_table_expression> [ ,...n ] ]
+//	{ SELECT | INSERT | UPDATE | DELETE | MERGE } ...
+//
+// T-SQL attaches the CTE list to the DML statement that follows it, so the
+// WITH clause is parsed once here and handed to the matching statement
+// parser. The resulting node starts at the WITH keyword.
+//
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/with-common-table-expression-transact-sql
+func (p *Parser) parseWithStmt() (nodes.StmtNode, error) {
+	loc := p.pos()
+	withClause, err := p.parseWithClause()
+	if err != nil {
+		return nil, err
+	}
+
+	// Completion: after the CTE list → the statement it belongs to.
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwSELECT)
+		p.addTokenCandidate(kwINSERT)
+		p.addTokenCandidate(kwUPDATE)
+		p.addTokenCandidate(kwDELETE)
+		p.addTokenCandidate(kwMERGE)
+		return nil, errCollecting
+	}
+
+	switch p.cur.Type {
+	case kwSELECT:
+		return p.parseSelectStmtAfterWith(loc, withClause)
+	case kwINSERT:
+		stmt, err := p.parseInsertStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.WithClause = withClause
+		stmt.Loc.Start = loc
+		return stmt, nil
+	case kwUPDATE:
+		stmt, err := p.parseUpdateStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.WithClause = withClause
+		stmt.Loc.Start = loc
+		return stmt, nil
+	case kwDELETE:
+		stmt, err := p.parseDeleteStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.WithClause = withClause
+		stmt.Loc.Start = loc
+		return stmt, nil
+	case kwMERGE:
+		stmt, err := p.parseMergeStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.WithClause = withClause
+		stmt.Loc.Start = loc
+		return stmt, nil
+	}
+	return nil, p.unexpectedToken()
 }
 
 // parseStmt dispatches to statement-specific parsers.
@@ -105,7 +187,7 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 	case kwSELECT:
 		return p.parseSelectStmt()
 	case kwWITH:
-		return p.parseSelectStmt()
+		return p.parseWithStmt()
 	case kwINSERT:
 		// Check for INSERT BULK
 		{
