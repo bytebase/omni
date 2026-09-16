@@ -101,17 +101,25 @@ func TestMain(m *testing.M) {
 // canParse tests whether SQL Server accepts the given SQL without execution errors.
 // It uses SET PARSEONLY ON to check syntax without executing.
 func (o *parserOracle) canParse(sql string) (bool, error) {
-	_, err := o.db.ExecContext(o.ctx, "SET PARSEONLY ON")
+	parseErr, err := o.parseError(sql)
 	if err != nil {
-		return false, fmt.Errorf("SET PARSEONLY ON: %w", err)
+		return false, err
+	}
+	return parseErr == nil, nil
+}
+
+// parseError returns SQL Server's error for sql under SET PARSEONLY ON, or
+// nil when SQL Server accepts the syntax. The second result reports a failure
+// of the oracle itself.
+func (o *parserOracle) parseError(sql string) (parseErr error, err error) {
+	_, err = o.db.ExecContext(o.ctx, "SET PARSEONLY ON")
+	if err != nil {
+		return nil, fmt.Errorf("SET PARSEONLY ON: %w", err)
 	}
 	defer o.db.ExecContext(o.ctx, "SET PARSEONLY OFF") //nolint:errcheck
 
-	_, err = o.db.ExecContext(o.ctx, sql)
-	if err != nil {
-		return false, nil // Parse error — SQL Server rejects this syntax
-	}
-	return true, nil // SQL Server accepts this syntax
+	_, parseErr = o.db.ExecContext(o.ctx, sql)
+	return parseErr, nil
 }
 
 // TestKeywordOracleOptionPositions verifies whether omni's option parsing

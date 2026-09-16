@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -96,21 +97,53 @@ func TestWithClauseNestedOracle(t *testing.T) {
 
 	for _, tc := range nestedWithCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ssAccepts, err := oracle.canParse(tc.sql)
+			ssErr, err := oracle.parseError(tc.sql)
 			if err != nil {
 				t.Fatalf("oracle error: %v", err)
 			}
+			ssAccepts := ssErr == nil
 			if ssAccepts != tc.accepts {
-				t.Errorf("table says SQL Server %s but it %s:\n  SQL: %s",
-					boolToAcceptReject(tc.accepts), boolToAcceptReject(ssAccepts), tc.sql)
+				t.Errorf("table says SQL Server %s but it %s (%v):\n  SQL: %s",
+					boolToAcceptReject(tc.accepts), boolToAcceptReject(ssAccepts), ssErr, tc.sql)
 			}
 
 			_, omniErr := Parse(tc.sql)
 			omniAccepts := omniErr == nil
 			if ssAccepts != omniAccepts {
-				t.Errorf("MISMATCH: SQL Server %s, omni %s (%v)\n  SQL: %s",
-					boolToAcceptReject(ssAccepts), boolToAcceptReject(omniAccepts), omniErr, tc.sql)
+				t.Errorf("MISMATCH: SQL Server %s (%v), omni %s (%v)\n  SQL: %s",
+					boolToAcceptReject(ssAccepts), ssErr, boolToAcceptReject(omniAccepts), omniErr, tc.sql)
 			}
 		})
+	}
+}
+
+// TestInlineTVFReturnOracleDiag is a temporary diagnostic: it prints SQL
+// Server's verdict and error text for inline TVF RETURN variants.
+func TestInlineTVFReturnOracleDiag(t *testing.T) {
+	oracle := startParserOracle(t)
+	for _, sql := range []string{
+		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT a FROM dbo.t)",
+		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c)",
+		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN SELECT a FROM dbo.t",
+		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN WITH c AS (SELECT a FROM dbo.t) SELECT a FROM c",
+		"CREATE FUNCTION dbo.f (@p INT) RETURNS TABLE AS RETURN (SELECT a FROM dbo.t WHERE a = @p)",
+		"CREATE FUNCTION dbo.f (@p INT) RETURNS TABLE AS RETURN SELECT a FROM dbo.t WHERE a = @p",
+		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT 1 AS a)",
+		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT a FROM dbo.t);",
+		"CREATE FUNCTION dbo.f() RETURNS TABLE\nAS\nRETURN\n(\n    SELECT a FROM dbo.t\n)",
+		"CREATE FUNCTION f() RETURNS TABLE AS RETURN (SELECT a FROM dbo.t)",
+		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT a FROM nosuch)",
+		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT t.a FROM dbo.t AS t)",
+		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT col FROM dbo.t)",
+		"CREATE FUNCTION dbo.f() RETURNS TABLE WITH SCHEMABINDING AS RETURN (SELECT a FROM dbo.t)",
+		"CREATE FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT a FROM dbo.t UNION ALL SELECT a FROM dbo.t)",
+		"CREATE OR ALTER FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT a FROM dbo.t)",
+		"ALTER FUNCTION dbo.f() RETURNS TABLE AS RETURN (SELECT a FROM dbo.t)",
+	} {
+		ssErr, err := oracle.parseError(sql)
+		if err != nil {
+			t.Fatalf("oracle error: %v", err)
+		}
+		fmt.Printf("DIAG %s | %v | %s\n", boolToAcceptReject(ssErr == nil), ssErr, sql)
 	}
 }
