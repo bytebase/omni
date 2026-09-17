@@ -1243,7 +1243,7 @@ func (p *Parser) parseExists() (nodes.ExprNode, error) {
 		p.addTokenCandidate(kwSELECT)
 		return nil, errCollecting
 	}
-	query, err := p.parseStmt()
+	query, err := p.parseSelectStmt()
 	if err != nil {
 		return nil, err
 	}

@@ -108,6 +108,18 @@ func TestWithClauseDML(t *testing.T) {
 			wantCTEs: []string{"a", "b"},
 		},
 		{
+			name:     "xmlnamespaces only before select",
+			sql:      "WITH XMLNAMESPACES ('http://x' AS ns) SELECT a FROM x",
+			wantType: &ast.SelectStmt{},
+			wantCTEs: nil,
+		},
+		{
+			name:     "xmlnamespaces only before insert",
+			sql:      "WITH XMLNAMESPACES ('http://x' AS ns) INSERT INTO x (a) SELECT a FROM y",
+			wantType: &ast.InsertStmt{},
+			wantCTEs: nil,
+		},
+		{
 			name:     "leading semicolon",
 			sql:      ";WITH t AS (SELECT 1 AS a) INSERT INTO x (a) SELECT a FROM t;",
 			wantType: &ast.InsertStmt{},
@@ -187,7 +199,7 @@ WHERE NOT EXISTS (
 				}
 				return true
 			})
-			if !sawCTE {
+			if !sawCTE && len(tt.wantCTEs) > 0 {
 				t.Error("Inspect did not visit the CommonTableExpr")
 			}
 		})
@@ -274,6 +286,10 @@ func TestWithClauseDMLErrors(t *testing.T) {
 		{"trailing comma before select", "WITH t AS (SELECT 1 AS a), SELECT a FROM t", `syntax error at or near "SELECT"`},
 		{"cte in subquery position", "SELECT * FROM (WITH t AS (SELECT 1 AS a) INSERT INTO x SELECT a FROM t) d", `syntax error at or near "INSERT"`},
 		{"cte in view body", "CREATE VIEW v AS WITH t AS (SELECT 1 AS a) INSERT INTO x SELECT a FROM t", `syntax error at or near "INSERT"`},
+		{"empty cte list before insert", "WITH INSERT INTO x (a) VALUES (1)", `syntax error at or near "INSERT"`},
+		{"empty cte list before select", "WITH SELECT 1", `syntax error at or near "SELECT"`},
+		{"dml inside EXISTS", "SELECT 1 WHERE EXISTS (WITH c AS (SELECT 1 AS a) DELETE FROM x)", `syntax error at or near "DELETE"`},
+		{"dml inside EXISTS without cte", "SELECT 1 WHERE EXISTS (DELETE FROM x)", `syntax error at or near "DELETE"`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -314,6 +330,11 @@ func TestWithClauseDMLOracle(t *testing.T) {
 		{"with_create_invalid", "WITH c AS (SELECT a FROM dbo.t) CREATE TABLE dbo.u (a INT)"},
 		{"with_exec_invalid", "WITH c AS (SELECT a FROM dbo.t) EXEC sp_who"},
 		{"with_trailing_comma_invalid", "WITH c AS (SELECT a FROM dbo.t), INSERT INTO dbo.t (a) SELECT a FROM c"},
+		{"with_empty_before_insert_invalid", "WITH INSERT INTO dbo.t (a) VALUES (1)"},
+		{"with_empty_before_select_invalid", "WITH SELECT 1"},
+		{"with_xmlnamespaces_only_select", "WITH XMLNAMESPACES ('http://x' AS ns) SELECT a FROM dbo.t"},
+		{"with_xmlnamespaces_only_insert", "WITH XMLNAMESPACES ('http://x' AS ns) INSERT INTO dbo.t (a) SELECT a FROM dbo.t"},
+		{"with_dml_in_exists_invalid", "SELECT 1 WHERE EXISTS (WITH c AS (SELECT a FROM dbo.t) DELETE FROM dbo.t)"},
 		// Not covered here: SQL Server rejects a CTE inside a derived table
 		// (SELECT * FROM (WITH c AS (...) SELECT ...) d) while omni accepts
 		// it. That leniency predates the WITH ... DML fix and needs its own

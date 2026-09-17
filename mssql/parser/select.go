@@ -463,6 +463,12 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 			return nil, p.unexpectedToken()
 		}
 	}
+	// WITH must introduce something: a CTE list, or XMLNAMESPACES on its own.
+	// Otherwise "WITH SELECT 1" / "WITH INSERT ..." would parse as a statement
+	// carrying an empty clause.
+	if len(ctes) == 0 && wc.XmlNamespaces == nil {
+		return nil, p.unexpectedToken()
+	}
 	wc.CTEs = &nodes.List{Items: ctes}
 	wc.Loc.End = p.prevEnd()
 	return wc, nil

@@ -77,7 +77,10 @@ func Parse(sql string) (*nodes.List, error) {
 			return nil, p.lexerError()
 		}
 		if isNilNode(stmt) {
-			if p.cur.Type != tokEOF {
+			// A typed nil means a statement parser consumed input and gave
+			// up without an error; report it even at EOF instead of dropping
+			// the statement.
+			if stmt != nil || p.cur.Type != tokEOF {
 				return nil, p.syntaxErrorAtCur()
 			}
 			break
