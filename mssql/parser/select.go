@@ -431,13 +431,16 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 	}
 
 	// Optional XMLNAMESPACES (...)
+	xmlComma := false
 	if p.cur.Type == kwXMLNAMESPACES {
 		var err error
 		wc.XmlNamespaces, err = p.parseXmlNamespaces()
 		if err != nil {
 			return nil, err
 		}
-		p.match(',') // consume comma between XMLNAMESPACES and CTEs
+		// A comma after XMLNAMESPACES separates it from the CTE list, so it
+		// commits the clause to having at least one CTE.
+		_, xmlComma = p.match(',')
 	}
 
 	// CTE list terminator is multi-token (SELECT / INSERT / UPDATE / DELETE /
@@ -465,8 +468,9 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 	}
 	// WITH must introduce something: a CTE list, or XMLNAMESPACES on its own.
 	// Otherwise "WITH SELECT 1" / "WITH INSERT ..." would parse as a statement
-	// carrying an empty clause.
-	if len(ctes) == 0 && wc.XmlNamespaces == nil {
+	// carrying an empty clause, and "WITH XMLNAMESPACES (...), INSERT ..."
+	// would parse with a dangling comma.
+	if len(ctes) == 0 && (wc.XmlNamespaces == nil || xmlComma) {
 		return nil, p.unexpectedToken()
 	}
 	wc.CTEs = &nodes.List{Items: ctes}
