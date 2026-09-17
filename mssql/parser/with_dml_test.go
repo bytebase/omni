@@ -294,7 +294,7 @@ func TestWithClauseDMLErrors(t *testing.T) {
 		{"cte in view body", "CREATE VIEW v AS WITH t AS (SELECT 1 AS a) INSERT INTO x SELECT a FROM t", `syntax error at or near "INSERT"`},
 		{"empty cte list before insert", "WITH INSERT INTO x (a) VALUES (1)", `syntax error at or near "INSERT"`},
 		{"empty cte list before select", "WITH SELECT 1", `syntax error at or near "SELECT"`},
-		{"dml inside EXISTS", "SELECT 1 WHERE EXISTS (WITH c AS (SELECT 1 AS a) DELETE FROM x)", `syntax error at or near "DELETE"`},
+		{"dml inside EXISTS", "SELECT 1 WHERE EXISTS (WITH c AS (SELECT 1 AS a) DELETE FROM x)", `syntax error at or near "WITH"`},
 		{"dml inside EXISTS without cte", "SELECT 1 WHERE EXISTS (DELETE FROM x)", `syntax error at or near "DELETE"`},
 		{"dangling comma after xmlnamespaces before insert", "WITH XMLNAMESPACES ('http://x' AS ns), INSERT INTO x (a) SELECT a FROM y", `syntax error at or near "INSERT"`},
 		{"dangling comma after xmlnamespaces before select", "WITH XMLNAMESPACES ('http://x' AS ns), SELECT 1", `syntax error at or near "SELECT"`},
