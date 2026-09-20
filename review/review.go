@@ -72,9 +72,6 @@ type Options struct {
 	Rules []Rule
 	// Change is what the change asks for.
 	Change Change
-	// Workers bounds the goroutines reviewing distinct targets; 0 means
-	// sequential.
-	Workers int
 }
 
 // Change is the change's requested behaviors, read from the spec and the
