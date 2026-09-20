@@ -68,7 +68,10 @@ type ReviewFunc func(ctx context.Context, sql string, opts Options, targets []Ta
 // Options applies to the whole change: the same for every target.
 type Options struct {
 	// Rules to evaluate. nil means every rule the engine implements. A
-	// rule the engine does not implement is ignored, not an error.
+	// rule the engine does not implement is ignored, not an error. Syntax
+	// is always evaluated whether or not it is listed: parsing comes
+	// before every other rule, and a statement that does not parse is
+	// reported rather than silently skipped.
 	Rules []Rule
 	// Change is what the change asks for.
 	Change Change
@@ -97,12 +100,16 @@ type Target struct {
 	// Schema.Name and the PostgreSQL search path is Schema.SearchPath.
 	Schema *metadata.DatabaseSchemaMetadata
 	// BackupDatabaseExists reports whether the engine's backup database
-	// (bbdataarchive) exists on the target's instance. Engines whose backup
-	// location is a schema inside the database (PostgreSQL) read it from
-	// Schema and ignore this field.
+	// (bbdataarchive) exists on the target's instance. PriorBackup stores
+	// its copies there and OnlineMigration stages its gh-ost tables there,
+	// so the one fact serves both rules. Engines whose backup location is
+	// a schema inside the database (PostgreSQL) read it from Schema and
+	// ignore this field.
 	BackupDatabaseExists bool
 	// SessionUser is the role the change runs as; PostgreSQL ownership
-	// checks in WalkThrough use it. Empty means the connection's user.
+	// checks in WalkThrough use it. Empty disables those checks: the
+	// engine has no connection to ask, so the caller resolves the role or
+	// opts out.
 	SessionUser string
 	// LowerCaseTableNames is the MySQL family's lower_case_table_names
 	// server variable (0: names are case-sensitive; 1 or 2: not), an
