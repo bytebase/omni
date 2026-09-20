@@ -21,6 +21,13 @@ func Position(sql string, offset int) (line, column int) {
 	before := sql[:offset]
 	lineStart := strings.LastIndexByte(before, '\n') + 1
 	line = strings.Count(before, "\n") + 1
-	column = utf8.RuneCountInString(before[lineStart:]) + 1
+	// Decode rune by rune from the full text rather than counting runes in
+	// the slice, so an offset inside a multi-byte rune counts that rune
+	// once instead of counting each of its leading bytes as a rune.
+	column = 1
+	for pos := lineStart; pos < offset; column++ {
+		_, size := utf8.DecodeRuneInString(sql[pos:])
+		pos += size
+	}
 	return line, column
 }
