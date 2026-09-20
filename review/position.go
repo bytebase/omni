@@ -13,24 +13,46 @@ func Position(sql string, offset int) (line, column int) {
 	return Index(sql).Position(offset)
 }
 
+// checkpointBytes bounds how many bytes a Position call decodes: the
+// index records the rune count at a rune boundary at least this often.
+const checkpointBytes = 512
+
 // Text is an index over one SQL text for converting byte offsets to
 // positions. Lines end at '\n'; a '\r' before it counts as a column like
 // any other rune.
 type Text struct {
 	sql        string
 	lineStarts []int // byte offset of each line's first byte; lineStarts[0] == 0
+	// Rune-count checkpoints: the number of runes starting before byte
+	// offset checkpointAt[i] is checkpointRunes[i]. Every offset is a rune
+	// boundary, at most checkpointBytes apart, and checkpointAt[0] == 0.
+	checkpointAt    []int
+	checkpointRunes []int
 }
 
 // Index scans sql once and returns a Text whose Position calls each cost
-// the length of one line.
+// at most checkpointBytes of decoding, whatever the line length.
 func Index(sql string) *Text {
-	starts := []int{0}
-	for i := 0; i < len(sql); i++ {
-		if sql[i] == '\n' {
-			starts = append(starts, i+1)
+	t := &Text{sql: sql, lineStarts: []int{0}}
+	next := 0 // the next offset at or after which a checkpoint is recorded
+	for pos, runes := 0, 0; pos < len(sql); runes++ {
+		if pos >= next {
+			t.checkpointAt = append(t.checkpointAt, pos)
+			t.checkpointRunes = append(t.checkpointRunes, runes)
+			next = pos + checkpointBytes
 		}
+		if sql[pos] == '\n' {
+			t.lineStarts = append(t.lineStarts, pos+1)
+			pos++
+			continue
+		}
+		_, size := utf8.DecodeRuneInString(sql[pos:])
+		pos += size
 	}
-	return &Text{sql: sql, lineStarts: starts}
+	if len(t.checkpointAt) == 0 {
+		t.checkpointAt, t.checkpointRunes = []int{0}, []int{0}
+	}
+	return t
 }
 
 // Position converts a byte offset into a 1-based line and a 1-based column
@@ -47,13 +69,20 @@ func (t *Text) Position(offset int) (line, column int) {
 	// The line is the last start at or before offset.
 	i := sort.Search(len(t.lineStarts), func(i int) bool { return t.lineStarts[i] > offset }) - 1
 	line = i + 1
-	// Decode rune by rune from the line start rather than counting runes
-	// in a slice, so an offset inside a multi-byte rune counts that rune
-	// once instead of counting each of its leading bytes as a rune.
-	column = 1
-	for pos := t.lineStarts[i]; pos < offset; column++ {
+	column = t.runesBefore(offset) - t.runesBefore(t.lineStarts[i]) + 1
+	return line, column
+}
+
+// runesBefore returns the number of runes that start before the byte
+// offset, so an offset inside a multi-byte rune counts that rune. It
+// decodes from the nearest checkpoint at or before offset, which is a
+// rune boundary, so partial leading bytes are never counted separately.
+func (t *Text) runesBefore(offset int) int {
+	k := sort.Search(len(t.checkpointAt), func(k int) bool { return t.checkpointAt[k] > offset }) - 1
+	runes := t.checkpointRunes[k]
+	for pos := t.checkpointAt[k]; pos < offset; runes++ {
 		_, size := utf8.DecodeRuneInString(t.sql[pos:])
 		pos += size
 	}
-	return line, column
+	return runes
 }
