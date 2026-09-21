@@ -14,13 +14,14 @@ import (
 type statement struct {
 	index int
 	node  ast.Node
-	// loc is the statement's absolute byte range in the input, without
-	// the trailing semicolon.
+	// loc is the statement's absolute byte range in the input, from its
+	// first token to its last, without the trailing semicolon.
 	loc ast.Loc
 }
 
-// statementRanges lists every non-empty statement's byte range, from the
-// lexical splitter so it does not depend on the text parsing.
+// statementRanges lists every non-empty statement's byte range. It comes
+// from the lexical splitter, the same pg.Split Bytebase splits with, so
+// it does not depend on the text parsing.
 func statementRanges(sql string) []review.Range {
 	var ranges []review.Range
 	for _, seg := range pg.Split(sql) {
@@ -32,37 +33,55 @@ func statementRanges(sql string) []review.Range {
 	return ranges
 }
 
-// parse parses the whole text. On success it returns the statements
-// mapped onto ranges. On failure it returns the one Syntax finding of the
-// review: the parser stops at the first error, so there is never more
-// than one, and the review ends there.
+// parse parses the whole text through pg.Parse, the entry Bytebase
+// parses with. On success it returns the statements mapped onto ranges.
+// On failure it returns the one Syntax finding of the review: the parser
+// stops at the first error, so there is never more than one, and the
+// review ends there.
 func parse(sql string, ranges []review.Range) ([]statement, *review.Finding) {
-	list, err := parser.Parse(sql)
+	parsed, err := pg.Parse(sql)
 	if err != nil {
 		return nil, syntaxFinding(err, ranges)
 	}
-	if list == nil {
-		return nil, nil
-	}
-	stmts := make([]statement, 0, len(list.Items))
-	for _, item := range list.Items {
-		raw, ok := item.(*ast.RawStmt)
-		if !ok || raw.Stmt == nil {
+	stmts := make([]statement, 0, len(parsed))
+	for _, p := range parsed {
+		if p.Empty() {
 			continue
 		}
+		loc := ast.NodeLoc(p.AST)
+		if loc.Start < 0 {
+			loc = contentLoc(sql, p.ByteStart, p.ByteEnd)
+		}
 		stmts = append(stmts, statement{
-			index: statementAt(ranges, raw.Loc.Start),
-			node:  raw.Stmt,
-			loc:   raw.Loc,
+			index: statementAt(ranges, loc.Start),
+			node:  p.AST,
+			loc:   loc,
 		})
 	}
 	return stmts, nil
 }
 
+// contentLoc is the range of a statement's text without its surrounding
+// whitespace and trailing semicolon, for a node that carries no location.
+func contentLoc(sql string, start, end int) ast.Loc {
+	for start < end && isSpace(sql[start]) {
+		start++
+	}
+	for end > start && (isSpace(sql[end-1]) || sql[end-1] == ';') {
+		end--
+	}
+	return ast.Loc{Start: start, End: end}
+}
+
+func isSpace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+}
+
 // syntaxFinding turns a parse failure into the Syntax finding. A parser
-// error carries the byte offset of the offending token; the finding's
-// range starts and ends there, which the caller anchors to that line. An
-// error without a position addresses the whole change.
+// error carries the byte offset of the offending token and the message
+// PostgreSQL would print; the finding's range starts and ends at that
+// offset, which the caller anchors to its line. Any other error, which
+// the parser does not produce today, addresses the whole change.
 func syntaxFinding(err error, ranges []review.Range) *review.Finding {
 	f := &review.Finding{Rule: review.Syntax, Statement: -1, Message: err.Error()}
 	var perr *parser.ParseError
