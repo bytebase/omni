@@ -433,10 +433,21 @@ func (p *Parser) parseAlterMaterializedView(alterLoc int) (nodes.Node, error) {
 func (p *Parser) parseAlterViewRename(rv *nodes.RangeVar, missingOk bool, alterLoc int, relType nodes.ObjectType) (nodes.Node, error) {
 	p.advance() // consume RENAME
 
+	if p.collectMode() {
+		p.addTokenCandidate(TO)
+		p.addTokenCandidate(COLUMN)
+		// Also valid: column name directly (RENAME col_name TO ...)
+		p.addRuleCandidate("columnref")
+		return nil, nil
+	}
+
 	// RENAME TO newname
 	if p.cur.Type == TO {
 		p.advance()
-		newname, _ := p.parseName()
+		newname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.RenameStmt{
 			RenameType: relType,
 			Relation:   rv,
@@ -449,6 +460,10 @@ func (p *Parser) parseAlterViewRename(rv *nodes.RangeVar, missingOk bool, alterL
 	// RENAME [COLUMN] oldname TO newname
 	if p.cur.Type == COLUMN {
 		p.advance()
+		if p.collectMode() {
+			p.addRuleCandidate("columnref")
+			return nil, nil
+		}
 	}
 	oldname, err := p.parseColId()
 	if err != nil {
@@ -460,7 +475,10 @@ func (p *Parser) parseAlterViewRename(rv *nodes.RangeVar, missingOk bool, alterL
 	if _, err := p.expect(TO); err != nil {
 		return nil, err
 	}
-	newname, _ := p.parseName()
+	newname, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
 	return &nodes.RenameStmt{
 		RenameType:   nodes.OBJECT_COLUMN,
 		RelationType: relType,

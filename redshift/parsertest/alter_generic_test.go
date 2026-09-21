@@ -500,6 +500,11 @@ func TestAlterViewRenameErrors(t *testing.T) {
 		"ALTER VIEW v RENAME c d",
 		"ALTER MATERIALIZED VIEW v RENAME COLUMN c",
 		"ALTER MATERIALIZED VIEW v RENAME c d",
+		// Missing new name after TO must not yield a RenameStmt with Newname "".
+		"ALTER VIEW v RENAME TO",
+		"ALTER VIEW v RENAME c TO",
+		"ALTER MATERIALIZED VIEW v RENAME TO",
+		"ALTER MATERIALIZED VIEW v RENAME COLUMN c TO",
 	}
 	for _, input := range inputs {
 		t.Run(input, func(t *testing.T) {

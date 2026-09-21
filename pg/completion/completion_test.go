@@ -485,3 +485,36 @@ func TestCollectPrimaryKeyUsingIndex(t *testing.T) {
 		t.Error("expected qualified_name rule after PRIMARY KEY USING INDEX")
 	}
 }
+
+func TestCollectAlterViewRename(t *testing.T) {
+	// After RENAME on a view or materialized view, suggest TO, COLUMN, and columnref
+	// (COLUMN is optional, so a bare column name is valid too).
+	for _, sql := range []string{"ALTER VIEW v RENAME ", "ALTER MATERIALIZED VIEW v RENAME "} {
+		cs := parser.Collect(sql, len(sql))
+		if cs == nil {
+			t.Fatalf("expected non-nil candidate set for %q", sql)
+		}
+		if !cs.HasToken(parser.TO) {
+			t.Errorf("expected TO token after %q", sql)
+		}
+		if !cs.HasToken(parser.COLUMN) {
+			t.Errorf("expected COLUMN token after %q", sql)
+		}
+		if !cs.HasRule("columnref") {
+			t.Errorf("expected columnref rule after %q", sql)
+		}
+	}
+}
+
+func TestCollectAlterViewRenameColumn(t *testing.T) {
+	// After RENAME COLUMN, suggest columnref
+	for _, sql := range []string{"ALTER VIEW v RENAME COLUMN ", "ALTER MATERIALIZED VIEW v RENAME COLUMN "} {
+		cs := parser.Collect(sql, len(sql))
+		if cs == nil {
+			t.Fatalf("expected non-nil candidate set for %q", sql)
+		}
+		if !cs.HasRule("columnref") {
+			t.Errorf("expected columnref rule after %q", sql)
+		}
+	}
+}
