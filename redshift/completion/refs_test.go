@@ -13,6 +13,12 @@ func TestExtractTableRefs(t *testing.T) {
 		// DDL: ALTER TABLE
 		{"ALTER TABLE users RENAME COLUMN ", 31, []string{"users"}},
 		{"ALTER TABLE IF EXISTS users DROP COLUMN ", 39, []string{"users"}},
+		// DDL: ALTER [MATERIALIZED] VIEW (COLUMN is optional in RENAME)
+		{"ALTER VIEW v RENAME COLUMN ", 27, []string{"v"}},
+		{"ALTER VIEW v RENAME ", 20, []string{"v"}},
+		{"ALTER VIEW IF EXISTS s.v RENAME ", 32, []string{"v"}},
+		{"ALTER MATERIALIZED VIEW mv RENAME COLUMN ", 41, []string{"mv"}},
+		{"ALTER MATERIALIZED VIEW mv RENAME ", 34, []string{"mv"}},
 		// DDL: CREATE INDEX
 		{"CREATE INDEX idx ON orders (", 27, []string{"orders"}},
 		{"CREATE UNIQUE INDEX idx ON orders (", 34, []string{"orders"}},

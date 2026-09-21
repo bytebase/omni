@@ -105,9 +105,8 @@ func extractTableRefsLexer(sql string, cursorOffset int) []TableRef {
 			continue
 		}
 
-		// DDL: ALTER TABLE [IF EXISTS] [schema.]table
-		if typ == parser.ALTER && i+1 < len(tokens) && tokens[i+1].Type == parser.TABLE {
-			j := i + 2
+		// DDL: ALTER TABLE|VIEW|MATERIALIZED VIEW [IF EXISTS] [schema.]table
+		if j := lexerAlterRelationStart(tokens, i); j >= 0 {
 			// Skip optional IF EXISTS
 			if j < len(tokens) && tokens[j].Type == parser.IF_P {
 				j++ // IF
@@ -173,6 +172,25 @@ func extractTableRefsLexer(sql string, cursorOffset int) []TableRef {
 		}
 	}
 	return refs
+}
+
+// lexerAlterRelationStart returns the index of the relation name that follows
+// ALTER TABLE, ALTER VIEW or ALTER MATERIALIZED VIEW at tokens[i], or -1 when
+// tokens[i] does not start one of those forms. The caller still skips an
+// optional IF EXISTS.
+func lexerAlterRelationStart(tokens []parser.Token, i int) int {
+	if tokens[i].Type != parser.ALTER || i+1 >= len(tokens) {
+		return -1
+	}
+	switch tokens[i+1].Type {
+	case parser.TABLE, parser.VIEW:
+		return i + 2
+	case parser.MATERIALIZED:
+		if i+2 < len(tokens) && tokens[i+2].Type == parser.VIEW {
+			return i + 3
+		}
+	}
+	return -1
 }
 
 // lexerExtractTableAfter extracts a [schema.]table reference starting at tokens[j].

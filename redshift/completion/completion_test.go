@@ -517,3 +517,30 @@ func TestCollectAlterViewRenameColumn(t *testing.T) {
 		}
 	}
 }
+
+func TestCompleteAlterViewRenameColumn(t *testing.T) {
+	// With a catalog, column candidates must come from the view or
+	// materialized view being altered, with or without the COLUMN keyword.
+	cat := catalog.New()
+	cat.Exec("CREATE TABLE users (id int, name text);", nil)
+	cat.Exec("CREATE VIEW v AS SELECT id, name FROM users;", nil)
+	cat.Exec("CREATE MATERIALIZED VIEW mv AS SELECT id, name FROM users;", nil)
+
+	for _, sql := range []string{
+		"ALTER VIEW v RENAME COLUMN ",
+		"ALTER VIEW v RENAME ",
+		"ALTER MATERIALIZED VIEW mv RENAME COLUMN ",
+		"ALTER MATERIALIZED VIEW mv RENAME ",
+	} {
+		found := false
+		for _, c := range Complete(sql, len(sql), cat) {
+			if c.Type == CandidateColumn {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected column candidates after %q", sql)
+		}
+	}
+}
