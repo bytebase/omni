@@ -49,7 +49,9 @@ const (
 	RequireIsNull Rule = "REQUIRE_IS_NULL"
 	// RequireWhere: UPDATE or DELETE without WHERE.
 	RequireWhere Rule = "REQUIRE_WHERE"
-	// DisallowDropObject: DROP TABLE, COLUMN, SCHEMA, or DATABASE.
+	// DisallowDropObject: a DROP of any object: table, column, view,
+	// index, sequence, schema, database, function, and the rest. Dropping
+	// a constraint is DisallowDropConstraint.
 	DisallowDropObject Rule = "DISALLOW_DROP_OBJECT"
 	// DisallowTruncate: TRUNCATE.
 	DisallowTruncate Rule = "DISALLOW_TRUNCATE"
