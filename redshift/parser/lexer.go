@@ -572,6 +572,11 @@ func (l *Lexer) writeUnicodeChar(r rune) {
 
 // lexQuoteContinue handles quote continuation (string literal spanning lines).
 func (l *Lexer) lexQuoteContinue() Token {
+	// end is the offset just past the closing delimiter. The continuation
+	// scan below may advance past whitespace and comments; when no
+	// continuation follows, the lexer rewinds to end so Token.End stops at
+	// the delimiter and the skipped trivia is lexed normally next time.
+	end := l.pos
 	// Check if there's whitespace with newline followed by quote
 	// SQL requires at least one newline in the whitespace to continue a string
 	hasNewline := false
@@ -599,8 +604,10 @@ func (l *Lexer) lexQuoteContinue() Token {
 		return l.NextToken()
 	}
 
-	// No continuation - return the completed string
-	// Don't rewind position, just return from current spot
+	// No continuation - return the completed string. Rewind to the closing
+	// delimiter so the token ends there; scanUESCAPE re-skips the whitespace
+	// itself for the Unicode cases.
+	l.pos = end
 	l.state = stateInitial
 
 	str := l.literalbuf.String()

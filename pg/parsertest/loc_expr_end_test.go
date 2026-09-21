@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	nodes "github.com/bytebase/omni/pg/ast"
+	"github.com/bytebase/omni/pg/parser"
 )
 
 // Expression nodes must end at their own last token, not at the start of the
@@ -39,6 +40,17 @@ func TestLocExprEndsAtLastToken(t *testing.T) {
 		{"FuncCall in WHERE", "SELECT 1 FROM t WHERE f(a) \n", whereExpr, "f(a)"},
 		{"ColumnRef", "SELECT a , b FROM t", target(0), "a"},
 		{"A_Const", "SELECT 1 , b FROM t", target(0), "1"},
+		{"string literal", "SELECT 'x' , b FROM t", target(0), "'x'"},
+		{"string literal before comment", "SELECT 'x' -- c\n , b FROM t", target(0), "'x'"},
+		{"string literal continued across newline", "SELECT 'x'\n'y' , b FROM t", target(0), "'x'\n'y'"},
+		{"escape string literal", "SELECT E'x' , b FROM t", target(0), "E'x'"},
+		{"bit string literal", "SELECT B'01' , b FROM t", target(0), "B'01'"},
+		{"hex string literal", "SELECT X'ff' , b FROM t", target(0), "X'ff'"},
+		{"unicode string literal", "SELECT U&'x' , b FROM t", target(0), "U&'x'"},
+		{"unicode string literal with UESCAPE", "SELECT U&'d!0061t' UESCAPE '!' , b FROM t", target(0), "U&'d!0061t' UESCAPE '!'"},
+		{"unicode identifier", "SELECT U&\"a\" , b FROM t", target(0), "U&\"a\""},
+		{"dollar-quoted string", "SELECT $$x$$ , b FROM t", target(0), "$$x$$"},
+		{"string literal last in WHERE", "SELECT 1 FROM t WHERE a = 'x'   ", whereExpr, "a = 'x'"},
 		{"BoolExpr NOT", "SELECT NOT a , b FROM t", target(0), "NOT a"},
 		{"unary minus", "SELECT - a , b FROM t", target(0), "- a"},
 		{"prefix operator", "SELECT @ a , b FROM t", target(0), "@ a"},
@@ -69,5 +81,24 @@ func TestLocExprEndsAtLastToken(t *testing.T) {
 				t.Errorf("%T text = %q (Loc %+v), want %q", n, got, loc, tc.want)
 			}
 		})
+	}
+}
+
+// A statement ending in a quoted literal must not absorb the whitespace
+// before the semicolon or end of input into its RawStmt range.
+func TestLocStmtEndAfterStringLiteral(t *testing.T) {
+	for _, tc := range []struct{ sql, want string }{
+		{"SELECT 'x'   ;", "SELECT 'x'"},
+		{"SELECT 'x' -- c\n;", "SELECT 'x'"},
+		{"SELECT 'x'   ", "SELECT 'x'"},
+	} {
+		list, err := parser.Parse(tc.sql)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw := list.Items[0].(*nodes.RawStmt)
+		if got := tc.sql[raw.Loc.Start:raw.Loc.End]; got != tc.want {
+			t.Errorf("%q: RawStmt text = %q (Loc %+v), want %q", tc.sql, got, raw.Loc, tc.want)
+		}
 	}
 }
