@@ -434,6 +434,19 @@ func (c *Catalog) resolveTargetSchema(schemaName string) (*Schema, error) {
 	return nil, errUndefinedSchema("(none)")
 }
 
+// CurrentSchema returns the schema an unqualified CREATE would put its
+// object in: the first entry of the search path that exists, with $user
+// expanded to the current user. It is nil when no entry exists.
+//
+// pg: src/backend/catalog/namespace.c — current_schema
+func (c *Catalog) CurrentSchema() *Schema {
+	s, err := c.resolveTargetSchema("")
+	if err != nil {
+		return nil
+	}
+	return s
+}
+
 // addWarning appends a warning to the internal buffer.
 func (c *Catalog) addWarning(code, message string) {
 	c.warnings = append(c.warnings, Warning{Code: code, Message: message})

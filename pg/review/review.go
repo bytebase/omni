@@ -20,6 +20,7 @@ import (
 // Rules lists the rules this package implements, in evaluation order.
 var Rules = []review.Rule{
 	review.Syntax,
+	review.WalkThrough,
 	review.OnlineMigration,
 	review.RequireIsNull,
 	review.RequireWhere,
@@ -39,6 +40,7 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 
 	stmts, syntax := parse(sql, result.Statements)
 	if syntax != nil {
+		syntax.Targets = allTargets(len(targets))
 		r.add(*syntax)
 		result.Findings = r.sorted()
 		return result, nil
@@ -66,8 +68,23 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 			checkDisallowRename(s, r)
 		}
 	}
+	if len(targets) > 0 && needsTargets(on) {
+		findings, failures, err := reviewTargets(ctx, stmts, on, targets)
+		if err != nil {
+			return nil, err
+		}
+		for _, f := range findings {
+			r.add(f)
+		}
+		result.Failures = failures
+	}
 	result.Findings = r.sorted()
 	return result, nil
+}
+
+// needsTargets reports whether any enabled rule reads a target.
+func needsTargets(on map[review.Rule]bool) bool {
+	return on[review.WalkThrough]
 }
 
 // enabled resolves the requested rules to the set this package evaluates:
@@ -105,26 +122,28 @@ func allTargets(n int) []int {
 	return all
 }
 
-// reporter collects findings. Rules that depend on the SQL alone report
-// through report, which stamps every target on the finding.
+// reporter collects findings. report stamps the reporter's targets on
+// the finding: every target for the rules that depend on the SQL alone,
+// one target group for the rules that read a target. add takes a finding
+// as it is.
 type reporter struct {
 	targets  []int
 	findings []review.Finding
 }
 
-// report records a finding against every target. A statement of -1
-// addresses the whole change.
+// report records a finding against the reporter's targets. A statement
+// of -1 addresses the whole change.
 func (r *reporter) report(rule review.Rule, statement int, rng review.Range, message string) {
 	r.add(review.Finding{
 		Rule:      rule,
 		Statement: statement,
 		Range:     rng,
 		Message:   oneLine(message),
+		Targets:   slices.Clone(r.targets),
 	})
 }
 
 func (r *reporter) add(f review.Finding) {
-	f.Targets = slices.Clone(r.targets)
 	r.findings = append(r.findings, f)
 }
 
