@@ -377,3 +377,135 @@ func TestAlterTSConfigDropMapping(t *testing.T) {
 		t.Errorf("expected ALTER_TSCONFIG_DROP_MAPPING, got %d", stmt.Kind)
 	}
 }
+
+// =============================================================================
+// ALTER [MATERIALIZED] VIEW ... RENAME tests
+// =============================================================================
+
+// TestAlterViewRename covers the RenameStmt forms for ALTER VIEW and
+// ALTER MATERIALIZED VIEW (gram.y RenameStmt). COLUMN is optional in the
+// column-rename form, exactly as it is for ALTER TABLE.
+func TestAlterViewRename(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		renameType   nodes.ObjectType
+		relationType nodes.ObjectType
+		subname      string
+		newname      string
+		missingOk    bool
+	}{
+		{
+			name:       "view rename to",
+			input:      "ALTER VIEW v RENAME TO v2",
+			renameType: nodes.OBJECT_VIEW,
+			newname:    "v2",
+		},
+		{
+			name:         "view rename column explicit",
+			input:        "ALTER VIEW v RENAME COLUMN c TO d",
+			renameType:   nodes.OBJECT_COLUMN,
+			relationType: nodes.OBJECT_VIEW,
+			subname:      "c",
+			newname:      "d",
+		},
+		{
+			name:         "view rename column implicit",
+			input:        "ALTER VIEW v RENAME c TO d",
+			renameType:   nodes.OBJECT_COLUMN,
+			relationType: nodes.OBJECT_VIEW,
+			subname:      "c",
+			newname:      "d",
+		},
+		{
+			name:         "view if exists rename column implicit",
+			input:        "ALTER VIEW IF EXISTS v RENAME c TO d",
+			renameType:   nodes.OBJECT_COLUMN,
+			relationType: nodes.OBJECT_VIEW,
+			subname:      "c",
+			newname:      "d",
+			missingOk:    true,
+		},
+		{
+			name:       "matview rename to",
+			input:      "ALTER MATERIALIZED VIEW v RENAME TO v2",
+			renameType: nodes.OBJECT_MATVIEW,
+			newname:    "v2",
+		},
+		{
+			name:         "matview rename column explicit",
+			input:        "ALTER MATERIALIZED VIEW v RENAME COLUMN c TO d",
+			renameType:   nodes.OBJECT_COLUMN,
+			relationType: nodes.OBJECT_MATVIEW,
+			subname:      "c",
+			newname:      "d",
+		},
+		{
+			name:         "matview rename column implicit",
+			input:        "ALTER MATERIALIZED VIEW v RENAME c TO d",
+			renameType:   nodes.OBJECT_COLUMN,
+			relationType: nodes.OBJECT_MATVIEW,
+			subname:      "c",
+			newname:      "d",
+		},
+		{
+			name:         "matview if exists rename column explicit",
+			input:        "ALTER MATERIALIZED VIEW IF EXISTS v RENAME COLUMN c TO d",
+			renameType:   nodes.OBJECT_COLUMN,
+			relationType: nodes.OBJECT_MATVIEW,
+			subname:      "c",
+			newname:      "d",
+			missingOk:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parse(tt.input)
+			if err != nil {
+				t.Fatalf("Parse error for %q: %v", tt.input, err)
+			}
+			stmt, ok := result.Items[0].(*nodes.RenameStmt)
+			if !ok {
+				t.Fatalf("expected *nodes.RenameStmt, got %T", result.Items[0])
+			}
+			if stmt.RenameType != tt.renameType {
+				t.Errorf("RenameType: expected %d, got %d", tt.renameType, stmt.RenameType)
+			}
+			if stmt.RelationType != tt.relationType {
+				t.Errorf("RelationType: expected %d, got %d", tt.relationType, stmt.RelationType)
+			}
+			if stmt.Relation == nil || stmt.Relation.Relname != "v" {
+				t.Fatal("expected relation 'v'")
+			}
+			if stmt.Subname != tt.subname {
+				t.Errorf("Subname: expected %q, got %q", tt.subname, stmt.Subname)
+			}
+			if stmt.Newname != tt.newname {
+				t.Errorf("Newname: expected %q, got %q", tt.newname, stmt.Newname)
+			}
+			if stmt.MissingOk != tt.missingOk {
+				t.Errorf("MissingOk: expected %v, got %v", tt.missingOk, stmt.MissingOk)
+			}
+		})
+	}
+}
+
+// TestAlterViewRenameErrors checks that malformed RENAME clauses are rejected.
+func TestAlterViewRenameErrors(t *testing.T) {
+	inputs := []string{
+		"ALTER VIEW v RENAME",
+		"ALTER VIEW v RENAME c",
+		"ALTER VIEW v RENAME COLUMN TO d",
+		"ALTER VIEW v RENAME c d",
+		"ALTER MATERIALIZED VIEW v RENAME COLUMN c",
+		"ALTER MATERIALIZED VIEW v RENAME c d",
+	}
+	for _, input := range inputs {
+		t.Run(input, func(t *testing.T) {
+			if _, err := parse(input); err == nil {
+				t.Fatalf("expected parse error for %q", input)
+			}
+		})
+	}
+}

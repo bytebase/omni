@@ -317,39 +317,7 @@ func (p *Parser) parseAlterView(alterLoc int) (nodes.Node, error) {
 
 	// Check for RENAME
 	if p.cur.Type == RENAME {
-		p.advance()
-		// RENAME COLUMN oldname TO newname
-		if p.cur.Type == COLUMN {
-			p.advance()
-			oldname, err := p.parseColId()
-			if err != nil {
-				return nil, err
-			}
-			if _, err := p.expect(TO); err != nil {
-				return nil, err
-			}
-			newname, _ := p.parseName()
-			return &nodes.RenameStmt{
-				RenameType:   nodes.OBJECT_COLUMN,
-				RelationType: nodes.OBJECT_VIEW,
-				Relation:     rv,
-				Subname:      oldname,
-				Newname:      newname,
-				MissingOk:    missingOk,
-				Loc:          nodes.Loc{Start: alterLoc, End: p.prev.End},
-			}, nil
-		}
-		if _, err := p.expect(TO); err != nil {
-			return nil, err
-		}
-		newname, _ := p.parseName()
-		return &nodes.RenameStmt{
-			RenameType: nodes.OBJECT_VIEW,
-			Relation:   rv,
-			Newname:    newname,
-			MissingOk:  missingOk,
-			Loc:        nodes.Loc{Start: alterLoc, End: p.prev.End},
-		}, nil
+		return p.parseAlterViewRename(rv, missingOk, alterLoc, nodes.OBJECT_VIEW)
 	}
 
 	// Check for SET SCHEMA (produces AlterObjectSchemaStmt)
@@ -404,18 +372,7 @@ func (p *Parser) parseAlterMaterializedView(alterLoc int) (nodes.Node, error) {
 
 	// Check for RENAME
 	if p.cur.Type == RENAME {
-		p.advance()
-		if _, err := p.expect(TO); err != nil {
-			return nil, err
-		}
-		newname, _ := p.parseName()
-		return &nodes.RenameStmt{
-			RenameType: nodes.OBJECT_MATVIEW,
-			Relation:   rv,
-			Newname:    newname,
-			MissingOk:  missingOk,
-			Loc:        nodes.Loc{Start: alterLoc, End: p.prev.End},
-		}, nil
+		return p.parseAlterViewRename(rv, missingOk, alterLoc, nodes.OBJECT_MATVIEW)
 	}
 
 	// Check for SET SCHEMA (produces AlterObjectSchemaStmt)
@@ -460,6 +417,56 @@ func (p *Parser) parseAlterMaterializedView(alterLoc int) (nodes.Node, error) {
 		ObjType:    int(nodes.OBJECT_MATVIEW),
 		Missing_ok: missingOk,
 		Loc:        nodes.Loc{Start: alterLoc, End: p.prev.End},
+	}, nil
+}
+
+// parseAlterViewRename parses the RENAME forms shared by ALTER VIEW and
+// ALTER MATERIALIZED VIEW (gram.y RenameStmt):
+//
+//	ALTER [MATERIALIZED] VIEW qualified_name RENAME TO name
+//	ALTER [MATERIALIZED] VIEW qualified_name RENAME opt_column name TO name
+//
+// COLUMN is optional in the column form, exactly as for ALTER TABLE.
+// relType is OBJECT_VIEW or OBJECT_MATVIEW.
+func (p *Parser) parseAlterViewRename(rv *nodes.RangeVar, missingOk bool, alterLoc int, relType nodes.ObjectType) (nodes.Node, error) {
+	p.advance() // consume RENAME
+
+	// RENAME TO newname
+	if p.cur.Type == TO {
+		p.advance()
+		newname, _ := p.parseName()
+		return &nodes.RenameStmt{
+			RenameType: relType,
+			Relation:   rv,
+			Newname:    newname,
+			MissingOk:  missingOk,
+			Loc:        nodes.Loc{Start: alterLoc, End: p.prev.End},
+		}, nil
+	}
+
+	// RENAME [COLUMN] oldname TO newname
+	if p.cur.Type == COLUMN {
+		p.advance()
+	}
+	oldname, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
+	if oldname == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(TO); err != nil {
+		return nil, err
+	}
+	newname, _ := p.parseName()
+	return &nodes.RenameStmt{
+		RenameType:   nodes.OBJECT_COLUMN,
+		RelationType: relType,
+		Relation:     rv,
+		Subname:      oldname,
+		Newname:      newname,
+		MissingOk:    missingOk,
+		Loc:          nodes.Loc{Start: alterLoc, End: p.prev.End},
 	}, nil
 }
 
