@@ -699,6 +699,13 @@ func (c *Catalog) ExecRenameStmt(stmt *nodes.RenameStmt) error {
 
 	schema, rel, err := c.findRelation(schemaName, relName)
 	if err != nil {
+		// IF EXISTS: PG reports "relation does not exist, skipping" and
+		// succeeds, for both relation and column renames, including when
+		// the schema itself is missing (RangeVarGetRelidExtended with
+		// missing_ok).
+		if stmt.MissingOk {
+			return nil
+		}
 		return err
 	}
 
