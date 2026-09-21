@@ -1,0 +1,233 @@
+package review
+
+import (
+	"strings"
+
+	"github.com/bytebase/omni/pg/ast"
+)
+
+// ident writes an identifier the way SQL would: bare when it is a plain
+// lower-case name, double-quoted otherwise. The parser folds unquoted
+// names, so this is the closest the message gets to the SQL's spelling.
+func ident(name string) string {
+	if name == "" {
+		return `""`
+	}
+	plain := true
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		switch {
+		case c >= 'a' && c <= 'z', c == '_':
+		case c >= '0' && c <= '9' && i > 0:
+		default:
+			plain = false
+		}
+	}
+	if plain {
+		return name
+	}
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
+// qualified joins name parts with dots.
+func qualified(parts []string) string {
+	quoted := make([]string, len(parts))
+	for i, p := range parts {
+		quoted[i] = ident(p)
+	}
+	return strings.Join(quoted, ".")
+}
+
+// relation names a RangeVar as written: schema-qualified when the SQL was.
+func relation(rv *ast.RangeVar) string {
+	if rv == nil {
+		return ""
+	}
+	parts := make([]string, 0, 3)
+	if rv.Catalogname != "" {
+		parts = append(parts, rv.Catalogname)
+	}
+	if rv.Schemaname != "" {
+		parts = append(parts, rv.Schemaname)
+	}
+	parts = append(parts, rv.Relname)
+	return qualified(parts)
+}
+
+// strings returns the String items of a name list.
+func nameParts(list *ast.List) []string {
+	if list == nil {
+		return nil
+	}
+	parts := make([]string, 0, len(list.Items))
+	for _, item := range list.Items {
+		if s, ok := item.(*ast.String); ok {
+			parts = append(parts, s.Str)
+		}
+	}
+	return parts
+}
+
+// objectName writes a DROP object as the SQL named it. Objects that hang
+// off a relation (trigger, policy, rule) read "name on relation".
+func objectName(obj ast.Node, onRelation bool) string {
+	switch v := obj.(type) {
+	case *ast.String:
+		return ident(v.Str)
+	case *ast.List:
+		parts := nameParts(v)
+		if onRelation && len(parts) > 1 {
+			return ident(parts[len(parts)-1]) + " on " + qualified(parts[:len(parts)-1])
+		}
+		return qualified(parts)
+	case *ast.TypeName:
+		return typeName(v)
+	case *ast.ObjectWithArgs:
+		name := qualified(nameParts(v.Objname))
+		if v.ArgsUnspecified || v.Objargs == nil {
+			return name
+		}
+		args := make([]string, 0, len(v.Objargs.Items))
+		for _, item := range v.Objargs.Items {
+			if tn, ok := item.(*ast.TypeName); ok {
+				args = append(args, typeName(tn))
+			}
+		}
+		return name + "(" + strings.Join(args, ", ") + ")"
+	default:
+		return ""
+	}
+}
+
+// typeName writes a type name without the pg_catalog qualifier the parser
+// adds to built-in types (int becomes pg_catalog.int4).
+func typeName(tn *ast.TypeName) string {
+	parts := nameParts(tn.Names)
+	if len(parts) == 2 && parts[0] == "pg_catalog" {
+		parts = parts[1:]
+	}
+	return qualified(parts)
+}
+
+// objectKind names an ObjectType the way the DROP keyword does.
+func objectKind(t ast.ObjectType) string {
+	switch t {
+	case ast.OBJECT_TABLE:
+		return "table"
+	case ast.OBJECT_COLUMN:
+		return "column"
+	case ast.OBJECT_VIEW:
+		return "view"
+	case ast.OBJECT_MATVIEW:
+		return "materialized view"
+	case ast.OBJECT_INDEX:
+		return "index"
+	case ast.OBJECT_SEQUENCE:
+		return "sequence"
+	case ast.OBJECT_SCHEMA:
+		return "schema"
+	case ast.OBJECT_DATABASE:
+		return "database"
+	case ast.OBJECT_TYPE:
+		return "type"
+	case ast.OBJECT_DOMAIN:
+		return "domain"
+	case ast.OBJECT_FUNCTION:
+		return "function"
+	case ast.OBJECT_PROCEDURE:
+		return "procedure"
+	case ast.OBJECT_ROUTINE:
+		return "routine"
+	case ast.OBJECT_AGGREGATE:
+		return "aggregate"
+	case ast.OBJECT_OPERATOR:
+		return "operator"
+	case ast.OBJECT_OPCLASS:
+		return "operator class"
+	case ast.OBJECT_OPFAMILY:
+		return "operator family"
+	case ast.OBJECT_TRIGGER:
+		return "trigger"
+	case ast.OBJECT_EVENT_TRIGGER:
+		return "event trigger"
+	case ast.OBJECT_POLICY:
+		return "policy"
+	case ast.OBJECT_RULE:
+		return "rule"
+	case ast.OBJECT_EXTENSION:
+		return "extension"
+	case ast.OBJECT_FOREIGN_TABLE:
+		return "foreign table"
+	case ast.OBJECT_FOREIGN_SERVER:
+		return "server"
+	case ast.OBJECT_FDW:
+		return "foreign data wrapper"
+	case ast.OBJECT_COLLATION:
+		return "collation"
+	case ast.OBJECT_CONVERSION:
+		return "conversion"
+	case ast.OBJECT_CAST:
+		return "cast"
+	case ast.OBJECT_LANGUAGE:
+		return "language"
+	case ast.OBJECT_STATISTIC_EXT:
+		return "statistics"
+	case ast.OBJECT_PUBLICATION:
+		return "publication"
+	case ast.OBJECT_SUBSCRIPTION:
+		return "subscription"
+	case ast.OBJECT_TSCONFIGURATION:
+		return "text search configuration"
+	case ast.OBJECT_TSDICTIONARY:
+		return "text search dictionary"
+	case ast.OBJECT_TSPARSER:
+		return "text search parser"
+	case ast.OBJECT_TSTEMPLATE:
+		return "text search template"
+	case ast.OBJECT_ACCESS_METHOD:
+		return "access method"
+	case ast.OBJECT_TRANSFORM:
+		return "transform"
+	case ast.OBJECT_ROLE:
+		return "role"
+	case ast.OBJECT_TABLESPACE:
+		return "tablespace"
+	default:
+		return "object"
+	}
+}
+
+// roleNames lists the roles of a RoleSpec list; special roles read as
+// their keyword.
+func roleNames(list *ast.List) []string {
+	if list == nil {
+		return nil
+	}
+	names := make([]string, 0, len(list.Items))
+	for _, item := range list.Items {
+		rs, ok := item.(*ast.RoleSpec)
+		if !ok {
+			continue
+		}
+		names = append(names, roleName(rs))
+	}
+	return names
+}
+
+func roleName(rs *ast.RoleSpec) string {
+	if rs == nil {
+		return ""
+	}
+	switch ast.RoleSpecType(rs.Roletype) {
+	case ast.ROLESPEC_CURRENT_ROLE:
+		return "CURRENT_ROLE"
+	case ast.ROLESPEC_CURRENT_USER:
+		return "CURRENT_USER"
+	case ast.ROLESPEC_SESSION_USER:
+		return "SESSION_USER"
+	case ast.ROLESPEC_PUBLIC:
+		return "PUBLIC"
+	default:
+		return ident(rs.Rolename)
+	}
+}
