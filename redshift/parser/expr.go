@@ -56,7 +56,7 @@ func (p *Parser) parseAExpr(minPrec int) (nodes.Node, error) {
 		if left == nil {
 			return nil, nil
 		}
-		setNodeLoc(left, loc, p.pos())
+		setNodeLoc(left, loc, p.prev.End)
 	}
 	return left, nil
 }
@@ -119,7 +119,7 @@ func (p *Parser) parseAExprAtom() (nodes.Node, error) {
 		n := &nodes.BoolExpr{
 			Boolop: nodes.NOT_EXPR,
 			Args:   &nodes.List{Items: []nodes.Node{arg}},
-			Loc:    nodes.Loc{Start: loc, End: p.pos()},
+			Loc:    nodes.Loc{Start: loc, End: p.prev.End},
 		}
 		return n, nil
 	case '+':
@@ -137,7 +137,7 @@ func (p *Parser) parseAExprAtom() (nodes.Node, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		n := doNegate(arg)
-		setNodeLoc(n, loc, p.pos())
+		setNodeLoc(n, loc, p.prev.End)
 		return n, nil
 	case Op:
 		// Unary prefix operators: qual_Op a_expr  %prec UMINUS
@@ -157,7 +157,7 @@ func (p *Parser) parseAExprAtom() (nodes.Node, error) {
 			Name:  &nodes.List{Items: []nodes.Node{&nodes.String{Str: tok.Str}}},
 			Rexpr: arg,
 		}
-		setNodeLoc(n, loc, p.pos())
+		setNodeLoc(n, loc, p.prev.End)
 		return n, nil
 	default:
 		return p.parseCExpr()
@@ -1239,7 +1239,7 @@ func (p *Parser) parseBExprAtom() (nodes.Node, error) {
 			Name:  &nodes.List{Items: []nodes.Node{&nodes.String{Str: tok.Str}}},
 			Rexpr: arg,
 		}
-		setNodeLoc(n, loc, p.pos())
+		setNodeLoc(n, loc, p.prev.End)
 		return n, nil
 	default:
 		return p.parseCExpr()
@@ -1453,7 +1453,7 @@ func (p *Parser) parseCExpr() (nodes.Node, error) {
 		return nil, err
 	}
 	if n != nil {
-		setNodeLoc(n, loc, p.pos())
+		setNodeLoc(n, loc, p.prev.End)
 	}
 	return n, nil
 }
@@ -3030,7 +3030,7 @@ func (p *Parser) parseSortBy() (nodes.Node, error) {
 		Node:        expr,
 		SortbyDir:   dir,
 		SortbyNulls: nullsOrder,
-		Loc:         nodes.Loc{Start: loc, End: p.pos()},
+		Loc:         nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
@@ -3054,7 +3054,7 @@ func (p *Parser) parseOverClause() (nodes.Node, error) {
 	return &nodes.WindowDef{
 		Name:         name,
 		FrameOptions: nodes.FRAMEOPTION_DEFAULTS,
-		Loc:          nodes.Loc{Start: loc, End: p.pos()},
+		Loc:          nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
