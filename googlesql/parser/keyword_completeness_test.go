@@ -2,22 +2,43 @@ package parser
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 )
 
-// legacyLexerPath is the absolute path to the legacy GoogleSQLLexer.g4
-// grammar — the source of truth for keyword drift detection. The legacy
-// grammar is a hand-port of ZetaSQL's flex_tokenizer.l. If the file is
-// missing (e.g. CI without the legacy checkout), the tests skip.
-const legacyLexerPath = "/Users/h3n4l/OpenSource/parser/googlesql/GoogleSQLLexer.g4"
+// legacyLexerFile is the legacy GoogleSQLLexer.g4 grammar — the source of
+// truth for keyword drift detection. The legacy grammar is a hand-port of
+// ZetaSQL's flex_tokenizer.l.
+const legacyLexerFile = "GoogleSQLLexer.g4"
 
-// legacyParserPath is the legacy GoogleSQLParser.g4 — its
+// legacyParserFile is the legacy GoogleSQLParser.g4 — its
 // common_keyword_as_identifier rule is the source of truth for the
 // reserved/non-reserved keyword split (a word-keyword is non-reserved iff it
 // appears in that rule, plus SIMPLE via keyword_as_identifier).
-const legacyParserPath = "/Users/h3n4l/OpenSource/parser/googlesql/GoogleSQLParser.g4"
+const legacyParserFile = "GoogleSQLParser.g4"
+
+// legacyGrammarPath returns the absolute path of one of the legacy grammar
+// files under testdata/legacy_grammar, the committed mirror of the
+// bytebase/parser googlesql grammars (see testdata/legacy_grammar/README.md
+// for provenance and licensing). Resolved from this source file's location
+// like truth1Root, and like truth1Root it fails loudly if the file is
+// missing: the grammars are part of the repo, so their absence is a real
+// error, never a skip.
+func legacyGrammarPath(t *testing.T, name string) string {
+	t.Helper()
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed; cannot locate legacy grammar")
+	}
+	path := filepath.Join(filepath.Dir(thisFile), "testdata", "legacy_grammar", name)
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("legacy grammar not found at %s: %v", path, err)
+	}
+	return path
+}
 
 // keywordRuleRE matches a single-word keyword token rule in the lexer
 // grammar, e.g.  SELECT_SYMBOL: 'SELECT';  capturing the literal text. It
@@ -29,13 +50,14 @@ var keywordRuleRE = regexp.MustCompile(`(?s)\b[A-Z_]+_SYMBOL\s*:\s*'([A-Z][A-Z0-
 // in GoogleSQLLexer.g4 (lower-cased).
 func extractLegacyKeywords(t *testing.T) map[string]bool {
 	t.Helper()
-	data, err := os.ReadFile(legacyLexerPath)
+	path := legacyGrammarPath(t, legacyLexerFile)
+	data, err := os.ReadFile(path)
 	if err != nil {
-		t.Skipf("legacy lexer grammar not available at %s: %v", legacyLexerPath, err)
+		t.Fatalf("reading legacy lexer grammar %s: %v", path, err)
 	}
 	matches := keywordRuleRE.FindAllStringSubmatch(string(data), -1)
 	if len(matches) == 0 {
-		t.Fatalf("no keyword tokens extracted from %s — regex broken?", legacyLexerPath)
+		t.Fatalf("no keyword tokens extracted from %s — regex broken?", path)
 	}
 	set := make(map[string]bool, len(matches))
 	for _, m := range matches {
@@ -85,13 +107,14 @@ var commonKeywordRuleRE = regexp.MustCompile(`(?s)common_keyword_as_identifier:(
 // SIMPLE (added by keyword_as_identifier).
 func extractLegacyNonReserved(t *testing.T) map[string]bool {
 	t.Helper()
-	data, err := os.ReadFile(legacyParserPath)
+	path := legacyGrammarPath(t, legacyParserFile)
+	data, err := os.ReadFile(path)
 	if err != nil {
-		t.Skipf("legacy parser grammar not available at %s: %v", legacyParserPath, err)
+		t.Fatalf("reading legacy parser grammar %s: %v", path, err)
 	}
 	m := commonKeywordRuleRE.FindStringSubmatch(string(data))
 	if m == nil {
-		t.Fatalf("common_keyword_as_identifier rule not found in %s", legacyParserPath)
+		t.Fatalf("common_keyword_as_identifier rule not found in %s", path)
 	}
 	tokenRE := regexp.MustCompile(`([A-Z_]+)_SYMBOL`)
 	set := make(map[string]bool)

@@ -54,7 +54,8 @@ type Token struct {
 }
 
 // Keyword token constants, in GoogleSQLLexer.g4 declaration order. Generated
-// from /Users/h3n4l/OpenSource/parser/googlesql/GoogleSQLLexer.g4 — every
+// from testdata/legacy_grammar/GoogleSQLLexer.g4 (the committed mirror of the
+// legacy bytebase/parser grammar; see the README there) — every
 // *_SYMBOL word-keyword token (308 total: 211 non-reserved + 97 reserved).
 // The reserved/non-reserved split lives in keywords.go, driven by the parser
 // grammar's common_keyword_as_identifier rule. Numeric values are NOT stable.
