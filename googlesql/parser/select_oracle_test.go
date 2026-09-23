@@ -41,8 +41,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -239,21 +237,7 @@ type selectHarness struct {
 func newSelectHarness(t *testing.T) *selectHarness {
 	t.Helper()
 	spannertest.Host(t)
-	_, thisFile, _, _ := runtime.Caller(0)
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
-	projDir := filepath.Join(repoRoot, "harness", "googlesql-spanner")
-	if _, err := os.Stat(projDir); err != nil {
-		t.Skipf("harness project not found at %s", projDir)
-	}
-
-	bin := filepath.Join(projDir, "googlesql-spanner")
-	if _, err := os.Stat(bin); err != nil {
-		build := exec.Command("go", "build", "-o", bin, ".")
-		build.Dir = projDir
-		if out, err := build.CombinedOutput(); err != nil {
-			t.Fatalf("building harness failed: %v\n%s", err, out)
-		}
-	}
+	bin := spannertest.HarnessBinary(t)
 
 	cmd := exec.Command(bin)
 	cmd.Env = append(os.Environ(), "GOOGLESQL_HARNESS_LINE=1")
