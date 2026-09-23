@@ -5,6 +5,7 @@ import (
 
 	"github.com/bytebase/omni/mssql/ast"
 	"github.com/bytebase/omni/mssql/parser"
+	"github.com/bytebase/omni/review"
 )
 
 // Statement is the result of parsing a single SQL statement.
@@ -29,7 +30,7 @@ type Statement struct {
 type Position struct {
 	// Line is 1-based line number.
 	Line int
-	// Column is 1-based column in bytes.
+	// Column is 1-based column in code points.
 	Column int
 }
 
@@ -49,7 +50,7 @@ func Parse(sql string) ([]Statement, error) {
 		return nil, nil
 	}
 
-	idx := buildLineIndex(sql)
+	idx := review.Index(sql)
 
 	var stmts []Statement
 	prevEnd := 0
@@ -93,8 +94,8 @@ func Parse(sql string) ([]Statement, error) {
 			AST:       item,
 			ByteStart: start,
 			ByteEnd:   end,
-			Start:     offsetToPosition(idx, contentStart),
-			End:       offsetToPosition(idx, end),
+			Start:     positionAt(idx, contentStart),
+			End:       positionAt(idx, end),
 		})
 
 		prevEnd = end
@@ -121,31 +122,10 @@ func nodeLoc(n ast.Node) ast.Loc {
 	return ast.NoLoc()
 }
 
-type lineIndex []int
-
-func buildLineIndex(s string) lineIndex {
-	idx := lineIndex{0}
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\n' {
-			idx = append(idx, i+1)
-		}
-	}
-	return idx
-}
-
-func offsetToPosition(idx lineIndex, offset int) Position {
-	// Binary search for the line containing offset.
-	lo, hi := 0, len(idx)-1
-	for lo < hi {
-		mid := (lo + hi + 1) / 2
-		if idx[mid] <= offset {
-			lo = mid
-		} else {
-			hi = mid - 1
-		}
-	}
-	return Position{
-		Line:   lo + 1,               // 1-based
-		Column: offset - idx[lo] + 1, // 1-based
-	}
+// positionAt converts a byte offset into a Position through the shared index:
+// lines are 1-based, columns are 1-based and counted in code points, the
+// units Bytebase's Position uses.
+func positionAt(idx *review.Text, offset int) Position {
+	line, column := idx.Position(offset)
+	return Position{Line: line, Column: column}
 }

@@ -3,6 +3,7 @@ package oracle
 import (
 	"github.com/bytebase/omni/oracle/ast"
 	"github.com/bytebase/omni/oracle/parser"
+	"github.com/bytebase/omni/review"
 )
 
 // Statement is the result of parsing a single Oracle SQL statement or PL/SQL
@@ -20,8 +21,8 @@ type Statement struct {
 
 // Position represents a location in source text.
 type Position struct {
-	Line   int
-	Column int
+	Line   int // 1-based
+	Column int // 1-based, code points
 }
 
 // Empty returns true if this statement has no meaningful content.
@@ -36,7 +37,7 @@ func Parse(sql string) ([]Statement, error) {
 		return nil, nil
 	}
 
-	lineIndex := buildLineIndex(sql)
+	lineIndex := review.Index(sql)
 	stmts := make([]Statement, 0, len(segments))
 	for _, seg := range segments {
 		list, err := parser.ParseRange(sql, seg.ByteStart, seg.ByteEnd)
@@ -65,8 +66,8 @@ func Parse(sql string) ([]Statement, error) {
 			AST:       node,
 			ByteStart: seg.ByteStart,
 			ByteEnd:   seg.ByteEnd,
-			Start:     offsetToPosition(lineIndex, contentStart),
-			End:       offsetToPosition(lineIndex, seg.ByteEnd),
+			Start:     positionAt(lineIndex, contentStart),
+			End:       positionAt(lineIndex, seg.ByteEnd),
 		})
 	}
 	return stmts, nil
@@ -76,28 +77,10 @@ func isSpace(c byte) bool {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f'
 }
 
-type lineIndex []int
-
-func buildLineIndex(s string) lineIndex {
-	idx := lineIndex{0}
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\n' {
-			idx = append(idx, i+1)
-		}
-	}
-	return idx
-}
-
-func offsetToPosition(idx lineIndex, offset int) Position {
-	if offset < 0 {
-		offset = 0
-	}
-	line := 0
-	for line+1 < len(idx) && idx[line+1] <= offset {
-		line++
-	}
-	return Position{
-		Line:   line + 1,
-		Column: offset - idx[line] + 1,
-	}
+// positionAt converts a byte offset into a Position through the shared index:
+// lines are 1-based, columns are 1-based and counted in code points, the
+// units Bytebase's Position uses.
+func positionAt(idx *review.Text, offset int) Position {
+	line, column := idx.Position(offset)
+	return Position{Line: line, Column: column}
 }

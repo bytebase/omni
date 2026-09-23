@@ -32,11 +32,11 @@ func TestMSSQLPublicParseLocPrecisionMatrix(t *testing.T) {
 			wantEnds:   []Position{{Line: 1, Column: 10}, {Line: 1, Column: 19}},
 		},
 		{
-			name:       "tabs and unicode use byte columns",
+			name:       "tabs count one column and unicode counts code points",
 			sql:        "\tSELECT N'你好'",
 			wantTexts:  []string{"\tSELECT N'你好'"},
 			wantStarts: []Position{{Line: 1, Column: 2}},
-			wantEnds:   []Position{{Line: 1, Column: 18}},
+			wantEnds:   []Position{{Line: 1, Column: 14}},
 		},
 		{
 			name:       "go batch separator",

@@ -255,3 +255,22 @@ func TestParseMetacommandAnywhere(t *testing.T) {
 		})
 	}
 }
+
+func TestParse_ColumnsCountCodePoints(t *testing.T) {
+	// Statement positions are what Bytebase reports to users, whose Position
+	// counts columns in code points; 'é' is two bytes and one column.
+	sql := "SELECT 'é'; SELECT 2"
+	stmts, err := Parse(sql)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if len(stmts) != 2 {
+		t.Fatalf("got %d statements, want 2", len(stmts))
+	}
+	if stmts[0].End != (Position{Line: 1, Column: 12}) {
+		t.Errorf("stmt[0].End = %+v, want line 1 column 12 (after the ';')", stmts[0].End)
+	}
+	if stmts[1].Start != (Position{Line: 1, Column: 13}) {
+		t.Errorf("stmt[1].Start = %+v, want line 1 column 13", stmts[1].Start)
+	}
+}

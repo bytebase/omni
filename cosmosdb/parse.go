@@ -2,11 +2,11 @@
 package cosmosdb
 
 import (
-	"sort"
 	"strings"
 
 	"github.com/bytebase/omni/cosmosdb/ast"
 	"github.com/bytebase/omni/cosmosdb/parser"
+	"github.com/bytebase/omni/review"
 )
 
 type Statement struct {
@@ -20,7 +20,7 @@ type Statement struct {
 
 type Position struct {
 	Line   int // 1-based
-	Column int // 1-based, bytes
+	Column int // 1-based, code points
 }
 
 func (s Statement) Empty() bool {
@@ -39,7 +39,7 @@ func Parse(sql string) ([]Statement, error) {
 	if list.Len() == 0 {
 		return nil, nil
 	}
-	idx := buildLineIndex(sql)
+	idx := review.Index(sql)
 	var stmts []Statement
 	for _, item := range list.Items {
 		raw, ok := item.(*ast.RawStmt)
@@ -56,8 +56,8 @@ func Parse(sql string) ([]Statement, error) {
 			AST:       raw.Stmt,
 			ByteStart: byteStart,
 			ByteEnd:   byteEnd,
-			Start:     offsetToPosition(idx, byteStart),
-			End:       offsetToPosition(idx, byteEnd),
+			Start:     positionAt(idx, byteStart),
+			End:       positionAt(idx, byteEnd),
 		})
 	}
 	return stmts, nil
@@ -67,20 +67,10 @@ func isSpace(c byte) bool {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f'
 }
 
-type lineIndex []int
-
-func buildLineIndex(s string) lineIndex {
-	idx := lineIndex{0}
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\n' {
-			idx = append(idx, i+1)
-		}
-	}
-	return idx
-}
-
-func offsetToPosition(idx lineIndex, offset int) Position {
-	line := sort.SearchInts(idx, offset+1)
-	col := offset - idx[line-1] + 1
-	return Position{Line: line, Column: col}
+// positionAt converts a byte offset into a Position through the shared index:
+// lines are 1-based, columns are 1-based and counted in code points, the
+// units Bytebase's Position uses.
+func positionAt(idx *review.Text, offset int) Position {
+	line, column := idx.Position(offset)
+	return Position{Line: line, Column: column}
 }

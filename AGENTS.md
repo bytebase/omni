@@ -53,7 +53,6 @@ Bytebase's adapters under `backend/plugin/parser/<engine>` and omni's own packag
 
 The rules above are the target. These places do not meet them yet; do not copy them into new code.
 
-- The top-level `Position` in `pg`, `redshift`, `mssql`, `oracle`, `cassandra`, `cosmosdb`, `mongo`, and `elasticsearch` counts columns in bytes. They should go through `review.Index`.
 - `ParseError` has six shapes: `Msg` and `Loc` in snowflake, doris, and trino; `Pos` in cosmosdb; slice returns in the doris family.
 - On the Bytebase side, `ByteOffsetToRunePosition` exists five times and adapters disagree on keeping empty segments. Not omni's to fix, but the reason `review.Index` stays the single implementation.
 

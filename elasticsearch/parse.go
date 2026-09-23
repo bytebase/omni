@@ -25,7 +25,10 @@ type SyntaxError struct {
 }
 
 // Position represents a location in source text.
+// Statement positions are 1-based lines and 1-based columns counted in code
+// points (the splitter converts them). SyntaxError positions keep the legacy
+// 0-based line convention that Diagnose documents.
 type Position struct {
-	Line   int `yaml:"line"`   // 1-based
-	Column int `yaml:"column"` // 1-based, bytes
+	Line   int `yaml:"line"`
+	Column int `yaml:"column"`
 }
