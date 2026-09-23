@@ -3,15 +3,55 @@ package parser
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"testing"
 )
 
-// legacyCorpusRoot is the directory holding the legacy ZetaSQL/GoogleSQL
-// example .sql files (Corpus A). These are the canonical ZetaSQL parser
-// testdata that the legacy ANTLR grammar was validated against. If the
-// directory is missing (CI without the legacy checkout), the test skips.
-const legacyCorpusRoot = "/Users/h3n4l/OpenSource/parser/googlesql/examples"
+// legacyCorpusRoot returns the absolute path to testdata/legacy, the committed
+// mirror of the legacy ZetaSQL/GoogleSQL example .sql files (Corpus A, lifted
+// from bytebase/parser/googlesql/examples; see testdata/legacy/README.md for
+// provenance and licensing). These are the canonical ZetaSQL parser testdata
+// that the legacy ANTLR grammar was validated against. Resolved from this
+// source file's location like truth1Root, and like truth1Root it fails loudly
+// if the corpus is missing: the corpus is part of the repo, so its absence is
+// a real error, never a skip.
+func legacyCorpusRoot(t *testing.T) string {
+	t.Helper()
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed; cannot locate legacy corpus")
+	}
+	root := filepath.Join(filepath.Dir(thisFile), "testdata", "legacy")
+	if _, err := os.Stat(root); err != nil {
+		t.Fatalf("legacy corpus not found at %s: %v", root, err)
+	}
+	return root
+}
+
+// legacyCorpusFiles returns every .sql file under the legacy corpus, sorted.
+// It fails if the corpus holds no .sql files at all.
+func legacyCorpusFiles(t *testing.T) (root string, files []string) {
+	t.Helper()
+	root = legacyCorpusRoot(t)
+	err := filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && filepath.Ext(p) == ".sql" {
+			files = append(files, p)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walking corpus: %v", err)
+	}
+	if len(files) == 0 {
+		t.Fatalf("no .sql files found under %s", root)
+	}
+	sort.Strings(files)
+	return root, files
+}
 
 // TestLegacyCorpusTokenizes is a coverage smoke test: it tokenizes every
 // legacy .sql example end-to-end and asserts the lexer produces no lex errors
@@ -28,26 +68,7 @@ const legacyCorpusRoot = "/Users/h3n4l/OpenSource/parser/googlesql/examples"
 // level — they still tokenize cleanly. Should a future corpus file contain a
 // genuinely lex-invalid construct, this test will surface it for triage.)
 func TestLegacyCorpusTokenizes(t *testing.T) {
-	if _, err := os.Stat(legacyCorpusRoot); err != nil {
-		t.Skipf("legacy corpus not available at %s: %v", legacyCorpusRoot, err)
-	}
-
-	var files []string
-	err := filepath.Walk(legacyCorpusRoot, func(p string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && filepath.Ext(p) == ".sql" {
-			files = append(files, p)
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("walking corpus: %v", err)
-	}
-	if len(files) == 0 {
-		t.Skipf("no .sql files found under %s", legacyCorpusRoot)
-	}
+	_, files := legacyCorpusFiles(t)
 
 	totalTokens := 0
 	for _, f := range files {
@@ -92,40 +113,17 @@ func TestLegacyCorpusTokenizes(t *testing.T) {
 // clean fails with a "REMOVE me" note, so it cannot rot as the grammar grows.
 //
 // Coverage at authoring time: 60/72 files parse clean, 12 skipped.
-//
-// Like TestLegacyCorpusTokenizes, this skips entirely when the external legacy
-// checkout is absent (CI without it).
 func TestLegacyCorpusParses(t *testing.T) {
-	if _, err := os.Stat(legacyCorpusRoot); err != nil {
-		t.Skipf("legacy corpus not available at %s: %v", legacyCorpusRoot, err)
-	}
+	root, files := legacyCorpusFiles(t)
 
-	var files []string
-	err := filepath.Walk(legacyCorpusRoot, func(p string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && filepath.Ext(p) == ".sql" {
-			files = append(files, p)
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("walking corpus: %v", err)
-	}
-	if len(files) == 0 {
-		t.Skipf("no .sql files found under %s", legacyCorpusRoot)
-	}
-	sort.Strings(files)
-
-	// Drift guard: the skip-list keys are paths relative to legacyCorpusRoot.
+	// Drift guard: the skip-list keys are paths relative to the corpus root.
 	if len(files) != 72 {
 		t.Errorf("found %d legacy .sql files, expected 72 — corpus changed; re-baseline legacyCorpusParseSkips", len(files))
 	}
 
 	var clean, skipped int
 	for _, f := range files {
-		rel, _ := filepath.Rel(legacyCorpusRoot, f)
+		rel, _ := filepath.Rel(root, f)
 		rel = filepath.ToSlash(rel)
 		t.Run(rel, func(t *testing.T) {
 			data, err := os.ReadFile(f)
@@ -152,7 +150,7 @@ func TestLegacyCorpusParses(t *testing.T) {
 }
 
 // legacyCorpusParseSkips maps a legacy .sql file (path relative to
-// legacyCorpusRoot, slash-separated) to the reason its whole-file Parse does not
+// testdata/legacy, slash-separated) to the reason its whole-file Parse does not
 // succeed. All entries are one of:
 //
 //   - OUT-OF-SCOPE — the file contains a pure-ZetaSQL / dialect-extension

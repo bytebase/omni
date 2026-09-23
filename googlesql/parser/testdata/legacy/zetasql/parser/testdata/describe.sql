@@ -1,0 +1,13 @@
+DESCRIBE foo;
+DESCRIBE namespace.foo;
+DESCRIBE INDEX myindex;
+DESCRIBE INDEX mynamespace.myindex;
+DESCRIBE `FUNCTION` myfunction;
+DESCRIBE `FUNCTION` mynamespace.myfunction;
+DESCRIBE TVF mytvf;
+DESCRIBE TVF mynamespace.mytvf;
+DESCRIBE TYPE mytype;
+DESCRIBE TYPE mynamespace.mytype;
+DESCRIBE foo FROM namespace;
+DESCRIBE COLUMN foo FROM T.suffix;
+DESCRIBE TYPE prefixed.name FROM Catalog.`With`.Dots;

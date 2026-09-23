@@ -598,10 +598,10 @@ func TestDML_Rejects(t *testing.T) {
 // DML corpus files and asserts each parses to a single DML node with no errors.
 // This is the breadth oracle for the node (correctness-protocol completeness
 // gate): the legacy grammar bytebase consumes is a hand-port of this ZetaSQL
-// reference, so full corpus parity is the bar. Skips if the legacy checkout is
-// absent (CI without it).
+// reference, so full corpus parity is the bar. The corpus is committed under
+// testdata/legacy, so a missing file is a failure, not a skip.
 func TestDML_LegacyCorpusAccepts(t *testing.T) {
-	dir := filepath.Join(legacyCorpusRoot, "zetasql", "parser", "testdata")
+	dir := filepath.Join(legacyCorpusRoot(t), "zetasql", "parser", "testdata")
 	files := []string{
 		"dml_insert.sql",
 		"dml_update.sql",
@@ -614,7 +614,7 @@ func TestDML_LegacyCorpusAccepts(t *testing.T) {
 		path := filepath.Join(dir, name)
 		data, err := os.ReadFile(path)
 		if err != nil {
-			t.Skipf("legacy corpus file %s not available: %v", path, err)
+			t.Fatalf("reading legacy corpus file %s: %v", path, err)
 		}
 		// The truncate.sql corpus mixes in SELECTs that USE `truncate` as an
 		// identifier; those are valid query statements, not DML. We only assert a

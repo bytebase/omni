@@ -19,7 +19,7 @@ artifacts are the deliverables; this file ties them together and hands off to
 | `contract.md` | bytebase consumption surface (must-work; marks P0) | 321 lines; **6 P0 handlers** |
 | `oracle.md` | oracle tier + access + verified syntax-reject signal | Spanner emulator, gRPC :9010 |
 | `harness/googlesql-spanner/` | differential oracle (code; reused by grammar nodes) | own Go module; builds + tests green |
-| legacy examples | `/Users/h3n4l/OpenSource/parser/googlesql/examples/` (Corpus A) | **72 `.sql`** (mostly ZetaSQL testdata) |
+| legacy examples | `googlesql/parser/testdata/legacy/` (Corpus A, mirrored from `bytebase/parser/googlesql/examples/`) | **72 `.sql`** (mostly ZetaSQL testdata) |
 
 ## Grammar (truth2 highlights)
 

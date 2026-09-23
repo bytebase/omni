@@ -850,14 +850,17 @@ func TestSelect_ForSystemTimeRequiresTime(t *testing.T) {
 // it parses every ZetaSQL TPC-H query (22 complex analytic queries with nested
 // subqueries, multi-table joins, comma cross joins, CTEs, aggregates, GROUP BY,
 // HAVING, ORDER BY, correlated subqueries, and scalar subqueries) and asserts a
-// clean parse — broad coverage beyond the hand-written cases. If the corpus is
-// not checked out (CI), the test skips. The corpus is the canonical ZetaSQL
-// reference workload the legacy ANTLR grammar was validated against.
+// clean parse — broad coverage beyond the hand-written cases. The corpus is the
+// canonical ZetaSQL reference workload the legacy ANTLR grammar was validated
+// against; it is committed under testdata/legacy, so its absence is a failure.
 func TestSelect_TPCHCorpus(t *testing.T) {
-	dir := "/Users/h3n4l/OpenSource/parser/googlesql/examples/zetasql/examples/tpch"
+	dir := filepath.Join(legacyCorpusRoot(t), "zetasql", "examples", "tpch")
 	files, err := filepath.Glob(filepath.Join(dir, "*.sql"))
-	if err != nil || len(files) == 0 {
-		t.Skipf("TPC-H corpus not available at %s", dir)
+	if err != nil {
+		t.Fatalf("globbing TPC-H corpus at %s: %v", dir, err)
+	}
+	if len(files) != 22 {
+		t.Fatalf("found %d TPC-H .sql files under %s, expected 22", len(files), dir)
 	}
 	for _, f := range files {
 		f := f

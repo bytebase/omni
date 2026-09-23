@@ -1,0 +1,7 @@
+CREATE DATABASE db;
+CREATE DATABASE a.b.c.db;
+CREATE DATABASE database;
+CREATE DATABASE db OPTIONS(db_option = 1);
+CREATE DATABASE a.b.c.db OPTIONS(db_option = 1);
+CREATE DATABASE db OPTIONS(option_1 = 1, option_2 = '2');
+CREATE DATABASE OPTIONS OPTIONS(option_1 = 1, option_2 = '2');
