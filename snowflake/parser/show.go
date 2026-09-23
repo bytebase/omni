@@ -536,8 +536,8 @@ func (p *Parser) parseDescribeStmt(short bool) (ast.Node, error) {
 	// Standard form: the final unit is the object name.
 	if len(typeWords) == 0 {
 		return nil, &ParseError{
-			Loc: start,
-			Msg: "expected object type before object name in DESCRIBE",
+			Position: start.Start, End: start.End,
+			Message: "expected object type before object name in DESCRIBE",
 		}
 	}
 	stmt.ObjectType = strings.Join(typeWords, " ")

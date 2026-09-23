@@ -158,7 +158,7 @@ func TestDML_OracleDifferential(t *testing.T) {
 	for _, sql := range dmlOracleCorpus {
 		sql := sql
 		t.Run(truncateName(sql), func(t *testing.T) {
-			_, errs := Parse(sql)
+			_, errs := parseForTest(sql)
 			omniAccepts := len(errs) == 0
 
 			trinoAccepts, ok := oracleAccepts(t, o, sql)
@@ -196,7 +196,7 @@ func TestDML_BranchDivergence(t *testing.T) {
 	for _, sql := range dmlBranchDivergenceCorpus {
 		sql := sql
 		t.Run(truncateName(sql), func(t *testing.T) {
-			_, errs := Parse(sql)
+			_, errs := parseForTest(sql)
 			omniAccepts := len(errs) == 0
 			if omniAccepts {
 				t.Errorf("DIVERGENCE RESOLVED: omni now ACCEPTS %q — Trino 481 accepts it too; "+

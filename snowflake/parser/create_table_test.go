@@ -13,7 +13,7 @@ func testParseCreateTable(input string) (*ast.CreateTableStmt, []ParseError) {
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.CreateTableStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not a CreateTableStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not a CreateTableStmt"})
 	}
 	return stmt, result.Errors
 }

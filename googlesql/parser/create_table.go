@@ -497,8 +497,8 @@ func (p *Parser) parseColumnDefinition() (*ast.ColumnDef, error) {
 			// not follow a DEFAULT. If one does, report the canonical error.
 			if p.atGeneratedMode() {
 				return nil, &ParseError{
-					Loc: p.cur.Loc,
-					Msg: `syntax error: "DEFAULT" and "GENERATED ALWAYS AS" clauses must not be both provided for the column`,
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+					Message: `syntax error: "DEFAULT" and "GENERATED ALWAYS AS" clauses must not be both provided for the column`,
 				}
 			}
 		case p.atGeneratedMode():
@@ -509,8 +509,8 @@ func (p *Parser) parseColumnDefinition() (*ast.ColumnDef, error) {
 			// clause.
 			if p.cur.Type == kwDEFAULT {
 				return nil, &ParseError{
-					Loc: p.cur.Loc,
-					Msg: `syntax error: "DEFAULT" and "GENERATED ALWAYS AS" clauses must not be both provided for the column`,
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+					Message: `syntax error: "DEFAULT" and "GENERATED ALWAYS AS" clauses must not be both provided for the column`,
 				}
 			}
 		}
@@ -1529,5 +1529,5 @@ func (p *Parser) skipBalancedParens() error {
 		}
 		p.advance()
 	}
-	return &ParseError{Loc: p.cur.Loc, Msg: "syntax error at end of input"}
+	return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error at end of input"}
 }

@@ -437,7 +437,7 @@ func (p *Parser) parseCreateMaterializedViewStmt(startOffset int) (ast.Node, err
 		// match them by identifier text.
 		p.advance() // consume WHEN
 		if p.cur.Kind != tokIdent || !strings.EqualFold(p.cur.Str, "STALE") {
-			return nil, &ParseError{Loc: p.cur.Loc, Msg: "expected STALE after WHEN"}
+			return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected STALE after WHEN"}
 		}
 		p.advance() // consume STALE
 		switch {
@@ -446,7 +446,7 @@ func (p *Parser) parseCreateMaterializedViewStmt(startOffset int) (ast.Node, err
 		case p.cur.Kind == tokIdent && strings.EqualFold(p.cur.Str, "FAIL"):
 			stmt.StaleMode = MVStaleFail
 		default:
-			return nil, &ParseError{Loc: p.cur.Loc, Msg: "expected INLINE or FAIL after WHEN STALE"}
+			return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected INLINE or FAIL after WHEN STALE"}
 		}
 		p.advance() // consume INLINE / FAIL
 	}
@@ -546,7 +546,7 @@ func (p *Parser) parseAlterMaterializedViewStmt(startOffset int) (ast.Node, erro
 	case kwSET:
 		// D-MV3: IF EXISTS is not allowed on the SET forms.
 		if ifExists {
-			return nil, &ParseError{Loc: name.Loc, Msg: "IF EXISTS is not allowed on ALTER MATERIALIZED VIEW … SET"}
+			return nil, &ParseError{Position: name.Loc.Start, End: name.Loc.End, Message: "IF EXISTS is not allowed on ALTER MATERIALIZED VIEW … SET"}
 		}
 		p.advance() // consume SET
 		switch p.cur.Kind {

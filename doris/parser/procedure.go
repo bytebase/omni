@@ -163,8 +163,8 @@ func (p *Parser) collectProcedureBody() (string, ast.Loc, error) {
 	for depth > 0 {
 		if p.cur.Kind == tokEOF {
 			return "", ast.Loc{}, &ParseError{
-				Loc: p.cur.Loc,
-				Msg: "unexpected end of input inside procedure body (missing END)",
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "unexpected end of input inside procedure body (missing END)",
 			}
 		}
 		tok := p.advance()

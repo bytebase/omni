@@ -21,16 +21,16 @@ import (
 // single resulting node, failing on any parse error or a missing/extra node.
 func parseOneScript(t *testing.T, src string) ast.Node {
 	t.Helper()
-	file, errs := Parse(src)
+	file, errs := parseForTest(src)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) returned errors: %v", src, errs)
+		t.Fatalf("parseForTest(%q) returned errors: %v", src, errs)
 	}
 	if file == nil || len(file.Stmts) != 1 {
 		got := 0
 		if file != nil {
 			got = len(file.Stmts)
 		}
-		t.Fatalf("Parse(%q): expected exactly 1 statement, got %d", src, got)
+		t.Fatalf("parseForTest(%q): expected exactly 1 statement, got %d", src, got)
 	}
 	return file.Stmts[0]
 }
@@ -715,9 +715,9 @@ func TestScriptingRejects(t *testing.T) {
 			continue // handled below as accept
 		}
 		t.Run(src, func(t *testing.T) {
-			_, errs := Parse(src)
+			_, errs := parseForTest(src)
 			if len(errs) == 0 {
-				t.Errorf("Parse(%q) accepted, want a syntax error", src)
+				t.Errorf("parseForTest(%q) accepted, want a syntax error", src)
 			}
 		})
 	}

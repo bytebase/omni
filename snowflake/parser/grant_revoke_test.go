@@ -21,7 +21,7 @@ func testParseGrantStmt(t *testing.T, input string) (*ast.GrantStmt, []ParseErro
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.GrantStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not a GrantStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not a GrantStmt"})
 	}
 	return stmt, result.Errors
 }
@@ -34,7 +34,7 @@ func testParseRevokeStmt(t *testing.T, input string) (*ast.RevokeStmt, []ParseEr
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.RevokeStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not a RevokeStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not a RevokeStmt"})
 	}
 	return stmt, result.Errors
 }

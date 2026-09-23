@@ -171,7 +171,7 @@ func TestUtilityDifferential(t *testing.T) {
 			}
 
 			// 2. omni Parse verdict.
-			_, errs := Parse(fx.sql)
+			_, errs := parseForTest(fx.sql)
 			omniAccepts := len(errs) == 0
 
 			if omniAccepts != oracleAccepts {

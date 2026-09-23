@@ -19,7 +19,7 @@ func bodyOf(t *testing.T, body string) RoutineStatement {
 	sql := "CREATE FUNCTION f() RETURNS int " + body
 	s, ok := parseOneStmt(t, sql).(*CreateFunctionStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): not a *CreateFunctionStmt", sql)
+		t.Fatalf("parseForTest(%q): not a *CreateFunctionStmt", sql)
 	}
 	return s.Spec.Body
 }

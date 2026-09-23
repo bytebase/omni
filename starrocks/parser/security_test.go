@@ -12,12 +12,12 @@ import (
 
 func parseOne(t *testing.T, sql string) ast.Node {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	return file.Stmts[0]
 }

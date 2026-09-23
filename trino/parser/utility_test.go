@@ -69,7 +69,7 @@ func isUtilityNode(n ast.Node) bool {
 // classifyUtility parses a single utility statement and returns its verdict plus
 // the parse errors (for diagnostics). See utilityVerdict.
 func classifyUtility(sql string) (utilityVerdict, ast.Node, []ParseError) {
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	var stmt ast.Node
 	if file != nil && len(file.Stmts) == 1 {
 		stmt = file.Stmts[0]
@@ -96,7 +96,7 @@ func allNotYetSupported(errs []ParseError) bool {
 		return false
 	}
 	for _, e := range errs {
-		if !strings.Contains(e.Msg, "not yet supported") {
+		if !strings.Contains(e.Message, "not yet supported") {
 			return false
 		}
 	}
@@ -352,7 +352,7 @@ func TestUtility_AcceptCorpusParses(t *testing.T) {
 		t.Run(truncateName(sql), func(t *testing.T) {
 			node, ok := parseUtility(sql)
 			if !ok {
-				_, errs := Parse(sql)
+				_, errs := parseForTest(sql)
 				t.Errorf("parseUtility(%q) should accept, got errors: %v", sql, errs)
 			}
 			if ok && node == nil {
@@ -405,7 +405,7 @@ func TestUtility_OracleDifferential(t *testing.T) {
 			t.Skip("oracle unreachable for this case")
 		}
 		if omniAccepts != trinoAccepts {
-			_, errs := Parse(sql)
+			_, errs := parseForTest(sql)
 			t.Errorf("MISMATCH sql=%q: omni accepts=%v (errs=%v), Trino accepts=%v",
 				sql, omniAccepts, errs, trinoAccepts)
 		}

@@ -23,13 +23,14 @@ type Diagnostic struct {
 // implement real statement parsing. Genuine lexer errors (unterminated
 // string/identifier/comment) and unknown-statement errors are always reported.
 func Diagnose(input string) []Diagnostic {
-	_, errs := Parse(input)
+	_, err := Parse(input)
+	errs := AllErrors(err)
 	if len(errs) == 0 {
 		return nil
 	}
 	diags := make([]Diagnostic, len(errs))
 	for i, e := range errs {
-		diags[i] = Diagnostic{Msg: e.Msg, Loc: e.Loc}
+		diags[i] = Diagnostic{Msg: e.Message, Loc: ast.Loc{Start: e.Position, End: e.End}}
 	}
 	return diags
 }

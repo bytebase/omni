@@ -231,7 +231,7 @@ func (p *Parser) parseDataType() (*ast.TypeName, error) {
 		}
 		dimTok := p.cur
 		if dimTok.Type != tokInt {
-			return nil, &ParseError{Loc: dimTok.Loc, Msg: "expected integer dimension for VECTOR"}
+			return nil, &ParseError{Position: dimTok.Loc.Start, End: dimTok.Loc.End, Message: "expected integer dimension for VECTOR"}
 		}
 		p.advance()
 		closeTok, err := p.expect(')')
@@ -247,7 +247,7 @@ func (p *Parser) parseDataType() (*ast.TypeName, error) {
 		}, nil
 	}
 
-	return nil, &ParseError{Loc: tok.Loc, Msg: "expected data type"}
+	return nil, &ParseError{Position: tok.Loc.Start, End: tok.Loc.End, Message: "expected data type"}
 }
 
 // parseTimestampType handles TIMESTAMP, TIMESTAMP_LTZ, TIMESTAMP_NTZ,
@@ -276,7 +276,7 @@ func (p *Parser) parseOptionalTypeParams() ([]int, ast.Loc, error) {
 	openTok := p.advance() // consume (
 
 	if p.cur.Type != tokInt {
-		return nil, ast.NoLoc(), &ParseError{Loc: p.cur.Loc, Msg: "expected integer type parameter"}
+		return nil, ast.NoLoc(), &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected integer type parameter"}
 	}
 	first := int(p.cur.Ival)
 	p.advance()
@@ -286,7 +286,7 @@ func (p *Parser) parseOptionalTypeParams() ([]int, ast.Loc, error) {
 	if p.cur.Type == ',' {
 		p.advance() // consume ,
 		if p.cur.Type != tokInt {
-			return nil, ast.NoLoc(), &ParseError{Loc: p.cur.Loc, Msg: "expected integer type parameter"}
+			return nil, ast.NoLoc(), &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected integer type parameter"}
 		}
 		second := int(p.cur.Ival)
 		p.advance()
@@ -313,7 +313,7 @@ func (p *Parser) parseVectorElementType() (*ast.TypeName, error) {
 		p.advance()
 		return &ast.TypeName{Kind: ast.TypeFloat, Name: tok.Str, VectorDim: -1, Loc: tok.Loc}, nil
 	}
-	return nil, &ParseError{Loc: tok.Loc, Msg: "expected VECTOR element type (INT, INTEGER, FLOAT, FLOAT4, or FLOAT8)"}
+	return nil, &ParseError{Position: tok.Loc.Start, End: tok.Loc.End, Message: "expected VECTOR element type (INT, INTEGER, FLOAT, FLOAT4, or FLOAT8)"}
 }
 
 // ParseDataType parses a data type from a standalone string. Useful for
@@ -330,13 +330,13 @@ func ParseDataType(input string) (*ast.TypeName, []ParseError) {
 		if pe, ok := err.(*ParseError); ok {
 			return nil, []ParseError{*pe}
 		}
-		return nil, []ParseError{{Msg: err.Error()}}
+		return nil, []ParseError{{Message: err.Error()}}
 	}
 
 	if p.cur.Type != tokEOF {
 		return dt, []ParseError{{
-			Loc: p.cur.Loc,
-			Msg: "unexpected token after data type",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "unexpected token after data type",
 		}}
 	}
 

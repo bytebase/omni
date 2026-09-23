@@ -783,8 +783,8 @@ func TestExpr_NotifyStyleAccept(t *testing.T) {
 	// A diagnostic is recorded (the "argument is not a query" notify).
 	if len(errs) == 0 {
 		t.Errorf("func(SELECT 1): expected a recorded diagnostic")
-	} else if !strings.Contains(errs[0].Msg, "expression, not a query") {
-		t.Errorf("func(SELECT 1): diagnostic = %q", errs[0].Msg)
+	} else if !strings.Contains(errs[0].Message, "expression, not a query") {
+		t.Errorf("func(SELECT 1): diagnostic = %q", errs[0].Message)
 	}
 }
 
@@ -795,7 +795,7 @@ func TestExpr_TrailingTokens(t *testing.T) {
 	if node == nil {
 		t.Fatal("expected the leading expression to parse")
 	}
-	if len(errs) == 0 || !strings.Contains(errs[0].Msg, "unexpected token after expression") {
+	if len(errs) == 0 || !strings.Contains(errs[0].Message, "unexpected token after expression") {
 		t.Errorf("trailing tokens: errs = %v", errs)
 	}
 }

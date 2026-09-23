@@ -18,8 +18,8 @@ func TestStrictParseRejectsTrailingTokens(t *testing.T) {
 		"SELECT j->'$.a' FROM t",
 		"SELECT a FROM t WHERE x = 1 ) ) ) DROP",
 	} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want trailing-token error", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want trailing-token error", sql)
 		}
 	}
 }
@@ -61,7 +61,7 @@ func TestStrictParseCorpusCanary(t *testing.T) {
 			t.Fatalf("read %s: %v", f, err)
 		}
 		for _, seg := range Split(string(data)) {
-			clean, errs := Parse(seg.Text)
+			clean, errs := parseForTest(seg.Text)
 			if len(errs) > 0 {
 				continue // not cleanly parseable on its own; nothing to prove
 			}
@@ -69,7 +69,7 @@ func TestStrictParseCorpusCanary(t *testing.T) {
 				continue
 			}
 			canary := seg.Text + "\n )))"
-			if _, errs := Parse(canary); len(errs) == 0 {
+			if _, errs := parseForTest(canary); len(errs) == 0 {
 				stmt := strings.Join(strings.Fields(seg.Text), " ")
 				if len(stmt) > 90 {
 					stmt = stmt[:90] + "..."
@@ -88,7 +88,7 @@ func TestStrictParseCorpusCanary(t *testing.T) {
 // TestStrictParseMultiStatementIsolation: a bad segment errors without
 // taking the good segments around it down.
 func TestStrictParseMultiStatementIsolation(t *testing.T) {
-	file, errs := Parse("SELECT 1; SELECT 2 ))); SELECT 3")
+	file, errs := parseForTest("SELECT 1; SELECT 2 ))); SELECT 3")
 	if len(errs) == 0 {
 		t.Fatal("middle segment junk not reported")
 	}
@@ -113,7 +113,7 @@ func TestStrictParseDrainsLexErrorsAfterTrailingJunk(t *testing.T) {
 	// The lexer is lazy: without draining the segment after the first
 	// trailing-token error, the unterminated string would never be lexed and
 	// its diagnostic would be lost.
-	_, errs := Parse("SELECT 1 ))) 'unterminated")
+	_, errs := parseForTest("SELECT 1 ))) 'unterminated")
 	if len(errs) < 2 {
 		t.Fatalf("errs = %v, want the trailing-token error AND the lex error", errs)
 	}
@@ -123,15 +123,15 @@ func TestStrictParseRejectsMalformedExplain(t *testing.T) {
 	// The RawQuery fallback is best-effort recovery only; on the strict path
 	// it must not swallow a nested parse failure.
 	for _, sql := range []string{"EXPLAIN SELECT * FROM", "EXPLAIN SELECT (", "EXPLAIN BOGUS x", "EXPLAIN", "EXPLAIN /*comment*/"} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want nested error", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want nested error", sql)
 		}
 		if r := ParseBestEffort(sql); len(r.Errors) != 0 {
 			t.Errorf("ParseBestEffort(%q) errors = %v, want fallback recovery", sql, r.Errors)
 		}
 	}
 	// A well-formed explained statement still parses strictly.
-	if _, errs := Parse("EXPLAIN SELECT 1"); len(errs) != 0 {
+	if _, errs := parseForTest("EXPLAIN SELECT 1"); len(errs) != 0 {
 		t.Errorf("EXPLAIN SELECT 1 errors: %v", errs)
 	}
 }
@@ -147,8 +147,8 @@ func TestSetTransactionCharacteristics(t *testing.T) {
 		"SET TRANSACTION ISOLATION LEVEL REPEATABLE READ",
 		"SET TRANSACTION ISOLATION LEVEL SERIALIZABLE, READ ONLY",
 	} {
-		if _, errs := Parse(sql); len(errs) != 0 {
-			t.Errorf("Parse(%q) errors: %v", sql, errs)
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q) errors: %v", sql, errs)
 		}
 	}
 	for _, sql := range []string{
@@ -157,8 +157,8 @@ func TestSetTransactionCharacteristics(t *testing.T) {
 		"SET TRANSACTION READ ONLY )))",
 		"SET TRANSACTION ISOLATION LEVEL READ",
 	} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want error", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want error", sql)
 		}
 	}
 }
@@ -167,14 +167,14 @@ func TestStrictParseRejectsMalformedSetExpressions(t *testing.T) {
 	// parseSetItem's raw fallback consumed to the comma or EOF on an
 	// expression error, hiding the failure from the strict check.
 	for _, sql := range []string{"SET x = (", "SET x = 1 +", "SET x = EXISTS ("} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want error", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want error", sql)
 		}
 		if r := ParseBestEffort(sql); len(r.Errors) != 0 {
 			t.Errorf("ParseBestEffort(%q) errors = %v, want fallback recovery", sql, r.Errors)
 		}
 	}
-	if _, errs := Parse("SET x = 1, y = 'a'"); len(errs) != 0 {
+	if _, errs := parseForTest("SET x = 1, y = 'a'"); len(errs) != 0 {
 		t.Errorf("well-formed SET errors: %v", errs)
 	}
 }
@@ -183,8 +183,8 @@ func TestStrictParseRejectsValuelessSetAssignments(t *testing.T) {
 	// The bare-name forms reached EOF or the comma before the strict check
 	// could see anything; the engine requires the separator and a value.
 	for _, sql := range []string{"SET x", "SET x =", "SET x, y", "SET x 1"} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want error", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want error", sql)
 		}
 	}
 	// Engine-valid forms keep parsing, including the scoped TRANSACTION
@@ -196,19 +196,19 @@ func TestStrictParseRejectsValuelessSetAssignments(t *testing.T) {
 		"SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ",
 		"SET GLOBAL TRANSACTION READ ONLY",
 	} {
-		if _, errs := Parse(sql); len(errs) != 0 {
-			t.Errorf("Parse(%q) errors: %v", sql, errs)
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q) errors: %v", sql, errs)
 		}
 	}
 
 	// The scoped spelling keeps its qualifier on the AST — SET SESSION
 	// TRANSACTION must stay distinguishable from SET TRANSACTION.
-	file, _ := Parse("SET GLOBAL TRANSACTION READ ONLY")
+	file, _ := parseForTest("SET GLOBAL TRANSACTION READ ONLY")
 	item := file.Stmts[0].(*ast.SetStmt).Items[0]
 	if item.Scope != "GLOBAL" || item.Raw != "READ ONLY" {
 		t.Errorf("scoped transaction item = %+v, want Scope GLOBAL Raw READ ONLY", item)
 	}
-	file, _ = Parse("SET TRANSACTION READ WRITE")
+	file, _ = parseForTest("SET TRANSACTION READ WRITE")
 	if got := file.Stmts[0].(*ast.SetStmt).Items[0].Scope; got != "" {
 		t.Errorf("unqualified transaction Scope = %q, want empty", got)
 	}
@@ -218,11 +218,11 @@ func TestStrictParseRejectsMalformedShowClauses(t *testing.T) {
 	// parseShowLikeWhere consumed to EOF before failing, so the leftover
 	// check alone never saw SHOW TABLES WHERE ( go wrong.
 	for _, sql := range []string{"SHOW TABLES WHERE (", "SHOW DATABASES WHERE 1 +", "SHOW TABLES FROM", "SHOW TABLES IN"} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want error", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want error", sql)
 		}
 	}
-	if _, errs := Parse("SHOW TABLES WHERE table_name LIKE 'a%'"); len(errs) != 0 {
+	if _, errs := parseForTest("SHOW TABLES WHERE table_name LIKE 'a%'"); len(errs) != 0 {
 		t.Errorf("well-formed SHOW WHERE errors: %v", errs)
 	}
 }
@@ -231,16 +231,16 @@ func TestStrictParsePromotesFilteredSegmentLexErrors(t *testing.T) {
 	// Split drops comment-only segments, and their lex errors with them; the
 	// strict full-input sweep has to bring those diagnostics back.
 	for _, sql := range []string{"/* unterminated", "SELECT 1; /* unterminated"} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want unterminated-comment error", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want unterminated-comment error", sql)
 		}
 	}
 	// The full-input sweep must not duplicate an error a segment already
 	// reported: the segment pairs a syntax error at the invalid token with
 	// the promoted lex error, and the sweep adds nothing on top.
-	_, errs := Parse("SELECT 'unterminated")
+	_, errs := parseForTest("SELECT 'unterminated")
 	if len(errs) != 2 {
-		t.Errorf("Parse(SELECT 'unterminated) errs = %v, want the segment's two", errs)
+		t.Errorf("parseForTest(SELECT 'unterminated) errs = %v, want the segment's two", errs)
 	}
 }
 
@@ -249,13 +249,13 @@ func TestStrictParseRejectsIncompleteSetNamesCharset(t *testing.T) {
 	// invisible to the leftover-token check. Engine-verified rejects on both
 	// engines.
 	for _, sql := range []string{"SET NAMES", "SET CHARSET", "SET NAMES utf8 COLLATE"} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want error", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want error", sql)
 		}
 	}
 	for _, sql := range []string{"SET NAMES utf8", "SET NAMES utf8 COLLATE utf8_general_ci", "SET CHARSET utf8", "SET NAMES DEFAULT"} {
-		if _, errs := Parse(sql); len(errs) != 0 {
-			t.Errorf("Parse(%q) errors: %v", sql, errs)
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q) errors: %v", sql, errs)
 		}
 	}
 }
@@ -285,7 +285,7 @@ func TestParseBestEffortKeepsSetTransactionRecovery(t *testing.T) {
 	if raw := r.File.Stmts[0].(*ast.SetStmt).Items[0].Raw; raw != "ISOLATION LEVEL READ FOO" {
 		t.Errorf("suffix recovery Raw = %q, want ISOLATION LEVEL READ FOO", raw)
 	}
-	if _, errs := Parse("SET TRANSACTION ISOLATION LEVEL READ"); len(errs) == 0 {
+	if _, errs := parseForTest("SET TRANSACTION ISOLATION LEVEL READ"); len(errs) == 0 {
 		t.Error("strict Parse accepted the incomplete characteristic")
 	}
 }
@@ -295,13 +295,13 @@ func TestStrictParseBeginQualifiers(t *testing.T) {
 	// (StarRocks accepts BEGIN WORK — see its twin test). BEGIN and
 	// BEGIN WITH LABEL stay valid.
 	for _, sql := range []string{"BEGIN WORK", "BEGIN TRANSACTION"} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want error", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want error", sql)
 		}
 	}
 	for _, sql := range []string{"BEGIN", "BEGIN WITH LABEL lbl1"} {
-		if _, errs := Parse(sql); len(errs) != 0 {
-			t.Errorf("Parse(%q) errors: %v", sql, errs)
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q) errors: %v", sql, errs)
 		}
 	}
 }
@@ -310,8 +310,8 @@ func TestStrictParseSetRoleRejected(t *testing.T) {
 	// Container-verified: the Doris engine rejects every SET ROLE spelling
 	// (StarRocks accepts the family — see its twin test).
 	for _, sql := range []string{"SET ROLE admin_role", "SET ROLE NONE", "SET DEFAULT ROLE ALL TO u"} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want error", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want error", sql)
 		}
 	}
 }

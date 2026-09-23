@@ -196,11 +196,11 @@ func (p *Parser) parseParenQuery() (*ParenQuery, error) {
 // TABLE / VALUES / '(') where one is required.
 func (p *Parser) queryPrimaryError() *ParseError {
 	if p.cur.Kind == tokEOF {
-		return &ParseError{Loc: p.cur.Loc, Msg: "expected a query (SELECT/TABLE/VALUES), found end of input"}
+		return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected a query (SELECT/TABLE/VALUES), found end of input"}
 	}
 	text := p.cur.Str
 	if text == "" {
 		text = TokenName(p.cur.Kind)
 	}
-	return &ParseError{Loc: p.cur.Loc, Msg: "expected a query (SELECT/TABLE/VALUES), found " + text}
+	return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected a query (SELECT/TABLE/VALUES), found " + text}
 }

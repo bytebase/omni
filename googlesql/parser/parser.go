@@ -129,8 +129,8 @@ func (p *Parser) syntaxErrorAtCur() *ParseError {
 		msg = "syntax error at or near " + text
 	}
 	return &ParseError{
-		Loc: p.cur.Loc,
-		Msg: msg,
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: msg,
 	}
 }
 
@@ -174,8 +174,8 @@ func (p *Parser) skipToNextStatement() {
 // ast.Node values.
 func (p *Parser) unsupported(name string) (ast.Node, error) {
 	err := &ParseError{
-		Loc: p.cur.Loc,
-		Msg: name + " statement parsing is not yet supported",
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: name + " statement parsing is not yet supported",
 	}
 	p.skipToNextStatement()
 	return nil, err
@@ -188,8 +188,8 @@ func (p *Parser) unsupported(name string) (ast.Node, error) {
 func (p *Parser) unknownStatementError() *ParseError {
 	if p.cur.Type == tokEOF {
 		return &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "syntax error at end of input",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "syntax error at end of input",
 		}
 	}
 	text := p.cur.Str
@@ -197,8 +197,8 @@ func (p *Parser) unknownStatementError() *ParseError {
 		text = TokenName(p.cur.Type)
 	}
 	return &ParseError{
-		Loc: p.cur.Loc,
-		Msg: "unknown or unsupported statement starting with " + text,
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: "unknown or unsupported statement starting with " + text,
 	}
 }
 
@@ -251,7 +251,7 @@ func (p *Parser) skipStatementLevelHint() *ParseError {
 			p.advance()
 		}
 		if p.cur.Type != int(']') {
-			return &ParseError{Loc: hintStart, Msg: "unterminated statement hint"}
+			return &ParseError{Position: hintStart.Start, End: hintStart.End, Message: "unterminated statement hint"}
 		}
 		p.advance() // consume ']'
 		if p.cur.Type == int('{') {
@@ -259,7 +259,7 @@ func (p *Parser) skipStatementLevelHint() *ParseError {
 		}
 		// `@[ … @]` with no following `{` body: a hint preamble must carry a
 		// brace body, so this is malformed.
-		return &ParseError{Loc: hintStart, Msg: "unterminated statement hint"}
+		return &ParseError{Position: hintStart.Start, End: hintStart.End, Message: "unterminated statement hint"}
 	case next.Type == tokInteger:
 		p.advance() // consume '@'
 		p.advance() // consume the int
@@ -292,7 +292,7 @@ func (p *Parser) skipBalancedBraces(hintStart ast.Loc) *ParseError {
 	// its malformed `key=value` shape is the later hint node's concern, not an
 	// emptiness error.
 	if p.peekNext().Type == int('}') {
-		return &ParseError{Loc: hintStart, Msg: "empty statement hint"}
+		return &ParseError{Position: hintStart.Start, End: hintStart.End, Message: "empty statement hint"}
 	}
 	depth := 0
 	for p.cur.Type != tokEOF {
@@ -308,7 +308,7 @@ func (p *Parser) skipBalancedBraces(hintStart ast.Loc) *ParseError {
 		}
 		p.advance()
 	}
-	return &ParseError{Loc: hintStart, Msg: "unterminated statement hint"}
+	return &ParseError{Position: hintStart.Start, End: hintStart.End, Message: "unterminated statement hint"}
 }
 
 // parseStmt parses one top-level statement by dispatching on the leading
@@ -619,7 +619,7 @@ func (p *Parser) reparseSubquery(raw string, loc ast.Loc) ast.Node {
 		if pe, ok := err.(*ParseError); ok {
 			p.errors = append(p.errors, *pe)
 		} else {
-			p.errors = append(p.errors, ParseError{Loc: loc, Msg: err.Error()})
+			p.errors = append(p.errors, ParseError{Position: loc.Start, End: loc.End, Message: err.Error()})
 		}
 		return nil
 	}
@@ -647,17 +647,18 @@ type ParseResult struct {
 	Errors []ParseError
 }
 
-// Parse is the strict entry point. It returns the parsed File plus every error
-// encountered; the File holds only statements that parsed completely. A
+// Parse is the strict entry point. It returns the parsed File and, when any
+// segment fails, a ParseErrors listing every error; the File holds only the
+// statements that parsed completely, so a caller that reports errors can
+// still show what parsed. A
 // segment whose statement parsed but left tokens behind is a syntax error at
 // the first leftover token and contributes no node.
-//
-// The signature returns all errors (matching snowflake/trino parser.Parse)
-// rather than a single error: bytebase's Diagnose needs the complete diagnostic
-// set, and a multi-statement script can fail in several places at once.
-func Parse(input string) (*ast.File, []ParseError) {
+func Parse(input string) (*ast.File, error) {
 	result := parseAll(input, true)
-	return result.File, result.Errors
+	if len(result.Errors) == 0 {
+		return result.File, nil
+	}
+	return result.File, ParseErrors(result.Errors)
 }
 
 // ParseBestEffort is the tolerant entry point for partial or in-progress
@@ -722,7 +723,7 @@ func collectLexErrors(input string) []ParseError {
 	}
 	out := make([]ParseError, len(lexErrs))
 	for i, le := range lexErrs {
-		out[i] = ParseError{Loc: le.Loc, Msg: le.Msg}
+		out[i] = ParseError{Position: le.Loc.Start, End: le.Loc.End, Message: le.Msg}
 	}
 	return out
 }
@@ -764,8 +765,8 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 				p.errors = append(p.errors, *pe)
 			} else {
 				p.errors = append(p.errors, ParseError{
-					Loc: p.cur.Loc,
-					Msg: err.Error(),
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+					Message: err.Error(),
 				})
 			}
 		} else if strictTrailing && p.cur.Type != tokEOF {

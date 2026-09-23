@@ -17,7 +17,7 @@ func mvOf(t *testing.T, sql string) *ast.CreateMaterializedViewStmt {
 	n := parseDDL(t, sql)
 	mv, ok := n.(*ast.CreateMaterializedViewStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.CreateMaterializedViewStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.CreateMaterializedViewStmt", sql, n)
 	}
 	return mv
 }
@@ -113,7 +113,7 @@ func bqAlterOf(t *testing.T, sql string) *ast.BQAlterStmt {
 	n := parseDDL(t, sql)
 	a, ok := n.(*ast.BQAlterStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.BQAlterStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.BQAlterStmt", sql, n)
 	}
 	return a
 }

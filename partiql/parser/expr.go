@@ -293,8 +293,8 @@ func (p *Parser) parseInBody(left ast.ExprNode, not bool, startLoc int) (*ast.In
 		// "no viable alternative at input 'IN ()'".
 		if p.cur.Type == tokPAREN_RIGHT {
 			return nil, &ParseError{
-				Message: "IN list requires at least one expression",
-				Loc:     p.cur.Loc,
+				Message:  "IN list requires at least one expression",
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 		var list []ast.ExprNode

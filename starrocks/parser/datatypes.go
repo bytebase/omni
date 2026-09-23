@@ -156,8 +156,8 @@ func (p *Parser) parseDataType() (*ast.TypeName, error) {
 			return p.parsePrimitiveType()
 		}
 		return nil, &ParseError{
-			Loc: tok.Loc,
-			Msg: fmt.Sprintf("expected a data type, got %q", tok.Str),
+			Position: tok.Loc.Start, End: tok.Loc.End,
+			Message: fmt.Sprintf("expected a data type, got %q", tok.Str),
 		}
 	}
 }
@@ -198,8 +198,8 @@ func (p *Parser) parseTypeParams() ([]int, int, error) {
 	firstTok := p.cur
 	if firstTok.Kind != tokInt {
 		return nil, 0, &ParseError{
-			Loc: firstTok.Loc,
-			Msg: fmt.Sprintf("expected integer parameter, got %q", firstTok.Str),
+			Position: firstTok.Loc.Start, End: firstTok.Loc.End,
+			Message: fmt.Sprintf("expected integer parameter, got %q", firstTok.Str),
 		}
 	}
 	p.advance()
@@ -211,8 +211,8 @@ func (p *Parser) parseTypeParams() ([]int, int, error) {
 		secondTok := p.cur
 		if secondTok.Kind != tokInt {
 			return nil, 0, &ParseError{
-				Loc: secondTok.Loc,
-				Msg: fmt.Sprintf("expected integer parameter, got %q", secondTok.Str),
+				Position: secondTok.Loc.Start, End: secondTok.Loc.End,
+				Message: fmt.Sprintf("expected integer parameter, got %q", secondTok.Str),
 			}
 		}
 		p.advance()
@@ -258,8 +258,8 @@ func (p *Parser) expectGT() (Token, error) {
 		return firstGT, nil
 	}
 	return Token{}, &ParseError{
-		Loc: p.cur.Loc,
-		Msg: fmt.Sprintf("expected '>', got %q", p.cur.Str),
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: fmt.Sprintf("expected '>', got %q", p.cur.Str),
 	}
 }
 
@@ -274,8 +274,8 @@ func (p *Parser) parseArrayType() (*ast.TypeName, error) {
 	// Expect '<'
 	if _, err := p.expect(int('<')); err != nil {
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected '<' after ARRAY",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected '<' after ARRAY",
 		}
 	}
 
@@ -308,8 +308,8 @@ func (p *Parser) parseMapType() (*ast.TypeName, error) {
 	// Expect '<'
 	if _, err := p.expect(int('<')); err != nil {
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected '<' after MAP",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected '<' after MAP",
 		}
 	}
 
@@ -323,8 +323,8 @@ func (p *Parser) parseMapType() (*ast.TypeName, error) {
 	// Expect ','
 	if _, err := p.expect(int(',')); err != nil {
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected ',' between MAP key and value types",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected ',' between MAP key and value types",
 		}
 	}
 
@@ -356,8 +356,8 @@ func (p *Parser) parseStructType() (*ast.TypeName, error) {
 	// Expect '<'
 	if _, err := p.expect(int('<')); err != nil {
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected '<' after STRUCT",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected '<' after STRUCT",
 		}
 	}
 
@@ -375,8 +375,8 @@ func (p *Parser) parseStructType() (*ast.TypeName, error) {
 		}
 		if p.cur.Kind != int(',') {
 			return nil, &ParseError{
-				Loc: p.cur.Loc,
-				Msg: "expected ',' or '>' in STRUCT type field list",
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "expected ',' or '>' in STRUCT type field list",
 			}
 		}
 		p.advance() // consume ','
@@ -415,8 +415,8 @@ func (p *Parser) parseStructField() (*ast.StructField, error) {
 		p.advance()
 	default:
 		return nil, &ParseError{
-			Loc: nameTok.Loc,
-			Msg: fmt.Sprintf("expected field name in STRUCT, got %q", nameTok.Str),
+			Position: nameTok.Loc.Start, End: nameTok.Loc.End,
+			Message: fmt.Sprintf("expected field name in STRUCT, got %q", nameTok.Str),
 		}
 	}
 

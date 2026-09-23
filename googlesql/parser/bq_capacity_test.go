@@ -19,7 +19,7 @@ func entityOf(t *testing.T, sql string) *ast.CreateEntityStmt {
 	n := parseDDL(t, sql)
 	e, ok := n.(*ast.CreateEntityStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.CreateEntityStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.CreateEntityStmt", sql, n)
 	}
 	return e
 }
@@ -120,7 +120,7 @@ func TestDropReservationAssignment(t *testing.T) {
 	} {
 		d := bqDropOf(t, tc.sql)
 		if d.EntityType != tc.want {
-			t.Errorf("Parse(%q): EntityType = %q, want %q", tc.sql, d.EntityType, tc.want)
+			t.Errorf("parseForTest(%q): EntityType = %q, want %q", tc.sql, d.EntityType, tc.want)
 		}
 	}
 }

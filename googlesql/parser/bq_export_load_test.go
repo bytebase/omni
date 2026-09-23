@@ -21,7 +21,7 @@ func exportDataOf(t *testing.T, sql string) *ast.ExportDataStmt {
 	n := parseDDL(t, sql)
 	s, ok := n.(*ast.ExportDataStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.ExportDataStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.ExportDataStmt", sql, n)
 	}
 	return s
 }
@@ -31,7 +31,7 @@ func loadDataOf(t *testing.T, sql string) *ast.LoadDataStmt {
 	n := parseDDL(t, sql)
 	s, ok := n.(*ast.LoadDataStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.LoadDataStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.LoadDataStmt", sql, n)
 	}
 	return s
 }
@@ -41,7 +41,7 @@ func cloneDataOf(t *testing.T, sql string) *ast.CloneDataStmt {
 	n := parseDDL(t, sql)
 	s, ok := n.(*ast.CloneDataStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.CloneDataStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.CloneDataStmt", sql, n)
 	}
 	return s
 }
@@ -51,7 +51,7 @@ func exportModelOf(t *testing.T, sql string) *ast.ExportModelStmt {
 	n := parseDDL(t, sql)
 	s, ok := n.(*ast.ExportModelStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.ExportModelStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.ExportModelStmt", sql, n)
 	}
 	return s
 }
@@ -370,7 +370,7 @@ func TestCloneData_MalformedEmbeddedSubqueryRejected(t *testing.T) {
 	// A balanced-but-invalid embedded subquery (stray alias `b`) must be surfaced
 	// as a diagnostic by the fillSubqueries re-parse — the same contract the DML
 	// family upholds. Without the wrap this would be silently accepted.
-	_, errs := Parse("CLONE DATA INTO ds.dest FROM ds.src WHERE id IN (SELECT id FROM ds.s a b)")
+	_, errs := parseForTest("CLONE DATA INTO ds.dest FROM ds.src WHERE id IN (SELECT id FROM ds.s a b)")
 	if len(errs) == 0 {
 		t.Error("want a diagnostic for the malformed embedded subquery (SELECT … a b)")
 	}
@@ -433,7 +433,7 @@ func TestExportModel_DashedPathRejected(t *testing.T) {
 func TestExportMetadata_RecognizedButUnsupported(t *testing.T) {
 	// EXPORT … METADATA is a valid BigQuery statement owned by the parser-utility
 	// node; this node routes it to the unsupported stub (recognized, not unknown).
-	_, errs := Parse("EXPORT TABLE METADATA FROM ds.t")
+	_, errs := parseForTest("EXPORT TABLE METADATA FROM ds.t")
 	if len(errs) == 0 {
 		t.Fatal("want an error for the not-yet-supported EXPORT METADATA")
 	}

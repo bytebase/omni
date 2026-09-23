@@ -118,8 +118,8 @@ func (p *Parser) syntaxErrorAtCur() *ParseError {
 		msg = "syntax error at or near " + text
 	}
 	return &ParseError{
-		Loc: p.cur.Loc,
-		Msg: msg,
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: msg,
 	}
 }
 
@@ -163,8 +163,8 @@ func (p *Parser) skipToNextStatement() {
 // tokens themselves and produce real AST nodes.
 func (p *Parser) unsupported(stmtName string) (ast.Node, error) {
 	err := &ParseError{
-		Loc: p.cur.Loc,
-		Msg: stmtName + " statement parsing is not yet supported",
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: stmtName + " statement parsing is not yet supported",
 	}
 	p.skipToNextStatement()
 	return nil, err
@@ -176,8 +176,8 @@ func (p *Parser) unsupported(stmtName string) (ast.Node, error) {
 func (p *Parser) unknownStatementError() *ParseError {
 	if p.cur.Type == tokEOF {
 		return &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "syntax error at end of input",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "syntax error at end of input",
 		}
 	}
 	tokText := p.cur.Str
@@ -185,8 +185,8 @@ func (p *Parser) unknownStatementError() *ParseError {
 		tokText = TokenName(p.cur.Type)
 	}
 	return &ParseError{
-		Loc: p.cur.Loc,
-		Msg: "unknown or unsupported statement starting with " + tokText,
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: "unknown or unsupported statement starting with " + tokText,
 	}
 }
 
@@ -483,8 +483,8 @@ func parseSegment(segText string, baseOffset int, strictTrailing bool) (ast.Node
 				p.errors = append(p.errors, *pe)
 			} else {
 				p.errors = append(p.errors, ParseError{
-					Loc: p.cur.Loc,
-					Msg: err.Error(),
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+					Message: err.Error(),
 				})
 			}
 		} else if strictTrailing {
@@ -510,7 +510,7 @@ func parseSegment(segText string, baseOffset int, strictTrailing bool) (ast.Node
 	// Promote any lex errors into ParseErrors. The Lexer's Errors()
 	// getter returns positions already shifted by baseOffset.
 	for _, le := range p.lexer.Errors() {
-		p.errors = append(p.errors, ParseError{Loc: le.Loc, Msg: le.Msg})
+		p.errors = append(p.errors, ParseError{Position: le.Loc.Start, End: le.Loc.End, Message: le.Msg})
 	}
 
 	return result, p.errors

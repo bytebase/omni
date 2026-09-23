@@ -167,11 +167,11 @@ func (p *Parser) errorf(format string, args ...any) *ParseError {
 		near = p.extractNear(p.cur.Loc)
 	}
 	return &ParseError{
-		Message: fmt.Sprintf(format, args...),
-		Loc:     ast.Loc{Start: p.cur.Loc, End: p.cur.End},
-		Line:    line,
-		Column:  col,
-		Near:    near,
+		Message:  fmt.Sprintf(format, args...),
+		Position: p.cur.Loc, End: p.cur.End,
+		Line:   line,
+		Column: col,
+		Near:   near,
 	}
 }
 

@@ -372,7 +372,7 @@ func (p *Parser) finishAlterTableSet(stmt *AlterTableStmt) (ast.Node, error) {
 	// SYNTAX_ERROR, so reject it here even though IF EXISTS was consumed
 	// up-front (it is shared with the column sub-forms).
 	if stmt.IfExists {
-		return nil, &ParseError{Loc: stmt.Name.Loc, Msg: "IF EXISTS is not allowed on ALTER TABLE … SET"}
+		return nil, &ParseError{Position: stmt.Name.Loc.Start, End: stmt.Name.Loc.End, Message: "IF EXISTS is not allowed on ALTER TABLE … SET"}
 	}
 	p.advance() // consume SET
 	switch p.cur.Kind {
@@ -408,7 +408,7 @@ func (p *Parser) finishAlterTableExecute(stmt *AlterTableStmt) (ast.Node, error)
 	// `IF EXISTS`; Trino 481 rejects `ALTER TABLE IF EXISTS t EXECUTE …` as a
 	// SYNTAX_ERROR.
 	if stmt.IfExists {
-		return nil, &ParseError{Loc: stmt.Name.Loc, Msg: "IF EXISTS is not allowed on ALTER TABLE … EXECUTE"}
+		return nil, &ParseError{Position: stmt.Name.Loc.Start, End: stmt.Name.Loc.End, Message: "IF EXISTS is not allowed on ALTER TABLE … EXECUTE"}
 	}
 	p.advance() // consume EXECUTE
 	proc, err := p.parseIdentifier()

@@ -698,8 +698,8 @@ func TestGetQuerySpan_SubqueryErrorLocationsAreOuter(t *testing.T) {
 		t.Fatalf("err = %T, want *parser.ParseError", err)
 	}
 	want := strings.Index(sql, "*/")
-	if pe.Loc.Start != want {
-		t.Errorf("error Loc.Start = %d, want %d (the */ in the outer text)", pe.Loc.Start, want)
+	if pe.Position != want {
+		t.Errorf("error Loc.Start = %d, want %d (the */ in the outer text)", pe.Position, want)
 	}
 }
 
@@ -724,8 +724,8 @@ func TestGetQuerySpan_NestedSubqueryErrorLocationsAccumulate(t *testing.T) {
 	if !ok {
 		t.Fatalf("err = %T, want *parser.ParseError", err)
 	}
-	if want := strings.Index(sql, "*/"); pe.Loc.Start != want {
-		t.Errorf("error Loc.Start = %d, want %d", pe.Loc.Start, want)
+	if want := strings.Index(sql, "*/"); pe.Position != want {
+		t.Errorf("error Loc.Start = %d, want %d", pe.Position, want)
 	}
 }
 

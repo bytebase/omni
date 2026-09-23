@@ -195,7 +195,7 @@ func TestSpannerDDLDifferential(t *testing.T) {
 					fx.wantParse, v.Verdict, v.Reason, v.Message, fx.sql)
 			}
 
-			_, errs := Parse(fx.sql)
+			_, errs := parseForTest(fx.sql)
 			omniAccepts := len(errs) == 0
 
 			if omniAccepts != oracleAccepts {

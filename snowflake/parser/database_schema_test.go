@@ -17,7 +17,7 @@ func testParseCreateDatabase(input string) (*ast.CreateDatabaseStmt, []ParseErro
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.CreateDatabaseStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not a CreateDatabaseStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not a CreateDatabaseStmt"})
 	}
 	return stmt, result.Errors
 }
@@ -29,7 +29,7 @@ func testParseCreateSchema(input string) (*ast.CreateSchemaStmt, []ParseError) {
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.CreateSchemaStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not a CreateSchemaStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not a CreateSchemaStmt"})
 	}
 	return stmt, result.Errors
 }
@@ -41,7 +41,7 @@ func testParseAlterDatabase(input string) (*ast.AlterDatabaseStmt, []ParseError)
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.AlterDatabaseStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not an AlterDatabaseStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not an AlterDatabaseStmt"})
 	}
 	return stmt, result.Errors
 }
@@ -53,7 +53,7 @@ func testParseAlterSchema(input string) (*ast.AlterSchemaStmt, []ParseError) {
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.AlterSchemaStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not an AlterSchemaStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not an AlterSchemaStmt"})
 	}
 	return stmt, result.Errors
 }
@@ -65,7 +65,7 @@ func testParseDropDatabase(input string) (*ast.DropDatabaseStmt, []ParseError) {
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.DropDatabaseStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not a DropDatabaseStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not a DropDatabaseStmt"})
 	}
 	return stmt, result.Errors
 }
@@ -77,7 +77,7 @@ func testParseDropSchema(input string) (*ast.DropSchemaStmt, []ParseError) {
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.DropSchemaStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not a DropSchemaStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not a DropSchemaStmt"})
 	}
 	return stmt, result.Errors
 }

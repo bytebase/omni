@@ -397,7 +397,7 @@ func TestAdminCompactTable(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAdminCheckTablet(t *testing.T) {
-	file, errs := Parse(`ADMIN CHECK TABLET (10000, 10001) PROPERTIES("type"="consistency")`)
+	file, errs := parseForTest(`ADMIN CHECK TABLET (10000, 10001) PROPERTIES("type"="consistency")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -538,7 +538,7 @@ func TestLegacyCorpus_Backend(t *testing.T) {
 		`ALTER SYSTEM MODIFY BACKEND "127.0.0.1:9050" SET ("disable_load" = "true")`,
 	}
 	for i, sql := range cases {
-		file, errs := Parse(sql)
+		file, errs := parseForTest(sql)
 		if len(errs) != 0 {
 			t.Errorf("case %d %q: errors=%v", i, sql, errs)
 			continue
@@ -562,7 +562,7 @@ func TestLegacyCorpus_Broker(t *testing.T) {
 		`ALTER SYSTEM DROP BROKER broker_name "10.10.10.1:8000"`,
 	}
 	for i, sql := range cases {
-		file, errs := Parse(sql)
+		file, errs := parseForTest(sql)
 		if len(errs) != 0 {
 			t.Errorf("case %d %q: errors=%v", i, sql, errs)
 			continue
@@ -583,7 +583,7 @@ func TestLegacyCorpus_Frontend(t *testing.T) {
 		`ALTER SYSTEM ADD OBSERVER "host_ip:9010"`,
 	}
 	for i, sql := range cases {
-		file, errs := Parse(sql)
+		file, errs := parseForTest(sql)
 		if len(errs) != 0 {
 			t.Errorf("case %d %q: errors=%v", i, sql, errs)
 			continue
@@ -618,7 +618,7 @@ func TestAdminVariants(t *testing.T) {
 		`ADMIN DECOMMISSION BACKEND BY HOSTNAME 'host:9050'`,
 	}
 	for i, sql := range cases {
-		file, errs := Parse(sql)
+		file, errs := parseForTest(sql)
 		if len(errs) != 0 {
 			t.Errorf("case %d %q: errors=%v", i, sql, errs)
 			continue

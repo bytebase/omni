@@ -149,7 +149,7 @@ func (c *srContainer) accepts(sql string) (bool, error) {
 // or both reject) — the accept+reject conformance discipline.
 func (c *srContainer) assertParity(t *testing.T, sql string, wantAccept bool) {
 	t.Helper()
-	_, errs := Parse(sql)
+	_, errs := parseForTest(sql)
 	omni := len(errs) == 0
 	sr, err := c.accepts(sql)
 	if err != nil {

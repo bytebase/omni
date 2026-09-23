@@ -823,8 +823,8 @@ func TestGetQuerySpan_SubqueryErrorLocationsAreOuter(t *testing.T) {
 		if !ok {
 			t.Fatalf("GetQuerySpan(%q) err = %T, want *parser.ParseError", c.sql, err)
 		}
-		if want := strings.Index(c.sql, c.at); pe.Loc.Start != want {
-			t.Errorf("GetQuerySpan(%q) error at %d, want %d (%q in the outer text)", c.sql, pe.Loc.Start, want, c.at)
+		if want := strings.Index(c.sql, c.at); pe.Position != want {
+			t.Errorf("GetQuerySpan(%q) error at %d, want %d (%q in the outer text)", c.sql, pe.Position, want, c.at)
 		}
 	}
 }

@@ -7,7 +7,7 @@ import (
 )
 
 func TestParseEmpty(t *testing.T) {
-	file, errs := Parse("")
+	file, errs := parseForTest("")
 	if file == nil {
 		t.Fatal("expected non-nil File")
 	}
@@ -21,7 +21,7 @@ func TestParseEmpty(t *testing.T) {
 
 func TestParseUnsupported(t *testing.T) {
 	// COPY is currently unsupported (no T-task wires it yet).
-	file, errs := Parse("FOOBAR something")
+	file, errs := parseForTest("FOOBAR something")
 	if file == nil {
 		t.Fatal("expected non-nil File")
 	}
@@ -35,7 +35,7 @@ func TestParseUnsupported(t *testing.T) {
 
 func TestParseMultipleUnsupported(t *testing.T) {
 	// All P0/P1 statements are supported by now; this test verifies multi-statement parsing.
-	file, errs := Parse("SELECT 1; INSERT INTO t VALUES (1); BEGIN")
+	file, errs := parseForTest("SELECT 1; INSERT INTO t VALUES (1); BEGIN")
 	if file == nil {
 		t.Fatal("expected non-nil File")
 	}
@@ -49,18 +49,18 @@ func TestParseMultipleUnsupported(t *testing.T) {
 }
 
 func TestParseUnknownStatement(t *testing.T) {
-	_, errs := Parse("FOOBAR something")
+	_, errs := parseForTest("FOOBAR something")
 	if len(errs) != 1 {
 		t.Fatalf("expected 1 error, got %d", len(errs))
 	}
-	if errs[0].Msg != "unknown or unsupported statement starting with FOOBAR" {
-		t.Errorf("unexpected error: %q", errs[0].Msg)
+	if errs[0].Message != "unknown or unsupported statement starting with FOOBAR" {
+		t.Errorf("unexpected error: %q", errs[0].Message)
 	}
 }
 
 func TestParseFileLocCoversInput(t *testing.T) {
 	input := "SELECT 1; SELECT 2"
-	file, _ := Parse(input)
+	file, _ := parseForTest(input)
 	if file.Loc != (ast.Loc{Start: 0, End: len(input)}) {
 		t.Errorf("File.Loc = %v, want {0, %d}", file.Loc, len(input))
 	}
@@ -170,14 +170,14 @@ func TestParseAllDispatchCategories(t *testing.T) {
 		{"REFRESH DATABASE db", "REFRESH"},
 	}
 	for _, tt := range tests {
-		_, errs := Parse(tt.input)
+		_, errs := parseForTest(tt.input)
 		if len(errs) == 0 {
-			t.Errorf("Parse(%q): expected error", tt.input)
+			t.Errorf("parseForTest(%q): expected error", tt.input)
 			continue
 		}
 		want := tt.wantMsg + " statement parsing is not yet supported"
-		if errs[0].Msg != want {
-			t.Errorf("Parse(%q): got %q, want %q", tt.input, errs[0].Msg, want)
+		if errs[0].Message != want {
+			t.Errorf("parseForTest(%q): got %q, want %q", tt.input, errs[0].Message, want)
 		}
 	}
 }

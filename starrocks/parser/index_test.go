@@ -9,12 +9,12 @@ import (
 // helper: parse a single statement and expect no errors, returning the node.
 func parseIndexStmt(t *testing.T, sql string) ast.Node {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	return file.Stmts[0]
 }
@@ -200,8 +200,8 @@ func TestBuildIndexRejected(t *testing.T) {
 		"BUILD INDEX idx ON t PARTITIONS(p1, p2)",
 		"BUILD INDEX idx ON db.t PARTITIONS(p1)",
 	} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want rejection", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want rejection", sql)
 		}
 	}
 }
@@ -268,7 +268,7 @@ func TestBuildIndexNodeTag(t *testing.T) {
 // TestCreateIndexCreateTableNowSupported verifies that CREATE TABLE
 // no longer returns an unsupported error.
 func TestCreateIndexCreateTableNowSupported(t *testing.T) {
-	file, errs := Parse("CREATE TABLE t (id INT)")
+	file, errs := parseForTest("CREATE TABLE t (id INT)")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -280,7 +280,7 @@ func TestCreateIndexCreateTableNowSupported(t *testing.T) {
 // TestDropTableNowSupported verifies that DROP TABLE now parses to a
 // DropTableStmt (previously fell through to the unsupported stub).
 func TestDropTableNowSupported(t *testing.T) {
-	file, errs := Parse("DROP TABLE t")
+	file, errs := parseForTest("DROP TABLE t")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}

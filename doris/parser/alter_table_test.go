@@ -17,7 +17,7 @@ func runAlterTableTests(t *testing.T, cases []alterTableTestCase) {
 	t.Helper()
 	for _, tc := range cases {
 		t.Run(tc.sql, func(t *testing.T) {
-			file, errs := Parse(tc.sql)
+			file, errs := parseForTest(tc.sql)
 			if tc.wantErr {
 				if len(errs) == 0 {
 					t.Error("expected error but got none")

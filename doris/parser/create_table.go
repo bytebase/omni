@@ -385,8 +385,8 @@ func (p *Parser) parseDefaultValue() (ast.Node, error) {
 
 	default:
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: fmt.Sprintf("expected DEFAULT value, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: fmt.Sprintf("expected DEFAULT value, got %q", p.cur.Str),
 		}
 	}
 }
@@ -944,8 +944,8 @@ func (p *Parser) parseStepPartition(startLoc ast.Loc) (*ast.PartitionItem, error
 	// Interval amount
 	if p.cur.Kind != tokInt {
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: fmt.Sprintf("expected integer interval amount, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: fmt.Sprintf("expected integer interval amount, got %q", p.cur.Str),
 		}
 	}
 	item.Interval = p.cur.Str
@@ -1021,8 +1021,8 @@ func (p *Parser) parsePartitionValueDef() (string, error) {
 		return "", p.syntaxErrorAtCur()
 	default:
 		return "", &ParseError{
-			Loc: p.cur.Loc,
-			Msg: fmt.Sprintf("expected partition value, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: fmt.Sprintf("expected partition value, got %q", p.cur.Str),
 		}
 	}
 }
@@ -1142,8 +1142,8 @@ func (p *Parser) parseDistributedBy() (*ast.DistributionDesc, error) {
 
 	default:
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: fmt.Sprintf("expected HASH or RANDOM after DISTRIBUTED BY, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: fmt.Sprintf("expected HASH or RANDOM after DISTRIBUTED BY, got %q", p.cur.Str),
 		}
 	}
 
@@ -1160,8 +1160,8 @@ func (p *Parser) parseDistributedBy() (*ast.DistributionDesc, error) {
 			p.advance()
 		} else {
 			return nil, &ParseError{
-				Loc: p.cur.Loc,
-				Msg: fmt.Sprintf("expected integer or AUTO after BUCKETS, got %q", p.cur.Str),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: fmt.Sprintf("expected integer or AUTO after BUCKETS, got %q", p.cur.Str),
 			}
 		}
 	}

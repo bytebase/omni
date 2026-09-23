@@ -11,7 +11,7 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestBegin_Basic(t *testing.T) {
-	file, errs := Parse("BEGIN")
+	file, errs := parseForTest("BEGIN")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -31,7 +31,7 @@ func TestBegin_Basic(t *testing.T) {
 }
 
 func TestBegin_WithLabel(t *testing.T) {
-	file, errs := Parse("BEGIN WITH LABEL my_label")
+	file, errs := parseForTest("BEGIN WITH LABEL my_label")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -49,7 +49,7 @@ func TestBegin_WithLabel(t *testing.T) {
 
 func TestBegin_WithLabelFromLegacyCorpus(t *testing.T) {
 	// From doris/parser/testdata/legacy/transaction.sql
-	file, errs := Parse("BEGIN WITH LABEL load_1")
+	file, errs := parseForTest("BEGIN WITH LABEL load_1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -64,7 +64,7 @@ func TestBegin_WithLabelFromLegacyCorpus(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCommit_Basic(t *testing.T) {
-	file, errs := Parse("COMMIT")
+	file, errs := parseForTest("COMMIT")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -90,7 +90,7 @@ func TestCommit_Basic(t *testing.T) {
 }
 
 func TestCommit_WorkAndChain(t *testing.T) {
-	file, errs := Parse("COMMIT WORK AND CHAIN")
+	file, errs := parseForTest("COMMIT WORK AND CHAIN")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -107,7 +107,7 @@ func TestCommit_WorkAndChain(t *testing.T) {
 }
 
 func TestCommit_WorkAndNoChainNoRelease(t *testing.T) {
-	file, errs := Parse("COMMIT WORK AND NO CHAIN NO RELEASE")
+	file, errs := parseForTest("COMMIT WORK AND NO CHAIN NO RELEASE")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -124,7 +124,7 @@ func TestCommit_WorkAndNoChainNoRelease(t *testing.T) {
 }
 
 func TestCommit_Release(t *testing.T) {
-	file, errs := Parse("COMMIT RELEASE")
+	file, errs := parseForTest("COMMIT RELEASE")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -135,7 +135,7 @@ func TestCommit_Release(t *testing.T) {
 }
 
 func TestCommit_NoRelease(t *testing.T) {
-	file, errs := Parse("COMMIT NO RELEASE")
+	file, errs := parseForTest("COMMIT NO RELEASE")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -150,7 +150,7 @@ func TestCommit_NoRelease(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRollback_Basic(t *testing.T) {
-	file, errs := Parse("ROLLBACK")
+	file, errs := parseForTest("ROLLBACK")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -176,7 +176,7 @@ func TestRollback_Basic(t *testing.T) {
 }
 
 func TestRollback_WorkAndChainRelease(t *testing.T) {
-	file, errs := Parse("ROLLBACK WORK AND CHAIN RELEASE")
+	file, errs := parseForTest("ROLLBACK WORK AND CHAIN RELEASE")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -193,7 +193,7 @@ func TestRollback_WorkAndChainRelease(t *testing.T) {
 }
 
 func TestRollback_WorkAndNoChain(t *testing.T) {
-	file, errs := Parse("ROLLBACK WORK AND NO CHAIN")
+	file, errs := parseForTest("ROLLBACK WORK AND NO CHAIN")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -208,7 +208,7 @@ func TestRollback_WorkAndNoChain(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBeginStmt_Tag(t *testing.T) {
-	file, errs := Parse("BEGIN")
+	file, errs := parseForTest("BEGIN")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -218,7 +218,7 @@ func TestBeginStmt_Tag(t *testing.T) {
 }
 
 func TestCommitStmt_Tag(t *testing.T) {
-	file, errs := Parse("COMMIT")
+	file, errs := parseForTest("COMMIT")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -228,7 +228,7 @@ func TestCommitStmt_Tag(t *testing.T) {
 }
 
 func TestRollbackStmt_Tag(t *testing.T) {
-	file, errs := Parse("ROLLBACK")
+	file, errs := parseForTest("ROLLBACK")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -243,7 +243,7 @@ func TestRollbackStmt_Tag(t *testing.T) {
 
 func TestBegin_Loc(t *testing.T) {
 	input := "BEGIN WITH LABEL lbl"
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -263,7 +263,7 @@ func TestBegin_Loc(t *testing.T) {
 
 func TestTCL_MultiStatement(t *testing.T) {
 	input := "BEGIN; COMMIT; ROLLBACK"
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}

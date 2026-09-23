@@ -125,7 +125,7 @@ func TestScriptingDifferential(t *testing.T) {
 			}
 
 			// 2. omni Parse verdict.
-			_, errs := Parse(fx.sql)
+			_, errs := parseForTest(fx.sql)
 			omniAccepts := len(errs) == 0
 
 			if omniAccepts != oracleAccepts {
@@ -176,7 +176,7 @@ func TestScriptingBigQueryOnlyAcceptedByOmni(t *testing.T) {
 	for _, sql := range scriptingBigQueryOnly {
 		sql := sql
 		t.Run(sql, func(t *testing.T) {
-			_, errs := Parse(sql)
+			_, errs := parseForTest(sql)
 			if len(errs) != 0 {
 				t.Errorf("omni rejected BigQuery-only form %q: %v", sql, errs)
 			}
@@ -219,7 +219,7 @@ func TestScriptingBlockInteriorRejectedByOmni(t *testing.T) {
 	for _, sql := range scriptingBlockInteriorReject {
 		sql := sql
 		t.Run(sql, func(t *testing.T) {
-			_, errs := Parse(sql)
+			_, errs := parseForTest(sql)
 			if len(errs) == 0 {
 				t.Errorf("omni accepted %q, but the .g4 statement_list requires `;` "+
 					"termination — omni must reject (Spanner's shallow recognizer over-accepts)", sql)

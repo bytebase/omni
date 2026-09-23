@@ -18,7 +18,7 @@ func testParseDropStmt(input string) (*ast.DropStmt, []ParseError) {
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.DropStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not a DropStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not a DropStmt"})
 	}
 	return stmt, result.Errors
 }
@@ -30,7 +30,7 @@ func testParseUndropStmt(input string) (*ast.UndropStmt, []ParseError) {
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.UndropStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not an UndropStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not an UndropStmt"})
 	}
 	return stmt, result.Errors
 }
@@ -661,7 +661,7 @@ func TestDropUnsupported_TargetedError(t *testing.T) {
 	if len(result.Errors) == 0 {
 		t.Fatal("expected an error for DROP SECRET, got none")
 	}
-	msg := result.Errors[0].Msg
+	msg := result.Errors[0].Message
 	if msg == "DROP statement parsing is not yet supported" {
 		t.Errorf("got generic DROP error; want targeted error, got: %q", msg)
 	}
@@ -740,7 +740,7 @@ func TestUndropUnsupported_TargetedError(t *testing.T) {
 	if len(result.Errors) == 0 {
 		t.Fatal("expected an error for UNDROP STREAM, got none")
 	}
-	msg := result.Errors[0].Msg
+	msg := result.Errors[0].Message
 	if msg == "UNDROP statement parsing is not yet supported" {
 		t.Errorf("got generic UNDROP error; want targeted error, got: %q", msg)
 	}

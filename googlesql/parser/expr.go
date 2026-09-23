@@ -77,7 +77,7 @@ func ParseExpression(input string) (ast.Node, []ParseError) {
 		if text == "" {
 			text = TokenName(p.cur.Type)
 		}
-		return node, []ParseError{{Loc: p.cur.Loc, Msg: "unexpected token after expression: " + text}}
+		return node, []ParseError{{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "unexpected token after expression: " + text}}
 	}
 	// Surface any best-effort errors collected during the parse (e.g. the
 	// grammar's notify-style "SELECT as a query argument" alternatives, which
@@ -90,7 +90,7 @@ func errToSlice(err error) []ParseError {
 	if pe, ok := err.(*ParseError); ok {
 		return []ParseError{*pe}
 	}
-	return []ParseError{{Msg: err.Error()}}
+	return []ParseError{{Message: err.Error()}}
 }
 
 // ---------------------------------------------------------------------------
@@ -454,8 +454,8 @@ func (p *Parser) parseIn(left ast.Node, not bool) (ast.Node, error) {
 	if p.cur.Type == kwUNNEST {
 		if hadHint {
 			p.errors = append(p.errors, ParseError{
-				Loc: inTok.Loc,
-				Msg: "Syntax error: HINTs cannot be specified on IN clause with UNNEST",
+				Position: inTok.Loc.Start, End: inTok.Loc.End,
+				Message: "Syntax error: HINTs cannot be specified on IN clause with UNNEST",
 			})
 		}
 		unnest, err := p.parseUnnestExpression()
@@ -934,8 +934,8 @@ func (p *Parser) parseFuncArg() (ast.Node, error) {
 	if p.cur.Type == kwSELECT {
 		startLoc := p.cur.Loc
 		p.errors = append(p.errors, ParseError{
-			Loc: startLoc,
-			Msg: "Each function argument is an expression, not a query; to use a query as an expression, the query must be wrapped with additional parentheses to make it a scalar subquery expression",
+			Position: startLoc.Start, End: startLoc.End,
+			Message: "Each function argument is an expression, not a query; to use a query as an expression, the query must be wrapped with additional parentheses to make it a scalar subquery expression",
 		})
 		// Consume the bare SELECT body up to the call's closing ')'/',' at depth 0.
 		sub := p.captureBareSelectArg(startLoc)
@@ -2258,7 +2258,7 @@ func (p *Parser) parseSubqueryBodyRaw(start int) (string, int, error) {
 	innerEnd := innerStart
 	for {
 		if p.cur.Type == tokEOF {
-			return "", 0, &ParseError{Loc: p.cur.Loc, Msg: "syntax error: unterminated subquery (expected ')')"}
+			return "", 0, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: unterminated subquery (expected ')')"}
 		}
 		switch p.cur.Type {
 		case int('('), int('['), int('{'):
@@ -2540,13 +2540,13 @@ func (p *Parser) skipHint() *ParseError {
 			p.advance()
 		}
 		if p.cur.Type != int(']') {
-			return &ParseError{Loc: hintStart, Msg: "unterminated hint"}
+			return &ParseError{Position: hintStart.Start, End: hintStart.End, Message: "unterminated hint"}
 		}
 		p.advance() // ']'
 		if p.cur.Type == int('{') {
 			return p.skipBalancedBraces(hintStart)
 		}
-		return &ParseError{Loc: hintStart, Msg: "unterminated hint"}
+		return &ParseError{Position: hintStart.Start, End: hintStart.End, Message: "unterminated hint"}
 	case next.Type == tokInteger:
 		p.advance() // '@'
 		p.advance() // int
@@ -2564,7 +2564,7 @@ func (p *Parser) skipOptionsList() error {
 	depth := 1
 	for depth > 0 {
 		if p.cur.Type == tokEOF {
-			return &ParseError{Loc: p.cur.Loc, Msg: "syntax error: unterminated OPTIONS list"}
+			return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: unterminated OPTIONS list"}
 		}
 		switch p.cur.Type {
 		case int('('):

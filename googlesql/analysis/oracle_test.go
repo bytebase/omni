@@ -50,9 +50,9 @@ import (
 // test if nothing parsed (the corpus is curated to parse cleanly).
 func parseFirstStmt(t *testing.T, sql string) ast.Node {
 	t.Helper()
-	file, errs := parser.Parse(sql)
-	if len(errs) > 0 {
-		t.Fatalf("corpus statement %q does not parse: %v", sql, errs)
+	file, err := parser.Parse(sql)
+	if err != nil {
+		t.Fatalf("corpus statement %q does not parse: %v", sql, err)
 	}
 	if file == nil || len(file.Stmts) == 0 {
 		t.Fatalf("no statement parsed from %q", sql)

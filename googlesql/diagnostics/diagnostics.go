@@ -114,7 +114,8 @@ const source = "googlesql-parser"
 func Analyze(sql string) []Diagnostic {
 	// Parse, not ParseBestEffort: the strict entry reports a statement's
 	// trailing junk, which the tolerant one accepts as a parsed prefix.
-	_, errs := parser.Parse(sql)
+	_, err := parser.Parse(sql)
+	errs := parser.AllErrors(err)
 	if len(errs) == 0 {
 		return nil
 	}
@@ -123,7 +124,7 @@ func Analyze(sql string) []Diagnostic {
 	diags := make([]Diagnostic, 0, len(errs))
 
 	for _, pe := range errs {
-		startOff := pe.Loc.Start
+		startOff := pe.Position
 		if startOff < 0 {
 			startOff = 0
 		}
@@ -131,7 +132,7 @@ func Analyze(sql string) []Diagnostic {
 
 		// End offset may be unknown (-1). Fall back to the start offset so we
 		// produce a zero-width (point) diagnostic rather than a garbage range.
-		endOff := pe.Loc.End
+		endOff := pe.End
 		if endOff < 0 {
 			endOff = startOff
 		}
@@ -144,7 +145,7 @@ func Analyze(sql string) []Diagnostic {
 				End:   Position{Line: endLine, Column: endCol, Offset: endOff},
 			},
 			Source:  source,
-			Message: pe.Msg,
+			Message: pe.Message,
 		})
 	}
 

@@ -147,8 +147,8 @@ var relationRejectCorpus = []string{
 func TestRelation_AcceptCorpusParses(t *testing.T) {
 	for _, sql := range relationAcceptCorpus {
 		t.Run(truncateName(sql), func(t *testing.T) {
-			if _, errs := Parse(sql); len(errs) != 0 {
-				t.Errorf("Parse(%q) should accept, got: %v", sql, errs)
+			if _, errs := parseForTest(sql); len(errs) != 0 {
+				t.Errorf("parseForTest(%q) should accept, got: %v", sql, errs)
 			}
 		})
 	}
@@ -157,8 +157,8 @@ func TestRelation_AcceptCorpusParses(t *testing.T) {
 func TestRelation_RejectCorpusRejected(t *testing.T) {
 	for _, sql := range relationRejectCorpus {
 		t.Run(truncateName(sql), func(t *testing.T) {
-			if _, errs := Parse(sql); len(errs) == 0 {
-				t.Errorf("Parse(%q) should reject, but accepted", sql)
+			if _, errs := parseForTest(sql); len(errs) == 0 {
+				t.Errorf("parseForTest(%q) should reject, but accepted", sql)
 			}
 		})
 	}
@@ -167,7 +167,7 @@ func TestRelation_RejectCorpusRejected(t *testing.T) {
 func TestRelation_OracleDifferential(t *testing.T) {
 	o := connectOracle(t)
 	check := func(t *testing.T, sql string) {
-		_, errs := Parse(sql)
+		_, errs := parseForTest(sql)
 		omniAccepts := len(errs) == 0
 		trinoAccepts, ok := oracleAccepts(t, o, sql)
 		if !ok {
@@ -195,7 +195,7 @@ func fromRel(t *testing.T, sql string) Relation {
 	t.Helper()
 	spec := querySpec(t, parseOneQuery(t, sql))
 	if len(spec.From) != 1 {
-		t.Fatalf("Parse(%q): want 1 FROM relation, got %d", sql, len(spec.From))
+		t.Fatalf("parseForTest(%q): want 1 FROM relation, got %d", sql, len(spec.From))
 	}
 	return spec.From[0]
 }

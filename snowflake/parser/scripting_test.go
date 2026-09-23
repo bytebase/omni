@@ -950,7 +950,7 @@ func TestScript_DepthBound(t *testing.T) {
 	}
 	found := false
 	for _, e := range errs {
-		if strings.Contains(e.Msg, "nested too deeply") {
+		if strings.Contains(e.Message, "nested too deeply") {
 			found = true
 			break
 		}

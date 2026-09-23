@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/googlesql/ast"
+	"github.com/bytebase/omni/googlesql/parser"
 )
 
 // QuerySpan captures the tables and columns a GoogleSQL statement references. It
@@ -242,9 +243,9 @@ type ColumnRef struct {
 // error, never a silently smaller span. On empty input it returns a zero-valued
 // span with Type=Unknown.
 func GetQuerySpan(statement string, dialect Dialect) (*QuerySpan, error) {
-	file, errs := parseFile(statement)
-	if len(errs) > 0 {
-		return nil, &errs[0]
+	file, err := parseFile(statement)
+	if err != nil {
+		return nil, parser.FirstError(err)
 	}
 	span := &QuerySpan{Type: ClassifyFromFile(file, dialect)}
 	if file == nil || len(file.Stmts) == 0 {

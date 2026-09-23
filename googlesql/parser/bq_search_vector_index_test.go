@@ -20,7 +20,7 @@ func sviOf(t *testing.T, sql string) *ast.SearchVectorIndexStmt {
 	n := parseDDL(t, sql)
 	svi, ok := n.(*ast.SearchVectorIndexStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.SearchVectorIndexStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.SearchVectorIndexStmt", sql, n)
 	}
 	return svi
 }

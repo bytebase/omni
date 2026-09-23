@@ -26,18 +26,19 @@ const (
 
 // ParseError describes a single parse error with its source location.
 //
-// Loc uses the same shape as LexError so consumers can handle both
-// uniformly. Line/column conversion is a caller-side concern via
-// LineTable (defined in linetable.go).
+// Position and End are byte offsets into the parsed text, the shape every
+// omni engine's ParseError shares. Line/column conversion is a caller-side
+// concern via LineTable (defined in linetable.go) or review.Index.
 type ParseError struct {
-	Loc ast.Loc
-	Msg string
+	Message string
+	// Position is the byte offset where the error starts; End is the
+	// exclusive end of the offending token.
+	Position int
+	End      int
 }
 
 // Error implements the error interface. Returns just the message — line
 // and column are omitted here to keep ParseError a pure data carrier.
-// Callers that want formatted "msg (line N, col M)" output should use a
-// LineTable to convert Loc.Start into a (line, col) pair.
 func (e *ParseError) Error() string {
-	return e.Msg
+	return e.Message
 }

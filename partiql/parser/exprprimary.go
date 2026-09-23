@@ -154,8 +154,8 @@ func (p *Parser) parsePrimaryBase() (ast.ExprNode, error) {
 	}
 
 	return nil, &ParseError{
-		Message: fmt.Sprintf("unexpected token %q in expression", p.cur.Str),
-		Loc:     p.cur.Loc,
+		Message:  fmt.Sprintf("unexpected token %q in expression", p.cur.Str),
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 	}
 }
 
@@ -176,8 +176,8 @@ func (p *Parser) parseParenExpr() (ast.ExprNode, error) {
 	// Empty parens `()` are not valid in any PartiQL primary position.
 	if p.cur.Type == tokPAREN_RIGHT {
 		return nil, &ParseError{
-			Message: "empty parenthesized expression",
-			Loc:     ast.Loc{Start: start, End: p.cur.Loc.End},
+			Message:  "empty parenthesized expression",
+			Position: start, End: p.cur.Loc.End,
 		}
 	}
 
@@ -371,8 +371,8 @@ func (p *Parser) parseCaseExpr() (ast.ExprNode, error) {
 	// Require at least one WHEN clause.
 	if p.cur.Type != tokWHEN {
 		return nil, &ParseError{
-			Message: "CASE expression requires at least one WHEN clause",
-			Loc:     p.cur.Loc,
+			Message:  "CASE expression requires at least one WHEN clause",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 
@@ -510,8 +510,8 @@ func (p *Parser) parseDateFunction() (ast.ExprNode, error) {
 	// expressions, paths, and any other non-identifier token here.
 	if p.cur.Type != tokIDENT {
 		return nil, &ParseError{
-			Message: fmt.Sprintf("%s date part must be an unquoted identifier, got %q", name, p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("%s date part must be an unquoted identifier, got %q", name, p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 	part := &ast.VarRef{Name: p.cur.Str, Loc: p.cur.Loc}
@@ -599,14 +599,14 @@ func (p *Parser) parseExtractExpr() (ast.ExprNode, error) {
 	}
 	if p.cur.Type == tokIDENT_QUOTED {
 		return nil, &ParseError{
-			Message: "EXTRACT field must be an unquoted identifier",
-			Loc:     p.cur.Loc,
+			Message:  "EXTRACT field must be an unquoted identifier",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 	if p.cur.Type != tokIDENT {
 		return nil, &ParseError{
-			Message: fmt.Sprintf("expected identifier for EXTRACT field, got %q", p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected identifier for EXTRACT field, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 	field := p.cur.Str

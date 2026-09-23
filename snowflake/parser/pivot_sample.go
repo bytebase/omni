@@ -53,8 +53,8 @@ func (p *Parser) parsePivotClause() (*ast.PivotClause, error) {
 	agg, ok := aggExpr.(*ast.FuncCallExpr)
 	if !ok {
 		return nil, &ParseError{
-			Loc: ast.NodeLoc(aggExpr),
-			Msg: "expected an aggregate function call in PIVOT",
+			Position: ast.NodeLoc(aggExpr).Start, End: ast.NodeLoc(aggExpr).End,
+			Message: "expected an aggregate function call in PIVOT",
 		}
 	}
 	clause.Agg = agg

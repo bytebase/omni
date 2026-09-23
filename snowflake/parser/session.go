@@ -169,8 +169,8 @@ func (p *Parser) parseSetStmt() (ast.Node, error) {
 		}
 		if len(values) != len(names) {
 			return nil, &ParseError{
-				Loc: start,
-				Msg: "SET variable/value count mismatch: " +
+				Position: start.Start, End: start.End,
+				Message: "SET variable/value count mismatch: " +
 					strconv.Itoa(len(names)) + " variables but " + strconv.Itoa(len(values)) + " values",
 			}
 		}

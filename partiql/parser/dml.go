@@ -40,8 +40,8 @@ func (p *Parser) parseInsertStmt() (*ast.InsertStmt, error) {
 	// The target must be a bare symbolPrimitive (no path steps).
 	if len(path.Steps) > 0 {
 		return nil, &ParseError{
-			Message: "INSERT INTO (RFC 0011 form) target must be a simple identifier, not a path",
-			Loc:     path.Loc,
+			Message:  "INSERT INTO (RFC 0011 form) target must be a simple identifier, not a path",
+			Position: path.Loc.Start, End: path.Loc.End,
 		}
 	}
 	return p.parseInsertRFC0011(start, path.Root.(*ast.VarRef))
@@ -358,8 +358,8 @@ func (p *Parser) parseDmlBaseCommands() (sets []*ast.SetAssignment, commands []a
 				return nil, nil, &ParseError{
 					// "expected SET" leads the message because SET is the
 					// dominant DML command; the parenthetical lists the rest.
-					Message: fmt.Sprintf("expected SET or another DML command (INSERT, REPLACE, REMOVE, UPSERT), got %q", p.cur.Str),
-					Loc:     p.cur.Loc,
+					Message:  fmt.Sprintf("expected SET or another DML command (INSERT, REPLACE, REMOVE, UPSERT), got %q", p.cur.Str),
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 				}
 			}
 			return sets, commands, nil
@@ -759,8 +759,8 @@ func (p *Parser) parseConflictAction() (ast.OnConflictAction, error) {
 		return ast.OnConflictDoUpdateExcluded, nil
 	default:
 		return ast.OnConflictInvalid, &ParseError{
-			Message: fmt.Sprintf("expected NOTHING, REPLACE, or UPDATE after DO, got %q", p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected NOTHING, REPLACE, or UPDATE after DO, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 }
@@ -810,8 +810,8 @@ func (p *Parser) parseReturningItem() (*ast.ReturningItem, error) {
 		p.advance()
 	default:
 		return nil, &ParseError{
-			Message: fmt.Sprintf("expected MODIFIED or ALL in RETURNING clause, got %q", p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected MODIFIED or ALL in RETURNING clause, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 
@@ -825,8 +825,8 @@ func (p *Parser) parseReturningItem() (*ast.ReturningItem, error) {
 		p.advance()
 	default:
 		return nil, &ParseError{
-			Message: fmt.Sprintf("expected OLD or NEW in RETURNING clause, got %q", p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected OLD or NEW in RETURNING clause, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 

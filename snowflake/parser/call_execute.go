@@ -284,8 +284,8 @@ func (p *Parser) scanExecImmBody(errLenBefore int) (body string, dollar bool, en
 		}
 		if !closed {
 			return "", false, 0, &ParseError{
-				Loc: p.cur.Loc,
-				Msg: "unterminated dollar-quoted EXECUTE IMMEDIATE body",
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "unterminated dollar-quoted EXECUTE IMMEDIATE body",
 			}
 		}
 		endLocal = j
@@ -310,8 +310,8 @@ func (p *Parser) scanExecImmBody(errLenBefore int) (body string, dollar bool, en
 		}
 		if !closed {
 			return "", false, 0, &ParseError{
-				Loc: p.cur.Loc,
-				Msg: "unterminated EXECUTE IMMEDIATE body string literal",
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "unterminated EXECUTE IMMEDIATE body string literal",
 			}
 		}
 		endLocal = j

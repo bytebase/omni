@@ -9,16 +9,16 @@ import (
 // mustParseMerge parses input and returns the first statement as *ast.MergeStmt.
 func mustParseMerge(t *testing.T, input string) *ast.MergeStmt {
 	t.Helper()
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", input)
+		t.Fatalf("parseForTest(%q) returned no statements", input)
 	}
 	stmt, ok := file.Stmts[0].(*ast.MergeStmt)
 	if !ok {
-		t.Fatalf("Parse(%q) got %T, want *ast.MergeStmt", input, file.Stmts[0])
+		t.Fatalf("parseForTest(%q) got %T, want *ast.MergeStmt", input, file.Stmts[0])
 	}
 	return stmt
 }

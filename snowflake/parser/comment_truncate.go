@@ -120,8 +120,8 @@ func (p *Parser) parseTypedObject() (string, *ast.ObjectName, error) {
 
 	if len(typeWords) == 0 {
 		return "", nil, &ParseError{
-			Loc: name.Loc,
-			Msg: "expected object type before object name",
+			Position: name.Loc.Start, End: name.Loc.End,
+			Message: "expected object type before object name",
 		}
 	}
 	return strings.Join(typeWords, " "), name, nil
@@ -155,8 +155,8 @@ func (p *Parser) parseColumnRef() (*ast.ColumnRef, error) {
 		p.advance() // consume '.'
 		if len(parts) >= 4 {
 			return nil, &ParseError{
-				Loc: dotLoc,
-				Msg: "column reference has more than 4 parts (max is db.schema.table.column)",
+				Position: dotLoc.Start, End: dotLoc.End,
+				Message: "column reference has more than 4 parts (max is db.schema.table.column)",
 			}
 		}
 		part, err := p.parseNamePart()

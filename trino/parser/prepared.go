@@ -153,7 +153,7 @@ func (p *Parser) parsePrepareStmt() (ast.Node, error) {
 	}
 	body := strings.TrimSpace(p.sourceSlice(bodyStart, bodyEnd))
 	if body == "" {
-		return nil, &ParseError{Loc: ast.Loc{Start: bodyStart, End: bodyEnd}, Msg: "expected a statement after PREPARE ... FROM"}
+		return nil, &ParseError{Position: bodyStart, End: bodyEnd, Message: "expected a statement after PREPARE ... FROM"}
 	}
 
 	// Validate the inner statement. Re-parsing the body through the full parser
@@ -163,7 +163,7 @@ func (p *Parser) parsePrepareStmt() (ast.Node, error) {
 	// node) — that counts as syntactically valid here, and the check tightens
 	// automatically as those parsers land. See bodyHasHardError.
 	if err := bodyHasHardError(body); err != nil {
-		return nil, &ParseError{Loc: bodyLoc, Msg: "invalid statement after PREPARE ... FROM: " + err.Error()}
+		return nil, &ParseError{Position: bodyLoc.Start, End: bodyLoc.End, Message: "invalid statement after PREPARE ... FROM: " + err.Error()}
 	}
 
 	return &PrepareStmt{
@@ -181,9 +181,10 @@ func (p *Parser) parsePrepareStmt() (ast.Node, error) {
 // error — an unknown leading keyword, a lex error, or (once the statement
 // parsers land) a genuine inner syntax error — is a hard error.
 func bodyHasHardError(body string) error {
-	_, errs := Parse(body)
+	_, err := Parse(body)
+	errs := AllErrors(err)
 	for i := range errs {
-		if !strings.Contains(errs[i].Msg, "not yet supported") {
+		if !strings.Contains(errs[i].Message, "not yet supported") {
 			return &errs[i]
 		}
 	}

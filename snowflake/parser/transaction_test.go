@@ -20,7 +20,7 @@ func testParseBeginStmt(input string) (*ast.BeginStmt, []ParseError) {
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.BeginStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not a BeginStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not a BeginStmt"})
 	}
 	return stmt, result.Errors
 }
@@ -32,7 +32,7 @@ func testParseCommitStmt(input string) (*ast.CommitStmt, []ParseError) {
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.CommitStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not a CommitStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not a CommitStmt"})
 	}
 	return stmt, result.Errors
 }
@@ -44,7 +44,7 @@ func testParseRollbackStmt(input string) (*ast.RollbackStmt, []ParseError) {
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.RollbackStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not a RollbackStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not a RollbackStmt"})
 	}
 	return stmt, result.Errors
 }

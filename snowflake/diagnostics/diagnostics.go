@@ -113,7 +113,7 @@ func Analyze(sql string) []Diagnostic {
 	diags := make([]Diagnostic, 0, len(result.Errors))
 
 	for _, pe := range result.Errors {
-		startOff := pe.Loc.Start
+		startOff := pe.Position
 		if startOff < 0 {
 			startOff = 0
 		}
@@ -121,7 +121,7 @@ func Analyze(sql string) []Diagnostic {
 
 		// End offset may be unknown (-1). Fall back to the start offset so
 		// we produce a zero-width (point) diagnostic rather than a garbage range.
-		endOff := pe.Loc.End
+		endOff := pe.End
 		if endOff < 0 {
 			endOff = startOff
 		}
@@ -134,7 +134,7 @@ func Analyze(sql string) []Diagnostic {
 				End:   Position{Line: endLine, Column: endCol, Offset: endOff},
 			},
 			Source:  source,
-			Message: pe.Msg,
+			Message: pe.Message,
 		})
 	}
 

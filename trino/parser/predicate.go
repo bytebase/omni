@@ -390,7 +390,7 @@ func (p *Parser) parseIsPredicate(left Expr) (Expr, error) {
 			Loc:   ast.Loc{Start: left.Span().Start, End: boolTok.Loc.End},
 		}, nil
 	default:
-		return nil, &ParseError{Loc: isTok.Loc, Msg: "expected NULL, DISTINCT FROM, TRUE, FALSE, or UNKNOWN after IS"}
+		return nil, &ParseError{Position: isTok.Loc.Start, End: isTok.Loc.End, Message: "expected NULL, DISTINCT FROM, TRUE, FALSE, or UNKNOWN after IS"}
 	}
 }
 

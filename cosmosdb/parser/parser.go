@@ -10,11 +10,12 @@ import (
 // ParseError represents a syntax error during parsing.
 type ParseError struct {
 	Message string
-	Pos     int
+	// Position is the byte offset into the parsed text where the error starts.
+	Position int
 }
 
 func (e *ParseError) Error() string {
-	return fmt.Sprintf("syntax error at position %d: %s", e.Pos, e.Message)
+	return fmt.Sprintf("syntax error at position %d: %s", e.Position, e.Message)
 }
 
 // Parser is the recursive-descent parser for Cosmos DB SQL.
@@ -33,7 +34,7 @@ func Parse(sql string) (*nodes.List, error) {
 	}
 	p.advance()
 	if p.lexer.Err != nil {
-		return nil, &ParseError{Message: p.lexer.Err.Error(), Pos: 0}
+		return nil, &ParseError{Message: p.lexer.Err.Error(), Position: 0}
 	}
 
 	stmt, err := p.parseSelect()
@@ -43,15 +44,15 @@ func Parse(sql string) (*nodes.List, error) {
 
 	if p.lexer.Err != nil {
 		return nil, &ParseError{
-			Message: p.lexer.Err.Error(),
-			Pos:     p.cur.Loc,
+			Message:  p.lexer.Err.Error(),
+			Position: p.cur.Loc,
 		}
 	}
 
 	if p.cur.Type != tokEOF {
 		return nil, &ParseError{
-			Message: fmt.Sprintf("unexpected token %q after statement", p.cur.Str),
-			Pos:     p.cur.Loc,
+			Message:  fmt.Sprintf("unexpected token %q after statement", p.cur.Str),
+			Position: p.cur.Loc,
 		}
 	}
 
@@ -113,8 +114,8 @@ func (p *Parser) expect(tokenType int) (Token, error) {
 		return tok, nil
 	}
 	return Token{}, &ParseError{
-		Message: fmt.Sprintf("expected %s, got %q", tokenName(tokenType), p.cur.Str),
-		Pos:     p.cur.Loc,
+		Message:  fmt.Sprintf("expected %s, got %q", tokenName(tokenType), p.cur.Str),
+		Position: p.cur.Loc,
 	}
 }
 
@@ -137,8 +138,8 @@ func (p *Parser) parseIdentifier() (string, int, error) {
 		return name, loc, nil
 	}
 	return "", p.cur.Loc, &ParseError{
-		Message: fmt.Sprintf("expected identifier, got %q", p.cur.Str),
-		Pos:     p.cur.Loc,
+		Message:  fmt.Sprintf("expected identifier, got %q", p.cur.Str),
+		Position: p.cur.Loc,
 	}
 }
 
@@ -158,8 +159,8 @@ func (p *Parser) parsePropertyName() (string, int, error) {
 		return name, loc, nil
 	}
 	return "", p.cur.Loc, &ParseError{
-		Message: fmt.Sprintf("expected property name, got %q", p.cur.Str),
-		Pos:     p.cur.Loc,
+		Message:  fmt.Sprintf("expected property name, got %q", p.cur.Str),
+		Position: p.cur.Loc,
 	}
 }
 
@@ -167,15 +168,15 @@ func (p *Parser) parsePropertyName() (string, int, error) {
 func (p *Parser) parseIntLiteral() (int, int, error) {
 	if p.cur.Type != tokICONST {
 		return 0, p.cur.Loc, &ParseError{
-			Message: fmt.Sprintf("expected integer, got %q", p.cur.Str),
-			Pos:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected integer, got %q", p.cur.Str),
+			Position: p.cur.Loc,
 		}
 	}
 	val, err := strconv.Atoi(p.cur.Str)
 	if err != nil {
 		return 0, p.cur.Loc, &ParseError{
-			Message: fmt.Sprintf("invalid integer %q", p.cur.Str),
-			Pos:     p.cur.Loc,
+			Message:  fmt.Sprintf("invalid integer %q", p.cur.Str),
+			Position: p.cur.Loc,
 		}
 	}
 	loc := p.cur.Loc

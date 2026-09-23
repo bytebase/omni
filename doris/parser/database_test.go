@@ -11,7 +11,7 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestCreateDatabase_Basic(t *testing.T) {
-	file, errs := Parse("CREATE DATABASE mydb")
+	file, errs := parseForTest("CREATE DATABASE mydb")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -37,7 +37,7 @@ func TestCreateDatabase_Basic(t *testing.T) {
 }
 
 func TestCreateDatabase_IfNotExists(t *testing.T) {
-	file, errs := Parse("CREATE DATABASE IF NOT EXISTS mydb")
+	file, errs := parseForTest("CREATE DATABASE IF NOT EXISTS mydb")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -54,7 +54,7 @@ func TestCreateDatabase_IfNotExists(t *testing.T) {
 }
 
 func TestCreateDatabase_WithProperties(t *testing.T) {
-	file, errs := Parse(`CREATE DATABASE mydb PROPERTIES("key"="value")`)
+	file, errs := parseForTest(`CREATE DATABASE mydb PROPERTIES("key"="value")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -77,7 +77,7 @@ func TestCreateDatabase_WithProperties(t *testing.T) {
 }
 
 func TestCreateDatabase_WithMultipleProperties(t *testing.T) {
-	file, errs := Parse(`CREATE DATABASE mydb PROPERTIES("replication_num"="3", "storage_medium"="SSD")`)
+	file, errs := parseForTest(`CREATE DATABASE mydb PROPERTIES("replication_num"="3", "storage_medium"="SSD")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -97,7 +97,7 @@ func TestCreateDatabase_WithMultipleProperties(t *testing.T) {
 }
 
 func TestCreateDatabase_IfNotExistsWithProperties(t *testing.T) {
-	file, errs := Parse(`CREATE DATABASE IF NOT EXISTS mydb PROPERTIES("key"="val")`)
+	file, errs := parseForTest(`CREATE DATABASE IF NOT EXISTS mydb PROPERTIES("key"="val")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -115,7 +115,7 @@ func TestCreateDatabase_IfNotExistsWithProperties(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCreateSchema_Basic(t *testing.T) {
-	file, errs := Parse("CREATE SCHEMA myschema")
+	file, errs := parseForTest("CREATE SCHEMA myschema")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -132,7 +132,7 @@ func TestCreateSchema_Basic(t *testing.T) {
 }
 
 func TestCreateSchema_IfNotExists(t *testing.T) {
-	file, errs := Parse("CREATE SCHEMA IF NOT EXISTS myschema")
+	file, errs := parseForTest("CREATE SCHEMA IF NOT EXISTS myschema")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -147,7 +147,7 @@ func TestCreateSchema_IfNotExists(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDropDatabase_Basic(t *testing.T) {
-	file, errs := Parse("DROP DATABASE mydb")
+	file, errs := parseForTest("DROP DATABASE mydb")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -170,7 +170,7 @@ func TestDropDatabase_Basic(t *testing.T) {
 }
 
 func TestDropDatabase_IfExists(t *testing.T) {
-	file, errs := Parse("DROP DATABASE IF EXISTS mydb")
+	file, errs := parseForTest("DROP DATABASE IF EXISTS mydb")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -184,7 +184,7 @@ func TestDropDatabase_IfExists(t *testing.T) {
 }
 
 func TestDropDatabase_Force(t *testing.T) {
-	file, errs := Parse("DROP DATABASE mydb FORCE")
+	file, errs := parseForTest("DROP DATABASE mydb FORCE")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -198,7 +198,7 @@ func TestDropDatabase_Force(t *testing.T) {
 }
 
 func TestDropDatabase_IfExistsForce(t *testing.T) {
-	file, errs := Parse("DROP DATABASE IF EXISTS mydb FORCE")
+	file, errs := parseForTest("DROP DATABASE IF EXISTS mydb FORCE")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -216,7 +216,7 @@ func TestDropDatabase_IfExistsForce(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDropSchema_Basic(t *testing.T) {
-	file, errs := Parse("DROP SCHEMA myschema")
+	file, errs := parseForTest("DROP SCHEMA myschema")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -233,7 +233,7 @@ func TestDropSchema_Basic(t *testing.T) {
 }
 
 func TestDropSchema_IfExists(t *testing.T) {
-	file, errs := Parse("DROP SCHEMA IF EXISTS myschema")
+	file, errs := parseForTest("DROP SCHEMA IF EXISTS myschema")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -248,7 +248,7 @@ func TestDropSchema_IfExists(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAlterDatabase_Rename(t *testing.T) {
-	file, errs := Parse("ALTER DATABASE mydb RENAME newdb")
+	file, errs := parseForTest("ALTER DATABASE mydb RENAME newdb")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -271,7 +271,7 @@ func TestAlterDatabase_Rename(t *testing.T) {
 }
 
 func TestAlterDatabase_RenameWithTo(t *testing.T) {
-	file, errs := Parse("ALTER DATABASE mydb RENAME TO newdb")
+	file, errs := parseForTest("ALTER DATABASE mydb RENAME TO newdb")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -282,7 +282,7 @@ func TestAlterDatabase_RenameWithTo(t *testing.T) {
 }
 
 func TestAlterDatabase_SetProperties(t *testing.T) {
-	file, errs := Parse(`ALTER DATABASE mydb SET PROPERTIES("key"="value")`)
+	file, errs := parseForTest(`ALTER DATABASE mydb SET PROPERTIES("key"="value")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -303,7 +303,7 @@ func TestAlterDatabase_SetProperties(t *testing.T) {
 
 func TestAlterDatabase_SetQuota(t *testing.T) {
 	// SET QUOTA is parsed in a best-effort fashion.
-	file, errs := Parse("ALTER DATABASE mydb SET QUOTA 10737418240")
+	file, errs := parseForTest("ALTER DATABASE mydb SET QUOTA 10737418240")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -324,7 +324,7 @@ func TestAlterDatabase_SetQuota(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCreateDatabaseStmt_Tag(t *testing.T) {
-	file, errs := Parse("CREATE DATABASE mydb")
+	file, errs := parseForTest("CREATE DATABASE mydb")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -334,7 +334,7 @@ func TestCreateDatabaseStmt_Tag(t *testing.T) {
 }
 
 func TestDropDatabaseStmt_Tag(t *testing.T) {
-	file, errs := Parse("DROP DATABASE mydb")
+	file, errs := parseForTest("DROP DATABASE mydb")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -344,7 +344,7 @@ func TestDropDatabaseStmt_Tag(t *testing.T) {
 }
 
 func TestAlterDatabaseStmt_Tag(t *testing.T) {
-	file, errs := Parse("ALTER DATABASE mydb RENAME newdb")
+	file, errs := parseForTest("ALTER DATABASE mydb RENAME newdb")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -359,7 +359,7 @@ func TestAlterDatabaseStmt_Tag(t *testing.T) {
 
 func TestCreateDropDatabase_MultiStatement(t *testing.T) {
 	input := "CREATE DATABASE db1; DROP DATABASE db1"
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -379,7 +379,7 @@ func TestCreateDropDatabase_MultiStatement(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCreateTable_NowSupported(t *testing.T) {
-	file, errs := Parse("CREATE TABLE t (id INT)")
+	file, errs := parseForTest("CREATE TABLE t (id INT)")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -394,7 +394,7 @@ func TestCreateTable_NowSupported(t *testing.T) {
 
 func TestAlterTable_NowSupported(t *testing.T) {
 	// ALTER TABLE is now implemented (T2.2). Verify it parses without errors.
-	file, errs := Parse("ALTER TABLE t ADD COLUMN c INT")
+	file, errs := parseForTest("ALTER TABLE t ADD COLUMN c INT")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -408,7 +408,7 @@ func TestAlterTable_NowSupported(t *testing.T) {
 
 func TestDropTable_NowSupported(t *testing.T) {
 	// DROP TABLE is now implemented; verify it produces a DropTableStmt.
-	file, errs := Parse("DROP TABLE t")
+	file, errs := parseForTest("DROP TABLE t")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}

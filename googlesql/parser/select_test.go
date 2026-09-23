@@ -22,16 +22,16 @@ import (
 // It returns the *ast.QueryStmt (every query_statement produces one).
 func parseQ(t *testing.T, sql string) *ast.QueryStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q): unexpected errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q): unexpected errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d statements, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d statements, want 1", sql, len(file.Stmts))
 	}
 	q, ok := file.Stmts[0].(*ast.QueryStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.QueryStmt", sql, file.Stmts[0])
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.QueryStmt", sql, file.Stmts[0])
 	}
 	return q
 }
@@ -146,12 +146,12 @@ func TestSelect_AcceptForms(t *testing.T) {
 	}
 	for _, sql := range accept {
 		t.Run(sql, func(t *testing.T) {
-			file, errs := Parse(sql)
+			file, errs := parseForTest(sql)
 			if len(errs) != 0 {
-				t.Fatalf("Parse(%q): want accept, got errors: %v", sql, errs)
+				t.Fatalf("parseForTest(%q): want accept, got errors: %v", sql, errs)
 			}
 			if len(file.Stmts) != 1 {
-				t.Fatalf("Parse(%q): got %d statements, want 1", sql, len(file.Stmts))
+				t.Fatalf("parseForTest(%q): got %d statements, want 1", sql, len(file.Stmts))
 			}
 		})
 	}
@@ -176,8 +176,8 @@ func TestSelect_BigQueryOnlyForms(t *testing.T) {
 		"SELECT 1 AS a FULL OUTER UNION ALL SELECT 2 AS a",
 	} {
 		t.Run(sql, func(t *testing.T) {
-			if _, errs := Parse(sql); len(errs) != 0 {
-				t.Errorf("Parse(%q): want accept (BigQuery-valid, union grammar), got: %v", sql, errs)
+			if _, errs := parseForTest(sql); len(errs) != 0 {
+				t.Errorf("parseForTest(%q): want accept (BigQuery-valid, union grammar), got: %v", sql, errs)
 			}
 		})
 	}
@@ -212,9 +212,9 @@ func TestSelect_RejectForms(t *testing.T) {
 	}
 	for _, sql := range reject {
 		t.Run(sql, func(t *testing.T) {
-			file, errs := Parse(sql)
+			file, errs := parseForTest(sql)
 			if len(errs) == 0 {
-				t.Errorf("Parse(%q): want reject, got accept (stmts=%d)", sql, len(file.Stmts))
+				t.Errorf("parseForTest(%q): want reject, got accept (stmts=%d)", sql, len(file.Stmts))
 			}
 		})
 	}
@@ -288,8 +288,8 @@ func TestSelect_MixedSetOpRejected(t *testing.T) {
 		"SELECT 1 UNION ALL SELECT 2 UNION DISTINCT SELECT 3",
 		"SELECT 1 INTERSECT DISTINCT SELECT 2 EXCEPT DISTINCT SELECT 3",
 	} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q): want reject (mixed set operations), got accept", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q): want reject (mixed set operations), got accept", sql)
 		}
 	}
 }
@@ -717,9 +717,9 @@ func TestSelect_DiagnoseNoFalsePositive(t *testing.T) {
 		"WITH c AS (SELECT 1 AS n) SELECT n FROM c",
 		"SELECT * FROM a JOIN b USING (id) WHERE a.x > 0 ORDER BY a.y",
 	} {
-		_, errs := Parse(sql)
+		_, errs := parseForTest(sql)
 		if len(errs) != 0 {
-			t.Errorf("Parse(%q): want 0 diagnostics, got %v", sql, errs)
+			t.Errorf("parseForTest(%q): want 0 diagnostics, got %v", sql, errs)
 		}
 	}
 }
@@ -737,13 +737,13 @@ func TestSelect_MalformedAliasRejected(t *testing.T) {
 		"SELECT * FROM UNNEST([1]) AS",
 		"SELECT * FROM (SELECT 1) AS",
 	} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q): want reject (AS without identifier), got accept", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q): want reject (AS without identifier), got accept", sql)
 		}
 	}
 	// A well-formed alias still parses.
-	if _, errs := Parse("SELECT * FROM t AS x"); len(errs) != 0 {
-		t.Errorf("Parse(valid AS alias): unexpected errors: %v", errs)
+	if _, errs := parseForTest("SELECT * FROM t AS x"); len(errs) != 0 {
+		t.Errorf("parseForTest(valid AS alias): unexpected errors: %v", errs)
 	}
 }
 
@@ -757,13 +757,13 @@ func TestSelect_SubqueryTrailingTokenRejected(t *testing.T) {
 		"SELECT EXISTS(SELECT 1 FROM t a b)",
 		"SELECT ARRAY(SELECT x FROM t a b)",
 	} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q): want reject (trailing token in subquery), got accept", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q): want reject (trailing token in subquery), got accept", sql)
 		}
 	}
 	// A clean subquery still parses and is filled.
-	if _, errs := Parse("SELECT (SELECT 1 FROM t)"); len(errs) != 0 {
-		t.Errorf("Parse(clean subquery): unexpected errors: %v", errs)
+	if _, errs := parseForTest("SELECT (SELECT 1 FROM t)"); len(errs) != 0 {
+		t.Errorf("parseForTest(clean subquery): unexpected errors: %v", errs)
 	}
 }
 
@@ -806,8 +806,8 @@ func TestSelect_ColumnMatchSuffix(t *testing.T) {
 		"SELECT 1 AS a UNION ALL BY NAME ON SELECT 2 AS a",
 		"SELECT 1 AS a UNION ALL CORRESPONDING BY SELECT 2 AS a",
 	} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q): want reject (malformed column-match suffix), got accept", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q): want reject (malformed column-match suffix), got accept", sql)
 		}
 	}
 }
@@ -822,8 +822,8 @@ func TestSelect_PathOnlySuffixesRejectedOnSubqueryTVF(t *testing.T) {
 		"SELECT * FROM (SELECT 1) WITH OFFSET",
 		"SELECT * FROM f() FOR SYSTEM_TIME AS OF '2020-01-01'",
 	} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q): want reject (path-only suffix on subquery/TVF), got accept", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q): want reject (path-only suffix on subquery/TVF), got accept", sql)
 		}
 	}
 }
@@ -832,16 +832,16 @@ func TestSelect_PathOnlySuffixesRejectedOnSubqueryTVF(t *testing.T) {
 // the two-word `FOR SYSTEM TIME` spelling treated TIME as optional, wrongly
 // accepting `FOR SYSTEM AS OF …` (oracle: "Expected keyword TIME").
 func TestSelect_ForSystemTimeRequiresTime(t *testing.T) {
-	if _, errs := Parse("SELECT * FROM t FOR SYSTEM AS OF '2020-01-01'"); len(errs) == 0 {
-		t.Error("Parse(FOR SYSTEM AS OF): want reject (TIME required), got accept")
+	if _, errs := parseForTest("SELECT * FROM t FOR SYSTEM AS OF '2020-01-01'"); len(errs) == 0 {
+		t.Error("parseForTest(FOR SYSTEM AS OF): want reject (TIME required), got accept")
 	}
 	// Both valid spellings parse.
 	for _, sql := range []string{
 		"SELECT * FROM t FOR SYSTEM_TIME AS OF '2020-01-01'",
 		"SELECT * FROM t FOR SYSTEM TIME AS OF '2020-01-01'",
 	} {
-		if _, errs := Parse(sql); len(errs) != 0 {
-			t.Errorf("Parse(%q): unexpected errors: %v", sql, errs)
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q): unexpected errors: %v", sql, errs)
 		}
 	}
 }
@@ -866,7 +866,7 @@ func TestSelect_TPCHCorpus(t *testing.T) {
 			if err != nil {
 				t.Fatalf("read %s: %v", f, err)
 			}
-			file, errs := Parse(string(data))
+			file, errs := parseForTest(string(data))
 			if len(errs) != 0 {
 				t.Errorf("%s: parse errors: %v", filepath.Base(f), errs)
 			}
@@ -880,14 +880,14 @@ func TestSelect_TPCHCorpus(t *testing.T) {
 // TestSelect_ErrorPositions confirms reject diagnostics point at a sensible
 // location (non-negative offset within the statement) so Diagnose can underline.
 func TestSelect_ErrorPositions(t *testing.T) {
-	_, errs := Parse("SELECT * FROM a JOIN") // JOIN with no right source
+	_, errs := parseForTest("SELECT * FROM a JOIN") // JOIN with no right source
 	if len(errs) == 0 {
 		t.Fatal("want a parse error for JOIN with no right source")
 	}
-	if errs[0].Loc.Start < 0 {
-		t.Errorf("error Loc.Start = %d, want >= 0", errs[0].Loc.Start)
+	if errs[0].Position < 0 {
+		t.Errorf("error Loc.Start = %d, want >= 0", errs[0].Position)
 	}
-	if !strings.Contains(strings.ToLower(errs[0].Msg), "syntax error") {
-		t.Errorf("error message = %q, want a syntax error", errs[0].Msg)
+	if !strings.Contains(strings.ToLower(errs[0].Message), "syntax error") {
+		t.Errorf("error message = %q, want a syntax error", errs[0].Message)
 	}
 }

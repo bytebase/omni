@@ -81,8 +81,8 @@ func (p *Parser) parseTableReference() (ast.TableExpr, error) {
 		if joinKind != ast.JoinKindCross {
 			if p.cur.Type != tokON {
 				return nil, &ParseError{
-					Message: fmt.Sprintf("expected ON after JOIN, got %q", p.cur.Str),
-					Loc:     p.cur.Loc,
+					Message:  fmt.Sprintf("expected ON after JOIN, got %q", p.cur.Str),
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 				}
 			}
 			p.advance() // consume ON

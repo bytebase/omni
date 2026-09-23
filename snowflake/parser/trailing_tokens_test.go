@@ -46,11 +46,11 @@ func TestTrailing_GarbageShapesRejected(t *testing.T) {
 			if !ok {
 				t.Fatalf("Parse(%q): error type = %T, want *ParseError", c.input, err)
 			}
-			if want := "syntax error at or near " + c.wantTok; pe.Msg != want {
-				t.Errorf("Parse(%q): Msg = %q, want %q", c.input, pe.Msg, want)
+			if want := "syntax error at or near " + c.wantTok; pe.Message != want {
+				t.Errorf("Parse(%q): Msg = %q, want %q", c.input, pe.Message, want)
 			}
-			if pe.Loc.Start != c.wantLoc {
-				t.Errorf("Parse(%q): Loc.Start = %d, want %d", c.input, pe.Loc.Start, c.wantLoc)
+			if pe.Position != c.wantLoc {
+				t.Errorf("Parse(%q): Loc.Start = %d, want %d", c.input, pe.Position, c.wantLoc)
 			}
 			if len(file.Stmts) != 1 {
 				t.Errorf("Parse(%q): File.Stmts = %d, want 1 (prefix statement retained)", c.input, len(file.Stmts))
@@ -82,11 +82,11 @@ func TestTrailing_MultiStatementPerStatementReporting(t *testing.T) {
 	if len(result.Errors) != 1 {
 		t.Fatalf("errors = %d, want 1: %+v", len(result.Errors), result.Errors)
 	}
-	if result.Errors[0].Loc.Start != 9 {
-		t.Errorf("error Loc.Start = %d, want 9 (the stray `2`)", result.Errors[0].Loc.Start)
+	if result.Errors[0].Position != 9 {
+		t.Errorf("error Loc.Start = %d, want 9 (the stray `2`)", result.Errors[0].Position)
 	}
-	if !strings.Contains(result.Errors[0].Msg, "at or near 2") {
-		t.Errorf("error Msg = %q, want to mention `2`", result.Errors[0].Msg)
+	if !strings.Contains(result.Errors[0].Message, "at or near 2") {
+		t.Errorf("error Msg = %q, want to mention `2`", result.Errors[0].Message)
 	}
 	if len(result.File.Stmts) != 2 {
 		t.Fatalf("stmts = %d, want 2 (both statements parsed)", len(result.File.Stmts))

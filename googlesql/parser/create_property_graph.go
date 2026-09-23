@@ -62,8 +62,8 @@ func (p *Parser) parseCreatePropertyGraph(create Token, orReplace bool) (ast.Nod
 	// rejected. See divergence ledger + graph_query_oracle_test.go.
 	if orReplace && ifNotExists {
 		return nil, &ParseError{
-			Loc: ifTok.Loc,
-			Msg: "syntax error: CREATE PROPERTY GRAPH IF NOT EXISTS cannot be used with OR REPLACE",
+			Position: ifTok.Loc.Start, End: ifTok.Loc.End,
+			Message: "syntax error: CREATE PROPERTY GRAPH IF NOT EXISTS cannot be used with OR REPLACE",
 		}
 	}
 

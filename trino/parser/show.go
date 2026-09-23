@@ -513,7 +513,7 @@ func (p *Parser) parseLikeEscape(s *ShowStmt) error {
 // context (e.g. "LIKE pattern").
 func (p *Parser) expectStringLiteral(context string) (Token, error) {
 	if p.cur.Kind != tokString && p.cur.Kind != tokUnicodeString {
-		return Token{}, &ParseError{Loc: p.cur.Loc, Msg: "expected string literal for " + context}
+		return Token{}, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected string literal for " + context}
 	}
 	return p.advance(), nil
 }
@@ -534,8 +534,8 @@ func (p *Parser) parseBoundedQualifiedName(maxParts int, context string) (*ast.Q
 	}
 	if len(name.Parts) > maxParts {
 		return nil, &ParseError{
-			Loc: name.Loc,
-			Msg: "too many dotted parts in " + context + " (expected at most " + strconv.Itoa(maxParts) + ")",
+			Position: name.Loc.Start, End: name.Loc.End,
+			Message: "too many dotted parts in " + context + " (expected at most " + strconv.Itoa(maxParts) + ")",
 		}
 	}
 	return name, nil
@@ -566,7 +566,7 @@ func (p *Parser) captureBalancedParen(openTok Token) (string, Token, error) {
 		}
 	}
 	if depth != 0 {
-		return "", Token{}, &ParseError{Loc: p.cur.Loc, Msg: "unterminated parenthesised query"}
+		return "", Token{}, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "unterminated parenthesised query"}
 	}
 	raw := p.sourceSlice(innerStart, innerEnd)
 	closeTok := p.advance() // consume ')'

@@ -44,7 +44,7 @@ Bytebase's adapters under `backend/plugin/parser/<engine>` and omni's own packag
 - Positions leave the parser as byte offsets. They become line and column only at the boundary that reports to a user, through `review.Index` or `review.Position`: lines 1-based, columns 1-based and counted in code points, which is what Bytebase's `Position` holds. Do not write the byte-to-rune loop again.
 - A segment parsed on its own has positions relative to the segment. Parse it in place instead, through a ranged entry such as `oracle/parser.ParseRange(script, seg.ByteStart, seg.ByteEnd)` or a lexer base offset as in doris, so positions come out absolute. Never pad the input with spaces (quadratic on large scripts), and never rewrite `Loc` fields through reflection.
 - A parse error is returned, or reported as a finding with its position. The one accepted downgrade is feature extraction from a definition the engine already accepted (a synced function signature, an index definition), and the comment on the call says so.
-- `ParseError` has the same shape in every engine: `Message string` and `Position int`, the byte offset into the parsed text, implementing `error` and reachable with `errors.As`. An engine may add fields such as `Line`, `Column`, `RelatedText`, or `Code`, but does not rename those two. `Parse` returns `error`, not a slice.
+- `ParseError` has the same shape in every engine: `Message string` and `Position int`, the byte offset into the parsed text, implementing `error` and reachable with `errors.As`. An engine may add fields such as `End`, `Line`, `Column`, `RelatedText`, or `Code`, but does not rename those two. `Parse` returns `error`, not a slice. An engine whose strict parse reports every failure of a multi-statement script (trino, googlesql, doris, starrocks) returns a `ParseErrors` list that unwraps to each `*ParseError`; `parser.AllErrors(err)` and `parser.FirstError(err)` read it. The elasticsearch REST console parser is the one non-SQL grammar and keeps its `SyntaxError{ByteOffset, Message}`.
 - `Split` keeps empty segments; the `Statement` list from `Parse` holds only statements with an AST.
 - DDL enters a catalog only through `catalog.Exec(sql, opts)`. It splits and parses itself and returns one `ExecResult` per statement with its line. A synced schema enters through `LoadMetadata`. Callers do not pre-split for `Exec`.
 - `<engine>/review.Review(ctx, sql, opts, targets)` splits and parses once inside, treats a syntax error as a finding at its position, and reports every position through `review.Index`. The contract is in [review/review.go](review/review.go).
@@ -53,7 +53,6 @@ Bytebase's adapters under `backend/plugin/parser/<engine>` and omni's own packag
 
 The rules above are the target. These places do not meet them yet; do not copy them into new code.
 
-- `ParseError` has six shapes: `Msg` and `Loc` in snowflake, doris, and trino; `Pos` in cosmosdb; slice returns in the doris family.
 - On the Bytebase side, `ByteOffsetToRunePosition` exists five times and adapters disagree on keeping empty segments. Not omni's to fix, but the reason `review.Index` stays the single implementation.
 
 ## Tests

@@ -93,8 +93,8 @@ func TestParseIdent_ReservedKeyword(t *testing.T) {
 		t.Fatal("expected error for reserved keyword SELECT, got nil")
 	}
 	if pe, ok := err.(*ParseError); ok {
-		if !strings.Contains(pe.Msg, "expected identifier") {
-			t.Errorf("error Msg = %q, want 'expected identifier'", pe.Msg)
+		if !strings.Contains(pe.Message, "expected identifier") {
+			t.Errorf("error Msg = %q, want 'expected identifier'", pe.Message)
 		}
 	} else {
 		t.Errorf("expected *ParseError, got %T", err)
@@ -255,7 +255,7 @@ func TestParseObjectName_FreestandingTrailingTokens(t *testing.T) {
 	if obj.Name.Name != "foo" {
 		t.Errorf("Name = %q, want foo", obj.Name.Name)
 	}
-	if len(errs) != 1 || !strings.Contains(errs[0].Msg, "unexpected token") {
+	if len(errs) != 1 || !strings.Contains(errs[0].Message, "unexpected token") {
 		t.Errorf("expected 1 'unexpected token' error, got %+v", errs)
 	}
 }

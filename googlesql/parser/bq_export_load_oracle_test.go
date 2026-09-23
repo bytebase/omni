@@ -136,7 +136,7 @@ func assertExportLoadCloneFixture(t *testing.T, h *ddlHarness, fx bqOracleExpect
 
 	// omni's verdict — asserted against the recorded expectation (which is anchored
 	// to the legacy .g4 + the BigQuery docs, NOT to the non-authoritative emulator).
-	_, errs := Parse(fx.sql)
+	_, errs := parseForTest(fx.sql)
 	omniAccepts := len(errs) == 0
 	if omniAccepts != fx.omniAccepts {
 		t.Errorf("omni verdict on %q: accepts=%v, want %v; errs=%v [%s]",

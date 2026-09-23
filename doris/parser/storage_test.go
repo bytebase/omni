@@ -15,7 +15,7 @@ func TestCreateStorageVault_Basic(t *testing.T) {
 		"type" = "hdfs",
 		"fs.defaultFS" = "hdfs://127.0.0.1:8020"
 	)`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -55,7 +55,7 @@ func TestCreateStorageVault_IfNotExists(t *testing.T) {
 		"provider" = "S3",
 		"use_path_style" = "false"
 	)`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -81,7 +81,7 @@ func TestCreateStorageVault_LegacyCorpus_HDFS(t *testing.T) {
 		"hadoop.kerberos.principal" = "hadoop/127.0.0.1@XXX",
 		"hadoop.kerberos.keytab" = "/etc/emr.keytab"
 	)`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -95,7 +95,7 @@ func TestCreateStorageVault_LegacyCorpus_HDFS(t *testing.T) {
 }
 
 func TestCreateStorageVault_Tag(t *testing.T) {
-	file, errs := Parse(`CREATE STORAGE VAULT v PROPERTIES("type"="S3")`)
+	file, errs := parseForTest(`CREATE STORAGE VAULT v PROPERTIES("type"="S3")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -114,7 +114,7 @@ func TestAlterStorageVault_Basic(t *testing.T) {
 		"VAULT_NAME" = "new_vault_name",
 		"s3.access_key" = "new_ak"
 	)`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -140,7 +140,7 @@ func TestAlterStorageVault_Basic(t *testing.T) {
 }
 
 func TestAlterStorageVault_Tag(t *testing.T) {
-	file, errs := Parse(`ALTER STORAGE VAULT v PROPERTIES("type"="S3")`)
+	file, errs := parseForTest(`ALTER STORAGE VAULT v PROPERTIES("type"="S3")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -154,7 +154,7 @@ func TestAlterStorageVault_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDropStorageVault_Basic(t *testing.T) {
-	file, errs := Parse("DROP STORAGE VAULT my_vault")
+	file, errs := parseForTest("DROP STORAGE VAULT my_vault")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -171,7 +171,7 @@ func TestDropStorageVault_Basic(t *testing.T) {
 }
 
 func TestDropStorageVault_IfExists(t *testing.T) {
-	file, errs := Parse("DROP STORAGE VAULT IF EXISTS my_vault")
+	file, errs := parseForTest("DROP STORAGE VAULT IF EXISTS my_vault")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -185,7 +185,7 @@ func TestDropStorageVault_IfExists(t *testing.T) {
 }
 
 func TestDropStorageVault_Tag(t *testing.T) {
-	file, errs := Parse("DROP STORAGE VAULT v")
+	file, errs := parseForTest("DROP STORAGE VAULT v")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -199,7 +199,7 @@ func TestDropStorageVault_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSetDefaultStorageVault(t *testing.T) {
-	file, errs := Parse("SET DEFAULT STORAGE VAULT my_vault")
+	file, errs := parseForTest("SET DEFAULT STORAGE VAULT my_vault")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -216,7 +216,7 @@ func TestSetDefaultStorageVault(t *testing.T) {
 }
 
 func TestSetDefaultStorageVault_Tag(t *testing.T) {
-	file, errs := Parse("SET DEFAULT STORAGE VAULT v")
+	file, errs := parseForTest("SET DEFAULT STORAGE VAULT v")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -226,7 +226,7 @@ func TestSetDefaultStorageVault_Tag(t *testing.T) {
 }
 
 func TestUnsetDefaultStorageVault(t *testing.T) {
-	file, errs := Parse("UNSET DEFAULT STORAGE VAULT")
+	file, errs := parseForTest("UNSET DEFAULT STORAGE VAULT")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -240,7 +240,7 @@ func TestUnsetDefaultStorageVault(t *testing.T) {
 }
 
 func TestUnsetDefaultStorageVault_Tag(t *testing.T) {
-	file, errs := Parse("UNSET DEFAULT STORAGE VAULT")
+	file, errs := parseForTest("UNSET DEFAULT STORAGE VAULT")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -258,7 +258,7 @@ func TestCreateStoragePolicy_Basic(t *testing.T) {
 		"storage_resource" = "s3",
 		"cooldown_datetime" = "2022-06-08 00:00:00"
 	)`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -288,7 +288,7 @@ func TestCreateStoragePolicy_CooldownTTL(t *testing.T) {
 		"storage_resource" = "s3",
 		"cooldown_ttl" = "1d"
 	)`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -306,7 +306,7 @@ func TestCreateStoragePolicy_CooldownTTL(t *testing.T) {
 
 func TestCreateStoragePolicy_IfNotExists(t *testing.T) {
 	sql := `CREATE STORAGE POLICY IF NOT EXISTS myPolicy PROPERTIES("storage_resource"="s3")`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -317,7 +317,7 @@ func TestCreateStoragePolicy_IfNotExists(t *testing.T) {
 }
 
 func TestCreateStoragePolicy_Tag(t *testing.T) {
-	file, errs := Parse(`CREATE STORAGE POLICY p PROPERTIES("storage_resource"="s3")`)
+	file, errs := parseForTest(`CREATE STORAGE POLICY p PROPERTIES("storage_resource"="s3")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -332,7 +332,7 @@ func TestCreateStoragePolicy_Tag(t *testing.T) {
 
 func TestAlterStoragePolicy_Basic(t *testing.T) {
 	sql := `ALTER STORAGE POLICY testPolicy PROPERTIES("cooldown_ttl"="2d")`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -349,7 +349,7 @@ func TestAlterStoragePolicy_Basic(t *testing.T) {
 }
 
 func TestAlterStoragePolicy_Tag(t *testing.T) {
-	file, errs := Parse(`ALTER STORAGE POLICY p PROPERTIES("cooldown_ttl"="1d")`)
+	file, errs := parseForTest(`ALTER STORAGE POLICY p PROPERTIES("cooldown_ttl"="1d")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -363,7 +363,7 @@ func TestAlterStoragePolicy_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDropStoragePolicy_Basic(t *testing.T) {
-	file, errs := Parse("DROP STORAGE POLICY policy1")
+	file, errs := parseForTest("DROP STORAGE POLICY policy1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -380,7 +380,7 @@ func TestDropStoragePolicy_Basic(t *testing.T) {
 }
 
 func TestDropStoragePolicy_IfExists(t *testing.T) {
-	file, errs := Parse("DROP STORAGE POLICY IF EXISTS policy1")
+	file, errs := parseForTest("DROP STORAGE POLICY IF EXISTS policy1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -391,7 +391,7 @@ func TestDropStoragePolicy_IfExists(t *testing.T) {
 }
 
 func TestDropStoragePolicy_Tag(t *testing.T) {
-	file, errs := Parse("DROP STORAGE POLICY p")
+	file, errs := parseForTest("DROP STORAGE POLICY p")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -414,7 +414,7 @@ func TestCreateRepository_S3(t *testing.T) {
 			"s3.secret_key" = "xxxxxx",
 			"s3.region" = "us-east-1"
 		)`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -446,7 +446,7 @@ func TestCreateRepository_HDFS(t *testing.T) {
 		PROPERTIES(
 			"hadoop.username" = "user"
 		)`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -467,7 +467,7 @@ func TestCreateRepository_Broker(t *testing.T) {
 			"username" = "hdfsuser",
 			"password" = "secret"
 		)`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -485,7 +485,7 @@ func TestCreateRepository_ReadOnly(t *testing.T) {
 		WITH S3
 		ON LOCATION "s3://bucket/path"
 		PROPERTIES("s3.endpoint"="s3.amazonaws.com","s3.access_key"="ak","s3.secret_key"="sk","s3.region"="us-east-1")`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -500,7 +500,7 @@ func TestCreateRepository_ReadOnly(t *testing.T) {
 
 func TestCreateRepository_Tag(t *testing.T) {
 	sql := `CREATE REPOSITORY r WITH S3 ON LOCATION "s3://b/p" PROPERTIES("s3.endpoint"="ep","s3.access_key"="ak","s3.secret_key"="sk","s3.region"="us-east-1")`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -515,7 +515,7 @@ func TestCreateRepository_Tag(t *testing.T) {
 
 func TestAlterRepository_Basic(t *testing.T) {
 	sql := `ALTER REPOSITORY my_repo PROPERTIES("s3.access_key"="new_key","s3.secret_key"="new_secret")`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -532,7 +532,7 @@ func TestAlterRepository_Basic(t *testing.T) {
 }
 
 func TestAlterRepository_Tag(t *testing.T) {
-	file, errs := Parse(`ALTER REPOSITORY r PROPERTIES("s3.access_key"="ak")`)
+	file, errs := parseForTest(`ALTER REPOSITORY r PROPERTIES("s3.access_key"="ak")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -546,7 +546,7 @@ func TestAlterRepository_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDropRepository_Basic(t *testing.T) {
-	file, errs := Parse("DROP REPOSITORY my_repo")
+	file, errs := parseForTest("DROP REPOSITORY my_repo")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -560,7 +560,7 @@ func TestDropRepository_Basic(t *testing.T) {
 }
 
 func TestDropRepository_Tag(t *testing.T) {
-	file, errs := Parse("DROP REPOSITORY r")
+	file, errs := parseForTest("DROP REPOSITORY r")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -581,7 +581,7 @@ func TestCreateStage_Basic(t *testing.T) {
 		"bucket" = "mybucket",
 		"path" = "mypath"
 	)`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -602,7 +602,7 @@ func TestCreateStage_Basic(t *testing.T) {
 
 func TestCreateStage_IfNotExists(t *testing.T) {
 	sql := `CREATE STAGE IF NOT EXISTS my_stage PROPERTIES("endpoint"="ep","access_key_id"="ak","access_key_secret"="sk","bucket"="b","path"="p")`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -614,7 +614,7 @@ func TestCreateStage_IfNotExists(t *testing.T) {
 
 func TestCreateStage_Tag(t *testing.T) {
 	sql := `CREATE STAGE s PROPERTIES("endpoint"="ep","access_key_id"="ak","access_key_secret"="sk","bucket"="b","path"="p")`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -628,7 +628,7 @@ func TestCreateStage_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDropStage_Basic(t *testing.T) {
-	file, errs := Parse("DROP STAGE my_stage")
+	file, errs := parseForTest("DROP STAGE my_stage")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -645,7 +645,7 @@ func TestDropStage_Basic(t *testing.T) {
 }
 
 func TestDropStage_IfExists(t *testing.T) {
-	file, errs := Parse("DROP STAGE IF EXISTS my_stage")
+	file, errs := parseForTest("DROP STAGE IF EXISTS my_stage")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -659,7 +659,7 @@ func TestDropStage_IfExists(t *testing.T) {
 }
 
 func TestDropStage_Tag(t *testing.T) {
-	file, errs := Parse("DROP STAGE s")
+	file, errs := parseForTest("DROP STAGE s")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -674,7 +674,7 @@ func TestDropStage_Tag(t *testing.T) {
 
 func TestCreateFile_Basic(t *testing.T) {
 	sql := `CREATE FILE "ca.pem" PROPERTIES("url"="https://example.com/ca.pem","type"="ca")`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -695,7 +695,7 @@ func TestCreateFile_Basic(t *testing.T) {
 
 func TestCreateFile_WithDatabase(t *testing.T) {
 	sql := `CREATE FILE "my_cert.pem" IN mydb PROPERTIES("url"="https://example.com/cert.pem","type"="ca")`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -710,7 +710,7 @@ func TestCreateFile_WithDatabase(t *testing.T) {
 
 func TestCreateFile_Tag(t *testing.T) {
 	sql := `CREATE FILE "f.pem" PROPERTIES("url"="https://x.com/f.pem","type"="ca")`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -725,7 +725,7 @@ func TestCreateFile_Tag(t *testing.T) {
 
 func TestDropFile_Basic(t *testing.T) {
 	sql := `DROP FILE "ca.pem" PROPERTIES("type"="ca")`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -746,7 +746,7 @@ func TestDropFile_Basic(t *testing.T) {
 
 func TestDropFile_WithDatabase(t *testing.T) {
 	sql := `DROP FILE "ca.pem" FROM mydb PROPERTIES("type"="ca")`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -758,7 +758,7 @@ func TestDropFile_WithDatabase(t *testing.T) {
 
 func TestDropFile_Tag(t *testing.T) {
 	sql := `DROP FILE "f.pem" PROPERTIES("type"="ca")`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -798,7 +798,7 @@ func TestLegacyCorpus_StoragePolicy(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		file, errs := Parse(tt.sql)
+		file, errs := parseForTest(tt.sql)
 		if len(errs) != 0 {
 			t.Errorf("sql %q: unexpected errors: %v", tt.sql, errs)
 			continue
@@ -840,7 +840,7 @@ func TestLegacyCorpus_StorageVault(t *testing.T) {
 	}
 
 	for _, sql := range tests {
-		file, errs := Parse(sql)
+		file, errs := parseForTest(sql)
 		if len(errs) != 0 {
 			t.Errorf("sql:\n%s\nunexpected errors: %v", sql, errs)
 			continue
@@ -860,7 +860,7 @@ func TestStorage_MultiStatement(t *testing.T) {
 DROP STORAGE VAULT v;
 CREATE STORAGE POLICY p PROPERTIES("storage_resource"="s3");
 DROP STORAGE POLICY p`
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}

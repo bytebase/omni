@@ -511,7 +511,7 @@ func (p *Parser) parseTypeName() (*DataType, error) {
 func (p *Parser) identifierText(tok Token) (string, error) {
 	if tok.Type == tokIdentifier {
 		if tok.Str == "" {
-			return "", &ParseError{Loc: tok.Loc, Msg: "invalid empty identifier"}
+			return "", &ParseError{Position: tok.Loc.Start, End: tok.Loc.End, Message: "invalid empty identifier"}
 		}
 		return tok.Str, nil
 	}
@@ -529,7 +529,7 @@ func (p *Parser) identifierText(tok Token) (string, error) {
 	if tok.Type >= keywordBase {
 		return TokenName(tok.Type), nil
 	}
-	return "", &ParseError{Loc: tok.Loc, Msg: "expected an identifier"}
+	return "", &ParseError{Position: tok.Loc.Start, End: tok.Loc.End, Message: "expected an identifier"}
 }
 
 // parseArrayType parses `ARRAY < type >` (caller confirmed the leading ARRAY).
@@ -1086,18 +1086,18 @@ func (p *Parser) parseCollateClause() (string, ast.Loc, error) {
 // type".
 func (p *Parser) typeError() *ParseError {
 	if p.cur.Type == tokEOF {
-		return &ParseError{Loc: p.cur.Loc, Msg: "expected type, found end of input"}
+		return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected type, found end of input"}
 	}
 	text := p.cur.Str
 	if text == "" {
 		text = TokenName(p.cur.Type)
 	}
-	return &ParseError{Loc: p.cur.Loc, Msg: "expected type, found " + text}
+	return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected type, found " + text}
 }
 
 // typeErrorAt returns a *ParseError with a custom message at the current token.
 func (p *Parser) typeErrorAt(msg string) *ParseError {
-	return &ParseError{Loc: p.cur.Loc, Msg: msg}
+	return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: msg}
 }
 
 // ParseDataType parses a complete GoogleSQL type from a standalone string,
@@ -1115,14 +1115,14 @@ func ParseDataType(input string) (*DataType, []ParseError) {
 		if pe, ok := err.(*ParseError); ok {
 			return nil, []ParseError{*pe}
 		}
-		return nil, []ParseError{{Msg: err.Error()}}
+		return nil, []ParseError{{Message: err.Error()}}
 	}
 	if p.cur.Type != tokEOF {
 		text := p.cur.Str
 		if text == "" {
 			text = TokenName(p.cur.Type)
 		}
-		return dt, []ParseError{{Loc: p.cur.Loc, Msg: "unexpected token after type: " + text}}
+		return dt, []ParseError{{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "unexpected token after type: " + text}}
 	}
 	return dt, nil
 }

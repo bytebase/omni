@@ -241,8 +241,8 @@ func TestDML_InsertTrailers(t *testing.T) {
 			"INSERT INTO t (a) VALUES (1) ASSERT_ROWS_MODIFIED 'x'",
 			"INSERT INTO t (a) VALUES (1) ASSERT_ROWS_MODIFIED (SELECT 1)",
 		} {
-			if _, errs := Parse(sql); len(errs) == 0 {
-				t.Errorf("Parse(%q): expected a syntax error (operand is not int/param/CAST)", sql)
+			if _, errs := parseForTest(sql); len(errs) == 0 {
+				t.Errorf("parseForTest(%q): expected a syntax error (operand is not int/param/CAST)", sql)
 			}
 		}
 		// The accepted operand forms.
@@ -265,7 +265,7 @@ func TestDML_InsertTrailers(t *testing.T) {
 	t.Run("malformed embedded subquery rejected", func(t *testing.T) {
 		// A DML expression-embedded subquery is re-parsed (fillSubqueries), so a
 		// malformed one surfaces a diagnostic. Regression (oracle: rejects on `b`).
-		if _, errs := Parse("UPDATE t SET x = (SELECT 1 FROM s a b) WHERE id = 1"); len(errs) == 0 {
+		if _, errs := parseForTest("UPDATE t SET x = (SELECT 1 FROM s a b) WHERE id = 1"); len(errs) == 0 {
 			t.Error("expected a syntax error for the malformed embedded subquery")
 		}
 	})
@@ -582,9 +582,9 @@ func TestDML_Rejects(t *testing.T) {
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {
-			_, errs := Parse(sql)
+			_, errs := parseForTest(sql)
 			if len(errs) == 0 {
-				t.Errorf("Parse(%q): expected a syntax error, got none", sql)
+				t.Errorf("parseForTest(%q): expected a syntax error, got none", sql)
 			}
 		})
 	}
@@ -626,7 +626,7 @@ func TestDML_LegacyCorpusAccepts(t *testing.T) {
 			if stmt == "" {
 				continue
 			}
-			file, errs := Parse(stmt)
+			file, errs := parseForTest(stmt)
 			if len(errs) != 0 {
 				t.Errorf("%s[%d] parse failed:\n%s\nerrs=%v", name, i, stmt, errs)
 				continue
@@ -651,7 +651,7 @@ func parseInsert(t *testing.T, sql string) *ast.InsertStmt {
 	n := parseOneStmt(t, sql)
 	ins, ok := n.(*ast.InsertStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): got %T, want *ast.InsertStmt", sql, n)
+		t.Fatalf("parseForTest(%q): got %T, want *ast.InsertStmt", sql, n)
 	}
 	return ins
 }
@@ -661,7 +661,7 @@ func parseUpdate(t *testing.T, sql string) *ast.UpdateStmt {
 	n := parseOneStmt(t, sql)
 	u, ok := n.(*ast.UpdateStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): got %T, want *ast.UpdateStmt", sql, n)
+		t.Fatalf("parseForTest(%q): got %T, want *ast.UpdateStmt", sql, n)
 	}
 	return u
 }
@@ -671,7 +671,7 @@ func parseDelete(t *testing.T, sql string) *ast.DeleteStmt {
 	n := parseOneStmt(t, sql)
 	d, ok := n.(*ast.DeleteStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): got %T, want *ast.DeleteStmt", sql, n)
+		t.Fatalf("parseForTest(%q): got %T, want *ast.DeleteStmt", sql, n)
 	}
 	return d
 }
@@ -681,7 +681,7 @@ func parseMerge(t *testing.T, sql string) *ast.MergeStmt {
 	n := parseOneStmt(t, sql)
 	m, ok := n.(*ast.MergeStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): got %T, want *ast.MergeStmt", sql, n)
+		t.Fatalf("parseForTest(%q): got %T, want *ast.MergeStmt", sql, n)
 	}
 	return m
 }
@@ -691,7 +691,7 @@ func parseTruncate(t *testing.T, sql string) *ast.TruncateStmt {
 	n := parseOneStmt(t, sql)
 	tr, ok := n.(*ast.TruncateStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): got %T, want *ast.TruncateStmt", sql, n)
+		t.Fatalf("parseForTest(%q): got %T, want *ast.TruncateStmt", sql, n)
 	}
 	return tr
 }

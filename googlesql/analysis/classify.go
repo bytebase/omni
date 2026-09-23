@@ -193,8 +193,8 @@ func Classify(node ast.Node, dialect Dialect) QueryType {
 // something else, and Unknown is the verdict that grants nothing. Empty,
 // whitespace, or comment-only input is Unknown as well.
 func ClassifySQL(sql string, dialect Dialect) QueryType {
-	file, errs := parseFile(sql)
-	if len(errs) > 0 {
+	file, err := parseFile(sql)
+	if err != nil {
 		return Unknown
 	}
 	return ClassifyFromFile(file, dialect)
@@ -212,7 +212,7 @@ func ClassifyFromFile(file *ast.File, dialect Dialect) QueryType {
 // parseFile runs the strict GoogleSQL parser. It is the single parse entry
 // point both classification and query-span share, so they never disagree about
 // which statement is "first" or whether the input parsed at all.
-func parseFile(sql string) (*ast.File, []parser.ParseError) {
+func parseFile(sql string) (*ast.File, error) {
 	return parser.Parse(sql)
 }
 

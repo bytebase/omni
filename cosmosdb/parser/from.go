@@ -133,8 +133,8 @@ func (p *Parser) parseContainerExpr() (nodes.TableExpr, error) {
 	default:
 		if !isIdentLike(p.cur.Type) {
 			return nil, &ParseError{
-				Message: fmt.Sprintf("expected container name, got %q", p.cur.Str),
-				Pos:     p.cur.Loc,
+				Message:  fmt.Sprintf("expected container name, got %q", p.cur.Str),
+				Position: p.cur.Loc,
 			}
 		}
 		name := p.cur.Str
@@ -210,8 +210,8 @@ func (p *Parser) parseBracketIndex() (nodes.ExprNode, error) {
 		return &nodes.ParamRef{Name: name, Loc: nodes.Loc{Start: loc, End: p.prev.End}}, nil
 	default:
 		return nil, &ParseError{
-			Message: fmt.Sprintf("expected string, integer, or parameter in bracket index, got %q", p.cur.Str),
-			Pos:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected string, integer, or parameter in bracket index, got %q", p.cur.Str),
+			Position: p.cur.Loc,
 		}
 	}
 }

@@ -8,13 +8,13 @@ import (
 
 func mustParseCreateMTMV(t *testing.T, input string) *ast.CreateMTMVStmt {
 	t.Helper()
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	stmt, ok := file.Stmts[0].(*ast.CreateMTMVStmt)
 	if !ok {
-		t.Fatalf("Parse(%q) got %T, want *ast.CreateMTMVStmt", input, file.Stmts[0])
+		t.Fatalf("parseForTest(%q) got %T, want *ast.CreateMTMVStmt", input, file.Stmts[0])
 	}
 	return stmt
 }
@@ -53,7 +53,7 @@ func TestMVRefreshAsyncPlain(t *testing.T) {
 
 // The schedule tail is ASYNC-only: MANUAL/INCREMENTAL + EVERY must reject.
 func TestMVRefreshManualEveryRejected(t *testing.T) {
-	_, errs := Parse("CREATE MATERIALIZED VIEW mv REFRESH MANUAL EVERY (INTERVAL 1 DAY) AS SELECT a FROM t")
+	_, errs := parseForTest("CREATE MATERIALIZED VIEW mv REFRESH MANUAL EVERY (INTERVAL 1 DAY) AS SELECT a FROM t")
 	if len(errs) == 0 {
 		t.Fatal("expected a parse error for MANUAL + EVERY, got none")
 	}
@@ -61,7 +61,7 @@ func TestMVRefreshManualEveryRejected(t *testing.T) {
 
 // EVERY is mandatory once the async tail starts: START without EVERY must reject.
 func TestMVRefreshAsyncStartNoEveryRejected(t *testing.T) {
-	_, errs := Parse("CREATE MATERIALIZED VIEW mv REFRESH ASYNC START('2024-12-01 20:30:00') AS SELECT a FROM t")
+	_, errs := parseForTest("CREATE MATERIALIZED VIEW mv REFRESH ASYNC START('2024-12-01 20:30:00') AS SELECT a FROM t")
 	if len(errs) == 0 {
 		t.Fatal("expected a parse error for START without EVERY, got none")
 	}
@@ -70,7 +70,7 @@ func TestMVRefreshAsyncStartNoEveryRejected(t *testing.T) {
 // The no-parens form must REJECT (StarRocks requires EVERY '(' INTERVAL ... ')').
 // This was a silent false-accept before the dedicated handler.
 func TestMVRefreshAsyncEveryNoParensRejected(t *testing.T) {
-	_, errs := Parse("CREATE MATERIALIZED VIEW mv REFRESH ASYNC EVERY INTERVAL 1 DAY AS SELECT a FROM t")
+	_, errs := parseForTest("CREATE MATERIALIZED VIEW mv REFRESH ASYNC EVERY INTERVAL 1 DAY AS SELECT a FROM t")
 	if len(errs) == 0 {
 		t.Fatal("expected a parse error for EVERY without parentheses, got none")
 	}

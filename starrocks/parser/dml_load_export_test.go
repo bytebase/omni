@@ -12,64 +12,64 @@ import (
 
 func mustParseTruncateTable(t *testing.T, input string) *ast.TruncateTableStmt {
 	t.Helper()
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", input)
+		t.Fatalf("parseForTest(%q) returned no statements", input)
 	}
 	stmt, ok := file.Stmts[0].(*ast.TruncateTableStmt)
 	if !ok {
-		t.Fatalf("Parse(%q) got %T, want *ast.TruncateTableStmt", input, file.Stmts[0])
+		t.Fatalf("parseForTest(%q) got %T, want *ast.TruncateTableStmt", input, file.Stmts[0])
 	}
 	return stmt
 }
 
 func mustParseLoadData(t *testing.T, input string) *ast.LoadDataStmt {
 	t.Helper()
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", input)
+		t.Fatalf("parseForTest(%q) returned no statements", input)
 	}
 	stmt, ok := file.Stmts[0].(*ast.LoadDataStmt)
 	if !ok {
-		t.Fatalf("Parse(%q) got %T, want *ast.LoadDataStmt", input, file.Stmts[0])
+		t.Fatalf("parseForTest(%q) got %T, want *ast.LoadDataStmt", input, file.Stmts[0])
 	}
 	return stmt
 }
 
 func mustParseExport(t *testing.T, input string) *ast.ExportStmt {
 	t.Helper()
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", input)
+		t.Fatalf("parseForTest(%q) returned no statements", input)
 	}
 	stmt, ok := file.Stmts[0].(*ast.ExportStmt)
 	if !ok {
-		t.Fatalf("Parse(%q) got %T, want *ast.ExportStmt", input, file.Stmts[0])
+		t.Fatalf("parseForTest(%q) got %T, want *ast.ExportStmt", input, file.Stmts[0])
 	}
 	return stmt
 }
 
 func mustParseCopyInto(t *testing.T, input string) *ast.CopyIntoStmt {
 	t.Helper()
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", input)
+		t.Fatalf("parseForTest(%q) returned no statements", input)
 	}
 	stmt, ok := file.Stmts[0].(*ast.CopyIntoStmt)
 	if !ok {
-		t.Fatalf("Parse(%q) got %T, want *ast.CopyIntoStmt", input, file.Stmts[0])
+		t.Fatalf("parseForTest(%q) got %T, want *ast.CopyIntoStmt", input, file.Stmts[0])
 	}
 	return stmt
 }

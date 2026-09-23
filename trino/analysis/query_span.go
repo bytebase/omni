@@ -125,9 +125,9 @@ func GetQuerySpanWithCatalog(statement string, cat *catalog.Catalog) (*QuerySpan
 // catalog-aware resolution state across the recursive analysis of view
 // definitions (nil disables catalog resolution).
 func getQuerySpanWithViews(statement string, vs *viewState) (*QuerySpan, error) {
-	file, errs := parser.Parse(statement)
-	if len(errs) > 0 {
-		return nil, &errs[0]
+	file, err := parser.Parse(statement)
+	if err != nil {
+		return nil, parser.FirstError(err)
 	}
 	span := &QuerySpan{Type: Classify(statement)}
 	if file == nil || len(file.Stmts) == 0 {
@@ -860,13 +860,13 @@ func (w *spanWalker) analyzeSubqueryText(text string, base int) {
 		w.noteNonQuerySubquery(ast.Loc{Start: abs, End: abs})
 		return
 	}
-	file, errs := parser.Parse(text)
-	if len(errs) > 0 {
+	file, err := parser.Parse(text)
+	if errs := parser.AllErrors(err); len(errs) > 0 {
 		if w.parseErr == nil {
 			e := errs[0]
-			e.Loc.Start += abs
-			if e.Loc.End >= 0 {
-				e.Loc.End += abs
+			e.Position += abs
+			if e.End >= 0 {
+				e.End += abs
 			}
 			w.parseErr = &e
 		}
@@ -898,7 +898,7 @@ func (w *spanWalker) analyzeSubqueryText(text string, base int) {
 // statement's coordinates. The first failure wins.
 func (w *spanWalker) noteNonQuerySubquery(loc ast.Loc) {
 	if w.parseErr == nil {
-		w.parseErr = &parser.ParseError{Loc: loc, Msg: "subquery must contain exactly one query"}
+		w.parseErr = &parser.ParseError{Position: loc.Start, End: loc.End, Message: "subquery must contain exactly one query"}
 	}
 }
 

@@ -11,7 +11,7 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestCreateWorkloadGroup_Basic(t *testing.T) {
-	file, errs := Parse(`CREATE WORKLOAD GROUP g1 PROPERTIES ("max_cpu_percent"="10%")`)
+	file, errs := parseForTest(`CREATE WORKLOAD GROUP g1 PROPERTIES ("max_cpu_percent"="10%")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -40,7 +40,7 @@ func TestCreateWorkloadGroup_Basic(t *testing.T) {
 }
 
 func TestCreateWorkloadGroup_IfNotExists(t *testing.T) {
-	file, errs := Parse(`CREATE WORKLOAD GROUP IF NOT EXISTS g1 PROPERTIES (
+	file, errs := parseForTest(`CREATE WORKLOAD GROUP IF NOT EXISTS g1 PROPERTIES (
 		"max_cpu_percent"="10%",
 		"max_memory_percent"="30%"
 	)`)
@@ -60,7 +60,7 @@ func TestCreateWorkloadGroup_IfNotExists(t *testing.T) {
 }
 
 func TestCreateWorkloadGroup_Tag(t *testing.T) {
-	file, errs := Parse(`CREATE WORKLOAD GROUP g1 PROPERTIES ("max_cpu_percent"="10%")`)
+	file, errs := parseForTest(`CREATE WORKLOAD GROUP g1 PROPERTIES ("max_cpu_percent"="10%")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -74,7 +74,7 @@ func TestCreateWorkloadGroup_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAlterWorkloadGroup_Basic(t *testing.T) {
-	file, errs := Parse(`ALTER WORKLOAD GROUP g1 PROPERTIES (
+	file, errs := parseForTest(`ALTER WORKLOAD GROUP g1 PROPERTIES (
 		"max_cpu_percent"="20%",
 		"max_memory_percent"="40%"
 	)`)
@@ -97,7 +97,7 @@ func TestAlterWorkloadGroup_Basic(t *testing.T) {
 }
 
 func TestAlterWorkloadGroup_Tag(t *testing.T) {
-	file, errs := Parse(`ALTER WORKLOAD GROUP g1 PROPERTIES ("max_cpu_percent"="20%")`)
+	file, errs := parseForTest(`ALTER WORKLOAD GROUP g1 PROPERTIES ("max_cpu_percent"="20%")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -111,7 +111,7 @@ func TestAlterWorkloadGroup_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDropWorkloadGroup_Basic(t *testing.T) {
-	file, errs := Parse(`DROP WORKLOAD GROUP g1`)
+	file, errs := parseForTest(`DROP WORKLOAD GROUP g1`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -131,7 +131,7 @@ func TestDropWorkloadGroup_Basic(t *testing.T) {
 }
 
 func TestDropWorkloadGroup_IfExists(t *testing.T) {
-	file, errs := Parse(`DROP WORKLOAD GROUP IF EXISTS g1`)
+	file, errs := parseForTest(`DROP WORKLOAD GROUP IF EXISTS g1`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -145,7 +145,7 @@ func TestDropWorkloadGroup_IfExists(t *testing.T) {
 }
 
 func TestDropWorkloadGroup_Tag(t *testing.T) {
-	file, errs := Parse(`DROP WORKLOAD GROUP IF EXISTS g1`)
+	file, errs := parseForTest(`DROP WORKLOAD GROUP IF EXISTS g1`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -180,7 +180,7 @@ func TestWorkloadGroup_LegacyCorpus(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.sql[:20], func(t *testing.T) {
-			file, errs := Parse(tc.sql)
+			file, errs := parseForTest(tc.sql)
 			if len(errs) != 0 {
 				t.Fatalf("unexpected errors: %v", errs)
 			}
@@ -196,7 +196,7 @@ func TestWorkloadGroup_LegacyCorpus(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCreateWorkloadPolicy_Basic(t *testing.T) {
-	file, errs := Parse(`CREATE WORKLOAD POLICY p1
+	file, errs := parseForTest(`CREATE WORKLOAD POLICY p1
 		CONDITIONS(query_time > 1000)
 		ACTIONS(cancel_query)
 		PROPERTIES("enabled"="true")`)
@@ -228,7 +228,7 @@ func TestCreateWorkloadPolicy_Basic(t *testing.T) {
 }
 
 func TestCreateWorkloadPolicy_IfNotExists(t *testing.T) {
-	file, errs := Parse(`CREATE WORKLOAD POLICY IF NOT EXISTS p1
+	file, errs := parseForTest(`CREATE WORKLOAD POLICY IF NOT EXISTS p1
 		CONDITIONS(scan_rows > 1000000000, query_time > 1000)
 		ACTIONS(cancel_query)`)
 	if len(errs) != 0 {
@@ -247,7 +247,7 @@ func TestCreateWorkloadPolicy_IfNotExists(t *testing.T) {
 }
 
 func TestCreateWorkloadPolicy_Tag(t *testing.T) {
-	file, errs := Parse(`CREATE WORKLOAD POLICY p1 CONDITIONS(query_time > 1000) ACTIONS(cancel_query)`)
+	file, errs := parseForTest(`CREATE WORKLOAD POLICY p1 CONDITIONS(query_time > 1000) ACTIONS(cancel_query)`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -261,7 +261,7 @@ func TestCreateWorkloadPolicy_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAlterWorkloadPolicy_Basic(t *testing.T) {
-	file, errs := Parse(`ALTER WORKLOAD POLICY p1 PROPERTIES("enabled"="false")`)
+	file, errs := parseForTest(`ALTER WORKLOAD POLICY p1 PROPERTIES("enabled"="false")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -284,7 +284,7 @@ func TestAlterWorkloadPolicy_Basic(t *testing.T) {
 }
 
 func TestAlterWorkloadPolicy_Tag(t *testing.T) {
-	file, errs := Parse(`ALTER WORKLOAD POLICY p1 PROPERTIES("enabled"="false")`)
+	file, errs := parseForTest(`ALTER WORKLOAD POLICY p1 PROPERTIES("enabled"="false")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -298,7 +298,7 @@ func TestAlterWorkloadPolicy_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDropWorkloadPolicy_Basic(t *testing.T) {
-	file, errs := Parse(`DROP WORKLOAD POLICY p1`)
+	file, errs := parseForTest(`DROP WORKLOAD POLICY p1`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -315,7 +315,7 @@ func TestDropWorkloadPolicy_Basic(t *testing.T) {
 }
 
 func TestDropWorkloadPolicy_IfExists(t *testing.T) {
-	file, errs := Parse(`DROP WORKLOAD POLICY IF EXISTS p1`)
+	file, errs := parseForTest(`DROP WORKLOAD POLICY IF EXISTS p1`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -326,7 +326,7 @@ func TestDropWorkloadPolicy_IfExists(t *testing.T) {
 }
 
 func TestDropWorkloadPolicy_Tag(t *testing.T) {
-	file, errs := Parse(`DROP WORKLOAD POLICY IF EXISTS p1`)
+	file, errs := parseForTest(`DROP WORKLOAD POLICY IF EXISTS p1`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -340,7 +340,7 @@ func TestDropWorkloadPolicy_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCreateResource_Basic(t *testing.T) {
-	file, errs := Parse(`CREATE RESOURCE mysql_resource PROPERTIES (
+	file, errs := parseForTest(`CREATE RESOURCE mysql_resource PROPERTIES (
 		"type"="jdbc",
 		"user"="root",
 		"password"="123456"
@@ -370,7 +370,7 @@ func TestCreateResource_Basic(t *testing.T) {
 }
 
 func TestCreateResource_QuotedName(t *testing.T) {
-	file, errs := Parse(`CREATE RESOURCE "remote_s3" PROPERTIES(
+	file, errs := parseForTest(`CREATE RESOURCE "remote_s3" PROPERTIES(
 		"type"="s3",
 		"s3.endpoint"="bj.s3.com"
 	)`)
@@ -387,7 +387,7 @@ func TestCreateResource_QuotedName(t *testing.T) {
 }
 
 func TestCreateResource_IfNotExists(t *testing.T) {
-	file, errs := Parse(`CREATE RESOURCE IF NOT EXISTS r1 PROPERTIES("type"="s3")`)
+	file, errs := parseForTest(`CREATE RESOURCE IF NOT EXISTS r1 PROPERTIES("type"="s3")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -398,7 +398,7 @@ func TestCreateResource_IfNotExists(t *testing.T) {
 }
 
 func TestCreateResource_Tag(t *testing.T) {
-	file, errs := Parse(`CREATE RESOURCE r1 PROPERTIES("type"="s3")`)
+	file, errs := parseForTest(`CREATE RESOURCE r1 PROPERTIES("type"="s3")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -412,7 +412,7 @@ func TestCreateResource_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCreateExternalResource_Basic(t *testing.T) {
-	file, errs := Parse(`CREATE EXTERNAL RESOURCE "spark0"
+	file, errs := parseForTest(`CREATE EXTERNAL RESOURCE "spark0"
 	PROPERTIES(
 		"type" = "spark",
 		"spark.master" = "yarn",
@@ -442,7 +442,7 @@ func TestCreateExternalResource_Basic(t *testing.T) {
 }
 
 func TestCreateExternalResource_BacktickName(t *testing.T) {
-	file, errs := Parse("CREATE EXTERNAL RESOURCE `oracle_odbc` PROPERTIES (\"type\" = \"odbc_catalog\", \"host\" = \"192.168.0.1\")")
+	file, errs := parseForTest("CREATE EXTERNAL RESOURCE `oracle_odbc` PROPERTIES (\"type\" = \"odbc_catalog\", \"host\" = \"192.168.0.1\")")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -456,7 +456,7 @@ func TestCreateExternalResource_BacktickName(t *testing.T) {
 }
 
 func TestCreateExternalResource_Tag(t *testing.T) {
-	file, errs := Parse(`CREATE EXTERNAL RESOURCE "spark0" PROPERTIES("type"="spark")`)
+	file, errs := parseForTest(`CREATE EXTERNAL RESOURCE "spark0" PROPERTIES("type"="spark")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -470,7 +470,7 @@ func TestCreateExternalResource_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAlterResource_Basic(t *testing.T) {
-	file, errs := Parse(`ALTER RESOURCE spark0 PROPERTIES("spark.executor.memory"="2g")`)
+	file, errs := parseForTest(`ALTER RESOURCE spark0 PROPERTIES("spark.executor.memory"="2g")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -490,7 +490,7 @@ func TestAlterResource_Basic(t *testing.T) {
 }
 
 func TestAlterResource_Tag(t *testing.T) {
-	file, errs := Parse(`ALTER RESOURCE r1 PROPERTIES("type"="s3")`)
+	file, errs := parseForTest(`ALTER RESOURCE r1 PROPERTIES("type"="s3")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -504,7 +504,7 @@ func TestAlterResource_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDropResource_Basic(t *testing.T) {
-	file, errs := Parse(`DROP RESOURCE 'spark0'`)
+	file, errs := parseForTest(`DROP RESOURCE 'spark0'`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -524,7 +524,7 @@ func TestDropResource_Basic(t *testing.T) {
 }
 
 func TestDropResource_IfExists(t *testing.T) {
-	file, errs := Parse(`DROP RESOURCE IF EXISTS spark0`)
+	file, errs := parseForTest(`DROP RESOURCE IF EXISTS spark0`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -535,7 +535,7 @@ func TestDropResource_IfExists(t *testing.T) {
 }
 
 func TestDropResource_Tag(t *testing.T) {
-	file, errs := Parse(`DROP RESOURCE 'spark0'`)
+	file, errs := parseForTest(`DROP RESOURCE 'spark0'`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -589,7 +589,7 @@ func TestResource_LegacyCorpus(t *testing.T) {
 	}
 
 	for i, sql := range cases {
-		file, errs := Parse(sql)
+		file, errs := parseForTest(sql)
 		if len(errs) != 0 {
 			t.Errorf("case %d: unexpected errors: %v", i, errs)
 			continue
@@ -605,7 +605,7 @@ func TestResource_LegacyCorpus(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCreateSQLBlockRule_Basic(t *testing.T) {
-	file, errs := Parse(`CREATE SQL_BLOCK_RULE test_rule PROPERTIES (
+	file, errs := parseForTest(`CREATE SQL_BLOCK_RULE test_rule PROPERTIES (
 		"sql"="select \\* from order_analysis",
 		"enable"="true"
 	)`)
@@ -631,7 +631,7 @@ func TestCreateSQLBlockRule_Basic(t *testing.T) {
 }
 
 func TestCreateSQLBlockRule_IfNotExists(t *testing.T) {
-	file, errs := Parse(`CREATE SQL_BLOCK_RULE IF NOT EXISTS test_rule PROPERTIES("sql"="select 1", "enable"="true")`)
+	file, errs := parseForTest(`CREATE SQL_BLOCK_RULE IF NOT EXISTS test_rule PROPERTIES("sql"="select 1", "enable"="true")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -642,7 +642,7 @@ func TestCreateSQLBlockRule_IfNotExists(t *testing.T) {
 }
 
 func TestCreateSQLBlockRule_ScanRowsLimit(t *testing.T) {
-	file, errs := Parse(`CREATE SQL_BLOCK_RULE test_rule2 PROPERTIES (
+	file, errs := parseForTest(`CREATE SQL_BLOCK_RULE test_rule2 PROPERTIES (
 		"scan_row_limit"="100",
 		"enable"="true"
 	)`)
@@ -659,7 +659,7 @@ func TestCreateSQLBlockRule_ScanRowsLimit(t *testing.T) {
 }
 
 func TestCreateSQLBlockRule_Tag(t *testing.T) {
-	file, errs := Parse(`CREATE SQL_BLOCK_RULE r1 PROPERTIES("sql"="select 1", "enable"="true")`)
+	file, errs := parseForTest(`CREATE SQL_BLOCK_RULE r1 PROPERTIES("sql"="select 1", "enable"="true")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -673,7 +673,7 @@ func TestCreateSQLBlockRule_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAlterSQLBlockRule_Basic(t *testing.T) {
-	file, errs := Parse(`ALTER SQL_BLOCK_RULE test_rule PROPERTIES("enable"="false")`)
+	file, errs := parseForTest(`ALTER SQL_BLOCK_RULE test_rule PROPERTIES("enable"="false")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -693,7 +693,7 @@ func TestAlterSQLBlockRule_Basic(t *testing.T) {
 }
 
 func TestAlterSQLBlockRule_Tag(t *testing.T) {
-	file, errs := Parse(`ALTER SQL_BLOCK_RULE r1 PROPERTIES("enable"="false")`)
+	file, errs := parseForTest(`ALTER SQL_BLOCK_RULE r1 PROPERTIES("enable"="false")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -707,7 +707,7 @@ func TestAlterSQLBlockRule_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDropSQLBlockRule_Basic(t *testing.T) {
-	file, errs := Parse(`DROP SQL_BLOCK_RULE test_rule`)
+	file, errs := parseForTest(`DROP SQL_BLOCK_RULE test_rule`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -727,7 +727,7 @@ func TestDropSQLBlockRule_Basic(t *testing.T) {
 }
 
 func TestDropSQLBlockRule_IfExists(t *testing.T) {
-	file, errs := Parse(`DROP SQL_BLOCK_RULE IF EXISTS test_rule`)
+	file, errs := parseForTest(`DROP SQL_BLOCK_RULE IF EXISTS test_rule`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -738,7 +738,7 @@ func TestDropSQLBlockRule_IfExists(t *testing.T) {
 }
 
 func TestDropSQLBlockRule_Tag(t *testing.T) {
-	file, errs := Parse(`DROP SQL_BLOCK_RULE IF EXISTS test_rule`)
+	file, errs := parseForTest(`DROP SQL_BLOCK_RULE IF EXISTS test_rule`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -756,7 +756,7 @@ func TestWorkload_MultiStatement(t *testing.T) {
 ALTER WORKLOAD GROUP g1 PROPERTIES ("max_cpu_percent"="20%", "max_memory_percent"="40%");
 DROP WORKLOAD GROUP IF EXISTS g1`
 
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -779,7 +779,7 @@ func TestResource_MultiStatement(t *testing.T) {
 CREATE RESOURCE "remote_s3" PROPERTIES("type"="s3");
 DROP RESOURCE 'spark0'`
 
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -802,7 +802,7 @@ DROP RESOURCE 'spark0'`
 
 func TestCreateExternalTable_NotResource(t *testing.T) {
 	// CREATE EXTERNAL TABLE should still route to parseCreateTable, not parseCreateResource.
-	file, errs := Parse("CREATE EXTERNAL TABLE t (id INT) ENGINE=HIVE PROPERTIES(\"database\"=\"db\", \"table\"=\"t\")")
+	file, errs := parseForTest("CREATE EXTERNAL TABLE t (id INT) ENGINE=HIVE PROPERTIES(\"database\"=\"db\", \"table\"=\"t\")")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}

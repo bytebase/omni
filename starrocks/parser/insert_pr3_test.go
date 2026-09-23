@@ -40,7 +40,7 @@ func TestInsertByNameThenWithLabel(t *testing.T) {
 
 // BY NAME and a column list are mutually exclusive — must reject.
 func TestInsertByNameWithColumnListRejected(t *testing.T) {
-	_, errs := Parse("INSERT INTO t BY NAME (a, b) SELECT a, b FROM s")
+	_, errs := parseForTest("INSERT INTO t BY NAME (a, b) SELECT a, b FROM s")
 	if len(errs) == 0 {
 		t.Fatal("expected a parse error for BY NAME + column list, got none")
 	}

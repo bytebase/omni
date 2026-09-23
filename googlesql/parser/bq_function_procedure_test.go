@@ -18,7 +18,7 @@ func cfOf(t *testing.T, sql string) *ast.CreateFunctionStmt {
 	n := parseDDL(t, sql)
 	cf, ok := n.(*ast.CreateFunctionStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.CreateFunctionStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.CreateFunctionStmt", sql, n)
 	}
 	return cf
 }
@@ -208,7 +208,7 @@ func cpOf(t *testing.T, sql string) *ast.CreateProcedureStmt {
 	n := parseDDL(t, sql)
 	cp, ok := n.(*ast.CreateProcedureStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.CreateProcedureStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.CreateProcedureStmt", sql, n)
 	}
 	return cp
 }
@@ -316,7 +316,7 @@ func bqDropOf(t *testing.T, sql string) *ast.BQDropStmt {
 	n := parseDDL(t, sql)
 	d, ok := n.(*ast.BQDropStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.BQDropStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.BQDropStmt", sql, n)
 	}
 	return d
 }

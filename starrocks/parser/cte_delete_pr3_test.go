@@ -10,7 +10,7 @@ import (
 // (but NOT before UPDATE).
 
 func TestCTEDelete(t *testing.T) {
-	file, errs := Parse("WITH c AS (SELECT id FROM s) DELETE FROM t WHERE id IN (SELECT id FROM c)")
+	file, errs := parseForTest("WITH c AS (SELECT id FROM s) DELETE FROM t WHERE id IN (SELECT id FROM c)")
 	if len(errs) > 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -27,7 +27,7 @@ func TestCTEDelete(t *testing.T) {
 }
 
 func TestCTEDeleteMultiple(t *testing.T) {
-	file, errs := Parse("WITH a AS (SELECT 1), b AS (SELECT 2) DELETE FROM t WHERE k IN (SELECT x FROM a)")
+	file, errs := parseForTest("WITH a AS (SELECT 1), b AS (SELECT 2) DELETE FROM t WHERE k IN (SELECT x FROM a)")
 	if len(errs) > 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -39,7 +39,7 @@ func TestCTEDeleteMultiple(t *testing.T) {
 
 // Regression: CTE-prefixed SELECT must still parse as a SelectStmt with its WITH.
 func TestCTESelectStillWorks(t *testing.T) {
-	file, errs := Parse("WITH c AS (SELECT a FROM real_t) SELECT a FROM c")
+	file, errs := parseForTest("WITH c AS (SELECT a FROM real_t) SELECT a FROM c")
 	if len(errs) > 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -57,7 +57,7 @@ func TestCTESelectStillWorks(t *testing.T) {
 // from a probe that used UPDATE … FROM c, which StarRocks rejects for an
 // unrelated reason (it has no UPDATE … FROM form).
 func TestCTEUpdate(t *testing.T) {
-	file, errs := Parse("WITH c AS (SELECT id FROM s) UPDATE t SET v = 1 WHERE id IN (SELECT id FROM c)")
+	file, errs := parseForTest("WITH c AS (SELECT id FROM s) UPDATE t SET v = 1 WHERE id IN (SELECT id FROM c)")
 	if len(errs) > 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -73,7 +73,7 @@ func TestCTEUpdate(t *testing.T) {
 // WITH … INSERT is NOT allowed by StarRocks (insertStatement has no withClause)
 // and must stay rejected.
 func TestCTEInsertRejected(t *testing.T) {
-	_, errs := Parse("WITH c AS (SELECT 1) INSERT INTO t SELECT x FROM c")
+	_, errs := parseForTest("WITH c AS (SELECT 1) INSERT INTO t SELECT x FROM c")
 	if len(errs) == 0 {
 		t.Fatal("expected a parse error for CTE-prefixed INSERT, got none")
 	}

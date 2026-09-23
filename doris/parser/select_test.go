@@ -9,16 +9,16 @@ import (
 // mustParseSelect parses input and returns the first statement as *ast.SelectStmt.
 func mustParseSelect(t *testing.T, input string) *ast.SelectStmt {
 	t.Helper()
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", input)
+		t.Fatalf("parseForTest(%q) returned no statements", input)
 	}
 	stmt, ok := file.Stmts[0].(*ast.SelectStmt)
 	if !ok {
-		t.Fatalf("Parse(%q) got %T, want *ast.SelectStmt", input, file.Stmts[0])
+		t.Fatalf("parseForTest(%q) got %T, want *ast.SelectStmt", input, file.Stmts[0])
 	}
 	return stmt
 }
@@ -441,7 +441,7 @@ func TestSelectQualify(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSelectMultipleStatements(t *testing.T) {
-	file, errs := Parse("SELECT 1; SELECT 2")
+	file, errs := parseForTest("SELECT 1; SELECT 2")
 	if len(errs) > 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -561,7 +561,7 @@ func TestSelectGroupByGroupingSets(t *testing.T) {
 	}
 
 	// Like CUBE, GROUPING SETS is the whole grouping specification.
-	_, errs := Parse("SELECT a FROM t GROUP BY GROUPING SETS ((a)), b")
+	_, errs := parseForTest("SELECT a FROM t GROUP BY GROUPING SETS ((a)), b")
 	if len(errs) == 0 {
 		t.Error("GROUPING SETS with a trailing item parsed, want error")
 	}
@@ -683,25 +683,25 @@ func TestSelectQualifiedColumnContinuations(t *testing.T) {
 func TestParenQueryStatements(t *testing.T) {
 	// Top-level parenthesized queries are engine-valid; the parens are
 	// grouping only, so the inner node comes back directly.
-	file, errs := Parse("(SELECT 1)")
+	file, errs := parseForTest("(SELECT 1)")
 	if len(errs) != 0 {
 		t.Fatalf("(SELECT 1) errors: %v", errs)
 	}
 	if _, ok := file.Stmts[0].(*ast.SelectStmt); !ok {
 		t.Fatalf("stmt = %T, want *ast.SelectStmt", file.Stmts[0])
 	}
-	file, errs = Parse("((SELECT 1))")
+	file, errs = parseForTest("((SELECT 1))")
 	if len(errs) != 0 {
 		t.Fatalf("((SELECT 1)) errors: %v", errs)
 	}
-	file, errs = Parse("(SELECT 1) UNION (SELECT 2)")
+	file, errs = parseForTest("(SELECT 1) UNION (SELECT 2)")
 	if len(errs) != 0 {
 		t.Fatalf("union errors: %v", errs)
 	}
 	if _, ok := file.Stmts[0].(*ast.SetOpStmt); !ok {
 		t.Fatalf("stmt = %T, want *ast.SetOpStmt", file.Stmts[0])
 	}
-	if _, errs := Parse("(INSERT INTO t VALUES (1))"); len(errs) == 0 {
+	if _, errs := parseForTest("(INSERT INTO t VALUES (1))"); len(errs) == 0 {
 		t.Error("(INSERT ...) parsed, want error")
 	}
 }
@@ -714,7 +714,7 @@ func TestParenQuerySetOpTails(t *testing.T) {
 		"((SELECT 1) UNION SELECT 2 UNION SELECT 3)",
 		"((SELECT 1) INTERSECT SELECT 2)",
 	} {
-		file, errs := Parse(sql)
+		file, errs := parseForTest(sql)
 		if len(errs) != 0 {
 			t.Fatalf("%s errors: %v", sql, errs)
 		}
@@ -724,7 +724,7 @@ func TestParenQuerySetOpTails(t *testing.T) {
 	}
 
 	// A WITH-bearing group keeps its scope-boundary wrapper.
-	file, errs := Parse("(WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2)")
+	file, errs := parseForTest("(WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2)")
 	if len(errs) != 0 {
 		t.Fatalf("paren WITH union errors: %v", errs)
 	}
@@ -741,7 +741,7 @@ func TestParenBoundsCTEScope(t *testing.T) {
 	// (WITH c AS (...) SELECT 1) UNION SELECT * FROM c: the engine scopes c
 	// to the parens ("Table [c] does not exist", container-verified), so the
 	// left arm stays wrapped in the boundary node.
-	file, errs := Parse("(WITH c AS (SELECT 1) SELECT 1) UNION SELECT * FROM c")
+	file, errs := parseForTest("(WITH c AS (SELECT 1) SELECT 1) UNION SELECT * FROM c")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -754,7 +754,7 @@ func TestParenBoundsCTEScope(t *testing.T) {
 	}
 
 	// A CTE body may itself be parenthesized (engine-verified).
-	if _, errs := Parse("WITH c AS ((SELECT 1)) SELECT * FROM c"); len(errs) != 0 {
+	if _, errs := parseForTest("WITH c AS ((SELECT 1)) SELECT * FROM c"); len(errs) != 0 {
 		t.Fatalf("paren CTE body errors: %v", errs)
 	}
 }
@@ -762,7 +762,7 @@ func TestParenBoundsCTEScope(t *testing.T) {
 func TestParenQueryTrailingClauses(t *testing.T) {
 	// Outer ORDER BY / LIMIT attach to the grouped query rather than being
 	// consumed and dropped.
-	file, errs := Parse("(SELECT 1) ORDER BY 1 LIMIT 5")
+	file, errs := parseForTest("(SELECT 1) ORDER BY 1 LIMIT 5")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -774,7 +774,7 @@ func TestParenQueryTrailingClauses(t *testing.T) {
 		t.Fatalf("clauses dropped: OrderBy=%d Limit=%v", len(sel.OrderBy), sel.Limit)
 	}
 
-	file, errs = Parse("((SELECT 1)) LIMIT 5")
+	file, errs = parseForTest("((SELECT 1)) LIMIT 5")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -782,7 +782,7 @@ func TestParenQueryTrailingClauses(t *testing.T) {
 		t.Fatal("LIMIT dropped on nested paren query")
 	}
 
-	file, errs = Parse("(SELECT 1) UNION (SELECT 2) ORDER BY 1 LIMIT 5")
+	file, errs = parseForTest("(SELECT 1) UNION (SELECT 2) ORDER BY 1 LIMIT 5")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -795,7 +795,7 @@ func TestParenQueryTrailingClauses(t *testing.T) {
 	}
 
 	// The strict trailing-token check still applies after the clauses.
-	if _, errs := Parse("(SELECT 1) ORDER BY 1 LIMIT 5 x"); len(errs) == 0 {
+	if _, errs := parseForTest("(SELECT 1) ORDER BY 1 LIMIT 5 x"); len(errs) == 0 {
 		t.Error("junk after trailing clauses parsed, want error")
 	}
 }
@@ -803,7 +803,7 @@ func TestParenQueryTrailingClauses(t *testing.T) {
 func TestQueryTailStatementLevel(t *testing.T) {
 	// Trailing clauses after a set operation whose right operand is
 	// parenthesized (engine-verified accepts).
-	file, errs := Parse("SELECT 1 UNION (SELECT 2) LIMIT 5")
+	file, errs := parseForTest("SELECT 1 UNION (SELECT 2) LIMIT 5")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -812,7 +812,7 @@ func TestQueryTailStatementLevel(t *testing.T) {
 		t.Fatal("LIMIT not attached to statement-level set operation")
 	}
 
-	file, errs = Parse("SELECT 1 UNION (SELECT 2) ORDER BY 1 LIMIT 5")
+	file, errs = parseForTest("SELECT 1 UNION (SELECT 2) ORDER BY 1 LIMIT 5")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -822,7 +822,7 @@ func TestQueryTailStatementLevel(t *testing.T) {
 	}
 
 	// WITH ... SELECT continues with set operators at statement level.
-	file, errs = Parse("WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2")
+	file, errs = parseForTest("WITH c AS (SELECT 1) SELECT 1 UNION SELECT 2")
 	if len(errs) != 0 {
 		t.Fatalf("WITH union errors: %v", errs)
 	}
@@ -836,7 +836,7 @@ func TestQueryTailStatementLevel(t *testing.T) {
 	}
 
 	// A CTE body takes a set-op tail too.
-	file, errs = Parse("WITH c AS (SELECT 1 UNION SELECT 2) SELECT * FROM c")
+	file, errs = parseForTest("WITH c AS (SELECT 1 UNION SELECT 2) SELECT * FROM c")
 	if len(errs) != 0 {
 		t.Fatalf("CTE body union errors: %v", errs)
 	}
@@ -848,7 +848,7 @@ func TestQueryTailStatementLevel(t *testing.T) {
 	// The engine is lenient about clause order and repetition
 	// (container-verified). A second group lands on a wrapper so the two
 	// stay ordered: LIMIT-first-then-ORDER is not ORDER-then-LIMIT.
-	file, errs = Parse("SELECT 1 LIMIT 5 ORDER BY 1")
+	file, errs = parseForTest("SELECT 1 LIMIT 5 ORDER BY 1")
 	if len(errs) != 0 {
 		t.Fatalf("LIMIT-then-ORDER errors: %v", errs)
 	}
@@ -859,12 +859,12 @@ func TestQueryTailStatementLevel(t *testing.T) {
 	if len(g.OrderBy) != 1 || g.Query.(*ast.SelectStmt).Limit == nil {
 		t.Fatalf("clause layers wrong: outer OrderBy=%d inner Limit=%v", len(g.OrderBy), g.Query.(*ast.SelectStmt).Limit)
 	}
-	if _, errs := Parse("SELECT 1 ORDER BY 1 ORDER BY 2"); len(errs) != 0 {
+	if _, errs := parseForTest("SELECT 1 ORDER BY 1 ORDER BY 2"); len(errs) != 0 {
 		t.Fatalf("repeated ORDER BY errors: %v", errs)
 	}
 
 	// Junk after the clauses still errors.
-	if _, errs := Parse("SELECT 1 UNION (SELECT 2) GARBAGE"); len(errs) == 0 {
+	if _, errs := parseForTest("SELECT 1 UNION (SELECT 2) GARBAGE"); len(errs) == 0 {
 		t.Error("junk after set operation parsed, want error")
 	}
 }
@@ -872,7 +872,7 @@ func TestQueryTailStatementLevel(t *testing.T) {
 func TestGroupedQueryWrapOnConflict(t *testing.T) {
 	// A trailing group that repeats a clause the query already carries wraps
 	// in GroupedQuery instead of overwriting — both layers stay in the tree.
-	file, errs := Parse("(SELECT 1 ORDER BY 1) ORDER BY 2")
+	file, errs := parseForTest("(SELECT 1 ORDER BY 1) ORDER BY 2")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -891,7 +891,7 @@ func TestGroupedQueryWrapOnConflict(t *testing.T) {
 		t.Fatal("inner ORDER BY overwritten by the outer group")
 	}
 
-	file, errs = Parse("SELECT 1 LIMIT 1 LIMIT 2")
+	file, errs = parseForTest("SELECT 1 LIMIT 1 LIMIT 2")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -906,7 +906,7 @@ func TestGroupedQueryWrapOnConflict(t *testing.T) {
 	// Different clause kinds also wrap: (SELECT a FROM t LIMIT 1) ORDER BY a
 	// limits first and then orders, which is not the same operation as
 	// SELECT a FROM t ORDER BY a LIMIT 1.
-	file, errs = Parse("(SELECT a FROM t LIMIT 1) ORDER BY a")
+	file, errs = parseForTest("(SELECT a FROM t LIMIT 1) ORDER BY a")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -919,7 +919,7 @@ func TestGroupedQueryWrapOnConflict(t *testing.T) {
 	}
 
 	// No clause on the node — no wrapper: the group attaches in place.
-	file, errs = Parse("(SELECT 1) ORDER BY 1")
+	file, errs = parseForTest("(SELECT 1) ORDER BY 1")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -928,7 +928,7 @@ func TestGroupedQueryWrapOnConflict(t *testing.T) {
 	}
 
 	// Both clause layers are reachable from Walk.
-	file, errs = Parse("SELECT 1 ORDER BY a ORDER BY b")
+	file, errs = parseForTest("SELECT 1 ORDER BY a ORDER BY b")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -957,7 +957,7 @@ func TestParenQueryLocCoversParens(t *testing.T) {
 		"(SELECT 1 LIMIT 1) ORDER BY 2",
 		"(WITH c AS (SELECT 1) SELECT 1)",
 	} {
-		file, errs := Parse(sql)
+		file, errs := parseForTest(sql)
 		if len(errs) != 0 {
 			t.Fatalf("%s errors: %v", sql, errs)
 		}
@@ -972,7 +972,7 @@ func TestLateralView(t *testing.T) {
 	// LATERAL VIEW generator(args) tableAlias AS col[, col...] — the engine
 	// requires the table alias and AS list and has no OUTER variant
 	// (container-verified).
-	file, errs := Parse("SELECT * FROM t LATERAL VIEW EXPLODE_SPLIT(s, ',') tmp AS c1, c2")
+	file, errs := parseForTest("SELECT * FROM t LATERAL VIEW EXPLODE_SPLIT(s, ',') tmp AS c1, c2")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -990,7 +990,7 @@ func TestLateralView(t *testing.T) {
 	}
 
 	// Chained lateral views.
-	file, errs = Parse("SELECT * FROM t LATERAL VIEW EXPLODE([1]) a AS x LATERAL VIEW EXPLODE([2]) b AS y")
+	file, errs = parseForTest("SELECT * FROM t LATERAL VIEW EXPLODE([1]) a AS x LATERAL VIEW EXPLODE([2]) b AS y")
 	if len(errs) != 0 {
 		t.Fatalf("chained errors: %v", errs)
 	}
@@ -1018,7 +1018,7 @@ func TestLateralView(t *testing.T) {
 		"SELECT * FROM t LATERAL VIEW EXPLODE([1]) AS c",
 		"SELECT * FROM t LATERAL VIEW EXPLODE([1]) tmp AS c zzz",
 	} {
-		if _, errs := Parse(sql); len(errs) == 0 {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%s parsed, want error", sql)
 		}
 	}

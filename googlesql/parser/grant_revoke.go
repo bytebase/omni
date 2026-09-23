@@ -167,8 +167,8 @@ func (p *Parser) checkObjectListGrantees(paths []ast.NamePath, grantees []*ast.G
 	for _, g := range grantees {
 		if g.Kind != ast.GranteeRole {
 			return &ParseError{
-				Loc: g.Loc,
-				Msg: "syntax error: a GRANT/REVOKE over multiple objects requires ROLE grantees",
+				Position: g.Loc.Start, End: g.Loc.End,
+				Message: "syntax error: a GRANT/REVOKE over multiple objects requires ROLE grantees",
 			}
 		}
 	}
@@ -430,8 +430,8 @@ func (p *Parser) atPathRunBoundary() bool {
 func singleIdentName(path ast.NamePath) (string, error) {
 	if len(path.Parts) != 1 {
 		return "", &ParseError{
-			Loc: path.Loc,
-			Msg: "syntax error: object type in GRANT/REVOKE must be a single identifier, not a dotted path",
+			Position: path.Loc.Start, End: path.Loc.End,
+			Message: "syntax error: object type in GRANT/REVOKE must be a single identifier, not a dotted path",
 		}
 	}
 	return path.Parts[0], nil

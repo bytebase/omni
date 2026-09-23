@@ -13,12 +13,12 @@ import (
 
 func parseCallProcedureStmt(t *testing.T, sql string) *ast.CallProcedureStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.CallProcedureStmt)
 	if !ok {
@@ -29,12 +29,12 @@ func parseCallProcedureStmt(t *testing.T, sql string) *ast.CallProcedureStmt {
 
 func parseDropProcedureStmt(t *testing.T, sql string) *ast.DropProcedureStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.DropProcedureStmt)
 	if !ok {
@@ -45,12 +45,12 @@ func parseDropProcedureStmt(t *testing.T, sql string) *ast.DropProcedureStmt {
 
 func parseCreateProcedureStmt(t *testing.T, sql string) *ast.CreateProcedureStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.CreateProcedureStmt)
 	if !ok {

@@ -15,7 +15,7 @@ func alterOf(t *testing.T, sql string) *ast.AlterStmt {
 	n := parseDDL(t, sql)
 	a, ok := n.(*ast.AlterStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.AlterStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.AlterStmt", sql, n)
 	}
 	return a
 }
@@ -347,22 +347,22 @@ func TestAlterSearchIndex_String(t *testing.T) {
 
 func TestAlterSearchIndex_Rejects(t *testing.T) {
 	cases := []string{
-		"ALTER SEARCH",                                // SEARCH without INDEX
-		"ALTER SEARCH FOO idx ADD STORED COLUMN c",    // SEARCH not followed by INDEX
-		"ALTER SEARCH INDEX",                          // missing name + action
-		"ALTER SEARCH INDEX idx",                      // missing action list
-		"ALTER SEARCH INDEX idx ADD",                  // dangling ADD
-		"ALTER SEARCH INDEX idx ADD STORED",           // STORED without COLUMN
-		"ALTER SEARCH INDEX idx ADD STORED COLUMN",    // STORED COLUMN without name
-		"ALTER SEARCH INDEX idx DROP STORED",          // DROP STORED without COLUMN
+		"ALTER SEARCH", // SEARCH without INDEX
+		"ALTER SEARCH FOO idx ADD STORED COLUMN c", // SEARCH not followed by INDEX
+		"ALTER SEARCH INDEX",                       // missing name + action
+		"ALTER SEARCH INDEX idx",                   // missing action list
+		"ALTER SEARCH INDEX idx ADD",               // dangling ADD
+		"ALTER SEARCH INDEX idx ADD STORED",        // STORED without COLUMN
+		"ALTER SEARCH INDEX idx ADD STORED COLUMN", // STORED COLUMN without name
+		"ALTER SEARCH INDEX idx DROP STORED",       // DROP STORED without COLUMN
 		// DDL-049 restricts the action to a single {ADD|DROP} STORED COLUMN — the
 		// generic table alter actions must NOT be accepted (review finding F1: the
 		// initial impl reused the unrestricted alter_action_list).
-		"ALTER SEARCH INDEX idx RENAME TO idx2",                          // RENAME forbidden
-		"ALTER SEARCH INDEX idx SET OPTIONS (x=1)",                       // SET OPTIONS forbidden
-		"ALTER SEARCH INDEX idx ADD COLUMN c INT64",                      // ADD COLUMN (non-STORED) forbidden
+		"ALTER SEARCH INDEX idx RENAME TO idx2",                                    // RENAME forbidden
+		"ALTER SEARCH INDEX idx SET OPTIONS (x=1)",                                 // SET OPTIONS forbidden
+		"ALTER SEARCH INDEX idx ADD COLUMN c INT64",                                // ADD COLUMN (non-STORED) forbidden
 		"ALTER SEARCH INDEX idx ADD CONSTRAINT fk FOREIGN KEY (a) REFERENCES t(b)", // ADD CONSTRAINT forbidden
-		"ALTER SEARCH INDEX idx ADD STORED COLUMN a, DROP STORED COLUMN b", // single action only, not a list
+		"ALTER SEARCH INDEX idx ADD STORED COLUMN a, DROP STORED COLUMN b",         // single action only, not a list
 	}
 	for _, sql := range cases {
 		assertReject(t, sql)

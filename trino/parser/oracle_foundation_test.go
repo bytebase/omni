@@ -236,9 +236,9 @@ func TestFoundation_SplitRoundTripOracle(t *testing.T) {
 func TestFoundation_ParseRobustnessOnCorpus(t *testing.T) {
 	for _, sql := range oracleCorpus {
 		// Parse must not panic and must always return a non-nil File.
-		file, _ := Parse(sql)
+		file, _ := parseForTest(sql)
 		if file == nil {
-			t.Errorf("Parse(%q) returned nil File", sql)
+			t.Errorf("parseForTest(%q) returned nil File", sql)
 		}
 		// Diagnose must not panic.
 		_ = Diagnose(sql)

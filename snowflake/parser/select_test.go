@@ -15,7 +15,7 @@ func testParseSelectStmt(input string) (*ast.SelectStmt, []ParseError) {
 	}
 	sel, ok := result.File.Stmts[0].(*ast.SelectStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not a SelectStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not a SelectStmt"})
 	}
 	return sel, result.Errors
 }
@@ -1208,7 +1208,7 @@ func testParseSetOp(input string) (*ast.SetOperationStmt, []ParseError) {
 	}
 	node, ok := result.File.Stmts[0].(*ast.SetOperationStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not a SetOperationStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not a SetOperationStmt"})
 	}
 	return node, result.Errors
 }

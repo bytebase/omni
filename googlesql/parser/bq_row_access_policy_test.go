@@ -16,7 +16,7 @@ func rapOf(t *testing.T, sql string) *ast.CreateRowAccessPolicyStmt {
 	n := parseDDL(t, sql)
 	r, ok := n.(*ast.CreateRowAccessPolicyStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.CreateRowAccessPolicyStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.CreateRowAccessPolicyStmt", sql, n)
 	}
 	return r
 }

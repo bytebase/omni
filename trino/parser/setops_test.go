@@ -58,8 +58,8 @@ var setopRejectCorpus = []string{
 func TestSetop_AcceptCorpusParses(t *testing.T) {
 	for _, sql := range setopAcceptCorpus {
 		t.Run(truncateName(sql), func(t *testing.T) {
-			if _, errs := Parse(sql); len(errs) != 0 {
-				t.Errorf("Parse(%q) should accept, got: %v", sql, errs)
+			if _, errs := parseForTest(sql); len(errs) != 0 {
+				t.Errorf("parseForTest(%q) should accept, got: %v", sql, errs)
 			}
 		})
 	}
@@ -68,8 +68,8 @@ func TestSetop_AcceptCorpusParses(t *testing.T) {
 func TestSetop_RejectCorpusRejected(t *testing.T) {
 	for _, sql := range setopRejectCorpus {
 		t.Run(truncateName(sql), func(t *testing.T) {
-			if _, errs := Parse(sql); len(errs) == 0 {
-				t.Errorf("Parse(%q) should reject, but accepted", sql)
+			if _, errs := parseForTest(sql); len(errs) == 0 {
+				t.Errorf("parseForTest(%q) should reject, but accepted", sql)
 			}
 		})
 	}
@@ -78,7 +78,7 @@ func TestSetop_RejectCorpusRejected(t *testing.T) {
 func TestSetop_OracleDifferential(t *testing.T) {
 	o := connectOracle(t)
 	check := func(t *testing.T, sql string) {
-		_, errs := Parse(sql)
+		_, errs := parseForTest(sql)
 		omniAccepts := len(errs) == 0
 		trinoAccepts, ok := oracleAccepts(t, o, sql)
 		if !ok {

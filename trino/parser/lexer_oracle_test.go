@@ -12,7 +12,7 @@ import (
 // This file is the lexer node's slice of the differential-oracle gate described
 // in the migration correctness protocol. The full accept/reject differential
 // (omni Parse vs Trino SYNTAX_ERROR) belongs to the parser-foundation node,
-// which has a Parse() entry point. The lexer cannot decide grammar
+// which has a parseForTest() entry point. The lexer cannot decide grammar
 // acceptance, but it has a well-defined slice of the contract it MUST uphold:
 //
 //	If Trino's parser accepts a statement, the omni lexer must tokenize it

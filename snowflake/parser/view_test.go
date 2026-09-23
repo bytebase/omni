@@ -17,7 +17,7 @@ func testParseCreateView(input string) (*ast.CreateViewStmt, []ParseError) {
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.CreateViewStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not a CreateViewStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not a CreateViewStmt"})
 	}
 	return stmt, result.Errors
 }
@@ -29,7 +29,7 @@ func testParseCreateMaterializedView(input string) (*ast.CreateMaterializedViewS
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.CreateMaterializedViewStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not a CreateMaterializedViewStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not a CreateMaterializedViewStmt"})
 	}
 	return stmt, result.Errors
 }
@@ -41,7 +41,7 @@ func testParseAlterView(input string) (*ast.AlterViewStmt, []ParseError) {
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.AlterViewStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not an AlterViewStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not an AlterViewStmt"})
 	}
 	return stmt, result.Errors
 }
@@ -53,7 +53,7 @@ func testParseAlterMaterializedView(input string) (*ast.AlterMaterializedViewStm
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.AlterMaterializedViewStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not an AlterMaterializedViewStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not an AlterMaterializedViewStmt"})
 	}
 	return stmt, result.Errors
 }

@@ -21,7 +21,7 @@ func selFrom0(t *testing.T, sql string) ast.Node {
 	q := parseQ(t, sql)
 	sel := selectOf(t, q)
 	if len(sel.From) == 0 {
-		t.Fatalf("Parse(%q): SELECT has no FROM items", sql)
+		t.Fatalf("parseForTest(%q): SELECT has no FROM items", sql)
 	}
 	return sel.From[0]
 }
@@ -31,7 +31,7 @@ func tableExpr0(t *testing.T, sql string) *ast.TableExpr {
 	t.Helper()
 	te, ok := selFrom0(t, sql).(*ast.TableExpr)
 	if !ok {
-		t.Fatalf("Parse(%q): FROM[0] = %T, want *ast.TableExpr", sql, selFrom0(t, sql))
+		t.Fatalf("parseForTest(%q): FROM[0] = %T, want *ast.TableExpr", sql, selFrom0(t, sql))
 	}
 	return te
 }
@@ -407,7 +407,7 @@ func TestSelectWith_NotInlineWithExpr(t *testing.T) {
 	// `SELECT WITH(...)` is an inline WITH expression column, not opt_select_with.
 	// (The disambiguator is `WITH (` vs `WITH <identifier>`.) Just assert it does
 	// not get mis-captured as a differential-privacy clause name.
-	file, errs := Parse("SELECT WITH(x AS 1, x + 1) FROM t")
+	file, errs := parseForTest("SELECT WITH(x AS 1, x + 1) FROM t")
 	if len(errs) == 0 {
 		q := file.Stmts[0].(*ast.QueryStmt)
 		sel := q.Body.(*ast.SelectStmt)
@@ -444,7 +444,7 @@ func TestPivot_NonReservedImplicitAlias(t *testing.T) {
 		"SELECT * FROM t pivot, s",
 		"SELECT * FROM t pivot JOIN s ON s.x = t.x",
 	} {
-		if _, errs := Parse(sql); len(errs) != 0 {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
 			t.Errorf("%q: expected accept (pivot is an alias, then a join), got %v", sql, errs)
 		}
 	}
@@ -469,7 +469,7 @@ func TestTableSample_SizeRestricted(t *testing.T) {
 		"SELECT * FROM t TABLESAMPLE BERNOULLI (x ROWS)",
 	}
 	for _, sql := range reject {
-		if _, errs := Parse(sql); len(errs) == 0 {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q: expected reject (non-literal sample size), got accept", sql)
 		}
 	}
@@ -480,7 +480,7 @@ func TestTableSample_SizeRestricted(t *testing.T) {
 		"SELECT * FROM t TABLESAMPLE BERNOULLI (@p PERCENT)",
 	}
 	for _, sql := range accept {
-		if _, errs := Parse(sql); len(errs) != 0 {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
 			t.Errorf("%q: expected accept (literal/cast/param size), got %v", sql, errs)
 		}
 	}
@@ -496,7 +496,7 @@ func TestPivot_ForPrecedence(t *testing.T) {
 		"SELECT * FROM t PIVOT(SUM(s) FOR q.x IN ('x'))",
 	}
 	for _, sql := range accept {
-		if _, errs := Parse(sql); len(errs) != 0 {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
 			t.Errorf("%q: expected accept, got %v", sql, errs)
 		}
 	}
@@ -506,7 +506,7 @@ func TestPivot_ForPrecedence(t *testing.T) {
 		"SELECT * FROM t PIVOT(SUM(s) FOR a AND b IN ('x'))",
 	}
 	for _, sql := range reject {
-		if _, errs := Parse(sql); len(errs) == 0 {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q: expected reject (FOR is higher-prec-than-AND), got accept", sql)
 		}
 	}
@@ -516,10 +516,10 @@ func TestPivot_ForPrecedence(t *testing.T) {
 // parenthesized group is valid (oracle-confirmed). DEFEND of the
 // parsePathListWithOptParens single-vs-parenthesized handling (Codex finding 2).
 func TestUnpivot_BareMultiColumnRejects(t *testing.T) {
-	if _, errs := Parse("SELECT * FROM t UNPIVOT(s1, s2 FOR q IN ((Q1, Q2)))"); len(errs) == 0 {
+	if _, errs := parseForTest("SELECT * FROM t UNPIVOT(s1, s2 FOR q IN ((Q1, Q2)))"); len(errs) == 0 {
 		t.Errorf("bare multi-column value list should reject (must be parenthesized)")
 	}
-	if _, errs := Parse("SELECT * FROM t UNPIVOT((s1, s2) FOR q IN ((Q1, Q2)))"); len(errs) != 0 {
+	if _, errs := parseForTest("SELECT * FROM t UNPIVOT((s1, s2) FOR q IN ((Q1, Q2)))"); len(errs) != 0 {
 		t.Errorf("parenthesized multi-column value list should accept, got %v", errs)
 	}
 }
@@ -548,9 +548,9 @@ func TestWalker_DescendsIntoOperators(t *testing.T) {
 // *FuncCall whose name path matches name (case-insensitive last component).
 func walkFindsFuncCall(t *testing.T, sql, name string) bool {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q): %v", sql, errs)
+		t.Fatalf("parseForTest(%q): %v", sql, errs)
 	}
 	found := false
 	ast.Inspect(file, func(n ast.Node) bool {
@@ -591,9 +591,9 @@ func TestQueryClauses_Reject(t *testing.T) {
 	}
 	for _, sql := range reject {
 		t.Run(sql, func(t *testing.T) {
-			_, errs := Parse(sql)
+			_, errs := parseForTest(sql)
 			if len(errs) == 0 {
-				t.Errorf("Parse(%q): expected a parse error, got none", sql)
+				t.Errorf("parseForTest(%q): expected a parse error, got none", sql)
 			}
 		})
 	}

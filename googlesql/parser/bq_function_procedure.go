@@ -631,8 +631,8 @@ func (p *Parser) parseSQLFunctionBodyOrString(stmt *ast.CreateFunctionStmt) erro
 		// diagnostic.
 		if p.cur.Type == kwSELECT {
 			return &ParseError{
-				Loc: p.cur.Loc,
-				Msg: "The body of each CREATE FUNCTION statement is an expression, not a query; to use a query as an expression, the query must be wrapped with additional parentheses to make it a scalar subquery expression",
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "The body of each CREATE FUNCTION statement is an expression, not a query; to use a query as an expression, the query must be wrapped with additional parentheses to make it a scalar subquery expression",
 			}
 		}
 		expr, err := p.parseExpr()
@@ -873,7 +873,7 @@ func (p *Parser) captureBeginEndBlock() (string, error) {
 		}
 	}
 	// Reached EOF without a matching END.
-	return "", &ParseError{Loc: beginTok.Loc, Msg: "syntax error: unterminated BEGIN...END block (expected END)"}
+	return "", &ParseError{Position: beginTok.Loc.Start, End: beginTok.Loc.End, Message: "syntax error: unterminated BEGIN...END block (expected END)"}
 }
 
 // ---------------------------------------------------------------------------

@@ -750,8 +750,8 @@ func (p *Parser) parseIntervalType() (*DataType, error) {
 		if !ValidIntervalRange(from, to) {
 			// Reversed or cross-family range — Trino rejects this at parse time.
 			return nil, &ParseError{
-				Loc: p.cur.Loc,
-				Msg: "invalid interval qualifier: " + from.String() + " TO " + to.String(),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "invalid interval qualifier: " + from.String() + " TO " + to.String(),
 			}
 		}
 		p.advance() // consume TO
@@ -882,18 +882,18 @@ func (p *Parser) parseLegacyMapType() (*DataType, error) {
 // "expected type".
 func (p *Parser) typeError() *ParseError {
 	if p.cur.Kind == tokEOF {
-		return &ParseError{Loc: p.cur.Loc, Msg: "expected type, found end of input"}
+		return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected type, found end of input"}
 	}
 	text := p.cur.Str
 	if text == "" {
 		text = TokenName(p.cur.Kind)
 	}
-	return &ParseError{Loc: p.cur.Loc, Msg: "expected type, found " + text}
+	return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected type, found " + text}
 }
 
 // typeErrorAt returns a *ParseError with a custom message at the current token.
 func (p *Parser) typeErrorAt(msg string) *ParseError {
-	return &ParseError{Loc: p.cur.Loc, Msg: msg}
+	return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: msg}
 }
 
 // ParseDataType parses a complete Trino type from a standalone string,
@@ -911,14 +911,14 @@ func ParseDataType(input string) (*DataType, []ParseError) {
 		if pe, ok := err.(*ParseError); ok {
 			return nil, []ParseError{*pe}
 		}
-		return nil, []ParseError{{Msg: err.Error()}}
+		return nil, []ParseError{{Message: err.Error()}}
 	}
 	if p.cur.Kind != tokEOF {
 		text := p.cur.Str
 		if text == "" {
 			text = TokenName(p.cur.Kind)
 		}
-		return dt, []ParseError{{Loc: p.cur.Loc, Msg: "unexpected token after type: " + text}}
+		return dt, []ParseError{{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "unexpected token after type: " + text}}
 	}
 	return dt, nil
 }

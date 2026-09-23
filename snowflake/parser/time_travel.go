@@ -75,8 +75,8 @@ func (p *Parser) parseTimeTravelAnchor() (ast.TimeTravelAnchor, error) {
 		return ast.TimeTravelStream, nil
 	default:
 		return 0, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected TIMESTAMP, OFFSET, STATEMENT, or STREAM in time-travel clause",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected TIMESTAMP, OFFSET, STATEMENT, or STREAM in time-travel clause",
 		}
 	}
 }
@@ -110,8 +110,8 @@ func (p *Parser) parseChangesClause() (*ast.ChangesClause, error) {
 		clause.Info = ast.ChangesAppendOnly
 	default:
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected DEFAULT or APPEND_ONLY in CHANGES(INFORMATION => …)",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected DEFAULT or APPEND_ONLY in CHANGES(INFORMATION => …)",
 		}
 	}
 	if _, err := p.expect(')'); err != nil {
@@ -121,8 +121,8 @@ func (p *Parser) parseChangesClause() (*ast.ChangesClause, error) {
 	// Required AT | BEFORE anchor.
 	if p.cur.Type != kwAT && p.cur.Type != kwBEFORE {
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected AT or BEFORE after CHANGES(…)",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected AT or BEFORE after CHANGES(…)",
 		}
 	}
 	start, err := p.parseTimeTravelClause()

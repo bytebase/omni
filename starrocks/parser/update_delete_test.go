@@ -9,16 +9,16 @@ import (
 // mustParseUpdate parses input and returns the first statement as *ast.UpdateStmt.
 func mustParseUpdate(t *testing.T, input string) *ast.UpdateStmt {
 	t.Helper()
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", input)
+		t.Fatalf("parseForTest(%q) returned no statements", input)
 	}
 	stmt, ok := file.Stmts[0].(*ast.UpdateStmt)
 	if !ok {
-		t.Fatalf("Parse(%q) got %T, want *ast.UpdateStmt", input, file.Stmts[0])
+		t.Fatalf("parseForTest(%q) got %T, want *ast.UpdateStmt", input, file.Stmts[0])
 	}
 	return stmt
 }
@@ -26,16 +26,16 @@ func mustParseUpdate(t *testing.T, input string) *ast.UpdateStmt {
 // mustParseDelete parses input and returns the first statement as *ast.DeleteStmt.
 func mustParseDelete(t *testing.T, input string) *ast.DeleteStmt {
 	t.Helper()
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", input)
+		t.Fatalf("parseForTest(%q) returned no statements", input)
 	}
 	stmt, ok := file.Stmts[0].(*ast.DeleteStmt)
 	if !ok {
-		t.Fatalf("Parse(%q) got %T, want *ast.DeleteStmt", input, file.Stmts[0])
+		t.Fatalf("parseForTest(%q) got %T, want *ast.DeleteStmt", input, file.Stmts[0])
 	}
 	return stmt
 }
@@ -272,9 +272,9 @@ func TestUpdateLegacyCorpus(t *testing.T) {
 		"UPDATE t1 SET t1.c1 = t2.c1, t1.c3 = t2.c3 * 100 FROM t2 INNER JOIN t3 ON t2.id = t3.id WHERE t1.id = t2.id",
 	}
 	for _, sql := range cases {
-		_, errs := Parse(sql)
+		_, errs := parseForTest(sql)
 		if len(errs) > 0 {
-			t.Errorf("Parse(%q) errors: %v", sql, errs)
+			t.Errorf("parseForTest(%q) errors: %v", sql, errs)
 		}
 	}
 }
@@ -287,9 +287,9 @@ func TestDeleteLegacyCorpus(t *testing.T) {
 		"DELETE FROM t1 USING t2 INNER JOIN t3 ON t2.id = t3.id WHERE t1.id = t2.id",
 	}
 	for _, sql := range cases {
-		_, errs := Parse(sql)
+		_, errs := parseForTest(sql)
 		if len(errs) > 0 {
-			t.Errorf("Parse(%q) errors: %v", sql, errs)
+			t.Errorf("parseForTest(%q) errors: %v", sql, errs)
 		}
 	}
 }

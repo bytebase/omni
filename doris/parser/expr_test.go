@@ -1336,7 +1336,7 @@ func TestExprExtractInsideCTEStatement(t *testing.T) {
   )
 )
 SELECT * FROM c`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) > 0 {
 		t.Fatalf("Parse returned errors: %v", errs)
 	}
@@ -1402,13 +1402,13 @@ func TestExprFunctionNameKeywords(t *testing.T) {
 func TestExprFunctionNameKeywordRequiresCall(t *testing.T) {
 	// The keyword is only a function name when directly applied — `LEFT JOIN`
 	// must still parse as a join, and a bare `LEFT` is still not an identifier.
-	if _, errs := Parse("SELECT * FROM a LEFT JOIN b ON a.x = b.x"); len(errs) > 0 {
+	if _, errs := parseForTest("SELECT * FROM a LEFT JOIN b ON a.x = b.x"); len(errs) > 0 {
 		t.Errorf("LEFT JOIN broke: %v", errs)
 	}
-	if _, errs := Parse("SELECT * FROM a RIGHT JOIN b ON a.x = b.x"); len(errs) > 0 {
+	if _, errs := parseForTest("SELECT * FROM a RIGHT JOIN b ON a.x = b.x"); len(errs) > 0 {
 		t.Errorf("RIGHT JOIN broke: %v", errs)
 	}
-	if _, errs := Parse("SELECT LEFT FROM t"); len(errs) == 0 {
+	if _, errs := parseForTest("SELECT LEFT FROM t"); len(errs) == 0 {
 		t.Error("bare LEFT as a column parsed, want syntax error")
 	}
 }
@@ -1598,13 +1598,13 @@ func TestStmtOptimizerHintIsSkipped(t *testing.T) {
 		"SELECT /*+ SET_VAR(a = 1) */ /* ordinary comment */ 1",
 		"SELECT /*+ SET_VAR(a = 1) */ a FROM t WHERE a > 1",
 	} {
-		file, errs := Parse(sql)
+		file, errs := parseForTest(sql)
 		if len(errs) > 0 {
-			t.Errorf("Parse(%q) errors: %v", sql, errs)
+			t.Errorf("parseForTest(%q) errors: %v", sql, errs)
 			continue
 		}
 		if len(file.Stmts) != 1 {
-			t.Errorf("Parse(%q) produced %d statements, want 1", sql, len(file.Stmts))
+			t.Errorf("parseForTest(%q) produced %d statements, want 1", sql, len(file.Stmts))
 		}
 	}
 }
@@ -1616,8 +1616,8 @@ func TestStmtGroupByCube(t *testing.T) {
 		"SELECT a, SUM(b) FROM t GROUP BY ROLLUP(a)",
 		"SELECT a, SUM(b) FROM t GROUP BY GROUPING SETS ((a), ())",
 	} {
-		if _, errs := Parse(sql); len(errs) > 0 {
-			t.Errorf("Parse(%q) errors: %v", sql, errs)
+		if _, errs := parseForTest(sql); len(errs) > 0 {
+			t.Errorf("parseForTest(%q) errors: %v", sql, errs)
 		}
 	}
 }
@@ -1668,8 +1668,8 @@ func TestStmtGroupByCubeIsWholeSpecification(t *testing.T) {
 		"SELECT a, b, SUM(c) FROM t GROUP BY CUBE(a), b",
 		"SELECT a, SUM(b) FROM t GROUP BY CUBE(a), CUBE(b)",
 	} {
-		if _, errs := Parse(sql); len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want syntax error", sql)
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want syntax error", sql)
 		}
 	}
 }
@@ -1728,8 +1728,8 @@ func TestExprElementAtAndSlice(t *testing.T) {
 
 	// The index is a single valueExpression; a slice needs its begin bound.
 	for _, bad := range []string{"SELECT arr[1, 2]", "SELECT arr[:2]", "SELECT arr[]"} {
-		if _, errs := Parse(bad); len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want error", bad)
+		if _, errs := parseForTest(bad); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want error", bad)
 		}
 	}
 }
@@ -1739,8 +1739,8 @@ func TestExprBinaryPrimaryOnly(t *testing.T) {
 	// (engine-verified); anything else is a syntax error, and the operand
 	// never swallows a comparison.
 	for _, bad := range []string{"SELECT BINARY 1", "SELECT BINARY (1)", "SELECT BINARY now()", "SELECT BINARY concat('a','b')"} {
-		if _, errs := Parse(bad); len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want error", bad)
+		if _, errs := parseForTest(bad); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want error", bad)
 		}
 	}
 
@@ -1769,13 +1769,13 @@ func TestExprCollectionConstants(t *testing.T) {
 	// Collection literal elements are constants (engine-verified): literals
 	// and nested collection literals, nothing computed.
 	for _, bad := range []string{"SELECT [1+1]", "SELECT [a] FROM t", "SELECT {'a': 1+1}", "SELECT {'a': b} FROM t", "SELECT [now()]", "SELECT [-1]"} {
-		if _, errs := Parse(bad); len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want error", bad)
+		if _, errs := parseForTest(bad); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) succeeded, want error", bad)
 		}
 	}
 	for _, good := range []string{"SELECT [[1],[2]]", "SELECT [NULL, 1]", "SELECT ['x', 1]", "SELECT {'a': [1,2]}", "SELECT {}", "SELECT {'a': 1}"} {
-		if _, errs := Parse(good); len(errs) != 0 {
-			t.Errorf("Parse(%q) errors: %v", good, errs)
+		if _, errs := parseForTest(good); len(errs) != 0 {
+			t.Errorf("parseForTest(%q) errors: %v", good, errs)
 		}
 	}
 
@@ -1808,7 +1808,7 @@ func TestExprStringUserVariable(t *testing.T) {
 		t.Error(`@"dquoted" did not parse as VariableRef`)
 	}
 	// System variables stay identifier-shaped.
-	if _, errs := Parse("SELECT @@'x'"); len(errs) == 0 {
+	if _, errs := parseForTest("SELECT @@'x'"); len(errs) == 0 {
 		t.Error("@@'x' parsed, want error")
 	}
 }

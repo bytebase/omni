@@ -47,7 +47,7 @@ func TestLegacyCorpus_AllFiles(t *testing.T) {
 			continue
 		}
 		input := string(data)
-		file, errs := Parse(input)
+		file, errs := parseForTest(input)
 
 		s := stat{file: filepath.Base(path)}
 		segs := Split(input)
@@ -55,10 +55,10 @@ func TestLegacyCorpus_AllFiles(t *testing.T) {
 		s.successful = len(file.Stmts)
 
 		for _, e := range errs {
-			if strings.Contains(e.Msg, "not yet supported") {
-				s.unsupported = append(s.unsupported, e.Msg)
+			if strings.Contains(e.Message, "not yet supported") {
+				s.unsupported = append(s.unsupported, e.Message)
 			} else {
-				s.errors = append(s.errors, e.Msg)
+				s.errors = append(s.errors, e.Message)
 			}
 		}
 		stats = append(stats, s)
@@ -114,12 +114,12 @@ func TestLegacyCorpus_PerFile(t *testing.T) {
 				t.Fatalf("read: %v", err)
 			}
 			input := string(data)
-			_, errs := Parse(input)
+			_, errs := parseForTest(input)
 
 			var genuineErrors []string
 			for _, e := range errs {
-				if !strings.Contains(e.Msg, "not yet supported") {
-					genuineErrors = append(genuineErrors, e.Msg)
+				if !strings.Contains(e.Message, "not yet supported") {
+					genuineErrors = append(genuineErrors, e.Message)
 				}
 			}
 			if len(genuineErrors) > 0 {

@@ -174,8 +174,8 @@ func (p *Parser) parsePrefixExpr() (nodes.ExprNode, error) {
 			return p.parseIdentExprOrFuncCall()
 		}
 		return nil, &ParseError{
-			Message: fmt.Sprintf("unexpected token %q in expression", p.cur.Str),
-			Pos:     p.cur.Loc,
+			Message:  fmt.Sprintf("unexpected token %q in expression", p.cur.Str),
+			Position: p.cur.Loc,
 		}
 	}
 }
@@ -266,8 +266,8 @@ func (p *Parser) parseInfixExpr(left nodes.ExprNode, prec int) (nodes.ExprNode, 
 			return p.parseLikeExpr(left, true, startLoc)
 		default:
 			return nil, &ParseError{
-				Message: fmt.Sprintf("expected IN, BETWEEN, or LIKE after NOT, got %q", p.cur.Str),
-				Pos:     p.cur.Loc,
+				Message:  fmt.Sprintf("expected IN, BETWEEN, or LIKE after NOT, got %q", p.cur.Str),
+				Position: p.cur.Loc,
 			}
 		}
 

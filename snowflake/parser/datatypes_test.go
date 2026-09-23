@@ -397,7 +397,7 @@ func TestParseDataType_FreestandingTrailing(t *testing.T) {
 	if dt == nil {
 		t.Fatal("expected non-nil TypeName")
 	}
-	if len(errs) == 0 || !strings.Contains(errs[0].Msg, "unexpected token") {
+	if len(errs) == 0 || !strings.Contains(errs[0].Message, "unexpected token") {
 		t.Errorf("expected 'unexpected token' error, got %+v", errs)
 	}
 }

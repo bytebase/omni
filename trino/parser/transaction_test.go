@@ -15,16 +15,16 @@ import (
 // node (used by the transaction / grant-revoke / prepared structural tests).
 func dclParseOne(t *testing.T, sql string) interface{} {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q): unexpected errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q): unexpected errors: %v", sql, errs)
 	}
 	if file == nil || len(file.Stmts) != 1 {
 		got := 0
 		if file != nil {
 			got = len(file.Stmts)
 		}
-		t.Fatalf("Parse(%q): got %d statements, want 1", sql, got)
+		t.Fatalf("parseForTest(%q): got %d statements, want 1", sql, got)
 	}
 	return file.Stmts[0]
 }
@@ -34,9 +34,9 @@ func dclParseOne(t *testing.T, sql string) interface{} {
 // helper; the oracle differential confirms these rejections match Trino.
 func dclParseErr(t *testing.T, sql string) {
 	t.Helper()
-	_, errs := Parse(sql)
+	_, errs := parseForTest(sql)
 	if len(errs) == 0 {
-		t.Errorf("Parse(%q): want at least one error, got none", sql)
+		t.Errorf("parseForTest(%q): want at least one error, got none", sql)
 	}
 }
 

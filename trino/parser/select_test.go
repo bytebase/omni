@@ -165,9 +165,9 @@ var selectRejectCorpus = []string{
 func TestSelect_AcceptCorpusParses(t *testing.T) {
 	for _, sql := range selectAcceptCorpus {
 		t.Run(truncateName(sql), func(t *testing.T) {
-			_, errs := Parse(sql)
+			_, errs := parseForTest(sql)
 			if len(errs) != 0 {
-				t.Errorf("Parse(%q) should accept, got errors: %v", sql, errs)
+				t.Errorf("parseForTest(%q) should accept, got errors: %v", sql, errs)
 			}
 		})
 	}
@@ -178,9 +178,9 @@ func TestSelect_AcceptCorpusParses(t *testing.T) {
 func TestSelect_RejectCorpusRejected(t *testing.T) {
 	for _, sql := range selectRejectCorpus {
 		t.Run(truncateName(sql), func(t *testing.T) {
-			_, errs := Parse(sql)
+			_, errs := parseForTest(sql)
 			if len(errs) == 0 {
-				t.Errorf("Parse(%q) should reject, but accepted", sql)
+				t.Errorf("parseForTest(%q) should reject, but accepted", sql)
 			}
 		})
 	}
@@ -192,7 +192,7 @@ func TestSelect_RejectCorpusRejected(t *testing.T) {
 func TestSelect_OracleDifferential(t *testing.T) {
 	o := connectOracle(t)
 	check := func(t *testing.T, sql string) {
-		_, errs := Parse(sql)
+		_, errs := parseForTest(sql)
 		omniAccepts := len(errs) == 0
 		trinoAccepts, ok := oracleAccepts(t, o, sql)
 		if !ok {
@@ -219,16 +219,16 @@ func TestSelect_OracleDifferential(t *testing.T) {
 // failing the test on any parse error or a non-query statement.
 func parseOneQuery(t *testing.T, sql string) *Query {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): want 1 statement, got %d", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): want 1 statement, got %d", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*QueryStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): want *QueryStmt, got %T", sql, file.Stmts[0])
+		t.Fatalf("parseForTest(%q): want *QueryStmt, got %T", sql, file.Stmts[0])
 	}
 	return stmt.Query
 }

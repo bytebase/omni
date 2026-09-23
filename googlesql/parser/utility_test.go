@@ -29,7 +29,7 @@ func parseAssert(t *testing.T, sql string) *ast.AssertStmt {
 	n := parseOneStmt(t, sql)
 	a, ok := n.(*ast.AssertStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): got %T, want *ast.AssertStmt", sql, n)
+		t.Fatalf("parseForTest(%q): got %T, want *ast.AssertStmt", sql, n)
 	}
 	return a
 }
@@ -39,7 +39,7 @@ func parseAnalyze(t *testing.T, sql string) *ast.AnalyzeStmt {
 	n := parseOneStmt(t, sql)
 	a, ok := n.(*ast.AnalyzeStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): got %T, want *ast.AnalyzeStmt", sql, n)
+		t.Fatalf("parseForTest(%q): got %T, want *ast.AnalyzeStmt", sql, n)
 	}
 	return a
 }
@@ -49,7 +49,7 @@ func parseDescribe(t *testing.T, sql string) *ast.DescribeStmt {
 	n := parseOneStmt(t, sql)
 	d, ok := n.(*ast.DescribeStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): got %T, want *ast.DescribeStmt", sql, n)
+		t.Fatalf("parseForTest(%q): got %T, want *ast.DescribeStmt", sql, n)
 	}
 	return d
 }
@@ -59,7 +59,7 @@ func parseRename(t *testing.T, sql string) *ast.RenameStmt {
 	n := parseOneStmt(t, sql)
 	r, ok := n.(*ast.RenameStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): got %T, want *ast.RenameStmt", sql, n)
+		t.Fatalf("parseForTest(%q): got %T, want *ast.RenameStmt", sql, n)
 	}
 	return r
 }
@@ -69,7 +69,7 @@ func parseCall(t *testing.T, sql string) *ast.CallStmt {
 	n := parseOneStmt(t, sql)
 	c, ok := n.(*ast.CallStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): got %T, want *ast.CallStmt", sql, n)
+		t.Fatalf("parseForTest(%q): got %T, want *ast.CallStmt", sql, n)
 	}
 	return c
 }
@@ -751,7 +751,7 @@ func TestUtility_CorpusAccepts(t *testing.T) {
 				_, ok = node.(*ast.CallStmt)
 			}
 			if !ok {
-				t.Errorf("Parse(%q): got %T, want kind %d", tc.sql, node, tc.kind)
+				t.Errorf("parseForTest(%q): got %T, want kind %d", tc.sql, node, tc.kind)
 			}
 		})
 	}

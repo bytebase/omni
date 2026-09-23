@@ -69,9 +69,9 @@ type ColumnRef struct {
 // a silently smaller span. On empty input it returns a zero-valued span with
 // Type=QueryTypeUnknown.
 func GetQuerySpan(statement string) (*QuerySpan, error) {
-	file, errs := parser.Parse(statement)
-	if len(errs) > 0 {
-		return nil, &errs[0]
+	file, err := parser.Parse(statement)
+	if err != nil {
+		return nil, parser.FirstError(err)
 	}
 	span := &QuerySpan{
 		Type: Classify(statement),
@@ -174,8 +174,8 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 func (w *spanWalker) noteNonQuerySubquery(loc ast.Loc) {
 	if w.parseErr == nil {
 		w.parseErr = &parser.ParseError{
-			Loc: loc,
-			Msg: "subquery must be a SELECT statement",
+			Position: loc.Start, End: loc.End,
+			Message: "subquery must be a SELECT statement",
 		}
 	}
 }
@@ -539,12 +539,12 @@ func (w *spanWalker) analyzeSubqueryText(text string, base int) {
 		w.noteNonQuerySubquery(ast.Loc{Start: abs, End: abs})
 		return
 	}
-	file, errs := parser.Parse(text)
-	if len(errs) > 0 {
+	file, err := parser.Parse(text)
+	if errs := parser.AllErrors(err); len(errs) > 0 {
 		if w.parseErr == nil {
 			e := errs[0]
-			e.Loc.Start += abs
-			e.Loc.End += abs
+			e.Position += abs
+			e.End += abs
 			w.parseErr = &e
 		}
 		return

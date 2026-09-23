@@ -9,16 +9,16 @@ import (
 // mustParseSetOp parses input and returns the first statement as *ast.SetOpStmt.
 func mustParseSetOp(t *testing.T, input string) *ast.SetOpStmt {
 	t.Helper()
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", input)
+		t.Fatalf("parseForTest(%q) returned no statements", input)
 	}
 	stmt, ok := file.Stmts[0].(*ast.SetOpStmt)
 	if !ok {
-		t.Fatalf("Parse(%q) got %T, want *ast.SetOpStmt", input, file.Stmts[0])
+		t.Fatalf("parseForTest(%q) got %T, want *ast.SetOpStmt", input, file.Stmts[0])
 	}
 	return stmt
 }
@@ -266,7 +266,7 @@ func TestSetOpStmtWalk(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestPlainSelectUnchanged(t *testing.T) {
-	file, errs := Parse("SELECT a FROM t")
+	file, errs := parseForTest("SELECT a FROM t")
 	if len(errs) > 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -489,7 +489,7 @@ func TestSetOpStmtWalkParenSelect(t *testing.T) {
 
 func TestWithUnionLimit(t *testing.T) {
 	sql := "WITH cte AS (SELECT 1) SELECT a FROM cte UNION SELECT b FROM t LIMIT 5"
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) > 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -625,12 +625,12 @@ func TestExceptOuterLimit(t *testing.T) {
 
 func TestParenSetOpTrailingLimit(t *testing.T) {
 	sql := "(SELECT 1 UNION SELECT 2) LIMIT 5"
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", sql)
+		t.Fatalf("parseForTest(%q) returned no statements", sql)
 	}
 
 	paren, ok := file.Stmts[0].(*ast.ParenSelect)
@@ -660,12 +660,12 @@ func TestParenSetOpTrailingLimit(t *testing.T) {
 
 func TestParenSelectTrailingLimit(t *testing.T) {
 	sql := "(SELECT 1) LIMIT 5"
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", sql)
+		t.Fatalf("parseForTest(%q) returned no statements", sql)
 	}
 
 	paren, ok := file.Stmts[0].(*ast.ParenSelect)
@@ -683,12 +683,12 @@ func TestParenSelectTrailingLimit(t *testing.T) {
 
 func TestParenSetOpTrailingOrderByLimit(t *testing.T) {
 	sql := "(SELECT 1 UNION SELECT 2) ORDER BY 1 LIMIT 5"
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", sql)
+		t.Fatalf("parseForTest(%q) returned no statements", sql)
 	}
 
 	paren, ok := file.Stmts[0].(*ast.ParenSelect)
@@ -711,7 +711,7 @@ func TestUnionLimitThenOrderRejected(t *testing.T) {
 	// The engine rejects a trailing ORDER BY once the set operation already
 	// carries a LIMIT (container-verified), so the statement-level attach
 	// must not consume it.
-	if _, errs := Parse("SELECT 1 UNION SELECT 2 LIMIT 5 ORDER BY 1"); len(errs) == 0 {
+	if _, errs := parseForTest("SELECT 1 UNION SELECT 2 LIMIT 5 ORDER BY 1"); len(errs) == 0 {
 		t.Error("LIMIT-then-ORDER on a union parsed, want error")
 	}
 }

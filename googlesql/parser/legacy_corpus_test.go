@@ -132,7 +132,7 @@ func TestLegacyCorpusParses(t *testing.T) {
 			if err != nil {
 				t.Fatalf("reading %s: %v", rel, err)
 			}
-			_, errs := Parse(string(data))
+			_, errs := parseForTest(string(data))
 
 			if reason, ok := legacyCorpusParseSkips[rel]; ok {
 				skipped++
@@ -142,7 +142,7 @@ func TestLegacyCorpusParses(t *testing.T) {
 				return
 			}
 			if len(errs) > 0 {
-				t.Errorf("%s produced %d parse error(s) (first: %q)", rel, len(errs), errs[0].Msg)
+				t.Errorf("%s produced %d parse error(s) (first: %q)", rel, len(errs), errs[0].Message)
 			}
 			clean++
 		})

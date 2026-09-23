@@ -16,7 +16,7 @@ FROM KAFKA (
     "kafka_broker_list" = "broker1:9092",
     "kafka_topic" = "my_topic"
 )`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -51,7 +51,7 @@ FROM KAFKA (
     "kafka_broker_list" = "broker1:9092",
     "kafka_topic" = "topic2"
 )`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -77,7 +77,7 @@ FROM KAFKA (
     "kafka_topic" = "t"
 )
 COMMENT "this is a test job"`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -92,7 +92,7 @@ COMMENT "this is a test job"`
 
 func TestCreateRoutineLoad_Tag(t *testing.T) {
 	sql := `CREATE ROUTINE LOAD job4 ON tbl4 FROM KAFKA ("kafka_broker_list"="b:9092", "kafka_topic"="t")`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -107,7 +107,7 @@ FROM S3 (
     "s3_bucket" = "mybucket",
     "s3_region" = "us-east-1"
 )`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -129,7 +129,7 @@ func TestAlterRoutineLoad_PropertiesOnly(t *testing.T) {
 PROPERTIES (
     "desired_concurrent_number" = "5"
 )`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -151,7 +151,7 @@ FROM KAFKA (
     "kafka_partitions" = "0,1,2",
     "kafka_offsets" = "100,200,300"
 )`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -169,7 +169,7 @@ FROM KAFKA (
 
 func TestAlterRoutineLoad_Tag(t *testing.T) {
 	sql := `ALTER ROUTINE LOAD FOR job1 PROPERTIES ("max_error_number"="100")`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -184,7 +184,7 @@ func TestAlterRoutineLoad_Tag(t *testing.T) {
 
 func TestPauseRoutineLoad_Basic(t *testing.T) {
 	sql := `PAUSE ROUTINE LOAD FOR mydb.job1`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -202,7 +202,7 @@ func TestPauseRoutineLoad_Basic(t *testing.T) {
 
 func TestPauseRoutineLoad_All(t *testing.T) {
 	sql := `PAUSE ALL ROUTINE LOAD FOR mydb`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -220,7 +220,7 @@ func TestPauseRoutineLoad_All(t *testing.T) {
 
 func TestPauseRoutineLoad_AllNoFor(t *testing.T) {
 	sql := `PAUSE ALL ROUTINE LOAD`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -238,7 +238,7 @@ func TestPauseRoutineLoad_AllNoFor(t *testing.T) {
 
 func TestPauseRoutineLoad_Tag(t *testing.T) {
 	sql := `PAUSE ROUTINE LOAD FOR job1`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -253,7 +253,7 @@ func TestPauseRoutineLoad_Tag(t *testing.T) {
 
 func TestResumeRoutineLoad_Basic(t *testing.T) {
 	sql := `RESUME ROUTINE LOAD FOR mydb.job1`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -271,7 +271,7 @@ func TestResumeRoutineLoad_Basic(t *testing.T) {
 
 func TestResumeRoutineLoad_All(t *testing.T) {
 	sql := `RESUME ALL ROUTINE LOAD FOR mydb`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -289,7 +289,7 @@ func TestResumeRoutineLoad_All(t *testing.T) {
 
 func TestResumeRoutineLoad_Tag(t *testing.T) {
 	sql := `RESUME ROUTINE LOAD FOR job1`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -304,7 +304,7 @@ func TestResumeRoutineLoad_Tag(t *testing.T) {
 
 func TestStopRoutineLoad_Basic(t *testing.T) {
 	sql := `STOP ROUTINE LOAD FOR mydb.job1`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -319,7 +319,7 @@ func TestStopRoutineLoad_Basic(t *testing.T) {
 
 func TestStopRoutineLoad_UnqualifiedName(t *testing.T) {
 	sql := `STOP ROUTINE LOAD FOR job1`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -334,7 +334,7 @@ func TestStopRoutineLoad_UnqualifiedName(t *testing.T) {
 
 func TestStopRoutineLoad_Tag(t *testing.T) {
 	sql := `STOP ROUTINE LOAD FOR job1`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -349,7 +349,7 @@ func TestStopRoutineLoad_Tag(t *testing.T) {
 
 func TestShowRoutineLoad_Bare(t *testing.T) {
 	sql := `SHOW ROUTINE LOAD`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -367,7 +367,7 @@ func TestShowRoutineLoad_Bare(t *testing.T) {
 
 func TestShowRoutineLoad_ForName(t *testing.T) {
 	sql := `SHOW ROUTINE LOAD FOR mydb.job1`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -382,7 +382,7 @@ func TestShowRoutineLoad_ForName(t *testing.T) {
 
 func TestShowRoutineLoad_All(t *testing.T) {
 	sql := `SHOW ALL ROUTINE LOAD`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -397,7 +397,7 @@ func TestShowRoutineLoad_All(t *testing.T) {
 
 func TestShowRoutineLoad_Like(t *testing.T) {
 	sql := `SHOW ROUTINE LOAD LIKE 'job%'`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -412,7 +412,7 @@ func TestShowRoutineLoad_Like(t *testing.T) {
 
 func TestShowRoutineLoad_FromDB(t *testing.T) {
 	sql := `SHOW ROUTINE LOAD FROM mydb`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -427,7 +427,7 @@ func TestShowRoutineLoad_FromDB(t *testing.T) {
 
 func TestShowRoutineLoad_Tag(t *testing.T) {
 	sql := `SHOW ROUTINE LOAD FOR job1`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -442,7 +442,7 @@ func TestShowRoutineLoad_Tag(t *testing.T) {
 
 func TestShowRoutineLoadTask_FromDB(t *testing.T) {
 	sql := `SHOW ROUTINE LOAD TASK FROM mydb WHERE JobName = "job1"`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -460,7 +460,7 @@ func TestShowRoutineLoadTask_FromDB(t *testing.T) {
 
 func TestShowRoutineLoadTask_Tag(t *testing.T) {
 	sql := `SHOW ROUTINE LOAD TASK FROM mydb WHERE JobName = "job1"`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -475,7 +475,7 @@ func TestShowRoutineLoadTask_Tag(t *testing.T) {
 
 func TestSync_Basic(t *testing.T) {
 	sql := `SYNC`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -490,7 +490,7 @@ func TestSync_Basic(t *testing.T) {
 
 func TestSync_Tag(t *testing.T) {
 	sql := `SYNC`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -506,7 +506,7 @@ func TestSync_Tag(t *testing.T) {
 func TestShowCreateRoutineLoad_LegacyCorpus(t *testing.T) {
 	// From doris/parser/testdata/legacy/regression/routine_load.sql
 	sql := `show create routine load for uDA6TB9nkmLWHYWLFCdCP6XrykhxxNa4gXA9yxZJU0`
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}

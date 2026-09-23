@@ -34,8 +34,8 @@ func (p *Parser) parseSFWQuery() (ast.ExprNode, error) {
 	// FROM clause (required).
 	if p.cur.Type != tokFROM {
 		return nil, &ParseError{
-			Message: fmt.Sprintf("expected FROM, got %q", p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected FROM, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 	from, err := p.parseFromClause()
@@ -156,8 +156,8 @@ func (p *Parser) parseSelectClause(stmt *ast.SelectStmt) error {
 
 	if p.cur.Type != tokSELECT {
 		return &ParseError{
-			Message: fmt.Sprintf("expected SELECT, got %q", p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected SELECT, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 	p.advance() // consume SELECT
@@ -422,8 +422,8 @@ func (p *Parser) parseOrderSortSpec() (*ast.OrderByItem, error) {
 			p.advance()
 		default:
 			return nil, &ParseError{
-				Message: fmt.Sprintf("expected FIRST or LAST after NULLS, got %q", p.cur.Str),
-				Loc:     p.cur.Loc,
+				Message:  fmt.Sprintf("expected FIRST or LAST after NULLS, got %q", p.cur.Str),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 	}

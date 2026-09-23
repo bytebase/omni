@@ -29,12 +29,15 @@ import (
 // the caller.
 type ParseError struct {
 	Message string
-	Loc     ast.Loc
+	// Position is the byte offset into the parsed text where the error
+	// starts; End is the exclusive end of the offending token.
+	Position int
+	End      int
 }
 
 // Error renders a human-readable message including the byte position.
 func (e *ParseError) Error() string {
-	return fmt.Sprintf("syntax error at position %d: %s", e.Loc.Start, e.Message)
+	return fmt.Sprintf("syntax error at position %d: %s", e.Position, e.Message)
 }
 
 // Parser is the recursive-descent parser for PartiQL.
@@ -162,8 +165,8 @@ func (p *Parser) expect(tokenType int) (Token, error) {
 		return tok, nil
 	}
 	return Token{}, &ParseError{
-		Message: fmt.Sprintf("expected %s, got %q", tokenName(tokenType), p.cur.Str),
-		Loc:     p.cur.Loc,
+		Message:  fmt.Sprintf("expected %s, got %q", tokenName(tokenType), p.cur.Str),
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 	}
 }
 
@@ -173,8 +176,8 @@ func (p *Parser) expect(tokenType int) (Token, error) {
 func (p *Parser) checkLexerErr() error {
 	if p.lexer.Err != nil {
 		return &ParseError{
-			Message: p.lexer.Err.Error(),
-			Loc:     p.cur.Loc,
+			Message:  p.lexer.Err.Error(),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 	return nil
@@ -193,8 +196,8 @@ func (p *Parser) checkLexerErr() error {
 // returns the full list of stub call sites node 15 needs to replace.
 func (p *Parser) deferredFeature(feature, ownerNode string) error {
 	return &ParseError{
-		Message: fmt.Sprintf("%s is deferred to %s", feature, ownerNode),
-		Loc:     p.cur.Loc,
+		Message:  fmt.Sprintf("%s is deferred to %s", feature, ownerNode),
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 	}
 }
 
@@ -217,8 +220,8 @@ func (p *Parser) parseSymbolPrimitive() (name string, caseSensitive bool, loc as
 		return
 	default:
 		err = &ParseError{
-			Message: fmt.Sprintf("expected identifier, got %q", p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected identifier, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 		return
 	}
@@ -259,8 +262,8 @@ func (p *Parser) ParseExpr() (ast.ExprNode, error) {
 	}
 	if p.cur.Type != tokEOF {
 		return nil, &ParseError{
-			Message: fmt.Sprintf("unexpected token %q after expression", p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("unexpected token %q after expression", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 	return expr, nil
@@ -311,8 +314,8 @@ func (p *Parser) parseVarRef() (ast.ExprNode, error) {
 	if p.cur.Type == tokPAREN_LEFT {
 		if atPrefixed {
 			return nil, &ParseError{
-				Message: "@-prefix is not allowed before a function call",
-				Loc:     ast.Loc{Start: start, End: p.cur.Loc.End},
+				Message:  "@-prefix is not allowed before a function call",
+				Position: start, End: p.cur.Loc.End,
 			}
 		}
 		args, endOff, err := p.parseFuncCallArgs()
@@ -393,8 +396,8 @@ func (p *Parser) parseType() (*ast.TypeRef, error) {
 		p.advance()
 		if p.cur.Type != tokPRECISION {
 			return nil, &ParseError{
-				Message: fmt.Sprintf("expected PRECISION after DOUBLE, got %q", p.cur.Str),
-				Loc:     p.cur.Loc,
+				Message:  fmt.Sprintf("expected PRECISION after DOUBLE, got %q", p.cur.Str),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 		end := p.cur.Loc.End
@@ -445,8 +448,8 @@ func (p *Parser) parseType() (*ast.TypeRef, error) {
 			p.advance() // TIME
 			if p.cur.Type != tokZONE {
 				return nil, &ParseError{
-					Message: fmt.Sprintf("expected ZONE after WITH TIME, got %q", p.cur.Str),
-					Loc:     p.cur.Loc,
+					Message:  fmt.Sprintf("expected ZONE after WITH TIME, got %q", p.cur.Str),
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 				}
 			}
 			withTZ = true
@@ -567,8 +570,8 @@ func (p *Parser) parseType() (*ast.TypeRef, error) {
 	}
 
 	return nil, &ParseError{
-		Message: fmt.Sprintf("expected type, got %q", p.cur.Str),
-		Loc:     p.cur.Loc,
+		Message:  fmt.Sprintf("expected type, got %q", p.cur.Str),
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 	}
 }
 
@@ -596,8 +599,8 @@ func (p *Parser) parseTypeWithArgs(start int, name string, minArgs, maxArgs int)
 		end = argsEnd
 		if len(args) < minArgs {
 			return nil, &ParseError{
-				Message: fmt.Sprintf("%s: expected at least %d argument(s), got %d", name, minArgs, len(args)),
-				Loc:     ast.Loc{Start: start, End: end},
+				Message:  fmt.Sprintf("%s: expected at least %d argument(s), got %d", name, minArgs, len(args)),
+				Position: start, End: end,
 			}
 		}
 	}
@@ -629,34 +632,34 @@ func (p *Parser) parseOptionalTypeArgs(maxArgs int) (args []int, end int, err er
 		if p.cur.Type == tokPAREN_RIGHT {
 			if len(args) == 0 {
 				return nil, 0, &ParseError{
-					Message: "empty type argument list",
-					Loc:     p.cur.Loc,
+					Message:  "empty type argument list",
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 				}
 			}
 			return nil, 0, &ParseError{
-				Message: "unexpected trailing comma in type arguments",
-				Loc:     p.cur.Loc,
+				Message:  "unexpected trailing comma in type arguments",
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 		if p.cur.Type != tokICONST {
 			return nil, 0, &ParseError{
-				Message: fmt.Sprintf("expected integer argument, got %q", p.cur.Str),
-				Loc:     p.cur.Loc,
+				Message:  fmt.Sprintf("expected integer argument, got %q", p.cur.Str),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 		n, perr := parseIntLiteral(p.cur.Str)
 		if perr != nil {
 			return nil, 0, &ParseError{
-				Message: fmt.Sprintf("invalid integer argument %q: %v", p.cur.Str, perr),
-				Loc:     p.cur.Loc,
+				Message:  fmt.Sprintf("invalid integer argument %q: %v", p.cur.Str, perr),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 		args = append(args, n)
 		p.advance()
 		if len(args) > maxArgs {
 			return nil, 0, &ParseError{
-				Message: fmt.Sprintf("too many type arguments (max %d)", maxArgs),
-				Loc:     p.cur.Loc,
+				Message:  fmt.Sprintf("too many type arguments (max %d)", maxArgs),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 		if p.cur.Type == tokCOMMA {
@@ -750,8 +753,8 @@ func (p *Parser) ParseStatement() (ast.StmtNode, error) {
 	}
 	if p.cur.Type != tokEOF {
 		return nil, &ParseError{
-			Message: fmt.Sprintf("unexpected token %q after statement", p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("unexpected token %q after statement", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 	return stmt, nil

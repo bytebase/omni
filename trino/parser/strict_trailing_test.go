@@ -16,12 +16,12 @@ func TestStrictParseRejectsTrailingTokens(t *testing.T) {
 		"SELECT a FROM t WHERE x = 1 ) ) ) DROP",
 		"INSERT INTO t VALUES (1) extra",
 	} {
-		file, errs := Parse(sql)
+		file, errs := parseForTest(sql)
 		if len(errs) == 0 {
-			t.Errorf("Parse(%q) succeeded, want trailing-token error", sql)
+			t.Errorf("parseForTest(%q) succeeded, want trailing-token error", sql)
 		}
 		if len(file.Stmts) != 0 {
-			t.Errorf("Parse(%q) returned %d statements, want none: the truncated prefix must not leak", sql, len(file.Stmts))
+			t.Errorf("parseForTest(%q) returned %d statements, want none: the truncated prefix must not leak", sql, len(file.Stmts))
 		}
 	}
 }
@@ -41,7 +41,7 @@ func TestParseBestEffortToleratesTrailingTokens(t *testing.T) {
 // TestStrictParseMultiStatementIsolation: a bad segment errors without taking
 // the good segments around it down.
 func TestStrictParseMultiStatementIsolation(t *testing.T) {
-	file, errs := Parse("SELECT 1; SELECT 2 ))); SELECT 3")
+	file, errs := parseForTest("SELECT 1; SELECT 2 ))); SELECT 3")
 	if len(errs) == 0 {
 		t.Fatal("middle segment junk not reported")
 	}
@@ -54,7 +54,7 @@ func TestStrictParseDrainsLexErrorsAfterTrailingJunk(t *testing.T) {
 	// The lexer is lazy: without draining the segment after the first
 	// trailing-token error, the unterminated string would never be lexed and
 	// its diagnostic would be lost.
-	_, errs := Parse("SELECT 1 ))) 'unterminated")
+	_, errs := parseForTest("SELECT 1 ))) 'unterminated")
 	if len(errs) < 2 {
 		t.Fatalf("errs = %v, want the trailing-token error AND the lex error", errs)
 	}
@@ -63,13 +63,13 @@ func TestStrictParseDrainsLexErrorsAfterTrailingJunk(t *testing.T) {
 func TestStrictParseReportsLexErrorInDroppedSegment(t *testing.T) {
 	// Split drops a segment that lexes to nothing, and with it the lex error
 	// that made it empty; strict Parse promotes it from a whole-input pass.
-	_, errs := Parse("/* unterminated")
+	_, errs := parseForTest("/* unterminated")
 	if len(errs) == 0 {
-		t.Fatal("Parse(\"/* unterminated\") reported no error")
+		t.Fatal("parseForTest(\"/* unterminated\") reported no error")
 	}
 	found := false
 	for _, e := range errs {
-		if strings.Contains(e.Msg, "comment") {
+		if strings.Contains(e.Message, "comment") {
 			found = true
 		}
 	}
@@ -93,12 +93,12 @@ func TestStrictParseCorpusCanary(t *testing.T) {
 	checked := 0
 	for _, corpus := range corpora {
 		for _, sql := range corpus {
-			clean, errs := Parse(sql)
+			clean, errs := parseForTest(sql)
 			if len(errs) > 0 || len(clean.Stmts) != 1 {
 				continue // not one cleanly parseable statement; nothing to prove
 			}
 			canary := sql + "\n )))"
-			file, errs := Parse(canary)
+			file, errs := parseForTest(canary)
 			if len(errs) == 0 || len(file.Stmts) != 0 {
 				stmt := strings.Join(strings.Fields(sql), " ")
 				if len(stmt) > 90 {

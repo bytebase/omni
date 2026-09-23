@@ -106,7 +106,7 @@ func (p *Parser) parsePathStep() (ast.PathStep, error) {
 	}
 
 	return nil, &ParseError{
-		Message: "expected path step (. or [)",
-		Loc:     p.cur.Loc,
+		Message:  "expected path step (. or [)",
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 	}
 }

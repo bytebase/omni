@@ -485,8 +485,8 @@ func (p *Parser) parseGrantTargetObject(startLoc ast.Loc) (*ast.GrantTarget, err
 	if len(typeWords) == 0 {
 		// A bare single unit (e.g. "ON foo") has no object type — invalid.
 		return nil, &ParseError{
-			Loc: startLoc,
-			Msg: "expected object type before object name in GRANT/REVOKE ON clause",
+			Position: startLoc.Start, End: startLoc.End,
+			Message: "expected object type before object name in GRANT/REVOKE ON clause",
 		}
 	}
 

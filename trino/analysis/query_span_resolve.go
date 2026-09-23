@@ -750,8 +750,8 @@ func scalarSubquerySources(sub *parser.SubqueryExpr, cte *cteDefs) []ColumnRef {
 	// parse (analyzeSubqueryText), so by the time lineage resolution runs every
 	// placeholder body parses; an error here is unreachable and yields no
 	// sources rather than a partial tree's.
-	file, errs := parser.Parse(sub.RawText)
-	if len(errs) > 0 || file == nil {
+	file, err := parser.Parse(sub.RawText)
+	if err != nil || file == nil {
 		return nil
 	}
 	var out []ColumnRef

@@ -11,7 +11,7 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestShowTables(t *testing.T) {
-	file, errs := Parse("SHOW TABLES")
+	file, errs := parseForTest("SHOW TABLES")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -28,7 +28,7 @@ func TestShowTables(t *testing.T) {
 }
 
 func TestShowTablesLike(t *testing.T) {
-	file, errs := Parse("SHOW TABLES LIKE '%cm%'")
+	file, errs := parseForTest("SHOW TABLES LIKE '%cm%'")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -42,7 +42,7 @@ func TestShowTablesLike(t *testing.T) {
 }
 
 func TestShowFullTables(t *testing.T) {
-	file, errs := Parse("SHOW FULL TABLES")
+	file, errs := parseForTest("SHOW FULL TABLES")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -56,7 +56,7 @@ func TestShowFullTables(t *testing.T) {
 }
 
 func TestShowTablesFromDB(t *testing.T) {
-	file, errs := Parse("SHOW TABLES FROM mydb")
+	file, errs := parseForTest("SHOW TABLES FROM mydb")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -71,7 +71,7 @@ func TestShowTablesFromDB(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowDatabases(t *testing.T) {
-	file, errs := Parse("SHOW DATABASES")
+	file, errs := parseForTest("SHOW DATABASES")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -82,7 +82,7 @@ func TestShowDatabases(t *testing.T) {
 }
 
 func TestShowDatabasesLike(t *testing.T) {
-	file, errs := Parse("SHOW DATABASES LIKE 'test%'")
+	file, errs := parseForTest("SHOW DATABASES LIKE 'test%'")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -97,7 +97,7 @@ func TestShowDatabasesLike(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowColumns(t *testing.T) {
-	file, errs := Parse("SHOW COLUMNS FROM t_agg")
+	file, errs := parseForTest("SHOW COLUMNS FROM t_agg")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -111,7 +111,7 @@ func TestShowColumns(t *testing.T) {
 }
 
 func TestShowFullColumns(t *testing.T) {
-	file, errs := Parse("SHOW FULL COLUMNS FROM t_agg")
+	file, errs := parseForTest("SHOW FULL COLUMNS FROM t_agg")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -129,7 +129,7 @@ func TestShowFullColumns(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowCreateTable(t *testing.T) {
-	file, errs := Parse("SHOW CREATE TABLE demo.test_table")
+	file, errs := parseForTest("SHOW CREATE TABLE demo.test_table")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -146,7 +146,7 @@ func TestShowCreateTable(t *testing.T) {
 }
 
 func TestShowBriefCreateTable(t *testing.T) {
-	file, errs := Parse("SHOW BRIEF CREATE TABLE demo.test_table")
+	file, errs := parseForTest("SHOW BRIEF CREATE TABLE demo.test_table")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -157,7 +157,7 @@ func TestShowBriefCreateTable(t *testing.T) {
 }
 
 func TestShowCreateView(t *testing.T) {
-	file, errs := Parse("SHOW CREATE VIEW my_view")
+	file, errs := parseForTest("SHOW CREATE VIEW my_view")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -168,7 +168,7 @@ func TestShowCreateView(t *testing.T) {
 }
 
 func TestShowCreateDatabase(t *testing.T) {
-	file, errs := Parse("SHOW CREATE DATABASE mydb")
+	file, errs := parseForTest("SHOW CREATE DATABASE mydb")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -179,7 +179,7 @@ func TestShowCreateDatabase(t *testing.T) {
 }
 
 func TestShowCreateCatalog(t *testing.T) {
-	file, errs := Parse("SHOW CREATE CATALOG oracle")
+	file, errs := parseForTest("SHOW CREATE CATALOG oracle")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -197,7 +197,7 @@ func TestShowCreateCatalog(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowVariablesLike(t *testing.T) {
-	file, errs := Parse("SHOW VARIABLES LIKE 'max_connections'")
+	file, errs := parseForTest("SHOW VARIABLES LIKE 'max_connections'")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -211,7 +211,7 @@ func TestShowVariablesLike(t *testing.T) {
 }
 
 func TestShowVariablesWhere(t *testing.T) {
-	file, errs := Parse("SHOW VARIABLES WHERE variable_name = 'version'")
+	file, errs := parseForTest("SHOW VARIABLES WHERE variable_name = 'version'")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -226,7 +226,7 @@ func TestShowVariablesWhere(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowPartitions(t *testing.T) {
-	file, errs := Parse("SHOW PARTITIONS FROM t_agg")
+	file, errs := parseForTest("SHOW PARTITIONS FROM t_agg")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -240,7 +240,7 @@ func TestShowPartitions(t *testing.T) {
 }
 
 func TestShowTemporaryPartitions(t *testing.T) {
-	file, errs := Parse("SHOW TEMPORARY PARTITIONS FROM t_temp")
+	file, errs := parseForTest("SHOW TEMPORARY PARTITIONS FROM t_temp")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -254,7 +254,7 @@ func TestShowTemporaryPartitions(t *testing.T) {
 }
 
 func TestShowPartitionsWhere(t *testing.T) {
-	file, errs := Parse(`SHOW PARTITIONS FROM t_agg WHERE PartitionName = "p2024"`)
+	file, errs := parseForTest(`SHOW PARTITIONS FROM t_agg WHERE PartitionName = "p2024"`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -272,7 +272,7 @@ func TestShowPartitionsWhere(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowGrants(t *testing.T) {
-	file, errs := Parse("SHOW GRANTS")
+	file, errs := parseForTest("SHOW GRANTS")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -283,7 +283,7 @@ func TestShowGrants(t *testing.T) {
 }
 
 func TestShowGrantsForUser(t *testing.T) {
-	file, errs := Parse("SHOW GRANTS FOR jack@'%'")
+	file, errs := parseForTest("SHOW GRANTS FOR jack@'%'")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -297,7 +297,7 @@ func TestShowGrantsForUser(t *testing.T) {
 }
 
 func TestShowAllGrants(t *testing.T) {
-	file, errs := Parse("SHOW ALL GRANTS")
+	file, errs := parseForTest("SHOW ALL GRANTS")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -311,7 +311,7 @@ func TestShowAllGrants(t *testing.T) {
 }
 
 func TestShowRoles(t *testing.T) {
-	file, errs := Parse("SHOW ROLES")
+	file, errs := parseForTest("SHOW ROLES")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -326,7 +326,7 @@ func TestShowRoles(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowCatalogs(t *testing.T) {
-	file, errs := Parse("SHOW CATALOGS")
+	file, errs := parseForTest("SHOW CATALOGS")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -337,7 +337,7 @@ func TestShowCatalogs(t *testing.T) {
 }
 
 func TestShowCatalogsLike(t *testing.T) {
-	file, errs := Parse("SHOW CATALOGS LIKE 'hi%'")
+	file, errs := parseForTest("SHOW CATALOGS LIKE 'hi%'")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -352,7 +352,7 @@ func TestShowCatalogsLike(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowTableStatus(t *testing.T) {
-	file, errs := Parse("SHOW TABLE STATUS")
+	file, errs := parseForTest("SHOW TABLE STATUS")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -363,7 +363,7 @@ func TestShowTableStatus(t *testing.T) {
 }
 
 func TestShowTableStatusFromDB(t *testing.T) {
-	file, errs := Parse(`SHOW TABLE STATUS FROM db LIKE "%test%"`)
+	file, errs := parseForTest(`SHOW TABLE STATUS FROM db LIKE "%test%"`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -384,7 +384,7 @@ func TestShowTableStatusFromDB(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowAlterTableColumn(t *testing.T) {
-	file, errs := Parse("SHOW ALTER TABLE COLUMN")
+	file, errs := parseForTest("SHOW ALTER TABLE COLUMN")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -395,7 +395,7 @@ func TestShowAlterTableColumn(t *testing.T) {
 }
 
 func TestShowAlterTableColumnWhere(t *testing.T) {
-	file, errs := Parse(`SHOW ALTER TABLE COLUMN WHERE TableName = "table1" ORDER BY CreateTime DESC LIMIT 1`)
+	file, errs := parseForTest(`SHOW ALTER TABLE COLUMN WHERE TableName = "table1" ORDER BY CreateTime DESC LIMIT 1`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -409,7 +409,7 @@ func TestShowAlterTableColumnWhere(t *testing.T) {
 }
 
 func TestShowAlterTableRollup(t *testing.T) {
-	file, errs := Parse("SHOW ALTER TABLE ROLLUP FROM example_db")
+	file, errs := parseForTest("SHOW ALTER TABLE ROLLUP FROM example_db")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -427,7 +427,7 @@ func TestShowAlterTableRollup(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowProcesslist(t *testing.T) {
-	file, errs := Parse("SHOW PROCESSLIST")
+	file, errs := parseForTest("SHOW PROCESSLIST")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -441,7 +441,7 @@ func TestShowProcesslist(t *testing.T) {
 }
 
 func TestShowWarnings(t *testing.T) {
-	file, errs := Parse("SHOW WARNINGS")
+	file, errs := parseForTest("SHOW WARNINGS")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -457,7 +457,7 @@ func TestShowWarnings(t *testing.T) {
 
 func TestShowLocValid(t *testing.T) {
 	input := "SHOW TABLES"
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -472,13 +472,13 @@ func TestShowLocValid(t *testing.T) {
 
 func TestShowDatabasesFromCatalog(t *testing.T) {
 	for _, sql := range []string{"SHOW DATABASES FROM hms_catalog", "SHOW DATABASES IN hms_catalog"} {
-		file, errs := Parse(sql)
+		file, errs := parseForTest(sql)
 		if len(errs) != 0 {
-			t.Fatalf("Parse(%q) errors: %v", sql, errs)
+			t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 		}
 		n := file.Stmts[0].(*ast.ShowStmt)
 		if n.Type != "DATABASES" || n.From != "hms_catalog" {
-			t.Errorf("Parse(%q) = Type %q From %q, want DATABASES hms_catalog", sql, n.Type, n.From)
+			t.Errorf("parseForTest(%q) = Type %q From %q, want DATABASES hms_catalog", sql, n.Type, n.From)
 		}
 	}
 }

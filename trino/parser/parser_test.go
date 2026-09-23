@@ -9,15 +9,15 @@ import (
 // yields a non-nil File with no statements and no errors.
 func TestParse_EmptyInput(t *testing.T) {
 	for _, in := range []string{"", "   ", "\n\t ", "-- just a comment\n", "/* block */"} {
-		file, errs := Parse(in)
+		file, errs := parseForTest(in)
 		if file == nil {
-			t.Fatalf("Parse(%q): File is nil", in)
+			t.Fatalf("parseForTest(%q): File is nil", in)
 		}
 		if len(file.Stmts) != 0 {
-			t.Errorf("Parse(%q): got %d stmts, want 0", in, len(file.Stmts))
+			t.Errorf("parseForTest(%q): got %d stmts, want 0", in, len(file.Stmts))
 		}
 		if len(errs) != 0 {
-			t.Errorf("Parse(%q): got errors %v, want none", in, errs)
+			t.Errorf("parseForTest(%q): got errors %v, want none", in, errs)
 		}
 	}
 }
@@ -26,15 +26,15 @@ func TestParse_EmptyInput(t *testing.T) {
 // dispatch switch does not recognize produces a parse error (not a panic, not
 // silent acceptance).
 func TestParse_UnknownStatement(t *testing.T) {
-	file, errs := Parse("FOOBAR 1 2 3")
+	file, errs := parseForTest("FOOBAR 1 2 3")
 	if file == nil {
 		t.Fatal("Parse: File is nil")
 	}
 	if len(errs) == 0 {
-		t.Fatal("Parse(\"FOOBAR ...\"): want a parse error, got none")
+		t.Fatal("parseForTest(\"FOOBAR ...\"): want a parse error, got none")
 	}
-	if !strings.Contains(errs[0].Msg, "unknown or unsupported statement") {
-		t.Errorf("error = %q, want it to mention 'unknown or unsupported statement'", errs[0].Msg)
+	if !strings.Contains(errs[0].Message, "unknown or unsupported statement") {
+		t.Errorf("error = %q, want it to mention 'unknown or unsupported statement'", errs[0].Message)
 	}
 }
 
@@ -45,15 +45,15 @@ func TestParse_UnknownStatement(t *testing.T) {
 // DDL/DML/query/admin form is now implemented, so the stub is reached only by
 // such non-forms; `CREATE INDEX` (Trino has no CREATE INDEX) exercises it.
 func TestParse_KnownStatementUnsupported(t *testing.T) {
-	file, errs := Parse("CREATE INDEX idx ON t (a)")
+	file, errs := parseForTest("CREATE INDEX idx ON t (a)")
 	if file == nil {
 		t.Fatal("Parse: File is nil")
 	}
 	if len(errs) != 1 {
-		t.Fatalf("Parse(\"CREATE INDEX ...\"): got %d errors, want 1: %v", len(errs), errs)
+		t.Fatalf("parseForTest(\"CREATE INDEX ...\"): got %d errors, want 1: %v", len(errs), errs)
 	}
-	if !strings.Contains(errs[0].Msg, "not yet supported") {
-		t.Errorf("error = %q, want it to mention 'not yet supported'", errs[0].Msg)
+	if !strings.Contains(errs[0].Message, "not yet supported") {
+		t.Errorf("error = %q, want it to mention 'not yet supported'", errs[0].Message)
 	}
 }
 
@@ -71,13 +71,13 @@ func TestParse_MultiStatementErrorsCollected(t *testing.T) {
 // TestParse_LexErrorPromoted verifies that a lexer-level failure (unterminated
 // string) surfaces as a parse error with a position, so Diagnose can report it.
 func TestParse_LexErrorPromoted(t *testing.T) {
-	_, errs := Parse("SELECT 'unterminated")
+	_, errs := parseForTest("SELECT 'unterminated")
 	if len(errs) == 0 {
 		t.Fatal("Parse with unterminated string: want a (lex-promoted) error, got none")
 	}
 	found := false
 	for _, e := range errs {
-		if strings.Contains(e.Msg, "unterminated string") {
+		if strings.Contains(e.Message, "unterminated string") {
 			found = true
 		}
 	}
@@ -90,7 +90,7 @@ func TestParse_LexErrorPromoted(t *testing.T) {
 // full error slice (matching doris's Parse signature, which returns
 // []ParseError rather than a single error).
 func TestParse_StrictReturnsAllErrors(t *testing.T) {
-	_, errs := Parse("FOOBAR; BAZBAR")
+	_, errs := parseForTest("FOOBAR; BAZBAR")
 	if len(errs) != 2 {
 		t.Fatalf("Parse: got %d errors, want 2: %v", len(errs), errs)
 	}
@@ -125,10 +125,10 @@ func TestParse_DispatchKeywordsRecognized(t *testing.T) {
 		if p == "EXPLAIN" {
 			sql = "EXPLAIN SELECT 1"
 		}
-		_, errs := Parse(sql)
+		_, errs := parseForTest(sql)
 		for _, e := range errs {
-			if strings.Contains(e.Msg, "unknown or unsupported statement") {
-				t.Errorf("keyword %q routed to default (unknown) dispatch: %q -> %q", p, sql, e.Msg)
+			if strings.Contains(e.Message, "unknown or unsupported statement") {
+				t.Errorf("keyword %q routed to default (unknown) dispatch: %q -> %q", p, sql, e.Message)
 			}
 		}
 	}

@@ -11,7 +11,7 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestCreateCatalog_Basic(t *testing.T) {
-	file, errs := Parse(`CREATE CATALOG hive_catalog PROPERTIES("type"="hms", "hive.metastore.uris"="thrift://127.0.0.1:7004")`)
+	file, errs := parseForTest(`CREATE CATALOG hive_catalog PROPERTIES("type"="hms", "hive.metastore.uris"="thrift://127.0.0.1:7004")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -43,7 +43,7 @@ func TestCreateCatalog_Basic(t *testing.T) {
 }
 
 func TestCreateCatalog_External(t *testing.T) {
-	file, errs := Parse(`CREATE EXTERNAL CATALOG iceberg_catalog PROPERTIES("type"="iceberg")`)
+	file, errs := parseForTest(`CREATE EXTERNAL CATALOG iceberg_catalog PROPERTIES("type"="iceberg")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -66,7 +66,7 @@ func TestCreateCatalog_External(t *testing.T) {
 }
 
 func TestCreateCatalog_IfNotExists(t *testing.T) {
-	file, errs := Parse(`CREATE CATALOG IF NOT EXISTS my_catalog PROPERTIES("type"="hms")`)
+	file, errs := parseForTest(`CREATE CATALOG IF NOT EXISTS my_catalog PROPERTIES("type"="hms")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -80,7 +80,7 @@ func TestCreateCatalog_IfNotExists(t *testing.T) {
 }
 
 func TestCreateCatalog_WithComment(t *testing.T) {
-	file, errs := Parse(`CREATE CATALOG hive COMMENT 'hive catalog' PROPERTIES('type'='hms', 'hive.metastore.uris'='thrift://127.0.0.1:7004')`)
+	file, errs := parseForTest(`CREATE CATALOG hive COMMENT 'hive catalog' PROPERTIES('type'='hms', 'hive.metastore.uris'='thrift://127.0.0.1:7004')`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -97,7 +97,7 @@ func TestCreateCatalog_WithComment(t *testing.T) {
 }
 
 func TestCreateCatalog_NoProperties(t *testing.T) {
-	file, errs := Parse(`CREATE CATALOG my_catalog`)
+	file, errs := parseForTest(`CREATE CATALOG my_catalog`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -111,7 +111,7 @@ func TestCreateCatalog_NoProperties(t *testing.T) {
 }
 
 func TestCreateCatalog_WithResource(t *testing.T) {
-	file, errs := Parse(`CREATE CATALOG hms_catalog WITH RESOURCE hms_resource`)
+	file, errs := parseForTest(`CREATE CATALOG hms_catalog WITH RESOURCE hms_resource`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -125,7 +125,7 @@ func TestCreateCatalog_WithResource(t *testing.T) {
 }
 
 func TestCreateCatalog_ES(t *testing.T) {
-	file, errs := Parse(`CREATE CATALOG es PROPERTIES ("type"="es", "hosts"="http://127.0.0.1:9200")`)
+	file, errs := parseForTest(`CREATE CATALOG es PROPERTIES ("type"="es", "hosts"="http://127.0.0.1:9200")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -147,7 +147,7 @@ func TestCreateCatalog_JDBC(t *testing.T) {
 		"driver_url" = "https://example.com/mysql-connector-java-8.0.25.jar",
 		"driver_class" = "com.mysql.cj.jdbc.Driver"
 	)`
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -161,7 +161,7 @@ func TestCreateCatalog_JDBC(t *testing.T) {
 }
 
 func TestCreateCatalog_Tag(t *testing.T) {
-	file, errs := Parse(`CREATE CATALOG c PROPERTIES("type"="hms")`)
+	file, errs := parseForTest(`CREATE CATALOG c PROPERTIES("type"="hms")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -175,7 +175,7 @@ func TestCreateCatalog_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAlterCatalog_Rename(t *testing.T) {
-	file, errs := Parse(`ALTER CATALOG ctlg_hive RENAME hive`)
+	file, errs := parseForTest(`ALTER CATALOG ctlg_hive RENAME hive`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -198,7 +198,7 @@ func TestAlterCatalog_Rename(t *testing.T) {
 }
 
 func TestAlterCatalog_SetProperties(t *testing.T) {
-	file, errs := Parse(`ALTER CATALOG hive SET PROPERTIES ('hive.metastore.uris'='thrift://172.21.0.1:9083')`)
+	file, errs := parseForTest(`ALTER CATALOG hive SET PROPERTIES ('hive.metastore.uris'='thrift://172.21.0.1:9083')`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -221,7 +221,7 @@ func TestAlterCatalog_SetProperties(t *testing.T) {
 }
 
 func TestAlterCatalog_ModifyComment(t *testing.T) {
-	file, errs := Parse(`ALTER CATALOG hive MODIFY COMMENT "new catalog comment"`)
+	file, errs := parseForTest(`ALTER CATALOG hive MODIFY COMMENT "new catalog comment"`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -241,7 +241,7 @@ func TestAlterCatalog_ModifyComment(t *testing.T) {
 }
 
 func TestAlterCatalog_Property(t *testing.T) {
-	file, errs := Parse(`ALTER CATALOG c PROPERTY ("key"="value")`)
+	file, errs := parseForTest(`ALTER CATALOG c PROPERTY ("key"="value")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -261,7 +261,7 @@ func TestAlterCatalog_Property(t *testing.T) {
 }
 
 func TestAlterCatalog_Tag(t *testing.T) {
-	file, errs := Parse(`ALTER CATALOG c RENAME c2`)
+	file, errs := parseForTest(`ALTER CATALOG c RENAME c2`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -275,7 +275,7 @@ func TestAlterCatalog_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDropCatalog_Basic(t *testing.T) {
-	file, errs := Parse(`DROP CATALOG hive`)
+	file, errs := parseForTest(`DROP CATALOG hive`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -295,7 +295,7 @@ func TestDropCatalog_Basic(t *testing.T) {
 }
 
 func TestDropCatalog_IfExists(t *testing.T) {
-	file, errs := Parse(`DROP CATALOG IF EXISTS hive`)
+	file, errs := parseForTest(`DROP CATALOG IF EXISTS hive`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -312,7 +312,7 @@ func TestDropCatalog_IfExists(t *testing.T) {
 }
 
 func TestDropCatalog_Tag(t *testing.T) {
-	file, errs := Parse(`DROP CATALOG c`)
+	file, errs := parseForTest(`DROP CATALOG c`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -326,7 +326,7 @@ func TestDropCatalog_Tag(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRefreshCatalog_Basic(t *testing.T) {
-	file, errs := Parse(`REFRESH CATALOG c`)
+	file, errs := parseForTest(`REFRESH CATALOG c`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -346,7 +346,7 @@ func TestRefreshCatalog_Basic(t *testing.T) {
 }
 
 func TestRefreshCatalog_WithProperties(t *testing.T) {
-	file, errs := Parse(`REFRESH CATALOG c PROPERTIES("key"="value")`)
+	file, errs := parseForTest(`REFRESH CATALOG c PROPERTIES("key"="value")`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -363,7 +363,7 @@ func TestRefreshCatalog_WithProperties(t *testing.T) {
 }
 
 func TestRefreshCatalog_Tag(t *testing.T) {
-	file, errs := Parse(`REFRESH CATALOG c`)
+	file, errs := parseForTest(`REFRESH CATALOG c`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -386,7 +386,7 @@ func TestCreateCatalog_Legacy_HiveWithHAFS(t *testing.T) {
 		'dfs.namenode.rpc-address.HANN.nn2'='nn2_host:rpc_port',
 		'dfs.client.failover.proxy.provider.HANN'='org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider'
 	)`
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -411,7 +411,7 @@ func TestCreateCatalog_Legacy_JdbcPostgres(t *testing.T) {
 		"driver_url" = "file:///path/to/postgresql-42.5.1.jar",
 		"driver_class" = "org.postgresql.Driver"
 	)`
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -429,7 +429,7 @@ func TestCreateCatalog_Legacy_JdbcPostgres(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAlterCatalog_Legacy_Rename(t *testing.T) {
-	file, errs := Parse(`ALTER CATALOG ctlg_hive RENAME hive`)
+	file, errs := parseForTest(`ALTER CATALOG ctlg_hive RENAME hive`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -440,7 +440,7 @@ func TestAlterCatalog_Legacy_Rename(t *testing.T) {
 }
 
 func TestAlterCatalog_Legacy_SetProperties(t *testing.T) {
-	file, errs := Parse(`ALTER CATALOG hive SET PROPERTIES ('hive.metastore.uris'='thrift://172.21.0.1:9083')`)
+	file, errs := parseForTest(`ALTER CATALOG hive SET PROPERTIES ('hive.metastore.uris'='thrift://172.21.0.1:9083')`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -451,7 +451,7 @@ func TestAlterCatalog_Legacy_SetProperties(t *testing.T) {
 }
 
 func TestAlterCatalog_Legacy_ModifyComment(t *testing.T) {
-	file, errs := Parse(`ALTER CATALOG hive MODIFY COMMENT "new catalog comment"`)
+	file, errs := parseForTest(`ALTER CATALOG hive MODIFY COMMENT "new catalog comment"`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -466,7 +466,7 @@ func TestAlterCatalog_Legacy_ModifyComment(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDropCatalog_Legacy_Basic(t *testing.T) {
-	file, errs := Parse(`DROP CATALOG hive`)
+	file, errs := parseForTest(`DROP CATALOG hive`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -477,7 +477,7 @@ func TestDropCatalog_Legacy_Basic(t *testing.T) {
 }
 
 func TestDropCatalog_Legacy_IfExists(t *testing.T) {
-	file, errs := Parse(`DROP CATALOG IF EXISTS hive`)
+	file, errs := parseForTest(`DROP CATALOG IF EXISTS hive`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -493,7 +493,7 @@ func TestDropCatalog_Legacy_IfExists(t *testing.T) {
 
 func TestCatalog_MultiStatement(t *testing.T) {
 	input := `CREATE CATALOG c1 PROPERTIES("type"="hms"); DROP CATALOG c1`
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -513,7 +513,7 @@ func TestCatalog_MultiStatement(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCreateExternalTable_StillWorks(t *testing.T) {
-	file, errs := Parse(`CREATE EXTERNAL TABLE t (id INT)`)
+	file, errs := parseForTest(`CREATE EXTERNAL TABLE t (id INT)`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}

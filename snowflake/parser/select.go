@@ -287,8 +287,8 @@ func (p *Parser) parseTopCount() (ast.Node, error) {
 		return p.parsePrimaryExpr()
 	default:
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected a number after TOP",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected a number after TOP",
 		}
 	}
 }
@@ -570,8 +570,8 @@ func (p *Parser) parseSelectTarget() (*ast.SelectTarget, error) {
 		switch p.cur.Type {
 		case kwILIKE, kwEXCLUDE, kwREPLACE, kwRENAME:
 			return nil, &ParseError{
-				Loc: p.cur.Loc,
-				Msg: "star column-transforms must appear in ILIKE/EXCLUDE, REPLACE, RENAME order",
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "star column-transforms must appear in ILIKE/EXCLUDE, REPLACE, RENAME order",
 			}
 		}
 	} else {
@@ -615,7 +615,7 @@ func (p *Parser) parseStarExclude(target *ast.SelectTarget) error {
 			}
 			p.advance() // consume ','
 			if p.cur.Loc.Start <= before {
-				return &ParseError{Loc: p.cur.Loc, Msg: "malformed EXCLUDE list"}
+				return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "malformed EXCLUDE list"}
 			}
 		}
 		if _, err := p.expect(')'); err != nil {
@@ -655,7 +655,7 @@ func (p *Parser) parseStarRename(target *ast.SelectTarget) error {
 			}
 			p.advance() // consume ','
 			if p.cur.Loc.Start <= before {
-				return &ParseError{Loc: p.cur.Loc, Msg: "malformed RENAME list"}
+				return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "malformed RENAME list"}
 			}
 		}
 		if _, err := p.expect(')'); err != nil {
@@ -713,7 +713,7 @@ func (p *Parser) parseStarReplace(target *ast.SelectTarget) error {
 		}
 		p.advance() // consume ','
 		if p.cur.Loc.Start <= before {
-			return &ParseError{Loc: p.cur.Loc, Msg: "malformed REPLACE list"}
+			return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "malformed REPLACE list"}
 		}
 	}
 	if _, err := p.expect(')'); err != nil {
@@ -863,8 +863,8 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 		funcCall, ok := expr.(*ast.FuncCallExpr)
 		if !ok {
 			return nil, &ParseError{
-				Loc: ast.NodeLoc(expr),
-				Msg: "expected function call inside TABLE(...)",
+				Position: ast.NodeLoc(expr).Start, End: ast.NodeLoc(expr).End,
+				Message: "expected function call inside TABLE(...)",
 			}
 		}
 		if _, err := p.expect(')'); err != nil {
@@ -889,8 +889,8 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 		funcCall, ok := expr.(*ast.FuncCallExpr)
 		if !ok {
 			return nil, &ParseError{
-				Loc: ast.NodeLoc(expr),
-				Msg: "expected function call for FLATTEN",
+				Position: ast.NodeLoc(expr).Start, End: ast.NodeLoc(expr).End,
+				Message: "expected function call for FLATTEN",
 			}
 		}
 		ref := &ast.TableRef{

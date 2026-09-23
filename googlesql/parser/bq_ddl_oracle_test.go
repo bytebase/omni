@@ -106,7 +106,7 @@ func TestBQDDLTriangulation(t *testing.T) {
 			// 2. omni's verdict — the union parser must match omniAccepts. For the
 			// BigQuery-only forms that is ALWAYS accept (the documented form is valid
 			// GoogleSQL); the Spanner reject above is non-authoritative.
-			_, errs := Parse(fx.sql)
+			_, errs := parseForTest(fx.sql)
 			omniAccepts := len(errs) == 0
 			if omniAccepts != fx.omniAccepts {
 				t.Errorf("omni verdict on %q: accepts=%v, want %v; errs=%v [%s]",

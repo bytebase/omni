@@ -9,16 +9,16 @@ import (
 // mustParseInsert parses input and returns the first statement as *ast.InsertStmt.
 func mustParseInsert(t *testing.T, input string) *ast.InsertStmt {
 	t.Helper()
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", input)
+		t.Fatalf("parseForTest(%q) returned no statements", input)
 	}
 	stmt, ok := file.Stmts[0].(*ast.InsertStmt)
 	if !ok {
-		t.Fatalf("Parse(%q) got %T, want *ast.InsertStmt", input, file.Stmts[0])
+		t.Fatalf("parseForTest(%q) got %T, want *ast.InsertStmt", input, file.Stmts[0])
 	}
 	return stmt
 }
@@ -318,9 +318,9 @@ func TestInsertLegacyCorpusDML(t *testing.T) {
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {
-			_, errs := Parse(sql)
+			_, errs := parseForTest(sql)
 			if len(errs) > 0 {
-				t.Fatalf("Parse(%q) errors: %v", sql, errs)
+				t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 			}
 		})
 	}
@@ -357,9 +357,9 @@ func TestInsertLegacyCorpusOverwrite(t *testing.T) {
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {
-			_, errs := Parse(sql)
+			_, errs := parseForTest(sql)
 			if len(errs) > 0 {
-				t.Fatalf("Parse(%q) errors: %v", sql, errs)
+				t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 			}
 		})
 	}

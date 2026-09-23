@@ -8,16 +8,16 @@ import (
 
 func parseOneSelect(t *testing.T, input string) *ast.SelectStmt {
 	t.Helper()
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q): no statements", input)
+		t.Fatalf("parseForTest(%q): no statements", input)
 	}
 	sel, ok := file.Stmts[0].(*ast.SelectStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): got %T, want *ast.SelectStmt", input, file.Stmts[0])
+		t.Fatalf("parseForTest(%q): got %T, want *ast.SelectStmt", input, file.Stmts[0])
 	}
 	return sel
 }
@@ -56,9 +56,9 @@ func TestWindowFunctionTopLevel(t *testing.T) {
 // CTE's closing ')' collided with it.
 func TestWindowFunctionInCTE(t *testing.T) {
 	input := "WITH ranked AS (SELECT region, ROW_NUMBER() OVER (PARTITION BY region ORDER BY amount DESC) AS rn FROM sales) SELECT region FROM ranked WHERE rn = 1"
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	if len(file.Stmts) != 1 {
 		t.Fatalf("Stmts = %d, want 1", len(file.Stmts))

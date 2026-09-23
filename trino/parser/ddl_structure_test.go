@@ -12,7 +12,7 @@ import (
 // source/target, dropping a property, losing IF EXISTS) is caught.
 
 func TestDDLStructure_CreateTable(t *testing.T) {
-	file, errs := Parse("CREATE OR REPLACE TABLE cat.sch.orders (orderkey bigint NOT NULL, name varchar COMMENT 'n', LIKE base INCLUDING PROPERTIES) COMMENT 'tbl' WITH (format = 'ORC')")
+	file, errs := parseForTest("CREATE OR REPLACE TABLE cat.sch.orders (orderkey bigint NOT NULL, name varchar COMMENT 'n', LIKE base INCLUDING PROPERTIES) COMMENT 'tbl' WITH (format = 'ORC')")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -56,7 +56,7 @@ func TestDDLStructure_CreateTable(t *testing.T) {
 }
 
 func TestDDLStructure_CreateTableAs(t *testing.T) {
-	file, errs := Parse("CREATE TABLE t (a, b) WITH (x = 1) AS SELECT 1, 2 WITH NO DATA")
+	file, errs := parseForTest("CREATE TABLE t (a, b) WITH (x = 1) AS SELECT 1, 2 WITH NO DATA")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -80,7 +80,7 @@ func TestDDLStructure_CreateTableAs(t *testing.T) {
 
 func TestDDLStructure_ColumnDefault(t *testing.T) {
 	// DEFAULT then NOT NULL (the only legal order, D-CT2).
-	file, errs := Parse("CREATE TABLE t (status varchar DEFAULT 'created' NOT NULL)")
+	file, errs := parseForTest("CREATE TABLE t (status varchar DEFAULT 'created' NOT NULL)")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -110,7 +110,7 @@ func TestDDLStructure_DropVariants(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.sql, func(t *testing.T) {
-			file, errs := Parse(tc.sql)
+			file, errs := parseForTest(tc.sql)
 			if len(errs) != 0 {
 				t.Fatalf("unexpected errors: %v", errs)
 			}
@@ -135,7 +135,7 @@ func TestDDLStructure_DropVariants(t *testing.T) {
 }
 
 func TestDDLStructure_AlterTableRename(t *testing.T) {
-	file, _ := Parse("ALTER TABLE IF EXISTS users RENAME TO people")
+	file, _ := parseForTest("ALTER TABLE IF EXISTS users RENAME TO people")
 	stmt := file.Stmts[0].(*AlterTableStmt)
 	if stmt.Kind != AlterTableRename {
 		t.Fatalf("Kind = %v, want AlterTableRename", stmt.Kind)
@@ -149,7 +149,7 @@ func TestDDLStructure_AlterTableRename(t *testing.T) {
 }
 
 func TestDDLStructure_AlterTableAddColumn(t *testing.T) {
-	file, _ := Parse("ALTER TABLE users ADD COLUMN IF NOT EXISTS zip varchar AFTER country")
+	file, _ := parseForTest("ALTER TABLE users ADD COLUMN IF NOT EXISTS zip varchar AFTER country")
 	stmt := file.Stmts[0].(*AlterTableStmt)
 	if stmt.Kind != AlterTableAddColumn {
 		t.Fatalf("Kind = %v, want AlterTableAddColumn", stmt.Kind)
@@ -177,7 +177,7 @@ func TestDDLStructure_AlterTableAlterColumn(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.sql, func(t *testing.T) {
-			file, errs := Parse(tc.sql)
+			file, errs := parseForTest(tc.sql)
 			if len(errs) != 0 {
 				t.Fatalf("errors: %v", errs)
 			}
@@ -196,7 +196,7 @@ func TestDDLStructure_AlterTableAlterColumn(t *testing.T) {
 }
 
 func TestDDLStructure_AlterTableExecute(t *testing.T) {
-	file, errs := Parse("ALTER TABLE t EXECUTE optimize(file_size_threshold => '16MB') WHERE p = 1")
+	file, errs := parseForTest("ALTER TABLE t EXECUTE optimize(file_size_threshold => '16MB') WHERE p = 1")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -219,7 +219,7 @@ func TestDDLStructure_AlterTableExecute(t *testing.T) {
 }
 
 func TestDDLStructure_AlterTableSetProperties(t *testing.T) {
-	file, _ := Parse("ALTER TABLE t SET PROPERTIES a = 1, b = DEFAULT")
+	file, _ := parseForTest("ALTER TABLE t SET PROPERTIES a = 1, b = DEFAULT")
 	stmt := file.Stmts[0].(*AlterTableStmt)
 	if stmt.Kind != AlterTableSetProperties {
 		t.Fatalf("Kind = %v, want AlterTableSetProperties", stmt.Kind)
@@ -236,7 +236,7 @@ func TestDDLStructure_AlterTableSetProperties(t *testing.T) {
 }
 
 func TestDDLStructure_CreateSchema(t *testing.T) {
-	file, _ := Parse("CREATE SCHEMA IF NOT EXISTS hive.web AUTHORIZATION ROLE PUBLIC WITH (location = '/x')")
+	file, _ := parseForTest("CREATE SCHEMA IF NOT EXISTS hive.web AUTHORIZATION ROLE PUBLIC WITH (location = '/x')")
 	stmt, ok := file.Stmts[0].(*CreateSchemaStmt)
 	if !ok {
 		t.Fatalf("got %T, want *CreateSchemaStmt", file.Stmts[0])
@@ -256,12 +256,12 @@ func TestDDLStructure_CreateSchema(t *testing.T) {
 }
 
 func TestDDLStructure_AlterSchema(t *testing.T) {
-	rename, _ := Parse("ALTER SCHEMA foo.bar RENAME TO baz")
+	rename, _ := parseForTest("ALTER SCHEMA foo.bar RENAME TO baz")
 	rs := rename.Stmts[0].(*AlterSchemaStmt)
 	if rs.Kind != AlterSchemaRename || rs.Name.String() != "foo.bar" || rs.NewName.Value != "baz" {
 		t.Errorf("rename = %+v, want foo.bar RENAME TO baz", rs)
 	}
-	auth, _ := Parse("ALTER SCHEMA web SET AUTHORIZATION USER alice")
+	auth, _ := parseForTest("ALTER SCHEMA web SET AUTHORIZATION USER alice")
 	as := auth.Stmts[0].(*AlterSchemaStmt)
 	if as.Kind != AlterSchemaSetAuthorization || as.Authorization.Kind != PrincipalUser {
 		t.Errorf("set auth = %+v, want SET AUTHORIZATION USER alice", as)
@@ -269,7 +269,7 @@ func TestDDLStructure_AlterSchema(t *testing.T) {
 }
 
 func TestDDLStructure_CreateView(t *testing.T) {
-	file, _ := Parse("CREATE OR REPLACE VIEW v COMMENT 'c' SECURITY INVOKER AS SELECT 1")
+	file, _ := parseForTest("CREATE OR REPLACE VIEW v COMMENT 'c' SECURITY INVOKER AS SELECT 1")
 	stmt, ok := file.Stmts[0].(*CreateViewStmt)
 	if !ok {
 		t.Fatalf("got %T, want *CreateViewStmt", file.Stmts[0])
@@ -299,7 +299,7 @@ func TestDDLStructure_AlterView(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.sql, func(t *testing.T) {
-			file, errs := Parse(tc.sql)
+			file, errs := parseForTest(tc.sql)
 			if len(errs) != 0 {
 				t.Fatalf("errors: %v", errs)
 			}
@@ -312,7 +312,7 @@ func TestDDLStructure_AlterView(t *testing.T) {
 }
 
 func TestDDLStructure_CreateMaterializedView(t *testing.T) {
-	file, errs := Parse("CREATE MATERIALIZED VIEW mv GRACE PERIOD INTERVAL '1' HOUR WHEN STALE FAIL COMMENT 'c' WITH (p = 1) AS SELECT 1")
+	file, errs := parseForTest("CREATE MATERIALIZED VIEW mv GRACE PERIOD INTERVAL '1' HOUR WHEN STALE FAIL COMMENT 'c' WITH (p = 1) AS SELECT 1")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -338,7 +338,7 @@ func TestDDLStructure_CreateMaterializedView(t *testing.T) {
 }
 
 func TestDDLStructure_CreateCatalog(t *testing.T) {
-	file, errs := Parse("CREATE CATALOG IF NOT EXISTS c USING postgresql COMMENT 'x' AUTHORIZATION alice WITH (\"connection-url\" = 'u')")
+	file, errs := parseForTest("CREATE CATALOG IF NOT EXISTS c USING postgresql COMMENT 'x' AUTHORIZATION alice WITH (\"connection-url\" = 'u')")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -367,7 +367,7 @@ func TestDDLStructure_CreateCatalog(t *testing.T) {
 }
 
 func TestDDLStructure_DropCatalog(t *testing.T) {
-	file, _ := Parse("DROP CATALOG IF EXISTS c CASCADE")
+	file, _ := parseForTest("DROP CATALOG IF EXISTS c CASCADE")
 	stmt, ok := file.Stmts[0].(*DropCatalogStmt)
 	if !ok {
 		t.Fatalf("got %T, want *DropCatalogStmt", file.Stmts[0])
@@ -392,7 +392,7 @@ func TestDDLStructure_Comment(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.sql, func(t *testing.T) {
-			file, errs := Parse(tc.sql)
+			file, errs := parseForTest(tc.sql)
 			if len(errs) != 0 {
 				t.Fatalf("errors: %v", errs)
 			}
@@ -414,12 +414,12 @@ func TestDDLStructure_Comment(t *testing.T) {
 }
 
 func TestDDLStructure_Analyze(t *testing.T) {
-	bare, _ := Parse("ANALYZE hive.default.stores")
+	bare, _ := parseForTest("ANALYZE hive.default.stores")
 	b := bare.Stmts[0].(*AnalyzeStmt)
 	if b.Name.String() != "hive.default.stores" || len(b.Properties) != 0 {
 		t.Errorf("bare ANALYZE = %+v, want hive.default.stores no props", b)
 	}
-	withProps, _ := Parse("ANALYZE t WITH (columns = ARRAY['a', 'b'])")
+	withProps, _ := parseForTest("ANALYZE t WITH (columns = ARRAY['a', 'b'])")
 	w := withProps.Stmts[0].(*AnalyzeStmt)
 	if len(w.Properties) != 1 || w.Properties[0].Name.Value != "columns" {
 		t.Errorf("ANALYZE WITH = %+v, want columns property", w.Properties)
@@ -427,7 +427,7 @@ func TestDDLStructure_Analyze(t *testing.T) {
 }
 
 func TestDDLStructure_RefreshMaterializedView(t *testing.T) {
-	file, _ := Parse("REFRESH MATERIALIZED VIEW cat.sch.mv")
+	file, _ := parseForTest("REFRESH MATERIALIZED VIEW cat.sch.mv")
 	stmt, ok := file.Stmts[0].(*RefreshMaterializedViewStmt)
 	if !ok {
 		t.Fatalf("got %T, want *RefreshMaterializedViewStmt", file.Stmts[0])

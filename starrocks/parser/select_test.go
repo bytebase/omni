@@ -9,16 +9,16 @@ import (
 // mustParseSelect parses input and returns the first statement as *ast.SelectStmt.
 func mustParseSelect(t *testing.T, input string) *ast.SelectStmt {
 	t.Helper()
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", input)
+		t.Fatalf("parseForTest(%q) returned no statements", input)
 	}
 	stmt, ok := file.Stmts[0].(*ast.SelectStmt)
 	if !ok {
-		t.Fatalf("Parse(%q) got %T, want *ast.SelectStmt", input, file.Stmts[0])
+		t.Fatalf("parseForTest(%q) got %T, want *ast.SelectStmt", input, file.Stmts[0])
 	}
 	return stmt
 }
@@ -441,7 +441,7 @@ func TestSelectQualify(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSelectMultipleStatements(t *testing.T) {
-	file, errs := Parse("SELECT 1; SELECT 2")
+	file, errs := parseForTest("SELECT 1; SELECT 2")
 	if len(errs) > 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -624,7 +624,7 @@ func TestSelectGroupByGroupingSets(t *testing.T) {
 		t.Fatalf("Sets shape = %v, want [2 1 0]", gs.Sets)
 	}
 
-	_, errs := Parse("SELECT a FROM t GROUP BY GROUPING SETS ((a)), b")
+	_, errs := parseForTest("SELECT a FROM t GROUP BY GROUPING SETS ((a)), b")
 	if len(errs) == 0 {
 		t.Error("GROUPING SETS with a trailing item parsed, want error")
 	}
@@ -680,7 +680,7 @@ func TestSelectQualifiedColumnContinuations(t *testing.T) {
 
 func TestParenSelectNesting(t *testing.T) {
 	// Parens nest freely at the top level (engine-verified).
-	file, errs := Parse("((SELECT 1))")
+	file, errs := parseForTest("((SELECT 1))")
 	if len(errs) != 0 {
 		t.Fatalf("((SELECT 1)) errors: %v", errs)
 	}
@@ -703,10 +703,10 @@ func unwrapParens(n ast.Node) ast.Node {
 func TestParenSelectNonQueryWithRejected(t *testing.T) {
 	// A parenthesized WITH must resolve to a query; the engine rejects
 	// parenthesized DML (container-verified).
-	if _, errs := Parse("(WITH c AS (SELECT 1) DELETE FROM t)"); len(errs) == 0 {
+	if _, errs := parseForTest("(WITH c AS (SELECT 1) DELETE FROM t)"); len(errs) == 0 {
 		t.Error("(WITH ... DELETE ...) parsed, want error")
 	}
-	file, errs := Parse("(WITH c AS (SELECT 1) SELECT * FROM c)")
+	file, errs := parseForTest("(WITH c AS (SELECT 1) SELECT * FROM c)")
 	if len(errs) != 0 {
 		t.Fatalf("(WITH ... SELECT ...) errors: %v", errs)
 	}
@@ -719,7 +719,7 @@ func TestParenSelectNestedTrailingClauses(t *testing.T) {
 	// Trailing clauses outside the parens land on the outermost wrapper —
 	// never consumed-and-dropped, and never overwriting a clause the inner
 	// query already carries.
-	file, errs := Parse("((SELECT 1)) LIMIT 5")
+	file, errs := parseForTest("((SELECT 1)) LIMIT 5")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -731,7 +731,7 @@ func TestParenSelectNestedTrailingClauses(t *testing.T) {
 		t.Fatal("LIMIT dropped on nested paren query")
 	}
 
-	file, errs = Parse("(((SELECT 1))) ORDER BY 1 LIMIT 5")
+	file, errs = parseForTest("(((SELECT 1))) ORDER BY 1 LIMIT 5")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -740,7 +740,7 @@ func TestParenSelectNestedTrailingClauses(t *testing.T) {
 		t.Fatalf("clauses dropped: OrderBy=%d Limit=%v", len(outer.OrderBy), outer.Limit)
 	}
 
-	file, errs = Parse("((SELECT 1 UNION SELECT 2)) LIMIT 5")
+	file, errs = parseForTest("((SELECT 1 UNION SELECT 2)) LIMIT 5")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -751,7 +751,7 @@ func TestParenSelectNestedTrailingClauses(t *testing.T) {
 
 	// Inner clauses survive alongside the outer ones (engine-verified:
 	// ((SELECT 1 LIMIT 1)) LIMIT 2 is accepted, and both limits are real).
-	file, errs = Parse("((SELECT 1 LIMIT 1)) LIMIT 2")
+	file, errs = parseForTest("((SELECT 1 LIMIT 1)) LIMIT 2")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}

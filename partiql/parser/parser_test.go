@@ -97,8 +97,8 @@ func TestParser_Machinery(t *testing.T) {
 		if !strings.Contains(perr.Message, "expected") {
 			t.Errorf("error message = %q, want to contain 'expected'", perr.Message)
 		}
-		if perr.Loc.Start != 0 {
-			t.Errorf("error Loc.Start = %d, want 0", perr.Loc.Start)
+		if perr.Position != 0 {
+			t.Errorf("error Loc.Start = %d, want 0", perr.Position)
 		}
 	})
 

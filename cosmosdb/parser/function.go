@@ -54,8 +54,8 @@ func (p *Parser) parseUDFCall() (nodes.ExprNode, error) {
 	// The function name after UDF.
 	if p.cur.Type != tokIDENT && !isIdentLike(p.cur.Type) {
 		return nil, &ParseError{
-			Message: fmt.Sprintf("expected function name after UDF., got %q", p.cur.Str),
-			Pos:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected function name after UDF., got %q", p.cur.Str),
+			Position: p.cur.Loc,
 		}
 	}
 	name := p.cur.Str

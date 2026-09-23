@@ -186,7 +186,7 @@ func (p *Parser) parseQueryPrimary() (ast.Node, error) {
 		// ("Syntax error: Unexpected FROM"). The Spanner emulator likewise
 		// rejects `FROM t`. We surface the same reject by reporting at FROM
 		// rather than building a tree.
-		return nil, &ParseError{Loc: p.cur.Loc, Msg: "syntax error: unexpected FROM (a query must begin with SELECT)"}
+		return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: unexpected FROM (a query must begin with SELECT)"}
 	default:
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -337,7 +337,7 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 // rejects `SELECT FROM t` with "SELECT list must not be empty").
 func (p *Parser) parseSelectList() ([]*ast.SelectItem, error) {
 	if p.atSelectListEnd() {
-		return nil, &ParseError{Loc: p.cur.Loc, Msg: "syntax error: SELECT list must not be empty"}
+		return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: SELECT list must not be empty"}
 	}
 	var items []*ast.SelectItem
 	for {

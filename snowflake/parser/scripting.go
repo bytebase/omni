@@ -46,7 +46,7 @@ const maxScriptDepth = 200
 
 // errScriptTooDeep is returned when scriptDepth exceeds maxScriptDepth.
 func (p *Parser) errScriptTooDeep() *ParseError {
-	return &ParseError{Loc: p.cur.Loc, Msg: "snowflake scripting block nested too deeply"}
+	return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "snowflake scripting block nested too deeply"}
 }
 
 // enterScript increments the nesting depth and reports whether the new depth is
@@ -1197,7 +1197,7 @@ func (p *Parser) expectWhileLoopCloser() (Token, error) {
 // before its closing keyword. This is the fast-fail path that prevents a
 // never-closed block from looping.
 func (p *Parser) unterminated(what string) *ParseError {
-	return &ParseError{Loc: p.cur.Loc, Msg: "unterminated " + what + " at end of input"}
+	return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "unterminated " + what + " at end of input"}
 }
 
 // noProgress returns a ParseError for the defensive case where a list loop
@@ -1205,5 +1205,5 @@ func (p *Parser) unterminated(what string) *ParseError {
 // returning an error (rather than spinning) keeps non-termination structurally
 // impossible.
 func (p *Parser) noProgress(what string) *ParseError {
-	return &ParseError{Loc: p.cur.Loc, Msg: "internal: no progress parsing " + what}
+	return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "internal: no progress parsing " + what}
 }

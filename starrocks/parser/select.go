@@ -292,8 +292,8 @@ func (p *Parser) parseParenSelect() (*ast.ParenSelect, error) {
 				// parenthesized query expression, and the engine rejects
 				// parenthesized DML (container-verified).
 				return nil, &ParseError{
-					Loc: ast.NodeLoc(inner),
-					Msg: "parenthesized query expected, got a non-query statement",
+					Position: ast.NodeLoc(inner).Start, End: ast.NodeLoc(inner).End,
+					Message: "parenthesized query expected, got a non-query statement",
 				}
 			}
 		}

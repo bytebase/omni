@@ -31,7 +31,7 @@ func parseTransaction(t *testing.T, sql string) *ast.TransactionStmt {
 	n := parseOneStmt(t, sql)
 	tx, ok := n.(*ast.TransactionStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): got %T, want *ast.TransactionStmt", sql, n)
+		t.Fatalf("parseForTest(%q): got %T, want *ast.TransactionStmt", sql, n)
 	}
 	return tx
 }
@@ -41,7 +41,7 @@ func parseBatch(t *testing.T, sql string) *ast.BatchStmt {
 	n := parseOneStmt(t, sql)
 	b, ok := n.(*ast.BatchStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): got %T, want *ast.BatchStmt", sql, n)
+		t.Fatalf("parseForTest(%q): got %T, want *ast.BatchStmt", sql, n)
 	}
 	return b
 }
@@ -268,7 +268,7 @@ func TestTransaction_CorpusAccepts(t *testing.T) {
 		sql := sql
 		t.Run(sql, func(t *testing.T) {
 			if _, ok := parseOneStmt(t, sql).(*ast.TransactionStmt); !ok {
-				t.Errorf("Parse(%q): want *ast.TransactionStmt", sql)
+				t.Errorf("parseForTest(%q): want *ast.TransactionStmt", sql)
 			}
 		})
 	}
@@ -283,7 +283,7 @@ func TestTransaction_CorpusAccepts(t *testing.T) {
 		sql := sql
 		t.Run(sql, func(t *testing.T) {
 			if _, ok := parseOneStmt(t, sql).(*ast.BatchStmt); !ok {
-				t.Errorf("Parse(%q): want *ast.BatchStmt", sql)
+				t.Errorf("parseForTest(%q): want *ast.BatchStmt", sql)
 			}
 		})
 	}

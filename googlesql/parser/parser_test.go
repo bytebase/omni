@@ -11,15 +11,15 @@ import (
 // input yields a non-nil File with no statements and no errors.
 func TestParse_EmptyInput(t *testing.T) {
 	for _, in := range []string{"", "   ", "\n\t ", "-- just a comment\n", "/* block */", "# pound\n", ";", ";;"} {
-		file, errs := Parse(in)
+		file, errs := parseForTest(in)
 		if file == nil {
-			t.Fatalf("Parse(%q): File is nil", in)
+			t.Fatalf("parseForTest(%q): File is nil", in)
 		}
 		if len(file.Stmts) != 0 {
-			t.Errorf("Parse(%q): got %d stmts, want 0", in, len(file.Stmts))
+			t.Errorf("parseForTest(%q): got %d stmts, want 0", in, len(file.Stmts))
 		}
 		if len(errs) != 0 {
-			t.Errorf("Parse(%q): got errors %v, want none", in, errs)
+			t.Errorf("parseForTest(%q): got errors %v, want none", in, errs)
 		}
 	}
 }
@@ -27,7 +27,7 @@ func TestParse_EmptyInput(t *testing.T) {
 // TestParse_FileLocCoversInput verifies the File node spans the whole input.
 func TestParse_FileLocCoversInput(t *testing.T) {
 	in := "SELECT 1; SELECT 2"
-	file, _ := Parse(in)
+	file, _ := parseForTest(in)
 	if file.Loc.Start != 0 || file.Loc.End != len(in) {
 		t.Errorf("File.Loc = %+v, want {0, %d}", file.Loc, len(in))
 	}
@@ -37,12 +37,12 @@ func TestParse_FileLocCoversInput(t *testing.T) {
 // dispatch switch does not recognize produces a parse error (not a panic, not
 // silent acceptance).
 func TestParse_UnknownStatement(t *testing.T) {
-	_, errs := Parse("FOOBAR 1 2 3")
+	_, errs := parseForTest("FOOBAR 1 2 3")
 	if len(errs) == 0 {
-		t.Fatal("Parse(\"FOOBAR ...\"): want a parse error, got none")
+		t.Fatal("parseForTest(\"FOOBAR ...\"): want a parse error, got none")
 	}
-	if !strings.Contains(errs[0].Msg, "unknown or unsupported statement") {
-		t.Errorf("error = %q, want it to mention 'unknown or unsupported statement'", errs[0].Msg)
+	if !strings.Contains(errs[0].Message, "unknown or unsupported statement") {
+		t.Errorf("error = %q, want it to mention 'unknown or unsupported statement'", errs[0].Message)
 	}
 }
 
@@ -56,15 +56,15 @@ func TestParse_UnknownStatement(t *testing.T) {
 // LOAD DATA, CLONE DATA, parser-dml-ext) are now implemented and no longer
 // stubbed.
 func TestParse_KnownStatementUnsupported(t *testing.T) {
-	_, errs := Parse("IMPORT MODULE foo.bar")
+	_, errs := parseForTest("IMPORT MODULE foo.bar")
 	if len(errs) != 1 {
-		t.Fatalf("Parse(\"IMPORT ...\"): got %d errors, want 1: %v", len(errs), errs)
+		t.Fatalf("parseForTest(\"IMPORT ...\"): got %d errors, want 1: %v", len(errs), errs)
 	}
-	if !strings.Contains(errs[0].Msg, "not yet supported") {
-		t.Errorf("error = %q, want 'not yet supported'", errs[0].Msg)
+	if !strings.Contains(errs[0].Message, "not yet supported") {
+		t.Errorf("error = %q, want 'not yet supported'", errs[0].Message)
 	}
-	if !strings.HasPrefix(errs[0].Msg, "IMPORT ") {
-		t.Errorf("error = %q, want it to name the IMPORT statement", errs[0].Msg)
+	if !strings.HasPrefix(errs[0].Message, "IMPORT ") {
+		t.Errorf("error = %q, want it to name the IMPORT statement", errs[0].Message)
 	}
 }
 
@@ -82,10 +82,10 @@ func TestParse_MultiStatementErrorsCollected(t *testing.T) {
 // TestParse_LexErrorPromoted verifies a lexer-level failure (unterminated
 // string) surfaces as a parse error with a position, so Diagnose can report it.
 func TestParse_LexErrorPromoted(t *testing.T) {
-	_, errs := Parse("SELECT 'unterminated")
+	_, errs := parseForTest("SELECT 'unterminated")
 	found := false
 	for _, e := range errs {
-		if strings.Contains(e.Msg, errUnterminatedString) {
+		if strings.Contains(e.Message, errUnterminatedString) {
 			found = true
 		}
 	}
@@ -101,25 +101,25 @@ func TestParse_LexErrorPositionAbsolute(t *testing.T) {
 	// The unterminated string begins at byte offset 17 in the full input.
 	in := "SELECT 1;\nSELECT 'oops"
 	want := strings.Index(in, "'oops")
-	_, errs := Parse(in)
+	_, errs := parseForTest(in)
 	var lexErr *ParseError
 	for i := range errs {
-		if strings.Contains(errs[i].Msg, errUnterminatedString) {
+		if strings.Contains(errs[i].Message, errUnterminatedString) {
 			lexErr = &errs[i]
 		}
 	}
 	if lexErr == nil {
 		t.Fatalf("no unterminated-string error in %v", errs)
 	}
-	if lexErr.Loc.Start != want {
-		t.Errorf("lex error Loc.Start = %d, want %d (absolute offset)", lexErr.Loc.Start, want)
+	if lexErr.Position != want {
+		t.Errorf("lex error Loc.Start = %d, want %d (absolute offset)", lexErr.Position, want)
 	}
 }
 
 // TestParse_StrictReturnsAllErrors verifies the strict Parse entry returns the
 // full error slice (matching snowflake/trino Parse, which return []ParseError).
 func TestParse_StrictReturnsAllErrors(t *testing.T) {
-	_, errs := Parse("FOOBAR; BAZBAR")
+	_, errs := parseForTest("FOOBAR; BAZBAR")
 	if len(errs) != 2 {
 		t.Fatalf("Parse: got %d errors, want 2: %v", len(errs), errs)
 	}
@@ -138,15 +138,15 @@ func TestParse_UnterminatedCommentReported(t *testing.T) {
 	}
 	for _, in := range cases {
 		t.Run(in, func(t *testing.T) {
-			_, errs := Parse(in)
+			_, errs := parseForTest(in)
 			found := false
 			for _, e := range errs {
-				if strings.Contains(e.Msg, errUnterminatedComment) {
+				if strings.Contains(e.Message, errUnterminatedComment) {
 					found = true
 				}
 			}
 			if !found {
-				t.Errorf("Parse(%q): no unterminated-comment diagnostic in %v", in, errs)
+				t.Errorf("parseForTest(%q): no unterminated-comment diagnostic in %v", in, errs)
 			}
 		})
 	}
@@ -164,15 +164,15 @@ func TestParse_LexErrorAfterRecoveryStopReported(t *testing.T) {
 	}
 	for _, in := range cases {
 		t.Run(in, func(t *testing.T) {
-			_, errs := Parse(in)
+			_, errs := parseForTest(in)
 			found := false
 			for _, e := range errs {
-				if strings.Contains(e.Msg, errUnterminatedString) {
+				if strings.Contains(e.Message, errUnterminatedString) {
 					found = true
 				}
 			}
 			if !found {
-				t.Errorf("Parse(%q): no unterminated-string diagnostic in %v", in, errs)
+				t.Errorf("parseForTest(%q): no unterminated-string diagnostic in %v", in, errs)
 			}
 		})
 	}
@@ -187,9 +187,9 @@ func TestParse_UnterminatedHintReported(t *testing.T) {
 	bad := []string{"@{k=1 SELECT 1", "@{", "@{a={b=1}", "@[5@]{k=1", "@[5@] SELECT 1"}
 	for _, in := range bad {
 		t.Run("bad/"+in, func(t *testing.T) {
-			_, errs := Parse(in)
-			if len(errs) == 0 || !strings.Contains(errs[0].Msg, "unterminated statement hint") {
-				t.Errorf("Parse(%q): want an unterminated-hint diagnostic, got %v", in, errs)
+			_, errs := parseForTest(in)
+			if len(errs) == 0 || !strings.Contains(errs[0].Message, "unterminated statement hint") {
+				t.Errorf("parseForTest(%q): want an unterminated-hint diagnostic, got %v", in, errs)
 			}
 		})
 	}
@@ -198,10 +198,10 @@ func TestParse_UnterminatedHintReported(t *testing.T) {
 	good := []string{"@{USE_ADDITIONAL_PARALLELISM=TRUE} SELECT 1", "@5 SELECT 1", "@[5@]{key=1} SELECT 1"}
 	for _, in := range good {
 		t.Run("good/"+in, func(t *testing.T) {
-			_, errs := Parse(in)
+			_, errs := parseForTest(in)
 			for _, e := range errs {
-				if strings.Contains(e.Msg, "unterminated statement hint") {
-					t.Errorf("Parse(%q): well-formed hint wrongly flagged: %v", in, errs)
+				if strings.Contains(e.Message, "unterminated statement hint") {
+					t.Errorf("parseForTest(%q): well-formed hint wrongly flagged: %v", in, errs)
 				}
 			}
 		})
@@ -220,9 +220,9 @@ func TestParse_EmptyHintReported(t *testing.T) {
 	bad := []string{"@{}", "@{} SELECT 1", "@{   }", "@{ /* c */ } SELECT 1", "@[5@]{}", "@[5@]{} SELECT 1"}
 	for _, in := range bad {
 		t.Run("empty/"+in, func(t *testing.T) {
-			_, errs := Parse(in)
-			if len(errs) == 0 || !strings.Contains(errs[0].Msg, "empty statement hint") {
-				t.Errorf("Parse(%q): want an empty-hint diagnostic, got %v", in, errs)
+			_, errs := parseForTest(in)
+			if len(errs) == 0 || !strings.Contains(errs[0].Message, "empty statement hint") {
+				t.Errorf("parseForTest(%q): want an empty-hint diagnostic, got %v", in, errs)
 			}
 		})
 	}
@@ -235,10 +235,10 @@ func TestParse_EmptyHintReported(t *testing.T) {
 	nonEmpty := []string{"@{k} SELECT 1", "@{k=1} SELECT 1", "@{USE_ADDITIONAL_PARALLELISM=TRUE} SELECT 1"}
 	for _, in := range nonEmpty {
 		t.Run("nonempty/"+in, func(t *testing.T) {
-			_, errs := Parse(in)
+			_, errs := parseForTest(in)
 			for _, e := range errs {
-				if strings.Contains(e.Msg, "empty statement hint") {
-					t.Errorf("Parse(%q): non-empty hint wrongly flagged as empty: %v", in, errs)
+				if strings.Contains(e.Message, "empty statement hint") {
+					t.Errorf("parseForTest(%q): non-empty hint wrongly flagged as empty: %v", in, errs)
 				}
 			}
 		})
@@ -294,11 +294,11 @@ func TestParse_DispatchKeywordsRecognized(t *testing.T) {
 	for _, p := range dispatchPrefixes {
 		t.Run(p.prefix, func(t *testing.T) {
 			sql := p.prefix + " " + p.tail // leading token is the keyword
-			_, errs := Parse(sql)
+			_, errs := parseForTest(sql)
 			for _, e := range errs {
-				if strings.Contains(e.Msg, "unknown or unsupported statement") {
-					t.Errorf("Parse(%q): leading keyword %q hit the UNKNOWN branch; "+
-						"it must be in the dispatch switch (got %q)", sql, p.prefix, e.Msg)
+				if strings.Contains(e.Message, "unknown or unsupported statement") {
+					t.Errorf("parseForTest(%q): leading keyword %q hit the UNKNOWN branch; "+
+						"it must be in the dispatch switch (got %q)", sql, p.prefix, e.Message)
 				}
 			}
 		})
@@ -321,12 +321,12 @@ func TestParse_StatementLevelHintSkipped(t *testing.T) {
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {
-			file, errs := Parse(sql)
+			file, errs := parseForTest(sql)
 			if len(errs) != 0 {
-				t.Fatalf("Parse(%q): got %d errors, want 0 (hinted SELECT parses): %v", sql, len(errs), errs)
+				t.Fatalf("parseForTest(%q): got %d errors, want 0 (hinted SELECT parses): %v", sql, len(errs), errs)
 			}
 			if len(file.Stmts) != 1 {
-				t.Errorf("Parse(%q): File.Stmts = %d, want 1 (the SELECT after the hint)", sql, len(file.Stmts))
+				t.Errorf("parseForTest(%q): File.Stmts = %d, want 1 (the SELECT after the hint)", sql, len(file.Stmts))
 			}
 		})
 	}
@@ -339,7 +339,7 @@ func TestParse_StatementLevelHintSkipped(t *testing.T) {
 // diagnostic. (Pre-parser-select this test asserted File.Stmts stayed empty for
 // SELECT.)
 func TestParse_QueryStatementsParse(t *testing.T) {
-	file, errs := Parse("SELECT 1; INSERT INTO t VALUES (1); CALL p(); IMPORT MODULE a.b")
+	file, errs := parseForTest("SELECT 1; INSERT INTO t VALUES (1); CALL p(); IMPORT MODULE a.b")
 	if len(file.Stmts) != 3 {
 		t.Errorf("File.Stmts = %d, want 3 (SELECT + INSERT + CALL parse; IMPORT is still stubbed)", len(file.Stmts))
 	}

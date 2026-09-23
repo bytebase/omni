@@ -10,10 +10,13 @@ import (
 // ParseError represents a syntax error during CQL parsing.
 type ParseError struct {
 	Message string
-	Loc     ast.Loc
-	Line    int
-	Column  int
-	Near    string
+	// Position is the byte offset into the parsed text where the error
+	// starts; End is the exclusive end of the offending token.
+	Position int
+	End      int
+	Line     int
+	Column   int
+	Near     string
 }
 
 func (e *ParseError) Error() string {

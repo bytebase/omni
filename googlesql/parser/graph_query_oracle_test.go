@@ -202,7 +202,7 @@ func TestGQLOracleDifferential(t *testing.T) {
 				if oracleAccepts != (fx.oracleAccept == "accept") {
 					t.Errorf("oracle verdict drift on %q: got %s (%s: %s), fixture expected %s", fx.sql, v.Verdict, v.Reason, v.Message, fx.oracleAccept)
 				}
-				_, errs := Parse(fx.sql)
+				_, errs := parseForTest(fx.sql)
 				omniAccepts := len(errs) == 0
 				if omniAccepts != fx.omniAccept {
 					t.Errorf("omni accept drift on %q: omni accepts=%v, fixture expected %v; errs=%v", fx.sql, omniAccepts, fx.omniAccept, errs)

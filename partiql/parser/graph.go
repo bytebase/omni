@@ -110,8 +110,8 @@ func (p *Parser) parseGraphMatch(lhs ast.ExprNode) (ast.ExprNode, error) {
 	// to give a graph-specific error if the pattern list ended early.
 	if p.cur.Type != tokPAREN_RIGHT {
 		return nil, &ParseError{
-			Message: fmt.Sprintf("expected ')' to close graph MATCH expression, got %q", p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected ')' to close graph MATCH expression, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 
@@ -194,7 +194,7 @@ func (p *Parser) parseMatchSelector() (*ast.PatternSelector, error) {
 		if p.cur.Type == tokICONST {
 			k, err := parseIntLiteral(p.cur.Str)
 			if err != nil {
-				return nil, &ParseError{Message: err.Error(), Loc: p.cur.Loc}
+				return nil, &ParseError{Message: err.Error(), Position: p.cur.Loc.Start, End: p.cur.Loc.End}
 			}
 			sel.K = k
 			p.advance()
@@ -208,8 +208,8 @@ func (p *Parser) parseMatchSelector() (*ast.PatternSelector, error) {
 		p.advance()
 		if _, err := p.expect(tokSHORTEST); err != nil {
 			return nil, &ParseError{
-				Message: fmt.Sprintf("expected SHORTEST after ALL in graph selector, got %q", p.cur.Str),
-				Loc:     p.cur.Loc,
+				Message:  fmt.Sprintf("expected SHORTEST after ALL in graph selector, got %q", p.cur.Str),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 		return &ast.PatternSelector{
@@ -223,13 +223,13 @@ func (p *Parser) parseMatchSelector() (*ast.PatternSelector, error) {
 		p.advance()
 		if p.cur.Type != tokICONST {
 			return nil, &ParseError{
-				Message: fmt.Sprintf("expected an integer count after SHORTEST in graph selector, got %q", p.cur.Str),
-				Loc:     p.cur.Loc,
+				Message:  fmt.Sprintf("expected an integer count after SHORTEST in graph selector, got %q", p.cur.Str),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 		k, err := parseIntLiteral(p.cur.Str)
 		if err != nil {
-			return nil, &ParseError{Message: err.Error(), Loc: p.cur.Loc}
+			return nil, &ParseError{Message: err.Error(), Position: p.cur.Loc.Start, End: p.cur.Loc.End}
 		}
 		p.advance()
 		p.match(tokGROUP) // optional GROUP, no AST representation
@@ -359,8 +359,8 @@ func (p *Parser) parseGraphParts(requireOne bool) ([]ast.PatternNode, error) {
 			// An edge must be preceded by a node/group; reject a leading edge.
 			if len(parts) == 0 {
 				return nil, &ParseError{
-					Message: "graph pattern cannot begin with an edge",
-					Loc:     p.cur.Loc,
+					Message:  "graph pattern cannot begin with an edge",
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 				}
 			}
 			edge, err := p.parseEdge()
@@ -372,8 +372,8 @@ func (p *Parser) parseGraphParts(requireOne bool) ([]ast.PatternNode, error) {
 			// No more graphParts.
 			if requireOne && len(parts) == 0 {
 				return nil, &ParseError{
-					Message: fmt.Sprintf("expected a node, edge, or sub-pattern in graph pattern, got %q", p.cur.Str),
-					Loc:     p.cur.Loc,
+					Message:  fmt.Sprintf("expected a node, edge, or sub-pattern in graph pattern, got %q", p.cur.Str),
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 				}
 			}
 			return parts, nil
@@ -678,15 +678,15 @@ func (p *Parser) parseEdgeShape() (*ast.EdgePattern, error) {
 			return &ast.EdgePattern{Direction: ast.EdgeDirLeftOrUndirected, Loc: ast.Loc{End: p.prev.Loc.End}}, nil
 		default:
 			return nil, &ParseError{
-				Message: fmt.Sprintf("expected '-' or '~' after '<' in edge, got %q", p.cur.Str),
-				Loc:     p.cur.Loc,
+				Message:  fmt.Sprintf("expected '-' or '~' after '<' in edge, got %q", p.cur.Str),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 
 	default:
 		return nil, &ParseError{
-			Message: fmt.Sprintf("expected an edge ('-', '<', or '~'), got %q", p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected an edge ('-', '<', or '~'), got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 }
@@ -854,13 +854,13 @@ func (p *Parser) parseQuantifier() (*ast.PatternQuantifier, error) {
 		p.advance() // consume '{'
 		if p.cur.Type != tokICONST {
 			return nil, &ParseError{
-				Message: fmt.Sprintf("expected a lower bound integer in quantifier, got %q", p.cur.Str),
-				Loc:     p.cur.Loc,
+				Message:  fmt.Sprintf("expected a lower bound integer in quantifier, got %q", p.cur.Str),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 		lower, err := parseIntLiteral(p.cur.Str)
 		if err != nil {
-			return nil, &ParseError{Message: err.Error(), Loc: p.cur.Loc}
+			return nil, &ParseError{Message: err.Error(), Position: p.cur.Loc.Start, End: p.cur.Loc.End}
 		}
 		p.advance()
 		if _, err := p.expect(tokCOMMA); err != nil {
@@ -870,7 +870,7 @@ func (p *Parser) parseQuantifier() (*ast.PatternQuantifier, error) {
 		if p.cur.Type == tokICONST {
 			u, err := parseIntLiteral(p.cur.Str)
 			if err != nil {
-				return nil, &ParseError{Message: err.Error(), Loc: p.cur.Loc}
+				return nil, &ParseError{Message: err.Error(), Position: p.cur.Loc.Start, End: p.cur.Loc.End}
 			}
 			upper = u
 			p.advance()
@@ -882,8 +882,8 @@ func (p *Parser) parseQuantifier() (*ast.PatternQuantifier, error) {
 		return &ast.PatternQuantifier{Min: lower, Max: upper, Loc: ast.Loc{Start: start, End: end.Loc.End}}, nil
 	default:
 		return nil, &ParseError{
-			Message: fmt.Sprintf("expected a quantifier ('+', '*', or '{m,n}'), got %q", p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected a quantifier ('+', '*', or '{m,n}'), got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 }

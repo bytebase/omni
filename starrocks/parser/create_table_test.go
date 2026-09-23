@@ -9,12 +9,12 @@ import (
 // helper: parse a single statement and expect no errors, returning the node.
 func parseCreateTableStmt(t *testing.T, sql string) *ast.CreateTableStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.CreateTableStmt)
 	if !ok {
@@ -96,7 +96,7 @@ func TestCreateTable_BatchRangePartitionNumeric(t *testing.T) {
 // Sibling-arm negative: START..END without EVERY is rejected (container-confirmed
 // StarRocks also rejects it).
 func TestCreateTable_BatchRangePartitionRequiresEvery(t *testing.T) {
-	_, errs := Parse("CREATE TABLE bpno (dt DATE) DUPLICATE KEY(dt) PARTITION BY RANGE(dt) (START ('2024-01-01') END ('2024-04-01')) DISTRIBUTED BY HASH(dt)")
+	_, errs := parseForTest("CREATE TABLE bpno (dt DATE) DUPLICATE KEY(dt) PARTITION BY RANGE(dt) (START ('2024-01-01') END ('2024-04-01')) DISTRIBUTED BY HASH(dt)")
 	if len(errs) == 0 {
 		t.Error("expected START..END without EVERY to be rejected")
 	}
@@ -211,7 +211,7 @@ func TestCreateTable_CTASNameListRequiresAsSelect(t *testing.T) {
 		"CREATE TABLE tnoas2 (a) DISTRIBUTED BY HASH(a) BUCKETS 1",
 		"CREATE TABLE tnoas3 (a, b) DISTRIBUTED BY HASH(a)",
 	} {
-		if _, errs := Parse(sql); len(errs) == 0 {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("expected %q to be rejected (name-list without AS SELECT)", sql)
 		}
 	}
@@ -228,7 +228,7 @@ func TestCreateTable_FullDefsStillParse(t *testing.T) {
 // Boundary sweep: a bare index property list is valid ONLY after a USING index
 // type (grammar: indexType propertyList?); props without USING is invalid.
 func TestCreateTable_InlineIndexPropsRequireUsing(t *testing.T) {
-	_, errs := Parse("CREATE TABLE t (k INT, INDEX idx (k) ('parser' = 'english')) DISTRIBUTED BY HASH(k)")
+	_, errs := parseForTest("CREATE TABLE t (k INT, INDEX idx (k) ('parser' = 'english')) DISTRIBUTED BY HASH(k)")
 	if len(errs) == 0 {
 		t.Error("expected index property list without USING to be rejected")
 	}
@@ -896,7 +896,7 @@ func TestCreateTable_LocIsValid(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCreateTable_Walk(t *testing.T) {
-	file, errs := Parse("CREATE TABLE t (id INT, name VARCHAR(50)) DISTRIBUTED BY HASH(id) BUCKETS 10")
+	file, errs := parseForTest("CREATE TABLE t (id INT, name VARCHAR(50)) DISTRIBUTED BY HASH(id) BUCKETS 10")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -954,7 +954,7 @@ func TestCreateTable_LegacyCorpus(t *testing.T) {
 	}
 
 	for i, sql := range corpus {
-		file, errs := Parse(sql)
+		file, errs := parseForTest(sql)
 		if len(errs) != 0 {
 			t.Errorf("corpus[%d] Parse errors: %v\nSQL: %s", i, errs, sql)
 			continue

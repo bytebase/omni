@@ -30,23 +30,23 @@ func runParseBestEffortCase(t *testing.T, c parseCase) {
 	if got := len(result.Errors); got != c.wantErrCnt {
 		t.Errorf("%s: error count = %d, want %d", c.name, got, c.wantErrCnt)
 		for i, e := range result.Errors {
-			t.Errorf("  [%d] [%d,%d] %s", i, e.Loc.Start, e.Loc.End, e.Msg)
+			t.Errorf("  [%d] [%d,%d] %s", i, e.Position, e.End, e.Message)
 		}
 		return
 	}
 	for i, want := range c.wantErrMsgs {
-		if !strings.Contains(result.Errors[i].Msg, want) {
+		if !strings.Contains(result.Errors[i].Message, want) {
 			t.Errorf("%s: error[%d] Msg = %q, want to contain %q",
-				c.name, i, result.Errors[i].Msg, want)
+				c.name, i, result.Errors[i].Message, want)
 		}
 	}
 	for i, wantLoc := range c.wantErrLocs {
 		if wantLoc < 0 {
 			continue
 		}
-		if result.Errors[i].Loc.Start != wantLoc {
+		if result.Errors[i].Position != wantLoc {
 			t.Errorf("%s: error[%d] Loc.Start = %d, want %d",
-				c.name, i, result.Errors[i].Loc.Start, wantLoc)
+				c.name, i, result.Errors[i].Position, wantLoc)
 		}
 	}
 }
@@ -121,7 +121,7 @@ func TestParse_LexErrorPropagated(t *testing.T) {
 	// Check that at least one error mentions "unterminated".
 	found := false
 	for _, e := range result.Errors {
-		if strings.Contains(e.Msg, "unterminated") {
+		if strings.Contains(e.Message, "unterminated") {
 			found = true
 			break
 		}
@@ -177,8 +177,8 @@ func TestParse_StrictVsBestEffort(t *testing.T) {
 		pe, ok := err.(*ParseError)
 		if !ok {
 			t.Errorf("Parse: expected *ParseError, got %T", err)
-		} else if !strings.Contains(pe.Msg, "DECLARE") {
-			t.Errorf("Parse: first error Msg = %q, want to contain DECLARE", pe.Msg)
+		} else if !strings.Contains(pe.Message, "DECLARE") {
+			t.Errorf("Parse: first error Msg = %q, want to contain DECLARE", pe.Message)
 		}
 	}
 	if file == nil {

@@ -17,7 +17,7 @@ func snapOf(t *testing.T, sql string) *ast.CreateSnapshotStmt {
 	n := parseDDL(t, sql)
 	s, ok := n.(*ast.CreateSnapshotStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.CreateSnapshotStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.CreateSnapshotStmt", sql, n)
 	}
 	return s
 }

@@ -316,14 +316,14 @@ func ParseExpression(input string) (Expr, []ParseError) {
 		if pe, ok := err.(*ParseError); ok {
 			return nil, []ParseError{*pe}
 		}
-		return nil, []ParseError{{Msg: err.Error()}}
+		return nil, []ParseError{{Message: err.Error()}}
 	}
 	if p.cur.Kind != tokEOF {
 		text := p.cur.Str
 		if text == "" {
 			text = TokenName(p.cur.Kind)
 		}
-		return expr, []ParseError{{Loc: p.cur.Loc, Msg: "unexpected token after expression: " + text}}
+		return expr, []ParseError{{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "unexpected token after expression: " + text}}
 	}
 	return expr, nil
 }
@@ -769,8 +769,8 @@ func (p *Parser) parseIntervalLiteral() (Expr, error) {
 		}
 		if !ValidIntervalRange(from, to) {
 			return nil, &ParseError{
-				Loc: p.cur.Loc,
-				Msg: "invalid interval qualifier: " + from.String() + " TO " + to.String(),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "invalid interval qualifier: " + from.String() + " TO " + to.String(),
 			}
 		}
 		p.advance() // consume TO
@@ -976,7 +976,7 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int, kind SubqueryKind) (*
 		}
 	}
 	if depth != 0 {
-		return nil, &ParseError{Loc: p.cur.Loc, Msg: "unterminated subquery"}
+		return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "unterminated subquery"}
 	}
 	raw := p.sourceSlice(subStart, subEnd)
 	closeTok := p.advance() // consume ')'
@@ -1039,16 +1039,16 @@ func (p *Parser) parseBracketedExprList(closer TokenKind) ([]Expr, Token, error)
 // reports "expected expression".
 func (p *Parser) exprError() *ParseError {
 	if p.cur.Kind == tokEOF {
-		return &ParseError{Loc: p.cur.Loc, Msg: "expected expression, found end of input"}
+		return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected expression, found end of input"}
 	}
 	text := p.cur.Str
 	if text == "" {
 		text = TokenName(p.cur.Kind)
 	}
-	return &ParseError{Loc: p.cur.Loc, Msg: "expected expression, found " + text}
+	return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected expression, found " + text}
 }
 
 // exprErrorAt returns a *ParseError with a custom message at the current token.
 func (p *Parser) exprErrorAt(msg string) *ParseError {
-	return &ParseError{Loc: p.cur.Loc, Msg: msg}
+	return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: msg}
 }

@@ -18,7 +18,7 @@ func viewOf(t *testing.T, sql string) *ast.CreateViewStmt {
 	n := parseDDL(t, sql)
 	v, ok := n.(*ast.CreateViewStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.CreateViewStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.CreateViewStmt", sql, n)
 	}
 	return v
 }
@@ -95,7 +95,7 @@ func indexOf(t *testing.T, sql string) *ast.CreateIndexStmt {
 	n := parseDDL(t, sql)
 	i, ok := n.(*ast.CreateIndexStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.CreateIndexStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.CreateIndexStmt", sql, n)
 	}
 	return i
 }
@@ -286,7 +286,7 @@ func dropOf(t *testing.T, sql string) *ast.DropStmt {
 	n := parseDDL(t, sql)
 	d, ok := n.(*ast.DropStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.DropStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.DropStmt", sql, n)
 	}
 	return d
 }
@@ -359,10 +359,10 @@ func TestDrop_DropModeAndOn(t *testing.T) {
 	} {
 		d := dropOf(t, sql)
 		if d.DropMode == "" {
-			t.Errorf("Parse(%q): DropMode empty, want RESTRICT/CASCADE captured", sql)
+			t.Errorf("parseForTest(%q): DropMode empty, want RESTRICT/CASCADE captured", sql)
 		}
 		if d.OnTable != nil {
-			t.Errorf("Parse(%q): OnTable = %v, want nil", sql, d.OnTable)
+			t.Errorf("parseForTest(%q): OnTable = %v, want nil", sql, d.OnTable)
 		}
 	}
 }
@@ -385,7 +385,7 @@ func TestCreateAndDrop_DialectObjectsStubbed(t *testing.T) {
 		"ALTER MATERIALIZED VIEW mv SET OPTIONS (x = 1)",
 	}
 	for _, sql := range stubbed {
-		_, errs := Parse(sql)
+		_, errs := parseForTest(sql)
 		if len(errs) == 0 {
 			// Some of these (e.g. an unsupported body that happens to be a no-op)
 			// could parse; the load-bearing assertion is that none hits the UNKNOWN
@@ -393,8 +393,8 @@ func TestCreateAndDrop_DialectObjectsStubbed(t *testing.T) {
 			continue
 		}
 		for _, e := range errs {
-			if contains(e.Msg, "unknown or unsupported statement") {
-				t.Errorf("Parse(%q): hit UNKNOWN branch: %q (should be a 'not yet supported' stub)", sql, e.Msg)
+			if contains(e.Message, "unknown or unsupported statement") {
+				t.Errorf("parseForTest(%q): hit UNKNOWN branch: %q (should be a 'not yet supported' stub)", sql, e.Message)
 			}
 		}
 	}

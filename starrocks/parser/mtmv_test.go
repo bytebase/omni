@@ -12,12 +12,12 @@ import (
 
 func parseCreateMTMVStmt(t *testing.T, sql string) *ast.CreateMTMVStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.CreateMTMVStmt)
 	if !ok {
@@ -28,12 +28,12 @@ func parseCreateMTMVStmt(t *testing.T, sql string) *ast.CreateMTMVStmt {
 
 func parseAlterMTMVStmt(t *testing.T, sql string) *ast.AlterMTMVStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.AlterMTMVStmt)
 	if !ok {
@@ -44,12 +44,12 @@ func parseAlterMTMVStmt(t *testing.T, sql string) *ast.AlterMTMVStmt {
 
 func parseDropMTMVStmt(t *testing.T, sql string) *ast.DropMTMVStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.DropMTMVStmt)
 	if !ok {
@@ -60,12 +60,12 @@ func parseDropMTMVStmt(t *testing.T, sql string) *ast.DropMTMVStmt {
 
 func parseRefreshMTMVStmt(t *testing.T, sql string) *ast.RefreshMTMVStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.RefreshMTMVStmt)
 	if !ok {
@@ -483,7 +483,7 @@ func TestRefreshMTMV_Partitions(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestPauseMTMVJob(t *testing.T) {
-	file, errs := Parse("PAUSE MATERIALIZED VIEW JOB ON mv")
+	file, errs := parseForTest("PAUSE MATERIALIZED VIEW JOB ON mv")
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -500,7 +500,7 @@ func TestPauseMTMVJob(t *testing.T) {
 }
 
 func TestResumeMTMVJob(t *testing.T) {
-	file, errs := Parse("RESUME MATERIALIZED VIEW JOB ON mv")
+	file, errs := parseForTest("RESUME MATERIALIZED VIEW JOB ON mv")
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}
@@ -521,7 +521,7 @@ func TestResumeMTMVJob(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCancelMTMVTask(t *testing.T) {
-	file, errs := Parse("CANCEL MATERIALIZED VIEW TASK 12345 ON mv")
+	file, errs := parseForTest("CANCEL MATERIALIZED VIEW TASK 12345 ON mv")
 	if len(errs) != 0 {
 		t.Fatalf("Parse errors: %v", errs)
 	}

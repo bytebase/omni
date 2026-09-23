@@ -17,7 +17,7 @@ func testParseAlterTable(input string) (*ast.AlterTableStmt, []ParseError) {
 	}
 	stmt, ok := result.File.Stmts[0].(*ast.AlterTableStmt)
 	if !ok {
-		return nil, append(result.Errors, ParseError{Msg: "not an AlterTableStmt"})
+		return nil, append(result.Errors, ParseError{Message: "not an AlterTableStmt"})
 	}
 	return stmt, result.Errors
 }

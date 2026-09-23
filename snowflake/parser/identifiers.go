@@ -22,8 +22,8 @@ func (p *Parser) parseIdent() (ast.Ident, error) {
 		return ast.Ident{Name: tok.Str, Quoted: false, Loc: tok.Loc}, nil
 	}
 	return ast.Ident{}, &ParseError{
-		Loc: p.cur.Loc,
-		Msg: "expected identifier",
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: "expected identifier",
 	}
 }
 
@@ -40,8 +40,8 @@ func (p *Parser) parseIdentStrict() (ast.Ident, error) {
 		return ast.Ident{Name: tok.Str, Quoted: true, Loc: tok.Loc}, nil
 	}
 	return ast.Ident{}, &ParseError{
-		Loc: p.cur.Loc,
-		Msg: "expected identifier",
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: "expected identifier",
 	}
 }
 
@@ -64,8 +64,8 @@ func (p *Parser) parseNamePart() (ast.Ident, error) {
 		return ast.Ident{Name: tok.Str, Quoted: false, Loc: tok.Loc}, nil
 	}
 	return ast.Ident{}, &ParseError{
-		Loc: p.cur.Loc,
-		Msg: "expected identifier",
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: "expected identifier",
 	}
 }
 
@@ -189,14 +189,14 @@ func ParseObjectName(input string) (*ast.ObjectName, []ParseError) {
 		if pe, ok := err.(*ParseError); ok {
 			return nil, []ParseError{*pe}
 		}
-		return nil, []ParseError{{Msg: err.Error()}}
+		return nil, []ParseError{{Message: err.Error()}}
 	}
 
 	// Check for trailing tokens (should be EOF).
 	if p.cur.Type != tokEOF {
 		return obj, []ParseError{{
-			Loc: p.cur.Loc,
-			Msg: "unexpected token after object name",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "unexpected token after object name",
 		}}
 	}
 

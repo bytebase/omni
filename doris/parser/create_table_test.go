@@ -9,12 +9,12 @@ import (
 // helper: parse a single statement and expect no errors, returning the node.
 func parseCreateTableStmt(t *testing.T, sql string) *ast.CreateTableStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.CreateTableStmt)
 	if !ok {
@@ -705,7 +705,7 @@ func TestCreateTable_LocIsValid(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCreateTable_Walk(t *testing.T) {
-	file, errs := Parse("CREATE TABLE t (id INT, name VARCHAR(50)) DISTRIBUTED BY HASH(id) BUCKETS 10")
+	file, errs := parseForTest("CREATE TABLE t (id INT, name VARCHAR(50)) DISTRIBUTED BY HASH(id) BUCKETS 10")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -763,7 +763,7 @@ func TestCreateTable_LegacyCorpus(t *testing.T) {
 	}
 
 	for i, sql := range corpus {
-		file, errs := Parse(sql)
+		file, errs := parseForTest(sql)
 		if len(errs) != 0 {
 			t.Errorf("corpus[%d] Parse errors: %v\nSQL: %s", i, errs, sql)
 			continue

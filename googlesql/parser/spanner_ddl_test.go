@@ -18,7 +18,7 @@ func changeStreamCreateOf(t *testing.T, sql string) *ast.CreateChangeStreamStmt 
 	n := parseDDL(t, sql)
 	s, ok := n.(*ast.CreateChangeStreamStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.CreateChangeStreamStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.CreateChangeStreamStmt", sql, n)
 	}
 	return s
 }
@@ -554,10 +554,10 @@ func TestGrant_CommaObjectsRequireType(t *testing.T) {
 // cross-model (Codex) review.
 func TestGrant_RoleTargetStrict(t *testing.T) {
 	for _, sql := range []string{
-		"GRANT ROLE analyst TO 'user'",       // string target
-		"GRANT ROLE analyst TO @p",           // parameter target
-		"REVOKE ROLE analyst FROM 'user'",    // string target (revoke)
-		"GRANT ROLE a, b TO ROLE c, 'x'",     // mixed role + string target
+		"GRANT ROLE analyst TO 'user'",    // string target
+		"GRANT ROLE analyst TO @p",        // parameter target
+		"REVOKE ROLE analyst FROM 'user'", // string target (revoke)
+		"GRANT ROLE a, b TO ROLE c, 'x'",  // mixed role + string target
 	} {
 		assertReject(t, sql)
 	}
@@ -601,43 +601,43 @@ func TestInlinePrimaryKey_Accepted(t *testing.T) {
 func TestSpannerDDL_Rejects(t *testing.T) {
 	for _, sql := range []string{
 		// CHANGE STREAM: a dangling FOR, a bad keyword, missing name.
-		"CREATE CHANGE STREAM",                  // missing name (+ at least nothing)
-		"CREATE CHANGE STREAM s FOR",            // FOR with nothing after
-		"CREATE CHANGE STREAM s FOR ALL ALL",    // trailing junk
+		"CREATE CHANGE STREAM",                   // missing name (+ at least nothing)
+		"CREATE CHANGE STREAM s FOR",             // FOR with nothing after
+		"CREATE CHANGE STREAM s FOR ALL ALL",     // trailing junk
 		"CREATE CHANGE STREAM s FOR Singers(a,)", // trailing comma in column list (NOT allowed, unlike proto)
-		"CREATE CHANGE STREAM s FOR Singers,",   // trailing comma in table list
-		"ALTER CHANGE STREAM s SET",             // SET with nothing
-		"ALTER CHANGE STREAM s DROP FOR",        // DROP FOR without ALL
-		"ALTER CHANGE STREAM s SET FOR",         // SET FOR with nothing
-		"DROP CHANGE STREAM",                    // missing name
+		"CREATE CHANGE STREAM s FOR Singers,",    // trailing comma in table list
+		"ALTER CHANGE STREAM s SET",              // SET with nothing
+		"ALTER CHANGE STREAM s DROP FOR",         // DROP FOR without ALL
+		"ALTER CHANGE STREAM s SET FOR",          // SET FOR with nothing
+		"DROP CHANGE STREAM",                     // missing name
 		// SEQUENCE
-		"ALTER SEQUENCE s",                      // missing SET OPTIONS
-		"ALTER SEQUENCE s SET",                  // SET with nothing
-		"CREATE SEQUENCE",                       // missing name
+		"ALTER SEQUENCE s",     // missing SET OPTIONS
+		"ALTER SEQUENCE s SET", // SET with nothing
+		"CREATE SEQUENCE",      // missing name
 		// ROLE
-		"CREATE ROLE",                           // missing name
-		"DROP ROLE",                             // missing name
+		"CREATE ROLE", // missing name
+		"DROP ROLE",   // missing name
 		// LOCALITY GROUP
-		"CREATE LOCALITY GROUP",                 // missing name
-		"ALTER LOCALITY GROUP g SET",            // SET with no OPTIONS
-		"ALTER LOCALITY GROUP g RENAME TO h",    // not a valid locality-group action
-		"DROP LOCALITY GROUP",                   // missing name
+		"CREATE LOCALITY GROUP",              // missing name
+		"ALTER LOCALITY GROUP g SET",         // SET with no OPTIONS
+		"ALTER LOCALITY GROUP g RENAME TO h", // not a valid locality-group action
+		"DROP LOCALITY GROUP",                // missing name
 		// PROTO BUNDLE
-		"CREATE PROTO BUNDLE",                   // missing ( )
-		"CREATE PROTO BUNDLE ()",                // empty bundle (grammar requires >=1)
-		"ALTER PROTO BUNDLE",                    // missing an action
-		"ALTER PROTO BUNDLE INSERT",             // INSERT with no ( )
+		"CREATE PROTO BUNDLE",       // missing ( )
+		"CREATE PROTO BUNDLE ()",    // empty bundle (grammar requires >=1)
+		"ALTER PROTO BUNDLE",        // missing an action
+		"ALTER PROTO BUNDLE INSERT", // INSERT with no ( )
 		// role GRANT/REVOKE
-		"GRANT ROLE a TO ROLE",                  // TO ROLE with no role
-		"GRANT SELECT ON TABLE t TO ROLE",       // TO ROLE with no role
-		"GRANT ROLE TO ROLE r",                  // GRANT ROLE with no role
-		"REVOKE ROLE a FROM ROLE",               // FROM ROLE with no role
+		"GRANT ROLE a TO ROLE",            // TO ROLE with no role
+		"GRANT SELECT ON TABLE t TO ROLE", // TO ROLE with no role
+		"GRANT ROLE TO ROLE r",            // GRANT ROLE with no role
+		"REVOKE ROLE a FROM ROLE",         // FROM ROLE with no role
 		// role names are SINGLE identifiers (emulator rejects dotted role names).
-		"CREATE ROLE a.b",                       // dotted CREATE ROLE name
-		"GRANT SELECT ON TABLE t TO ROLE a.b",   // dotted grantee role
-		"GRANT ROLE a.b TO ROLE c",              // dotted subject role
+		"CREATE ROLE a.b",                          // dotted CREATE ROLE name
+		"GRANT SELECT ON TABLE t TO ROLE a.b",      // dotted grantee role
+		"GRANT ROLE a.b TO ROLE c",                 // dotted subject role
 		"GRANT SELECT ON TABLE t TO ROLE r1, r2.x", // dotted role in list
-		"REVOKE ROLE r1, r2.x FROM ROLE s",      // dotted role in revoke subject
+		"REVOKE ROLE r1, r2.x FROM ROLE s",         // dotted role in revoke subject
 	} {
 		assertReject(t, sql)
 	}

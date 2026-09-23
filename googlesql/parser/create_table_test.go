@@ -21,12 +21,12 @@ import (
 // parseDDL parses a single DDL statement and fails the test on any parse error.
 func parseDDL(t *testing.T, sql string) ast.Node {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q): unexpected errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q): unexpected errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d statements, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d statements, want 1", sql, len(file.Stmts))
 	}
 	return file.Stmts[0]
 }
@@ -37,7 +37,7 @@ func createTableOf(t *testing.T, sql string) *ast.CreateTableStmt {
 	n := parseDDL(t, sql)
 	ct, ok := n.(*ast.CreateTableStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.CreateTableStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.CreateTableStmt", sql, n)
 	}
 	return ct
 }
@@ -46,13 +46,13 @@ func createTableOf(t *testing.T, sql string) *ast.CreateTableStmt {
 // no statement node is produced (the reject path returns a nil node).
 func assertReject(t *testing.T, sql string) {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) == 0 {
-		t.Errorf("Parse(%q): want a parse error, got none (stmts=%d)", sql, len(file.Stmts))
+		t.Errorf("parseForTest(%q): want a parse error, got none (stmts=%d)", sql, len(file.Stmts))
 		return
 	}
 	if len(file.Stmts) != 0 {
-		t.Errorf("Parse(%q): want 0 statements on reject, got %d", sql, len(file.Stmts))
+		t.Errorf("parseForTest(%q): want 0 statements on reject, got %d", sql, len(file.Stmts))
 	}
 }
 
@@ -193,14 +193,14 @@ func TestCreateTable_GeneratedIdentity(t *testing.T) {
 		ct := createTableOf(t, tc.sql)
 		col := ct.Columns[0]
 		if col.GenMode != tc.genMode {
-			t.Errorf("Parse(%q): GenMode = %v, want %v", tc.sql, col.GenMode, tc.genMode)
+			t.Errorf("parseForTest(%q): GenMode = %v, want %v", tc.sql, col.GenMode, tc.genMode)
 		}
 		// An identity column carries no generated expression and no stored_mode.
 		if col.Generated != nil {
-			t.Errorf("Parse(%q): Generated = %v, want nil (identity has no expr)", tc.sql, col.Generated)
+			t.Errorf("parseForTest(%q): Generated = %v, want nil (identity has no expr)", tc.sql, col.Generated)
 		}
 		if col.Stored != "" {
-			t.Errorf("Parse(%q): Stored = %q, want empty", tc.sql, col.Stored)
+			t.Errorf("parseForTest(%q): Stored = %q, want empty", tc.sql, col.Stored)
 		}
 	}
 }
@@ -209,13 +209,13 @@ func TestCreateTable_GeneratedIdentity_Rejects(t *testing.T) {
 	// The identity_column_info body is parsed structurally (NOT skipped as balanced
 	// parens), so a malformed body rejects rather than silently parsing.
 	cases := []string{
-		"CREATE TABLE T (id INT64 GENERATED ALWAYS AS IDENTITY) PRIMARY KEY (id)",                      // missing parenthesized body
-		"CREATE TABLE T (id INT64 GENERATED ALWAYS AS IDENTITY (FOO BAR)) PRIMARY KEY (id)",            // unknown clause tokens
-		"CREATE TABLE T (id INT64 GENERATED ALWAYS AS IDENTITY (START WITH)) PRIMARY KEY (id)",         // START WITH missing numeric literal
-		"CREATE TABLE T (id INT64 GENERATED ALWAYS AS IDENTITY (INCREMENT 1)) PRIMARY KEY (id)",        // INCREMENT missing BY
+		"CREATE TABLE T (id INT64 GENERATED ALWAYS AS IDENTITY) PRIMARY KEY (id)",                               // missing parenthesized body
+		"CREATE TABLE T (id INT64 GENERATED ALWAYS AS IDENTITY (FOO BAR)) PRIMARY KEY (id)",                     // unknown clause tokens
+		"CREATE TABLE T (id INT64 GENERATED ALWAYS AS IDENTITY (START WITH)) PRIMARY KEY (id)",                  // START WITH missing numeric literal
+		"CREATE TABLE T (id INT64 GENERATED ALWAYS AS IDENTITY (INCREMENT 1)) PRIMARY KEY (id)",                 // INCREMENT missing BY
 		"CREATE TABLE T (id INT64 GENERATED ALWAYS AS IDENTITY (INCREMENT BY 1 START WITH 1)) PRIMARY KEY (id)", // out-of-order clauses
-		"CREATE TABLE T (id INT64 GENERATED ALWAYS AS IDENTITY (START WITH 1 START WITH 2)) PRIMARY KEY (id)",    // repeated clause
-		"CREATE TABLE T (id INT64 GENERATED ALWAYS AS IDENTITY (NO)) PRIMARY KEY (id)",                 // NO without CYCLE
+		"CREATE TABLE T (id INT64 GENERATED ALWAYS AS IDENTITY (START WITH 1 START WITH 2)) PRIMARY KEY (id)",   // repeated clause
+		"CREATE TABLE T (id INT64 GENERATED ALWAYS AS IDENTITY (NO)) PRIMARY KEY (id)",                          // NO without CYCLE
 	}
 	for _, sql := range cases {
 		assertReject(t, sql)

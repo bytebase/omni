@@ -10,19 +10,19 @@ import (
 // *ast.SelectStmt, asserting that it has a non-nil With field.
 func mustParseWithSelect(t *testing.T, input string) *ast.SelectStmt {
 	t.Helper()
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", input)
+		t.Fatalf("parseForTest(%q) returned no statements", input)
 	}
 	stmt, ok := file.Stmts[0].(*ast.SelectStmt)
 	if !ok {
-		t.Fatalf("Parse(%q) got %T, want *ast.SelectStmt", input, file.Stmts[0])
+		t.Fatalf("parseForTest(%q) got %T, want *ast.SelectStmt", input, file.Stmts[0])
 	}
 	if stmt.With == nil {
-		t.Fatalf("Parse(%q) stmt.With = nil, want non-nil", input)
+		t.Fatalf("parseForTest(%q) stmt.With = nil, want non-nil", input)
 	}
 	return stmt
 }

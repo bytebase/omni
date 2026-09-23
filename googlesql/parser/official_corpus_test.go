@@ -18,7 +18,7 @@ import (
 // SplitSQL consumers call — asserting ZERO parse errors for every block that is
 // in scope.
 //
-// Why Parse(block) and not parseSingle(segment): Parse runs the block-aware
+// Why parseForTest(block) and not parseSingle(segment): Parse runs the block-aware
 // Split (terminator stripping + procedural BEGIN/END handling) and then parses
 // each segment, which is what the consumers do. parseSingle rejects a bare
 // trailing ';' and a procedural block that still carries its terminator, so a
@@ -70,12 +70,12 @@ func TestOfficialCorpusParses(t *testing.T) {
 			if reason, ok := officialCorpusSkips[b.Key()]; ok {
 				skipped++
 				// Self-prune: a skipped block that now parses clean must be removed.
-				if _, errs := Parse(b.Text); len(errs) == 0 {
+				if _, errs := parseForTest(b.Text); len(errs) == 0 {
 					t.Errorf("SKIP-LIST STALE: %s now parses clean — REMOVE it from officialCorpusSkips (was: %s)", b.Label(), reason)
 				}
 				return
 			}
-			if _, errs := Parse(b.Text); len(errs) > 0 {
+			if _, errs := parseForTest(b.Text); len(errs) > 0 {
 				t.Errorf("%s produced %d parse error(s): %v\n  block:\n%s",
 					b.Label(), len(errs), errs, indentBlock(b.Text))
 			}

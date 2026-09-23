@@ -25,7 +25,7 @@ func gqlStmtOf(t *testing.T, sql string) *ast.GQLStmt {
 	n := parseDDL(t, sql)
 	g, ok := n.(*ast.GQLStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.GQLStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.GQLStmt", sql, n)
 	}
 	return g
 }
@@ -496,8 +496,8 @@ func TestGQL_TrailingPathFactorHintRejected(t *testing.T) {
 		"GRAPH g MATCH (a) @{h=1} (b) RETURN *",
 		"GRAPH g MATCH (a)-[e]-> @{h=1} (b) RETURN *",
 	} {
-		if _, errs := Parse(sql); len(errs) != 0 {
-			t.Errorf("Parse(%q) should accept (inter-factor hint), got errs=%v", sql, errs)
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q) should accept (inter-factor hint), got errs=%v", sql, errs)
 		}
 	}
 }
@@ -729,14 +729,14 @@ func TestGQL_Rejects(t *testing.T) {
 		// expression. A bare identifier or an arithmetic expression in a page count,
 		// a quantifier bound, or a sample size is a syntax error (oracle-confirmed —
 		// the live Spanner emulator rejects each with "Syntax error:").
-		"GRAPH g MATCH (n) RETURN n LIMIT x",                    // page LIMIT must be int/param/cast, not an ident
-		"GRAPH g MATCH (n) RETURN n OFFSET y LIMIT 3",           // page OFFSET ident
-		"GRAPH g MATCH (n) LIMIT z RETURN n",                    // standalone-page LIMIT ident
-		"GRAPH g MATCH (n) RETURN n LIMIT 1+1",                  // page LIMIT arithmetic
-		"GRAPH g MATCH (a) (-[e]->){1+1,3} (b) RETURN a",        // quantifier bound must be int/param, not arithmetic
-		"GRAPH g MATCH (a) (-[e]->){x} (b) RETURN a",            // quantifier bound ident
-		"GRAPH g MATCH (n) TABLESAMPLE RESERVOIR (foo ROWS) RETURN n",  // sample size ident
-		"GRAPH g MATCH (n) TABLESAMPLE RESERVOIR (1+1 ROWS) RETURN n",  // sample size arithmetic
+		"GRAPH g MATCH (n) RETURN n LIMIT x",                          // page LIMIT must be int/param/cast, not an ident
+		"GRAPH g MATCH (n) RETURN n OFFSET y LIMIT 3",                 // page OFFSET ident
+		"GRAPH g MATCH (n) LIMIT z RETURN n",                          // standalone-page LIMIT ident
+		"GRAPH g MATCH (n) RETURN n LIMIT 1+1",                        // page LIMIT arithmetic
+		"GRAPH g MATCH (a) (-[e]->){1+1,3} (b) RETURN a",              // quantifier bound must be int/param, not arithmetic
+		"GRAPH g MATCH (a) (-[e]->){x} (b) RETURN a",                  // quantifier bound ident
+		"GRAPH g MATCH (n) TABLESAMPLE RESERVOIR (foo ROWS) RETURN n", // sample size ident
+		"GRAPH g MATCH (n) TABLESAMPLE RESERVOIR (1+1 ROWS) RETURN n", // sample size arithmetic
 	}
 	for _, sql := range cases {
 		assertReject(t, sql)
@@ -753,18 +753,18 @@ func TestGQL_Rejects(t *testing.T) {
 // graph_query_oracle_test.go.)
 func TestGQL_NumericOperandForms(t *testing.T) {
 	accepts := []string{
-		"GRAPH g MATCH (n) RETURN n LIMIT @p",                  // page LIMIT parameter
-		"GRAPH g MATCH (n) RETURN n LIMIT CAST(@p AS INT64)",   // page LIMIT cast
-		"GRAPH g MATCH (n) RETURN n OFFSET @o LIMIT @l",        // page OFFSET..LIMIT params
-		"GRAPH g MATCH (n) LIMIT @@max RETURN n",               // standalone-page LIMIT system var
-		"GRAPH g MATCH (a) (-[e]->){@p,3} (b) RETURN a",        // quantifier bound parameter
-		"GRAPH g MATCH (a) (-[e]->){2} (b) RETURN a",           // quantifier single int bound
+		"GRAPH g MATCH (n) RETURN n LIMIT @p",                             // page LIMIT parameter
+		"GRAPH g MATCH (n) RETURN n LIMIT CAST(@p AS INT64)",              // page LIMIT cast
+		"GRAPH g MATCH (n) RETURN n OFFSET @o LIMIT @l",                   // page OFFSET..LIMIT params
+		"GRAPH g MATCH (n) LIMIT @@max RETURN n",                          // standalone-page LIMIT system var
+		"GRAPH g MATCH (a) (-[e]->){@p,3} (b) RETURN a",                   // quantifier bound parameter
+		"GRAPH g MATCH (a) (-[e]->){2} (b) RETURN a",                      // quantifier single int bound
 		"GRAPH g MATCH (n) TABLESAMPLE BERNOULLI (10.5 PERCENT) RETURN n", // sample size float
 		"GRAPH g MATCH (n) TABLESAMPLE RESERVOIR (@n ROWS) RETURN n",      // sample size parameter
 	}
 	for _, sql := range accepts {
-		if _, errs := Parse(sql); len(errs) != 0 {
-			t.Errorf("Parse(%q) should accept, got errs=%v", sql, errs)
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("parseForTest(%q) should accept, got errs=%v", sql, errs)
 		}
 	}
 }
@@ -777,7 +777,7 @@ func createPropertyGraphOf(t *testing.T, sql string) *ast.CreatePropertyGraphStm
 	n := parseDDL(t, sql)
 	pg, ok := n.(*ast.CreatePropertyGraphStmt)
 	if !ok {
-		t.Fatalf("Parse(%q): statement is %T, want *ast.CreatePropertyGraphStmt", sql, n)
+		t.Fatalf("parseForTest(%q): statement is %T, want *ast.CreatePropertyGraphStmt", sql, n)
 	}
 	return pg
 }

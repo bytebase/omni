@@ -419,8 +419,8 @@ func (p *Parser) parseRoutineBody() (body string, dollar bool, end int, err erro
 		if j+1 >= len(p.input) {
 			// Unterminated $$ body.
 			return "", false, 0, &ParseError{
-				Loc: p.cur.Loc,
-				Msg: "unterminated dollar-quoted routine body",
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "unterminated dollar-quoted routine body",
 			}
 		}
 		endLocal = j + 2 // include the closing $$
@@ -446,8 +446,8 @@ func (p *Parser) parseRoutineBody() (body string, dollar bool, end int, err erro
 		}
 		if !closed {
 			return "", false, 0, &ParseError{
-				Loc: p.cur.Loc,
-				Msg: "unterminated routine body string literal",
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "unterminated routine body string literal",
 			}
 		}
 		endLocal = j

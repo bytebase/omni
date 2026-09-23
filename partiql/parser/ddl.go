@@ -48,8 +48,8 @@ func (p *Parser) parseCreateCommand() (ast.StmtNode, error) {
 		}
 		if _, err := p.expect(tokPAREN_LEFT); err != nil {
 			return nil, &ParseError{
-				Message: "expected PAREN_LEFT after table name in CREATE INDEX",
-				Loc:     p.cur.Loc,
+				Message:  "expected PAREN_LEFT after table name in CREATE INDEX",
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 		var paths []*ast.PathExpr
@@ -78,8 +78,8 @@ func (p *Parser) parseCreateCommand() (ast.StmtNode, error) {
 
 	default:
 		return nil, &ParseError{
-			Message: fmt.Sprintf("expected TABLE or INDEX after CREATE, got %q", p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected TABLE or INDEX after CREATE, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 }
@@ -118,8 +118,8 @@ func (p *Parser) parseDropCommand() (ast.StmtNode, error) {
 		}
 		if _, err := p.expect(tokON); err != nil {
 			return nil, &ParseError{
-				Message: fmt.Sprintf("expected ON after index name in DROP INDEX, got %q", p.cur.Str),
-				Loc:     p.cur.Loc,
+				Message:  fmt.Sprintf("expected ON after index name in DROP INDEX, got %q", p.cur.Str),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 		tableName, tableCaseSensitive, tableLoc, err := p.parseSymbolPrimitive()
@@ -142,8 +142,8 @@ func (p *Parser) parseDropCommand() (ast.StmtNode, error) {
 
 	default:
 		return nil, &ParseError{
-			Message: fmt.Sprintf("expected TABLE or INDEX after DROP, got %q", p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected TABLE or INDEX after DROP, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 }

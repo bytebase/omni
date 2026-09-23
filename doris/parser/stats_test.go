@@ -11,7 +11,7 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestAnalyze_Table(t *testing.T) {
-	file, errs := Parse("ANALYZE TABLE lineitem")
+	file, errs := parseForTest("ANALYZE TABLE lineitem")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -34,7 +34,7 @@ func TestAnalyze_Table(t *testing.T) {
 }
 
 func TestAnalyze_TableWithSamplePercent(t *testing.T) {
-	file, errs := Parse("ANALYZE TABLE lineitem WITH SAMPLE PERCENT 10")
+	file, errs := parseForTest("ANALYZE TABLE lineitem WITH SAMPLE PERCENT 10")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -51,7 +51,7 @@ func TestAnalyze_TableWithSamplePercent(t *testing.T) {
 }
 
 func TestAnalyze_TableWithSampleRows(t *testing.T) {
-	file, errs := Parse("ANALYZE TABLE lineitem WITH SAMPLE ROWS 100000")
+	file, errs := parseForTest("ANALYZE TABLE lineitem WITH SAMPLE ROWS 100000")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -68,7 +68,7 @@ func TestAnalyze_TableWithSampleRows(t *testing.T) {
 }
 
 func TestAnalyze_TableWithSync(t *testing.T) {
-	file, errs := Parse("ANALYZE TABLE t WITH SYNC")
+	file, errs := parseForTest("ANALYZE TABLE t WITH SYNC")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -79,7 +79,7 @@ func TestAnalyze_TableWithSync(t *testing.T) {
 }
 
 func TestAnalyze_TableWithIncremental(t *testing.T) {
-	file, errs := Parse("ANALYZE TABLE t WITH INCREMENTAL")
+	file, errs := parseForTest("ANALYZE TABLE t WITH INCREMENTAL")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -90,7 +90,7 @@ func TestAnalyze_TableWithIncremental(t *testing.T) {
 }
 
 func TestAnalyze_TableWithColumns(t *testing.T) {
-	file, errs := Parse("ANALYZE TABLE t (col1, col2)")
+	file, errs := parseForTest("ANALYZE TABLE t (col1, col2)")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -104,7 +104,7 @@ func TestAnalyze_TableWithColumns(t *testing.T) {
 }
 
 func TestAnalyze_Database(t *testing.T) {
-	file, errs := Parse("ANALYZE DATABASE mydb")
+	file, errs := parseForTest("ANALYZE DATABASE mydb")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -118,7 +118,7 @@ func TestAnalyze_Database(t *testing.T) {
 }
 
 func TestAnalyze_QualifiedTable(t *testing.T) {
-	file, errs := Parse("ANALYZE TABLE mydb.lineitem WITH SAMPLE PERCENT 10")
+	file, errs := parseForTest("ANALYZE TABLE mydb.lineitem WITH SAMPLE PERCENT 10")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -133,7 +133,7 @@ func TestAnalyze_QualifiedTable(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowAnalyze_Basic(t *testing.T) {
-	file, errs := Parse("SHOW ANALYZE test1 WHERE STATE=\"FINISHED\"")
+	file, errs := parseForTest("SHOW ANALYZE test1 WHERE STATE=\"FINISHED\"")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -153,7 +153,7 @@ func TestShowAnalyze_Basic(t *testing.T) {
 }
 
 func TestShowAnalyze_ByJobID(t *testing.T) {
-	file, errs := Parse("SHOW ANALYZE 1738725887903")
+	file, errs := parseForTest("SHOW ANALYZE 1738725887903")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -167,7 +167,7 @@ func TestShowAnalyze_ByJobID(t *testing.T) {
 }
 
 func TestShowAnalyze_All(t *testing.T) {
-	file, errs := Parse("SHOW ALL ANALYZE")
+	file, errs := parseForTest("SHOW ALL ANALYZE")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -181,7 +181,7 @@ func TestShowAnalyze_All(t *testing.T) {
 }
 
 func TestShowAnalyze_Queued(t *testing.T) {
-	file, errs := Parse("SHOW QUEUED ANALYZE")
+	file, errs := parseForTest("SHOW QUEUED ANALYZE")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -195,7 +195,7 @@ func TestShowAnalyze_Queued(t *testing.T) {
 }
 
 func TestShowAnalyze_TaskStatus(t *testing.T) {
-	file, errs := Parse("SHOW ANALYZE TASK STATUS 12345")
+	file, errs := parseForTest("SHOW ANALYZE TASK STATUS 12345")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -212,7 +212,7 @@ func TestShowAnalyze_TaskStatus(t *testing.T) {
 }
 
 func TestShowAnalyze_ForTable(t *testing.T) {
-	file, errs := Parse("SHOW ANALYZE FOR mydb.t1")
+	file, errs := parseForTest("SHOW ANALYZE FOR mydb.t1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -227,7 +227,7 @@ func TestShowAnalyze_ForTable(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowTableStats(t *testing.T) {
-	file, errs := Parse("SHOW TABLE STATS test1")
+	file, errs := parseForTest("SHOW TABLE STATS test1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -247,7 +247,7 @@ func TestShowTableStats(t *testing.T) {
 }
 
 func TestShowColumnStats(t *testing.T) {
-	file, errs := Parse("SHOW COLUMN STATS mytable")
+	file, errs := parseForTest("SHOW COLUMN STATS mytable")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -258,7 +258,7 @@ func TestShowColumnStats(t *testing.T) {
 }
 
 func TestShowStats_NoType(t *testing.T) {
-	file, errs := Parse("SHOW STATS mytable")
+	file, errs := parseForTest("SHOW STATS mytable")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -276,7 +276,7 @@ func TestShowStats_NoType(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestShowConstraints_FromTable(t *testing.T) {
-	file, errs := Parse("SHOW CONSTRAINTS FROM mytable")
+	file, errs := parseForTest("SHOW CONSTRAINTS FROM mytable")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -293,7 +293,7 @@ func TestShowConstraints_FromTable(t *testing.T) {
 }
 
 func TestShowConstraints_QualifiedTable(t *testing.T) {
-	file, errs := Parse("SHOW CONSTRAINTS FROM mydb.mytable")
+	file, errs := parseForTest("SHOW CONSTRAINTS FROM mydb.mytable")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -308,7 +308,7 @@ func TestShowConstraints_QualifiedTable(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDropStats_Table(t *testing.T) {
-	file, errs := Parse("DROP STATS table1")
+	file, errs := parseForTest("DROP STATS table1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -331,7 +331,7 @@ func TestDropStats_Table(t *testing.T) {
 }
 
 func TestDropStats_WithColumns(t *testing.T) {
-	file, errs := Parse("DROP STATS table1 (col1, col2)")
+	file, errs := parseForTest("DROP STATS table1 (col1, col2)")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -345,7 +345,7 @@ func TestDropStats_WithColumns(t *testing.T) {
 }
 
 func TestDropStats_Expired(t *testing.T) {
-	file, errs := Parse("DROP EXPIRED STATS mytable")
+	file, errs := parseForTest("DROP EXPIRED STATS mytable")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -359,7 +359,7 @@ func TestDropStats_Expired(t *testing.T) {
 }
 
 func TestDropStats_Cached(t *testing.T) {
-	file, errs := Parse("DROP CACHED STATS mytable")
+	file, errs := parseForTest("DROP CACHED STATS mytable")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -380,7 +380,7 @@ func TestDropStats_Cached(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestKillAnalyze(t *testing.T) {
-	file, errs := Parse("KILL ANALYZE 12345")
+	file, errs := parseForTest("KILL ANALYZE 12345")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -401,7 +401,7 @@ func TestKillAnalyze(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAlterTableAddConstraintPrimaryKey(t *testing.T) {
-	file, errs := Parse("ALTER TABLE t ADD CONSTRAINT pk_id PRIMARY KEY (id)")
+	file, errs := parseForTest("ALTER TABLE t ADD CONSTRAINT pk_id PRIMARY KEY (id)")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -427,7 +427,7 @@ func TestAlterTableAddConstraintPrimaryKey(t *testing.T) {
 }
 
 func TestAlterTableAddConstraintUnique(t *testing.T) {
-	file, errs := Parse("ALTER TABLE t ADD CONSTRAINT uq_email UNIQUE (email)")
+	file, errs := parseForTest("ALTER TABLE t ADD CONSTRAINT uq_email UNIQUE (email)")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -444,7 +444,7 @@ func TestAlterTableAddConstraintUnique(t *testing.T) {
 }
 
 func TestAlterTableAddConstraintForeignKey(t *testing.T) {
-	file, errs := Parse("ALTER TABLE orders ADD CONSTRAINT fk_cust FOREIGN KEY (customer_id) REFERENCES customers (id)")
+	file, errs := parseForTest("ALTER TABLE orders ADD CONSTRAINT fk_cust FOREIGN KEY (customer_id) REFERENCES customers (id)")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -467,7 +467,7 @@ func TestAlterTableAddConstraintForeignKey(t *testing.T) {
 }
 
 func TestAlterTableDropConstraint(t *testing.T) {
-	file, errs := Parse("ALTER TABLE t DROP CONSTRAINT pk_id")
+	file, errs := parseForTest("ALTER TABLE t DROP CONSTRAINT pk_id")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -492,7 +492,7 @@ func TestAlterTableDropConstraint(t *testing.T) {
 
 func TestLegacyCorpus_AnalyzeWithSamplePercent(t *testing.T) {
 	// ANALYZE TABLE lineitem WITH SAMPLE PERCENT 10;
-	file, errs := Parse("ANALYZE TABLE lineitem WITH SAMPLE PERCENT 10")
+	file, errs := parseForTest("ANALYZE TABLE lineitem WITH SAMPLE PERCENT 10")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -507,7 +507,7 @@ func TestLegacyCorpus_AnalyzeWithSamplePercent(t *testing.T) {
 
 func TestLegacyCorpus_AnalyzeWithSampleRows(t *testing.T) {
 	// ANALYZE TABLE lineitem WITH SAMPLE ROWS 100000;
-	file, errs := Parse("ANALYZE TABLE lineitem WITH SAMPLE ROWS 100000")
+	file, errs := parseForTest("ANALYZE TABLE lineitem WITH SAMPLE ROWS 100000")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -519,7 +519,7 @@ func TestLegacyCorpus_AnalyzeWithSampleRows(t *testing.T) {
 
 func TestLegacyCorpus_DropStats(t *testing.T) {
 	// DROP STATS table1;
-	file, errs := Parse("DROP STATS table1")
+	file, errs := parseForTest("DROP STATS table1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -531,7 +531,7 @@ func TestLegacyCorpus_DropStats(t *testing.T) {
 
 func TestLegacyCorpus_DropStatsWithColumns(t *testing.T) {
 	// DROP STATS table1 (col1, col2);
-	file, errs := Parse("DROP STATS table1 (col1, col2)")
+	file, errs := parseForTest("DROP STATS table1 (col1, col2)")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -543,7 +543,7 @@ func TestLegacyCorpus_DropStatsWithColumns(t *testing.T) {
 
 func TestLegacyCorpus_ShowTableStats(t *testing.T) {
 	// SHOW TABLE STATS test1;
-	file, errs := Parse("SHOW TABLE STATS test1")
+	file, errs := parseForTest("SHOW TABLE STATS test1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -555,7 +555,7 @@ func TestLegacyCorpus_ShowTableStats(t *testing.T) {
 
 func TestLegacyCorpus_ShowAnalyzeWithWhere(t *testing.T) {
 	// SHOW ANALYZE test1 WHERE STATE="FINISHED";
-	file, errs := Parse(`SHOW ANALYZE test1 WHERE STATE="FINISHED"`)
+	file, errs := parseForTest(`SHOW ANALYZE test1 WHERE STATE="FINISHED"`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -570,7 +570,7 @@ func TestLegacyCorpus_ShowAnalyzeWithWhere(t *testing.T) {
 
 func TestLegacyCorpus_ShowAnalyzeByJobID(t *testing.T) {
 	// SHOW ANALYZE 1738725887903
-	file, errs := Parse("SHOW ANALYZE 1738725887903")
+	file, errs := parseForTest("SHOW ANALYZE 1738725887903")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -585,7 +585,7 @@ func TestLegacyCorpus_ShowAnalyzeByJobID(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAnalyze_LocIsValid(t *testing.T) {
-	file, errs := Parse("ANALYZE TABLE t")
+	file, errs := parseForTest("ANALYZE TABLE t")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -596,7 +596,7 @@ func TestAnalyze_LocIsValid(t *testing.T) {
 }
 
 func TestDropStats_LocIsValid(t *testing.T) {
-	file, errs := Parse("DROP STATS mytable")
+	file, errs := parseForTest("DROP STATS mytable")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -622,7 +622,7 @@ func TestNodeTagsForStatsNodes(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		file, errs := Parse(tt.input)
+		file, errs := parseForTest(tt.input)
 		if len(errs) != 0 {
 			t.Errorf("%q: unexpected errors: %v", tt.input, errs)
 			continue

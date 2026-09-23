@@ -44,8 +44,8 @@ var windowRejectCorpus = []string{
 func TestWindow_AcceptCorpusParses(t *testing.T) {
 	for _, sql := range windowAcceptCorpus {
 		t.Run(truncateName(sql), func(t *testing.T) {
-			if _, errs := Parse(sql); len(errs) != 0 {
-				t.Errorf("Parse(%q) should accept, got: %v", sql, errs)
+			if _, errs := parseForTest(sql); len(errs) != 0 {
+				t.Errorf("parseForTest(%q) should accept, got: %v", sql, errs)
 			}
 		})
 	}
@@ -54,8 +54,8 @@ func TestWindow_AcceptCorpusParses(t *testing.T) {
 func TestWindow_RejectCorpusRejected(t *testing.T) {
 	for _, sql := range windowRejectCorpus {
 		t.Run(truncateName(sql), func(t *testing.T) {
-			if _, errs := Parse(sql); len(errs) == 0 {
-				t.Errorf("Parse(%q) should reject, but accepted", sql)
+			if _, errs := parseForTest(sql); len(errs) == 0 {
+				t.Errorf("parseForTest(%q) should reject, but accepted", sql)
 			}
 		})
 	}
@@ -64,7 +64,7 @@ func TestWindow_RejectCorpusRejected(t *testing.T) {
 func TestWindow_OracleDifferential(t *testing.T) {
 	o := connectOracle(t)
 	check := func(t *testing.T, sql string) {
-		_, errs := Parse(sql)
+		_, errs := parseForTest(sql)
 		omniAccepts := len(errs) == 0
 		trinoAccepts, ok := oracleAccepts(t, o, sql)
 		if !ok {
@@ -155,8 +155,8 @@ var divergenceFlaggedForms = []struct {
 func TestSelect_DivergenceFlaggedRejected(t *testing.T) {
 	for _, d := range divergenceFlaggedForms {
 		t.Run(d.name, func(t *testing.T) {
-			if _, errs := Parse(d.sql); len(errs) == 0 {
-				t.Errorf("Parse(%q) accepted, but this is a deferred P1 form omni should reject (%s)", d.sql, d.note)
+			if _, errs := parseForTest(d.sql); len(errs) == 0 {
+				t.Errorf("parseForTest(%q) accepted, but this is a deferred P1 form omni should reject (%s)", d.sql, d.note)
 			}
 		})
 	}
@@ -193,7 +193,7 @@ func TestSelect_DivergenceFlaggedOracleAccepts(t *testing.T) {
 // grammar and flags it. Oracle-free assertion of omni's (intentional) accept.
 func TestSelect_CopartitionOverPermissive(t *testing.T) {
 	const sql = "SELECT * FROM TABLE(f(TABLE(a), TABLE(b) COPARTITION (a, b)))"
-	if _, errs := Parse(sql); len(errs) != 0 {
-		t.Errorf("Parse(%q): expected the flagged over-permissive ACCEPT, got errors: %v", sql, errs)
+	if _, errs := parseForTest(sql); len(errs) != 0 {
+		t.Errorf("parseForTest(%q): expected the flagged over-permissive ACCEPT, got errors: %v", sql, errs)
 	}
 }

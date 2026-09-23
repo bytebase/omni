@@ -16,7 +16,7 @@ func testParseType(input string) (*DataType, error) {
 		return nil, err
 	}
 	if p.cur.Type != tokEOF {
-		return dt, &ParseError{Loc: p.cur.Loc, Msg: "trailing tokens after type: " + TokenName(p.cur.Type)}
+		return dt, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "trailing tokens after type: " + TokenName(p.cur.Type)}
 	}
 	return dt, nil
 }
@@ -185,8 +185,8 @@ func TestParseType_EmptyBacktickRejected(t *testing.T) {
 	// than fabricate a name from the token kind.
 	if _, errs := ParseDataType("``"); len(errs) == 0 {
 		t.Error("ParseDataType(\"``\"): want an error, got none")
-	} else if !strings.Contains(errs[0].Msg, "empty identifier") {
-		t.Errorf("error = %q, want it to mention 'empty identifier'", errs[0].Msg)
+	} else if !strings.Contains(errs[0].Message, "empty identifier") {
+		t.Errorf("error = %q, want it to mention 'empty identifier'", errs[0].Message)
 	}
 	// Also as a dotted continuation and a struct field name.
 	if _, errs := ParseDataType("foo.``"); len(errs) == 0 {
@@ -805,7 +805,7 @@ func testParseColumnSchemaType(input string) (*DataType, error) {
 		return nil, err
 	}
 	if p.cur.Type != tokEOF {
-		return dt, &ParseError{Loc: p.cur.Loc, Msg: "trailing tokens after type: " + TokenName(p.cur.Type)}
+		return dt, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "trailing tokens after type: " + TokenName(p.cur.Type)}
 	}
 	return dt, nil
 }
@@ -937,8 +937,8 @@ func TestParseType_ArrayVectorLengthStatements(t *testing.T) {
 		"ALTER TABLE Products ADD COLUMN E2 ARRAY<FLOAT32>(vector_length=>64)",
 	}
 	for _, sql := range accepts {
-		if _, errs := Parse(sql); len(errs) > 0 {
-			t.Errorf("Parse(%q): unexpected errors: %v", sql, errs)
+		if _, errs := parseForTest(sql); len(errs) > 0 {
+			t.Errorf("parseForTest(%q): unexpected errors: %v", sql, errs)
 		}
 	}
 
@@ -963,8 +963,8 @@ func TestParseType_ArrayVectorLengthStatements(t *testing.T) {
 		{"SELECT CAST(NULL AS ARRAY<FLOAT32>(vector_length=>2))", "CAST target"},
 	}
 	for _, tc := range rejects {
-		if _, errs := Parse(tc.sql); len(errs) == 0 {
-			t.Errorf("Parse(%q): want parse error (%s), got none", tc.sql, tc.reason)
+		if _, errs := parseForTest(tc.sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q): want parse error (%s), got none", tc.sql, tc.reason)
 		}
 	}
 }

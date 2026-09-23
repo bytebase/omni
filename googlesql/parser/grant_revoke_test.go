@@ -22,12 +22,12 @@ import (
 // statement count != 1.
 func parseOneStmt(t *testing.T, sql string) ast.Node {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q): unexpected errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q): unexpected errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	return file.Stmts[0]
 }
@@ -58,14 +58,14 @@ func TestGrantRevoke_CorpusAccepts(t *testing.T) {
 			switch node.(type) {
 			case *ast.GrantStmt:
 				if tc.revoke {
-					t.Errorf("Parse(%q): got *GrantStmt, want *RevokeStmt", tc.sql)
+					t.Errorf("parseForTest(%q): got *GrantStmt, want *RevokeStmt", tc.sql)
 				}
 			case *ast.RevokeStmt:
 				if !tc.revoke {
-					t.Errorf("Parse(%q): got *RevokeStmt, want *GrantStmt", tc.sql)
+					t.Errorf("parseForTest(%q): got *RevokeStmt, want *GrantStmt", tc.sql)
 				}
 			default:
-				t.Errorf("Parse(%q): got %T, want a GRANT/REVOKE node", tc.sql, node)
+				t.Errorf("parseForTest(%q): got %T, want a GRANT/REVOKE node", tc.sql, node)
 			}
 		})
 	}
@@ -280,13 +280,13 @@ func TestGrantRevoke_Rejects(t *testing.T) {
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {
-			_, errs := Parse(sql)
+			_, errs := parseForTest(sql)
 			if len(errs) == 0 {
-				t.Errorf("Parse(%q): want a parse error, got none", sql)
+				t.Errorf("parseForTest(%q): want a parse error, got none", sql)
 			}
 			for _, e := range errs {
-				if strings.Contains(e.Msg, "not yet supported") {
-					t.Errorf("Parse(%q): got 'not yet supported' (stub still wired): %v", sql, errs)
+				if strings.Contains(e.Message, "not yet supported") {
+					t.Errorf("parseForTest(%q): got 'not yet supported' (stub still wired): %v", sql, errs)
 				}
 			}
 		})
@@ -313,16 +313,16 @@ func TestGrantRevoke_RejectsTrailingTokens(t *testing.T) {
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {
-			file, errs := Parse(sql)
+			file, errs := parseForTest(sql)
 			if len(errs) == 0 {
-				t.Errorf("Parse(%q): want a syntax error for trailing tokens, got none", sql)
+				t.Errorf("parseForTest(%q): want a syntax error for trailing tokens, got none", sql)
 			}
 			if len(file.Stmts) != 0 {
-				t.Errorf("Parse(%q): got %d stmts, want 0 (trailing junk makes the segment invalid)", sql, len(file.Stmts))
+				t.Errorf("parseForTest(%q): got %d stmts, want 0 (trailing junk makes the segment invalid)", sql, len(file.Stmts))
 			}
 			for _, e := range errs {
-				if strings.Contains(e.Msg, "not yet supported") {
-					t.Errorf("Parse(%q): got 'not yet supported' (unexpected stub path): %v", sql, errs)
+				if strings.Contains(e.Message, "not yet supported") {
+					t.Errorf("parseForTest(%q): got 'not yet supported' (unexpected stub path): %v", sql, errs)
 				}
 			}
 		})

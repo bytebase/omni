@@ -625,8 +625,8 @@ func (p *Parser) parseFuncCall(name *ast.ObjectName) (*ast.FuncCallExpr, error) 
 			p.advance() // consume SEPARATOR
 			if p.cur.Kind != tokString {
 				return nil, &ParseError{
-					Loc: p.cur.Loc,
-					Msg: "expected string after SEPARATOR",
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+					Message: "expected string after SEPARATOR",
 				}
 			}
 			fc.Separator = p.advance().Str
@@ -778,7 +778,7 @@ func (p *Parser) parseWindowFrameBound() (string, ast.Node, error) {
 			p.advance()
 			return "UNBOUNDED FOLLOWING", nil, nil
 		default:
-			return "", nil, &ParseError{Loc: p.cur.Loc, Msg: "expected PRECEDING or FOLLOWING after UNBOUNDED"}
+			return "", nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected PRECEDING or FOLLOWING after UNBOUNDED"}
 		}
 	case kwCURRENT:
 		p.advance()
@@ -799,7 +799,7 @@ func (p *Parser) parseWindowFrameBound() (string, ast.Node, error) {
 			p.advance()
 			return "FOLLOWING", expr, nil
 		default:
-			return "", nil, &ParseError{Loc: p.cur.Loc, Msg: "expected PRECEDING or FOLLOWING in window frame bound"}
+			return "", nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected PRECEDING or FOLLOWING in window frame bound"}
 		}
 	}
 }
@@ -961,8 +961,8 @@ func (p *Parser) parseOrderByItem() (*ast.OrderByItem, error) {
 			item.Loc.End = p.prev.Loc.End
 		default:
 			return nil, &ParseError{
-				Loc: p.cur.Loc,
-				Msg: "expected FIRST or LAST after NULLS",
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "expected FIRST or LAST after NULLS",
 			}
 		}
 	}
@@ -1022,8 +1022,8 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int) (*ast.SubqueryExpr, e
 
 	if depth != 0 {
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "unterminated subquery",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "unterminated subquery",
 		}
 	}
 
@@ -1083,8 +1083,8 @@ func (p *Parser) parseCaseExpr() (*ast.CaseExpr, error) {
 
 	if len(ce.Whens) == 0 {
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected WHEN in CASE expression",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected WHEN in CASE expression",
 		}
 	}
 
@@ -1184,8 +1184,8 @@ func (p *Parser) parseExtractUnit() (string, error) {
 			return strings.ToUpper(tok.Str), nil
 		}
 		return "", &ParseError{
-			Loc: p.cur.Loc,
-			Msg: fmt.Sprintf("expected EXTRACT unit, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: fmt.Sprintf("expected EXTRACT unit, got %q", p.cur.Str),
 		}
 	}
 }
@@ -1328,8 +1328,8 @@ func (p *Parser) parseLambdaExpr(left ast.Node) (ast.Node, error) {
 	params, ok := lambdaParams(left)
 	if !ok {
 		return nil, &ParseError{
-			Loc: arrowTok.Loc,
-			Msg: "invalid lambda parameter list before '->'",
+			Position: arrowTok.Loc.Start, End: arrowTok.Loc.End,
+			Message: "invalid lambda parameter list before '->'",
 		}
 	}
 	body, err := p.parseExpr()
@@ -1576,8 +1576,8 @@ func (p *Parser) parseIntervalUnit() (string, error) {
 			return strings.ToUpper(tok.Str), nil
 		}
 		return "", &ParseError{
-			Loc: p.cur.Loc,
-			Msg: fmt.Sprintf("expected interval unit, got %q", p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: fmt.Sprintf("expected interval unit, got %q", p.cur.Str),
 		}
 	}
 }
@@ -1606,8 +1606,8 @@ func (p *Parser) parseIsExpr(left ast.Node) (ast.Node, error) {
 		isWhat = "FALSE"
 	default:
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected NULL, TRUE, or FALSE after IS [NOT]",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected NULL, TRUE, or FALSE after IS [NOT]",
 		}
 	}
 	endTok := p.advance()
@@ -1636,8 +1636,8 @@ func (p *Parser) parseBetweenExpr(left ast.Node, notFlag bool) (ast.Node, error)
 
 	if _, err := p.expect(kwAND); err != nil {
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected AND in BETWEEN expression",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected AND in BETWEEN expression",
 		}
 	}
 

@@ -840,7 +840,7 @@ func (p *Parser) parseGrantEntity() (*ast.Identifier, *ast.QualifiedName, error)
 	}
 	if p.startsGrantEntityUnit() {
 		if len(first.Parts) != 1 {
-			return nil, nil, &ParseError{Loc: first.Loc, Msg: "entity kind in GRANT/REVOKE ON clause must be a single identifier"}
+			return nil, nil, &ParseError{Position: first.Loc.Start, End: first.Loc.End, Message: "entity kind in GRANT/REVOKE ON clause must be a single identifier"}
 		}
 		object, err := p.parseQualifiedName()
 		if err != nil {

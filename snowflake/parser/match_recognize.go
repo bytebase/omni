@@ -323,8 +323,8 @@ func (p *Parser) parseAfterMatchSkip() (*ast.AfterMatchSkip, error) {
 
 	default:
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected PAST or TO after AFTER MATCH SKIP",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected PAST or TO after AFTER MATCH SKIP",
 		}
 	}
 
@@ -390,8 +390,8 @@ func (p *Parser) parseRowPattern() (*ast.RowPattern, error) {
 		i++
 	}
 	return nil, &ParseError{
-		Loc: ast.Loc{Start: patTok.Loc.Start, End: patTok.Loc.End},
-		Msg: "unterminated PATTERN (...) in MATCH_RECOGNIZE",
+		Position: patTok.Loc.Start, End: patTok.Loc.End,
+		Message: "unterminated PATTERN (...) in MATCH_RECOGNIZE",
 	}
 }
 

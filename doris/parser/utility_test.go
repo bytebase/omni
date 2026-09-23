@@ -11,7 +11,7 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestDescribeTable(t *testing.T) {
-	file, errs := Parse("DESC test_table")
+	file, errs := parseForTest("DESC test_table")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -28,7 +28,7 @@ func TestDescribeTable(t *testing.T) {
 }
 
 func TestDescribeKeyword(t *testing.T) {
-	file, errs := Parse("DESCRIBE test_table")
+	file, errs := parseForTest("DESCRIBE test_table")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -39,7 +39,7 @@ func TestDescribeKeyword(t *testing.T) {
 }
 
 func TestDescribeFullTable(t *testing.T) {
-	file, errs := Parse("DESCRIBE FULL test_table")
+	file, errs := parseForTest("DESCRIBE FULL test_table")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -50,7 +50,7 @@ func TestDescribeFullTable(t *testing.T) {
 }
 
 func TestDescribeAllVerbose(t *testing.T) {
-	file, errs := Parse("DESCRIBE test_table ALL VERBOSE")
+	file, errs := parseForTest("DESCRIBE test_table ALL VERBOSE")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -61,7 +61,7 @@ func TestDescribeAllVerbose(t *testing.T) {
 }
 
 func TestDescribeLocValid(t *testing.T) {
-	file, errs := Parse("DESC t")
+	file, errs := parseForTest("DESC t")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -76,7 +76,7 @@ func TestDescribeLocValid(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestExplainSelect(t *testing.T) {
-	file, errs := Parse("EXPLAIN SELECT 1")
+	file, errs := parseForTest("EXPLAIN SELECT 1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -93,7 +93,7 @@ func TestExplainSelect(t *testing.T) {
 }
 
 func TestExplainVerbose(t *testing.T) {
-	file, errs := Parse("EXPLAIN VERBOSE SELECT 1")
+	file, errs := parseForTest("EXPLAIN VERBOSE SELECT 1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -104,7 +104,7 @@ func TestExplainVerbose(t *testing.T) {
 }
 
 func TestExplainGraph(t *testing.T) {
-	file, errs := Parse("EXPLAIN GRAPH SELECT 1 FROM t")
+	file, errs := parseForTest("EXPLAIN GRAPH SELECT 1 FROM t")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -115,7 +115,7 @@ func TestExplainGraph(t *testing.T) {
 }
 
 func TestExplainPlan(t *testing.T) {
-	file, errs := Parse("EXPLAIN PLAN SELECT 1")
+	file, errs := parseForTest("EXPLAIN PLAN SELECT 1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -126,7 +126,7 @@ func TestExplainPlan(t *testing.T) {
 }
 
 func TestExplainShape(t *testing.T) {
-	file, errs := Parse("EXPLAIN SHAPE SELECT 1")
+	file, errs := parseForTest("EXPLAIN SHAPE SELECT 1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -137,7 +137,7 @@ func TestExplainShape(t *testing.T) {
 }
 
 func TestExplainMemo(t *testing.T) {
-	file, errs := Parse("EXPLAIN MEMO SELECT 1")
+	file, errs := parseForTest("EXPLAIN MEMO SELECT 1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -152,7 +152,7 @@ func TestExplainMemo(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestUseDatabase(t *testing.T) {
-	file, errs := Parse("USE demo")
+	file, errs := parseForTest("USE demo")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -169,7 +169,7 @@ func TestUseDatabase(t *testing.T) {
 }
 
 func TestUseCatalogDB(t *testing.T) {
-	file, errs := Parse("USE hms_catalog.demo")
+	file, errs := parseForTest("USE hms_catalog.demo")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -183,7 +183,7 @@ func TestUseCatalogDB(t *testing.T) {
 }
 
 func TestUseDBAtCluster(t *testing.T) {
-	file, errs := Parse("USE mydb@mycluster")
+	file, errs := parseForTest("USE mydb@mycluster")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -197,7 +197,7 @@ func TestUseDBAtCluster(t *testing.T) {
 }
 
 func TestUseLocValid(t *testing.T) {
-	file, errs := Parse("USE demo")
+	file, errs := parseForTest("USE demo")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -212,7 +212,7 @@ func TestUseLocValid(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestSetVariable(t *testing.T) {
-	file, errs := Parse(`SET time_zone = "Asia/Shanghai"`)
+	file, errs := parseForTest(`SET time_zone = "Asia/Shanghai"`)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -232,7 +232,7 @@ func TestSetVariable(t *testing.T) {
 }
 
 func TestSetGlobalVariable(t *testing.T) {
-	file, errs := Parse("SET GLOBAL exec_mem_limit = 137438953472")
+	file, errs := parseForTest("SET GLOBAL exec_mem_limit = 137438953472")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -250,7 +250,7 @@ func TestSetGlobalVariable(t *testing.T) {
 }
 
 func TestSetDoubleAtVariable(t *testing.T) {
-	file, errs := Parse("SET @@exec_mem_limit = 137438953472")
+	file, errs := parseForTest("SET @@exec_mem_limit = 137438953472")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -265,7 +265,7 @@ func TestSetDoubleAtVariable(t *testing.T) {
 }
 
 func TestSetNames(t *testing.T) {
-	file, errs := Parse("SET NAMES 'utf8'")
+	file, errs := parseForTest("SET NAMES 'utf8'")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -279,7 +279,7 @@ func TestSetNames(t *testing.T) {
 }
 
 func TestSetCharset(t *testing.T) {
-	file, errs := Parse("SET CHARSET 'utf8mb4'")
+	file, errs := parseForTest("SET CHARSET 'utf8mb4'")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -290,7 +290,7 @@ func TestSetCharset(t *testing.T) {
 }
 
 func TestSetTransaction(t *testing.T) {
-	file, errs := Parse("SET TRANSACTION READ ONLY")
+	file, errs := parseForTest("SET TRANSACTION READ ONLY")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -301,7 +301,7 @@ func TestSetTransaction(t *testing.T) {
 }
 
 func TestSetLocValid(t *testing.T) {
-	file, errs := Parse("SET x = 1")
+	file, errs := parseForTest("SET x = 1")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -316,7 +316,7 @@ func TestSetLocValid(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestUnsetVariable(t *testing.T) {
-	file, errs := Parse("UNSET VARIABLE myvar")
+	file, errs := parseForTest("UNSET VARIABLE myvar")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -333,7 +333,7 @@ func TestUnsetVariable(t *testing.T) {
 }
 
 func TestUnsetVariableAll(t *testing.T) {
-	file, errs := Parse("UNSET VARIABLE ALL")
+	file, errs := parseForTest("UNSET VARIABLE ALL")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -344,7 +344,7 @@ func TestUnsetVariableAll(t *testing.T) {
 }
 
 func TestUnsetGlobalVariable(t *testing.T) {
-	file, errs := Parse("UNSET GLOBAL VARIABLE myvar")
+	file, errs := parseForTest("UNSET GLOBAL VARIABLE myvar")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -358,7 +358,7 @@ func TestUnsetGlobalVariable(t *testing.T) {
 }
 
 func TestUnsetSessionVariable(t *testing.T) {
-	file, errs := Parse("UNSET SESSION VARIABLE x")
+	file, errs := parseForTest("UNSET SESSION VARIABLE x")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -369,7 +369,7 @@ func TestUnsetSessionVariable(t *testing.T) {
 }
 
 func TestUnsetLocValid(t *testing.T) {
-	file, errs := Parse("UNSET VARIABLE x")
+	file, errs := parseForTest("UNSET VARIABLE x")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -384,7 +384,7 @@ func TestUnsetLocValid(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHelp(t *testing.T) {
-	file, errs := Parse("HELP 'SELECT'")
+	file, errs := parseForTest("HELP 'SELECT'")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -398,7 +398,7 @@ func TestHelp(t *testing.T) {
 }
 
 func TestHelpIdentifier(t *testing.T) {
-	file, errs := Parse("HELP contents")
+	file, errs := parseForTest("HELP contents")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -409,7 +409,7 @@ func TestHelpIdentifier(t *testing.T) {
 }
 
 func TestHelpLocValid(t *testing.T) {
-	file, errs := Parse("HELP 'x'")
+	file, errs := parseForTest("HELP 'x'")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -438,17 +438,17 @@ func TestUtilityNodeTags(t *testing.T) {
 		{"HELP 'x'", ast.T_HelpStmt},
 	}
 	for _, tt := range tests {
-		file, errs := Parse(tt.input)
+		file, errs := parseForTest(tt.input)
 		if len(errs) != 0 {
-			t.Errorf("Parse(%q) errors: %v", tt.input, errs)
+			t.Errorf("parseForTest(%q) errors: %v", tt.input, errs)
 			continue
 		}
 		if len(file.Stmts) == 0 {
-			t.Errorf("Parse(%q): no stmts", tt.input)
+			t.Errorf("parseForTest(%q): no stmts", tt.input)
 			continue
 		}
 		if got := file.Stmts[0].Tag(); got != tt.wantTag {
-			t.Errorf("Parse(%q): Tag() = %v, want %v", tt.input, got, tt.wantTag)
+			t.Errorf("parseForTest(%q): Tag() = %v, want %v", tt.input, got, tt.wantTag)
 		}
 	}
 }

@@ -59,8 +59,8 @@ func (p *Parser) parseSetOpChain(left ast.Node) (ast.Node, error) {
 			firstAll = meta.All
 		} else if meta.Op != firstOp || meta.All != firstAll {
 			return nil, &ParseError{
-				Loc: meta.Loc,
-				Msg: "syntax error: different set operations cannot be used in the same query without using parentheses for grouping",
+				Position: meta.Loc.Start, End: meta.Loc.End,
+				Message: "syntax error: different set operations cannot be used in the same query without using parentheses for grouping",
 			}
 		}
 		right, err := p.parseQueryPrimary()
@@ -143,7 +143,7 @@ func (p *Parser) tryParseSetOpMetadata() (*ast.SetOperation, bool, error) {
 		p.advance()
 		so.All = false
 	default:
-		return nil, false, &ParseError{Loc: p.cur.Loc, Msg: "syntax error: expected ALL or DISTINCT after set operator"}
+		return nil, false, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: expected ALL or DISTINCT after set operator"}
 	}
 
 	// Optional column-match suffix (opt_column_match_suffix + the BigQuery

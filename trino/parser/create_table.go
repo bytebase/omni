@@ -384,8 +384,8 @@ func (p *Parser) parseCreateTableStmt(startOffset int) (ast.Node, error) {
 	// (semantic, accepted by the grammar), so that parser does NOT reject it.
 	if orReplace && ifNotExists {
 		return nil, &ParseError{
-			Loc: ifNotExistsTok.Loc,
-			Msg: "CREATE TABLE cannot combine OR REPLACE with IF NOT EXISTS",
+			Position: ifNotExistsTok.Loc.Start, End: ifNotExistsTok.Loc.End,
+			Message: "CREATE TABLE cannot combine OR REPLACE with IF NOT EXISTS",
 		}
 	}
 
@@ -437,7 +437,7 @@ func (p *Parser) parseCreateTableStmt(startOffset int) (ast.Node, error) {
 	// aliases, which require AS — without AS it is an incomplete column
 	// definition (each column needs a type). Reject to match Trino.
 	if aliasOnly {
-		return nil, &ParseError{Loc: name.Loc, Msg: "expected column type in CREATE TABLE column definition"}
+		return nil, &ParseError{Position: name.Loc.Start, End: name.Loc.End, Message: "expected column type in CREATE TABLE column definition"}
 	}
 	stmt := &CreateTableStmt{
 		OrReplace:   orReplace,
@@ -460,7 +460,7 @@ func (p *Parser) finishCreateTableAs(startOffset int, orReplace, ifNotExists boo
 	// If a paren list was present it must be alias-shaped (bare identifiers);
 	// a column-definition-shaped list (`a bigint`) before AS is a syntax error.
 	if hadParen && !aliasOnly {
-		return nil, &ParseError{Loc: name.Loc, Msg: "CREATE TABLE AS column list must be plain column aliases"}
+		return nil, &ParseError{Position: name.Loc.Start, End: name.Loc.End, Message: "CREATE TABLE AS column list must be plain column aliases"}
 	}
 	p.advance() // consume AS
 

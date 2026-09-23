@@ -658,8 +658,8 @@ func (p *Parser) parseSetStmt() (ast.Node, error) {
 		// The .g4 emits a fixed message (echoed verbatim by the Spanner emulator).
 		if p.cur.Type == int(',') {
 			return nil, &ParseError{
-				Loc: idTok.Loc,
-				Msg: "Using SET with multiple variables requires parentheses around the variable list",
+				Position: idTok.Loc.Start, End: idTok.Loc.End,
+				Message: "Using SET with multiple variables requires parentheses around the variable list",
 			}
 		}
 		target := &ast.Identifier{Name: name, Loc: idTok.Loc}

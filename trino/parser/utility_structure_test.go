@@ -16,16 +16,16 @@ import (
 // returns it. Fails the test otherwise.
 func parseOneStmt(t *testing.T, sql string) ast.Node {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q): unexpected errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q): unexpected errors: %v", sql, errs)
 	}
 	if file == nil || len(file.Stmts) != 1 {
 		got := 0
 		if file != nil {
 			got = len(file.Stmts)
 		}
-		t.Fatalf("Parse(%q): got %d statements, want 1", sql, got)
+		t.Fatalf("parseForTest(%q): got %d statements, want 1", sql, got)
 	}
 	return file.Stmts[0]
 }

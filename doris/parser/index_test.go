@@ -9,12 +9,12 @@ import (
 // helper: parse a single statement and expect no errors, returning the node.
 func parseIndexStmt(t *testing.T, sql string) ast.Node {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	return file.Stmts[0]
 }
@@ -311,7 +311,7 @@ func TestBuildIndexNodeTag(t *testing.T) {
 // TestCreateIndexCreateTableNowSupported verifies that CREATE TABLE
 // no longer returns an unsupported error.
 func TestCreateIndexCreateTableNowSupported(t *testing.T) {
-	file, errs := Parse("CREATE TABLE t (id INT)")
+	file, errs := parseForTest("CREATE TABLE t (id INT)")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -323,7 +323,7 @@ func TestCreateIndexCreateTableNowSupported(t *testing.T) {
 // TestDropTableNowSupported verifies that DROP TABLE now parses to a
 // DropTableStmt (previously fell through to the unsupported stub).
 func TestDropTableNowSupported(t *testing.T) {
-	file, errs := Parse("DROP TABLE t")
+	file, errs := parseForTest("DROP TABLE t")
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -345,17 +345,17 @@ func TestBuildIndexPartitionForms(t *testing.T) {
 		{"BUILD INDEX index1 ON table1 PARTITIONS(p1)", []string{"p1"}},
 	}
 	for _, tc := range cases {
-		file, errs := Parse(tc.sql)
+		file, errs := parseForTest(tc.sql)
 		if len(errs) != 0 {
-			t.Fatalf("Parse(%q) errors: %v", tc.sql, errs)
+			t.Fatalf("parseForTest(%q) errors: %v", tc.sql, errs)
 		}
 		n := file.Stmts[0].(*ast.BuildIndexStmt)
 		if len(n.Partitions) != len(tc.want) {
-			t.Fatalf("Parse(%q) Partitions = %v, want %v", tc.sql, n.Partitions, tc.want)
+			t.Fatalf("parseForTest(%q) Partitions = %v, want %v", tc.sql, n.Partitions, tc.want)
 		}
 		for i := range tc.want {
 			if n.Partitions[i] != tc.want[i] {
-				t.Errorf("Parse(%q) Partitions[%d] = %q, want %q", tc.sql, i, n.Partitions[i], tc.want[i])
+				t.Errorf("parseForTest(%q) Partitions[%d] = %q, want %q", tc.sql, i, n.Partitions[i], tc.want[i])
 			}
 		}
 	}

@@ -913,8 +913,8 @@ func (p *Parser) parseCaseExpr() (*ast.CaseExpr, error) {
 
 	if len(ce.Whens) == 0 {
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected WHEN in CASE expression",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected WHEN in CASE expression",
 		}
 	}
 
@@ -1076,8 +1076,8 @@ func (p *Parser) parseJsonLiteral() (*ast.JsonLiteralExpr, error) {
 				key = tok.Str
 			} else {
 				return nil, &ParseError{
-					Loc: p.cur.Loc,
-					Msg: "expected string or identifier key in JSON literal",
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+					Message: "expected string or identifier key in JSON literal",
 				}
 			}
 
@@ -1176,8 +1176,8 @@ func (p *Parser) parseIsExpr(left ast.Node) (ast.Node, error) {
 	// IS [NOT] NULL
 	if p.cur.Type != kwNULL {
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected NULL or DISTINCT after IS [NOT]",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected NULL or DISTINCT after IS [NOT]",
 		}
 	}
 	nullTok := p.advance()
@@ -1209,8 +1209,8 @@ func (p *Parser) parseBetweenExpr(left ast.Node) (ast.Node, error) {
 
 	if _, err := p.expect(kwAND); err != nil {
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected AND in BETWEEN expression",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected AND in BETWEEN expression",
 		}
 	}
 
@@ -1431,8 +1431,8 @@ func (p *Parser) parseOverPostfix(left ast.Node) (ast.Node, error) {
 	fc, ok := left.(*ast.FuncCallExpr)
 	if !ok {
 		return nil, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "OVER can only follow a function call",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "OVER can only follow a function call",
 		}
 	}
 
@@ -1593,8 +1593,8 @@ func (p *Parser) parseWindowBound() (ast.WindowBound, error) {
 			return ast.WindowBound{Kind: ast.BoundUnboundedFollowing}, nil
 		}
 		return ast.WindowBound{}, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected PRECEDING or FOLLOWING after UNBOUNDED",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected PRECEDING or FOLLOWING after UNBOUNDED",
 		}
 	}
 
@@ -1606,8 +1606,8 @@ func (p *Parser) parseWindowBound() (ast.WindowBound, error) {
 			return ast.WindowBound{Kind: ast.BoundCurrentRow}, nil
 		}
 		return ast.WindowBound{}, &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "expected ROW after CURRENT",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "expected ROW after CURRENT",
 		}
 	}
 
@@ -1627,8 +1627,8 @@ func (p *Parser) parseWindowBound() (ast.WindowBound, error) {
 	}
 
 	return ast.WindowBound{}, &ParseError{
-		Loc: p.cur.Loc,
-		Msg: "expected PRECEDING or FOLLOWING",
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: "expected PRECEDING or FOLLOWING",
 	}
 }
 
@@ -1898,8 +1898,8 @@ func (p *Parser) parseOrderItemModifiers(item *ast.OrderItem) error {
 			item.Loc.End = p.prev.Loc.End
 		} else {
 			return &ParseError{
-				Loc: p.cur.Loc,
-				Msg: "expected FIRST or LAST after NULLS",
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+				Message: "expected FIRST or LAST after NULLS",
 			}
 		}
 	}
@@ -1926,13 +1926,13 @@ func ParseExpr(input string) (ast.Node, []ParseError) {
 		if pe, ok := err.(*ParseError); ok {
 			return nil, []ParseError{*pe}
 		}
-		return nil, []ParseError{{Msg: err.Error()}}
+		return nil, []ParseError{{Message: err.Error()}}
 	}
 
 	if p.cur.Type != tokEOF {
 		return node, []ParseError{{
-			Loc: p.cur.Loc,
-			Msg: "unexpected token after expression: " + tokenDesc(p.cur),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "unexpected token after expression: " + tokenDesc(p.cur),
 		}}
 	}
 

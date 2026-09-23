@@ -69,8 +69,8 @@ func (p *Parser) parseScript() (*ast.List, error) {
 
 	if p.cur.Type != tokEOF {
 		return nil, &ParseError{
-			Message: "unexpected token after statement",
-			Loc:     p.cur.Loc,
+			Message:  "unexpected token after statement",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 

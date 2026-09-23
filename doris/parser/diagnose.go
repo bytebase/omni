@@ -17,10 +17,11 @@ type Diagnostic struct {
 // real parsing. Lexer errors (unterminated strings, unknown characters) are
 // always genuine diagnostics.
 func Diagnose(input string) []Diagnostic {
-	_, errs := Parse(input)
+	_, err := Parse(input)
+	errs := AllErrors(err)
 	diags := make([]Diagnostic, len(errs))
 	for i, e := range errs {
-		diags[i] = Diagnostic{Msg: e.Msg, Loc: e.Loc}
+		diags[i] = Diagnostic{Msg: e.Message, Loc: ast.Loc{Start: e.Position, End: e.End}}
 	}
 	return diags
 }

@@ -25,11 +25,11 @@ func (l *Lexer) makeError(msg string, start, end int) *ParseError {
 		nearEnd = end
 	}
 	return &ParseError{
-		Message: msg,
-		Loc:     locFromOffsets(start, end),
-		Line:    line,
-		Column:  col,
-		Near:    l.input[start:nearEnd],
+		Message:  msg,
+		Position: locFromOffsets(start, end).Start, End: locFromOffsets(start, end).End,
+		Line:   line,
+		Column: col,
+		Near:   l.input[start:nearEnd],
 	}
 }
 

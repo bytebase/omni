@@ -85,13 +85,13 @@ func (p *Parser) parseIdentifier() (*ast.Identifier, error) {
 // diagnostics are actionable.
 func (p *Parser) identifierError() *ParseError {
 	if p.cur.Kind == tokEOF {
-		return &ParseError{Loc: p.cur.Loc, Msg: "expected identifier, found end of input"}
+		return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected identifier, found end of input"}
 	}
 	text := p.cur.Str
 	if text == "" {
 		text = TokenName(p.cur.Kind)
 	}
-	return &ParseError{Loc: p.cur.Loc, Msg: "expected identifier, found " + text}
+	return &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected identifier, found " + text}
 }
 
 // parseQualifiedName parses a dot-separated chain of identifiers (Trino's
@@ -177,14 +177,14 @@ func ParseQualifiedName(input string) (*ast.QualifiedName, []ParseError) {
 		if pe, ok := err.(*ParseError); ok {
 			return nil, []ParseError{*pe}
 		}
-		return nil, []ParseError{{Msg: err.Error()}}
+		return nil, []ParseError{{Message: err.Error()}}
 	}
 	if p.cur.Kind != tokEOF {
 		text := p.cur.Str
 		if text == "" {
 			text = TokenName(p.cur.Kind)
 		}
-		return qn, []ParseError{{Loc: p.cur.Loc, Msg: "unexpected token after qualified name: " + text}}
+		return qn, []ParseError{{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "unexpected token after qualified name: " + text}}
 	}
 	return qn, nil
 }

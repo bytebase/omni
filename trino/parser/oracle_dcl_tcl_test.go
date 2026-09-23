@@ -197,7 +197,7 @@ func TestDCLTCL_OracleDifferential(t *testing.T) {
 	for _, sql := range dclTclOracleCorpus {
 		sql := sql
 		t.Run(truncateName(sql), func(t *testing.T) {
-			_, errs := Parse(sql)
+			_, errs := parseForTest(sql)
 			omniAccepts := len(errs) == 0
 
 			trinoAccepts, ok := oracleAccepts(t, o, sql)

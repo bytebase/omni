@@ -217,8 +217,8 @@ func (p *Parser) unsupportedDrop() (ast.Node, error) {
 		objText = TokenName(p.cur.Type)
 	}
 	err := &ParseError{
-		Loc: p.cur.Loc,
-		Msg: "DROP " + objText + " statement parsing is not yet supported",
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: "DROP " + objText + " statement parsing is not yet supported",
 	}
 	p.skipToNextStatement()
 	return nil, err
@@ -333,8 +333,8 @@ func (p *Parser) parseUndropStmt() (ast.Node, error) {
 			objText = TokenName(p.cur.Type)
 		}
 		err := &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "UNDROP " + objText + " statement parsing is not yet supported",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "UNDROP " + objText + " statement parsing is not yet supported",
 		}
 		p.skipToNextStatement()
 		return nil, err

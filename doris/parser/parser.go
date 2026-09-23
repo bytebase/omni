@@ -154,8 +154,8 @@ func (p *Parser) syntaxErrorAtCur() *ParseError {
 		msg = "syntax error at or near " + text
 	}
 	return &ParseError{
-		Loc: p.cur.Loc,
-		Msg: msg,
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: msg,
 	}
 }
 
@@ -199,8 +199,8 @@ func (p *Parser) skipToNextStatement() {
 // tokens themselves and produce real AST nodes.
 func (p *Parser) unsupported(stmtName string) (ast.Node, error) {
 	err := &ParseError{
-		Loc: p.cur.Loc,
-		Msg: stmtName + " statement parsing is not yet supported",
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: stmtName + " statement parsing is not yet supported",
 	}
 	p.skipToNextStatement()
 	return nil, err
@@ -212,8 +212,8 @@ func (p *Parser) unsupported(stmtName string) (ast.Node, error) {
 func (p *Parser) unknownStatementError() *ParseError {
 	if p.cur.Kind == tokEOF {
 		return &ParseError{
-			Loc: p.cur.Loc,
-			Msg: "syntax error at end of input",
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			Message: "syntax error at end of input",
 		}
 	}
 	tokText := p.cur.Str
@@ -221,8 +221,8 @@ func (p *Parser) unknownStatementError() *ParseError {
 		tokText = TokenName(p.cur.Kind)
 	}
 	return &ParseError{
-		Loc: p.cur.Loc,
-		Msg: "unknown or unsupported statement starting with " + tokText,
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: "unknown or unsupported statement starting with " + tokText,
 	}
 }
 
@@ -707,9 +707,12 @@ type ParseResult struct {
 // from a complete parse. The returned *ast.File always reflects whatever
 // statements parsed successfully — even in the error case, the File may
 // be non-empty.
-func Parse(input string) (*ast.File, []ParseError) {
+func Parse(input string) (*ast.File, error) {
 	result := parseAll(input, true)
-	return result.File, result.Errors
+	if len(result.Errors) == 0 {
+		return result.File, nil
+	}
+	return result.File, ParseErrors(result.Errors)
 }
 
 // ParseBestEffort runs Split to segment the input, then parses each segment
@@ -752,13 +755,13 @@ func parseAll(input string, strictTrailing bool) *ParseResult {
 		for _, le := range lx.Errors() {
 			dup := false
 			for _, e := range result.Errors {
-				if e.Loc.Start == le.Loc.Start {
+				if e.Position == le.Loc.Start {
 					dup = true
 					break
 				}
 			}
 			if !dup {
-				result.Errors = append(result.Errors, ParseError{Loc: le.Loc, Msg: le.Msg})
+				result.Errors = append(result.Errors, ParseError{Position: le.Loc.Start, End: le.Loc.End, Message: le.Msg})
 			}
 		}
 	}
@@ -792,8 +795,8 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 				p.errors = append(p.errors, *pe)
 			} else {
 				p.errors = append(p.errors, ParseError{
-					Loc: p.cur.Loc,
-					Msg: err.Error(),
+					Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+					Message: err.Error(),
 				})
 			}
 		}
@@ -821,7 +824,7 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 	// Promote any lex errors into ParseErrors. The Lexer's Errors() getter
 	// returns positions already shifted by baseOffset.
 	for _, le := range p.lexer.Errors() {
-		p.errors = append(p.errors, ParseError{Loc: le.Loc, Msg: le.Msg})
+		p.errors = append(p.errors, ParseError{Position: le.Loc.Start, End: le.Loc.End, Message: le.Msg})
 	}
 
 	return result, p.errors

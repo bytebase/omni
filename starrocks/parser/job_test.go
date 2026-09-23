@@ -12,12 +12,12 @@ import (
 
 func parseCreateJobStmt(t *testing.T, sql string) *ast.CreateJobStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.CreateJobStmt)
 	if !ok {
@@ -28,12 +28,12 @@ func parseCreateJobStmt(t *testing.T, sql string) *ast.CreateJobStmt {
 
 func parseAlterJobStmt(t *testing.T, sql string) *ast.AlterJobStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.AlterJobStmt)
 	if !ok {
@@ -44,12 +44,12 @@ func parseAlterJobStmt(t *testing.T, sql string) *ast.AlterJobStmt {
 
 func parseDropJobStmt(t *testing.T, sql string) *ast.DropJobStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.DropJobStmt)
 	if !ok {
@@ -60,12 +60,12 @@ func parseDropJobStmt(t *testing.T, sql string) *ast.DropJobStmt {
 
 func parsePauseJobStmt(t *testing.T, sql string) *ast.PauseJobStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.PauseJobStmt)
 	if !ok {
@@ -76,12 +76,12 @@ func parsePauseJobStmt(t *testing.T, sql string) *ast.PauseJobStmt {
 
 func parseResumeJobStmt(t *testing.T, sql string) *ast.ResumeJobStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.ResumeJobStmt)
 	if !ok {
@@ -92,12 +92,12 @@ func parseResumeJobStmt(t *testing.T, sql string) *ast.ResumeJobStmt {
 
 func parseCancelTaskStmt(t *testing.T, sql string) *ast.CancelTaskStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.CancelTaskStmt)
 	if !ok {
@@ -108,12 +108,12 @@ func parseCancelTaskStmt(t *testing.T, sql string) *ast.CancelTaskStmt {
 
 func parseShowJobStmt(t *testing.T, sql string) *ast.ShowJobStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.ShowJobStmt)
 	if !ok {
@@ -124,12 +124,12 @@ func parseShowJobStmt(t *testing.T, sql string) *ast.ShowJobStmt {
 
 func parseShowJobTaskStmt(t *testing.T, sql string) *ast.ShowJobTaskStmt {
 	t.Helper()
-	file, errs := Parse(sql)
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
-		t.Fatalf("Parse(%q) errors: %v", sql, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 	}
 	if len(file.Stmts) != 1 {
-		t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+		t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 	}
 	stmt, ok := file.Stmts[0].(*ast.ShowJobTaskStmt)
 	if !ok {
@@ -436,12 +436,12 @@ func TestLegacyJobCorpus(t *testing.T) {
 
 	for _, sql := range cases {
 		t.Run(sql[:min(len(sql), 60)], func(t *testing.T) {
-			file, errs := Parse(sql)
+			file, errs := parseForTest(sql)
 			if len(errs) != 0 {
-				t.Fatalf("Parse(%q) errors: %v", sql, errs)
+				t.Fatalf("parseForTest(%q) errors: %v", sql, errs)
 			}
 			if len(file.Stmts) != 1 {
-				t.Fatalf("Parse(%q): got %d stmts, want 1", sql, len(file.Stmts))
+				t.Fatalf("parseForTest(%q): got %d stmts, want 1", sql, len(file.Stmts))
 			}
 		})
 	}

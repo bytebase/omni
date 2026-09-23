@@ -65,8 +65,8 @@ func (p *Parser) parseLiteral() (ast.ExprNode, error) {
 	}
 
 	return nil, &ParseError{
-		Message: "expected literal",
-		Loc:     p.cur.Loc,
+		Message:  "expected literal",
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 	}
 }
 
@@ -102,13 +102,13 @@ func (p *Parser) parseDateTimeLiteral() (ast.ExprNode, error) {
 		return nil, &ParseError{
 			Message: "TIMESTAMP literal is not supported in PartiQL; " +
 				"use an Ion literal (`...`) or CAST(... AS TIMESTAMP)",
-			Loc: p.cur.Loc,
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 	// Unreachable: callers gate on the three tokens above.
 	return nil, &ParseError{
-		Message: "expected DATE, TIME, or TIMESTAMP literal",
-		Loc:     p.cur.Loc,
+		Message:  "expected DATE, TIME, or TIMESTAMP literal",
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 	}
 }
 
@@ -142,15 +142,15 @@ func (p *Parser) parseTimeLiteral() (ast.ExprNode, error) {
 		intTok, err := p.expect(tokICONST)
 		if err != nil {
 			return nil, &ParseError{
-				Message: fmt.Sprintf("expected integer precision in TIME(...), got %q", p.cur.Str),
-				Loc:     p.cur.Loc,
+				Message:  fmt.Sprintf("expected integer precision in TIME(...), got %q", p.cur.Str),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 		n, perr := strconv.Atoi(intTok.Str)
 		if perr != nil {
 			return nil, &ParseError{
-				Message: fmt.Sprintf("invalid TIME precision %q: %v", intTok.Str, perr),
-				Loc:     intTok.Loc,
+				Message:  fmt.Sprintf("invalid TIME precision %q: %v", intTok.Str, perr),
+				Position: intTok.Loc.Start, End: intTok.Loc.End,
 			}
 		}
 		if _, err := p.expect(tokPAREN_RIGHT); err != nil {
@@ -165,14 +165,14 @@ func (p *Parser) parseTimeLiteral() (ast.ExprNode, error) {
 		p.advance() // consume WITH
 		if _, err := p.expect(tokTIME); err != nil {
 			return nil, &ParseError{
-				Message: fmt.Sprintf("expected TIME after WITH, got %q", p.cur.Str),
-				Loc:     p.cur.Loc,
+				Message:  fmt.Sprintf("expected TIME after WITH, got %q", p.cur.Str),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 		if _, err := p.expect(tokZONE); err != nil {
 			return nil, &ParseError{
-				Message: fmt.Sprintf("expected ZONE after WITH TIME, got %q", p.cur.Str),
-				Loc:     p.cur.Loc,
+				Message:  fmt.Sprintf("expected ZONE after WITH TIME, got %q", p.cur.Str),
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			}
 		}
 		withTZ = true
@@ -210,8 +210,8 @@ func (p *Parser) parseTimeLiteral() (ast.ExprNode, error) {
 func (p *Parser) expectStringLiteral(kind string) (Token, error) {
 	if p.cur.Type != tokSCONST {
 		return Token{}, &ParseError{
-			Message: fmt.Sprintf("expected string literal after %s, got %q", kind, p.cur.Str),
-			Loc:     p.cur.Loc,
+			Message:  fmt.Sprintf("expected string literal after %s, got %q", kind, p.cur.Str),
+			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 		}
 	}
 	tok := p.cur

@@ -9,16 +9,16 @@ import (
 // mustParseSetOp parses input and returns the first statement as *ast.SetOpStmt.
 func mustParseSetOp(t *testing.T, input string) *ast.SetOpStmt {
 	t.Helper()
-	file, errs := Parse(input)
+	file, errs := parseForTest(input)
 	if len(errs) > 0 {
-		t.Fatalf("Parse(%q) errors: %v", input, errs)
+		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
 	}
 	if len(file.Stmts) == 0 {
-		t.Fatalf("Parse(%q) returned no statements", input)
+		t.Fatalf("parseForTest(%q) returned no statements", input)
 	}
 	stmt, ok := file.Stmts[0].(*ast.SetOpStmt)
 	if !ok {
-		t.Fatalf("Parse(%q) got %T, want *ast.SetOpStmt", input, file.Stmts[0])
+		t.Fatalf("parseForTest(%q) got %T, want *ast.SetOpStmt", input, file.Stmts[0])
 	}
 	return stmt
 }
@@ -264,7 +264,7 @@ func TestSetOpStmtWalk(t *testing.T) {
 func TestSetOpStmtWalkTrailingClauses(t *testing.T) {
 	// The ORDER BY / LIMIT attached to a grouped set operation must be
 	// reachable from Walk, or their column refs vanish from analysis.
-	file, errs := Parse("(SELECT 1) UNION (SELECT 2) ORDER BY c LIMIT 5")
+	file, errs := parseForTest("(SELECT 1) UNION (SELECT 2) ORDER BY c LIMIT 5")
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -288,7 +288,7 @@ func TestSetOpStmtWalkTrailingClauses(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestPlainSelectUnchanged(t *testing.T) {
-	file, errs := Parse("SELECT a FROM t")
+	file, errs := parseForTest("SELECT a FROM t")
 	if len(errs) > 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
