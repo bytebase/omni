@@ -855,9 +855,17 @@ func TestSelect_ForSystemTimeRequiresTime(t *testing.T) {
 // against; it is committed under testdata/legacy, so its absence is a failure.
 func TestSelect_TPCHCorpus(t *testing.T) {
 	dir := filepath.Join(legacyCorpusRoot(t), "zetasql", "examples", "tpch")
-	files, err := filepath.Glob(filepath.Join(dir, "*.sql"))
+	// os.ReadDir rather than filepath.Glob: a checkout path containing a glob
+	// metacharacter (e.g. "repo[x]") would otherwise be parsed as a pattern.
+	entries, err := os.ReadDir(dir)
 	if err != nil {
-		t.Fatalf("globbing TPC-H corpus at %s: %v", dir, err)
+		t.Fatalf("reading TPC-H corpus at %s: %v", dir, err)
+	}
+	var files []string
+	for _, e := range entries {
+		if !e.IsDir() && filepath.Ext(e.Name()) == ".sql" {
+			files = append(files, filepath.Join(dir, e.Name()))
+		}
 	}
 	if len(files) != 22 {
 		t.Fatalf("found %d TPC-H .sql files under %s, expected 22", len(files), dir)

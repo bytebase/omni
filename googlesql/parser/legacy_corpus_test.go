@@ -3,7 +3,6 @@ package parser
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"testing"
 )
@@ -11,18 +10,18 @@ import (
 // legacyCorpusRoot returns the absolute path to testdata/legacy, the committed
 // mirror of the legacy ZetaSQL/GoogleSQL example .sql files (Corpus A, lifted
 // from bytebase/parser/googlesql/examples; see testdata/legacy/README.md for
-// provenance and licensing). These are the canonical ZetaSQL parser testdata
-// that the legacy ANTLR grammar was validated against. Resolved from this
-// source file's location like truth1Root, and like truth1Root it fails loudly
-// if the corpus is missing: the corpus is part of the repo, so its absence is
-// a real error, never a skip.
+// provenance). These are the canonical ZetaSQL parser testdata that the legacy
+// ANTLR grammar was validated against. Resolved relative to the test working
+// directory (go test runs each package's tests from the package directory),
+// not via runtime.Caller, so it also works under -trimpath where source paths
+// are rewritten to import paths. Fails loudly if the corpus is missing: the
+// corpus is part of the repo, so its absence is a real error, never a skip.
 func legacyCorpusRoot(t *testing.T) string {
 	t.Helper()
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed; cannot locate legacy corpus")
+	root, err := filepath.Abs(filepath.Join("testdata", "legacy"))
+	if err != nil {
+		t.Fatalf("resolving legacy corpus path: %v", err)
 	}
-	root := filepath.Join(filepath.Dir(thisFile), "testdata", "legacy")
 	if _, err := os.Stat(root); err != nil {
 		t.Fatalf("legacy corpus not found at %s: %v", root, err)
 	}
