@@ -68,35 +68,75 @@ func nameParts(list *ast.List) []string {
 	return parts
 }
 
-// objectName writes a DROP object as the SQL named it. Objects that hang
-// off a relation (trigger, policy, rule) read "name on relation".
-func objectName(obj ast.Node, onRelation bool) string {
+// objectName writes a DROP object as the SQL named it. Each object kind
+// has its own list shape: a cast is two types, a transform a type and a
+// language, an operator class or family an access method then a name,
+// a trigger, policy, or rule a relation then a name, and a routine or
+// operator a name with argument types.
+func objectName(kind ast.ObjectType, obj ast.Node) string {
+	switch kind {
+	case ast.OBJECT_CAST:
+		types := typeNames(listOf(obj))
+		if len(types) == 2 {
+			return "from " + types[0] + " to " + types[1]
+		}
+	case ast.OBJECT_TRANSFORM:
+		if l := listOf(obj); l != nil && len(l.Items) == 2 {
+			tn, _ := l.Items[0].(*ast.TypeName)
+			lang, _ := l.Items[1].(*ast.String)
+			if tn != nil && lang != nil {
+				return "for " + typeName(tn) + " language " + ident(lang.Str)
+			}
+		}
+	case ast.OBJECT_OPCLASS, ast.OBJECT_OPFAMILY:
+		if parts := nameParts(listOf(obj)); len(parts) > 1 {
+			return qualified(parts[1:]) + " using " + ident(parts[0])
+		}
+	case ast.OBJECT_TRIGGER, ast.OBJECT_POLICY, ast.OBJECT_RULE:
+		if parts := nameParts(listOf(obj)); len(parts) > 1 {
+			return ident(parts[len(parts)-1]) + " on " + qualified(parts[:len(parts)-1])
+		}
+	}
 	switch v := obj.(type) {
 	case *ast.String:
 		return ident(v.Str)
 	case *ast.List:
-		parts := nameParts(v)
-		if onRelation && len(parts) > 1 {
-			return ident(parts[len(parts)-1]) + " on " + qualified(parts[:len(parts)-1])
-		}
-		return qualified(parts)
+		return qualified(nameParts(v))
 	case *ast.TypeName:
 		return typeName(v)
 	case *ast.ObjectWithArgs:
 		name := qualified(nameParts(v.Objname))
-		if v.ArgsUnspecified || v.Objargs == nil {
+		if v.ArgsUnspecified {
 			return name
 		}
-		args := make([]string, 0, len(v.Objargs.Items))
-		for _, item := range v.Objargs.Items {
-			if tn, ok := item.(*ast.TypeName); ok {
-				args = append(args, typeName(tn))
-			}
+		if v.Objargs == nil {
+			return name + "(*)"
 		}
-		return name + "(" + strings.Join(args, ", ") + ")"
-	default:
-		return ""
+		return name + "(" + strings.Join(typeNames(v.Objargs), ", ") + ")"
 	}
+	return ""
+}
+
+func listOf(n ast.Node) *ast.List {
+	l, _ := n.(*ast.List)
+	return l
+}
+
+// typeNames writes the types of an argument list; a missing type, the
+// NONE side of a unary operator, reads NONE.
+func typeNames(args *ast.List) []string {
+	if args == nil {
+		return nil
+	}
+	names := make([]string, 0, len(args.Items))
+	for _, item := range args.Items {
+		if tn, ok := item.(*ast.TypeName); ok {
+			names = append(names, typeName(tn))
+		} else {
+			names = append(names, "NONE")
+		}
+	}
+	return names
 }
 
 // typeName writes a type name without the pg_catalog qualifier the parser
@@ -106,7 +146,11 @@ func typeName(tn *ast.TypeName) string {
 	if len(parts) == 2 && parts[0] == "pg_catalog" {
 		parts = parts[1:]
 	}
-	return qualified(parts)
+	name := qualified(parts)
+	if tn.ArrayBounds != nil {
+		name += strings.Repeat("[]", len(tn.ArrayBounds.Items))
+	}
+	return name
 }
 
 // objectKind names an ObjectType the way the DROP keyword does.

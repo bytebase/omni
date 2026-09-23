@@ -32,11 +32,10 @@ func checkDropNode(n ast.Node, report func(review.Range, string, []string)) {
 	switch v := n.(type) {
 	case *ast.DropStmt:
 		kind := ast.ObjectType(v.RemoveType)
-		onRelation := kind == ast.OBJECT_TRIGGER || kind == ast.OBJECT_POLICY || kind == ast.OBJECT_RULE
 		var names []string
 		if v.Objects != nil {
 			for _, obj := range v.Objects.Items {
-				if name := objectName(obj, onRelation); name != "" {
+				if name := objectName(kind, obj); name != "" {
 					names = append(names, name)
 				}
 			}

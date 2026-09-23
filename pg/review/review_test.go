@@ -117,6 +117,26 @@ func TestReview(t *testing.T) {
 			},
 		},
 		{
+			name:    "disallow drop object names every object shape",
+			sql:     "DROP CAST (int AS text); DROP TRANSFORM FOR int LANGUAGE plpgsql; DROP OPERATOR CLASS s.c USING btree; DROP OPERATOR FAMILY f USING btree; DROP OPERATOR s.+ (int, int), - (NONE, int); DROP AGGREGATE agg(int, text), s.agg2(*); DROP ROUTINE r; DROP RULE r ON s.t; DROP POLICY p ON t; DROP TYPE s.ty, ty2; DROP FUNCTION f(int[], text[][]);",
+			targets: 1,
+			want: func(t *testing.T, sql string) []finding {
+				return []finding{
+					{review.DisallowDropObject, 0, span(t, sql, "DROP CAST (int AS text)"), "drops cast from int4 to text"},
+					{review.DisallowDropObject, 1, span(t, sql, "DROP TRANSFORM FOR int LANGUAGE plpgsql"), "drops transform for int4 language plpgsql"},
+					{review.DisallowDropObject, 2, span(t, sql, "DROP OPERATOR CLASS s.c USING btree"), "drops operator class s.c using btree"},
+					{review.DisallowDropObject, 3, span(t, sql, "DROP OPERATOR FAMILY f USING btree"), "drops operator family f using btree"},
+					{review.DisallowDropObject, 4, span(t, sql, "DROP OPERATOR s.+ (int, int), - (NONE, int)"), `drops operator s."+"(int4, int4), "-"(NONE, int4)`},
+					{review.DisallowDropObject, 5, span(t, sql, "DROP AGGREGATE agg(int, text), s.agg2(*)"), "drops aggregate agg(int4, text), s.agg2(*)"},
+					{review.DisallowDropObject, 6, span(t, sql, "DROP ROUTINE r"), "drops routine r"},
+					{review.DisallowDropObject, 7, span(t, sql, "DROP RULE r ON s.t"), "drops rule r on s.t"},
+					{review.DisallowDropObject, 8, span(t, sql, "DROP POLICY p ON t"), "drops policy p on t"},
+					{review.DisallowDropObject, 9, span(t, sql, "DROP TYPE s.ty, ty2"), "drops type s.ty, ty2"},
+					{review.DisallowDropObject, 10, span(t, sql, "DROP FUNCTION f(int[], text[][])"), "drops function f(int4[], text[][])"},
+				}
+			},
+		},
+		{
 			name:    "statements inside a SQL-standard routine body are reported where they are",
 			sql:     "CREATE PROCEDURE p() LANGUAGE SQL BEGIN ATOMIC DROP TABLE t; TRUNCATE u; ALTER TABLE v RENAME TO w; DELETE FROM x; END;",
 			targets: 1,
