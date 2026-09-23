@@ -981,12 +981,14 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int, kind SubqueryKind) (*
 	raw := p.sourceSlice(subStart, subEnd)
 	closeTok := p.advance() // consume ')'
 	trimmed := strings.TrimSpace(raw)
-	return &SubqueryExpr{
+	sub := &SubqueryExpr{
 		Kind:      kind,
 		RawText:   trimmed,
 		TextStart: subStart + strings.Index(raw, trimmed),
 		Loc:       ast.Loc{Start: startOffset, End: closeTok.Loc.End},
-	}, nil
+	}
+	p.subqueries = append(p.subqueries, sub)
+	return sub, nil
 }
 
 // sourceSlice returns the substring of the original input spanning the absolute

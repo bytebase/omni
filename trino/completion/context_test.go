@@ -141,6 +141,18 @@ func TestContext_ScopeSurvivesOtherParseErrors(t *testing.T) {
 			t.Errorf("%s: columns=%v, want custkey from the recovered FROM scope", c.name, texts(got, CandidateColumn))
 		}
 	}
+	// A qualified relation is a catalog table even when a CTE shares its
+	// name; only an unqualified name can reference the CTE.
+	sql2 := "WITH customer AS (SELECT 1 AS one) SELECT  FROM tpch.sf1.customer WHERE x ="
+	if got := Complete(sql2, len("SELECT "), cat); !has(got, CandidateColumn, "custkey") {
+		// The caret sits in the SELECT list of the main query.
+		_ = got
+	}
+	got2 := Complete(sql2, len("WITH customer AS (SELECT 1 AS one) SELECT "), cat)
+	if !has(got2, CandidateColumn, "custkey") {
+		t.Errorf("qualified table sharing a CTE name lost: columns=%v", texts(got2, CandidateColumn))
+	}
+
 	// A WITH name is recovered too, and is offered after FROM rather than
 	// treated as a catalog table.
 	sql := "WITH c AS (SELECT custkey FROM customer) SELECT custkey FROM  WHERE x ="

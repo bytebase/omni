@@ -96,7 +96,10 @@ func lexerScope(stmt string) *analysis.QuerySpan {
 		if st == nil {
 			return 0
 		}
-		if st.table != placeholder && !cte[st.table] && !seen[*st] {
+		// Only an unqualified name can reference a CTE; prod.customer is a
+		// catalog table even when a CTE is also called customer.
+		isCTE := st.catalog == "" && st.schema == "" && cte[st.table]
+		if st.table != placeholder && !isCTE && !seen[*st] {
 			seen[*st] = true
 			span.AccessTables = append(span.AccessTables, analysis.TableAccess{
 				Catalog: st.catalog, Schema: st.schema, Table: st.table, Alias: st.alias,

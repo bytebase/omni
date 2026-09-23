@@ -27,6 +27,7 @@ package parser
 
 import (
 	"github.com/bytebase/omni/trino/ast"
+	"strings"
 )
 
 // Parser is a recursive-descent parser for Trino SQL. It operates on a single
@@ -47,6 +48,12 @@ type Parser struct {
 	// rejects a segment whose statement parsed but left tokens behind,
 	// dropping the truncated node; best-effort keeps the parsed prefix.
 	strictTrailing bool
+
+	// subqueries lists every expression-embedded subquery placeholder this
+	// parse created, in source order, so the strict entry point can validate
+	// the raw bodies the placeholder scan captured without parsing. restore
+	// truncates it, so an abandoned speculative parse leaves nothing behind.
+	subqueries []*SubqueryExpr
 }
 
 // advance consumes the current token and moves to the next one. Returns the
@@ -513,6 +520,16 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 			for p.cur.Kind != tokEOF {
 				p.advance()
 			}
+		} else if strictTrailing {
+			// The placeholder scan captured each expression subquery's body
+			// as raw text without parsing it, so the outer statement can
+			// succeed around a body Trino rejects: `SELECT (SELECT 1 FROM t
+			// a b)`. Strict mode parses every body now and drops the
+			// statement when one fails.
+			if errs := p.validateSubqueries(); len(errs) > 0 {
+				p.errors = append(p.errors, errs...)
+				node = nil
+			}
 		}
 		result = node
 	}
@@ -524,4 +541,39 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 	}
 
 	return result, p.errors
+}
+
+// validateSubqueries strictly parses the raw body of every subquery
+// placeholder this parse created and returns the errors in the outer
+// statement's coordinates. A body must be exactly one query: Trino rejects an
+// empty body, a comment-only body, several statements, and a non-query
+// statement in that position (checked against the oracle). Nested
+// placeholders are validated by the inner strict parse.
+func (p *Parser) validateSubqueries() []ParseError {
+	var out []ParseError
+	for _, sub := range p.subqueries {
+		if strings.TrimSpace(sub.RawText) == "" {
+			out = append(out, ParseError{Position: sub.TextStart, End: sub.TextStart, Message: "subquery must contain exactly one query"})
+			continue
+		}
+		res := parseAll(sub.RawText, true)
+		if len(res.Errors) > 0 {
+			for _, e := range res.Errors {
+				e.Position += sub.TextStart
+				if e.End >= 0 {
+					e.End += sub.TextStart
+				}
+				out = append(out, e)
+			}
+			continue
+		}
+		if len(res.File.Stmts) != 1 {
+			out = append(out, ParseError{Position: sub.TextStart, End: sub.TextStart + len(sub.RawText), Message: "subquery must contain exactly one query"})
+			continue
+		}
+		if qs, ok := res.File.Stmts[0].(*QueryStmt); !ok || qs.Query == nil {
+			out = append(out, ParseError{Position: sub.TextStart, End: sub.TextStart + len(sub.RawText), Message: "subquery must contain exactly one query"})
+		}
+	}
+	return out
 }

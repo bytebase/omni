@@ -26,6 +26,49 @@ func TestStrictParseRejectsTrailingTokens(t *testing.T) {
 	}
 }
 
+// TestStrictParseValidatesSubqueryBodies: the placeholder scan captures an
+// expression subquery's body as raw text; strict Parse must still reject a
+// body Trino rejects, in outer-statement coordinates, and keep accepting the
+// valid shapes.
+func TestStrictParseValidatesSubqueryBodies(t *testing.T) {
+	for _, c := range []struct{ sql, at string }{
+		{"SELECT (SELECT 1 FROM t a b)", "b)"},
+		{"SELECT (SELECT 1 FROM t WHERE x = ) FROM u", " ) FROM"},
+		{"SELECT EXISTS () FROM t", ")"},
+		{"SELECT EXISTS (/* c */) FROM t", ")"},
+		{"SELECT EXISTS (DELETE FROM t) FROM t", "DELETE"},
+		{"SELECT (SELECT 1 FROM t; SELECT 2) FROM t", ";"},
+		{"SELECT x FROM t WHERE y IN (SELECT (SELECT 1 FROM v 1 2) FROM u)", "1 2"},
+	} {
+		file, err := parseForTest(c.sql)
+		if len(err) == 0 {
+			t.Errorf("Parse(%q) succeeded, want a subquery error", c.sql)
+			continue
+		}
+		if len(file.Stmts) != 0 {
+			t.Errorf("Parse(%q) kept %d statements, want none", c.sql, len(file.Stmts))
+		}
+		if want := strings.Index(c.sql, c.at); err[0].Position != want {
+			t.Errorf("Parse(%q) error at %d, want %d (%q)", c.sql, err[0].Position, want, c.at)
+		}
+	}
+	for _, sql := range []string{
+		"SELECT (SELECT 1 FROM t) FROM u",
+		"SELECT x FROM t WHERE EXISTS (SELECT 1 FROM u WHERE u.id = t.id)",
+		"SELECT x FROM t WHERE y IN (SELECT y FROM u) AND z > ANY (SELECT z FROM v)",
+		"SELECT (SELECT (SELECT 1 FROM w) FROM v) FROM u",
+		"SELECT (WITH c AS (SELECT 1 AS a) SELECT a FROM c) FROM u",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("Parse(%q) errors: %v", sql, errs)
+		}
+	}
+	// Best-effort stays tolerant of an unfinished body.
+	if r := ParseBestEffort("SELECT (SELECT 1 FROM t WHERE x = ) FROM u"); len(r.Errors) != 0 || len(r.File.Stmts) != 1 {
+		t.Errorf("ParseBestEffort: errors=%v stmts=%d, want tolerance", r.Errors, len(r.File.Stmts))
+	}
+}
+
 // TestParseBestEffortToleratesTrailingTokens: the tolerant entry keeps the
 // parsed prefix for partial-input consumers; only strict Parse rejects.
 func TestParseBestEffortToleratesTrailingTokens(t *testing.T) {
