@@ -112,15 +112,50 @@ func objectName(kind ast.ObjectType, obj ast.Node) string {
 		return typeName(v)
 	case *ast.ObjectWithArgs:
 		name := qualified(nameParts(v.Objname))
-		if v.ArgsUnspecified {
+		switch {
+		case v.ArgsUnspecified:
 			return name
-		}
-		if v.Objargs == nil {
+		case v.Objargs == nil && kind == ast.OBJECT_AGGREGATE:
+			// An aggregate with no argument list is written (*); a
+			// routine with none is written ().
 			return name + "(*)"
+		default:
+			return name + "(" + strings.Join(typeNames(v.Objargs), ", ") + ")"
 		}
-		return name + "(" + strings.Join(typeNames(v.Objargs), ", ") + ")"
 	}
 	return ""
+}
+
+// collapseSpace puts SQL text on one line: each run of whitespace outside
+// a quoted identifier or string becomes one space, and leading and
+// trailing whitespace goes. Whitespace inside quotes is part of the name
+// or value and stays.
+func collapseSpace(s string) string {
+	var b strings.Builder
+	var quote byte
+	pending := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case quote != 0:
+			b.WriteByte(c)
+			if c == quote {
+				quote = 0
+			}
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
+			pending = b.Len() > 0
+		default:
+			if pending {
+				b.WriteByte(' ')
+				pending = false
+			}
+			if c == '"' || c == '\'' {
+				quote = c
+			}
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
 }
 
 func listOf(n ast.Node) *ast.List {

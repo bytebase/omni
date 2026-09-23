@@ -30,8 +30,9 @@ func checkRequireWhere(s *statement, r *reporter) {
 	})
 }
 
-// explainAnalyzes reports whether the EXPLAIN carries ANALYZE, with a
-// value that is on: ANALYZE alone, or true/on/yes/1.
+// explainAnalyzes reports whether the EXPLAIN carries ANALYZE with a value
+// that is on: ANALYZE alone, or a value the server reads as true. A value
+// the server would reject reads as off.
 //
 // pg: src/backend/commands/define.c — defGetBoolean
 func explainAnalyzes(e *ast.ExplainStmt) bool {
@@ -51,12 +52,38 @@ func explainAnalyzes(e *ast.ExplainStmt) bool {
 		case *ast.Boolean:
 			return v.Boolval
 		case *ast.String:
-			switch strings.ToLower(v.Str) {
-			case "true", "on", "yes", "1":
-				return true
-			}
-			return false
+			on, _ := parseBool(v.Str)
+			return on
 		}
 	}
 	return false
+}
+
+// parseBool reads a boolean the way the server's option parser does: any
+// prefix of true, false, yes, or no, a prefix of at least two letters of
+// on or off, or 1 or 0, ignoring case. ok is false for anything else.
+//
+// pg: src/backend/utils/adt/bool.c — parse_bool_with_len
+func parseBool(s string) (value, ok bool) {
+	s = strings.ToLower(s)
+	if s == "" {
+		return false, false
+	}
+	for _, word := range []string{"true", "yes", "on"} {
+		if strings.HasPrefix(word, s) && (word != "on" || len(s) >= 2) {
+			return true, true
+		}
+	}
+	for _, word := range []string{"false", "no", "off"} {
+		if strings.HasPrefix(word, s) && (word != "off" || len(s) >= 2) {
+			return false, true
+		}
+	}
+	switch s {
+	case "1":
+		return true, true
+	case "0":
+		return false, true
+	}
+	return false, false
 }

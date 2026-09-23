@@ -11,8 +11,8 @@ package review
 import (
 	"cmp"
 	"context"
+	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/bytebase/omni/review"
 )
@@ -29,13 +29,20 @@ var Rules = []review.Rule{
 }
 
 // Review evaluates opts.Rules over sql for every target. See the contract
-// package for the meaning of each input and of the result.
-func Review(ctx context.Context, sql string, opts review.Options, targets []review.Target) (*review.Result, error) {
+// package for the meaning of each input and of the result. A panic in the
+// parser or a rule is returned as an error: the review could not be
+// evaluated, and the caller's goroutine survives.
+func Review(ctx context.Context, sql string, opts review.Options, targets []review.Target) (result *review.Result, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			result, err = nil, fmt.Errorf("pg/review: panic: %v", p)
+		}
+	}()
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	r := &reporter{targets: allTargets(len(targets))}
-	result := &review.Result{Statements: statementRanges(sql)}
+	result = &review.Result{Statements: statementRanges(sql)}
 
 	stmts, syntax := parse(sql, result.Statements)
 	if syntax != nil {
@@ -119,7 +126,7 @@ func (r *reporter) report(rule review.Rule, statement int, rng review.Range, mes
 		Rule:      rule,
 		Statement: statement,
 		Range:     rng,
-		Message:   oneLine(message),
+		Message:   message,
 	})
 }
 
@@ -141,10 +148,4 @@ func (r *reporter) sorted() []review.Finding {
 		)
 	})
 	return r.findings
-}
-
-// oneLine collapses the whitespace of a message so SQL quoted across lines
-// stays on one line.
-func oneLine(s string) string {
-	return strings.Join(strings.Fields(s), " ")
 }
