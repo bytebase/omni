@@ -83,7 +83,7 @@ func TestReview(t *testing.T) {
 		},
 		{
 			name:    "require where skips a plain EXPLAIN but not EXPLAIN ANALYZE",
-			sql:     "EXPLAIN UPDATE t SET a = 1; EXPLAIN (ANALYZE false) DELETE FROM t; EXPLAIN (ANALYZE off) DELETE FROM t; EXPLAIN (ANALYZE 0) DELETE FROM t;\nEXPLAIN ANALYZE DELETE FROM u; EXPLAIN (ANALYZE, BUFFERS) DELETE FROM v; EXPLAIN (ANALYZE true) DELETE FROM w; EXPLAIN (ANALYZE on) DELETE FROM x; EXPLAIN (ANALYZE 1) DELETE FROM y; EXPLAIN (ANALYZE t) DELETE FROM z; EXPLAIN (ANALYZE ye) DELETE FROM zz; EXPLAIN (ANALYZE o) DELETE FROM t; EXPLAIN (ANALYZE fal) DELETE FROM t; EXPLAIN (ANALYZE n) DELETE FROM t; EXPLAIN (ANALYZE maybe) DELETE FROM t;",
+			sql:     "EXPLAIN UPDATE t SET a = 1; EXPLAIN (ANALYZE false) DELETE FROM t; EXPLAIN (ANALYZE off) DELETE FROM t; EXPLAIN (ANALYZE 0) DELETE FROM t;\nEXPLAIN ANALYZE DELETE FROM u; EXPLAIN (ANALYZE, BUFFERS) DELETE FROM v; EXPLAIN (ANALYZE true) DELETE FROM w; EXPLAIN (ANALYZE on) DELETE FROM x; EXPLAIN (ANALYZE 1) DELETE FROM y; EXPLAIN (ANALYZE t) DELETE FROM z; EXPLAIN (ANALYZE ye) DELETE FROM zz; EXPLAIN (ANALYZE o) DELETE FROM t; EXPLAIN (ANALYZE fal) DELETE FROM t; EXPLAIN (ANALYZE n) DELETE FROM t; EXPLAIN (ANALYZE maybe) DELETE FROM t; EXPLAIN (ANALYZE false, ANALYZE true) DELETE FROM last; EXPLAIN (ANALYZE, ANALYZE off) DELETE FROM t;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
@@ -94,12 +94,13 @@ func TestReview(t *testing.T) {
 					{review.RequireWhere, 8, span(t, sql, "DELETE FROM y"), "DELETE FROM y has no WHERE clause"},
 					{review.RequireWhere, 9, span(t, sql, "DELETE FROM z"), "DELETE FROM z has no WHERE clause"},
 					{review.RequireWhere, 10, span(t, sql, "DELETE FROM zz"), "DELETE FROM zz has no WHERE clause"},
+					{review.RequireWhere, 15, span(t, sql, "DELETE FROM last"), "DELETE FROM last has no WHERE clause"},
 				}
 			},
 		},
 		{
 			name:    "require is null",
-			sql:     "SELECT 1 FROM t WHERE a = NULL OR NULL != b OR c IS NULL OR d = NULL::int OR (e + 1) <> NULL OR f IS DISTINCT FROM NULL OR g OPERATOR(custom.=) NULL OR h OPERATOR(pg_catalog.<>) NULL OR i = (NULL::text COLLATE \"C\") OR j = NULL COLLATE \"C\";\nUPDATE \"T\" SET x = NULL WHERE y\n  =\n NULL;",
+			sql:     "SELECT 1 FROM t WHERE a = NULL OR NULL != b OR c IS NULL OR d = NULL::int OR (e + 1) <> NULL OR f IS DISTINCT FROM NULL OR g OPERATOR(custom.=) NULL OR h OPERATOR(pg_catalog.<>) NULL OR i = (NULL::text COLLATE \"C\") OR j = NULL COLLATE \"C\" OR k = (NULL::text)::custom;\nUPDATE \"T\" SET x = NULL WHERE y\n  =\n NULL;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
@@ -116,7 +117,7 @@ func TestReview(t *testing.T) {
 		},
 		{
 			name:    "require is null looks at predicates only",
-			sql:     "SELECT a = NULL AS c, CASE WHEN b = NULL THEN 1 END, CASE d WHEN NULL THEN 1 END, count(*) FILTER (WHERE e = NULL), (SELECT f = NULL FROM u WHERE g = NULL) FROM t JOIN u ON h = NULL WHERE i IN (SELECT j = NULL FROM v WHERE k = NULL) GROUP BY 1 HAVING l = NULL;\nCREATE TABLE n (x int CHECK (x <> NULL)); CREATE INDEX i ON t (a) WHERE m = NULL; INSERT INTO t VALUES (1) ON CONFLICT (a) WHERE o = NULL DO UPDATE SET a = 1 WHERE p = NULL; UPDATE t SET q = NULL WHERE r = NULL;",
+			sql:     "SELECT a = NULL AS c, CASE WHEN b = NULL THEN 1 END, CASE d WHEN NULL THEN 1 END, count(*) FILTER (WHERE e = NULL), (SELECT f = NULL FROM u WHERE g = NULL) FROM t JOIN u ON h = NULL WHERE i IN (SELECT j = NULL FROM v WHERE k = NULL) GROUP BY 1 HAVING l = NULL;\nCREATE TABLE n (x int CHECK (x <> NULL)); CREATE INDEX i ON t (a) WHERE m = NULL; INSERT INTO t VALUES (1) ON CONFLICT (a) WHERE o = NULL DO UPDATE SET a = 1 WHERE p = NULL; UPDATE t SET q = NULL WHERE r = NULL;\nCREATE TABLE d (a boolean DEFAULT (NULL = NULL), b boolean GENERATED ALWAYS AS (NULL = NULL) STORED); CREATE TRIGGER tg BEFORE UPDATE ON t FOR EACH ROW WHEN (NEW.s = NULL) EXECUTE FUNCTION f(); CREATE PUBLICATION pub FOR TABLE t WHERE (u = NULL);\nSELECT 1 WHERE (SELECT v = NULL FROM t LIMIT 1) AND NOT (SELECT w = NULL FROM t) OR (SELECT x = NULL FROM t) IS TRUE OR y = (SELECT z = NULL FROM t) OR EXISTS (SELECT aa = NULL FROM t) OR (SELECT bb = NULL FROM t WHERE cc = NULL);",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				var out []finding
@@ -124,8 +125,8 @@ func TestReview(t *testing.T) {
 					out = append(out, finding{review.RequireIsNull, 0, span(t, sql, expr), `"` + expr + `" is never true; use IS NULL`})
 				}
 				out = append(out, finding{review.RequireIsNull, 1, span(t, sql, "x <> NULL"), `"x <> NULL" is never true; use IS NOT NULL`})
-				for i, expr := range []string{"m = NULL", "o = NULL", "p = NULL", "r = NULL"} {
-					stmt := []int{2, 3, 3, 4}[i]
+				for i, expr := range []string{"m = NULL", "o = NULL", "p = NULL", "r = NULL", "NEW.s = NULL", "u = NULL", "v = NULL", "w = NULL", "x = NULL", "bb = NULL", "cc = NULL"} {
+					stmt := []int{2, 3, 3, 4, 6, 7, 8, 8, 8, 8, 8}[i]
 					out = append(out, finding{review.RequireIsNull, stmt, span(t, sql, expr), `"` + expr + `" is never true; use IS NULL`})
 				}
 				return out

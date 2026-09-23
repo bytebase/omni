@@ -8,9 +8,9 @@ import (
 // checkRequireIsNull reports a comparison of the form x = NULL or
 // x <> NULL (the lexer spells != as <>) in a predicate, where it is null
 // for every row and so never true. The literal may sit on either side and
-// may carry a cast or a collation, as in NULL::text COLLATE "C". Only the
-// built-in operator counts: OPERATOR(s.=) names a user's operator, which
-// may not be strict. A comparison that produces a value, as in
+// may be a typed null with a collation, as in NULL::text COLLATE "C". Only
+// the built-in operator counts: OPERATOR(s.=) names a user's operator,
+// which may not be strict. A comparison that produces a value, as in
 // SELECT a = NULL AS c, is not a predicate and is left alone. The finding
 // anchors the comparison and quotes it.
 func checkRequireIsNull(sql string, s *statement, r *reporter) {
@@ -52,9 +52,11 @@ func checkRequireIsNull(sql string, s *statement, r *reporter) {
 // predicates lists the expressions of the statement that are evaluated
 // for truth: WHERE and HAVING, join conditions, MERGE conditions, the
 // conditions of a searched CASE, aggregate FILTER, partial index and
-// constraint predicates, CHECK expressions, policy qualifications, rule
-// and COPY conditions. Subqueries are visited too, so their own
-// predicates are listed.
+// constraint predicates, CHECK expressions, policy qualifications,
+// trigger WHEN, publication row filters, rule and COPY conditions.
+// Subqueries are visited too, so their own predicates are listed. A
+// scalar subquery that is itself the truth value of a predicate, as in
+// WHERE (SELECT a = NULL FROM t), lends its select list to the list.
 func predicates(root ast.Node) []ast.Node {
 	var roots []ast.Node
 	add := func(nodes ...ast.Node) {
@@ -93,7 +95,13 @@ func predicates(root ast.Node) []ast.Node {
 		case *ast.IndexStmt:
 			add(v.WhereClause)
 		case *ast.Constraint:
-			add(v.RawExpr, v.WhereClause)
+			// RawExpr also holds a DEFAULT or GENERATED value; only a
+			// CHECK expression is a predicate. WhereClause is a partial
+			// unique constraint's predicate.
+			if v.Contype == ast.CONSTR_CHECK {
+				add(v.RawExpr)
+			}
+			add(v.WhereClause)
 		case *ast.OnConflictClause:
 			add(v.WhereClause)
 		case *ast.InferClause:
@@ -102,6 +110,10 @@ func predicates(root ast.Node) []ast.Node {
 			add(v.Qual, v.WithCheck)
 		case *ast.AlterPolicyStmt:
 			add(v.Qual, v.WithCheck)
+		case *ast.CreateTrigStmt:
+			add(v.WhenClause)
+		case *ast.PublicationTable:
+			add(v.WhereClause)
 		case *ast.RuleStmt:
 			add(v.WhereClause)
 		case *ast.CopyStmt:
@@ -109,7 +121,43 @@ func predicates(root ast.Node) []ast.Node {
 		}
 		return true
 	})
+	// A root may be a scalar subquery, or AND/OR/NOT and IS [NOT] TRUE
+	// over one; its select list is then evaluated for truth as well.
+	for i := 0; i < len(roots); i++ {
+		truthValues(roots[i], func(n ast.Node) { add(n) })
+	}
 	return roots
+}
+
+// truthValues calls f with the select list expressions of every scalar
+// subquery whose value is the truth value of the predicate expr: expr
+// itself, or reached from it through AND, OR, NOT, and IS [NOT] TRUE /
+// FALSE / UNKNOWN. A subquery compared or otherwise combined with
+// another value yields a value, not a truth, and is not visited.
+func truthValues(expr ast.Node, f func(ast.Node)) {
+	switch v := expr.(type) {
+	case *ast.BoolExpr:
+		if v.Args != nil {
+			for _, arg := range v.Args.Items {
+				truthValues(arg, f)
+			}
+		}
+	case *ast.BooleanTest:
+		truthValues(v.Arg, f)
+	case *ast.SubLink:
+		if ast.SubLinkType(v.SubLinkType) != ast.EXPR_SUBLINK {
+			return
+		}
+		sel, ok := v.Subselect.(*ast.SelectStmt)
+		if !ok || sel.TargetList == nil {
+			return
+		}
+		for _, item := range sel.TargetList.Items {
+			if rt, ok := item.(*ast.ResTarget); ok && rt.Val != nil {
+				f(rt.Val)
+			}
+		}
+	}
 }
 
 // builtinOperator returns the operator of an A_Expr name list when it
@@ -126,19 +174,17 @@ func builtinOperator(name *ast.List) (string, bool) {
 	}
 }
 
-// isNullLiteral reports whether the expression is the NULL constant,
-// possibly under casts and collations, as in NULL::text COLLATE "C".
+// isNullLiteral reports whether the expression is the NULL constant, bare
+// or as a typed null (NULL::text), either under a collation. A cast of a
+// typed null, (NULL::a)::b, calls the cast function, which a user may
+// have defined as not strict, so it is not taken as null.
 func isNullLiteral(n ast.Node) bool {
-	for {
-		switch v := n.(type) {
-		case *ast.A_Const:
-			return v.Isnull
-		case *ast.TypeCast:
-			n = v.Arg
-		case *ast.CollateClause:
-			n = v.Arg
-		default:
-			return false
-		}
+	if c, ok := n.(*ast.CollateClause); ok {
+		n = c.Arg
 	}
+	if tc, ok := n.(*ast.TypeCast); ok {
+		n = tc.Arg
+	}
+	c, ok := n.(*ast.A_Const)
+	return ok && c.Isnull
 }

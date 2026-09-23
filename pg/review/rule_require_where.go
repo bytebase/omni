@@ -31,13 +31,15 @@ func checkRequireWhere(s *statement, r *reporter) {
 }
 
 // explainAnalyzes reports whether the EXPLAIN carries ANALYZE with a value
-// that is on: ANALYZE alone, or a value the server reads as true. A value
-// the server would reject reads as off.
+// that is on: ANALYZE alone, or a value the server reads as true. The
+// options apply in order, so a repeated ANALYZE takes its last value. A
+// value the server would reject reads as off.
 //
-// pg: src/backend/commands/define.c — defGetBoolean
+// pg: src/backend/commands/explain.c — ExplainQuery; define.c — defGetBoolean
 func explainAnalyzes(e *ast.ExplainStmt) bool {
+	on := false
 	if e.Options == nil {
-		return false
+		return on
 	}
 	for _, item := range e.Options.Items {
 		opt, ok := item.(*ast.DefElem)
@@ -46,17 +48,18 @@ func explainAnalyzes(e *ast.ExplainStmt) bool {
 		}
 		switch v := opt.Arg.(type) {
 		case nil:
-			return true
+			on = true
 		case *ast.Integer:
-			return v.Ival != 0
+			on = v.Ival != 0
 		case *ast.Boolean:
-			return v.Boolval
+			on = v.Boolval
 		case *ast.String:
-			on, _ := parseBool(v.Str)
-			return on
+			on, _ = parseBool(v.Str)
+		default:
+			on = false
 		}
 	}
-	return false
+	return on
 }
 
 // parseBool reads a boolean the way the server's option parser does: any
