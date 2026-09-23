@@ -1016,7 +1016,7 @@ func extractAggrArgTypesLocal(args *nodes.List) *nodes.List {
 	}
 	result := &nodes.List{}
 	for _, item := range argsList.Items {
-		if fp, ok := item.(*nodes.FunctionParameter); ok {
+		if fp, ok := item.(*nodes.FunctionParameter); ok && fp.ArgType != nil {
 			result.Items = append(result.Items, fp.ArgType)
 		}
 	}

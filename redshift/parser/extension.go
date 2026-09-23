@@ -139,7 +139,12 @@ func (p *Parser) parseAlterExtensionContents(loc int, extname string, action int
 	switch p.cur.Type {
 	case AGGREGATE:
 		p.advance()
-		obj := p.parseExtFuncWithArgtypes()
+		// gram.y: ALTER EXTENSION name add_drop AGGREGATE aggregate_with_argtypes,
+		// which takes aggr_args rather than func_args, so "agg()" is rejected.
+		obj, err := p.parseAggregateWithArgtypesLocal()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterExtensionContentsStmt{
 			Extname: extname, Action: action,
 			Objtype: nodes.OBJECT_AGGREGATE, Object: obj,
@@ -347,52 +352,6 @@ func (p *Parser) parseExtOperArgtypes() *nodes.List {
 	typ2, _ := p.parseTypename()
 	p.expect(')')
 	return &nodes.List{Items: []nodes.Node{typ1, typ2}}
-}
-
-// parseExtAggrArgs parses aggr_args for extension statements.
-func (p *Parser) parseExtAggrArgs() *nodes.List {
-	p.expect('(')
-	if p.cur.Type == '*' {
-		p.advance()
-		p.expect(')')
-		return &nodes.List{Items: []nodes.Node{nil, &nodes.Integer{Ival: -1}}}
-	}
-	if p.cur.Type == ORDER {
-		p.advance()
-		p.expect(BY)
-		args := p.parseExtFuncArgsList()
-		p.expect(')')
-		return &nodes.List{Items: []nodes.Node{args, &nodes.Integer{Ival: 0}}}
-	}
-	args := p.parseExtFuncArgsList()
-	if p.cur.Type == ORDER {
-		p.advance()
-		p.expect(BY)
-		orderedArgs := p.parseExtFuncArgsList()
-		p.expect(')')
-		directCount := len(args.Items)
-		merged := &nodes.List{Items: append(args.Items, orderedArgs.Items...)}
-		return &nodes.List{Items: []nodes.Node{merged, &nodes.Integer{Ival: int64(directCount)}}}
-	}
-	p.expect(')')
-	return &nodes.List{Items: []nodes.Node{args, &nodes.Integer{Ival: -1}}}
-}
-
-func extExtractAggrArgTypes(args *nodes.List) *nodes.List {
-	if args == nil || len(args.Items) < 1 {
-		return nil
-	}
-	argsList, ok := args.Items[0].(*nodes.List)
-	if !ok || argsList == nil {
-		return nil
-	}
-	result := &nodes.List{}
-	for _, item := range argsList.Items {
-		if fp, ok := item.(*nodes.FunctionParameter); ok {
-			result.Items = append(result.Items, fp.ArgType)
-		}
-	}
-	return result
 }
 
 // parseCreateAmStmt parses CREATE ACCESS METHOD statement.

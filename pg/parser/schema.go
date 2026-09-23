@@ -563,7 +563,11 @@ func (p *Parser) parseCommentStmt() (nodes.Node, error) {
 	case AGGREGATE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_AGGREGATE
-		stmt.Object = p.parseAggregateWithArgtypesForComment()
+		obj, err := p.parseAggregateWithArgtypesForComment()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Object = obj
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}
@@ -844,7 +848,10 @@ func (p *Parser) parseCommentFuncArgsList() *nodes.List {
 }
 
 // parseAggregateWithArgtypesForComment parses aggregate_with_argtypes.
-func (p *Parser) parseAggregateWithArgtypesForComment() nodes.Node {
+//
+// aggr_args in gram.y is '(' '*' ')' or a non-empty aggr_args_list, so an empty
+// "()" is a syntax error at the ")" token.
+func (p *Parser) parseAggregateWithArgtypesForComment() (nodes.Node, error) {
 	funcName, _ := p.parseFuncName()
 	owa := &nodes.ObjectWithArgs{Objname: funcName}
 	if p.cur.Type == '(' {
@@ -854,7 +861,7 @@ func (p *Parser) parseAggregateWithArgtypesForComment() nodes.Node {
 			p.expect(')')
 			owa.Objargs = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "*"}}}
 		} else if p.cur.Type == ')' {
-			p.advance()
+			return nil, p.syntaxErrorAtCur()
 		} else {
 			owa.Objargs = p.parseCommentFuncArgsList()
 			p.expect(')')
@@ -862,7 +869,7 @@ func (p *Parser) parseAggregateWithArgtypesForComment() nodes.Node {
 	} else {
 		owa.ArgsUnspecified = true
 	}
-	return owa
+	return owa, nil
 }
 
 // parseOperatorWithArgtypesForComment parses operator_with_argtypes.
@@ -963,7 +970,11 @@ func (p *Parser) parseSecLabelStmt() (nodes.Node, error) {
 	case AGGREGATE:
 		p.advance()
 		stmt.Objtype = nodes.OBJECT_AGGREGATE
-		stmt.Object = p.parseAggregateWithArgtypesForComment()
+		obj, err := p.parseAggregateWithArgtypesForComment()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Object = obj
 		if _, err := p.expect(IS); err != nil {
 			return nil, err
 		}

@@ -1,5 +1,7 @@
 package ast
 
+import "reflect"
+
 //go:generate go run ./cmd/genwalker
 
 // Visitor defines the interface for AST traversal.
@@ -15,7 +17,7 @@ type Visitor interface {
 // if that returns a non-nil visitor w, it walks each child node with w,
 // then calls w.Visit(nil).
 func Walk(v Visitor, node Node) {
-	if node == nil {
+	if isNilNode(node) {
 		return
 	}
 	// The generated walker has no case for a List inside a List, such as each
@@ -30,6 +32,17 @@ func Walk(v Visitor, node Node) {
 	}
 	walkChildren(w, node)
 	w.Visit(nil)
+}
+
+// isNilNode reports whether node is nil or an interface holding a typed nil
+// pointer, such as a (*TypeName)(nil) stored in a List item. The generated
+// walker dereferences the node's fields, so walking a typed nil would panic.
+func isNilNode(node Node) bool {
+	if node == nil {
+		return true
+	}
+	v := reflect.ValueOf(node)
+	return v.Kind() == reflect.Pointer && v.IsNil()
 }
 
 // Inspect traverses an AST in depth-first order, calling f for each node.

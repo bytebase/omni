@@ -395,6 +395,12 @@ func (p *Parser) parseOldAggrList() (*nodes.List, error) {
 }
 
 func (p *Parser) parseOldAggrElem() (*nodes.DefElem, error) {
+	// old_aggr_elem: IDENT '=' def_arg. Reject punctuation up front so that
+	// "CREATE AGGREGATE b() (...)" reports the ")" token like gram.y does,
+	// instead of taking ")" as the element name and failing at the next "(".
+	if !p.isColLabel() {
+		return nil, p.syntaxErrorAtCur()
+	}
 	name := p.cur.Str
 	p.advance()
 	if _, err := p.expect('='); err != nil {
@@ -411,14 +417,29 @@ func (p *Parser) parseOldAggrElem() (*nodes.DefElem, error) {
 // aggr_args_list helper and makeOrderedSetArgs
 // ---------------------------------------------------------------------------
 
-func (p *Parser) parseAggrArgsList() *nodes.List {
-	arg := p.parseFuncArg()
-	items := []nodes.Node{arg}
-	for p.cur.Type == ',' {
+// parseAggrArgsList parses aggr_args_list: aggr_arg (',' aggr_arg)*.
+//
+// gram.y requires at least one aggr_arg, so "DROP AGGREGATE b()" is a syntax
+// error at the ")" token; "b(*)" is the no-argument form. parseFuncArg swallows
+// the parseFuncType error and returns a parameter with a nil ArgType when the
+// current token cannot start a type, so report the syntax error here and never
+// hand a typed-nil *TypeName to a caller.
+func (p *Parser) parseAggrArgsList() (*nodes.List, error) {
+	var items []nodes.Node
+	for {
+		arg := p.parseFuncArg()
+		if arg == nil || arg.ArgType == nil {
+			if p.collectMode() {
+				return nil, errCollecting
+			}
+			return nil, p.syntaxErrorAtCur()
+		}
+		items = append(items, arg)
+		if p.cur.Type != ',' {
+			return &nodes.List{Items: items}, nil
+		}
 		p.advance()
-		items = append(items, p.parseFuncArg())
 	}
-	return &nodes.List{Items: items}
 }
 
 func makeOrderedSetArgs(directArgs *nodes.List, orderedArgs *nodes.List) *nodes.List {
@@ -907,19 +928,28 @@ func (p *Parser) parseAggrArgs() (*nodes.List, error) {
 		if _, err := p.expect(BY); err != nil {
 			return nil, err
 		}
-		args := p.parseAggrArgsList()
+		args, err := p.parseAggrArgsList()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
 		return &nodes.List{Items: []nodes.Node{args, &nodes.Integer{Ival: 0}}}, nil
 	}
-	args := p.parseAggrArgsList()
+	args, err := p.parseAggrArgsList()
+	if err != nil {
+		return nil, err
+	}
 	if p.cur.Type == ORDER {
 		p.advance()
 		if _, err := p.expect(BY); err != nil {
 			return nil, err
 		}
-		orderedArgs := p.parseAggrArgsList()
+		orderedArgs, err := p.parseAggrArgsList()
+		if err != nil {
+			return nil, err
+		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}

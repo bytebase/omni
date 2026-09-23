@@ -155,3 +155,34 @@ func (v *postOrderVisitor) Visit(node Node) Visitor {
 	}
 	return nil
 }
+
+func TestWalkTypedNilListItem(t *testing.T) {
+	// A malformed tree may hold a typed nil, such as (*TypeName)(nil), as a
+	// List item or in a Node field. Walk must skip it instead of panicking
+	// when the generated walker dereferences its fields.
+	var nilType *TypeName
+	tree := &ObjectWithArgs{
+		Objname: &List{Items: []Node{&String{Str: "agg"}}},
+		Objargs: &List{Items: []Node{nilType, &TypeName{Names: &List{Items: []Node{&String{Str: "text"}}}}}},
+	}
+	var visited []NodeTag
+	Inspect(tree, func(n Node) bool {
+		if n != nil {
+			visited = append(visited, n.Tag())
+		}
+		return true
+	})
+	typeNames := 0
+	for _, tag := range visited {
+		if tag == T_TypeName {
+			typeNames++
+		}
+	}
+	if typeNames != 1 {
+		t.Errorf("expected the one real TypeName to be visited, got %d TypeName visits", typeNames)
+	}
+
+	// A typed nil at the root, and in a Node-typed field, must be skipped too.
+	Walk(inspector(func(Node) bool { return true }), nilType)
+	Inspect(&ResTarget{Val: nilType}, func(Node) bool { return true })
+}
