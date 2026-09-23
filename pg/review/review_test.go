@@ -83,7 +83,7 @@ func TestReview(t *testing.T) {
 		},
 		{
 			name:    "require where skips a plain EXPLAIN but not EXPLAIN ANALYZE",
-			sql:     "EXPLAIN UPDATE t SET a = 1; EXPLAIN (ANALYZE false) DELETE FROM t; EXPLAIN (ANALYZE off) DELETE FROM t; EXPLAIN (ANALYZE 0) DELETE FROM t;\nEXPLAIN ANALYZE DELETE FROM u; EXPLAIN (ANALYZE, BUFFERS) DELETE FROM v; EXPLAIN (ANALYZE true) DELETE FROM w; EXPLAIN (ANALYZE on) DELETE FROM x; EXPLAIN (ANALYZE 1) DELETE FROM y; EXPLAIN (ANALYZE t) DELETE FROM z; EXPLAIN (ANALYZE ye) DELETE FROM zz; EXPLAIN (ANALYZE o) DELETE FROM t; EXPLAIN (ANALYZE fal) DELETE FROM t; EXPLAIN (ANALYZE n) DELETE FROM t; EXPLAIN (ANALYZE maybe) DELETE FROM t; EXPLAIN (ANALYZE false, ANALYZE true) DELETE FROM last; EXPLAIN (ANALYZE, ANALYZE off) DELETE FROM t; EXPLAIN (ANALYZE maybe, ANALYZE true) DELETE FROM t;",
+			sql:     "EXPLAIN UPDATE t SET a = 1; EXPLAIN (ANALYZE false) DELETE FROM t; EXPLAIN (ANALYZE off) DELETE FROM t; EXPLAIN (ANALYZE 0) DELETE FROM t;\nEXPLAIN ANALYZE DELETE FROM u; EXPLAIN (ANALYZE, BUFFERS) DELETE FROM v; EXPLAIN (ANALYZE true) DELETE FROM w; EXPLAIN (ANALYZE on) DELETE FROM x; EXPLAIN (ANALYZE 1) DELETE FROM y; EXPLAIN (ANALYZE t) DELETE FROM z; EXPLAIN (ANALYZE ye) DELETE FROM zz; EXPLAIN (ANALYZE o) DELETE FROM t; EXPLAIN (ANALYZE fal) DELETE FROM t; EXPLAIN (ANALYZE n) DELETE FROM t; EXPLAIN (ANALYZE maybe) DELETE FROM t; EXPLAIN (ANALYZE false, ANALYZE true) DELETE FROM last; EXPLAIN (ANALYZE, ANALYZE off) DELETE FROM t; EXPLAIN (ANALYZE maybe, ANALYZE true) DELETE FROM t; EXPLAIN (ANALYZE 2) DELETE FROM t; EXPLAIN (ANALYZE -1) DELETE FROM t;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
@@ -201,6 +201,19 @@ func TestReview(t *testing.T) {
 					{review.RequireIsNull, 6, span(t, sql, "\"a  b\"\n =\n  NULL"), `""a  b" = NULL" is never true; use IS NULL`},
 					{review.RequireIsNull, 7, span(t, sql, "\"c\nd\" = NULL"), `""c\nd" = NULL" is never true; use IS NULL`},
 					{review.DisallowDropObject, 8, span(t, sql, "DROP TABLE \"e\r\nf\""), `drops table "e\r\nf"`},
+				}
+			},
+		},
+		{
+			name:    "a node without a location anchors its own statement",
+			sql:     "SELECT 1; ALTER TYPE t DROP ATTRIBUTE a;\n  ALTER TYPE s.t ADD ATTRIBUTE b int, DROP ATTRIBUTE c CASCADE ;",
+			targets: 1,
+			want: func(t *testing.T, sql string) []finding {
+				// The parser gives ALTER TYPE no location, so the finding
+				// takes the statement's range, or none for a subcommand.
+				return []finding{
+					{review.DisallowDropObject, 1, review.Range{}, "drops attribute a of type t"},
+					{review.DisallowDropObject, 2, review.Range{}, "drops attribute c of type s.t"},
 				}
 			},
 		},

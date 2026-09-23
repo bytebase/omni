@@ -57,12 +57,18 @@ func checkDropNode(n ast.Node, report func(review.Range, string, []string)) {
 		if v.Cmds == nil {
 			return
 		}
+		// ALTER TYPE ... DROP ATTRIBUTE is the same node with the type
+		// as the relation.
+		kind, of := "column", ""
+		if ast.ObjectType(v.ObjType) == ast.OBJECT_TYPE {
+			kind, of = "attribute", "type "
+		}
 		for _, item := range v.Cmds.Items {
 			cmd, ok := item.(*ast.AlterTableCmd)
 			if !ok || ast.AlterTableType(cmd.Subtype) != ast.AT_DropColumn {
 				continue
 			}
-			report(rangeOf(cmd.Loc), "column", []string{ident(cmd.Name) + " of " + relation(v.Relation)})
+			report(rangeOf(cmd.Loc), kind, []string{ident(cmd.Name) + " of " + of + relation(v.Relation)})
 		}
 	}
 }

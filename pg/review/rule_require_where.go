@@ -51,7 +51,11 @@ func explainAnalyzes(e *ast.ExplainStmt) bool {
 		case nil:
 			on = true
 		case *ast.Integer:
-			on = v.Ival != 0
+			// The server reads 0 and 1 only.
+			if v.Ival != 0 && v.Ival != 1 {
+				return false
+			}
+			on = v.Ival == 1
 		case *ast.Boolean:
 			on = v.Boolval
 		case *ast.String:

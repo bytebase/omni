@@ -48,8 +48,12 @@ func parse(sql string, ranges []review.Range) ([]statement, *review.Finding) {
 		if p.Empty() {
 			continue
 		}
+		// A node the parser gave no location has NoLoc, or the zero Loc
+		// when its kind carries one the parser did not fill in; either
+		// falls outside the statement's own bytes and is replaced by
+		// them.
 		loc := ast.NodeLoc(p.AST)
-		if loc.Start < 0 {
+		if loc.Start < p.ByteStart || loc.End > p.ByteEnd || loc.End <= loc.Start {
 			loc = contentLoc(sql, p.ByteStart, p.ByteEnd)
 		}
 		stmts = append(stmts, statement{
