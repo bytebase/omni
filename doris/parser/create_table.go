@@ -1294,6 +1294,7 @@ done:
 	rawText := strings.TrimSpace(sliced)
 	trimmedFromStart := len(sliced) - len(strings.TrimLeft(sliced, " \t\r\n"))
 
+	p.rawQueries = append(p.rawQueries, rawQuery{text: rawText, start: start + trimmedFromStart})
 	return &ast.RawQuery{
 		RawText:   rawText,
 		TextStart: start + trimmedFromStart,

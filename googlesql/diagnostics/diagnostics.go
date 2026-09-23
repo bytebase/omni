@@ -20,6 +20,7 @@ package diagnostics
 
 import (
 	"github.com/bytebase/omni/googlesql/parser"
+	"github.com/bytebase/omni/review"
 )
 
 // Severity classifies the importance of a diagnostic.
@@ -57,14 +58,14 @@ func (s Severity) String() string {
 // coordinate system.
 //
 // Line and Column are 1-based (the first character of a file is line 1, column
-// 1). Column is measured in bytes, not Unicode code points, matching the
-// byte-based tokenization used by the GoogleSQL lexer.
+// 1). Column counts code points, the unit of Bytebase's Position, converted
+// through review.Index like every other position omni reports.
 //
 // Offset is 0-based and refers to the byte position within the full input
 // string passed to Analyze.
 type Position struct {
 	Line   int // 1-based line number
-	Column int // 1-based column (bytes from line start)
+	Column int // 1-based column (code points from line start)
 	Offset int // 0-based byte offset within the source
 }
 
@@ -120,7 +121,7 @@ func Analyze(sql string) []Diagnostic {
 		return nil
 	}
 
-	lt := parser.NewLineTable(sql)
+	lt := review.Index(sql)
 	diags := make([]Diagnostic, 0, len(errs))
 
 	for _, pe := range errs {

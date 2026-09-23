@@ -693,8 +693,16 @@ func parseAll(input string, strictTrailing bool) *ParseResult {
 	file := &ast.File{Loc: ast.Loc{Start: 0, End: len(input)}}
 	result := &ParseResult{File: file}
 
+	lexErrs := collectLexErrors(input)
 	for _, seg := range Split(input) {
 		node, errs := parseSingle(seg.Text, seg.ByteStart, strictTrailing)
+		if node != nil && strictTrailing && hasLexErrorIn(lexErrs, seg.ByteStart, seg.ByteEnd) {
+			// The segment lexed with an error (an unterminated comment after
+			// a complete statement, say), which the whole-input pass reports
+			// below. Strict mode returns no node for a segment that carries
+			// any error; best-effort keeps the prefix.
+			node = nil
+		}
 		if node != nil {
 			file.Stmts = append(file.Stmts, node)
 		}
@@ -704,9 +712,19 @@ func parseAll(input string, strictTrailing bool) *ParseResult {
 	// Append lex errors from one authoritative full-input pass (absolute
 	// offsets). Done after parse errors so a statement's syntactic complaint
 	// reads before its lexical one.
-	result.Errors = append(result.Errors, collectLexErrors(input)...)
+	result.Errors = append(result.Errors, lexErrs...)
 
 	return result
+}
+
+// hasLexErrorIn reports whether any lex error starts inside [start, end).
+func hasLexErrorIn(errs []ParseError, start, end int) bool {
+	for _, e := range errs {
+		if e.Position >= start && e.Position < end {
+			return true
+		}
+	}
+	return false
 }
 
 // collectLexErrors runs the lexer over the entire input to EOF and returns every

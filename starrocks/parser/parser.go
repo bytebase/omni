@@ -9,6 +9,7 @@ package parser
 
 import (
 	"github.com/bytebase/omni/starrocks/ast"
+	"strings"
 )
 
 // Parser is a recursive-descent parser for Doris SQL. It operates on a
@@ -30,6 +31,19 @@ type Parser struct {
 	// (such as EXPLAIN's raw-query recovery) that would mask a nested
 	// parse failure.
 	strictTrailing bool
+
+	// rawQueries lists every query body this parse captured as raw text
+	// without parsing it (subquery placeholders, the CTAS query), in source
+	// order, so the strict entry point can validate them. restore truncates
+	// it, so an abandoned speculative parse leaves nothing behind.
+	rawQueries []rawQuery
+}
+
+// rawQuery is a query body captured as raw text: the text and the absolute
+// byte offset of its first character in the parser's input.
+type rawQuery struct {
+	text  string
+	start int
 }
 
 // nextToken returns the next token from the lexer, transparently skipping
@@ -78,6 +92,7 @@ type parserCheckpoint struct {
 	hasNext            bool
 	lexPos, lexStart   int
 	errLen, lexErrLen  int
+	rawLen             int // len(p.rawQueries)
 }
 
 // save captures the current parser state.
@@ -91,6 +106,7 @@ func (p *Parser) save() parserCheckpoint {
 		lexStart:  p.lexer.start,
 		errLen:    len(p.errors),
 		lexErrLen: len(p.lexer.errors),
+		rawLen:    len(p.rawQueries),
 	}
 }
 
@@ -105,6 +121,9 @@ func (p *Parser) restore(c parserCheckpoint) {
 	p.lexer.start = c.lexStart
 	p.errors = p.errors[:c.errLen]
 	p.lexer.errors = p.lexer.errors[:c.lexErrLen]
+	if len(p.rawQueries) > c.rawLen {
+		p.rawQueries = p.rawQueries[:c.rawLen]
+	}
 }
 
 // peekNext returns the token AFTER the current one without consuming it
@@ -818,6 +837,15 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 			for p.cur.Kind != tokEOF {
 				p.advance()
 			}
+		} else if strictTrailing && err == nil {
+			// The placeholder scans captured each subquery body and the CTAS
+			// query as raw text without parsing it, so the outer statement
+			// can succeed around a body the engine rejects. Strict mode
+			// parses every body now and drops the statement when one fails.
+			if errs := p.validateRawQueries(); len(errs) > 0 {
+				p.errors = append(p.errors, errs...)
+				node = nil
+			}
 		}
 		result = node
 	}
@@ -827,6 +855,49 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 	for _, le := range p.lexer.Errors() {
 		p.errors = append(p.errors, ParseError{Position: le.Loc.Start, End: le.Loc.End, Message: le.Msg})
 	}
+	// A lex error (an unterminated comment after a complete statement, say)
+	// surfaces only now, after the node was built. Strict mode returns no
+	// node for a segment that carries any error; best-effort keeps the prefix.
+	if strictTrailing && len(p.errors) > 0 {
+		result = nil
+	}
 
 	return result, p.errors
+}
+
+// validateRawQueries strictly parses every query body this parse captured as
+// raw text and returns the errors in the outer statement's coordinates. A body
+// must be exactly one query (SELECT, a set operation, or a grouped query): the
+// engine rejects an empty body, a comment-only body, several statements, and
+// a non-query statement in that position. Nested placeholders are validated
+// by the inner strict parse.
+func (p *Parser) validateRawQueries() []ParseError {
+	var out []ParseError
+	for _, q := range p.rawQueries {
+		if strings.TrimSpace(q.text) == "" {
+			out = append(out, ParseError{Position: q.start, End: q.start, Message: "subquery must contain exactly one query"})
+			continue
+		}
+		res := parseAll(q.text, true)
+		if len(res.Errors) > 0 {
+			for _, e := range res.Errors {
+				e.Position += q.start
+				if e.End >= 0 {
+					e.End += q.start
+				}
+				out = append(out, e)
+			}
+			continue
+		}
+		if len(res.File.Stmts) != 1 {
+			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
+			continue
+		}
+		switch res.File.Stmts[0].(type) {
+		case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
+		default:
+			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
+		}
+	}
+	return out
 }

@@ -25,6 +25,24 @@ func TestStrictParseRejectsTrailingTokens(t *testing.T) {
 	}
 }
 
+// TestStrictParseDropsNodeOnLexError: a lex error is collected by the
+// whole-input pass after the node was built (an unterminated comment after a
+// complete statement); strict Parse returns the error and no node for that
+// segment while the other segments survive, and best-effort keeps the prefix.
+func TestStrictParseDropsNodeOnLexError(t *testing.T) {
+	file, errs := parseForTest("SELECT 1 /* unterminated")
+	if len(errs) == 0 || len(file.Stmts) != 0 {
+		t.Errorf("errs=%d stmts=%d, want an error and no node", len(errs), len(file.Stmts))
+	}
+	file, errs = parseForTest("SELECT 1; SELECT 2 'unterminated")
+	if len(errs) == 0 || len(file.Stmts) != 1 {
+		t.Errorf("two segments: errs=%d stmts=%d, want an error and only the clean segment", len(errs), len(file.Stmts))
+	}
+	if r := ParseBestEffort("SELECT 1 /* unterminated"); len(r.File.Stmts) != 1 {
+		t.Errorf("ParseBestEffort stmts=%d, want the parsed prefix", len(r.File.Stmts))
+	}
+}
+
 // TestParseBestEffortToleratesTrailingTokens: the tolerant entry keeps the
 // parsed prefix for partial-input consumers; only strict Parse rejects.
 func TestParseBestEffortToleratesTrailingTokens(t *testing.T) {

@@ -987,7 +987,7 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int, kind SubqueryKind) (*
 		TextStart: subStart + strings.Index(raw, trimmed),
 		Loc:       ast.Loc{Start: startOffset, End: closeTok.Loc.End},
 	}
-	p.subqueries = append(p.subqueries, sub)
+	p.rawQueries = append(p.rawQueries, rawQuery{text: sub.RawText, start: sub.TextStart})
 	return sub, nil
 }
 

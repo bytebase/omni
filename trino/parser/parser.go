@@ -49,11 +49,19 @@ type Parser struct {
 	// dropping the truncated node; best-effort keeps the parsed prefix.
 	strictTrailing bool
 
-	// subqueries lists every expression-embedded subquery placeholder this
-	// parse created, in source order, so the strict entry point can validate
-	// the raw bodies the placeholder scan captured without parsing. restore
-	// truncates it, so an abandoned speculative parse leaves nothing behind.
-	subqueries []*SubqueryExpr
+	// rawQueries lists every query body this parse captured as raw text
+	// without parsing it (expression subquery placeholders, SHOW STATS FOR
+	// (query)), in source order, so the strict entry point can validate them.
+	// restore truncates it, so an abandoned speculative parse leaves nothing
+	// behind.
+	rawQueries []rawQuery
+}
+
+// rawQuery is a query body captured as raw text: the text and the absolute
+// byte offset of its first character in the parser's input.
+type rawQuery struct {
+	text  string
+	start int
 }
 
 // advance consumes the current token and moves to the next one. Returns the
@@ -539,40 +547,46 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 	for _, le := range p.lexer.Errors() {
 		p.errors = append(p.errors, ParseError{Position: le.Loc.Start, End: le.Loc.End, Message: le.Msg})
 	}
+	// A lex error (an unterminated comment after a complete statement, say)
+	// surfaces only now, after the node was built. Strict mode returns no
+	// node for a segment that carries any error; best-effort keeps the prefix.
+	if strictTrailing && len(p.errors) > 0 {
+		result = nil
+	}
 
 	return result, p.errors
 }
 
-// validateSubqueries strictly parses the raw body of every subquery
-// placeholder this parse created and returns the errors in the outer
-// statement's coordinates. A body must be exactly one query: Trino rejects an
-// empty body, a comment-only body, several statements, and a non-query
-// statement in that position (checked against the oracle). Nested
-// placeholders are validated by the inner strict parse.
+// validateSubqueries strictly parses every query body this parse captured as
+// raw text (expression subquery placeholders, SHOW STATS FOR (query)) and
+// returns the errors in the outer statement's coordinates. A body must be
+// exactly one query: Trino rejects an empty body, a comment-only body, several
+// statements, and a non-query statement in that position (checked against the
+// oracle). Nested placeholders are validated by the inner strict parse.
 func (p *Parser) validateSubqueries() []ParseError {
 	var out []ParseError
-	for _, sub := range p.subqueries {
-		if strings.TrimSpace(sub.RawText) == "" {
-			out = append(out, ParseError{Position: sub.TextStart, End: sub.TextStart, Message: "subquery must contain exactly one query"})
+	for _, q := range p.rawQueries {
+		if strings.TrimSpace(q.text) == "" {
+			out = append(out, ParseError{Position: q.start, End: q.start, Message: "subquery must contain exactly one query"})
 			continue
 		}
-		res := parseAll(sub.RawText, true)
+		res := parseAll(q.text, true)
 		if len(res.Errors) > 0 {
 			for _, e := range res.Errors {
-				e.Position += sub.TextStart
+				e.Position += q.start
 				if e.End >= 0 {
-					e.End += sub.TextStart
+					e.End += q.start
 				}
 				out = append(out, e)
 			}
 			continue
 		}
 		if len(res.File.Stmts) != 1 {
-			out = append(out, ParseError{Position: sub.TextStart, End: sub.TextStart + len(sub.RawText), Message: "subquery must contain exactly one query"})
+			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
 			continue
 		}
 		if qs, ok := res.File.Stmts[0].(*QueryStmt); !ok || qs.Query == nil {
-			out = append(out, ParseError{Position: sub.TextStart, End: sub.TextStart + len(sub.RawText), Message: "subquery must contain exactly one query"})
+			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
 		}
 	}
 	return out

@@ -635,7 +635,7 @@ type parserCheckpoint struct {
 	prev     Token
 	nextBuf  Token
 	hasNext  bool
-	subqs    int // len(p.subqueries) at the checkpoint
+	rawqs    int // len(p.rawQueries) at the checkpoint
 }
 
 // checkpoint snapshots the parser/lexer state for a later restore.
@@ -648,7 +648,7 @@ func (p *Parser) checkpoint() parserCheckpoint {
 		prev:     p.prev,
 		nextBuf:  p.nextBuf,
 		hasNext:  p.hasNext,
-		subqs:    len(p.subqueries),
+		rawqs:    len(p.rawQueries),
 	}
 }
 
@@ -664,8 +664,8 @@ func (p *Parser) restore(c parserCheckpoint) {
 	p.prev = c.prev
 	p.nextBuf = c.nextBuf
 	p.hasNext = c.hasNext
-	if len(p.subqueries) > c.subqs {
-		p.subqueries = p.subqueries[:c.subqs]
+	if len(p.rawQueries) > c.rawqs {
+		p.rawQueries = p.rawQueries[:c.rawqs]
 	}
 }
 

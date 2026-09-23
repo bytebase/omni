@@ -39,6 +39,9 @@ func TestStrictParseValidatesSubqueryBodies(t *testing.T) {
 		{"SELECT EXISTS (DELETE FROM t) FROM t", "DELETE"},
 		{"SELECT (SELECT 1 FROM t; SELECT 2) FROM t", ";"},
 		{"SELECT x FROM t WHERE y IN (SELECT (SELECT 1 FROM v 1 2) FROM u)", "1 2"},
+		// SHOW STATS FOR (query) captures its body the same way.
+		{"SHOW STATS FOR (SELECT 1 FROM t a b)", "b)"},
+		{"SHOW STATS FOR (SELECT 1 FROM t; SELECT 2)", ";"},
 	} {
 		file, err := parseForTest(c.sql)
 		if len(err) == 0 {
@@ -58,6 +61,7 @@ func TestStrictParseValidatesSubqueryBodies(t *testing.T) {
 		"SELECT x FROM t WHERE y IN (SELECT y FROM u) AND z > ANY (SELECT z FROM v)",
 		"SELECT (SELECT (SELECT 1 FROM w) FROM v) FROM u",
 		"SELECT (WITH c AS (SELECT 1 AS a) SELECT a FROM c) FROM u",
+		"SHOW STATS FOR (SELECT * FROM t WHERE x > 1)",
 	} {
 		if _, errs := parseForTest(sql); len(errs) != 0 {
 			t.Errorf("Parse(%q) errors: %v", sql, errs)
@@ -100,6 +104,21 @@ func TestStrictParseDrainsLexErrorsAfterTrailingJunk(t *testing.T) {
 	_, errs := parseForTest("SELECT 1 ))) 'unterminated")
 	if len(errs) < 2 {
 		t.Fatalf("errs = %v, want the trailing-token error AND the lex error", errs)
+	}
+}
+
+// TestStrictParseDropsNodeOnLexError: a lex error surfaces after the node was
+// built (an unterminated comment after a complete statement); strict Parse
+// returns the error and no node, best-effort keeps the prefix.
+func TestStrictParseDropsNodeOnLexError(t *testing.T) {
+	for _, sql := range []string{"SELECT 1 /* unterminated", "SELECT 1 'unterminated"} {
+		file, errs := parseForTest(sql)
+		if len(errs) == 0 || len(file.Stmts) != 0 {
+			t.Errorf("Parse(%q): errs=%d stmts=%d, want an error and no node", sql, len(errs), len(file.Stmts))
+		}
+		if r := ParseBestEffort(sql); len(r.File.Stmts) != 1 {
+			t.Errorf("ParseBestEffort(%q) stmts=%d, want the parsed prefix", sql, len(r.File.Stmts))
+		}
 	}
 }
 

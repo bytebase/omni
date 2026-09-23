@@ -33,7 +33,7 @@ Bytebase's adapters under `backend/plugin/parser/<engine>` and omni's own packag
 
 | Need | Call |
 | --- | --- |
-| Statement boundaries of a script, valid SQL or not | `<engine>.Split` or `<engine>/parser.Split`. Lexical, never fails, keeps empty segments and marks them with `Empty()` |
+| Statement boundaries of a script, valid SQL or not | `<engine>.Split` or `<engine>/parser.Split`. Lexical, never fails. A segment holding no statement (a lone `;`, a comment) answers `Empty()`; pg, redshift, partiql, and cassandra return such segments, the other splitters drop them (see Known deviations) |
 | Every statement of a script with text, AST, and positions | `<engine>.Parse(script)`, which returns `[]Statement` (pg, redshift, mssql, oracle, cassandra, cosmosdb, mongo) |
 | One statement the caller already isolated | `<engine>.Parse` or `parser.Parse`, then assert exactly one non-empty statement |
 | An incomplete fragment, as in completion | Complete it first, by wrapping it in a full statement or patching a placeholder at the caret, then parse. A failure there is expected and falls back to lexer-based extraction |
@@ -45,7 +45,7 @@ Bytebase's adapters under `backend/plugin/parser/<engine>` and omni's own packag
 - A segment parsed on its own has positions relative to the segment. Parse it in place instead, through a ranged entry such as `oracle/parser.ParseRange(script, seg.ByteStart, seg.ByteEnd)` or a lexer base offset as in doris, so positions come out absolute. Never pad the input with spaces (quadratic on large scripts), and never rewrite `Loc` fields through reflection.
 - A parse error is returned, or reported as a finding with its position. The one accepted downgrade is feature extraction from a definition the engine already accepted (a synced function signature, an index definition), and the comment on the call says so.
 - `ParseError` has the same shape in every engine: `Message string` and `Position int`, the byte offset into the parsed text, implementing `error` and reachable with `errors.As`. An engine may add fields such as `End`, `Line`, `Column`, `RelatedText`, or `Code`, but does not rename those two. `Parse` returns `error`, not a slice. An engine whose strict parse reports every failure of a multi-statement script (trino, googlesql, doris, starrocks) returns a `ParseErrors` list that unwraps to each `*ParseError`; `parser.AllErrors(err)` and `parser.FirstError(err)` read it. The elasticsearch REST console parser is the one non-SQL grammar and keeps its `SyntaxError{ByteOffset, Message}`.
-- `Split` keeps empty segments; the `Statement` list from `Parse` holds only statements with an AST.
+- `Split` marks an empty segment with `Empty()` and the target is to return it, so a consumer that accounts for every `;` (Bytebase's execution log) can; the `Statement` list from `Parse` holds only statements with an AST.
 - DDL enters a catalog only through `catalog.Exec(sql, opts)`. It splits and parses itself and returns one `ExecResult` per statement with its line. A synced schema enters through `LoadMetadata`. Callers do not pre-split for `Exec`.
 - `<engine>/review.Review(ctx, sql, opts, targets)` splits and parses once inside, treats a syntax error as a finding at its position, and reports every position through `review.Index`. The contract is in [review/review.go](review/review.go).
 
@@ -53,6 +53,7 @@ Bytebase's adapters under `backend/plugin/parser/<engine>` and omni's own packag
 
 The rules above are the target. These places do not meet them yet; do not copy them into new code.
 
+- `Split` in mysql, mariadb, tidb, oracle, snowflake, trino, googlesql, doris, and starrocks drops empty segments instead of returning them marked `Empty()`. Bytebase's adapters for those engines cannot show a lone `;` in the execution log until they keep them.
 - On the Bytebase side, `ByteOffsetToRunePosition` exists five times and adapters disagree on keeping empty segments. Not omni's to fix, but the reason `review.Index` stays the single implementation.
 
 ## Tests

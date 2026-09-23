@@ -1031,11 +1031,13 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int) (*ast.SubqueryExpr, e
 	closeTok := p.advance() // consume ')'
 
 	trimmedFromStart := len(rawText) - len(strings.TrimLeft(rawText, " \t\r\n"))
-	return &ast.SubqueryExpr{
+	sub := &ast.SubqueryExpr{
 		RawText:   strings.TrimSpace(rawText),
 		TextStart: subStart + trimmedFromStart,
 		Loc:       ast.Loc{Start: startOffset, End: closeTok.Loc.End},
-	}, nil
+	}
+	p.rawQueries = append(p.rawQueries, rawQuery{text: sub.RawText, start: sub.TextStart})
+	return sub, nil
 }
 
 // parseCaseExpr parses a CASE expression (simple or searched).
