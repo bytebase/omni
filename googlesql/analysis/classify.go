@@ -187,12 +187,17 @@ func Classify(node ast.Node, dialect Dialect) QueryType {
 	}
 }
 
-// ClassifySQL parses the first statement in sql (best-effort) and returns its
-// QueryType in the given dialect. Parse errors are tolerated — the first
-// successfully-parsed statement node is classified; empty/whitespace/comment-only
-// input or a total parse failure yields Unknown.
+// ClassifySQL parses sql and returns the QueryType of its first statement in
+// the given dialect. Input that does not parse completely yields Unknown: a
+// truncated statement could classify as a read when the engine would execute
+// something else, and Unknown is the verdict that grants nothing. Empty,
+// whitespace, or comment-only input is Unknown as well.
 func ClassifySQL(sql string, dialect Dialect) QueryType {
-	return ClassifyFromFile(parseFile(sql), dialect)
+	file, errs := parseFile(sql)
+	if len(errs) > 0 {
+		return Unknown
+	}
+	return ClassifyFromFile(file, dialect)
 }
 
 // ClassifyFromFile classifies the first statement of an already-parsed file.
@@ -204,13 +209,11 @@ func ClassifyFromFile(file *ast.File, dialect Dialect) QueryType {
 	return Classify(file.Stmts[0], dialect)
 }
 
-// parseFile runs the best-effort GoogleSQL parser and returns the parsed file
-// (which always reflects whatever statements parsed, even on error). It is the
-// single parse entry point both classification and query-span share, so they
-// never disagree about which statement is "first".
-func parseFile(sql string) *ast.File {
-	file, _ := parser.Parse(sql)
-	return file
+// parseFile runs the strict GoogleSQL parser. It is the single parse entry
+// point both classification and query-span share, so they never disagree about
+// which statement is "first" or whether the input parsed at all.
+func parseFile(sql string) (*ast.File, []parser.ParseError) {
+	return parser.Parse(sql)
 }
 
 // isAllSystemQuery reports whether a query node reads EXCLUSIVELY from system

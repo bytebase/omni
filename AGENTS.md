@@ -53,7 +53,6 @@ Bytebase's adapters under `backend/plugin/parser/<engine>` and omni's own packag
 
 The rules above are the target. These places do not meet them yet; do not copy them into new code.
 
-- `trino/parser.Parse` and `googlesql/parser.Parse` return `(*ast.File, []ParseError)` with a partial tree, and `trino/analysis` and `googlesql/analysis` discard those errors. doris and starrocks split into a strict `Parse` and `ParseBestEffort` in #402; trino and googlesql need the same, and their query span must return the first error the way `doris/analysis.GetQuerySpan` does.
 - The top-level `Position` in `pg`, `redshift`, `mssql`, `oracle`, `cassandra`, `cosmosdb`, `mongo`, and `elasticsearch` counts columns in bytes. They should go through `review.Index`.
 - `ParseError` has six shapes: `Msg` and `Loc` in snowflake, doris, and trino; `Pos` in cosmosdb; slice returns in the doris family.
 - `oracle.Parse` pads each segment with `ByteStart` spaces to keep offsets absolute, which is quadratic on large scripts. The oracle parser needs a base offset.

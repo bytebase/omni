@@ -112,15 +112,17 @@ const source = "googlesql-parser"
 // Line and column numbers are 1-based and measured in bytes. Callers that need
 // Unicode-aware column numbers should post-process the Offset field.
 func Analyze(sql string) []Diagnostic {
-	result := parser.ParseBestEffort(sql)
-	if len(result.Errors) == 0 {
+	// Parse, not ParseBestEffort: the strict entry reports a statement's
+	// trailing junk, which the tolerant one accepts as a parsed prefix.
+	_, errs := parser.Parse(sql)
+	if len(errs) == 0 {
 		return nil
 	}
 
 	lt := parser.NewLineTable(sql)
-	diags := make([]Diagnostic, 0, len(result.Errors))
+	diags := make([]Diagnostic, 0, len(errs))
 
-	for _, pe := range result.Errors {
+	for _, pe := range errs {
 		startOff := pe.Loc.Start
 		if startOff < 0 {
 			startOff = 0

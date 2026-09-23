@@ -42,6 +42,11 @@ type Parser struct {
 	nextBuf    Token        // buffered lookahead token
 	hasNext    bool         // whether nextBuf is valid
 	errors     []ParseError // collected errors for best-effort mode
+
+	// strictTrailing mirrors the parseSingle mode: the strict entry point
+	// rejects a segment whose statement parsed but left tokens behind,
+	// dropping the truncated node; best-effort keeps the parsed prefix.
+	strictTrailing bool
 }
 
 // advance consumes the current token and moves to the next one. Returns the
@@ -391,33 +396,69 @@ type ParseResult struct {
 	Errors []ParseError
 }
 
-// Parse is the public entry point. It returns the parsed File plus every error
-// encountered. The File always reflects whatever statements parsed
-// successfully — even in the error case it may be non-empty.
+// Parse is the strict entry point. It returns the parsed File plus every error
+// encountered; the File holds only statements that parsed completely. A
+// segment whose statement parsed but left tokens behind is a syntax error at
+// the first leftover token and contributes no node: before this, `SELECT a
+// FROM t 1 2` returned the truncated SELECT next to its error, and a
+// consumer that read the File without the errors analyzed less than the
+// engine would execute.
 //
 // The signature returns all errors (matching doris/parser.Parse) rather than a
 // single error: bytebase's Diagnose needs the complete diagnostic set, and a
 // multi-statement script can fail in several places at once.
 func Parse(input string) (*ast.File, []ParseError) {
-	result := ParseBestEffort(input)
+	result := parseAll(input, true)
 	return result.File, result.Errors
 }
 
-// ParseBestEffort runs Split to segment the input, then parses each segment via
-// parseSingle. Per-segment errors are collected; every successfully-parsed
-// statement is appended to the result File. This is the canonical entry point
-// for the bytebase consumers (Diagnose, query-type classification, query-span
-// extraction) that need partial results plus diagnostics.
+// ParseBestEffort is the tolerant entry point for partial or in-progress
+// input. Unlike Parse, it keeps a statement whose prefix parsed even when
+// tokens follow it, and reports no error for them; every other error is still
+// collected. Nothing in the repository consumes this today: Diagnose, query
+// type classification, and query span extraction all read Parse. Do not add
+// the strict trailing-token check here.
 func ParseBestEffort(input string) *ParseResult {
+	return parseAll(input, false)
+}
+
+// parseAll is the shared implementation behind Parse and ParseBestEffort:
+// Split the input, parse each segment, collect nodes and errors.
+// strictTrailing selects whether parseSingle rejects unconsumed trailing
+// tokens.
+func parseAll(input string, strictTrailing bool) *ParseResult {
 	file := &ast.File{Loc: ast.Loc{Start: 0, End: len(input)}}
 	result := &ParseResult{File: file}
 
 	for _, seg := range Split(input) {
-		node, errs := parseSingle(seg.Text, seg.ByteStart)
+		node, errs := parseSingle(seg.Text, seg.ByteStart, strictTrailing)
 		if node != nil {
 			file.Stmts = append(file.Stmts, node)
 		}
 		result.Errors = append(result.Errors, errs...)
+	}
+
+	// Split drops segments that lex to nothing, and with them their lex
+	// errors: Parse("/* unterminated") produced zero segments and zero
+	// errors. Strict mode lexes the whole input once more and promotes any
+	// error the per-segment parses did not already report (matched by
+	// position; segment offsets are absolute).
+	if strictTrailing {
+		lx := NewLexer(input)
+		for lx.NextToken().Kind != tokEOF {
+		}
+		for _, le := range lx.Errors() {
+			dup := false
+			for _, e := range result.Errors {
+				if e.Loc.Start == le.Loc.Start {
+					dup = true
+					break
+				}
+			}
+			if !dup {
+				result.Errors = append(result.Errors, ParseError{Loc: le.Loc, Msg: le.Msg})
+			}
+		}
 	}
 
 	return result
@@ -431,11 +472,14 @@ func ParseBestEffort(input string) *ParseResult {
 // segText is the statement text without the trailing ';' (from Segment.Text).
 // baseOffset is segText's byte offset within the original input; it is passed
 // to NewLexerWithOffset so token and error Loc values stay absolute.
-func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
+// strictTrailing selects whether a statement that parsed without consuming the
+// whole segment is rejected (node dropped) or kept as the parsed prefix.
+func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node, []ParseError) {
 	p := &Parser{
-		lexer:      NewLexerWithOffset(segText, baseOffset),
-		input:      segText,
-		baseOffset: baseOffset,
+		lexer:          NewLexerWithOffset(segText, baseOffset),
+		input:          segText,
+		baseOffset:     baseOffset,
+		strictTrailing: strictTrailing,
 	}
 	p.advance() // prime cur with the first token
 
@@ -451,12 +495,23 @@ func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
 					Msg: err.Error(),
 				})
 			}
-		} else if p.cur.Kind != tokEOF {
+		} else if strictTrailing && p.cur.Kind != tokEOF {
 			// A statement parsed cleanly but did not consume the whole segment:
 			// the leftover tokens are a syntax error (e.g. `SELECT a a a`,
 			// `SELECT 1 garbage`). Each segment holds exactly one top-level
-			// statement (Split cut on ';'), so any trailing token is invalid here.
+			// statement (Split cut on ';'), so any trailing token is invalid here,
+			// and the segment as a whole does not parse: drop the node like every
+			// other reject path does. EOF is asserted only on the success path; a
+			// parse that already errored left cur mid-statement, and asserting EOF
+			// there would emit a spurious second diagnostic.
 			p.errors = append(p.errors, *p.syntaxErrorAtCur())
+			node = nil
+			// Drain the rest of the segment: the lexer is lazy, so a lexical
+			// error past this point (an unterminated string, say) has not been
+			// reached yet and Errors() below could not promote it.
+			for p.cur.Kind != tokEOF {
+				p.advance()
+			}
 		}
 		result = node
 	}

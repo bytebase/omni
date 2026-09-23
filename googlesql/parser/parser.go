@@ -49,6 +49,11 @@ type Parser struct {
 	hasNext    bool         // whether nextBuf is valid
 	errors     []ParseError // collected errors for best-effort mode
 
+	// strictTrailing mirrors the parseSingle mode: the strict entry point
+	// rejects a segment whose statement parsed but left tokens behind,
+	// dropping the truncated node; best-effort keeps the parsed prefix.
+	strictTrailing bool
+
 	// inArrayColumnSchema is set while parsing a table column's type (a
 	// column_schema_inner position) so parseType admits the Spanner ARRAY
 	// vector-length parameter `ARRAY<FLOAT32>(vector_length => N)`. It propagates
@@ -642,23 +647,33 @@ type ParseResult struct {
 	Errors []ParseError
 }
 
-// Parse is the public entry point. It returns the parsed File plus every error
-// encountered. The File always reflects whatever statements parsed
-// successfully — even in the error case it may be non-empty.
+// Parse is the strict entry point. It returns the parsed File plus every error
+// encountered; the File holds only statements that parsed completely. A
+// segment whose statement parsed but left tokens behind is a syntax error at
+// the first leftover token and contributes no node.
 //
 // The signature returns all errors (matching snowflake/trino parser.Parse)
 // rather than a single error: bytebase's Diagnose needs the complete diagnostic
 // set, and a multi-statement script can fail in several places at once.
 func Parse(input string) (*ast.File, []ParseError) {
-	result := ParseBestEffort(input)
+	result := parseAll(input, true)
 	return result.File, result.Errors
 }
 
-// ParseBestEffort runs Split to segment the input, then parses each segment via
-// parseSingle. Per-segment parse errors are collected; every successfully-parsed
-// statement is appended to the result File. This is the canonical entry point
-// for the bytebase consumers (Diagnose, query-type classification, query-span
-// extraction) that need partial results plus diagnostics.
+// ParseBestEffort is the tolerant entry point for partial or in-progress
+// input. Unlike Parse, it keeps a statement whose prefix parsed even when
+// tokens follow it, and reports no error for them; every other error is still
+// collected. Nothing in the repository consumes this today: diagnostics, query
+// type classification, and query span extraction all read Parse. Do not add
+// the strict trailing-token check here.
+func ParseBestEffort(input string) *ParseResult {
+	return parseAll(input, false)
+}
+
+// parseAll is the shared implementation behind Parse and ParseBestEffort:
+// Split the input, parse each segment, collect nodes and errors.
+// strictTrailing selects whether parseSingle rejects unconsumed trailing
+// tokens.
 //
 // Split (the block-aware variant) is used so a procedural BEGIN/END body is fed
 // to parseSingle whole. The BigQuery lexer-split semantics are available via
@@ -673,12 +688,12 @@ func Parse(input string) (*ast.File, []ParseError) {
 // (c) whether Split dropped the containing chunk as "empty" (an unterminated
 // block comment lexes to EOF, so its segment is filtered — yet the lex error
 // must still surface). Parse errors precede lex errors in the result.
-func ParseBestEffort(input string) *ParseResult {
+func parseAll(input string, strictTrailing bool) *ParseResult {
 	file := &ast.File{Loc: ast.Loc{Start: 0, End: len(input)}}
 	result := &ParseResult{File: file}
 
 	for _, seg := range Split(input) {
-		node, errs := parseSingle(seg.Text, seg.ByteStart)
+		node, errs := parseSingle(seg.Text, seg.ByteStart, strictTrailing)
 		if node != nil {
 			file.Stmts = append(file.Stmts, node)
 		}
@@ -723,11 +738,14 @@ func collectLexErrors(input string) []ParseError {
 // segText is the statement text without the trailing ';' (from Segment.Text).
 // baseOffset is segText's byte offset within the original input; it is passed
 // to NewLexerWithOffset so token and error Loc values stay absolute.
-func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
+// strictTrailing selects whether a statement that parsed without consuming the
+// whole segment is rejected (node dropped) or kept as the parsed prefix.
+func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node, []ParseError) {
 	p := &Parser{
-		lexer:      NewLexerWithOffset(segText, baseOffset),
-		input:      segText,
-		baseOffset: baseOffset,
+		lexer:          NewLexerWithOffset(segText, baseOffset),
+		input:          segText,
+		baseOffset:     baseOffset,
+		strictTrailing: strictTrailing,
 	}
 	p.advance() // prime cur with the first token
 
@@ -750,7 +768,7 @@ func parseSingle(segText string, baseOffset int) (ast.Node, []ParseError) {
 					Msg: err.Error(),
 				})
 			}
-		} else if p.cur.Type != tokEOF {
+		} else if strictTrailing && p.cur.Type != tokEOF {
 			// The grammar root is `stmts EOF` (antlr_rules.md §1): a complete
 			// statement must be followed by end-of-input. parseStmt succeeded but
 			// left tokens behind — e.g. `GRANT a ON foo TO 'x' garbage` — so the

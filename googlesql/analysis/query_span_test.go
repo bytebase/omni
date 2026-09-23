@@ -312,15 +312,26 @@ func TestGetQuerySpan_Empty(t *testing.T) {
 	}
 }
 
-// TestGetQuerySpan_PartialParse confirms tolerance of a partial/invalid parse:
-// a malformed statement yields whatever was discoverable without panicking.
-func TestGetQuerySpan_PartialParse(t *testing.T) {
-	// Missing FROM target — invalid, but must not panic.
-	span, err := GetQuerySpan("SELECT * FROM", DialectBigQuery)
-	if err != nil {
-		t.Fatalf("GetQuerySpan error: %v", err)
+// TestGetQuerySpan_FailsClosedOnParseError: a statement that does not fully
+// parse yields an error, never a smaller span. The parser re-parses embedded
+// subqueries itself, so a malformed subquery surfaces through the same list.
+func TestGetQuerySpan_FailsClosedOnParseError(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT * FROM",
+		"SELECT a FROM t )))",
+		"SELECT (SELECT a FROM t2 )))) AS x FROM t1",
+		"SELECT a FROM t1 WHERE EXISTS (SELECT 1 FROM t2 )))",
+		"this is not sql",
+	} {
+		if _, err := GetQuerySpan(sql, DialectBigQuery); err == nil {
+			t.Errorf("GetQuerySpan(%q) accepted input that does not parse", sql)
+		}
 	}
-	_ = span // no panic / nil-deref is the assertion
+	// ClassifySQL shares the verdict: a truncated statement is Unknown, not
+	// the type of whatever prefix parsed.
+	if got := ClassifySQL("SELECT a FROM t )))", DialectBigQuery); got != Unknown {
+		t.Errorf("ClassifySQL(truncated) = %v, want Unknown", got)
+	}
 }
 
 // TestGetQuerySpan_CorrelatedSubquery confirms a correlated scalar subquery

@@ -184,6 +184,10 @@ func (vs *viewState) projectionFor(key viewKey, v *catalog.View) *viewProjection
 		return nil
 	}
 	if err != nil || span == nil || len(span.Results) == 0 {
+		// A definition that does not parse is text Trino already accepted, so
+		// the failure is omni's coverage, not the user's statement: the view
+		// stays unresolvable and remains an AccessTable in its own right for
+		// the consumer's metadata expansion, instead of failing the query.
 		vs.memo[key] = nil
 		return nil
 	}
@@ -275,4 +279,3 @@ func appendViewTables(span *QuerySpan, tables []TableAccess) {
 		span.AccessTables = append(span.AccessTables, t)
 	}
 }
-

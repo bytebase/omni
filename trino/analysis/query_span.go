@@ -99,9 +99,12 @@ type ColumnRef struct {
 // it defines, its output columns with their source columns, and the columns
 // used in predicate positions.
 //
-// It is tolerant of parse errors — if the parser produces a partial AST,
-// whatever parsed is still analyzed. On empty input it returns a zero-valued
-// span with Type=Unknown.
+// GetQuerySpan fails closed on parse errors. Masking and access checks
+// consume the span, and a partial AST understates what the statement reads:
+// `SELECT a FROM t )))` used to analyze as the truncated prefix. A
+// statement (or any of its subqueries) that does not fully parse therefore
+// yields an error, never a silently smaller span. On empty input it returns a
+// zero-valued span with Type=Unknown.
 func GetQuerySpan(statement string) (*QuerySpan, error) {
 	return GetQuerySpanWithCatalog(statement, nil)
 }
@@ -122,7 +125,10 @@ func GetQuerySpanWithCatalog(statement string, cat *catalog.Catalog) (*QuerySpan
 // catalog-aware resolution state across the recursive analysis of view
 // definitions (nil disables catalog resolution).
 func getQuerySpanWithViews(statement string, vs *viewState) (*QuerySpan, error) {
-	file, _ := parser.Parse(statement)
+	file, errs := parser.Parse(statement)
+	if len(errs) > 0 {
+		return nil, &errs[0]
+	}
 	span := &QuerySpan{Type: Classify(statement)}
 	if file == nil || len(file.Stmts) == 0 {
 		return span, nil
@@ -131,6 +137,9 @@ func getQuerySpanWithViews(statement string, vs *viewState) (*QuerySpan, error) 
 	w := newSpanWalker(span)
 	for _, stmt := range file.Stmts {
 		w.analyzeStmt(stmt)
+	}
+	if w.parseErr != nil {
+		return nil, w.parseErr
 	}
 
 	// Deepen result-column lineage through derived relations (subqueries in
@@ -191,6 +200,15 @@ type spanWalker struct {
 	accessed map[tableKey]bool
 	predSeen map[ColumnRef]bool
 	resolved bool // Results captured for the outermost query
+
+	// parseErr records the first subquery parse failure; GetQuerySpan fails
+	// closed on it rather than returning a span missing that subquery's reads.
+	parseErr error
+	// textBase is the absolute offset, in the original statement, of the text
+	// this walker is currently analyzing: 0 at the top level, and the
+	// subquery's TextStart (accumulated across nesting) inside a re-parsed
+	// placeholder body, so error positions are reported in outer coordinates.
+	textBase int
 }
 
 type tableKey struct {
@@ -725,7 +743,7 @@ func (ew exprWalk) followSubquery(sub *parser.SubqueryExpr) {
 	if !ew.followSub || sub == nil {
 		return
 	}
-	ew.w.analyzeSubqueryText(sub.RawText)
+	ew.w.analyzeSubqueryText(sub.RawText, sub.TextStart)
 }
 
 // walkLambdaBody walks a lambda's body with the bound parameter names excluded
@@ -825,21 +843,62 @@ func (ew exprWalk) walkWindowSpec(spec *parser.WindowSpec) {
 	}
 }
 
-// analyzeSubqueryText re-parses an expression-embedded subquery's raw inner text
-// and recurses into the resulting query. Errors are swallowed — an unparseable
-// subquery leaves the already-discovered tables intact (best-effort).
-func (w *spanWalker) analyzeSubqueryText(text string) {
+// analyzeSubqueryText re-parses an expression-embedded subquery's raw inner
+// text and recurses into the resulting query. A subquery that does not fully
+// parse records w.parseErr: its table reads would otherwise silently vanish
+// from AccessTables, so the span fails closed instead.
+//
+// base is the byte offset of text within the statement this walker is
+// analyzing (SubqueryExpr.TextStart). Nested parse errors carry positions
+// relative to the extracted text and are shifted back into the original
+// statement's coordinates, accumulated across nesting levels.
+func (w *spanWalker) analyzeSubqueryText(text string, base int) {
+	abs := w.textBase + base
 	if strings.TrimSpace(text) == "" {
+		// An empty placeholder body, EXISTS (), is not a query; Trino rejects
+		// the form, and returning silently would skip the query-node check.
+		w.noteNonQuerySubquery(ast.Loc{Start: abs, End: abs})
 		return
 	}
-	file, _ := parser.Parse(text)
-	if file == nil {
-		return
-	}
-	for _, stmt := range file.Stmts {
-		if qs, ok := stmt.(*parser.QueryStmt); ok {
-			w.visitQuery(qs.Query, false)
+	file, errs := parser.Parse(text)
+	if len(errs) > 0 {
+		if w.parseErr == nil {
+			e := errs[0]
+			e.Loc.Start += abs
+			if e.Loc.End >= 0 {
+				e.Loc.End += abs
+			}
+			w.parseErr = &e
 		}
+		return
+	}
+	if file == nil || len(file.Stmts) != 1 {
+		// A comment-only body parses to zero statements; a body with an
+		// embedded ';' parses to several. A placeholder holds exactly one
+		// query; Trino rejects both shapes.
+		w.noteNonQuerySubquery(ast.Loc{Start: abs, End: abs + len(text)})
+		return
+	}
+	saved := w.textBase
+	w.textBase = abs
+	defer func() { w.textBase = saved }()
+	qs, ok := file.Stmts[0].(*parser.QueryStmt)
+	if !ok || qs.Query == nil {
+		// A body that parses cleanly as something other than a query,
+		// EXISTS (DELETE FROM secret), is not a subquery; Trino rejects it,
+		// and ignoring it here would hide its reads from the span.
+		w.noteNonQuerySubquery(ast.Loc{Start: abs, End: abs + len(text)})
+		return
+	}
+	w.visitQuery(qs.Query, false)
+}
+
+// noteNonQuerySubquery records the fail-closed error for a subquery
+// placeholder whose body is not a single query, at loc in the original
+// statement's coordinates. The first failure wins.
+func (w *spanWalker) noteNonQuerySubquery(loc ast.Loc) {
+	if w.parseErr == nil {
+		w.parseErr = &parser.ParseError{Loc: loc, Msg: "subquery must contain exactly one query"}
 	}
 }
 

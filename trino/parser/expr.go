@@ -273,7 +273,11 @@ func (*TypeConstructor) exprNode()       {}
 type SubqueryExpr struct {
 	Kind    SubqueryKind
 	RawText string
-	Loc     ast.Loc
+	// TextStart is the absolute byte offset of RawText's first character in
+	// the parser's input, so errors and locations from re-parsing RawText can
+	// be shifted back into the outer statement's coordinates.
+	TextStart int
+	Loc       ast.Loc
 }
 
 func (n *SubqueryExpr) Span() ast.Loc { return n.Loc }
@@ -976,10 +980,12 @@ func (p *Parser) parseSubqueryPlaceholder(startOffset int, kind SubqueryKind) (*
 	}
 	raw := p.sourceSlice(subStart, subEnd)
 	closeTok := p.advance() // consume ')'
+	trimmed := strings.TrimSpace(raw)
 	return &SubqueryExpr{
-		Kind:    kind,
-		RawText: strings.TrimSpace(raw),
-		Loc:     ast.Loc{Start: startOffset, End: closeTok.Loc.End},
+		Kind:      kind,
+		RawText:   trimmed,
+		TextStart: subStart + strings.Index(raw, trimmed),
+		Loc:       ast.Loc{Start: startOffset, End: closeTok.Loc.End},
 	}, nil
 }
 

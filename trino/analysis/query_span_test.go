@@ -1,6 +1,11 @@
 package analysis
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"github.com/bytebase/omni/trino/parser"
+)
 
 // tableSig is a compact, order-insensitive form of TableAccess used in tests.
 type tableSig struct {
@@ -759,8 +764,10 @@ func TestGetQuerySpan_NoPanicOnVariedInput(t *testing.T) {
 					t.Fatalf("GetQuerySpan(%q) panicked: %v", sql, r)
 				}
 			}()
+			// Malformed entries fail closed with an error by design; the sweep
+			// asserts termination without a panic, not acceptance.
 			if _, err := GetQuerySpan(sql); err != nil {
-				t.Fatalf("GetQuerySpan(%q) returned error: %v", sql, err)
+				t.Logf("GetQuerySpan(%q) returned error: %v", sql, err)
 			}
 		})
 	}
@@ -776,14 +783,64 @@ func truncate(s string) string {
 	return s
 }
 
-func TestGetQuerySpan_ToleratesParseError(t *testing.T) {
-	// A statement whose body fails to parse must not panic; GetQuerySpan returns
-	// whatever was classified/extracted.
-	span, err := GetQuerySpan("SELECT a FROM")
-	if err != nil {
-		t.Fatalf("GetQuerySpan returned error: %v", err)
+func TestGetQuerySpan_FailsClosedOnParseError(t *testing.T) {
+	// A statement that does not fully parse yields an error, never a smaller
+	// span: the prefix of `SELECT a FROM t )))` reads t, but a consumer cannot
+	// tell that span from a complete one.
+	for _, sql := range []string{
+		"SELECT a FROM",
+		"SELECT a FROM t )))",
+		"garbage tokens that do not parse @@@ %%%",
+		"SELECT (SELECT a FROM t2 )))) x FROM t1",
+		"SELECT a FROM t1 WHERE EXISTS (SELECT 1 FROM t2 )))",
+	} {
+		if _, err := GetQuerySpan(sql); err == nil {
+			t.Errorf("GetQuerySpan(%q) accepted input that does not parse", sql)
+		}
 	}
-	if span.Type != Select {
-		t.Errorf("Type = %v, want Select", span.Type)
+
+	// Empty input keeps the zero-span contract.
+	span, err := GetQuerySpan("")
+	if err != nil || span == nil || span.Type != Unknown {
+		t.Fatalf("empty input: span=%+v err=%v, want zero span and nil error", span, err)
+	}
+}
+
+func TestGetQuerySpan_SubqueryErrorLocationsAreOuter(t *testing.T) {
+	// Errors from re-parsing a placeholder body are shifted into the outer
+	// statement's coordinates, accumulated across nesting levels, so a
+	// diagnostic highlights the offending token in the text the user wrote.
+	for _, c := range []struct{ sql, at string }{
+		{"SELECT (SELECT 1 FROM t2 1 2) x FROM t1", "1 2"},
+		{"SELECT (  SELECT (SELECT 1 FROM t3 1 2) FROM t2) FROM t1", "1 2"},
+		{"SELECT a FROM t1 WHERE b IN (SELECT b FROM t2 1 2)", "1 2"},
+	} {
+		_, err := GetQuerySpan(c.sql)
+		if err == nil {
+			t.Fatalf("GetQuerySpan(%q) accepted a malformed subquery", c.sql)
+		}
+		pe, ok := err.(*parser.ParseError)
+		if !ok {
+			t.Fatalf("GetQuerySpan(%q) err = %T, want *parser.ParseError", c.sql, err)
+		}
+		if want := strings.Index(c.sql, c.at); pe.Loc.Start != want {
+			t.Errorf("GetQuerySpan(%q) error at %d, want %d (%q in the outer text)", c.sql, pe.Loc.Start, want, c.at)
+		}
+	}
+}
+
+func TestGetQuerySpan_NonQuerySubqueryFailsClosed(t *testing.T) {
+	// A placeholder body that is empty, comment-only, several statements, or a
+	// non-query statement is not a subquery Trino accepts; treating it as
+	// nothing would hide its reads from the span.
+	for _, sql := range []string{
+		"SELECT EXISTS () FROM public",
+		"SELECT EXISTS (/* comment */) FROM public",
+		"SELECT EXISTS (DELETE FROM secret) FROM public",
+		"SELECT (SELECT 1 FROM secret; SELECT 2) FROM public",
+	} {
+		if _, err := GetQuerySpan(sql); err == nil {
+			t.Errorf("GetQuerySpan(%q) accepted a non-query subquery body", sql)
+		}
 	}
 }

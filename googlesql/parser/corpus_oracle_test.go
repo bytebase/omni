@@ -94,7 +94,7 @@ func TestCorpusSpannerDifferential(t *testing.T) {
 				}
 				oracleAccepts := v.Verdict == "accept"
 
-				_, errs := parseSingle(stmt, 0)
+				_, errs := parseSingle(stmt, 0, true)
 				omniAccepts := len(errs) == 0
 
 				checked++

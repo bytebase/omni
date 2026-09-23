@@ -235,11 +235,17 @@ type ColumnRef struct {
 // touches, the CTE names it defines, its output columns with their source
 // columns, and the columns used in predicate positions.
 //
-// It is tolerant of parse errors — if the parser produces a partial AST, whatever
-// parsed is still analyzed. On empty input it returns a zero-valued span with
-// Type=Unknown.
+// GetQuerySpan fails closed on parse errors. Masking and access checks consume
+// the span, and a partial AST understates what the statement reads, so a
+// statement (or any of its embedded subqueries, which the parser re-parses and
+// reports through the same error list) that does not fully parse yields an
+// error, never a silently smaller span. On empty input it returns a zero-valued
+// span with Type=Unknown.
 func GetQuerySpan(statement string, dialect Dialect) (*QuerySpan, error) {
-	file := parseFile(statement)
+	file, errs := parseFile(statement)
+	if len(errs) > 0 {
+		return nil, &errs[0]
+	}
 	span := &QuerySpan{Type: ClassifyFromFile(file, dialect)}
 	if file == nil || len(file.Stmts) == 0 {
 		return span, nil

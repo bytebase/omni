@@ -746,8 +746,12 @@ func scalarSubquerySources(sub *parser.SubqueryExpr, cte *cteDefs) []ColumnRef {
 	if sub == nil || sub.Kind != parser.SubqueryScalar {
 		return nil
 	}
-	file, _ := parser.Parse(sub.RawText)
-	if file == nil {
+	// The walker already failed the span closed on any subquery that does not
+	// parse (analyzeSubqueryText), so by the time lineage resolution runs every
+	// placeholder body parses; an error here is unreachable and yields no
+	// sources rather than a partial tree's.
+	file, errs := parser.Parse(sub.RawText)
+	if len(errs) > 0 || file == nil {
 		return nil
 	}
 	var out []ColumnRef

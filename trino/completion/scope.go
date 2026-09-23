@@ -54,22 +54,23 @@ func analyzeAtCaret(sql string, limit int) *analysis.QuerySpan {
 	patched := stmt[:rel] + " " + placeholder + " " + stmt[rel:]
 
 	span, err := analysis.GetQuerySpan(patched)
-	if err != nil {
-		return nil
+	if err == nil && span != nil && (len(span.AccessTables) > 0 || len(span.CTEs) > 0) {
+		return span
 	}
 	// Robustness fallback: a statement can carry a SECOND incomplete clause away
 	// from the caret — most commonly an empty SELECT list ("SELECT  FROM t"
-	// while the caret edits the WHERE) — which fails the parse so no FROM scope
-	// is recovered. If the caret-patched parse found neither tables nor CTEs,
-	// retry once with empty SELECT lists filled by a placeholder select item, so
-	// the FROM clause becomes reachable.
-	if span != nil && len(span.AccessTables) == 0 && len(span.CTEs) == 0 {
-		if filled := fillEmptySelectLists(patched); filled != patched {
-			if span2, err2 := analysis.GetQuerySpan(filled); err2 == nil && span2 != nil &&
-				(len(span2.AccessTables) > 0 || len(span2.CTEs) > 0) {
-				return span2
-			}
+	// while the caret edits the WHERE). Analysis fails closed on any parse
+	// error, so that statement yields no span at all; retry once with empty
+	// SELECT lists filled by a placeholder select item, so the FROM clause
+	// becomes reachable. A statement that still does not parse has no scope.
+	if filled := fillEmptySelectLists(patched); filled != patched {
+		if span2, err2 := analysis.GetQuerySpan(filled); err2 == nil && span2 != nil &&
+			(len(span2.AccessTables) > 0 || len(span2.CTEs) > 0) {
+			return span2
 		}
+	}
+	if err != nil {
+		return nil
 	}
 	return span
 }
