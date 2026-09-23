@@ -131,9 +131,10 @@ func predicates(root ast.Node) []ast.Node {
 
 // truthValues calls f with the select list expressions of every scalar
 // subquery whose value is the truth value of the predicate expr: expr
-// itself, or reached from it through AND, OR, NOT, and IS [NOT] TRUE /
-// FALSE / UNKNOWN. A subquery compared or otherwise combined with
-// another value yields a value, not a truth, and is not visited.
+// itself, or reached from it through AND, OR, NOT, IS [NOT] TRUE / FALSE
+// / UNKNOWN, the arguments of COALESCE, and the results of CASE. A
+// subquery compared or otherwise combined with another value yields a
+// value, not a truth, and is not visited.
 func truthValues(expr ast.Node, f func(ast.Node)) {
 	switch v := expr.(type) {
 	case *ast.BoolExpr:
@@ -144,6 +145,21 @@ func truthValues(expr ast.Node, f func(ast.Node)) {
 		}
 	case *ast.BooleanTest:
 		truthValues(v.Arg, f)
+	case *ast.CoalesceExpr:
+		if v.Args != nil {
+			for _, arg := range v.Args.Items {
+				truthValues(arg, f)
+			}
+		}
+	case *ast.CaseExpr:
+		if v.Args != nil {
+			for _, item := range v.Args.Items {
+				if w, ok := item.(*ast.CaseWhen); ok {
+					truthValues(w.Result, f)
+				}
+			}
+		}
+		truthValues(v.Defresult, f)
 	case *ast.SubLink:
 		if ast.SubLinkType(v.SubLinkType) != ast.EXPR_SUBLINK {
 			return
@@ -175,16 +191,22 @@ func builtinOperator(name *ast.List) (string, bool) {
 }
 
 // isNullLiteral reports whether the expression is the NULL constant, bare
-// or as a typed null (NULL::text), either under a collation. A cast of a
-// typed null, (NULL::a)::b, calls the cast function, which a user may
-// have defined as not strict, so it is not taken as null.
+// or as a typed null (NULL::text), with a collation inside or outside the
+// cast. A cast of a typed null, (NULL::a)::b, calls the cast function,
+// which a user may have defined as not strict, so it is not taken as
+// null.
 func isNullLiteral(n ast.Node) bool {
-	if c, ok := n.(*ast.CollateClause); ok {
-		n = c.Arg
-	}
+	n = uncollate(n)
 	if tc, ok := n.(*ast.TypeCast); ok {
-		n = tc.Arg
+		n = uncollate(tc.Arg)
 	}
 	c, ok := n.(*ast.A_Const)
 	return ok && c.Isnull
+}
+
+func uncollate(n ast.Node) ast.Node {
+	if c, ok := n.(*ast.CollateClause); ok {
+		return c.Arg
+	}
+	return n
 }

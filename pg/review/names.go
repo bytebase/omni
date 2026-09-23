@@ -32,7 +32,13 @@ func ident(name string) string {
 			return name
 		}
 	}
-	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+	return `"` + escapeLines(strings.ReplaceAll(name, `"`, `""`)) + `"`
+}
+
+// escapeLines writes a line break inside quoted text as \n or \r, so a
+// message stays one line whatever a name or a string holds.
+func escapeLines(s string) string {
+	return strings.NewReplacer("\n", `\n`, "\r", `\r`).Replace(s)
 }
 
 // qualified joins name parts with dots.
@@ -129,7 +135,8 @@ func objectName(kind ast.ObjectType, obj ast.Node) string {
 // collapseSpace puts SQL text on one line: each run of whitespace outside
 // a quoted identifier or string becomes one space, and leading and
 // trailing whitespace goes. Whitespace inside quotes is part of the name
-// or value and stays.
+// or value and stays, except that a line break there is written as \n
+// or \r so the result is still one line.
 func collapseSpace(s string) string {
 	var b strings.Builder
 	var quote byte
@@ -138,7 +145,14 @@ func collapseSpace(s string) string {
 		c := s[i]
 		switch {
 		case quote != 0:
-			b.WriteByte(c)
+			switch c {
+			case '\n':
+				b.WriteString(`\n`)
+			case '\r':
+				b.WriteString(`\r`)
+			default:
+				b.WriteByte(c)
+			}
 			if c == quote {
 				quote = 0
 			}
