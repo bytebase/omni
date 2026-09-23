@@ -10,7 +10,9 @@ import (
 // checkDisallowDropObject reports every DROP: the DROP statement of any
 // object kind, DROP DATABASE, DROP ROLE, DROP TABLESPACE, DROP OWNED,
 // DROP SUBSCRIPTION, DROP USER MAPPING, and ALTER TABLE ... DROP COLUMN,
-// which anchors the subcommand. IF EXISTS does not exempt a statement.
+// which anchors the subcommand. IF EXISTS does not exempt a statement,
+// and neither does a SQL-standard routine body around it: the statement
+// tree is walked, so a DROP inside BEGIN ATOMIC is reported where it is.
 // Dropping a constraint belongs to DisallowDropConstraint.
 func checkDisallowDropObject(s *statement, r *reporter) {
 	report := func(rng review.Range, kind string, names []string) {
@@ -20,7 +22,14 @@ func checkDisallowDropObject(s *statement, r *reporter) {
 		}
 		r.report(review.DisallowDropObject, s.index, rng, msg)
 	}
-	switch v := s.node.(type) {
+	ast.Inspect(s.node, func(n ast.Node) bool {
+		checkDropNode(n, report)
+		return true
+	})
+}
+
+func checkDropNode(n ast.Node, report func(review.Range, string, []string)) {
+	switch v := n.(type) {
 	case *ast.DropStmt:
 		kind := ast.ObjectType(v.RemoveType)
 		onRelation := kind == ast.OBJECT_TRIGGER || kind == ast.OBJECT_POLICY || kind == ast.OBJECT_RULE

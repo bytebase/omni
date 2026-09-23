@@ -8,15 +8,17 @@ import (
 // checkRequireIsNull reports a comparison of the form x = NULL or
 // x <> NULL (the lexer spells != as <>), which is null for every row and so
 // never true. The literal may sit on either side and may carry a cast,
-// as in NULL::int. The finding anchors the comparison and quotes it.
+// as in NULL::int. Only the built-in operator counts: OPERATOR(s.=) names
+// a user's operator, which may not be strict. The finding anchors the
+// comparison and quotes it.
 func checkRequireIsNull(sql string, s *statement, r *reporter) {
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		e, ok := n.(*ast.A_Expr)
 		if !ok || e.Kind != ast.AEXPR_OP {
 			return true
 		}
-		op := operatorName(e.Name)
-		if op != "=" && op != "<>" {
+		op, ok := builtinOperator(e.Name)
+		if !ok || (op != "=" && op != "<>") {
 			return true
 		}
 		if !isNullLiteral(e.Lexpr) && !isNullLiteral(e.Rexpr) {
@@ -36,13 +38,18 @@ func checkRequireIsNull(sql string, s *statement, r *reporter) {
 	})
 }
 
-// operatorName returns the unqualified operator of an A_Expr name list.
-func operatorName(name *ast.List) string {
+// builtinOperator returns the operator of an A_Expr name list when it
+// names a built-in one: unqualified, or qualified with pg_catalog.
+func builtinOperator(name *ast.List) (string, bool) {
 	parts := nameParts(name)
-	if len(parts) == 0 {
-		return ""
+	switch len(parts) {
+	case 1:
+		return parts[0], true
+	case 2:
+		return parts[1], parts[0] == "pg_catalog"
+	default:
+		return "", false
 	}
-	return parts[len(parts)-1]
 }
 
 // isNullLiteral reports whether the expression is the NULL constant,

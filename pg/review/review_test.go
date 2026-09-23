@@ -83,7 +83,7 @@ func TestReview(t *testing.T) {
 		},
 		{
 			name:    "require is null",
-			sql:     "SELECT 1 FROM t WHERE a = NULL OR NULL != b OR c IS NULL OR d = NULL::int OR (e + 1) <> NULL OR f IS DISTINCT FROM NULL;\nUPDATE \"T\" SET x = NULL WHERE y\n  =\n NULL;",
+			sql:     "SELECT 1 FROM t WHERE a = NULL OR NULL != b OR c IS NULL OR d = NULL::int OR (e + 1) <> NULL OR f IS DISTINCT FROM NULL OR g OPERATOR(custom.=) NULL OR h OPERATOR(pg_catalog.<>) NULL;\nUPDATE \"T\" SET x = NULL WHERE y\n  =\n NULL;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
@@ -91,6 +91,7 @@ func TestReview(t *testing.T) {
 					{review.RequireIsNull, 0, span(t, sql, "NULL != b"), `"NULL != b" is never true; use IS NOT NULL`},
 					{review.RequireIsNull, 0, span(t, sql, "d = NULL::int"), `"d = NULL::int" is never true; use IS NULL`},
 					{review.RequireIsNull, 0, span(t, sql, "(e + 1) <> NULL"), `"(e + 1) <> NULL" is never true; use IS NOT NULL`},
+					{review.RequireIsNull, 0, span(t, sql, "h OPERATOR(pg_catalog.<>) NULL"), `"h OPERATOR(pg_catalog.<>) NULL" is never true; use IS NOT NULL`},
 					{review.RequireIsNull, 1, span(t, sql, "y\n  =\n NULL"), `"y = NULL" is never true; use IS NULL`},
 				}
 			},
@@ -112,6 +113,19 @@ func TestReview(t *testing.T) {
 					{review.DisallowDropObject, 7, span(t, sql, "DROP c2"), "drops column c2 of t"},
 					{review.DisallowDropObject, 8, span(t, sql, "DROP INDEX CONCURRENTLY i"), "drops index i"},
 					{review.DisallowDropObject, 9, span(t, sql, "DROP OWNED BY r"), "drops objects owned by r"},
+				}
+			},
+		},
+		{
+			name:    "statements inside a SQL-standard routine body are reported where they are",
+			sql:     "CREATE PROCEDURE p() LANGUAGE SQL BEGIN ATOMIC DROP TABLE t; TRUNCATE u; ALTER TABLE v RENAME TO w; DELETE FROM x; END;",
+			targets: 1,
+			want: func(t *testing.T, sql string) []finding {
+				return []finding{
+					{review.DisallowDropObject, 0, span(t, sql, "DROP TABLE t"), "drops table t"},
+					{review.DisallowTruncate, 0, span(t, sql, "TRUNCATE u"), "truncates u"},
+					{review.DisallowRename, 0, span(t, sql, "ALTER TABLE v RENAME TO w"), "renames table v to w"},
+					{review.RequireWhere, 0, span(t, sql, "DELETE FROM x"), "DELETE FROM x has no WHERE clause"},
 				}
 			},
 		},
