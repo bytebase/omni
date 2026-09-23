@@ -78,6 +78,13 @@ func errDuplicateColumn(name string) error {
 	return &Error{Code: CodeDuplicateColumn, Message: fmt.Sprintf("column %q specified more than once", name)}
 }
 
+// errColumnAlreadyExists is the ALTER TABLE ADD COLUMN / RENAME COLUMN
+// collision against a column the relation already has.
+// pg: src/backend/commands/tablecmds.c — check_for_column_name_collision
+func errColumnAlreadyExists(colName, relName string) error {
+	return &Error{Code: CodeDuplicateColumn, Message: fmt.Sprintf("column %q of relation %q already exists", colName, relName)}
+}
+
 func errUndefinedSchema(name string) error {
 	return &Error{Code: CodeUndefinedSchema, Message: fmt.Sprintf("schema %q does not exist", name)}
 }

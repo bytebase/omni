@@ -135,7 +135,7 @@ func TestDryRunValidation_CreateTable(t *testing.T) {
 	t.Run("DuplicateColumn", func(t *testing.T) {
 		dryRunExpectError(t, "",
 			"CREATE TABLE t(id int, id text)",
-			CodeDuplicateColumn, "specified more than once")
+			CodeDuplicateColumn, `column "id" specified more than once`)
 	})
 
 	t.Run("DefaultDoubleQuotedIdentifierRejected", func(t *testing.T) {
@@ -291,7 +291,14 @@ func TestDryRunValidation_AlterTable(t *testing.T) {
 		dryRunExpectError(t,
 			"CREATE TABLE t(id int)",
 			"ALTER TABLE t ADD COLUMN id int",
-			CodeDuplicateColumn, "")
+			CodeDuplicateColumn, `column "id" of relation "t" already exists`)
+	})
+
+	t.Run("RenameColumnDuplicate", func(t *testing.T) {
+		dryRunExpectError(t,
+			"CREATE TABLE t(id int, name text)",
+			"ALTER TABLE t RENAME COLUMN name TO id",
+			CodeDuplicateColumn, `column "id" of relation "t" already exists`)
 	})
 
 	t.Run("AddColumnUndefinedType", func(t *testing.T) {
@@ -1021,4 +1028,57 @@ func itoa(n int) string {
 		n /= 10
 	}
 	return s
+}
+
+// TestDuplicateColumnMessages pins the two PostgreSQL wordings that share
+// SQLSTATE 42701: a column listed twice in one CREATE TABLE definition, and
+// an ADD COLUMN / RENAME COLUMN that collides with a column the relation
+// already has (tablecmds.c check_for_column_name_collision).
+func TestDuplicateColumnMessages(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup string
+		sql   string
+		want  string
+	}{
+		{
+			name: "create table lists a column twice",
+			sql:  "CREATE TABLE t(id int, id text)",
+			want: `column "id" specified more than once`,
+		},
+		{
+			name:  "add column that already exists",
+			setup: "CREATE TABLE t(id int)",
+			sql:   "ALTER TABLE t ADD COLUMN id int",
+			want:  `column "id" of relation "t" already exists`,
+		},
+		{
+			name:  "add column that already exists on a schema-qualified table",
+			setup: "CREATE SCHEMA s; CREATE TABLE s.t(id int)",
+			sql:   "ALTER TABLE s.t ADD COLUMN id int",
+			want:  `column "id" of relation "t" already exists`,
+		},
+		{
+			name:  "rename column onto an existing name",
+			setup: "CREATE TABLE t(id int, name text)",
+			sql:   "ALTER TABLE t RENAME COLUMN name TO id",
+			want:  `column "id" of relation "t" already exists`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			results := execTestSQL(t, tc.setup, tc.sql)
+			last := results[len(results)-1]
+			var catErr *Error
+			if !errors.As(last.Error, &catErr) {
+				t.Fatalf("expected *Error, got %T: %v", last.Error, last.Error)
+			}
+			if catErr.Code != CodeDuplicateColumn {
+				t.Errorf("code: got %s, want %s", catErr.Code, CodeDuplicateColumn)
+			}
+			if catErr.Message != tc.want {
+				t.Errorf("message:\n got %q\nwant %q", catErr.Message, tc.want)
+			}
+		})
+	}
 }

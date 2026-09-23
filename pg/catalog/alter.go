@@ -1121,8 +1121,9 @@ func (c *Catalog) atAddColumn(schema *Schema, rel *Relation, relName string, col
 		return &Error{Code: CodeTooManyColumns, Message: fmt.Sprintf("tables can have at most %d columns", MaxHeapAttributeNumber)}
 	}
 
+	// pg: src/backend/commands/tablecmds.c — check_for_column_name_collision
 	if _, exists := rel.colByName[colDef.Name]; exists {
-		return errDuplicateColumn(colDef.Name)
+		return errColumnAlreadyExists(colDef.Name, rel.Name)
 	}
 
 	typeOID, typmod, err := c.ResolveType(colDef.Type)
@@ -1313,8 +1314,9 @@ func (c *Catalog) atRenameColumn(rel *Relation, oldName, newName string) error {
 	if !exists {
 		return errUndefinedColumn(oldName)
 	}
+	// pg: src/backend/commands/tablecmds.c — renameatt_internal → check_for_column_name_collision
 	if _, dup := rel.colByName[newName]; dup {
-		return errDuplicateColumn(newName)
+		return errColumnAlreadyExists(newName, rel.Name)
 	}
 
 	rel.Columns[idx].Name = newName
