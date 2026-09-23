@@ -70,9 +70,110 @@ func analyzeAtCaret(sql string, limit int) *analysis.QuerySpan {
 		}
 	}
 	if err != nil {
+		// The statement still does not parse: another unfinished fragment
+		// sits away from the caret (SELECT | FROM customer WHERE x =). The
+		// user is mid-edit, so recover the FROM/JOIN relations and WITH names
+		// from the tokens instead of offering nothing.
+		return lexerScope(patched)
+	}
+	return span
+}
+
+// lexerScope recovers the relations a statement reads from its tokens alone:
+// every dotted name after FROM or JOIN (and the comma-separated names that
+// continue a FROM list), with an optional alias, plus the names a WITH clause
+// declares. It over-approximates on purpose: this is completion scope, where
+// an extra table costs a spurious candidate and a missing one hides every
+// column. Returns nil when nothing is found.
+func lexerScope(stmt string) *analysis.QuerySpan {
+	toks, _ := parser.Tokenize(stmt)
+	span := &analysis.QuerySpan{}
+	seen := map[scopeTable]bool{}
+	cte := map[string]bool{}
+
+	addRelation := func(k int) int {
+		st, n := readDottedRelation(toks, k, true)
+		if st == nil {
+			return 0
+		}
+		if st.table != placeholder && !cte[st.table] && !seen[*st] {
+			seen[*st] = true
+			span.AccessTables = append(span.AccessTables, analysis.TableAccess{
+				Catalog: st.catalog, Schema: st.schema, Table: st.table, Alias: st.alias,
+			})
+		}
+		return n
+	}
+
+	for i := 0; i < len(toks); i++ {
+		tok := toks[i]
+		switch {
+		case isKeyword(tok, "with"):
+			// WITH [RECURSIVE] name [(cols)] AS (...) [, name ...]
+			k := i + 1
+			if isKeywordAt(toks, k, "recursive") {
+				k++
+			}
+			for k < len(toks) && isNameToken(toks[k]) {
+				name := normalizeQualifierPart(toks[k])
+				k++
+				if k < len(toks) && toks[k].Kind == int('(') {
+					k = skipParens(toks, k)
+				}
+				if !isKeywordAt(toks, k, "as") {
+					break
+				}
+				if name != placeholder && !cte[name] {
+					cte[name] = true
+					span.CTEs = append(span.CTEs, name)
+				}
+				k++
+				if k < len(toks) && toks[k].Kind == int('(') {
+					k = skipParens(toks, k)
+				}
+				if k < len(toks) && toks[k].Kind == int(',') {
+					k++
+					continue
+				}
+				break
+			}
+		case isKeyword(tok, "from") || isKeyword(tok, "join"):
+			k := i + 1
+			for {
+				n := addRelation(k)
+				if n == 0 {
+					break
+				}
+				k += n
+				if !isKeyword(tok, "from") || k >= len(toks) || toks[k].Kind != int(',') {
+					break
+				}
+				k++
+			}
+		}
+	}
+	if len(span.AccessTables) == 0 && len(span.CTEs) == 0 {
 		return nil
 	}
 	return span
+}
+
+// skipParens returns the index just past the parenthesised group that opens
+// at toks[k], or len(toks) when it never closes.
+func skipParens(toks []parser.Token, k int) int {
+	depth := 0
+	for ; k < len(toks); k++ {
+		switch toks[k].Kind {
+		case int('('):
+			depth++
+		case int(')'):
+			depth--
+			if depth == 0 {
+				return k + 1
+			}
+		}
+	}
+	return k
 }
 
 // fillEmptySelectLists inserts a placeholder select item into any "SELECT FROM"

@@ -124,6 +124,33 @@ func TestContext_EmptySelectListCaretInWhere(t *testing.T) {
 	}
 }
 
+func TestContext_ScopeSurvivesOtherParseErrors(t *testing.T) {
+	cat := buildCatalog()
+	// Analysis fails closed on any parse error, and a statement being edited
+	// often has an unfinished fragment away from the caret. Column completion
+	// must still see the FROM scope, recovered from the tokens.
+	for _, c := range []struct{ name, sql string }{
+		{"trailing junk after FROM", "SELECT  FROM customer )))"},
+		{"unfinished WHERE", "SELECT  FROM customer WHERE custkey ="},
+		{"alias and join", "SELECT  FROM orders o JOIN customer c ON o.custkey = c.custkey WHERE"},
+	} {
+		sql := c.sql
+		limit := len("SELECT ")
+		got := Complete(sql, limit, cat)
+		if !has(got, CandidateColumn, "custkey") {
+			t.Errorf("%s: columns=%v, want custkey from the recovered FROM scope", c.name, texts(got, CandidateColumn))
+		}
+	}
+	// A WITH name is recovered too, and is offered after FROM rather than
+	// treated as a catalog table.
+	sql := "WITH c AS (SELECT custkey FROM customer) SELECT custkey FROM  WHERE x ="
+	limit := len("WITH c AS (SELECT custkey FROM customer) SELECT custkey FROM ")
+	got := Complete(sql, limit, cat)
+	if !hasText(got, "c") {
+		t.Errorf("CTE name not offered after FROM: %v", texts(got, CandidateTable))
+	}
+}
+
 func TestContext_QuotedQualifier(t *testing.T) {
 	// A quoted, case-sensitive schema qualifier must resolve against the
 	// case-preserved catalog key.
