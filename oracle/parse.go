@@ -1,8 +1,6 @@
 package oracle
 
 import (
-	"strings"
-
 	"github.com/bytebase/omni/oracle/ast"
 	"github.com/bytebase/omni/oracle/parser"
 )
@@ -41,7 +39,7 @@ func Parse(sql string) ([]Statement, error) {
 	lineIndex := buildLineIndex(sql)
 	stmts := make([]Statement, 0, len(segments))
 	for _, seg := range segments {
-		list, err := parser.Parse(strings.Repeat(" ", seg.ByteStart) + seg.Text)
+		list, err := parser.ParseRange(sql, seg.ByteStart, seg.ByteEnd)
 		if err != nil {
 			return nil, err
 		}

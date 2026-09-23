@@ -49,6 +49,7 @@ type Lexer struct {
 	input string
 	pos   int
 	start int
+	end   int // exclusive bound of the lexed range within input
 
 	// Error
 	Err error
@@ -56,15 +57,32 @@ type Lexer struct {
 
 // NewLexer creates a new lexer for the given input.
 func NewLexer(input string) *Lexer {
+	return NewLexerRange(input, 0, len(input))
+}
+
+// NewLexerRange creates a lexer over input[start:end] that reports token
+// offsets relative to input, so a segment of a larger script lexes in place
+// with absolute positions and no copy of the text.
+func NewLexerRange(input string, start, end int) *Lexer {
+	if end > len(input) {
+		end = len(input)
+	}
+	if start < 0 {
+		start = 0
+	}
+	if start > end {
+		start = end
+	}
 	return &Lexer{
 		input: input,
-		pos:   0,
+		pos:   start,
+		end:   end,
 	}
 }
 
 // NextToken returns the next token from the input.
 func (l *Lexer) NextToken() Token {
-	if l.pos >= len(l.input) {
+	if l.pos >= l.end {
 		return Token{Type: tokEOF, Loc: l.pos, End: l.pos}
 	}
 
@@ -80,7 +98,7 @@ func (l *Lexer) NextToken() Token {
 // lexInitial handles tokens in the initial state.
 func (l *Lexer) lexInitial() Token {
 	l.skipWhitespace()
-	if l.pos >= len(l.input) {
+	if l.pos >= l.end {
 		return Token{Type: tokEOF, Loc: l.pos}
 	}
 
@@ -88,25 +106,25 @@ func (l *Lexer) lexInitial() Token {
 	ch := l.input[l.pos]
 
 	// Line comments: --
-	if ch == '-' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '-' {
+	if ch == '-' && l.pos+1 < l.end && l.input[l.pos+1] == '-' {
 		l.skipLineComment()
 		return l.NextToken()
 	}
 
 	// Block comments: /* */ and hints: /*+ */
-	if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+	if ch == '/' && l.pos+1 < l.end && l.input[l.pos+1] == '*' {
 		return l.lexBlockCommentOrHint()
 	}
 
 	// National character literal: N'...'
-	if (ch == 'N' || ch == 'n') && l.pos+1 < len(l.input) && l.input[l.pos+1] == '\'' {
+	if (ch == 'N' || ch == 'n') && l.pos+1 < l.end && l.input[l.pos+1] == '\'' {
 		l.pos++ // skip N
 		str := l.lexSingleQuotedString()
 		return Token{Type: tokNCHARLIT, Str: str, Loc: l.start}
 	}
 
 	// Q-quote mechanism: q'[delim]...[delim]'
-	if (ch == 'Q' || ch == 'q') && l.pos+1 < len(l.input) && l.input[l.pos+1] == '\'' {
+	if (ch == 'Q' || ch == 'q') && l.pos+1 < l.end && l.input[l.pos+1] == '\'' {
 		return l.lexQQuote()
 	}
 
@@ -123,7 +141,7 @@ func (l *Lexer) lexInitial() Token {
 
 	// Bind variable: :name or :1
 	if ch == ':' {
-		if l.pos+1 < len(l.input) {
+		if l.pos+1 < l.end {
 			next := l.input[l.pos+1]
 			// := assignment
 			if next == '=' {
@@ -142,7 +160,7 @@ func (l *Lexer) lexInitial() Token {
 	}
 
 	// Two-character tokens
-	if l.pos+1 < len(l.input) {
+	if l.pos+1 < l.end {
 		ch2 := l.input[l.pos : l.pos+2]
 		switch ch2 {
 		case "||":
@@ -185,7 +203,7 @@ func (l *Lexer) lexInitial() Token {
 	}
 
 	// Numbers
-	if isDigit(ch) || (ch == '.' && l.pos+1 < len(l.input) && isDigit(l.input[l.pos+1])) {
+	if isDigit(ch) || (ch == '.' && l.pos+1 < l.end && isDigit(l.input[l.pos+1])) {
 		return l.lexNumber()
 	}
 
@@ -201,7 +219,7 @@ func (l *Lexer) lexInitial() Token {
 
 // skipWhitespace skips whitespace characters.
 func (l *Lexer) skipWhitespace() {
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
 		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\f' {
 			l.pos++
@@ -214,7 +232,7 @@ func (l *Lexer) skipWhitespace() {
 // skipLineComment skips a -- comment to end of line.
 func (l *Lexer) skipLineComment() {
 	l.pos += 2 // skip --
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
 		l.pos++
 		if ch == '\n' {
@@ -228,7 +246,7 @@ func (l *Lexer) lexBlockCommentOrHint() Token {
 	l.pos += 2 // skip /*
 
 	// Check if it's a hint: /*+ ... */
-	isHint := l.pos < len(l.input) && l.input[l.pos] == '+'
+	isHint := l.pos < l.end && l.input[l.pos] == '+'
 	if isHint {
 		l.pos++ // skip +
 	}
@@ -242,8 +260,8 @@ func (l *Lexer) lexBlockCommentOrHint() Token {
 	var buf strings.Builder
 	terminated := false
 
-	for l.pos < len(l.input) {
-		if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
+	for l.pos < l.end {
+		if l.input[l.pos] == '*' && l.pos+1 < l.end && l.input[l.pos+1] == '/' {
 			l.pos += 2
 			terminated = true
 			break
@@ -270,11 +288,11 @@ func (l *Lexer) lexSingleQuotedString() string {
 	l.pos++ // skip opening '
 	var buf strings.Builder
 
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
 		if ch == '\'' {
 			// Check for doubled quote ''
-			if l.pos+1 < len(l.input) && l.input[l.pos+1] == '\'' {
+			if l.pos+1 < l.end && l.input[l.pos+1] == '\'' {
 				buf.WriteByte('\'')
 				l.pos += 2
 				continue
@@ -295,7 +313,7 @@ func (l *Lexer) lexSingleQuotedString() string {
 func (l *Lexer) lexQQuote() Token {
 	l.pos += 2 // skip q'
 
-	if l.pos >= len(l.input) {
+	if l.pos >= l.end {
 		l.Err = fmt.Errorf("unterminated q-quote string")
 		return Token{Type: tokEOF, Loc: l.start}
 	}
@@ -319,9 +337,9 @@ func (l *Lexer) lexQQuote() Token {
 	}
 
 	var buf strings.Builder
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
-		if ch == closeDelim && l.pos+1 < len(l.input) && l.input[l.pos+1] == '\'' {
+		if ch == closeDelim && l.pos+1 < l.end && l.input[l.pos+1] == '\'' {
 			l.pos += 2 // skip close delim and '
 			return Token{Type: tokSCONST, Str: buf.String(), Loc: l.start}
 		}
@@ -338,11 +356,11 @@ func (l *Lexer) lexDoubleQuotedIdent() Token {
 	l.pos++ // skip opening "
 	var buf strings.Builder
 
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
 		if ch == '"' {
 			// Check for "" (escaped quote)
-			if l.pos+1 < len(l.input) && l.input[l.pos+1] == '"' {
+			if l.pos+1 < l.end && l.input[l.pos+1] == '"' {
 				buf.WriteByte('"')
 				l.pos += 2
 				continue
@@ -369,12 +387,12 @@ func (l *Lexer) lexBindVariable() Token {
 
 	if isDigit(l.input[l.pos]) {
 		// Numeric bind: :1, :2, etc.
-		for l.pos < len(l.input) && isDigit(l.input[l.pos]) {
+		for l.pos < l.end && isDigit(l.input[l.pos]) {
 			l.pos++
 		}
 	} else {
 		// Named bind: :name
-		for l.pos < len(l.input) && isIdentCont(l.input[l.pos]) {
+		for l.pos < l.end && isIdentCont(l.input[l.pos]) {
 			l.pos++
 		}
 	}
@@ -389,41 +407,41 @@ func (l *Lexer) lexNumber() Token {
 	isFloat := false
 
 	// Integer part (may be empty for .5)
-	for l.pos < len(l.input) && isDigit(l.input[l.pos]) {
+	for l.pos < l.end && isDigit(l.input[l.pos]) {
 		l.pos++
 	}
 
 	// Decimal point
-	if l.pos < len(l.input) && l.input[l.pos] == '.' {
+	if l.pos < l.end && l.input[l.pos] == '.' {
 		// Check for .. (range operator)
-		if l.pos+1 < len(l.input) && l.input[l.pos+1] == '.' {
+		if l.pos+1 < l.end && l.input[l.pos+1] == '.' {
 			goto done
 		}
 		l.pos++
 		isFloat = true
-		for l.pos < len(l.input) && isDigit(l.input[l.pos]) {
+		for l.pos < l.end && isDigit(l.input[l.pos]) {
 			l.pos++
 		}
 	}
 
 	// Exponent
-	if l.pos < len(l.input) && (l.input[l.pos] == 'e' || l.input[l.pos] == 'E') {
+	if l.pos < l.end && (l.input[l.pos] == 'e' || l.input[l.pos] == 'E') {
 		l.pos++
-		if l.pos < len(l.input) && (l.input[l.pos] == '+' || l.input[l.pos] == '-') {
+		if l.pos < l.end && (l.input[l.pos] == '+' || l.input[l.pos] == '-') {
 			l.pos++
 		}
-		if l.pos >= len(l.input) || !isDigit(l.input[l.pos]) {
+		if l.pos >= l.end || !isDigit(l.input[l.pos]) {
 			l.Err = fmt.Errorf("invalid numeric literal")
 			return Token{Type: tokEOF, Loc: l.start}
 		}
-		for l.pos < len(l.input) && isDigit(l.input[l.pos]) {
+		for l.pos < l.end && isDigit(l.input[l.pos]) {
 			l.pos++
 		}
 		isFloat = true
 	}
 
 	// Oracle allows d/D suffix for double, f/F for float (in some contexts)
-	if l.pos < len(l.input) {
+	if l.pos < l.end {
 		ch := l.input[l.pos]
 		if ch == 'f' || ch == 'F' || ch == 'd' || ch == 'D' {
 			l.pos++
@@ -450,7 +468,7 @@ done:
 func (l *Lexer) lexIdentOrKeyword() Token {
 	start := l.pos
 
-	for l.pos < len(l.input) && isIdentCont(l.input[l.pos]) {
+	for l.pos < l.end && isIdentCont(l.input[l.pos]) {
 		l.pos++
 	}
 

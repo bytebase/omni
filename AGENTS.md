@@ -42,7 +42,7 @@ Bytebase's adapters under `backend/plugin/parser/<engine>` and omni's own packag
 - Split first, then parse each segment. Every `ParseError` and every `Loc` is then relative to text the caller holds. Whole-script `parser.Parse` is for single statements and for internal helpers that report no positions.
 - Parse once and pass the AST. A package that receives an AST (analysis, review, a catalog after `Exec`) does not parse the text again.
 - Positions leave the parser as byte offsets. They become line and column only at the boundary that reports to a user, through `review.Index` or `review.Position`: lines 1-based, columns 1-based and counted in code points, which is what Bytebase's `Position` holds. Do not write the byte-to-rune loop again.
-- A segment parsed on its own has positions relative to the segment. Shift them by the segment's byte start when combining, through a parser base offset. Never by padding the input with spaces, and never by rewriting `Loc` fields through reflection.
+- A segment parsed on its own has positions relative to the segment. Parse it in place instead, through a ranged entry such as `oracle/parser.ParseRange(script, seg.ByteStart, seg.ByteEnd)` or a lexer base offset as in doris, so positions come out absolute. Never pad the input with spaces (quadratic on large scripts), and never rewrite `Loc` fields through reflection.
 - A parse error is returned, or reported as a finding with its position. The one accepted downgrade is feature extraction from a definition the engine already accepted (a synced function signature, an index definition), and the comment on the call says so.
 - `ParseError` has the same shape in every engine: `Message string` and `Position int`, the byte offset into the parsed text, implementing `error` and reachable with `errors.As`. An engine may add fields such as `Line`, `Column`, `RelatedText`, or `Code`, but does not rename those two. `Parse` returns `error`, not a slice.
 - `Split` keeps empty segments; the `Statement` list from `Parse` holds only statements with an AST.
@@ -55,7 +55,6 @@ The rules above are the target. These places do not meet them yet; do not copy t
 
 - The top-level `Position` in `pg`, `redshift`, `mssql`, `oracle`, `cassandra`, `cosmosdb`, `mongo`, and `elasticsearch` counts columns in bytes. They should go through `review.Index`.
 - `ParseError` has six shapes: `Msg` and `Loc` in snowflake, doris, and trino; `Pos` in cosmosdb; slice returns in the doris family.
-- `oracle.Parse` pads each segment with `ByteStart` spaces to keep offsets absolute, which is quadratic on large scripts. The oracle parser needs a base offset.
 - On the Bytebase side, `ByteOffsetToRunePosition` exists five times and adapters disagree on keeping empty segments. Not omni's to fix, but the reason `review.Index` stays the single implementation.
 
 ## Tests
@@ -79,7 +78,7 @@ Before handoff, in order:
 
 1. `gofmt -w` on the Go files you modified. Parts of the tree are not gofmt-clean; format only what you touched.
 2. `go build ./...`
-3. `go vet` on the changed packages.
+3. `go vet` on the changed packages, and fix every finding your change introduced. Some packages carry older findings (unreachable code in `oracle/parser`); leave those to their own PR.
 4. `go generate` for any AST package you changed, then confirm `git status --porcelain` is empty apart from your edits.
 5. `make test-<engine>` for every engine you touched. To see what CI will run, `scripts/affected-packages.sh origin/main`.
 6. For `proto/`: `make proto`, then `make proto-breaking`.

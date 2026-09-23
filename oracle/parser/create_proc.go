@@ -92,8 +92,10 @@ func (p *Parser) parseWrappedProcedure(stmt *nodes.CreateProcedureStmt) (*nodes.
 	wrappedStart := p.cur.Loc
 	stmt.Wrapped = true
 
-	wrappedEnd := len(p.source)
-	if idx := strings.IndexByte(p.source[wrappedTok.End:], ';'); idx >= 0 {
+	// The wrapped body runs to the next ';' or to the end of the parsed range;
+	// text past p.lexer.end belongs to a later segment.
+	wrappedEnd := p.lexer.end
+	if idx := strings.IndexByte(p.source[wrappedTok.End:p.lexer.end], ';'); idx >= 0 {
 		wrappedEnd = wrappedTok.End + idx
 	}
 	wrappedSourceEnd := trimRightSpace(p.source, wrappedEnd)
@@ -107,7 +109,7 @@ func (p *Parser) parseWrappedProcedure(stmt *nodes.CreateProcedureStmt) (*nodes.
 	stmt.Loc.End = wrappedSourceEnd
 	p.prev = Token{Type: tokIDENT, Str: "WRAPPED", Loc: wrappedStart, End: wrappedSourceEnd}
 	p.hasNext = false
-	if wrappedEnd < len(p.source) && p.source[wrappedEnd] == ';' {
+	if wrappedEnd < p.lexer.end && p.source[wrappedEnd] == ';' {
 		p.cur = Token{Type: ';', Str: ";", Loc: wrappedEnd, End: wrappedEnd + 1}
 		p.lexer.pos = wrappedEnd + 1
 	} else {

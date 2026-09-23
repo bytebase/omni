@@ -27,13 +27,20 @@ type Parser struct {
 // Parse parses a SQL string into an AST list.
 // Each statement is wrapped in a *RawStmt.
 func Parse(sql string) (*nodes.List, error) {
-	if err := validateBalancedDelimiters(sql); err != nil {
+	return ParseRange(sql, 0, len(sql))
+}
+
+// ParseRange parses source[start:end] in place. Every Loc and error Position
+// is an offset into source, so a caller that split a script can parse each
+// segment with absolute positions without copying or padding the text.
+func ParseRange(source string, start, end int) (*nodes.List, error) {
+	if err := validateBalancedDelimiters(source, start, end); err != nil {
 		return nil, err
 	}
 
 	p := &Parser{
-		lexer:  NewLexer(sql),
-		source: sql,
+		lexer:  NewLexerRange(source, start, end),
+		source: source,
 	}
 	p.advance()
 
@@ -82,8 +89,8 @@ func Parse(sql string) (*nodes.List, error) {
 	return &nodes.List{Items: stmts}, nil
 }
 
-func validateBalancedDelimiters(sql string) error {
-	lexer := NewLexer(sql)
+func validateBalancedDelimiters(sql string, start, end int) error {
+	lexer := NewLexerRange(sql, start, end)
 	depth := 0
 	for {
 		tok := lexer.NextToken()
