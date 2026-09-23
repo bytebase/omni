@@ -82,8 +82,22 @@ func TestReview(t *testing.T) {
 			},
 		},
 		{
+			name:    "require where skips a plain EXPLAIN but not EXPLAIN ANALYZE",
+			sql:     "EXPLAIN UPDATE t SET a = 1; EXPLAIN (ANALYZE false) DELETE FROM t; EXPLAIN (ANALYZE off) DELETE FROM t; EXPLAIN (ANALYZE 0) DELETE FROM t;\nEXPLAIN ANALYZE DELETE FROM u; EXPLAIN (ANALYZE, BUFFERS) DELETE FROM v; EXPLAIN (ANALYZE true) DELETE FROM w; EXPLAIN (ANALYZE on) DELETE FROM x; EXPLAIN (ANALYZE 1) DELETE FROM y;",
+			targets: 1,
+			want: func(t *testing.T, sql string) []finding {
+				return []finding{
+					{review.RequireWhere, 4, span(t, sql, "DELETE FROM u"), "DELETE FROM u has no WHERE clause"},
+					{review.RequireWhere, 5, span(t, sql, "DELETE FROM v"), "DELETE FROM v has no WHERE clause"},
+					{review.RequireWhere, 6, span(t, sql, "DELETE FROM w"), "DELETE FROM w has no WHERE clause"},
+					{review.RequireWhere, 7, span(t, sql, "DELETE FROM x"), "DELETE FROM x has no WHERE clause"},
+					{review.RequireWhere, 8, span(t, sql, "DELETE FROM y"), "DELETE FROM y has no WHERE clause"},
+				}
+			},
+		},
+		{
 			name:    "require is null",
-			sql:     "SELECT 1 FROM t WHERE a = NULL OR NULL != b OR c IS NULL OR d = NULL::int OR (e + 1) <> NULL OR f IS DISTINCT FROM NULL OR g OPERATOR(custom.=) NULL OR h OPERATOR(pg_catalog.<>) NULL;\nUPDATE \"T\" SET x = NULL WHERE y\n  =\n NULL;",
+			sql:     "SELECT 1 FROM t WHERE a = NULL OR NULL != b OR c IS NULL OR d = NULL::int OR (e + 1) <> NULL OR f IS DISTINCT FROM NULL OR g OPERATOR(custom.=) NULL OR h OPERATOR(pg_catalog.<>) NULL OR i = (NULL::text COLLATE \"C\") OR j = NULL COLLATE \"C\";\nUPDATE \"T\" SET x = NULL WHERE y\n  =\n NULL;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
@@ -92,6 +106,8 @@ func TestReview(t *testing.T) {
 					{review.RequireIsNull, 0, span(t, sql, "d = NULL::int"), `"d = NULL::int" is never true; use IS NULL`},
 					{review.RequireIsNull, 0, span(t, sql, "(e + 1) <> NULL"), `"(e + 1) <> NULL" is never true; use IS NOT NULL`},
 					{review.RequireIsNull, 0, span(t, sql, "h OPERATOR(pg_catalog.<>) NULL"), `"h OPERATOR(pg_catalog.<>) NULL" is never true; use IS NOT NULL`},
+					{review.RequireIsNull, 0, span(t, sql, `i = (NULL::text COLLATE "C")`), `"i = (NULL::text COLLATE "C")" is never true; use IS NULL`},
+					{review.RequireIsNull, 0, span(t, sql, `j = NULL COLLATE "C"`), `"j = NULL COLLATE "C"" is never true; use IS NULL`},
 					{review.RequireIsNull, 1, span(t, sql, "y\n  =\n NULL"), `"y = NULL" is never true; use IS NULL`},
 				}
 			},
@@ -146,6 +162,17 @@ func TestReview(t *testing.T) {
 					{review.DisallowTruncate, 0, span(t, sql, "TRUNCATE u"), "truncates u"},
 					{review.DisallowRename, 0, span(t, sql, "ALTER TABLE v RENAME TO w"), "renames table v to w"},
 					{review.RequireWhere, 0, span(t, sql, "DELETE FROM x"), "DELETE FROM x has no WHERE clause"},
+				}
+			},
+		},
+		{
+			name:    "identifiers that need quoting keep their quotes",
+			sql:     `DROP TABLE "select", "user", "Order", "with space", "order", "off", "text"; TRUNCATE "select"."user";`,
+			targets: 1,
+			want: func(t *testing.T, sql string) []finding {
+				return []finding{
+					{review.DisallowDropObject, 0, span(t, sql, `DROP TABLE "select", "user", "Order", "with space", "order", "off", "text"`), `drops table "select", "user", "Order", "with space", "order", off, text`},
+					{review.DisallowTruncate, 1, span(t, sql, `TRUNCATE "select"."user"`), `truncates "select"."user"`},
 				}
 			},
 		},

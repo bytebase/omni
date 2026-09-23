@@ -4,11 +4,15 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/pg/ast"
+	"github.com/bytebase/omni/pg/parser"
 )
 
-// ident writes an identifier the way SQL would: bare when it is a plain
-// lower-case name, double-quoted otherwise. The parser folds unquoted
-// names, so this is the closest the message gets to the SQL's spelling.
+// ident writes an identifier the way quote_identifier does: bare when it
+// is a plain lower-case name that is not a keyword needing quotes,
+// double-quoted otherwise. The parser folds unquoted names, so this is
+// the closest the message gets to the SQL's spelling.
+//
+// pg: src/backend/utils/adt/ruleutils.c — quote_identifier
 func ident(name string) string {
 	if name == "" {
 		return `""`
@@ -24,7 +28,9 @@ func ident(name string) string {
 		}
 	}
 	if plain {
-		return name
+		if kw := parser.LookupKeyword(name); kw == nil || kw.Category == parser.UnreservedKeyword {
+			return name
+		}
 	}
 	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }

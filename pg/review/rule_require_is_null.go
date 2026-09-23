@@ -53,13 +53,15 @@ func builtinOperator(name *ast.List) (string, bool) {
 }
 
 // isNullLiteral reports whether the expression is the NULL constant,
-// possibly under casts.
+// possibly under casts and collations, as in NULL::text COLLATE "C".
 func isNullLiteral(n ast.Node) bool {
 	for {
 		switch v := n.(type) {
 		case *ast.A_Const:
 			return v.Isnull
 		case *ast.TypeCast:
+			n = v.Arg
+		case *ast.CollateClause:
 			n = v.Arg
 		default:
 			return false
