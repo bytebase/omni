@@ -141,6 +141,14 @@ func TestContext_ScopeSurvivesOtherParseErrors(t *testing.T) {
 			t.Errorf("%s: columns=%v, want custkey from the recovered FROM scope", c.name, texts(got, CandidateColumn))
 		}
 	}
+	// A non-reserved keyword is a valid alias (FROM customer comment), and
+	// the fallback must record it so a qualified caret resolves through it.
+	sql3 := "SELECT comment. FROM customer comment WHERE x ="
+	got3 := Complete(sql3, len("SELECT comment."), cat)
+	if !has(got3, CandidateColumn, "custkey") {
+		t.Errorf("keyword alias lost in fallback: columns=%v", texts(got3, CandidateColumn))
+	}
+
 	// A qualified relation is a catalog table even when a CTE shares its
 	// name; only an unqualified name can reference the CTE.
 	sql2 := "WITH customer AS (SELECT 1 AS one) SELECT  FROM tpch.sf1.customer WHERE x ="

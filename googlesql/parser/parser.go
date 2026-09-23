@@ -759,6 +759,7 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 		}
 	}
 	if p.cur.Type != tokEOF {
+		before := len(p.errors)
 		node, err := p.parseStmt()
 		if err != nil {
 			if pe, ok := err.(*ParseError); ok {
@@ -782,6 +783,13 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 			// path — a parse that already errored left cur mid-statement, so
 			// asserting EOF there would emit a spurious second diagnostic.
 			p.errors = append(p.errors, *p.syntaxErrorAtCur())
+			node = nil
+		} else if strictTrailing && len(p.errors) > before {
+			// parseStmt returned a node but recorded an error on the way, as
+			// fillSubqueries does for an embedded query that does not parse
+			// (`SELECT (SELECT 1 FROM t a b)`). The segment did not parse
+			// completely, so strict mode drops the node; ParseBestEffort keeps
+			// the partial tree.
 			node = nil
 		}
 		result = node

@@ -10,6 +10,10 @@ func TestStrictParseRejectsTrailingTokens(t *testing.T) {
 		"SELECT a FROM t 1 2",
 		"SELECT a FROM t WHERE x = 1 ) ) ) DROP",
 		"INSERT INTO t (a) VALUES (1) extra",
+		// The embedded subquery is re-parsed by fillSubqueries; its failure
+		// must drop the outer statement too, not just add an error.
+		"SELECT (SELECT 1 FROM t a b) AS x FROM u",
+		"SELECT a FROM t WHERE EXISTS (SELECT (SELECT 1 FROM w 1 2) FROM v)",
 	} {
 		file, errs := parseForTest(sql)
 		if len(errs) == 0 {

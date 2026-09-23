@@ -328,18 +328,48 @@ func readDottedRelation(toks []parser.Token, j int, allowAlias bool) (*scopeTabl
 	default:
 		st.catalog, st.schema, st.table = parts[len(parts)-3], parts[len(parts)-2], parts[len(parts)-1]
 	}
-	// Optional alias (MERGE only): "AS x" or a bare following identifier (a
-	// keyword such as SET that starts the next clause is not an alias).
+	// Optional alias: "AS x" or a bare following identifier. Trino also
+	// accepts a non-reserved keyword as an alias (FROM customer comment), but
+	// a clause keyword such as LIMIT or FETCH takes an operand, so a keyword
+	// is an alias only when nothing operand-like follows it. A reserved word
+	// (WHERE, JOIN, USING) never is.
 	if allowAlias && k < len(toks) {
-		if isKeyword(toks[k], "as") && k+1 < len(toks) && isPlainIdent(toks[k+1]) {
+		if isKeyword(toks[k], "as") && k+1 < len(toks) && isAliasToken(toks[k+1]) {
 			st.alias = normalizeQualifierPart(toks[k+1])
 			k += 2
 		} else if isPlainIdent(toks[k]) {
 			st.alias = normalizeQualifierPart(toks[k])
 			k++
+		} else if isAliasToken(toks[k]) && !operandFollows(toks, k+1) {
+			st.alias = normalizeQualifierPart(toks[k])
+			k++
 		}
 	}
 	return st, k - j
+}
+
+// isAliasToken reports whether tok can be a relation alias: an identifier or
+// a non-reserved keyword.
+func isAliasToken(tok parser.Token) bool {
+	if isPlainIdent(tok) {
+		return true
+	}
+	return isNameToken(tok) && !isQuotedNameToken(tok) && !isReservedWord(tok.Str)
+}
+
+// operandFollows reports whether toks[k] looks like the operand of a clause
+// keyword (a literal, a name, or a non-reserved keyword) rather than the
+// start of the next clause, a separator, or the end of input.
+func operandFollows(toks []parser.Token, k int) bool {
+	if k >= len(toks) {
+		return false
+	}
+	tok := toks[k]
+	switch parser.TokenName(tok.Kind) {
+	case "STRING", "UNICODE_STRING", "BINARY_LITERAL", "INTEGER_VALUE", "DECIMAL_VALUE", "DOUBLE_VALUE":
+		return true
+	}
+	return isAliasToken(tok)
 }
 
 // isKeywordAt reports whether toks[i] is the given keyword (bounds-checked).
