@@ -141,10 +141,10 @@ func builtinOperator(name *ast.List) (string, bool) {
 }
 
 // isNullLiteral reports whether the expression is the NULL constant, bare
-// or as a typed null (NULL::text), with a collation inside or outside the
-// cast. A cast of a typed null, (NULL::a)::b, calls the cast function,
-// which a user may have defined as not strict, so it is not taken as
-// null.
+// or as a typed null (NULL::text), with any collations inside or outside
+// the cast. A cast of a typed null, (NULL::a)::b, calls the cast
+// function, which a user may have defined as not strict, so it is not
+// taken as null.
 func isNullLiteral(n ast.Node) bool {
 	n = uncollate(n)
 	if tc, ok := n.(*ast.TypeCast); ok {
@@ -154,9 +154,13 @@ func isNullLiteral(n ast.Node) bool {
 	return ok && c.Isnull
 }
 
+// uncollate strips every collation wrapped directly around n.
 func uncollate(n ast.Node) ast.Node {
-	if c, ok := n.(*ast.CollateClause); ok {
-		return c.Arg
+	for {
+		c, ok := n.(*ast.CollateClause)
+		if !ok {
+			return n
+		}
+		n = c.Arg
 	}
-	return n
 }

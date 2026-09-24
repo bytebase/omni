@@ -87,6 +87,15 @@ func TestReview(t *testing.T) {
 			},
 		},
 		{
+			name:    "text the parser drops is a syntax error: anchored past comments and metacommands",
+			sql:     "DELETE FROM t;\n-- header\n\\restrict abc\n/* block */ 'unterminated",
+			targets: 1,
+			want: func(t *testing.T, sql string) []finding {
+				at := strings.Index(sql, "'unterminated")
+				return []finding{{review.Syntax, 1, review.Range{Start: at, End: at}, `syntax error at or near "'unterminated"`}}
+			},
+		},
+		{
 			name:    "text the parser drops is a syntax error: unterminated identifier",
 			sql:     "DELETE FROM t; \"abc",
 			targets: 1,
@@ -126,7 +135,7 @@ func TestReview(t *testing.T) {
 		},
 		{
 			name:    "require is null",
-			sql:     "SELECT 1 FROM t WHERE a = NULL OR NULL != b OR c IS NULL OR d = NULL::int OR (e + 1) <> NULL OR f IS DISTINCT FROM NULL OR g OPERATOR(custom.=) NULL OR h OPERATOR(pg_catalog.<>) NULL OR i = (NULL::text COLLATE \"C\") OR j = NULL COLLATE \"C\" OR k = (NULL::text)::custom OR l = (NULL COLLATE \"C\")::text;\nUPDATE \"T\" SET x = NULL WHERE y\n  =\n NULL;",
+			sql:     "SELECT 1 FROM t WHERE a = NULL OR NULL != b OR c IS NULL OR d = NULL::int OR (e + 1) <> NULL OR f IS DISTINCT FROM NULL OR g OPERATOR(custom.=) NULL OR h OPERATOR(pg_catalog.<>) NULL OR i = (NULL::text COLLATE \"C\") OR j = NULL COLLATE \"C\" OR k = (NULL::text)::custom OR l = (NULL COLLATE \"C\")::text OR m = NULL COLLATE \"C\" COLLATE \"POSIX\";\nUPDATE \"T\" SET x = NULL WHERE y\n  =\n NULL;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
@@ -138,6 +147,7 @@ func TestReview(t *testing.T) {
 					{review.RequireIsNull, 0, span(t, sql, `i = (NULL::text COLLATE "C")`), `"i = (NULL::text COLLATE "C")" is never true; use IS NULL`},
 					{review.RequireIsNull, 0, span(t, sql, `j = NULL COLLATE "C"`), `"j = NULL COLLATE "C"" is never true; use IS NULL`},
 					{review.RequireIsNull, 0, span(t, sql, `l = (NULL COLLATE "C")::text`), `"l = (NULL COLLATE "C")::text" is never true; use IS NULL`},
+					{review.RequireIsNull, 0, span(t, sql, `m = NULL COLLATE "C" COLLATE "POSIX"`), `"m = NULL COLLATE "C" COLLATE "POSIX"" is never true; use IS NULL`},
 					{review.RequireIsNull, 1, span(t, sql, "y\n  =\n NULL"), `"y = NULL" is never true; use IS NULL`},
 				}
 			},

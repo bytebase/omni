@@ -8,6 +8,7 @@ import (
 
 	"github.com/bytebase/omni/pg"
 	"github.com/bytebase/omni/pg/ast"
+	"github.com/bytebase/omni/pg/internal/metacmd"
 	"github.com/bytebase/omni/pg/parser"
 	"github.com/bytebase/omni/review"
 )
@@ -77,10 +78,11 @@ func parse(sql string, ranges []review.Range) ([]statement, *review.Finding) {
 
 // unparsedFinding is the Syntax finding for a non-empty range the parser
 // produced no statement for. The parser gives no message for it, so the
-// finding names the first token of the text the way a syntax error does.
+// finding names the first token of the text, past any comment or psql
+// metacommand before it, the way a syntax error does.
 func unparsedFinding(sql string, index int, r review.Range) *review.Finding {
-	loc := contentLoc(sql, r.Start, r.End)
-	text := sql[loc.Start:loc.End]
+	start := skipTrivia(sql, r.Start, r.End)
+	text := sql[start:r.End]
 	if i := strings.IndexAny(text, " \t\r\n\f\v"); i >= 0 {
 		text = text[:i]
 	}
@@ -90,9 +92,52 @@ func unparsedFinding(sql string, index int, r review.Range) *review.Finding {
 	return &review.Finding{
 		Rule:      review.Syntax,
 		Statement: index,
-		Range:     review.Range{Start: loc.Start, End: loc.Start},
+		Range:     review.Range{Start: start, End: start},
 		Message:   escapeLines(fmt.Sprintf("syntax error at or near %q", text)),
 	}
+}
+
+// skipTrivia returns the offset of the first byte in [start, end) that is
+// not whitespace, a complete comment, or a psql metacommand line. An
+// unterminated block comment is not trivia: it is the text at fault.
+func skipTrivia(sql string, start, end int) int {
+	i := start
+	for i < end {
+		switch {
+		case isSpace(sql[i]):
+			i++
+		case metacmd.IsMetaCommand(sql, i):
+			i = metacmd.SkipLine(sql, i)
+		case strings.HasPrefix(sql[i:end], "--"):
+			for i < end && sql[i] != '\n' && sql[i] != '\r' {
+				i++
+			}
+		case strings.HasPrefix(sql[i:end], "/*"):
+			depth, j := 0, i
+			for j < end {
+				switch {
+				case strings.HasPrefix(sql[j:end], "/*"):
+					depth++
+					j += 2
+				case strings.HasPrefix(sql[j:end], "*/"):
+					depth--
+					j += 2
+				default:
+					j++
+				}
+				if depth == 0 {
+					break
+				}
+			}
+			if depth > 0 {
+				return i
+			}
+			i = j
+		default:
+			return i
+		}
+	}
+	return i
 }
 
 // contentLoc is the range of a statement's text without its surrounding
