@@ -133,43 +133,75 @@ func objectName(kind ast.ObjectType, obj ast.Node) string {
 }
 
 // collapseSpace puts SQL text on one line: each run of whitespace outside
-// a quoted identifier or string becomes one space, and leading and
-// trailing whitespace goes. Whitespace inside quotes is part of the name
-// or value and stays, except that a line break there is written as \n
-// or \r so the result is still one line.
+// a quoted identifier, string, or dollar-quoted string becomes one space,
+// and leading and trailing whitespace goes. Whitespace inside quotes is
+// part of the name or value and stays, except that a line break there is
+// written as \n or \r so the result is still one line.
 func collapseSpace(s string) string {
 	var b strings.Builder
-	var quote byte
 	pending := false
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		switch {
-		case quote != 0:
-			switch c {
+	writeQuoted := func(text string) {
+		for i := 0; i < len(text); i++ {
+			switch text[i] {
 			case '\n':
 				b.WriteString(`\n`)
 			case '\r':
 				b.WriteString(`\r`)
 			default:
-				b.WriteByte(c)
+				b.WriteByte(text[i])
 			}
-			if c == quote {
-				quote = 0
-			}
-		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
-			pending = b.Len() > 0
-		default:
-			if pending {
-				b.WriteByte(' ')
-				pending = false
-			}
-			if c == '"' || c == '\'' {
-				quote = c
-			}
-			b.WriteByte(c)
 		}
 	}
+	for i := 0; i < len(s); {
+		c := s[i]
+		if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
+			pending = b.Len() > 0
+			i++
+			continue
+		}
+		if pending {
+			b.WriteByte(' ')
+			pending = false
+		}
+		end := i + 1
+		switch {
+		case c == '"' || c == '\'':
+			if j := strings.IndexByte(s[i+1:], c); j >= 0 {
+				end = i + 1 + j + 1
+			} else {
+				end = len(s)
+			}
+		case c == '$':
+			if tag := dollarTag(s[i:]); tag != "" {
+				if j := strings.Index(s[i+len(tag):], tag); j >= 0 {
+					end = i + len(tag) + j + len(tag)
+				} else {
+					end = len(s)
+				}
+			}
+		}
+		writeQuoted(s[i:end])
+		i = end
+	}
 	return b.String()
+}
+
+// dollarTag returns the $tag$ delimiter that s starts with, or "" when s
+// does not start one: the tag is empty or an identifier that does not
+// begin with a digit, and $1 is a parameter, not a delimiter.
+func dollarTag(s string) string {
+	for i := 1; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c == '$':
+			return s[:i+1]
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c == '_', c >= 0x80:
+		case c >= '0' && c <= '9' && i > 1:
+		default:
+			return ""
+		}
+	}
+	return ""
 }
 
 func listOf(n ast.Node) *ast.List {

@@ -56,6 +56,9 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 		checkOnlineMigration(opts.Change, r)
 	}
 	for i := range stmts {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		s := &stmts[i]
 		if on[review.RequireIsNull] {
 			checkRequireIsNull(sql, s, r)

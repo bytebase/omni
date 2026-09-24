@@ -70,6 +70,31 @@ func TestReview(t *testing.T) {
 			},
 		},
 		{
+			name:    "text the parser drops is a syntax error: unterminated string",
+			sql:     "'unterminated",
+			targets: 1,
+			ranges:  []review.Range{{Start: 0, End: 13}},
+			want: func(t *testing.T, sql string) []finding {
+				return []finding{{review.Syntax, 0, review.Range{}, `syntax error at or near "'unterminated"`}}
+			},
+		},
+		{
+			name:    "text the parser drops is a syntax error: unterminated comment after a statement",
+			sql:     "DELETE FROM t;\n  /* unterminated\ncomment",
+			targets: 1,
+			want: func(t *testing.T, sql string) []finding {
+				return []finding{{review.Syntax, 1, review.Range{Start: 17, End: 17}, `syntax error at or near "/*"`}}
+			},
+		},
+		{
+			name:    "text the parser drops is a syntax error: unterminated identifier",
+			sql:     "DELETE FROM t; \"abc",
+			targets: 1,
+			want: func(t *testing.T, sql string) []finding {
+				return []finding{{review.Syntax, 1, review.Range{Start: 15, End: 15}, `syntax error at or near "\"abc"`}}
+			},
+		},
+		{
 			name:    "require where",
 			sql:     "UPDATE t SET a = 1; DELETE FROM s.t USING u; DELETE FROM t WHERE a = 1;\nWITH d AS (DELETE FROM t RETURNING *) SELECT 1; MERGE INTO t USING u ON t.id = u.id WHEN MATCHED THEN DELETE;",
 			targets: 1,
@@ -188,7 +213,7 @@ func TestReview(t *testing.T) {
 		},
 		{
 			name:    "identifiers that need quoting keep their quotes and their spaces",
-			sql:     "DROP TABLE \"select\", \"user\", \"Order\", \"with  two\", \"order\", \"off\", \"text\"; TRUNCATE \"select\".\"user\"; DROP FUNCTION f(), s.p(); DROP PROCEDURE p(); DROP ROUTINE r(); DROP AGGREGATE a(*);\nSELECT 1 FROM t WHERE \"a  b\"\n =\n  NULL;\nSELECT 1 FROM t WHERE \"c\nd\" = NULL; DROP TABLE \"e\r\nf\";",
+			sql:     "DROP TABLE \"select\", \"user\", \"Order\", \"with  two\", \"order\", \"off\", \"text\"; TRUNCATE \"select\".\"user\"; DROP FUNCTION f(), s.p(); DROP PROCEDURE p(); DROP ROUTINE r(); DROP AGGREGATE a(*);\nSELECT 1 FROM t WHERE \"a  b\"\n =\n  NULL;\nSELECT 1 FROM t WHERE \"c\nd\" = NULL; DROP TABLE \"e\r\nf\";\nSELECT 1 FROM t WHERE $$a  b$$ = NULL OR $tag$c\n d$tag$   =  NULL OR 'e  f' = NULL OR $1 = NULL;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
@@ -201,6 +226,10 @@ func TestReview(t *testing.T) {
 					{review.RequireIsNull, 6, span(t, sql, "\"a  b\"\n =\n  NULL"), `""a  b" = NULL" is never true; use IS NULL`},
 					{review.RequireIsNull, 7, span(t, sql, "\"c\nd\" = NULL"), `""c\nd" = NULL" is never true; use IS NULL`},
 					{review.DisallowDropObject, 8, span(t, sql, "DROP TABLE \"e\r\nf\""), `drops table "e\r\nf"`},
+					{review.RequireIsNull, 9, span(t, sql, "$$a  b$$ = NULL"), `"$$a  b$$ = NULL" is never true; use IS NULL`},
+					{review.RequireIsNull, 9, span(t, sql, "$tag$c\n d$tag$   =  NULL"), `"$tag$c\n d$tag$ = NULL" is never true; use IS NULL`},
+					{review.RequireIsNull, 9, span(t, sql, "'e  f' = NULL"), `"'e  f' = NULL" is never true; use IS NULL`},
+					{review.RequireIsNull, 9, span(t, sql, "$1 = NULL"), `"$1 = NULL" is never true; use IS NULL`},
 				}
 			},
 		},

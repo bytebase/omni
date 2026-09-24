@@ -2,7 +2,9 @@ package review
 
 import (
 	"errors"
+	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/bytebase/omni/pg"
 	"github.com/bytebase/omni/pg/ast"
@@ -37,13 +39,16 @@ func statementRanges(sql string) []review.Range {
 // parses with. On success it returns the statements mapped onto ranges.
 // On failure it returns the one Syntax finding of the review: the parser
 // stops at the first error, so there is never more than one, and the
-// review ends there.
+// review ends there. A non-empty range that produced no statement is a
+// failure too: the parser drops an unterminated string, identifier, or
+// comment that begins a statement instead of reporting it.
 func parse(sql string, ranges []review.Range) ([]statement, *review.Finding) {
 	parsed, err := pg.Parse(sql)
 	if err != nil {
 		return nil, syntaxFinding(err, ranges)
 	}
 	stmts := make([]statement, 0, len(parsed))
+	covered := make([]bool, len(ranges))
 	for _, p := range parsed {
 		if p.Empty() {
 			continue
@@ -56,13 +61,38 @@ func parse(sql string, ranges []review.Range) ([]statement, *review.Finding) {
 		if loc.Start < p.ByteStart || loc.End > p.ByteEnd || loc.End <= loc.Start {
 			loc = contentLoc(sql, p.ByteStart, p.ByteEnd)
 		}
-		stmts = append(stmts, statement{
-			index: statementAt(ranges, loc.Start),
-			node:  p.AST,
-			loc:   loc,
-		})
+		index := statementAt(ranges, loc.Start)
+		if index >= 0 {
+			covered[index] = true
+		}
+		stmts = append(stmts, statement{index: index, node: p.AST, loc: loc})
+	}
+	for i, ok := range covered {
+		if !ok {
+			return nil, unparsedFinding(sql, i, ranges[i])
+		}
 	}
 	return stmts, nil
+}
+
+// unparsedFinding is the Syntax finding for a non-empty range the parser
+// produced no statement for. The parser gives no message for it, so the
+// finding names the first token of the text the way a syntax error does.
+func unparsedFinding(sql string, index int, r review.Range) *review.Finding {
+	loc := contentLoc(sql, r.Start, r.End)
+	text := sql[loc.Start:loc.End]
+	if i := strings.IndexAny(text, " \t\r\n"); i >= 0 {
+		text = text[:i]
+	}
+	if len(text) > 40 {
+		text = text[:40]
+	}
+	return &review.Finding{
+		Rule:      review.Syntax,
+		Statement: index,
+		Range:     review.Range{Start: loc.Start, End: loc.Start},
+		Message:   fmt.Sprintf("syntax error at or near %q", text),
+	}
 }
 
 // contentLoc is the range of a statement's text without its surrounding
