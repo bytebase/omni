@@ -70,37 +70,37 @@ func TestReview(t *testing.T) {
 			},
 		},
 		{
-			name:    "text the parser drops is a syntax error: unterminated string",
+			name:    "unterminated string",
 			sql:     "'unterminated",
 			targets: 1,
 			ranges:  []review.Range{{Start: 0, End: 13}},
 			want: func(t *testing.T, sql string) []finding {
-				return []finding{{review.Syntax, 0, review.Range{}, `syntax error at or near "'unterminated"`}}
+				return []finding{{review.Syntax, 0, review.Range{}, `unterminated quoted string at or near "'unterminated"`}}
 			},
 		},
 		{
-			name:    "text the parser drops is a syntax error: unterminated comment after a statement",
+			name:    "unterminated comment after a statement, the message on one line",
 			sql:     "DELETE FROM t;\n  /* unterminated\ncomment",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
-				return []finding{{review.Syntax, 1, review.Range{Start: 17, End: 17}, `syntax error at or near "/*"`}}
+				return []finding{{review.Syntax, 1, review.Range{Start: 17, End: 17}, `unterminated /* comment at or near "/* unterminated\ncomment"`}}
 			},
 		},
 		{
-			name:    "text the parser drops is a syntax error: anchored past comments and metacommands",
+			name:    "unterminated string past comments and metacommands",
 			sql:     "DELETE FROM t;\n-- header\n\\restrict abc\n/* block */ 'unterminated",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				at := strings.Index(sql, "'unterminated")
-				return []finding{{review.Syntax, 1, review.Range{Start: at, End: at}, `syntax error at or near "'unterminated"`}}
+				return []finding{{review.Syntax, 1, review.Range{Start: at, End: at}, `unterminated quoted string at or near "'unterminated"`}}
 			},
 		},
 		{
-			name:    "text the parser drops is a syntax error: unterminated identifier",
+			name:    "unterminated identifier",
 			sql:     "DELETE FROM t; \"abc",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
-				return []finding{{review.Syntax, 1, review.Range{Start: 15, End: 15}, `syntax error at or near "\"abc"`}}
+				return []finding{{review.Syntax, 1, review.Range{Start: 15, End: 15}, `unterminated quoted identifier at or near ""abc"`}}
 			},
 		},
 		{
@@ -253,15 +253,13 @@ func TestReview(t *testing.T) {
 			},
 		},
 		{
-			name:    "a node without a location anchors its own statement",
+			name:    "ALTER TYPE DROP ATTRIBUTE anchors the subcommand",
 			sql:     "SELECT 1; ALTER TYPE t DROP ATTRIBUTE a;\n  ALTER TYPE s.t ADD ATTRIBUTE b int, DROP ATTRIBUTE c CASCADE ;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
-				// The parser gives ALTER TYPE no location, so the finding
-				// takes the statement's range, or none for a subcommand.
 				return []finding{
-					{review.DisallowDropObject, 1, review.Range{}, "drops attribute a of type t"},
-					{review.DisallowDropObject, 2, review.Range{}, "drops attribute c of type s.t"},
+					{review.DisallowDropObject, 1, span(t, sql, "DROP ATTRIBUTE a"), "drops attribute a of type t"},
+					{review.DisallowDropObject, 2, span(t, sql, "DROP ATTRIBUTE c CASCADE"), "drops attribute c of type s.t"},
 				}
 			},
 		},
@@ -413,6 +411,28 @@ func TestReviewStatementsListEveryStatement(t *testing.T) {
 	want := []review.Range{{Start: 0, End: 9}, {Start: 9, End: 21}, {Start: 21, End: 29}}
 	if diff := cmp.Diff(want, result.Statements); diff != "" {
 		t.Errorf("Statements mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestUnparsedFinding(t *testing.T) {
+	// The parser reports an unterminated construct itself now; the range
+	// check behind this finding stays as a guard against text the parser
+	// might drop, so its anchor and message are tested directly.
+	sql := "SELECT 1;\n-- header\n\\restrict abc\n/* block\n */ 'unterminated\n/* open"
+	ranges := statementRanges(sql)
+	if len(ranges) != 2 {
+		t.Fatalf("ranges = %v, want 2", ranges)
+	}
+	at := strings.Index(sql, "'unterminated")
+	got := unparsedFinding(sql, 1, ranges[1])
+	want := &review.Finding{Rule: review.Syntax, Statement: 1, Range: review.Range{Start: at, End: at}, Message: `syntax error at or near "'unterminated"`}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("unparsedFinding mismatch (-want +got):\n%s", diff)
+	}
+	// An unterminated block comment is the text at fault, not trivia.
+	open := strings.Index(sql, "/* open")
+	if got := skipTrivia(sql, open, len(sql)); got != open {
+		t.Errorf("skipTrivia past an open comment = %d, want %d", got, open)
 	}
 }
 
