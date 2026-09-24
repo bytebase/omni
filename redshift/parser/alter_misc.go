@@ -181,13 +181,13 @@ func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 			return stmt, err
 		}
 		// ALTER TYPE name ADD ATTRIBUTE ... (AlterCompositeTypeStmt)
-		return p.parseAlterCompositeType(names)
+		return p.parseAlterCompositeType(names, loc)
 	case DROP:
 		// ALTER TYPE name DROP ATTRIBUTE ... (AlterCompositeTypeStmt)
-		return p.parseAlterCompositeType(names)
+		return p.parseAlterCompositeType(names, loc)
 	case ALTER:
 		// ALTER TYPE name ALTER ATTRIBUTE ... (AlterCompositeTypeStmt)
-		return p.parseAlterCompositeType(names)
+		return p.parseAlterCompositeType(names, loc)
 	case RENAME:
 		p.advance() // consume RENAME
 		switch p.cur.Type {
@@ -201,6 +201,7 @@ func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 				RenameType: nodes.OBJECT_TYPE,
 				Object:     names,
 				Newname:    newname,
+				Loc:        nodes.Loc{Start: loc, End: p.prev.End},
 			}, nil
 		case VALUE_P:
 			// ALTER TYPE name RENAME VALUE 'old' TO 'new'
@@ -220,7 +221,7 @@ func (p *Parser) parseAlterTypeStmt() (nodes.Node, error) {
 			}, nil
 		case ATTRIBUTE:
 			// ALTER TYPE name RENAME ATTRIBUTE name TO name opt_drop_behavior
-			return p.parseAlterCompositeTypeRename(names)
+			return p.parseAlterCompositeTypeRename(names, loc)
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -318,8 +319,8 @@ func (p *Parser) parseAlterEnumAddValue(typname *nodes.List) (*nodes.AlterEnumSt
 }
 
 // parseAlterCompositeType parses AlterCompositeTypeStmt (ALTER TYPE name alter_type_cmds).
-// Current token is ADD/DROP/ALTER.
-func (p *Parser) parseAlterCompositeType(names *nodes.List) (*nodes.AlterTableStmt, error) {
+// Current token is ADD/DROP/ALTER. loc is the byte offset of the ALTER keyword.
+func (p *Parser) parseAlterCompositeType(names *nodes.List, loc int) (*nodes.AlterTableStmt, error) {
 	cmds, err := p.parseAlterTypeCmds()
 	if err != nil {
 		return nil, err
@@ -329,12 +330,13 @@ func (p *Parser) parseAlterCompositeType(names *nodes.List) (*nodes.AlterTableSt
 		Relation: rv,
 		Cmds:     cmds,
 		ObjType:  int(nodes.OBJECT_TYPE),
+		Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
 // parseAlterCompositeTypeRename parses ALTER TYPE name RENAME ATTRIBUTE name TO name opt_drop_behavior.
-// RENAME has been consumed. Current token is ATTRIBUTE.
-func (p *Parser) parseAlterCompositeTypeRename(names *nodes.List) (*nodes.RenameStmt, error) {
+// RENAME has been consumed. Current token is ATTRIBUTE. loc is the byte offset of the ALTER keyword.
+func (p *Parser) parseAlterCompositeTypeRename(names *nodes.List, loc int) (*nodes.RenameStmt, error) {
 	p.advance() // consume ATTRIBUTE
 	subname, err := p.parseName()
 	if err != nil {
@@ -355,6 +357,7 @@ func (p *Parser) parseAlterCompositeTypeRename(names *nodes.List) (*nodes.Rename
 		Subname:      subname,
 		Newname:      newname,
 		Behavior:     nodes.DropBehavior(behavior),
+		Loc:          nodes.Loc{Start: loc, End: p.prev.End},
 	}, nil
 }
 
@@ -400,6 +403,7 @@ func (p *Parser) parseAlterTypeCmds() (*nodes.List, error) {
 
 // parseAlterTypeCmd parses alter_type_cmd.
 func (p *Parser) parseAlterTypeCmd() (*nodes.AlterTableCmd, error) {
+	cmdLoc := p.pos()
 	switch p.cur.Type {
 	case ADD_P:
 		p.advance()
@@ -415,6 +419,7 @@ func (p *Parser) parseAlterTypeCmd() (*nodes.AlterTableCmd, error) {
 			Subtype:  int(nodes.AT_AddColumn),
 			Def:      elem,
 			Behavior: behavior,
+			Loc:      nodes.Loc{Start: cmdLoc, End: p.prev.End},
 		}, nil
 	case DROP:
 		p.advance()
@@ -439,6 +444,7 @@ func (p *Parser) parseAlterTypeCmd() (*nodes.AlterTableCmd, error) {
 			Name:       colname,
 			Behavior:   behavior,
 			Missing_ok: missingOk,
+			Loc:        nodes.Loc{Start: cmdLoc, End: p.prev.End},
 		}, nil
 	case ALTER:
 		p.advance()
@@ -483,6 +489,7 @@ func (p *Parser) parseAlterTypeCmd() (*nodes.AlterTableCmd, error) {
 			Name:     colname,
 			Def:      coldef,
 			Behavior: behavior,
+			Loc:      nodes.Loc{Start: cmdLoc, End: p.prev.End},
 		}, nil
 	// exhaustive: gram.y:3239 — alter_type_cmd enumerates ADD ATTRIBUTE /
 	// DROP ATTRIBUTE / ALTER ATTRIBUTE. Any other token after
