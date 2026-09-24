@@ -71,22 +71,63 @@ func TestParseUnterminatedConstructs(t *testing.T) {
 	}
 }
 
-// TestParseLexerErrorBehindLookahead covers a lexer failure that is hit while
-// peeking past a NOT/WITH token for reclassification: the error token sits in
-// the lookahead buffer, and the report must still point at the construct.
-func TestParseLexerErrorBehindLookahead(t *testing.T) {
-	sql := "SELECT 1; WITH 'abc"
-	_, err := Parse(sql)
+func checkLexerError(t *testing.T, sql, wantMsg string, wantPos int) {
+	t.Helper()
+	list, err := Parse(sql)
+	if err == nil {
+		n := 0
+		if list != nil {
+			n = len(list.Items)
+		}
+		t.Fatalf("Parse(%q) returned %d statements and no error", sql, n)
+	}
 	var pe *ParseError
 	if !errors.As(err, &pe) {
-		t.Fatalf("Parse(%q) error = %v, want *ParseError", sql, err)
+		t.Fatalf("Parse(%q) error is %T, want *ParseError", sql, err)
 	}
-	if want := `unterminated quoted string at or near "'abc"`; pe.Message != want {
-		t.Errorf("message = %q, want %q", pe.Message, want)
+	if pe.Message != wantMsg {
+		t.Errorf("Parse(%q) message = %q, want %q", sql, pe.Message, wantMsg)
 	}
-	if pe.Position != 15 {
-		t.Errorf("position = %d, want 15", pe.Position)
+	if pe.Position != wantPos {
+		t.Errorf("Parse(%q) position = %d, want %d", sql, pe.Position, wantPos)
 	}
+}
+
+// TestParseLexerErrorBehindLookahead covers a lexer failure that is hit while
+// peeking past a NOT/WITH token for reclassification: the error token sits in
+// the lookahead buffer, whether the statement then ends cleanly or the grammar
+// rejects the EOF token it sees. The lexer's report wins in both cases.
+func TestParseLexerErrorBehindLookahead(t *testing.T) {
+	checkLexerError(t, "SELECT 1; WITH 'abc", `unterminated quoted string at or near "'abc"`, 15)
+	checkLexerError(t, "SELECT NOT 'abc", `unterminated quoted string at or near "'abc"`, 11)
+	checkLexerError(t, "SELECT 1 WITH 'abc", `unterminated quoted string at or near "'abc"`, 14)
+}
+
+// TestParseLexerErrorAfterConsumedKeyword: a dispatcher that consumes its
+// leading keyword and then returns no statement at the erroneous EOF must not
+// look like a clean end of input.
+func TestParseLexerErrorAfterConsumedKeyword(t *testing.T) {
+	checkLexerError(t, "ALTER 'abc", `unterminated quoted string at or near "'abc"`, 6)
+	checkLexerError(t, "DROP /* abc", `unterminated /* comment at or near "/* abc"`, 5)
+	checkLexerError(t, "SELECT 1; SET /* abc", `unterminated /* comment at or near "/* abc"`, 14)
+	checkLexerError(t, "SELECT 1; ALTER $$abc", `unterminated dollar-quoted string at or near "$$abc"`, 16)
+}
+
+// TestParseTrailingJunkQuotesJunk: PostgreSQL's junk rules match the literal
+// plus the whole trailing identifier, so the diagnostic shows what made the
+// token invalid rather than the valid prefix. Expectations checked against
+// PostgreSQL 17.
+func TestParseTrailingJunkQuotesJunk(t *testing.T) {
+	checkLexerError(t, "SELECT $1foo", `trailing junk after parameter at or near "$1foo"`, 7)
+	checkLexerError(t, "SELECT 123abc", `trailing junk after numeric literal at or near "123abc"`, 7)
+	checkLexerError(t, "SELECT 123abc + 1", `trailing junk after numeric literal at or near "123abc"`, 7)
+	checkLexerError(t, "SELECT 1.5abc", `trailing junk after numeric literal at or near "1.5abc"`, 7)
+	checkLexerError(t, "SELECT 1e5abc", `trailing junk after numeric literal at or near "1e5abc"`, 7)
+	checkLexerError(t, "SELECT 0x1fzz", `trailing junk after numeric literal at or near "0x1fzz"`, 7)
+	checkLexerError(t, "SELECT 0o17zz", `trailing junk after numeric literal at or near "0o17zz"`, 7)
+	checkLexerError(t, "SELECT 0b101zz", `trailing junk after numeric literal at or near "0b101zz"`, 7)
+	checkLexerError(t, "SELECT 1e", `trailing junk after numeric literal at or near "1e"`, 7)
+	checkLexerError(t, "SELECT 123日本", `trailing junk after numeric literal at or near "123日本"`, 7)
 }
 
 // TestParseZeroLengthIdentifierAtStatementStart: the other lexer failure that

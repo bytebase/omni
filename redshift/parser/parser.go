@@ -66,6 +66,15 @@ func Parse(sql string) (*nodes.List, error) {
 		stmtStart := p.pos()
 		p.stmtStart = stmtStart
 		stmt, err := p.parseStmt()
+		// A lexer failure reached during the statement (possibly only in
+		// the NOT/WITH lookahead buffer) outranks the grammar's reading of
+		// the resulting EOF token: PostgreSQL's scanner raises it before
+		// the grammar ever sees the token. A dispatcher that consumed its
+		// leading keyword and then returned no statement at that EOF must
+		// not look like a clean end of input either.
+		if p.lexer.Err != nil && (err != nil || stmt == nil) {
+			return nil, p.lexerError()
+		}
 		if err != nil {
 			return nil, err
 		}

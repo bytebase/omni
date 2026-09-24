@@ -825,6 +825,7 @@ func (l *Lexer) lexParam() Token {
 	// Check for trailing junk
 	if l.pos < len(l.input) && isIdentStart(l.input[l.pos]) {
 		l.Err = fmt.Errorf("trailing junk after parameter")
+		l.consumeJunkIdent()
 		return Token{Type: lex_EOF, Loc: l.start}
 	}
 
@@ -954,6 +955,7 @@ done:
 	// Check for trailing identifier
 	if l.pos < len(l.input) && isIdentStart(l.input[l.pos]) {
 		l.Err = fmt.Errorf("trailing junk after numeric literal")
+		l.consumeJunkIdent()
 		return Token{Type: lex_EOF, Loc: l.start}
 	}
 
@@ -1003,6 +1005,7 @@ func (l *Lexer) lexHexNumber() Token {
 
 	if l.pos < len(l.input) && isIdentStart(l.input[l.pos]) {
 		l.Err = fmt.Errorf("trailing junk after numeric literal")
+		l.consumeJunkIdent()
 		return Token{Type: lex_EOF, Loc: l.start}
 	}
 
@@ -1033,6 +1036,7 @@ func (l *Lexer) lexOctalNumber() Token {
 
 	if l.pos < len(l.input) && isIdentStart(l.input[l.pos]) {
 		l.Err = fmt.Errorf("trailing junk after numeric literal")
+		l.consumeJunkIdent()
 		return Token{Type: lex_EOF, Loc: l.start}
 	}
 
@@ -1063,6 +1067,7 @@ func (l *Lexer) lexBinaryNumber() Token {
 
 	if l.pos < len(l.input) && isIdentStart(l.input[l.pos]) {
 		l.Err = fmt.Errorf("trailing junk after numeric literal")
+		l.consumeJunkIdent()
 		return Token{Type: lex_EOF, Loc: l.start}
 	}
 
@@ -1136,6 +1141,16 @@ func hexValue(ch byte) int {
 		return int(ch - 'a' + 10)
 	}
 	return int(ch - 'A' + 10)
+}
+
+// consumeJunkIdent extends the current token over the identifier that made
+// a numeric literal or parameter invalid. PostgreSQL's junk rules
+// ({integer_junk}, {param_junk}, ...) match the literal followed by a whole
+// {identifier}, so the diagnostic quotes "123abc" rather than the valid "123".
+func (l *Lexer) consumeJunkIdent() {
+	for l.pos < len(l.input) && isIdentCont(l.input[l.pos]) {
+		l.pos++
+	}
 }
 
 func isIdentStart(ch byte) bool {
