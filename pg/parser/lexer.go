@@ -149,6 +149,13 @@ func (l *Lexer) nextTokenInner() Token {
 			if l.state == stateXQS {
 				return l.lexQuoteContinue()
 			}
+			// An unterminated construct reports its error at the construct's
+			// start (PostgreSQL's yylloc), not at end of input. lexComment
+			// reaches this branch after setting Err, with l.start still at
+			// the "/*" that opened the comment.
+			if l.Err != nil {
+				return Token{Type: lex_EOF, Loc: l.start}
+			}
 			return Token{Type: lex_EOF, Loc: l.pos}
 		}
 

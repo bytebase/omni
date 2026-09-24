@@ -41,7 +41,17 @@ func Parse(sql string) (*nodes.List, error) {
 
 	var stmts []nodes.Node
 	needSeparator := false
-	for p.cur.Type != 0 {
+	for {
+		if p.cur.Type == 0 {
+			// The end token also stands in for a lexer failure: an
+			// unterminated string, identifier, comment or dollar quote at
+			// the start of a statement lexes as EOF with Err set. Report it
+			// instead of treating it as end of input.
+			if p.lexer.Err != nil {
+				return nil, p.lexerError()
+			}
+			break
+		}
 		if p.cur.Type == ';' {
 			p.advance()
 			needSeparator = false
@@ -1454,12 +1464,23 @@ func (p *Parser) tokenText(tok Token) string {
 }
 
 func (p *Parser) lexerError() *ParseError {
-	text := p.tokenText(p.cur)
+	// The lexer reports a failure as an EOF token whose Loc..End spans the
+	// offending text (the rest of the input for an unterminated construct,
+	// mirroring PostgreSQL's scanner_yyerror). That token is usually p.cur,
+	// but lookahead reclassification (NOT/WITH) may have buffered it.
+	tok := p.cur
+	if tok.Type != 0 && p.hasNext && p.nextBuf.Type == 0 {
+		tok = p.nextBuf
+	}
+	text := p.tokenText(tok)
+	if tok.Type == 0 && tok.Loc >= 0 && tok.End > tok.Loc && tok.End <= len(p.source) {
+		text = p.source[tok.Loc:tok.End]
+	}
 	var msg string
 	if text != "" {
 		msg = fmt.Sprintf("%s at or near \"%s\"", p.lexer.Err.Error(), text)
 	} else {
 		msg = p.lexer.Err.Error()
 	}
-	return &ParseError{Message: msg, Position: p.cur.Loc}
+	return &ParseError{Message: msg, Position: tok.Loc}
 }
