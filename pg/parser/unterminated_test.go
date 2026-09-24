@@ -126,6 +126,27 @@ func TestParseTrailingJunkQuotesJunk(t *testing.T) {
 	checkLexerError(t, "SELECT 0x1fzz", `trailing junk after numeric literal at or near "0x1fzz"`, 7)
 	checkLexerError(t, "SELECT 0o17zz", `trailing junk after numeric literal at or near "0o17zz"`, 7)
 	checkLexerError(t, "SELECT 0b101zz", `trailing junk after numeric literal at or near "0b101zz"`, 7)
+	// Flex's longest match: {integer_junk} ("0" + identifier) beats
+	// {hexfail} unless the run after the prefix is empty or a lone "_".
+	checkLexerError(t, "SELECT 0xg", `trailing junk after numeric literal at or near "0xg"`, 7)
+	checkLexerError(t, "SELECT 0xg + 1", `trailing junk after numeric literal at or near "0xg"`, 7)
+	checkLexerError(t, "SELECT 0o8foo", `trailing junk after numeric literal at or near "0o8foo"`, 7)
+	checkLexerError(t, "SELECT 0b2foo", `trailing junk after numeric literal at or near "0b2foo"`, 7)
+	checkLexerError(t, "SELECT 0o9", `trailing junk after numeric literal at or near "0o9"`, 7)
+	checkLexerError(t, "SELECT 0b12", `trailing junk after numeric literal at or near "0b12"`, 7)
+	checkLexerError(t, "SELECT 0x_g", `trailing junk after numeric literal at or near "0x_g"`, 7)
+	checkLexerError(t, "SELECT 0x1_", `trailing junk after numeric literal at or near "0x1_"`, 7)
+	checkLexerError(t, "SELECT 0x1__2", `trailing junk after numeric literal at or near "0x1__2"`, 7)
+	checkLexerError(t, "SELECT 0x", `invalid hexadecimal integer at or near "0x"`, 7)
+	checkLexerError(t, "SELECT 0x ", `invalid hexadecimal integer at or near "0x"`, 7)
+	checkLexerError(t, "SELECT 0x_", `invalid hexadecimal integer at or near "0x_"`, 7)
+	checkLexerError(t, "SELECT 0o", `invalid octal integer at or near "0o"`, 7)
+	checkLexerError(t, "SELECT 0b", `invalid binary integer at or near "0b"`, 7)
+	for _, sql := range []string{"SELECT 0x_1", "SELECT 0x1_f", "SELECT 0o1_7", "SELECT 0b1_0", "SELECT 0XFF"} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q) = %v, want a valid radix literal", sql, err)
+		}
+	}
 	checkLexerError(t, "SELECT 1e", `trailing junk after numeric literal at or near "1e"`, 7)
 	checkLexerError(t, "SELECT 1e foo", `trailing junk after numeric literal at or near "1e"`, 7)
 	checkLexerError(t, "SELECT 1efoo", `trailing junk after numeric literal at or near "1efoo"`, 7)
