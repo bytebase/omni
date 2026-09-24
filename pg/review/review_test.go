@@ -108,7 +108,7 @@ func TestReview(t *testing.T) {
 		},
 		{
 			name:    "require where skips a plain EXPLAIN but not EXPLAIN ANALYZE",
-			sql:     "EXPLAIN UPDATE t SET a = 1; EXPLAIN (ANALYZE false) DELETE FROM t; EXPLAIN (ANALYZE off) DELETE FROM t; EXPLAIN (ANALYZE 0) DELETE FROM t;\nEXPLAIN ANALYZE DELETE FROM u; EXPLAIN (ANALYZE, BUFFERS) DELETE FROM v; EXPLAIN (ANALYZE true) DELETE FROM w; EXPLAIN (ANALYZE on) DELETE FROM x; EXPLAIN (ANALYZE 1) DELETE FROM y; EXPLAIN (ANALYZE t) DELETE FROM z; EXPLAIN (ANALYZE ye) DELETE FROM zz; EXPLAIN (ANALYZE o) DELETE FROM t; EXPLAIN (ANALYZE fal) DELETE FROM t; EXPLAIN (ANALYZE n) DELETE FROM t; EXPLAIN (ANALYZE maybe) DELETE FROM t; EXPLAIN (ANALYZE false, ANALYZE true) DELETE FROM last; EXPLAIN (ANALYZE, ANALYZE off) DELETE FROM t; EXPLAIN (ANALYZE maybe, ANALYZE true) DELETE FROM t; EXPLAIN (ANALYZE 2) DELETE FROM t; EXPLAIN (ANALYZE -1) DELETE FROM t;",
+			sql:     "EXPLAIN UPDATE t SET a = 1; EXPLAIN (ANALYZE false) DELETE FROM t; EXPLAIN (ANALYZE off) DELETE FROM t; EXPLAIN (ANALYZE 0) DELETE FROM t;\nEXPLAIN ANALYZE DELETE FROM u; EXPLAIN (ANALYZE, BUFFERS) DELETE FROM v; EXPLAIN (ANALYZE true) DELETE FROM w; EXPLAIN (ANALYZE on) DELETE FROM x; EXPLAIN (ANALYZE 1) DELETE FROM y; EXPLAIN (ANALYZE t) DELETE FROM z; EXPLAIN (ANALYZE ye) DELETE FROM zz; EXPLAIN (ANALYZE o) DELETE FROM t; EXPLAIN (ANALYZE fal) DELETE FROM t; EXPLAIN (ANALYZE n) DELETE FROM t; EXPLAIN (ANALYZE maybe) DELETE FROM t; EXPLAIN (ANALYZE false, ANALYZE true) DELETE FROM last; EXPLAIN (ANALYZE, ANALYZE off) DELETE FROM t; EXPLAIN (ANALYZE maybe, ANALYZE true) DELETE FROM t; EXPLAIN (ANALYZE 2) DELETE FROM t; EXPLAIN (ANALYZE -1) DELETE FROM t; EXPLAIN (ANALYZE true, BUFFERS maybe) DELETE FROM t; EXPLAIN (ANALYZE, BOGUS) DELETE FROM t; EXPLAIN (ANALYZE, FORMAT foo) DELETE FROM t; EXPLAIN (ANALYZE, GENERIC_PLAN) DELETE FROM t; EXPLAIN (ANALYZE, FORMAT json, SERIALIZE binary, BUFFERS off, WAL 1, TIMING 'off') DELETE FROM opts;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
@@ -120,6 +120,7 @@ func TestReview(t *testing.T) {
 					{review.RequireWhere, 9, span(t, sql, "DELETE FROM z"), "DELETE FROM z has no WHERE clause"},
 					{review.RequireWhere, 10, span(t, sql, "DELETE FROM zz"), "DELETE FROM zz has no WHERE clause"},
 					{review.RequireWhere, 15, span(t, sql, "DELETE FROM last"), "DELETE FROM last has no WHERE clause"},
+					{review.RequireWhere, 24, span(t, sql, "DELETE FROM opts"), "DELETE FROM opts has no WHERE clause"},
 				}
 			},
 		},
@@ -213,7 +214,7 @@ func TestReview(t *testing.T) {
 		},
 		{
 			name:    "identifiers that need quoting keep their quotes and their spaces",
-			sql:     "DROP TABLE \"select\", \"user\", \"Order\", \"with  two\", \"order\", \"off\", \"text\"; TRUNCATE \"select\".\"user\"; DROP FUNCTION f(), s.p(); DROP PROCEDURE p(); DROP ROUTINE r(); DROP AGGREGATE a(*);\nSELECT 1 FROM t WHERE \"a  b\"\n =\n  NULL;\nSELECT 1 FROM t WHERE \"c\nd\" = NULL; DROP TABLE \"e\r\nf\";\nSELECT 1 FROM t WHERE $$a  b$$ = NULL OR $tag$c\n d$tag$   =  NULL OR 'e  f' = NULL OR $1 = NULL;",
+			sql:     "DROP TABLE \"select\", \"user\", \"Order\", \"with  two\", \"order\", \"off\", \"text\"; TRUNCATE \"select\".\"user\"; DROP FUNCTION f(), s.p(); DROP PROCEDURE p(); DROP ROUTINE r(); DROP AGGREGATE a(*);\nSELECT 1 FROM t WHERE \"a  b\"\n =\n  NULL;\nSELECT 1 FROM t WHERE \"c\nd\" = NULL; DROP TABLE \"e\r\nf\";\nSELECT 1 FROM t WHERE $$a  b$$ = NULL OR $tag$c\n d$tag$   =  NULL OR 'e  f' = NULL OR $1 = NULL OR E'g\\'  h' = NULL OR 'i''  j' = NULL;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
@@ -230,6 +231,8 @@ func TestReview(t *testing.T) {
 					{review.RequireIsNull, 9, span(t, sql, "$tag$c\n d$tag$   =  NULL"), `"$tag$c\n d$tag$ = NULL" is never true; use IS NULL`},
 					{review.RequireIsNull, 9, span(t, sql, "'e  f' = NULL"), `"'e  f' = NULL" is never true; use IS NULL`},
 					{review.RequireIsNull, 9, span(t, sql, "$1 = NULL"), `"$1 = NULL" is never true; use IS NULL`},
+					{review.RequireIsNull, 9, span(t, sql, "E'g\\'  h' = NULL"), `"E'g\'  h' = NULL" is never true; use IS NULL`},
+					{review.RequireIsNull, 9, span(t, sql, "'i''  j' = NULL"), `"'i''  j' = NULL" is never true; use IS NULL`},
 				}
 			},
 		},
@@ -378,6 +381,19 @@ func TestReviewStatementsListEveryStatement(t *testing.T) {
 	want := []review.Range{{Start: 0, End: 9}, {Start: 9, End: 21}, {Start: 21, End: 29}}
 	if diff := cmp.Diff(want, result.Statements); diff != "" {
 		t.Errorf("Statements mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestSyntaxMessageIsOneLine(t *testing.T) {
+	result, err := Review(context.Background(), "SELECT 1 AS x \"bad\nname\"", review.Options{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Findings) != 1 || result.Findings[0].Rule != review.Syntax {
+		t.Fatalf("Findings = %+v, want one syntax finding", result.Findings)
+	}
+	if msg := result.Findings[0].Message; strings.ContainsAny(msg, "\n\r") || !strings.Contains(msg, `\n`) {
+		t.Fatalf("Message = %q, want the line break written as \\n", msg)
 	}
 }
 

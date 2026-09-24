@@ -91,7 +91,7 @@ func unparsedFinding(sql string, index int, r review.Range) *review.Finding {
 		Rule:      review.Syntax,
 		Statement: index,
 		Range:     review.Range{Start: loc.Start, End: loc.Start},
-		Message:   fmt.Sprintf("syntax error at or near %q", text),
+		Message:   escapeLines(fmt.Sprintf("syntax error at or near %q", text)),
 	}
 }
 
@@ -117,10 +117,12 @@ func isSpace(c byte) bool {
 // offset, which the caller anchors to its line. Any other error, which
 // the parser does not produce today, addresses the whole change.
 func syntaxFinding(err error, ranges []review.Range) *review.Finding {
-	f := &review.Finding{Rule: review.Syntax, Statement: -1, Message: err.Error()}
+	f := &review.Finding{Rule: review.Syntax, Statement: -1, Message: escapeLines(err.Error())}
 	var perr *parser.ParseError
 	if errors.As(err, &perr) {
-		f.Message = perr.Message
+		// The message quotes the offending token, which may hold a line
+		// break inside a quoted identifier.
+		f.Message = escapeLines(perr.Message)
 		if perr.Position >= 0 {
 			f.Statement = statementAt(ranges, perr.Position)
 			f.Range = review.Range{Start: perr.Position, End: perr.Position}

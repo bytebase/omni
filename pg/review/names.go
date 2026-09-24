@@ -166,11 +166,10 @@ func collapseSpace(s string) string {
 		end := i + 1
 		switch {
 		case c == '"' || c == '\'':
-			if j := strings.IndexByte(s[i+1:], c); j >= 0 {
-				end = i + 1 + j + 1
-			} else {
-				end = len(s)
-			}
+			// An escape string, E'...', hides a quote behind a backslash;
+			// a doubled quote closes and reopens, which reads the same.
+			escape := c == '\'' && i > 0 && (s[i-1] == 'E' || s[i-1] == 'e')
+			end = quotedEnd(s, i, escape)
 		case c == '$':
 			if tag := dollarTag(s[i:]); tag != "" {
 				if j := strings.Index(s[i+len(tag):], tag); j >= 0 {
@@ -184,6 +183,21 @@ func collapseSpace(s string) string {
 		i = end
 	}
 	return b.String()
+}
+
+// quotedEnd returns the offset just past the quoted text that starts at
+// s[i], or len(s) when it is not closed.
+func quotedEnd(s string, i int, escape bool) int {
+	quote := s[i]
+	for j := i + 1; j < len(s); j++ {
+		switch {
+		case escape && s[j] == '\\':
+			j++
+		case s[j] == quote:
+			return j + 1
+		}
+	}
+	return len(s)
 }
 
 // dollarTag returns the $tag$ delimiter that s starts with, or "" when s
