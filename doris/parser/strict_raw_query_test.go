@@ -62,6 +62,32 @@ func TestParseEmptyCTASBodyDoesNotPanic(t *testing.T) {
 	}
 }
 
+// TestStrictParseReportsNestedLexErrorOnce: a lexical error inside a raw
+// query body is seen by the nested strict parse and by the outer lexer;
+// the diagnostic appears once.
+func TestStrictParseReportsNestedLexErrorOnce(t *testing.T) {
+	for _, sql := range []string{"SELECT (SELECT 'x) FROM t", "SELECT (SELECT (SELECT 'x)) FROM t", "CREATE TABLE d AS SELECT 'x FROM t"} {
+		_, errs := parseForTest(sql)
+		if len(errs) == 0 {
+			t.Errorf("Parse(%q) reported no error", sql)
+			continue
+		}
+		type key struct {
+			pos int
+			msg string
+		}
+		dup := map[key]int{}
+		for _, e := range errs {
+			dup[key{e.Position, e.Message}]++
+		}
+		for k, n := range dup {
+			if n > 1 {
+				t.Errorf("Parse(%q) reported %q at %d %d times", sql, k.msg, k.pos, n)
+			}
+		}
+	}
+}
+
 // TestStrictParseDropsNodeOnLexError: a lex error surfaces after the node was
 // built; strict Parse returns the error and no node, best-effort keeps it.
 func TestStrictParseDropsNodeOnLexError(t *testing.T) {

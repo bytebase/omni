@@ -48,6 +48,28 @@ func TestStrictParseSubqueryErrorPositions(t *testing.T) {
 	}
 }
 
+// TestStrictParseRejectsEmptySubqueryBodies: an empty or comment-only
+// EXISTS/ARRAY/scalar body holds no query; strict Parse errors and drops the
+// statement instead of skipping the re-parse.
+func TestStrictParseRejectsEmptySubqueryBodies(t *testing.T) {
+	for _, sql := range []string{"SELECT EXISTS()", "SELECT ARRAY(/* c */)", "SELECT ( ) AS x"} {
+		file, errs := parseForTest(sql)
+		if len(errs) == 0 || len(file.Stmts) != 0 {
+			t.Errorf("Parse(%q): errs=%d stmts=%d, want an error and no node", sql, len(errs), len(file.Stmts))
+		}
+	}
+}
+
+// TestStrictParseDropsNodeOnHintError: a malformed statement hint is recorded
+// before parseStmt runs; the node it still builds must not survive strict
+// mode.
+func TestStrictParseDropsNodeOnHintError(t *testing.T) {
+	file, errs := parseForTest("@[5@] SELECT 1")
+	if len(errs) == 0 || len(file.Stmts) != 0 {
+		t.Errorf("errs=%d stmts=%d, want an error and no node", len(errs), len(file.Stmts))
+	}
+}
+
 // TestStrictParseErrorsInSourceOrder: lex errors are merged into the parse
 // errors by position rather than appended after every segment.
 func TestStrictParseErrorsInSourceOrder(t *testing.T) {

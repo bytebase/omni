@@ -861,7 +861,32 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 		result = nil
 	}
 
-	return result, p.errors
+	return result, dedupeErrors(p.errors)
+}
+
+// dedupeErrors drops a later error that repeats an earlier one's position and
+// message. A raw query body validated by a nested strict parse reports its
+// lexical errors once there and once more when the outer lexer, which
+// scanned the same bytes, promotes its own; the diagnostic must appear once.
+func dedupeErrors(errs []ParseError) []ParseError {
+	if len(errs) < 2 {
+		return errs
+	}
+	type key struct {
+		pos int
+		msg string
+	}
+	seen := make(map[key]bool, len(errs))
+	out := errs[:0]
+	for _, e := range errs {
+		k := key{e.Position, e.Message}
+		if seen[k] {
+			continue
+		}
+		seen[k] = true
+		out = append(out, e)
+	}
+	return out
 }
 
 // validateRawQueries strictly parses every query body this parse captured as

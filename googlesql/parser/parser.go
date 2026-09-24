@@ -575,20 +575,31 @@ func (p *Parser) fillSubqueries(node ast.Node) {
 	ast.Inspect(node, func(n ast.Node) bool {
 		switch sq := n.(type) {
 		case *ast.SubqueryExpr:
-			if sq.Query == nil && sq.RawText != "" {
-				sq.Query = p.reparseSubquery(sq.RawText, sq.TextStart)
+			if sq.Query == nil {
+				sq.Query = p.fillSubquery(sq.RawText, sq.TextStart, sq.Loc)
 			}
 		case *ast.ExistsExpr:
-			if sq.Query == nil && sq.RawText != "" {
-				sq.Query = p.reparseSubquery(sq.RawText, sq.TextStart)
+			if sq.Query == nil {
+				sq.Query = p.fillSubquery(sq.RawText, sq.TextStart, sq.Loc)
 			}
 		case *ast.ArraySubqueryExpr:
-			if sq.Query == nil && sq.RawText != "" {
-				sq.Query = p.reparseSubquery(sq.RawText, sq.TextStart)
+			if sq.Query == nil {
+				sq.Query = p.fillSubquery(sq.RawText, sq.TextStart, sq.Loc)
 			}
 		}
 		return true
 	})
+}
+
+// fillSubquery re-parses one captured body. An empty or comment-only body
+// (`EXISTS()`, `ARRAY(/* c */)`) is not a query; the grammar requires one, so
+// it is recorded as a syntax error at the node instead of silently skipped.
+func (p *Parser) fillSubquery(raw string, textStart int, loc ast.Loc) ast.Node {
+	if raw == "" {
+		p.errors = append(p.errors, ParseError{Position: loc.Start, End: loc.End, Message: "syntax error: expected a query inside the parentheses"})
+		return nil
+	}
+	return p.reparseSubquery(raw, textStart)
 }
 
 // reparseSubquery parses a captured subquery body (the RawText between the outer
@@ -779,7 +790,6 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 		}
 	}
 	if p.cur.Type != tokEOF {
-		before := len(p.errors)
 		node, err := p.parseStmt()
 		if err != nil {
 			if pe, ok := err.(*ParseError); ok {
@@ -804,12 +814,13 @@ func parseSingle(segText string, baseOffset int, strictTrailing bool) (ast.Node,
 			// asserting EOF there would emit a spurious second diagnostic.
 			p.errors = append(p.errors, *p.syntaxErrorAtCur())
 			node = nil
-		} else if strictTrailing && len(p.errors) > before {
-			// parseStmt returned a node but recorded an error on the way, as
-			// fillSubqueries does for an embedded query that does not parse
-			// (`SELECT (SELECT 1 FROM t a b)`). The segment did not parse
-			// completely, so strict mode drops the node; ParseBestEffort keeps
-			// the partial tree.
+		} else if strictTrailing && len(p.errors) > 0 {
+			// The segment recorded an error somewhere: a malformed statement
+			// hint before parseStmt (`@[5@] SELECT 1`) or an embedded query
+			// that does not parse (`SELECT (SELECT 1 FROM t a b)`) while
+			// parseStmt still returned a node. It did not parse completely,
+			// so strict mode drops the node; ParseBestEffort keeps the
+			// partial tree.
 			node = nil
 		}
 		result = node

@@ -73,6 +73,32 @@ func TestStrictParseValidatesSubqueryBodies(t *testing.T) {
 	}
 }
 
+// TestStrictParseReportsNestedLexErrorOnce: a lexical error inside a raw
+// query body is seen by the nested strict parse and by the outer lexer;
+// the diagnostic appears once.
+func TestStrictParseReportsNestedLexErrorOnce(t *testing.T) {
+	for _, sql := range []string{"SELECT (SELECT \x00)", "SELECT (SELECT 'x) FROM t", "SELECT (SELECT (SELECT 'x)) FROM t"} {
+		_, errs := parseForTest(sql)
+		if len(errs) == 0 {
+			t.Errorf("Parse(%q) reported no error", sql)
+			continue
+		}
+		type key struct {
+			pos int
+			msg string
+		}
+		dup := map[key]int{}
+		for _, e := range errs {
+			dup[key{e.Position, e.Message}]++
+		}
+		for k, n := range dup {
+			if n > 1 {
+				t.Errorf("Parse(%q) reported %q at %d %d times", sql, k.msg, k.pos, n)
+			}
+		}
+	}
+}
+
 // TestParseBestEffortToleratesTrailingTokens: the tolerant entry keeps the
 // parsed prefix for partial-input consumers; only strict Parse rejects.
 func TestParseBestEffortToleratesTrailingTokens(t *testing.T) {
