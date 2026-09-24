@@ -930,11 +930,19 @@ func (l *Lexer) lexNumber() Token {
 	// Check for exponent
 	if l.pos < len(l.input) && (l.input[l.pos] == 'e' || l.input[l.pos] == 'E') {
 		l.pos++
+		hasSign := false
 		if l.pos < len(l.input) && (l.input[l.pos] == '+' || l.input[l.pos] == '-') {
 			l.pos++
+			hasSign = true
 		}
 		if l.pos >= len(l.input) || !isDigit(l.input[l.pos]) {
 			l.Err = fmt.Errorf("trailing junk after numeric literal")
+			// Flex takes the longest match: "1efoo" is {integer_junk}
+			// (literal + identifier "efoo"), while "1e+foo" is {real_fail}
+			// ("1e+"), which beats the shorter {integer_junk} "1e".
+			if !hasSign {
+				l.consumeJunkIdent()
+			}
 			return Token{Type: lex_EOF, Loc: l.start}
 		}
 		l.scanDecDigits()

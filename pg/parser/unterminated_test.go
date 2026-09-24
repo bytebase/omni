@@ -127,6 +127,15 @@ func TestParseTrailingJunkQuotesJunk(t *testing.T) {
 	checkLexerError(t, "SELECT 0o17zz", `trailing junk after numeric literal at or near "0o17zz"`, 7)
 	checkLexerError(t, "SELECT 0b101zz", `trailing junk after numeric literal at or near "0b101zz"`, 7)
 	checkLexerError(t, "SELECT 1e", `trailing junk after numeric literal at or near "1e"`, 7)
+	checkLexerError(t, "SELECT 1e foo", `trailing junk after numeric literal at or near "1e"`, 7)
+	checkLexerError(t, "SELECT 1efoo", `trailing junk after numeric literal at or near "1efoo"`, 7)
+	checkLexerError(t, "SELECT 1ee5", `trailing junk after numeric literal at or near "1ee5"`, 7)
+	checkLexerError(t, "SELECT 1e_x", `trailing junk after numeric literal at or near "1e_x"`, 7)
+	checkLexerError(t, "SELECT 1E$x", `trailing junk after numeric literal at or near "1E$x"`, 7)
+	checkLexerError(t, "SELECT 1.5efoo", `trailing junk after numeric literal at or near "1.5efoo"`, 7)
+	checkLexerError(t, "SELECT 1e+foo", `trailing junk after numeric literal at or near "1e+"`, 7)
+	checkLexerError(t, "SELECT 1e-", `trailing junk after numeric literal at or near "1e-"`, 7)
+	checkLexerError(t, "SELECT 1.5e+foo", `trailing junk after numeric literal at or near "1.5e+"`, 7)
 	checkLexerError(t, "SELECT 123日本", `trailing junk after numeric literal at or near "123日本"`, 7)
 }
 
