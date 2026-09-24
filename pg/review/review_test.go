@@ -144,7 +144,7 @@ func TestReview(t *testing.T) {
 		},
 		{
 			name:    "require is null looks at predicates only",
-			sql:     "SELECT a = NULL AS c, CASE WHEN b = NULL THEN 1 END, CASE d WHEN NULL THEN 1 END, count(*) FILTER (WHERE e = NULL), (SELECT f = NULL FROM u WHERE g = NULL) FROM t JOIN u ON h = NULL WHERE i IN (SELECT j = NULL FROM v WHERE k = NULL) GROUP BY 1 HAVING l = NULL;\nCREATE TABLE n (x int CHECK (x <> NULL)); CREATE INDEX i ON t (a) WHERE m = NULL; INSERT INTO t VALUES (1) ON CONFLICT (a) WHERE o = NULL DO UPDATE SET a = 1 WHERE p = NULL; UPDATE t SET q = NULL WHERE r = NULL;\nCREATE TABLE d (a boolean DEFAULT (NULL = NULL), b boolean GENERATED ALWAYS AS (NULL = NULL) STORED); CREATE TRIGGER tg BEFORE UPDATE ON t FOR EACH ROW WHEN (NEW.s = NULL) EXECUTE FUNCTION f(); CREATE PUBLICATION pub FOR TABLE t WHERE (u = NULL);\nSELECT 1 WHERE (SELECT v = NULL FROM t LIMIT 1) AND NOT (SELECT w = NULL FROM t) OR (SELECT x = NULL FROM t) IS TRUE OR y = (SELECT z = NULL FROM t) OR EXISTS (SELECT aa = NULL FROM t) OR (SELECT bb = NULL FROM t WHERE cc = NULL) OR COALESCE((SELECT dd = NULL FROM t), false) OR CASE WHEN true THEN (SELECT ee = NULL FROM t) ELSE (SELECT ff = NULL FROM t) END;",
+			sql:     "SELECT a = NULL AS c, CASE WHEN b = NULL THEN 1 END, CASE d WHEN NULL THEN 1 END, count(*) FILTER (WHERE e = NULL), (SELECT f = NULL FROM u WHERE g = NULL) FROM t JOIN u ON h = NULL WHERE i IN (SELECT j = NULL FROM v WHERE k = NULL) GROUP BY 1 HAVING l = NULL;\nCREATE TABLE n (x int CHECK (x <> NULL)); CREATE INDEX i ON t (a) WHERE m = NULL; INSERT INTO t VALUES (1) ON CONFLICT (a) WHERE o = NULL DO UPDATE SET a = 1 WHERE p = NULL; UPDATE t SET q = NULL WHERE r = NULL;\nCREATE TABLE d (a boolean DEFAULT (NULL = NULL), b boolean GENERATED ALWAYS AS (NULL = NULL) STORED); CREATE TRIGGER tg BEFORE UPDATE ON t FOR EACH ROW WHEN (NEW.s = NULL) EXECUTE FUNCTION f(); CREATE PUBLICATION pub FOR TABLE t WHERE (u = NULL);\nSELECT 1 WHERE (SELECT v = NULL FROM t LIMIT 1) AND NOT (SELECT w = NULL FROM t) OR (SELECT x = NULL FROM t) IS TRUE OR y = (SELECT z = NULL FROM t) OR EXISTS (SELECT aa = NULL FROM t) OR (SELECT bb = NULL FROM t WHERE cc = NULL) OR COALESCE((SELECT dd = NULL FROM t), false) OR (SELECT ee = NULL FROM t)::boolean;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				var out []finding
@@ -152,8 +152,11 @@ func TestReview(t *testing.T) {
 					out = append(out, finding{review.RequireIsNull, 0, span(t, sql, expr), `"` + expr + `" is never true; use IS NULL`})
 				}
 				out = append(out, finding{review.RequireIsNull, 1, span(t, sql, "x <> NULL"), `"x <> NULL" is never true; use IS NOT NULL`})
-				for i, expr := range []string{"m = NULL", "o = NULL", "p = NULL", "r = NULL", "NEW.s = NULL", "u = NULL", "v = NULL", "w = NULL", "x = NULL", "bb = NULL", "cc = NULL", "dd = NULL", "ee = NULL", "ff = NULL"} {
-					stmt := []int{2, 3, 3, 4, 6, 7, 8, 8, 8, 8, 8, 8, 8, 8}[i]
+				// A comparison in a subquery's select list is a value even
+				// when the subquery is the predicate; only cc, in the
+				// subquery's own WHERE, is reported from that statement.
+				for i, expr := range []string{"m = NULL", "o = NULL", "p = NULL", "r = NULL", "NEW.s = NULL", "u = NULL", "cc = NULL"} {
+					stmt := []int{2, 3, 3, 4, 6, 7, 8}[i]
 					out = append(out, finding{review.RequireIsNull, stmt, span(t, sql, expr), `"` + expr + `" is never true; use IS NULL`})
 				}
 				return out
@@ -181,7 +184,7 @@ func TestReview(t *testing.T) {
 		},
 		{
 			name:    "disallow drop object names every object shape",
-			sql:     "DROP CAST (int AS text); DROP TRANSFORM FOR int LANGUAGE plpgsql; DROP OPERATOR CLASS s.c USING btree; DROP OPERATOR FAMILY f USING btree; DROP OPERATOR s.+ (int, int), - (NONE, int); DROP AGGREGATE agg(int, text), s.agg2(*); DROP ROUTINE r; DROP RULE r ON s.t; DROP POLICY p ON t; DROP TYPE s.ty, ty2; DROP FUNCTION f(int[], text[][]);",
+			sql:     "DROP CAST (int AS text); DROP TRANSFORM FOR int LANGUAGE plpgsql; DROP OPERATOR CLASS s.c USING btree; DROP OPERATOR FAMILY f USING btree; DROP OPERATOR s.+ (int, int), - (NONE, int); DROP AGGREGATE agg(int, text), s.agg2(*); DROP ROUTINE r; DROP RULE r ON s.t; DROP POLICY p ON t; DROP TYPE s.ty, ty2; DROP FUNCTION f(int[], text[][]); DROP FUNCTION g(t.c%TYPE);",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
@@ -189,13 +192,14 @@ func TestReview(t *testing.T) {
 					{review.DisallowDropObject, 1, span(t, sql, "DROP TRANSFORM FOR int LANGUAGE plpgsql"), "drops transform for int4 language plpgsql"},
 					{review.DisallowDropObject, 2, span(t, sql, "DROP OPERATOR CLASS s.c USING btree"), "drops operator class s.c using btree"},
 					{review.DisallowDropObject, 3, span(t, sql, "DROP OPERATOR FAMILY f USING btree"), "drops operator family f using btree"},
-					{review.DisallowDropObject, 4, span(t, sql, "DROP OPERATOR s.+ (int, int), - (NONE, int)"), `drops operator s."+"(int4, int4), "-"(NONE, int4)`},
+					{review.DisallowDropObject, 4, span(t, sql, "DROP OPERATOR s.+ (int, int), - (NONE, int)"), `drops operator s.+(int4, int4), -(NONE, int4)`},
 					{review.DisallowDropObject, 5, span(t, sql, "DROP AGGREGATE agg(int, text), s.agg2(*)"), "drops aggregate agg(int4, text), s.agg2(*)"},
 					{review.DisallowDropObject, 6, span(t, sql, "DROP ROUTINE r"), "drops routine r"},
 					{review.DisallowDropObject, 7, span(t, sql, "DROP RULE r ON s.t"), "drops rule r on s.t"},
 					{review.DisallowDropObject, 8, span(t, sql, "DROP POLICY p ON t"), "drops policy p on t"},
 					{review.DisallowDropObject, 9, span(t, sql, "DROP TYPE s.ty, ty2"), "drops type s.ty, ty2"},
 					{review.DisallowDropObject, 10, span(t, sql, "DROP FUNCTION f(int[], text[][])"), "drops function f(int4[], text[][])"},
+					{review.DisallowDropObject, 11, span(t, sql, "DROP FUNCTION g(t.c%TYPE)"), "drops function g(t.c%TYPE)"},
 				}
 			},
 		},
@@ -214,7 +218,7 @@ func TestReview(t *testing.T) {
 		},
 		{
 			name:    "identifiers that need quoting keep their quotes and their spaces",
-			sql:     "DROP TABLE \"select\", \"user\", \"Order\", \"with  two\", \"order\", \"off\", \"text\"; TRUNCATE \"select\".\"user\"; DROP FUNCTION f(), s.p(); DROP PROCEDURE p(); DROP ROUTINE r(); DROP AGGREGATE a(*);\nSELECT 1 FROM t WHERE \"a  b\"\n =\n  NULL;\nSELECT 1 FROM t WHERE \"c\nd\" = NULL; DROP TABLE \"e\r\nf\";\nSELECT 1 FROM t WHERE $$a  b$$ = NULL OR $tag$c\n d$tag$   =  NULL OR 'e  f' = NULL OR $1 = NULL OR E'g\\'  h' = NULL OR 'i''  j' = NULL;",
+			sql:     "DROP TABLE \"select\", \"user\", \"Order\", \"with  two\", \"order\", \"off\", \"text\"; TRUNCATE \"select\".\"user\"; DROP FUNCTION f(), s.p(); DROP PROCEDURE p(); DROP ROUTINE r(); DROP AGGREGATE a(*);\nSELECT 1 FROM t WHERE \"a  b\"\n =\n  NULL;\nSELECT 1 FROM t WHERE \"c\nd\" = NULL; DROP TABLE \"e\r\nf\";\nSELECT 1 FROM t WHERE $$a  b$$ = NULL OR $tag$c\n d$tag$   =  NULL OR 'e  f' = NULL OR $1 = NULL OR E'g\\'  h' = NULL OR 'i''  j' = NULL OR k -- note\n /* block\n comment */ = NULL;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
@@ -233,6 +237,7 @@ func TestReview(t *testing.T) {
 					{review.RequireIsNull, 9, span(t, sql, "$1 = NULL"), `"$1 = NULL" is never true; use IS NULL`},
 					{review.RequireIsNull, 9, span(t, sql, "E'g\\'  h' = NULL"), `"E'g\'  h' = NULL" is never true; use IS NULL`},
 					{review.RequireIsNull, 9, span(t, sql, "'i''  j' = NULL"), `"'i''  j' = NULL" is never true; use IS NULL`},
+					{review.RequireIsNull, 9, span(t, sql, "k -- note\n /* block\n comment */ = NULL"), `"k = NULL" is never true; use IS NULL`},
 				}
 			},
 		},
@@ -330,6 +335,13 @@ func TestReview(t *testing.T) {
 			name:    "no statements",
 			sql:     "  -- nothing\n",
 			targets: 1,
+			want:    func(t *testing.T, sql string) []finding { return nil },
+		},
+		{
+			name:    "form feed and vertical tab are whitespace",
+			sql:     "DELETE FROM t WHERE a = 1;\f\v\n\f",
+			targets: 1,
+			ranges:  []review.Range{{Start: 0, End: 26}},
 			want:    func(t *testing.T, sql string) []finding { return nil },
 		},
 		{

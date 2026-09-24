@@ -81,7 +81,7 @@ func parse(sql string, ranges []review.Range) ([]statement, *review.Finding) {
 func unparsedFinding(sql string, index int, r review.Range) *review.Finding {
 	loc := contentLoc(sql, r.Start, r.End)
 	text := sql[loc.Start:loc.End]
-	if i := strings.IndexAny(text, " \t\r\n"); i >= 0 {
+	if i := strings.IndexAny(text, " \t\r\n\f\v"); i >= 0 {
 		text = text[:i]
 	}
 	if len(text) > 40 {
@@ -107,8 +107,9 @@ func contentLoc(sql string, start, end int) ast.Loc {
 	return ast.Loc{Start: start, End: end}
 }
 
+// isSpace is the lexer's whitespace set.
 func isSpace(c byte) bool {
-	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v'
 }
 
 // syntaxFinding turns a parse failure into the Syntax finding. A parser

@@ -118,6 +118,9 @@ func objectName(kind ast.ObjectType, obj ast.Node) string {
 		return typeName(v)
 	case *ast.ObjectWithArgs:
 		name := qualified(nameParts(v.Objname))
+		if kind == ast.OBJECT_OPERATOR {
+			name = operatorName(nameParts(v.Objname))
+		}
 		switch {
 		case v.ArgsUnspecified:
 			return name
@@ -134,9 +137,10 @@ func objectName(kind ast.ObjectType, obj ast.Node) string {
 
 // collapseSpace puts SQL text on one line: each run of whitespace outside
 // a quoted identifier, string, or dollar-quoted string becomes one space,
-// and leading and trailing whitespace goes. Whitespace inside quotes is
-// part of the name or value and stays, except that a line break there is
-// written as \n or \r so the result is still one line.
+// comments go, and leading and trailing whitespace goes. Whitespace
+// inside quotes is part of the name or value and stays, except that a
+// line break there is written as \n or \r so the result is still one
+// line.
 func collapseSpace(s string) string {
 	var b strings.Builder
 	pending := false
@@ -154,9 +158,40 @@ func collapseSpace(s string) string {
 	}
 	for i := 0; i < len(s); {
 		c := s[i]
-		if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
+		if isSpace(c) {
 			pending = b.Len() > 0
 			i++
+			continue
+		}
+		if strings.HasPrefix(s[i:], "--") {
+			end := strings.IndexByte(s[i:], '\n')
+			if end < 0 {
+				end = len(s) - i
+			}
+			pending = b.Len() > 0
+			i += end
+			continue
+		}
+		if strings.HasPrefix(s[i:], "/*") {
+			// Block comments nest.
+			depth, j := 0, i
+			for j < len(s) {
+				switch {
+				case strings.HasPrefix(s[j:], "/*"):
+					depth++
+					j += 2
+				case strings.HasPrefix(s[j:], "*/"):
+					depth--
+					j += 2
+				default:
+					j++
+				}
+				if depth == 0 {
+					break
+				}
+			}
+			pending = b.Len() > 0
+			i = j
 			continue
 		}
 		if pending {
@@ -240,14 +275,32 @@ func typeNames(args *ast.List) []string {
 	return names
 }
 
+// operatorName writes an operator name: the schema, if any, as an
+// identifier and the operator itself as written, since an operator is
+// not an identifier and is never quoted.
+func operatorName(parts []string) string {
+	if len(parts) == 0 {
+		return ""
+	}
+	op := parts[len(parts)-1]
+	if len(parts) == 1 {
+		return op
+	}
+	return qualified(parts[:len(parts)-1]) + "." + op
+}
+
 // typeName writes a type name without the pg_catalog qualifier the parser
-// adds to built-in types (int becomes pg_catalog.int4).
+// adds to built-in types (int becomes pg_catalog.int4), with its array
+// brackets and a %TYPE reference.
 func typeName(tn *ast.TypeName) string {
 	parts := nameParts(tn.Names)
 	if len(parts) == 2 && parts[0] == "pg_catalog" {
 		parts = parts[1:]
 	}
 	name := qualified(parts)
+	if tn.PctType {
+		name += "%TYPE"
+	}
 	if tn.ArrayBounds != nil {
 		name += strings.Repeat("[]", len(tn.ArrayBounds.Items))
 	}

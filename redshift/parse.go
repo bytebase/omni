@@ -101,7 +101,7 @@ func Parse(sql string) ([]Statement, error) {
 }
 
 func isSpace(c byte) bool {
-	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v'
 }
 
 // positionAt converts a byte offset into a Position through the shared index:

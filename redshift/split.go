@@ -16,7 +16,7 @@ func (s Segment) Empty() bool {
 	for i < len(t) {
 		b := t[i]
 		// Skip whitespace and semicolons.
-		if b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == ';' {
+		if b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f' || b == '\v' || b == ';' {
 			i++
 			continue
 		}
@@ -281,7 +281,7 @@ func isFollowedByAtomic(sql string, i int) bool {
 func skipWhitespaceAndComments(sql string, i int) int {
 	for i < len(sql) {
 		b := sql[i]
-		if b == ' ' || b == '\t' || b == '\n' || b == '\r' {
+		if b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f' || b == '\v' {
 			i++
 		} else if b == '-' && i+1 < len(sql) && sql[i+1] == '-' {
 			i = skipLineComment(sql, i)

@@ -11,8 +11,10 @@ import (
 // may be a typed null with a collation, as in NULL::text COLLATE "C". Only
 // the built-in operator counts: OPERATOR(s.=) names a user's operator,
 // which may not be strict. A comparison that produces a value, as in
-// SELECT a = NULL AS c, is not a predicate and is left alone. The finding
-// anchors the comparison and quotes it.
+// SELECT a = NULL AS c, is not a predicate and is left alone; so is one
+// that reaches a predicate only through a subquery's select list, a cast,
+// or a set operation. The rule reports the plain, certain case and stops
+// there. The finding anchors the comparison and quotes it.
 func checkRequireIsNull(sql string, s *statement, r *reporter) {
 	seen := make(map[*ast.A_Expr]bool)
 	for _, root := range predicates(s.node) {
@@ -54,9 +56,7 @@ func checkRequireIsNull(sql string, s *statement, r *reporter) {
 // conditions of a searched CASE, aggregate FILTER, partial index and
 // constraint predicates, CHECK expressions, policy qualifications,
 // trigger WHEN, publication row filters, rule and COPY conditions.
-// Subqueries are visited too, so their own predicates are listed. A
-// scalar subquery that is itself the truth value of a predicate, as in
-// WHERE (SELECT a = NULL FROM t), lends its select list to the list.
+// Subqueries are visited too, so their own predicates are listed.
 func predicates(root ast.Node) []ast.Node {
 	var roots []ast.Node
 	add := func(nodes ...ast.Node) {
@@ -121,59 +121,7 @@ func predicates(root ast.Node) []ast.Node {
 		}
 		return true
 	})
-	// A root may be a scalar subquery, or AND/OR/NOT and IS [NOT] TRUE
-	// over one; its select list is then evaluated for truth as well.
-	for i := 0; i < len(roots); i++ {
-		truthValues(roots[i], func(n ast.Node) { add(n) })
-	}
 	return roots
-}
-
-// truthValues calls f with the select list expressions of every scalar
-// subquery whose value is the truth value of the predicate expr: expr
-// itself, or reached from it through AND, OR, NOT, IS [NOT] TRUE / FALSE
-// / UNKNOWN, the arguments of COALESCE, and the results of CASE. A
-// subquery compared or otherwise combined with another value yields a
-// value, not a truth, and is not visited.
-func truthValues(expr ast.Node, f func(ast.Node)) {
-	switch v := expr.(type) {
-	case *ast.BoolExpr:
-		if v.Args != nil {
-			for _, arg := range v.Args.Items {
-				truthValues(arg, f)
-			}
-		}
-	case *ast.BooleanTest:
-		truthValues(v.Arg, f)
-	case *ast.CoalesceExpr:
-		if v.Args != nil {
-			for _, arg := range v.Args.Items {
-				truthValues(arg, f)
-			}
-		}
-	case *ast.CaseExpr:
-		if v.Args != nil {
-			for _, item := range v.Args.Items {
-				if w, ok := item.(*ast.CaseWhen); ok {
-					truthValues(w.Result, f)
-				}
-			}
-		}
-		truthValues(v.Defresult, f)
-	case *ast.SubLink:
-		if ast.SubLinkType(v.SubLinkType) != ast.EXPR_SUBLINK {
-			return
-		}
-		sel, ok := v.Subselect.(*ast.SelectStmt)
-		if !ok || sel.TargetList == nil {
-			return
-		}
-		for _, item := range sel.TargetList.Items {
-			if rt, ok := item.(*ast.ResTarget); ok && rt.Val != nil {
-				f(rt.Val)
-			}
-		}
-	}
 }
 
 // builtinOperator returns the operator of an A_Expr name list when it

@@ -29,8 +29,9 @@ func (s Segment) Empty() bool {
 			i = metacmd.SkipLine(t, i)
 			continue
 		}
-		// Skip whitespace and semicolons.
-		if b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == ';' {
+		// Skip whitespace and semicolons. The lexer's whitespace set
+		// includes form feed and vertical tab.
+		if b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f' || b == '\v' || b == ';' {
 			i++
 			continue
 		}
@@ -415,7 +416,7 @@ func isFollowedByAtomic(sql string, i int) bool {
 func skipWhitespaceAndComments(sql string, i int) int {
 	for i < len(sql) {
 		b := sql[i]
-		if b == ' ' || b == '\t' || b == '\n' || b == '\r' {
+		if b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f' || b == '\v' {
 			i++
 		} else if b == '-' && i+1 < len(sql) && sql[i+1] == '-' {
 			i = skipLineComment(sql, i)
@@ -458,7 +459,7 @@ func skipBeginAtomic(sql string, i int) int {
 		// as comments.
 		case metacmd.IsMetaCommand(sql, i):
 			i = metacmd.SkipLine(sql, i)
-		case b == ' ' || b == '\t' || b == '\n' || b == '\r':
+		case b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f' || b == '\v':
 			i++
 		case b == '\'':
 			if isEscapeStringQuote(sql, i) {
