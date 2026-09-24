@@ -164,7 +164,9 @@ func collapseSpace(s string) string {
 			continue
 		}
 		if strings.HasPrefix(s[i:], "--") {
-			end := strings.IndexByte(s[i:], '\n')
+			// As in the lexer, the comment ends at a line feed or a
+			// carriage return.
+			end := strings.IndexAny(s[i:], "\n\r")
 			if end < 0 {
 				end = len(s) - i
 			}

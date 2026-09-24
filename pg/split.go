@@ -38,7 +38,7 @@ func (s Segment) Empty() bool {
 		// Skip line comments.
 		if b == '-' && i+1 < len(t) && t[i+1] == '-' {
 			i += 2
-			for i < len(t) && t[i] != '\n' {
+			for i < len(t) && t[i] != '\n' && t[i] != '\r' {
 				i++
 			}
 			continue
@@ -391,13 +391,15 @@ func skipBlockComment(sql string, i int) int {
 
 // skipLineComment skips a line comment starting at position i.
 // Returns position after the newline (or end of input).
+// skipLineComment skips a -- comment. As in the lexer, the comment ends
+// at a line feed or a carriage return.
 func skipLineComment(sql string, i int) int {
 	i += 2 // skip --
-	for i < len(sql) && sql[i] != '\n' {
+	for i < len(sql) && sql[i] != '\n' && sql[i] != '\r' {
 		i++
 	}
 	if i < len(sql) {
-		i++ // skip the \n
+		i++ // skip the line end
 	}
 	return i
 }

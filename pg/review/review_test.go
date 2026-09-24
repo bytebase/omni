@@ -144,11 +144,11 @@ func TestReview(t *testing.T) {
 		},
 		{
 			name:    "require is null looks at predicates only",
-			sql:     "SELECT a = NULL AS c, CASE WHEN b = NULL THEN 1 END, CASE d WHEN NULL THEN 1 END, count(*) FILTER (WHERE e = NULL), (SELECT f = NULL FROM u WHERE g = NULL) FROM t JOIN u ON h = NULL WHERE i IN (SELECT j = NULL FROM v WHERE k = NULL) GROUP BY 1 HAVING l = NULL;\nCREATE TABLE n (x int CHECK (x <> NULL)); CREATE INDEX i ON t (a) WHERE m = NULL; INSERT INTO t VALUES (1) ON CONFLICT (a) WHERE o = NULL DO UPDATE SET a = 1 WHERE p = NULL; UPDATE t SET q = NULL WHERE r = NULL;\nCREATE TABLE d (a boolean DEFAULT (NULL = NULL), b boolean GENERATED ALWAYS AS (NULL = NULL) STORED); CREATE TRIGGER tg BEFORE UPDATE ON t FOR EACH ROW WHEN (NEW.s = NULL) EXECUTE FUNCTION f(); CREATE PUBLICATION pub FOR TABLE t WHERE (u = NULL);\nSELECT 1 WHERE (SELECT v = NULL FROM t LIMIT 1) AND NOT (SELECT w = NULL FROM t) OR (SELECT x = NULL FROM t) IS TRUE OR y = (SELECT z = NULL FROM t) OR EXISTS (SELECT aa = NULL FROM t) OR (SELECT bb = NULL FROM t WHERE cc = NULL) OR COALESCE((SELECT dd = NULL FROM t), false) OR (SELECT ee = NULL FROM t)::boolean;",
+			sql:     "SELECT a = NULL AS c, CASE WHEN b = NULL THEN 1 END, CASE d WHEN NULL THEN 1 END, count(*) FILTER (WHERE e = NULL), JSON_ARRAYAGG(x) FILTER (WHERE ee = NULL), (SELECT f = NULL FROM u WHERE g = NULL) FROM t JOIN u ON h = NULL WHERE i IN (SELECT j = NULL FROM v WHERE k = NULL) GROUP BY 1 HAVING l = NULL;\nCREATE TABLE n (x int CHECK (x <> NULL)); CREATE INDEX i ON t (a) WHERE m = NULL; INSERT INTO t VALUES (1) ON CONFLICT (a) WHERE o = NULL DO UPDATE SET a = 1 WHERE p = NULL; UPDATE t SET q = NULL WHERE r = NULL;\nCREATE TABLE d (a boolean DEFAULT (NULL = NULL), b boolean GENERATED ALWAYS AS (NULL = NULL) STORED); CREATE TRIGGER tg BEFORE UPDATE ON t FOR EACH ROW WHEN (NEW.s = NULL) EXECUTE FUNCTION f(); CREATE PUBLICATION pub FOR TABLE t WHERE (u = NULL);\nSELECT 1 WHERE (SELECT v = NULL FROM t LIMIT 1) AND NOT (SELECT w = NULL FROM t) OR (SELECT x = NULL FROM t) IS TRUE OR y = (SELECT z = NULL FROM t) OR EXISTS (SELECT aa = NULL FROM t) OR (SELECT bb = NULL FROM t WHERE cc = NULL) OR COALESCE((SELECT dd = NULL FROM t), false) OR (SELECT ee = NULL FROM t)::boolean;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				var out []finding
-				for _, expr := range []string{"b = NULL", "e = NULL", "g = NULL", "h = NULL", "k = NULL", "l = NULL"} {
+				for _, expr := range []string{"b = NULL", "e = NULL", "ee = NULL", "g = NULL", "h = NULL", "k = NULL", "l = NULL"} {
 					out = append(out, finding{review.RequireIsNull, 0, span(t, sql, expr), `"` + expr + `" is never true; use IS NULL`})
 				}
 				out = append(out, finding{review.RequireIsNull, 1, span(t, sql, "x <> NULL"), `"x <> NULL" is never true; use IS NOT NULL`})
@@ -218,7 +218,7 @@ func TestReview(t *testing.T) {
 		},
 		{
 			name:    "identifiers that need quoting keep their quotes and their spaces",
-			sql:     "DROP TABLE \"select\", \"user\", \"Order\", \"with  two\", \"order\", \"off\", \"text\"; TRUNCATE \"select\".\"user\"; DROP FUNCTION f(), s.p(); DROP PROCEDURE p(); DROP ROUTINE r(); DROP AGGREGATE a(*);\nSELECT 1 FROM t WHERE \"a  b\"\n =\n  NULL;\nSELECT 1 FROM t WHERE \"c\nd\" = NULL; DROP TABLE \"e\r\nf\";\nSELECT 1 FROM t WHERE $$a  b$$ = NULL OR $tag$c\n d$tag$   =  NULL OR 'e  f' = NULL OR $1 = NULL OR E'g\\'  h' = NULL OR 'i''  j' = NULL OR k -- note\n /* block\n comment */ = NULL;",
+			sql:     "DROP TABLE \"select\", \"user\", \"Order\", \"with  two\", \"order\", \"off\", \"text\"; TRUNCATE \"select\".\"user\"; DROP FUNCTION f(), s.p(); DROP PROCEDURE p(); DROP ROUTINE r(); DROP AGGREGATE a(*);\nSELECT 1 FROM t WHERE \"a  b\"\n =\n  NULL;\nSELECT 1 FROM t WHERE \"c\nd\" = NULL; DROP TABLE \"e\r\nf\";\nSELECT 1 FROM t WHERE $$a  b$$ = NULL OR $tag$c\n d$tag$   =  NULL OR 'e  f' = NULL OR $1 = NULL OR E'g\\'  h' = NULL OR 'i''  j' = NULL OR k -- note\n /* block\n comment */ = NULL OR l -- note\r = NULL;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
@@ -238,6 +238,7 @@ func TestReview(t *testing.T) {
 					{review.RequireIsNull, 9, span(t, sql, "E'g\\'  h' = NULL"), `"E'g\'  h' = NULL" is never true; use IS NULL`},
 					{review.RequireIsNull, 9, span(t, sql, "'i''  j' = NULL"), `"'i''  j' = NULL" is never true; use IS NULL`},
 					{review.RequireIsNull, 9, span(t, sql, "k -- note\n /* block\n comment */ = NULL"), `"k = NULL" is never true; use IS NULL`},
+					{review.RequireIsNull, 9, span(t, sql, "l -- note\r = NULL"), `"l = NULL" is never true; use IS NULL`},
 				}
 			},
 		},
@@ -336,6 +337,15 @@ func TestReview(t *testing.T) {
 			sql:     "  -- nothing\n",
 			targets: 1,
 			want:    func(t *testing.T, sql string) []finding { return nil },
+		},
+		{
+			name:    "a line comment ends at a bare carriage return, as in the lexer",
+			sql:     "SELECT 1;--c\rDELETE FROM t;",
+			targets: 1,
+			ranges:  []review.Range{{Start: 0, End: 9}, {Start: 9, End: 27}},
+			want: func(t *testing.T, sql string) []finding {
+				return []finding{{review.RequireWhere, 1, span(t, sql, "DELETE FROM t"), "DELETE FROM t has no WHERE clause"}}
+			},
 		},
 		{
 			name:    "form feed and vertical tab are whitespace",

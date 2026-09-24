@@ -92,6 +92,8 @@ func predicates(root ast.Node) []ast.Node {
 			}
 		case *ast.FuncCall:
 			add(v.AggFilter)
+		case *ast.JsonAggConstructor:
+			add(v.Agg_filter)
 		case *ast.IndexStmt:
 			add(v.WhereClause)
 		case *ast.Constraint:
