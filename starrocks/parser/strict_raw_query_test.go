@@ -47,6 +47,21 @@ func TestStrictParseValidatesRawQueryBodies(t *testing.T) {
 	}
 }
 
+// TestParseEmptyCTASBodyDoesNotPanic: `CREATE TABLE t AS ` once sliced the
+// raw query backwards (EOF starts after the trailing space, prev ends at AS)
+// and panicked; it is a positioned parse error in both modes.
+func TestParseEmptyCTASBodyDoesNotPanic(t *testing.T) {
+	for _, sql := range []string{"CREATE TABLE t AS ", "CREATE TABLE t AS", "CREATE TABLE t AS;", "CREATE TABLE t AS\n"} {
+		_, errs := parseForTest(sql)
+		if len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want an error", sql)
+		}
+		if r := ParseBestEffort(sql); len(r.Errors) == 0 {
+			t.Errorf("ParseBestEffort(%q) reported no error", sql)
+		}
+	}
+}
+
 // TestStrictParseDropsNodeOnLexError: a lex error surfaces after the node was
 // built; strict Parse returns the error and no node, best-effort keeps it.
 func TestStrictParseDropsNodeOnLexError(t *testing.T) {

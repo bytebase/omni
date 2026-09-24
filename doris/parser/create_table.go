@@ -1268,6 +1268,12 @@ func (p *Parser) parseRollupDef() (*ast.RollupDef, error) {
 // parseRawQuery consumes remaining tokens as a raw SQL query (for CTAS).
 // The AS keyword has already been consumed if present.
 func (p *Parser) parseRawQuery() (*ast.RawQuery, error) {
+	if p.cur.Kind == tokEOF || p.cur.Kind == int(';') {
+		// `CREATE TABLE t AS ` with nothing after AS: the EOF token starts
+		// after the trailing whitespace while prev still ends at AS, so the
+		// slice below would run backwards. The engine requires a query here.
+		return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: expected a query after AS"}
+	}
 	startLoc := p.cur.Loc
 	start := p.cur.Loc.Start
 

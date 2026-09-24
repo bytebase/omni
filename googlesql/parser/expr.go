@@ -1740,11 +1740,11 @@ func (p *Parser) parseArrayOrArraySubquery() (ast.Node, error) {
 	case int('('):
 		// ARRAY ( query ).
 		p.advance() // '('
-		sub, end, err := p.parseSubqueryBodyRaw(arrayTok.Loc.Start)
+		sub, textStart, end, err := p.parseSubqueryBodyRaw(arrayTok.Loc.Start)
 		if err != nil {
 			return nil, err
 		}
-		return &ast.ArraySubqueryExpr{RawText: sub, Loc: ast.Loc{Start: arrayTok.Loc.Start, End: end}}, nil
+		return &ast.ArraySubqueryExpr{RawText: sub, TextStart: textStart, Loc: ast.Loc{Start: arrayTok.Loc.Start, End: end}}, nil
 	case int('['):
 		// ARRAY [ … ].
 		return p.parseArrayConstructor(true, nil)
@@ -2185,11 +2185,11 @@ func (p *Parser) parseExistsExpr() (ast.Node, error) {
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}
-	raw, end, err := p.parseSubqueryBodyRaw(existsTok.Loc.Start)
+	raw, textStart, end, err := p.parseSubqueryBodyRaw(existsTok.Loc.Start)
 	if err != nil {
 		return nil, err
 	}
-	return &ast.ExistsExpr{RawText: raw, Loc: ast.Loc{Start: existsTok.Loc.Start, End: end}}, nil
+	return &ast.ExistsExpr{RawText: raw, TextStart: textStart, Loc: ast.Loc{Start: existsTok.Loc.Start, End: end}}, nil
 }
 
 // parseUnnestExpression parses `UNNEST ( expr [AS alias] [, zip-mode] )`
@@ -2233,11 +2233,11 @@ func (p *Parser) atQueryStart() bool {
 // belongs to parser-select, which fills Query later). Returns the node and the
 // end offset (past the matching ')').
 func (p *Parser) parseSubqueryBody(start int) (ast.Node, int, error) {
-	raw, end, err := p.parseSubqueryBodyRaw(start)
+	raw, textStart, end, err := p.parseSubqueryBodyRaw(start)
 	if err != nil {
 		return nil, 0, err
 	}
-	return &ast.SubqueryExpr{RawText: raw, Loc: ast.Loc{Start: start, End: end}}, end, nil
+	return &ast.SubqueryExpr{RawText: raw, TextStart: textStart, Loc: ast.Loc{Start: start, End: end}}, end, nil
 }
 
 // parseSubqueryBodyRaw consumes a balanced parenthesized query body — the
@@ -2252,13 +2252,13 @@ func (p *Parser) parseSubqueryBody(start int) (ast.Node, int, error) {
 // Balance tracks ( ) [ ] { } so a nested subquery, array, or struct inside the
 // query does not prematurely close it. An unterminated body (EOF before the
 // matching ')') is a syntax error.
-func (p *Parser) parseSubqueryBodyRaw(start int) (string, int, error) {
+func (p *Parser) parseSubqueryBodyRaw(start int) (raw string, textStart, end int, err error) {
 	innerStart := p.cur.Loc.Start
 	depth := 1
 	innerEnd := innerStart
 	for {
 		if p.cur.Type == tokEOF {
-			return "", 0, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: unterminated subquery (expected ')')"}
+			return "", 0, 0, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: unterminated subquery (expected ')')"}
 		}
 		switch p.cur.Type {
 		case int('('), int('['), int('{'):
@@ -2267,8 +2267,12 @@ func (p *Parser) parseSubqueryBodyRaw(start int) (string, int, error) {
 			depth--
 			if depth == 0 {
 				closeTok := p.advance() // consume the matching ')'
-				inner := strings.TrimSpace(p.input[absIndex(p, innerStart):absIndex(p, innerEnd)])
-				return inner, closeTok.Loc.End, nil
+				sliced := p.input[absIndex(p, innerStart):absIndex(p, innerEnd)]
+				inner := strings.TrimSpace(sliced)
+				// The absolute start of the trimmed body, so a re-parse error
+				// lands on the offending token in the outer text.
+				textStart = innerStart + strings.Index(sliced, inner)
+				return inner, textStart, closeTok.Loc.End, nil
 			}
 		}
 		innerEnd = p.cur.Loc.End

@@ -1064,7 +1064,10 @@ func (n *ExtensionAccess) Tag() NodeTag { return T_ExtensionAccess }
 type SubqueryExpr struct {
 	Query   Node   // nil until parser-select wires the query grammar
 	RawText string // inner query source (between the parens)
-	Loc     Loc
+	// TextStart is the absolute byte offset of RawText's first character in
+	// the parser's input, so re-parse errors report outer positions.
+	TextStart int
+	Loc       Loc
 }
 
 // Tag implements Node.
@@ -1074,9 +1077,10 @@ func (n *SubqueryExpr) Tag() NodeTag { return T_SubqueryExpr }
 // Query is the parsed inner query (nil until parser-select); RawText holds the
 // inner source.
 type ExistsExpr struct {
-	Query   Node
-	RawText string
-	Loc     Loc
+	Query     Node
+	RawText   string
+	TextStart int // absolute byte offset of RawText's first character
+	Loc       Loc
 }
 
 // Tag implements Node.
@@ -1086,9 +1090,10 @@ func (n *ExistsExpr) Tag() NodeTag { return T_ExistsExpr }
 // Query is the parsed inner query (nil until parser-select); RawText holds the
 // inner source.
 type ArraySubqueryExpr struct {
-	Query   Node
-	RawText string
-	Loc     Loc
+	Query     Node
+	RawText   string
+	TextStart int // absolute byte offset of RawText's first character
+	Loc       Loc
 }
 
 // Tag implements Node.

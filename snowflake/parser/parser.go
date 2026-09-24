@@ -439,6 +439,29 @@ func parseAll(input string, strictTrailing bool) *ParseResult {
 		result.Errors = append(result.Errors, errs...)
 	}
 
+	// Split drops segments that lex to nothing, and with them their lex
+	// errors: Parse("/* unterminated") produced zero segments and zero
+	// errors. Strict mode lexes the whole input once more and promotes any
+	// error the per-segment parses did not already report (matched by
+	// position; segment offsets are absolute).
+	if strictTrailing {
+		lx := NewLexer(input)
+		for lx.NextToken().Type != tokEOF {
+		}
+		for _, le := range lx.Errors() {
+			dup := false
+			for _, e := range result.Errors {
+				if e.Position == le.Loc.Start {
+					dup = true
+					break
+				}
+			}
+			if !dup {
+				result.Errors = append(result.Errors, ParseError{Position: le.Loc.Start, End: le.Loc.End, Message: le.Msg})
+			}
+		}
+	}
+
 	return result
 }
 

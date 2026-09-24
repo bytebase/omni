@@ -33,6 +33,7 @@ package parser
 
 import (
 	"github.com/bytebase/omni/googlesql/ast"
+	"sort"
 )
 
 // Parser is a recursive-descent parser for GoogleSQL. It operates on a single
@@ -575,15 +576,15 @@ func (p *Parser) fillSubqueries(node ast.Node) {
 		switch sq := n.(type) {
 		case *ast.SubqueryExpr:
 			if sq.Query == nil && sq.RawText != "" {
-				sq.Query = p.reparseSubquery(sq.RawText, sq.Loc)
+				sq.Query = p.reparseSubquery(sq.RawText, sq.TextStart)
 			}
 		case *ast.ExistsExpr:
 			if sq.Query == nil && sq.RawText != "" {
-				sq.Query = p.reparseSubquery(sq.RawText, sq.Loc)
+				sq.Query = p.reparseSubquery(sq.RawText, sq.TextStart)
 			}
 		case *ast.ArraySubqueryExpr:
 			if sq.Query == nil && sq.RawText != "" {
-				sq.Query = p.reparseSubquery(sq.RawText, sq.Loc)
+				sq.Query = p.reparseSubquery(sq.RawText, sq.TextStart)
 			}
 		}
 		return true
@@ -591,19 +592,16 @@ func (p *Parser) fillSubqueries(node ast.Node) {
 }
 
 // reparseSubquery parses a captured subquery body (the RawText between the outer
-// parens) into a *QueryStmt. It runs a nested Parser over the raw text; lexing
-// uses a best-effort base offset (the node's start) so positions stay close to
-// the original source. A parse failure records the error and returns nil (the
-// node keeps RawText, so round-trip still works). The returned QueryStmt's own
+// parens) into a *QueryStmt. It runs a nested Parser over the raw text with
+// textStart, the absolute offset of RawText's first character, as the lexer
+// base, so every position and error it produces is in the outer text's
+// coordinates. A parse failure records the error and returns nil (the node
+// keeps RawText, so round-trip still works). The returned QueryStmt's own
 // embedded subqueries are filled recursively.
-func (p *Parser) reparseSubquery(raw string, loc ast.Loc) ast.Node {
-	base := 0
-	if loc.Start >= 0 {
-		// Anchor near the original site. The exact column of RawText within the
-		// parens is approximate (leading '(' + whitespace was trimmed), but this
-		// keeps offsets monotonic and close, which is all the query-span / Diagnose
-		// consumers need for an embedded subquery.
-		base = loc.Start
+func (p *Parser) reparseSubquery(raw string, textStart int) ast.Node {
+	base := textStart
+	if base < 0 {
+		base = 0
 	}
 	sub := &Parser{
 		lexer:      NewLexerWithOffset(raw, base),
@@ -619,7 +617,7 @@ func (p *Parser) reparseSubquery(raw string, loc ast.Loc) ast.Node {
 		if pe, ok := err.(*ParseError); ok {
 			p.errors = append(p.errors, *pe)
 		} else {
-			p.errors = append(p.errors, ParseError{Position: loc.Start, End: loc.End, Message: err.Error()})
+			p.errors = append(p.errors, ParseError{Position: base, End: base + len(raw), Message: err.Error()})
 		}
 		return nil
 	}
@@ -688,7 +686,7 @@ func ParseBestEffort(input string) *ParseResult {
 // per-statement parser stopped early on the first error-recovery boundary, or
 // (c) whether Split dropped the containing chunk as "empty" (an unterminated
 // block comment lexes to EOF, so its segment is filtered — yet the lex error
-// must still surface). Parse errors precede lex errors in the result.
+// must still surface). The result is in source order.
 func parseAll(input string, strictTrailing bool) *ParseResult {
 	file := &ast.File{Loc: ast.Loc{Start: 0, End: len(input)}}
 	result := &ParseResult{File: file}
@@ -709,10 +707,14 @@ func parseAll(input string, strictTrailing bool) *ParseResult {
 		result.Errors = append(result.Errors, errs...)
 	}
 
-	// Append lex errors from one authoritative full-input pass (absolute
-	// offsets). Done after parse errors so a statement's syntactic complaint
-	// reads before its lexical one.
+	// Merge the lex errors from the one authoritative full-input pass
+	// (absolute offsets) into source order. The sort is stable, so at one
+	// position a statement's syntactic complaint still reads before its
+	// lexical one.
 	result.Errors = append(result.Errors, lexErrs...)
+	sort.SliceStable(result.Errors, func(i, j int) bool {
+		return result.Errors[i].Position < result.Errors[j].Position
+	})
 
 	return result
 }

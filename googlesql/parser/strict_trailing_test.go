@@ -1,6 +1,9 @@
 package parser
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestStrictParseRejectsTrailingTokens: a statement prefix followed by junk
 // is a syntax error and contributes no node.
@@ -21,6 +24,40 @@ func TestStrictParseRejectsTrailingTokens(t *testing.T) {
 		}
 		if len(file.Stmts) != 0 {
 			t.Errorf("parseForTest(%q) returned %d statements, want none: the truncated prefix must not leak", sql, len(file.Stmts))
+		}
+	}
+}
+
+// TestStrictParseSubqueryErrorPositions: a re-parse error inside an embedded
+// subquery lands on the offending token in the outer text, whatever
+// whitespace follows the opening delimiter.
+func TestStrictParseSubqueryErrorPositions(t *testing.T) {
+	for _, c := range []struct{ sql, at string }{
+		{"SELECT EXISTS(  SELECT 1 FROM t a b)", "b)"},
+		{"SELECT (\n  SELECT 1 FROM t a b) AS x FROM u", "b)"},
+		{"SELECT ARRAY(   SELECT x FROM t a b)", "b)"},
+	} {
+		_, errs := parseForTest(c.sql)
+		if len(errs) == 0 {
+			t.Errorf("Parse(%q) succeeded, want a subquery error", c.sql)
+			continue
+		}
+		if want := strings.Index(c.sql, c.at); errs[0].Position != want {
+			t.Errorf("Parse(%q) error at %d, want %d (%q)", c.sql, errs[0].Position, want, c.at)
+		}
+	}
+}
+
+// TestStrictParseErrorsInSourceOrder: lex errors are merged into the parse
+// errors by position rather than appended after every segment.
+func TestStrictParseErrorsInSourceOrder(t *testing.T) {
+	_, errs := parseForTest("\x00; SELECT FROM")
+	if len(errs) < 2 {
+		t.Fatalf("errs = %v, want the invalid byte and the syntax error", errs)
+	}
+	for i := 1; i < len(errs); i++ {
+		if errs[i].Position < errs[i-1].Position {
+			t.Fatalf("errors out of source order: %v", errs)
 		}
 	}
 }
