@@ -33,9 +33,23 @@ type Parser struct {
 // Currently supports basic SELECT statements for expression testing.
 // Full statement dispatch will be implemented in batch 34.
 func Parse(sql string) (*nodes.List, error) {
+	return ParseRange(sql, 0, len(sql))
+}
+
+// ParseRange parses source[start:end] in place. Every Loc and error
+// Position is an offset into source, so a caller that split a script can
+// parse each segment with absolute positions without copying or padding
+// the text. Text past end is not read.
+func ParseRange(source string, start, end int) (*nodes.List, error) {
+	if end > len(source) {
+		end = len(source)
+	}
+	if start > end {
+		start = end
+	}
 	p := &Parser{
-		lexer:  NewLexer(sql),
-		source: sql,
+		lexer:  NewLexerRange(source, start, end),
+		source: source,
 	}
 	p.advance()
 

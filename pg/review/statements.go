@@ -22,9 +22,9 @@ type statement struct {
 	loc ast.Loc
 }
 
-// statementRanges lists every non-empty statement's byte range. It comes
-// from the lexical splitter, the same pg.Split Bytebase splits with, so
-// it does not depend on the text parsing.
+// statementRanges lists every non-empty statement's byte range, from the
+// lexical splitter, the same pg.Split Bytebase splits with. The ranges
+// are the units parse works on.
 func statementRanges(sql string) []review.Range {
 	var ranges []review.Range
 	for _, seg := range pg.Split(sql) {
@@ -36,44 +36,81 @@ func statementRanges(sql string) []review.Range {
 	return ranges
 }
 
-// parse parses the whole text through pg.Parse, the entry Bytebase
-// parses with. On success it returns the statements mapped onto ranges.
-// On failure it returns the one Syntax finding of the review: the parser
-// stops at the first error, so there is never more than one, and the
-// review ends there. A non-empty range that produced no statement is a
-// failure too: the parser drops an unterminated string, identifier, or
-// comment that begins a statement instead of reporting it.
+// parse splits the text with pg.Split and parses each non-empty segment
+// in place with parser.ParseRange, so every location and error position
+// is an offset into the text. The first segment that fails ends the
+// review with its one Syntax finding: nothing after a syntax error can
+// be trusted, and one finding per sheet is the contract. A non-empty
+// segment that produced no statement is a failure too, a guard against
+// text the parser drops.
 func parse(sql string, ranges []review.Range) ([]statement, *review.Finding) {
-	parsed, err := pg.Parse(sql)
-	if err != nil {
-		return nil, syntaxFinding(err, ranges)
-	}
-	stmts := make([]statement, 0, len(parsed))
-	covered := make([]bool, len(ranges))
-	for _, p := range parsed {
-		if p.Empty() {
-			continue
+	var stmts []statement
+	for index, r := range ranges {
+		list, err := parser.ParseRange(sql, r.Start, r.End)
+		if err != nil {
+			return nil, syntaxFinding(err, ranges)
 		}
-		// A node the parser gave no location has NoLoc, or the zero Loc
-		// when its kind carries one the parser did not fill in; either
-		// falls outside the statement's own bytes and is replaced by
-		// them.
-		loc := ast.NodeLoc(p.AST)
-		if loc.Start < p.ByteStart || loc.End > p.ByteEnd || loc.End <= loc.Start {
-			loc = contentLoc(sql, p.ByteStart, p.ByteEnd)
+		found := false
+		if list != nil {
+			for _, item := range list.Items {
+				raw, ok := item.(*ast.RawStmt)
+				if !ok || raw.Stmt == nil {
+					continue
+				}
+				// A node the parser gave no location has NoLoc, or the
+				// zero Loc when its kind carries one the parser did not
+				// fill in; either falls outside the segment's bytes and is
+				// replaced by them.
+				loc := raw.Loc
+				if loc.Start < r.Start || loc.End > r.End || loc.End <= loc.Start {
+					loc = contentLoc(sql, r.Start, r.End)
+				}
+				stmts = append(stmts, statement{index: index, node: raw.Stmt, loc: loc})
+				found = true
+			}
 		}
-		index := statementAt(ranges, loc.Start)
-		if index >= 0 {
-			covered[index] = true
-		}
-		stmts = append(stmts, statement{index: index, node: p.AST, loc: loc})
-	}
-	for i, ok := range covered {
-		if !ok {
-			return nil, unparsedFinding(sql, i, ranges[i])
+		if !found {
+			return nil, unparsedFinding(sql, index, r)
 		}
 	}
 	return stmts, nil
+}
+
+// contentLoc is the range of a statement's text without its surrounding
+// whitespace and trailing semicolon, for a node that carries no location.
+func contentLoc(sql string, start, end int) ast.Loc {
+	for start < end && isSpace(sql[start]) {
+		start++
+	}
+	for end > start && (isSpace(sql[end-1]) || sql[end-1] == ';') {
+		end--
+	}
+	return ast.Loc{Start: start, End: end}
+}
+
+// isSpace is the lexer's whitespace set.
+func isSpace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v'
+}
+
+// syntaxFinding turns a parse failure into the Syntax finding. A parser
+// error carries the byte offset of the offending token and the message
+// PostgreSQL would print; the finding's range starts and ends at that
+// offset, which the caller anchors to its line. Any other error, which
+// the parser does not produce today, addresses the whole change.
+func syntaxFinding(err error, ranges []review.Range) *review.Finding {
+	f := &review.Finding{Rule: review.Syntax, Statement: -1, Message: escapeLines(err.Error())}
+	var perr *parser.ParseError
+	if errors.As(err, &perr) {
+		// The message quotes the offending token, which may hold a line
+		// break inside a quoted identifier.
+		f.Message = escapeLines(perr.Message)
+		if perr.Position >= 0 {
+			f.Statement = statementAt(ranges, perr.Position)
+			f.Range = review.Range{Start: perr.Position, End: perr.Position}
+		}
+	}
+	return f
 }
 
 // unparsedFinding is the Syntax finding for a non-empty range the parser
@@ -138,43 +175,6 @@ func skipTrivia(sql string, start, end int) int {
 		}
 	}
 	return i
-}
-
-// contentLoc is the range of a statement's text without its surrounding
-// whitespace and trailing semicolon, for a node that carries no location.
-func contentLoc(sql string, start, end int) ast.Loc {
-	for start < end && isSpace(sql[start]) {
-		start++
-	}
-	for end > start && (isSpace(sql[end-1]) || sql[end-1] == ';') {
-		end--
-	}
-	return ast.Loc{Start: start, End: end}
-}
-
-// isSpace is the lexer's whitespace set.
-func isSpace(c byte) bool {
-	return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v'
-}
-
-// syntaxFinding turns a parse failure into the Syntax finding. A parser
-// error carries the byte offset of the offending token and the message
-// PostgreSQL would print; the finding's range starts and ends at that
-// offset, which the caller anchors to its line. Any other error, which
-// the parser does not produce today, addresses the whole change.
-func syntaxFinding(err error, ranges []review.Range) *review.Finding {
-	f := &review.Finding{Rule: review.Syntax, Statement: -1, Message: escapeLines(err.Error())}
-	var perr *parser.ParseError
-	if errors.As(err, &perr) {
-		// The message quotes the offending token, which may hold a line
-		// break inside a quoted identifier.
-		f.Message = escapeLines(perr.Message)
-		if perr.Position >= 0 {
-			f.Statement = statementAt(ranges, perr.Position)
-			f.Range = review.Range{Start: perr.Position, End: perr.Position}
-		}
-	}
-	return f
 }
 
 // statementAt returns the index of the range containing the byte offset,
