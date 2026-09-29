@@ -133,12 +133,7 @@ func NewLexer(input string) *Lexer {
 // lex one segment in place with absolute positions. Text past end is not
 // read.
 func NewLexerRange(input string, start, end int) *Lexer {
-	if end > len(input) {
-		end = len(input)
-	}
-	if start > end {
-		start = end
-	}
+	start, end = clampRange(start, end, len(input))
 	return &Lexer{
 		input:                     input,
 		pos:                       start,
@@ -148,6 +143,14 @@ func NewLexerRange(input string, start, end int) *Lexer {
 		BackslashQuote:            BackslashQuoteSafeEncoding,
 		EscapeStringWarning:       true,
 	}
+}
+
+// clampRange bounds a [start, end) range to [0, n] with start <= end, so
+// a caller's bad bounds cannot index outside the text.
+func clampRange(start, end, n int) (int, int) {
+	end = max(0, min(end, n))
+	start = max(0, min(start, end))
+	return start, end
 }
 
 // NextToken returns the next token from the input.

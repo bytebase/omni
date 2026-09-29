@@ -41,12 +41,7 @@ func Parse(sql string) (*nodes.List, error) {
 // parse each segment with absolute positions without copying or padding
 // the text. Text past end is not read.
 func ParseRange(source string, start, end int) (*nodes.List, error) {
-	if end > len(source) {
-		end = len(source)
-	}
-	if start > end {
-		start = end
-	}
+	start, end = clampRange(start, end, len(source))
 	p := &Parser{
 		lexer:  NewLexerRange(source, start, end),
 		source: source,

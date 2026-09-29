@@ -65,9 +65,22 @@ func TestParseRange(t *testing.T) {
 		t.Errorf("ParseRange(segment 3) = %v, want an unterminated-string error inside the segment", err)
 	}
 
-	// Bounds are clamped rather than trusted.
+	// Bounds are clamped rather than trusted: reversed, negative, or past
+	// the end, none of them reads outside the text.
 	if _, err := ParseRange(script, 5, 2); err != nil {
 		t.Errorf("ParseRange(5, 2): %v", err)
+	}
+	if _, err := ParseRange(script, -1, 0); err != nil {
+		t.Errorf("ParseRange(-1, 0): %v", err)
+	}
+	if _, err := ParseRange(script, -5, -1); err != nil {
+		t.Errorf("ParseRange(-5, -1): %v", err)
+	}
+	if _, err := ParseRange(script, -3, 9); err != nil {
+		t.Errorf("ParseRange(-3, 9): %v", err)
+	}
+	if list, err := ParseRange("", -1, 1); err != nil || (list != nil && len(list.Items) != 0) {
+		t.Errorf("ParseRange(\"\", -1, 1) = %v, %v; want nothing", list, err)
 	}
 	if _, err := ParseRange(script, 0, len(script)+10); err == nil {
 		t.Error("ParseRange(0, past end) succeeded, want the script's error")
