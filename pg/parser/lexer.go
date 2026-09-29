@@ -233,7 +233,7 @@ func (l *Lexer) lexInitial() Token {
 	// top-level position is never valid SQL, and psql consumes it through
 	// end of line. Treat it like a comment so scripts written for psql —
 	// pg_dump/pg_dumpall output included — lex cleanly.
-	if metacmd.IsMetaCommand(l.input, l.pos) {
+	if metacmd.IsMetaCommand(l.input[:l.end], l.pos) {
 		l.skipLineComment()
 		return l.NextToken()
 	}

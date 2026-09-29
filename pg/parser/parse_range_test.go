@@ -87,6 +87,22 @@ func TestParseRange(t *testing.T) {
 	}
 }
 
+// TestParseRangeReadsNothingPastEnd checks that a construct recognized by
+// looking ahead, a psql metacommand, is judged on the range alone: a
+// trailing backslash followed by a letter past end is not a metacommand.
+func TestParseRangeReadsNothingPastEnd(t *testing.T) {
+	script := "SELECT 1\\x"
+	if _, err := ParseRange(script, 0, 9); err == nil {
+		t.Error("ParseRange over a range ending in a backslash succeeded, want the syntax error Parse gives the same text")
+	}
+	if _, err := Parse(script[:9]); err == nil {
+		t.Error("Parse of the same text succeeded")
+	}
+	if _, err := ParseRange("SELECT 1;\n\\echo hi\nSELECT 2", 9, 19); err != nil {
+		t.Errorf("a metacommand inside the range: %v", err)
+	}
+}
+
 // TestParseRangeSkipsBOMOnlyAtStart checks the byte order mark is trivia
 // only at the start of the script.
 func TestParseRangeSkipsBOMOnlyAtStart(t *testing.T) {
