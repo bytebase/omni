@@ -28,7 +28,8 @@ func IsMetaCommand(sql string, i int) bool {
 // SkipLine consumes the metacommand line starting at position i, returning
 // the position just past its newline (or end of input).
 func SkipLine(sql string, i int) int {
-	for i < len(sql) && sql[i] != '\n' {
+	// As in the lexer, the line ends at a line feed or a carriage return.
+	for i < len(sql) && sql[i] != '\n' && sql[i] != '\r' {
 		i++
 	}
 	if i < len(sql) {

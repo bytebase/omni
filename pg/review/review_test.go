@@ -356,6 +356,15 @@ func TestReview(t *testing.T) {
 			},
 		},
 		{
+			name:    "a metacommand line ends at a bare carriage return, as in the lexer",
+			sql:     "\\echo hi\rDELETE FROM t;",
+			targets: 1,
+			ranges:  []review.Range{{Start: 0, End: 23}},
+			want: func(t *testing.T, sql string) []finding {
+				return []finding{{review.RequireWhere, 0, span(t, sql, "DELETE FROM t"), "DELETE FROM t has no WHERE clause"}}
+			},
+		},
+		{
 			name:    "form feed and vertical tab are whitespace",
 			sql:     "DELETE FROM t WHERE a = 1;\f\v\n\f",
 			targets: 1,
