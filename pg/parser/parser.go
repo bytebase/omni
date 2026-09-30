@@ -35,13 +35,22 @@ type Parser struct {
 // Currently supports basic SELECT statements for expression testing.
 // Full statement dispatch will be implemented in batch 34.
 func Parse(sql string) (*nodes.List, error) {
+	return ParseRange(sql, 0, len(sql))
+}
+
+// ParseRange parses source[start:end] in place. Every Loc and error
+// Position is an offset into source, so a caller that split a script can
+// parse each segment with absolute positions without copying or padding
+// the text. Text past end is not read.
+func ParseRange(source string, start, end int) (*nodes.List, error) {
+	start, end = clampRange(start, end, len(source))
 	p := &Parser{
-		lexer:  NewLexer(sql),
-		source: sql,
+		lexer:  NewLexerRange(source, start, end),
+		source: source,
 	}
 	// A UTF-8 BOM at the start of the script is trivia: psql strips it
 	// before scanning (mainloop.c).
-	if strings.HasPrefix(sql, "\xEF\xBB\xBF") {
+	if start == 0 && strings.HasPrefix(source[:end], "\xEF\xBB\xBF") {
 		p.lexer.pos = 3
 	}
 	p.advance()
@@ -98,9 +107,9 @@ func Parse(sql string) (*nodes.List, error) {
 		// error it may have produced).
 		if cs, ok := stmt.(*nodes.CopyStmt); ok &&
 			cs.IsFrom && cs.Filename == "" && !cs.IsProgram && cs.Query == nil &&
-			p.cur.Type == ';' && copyscan.RestOfLineBlank(p.source, p.cur.End) {
+			p.cur.Type == ';' && copyscan.RestOfLineBlank(p.source[:p.lexer.end], p.cur.End) {
 			semiEnd := p.cur.End
-			dataEnd := copyscan.SkipData(p.source, semiEnd)
+			dataEnd := copyscan.SkipData(p.source[:p.lexer.end], semiEnd)
 			cs.InlineData = p.source[semiEnd:dataEnd]
 			stmts = append(stmts, &nodes.RawStmt{
 				Stmt: stmt,
@@ -1431,8 +1440,7 @@ func (p *Parser) lexerError() *ParseError {
 // dropping any buffered lookahead (and any lexer error produced by
 // scanning bytes that are not SQL, such as inline COPY data).
 func (p *Parser) resetLexerTo(off int) {
-	lx := NewLexer(p.source)
-	lx.pos = off
+	lx := NewLexerRange(p.source, off, p.lexer.end)
 	lx.StandardConformingStrings = p.lexer.StandardConformingStrings
 	lx.BackslashQuote = p.lexer.BackslashQuote
 	lx.EscapeStringWarning = p.lexer.EscapeStringWarning

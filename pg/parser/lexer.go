@@ -82,6 +82,7 @@ type Token struct {
 type Lexer struct {
 	input string // Input SQL text
 	pos   int    // Current position in input (byte offset)
+	end   int    // Offset past the last byte to lex; len(input) for the whole text
 	start int    // Start position of current token
 
 	state              LexerState // Current lexer state
@@ -124,14 +125,32 @@ const (
 
 // NewLexer creates a new lexer for the given input.
 func NewLexer(input string) *Lexer {
+	return NewLexerRange(input, 0, len(input))
+}
+
+// NewLexerRange returns a lexer over input[start:end] that reports every
+// position as an offset into input, so a caller that split a script can
+// lex one segment in place with absolute positions. Text past end is not
+// read.
+func NewLexerRange(input string, start, end int) *Lexer {
+	start, end = clampRange(start, end, len(input))
 	return &Lexer{
 		input:                     input,
-		pos:                       0,
+		pos:                       start,
+		end:                       end,
 		state:                     stateInitial,
 		StandardConformingStrings: true,
 		BackslashQuote:            BackslashQuoteSafeEncoding,
 		EscapeStringWarning:       true,
 	}
+}
+
+// clampRange bounds a [start, end) range to [0, n] with start <= end, so
+// a caller's bad bounds cannot index outside the text.
+func clampRange(start, end, n int) (int, int) {
+	end = max(0, min(end, n))
+	start = max(0, min(start, end))
+	return start, end
 }
 
 // NextToken returns the next token from the input.
@@ -143,7 +162,7 @@ func (l *Lexer) NextToken() Token {
 
 func (l *Lexer) nextTokenInner() Token {
 	for {
-		if l.pos >= len(l.input) {
+		if l.pos >= l.end {
 			// At EOF - if we're in a string state, that's an error
 			// If we're in quote-stop state, return the completed string
 			if l.state == stateXQS {
@@ -188,7 +207,7 @@ func (l *Lexer) nextTokenInner() Token {
 // lexInitial handles tokens in the initial state.
 func (l *Lexer) lexInitial() Token {
 	l.skipWhitespace()
-	if l.pos >= len(l.input) {
+	if l.pos >= l.end {
 		return Token{Type: lex_EOF, Loc: l.pos}
 	}
 
@@ -196,7 +215,7 @@ func (l *Lexer) lexInitial() Token {
 	ch := l.input[l.pos]
 
 	// Check for C-style comment start
-	if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+	if ch == '/' && l.pos+1 < l.end && l.input[l.pos+1] == '*' {
 		l.pos += 2
 		l.xcdepth = 0
 		l.state = stateXC
@@ -205,7 +224,7 @@ func (l *Lexer) lexInitial() Token {
 	}
 
 	// Check for SQL comment
-	if ch == '-' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '-' {
+	if ch == '-' && l.pos+1 < l.end && l.input[l.pos+1] == '-' {
 		l.skipLineComment()
 		return l.NextToken()
 	}
@@ -214,13 +233,13 @@ func (l *Lexer) lexInitial() Token {
 	// top-level position is never valid SQL, and psql consumes it through
 	// end of line. Treat it like a comment so scripts written for psql —
 	// pg_dump/pg_dumpall output included — lex cleanly.
-	if metacmd.IsMetaCommand(l.input, l.pos) {
+	if metacmd.IsMetaCommand(l.input[:l.end], l.pos) {
 		l.skipLineComment()
 		return l.NextToken()
 	}
 
 	// Bit string: B'...'
-	if (ch == 'b' || ch == 'B') && l.pos+1 < len(l.input) && l.input[l.pos+1] == '\'' {
+	if (ch == 'b' || ch == 'B') && l.pos+1 < l.end && l.input[l.pos+1] == '\'' {
 		l.pos += 2
 		l.state = stateXB
 		l.literalbuf.Reset()
@@ -229,7 +248,7 @@ func (l *Lexer) lexInitial() Token {
 	}
 
 	// Hex string: X'...'
-	if (ch == 'x' || ch == 'X') && l.pos+1 < len(l.input) && l.input[l.pos+1] == '\'' {
+	if (ch == 'x' || ch == 'X') && l.pos+1 < l.end && l.input[l.pos+1] == '\'' {
 		l.pos += 2
 		l.state = stateXH
 		l.literalbuf.Reset()
@@ -238,7 +257,7 @@ func (l *Lexer) lexInitial() Token {
 	}
 
 	// National character: N'...' -> treat as NCHAR followed by string
-	if (ch == 'n' || ch == 'N') && l.pos+1 < len(l.input) && l.input[l.pos+1] == '\'' {
+	if (ch == 'n' || ch == 'N') && l.pos+1 < l.end && l.input[l.pos+1] == '\'' {
 		// Look up NCHAR keyword
 		kw := LookupKeyword("nchar")
 		if kw != nil {
@@ -251,7 +270,7 @@ func (l *Lexer) lexInitial() Token {
 	}
 
 	// Extended quoted string: E'...'
-	if (ch == 'e' || ch == 'E') && l.pos+1 < len(l.input) && l.input[l.pos+1] == '\'' {
+	if (ch == 'e' || ch == 'E') && l.pos+1 < l.end && l.input[l.pos+1] == '\'' {
 		l.pos += 2
 		l.state = stateXE
 		l.warnOnFirstEscape = false
@@ -261,8 +280,8 @@ func (l *Lexer) lexInitial() Token {
 	}
 
 	// Unicode string: U&'...'
-	if (ch == 'u' || ch == 'U') && l.pos+1 < len(l.input) && l.input[l.pos+1] == '&' {
-		if l.pos+2 < len(l.input) && l.input[l.pos+2] == '\'' {
+	if (ch == 'u' || ch == 'U') && l.pos+1 < l.end && l.input[l.pos+1] == '&' {
+		if l.pos+2 < l.end && l.input[l.pos+2] == '\'' {
 			if !l.StandardConformingStrings {
 				l.Err = fmt.Errorf("unsafe use of string constant with Unicode escapes")
 				return Token{Type: lex_EOF, Loc: l.start}
@@ -273,7 +292,7 @@ func (l *Lexer) lexInitial() Token {
 			return l.NextToken()
 		}
 		// Unicode identifier: U&"..."
-		if l.pos+2 < len(l.input) && l.input[l.pos+2] == '"' {
+		if l.pos+2 < l.end && l.input[l.pos+2] == '"' {
 			l.pos += 3
 			l.state = stateXUI
 			l.literalbuf.Reset()
@@ -316,7 +335,7 @@ func (l *Lexer) lexInitial() Token {
 			return l.NextToken()
 		}
 		// Check for parameter: $1, $2, etc.
-		if l.pos+1 < len(l.input) && isDigit(l.input[l.pos+1]) {
+		if l.pos+1 < l.end && isDigit(l.input[l.pos+1]) {
 			return l.lexParam()
 		}
 		// Single $ is returned as itself
@@ -325,7 +344,7 @@ func (l *Lexer) lexInitial() Token {
 	}
 
 	// Two-character special tokens (must check before operators)
-	if l.pos+1 < len(l.input) {
+	if l.pos+1 < l.end {
 		ch2 := l.input[l.pos : l.pos+2]
 		switch ch2 {
 		case "::":
@@ -348,7 +367,7 @@ func (l *Lexer) lexInitial() Token {
 
 	// Numbers - check for leading dot numeric BEFORE self-delimiting
 	// because .5 should be parsed as a numeric, not as . followed by 5
-	if ch == '.' && l.pos+1 < len(l.input) && isDigit(l.input[l.pos+1]) {
+	if ch == '.' && l.pos+1 < l.end && isDigit(l.input[l.pos+1]) {
 		return l.lexNumber()
 	}
 
@@ -376,11 +395,11 @@ func (l *Lexer) lexInitial() Token {
 
 // skipWhitespace skips whitespace characters.
 func (l *Lexer) skipWhitespace() {
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
 		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\f' || ch == '\v' {
 			l.pos++
-		} else if ch == '-' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '-' {
+		} else if ch == '-' && l.pos+1 < l.end && l.input[l.pos+1] == '-' {
 			l.skipLineComment()
 		} else {
 			break
@@ -391,7 +410,7 @@ func (l *Lexer) skipWhitespace() {
 // skipLineComment skips a -- comment to end of line.
 func (l *Lexer) skipLineComment() {
 	l.pos += 2 // skip --
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
 		l.pos++
 		if ch == '\n' || ch == '\r' {
@@ -402,18 +421,18 @@ func (l *Lexer) skipLineComment() {
 
 // lexComment handles C-style comments /* ... */
 func (l *Lexer) lexComment() {
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
 
 		// Check for nested comment start
-		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+		if ch == '/' && l.pos+1 < l.end && l.input[l.pos+1] == '*' {
 			l.xcdepth++
 			l.pos += 2
 			continue
 		}
 
 		// Check for comment end
-		if ch == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
+		if ch == '*' && l.pos+1 < l.end && l.input[l.pos+1] == '/' {
 			l.pos += 2
 			if l.xcdepth <= 0 {
 				l.state = stateInitial
@@ -433,7 +452,7 @@ func (l *Lexer) lexComment() {
 
 // lexBitOrHexString handles B'...' and X'...' strings.
 func (l *Lexer) lexBitOrHexString() Token {
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
 		if ch == '\'' {
 			l.pos++
@@ -456,13 +475,13 @@ func (l *Lexer) lexBitOrHexString() Token {
 
 // lexQuotedString handles '...' E'...' and U&'...' strings.
 func (l *Lexer) lexQuotedString() Token {
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
 
 		// End quote - check for doubled quote first
 		if ch == '\'' {
 			// Check for doubled quote (escaped single quote)
-			if l.pos+1 < len(l.input) && l.input[l.pos+1] == '\'' {
+			if l.pos+1 < l.end && l.input[l.pos+1] == '\'' {
 				l.literalbuf.WriteByte('\'')
 				l.pos += 2
 				continue
@@ -475,7 +494,7 @@ func (l *Lexer) lexQuotedString() Token {
 		}
 
 		// For extended strings, handle escape sequences
-		if l.state == stateXE && ch == '\\' && l.pos+1 < len(l.input) {
+		if l.state == stateXE && ch == '\\' && l.pos+1 < l.end {
 			l.pos++
 			l.handleEscapeSequence()
 			continue
@@ -492,7 +511,7 @@ func (l *Lexer) lexQuotedString() Token {
 
 // handleEscapeSequence processes escape sequences in E'...' strings.
 func (l *Lexer) handleEscapeSequence() {
-	if l.pos >= len(l.input) {
+	if l.pos >= l.end {
 		return
 	}
 
@@ -522,7 +541,7 @@ func (l *Lexer) handleEscapeSequence() {
 		}
 	case 'x':
 		// Hex escape: \xNN
-		if l.pos < len(l.input) && isHexDigit(l.input[l.pos]) {
+		if l.pos < l.end && isHexDigit(l.input[l.pos]) {
 			val := l.scanHex(2)
 			l.literalbuf.WriteByte(byte(val))
 			if val > 127 {
@@ -533,7 +552,7 @@ func (l *Lexer) handleEscapeSequence() {
 		}
 	case 'u':
 		// Unicode escape: \uXXXX
-		if l.pos+3 < len(l.input) {
+		if l.pos+3 < l.end {
 			val := l.scanHex(4)
 			l.writeUnicodeChar(rune(val))
 		} else {
@@ -541,7 +560,7 @@ func (l *Lexer) handleEscapeSequence() {
 		}
 	case 'U':
 		// Unicode escape: \UXXXXXXXX
-		if l.pos+7 < len(l.input) {
+		if l.pos+7 < l.end {
 			val := l.scanHex(8)
 			l.writeUnicodeChar(rune(val))
 		} else {
@@ -555,7 +574,7 @@ func (l *Lexer) handleEscapeSequence() {
 // scanOctal scans an octal escape sequence.
 func (l *Lexer) scanOctal() int {
 	val := 0
-	for i := 0; i < 3 && l.pos < len(l.input); i++ {
+	for i := 0; i < 3 && l.pos < l.end; i++ {
 		ch := l.input[l.pos]
 		if ch < '0' || ch > '7' {
 			break
@@ -569,7 +588,7 @@ func (l *Lexer) scanOctal() int {
 // scanHex scans n hex digits.
 func (l *Lexer) scanHex(n int) int {
 	val := 0
-	for i := 0; i < n && l.pos < len(l.input); i++ {
+	for i := 0; i < n && l.pos < l.end; i++ {
 		ch := l.input[l.pos]
 		if !isHexDigit(ch) {
 			break
@@ -598,14 +617,14 @@ func (l *Lexer) lexQuoteContinue() Token {
 	// SQL requires at least one newline in the whitespace to continue a string
 	hasNewline := false
 
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
 		if ch == ' ' || ch == '\t' || ch == '\f' || ch == '\v' {
 			l.pos++
 		} else if ch == '\n' || ch == '\r' {
 			hasNewline = true
 			l.pos++
-		} else if ch == '-' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '-' {
+		} else if ch == '-' && l.pos+1 < l.end && l.input[l.pos+1] == '-' {
 			// SQL comment - after comment there's an implicit newline
 			l.skipLineComment()
 			hasNewline = true
@@ -615,7 +634,7 @@ func (l *Lexer) lexQuoteContinue() Token {
 	}
 
 	// If we see a quote after whitespace with newline, continue the string
-	if hasNewline && l.pos < len(l.input) && l.input[l.pos] == '\'' {
+	if hasNewline && l.pos < l.end && l.input[l.pos] == '\'' {
 		l.pos++
 		l.state = l.stateBeforeStrStop
 		return l.NextToken()
@@ -680,7 +699,7 @@ func (l *Lexer) lexQuoteContinue() Token {
 // lexUnicodeSurrogate handles Unicode surrogate pairs in E'...' strings.
 func (l *Lexer) lexUnicodeSurrogate() Token {
 	// Looking for the second part of a surrogate pair
-	if l.pos+1 < len(l.input) && l.input[l.pos] == '\\' {
+	if l.pos+1 < l.end && l.input[l.pos] == '\\' {
 		l.pos++
 		ch := l.input[l.pos]
 		if ch == 'u' || ch == 'U' {
@@ -707,14 +726,14 @@ func (l *Lexer) lexUnicodeSurrogate() Token {
 
 // lexDelimitedIdent handles "..." identifiers.
 func (l *Lexer) lexDelimitedIdent() Token {
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
 
 		// End quote
 		if ch == '"' {
 			l.pos++
 			// Check for "" (escaped quote)
-			if l.pos < len(l.input) && l.input[l.pos] == '"' {
+			if l.pos < l.end && l.input[l.pos] == '"' {
 				l.literalbuf.WriteByte('"')
 				l.pos++
 				continue
@@ -748,7 +767,7 @@ func (l *Lexer) lexDelimitedIdent() Token {
 
 // lexDollarQuote handles $tag$...$tag$ strings.
 func (l *Lexer) lexDollarQuote() Token {
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
 
 		if ch == '$' {
@@ -772,7 +791,7 @@ func (l *Lexer) lexDollarQuote() Token {
 
 // scanDollarTag scans and returns a dollar tag ($...$) if present.
 func (l *Lexer) scanDollarTag() string {
-	if l.pos >= len(l.input) || l.input[l.pos] != '$' {
+	if l.pos >= l.end || l.input[l.pos] != '$' {
 		return ""
 	}
 
@@ -780,7 +799,7 @@ func (l *Lexer) scanDollarTag() string {
 	l.pos++ // skip first $
 
 	// Tag can be empty ($$ ... $$) or have identifier chars
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
 		if ch == '$' {
 			l.pos++
@@ -818,12 +837,12 @@ func (l *Lexer) peekDollarTag() string {
 func (l *Lexer) lexParam() Token {
 	l.pos++ // skip $
 	start := l.pos
-	for l.pos < len(l.input) && isDigit(l.input[l.pos]) {
+	for l.pos < l.end && isDigit(l.input[l.pos]) {
 		l.pos++
 	}
 
 	// Check for trailing junk
-	if l.pos < len(l.input) && isIdentStart(l.input[l.pos]) {
+	if l.pos < l.end && isIdentStart(l.input[l.pos]) {
 		l.Err = fmt.Errorf("trailing junk after parameter")
 		l.consumeJunkIdent()
 		return Token{Type: lex_EOF, Loc: l.start}
@@ -837,7 +856,7 @@ func (l *Lexer) lexParam() Token {
 func (l *Lexer) lexOperator() Token {
 	start := l.pos
 
-	for l.pos < len(l.input) && isOpChar(l.input[l.pos]) {
+	for l.pos < l.end && isOpChar(l.input[l.pos]) {
 		l.pos++
 	}
 
@@ -907,7 +926,7 @@ func (l *Lexer) lexNumber() Token {
 	start := l.pos
 
 	// Check for hex, octal, or binary prefix
-	if l.input[l.pos] == '0' && l.pos+1 < len(l.input) {
+	if l.input[l.pos] == '0' && l.pos+1 < l.end {
 		next := l.input[l.pos+1]
 		if next == 'x' || next == 'X' {
 			return l.lexHexNumber()
@@ -926,9 +945,9 @@ func (l *Lexer) lexNumber() Token {
 	isFloat := false
 
 	// Check for decimal point
-	if l.pos < len(l.input) && l.input[l.pos] == '.' {
+	if l.pos < l.end && l.input[l.pos] == '.' {
 		// Check for .. (DOT_DOT)
-		if l.pos+1 < len(l.input) && l.input[l.pos+1] == '.' {
+		if l.pos+1 < l.end && l.input[l.pos+1] == '.' {
 			// Return the integer part, let .. be handled separately
 			goto done
 		}
@@ -938,14 +957,14 @@ func (l *Lexer) lexNumber() Token {
 	}
 
 	// Check for exponent
-	if l.pos < len(l.input) && (l.input[l.pos] == 'e' || l.input[l.pos] == 'E') {
+	if l.pos < l.end && (l.input[l.pos] == 'e' || l.input[l.pos] == 'E') {
 		l.pos++
 		hasSign := false
-		if l.pos < len(l.input) && (l.input[l.pos] == '+' || l.input[l.pos] == '-') {
+		if l.pos < l.end && (l.input[l.pos] == '+' || l.input[l.pos] == '-') {
 			l.pos++
 			hasSign = true
 		}
-		if l.pos >= len(l.input) || !isDigit(l.input[l.pos]) {
+		if l.pos >= l.end || !isDigit(l.input[l.pos]) {
 			l.Err = fmt.Errorf("trailing junk after numeric literal")
 			// Flex takes the longest match: "1efoo" is {integer_junk}
 			// (literal + identifier "efoo"), while "1e+foo" is {real_fail}
@@ -961,7 +980,7 @@ func (l *Lexer) lexNumber() Token {
 
 done:
 	// Check for trailing identifier
-	if l.pos < len(l.input) && isIdentStart(l.input[l.pos]) {
+	if l.pos < l.end && isIdentStart(l.input[l.pos]) {
 		l.Err = fmt.Errorf("trailing junk after numeric literal")
 		l.consumeJunkIdent()
 		return Token{Type: lex_EOF, Loc: l.start}
@@ -987,7 +1006,7 @@ done:
 
 // scanDecDigits scans decimal digits with optional underscores.
 func (l *Lexer) scanDecDigits() {
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
 		if isDigit(ch) || ch == '_' {
 			l.pos++
@@ -1025,7 +1044,7 @@ func (l *Lexer) lexRadixNumber(base int, isRadixDigit func(byte) bool, invalidMs
 	start := l.pos
 	l.pos += 2 // skip the 0x/0o/0b prefix
 	runStart := l.pos
-	for l.pos < len(l.input) && isIdentCont(l.input[l.pos]) {
+	for l.pos < l.end && isIdentCont(l.input[l.pos]) {
 		l.pos++
 	}
 	run := l.input[runStart:l.pos]
@@ -1073,7 +1092,7 @@ func (l *Lexer) lexIdent() Token {
 	start := l.pos
 
 	// Scan identifier
-	for l.pos < len(l.input) && isIdentCont(l.input[l.pos]) {
+	for l.pos < l.end && isIdentCont(l.input[l.pos]) {
 		l.pos++
 	}
 
@@ -1134,7 +1153,7 @@ func hexValue(ch byte) int {
 // ({integer_junk}, {param_junk}, ...) match the literal followed by a whole
 // {identifier}, so the diagnostic quotes "123abc" rather than the valid "123".
 func (l *Lexer) consumeJunkIdent() {
-	for l.pos < len(l.input) && isIdentCont(l.input[l.pos]) {
+	for l.pos < l.end && isIdentCont(l.input[l.pos]) {
 		l.pos++
 	}
 }
@@ -1205,25 +1224,25 @@ func (l *Lexer) scanUESCAPE() (rune, error) {
 
 	l.skipWhitespaceAndComments()
 
-	if l.pos+7 <= len(l.input) {
+	if l.pos+7 <= l.end {
 		word := l.input[l.pos : l.pos+7]
 		if strings.EqualFold(word, "UESCAPE") {
 			l.pos += 7
 			l.skipWhitespaceAndComments()
 
-			if l.pos < len(l.input) && l.input[l.pos] == '\'' {
+			if l.pos < l.end && l.input[l.pos] == '\'' {
 				l.pos++
-				if l.pos < len(l.input) {
+				if l.pos < l.end {
 					ch := l.input[l.pos]
 					escapeChar = rune(ch)
 					l.pos++
 
-					if ch == '\'' && l.pos < len(l.input) && l.input[l.pos] == '\'' {
+					if ch == '\'' && l.pos < l.end && l.input[l.pos] == '\'' {
 						escapeChar = '\''
 						l.pos++
 					}
 
-					if l.pos < len(l.input) && l.input[l.pos] == '\'' {
+					if l.pos < l.end && l.input[l.pos] == '\'' {
 						l.pos++
 						return escapeChar, nil
 					}
@@ -1241,7 +1260,7 @@ func (l *Lexer) scanUESCAPE() (rune, error) {
 
 // skipWhitespaceAndComments skips whitespace and comments (both -- and /* */).
 func (l *Lexer) skipWhitespaceAndComments() {
-	for l.pos < len(l.input) {
+	for l.pos < l.end {
 		ch := l.input[l.pos]
 
 		if isSpaceByte(ch) {
@@ -1249,22 +1268,22 @@ func (l *Lexer) skipWhitespaceAndComments() {
 			continue
 		}
 
-		if ch == '-' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '-' {
+		if ch == '-' && l.pos+1 < l.end && l.input[l.pos+1] == '-' {
 			l.skipLineComment()
 			continue
 		}
 
-		if ch == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+		if ch == '/' && l.pos+1 < l.end && l.input[l.pos+1] == '*' {
 			l.pos += 2
 			depth := 1
-			for l.pos < len(l.input) && depth > 0 {
-				if l.pos >= len(l.input) {
+			for l.pos < l.end && depth > 0 {
+				if l.pos >= l.end {
 					break
 				}
-				if l.input[l.pos] == '*' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '/' {
+				if l.input[l.pos] == '*' && l.pos+1 < l.end && l.input[l.pos+1] == '/' {
 					depth--
 					l.pos += 2
-				} else if l.input[l.pos] == '/' && l.pos+1 < len(l.input) && l.input[l.pos+1] == '*' {
+				} else if l.input[l.pos] == '/' && l.pos+1 < l.end && l.input[l.pos+1] == '*' {
 					depth++
 					l.pos += 2
 				} else {
