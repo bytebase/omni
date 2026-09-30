@@ -101,6 +101,27 @@ func TestParseRangeReadsNothingPastEnd(t *testing.T) {
 	if _, err := ParseRange("SELECT 1;\n\\echo hi\nSELECT 2", 9, 19); err != nil {
 		t.Errorf("a metacommand inside the range: %v", err)
 	}
+
+	// A range that ends inside the byte order mark holds one stray byte,
+	// not a BOM.
+	if _, err := ParseRange("\xEF\xBB\xBFSELECT 1", 0, 1); err == nil {
+		t.Error("ParseRange over the first BOM byte succeeded, want a syntax error")
+	}
+
+	// COPY FROM STDIN takes its inline data only when the rest of the
+	// line inside the range is blank; a byte past end does not decide it.
+	copyScript := "COPY t FROM STDIN;X"
+	list, err := ParseRange(copyScript, 0, 18)
+	if err != nil {
+		t.Fatalf("ParseRange(COPY): %v", err)
+	}
+	whole, err := Parse(copyScript[:18])
+	if err != nil {
+		t.Fatalf("Parse(COPY): %v", err)
+	}
+	if got, want := list.Items[0].(*nodes.RawStmt).Loc, whole.Items[0].(*nodes.RawStmt).Loc; got != want {
+		t.Errorf("COPY Loc in range = %+v, whole text = %+v", got, want)
+	}
 }
 
 // TestParseRangeSkipsBOMOnlyAtStart checks the byte order mark is trivia

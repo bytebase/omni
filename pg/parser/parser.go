@@ -50,8 +50,8 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 	}
 	// A UTF-8 BOM at the start of the script is trivia: psql strips it
 	// before scanning (mainloop.c).
-	if start == 0 && strings.HasPrefix(source, "\xEF\xBB\xBF") {
-		p.lexer.pos = min(3, end)
+	if start == 0 && strings.HasPrefix(source[:end], "\xEF\xBB\xBF") {
+		p.lexer.pos = 3
 	}
 	p.advance()
 
@@ -107,7 +107,7 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 		// error it may have produced).
 		if cs, ok := stmt.(*nodes.CopyStmt); ok &&
 			cs.IsFrom && cs.Filename == "" && !cs.IsProgram && cs.Query == nil &&
-			p.cur.Type == ';' && copyscan.RestOfLineBlank(p.source, p.cur.End) {
+			p.cur.Type == ';' && copyscan.RestOfLineBlank(p.source[:p.lexer.end], p.cur.End) {
 			semiEnd := p.cur.End
 			dataEnd := copyscan.SkipData(p.source[:p.lexer.end], semiEnd)
 			cs.InlineData = p.source[semiEnd:dataEnd]
