@@ -66,18 +66,24 @@ func (p *Parser) parseAlterTable(alterLoc int) (nodes.Node, error) {
 	}
 
 	// relation_expr
-	rel, _ := p.parseRelationExpr()
+	rel, err := p.parseRelationExpr()
+	if err != nil {
+		return nil, err
+	}
 
 	// Check for RENAME (produces RenameStmt, not AlterTableStmt)
 	if p.cur.Type == RENAME {
-		return p.parseAlterTableRename(rel, missingOk, alterLoc)
+		return p.parseAlterTableRename(rel, nodes.OBJECT_TABLE, missingOk, alterLoc)
 	}
 
 	// Check for SET SCHEMA (produces AlterObjectSchemaStmt)
 	if p.cur.Type == SET && p.peekNext().Type == SCHEMA {
 		p.advance() // consume SET
 		p.advance() // consume SCHEMA
-		newschema, _ := p.parseName()
+		newschema, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterObjectSchemaStmt{
 			ObjectType: nodes.OBJECT_TABLE,
 			Relation:   rel,
@@ -510,23 +516,30 @@ func (p *Parser) parseAlterForeignTable(alterLoc int) (nodes.Node, error) {
 		missingOk = true
 	}
 
-	rel, _ := p.parseRelationExpr()
+	rel, err := p.parseRelationExpr()
+	if err != nil {
+		return nil, err
+	}
 
 	// Check for RENAME
 	if p.cur.Type == RENAME {
-		return p.parseAlterTableRename(rel, missingOk, alterLoc)
+		return p.parseAlterTableRename(rel, nodes.OBJECT_FOREIGN_TABLE, missingOk, alterLoc)
 	}
 
 	// Check for SET SCHEMA (produces AlterObjectSchemaStmt)
 	if p.cur.Type == SET && p.peekNext().Type == SCHEMA {
 		p.advance() // consume SET
 		p.advance() // consume SCHEMA
-		newschema, _ := p.parseName()
+		newschema, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterObjectSchemaStmt{
 			ObjectType: nodes.OBJECT_FOREIGN_TABLE,
 			Relation:   rel,
 			Newschema:  newschema,
 			MissingOk:  missingOk,
+			Loc:        nodes.Loc{Start: alterLoc, End: p.prev.End},
 		}, nil
 	}
 
@@ -579,68 +592,69 @@ func (p *Parser) parseAlterTableMoveAll(objType int, alterLoc int) *nodes.AlterT
 	}
 }
 
-// parseAlterTableRename parses ALTER TABLE ... RENAME ...
-func (p *Parser) parseAlterTableRename(rel *nodes.RangeVar, missingOk bool, alterLoc int) (*nodes.RenameStmt, error) {
+// parseAlterTableRename parses the RENAME forms of ALTER TABLE and ALTER
+// FOREIGN TABLE. relType is OBJECT_TABLE or OBJECT_FOREIGN_TABLE.
+//
+//	ALTER TABLE relation_expr RENAME TO name                         -- gram.y:9480
+//	ALTER FOREIGN TABLE relation_expr RENAME TO name                 -- gram.y:9590
+//	ALTER TABLE relation_expr RENAME opt_column name TO name         -- gram.y:9612
+//	ALTER TABLE relation_expr RENAME CONSTRAINT name TO name         -- gram.y:9684
+//	ALTER FOREIGN TABLE relation_expr RENAME opt_column name TO name -- gram.y:9706
+//
+// Each production has an IF_P EXISTS twin. The foreign-table productions
+// set renameType (RENAME TO) or relationType (RENAME COLUMN) to
+// OBJECT_FOREIGN_TABLE, and there is no RENAME CONSTRAINT production for a
+// foreign table.
+func (p *Parser) parseAlterTableRename(rel *nodes.RangeVar, relType nodes.ObjectType, missingOk bool, alterLoc int) (nodes.Node, error) {
 	p.advance() // consume RENAME
 
 	if p.collectMode() {
 		p.addTokenCandidate(TO)
 		p.addTokenCandidate(COLUMN)
-		p.addTokenCandidate(CONSTRAINT)
+		if relType == nodes.OBJECT_TABLE {
+			p.addTokenCandidate(CONSTRAINT)
+		}
 		// Also valid: column name directly (RENAME col_name TO ...)
 		p.addRuleCandidate("columnref")
-		return nil, nil
+		return nil, errCollecting
 	}
 
 	switch p.cur.Type {
 	case TO:
 		// RENAME TO name
 		p.advance()
-		newname, _ := p.parseName()
+		newname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.RenameStmt{
-			RenameType: nodes.OBJECT_TABLE,
+			RenameType: relType,
 			Relation:   rel,
 			Newname:    newname,
 			MissingOk:  missingOk,
 			Loc:        nodes.Loc{Start: alterLoc, End: p.prev.End},
 		}, nil
-	case COLUMN:
-		// RENAME COLUMN colname TO newname
-		p.advance() // consume COLUMN
-		if p.collectMode() {
-			p.addRuleCandidate("columnref")
-			return nil, nil
+	case CONSTRAINT:
+		// RENAME CONSTRAINT name TO name
+		if relType != nodes.OBJECT_TABLE {
+			return nil, p.syntaxErrorAtCur()
 		}
-		oldname, err := p.parseColId()
+		p.advance() // consume CONSTRAINT
+		if p.collectMode() {
+			p.addRuleCandidate("qualified_name")
+			return nil, errCollecting
+		}
+		oldname, err := p.parseName()
 		if err != nil {
 			return nil, err
-		}
-		if oldname == "" {
-			return nil, p.syntaxErrorAtCur()
 		}
 		if _, err := p.expect(TO); err != nil {
 			return nil, err
 		}
-		newname, _ := p.parseName()
-		return &nodes.RenameStmt{
-			RenameType:   nodes.OBJECT_COLUMN,
-			RelationType: nodes.OBJECT_TABLE,
-			Relation:     rel,
-			Subname:      oldname,
-			Newname:      newname,
-			MissingOk:    missingOk,
-			Loc:          nodes.Loc{Start: alterLoc, End: p.prev.End},
-		}, nil
-	case CONSTRAINT:
-		// RENAME CONSTRAINT oldname TO newname
-		p.advance() // consume CONSTRAINT
-		if p.collectMode() {
-			p.addRuleCandidate("qualified_name")
-			return nil, nil
+		newname, err := p.parseName()
+		if err != nil {
+			return nil, err
 		}
-		oldname, _ := p.parseName()
-		p.expect(TO)
-		newname, _ := p.parseName()
 		return &nodes.RenameStmt{
 			RenameType:   nodes.OBJECT_TABCONSTRAINT,
 			RelationType: nodes.OBJECT_TABLE,
@@ -651,13 +665,28 @@ func (p *Parser) parseAlterTableRename(rel *nodes.RangeVar, missingOk bool, alte
 			Loc:          nodes.Loc{Start: alterLoc, End: p.prev.End},
 		}, nil
 	default:
-		// RENAME colname TO newname (implicit column rename, no COLUMN keyword)
-		oldname, _ := p.parseColId()
-		p.expect(TO)
-		newname, _ := p.parseName()
+		// RENAME opt_column name TO name
+		if p.cur.Type == COLUMN {
+			p.advance() // consume COLUMN
+			if p.collectMode() {
+				p.addRuleCandidate("columnref")
+				return nil, errCollecting
+			}
+		}
+		oldname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(TO); err != nil {
+			return nil, err
+		}
+		newname, err := p.parseName()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.RenameStmt{
 			RenameType:   nodes.OBJECT_COLUMN,
-			RelationType: nodes.OBJECT_TABLE,
+			RelationType: relType,
 			Relation:     rel,
 			Subname:      oldname,
 			Newname:      newname,
