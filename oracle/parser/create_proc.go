@@ -77,8 +77,8 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 	}
 	p.advance()
 
-	// PL/SQL block body (BEGIN ... END)
-	stmt.Body, parseErr456 = p.parsePLSQLBlock()
+	// PL/SQL block body (BEGIN ... END) or call spec
+	stmt.Body, stmt.CallSpec, parseErr456 = p.parseSubprogramImplementation()
 	if parseErr456 != nil {
 		return nil, parseErr456
 	}
@@ -226,8 +226,8 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 	p.advance()
 	var parseErr461 error
 
-	// PL/SQL block body (BEGIN ... END)
-	stmt.Body, parseErr461 = p.parsePLSQLBlock()
+	// PL/SQL block body (BEGIN ... END) or call spec
+	stmt.Body, stmt.CallSpec, parseErr461 = p.parseSubprogramImplementation()
 	if parseErr461 != nil {
 		return nil, parseErr461
 	}
@@ -568,7 +568,7 @@ func (p *Parser) parsePackageProcDecl() (*nodes.CreateProcedureStmt, error) {
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
 		p.advance()
 		var parseErr475 error
-		stmt.Body, parseErr475 = p.parsePLSQLBlock()
+		stmt.Body, stmt.CallSpec, parseErr475 = p.parseSubprogramImplementation()
 		if parseErr475 != nil {
 			return nil, parseErr475
 		}
@@ -641,7 +641,7 @@ func (p *Parser) parsePackageFuncDecl() (*nodes.CreateFunctionStmt, error) {
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
 		p.advance()
 		var parseErr480 error
-		stmt.Body, parseErr480 = p.parsePLSQLBlock()
+		stmt.Body, stmt.CallSpec, parseErr480 = p.parseSubprogramImplementation()
 		if parseErr480 != nil {
 			return nil, parseErr480
 		}
@@ -772,4 +772,185 @@ func (p *Parser) parseParameterMode() (string, error) {
 		return "OUT", nil
 	}
 	return "", nil
+}
+
+// parseSubprogramImplementation parses what follows the IS|AS of a procedure
+// or function: a call spec, or a PL/SQL block. Exactly one result is non-nil.
+func (p *Parser) parseSubprogramImplementation() (nodes.StmtNode, *nodes.CallSpec, error) {
+	if p.isCallSpecStart() {
+		spec, err := p.parseCallSpec()
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, spec, nil
+	}
+	block, err := p.parsePLSQLBlock()
+	if err != nil {
+		return nil, nil, err
+	}
+	return block, nil, nil
+}
+
+// isCallSpecStart reports whether the tokens after IS|AS open a call spec:
+// LANGUAGE JAVA, LANGUAGE C, or EXTERNAL then NAME or LIBRARY. A declaration
+// of a variable named LANGUAGE or EXTERNAL continues with its type instead.
+func (p *Parser) isCallSpecStart() bool {
+	switch {
+	case p.isIdentLikeStr("LANGUAGE"):
+		next := p.peekNext()
+		return next.Type == kwJAVA || (next.Type == tokIDENT && next.Str == "C")
+	case p.isIdentLikeStr("EXTERNAL"):
+		next := p.peekNext()
+		return next.Type == kwNAME || next.Type == kwLIBRARY
+	}
+	return false
+}
+
+// parseCallSpec parses a call_spec, which publishes a Java method or a C
+// function as the implementation of a procedure or function.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/19/lnpls/call-specification.html
+//
+//	call_spec ::= LANGUAGE { java_declaration | c_declaration }
+//	java_declaration ::= JAVA NAME string
+//	c_declaration ::= C { [ NAME name ] LIBRARY lib_name | LIBRARY lib_name [ NAME name ] }
+//	    [ AGENT IN ( argument [, argument ]... ) ]
+//	    [ WITH CONTEXT ]
+//	    [ PARAMETERS ( external_parameter [, external_parameter ]... ) ]
+//
+// EXTERNAL, the older spelling of LANGUAGE C, is still accepted by Oracle.
+// The ';' that ends the call spec is consumed, as parsePLSQLBlock consumes the
+// one after END; Oracle compiles the unit with PLS-00103 without it.
+func (p *Parser) parseCallSpec() (*nodes.CallSpec, error) {
+	spec := &nodes.CallSpec{Loc: nodes.Loc{Start: p.pos()}}
+
+	if p.isIdentLikeStr("EXTERNAL") {
+		spec.Language = "C"
+		spec.External = true
+		p.advance() // consume EXTERNAL
+	} else {
+		p.advance() // consume LANGUAGE
+		if p.cur.Type == kwJAVA {
+			spec.Language = "JAVA"
+			p.advance() // consume JAVA
+			if p.cur.Type != kwNAME {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume NAME
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			spec.Name = p.cur.Str
+			p.advance()
+			return p.finishCallSpec(spec), nil
+		}
+		if p.cur.Type != tokIDENT || p.cur.Str != "C" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		spec.Language = "C"
+		p.advance() // consume C
+	}
+
+	// NAME and LIBRARY come in either order; LIBRARY is required.
+	var err error
+	if p.cur.Type == kwNAME {
+		p.advance() // consume NAME
+		if spec.Name, err = p.parseCallSpecCName(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Type != kwLIBRARY {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume LIBRARY
+	if spec.Library, err = p.parseObjectName(); err != nil {
+		return nil, err
+	}
+	if spec.Library == nil || spec.Library.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if spec.Name == "" && p.cur.Type == kwNAME {
+		p.advance() // consume NAME
+		if spec.Name, err = p.parseCallSpecCName(); err != nil {
+			return nil, err
+		}
+	}
+
+	if p.isIdentLikeStr("AGENT") {
+		p.advance() // consume AGENT
+		if p.cur.Type != kwIN {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume IN
+		if spec.AgentIn, err = p.parseCallSpecWordList(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Type == kwWITH {
+		p.advance() // consume WITH
+		if p.cur.Type != kwCONTEXT {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume CONTEXT
+		spec.WithContext = true
+	}
+	if p.isIdentLikeStr("PARAMETERS") {
+		p.advance() // consume PARAMETERS
+		if spec.Parameters, err = p.parseCallSpecWordList(); err != nil {
+			return nil, err
+		}
+	}
+	return p.finishCallSpec(spec), nil
+}
+
+// parseCallSpecCName parses the C function name of a C call spec, an
+// identifier whose case is kept when it is quoted.
+func (p *Parser) parseCallSpecCName() (string, error) {
+	if !p.isIdentLike() {
+		return "", p.syntaxErrorAtCur()
+	}
+	return p.parseIdentifier()
+}
+
+// parseCallSpecWordList parses the parenthesized AGENT IN arguments or
+// PARAMETERS entries of a C call spec. An entry is a run of words, kept as
+// written: a parameter name, CONTEXT, SELF or RETURN, then an optional
+// property (INDICATOR [STRUCT | TDO], LENGTH, MAXLEN, ...), BY REFERENCE, and
+// an external datatype (INT, UNSIGNED SHORT, OCISTRING, ...).
+func (p *Parser) parseCallSpecWordList() (*nodes.List, error) {
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume (
+	list := &nodes.List{}
+	for {
+		var words []string
+		for p.isIdentLike() {
+			words = append(words, p.cur.Str)
+			p.advance()
+		}
+		if len(words) == 0 {
+			return nil, p.syntaxErrorAtCur()
+		}
+		list.Items = append(list.Items, &nodes.String{Str: strings.Join(words, " ")})
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ,
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume )
+	return list, nil
+}
+
+// finishCallSpec closes the call spec's Loc at its last token and consumes
+// the ';' that ends it.
+func (p *Parser) finishCallSpec(spec *nodes.CallSpec) *nodes.CallSpec {
+	spec.Loc.End = p.prev.End
+	if p.cur.Type == ';' {
+		p.advance()
+	}
+	return spec
 }

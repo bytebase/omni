@@ -308,8 +308,8 @@ func (p *Parser) parseTypeBodyProcedure() (*nodes.CreateProcedureStmt, error) {
 	}
 	var parseErr584 error
 
-	// PL/SQL block body
-	stmt.Body, parseErr584 = p.parsePLSQLBlock()
+	// PL/SQL block body or call spec
+	stmt.Body, stmt.CallSpec, parseErr584 = p.parseSubprogramImplementation()
 	if parseErr584 != nil {
 		return nil, parseErr584
 	}
@@ -399,8 +399,8 @@ func (p *Parser) parseTypeBodyFunction(isConstructor bool) (*nodes.CreateFunctio
 	}
 	var parseErr589 error
 
-	// PL/SQL block body
-	stmt.Body, parseErr589 = p.parsePLSQLBlock()
+	// PL/SQL block body or call spec
+	stmt.Body, stmt.CallSpec, parseErr589 = p.parseSubprogramImplementation()
 	if parseErr589 != nil {
 		return nil, parseErr589
 	}

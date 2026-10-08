@@ -92,12 +92,19 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 func validateBalancedDelimiters(sql string, start, end int) error {
 	lexer := NewLexerRange(sql, start, end)
 	depth := 0
+	var javaHead javaSourceHead
 	for {
 		tok := lexer.NextToken()
 		if lexer.Err != nil {
 			return nil
 		}
+		if javaHead.observe(tok) {
+			// The rest of the range is Java source, not SQL.
+			return nil
+		}
 		switch tok.Type {
+		case ';':
+			javaHead = javaSourceHead{}
 		case tokEOF:
 			if depth > 0 {
 				return &ParseError{Message: "syntax error at end of input", Position: tok.Loc}

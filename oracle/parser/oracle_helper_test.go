@@ -222,6 +222,8 @@ func setupOracleSchema(o *oracleDB) {
 		// Views/objects for advanced queries
 		`CREATE VIEW sales_view AS SELECT 'US' AS country, 'Bounce' AS product, 2023 AS year, 1000 AS sales FROM dual`,
 		`CREATE TABLE j_purchaseorder (po_document CLOB)`,
+		// OFFSET and PARTITION are not reserved and name columns in practice.
+		`CREATE TABLE t_offset (a NUMBER, offset NUMBER, partition NUMBER)`,
 	}
 
 	for _, ddl := range ddls {

@@ -76,6 +76,7 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.CreateSchemaStmt	statement	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.CreateTriggerStmt	statement	covered	CREATE TRIGGER tr BEFORE INSERT ON t BEGIN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.CreateFunctionStmt	statement	covered	CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.CallSpec	plsql	covered	CREATE FUNCTION f(p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C LIBRARY lib NAME "c_f" PARAMETERS (p INT, RETURN INT);	call spec span	none	covered	keep_regression_guard
 *nodes.CreateProcedureStmt	statement	covered	CREATE PROCEDURE p IS BEGIN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.CreatePackageStmt	statement	covered	CREATE PACKAGE pkg IS PROCEDURE p; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.CreateTypeStmt	statement	covered	CREATE TYPE typ AS OBJECT (a NUMBER)	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard

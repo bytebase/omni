@@ -370,3 +370,45 @@ func TestParseSelectNullsFirstLast(t *testing.T) {
 		t.Errorf("expected NULLS LAST, got %d", sb1.NullOrder)
 	}
 }
+
+// TestParseOffsetColumnName: OFFSET is not reserved in Oracle, and a column
+// named OFFSET works wherever an operand can start. Oracle 23ai accepts each
+// statement. OFFSET after a complete expression or table reference still
+// starts the row_limiting_clause.
+func TestParseOffsetColumnName(t *testing.T) {
+	tests := []string{
+		"SELECT offset, partition FROM t_offset",
+		"SELECT offset + 1 AS next_offset FROM t_offset",
+		"SELECT t.offset FROM t_offset t ORDER BY offset",
+		"SELECT a FROM t_offset WHERE offset = 1",
+		"SELECT a FROM t_offset WHERE a = 1 AND offset > 0",
+		"UPDATE t_offset SET offset = 1 WHERE offset > 0",
+		"DELETE FROM t_offset WHERE offset IS NULL",
+		"CREATE INDEX i ON t_offset (a, offset)",
+		"CREATE UNIQUE INDEX app.idx1 ON app.hub (offset, partition, txn_date) NOLOGGING  LOCAL",
+		"SELECT a FROM t_offset ORDER BY offset OFFSET 1 ROWS",
+		"SELECT a FROM t_offset ORDER BY a OFFSET 5 ROWS FETCH NEXT 5 ROWS ONLY",
+		"SELECT a FROM t_offset OFFSET 5 ROWS",
+		"SELECT a FROM t_offset WHERE a = 1 OFFSET 5 ROWS",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+			if violations := CheckLocations(t, sql); len(violations) > 0 {
+				t.Fatalf("Loc violations: %v", violations)
+			}
+		})
+	}
+}
+
+func TestParseOffsetColumnNameAST(t *testing.T) {
+	result := ParseAndCheck(t, "SELECT offset FROM t_offset ORDER BY a OFFSET 2 ROWS")
+	sel := result.Items[0].(*ast.RawStmt).Stmt.(*ast.SelectStmt)
+	col, ok := sel.TargetList.Items[0].(*ast.ResTarget).Expr.(*ast.ColumnRef)
+	if !ok || col.Column != "OFFSET" {
+		t.Fatalf("target = %s, want column OFFSET", ast.NodeToString(sel.TargetList))
+	}
+	if sel.FetchFirst == nil || sel.FetchFirst.Offset == nil {
+		t.Fatalf("row limiting clause missing: %s", ast.NodeToString(sel))
+	}
+}

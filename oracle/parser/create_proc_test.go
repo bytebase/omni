@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/oracle/ast"
@@ -416,5 +417,148 @@ func TestParseParameterNocopy(t *testing.T) {
 	p0 := stmt.Parameters.Items[0].(*ast.Parameter)
 	if p0.Mode != "OUT NOCOPY" {
 		t.Errorf("expected mode 'OUT NOCOPY', got %q", p0.Mode)
+	}
+}
+
+func TestParseCallSpec(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		want ast.CallSpec
+	}{
+		{
+			name: "java function call spec",
+			sql: "CREATE OR REPLACE EDITIONABLE FUNCTION \"S\".\"F\" (p IN BLOB, q IN VARCHAR2) RETURN VARCHAR2\n" +
+				"AS LANGUAGE JAVA\n" +
+				"NAME 'Signer.check(oracle.sql.BLOB, java.lang.String) return java.lang.String';",
+			want: ast.CallSpec{Language: "JAVA", Name: "Signer.check(oracle.sql.BLOB, java.lang.String) return java.lang.String"},
+		},
+		{
+			name: "java procedure call spec without semicolon",
+			sql:  "CREATE PROCEDURE p(a IN VARCHAR2) IS LANGUAGE JAVA NAME 'X.y(java.lang.String)'",
+			want: ast.CallSpec{Language: "JAVA", Name: "X.y(java.lang.String)"},
+		},
+		{
+			name: "c call spec with every clause",
+			sql: "CREATE FUNCTION f(p IN OUT BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C " +
+				"LIBRARY s.lib NAME \"c_f\" AGENT IN (p) WITH CONTEXT " +
+				"PARAMETERS (CONTEXT, p BY REFERENCE INT, p INDICATOR SHORT, RETURN UNSIGNED INT);",
+			want: ast.CallSpec{Language: "C", Name: "c_f", WithContext: true},
+		},
+		{
+			name: "external call spec",
+			sql:  "CREATE FUNCTION f(p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS EXTERNAL NAME c_f LIBRARY lib;",
+			want: ast.CallSpec{Language: "C", External: true, Name: "C_F"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			var spec *ast.CallSpec
+			var body ast.StmtNode
+			switch stmt := result.Items[0].(*ast.RawStmt).Stmt.(type) {
+			case *ast.CreateFunctionStmt:
+				spec, body = stmt.CallSpec, stmt.Body
+			case *ast.CreateProcedureStmt:
+				spec, body = stmt.CallSpec, stmt.Body
+			default:
+				t.Fatalf("unexpected statement %T", stmt)
+			}
+			if body != nil {
+				t.Fatalf("Body = %T, want nil for a call spec", body)
+			}
+			if spec == nil {
+				t.Fatal("CallSpec = nil")
+			}
+			if spec.Language != tt.want.Language || spec.External != tt.want.External ||
+				spec.Name != tt.want.Name || spec.WithContext != tt.want.WithContext {
+				t.Fatalf("CallSpec = %+v, want %+v", *spec, tt.want)
+			}
+			if violations := CheckLocations(t, tt.sql); len(violations) > 0 {
+				t.Fatalf("Loc violations: %v", violations)
+			}
+		})
+	}
+}
+
+func TestParseCallSpecCClauses(t *testing.T) {
+	sql := "CREATE FUNCTION f(p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C " +
+		"NAME \"c_f\" LIBRARY s.lib AGENT IN (p, q) PARAMETERS (CONTEXT, p INDICATOR STRUCT, RETURN INT)"
+	result := ParseAndCheck(t, sql)
+	spec := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateFunctionStmt).CallSpec
+	if spec.Library == nil || spec.Library.Schema != "S" || spec.Library.Name != "LIB" {
+		t.Fatalf("Library = %+v, want S.LIB", spec.Library)
+	}
+	if got := callSpecWords(spec.AgentIn); got != "P,Q" {
+		t.Fatalf("AgentIn = %q, want P,Q", got)
+	}
+	if got := callSpecWords(spec.Parameters); got != "CONTEXT,P INDICATOR STRUCT,RETURN INT" {
+		t.Fatalf("Parameters = %q", got)
+	}
+}
+
+func callSpecWords(list *ast.List) string {
+	if list == nil {
+		return ""
+	}
+	var words []string
+	for _, item := range list.Items {
+		words = append(words, item.(*ast.String).Str)
+	}
+	return strings.Join(words, ",")
+}
+
+// TestParseCallSpecInSubprograms covers call specs where a subprogram is
+// defined inside another unit. Oracle 23ai compiles each one VALID, except
+// the nested Java call spec, which it rejects with PLS-00999 (implementation
+// restriction), a semantic error after parsing.
+func TestParseCallSpecInSubprograms(t *testing.T) {
+	tests := []string{
+		"CREATE OR REPLACE PACKAGE pk AS FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int'; END;",
+		"CREATE OR REPLACE PACKAGE BODY pk AS\n" +
+			"  FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int';\n" +
+			"  PROCEDURE p IS BEGIN NULL; END;\n" +
+			"  PROCEDURE q AS LANGUAGE C LIBRARY lib;\n" +
+			"END pk;",
+		"CREATE OR REPLACE TYPE BODY ty AS MEMBER FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int'; END;",
+		"CREATE OR REPLACE PROCEDURE p AS FUNCTION g RETURN NUMBER AS LANGUAGE JAVA NAME 'X.g() return int'; BEGIN NULL; END;",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// TestParseCallSpecNamesAreNotCallSpecs checks that a parameter or variable
+// named LANGUAGE or EXTERNAL still parses as one.
+func TestParseCallSpecNamesAreNotCallSpecs(t *testing.T) {
+	sql := "CREATE FUNCTION f(language IN VARCHAR2) RETURN NUMBER IS\n" +
+		"  external NUMBER;\n" +
+		"BEGIN RETURN 1; END;"
+	result := ParseAndCheck(t, sql)
+	stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateFunctionStmt)
+	if stmt.CallSpec != nil || stmt.Body == nil {
+		t.Fatalf("CallSpec = %+v, Body = %v; want a PL/SQL body", stmt.CallSpec, stmt.Body)
+	}
+}
+
+// TestParseCallSpecRejects lists call specs Oracle 23ai compiles with
+// PLS-00103, plus LANGUAGE C without LIBRARY (PLS-00247).
+func TestParseCallSpecRejects(t *testing.T) {
+	tests := []string{
+		"CREATE FUNCTION f RETURN NUMBER AS LANGUAGE JAVA",
+		"CREATE FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME",
+		"CREATE FUNCTION f RETURN VARCHAR2 AS LANGUAGE JAVA NAME \"X.y() return java.lang.String\"",
+		"CREATE FUNCTION f(p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C NAME \"c_f\"",
+		"CREATE FUNCTION f(p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C NAME 'c_f' LIBRARY lib",
+		"CREATE FUNCTION f(p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C LIBRARY lib PARAMETERS ()",
+		"CREATE FUNCTION f(p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C LIBRARY lib WITH",
+		"CREATE FUNCTION f(p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C LIBRARY lib AGENT (p)",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseShouldFail(t, sql)
+		})
 	}
 }

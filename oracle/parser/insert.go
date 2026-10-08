@@ -497,6 +497,15 @@ func (p *Parser) parseReturningClause() (*nodes.List, error) {
 		return nil, parseErr796
 	}
 
+	// { INTO | BULK COLLECT INTO } targets; the targets are appended to the
+	// returned list either way.
+	if p.isBulkCollect() {
+		p.advance() // consume BULK
+		p.advance() // consume COLLECT
+		if p.cur.Type != kwINTO {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
 	if p.cur.Type == kwINTO {
 		p.advance()
 		binds, parseErr797 := p.parseExprList()

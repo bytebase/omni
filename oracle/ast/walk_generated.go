@@ -350,6 +350,12 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.NoCycleValue)
 	case *CTESearchClause:
 		walkList(v, n.Columns)
+	case *CallSpec:
+		if n.Library != nil {
+			Walk(v, n.Library)
+		}
+		walkList(v, n.AgentIn)
+		walkList(v, n.Parameters)
 	case *CallStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -492,6 +498,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.ReturnType)
 		}
 		Walk(v, n.Body)
+		if n.CallSpec != nil {
+			Walk(v, n.CallSpec)
+		}
 	case *CreateHierarchyStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -586,6 +595,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 		walkList(v, n.Parameters)
 		Walk(v, n.Body)
+		if n.CallSpec != nil {
+			Walk(v, n.CallSpec)
+		}
 	case *CreateProfileStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -1147,6 +1159,7 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.SQL)
 		walkList(v, n.Into)
 		walkList(v, n.Using)
+		walkList(v, n.ReturningInto)
 	case *PLSQLExit:
 		Walk(v, n.Condition)
 	case *PLSQLFetch:

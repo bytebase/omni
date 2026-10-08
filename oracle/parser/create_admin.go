@@ -6143,26 +6143,40 @@ func (p *Parser) parseCreateJavaStmt(start int, orReplace bool) (nodes.StmtNode,
 		Loc:        nodes.Loc{Start: start},
 	}
 	opts := &nodes.List{}
+	// addOption records an option that started at optStart and ends at the
+	// last consumed token.
+	addOption := func(key, value string, optStart int) {
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key:   key,
+			Value: value,
+			Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
+		})
+	}
 
 	// [ AND { RESOLVE | COMPILE } ]
 	if p.isIdentLike() && p.cur.Str == "AND" {
+		optStart := p.pos()
 		p.advance()
 		if p.isIdentLike() && (p.cur.Str == "RESOLVE" || p.cur.Str == "COMPILE") {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AND", Value: p.cur.Str})
+			value := p.cur.Str
 			p.advance()
+			addOption("AND", value, optStart)
 		}
 	}
 
 	// [ NOFORCE ]
 	if p.isIdentLike() && p.cur.Str == "NOFORCE" {
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "NOFORCE"})
+		optStart := p.pos()
 		p.advance()
+		addOption("NOFORCE", "", optStart)
 	}
 
 	// { SOURCE | CLASS | RESOURCE }
 	if p.isIdentLike() && (p.cur.Str == "SOURCE" || p.cur.Str == "CLASS" || p.cur.Str == "RESOURCE") {
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "JAVA_TYPE", Value: p.cur.Str})
+		optStart := p.pos()
+		value := p.cur.Str
 		p.advance()
+		addOption("JAVA_TYPE", value, optStart)
 	}
 
 	// [ NAMED [ schema. ] primary_name ]
@@ -6179,27 +6193,30 @@ func (p *Parser) parseCreateJavaStmt(start int, orReplace bool) (nodes.StmtNode,
 	}
 
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
+		optStart := p.pos()
 		if p.isIdentLike() && p.cur.Str == "SHARING" {
 			p.advance()
 			if p.cur.Type == '=' {
 				p.advance()
 			}
 			if p.isIdentLike() || p.cur.Type == tokIDENT {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "SHARING", Value: p.cur.Str})
+				value := p.cur.Str
 				p.advance()
+				addOption("SHARING", value, optStart)
 			}
 		} else if p.isIdentLike() && p.cur.Str == "AUTHID" {
 			p.advance()
 			if p.isIdentLike() || p.cur.Type == tokIDENT {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AUTHID", Value: p.cur.Str})
+				value := p.cur.Str
 				p.advance()
+				addOption("AUTHID", value, optStart)
 			}
 		} else if p.isIdentLike() && p.cur.Str == "RESOLVER" {
 			p.advance()
 			if p.cur.Type == '(' {
 				p.skipParenthesized()
 			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "RESOLVER"})
+			addOption("RESOLVER", "", optStart)
 		} else if p.isIdentLike() && p.cur.Str == "USING" {
 			p.advance()
 			val := ""
@@ -6210,13 +6227,12 @@ func (p *Parser) parseCreateJavaStmt(start int, orReplace bool) (nodes.StmtNode,
 			if p.cur.Type == '(' {
 				p.skipParenthesized()
 			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "USING", Value: val})
+			addOption("USING", val, optStart)
 		} else if p.cur.Type == kwAS {
-			p.advance()
-			// source_char — typically a string constant
-			if p.cur.Type == tokSCONST {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AS", Value: p.cur.Str})
-				p.advance()
+			// source_char is Java source, not SQL, and runs to the end of the
+			// parsed range; see javaSourceHead. Take it verbatim.
+			if err := p.parseJavaSourceText(opts); err != nil {
+				return nil, err
 			}
 		} else {
 			p.advance()
@@ -6228,6 +6244,43 @@ func (p *Parser) parseCreateJavaStmt(start int, orReplace bool) (nodes.StmtNode,
 	}
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseJavaSourceText records the source_char after the current AS of a
+// CREATE JAVA statement and moves the parser to the end of the parsed range,
+// without lexing the Java text.
+func (p *Parser) parseJavaSourceText(opts *nodes.List) error {
+	asTok := p.cur
+	srcStart := skipSpace(p.source, asTok.End, p.lexer.end)
+	srcEnd := trimRightSpace(p.source, p.lexer.end)
+	if srcStart >= srcEnd {
+		p.advance() // consume AS; the source is missing
+		return p.syntaxErrorAtCur()
+	}
+	opts.Items = append(opts.Items, &nodes.DDLOption{
+		Key:   "AS",
+		Value: p.source[srcStart:srcEnd],
+		Loc:   nodes.Loc{Start: asTok.Loc, End: srcEnd},
+	})
+	p.prev = Token{Type: tokIDENT, Loc: srcStart, End: srcEnd}
+	p.hasNext = false
+	p.lexer.pos = p.lexer.end
+	p.cur = Token{Type: tokEOF, Loc: p.lexer.end, End: p.lexer.end}
+	return nil
+}
+
+// skipSpace returns the first offset in source[pos:end] that is not
+// whitespace, or end.
+func skipSpace(source string, pos, end int) int {
+	for pos < end {
+		switch source[pos] {
+		case ' ', '\t', '\n', '\r', '\f':
+			pos++
+		default:
+			return pos
+		}
+	}
+	return pos
 }
 
 // parseAlterJavaStmt parses an ALTER JAVA statement.

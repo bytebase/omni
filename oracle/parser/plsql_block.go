@@ -959,7 +959,16 @@ func (p *Parser) parsePLSQLNull() (*nodes.PLSQLNull, error) {
 	}, nil
 }
 
-// parsePLSQLExecImmediate parses EXECUTE IMMEDIATE expr [INTO vars] [USING vars] ;
+// parsePLSQLExecImmediate parses an EXECUTE IMMEDIATE statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/19/lnpls/EXECUTE-IMMEDIATE-statement.html
+//
+//	EXECUTE IMMEDIATE dynamic_sql_stmt
+//	    [ { into_clause | bulk_collect_into_clause } [ using_clause ]
+//	    | using_clause [ dynamic_returning_clause ]
+//	    | dynamic_returning_clause
+//	    ] ;
+//	dynamic_returning_clause ::= { RETURNING | RETURN } { into_clause | bulk_collect_into_clause }
 func (p *Parser) parsePLSQLExecImmediate() (*nodes.PLSQLExecImmediate, error) {
 	start := p.pos()
 	p.advance() // consume EXECUTE
@@ -975,24 +984,24 @@ func (p *Parser) parsePLSQLExecImmediate() (*nodes.PLSQLExecImmediate, error) {
 	var parseErr868 error
 
 	stmt.SQL, parseErr868 = p.parseExpr()
-	if parseErr868 !=
-
-		// INTO
-		nil {
+	if parseErr868 != nil {
 		return nil, parseErr868
 	}
 	if stmt.SQL == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
 
+	// { INTO | BULK COLLECT INTO } variables
+	bulk, err := p.parseOptionalBulkCollect()
+	if err != nil {
+		return nil, err
+	}
 	if p.cur.Type == kwINTO {
+		stmt.Bulk = bulk
 		p.advance()
 		var parseErr869 error
 		stmt.Into, parseErr869 = p.parsePLSQLVarList()
-		if parseErr869 !=
-
-			// USING
-			nil {
+		if parseErr869 != nil {
 			return nil, parseErr869
 		}
 	}
@@ -1006,12 +1015,43 @@ func (p *Parser) parsePLSQLExecImmediate() (*nodes.PLSQLExecImmediate, error) {
 		}
 	}
 
+	// dynamic_returning_clause, only without an into_clause
+	if stmt.Into == nil && (p.cur.Type == kwRETURNING || p.cur.Type == kwRETURN) {
+		p.advance() // consume RETURNING or RETURN
+		stmt.ReturningBulk, err = p.parseOptionalBulkCollect()
+		if err != nil {
+			return nil, err
+		}
+		if p.cur.Type != kwINTO {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume INTO
+		stmt.ReturningInto, err = p.parsePLSQLVarList()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if p.cur.Type == ';' {
 		p.advance()
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseOptionalBulkCollect consumes BULK COLLECT when it starts a
+// bulk_collect_into_clause and reports whether it did. INTO must follow.
+func (p *Parser) parseOptionalBulkCollect() (bool, error) {
+	if !p.isBulkCollect() {
+		return false, nil
+	}
+	p.advance() // consume BULK
+	p.advance() // consume COLLECT
+	if p.cur.Type != kwINTO {
+		return false, p.syntaxErrorAtCur()
+	}
+	return true, nil
 }
 
 // parsePLSQLOpen parses OPEN cursor [(args)] [FOR query|dynamic_sql [USING args]] ;

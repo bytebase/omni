@@ -986,6 +986,7 @@ type SelectStmt struct {
 	TargetList    *List               // select expressions (list of *ResTarget)
 	Into          *ObjectName         // INTO (PL/SQL)
 	IntoVars      *List               // INTO variable list (PL/SQL SELECT INTO :bind_var)
+	BulkCollect   bool                // BULK COLLECT INTO (PL/SQL)
 	FromClause    *List               // FROM clause
 	WhereClause   ExprNode            // WHERE condition
 	Hierarchical  *HierarchicalClause // CONNECT BY / START WITH
@@ -1860,21 +1861,34 @@ func (n *CreateViewStmt) stmtNode() {}
 // CreateSequenceStmt represents a CREATE SEQUENCE statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-SEQUENCE.html
 type CreateSequenceStmt struct {
-	Name        *ObjectName // sequence name
-	IncrementBy ExprNode    // INCREMENT BY
-	StartWith   ExprNode    // START WITH
-	MaxValue    ExprNode    // MAXVALUE
-	MinValue    ExprNode    // MINVALUE
-	NoMaxValue  bool        // NOMAXVALUE
-	NoMinValue  bool        // NOMINVALUE
-	Cycle       bool        // CYCLE
-	NoCycle     bool        // NOCYCLE
-	Cache       ExprNode    // CACHE n
-	NoCache     bool        // NOCACHE
-	Order       bool        // ORDER
-	NoOrder     bool        // NOORDER
-	IfNotExists bool        // IF NOT EXISTS
-	Loc         Loc         // start location
+	Name          *ObjectName // sequence name
+	IncrementBy   ExprNode    // INCREMENT BY
+	StartWith     ExprNode    // START WITH
+	MaxValue      ExprNode    // MAXVALUE
+	MinValue      ExprNode    // MINVALUE
+	NoMaxValue    bool        // NOMAXVALUE
+	NoMinValue    bool        // NOMINVALUE
+	Cycle         bool        // CYCLE
+	NoCycle       bool        // NOCYCLE
+	Cache         ExprNode    // CACHE n
+	NoCache       bool        // NOCACHE
+	Order         bool        // ORDER
+	NoOrder       bool        // NOORDER
+	Keep          bool        // KEEP
+	NoKeep        bool        // NOKEEP
+	Scale         bool        // SCALE
+	ScaleExtend   bool        // SCALE EXTEND
+	ScaleNoExtend bool        // SCALE NOEXTEND
+	NoScale       bool        // NOSCALE
+	Shard         bool        // SHARD
+	ShardExtend   bool        // SHARD EXTEND
+	ShardNoExtend bool        // SHARD NOEXTEND
+	NoShard       bool        // NOSHARD
+	Session       bool        // SESSION
+	Global        bool        // GLOBAL
+	Sharing       string      // SHARING = METADATA | DATA | NONE
+	IfNotExists   bool        // IF NOT EXISTS
+	Loc           Loc         // start location
 }
 
 func (n *CreateSequenceStmt) nodeTag()  {}
@@ -1996,12 +2010,33 @@ type CreateProcedureStmt struct {
 	Parameters     *List       // parameter list (list of *Parameter)
 	Wrapped        bool        // WRAPPED procedure body
 	WrappedSource  string      // raw text from WRAPPED through the wrapped payload
-	Body           StmtNode    // procedure body (PL/SQL block)
+	Body           StmtNode    // procedure body (PL/SQL block); nil for a call spec
+	CallSpec       *CallSpec   // call spec implementing the procedure in Java or C
 	Loc            Loc         // start location
 }
 
 func (n *CreateProcedureStmt) nodeTag()  {}
 func (n *CreateProcedureStmt) stmtNode() {}
+
+// CallSpec represents a call specification: a subprogram whose
+// implementation is a Java method or a C function instead of a PL/SQL body.
+//
+//	LANGUAGE JAVA NAME 'signature'
+//	{ LANGUAGE C | EXTERNAL } [ NAME name ] LIBRARY lib [ NAME name ]
+//	    [ AGENT IN ( argument [, ...] ) ] [ WITH CONTEXT ]
+//	    [ PARAMETERS ( external_parameter [, ...] ) ]
+type CallSpec struct {
+	Language    string      // JAVA or C; C for the EXTERNAL form too
+	External    bool        // EXTERNAL instead of LANGUAGE C
+	Name        string      // Java method signature, or C function name
+	Library     *ObjectName // LIBRARY of a C call spec
+	AgentIn     *List       // AGENT IN arguments (list of *String)
+	WithContext bool        // WITH CONTEXT
+	Parameters  *List       // PARAMETERS external parameters (list of *String)
+	Loc         Loc
+}
+
+func (n *CallSpec) nodeTag() {}
 
 // CreateFunctionStmt represents a CREATE FUNCTION statement.
 type CreateFunctionStmt struct {
@@ -2020,7 +2055,8 @@ type CreateFunctionStmt struct {
 	Aggregate      bool        // AGGREGATE USING
 	SqlMacro       bool        // SQL_MACRO
 	AuthID         string      // AUTHID CURRENT_USER | DEFINER
-	Body           StmtNode    // function body (PL/SQL block)
+	Body           StmtNode    // function body (PL/SQL block); nil for a call spec
+	CallSpec       *CallSpec   // call spec implementing the function in Java or C
 	Loc            Loc         // start location
 }
 
@@ -2412,10 +2448,13 @@ func (n *PLSQLCursorDecl) nodeTag() {}
 
 // PLSQLExecImmediate represents an EXECUTE IMMEDIATE statement.
 type PLSQLExecImmediate struct {
-	SQL   ExprNode // SQL string expression
-	Into  *List    // INTO variable list
-	Using *List    // USING bind variable list
-	Loc   Loc
+	SQL           ExprNode // SQL string expression
+	Into          *List    // INTO variable list
+	Bulk          bool     // BULK COLLECT INTO
+	Using         *List    // USING bind variable list
+	ReturningInto *List    // RETURNING INTO variable list (dynamic_returning_clause)
+	ReturningBulk bool     // RETURNING BULK COLLECT INTO
+	Loc           Loc
 }
 
 func (n *PLSQLExecImmediate) nodeTag()  {}

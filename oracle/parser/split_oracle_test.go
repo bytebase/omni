@@ -1,0 +1,93 @@
+package parser
+
+import (
+	"fmt"
+	"strings"
+	"testing"
+	"time"
+)
+
+// TestSplitSegmentsCompileInOracle executes every segment Split returns, the
+// way Bytebase runs a script, and checks that each PL/SQL unit compiled
+// VALID. The SQL layer accepts a unit whose text is cut wrong and leaves it
+// INVALID with PLS-00103 without raising an error: a call spec needs its
+// ';', while a trigger's CALL routine and a wrapped unit must not have one.
+//
+// CREATE JAVA SOURCE is not covered here: the gvenzl/oracle-free image has
+// no Java VM (ORA-29538). TestSplitJavaSource pins its boundaries.
+func TestSplitSegmentsCompileInOracle(t *testing.T) {
+	ctx, db := openOracleReferenceDB(t)
+	run := fmt.Sprintf("S%d", time.Now().UnixNano())
+
+	var wrapped string
+	wrapSource := "CREATE OR REPLACE PROCEDURE omni_wrap_" + run + " AS BEGIN NULL; END;"
+	if err := db.QueryRowContext(ctx, "SELECT DBMS_DDL.WRAP(:1) FROM dual", wrapSource).Scan(&wrapped); err != nil {
+		t.Fatalf("DBMS_DDL.WRAP: %v", err)
+	}
+
+	script := strings.ReplaceAll(`CREATE OR REPLACE PROCEDURE omni_target_{run} AS BEGIN NULL; END;
+/
+  CREATE OR REPLACE EDITIONABLE FUNCTION omni_jfn_{run} (p IN BLOB, q IN VARCHAR2) RETURN VARCHAR2
+AS LANGUAGE JAVA
+NAME 'Signer.check(oracle.sql.BLOB, java.lang.String) return java.lang.String';
+/
+/
+
+CREATE OR REPLACE PROCEDURE omni_jproc_{run} (a IN VARCHAR2) AS LANGUAGE JAVA NAME 'X.y(java.lang.String)';
+CREATE OR REPLACE PACKAGE omni_pk_{run} AS
+  FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int';
+  PROCEDURE p;
+END;
+/
+CREATE OR REPLACE PACKAGE BODY omni_pk_{run} AS
+  FUNCTION g RETURN NUMBER AS LANGUAGE JAVA NAME 'X.g() return int';
+  PROCEDURE p IS BEGIN NULL; END;
+END;
+/
+CREATE OR REPLACE TRIGGER omni_trg_{run} BEFORE INSERT ON t FOR EACH ROW CALL omni_target_{run}
+/
+`, "{run}", run) + strings.TrimRight(wrapped, "\n") + "\n/\n"
+
+	for _, seg := range Split(script) {
+		if seg.Kind == SegmentSQLPlusCommand || seg.Empty() {
+			continue
+		}
+		if _, err := db.ExecContext(ctx, seg.Text); err != nil {
+			t.Fatalf("exec segment %q: %v", seg.Text, err)
+		}
+	}
+
+	rows, err := db.QueryContext(ctx, `
+SELECT o.object_name, o.object_type, o.status,
+       (SELECT LISTAGG(e.text, ' / ') WITHIN GROUP (ORDER BY e.sequence)
+          FROM user_errors e WHERE e.name = o.object_name AND e.type = o.object_type)
+  FROM user_objects o
+ WHERE o.object_name LIKE '%\_' || :1 ESCAPE '\'
+ ORDER BY o.object_name, o.object_type`, strings.ToUpper(run))
+	if err != nil {
+		t.Fatalf("query user_objects: %v", err)
+	}
+	defer rows.Close()
+	var got []string
+	for rows.Next() {
+		var name, kind, status string
+		var errs *string
+		if err := rows.Scan(&name, &kind, &status, &errs); err != nil {
+			t.Fatalf("scan user_objects: %v", err)
+		}
+		got = append(got, kind+" "+name)
+		if status != "VALID" {
+			msg := ""
+			if errs != nil {
+				msg = *errs
+			}
+			t.Errorf("%s %s is %s: %s", kind, name, status, msg)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("iterate user_objects: %v", err)
+	}
+	if len(got) != 7 {
+		t.Fatalf("created objects = %q, want 7", got)
+	}
+}

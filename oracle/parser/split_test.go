@@ -391,12 +391,68 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			want: []string{"ALTER DATABASE BEGIN BACKUP", "\nALTER DATABASE END BACKUP"},
 		},
 		{
+			// The ';' belongs to the call spec: Oracle compiles the unit with
+			// PLS-00103 (INVALID) when the text sent ends without it.
 			name: "procedure call spec without end",
 			sql: "CREATE PROCEDURE p AS LANGUAGE JAVA NAME 'Pkg.p()';\n" +
 				"CREATE TABLE t (id NUMBER);",
 			want: []string{
-				"CREATE PROCEDURE p AS LANGUAGE JAVA NAME 'Pkg.p()'",
+				"CREATE PROCEDURE p AS LANGUAGE JAVA NAME 'Pkg.p()';",
 				"\nCREATE TABLE t (id NUMBER)",
+			},
+		},
+		{
+			name: "function call spec with repeated slash separators",
+			sql: "CREATE OR REPLACE EDITIONABLE FUNCTION \"S\".\"F\" (p IN BLOB) RETURN VARCHAR2\n" +
+				"AS LANGUAGE JAVA\n" +
+				"NAME 'Signer.check(oracle.sql.BLOB) return java.lang.String';\n" +
+				"/\n" +
+				"/\n" +
+				"\n" +
+				"  CREATE OR REPLACE FUNCTION g (p IN BINARY_INTEGER) RETURN BINARY_INTEGER\n" +
+				"AS EXTERNAL NAME \"c_g\" LIBRARY lib;\n" +
+				"/\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE EDITIONABLE FUNCTION \"S\".\"F\" (p IN BLOB) RETURN VARCHAR2\nAS LANGUAGE JAVA\nNAME 'Signer.check(oracle.sql.BLOB) return java.lang.String';",
+				"\n\n  CREATE OR REPLACE FUNCTION g (p IN BINARY_INTEGER) RETURN BINARY_INTEGER\nAS EXTERNAL NAME \"c_g\" LIBRARY lib;",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
+			name: "package with call spec members",
+			sql: "CREATE OR REPLACE PACKAGE BODY pk AS\n" +
+				"  FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int';\n" +
+				"  PROCEDURE p IS BEGIN NULL; END;\n" +
+				"  PROCEDURE q AS LANGUAGE C LIBRARY lib;\n" +
+				"END pk;\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE PACKAGE BODY pk AS\n  FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int';\n  PROCEDURE p IS BEGIN NULL; END;\n  PROCEDURE q AS LANGUAGE C LIBRARY lib;\nEND pk;",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
+			name: "nested call spec in a declare section",
+			sql: "DECLARE\n" +
+				"  FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int';\n" +
+				"BEGIN NULL; END;\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"DECLARE\n  FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int';\nBEGIN NULL; END;",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
+			name: "parameter and variable named like call spec words",
+			sql: "CREATE FUNCTION f(language IN VARCHAR2, external NUMBER, wrapped NUMBER) RETURN NUMBER IS\n" +
+				"  language NUMBER;\n" +
+				"  external NUMBER;\n" +
+				"BEGIN RETURN 1; END;\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"CREATE FUNCTION f(language IN VARCHAR2, external NUMBER, wrapped NUMBER) RETURN NUMBER IS\n  language NUMBER;\n  external NUMBER;\nBEGIN RETURN 1; END;",
+				"\nSELECT 1 FROM dual",
 			},
 		},
 		{
@@ -463,6 +519,101 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			for i := range got {
 				if got[i] != tt.want[i] {
 					t.Fatalf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+// TestSplitJavaSource pins CREATE JAVA ... AS source_char as SQL*Plus reads
+// it: the Java text after AS runs to a line holding only "/", whatever it
+// contains. Verified with SQL*Plus against Oracle 23ai: a SELECT after Java
+// source without a "/" line is sent as part of the Java statement.
+func TestSplitJavaSource(t *testing.T) {
+	const sqlKind, javaKind = SegmentSQL, SegmentJavaSource
+	tests := []struct {
+		name      string
+		sql       string
+		want      []string
+		wantKinds []SegmentKind
+	}{
+		{
+			name: "java sources with internal semicolons and repeated slashes",
+			sql: "   CREATE JAVA SOURCE NAMED \"S\".\"Signer\" AS\n" +
+				"import java.io.InputStream;import java.util.Base64;public final class Signer {    private Signer() { }    static int f() { int a = 1; return a; } }\n" +
+				"/\n" +
+				"/\n" +
+				" \n" +
+				"   CREATE JAVA SOURCE NAMED \"S\".\"Normalizer\" AS\n" +
+				"import java.text.Normalizer;public final class Normalizer { }\n" +
+				"/\n" +
+				"/\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"   CREATE JAVA SOURCE NAMED \"S\".\"Signer\" AS\nimport java.io.InputStream;import java.util.Base64;public final class Signer {    private Signer() { }    static int f() { int a = 1; return a; } }",
+				"\n \n   CREATE JAVA SOURCE NAMED \"S\".\"Normalizer\" AS\nimport java.text.Normalizer;public final class Normalizer { }",
+				"\nSELECT 1 FROM dual",
+			},
+			wantKinds: []SegmentKind{javaKind, javaKind, sqlKind},
+		},
+		{
+			name: "java text the SQL lexer would misread",
+			sql: "CREATE OR REPLACE AND COMPILE JAVA SOURCE NAMED \"Q\" AS\n" +
+				"public class Q {\n" +
+				"  // don't split (here; a stray quote and paren\n" +
+				"  static char c = '\\'';\n" +
+				"  static String s = \"it's /\";\n" +
+				"  static int g(int i) { i--; return i / 2; }\n" +
+				"  /* SELECT 1 FROM dual; */\n" +
+				"}\n" +
+				"/\n" +
+				"SELECT 2 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE AND COMPILE JAVA SOURCE NAMED \"Q\" AS\npublic class Q {\n  // don't split (here; a stray quote and paren\n  static char c = '\\'';\n  static String s = \"it's /\";\n  static int g(int i) { i--; return i / 2; }\n  /* SELECT 1 FROM dual; */\n}",
+				"\nSELECT 2 FROM dual",
+			},
+			wantKinds: []SegmentKind{javaKind, sqlKind},
+		},
+		{
+			name: "and resolve noforce java source without a slash runs to the end",
+			sql: "CREATE OR REPLACE AND RESOLVE NOFORCE JAVA SOURCE NAMED r AS public class R { int a; }\n" +
+				"SELECT 3 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE AND RESOLVE NOFORCE JAVA SOURCE NAMED r AS public class R { int a; }\nSELECT 3 FROM dual;",
+			},
+			wantKinds: []SegmentKind{javaKind},
+		},
+		{
+			name: "java statements without source text end at semicolons",
+			sql: "CREATE JAVA CLASS USING BFILE (dir, 'X.class');\n" +
+				"CREATE JAVA SOURCE NAMED s USING CLOB (SELECT src AS text FROM t);\n" +
+				"SELECT 4 FROM dual;",
+			want: []string{
+				"CREATE JAVA CLASS USING BFILE (dir, 'X.class')",
+				"\nCREATE JAVA SOURCE NAMED s USING CLOB (SELECT src AS text FROM t)",
+				"\nSELECT 4 FROM dual",
+			},
+			wantKinds: []SegmentKind{sqlKind, sqlKind, sqlKind},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := splitTexts(Split(tt.sql))
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d segments %q, want %d %q", len(got), got, len(tt.want), tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+			for i, seg := range Split(tt.sql) {
+				if seg.Kind != tt.wantKinds[i] {
+					t.Fatalf("segment[%d] kind = %v, want %v", i, seg.Kind, tt.wantKinds[i])
+				}
+				if _, err := ParseRange(tt.sql, seg.ByteStart, seg.ByteEnd); err != nil {
+					t.Fatalf("ParseRange(%q): %v", seg.Text, err)
 				}
 			}
 		})

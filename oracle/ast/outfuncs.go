@@ -303,6 +303,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCreateProcedureStmt(sb, n)
 	case *CreateFunctionStmt:
 		writeCreateFunctionStmt(sb, n)
+	case *CallSpec:
+		writeCallSpec(sb, n)
 	case *Parameter:
 		writeParameter(sb, n)
 	case *CreateTriggerStmt:
@@ -2288,6 +2290,9 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 		sb.WriteString(" :intoVars ")
 		writeNode(sb, n.IntoVars)
 	}
+	if n.BulkCollect {
+		sb.WriteString(" :bulkCollect true")
+	}
 	if n.FromClause != nil {
 		sb.WriteString(" :fromClause ")
 		writeNode(sb, n.FromClause)
@@ -3016,6 +3021,45 @@ func writeCreateSequenceStmt(sb *strings.Builder, n *CreateSequenceStmt) {
 	if n.NoOrder {
 		sb.WriteString(" :noOrder true")
 	}
+	if n.Keep {
+		sb.WriteString(" :keep true")
+	}
+	if n.NoKeep {
+		sb.WriteString(" :noKeep true")
+	}
+	if n.Scale {
+		sb.WriteString(" :scale true")
+	}
+	if n.ScaleExtend {
+		sb.WriteString(" :scaleExtend true")
+	}
+	if n.ScaleNoExtend {
+		sb.WriteString(" :scaleNoExtend true")
+	}
+	if n.NoScale {
+		sb.WriteString(" :noScale true")
+	}
+	if n.Shard {
+		sb.WriteString(" :shard true")
+	}
+	if n.ShardExtend {
+		sb.WriteString(" :shardExtend true")
+	}
+	if n.ShardNoExtend {
+		sb.WriteString(" :shardNoExtend true")
+	}
+	if n.NoShard {
+		sb.WriteString(" :noShard true")
+	}
+	if n.Session {
+		sb.WriteString(" :session true")
+	}
+	if n.Global {
+		sb.WriteString(" :global true")
+	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
+	}
 	if n.IfNotExists {
 		sb.WriteString(" :ifNotExists true")
 	}
@@ -3201,6 +3245,10 @@ func writeCreateProcedureStmt(sb *strings.Builder, n *CreateProcedureStmt) {
 		sb.WriteString(" :body ")
 		writeNode(sb, n.Body)
 	}
+	if n.CallSpec != nil {
+		sb.WriteString(" :callSpec ")
+		writeNode(sb, n.CallSpec)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -3258,6 +3306,38 @@ func writeCreateFunctionStmt(sb *strings.Builder, n *CreateFunctionStmt) {
 	if n.Body != nil {
 		sb.WriteString(" :body ")
 		writeNode(sb, n.Body)
+	}
+	if n.CallSpec != nil {
+		sb.WriteString(" :callSpec ")
+		writeNode(sb, n.CallSpec)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCallSpec(sb *strings.Builder, n *CallSpec) {
+	sb.WriteString("{CALLSPEC")
+	sb.WriteString(fmt.Sprintf(" :language %q", n.Language))
+	if n.External {
+		sb.WriteString(" :external true")
+	}
+	if n.Name != "" {
+		sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	}
+	if n.Library != nil {
+		sb.WriteString(" :library ")
+		writeNode(sb, n.Library)
+	}
+	if n.AgentIn != nil {
+		sb.WriteString(" :agentIn ")
+		writeNode(sb, n.AgentIn)
+	}
+	if n.WithContext {
+		sb.WriteString(" :withContext true")
+	}
+	if n.Parameters != nil {
+		sb.WriteString(" :parameters ")
+		writeNode(sb, n.Parameters)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -5029,9 +5109,19 @@ func writePLSQLExecImmediate(sb *strings.Builder, n *PLSQLExecImmediate) {
 		sb.WriteString(" :into ")
 		writeNode(sb, n.Into)
 	}
+	if n.Bulk {
+		sb.WriteString(" :bulk true")
+	}
 	if n.Using != nil {
 		sb.WriteString(" :using ")
 		writeNode(sb, n.Using)
+	}
+	if n.ReturningInto != nil {
+		sb.WriteString(" :returningInto ")
+		writeNode(sb, n.ReturningInto)
+	}
+	if n.ReturningBulk {
+		sb.WriteString(" :returningBulk true")
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

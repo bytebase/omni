@@ -15,6 +15,11 @@ type SegmentKind int
 const (
 	SegmentSQL SegmentKind = iota
 	SegmentSQLPlusCommand
+	// SegmentJavaSource is a CREATE JAVA ... AS statement: SQL up to AS, then
+	// Java source text. It executes like SegmentSQL, but its text must not be
+	// read with the SQL lexer past AS: Java's "--" decrement, "//" comments,
+	// and char literals lex as SQL comments and strings.
+	SegmentJavaSource
 )
 
 // Empty returns true if the segment contains only whitespace, semicolons, and
@@ -107,12 +112,23 @@ func Split(sql string) []Segment {
 
 		state.observe(tok)
 
+		if !state.inPLSQL && state.javaHead.observe(tok) {
+			// tok is the AS of CREATE JAVA ... AS. The Java source after it
+			// runs to the next line holding only "/"; its ';' ends nothing.
+			end, next := javaSourceEnd(sql, tok.End)
+			segments = appendSegmentWithKind(segments, sql, stmtStart, end, SegmentJavaSource)
+			stmtStart = slashNextSegmentStart(sql, next)
+			lexer.pos = next
+			state.reset()
+			continue
+		}
+
 		switch tok.Type {
 		case ';':
 			if state.inPLSQL {
 				if state.plsqlCanEndAtSemicolon() {
 					end := tok.End
-					if !state.endPending {
+					if !state.endPending && !state.callSpecKeepsSemicolon() {
 						end = tok.Loc
 					}
 					segments = appendSegment(segments, sql, stmtStart, end)
@@ -163,6 +179,19 @@ type splitPLSQLFrame struct {
 	kind        splitPLSQLKind
 	bodyStarted bool
 	compound    bool
+
+	// A stored unit's head runs to the IS|AS that opens its implementation;
+	// headDepth tracks the parameter list's parentheses before it. A nested
+	// subprogram frame is pushed at its IS|AS.
+	headDepth int
+	isAs      bool
+	// afterIsAs and callSpecWord look at the two tokens after IS|AS for a
+	// call spec: LANGUAGE JAVA|C or EXTERNAL NAME|LIBRARY.
+	afterIsAs    bool
+	callSpecWord string
+	// callSpec marks an implementation that is a call spec: it has no END,
+	// and its ';' ends it.
+	callSpec bool
 }
 
 type splitState struct {
@@ -178,6 +207,8 @@ type splitState struct {
 
 	endPending      bool
 	closedOutermost bool
+
+	javaHead javaSourceHead
 }
 
 func (s *splitState) reset() {
@@ -302,12 +333,19 @@ func (s *splitState) observePLSQL(tok Token) {
 
 	if tok.Type == ';' {
 		s.pendingSubprogram = false
+		if n := len(s.frames); n > 1 && s.frames[n-1].callSpec {
+			// A nested call spec has no END; its ';' closes it.
+			s.frames = s.frames[:n-1]
+		}
 		return
 	}
 
 	if s.pendingSubprogram {
 		if tok.Type == kwIS || tok.Type == kwAS {
 			s.pushFrame(splitPLSQLSubprogram, false)
+			top := &s.frames[len(s.frames)-1]
+			top.isAs = true
+			top.afterIsAs = true
 			s.pendingSubprogram = false
 			return
 		}
@@ -323,14 +361,12 @@ func (s *splitState) observePLSQL(tok Token) {
 		top.compound = true
 		return
 	}
-	if len(s.frames) == 1 && !top.bodyStarted {
+	if !top.bodyStarted {
 		switch top.kind {
-		case splitPLSQLStoredUnit:
-			if tok.Str == "LANGUAGE" || tok.Str == "EXTERNAL" || tok.Str == "WRAPPED" {
-				s.callSpecStarted = true
-			}
+		case splitPLSQLStoredUnit, splitPLSQLSubprogram:
+			s.observeSubprogramHead(top, tok)
 		case splitPLSQLTrigger:
-			if tok.Type == kwCALL {
+			if len(s.frames) == 1 && tok.Type == kwCALL {
 				s.callSpecStarted = true
 			}
 		}
@@ -357,6 +393,52 @@ func (s *splitState) observePLSQL(tok Token) {
 	case kwEND:
 		s.closePLSQLFrame()
 	}
+}
+
+// observeSubprogramHead follows a stored unit or nested subprogram up to its
+// implementation. A call spec right after IS|AS replaces BEGIN ... END and
+// ends at its ';'. WRAPPED replaces IS|AS in a wrapped stored unit. Both are
+// recognized only outside the parameter list, so a parameter or variable
+// named LANGUAGE, EXTERNAL, or WRAPPED does not end the unit early.
+func (s *splitState) observeSubprogramHead(top *splitPLSQLFrame, tok Token) {
+	switch {
+	case top.callSpecWord != "":
+		word := top.callSpecWord
+		top.callSpecWord = ""
+		if (word == "LANGUAGE" && (tok.Type == kwJAVA || (tok.Type == tokIDENT && tok.Str == "C"))) ||
+			(word == "EXTERNAL" && (tok.Type == kwNAME || tok.Type == kwLIBRARY)) {
+			top.callSpec = true
+			if len(s.frames) == 1 {
+				s.callSpecStarted = true
+			}
+		}
+	case top.afterIsAs:
+		top.afterIsAs = false
+		if tok.Type == tokIDENT && (tok.Str == "LANGUAGE" || tok.Str == "EXTERNAL") {
+			top.callSpecWord = tok.Str
+		}
+	case !top.isAs:
+		switch {
+		case tok.Type == '(':
+			top.headDepth++
+		case tok.Type == ')':
+			top.headDepth--
+		case top.headDepth > 0:
+		case tok.Type == kwIS || tok.Type == kwAS:
+			top.isAs = true
+			top.afterIsAs = true
+		case tok.Type == tokIDENT && tok.Str == "WRAPPED" && len(s.frames) == 1:
+			s.callSpecStarted = true
+		}
+	}
+}
+
+// callSpecKeepsSemicolon reports whether the stored unit being split is
+// implemented by a call spec, whose ';' belongs to the unit: Oracle compiles
+// it with PLS-00103 without one. A trigger's CALL routine and a wrapped unit
+// end before their ';' instead, which Oracle would reject in the text.
+func (s *splitState) callSpecKeepsSemicolon() bool {
+	return len(s.frames) == 1 && s.frames[0].callSpec
 }
 
 func (s *splitState) plsqlCanEndAtSemicolon() bool {

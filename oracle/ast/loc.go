@@ -161,6 +161,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *CreateFunctionStmt:
 		return v.Loc
+	case *CallSpec:
+		return v.Loc
 	case *CreateProcedureStmt:
 		return v.Loc
 	case *CreatePackageStmt:

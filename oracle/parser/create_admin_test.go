@@ -56,3 +56,41 @@ func TestP2AdministerKeyManagementRequiresKeyManagement(t *testing.T) {
 func TestP2AdministerKeyManagementLoc(t *testing.T) {
 	CheckLocations(t, "ADMINISTER KEY MANAGEMENT SET KEY IDENTIFIED BY password1 WITH BACKUP")
 }
+
+// TestParseCreateJavaSourceVerbatim checks that the source_char of CREATE
+// JAVA ... AS is kept verbatim, without lexing Java as SQL.
+func TestParseCreateJavaSourceVerbatim(t *testing.T) {
+	source := "public class Q {\n" +
+		"  // don't stop (here; a stray quote and paren\n" +
+		"  static char c = '\\'';\n" +
+		"  static int g(int i) { i--; return i / 2; }\n" +
+		"}"
+	tests := []string{
+		"CREATE JAVA SOURCE NAMED \"S\".\"Q\" AS\n" + source,
+		"CREATE OR REPLACE AND COMPILE JAVA SOURCE NAMED q AS " + source + "\n",
+		"CREATE OR REPLACE AND RESOLVE NOFORCE JAVA SOURCE NAMED q AUTHID CURRENT_USER AS\n\n" + source,
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AdminDDLStmt)
+			var got string
+			for _, item := range stmt.Options.Items {
+				if opt := item.(*ast.DDLOption); opt.Key == "AS" {
+					got = opt.Value
+				}
+			}
+			if got != source {
+				t.Fatalf("AS source = %q, want %q", got, source)
+			}
+			if violations := CheckLocations(t, sql); len(violations) > 0 {
+				t.Fatalf("Loc violations: %v", violations)
+			}
+		})
+	}
+}
+
+func TestParseCreateJavaSourceRequiresSource(t *testing.T) {
+	ParseShouldFail(t, "CREATE JAVA SOURCE NAMED q AS")
+	ParseShouldFail(t, "CREATE JAVA SOURCE NAMED q AS \n  ")
+}
