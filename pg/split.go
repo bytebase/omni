@@ -29,15 +29,16 @@ func (s Segment) Empty() bool {
 			i = metacmd.SkipLine(t, i)
 			continue
 		}
-		// Skip whitespace and semicolons.
-		if b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == ';' {
+		// Skip whitespace and semicolons. The lexer's whitespace set
+		// includes form feed and vertical tab.
+		if b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f' || b == '\v' || b == ';' {
 			i++
 			continue
 		}
 		// Skip line comments.
 		if b == '-' && i+1 < len(t) && t[i+1] == '-' {
 			i += 2
-			for i < len(t) && t[i] != '\n' {
+			for i < len(t) && t[i] != '\n' && t[i] != '\r' {
 				i++
 			}
 			continue
@@ -390,13 +391,15 @@ func skipBlockComment(sql string, i int) int {
 
 // skipLineComment skips a line comment starting at position i.
 // Returns position after the newline (or end of input).
+// skipLineComment skips a -- comment. As in the lexer, the comment ends
+// at a line feed or a carriage return.
 func skipLineComment(sql string, i int) int {
 	i += 2 // skip --
-	for i < len(sql) && sql[i] != '\n' {
+	for i < len(sql) && sql[i] != '\n' && sql[i] != '\r' {
 		i++
 	}
 	if i < len(sql) {
-		i++ // skip the \n
+		i++ // skip the line end
 	}
 	return i
 }
@@ -415,7 +418,7 @@ func isFollowedByAtomic(sql string, i int) bool {
 func skipWhitespaceAndComments(sql string, i int) int {
 	for i < len(sql) {
 		b := sql[i]
-		if b == ' ' || b == '\t' || b == '\n' || b == '\r' {
+		if b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f' || b == '\v' {
 			i++
 		} else if b == '-' && i+1 < len(sql) && sql[i+1] == '-' {
 			i = skipLineComment(sql, i)
@@ -458,7 +461,7 @@ func skipBeginAtomic(sql string, i int) int {
 		// as comments.
 		case metacmd.IsMetaCommand(sql, i):
 			i = metacmd.SkipLine(sql, i)
-		case b == ' ' || b == '\t' || b == '\n' || b == '\r':
+		case b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\f' || b == '\v':
 			i++
 		case b == '\'':
 			if isEscapeStringQuote(sql, i) {
