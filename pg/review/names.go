@@ -291,15 +291,17 @@ func operatorName(parts []string) string {
 	return qualified(parts[:len(parts)-1]) + "." + op
 }
 
-// typeName writes a type the way format_type_be does, which is how the
-// server's own messages name it: a built-in type under its SQL name (int,
-// int4, and pg_catalog.int4 are all integer), any other type as the SQL
-// named it, and an array as one [] whatever dimensions it declares, since
-// they do not change the type. An unqualified name is taken as the
-// built-in type of that name, which it is unless the search path puts a
-// schema with a type of that name before pg_catalog. A %TYPE reference
-// stays as written: the server resolves it to the column's type, which
-// the review does not know.
+// typeName writes a type the way format_type_be does when the type is
+// known to be pg_catalog's, which is how the server's own messages name
+// it: the grammar qualifies every type it spells with keywords (int
+// becomes pg_catalog.int4), and such a type, or one the SQL qualified
+// itself, takes its SQL name (integer). Any other type is written as the
+// SQL named it: an unqualified name such as int4 or "varchar" is found
+// through the search path, which may put a schema with a type of that
+// name before pg_catalog, so the review cannot tell which type it is. An
+// array is one [] whatever dimensions it declares, since they do not
+// change the type. A %TYPE reference stays as written: the server
+// resolves it to the column's type, which the review does not know.
 //
 // pg: src/backend/utils/adt/format_type.c — format_type_extended
 func typeName(tn *ast.TypeName) string {
@@ -307,12 +309,10 @@ func typeName(tn *ast.TypeName) string {
 	if tn.PctType {
 		return qualified(parts) + "%TYPE"
 	}
-	if len(parts) == 2 && parts[0] == "pg_catalog" {
-		parts = parts[1:]
-	}
 	name := qualified(parts)
-	if len(parts) == 1 {
-		if sqlName, ok := sqlTypeNames[parts[0]]; ok {
+	if len(parts) == 2 && parts[0] == "pg_catalog" {
+		name = ident(parts[1])
+		if sqlName, ok := sqlTypeNames[parts[1]]; ok {
 			name = sqlName
 		}
 	}

@@ -214,12 +214,12 @@ func TestReview(t *testing.T) {
 			},
 		},
 		{
-			name:    "disallow drop object writes types as format_type_be does",
+			name:    "disallow drop object writes pg_catalog types as format_type_be does and other types as written",
 			sql:     `DROP FUNCTION f(bigint, boolean, double precision, varchar(10), timestamp with time zone, character(3), numeric(10,2), int ARRAY[3], int4, "varchar", timestamptz, "char", s."My Type", pg_catalog.text);`,
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
-					{review.DisallowDropObject, 0, span(t, sql, strings.TrimSuffix(sql, ";")), `drops function f(bigint, boolean, double precision, character varying, timestamp with time zone, character, numeric, integer[], integer, character varying, timestamp with time zone, "char", s."My Type", text)`},
+					{review.DisallowDropObject, 0, span(t, sql, strings.TrimSuffix(sql, ";")), `drops function f(bigint, boolean, double precision, character varying, timestamp with time zone, character, numeric, integer[], int4, "varchar", timestamptz, "char", s."My Type", text)`},
 				}
 			},
 		},
