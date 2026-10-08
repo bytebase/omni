@@ -276,7 +276,7 @@ func TestReview(t *testing.T) {
 		},
 		{
 			name:    "disallow rename",
-			sql:     "ALTER TABLE t RENAME TO u; ALTER TABLE IF EXISTS s.t RENAME COLUMN a TO b; ALTER VIEW v RENAME COLUMN c TO d; ALTER INDEX i RENAME TO j; ALTER TABLE t RENAME CONSTRAINT k TO l; ALTER TABLE t RENAME a TO b;",
+			sql:     "ALTER TABLE t RENAME TO u; ALTER TABLE IF EXISTS s.t RENAME COLUMN a TO b; ALTER VIEW v RENAME COLUMN c TO d; ALTER INDEX i RENAME TO j; ALTER TABLE t RENAME CONSTRAINT k TO l; ALTER TABLE t RENAME a TO b; ALTER FOREIGN TABLE ft RENAME TO fu; ALTER FOREIGN TABLE ft RENAME e TO f;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
@@ -284,7 +284,18 @@ func TestReview(t *testing.T) {
 					{review.DisallowRename, 1, span(t, sql, "ALTER TABLE IF EXISTS s.t RENAME COLUMN a TO b"), "renames column a of s.t to b"},
 					{review.DisallowRename, 2, span(t, sql, "ALTER VIEW v RENAME COLUMN c TO d"), "renames column c of v to d"},
 					{review.DisallowRename, 5, span(t, sql, "ALTER TABLE t RENAME a TO b"), "renames column a of t to b"},
+					{review.DisallowRename, 6, span(t, sql, "ALTER FOREIGN TABLE ft RENAME TO fu"), "renames foreign table ft to fu"},
+					{review.DisallowRename, 7, span(t, sql, "ALTER FOREIGN TABLE ft RENAME e TO f"), "renames column e of ft to f"},
 				}
+			},
+		},
+		{
+			name:    "rename without a new name is a syntax error",
+			sql:     "ALTER TABLE t RENAME TO;",
+			targets: 1,
+			want: func(t *testing.T, sql string) []finding {
+				at := strings.Index(sql, ";")
+				return []finding{{review.Syntax, 0, review.Range{Start: at, End: at}, `syntax error at or near ";"`}}
 			},
 		},
 		{
