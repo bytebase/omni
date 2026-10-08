@@ -5,10 +5,11 @@ import (
 	"github.com/bytebase/omni/review"
 )
 
-// checkDisallowRename reports ALTER TABLE ... RENAME TO, ALTER FOREIGN
-// TABLE ... RENAME TO, and the rename of a column of any relation kind, at
+// checkDisallowRename reports the RENAME TO of a relation a query reads
+// by name (ALTER TABLE, ALTER FOREIGN TABLE, ALTER VIEW, and ALTER
+// MATERIALIZED VIEW) and the rename of a column of any relation kind, at
 // top level or inside a SQL-standard routine body. Renaming an index, a
-// constraint, a schema, or another object is not in scope.
+// sequence, a constraint, a schema, or another object is not in scope.
 func checkDisallowRename(s *statement, r *reporter) {
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		v, ok := n.(*ast.RenameStmt)
@@ -16,10 +17,8 @@ func checkDisallowRename(s *statement, r *reporter) {
 			return true
 		}
 		switch v.RenameType {
-		case ast.OBJECT_TABLE:
-			r.report(review.DisallowRename, s.index, rangeOf(v.Loc), "renames table "+relation(v.Relation)+" to "+ident(v.Newname))
-		case ast.OBJECT_FOREIGN_TABLE:
-			r.report(review.DisallowRename, s.index, rangeOf(v.Loc), "renames foreign table "+relation(v.Relation)+" to "+ident(v.Newname))
+		case ast.OBJECT_TABLE, ast.OBJECT_FOREIGN_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW:
+			r.report(review.DisallowRename, s.index, rangeOf(v.Loc), "renames "+objectKind(v.RenameType)+" "+relation(v.Relation)+" to "+ident(v.Newname))
 		case ast.OBJECT_COLUMN:
 			r.report(review.DisallowRename, s.index, rangeOf(v.Loc), "renames column "+ident(v.Subname)+" of "+relation(v.Relation)+" to "+ident(v.Newname))
 		}

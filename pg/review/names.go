@@ -291,22 +291,60 @@ func operatorName(parts []string) string {
 	return qualified(parts[:len(parts)-1]) + "." + op
 }
 
-// typeName writes a type name without the pg_catalog qualifier the parser
-// adds to built-in types (int becomes pg_catalog.int4), with its array
-// brackets and a %TYPE reference.
+// typeName writes a type the way format_type_be does when the type is
+// known to be pg_catalog's, which is how the server's own messages name
+// it: the grammar qualifies every type it spells with keywords (int
+// becomes pg_catalog.int4), and such a type, or one the SQL qualified
+// itself, takes its SQL name (integer). Any other type is written as the
+// SQL named it: an unqualified name such as int4 or "varchar" is found
+// through the search path, which may put a schema with a type of that
+// name before pg_catalog, so the review cannot tell which type it is. An
+// array is one [] whatever dimensions it declares, since they do not
+// change the type. A %TYPE reference stays as written: the server
+// resolves it to the column's type, which the review does not know.
+//
+// pg: src/backend/utils/adt/format_type.c — format_type_extended
 func typeName(tn *ast.TypeName) string {
 	parts := nameParts(tn.Names)
-	if len(parts) == 2 && parts[0] == "pg_catalog" {
-		parts = parts[1:]
+	if tn.PctType {
+		return qualified(parts) + "%TYPE"
 	}
 	name := qualified(parts)
-	if tn.PctType {
-		name += "%TYPE"
+	if len(parts) == 2 && parts[0] == "pg_catalog" {
+		name = ident(parts[1])
+		if sqlName, ok := sqlTypeNames[parts[1]]; ok {
+			name = sqlName
+		}
 	}
 	if tn.ArrayBounds != nil {
-		name += strings.Repeat("[]", len(tn.ArrayBounds.Items))
+		name += "[]"
 	}
 	return name
+}
+
+// sqlTypeNames are the built-in types format_type_be writes under their
+// SQL names instead of their catalog names. Every other type is written
+// as quote_identifier writes its name.
+//
+// pg: src/backend/utils/adt/format_type.c — format_type_extended
+var sqlTypeNames = map[string]string{
+	"bit":         "bit",
+	"bool":        "boolean",
+	"bpchar":      "character",
+	"float4":      "real",
+	"float8":      "double precision",
+	"int2":        "smallint",
+	"int4":        "integer",
+	"int8":        "bigint",
+	"interval":    "interval",
+	"json":        "json",
+	"numeric":     "numeric",
+	"time":        "time without time zone",
+	"timestamp":   "timestamp without time zone",
+	"timestamptz": "timestamp with time zone",
+	"timetz":      "time with time zone",
+	"varbit":      "bit varying",
+	"varchar":     "character varying",
 }
 
 // objectKind names an ObjectType the way the DROP keyword does.
