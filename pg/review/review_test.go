@@ -181,7 +181,7 @@ func TestReview(t *testing.T) {
 					{review.DisallowDropObject, 0, span(t, sql, `DROP TABLE IF EXISTS a.t1, "T2" CASCADE`), `drops table a.t1, "T2"`},
 					{review.DisallowDropObject, 1, span(t, sql, "DROP VIEW v"), "drops view v"},
 					{review.DisallowDropObject, 2, span(t, sql, "DROP TRIGGER trg ON s.t"), "drops trigger trg on s.t"},
-					{review.DisallowDropObject, 3, span(t, sql, "DROP FUNCTION f(int, text)"), "drops function f(int4, text)"},
+					{review.DisallowDropObject, 3, span(t, sql, "DROP FUNCTION f(int, text)"), "drops function f(integer, text)"},
 					{review.DisallowDropObject, 4, span(t, sql, "DROP DATABASE d"), "drops database d"},
 					{review.DisallowDropObject, 5, span(t, sql, "DROP ROLE r"), "drops role r"},
 					{review.DisallowDropObject, 6, span(t, sql, "DROP SCHEMA s"), "drops schema s"},
@@ -198,18 +198,28 @@ func TestReview(t *testing.T) {
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
-					{review.DisallowDropObject, 0, span(t, sql, "DROP CAST (int AS text)"), "drops cast from int4 to text"},
-					{review.DisallowDropObject, 1, span(t, sql, "DROP TRANSFORM FOR int LANGUAGE plpgsql"), "drops transform for int4 language plpgsql"},
+					{review.DisallowDropObject, 0, span(t, sql, "DROP CAST (int AS text)"), "drops cast from integer to text"},
+					{review.DisallowDropObject, 1, span(t, sql, "DROP TRANSFORM FOR int LANGUAGE plpgsql"), "drops transform for integer language plpgsql"},
 					{review.DisallowDropObject, 2, span(t, sql, "DROP OPERATOR CLASS s.c USING btree"), "drops operator class s.c using btree"},
 					{review.DisallowDropObject, 3, span(t, sql, "DROP OPERATOR FAMILY f USING btree"), "drops operator family f using btree"},
-					{review.DisallowDropObject, 4, span(t, sql, "DROP OPERATOR s.+ (int, int), - (NONE, int)"), `drops operator s.+(int4, int4), -(NONE, int4)`},
-					{review.DisallowDropObject, 5, span(t, sql, "DROP AGGREGATE agg(int, text), s.agg2(*)"), "drops aggregate agg(int4, text), s.agg2(*)"},
+					{review.DisallowDropObject, 4, span(t, sql, "DROP OPERATOR s.+ (int, int), - (NONE, int)"), `drops operator s.+(integer, integer), -(NONE, integer)`},
+					{review.DisallowDropObject, 5, span(t, sql, "DROP AGGREGATE agg(int, text), s.agg2(*)"), "drops aggregate agg(integer, text), s.agg2(*)"},
 					{review.DisallowDropObject, 6, span(t, sql, "DROP ROUTINE r"), "drops routine r"},
 					{review.DisallowDropObject, 7, span(t, sql, "DROP RULE r ON s.t"), "drops rule r on s.t"},
 					{review.DisallowDropObject, 8, span(t, sql, "DROP POLICY p ON t"), "drops policy p on t"},
 					{review.DisallowDropObject, 9, span(t, sql, "DROP TYPE s.ty, ty2"), "drops type s.ty, ty2"},
-					{review.DisallowDropObject, 10, span(t, sql, "DROP FUNCTION f(int[], text[][])"), "drops function f(int4[], text[][])"},
+					{review.DisallowDropObject, 10, span(t, sql, "DROP FUNCTION f(int[], text[][])"), "drops function f(integer[], text[])"},
 					{review.DisallowDropObject, 11, span(t, sql, "DROP FUNCTION g(t.c%TYPE)"), "drops function g(t.c%TYPE)"},
+				}
+			},
+		},
+		{
+			name:    "disallow drop object writes types as format_type_be does",
+			sql:     `DROP FUNCTION f(bigint, boolean, double precision, varchar(10), timestamp with time zone, character(3), numeric(10,2), int ARRAY[3], int4, "varchar", timestamptz, "char", s."My Type", pg_catalog.text);`,
+			targets: 1,
+			want: func(t *testing.T, sql string) []finding {
+				return []finding{
+					{review.DisallowDropObject, 0, span(t, sql, strings.TrimSuffix(sql, ";")), `drops function f(bigint, boolean, double precision, character varying, timestamp with time zone, character, numeric, integer[], integer, character varying, timestamp with time zone, "char", s."My Type", text)`},
 				}
 			},
 		},
