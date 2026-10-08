@@ -286,7 +286,7 @@ func TestReview(t *testing.T) {
 		},
 		{
 			name:    "disallow rename",
-			sql:     "ALTER TABLE t RENAME TO u; ALTER TABLE IF EXISTS s.t RENAME COLUMN a TO b; ALTER VIEW v RENAME COLUMN c TO d; ALTER INDEX i RENAME TO j; ALTER TABLE t RENAME CONSTRAINT k TO l; ALTER TABLE t RENAME a TO b; ALTER FOREIGN TABLE ft RENAME TO fu; ALTER FOREIGN TABLE ft RENAME e TO f;",
+			sql:     "ALTER TABLE t RENAME TO u; ALTER TABLE IF EXISTS s.t RENAME COLUMN a TO b; ALTER VIEW v RENAME COLUMN c TO d; ALTER INDEX i RENAME TO j; ALTER TABLE t RENAME CONSTRAINT k TO l; ALTER TABLE t RENAME a TO b; ALTER FOREIGN TABLE ft RENAME TO fu; ALTER FOREIGN TABLE ft RENAME e TO f; ALTER VIEW IF EXISTS s.v RENAME TO w; ALTER MATERIALIZED VIEW mv RENAME TO mw; ALTER MATERIALIZED VIEW IF EXISTS mv RENAME COLUMN g TO h; ALTER SEQUENCE sq RENAME TO sq2;",
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				return []finding{
@@ -296,6 +296,9 @@ func TestReview(t *testing.T) {
 					{review.DisallowRename, 5, span(t, sql, "ALTER TABLE t RENAME a TO b"), "renames column a of t to b"},
 					{review.DisallowRename, 6, span(t, sql, "ALTER FOREIGN TABLE ft RENAME TO fu"), "renames foreign table ft to fu"},
 					{review.DisallowRename, 7, span(t, sql, "ALTER FOREIGN TABLE ft RENAME e TO f"), "renames column e of ft to f"},
+					{review.DisallowRename, 8, span(t, sql, "ALTER VIEW IF EXISTS s.v RENAME TO w"), "renames view s.v to w"},
+					{review.DisallowRename, 9, span(t, sql, "ALTER MATERIALIZED VIEW mv RENAME TO mw"), "renames materialized view mv to mw"},
+					{review.DisallowRename, 10, span(t, sql, "ALTER MATERIALIZED VIEW IF EXISTS mv RENAME COLUMN g TO h"), "renames column g of mv to h"},
 				}
 			},
 		},

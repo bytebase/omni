@@ -57,7 +57,8 @@ const (
 	DisallowTruncate Rule = "DISALLOW_TRUNCATE"
 	// DisallowDropConstraint: dropping a PRIMARY KEY, FOREIGN KEY, UNIQUE, or CHECK constraint.
 	DisallowDropConstraint Rule = "DISALLOW_DROP_CONSTRAINT"
-	// DisallowRename: renaming a table or column.
+	// DisallowRename: renaming a table, foreign table, view, materialized
+	// view, or column.
 	DisallowRename Rule = "DISALLOW_RENAME"
 	// RequirePrimaryKey: the change creates a table without a primary key,
 	// or drops one without adding it back.
