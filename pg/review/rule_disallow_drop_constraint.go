@@ -84,6 +84,8 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 	// Every drop of the statement sees the table as it was before the
 	// statement; a column drop leaves it unsettled only after them all.
 	droppedAColumn := false
+	// reopened are the pending tables the statement drops the added key of.
+	var reopened []*pendingTable
 	for _, cmd := range drops {
 		cascade := cmd.Behavior == int(ast.DROP_CASCADE)
 		t, known := before, knownBefore && isTable
@@ -112,6 +114,14 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 			s.constraints[[3]string{schema, name, cmd.Name}] = true
 			if cascade {
 				s.dropKeyReferences(v.Relation, t, known, cmd.Name)
+			}
+			for _, p := range s.pending {
+				// A key a new foreign key references is not dropped without
+				// CASCADE.
+				if p.settled && p.key == cmd.Name && s.namesPending(p, v.Relation) &&
+					(cascade || !s.newlyReferenced(tableRef{p.schema, v.Relation.Relname}, nil, true)) {
+					reopened = append(reopened, p)
+				}
 			}
 		case ast.AT_DropColumn:
 			if droppedColumns[cmd.Name] && !cmd.Missing_ok {
@@ -188,6 +198,11 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 			}
 		}
 	}
+	if !withhold {
+		for _, p := range reopened {
+			p.settled, p.key = false, ""
+		}
+	}
 	for _, name := range out.freed {
 		// What a statement that may not run drops may still be there.
 		if withhold {
@@ -232,7 +247,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 					s.renamedKeys[c.Indexname] = true
 				}
 				if c.Contype == ast.CONSTR_PRIMARY {
-					s.keyed(v.Relation)
+					s.keyed(v.Relation, s.keyName(v.Relation, c))
 				}
 				if c.Contype == ast.CONSTR_PRIMARY || c.Contype == ast.CONSTR_UNIQUE {
 					s.newKey(v.Relation)
@@ -267,7 +282,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 						s.touchName(v.Relation.Schemaname, c.Conname)
 					}
 					if c.Contype == ast.CONSTR_PRIMARY {
-						s.keyed(v.Relation)
+						s.keyed(v.Relation, "")
 					}
 					if c.Contype == ast.CONSTR_PRIMARY || c.Contype == ast.CONSTR_UNIQUE {
 						s.newKey(v.Relation)
@@ -281,7 +296,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 			if idx, ok := cmd.Def.(*ast.IndexStmt); ok {
 				s.renamedKeys[idx.Idxname] = true
 				if idx.Primary {
-					s.keyed(v.Relation)
+					s.keyed(v.Relation, "")
 				}
 				if idx.Primary || idx.Unique {
 					s.newKey(v.Relation)
@@ -294,7 +309,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				s.generate(pc.Name)
 				s.unsettle(pc.Name)
 				for _, p := range s.matching(pc.Name) {
-					p.settled = true
+					p.settle()
 				}
 			}
 		case ast.AT_DetachPartition:

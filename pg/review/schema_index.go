@@ -68,6 +68,9 @@ const (
 	kindCompositeType
 	// kindAmbiguous is a name the snapshot lists twice.
 	kindAmbiguous
+	// kindType is a type the change created, which takes a name in the
+	// relation namespace's row types.
+	kindType
 )
 
 type tableRef struct{ schema, table string }

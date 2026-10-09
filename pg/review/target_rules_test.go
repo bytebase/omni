@@ -1942,6 +1942,54 @@ func TestRequirePrimaryKey(t *testing.T) {
 			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
 		},
 		{
+			name:    "dropping the key the change added leaves the table keyless",
+			sql:     "CREATE TABLE n (id int);\nALTER TABLE n ADD PRIMARY KEY (id);\nALTER TABLE n DROP CONSTRAINT n_pkey;",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "dropping a named key the change added leaves the table keyless",
+			sql:     "CREATE TABLE n (id int);\nALTER TABLE n ADD CONSTRAINT n_pk PRIMARY KEY (id);\nALTER TABLE n DROP CONSTRAINT n_pk;",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "dropping another constraint leaves the added key",
+			sql:     "CREATE TABLE n (id int);\nALTER TABLE n ADD PRIMARY KEY (id);\nALTER TABLE n DROP CONSTRAINT IF EXISTS other;",
+			targets: one,
+		},
+		{
+			name:    "a second CREATE TYPE of a name is refused",
+			sql:     "CREATE TYPE public.x AS ENUM ('a');\nCREATE TYPE public.x AS ENUM ('b');\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE OR REPLACE VIEW of a table the change made is refused",
+			sql:     "CREATE TABLE public.x (id int PRIMARY KEY);\nCREATE OR REPLACE VIEW public.x AS SELECT 1;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "ALTER SEQUENCE of a sequence the target lacks is refused",
+			sql:     "ALTER SEQUENCE public.missing RESTART;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "ALTER SEQUENCE IF EXISTS of a sequence the target lacks does nothing",
+			sql:     "ALTER SEQUENCE IF EXISTS public.missing RESTART;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "ALTER SEQUENCE of a table is refused",
+			sql:     "ALTER SEQUENCE public.nokey RESTART;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "DROP TABLE of a table the change made that a new view reads is refused",
+			sql:     "CREATE TABLE public.x (id int PRIMARY KEY);\nCREATE VIEW public.w AS SELECT * FROM public.x;\nDROP TABLE public.x;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
 			name: "a cascade does not go past a view the change replaced",
 			sql:  "CREATE OR REPLACE VIEW v AS SELECT 1 AS id;\nDROP TABLE base CASCADE;\nCREATE TABLE w (id int);",
 			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{

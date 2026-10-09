@@ -655,6 +655,10 @@ func (s *scan) statement(st *statement) {
 				s.stop()
 				return
 			}
+			if c, made := s.madeAt(v.View); made && c.kind != kindView {
+				s.stop()
+				return
+			}
 			if ok && kind == kindView {
 				s.replacedViews[tableRef{schema, v.View.Relname}] = true
 			}
@@ -674,6 +678,22 @@ func (s *scan) statement(st *statement) {
 		}
 		s.returns(v)
 	case *ast.AlterSeqStmt:
+		// ALTER SEQUENCE of a relation the target lacks is refused, and
+		// under IF EXISTS does nothing; of another kind, it is refused.
+		if v.Sequence != nil && s.index != nil {
+			if s.missing(v.Sequence) {
+				if !v.MissingOk {
+					s.stop()
+				}
+				return
+			}
+			_, kind, ok := s.lookup(v.Sequence)
+			c, made := s.madeAt(v.Sequence)
+			if ok && kind != kindSequence && kind != kindAmbiguous || made && c.kind != kindSequence {
+				s.stop()
+				return
+			}
+		}
 		if v.Sequence != nil && v.Options != nil && slices.ContainsFunc(v.Options.Items, func(n ast.Node) bool {
 			d, ok := n.(*ast.DefElem)
 			return ok && d.Defname == "owned_by"
@@ -700,6 +720,9 @@ func (s *scan) statement(st *statement) {
 			return
 		}
 		s.touch(v.Typevar)
+		if v.Typevar != nil {
+			s.made(v.Typevar, kindCompositeType)
+		}
 	case *ast.CreateEnumStmt:
 		// A type's name is taken for a relation's row type too.
 		s.touchType(v.TypeName, "")
@@ -1471,11 +1494,13 @@ func (s *scan) touchType(name *ast.List, suffix string) {
 	if len(parts) == 2 {
 		schema = parts[0]
 	}
-	if s.typeTaken(&ast.RangeVar{Schemaname: schema, Relname: parts[len(parts)-1]}) {
+	rv := &ast.RangeVar{Schemaname: schema, Relname: parts[len(parts)-1]}
+	if s.typeTaken(rv) {
 		s.stop()
 		return
 	}
 	s.touchName(schema, parts[len(parts)-1])
+	s.made(rv, kindType)
 	if suffix != "" {
 		s.touchName(schema, parts[len(parts)-1]+suffix)
 	}
@@ -2736,7 +2761,7 @@ func (s *scan) drop(v *ast.DropStmt) {
 			s.renamedKeys[rv.Relname] = true
 		}
 		for _, p := range s.matching(rv) {
-			p.settled = true
+			p.settle()
 		}
 		switch kind {
 		case ast.OBJECT_TABLE:
@@ -2759,7 +2784,7 @@ func (s *scan) drop(v *ast.DropStmt) {
 			if p.existed || slices.ContainsFunc(p.parents, func(parent tableRef) bool {
 				return slices.ContainsFunc(droppedRefs, func(d tableRef) bool { return mayBe(parent, d) })
 			}) {
-				p.settled = true
+				p.settle()
 			}
 		}
 	}
@@ -3233,6 +3258,9 @@ func (s *scan) dropRefused(v *ast.DropStmt) bool {
 		} else if t, ok := s.renamedAway(rv); ok {
 			// What depends on a renamed relation still does.
 			dropped = append(dropped, t)
+		} else if home, ok := s.madeIn(rv); ok {
+			// So does what depends on a relation the change created.
+			dropped = append(dropped, tableRef{home, rv.Relname})
 		}
 	}
 	for _, t := range dropped {

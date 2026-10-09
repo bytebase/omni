@@ -36,6 +36,10 @@ type pendingTable struct {
 
 	// made numbers the touch that created a table the change made.
 	made int
+	// key names the primary key a statement of the change added that
+	// settles the table, when that is all that settles it; dropping it
+	// leaves the table keyless again.
+	key string
 
 	statement int
 	rng       review.Range
@@ -114,11 +118,71 @@ func (s *scan) resolvesBefore(name, schema string) bool {
 	return false
 }
 
-// keyed settles the pending tables a statement may give a primary key.
-func (s *scan) keyed(rv *ast.RangeVar) {
+// settle records that a statement may have given the table a key, or
+// dropped it, or made it a partition.
+func (p *pendingTable) settle() {
+	p.settled = true
+	p.key = ""
+}
+
+// keyed settles the pending tables a statement may give a primary key,
+// recording the key's name, "" when unknown, on the one it certainly
+// names.
+func (s *scan) keyed(rv *ast.RangeVar, name string) {
 	for _, p := range s.matching(rv) {
-		p.settled = true
+		settled := p.settled
+		p.settle()
+		if !settled && name != "" && s.namesPending(p, rv) {
+			p.key = name
+		}
 	}
+}
+
+// keyName returns the name of a primary key ADD CONSTRAINT gives a table
+// the change made: the one written, or the one the server generates when
+// the scan knows it free.
+//
+// pg: src/backend/commands/indexcmds.c — ChooseIndexName
+func (s *scan) keyName(rv *ast.RangeVar, c *ast.Constraint) string {
+	if c.Conname != "" {
+		return c.Conname
+	}
+	schema := s.pendingSchema(rv)
+	name := rv.Relname + "_pkey"
+	if schema == "" || len(name) > 63 || s.nameTaken(schema, name) || s.isTouched(&ast.RangeVar{Schemaname: schema, Relname: name}) {
+		return ""
+	}
+	return name
+}
+
+// namesPending reports whether a name certainly means a pending table the
+// change made: under its one name, which no statement used since, in its
+// schema, written or the one the search path resolves the name to.
+func (s *scan) namesPending(p *pendingTable, rv *ast.RangeVar) bool {
+	if p.existed || p.schema == "" || len(p.names) != 1 || !p.names[rv.Relname] || s.lastTouch[rv.Relname] != p.made {
+		return false
+	}
+	if rv.Schemaname != "" {
+		return rv.Schemaname == p.schema
+	}
+	path, ok := s.searchPath()
+	if !ok {
+		return false
+	}
+	for _, name := range path {
+		if name == p.schema {
+			return true
+		}
+		if strings.HasPrefix(name, "pg_") || s.schemas[name] {
+			return false
+		}
+		if ns := s.index.schemas[name]; ns != nil {
+			if _, exists := ns.relations[rv.Relname]; exists {
+				return false
+			}
+		}
+	}
+	return false
 }
 
 // lostKey records that a statement removed the primary key of a table of
