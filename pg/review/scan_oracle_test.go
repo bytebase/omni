@@ -310,6 +310,17 @@ func TestScanRulesAgainstPostgres(t *testing.T) {
 		{"DROP CONSTRAINT of an inherited check", "ALTER TABLE ic DROP CONSTRAINT ip_a_check;", true},
 		{"DROP TABLE a view reads without naming a column", "DROP TABLE cvt;\nCREATE TABLE n (id int);", true},
 		{"a cascade takes a view reading a table without naming a column", "DROP TABLE cvt CASCADE;\nCREATE TABLE IF NOT EXISTS cv (id int);", true},
+		{"OWNED BY a column the table lacks", "CREATE SEQUENCE public.q;\nALTER SEQUENCE public.q OWNED BY t.nope;\nCREATE TABLE n (id int);", true},
+		{"CREATE TYPE AS with an attribute twice", "CREATE TYPE public.ct AS (a int, a text);\nCREATE TABLE n (id int);", true},
+		{"RENAME CONSTRAINT of a constraint the table lacks", "ALTER TABLE public.t RENAME CONSTRAINT missing TO replacement;\nCREATE TABLE n (id int);", true},
+		{"SET SCHEMA of a table the change made to a schema holding its name", "CREATE TABLE public.x (id int PRIMARY KEY);\nCREATE TABLE s.x (id int PRIMARY KEY);\nALTER TABLE public.x SET SCHEMA s;\nCREATE TABLE n (id int);", true},
+		{"ALTER TABLE of a view the change made", "CREATE VIEW public.v AS SELECT 1;\nALTER TABLE public.v ADD COLUMN x int;\nCREATE TABLE n (id int);", true},
+		{"CREATE OR REPLACE VIEW renaming a column", "CREATE OR REPLACE VIEW tv AS SELECT 'x'::text AS other;\nCREATE TABLE n (id int);", true},
+		{"CREATE OR REPLACE VIEW adding a column", "CREATE OR REPLACE VIEW tv AS SELECT code, 1 AS extra FROM t;\nCREATE TABLE n (id int);", true},
+		{"CREATE TRIGGER on a relation the target lacks", "CREATE TRIGGER tr BEFORE INSERT ON public.missing FOR EACH ROW EXECUTE FUNCTION public.tf();\nCREATE TABLE n (id int);", true},
+		{"COMMENT ON a column the table lacks", "COMMENT ON COLUMN t.nope IS 'x';\nCREATE TABLE n (id int);", true},
+		{"GRANT on a table the target lacks", "GRANT SELECT ON public.missing TO PUBLIC;\nCREATE TABLE n (id int);", true},
+		{"COMMENT ON a table the target has", "COMMENT ON TABLE t IS 'x';\nCREATE TABLE n (id int);", true},
 		{"quoted names", "ALTER TABLE \"Quoted\" DROP CONSTRAINT \"Quoted_pkey\";\nCREATE TABLE \"New\" (\"Id\" int);", true},
 		{"new tables", "CREATE TABLE n (id int);\nCREATE TABLE k (id int PRIMARY KEY);\nCREATE TABLE k2 (a int, b int, CONSTRAINT k2_pk PRIMARY KEY (a, b));\nCREATE UNLOGGED TABLE ul (a int);\nCREATE TABLE \"Mixed\" (a int);", true},
 		{"keys added later", "CREATE TABLE n (id int);\nALTER TABLE n RENAME TO m;\nALTER TABLE m ADD PRIMARY KEY (id);\nCREATE TABLE o (id int NOT NULL);\nCREATE UNIQUE INDEX o_id ON o (id);\nALTER TABLE o ADD CONSTRAINT o_pkey PRIMARY KEY USING INDEX o_id;\nCREATE TABLE q (id int);\nALTER TABLE q ADD COLUMN k serial PRIMARY KEY;", true},
@@ -489,6 +500,15 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 	})
 	for _, s := range db.Schemas {
 		for _, v := range s.Views {
+			query(`SELECT a.attname FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+				WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum`, []any{s.Name, v.Name}, func(rows *sql.Rows) error {
+				c := &metadata.ColumnMetadata{}
+				if err := rows.Scan(&c.Name); err != nil {
+					return err
+				}
+				v.Columns = append(v.Columns, c)
+				return nil
+			})
 			query(`SELECT table_schema, table_name, column_name FROM information_schema.view_column_usage WHERE view_schema = $1 AND view_name = $2`, []any{s.Name, v.Name}, func(rows *sql.Rows) error {
 				d := &metadata.DependencyColumn{}
 				if err := rows.Scan(&d.Schema, &d.Table, &d.Column); err != nil {

@@ -61,6 +61,8 @@ type namespace struct {
 	// procedures, which keep a schema from being empty.
 	types    []string
 	routines int
+	// views are the views, for their columns.
+	views map[string]*metadata.ViewMetadata
 }
 
 type relationKind int
@@ -118,6 +120,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 			relations:  make(map[string]relationKind),
 			tables:     make(map[string]*metadata.TableMetadata),
 			dependents: make(map[string][]string),
+			views:      make(map[string]*metadata.ViewMetadata),
 		}
 		idx.schemas[s.GetName()] = ns
 		for _, t := range s.GetTables() {
@@ -142,6 +145,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		}
 		for _, v := range s.GetViews() {
 			ns.add(v.GetName(), kindView)
+			ns.views[v.GetName()] = v
 			idx.addReader(tableRef{s.GetName(), v.GetName()}, v.GetDependencyColumns())
 		}
 		for _, v := range s.GetMaterializedViews() {

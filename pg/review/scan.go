@@ -526,6 +526,102 @@ func commandTag(n ast.Node) string {
 	return ""
 }
 
+// namesMissing reports whether a statement the scan does not otherwise
+// follow names, as the relation it acts on, one the target certainly lacks
+// (a trigger, policy, rule, statistics, LOCK, TRUNCATE, REFRESH, CLUSTER,
+// VACUUM, GRANT, or COMMENT ON a relation or its column), or a trigger's
+// function it certainly lacks.
+func (s *scan) namesMissing(n ast.Node) bool {
+	if s.index == nil {
+		return false
+	}
+	switch v := n.(type) {
+	case *ast.CreateTrigStmt:
+		if fn, ok := routineOf(&ast.ObjectWithArgs{Objname: v.Funcname}); ok && s.routineMissing(fn, ast.OBJECT_FUNCTION) {
+			return true
+		}
+		if v.Relation != nil {
+			if _, kind, ok := s.lookup(v.Relation); ok && (kind == kindSequence || kind == kindIndex || kind == kindCompositeType) {
+				return true
+			}
+		}
+	case *ast.CommentStmt:
+		parts := nameParts(listOf(v.Object))
+		column := ""
+		switch v.Objtype {
+		case ast.OBJECT_COLUMN:
+			if len(parts) < 2 {
+				return false
+			}
+			column, parts = parts[len(parts)-1], parts[:len(parts)-1]
+		case ast.OBJECT_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW, ast.OBJECT_FOREIGN_TABLE, ast.OBJECT_SEQUENCE, ast.OBJECT_INDEX:
+		default:
+			return false
+		}
+		if len(parts) == 0 || len(parts) > 2 {
+			return false
+		}
+		rv := &ast.RangeVar{Relname: parts[len(parts)-1]}
+		if len(parts) == 2 {
+			rv.Schemaname = parts[0]
+		}
+		if s.missing(rv) {
+			return true
+		}
+		if t, ok := s.table(rv); ok && column != "" && !s.hasColumn(t, column) {
+			return true
+		}
+		return false
+	case *ast.CreatePolicyStmt, *ast.AlterPolicyStmt, *ast.RuleStmt, *ast.CreateStatsStmt, *ast.LockStmt,
+		*ast.TruncateStmt, *ast.RefreshMatViewStmt, *ast.ClusterStmt, *ast.VacuumStmt, *ast.GrantStmt:
+	default:
+		return false
+	}
+	missing := false
+	ast.Inspect(n, func(m ast.Node) bool {
+		switch r := m.(type) {
+		case *ast.RangeVar:
+			missing = missing || s.missing(r)
+		case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt:
+			// A rule's actions and a policy's expressions name relations
+			// of their own, CTEs among them.
+			return false
+		}
+		return true
+	})
+	return missing
+}
+
+// ownedByRefused reports whether ALTER SEQUENCE ... OWNED BY certainly
+// fails: it names a table the target lacks, or a column a known table
+// lacks.
+func (s *scan) ownedByRefused(v *ast.AlterSeqStmt) bool {
+	if s.index == nil || v.Options == nil {
+		return false
+	}
+	for _, item := range v.Options.Items {
+		d, ok := item.(*ast.DefElem)
+		if !ok || d.Defname != "owned_by" {
+			continue
+		}
+		parts := nameParts(listOf(d.Arg))
+		if len(parts) < 2 || len(parts) > 3 {
+			continue
+		}
+		rv := &ast.RangeVar{Relname: parts[len(parts)-2]}
+		if len(parts) == 3 {
+			rv.Schemaname = parts[0]
+		}
+		if s.missing(rv) {
+			return true
+		}
+		if t, ok := s.table(rv); ok && !s.hasColumn(t, parts[len(parts)-1]) {
+			return true
+		}
+	}
+	return false
+}
+
 // createdIn returns the schema a CREATE of a routine, a type, or a table
 // by query writes its object's name in, or "".
 func createdIn(n ast.Node) string {
@@ -588,6 +684,62 @@ func (s *scan) createAs(rel *ast.RangeVar, ifNotExists bool, query ast.Node, mat
 	}
 }
 
+// replacesColumns reports whether CREATE OR REPLACE VIEW certainly changes
+// a synced view's columns, which the server refuses: an existing column
+// gets another name, or goes. A column whose name the query does not
+// tell is not compared, and nothing after a star is.
+//
+// pg: src/backend/commands/view.c — checkViewColumns
+func replacesColumns(old *metadata.ViewMetadata, v *ast.ViewStmt) bool {
+	sel, ok := v.Query.(*ast.SelectStmt)
+	if old == nil || len(old.GetColumns()) == 0 || !ok || sel.Op != ast.SETOP_NONE || sel.TargetList == nil {
+		return false
+	}
+	var names []string
+	for _, item := range sel.TargetList.Items {
+		rt, ok := item.(*ast.ResTarget)
+		if !ok {
+			return false
+		}
+		name := rt.Name
+		if ref, ok := rt.Val.(*ast.ColumnRef); ok && name == "" && ref.Fields != nil && len(ref.Fields.Items) > 0 {
+			switch f := ref.Fields.Items[len(ref.Fields.Items)-1].(type) {
+			case *ast.String:
+				name = f.Str
+			case *ast.A_Star:
+				// A star brings columns the scan does not count.
+				names = append(names, "")
+				return compareColumns(old, v, names, true)
+			}
+		}
+		names = append(names, name)
+	}
+	return compareColumns(old, v, names, false)
+}
+
+// compareColumns compares a replacement's output names, after its column
+// aliases, with a view's columns; star marks names that end at a star.
+func compareColumns(old *metadata.ViewMetadata, v *ast.ViewStmt, names []string, star bool) bool {
+	aliases := nameParts(v.Aliases)
+	for i := range names {
+		if i < len(aliases) {
+			names[i] = aliases[i]
+		}
+	}
+	for i, c := range old.GetColumns() {
+		if i >= len(names) {
+			return !star
+		}
+		if star && i == len(names)-1 {
+			return false
+		}
+		if names[i] != "" && names[i] != c.GetName() {
+			return true
+		}
+	}
+	return false
+}
+
 // isProcedure reports whether CREATE FUNCTION is CREATE PROCEDURE, which
 // the parser marks with an option.
 func isProcedure(v *ast.CreateFunctionStmt) bool {
@@ -607,8 +759,9 @@ func (s *scan) stop() {
 }
 
 func (s *scan) statement(st *statement) {
-	// A CREATE in a schema that certainly does not exist is refused.
-	if schema := createdIn(st.node); schema != "" && s.schemaMissing(&ast.RangeVar{Schemaname: schema}) {
+	// A CREATE in a schema that certainly does not exist is refused, and
+	// so is a statement on a relation the target certainly lacks.
+	if schema := createdIn(st.node); schema != "" && s.schemaMissing(&ast.RangeVar{Schemaname: schema}) || s.namesMissing(st.node) {
 		s.stop()
 		return
 	}
@@ -660,6 +813,10 @@ func (s *scan) statement(st *statement) {
 				return
 			}
 			if ok && kind == kindView {
+				if replacesColumns(s.index.schemas[schema].views[v.View.Relname], v) {
+					s.stop()
+					return
+				}
 				s.replacedViews[tableRef{schema, v.View.Relname}] = true
 			}
 			s.retire(s.newReads, tableRef{v.View.Schemaname, v.View.Relname})
@@ -694,6 +851,10 @@ func (s *scan) statement(st *statement) {
 				return
 			}
 		}
+		if s.ownedByRefused(v) {
+			s.stop()
+			return
+		}
 		if v.Sequence != nil && v.Options != nil && slices.ContainsFunc(v.Options.Items, func(n ast.Node) bool {
 			d, ok := n.(*ast.DefElem)
 			return ok && d.Defname == "owned_by"
@@ -715,7 +876,7 @@ func (s *scan) statement(st *statement) {
 			s.made(v.Sequence, kindSequence)
 		}
 	case *ast.CompositeTypeStmt:
-		if v.Typevar != nil && s.typeTaken(v.Typevar) {
+		if v.Typevar != nil && s.typeTaken(v.Typevar) || duplicateNames(&ast.CreateStmt{TableElts: v.Coldeflist}) {
 			s.stop()
 			return
 		}
@@ -2464,7 +2625,7 @@ func (s *scan) rename(v *ast.RenameStmt) {
 		s.setColumn(schema, v.Relation.Relname, v.Subname, false, false)
 		s.setColumn(schema, v.Relation.Relname, v.Newname, true, true)
 	case v.RenameType == ast.OBJECT_FUNCTION || v.RenameType == ast.OBJECT_PROCEDURE || v.RenameType == ast.OBJECT_ROUTINE:
-		if fn, ok := routineOf(v.Object); ok && s.routineMissing(fn, v.RenameType) {
+		if fn, ok := routineOf(v.Object); ok && (s.routineMissing(fn, v.RenameType) || s.renameTaken(fn, v)) {
 			s.stop()
 			return
 		}
@@ -2475,10 +2636,17 @@ func (s *scan) rename(v *ast.RenameStmt) {
 }
 
 // renameConstraintRefused reports whether RENAME CONSTRAINT of a known
-// table certainly fails: the table has a constraint of the new name, or
-// the constraint owns an index the new name of which its schema holds.
+// table may fail: the constraint is not one the snapshot lists, or the
+// table has a constraint of the new name, or the constraint owns an index
+// the new name of which its schema holds.
 func (s *scan) renameConstraintRefused(t tableRef, from, to string) bool {
 	table := s.index.schemas[t.schema].tables[t.table]
+	// A constraint the snapshot does not list, which no statement of the
+	// change named, is missing, or a NOT NULL constraint the snapshot
+	// leaves out: the statement may fail either way.
+	if _, ok := constraint(table, from); !ok && s.constraintKnown(t, from) {
+		return true
+	}
 	if _, ok := constraint(table, to); ok && s.constraintKnown(t, to) && !s.dropped[[3]string{t.schema, t.table, to}] {
 		return true
 	}
@@ -2639,6 +2807,12 @@ func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 			return
 		}
 		if s.alterKindRefused(v.ObjectType, v.Relation) {
+			s.stop()
+			return
+		}
+		// A relation the change created cannot move to a schema holding
+		// its name.
+		if _, ok := s.madeIn(v.Relation); ok && (s.nameTaken(v.Newschema, v.Relation.Relname) || s.madeHere(&ast.RangeVar{Schemaname: v.Newschema, Relname: v.Relation.Relname})) {
 			s.stop()
 			return
 		}
@@ -2891,10 +3065,20 @@ func (s *scan) dropFunctions(v *ast.DropStmt) {
 				s.newFunctions[fn]--
 			}
 		}
-		// A synced function is certainly dropped only by its name alone,
+		// A synced function is certainly dropped by its name alone, or by
+		// the signature the snapshot gives the only function of its name,
 		// when no routine of the change has the name and none moved away
 		// from it.
-		if s.index == nil || s.madeRoutines[fn.table] || s.movedRoutines[fn.table] || !owa.ArgsUnspecified {
+		if s.index == nil || s.madeRoutines[fn.table] || s.movedRoutines[fn.table] {
+			continue
+		}
+		if !owa.ArgsUnspecified {
+			if schema, ok := s.routineSchema(fn); ok {
+				synced := tableRef{schema, fn.table}
+				if s.index.functions[synced] == 1 && slices.Contains(s.index.signatures[synced], argSignature(owa.Objargs)) {
+					s.droppedFunctions[synced] = true
+				}
+			}
 			continue
 		}
 		if fn.schema != "" {
@@ -2933,6 +3117,28 @@ func (s *scan) syncedFunctions(fn tableRef) int {
 		}
 	}
 	return n
+}
+
+// routineSchema returns the synced schema a routine name means: the one
+// written, or the first schema of the known search path with a routine of
+// the name.
+func (s *scan) routineSchema(fn tableRef) (string, bool) {
+	if fn.schema != "" {
+		return fn.schema, s.index.schemas[fn.schema] != nil && !s.schemas[fn.schema]
+	}
+	path, ok := s.searchPath()
+	if !ok {
+		return "", false
+	}
+	for _, name := range path {
+		if s.schemas[name] || name == "information_schema" {
+			return "", false
+		}
+		if s.index.routineKinds[tableRef{name, fn.table}] != 0 {
+			return name, true
+		}
+	}
+	return "", false
 }
 
 // routinesOf counts the routines a qualified name certainly has: the
@@ -2976,6 +3182,38 @@ func (s *scan) routineMissing(fn tableRef, kind ast.ObjectType) bool {
 		}
 	}
 	return true
+}
+
+// renameTaken reports whether a routine rename certainly takes a signature
+// a routine of the new name has where the routine is: the one written, or
+// the only one the change created or the snapshot lists under the name.
+func (s *scan) renameTaken(fn tableRef, v *ast.RenameStmt) bool {
+	owa, ok := v.Object.(*ast.ObjectWithArgs)
+	if !ok || s.index == nil {
+		return false
+	}
+	schema, ok := s.creationSchema(&ast.RangeVar{Schemaname: fn.schema, Relname: fn.table})
+	if !ok {
+		return false
+	}
+	synced := tableRef{schema, fn.table}
+	sig := argSignature(owa.Objargs)
+	if owa.ArgsUnspecified {
+		switch sigs := s.newSignatures[fn]; {
+		case len(sigs) == 1 && s.index.functions[synced] == 0:
+			sig = sigs[0]
+		case len(sigs) == 0 && s.index.functions[synced] == 1 && len(s.index.signatures[synced]) == 1:
+			sig = s.index.signatures[synced][0]
+		default:
+			return false
+		}
+	}
+	to := tableRef{schema, v.Newname}
+	if s.movedRoutines[v.Newname] || s.droppedFunctions[to] {
+		return false
+	}
+	return slices.Contains(s.newSignatures[tableRef{fn.schema, v.Newname}], sig) ||
+		sig == "" && s.index.noArgs[to] || slices.Contains(s.index.signatures[to], sig)
 }
 
 // routineOf returns the routine an ALTER names, as written.

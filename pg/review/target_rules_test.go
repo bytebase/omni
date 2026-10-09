@@ -124,6 +124,21 @@ func withInheritedCheck() *metadata.DatabaseSchemaMetadata {
 	return database("public", schema("public", par, ch))
 }
 
+// withSequence is db with a public sequence of that name.
+func withSequence(db *metadata.DatabaseSchemaMetadata, name string) *metadata.DatabaseSchemaMetadata {
+	db.Schemas[0].Sequences = append(db.Schemas[0].Sequences, &metadata.SequenceMetadata{Name: name})
+	return db
+}
+
+// withViewColumns is a database with view v of those columns.
+func withViewColumns(columns ...string) *metadata.DatabaseSchemaMetadata {
+	v := &metadata.ViewMetadata{Name: "v", Definition: "SELECT 1"}
+	for _, c := range columns {
+		v.Columns = append(v.Columns, &metadata.ColumnMetadata{Name: c})
+	}
+	return database("public", &metadata.SchemaMetadata{Name: "public", Views: []*metadata.ViewMetadata{v}})
+}
+
 func withView(db *metadata.DatabaseSchemaMetadata, schema, view string) *metadata.DatabaseSchemaMetadata {
 	for _, s := range db.Schemas {
 		if s.Name == schema {
@@ -2097,6 +2112,89 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a view whose definition the scan cannot read holds every drop",
 			sql:     "DROP TABLE base;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withCountView("not sql at all")}},
+		},
+		{
+			name:    "OWNED BY a column the table lacks is refused",
+			sql:     "ALTER SEQUENCE q OWNED BY t.nope;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSequence(shop(), "q"), SessionUser: "alice"}},
+		},
+		{
+			name:    "OWNED BY a table the target lacks is refused",
+			sql:     "ALTER SEQUENCE q OWNED BY public.missing.id;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSequence(shop(), "q"), SessionUser: "alice"}},
+		},
+		{
+			name:    "OWNED BY a column the table has",
+			sql:     "ALTER SEQUENCE q OWNED BY t.n;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSequence(shop(), "q"), SessionUser: "alice"}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE TYPE AS with an attribute twice is refused",
+			sql:     "CREATE TYPE public.ct AS (a int, a text);\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "RENAME CONSTRAINT of a constraint the snapshot lacks ends the scan",
+			sql:     "ALTER TABLE public.t RENAME CONSTRAINT missing TO replacement;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "SET SCHEMA of a table the change made to a schema holding its name is refused",
+			sql:     "CREATE TABLE public.x (id int PRIMARY KEY);\nALTER TABLE public.x SET SCHEMA s;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: database("public", schema("public"), schema("s", table("x", "id integer")))}},
+		},
+		{
+			name:    "ALTER FUNCTION RENAME to a signature the schema has is refused",
+			sql:     "ALTER FUNCTION public.f() RENAME TO g;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(withSignature(shop(), "f", "f()"), "g", "g()"), SessionUser: "alice"}},
+		},
+		{
+			name:    "ALTER TABLE of a view the change made is refused",
+			sql:     "CREATE VIEW public.v AS SELECT 1;\nALTER TABLE public.v ADD COLUMN x int;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name: "DROP FUNCTION by the synced signature retires it",
+			sql:  "DROP FUNCTION public.f(integer);\nDROP TABLE public.nokey;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: func() *metadata.DatabaseSchemaMetadata {
+				db := shop()
+				db.Schemas[0].Functions = append(db.Schemas[0].Functions, &metadata.FunctionMetadata{Name: "f", Signature: "f(a integer)", Definition: "CREATE OR REPLACE FUNCTION", DependencyTables: []*metadata.DependencyTable{{Schema: "public", Table: "nokey"}}})
+				return db
+			}(), SessionUser: "alice"}},
+			want: []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE OR REPLACE VIEW renaming a column is refused",
+			sql:     "CREATE OR REPLACE VIEW public.v AS SELECT 1 AS b;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withViewColumns("a")}},
+		},
+		{
+			name:    "CREATE OR REPLACE VIEW adding a column",
+			sql:     "CREATE OR REPLACE VIEW public.v AS SELECT 1 AS a, 2 AS b;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withViewColumns("a")}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE TRIGGER on a relation the target lacks is refused",
+			sql:     "CREATE TRIGGER tr BEFORE INSERT ON public.missing FOR EACH ROW EXECUTE FUNCTION public.tf();\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "COMMENT ON a column the table lacks is refused",
+			sql:     "COMMENT ON COLUMN t.nope IS 'x';\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "GRANT on a table the target lacks is refused",
+			sql:     "GRANT SELECT ON public.missing TO PUBLIC;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "COMMENT ON a table the target has",
+			sql:     "COMMENT ON TABLE t IS 'x';\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
 		},
 		{
 			name: "a cascade does not go past a view the change replaced",
