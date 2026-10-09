@@ -28,6 +28,7 @@ func TestEventTriggerEventsAgainstPostgres(t *testing.T) {
 		`CREATE EVENT TRIGGER ev_end ON ddl_command_end EXECUTE FUNCTION ev_note()`,
 		`CREATE EVENT TRIGGER ev_drop ON sql_drop EXECUTE FUNCTION ev_note()`,
 		`CREATE EVENT TRIGGER ev_rewrite ON table_rewrite EXECUTE FUNCTION ev_note()`,
+		`CREATE EVENT TRIGGER ev_login ON login EXECUTE FUNCTION ev_note()`,
 	} {
 		if _, err := conn.ExecContext(ctx, setup); err != nil {
 			t.Fatalf("%s: %v", setup, err)
@@ -137,6 +138,10 @@ func TestEventTriggerEventsAgainstPostgres(t *testing.T) {
 		}
 		if raised["sql_drop"] && !mayDrop(n) {
 			t.Errorf("%s raised sql_drop, which the scan does not expect", sql)
+		}
+		// eventTriggerFires sets login triggers aside.
+		if raised["login"] {
+			t.Errorf("%s raised login", sql)
 		}
 		if raised["table_rewrite"] && !mayRewrite(n) {
 			t.Errorf("%s raised table_rewrite, which the scan does not expect", sql)

@@ -1296,6 +1296,55 @@ func TestRequirePrimaryKey(t *testing.T) {
 			targets: one,
 		},
 		{
+			name:    "a rename of a relation the target lacks is refused",
+			sql:     "ALTER TABLE public.missing RENAME TO x;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a rename under IF EXISTS of a relation the target lacks does nothing",
+			sql:     "ALTER TABLE IF EXISTS public.missing RENAME TO x;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "SET SCHEMA of a relation the target lacks is refused",
+			sql:     "ALTER TABLE public.missing SET SCHEMA s;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a login event trigger fires on no statement",
+			sql:     "CREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withEvent(shop(), "LOGIN"), SessionUser: "alice"}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "DROP SCHEMA of a schema the change put a table in is refused",
+			sql:     "CREATE SCHEMA z;\nCREATE TABLE z.x (id int PRIMARY KEY);\nDROP SCHEMA z;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "DROP SCHEMA of a schema the change emptied again",
+			sql:     "CREATE SCHEMA z;\nCREATE TABLE z.x (id int PRIMARY KEY);\nDROP TABLE z.x;\nDROP SCHEMA z;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{4, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "DROP SCHEMA of a synced schema a table was renamed in is refused",
+			sql:     "ALTER TABLE s.t RENAME TO t2;\nDROP SCHEMA s;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a foreign key of a table the same DROP drops does not hold it",
+			sql:     "CREATE TABLE public.c (id int PRIMARY KEY, n_a int REFERENCES public.k);\nDROP TABLE public.c, public.k;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: database("public", schema("public", withPrimaryKey(table("k", "id integer"), "k_pkey", "id")))}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a foreign key of a table the change made still holds the table it references",
+			sql:     "CREATE TABLE public.c (id int PRIMARY KEY, n_a int REFERENCES public.k);\nDROP TABLE public.k;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: database("public", schema("public", withPrimaryKey(table("k", "id integer"), "k_pkey", "id")))}},
+		},
+		{
 			name: "a cascade does not go past a view the change replaced",
 			sql:  "CREATE OR REPLACE VIEW v AS SELECT 1 AS id;\nDROP TABLE base CASCADE;\nCREATE TABLE w (id int);",
 			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{

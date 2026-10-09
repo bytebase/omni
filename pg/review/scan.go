@@ -196,7 +196,9 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 func eventTriggerFires(schema *metadata.DatabaseSchemaMetadata, stmts []statement) bool {
 	var triggers []*metadata.EventTriggerMetadata
 	for _, t := range schema.GetEventTriggers() {
-		if t.GetEnabled() {
+		// A login trigger fires when a session connects, not on a
+		// statement.
+		if t.GetEnabled() && !strings.EqualFold(t.GetEvent(), "LOGIN") {
 			triggers = append(triggers, t)
 		}
 	}
@@ -697,10 +699,15 @@ func (s *scan) retireReferences(owner *ast.RangeVar, name string) {
 
 // newlyReferenced reports whether a foreign key the change created may
 // reference the table's key with these columns, nil when they cannot be
-// read; primary tells whether the key is the primary key.
-func (s *scan) newlyReferenced(t tableRef, columns []string, primary bool) bool {
+// read; primary tells whether the key is the primary key. A foreign key
+// of a table in except, as written, does not count.
+func (s *scan) newlyReferenced(t tableRef, columns []string, primary bool, except ...tableRef) bool {
 	for _, r := range s.newReferences {
 		if r.retired || r.table != t.table || r.schema != "" && r.schema != t.schema {
+			continue
+		}
+		// A foreign key of a table the statement drops too goes with it.
+		if slices.ContainsFunc(except, func(o tableRef) bool { return r.owner == o && (o.schema != "" || r.ownerPath == s.pathVersion) }) {
 			continue
 		}
 		if columns == nil || r.columns == nil && primary || r.columns != nil && sameColumns(r.columns, columns) {
@@ -1649,6 +1656,14 @@ func isRelationKind(t ast.ObjectType) bool {
 // and a pending table it may be keeps the new name too. An index rename
 // renames the constraint the index backs, if any.
 func (s *scan) rename(v *ast.RenameStmt) {
+	// A rename on a relation the target certainly lacks is refused, and
+	// under IF EXISTS does nothing.
+	if v.Relation != nil && s.index != nil && s.missing(v.Relation) {
+		if !v.MissingOk {
+			s.stop()
+		}
+		return
+	}
 	switch {
 	case isRelationKind(v.RenameType) && v.Relation != nil:
 		schema, _, resolved := s.lookup(v.Relation)
@@ -1805,7 +1820,7 @@ func (s *scan) dropsOwn(rv *ast.RangeVar, kind ast.ObjectType, cascade bool, wri
 	if !ok || s.lastTouch[t.table] != c.made || !dropKindMatches(kind, c.kind) {
 		return false
 	}
-	return cascade || !s.dependsOnNew(s.newReads, t, written) && !s.dependsOnNew(s.newReturns, t, nil) && !s.newlyReferenced(t, nil, true)
+	return cascade || !s.dependsOnNew(s.newReads, t, written) && !s.dependsOnNew(s.newReturns, t, nil) && !s.newlyReferenced(t, nil, true, written...)
 }
 
 // setSchema follows SET SCHEMA. A pending table it may be can then be in
@@ -1813,6 +1828,12 @@ func (s *scan) dropsOwn(rv *ast.RangeVar, kind ast.ObjectType, cascade bool, wri
 func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 	switch {
 	case isRelationKind(v.ObjectType) && v.Relation != nil:
+		if s.index != nil && s.missing(v.Relation) {
+			if !v.MissingOk {
+				s.stop()
+			}
+			return
+		}
 		schema, _, resolved := s.lookup(v.Relation)
 		// A schema that lacks the name must exist to take it.
 		if s.index != nil && (s.index.schemas[v.Newschema] == nil && !s.schemas[v.Newschema] || s.schemaGone[v.Newschema]) ||
@@ -2258,16 +2279,33 @@ func dropKindMatches(t ast.ObjectType, kind relationKind) bool {
 	return true
 }
 
-// schemaHolds reports whether a synced schema certainly still holds an
-// object, so that DROP SCHEMA without CASCADE is refused: a relation of
-// it no statement touched, an enum type no statement named, or a routine
-// no DROP FUNCTION certainly removed.
+// schemaHolds reports whether a schema may still hold an object, so that
+// DROP SCHEMA without CASCADE may be refused and the scan ends: a name the
+// change created, renamed, or moved that may be in it and no resolved drop
+// removed, a function the change created that may be in it, or, in a
+// synced schema, a relation of it no statement touched, an enum type no
+// statement named, or a routine no DROP FUNCTION certainly removed.
 func (s *scan) schemaHolds(name string) bool {
-	if s.index == nil || s.schemas[name] {
+	if s.index == nil {
 		return false
 	}
+	// What the change created, renamed, or moved may be there: under that
+	// schema, or under none when the search path may put it there, unless
+	// a drop the scan resolved removed it.
+	path, known := s.searchPath()
+	onPath := !known || slices.Contains(path, name)
+	for key := range s.touched {
+		if (key[0] == name || key[0] == "" && onPath) && !s.freed[[2]string{name, key[1]}] {
+			return true
+		}
+	}
+	for fn, n := range s.newFunctions {
+		if n > 0 && (fn.schema == name || fn.schema == "" && onPath) {
+			return true
+		}
+	}
 	ns := s.index.schemas[name]
-	if ns == nil {
+	if ns == nil || s.schemas[name] {
 		return false
 	}
 	for rel := range ns.relations {
@@ -2400,7 +2438,7 @@ func (s *scan) dropRefused(v *ast.DropStmt) bool {
 		if kind != ast.OBJECT_TABLE {
 			continue
 		}
-		if s.newlyReferenced(t, nil, true) {
+		if s.newlyReferenced(t, nil, true, written...) {
 			return true
 		}
 		for _, fk := range s.index.foreignKeys {
