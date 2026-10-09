@@ -585,6 +585,11 @@ func (s *scan) namesMissing(n ast.Node) bool {
 		if t, ok := s.table(rv); ok && column != "" && !s.hasColumn(t, column) {
 			return true
 		}
+		if schema, kind, ok := s.lookup(rv); ok && kind == kindView && column != "" {
+			view := s.index.schemas[schema].views[rv.Relname]
+			return !s.replacedViews[tableRef{schema, rv.Relname}] && len(view.GetColumns()) > 0 &&
+				!slices.ContainsFunc(view.GetColumns(), func(c *metadata.ColumnMetadata) bool { return c.GetName() == column })
+		}
 		return false
 	case *ast.TruncateStmt:
 		// TRUNCATE takes tables, partitioned or foreign.
@@ -668,17 +673,13 @@ func (s *scan) noteTriggers(n ast.Node) {
 				s.triggersChanged[trigger] = true
 				// A trigger the change dropped from its relation may be
 				// created there again.
-				for key := range s.createdTriggers {
-					if strings.HasSuffix(key, "\x00"+trigger) {
-						delete(s.createdTriggers, key)
+				if len(parts) >= 2 {
+					rv := &ast.RangeVar{Relname: parts[len(parts)-2]}
+					if len(parts) >= 3 {
+						rv.Schemaname = parts[len(parts)-3]
 					}
+					delete(s.createdTriggers, triggerKey(s.schemaOf(rv), rv.Relname, trigger))
 				}
-			}
-		}
-	case *ast.CreateSchemaStmt:
-		if v.SchemaElts != nil {
-			for _, e := range v.SchemaElts.Items {
-				s.noteTriggers(e)
 			}
 		}
 	}
@@ -1103,6 +1104,11 @@ func (s *scan) statement(st *statement) {
 		s.touch(v.Typevar)
 		if v.Typevar != nil {
 			s.made(v.Typevar, kindCompositeType)
+		}
+	case *ast.AlterOwnerStmt:
+		if s.ownerTargetMissing(v) {
+			s.stop()
+			return
 		}
 	case *ast.CreateEnumStmt:
 		// An enum names each label once.
@@ -1590,6 +1596,32 @@ func (s *scan) replacesOtherKind(v *ast.CreateFunctionStmt) bool {
 	return signature == "" && s.index.noArgs[fn] || slices.Contains(s.index.signatures[fn], signature)
 }
 
+// ownerTargetMissing reports whether ALTER ... OWNER TO names a schema or
+// a routine the target certainly lacks.
+func (s *scan) ownerTargetMissing(v *ast.AlterOwnerStmt) bool {
+	if s.index == nil {
+		return false
+	}
+	switch v.ObjectType {
+	case ast.OBJECT_SCHEMA:
+		parts := nameParts(listOf(v.Object))
+		if len(parts) != 1 {
+			if str, ok := v.Object.(*ast.String); ok {
+				parts = []string{str.Str}
+			}
+		}
+		return len(parts) == 1 && s.index.schemas[parts[0]] == nil && !s.schemas[parts[0]] || len(parts) == 1 && s.schemaGone[parts[0]]
+	case ast.OBJECT_FUNCTION, ast.OBJECT_PROCEDURE, ast.OBJECT_ROUTINE:
+		owa, ok := v.Object.(*ast.ObjectWithArgs)
+		if !ok {
+			return false
+		}
+		fn, ok := routineOf(owa)
+		return ok && (s.routineMissing(fn, v.ObjectType) || s.signatureMissing(fn, owa))
+	}
+	return false
+}
+
 // enumMissing reports whether ALTER TYPE ... ADD or RENAME VALUE names a
 // type that is certainly no enum: in its schema, written or along the
 // known search path, no enum of the name, and nothing the change made
@@ -1927,6 +1959,7 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 				s.stop()
 				return
 			}
+			s.noteTriggers(&c)
 		case *ast.GrantStmt:
 		default:
 			s.stop()
@@ -3046,6 +3079,17 @@ func (s *scan) rename(v *ast.RenameStmt) {
 		schema := s.schemaOf(v.Relation)
 		s.constraints[[3]string{schema, v.Relation.Relname, v.Subname}] = true
 		s.constraints[[3]string{schema, v.Relation.Relname, v.Newname}] = true
+		// A table the change made, and a key a pending table waits on,
+		// keep the constraint under its new name.
+		if c, ok := s.madeAt(v.Relation); ok && c.def != nil && c.def.constraints[v.Subname] {
+			delete(c.def.constraints, v.Subname)
+			c.def.constraints[v.Newname] = true
+		}
+		for _, p := range s.pending {
+			if p.key == v.Subname && s.namesPending(p, v.Relation) {
+				p.key = v.Newname
+			}
+		}
 	case v.RenameType == ast.OBJECT_COLUMN && v.Relation != nil:
 		// A known table must have the column, and not the new name.
 		t, known := s.table(v.Relation)
@@ -3296,7 +3340,12 @@ func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 				p.schema = ""
 			}
 		}
-	case v.ObjectType == ast.OBJECT_TYPE:
+	case v.ObjectType == ast.OBJECT_TYPE || v.ObjectType == ast.OBJECT_DOMAIN:
+		// The destination schema must exist.
+		if s.schemaMissing(&ast.RangeVar{Schemaname: v.Newschema}) {
+			s.stop()
+			return
+		}
 		if parts := nameParts(listOf(v.Object)); len(parts) > 0 {
 			s.touchName("", parts[len(parts)-1])
 		}
@@ -3337,7 +3386,23 @@ func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 func (s *scan) drop(v *ast.DropStmt) {
 	kind := ast.ObjectType(v.RemoveType)
 	cascade := v.Behavior == int(ast.DROP_CASCADE)
+	// DROP EXTENSION IF EXISTS of extensions the target lacks drops
+	// nothing; any other drops what the extension made.
+	if kind == ast.OBJECT_EXTENSION && v.Missing_ok && s.index != nil && v.Objects != nil && !slices.ContainsFunc(v.Objects.Items, func(n ast.Node) bool {
+		parts := nameParts(listOf(n))
+		return len(parts) != 1 || s.index.extensions[parts[0]]
+	}) {
+		return
+	}
 	if kind == ast.OBJECT_EXTENSION || cascade && !isRelationKind(kind) {
+		s.stop()
+		return
+	}
+	// DROP EVENT TRIGGER of one the target lacks is refused.
+	if kind == ast.OBJECT_EVENT_TRIGGER && !v.Missing_ok && s.index != nil && v.Objects != nil && slices.ContainsFunc(v.Objects.Items, func(n ast.Node) bool {
+		parts := nameParts(listOf(n))
+		return len(parts) == 1 && !s.index.eventTriggers[parts[0]]
+	}) {
 		s.stop()
 		return
 	}

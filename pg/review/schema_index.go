@@ -37,6 +37,8 @@ type schemaIndex struct {
 	// the kinds of routine, function or procedure, each (schema, name) has.
 	extensions   map[string]bool
 	routineKinds map[tableRef]routineKind
+	// eventTriggers lists the event triggers by name.
+	eventTriggers map[string]bool
 	// noArgs marks the functions, by (schema, name), whose signature takes
 	// no arguments, and signatures lists the argument signatures the scan
 	// can read, written as argSignature writes them.
@@ -107,6 +109,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 
 		constraintIndexes: make(map[tableRef]bool),
 		extensions:        make(map[string]bool),
+		eventTriggers:     make(map[string]bool),
 		routineKinds:      make(map[tableRef]routineKind),
 		noArgs:            make(map[tableRef]bool),
 		signatures:        make(map[tableRef][]string),
@@ -114,6 +117,9 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 	}
 	for _, e := range db.GetExtensions() {
 		idx.extensions[e.GetName()] = true
+	}
+	for _, t := range db.GetEventTriggers() {
+		idx.eventTriggers[t.GetName()] = true
 	}
 	var procedures []procedureRef
 	for _, s := range db.GetSchemas() {

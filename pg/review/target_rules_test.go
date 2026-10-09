@@ -2502,6 +2502,59 @@ func TestRequirePrimaryKey(t *testing.T) {
 			targets: one,
 		},
 		{
+			name:    "a trigger of CREATE SCHEMA on its own table",
+			sql:     "CREATE SCHEMA z CREATE TABLE t (id int) CREATE TRIGGER tr BEFORE INSERT ON z.t FOR EACH ROW EXECUTE FUNCTION public.tf();",
+			targets: []review.Target{{Schema: withSignature(shop(), "tf", "tf()"), SessionUser: "alice"}},
+			want:    []targetFinding{{0, "CREATE TABLE t (id int)", "creates table z.t without a primary key", []int{0}}},
+		},
+		{
+			name:    "DROP TRIGGER on one table leaves the trigger of the name on another",
+			sql:     "CREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.tf();\nCREATE TRIGGER tr BEFORE INSERT ON public.p FOR EACH ROW EXECUTE FUNCTION public.tf();\nDROP TRIGGER tr ON public.t;\nCREATE TRIGGER tr BEFORE INSERT ON public.p FOR EACH ROW EXECUTE FUNCTION public.tf();\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "tf", "tf()"), SessionUser: "alice"}},
+		},
+		{
+			name: "ALTER TYPE SET SCHEMA to a schema the target lacks is refused",
+			sql:  "ALTER TYPE public.mood SET SCHEMA missing;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: func() *metadata.DatabaseSchemaMetadata {
+				db := shop()
+				db.Schemas[0].EnumTypes = []*metadata.EnumTypeMetadata{{Name: "mood"}}
+				return db
+			}(), SessionUser: "alice"}},
+		},
+		{
+			name:    "a renamed key of a table the change made, then dropped",
+			sql:     "CREATE TABLE n (id int PRIMARY KEY);\nALTER TABLE n RENAME CONSTRAINT n_pkey TO x;\nALTER TABLE n DROP CONSTRAINT x;",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE n (id int PRIMARY KEY)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "DROP EXTENSION IF EXISTS of an extension the target lacks does nothing",
+			sql:     "DROP EXTENSION IF EXISTS missing;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "DROP EVENT TRIGGER of one the target lacks is refused",
+			sql:     "DROP EVENT TRIGGER missing;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "COMMENT ON a column a view lacks is refused",
+			sql:     "COMMENT ON COLUMN public.v.missing IS 'x';\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withViewColumns("a")}},
+		},
+		{
+			name:    "COMMENT ON a column a view has",
+			sql:     "COMMENT ON COLUMN public.v.a IS 'x';\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withViewColumns("a")}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "ALTER SCHEMA OWNER of a schema the target lacks is refused",
+			sql:     "ALTER SCHEMA missing OWNER TO alice;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
 			name: "a cascade does not go past a view the change replaced",
 			sql:  "CREATE OR REPLACE VIEW v AS SELECT 1 AS id;\nDROP TABLE base CASCADE;\nCREATE TABLE w (id int);",
 			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{
