@@ -177,6 +177,61 @@ func TestDisallowDropConstraint(t *testing.T) {
 			want:    []targetFinding{{2, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
 		},
 		{
+			name:    "the same names in two schemas are two constraints",
+			sql:     "ALTER TABLE s.t DROP CONSTRAINT t_pkey;\nALTER TABLE public.t DROP CONSTRAINT t_pkey;",
+			targets: one,
+			want: []targetFinding{
+				{0, "DROP CONSTRAINT t_pkey", "drops unique constraint t_pkey of s.t", []int{0}},
+				{1, "DROP CONSTRAINT t_pkey", "drops primary key t_pkey of public.t", []int{0}},
+			},
+		},
+		{
+			name:    "a dropped table no longer holds its foreign keys",
+			sql:     "DROP TABLE t;\nALTER TABLE p DROP CONSTRAINT p_pkey;",
+			targets: one,
+			want:    []targetFinding{{1, "DROP CONSTRAINT p_pkey", "drops primary key p_pkey of p", []int{0}}},
+		},
+		{
+			name:    "dropping a table a foreign key references is refused without CASCADE",
+			sql:     "DROP TABLE p;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
+			targets: one,
+		},
+		{
+			name:    "dropping both ends of a foreign key together",
+			sql:     "DROP TABLE p, t;\nALTER TABLE nokey ADD CONSTRAINT nokey_a CHECK (a > 0);\nALTER TABLE s.t DROP CONSTRAINT t_pkey;",
+			targets: one,
+			want:    []targetFinding{{2, "DROP CONSTRAINT t_pkey", "drops unique constraint t_pkey of s.t", []int{0}}},
+		},
+		{
+			name:    "a subcommand certain to fail refuses the statement",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD COLUMN id int;\nALTER TABLE t DROP CONSTRAINT t_code_key;",
+			targets: one,
+		},
+		{
+			name:    "altering a missing column refuses the statement",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ALTER COLUMN nope SET DEFAULT 1;",
+			targets: one,
+		},
+		{
+			name:    "adding a constraint under a name the table uses refuses the statement",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT t_code_key CHECK (n > 1);",
+			targets: one,
+		},
+		{
+			name:    "a second primary key refuses the statement",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD PRIMARY KEY (code);",
+			targets: one,
+		},
+		{
+			name:    "the drops run first, so a name or a column they free can be used again",
+			sql:     "ALTER TABLE t ADD CONSTRAINT t_n_check CHECK (n > 1), DROP CONSTRAINT t_n_check, DROP COLUMN code, ADD COLUMN code int, ADD COLUMN IF NOT EXISTS id int;\nALTER TABLE s.t DROP CONSTRAINT t_pkey, ADD COLUMN x int, ALTER COLUMN id SET NOT NULL;",
+			targets: one,
+			want: []targetFinding{
+				{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}},
+				{1, "DROP CONSTRAINT t_pkey", "drops unique constraint t_pkey of s.t", []int{0}},
+			},
+		},
+		{
 			name:    "a cascading drop of anything but a relation ends the scan",
 			sql:     "DROP FUNCTION f() CASCADE;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
 			targets: one,
@@ -287,6 +342,21 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "a table attached as a partition",
 			sql:     "CREATE TABLE pt (id int PRIMARY KEY) PARTITION BY RANGE (id);\nCREATE TABLE n (id int NOT NULL);\nALTER TABLE pt ATTACH PARTITION n FOR VALUES FROM (1) TO (10);",
 			targets: one,
+		},
+		{
+			name:    "a dropped table takes its indexes, whose names are then free",
+			sql:     "DROP TABLE t;\nCREATE TABLE IF NOT EXISTS t_code_key (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE IF NOT EXISTS t_code_key (id int)", "creates table t_code_key without a primary key", []int{0}}},
+		},
+		{
+			name: "a cascading drop takes the views that read the table, in their own schema",
+			sql:  "DROP TABLE public.base CASCADE;\nCREATE TABLE IF NOT EXISTS s.reader (id int);",
+			targets: []review.Target{{Schema: database("public", schema("public", table("base", "id integer")), &metadata.SchemaMetadata{
+				Name:  "s",
+				Views: []*metadata.ViewMetadata{{Name: "reader", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "base", Column: "id"}}}},
+			})}},
+			want: []targetFinding{{1, "CREATE TABLE IF NOT EXISTS s.reader (id int)", "creates table s.reader without a primary key", []int{0}}},
 		},
 		{
 			name:    "a cascading drop of a parent may drop a child",
@@ -465,6 +535,13 @@ func TestPriorBackup(t *testing.T) {
 				{3, "DELETE FROM tmp WHERE id = 1", "prior backup runs before the change, when tmp does not exist yet", []int{0}},
 				{5, "DELETE FROM s.m WHERE id = 1", "prior backup runs before the change, when s.m does not exist yet", []int{0}},
 			},
+		},
+		{
+			name:    "a table the change moves into the schema",
+			sql:     "ALTER TABLE nokey SET SCHEMA s;\nUPDATE s.nokey SET a = 1 WHERE a = 2;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "UPDATE s.nokey SET a = 1 WHERE a = 2", "prior backup runs before the change, when s.nokey does not exist yet", []int{0}}},
 		},
 		{
 			name:    "a table the change recreates still exists when the backup runs",

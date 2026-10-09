@@ -17,7 +17,7 @@ type schemaIndex struct {
 	foreignKeys []foreignKeyRef
 	// readers maps a table to the views and materialized views that read
 	// it, and readsColumn marks the columns they read.
-	readers     map[tableRef][]string
+	readers     map[tableRef][]tableRef
 	readsColumn map[columnRef]bool
 }
 
@@ -58,7 +58,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 	idx := &schemaIndex{
 		database:    db.GetName(),
 		schemas:     make(map[string]*namespace),
-		readers:     make(map[tableRef][]string),
+		readers:     make(map[tableRef][]tableRef),
 		readsColumn: make(map[columnRef]bool),
 	}
 	for _, s := range db.GetSchemas() {
@@ -86,11 +86,11 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		}
 		for _, v := range s.GetViews() {
 			ns.add(v.GetName(), kindOther)
-			idx.addReader(v.GetName(), v.GetDependencyColumns())
+			idx.addReader(tableRef{s.GetName(), v.GetName()}, v.GetDependencyColumns())
 		}
 		for _, v := range s.GetMaterializedViews() {
 			ns.add(v.GetName(), kindOther)
-			idx.addReader(v.GetName(), v.GetDependencyColumns())
+			idx.addReader(tableRef{s.GetName(), v.GetName()}, v.GetDependencyColumns())
 			for _, i := range v.GetIndexes() {
 				ns.add(i.GetName(), kindOther)
 			}
@@ -132,7 +132,7 @@ func (ns *namespace) addPartitions(table string, partitions []*metadata.TablePar
 	}
 }
 
-func (idx *schemaIndex) addReader(view string, columns []*metadata.DependencyColumn) {
+func (idx *schemaIndex) addReader(view tableRef, columns []*metadata.DependencyColumn) {
 	seen := make(map[tableRef]bool)
 	for _, c := range columns {
 		t := tableRef{c.GetSchema(), c.GetTable()}

@@ -135,9 +135,10 @@ func statementLoc(n ast.Node) ast.Loc {
 	return ast.NoLoc()
 }
 
-// createdRelation returns the relation a statement creates under a new
-// name, as written. A statement that may create nothing, IF NOT EXISTS or
-// OR REPLACE, is left out: what it does depends on what already exists.
+// createdRelation returns the relation a statement creates, renames, or
+// moves to a new name, as written. A statement that may create nothing,
+// IF NOT EXISTS or OR REPLACE, is left out: what it does depends on what
+// already exists.
 func createdRelation(n ast.Node) (backupTable, bool) {
 	var rv *ast.RangeVar
 	switch v := n.(type) {
@@ -166,6 +167,13 @@ func createdRelation(n ast.Node) (backupTable, bool) {
 		case ast.OBJECT_TABLE, ast.OBJECT_FOREIGN_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW:
 			if v.Relation != nil {
 				return backupTable{schema: v.Relation.Schemaname, name: v.Newname}, true
+			}
+		}
+	case *ast.AlterObjectSchemaStmt:
+		switch v.ObjectType {
+		case ast.OBJECT_TABLE, ast.OBJECT_FOREIGN_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW:
+			if v.Relation != nil {
+				return backupTable{schema: v.Newschema, name: v.Relation.Relname}, true
 			}
 		}
 	}

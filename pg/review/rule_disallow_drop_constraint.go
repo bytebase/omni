@@ -18,7 +18,9 @@ import (
 // lost its primary key, or gained one.
 //
 // The server runs every DROP subcommand of the statement before the
-// others, so the scan does too.
+// others, so the scan does too, and the statement succeeds or fails as a
+// whole, so what the drops find is reported only when no subcommand is
+// known to fail.
 //
 // pg: src/backend/commands/tablecmds.c — ATController (AT_PASS_DROP first)
 func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
@@ -45,8 +47,10 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 		}
 	}
 	name := v.Relation.Relname
-	// What the drops find is kept until every drop is known to run: a
-	// statement the server refuses drops nothing.
+	schema := s.schemaOf(v.Relation)
+	before, knownBefore := s.table(v.Relation)
+	// What the drops find is kept until every subcommand is known to run:
+	// a statement the server refuses drops nothing.
 	var out droppedKeys
 	for _, cmd := range drops {
 		cascade := cmd.Behavior == int(ast.DROP_CASCADE)
@@ -54,17 +58,17 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 		known = known && isTable
 		switch ast.AlterTableType(cmd.Subtype) {
 		case ast.AT_DropConstraint:
-			if known && s.constraintKnown(name, cmd.Name) && s.dropConstraint(st, v, cmd, t, cascade, &out) {
+			if known && s.constraintKnown(t, cmd.Name) && s.dropConstraint(st, v, cmd, t, cascade, &out) {
 				s.stop()
 				return
 			}
-			s.constraints[[2]string{name, cmd.Name}] = true
+			s.constraints[[3]string{schema, name, cmd.Name}] = true
 		case ast.AT_DropColumn:
 			if known && s.dropColumn(cmd, t, cascade, &out) {
 				s.stop()
 				return
 			}
-			s.unsettled[name] = true
+			s.unsettled[[2]string{schema, name}] = true
 			if cascade {
 				s.dropReaders(t, v.Relation)
 			}
@@ -72,6 +76,10 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 		if cascade {
 			s.dropReferences(name)
 		}
+	}
+	if (len(out.findings) > 0 || out.lost != nil) && knownBefore && s.refuses(before, drops, others) {
+		s.stop()
+		return
 	}
 	for _, f := range out.findings {
 		s.r.add(f)
@@ -84,7 +92,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 		case ast.AT_AddConstraint:
 			if c, ok := cmd.Def.(*ast.Constraint); ok {
 				if c.Conname != "" {
-					s.constraints[[2]string{name, c.Conname}] = true
+					s.constraints[[3]string{schema, name, c.Conname}] = true
 				}
 				if c.Indexname != "" {
 					// USING INDEX renames the index to the constraint.
@@ -99,10 +107,10 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 			}
 		case ast.AT_AddColumn:
 			if cd, ok := cmd.Def.(*ast.ColumnDef); ok {
-				s.columns[[2]string{name, cd.Colname}] = true
+				s.columns[[3]string{schema, name, cd.Colname}] = true
 				for _, c := range constraintsOf(cd.Constraints) {
 					if c.Conname != "" {
-						s.constraints[[2]string{name, c.Conname}] = true
+						s.constraints[[3]string{schema, name, c.Conname}] = true
 					}
 					if c.Contype == ast.CONSTR_PRIMARY {
 						s.keyed(v.Relation)
@@ -119,17 +127,17 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 			}
 		case ast.AT_AttachPartition:
 			if pc, ok := cmd.Def.(*ast.PartitionCmd); ok && pc.Name != nil {
-				s.unsettled[pc.Name.Relname] = true
+				s.unsettle(pc.Name)
 				for _, p := range s.matching(pc.Name) {
 					p.settled = true
 				}
 			}
 		case ast.AT_DetachPartition:
 			if pc, ok := cmd.Def.(*ast.PartitionCmd); ok && pc.Name != nil {
-				s.unsettled[pc.Name.Relname] = true
+				s.unsettle(pc.Name)
 			}
 		case ast.AT_AddInherit, ast.AT_DropInherit, ast.AT_AddOf, ast.AT_DropOf:
-			s.unsettled[name] = true
+			s.unsettled[[2]string{schema, name}] = true
 		}
 	}
 }
@@ -189,24 +197,24 @@ func (s *scan) dropConstraint(st *statement, v *ast.AlterTableStmt, cmd *ast.Alt
 // pg: src/backend/commands/tablecmds.c — ATExecDropColumn
 func (s *scan) dropColumn(cmd *ast.AlterTableCmd, t tableRef, cascade bool, out *droppedKeys) (refused bool) {
 	table := s.index.schemas[t.schema].tables[t.table]
-	column := [2]string{t.table, cmd.Name}
+	added := hasColumnIn(s.columns, t, cmd.Name)
 	switch {
-	case s.renamedTo[column]:
+	case hasColumnIn(s.renamedTo, t, cmd.Name):
 		// A column renamed to this name: what it was is not followed.
 		return false
-	case s.renamedFrom[column] && !s.columns[column]:
+	case hasColumnIn(s.renamedFrom, t, cmd.Name) && !added:
 		return !cmd.Missing_ok
 	}
 	if !slices.ContainsFunc(table.GetColumns(), func(c *metadata.ColumnMetadata) bool { return c.GetName() == cmd.Name }) {
 		// A column the change added is not the key's.
-		return !cmd.Missing_ok && !s.columns[[2]string{t.table, cmd.Name}]
+		return !cmd.Missing_ok && !added
 	}
 	if !cascade && (s.index.referencesColumn(t, cmd.Name, s.dropped) || s.index.readsColumn[columnRef{t.schema, t.table, cmd.Name}] ||
 		s.referencedByChange[t.table] || s.readByChange[t.table]) {
 		return true
 	}
 	pk := primaryKey(table)
-	if pk == nil || !s.constraintKnown(t.table, pk.GetName()) {
+	if pk == nil || !s.constraintKnown(t, pk.GetName()) {
 		return false
 	}
 	if !slices.Contains(keyColumns(pk), cmd.Name) {
@@ -230,9 +238,87 @@ func (s *scan) dropReaders(t tableRef, rv *ast.RangeVar) {
 			continue
 		}
 		for _, view := range s.index.readers[tableRef{schema, rv.Relname}] {
-			s.touchName(schema, view)
+			s.touchName(view.schema, view.table)
 		}
 	}
+}
+
+// refuses reports whether a subcommand of the statement is certain to
+// fail against the synced table, after its drops: adding a column it has,
+// altering a column it lacks, or adding a constraint under a name it
+// uses, or a second primary key. Other failures, such as a type error,
+// are not known before the statement runs.
+func (s *scan) refuses(t tableRef, drops, others []*ast.AlterTableCmd) bool {
+	table := s.index.schemas[t.schema].tables[t.table]
+	droppedColumns := make(map[string]bool)
+	droppedConstraints := make(map[string]bool)
+	for _, cmd := range drops {
+		if ast.AlterTableType(cmd.Subtype) == ast.AT_DropColumn {
+			droppedColumns[cmd.Name] = true
+		} else {
+			droppedConstraints[cmd.Name] = true
+		}
+	}
+	// has reports whether the table has the column once the drops ran.
+	has := func(column string) bool {
+		switch {
+		case droppedColumns[column]:
+			return false
+		case hasColumnIn(s.columns, t, column) || hasColumnIn(s.renamedTo, t, column):
+			return true
+		case hasColumnIn(s.renamedFrom, t, column):
+			return false
+		}
+		return slices.ContainsFunc(table.GetColumns(), func(c *metadata.ColumnMetadata) bool { return c.GetName() == column })
+	}
+	// uses reports whether a constraint name certainly names a constraint
+	// of the table.
+	uses := func(name string) bool {
+		if droppedConstraints[name] || !s.constraintKnown(t, name) || s.dropped[[3]string{t.schema, t.table, name}] {
+			return false
+		}
+		_, ok := constraint(table, name)
+		return ok
+	}
+	keyed := func() bool {
+		pk := primaryKey(table)
+		return pk != nil && uses(pk.GetName())
+	}
+	for _, cmd := range others {
+		switch ast.AlterTableType(cmd.Subtype) {
+		case ast.AT_AddColumn:
+			cd, ok := cmd.Def.(*ast.ColumnDef)
+			if !ok {
+				continue
+			}
+			if has(cd.Colname) && !cmd.Missing_ok {
+				return true
+			}
+			for _, c := range constraintsOf(cd.Constraints) {
+				if c.Contype == ast.CONSTR_PRIMARY && keyed() {
+					return true
+				}
+			}
+		case ast.AT_ColumnDefault, ast.AT_DropNotNull, ast.AT_SetNotNull, ast.AT_AlterColumnType,
+			ast.AT_SetStatistics, ast.AT_SetStorage, ast.AT_SetCompression, ast.AT_SetOptions, ast.AT_ResetOptions,
+			ast.AT_AddIdentity, ast.AT_SetIdentity, ast.AT_DropIdentity, ast.AT_SetExpression, ast.AT_DropExpression:
+			if cmd.Name == "" {
+				continue
+			}
+			if !has(cmd.Name) {
+				return true
+			}
+		case ast.AT_AddConstraint:
+			c, ok := cmd.Def.(*ast.Constraint)
+			if !ok {
+				continue
+			}
+			if c.Conname != "" && uses(c.Conname) || c.Contype == ast.CONSTR_PRIMARY && keyed() {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func constraintsOf(list *ast.List) []*ast.Constraint {

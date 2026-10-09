@@ -129,7 +129,13 @@ func (s *scan) createsNew(rv *ast.RangeVar) bool {
 		}
 	}
 	ns := s.index.schemas[schema]
-	if ns == nil || s.schemas[schema] || s.isTouched(&ast.RangeVar{Schemaname: schema, Relname: rv.Relname}) {
+	if ns == nil || s.schemas[schema] {
+		return false
+	}
+	if s.freed[[2]string{schema, rv.Relname}] {
+		return true
+	}
+	if s.isTouched(&ast.RangeVar{Schemaname: schema, Relname: rv.Relname}) {
 		return false
 	}
 	_, exists := ns.relations[rv.Relname]
@@ -169,11 +175,11 @@ func (s *scan) createsKey(v *ast.CreateStmt) (keyed, known bool) {
 			}
 			schema, kind, ok := s.lookup(e.Relation)
 			switch {
-			case !ok || kind == kindPartition || kind == kindTable && s.unsettled[e.Relation.Relname]:
+			case !ok || kind == kindPartition || kind == kindTable && s.isUnsettled(tableRef{schema, e.Relation.Relname}):
 				known = false
 			case kind == kindTable:
 				pk := primaryKey(s.index.schemas[schema].tables[e.Relation.Relname])
-				if pk != nil && !s.constraintKnown(e.Relation.Relname, pk.GetName()) {
+				if pk != nil && !s.constraintKnown(tableRef{schema, e.Relation.Relname}, pk.GetName()) {
 					known = false
 				} else if pk != nil {
 					keyed = true

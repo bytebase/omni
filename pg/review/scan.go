@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/pg/ast"
@@ -35,22 +36,28 @@ type scan struct {
 	// what they name. touchedName lists the same names alone.
 	touched     map[[2]string]bool
 	touchedName map[string]bool
-	// unsettled lists the tables, by name, whose columns, constraints, or
-	// inheritance a statement changed in a way the scan does not follow.
-	unsettled map[string]bool
-	// constraints lists the (table, constraint) names a statement added,
-	// dropped, or renamed, and renamedKeys the names an index rename may
-	// have given to or taken from a constraint, on whichever table.
-	constraints map[[2]string]bool
+	// freed lists the (schema, name) a drop the scan resolved removed for
+	// certain, until a statement uses the name again.
+	freed map[[2]string]bool
+	// unsettled lists the (schema, table) whose columns, constraints, or
+	// inheritance a statement changed in a way the scan does not follow,
+	// with "" for a schema the scan could not tell.
+	unsettled map[[2]string]bool
+	// constraints lists the (schema, table, constraint) names a statement
+	// added, dropped, or renamed, with "" for a schema the scan could not
+	// tell, and renamedKeys the names an index rename may have given to or
+	// taken from a constraint, on whichever table.
+	constraints map[[3]string]bool
 	renamedKeys map[string]bool
 	// dropped lists the (schema, table, constraint) a DROP CONSTRAINT of a
 	// resolved table removed.
 	dropped map[[3]string]bool
-	// columns lists the (table, column) names a statement added, and
-	// renamedFrom and renamedTo the old and new names of renamed columns.
-	columns     map[[2]string]bool
-	renamedFrom map[[2]string]bool
-	renamedTo   map[[2]string]bool
+	// columns lists the (schema, table, column) names a statement added,
+	// and renamedFrom and renamedTo the old and new names of renamed
+	// columns, with "" for a schema the scan could not tell.
+	columns     map[[3]string]bool
+	renamedFrom map[[3]string]bool
+	renamedTo   map[[3]string]bool
 	// schemas lists the schemas a statement created or dropped.
 	schemas map[string]bool
 	// referencedByChange and readByChange list the relations, by name, a
@@ -75,13 +82,14 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		session:     target.SessionUser,
 		touched:     make(map[[2]string]bool),
 		touchedName: make(map[string]bool),
-		unsettled:   make(map[string]bool),
-		constraints: make(map[[2]string]bool),
+		unsettled:   make(map[[2]string]bool),
+		freed:       make(map[[2]string]bool),
+		constraints: make(map[[3]string]bool),
 		renamedKeys: make(map[string]bool),
 		dropped:     make(map[[3]string]bool),
-		columns:     make(map[[2]string]bool),
-		renamedFrom: make(map[[2]string]bool),
-		renamedTo:   make(map[[2]string]bool),
+		columns:     make(map[[3]string]bool),
+		renamedFrom: make(map[[3]string]bool),
+		renamedTo:   make(map[[3]string]bool),
 		schemas:     make(map[string]bool),
 
 		referencedByChange: make(map[string]bool),
@@ -252,6 +260,35 @@ func (s *scan) touch(rv *ast.RangeVar) {
 func (s *scan) touchName(schema, name string) {
 	s.touched[[2]string{schema, name}] = true
 	s.touchedName[name] = true
+	for key := range s.freed {
+		if key[1] == name && (schema == "" || key[0] == schema) {
+			delete(s.freed, key)
+		}
+	}
+}
+
+// free records a name a resolved drop removed from its schema.
+func (s *scan) free(schema, name string) {
+	s.touchName(schema, name)
+	s.freed[[2]string{schema, name}] = true
+}
+
+// unsettle records a table whose columns or constraints changed in a way
+// the scan does not follow.
+func (s *scan) unsettle(rv *ast.RangeVar) {
+	s.unsettled[[2]string{s.schemaOf(rv), rv.Relname}] = true
+}
+
+// isUnsettled reports whether a statement may have changed the table's
+// columns or constraints.
+func (s *scan) isUnsettled(t tableRef) bool {
+	return s.unsettled[[2]string{t.schema, t.table}] || s.unsettled[[2]string{"", t.table}]
+}
+
+// hasColumnIn reports whether a column set holds the table's column, in
+// the table's schema or in an unknown one.
+func hasColumnIn(set map[[3]string]bool, t tableRef, column string) bool {
+	return set[[3]string{t.schema, t.table, column}] || set[[3]string{"", t.table, column}]
 }
 
 // isTouched reports whether a statement may have changed what the name
@@ -328,16 +365,27 @@ func (s *scan) searchPath() ([]string, bool) {
 	return path, true
 }
 
+// schemaOf returns the schema a relation name means now: the one the
+// synced schema resolves it to, the one the SQL wrote, or "" when neither
+// is known.
+func (s *scan) schemaOf(rv *ast.RangeVar) string {
+	if schema, _, ok := s.lookup(rv); ok {
+		return schema
+	}
+	return rv.Schemaname
+}
+
 // table resolves the table an ALTER TABLE acts on, with its constraints
 // as the synced schema lists them, when the change has not altered it in
 // a way the scan does not follow. A partition is not a table here: its
 // keys come from its parent.
 func (s *scan) table(rv *ast.RangeVar) (tableRef, bool) {
 	schema, kind, ok := s.lookup(rv)
-	if !ok || kind != kindTable || s.unsettled[rv.Relname] {
+	t := tableRef{schema, rv.Relname}
+	if !ok || kind != kindTable || s.isUnsettled(t) {
 		return tableRef{}, false
 	}
-	return tableRef{schema, rv.Relname}, true
+	return t, true
 }
 
 // setting follows SET and RESET. The scan follows SET search_path to a
@@ -536,11 +584,13 @@ func (s *scan) rename(v *ast.RenameStmt) {
 			s.touchName(schema, v.Newname)
 		}
 	case v.RenameType == ast.OBJECT_TABCONSTRAINT && v.Relation != nil:
-		s.constraints[[2]string{v.Relation.Relname, v.Subname}] = true
-		s.constraints[[2]string{v.Relation.Relname, v.Newname}] = true
+		schema := s.schemaOf(v.Relation)
+		s.constraints[[3]string{schema, v.Relation.Relname, v.Subname}] = true
+		s.constraints[[3]string{schema, v.Relation.Relname, v.Newname}] = true
 	case v.RenameType == ast.OBJECT_COLUMN && v.Relation != nil:
-		s.renamedFrom[[2]string{v.Relation.Relname, v.Subname}] = true
-		s.renamedTo[[2]string{v.Relation.Relname, v.Newname}] = true
+		schema := s.schemaOf(v.Relation)
+		s.renamedFrom[[3]string{schema, v.Relation.Relname, v.Subname}] = true
+		s.renamedTo[[3]string{schema, v.Relation.Relname, v.Newname}] = true
 	case v.RenameType == ast.OBJECT_SCHEMA:
 		s.stop()
 	}
@@ -591,6 +641,10 @@ func (s *scan) drop(v *ast.DropStmt) {
 	if !isRelationKind(kind) && kind != ast.OBJECT_TYPE || v.Objects == nil {
 		return
 	}
+	if !cascade && s.dropRefused(v) {
+		s.stop()
+		return
+	}
 	for _, obj := range v.Objects.Items {
 		parts := nameParts(listOf(obj))
 		if len(parts) == 0 {
@@ -600,15 +654,22 @@ func (s *scan) drop(v *ast.DropStmt) {
 		if len(parts) >= 2 {
 			rv.Schemaname = parts[len(parts)-2]
 		}
-		s.touch(rv)
+		schema, relKind, resolved := s.lookup(rv)
+		if resolved {
+			s.free(schema, rv.Relname)
+		} else {
+			s.touch(rv)
+			schema = ""
+		}
 		if kind == ast.OBJECT_INDEX {
 			s.renamedKeys[rv.Relname] = true
 		}
 		for _, p := range s.matching(rv) {
 			p.settled = true
 		}
+		s.dropOwned(rv, schema, resolved && relKind == kindTable)
 		if cascade {
-			s.dropDependents(rv)
+			s.dropDependents(rv, schema)
 		}
 	}
 	if cascade {
@@ -621,23 +682,99 @@ func (s *scan) drop(v *ast.DropStmt) {
 	}
 }
 
-// dropDependents touches what a cascading drop of a relation takes with
-// it, as far as the synced schema records it, in every schema the name
-// may be in.
-func (s *scan) dropDependents(rv *ast.RangeVar) {
-	s.dropReferences(rv.Relname)
+// dropRefused reports whether the server refuses a DROP without CASCADE of
+// tables the scan resolves: a view reads one, or a foreign key of a table
+// the statement does not drop references one, as the synced schema or the
+// change itself records.
+func (s *scan) dropRefused(v *ast.DropStmt) bool {
+	if s.index == nil || ast.ObjectType(v.RemoveType) != ast.OBJECT_TABLE {
+		return false
+	}
+	var tables []tableRef
+	for _, obj := range v.Objects.Items {
+		parts := nameParts(listOf(obj))
+		if len(parts) == 0 {
+			continue
+		}
+		rv := &ast.RangeVar{Relname: parts[len(parts)-1]}
+		if len(parts) >= 2 {
+			rv.Schemaname = parts[len(parts)-2]
+		}
+		if schema, kind, ok := s.lookup(rv); ok && kind == kindTable {
+			tables = append(tables, tableRef{schema, rv.Relname})
+		}
+	}
+	for _, t := range tables {
+		if s.referencedByChange[t.table] || s.readByChange[t.table] {
+			return true
+		}
+		for _, view := range s.index.readers[t] {
+			if !s.freed[[2]string{view.schema, view.table}] {
+				return true
+			}
+		}
+		for _, fk := range s.index.foreignKeys {
+			if fk.referenced == t && !fk.in(s.dropped) && !slices.Contains(tables, fk.owner) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// dropOwned records what any drop of a relation takes with it, CASCADE or
+// not: its partitions, indexes, and owned sequences, freed in its schema
+// when the scan resolved it and touched in every schema the name may be in
+// otherwise, and, for a table the scan resolved, its own foreign keys,
+// which then no longer hold a key of another table.
+func (s *scan) dropOwned(rv *ast.RangeVar, schema string, table bool) {
 	if s.index == nil {
 		return
 	}
 	for name, ns := range s.index.schemas {
+		switch {
+		case schema != "" && name == schema:
+			for _, d := range ns.dependents[rv.Relname] {
+				s.free(name, d)
+			}
+		case schema == "" && (rv.Schemaname == "" || rv.Schemaname == name):
+			for _, d := range ns.dependents[rv.Relname] {
+				s.touchName(name, d)
+			}
+		}
+	}
+	if !table {
+		return
+	}
+	for _, fk := range s.index.foreignKeys {
+		if fk.owner == (tableRef{schema, rv.Relname}) {
+			s.dropped[[3]string{schema, rv.Relname, fk.name}] = true
+		}
+	}
+}
+
+// dropDependents records what a cascading drop of a relation takes with
+// it besides what it owns, as far as the synced schema records it: the
+// views that read it, freed when the scan resolved the relation to schema
+// and touched in every schema the name may be in otherwise, and the
+// foreign keys that reference it.
+func (s *scan) dropDependents(rv *ast.RangeVar, schema string) {
+	s.dropReferences(rv.Relname)
+	if s.index == nil {
+		return
+	}
+	if schema != "" {
+		for _, view := range s.index.readers[tableRef{schema, rv.Relname}] {
+			s.free(view.schema, view.table)
+		}
+		return
+	}
+	for name := range s.index.schemas {
 		if rv.Schemaname != "" && rv.Schemaname != name {
 			continue
 		}
-		for _, d := range ns.dependents[rv.Relname] {
-			s.touchName(name, d)
-		}
 		for _, view := range s.index.readers[tableRef{name, rv.Relname}] {
-			s.touchName(name, view)
+			s.touchName(view.schema, view.table)
 		}
 	}
 }
@@ -650,13 +787,13 @@ func (s *scan) dropReferences(table string) {
 	}
 	for _, fk := range s.index.foreignKeys {
 		if fk.referenced.table == table {
-			s.constraints[[2]string{fk.owner.table, fk.name}] = true
+			s.constraints[[3]string{fk.owner.schema, fk.owner.table, fk.name}] = true
 		}
 	}
 }
 
 // constraintKnown reports whether a table's constraint of that name is
 // still the one the synced schema lists.
-func (s *scan) constraintKnown(table, name string) bool {
-	return !s.constraints[[2]string{table, name}] && !s.renamedKeys[name]
+func (s *scan) constraintKnown(t tableRef, name string) bool {
+	return !s.constraints[[3]string{t.schema, t.table, name}] && !s.constraints[[3]string{"", t.table, name}] && !s.renamedKeys[name]
 }
