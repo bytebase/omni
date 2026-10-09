@@ -106,16 +106,17 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 			}
 			droppedNames[cmd.Name] = true
 			s.retireReferences(v.Relation, cmd.Name)
-			// A constraint the change certainly dropped is not there to drop.
-			if known && !cmd.Missing_ok && s.dropped[[3]string{t.schema, t.table, cmd.Name}] {
+			// A constraint the change certainly dropped, or renamed, is not
+			// there to drop.
+			if known && !cmd.Missing_ok && (s.dropped[[3]string{t.schema, t.table, cmd.Name}] || s.goneConstraints[[3]string{t.schema, t.table, cmd.Name}]) {
 				s.stop()
 				return
 			}
-			if known && s.constraintKnown(t, cmd.Name) && s.dropConstraint(st, v, cmd, t, cascade, &out) {
+			if synced, ok := s.syncedConstraint(t, cmd.Name); known && ok && s.dropConstraint(st, v, cmd, synced, t, cascade, &out) {
 				s.stop()
 				return
 			}
-			s.constraints[[3]string{schema, name, cmd.Name}] = true
+			s.constraintChanged(schema, name, cmd.Name)
 			if cascade {
 				s.dropKeyReferences(v.Relation, t, known, cmd.Name)
 			}
@@ -156,7 +157,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				// The table's own foreign keys on the column go with it.
 				for _, fk := range s.index.foreignKeys {
 					if fk.owner == t && slices.ContainsFunc(fk.local, func(c string) bool { return columnName(c) == origin }) {
-						s.constraints[[3]string{t.schema, t.table, fk.name}] = true
+						s.constraintChanged(t.schema, t.table, fk.name)
 						s.dropped[[3]string{t.schema, t.table, fk.name}] = true
 					}
 				}
@@ -214,7 +215,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 		case ast.AT_AddConstraint:
 			if c, ok := cmd.Def.(*ast.Constraint); ok {
 				if c.Conname != "" {
-					s.constraints[[3]string{schema, name, c.Conname}] = true
+					s.constraintChanged(schema, name, c.Conname)
 				}
 				switch {
 				case !makesIndex(c):
@@ -264,7 +265,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				s.setColumn(schema, name, cd.Colname, true, false)
 				for _, c := range constraintsOf(cd.Constraints) {
 					if c.Conname != "" {
-						s.constraints[[3]string{schema, name, c.Conname}] = true
+						s.constraintChanged(schema, name, c.Conname)
 					}
 					if makesIndex(c) && c.Conname != "" {
 						s.touchName(v.Relation.Schemaname, c.Conname)
@@ -324,13 +325,13 @@ type droppedKeys struct {
 	freed []string
 }
 
-// dropConstraint checks a DROP CONSTRAINT against the synced table. It
-// returns true when the server refuses the statement: the constraint does
-// not exist and IF EXISTS is absent, or it is a key a foreign key
-// references and CASCADE is absent.
-func (s *scan) dropConstraint(st *statement, v *ast.AlterTableStmt, cmd *ast.AlterTableCmd, t tableRef, cascade bool, out *droppedKeys) (refused bool) {
+// dropConstraint checks a DROP CONSTRAINT against the synced table, which
+// lists the constraint as synced. It returns true when the server refuses
+// the statement: the constraint does not exist and IF EXISTS is absent,
+// or it is a key a foreign key references and CASCADE is absent.
+func (s *scan) dropConstraint(st *statement, v *ast.AlterTableStmt, cmd *ast.AlterTableCmd, synced string, t tableRef, cascade bool, out *droppedKeys) (refused bool) {
 	table := s.index.schemas[t.schema].tables[t.table]
-	con, ok := constraint(table, cmd.Name)
+	con, ok := constraint(table, synced)
 	if !ok {
 		// The snapshot leaves out NOT NULL constraints, so a constraint it
 		// does not list may still exist, or may not, and the statement may
@@ -343,7 +344,7 @@ func (s *scan) dropConstraint(st *statement, v *ast.AlterTableStmt, cmd *ast.Alt
 	// A check constraint a table that may be its parent has too, under
 	// the name and with the expression, may be inherited, which the server
 	// does not drop from the child.
-	if con.kind == "check constraint" && s.index.mayInheritCheck(t, cmd.Name) {
+	if con.kind == "check constraint" && s.index.mayInheritCheck(t, synced) {
 		out.uncertain = true
 		return false
 	}
@@ -356,7 +357,8 @@ func (s *scan) dropConstraint(st *statement, v *ast.AlterTableStmt, cmd *ast.Alt
 		}
 	}
 	s.dropped[[3]string{t.schema, t.table, cmd.Name}] = true
-	if s.index.constraintIndexes[tableRef{t.schema, cmd.Name}] {
+	// A key's index has the constraint's name.
+	if s.index.constraintIndexes[tableRef{t.schema, synced}] {
 		out.freed = append(out.freed, cmd.Name)
 	}
 	if s.on[review.DisallowDropConstraint] && con.kind != "" {
@@ -424,10 +426,10 @@ func (s *scan) dropColumn(cmd *ast.AlterTableCmd, t tableRef, cascade bool, out 
 		s.newlyReferencedColumn(t, column, pkColumns, pk != nil) || s.newlyReferencedColumn(t, cmd.Name, pkColumns, pk != nil) || s.dependsOnNew(s.newReads, t, nil)) {
 		return true
 	}
-	if pk == nil || !s.constraintKnown(t, pk.GetName()) {
+	if pk == nil {
 		return false
 	}
-	if !slices.Contains(keyColumns(pk), column) {
+	if !s.holdsConstraint(t, pk.GetName()) || !slices.Contains(keyColumns(pk), column) {
 		return false
 	}
 	if out.lost == nil {
@@ -554,6 +556,9 @@ func (s *scan) mayDependOn(t tableRef, name string, columns map[string]bool) boo
 	if columns[""] {
 		return true
 	}
+	if synced, ok := s.syncedConstraint(t, name); ok {
+		name = synced
+	}
 	table := s.index.schemas[t.schema].tables[t.table]
 	for _, fk := range table.GetForeignKeys() {
 		if fk.GetName() == name {
@@ -590,15 +595,22 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedOrigins, droppedConstr
 	// uses reports whether a constraint name certainly names a constraint
 	// of the table.
 	uses := func(name string) bool {
-		if droppedConstraints[name] || !s.constraintKnown(t, name) || s.dropped[[3]string{t.schema, t.table, name}] {
+		synced, ok := s.syncedConstraint(t, name)
+		if droppedConstraints[name] || !ok || s.dropped[[3]string{t.schema, t.table, name}] {
 			return false
 		}
 		// A column drop of the statement may have taken the constraint.
 		if len(droppedOrigins) > 0 && s.mayDependOn(t, name, droppedOrigins) {
 			return false
 		}
-		_, ok := constraint(table, name)
+		_, ok = constraint(table, synced)
 		return ok
+	}
+	// holds reports whether the table certainly keeps a constraint of the
+	// synced table, under whatever name it has now.
+	holds := func(synced string) bool {
+		name, ok := s.constraintNow(t, synced)
+		return ok && uses(name)
 	}
 	// The columns and keys the statement adds, and the constraints it adds
 	// with them.
@@ -654,7 +666,7 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedOrigins, droppedConstr
 		}
 		if len(columns) == 0 {
 			pk := primaryKey(table)
-			return addsPrimary || pk != nil && uses(pk.GetName()), true
+			return addsPrimary || pk != nil && holds(pk.GetName()), true
 		}
 		for _, key := range addedKeys {
 			if sameKey(key, columns) {
@@ -675,7 +687,7 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedOrigins, droppedConstr
 	addedKey := false
 	keyed := func() bool {
 		pk := primaryKey(table)
-		return addedKey || pk != nil && uses(pk.GetName())
+		return addedKey || pk != nil && holds(pk.GetName())
 	}
 	for _, cmd := range others {
 		switch ast.AlterTableType(cmd.Subtype) {
@@ -692,7 +704,7 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedOrigins, droppedConstr
 			}
 			// A column of the primary key the table keeps stays NOT NULL.
 			if ast.AlterTableType(cmd.Subtype) == ast.AT_DropNotNull {
-				if pk := primaryKey(table); pk != nil && uses(pk.GetName()) {
+				if pk := primaryKey(table); pk != nil && holds(pk.GetName()) {
 					if origin, ok := s.originOf(t, cmd.Name); ok && origin != "" && slices.Contains(keyColumns(pk), origin) {
 						return true, false
 					}

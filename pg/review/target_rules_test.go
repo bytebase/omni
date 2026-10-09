@@ -244,6 +244,17 @@ func TestDisallowDropConstraint(t *testing.T) {
 			targets: one,
 		},
 		{
+			name:    "a renamed constraint is followed under its new name",
+			sql:     "ALTER TABLE t RENAME CONSTRAINT t_n_check TO x;\nALTER TABLE t RENAME CONSTRAINT x TO y;\nALTER TABLE t DROP CONSTRAINT IF EXISTS x, DROP CONSTRAINT y;",
+			targets: one,
+			want:    []targetFinding{{2, "DROP CONSTRAINT y", "drops check constraint y of t", []int{0}}},
+		},
+		{
+			name:    "a constraint renamed onto another's name is refused",
+			sql:     "ALTER TABLE t RENAME CONSTRAINT t_n_check TO x;\nALTER TABLE t RENAME CONSTRAINT t_code_key TO x;\nALTER TABLE t DROP CONSTRAINT x;",
+			targets: one,
+		},
+		{
 			name:    "a column the change added",
 			sql:     "ALTER TABLE t ADD COLUMN tmp int;\nALTER TABLE t DROP COLUMN tmp;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
 			targets: one,
@@ -2526,6 +2537,98 @@ func TestRequirePrimaryKey(t *testing.T) {
 			sql:     "CREATE TABLE n (id int PRIMARY KEY);\nALTER TABLE n RENAME CONSTRAINT n_pkey TO x;\nALTER TABLE n DROP CONSTRAINT x;",
 			targets: one,
 			want:    []targetFinding{{0, "CREATE TABLE n (id int PRIMARY KEY)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a renamed synced key, then dropped",
+			sql:     "ALTER TABLE public.t RENAME CONSTRAINT t_pkey TO x;\nALTER TABLE public.t DROP CONSTRAINT x;",
+			targets: one,
+			want:    []targetFinding{{1, "DROP CONSTRAINT x", "removes the primary key of public.t, and the change adds none back", []int{0}}},
+		},
+		{
+			name:    "a renamed constraint is gone under its old name",
+			sql:     "ALTER TABLE public.t RENAME CONSTRAINT t_n_check TO x;\nALTER TABLE public.t DROP CONSTRAINT t_n_check;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a renamed key still keys its table",
+			sql:     "ALTER TABLE public.t RENAME CONSTRAINT t_pkey TO x;\nALTER TABLE public.t ADD PRIMARY KEY (code);\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a renamed key's index takes the new name",
+			sql:     "ALTER TABLE public.t RENAME CONSTRAINT t_pkey TO x;\nCREATE TABLE public.x (id int);",
+			targets: one,
+		},
+		{
+			name:    "a renamed key's index frees the old name",
+			sql:     "ALTER TABLE public.t RENAME CONSTRAINT t_pkey TO x;\nCREATE TABLE public.t_pkey (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE public.t_pkey (id int)", "creates table public.t_pkey without a primary key", []int{0}}},
+		},
+		{
+			name:    "a renamed table frees its name",
+			sql:     "ALTER TABLE public.nokey RENAME TO nk;\nCREATE TABLE public.nokey (a int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE public.nokey (a int)", "creates table public.nokey without a primary key", []int{0}}},
+		},
+		{
+			name:    "a renamed table is gone under its old name",
+			sql:     "ALTER TABLE public.nokey RENAME TO nk;\nDROP TABLE public.nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a renamed routine is gone under its old name",
+			sql:     "ALTER FUNCTION public.f(integer) RENAME TO g;\nDROP FUNCTION public.f(integer);\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
+		},
+		{
+			name:    "a renamed routine is gone under its old name on the path",
+			sql:     "ALTER FUNCTION f(integer) RENAME TO g;\nDROP FUNCTION f(integer);\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
+		},
+		{
+			name:    "DROP FUNCTION IF EXISTS of a renamed routine does nothing",
+			sql:     "ALTER FUNCTION public.f(integer) RENAME TO g;\nDROP FUNCTION IF EXISTS public.f(integer);\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a rename leaves the routine's other signatures",
+			sql:     "ALTER FUNCTION public.f(integer) RENAME TO g;\nDROP FUNCTION public.f(text);\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(withSignature(shop(), "f", "f(a integer)"), "f", "f(text)"), SessionUser: "alice"}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "COPY of a relation the target lacks is refused",
+			sql:     "COPY public.missing TO STDOUT;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "COPY of a query reading a relation the target lacks is refused",
+			sql:     "COPY (SELECT id FROM public.missing) TO STDOUT;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "COPY TO of a view is refused",
+			sql:     "COPY public.v TO STDOUT;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withView(shop(), "public", "v"), SessionUser: "alice"}},
+		},
+		{
+			name:    "COPY of a sequence is refused",
+			sql:     "COPY public.sq TO STDOUT;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSequence(shop(), "sq"), SessionUser: "alice"}},
+		},
+		{
+			name:    "COPY TO of a table goes on",
+			sql:     "COPY public.t TO STDOUT;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE SCHEMA makes its tables before their indexes",
+			sql:     "CREATE SCHEMA z CREATE INDEX i ON x (id) CREATE TABLE x (id int);",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE x (id int)", "creates table z.x without a primary key", []int{0}}},
 		},
 		{
 			name:    "DROP EXTENSION IF EXISTS of an extension the target lacks does nothing",

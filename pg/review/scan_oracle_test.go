@@ -63,9 +63,15 @@ func TestScanRulesAgainstPostgres(t *testing.T) {
 		{"every constraint kind", "ALTER TABLE t DROP CONSTRAINT t_pkey CASCADE, DROP CONSTRAINT t_code_key, DROP CONSTRAINT t_p_fk, DROP CONSTRAINT t_n_check;", true},
 		{"names resolve along the search path", "ALTER TABLE s.t DROP CONSTRAINT t_pkey;\nSET search_path = s, public;\nALTER TABLE t DROP CONSTRAINT IF EXISTS t_pkey;\nALTER TABLE p DROP CONSTRAINT p_pkey CASCADE;", true},
 		{"$user resolves to the session user's schema", "ALTER TABLE u DROP CONSTRAINT u_k_check;\nALTER TABLE u DROP CONSTRAINT u_pkey;", true},
-		// A renamed table or constraint is not followed.
+		// A renamed table is not followed; a renamed constraint is.
 		{"renamed table", "ALTER TABLE t RENAME TO t2;\nALTER TABLE t2 DROP CONSTRAINT t_n_check;\nALTER TABLE IF EXISTS t DROP CONSTRAINT t_code_key;", false},
-		{"renamed constraint", "ALTER TABLE t RENAME CONSTRAINT t_n_check TO t_n_check2;\nALTER TABLE t DROP CONSTRAINT t_n_check2;\nALTER TABLE t DROP CONSTRAINT IF EXISTS t_n_check;", false},
+		{"renamed constraint", "ALTER TABLE t RENAME CONSTRAINT t_n_check TO t_n_check2;\nALTER TABLE t DROP CONSTRAINT t_n_check2;\nALTER TABLE t DROP CONSTRAINT IF EXISTS t_n_check;", true},
+		{"renamed key, then dropped", "ALTER TABLE e RENAME CONSTRAINT e_pkey TO e_k;\nALTER TABLE e DROP CONSTRAINT e_k;", true},
+		{"renamed key's index takes the new name", "ALTER TABLE e RENAME CONSTRAINT e_pkey TO e_k;\nCREATE TABLE e_k (id int);", true},
+		{"renamed key's index frees the old name", "ALTER TABLE e RENAME CONSTRAINT e_pkey TO e_k;\nCREATE TABLE e_pkey (id int);", true},
+		{"renamed key still keys its table", "ALTER TABLE e RENAME CONSTRAINT e_pkey TO e_k;\nALTER TABLE e DROP CONSTRAINT e_m_check, ADD PRIMARY KEY (m);", true},
+		{"renamed key's old name is gone", "ALTER TABLE e RENAME CONSTRAINT e_pkey TO e_k;\nALTER TABLE e DROP CONSTRAINT e_m_check, DROP CONSTRAINT e_pkey;", true},
+		{"renamed table frees its name", "ALTER TABLE nokey RENAME TO nk;\nCREATE TABLE nokey (a int);", true},
 		// The catalog renames the index alone, so it rejects the DROP.
 		{"renamed index renames its constraint", "ALTER INDEX t_code_key RENAME TO t_code_uk;\nALTER TABLE t DROP CONSTRAINT t_code_uk;\nALTER TABLE t DROP CONSTRAINT IF EXISTS t_code_key;", false},
 		{"DROP TYPE CASCADE drops the columns of the type", "DROP TYPE mood CASCADE;\nALTER TABLE e DROP CONSTRAINT IF EXISTS e_m_check;\nALTER TABLE ek ADD COLUMN x int;", true},
@@ -387,6 +393,11 @@ func TestScanRulesAgainstPostgres(t *testing.T) {
 		{"temporary tables", "CREATE TEMP TABLE t (id int);\nALTER TABLE t ADD CONSTRAINT t_n_check CHECK (id > 0);\nALTER TABLE t DROP CONSTRAINT t_n_check;", false},
 		{"rolled back", "BEGIN;\nALTER TABLE t DROP CONSTRAINT t_n_check;\nCREATE TABLE n (id int);\nROLLBACK;", false},
 		{"in a transaction", "BEGIN;\nALTER TABLE t DROP CONSTRAINT t_n_check;\nCREATE TABLE n (id int);\nCOMMIT;", true},
+		// CREATE SCHEMA runs its sequences, tables, views, indexes, and
+		// triggers in that order, whatever the order written.
+		{"CREATE SCHEMA makes tables before indexes", "CREATE SCHEMA z CREATE INDEX i ON x (id) CREATE TABLE x (id int);", true},
+		{"CREATE SCHEMA makes tables before views", "CREATE SCHEMA z CREATE VIEW v AS SELECT id FROM z.x CREATE TABLE x (id int);", true},
+		{"CREATE SCHEMA makes sequences before tables", "CREATE SCHEMA z CREATE TABLE x (id int DEFAULT nextval('z.q')) CREATE SEQUENCE q;", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

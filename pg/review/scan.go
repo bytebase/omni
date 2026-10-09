@@ -67,6 +67,12 @@ type scan struct {
 	// taken from a constraint, on whichever table.
 	constraints map[[3]string]bool
 	renamedKeys map[string]bool
+	// renamedConstraints maps a constraint of a synced table, by the
+	// (schema, table, name) a RENAME CONSTRAINT gave it, to the name the
+	// synced schema lists it under, and goneConstraints lists the names
+	// those renames took, until a statement uses either name again.
+	renamedConstraints map[[3]string]string
+	goneConstraints    map[[3]string]bool
 	// dropped lists the (schema, table, constraint) a DROP CONSTRAINT of a
 	// resolved table removed.
 	dropped map[[3]string]bool
@@ -104,6 +110,9 @@ type scan struct {
 	// by (schema, name), CREATE OR REPLACE redefined.
 	madeRoutines  map[string]bool
 	movedRoutines map[string]bool
+	// renamedSignatures lists, by (schema, name), the signatures of synced
+	// routines a rename certainly took from the name.
+	renamedSignatures map[tableRef][]string
 	// newSignatures lists the argument signatures of the functions the
 	// change created and has not dropped, by name as written.
 	newSignatures     map[tableRef][]string
@@ -147,37 +156,40 @@ type scan struct {
 // the end of the change, so it reports only when the scan reaches it.
 func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool, target review.Target, r *reporter) error {
 	s := &scan{
-		on:             on,
-		r:              r,
-		user:           target.SessionUser,
-		session:        target.SessionUser,
-		touched:        make(map[[2]string]bool),
-		touchedName:    make(map[string]bool),
-		lastTouch:      make(map[string]int),
-		unsettled:      make(map[[2]string]bool),
-		freed:          make(map[[2]string]bool),
-		constraints:    make(map[[3]string]bool),
-		renamedKeys:    make(map[string]bool),
-		dropped:        make(map[[3]string]bool),
-		columns:        make(map[[3]string]bool),
-		renamedColumns: make(map[[3]string]bool),
-		origins:        make(map[[3]string]string),
-		schemas:        make(map[string]bool),
-		schemaGone:     make(map[string]bool),
+		on:                 on,
+		r:                  r,
+		user:               target.SessionUser,
+		session:            target.SessionUser,
+		touched:            make(map[[2]string]bool),
+		touchedName:        make(map[string]bool),
+		lastTouch:          make(map[string]int),
+		unsettled:          make(map[[2]string]bool),
+		freed:              make(map[[2]string]bool),
+		constraints:        make(map[[3]string]bool),
+		renamedKeys:        make(map[string]bool),
+		renamedConstraints: make(map[[3]string]string),
+		goneConstraints:    make(map[[3]string]bool),
+		dropped:            make(map[[3]string]bool),
+		columns:            make(map[[3]string]bool),
+		renamedColumns:     make(map[[3]string]bool),
+		origins:            make(map[[3]string]string),
+		schemas:            make(map[string]bool),
+		schemaGone:         make(map[string]bool),
 
-		droppedFunctions: make(map[tableRef]bool),
-		newFunctions:     make(map[tableRef]int),
-		madeRoutines:     make(map[string]bool),
-		triggersChanged:  make(map[string]bool),
-		createdTriggers:  make(map[string]bool),
-		movedRoutines:    make(map[string]bool),
-		newSignatures:    make(map[tableRef][]string),
-		renamedFrom:      make(map[string]renamedRelation),
-		created:          make(map[[2]string]*madeRelation),
-		replacedViews:    make(map[tableRef]bool),
-		reowned:          make(map[[2]string]bool),
-		newKeys:          make(map[[2]string]bool),
-		generated:        make(map[string]bool),
+		droppedFunctions:  make(map[tableRef]bool),
+		newFunctions:      make(map[tableRef]int),
+		madeRoutines:      make(map[string]bool),
+		triggersChanged:   make(map[string]bool),
+		createdTriggers:   make(map[string]bool),
+		movedRoutines:     make(map[string]bool),
+		renamedSignatures: make(map[tableRef][]string),
+		newSignatures:     make(map[tableRef][]string),
+		renamedFrom:       make(map[string]renamedRelation),
+		created:           make(map[[2]string]*madeRelation),
+		replacedViews:     make(map[tableRef]bool),
+		reowned:           make(map[[2]string]bool),
+		newKeys:           make(map[[2]string]bool),
+		generated:         make(map[string]bool),
 
 		replacedFunctions: make(map[tableRef]bool),
 	}
@@ -1185,6 +1197,10 @@ func (s *scan) statement(st *statement) {
 			return
 		}
 		s.data(v)
+	case *ast.CopyStmt:
+		if s.copyRefused(v) {
+			s.stop()
+		}
 	case *ast.ExplainStmt:
 		// EXPLAIN plans the query, which needs its relations.
 		switch q := v.Query.(type) {
@@ -1392,6 +1408,39 @@ func (s *scan) dependsIn(deps *[]newDependency, object tableRef, n ast.Node, vis
 			path:     s.pathVersion,
 		})
 	})
+}
+
+// copyRefused reports whether the server certainly refuses a COPY for the
+// relation or query it copies: one names a relation the target lacks or a
+// query cannot read, or the relation is of a kind COPY cannot read from
+// (a view, materialized view, foreign table, or sequence) or, FROM a
+// file, write to (a materialized view or sequence).
+//
+// pg: src/backend/commands/copyto.c — BeginCopyTo; copyfrom.c —
+// CopyFrom
+func (s *scan) copyRefused(v *ast.CopyStmt) bool {
+	if v.Query != nil && s.readsMissing(v.Query) {
+		return true
+	}
+	if v.Relation == nil {
+		return false
+	}
+	if s.readsMissing(v.Relation) {
+		return true
+	}
+	kind := relationKind(0)
+	if _, k, ok := s.lookup(v.Relation); ok {
+		kind = k
+	} else if c, made := s.madeAt(v.Relation); made {
+		kind = c.kind
+	}
+	switch kind {
+	case kindMatView, kindSequence:
+		return true
+	case kindView, kindForeignTable:
+		return !v.IsFrom
+	}
+	return false
 }
 
 // readsMissing reports whether a query names a relation the target
@@ -1921,7 +1970,7 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 		c.Schemaname = name
 		return &c
 	}
-	for _, elt := range v.SchemaElts.Items {
+	for _, elt := range elementOrder(v.SchemaElts) {
 		switch e := elt.(type) {
 		case *ast.CreateStmt:
 			c := *e
@@ -1966,6 +2015,34 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 			return
 		}
 	}
+}
+
+// elementOrder returns the elements of a CREATE SCHEMA in the order the
+// server runs them: the sequences, then the tables, views, indexes,
+// triggers, and grants, each kind in the order written.
+//
+// pg: src/backend/parser/parse_utilcmd.c — transformCreateSchemaStmtElements
+func elementOrder(elts *ast.List) []ast.Node {
+	rank := func(n ast.Node) int {
+		switch n.(type) {
+		case *ast.CreateSeqStmt:
+			return 0
+		case *ast.CreateStmt:
+			return 1
+		case *ast.ViewStmt:
+			return 2
+		case *ast.IndexStmt:
+			return 3
+		case *ast.CreateTrigStmt:
+			return 4
+		case *ast.GrantStmt:
+			return 5
+		}
+		return 6
+	}
+	out := slices.Clone(elts.Items)
+	slices.SortStableFunc(out, func(a, b ast.Node) int { return rank(a) - rank(b) })
+	return out
 }
 
 // elementsCollide reports whether the server may refuse CREATE SCHEMA for
@@ -3034,7 +3111,12 @@ func (s *scan) rename(v *ast.RenameStmt) {
 		}
 		s.follow(v.Relation, "", v.Newname)
 		s.followParents(v.Relation, tableRef{s.schemaOf(v.Relation), v.Newname})
-		s.touchName(v.Relation.Schemaname, v.Relation.Relname)
+		if resolved {
+			// The relation leaves its old name free in its schema.
+			s.free(schema, v.Relation.Relname)
+		} else {
+			s.touchName(v.Relation.Schemaname, v.Relation.Relname)
+		}
 		s.touchName(v.Relation.Schemaname, v.Newname)
 		if resolved {
 			s.renamedFrom[v.Newname] = renamedRelation{tableRef{schema, v.Relation.Relname}, schema, s.lastTouch[v.Newname]}
@@ -3072,13 +3154,40 @@ func (s *scan) rename(v *ast.RenameStmt) {
 			s.touchName(schema, v.Newname)
 		}
 	case v.RenameType == ast.OBJECT_TABCONSTRAINT && v.Relation != nil:
-		if t, ok := s.table(v.Relation); ok && s.renameConstraintRefused(t, v.Subname, v.Newname) {
+		t, known := s.table(v.Relation)
+		if known && s.renameConstraintRefused(t, v.Subname, v.Newname) {
 			s.stop()
 			return
 		}
+		// synced is the name the synced schema lists the constraint under,
+		// when the scan follows it.
+		synced := ""
+		if known {
+			if from, ok := s.syncedConstraint(t, v.Subname); ok {
+				if _, listed := constraint(s.index.schemas[t.schema].tables[t.table], from); listed {
+					synced = from
+				}
+			}
+		}
 		schema := s.schemaOf(v.Relation)
-		s.constraints[[3]string{schema, v.Relation.Relname, v.Subname}] = true
-		s.constraints[[3]string{schema, v.Relation.Relname, v.Newname}] = true
+		s.constraintChanged(schema, v.Relation.Relname, v.Subname)
+		s.constraintChanged(schema, v.Relation.Relname, v.Newname)
+		switch {
+		case synced != "":
+			// The table keeps the constraint under the new name, and no
+			// longer has one under the old.
+			s.renamedConstraints[[3]string{t.schema, t.table, v.Newname}] = synced
+			s.goneConstraints[[3]string{t.schema, t.table, v.Subname}] = true
+			if s.index.constraintIndexes[tableRef{t.schema, synced}] {
+				// A key's index takes the new name.
+				s.free(t.schema, v.Subname)
+				s.touchName(t.schema, v.Newname)
+				s.renamedFrom[v.Newname] = renamedRelation{tableRef{t.schema, synced}, t.schema, s.lastTouch[v.Newname]}
+			}
+		default:
+			// The constraint may be a key, whose index takes the new name.
+			s.touchName(v.Relation.Schemaname, v.Newname)
+		}
 		// A table the change made, and a key a pending table waits on,
 		// keep the constraint under its new name.
 		if c, ok := s.madeAt(v.Relation); ok && c.def != nil && c.def.constraints[v.Subname] {
@@ -3109,9 +3218,13 @@ func (s *scan) rename(v *ast.RenameStmt) {
 		s.setColumn(schema, v.Relation.Relname, v.Subname, false, false)
 		s.setColumn(schema, v.Relation.Relname, v.Newname, true, true)
 	case v.RenameType == ast.OBJECT_FUNCTION || v.RenameType == ast.OBJECT_PROCEDURE || v.RenameType == ast.OBJECT_ROUTINE:
-		if fn, ok := routineOf(v.Object); ok && (s.routineMissing(fn, v.RenameType) || s.signatureMissing(fn, v.Object.(*ast.ObjectWithArgs)) || s.renameTaken(fn, v)) {
+		fn, ok := routineOf(v.Object)
+		if ok && (s.routineMissing(fn, v.RenameType) || s.signatureMissing(fn, v.Object.(*ast.ObjectWithArgs)) || s.renameTaken(fn, v)) {
 			s.stop()
 			return
+		}
+		if ok {
+			s.renameSynced(fn, v.Object.(*ast.ObjectWithArgs))
 		}
 		s.renameRoutine(v)
 	case v.RenameType == ast.OBJECT_SCHEMA:
@@ -3127,14 +3240,18 @@ func (s *scan) renameConstraintRefused(t tableRef, from, to string) bool {
 	table := s.index.schemas[t.schema].tables[t.table]
 	// A constraint the snapshot does not list, which no statement of the
 	// change named, is missing, or a NOT NULL constraint the snapshot
-	// leaves out: the statement may fail either way.
-	if _, ok := constraint(table, from); !ok && s.constraintKnown(t, from) {
+	// leaves out: the statement may fail either way. So is one a rename
+	// took the name from.
+	if _, ok := constraint(table, from); !ok && s.constraintKnown(t, from) || s.goneConstraints[[3]string{t.schema, t.table, from}] {
 		return true
 	}
-	if _, ok := constraint(table, to); ok && s.constraintKnown(t, to) && !s.dropped[[3]string{t.schema, t.table, to}] {
-		return true
+	if synced, ok := s.syncedConstraint(t, to); ok && !s.dropped[[3]string{t.schema, t.table, to}] {
+		if _, listed := constraint(table, synced); listed {
+			return true
+		}
 	}
-	return s.index.constraintIndexes[tableRef{t.schema, from}] && s.constraintKnown(t, from) && s.nameTaken(t.schema, to)
+	synced, ok := s.syncedConstraint(t, from)
+	return ok && s.index.constraintIndexes[tableRef{t.schema, synced}] && s.nameTaken(t.schema, to)
 }
 
 // alterKindRefused reports whether ALTER of an object type certainly names
@@ -3735,8 +3852,11 @@ func (s *scan) routineSignatureOf(fn tableRef, owa *ast.ObjectWithArgs) (schema,
 // list certainly has no routine of that signature: neither the change nor
 // the snapshot, every signature of whose name the scan can read, has one.
 func (s *scan) signatureMissing(fn tableRef, owa *ast.ObjectWithArgs) bool {
-	if owa.ArgsUnspecified || s.madeRoutines[fn.table] || s.movedRoutines[fn.table] {
+	if owa.ArgsUnspecified || s.madeRoutines[fn.table] {
 		return false
+	}
+	if s.movedRoutines[fn.table] {
+		return s.signatureRenamed(fn, owa)
 	}
 	schema, sig, ok := s.routineSignatureOf(fn, owa)
 	if !ok {
@@ -3814,6 +3934,67 @@ func (s *scan) renameRoutine(v *ast.RenameStmt) {
 		fn.schema = parts[0]
 	}
 	s.transferRoutine(fn, owa, tableRef{fn.schema, v.Newname})
+}
+
+// renameSynced records the signature a rename certainly takes from a
+// synced routine name: the name is one no statement of the change gave a
+// routine, and the snapshot lists every signature of it, the one renamed
+// among them.
+func (s *scan) renameSynced(fn tableRef, owa *ast.ObjectWithArgs) {
+	if s.index == nil || s.madeRoutines[fn.table] || len(s.newSignatures[fn]) > 0 {
+		return
+	}
+	schema, sig, ok := s.routineSignatureOf(fn, owa)
+	if !ok {
+		return
+	}
+	synced := tableRef{schema, fn.table}
+	if len(s.index.signatures[synced]) == s.index.functions[synced] && slices.Contains(s.index.signatures[synced], sig) {
+		s.renamedSignatures[synced] = append(s.renamedSignatures[synced], sig)
+	}
+}
+
+// signatureRenamed reports whether a routine an ALTER or DROP names by an
+// argument list is certainly gone, renamed by the change: no statement
+// gave a routine the name, and every synced schema the name may find it
+// in either has no routine of the name, lacks the signature, or had it
+// renamed away.
+func (s *scan) signatureRenamed(fn tableRef, owa *ast.ObjectWithArgs) bool {
+	if s.index == nil || owa.ArgsUnspecified || s.madeRoutines[fn.table] || len(s.newSignatures[fn]) > 0 {
+		return false
+	}
+	sig := argSignature(owa.Objargs)
+	renamed := false
+	// gone reports whether the schema certainly has no routine of the
+	// name with the signature.
+	gone := func(schema string) bool {
+		synced := tableRef{schema, fn.table}
+		switch {
+		case s.schemas[schema]:
+			return false
+		case slices.Contains(s.renamedSignatures[synced], sig):
+			renamed = true
+			return true
+		case s.index.routineKinds[synced] == 0:
+			// A schema the target lacks has none either.
+			return true
+		}
+		return len(s.index.signatures[synced]) == s.index.functions[synced] && !slices.Contains(s.index.signatures[synced], sig) &&
+			!(sig == "" && s.index.noArgs[synced])
+	}
+	if fn.schema != "" {
+		return gone(fn.schema) && renamed
+	}
+	path, ok := s.searchPath()
+	if !ok {
+		return false
+	}
+	for _, name := range path {
+		if name == "information_schema" || strings.HasPrefix(name, "pg_") || !gone(name) {
+			return false
+		}
+	}
+	return renamed
 }
 
 // transferRoutine moves the change's own function a rename or a move
@@ -4256,7 +4437,7 @@ func (s *scan) dropReferences(rv *ast.RangeVar, t tableRef, known bool, affected
 		if !maybe {
 			continue
 		}
-		s.constraints[[3]string{fk.owner.schema, fk.owner.table, fk.name}] = true
+		s.constraintChanged(fk.owner.schema, fk.owner.table, fk.name)
 		if known && certainly {
 			s.dropped[[3]string{fk.owner.schema, fk.owner.table, fk.name}] = true
 		}
@@ -4267,4 +4448,55 @@ func (s *scan) dropReferences(rv *ast.RangeVar, t tableRef, known bool, affected
 // still the one the synced schema lists.
 func (s *scan) constraintKnown(t tableRef, name string) bool {
 	return !s.constraints[[3]string{t.schema, t.table, name}] && !s.constraints[[3]string{"", t.table, name}] && !s.renamedKeys[name]
+}
+
+// constraintChanged records that a statement added, dropped, or renamed
+// a table's constraint of that name, in schema, or in whichever schema
+// the search path finds when schema is "": the name no longer means a
+// constraint the scan follows.
+func (s *scan) constraintChanged(schema, table, name string) {
+	s.constraints[[3]string{schema, table, name}] = true
+	for key := range s.renamedConstraints {
+		if key[1] == table && key[2] == name && (schema == "" || key[0] == schema) {
+			delete(s.renamedConstraints, key)
+		}
+	}
+	for key := range s.goneConstraints {
+		if key[1] == table && key[2] == name && (schema == "" || key[0] == schema) {
+			delete(s.goneConstraints, key)
+		}
+	}
+}
+
+// syncedConstraint returns the name the synced schema lists a known
+// table's constraint under, by its name now: its own while no statement
+// changed it, or the one a RENAME CONSTRAINT took it from.
+func (s *scan) syncedConstraint(t tableRef, name string) (string, bool) {
+	if from, ok := s.renamedConstraints[[3]string{t.schema, t.table, name}]; ok && !s.renamedKeys[name] {
+		return from, true
+	}
+	return name, s.constraintKnown(t, name)
+}
+
+// holdsConstraint reports whether a known table keeps its synced
+// constraint, under whatever name it has now, as far as the scan follows
+// it.
+func (s *scan) holdsConstraint(t tableRef, synced string) bool {
+	_, ok := s.constraintNow(t, synced)
+	return ok
+}
+
+// constraintNow returns the name a known table's synced constraint has
+// now, as far as the scan follows it: its own while no statement changed
+// it, or the one a RENAME CONSTRAINT gave it.
+func (s *scan) constraintNow(t tableRef, synced string) (string, bool) {
+	if s.constraintKnown(t, synced) {
+		return synced, true
+	}
+	for key, from := range s.renamedConstraints {
+		if from == synced && key[0] == t.schema && key[1] == t.table && !s.renamedKeys[key[2]] {
+			return key[2], true
+		}
+	}
+	return "", false
 }

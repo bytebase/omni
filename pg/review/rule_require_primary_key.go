@@ -470,7 +470,7 @@ func (s *scan) createsKey(v *ast.CreateStmt) (keyed, known bool) {
 				case pk == nil:
 				case s.dropped[[3]string{t.schema, t.table, pk.GetName()}]:
 					// The change dropped its key for certain.
-				case !s.constraintKnown(t, pk.GetName()):
+				case !s.holdsConstraint(t, pk.GetName()):
 					known = false
 				default:
 					keyed = true
