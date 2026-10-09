@@ -108,6 +108,15 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				return
 			}
 			droppedAColumn = true
+			if known {
+				// The table's own foreign keys on the column go with it.
+				for _, fk := range s.index.foreignKeys {
+					if fk.owner == t && slices.ContainsFunc(fk.local, func(c string) bool { return columnName(c) == cmd.Name }) {
+						s.constraints[[3]string{t.schema, t.table, fk.name}] = true
+						s.dropped[[3]string{t.schema, t.table, fk.name}] = true
+					}
+				}
+			}
 			if cascade {
 				s.dropReaders(t, known, v.Relation, cmd.Name)
 				s.dropReferences(v.Relation, t, known, func(fk foreignKeyRef) (bool, bool) {
@@ -127,7 +136,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 		}
 	}
 	withhold = withhold || out.uncertain
-	if withhold || knownBefore && isTable && s.refuses(before, drops, others) {
+	if withhold || knownBefore && isTable && s.refuses(before, droppedColumns, droppedNames, others) {
 		if !withhold {
 			s.stop()
 			return
@@ -334,22 +343,7 @@ func (s *scan) dropReaders(t tableRef, known bool, rv *ast.RangeVar, column stri
 			}
 		}
 	}
-	// The views reading a dropped view go too.
-	seen := make(map[tableRef]bool)
-	follow := func(start []tableRef, mark func(tableRef)) {
-		for len(start) > 0 {
-			view := start[0]
-			start = start[1:]
-			if seen[view] {
-				continue
-			}
-			seen[view] = true
-			mark(view)
-			start = append(start, s.index.readers[view]...)
-		}
-	}
-	follow(certain, s.freeView)
-	follow(maybe, func(v tableRef) { s.touchName(v.schema, v.table) })
+	s.cascadeViews(certain, maybe)
 }
 
 // dropKeyReferences records the foreign keys a cascading DROP CONSTRAINT
@@ -398,17 +392,8 @@ func (s *scan) mayDependOn(t tableRef, name string, columns map[string]bool) boo
 // altering a column it lacks, or adding a constraint under a name it
 // uses, or a second primary key. Other failures, such as a type error,
 // are not known before the statement runs.
-func (s *scan) refuses(t tableRef, drops, others []*ast.AlterTableCmd) bool {
+func (s *scan) refuses(t tableRef, droppedColumns, droppedConstraints map[string]bool, others []*ast.AlterTableCmd) bool {
 	table := s.index.schemas[t.schema].tables[t.table]
-	droppedColumns := make(map[string]bool)
-	droppedConstraints := make(map[string]bool)
-	for _, cmd := range drops {
-		if ast.AlterTableType(cmd.Subtype) == ast.AT_DropColumn {
-			droppedColumns[cmd.Name] = true
-		} else {
-			droppedConstraints[cmd.Name] = true
-		}
-	}
 	// has reports whether the table has the column once the drops ran.
 	has := func(column string) bool {
 		return !droppedColumns[column] && s.hasColumn(t, column)
@@ -435,6 +420,14 @@ func (s *scan) refuses(t tableRef, drops, others []*ast.AlterTableCmd) bool {
 		return addedKey || pk != nil && uses(pk.GetName())
 	}
 	addKey := func(c *ast.Constraint) bool {
+		// A key or foreign key names columns the table must have.
+		for _, list := range []*ast.List{c.Keys, c.FkAttrs} {
+			for _, column := range nameParts(list) {
+				if !has(column) && !addedColumns[column] {
+					return true
+				}
+			}
+		}
 		if c.Conname != "" {
 			if uses(c.Conname) || addedNames[c.Conname] {
 				return true

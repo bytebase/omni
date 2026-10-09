@@ -40,6 +40,10 @@ type namespace struct {
 	// indexes of each materialized view, which go with it when it is
 	// dropped.
 	dependents map[string][]string
+	// types are the enum types, and routines counts the functions and
+	// procedures, which keep a schema from being empty.
+	types    []string
+	routines int
 }
 
 type relationKind int
@@ -63,6 +67,7 @@ type columnRef struct{ schema, table, column string }
 
 type foreignKeyRef struct {
 	owner      tableRef // the referencing table
+	local      []string // the referencing columns
 	name       string
 	referenced tableRef
 	columns    []string // the referenced columns
@@ -103,7 +108,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 				if ref.schema == "" {
 					ref.schema = s.GetName()
 				}
-				idx.foreignKeys = append(idx.foreignKeys, foreignKeyRef{owner: tableRef{s.GetName(), t.GetName()}, name: fk.GetName(), referenced: ref, columns: fk.GetReferencedColumns()})
+				idx.foreignKeys = append(idx.foreignKeys, foreignKeyRef{owner: tableRef{s.GetName(), t.GetName()}, local: fk.GetColumns(), name: fk.GetName(), referenced: ref, columns: fk.GetReferencedColumns()})
 			}
 		}
 		for _, v := range s.GetViews() {
@@ -130,6 +135,10 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		for _, c := range s.GetCompositeTypes() {
 			ns.add(c.GetName(), kindCompositeType)
 		}
+		for _, e := range s.GetEnumTypes() {
+			ns.types = append(ns.types, e.GetName())
+		}
+		ns.routines = len(s.GetFunctions()) + len(s.GetProcedures())
 		for _, f := range s.GetFunctions() {
 			fn := tableRef{s.GetName(), f.GetName()}
 			idx.functions[fn]++

@@ -355,6 +355,22 @@ func TestDisallowDropConstraint(t *testing.T) {
 			targets: []review.Target{{Schema: withEventTrigger(shop(), true, "SELECT INTO"), SessionUser: "alice"}},
 		},
 		{
+			name:    "an added key on a missing column refuses the statement",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT replacement UNIQUE (nope);",
+			targets: one,
+		},
+		{
+			name:    "a no-op column drop frees no constraint name",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_code_key, DROP COLUMN IF EXISTS nope, ADD CONSTRAINT t_n_check CHECK (n > 0);",
+			targets: one,
+		},
+		{
+			name:    "a dropped column takes its table's foreign key on it",
+			sql:     "ALTER TABLE t DROP COLUMN p_id;\nALTER TABLE p DROP CONSTRAINT p_pkey;",
+			targets: one,
+			want:    []targetFinding{{1, "DROP CONSTRAINT p_pkey", "drops primary key p_pkey of p", []int{0}}},
+		},
+		{
 			name:    "a cascading drop of anything but a relation ends the scan",
 			sql:     "DROP FUNCTION f() CASCADE;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
 			targets: one,
@@ -564,7 +580,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 		},
 		{
 			name:    "a function the change drops no longer returns the table",
-			sql:     "DROP FUNCTION f();\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
+			sql:     "DROP FUNCTION f;\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withFunctionReturning(shop(), "public", "nokey"), SessionUser: "alice"}},
 			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
 		},
@@ -847,6 +863,58 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "DROP of a name in another database is refused",
 			sql:     "DROP TABLE other.public.nokey;\nCREATE TABLE n (id int);",
 			targets: one,
+		},
+		{
+			name:    "DROP FUNCTION with arguments is not matched against a synced function",
+			sql:     "DROP FUNCTION f(text);\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withFunctionReturning(shop(), "public", "nokey"), SessionUser: "alice"}},
+		},
+		{
+			name:    "DROP FUNCTION of a new function by its arguments",
+			sql:     "CREATE FUNCTION g(integer) RETURNS SETOF nokey LANGUAGE sql AS 'SELECT * FROM nokey';\nDROP FUNCTION g(text);\nDROP TABLE nokey;\nCREATE TABLE n (id int);\nDROP FUNCTION IF EXISTS g(integer);",
+			targets: one,
+		},
+		{
+			name:    "DROP FUNCTION of a new function, matching arguments",
+			sql:     "CREATE FUNCTION g(integer) RETURNS SETOF nokey LANGUAGE sql AS 'SELECT * FROM nokey';\nDROP FUNCTION g(integer);\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name: "a cascade does not go past a view the change replaced",
+			sql:  "CREATE OR REPLACE VIEW v AS SELECT 1 AS id;\nDROP TABLE base CASCADE;\nCREATE TABLE w (id int);",
+			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{
+				Name:   "public",
+				Tables: []*metadata.TableMetadata{table("base", "id integer")},
+				Views: []*metadata.ViewMetadata{
+					{Name: "v", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "base", Column: "id"}}},
+					{Name: "w", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "v", Column: "id"}}},
+				},
+			})}},
+		},
+		{
+			name:    "DROP SCHEMA of a schema that holds a table is refused",
+			sql:     "CREATE TABLE n (id int);\nDROP SCHEMA s;",
+			targets: one,
+		},
+		{
+			name: "reowning a sequence in one schema leaves another's",
+			sql:  "ALTER SEQUENCE s.q OWNED BY NONE;\nDROP TABLE public.base;\nCREATE TABLE public.q (id int);",
+			targets: []review.Target{{Schema: database("public",
+				&metadata.SchemaMetadata{Name: "public", Tables: []*metadata.TableMetadata{table("base", "id integer")}, Sequences: []*metadata.SequenceMetadata{{Name: "q", OwnerTable: "base", OwnerColumn: "id"}}},
+				&metadata.SchemaMetadata{Name: "s", Sequences: []*metadata.SequenceMetadata{{Name: "q"}}},
+			)}},
+			want: []targetFinding{{2, "CREATE TABLE public.q (id int)", "creates table public.q without a primary key", []int{0}}},
+		},
+		{
+			name: "an sql_drop event trigger does not fire on CREATE TABLE",
+			sql:  "CREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: func() *metadata.DatabaseSchemaMetadata {
+				db := shop()
+				db.EventTriggers = []*metadata.EventTriggerMetadata{{Name: "et", Event: "SQL_DROP", Enabled: true}}
+				return db
+			}(), SessionUser: "alice"}},
+			want: []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
 		},
 		{
 			name:    "a cascading drop of a parent may drop a child",

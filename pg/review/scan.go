@@ -94,7 +94,7 @@ type scan struct {
 	// redefined, whose synced reads no longer hold, and reowned the
 	// sequences, by name, whose owner ALTER SEQUENCE changed.
 	replacedViews map[tableRef]bool
-	reowned       map[string]bool
+	reowned       map[[2]string]bool
 	// generated marks that a statement made relations under names the
 	// server generates (an unnamed index, a key's index, a serial or
 	// identity column's sequence), which the scan does not derive.
@@ -129,7 +129,7 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		droppedFunctions: make(map[tableRef]bool),
 		newFunctions:     make(map[tableRef]int),
 		replacedViews:    make(map[tableRef]bool),
-		reowned:          make(map[string]bool),
+		reowned:          make(map[[2]string]bool),
 	}
 	if target.Schema != nil {
 		s.index = newSchemaIndex(target.Schema)
@@ -173,20 +173,44 @@ func eventTriggerFires(schema *metadata.DatabaseSchemaMetadata, stmts []statemen
 	if len(triggers) == 0 {
 		return false
 	}
-	tags := make(map[string]bool)
+	// The tags of the statements that may raise each event: every DDL
+	// command raises ddl_command_start and ddl_command_end, a command
+	// that may drop objects sql_drop, and ALTER TABLE or ALTER TYPE
+	// table_rewrite.
+	all := make(map[string]bool)
+	drops := make(map[string]bool)
+	rewrites := make(map[string]bool)
 	for i := range stmts {
-		if tag := commandTag(stmts[i].node); tag != "" {
-			tags[tag] = true
-			// CREATE FUNCTION and CREATE PROCEDURE share a node.
-			if tag == "CREATE FUNCTION" {
-				tags["CREATE PROCEDURE"] = true
+		tag := commandTag(stmts[i].node)
+		if tag == "" {
+			continue
+		}
+		tags := []string{tag}
+		// CREATE FUNCTION and CREATE PROCEDURE share a node.
+		if tag == "CREATE FUNCTION" {
+			tags = append(tags, "CREATE PROCEDURE")
+		}
+		for _, t := range tags {
+			all[t] = true
+			if strings.HasPrefix(t, "DROP ") || strings.HasPrefix(t, "ALTER ") {
+				drops[t] = true
+			}
+			if t == "ALTER TABLE" || t == "ALTER TYPE" {
+				rewrites[t] = true
 			}
 		}
 	}
-	if len(tags) == 0 {
-		return false
-	}
 	for _, t := range triggers {
+		tags := all
+		switch strings.ToUpper(t.GetEvent()) {
+		case "SQL_DROP":
+			tags = drops
+		case "TABLE_REWRITE":
+			tags = rewrites
+		}
+		if len(tags) == 0 {
+			continue
+		}
 		if len(t.GetTags()) == 0 {
 			return true
 		}
@@ -329,7 +353,7 @@ func (s *scan) statement(st *statement) {
 			d, ok := n.(*ast.DefElem)
 			return ok && d.Defname == "owned_by"
 		}) {
-			s.reowned[v.Sequence.Relname] = true
+			s.reowned[[2]string{s.schemaOf(v.Sequence), v.Sequence.Relname}] = true
 		}
 	case *ast.CreateSeqStmt:
 		exists := s.existsWhereCreated(v.Sequence)
@@ -491,6 +515,8 @@ type newDependency struct {
 	object   tableRef
 	path     int
 	retired  bool
+	// signature is a new function's argument types, as written.
+	signature string
 }
 
 // reads records the relations a new view's query names. An unqualified
@@ -593,13 +619,25 @@ func (s *scan) returns(v *ast.CreateFunctionStmt) {
 	s.newFunctions[object]++
 	// The result type and every parameter's type may be a row type.
 	types := []*ast.TypeName{v.ReturnType}
+	var args []ast.Node
 	if v.Parameters != nil {
 		for _, item := range v.Parameters.Items {
 			if p, ok := item.(*ast.FunctionParameter); ok {
 				types = append(types, p.ArgType)
+				// The signature DROP FUNCTION names is the input arguments.
+				if p.Mode != ast.FUNC_PARAM_OUT && p.Mode != ast.FUNC_PARAM_TABLE && p.ArgType != nil {
+					args = append(args, p.ArgType)
+				}
 			}
 		}
 	}
+	signature := argSignature(&ast.List{Items: args})
+	first := len(s.newReturns)
+	defer func() {
+		for i := first; i < len(s.newReturns); i++ {
+			s.newReturns[i].signature = signature
+		}
+	}()
 	// A SQL-standard body is parsed at creation, and the server records
 	// the relations it names; a string body records nothing.
 	if v.SqlBody != nil {
@@ -652,6 +690,32 @@ func (s *scan) retarget(deps []newDependency, old tableRef, name string) {
 			deps[i].object.table = name
 		}
 	}
+}
+
+// retireSignature retires the dependencies of a new function written with
+// that argument signature.
+func (s *scan) retireSignature(fn tableRef, sig string) {
+	for i := range s.newReturns {
+		if s.sameObject(s.newReturns[i], fn) && s.newReturns[i].signature == sig {
+			s.newReturns[i].retired = true
+		}
+	}
+}
+
+// argSignature writes the argument types of a routine as written, one per
+// argument, for comparing a DROP's argument list with a CREATE's.
+func argSignature(args *ast.List) string {
+	var types []string
+	if args != nil {
+		for _, item := range args.Items {
+			if t, ok := item.(*ast.TypeName); ok {
+				types = append(types, strings.Join(nameParts(t.Names), "."))
+			} else {
+				types = append(types, "?")
+			}
+		}
+	}
+	return strings.Join(types, ",")
 }
 
 // retire records that a statement dropped an object the change created,
@@ -1221,6 +1285,10 @@ func (s *scan) drop(v *ast.DropStmt) {
 				}
 				continue
 			}
+			if s.schemaHolds(parts[0]) {
+				s.stop()
+				return
+			}
 			s.schemas[parts[0]] = true
 			s.schemaGone[parts[0]] = true
 		}
@@ -1319,8 +1387,10 @@ func (s *scan) dropFunctions(v *ast.DropStmt) {
 		if len(parts) == 2 {
 			fn.schema = parts[0]
 		}
-		// An overload the change created is retired only when the name
-		// leaves no choice of which function was dropped.
+		// A function is retired only when the statement leaves no choice
+		// of which one it drops: an argument list matching the one the
+		// change wrote, or no argument list on a name only one function
+		// has. A synced function's argument types are not compared.
 		synced := 0
 		if s.index != nil {
 			for name, n := range s.index.functions {
@@ -1330,9 +1400,13 @@ func (s *scan) dropFunctions(v *ast.DropStmt) {
 			}
 		}
 		if s.newFunctions[fn] == 1 && synced == 0 {
-			s.retire(s.newReturns, fn)
+			if owa.ArgsUnspecified {
+				s.retire(s.newReturns, fn)
+			} else {
+				s.retireSignature(fn, argSignature(owa.Objargs))
+			}
 		}
-		if s.index == nil || s.newFunctions[fn] > 0 {
+		if s.index == nil || s.newFunctions[fn] > 0 || !owa.ArgsUnspecified {
 			continue
 		}
 		if fn.schema != "" {
@@ -1393,12 +1467,45 @@ func (s *scan) dropsWrongKind(v *ast.DropStmt) bool {
 // only when the change has not touched it: a view it replaced may no
 // longer depend on what was dropped, and one it renamed is not under that
 // name.
-func (s *scan) freeView(view tableRef) {
+func (s *scan) freeView(view tableRef) bool {
 	if s.viewHolds(view) && !s.isTouched(&ast.RangeVar{Schemaname: view.schema, Relname: view.table}) {
 		s.free(view.schema, view.table)
-		return
+		return true
 	}
 	s.touchName(view.schema, view.table)
+	return false
+}
+
+// cascadeViews records the views a cascade takes: the certain ones are
+// freed where the change left them as synced and touched otherwise, the
+// others touched. The views reading a freed view go for certain; those
+// reading a view the scan could not free go only maybe.
+func (s *scan) cascadeViews(certain, maybe []tableRef) {
+	seen := make(map[tableRef]bool)
+	for len(certain) > 0 || len(maybe) > 0 {
+		if len(certain) > 0 {
+			view := certain[0]
+			certain = certain[1:]
+			if seen[view] {
+				continue
+			}
+			seen[view] = true
+			if s.freeView(view) {
+				certain = append(certain, s.index.readers[view]...)
+			} else {
+				maybe = append(maybe, s.index.readers[view]...)
+			}
+			continue
+		}
+		view := maybe[0]
+		maybe = maybe[1:]
+		if seen[view] {
+			continue
+		}
+		seen[view] = true
+		s.touchName(view.schema, view.table)
+		maybe = append(maybe, s.index.readers[view]...)
+	}
 }
 
 // viewHolds reports whether a synced view may still read what the snapshot
@@ -1425,6 +1532,37 @@ func dropKindMatches(t ast.ObjectType, kind relationKind) bool {
 		return kind == kindIndex
 	}
 	return true
+}
+
+// schemaHolds reports whether a synced schema certainly still holds an
+// object, so that DROP SCHEMA without CASCADE is refused: a relation of
+// it no statement touched, an enum type no statement named, or a routine
+// no DROP FUNCTION certainly removed.
+func (s *scan) schemaHolds(name string) bool {
+	if s.index == nil || s.schemas[name] {
+		return false
+	}
+	ns := s.index.schemas[name]
+	if ns == nil {
+		return false
+	}
+	for rel := range ns.relations {
+		if !s.isTouched(&ast.RangeVar{Schemaname: name, Relname: rel}) {
+			return true
+		}
+	}
+	for _, t := range ns.types {
+		if !s.isTouched(&ast.RangeVar{Schemaname: name, Relname: t}) {
+			return true
+		}
+	}
+	dropped := 0
+	for fn := range s.droppedFunctions {
+		if fn.schema == name {
+			dropped += s.index.functions[fn]
+		}
+	}
+	return ns.routines > dropped
 }
 
 // schemaMissing reports whether a qualified name's schema certainly does
@@ -1560,7 +1698,7 @@ func (s *scan) dropOwned(rv *ast.RangeVar, schema string, table bool) {
 		switch {
 		case schema != "" && name == schema:
 			for _, d := range ns.dependents[rv.Relname] {
-				if s.reowned[d] {
+				if s.reowned[[2]string{name, d}] || s.reowned[[2]string{"", d}] {
 					s.touchName(name, d)
 				} else {
 					s.free(name, d)
@@ -1592,34 +1730,17 @@ func (s *scan) dropDependents(rv *ast.RangeVar, schema string) {
 	if s.index == nil {
 		return
 	}
-	var start []tableRef
 	if schema != "" {
-		start = []tableRef{{schema, rv.Relname}}
-	} else {
-		for name := range s.index.schemas {
-			if rv.Schemaname == "" || rv.Schemaname == name {
-				start = append(start, tableRef{name, rv.Relname})
-			}
+		s.cascadeViews(s.index.readers[tableRef{schema, rv.Relname}], nil)
+		return
+	}
+	var maybe []tableRef
+	for name := range s.index.schemas {
+		if rv.Schemaname == "" || rv.Schemaname == name {
+			maybe = append(maybe, s.index.readers[tableRef{name, rv.Relname}]...)
 		}
 	}
-	// The views reading a dropped view go too.
-	seen := make(map[tableRef]bool)
-	for len(start) > 0 {
-		t := start[0]
-		start = start[1:]
-		for _, view := range s.index.readers[t] {
-			if seen[view] {
-				continue
-			}
-			seen[view] = true
-			if schema != "" {
-				s.freeView(view)
-			} else {
-				s.touchName(view.schema, view.table)
-			}
-			start = append(start, view)
-		}
-	}
+	s.cascadeViews(nil, maybe)
 }
 
 // dropReferences records that foreign keys a cascading drop takes may be
