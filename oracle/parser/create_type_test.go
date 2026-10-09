@@ -272,13 +272,23 @@ func TestParseObjectTypeSpecMLECallSpecs(t *testing.T) {
 
 // TestParseObjectTypeSpecRejects lists object type specifications Oracle 23ai
 // rejects: a call spec ended by ';', the EXTERNAL call spec, or a PL/SQL body
-// in the spec (PLS-00103), a method without a name or a function without
-// RETURN (PLS-00103), an attribute named like a method keyword unless quoted
-// (PLS-00103), an attribute after a method or no attribute at all
-// (PLS-00589), a repeated modifier (PLS-00168), and a pragma other than
-// RESTRICT_REFERENCES (PLS-00127).
+// in the spec (PLS-00103), a method without a name, a function without
+// RETURN, or a constructor without all of RETURN SELF AS RESULT (PLS-00103,
+// PLS-00659 for another return type), an attribute named like a method
+// keyword unless quoted (PLS-00103), an attribute after a method or no
+// attribute at all (PLS-00589), a repeated modifier (PLS-00168), PERSISTABLE
+// before a method (PLS-00771), a MAP or ORDER procedure (PLS-00155), and a
+// pragma other than RESTRICT_REFERENCES (PLS-00127).
 func TestParseObjectTypeSpecRejects(t *testing.T) {
 	for _, sql := range []string{
+		"CREATE TYPE t AS OBJECT (a NUMBER, CONSTRUCTOR FUNCTION t RETURN SELF)",
+		"CREATE TYPE t AS OBJECT (a NUMBER, CONSTRUCTOR FUNCTION t RETURN SELF AS)",
+		"CREATE TYPE t AS OBJECT (a NUMBER, CONSTRUCTOR FUNCTION t RETURN NUMBER)",
+		"CREATE TYPE t AS OBJECT (a NUMBER, PERSISTABLE MEMBER FUNCTION f RETURN NUMBER)",
+		"CREATE TYPE t AS OBJECT (a NUMBER, NOT PERSISTABLE MEMBER FUNCTION f RETURN NUMBER)",
+		"CREATE TYPE t AS OBJECT (a NUMBER, FINAL PERSISTABLE MEMBER FUNCTION f RETURN NUMBER)",
+		"CREATE TYPE t AS OBJECT (a NUMBER, MAP MEMBER PROCEDURE p)",
+		"CREATE TYPE t AS OBJECT (a NUMBER, ORDER MEMBER PROCEDURE p)",
 		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS MLE MODULE m SIGNATURE 'f()';)",
 		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS EXTERNAL LIBRARY lib)",
 		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f)",
@@ -311,14 +321,26 @@ func TestParseObjectTypeSpecRejects(t *testing.T) {
 }
 
 // TestParseTypeBodyMethodRejects lists type body methods Oracle 23ai rejects
-// with PLS-00103: a function without RETURN and a method without a name.
+// with PLS-00103: a function without RETURN, a method without a name, a
+// PL/SQL block or call spec without IS|AS before it, and a constructor
+// without all of RETURN SELF AS RESULT.
 func TestParseTypeBodyMethodRejects(t *testing.T) {
 	for _, sql := range []string{
 		"CREATE TYPE BODY t AS MEMBER FUNCTION f IS BEGIN RETURN 1; END; END;",
 		"CREATE TYPE BODY t AS MEMBER PROCEDURE IS BEGIN NULL; END; END;",
+		"CREATE TYPE BODY t AS MEMBER FUNCTION f RETURN NUMBER LANGUAGE JAVA NAME 'X.f() return int'; END;",
+		"CREATE TYPE BODY t AS MEMBER FUNCTION f RETURN NUMBER BEGIN RETURN 1; END; END;",
+		"CREATE TYPE BODY t AS MEMBER PROCEDURE p BEGIN NULL; END; END;",
+		"CREATE TYPE BODY t AS CONSTRUCTOR FUNCTION t(x NUMBER) RETURN SELF IS BEGIN RETURN; END; END;",
+		"CREATE TYPE BODY t AS CONSTRUCTOR FUNCTION t(x NUMBER) RETURN SELF AS IS BEGIN RETURN; END; END;",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			ParseShouldFail(t, sql)
 		})
 	}
+	// A body may define a MAP procedure: Oracle 23ai rejects it only for not
+	// matching a spec, which cannot declare one (PLS-00538).
+	ParseAndCheck(t, "CREATE TYPE BODY t AS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; "+
+		"MAP MEMBER PROCEDURE p IS BEGIN NULL; END; "+
+		"CONSTRUCTOR FUNCTION t(x NUMBER) RETURN SELF AS RESULT IS BEGIN RETURN; END; END;")
 }

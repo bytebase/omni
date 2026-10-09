@@ -270,9 +270,14 @@ func (p *Parser) parseTypeBodyMember(inSpec bool) (*nodes.TypeBodyMember, error)
 		return nil, nil
 	}
 
-	// Parse the subprogram (PROCEDURE or FUNCTION)
+	// Parse the subprogram (PROCEDURE or FUNCTION). A constructor is a
+	// function, and so are MAP and ORDER methods in a spec (PLS-00155 on
+	// Oracle 23ai; a body that defines one as a procedure fails only to
+	// match its spec, PLS-00538).
+	procedureAllowed := member.Kind != nodes.TYPE_BODY_CONSTRUCTOR &&
+		(!inSpec || member.Kind == nodes.TYPE_BODY_MEMBER || member.Kind == nodes.TYPE_BODY_STATIC)
 	switch {
-	case p.cur.Type == kwPROCEDURE && member.Kind != nodes.TYPE_BODY_CONSTRUCTOR:
+	case p.cur.Type == kwPROCEDURE && procedureAllowed:
 		var parseErr580 error
 		member.Subprog, parseErr580 = p.parseTypeBodyProcedure(inSpec)
 		if parseErr580 != nil {
@@ -343,9 +348,12 @@ func (p *Parser) parseTypeBodyProcedure(inSpec bool) (*nodes.CreateProcedureStmt
 		return stmt, nil
 	}
 
-	if p.cur.Type == kwIS || p.cur.Type == kwAS {
-		p.advance()
+	// IS | AS is required before the PL/SQL block or call spec (PLS-00103
+	// on Oracle 23ai).
+	if p.cur.Type != kwIS && p.cur.Type != kwAS {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance() // consume IS or AS
 	var parseErr584 error
 
 	// PL/SQL block body or call spec
@@ -407,16 +415,23 @@ func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.Creat
 
 	if p.cur.Type == kwRETURN {
 		p.advance() // consume RETURN
-		if isConstructor && p.isIdentLikeStr("SELF") {
-			// RETURN SELF AS RESULT
+		if isConstructor {
+			// A constructor returns SELF AS RESULT, all three words required
+			// (PLS-00103 on Oracle 23ai for a partial phrase, PLS-00659 for
+			// another return type).
 			selfStart := p.pos()
+			if !p.isKeywordStr("SELF") {
+				return nil, p.syntaxErrorAtCur()
+			}
 			p.advance() // consume SELF
-			if p.cur.Type == kwAS {
-				p.advance() // consume AS
+			if p.cur.Type != kwAS {
+				return nil, p.syntaxErrorAtCur()
 			}
-			if p.isIdentLikeStr("RESULT") {
-				p.advance() // consume RESULT
+			p.advance() // consume AS
+			if !p.isKeywordStr("RESULT") {
+				return nil, p.syntaxErrorAtCur()
 			}
+			p.advance() // consume RESULT
 			// Set return type to indicate SELF AS RESULT
 			stmt.ReturnType = &nodes.TypeName{
 				Names: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "SELF AS RESULT"}}},
@@ -455,9 +470,12 @@ func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.Creat
 		return stmt, nil
 	}
 
-	if p.cur.Type == kwIS || p.cur.Type == kwAS {
-		p.advance()
+	// IS | AS is required before the PL/SQL block or call spec (PLS-00103
+	// on Oracle 23ai).
+	if p.cur.Type != kwIS && p.cur.Type != kwAS {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance() // consume IS or AS
 	var parseErr589 error
 
 	// PL/SQL block body or call spec
@@ -552,10 +570,12 @@ func (p *Parser) isObjectTypeMethodStart() bool {
 
 // objectTypeModifiers and methodInheritanceClauses are the words that
 // parseTypeModifiers takes after an object type's element list and before a
-// method specification.
+// method specification. [ NOT ] PERSISTABLE is a type modifier only
+// (PLS-00771 before a method on Oracle 23ai), though an unquoted PERSISTABLE
+// still cannot name an attribute.
 var (
 	objectTypeModifiers      = []string{"FINAL", "INSTANTIABLE", "PERSISTABLE"}
-	methodInheritanceClauses = []string{"OVERRIDING", "FINAL", "INSTANTIABLE", "PERSISTABLE"}
+	methodInheritanceClauses = []string{"OVERRIDING", "FINAL", "INSTANTIABLE"}
 )
 
 // parseTypeModifiers parses { [ NOT ] word }... for the given words and

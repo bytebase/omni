@@ -465,15 +465,38 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			},
 		},
 		{
+			// Oracle 23ai compiles this VALID: only the word right after
+			// IS|AS opens a call spec.
 			name: "parameter and variable named like call spec words",
-			sql: "CREATE FUNCTION f(language IN VARCHAR2, external NUMBER, wrapped NUMBER) RETURN NUMBER IS\n" +
-				"  language NUMBER;\n" +
+			sql: "CREATE FUNCTION f(language IN VARCHAR2, wrapped NUMBER) RETURN NUMBER IS\n" +
+				"  x NUMBER;\n" +
 				"  external NUMBER;\n" +
+				"  mle NUMBER;\n" +
 				"BEGIN RETURN 1; END;\n" +
 				"SELECT 1 FROM dual;",
 			want: []string{
-				"CREATE FUNCTION f(language IN VARCHAR2, external NUMBER, wrapped NUMBER) RETURN NUMBER IS\n  language NUMBER;\n  external NUMBER;\nBEGIN RETURN 1; END;",
+				"CREATE FUNCTION f(language IN VARCHAR2, wrapped NUMBER) RETURN NUMBER IS\n  x NUMBER;\n  external NUMBER;\n  mle NUMBER;\nBEGIN RETURN 1; END;",
 				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
+			// The word after IS|AS commits to a call spec, as it does for
+			// Oracle and the parser, so a malformed one still ends at its
+			// ';' instead of swallowing the next statement.
+			name: "malformed call specs end at their semicolon",
+			sql: "CREATE PROCEDURE p AS LANGUAGE PYTHON;\n" +
+				"SELECT 1 FROM dual;\n" +
+				"CREATE PROCEDURE q AS EXTERNAL;\n" +
+				"SELECT 2 FROM dual;\n" +
+				"CREATE FUNCTION f RETURN NUMBER IS mle NUMBER;\n" +
+				"SELECT 3 FROM dual;",
+			want: []string{
+				"CREATE PROCEDURE p AS LANGUAGE PYTHON;",
+				"\nSELECT 1 FROM dual",
+				"\nCREATE PROCEDURE q AS EXTERNAL;",
+				"\nSELECT 2 FROM dual",
+				"\nCREATE FUNCTION f RETURN NUMBER IS mle NUMBER;",
+				"\nSELECT 3 FROM dual",
 			},
 		},
 		{

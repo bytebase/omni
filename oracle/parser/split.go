@@ -197,10 +197,11 @@ type splitPLSQLFrame struct {
 	// subprogram frame is pushed at its IS|AS.
 	headDepth int
 	isAs      bool
-	// afterIsAs and callSpecWord look at the two tokens after IS|AS for a
-	// call spec, as isCallSpecStartTokens decides it.
-	afterIsAs    bool
-	callSpecWord string
+	// afterIsAs marks the token after IS|AS, whose word decides a call spec
+	// as isCallSpecWordToken does for the parser; afterMLE marks the token
+	// after an MLE call spec's MLE, which is LANGUAGE for inline code.
+	afterIsAs bool
+	afterMLE  bool
 	// callSpec marks an implementation that is a call spec: it has no END,
 	// and its ';' ends it.
 	callSpec bool
@@ -459,26 +460,25 @@ func (s *splitState) observePLSQL(tok Token) {
 // observeSubprogramHead follows a stored unit or nested subprogram up to its
 // implementation. A call spec right after IS|AS replaces BEGIN ... END and
 // ends at its ';'. WRAPPED replaces IS|AS in a wrapped stored unit. Both are
-// recognized only outside the parameter list, so a parameter or variable
-// named LANGUAGE, EXTERNAL, or WRAPPED does not end the unit early.
+// recognized only outside the parameter list, so a parameter named LANGUAGE,
+// EXTERNAL, or WRAPPED does not end the unit early. Like Oracle and the
+// parser, the splitter takes the word after IS|AS alone for a call spec, so
+// a malformed one still ends at its ';'.
 func (s *splitState) observeSubprogramHead(top *splitPLSQLFrame, tok Token) {
 	switch {
-	case top.callSpecWord != "":
-		word := top.callSpecWord
-		top.callSpecWord = ""
-		if isCallSpecStartTokens(Token{Type: tokIDENT, Str: word}, tok) {
-			top.callSpec = true
-			if word == "MLE" && tok.Str == "LANGUAGE" {
-				s.mleLanguagePending = true
-			}
-			if len(s.frames) == 1 {
-				s.callSpecStarted = true
-			}
+	case top.afterMLE:
+		top.afterMLE = false
+		if tok.Type == tokIDENT && tok.Str == "LANGUAGE" {
+			s.mleLanguagePending = true
 		}
 	case top.afterIsAs:
 		top.afterIsAs = false
-		if tok.Type == tokIDENT && (tok.Str == "LANGUAGE" || tok.Str == "EXTERNAL" || tok.Str == "MLE") {
-			top.callSpecWord = tok.Str
+		if isCallSpecWordToken(tok, "LANGUAGE", "EXTERNAL", "MLE") {
+			top.callSpec = true
+			top.afterMLE = tok.Str == "MLE"
+			if len(s.frames) == 1 {
+				s.callSpecStarted = true
+			}
 		}
 	case !top.isAs:
 		switch {

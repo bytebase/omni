@@ -58,21 +58,27 @@ func TestP2AdministerKeyManagementLoc(t *testing.T) {
 }
 
 // TestParseCreateJavaSourceVerbatim checks that the source_char of CREATE
-// JAVA ... AS is kept verbatim, without lexing Java as SQL.
+// JAVA ... AS is kept verbatim, without lexing Java as SQL: from its first
+// non-blank byte through the end of the parsed text, trailing blanks
+// included, as Split keeps it.
 func TestParseCreateJavaSourceVerbatim(t *testing.T) {
 	source := "public class Q {\n" +
 		"  // don't stop (here; a stray quote and paren\n" +
 		"  static char c = '\\'';\n" +
 		"  static int g(int i) { i--; return i / 2; }\n" +
 		"}"
-	tests := []string{
-		"CREATE JAVA SOURCE NAMED \"S\".\"Q\" AS\n" + source,
-		"CREATE OR REPLACE AND COMPILE JAVA SOURCE NAMED q AS " + source + "\n",
-		"CREATE OR REPLACE AND RESOLVE NOFORCE JAVA SOURCE NAMED q AUTHID CURRENT_USER AS\n\n" + source,
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{"CREATE JAVA SOURCE NAMED \"S\".\"Q\" AS\n" + source, source},
+		{"CREATE OR REPLACE AND COMPILE JAVA SOURCE NAMED q AS " + source + "\n", source + "\n"},
+		{"CREATE OR REPLACE AND RESOLVE NOFORCE JAVA SOURCE NAMED q AUTHID CURRENT_USER AS\n\n" + source, source},
+		{"CREATE JAVA RESOURCE NAMED r AS abc  \t\n\n", "abc  \t\n\n"},
 	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			result := ParseAndCheck(t, sql)
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
 			stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AdminDDLStmt)
 			var got string
 			for _, item := range stmt.Options.Items {
@@ -80,10 +86,10 @@ func TestParseCreateJavaSourceVerbatim(t *testing.T) {
 					got = opt.Value
 				}
 			}
-			if got != source {
-				t.Fatalf("AS source = %q, want %q", got, source)
+			if got != tt.want {
+				t.Fatalf("AS source = %q, want %q", got, tt.want)
 			}
-			if violations := CheckLocations(t, sql); len(violations) > 0 {
+			if violations := CheckLocations(t, tt.sql); len(violations) > 0 {
 				t.Fatalf("Loc violations: %v", violations)
 			}
 		})
@@ -98,13 +104,16 @@ func TestParseCreateMLEModuleSourceVerbatim(t *testing.T) {
 		"  let s = \"it's /\";\n" +
 		"  return a--;\n" +
 		"}"
-	tests := []string{
-		"CREATE MLE MODULE m LANGUAGE JAVASCRIPT AS\n" + source,
-		"CREATE OR REPLACE MLE MODULE s.m LANGUAGE JAVASCRIPT VERSION '1.0' AS " + source + "\n",
+	tests := []struct {
+		sql  string
+		want string
+	}{
+		{"CREATE MLE MODULE m LANGUAGE JAVASCRIPT AS\n" + source, source},
+		{"CREATE OR REPLACE MLE MODULE s.m LANGUAGE JAVASCRIPT VERSION '1.0' AS " + source + "\n", source + "\n"},
 	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			result := ParseAndCheck(t, sql)
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
 			stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AdminDDLStmt)
 			var got string
 			for _, item := range stmt.Options.Items {
@@ -112,10 +121,10 @@ func TestParseCreateMLEModuleSourceVerbatim(t *testing.T) {
 					got = opt.Value
 				}
 			}
-			if got != source {
-				t.Fatalf("AS source = %q, want %q", got, source)
+			if got != tt.want {
+				t.Fatalf("AS source = %q, want %q", got, tt.want)
 			}
-			if violations := CheckLocations(t, sql); len(violations) > 0 {
+			if violations := CheckLocations(t, tt.sql); len(violations) > 0 {
 				t.Fatalf("Loc violations: %v", violations)
 			}
 		})

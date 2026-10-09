@@ -792,39 +792,25 @@ func (p *Parser) parseSubprogramImplementation() (nodes.StmtNode, *nodes.CallSpe
 }
 
 // isCallSpecWord reports whether the current token, the first after IS|AS,
-// is one of words unquoted. Oracle 23ai commits to a call spec on that word
-// alone: a first declaration of a variable named LANGUAGE, EXTERNAL, or MLE
-// is PLS-00103 in a standalone, nested, package, or type body subprogram
-// alike, while a quoted "MLE" declares one.
+// is one of words unquoted; see isCallSpecWordToken.
 func (p *Parser) isCallSpecWord(words ...string) bool {
-	if p.cur.Type != tokIDENT {
-		return false
-	}
-	for _, word := range words {
-		if p.cur.Str == word {
-			return true
-		}
-	}
-	return false
+	return isCallSpecWordToken(p.cur, words...)
 }
 
-// isCallSpecStartTokens reports whether tok and next, the two tokens after
-// IS|AS, open a call spec: LANGUAGE JAVA, LANGUAGE C, EXTERNAL followed by any
-// of its clauses, or MLE MODULE or MLE LANGUAGE. The splitter uses it to end
-// the unit at the call spec's ';'; it looks at two tokens so that a unit the
-// parser rejects for a declaration named LANGUAGE, EXTERNAL, or MLE stays one
-// segment.
-func isCallSpecStartTokens(tok, next Token) bool {
+// isCallSpecWordToken reports whether tok, the first token after IS|AS, is
+// one of words unquoted. Oracle 23ai commits to a call spec on that word
+// alone: a first declaration of a variable named LANGUAGE, EXTERNAL, or MLE
+// is PLS-00103 in a standalone, nested, package, or type body subprogram
+// alike, while a quoted "MLE" declares one. The parser and the splitter both
+// decide by it, so that both end the unit at the same ';'.
+func isCallSpecWordToken(tok Token, words ...string) bool {
 	if tok.Type != tokIDENT {
 		return false
 	}
-	switch tok.Str {
-	case "LANGUAGE":
-		return next.Type == kwJAVA || (next.Type == tokIDENT && next.Str == "C")
-	case "EXTERNAL":
-		return callSpecCClauseOf(next) != ""
-	case "MLE":
-		return next.Type == tokIDENT && (next.Str == "MODULE" || next.Str == "LANGUAGE")
+	for _, word := range words {
+		if tok.Str == word {
+			return true
+		}
 	}
 	return false
 }

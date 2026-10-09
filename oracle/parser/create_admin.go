@@ -6369,12 +6369,15 @@ func (p *Parser) parseJavaUsingClause(addOption func(key, value string, optStart
 
 // parseSourceText records the source text after the current AS of a CREATE
 // JAVA or CREATE MLE MODULE statement and moves the parser to the end of the
-// parsed range, without lexing the Java or JavaScript text.
+// parsed range, without lexing the Java or JavaScript text. The text runs from
+// its first non-blank byte through the end of the range, trailing blanks
+// included, as Split keeps it: Split already leaves out the line break and
+// "/" that frame it.
 func (p *Parser) parseSourceText(opts *nodes.List) error {
 	asTok := p.cur
 	srcStart := skipSpace(p.source, asTok.End, p.lexer.end)
-	srcEnd := trimRightSpace(p.source, p.lexer.end)
-	if srcStart >= srcEnd {
+	srcEnd := p.lexer.end
+	if srcStart >= trimRightSpace(p.source, srcEnd) {
 		p.advance() // consume AS; the source is missing
 		return p.syntaxErrorAtCur()
 	}
