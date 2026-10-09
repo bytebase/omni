@@ -107,31 +107,11 @@ func (s *scan) createTable(st *statement, v *ast.CreateStmt) {
 // of that name. An unqualified name is created in the first schema of the
 // search path that exists.
 func (s *scan) createsNew(rv *ast.RangeVar) bool {
-	if s.index == nil {
+	schema, ok := s.creationSchema(rv)
+	if !ok {
 		return false
-	}
-	schema := rv.Schemaname
-	if schema == "" {
-		path, ok := s.searchPath()
-		if !ok {
-			return false
-		}
-		for _, name := range path {
-			// A system schema is not in the snapshot, and a schema the
-			// change created or dropped may or may not exist.
-			if s.schemas[name] || strings.HasPrefix(name, "pg_") || name == "information_schema" {
-				return false
-			}
-			if s.index.schemas[name] != nil {
-				schema = name
-				break
-			}
-		}
 	}
 	ns := s.index.schemas[schema]
-	if ns == nil || s.schemas[schema] {
-		return false
-	}
 	if s.freed[[2]string{schema, rv.Relname}] {
 		return true
 	}
@@ -140,6 +120,50 @@ func (s *scan) createsNew(rv *ast.RangeVar) bool {
 	}
 	_, exists := ns.relations[rv.Relname]
 	return !exists
+}
+
+// existsWhereCreated reports whether the schema a CREATE puts the relation
+// in certainly holds a relation of that name already: the schema is the
+// synced one, and no statement of the change dropped, renamed, or made the
+// name.
+func (s *scan) existsWhereCreated(rv *ast.RangeVar) bool {
+	schema, ok := s.creationSchema(rv)
+	if !ok || s.freed[[2]string{schema, rv.Relname}] || s.isTouched(&ast.RangeVar{Schemaname: schema, Relname: rv.Relname}) {
+		return false
+	}
+	_, exists := s.index.schemas[schema].relations[rv.Relname]
+	return exists
+}
+
+// creationSchema returns the synced schema a CREATE puts a relation in:
+// the one written, or the first schema of the search path that exists. ok
+// is false when that is not a schema the scan knows as synced.
+func (s *scan) creationSchema(rv *ast.RangeVar) (string, bool) {
+	if s.index == nil || isTemp(rv) {
+		return "", false
+	}
+	schema := rv.Schemaname
+	if schema == "" {
+		path, ok := s.searchPath()
+		if !ok {
+			return "", false
+		}
+		for _, name := range path {
+			// A system schema is not in the snapshot, and a schema the
+			// change created or dropped may or may not exist.
+			if s.schemas[name] || strings.HasPrefix(name, "pg_") || name == "information_schema" {
+				return "", false
+			}
+			if s.index.schemas[name] != nil {
+				schema = name
+				break
+			}
+		}
+	}
+	if s.index.schemas[schema] == nil || s.schemas[schema] {
+		return "", false
+	}
+	return schema, true
 }
 
 // likeIndexes is the LIKE option that copies indexes, the primary key

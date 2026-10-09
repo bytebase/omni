@@ -146,14 +146,19 @@ func statementLoc(n ast.Node) ast.Loc {
 // in the new schema.
 func createdRelations(n ast.Node) []backupTable {
 	if v, ok := n.(*ast.CreateSchemaStmt); ok {
-		if v.Schemaname == "" || v.SchemaElts == nil {
+		name := v.Schemaname
+		if name == "" && v.Authrole != nil {
+			// CREATE SCHEMA AUTHORIZATION role names the schema after the role.
+			name = v.Authrole.Rolename
+		}
+		if name == "" || v.SchemaElts == nil {
 			return nil
 		}
 		var out []backupTable
 		for _, elt := range v.SchemaElts.Items {
 			for _, t := range createdRelations(elt) {
 				if t.schema == "" {
-					t.schema = v.Schemaname
+					t.schema = name
 				}
 				out = append(out, t)
 			}

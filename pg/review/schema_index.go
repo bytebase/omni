@@ -19,8 +19,13 @@ type schemaIndex struct {
 	// it, and readsColumn marks the columns they read.
 	readers     map[tableRef][]tableRef
 	readsColumn map[columnRef]bool
-	// returnedBy marks the relations whose row type a function returns.
-	returnedBy map[tableRef]bool
+	// returnedBy maps a relation to the functions, by (schema, name), that
+	// return its row type, and functions counts the functions of each
+	// (schema, name).
+	returnedBy map[tableRef][]tableRef
+	functions  map[tableRef]int
+	// constraintIndexes marks the indexes a constraint owns.
+	constraintIndexes map[tableRef]bool
 }
 
 // namespace is one schema: the kind of every name in its relation
@@ -63,7 +68,10 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		schemas:     make(map[string]*namespace),
 		readers:     make(map[tableRef][]tableRef),
 		readsColumn: make(map[columnRef]bool),
-		returnedBy:  make(map[tableRef]bool),
+		returnedBy:  make(map[tableRef][]tableRef),
+		functions:   make(map[tableRef]int),
+
+		constraintIndexes: make(map[tableRef]bool),
 	}
 	for _, s := range db.GetSchemas() {
 		ns := &namespace{
@@ -78,8 +86,12 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 			for _, i := range t.GetIndexes() {
 				ns.add(i.GetName(), kindOther)
 				ns.dependents[t.GetName()] = append(ns.dependents[t.GetName()], i.GetName())
+				if i.GetIsConstraint() {
+					idx.constraintIndexes[tableRef{s.GetName(), i.GetName()}] = true
+				}
 			}
 			ns.addPartitions(t.GetName(), t.GetPartitions())
+			idx.partitionConstraintIndexes(s.GetName(), t.GetPartitions())
 			for _, fk := range t.GetForeignKeys() {
 				ref := tableRef{fk.GetReferencedSchema(), fk.GetReferencedTable()}
 				if ref.schema == "" {
@@ -113,8 +125,11 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 			ns.add(c.GetName(), kindOther)
 		}
 		for _, f := range s.GetFunctions() {
+			fn := tableRef{s.GetName(), f.GetName()}
+			idx.functions[fn]++
 			for _, d := range f.GetDependencyTables() {
-				idx.returnedBy[tableRef{d.GetSchema(), d.GetTable()}] = true
+				t := tableRef{d.GetSchema(), d.GetTable()}
+				idx.returnedBy[t] = append(idx.returnedBy[t], fn)
 			}
 		}
 	}
@@ -139,6 +154,18 @@ func (ns *namespace) addPartitions(table string, partitions []*metadata.TablePar
 			ns.dependents[table] = append(ns.dependents[table], i.GetName())
 		}
 		ns.addPartitions(table, p.GetSubpartitions())
+	}
+}
+
+// partitionConstraintIndexes marks the constraint indexes of partitions.
+func (idx *schemaIndex) partitionConstraintIndexes(schema string, partitions []*metadata.TablePartitionMetadata) {
+	for _, p := range partitions {
+		for _, i := range p.GetIndexes() {
+			if i.GetIsConstraint() {
+				idx.constraintIndexes[tableRef{schema, i.GetName()}] = true
+			}
+		}
+		idx.partitionConstraintIndexes(schema, p.GetSubpartitions())
 	}
 }
 

@@ -20,13 +20,17 @@ import (
 // cascading drop of anything but a relation) ends it. Every way the scan
 // can be unsure leads to no finding.
 //
-// A DDL statement the server refuses for a reason the SQL and the synced
-// schema show (a missing object, a dependent object without CASCADE)
-// reports nothing and ends the scan. What user code does when it runs,
-// a trigger fired by DML or a function a query calls, is outside what a
-// static check can bound, and the scan does not predict it: findings
-// describe the change as written, and a change that fails at run time
-// fails before they matter.
+// A finding is a claim about its own statement, given that the statements
+// before it ran: the statement it anchors never fails for a reason the
+// SQL and the synced schema show. Whether the change as a whole can run
+// is WalkThrough's question, not this scan's. Where the scan notices on
+// the way that the server refuses a statement (a missing object, a name of
+// the wrong kind, a dependent object without CASCADE) it reports nothing
+// for it and ends, since it cannot say what follows; it does not look for
+// every way a statement can fail. A finding after such a statement still
+// describes the change as written. What user code does when it runs, a
+// trigger fired by DML or a function a query calls, is outside what a
+// static check can bound, and the scan does not predict it.
 type scan struct {
 	on    map[review.Rule]bool
 	r     *reporter
@@ -70,13 +74,18 @@ type scan struct {
 	// schemas lists the schemas a statement created or dropped.
 	schemas map[string]bool
 	// newReferences lists the keys the foreign keys the change created
-	// reference, and readByChange the relations, by name, its views read,
-	// neither of which the synced schema records.
+	// reference, newReads the relations its views read, and newReturns the
+	// relations whose row type its functions return, none of which the
+	// synced schema records.
 	newReferences []newReference
-	readByChange  map[[2]string]bool
+	newReads      []newDependency
+	newReturns    []newDependency
 	// pathVersion counts search path changes, so two unqualified names
 	// are known to resolve alike only under the same path.
 	pathVersion int
+	// droppedFunctions lists the synced functions, by (schema, name), a
+	// DROP FUNCTION certainly removed.
+	droppedFunctions map[tableRef]bool
 
 	// pending are the tables RequirePrimaryKey reports at the end unless a
 	// later statement settles them.
@@ -104,7 +113,7 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		renamedTo:   make(map[[3]string]bool),
 		schemas:     make(map[string]bool),
 
-		readByChange: make(map[[2]string]bool),
+		droppedFunctions: make(map[tableRef]bool),
 	}
 	if target.Schema != nil {
 		s.index = newSchemaIndex(target.Schema)
@@ -262,12 +271,14 @@ func (s *scan) statement(st *statement) {
 		if v.Into != nil {
 			s.touch(v.Into.Rel)
 		}
-		if v.Objtype == ast.OBJECT_MATVIEW {
-			s.reads(v.Query)
+		if v.Objtype == ast.OBJECT_MATVIEW && v.Into != nil {
+			s.reads(v.Into.Rel, v.Query)
 		}
 	case *ast.ViewStmt:
 		s.touch(v.View)
-		s.reads(v.Query)
+		s.reads(v.View, v.Query)
+	case *ast.CreateFunctionStmt:
+		s.returns(v)
 	case *ast.CreateSeqStmt:
 		s.touch(v.Sequence)
 	case *ast.CompositeTypeStmt:
@@ -407,19 +418,94 @@ func (s *scan) newlyReferencedColumn(t tableRef, column string, keyColumns []str
 	return false
 }
 
-// reads records the relations a new view's query names, in the schema
-// the name resolves to, the one written, or "" when neither is known.
-func (s *scan) reads(query ast.Node) {
+// newDependency is an object the change created that depends on a
+// relation: the relation, in the schema it resolves to, the one written,
+// or "" when neither is known, and the object as written, with the search
+// path it was written under.
+type newDependency struct {
+	relation tableRef
+	object   tableRef
+	path     int
+	retired  bool
+}
+
+// reads records the relations a new view's query names. A name a WITH
+// clause of the query defines is a CTE, not a relation.
+func (s *scan) reads(view *ast.RangeVar, query ast.Node) {
+	ctes := make(map[string]bool)
 	ast.Inspect(query, func(n ast.Node) bool {
-		if rv, ok := n.(*ast.RangeVar); ok {
-			s.readByChange[[2]string{s.schemaOf(rv), rv.Relname}] = true
+		if w, ok := n.(*ast.WithClause); ok && w.Ctes != nil {
+			for _, item := range w.Ctes.Items {
+				if c, ok := item.(*ast.CommonTableExpr); ok {
+					ctes[c.Ctename] = true
+				}
+			}
+		}
+		return true
+	})
+	ast.Inspect(query, func(n ast.Node) bool {
+		if rv, ok := n.(*ast.RangeVar); ok && !(rv.Schemaname == "" && ctes[rv.Relname]) {
+			s.newReads = append(s.newReads, newDependency{
+				relation: tableRef{s.schemaOf(rv), rv.Relname},
+				object:   tableRef{view.Schemaname, view.Relname},
+				path:     s.pathVersion,
+			})
 		}
 		return true
 	})
 }
 
-// create follows CREATE TABLE.
+// returns records the relation whose row type a new function returns,
+// when its result type names one.
+func (s *scan) returns(v *ast.CreateFunctionStmt) {
+	if v.ReturnType == nil {
+		return
+	}
+	parts := nameParts(v.ReturnType.Names)
+	fn := nameParts(v.Funcname)
+	if len(parts) == 0 || len(parts) > 2 || len(fn) == 0 {
+		return
+	}
+	rv := &ast.RangeVar{Relname: parts[len(parts)-1]}
+	if len(parts) == 2 {
+		rv.Schemaname = parts[0]
+	}
+	object := tableRef{table: fn[len(fn)-1]}
+	if len(fn) >= 2 {
+		object.schema = fn[len(fn)-2]
+	}
+	s.newReturns = append(s.newReturns, newDependency{relation: tableRef{s.schemaOf(rv), rv.Relname}, object: object, path: s.pathVersion})
+}
+
+// dependsOnNew reports whether an object the change created and has not
+// dropped may depend on the relation.
+func dependsOnNew(deps []newDependency, t tableRef) bool {
+	for _, d := range deps {
+		if !d.retired && d.relation.table == t.table && (d.relation.schema == "" || d.relation.schema == t.schema) {
+			return true
+		}
+	}
+	return false
+}
+
+// retire records that a statement dropped an object the change created,
+// named as it was written, under the same search path when unqualified.
+func (s *scan) retire(deps []newDependency, object tableRef) {
+	for i := range deps {
+		d := &deps[i]
+		if d.object == object && (object.schema != "" || d.path == s.pathVersion) {
+			d.retired = true
+		}
+	}
+}
+
+// create follows CREATE TABLE. A CREATE TABLE of a name its schema
+// already holds is refused.
 func (s *scan) create(st *statement, v *ast.CreateStmt) {
+	if !v.IfNotExists && s.existsWhereCreated(v.Relation) {
+		s.stop()
+		return
+	}
 	s.createTable(st, v)
 	s.touch(v.Relation)
 	if v.TableElts == nil {
@@ -469,7 +555,7 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 			s.create(st, &c)
 		case *ast.ViewStmt:
 			s.touch(in(e.View))
-			s.reads(e.Query)
+			s.reads(in(e.View), e.Query)
 		case *ast.CreateSeqStmt:
 			s.touch(in(e.Sequence))
 		case *ast.IndexStmt:
@@ -875,6 +961,10 @@ func (s *scan) drop(v *ast.DropStmt) {
 		s.stop()
 		return
 	}
+	if kind == ast.OBJECT_FUNCTION || kind == ast.OBJECT_ROUTINE {
+		s.dropFunctions(v)
+		return
+	}
 	if kind == ast.OBJECT_SCHEMA && v.Objects != nil {
 		// Without CASCADE the schema must be empty; its name may then be
 		// created again.
@@ -888,7 +978,7 @@ func (s *scan) drop(v *ast.DropStmt) {
 	if !isRelationKind(kind) && kind != ast.OBJECT_TYPE || v.Objects == nil {
 		return
 	}
-	if !cascade && s.dropRefused(v) || !v.Missing_ok && s.dropsMissing(v) {
+	if !cascade && s.dropRefused(v) || !v.Missing_ok && s.dropsMissing(v) || s.dropsWrongKind(v) {
 		s.stop()
 		return
 	}
@@ -914,8 +1004,11 @@ func (s *scan) drop(v *ast.DropStmt) {
 		for _, p := range s.matching(rv) {
 			p.settled = true
 		}
-		if kind == ast.OBJECT_TABLE {
+		switch kind {
+		case ast.OBJECT_TABLE:
 			s.retireReferences(rv, "")
+		case ast.OBJECT_VIEW, ast.OBJECT_MATVIEW:
+			s.retire(s.newReads, tableRef{rv.Schemaname, rv.Relname})
 		}
 		s.dropOwned(rv, schema, resolved && relKind == kindTable)
 		if cascade {
@@ -930,6 +1023,85 @@ func (s *scan) drop(v *ast.DropStmt) {
 			}
 		}
 	}
+}
+
+// dropFunctions follows DROP FUNCTION: a synced function whose name the
+// scan resolves to one function, and a function the change created, no
+// longer hold the relation whose row type they return.
+func (s *scan) dropFunctions(v *ast.DropStmt) {
+	if v.Objects == nil {
+		return
+	}
+	for _, obj := range v.Objects.Items {
+		owa, ok := obj.(*ast.ObjectWithArgs)
+		if !ok {
+			continue
+		}
+		parts := nameParts(owa.Objname)
+		if len(parts) == 0 || len(parts) > 2 {
+			continue
+		}
+		fn := tableRef{table: parts[len(parts)-1]}
+		if len(parts) == 2 {
+			fn.schema = parts[0]
+		}
+		s.retire(s.newReturns, fn)
+		if s.index == nil {
+			continue
+		}
+		if fn.schema != "" {
+			if s.index.functions[fn] == 1 {
+				s.droppedFunctions[fn] = true
+			}
+			continue
+		}
+		path, ok := s.searchPath()
+		if !ok {
+			continue
+		}
+		// The server finds the first schema on the path with a function of
+		// that name; one function there is the one dropped.
+		for _, name := range path {
+			if n := s.index.functions[tableRef{name, fn.table}]; n > 0 {
+				if n == 1 {
+					s.droppedFunctions[tableRef{name, fn.table}] = true
+				}
+				break
+			}
+		}
+	}
+}
+
+// dropsWrongKind reports whether a DROP names a relation of another kind,
+// which the server refuses: DROP TABLE of a view, DROP VIEW of a table, or
+// DROP INDEX of the index a constraint owns.
+func (s *scan) dropsWrongKind(v *ast.DropStmt) bool {
+	kind := ast.ObjectType(v.RemoveType)
+	if s.index == nil || v.Objects == nil || !isRelationKind(kind) {
+		return false
+	}
+	for _, obj := range v.Objects.Items {
+		parts := nameParts(listOf(obj))
+		if len(parts) == 0 || len(parts) > 2 {
+			continue
+		}
+		rv := &ast.RangeVar{Relname: parts[len(parts)-1]}
+		if len(parts) == 2 {
+			rv.Schemaname = parts[0]
+		}
+		schema, relKind, ok := s.lookup(rv)
+		if !ok {
+			continue
+		}
+		table := relKind == kindTable || relKind == kindPartition
+		switch {
+		case kind == ast.OBJECT_TABLE && !table, kind != ast.OBJECT_TABLE && table:
+			return true
+		case kind == ast.OBJECT_INDEX && s.index.constraintIndexes[tableRef{schema, rv.Relname}]:
+			return true
+		}
+	}
+	return false
 }
 
 // dropsMissing reports whether a DROP without IF EXISTS names a relation
@@ -1015,8 +1187,13 @@ func (s *scan) dropRefused(v *ast.DropStmt) bool {
 		}
 	}
 	for _, t := range dropped {
-		if s.readByChange[[2]string{t.schema, t.table}] || s.readByChange[[2]string{"", t.table}] || s.index.returnedBy[t] {
+		if dependsOnNew(s.newReads, t) || dependsOnNew(s.newReturns, t) {
 			return true
+		}
+		for _, fn := range s.index.returnedBy[t] {
+			if !s.droppedFunctions[fn] {
+				return true
+			}
 		}
 		for _, view := range s.index.readers[t] {
 			if !s.freed[[2]string{view.schema, view.table}] && !slices.Contains(dropped, view) {

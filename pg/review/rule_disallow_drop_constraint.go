@@ -241,7 +241,7 @@ func (s *scan) dropColumn(cmd *ast.AlterTableCmd, t tableRef, cascade bool, out 
 		pkColumns = keyColumns(pk)
 	}
 	if !cascade && (s.index.referencesColumn(t, cmd.Name, s.dropped) || s.index.readsColumn[columnRef{t.schema, t.table, cmd.Name}] ||
-		s.newlyReferencedColumn(t, cmd.Name, pkColumns, pk != nil) || s.readByChange[[2]string{t.schema, t.table}] || s.readByChange[[2]string{"", t.table}]) {
+		s.newlyReferencedColumn(t, cmd.Name, pkColumns, pk != nil) || dependsOnNew(s.newReads, t)) {
 		return true
 	}
 	if pk == nil || !s.constraintKnown(t, pk.GetName()) {

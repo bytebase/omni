@@ -499,6 +499,47 @@ func TestRequirePrimaryKey(t *testing.T) {
 			targets: []review.Target{{Schema: withFunctionReturning(shop(), "public", "nokey"), SessionUser: "alice"}},
 		},
 		{
+			name:    "a CTE the view defines is not a relation it reads",
+			sql:     "CREATE VIEW v AS WITH t AS (SELECT 1 AS id) SELECT * FROM t;\nDROP TABLE public.t;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a view the change drops no longer reads the table",
+			sql:     "CREATE VIEW v AS SELECT * FROM public.t;\nDROP VIEW v;\nDROP TABLE public.t;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a function the change drops no longer returns the table",
+			sql:     "DROP FUNCTION f();\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withFunctionReturning(shop(), "public", "nokey"), SessionUser: "alice"}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a function the change creates returning the table blocks its drop",
+			sql:     "CREATE FUNCTION g() RETURNS SETOF nokey LANGUAGE sql AS 'SELECT * FROM nokey';\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name: "DROP TABLE of a view is refused",
+			sql:  "DROP TABLE v;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{
+				Name:  "public",
+				Views: []*metadata.ViewMetadata{{Name: "v"}},
+			})}},
+		},
+		{
+			name:    "DROP INDEX of a constraint's index is refused",
+			sql:     "DROP INDEX t_pkey;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE of a name the schema holds is refused",
+			sql:     "CREATE TABLE nokey (a int);\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
 			name:    "a cascading drop of a parent may drop a child",
 			sql:     "CREATE TABLE child (x int) INHERITS (nokey);\nCREATE TABLE other (x int);\nDROP TABLE nokey CASCADE;",
 			targets: one,
@@ -706,6 +747,13 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: one,
 			want:    []targetFinding{{0, "UPDATE n SET id = 1 WHERE id = 2", "prior backup runs before the change, when n does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a table of a schema named after its owner",
+			sql:     "CREATE SCHEMA AUTHORIZATION bob CREATE TABLE t (id int);\nUPDATE bob.t SET id = 1 WHERE id = 2;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "UPDATE bob.t SET id = 1 WHERE id = 2", "prior backup runs before the change, when bob.t does not exist yet", []int{0}}},
 		},
 		{
 			name:    "a table the change recreates still exists when the backup runs",
