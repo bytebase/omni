@@ -50,6 +50,14 @@ func TestEventTriggerEventsAgainstPostgres(t *testing.T) {
 		"ALTER TABLE ev_t ALTER COLUMN x DROP DEFAULT",
 		"ALTER TABLE ev_t ALTER COLUMN a TYPE bigint",
 		"ALTER TABLE ev_t ALTER COLUMN x SET STATISTICS 100",
+		"ALTER TABLE ev_t ADD COLUMN e int DEFAULT 5",
+		"CREATE DOMAIN ev_pos AS int CHECK (VALUE > 0)",
+		"ALTER TABLE ev_t ADD COLUMN f ev_pos",
+		"ALTER TABLE ev_t ADD COLUMN g int GENERATED ALWAYS AS (x * 2) STORED",
+		"ALTER TABLE ev_t ADD COLUMN h int GENERATED ALWAYS AS IDENTITY",
+		"ALTER TABLE ev_t ADD COLUMN i text NOT NULL, ADD COLUMN j varchar(10) COLLATE \"C\", ADD COLUMN k int[], ADD COLUMN l pg_catalog.int8",
+		"ALTER TABLE ev_t SET UNLOGGED",
+		"ALTER TABLE ev_t SET LOGGED",
 		"ALTER TABLE ev_t OWNER TO CURRENT_USER",
 		"ALTER TABLE ev_t VALIDATE CONSTRAINT ev_chk",
 		"ALTER TABLE ev_t ENABLE ROW LEVEL SECURITY",
@@ -114,6 +122,39 @@ func TestEventTriggerEventsAgainstPostgres(t *testing.T) {
 		}
 		if raised["table_rewrite"] && !mayRewrite(n) {
 			t.Errorf("%s raised table_rewrite, which the scan does not expect", sql)
+		}
+	}
+}
+
+// TestEventTriggerClassification pins the statements the scan expects
+// not to raise sql_drop or table_rewrite, which
+// TestEventTriggerEventsAgainstPostgres runs on the server.
+func TestEventTriggerClassification(t *testing.T) {
+	for _, c := range []struct {
+		sql             string
+		drops, rewrites bool
+	}{
+		{"ALTER TABLE ev_t ADD COLUMN a int", false, false},
+		{`ALTER TABLE ev_t ADD COLUMN i text NOT NULL, ADD COLUMN j varchar(10) COLLATE "C", ADD COLUMN k int[], ADD COLUMN l pg_catalog.int8`, false, false},
+		{"ALTER TABLE ev_t ADD CONSTRAINT ev_fk FOREIGN KEY (p_id) REFERENCES ev_p", false, false},
+		{"ALTER TABLE ev_t ALTER COLUMN x SET DEFAULT 3, ADD COLUMN d int", false, false},
+		{"ALTER TABLE ev_t ALTER COLUMN x DROP DEFAULT", true, false},
+		{"ALTER TABLE ev_s.ev_t2 DROP COLUMN aa", true, false},
+		{"ALTER TABLE ev_t ADD COLUMN e int DEFAULT 5", false, true},
+		{"ALTER TABLE ev_t ADD COLUMN f ev_pos", false, true},
+		{"ALTER TABLE ev_t ALTER COLUMN a TYPE bigint", true, true},
+		{"ALTER TABLE ev_t SET LOGGED", true, true},
+		{"ALTER TABLE ev_t RENAME TO ev_t2", false, false},
+	} {
+		stmts, finding := parse(c.sql, statementRanges(c.sql))
+		if finding != nil || len(stmts) != 1 {
+			t.Fatalf("%s: parse: %v", c.sql, finding)
+		}
+		if got := mayDrop(stmts[0].node); got != c.drops {
+			t.Errorf("mayDrop(%s) = %v, want %v", c.sql, got, c.drops)
+		}
+		if got := mayRewrite(stmts[0].node); got != c.rewrites {
+			t.Errorf("mayRewrite(%s) = %v, want %v", c.sql, got, c.rewrites)
 		}
 	}
 }

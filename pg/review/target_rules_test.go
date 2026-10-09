@@ -60,6 +60,15 @@ func withFunctionReturning(db *metadata.DatabaseSchemaMetadata, schema, table st
 	return db
 }
 
+func withNoArgFunctionReturning(db *metadata.DatabaseSchemaMetadata, schema, table string) *metadata.DatabaseSchemaMetadata {
+	for _, s := range db.Schemas {
+		if s.Name == schema {
+			s.Functions = append(s.Functions, &metadata.FunctionMetadata{Name: "f", Signature: "f()", DependencyTables: []*metadata.DependencyTable{{Schema: schema, Table: table}}})
+		}
+	}
+	return db
+}
+
 func withView(db *metadata.DatabaseSchemaMetadata, schema, view string) *metadata.DatabaseSchemaMetadata {
 	for _, s := range db.Schemas {
 		if s.Name == schema {
@@ -1103,6 +1112,65 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE TABLE of a type the change made",
 			sql:     "CREATE DOMAIN d AS int;\nCREATE TABLE d (id int);",
 			targets: one,
+		},
+		{
+			name:    "a table_rewrite event trigger does not fire on ADD COLUMN of a plain column",
+			sql:     "ALTER TABLE t ADD COLUMN x int, ADD COLUMN y text[];\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withEvent(shop(), "TABLE_REWRITE"), SessionUser: "alice"}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a table_rewrite event trigger fires on ADD COLUMN with a default",
+			sql:     "ALTER TABLE t ADD COLUMN x int DEFAULT random()::int;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withEvent(shop(), "TABLE_REWRITE"), SessionUser: "alice"}},
+		},
+		{
+			name:    "a table_rewrite event trigger fires on a column type change",
+			sql:     "ALTER TABLE t ALTER COLUMN n TYPE bigint;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withEvent(shop(), "TABLE_REWRITE"), SessionUser: "alice"}},
+		},
+		{
+			name:    "DROP FUNCTION IF EXISTS of a function the change made, by its arguments",
+			sql:     "CREATE FUNCTION public.f(public.nokey) RETURNS integer LANGUAGE sql AS 'SELECT 1';\nDROP FUNCTION IF EXISTS public.f(public.nokey);\nDROP TABLE public.nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a view the change made follows the table it reads through a rename",
+			sql:     "CREATE VIEW public.v AS SELECT * FROM public.nokey;\nALTER TABLE public.nokey RENAME TO u;\nDROP TABLE public.u;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name: "a synced view follows the table it reads through a rename",
+			sql:  "ALTER TABLE base RENAME TO u;\nDROP TABLE u;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{
+				Name:   "public",
+				Tables: []*metadata.TableMetadata{table("base", "id integer")},
+				Views:  []*metadata.ViewMetadata{{Name: "v", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "base", Column: "id"}}}},
+			})}},
+		},
+		{
+			name:    "a renamed table without dependents drops",
+			sql:     "ALTER TABLE nokey RENAME TO u;\nDROP TABLE u;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a cascading DROP TABLE IF EXISTS of a missing table settles nothing",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_pkey CASCADE;\nDROP TABLE IF EXISTS public.missing CASCADE;",
+			targets: one,
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_pkey CASCADE", "removes the primary key of t, and the change adds none back", []int{0}}},
+		},
+		{
+			name:    "CREATE OR REPLACE FUNCTION redefines a synced function without arguments",
+			sql:     "CREATE OR REPLACE FUNCTION public.f() RETURNS integer LANGUAGE sql RETURN 1;\nDROP TABLE public.nokey;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withNoArgFunctionReturning(shop(), "public", "nokey"), SessionUser: "alice"}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE OR REPLACE FUNCTION with arguments may add an overload",
+			sql:     "CREATE OR REPLACE FUNCTION public.f(int) RETURNS integer LANGUAGE sql RETURN 1;\nDROP TABLE public.nokey;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withNoArgFunctionReturning(shop(), "public", "nokey"), SessionUser: "alice"}},
 		},
 		{
 			name: "a cascade does not go past a view the change replaced",

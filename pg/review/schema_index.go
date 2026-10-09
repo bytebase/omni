@@ -31,6 +31,9 @@ type schemaIndex struct {
 	// the (schema, name) of every function and procedure.
 	extensions   map[string]bool
 	routineNames map[tableRef]bool
+	// noArgs marks the functions, by (schema, name), whose signature takes
+	// no arguments.
+	noArgs map[tableRef]bool
 }
 
 // namespace is one schema: the kind of every name in its relation
@@ -89,6 +92,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		constraintIndexes: make(map[tableRef]bool),
 		extensions:        make(map[string]bool),
 		routineNames:      make(map[tableRef]bool),
+		noArgs:            make(map[tableRef]bool),
 	}
 	for _, e := range db.GetExtensions() {
 		idx.extensions[e.GetName()] = true
@@ -155,6 +159,9 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 			fn := tableRef{s.GetName(), f.GetName()}
 			idx.routineNames[fn] = true
 			idx.functions[fn]++
+			if f.GetSignature() == f.GetName()+"()" {
+				idx.noArgs[fn] = true
+			}
 			for _, d := range f.GetDependencyTables() {
 				t := tableRef{d.GetSchema(), d.GetTable()}
 				idx.returnedBy[t] = append(idx.returnedBy[t], fn)

@@ -95,8 +95,15 @@ type scan struct {
 	droppedFunctions map[tableRef]bool
 	newFunctions     map[tableRef]int
 	// madeRoutines lists the names the change gave a routine by creating,
-	// renaming, or moving one.
-	madeRoutines map[string]bool
+	// renaming, or moving one, movedRoutines the names it took one from by
+	// renaming or moving it, and replacedFunctions the synced functions,
+	// by (schema, name), CREATE OR REPLACE redefined.
+	madeRoutines      map[string]bool
+	movedRoutines     map[string]bool
+	replacedFunctions map[tableRef]bool
+	// renamedFrom maps a name a rename gave a relation the scan resolved
+	// to the relation, while no statement used the name since.
+	renamedFrom map[string]renamedRelation
 	// replacedViews lists the synced views CREATE OR REPLACE VIEW
 	// redefined, whose synced reads no longer hold, and reowned the
 	// sequences, by name, whose owner ALTER SEQUENCE changed.
@@ -141,9 +148,13 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		droppedFunctions: make(map[tableRef]bool),
 		newFunctions:     make(map[tableRef]int),
 		madeRoutines:     make(map[string]bool),
+		movedRoutines:    make(map[string]bool),
+		renamedFrom:      make(map[string]renamedRelation),
 		replacedViews:    make(map[tableRef]bool),
 		reowned:          make(map[[2]string]bool),
 		newKeys:          make(map[[2]string]bool),
+
+		replacedFunctions: make(map[tableRef]bool),
 	}
 	if target.Schema != nil {
 		s.index = newSchemaIndex(target.Schema)
@@ -302,13 +313,72 @@ func keepsObjects(cmd *ast.AlterTableCmd) bool {
 }
 
 // mayRewrite reports whether a DDL statement may rewrite a table, which
-// raises table_rewrite: an ALTER TABLE of any kind of relation or ALTER
+// raises table_rewrite: an ALTER TABLE with a subcommand that may, ALTER
 // TYPE, or a statement the scan does not name.
 func mayRewrite(n ast.Node) bool {
-	if _, ok := n.(*ast.AlterTableStmt); ok {
+	v, ok := n.(*ast.AlterTableStmt)
+	if !ok {
+		return commandTag(n) == ""
+	}
+	if ast.ObjectType(v.ObjType) == ast.OBJECT_TYPE || v.Cmds == nil {
+		return ast.ObjectType(v.ObjType) == ast.OBJECT_TYPE
+	}
+	for _, item := range v.Cmds.Items {
+		cmd, ok := item.(*ast.AlterTableCmd)
+		if !ok || !keepsRows(cmd) {
+			return true
+		}
+	}
+	return false
+}
+
+// keepsRows reports whether an ALTER TABLE subcommand never rewrites the
+// table: one that changes only the catalog or scans the rows, or ADD
+// COLUMN of a plain column.
+//
+// pg: src/backend/commands/tablecmds.c — ATExecAddColumn, ATRewriteTables
+func keepsRows(cmd *ast.AlterTableCmd) bool {
+	switch ast.AlterTableType(cmd.Subtype) {
+	case ast.AT_AddColumn:
+		cd, ok := cmd.Def.(*ast.ColumnDef)
+		return ok && plainColumn(cd)
+	case ast.AT_AddConstraint, ast.AT_AddIndexConstraint, ast.AT_SetNotNull, ast.AT_DropNotNull, ast.AT_ColumnDefault,
+		ast.AT_SetStatistics, ast.AT_ChangeOwner, ast.AT_ValidateConstraint, ast.AT_EnableRowSecurity, ast.AT_DisableRowSecurity,
+		ast.AT_DropConstraint, ast.AT_DropColumn:
 		return true
 	}
-	return commandTag(n) == ""
+	return false
+}
+
+// plainColumn reports whether adding a column leaves the rows as they
+// are: a built-in type, which no domain constraint checks, and no
+// default, identity, or generation expression, which the server may
+// compute for every row.
+func plainColumn(cd *ast.ColumnDef) bool {
+	if cd.RawDefault != nil || cd.CookedDefault != nil || cd.Identity != 0 || cd.Generated != 0 || cd.TypeName == nil {
+		return false
+	}
+	for _, c := range constraintsOf(cd.Constraints) {
+		switch c.Contype {
+		case ast.CONSTR_DEFAULT, ast.CONSTR_IDENTITY, ast.CONSTR_GENERATED:
+			return false
+		}
+	}
+	parts := nameParts(cd.TypeName.Names)
+	if len(parts) == 2 && parts[0] == "pg_catalog" {
+		parts = parts[1:]
+	}
+	return len(parts) == 1 && builtinTypes[parts[0]]
+}
+
+// builtinTypes are the names of common built-in scalar types.
+var builtinTypes = map[string]bool{
+	"bool": true, "boolean": true, "int2": true, "smallint": true, "int4": true, "int": true, "integer": true,
+	"int8": true, "bigint": true, "float4": true, "real": true, "float8": true, "numeric": true, "decimal": true,
+	"text": true, "varchar": true, "bpchar": true, "char": true, "name": true, "bytea": true, "uuid": true,
+	"date": true, "time": true, "timetz": true, "timestamp": true, "timestamptz": true, "interval": true,
+	"json": true, "jsonb": true, "xml": true, "inet": true, "cidr": true, "macaddr": true, "money": true,
+	"bit": true, "varbit": true, "oid": true, "tsvector": true, "tsquery": true,
 }
 
 // commandTag is the command tag of a statement, as an event trigger's tag
@@ -782,6 +852,9 @@ func (s *scan) returns(v *ast.CreateFunctionStmt) {
 		object.schema = fn[len(fn)-2]
 	}
 	s.newFunctions[object]++
+	if v.IsOrReplace {
+		s.replaces(v, object)
+	}
 	s.madeRoutines[object.table] = true
 	// The result type and every parameter's type may be a row type.
 	types := []*ast.TypeName{v.ReturnType}
@@ -822,6 +895,29 @@ func (s *scan) returns(v *ast.CreateFunctionStmt) {
 			rv.Schemaname = parts[0]
 		}
 		s.newReturns = append(s.newReturns, newDependency{relation: tableRef{s.schemaOf(rv), rv.Relname}, object: object, path: s.pathVersion})
+	}
+}
+
+// replaces records a CREATE OR REPLACE FUNCTION that certainly redefines
+// a synced function: the only one of its name where the statement creates
+// it, which, like the statement, takes no arguments, and no routine of
+// the change has had the name. The synced function's dependencies are
+// then the statement's.
+func (s *scan) replaces(v *ast.CreateFunctionStmt, object tableRef) {
+	if s.index == nil || s.madeRoutines[object.table] || s.movedRoutines[object.table] {
+		return
+	}
+	if v.Parameters != nil {
+		for _, item := range v.Parameters.Items {
+			if p, ok := item.(*ast.FunctionParameter); !ok || p.Mode != ast.FUNC_PARAM_OUT && p.Mode != ast.FUNC_PARAM_TABLE {
+				return
+			}
+		}
+	}
+	schema, ok := s.creationSchema(&ast.RangeVar{Schemaname: object.schema, Relname: object.table})
+	fn := tableRef{schema, object.table}
+	if ok && s.index.functions[fn] == 1 && s.index.noArgs[fn] && !s.droppedFunctions[fn] {
+		s.replacedFunctions[fn] = true
 	}
 }
 
@@ -1511,8 +1607,13 @@ func isRelationKind(t ast.ObjectType) bool {
 func (s *scan) rename(v *ast.RenameStmt) {
 	switch {
 	case isRelationKind(v.RenameType) && v.Relation != nil:
+		schema, _, resolved := s.lookup(v.Relation)
+		s.followRename(v.Relation, v.Newname)
 		s.touchName(v.Relation.Schemaname, v.Relation.Relname)
 		s.touchName(v.Relation.Schemaname, v.Newname)
+		if resolved {
+			s.renamedFrom[v.Newname] = renamedRelation{tableRef{schema, v.Relation.Relname}, s.lastTouch[v.Newname]}
+		}
 		for _, p := range s.matching(v.Relation) {
 			// A rename naming the table's own known schema is that table's;
 			// otherwise it may be another table of that name.
@@ -1560,6 +1661,47 @@ func (s *scan) rename(v *ast.RenameStmt) {
 	}
 }
 
+// renamedRelation is a relation of the synced schema a rename gave a new
+// name, and made numbers the touch that gave it.
+type renamedRelation struct {
+	relation tableRef
+	made     int
+}
+
+// renamedAway returns the synced relation a name a rename gave may mean,
+// while no statement used the name since.
+func (s *scan) renamedAway(rv *ast.RangeVar) (tableRef, bool) {
+	r, ok := s.renamedFrom[rv.Relname]
+	if !ok || s.lastTouch[rv.Relname] != r.made || rv.Schemaname != "" && rv.Schemaname != r.relation.schema {
+		return tableRef{}, false
+	}
+	return r.relation, true
+}
+
+// followRename records that what the change's own objects depend on keeps
+// depending on a relation under its new name: each dependency on a
+// relation the renamed one may be is copied to the new name.
+func (s *scan) followRename(rv *ast.RangeVar, name string) {
+	schema := s.schemaOf(rv)
+	may := func(t tableRef) bool {
+		return t.table == rv.Relname && (t.schema == "" || schema == "" || t.schema == schema)
+	}
+	for _, deps := range []*[]newDependency{&s.newReads, &s.newReturns} {
+		for i, n := 0, len(*deps); i < n; i++ {
+			if d := (*deps)[i]; !d.retired && may(d.relation) {
+				d.relation.table = name
+				*deps = append(*deps, d)
+			}
+		}
+	}
+	for i, n := 0, len(s.newReferences); i < n; i++ {
+		if r := s.newReferences[i]; !r.retired && may(tableRef{r.schema, r.table}) {
+			r.table = name
+			s.newReferences = append(s.newReferences, r)
+		}
+	}
+}
+
 // setSchema follows SET SCHEMA. A pending table it may be can then be in
 // any schema.
 func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
@@ -1584,6 +1726,7 @@ func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 		if owa, ok := v.Object.(*ast.ObjectWithArgs); ok {
 			if parts := nameParts(owa.Objname); len(parts) > 0 {
 				s.madeRoutines[parts[len(parts)-1]] = true
+				s.movedRoutines[parts[len(parts)-1]] = true
 			}
 		}
 	case v.ObjectType == ast.OBJECT_EXTENSION:
@@ -1650,6 +1793,7 @@ func (s *scan) drop(v *ast.DropStmt) {
 		s.stop()
 		return
 	}
+	dropsAny := false
 	for _, obj := range v.Objects.Items {
 		parts := nameParts(listOf(obj))
 		if len(parts) == 0 {
@@ -1670,6 +1814,7 @@ func (s *scan) drop(v *ast.DropStmt) {
 			s.touch(rv)
 			schema = ""
 		}
+		dropsAny = true
 		if kind == ast.OBJECT_INDEX {
 			s.renamedKeys[rv.Relname] = true
 		}
@@ -1690,7 +1835,7 @@ func (s *scan) drop(v *ast.DropStmt) {
 			}
 		}
 	}
-	if cascade && (kind == ast.OBJECT_TABLE || kind == ast.OBJECT_FOREIGN_TABLE) {
+	if cascade && dropsAny && (kind == ast.OBJECT_TABLE || kind == ast.OBJECT_FOREIGN_TABLE) {
 		// An inheritance child of a dropped table goes with it. The synced
 		// schema records no inheritance, so a table of it may be a child.
 		dropped := make(map[string]bool)
@@ -1711,10 +1856,7 @@ func (s *scan) drop(v *ast.DropStmt) {
 // scan resolves to one function, and a function the change created, no
 // longer hold the relation whose row type they return.
 func (s *scan) dropFunctions(v *ast.DropStmt) {
-	// IF EXISTS may name a signature no function has, and then drops
-	// nothing; without it, a signature that does not match fails the
-	// statement.
-	if v.Objects == nil || v.Missing_ok {
+	if v.Objects == nil {
 		return
 	}
 	for _, obj := range v.Objects.Items {
@@ -1730,10 +1872,14 @@ func (s *scan) dropFunctions(v *ast.DropStmt) {
 		if len(parts) == 2 {
 			fn.schema = parts[0]
 		}
-		// A routine the target certainly lacks is not there to drop.
+		// A routine the target certainly lacks is not there to drop; IF
+		// EXISTS then drops nothing.
 		if s.routineMissing(fn) {
-			s.stop()
-			return
+			if !v.Missing_ok {
+				s.stop()
+				return
+			}
+			continue
 		}
 		// A function is retired only when the statement leaves no choice
 		// of which one it drops: an argument list matching the one the
@@ -1746,7 +1892,10 @@ func (s *scan) dropFunctions(v *ast.DropStmt) {
 				s.retireSignature(fn, argSignature(owa.Objargs))
 			}
 		}
-		if s.index == nil || s.newFunctions[fn] > 0 || !owa.ArgsUnspecified {
+		// A synced function is certainly dropped only by its name alone,
+		// when no routine of the change has the name and none moved away
+		// from it.
+		if s.index == nil || s.madeRoutines[fn.table] || s.movedRoutines[fn.table] || !owa.ArgsUnspecified {
 			continue
 		}
 		if fn.schema != "" {
@@ -1824,6 +1973,7 @@ func (s *scan) renameRoutine(v *ast.RenameStmt) {
 	if len(parts) == 0 || len(parts) > 2 {
 		return
 	}
+	s.movedRoutines[parts[len(parts)-1]] = true
 	fn := tableRef{table: parts[len(parts)-1]}
 	if len(parts) == 2 {
 		fn.schema = parts[0]
@@ -2094,6 +2244,9 @@ func (s *scan) dropRefused(v *ast.DropStmt) bool {
 		written = append(written, tableRef{rv.Schemaname, rv.Relname})
 		if schema, _, ok := s.lookup(rv); ok {
 			dropped = append(dropped, tableRef{schema, rv.Relname})
+		} else if t, ok := s.renamedAway(rv); ok {
+			// What depends on a renamed relation still does.
+			dropped = append(dropped, t)
 		}
 	}
 	for _, t := range dropped {
@@ -2102,7 +2255,7 @@ func (s *scan) dropRefused(v *ast.DropStmt) bool {
 			return true
 		}
 		for _, fn := range s.index.returnedBy[t] {
-			if !s.droppedFunctions[fn] {
+			if !s.droppedFunctions[fn] && !s.replacedFunctions[fn] {
 				return true
 			}
 		}
