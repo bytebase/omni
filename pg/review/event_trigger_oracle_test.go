@@ -60,6 +60,7 @@ func TestEventTriggerEventsAgainstPostgres(t *testing.T) {
 		"ALTER TABLE ev_t ADD COLUMN g int GENERATED ALWAYS AS (x * 2) STORED",
 		"ALTER TABLE ev_t ADD COLUMN h int GENERATED ALWAYS AS IDENTITY",
 		"ALTER TABLE ev_t ADD COLUMN i text NOT NULL, ADD COLUMN j varchar(10) COLLATE \"C\", ADD COLUMN k int[], ADD COLUMN l pg_catalog.int8",
+		"ALTER TABLE ev_t DISABLE TRIGGER ALL, ENABLE TRIGGER USER",
 		"ALTER TABLE ev_t SET UNLOGGED",
 		"ALTER TABLE ev_t SET LOGGED",
 		"ALTER TABLE ev_t OWNER TO CURRENT_USER",
@@ -169,6 +170,7 @@ func TestEventTriggerClassification(t *testing.T) {
 		{"ALTER TABLE ev_t ALTER COLUMN a TYPE bigint", true, true},
 		{"ALTER TABLE ev_t SET LOGGED", true, true},
 		{"ALTER TABLE ev_t RENAME TO ev_t2", false, false},
+		{"ALTER TABLE ev_t DISABLE TRIGGER ALL, ENABLE TRIGGER USER", false, false},
 	} {
 		stmts, finding := parse(c.sql, statementRanges(c.sql))
 		if finding != nil || len(stmts) != 1 {

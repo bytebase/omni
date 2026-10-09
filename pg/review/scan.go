@@ -335,7 +335,7 @@ func keepsObjects(cmd *ast.AlterTableCmd) bool {
 		// SET DEFAULT replaces; DROP DEFAULT drops.
 		return cmd.Def != nil
 	}
-	return false
+	return togglesTriggers(cmd)
 }
 
 // mayRewrite reports whether a DDL statement may rewrite a table, which
@@ -371,6 +371,17 @@ func keepsRows(cmd *ast.AlterTableCmd) bool {
 	case ast.AT_AddConstraint, ast.AT_AddIndexConstraint, ast.AT_SetNotNull, ast.AT_DropNotNull, ast.AT_ColumnDefault,
 		ast.AT_SetStatistics, ast.AT_ChangeOwner, ast.AT_ValidateConstraint, ast.AT_EnableRowSecurity, ast.AT_DisableRowSecurity,
 		ast.AT_DropConstraint, ast.AT_DropColumn:
+		return true
+	}
+	return togglesTriggers(cmd)
+}
+
+// togglesTriggers reports whether an ALTER TABLE subcommand enables or
+// disables triggers, which changes only the catalog.
+func togglesTriggers(cmd *ast.AlterTableCmd) bool {
+	switch ast.AlterTableType(cmd.Subtype) {
+	case ast.AT_EnableTrig, ast.AT_EnableAlwaysTrig, ast.AT_EnableReplicaTrig, ast.AT_DisableTrig,
+		ast.AT_EnableTrigAll, ast.AT_DisableTrigAll, ast.AT_EnableTrigUser, ast.AT_DisableTrigUser:
 		return true
 	}
 	return false
@@ -511,6 +522,46 @@ func commandTag(n ast.Node) string {
 	return ""
 }
 
+// createdIn returns the schema a CREATE of a routine, a type, or a table
+// by query writes its object's name in, or "".
+func createdIn(n ast.Node) string {
+	var parts []string
+	switch v := n.(type) {
+	case *ast.CreateFunctionStmt:
+		parts = nameParts(v.Funcname)
+	case *ast.CreateEnumStmt:
+		parts = nameParts(v.TypeName)
+	case *ast.CreateDomainStmt:
+		parts = nameParts(v.Domainname)
+	case *ast.CreateRangeStmt:
+		parts = nameParts(v.TypeName)
+	case *ast.DefineStmt:
+		if v.Kind == ast.OBJECT_TYPE {
+			parts = nameParts(v.Defnames)
+		}
+	case *ast.CompositeTypeStmt:
+		if v.Typevar != nil {
+			return v.Typevar.Schemaname
+		}
+	case *ast.CreateForeignTableStmt:
+		if v.Base.Relation != nil {
+			return v.Base.Relation.Schemaname
+		}
+	case *ast.CreateTableAsStmt:
+		if v.Into != nil && v.Into.Rel != nil {
+			return v.Into.Rel.Schemaname
+		}
+	case *ast.SelectStmt:
+		if into := intoOf(v); into != nil && into.Rel != nil {
+			return into.Rel.Schemaname
+		}
+	}
+	if len(parts) == 2 {
+		return parts[0]
+	}
+	return ""
+}
+
 // isProcedure reports whether CREATE FUNCTION is CREATE PROCEDURE, which
 // the parser marks with an option.
 func isProcedure(v *ast.CreateFunctionStmt) bool {
@@ -530,6 +581,11 @@ func (s *scan) stop() {
 }
 
 func (s *scan) statement(st *statement) {
+	// A CREATE in a schema that certainly does not exist is refused.
+	if schema := createdIn(st.node); schema != "" && s.schemaMissing(&ast.RangeVar{Schemaname: schema}) {
+		s.stop()
+		return
+	}
 	switch v := st.node.(type) {
 	case *ast.AlterTableStmt:
 		s.alterTable(st, v)
@@ -1092,7 +1148,7 @@ func (s *scan) create(st *statement, v *ast.CreateStmt) {
 		// IF NOT EXISTS of an existing table does nothing.
 		return
 	}
-	if duplicateColumns(v) || s.sourceRefused(v) {
+	if duplicateNames(v) || s.sourceRefused(v) || s.keyNameTaken(v) {
 		s.stop()
 		return
 	}
@@ -1403,6 +1459,9 @@ func (s *scan) referencesRefused(v *ast.CreateStmt) (refused, uncertain bool) {
 	}
 	own, fks, complete := defOf(v)
 	for _, fk := range fks {
+		if hasDuplicate(nameParts(fk.c.FkAttrs)) {
+			return true, false
+		}
 		if fk.column == "" && complete && slices.ContainsFunc(nameParts(fk.c.FkAttrs), func(c string) bool { return !own.columns[c] }) {
 			return true, false
 		}
@@ -1501,6 +1560,19 @@ func (s *scan) sourceRefused(v *ast.CreateStmt) bool {
 			return true
 		}
 	}
+	// OF names a composite type, which the snapshot lists as a relation.
+	if v.OfTypename != nil {
+		parts := nameParts(v.OfTypename.Names)
+		if len(parts) == 1 || len(parts) == 2 {
+			rv := &ast.RangeVar{Relname: parts[len(parts)-1]}
+			if len(parts) == 2 {
+				rv.Schemaname = parts[0]
+			}
+			if _, kind, ok := s.lookup(rv); ok && kind != kindCompositeType || !ok && s.missing(rv) {
+				return true
+			}
+		}
+	}
 	for _, rv := range parents {
 		if _, kind, ok := s.lookup(rv); ok && (kind == kindView || kind == kindMatView || kind == kindSequence || kind == kindIndex || kind == kindCompositeType) {
 			return true
@@ -1514,20 +1586,69 @@ func (s *scan) sourceRefused(v *ast.CreateStmt) bool {
 	return false
 }
 
-// duplicateColumns reports whether CREATE TABLE names a column twice,
-// which the server refuses. A column LIKE or INHERITS brings may merge
-// with one the statement names.
-func duplicateColumns(v *ast.CreateStmt) bool {
+// duplicateNames reports whether CREATE TABLE names a column, or a
+// constraint, twice, which the server refuses. A column LIKE or INHERITS
+// brings may merge with one the statement names.
+func duplicateNames(v *ast.CreateStmt) bool {
 	if v.TableElts == nil {
 		return false
 	}
-	seen := make(map[string]bool)
-	for _, item := range v.TableElts.Items {
-		if cd, ok := item.(*ast.ColumnDef); ok {
-			if seen[cd.Colname] {
+	columns := make(map[string]bool)
+	constraints := make(map[string]bool)
+	named := func(cs []*ast.Constraint) bool {
+		for _, c := range cs {
+			if c.Conname == "" {
+				continue
+			}
+			if constraints[c.Conname] {
 				return true
 			}
-			seen[cd.Colname] = true
+			constraints[c.Conname] = true
+		}
+		return false
+	}
+	for _, item := range v.TableElts.Items {
+		switch e := item.(type) {
+		case *ast.ColumnDef:
+			if columns[e.Colname] || named(constraintsOf(e.Constraints)) {
+				return true
+			}
+			columns[e.Colname] = true
+		case *ast.Constraint:
+			if named([]*ast.Constraint{e}) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// keyNameTaken reports whether a key CREATE TABLE names takes for its
+// index a name its schema certainly holds: the table's own, or a
+// relation's the synced schema or the change has.
+func (s *scan) keyNameTaken(v *ast.CreateStmt) bool {
+	if s.index == nil || v.TableElts == nil || v.Relation == nil {
+		return false
+	}
+	schema := v.Relation.Schemaname
+	if schema == "" {
+		schema, _ = s.creationSchema(v.Relation)
+	}
+	for _, item := range v.TableElts.Items {
+		var cs []*ast.Constraint
+		switch e := item.(type) {
+		case *ast.ColumnDef:
+			cs = constraintsOf(e.Constraints)
+		case *ast.Constraint:
+			cs = []*ast.Constraint{e}
+		}
+		for _, c := range cs {
+			if !makesIndex(c) || c.Conname == "" {
+				continue
+			}
+			if c.Conname == v.Relation.Relname || schema != "" && (s.nameTaken(schema, c.Conname) || s.madeHere(&ast.RangeVar{Schemaname: schema, Relname: c.Conname})) {
+				return true
+			}
 		}
 	}
 	return false
@@ -2019,6 +2140,11 @@ func (s *scan) rename(v *ast.RenameStmt) {
 		s.constraints[[3]string{schema, v.Relation.Relname, v.Subname}] = true
 		s.constraints[[3]string{schema, v.Relation.Relname, v.Newname}] = true
 	case v.RenameType == ast.OBJECT_COLUMN && v.Relation != nil:
+		// A known table must have the column, and not the new name.
+		if t, ok := s.table(v.Relation); ok && (!s.hasColumn(t, v.Subname) || s.hasColumn(t, v.Newname)) {
+			s.stop()
+			return
+		}
 		schema := s.schemaOf(v.Relation)
 		s.setColumn(schema, v.Relation.Relname, v.Subname, false, false)
 		s.setColumn(schema, v.Relation.Relname, v.Newname, true, true)

@@ -698,11 +698,9 @@ func (s *scan) refusesReference(t tableRef, c *ast.Constraint, own func(string) 
 	if len(columns) > 0 && len(columns) != local {
 		return true, false
 	}
-	// No key has a column twice.
-	for i, column := range columns {
-		if slices.Contains(columns[:i], column) {
-			return true, false
-		}
+	// No key has a column twice, and no foreign key names one twice.
+	if hasDuplicate(columns) || hasDuplicate(nameParts(c.FkAttrs)) {
+		return true, false
 	}
 	if s.missing(c.Pktable) {
 		return true, false
@@ -812,6 +810,16 @@ func (s *scan) indexNameTaken(t tableRef, name string, droppedColumns, droppedCo
 		}
 	}
 	return true, true
+}
+
+// hasDuplicate reports whether a list names something twice.
+func hasDuplicate(names []string) bool {
+	for i, name := range names {
+		if slices.Contains(names[:i], name) {
+			return true
+		}
+	}
+	return false
 }
 
 // isKey reports whether a synced table's index is a key a foreign key can

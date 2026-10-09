@@ -21,8 +21,8 @@ type schemaIndex struct {
 	readers     map[tableRef][]tableRef
 	readsColumn map[columnRef][]tableRef
 	// returnedBy maps a relation to the functions, by (schema, name), that
-	// return its row type, and functions counts the functions of each
-	// (schema, name).
+	// return its row type, and functions counts the functions and
+	// procedures of each (schema, name).
 	returnedBy map[tableRef][]tableRef
 	functions  map[tableRef]int
 	// constraintIndexes marks the indexes a constraint owns.
@@ -160,7 +160,9 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		}
 		ns.routines = len(s.GetFunctions()) + len(s.GetProcedures())
 		for _, p := range s.GetProcedures() {
-			idx.routineNames[tableRef{s.GetName(), p.GetName()}] = true
+			fn := tableRef{s.GetName(), p.GetName()}
+			idx.routineNames[fn] = true
+			idx.functions[fn]++
 		}
 		for _, f := range s.GetFunctions() {
 			fn := tableRef{s.GetName(), f.GetName()}

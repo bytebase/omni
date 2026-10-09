@@ -85,6 +85,13 @@ func withGenerated() *metadata.DatabaseSchemaMetadata {
 	return database("public", schema("public", g))
 }
 
+// withCompositeKey is a database with table k(id, code), unique on both.
+func withCompositeKey() *metadata.DatabaseSchemaMetadata {
+	k := table("k", "id integer", "code text")
+	k.Indexes = append(k.Indexes, &metadata.IndexMetadata{Name: "k_key", Expressions: []string{"id", "code"}, Unique: true, IsConstraint: true})
+	return database("public", schema("public", k))
+}
+
 func withView(db *metadata.DatabaseSchemaMetadata, schema, view string) *metadata.DatabaseSchemaMetadata {
 	for _, s := range db.Schemas {
 		if s.Name == schema {
@@ -1550,6 +1557,89 @@ func TestRequirePrimaryKey(t *testing.T) {
 			sql:     "CREATE VIEW public.v AS WITH missing AS (SELECT 1 AS a) SELECT * FROM missing;\nCREATE TABLE n (id int);",
 			targets: one,
 			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE TABLE OF a type the target lacks is refused",
+			sql:     "CREATE TABLE n OF public.missing;",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE OF a table's row type is refused",
+			sql:     "CREATE TABLE n OF public.nokey;",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE OF a composite type the change made",
+			sql:     "CREATE TYPE ct AS (a int);\nCREATE TABLE n OF ct;",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n OF ct", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a table_rewrite event trigger does not fire on trigger toggles",
+			sql:     "ALTER TABLE t ENABLE TRIGGER ALL, DISABLE TRIGGER USER;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withEvent(shop(), "TABLE_REWRITE"), SessionUser: "alice"}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE TABLE with a foreign key naming a column twice is refused",
+			sql:     "CREATE TABLE n (a int, FOREIGN KEY (a, a) REFERENCES k (id, code));",
+			targets: []review.Target{{Schema: withCompositeKey()}},
+		},
+		{
+			name:    "CREATE TABLE with a foreign key to a composite key",
+			sql:     "CREATE TABLE n (a int, b text, FOREIGN KEY (a, b) REFERENCES k (id, code));",
+			targets: []review.Target{{Schema: withCompositeKey()}},
+			want:    []targetFinding{{0, "CREATE TABLE n (a int, b text, FOREIGN KEY (a, b) REFERENCES k (id, code))", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE TABLE naming a constraint twice is refused",
+			sql:     "CREATE TABLE n (a int CONSTRAINT c CHECK (a > 0), b int CONSTRAINT c CHECK (b > 0));",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE with a key named after a relation is refused",
+			sql:     "CREATE TABLE n (a int CONSTRAINT nokey UNIQUE);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE with a key named after the table is refused",
+			sql:     "CREATE TABLE n (a int CONSTRAINT n UNIQUE);",
+			targets: one,
+		},
+		{
+			name:    "RENAME COLUMN of a column the table lacks is refused",
+			sql:     "ALTER TABLE t RENAME COLUMN missing TO x;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "RENAME COLUMN to a column the table has is refused",
+			sql:     "ALTER TABLE t RENAME COLUMN n TO code;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "RENAME COLUMN of a column the table has",
+			sql:     "ALTER TABLE t RENAME COLUMN n TO n2;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE FUNCTION in a schema the target lacks is refused",
+			sql:     "CREATE FUNCTION missing.f() RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TYPE in a schema the target lacks is refused",
+			sql:     "CREATE TYPE missing.e AS ENUM ('a');\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name: "DROP PROCEDURE of a schema's only routine empties it",
+			sql:  "DROP PROCEDURE z.p;\nDROP SCHEMA z;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: database("public", schema("public"), &metadata.SchemaMetadata{
+				Name:       "z",
+				Procedures: []*metadata.ProcedureMetadata{{Name: "p"}},
+			})}},
+			want: []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
 		},
 		{
 			name: "a cascade does not go past a view the change replaced",
