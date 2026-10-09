@@ -191,8 +191,9 @@ func createdRelation(n ast.Node) (backupTable, bool) {
 			rv = v.Into.Rel
 		}
 	case *ast.SelectStmt:
-		if v.IntoClause != nil {
-			rv = v.IntoClause.Rel
+		// INTO may sit on a branch of a set operation.
+		if into := intoOf(v); into != nil {
+			rv = into.Rel
 		}
 	case *ast.ViewStmt:
 		if !v.Replace {
@@ -217,6 +218,21 @@ func createdRelation(n ast.Node) (backupTable, bool) {
 		return backupTable{}, false
 	}
 	return backupTable{schema: rv.Schemaname, name: rv.Relname}, true
+}
+
+// intoOf returns the INTO clause of a SELECT or of a branch of its set
+// operation.
+func intoOf(s *ast.SelectStmt) *ast.IntoClause {
+	if s == nil {
+		return nil
+	}
+	if s.IntoClause != nil {
+		return s.IntoClause
+	}
+	if into := intoOf(s.Larg); into != nil {
+		return into
+	}
+	return intoOf(s.Rarg)
 }
 
 // backupSearchPath is the synced search path as the backup reads it: the

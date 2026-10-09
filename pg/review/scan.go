@@ -65,14 +65,16 @@ type scan struct {
 	// dropped lists the (schema, table, constraint) a DROP CONSTRAINT of a
 	// resolved table removed.
 	dropped map[[3]string]bool
-	// columns lists the (schema, table, column) names a statement added,
-	// and renamedFrom and renamedTo the old and new names of renamed
-	// columns, with "" for a schema the scan could not tell.
-	columns     map[[3]string]bool
-	renamedFrom map[[3]string]bool
-	renamedTo   map[[3]string]bool
-	// schemas lists the schemas a statement created or dropped.
-	schemas map[string]bool
+	// columns records, by (schema, table, column), with "" for a schema
+	// the scan could not tell, whether a column a statement added, dropped,
+	// or renamed exists now, and renamedColumns the names a column got by a
+	// rename, whose identity the scan does not follow.
+	columns        map[[3]string]bool
+	renamedColumns map[[3]string]bool
+	// schemas lists the schemas a statement created or dropped, and
+	// schemaGone the ones a DROP SCHEMA removed and nothing made again.
+	schemas    map[string]bool
+	schemaGone map[string]bool
 	// newReferences lists the keys the foreign keys the change created
 	// reference, newReads the relations its views read, and newReturns the
 	// relations whose row type its functions return, none of which the
@@ -108,21 +110,21 @@ type scan struct {
 // the end of the change, so it reports only when the scan reaches it.
 func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool, target review.Target, r *reporter) error {
 	s := &scan{
-		on:          on,
-		r:           r,
-		user:        target.SessionUser,
-		session:     target.SessionUser,
-		touched:     make(map[[2]string]bool),
-		touchedName: make(map[string]bool),
-		unsettled:   make(map[[2]string]bool),
-		freed:       make(map[[2]string]bool),
-		constraints: make(map[[3]string]bool),
-		renamedKeys: make(map[string]bool),
-		dropped:     make(map[[3]string]bool),
-		columns:     make(map[[3]string]bool),
-		renamedFrom: make(map[[3]string]bool),
-		renamedTo:   make(map[[3]string]bool),
-		schemas:     make(map[string]bool),
+		on:             on,
+		r:              r,
+		user:           target.SessionUser,
+		session:        target.SessionUser,
+		touched:        make(map[[2]string]bool),
+		touchedName:    make(map[string]bool),
+		unsettled:      make(map[[2]string]bool),
+		freed:          make(map[[2]string]bool),
+		constraints:    make(map[[3]string]bool),
+		renamedKeys:    make(map[string]bool),
+		dropped:        make(map[[3]string]bool),
+		columns:        make(map[[3]string]bool),
+		renamedColumns: make(map[[3]string]bool),
+		schemas:        make(map[string]bool),
+		schemaGone:     make(map[string]bool),
 
 		droppedFunctions: make(map[tableRef]bool),
 		newFunctions:     make(map[tableRef]int),
@@ -330,6 +332,15 @@ func (s *scan) statement(st *statement) {
 			s.reowned[v.Sequence.Relname] = true
 		}
 	case *ast.CreateSeqStmt:
+		exists := s.existsWhereCreated(v.Sequence)
+		switch {
+		case s.schemaMissing(v.Sequence) || exists && !v.IfNotExists:
+			s.stop()
+			return
+		case exists:
+			// IF NOT EXISTS of an existing name does nothing.
+			return
+		}
 		s.touch(v.Sequence)
 	case *ast.CompositeTypeStmt:
 		s.touch(v.Typevar)
@@ -604,23 +615,44 @@ func (s *scan) returns(v *ast.CreateFunctionStmt) {
 }
 
 // dependsOnNew reports whether an object the change created and has not
-// dropped may depend on the relation.
-func dependsOnNew(deps []newDependency, t tableRef) bool {
+// dropped, other than the ones named in except, may depend on the
+// relation.
+func (s *scan) dependsOnNew(deps []newDependency, t tableRef, except []tableRef) bool {
 	for _, d := range deps {
-		if !d.retired && d.relation.table == t.table && (d.relation.schema == "" || d.relation.schema == t.schema) {
-			return true
+		if d.retired || d.relation.table != t.table || d.relation.schema != "" && d.relation.schema != t.schema {
+			continue
 		}
+		if slices.ContainsFunc(except, func(o tableRef) bool { return s.sameObject(d, o) }) {
+			continue
+		}
+		return true
 	}
 	return false
+}
+
+// sameObject reports whether a name, as written, is the object a
+// dependency belongs to: written alike, under the same search path when
+// unqualified.
+func (s *scan) sameObject(d newDependency, name tableRef) bool {
+	return d.object == name && (name.schema != "" || d.path == s.pathVersion)
+}
+
+// retarget renames the object of the dependencies a name, as written,
+// refers to.
+func (s *scan) retarget(deps []newDependency, old tableRef, name string) {
+	for i := range deps {
+		if s.sameObject(deps[i], old) {
+			deps[i].object.table = name
+		}
+	}
 }
 
 // retire records that a statement dropped an object the change created,
 // named as it was written, under the same search path when unqualified.
 func (s *scan) retire(deps []newDependency, object tableRef) {
 	for i := range deps {
-		d := &deps[i]
-		if d.object == object && (object.schema != "" || d.path == s.pathVersion) {
-			d.retired = true
+		if s.sameObject(deps[i], object) {
+			deps[i].retired = true
 		}
 	}
 }
@@ -690,12 +722,15 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 		return
 	}
 	// CREATE SCHEMA of a schema the target has, and the change did not
-	// drop, is refused.
-	if !v.IfNotExists && s.index != nil && s.index.schemas[name] != nil && !s.schemas[name] {
-		s.stop()
+	// drop, is refused, and with IF NOT EXISTS does nothing.
+	if s.index != nil && s.index.schemas[name] != nil && !s.schemas[name] {
+		if !v.IfNotExists {
+			s.stop()
+		}
 		return
 	}
 	s.schemas[name] = true
+	delete(s.schemaGone, name)
 	if v.SchemaElts == nil {
 		return
 	}
@@ -767,10 +802,31 @@ func (s *scan) isUnsettled(t tableRef) bool {
 	return s.unsettled[[2]string{t.schema, t.table}] || s.unsettled[[2]string{"", t.table}]
 }
 
-// hasColumnIn reports whether a column set holds the table's column, in
-// the table's schema or in an unknown one.
-func hasColumnIn(set map[[3]string]bool, t tableRef, column string) bool {
-	return set[[3]string{t.schema, t.table, column}] || set[[3]string{"", t.table, column}]
+// columnNow reports whether a statement of the change left the table's
+// column existing, and known whether one recorded anything for it.
+func (s *scan) columnNow(t tableRef, column string) (exists, known bool) {
+	if v, ok := s.columns[[3]string{t.schema, t.table, column}]; ok {
+		return v, true
+	}
+	v, ok := s.columns[[3]string{"", t.table, column}]
+	return v, ok
+}
+
+// columnRenamed reports whether the table's column has its name from a
+// rename.
+func (s *scan) columnRenamed(t tableRef, column string) bool {
+	return s.renamedColumns[[3]string{t.schema, t.table, column}] || s.renamedColumns[[3]string{"", t.table, column}]
+}
+
+// setColumn records that a column exists or is gone after a statement.
+func (s *scan) setColumn(schema, table, column string, exists, renamed bool) {
+	key := [3]string{schema, table, column}
+	s.columns[key] = exists
+	if renamed {
+		s.renamedColumns[key] = true
+	} else {
+		delete(s.renamedColumns, key)
+	}
 }
 
 // isTouched reports whether a statement may have changed what the name
@@ -1066,6 +1122,17 @@ func (s *scan) rename(v *ast.RenameStmt) {
 			s.renamedKeys[v.Relation.Relname] = true
 			s.renamedKeys[v.Newname] = true
 		}
+		// The change's own objects of that name, as written, keep their
+		// dependencies under the new name.
+		old := tableRef{v.Relation.Schemaname, v.Relation.Relname}
+		s.retarget(s.newReads, old, v.Newname)
+		s.retarget(s.newReturns, old, v.Newname)
+		for i := range s.newReferences {
+			r := &s.newReferences[i]
+			if r.owner == old && (old.schema != "" || r.ownerPath == s.pathVersion) {
+				r.owner.table = v.Newname
+			}
+		}
 	case v.RenameType == ast.OBJECT_TYPE:
 		if parts := nameParts(listOf(v.Object)); len(parts) > 0 {
 			schema := ""
@@ -1081,8 +1148,8 @@ func (s *scan) rename(v *ast.RenameStmt) {
 		s.constraints[[3]string{schema, v.Relation.Relname, v.Newname}] = true
 	case v.RenameType == ast.OBJECT_COLUMN && v.Relation != nil:
 		schema := s.schemaOf(v.Relation)
-		s.renamedFrom[[3]string{schema, v.Relation.Relname, v.Subname}] = true
-		s.renamedTo[[3]string{schema, v.Relation.Relname, v.Newname}] = true
+		s.setColumn(schema, v.Relation.Relname, v.Subname, false, false)
+		s.setColumn(schema, v.Relation.Relname, v.Newname, true, true)
 	case v.RenameType == ast.OBJECT_SCHEMA:
 		s.stop()
 	}
@@ -1140,7 +1207,7 @@ func (s *scan) drop(v *ast.DropStmt) {
 			if len(parts) != 1 {
 				continue
 			}
-			if s.index != nil && s.index.schemas[parts[0]] == nil && !s.schemas[parts[0]] {
+			if s.index != nil && (s.index.schemas[parts[0]] == nil && !s.schemas[parts[0]] || s.schemaGone[parts[0]]) {
 				if !v.Missing_ok {
 					s.stop()
 					return
@@ -1148,6 +1215,7 @@ func (s *scan) drop(v *ast.DropStmt) {
 				continue
 			}
 			s.schemas[parts[0]] = true
+			s.schemaGone[parts[0]] = true
 		}
 		return
 	}
@@ -1335,7 +1403,7 @@ func dropKindMatches(t ast.ObjectType, kind relationKind) bool {
 // not exist: the target lacks it and the change did not create it.
 func (s *scan) schemaMissing(rv *ast.RangeVar) bool {
 	return s.index != nil && rv != nil && rv.Schemaname != "" && !isTemp(rv) &&
-		s.index.schemas[rv.Schemaname] == nil && !s.schemas[rv.Schemaname]
+		(s.index.schemas[rv.Schemaname] == nil && !s.schemas[rv.Schemaname] || s.schemaGone[rv.Schemaname])
 }
 
 // dropsMissing reports whether a DROP without IF EXISTS names a relation
@@ -1406,7 +1474,7 @@ func (s *scan) dropRefused(v *ast.DropStmt) bool {
 	if s.index == nil || kind != ast.OBJECT_TABLE && kind != ast.OBJECT_VIEW && kind != ast.OBJECT_MATVIEW && kind != ast.OBJECT_FOREIGN_TABLE {
 		return false
 	}
-	var dropped []tableRef
+	var dropped, written []tableRef
 	for _, obj := range v.Objects.Items {
 		parts := nameParts(listOf(obj))
 		if len(parts) == 0 {
@@ -1416,12 +1484,14 @@ func (s *scan) dropRefused(v *ast.DropStmt) bool {
 		if len(parts) >= 2 {
 			rv.Schemaname = parts[len(parts)-2]
 		}
+		written = append(written, tableRef{rv.Schemaname, rv.Relname})
 		if schema, _, ok := s.lookup(rv); ok {
 			dropped = append(dropped, tableRef{schema, rv.Relname})
 		}
 	}
 	for _, t := range dropped {
-		if dependsOnNew(s.newReads, t) || dependsOnNew(s.newReturns, t) {
+		// A new view the statement drops too does not hold the drop.
+		if s.dependsOnNew(s.newReads, t, written) || s.dependsOnNew(s.newReturns, t, nil) {
 			return true
 		}
 		for _, fn := range s.index.returnedBy[t] {

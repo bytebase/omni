@@ -109,6 +109,9 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 	}
 	if droppedAColumn {
 		s.unsettled[[2]string{schema, name}] = true
+		for column := range droppedColumns {
+			s.setColumn(schema, name, column, false, false)
+		}
 	}
 	if withhold || knownBefore && isTable && s.refuses(before, drops, others) {
 		if !withhold {
@@ -123,6 +126,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 	if out.lost != nil {
 		s.lostKey(st, v, out.lost, out.table)
 	}
+	addedHere := make(map[string]bool)
 	for _, cmd := range others {
 		switch ast.AlterTableType(cmd.Subtype) {
 		case ast.AT_AddConstraint:
@@ -151,13 +155,15 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 			}
 		case ast.AT_AddColumn:
 			if cd, ok := cmd.Def.(*ast.ColumnDef); ok {
-				// ADD COLUMN IF NOT EXISTS of a column the table has does
-				// nothing, its constraints included.
-				if cmd.Missing_ok && knownBefore && !droppedColumns[cd.Colname] && s.hasColumn(before, cd.Colname) {
+				// ADD COLUMN IF NOT EXISTS of a column the table has, or an
+				// earlier subcommand added, does nothing, its constraints
+				// included.
+				if cmd.Missing_ok && (addedHere[cd.Colname] || knownBefore && !droppedColumns[cd.Colname] && s.hasColumn(before, cd.Colname)) {
 					continue
 				}
+				addedHere[cd.Colname] = true
 				s.generated = true
-				s.columns[[3]string{schema, name, cd.Colname}] = true
+				s.setColumn(schema, name, cd.Colname, true, false)
 				for _, c := range constraintsOf(cd.Constraints) {
 					if c.Conname != "" {
 						s.constraints[[3]string{schema, name, c.Conname}] = true
@@ -249,17 +255,19 @@ func (s *scan) dropConstraint(st *statement, v *ast.AlterTableStmt, cmd *ast.Alt
 // pg: src/backend/commands/tablecmds.c — ATExecDropColumn
 func (s *scan) dropColumn(cmd *ast.AlterTableCmd, t tableRef, cascade bool, out *droppedKeys) (refused bool) {
 	table := s.index.schemas[t.schema].tables[t.table]
-	added := hasColumnIn(s.columns, t, cmd.Name)
+	exists, changed := s.columnNow(t, cmd.Name)
 	switch {
-	case hasColumnIn(s.renamedTo, t, cmd.Name):
+	case s.columnRenamed(t, cmd.Name):
 		// A column renamed to this name: what it was is not followed.
 		return false
-	case hasColumnIn(s.renamedFrom, t, cmd.Name) && !added:
+	case changed && !exists:
 		return !cmd.Missing_ok
+	case changed:
+		// A column the change added is not the key's.
+		return false
 	}
 	if !slices.ContainsFunc(table.GetColumns(), func(c *metadata.ColumnMetadata) bool { return c.GetName() == cmd.Name }) {
-		// A column the change added is not the key's.
-		return !cmd.Missing_ok && !added
+		return !cmd.Missing_ok
 	}
 	pk := primaryKey(table)
 	var pkColumns []string
@@ -267,7 +275,7 @@ func (s *scan) dropColumn(cmd *ast.AlterTableCmd, t tableRef, cascade bool, out 
 		pkColumns = keyColumns(pk)
 	}
 	if !cascade && (s.index.referencesColumn(t, cmd.Name, s.dropped) || slices.ContainsFunc(s.index.readsColumn[columnRef{t.schema, t.table, cmd.Name}], s.viewHolds) ||
-		s.newlyReferencedColumn(t, cmd.Name, pkColumns, pk != nil) || dependsOnNew(s.newReads, t)) {
+		s.newlyReferencedColumn(t, cmd.Name, pkColumns, pk != nil) || s.dependsOnNew(s.newReads, t, nil)) {
 		return true
 	}
 	if pk == nil || !s.constraintKnown(t, pk.GetName()) {
@@ -438,13 +446,11 @@ func (s *scan) refuses(t tableRef, drops, others []*ast.AlterTableCmd) bool {
 }
 
 // hasColumn reports whether the synced table has the column after the
-// statements so far: added, renamed to it, or synced and not renamed away.
+// statements so far: as the last statement that added, dropped, or renamed
+// it left it, or as synced.
 func (s *scan) hasColumn(t tableRef, column string) bool {
-	switch {
-	case hasColumnIn(s.columns, t, column) || hasColumnIn(s.renamedTo, t, column):
-		return true
-	case hasColumnIn(s.renamedFrom, t, column):
-		return false
+	if exists, changed := s.columnNow(t, column); changed {
+		return exists
 	}
 	table := s.index.schemas[t.schema].tables[t.table]
 	return slices.ContainsFunc(table.GetColumns(), func(c *metadata.ColumnMetadata) bool { return c.GetName() == column })

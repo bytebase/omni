@@ -758,6 +758,50 @@ func TestRequirePrimaryKey(t *testing.T) {
 			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
 		},
 		{
+			name:    "CREATE SCHEMA IF NOT EXISTS of an existing schema changes nothing",
+			sql:     "CREATE SCHEMA IF NOT EXISTS s;\nCREATE TABLE s.t (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE SEQUENCE of a name its schema holds is refused",
+			sql:     "CREATE SEQUENCE public.nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE SEQUENCE IF NOT EXISTS of an existing name does nothing",
+			sql:     "CREATE SEQUENCE IF NOT EXISTS public.nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a dropped schema is gone",
+			sql:     "DROP SCHEMA s;\nCREATE TABLE s.n (id int);",
+			targets: []review.Target{{Schema: database("public", schema("public"), schema("s"))}},
+		},
+		{
+			name:    "a renamed new view keeps its reads under the new name",
+			sql:     "CREATE VIEW public.v AS SELECT * FROM public.nokey;\nALTER VIEW public.v RENAME TO w;\nDROP VIEW public.w;\nDROP TABLE public.nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{4, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a new view dropped with the view it reads",
+			sql:     "CREATE VIEW w AS SELECT * FROM v;\nDROP VIEW v, w;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withView(shop(), "public", "v"), SessionUser: "alice"}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a column renamed twice is gone under the middle name",
+			sql:     "ALTER TABLE t RENAME COLUMN id TO x;\nALTER TABLE t RENAME COLUMN x TO y;\nALTER TABLE t DROP CONSTRAINT t_pkey CASCADE;\nALTER TABLE t ADD COLUMN IF NOT EXISTS x int PRIMARY KEY;",
+			targets: one,
+		},
+		{
+			name:    "a column the statement adds twice gets one definition",
+			sql:     "CREATE TABLE n (id int);\nALTER TABLE n ADD COLUMN x int, ADD COLUMN IF NOT EXISTS x int PRIMARY KEY;",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
 			name:    "a cascading drop of a parent may drop a child",
 			sql:     "CREATE TABLE child (x int) INHERITS (nokey);\nCREATE TABLE other (x int);\nDROP TABLE nokey CASCADE;",
 			targets: one,
@@ -979,6 +1023,13 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: one,
 			want:    []targetFinding{{1, "UPDATE db.public.n SET id = 1 WHERE id = 2", "prior backup runs before the change, when db.public.n does not exist yet", []int{0}}},
+		},
+		{
+			name:    "SELECT INTO on a branch of a set operation",
+			sql:     "SELECT 1 AS id INTO n UNION SELECT 2;\nUPDATE n SET id = 3 WHERE id = 1;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "UPDATE n SET id = 3 WHERE id = 1", "prior backup runs before the change, when n does not exist yet", []int{0}}},
 		},
 		{
 			name:    "a table the change recreates still exists when the backup runs",
