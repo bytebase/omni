@@ -2266,6 +2266,62 @@ func TestRequirePrimaryKey(t *testing.T) {
 			targets: one,
 		},
 		{
+			name:    "DROP CONSTRAINT of a name a table the change made did not give is refused",
+			sql:     "CREATE TABLE public.x (id int PRIMARY KEY, CONSTRAINT c CHECK (id > 0));\nALTER TABLE public.x DROP CONSTRAINT missing;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "DROP CONSTRAINT of a name a table the change made gave",
+			sql:     "CREATE TABLE public.x (id int PRIMARY KEY, CONSTRAINT c CHECK (id > 0));\nALTER TABLE public.x DROP CONSTRAINT c;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE SCHEMA with a view naming an output twice is refused",
+			sql:     "CREATE SCHEMA z CREATE VIEW v AS SELECT 1 AS a, 2 AS a;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name: "ALTER PROCEDURE RENAME of a signature the procedures lack is refused",
+			sql:  "ALTER PROCEDURE public.p(text) RENAME TO q;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: func() *metadata.DatabaseSchemaMetadata {
+				db := shop()
+				db.Schemas[0].Procedures = []*metadata.ProcedureMetadata{{Name: "p", Signature: "p(a integer)"}}
+				return db
+			}(), SessionUser: "alice"}},
+		},
+		{
+			name:    "CREATE INDEX on a table the change made under a taken name is refused",
+			sql:     "CREATE TABLE public.t2 (id int PRIMARY KEY);\nCREATE INDEX nokey ON public.t2 (id);\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE INDEX on a column a table the change made lacks is refused",
+			sql:     "CREATE TABLE public.t2 (id int PRIMARY KEY);\nCREATE INDEX i ON public.t2 (missing);\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a function the change made follows SET SCHEMA",
+			sql:     "CREATE FUNCTION public.f() RETURNS public.nokey LANGUAGE sql AS 'SELECT NULL::public.nokey';\nALTER FUNCTION public.f() SET SCHEMA s;\nDROP FUNCTION s.f();\nDROP TABLE public.nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{4, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE SCHEMA with a trigger on a relation the target lacks is refused",
+			sql:     "CREATE SCHEMA z CREATE TRIGGER tr BEFORE INSERT ON public.missing FOR EACH ROW EXECUTE FUNCTION public.tf();\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "tf", "tf()"), SessionUser: "alice"}},
+		},
+		{
+			name: "a generation expression's literal is no column",
+			sql:  "ALTER TABLE g DROP COLUMN x;",
+			targets: []review.Target{{Schema: func() *metadata.DatabaseSchemaMetadata {
+				g := withPrimaryKey(table("g", "x integer", "b text"), "g_pkey", "x")
+				g.Columns[1].Generation = &metadata.GenerationMetadata{Expression: "('x'::text)"}
+				return database("public", schema("public", g))
+			}()}},
+			want: []targetFinding{{0, "DROP COLUMN x", "removes the primary key of g, and the change adds none back", []int{0}}},
+		},
+		{
 			name: "a cascade does not go past a view the change replaced",
 			sql:  "CREATE OR REPLACE VIEW v AS SELECT 1 AS id;\nDROP TABLE base CASCADE;\nCREATE TABLE w (id int);",
 			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{

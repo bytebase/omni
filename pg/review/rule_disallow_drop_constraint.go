@@ -437,14 +437,38 @@ func (s *scan) dropColumn(cmd *ast.AlterTableCmd, t tableRef, cascade bool, out 
 }
 
 // generatedFrom reports whether another column of the synced table may be
-// generated from the column: its generation expression names it.
+// generated from the column: its generation expression refers to it, or,
+// when the scan cannot parse the expression, names it.
 func generatedFrom(t *metadata.TableMetadata, column string) bool {
 	for _, c := range t.GetColumns() {
-		if c.GetName() != column && c.GetGeneration() != nil && mentions(c.GetGeneration().GetExpression(), column) {
+		if c.GetName() == column || c.GetGeneration() == nil {
+			continue
+		}
+		expr := c.GetGeneration().GetExpression()
+		if refs, ok := expressionColumns(expr); ok {
+			if slices.Contains(refs, column) {
+				return true
+			}
+		} else if mentions(expr, column) {
 			return true
 		}
 	}
 	return false
+}
+
+// expressionColumns parses an expression and returns the columns it
+// refers to without a qualifier. ok is false when it does not parse.
+func expressionColumns(expr string) ([]string, bool) {
+	sql := "SELECT " + expr
+	stmts, failed := parse(sql, statementRanges(sql))
+	if failed != nil || len(stmts) != 1 {
+		return nil, false
+	}
+	sel, ok := stmts[0].node.(*ast.SelectStmt)
+	if !ok || sel.TargetList == nil || len(sel.TargetList.Items) != 1 {
+		return nil, false
+	}
+	return columnsIn(sel.TargetList.Items[0]), true
 }
 
 // mentions reports whether an expression may name a column: the name as

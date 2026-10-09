@@ -180,6 +180,12 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 			fn := tableRef{s.GetName(), p.GetName()}
 			idx.routineKinds[fn] |= kindProcedure
 			idx.functions[fn]++
+			if p.GetSignature() == p.GetName()+"()" {
+				idx.noArgs[fn] = true
+			}
+			if sig, ok := readSignature(p.GetName(), p.GetSignature()); ok {
+				idx.signatures[fn] = append(idx.signatures[fn], sig)
+			}
 		}
 		for _, f := range s.GetFunctions() {
 			fn := tableRef{s.GetName(), f.GetName()}
@@ -188,7 +194,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 			if f.GetSignature() == f.GetName()+"()" {
 				idx.noArgs[fn] = true
 			}
-			if sig, ok := syncedSignature(f); ok {
+			if sig, ok := readSignature(f.GetName(), f.GetSignature()); ok {
 				idx.signatures[fn] = append(idx.signatures[fn], sig)
 			}
 			for _, d := range f.GetDependencyTables() {
@@ -328,18 +334,17 @@ func (idx *schemaIndex) parentsOf(t tableRef) []*metadata.TableMetadata {
 	return parents
 }
 
-// syncedSignature reads a synced routine's signature, the name and the
+// readSignature reads a synced routine's signature, the name and the
 // identity arguments PostgreSQL writes (each an optional mode, an optional
 // name, and a type), into the form argSignature gives a statement's. ok is
 // false for an argument it cannot read.
 //
 // bytebase: backend/plugin/db/pg/sync.go — getFunctions (Signature)
-func syncedSignature(f *metadata.FunctionMetadata) (string, bool) {
-	sig := f.GetSignature()
-	if !strings.HasPrefix(sig, f.GetName()+"(") || !strings.HasSuffix(sig, ")") {
+func readSignature(name, sig string) (string, bool) {
+	if !strings.HasPrefix(sig, name+"(") || !strings.HasSuffix(sig, ")") {
 		return "", false
 	}
-	args := strings.TrimSuffix(strings.TrimPrefix(sig, f.GetName()+"("), ")")
+	args := strings.TrimSuffix(strings.TrimPrefix(sig, name+"("), ")")
 	if args == "" {
 		return "", true
 	}

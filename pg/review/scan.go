@@ -1674,7 +1674,7 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 			c.Relation = in(e.Relation)
 			s.create(st, &c)
 		case *ast.ViewStmt:
-			if s.readsMissing(e.Query) {
+			if s.readsMissing(e.Query) || duplicateOutputs(e) {
 				s.stop()
 				return
 			}
@@ -1694,7 +1694,14 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 			if e.Idxname != "" && e.Relation != nil {
 				s.touchName(in(e.Relation).Schemaname, e.Idxname)
 			}
-		case *ast.CreateTrigStmt, *ast.GrantStmt:
+		case *ast.CreateTrigStmt:
+			c := *e
+			c.Relation = in(e.Relation)
+			if s.namesMissing(&c) {
+				s.stop()
+				return
+			}
+		case *ast.GrantStmt:
 		default:
 			s.stop()
 			return
@@ -1799,7 +1806,28 @@ func (s *scan) indexRefused(v *ast.IndexStmt) bool {
 	}
 	schema, kind, ok := s.lookup(v.Relation)
 	if !ok {
-		return false
+		// A relation the change made: its kind, columns, and schema.
+		c, made := s.madeAt(v.Relation)
+		home, inHome := s.madeIn(v.Relation)
+		if !made || !inHome {
+			return false
+		}
+		if c.kind != kindTable && c.kind != kindMatView {
+			return true
+		}
+		if c.def != nil {
+			for _, list := range []*ast.List{v.IndexParams, v.IndexIncludingParams} {
+				if list == nil {
+					continue
+				}
+				for _, item := range list.Items {
+					if e, isElem := item.(*ast.IndexElem); isElem && e.Name != "" && !c.def.columns[e.Name] {
+						return true
+					}
+				}
+			}
+		}
+		return v.Idxname != "" && !v.IfNotExists && (s.nameTaken(home, v.Idxname) || s.madeHere(&ast.RangeVar{Schemaname: home, Relname: v.Idxname}))
 	}
 	switch kind {
 	case kindView, kindSequence, kindIndex, kindCompositeType, kindForeignTable:
@@ -1855,6 +1883,8 @@ type tableDef struct {
 	columns map[string]bool
 	keys    [][]string
 	primary bool
+	// constraints names the constraints the statement names.
+	constraints map[string]bool
 }
 
 // defOf reads a CREATE TABLE's columns and keys, and its foreign keys,
@@ -1866,7 +1896,11 @@ func defOf(v *ast.CreateStmt) (def tableDef, fks []foreignKeyDecl, complete bool
 	if v.TableElts == nil {
 		return def, nil, complete
 	}
+	def.constraints = make(map[string]bool)
 	add := func(c *ast.Constraint, column string) {
+		if c.Conname != "" {
+			def.constraints[c.Conname] = true
+		}
 		cols := nameParts(c.Keys)
 		if column != "" {
 			cols = []string{column}
@@ -1919,10 +1953,12 @@ func (d *tableDef) refusedBy(columns []string, local int) bool {
 	return false
 }
 
-// refusesAlter reports whether an ALTER TABLE certainly fails against the
-// table its CREATE made: a column it drops or alters without IF EXISTS
-// that the table lacks, or one it adds without IF NOT EXISTS that the
-// table has, the statement's own additions and drops counted.
+// refusesAlter reports whether an ALTER TABLE may fail against the table
+// its CREATE made: a column it drops or alters without IF EXISTS that the
+// table lacks, or one it adds without IF NOT EXISTS that the table has, a
+// constraint it drops without IF EXISTS that the CREATE did not name, or
+// one it adds under a name the CREATE gave, the statement's own additions
+// and drops counted.
 func (d *tableDef) refusesAlter(v *ast.AlterTableStmt) bool {
 	columns := maps.Clone(d.columns)
 	var cmds []*ast.AlterTableCmd
@@ -1932,12 +1968,31 @@ func (d *tableDef) refusesAlter(v *ast.AlterTableStmt) bool {
 		}
 	}
 	// The server drops before it adds, and adds before it alters.
+	constraints := maps.Clone(d.constraints)
 	for _, cmd := range cmds {
-		if ast.AlterTableType(cmd.Subtype) == ast.AT_DropColumn {
+		switch ast.AlterTableType(cmd.Subtype) {
+		case ast.AT_DropColumn:
 			if !columns[cmd.Name] && !cmd.Missing_ok {
 				return true
 			}
 			delete(columns, cmd.Name)
+		case ast.AT_DropConstraint:
+			// A constraint the CREATE did not name may be one the server
+			// named, or none: the statement may fail.
+			if !constraints[cmd.Name] && !cmd.Missing_ok {
+				return true
+			}
+			delete(constraints, cmd.Name)
+		}
+	}
+	for _, cmd := range cmds {
+		if ast.AlterTableType(cmd.Subtype) == ast.AT_AddConstraint {
+			if c, ok := cmd.Def.(*ast.Constraint); ok && c.Conname != "" {
+				if constraints[c.Conname] {
+					return true
+				}
+				constraints[c.Conname] = true
+			}
 		}
 	}
 	added := make(map[string]bool)
@@ -3022,6 +3077,7 @@ func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 				s.stop()
 				return
 			}
+			s.transferRoutine(fn, owa, tableRef{v.Newschema, fn.table})
 		}
 		if owa, ok := v.Object.(*ast.ObjectWithArgs); ok {
 			if parts := nameParts(owa.Objname); len(parts) > 0 {
@@ -3454,6 +3510,13 @@ func (s *scan) renameRoutine(v *ast.RenameStmt) {
 	if len(parts) == 2 {
 		fn.schema = parts[0]
 	}
+	s.transferRoutine(fn, owa, tableRef{fn.schema, v.Newname})
+}
+
+// transferRoutine moves the change's own function a rename or a move
+// certainly names, by the argument list or by the name alone of the only
+// one, to its new name as written, with its dependencies.
+func (s *scan) transferRoutine(fn tableRef, owa *ast.ObjectWithArgs, to tableRef) {
 	sigs := s.newSignatures[fn]
 	if len(sigs) == 0 || s.syncedFunctions(fn) > 0 || owa.ArgsUnspecified && len(sigs) > 1 {
 		return
@@ -3469,10 +3532,9 @@ func (s *scan) renameRoutine(v *ast.RenameStmt) {
 	for j := range s.newReturns {
 		d := &s.newReturns[j]
 		if !d.retired && s.sameObject(*d, fn) && d.signature == sig {
-			d.object.table = v.Newname
+			d.object = to
 		}
 	}
-	to := tableRef{fn.schema, v.Newname}
 	s.newSignatures[fn] = slices.Delete(slices.Clone(sigs), i, i+1)
 	s.newFunctions[fn]--
 	s.newSignatures[to] = append(s.newSignatures[to], sig)
