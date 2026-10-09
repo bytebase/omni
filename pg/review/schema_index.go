@@ -28,8 +28,9 @@ type schemaIndex struct {
 type namespace struct {
 	relations map[string]relationKind
 	tables    map[string]*metadata.TableMetadata
-	// partitions, indexes, and owned sequences of each table, which go
-	// with it when it is dropped.
+	// partitions, indexes, and owned sequences of each table, and the
+	// indexes of each materialized view, which go with it when it is
+	// dropped.
 	dependents map[string][]string
 }
 
@@ -93,6 +94,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 			idx.addReader(tableRef{s.GetName(), v.GetName()}, v.GetDependencyColumns())
 			for _, i := range v.GetIndexes() {
 				ns.add(i.GetName(), kindOther)
+				ns.dependents[v.GetName()] = append(ns.dependents[v.GetName()], i.GetName())
 			}
 		}
 		for _, t := range s.GetExternalTables() {

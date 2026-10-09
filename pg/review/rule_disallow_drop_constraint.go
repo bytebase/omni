@@ -50,20 +50,42 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 	schema := s.schemaOf(v.Relation)
 	before, knownBefore := s.table(v.Relation)
 	// What the drops find is kept until every subcommand is known to run:
-	// a statement the server refuses drops nothing.
+	// a statement the server refuses drops nothing. A DROP the server may
+	// refuse withholds the statement's findings without ending the scan.
 	var out droppedKeys
+	withhold := false
+	droppedColumns := make(map[string]bool)
+	droppedNames := make(map[string]bool)
 	for _, cmd := range drops {
 		cascade := cmd.Behavior == int(ast.DROP_CASCADE)
 		t, known := s.table(v.Relation)
 		known = known && isTable
 		switch ast.AlterTableType(cmd.Subtype) {
 		case ast.AT_DropConstraint:
+			// A second drop of the same constraint fails, and so may a drop
+			// of one an earlier column drop of the statement took with it.
+			if droppedNames[cmd.Name] && !cmd.Missing_ok {
+				s.stop()
+				return
+			}
+			if len(droppedColumns) > 0 && !cmd.Missing_ok && knownBefore && s.mayDependOn(before, cmd.Name, droppedColumns) {
+				withhold = true
+			}
+			droppedNames[cmd.Name] = true
 			if known && s.constraintKnown(t, cmd.Name) && s.dropConstraint(st, v, cmd, t, cascade, &out) {
 				s.stop()
 				return
 			}
 			s.constraints[[3]string{schema, name, cmd.Name}] = true
+			if cascade {
+				s.dropKeyReferences(v.Relation, t, known, cmd.Name)
+			}
 		case ast.AT_DropColumn:
+			if droppedColumns[cmd.Name] && !cmd.Missing_ok {
+				s.stop()
+				return
+			}
+			droppedColumns[cmd.Name] = true
 			if known && s.dropColumn(cmd, t, cascade, &out) {
 				s.stop()
 				return
@@ -71,15 +93,18 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 			s.unsettled[[2]string{schema, name}] = true
 			if cascade {
 				s.dropReaders(t, v.Relation)
+				s.dropReferences(v.Relation, t, known, func(fk foreignKeyRef) bool {
+					return !known || slices.ContainsFunc(fk.columns, func(c string) bool { n := columnName(c); return n == cmd.Name || n == "" })
+				})
 			}
 		}
-		if cascade {
-			s.dropReferences(name)
-		}
 	}
-	if (len(out.findings) > 0 || out.lost != nil) && knownBefore && s.refuses(before, drops, others) {
-		s.stop()
-		return
+	if withhold || (len(out.findings) > 0 || out.lost != nil) && knownBefore && s.refuses(before, drops, others) {
+		if !withhold {
+			s.stop()
+			return
+		}
+		out = droppedKeys{}
 	}
 	for _, f := range out.findings {
 		s.r.add(f)
@@ -167,7 +192,7 @@ func (s *scan) dropConstraint(st *statement, v *ast.AlterTableStmt, cmd *ast.Alt
 		// When the key's columns cannot be read, any foreign key on the
 		// table may reference it, and so may one the change added.
 		if con.columns != nil && s.index.referenced(t, con.columns, s.dropped) || con.columns == nil && s.index.referencedAny(t, s.dropped) ||
-			s.referencedByChange[t.table] {
+			s.newlyReferenced(t, con.columns, con.kind == "primary key") {
 			return true
 		}
 	}
@@ -209,11 +234,15 @@ func (s *scan) dropColumn(cmd *ast.AlterTableCmd, t tableRef, cascade bool, out 
 		// A column the change added is not the key's.
 		return !cmd.Missing_ok && !added
 	}
+	pk := primaryKey(table)
+	var pkColumns []string
+	if pk != nil {
+		pkColumns = keyColumns(pk)
+	}
 	if !cascade && (s.index.referencesColumn(t, cmd.Name, s.dropped) || s.index.readsColumn[columnRef{t.schema, t.table, cmd.Name}] ||
-		s.referencedByChange[t.table] || s.readByChange[t.table]) {
+		s.newlyReferencedColumn(t, cmd.Name, pkColumns, pk != nil) || s.readByChange[t.table]) {
 		return true
 	}
-	pk := primaryKey(table)
 	if pk == nil || !s.constraintKnown(t, pk.GetName()) {
 		return false
 	}
@@ -241,6 +270,44 @@ func (s *scan) dropReaders(t tableRef, rv *ast.RangeVar) {
 			s.touchName(view.schema, view.table)
 		}
 	}
+}
+
+// dropKeyReferences records the foreign keys a cascading DROP CONSTRAINT
+// takes: those on the dropped key when the scan knows the table and the
+// key's columns, none when the constraint is not a key, and every one
+// referencing the table otherwise.
+func (s *scan) dropKeyReferences(rv *ast.RangeVar, t tableRef, known bool, name string) {
+	if !known {
+		s.dropReferences(rv, t, false, nil)
+		return
+	}
+	con, ok := constraint(s.index.schemas[t.schema].tables[t.table], name)
+	switch {
+	case ok && con.kind != "primary key" && con.kind != "unique constraint" && con.kind != "":
+		// A foreign key or check constraint has no foreign keys on it.
+	case ok && con.columns != nil:
+		s.dropReferences(rv, t, true, func(fk foreignKeyRef) bool { return sameColumns(fk.columns, con.columns) })
+	default:
+		s.dropReferences(rv, t, true, nil)
+	}
+}
+
+// mayDependOn reports whether a constraint of the synced table may involve
+// one of the columns, so that dropping the column took it: a check or an
+// exclusion constraint, whose columns the snapshot does not list, or a
+// key or foreign key on one of them.
+func (s *scan) mayDependOn(t tableRef, name string, columns map[string]bool) bool {
+	table := s.index.schemas[t.schema].tables[t.table]
+	for _, fk := range table.GetForeignKeys() {
+		if fk.GetName() == name {
+			return slices.ContainsFunc(fk.GetColumns(), func(c string) bool { return columns[columnName(c)] || columnName(c) == "" })
+		}
+	}
+	con, ok := constraint(table, name)
+	if !ok || con.columns == nil {
+		return true
+	}
+	return slices.ContainsFunc(con.columns, func(c string) bool { return columns[c] })
 }
 
 // refuses reports whether a subcommand of the statement is certain to

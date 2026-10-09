@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/pg/ast"
 	"github.com/bytebase/omni/review"
 )
@@ -60,11 +61,11 @@ type scan struct {
 	renamedTo   map[[3]string]bool
 	// schemas lists the schemas a statement created or dropped.
 	schemas map[string]bool
-	// referencedByChange and readByChange list the relations, by name, a
-	// foreign key or a view the change created depends on, which the synced
-	// schema does not record.
-	referencedByChange map[string]bool
-	readByChange       map[string]bool
+	// newReferences lists the keys the foreign keys the change created
+	// reference, and readByChange the relations, by name, its views read,
+	// neither of which the synced schema records.
+	newReferences []newReference
+	readByChange  map[string]bool
 
 	// pending are the tables RequirePrimaryKey reports at the end unless a
 	// later statement settles them.
@@ -92,8 +93,7 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		renamedTo:   make(map[[3]string]bool),
 		schemas:     make(map[string]bool),
 
-		referencedByChange: make(map[string]bool),
-		readByChange:       make(map[string]bool),
+		readByChange: make(map[string]bool),
 	}
 	if target.Schema != nil {
 		s.index = newSchemaIndex(target.Schema)
@@ -101,6 +101,9 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		if path := parseSearchPath(target.Schema.GetSearchPath()); len(path) > 0 {
 			s.path = path
 		}
+	}
+	if target.Schema != nil && eventTriggerFires(target.Schema, stmts) {
+		return nil
 	}
 	for i := range stmts {
 		if err := ctx.Err(); err != nil {
@@ -117,6 +120,117 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		}
 	}
 	return nil
+}
+
+// eventTriggerFires reports whether an enabled event trigger of the target
+// fires on a statement of the change the scan follows: one with no tag
+// filter, or one whose tags name the statement's command. Its function may
+// run more DDL or reject the statement, so what the statement does is no
+// longer what it says.
+func eventTriggerFires(schema *metadata.DatabaseSchemaMetadata, stmts []statement) bool {
+	var triggers []*metadata.EventTriggerMetadata
+	for _, t := range schema.GetEventTriggers() {
+		if t.GetEnabled() {
+			triggers = append(triggers, t)
+		}
+	}
+	if len(triggers) == 0 {
+		return false
+	}
+	tags := make(map[string]bool)
+	for i := range stmts {
+		if tag := commandTag(stmts[i].node); tag != "" {
+			tags[tag] = true
+		}
+	}
+	if len(tags) == 0 {
+		return false
+	}
+	for _, t := range triggers {
+		if len(t.GetTags()) == 0 {
+			return true
+		}
+		for _, tag := range t.GetTags() {
+			if tags[strings.ToUpper(tag)] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// commandTag is the command tag of a statement the scan follows, as an
+// event trigger's tag filter names it, or "" for one it does not follow.
+//
+// pg: src/include/tcop/cmdtaglist.h
+func commandTag(n ast.Node) string {
+	objectTag := func(t ast.ObjectType) string {
+		switch t {
+		case ast.OBJECT_TABLE:
+			return "TABLE"
+		case ast.OBJECT_VIEW:
+			return "VIEW"
+		case ast.OBJECT_MATVIEW:
+			return "MATERIALIZED VIEW"
+		case ast.OBJECT_FOREIGN_TABLE:
+			return "FOREIGN TABLE"
+		case ast.OBJECT_SEQUENCE:
+			return "SEQUENCE"
+		case ast.OBJECT_INDEX:
+			return "INDEX"
+		case ast.OBJECT_TYPE:
+			return "TYPE"
+		case ast.OBJECT_SCHEMA:
+			return "SCHEMA"
+		}
+		return ""
+	}
+	prefixed := func(verb string, t ast.ObjectType) string {
+		if o := objectTag(t); o != "" {
+			return verb + " " + o
+		}
+		return ""
+	}
+	switch v := n.(type) {
+	case *ast.CreateStmt:
+		return "CREATE TABLE"
+	case *ast.CreateForeignTableStmt:
+		return "CREATE FOREIGN TABLE"
+	case *ast.CreateTableAsStmt:
+		if v.Objtype == ast.OBJECT_MATVIEW {
+			return "CREATE MATERIALIZED VIEW"
+		}
+		return "CREATE TABLE AS"
+	case *ast.SelectStmt:
+		if v.IntoClause != nil {
+			return "SELECT INTO"
+		}
+	case *ast.ViewStmt:
+		return "CREATE VIEW"
+	case *ast.CreateSeqStmt:
+		return "CREATE SEQUENCE"
+	case *ast.CompositeTypeStmt:
+		return "CREATE TYPE"
+	case *ast.IndexStmt:
+		return "CREATE INDEX"
+	case *ast.CreateSchemaStmt:
+		return "CREATE SCHEMA"
+	case *ast.AlterTableStmt:
+		return prefixed("ALTER", ast.ObjectType(v.ObjType))
+	case *ast.RenameStmt:
+		if v.RenameType == ast.OBJECT_COLUMN || v.RenameType == ast.OBJECT_TABCONSTRAINT {
+			if tag := prefixed("ALTER", v.RelationType); tag != "" {
+				return tag
+			}
+			return "ALTER TABLE"
+		}
+		return prefixed("ALTER", v.RenameType)
+	case *ast.AlterObjectSchemaStmt:
+		return prefixed("ALTER", v.ObjectType)
+	case *ast.DropStmt:
+		return prefixed("DROP", ast.ObjectType(v.RemoveType))
+	}
+	return ""
 }
 
 // stop ends the scan: nothing after this statement is known, and no table
@@ -229,13 +343,51 @@ func (s *scan) statement(st *statement) {
 	}
 }
 
-// references records the tables new foreign keys reference.
+// newReference is the key a foreign key the change created references:
+// the table as written, "" for a schema left to the search path, and the
+// columns, nil for the primary key.
+type newReference struct {
+	schema, table string
+	columns       []string
+}
+
+// references records the keys new foreign keys reference.
 func (s *scan) references(constraints ...*ast.Constraint) {
 	for _, c := range constraints {
 		if c.Contype == ast.CONSTR_FOREIGN && c.Pktable != nil {
-			s.referencedByChange[c.Pktable.Relname] = true
+			s.newReferences = append(s.newReferences, newReference{c.Pktable.Schemaname, c.Pktable.Relname, nameParts(c.PkAttrs)})
 		}
 	}
+}
+
+// newlyReferenced reports whether a foreign key the change created may
+// reference the table's key with these columns, nil when they cannot be
+// read; primary tells whether the key is the primary key.
+func (s *scan) newlyReferenced(t tableRef, columns []string, primary bool) bool {
+	for _, r := range s.newReferences {
+		if r.table != t.table || r.schema != "" && r.schema != t.schema {
+			continue
+		}
+		if columns == nil || r.columns == nil && primary || r.columns != nil && sameColumns(r.columns, columns) {
+			return true
+		}
+	}
+	return false
+}
+
+// newlyReferencedColumn reports whether a foreign key the change created
+// may reference a key of the table that has the column; keyColumns are the
+// table's primary key columns, nil when it has none or they cannot be read.
+func (s *scan) newlyReferencedColumn(t tableRef, column string, keyColumns []string, hasKey bool) bool {
+	for _, r := range s.newReferences {
+		if r.table != t.table || r.schema != "" && r.schema != t.schema {
+			continue
+		}
+		if r.columns != nil && slices.Contains(r.columns, column) || r.columns == nil && hasKey && (keyColumns == nil || slices.Contains(keyColumns, column)) {
+			return true
+		}
+	}
+	return false
 }
 
 // reads records the relations a new view's query names.
@@ -604,7 +756,13 @@ func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 		s.touch(v.Relation)
 		s.touchName(v.Newschema, v.Relation.Relname)
 		for _, p := range s.matching(v.Relation) {
-			p.schema = ""
+			// The move is known only when the statement names the table's
+			// own schema; otherwise it may be another table of that name.
+			if v.Relation.Schemaname != "" && v.Relation.Schemaname == p.schema {
+				p.schema = v.Newschema
+			} else {
+				p.schema = ""
+			}
 		}
 	case v.ObjectType == ast.OBJECT_TYPE:
 		if parts := nameParts(listOf(v.Object)); len(parts) > 0 {
@@ -683,14 +841,15 @@ func (s *scan) drop(v *ast.DropStmt) {
 }
 
 // dropRefused reports whether the server refuses a DROP without CASCADE of
-// tables the scan resolves: a view reads one, or a foreign key of a table
-// the statement does not drop references one, as the synced schema or the
-// change itself records.
+// relations the scan resolves: a view the statement does not drop reads
+// one, or, for a table, a foreign key of a table the statement does not
+// drop references it, as the synced schema or the change itself records.
 func (s *scan) dropRefused(v *ast.DropStmt) bool {
-	if s.index == nil || ast.ObjectType(v.RemoveType) != ast.OBJECT_TABLE {
+	kind := ast.ObjectType(v.RemoveType)
+	if s.index == nil || kind != ast.OBJECT_TABLE && kind != ast.OBJECT_VIEW && kind != ast.OBJECT_MATVIEW && kind != ast.OBJECT_FOREIGN_TABLE {
 		return false
 	}
-	var tables []tableRef
+	var dropped []tableRef
 	for _, obj := range v.Objects.Items {
 		parts := nameParts(listOf(obj))
 		if len(parts) == 0 {
@@ -700,21 +859,27 @@ func (s *scan) dropRefused(v *ast.DropStmt) bool {
 		if len(parts) >= 2 {
 			rv.Schemaname = parts[len(parts)-2]
 		}
-		if schema, kind, ok := s.lookup(rv); ok && kind == kindTable {
-			tables = append(tables, tableRef{schema, rv.Relname})
+		if schema, _, ok := s.lookup(rv); ok {
+			dropped = append(dropped, tableRef{schema, rv.Relname})
 		}
 	}
-	for _, t := range tables {
-		if s.referencedByChange[t.table] || s.readByChange[t.table] {
+	for _, t := range dropped {
+		if s.readByChange[t.table] {
 			return true
 		}
 		for _, view := range s.index.readers[t] {
-			if !s.freed[[2]string{view.schema, view.table}] {
+			if !s.freed[[2]string{view.schema, view.table}] && !slices.Contains(dropped, view) {
 				return true
 			}
 		}
+		if kind != ast.OBJECT_TABLE {
+			continue
+		}
+		if s.newlyReferenced(t, nil, true) {
+			return true
+		}
 		for _, fk := range s.index.foreignKeys {
-			if fk.referenced == t && !fk.in(s.dropped) && !slices.Contains(tables, fk.owner) {
+			if fk.referenced == t && !fk.in(s.dropped) && !slices.Contains(dropped, fk.owner) {
 				return true
 			}
 		}
@@ -759,7 +924,7 @@ func (s *scan) dropOwned(rv *ast.RangeVar, schema string, table bool) {
 // and touched in every schema the name may be in otherwise, and the
 // foreign keys that reference it.
 func (s *scan) dropDependents(rv *ast.RangeVar, schema string) {
-	s.dropReferences(rv.Relname)
+	s.dropReferences(rv, tableRef{schema, rv.Relname}, schema != "", nil)
 	if s.index == nil {
 		return
 	}
@@ -779,16 +944,25 @@ func (s *scan) dropDependents(rv *ast.RangeVar, schema string) {
 	}
 }
 
-// dropReferences records that the foreign keys referencing a table, by
-// name in any schema, may be gone.
-func (s *scan) dropReferences(table string) {
+// dropReferences records that foreign keys a cascading drop takes may be
+// gone: those referencing t when the scan resolved it (known), and those
+// referencing a table of that name, in the schema the SQL wrote if any,
+// otherwise. affected, when set, narrows them to the ones that depend on
+// what was dropped.
+func (s *scan) dropReferences(rv *ast.RangeVar, t tableRef, known bool, affected func(foreignKeyRef) bool) {
 	if s.index == nil {
 		return
 	}
 	for _, fk := range s.index.foreignKeys {
-		if fk.referenced.table == table {
-			s.constraints[[3]string{fk.owner.schema, fk.owner.table, fk.name}] = true
+		switch {
+		case known && fk.referenced != t:
+			continue
+		case !known && (fk.referenced.table != rv.Relname || rv.Schemaname != "" && fk.referenced.schema != rv.Schemaname):
+			continue
+		case affected != nil && !affected(fk):
+			continue
 		}
+		s.constraints[[3]string{fk.owner.schema, fk.owner.table, fk.name}] = true
 	}
 }
 

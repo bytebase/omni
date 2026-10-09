@@ -51,6 +51,11 @@ func withCheck(t *metadata.TableMetadata, name, expr string) *metadata.TableMeta
 	return t
 }
 
+func withEventTrigger(db *metadata.DatabaseSchemaMetadata, enabled bool, tags ...string) *metadata.DatabaseSchemaMetadata {
+	db.EventTriggers = append(db.EventTriggers, &metadata.EventTriggerMetadata{Name: "et", Event: "DDL_COMMAND_END", Tags: tags, Enabled: enabled})
+	return db
+}
+
 func withForeignKey(t *metadata.TableMetadata, name, column, refTable, refColumn string) *metadata.TableMetadata {
 	t.ForeignKeys = append(t.ForeignKeys, &metadata.ForeignKeyMetadata{Name: name, Columns: []string{column}, ReferencedSchema: "public", ReferencedTable: refTable, ReferencedColumns: []string{refColumn}})
 	return t
@@ -61,7 +66,7 @@ func withForeignKey(t *metadata.TableMetadata, name, column, refTable, refColumn
 func shop() *metadata.DatabaseSchemaMetadata {
 	return database(`"$user", public`,
 		schema("public",
-			withPrimaryKey(table("p", "id integer"), "p_pkey", "id"),
+			withPrimaryKey(table("p", "id integer", "note text"), "p_pkey", "id"),
 			withCheck(withForeignKey(withUnique(withPrimaryKey(table("t", "id integer", "code text", "p_id integer", "n integer"), "t_pkey", "id"), "t_code_key", "code"), "t_p_fk", "p_id", "p", "id"), "t_n_check", "(n > 0)"),
 			table("nokey", "a integer"),
 		),
@@ -232,6 +237,52 @@ func TestDisallowDropConstraint(t *testing.T) {
 			},
 		},
 		{
+			name:    "a cascading drop of an unrelated column keeps the foreign keys on the key",
+			sql:     "ALTER TABLE p DROP COLUMN note CASCADE;\nALTER TABLE t DROP CONSTRAINT t_p_fk;",
+			targets: one,
+			want:    []targetFinding{{1, "DROP CONSTRAINT t_p_fk", "drops foreign key t_p_fk of t", []int{0}}},
+		},
+		{
+			name: "a cascading key drop takes only the foreign keys on that table",
+			sql:  "ALTER TABLE s.p DROP CONSTRAINT p_pkey CASCADE;\nALTER TABLE public.c DROP CONSTRAINT c_fk;",
+			targets: []review.Target{{Schema: database("public",
+				schema("public", withPrimaryKey(table("p", "id integer"), "p_pkey", "id"), withForeignKey(table("c", "p_id integer"), "c_fk", "p_id", "p", "id")),
+				schema("s", withPrimaryKey(table("p", "id integer"), "p_pkey", "id")),
+			)}},
+			want: []targetFinding{
+				{0, "DROP CONSTRAINT p_pkey CASCADE", "drops primary key p_pkey of s.p", []int{0}},
+				{1, "DROP CONSTRAINT c_fk", "drops foreign key c_fk of public.c", []int{0}},
+			},
+		},
+		{
+			name:    "a second drop of the same constraint refuses the statement",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, DROP CONSTRAINT t_n_check;\nALTER TABLE s.t DROP CONSTRAINT t_pkey;",
+			targets: one,
+		},
+		{
+			name:    "a drop of a constraint a column drop may have taken withholds the statement",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_code_key, DROP COLUMN n, DROP CONSTRAINT t_n_check;\nALTER TABLE s.t DROP CONSTRAINT t_pkey;",
+			targets: one,
+			want:    []targetFinding{{1, "DROP CONSTRAINT t_pkey", "drops unique constraint t_pkey of s.t", []int{0}}},
+		},
+		{
+			name:    "a new foreign key blocks only the key it references",
+			sql:     "CREATE TABLE c (t_id int REFERENCES t (id));\nALTER TABLE t DROP CONSTRAINT t_code_key;\nCREATE TABLE c2 (t_id int REFERENCES t);\nALTER TABLE t DROP CONSTRAINT t_pkey;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
+			targets: one,
+			want:    []targetFinding{{1, "DROP CONSTRAINT t_code_key", "drops unique constraint t_code_key of t", []int{0}}},
+		},
+		{
+			name: "an enabled event trigger on the command leaves its effect unknown",
+			sql:  "ALTER TABLE t DROP CONSTRAINT t_n_check;",
+			targets: []review.Target{
+				{Schema: withEventTrigger(shop(), true), SessionUser: "alice"},
+				{Schema: withEventTrigger(shop(), true, "ALTER TABLE"), SessionUser: "alice"},
+				{Schema: withEventTrigger(shop(), true, "CREATE FUNCTION"), SessionUser: "alice"},
+				{Schema: withEventTrigger(shop(), false), SessionUser: "alice"},
+			},
+			want: []targetFinding{{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{2, 3}}},
+		},
+		{
 			name:    "a cascading drop of anything but a relation ends the scan",
 			sql:     "DROP FUNCTION f() CASCADE;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
 			targets: one,
@@ -357,6 +408,44 @@ func TestRequirePrimaryKey(t *testing.T) {
 				Views: []*metadata.ViewMetadata{{Name: "reader", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "base", Column: "id"}}}},
 			})}},
 			want: []targetFinding{{1, "CREATE TABLE IF NOT EXISTS s.reader (id int)", "creates table s.reader without a primary key", []int{0}}},
+		},
+		{
+			name:    "a qualified move keeps the table's schema exact",
+			sql:     "CREATE TABLE public.n (id int);\nALTER TABLE public.n SET SCHEMA s;\nALTER TABLE x.n ADD PRIMARY KEY (id);\nCREATE TABLE m (id int);\nALTER TABLE public.m SET SCHEMA s;\nALTER TABLE x.m ADD PRIMARY KEY (id);",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE public.n (id int)", "creates table public.n without a primary key", []int{0}}},
+		},
+		{
+			name: "a dropped materialized view takes its indexes",
+			sql:  "DROP MATERIALIZED VIEW mv;\nCREATE TABLE IF NOT EXISTS mv_idx (id int);",
+			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{
+				Name:              "public",
+				MaterializedViews: []*metadata.MaterializedViewMetadata{{Name: "mv", Indexes: []*metadata.IndexMetadata{{Name: "mv_idx"}}}},
+			})}},
+			want: []targetFinding{{1, "CREATE TABLE IF NOT EXISTS mv_idx (id int)", "creates table mv_idx without a primary key", []int{0}}},
+		},
+		{
+			name: "dropping a view another view reads is refused without CASCADE",
+			sql:  "DROP VIEW v1;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{
+				Name: "public",
+				Views: []*metadata.ViewMetadata{
+					{Name: "v1"},
+					{Name: "v2", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "v1", Column: "a"}}},
+				},
+			})}},
+		},
+		{
+			name: "dropping a view with the view that reads it",
+			sql:  "DROP VIEW v1, v2;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{
+				Name: "public",
+				Views: []*metadata.ViewMetadata{
+					{Name: "v1"},
+					{Name: "v2", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "v1", Column: "a"}}},
+				},
+			})}},
+			want: []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
 		},
 		{
 			name:    "a cascading drop of a parent may drop a child",
@@ -542,6 +631,23 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: one,
 			want:    []targetFinding{{1, "UPDATE s.nokey SET a = 1 WHERE a = 2", "prior backup runs before the change, when s.nokey does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a table CREATE SCHEMA creates",
+			sql:     "CREATE SCHEMA z CREATE TABLE t (id int) CREATE VIEW v AS SELECT 1 AS a;\nUPDATE z.t SET id = 1 WHERE id = 2;\nDELETE FROM z.v WHERE a = 1;",
+			change:  on,
+			targets: one,
+			want: []targetFinding{
+				{1, "UPDATE z.t SET id = 1 WHERE id = 2", "prior backup runs before the change, when z.t does not exist yet", []int{0}},
+				{2, "DELETE FROM z.v WHERE a = 1", "prior backup runs before the change, when z.v does not exist yet", []int{0}},
+			},
+		},
+		{
+			name:    "an unqualified creation named with its schema",
+			sql:     "CREATE TABLE n (id int);\nUPDATE public.n SET id = 1 WHERE id = 2;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "UPDATE public.n SET id = 1 WHERE id = 2", "prior backup runs before the change, when public.n does not exist yet", []int{0}}},
 		},
 		{
 			name:    "a table the change recreates still exists when the backup runs",

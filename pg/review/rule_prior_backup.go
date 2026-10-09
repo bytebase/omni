@@ -81,7 +81,7 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 			}
 			continue
 		default:
-			if t, ok := createdRelation(s.node); ok {
+			for _, t := range createdRelations(s.node) {
 				created[t] = true
 				createdNames[t.name] = true
 			}
@@ -103,7 +103,9 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 				}
 				continue
 			}
-		} else if rv.Catalogname == "" && created[table] && !hasBackupRelation(findSchema(schema, rv.Schemaname), rv.Relname) {
+		} else if rv.Catalogname == "" && (created[table] || created[backupTable{name: rv.Relname}]) && !hasBackupRelation(findSchema(schema, rv.Schemaname), rv.Relname) {
+			// An unqualified creation may be in this schema; either way
+			// the table is not there when the backup runs.
 			reportNotYetCreated(s, rv, r)
 		}
 		first, seen := kinds[table]
@@ -133,6 +135,31 @@ func statementLoc(n ast.Node) ast.Loc {
 		return v.Loc
 	}
 	return ast.NoLoc()
+}
+
+// createdRelations returns the relations a statement creates, renames, or
+// moves to a new name, as written, the tables and views of CREATE SCHEMA
+// in the new schema.
+func createdRelations(n ast.Node) []backupTable {
+	if v, ok := n.(*ast.CreateSchemaStmt); ok {
+		if v.Schemaname == "" || v.SchemaElts == nil {
+			return nil
+		}
+		var out []backupTable
+		for _, elt := range v.SchemaElts.Items {
+			for _, t := range createdRelations(elt) {
+				if t.schema == "" {
+					t.schema = v.Schemaname
+				}
+				out = append(out, t)
+			}
+		}
+		return out
+	}
+	if t, ok := createdRelation(n); ok {
+		return []backupTable{t}
+	}
+	return nil
 }
 
 // createdRelation returns the relation a statement creates, renames, or
