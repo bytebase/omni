@@ -71,7 +71,11 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 	// refuse withholds the statement's findings without ending the scan.
 	var out droppedKeys
 	withhold := false
+	// droppedColumns names the dropped columns as the statement does, and
+	// droppedOrigins as the synced table does, "" for one the scan cannot
+	// follow there.
 	droppedColumns := make(map[string]bool)
+	droppedOrigins := make(map[string]bool)
 	droppedNames := make(map[string]bool)
 	// Every drop of the statement sees the table as it was before the
 	// statement; a column drop leaves it unsettled only after them all.
@@ -87,7 +91,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				s.stop()
 				return
 			}
-			if len(droppedColumns) > 0 && !cmd.Missing_ok && knownBefore && s.mayDependOn(before, cmd.Name, droppedColumns) {
+			if len(droppedOrigins) > 0 && !cmd.Missing_ok && knownBefore && s.mayDependOn(before, cmd.Name, droppedOrigins) {
 				withhold = true
 			}
 			droppedNames[cmd.Name] = true
@@ -115,27 +119,38 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				continue
 			}
 			droppedColumns[cmd.Name] = true
+			// What the column is in the synced table.
+			origin, followed := cmd.Name, known
+			if known {
+				origin, followed = s.originOf(t, cmd.Name)
+				if !followed {
+					droppedOrigins[""] = true
+				} else if origin != "" {
+					droppedOrigins[origin] = true
+				}
+			}
 			if known && s.dropColumn(cmd, t, cascade, &out) {
 				s.stop()
 				return
 			}
 			droppedAColumn = true
-			if known {
+			if known && followed && origin != "" {
 				// The table's own foreign keys on the column go with it.
 				for _, fk := range s.index.foreignKeys {
-					if fk.owner == t && slices.ContainsFunc(fk.local, func(c string) bool { return columnName(c) == cmd.Name }) {
+					if fk.owner == t && slices.ContainsFunc(fk.local, func(c string) bool { return columnName(c) == origin }) {
 						s.constraints[[3]string{t.schema, t.table, fk.name}] = true
 						s.dropped[[3]string{t.schema, t.table, fk.name}] = true
 					}
 				}
 			}
 			if cascade {
-				s.dropReaders(t, known, v.Relation, cmd.Name)
+				sure := known && followed
+				s.dropReaders(t, sure, v.Relation, origin)
 				s.dropReferences(v.Relation, t, known, func(fk foreignKeyRef) (bool, bool) {
-					if !known {
+					if !sure {
 						return true, false
 					}
-					certainly := slices.ContainsFunc(fk.columns, func(c string) bool { return columnName(c) == cmd.Name })
+					certainly := origin != "" && slices.ContainsFunc(fk.columns, func(c string) bool { return columnName(c) == origin })
 					return certainly || slices.ContainsFunc(fk.columns, func(c string) bool { return columnName(c) == "" }), certainly
 				})
 			}
@@ -149,7 +164,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 	}
 	withhold = withhold || out.uncertain
 	if knownBefore && isTable {
-		refused, uncertain := s.refuses(before, droppedColumns, droppedNames, others)
+		refused, uncertain := s.refuses(before, droppedColumns, droppedOrigins, droppedNames, others)
 		if refused && !withhold {
 			s.stop()
 			return
@@ -342,18 +357,19 @@ func (s *scan) dropConstraint(st *statement, v *ast.AlterTableStmt, cmd *ast.Alt
 // pg: src/backend/commands/tablecmds.c — ATExecDropColumn
 func (s *scan) dropColumn(cmd *ast.AlterTableCmd, t tableRef, cascade bool, out *droppedKeys) (refused bool) {
 	table := s.index.schemas[t.schema].tables[t.table]
-	exists, changed := s.columnNow(t, cmd.Name)
+	// column is what the dropped column is in the synced table, through
+	// any rename.
+	column, ok := s.originOf(t, cmd.Name)
 	switch {
-	case s.columnRenamed(t, cmd.Name):
-		// A column renamed to this name: what it was is not followed.
+	case !ok:
 		return false
-	case changed && !exists:
-		return !cmd.Missing_ok
-	case changed:
-		// A column the change added is not the key's.
-		return false
+	case column == "":
+		// A column the change added is not the key's; one it dropped is
+		// not there.
+		exists, _ := s.columnNow(t, cmd.Name)
+		return !exists && !cmd.Missing_ok
 	}
-	if !slices.ContainsFunc(table.GetColumns(), func(c *metadata.ColumnMetadata) bool { return c.GetName() == cmd.Name }) {
+	if !slices.ContainsFunc(table.GetColumns(), func(c *metadata.ColumnMetadata) bool { return c.GetName() == column }) {
 		return !cmd.Missing_ok
 	}
 	defer func() {
@@ -362,11 +378,11 @@ func (s *scan) dropColumn(cmd *ast.AlterTableCmd, t tableRef, cascade bool, out 
 		}
 		// The column's indexes and owned sequences go with it.
 		for _, i := range table.GetIndexes() {
-			if slices.Contains(keyColumns(i), cmd.Name) && !s.isTouched(&ast.RangeVar{Schemaname: t.schema, Relname: i.GetName()}) {
+			if slices.Contains(keyColumns(i), column) && !s.isTouched(&ast.RangeVar{Schemaname: t.schema, Relname: i.GetName()}) {
 				out.freed = append(out.freed, i.GetName())
 			}
 		}
-		for _, q := range s.index.ownedSequences[columnRef{t.schema, t.table, cmd.Name}] {
+		for _, q := range s.index.ownedSequences[columnRef{t.schema, t.table, column}] {
 			if !s.reowned[[2]string{t.schema, q}] && !s.reowned[[2]string{"", q}] && !s.isTouched(&ast.RangeVar{Schemaname: t.schema, Relname: q}) {
 				out.freed = append(out.freed, q)
 			}
@@ -377,14 +393,14 @@ func (s *scan) dropColumn(cmd *ast.AlterTableCmd, t tableRef, cascade bool, out 
 	if pk != nil {
 		pkColumns = keyColumns(pk)
 	}
-	if !cascade && (s.index.referencesColumn(t, cmd.Name, s.dropped) || generatedFrom(table, cmd.Name) || slices.ContainsFunc(s.index.readsColumn[columnRef{t.schema, t.table, cmd.Name}], s.viewHolds) ||
-		s.newlyReferencedColumn(t, cmd.Name, pkColumns, pk != nil) || s.dependsOnNew(s.newReads, t, nil)) {
+	if !cascade && (s.index.referencesColumn(t, column, s.dropped) || generatedFrom(table, column) || slices.ContainsFunc(s.index.readsColumn[columnRef{t.schema, t.table, column}], s.viewHolds) ||
+		s.newlyReferencedColumn(t, column, pkColumns, pk != nil) || s.newlyReferencedColumn(t, cmd.Name, pkColumns, pk != nil) || s.dependsOnNew(s.newReads, t, nil)) {
 		return true
 	}
 	if pk == nil || !s.constraintKnown(t, pk.GetName()) {
 		return false
 	}
-	if !slices.Contains(keyColumns(pk), cmd.Name) {
+	if !slices.Contains(keyColumns(pk), column) {
 		return false
 	}
 	if out.lost == nil {
@@ -482,6 +498,10 @@ func (s *scan) dropKeyReferences(rv *ast.RangeVar, t tableRef, known bool, name 
 // exclusion constraint, whose columns the snapshot does not list, or a
 // key or foreign key on one of them.
 func (s *scan) mayDependOn(t tableRef, name string, columns map[string]bool) bool {
+	// A dropped column the scan cannot follow may be any.
+	if columns[""] {
+		return true
+	}
 	table := s.index.schemas[t.schema].tables[t.table]
 	for _, fk := range table.GetForeignKeys() {
 		if fk.GetName() == name {
@@ -509,7 +529,7 @@ func (s *scan) mayDependOn(t tableRef, name string, columns map[string]bool) boo
 //
 // pg: src/backend/commands/tablecmds.c — ATController (AT_PASS_ADD_COL,
 // AT_PASS_ADD_INDEX, AT_PASS_ADD_OTHERCONSTR)
-func (s *scan) refuses(t tableRef, droppedColumns, droppedConstraints map[string]bool, others []*ast.AlterTableCmd) (refused, uncertain bool) {
+func (s *scan) refuses(t tableRef, droppedColumns, droppedOrigins, droppedConstraints map[string]bool, others []*ast.AlterTableCmd) (refused, uncertain bool) {
 	table := s.index.schemas[t.schema].tables[t.table]
 	// has reports whether the table has the column once the drops ran.
 	has := func(column string) bool {
@@ -522,7 +542,7 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedConstraints map[string
 			return false
 		}
 		// A column drop of the statement may have taken the constraint.
-		if len(droppedColumns) > 0 && s.mayDependOn(t, name, droppedColumns) {
+		if len(droppedOrigins) > 0 && s.mayDependOn(t, name, droppedOrigins) {
 			return false
 		}
 		_, ok := constraint(table, name)
@@ -577,7 +597,7 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedConstraints map[string
 	// a foreign key referencing its own table. known is false when an
 	// index the statement or an earlier one adds may be the key.
 	ownKey := func(columns []string) (found, known bool) {
-		if addsIndex || s.newKeys[[2]string{t.schema, t.table}] || s.newKeys[[2]string{"", t.table}] {
+		if addsIndex || droppedOrigins[""] || s.newKeys[[2]string{t.schema, t.table}] || s.newKeys[[2]string{"", t.table}] {
 			return false, false
 		}
 		if len(columns) == 0 {
@@ -593,7 +613,7 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedConstraints map[string
 			if !s.isKey(t, i) || droppedConstraints[i.GetName()] {
 				continue
 			}
-			if key := keyColumns(i); !slices.ContainsFunc(key, func(c string) bool { return droppedColumns[c] }) && sameKey(key, columns) {
+			if key := keyColumns(i); !slices.ContainsFunc(key, func(c string) bool { return droppedOrigins[c] }) && sameKey(key, columns) {
 				return true, true
 			}
 		}
@@ -643,21 +663,21 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedConstraints map[string
 		// constraint's name in the table's schema.
 		switch {
 		case c.Indexname != "":
-			r, u := s.refusesIndex(t, c.Indexname, droppedColumns, droppedConstraints)
+			r, u := s.refusesIndex(t, c.Indexname, droppedOrigins, droppedConstraints)
 			if r {
 				return true, false
 			}
 			uncertain = uncertain || u
 			// The index takes the constraint's name.
 			if c.Conname != "" && c.Conname != c.Indexname {
-				taken, known := s.indexNameTaken(t, c.Conname, droppedColumns, droppedConstraints)
+				taken, known := s.indexNameTaken(t, c.Conname, droppedOrigins, droppedConstraints)
 				if taken {
 					return true, false
 				}
 				uncertain = uncertain || !known
 			}
 		case makesIndex(c) && c.Conname != "":
-			taken, known := s.indexNameTaken(t, c.Conname, droppedColumns, droppedConstraints)
+			taken, known := s.indexNameTaken(t, c.Conname, droppedOrigins, droppedConstraints)
 			if taken {
 				return true, false
 			}
@@ -763,7 +783,7 @@ func (s *scan) refusesReference(t tableRef, c *ast.Constraint, own func(string) 
 //
 // pg: src/backend/parser/parse_utilcmd.c — transformIndexConstraint
 func (s *scan) refusesIndex(t tableRef, name string, droppedColumns, droppedConstraints map[string]bool) (refused, uncertain bool) {
-	if s.isTouched(&ast.RangeVar{Schemaname: t.schema, Relname: name}) {
+	if droppedColumns[""] || s.isTouched(&ast.RangeVar{Schemaname: t.schema, Relname: name}) {
 		return false, true
 	}
 	switch kind, ok := s.index.schemas[t.schema].relations[name]; {
@@ -795,7 +815,7 @@ func (s *scan) indexNameTaken(t tableRef, name string, droppedColumns, droppedCo
 	switch {
 	case s.freed[[2]string{t.schema, name}]:
 		return false, true
-	case s.isTouched(rv):
+	case s.isTouched(rv) || droppedColumns[""]:
 		return false, false
 	}
 	if _, ok := s.index.schemas[t.schema].relations[name]; !ok || droppedConstraints[name] {

@@ -75,6 +75,9 @@ type scan struct {
 	// rename, whose identity the scan does not follow.
 	columns        map[[3]string]bool
 	renamedColumns map[[3]string]bool
+	// origins maps a column a rename named, by (schema, table, column), to
+	// the synced column it is, "" for one the change added.
+	origins map[[3]string]string
 	// schemas lists the schemas a statement created or dropped, and
 	// schemaGone the ones a DROP SCHEMA removed and nothing made again.
 	schemas    map[string]bool
@@ -152,6 +155,7 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		dropped:        make(map[[3]string]bool),
 		columns:        make(map[[3]string]bool),
 		renamedColumns: make(map[[3]string]bool),
+		origins:        make(map[[3]string]string),
 		schemas:        make(map[string]bool),
 		schemaGone:     make(map[string]bool),
 
@@ -614,7 +618,23 @@ func (s *scan) statement(st *statement) {
 	case *ast.CreateStmt:
 		s.create(st, v)
 	case *ast.CreateForeignTableStmt:
-		s.touch(v.Base.Relation)
+		rel := v.Base.Relation
+		if rel == nil {
+			return
+		}
+		taken := s.existsWhereCreated(rel) || s.madeHere(rel)
+		switch {
+		case s.typeExists(rel) || taken && !v.Base.IfNotExists:
+			s.stop()
+			return
+		case taken:
+			// IF NOT EXISTS of a taken name does nothing.
+			return
+		}
+		s.touch(rel)
+		if !v.Base.IfNotExists || s.createsNew(rel) {
+			s.made(rel, kindForeignTable)
+		}
 	case *ast.CreateTableAsStmt:
 		if v.Into != nil {
 			s.createAs(v.Into.Rel, v.IfNotExists, v.Query, v.Objtype == ast.OBJECT_MATVIEW)
@@ -1132,7 +1152,12 @@ func argSignature(args *ast.List) string {
 	if args != nil {
 		for _, item := range args.Items {
 			if t, ok := item.(*ast.TypeName); ok {
-				name := strings.Join(nameParts(t.Names), ".")
+				// A built-in type is pg_catalog's, however it is written.
+				parts := nameParts(t.Names)
+				if len(parts) == 2 && parts[0] == "pg_catalog" {
+					parts = parts[1:]
+				}
+				name := strings.Join(parts, ".")
 				if t.PctType {
 					name += "%TYPE"
 				}
@@ -1817,6 +1842,21 @@ func (s *scan) columnNow(t tableRef, column string) (exists, known bool) {
 	return v, ok
 }
 
+// originOf returns what a known table's column, by its name now, is in the
+// synced table: itself when no statement renamed it, the column it was
+// renamed from, or "" for a column the change added. ok is false when the
+// scan cannot tell.
+func (s *scan) originOf(t tableRef, column string) (origin string, ok bool) {
+	if s.columnRenamed(t, column) {
+		origin, ok = s.origins[[3]string{t.schema, t.table, column}]
+		return origin, ok
+	}
+	if _, changed := s.columnNow(t, column); changed {
+		return "", true
+	}
+	return column, true
+}
+
 // columnRenamed reports whether the table's column has its name from a
 // rename.
 func (s *scan) columnRenamed(t tableRef, column string) bool {
@@ -2128,6 +2168,7 @@ func (s *scan) rename(v *ast.RenameStmt) {
 			return
 		}
 		s.follow(v.Relation, "", v.Newname)
+		s.followParents(v.Relation, tableRef{s.schemaOf(v.Relation), v.Newname})
 		s.touchName(v.Relation.Schemaname, v.Relation.Relname)
 		s.touchName(v.Relation.Schemaname, v.Newname)
 		if resolved {
@@ -2175,9 +2216,18 @@ func (s *scan) rename(v *ast.RenameStmt) {
 		s.constraints[[3]string{schema, v.Relation.Relname, v.Newname}] = true
 	case v.RenameType == ast.OBJECT_COLUMN && v.Relation != nil:
 		// A known table must have the column, and not the new name.
-		if t, ok := s.table(v.Relation); ok && (!s.hasColumn(t, v.Subname) || s.hasColumn(t, v.Newname)) {
+		t, known := s.table(v.Relation)
+		if known && (!s.hasColumn(t, v.Subname) || s.hasColumn(t, v.Newname)) {
 			s.stop()
 			return
+		}
+		if known {
+			// The column keeps what it was in the synced table.
+			if origin, ok := s.originOf(t, v.Subname); ok {
+				s.origins[[3]string{t.schema, t.table, v.Newname}] = origin
+			} else {
+				delete(s.origins, [3]string{t.schema, t.table, v.Newname})
+			}
 		}
 		schema := s.schemaOf(v.Relation)
 		s.setColumn(schema, v.Relation.Relname, v.Subname, false, false)
@@ -2338,6 +2388,7 @@ func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 			return
 		}
 		s.follow(v.Relation, v.Newschema, v.Relation.Relname)
+		s.followParents(v.Relation, tableRef{v.Newschema, v.Relation.Relname})
 		if resolved {
 			// The relation leaves its schema, with a table's indexes and
 			// owned sequences.
@@ -2455,7 +2506,7 @@ func (s *scan) drop(v *ast.DropStmt) {
 			written = append(written, t)
 		}
 	}
-	dropsAny := false
+	var droppedRefs []tableRef
 	for _, obj := range v.Objects.Items {
 		parts := nameParts(listOf(obj))
 		if len(parts) == 0 {
@@ -2466,6 +2517,10 @@ func (s *scan) drop(v *ast.DropStmt) {
 			rv.Schemaname = parts[len(parts)-2]
 		}
 		schema, relKind, resolved := s.lookup(rv)
+		ref := tableRef{rv.Schemaname, rv.Relname}
+		if resolved {
+			ref.schema = schema
+		}
 		switch {
 		case resolved:
 			s.free(schema, rv.Relname)
@@ -2480,7 +2535,7 @@ func (s *scan) drop(v *ast.DropStmt) {
 			s.touch(rv)
 			schema = ""
 		}
-		dropsAny = true
+		droppedRefs = append(droppedRefs, ref)
 		if kind == ast.OBJECT_INDEX {
 			s.renamedKeys[rv.Relname] = true
 		}
@@ -2501,17 +2556,13 @@ func (s *scan) drop(v *ast.DropStmt) {
 			}
 		}
 	}
-	if cascade && dropsAny && (kind == ast.OBJECT_TABLE || kind == ast.OBJECT_FOREIGN_TABLE) {
+	if cascade && len(droppedRefs) > 0 && (kind == ast.OBJECT_TABLE || kind == ast.OBJECT_FOREIGN_TABLE) {
 		// An inheritance child of a dropped table goes with it. The synced
 		// schema records no inheritance, so a table of it may be a child.
-		dropped := make(map[string]bool)
-		for _, obj := range v.Objects.Items {
-			if parts := nameParts(listOf(obj)); len(parts) > 0 {
-				dropped[parts[len(parts)-1]] = true
-			}
-		}
 		for _, p := range s.pending {
-			if p.existed || slices.ContainsFunc(p.parents, func(name string) bool { return dropped[name] }) {
+			if p.existed || slices.ContainsFunc(p.parents, func(parent tableRef) bool {
+				return slices.ContainsFunc(droppedRefs, func(d tableRef) bool { return mayBe(parent, d) })
+			}) {
 				p.settled = true
 			}
 		}

@@ -1,6 +1,7 @@
 package review
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/pg/ast"
@@ -27,10 +28,11 @@ type pendingTable struct {
 	names  map[string]bool
 	schema string
 	// existed marks a table of the synced schema, and parents names the
-	// tables one made with INHERITS inherits from: a cascading drop of a
-	// parent may drop either.
+	// tables one made with INHERITS inherits from, in the schema each
+	// resolved to or was written in, under every name a rename or a move
+	// may have given it: a cascading drop of a parent may drop either.
 	existed bool
-	parents []string
+	parents []tableRef
 
 	// made numbers the touch that created a table the change made.
 	made int
@@ -42,17 +44,34 @@ type pendingTable struct {
 }
 
 // inheritsFrom names the tables CREATE TABLE ... INHERITS lists.
-func inheritsFrom(v *ast.CreateStmt) []string {
+func (s *scan) inheritsFrom(v *ast.CreateStmt) []tableRef {
 	if v.InhRelations == nil {
 		return nil
 	}
-	var names []string
+	var parents []tableRef
 	for _, item := range v.InhRelations.Items {
 		if rv, ok := item.(*ast.RangeVar); ok {
-			names = append(names, rv.Relname)
+			parents = append(parents, tableRef{s.schemaOf(rv), rv.Relname})
 		}
 	}
-	return names
+	return parents
+}
+
+// mayBe reports whether two relations, each in a schema or "" when that is
+// not known, may be one.
+func mayBe(a, b tableRef) bool {
+	return a.table == b.table && (a.schema == "" || b.schema == "" || a.schema == b.schema)
+}
+
+// followParents records that a parent a statement renamed or moved keeps
+// its children under its new schema and name.
+func (s *scan) followParents(rv *ast.RangeVar, to tableRef) {
+	from := tableRef{s.schemaOf(rv), rv.Relname}
+	for _, p := range s.pending {
+		if slices.ContainsFunc(p.parents, func(t tableRef) bool { return mayBe(t, from) }) {
+			p.parents = append(p.parents, to)
+		}
+	}
 }
 
 // matching returns the pending tables a name may refer to: any with that
@@ -140,7 +159,7 @@ func (s *scan) createTable(st *statement, v *ast.CreateStmt) {
 	s.pending = append(s.pending, &pendingTable{
 		names:     map[string]bool{v.Relation.Relname: true},
 		schema:    v.Relation.Schemaname,
-		parents:   inheritsFrom(v),
+		parents:   s.inheritsFrom(v),
 		statement: st.index,
 		rng:       rangeOf(v.Loc),
 		message:   "creates table " + relation(v.Relation) + " without a primary key",

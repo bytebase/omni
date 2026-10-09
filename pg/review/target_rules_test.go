@@ -417,6 +417,11 @@ func TestDisallowDropConstraint(t *testing.T) {
 			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
 		},
 		{
+			name:    "a renamed column's drop takes the constraint on it",
+			sql:     "ALTER TABLE t RENAME COLUMN code TO c2;\nALTER TABLE t DROP COLUMN c2, DROP CONSTRAINT t_code_key;",
+			targets: one,
+		},
+		{
 			name:    "ADD CONSTRAINT USING INDEX of a missing index refuses the statement",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT replacement UNIQUE USING INDEX missing_idx;",
 			targets: one,
@@ -1734,6 +1739,40 @@ func TestRequirePrimaryKey(t *testing.T) {
 			sql:     "CREATE FUNCTION g(int[]) RETURNS SETOF nokey LANGUAGE sql AS 'SELECT * FROM nokey';\nDROP FUNCTION g(int[]);\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
 			targets: one,
 			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "DROP FUNCTION matches a built-in type however it is written",
+			sql:     "CREATE FUNCTION g(int4) RETURNS SETOF nokey LANGUAGE sql AS 'SELECT * FROM nokey';\nDROP FUNCTION g(integer);\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE FOREIGN TABLE of a name the schema holds is refused",
+			sql:     "CREATE FOREIGN TABLE public.nokey (id int) SERVER s;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE FOREIGN TABLE IF NOT EXISTS of a name the schema holds does nothing",
+			sql:     "CREATE FOREIGN TABLE IF NOT EXISTS public.nokey (id int) SERVER s;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a cascade of a parent of the same name in another schema leaves a child",
+			sql:     "CREATE TABLE public.n (x int) INHERITS (s.parent);\nDROP TABLE other.parent CASCADE;",
+			targets: []review.Target{{Schema: database("public", schema("public"), schema("s", table("parent", "id integer")), schema("other", table("parent", "id integer")))}},
+			want:    []targetFinding{{0, "CREATE TABLE public.n (x int) INHERITS (s.parent)", "creates table public.n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a cascade of a renamed parent takes its child",
+			sql:     "CREATE TABLE public.n (x int) INHERITS (s.parent);\nALTER TABLE s.parent RENAME TO p2;\nDROP TABLE s.p2 CASCADE;",
+			targets: []review.Target{{Schema: database("public", schema("public"), schema("s", table("parent", "id integer")), schema("other", table("parent", "id integer")))}},
+		},
+		{
+			name:    "dropping a renamed key column removes the key",
+			sql:     "ALTER TABLE k RENAME COLUMN id TO x;\nALTER TABLE k DROP COLUMN x;",
+			targets: []review.Target{{Schema: database("public", schema("public", withPrimaryKey(table("k", "id integer", "v integer"), "k_pkey", "id")))}},
+			want:    []targetFinding{{1, "DROP COLUMN x", "removes the primary key of k, and the change adds none back", []int{0}}},
 		},
 		{
 			name: "a cascade does not go past a view the change replaced",
