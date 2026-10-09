@@ -130,6 +130,23 @@ func loaderCompatRejectCases() []loaderCompatCase {
 			name: "view_duplicate_output_column_names_rejected",
 			sql:  `CREATE VIEW v_dupe_cols AS SELECT 1 AS id, 2 AS id;`,
 		},
+		{
+			// A foreign key depends on the index of the key it references.
+			name: "drop_primary_key_referenced_by_fk_without_cascade",
+			sql: `
+				CREATE TABLE drop_pk_parent (id integer CONSTRAINT drop_pk_parent_key PRIMARY KEY);
+				CREATE TABLE drop_pk_child (parent_id integer CONSTRAINT drop_pk_child_fk REFERENCES drop_pk_parent (id));
+				ALTER TABLE drop_pk_parent DROP CONSTRAINT drop_pk_parent_key;
+			`,
+		},
+		{
+			name: "drop_unique_referenced_by_fk_without_cascade",
+			sql: `
+				CREATE TABLE drop_uq_parent (code text CONSTRAINT drop_uq_parent_key UNIQUE);
+				CREATE TABLE drop_uq_child (parent_code text CONSTRAINT drop_uq_child_fk REFERENCES drop_uq_parent (code));
+				ALTER TABLE drop_uq_parent DROP CONSTRAINT drop_uq_parent_key;
+			`,
+		},
 	}
 }
 
@@ -1656,6 +1673,26 @@ func loaderCompatAcceptCases() []loaderCompatCase {
 				CREATE INDEX parent_idx_attach_id_idx ON ONLY part_s.parent_idx_attach (id);
 				CREATE INDEX child_idx_attach_id_idx ON part_s.child_idx_attach (id);
 				ALTER INDEX part_s.parent_idx_attach_id_idx ATTACH PARTITION part_s.child_idx_attach_id_idx;
+			`,
+		},
+		{
+			// CASCADE drops the foreign key with the key, which frees its
+			// name on the child.
+			name: "drop_key_referenced_by_fk_with_cascade",
+			sql: `
+				CREATE TABLE drop_pk_cascade_parent (id integer CONSTRAINT drop_pk_cascade_parent_key PRIMARY KEY);
+				CREATE TABLE drop_pk_cascade_child (parent_id integer CONSTRAINT drop_pk_cascade_child_fk REFERENCES drop_pk_cascade_parent (id));
+				ALTER TABLE drop_pk_cascade_parent DROP CONSTRAINT drop_pk_cascade_parent_key CASCADE;
+				ALTER TABLE drop_pk_cascade_child ADD CONSTRAINT drop_pk_cascade_child_fk CHECK (parent_id > 0);
+			`,
+		},
+		{
+			name: "drop_key_after_dropping_its_fk",
+			sql: `
+				CREATE TABLE drop_pk_free_parent (id integer CONSTRAINT drop_pk_free_parent_key PRIMARY KEY);
+				CREATE TABLE drop_pk_free_child (parent_id integer CONSTRAINT drop_pk_free_child_fk REFERENCES drop_pk_free_parent (id));
+				ALTER TABLE drop_pk_free_child DROP CONSTRAINT drop_pk_free_child_fk;
+				ALTER TABLE drop_pk_free_parent DROP CONSTRAINT drop_pk_free_parent_key;
 			`,
 		},
 	}

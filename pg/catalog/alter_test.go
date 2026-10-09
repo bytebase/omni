@@ -318,6 +318,39 @@ func TestAlterTableDropConstraint(t *testing.T) {
 	}
 }
 
+// A foreign key depends on the index of the key it references, so
+// dropping that key needs CASCADE, which drops the foreign key too.
+//
+// pg: src/backend/commands/tablecmds.c — ATExecDropConstraint
+func TestAlterTableDropConstraintReferencedByForeignKey(t *testing.T) {
+	for _, key := range []string{"PRIMARY KEY", "UNIQUE"} {
+		c := New()
+		if _, err := c.Exec("CREATE TABLE p (id int CONSTRAINT p_key "+key+"); CREATE TABLE f (p_id int CONSTRAINT f_fk REFERENCES p (id));", nil); err != nil {
+			t.Fatal(err)
+		}
+		results, err := c.Exec("ALTER TABLE p DROP CONSTRAINT p_key;", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if results[0].Error == nil {
+			t.Fatalf("%s: DROP CONSTRAINT without CASCADE succeeded while a foreign key references it", key)
+		}
+		results, err = c.Exec("ALTER TABLE p DROP CONSTRAINT p_key CASCADE;", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if results[0].Error != nil {
+			t.Fatalf("%s: DROP CONSTRAINT CASCADE: %v", key, results[0].Error)
+		}
+		if cons := c.ConstraintsOf(c.GetRelation("", "f").OID); len(cons) != 0 {
+			t.Errorf("%s: the foreign key survived DROP CONSTRAINT CASCADE: %v", key, cons[0].Name)
+		}
+		if cons := c.ConstraintsOf(c.GetRelation("", "p").OID); len(cons) != 0 {
+			t.Errorf("%s: the key survived DROP CONSTRAINT CASCADE", key)
+		}
+	}
+}
+
 func TestAlterTableDropConstraintIfExists(t *testing.T) {
 	c := New()
 	c.DefineRelation(makeCreateTableStmt("", "t", []ColumnDef{{Name: "id", Type: TypeName{Name: "int4", TypeMod: -1}}}, nil, false), 'r')
