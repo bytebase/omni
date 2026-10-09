@@ -2028,6 +2028,8 @@ func (n *CreateProcedureStmt) stmtNode() {}
 // implementation is a Java method or a C function instead of a PL/SQL body.
 //
 //	LANGUAGE JAVA NAME 'signature'
+//	MLE MODULE module [ ENV env ] SIGNATURE 'signature'
+//	MLE LANGUAGE language [ PURE ] delimited_code
 //	{ LANGUAGE C | EXTERNAL } c_clause...
 //	c_clause ::= NAME name | LIBRARY lib | AGENT IN ( argument [, ...] )
 //	    | WITH CONTEXT | PARAMETERS ( external_parameter [, ...] )
@@ -2035,13 +2037,18 @@ func (n *CreateProcedureStmt) stmtNode() {}
 type CallSpec struct {
 	Language    string      // JAVA or C; C for the EXTERNAL form too
 	External    bool        // EXTERNAL instead of LANGUAGE C
-	Name        string      // Java method signature, or C function name
+	Name        string      // Java method signature, C function name, or MLE SIGNATURE
 	Library     *ObjectName // LIBRARY of a C call spec
 	AgentIn     *List       // AGENT IN arguments (list of *String)
 	WithContext bool        // WITH CONTEXT
 	Parameters  *List       // PARAMETERS external parameters (list of *String)
 	// CallingStandard is C or PASCAL from CALLING STANDARD, or "".
 	CallingStandard string
+	MLE             bool        // MLE call spec: MLE MODULE ... or MLE LANGUAGE ...
+	Module          *ObjectName // MLE MODULE module
+	Env             *ObjectName // MLE MODULE ... ENV environment
+	Pure            bool        // MLE LANGUAGE ... PURE
+	Code            string      // inline MLE code with its delimiters
 	Loc             Loc
 }
 
@@ -2988,13 +2995,14 @@ func (n *AlterResourceCostStmt) stmtNode() {}
 // FLASHBACK ARCHIVE, JAVA, LIBRARY) that captures the DDL action, object type,
 // and name without detailed parsing of all options.
 type AdminDDLStmt struct {
-	Action     string      // CREATE, ALTER, DROP
-	ObjectType ObjectType  // OBJECT_TABLESPACE, OBJECT_DIRECTORY, etc.
-	Name       *ObjectName // object name
-	OrReplace  bool        // OR REPLACE
-	IfExists   bool        // IF EXISTS (for DROP)
-	Options    *List       // parsed DDL options (list of *DDLOption)
-	Loc        Loc
+	Action      string      // CREATE, ALTER, DROP
+	ObjectType  ObjectType  // OBJECT_TABLESPACE, OBJECT_DIRECTORY, etc.
+	Name        *ObjectName // object name
+	OrReplace   bool        // OR REPLACE
+	IfExists    bool        // IF EXISTS (for DROP)
+	IfNotExists bool        // IF NOT EXISTS (for CREATE)
+	Options     *List       // parsed DDL options (list of *DDLOption)
+	Loc         Loc
 }
 
 func (n *AdminDDLStmt) nodeTag()  {}

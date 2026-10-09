@@ -71,3 +71,18 @@ ref_069	sequence	reject	CREATE SEQUENCE omni_seq_{run}_q "NOKEEP"	quoted sequenc
 ref_070	sequence	reject	CREATE SEQUENCE omni_seq_{run}_r SCALE "EXTEND"	quoted EXTEND modifier
 ref_071	ddl	reject	CREATE JAVA "SOURCE" NAMED omni_jq_{run} AS class X {}	quoted CREATE JAVA kind keyword
 ref_072	ddl	reject	CREATE JAVA SOURCE NAMED omni_jg_{run} garbage AS class X {}	unknown word in the CREATE JAVA head
+ref_073	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_mle_mod_{run} RETURN NUMBER AS MLE MODULE omni_missing_mod ENV omni_missing_env SIGNATURE 'f()';	MLE module call spec; the absent module is PLS-00201
+ref_074	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_mle_sig_{run} RETURN NUMBER AS MLE MODULE omni_missing_mod;	MLE module call spec without SIGNATURE
+ref_075	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_mle_end_{run} RETURN NUMBER AS MLE MODULE omni_missing_mod SIGNATURE 'f()'	MLE call spec without its terminating semicolon
+ref_076	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_mle_var_{run} RETURN NUMBER IS mle NUMBER; BEGIN mle := 1; RETURN mle; END;	unquoted MLE after IS opens a call spec, not a declaration
+ref_077	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_ext_var_{run} RETURN NUMBER IS external NUMBER; BEGIN external := 1; RETURN external; END;	unquoted EXTERNAL after IS opens a call spec, not a declaration
+ref_078	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_mle_qvar_{run} RETURN NUMBER IS "MLE" NUMBER; BEGIN "MLE" := 1; RETURN "MLE"; END;	quoted MLE after IS declares a variable
+ref_079	plsql_body	accept	CREATE OR REPLACE TYPE omni_tsmle_{run} AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS MLE MODULE omni_missing_mod SIGNATURE 'f()')	MLE module call spec in an object type spec
+ref_080	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tse_{run} AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS EXTERNAL LIBRARY omni_lib)	EXTERNAL call spec in an object type spec
+ref_081	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tsr_{run} AS OBJECT (a NUMBER, MEMBER FUNCTION f)	object type spec function without RETURN
+ref_082	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tsp_{run} AS OBJECT (a NUMBER, MEMBER PROCEDURE)	object type spec method without a name
+ref_083	ddl	reject	CREATE JAVA IF NOT EXISTS SOURCE NAMED omni_jine_{run} AS class X {}	no IF NOT EXISTS after CREATE JAVA
+ref_084	ddl	reject	CREATE IF NOT EXISTS JAVA SOURCE NAMED omni_jinb_{run} AS class X {}	no IF NOT EXISTS before JAVA
+ref_085	ddl	reject	CREATE JAVA CLASS SCHEMA omni_s IF NOT EXISTS USING BFILE (omni_d, 'x.class')	IF NOT EXISTS after SCHEMA in CREATE JAVA
+ref_086	ddl	reject	CREATE JAVA SOURCE IF EXISTS NAMED omni_jie_{run} AS class X {}	IF EXISTS in CREATE JAVA
+ref_087	ddl	reject	CREATE OR REPLACE JAVA SOURCE IF NOT EXISTS NAMED omni_jor_{run} AS class X {}	OR REPLACE beside IF NOT EXISTS in CREATE JAVA

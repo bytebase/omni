@@ -13,8 +13,9 @@ import (
 // INVALID with PLS-00103 without raising an error: a call spec needs its
 // ';', while a trigger's CALL routine and a wrapped unit must not have one.
 //
-// CREATE JAVA SOURCE is not covered here: the gvenzl/oracle-free image has
-// no Java VM (ORA-29538). TestSplitJavaSource pins its boundaries.
+// CREATE JAVA SOURCE and MLE code are not covered here: the
+// gvenzl/oracle-free image has no Java VM (ORA-29538) and no MLE (ORA-00439).
+// TestSplitEmbeddedSource pins their boundaries.
 func TestSplitSegmentsCompileInOracle(t *testing.T) {
 	ctx, db := openOracleReferenceDB(t)
 	run := fmt.Sprintf("S%d", time.Now().UnixNano())

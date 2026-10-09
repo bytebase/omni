@@ -309,12 +309,17 @@ func (p *Parser) parseTypeBodyProcedure(inSpec bool) (*nodes.CreateProcedureStmt
 	}
 	var parseErr582 error
 
+	// A method needs a name (PLS-00103 on Oracle 23ai): the words that
+	// follow one in the head do not stand for it.
+	if p.cur.Type == kwIS || p.cur.Type == kwAS || p.cur.Type == kwRETURN {
+		return nil, p.syntaxErrorAtCur()
+	}
 	stmt.Name, parseErr582 = p.parseObjectName()
-	if parseErr582 !=
-
-		// Optional parameter list
-		nil {
+	if parseErr582 != nil {
 		return nil, parseErr582
+	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.cur.Type == '(' {
@@ -376,12 +381,17 @@ func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.Creat
 	}
 	var parseErr585 error
 
+	// A method needs a name (PLS-00103 on Oracle 23ai): the words that
+	// follow one in the head do not stand for it.
+	if p.cur.Type == kwIS || p.cur.Type == kwAS || p.cur.Type == kwRETURN {
+		return nil, p.syntaxErrorAtCur()
+	}
 	stmt.Name, parseErr585 = p.parseObjectName()
-	if parseErr585 !=
-
-		// Optional parameter list
-		nil {
+	if parseErr585 != nil {
 		return nil, parseErr585
+	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.cur.Type == '(' {
@@ -415,13 +425,17 @@ func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.Creat
 		} else {
 			var parseErr587 error
 			stmt.ReturnType, parseErr587 = p.parseTypeName()
-			if parseErr587 !=
-
-				// Optional function properties
-				nil {
+			if parseErr587 != nil {
 				return nil, parseErr587
 			}
+			if stmt.ReturnType == nil || stmt.ReturnType.Names.Len() == 0 {
+				return nil, p.syntaxErrorAtCur()
+			}
 		}
+	} else {
+		// A method function needs RETURN, in a spec and a body alike
+		// (PLS-00103 on Oracle 23ai).
+		return nil, p.syntaxErrorAtCur()
 	}
 	parseErr588 := p.parseFunctionProperties(stmt)
 	if parseErr588 !=
@@ -592,14 +606,14 @@ func isOneOfKeywords(tok Token, words []string) bool {
 
 // parseTypeSpecImplementation parses the optional { IS | AS } call_spec of a
 // method specification in an object type specification. A PL/SQL body is not
-// allowed there (Oracle expects LANGUAGE or MLE after IS), and no ';' ends the
-// call spec.
+// allowed there, nor the EXTERNAL form (Oracle 23ai expects LANGUAGE or MLE
+// after IS), and no ';' ends the call spec.
 func (p *Parser) parseTypeSpecImplementation() (*nodes.CallSpec, error) {
 	if p.cur.Type != kwIS && p.cur.Type != kwAS {
 		return nil, nil
 	}
 	p.advance() // consume IS or AS
-	if !p.isCallSpecStart() {
+	if !p.isCallSpecWord("LANGUAGE", "MLE") {
 		return nil, p.syntaxErrorAtCur()
 	}
 	return p.parseCallSpec(false)

@@ -114,6 +114,11 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		javaMods = append(javaMods, &nodes.DDLOption{Key: "NOFORCE", Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}})
 		p.advance() // consume NOFORCE
 	}
+	if ifNotExists && (len(javaMods) > 0 || p.cur.Type == kwJAVA) {
+		// CREATE JAVA takes IF NOT EXISTS after its kind, not before JAVA
+		// (ORA-00901 on Oracle 23ai).
+		return nil, p.syntaxErrorAtCur()
+	}
 	if len(javaMods) > 0 {
 		if p.cur.Type != kwJAVA {
 			return nil, p.syntaxErrorAtCur()

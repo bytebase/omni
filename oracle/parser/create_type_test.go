@@ -248,14 +248,43 @@ func TestParseObjectTypeSpecMethods(t *testing.T) {
 	}
 }
 
+// TestParseObjectTypeSpecMLECallSpecs checks the MLE call specs Oracle 23ai
+// accepts on a method spec: the MODULE form reaches name resolution
+// (PLS-00201 for an absent module), the inline form the MLE resolver.
+func TestParseObjectTypeSpecMLECallSpecs(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS MLE MODULE m SIGNATURE 'f()')",
+		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{ return 1; }}, MEMBER PROCEDURE p)",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateTypeStmt)
+			f := stmt.Methods.Items[0].(*ast.TypeBodyMember).Subprog.(*ast.CreateFunctionStmt)
+			if f.CallSpec == nil || !f.CallSpec.MLE {
+				t.Fatalf("f = %s, want an MLE call spec", ast.NodeToString(f))
+			}
+			if violations := CheckLocations(t, sql); len(violations) > 0 {
+				t.Fatalf("Loc violations: %v", violations)
+			}
+		})
+	}
+}
+
 // TestParseObjectTypeSpecRejects lists object type specifications Oracle 23ai
-// rejects: a call spec ended by ';' or a PL/SQL body in the spec (PLS-00103),
-// an attribute named like a method keyword unless quoted (PLS-00103), an
-// attribute after a method or no attribute at all (PLS-00589), a repeated
-// modifier (PLS-00168), and a pragma other than RESTRICT_REFERENCES
-// (PLS-00127).
+// rejects: a call spec ended by ';', the EXTERNAL call spec, or a PL/SQL body
+// in the spec (PLS-00103), a method without a name or a function without
+// RETURN (PLS-00103), an attribute named like a method keyword unless quoted
+// (PLS-00103), an attribute after a method or no attribute at all
+// (PLS-00589), a repeated modifier (PLS-00168), and a pragma other than
+// RESTRICT_REFERENCES (PLS-00127).
 func TestParseObjectTypeSpecRejects(t *testing.T) {
 	for _, sql := range []string{
+		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS MLE MODULE m SIGNATURE 'f()';)",
+		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS EXTERNAL LIBRARY lib)",
+		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f)",
+		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f, MEMBER PROCEDURE p)",
+		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER PROCEDURE)",
+		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION RETURN NUMBER)",
 		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int';)",
 		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END)",
 		"CREATE TYPE t AS OBJECT (map NUMBER)",
@@ -279,4 +308,17 @@ func TestParseObjectTypeSpecRejects(t *testing.T) {
 	}
 	// Quoted, the method keywords name ordinary attributes.
 	ParseAndCheck(t, `CREATE TYPE t AS OBJECT ("MAP" NUMBER, "ORDER" NUMBER, a NUMBER)`)
+}
+
+// TestParseTypeBodyMethodRejects lists type body methods Oracle 23ai rejects
+// with PLS-00103: a function without RETURN and a method without a name.
+func TestParseTypeBodyMethodRejects(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE TYPE BODY t AS MEMBER FUNCTION f IS BEGIN RETURN 1; END; END;",
+		"CREATE TYPE BODY t AS MEMBER PROCEDURE IS BEGIN NULL; END; END;",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseShouldFail(t, sql)
+		})
+	}
 }

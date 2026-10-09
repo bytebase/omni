@@ -73,7 +73,14 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		return sel, nil
 	}
 	p.advance() // consume SELECT
+	return p.parseSelectAfterKeyword(sel)
+}
 
+// parseSelectAfterKeyword parses the rest of a query block into sel, from the
+// token after the SELECT keyword: hints, the select list, and the clauses that
+// follow. CREATE JAVA ... USING calls it directly for the legacy subquery that
+// omits the SELECT keyword.
+func (p *Parser) parseSelectAfterKeyword(sel *nodes.SelectStmt) (*nodes.SelectStmt, error) {
 	// Hints
 	if p.cur.Type == tokHINT {
 		tok := p.cur

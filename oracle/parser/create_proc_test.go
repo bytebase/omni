@@ -628,6 +628,12 @@ func TestParseCallSpecInSubprograms(t *testing.T) {
 			"END pk;",
 		"CREATE OR REPLACE TYPE BODY ty AS MEMBER FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int'; END;",
 		"CREATE OR REPLACE PROCEDURE p AS FUNCTION g RETURN NUMBER AS LANGUAGE JAVA NAME 'X.g() return int'; BEGIN NULL; END;",
+		"CREATE OR REPLACE PACKAGE pk AS FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{ return 1; }}; PROCEDURE q; END;",
+		"CREATE OR REPLACE PACKAGE pk AS FUNCTION f RETURN NUMBER AS MLE MODULE m SIGNATURE 'f()'; PROCEDURE q; END;",
+		"CREATE OR REPLACE PACKAGE BODY pk AS\n" +
+			"  FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{ return \"a;b\"; -- x }};\n" +
+			"  PROCEDURE z IS BEGIN NULL; END;\n" +
+			"END;",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -636,16 +642,160 @@ func TestParseCallSpecInSubprograms(t *testing.T) {
 	}
 }
 
-// TestParseCallSpecNamesAreNotCallSpecs checks that a parameter or variable
-// named LANGUAGE or EXTERNAL still parses as one.
+// TestParseCallSpecNamesAreNotCallSpecs checks the names Oracle 23ai compiles
+// VALID although they spell a call spec word: parameters named LANGUAGE,
+// EXTERNAL, or MLE, a variable so named after the first declaration or in a
+// DECLARE block or package, and a quoted "MLE" first declaration.
+// TestParseCallSpecRejects has the unquoted first declaration, which Oracle
+// reads as a call spec.
 func TestParseCallSpecNamesAreNotCallSpecs(t *testing.T) {
-	sql := "CREATE FUNCTION f(language IN VARCHAR2) RETURN NUMBER IS\n" +
-		"  external NUMBER;\n" +
-		"BEGIN RETURN 1; END;"
-	result := ParseAndCheck(t, sql)
-	stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateFunctionStmt)
-	if stmt.CallSpec != nil || stmt.Body == nil {
-		t.Fatalf("CallSpec = %+v, Body = %v; want a PL/SQL body", stmt.CallSpec, stmt.Body)
+	tests := []string{
+		"CREATE FUNCTION f(language IN VARCHAR2, external IN NUMBER, mle IN NUMBER) RETURN NUMBER IS BEGIN RETURN 1; END;",
+		"CREATE FUNCTION f RETURN NUMBER IS x NUMBER; mle NUMBER; BEGIN mle := 1; RETURN mle; END;",
+		"CREATE FUNCTION f RETURN NUMBER IS \"MLE\" NUMBER; BEGIN \"MLE\" := 1; RETURN \"MLE\"; END;",
+		"CREATE PROCEDURE p AS BEGIN DECLARE external NUMBER; BEGIN NULL; END; END;",
+		"CREATE PACKAGE pk AS mle NUMBER; END;",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			switch stmt := result.Items[0].(*ast.RawStmt).Stmt.(type) {
+			case *ast.CreateFunctionStmt:
+				if stmt.CallSpec != nil || stmt.Body == nil {
+					t.Fatalf("CallSpec = %+v, Body = %v; want a PL/SQL body", stmt.CallSpec, stmt.Body)
+				}
+			case *ast.CreateProcedureStmt:
+				if stmt.CallSpec != nil || stmt.Body == nil {
+					t.Fatalf("CallSpec = %+v, Body = %v; want a PL/SQL body", stmt.CallSpec, stmt.Body)
+				}
+			}
+		})
+	}
+}
+
+// TestParseMLECallSpec covers the MLE call specs, which Oracle 23ai compiles
+// past the syntax check: the MODULE form reaches name resolution (PLS-00201
+// for an absent module), the inline form ORA-00439 where MLE is not enabled.
+// The inline code is kept verbatim with its delimiters; it is JavaScript, so
+// its quotes, "--", and ';' are not SQL.
+func TestParseMLECallSpec(t *testing.T) {
+	tests := []struct {
+		name   string
+		sql    string
+		want   ast.CallSpec
+		module string
+		env    string
+	}{
+		{
+			name:   "module",
+			sql:    "CREATE FUNCTION f(a IN NUMBER) RETURN NUMBER AS MLE MODULE m SIGNATURE 'f(number)';",
+			want:   ast.CallSpec{MLE: true, Name: "f(number)"},
+			module: "M",
+		},
+		{
+			name:   "module with env",
+			sql:    "CREATE OR REPLACE FUNCTION f RETURN NUMBER AS MLE MODULE s.m ENV s.e SIGNATURE 'f()';",
+			want:   ast.CallSpec{MLE: true, Name: "f()"},
+			module: "M",
+			env:    "E",
+		},
+		{
+			name: "inline",
+			sql:  "CREATE FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{ return 1; }};",
+			want: ast.CallSpec{MLE: true, Language: "JAVASCRIPT", Code: "{{ return 1; }}"},
+		},
+		{
+			name: "inline pure",
+			sql:  "CREATE FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT PURE {{ return 1; }};",
+			want: ast.CallSpec{MLE: true, Language: "JAVASCRIPT", Pure: true, Code: "{{ return 1; }}"},
+		},
+		{
+			name: "inline code the SQL lexer would misread",
+			sql:  "CREATE PROCEDURE p AS MLE LANGUAGE JAVASCRIPT {{ let s = \"a;b'\"; -- x }};",
+			want: ast.CallSpec{MLE: true, Language: "JAVASCRIPT", Code: "{{ let s = \"a;b'\"; -- x }}"},
+		},
+		{
+			// A delimiter that is not made of opening brackets closes with
+			// itself, and the search for it ignores JavaScript strings.
+			name: "identical delimiter",
+			sql:  "CREATE PROCEDURE p AS MLE LANGUAGE JAVASCRIPT ## let s = 'it''s'; /* ## ;",
+			want: ast.CallSpec{MLE: true, Language: "JAVASCRIPT", Code: "## let s = 'it''s'; /* ##"},
+		},
+		{
+			name: "quote delimiter",
+			sql:  "CREATE PROCEDURE p AS MLE LANGUAGE JAVASCRIPT 'q console.log(1); 'q;",
+			want: ast.CallSpec{MLE: true, Language: "JAVASCRIPT", Code: "'q console.log(1); 'q"},
+		},
+		{
+			name: "mirrored bracket delimiter",
+			sql:  "CREATE FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {< return 1; >};",
+			want: ast.CallSpec{MLE: true, Language: "JAVASCRIPT", Code: "{< return 1; >}"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			var spec *ast.CallSpec
+			switch stmt := result.Items[0].(*ast.RawStmt).Stmt.(type) {
+			case *ast.CreateFunctionStmt:
+				spec = stmt.CallSpec
+			case *ast.CreateProcedureStmt:
+				spec = stmt.CallSpec
+			default:
+				t.Fatalf("unexpected statement %T", stmt)
+			}
+			if spec == nil {
+				t.Fatal("CallSpec = nil")
+			}
+			if spec.MLE != tt.want.MLE || spec.Language != tt.want.Language || spec.Name != tt.want.Name ||
+				spec.Pure != tt.want.Pure || spec.Code != tt.want.Code {
+				t.Fatalf("CallSpec = %s, want %+v", ast.NodeToString(spec), tt.want)
+			}
+			if got := objectNameText(spec.Module); got != tt.module {
+				t.Fatalf("Module = %q, want %q", got, tt.module)
+			}
+			if got := objectNameText(spec.Env); got != tt.env {
+				t.Fatalf("Env = %q, want %q", got, tt.env)
+			}
+			if violations := CheckLocations(t, tt.sql); len(violations) > 0 {
+				t.Fatalf("Loc violations: %v", violations)
+			}
+		})
+	}
+}
+
+func objectNameText(n *ast.ObjectName) string {
+	if n == nil {
+		return ""
+	}
+	return n.Name
+}
+
+// TestParseMLECallSpecRejects lists MLE call specs Oracle 23ai compiles with
+// PLS-00103: SIGNATURE is required and takes a string, PURE belongs to the
+// inline form only, ENV needs a name, and a ';' must follow the call spec,
+// directly after the inline code's closing delimiter. A lone "." is no
+// delimiter (PLS-00881), and code without its closing delimiter never ends.
+func TestParseMLECallSpecRejects(t *testing.T) {
+	tests := []string{
+		"CREATE FUNCTION f RETURN NUMBER AS MLE MODULE m;",
+		"CREATE FUNCTION f RETURN NUMBER AS MLE MODULE m SIGNATURE f;",
+		"CREATE FUNCTION f RETURN NUMBER AS MLE MODULE m PURE SIGNATURE 'f()';",
+		"CREATE FUNCTION f RETURN NUMBER AS MLE MODULE m ENV SIGNATURE 'f()';",
+		"CREATE FUNCTION f RETURN NUMBER AS MLE MODULE m SIGNATURE 'f()'",
+		"CREATE FUNCTION f RETURN NUMBER AS MLE MODULE SIGNATURE 'f()';",
+		"CREATE FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{ return 1; }}",
+		"CREATE FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{ return 1; }} x;",
+		"CREATE FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT . return 1; .;",
+		"CREATE FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{ return 1; ;",
+		"CREATE FUNCTION f RETURN NUMBER AS MLE LANGUAGE;",
+		"CREATE FUNCTION f RETURN NUMBER AS MLE JAVASCRIPT {{ return 1; }};",
+		"CREATE OR REPLACE PACKAGE pk AS FUNCTION f RETURN NUMBER AS MLE MODULE m SIGNATURE 'f()' PROCEDURE q; END;",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseShouldFail(t, sql)
+		})
 	}
 }
 
@@ -685,6 +835,15 @@ func TestParseCallSpecRejects(t *testing.T) {
 		"CREATE PROCEDURE p AS EXTERNAL LIBRARY lib CALLING STANDARD C CALLING STANDARD C;",
 		"CREATE PROCEDURE p AS EXTERNAL LIBRARY lib WITH CONTEXT WITH CONTEXT;",
 		"CREATE PROCEDURE p(a IN BINARY_INTEGER) AS EXTERNAL LIBRARY lib AGENT IN (a) AGENT IN (a);",
+		// PLS-00103: an unquoted LANGUAGE, EXTERNAL, or MLE right after IS|AS
+		// starts a call spec in every subprogram, so none of them names the
+		// first declaration.
+		"CREATE FUNCTION f RETURN NUMBER IS external NUMBER; BEGIN external := 1; RETURN external; END;",
+		"CREATE FUNCTION f RETURN NUMBER IS language NUMBER; BEGIN language := 1; RETURN language; END;",
+		"CREATE FUNCTION f RETURN NUMBER IS mle NUMBER; BEGIN mle := 1; RETURN mle; END;",
+		"CREATE PROCEDURE p AS PROCEDURE q IS external NUMBER; BEGIN NULL; END; BEGIN NULL; END;",
+		"CREATE PACKAGE BODY pk AS FUNCTION f RETURN NUMBER IS language NUMBER; BEGIN RETURN 1; END; END;",
+		"CREATE TYPE BODY ty AS MEMBER FUNCTION f RETURN NUMBER IS mle NUMBER; BEGIN RETURN 1; END; END;",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {

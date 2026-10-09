@@ -15,11 +15,12 @@ type SegmentKind int
 const (
 	SegmentSQL SegmentKind = iota
 	SegmentSQLPlusCommand
-	// SegmentJavaSource is a CREATE JAVA ... AS statement: SQL up to AS, then
-	// Java source text. It executes like SegmentSQL, but its text must not be
-	// read with the SQL lexer past AS: Java's "--" decrement, "//" comments,
-	// and char literals lex as SQL comments and strings.
-	SegmentJavaSource
+	// SegmentEmbeddedSource is a statement whose text embeds Java or
+	// JavaScript source: CREATE JAVA ... AS, CREATE MLE MODULE ... AS, or a
+	// unit with an inline MLE call spec. It executes like SegmentSQL, but its
+	// text must not be read with the SQL lexer: Java's and JavaScript's "--"
+	// decrement, "//" comments, and quotes lex as SQL comments and strings.
+	SegmentEmbeddedSource
 )
 
 // Empty returns true if the segment contains only whitespace, semicolons, and
@@ -85,7 +86,7 @@ func Split(sql string) []Segment {
 							stmtStart = lineEndAfterBreak(sql, tok.End)
 						}
 					} else {
-						segments = appendSegment(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc))
+						segments = appendSegmentWithKind(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc), state.segmentKind())
 						stmtStart = lineEndBeforeBreak(sql, tok.End)
 					}
 					lexer.pos = lineEndAfterBreak(sql, tok.End)
@@ -97,7 +98,7 @@ func Split(sql string) []Segment {
 						nextStart := lineEndAfterBreak(sql, tok.End)
 						commandStart := stmtStart
 						if !prefixEmpty {
-							segments = appendSegment(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc))
+							segments = appendSegmentWithKind(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc), state.segmentKind())
 							commandStart = lineStartOffset(sql, tok.Loc)
 						}
 						segments = appendSegmentWithKind(segments, sql, commandStart, lineEnd, SegmentSQLPlusCommand)
@@ -112,11 +113,22 @@ func Split(sql string) []Segment {
 
 		state.observe(tok)
 
-		if !state.inPLSQL && state.javaHead.observe(tok) {
-			// tok is the AS of CREATE JAVA ... AS. The Java source after it
-			// runs to the next line holding only "/"; its ';' ends nothing.
+		if state.mleCodeFrom > 0 {
+			// tok is the language name of an inline MLE call spec: skip its
+			// delimited code, which is not SQL, up to the closing delimiter.
+			if _, end, _, ok := mleInlineCodeEnd(sql, state.mleCodeFrom, len(sql)); ok {
+				lexer.pos = end
+				state.embeddedCode = true
+			}
+			state.mleCodeFrom = 0
+		}
+
+		if !state.inPLSQL && state.sourceHead.observe(tok) {
+			// tok is the AS of CREATE JAVA ... AS or CREATE MLE MODULE ... AS.
+			// The source after it runs to the next line holding only "/"; its
+			// ';' ends nothing.
 			end, next := javaSourceEnd(sql, tok.End)
-			segments = appendSegmentWithKind(segments, sql, stmtStart, end, SegmentJavaSource)
+			segments = appendSegmentWithKind(segments, sql, stmtStart, end, SegmentEmbeddedSource)
 			stmtStart = slashNextSegmentStart(sql, next)
 			lexer.pos = next
 			state.reset()
@@ -131,20 +143,20 @@ func Split(sql string) []Segment {
 					if !state.endPending && !state.callSpecKeepsSemicolon() {
 						end = tok.Loc
 					}
-					segments = appendSegment(segments, sql, stmtStart, end)
+					segments = appendSegmentWithKind(segments, sql, stmtStart, end, state.segmentKind())
 					stmtStart = tok.End
 					state.reset()
 				} else {
 					state.afterPLSQLSemicolon()
 				}
 			} else {
-				segments = appendSegment(segments, sql, stmtStart, tok.Loc)
+				segments = appendSegmentWithKind(segments, sql, stmtStart, tok.Loc, state.segmentKind())
 				stmtStart = tok.End
 				state.reset()
 			}
 		case '/':
 			if (!state.inPLSQL || state.plsqlCanEndAtSlashDelimiter()) && isSlashDelimiterLine(sql, tok.Loc, tok.End) {
-				segments = appendSegment(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc))
+				segments = appendSegmentWithKind(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc), state.segmentKind())
 				stmtStart = slashNextSegmentStart(sql, tok.End)
 				state.reset()
 			}
@@ -155,7 +167,7 @@ func Split(sql string) []Segment {
 		}
 	}
 
-	segments = appendSegment(segments, sql, stmtStart, len(sql))
+	segments = appendSegmentWithKind(segments, sql, stmtStart, len(sql), state.segmentKind())
 	if len(segments) == 0 {
 		return nil
 	}
@@ -208,7 +220,28 @@ type splitState struct {
 	endPending      bool
 	closedOutermost bool
 
-	javaHead javaSourceHead
+	sourceHead embeddedSourceHead
+
+	// mleLanguagePending marks that the next token is the language name of
+	// an inline MLE call spec; mleCodeFrom is then the offset past that name,
+	// where the delimited code starts. embeddedCode records that the segment
+	// holds such code.
+	mleLanguagePending bool
+	mleCodeFrom        int
+	embeddedCode       bool
+
+	// typeSpec marks a CREATE TYPE specification; typeSpecMLE counts how
+	// much of IS|AS MLE LANGUAGE its last tokens spell.
+	typeSpec    bool
+	typeSpecMLE int
+}
+
+// segmentKind classifies the segment that ends now.
+func (s *splitState) segmentKind() SegmentKind {
+	if s.embeddedCode {
+		return SegmentEmbeddedSource
+	}
+	return SegmentSQL
 }
 
 func (s *splitState) reset() {
@@ -217,6 +250,12 @@ func (s *splitState) reset() {
 
 func (s *splitState) observe(tok Token) {
 	if tok.Type == tokEOF {
+		return
+	}
+
+	if s.mleLanguagePending {
+		s.mleLanguagePending = false
+		s.mleCodeFrom = tok.End
 		return
 	}
 
@@ -251,6 +290,10 @@ func (s *splitState) observeTopLevel(tok Token) {
 			return
 		}
 		s.pendingCreateType = false
+		s.typeSpec = true
+	}
+	if s.typeSpec {
+		s.observeTypeSpecCallSpec(tok)
 	}
 
 	switch tok.Type {
@@ -301,6 +344,24 @@ func (s *splitState) observeTopLevel(tok Token) {
 	default:
 		s.pendingCreate = false
 		s.topLevelTokens++
+	}
+}
+
+// observeTypeSpecCallSpec follows the method specs of a CREATE TYPE
+// specification for IS|AS MLE LANGUAGE language_name, the head of an inline
+// MLE call spec, whose code may hold ';'. A type specification is not a
+// PL/SQL unit here: it ends at its ';' like SQL.
+func (s *splitState) observeTypeSpecCallSpec(tok Token) {
+	switch {
+	case tok.Type == kwIS || tok.Type == kwAS:
+		s.typeSpecMLE = 1
+	case s.typeSpecMLE == 1 && tok.Type == tokIDENT && tok.Str == "MLE":
+		s.typeSpecMLE = 2
+	case s.typeSpecMLE == 2 && tok.Type == tokIDENT && tok.Str == "LANGUAGE":
+		s.typeSpecMLE = 0
+		s.mleLanguagePending = true
+	default:
+		s.typeSpecMLE = 0
 	}
 }
 
@@ -407,13 +468,16 @@ func (s *splitState) observeSubprogramHead(top *splitPLSQLFrame, tok Token) {
 		top.callSpecWord = ""
 		if isCallSpecStartTokens(Token{Type: tokIDENT, Str: word}, tok) {
 			top.callSpec = true
+			if word == "MLE" && tok.Str == "LANGUAGE" {
+				s.mleLanguagePending = true
+			}
 			if len(s.frames) == 1 {
 				s.callSpecStarted = true
 			}
 		}
 	case top.afterIsAs:
 		top.afterIsAs = false
-		if tok.Type == tokIDENT && (tok.Str == "LANGUAGE" || tok.Str == "EXTERNAL") {
+		if tok.Type == tokIDENT && (tok.Str == "LANGUAGE" || tok.Str == "EXTERNAL" || tok.Str == "MLE") {
 			top.callSpecWord = tok.Str
 		}
 	case !top.isAs:
@@ -762,10 +826,6 @@ func lineEndAfterBreak(sql string, pos int) int {
 		pos++
 	}
 	return pos
-}
-
-func appendSegment(segments []Segment, sql string, start, end int) []Segment {
-	return appendSegmentWithKind(segments, sql, start, end, SegmentSQL)
 }
 
 func appendSegmentWithKind(segments []Segment, sql string, start, end int, kind SegmentKind) []Segment {

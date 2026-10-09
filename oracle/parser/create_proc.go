@@ -777,7 +777,7 @@ func (p *Parser) parseParameterMode() (string, error) {
 // parseSubprogramImplementation parses what follows the IS|AS of a procedure
 // or function: a call spec, or a PL/SQL block. Exactly one result is non-nil.
 func (p *Parser) parseSubprogramImplementation() (nodes.StmtNode, *nodes.CallSpec, error) {
-	if p.isCallSpecStart() {
+	if p.isCallSpecWord("LANGUAGE", "EXTERNAL", "MLE") {
 		spec, err := p.parseCallSpec(true)
 		if err != nil {
 			return nil, nil, err
@@ -791,17 +791,29 @@ func (p *Parser) parseSubprogramImplementation() (nodes.StmtNode, *nodes.CallSpe
 	return block, nil, nil
 }
 
-// isCallSpecStart reports whether the tokens after IS|AS open a call spec.
-// A declaration of a variable named LANGUAGE or EXTERNAL continues with its
-// type instead.
-func (p *Parser) isCallSpecStart() bool {
-	return isCallSpecStartTokens(p.cur, p.peekNext())
+// isCallSpecWord reports whether the current token, the first after IS|AS,
+// is one of words unquoted. Oracle 23ai commits to a call spec on that word
+// alone: a first declaration of a variable named LANGUAGE, EXTERNAL, or MLE
+// is PLS-00103 in a standalone, nested, package, or type body subprogram
+// alike, while a quoted "MLE" declares one.
+func (p *Parser) isCallSpecWord(words ...string) bool {
+	if p.cur.Type != tokIDENT {
+		return false
+	}
+	for _, word := range words {
+		if p.cur.Str == word {
+			return true
+		}
+	}
+	return false
 }
 
 // isCallSpecStartTokens reports whether tok and next, the two tokens after
-// IS|AS, open a call spec: LANGUAGE JAVA, LANGUAGE C, or EXTERNAL followed by
-// any of its clauses. The splitter and the parser share it so that both end
-// the unit at the same ';'.
+// IS|AS, open a call spec: LANGUAGE JAVA, LANGUAGE C, EXTERNAL followed by any
+// of its clauses, or MLE MODULE or MLE LANGUAGE. The splitter uses it to end
+// the unit at the call spec's ';'; it looks at two tokens so that a unit the
+// parser rejects for a declaration named LANGUAGE, EXTERNAL, or MLE stays one
+// segment.
 func isCallSpecStartTokens(tok, next Token) bool {
 	if tok.Type != tokIDENT {
 		return false
@@ -811,6 +823,8 @@ func isCallSpecStartTokens(tok, next Token) bool {
 		return next.Type == kwJAVA || (next.Type == tokIDENT && next.Str == "C")
 	case "EXTERNAL":
 		return callSpecCClauseOf(next) != ""
+	case "MLE":
+		return next.Type == tokIDENT && (next.Str == "MODULE" || next.Str == "LANGUAGE")
 	}
 	return false
 }
@@ -856,6 +870,9 @@ func callSpecCClauseOf(tok Token) string {
 // terminated says whether a ';' must end the call spec; see finishCallSpec.
 func (p *Parser) parseCallSpec(terminated bool) (*nodes.CallSpec, error) {
 	spec := &nodes.CallSpec{Loc: nodes.Loc{Start: p.pos()}}
+	if p.isKeywordStr("MLE") {
+		return p.parseMLECallSpec(spec, terminated)
+	}
 	seen := make(map[string]bool)
 
 	if p.isKeywordStr("EXTERNAL") {
@@ -939,6 +956,77 @@ func (p *Parser) parseCallSpec(terminated bool) (*nodes.CallSpec, error) {
 	if !seen["LIBRARY"] {
 		return nil, p.syntaxErrorAtCur()
 	}
+	return p.finishCallSpec(spec, terminated)
+}
+
+// parseMLECallSpec parses an MLE call spec, which publishes a JavaScript
+// function as the implementation of a procedure or function. The current
+// token is MLE.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/mlejs/call-specifications-functions.html
+//
+//	MLE MODULE [ schema. ] module [ ENV [ schema. ] env ] SIGNATURE 'signature'
+//	MLE LANGUAGE language_name [ PURE ] delimited_code
+//
+// Verified on Oracle 23ai: SIGNATURE is required and takes a string, PURE
+// does not belong to the MODULE form, and both forms end with a required ';'
+// (PLS-00103). The inline code is taken verbatim; see mleInlineCodeEnd.
+func (p *Parser) parseMLECallSpec(spec *nodes.CallSpec, terminated bool) (*nodes.CallSpec, error) {
+	spec.MLE = true
+	p.advance() // consume MLE
+	if p.isKeywordStr("MODULE") {
+		p.advance() // consume MODULE
+		var err error
+		if spec.Module, err = p.parseObjectName(); err != nil {
+			return nil, err
+		}
+		if spec.Module == nil || spec.Module.Name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.isKeywordStr("ENV") {
+			p.advance() // consume ENV
+			if spec.Env, err = p.parseObjectName(); err != nil {
+				return nil, err
+			}
+			if spec.Env == nil || spec.Env.Name == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+		if !p.isKeywordStr("SIGNATURE") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume SIGNATURE
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		spec.Name = p.cur.Str
+		p.advance()
+		return p.finishCallSpec(spec, terminated)
+	}
+
+	if !p.isKeywordStr("LANGUAGE") {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume LANGUAGE
+	if !p.isIdentLike() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	langTok := p.cur
+	spec.Language = langTok.Str
+	codeStart, codeEnd, pure, ok := mleInlineCodeEnd(p.source, langTok.End, p.lexer.end)
+	if !ok {
+		return nil, &ParseError{
+			Message:  "syntax error: missing closing delimiter for MLE language code",
+			Position: codeStart,
+		}
+	}
+	spec.Pure = pure
+	spec.Code = p.source[codeStart:codeEnd]
+	// Resume lexing after the closing delimiter.
+	p.hasNext = false
+	p.lexer.pos = codeEnd
+	p.prev = Token{Type: tokIDENT, Loc: codeStart, End: codeEnd}
+	p.cur = p.lexer.NextToken()
 	return p.finishCallSpec(spec, terminated)
 }
 

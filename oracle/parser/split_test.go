@@ -546,12 +546,14 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 	}
 }
 
-// TestSplitJavaSource pins CREATE JAVA ... AS source_char as SQL*Plus reads
-// it: the Java text after AS runs to a line holding only "/", whatever it
-// contains. Verified with SQL*Plus against Oracle 23ai: a SELECT after Java
-// source without a "/" line is sent as part of the Java statement.
-func TestSplitJavaSource(t *testing.T) {
-	const sqlKind, javaKind = SegmentSQL, SegmentJavaSource
+// TestSplitEmbeddedSource pins CREATE JAVA ... AS source_char and CREATE MLE
+// MODULE ... AS module_text as SQL*Plus reads them: the text after AS runs to
+// a line holding only "/", whatever it contains. Verified with SQL*Plus
+// against Oracle 23ai: a SELECT after such source without a "/" line is sent
+// as part of the statement. The delimited code of an inline MLE call spec
+// ends at its closing delimiter instead, and the unit at the ';' after it.
+func TestSplitEmbeddedSource(t *testing.T) {
+	const sqlKind, srcKind = SegmentSQL, SegmentEmbeddedSource
 	tests := []struct {
 		name      string
 		sql       string
@@ -575,7 +577,7 @@ func TestSplitJavaSource(t *testing.T) {
 				"\n \n   CREATE JAVA SOURCE NAMED \"S\".\"Normalizer\" AS\nimport java.text.Normalizer;public final class Normalizer { }",
 				"\nSELECT 1 FROM dual",
 			},
-			wantKinds: []SegmentKind{javaKind, javaKind, sqlKind},
+			wantKinds: []SegmentKind{srcKind, srcKind, sqlKind},
 		},
 		{
 			name: "java text the SQL lexer would misread",
@@ -593,7 +595,7 @@ func TestSplitJavaSource(t *testing.T) {
 				"CREATE OR REPLACE AND COMPILE JAVA SOURCE NAMED \"Q\" AS\npublic class Q {\n  // don't split (here; a stray quote and paren\n  static char c = '\\'';\n  static String s = \"it's /\";\n  static int g(int i) { i--; return i / 2; }\n  /* SELECT 1 FROM dual; */\n}",
 				"\nSELECT 2 FROM dual",
 			},
-			wantKinds: []SegmentKind{javaKind, sqlKind},
+			wantKinds: []SegmentKind{srcKind, sqlKind},
 		},
 		{
 			name: "and resolve noforce java source without a slash runs to the end",
@@ -602,7 +604,7 @@ func TestSplitJavaSource(t *testing.T) {
 			want: []string{
 				"CREATE OR REPLACE AND RESOLVE NOFORCE JAVA SOURCE NAMED r AS public class R { int a; }\nSELECT 3 FROM dual;",
 			},
-			wantKinds: []SegmentKind{javaKind},
+			wantKinds: []SegmentKind{srcKind},
 		},
 		{
 			// Only the line break before the "/" line is framing; trailing
@@ -613,7 +615,7 @@ func TestSplitJavaSource(t *testing.T) {
 				"CREATE JAVA SOURCE NAMED t AS\r\npublic class T { }  \t\r\n",
 				"\r\nSELECT 5 FROM dual",
 			},
-			wantKinds: []SegmentKind{javaKind, sqlKind},
+			wantKinds: []SegmentKind{srcKind, sqlKind},
 		},
 		{
 			name: "java statements without source text end at semicolons",
@@ -626,6 +628,94 @@ func TestSplitJavaSource(t *testing.T) {
 				"\nSELECT 4 FROM dual",
 			},
 			wantKinds: []SegmentKind{sqlKind, sqlKind, sqlKind},
+		},
+		{
+			name: "mle module source runs to the slash line",
+			sql: "CREATE OR REPLACE MLE MODULE m LANGUAGE JAVASCRIPT AS\n" +
+				"export function f(a) {\n" +
+				"  // don't split; here\n" +
+				"  let s = \"it's /\";\n" +
+				"  return a--;\n" +
+				"}\n" +
+				"/\n" +
+				"SELECT 6 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE MLE MODULE m LANGUAGE JAVASCRIPT AS\nexport function f(a) {\n  // don't split; here\n  let s = \"it's /\";\n  return a--;\n}",
+				"\nSELECT 6 FROM dual",
+			},
+			wantKinds: []SegmentKind{srcKind, sqlKind},
+		},
+		{
+			name: "mle module without source text ends at its semicolon",
+			sql: "CREATE MLE MODULE m LANGUAGE JAVASCRIPT USING BFILE (dir, 'm.js');\n" +
+				"SELECT 7 FROM dual;",
+			want: []string{
+				"CREATE MLE MODULE m LANGUAGE JAVASCRIPT USING BFILE (dir, 'm.js')",
+				"\nSELECT 7 FROM dual",
+			},
+			wantKinds: []SegmentKind{sqlKind, sqlKind},
+		},
+		{
+			name: "inline mle call spec ends at the semicolon after its code",
+			sql: "CREATE OR REPLACE FUNCTION f(a IN NUMBER) RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{\n" +
+				"  // don't split; here\n" +
+				"  let s = \"it's\"; return a--;\n" +
+				"}};\n" +
+				"SELECT 8 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE FUNCTION f(a IN NUMBER) RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{\n  // don't split; here\n  let s = \"it's\"; return a--;\n}};",
+				"\nSELECT 8 FROM dual",
+			},
+			wantKinds: []SegmentKind{srcKind, sqlKind},
+		},
+		{
+			name: "inline mle call spec with a quote delimiter",
+			sql: "CREATE PROCEDURE p AS MLE LANGUAGE JAVASCRIPT PURE 'q console.log(1); 'q;\n" +
+				"SELECT 9 FROM dual;",
+			want: []string{
+				"CREATE PROCEDURE p AS MLE LANGUAGE JAVASCRIPT PURE 'q console.log(1); 'q;",
+				"\nSELECT 9 FROM dual",
+			},
+			wantKinds: []SegmentKind{srcKind, sqlKind},
+		},
+		{
+			name: "inline mle call spec in a package body",
+			sql: "CREATE OR REPLACE PACKAGE BODY pk AS\n" +
+				"  FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT ## return \"a;b\"; -- x ##;\n" +
+				"  PROCEDURE z IS BEGIN NULL; END;\n" +
+				"END;\n" +
+				"/\n" +
+				"SELECT 10 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE PACKAGE BODY pk AS\n  FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT ## return \"a;b\"; -- x ##;\n  PROCEDURE z IS BEGIN NULL; END;\nEND;",
+				"\nSELECT 10 FROM dual",
+			},
+			wantKinds: []SegmentKind{srcKind, sqlKind},
+		},
+		{
+			// A type specification ends at its ';' like SQL, but not at one
+			// inside the inline code of a method's MLE call spec.
+			name: "inline mle call spec in an object type spec",
+			sql: "CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{ s = \"--\"; return 1; }}, MEMBER PROCEDURE p);\n" +
+				"CREATE TYPE u AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{ return 1; }})\n" +
+				"/\n" +
+				"SELECT 12 FROM dual;",
+			want: []string{
+				"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{ s = \"--\"; return 1; }}, MEMBER PROCEDURE p)",
+				"\nCREATE TYPE u AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{ return 1; }})",
+				"\nSELECT 12 FROM dual",
+			},
+			wantKinds: []SegmentKind{srcKind, srcKind, sqlKind},
+		},
+		{
+			name: "mle module call spec holds no embedded code",
+			sql: "CREATE FUNCTION f RETURN NUMBER AS MLE MODULE m ENV e SIGNATURE 'f()';\n" +
+				"SELECT 11 FROM dual;",
+			want: []string{
+				"CREATE FUNCTION f RETURN NUMBER AS MLE MODULE m ENV e SIGNATURE 'f()';",
+				"\nSELECT 11 FROM dual",
+			},
+			wantKinds: []SegmentKind{sqlKind, sqlKind},
 		},
 	}
 

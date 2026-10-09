@@ -356,6 +356,12 @@ func walkChildren(v Visitor, node Node) {
 		}
 		walkList(v, n.AgentIn)
 		walkList(v, n.Parameters)
+		if n.Module != nil {
+			Walk(v, n.Module)
+		}
+		if n.Env != nil {
+			Walk(v, n.Env)
+		}
 	case *CallStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)

@@ -90,6 +90,39 @@ func TestParseCreateJavaSourceVerbatim(t *testing.T) {
 	}
 }
 
+// TestParseCreateMLEModuleSourceVerbatim checks that the module_text of
+// CREATE MLE MODULE ... AS is kept verbatim, without lexing JavaScript as SQL.
+func TestParseCreateMLEModuleSourceVerbatim(t *testing.T) {
+	source := "export function f(a) {\n" +
+		"  // don't stop (here; a stray quote and paren\n" +
+		"  let s = \"it's /\";\n" +
+		"  return a--;\n" +
+		"}"
+	tests := []string{
+		"CREATE MLE MODULE m LANGUAGE JAVASCRIPT AS\n" + source,
+		"CREATE OR REPLACE MLE MODULE s.m LANGUAGE JAVASCRIPT VERSION '1.0' AS " + source + "\n",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AdminDDLStmt)
+			var got string
+			for _, item := range stmt.Options.Items {
+				if opt := item.(*ast.DDLOption); opt.Key == "AS" {
+					got = opt.Value
+				}
+			}
+			if got != source {
+				t.Fatalf("AS source = %q, want %q", got, source)
+			}
+			if violations := CheckLocations(t, sql); len(violations) > 0 {
+				t.Fatalf("Loc violations: %v", violations)
+			}
+		})
+	}
+	ParseShouldFail(t, "CREATE MLE MODULE m LANGUAGE JAVASCRIPT AS")
+}
+
 func TestParseCreateJavaSourceRequiresSource(t *testing.T) {
 	ParseShouldFail(t, "CREATE JAVA SOURCE NAMED q AS")
 	ParseShouldFail(t, "CREATE JAVA SOURCE NAMED q AS \n  ")
@@ -115,6 +148,18 @@ func TestParseCreateJavaHead(t *testing.T) {
 		"CREATE OR REPLACE AND COMPILE NOFORCE JAVA SOURCE NAMED j AS class X {}",
 		"CREATE JAVA SOURCE NAMED j USING BFILE (d, 'x.java')",
 		"CREATE JAVA CLASS USING CLOB (SELECT 'x' FROM dual)",
+		// IF NOT EXISTS follows the kind.
+		"CREATE JAVA SOURCE IF NOT EXISTS NAMED j AS class X {}",
+		"CREATE JAVA SOURCE IF NOT EXISTS NAMED p1.j AS class X {}",
+		"CREATE AND COMPILE JAVA SOURCE IF NOT EXISTS NAMED j AS class X {}",
+		"CREATE NOFORCE JAVA SOURCE IF NOT EXISTS NAMED j AS class X {}",
+		"CREATE JAVA RESOURCE IF NOT EXISTS NAMED j USING 'key'",
+		"CREATE JAVA CLASS IF NOT EXISTS USING BFILE (d, 'x.class')",
+		"CREATE JAVA CLASS IF NOT EXISTS SCHEMA p1 USING BFILE (d, 'x.class')",
+		// The subquery may omit SELECT, bare or in parentheses.
+		"CREATE JAVA SOURCE NAMED j USING CLOB 'x' FROM dual",
+		"CREATE JAVA SOURCE NAMED j USING CLOB ('x' FROM dual)",
+		"CREATE JAVA RESOURCE NAMED j USING BLOB NULL FROM dual WHERE 1 = 1",
 	}
 	for _, sql := range accept {
 		t.Run(sql, func(t *testing.T) {
@@ -141,10 +186,28 @@ func TestParseCreateJavaHead(t *testing.T) {
 		"CREATE JAVA SOURCE NAMED j AUTHID DEFINER SHARING = NONE AS class X {}",
 		"CREATE AND RESOLVE TABLE t (a NUMBER)",
 		"CREATE AND JAVA SOURCE NAMED j AS class X {}",
+		// IF NOT EXISTS elsewhere: ORA-00905 after JAVA, ORA-00901 before
+		// it, ORA-00922 after SCHEMA, after NAMED, or repeated.
+		"CREATE JAVA IF NOT EXISTS SOURCE NAMED j AS class X {}",
+		"CREATE IF NOT EXISTS JAVA SOURCE NAMED j AS class X {}",
+		"CREATE IF NOT EXISTS AND COMPILE JAVA SOURCE NAMED j AS class X {}",
+		"CREATE JAVA CLASS SCHEMA p1 IF NOT EXISTS USING BFILE (d, 'x.class')",
+		"CREATE JAVA SOURCE NAMED IF NOT EXISTS j AS class X {}",
+		"CREATE JAVA SOURCE IF NOT EXISTS IF NOT EXISTS NAMED j AS class X {}",
+		// ORA-11543: any other spelling; ORA-11541: beside OR REPLACE.
+		"CREATE JAVA SOURCE IF EXISTS NAMED j AS class X {}",
+		"CREATE JAVA SOURCE IF NOT NAMED j AS class X {}",
+		`CREATE JAVA SOURCE IF NOT "EXISTS" NAMED j AS class X {}`,
+		"CREATE OR REPLACE JAVA SOURCE IF NOT EXISTS NAMED j AS class X {}",
+		"CREATE OR REPLACE AND COMPILE JAVA SOURCE IF NOT EXISTS NAMED j AS class X {}",
 	}
 	for _, sql := range reject {
 		t.Run(sql, func(t *testing.T) {
 			ParseShouldFail(t, sql)
 		})
+	}
+	result := ParseAndCheck(t, "CREATE JAVA CLASS IF NOT EXISTS USING BFILE (d, 'x.class')")
+	if stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.AdminDDLStmt); !stmt.IfNotExists {
+		t.Fatalf("IfNotExists = false, want true")
 	}
 }

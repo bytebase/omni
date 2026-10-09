@@ -3361,6 +3361,23 @@ func writeCallSpec(sb *strings.Builder, n *CallSpec) {
 	if n.CallingStandard != "" {
 		sb.WriteString(fmt.Sprintf(" :callingStandard %q", n.CallingStandard))
 	}
+	if n.MLE {
+		sb.WriteString(" :mle true")
+	}
+	if n.Module != nil {
+		sb.WriteString(" :module ")
+		writeNode(sb, n.Module)
+	}
+	if n.Env != nil {
+		sb.WriteString(" :env ")
+		writeNode(sb, n.Env)
+	}
+	if n.Pure {
+		sb.WriteString(" :pure true")
+	}
+	if n.Code != "" {
+		sb.WriteString(fmt.Sprintf(" :code %q", n.Code))
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -4259,6 +4276,9 @@ func writeAdminDDLStmt(sb *strings.Builder, n *AdminDDLStmt) {
 	}
 	if n.IfExists {
 		sb.WriteString(" :ifExists true")
+	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
 	}
 	if n.Options != nil && len(n.Options.Items) > 0 {
 		sb.WriteString(" :options ")
