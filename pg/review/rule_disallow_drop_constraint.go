@@ -138,6 +138,28 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				continue
 			}
 			droppedColumns[cmd.Name] = true
+			// Something the change made may depend on the column, which
+			// refuses the statement without CASCADE.
+			if !cascade && s.columnsUsed[name] {
+				s.stop()
+				return
+			}
+			// Dropping a column of the key a table the change made declared
+			// drops the key, unless something the change made depends on
+			// the column, which refuses the statement without CASCADE.
+			for _, p := range s.pending {
+				if !p.settled || p.key == "" || !slices.Contains(p.keyColumns, cmd.Name) || slices.Contains(reopened, p) || !s.namesPending(p, v.Relation) {
+					continue
+				}
+				own := tableRef{p.schema, v.Relation.Relname}
+				if !cascade && (s.newlyReferencedColumn(own, cmd.Name, p.keyColumns, true) || s.dependsOnNew(s.newReads, own, nil)) {
+					s.stop()
+					return
+				}
+				if dropsKeyColumns(v, p) {
+					reopened = append(reopened, p)
+				}
+			}
 			// What the column is in the synced table.
 			origin, followed := cmd.Name, known
 			if known {

@@ -50,9 +50,10 @@ CREATE VIEW cv AS SELECT count(*) AS c FROM cvt;
 // change (complete), it must report all of it.
 //
 // Up to the first statement the server rejects: the change stops there
-// when it runs. That statement does nothing, so a finding on it is wrong;
-// a finding after it, or a RequirePrimaryKey finding about the end of a
-// change that never gets there, is not checked.
+// when it runs. That statement does nothing, so a finding on it is wrong,
+// and so is a finding after it, or a RequirePrimaryKey finding about the
+// end of a change that never gets there: the review must stop where the
+// server does, or before.
 func TestScanRulesAgainstPostgres(t *testing.T) {
 	db := startPostgres(t)
 	tests := []struct {
@@ -398,6 +399,22 @@ func TestScanRulesAgainstPostgres(t *testing.T) {
 		{"CREATE SCHEMA makes tables before indexes", "CREATE SCHEMA z CREATE INDEX i ON x (id) CREATE TABLE x (id int);", true},
 		{"CREATE SCHEMA makes tables before views", "CREATE SCHEMA z CREATE VIEW v AS SELECT id FROM z.x CREATE TABLE x (id int);", true},
 		{"CREATE SCHEMA makes sequences before tables", "CREATE SCHEMA z CREATE TABLE x (id int DEFAULT nextval('z.q')) CREATE SEQUENCE q;", true},
+		{"COPY of a relation the target lacks", "COPY public.missing TO STDOUT;\nCREATE TABLE n (id int);", true},
+		{"COPY of a query reading a relation the target lacks", "COPY (SELECT id FROM public.missing) TO STDOUT;\nCREATE TABLE n (id int);", true},
+		{"COPY TO of a view", "COPY tv TO STDOUT;\nCREATE TABLE n (id int);", true},
+		{"dropping a key column of a new table", "CREATE TABLE n (id int PRIMARY KEY, x int);\nALTER TABLE n DROP COLUMN id;", true},
+		{"dropping a column of a new composite key", "CREATE TABLE n (a int, b int, PRIMARY KEY (a, b));\nALTER TABLE n DROP COLUMN b, DROP COLUMN IF EXISTS c;", true},
+		{"dropping a key column its own foreign key references", "CREATE TABLE n (id int PRIMARY KEY, parent int REFERENCES n (id));\nALTER TABLE n DROP COLUMN id;\nCREATE TABLE m (id int);", true},
+		{"dropping a key column a generated column reads", "CREATE TABLE n (id int PRIMARY KEY, g int GENERATED ALWAYS AS (id * 2) STORED);\nALTER TABLE n DROP COLUMN id;\nCREATE TABLE m (id int);", true},
+		{"dropping a key column a policy reads", "CREATE TABLE n (id int PRIMARY KEY, x int);\nCREATE POLICY p ON n USING (id > 0);\nALTER TABLE n DROP COLUMN id;\nCREATE TABLE m (id int);", true},
+		{"dropping a synced column a new policy reads", "CREATE POLICY p ON t USING (n > 0);\nALTER TABLE t DROP COLUMN n;\nCREATE TABLE m (id int);", true},
+		{"a temporary table in a regular schema", "CREATE TEMP TABLE public.x (id int);\nCREATE TABLE n (id int);", true},
+		{"a temporary view in a regular schema", "CREATE TEMP VIEW public.v AS SELECT 1;\nCREATE TABLE n (id int);", true},
+		{"a temporary table in the temporary schema", "CREATE TEMP TABLE pg_temp.x (id int);\nCREATE TABLE n (id int);", true},
+		{"a column type in a schema the target lacks", "CREATE TABLE public.n (x missing.foo);\nCREATE TABLE m (id int);", true},
+		{"a column type in pg_catalog", "CREATE TABLE public.n (x pg_catalog.int4);", true},
+		{"a function the change made, renamed, is gone under its old name", "CREATE FUNCTION public.g(integer) RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER FUNCTION public.g(integer) RENAME TO h;\nDROP FUNCTION public.g(integer);\nCREATE TABLE n (id int);", true},
+		{"a new table shadowing another on the path", "SET search_path = public, s;\nCREATE TABLE s.n (id int);\nCREATE TABLE public.n (id int PRIMARY KEY);\nDROP TABLE n;", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -425,7 +442,7 @@ func TestScanRulesAgainstPostgres(t *testing.T) {
 					continue
 				}
 				if failedAt >= 0 && (f.Statement > failedAt || f.Rule == review.RequirePrimaryKey) {
-					t.Logf("not checked, after the statement the server rejects: %s", f.Message)
+					t.Errorf("reported a finding the change never gets to, after the statement the server rejects: %s", f.Message)
 					continue
 				}
 				got = append(got, fmt.Sprintf("%d %s %q: %s", f.Statement, f.Rule, tt.change[f.Range.Start:f.Range.End], f.Message))

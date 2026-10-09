@@ -110,6 +110,16 @@ type scan struct {
 	// by (schema, name), CREATE OR REPLACE redefined.
 	madeRoutines  map[string]bool
 	movedRoutines map[string]bool
+	// gainedRoutines lists the names a rename or a move gave a routine,
+	// and createdAs the names, as written, CREATE FUNCTION gave one, by
+	// name.
+	gainedRoutines map[string]bool
+	createdAs      map[string]map[tableRef]bool
+	// columnsUsed lists the names of tables whose columns something the
+	// change made may depend on beyond what the scan follows: a generated
+	// column, a policy, a trigger with a WHEN clause or a column list, a
+	// rule, a SQL-standard routine body, or a publication.
+	columnsUsed map[string]bool
 	// renamedSignatures lists, by (schema, name), the signatures of synced
 	// routines a rename certainly took from the name.
 	renamedSignatures map[tableRef][]string
@@ -182,6 +192,9 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		triggersChanged:   make(map[string]bool),
 		createdTriggers:   make(map[string]bool),
 		movedRoutines:     make(map[string]bool),
+		gainedRoutines:    make(map[string]bool),
+		createdAs:         make(map[string]map[tableRef]bool),
+		columnsUsed:       make(map[string]bool),
 		renamedSignatures: make(map[tableRef][]string),
 		newSignatures:     make(map[tableRef][]string),
 		renamedFrom:       make(map[string]renamedRelation),
@@ -544,6 +557,117 @@ func commandTag(n ast.Node) string {
 		return "CREATE EXTENSION"
 	}
 	return ""
+}
+
+// noteColumnUses records the tables whose columns what a statement makes
+// may depend on, in ways the scan does not follow: a DROP COLUMN of them
+// without CASCADE may then be refused.
+func (s *scan) noteColumnUses(n ast.Node) {
+	use := func(rv *ast.RangeVar) {
+		if rv != nil {
+			s.columnsUsed[rv.Relname] = true
+		}
+	}
+	generates := func(cd *ast.ColumnDef) bool {
+		return cd.Generated != 0 || slices.ContainsFunc(constraintsOf(cd.Constraints), func(c *ast.Constraint) bool { return c.Contype == ast.CONSTR_GENERATED })
+	}
+	ast.Inspect(n, func(m ast.Node) bool {
+		switch v := m.(type) {
+		case *ast.CreateStmt:
+			if v.TableElts != nil {
+				for _, item := range v.TableElts.Items {
+					if cd, ok := item.(*ast.ColumnDef); ok && generates(cd) {
+						use(v.Relation)
+					}
+				}
+			}
+		case *ast.AlterTableStmt:
+			if v.Cmds != nil {
+				for _, item := range v.Cmds.Items {
+					if cmd, ok := item.(*ast.AlterTableCmd); ok {
+						if cd, ok := cmd.Def.(*ast.ColumnDef); ok && generates(cd) {
+							use(v.Relation)
+						}
+					}
+				}
+			}
+		case *ast.CreatePolicyStmt:
+			use(v.Table)
+		case *ast.AlterPolicyStmt:
+			use(v.Table)
+		case *ast.CreateTrigStmt:
+			if v.WhenClause != nil || v.Columns != nil {
+				use(v.Relation)
+			}
+		case *ast.RuleStmt:
+			use(v.Relation)
+			relationsIn(v, nil, use)
+		case *ast.CreateFunctionStmt:
+			if v.SqlBody != nil {
+				relationsIn(v.SqlBody, nil, use)
+			}
+		case *ast.CreatePublicationStmt, *ast.AlterPublicationStmt:
+			ast.Inspect(v, func(r ast.Node) bool {
+				if rv, ok := r.(*ast.RangeVar); ok {
+					use(rv)
+				}
+				return true
+			})
+		}
+		return true
+	})
+}
+
+// tempOutsideTemp reports whether a CREATE makes a temporary relation in a
+// schema written that is not the temporary one, which the server refuses.
+//
+// pg: src/backend/catalog/namespace.c — RangeVarAdjustRelationPersistence
+func tempOutsideTemp(n ast.Node) bool {
+	var rv *ast.RangeVar
+	switch v := n.(type) {
+	case *ast.CreateStmt:
+		rv = v.Relation
+	case *ast.ViewStmt:
+		rv = v.View
+	case *ast.CreateSeqStmt:
+		rv = v.Sequence
+	case *ast.CreateTableAsStmt:
+		if v.Into != nil {
+			rv = v.Into.Rel
+		}
+	case *ast.SelectStmt:
+		if into := intoOf(v); into != nil {
+			rv = into.Rel
+		}
+	}
+	return rv != nil && rv.Relpersistence == 't' && rv.Schemaname != "" && rv.Schemaname != "pg_temp" && !strings.HasPrefix(rv.Schemaname, "pg_temp_")
+}
+
+// typeSchemaMissing reports whether a statement other than a DROP names a
+// type in a schema the target certainly lacks, which the server refuses
+// when it resolves the type. A system schema is not in the snapshot, but
+// exists.
+func (s *scan) typeSchemaMissing(n ast.Node) bool {
+	if s.index == nil {
+		return false
+	}
+	if _, ok := n.(*ast.DropStmt); ok {
+		return false
+	}
+	missing := false
+	ast.Inspect(n, func(m ast.Node) bool {
+		tn, ok := m.(*ast.TypeName)
+		if !ok || missing {
+			return !missing
+		}
+		parts := nameParts(tn.Names)
+		if len(parts) == 2 && !tn.PctType && !strings.HasPrefix(parts[0], "pg_") && parts[0] != "information_schema" &&
+			s.schemaMissing(&ast.RangeVar{Schemaname: parts[0]}) {
+			missing = true
+		}
+		return true
+	})
+	return missing
 }
 
 // namesMissing reports whether a statement the scan does not otherwise
@@ -993,10 +1117,13 @@ func (s *scan) stop() {
 func (s *scan) statement(st *statement) {
 	// A CREATE in a schema that certainly does not exist is refused, and
 	// so is a statement on a relation the target certainly lacks.
-	if schema := createdIn(st.node); schema != "" && s.schemaMissing(&ast.RangeVar{Schemaname: schema}) || s.namesMissing(st.node) {
+	if schema := createdIn(st.node); schema != "" && s.schemaMissing(&ast.RangeVar{Schemaname: schema}) || s.namesMissing(st.node) ||
+		tempOutsideTemp(st.node) || s.typeSchemaMissing(st.node) {
 		s.stop()
 		return
 	}
+	s.forgetKeyColumns(st.node)
+	s.noteColumnUses(st.node)
 	s.noteTriggers(st.node)
 	switch v := st.node.(type) {
 	case *ast.AlterTableStmt:
@@ -1551,6 +1678,10 @@ func (s *scan) returns(v *ast.CreateFunctionStmt) {
 		s.replaces(v, object)
 	}
 	s.madeRoutines[object.table] = true
+	if s.createdAs[object.table] == nil {
+		s.createdAs[object.table] = make(map[tableRef]bool)
+	}
+	s.createdAs[object.table][object] = true
 	// The result type and every parameter's type may be a row type.
 	types := []*ast.TypeName{v.ReturnType}
 	var args []ast.Node
@@ -3411,9 +3542,10 @@ func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 			s.stop()
 			return
 		}
-		// A relation the change created cannot move to a schema holding
-		// its name.
-		if _, ok := s.madeIn(v.Relation); ok && (s.nameTaken(v.Newschema, v.Relation.Relname) || s.madeHere(&ast.RangeVar{Schemaname: v.Newschema, Relname: v.Relation.Relname})) {
+		// A relation cannot move to a schema holding its name; when it does
+		// not exist either, the statement is refused, or under IF EXISTS
+		// does nothing.
+		if s.nameTaken(v.Newschema, v.Relation.Relname) || s.madeHere(&ast.RangeVar{Schemaname: v.Newschema, Relname: v.Relation.Relname}) {
 			s.stop()
 			return
 		}
@@ -3486,6 +3618,7 @@ func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 		if owa, ok := v.Object.(*ast.ObjectWithArgs); ok {
 			if parts := nameParts(owa.Objname); len(parts) > 0 {
 				s.madeRoutines[parts[len(parts)-1]] = true
+				s.gainedRoutines[parts[len(parts)-1]] = true
 				s.movedRoutines[parts[len(parts)-1]] = true
 			}
 		}
@@ -3602,6 +3735,9 @@ func (s *scan) drop(v *ast.DropStmt) {
 		if resolved {
 			ref.schema = schema
 		}
+		// The pending tables the name may mean, as it resolves before the
+		// drop.
+		matched := s.matching(rv)
 		switch {
 		case resolved:
 			s.free(schema, rv.Relname)
@@ -3620,7 +3756,7 @@ func (s *scan) drop(v *ast.DropStmt) {
 		if kind == ast.OBJECT_INDEX {
 			s.renamedKeys[rv.Relname] = true
 		}
-		for _, p := range s.matching(rv) {
+		for _, p := range matched {
 			p.settle()
 		}
 		switch kind {
@@ -3672,7 +3808,7 @@ func (s *scan) dropFunctions(v *ast.DropStmt) {
 		}
 		// A name alone that several routines have is refused, IF EXISTS
 		// or not.
-		if owa.ArgsUnspecified && s.routinesOf(fn) > 1 {
+		if owa.ArgsUnspecified && (s.routinesOf(fn) > 1 || fn.schema == "" && len(s.newSignatures[fn]) > 1) {
 			s.stop()
 			return
 		}
@@ -3852,8 +3988,20 @@ func (s *scan) routineSignatureOf(fn tableRef, owa *ast.ObjectWithArgs) (schema,
 // list certainly has no routine of that signature: neither the change nor
 // the snapshot, every signature of whose name the scan can read, has one.
 func (s *scan) signatureMissing(fn tableRef, owa *ast.ObjectWithArgs) bool {
-	if owa.ArgsUnspecified || s.madeRoutines[fn.table] {
+	if owa.ArgsUnspecified {
 		return false
+	}
+	if s.madeRoutines[fn.table] {
+		// The change's own routines of the name are known when it created
+		// each as the statement writes it, and a rename took from them
+		// only what it certainly named.
+		sig := argSignature(owa.Objargs)
+		if !s.createdOnlyAs(fn) || slices.Contains(s.newSignatures[fn], sig) || s.schemas[fn.schema] || s.index.schemas[fn.schema] == nil {
+			return false
+		}
+		synced := tableRef{fn.schema, fn.table}
+		return s.droppedFunctions[synced] || slices.Contains(s.renamedSignatures[synced], sig) ||
+			len(s.index.signatures[synced]) == s.index.functions[synced] && !slices.Contains(s.index.signatures[synced], sig) && !(sig == "" && s.index.noArgs[synced])
 	}
 	if s.movedRoutines[fn.table] {
 		return s.signatureRenamed(fn, owa)
@@ -3920,6 +4068,7 @@ func routineOf(n ast.Node) (tableRef, bool) {
 // dependencies under the new name.
 func (s *scan) renameRoutine(v *ast.RenameStmt) {
 	s.madeRoutines[v.Newname] = true
+	s.gainedRoutines[v.Newname] = true
 	owa, ok := v.Object.(*ast.ObjectWithArgs)
 	if !ok {
 		return
@@ -3952,6 +4101,16 @@ func (s *scan) renameSynced(fn tableRef, owa *ast.ObjectWithArgs) {
 	if len(s.index.signatures[synced]) == s.index.functions[synced] && slices.Contains(s.index.signatures[synced], sig) {
 		s.renamedSignatures[synced] = append(s.renamedSignatures[synced], sig)
 	}
+}
+
+// createdOnlyAs reports whether every routine the change gave the name it
+// created, as fn writes it, qualified: the signatures the change made
+// under the name in that schema are then the ones it recorded.
+func (s *scan) createdOnlyAs(fn tableRef) bool {
+	if fn.schema == "" || s.gainedRoutines[fn.table] || len(s.createdAs[fn.table]) != 1 {
+		return false
+	}
+	return s.createdAs[fn.table][fn]
 }
 
 // signatureRenamed reports whether a routine an ALTER or DROP names by an

@@ -38,8 +38,11 @@ type pendingTable struct {
 	made int
 	// key names the primary key a statement of the change added, or the
 	// CREATE gave, that settles the table, when that is all that settles
-	// it; dropping it leaves the table keyless again.
-	key string
+	// it; dropping it leaves the table keyless again. keyColumns are the
+	// columns of the key the CREATE declared, while no statement but one
+	// that only drops named the table since: dropping one drops the key.
+	key        string
+	keyColumns []string
 
 	statement int
 	rng       review.Range
@@ -96,7 +99,8 @@ func (s *scan) matching(rv *ast.RangeVar) []*pendingTable {
 }
 
 // resolvesBefore reports whether an unqualified name certainly means a
-// synced relation of a schema the search path puts before the given one.
+// relation of a schema the search path puts before the given one: a synced
+// one, or one the change made.
 func (s *scan) resolvesBefore(name, schema string) bool {
 	if s.index == nil || strings.HasPrefix(name, "pg_") {
 		return false
@@ -106,7 +110,15 @@ func (s *scan) resolvesBefore(name, schema string) bool {
 		return false
 	}
 	for _, sch := range path {
-		if sch == schema || sch == "information_schema" || s.schemas[sch] || s.isTouched(&ast.RangeVar{Schemaname: sch, Relname: name}) {
+		if sch == schema || sch == "information_schema" {
+			return false
+		}
+		// A relation the change certainly made there, in a schema it did
+		// not drop, is found first.
+		if c, ok := s.created[[2]string{sch, name}]; ok && s.lastTouch[name] == c.made && !s.schemaGone[sch] {
+			return true
+		}
+		if s.schemas[sch] || s.isTouched(&ast.RangeVar{Schemaname: sch, Relname: name}) {
 			return false
 		}
 		if ns := s.index.schemas[sch]; ns != nil {
@@ -123,6 +135,7 @@ func (s *scan) resolvesBefore(name, schema string) bool {
 func (p *pendingTable) settle() {
 	p.settled = true
 	p.key = ""
+	p.keyColumns = nil
 }
 
 // keyed settles the pending tables a statement may give a primary key,
@@ -246,14 +259,15 @@ func (s *scan) createTable(st *statement, v *ast.CreateStmt) {
 		// a later statement drops it.
 		if name := s.declaredKeyName(v); name != "" && !s.mayBeGenerated(v.Relation) {
 			s.pending = append(s.pending, &pendingTable{
-				names:     map[string]bool{v.Relation.Relname: true},
-				schema:    s.pendingSchema(v.Relation),
-				parents:   s.inheritsFrom(v),
-				settled:   true,
-				key:       name,
-				statement: st.index,
-				rng:       rangeOf(v.Loc),
-				message:   "creates table " + relation(v.Relation) + " without a primary key",
+				names:      map[string]bool{v.Relation.Relname: true},
+				schema:     s.pendingSchema(v.Relation),
+				parents:    s.inheritsFrom(v),
+				settled:    true,
+				key:        name,
+				keyColumns: declaredKeyColumns(st, v),
+				statement:  st.index,
+				rng:        rangeOf(v.Loc),
+				message:    "creates table " + relation(v.Relation) + " without a primary key",
 			})
 		}
 		return
@@ -269,6 +283,104 @@ func (s *scan) createTable(st *statement, v *ast.CreateStmt) {
 		rng:       rangeOf(v.Loc),
 		message:   "creates table " + relation(v.Relation) + " without a primary key",
 	})
+}
+
+// declaredKeyColumns returns the columns of the primary key a CREATE TABLE
+// statement declares, nil when the table may have something else that
+// depends on them: it is made by CREATE SCHEMA, which may make triggers
+// and views on it too, takes columns from elsewhere, is partitioned, or
+// has a generated column.
+func declaredKeyColumns(st *statement, v *ast.CreateStmt) []string {
+	if st.node != ast.Node(v) || v.Partspec != nil || v.TableElts == nil {
+		return nil
+	}
+	if _, _, complete := defOf(v); !complete {
+		return nil
+	}
+	var key []string
+	for _, item := range v.TableElts.Items {
+		switch e := item.(type) {
+		case *ast.ColumnDef:
+			if e.Generated != 0 {
+				return nil
+			}
+			for _, c := range constraintsOf(e.Constraints) {
+				switch c.Contype {
+				case ast.CONSTR_GENERATED:
+					return nil
+				case ast.CONSTR_PRIMARY:
+					key = []string{e.Colname}
+				}
+			}
+		case *ast.Constraint:
+			if e.Contype == ast.CONSTR_PRIMARY {
+				key = nameParts(e.Keys)
+			}
+		}
+	}
+	return key
+}
+
+// forgetKeyColumns stops following the key columns of the tables a
+// statement names, but for an ALTER TABLE that only drops: what it makes
+// may depend on them, so that dropping one may be refused.
+func (s *scan) forgetKeyColumns(n ast.Node) {
+	if !slices.ContainsFunc(s.pending, func(p *pendingTable) bool { return p.keyColumns != nil }) {
+		return
+	}
+	if v, ok := n.(*ast.AlterTableStmt); ok && dropsOnly(v) {
+		return
+	}
+	ast.Inspect(n, func(m ast.Node) bool {
+		if rv, ok := m.(*ast.RangeVar); ok {
+			for _, p := range s.pending {
+				if p.names[rv.Relname] {
+					p.keyColumns = nil
+				}
+			}
+		}
+		return true
+	})
+}
+
+// dropsOnly reports whether every subcommand of an ALTER TABLE drops a
+// column or a constraint.
+func dropsOnly(v *ast.AlterTableStmt) bool {
+	if v.Cmds == nil {
+		return false
+	}
+	for _, item := range v.Cmds.Items {
+		cmd, ok := item.(*ast.AlterTableCmd)
+		if !ok {
+			return false
+		}
+		switch ast.AlterTableType(cmd.Subtype) {
+		case ast.AT_DropColumn, ast.AT_DropConstraint:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// dropsKeyColumns reports whether an ALTER TABLE certainly runs on a table
+// the change made with a declared key, and drops the key with a column of
+// it: it only drops, columns of the key or under IF EXISTS, and
+// constraints under IF EXISTS, since the key it drops first is gone.
+func dropsKeyColumns(v *ast.AlterTableStmt, p *pendingTable) bool {
+	if !dropsOnly(v) {
+		return false
+	}
+	for _, item := range v.Cmds.Items {
+		cmd := item.(*ast.AlterTableCmd)
+		switch {
+		case cmd.Missing_ok:
+		case ast.AlterTableType(cmd.Subtype) == ast.AT_DropColumn && slices.Contains(p.keyColumns, cmd.Name):
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // keylessNew reports whether a qualified name certainly means a table the

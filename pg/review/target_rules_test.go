@@ -2625,6 +2625,44 @@ func TestRequirePrimaryKey(t *testing.T) {
 			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
 		},
 		{
+			name:    "dropping a key column of a new table drops its key",
+			sql:     "CREATE TABLE n (id int PRIMARY KEY, x int);\nALTER TABLE n DROP COLUMN id;",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE n (id int PRIMARY KEY, x int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a key column of a new table a policy reads",
+			sql:     "CREATE TABLE n (id int PRIMARY KEY, x int);\nCREATE POLICY p ON n USING (id > 0);\nALTER TABLE n DROP COLUMN id;\nCREATE TABLE m (id int);",
+			targets: one,
+		},
+		{
+			name:    "a key column of a new table, dropped with an added column",
+			sql:     "CREATE TABLE n (id int PRIMARY KEY, x int);\nALTER TABLE n DROP COLUMN id, ADD COLUMN y int;",
+			targets: one,
+		},
+		{
+			name:    "a temporary table in a regular schema is refused",
+			sql:     "CREATE TEMP TABLE public.x (id int);\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a column type in a schema the target lacks is refused",
+			sql:     "CREATE TABLE public.n (x missing.foo);",
+			targets: one,
+		},
+		{
+			name:    "a column type in a system schema",
+			sql:     "CREATE TABLE public.n (x pg_catalog.int4);",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE public.n (x pg_catalog.int4)", "creates table public.n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a new table shadows another on the path",
+			sql:     "SET search_path = public, s;\nCREATE TABLE s.n (id int);\nCREATE TABLE public.n (id int PRIMARY KEY);\nDROP TABLE n;",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE s.n (id int)", "creates table s.n without a primary key", []int{0}}},
+		},
+		{
 			name:    "CREATE SCHEMA makes its tables before their indexes",
 			sql:     "CREATE SCHEMA z CREATE INDEX i ON x (id) CREATE TABLE x (id int);",
 			targets: one,
