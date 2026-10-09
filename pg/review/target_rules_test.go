@@ -1345,6 +1345,72 @@ func TestRequirePrimaryKey(t *testing.T) {
 			targets: []review.Target{{Schema: database("public", schema("public", withPrimaryKey(table("k", "id integer"), "k_pkey", "id")))}},
 		},
 		{
+			name:    "CREATE TABLE INHERITS of a parent the target lacks is refused",
+			sql:     "CREATE TABLE child (id int) INHERITS (public.missing);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE INHERITS of an index is refused",
+			sql:     "CREATE TABLE child (id int) INHERITS (public.t_pkey);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE LIKE of a relation the target lacks is refused",
+			sql:     "CREATE TABLE child (LIKE public.missing);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE INHERITS of a table",
+			sql:     "CREATE TABLE child (id int) INHERITS (public.nokey);",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE child (id int) INHERITS (public.nokey)", "creates table child without a primary key", []int{0}}},
+		},
+		{
+			name:    "a second CREATE TABLE of a name the change made is refused",
+			sql:     "CREATE TABLE public.x (id int PRIMARY KEY);\nCREATE TABLE public.x (id int);\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE IF NOT EXISTS of a name the change made does nothing",
+			sql:     "CREATE TABLE public.x (id int PRIMARY KEY);\nCREATE TABLE IF NOT EXISTS public.x (id int);\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "ALTER TABLE of an index is refused",
+			sql:     "ALTER TABLE public.t_pkey DROP CONSTRAINT x;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "TRUNCATE fires no event trigger",
+			sql:     "TRUNCATE t;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withEvent(shop(), "DDL_COMMAND_END", "CREATE INDEX"), SessionUser: "alice"}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "SET SCHEMA vacates the schema the relation leaves",
+			sql:     "ALTER TABLE s.m SET SCHEMA public;\nDROP SCHEMA s;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: database("public", schema("public"), schema("s", withUnique(table("m", "id integer"), "m_key", "id")))}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "DROP SCHEMA after the change dropped the function it made there",
+			sql:     "CREATE SCHEMA z;\nCREATE FUNCTION z.f() RETURNS int LANGUAGE sql AS 'SELECT 1';\nDROP FUNCTION z.f();\nDROP SCHEMA z;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{4, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "DROP SCHEMA of a schema holding a function the change made is refused",
+			sql:     "CREATE SCHEMA z;\nCREATE FUNCTION z.f() RETURNS int LANGUAGE sql AS 'SELECT 1';\nDROP SCHEMA z;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "an unqualified name the search path resolves elsewhere does not settle a table",
+			sql:     "CREATE TABLE public.n (id int);\nSET search_path = s, public;\nALTER TABLE n ADD PRIMARY KEY (id);",
+			targets: []review.Target{{Schema: database(`"$user", public`, schema("public"), schema("s", table("n", "id integer")))}},
+			want:    []targetFinding{{0, "CREATE TABLE public.n (id int)", "creates table public.n without a primary key", []int{0}}},
+		},
+		{
 			name: "a cascade does not go past a view the change replaced",
 			sql:  "CREATE OR REPLACE VIEW v AS SELECT 1 AS id;\nDROP TABLE base CASCADE;\nCREATE TABLE w (id int);",
 			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{

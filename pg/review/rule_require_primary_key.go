@@ -61,11 +61,38 @@ func inheritsFrom(v *ast.CreateStmt) []string {
 func (s *scan) matching(rv *ast.RangeVar) []*pendingTable {
 	var out []*pendingTable
 	for _, p := range s.pending {
-		if p.names[rv.Relname] && (p.schema == "" || rv.Schemaname == "" || rv.Schemaname == p.schema) {
-			out = append(out, p)
+		if !p.names[rv.Relname] || p.schema != "" && rv.Schemaname != "" && rv.Schemaname != p.schema {
+			continue
 		}
+		if rv.Schemaname == "" && p.schema != "" && s.resolvesBefore(rv.Relname, p.schema) {
+			continue
+		}
+		out = append(out, p)
 	}
 	return out
+}
+
+// resolvesBefore reports whether an unqualified name certainly means a
+// synced relation of a schema the search path puts before the given one.
+func (s *scan) resolvesBefore(name, schema string) bool {
+	if s.index == nil || strings.HasPrefix(name, "pg_") {
+		return false
+	}
+	path, ok := s.searchPath()
+	if !ok {
+		return false
+	}
+	for _, sch := range path {
+		if sch == schema || sch == "information_schema" || s.schemas[sch] || s.isTouched(&ast.RangeVar{Schemaname: sch, Relname: name}) {
+			return false
+		}
+		if ns := s.index.schemas[sch]; ns != nil {
+			if _, exists := ns.relations[name]; exists {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // keyed settles the pending tables a statement may give a primary key.

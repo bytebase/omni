@@ -28,10 +28,17 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 	if v.Cmds == nil || v.Relation == nil {
 		return
 	}
-	// ALTER of a relation the target certainly lacks is refused.
+	// ALTER of a relation the target certainly lacks is refused, and so
+	// is ALTER TABLE of a relation that is no table.
 	if !v.Missing_ok && s.index != nil && s.missing(v.Relation) {
 		s.stop()
 		return
+	}
+	if ast.ObjectType(v.ObjType) == ast.OBJECT_TABLE {
+		if _, kind, ok := s.lookup(v.Relation); ok && (kind == kindView || kind == kindMatView || kind == kindSequence || kind == kindIndex || kind == kindCompositeType) {
+			s.stop()
+			return
+		}
 	}
 	isTable := ast.ObjectType(v.ObjType) == ast.OBJECT_TABLE
 	var drops, others []*ast.AlterTableCmd

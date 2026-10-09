@@ -89,6 +89,7 @@ func TestEventTriggerEventsAgainstPostgres(t *testing.T) {
 		"ALTER INDEX ev_p_code RENAME TO ev_p_code2",
 		"CREATE FOREIGN TABLE ev_ft (a int) SERVER ev_srv",
 		"CREATE TABLE ev_c AS SELECT 1 AS a",
+		"TRUNCATE ev_c",
 		"SELECT 1 AS a INTO ev_c2",
 		"CREATE INDEX ON ev_p (n)",
 		"CREATE SCHEMA ev_s2 CREATE TABLE x (id int UNIQUE) CREATE VIEW y AS SELECT 1 AS a",

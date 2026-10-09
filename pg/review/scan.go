@@ -100,6 +100,9 @@ type scan struct {
 	// by (schema, name), CREATE OR REPLACE redefined.
 	madeRoutines      map[string]bool
 	movedRoutines     map[string]bool
+	// newSignatures lists the argument signatures of the functions the
+	// change created and has not dropped, by name as written.
+	newSignatures map[tableRef][]string
 	replacedFunctions map[tableRef]bool
 	// renamedFrom maps a name a rename or a move gave a relation the scan
 	// resolved to the relation, while no statement used the name since.
@@ -152,6 +155,7 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		newFunctions:     make(map[tableRef]int),
 		madeRoutines:     make(map[string]bool),
 		movedRoutines:    make(map[string]bool),
+		newSignatures:    make(map[tableRef][]string),
 		renamedFrom:      make(map[string]renamedRelation),
 		created:          make(map[[2]string]madeRelation),
 		replacedViews:    make(map[tableRef]bool),
@@ -268,7 +272,7 @@ func isDDL(n ast.Node) bool {
 		*ast.VariableSetStmt, *ast.VariableShowStmt, *ast.TransactionStmt,
 		*ast.CopyStmt, *ast.LockStmt, *ast.PrepareStmt, *ast.ExecuteStmt, *ast.DeallocateStmt,
 		*ast.NotifyStmt, *ast.ListenStmt, *ast.UnlistenStmt, *ast.CheckPointStmt, *ast.VacuumStmt,
-		*ast.ConstraintsSetStmt, *ast.DiscardStmt, *ast.LoadStmt, *ast.DoStmt, *ast.CallStmt:
+		*ast.ConstraintsSetStmt, *ast.DiscardStmt, *ast.LoadStmt, *ast.DoStmt, *ast.CallStmt, *ast.TruncateStmt:
 		return false
 	}
 	return true
@@ -523,7 +527,7 @@ func (s *scan) statement(st *statement) {
 	case *ast.ViewStmt:
 		// CREATE VIEW of a name its schema holds, or OR REPLACE of a
 		// relation that is not a view, is refused.
-		if s.schemaMissing(v.View) || !v.Replace && s.existsWhereCreated(v.View) || s.typeExists(v.View) {
+		if s.schemaMissing(v.View) || !v.Replace && (s.existsWhereCreated(v.View) || s.madeHere(v.View)) || s.typeExists(v.View) {
 			s.stop()
 			return
 		}
@@ -553,7 +557,7 @@ func (s *scan) statement(st *statement) {
 			s.reowned[[2]string{s.schemaOf(v.Sequence), v.Sequence.Relname}] = true
 		}
 	case *ast.CreateSeqStmt:
-		exists := s.existsWhereCreated(v.Sequence)
+		exists := s.existsWhereCreated(v.Sequence) || s.madeHere(v.Sequence)
 		switch {
 		case s.schemaMissing(v.Sequence) || exists && !v.IfNotExists:
 			s.stop()
@@ -876,7 +880,6 @@ func (s *scan) returns(v *ast.CreateFunctionStmt) {
 	if len(fn) >= 2 {
 		object.schema = fn[len(fn)-2]
 	}
-	s.newFunctions[object]++
 	if v.IsOrReplace {
 		s.replaces(v, object)
 	}
@@ -896,6 +899,11 @@ func (s *scan) returns(v *ast.CreateFunctionStmt) {
 		}
 	}
 	signature := argSignature(&ast.List{Items: args})
+	// OR REPLACE of a signature the change created redefines that function.
+	if !slices.Contains(s.newSignatures[object], signature) {
+		s.newFunctions[object]++
+		s.newSignatures[object] = append(s.newSignatures[object], signature)
+	}
 	first := len(s.newReturns)
 	defer func() {
 		for i := first; i < len(s.newReturns); i++ {
@@ -1035,8 +1043,15 @@ func (s *scan) create(st *statement, v *ast.CreateStmt) {
 		// IF NOT EXISTS of an existing table does nothing.
 		return
 	}
-	if duplicateColumns(v) {
+	if duplicateColumns(v) || s.sourceRefused(v) {
 		s.stop()
+		return
+	}
+	// A name the change created and still has is taken.
+	if s.madeHere(v.Relation) {
+		if !v.IfNotExists {
+			s.stop()
+		}
 		return
 	}
 	pending := len(s.pending)
@@ -1238,6 +1253,61 @@ func (s *scan) mayHavePartitions(rv *ast.RangeVar) bool {
 		return true
 	}
 	return len(s.index.schemas[schema].tables[rv.Relname].GetPartitions()) > 0
+}
+
+// madeHere reports whether a CREATE puts a relation under a name the
+// change created a table or view under, and no statement used since.
+func (s *scan) madeHere(rv *ast.RangeVar) bool {
+	schema := rv.Schemaname
+	if schema == "" {
+		var ok bool
+		if schema, ok = s.creationSchema(rv); !ok {
+			return false
+		}
+	}
+	c, ok := s.created[[2]string{schema, rv.Relname}]
+	return ok && s.lastTouch[rv.Relname] == c.made
+}
+
+// sourceRefused reports whether CREATE TABLE names a relation the server
+// refuses to take columns from: an INHERITS parent or a LIKE source the
+// target certainly lacks, a parent that is not a table, or a LIKE source
+// that is a sequence or an index.
+func (s *scan) sourceRefused(v *ast.CreateStmt) bool {
+	if s.index == nil {
+		return false
+	}
+	var parents, sources []*ast.RangeVar
+	if v.InhRelations != nil {
+		for _, item := range v.InhRelations.Items {
+			if rv, ok := item.(*ast.RangeVar); ok {
+				parents = append(parents, rv)
+			}
+		}
+	}
+	if v.TableElts != nil {
+		for _, item := range v.TableElts.Items {
+			if like, ok := item.(*ast.TableLikeClause); ok && like.Relation != nil {
+				sources = append(sources, like.Relation)
+			}
+		}
+	}
+	for _, rv := range append(parents, sources...) {
+		if s.missing(rv) {
+			return true
+		}
+	}
+	for _, rv := range parents {
+		if _, kind, ok := s.lookup(rv); ok && (kind == kindView || kind == kindMatView || kind == kindSequence || kind == kindIndex || kind == kindCompositeType) {
+			return true
+		}
+	}
+	for _, rv := range sources {
+		if _, kind, ok := s.lookup(rv); ok && (kind == kindSequence || kind == kindIndex) {
+			return true
+		}
+	}
+	return false
 }
 
 // duplicateColumns reports whether CREATE TABLE names a column twice,
@@ -1744,6 +1814,24 @@ func (s *scan) renamedAway(rv *ast.RangeVar) (tableRef, bool) {
 	return r.relation, true
 }
 
+// movesWith returns what SET SCHEMA moves with a synced relation: a
+// table's own indexes and the sequences it owns, a materialized view's
+// indexes. A table's partitions stay.
+func (s *scan) movesWith(schema, name string) []string {
+	ns := s.index.schemas[schema]
+	t := ns.tables[name]
+	var out []string
+	for _, d := range ns.dependents[name] {
+		switch {
+		case t == nil:
+			out = append(out, d)
+		case ns.relations[d] == kindSequence || slices.ContainsFunc(t.GetIndexes(), func(i *metadata.IndexMetadata) bool { return i.GetName() == d }):
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
 // nameTaken reports whether a synced schema certainly holds a relation or
 // an enum type of that name, which a relation cannot take.
 func (s *scan) nameTaken(schema, name string) bool {
@@ -1842,7 +1930,17 @@ func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 			return
 		}
 		s.follow(v.Relation, v.Newschema, v.Relation.Relname)
-		s.touch(v.Relation)
+		if resolved {
+			// The relation leaves its schema, with a table's indexes and
+			// owned sequences.
+			s.free(schema, v.Relation.Relname)
+			for _, d := range s.movesWith(schema, v.Relation.Relname) {
+				s.free(schema, d)
+				s.touchName(v.Newschema, d)
+			}
+		} else {
+			s.touch(v.Relation)
+		}
 		s.touchName(v.Newschema, v.Relation.Relname)
 		if resolved {
 			s.renamedFrom[v.Relation.Relname] = renamedRelation{tableRef{schema, v.Relation.Relname}, v.Newschema, s.lastTouch[v.Relation.Relname]}
@@ -2039,11 +2137,19 @@ func (s *scan) dropFunctions(v *ast.DropStmt) {
 		// of which one it drops: an argument list matching the one the
 		// change wrote, or no argument list on a name only one function
 		// has. A synced function's argument types are not compared.
-		if s.newFunctions[fn] == 1 && s.syncedFunctions(fn) == 0 {
+		if sigs := s.newSignatures[fn]; len(sigs) > 0 && s.syncedFunctions(fn) == 0 {
+			sig, i := argSignature(owa.Objargs), -1
 			if owa.ArgsUnspecified {
-				s.retire(s.newReturns, fn)
+				if len(sigs) == 1 {
+					sig, i = sigs[0], 0
+				}
 			} else {
-				s.retireSignature(fn, argSignature(owa.Objargs))
+				i = slices.Index(sigs, sig)
+			}
+			if i >= 0 {
+				s.retireSignature(fn, sig)
+				s.newSignatures[fn] = slices.Delete(slices.Clone(sigs), i, i+1)
+				s.newFunctions[fn]--
 			}
 		}
 		// A synced function is certainly dropped only by its name alone,
@@ -2132,22 +2238,29 @@ func (s *scan) renameRoutine(v *ast.RenameStmt) {
 	if len(parts) == 2 {
 		fn.schema = parts[0]
 	}
-	if s.newFunctions[fn] == 0 || s.syncedFunctions(fn) > 0 || owa.ArgsUnspecified && s.newFunctions[fn] > 1 {
+	sigs := s.newSignatures[fn]
+	if len(sigs) == 0 || s.syncedFunctions(fn) > 0 || owa.ArgsUnspecified && len(sigs) > 1 {
 		return
 	}
 	sig := argSignature(owa.Objargs)
-	moved := false
-	for i := range s.newReturns {
-		d := &s.newReturns[i]
-		if !d.retired && s.sameObject(*d, fn) && (owa.ArgsUnspecified || d.signature == sig) {
+	if owa.ArgsUnspecified {
+		sig = sigs[0]
+	}
+	i := slices.Index(sigs, sig)
+	if i < 0 {
+		return
+	}
+	for j := range s.newReturns {
+		d := &s.newReturns[j]
+		if !d.retired && s.sameObject(*d, fn) && d.signature == sig {
 			d.object.table = v.Newname
-			moved = true
 		}
 	}
-	if moved || owa.ArgsUnspecified {
-		s.newFunctions[fn]--
-		s.newFunctions[tableRef{fn.schema, v.Newname}]++
-	}
+	to := tableRef{fn.schema, v.Newname}
+	s.newSignatures[fn] = slices.Delete(slices.Clone(sigs), i, i+1)
+	s.newFunctions[fn]--
+	s.newSignatures[to] = append(s.newSignatures[to], sig)
+	s.newFunctions[to]++
 }
 
 // dropReturners records the functions a cascading drop of a relation
