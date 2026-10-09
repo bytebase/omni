@@ -98,11 +98,11 @@ type scan struct {
 	// renaming, or moving one, movedRoutines the names it took one from by
 	// renaming or moving it, and replacedFunctions the synced functions,
 	// by (schema, name), CREATE OR REPLACE redefined.
-	madeRoutines      map[string]bool
-	movedRoutines     map[string]bool
+	madeRoutines  map[string]bool
+	movedRoutines map[string]bool
 	// newSignatures lists the argument signatures of the functions the
 	// change created and has not dropped, by name as written.
-	newSignatures map[tableRef][]string
+	newSignatures     map[tableRef][]string
 	replacedFunctions map[tableRef]bool
 	// renamedFrom maps a name a rename or a move gave a relation the scan
 	// resolved to the relation, while no statement used the name since.
