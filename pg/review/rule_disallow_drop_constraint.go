@@ -137,11 +137,15 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 		}
 	}
 	withhold = withhold || out.uncertain
-	if withhold || knownBefore && isTable && s.refuses(before, droppedColumns, droppedNames, others) {
-		if !withhold {
+	if knownBefore && isTable {
+		refused, uncertain := s.refuses(before, droppedColumns, droppedNames, others)
+		if refused && !withhold {
 			s.stop()
 			return
 		}
+		withhold = withhold || refused || uncertain
+	}
+	if withhold {
 		out = droppedKeys{}
 	}
 	for _, f := range out.findings {
@@ -163,8 +167,12 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				case c.Conname == "":
 					s.generated = true
 				default:
-					// A key's index takes the constraint's name.
+					// A key's index takes the constraint's name, and a
+					// partition's a generated one.
 					s.touchName(v.Relation.Schemaname, c.Conname)
+					if s.mayHavePartitions(v.Relation) {
+						s.generated = true
+					}
 				}
 				if c.Indexname != "" {
 					// USING INDEX renames the index to the constraint.
@@ -189,11 +197,16 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 					continue
 				}
 				addedHere[cd.Colname] = true
-				s.generated = true
+				if columnGeneratesNames(cd) || s.mayHavePartitions(v.Relation) {
+					s.generated = true
+				}
 				s.setColumn(schema, name, cd.Colname, true, false)
 				for _, c := range constraintsOf(cd.Constraints) {
 					if c.Conname != "" {
 						s.constraints[[3]string{schema, name, c.Conname}] = true
+					}
+					if makesIndex(c) && c.Conname != "" {
+						s.touchName(v.Relation.Schemaname, c.Conname)
 					}
 					if c.Contype == ast.CONSTR_PRIMARY {
 						s.keyed(v.Relation)
@@ -217,6 +230,8 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				}
 			}
 		case ast.AT_AttachPartition:
+			// The partition gets the parent's indexes under generated names.
+			s.generated = true
 			if pc, ok := cmd.Def.(*ast.PartitionCmd); ok && pc.Name != nil {
 				s.unsettle(pc.Name)
 				for _, p := range s.matching(pc.Name) {
@@ -399,10 +414,19 @@ func (s *scan) mayDependOn(t tableRef, name string, columns map[string]bool) boo
 
 // refuses reports whether a subcommand of the statement is certain to
 // fail against the synced table, after its drops: adding a column it has,
-// altering a column it lacks, or adding a constraint under a name it
-// uses, or a second primary key. Other failures, such as a type error,
-// are not known before the statement runs.
-func (s *scan) refuses(t tableRef, droppedColumns, droppedConstraints map[string]bool, others []*ast.AlterTableCmd) bool {
+// altering a column it lacks, adding a constraint under a name it uses, a
+// second primary key, or a key or foreign key on a column it lacks, or a
+// foreign key the referenced table has no key for. uncertain reports a
+// foreign key whose referenced key the scan cannot check. Other failures,
+// such as a type error or rows a new constraint rejects, are not known
+// before the statement runs.
+//
+// The server adds every column of the statement before any constraint,
+// and every key before any foreign key, whatever their order.
+//
+// pg: src/backend/commands/tablecmds.c — ATController (AT_PASS_ADD_COL,
+// AT_PASS_ADD_INDEX, AT_PASS_ADD_OTHERCONSTR)
+func (s *scan) refuses(t tableRef, droppedColumns, droppedConstraints map[string]bool, others []*ast.AlterTableCmd) (refused, uncertain bool) {
 	table := s.index.schemas[t.schema].tables[t.table]
 	// has reports whether the table has the column once the drops ran.
 	has := func(column string) bool {
@@ -421,40 +445,12 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedConstraints map[string
 		_, ok := constraint(table, name)
 		return ok
 	}
-	// What the statement's own additions add counts too.
+	// The columns and keys the statement adds, and the constraints it adds
+	// with them.
 	addedColumns := make(map[string]bool)
-	addedNames := make(map[string]bool)
-	addedKey := false
-	keyed := func() bool {
-		pk := primaryKey(table)
-		return addedKey || pk != nil && uses(pk.GetName())
-	}
-	addKey := func(c *ast.Constraint) bool {
-		// A key or foreign key names columns the table must have.
-		for _, list := range []*ast.List{c.Keys, c.FkAttrs} {
-			for _, column := range nameParts(list) {
-				if !has(column) && !addedColumns[column] {
-					return true
-				}
-			}
-		}
-		if c.Contype == ast.CONSTR_FOREIGN && s.refusesReference(t, c, func(column string) bool { return has(column) || addedColumns[column] }) {
-			return true
-		}
-		if c.Conname != "" {
-			if uses(c.Conname) || addedNames[c.Conname] {
-				return true
-			}
-			addedNames[c.Conname] = true
-		}
-		if c.Contype == ast.CONSTR_PRIMARY {
-			if keyed() {
-				return true
-			}
-			addedKey = true
-		}
-		return false
-	}
+	var addedKeys [][]string
+	addsPrimary, addsIndex := false, false
+	var constraints []*ast.Constraint
 	for _, cmd := range others {
 		switch ast.AlterTableType(cmd.Subtype) {
 		case ast.AT_AddColumn:
@@ -462,19 +458,72 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedConstraints map[string
 			if !ok {
 				continue
 			}
-			if cmd.Missing_ok && has(cd.Colname) {
-				// The column exists: the subcommand does nothing.
-				continue
-			}
-			if (has(cd.Colname) || addedColumns[cd.Colname]) && !cmd.Missing_ok {
-				return true
+			if has(cd.Colname) || addedColumns[cd.Colname] {
+				if cmd.Missing_ok {
+					// The column exists: the subcommand does nothing.
+					continue
+				}
+				return true, false
 			}
 			addedColumns[cd.Colname] = true
 			for _, c := range constraintsOf(cd.Constraints) {
-				if addKey(c) {
-					return true
+				if c.Contype == ast.CONSTR_PRIMARY || c.Contype == ast.CONSTR_UNIQUE {
+					addedKeys = append(addedKeys, []string{cd.Colname})
 				}
+				addsPrimary = addsPrimary || c.Contype == ast.CONSTR_PRIMARY
+				constraints = append(constraints, c)
 			}
+		case ast.AT_AddConstraint:
+			c, ok := cmd.Def.(*ast.Constraint)
+			if !ok {
+				continue
+			}
+			if c.Indexname != "" {
+				addsIndex = true
+			} else if c.Contype == ast.CONSTR_PRIMARY || c.Contype == ast.CONSTR_UNIQUE {
+				addedKeys = append(addedKeys, nameParts(c.Keys))
+			}
+			addsPrimary = addsPrimary || c.Contype == ast.CONSTR_PRIMARY
+			constraints = append(constraints, c)
+		case ast.AT_AddIndexConstraint, ast.AT_AddIndex:
+			addsIndex = true
+		}
+	}
+	// ownKey reports whether the table, once the statement ran, has its
+	// primary key (no columns) or a unique key on exactly the columns, for
+	// a foreign key referencing its own table. known is false when an
+	// index the statement or an earlier one adds may be the key.
+	ownKey := func(columns []string) (found, known bool) {
+		if addsIndex || s.newKeys[[2]string{t.schema, t.table}] || s.newKeys[[2]string{"", t.table}] {
+			return false, false
+		}
+		if len(columns) == 0 {
+			pk := primaryKey(table)
+			return addsPrimary || pk != nil && uses(pk.GetName()), true
+		}
+		for _, key := range addedKeys {
+			if sameKey(key, columns) {
+				return true, true
+			}
+		}
+		for _, i := range table.GetIndexes() {
+			if !s.isKey(t, i) || droppedConstraints[i.GetName()] {
+				continue
+			}
+			if key := keyColumns(i); !slices.ContainsFunc(key, func(c string) bool { return droppedColumns[c] }) && sameKey(key, columns) {
+				return true, true
+			}
+		}
+		return false, true
+	}
+	addedNames := make(map[string]bool)
+	addedKey := false
+	keyed := func() bool {
+		pk := primaryKey(table)
+		return addedKey || pk != nil && uses(pk.GetName())
+	}
+	for _, cmd := range others {
+		switch ast.AlterTableType(cmd.Subtype) {
 		case ast.AT_ColumnDefault, ast.AT_DropNotNull, ast.AT_SetNotNull, ast.AT_AlterColumnType,
 			ast.AT_SetStatistics, ast.AT_SetStorage, ast.AT_SetCompression, ast.AT_SetOptions, ast.AT_ResetOptions,
 			ast.AT_AddIdentity, ast.AT_SetIdentity, ast.AT_DropIdentity, ast.AT_SetExpression, ast.AT_DropExpression:
@@ -484,89 +533,123 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedConstraints map[string
 				continue
 			}
 			if !has(cmd.Name) {
-				return true
-			}
-		case ast.AT_AddConstraint:
-			c, ok := cmd.Def.(*ast.Constraint)
-			if !ok {
-				continue
-			}
-			if addKey(c) {
-				return true
+				return true, false
 			}
 		}
 	}
-	return false
+	for _, c := range constraints {
+		// A key or foreign key names columns the table must have.
+		for _, list := range []*ast.List{c.Keys, c.FkAttrs} {
+			for _, column := range nameParts(list) {
+				if !has(column) && !addedColumns[column] {
+					return true, false
+				}
+			}
+		}
+		if c.Conname != "" {
+			if uses(c.Conname) || addedNames[c.Conname] {
+				return true, false
+			}
+			addedNames[c.Conname] = true
+		}
+		if c.Contype == ast.CONSTR_PRIMARY {
+			if keyed() {
+				return true, false
+			}
+			addedKey = true
+		}
+		if c.Contype == ast.CONSTR_FOREIGN {
+			r, u := s.refusesReference(t, c, func(column string) bool { return has(column) || addedColumns[column] }, ownKey)
+			if r {
+				return true, false
+			}
+			uncertain = uncertain || u
+		}
+	}
+	return false, uncertain
 }
 
 // refusesReference reports whether the server certainly refuses a foreign
 // key the statement adds to t for what it references: a relation the
 // target lacks or that is not a table, a referenced column the table
-// lacks, a count of referenced columns unlike the referencing ones, or,
-// on a table no statement of the change may have given a key, no primary
-// key, or no unique index on exactly the columns named. own says whether
-// t has a column once the statement's own drops and additions ran, for a
+// lacks, a count of referenced columns unlike the referencing ones, or no
+// primary key, or no unique key on exactly the columns named. uncertain
+// reports a referenced table whose keys the scan cannot tell: one the
+// change made or altered, or gave a key or a unique index. own and ownKey
+// say whether t has a column and a key once the statement ran, for a
 // foreign key referencing its own table.
 //
 // pg: src/backend/commands/tablecmds.c — ATAddForeignKeyConstraint,
 // transformFkeyGetPrimaryKey, transformFkeyCheckAttrs
-func (s *scan) refusesReference(t tableRef, c *ast.Constraint, own func(string) bool) bool {
+func (s *scan) refusesReference(t tableRef, c *ast.Constraint, own func(string) bool, ownKey func([]string) (bool, bool)) (refused, uncertain bool) {
 	if c.Pktable == nil {
-		return false
+		return false, true
 	}
 	columns := nameParts(c.PkAttrs)
 	// A foreign key of a column names no referencing columns: it is the one.
 	local := max(len(nameParts(c.FkAttrs)), 1)
 	if len(columns) > 0 && len(columns) != local {
-		return true
+		return true, false
 	}
 	if s.missing(c.Pktable) {
-		return true
+		return true, false
 	}
 	schema, kind, ok := s.lookup(c.Pktable)
 	if !ok {
-		return false
+		return false, true
 	}
 	ref := tableRef{schema, c.Pktable.Relname}
 	if ref == t {
-		// Its key may be one the statement adds.
-		return slices.ContainsFunc(columns, func(column string) bool { return !own(column) })
+		if slices.ContainsFunc(columns, func(column string) bool { return !own(column) }) {
+			return true, false
+		}
+		found, known := ownKey(columns)
+		return known && !found, !known
 	}
 	switch kind {
 	case kindTable:
 	case kindView, kindMatView, kindForeignTable, kindSequence, kindIndex, kindCompositeType:
-		return true
+		return true, false
 	default:
-		return false
+		return false, true
 	}
 	if s.isUnsettled(ref) {
-		return false
+		return false, true
 	}
 	if slices.ContainsFunc(columns, func(column string) bool { return !s.hasColumn(ref, column) }) {
-		return true
+		return true, false
 	}
 	if s.newKeys[[2]string{ref.schema, ref.table}] || s.newKeys[[2]string{"", ref.table}] {
-		return false
+		return false, true
 	}
 	table := s.index.schemas[ref.schema].tables[ref.table]
 	if len(columns) == 0 {
 		pk := primaryKey(table)
 		if pk == nil || !s.indexHolds(ref, pk) {
-			return true
+			return true, false
 		}
 		key := keyColumns(pk)
-		return key != nil && len(key) != local
+		return key != nil && len(key) != local, false
 	}
 	for _, i := range table.GetIndexes() {
-		// A partial index is no key a foreign key can reference.
-		if !i.GetUnique() && !i.GetPrimary() || !s.indexHolds(ref, i) || strings.Contains(strings.ToUpper(i.GetDefinition()), " WHERE ") {
-			continue
-		}
-		if key := keyColumns(i); key != nil && len(key) == len(columns) && !slices.ContainsFunc(columns, func(column string) bool { return !slices.Contains(key, column) }) {
-			return false
+		if s.isKey(ref, i) && sameKey(keyColumns(i), columns) {
+			return false, false
 		}
 	}
-	return true
+	return true, false
+}
+
+// isKey reports whether a synced table's index is a key a foreign key can
+// reference, still there: a primary key or a unique index that is not
+// partial.
+func (s *scan) isKey(t tableRef, i *metadata.IndexMetadata) bool {
+	return (i.GetUnique() || i.GetPrimary()) && s.indexHolds(t, i) && !strings.Contains(strings.ToUpper(i.GetDefinition()), " WHERE ")
+}
+
+// sameKey reports whether a key's columns, nil when unknown, are exactly
+// the columns, in any order.
+func sameKey(key, columns []string) bool {
+	return key != nil && len(key) == len(columns) && !slices.ContainsFunc(columns, func(column string) bool { return !slices.Contains(key, column) })
 }
 
 // indexHolds reports whether a synced table's index is still there as

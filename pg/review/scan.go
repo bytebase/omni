@@ -94,6 +94,9 @@ type scan struct {
 	// the change created, by name as written.
 	droppedFunctions map[tableRef]bool
 	newFunctions     map[tableRef]int
+	// madeRoutines lists the names the change gave a routine by creating,
+	// renaming, or moving one.
+	madeRoutines map[string]bool
 	// replacedViews lists the synced views CREATE OR REPLACE VIEW
 	// redefined, whose synced reads no longer hold, and reowned the
 	// sequences, by name, whose owner ALTER SEQUENCE changed.
@@ -137,6 +140,7 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 
 		droppedFunctions: make(map[tableRef]bool),
 		newFunctions:     make(map[tableRef]int),
+		madeRoutines:     make(map[string]bool),
 		replacedViews:    make(map[tableRef]bool),
 		reowned:          make(map[[2]string]bool),
 		newKeys:          make(map[[2]string]bool),
@@ -334,6 +338,8 @@ func commandTag(n ast.Node) string {
 			return "FUNCTION"
 		case ast.OBJECT_ROUTINE:
 			return "ROUTINE"
+		case ast.OBJECT_PROCEDURE:
+			return "PROCEDURE"
 		}
 		return ""
 	}
@@ -430,7 +436,7 @@ func (s *scan) statement(st *statement) {
 	case *ast.ViewStmt:
 		// CREATE VIEW of a name its schema holds, or OR REPLACE of a
 		// relation that is not a view, is refused.
-		if s.schemaMissing(v.View) || !v.Replace && s.existsWhereCreated(v.View) {
+		if s.schemaMissing(v.View) || !v.Replace && s.existsWhereCreated(v.View) || s.typeExists(v.View) {
 			s.stop()
 			return
 		}
@@ -469,13 +475,28 @@ func (s *scan) statement(st *statement) {
 		s.touch(v.Sequence)
 	case *ast.CompositeTypeStmt:
 		s.touch(v.Typevar)
+	case *ast.CreateEnumStmt:
+		// A type's name is taken for a relation's row type too.
+		s.touchType(v.TypeName, "")
+	case *ast.CreateDomainStmt:
+		s.touchType(v.Domainname, "")
+	case *ast.CreateRangeStmt:
+		// A range type comes with a multirange type, named after it unless
+		// the statement names it.
+		s.touchType(v.TypeName, "_multirange")
+	case *ast.DefineStmt:
+		if v.Kind == ast.OBJECT_TYPE {
+			s.touchType(v.Defnames, "")
+		}
 	case *ast.IndexStmt:
 		if (v.Unique || v.Primary) && v.Relation != nil {
 			s.newKey(v.Relation)
 		}
-		if v.Idxname == "" {
+		if v.Idxname == "" || v.Relation == nil || s.mayHavePartitions(v.Relation) {
+			// A partition's index takes a generated name.
 			s.generated = true
-		} else if v.Relation != nil {
+		}
+		if v.Idxname != "" && v.Relation != nil {
 			s.touchName(v.Relation.Schemaname, v.Idxname)
 		}
 	case *ast.SelectStmt:
@@ -652,6 +673,7 @@ func (s *scan) reads(view *ast.RangeVar, query ast.Node) {
 // to it. A view whose name no statement used since it was made is freed in
 // the schema it was made in, and the views reading it go too.
 func (s *scan) dropNewReaders(t tableRef) {
+	s.dropReturners(t)
 	for i := range s.newReads {
 		d := s.newReads[i]
 		if d.retired || d.relation != t {
@@ -760,6 +782,7 @@ func (s *scan) returns(v *ast.CreateFunctionStmt) {
 		object.schema = fn[len(fn)-2]
 	}
 	s.newFunctions[object]++
+	s.madeRoutines[object.table] = true
 	// The result type and every parameter's type may be a row type.
 	types := []*ast.TypeName{v.ReturnType}
 	var args []ast.Node
@@ -883,18 +906,25 @@ func (s *scan) create(st *statement, v *ast.CreateStmt) {
 			s.stop()
 		}
 		return
-	case s.schemaMissing(v.Relation) || exists && !v.IfNotExists:
+	case s.schemaMissing(v.Relation) || exists && !v.IfNotExists || s.typeExists(v.Relation):
+		// A type of the name is refused even under IF NOT EXISTS.
 		s.stop()
 		return
 	case exists:
 		// IF NOT EXISTS of an existing table does nothing.
 		return
 	}
+	pending := len(s.pending)
 	if !s.nameUncertain(v.Relation) {
 		s.createTable(st, v)
 	}
 	s.touch(v.Relation)
-	s.generated = true
+	for _, p := range s.pending[pending:] {
+		p.made = s.lastTouch[v.Relation.Relname]
+	}
+	if generatesNames(v) {
+		s.generated = true
+	}
 	if v.TableElts == nil {
 		return
 	}
@@ -998,7 +1028,8 @@ func elementsCollide(schema string, elts *ast.List) bool {
 		name := ""
 		switch e := elt.(type) {
 		case *ast.CreateStmt:
-			rv, generates = e.Relation, true
+			rv = e.Relation
+			generates = generates || generatesNames(e)
 		case *ast.ViewStmt:
 			rv = e.View
 		case *ast.CreateSeqStmt:
@@ -1031,6 +1062,99 @@ func elementsCollide(schema string, elts *ast.List) bool {
 			if generatedName(name) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+// touchType records the name of a type a statement creates, and the
+// name with suffix, when there is one, for a type it creates with it.
+func (s *scan) touchType(name *ast.List, suffix string) {
+	parts := nameParts(name)
+	if len(parts) == 0 || len(parts) > 2 {
+		return
+	}
+	schema := ""
+	if len(parts) == 2 {
+		schema = parts[0]
+	}
+	s.touchName(schema, parts[len(parts)-1])
+	if suffix != "" {
+		s.touchName(schema, parts[len(parts)-1]+suffix)
+	}
+}
+
+// typeExists reports whether the schema a CREATE puts a relation in
+// certainly holds an enum type of its name, which the relation's row
+// type would collide with.
+func (s *scan) typeExists(rv *ast.RangeVar) bool {
+	schema, ok := s.creationSchema(rv)
+	if !ok || s.isTouched(&ast.RangeVar{Schemaname: schema, Relname: rv.Relname}) {
+		return false
+	}
+	return slices.Contains(s.index.schemas[schema].types, rv.Relname)
+}
+
+// mayHavePartitions reports whether a relation may be a partitioned table
+// with partitions, whose indexes a key or index added to it gives
+// generated names: any but a synced table without partitions, or a
+// relation that cannot have any.
+func (s *scan) mayHavePartitions(rv *ast.RangeVar) bool {
+	schema, kind, ok := s.lookup(rv)
+	switch {
+	case !ok || kind == kindPartition || kind == kindAmbiguous:
+		return true
+	case kind != kindTable:
+		return false
+	case s.isUnsettled(tableRef{schema, rv.Relname}):
+		return true
+	}
+	return len(s.index.schemas[schema].tables[rv.Relname].GetPartitions()) > 0
+}
+
+// generatesNames reports whether CREATE TABLE makes a relation under a
+// name the server generates: the index of an unnamed key, the sequence
+// of a serial or identity column, what LIKE copies, or the indexes a
+// partition takes from its parent.
+func generatesNames(v *ast.CreateStmt) bool {
+	if v.Partbound != nil {
+		return true
+	}
+	if v.TableElts == nil {
+		return false
+	}
+	for _, item := range v.TableElts.Items {
+		switch e := item.(type) {
+		case *ast.ColumnDef:
+			if columnGeneratesNames(e) {
+				return true
+			}
+		case *ast.Constraint:
+			if makesIndex(e) && e.Conname == "" {
+				return true
+			}
+		case *ast.TableLikeClause:
+			return true
+		}
+	}
+	return false
+}
+
+// columnGeneratesNames reports whether a column makes a relation under a
+// generated name: a serial or identity column's sequence, or the index of
+// an unnamed key on it.
+func columnGeneratesNames(cd *ast.ColumnDef) bool {
+	if cd.TypeName != nil {
+		if parts := nameParts(cd.TypeName.Names); len(parts) == 1 {
+			switch parts[0] {
+			case "smallserial", "serial", "bigserial", "serial2", "serial4", "serial8":
+				return true
+			}
+		}
+	}
+	for _, c := range constraintsOf(cd.Constraints) {
+		if makesIndex(c) && c.Conname == "" || c.Contype == ast.CONSTR_IDENTITY {
+			return true
 		}
 	}
 	return false
@@ -1429,6 +1553,8 @@ func (s *scan) rename(v *ast.RenameStmt) {
 		schema := s.schemaOf(v.Relation)
 		s.setColumn(schema, v.Relation.Relname, v.Subname, false, false)
 		s.setColumn(schema, v.Relation.Relname, v.Newname, true, true)
+	case v.RenameType == ast.OBJECT_FUNCTION || v.RenameType == ast.OBJECT_PROCEDURE || v.RenameType == ast.OBJECT_ROUTINE:
+		s.renameRoutine(v)
 	case v.RenameType == ast.OBJECT_SCHEMA:
 		s.stop()
 	}
@@ -1454,6 +1580,12 @@ func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 		if parts := nameParts(listOf(v.Object)); len(parts) > 0 {
 			s.touchName("", parts[len(parts)-1])
 		}
+	case v.ObjectType == ast.OBJECT_FUNCTION || v.ObjectType == ast.OBJECT_PROCEDURE || v.ObjectType == ast.OBJECT_ROUTINE:
+		if owa, ok := v.Object.(*ast.ObjectWithArgs); ok {
+			if parts := nameParts(owa.Objname); len(parts) > 0 {
+				s.madeRoutines[parts[len(parts)-1]] = true
+			}
+		}
 	case v.ObjectType == ast.OBJECT_EXTENSION:
 		s.stop()
 	}
@@ -1472,7 +1604,7 @@ func (s *scan) drop(v *ast.DropStmt) {
 		s.stop()
 		return
 	}
-	if kind == ast.OBJECT_FUNCTION || kind == ast.OBJECT_ROUTINE {
+	if kind == ast.OBJECT_FUNCTION || kind == ast.OBJECT_PROCEDURE || kind == ast.OBJECT_ROUTINE {
 		s.dropFunctions(v)
 		return
 	}
@@ -1598,19 +1730,16 @@ func (s *scan) dropFunctions(v *ast.DropStmt) {
 		if len(parts) == 2 {
 			fn.schema = parts[0]
 		}
+		// A routine the target certainly lacks is not there to drop.
+		if s.routineMissing(fn) {
+			s.stop()
+			return
+		}
 		// A function is retired only when the statement leaves no choice
 		// of which one it drops: an argument list matching the one the
 		// change wrote, or no argument list on a name only one function
 		// has. A synced function's argument types are not compared.
-		synced := 0
-		if s.index != nil {
-			for name, n := range s.index.functions {
-				if name.table == fn.table && (fn.schema == "" || name.schema == fn.schema) {
-					synced += n
-				}
-			}
-		}
-		if s.newFunctions[fn] == 1 && synced == 0 {
+		if s.newFunctions[fn] == 1 && s.syncedFunctions(fn) == 0 {
 			if owa.ArgsUnspecified {
 				s.retire(s.newReturns, fn)
 			} else {
@@ -1638,6 +1767,106 @@ func (s *scan) dropFunctions(v *ast.DropStmt) {
 					s.droppedFunctions[tableRef{name, fn.table}] = true
 				}
 				break
+			}
+		}
+	}
+}
+
+// syncedFunctions counts the synced functions a routine name may mean: of
+// that name in the schema written, or in any schema.
+func (s *scan) syncedFunctions(fn tableRef) int {
+	if s.index == nil {
+		return 0
+	}
+	n := 0
+	for name, count := range s.index.functions {
+		if name.table == fn.table && (fn.schema == "" || name.schema == fn.schema) {
+			n += count
+		}
+	}
+	return n
+}
+
+// routineMissing reports whether no routine of that name certainly exists
+// where the name resolves: the change created, renamed, or moved none of
+// that name, and the synced schema written, or every schema of a known
+// search path, has none. A name only the system catalogs have cannot be
+// dropped either.
+func (s *scan) routineMissing(fn tableRef) bool {
+	if s.index == nil || s.madeRoutines[fn.table] {
+		return false
+	}
+	if fn.schema != "" {
+		return s.index.schemas[fn.schema] != nil && !s.schemas[fn.schema] && !s.index.routineNames[fn]
+	}
+	path, ok := s.searchPath()
+	if !ok {
+		return false
+	}
+	for _, name := range path {
+		if s.schemas[name] || name == "information_schema" || s.index.routineNames[tableRef{name, fn.table}] {
+			return false
+		}
+	}
+	return true
+}
+
+// renameRoutine follows ALTER FUNCTION, PROCEDURE, or ROUTINE ... RENAME:
+// the change's own function the statement certainly names keeps its
+// dependencies under the new name.
+func (s *scan) renameRoutine(v *ast.RenameStmt) {
+	s.madeRoutines[v.Newname] = true
+	owa, ok := v.Object.(*ast.ObjectWithArgs)
+	if !ok {
+		return
+	}
+	parts := nameParts(owa.Objname)
+	if len(parts) == 0 || len(parts) > 2 {
+		return
+	}
+	fn := tableRef{table: parts[len(parts)-1]}
+	if len(parts) == 2 {
+		fn.schema = parts[0]
+	}
+	if s.newFunctions[fn] == 0 || s.syncedFunctions(fn) > 0 || owa.ArgsUnspecified && s.newFunctions[fn] > 1 {
+		return
+	}
+	sig := argSignature(owa.Objargs)
+	moved := false
+	for i := range s.newReturns {
+		d := &s.newReturns[i]
+		if !d.retired && s.sameObject(*d, fn) && (owa.ArgsUnspecified || d.signature == sig) {
+			d.object.table = v.Newname
+			moved = true
+		}
+	}
+	if moved || owa.ArgsUnspecified {
+		s.newFunctions[fn]--
+		s.newFunctions[tableRef{fn.schema, v.Newname}]++
+	}
+}
+
+// dropReturners records the functions a cascading drop of a relation
+// takes with its row type: a synced function that depends on it, when it
+// is the only function of its name, and a function the change created
+// whose result, arguments, or SQL-standard body named the relation,
+// resolved to it.
+func (s *scan) dropReturners(t tableRef) {
+	if s.index != nil {
+		for _, fn := range s.index.returnedBy[t] {
+			if s.index.functions[fn] == 1 {
+				s.droppedFunctions[fn] = true
+			}
+		}
+	}
+	for i := range s.newReturns {
+		d := s.newReturns[i]
+		if d.retired || d.relation != t {
+			continue
+		}
+		for j := range s.newReturns {
+			if o := &s.newReturns[j]; o.object == d.object && o.path == d.path && o.signature == d.signature {
+				o.retired = true
 			}
 		}
 	}

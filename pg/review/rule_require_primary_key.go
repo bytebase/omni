@@ -32,6 +32,9 @@ type pendingTable struct {
 	existed bool
 	parents []string
 
+	// made numbers the touch that created a table the change made.
+	made int
+
 	statement int
 	rng       review.Range
 	message   string
@@ -117,11 +120,32 @@ func (s *scan) createTable(st *statement, v *ast.CreateStmt) {
 	})
 }
 
+// keylessNew reports whether a qualified name certainly means a table the
+// change made without a primary key, which no statement since may have
+// given one: a pending table of that one name in that schema, whose name
+// no statement used since it was made.
+func (s *scan) keylessNew(rv *ast.RangeVar) bool {
+	if rv.Schemaname == "" {
+		return false
+	}
+	for _, p := range s.pending {
+		if !p.existed && !p.settled && p.schema == rv.Schemaname && len(p.names) == 1 && p.names[rv.Relname] && s.lastTouch[rv.Relname] == p.made {
+			return true
+		}
+	}
+	return false
+}
+
 // createsNew reports whether CREATE TABLE IF NOT EXISTS creates a table:
 // the schema it creates in is known, the synced one, and holds no relation
-// of that name. An unqualified name is created in the first schema of the
-// search path that exists.
+// of that name, or one the change created, where no statement made the
+// name. An unqualified name is created in the first schema of the search
+// path that exists.
 func (s *scan) createsNew(rv *ast.RangeVar) bool {
+	if s.index != nil && rv.Schemaname != "" && s.schemas[rv.Schemaname] && !s.schemaGone[rv.Schemaname] && !isTemp(rv) {
+		// A schema the change created starts empty.
+		return !s.isTouched(rv)
+	}
 	schema, ok := s.creationSchema(rv)
 	if !ok {
 		return false
@@ -245,6 +269,8 @@ func (s *scan) createsKey(v *ast.CreateStmt) (keyed, known bool) {
 			}
 			schema, kind, ok := s.lookup(e.Relation)
 			switch {
+			case !ok && s.keylessNew(e.Relation):
+				// A table the change made without a key has none to copy.
 			case !ok || kind == kindPartition || kind == kindTable && s.isUnsettled(tableRef{schema, e.Relation.Relname}):
 				known = false
 			case kind == kindTable:

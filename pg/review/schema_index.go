@@ -27,8 +27,10 @@ type schemaIndex struct {
 	functions  map[tableRef]int
 	// constraintIndexes marks the indexes a constraint owns.
 	constraintIndexes map[tableRef]bool
-	// extensions lists the installed extensions by name.
-	extensions map[string]bool
+	// extensions lists the installed extensions by name, and routineNames
+	// the (schema, name) of every function and procedure.
+	extensions   map[string]bool
+	routineNames map[tableRef]bool
 }
 
 // namespace is one schema: the kind of every name in its relation
@@ -86,6 +88,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 
 		constraintIndexes: make(map[tableRef]bool),
 		extensions:        make(map[string]bool),
+		routineNames:      make(map[tableRef]bool),
 	}
 	for _, e := range db.GetExtensions() {
 		idx.extensions[e.GetName()] = true
@@ -145,8 +148,12 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 			ns.types = append(ns.types, e.GetName())
 		}
 		ns.routines = len(s.GetFunctions()) + len(s.GetProcedures())
+		for _, p := range s.GetProcedures() {
+			idx.routineNames[tableRef{s.GetName(), p.GetName()}] = true
+		}
 		for _, f := range s.GetFunctions() {
 			fn := tableRef{s.GetName(), f.GetName()}
+			idx.routineNames[fn] = true
 			idx.functions[fn]++
 			for _, d := range f.GetDependencyTables() {
 				t := tableRef{d.GetSchema(), d.GetTable()}
