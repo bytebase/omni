@@ -16,9 +16,9 @@ type schemaIndex struct {
 	// foreignKeys lists every foreign key of every table.
 	foreignKeys []foreignKeyRef
 	// readers maps a table to the views and materialized views that read
-	// it, and readsColumn marks the columns they read.
+	// it, and readsColumn a column to the ones that read it.
 	readers     map[tableRef][]tableRef
-	readsColumn map[columnRef]bool
+	readsColumn map[columnRef][]tableRef
 	// returnedBy maps a relation to the functions, by (schema, name), that
 	// return its row type, and functions counts the functions of each
 	// (schema, name).
@@ -46,9 +46,14 @@ type relationKind int
 const (
 	kindTable relationKind = iota + 1
 	kindPartition
-	// kindOther is a view, materialized view, foreign table, sequence,
-	// index, or composite type, or a name the snapshot lists twice.
-	kindOther
+	kindView
+	kindMatView
+	kindForeignTable
+	kindSequence
+	kindIndex
+	kindCompositeType
+	// kindAmbiguous is a name the snapshot lists twice.
+	kindAmbiguous
 )
 
 type tableRef struct{ schema, table string }
@@ -67,7 +72,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		database:    db.GetName(),
 		schemas:     make(map[string]*namespace),
 		readers:     make(map[tableRef][]tableRef),
-		readsColumn: make(map[columnRef]bool),
+		readsColumn: make(map[columnRef][]tableRef),
 		returnedBy:  make(map[tableRef][]tableRef),
 		functions:   make(map[tableRef]int),
 
@@ -84,7 +89,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 			ns.add(t.GetName(), kindTable)
 			ns.tables[t.GetName()] = t
 			for _, i := range t.GetIndexes() {
-				ns.add(i.GetName(), kindOther)
+				ns.add(i.GetName(), kindIndex)
 				ns.dependents[t.GetName()] = append(ns.dependents[t.GetName()], i.GetName())
 				if i.GetIsConstraint() {
 					idx.constraintIndexes[tableRef{s.GetName(), i.GetName()}] = true
@@ -101,28 +106,28 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 			}
 		}
 		for _, v := range s.GetViews() {
-			ns.add(v.GetName(), kindOther)
+			ns.add(v.GetName(), kindView)
 			idx.addReader(tableRef{s.GetName(), v.GetName()}, v.GetDependencyColumns())
 		}
 		for _, v := range s.GetMaterializedViews() {
-			ns.add(v.GetName(), kindOther)
+			ns.add(v.GetName(), kindMatView)
 			idx.addReader(tableRef{s.GetName(), v.GetName()}, v.GetDependencyColumns())
 			for _, i := range v.GetIndexes() {
-				ns.add(i.GetName(), kindOther)
+				ns.add(i.GetName(), kindIndex)
 				ns.dependents[v.GetName()] = append(ns.dependents[v.GetName()], i.GetName())
 			}
 		}
 		for _, t := range s.GetExternalTables() {
-			ns.add(t.GetName(), kindOther)
+			ns.add(t.GetName(), kindForeignTable)
 		}
 		for _, q := range s.GetSequences() {
-			ns.add(q.GetName(), kindOther)
+			ns.add(q.GetName(), kindSequence)
 			if q.GetOwnerTable() != "" {
 				ns.dependents[q.GetOwnerTable()] = append(ns.dependents[q.GetOwnerTable()], q.GetName())
 			}
 		}
 		for _, c := range s.GetCompositeTypes() {
-			ns.add(c.GetName(), kindOther)
+			ns.add(c.GetName(), kindCompositeType)
 		}
 		for _, f := range s.GetFunctions() {
 			fn := tableRef{s.GetName(), f.GetName()}
@@ -140,7 +145,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 // a table.
 func (ns *namespace) add(name string, kind relationKind) {
 	if _, dup := ns.relations[name]; dup {
-		kind = kindOther
+		kind = kindAmbiguous
 	}
 	ns.relations[name] = kind
 }
@@ -150,7 +155,7 @@ func (ns *namespace) addPartitions(table string, partitions []*metadata.TablePar
 		ns.add(p.GetName(), kindPartition)
 		ns.dependents[table] = append(ns.dependents[table], p.GetName())
 		for _, i := range p.GetIndexes() {
-			ns.add(i.GetName(), kindOther)
+			ns.add(i.GetName(), kindIndex)
 			ns.dependents[table] = append(ns.dependents[table], i.GetName())
 		}
 		ns.addPartitions(table, p.GetSubpartitions())
@@ -173,7 +178,8 @@ func (idx *schemaIndex) addReader(view tableRef, columns []*metadata.DependencyC
 	seen := make(map[tableRef]bool)
 	for _, c := range columns {
 		t := tableRef{c.GetSchema(), c.GetTable()}
-		idx.readsColumn[columnRef{t.schema, t.table, c.GetColumn()}] = true
+		col := columnRef{t.schema, t.table, c.GetColumn()}
+		idx.readsColumn[col] = append(idx.readsColumn[col], view)
 		if !seen[t] {
 			seen[t] = true
 			idx.readers[t] = append(idx.readers[t], view)

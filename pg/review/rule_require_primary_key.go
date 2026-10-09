@@ -89,7 +89,7 @@ func (s *scan) createTable(st *statement, v *ast.CreateStmt) {
 		return
 	}
 	keyed, known := s.createsKey(v)
-	if keyed || !known {
+	if keyed || !known || s.generated && generatedName(v.Relation.Relname) {
 		return
 	}
 	s.pending = append(s.pending, &pendingTable{
@@ -120,6 +120,37 @@ func (s *scan) createsNew(rv *ast.RangeVar) bool {
 	}
 	_, exists := ns.relations[rv.Relname]
 	return !exists
+}
+
+// nameUncertain reports whether an earlier statement may have made a
+// relation of that name where CREATE puts it, without the scan knowing it
+// gone again: CREATE TABLE may then fail, and creates nothing the rule can
+// report.
+func (s *scan) nameUncertain(rv *ast.RangeVar) bool {
+	if schema, ok := s.creationSchema(rv); ok {
+		return s.isTouched(&ast.RangeVar{Schemaname: schema, Relname: rv.Relname}) && !s.freed[[2]string{schema, rv.Relname}]
+	}
+	if rv.Schemaname != "" {
+		return s.isTouched(rv)
+	}
+	return s.touchedName[rv.Relname]
+}
+
+// generatedName reports whether a name has the form of one the server
+// generates for an index or a sequence: a suffix of _idx, _key, _pkey,
+// _excl, or _seq, then digits the server adds to avoid a name in use. A
+// table of such a name may collide with a relation an earlier statement
+// made, which the scan does not name.
+//
+// pg: src/backend/commands/indexcmds.c — ChooseIndexName
+func generatedName(name string) bool {
+	name = strings.TrimRight(name, "0123456789")
+	for _, suffix := range []string{"_idx", "_key", "_pkey", "_excl", "_seq"} {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 // existsWhereCreated reports whether the schema a CREATE puts the relation

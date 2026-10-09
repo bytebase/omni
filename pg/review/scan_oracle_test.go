@@ -46,10 +46,9 @@ CREATE VIEW tv AS SELECT code FROM t;
 // change (complete), it must report all of it.
 //
 // Up to the first statement the server rejects: the change stops there
-// when it runs. That statement drops nothing, so a DisallowDropConstraint
-// finding on it is wrong; a finding after it, or a RequirePrimaryKey
-// finding about the end of a change that never gets there, is not
-// checked.
+// when it runs. That statement does nothing, so a finding on it is wrong;
+// a finding after it, or a RequirePrimaryKey finding about the end of a
+// change that never gets there, is not checked.
 func TestScanRulesAgainstPostgres(t *testing.T) {
 	db := startPostgres(t)
 	tests := []struct {
@@ -125,6 +124,16 @@ func TestScanRulesAgainstPostgres(t *testing.T) {
 		{"DROP INDEX of a key's index", "DROP INDEX t_pkey;\nCREATE TABLE n (id int);", true},
 		{"CREATE TABLE of an existing name", "CREATE TABLE public.nokey (a int);\nCREATE TABLE n (id int);", true},
 		{"CREATE TABLE in the session user's schema", "CREATE TABLE nokey (a int);", true},
+		{"a CTE body reads the table it shadows", "CREATE VIEW v AS WITH nokey AS (SELECT * FROM nokey) SELECT * FROM nokey;\nDROP TABLE nokey;\nCREATE TABLE n (id int);", true},
+		{"IF NOT EXISTS in the session user's schema", "CREATE TABLE IF NOT EXISTS nokey (a text REFERENCES t (code));\nALTER TABLE t DROP CONSTRAINT t_code_key;", true},
+		{"ADD COLUMN IF NOT EXISTS of an existing column", "ALTER TABLE r DROP CONSTRAINT r_t_fk;\nALTER TABLE t DROP CONSTRAINT t_pkey;\nALTER TABLE t ADD COLUMN IF NOT EXISTS id int PRIMARY KEY;", true},
+		// A name of the form the server generates is not reported after a
+		// statement that may have generated it, wherever it would go.
+		{"a table named like a generated index elsewhere", "CREATE INDEX ON nokey (a);\nCREATE TABLE nokey_a_idx (x int);", false},
+		{"a table named like a generated index", "CREATE INDEX ON nokey (a);\nCREATE TABLE public.nokey_a_idx (x int);", true},
+		{"a table named like a key's index", "CREATE TABLE a (id int CONSTRAINT foo PRIMARY KEY);\nCREATE TABLE foo (x int);", true},
+		{"a table in a missing schema", "CREATE TABLE missing.n (id int);", true},
+		{"IF EXISTS of a missing table, then created", "DROP TABLE IF EXISTS gone;\nCREATE TABLE gone (id int);", true},
 		{"quoted names", "ALTER TABLE \"Quoted\" DROP CONSTRAINT \"Quoted_pkey\";\nCREATE TABLE \"New\" (\"Id\" int);", true},
 		{"new tables", "CREATE TABLE n (id int);\nCREATE TABLE k (id int PRIMARY KEY);\nCREATE TABLE k2 (a int, b int, CONSTRAINT k2_pk PRIMARY KEY (a, b));\nCREATE UNLOGGED TABLE ul (a int);\nCREATE TABLE \"Mixed\" (a int);", true},
 		{"keys added later", "CREATE TABLE n (id int);\nALTER TABLE n RENAME TO m;\nALTER TABLE m ADD PRIMARY KEY (id);\nCREATE TABLE o (id int NOT NULL);\nCREATE UNIQUE INDEX o_id ON o (id);\nALTER TABLE o ADD CONSTRAINT o_pkey PRIMARY KEY USING INDEX o_id;\nCREATE TABLE q (id int);\nALTER TABLE q ADD COLUMN k serial PRIMARY KEY;", true},
@@ -174,8 +183,8 @@ func TestScanRulesAgainstPostgres(t *testing.T) {
 				if f.Rule == review.Syntax {
 					t.Fatalf("syntax: %s", f.Message)
 				}
-				if failedAt >= 0 && f.Statement == failedAt && f.Rule == review.DisallowDropConstraint {
-					t.Errorf("reported a drop on the statement the server rejects: %s", f.Message)
+				if failedAt >= 0 && f.Statement == failedAt {
+					t.Errorf("reported a finding on the statement the server rejects: %s", f.Message)
 					continue
 				}
 				if failedAt >= 0 && (f.Statement > failedAt || f.Rule == review.RequirePrimaryKey) {

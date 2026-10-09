@@ -84,8 +84,19 @@ type scan struct {
 	// are known to resolve alike only under the same path.
 	pathVersion int
 	// droppedFunctions lists the synced functions, by (schema, name), a
-	// DROP FUNCTION certainly removed.
+	// DROP FUNCTION certainly removed, and newFunctions counts the functions
+	// the change created, by name as written.
 	droppedFunctions map[tableRef]bool
+	newFunctions     map[tableRef]int
+	// replacedViews lists the synced views CREATE OR REPLACE VIEW
+	// redefined, whose synced reads no longer hold, and reowned the
+	// sequences, by name, whose owner ALTER SEQUENCE changed.
+	replacedViews map[tableRef]bool
+	reowned       map[string]bool
+	// generated marks that a statement made relations under names the
+	// server generates (an unnamed index, a key's index, a serial or
+	// identity column's sequence), which the scan does not derive.
+	generated bool
 
 	// pending are the tables RequirePrimaryKey reports at the end unless a
 	// later statement settles them.
@@ -114,6 +125,9 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		schemas:     make(map[string]bool),
 
 		droppedFunctions: make(map[tableRef]bool),
+		newFunctions:     make(map[tableRef]int),
+		replacedViews:    make(map[tableRef]bool),
+		reowned:          make(map[string]bool),
 	}
 	if target.Schema != nil {
 		s.index = newSchemaIndex(target.Schema)
@@ -161,6 +175,10 @@ func eventTriggerFires(schema *metadata.DatabaseSchemaMetadata, stmts []statemen
 	for i := range stmts {
 		if tag := commandTag(stmts[i].node); tag != "" {
 			tags[tag] = true
+			// CREATE FUNCTION and CREATE PROCEDURE share a node.
+			if tag == "CREATE FUNCTION" {
+				tags["CREATE PROCEDURE"] = true
+			}
 		}
 	}
 	if len(tags) == 0 {
@@ -202,6 +220,10 @@ func commandTag(n ast.Node) string {
 			return "TYPE"
 		case ast.OBJECT_SCHEMA:
 			return "SCHEMA"
+		case ast.OBJECT_FUNCTION:
+			return "FUNCTION"
+		case ast.OBJECT_ROUTINE:
+			return "ROUTINE"
 		}
 		return ""
 	}
@@ -233,6 +255,8 @@ func commandTag(n ast.Node) string {
 		return "CREATE TYPE"
 	case *ast.IndexStmt:
 		return "CREATE INDEX"
+	case *ast.CreateFunctionStmt:
+		return "CREATE FUNCTION"
 	case *ast.CreateSchemaStmt:
 		return "CREATE SCHEMA"
 	case *ast.AlterTableStmt:
@@ -275,18 +299,30 @@ func (s *scan) statement(st *statement) {
 			s.reads(v.Into.Rel, v.Query)
 		}
 	case *ast.ViewStmt:
+		if v.Replace {
+			if schema, kind, ok := s.lookup(v.View); ok && kind == kindView {
+				s.replacedViews[tableRef{schema, v.View.Relname}] = true
+			}
+		}
 		s.touch(v.View)
 		s.reads(v.View, v.Query)
 	case *ast.CreateFunctionStmt:
 		s.returns(v)
+	case *ast.AlterSeqStmt:
+		if v.Sequence != nil && v.Options != nil && slices.ContainsFunc(v.Options.Items, func(n ast.Node) bool {
+			d, ok := n.(*ast.DefElem)
+			return ok && d.Defname == "owned_by"
+		}) {
+			s.reowned[v.Sequence.Relname] = true
+		}
 	case *ast.CreateSeqStmt:
 		s.touch(v.Sequence)
 	case *ast.CompositeTypeStmt:
 		s.touch(v.Typevar)
 	case *ast.IndexStmt:
-		// An unnamed index takes a generated name the server keeps clear of
-		// every relation already in its schema.
-		if v.Idxname != "" && v.Relation != nil {
+		if v.Idxname == "" {
+			s.generated = true
+		} else if v.Relation != nil {
 			s.touchName(v.Relation.Schemaname, v.Idxname)
 		}
 	case *ast.SelectStmt:
@@ -366,7 +402,7 @@ func (s *scan) references(owner *ast.RangeVar, constraints ...*ast.Constraint) {
 	for _, c := range constraints {
 		if c.Contype == ast.CONSTR_FOREIGN && c.Pktable != nil {
 			s.newReferences = append(s.newReferences, newReference{
-				schema: c.Pktable.Schemaname, table: c.Pktable.Relname, columns: nameParts(c.PkAttrs),
+				schema: s.schemaOf(c.Pktable), table: c.Pktable.Relname, columns: nameParts(c.PkAttrs),
 				owner: tableRef{owner.Schemaname, owner.Relname}, ownerPath: s.pathVersion, name: c.Conname,
 			})
 		}
@@ -429,22 +465,42 @@ type newDependency struct {
 	retired  bool
 }
 
-// reads records the relations a new view's query names. A name a WITH
-// clause of the query defines is a CTE, not a relation.
+// reads records the relations a new view's query names. An unqualified
+// name of a CTE visible where it is used is the CTE, not a relation: a
+// CTE is visible to the query of its WITH clause and to the CTEs after it,
+// and, under WITH RECURSIVE, to every CTE of the clause.
 func (s *scan) reads(view *ast.RangeVar, query ast.Node) {
-	ctes := make(map[string]bool)
-	ast.Inspect(query, func(n ast.Node) bool {
-		if w, ok := n.(*ast.WithClause); ok && w.Ctes != nil {
-			for _, item := range w.Ctes.Items {
-				if c, ok := item.(*ast.CommonTableExpr); ok {
-					ctes[c.Ctename] = true
+	s.readsIn(view, query, nil)
+}
+
+func (s *scan) readsIn(view *ast.RangeVar, n ast.Node, visible map[string]bool) {
+	ast.Inspect(n, func(n ast.Node) bool {
+		if w, rest := splitWith(n); w != nil {
+			scope := make(map[string]bool, len(visible))
+			for name := range visible {
+				scope[name] = true
+			}
+			var ctes []*ast.CommonTableExpr
+			if w.Ctes != nil {
+				for _, item := range w.Ctes.Items {
+					if c, ok := item.(*ast.CommonTableExpr); ok {
+						ctes = append(ctes, c)
+					}
 				}
 			}
+			if w.Recursive {
+				for _, c := range ctes {
+					scope[c.Ctename] = true
+				}
+			}
+			for _, c := range ctes {
+				s.readsIn(view, c.Ctequery, scope)
+				scope[c.Ctename] = true
+			}
+			s.readsIn(view, rest, scope)
+			return false
 		}
-		return true
-	})
-	ast.Inspect(query, func(n ast.Node) bool {
-		if rv, ok := n.(*ast.RangeVar); ok && !(rv.Schemaname == "" && ctes[rv.Relname]) {
+		if rv, ok := n.(*ast.RangeVar); ok && !(rv.Schemaname == "" && visible[rv.Relname]) {
 			s.newReads = append(s.newReads, newDependency{
 				relation: tableRef{s.schemaOf(rv), rv.Relname},
 				object:   tableRef{view.Schemaname, view.Relname},
@@ -455,14 +511,59 @@ func (s *scan) reads(view *ast.RangeVar, query ast.Node) {
 	})
 }
 
+// splitWith returns a statement's WITH clause and the statement without
+// it, or nil when it has none.
+func splitWith(n ast.Node) (*ast.WithClause, ast.Node) {
+	switch v := n.(type) {
+	case *ast.SelectStmt:
+		if v.WithClause != nil {
+			c := *v
+			c.WithClause = nil
+			return v.WithClause, &c
+		}
+	case *ast.InsertStmt:
+		if v.WithClause != nil {
+			c := *v
+			c.WithClause = nil
+			return v.WithClause, &c
+		}
+	case *ast.UpdateStmt:
+		if v.WithClause != nil {
+			c := *v
+			c.WithClause = nil
+			return v.WithClause, &c
+		}
+	case *ast.DeleteStmt:
+		if v.WithClause != nil {
+			c := *v
+			c.WithClause = nil
+			return v.WithClause, &c
+		}
+	case *ast.MergeStmt:
+		if v.WithClause != nil {
+			c := *v
+			c.WithClause = nil
+			return v.WithClause, &c
+		}
+	}
+	return nil, nil
+}
+
 // returns records the relation whose row type a new function returns,
 // when its result type names one.
 func (s *scan) returns(v *ast.CreateFunctionStmt) {
+	fn := nameParts(v.Funcname)
 	if v.ReturnType == nil {
+		if len(fn) > 0 {
+			object := tableRef{table: fn[len(fn)-1]}
+			if len(fn) >= 2 {
+				object.schema = fn[len(fn)-2]
+			}
+			s.newFunctions[object]++
+		}
 		return
 	}
 	parts := nameParts(v.ReturnType.Names)
-	fn := nameParts(v.Funcname)
 	if len(parts) == 0 || len(parts) > 2 || len(fn) == 0 {
 		return
 	}
@@ -474,6 +575,7 @@ func (s *scan) returns(v *ast.CreateFunctionStmt) {
 	if len(fn) >= 2 {
 		object.schema = fn[len(fn)-2]
 	}
+	s.newFunctions[object]++
 	s.newReturns = append(s.newReturns, newDependency{relation: tableRef{s.schemaOf(rv), rv.Relname}, object: object, path: s.pathVersion})
 }
 
@@ -502,21 +604,37 @@ func (s *scan) retire(deps []newDependency, object tableRef) {
 // create follows CREATE TABLE. A CREATE TABLE of a name its schema
 // already holds is refused.
 func (s *scan) create(st *statement, v *ast.CreateStmt) {
-	if !v.IfNotExists && s.existsWhereCreated(v.Relation) {
+	exists := s.existsWhereCreated(v.Relation)
+	switch {
+	case s.schemaMissing(v.Relation) || exists && !v.IfNotExists:
 		s.stop()
 		return
+	case exists:
+		// IF NOT EXISTS of an existing table does nothing.
+		return
 	}
-	s.createTable(st, v)
+	if !s.nameUncertain(v.Relation) {
+		s.createTable(st, v)
+	}
 	s.touch(v.Relation)
+	s.generated = true
 	if v.TableElts == nil {
 		return
 	}
 	for _, item := range v.TableElts.Items {
+		var constraints []*ast.Constraint
 		switch e := item.(type) {
 		case *ast.ColumnDef:
-			s.references(v.Relation, constraintsOf(e.Constraints)...)
+			constraints = constraintsOf(e.Constraints)
 		case *ast.Constraint:
-			s.references(v.Relation, e)
+			constraints = []*ast.Constraint{e}
+		}
+		s.references(v.Relation, constraints...)
+		for _, c := range constraints {
+			// A key's index takes the constraint's name.
+			if makesIndex(c) && c.Conname != "" {
+				s.touchName(v.Relation.Schemaname, c.Conname)
+			}
 		}
 	}
 }
@@ -992,9 +1110,13 @@ func (s *scan) drop(v *ast.DropStmt) {
 			rv.Schemaname = parts[len(parts)-2]
 		}
 		schema, relKind, resolved := s.lookup(rv)
-		if resolved {
+		switch {
+		case resolved:
 			s.free(schema, rv.Relname)
-		} else {
+		case v.Missing_ok && s.index != nil && s.missing(rv):
+			// IF EXISTS of a name the target lacks drops nothing.
+			continue
+		default:
 			s.touch(rv)
 			schema = ""
 		}
@@ -1045,8 +1167,20 @@ func (s *scan) dropFunctions(v *ast.DropStmt) {
 		if len(parts) == 2 {
 			fn.schema = parts[0]
 		}
-		s.retire(s.newReturns, fn)
-		if s.index == nil {
+		// An overload the change created is retired only when the name
+		// leaves no choice of which function was dropped.
+		synced := 0
+		if s.index != nil {
+			for name, n := range s.index.functions {
+				if name.table == fn.table && (fn.schema == "" || name.schema == fn.schema) {
+					synced += n
+				}
+			}
+		}
+		if s.newFunctions[fn] == 1 && synced == 0 {
+			s.retire(s.newReturns, fn)
+		}
+		if s.index == nil || s.newFunctions[fn] > 0 {
 			continue
 		}
 		if fn.schema != "" {
@@ -1090,18 +1224,50 @@ func (s *scan) dropsWrongKind(v *ast.DropStmt) bool {
 			rv.Schemaname = parts[0]
 		}
 		schema, relKind, ok := s.lookup(rv)
-		if !ok {
+		if !ok || relKind == kindAmbiguous {
 			continue
 		}
-		table := relKind == kindTable || relKind == kindPartition
-		switch {
-		case kind == ast.OBJECT_TABLE && !table, kind != ast.OBJECT_TABLE && table:
+		if !dropKindMatches(kind, relKind) {
 			return true
-		case kind == ast.OBJECT_INDEX && s.index.constraintIndexes[tableRef{schema, rv.Relname}]:
+		}
+		if kind == ast.OBJECT_INDEX && s.index.constraintIndexes[tableRef{schema, rv.Relname}] {
 			return true
 		}
 	}
 	return false
+}
+
+// viewHolds reports whether a synced view may still read what the snapshot
+// says it reads: the change neither dropped it nor redefined it.
+func (s *scan) viewHolds(view tableRef) bool {
+	return !s.freed[[2]string{view.schema, view.table}] && !s.replacedViews[view]
+}
+
+// dropKindMatches reports whether a DROP of an object type can drop a
+// relation of that kind.
+func dropKindMatches(t ast.ObjectType, kind relationKind) bool {
+	switch t {
+	case ast.OBJECT_TABLE:
+		return kind == kindTable || kind == kindPartition
+	case ast.OBJECT_VIEW:
+		return kind == kindView
+	case ast.OBJECT_MATVIEW:
+		return kind == kindMatView
+	case ast.OBJECT_FOREIGN_TABLE:
+		return kind == kindForeignTable
+	case ast.OBJECT_SEQUENCE:
+		return kind == kindSequence
+	case ast.OBJECT_INDEX:
+		return kind == kindIndex
+	}
+	return true
+}
+
+// schemaMissing reports whether a qualified name's schema certainly does
+// not exist: the target lacks it and the change did not create it.
+func (s *scan) schemaMissing(rv *ast.RangeVar) bool {
+	return s.index != nil && rv != nil && rv.Schemaname != "" && !isTemp(rv) &&
+		s.index.schemas[rv.Schemaname] == nil && !s.schemas[rv.Schemaname]
 }
 
 // dropsMissing reports whether a DROP without IF EXISTS names a relation
@@ -1196,7 +1362,7 @@ func (s *scan) dropRefused(v *ast.DropStmt) bool {
 			}
 		}
 		for _, view := range s.index.readers[t] {
-			if !s.freed[[2]string{view.schema, view.table}] && !slices.Contains(dropped, view) {
+			if s.viewHolds(view) && !slices.Contains(dropped, view) {
 				return true
 			}
 		}
@@ -1228,7 +1394,11 @@ func (s *scan) dropOwned(rv *ast.RangeVar, schema string, table bool) {
 		switch {
 		case schema != "" && name == schema:
 			for _, d := range ns.dependents[rv.Relname] {
-				s.free(name, d)
+				if s.reowned[d] {
+					s.touchName(name, d)
+				} else {
+					s.free(name, d)
+				}
 			}
 		case schema == "" && (rv.Schemaname == "" || rv.Schemaname == name):
 			for _, d := range ns.dependents[rv.Relname] {
@@ -1256,18 +1426,32 @@ func (s *scan) dropDependents(rv *ast.RangeVar, schema string) {
 	if s.index == nil {
 		return
 	}
+	var start []tableRef
 	if schema != "" {
-		for _, view := range s.index.readers[tableRef{schema, rv.Relname}] {
-			s.free(view.schema, view.table)
+		start = []tableRef{{schema, rv.Relname}}
+	} else {
+		for name := range s.index.schemas {
+			if rv.Schemaname == "" || rv.Schemaname == name {
+				start = append(start, tableRef{name, rv.Relname})
+			}
 		}
-		return
 	}
-	for name := range s.index.schemas {
-		if rv.Schemaname != "" && rv.Schemaname != name {
-			continue
-		}
-		for _, view := range s.index.readers[tableRef{name, rv.Relname}] {
-			s.touchName(view.schema, view.table)
+	// The views reading a dropped view go too.
+	seen := make(map[tableRef]bool)
+	for len(start) > 0 {
+		t := start[0]
+		start = start[1:]
+		for _, view := range s.index.readers[t] {
+			if seen[view] {
+				continue
+			}
+			seen[view] = true
+			if schema != "" {
+				s.free(view.schema, view.table)
+			} else {
+				s.touchName(view.schema, view.table)
+			}
+			start = append(start, view)
 		}
 	}
 }

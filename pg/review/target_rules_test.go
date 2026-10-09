@@ -303,6 +303,26 @@ func TestDisallowDropConstraint(t *testing.T) {
 			targets: one,
 		},
 		{
+			name: "an unqualified new foreign key references the table the path finds",
+			sql:  "CREATE TABLE c (x int REFERENCES p (id));\nALTER TABLE public.p DROP CONSTRAINT p_pkey;",
+			targets: []review.Target{{Schema: database("s, public",
+				schema("public", withPrimaryKey(table("p", "id integer"), "p_pkey", "id")),
+				schema("s", withPrimaryKey(table("p", "id integer"), "p_pkey", "id")),
+			)}},
+			want: []targetFinding{{1, "DROP CONSTRAINT p_pkey", "drops primary key p_pkey of public.p", []int{0}}},
+		},
+		{
+			name:    "a no-op CREATE TABLE IF NOT EXISTS adds no foreign key",
+			sql:     "CREATE TABLE IF NOT EXISTS public.nokey (a text REFERENCES t (code));\nALTER TABLE t DROP CONSTRAINT t_code_key;",
+			targets: one,
+			want:    []targetFinding{{1, "DROP CONSTRAINT t_code_key", "drops unique constraint t_code_key of t", []int{0}}},
+		},
+		{
+			name:    "an event trigger on function DDL",
+			sql:     "CREATE FUNCTION g() RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER TABLE t DROP CONSTRAINT t_n_check;",
+			targets: []review.Target{{Schema: withEventTrigger(shop(), true, "CREATE FUNCTION"), SessionUser: "alice"}},
+		},
+		{
 			name:    "a cascading drop of anything but a relation ends the scan",
 			sql:     "DROP FUNCTION f() CASCADE;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
 			targets: one,
@@ -538,6 +558,78 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE TABLE of a name the schema holds is refused",
 			sql:     "CREATE TABLE nokey (a int);\nCREATE TABLE n (id int);",
 			targets: one,
+		},
+		{
+			name:    "a CTE body reads the table its name shadows",
+			sql:     "CREATE VIEW v AS WITH t AS (SELECT * FROM t) SELECT * FROM t;\nDROP TABLE public.t;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name: "a cascading drop takes the views that read its views",
+			sql:  "DROP TABLE base CASCADE;\nCREATE TABLE IF NOT EXISTS v2 (id int);",
+			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{
+				Name:   "public",
+				Tables: []*metadata.TableMetadata{table("base", "id integer")},
+				Views: []*metadata.ViewMetadata{
+					{Name: "v1", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "base", Column: "id"}}},
+					{Name: "v2", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "v1", Column: "id"}}},
+				},
+			})}},
+			want: []targetFinding{{1, "CREATE TABLE IF NOT EXISTS v2 (id int)", "creates table v2 without a primary key", []int{0}}},
+		},
+		{
+			name:    "dropping one of two new overloads leaves the other",
+			sql:     "CREATE FUNCTION g(int) RETURNS SETOF nokey LANGUAGE sql AS 'SELECT * FROM nokey';\nCREATE FUNCTION g(text) RETURNS SETOF nokey LANGUAGE sql AS 'SELECT * FROM nokey';\nDROP FUNCTION g(int);\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name: "DROP VIEW of a materialized view is refused",
+			sql:  "DROP VIEW mv;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{
+				Name:              "public",
+				MaterializedViews: []*metadata.MaterializedViewMetadata{{Name: "mv"}},
+			})}},
+		},
+		{
+			name:    "ADD COLUMN IF NOT EXISTS of an existing column adds no key",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_pkey CASCADE;\nALTER TABLE t ADD COLUMN IF NOT EXISTS id int PRIMARY KEY;",
+			targets: one,
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_pkey CASCADE", "removes the primary key of t, and the change adds none back", []int{0}}},
+		},
+		{
+			name: "a replaced view no longer reads what it read",
+			sql:  "CREATE OR REPLACE VIEW v AS SELECT 1 AS id;\nDROP TABLE base;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{
+				Name:   "public",
+				Tables: []*metadata.TableMetadata{table("base", "id integer")},
+				Views:  []*metadata.ViewMetadata{{Name: "v", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "base", Column: "id"}}}},
+			})}},
+			want: []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name: "a sequence another owner took stays",
+			sql:  "ALTER SEQUENCE q OWNED BY NONE;\nDROP TABLE base;\nCREATE TABLE IF NOT EXISTS q (id int);",
+			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{
+				Name:      "public",
+				Tables:    []*metadata.TableMetadata{table("base", "id integer")},
+				Sequences: []*metadata.SequenceMetadata{{Name: "q", OwnerTable: "base", OwnerColumn: "id"}},
+			})}},
+		},
+		{
+			name:    "a table named like a relation an earlier statement made",
+			sql:     "CREATE INDEX ON t (n);\nCREATE TABLE t_n_idx1 (x int);\nCREATE TABLE a (id int CONSTRAINT foo PRIMARY KEY);\nCREATE TABLE foo (x int);",
+			targets: one,
+		},
+		{
+			name:    "a table in a missing schema",
+			sql:     "CREATE TABLE missing.n (id int);\nCREATE TABLE m (id int);",
+			targets: one,
+		},
+		{
+			name:    "IF EXISTS of a missing table leaves the name free",
+			sql:     "DROP TABLE IF EXISTS gone;\nCREATE TABLE gone (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE gone (id int)", "creates table gone without a primary key", []int{0}}},
 		},
 		{
 			name:    "a cascading drop of a parent may drop a child",

@@ -120,6 +120,14 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				if c.Conname != "" {
 					s.constraints[[3]string{schema, name, c.Conname}] = true
 				}
+				switch {
+				case !makesIndex(c):
+				case c.Conname == "":
+					s.generated = true
+				default:
+					// A key's index takes the constraint's name.
+					s.touchName(v.Relation.Schemaname, c.Conname)
+				}
 				if c.Indexname != "" {
 					// USING INDEX renames the index to the constraint.
 					s.touchName(v.Relation.Schemaname, c.Indexname)
@@ -133,6 +141,12 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 			}
 		case ast.AT_AddColumn:
 			if cd, ok := cmd.Def.(*ast.ColumnDef); ok {
+				// ADD COLUMN IF NOT EXISTS of a column the table has does
+				// nothing, its constraints included.
+				if cmd.Missing_ok && knownBefore && !droppedColumns[cd.Colname] && s.hasColumn(before, cd.Colname) {
+					continue
+				}
+				s.generated = true
 				s.columns[[3]string{schema, name, cd.Colname}] = true
 				for _, c := range constraintsOf(cd.Constraints) {
 					if c.Conname != "" {
@@ -144,6 +158,8 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				}
 				s.references(v.Relation, constraintsOf(cd.Constraints)...)
 			}
+		case ast.AT_AddIdentity:
+			s.generated = true
 		case ast.AT_AddIndexConstraint, ast.AT_AddIndex:
 			if idx, ok := cmd.Def.(*ast.IndexStmt); ok {
 				s.renamedKeys[idx.Idxname] = true
@@ -240,7 +256,7 @@ func (s *scan) dropColumn(cmd *ast.AlterTableCmd, t tableRef, cascade bool, out 
 	if pk != nil {
 		pkColumns = keyColumns(pk)
 	}
-	if !cascade && (s.index.referencesColumn(t, cmd.Name, s.dropped) || s.index.readsColumn[columnRef{t.schema, t.table, cmd.Name}] ||
+	if !cascade && (s.index.referencesColumn(t, cmd.Name, s.dropped) || slices.ContainsFunc(s.index.readsColumn[columnRef{t.schema, t.table, cmd.Name}], s.viewHolds) ||
 		s.newlyReferencedColumn(t, cmd.Name, pkColumns, pk != nil) || dependsOnNew(s.newReads, t)) {
 		return true
 	}
@@ -329,15 +345,7 @@ func (s *scan) refuses(t tableRef, drops, others []*ast.AlterTableCmd) bool {
 	}
 	// has reports whether the table has the column once the drops ran.
 	has := func(column string) bool {
-		switch {
-		case droppedColumns[column]:
-			return false
-		case hasColumnIn(s.columns, t, column) || hasColumnIn(s.renamedTo, t, column):
-			return true
-		case hasColumnIn(s.renamedFrom, t, column):
-			return false
-		}
-		return slices.ContainsFunc(table.GetColumns(), func(c *metadata.ColumnMetadata) bool { return c.GetName() == column })
+		return !droppedColumns[column] && s.hasColumn(t, column)
 	}
 	// uses reports whether a constraint name certainly names a constraint
 	// of the table.
@@ -409,6 +417,24 @@ func (s *scan) refuses(t tableRef, drops, others []*ast.AlterTableCmd) bool {
 		}
 	}
 	return false
+}
+
+// hasColumn reports whether the synced table has the column after the
+// statements so far: added, renamed to it, or synced and not renamed away.
+func (s *scan) hasColumn(t tableRef, column string) bool {
+	switch {
+	case hasColumnIn(s.columns, t, column) || hasColumnIn(s.renamedTo, t, column):
+		return true
+	case hasColumnIn(s.renamedFrom, t, column):
+		return false
+	}
+	table := s.index.schemas[t.schema].tables[t.table]
+	return slices.ContainsFunc(table.GetColumns(), func(c *metadata.ColumnMetadata) bool { return c.GetName() == column })
+}
+
+// makesIndex reports whether a constraint is backed by an index.
+func makesIndex(c *ast.Constraint) bool {
+	return c.Contype == ast.CONSTR_PRIMARY || c.Contype == ast.CONSTR_UNIQUE || c.Contype == ast.CONSTR_EXCLUSION
 }
 
 func constraintsOf(list *ast.List) []*ast.Constraint {
