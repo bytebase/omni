@@ -101,9 +101,12 @@ type scan struct {
 	madeRoutines      map[string]bool
 	movedRoutines     map[string]bool
 	replacedFunctions map[tableRef]bool
-	// renamedFrom maps a name a rename gave a relation the scan resolved
-	// to the relation, while no statement used the name since.
+	// renamedFrom maps a name a rename or a move gave a relation the scan
+	// resolved to the relation, while no statement used the name since.
 	renamedFrom map[string]renamedRelation
+	// created lists the tables and views the change certainly created, by
+	// (schema, name), while no statement used the name since.
+	created map[[2]string]madeRelation
 	// replacedViews lists the synced views CREATE OR REPLACE VIEW
 	// redefined, whose synced reads no longer hold, and reowned the
 	// sequences, by name, whose owner ALTER SEQUENCE changed.
@@ -150,6 +153,7 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		madeRoutines:     make(map[string]bool),
 		movedRoutines:    make(map[string]bool),
 		renamedFrom:      make(map[string]renamedRelation),
+		created:          make(map[[2]string]madeRelation),
 		replacedViews:    make(map[tableRef]bool),
 		reowned:          make(map[[2]string]bool),
 		newKeys:          make(map[[2]string]bool),
@@ -215,10 +219,6 @@ func eventTriggerFires(schema *metadata.DatabaseSchemaMetadata, stmts []statemen
 		e := raised{drops: mayDrop(n), rewrites: mayRewrite(n)}
 		if tag := commandTag(n); tag != "" {
 			e.tags = []string{tag}
-			// CREATE FUNCTION and CREATE PROCEDURE share a node.
-			if tag == "CREATE FUNCTION" {
-				e.tags = append(e.tags, "CREATE PROCEDURE")
-			}
 		}
 		events = append(events, e)
 	}
@@ -442,6 +442,9 @@ func commandTag(n ast.Node) string {
 	case *ast.IndexStmt:
 		return "CREATE INDEX"
 	case *ast.CreateFunctionStmt:
+		if isProcedure(v) {
+			return "CREATE PROCEDURE"
+		}
 		return "CREATE FUNCTION"
 	case *ast.AlterSeqStmt:
 		return "ALTER SEQUENCE"
@@ -480,6 +483,18 @@ func commandTag(n ast.Node) string {
 		return "CREATE EXTENSION"
 	}
 	return ""
+}
+
+// isProcedure reports whether CREATE FUNCTION is CREATE PROCEDURE, which
+// the parser marks with an option.
+func isProcedure(v *ast.CreateFunctionStmt) bool {
+	if v.Options == nil {
+		return false
+	}
+	return slices.ContainsFunc(v.Options.Items, func(n ast.Node) bool {
+		d, ok := n.(*ast.DefElem)
+		return ok && d.Defname == "isProcedure"
+	})
 }
 
 // stop ends the scan: nothing after this statement is known, and no table
@@ -522,6 +537,9 @@ func (s *scan) statement(st *statement) {
 			s.retire(s.newReads, tableRef{v.View.Schemaname, v.View.Relname})
 		}
 		s.touch(v.View)
+		if !v.Replace {
+			s.made(v.View, kindView)
+		}
 		s.reads(v.View, v.Query)
 	case *ast.CreateFunctionStmt:
 		s.returns(v)
@@ -1010,6 +1028,10 @@ func (s *scan) create(st *statement, v *ast.CreateStmt) {
 		// IF NOT EXISTS of an existing table does nothing.
 		return
 	}
+	if duplicateColumns(v) {
+		s.stop()
+		return
+	}
 	pending := len(s.pending)
 	if !s.nameUncertain(v.Relation) {
 		s.createTable(st, v)
@@ -1017,6 +1039,9 @@ func (s *scan) create(st *statement, v *ast.CreateStmt) {
 	s.touch(v.Relation)
 	for _, p := range s.pending[pending:] {
 		p.made = s.lastTouch[v.Relation.Relname]
+	}
+	if !v.IfNotExists || s.createsNew(v.Relation) {
+		s.made(v.Relation, kindTable)
 	}
 	if generatesNames(v) {
 		s.generated = true
@@ -1206,6 +1231,25 @@ func (s *scan) mayHavePartitions(rv *ast.RangeVar) bool {
 		return true
 	}
 	return len(s.index.schemas[schema].tables[rv.Relname].GetPartitions()) > 0
+}
+
+// duplicateColumns reports whether CREATE TABLE names a column twice,
+// which the server refuses. A column LIKE or INHERITS brings may merge
+// with one the statement names.
+func duplicateColumns(v *ast.CreateStmt) bool {
+	if v.TableElts == nil {
+		return false
+	}
+	seen := make(map[string]bool)
+	for _, item := range v.TableElts.Items {
+		if cd, ok := item.(*ast.ColumnDef); ok {
+			if seen[cd.Colname] {
+				return true
+			}
+			seen[cd.Colname] = true
+		}
+	}
+	return false
 }
 
 // generatesNames reports whether CREATE TABLE makes a relation under a
@@ -1608,11 +1652,16 @@ func (s *scan) rename(v *ast.RenameStmt) {
 	switch {
 	case isRelationKind(v.RenameType) && v.Relation != nil:
 		schema, _, resolved := s.lookup(v.Relation)
-		s.followRename(v.Relation, v.Newname)
+		// A name its schema holds is refused.
+		if resolved && s.nameTaken(schema, v.Newname) {
+			s.stop()
+			return
+		}
+		s.follow(v.Relation, "", v.Newname)
 		s.touchName(v.Relation.Schemaname, v.Relation.Relname)
 		s.touchName(v.Relation.Schemaname, v.Newname)
 		if resolved {
-			s.renamedFrom[v.Newname] = renamedRelation{tableRef{schema, v.Relation.Relname}, s.lastTouch[v.Newname]}
+			s.renamedFrom[v.Newname] = renamedRelation{tableRef{schema, v.Relation.Relname}, schema, s.lastTouch[v.Newname]}
 		}
 		for _, p := range s.matching(v.Relation) {
 			// A rename naming the table's own known schema is that table's;
@@ -1661,45 +1710,102 @@ func (s *scan) rename(v *ast.RenameStmt) {
 	}
 }
 
-// renamedRelation is a relation of the synced schema a rename gave a new
-// name, and made numbers the touch that gave it.
+// renamedRelation is a relation of the synced schema a rename or a move
+// gave a new name: the relation as synced, the schema it is in now, and
+// the touch that gave the name.
 type renamedRelation struct {
 	relation tableRef
+	schema   string
 	made     int
 }
 
-// renamedAway returns the synced relation a name a rename gave may mean,
-// while no statement used the name since.
+// renamedAway returns the synced relation a name a rename or a move gave
+// may mean, while no statement used the name since.
 func (s *scan) renamedAway(rv *ast.RangeVar) (tableRef, bool) {
 	r, ok := s.renamedFrom[rv.Relname]
-	if !ok || s.lastTouch[rv.Relname] != r.made || rv.Schemaname != "" && rv.Schemaname != r.relation.schema {
+	if !ok || s.lastTouch[rv.Relname] != r.made || rv.Schemaname != "" && rv.Schemaname != r.schema {
 		return tableRef{}, false
 	}
 	return r.relation, true
 }
 
-// followRename records that what the change's own objects depend on keeps
-// depending on a relation under its new name: each dependency on a
-// relation the renamed one may be is copied to the new name.
-func (s *scan) followRename(rv *ast.RangeVar, name string) {
+// nameTaken reports whether a synced schema certainly holds a relation or
+// an enum type of that name, which a relation cannot take.
+func (s *scan) nameTaken(schema, name string) bool {
+	ns := s.index.schemas[schema]
+	if ns == nil || s.schemas[schema] || s.isTouched(&ast.RangeVar{Schemaname: schema, Relname: name}) {
+		return false
+	}
+	_, exists := ns.relations[name]
+	return exists || slices.Contains(ns.types, name)
+}
+
+// follow records that what the change's own objects depend on keeps
+// depending on a relation renamed or moved to another schema: each
+// dependency on a relation the statement's may be is copied to the new
+// schema, when one is given, and name.
+func (s *scan) follow(rv *ast.RangeVar, newSchema, name string) {
 	schema := s.schemaOf(rv)
 	may := func(t tableRef) bool {
 		return t.table == rv.Relname && (t.schema == "" || schema == "" || t.schema == schema)
 	}
+	moved := func(t tableRef) tableRef {
+		if newSchema != "" {
+			t.schema = newSchema
+		}
+		t.table = name
+		return t
+	}
 	for _, deps := range []*[]newDependency{&s.newReads, &s.newReturns} {
 		for i, n := 0, len(*deps); i < n; i++ {
 			if d := (*deps)[i]; !d.retired && may(d.relation) {
-				d.relation.table = name
+				d.relation = moved(d.relation)
 				*deps = append(*deps, d)
 			}
 		}
 	}
 	for i, n := 0, len(s.newReferences); i < n; i++ {
 		if r := s.newReferences[i]; !r.retired && may(tableRef{r.schema, r.table}) {
-			r.table = name
+			t := moved(tableRef{r.schema, r.table})
+			r.schema, r.table = t.schema, t.table
 			s.newReferences = append(s.newReferences, r)
 		}
 	}
+}
+
+// madeRelation is a table or view the change created, and the touch
+// that made its name.
+type madeRelation struct {
+	kind relationKind
+	made int
+}
+
+// made records a table or view a statement certainly created under a
+// name: the schema written, or the one the search path creates it in.
+func (s *scan) made(rv *ast.RangeVar, kind relationKind) {
+	schema := rv.Schemaname
+	if schema == "" {
+		var ok bool
+		if schema, ok = s.creationSchema(rv); !ok {
+			return
+		}
+	}
+	s.created[[2]string{schema, rv.Relname}] = madeRelation{kind, s.lastTouch[rv.Relname]}
+}
+
+// dropsOwn reports whether a qualified DROP certainly drops a table or
+// view the change created, under the name it made, which nothing the
+// change created depends on, or CASCADE takes with it.
+func (s *scan) dropsOwn(rv *ast.RangeVar, kind ast.ObjectType, cascade bool, written []tableRef) bool {
+	if rv.Schemaname == "" {
+		return false
+	}
+	t := tableRef{rv.Schemaname, rv.Relname}
+	c, ok := s.created[[2]string{t.schema, t.table}]
+	if !ok || s.lastTouch[t.table] != c.made || !dropKindMatches(kind, c.kind) {
+		return false
+	}
+	return cascade || !s.dependsOnNew(s.newReads, t, written) && !s.dependsOnNew(s.newReturns, t, nil) && !s.newlyReferenced(t, nil, true)
 }
 
 // setSchema follows SET SCHEMA. A pending table it may be can then be in
@@ -1707,8 +1813,19 @@ func (s *scan) followRename(rv *ast.RangeVar, name string) {
 func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 	switch {
 	case isRelationKind(v.ObjectType) && v.Relation != nil:
+		schema, _, resolved := s.lookup(v.Relation)
+		// A schema that lacks the name must exist to take it.
+		if s.index != nil && (s.index.schemas[v.Newschema] == nil && !s.schemas[v.Newschema] || s.schemaGone[v.Newschema]) ||
+			resolved && s.nameTaken(v.Newschema, v.Relation.Relname) {
+			s.stop()
+			return
+		}
+		s.follow(v.Relation, v.Newschema, v.Relation.Relname)
 		s.touch(v.Relation)
 		s.touchName(v.Newschema, v.Relation.Relname)
+		if resolved {
+			s.renamedFrom[v.Relation.Relname] = renamedRelation{tableRef{schema, v.Relation.Relname}, v.Newschema, s.lastTouch[v.Relation.Relname]}
+		}
 		for _, p := range s.matching(v.Relation) {
 			// The move is known only when the statement names the table's
 			// own schema; otherwise it may be another table of that name.
@@ -1793,6 +1910,18 @@ func (s *scan) drop(v *ast.DropStmt) {
 		s.stop()
 		return
 	}
+	// The names the statement drops, as written: a view among them does
+	// not hold the drop of another.
+	var written []tableRef
+	for _, obj := range v.Objects.Items {
+		if parts := nameParts(listOf(obj)); len(parts) > 0 {
+			t := tableRef{table: parts[len(parts)-1]}
+			if len(parts) >= 2 {
+				t.schema = parts[len(parts)-2]
+			}
+			written = append(written, t)
+		}
+	}
 	dropsAny := false
 	for _, obj := range v.Objects.Items {
 		parts := nameParts(listOf(obj))
@@ -1810,6 +1939,10 @@ func (s *scan) drop(v *ast.DropStmt) {
 		case v.Missing_ok && s.index != nil && s.missing(rv):
 			// IF EXISTS of a name the target lacks drops nothing.
 			continue
+		case s.dropsOwn(rv, kind, cascade, written):
+			// The change's own table or view, under the name it made.
+			s.free(rv.Schemaname, rv.Relname)
+			schema = ""
 		default:
 			s.touch(rv)
 			schema = ""

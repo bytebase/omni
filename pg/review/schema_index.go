@@ -34,6 +34,8 @@ type schemaIndex struct {
 	// noArgs marks the functions, by (schema, name), whose signature takes
 	// no arguments.
 	noArgs map[tableRef]bool
+	// ownedSequences lists the sequences a column owns, which go with it.
+	ownedSequences map[columnRef][]string
 }
 
 // namespace is one schema: the kind of every name in its relation
@@ -93,6 +95,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		extensions:        make(map[string]bool),
 		routineNames:      make(map[tableRef]bool),
 		noArgs:            make(map[tableRef]bool),
+		ownedSequences:    make(map[columnRef][]string),
 	}
 	for _, e := range db.GetExtensions() {
 		idx.extensions[e.GetName()] = true
@@ -143,6 +146,10 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 			ns.add(q.GetName(), kindSequence)
 			if q.GetOwnerTable() != "" {
 				ns.dependents[q.GetOwnerTable()] = append(ns.dependents[q.GetOwnerTable()], q.GetName())
+				if q.GetOwnerColumn() != "" {
+					c := columnRef{s.GetName(), q.GetOwnerTable(), q.GetOwnerColumn()}
+					idx.ownedSequences[c] = append(idx.ownedSequences[c], q.GetName())
+				}
 			}
 		}
 		for _, c := range s.GetCompositeTypes() {

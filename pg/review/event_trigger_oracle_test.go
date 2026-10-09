@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"slices"
 	"testing"
 )
 
@@ -20,8 +21,10 @@ func TestEventTriggerEventsAgainstPostgres(t *testing.T) {
 	}
 	defer conn.Close()
 	for _, setup := range []string{
-		`CREATE TABLE ev_log (event text)`,
-		`CREATE FUNCTION ev_note() RETURNS event_trigger LANGUAGE plpgsql AS $$ BEGIN INSERT INTO ev_log VALUES (lower(tg_event)); END $$`,
+		`CREATE TABLE ev_log (event text, tag text)`,
+		`CREATE FUNCTION ev_note() RETURNS event_trigger LANGUAGE plpgsql AS $$ BEGIN INSERT INTO ev_log VALUES (lower(tg_event), tg_tag); END $$`,
+		`CREATE FOREIGN DATA WRAPPER ev_fdw`,
+		`CREATE SERVER ev_srv FOREIGN DATA WRAPPER ev_fdw`,
 		`CREATE EVENT TRIGGER ev_end ON ddl_command_end EXECUTE FUNCTION ev_note()`,
 		`CREATE EVENT TRIGGER ev_drop ON sql_drop EXECUTE FUNCTION ev_note()`,
 		`CREATE EVENT TRIGGER ev_rewrite ON table_rewrite EXECUTE FUNCTION ev_note()`,
@@ -77,6 +80,13 @@ func TestEventTriggerEventsAgainstPostgres(t *testing.T) {
 		"CREATE SEQUENCE ev_q",
 		"CREATE FUNCTION ev_f() RETURNS int LANGUAGE sql AS 'SELECT 1'",
 		"CREATE OR REPLACE FUNCTION ev_f() RETURNS int LANGUAGE sql AS 'SELECT 2'",
+		"CREATE PROCEDURE ev_pr() LANGUAGE sql AS 'SELECT 1'",
+		"DROP PROCEDURE ev_pr()",
+		"CREATE MATERIALIZED VIEW ev_mv AS SELECT 1 AS a",
+		"ALTER VIEW ev_v RENAME TO ev_v2",
+		"ALTER VIEW ev_v2 RENAME TO ev_v",
+		"ALTER INDEX ev_p_code RENAME TO ev_p_code2",
+		"CREATE FOREIGN TABLE ev_ft (a int) SERVER ev_srv",
 		"CREATE TABLE ev_c AS SELECT 1 AS a",
 		"SELECT 1 AS a INTO ev_c2",
 		"CREATE INDEX ON ev_p (n)",
@@ -96,17 +106,21 @@ func TestEventTriggerEventsAgainstPostgres(t *testing.T) {
 		if _, err := conn.ExecContext(ctx, sql); err != nil {
 			t.Fatalf("%s: %v", sql, err)
 		}
-		rows, err := conn.QueryContext(ctx, `DELETE FROM ev_log RETURNING event`)
+		rows, err := conn.QueryContext(ctx, `DELETE FROM ev_log RETURNING event, tag`)
 		if err != nil {
 			t.Fatal(err)
 		}
 		raised := make(map[string]bool)
+		var tags []string
 		for rows.Next() {
-			var event string
-			if err := rows.Scan(&event); err != nil {
+			var event, tag string
+			if err := rows.Scan(&event, &tag); err != nil {
 				t.Fatal(err)
 			}
 			raised[event] = true
+			if event == "ddl_command_end" {
+				tags = append(tags, tag)
+			}
 		}
 		rows.Close()
 		stmts, finding := parse(sql, statementRanges(sql))
@@ -114,6 +128,10 @@ func TestEventTriggerEventsAgainstPostgres(t *testing.T) {
 			t.Fatalf("%s: parse: %v", sql, finding)
 		}
 		n := stmts[0].node
+		// A tag the scan names is the server's.
+		if tag := commandTag(n); tag != "" && len(tags) > 0 && !slices.Contains(tags, tag) {
+			t.Errorf("%s: the scan names tag %q, the server %q", sql, tag, tags)
+		}
 		if raised["ddl_command_end"] && !isDDL(n) {
 			t.Errorf("%s raised ddl_command_end, which the scan does not expect", sql)
 		}

@@ -145,6 +145,14 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 		}
 		withhold = withhold || refused || uncertain
 	}
+	for _, name := range out.freed {
+		// What a statement that may not run drops may still be there.
+		if withhold {
+			s.touchName(schema, name)
+		} else {
+			s.free(schema, name)
+		}
+	}
 	if withhold {
 		out = droppedKeys{}
 	}
@@ -257,6 +265,9 @@ type droppedKeys struct {
 	table    tableRef
 	// uncertain marks a drop the server may refuse.
 	uncertain bool
+	// freed lists the relations the drops took with them: a key's index,
+	// and a dropped column's indexes and owned sequences.
+	freed []string
 }
 
 // dropConstraint checks a DROP CONSTRAINT against the synced table. It
@@ -284,6 +295,9 @@ func (s *scan) dropConstraint(st *statement, v *ast.AlterTableStmt, cmd *ast.Alt
 		}
 	}
 	s.dropped[[3]string{t.schema, t.table, cmd.Name}] = true
+	if s.index.constraintIndexes[tableRef{t.schema, cmd.Name}] {
+		out.freed = append(out.freed, cmd.Name)
+	}
 	if s.on[review.DisallowDropConstraint] && con.kind != "" {
 		out.findings = append(out.findings, review.Finding{
 			Rule:      review.DisallowDropConstraint,
@@ -323,6 +337,22 @@ func (s *scan) dropColumn(cmd *ast.AlterTableCmd, t tableRef, cascade bool, out 
 	if !slices.ContainsFunc(table.GetColumns(), func(c *metadata.ColumnMetadata) bool { return c.GetName() == cmd.Name }) {
 		return !cmd.Missing_ok
 	}
+	defer func() {
+		if refused {
+			return
+		}
+		// The column's indexes and owned sequences go with it.
+		for _, i := range table.GetIndexes() {
+			if slices.Contains(keyColumns(i), cmd.Name) && !s.isTouched(&ast.RangeVar{Schemaname: t.schema, Relname: i.GetName()}) {
+				out.freed = append(out.freed, i.GetName())
+			}
+		}
+		for _, q := range s.index.ownedSequences[columnRef{t.schema, t.table, cmd.Name}] {
+			if !s.reowned[[2]string{t.schema, q}] && !s.reowned[[2]string{"", q}] && !s.isTouched(&ast.RangeVar{Schemaname: t.schema, Relname: q}) {
+				out.freed = append(out.freed, q)
+			}
+		}
+	}()
 	pk := primaryKey(table)
 	var pkColumns []string
 	if pk != nil {
@@ -552,6 +582,30 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedConstraints map[string
 			}
 			addedNames[c.Conname] = true
 		}
+		// A key's index is the one USING INDEX names, or one under the
+		// constraint's name in the table's schema.
+		switch {
+		case c.Indexname != "":
+			r, u := s.refusesIndex(t, c.Indexname, droppedColumns, droppedConstraints)
+			if r {
+				return true, false
+			}
+			uncertain = uncertain || u
+			// The index takes the constraint's name.
+			if c.Conname != "" && c.Conname != c.Indexname {
+				taken, known := s.indexNameTaken(t, c.Conname, droppedColumns, droppedConstraints)
+				if taken {
+					return true, false
+				}
+				uncertain = uncertain || !known
+			}
+		case makesIndex(c) && c.Conname != "":
+			taken, known := s.indexNameTaken(t, c.Conname, droppedColumns, droppedConstraints)
+			if taken {
+				return true, false
+			}
+			uncertain = uncertain || !known
+		}
 		if c.Contype == ast.CONSTR_PRIMARY {
 			if keyed() {
 				return true, false
@@ -590,6 +644,12 @@ func (s *scan) refusesReference(t tableRef, c *ast.Constraint, own func(string) 
 	local := max(len(nameParts(c.FkAttrs)), 1)
 	if len(columns) > 0 && len(columns) != local {
 		return true, false
+	}
+	// No key has a column twice.
+	for i, column := range columns {
+		if slices.Contains(columns[:i], column) {
+			return true, false
+		}
 	}
 	if s.missing(c.Pktable) {
 		return true, false
@@ -637,6 +697,68 @@ func (s *scan) refusesReference(t tableRef, c *ast.Constraint, own func(string) 
 		}
 	}
 	return true, false
+}
+
+// refusesIndex reports whether the server certainly refuses ADD CONSTRAINT
+// ... USING INDEX of a synced table's index: no index of the table has
+// the name, or the index is a constraint's already, or not unique, or
+// partial, or on an expression, or sorted other than ascending, or the
+// statement drops it with a column. uncertain reports a name an earlier
+// statement touched, or that the snapshot lists twice.
+//
+// pg: src/backend/parser/parse_utilcmd.c — transformIndexConstraint
+func (s *scan) refusesIndex(t tableRef, name string, droppedColumns, droppedConstraints map[string]bool) (refused, uncertain bool) {
+	if s.isTouched(&ast.RangeVar{Schemaname: t.schema, Relname: name}) {
+		return false, true
+	}
+	switch kind, ok := s.index.schemas[t.schema].relations[name]; {
+	case ok && kind == kindAmbiguous:
+		return false, true
+	case !ok || kind != kindIndex:
+		return true, false
+	}
+	table := s.index.schemas[t.schema].tables[t.table]
+	for _, i := range table.GetIndexes() {
+		if i.GetName() != name {
+			continue
+		}
+		key := keyColumns(i)
+		return droppedConstraints[name] || s.index.constraintIndexes[tableRef{t.schema, name}] || !i.GetUnique() || key == nil ||
+			strings.Contains(strings.ToUpper(i.GetDefinition()), " WHERE ") || slices.Contains(i.GetDescending(), true) ||
+			slices.ContainsFunc(key, func(c string) bool { return droppedColumns[c] }), false
+	}
+	return true, false
+}
+
+// indexNameTaken reports whether the index of a key the statement adds
+// under a name cannot take it: a relation of the table's schema has it,
+// other than an index the statement drops with its constraint or its
+// column. known is false when an earlier statement touched the name, or
+// the statement may drop the index of that name.
+func (s *scan) indexNameTaken(t tableRef, name string, droppedColumns, droppedConstraints map[string]bool) (taken, known bool) {
+	rv := &ast.RangeVar{Schemaname: t.schema, Relname: name}
+	switch {
+	case s.freed[[2]string{t.schema, name}]:
+		return false, true
+	case s.isTouched(rv):
+		return false, false
+	}
+	if _, ok := s.index.schemas[t.schema].relations[name]; !ok || droppedConstraints[name] {
+		return false, true
+	}
+	for _, i := range s.index.schemas[t.schema].tables[t.table].GetIndexes() {
+		if i.GetName() != name || len(droppedColumns) == 0 {
+			continue
+		}
+		key := keyColumns(i)
+		if key == nil {
+			return false, false
+		}
+		if slices.ContainsFunc(key, func(c string) bool { return droppedColumns[c] }) {
+			return false, true
+		}
+	}
+	return true, true
 }
 
 // isKey reports whether a synced table's index is a key a foreign key can
