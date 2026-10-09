@@ -1285,7 +1285,10 @@ func (c *Catalog) atDropColumn(schema *Schema, rel *Relation, colName string, ca
 // pg: src/backend/commands/tablecmds.c — ATExecDropConstraint
 // PG calls performDeletion(&conobj, behavior, 0), which checks
 // DEPENDENCY_NORMAL entries against the constraint. The backing index
-// has DEPENDENCY_INTERNAL and is always auto-cascaded.
+// has DEPENDENCY_INTERNAL and is always auto-cascaded, so the objects
+// that depend on the index are the constraint's dependents too: a
+// foreign key referencing a primary key or unique constraint depends on
+// its index.
 func (c *Catalog) atDropConstraint(schema *Schema, rel *Relation, conName string, cascade, ifExists bool) error {
 	for _, con := range c.consByRel[rel.OID] {
 		if con.Name == conName {
@@ -1295,6 +1298,14 @@ func (c *Catalog) atDropConstraint(schema *Schema, rel *Relation, conName string
 					return errDependentObjects("constraint", conName)
 				}
 				c.dropDependents('c', con.OID)
+			}
+			if con.IndexOID != 0 {
+				if deps := c.findNormalDependents('r', con.IndexOID); len(deps) > 0 {
+					if !cascade {
+						return errDependentObjects("constraint", conName)
+					}
+					c.dropDependents('r', con.IndexOID)
+				}
 			}
 			c.removeConstraint(schema, con)
 			return nil
