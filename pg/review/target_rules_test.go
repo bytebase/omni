@@ -385,6 +385,12 @@ func TestDisallowDropConstraint(t *testing.T) {
 			targets: []review.Target{{Schema: withEventTrigger(shop(), true, "SELECT INTO"), SessionUser: "alice"}},
 		},
 		{
+			name:    "the statements before an event trigger fires keep their findings",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check;\nCREATE INDEX ON t (n);\nALTER TABLE t DROP CONSTRAINT t_code_key;",
+			targets: []review.Target{{Schema: withEvent(shop(), "DDL_COMMAND_END", "CREATE INDEX"), SessionUser: "alice"}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+		},
+		{
 			name:    "ADD CONSTRAINT USING INDEX of a missing index refuses the statement",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT replacement UNIQUE USING INDEX missing_idx;",
 			targets: one,
@@ -1496,6 +1502,53 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "DROP COLUMN CASCADE of a column a generated column reads",
 			sql:     "ALTER TABLE g DROP COLUMN a CASCADE;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withGenerated()}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "an sql_drop event trigger does not fire on a DROP that drops nothing",
+			sql:     "DROP TABLE IF EXISTS public.missing;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withEvent(shop(), "SQL_DROP"), SessionUser: "alice"}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "an sql_drop event trigger fires on a DROP that drops",
+			sql:     "DROP TABLE IF EXISTS public.nokey;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withEvent(shop(), "SQL_DROP"), SessionUser: "alice"}},
+		},
+		{
+			name:    "an event trigger ends the scan at the statement it fires on",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check;\nCREATE INDEX ON t (n);\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withEvent(shop(), "DDL_COMMAND_END", "CREATE INDEX"), SessionUser: "alice"}},
+		},
+		{
+			name:    "a sequence the change made and dropped frees its name",
+			sql:     "CREATE SEQUENCE public.q;\nDROP SEQUENCE public.q;\nCREATE TABLE public.q (id int);",
+			targets: one,
+			want:    []targetFinding{{2, "CREATE TABLE public.q (id int)", "creates table public.q without a primary key", []int{0}}},
+		},
+		{
+			name:    "LIKE of a table whose key the change dropped copies none",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_pkey CASCADE;\nCREATE TABLE n (LIKE t INCLUDING INDEXES);",
+			targets: one,
+			want: []targetFinding{
+				{0, "DROP CONSTRAINT t_pkey CASCADE", "removes the primary key of t, and the change adds none back", []int{0}},
+				{1, "CREATE TABLE n (LIKE t INCLUDING INDEXES)", "creates table n without a primary key", []int{0}},
+			},
+		},
+		{
+			name:    "LIKE of a table the change gave a key copies it",
+			sql:     "ALTER TABLE nokey ADD PRIMARY KEY (a);\nCREATE TABLE n (LIKE nokey INCLUDING INDEXES);",
+			targets: one,
+		},
+		{
+			name:    "CREATE VIEW of a relation the target lacks is refused",
+			sql:     "CREATE VIEW public.v AS SELECT * FROM public.missing;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE VIEW of a CTE named like a missing relation",
+			sql:     "CREATE VIEW public.v AS WITH missing AS (SELECT 1 AS a) SELECT * FROM missing;\nCREATE TABLE n (id int);",
+			targets: one,
 			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
 		},
 		{

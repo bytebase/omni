@@ -125,6 +125,9 @@ type scan struct {
 	// sequence), which the scan does not derive.
 	generated map[string]bool
 
+	// triggers are the target's enabled event triggers.
+	triggers []*metadata.EventTriggerMetadata
+
 	// pending are the tables RequirePrimaryKey reports at the end unless a
 	// later statement settles them.
 	pending []*pendingTable
@@ -173,12 +176,15 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 			s.path = path
 		}
 	}
-	if target.Schema != nil && eventTriggerFires(target.Schema, stmts) {
-		return nil
+	if target.Schema != nil {
+		s.triggers = enabledTriggers(target.Schema)
 	}
 	for i := range stmts {
 		if err := ctx.Err(); err != nil {
 			return err
+		}
+		if s.triggerFires(stmts[i].node) {
+			return nil
 		}
 		s.statement(&stmts[i])
 		if s.stopped {
@@ -193,66 +199,78 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 	return nil
 }
 
-// eventTriggerFires reports whether an enabled event trigger of the target
-// may fire on a statement of the change: one with no tag filter, or one
-// whose tags name the statement's command, or any tag-filtered trigger for
-// a DDL statement whose command tag the scan does not name. Its function
-// may run more DDL or reject the statement, so what the statement does is
-// no longer what it says.
-func eventTriggerFires(schema *metadata.DatabaseSchemaMetadata, stmts []statement) bool {
+// enabledTriggers lists the target's enabled event triggers that fire on
+// statements: all but login triggers, which fire when a session connects.
+func enabledTriggers(schema *metadata.DatabaseSchemaMetadata) []*metadata.EventTriggerMetadata {
 	var triggers []*metadata.EventTriggerMetadata
 	for _, t := range schema.GetEventTriggers() {
-		// A login trigger fires when a session connects, not on a
-		// statement.
 		if t.GetEnabled() && !strings.EqualFold(t.GetEvent(), "LOGIN") {
 			triggers = append(triggers, t)
 		}
 	}
-	if len(triggers) == 0 {
+	return triggers
+}
+
+// triggerFires reports whether an enabled event trigger of the target may
+// fire on the statement: one with no tag filter, or one whose tags name
+// the statement's command, or any tag-filtered trigger for a DDL statement
+// whose command tag the scan does not name. Its function may run more DDL
+// or reject the statement, so from it on, what the change does is no
+// longer what it says. Every DDL statement raises ddl_command_start and
+// ddl_command_end, one that may drop objects sql_drop, and one that may
+// rewrite a table table_rewrite.
+func (s *scan) triggerFires(n ast.Node) bool {
+	if len(s.triggers) == 0 || !isDDL(n) {
 		return false
 	}
-	// The events each DDL statement may raise: every one raises
-	// ddl_command_start and ddl_command_end, one that may drop objects
-	// sql_drop, and one that may rewrite a table table_rewrite.
-	type raised struct {
-		tags            []string
-		drops, rewrites bool
+	var tags []string
+	if tag := commandTag(n); tag != "" {
+		tags = []string{tag}
 	}
-	var events []raised
-	for i := range stmts {
-		n := stmts[i].node
-		if !isDDL(n) {
-			continue
-		}
-		e := raised{drops: mayDrop(n), rewrites: mayRewrite(n)}
-		if tag := commandTag(n); tag != "" {
-			e.tags = []string{tag}
-		}
-		events = append(events, e)
-	}
-	for _, t := range triggers {
-		for _, e := range events {
-			switch strings.ToUpper(t.GetEvent()) {
-			case "SQL_DROP":
-				if !e.drops {
-					continue
-				}
-			case "TABLE_REWRITE":
-				if !e.rewrites {
-					continue
-				}
+	for _, t := range s.triggers {
+		switch strings.ToUpper(t.GetEvent()) {
+		case "SQL_DROP":
+			if !mayDrop(n) || s.dropsNothing(n) {
+				continue
 			}
-			if len(t.GetTags()) == 0 || len(e.tags) == 0 {
+		case "TABLE_REWRITE":
+			if !mayRewrite(n) {
+				continue
+			}
+		}
+		if len(t.GetTags()) == 0 || len(tags) == 0 {
+			return true
+		}
+		for _, tag := range t.GetTags() {
+			if slices.Contains(tags, strings.ToUpper(tag)) {
 				return true
-			}
-			for _, tag := range t.GetTags() {
-				if slices.Contains(e.tags, strings.ToUpper(tag)) {
-					return true
-				}
 			}
 		}
 	}
 	return false
+}
+
+// dropsNothing reports whether a statement is a DROP ... IF EXISTS of
+// relations the target certainly lacks, which drops nothing.
+func (s *scan) dropsNothing(n ast.Node) bool {
+	v, ok := n.(*ast.DropStmt)
+	if !ok || !v.Missing_ok || s.index == nil || v.Objects == nil || !isRelationKind(ast.ObjectType(v.RemoveType)) {
+		return false
+	}
+	for _, obj := range v.Objects.Items {
+		parts := nameParts(listOf(obj))
+		if len(parts) == 0 || len(parts) > 2 {
+			return false
+		}
+		rv := &ast.RangeVar{Relname: parts[len(parts)-1]}
+		if len(parts) == 2 {
+			rv.Schemaname = parts[0]
+		}
+		if !s.missing(rv) {
+			return false
+		}
+	}
+	return true
 }
 
 // isDDL reports whether a statement may raise an event trigger's event:
@@ -529,7 +547,7 @@ func (s *scan) statement(st *statement) {
 	case *ast.ViewStmt:
 		// CREATE VIEW of a name its schema holds, or OR REPLACE of a
 		// relation that is not a view, is refused.
-		if s.schemaMissing(v.View) || !v.Replace && (s.existsWhereCreated(v.View) || s.madeHere(v.View)) || s.typeExists(v.View) {
+		if s.schemaMissing(v.View) || !v.Replace && (s.existsWhereCreated(v.View) || s.madeHere(v.View)) || s.typeExists(v.View) || s.readsMissing(v.Query) {
 			s.stop()
 			return
 		}
@@ -569,6 +587,9 @@ func (s *scan) statement(st *statement) {
 			return
 		}
 		s.touch(v.Sequence)
+		if !v.IfNotExists || s.createsNew(v.Sequence) {
+			s.made(v.Sequence, kindSequence)
+		}
 	case *ast.CompositeTypeStmt:
 		s.touch(v.Typevar)
 	case *ast.CreateEnumStmt:
@@ -800,6 +821,32 @@ func (s *scan) dropNewReaders(t tableRef) {
 // dependsIn records, as dependencies of object, the relations a query or
 // SQL-standard routine body names, CTE names aside.
 func (s *scan) dependsIn(deps *[]newDependency, object tableRef, n ast.Node, visible map[string]bool) {
+	relationsIn(n, visible, func(rv *ast.RangeVar) {
+		*deps = append(*deps, newDependency{
+			relation: tableRef{s.schemaOf(rv), rv.Relname},
+			object:   object,
+			path:     s.pathVersion,
+		})
+	})
+}
+
+// readsMissing reports whether a query names a relation the target
+// certainly lacks, CTE names aside.
+func (s *scan) readsMissing(n ast.Node) bool {
+	if s.index == nil {
+		return false
+	}
+	missing := false
+	relationsIn(n, nil, func(rv *ast.RangeVar) {
+		missing = missing || s.missing(rv)
+	})
+	return missing
+}
+
+// relationsIn calls fn for each relation a query or SQL-standard routine
+// body names. An unqualified name of a CTE visible where it is used is the
+// CTE, not a relation.
+func relationsIn(n ast.Node, visible map[string]bool, fn func(*ast.RangeVar)) {
 	ast.Inspect(n, func(n ast.Node) bool {
 		if w, rest := splitWith(n); w != nil {
 			scope := make(map[string]bool, len(visible))
@@ -820,18 +867,14 @@ func (s *scan) dependsIn(deps *[]newDependency, object tableRef, n ast.Node, vis
 				}
 			}
 			for _, c := range ctes {
-				s.dependsIn(deps, object, c.Ctequery, scope)
+				relationsIn(c.Ctequery, scope, fn)
 				scope[c.Ctename] = true
 			}
-			s.dependsIn(deps, object, rest, scope)
+			relationsIn(rest, scope, fn)
 			return false
 		}
 		if rv, ok := n.(*ast.RangeVar); ok && !(rv.Schemaname == "" && visible[rv.Relname]) {
-			*deps = append(*deps, newDependency{
-				relation: tableRef{s.schemaOf(rv), rv.Relname},
-				object:   object,
-				path:     s.pathVersion,
-			})
+			fn(rv)
 		}
 		return true
 	})
@@ -1157,6 +1200,10 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 			c.Relation = in(e.Relation)
 			s.create(st, &c)
 		case *ast.ViewStmt:
+			if s.readsMissing(e.Query) {
+				s.stop()
+				return
+			}
 			s.touch(in(e.View))
 			s.made(in(e.View), kindView)
 			s.reads(in(e.View), e.Query)

@@ -301,10 +301,18 @@ func (s *scan) createsKey(v *ast.CreateStmt) (keyed, known bool) {
 			case !ok || kind == kindPartition || kind == kindTable && s.isUnsettled(tableRef{schema, e.Relation.Relname}):
 				known = false
 			case kind == kindTable:
-				pk := primaryKey(s.index.schemas[schema].tables[e.Relation.Relname])
-				if pk != nil && !s.constraintKnown(tableRef{schema, e.Relation.Relname}, pk.GetName()) {
+				t := tableRef{schema, e.Relation.Relname}
+				pk := primaryKey(s.index.schemas[schema].tables[t.table])
+				switch {
+				case s.newKeys[[2]string{t.schema, t.table}] || s.newKeys[[2]string{"", t.table}]:
+					// A statement may have given it a key since.
 					known = false
-				} else if pk != nil {
+				case pk == nil:
+				case s.dropped[[3]string{t.schema, t.table, pk.GetName()}]:
+					// The change dropped its key for certain.
+				case !s.constraintKnown(t, pk.GetName()):
+					known = false
+				default:
 					keyed = true
 				}
 			}

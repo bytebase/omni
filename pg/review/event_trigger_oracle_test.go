@@ -140,7 +140,7 @@ func TestEventTriggerEventsAgainstPostgres(t *testing.T) {
 		if raised["sql_drop"] && !mayDrop(n) {
 			t.Errorf("%s raised sql_drop, which the scan does not expect", sql)
 		}
-		// eventTriggerFires sets login triggers aside.
+		// enabledTriggers sets login triggers aside.
 		if raised["login"] {
 			t.Errorf("%s raised login", sql)
 		}
