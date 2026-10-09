@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"maps"
 	"slices"
 	"strings"
 
@@ -541,7 +542,10 @@ func (s *scan) namesMissing(n ast.Node) bool {
 			return true
 		}
 		if v.Relation != nil {
-			if _, kind, ok := s.lookup(v.Relation); ok && (kind == kindSequence || kind == kindIndex || kind == kindCompositeType) {
+			if _, kind, ok := s.lookup(v.Relation); ok && (kind == kindMatView || kind == kindSequence || kind == kindIndex || kind == kindCompositeType) {
+				return true
+			}
+			if c, made := s.madeAt(v.Relation); made && c.kind != kindTable && c.kind != kindView && c.kind != kindForeignTable {
 				return true
 			}
 		}
@@ -618,6 +622,9 @@ func (s *scan) ownedByRefused(v *ast.AlterSeqStmt) bool {
 		if t, ok := s.table(rv); ok && !s.hasColumn(t, parts[len(parts)-1]) {
 			return true
 		}
+		if def, ok := s.madeDef(rv); ok && !def.columns[parts[len(parts)-1]] {
+			return true
+		}
 	}
 	return false
 }
@@ -679,6 +686,13 @@ func (s *scan) createAs(rel *ast.RangeVar, ifNotExists bool, query ast.Node, mat
 		return
 	}
 	s.touch(rel)
+	if !ifNotExists {
+		kind := kindTable
+		if matview {
+			kind = kindMatView
+		}
+		s.made(rel, kind)
+	}
 	if matview {
 		s.reads(rel, query)
 	}
@@ -691,53 +705,144 @@ func (s *scan) createAs(rel *ast.RangeVar, ifNotExists bool, query ast.Node, mat
 //
 // pg: src/backend/commands/view.c — checkViewColumns
 func replacesColumns(old *metadata.ViewMetadata, v *ast.ViewStmt) bool {
-	sel, ok := v.Query.(*ast.SelectStmt)
-	if old == nil || len(old.GetColumns()) == 0 || !ok || sel.Op != ast.SETOP_NONE || sel.TargetList == nil {
+	outs, star, ok := viewOutputs(v)
+	if old == nil || !ok {
 		return false
 	}
-	var names []string
-	for _, item := range sel.TargetList.Items {
-		rt, ok := item.(*ast.ResTarget)
-		if !ok {
-			return false
-		}
-		name := rt.Name
-		if ref, ok := rt.Val.(*ast.ColumnRef); ok && name == "" && ref.Fields != nil && len(ref.Fields.Items) > 0 {
-			switch f := ref.Fields.Items[len(ref.Fields.Items)-1].(type) {
-			case *ast.String:
-				name = f.Str
-			case *ast.A_Star:
-				// A star brings columns the scan does not count.
-				names = append(names, "")
-				return compareColumns(old, v, names, true)
-			}
-		}
-		names = append(names, name)
-	}
-	return compareColumns(old, v, names, false)
-}
-
-// compareColumns compares a replacement's output names, after its column
-// aliases, with a view's columns; star marks names that end at a star.
-func compareColumns(old *metadata.ViewMetadata, v *ast.ViewStmt, names []string, star bool) bool {
-	aliases := nameParts(v.Aliases)
-	for i := range names {
-		if i < len(aliases) {
-			names[i] = aliases[i]
-		}
-	}
 	for i, c := range old.GetColumns() {
-		if i >= len(names) {
+		if i >= len(outs) {
 			return !star
 		}
-		if star && i == len(names)-1 {
-			return false
+		if outs[i].name != "" && outs[i].name != c.GetName() {
+			return true
 		}
-		if names[i] != "" && names[i] != c.GetName() {
+		if want, known := normalizeType(c.GetType()); known && outs[i].typ != "" && outs[i].typ != want {
 			return true
 		}
 	}
 	return false
+}
+
+// viewOutput is an output column of a view's query: its name and type,
+// each "" when the query does not tell.
+type viewOutput struct{ name, typ string }
+
+// viewOutputs reads the output columns a view's query determines, before
+// any *: names from the column aliases, an AS name, or a plain column
+// reference, and types from a cast or a constant. star marks a list that
+// ends at a *, past which nothing is known; ok is false for a query whose
+// outputs the scan cannot list.
+func viewOutputs(v *ast.ViewStmt) (outs []viewOutput, star, ok bool) {
+	sel, isSelect := v.Query.(*ast.SelectStmt)
+	if !isSelect || sel.Op != ast.SETOP_NONE || sel.TargetList == nil {
+		return nil, false, false
+	}
+	for _, item := range sel.TargetList.Items {
+		rt, isTarget := item.(*ast.ResTarget)
+		if !isTarget {
+			return nil, false, false
+		}
+		out := viewOutput{name: rt.Name, typ: exprType(rt.Val)}
+		if ref, isRef := rt.Val.(*ast.ColumnRef); isRef && ref.Fields != nil && len(ref.Fields.Items) > 0 {
+			switch f := ref.Fields.Items[len(ref.Fields.Items)-1].(type) {
+			case *ast.String:
+				if out.name == "" {
+					out.name = f.Str
+				}
+			case *ast.A_Star:
+				star = true
+			}
+		}
+		if star {
+			break
+		}
+		outs = append(outs, out)
+	}
+	for i, alias := range nameParts(v.Aliases) {
+		if i < len(outs) {
+			outs[i].name = alias
+		}
+	}
+	return outs, star, true
+}
+
+// duplicateOutputs reports whether a view names an output column twice,
+// as its column aliases or its query determine them, which the server
+// refuses.
+func duplicateOutputs(v *ast.ViewStmt) bool {
+	if hasDuplicate(nameParts(v.Aliases)) {
+		return true
+	}
+	outs, _, ok := viewOutputs(v)
+	if !ok {
+		return false
+	}
+	var names []string
+	for _, o := range outs {
+		if o.name != "" {
+			names = append(names, o.name)
+		}
+	}
+	return hasDuplicate(names)
+}
+
+// exprType returns the type of an expression whose type it states: a cast
+// to a built-in type, or a constant; "" otherwise.
+func exprType(n ast.Node) string {
+	switch e := n.(type) {
+	case *ast.TypeCast:
+		if e.TypeName == nil {
+			return ""
+		}
+		parts := nameParts(e.TypeName.Names)
+		if len(parts) == 2 && parts[0] == "pg_catalog" {
+			parts = parts[1:]
+		}
+		if len(parts) != 1 {
+			return ""
+		}
+		if t, ok := normalizeType(parts[0]); ok {
+			if e.TypeName.ArrayBounds != nil && len(e.TypeName.ArrayBounds.Items) > 0 {
+				t += "[]"
+			}
+			return t
+		}
+	case *ast.A_Const:
+		switch c := e.Val.(type) {
+		case *ast.Integer:
+			if c.Ival >= -1<<31 && c.Ival < 1<<31 {
+				return "int4"
+			}
+			return "int8"
+		case *ast.Float:
+			return "numeric"
+		case *ast.String:
+			return "text"
+		case *ast.Boolean:
+			return "bool"
+		}
+	}
+	return ""
+}
+
+// normalizeType reads a type as the snapshot or a statement writes it into
+// the parser's name for a built-in type, without type modifiers. ok is
+// false for any other type.
+func normalizeType(t string) (string, bool) {
+	array := strings.HasSuffix(t, "[]")
+	t = strings.TrimSuffix(t, "[]")
+	if i := strings.Index(t, "("); i >= 0 {
+		t = strings.TrimSpace(t[:i])
+	}
+	if mapped, ok := sqlTypes[t]; ok {
+		t = mapped
+	} else if !slices.Contains([]string{"int2", "int4", "int8", "float4", "float8", "bool", "varchar", "bpchar", "timestamptz", "timetz", "varbit"}, t) {
+		return "", false
+	}
+	if array {
+		t += "[]"
+	}
+	return t, true
 }
 
 // isProcedure reports whether CREATE FUNCTION is CREATE PROCEDURE, which
@@ -798,7 +903,7 @@ func (s *scan) statement(st *statement) {
 	case *ast.ViewStmt:
 		// CREATE VIEW of a name its schema holds, or OR REPLACE of a
 		// relation that is not a view, is refused.
-		if s.schemaMissing(v.View) || !v.Replace && (s.existsWhereCreated(v.View) || s.madeHere(v.View)) || s.typeExists(v.View) || s.readsMissing(v.Query) {
+		if s.schemaMissing(v.View) || !v.Replace && (s.existsWhereCreated(v.View) || s.madeHere(v.View)) || s.typeExists(v.View) || s.readsMissing(v.Query) || duplicateOutputs(v) {
 			s.stop()
 			return
 		}
@@ -885,6 +990,11 @@ func (s *scan) statement(st *statement) {
 			s.made(v.Typevar, kindCompositeType)
 		}
 	case *ast.CreateEnumStmt:
+		// An enum names each label once.
+		if hasDuplicate(nameParts(v.Vals)) {
+			s.stop()
+			return
+		}
 		// A type's name is taken for a relation's row type too.
 		s.touchType(v.TypeName, "")
 	case *ast.CreateDomainStmt:
@@ -1809,6 +1919,50 @@ func (d *tableDef) refusedBy(columns []string, local int) bool {
 	return false
 }
 
+// refusesAlter reports whether an ALTER TABLE certainly fails against the
+// table its CREATE made: a column it drops or alters without IF EXISTS
+// that the table lacks, or one it adds without IF NOT EXISTS that the
+// table has, the statement's own additions and drops counted.
+func (d *tableDef) refusesAlter(v *ast.AlterTableStmt) bool {
+	columns := maps.Clone(d.columns)
+	var cmds []*ast.AlterTableCmd
+	for _, item := range v.Cmds.Items {
+		if cmd, ok := item.(*ast.AlterTableCmd); ok {
+			cmds = append(cmds, cmd)
+		}
+	}
+	// The server drops before it adds, and adds before it alters.
+	for _, cmd := range cmds {
+		if ast.AlterTableType(cmd.Subtype) == ast.AT_DropColumn {
+			if !columns[cmd.Name] && !cmd.Missing_ok {
+				return true
+			}
+			delete(columns, cmd.Name)
+		}
+	}
+	added := make(map[string]bool)
+	for _, cmd := range cmds {
+		if ast.AlterTableType(cmd.Subtype) != ast.AT_AddColumn {
+			continue
+		}
+		if cd, ok := cmd.Def.(*ast.ColumnDef); ok {
+			if columns[cd.Colname] && !cmd.Missing_ok {
+				return true
+			}
+			columns[cd.Colname], added[cd.Colname] = true, true
+		}
+	}
+	for _, cmd := range cmds {
+		switch ast.AlterTableType(cmd.Subtype) {
+		case ast.AT_ColumnDefault, ast.AT_DropNotNull, ast.AT_SetNotNull, ast.AT_AlterColumnType, ast.AT_SetStatistics, ast.AT_SetStorage:
+			if cmd.Name != "" && !columns[cmd.Name] && !added[cmd.Name] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // referencesRefused reports whether the server certainly refuses CREATE
 // TABLE for a foreign key it declares: on a column the table lacks, or to
 // a relation, column, or key as refusesReference finds, or to the table
@@ -2625,7 +2779,7 @@ func (s *scan) rename(v *ast.RenameStmt) {
 		s.setColumn(schema, v.Relation.Relname, v.Subname, false, false)
 		s.setColumn(schema, v.Relation.Relname, v.Newname, true, true)
 	case v.RenameType == ast.OBJECT_FUNCTION || v.RenameType == ast.OBJECT_PROCEDURE || v.RenameType == ast.OBJECT_ROUTINE:
-		if fn, ok := routineOf(v.Object); ok && (s.routineMissing(fn, v.RenameType) || s.renameTaken(fn, v)) {
+		if fn, ok := routineOf(v.Object); ok && (s.routineMissing(fn, v.RenameType) || s.signatureMissing(fn, v.Object.(*ast.ObjectWithArgs)) || s.renameTaken(fn, v)) {
 			s.stop()
 			return
 		}
@@ -2854,11 +3008,20 @@ func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 			s.touchName("", parts[len(parts)-1])
 		}
 	case v.ObjectType == ast.OBJECT_FUNCTION || v.ObjectType == ast.OBJECT_PROCEDURE || v.ObjectType == ast.OBJECT_ROUTINE:
-		if fn, ok := routineOf(v.Object); ok && s.routineMissing(fn, v.ObjectType) {
-			if !v.MissingOk {
-				s.stop()
+		if fn, ok := routineOf(v.Object); ok {
+			owa := v.Object.(*ast.ObjectWithArgs)
+			if s.routineMissing(fn, v.ObjectType) || s.signatureMissing(fn, owa) {
+				if !v.MissingOk {
+					s.stop()
+				}
+				return
 			}
-			return
+			// The destination schema must exist, without the signature.
+			if s.schemaMissing(&ast.RangeVar{Schemaname: v.Newschema}) || s.index != nil && s.index.schemas[v.Newschema] == nil && !s.schemas[v.Newschema] ||
+				s.moveTaken(fn, owa, v.Newschema, fn.table) {
+				s.stop()
+				return
+			}
 		}
 		if owa, ok := v.Object.(*ast.ObjectWithArgs); ok {
 			if parts := nameParts(owa.Objname); len(parts) > 0 {
@@ -3184,36 +3347,76 @@ func (s *scan) routineMissing(fn tableRef, kind ast.ObjectType) bool {
 	return true
 }
 
-// renameTaken reports whether a routine rename certainly takes a signature
-// a routine of the new name has where the routine is: the one written, or
-// the only one the change created or the snapshot lists under the name.
-func (s *scan) renameTaken(fn tableRef, v *ast.RenameStmt) bool {
-	owa, ok := v.Object.(*ast.ObjectWithArgs)
-	if !ok || s.index == nil {
+// routineSignatureOf returns the signature a routine ALTER names: the
+// argument list written, or, with none, that of the only routine the
+// change created or the snapshot lists under the name, in the synced
+// schema the name resolves to.
+func (s *scan) routineSignatureOf(fn tableRef, owa *ast.ObjectWithArgs) (schema, sig string, ok bool) {
+	if s.index == nil {
+		return "", "", false
+	}
+	schema, ok = s.creationSchema(&ast.RangeVar{Schemaname: fn.schema, Relname: fn.table})
+	if !ok {
+		return "", "", false
+	}
+	synced := tableRef{schema, fn.table}
+	if !owa.ArgsUnspecified {
+		return schema, argSignature(owa.Objargs), true
+	}
+	switch sigs := s.newSignatures[fn]; {
+	case len(sigs) == 1 && s.index.functions[synced] == 0:
+		return schema, sigs[0], true
+	case len(sigs) == 0 && s.index.functions[synced] == 1 && len(s.index.signatures[synced]) == 1:
+		return schema, s.index.signatures[synced][0], true
+	}
+	return "", "", false
+}
+
+// signatureMissing reports whether a routine ALTER names by an argument
+// list certainly has no routine of that signature: neither the change nor
+// the snapshot, every signature of whose name the scan can read, has one.
+func (s *scan) signatureMissing(fn tableRef, owa *ast.ObjectWithArgs) bool {
+	if owa.ArgsUnspecified || s.madeRoutines[fn.table] || s.movedRoutines[fn.table] {
 		return false
 	}
-	schema, ok := s.creationSchema(&ast.RangeVar{Schemaname: fn.schema, Relname: fn.table})
+	schema, sig, ok := s.routineSignatureOf(fn, owa)
 	if !ok {
 		return false
 	}
 	synced := tableRef{schema, fn.table}
-	sig := argSignature(owa.Objargs)
-	if owa.ArgsUnspecified {
-		switch sigs := s.newSignatures[fn]; {
-		case len(sigs) == 1 && s.index.functions[synced] == 0:
-			sig = sigs[0]
-		case len(sigs) == 0 && s.index.functions[synced] == 1 && len(s.index.signatures[synced]) == 1:
-			sig = s.index.signatures[synced][0]
-		default:
-			return false
-		}
-	}
-	to := tableRef{schema, v.Newname}
-	if s.movedRoutines[v.Newname] || s.droppedFunctions[to] {
+	return !slices.Contains(s.newSignatures[fn], sig) && len(s.index.signatures[synced]) == s.index.functions[synced] &&
+		!slices.Contains(s.index.signatures[synced], sig) && !(sig == "" && s.index.noArgs[synced])
+}
+
+// moveTaken reports whether renaming or moving a routine certainly takes a
+// signature a routine of the destination name already has in the
+// destination schema, among the change's or the snapshot's.
+func (s *scan) moveTaken(fn tableRef, owa *ast.ObjectWithArgs, toSchema, toName string) bool {
+	_, sig, ok := s.routineSignatureOf(fn, owa)
+	if !ok {
 		return false
 	}
-	return slices.Contains(s.newSignatures[tableRef{fn.schema, v.Newname}], sig) ||
+	to := tableRef{toSchema, toName}
+	if s.movedRoutines[toName] || s.droppedFunctions[to] {
+		return false
+	}
+	written := tableRef{fn.schema, toName}
+	if toSchema != fn.schema && fn.schema != "" {
+		written.schema = toSchema
+	}
+	return slices.Contains(s.newSignatures[written], sig) ||
 		sig == "" && s.index.noArgs[to] || slices.Contains(s.index.signatures[to], sig)
+}
+
+// renameTaken reports whether a routine rename certainly takes a signature
+// a routine of the new name has where the routine is.
+func (s *scan) renameTaken(fn tableRef, v *ast.RenameStmt) bool {
+	owa, ok := v.Object.(*ast.ObjectWithArgs)
+	if !ok {
+		return false
+	}
+	schema, _, ok := s.routineSignatureOf(fn, owa)
+	return ok && s.moveTaken(fn, owa, schema, v.Newname)
 }
 
 // routineOf returns the routine an ALTER names, as written.

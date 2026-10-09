@@ -139,6 +139,12 @@ func withViewColumns(columns ...string) *metadata.DatabaseSchemaMetadata {
 	return database("public", &metadata.SchemaMetadata{Name: "public", Views: []*metadata.ViewMetadata{v}})
 }
 
+// withTypedView is a database with view v of one typed column.
+func withTypedView(column, typ string) *metadata.DatabaseSchemaMetadata {
+	v := &metadata.ViewMetadata{Name: "v", Definition: "SELECT 1", Columns: []*metadata.ColumnMetadata{{Name: column, Type: typ}}}
+	return database("public", &metadata.SchemaMetadata{Name: "public", Views: []*metadata.ViewMetadata{v}})
+}
+
 func withView(db *metadata.DatabaseSchemaMetadata, schema, view string) *metadata.DatabaseSchemaMetadata {
 	for _, s := range db.Schemas {
 		if s.Name == schema {
@@ -2195,6 +2201,69 @@ func TestRequirePrimaryKey(t *testing.T) {
 			sql:     "COMMENT ON TABLE t IS 'x';\nCREATE TABLE n (id int);",
 			targets: one,
 			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "ALTER FUNCTION RENAME of a signature the target lacks is refused",
+			sql:     "ALTER FUNCTION public.f(text) RENAME TO g;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
+		},
+		{
+			name:    "ALTER FUNCTION RENAME of a signature the target has",
+			sql:     "ALTER FUNCTION public.f(integer) RENAME TO g;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE OR REPLACE VIEW changing a column's type is refused",
+			sql:     "CREATE OR REPLACE VIEW public.v AS SELECT 'x'::text AS a;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withTypedView("a", "integer")}},
+		},
+		{
+			name:    "CREATE OR REPLACE VIEW keeping a column's type",
+			sql:     "CREATE OR REPLACE VIEW public.v AS SELECT 1 AS a;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withTypedView("a", "integer")}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE VIEW naming a column twice is refused",
+			sql:     "CREATE VIEW v (a, a) AS SELECT 1, 2;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE VIEW with two outputs of a name is refused",
+			sql:     "CREATE VIEW v AS SELECT 1 AS a, 2 AS a;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "ALTER TABLE DROP COLUMN of a column a table the change made lacks is refused",
+			sql:     "CREATE TABLE public.x (id int PRIMARY KEY);\nALTER TABLE public.x DROP COLUMN missing;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "ALTER TABLE ADD COLUMN to a table the change made",
+			sql:     "CREATE TABLE public.x (id int PRIMARY KEY);\nALTER TABLE public.x ADD COLUMN y int;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "OWNED BY a column a table the change made lacks is refused",
+			sql:     "CREATE TABLE public.t2 (id int PRIMARY KEY);\nCREATE SEQUENCE public.q;\nALTER SEQUENCE public.q OWNED BY public.t2.missing;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TRIGGER on a materialized view is refused",
+			sql:     "CREATE MATERIALIZED VIEW public.mv AS SELECT 1 AS a;\nCREATE TRIGGER tr BEFORE INSERT ON public.mv FOR EACH ROW EXECUTE FUNCTION public.tf();\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "tf", "tf()"), SessionUser: "alice"}},
+		},
+		{
+			name:    "ALTER FUNCTION SET SCHEMA to a schema the target lacks is refused",
+			sql:     "ALTER FUNCTION public.f() SET SCHEMA missing;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "f", "f()"), SessionUser: "alice"}},
+		},
+		{
+			name:    "CREATE TYPE AS ENUM with a label twice is refused",
+			sql:     "CREATE TYPE public.e AS ENUM ('a', 'a');\nCREATE TABLE n (id int);",
+			targets: one,
 		},
 		{
 			name: "a cascade does not go past a view the change replaced",

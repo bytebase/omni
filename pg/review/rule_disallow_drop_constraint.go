@@ -47,7 +47,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 	// A table the change created is no longer what its CREATE said; a
 	// relation it created as another kind takes no ALTER TABLE.
 	if c, ok := s.madeAt(v.Relation); ok {
-		if ast.ObjectType(v.ObjType) == ast.OBJECT_TABLE && c.kind != kindTable && c.kind != kindForeignTable {
+		if ast.ObjectType(v.ObjType) == ast.OBJECT_TABLE && c.kind != kindTable && c.kind != kindForeignTable || c.def != nil && c.def.refusesAlter(v) {
 			s.stop()
 			return
 		}

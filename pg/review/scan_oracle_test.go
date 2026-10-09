@@ -321,6 +321,15 @@ func TestScanRulesAgainstPostgres(t *testing.T) {
 		{"COMMENT ON a column the table lacks", "COMMENT ON COLUMN t.nope IS 'x';\nCREATE TABLE n (id int);", true},
 		{"GRANT on a table the target lacks", "GRANT SELECT ON public.missing TO PUBLIC;\nCREATE TABLE n (id int);", true},
 		{"COMMENT ON a table the target has", "COMMENT ON TABLE t IS 'x';\nCREATE TABLE n (id int);", true},
+		{"ALTER FUNCTION RENAME of a signature the change lacks", "CREATE FUNCTION public.g(integer) RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER FUNCTION public.g(text) RENAME TO h;\nCREATE TABLE n (id int);", true},
+		{"CREATE OR REPLACE VIEW changing a column's type", "CREATE OR REPLACE VIEW tv AS SELECT 1 AS code;\nCREATE TABLE n (id int);", true},
+		{"CREATE VIEW naming a column twice", "CREATE VIEW v (a, a) AS SELECT 1, 2;\nCREATE TABLE n (id int);", true},
+		{"ALTER TABLE DROP COLUMN of a column a table the change made lacks", "CREATE TABLE public.x (id int PRIMARY KEY);\nALTER TABLE public.x DROP COLUMN missing;\nCREATE TABLE n (id int);", true},
+		{"OWNED BY a column a table the change made lacks", "CREATE TABLE public.t2 (id int PRIMARY KEY);\nCREATE SEQUENCE public.q;\nALTER SEQUENCE public.q OWNED BY public.t2.missing;\nCREATE TABLE n (id int);", true},
+		{"CREATE TRIGGER on a materialized view", "CREATE MATERIALIZED VIEW public.mv AS SELECT 1 AS a;\nCREATE FUNCTION public.tf() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END';\nCREATE TRIGGER tr BEFORE INSERT ON public.mv FOR EACH ROW EXECUTE FUNCTION public.tf();\nCREATE TABLE n (id int);", true},
+		{"ALTER FUNCTION SET SCHEMA to a schema the target lacks", "CREATE FUNCTION public.g() RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER FUNCTION public.g() SET SCHEMA missing;\nCREATE TABLE n (id int);", true},
+		{"CREATE TYPE AS ENUM with a label twice", "CREATE TYPE public.e2 AS ENUM ('a', 'a');\nCREATE TABLE n (id int);", true},
+		{"CREATE OR REPLACE VIEW keeping a column's type", "CREATE OR REPLACE VIEW tv AS SELECT 'x'::text AS code;\nCREATE TABLE n (id int);", true},
 		{"quoted names", "ALTER TABLE \"Quoted\" DROP CONSTRAINT \"Quoted_pkey\";\nCREATE TABLE \"New\" (\"Id\" int);", true},
 		{"new tables", "CREATE TABLE n (id int);\nCREATE TABLE k (id int PRIMARY KEY);\nCREATE TABLE k2 (a int, b int, CONSTRAINT k2_pk PRIMARY KEY (a, b));\nCREATE UNLOGGED TABLE ul (a int);\nCREATE TABLE \"Mixed\" (a int);", true},
 		{"keys added later", "CREATE TABLE n (id int);\nALTER TABLE n RENAME TO m;\nALTER TABLE m ADD PRIMARY KEY (id);\nCREATE TABLE o (id int NOT NULL);\nCREATE UNIQUE INDEX o_id ON o (id);\nALTER TABLE o ADD CONSTRAINT o_pkey PRIMARY KEY USING INDEX o_id;\nCREATE TABLE q (id int);\nALTER TABLE q ADD COLUMN k serial PRIMARY KEY;", true},
@@ -500,10 +509,10 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 	})
 	for _, s := range db.Schemas {
 		for _, v := range s.Views {
-			query(`SELECT a.attname FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+			query(`SELECT a.attname, format_type(a.atttypid, a.atttypmod) FROM pg_attribute a JOIN pg_class c ON c.oid = a.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace
 				WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum`, []any{s.Name, v.Name}, func(rows *sql.Rows) error {
 				c := &metadata.ColumnMetadata{}
-				if err := rows.Scan(&c.Name); err != nil {
+				if err := rows.Scan(&c.Name, &c.Type); err != nil {
 					return err
 				}
 				v.Columns = append(v.Columns, c)
