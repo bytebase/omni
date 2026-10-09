@@ -363,6 +363,10 @@ func (s *scan) refuses(t tableRef, drops, others []*ast.AlterTableCmd) bool {
 		if droppedConstraints[name] || !s.constraintKnown(t, name) || s.dropped[[3]string{t.schema, t.table, name}] {
 			return false
 		}
+		// A column drop of the statement may have taken the constraint.
+		if len(droppedColumns) > 0 && s.mayDependOn(t, name, droppedColumns) {
+			return false
+		}
 		_, ok := constraint(table, name)
 		return ok
 	}

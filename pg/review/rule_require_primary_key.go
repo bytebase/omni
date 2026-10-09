@@ -26,15 +26,30 @@ type pendingTable struct {
 	// or "" when it may be in any.
 	names  map[string]bool
 	schema string
-	// existed marks a table of the synced schema, and inherits one made
-	// with INHERITS: a cascading drop of a parent may drop either.
-	existed  bool
-	inherits bool
+	// existed marks a table of the synced schema, and parents names the
+	// tables one made with INHERITS inherits from: a cascading drop of a
+	// parent may drop either.
+	existed bool
+	parents []string
 
 	statement int
 	rng       review.Range
 	message   string
 	settled   bool
+}
+
+// inheritsFrom names the tables CREATE TABLE ... INHERITS lists.
+func inheritsFrom(v *ast.CreateStmt) []string {
+	if v.InhRelations == nil {
+		return nil
+	}
+	var names []string
+	for _, item := range v.InhRelations.Items {
+		if rv, ok := item.(*ast.RangeVar); ok {
+			names = append(names, rv.Relname)
+		}
+	}
+	return names
 }
 
 // matching returns the pending tables a name may refer to: any with that
@@ -95,7 +110,7 @@ func (s *scan) createTable(st *statement, v *ast.CreateStmt) {
 	s.pending = append(s.pending, &pendingTable{
 		names:     map[string]bool{v.Relation.Relname: true},
 		schema:    v.Relation.Schemaname,
-		inherits:  v.InhRelations != nil && len(v.InhRelations.Items) > 0,
+		parents:   inheritsFrom(v),
 		statement: st.index,
 		rng:       rangeOf(v.Loc),
 		message:   "creates table " + relation(v.Relation) + " without a primary key",

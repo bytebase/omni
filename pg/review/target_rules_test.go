@@ -60,6 +60,15 @@ func withFunctionReturning(db *metadata.DatabaseSchemaMetadata, schema, table st
 	return db
 }
 
+func withView(db *metadata.DatabaseSchemaMetadata, schema, view string) *metadata.DatabaseSchemaMetadata {
+	for _, s := range db.Schemas {
+		if s.Name == schema {
+			s.Views = append(s.Views, &metadata.ViewMetadata{Name: view})
+		}
+	}
+	return db
+}
+
 func withEventTrigger(db *metadata.DatabaseSchemaMetadata, enabled bool, tags ...string) *metadata.DatabaseSchemaMetadata {
 	db.EventTriggers = append(db.EventTriggers, &metadata.EventTriggerMetadata{Name: "et", Event: "DDL_COMMAND_END", Tags: tags, Enabled: enabled})
 	return db
@@ -704,6 +713,49 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "EXPLAIN ANALYZE of CREATE MATERIALIZED VIEW makes the view",
 			sql:     "EXPLAIN ANALYZE CREATE MATERIALIZED VIEW mv AS SELECT * FROM nokey;\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
 			targets: one,
+		},
+		{
+			name:    "CREATE SCHEMA IF NOT EXISTS with elements is refused",
+			sql:     "CREATE SCHEMA IF NOT EXISTS z CREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE VIEW of a name its schema holds is refused",
+			sql:     "CREATE VIEW public.nokey AS SELECT 1 AS a;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE OR REPLACE VIEW of a table is refused",
+			sql:     "CREATE OR REPLACE VIEW public.t AS SELECT 1 AS a;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a new function taking a table's row type blocks its drop",
+			sql:     "CREATE FUNCTION g(x nokey) RETURNS integer LANGUAGE sql AS 'SELECT 1';\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "an event trigger on ALTER SEQUENCE",
+			sql:     "ALTER SEQUENCE q OWNED BY NONE;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withEventTrigger(shop(), true, "ALTER SEQUENCE"), SessionUser: "alice"}},
+		},
+		{
+			name:    "a cascading view drop keeps a table's lost key",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_pkey CASCADE;\nDROP VIEW v CASCADE;",
+			targets: []review.Target{{Schema: withView(shop(), "public", "v"), SessionUser: "alice"}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_pkey CASCADE", "removes the primary key of t, and the change adds none back", []int{0}}},
+		},
+		{
+			name:    "a definite rename leaves the old name to another table",
+			sql:     "CREATE TABLE public.a (id int);\nALTER TABLE public.a RENAME TO b;\nCREATE TABLE public.a (id int PRIMARY KEY);\nDROP TABLE public.a;",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE public.a (id int)", "creates table public.a without a primary key", []int{0}}},
+		},
+		{
+			name:    "a column drop frees the names of its constraints",
+			sql:     "ALTER TABLE t DROP COLUMN code, ADD CONSTRAINT t_code_key UNIQUE (n);\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
 		},
 		{
 			name:    "a cascading drop of a parent may drop a child",

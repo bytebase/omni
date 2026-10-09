@@ -257,6 +257,8 @@ func commandTag(n ast.Node) string {
 		return "CREATE INDEX"
 	case *ast.CreateFunctionStmt:
 		return "CREATE FUNCTION"
+	case *ast.AlterSeqStmt:
+		return "ALTER SEQUENCE"
 	case *ast.CreateSchemaStmt:
 		return "CREATE SCHEMA"
 	case *ast.AlterTableStmt:
@@ -299,8 +301,19 @@ func (s *scan) statement(st *statement) {
 			s.reads(v.Into.Rel, v.Query)
 		}
 	case *ast.ViewStmt:
+		// CREATE VIEW of a name its schema holds, or OR REPLACE of a
+		// relation that is not a view, is refused.
+		if s.schemaMissing(v.View) || !v.Replace && s.existsWhereCreated(v.View) {
+			s.stop()
+			return
+		}
 		if v.Replace {
-			if schema, kind, ok := s.lookup(v.View); ok && kind == kindView {
+			schema, kind, ok := s.lookup(v.View)
+			if ok && kind != kindView && kind != kindAmbiguous {
+				s.stop()
+				return
+			}
+			if ok && kind == kindView {
 				s.replacedViews[tableRef{schema, v.View.Relname}] = true
 			}
 			s.retire(s.newReads, tableRef{v.View.Schemaname, v.View.Relname})
@@ -553,34 +566,41 @@ func splitWith(n ast.Node) (*ast.WithClause, ast.Node) {
 	return nil, nil
 }
 
-// returns records the relation whose row type a new function returns,
-// when its result type names one.
+// returns records the relations whose row type a new function returns or
+// takes, as far as its result and parameter types name one.
 func (s *scan) returns(v *ast.CreateFunctionStmt) {
 	fn := nameParts(v.Funcname)
-	if v.ReturnType == nil {
-		if len(fn) > 0 {
-			object := tableRef{table: fn[len(fn)-1]}
-			if len(fn) >= 2 {
-				object.schema = fn[len(fn)-2]
-			}
-			s.newFunctions[object]++
-		}
+	if len(fn) == 0 {
 		return
-	}
-	parts := nameParts(v.ReturnType.Names)
-	if len(parts) == 0 || len(parts) > 2 || len(fn) == 0 {
-		return
-	}
-	rv := &ast.RangeVar{Relname: parts[len(parts)-1]}
-	if len(parts) == 2 {
-		rv.Schemaname = parts[0]
 	}
 	object := tableRef{table: fn[len(fn)-1]}
 	if len(fn) >= 2 {
 		object.schema = fn[len(fn)-2]
 	}
 	s.newFunctions[object]++
-	s.newReturns = append(s.newReturns, newDependency{relation: tableRef{s.schemaOf(rv), rv.Relname}, object: object, path: s.pathVersion})
+	// The result type and every parameter's type may be a row type.
+	types := []*ast.TypeName{v.ReturnType}
+	if v.Parameters != nil {
+		for _, item := range v.Parameters.Items {
+			if p, ok := item.(*ast.FunctionParameter); ok {
+				types = append(types, p.ArgType)
+			}
+		}
+	}
+	for _, t := range types {
+		if t == nil {
+			continue
+		}
+		parts := nameParts(t.Names)
+		if len(parts) == 0 || len(parts) > 2 {
+			continue
+		}
+		rv := &ast.RangeVar{Relname: parts[len(parts)-1]}
+		if len(parts) == 2 {
+			rv.Schemaname = parts[0]
+		}
+		s.newReturns = append(s.newReturns, newDependency{relation: tableRef{s.schemaOf(rv), rv.Relname}, object: object, path: s.pathVersion})
+	}
 }
 
 // dependsOnNew reports whether an object the change created and has not
@@ -662,6 +682,11 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 		if v.SchemaElts != nil && len(v.SchemaElts.Items) > 0 {
 			s.stop()
 		}
+		return
+	}
+	// IF NOT EXISTS cannot carry schema elements: the server refuses it.
+	if v.IfNotExists && v.SchemaElts != nil && len(v.SchemaElts.Items) > 0 {
+		s.stop()
 		return
 	}
 	// CREATE SCHEMA of a schema the target has, and the change did not
@@ -1030,6 +1055,11 @@ func (s *scan) rename(v *ast.RenameStmt) {
 		s.touchName(v.Relation.Schemaname, v.Relation.Relname)
 		s.touchName(v.Relation.Schemaname, v.Newname)
 		for _, p := range s.matching(v.Relation) {
+			// A rename naming the table's own known schema is that table's;
+			// otherwise it may be another table of that name.
+			if v.Relation.Schemaname != "" && v.Relation.Schemaname == p.schema {
+				delete(p.names, v.Relation.Relname)
+			}
 			p.names[v.Newname] = true
 		}
 		if v.RenameType == ast.OBJECT_INDEX {
@@ -1165,10 +1195,17 @@ func (s *scan) drop(v *ast.DropStmt) {
 			s.dropDependents(rv, schema)
 		}
 	}
-	if cascade {
-		// An inheritance child of a dropped table goes with it.
+	if cascade && (kind == ast.OBJECT_TABLE || kind == ast.OBJECT_FOREIGN_TABLE) {
+		// An inheritance child of a dropped table goes with it. The synced
+		// schema records no inheritance, so a table of it may be a child.
+		dropped := make(map[string]bool)
+		for _, obj := range v.Objects.Items {
+			if parts := nameParts(listOf(obj)); len(parts) > 0 {
+				dropped[parts[len(parts)-1]] = true
+			}
+		}
 		for _, p := range s.pending {
-			if p.inherits || p.existed {
+			if p.existed || slices.ContainsFunc(p.parents, func(name string) bool { return dropped[name] }) {
 				p.settled = true
 			}
 		}
