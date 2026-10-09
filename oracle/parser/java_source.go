@@ -70,14 +70,30 @@ func (h *javaSourceHead) observe(tok Token) bool {
 }
 
 // javaSourceEnd returns where Java source starting after offset pos ends:
-// before the next line holding only "/", or at the end of sql. next is the
-// offset just past that "/", or len(sql) without one.
+// before the line break that precedes the next line holding only "/", or at
+// the end of sql. next is the offset just past that "/", or len(sql) without
+// one. Only the delimiter's framing is dropped: trailing blanks and blank
+// lines before it are source_char, kept verbatim.
 func javaSourceEnd(sql string, pos int) (end, next int) {
 	for line := lineEndAfterBreak(sql, pos); line < len(sql); line = lineEndAfterBreak(sql, line) {
 		i := skipHorizontalSpace(sql, line)
 		if i < len(sql) && sql[i] == '/' && isSlashDelimiterLine(sql, i, i+1) {
-			return trimRightSpace(sql, line), i + 1
+			return trimLineBreakBefore(sql, line, pos), i + 1
 		}
 	}
 	return len(sql), len(sql)
+}
+
+// trimLineBreakBefore returns line, a line's start offset, moved back over
+// the one line break ("\n", "\r\n", or "\r") that ends the previous line,
+// without going below floor.
+func trimLineBreakBefore(sql string, line, floor int) int {
+	end := line
+	if end > floor && sql[end-1] == '\n' {
+		end--
+	}
+	if end > floor && sql[end-1] == '\r' {
+		end--
+	}
+	return end
 }

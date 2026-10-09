@@ -853,8 +853,7 @@ func callSpecCClauseOf(tok Token) string {
 // (PLS-00139, -00140, -00142 through -00145, -00171), and requires LIBRARY
 // (PLS-00247).
 //
-// The ';' that ends the call spec is consumed, as parsePLSQLBlock consumes the
-// one after END; Oracle compiles the unit with PLS-00103 without it.
+// The call spec ends with a required ';', which is consumed.
 func (p *Parser) parseCallSpec() (*nodes.CallSpec, error) {
 	spec := &nodes.CallSpec{Loc: nodes.Loc{Start: p.pos()}}
 	seen := make(map[string]bool)
@@ -877,7 +876,7 @@ func (p *Parser) parseCallSpec() (*nodes.CallSpec, error) {
 			}
 			spec.Name = p.cur.Str
 			p.advance()
-			return p.finishCallSpec(spec), nil
+			return p.finishCallSpec(spec)
 		}
 		if p.cur.Type != tokIDENT || p.cur.Str != "C" {
 			return nil, p.syntaxErrorAtCur()
@@ -940,7 +939,7 @@ func (p *Parser) parseCallSpec() (*nodes.CallSpec, error) {
 	if !seen["LIBRARY"] {
 		return nil, p.syntaxErrorAtCur()
 	}
-	return p.finishCallSpec(spec), nil
+	return p.finishCallSpec(spec)
 }
 
 // parseCallSpecCName parses the C function name of a C call spec, an
@@ -986,11 +985,14 @@ func (p *Parser) parseCallSpecWordList() (*nodes.List, error) {
 }
 
 // finishCallSpec closes the call spec's Loc at its last token and consumes
-// the ';' that ends it.
-func (p *Parser) finishCallSpec(spec *nodes.CallSpec) *nodes.CallSpec {
+// the ';' that ends it. The ';' is required: unlike SQL, the call spec is
+// PL/SQL text, and Oracle compiles a unit whose call spec lacks it with
+// PLS-00103.
+func (p *Parser) finishCallSpec(spec *nodes.CallSpec) (*nodes.CallSpec, error) {
 	spec.Loc.End = p.prev.End
-	if p.cur.Type == ';' {
-		p.advance()
+	if p.cur.Type != ';' {
+		return nil, p.syntaxErrorAtCur()
 	}
-	return spec
+	p.advance() // consume ;
+	return spec, nil
 }

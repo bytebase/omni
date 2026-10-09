@@ -605,6 +605,17 @@ func TestSplitJavaSource(t *testing.T) {
 			wantKinds: []SegmentKind{javaKind},
 		},
 		{
+			// Only the line break before the "/" line is framing; trailing
+			// blanks and blank lines are part of source_char.
+			name: "trailing blanks of the java source are kept",
+			sql:  "CREATE JAVA SOURCE NAMED t AS\r\npublic class T { }  \t\r\n\r\n  /\r\nSELECT 5 FROM dual;",
+			want: []string{
+				"CREATE JAVA SOURCE NAMED t AS\r\npublic class T { }  \t\r\n",
+				"\r\nSELECT 5 FROM dual",
+			},
+			wantKinds: []SegmentKind{javaKind, sqlKind},
+		},
+		{
 			name: "java statements without source text end at semicolons",
 			sql: "CREATE JAVA CLASS USING BFILE (dir, 'X.class');\n" +
 				"CREATE JAVA SOURCE NAMED s USING CLOB (SELECT src AS text FROM t);\n" +
