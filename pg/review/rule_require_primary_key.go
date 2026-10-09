@@ -134,7 +134,7 @@ func (s *scan) createTable(st *statement, v *ast.CreateStmt) {
 		return
 	}
 	keyed, known := s.createsKey(v)
-	if keyed || !known || s.generated && generatedName(v.Relation.Relname) {
+	if keyed || !known || s.mayBeGenerated(v.Relation) {
 		return
 	}
 	s.pending = append(s.pending, &pendingTable{
@@ -197,7 +197,7 @@ func (s *scan) nameUncertain(rv *ast.RangeVar) bool {
 		return s.isTouched(&ast.RangeVar{Schemaname: schema, Relname: rv.Relname}) && !s.freed[[2]string{schema, rv.Relname}]
 	}
 	if rv.Schemaname != "" {
-		return s.isTouched(rv)
+		return s.isTouched(rv) && !s.freed[[2]string{rv.Schemaname, rv.Relname}]
 	}
 	return s.touchedName[rv.Relname]
 }

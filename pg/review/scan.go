@@ -109,7 +109,7 @@ type scan struct {
 	renamedFrom map[string]renamedRelation
 	// created lists the tables and views the change certainly created, by
 	// (schema, name), while no statement used the name since.
-	created map[[2]string]madeRelation
+	created map[[2]string]*madeRelation
 	// replacedViews lists the synced views CREATE OR REPLACE VIEW
 	// redefined, whose synced reads no longer hold, and reowned the
 	// sequences, by name, whose owner ALTER SEQUENCE changed.
@@ -119,10 +119,11 @@ type scan struct {
 	// could not tell, a statement may have given a primary key, a unique
 	// constraint, or a unique index.
 	newKeys map[[2]string]bool
-	// generated marks that a statement made relations under names the
-	// server generates (an unnamed index, a key's index, a serial or
-	// identity column's sequence), which the scan does not derive.
-	generated bool
+	// generated lists the schemas, "" for one the scan could not tell, a
+	// statement made relations in under names the server generates (an
+	// unnamed index, a key's index, a serial or identity column's
+	// sequence), which the scan does not derive.
+	generated map[string]bool
 
 	// pending are the tables RequirePrimaryKey reports at the end unless a
 	// later statement settles them.
@@ -157,10 +158,11 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		movedRoutines:    make(map[string]bool),
 		newSignatures:    make(map[tableRef][]string),
 		renamedFrom:      make(map[string]renamedRelation),
-		created:          make(map[[2]string]madeRelation),
+		created:          make(map[[2]string]*madeRelation),
 		replacedViews:    make(map[tableRef]bool),
 		reowned:          make(map[[2]string]bool),
 		newKeys:          make(map[[2]string]bool),
+		generated:        make(map[string]bool),
 
 		replacedFunctions: make(map[tableRef]bool),
 	}
@@ -586,9 +588,13 @@ func (s *scan) statement(st *statement) {
 		if (v.Unique || v.Primary) && v.Relation != nil {
 			s.newKey(v.Relation)
 		}
-		if v.Idxname == "" || v.Relation == nil || s.mayHavePartitions(v.Relation) {
-			// A partition's index takes a generated name.
-			s.generated = true
+		if v.Idxname == "" {
+			s.generate(v.Relation)
+		}
+		if v.Relation == nil || s.mayHavePartitions(v.Relation) {
+			// A partition's index takes a generated name, in the
+			// partition's schema.
+			s.generate(nil)
 		}
 		if v.Idxname != "" && v.Relation != nil {
 			s.touchName(v.Relation.Schemaname, v.Idxname)
@@ -1054,8 +1060,14 @@ func (s *scan) create(st *statement, v *ast.CreateStmt) {
 		}
 		return
 	}
+	refused, uncertain := s.referencesRefused(v)
+	if refused {
+		s.stop()
+		return
+	}
 	pending := len(s.pending)
-	if !s.nameUncertain(v.Relation) {
+	// A table that may not be created is not reported.
+	if !uncertain && !s.nameUncertain(v.Relation) {
 		s.createTable(st, v)
 	}
 	s.touch(v.Relation)
@@ -1064,9 +1076,14 @@ func (s *scan) create(st *statement, v *ast.CreateStmt) {
 	}
 	if !v.IfNotExists || s.createsNew(v.Relation) {
 		s.made(v.Relation, kindTable)
+		if def, _, complete := defOf(v); complete {
+			if c, ok := s.madeAt(v.Relation); ok {
+				c.def = &def
+			}
+		}
 	}
 	if generatesNames(v) {
-		s.generated = true
+		s.generate(v.Relation)
 	}
 	if v.TableElts == nil {
 		return
@@ -1141,9 +1158,11 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 			s.create(st, &c)
 		case *ast.ViewStmt:
 			s.touch(in(e.View))
+			s.made(in(e.View), kindView)
 			s.reads(in(e.View), e.Query)
 		case *ast.CreateSeqStmt:
 			s.touch(in(e.Sequence))
+			s.made(in(e.Sequence), kindSequence)
 		case *ast.IndexStmt:
 			if e.Idxname != "" && e.Relation != nil {
 				s.touchName(in(e.Relation).Schemaname, e.Idxname)
@@ -1255,18 +1274,156 @@ func (s *scan) mayHavePartitions(rv *ast.RangeVar) bool {
 	return len(s.index.schemas[schema].tables[rv.Relname].GetPartitions()) > 0
 }
 
+// tableDef is what a CREATE TABLE of the change gives its table, when the
+// statement says it all: its columns and its keys, primary or unique.
+type tableDef struct {
+	columns map[string]bool
+	keys    [][]string
+	primary bool
+}
+
+// defOf reads a CREATE TABLE's columns and keys, and its foreign keys,
+// each with its column when declared on one. complete is false when LIKE,
+// INHERITS, OF, or PARTITION OF brings more.
+func defOf(v *ast.CreateStmt) (def tableDef, fks []foreignKeyDecl, complete bool) {
+	def.columns = make(map[string]bool)
+	complete = (v.InhRelations == nil || len(v.InhRelations.Items) == 0) && v.OfTypename == nil && v.Partbound == nil
+	if v.TableElts == nil {
+		return def, nil, complete
+	}
+	add := func(c *ast.Constraint, column string) {
+		cols := nameParts(c.Keys)
+		if column != "" {
+			cols = []string{column}
+		}
+		switch c.Contype {
+		case ast.CONSTR_PRIMARY:
+			def.primary = true
+			def.keys = append(def.keys, cols)
+		case ast.CONSTR_UNIQUE:
+			def.keys = append(def.keys, cols)
+		case ast.CONSTR_FOREIGN:
+			fks = append(fks, foreignKeyDecl{c, column})
+		}
+	}
+	for _, item := range v.TableElts.Items {
+		switch e := item.(type) {
+		case *ast.ColumnDef:
+			def.columns[e.Colname] = true
+			for _, c := range constraintsOf(e.Constraints) {
+				add(c, e.Colname)
+			}
+		case *ast.Constraint:
+			add(e, "")
+		case *ast.TableLikeClause:
+			complete = false
+		}
+	}
+	return def, fks, complete
+}
+
+// foreignKeyDecl is a foreign key CREATE TABLE declares, with its column
+// when declared on one.
+type foreignKeyDecl struct {
+	c      *ast.Constraint
+	column string
+}
+
+// refusedBy reports whether a table of that definition has no key a
+// foreign key of local referencing columns can reference with these
+// columns: no primary key without columns, or none of them, or no key on
+// exactly them.
+func (d *tableDef) refusedBy(columns []string, local int) bool {
+	switch {
+	case len(columns) > 0 && len(columns) != local,
+		slices.ContainsFunc(columns, func(c string) bool { return !d.columns[c] }),
+		len(columns) == 0 && !d.primary,
+		len(columns) > 0 && !slices.ContainsFunc(d.keys, func(k []string) bool { return sameKey(k, columns) }):
+		return true
+	}
+	return false
+}
+
+// referencesRefused reports whether the server certainly refuses CREATE
+// TABLE for a foreign key it declares: on a column the table lacks, or to
+// a relation, column, or key as refusesReference finds, or to the table
+// itself, or to one the change created and has not altered, without the
+// columns or key it names. uncertain reports a foreign key the scan cannot
+// check.
+func (s *scan) referencesRefused(v *ast.CreateStmt) (refused, uncertain bool) {
+	if s.index == nil {
+		return false, false
+	}
+	own, fks, complete := defOf(v)
+	for _, fk := range fks {
+		if fk.column == "" && complete && slices.ContainsFunc(nameParts(fk.c.FkAttrs), func(c string) bool { return !own.columns[c] }) {
+			return true, false
+		}
+		pk := fk.c.Pktable
+		columns := nameParts(fk.c.PkAttrs)
+		local := max(len(nameParts(fk.c.FkAttrs)), 1)
+		switch {
+		case pk == nil:
+			uncertain = true
+		case pk.Relname == v.Relation.Relname && pk.Schemaname == v.Relation.Schemaname:
+			if !complete {
+				uncertain = true
+			} else if own.refusedBy(columns, local) {
+				return true, false
+			}
+		case pk.Relname == v.Relation.Relname:
+			// It may be the table itself, or another of its name.
+			uncertain = true
+		default:
+			if def, ok := s.madeDef(pk); ok {
+				if def.refusedBy(columns, local) {
+					return true, false
+				}
+				continue
+			}
+			r, u := s.refusesReference(tableRef{}, fk.c, nil, nil)
+			if r {
+				return true, false
+			}
+			uncertain = uncertain || u
+		}
+	}
+	return false, uncertain
+}
+
+// madeDef returns the definition of a table a name certainly means that
+// the change created, said all of, and has not altered.
+func (s *scan) madeDef(rv *ast.RangeVar) (*tableDef, bool) {
+	c, ok := s.madeAt(rv)
+	if !ok || c.kind != kindTable || c.def == nil {
+		return nil, false
+	}
+	return c.def, true
+}
+
 // madeHere reports whether a CREATE puts a relation under a name the
 // change created a table or view under, and no statement used since.
 func (s *scan) madeHere(rv *ast.RangeVar) bool {
+	_, ok := s.madeAt(rv)
+	return ok
+}
+
+// madeAt returns what the change created under a name, in the schema
+// written or the one the search path creates in, while no statement used
+// the name since.
+func (s *scan) madeAt(rv *ast.RangeVar) (*madeRelation, bool) {
 	schema := rv.Schemaname
 	if schema == "" {
 		var ok bool
 		if schema, ok = s.creationSchema(rv); !ok {
-			return false
+			return nil, false
 		}
 	}
 	c, ok := s.created[[2]string{schema, rv.Relname}]
-	return ok && s.lastTouch[rv.Relname] == c.made
+	if !ok || s.lastTouch[rv.Relname] != c.made {
+		return nil, false
+	}
+	return c, true
 }
 
 // sourceRefused reports whether CREATE TABLE names a relation the server
@@ -1375,6 +1532,36 @@ func columnGeneratesNames(cd *ast.ColumnDef) bool {
 		}
 	}
 	return false
+}
+
+// generate records that a statement may have made relations under
+// generated names in the schema of a relation: the one the name resolves
+// to or names, or the one CREATE puts it in, or any schema when rv is nil
+// or the schema is not known.
+func (s *scan) generate(rv *ast.RangeVar) {
+	schema := ""
+	if rv != nil {
+		if schema = s.schemaOf(rv); schema == "" {
+			schema, _ = s.creationSchema(rv)
+		}
+	}
+	s.generated[schema] = true
+}
+
+// mayBeGenerated reports whether a CREATE's name may be one a statement
+// generated for a relation of the schema the CREATE puts it in.
+func (s *scan) mayBeGenerated(rv *ast.RangeVar) bool {
+	if !generatedName(rv.Relname) || len(s.generated) == 0 {
+		return false
+	}
+	schema := rv.Schemaname
+	if schema == "" {
+		var ok bool
+		if schema, ok = s.creationSchema(rv); !ok {
+			return true
+		}
+	}
+	return s.generated[""] || s.generated[schema]
 }
 
 // touch records a relation name a statement creates.
@@ -1881,6 +2068,9 @@ func (s *scan) follow(rv *ast.RangeVar, newSchema, name string) {
 type madeRelation struct {
 	kind relationKind
 	made int
+	// def is a table's definition when its CREATE said it all and no
+	// ALTER TABLE changed it since.
+	def *tableDef
 }
 
 // made records a table or view a statement certainly created under a
@@ -1893,7 +2083,7 @@ func (s *scan) made(rv *ast.RangeVar, kind relationKind) {
 			return
 		}
 	}
-	s.created[[2]string{schema, rv.Relname}] = madeRelation{kind, s.lastTouch[rv.Relname]}
+	s.created[[2]string{schema, rv.Relname}] = &madeRelation{kind: kind, made: s.lastTouch[rv.Relname]}
 }
 
 // dropsOwn reports whether a qualified DROP certainly drops a table or
@@ -2013,7 +2203,13 @@ func (s *scan) drop(v *ast.DropStmt) {
 		}
 		return
 	}
-	if !isRelationKind(kind) && kind != ast.OBJECT_TYPE || v.Objects == nil {
+	// A type a column, a function, or another type may use is not dropped
+	// without CASCADE; the snapshot does not record every such use.
+	if kind == ast.OBJECT_TYPE || kind == ast.OBJECT_DOMAIN {
+		s.stop()
+		return
+	}
+	if !isRelationKind(kind) || v.Objects == nil {
 		return
 	}
 	// A name in another database is refused.

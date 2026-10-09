@@ -78,6 +78,13 @@ func withPlainIndex(db *metadata.DatabaseSchemaMetadata, tableName, index, colum
 	return db
 }
 
+// withGenerated is a database with table g(a, b), b generated from a.
+func withGenerated() *metadata.DatabaseSchemaMetadata {
+	g := table("g", "a integer", "b integer")
+	g.Columns[1].Generation = &metadata.GenerationMetadata{Expression: "(a + 1)"}
+	return database("public", schema("public", g))
+}
+
 func withView(db *metadata.DatabaseSchemaMetadata, schema, view string) *metadata.DatabaseSchemaMetadata {
 	for _, s := range db.Schemas {
 		if s.Name == schema {
@@ -1409,6 +1416,87 @@ func TestRequirePrimaryKey(t *testing.T) {
 			sql:     "CREATE TABLE public.n (id int);\nSET search_path = s, public;\nALTER TABLE n ADD PRIMARY KEY (id);",
 			targets: []review.Target{{Schema: database(`"$user", public`, schema("public"), schema("s", table("n", "id integer")))}},
 			want:    []targetFinding{{0, "CREATE TABLE public.n (id int)", "creates table public.n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE TABLE with a foreign key to a table the target lacks is refused",
+			sql:     "CREATE TABLE public.n (id int REFERENCES public.missing);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE with a foreign key to columns without a key is refused",
+			sql:     "CREATE TABLE n (id int, p_note text REFERENCES p (note));",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE with a foreign key on a column it lacks is refused",
+			sql:     "CREATE TABLE n (id int, FOREIGN KEY (nope) REFERENCES p);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE with a foreign key to a synced key",
+			sql:     "CREATE TABLE n (id int, p_id int REFERENCES p);",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE n (id int, p_id int REFERENCES p)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE TABLE with a foreign key to a table the change made with a key",
+			sql:     "CREATE TABLE a (id int PRIMARY KEY);\nCREATE TABLE b (id int, a_id int REFERENCES a);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE b (id int, a_id int REFERENCES a)", "creates table b without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE TABLE with a foreign key to a table the change made without a key is refused",
+			sql:     "CREATE TABLE a (id int);\nCREATE TABLE b (id int, a_id int REFERENCES a);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE with a foreign key to a table the change altered is not reported",
+			sql:     "CREATE TABLE a (id int);\nALTER TABLE a ADD PRIMARY KEY (id);\nCREATE TABLE b (id int, a_id int REFERENCES a);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE with a foreign key to itself without the key is refused",
+			sql:     "CREATE TABLE n (id int, parent int REFERENCES n (id));",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE with a foreign key to its own unique column",
+			sql:     "CREATE TABLE n (id int UNIQUE, parent int REFERENCES n (id));",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE n (id int UNIQUE, parent int REFERENCES n (id))", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a view of CREATE SCHEMA is the change's own",
+			sql:     "CREATE SCHEMA z CREATE VIEW v AS SELECT 1;\nDROP VIEW z.v;\nCREATE TABLE z.v (id int);",
+			targets: one,
+			want:    []targetFinding{{2, "CREATE TABLE z.v (id int)", "creates table z.v without a primary key", []int{0}}},
+		},
+		{
+			name:    "DROP TYPE without CASCADE ends the scan",
+			sql:     "DROP TYPE mood;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a generated name in one schema leaves another's names alone",
+			sql:     "CREATE TABLE s1.x (id serial PRIMARY KEY);\nCREATE TABLE s2.audit_seq (id int);",
+			targets: []review.Target{{Schema: database("public", schema("public"), schema("s1"), schema("s2"))}},
+			want:    []targetFinding{{1, "CREATE TABLE s2.audit_seq (id int)", "creates table s2.audit_seq without a primary key", []int{0}}},
+		},
+		{
+			name:    "a generated name in the same schema is uncertain",
+			sql:     "CREATE TABLE s1.x (id serial PRIMARY KEY);\nCREATE TABLE s1.audit_seq (id int);",
+			targets: []review.Target{{Schema: database("public", schema("public"), schema("s1"), schema("s2"))}},
+		},
+		{
+			name:    "DROP COLUMN of a column a generated column reads is refused",
+			sql:     "ALTER TABLE g DROP COLUMN a;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withGenerated()}},
+		},
+		{
+			name:    "DROP COLUMN CASCADE of a column a generated column reads",
+			sql:     "ALTER TABLE g DROP COLUMN a CASCADE;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withGenerated()}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
 		},
 		{
 			name: "a cascade does not go past a view the change replaced",

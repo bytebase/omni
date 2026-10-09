@@ -40,6 +40,10 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 			return
 		}
 	}
+	// A table the change created is no longer what its CREATE said.
+	if c, ok := s.madeAt(v.Relation); ok {
+		c.def = nil
+	}
 	isTable := ast.ObjectType(v.ObjType) == ast.OBJECT_TABLE
 	var drops, others []*ast.AlterTableCmd
 	for _, item := range v.Cmds.Items {
@@ -180,13 +184,13 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				switch {
 				case !makesIndex(c):
 				case c.Conname == "":
-					s.generated = true
+					s.generate(v.Relation)
 				default:
 					// A key's index takes the constraint's name, and a
 					// partition's a generated one.
 					s.touchName(v.Relation.Schemaname, c.Conname)
 					if s.mayHavePartitions(v.Relation) {
-						s.generated = true
+						s.generate(nil)
 					}
 				}
 				if c.Indexname != "" {
@@ -212,8 +216,15 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 					continue
 				}
 				addedHere[cd.Colname] = true
-				if columnGeneratesNames(cd) || s.mayHavePartitions(v.Relation) {
-					s.generated = true
+				if columnGeneratesNames(cd) {
+					s.generate(v.Relation)
+				}
+				if s.mayHavePartitions(v.Relation) {
+					s.generate(nil)
+				}
+				// A generated column depends on the columns it reads.
+				if slices.ContainsFunc(constraintsOf(cd.Constraints), func(c *ast.Constraint) bool { return c.Contype == ast.CONSTR_GENERATED }) || cd.Generated != 0 {
+					s.unsettled[[2]string{schema, name}] = true
 				}
 				s.setColumn(schema, name, cd.Colname, true, false)
 				for _, c := range constraintsOf(cd.Constraints) {
@@ -233,7 +244,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				s.references(v.Relation, constraintsOf(cd.Constraints)...)
 			}
 		case ast.AT_AddIdentity:
-			s.generated = true
+			s.generate(v.Relation)
 		case ast.AT_AddIndexConstraint, ast.AT_AddIndex:
 			if idx, ok := cmd.Def.(*ast.IndexStmt); ok {
 				s.renamedKeys[idx.Idxname] = true
@@ -245,9 +256,10 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				}
 			}
 		case ast.AT_AttachPartition:
-			// The partition gets the parent's indexes under generated names.
-			s.generated = true
 			if pc, ok := cmd.Def.(*ast.PartitionCmd); ok && pc.Name != nil {
+				// The partition gets the parent's indexes under generated
+				// names.
+				s.generate(pc.Name)
 				s.unsettle(pc.Name)
 				for _, p := range s.matching(pc.Name) {
 					p.settled = true
@@ -365,7 +377,7 @@ func (s *scan) dropColumn(cmd *ast.AlterTableCmd, t tableRef, cascade bool, out 
 	if pk != nil {
 		pkColumns = keyColumns(pk)
 	}
-	if !cascade && (s.index.referencesColumn(t, cmd.Name, s.dropped) || slices.ContainsFunc(s.index.readsColumn[columnRef{t.schema, t.table, cmd.Name}], s.viewHolds) ||
+	if !cascade && (s.index.referencesColumn(t, cmd.Name, s.dropped) || generatedFrom(table, cmd.Name) || slices.ContainsFunc(s.index.readsColumn[columnRef{t.schema, t.table, cmd.Name}], s.viewHolds) ||
 		s.newlyReferencedColumn(t, cmd.Name, pkColumns, pk != nil) || s.dependsOnNew(s.newReads, t, nil)) {
 		return true
 	}
@@ -379,6 +391,40 @@ func (s *scan) dropColumn(cmd *ast.AlterTableCmd, t tableRef, cascade bool, out 
 		out.lost, out.table = cmd, t
 	}
 	return false
+}
+
+// generatedFrom reports whether another column of the synced table may be
+// generated from the column: its generation expression names it.
+func generatedFrom(t *metadata.TableMetadata, column string) bool {
+	for _, c := range t.GetColumns() {
+		if c.GetName() != column && c.GetGeneration() != nil && mentions(c.GetGeneration().GetExpression(), column) {
+			return true
+		}
+	}
+	return false
+}
+
+// mentions reports whether an expression may name a column: the name as
+// a whole word, or quoted.
+func mentions(expr, column string) bool {
+	if strings.Contains(expr, `"`+strings.ReplaceAll(column, `"`, `""`)+`"`) {
+		return true
+	}
+	word := func(b byte) bool {
+		return b == '_' || b == '$' || b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= 0x80
+	}
+	for i := 0; ; {
+		j := strings.Index(expr[i:], column)
+		if j < 0 {
+			return false
+		}
+		j += i
+		end := j + len(column)
+		if (j == 0 || !word(expr[j-1])) && (end == len(expr) || !word(expr[end])) {
+			return true
+		}
+		i = j + 1
+	}
 }
 
 // dropReaders records the views a cascading DROP COLUMN takes, with the
