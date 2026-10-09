@@ -115,6 +115,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 	for _, e := range db.GetExtensions() {
 		idx.extensions[e.GetName()] = true
 	}
+	var procedures []procedureRef
 	for _, s := range db.GetSchemas() {
 		ns := &namespace{
 			relations:  make(map[string]relationKind),
@@ -186,6 +187,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 			if sig, ok := readSignature(p.GetName(), p.GetSignature()); ok {
 				idx.signatures[fn] = append(idx.signatures[fn], sig)
 			}
+			procedures = append(procedures, procedureRef{fn, p.GetName(), p.GetSignature()})
 		}
 		for _, f := range s.GetFunctions() {
 			fn := tableRef{s.GetName(), f.GetName()}
@@ -201,6 +203,13 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 				t := tableRef{d.GetSchema(), d.GetTable()}
 				idx.returnedBy[t] = append(idx.returnedBy[t], fn)
 			}
+		}
+	}
+	// A procedure's arguments of a table's row type depend on the table;
+	// the snapshot lists no dependencies for procedures.
+	for _, p := range procedures {
+		for _, t := range idx.rowTypesIn(p.name, p.signature) {
+			idx.returnedBy[t] = append(idx.returnedBy[t], p.fn)
 		}
 	}
 	// A view may read a relation without naming a column of it, which the
@@ -332,6 +341,41 @@ func (idx *schemaIndex) parentsOf(t tableRef) []*metadata.TableMetadata {
 		}
 	}
 	return parents
+}
+
+// procedureRef is a synced procedure and its signature.
+type procedureRef struct {
+	fn              tableRef
+	name, signature string
+}
+
+// rowTypesIn returns the tables whose row type a routine's signature
+// takes an argument of: an argument type the scan cannot read as a
+// built-in one that names a table, in its schema when written, or every
+// table of the name otherwise.
+func (idx *schemaIndex) rowTypesIn(name, sig string) []tableRef {
+	if !strings.HasPrefix(sig, name+"(") || !strings.HasSuffix(sig, ")") {
+		return nil
+	}
+	args := strings.TrimSuffix(strings.TrimPrefix(sig, name+"("), ")")
+	var out []tableRef
+	for _, arg := range strings.Split(args, ", ") {
+		if _, builtin := argType(arg); builtin || strings.TrimSpace(arg) == "" {
+			continue
+		}
+		words := strings.Fields(arg)
+		typ := strings.TrimSuffix(words[len(words)-1], "[]")
+		schema, table := "", typ
+		if i := strings.LastIndex(typ, "."); i >= 0 {
+			schema, table = typ[:i], typ[i+1:]
+		}
+		for sn, ns := range idx.schemas {
+			if _, ok := ns.tables[table]; ok && (schema == "" || schema == sn) {
+				out = append(out, tableRef{sn, table})
+			}
+		}
+	}
+	return out
 }
 
 // readSignature reads a synced routine's signature, the name and the

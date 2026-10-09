@@ -129,8 +129,11 @@ type scan struct {
 	// sequence), which the scan does not derive.
 	generated map[string]bool
 
-	// triggers are the target's enabled event triggers.
-	triggers []*metadata.EventTriggerMetadata
+	// triggers are the target's enabled event triggers, and
+	// triggersChanged the trigger names a statement created, dropped, or
+	// renamed, on whichever table.
+	triggers        []*metadata.EventTriggerMetadata
+	triggersChanged map[string]bool
 
 	// pending are the tables RequirePrimaryKey reports at the end unless a
 	// later statement settles them.
@@ -163,6 +166,7 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		droppedFunctions: make(map[tableRef]bool),
 		newFunctions:     make(map[tableRef]int),
 		madeRoutines:     make(map[string]bool),
+		triggersChanged:  make(map[string]bool),
 		movedRoutines:    make(map[string]bool),
 		newSignatures:    make(map[tableRef][]string),
 		renamedFrom:      make(map[string]renamedRelation),
@@ -541,6 +545,9 @@ func (s *scan) namesMissing(n ast.Node) bool {
 		if fn, ok := routineOf(&ast.ObjectWithArgs{Objname: v.Funcname}); ok && s.routineMissing(fn, ast.OBJECT_FUNCTION) {
 			return true
 		}
+		if !v.Replace && v.Relation != nil && s.triggerTaken(v.Relation, v.Trigname) {
+			return true
+		}
 		if v.Relation != nil {
 			if _, kind, ok := s.lookup(v.Relation); ok && (kind == kindMatView || kind == kindSequence || kind == kindIndex || kind == kindCompositeType) {
 				return true
@@ -576,8 +583,24 @@ func (s *scan) namesMissing(n ast.Node) bool {
 			return true
 		}
 		return false
+	case *ast.TruncateStmt:
+		// TRUNCATE takes tables, partitioned or foreign.
+		if v.Relations != nil {
+			for _, item := range v.Relations.Items {
+				rv, ok := item.(*ast.RangeVar)
+				if !ok {
+					continue
+				}
+				if _, kind, ok := s.lookup(rv); ok && kind != kindTable && kind != kindPartition && kind != kindForeignTable && kind != kindAmbiguous {
+					return true
+				}
+				if c, made := s.madeAt(rv); made && c.kind != kindTable && c.kind != kindForeignTable {
+					return true
+				}
+			}
+		}
 	case *ast.CreatePolicyStmt, *ast.AlterPolicyStmt, *ast.RuleStmt, *ast.CreateStatsStmt, *ast.LockStmt,
-		*ast.TruncateStmt, *ast.RefreshMatViewStmt, *ast.ClusterStmt, *ast.VacuumStmt, *ast.GrantStmt:
+		*ast.RefreshMatViewStmt, *ast.ClusterStmt, *ast.VacuumStmt, *ast.GrantStmt:
 	default:
 		return false
 	}
@@ -596,14 +619,63 @@ func (s *scan) namesMissing(n ast.Node) bool {
 	return missing
 }
 
+// noteTriggers records the trigger names a statement creates, drops, or
+// renames.
+func (s *scan) noteTriggers(n ast.Node) {
+	switch v := n.(type) {
+	case *ast.CreateTrigStmt:
+		s.triggersChanged[v.Trigname] = true
+	case *ast.RenameStmt:
+		if v.RenameType == ast.OBJECT_TRIGGER {
+			s.triggersChanged[v.Subname] = true
+			s.triggersChanged[v.Newname] = true
+		}
+	case *ast.DropStmt:
+		if ast.ObjectType(v.RemoveType) == ast.OBJECT_TRIGGER && v.Objects != nil {
+			for _, obj := range v.Objects.Items {
+				if parts := nameParts(listOf(obj)); len(parts) > 0 {
+					s.triggersChanged[parts[len(parts)-1]] = true
+				}
+			}
+		}
+	case *ast.CreateSchemaStmt:
+		if v.SchemaElts != nil {
+			for _, e := range v.SchemaElts.Items {
+				s.noteTriggers(e)
+			}
+		}
+	}
+}
+
+// triggerTaken reports whether a synced table or view certainly has a
+// trigger of the name: the snapshot lists it, and no statement of the
+// change dropped or renamed a trigger of the name or created one on it.
+func (s *scan) triggerTaken(rv *ast.RangeVar, name string) bool {
+	if s.triggersChanged[name] {
+		return false
+	}
+	schema, kind, ok := s.lookup(rv)
+	if !ok {
+		return false
+	}
+	var triggers []*metadata.TriggerMetadata
+	switch kind {
+	case kindTable:
+		triggers = s.index.schemas[schema].tables[rv.Relname].GetTriggers()
+	case kindView:
+		triggers = s.index.schemas[schema].views[rv.Relname].GetTriggers()
+	}
+	return slices.ContainsFunc(triggers, func(t *metadata.TriggerMetadata) bool { return t.GetName() == name })
+}
+
 // ownedByRefused reports whether ALTER SEQUENCE ... OWNED BY certainly
 // fails: it names a table the target lacks, or a column a known table
 // lacks.
-func (s *scan) ownedByRefused(v *ast.AlterSeqStmt) bool {
-	if s.index == nil || v.Options == nil {
+func (s *scan) ownedByRefused(options *ast.List) bool {
+	if s.index == nil || options == nil {
 		return false
 	}
-	for _, item := range v.Options.Items {
+	for _, item := range options.Items {
 		d, ok := item.(*ast.DefElem)
 		if !ok || d.Defname != "owned_by" {
 			continue
@@ -767,15 +839,20 @@ func viewOutputs(v *ast.ViewStmt) (outs []viewOutput, star, ok bool) {
 }
 
 // duplicateOutputs reports whether a view names an output column twice,
-// as its column aliases or its query determine them, which the server
-// refuses.
+// as its column aliases or its query determine them, or gives more column
+// names than its query has outputs, which the server refuses.
 func duplicateOutputs(v *ast.ViewStmt) bool {
-	if hasDuplicate(nameParts(v.Aliases)) {
+	aliases := nameParts(v.Aliases)
+	if hasDuplicate(aliases) {
 		return true
 	}
-	outs, _, ok := viewOutputs(v)
+	outs, star, ok := viewOutputs(v)
 	if !ok {
 		return false
+	}
+	// More column names than outputs is refused too.
+	if !star && len(aliases) > len(outs) {
+		return true
 	}
 	var names []string
 	for _, o := range outs {
@@ -870,6 +947,7 @@ func (s *scan) statement(st *statement) {
 		s.stop()
 		return
 	}
+	s.noteTriggers(st.node)
 	switch v := st.node.(type) {
 	case *ast.AlterTableStmt:
 		s.alterTable(st, v)
@@ -956,7 +1034,7 @@ func (s *scan) statement(st *statement) {
 				return
 			}
 		}
-		if s.ownedByRefused(v) {
+		if s.ownedByRefused(v.Options) {
 			s.stop()
 			return
 		}
@@ -969,7 +1047,7 @@ func (s *scan) statement(st *statement) {
 	case *ast.CreateSeqStmt:
 		exists := s.existsWhereCreated(v.Sequence) || s.madeHere(v.Sequence)
 		switch {
-		case s.schemaMissing(v.Sequence) || exists && !v.IfNotExists:
+		case s.schemaMissing(v.Sequence) || exists && !v.IfNotExists || s.ownedByRefused(v.Options):
 			s.stop()
 			return
 		case exists:
@@ -1484,7 +1562,11 @@ func (s *scan) dependsOnNew(deps []newDependency, t tableRef, except []tableRef)
 // dependency belongs to: written alike, under the same search path when
 // unqualified.
 func (s *scan) sameObject(d newDependency, name tableRef) bool {
-	return d.object == name && (name.schema != "" || d.path == s.pathVersion)
+	if d.object == name && (name.schema != "" || d.path == s.pathVersion) {
+		return true
+	}
+	// A view written unqualified is the one its schema's name means.
+	return d.object.table == name.table && d.object.schema == "" && d.home != "" && name.schema == d.home
 }
 
 // retarget renames the object of the dependencies a name, as written,
@@ -2113,7 +2195,7 @@ func checksRefused(v *ast.CreateStmt) bool {
 		for _, c := range cs {
 			missing := func(column string) bool { return complete && !own.columns[column] }
 			switch c.Contype {
-			case ast.CONSTR_CHECK:
+			case ast.CONSTR_CHECK, ast.CONSTR_GENERATED:
 				if slices.ContainsFunc(columnsIn(c.RawExpr), missing) {
 					return true
 				}
@@ -3258,7 +3340,7 @@ func (s *scan) dropFunctions(v *ast.DropStmt) {
 		}
 		// A routine the target certainly lacks is not there to drop; IF
 		// EXISTS then drops nothing.
-		if s.routineMissing(fn, ast.ObjectType(v.RemoveType)) {
+		if s.routineMissing(fn, ast.ObjectType(v.RemoveType)) || s.signatureMissing(fn, owa) {
 			if !v.Missing_ok {
 				s.stop()
 				return

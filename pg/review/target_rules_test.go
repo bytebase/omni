@@ -2322,6 +2322,65 @@ func TestRequirePrimaryKey(t *testing.T) {
 			want: []targetFinding{{0, "DROP COLUMN x", "removes the primary key of g, and the change adds none back", []int{0}}},
 		},
 		{
+			name:    "CREATE VIEW with more column names than outputs is refused",
+			sql:     "CREATE VIEW v (a, b) AS SELECT 1;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE SEQUENCE OWNED BY a table the target lacks is refused",
+			sql:     "CREATE SEQUENCE public.q OWNED BY public.missing.id;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name: "CREATE TRIGGER of a name the table has is refused",
+			sql:  "CREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.tf();\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: func() *metadata.DatabaseSchemaMetadata {
+				db := withSignature(shop(), "tf", "tf()")
+				db.Schemas[0].Tables[1].Triggers = []*metadata.TriggerMetadata{{Name: "tr"}}
+				return db
+			}(), SessionUser: "alice"}},
+		},
+		{
+			name: "CREATE OR REPLACE TRIGGER of a name the table has",
+			sql:  "CREATE OR REPLACE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.tf();\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: func() *metadata.DatabaseSchemaMetadata {
+				db := withSignature(shop(), "tf", "tf()")
+				db.Schemas[0].Tables[1].Triggers = []*metadata.TriggerMetadata{{Name: "tr"}}
+				return db
+			}(), SessionUser: "alice"}},
+			want: []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "DROP FUNCTION of a signature the target lacks is refused",
+			sql:     "DROP FUNCTION public.f(text);\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
+		},
+		{
+			name: "a procedure of a table's row type holds its drop",
+			sql:  "DROP TABLE public.nokey;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: func() *metadata.DatabaseSchemaMetadata {
+				db := shop()
+				db.Schemas[0].Procedures = []*metadata.ProcedureMetadata{{Name: "p", Signature: "p(x nokey)"}}
+				return db
+			}(), SessionUser: "alice"}},
+		},
+		{
+			name:    "TRUNCATE of a view is refused",
+			sql:     "TRUNCATE public.v;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withCountView("SELECT 1 AS a")}},
+		},
+		{
+			name:    "a view the change made unqualified, dropped qualified, no longer holds a table",
+			sql:     "CREATE VIEW v AS SELECT * FROM public.nokey;\nDROP VIEW public.v;\nDROP TABLE public.nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE TABLE with a generated column of a column it lacks is refused",
+			sql:     "CREATE TABLE public.x (id int PRIMARY KEY, g int GENERATED ALWAYS AS (missing + 1) STORED);\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
 			name: "a cascade does not go past a view the change replaced",
 			sql:  "CREATE OR REPLACE VIEW v AS SELECT 1 AS id;\nDROP TABLE base CASCADE;\nCREATE TABLE w (id int);",
 			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{
