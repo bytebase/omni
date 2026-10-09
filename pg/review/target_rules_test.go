@@ -2450,6 +2450,58 @@ func TestRequirePrimaryKey(t *testing.T) {
 			}()}},
 		},
 		{
+			name:    "CREATE DOMAIN with a check naming anything but VALUE is refused",
+			sql:     "CREATE DOMAIN public.d AS int CHECK (missing > 0);\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE DOMAIN with a check of VALUE",
+			sql:     "CREATE DOMAIN public.d AS int CHECK (VALUE > 0);\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE OR REPLACE PROCEDURE of a function's signature is refused",
+			sql:     "CREATE OR REPLACE PROCEDURE public.f() LANGUAGE sql AS 'SELECT 1';\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "f", "f()"), SessionUser: "alice"}},
+		},
+		{
+			name:    "CREATE OR REPLACE FUNCTION of a procedure's signature is refused",
+			sql:     "CREATE OR REPLACE FUNCTION public.p() RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSyncedProcedure(), SessionUser: "alice"}},
+		},
+		{
+			name:    "CREATE OR REPLACE FUNCTION of a function's signature",
+			sql:     "CREATE OR REPLACE FUNCTION public.f() RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "f", "f()"), SessionUser: "alice"}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "ALTER TYPE ADD VALUE of a type the target lacks is refused",
+			sql:     "ALTER TYPE public.missing ADD VALUE 'x';\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "ALTER TYPE ADD VALUE of a table's row type is refused",
+			sql:     "ALTER TYPE public.t ADD VALUE 'x';\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name: "ALTER TYPE ADD VALUE of an enum",
+			sql:  "ALTER TYPE mood ADD VALUE 'x';\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: func() *metadata.DatabaseSchemaMetadata {
+				db := shop()
+				db.Schemas[0].EnumTypes = []*metadata.EnumTypeMetadata{{Name: "mood"}}
+				return db
+			}(), SessionUser: "alice"}},
+			want: []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "DROP INDEX of a renamed constraint index is refused",
+			sql:     "ALTER INDEX public.t_pkey RENAME TO x;\nDROP INDEX public.x;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
 			name: "a cascade does not go past a view the change replaced",
 			sql:  "CREATE OR REPLACE VIEW v AS SELECT 1 AS id;\nDROP TABLE base CASCADE;\nCREATE TABLE w (id int);",
 			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{

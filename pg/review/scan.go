@@ -1049,7 +1049,7 @@ func (s *scan) statement(st *statement) {
 	case *ast.CreateFunctionStmt:
 		// A SQL-standard body is resolved when the routine is created, and
 		// a signature the schema has is taken without OR REPLACE.
-		if v.SqlBody != nil && s.readsMissing(v.SqlBody) || !v.IsOrReplace && s.signatureTaken(v) {
+		if v.SqlBody != nil && s.readsMissing(v.SqlBody) || !v.IsOrReplace && s.signatureTaken(v) || v.IsOrReplace && s.replacesOtherKind(v) {
 			s.stop()
 			return
 		}
@@ -1113,7 +1113,19 @@ func (s *scan) statement(st *statement) {
 		// A type's name is taken for a relation's row type too.
 		s.touchType(v.TypeName, "")
 	case *ast.CreateDomainStmt:
+		// A domain's check names nothing but VALUE.
+		if slices.ContainsFunc(constraintsOf(v.Constraints), func(c *ast.Constraint) bool {
+			return c.Contype == ast.CONSTR_CHECK && slices.ContainsFunc(columnsIn(c.RawExpr), func(name string) bool { return name != "value" })
+		}) {
+			s.stop()
+			return
+		}
 		s.touchType(v.Domainname, "")
+	case *ast.AlterEnumStmt:
+		if s.enumMissing(v.Typname) {
+			s.stop()
+			return
+		}
 	case *ast.CreateRangeStmt:
 		// A range type comes with a multirange type, named after it unless
 		// the statement names it.
@@ -1551,6 +1563,72 @@ func routineSignature(v *ast.CreateFunctionStmt) (tableRef, string, bool) {
 		}
 	}
 	return object, argSignature(&ast.List{Items: args}), true
+}
+
+// replacesOtherKind reports whether CREATE OR REPLACE FUNCTION or
+// PROCEDURE certainly names a synced routine of the other kind under its
+// signature, which the server does not replace: the routine name, where
+// the statement creates it, has only routines of the other kind, one of
+// them with the signature, and no statement of the change named it.
+func (s *scan) replacesOtherKind(v *ast.CreateFunctionStmt) bool {
+	object, signature, ok := routineSignature(v)
+	if !ok || s.index == nil || s.madeRoutines[object.table] || s.movedRoutines[object.table] {
+		return false
+	}
+	schema, ok := s.creationSchema(&ast.RangeVar{Schemaname: object.schema, Relname: object.table})
+	if !ok {
+		return false
+	}
+	fn := tableRef{schema, object.table}
+	other := kindProcedure
+	if isProcedure(v) {
+		other = kindFunction
+	}
+	if s.index.routineKinds[fn] != other || s.droppedFunctions[fn] {
+		return false
+	}
+	return signature == "" && s.index.noArgs[fn] || slices.Contains(s.index.signatures[fn], signature)
+}
+
+// enumMissing reports whether ALTER TYPE ... ADD or RENAME VALUE names a
+// type that is certainly no enum: in its schema, written or along the
+// known search path, no enum of the name, and nothing the change made
+// there may be one.
+func (s *scan) enumMissing(name *ast.List) bool {
+	parts := nameParts(name)
+	if s.index == nil || len(parts) == 0 || len(parts) > 2 {
+		return false
+	}
+	typ := parts[len(parts)-1]
+	var path []string
+	if len(parts) == 2 {
+		path = []string{parts[0]}
+	} else {
+		p, ok := s.searchPath()
+		if !ok {
+			return false
+		}
+		path = p
+	}
+	for _, schema := range path {
+		if s.schemas[schema] || schema == "information_schema" || strings.HasPrefix(schema, "pg_") ||
+			s.isTouched(&ast.RangeVar{Schemaname: schema, Relname: typ}) {
+			return false
+		}
+		ns := s.index.schemas[schema]
+		if ns == nil {
+			continue
+		}
+		if slices.Contains(ns.types, typ) {
+			return false
+		}
+		// A relation's row type of the name is found first, and is no
+		// enum.
+		if _, ok := ns.relations[typ]; ok {
+			return true
+		}
+	}
+	return true
 }
 
 // signatureTaken reports whether CREATE FUNCTION names a signature that
@@ -3746,8 +3824,12 @@ func (s *scan) dropsWrongKind(v *ast.DropStmt) bool {
 		}
 		schema, relKind, ok := s.lookup(rv)
 		if !ok {
-			// A relation the change created has the kind it was made as.
+			// A relation the change created has the kind it was made as,
+			// and an index a rename named still belongs to its constraint.
 			if c, made := s.madeAt(rv); made && !dropKindMatches(kind, c.kind) {
+				return true
+			}
+			if t, renamed := s.renamedAway(rv); renamed && kind == ast.OBJECT_INDEX && s.index.constraintIndexes[t] {
 				return true
 			}
 			continue
