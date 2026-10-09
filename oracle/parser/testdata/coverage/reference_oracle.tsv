@@ -90,3 +90,6 @@ ref_088	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_ctor_{run} AS OBJECT (
 ref_089	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_ctas_{run} AS OBJECT (a NUMBER, CONSTRUCTOR FUNCTION omni_bad_ctas_{run} RETURN SELF AS)	constructor spec without RESULT
 ref_090	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_lang_{run} AS LANGUAGE PYTHON;	call spec in an unknown language
 ref_091	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_cs_names_{run} (language IN VARCHAR2, wrapped NUMBER) RETURN NUMBER IS x NUMBER; external NUMBER; mle NUMBER; BEGIN RETURN 1; END;	later declarations named like call spec words
+ref_092	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_novr_{run} AS OBJECT (a NUMBER, NOT OVERRIDING MEMBER FUNCTION f RETURN NUMBER) NOT FINAL	NOT OVERRIDING in a method spec
+ref_093	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_fovr_{run} AS OBJECT (a NUMBER, FINAL OVERRIDING MEMBER FUNCTION f RETURN NUMBER)	OVERRIDING after another inheritance clause
+ref_094	plsql_body	accept	CREATE OR REPLACE TYPE omni_ninf_{run} AS OBJECT (a NUMBER, NOT INSTANTIABLE NOT FINAL MEMBER FUNCTION f RETURN NUMBER) NOT FINAL NOT INSTANTIABLE	NOT INSTANTIABLE NOT FINAL method spec

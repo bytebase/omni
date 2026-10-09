@@ -727,6 +727,13 @@ func TestParseMLECallSpec(t *testing.T) {
 			want: ast.CallSpec{MLE: true, Language: "JAVASCRIPT", Code: "'q console.log(1); 'q"},
 		},
 		{
+			// Oracle 23ai takes a reserved word as a delimiter too (BEGIN,
+			// SELECT, END, IS, and TABLE all pass the syntax check).
+			name: "reserved word delimiter",
+			sql:  "CREATE PROCEDURE p AS MLE LANGUAGE JAVASCRIPT BEGIN return; BEGIN;",
+			want: ast.CallSpec{MLE: true, Language: "JAVASCRIPT", Code: "BEGIN return; BEGIN"},
+		},
+		{
 			name: "mirrored bracket delimiter",
 			sql:  "CREATE FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {< return 1; >};",
 			want: ast.CallSpec{MLE: true, Language: "JAVASCRIPT", Code: "{< return 1; >}"},

@@ -222,14 +222,21 @@ func (p *Parser) parseTypeBodyMember(inSpec bool) (*nodes.TypeBodyMember, error)
 	}
 
 	if inSpec {
-		var err error
-		member.Modifiers, err = p.parseTypeModifiers(methodInheritanceClauses)
+		// OVERRIDING comes first, once, and takes no NOT (PLS-00103 on
+		// Oracle 23ai for NOT OVERRIDING or OVERRIDING after another clause).
+		if p.isKeywordStr("OVERRIDING") {
+			member.Modifiers = append(member.Modifiers, "OVERRIDING")
+			p.advance() // consume OVERRIDING
+		}
+		mods, err := p.parseTypeModifiers(methodInheritanceClauses)
 		if err != nil {
 			return nil, err
 		}
+		member.Modifiers = append(member.Modifiers, mods...)
 	}
 
 	// Determine the kind prefix
+	kindTok := p.cur
 	switch {
 	case p.isIdentLikeStr("MEMBER"):
 		member.Kind = nodes.TYPE_BODY_MEMBER
@@ -268,6 +275,9 @@ func (p *Parser) parseTypeBodyMember(inSpec bool) (*nodes.TypeBodyMember, error)
 			return nil, p.syntaxErrorAtCur()
 		}
 		return nil, nil
+	}
+	if inSpec && methodModifiersConflict(member.Modifiers, member.Kind) {
+		return nil, p.syntaxErrorAtTok(kindTok)
 	}
 
 	// Parse the subprogram (PROCEDURE or FUNCTION). A constructor is a
@@ -495,6 +505,7 @@ func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.Creat
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/19/lnpls/CREATE-TYPE-statement.html
 //
 //	element ::= attribute datatype | element_spec | restrict_references_pragma
+//	inheritance_clauses ::= [ OVERRIDING ] { [ NOT ] FINAL | [ NOT ] INSTANTIABLE }...
 //	element_spec ::= [ inheritance_clauses ]
 //	    { { MEMBER | STATIC } { procedure_spec | function_spec }
 //	    | [ FINAL ] [ INSTANTIABLE ] CONSTRUCTOR function_spec
@@ -509,11 +520,16 @@ func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.Creat
 // one is required (PLS-00589).
 func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt) error {
 	stmt.Attributes = &nodes.List{}
+	hasComparison := false
 	for {
 		switch {
 		case p.isObjectTypeMethodStart():
+			methodTok := p.cur
 			member, err := p.parseTypeBodyMember(true)
 			if err != nil {
+				return err
+			}
+			if err := p.checkObjectTypeMethod(stmt, member, &hasComparison, methodTok); err != nil {
 				return err
 			}
 			stmt.Methods = appendListItem(stmt.Methods, member)
@@ -570,13 +586,77 @@ func (p *Parser) isObjectTypeMethodStart() bool {
 
 // objectTypeModifiers and methodInheritanceClauses are the words that
 // parseTypeModifiers takes after an object type's element list and before a
-// method specification. [ NOT ] PERSISTABLE is a type modifier only
-// (PLS-00771 before a method on Oracle 23ai), though an unquoted PERSISTABLE
-// still cannot name an attribute.
+// method specification, where OVERRIDING may precede them. [ NOT ] PERSISTABLE
+// is a type modifier only (PLS-00771 before a method on Oracle 23ai), though
+// an unquoted PERSISTABLE still cannot name an attribute.
 var (
 	objectTypeModifiers      = []string{"FINAL", "INSTANTIABLE", "PERSISTABLE"}
-	methodInheritanceClauses = []string{"OVERRIDING", "FINAL", "INSTANTIABLE"}
+	methodInheritanceClauses = []string{"FINAL", "INSTANTIABLE"}
 )
+
+// methodModifiersConflict reports whether a method spec's inheritance clauses
+// conflict with each other or with its kind. Oracle 23ai rejects NOT
+// INSTANTIABLE with FINAL, STATIC, or CONSTRUCTOR, and OVERRIDING with STATIC
+// (PLS-00169).
+func methodModifiersConflict(mods []string, kind nodes.TypeBodyMemberKind) bool {
+	has := func(mod string) bool {
+		for _, m := range mods {
+			if m == mod {
+				return true
+			}
+		}
+		return false
+	}
+	if has("NOT INSTANTIABLE") && (has("FINAL") || kind == nodes.TYPE_BODY_STATIC || kind == nodes.TYPE_BODY_CONSTRUCTOR) {
+		return true
+	}
+	return has("OVERRIDING") && kind == nodes.TYPE_BODY_STATIC
+}
+
+// checkObjectTypeMethod applies the rules Oracle 23ai checks on a method spec
+// from the statement's own text: a constructor bears its type's name
+// (PLS-00658), a MAP method takes no parameter besides SELF (PLS-00520), an
+// ORDER method takes exactly one (PLS-00521), and a type has at most one MAP
+// or ORDER method (PLS-00154). hasComparison tracks the last rule. The rules
+// on MAP and ORDER return and parameter types (PLS-00522 through PLS-00524)
+// need the types resolved and are left to the engine. tok is where the
+// method starts, for the error position.
+func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes.TypeBodyMember, hasComparison *bool, tok Token) error {
+	fn, isFunction := member.Subprog.(*nodes.CreateFunctionStmt)
+	switch member.Kind {
+	case nodes.TYPE_BODY_CONSTRUCTOR:
+		if isFunction && stmt.Name != nil && fn.Name.Name != stmt.Name.Name {
+			return p.syntaxErrorAtTok(tok)
+		}
+	case nodes.TYPE_BODY_MAP, nodes.TYPE_BODY_ORDER:
+		if *hasComparison {
+			return p.syntaxErrorAtTok(tok)
+		}
+		*hasComparison = true
+		want := 0
+		if member.Kind == nodes.TYPE_BODY_ORDER {
+			want = 1
+		}
+		if isFunction && parametersBesidesSelf(fn.Parameters) != want {
+			return p.syntaxErrorAtTok(tok)
+		}
+	}
+	return nil
+}
+
+// parametersBesidesSelf counts the parameters in params not named SELF.
+func parametersBesidesSelf(params *nodes.List) int {
+	n := 0
+	if params == nil {
+		return 0
+	}
+	for _, item := range params.Items {
+		if param, ok := item.(*nodes.Parameter); !ok || param.Name != "SELF" {
+			n++
+		}
+	}
+	return n
+}
 
 // parseTypeModifiers parses { [ NOT ] word }... for the given words and
 // returns each as written ("FINAL", "NOT FINAL"). A word may appear once,
