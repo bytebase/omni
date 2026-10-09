@@ -663,8 +663,9 @@ func (s *scan) statement(st *statement) {
 		}
 		s.reads(v.View, v.Query)
 	case *ast.CreateFunctionStmt:
-		// A SQL-standard body is resolved when the routine is created.
-		if v.SqlBody != nil && s.readsMissing(v.SqlBody) {
+		// A SQL-standard body is resolved when the routine is created, and
+		// a signature the schema has is taken without OR REPLACE.
+		if v.SqlBody != nil && s.readsMissing(v.SqlBody) || !v.IsOrReplace && s.signatureTaken(v) {
 			s.stop()
 			return
 		}
@@ -1091,6 +1092,48 @@ func (s *scan) returns(v *ast.CreateFunctionStmt) {
 		}
 		s.newReturns = append(s.newReturns, newDependency{relation: tableRef{s.schemaOf(rv), rv.Relname}, object: object, path: s.pathVersion})
 	}
+}
+
+// routineSignature returns the routine a CREATE FUNCTION names, as
+// written, and the argument signature DROP FUNCTION matches it by.
+func routineSignature(v *ast.CreateFunctionStmt) (tableRef, string, bool) {
+	fn := nameParts(v.Funcname)
+	if len(fn) == 0 {
+		return tableRef{}, "", false
+	}
+	object := tableRef{table: fn[len(fn)-1]}
+	if len(fn) >= 2 {
+		object.schema = fn[len(fn)-2]
+	}
+	var args []ast.Node
+	if v.Parameters != nil {
+		for _, item := range v.Parameters.Items {
+			if p, ok := item.(*ast.FunctionParameter); ok && p.Mode != ast.FUNC_PARAM_OUT && p.Mode != ast.FUNC_PARAM_TABLE && p.ArgType != nil {
+				args = append(args, p.ArgType)
+			}
+		}
+	}
+	return object, argSignature(&ast.List{Items: args}), true
+}
+
+// signatureTaken reports whether CREATE FUNCTION names a signature that
+// certainly exists: one the change created under the name as written, or,
+// without arguments, a synced routine's of that name where the statement
+// creates it, which no statement dropped or renamed.
+func (s *scan) signatureTaken(v *ast.CreateFunctionStmt) bool {
+	object, signature, ok := routineSignature(v)
+	if !ok {
+		return false
+	}
+	if slices.Contains(s.newSignatures[object], signature) {
+		return true
+	}
+	if signature != "" || s.index == nil || s.movedRoutines[object.table] {
+		return false
+	}
+	schema, ok := s.creationSchema(&ast.RangeVar{Schemaname: object.schema, Relname: object.table})
+	fn := tableRef{schema, object.table}
+	return ok && s.index.noArgs[fn] && !s.droppedFunctions[fn]
 }
 
 // replaces records a CREATE OR REPLACE FUNCTION that certainly redefines
@@ -1624,14 +1667,16 @@ func (s *scan) homeOf(rv *ast.RangeVar) (string, bool) {
 	return s.creationSchema(rv)
 }
 
-// checksRefused reports whether a CHECK constraint CREATE TABLE declares
-// names a column the table does not have, when the statement says all its
-// columns.
+// checksRefused reports whether a constraint CREATE TABLE declares is
+// certainly refused: a CHECK or a key naming a column the table does not
+// have, when the statement says all its columns, a key naming a column
+// twice, or a second primary key.
 func checksRefused(v *ast.CreateStmt) bool {
 	own, _, complete := defOf(v)
-	if !complete || v.TableElts == nil {
+	if v.TableElts == nil {
 		return false
 	}
+	primaries := 0
 	for _, item := range v.TableElts.Items {
 		var cs []*ast.Constraint
 		switch e := item.(type) {
@@ -1641,12 +1686,26 @@ func checksRefused(v *ast.CreateStmt) bool {
 			cs = []*ast.Constraint{e}
 		}
 		for _, c := range cs {
-			if c.Contype == ast.CONSTR_CHECK && slices.ContainsFunc(columnsIn(c.RawExpr), func(column string) bool { return !own.columns[column] }) {
-				return true
+			missing := func(column string) bool { return complete && !own.columns[column] }
+			switch c.Contype {
+			case ast.CONSTR_CHECK:
+				if slices.ContainsFunc(columnsIn(c.RawExpr), missing) {
+					return true
+				}
+			case ast.CONSTR_PRIMARY, ast.CONSTR_UNIQUE:
+				// A key names columns the table has, each once, and a table
+				// has one primary key.
+				keys := nameParts(c.Keys)
+				if hasDuplicate(keys) || slices.ContainsFunc(keys, missing) {
+					return true
+				}
+				if c.Contype == ast.CONSTR_PRIMARY {
+					primaries++
+				}
 			}
 		}
 	}
-	return false
+	return primaries > 1
 }
 
 // madeDef returns the definition of a table a name certainly means that

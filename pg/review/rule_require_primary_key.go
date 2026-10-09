@@ -146,7 +146,7 @@ func (s *scan) lostKey(st *statement, v *ast.AlterTableStmt, cmd *ast.AlterTable
 // key. CREATE TABLE IF NOT EXISTS is left out when a relation of that name
 // may already exist, since then it makes nothing.
 func (s *scan) createTable(st *statement, v *ast.CreateStmt) {
-	if !s.on[review.RequirePrimaryKey] || v.Relation == nil || v.Partbound != nil || isTemp(v.Relation) {
+	if !s.on[review.RequirePrimaryKey] || v.Relation == nil || v.Partbound != nil || isTemp(v.Relation) || s.createsTemp(v.Relation) {
 		return
 	}
 	if v.IfNotExists && !s.createsNew(v.Relation) {
@@ -158,7 +158,7 @@ func (s *scan) createTable(st *statement, v *ast.CreateStmt) {
 	}
 	s.pending = append(s.pending, &pendingTable{
 		names:     map[string]bool{v.Relation.Relname: true},
-		schema:    v.Relation.Schemaname,
+		schema:    s.pendingSchema(v.Relation),
 		parents:   s.inheritsFrom(v),
 		statement: st.index,
 		rng:       rangeOf(v.Loc),
@@ -177,6 +177,42 @@ func (s *scan) keylessNew(rv *ast.RangeVar) bool {
 	for _, p := range s.pending {
 		if !p.existed && !p.settled && p.schema == rv.Schemaname && len(p.names) == 1 && p.names[rv.Relname] && s.lastTouch[rv.Relname] == p.made {
 			return true
+		}
+	}
+	return false
+}
+
+// pendingSchema is the schema a CREATE TABLE puts its table in, as written
+// or as the search path resolves it, or "" when neither tells.
+func (s *scan) pendingSchema(rv *ast.RangeVar) string {
+	if rv.Schemaname != "" {
+		return rv.Schemaname
+	}
+	schema, _ := s.creationSchema(rv)
+	return schema
+}
+
+// createsTemp reports whether CREATE puts an unqualified relation in the
+// session's temporary schema, or a system one: the known search path
+// names one before any schema that exists.
+func (s *scan) createsTemp(rv *ast.RangeVar) bool {
+	if rv == nil || rv.Schemaname != "" || s.index == nil {
+		return false
+	}
+	path, ok := s.searchPath()
+	if !ok {
+		return false
+	}
+	for _, name := range path {
+		switch {
+		case strings.HasPrefix(name, "pg_"):
+			return true
+		case s.schemas[name]:
+			if !s.schemaGone[name] {
+				return false
+			}
+		case s.index.schemas[name] != nil:
+			return false
 		}
 	}
 	return false

@@ -427,6 +427,11 @@ func TestDisallowDropConstraint(t *testing.T) {
 			targets: one,
 		},
 		{
+			name:    "an added key naming a column twice refuses the statement",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD UNIQUE (id, id);",
+			targets: one,
+		},
+		{
 			name:    "ADD CONSTRAINT USING INDEX of a missing index refuses the statement",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT replacement UNIQUE USING INDEX missing_idx;",
 			targets: one,
@@ -691,10 +696,15 @@ func TestRequirePrimaryKey(t *testing.T) {
 			want: []targetFinding{{1, "CREATE TABLE IF NOT EXISTS s.reader (id int)", "creates table s.reader without a primary key", []int{0}}},
 		},
 		{
+			// m is created where the search path puts it, public, so the move
+			// of public.m is its own too.
 			name:    "a qualified move keeps the table's schema exact",
 			sql:     "CREATE TABLE public.n (id int);\nALTER TABLE public.n SET SCHEMA s;\nALTER TABLE x.n ADD PRIMARY KEY (id);\nCREATE TABLE m (id int);\nALTER TABLE public.m SET SCHEMA s;\nALTER TABLE x.m ADD PRIMARY KEY (id);",
 			targets: one,
-			want:    []targetFinding{{0, "CREATE TABLE public.n (id int)", "creates table public.n without a primary key", []int{0}}},
+			want: []targetFinding{
+				{0, "CREATE TABLE public.n (id int)", "creates table public.n without a primary key", []int{0}},
+				{3, "CREATE TABLE m (id int)", "creates table m without a primary key", []int{0}},
+			},
 		},
 		{
 			name: "a dropped materialized view takes its indexes",
@@ -1847,6 +1857,42 @@ func TestRequirePrimaryKey(t *testing.T) {
 			sql:     "CREATE TABLE x (a int CHECK (a > 0));",
 			targets: one,
 			want:    []targetFinding{{0, "CREATE TABLE x (a int CHECK (a > 0))", "creates table x without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE TABLE with a key on a column it lacks is refused",
+			sql:     "CREATE TABLE x (a int, PRIMARY KEY (missing));\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE with a key naming a column twice is refused",
+			sql:     "CREATE TABLE x (a int, b int, UNIQUE (a, a));\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE with two primary keys is refused",
+			sql:     "CREATE TABLE x (a int PRIMARY KEY, b int, PRIMARY KEY (b));\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE FUNCTION of a signature the schema has is refused",
+			sql:     "CREATE FUNCTION public.f() RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withNoArgFunctionReturning(shop(), "public", "nokey"), SessionUser: "alice"}},
+		},
+		{
+			name:    "CREATE FUNCTION of a signature the change made is refused",
+			sql:     "CREATE FUNCTION g() RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE FUNCTION g() RETURNS int LANGUAGE sql AS 'SELECT 2';\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a qualified DROP of another schema's table leaves a table made by the search path",
+			sql:     "CREATE TABLE n (id int);\nDROP TABLE s.n;",
+			targets: []review.Target{{Schema: database(`"$user", public`, schema("public"), schema("s", table("n", "id integer"))), SessionUser: "alice"}},
+			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a table the search path puts in pg_temp is temporary",
+			sql:     "SET search_path = pg_temp, public;\nCREATE TABLE n (id int);",
+			targets: one,
 		},
 		{
 			name: "a cascade does not go past a view the change replaced",

@@ -670,6 +670,10 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedOrigins, droppedConstr
 		if c.Contype == ast.CONSTR_CHECK && slices.ContainsFunc(columnsIn(c.RawExpr), func(column string) bool { return !has(column) && !addedColumns[column] }) {
 			return true, false
 		}
+		// A key names a column once.
+		if (c.Contype == ast.CONSTR_PRIMARY || c.Contype == ast.CONSTR_UNIQUE) && hasDuplicate(nameParts(c.Keys)) {
+			return true, false
+		}
 		if c.Conname != "" {
 			if uses(c.Conname) || addedNames[c.Conname] {
 				return true, false
