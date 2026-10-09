@@ -691,6 +691,10 @@ func (s *scan) statement(st *statement) {
 			s.made(v.Sequence, kindSequence)
 		}
 	case *ast.CompositeTypeStmt:
+		if v.Typevar != nil && s.typeTaken(v.Typevar) {
+			s.stop()
+			return
+		}
 		s.touch(v.Typevar)
 	case *ast.CreateEnumStmt:
 		// A type's name is taken for a relation's row type too.
@@ -706,6 +710,16 @@ func (s *scan) statement(st *statement) {
 			s.touchType(v.Defnames, "")
 		}
 	case *ast.IndexStmt:
+		if s.indexRefused(v) {
+			s.stop()
+			return
+		}
+		if v.IfNotExists && v.Idxname != "" && v.Relation != nil {
+			if schema, _, ok := s.lookup(v.Relation); ok && s.nameTaken(schema, v.Idxname) {
+				// IF NOT EXISTS of a taken name does nothing.
+				return
+			}
+		}
 		if (v.Unique || v.Primary) && v.Relation != nil {
 			s.newKey(v.Relation)
 		}
@@ -1203,7 +1217,7 @@ func (s *scan) create(st *statement, v *ast.CreateStmt) {
 		// IF NOT EXISTS of an existing table does nothing.
 		return
 	}
-	if duplicateNames(v) || s.sourceRefused(v) || s.keyNameTaken(v) {
+	if duplicateNames(v) || s.sourceRefused(v) || s.keyNameTaken(v) || checksRefused(v) {
 		s.stop()
 		return
 	}
@@ -1280,8 +1294,9 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 		return
 	}
 	// CREATE SCHEMA of a schema the target has, and the change did not
-	// drop, is refused, and with IF NOT EXISTS does nothing.
-	if s.index != nil && s.index.schemas[name] != nil && !s.schemas[name] {
+	// drop, or one the change created and did not drop, is refused, and
+	// with IF NOT EXISTS does nothing.
+	if s.index != nil && (s.index.schemas[name] != nil && !s.schemas[name] || s.schemas[name] && !s.schemaGone[name]) {
 		if !v.IfNotExists {
 			s.stop()
 		}
@@ -1388,7 +1403,8 @@ func elementsCollide(schema string, elts *ast.List) bool {
 }
 
 // touchType records the name of a type a statement creates, and the
-// name with suffix, when there is one, for a type it creates with it.
+// name with suffix, when there is one, for a type it creates with it. A
+// name a relation's row type or another type certainly has is refused.
 func (s *scan) touchType(name *ast.List, suffix string) {
 	parts := nameParts(name)
 	if len(parts) == 0 || len(parts) > 2 {
@@ -1398,10 +1414,42 @@ func (s *scan) touchType(name *ast.List, suffix string) {
 	if len(parts) == 2 {
 		schema = parts[0]
 	}
+	if s.typeTaken(&ast.RangeVar{Schemaname: schema, Relname: parts[len(parts)-1]}) {
+		s.stop()
+		return
+	}
 	s.touchName(schema, parts[len(parts)-1])
 	if suffix != "" {
 		s.touchName(schema, parts[len(parts)-1]+suffix)
 	}
+}
+
+// typeTaken reports whether the schema a CREATE puts a type in certainly
+// holds a type of its name: a relation's row type, an enum, or what the
+// change created there.
+func (s *scan) typeTaken(rv *ast.RangeVar) bool {
+	return s.existsWhereCreated(rv) || s.typeExists(rv) || s.madeHere(rv)
+}
+
+// indexRefused reports whether the server certainly refuses CREATE
+// INDEX: its relation is one the target lacks, or cannot be indexed, or,
+// without IF NOT EXISTS, its name is taken in the relation's schema.
+func (s *scan) indexRefused(v *ast.IndexStmt) bool {
+	if s.index == nil || v.Relation == nil {
+		return false
+	}
+	if s.missing(v.Relation) {
+		return true
+	}
+	schema, kind, ok := s.lookup(v.Relation)
+	if !ok {
+		return false
+	}
+	switch kind {
+	case kindView, kindSequence, kindIndex, kindCompositeType, kindForeignTable:
+		return true
+	}
+	return v.Idxname != "" && !v.IfNotExists && (s.nameTaken(schema, v.Idxname) || s.madeHere(&ast.RangeVar{Schemaname: schema, Relname: v.Idxname}))
 }
 
 // typeExists reports whether the schema a CREATE puts a relation in
@@ -1523,18 +1571,33 @@ func (s *scan) referencesRefused(v *ast.CreateStmt) (refused, uncertain bool) {
 		pk := fk.c.Pktable
 		columns := nameParts(fk.c.PkAttrs)
 		local := max(len(nameParts(fk.c.FkAttrs)), 1)
+		self := pk != nil && pk.Relname == v.Relation.Relname && pk.Schemaname == v.Relation.Schemaname
+		ambiguous := false
+		if pk != nil && pk.Relname == v.Relation.Relname && !self {
+			// Spelled otherwise, it is the table itself when both names
+			// resolve to the schema CREATE puts the table in, and another
+			// table when they certainly resolve to different ones.
+			a, aok := s.homeOf(pk)
+			b, bok := s.homeOf(v.Relation)
+			switch {
+			case aok && bok && a == b:
+				self = true
+			case aok && bok:
+				pk = &ast.RangeVar{Schemaname: a, Relname: pk.Relname}
+			default:
+				ambiguous = true
+			}
+		}
 		switch {
-		case pk == nil:
+		case pk == nil || ambiguous:
+			// It may be the table itself, or another of its name.
 			uncertain = true
-		case pk.Relname == v.Relation.Relname && pk.Schemaname == v.Relation.Schemaname:
+		case self:
 			if !complete {
 				uncertain = true
 			} else if own.refusedBy(columns, local) {
 				return true, false
 			}
-		case pk.Relname == v.Relation.Relname:
-			// It may be the table itself, or another of its name.
-			uncertain = true
 		default:
 			if def, ok := s.madeDef(pk); ok {
 				if def.refusedBy(columns, local) {
@@ -1552,6 +1615,40 @@ func (s *scan) referencesRefused(v *ast.CreateStmt) (refused, uncertain bool) {
 	return false, uncertain
 }
 
+// homeOf returns the schema a name means for a table CREATE TABLE makes:
+// the one written, or the one the search path creates in.
+func (s *scan) homeOf(rv *ast.RangeVar) (string, bool) {
+	if rv.Schemaname != "" {
+		return rv.Schemaname, true
+	}
+	return s.creationSchema(rv)
+}
+
+// checksRefused reports whether a CHECK constraint CREATE TABLE declares
+// names a column the table does not have, when the statement says all its
+// columns.
+func checksRefused(v *ast.CreateStmt) bool {
+	own, _, complete := defOf(v)
+	if !complete || v.TableElts == nil {
+		return false
+	}
+	for _, item := range v.TableElts.Items {
+		var cs []*ast.Constraint
+		switch e := item.(type) {
+		case *ast.ColumnDef:
+			cs = constraintsOf(e.Constraints)
+		case *ast.Constraint:
+			cs = []*ast.Constraint{e}
+		}
+		for _, c := range cs {
+			if c.Contype == ast.CONSTR_CHECK && slices.ContainsFunc(columnsIn(c.RawExpr), func(column string) bool { return !own.columns[column] }) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // madeDef returns the definition of a table a name certainly means that
 // the change created, said all of, and has not altered.
 func (s *scan) madeDef(rv *ast.RangeVar) (*tableDef, bool) {
@@ -1567,6 +1664,18 @@ func (s *scan) madeDef(rv *ast.RangeVar) (*tableDef, bool) {
 func (s *scan) madeHere(rv *ast.RangeVar) bool {
 	_, ok := s.madeAt(rv)
 	return ok
+}
+
+// madeIn returns the schema of a relation the change created that a name
+// certainly means.
+func (s *scan) madeIn(rv *ast.RangeVar) (string, bool) {
+	if _, ok := s.madeAt(rv); !ok {
+		return "", false
+	}
+	if rv.Schemaname != "" {
+		return rv.Schemaname, true
+	}
+	return s.creationSchema(rv)
 }
 
 // madeAt returns what the change created under a name, in the schema
@@ -2164,6 +2273,10 @@ func (s *scan) rename(v *ast.RenameStmt) {
 		schema, _, resolved := s.lookup(v.Relation)
 		// A name its schema holds is refused.
 		if resolved && s.nameTaken(schema, v.Newname) {
+			s.stop()
+			return
+		}
+		if home, ok := s.madeIn(v.Relation); ok && (s.nameTaken(home, v.Newname) || s.madeHere(&ast.RangeVar{Schemaname: home, Relname: v.Newname})) {
 			s.stop()
 			return
 		}
@@ -2780,7 +2893,14 @@ func (s *scan) dropsWrongKind(v *ast.DropStmt) bool {
 			rv.Schemaname = parts[0]
 		}
 		schema, relKind, ok := s.lookup(rv)
-		if !ok || relKind == kindAmbiguous {
+		if !ok {
+			// A relation the change created has the kind it was made as.
+			if c, made := s.madeAt(rv); made && !dropKindMatches(kind, c.kind) {
+				return true
+			}
+			continue
+		}
+		if relKind == kindAmbiguous {
 			continue
 		}
 		if !dropKindMatches(kind, relKind) {

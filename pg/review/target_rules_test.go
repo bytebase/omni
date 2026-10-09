@@ -422,6 +422,11 @@ func TestDisallowDropConstraint(t *testing.T) {
 			targets: one,
 		},
 		{
+			name:    "a drop of a statement that may not run does not free what it drops",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_p_fk, DROP CONSTRAINT nope;\nALTER TABLE p DROP CONSTRAINT p_pkey;",
+			targets: one,
+		},
+		{
 			name:    "ADD CONSTRAINT USING INDEX of a missing index refuses the statement",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT replacement UNIQUE USING INDEX missing_idx;",
 			targets: one,
@@ -1773,6 +1778,75 @@ func TestRequirePrimaryKey(t *testing.T) {
 			sql:     "ALTER TABLE k RENAME COLUMN id TO x;\nALTER TABLE k DROP COLUMN x;",
 			targets: []review.Target{{Schema: database("public", schema("public", withPrimaryKey(table("k", "id integer", "v integer"), "k_pkey", "id")))}},
 			want:    []targetFinding{{1, "DROP COLUMN x", "removes the primary key of k, and the change adds none back", []int{0}}},
+		},
+		{
+			name:    "a mixed ALTER with a subcommand certain to fail is refused",
+			sql:     "ALTER TABLE t DROP CONSTRAINT nope, ADD COLUMN id int;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE INDEX on a relation the target lacks is refused",
+			sql:     "CREATE INDEX i ON public.missing (id);\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE INDEX of a name the schema holds is refused",
+			sql:     "CREATE INDEX nokey ON t (n);\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE INDEX IF NOT EXISTS of a name the schema holds does nothing",
+			sql:     "CREATE INDEX IF NOT EXISTS nokey ON t (n);\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE TYPE of a table's name is refused",
+			sql:     "CREATE TYPE public.nokey AS ENUM ('x');\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TYPE AS of a table's name is refused",
+			sql:     "CREATE TYPE public.nokey AS (a int);\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a foreign key to the table itself, qualified",
+			sql:     "CREATE TABLE n (id int UNIQUE, parent int REFERENCES public.n (id));",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE n (id int UNIQUE, parent int REFERENCES public.n (id))", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a rename of a table the change made to a taken name is refused",
+			sql:     "CREATE TABLE public.x (id int PRIMARY KEY);\nALTER TABLE public.x RENAME TO nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "DROP TABLE of a view the change made is refused",
+			sql:     "CREATE VIEW public.v AS SELECT 1;\nDROP TABLE public.v;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a second CREATE SCHEMA is refused",
+			sql:     "CREATE SCHEMA z;\nCREATE SCHEMA z;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a second CREATE SCHEMA IF NOT EXISTS does nothing",
+			sql:     "CREATE SCHEMA z;\nCREATE SCHEMA IF NOT EXISTS z;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE TABLE with a check on a column it lacks is refused",
+			sql:     "CREATE TABLE x (a int CHECK (missing > 0));\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE TABLE with a check on its column",
+			sql:     "CREATE TABLE x (a int CHECK (a > 0));",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE x (a int CHECK (a > 0))", "creates table x without a primary key", []int{0}}},
 		},
 		{
 			name: "a cascade does not go past a view the change replaced",

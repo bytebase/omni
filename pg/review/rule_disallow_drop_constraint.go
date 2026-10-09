@@ -1,6 +1,7 @@
 package review
 
 import (
+	"maps"
 	"slices"
 	"strings"
 
@@ -71,6 +72,9 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 	// refuse withholds the statement's findings without ending the scan.
 	var out droppedKeys
 	withhold := false
+	// What the statement records as dropped stays tentative until it is
+	// known to run.
+	prior := maps.Clone(s.dropped)
 	// droppedColumns names the dropped columns as the statement does, and
 	// droppedOrigins as the synced table does, "" for one the scan cannot
 	// follow there.
@@ -156,20 +160,33 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 			}
 		}
 	}
-	if droppedAColumn {
-		s.unsettled[[2]string{schema, name}] = true
-		for column := range droppedColumns {
-			s.setColumn(schema, name, column, false, false)
-		}
-	}
 	withhold = withhold || out.uncertain
 	if knownBefore && isTable {
 		refused, uncertain := s.refuses(before, droppedColumns, droppedOrigins, droppedNames, others)
-		if refused && !withhold {
+		// A subcommand certain to fail fails the statement, whatever its
+		// drops do.
+		if refused {
 			s.stop()
 			return
 		}
-		withhold = withhold || refused || uncertain
+		withhold = withhold || uncertain
+	}
+	if withhold {
+		// The constraints the statement drops may still be there.
+		for key := range s.dropped {
+			if !prior[key] {
+				delete(s.dropped, key)
+			}
+		}
+	}
+	if droppedAColumn {
+		s.unsettled[[2]string{schema, name}] = true
+		// Columns a statement that may not run drops may still be there.
+		if !withhold {
+			for column := range droppedColumns {
+				s.setColumn(schema, name, column, false, false)
+			}
+		}
 	}
 	for _, name := range out.freed {
 		// What a statement that may not run drops may still be there.
