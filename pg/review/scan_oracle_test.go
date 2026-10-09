@@ -33,6 +33,10 @@ CREATE TABLE e (id integer PRIMARY KEY, m mood CONSTRAINT e_m_check CHECK (m <> 
 CREATE TABLE ek (m mood PRIMARY KEY);
 CREATE INDEX t_n_idx ON t (n);
 CREATE VIEW tv AS SELECT code FROM t;
+CREATE TABLE ip (a integer CONSTRAINT ip_a_check CHECK (a > 0));
+CREATE TABLE ic (b integer) INHERITS (ip);
+CREATE TABLE cvt (a integer);
+CREATE VIEW cv AS SELECT count(*) AS c FROM cvt;
 `
 
 // TestScanRulesAgainstPostgres runs each change on PostgreSQL, statement
@@ -303,6 +307,9 @@ func TestScanRulesAgainstPostgres(t *testing.T) {
 		{"CREATE INDEX on a column the table lacks", "CREATE INDEX i ON t (missing);\nCREATE TABLE n (id int);", true},
 		{"DROP FUNCTION by a name several routines have", "CREATE FUNCTION g(integer) RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE FUNCTION g(text) RETURNS int LANGUAGE sql AS 'SELECT 1';\nDROP FUNCTION g;\nCREATE TABLE n (id int);", true},
 		{"ALTER TABLE IF EXISTS of a table the target lacks", "ALTER TABLE IF EXISTS public.missing ADD CONSTRAINT fk FOREIGN KEY (x) REFERENCES public.t (id);\nALTER TABLE public.t DROP CONSTRAINT t_code_key;", true},
+		{"DROP CONSTRAINT of an inherited check", "ALTER TABLE ic DROP CONSTRAINT ip_a_check;", true},
+		{"DROP TABLE a view reads without naming a column", "DROP TABLE cvt;\nCREATE TABLE n (id int);", true},
+		{"a cascade takes a view reading a table without naming a column", "DROP TABLE cvt CASCADE;\nCREATE TABLE IF NOT EXISTS cv (id int);", true},
 		{"quoted names", "ALTER TABLE \"Quoted\" DROP CONSTRAINT \"Quoted_pkey\";\nCREATE TABLE \"New\" (\"Id\" int);", true},
 		{"new tables", "CREATE TABLE n (id int);\nCREATE TABLE k (id int PRIMARY KEY);\nCREATE TABLE k2 (a int, b int, CONSTRAINT k2_pk PRIMARY KEY (a, b));\nCREATE UNLOGGED TABLE ul (a int);\nCREATE TABLE \"Mixed\" (a int);", true},
 		{"keys added later", "CREATE TABLE n (id int);\nALTER TABLE n RENAME TO m;\nALTER TABLE m ADD PRIMARY KEY (id);\nCREATE TABLE o (id int NOT NULL);\nCREATE UNIQUE INDEX o_id ON o (id);\nALTER TABLE o ADD CONSTRAINT o_pkey PRIMARY KEY USING INDEX o_id;\nCREATE TABLE q (id int);\nALTER TABLE q ADD COLUMN k serial PRIMARY KEY;", true},
@@ -470,11 +477,11 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		schemas[r.schema].Tables = append(schemas[r.schema].Tables, r.table)
 		return nil
 	})
-	query(`SELECT n.nspname, c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+	query(`SELECT n.nspname, c.relname, pg_get_viewdef(c.oid) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
 		WHERE c.relkind = 'v' AND n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema' ORDER BY 1, 2`, nil, func(rows *sql.Rows) error {
 		var schema string
 		v := &metadata.ViewMetadata{}
-		if err := rows.Scan(&schema, &v.Name); err != nil {
+		if err := rows.Scan(&schema, &v.Name, &v.Definition); err != nil {
 			return err
 		}
 		schemas[schema].Views = append(schemas[schema].Views, v)

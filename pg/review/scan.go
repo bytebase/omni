@@ -3135,6 +3135,7 @@ func (s *scan) cascadeViews(certain, maybe []tableRef) {
 			} else {
 				maybe = append(maybe, s.index.readers[view]...)
 			}
+			maybe = append(maybe, s.index.mayRead[view]...)
 			continue
 		}
 		view := maybe[0]
@@ -3144,7 +3145,7 @@ func (s *scan) cascadeViews(certain, maybe []tableRef) {
 		}
 		seen[view] = true
 		s.touchName(view.schema, view.table)
-		maybe = append(maybe, s.index.readers[view]...)
+		maybe = append(append(maybe, s.index.readers[view]...), s.index.mayRead[view]...)
 	}
 }
 
@@ -3337,7 +3338,11 @@ func (s *scan) dropRefused(v *ast.DropStmt) bool {
 				return true
 			}
 		}
-		for _, view := range s.index.readers[t] {
+		// A view whose definition the scan cannot read may read anything.
+		if s.index.opaqueViews {
+			return true
+		}
+		for _, view := range append(slices.Clone(s.index.readers[t]), s.index.mayRead[t]...) {
 			if s.viewHolds(view) && !slices.Contains(dropped, view) {
 				return true
 			}
@@ -3403,13 +3408,15 @@ func (s *scan) dropDependents(rv *ast.RangeVar, schema string) {
 		return
 	}
 	if schema != "" {
-		s.cascadeViews(s.index.readers[tableRef{schema, rv.Relname}], nil)
+		t := tableRef{schema, rv.Relname}
+		s.cascadeViews(s.index.readers[t], s.index.mayRead[t])
 		return
 	}
 	var maybe []tableRef
 	for name := range s.index.schemas {
 		if rv.Schemaname == "" || rv.Schemaname == name {
-			maybe = append(maybe, s.index.readers[tableRef{name, rv.Relname}]...)
+			t := tableRef{name, rv.Relname}
+			maybe = append(append(maybe, s.index.readers[t]...), s.index.mayRead[t]...)
 		}
 	}
 	s.cascadeViews(nil, maybe)

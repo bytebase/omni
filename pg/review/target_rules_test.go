@@ -106,6 +106,24 @@ func withSignature(db *metadata.DatabaseSchemaMetadata, name, signature string) 
 	return db
 }
 
+// withCountView is a database with table base and view v of a definition.
+func withCountView(definition string) *metadata.DatabaseSchemaMetadata {
+	return database("public", &metadata.SchemaMetadata{
+		Name:   "public",
+		Tables: []*metadata.TableMetadata{table("base", "id integer")},
+		Views:  []*metadata.ViewMetadata{{Name: "v", Definition: definition}},
+	})
+}
+
+// withInheritedCheck is a database with par(a), checked, and ch(a, b),
+// which may inherit par's check.
+func withInheritedCheck() *metadata.DatabaseSchemaMetadata {
+	par := withCheck(withCheck(table("par", "a integer", "b integer"), "par_a_check", "(a > 0)"), "par_b_check", "(b > 0)")
+	par.Columns = par.Columns[:1]
+	ch := withCheck(table("ch", "a integer", "b integer"), "par_a_check", "(a > 0)")
+	return database("public", schema("public", par, ch))
+}
+
 func withView(db *metadata.DatabaseSchemaMetadata, schema, view string) *metadata.DatabaseSchemaMetadata {
 	for _, s := range db.Schemas {
 		if s.Name == schema {
@@ -443,6 +461,17 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:     "ALTER TABLE IF EXISTS public.missing ADD CONSTRAINT fk FOREIGN KEY (x) REFERENCES public.t (id);\nALTER TABLE public.t DROP CONSTRAINT t_code_key;",
 			targets: one,
 			want:    []targetFinding{{1, "DROP CONSTRAINT t_code_key", "drops unique constraint t_code_key of public.t", []int{0}}},
+		},
+		{
+			name:    "a check constraint a possible parent has too may be inherited",
+			sql:     "ALTER TABLE ch DROP CONSTRAINT par_a_check;",
+			targets: []review.Target{{Schema: withInheritedCheck()}},
+		},
+		{
+			name:    "a check constraint no possible parent has",
+			sql:     "ALTER TABLE par DROP CONSTRAINT par_b_check;",
+			targets: []review.Target{{Schema: withInheritedCheck()}},
+			want:    []targetFinding{{0, "DROP CONSTRAINT par_b_check", "drops check constraint par_b_check of par", []int{0}}},
 		},
 		{
 			name:    "ADD CONSTRAINT USING INDEX of a missing index refuses the statement",
@@ -2052,6 +2081,22 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "DROP FUNCTION by a name several routines have is refused",
 			sql:     "DROP FUNCTION public.f;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withSignature(withSignature(shop(), "f", "f(a integer)"), "f", "f(text)"), SessionUser: "alice"}},
+		},
+		{
+			name:    "a view reading a table without naming a column holds its drop",
+			sql:     "DROP TABLE base;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withCountView("SELECT count(*) AS c FROM base")}},
+		},
+		{
+			name:    "a cascade takes a view reading a table without naming a column",
+			sql:     "DROP TABLE base CASCADE;\nCREATE TABLE IF NOT EXISTS v (id int);",
+			targets: []review.Target{{Schema: withCountView("SELECT count(*) AS c FROM base")}},
+			want:    []targetFinding{{1, "CREATE TABLE IF NOT EXISTS v (id int)", "creates table v without a primary key", []int{0}}},
+		},
+		{
+			name:    "a view whose definition the scan cannot read holds every drop",
+			sql:     "DROP TABLE base;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withCountView("not sql at all")}},
 		},
 		{
 			name: "a cascade does not go past a view the change replaced",

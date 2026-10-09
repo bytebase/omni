@@ -335,6 +335,13 @@ func (s *scan) dropConstraint(st *statement, v *ast.AlterTableStmt, cmd *ast.Alt
 		}
 		return false
 	}
+	// A check constraint a table that may be its parent has too, under
+	// the name and with the expression, may be inherited, which the server
+	// does not drop from the child.
+	if con.kind == "check constraint" && s.index.mayInheritCheck(t, cmd.Name) {
+		out.uncertain = true
+		return false
+	}
 	if !cascade && (con.kind == "primary key" || con.kind == "unique constraint") {
 		// When the key's columns cannot be read, any foreign key on the
 		// table may reference it, and so may one the change added.
@@ -470,7 +477,7 @@ func (s *scan) dropReaders(t tableRef, known bool, rv *ast.RangeVar, column stri
 	var certain, maybe []tableRef
 	if known {
 		certain = slices.Clone(s.index.readsColumn[columnRef{t.schema, t.table, column}])
-		for _, view := range s.index.readers[t] {
+		for _, view := range append(slices.Clone(s.index.readers[t]), s.index.mayRead[t]...) {
 			if !slices.Contains(certain, view) {
 				maybe = append(maybe, view)
 			}
@@ -478,7 +485,8 @@ func (s *scan) dropReaders(t tableRef, known bool, rv *ast.RangeVar, column stri
 	} else {
 		for schema := range s.index.schemas {
 			if rv.Schemaname == "" || rv.Schemaname == schema {
-				maybe = append(maybe, s.index.readers[tableRef{schema, rv.Relname}]...)
+				t := tableRef{schema, rv.Relname}
+				maybe = append(append(maybe, s.index.readers[t]...), s.index.mayRead[t]...)
 			}
 		}
 	}

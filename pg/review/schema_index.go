@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/pg/ast"
 )
 
 // schemaIndex is a target's synced schema arranged for the questions the
@@ -20,6 +21,11 @@ type schemaIndex struct {
 	// it, and readsColumn a column to the ones that read it.
 	readers     map[tableRef][]tableRef
 	readsColumn map[columnRef][]tableRef
+	// mayRead maps a relation to the views whose definition may read it
+	// under a name several schemas have, and opaqueViews marks a view
+	// whose definition the scan cannot read, which may read any.
+	mayRead     map[tableRef][]tableRef
+	opaqueViews bool
 	// returnedBy maps a relation to the functions, by (schema, name), that
 	// return its row type, and functions counts the functions and
 	// procedures of each (schema, name).
@@ -93,6 +99,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		schemas:     make(map[string]*namespace),
 		readers:     make(map[tableRef][]tableRef),
 		readsColumn: make(map[columnRef][]tableRef),
+		mayRead:     make(map[tableRef][]tableRef),
 		returnedBy:  make(map[tableRef][]tableRef),
 		functions:   make(map[tableRef]int),
 
@@ -186,7 +193,135 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 			}
 		}
 	}
+	// A view may read a relation without naming a column of it, which the
+	// snapshot's column dependencies leave out; its definition names it.
+	path := parseSearchPath(db.GetSearchPath())
+	for _, s := range db.GetSchemas() {
+		for _, v := range s.GetViews() {
+			idx.readersIn(tableRef{s.GetName(), v.GetName()}, v.GetDefinition(), path)
+		}
+		for _, v := range s.GetMaterializedViews() {
+			idx.readersIn(tableRef{s.GetName(), v.GetName()}, v.GetDefinition(), path)
+		}
+	}
 	return idx
+}
+
+// readersIn records the relations a synced view's definition names, CTE
+// names aside. One the definition qualifies, the only one of its name, or
+// the one the synced search path finds first the view certainly reads:
+// the server writes a name unqualified only when the search path finds
+// it. Otherwise it may read each relation of the name.
+//
+// bytebase: backend/plugin/db/pg/sync.go — getViewDependencies keeps only
+// column dependencies (attnum > 0).
+func (idx *schemaIndex) readersIn(view tableRef, definition string, path []string) {
+	if strings.TrimSpace(definition) == "" {
+		return
+	}
+	stmts, failed := parse(definition, statementRanges(definition))
+	if failed != nil || len(stmts) != 1 {
+		idx.opaqueViews = true
+		return
+	}
+	query := stmts[0].node
+	if v, ok := query.(*ast.ViewStmt); ok {
+		query = v.Query
+	}
+	relationsIn(query, nil, func(rv *ast.RangeVar) {
+		var candidates []tableRef
+		for name, ns := range idx.schemas {
+			if _, ok := ns.relations[rv.Relname]; ok && (rv.Schemaname == "" || rv.Schemaname == name) {
+				candidates = append(candidates, tableRef{name, rv.Relname})
+			}
+		}
+		if len(candidates) > 1 && rv.Schemaname == "" {
+			if first, ok := idx.firstOnPath(path, rv.Relname); ok {
+				candidates = []tableRef{first}
+			}
+		}
+		if len(candidates) == 1 {
+			if !slices.Contains(idx.readers[candidates[0]], view) {
+				idx.readers[candidates[0]] = append(idx.readers[candidates[0]], view)
+			}
+			return
+		}
+		for _, c := range candidates {
+			idx.mayRead[c] = append(idx.mayRead[c], view)
+		}
+	})
+}
+
+// firstOnPath returns the relation of a name the search path finds first,
+// when no "$user" entry before it may name another schema that has one.
+func (idx *schemaIndex) firstOnPath(path []string, name string) (tableRef, bool) {
+	for i, schema := range path {
+		if schema == "$user" {
+			continue
+		}
+		ns := idx.schemas[schema]
+		if ns == nil {
+			continue
+		}
+		if _, ok := ns.relations[name]; !ok {
+			continue
+		}
+		if slices.Contains(path[:i], "$user") {
+			for other, ons := range idx.schemas {
+				if _, ok := ons.relations[name]; ok && other != schema && !slices.Contains(path, other) {
+					return tableRef{}, false
+				}
+			}
+		}
+		return tableRef{schema, name}, true
+	}
+	return tableRef{}, false
+}
+
+// mayInheritCheck reports whether a synced table's check constraint may be
+// inherited: another table that may be its parent has a check constraint
+// of that name and expression. The snapshot records no inheritance but
+// partitioning, and a child cannot drop what it inherits.
+func (idx *schemaIndex) mayInheritCheck(t tableRef, name string) bool {
+	expr := ""
+	for _, c := range idx.schemas[t.schema].tables[t.table].GetCheckConstraints() {
+		if c.GetName() == name {
+			expr = c.GetExpression()
+		}
+	}
+	return slices.ContainsFunc(idx.parentsOf(t), func(p *metadata.TableMetadata) bool {
+		return slices.ContainsFunc(p.GetCheckConstraints(), func(c *metadata.CheckConstraintMetadata) bool {
+			return c.GetName() == name && c.GetExpression() == expr
+		})
+	})
+}
+
+// parentsOf returns the synced tables a table may inherit from: each
+// other table whose columns, of the same names and types, are all its own.
+func (idx *schemaIndex) parentsOf(t tableRef) []*metadata.TableMetadata {
+	table := idx.schemas[t.schema].tables[t.table]
+	if table == nil {
+		return nil
+	}
+	types := make(map[string]string)
+	for _, c := range table.GetColumns() {
+		types[c.GetName()] = c.GetType()
+	}
+	var parents []*metadata.TableMetadata
+	for name, ns := range idx.schemas {
+		for tn, p := range ns.tables {
+			if name == t.schema && tn == t.table || len(p.GetColumns()) == 0 {
+				continue
+			}
+			if !slices.ContainsFunc(p.GetColumns(), func(c *metadata.ColumnMetadata) bool {
+				ty, ok := types[c.GetName()]
+				return !ok || ty != c.GetType()
+			}) {
+				parents = append(parents, p)
+			}
+		}
+	}
+	return parents
 }
 
 // syncedSignature reads a synced routine's signature, the name and the
