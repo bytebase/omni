@@ -621,13 +621,17 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedConstraints map[string
 		}
 	}
 	for _, c := range constraints {
-		// A key or foreign key names columns the table must have.
+		// A key or foreign key names columns the table must have, and a
+		// check names nothing but its columns.
 		for _, list := range []*ast.List{c.Keys, c.FkAttrs} {
 			for _, column := range nameParts(list) {
 				if !has(column) && !addedColumns[column] {
 					return true, false
 				}
 			}
+		}
+		if c.Contype == ast.CONSTR_CHECK && slices.ContainsFunc(columnsIn(c.RawExpr), func(column string) bool { return !has(column) && !addedColumns[column] }) {
+			return true, false
 		}
 		if c.Conname != "" {
 			if uses(c.Conname) || addedNames[c.Conname] {
@@ -810,6 +814,21 @@ func (s *scan) indexNameTaken(t tableRef, name string, droppedColumns, droppedCo
 		}
 	}
 	return true, true
+}
+
+// columnsIn returns the column names an expression refers to without a
+// qualifier.
+func columnsIn(expr ast.Node) []string {
+	var out []string
+	ast.Inspect(expr, func(n ast.Node) bool {
+		if ref, ok := n.(*ast.ColumnRef); ok && ref.Fields != nil && len(ref.Fields.Items) == 1 {
+			if name, ok := ref.Fields.Items[0].(*ast.String); ok {
+				out = append(out, name.Str)
+			}
+		}
+		return true
+	})
+	return out
 }
 
 // hasDuplicate reports whether a list names something twice.

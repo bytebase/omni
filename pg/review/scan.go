@@ -562,6 +562,28 @@ func createdIn(n ast.Node) string {
 	return ""
 }
 
+// createAs follows CREATE TABLE AS, CREATE MATERIALIZED VIEW, and SELECT
+// INTO, which make a relation from a query. One whose name is taken, or
+// whose query reads a relation the target lacks, is refused, and under IF
+// NOT EXISTS of a taken name does nothing.
+func (s *scan) createAs(rel *ast.RangeVar, ifNotExists bool, query ast.Node, matview bool) {
+	if rel == nil {
+		return
+	}
+	taken := s.existsWhereCreated(rel) || s.madeHere(rel)
+	switch {
+	case s.schemaMissing(rel) || s.typeExists(rel) || s.readsMissing(query) || taken && !ifNotExists:
+		s.stop()
+		return
+	case taken:
+		return
+	}
+	s.touch(rel)
+	if matview {
+		s.reads(rel, query)
+	}
+}
+
 // isProcedure reports whether CREATE FUNCTION is CREATE PROCEDURE, which
 // the parser marks with an option.
 func isProcedure(v *ast.CreateFunctionStmt) bool {
@@ -595,10 +617,7 @@ func (s *scan) statement(st *statement) {
 		s.touch(v.Base.Relation)
 	case *ast.CreateTableAsStmt:
 		if v.Into != nil {
-			s.touch(v.Into.Rel)
-		}
-		if v.Objtype == ast.OBJECT_MATVIEW && v.Into != nil {
-			s.reads(v.Into.Rel, v.Query)
+			s.createAs(v.Into.Rel, v.IfNotExists, v.Query, v.Objtype == ast.OBJECT_MATVIEW)
 		}
 	case *ast.ViewStmt:
 		// CREATE VIEW of a name its schema holds, or OR REPLACE of a
@@ -624,6 +643,11 @@ func (s *scan) statement(st *statement) {
 		}
 		s.reads(v.View, v.Query)
 	case *ast.CreateFunctionStmt:
+		// A SQL-standard body is resolved when the routine is created.
+		if v.SqlBody != nil && s.readsMissing(v.SqlBody) {
+			s.stop()
+			return
+		}
 		s.returns(v)
 	case *ast.AlterSeqStmt:
 		if v.Sequence != nil && v.Options != nil && slices.ContainsFunc(v.Options.Items, func(n ast.Node) bool {
@@ -679,7 +703,9 @@ func (s *scan) statement(st *statement) {
 	case *ast.SelectStmt:
 		switch {
 		case v.IntoClause != nil:
-			s.touch(v.IntoClause.Rel)
+			q := *v
+			q.IntoClause = nil
+			s.createAs(v.IntoClause.Rel, false, &q, false)
 		case selectsInto(v):
 			s.stop()
 		default:
@@ -694,10 +720,7 @@ func (s *scan) statement(st *statement) {
 		switch q := v.Query.(type) {
 		case *ast.CreateTableAsStmt:
 			if q.Into != nil {
-				s.touch(q.Into.Rel)
-				if q.Objtype == ast.OBJECT_MATVIEW {
-					s.reads(q.Into.Rel, q.Query)
-				}
+				s.createAs(q.Into.Rel, q.IfNotExists, q.Query, q.Objtype == ast.OBJECT_MATVIEW)
 			}
 		case *ast.SelectStmt:
 			if q.IntoClause != nil || selectsInto(q) {
@@ -1109,7 +1132,14 @@ func argSignature(args *ast.List) string {
 	if args != nil {
 		for _, item := range args.Items {
 			if t, ok := item.(*ast.TypeName); ok {
-				types = append(types, strings.Join(nameParts(t.Names), "."))
+				name := strings.Join(nameParts(t.Names), ".")
+				if t.PctType {
+					name += "%TYPE"
+				}
+				if t.ArrayBounds != nil && len(t.ArrayBounds.Items) > 0 {
+					name += "[]"
+				}
+				types = append(types, name)
 			} else {
 				types = append(types, "?")
 			}
@@ -2136,6 +2166,10 @@ func (s *scan) rename(v *ast.RenameStmt) {
 			s.touchName(schema, v.Newname)
 		}
 	case v.RenameType == ast.OBJECT_TABCONSTRAINT && v.Relation != nil:
+		if t, ok := s.table(v.Relation); ok && s.renameConstraintRefused(t, v.Subname, v.Newname) {
+			s.stop()
+			return
+		}
 		schema := s.schemaOf(v.Relation)
 		s.constraints[[3]string{schema, v.Relation.Relname, v.Subname}] = true
 		s.constraints[[3]string{schema, v.Relation.Relname, v.Newname}] = true
@@ -2153,6 +2187,17 @@ func (s *scan) rename(v *ast.RenameStmt) {
 	case v.RenameType == ast.OBJECT_SCHEMA:
 		s.stop()
 	}
+}
+
+// renameConstraintRefused reports whether RENAME CONSTRAINT of a known
+// table certainly fails: the table has a constraint of the new name, or
+// the constraint owns an index the new name of which its schema holds.
+func (s *scan) renameConstraintRefused(t tableRef, from, to string) bool {
+	table := s.index.schemas[t.schema].tables[t.table]
+	if _, ok := constraint(table, to); ok && s.constraintKnown(t, to) && !s.dropped[[3]string{t.schema, t.table, to}] {
+		return true
+	}
+	return s.index.constraintIndexes[tableRef{t.schema, from}] && s.constraintKnown(t, from) && s.nameTaken(t.schema, to)
 }
 
 // renamedRelation is a relation of the synced schema a rename or a move
@@ -2495,7 +2540,7 @@ func (s *scan) dropFunctions(v *ast.DropStmt) {
 		}
 		// A routine the target certainly lacks is not there to drop; IF
 		// EXISTS then drops nothing.
-		if s.routineMissing(fn) {
+		if s.routineMissing(fn, ast.ObjectType(v.RemoveType)) {
 			if !v.Missing_ok {
 				s.stop()
 				return
@@ -2570,19 +2615,27 @@ func (s *scan) syncedFunctions(fn tableRef) int {
 // that name, and the synced schema written, or every schema of a known
 // search path, has none. A name only the system catalogs have cannot be
 // dropped either.
-func (s *scan) routineMissing(fn tableRef) bool {
+func (s *scan) routineMissing(fn tableRef, kind ast.ObjectType) bool {
 	if s.index == nil || s.madeRoutines[fn.table] {
 		return false
 	}
+	// DROP FUNCTION refuses a procedure, and DROP PROCEDURE a function.
+	want := kindFunction | kindProcedure
+	switch kind {
+	case ast.OBJECT_FUNCTION:
+		want = kindFunction
+	case ast.OBJECT_PROCEDURE:
+		want = kindProcedure
+	}
 	if fn.schema != "" {
-		return s.index.schemas[fn.schema] != nil && !s.schemas[fn.schema] && !s.index.routineNames[fn]
+		return s.index.schemas[fn.schema] != nil && !s.schemas[fn.schema] && s.index.routineKinds[fn]&want == 0
 	}
 	path, ok := s.searchPath()
 	if !ok {
 		return false
 	}
 	for _, name := range path {
-		if s.schemas[name] || name == "information_schema" || s.index.routineNames[tableRef{name, fn.table}] {
+		if s.schemas[name] || name == "information_schema" || s.index.routineKinds[tableRef{name, fn.table}]&want != 0 {
 			return false
 		}
 	}
@@ -2843,6 +2896,10 @@ func (s *scan) dropsMissing(v *ast.DropStmt) bool {
 // missing reports whether the target certainly has no relation of that
 // name where the name resolves.
 func (s *scan) missing(rv *ast.RangeVar) bool {
+	// A resolved drop removed the name, and nothing used it since.
+	if rv.Schemaname != "" && s.freed[[2]string{rv.Schemaname, rv.Relname}] {
+		return true
+	}
 	if s.isTouched(rv) {
 		return false
 	}

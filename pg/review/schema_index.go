@@ -27,10 +27,10 @@ type schemaIndex struct {
 	functions  map[tableRef]int
 	// constraintIndexes marks the indexes a constraint owns.
 	constraintIndexes map[tableRef]bool
-	// extensions lists the installed extensions by name, and routineNames
-	// the (schema, name) of every function and procedure.
+	// extensions lists the installed extensions by name, and routineKinds
+	// the kinds of routine, function or procedure, each (schema, name) has.
 	extensions   map[string]bool
-	routineNames map[tableRef]bool
+	routineKinds map[tableRef]routineKind
 	// noArgs marks the functions, by (schema, name), whose signature takes
 	// no arguments.
 	noArgs map[tableRef]bool
@@ -93,7 +93,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 
 		constraintIndexes: make(map[tableRef]bool),
 		extensions:        make(map[string]bool),
-		routineNames:      make(map[tableRef]bool),
+		routineKinds:      make(map[tableRef]routineKind),
 		noArgs:            make(map[tableRef]bool),
 		ownedSequences:    make(map[columnRef][]string),
 	}
@@ -161,12 +161,12 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		ns.routines = len(s.GetFunctions()) + len(s.GetProcedures())
 		for _, p := range s.GetProcedures() {
 			fn := tableRef{s.GetName(), p.GetName()}
-			idx.routineNames[fn] = true
+			idx.routineKinds[fn] |= kindProcedure
 			idx.functions[fn]++
 		}
 		for _, f := range s.GetFunctions() {
 			fn := tableRef{s.GetName(), f.GetName()}
-			idx.routineNames[fn] = true
+			idx.routineKinds[fn] |= kindOf(f)
 			idx.functions[fn]++
 			if f.GetSignature() == f.GetName()+"()" {
 				idx.noArgs[fn] = true
@@ -178,6 +178,30 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		}
 	}
 	return idx
+}
+
+// routineKind is a set of kinds of routine.
+type routineKind int
+
+const (
+	kindFunction routineKind = 1 << iota
+	kindProcedure
+)
+
+// kindOf tells a synced routine's kind. Bytebase lists a PostgreSQL
+// procedure among the functions; its definition says which it is, and a
+// routine without one may be either.
+//
+// bytebase: backend/plugin/db/pg/sync.go — listFunctionQuery
+func kindOf(f *metadata.FunctionMetadata) routineKind {
+	def := strings.ToUpper(f.GetDefinition())
+	switch {
+	case def == "":
+		return kindFunction | kindProcedure
+	case strings.Contains(def, "CREATE OR REPLACE PROCEDURE"):
+		return kindProcedure
+	}
+	return kindFunction
 }
 
 // add records a name. A name the snapshot lists twice is not known to be
