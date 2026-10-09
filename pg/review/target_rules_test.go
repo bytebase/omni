@@ -175,7 +175,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 			targets: one,
 		},
 		{
-			name:    "dropping a missing constraint is refused",
+			name:    "dropping a constraint the snapshot lacks withholds the statement",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, DROP CONSTRAINT nope;",
 			targets: one,
 		},
@@ -330,6 +330,29 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "an event trigger on function DDL",
 			sql:     "CREATE FUNCTION g() RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER TABLE t DROP CONSTRAINT t_n_check;",
 			targets: []review.Target{{Schema: withEventTrigger(shop(), true, "CREATE FUNCTION"), SessionUser: "alice"}},
+		},
+		{
+			name:    "DROP COLUMN IF EXISTS of a missing column changes nothing",
+			sql:     "ALTER TABLE t DROP COLUMN IF EXISTS nope;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
+			targets: one,
+			want:    []targetFinding{{1, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+		},
+		{
+			name:    "a constraint the snapshot lacks does not end the scan",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_nn;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
+			targets: one,
+			want:    []targetFinding{{1, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+		},
+		{
+			name:    "a foreign key a cascade took is not there to drop",
+			sql:     "ALTER TABLE p DROP CONSTRAINT p_pkey CASCADE;\nALTER TABLE t DROP CONSTRAINT t_p_fk;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
+			targets: one,
+			want:    []targetFinding{{0, "DROP CONSTRAINT p_pkey CASCADE", "drops primary key p_pkey of p", []int{0}}},
+		},
+		{
+			name:    "an event trigger on SELECT INTO in a set operation",
+			sql:     "SELECT 1 AS a INTO x UNION SELECT 2;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
+			targets: []review.Target{{Schema: withEventTrigger(shop(), true, "SELECT INTO"), SessionUser: "alice"}},
 		},
 		{
 			name:    "a cascading drop of anything but a relation ends the scan",
@@ -802,6 +825,30 @@ func TestRequirePrimaryKey(t *testing.T) {
 			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
 		},
 		{
+			name:    "a new SQL-standard function body reading a table blocks its drop",
+			sql:     "CREATE FUNCTION g() RETURNS bigint LANGUAGE SQL RETURN (SELECT count(*) FROM nokey);\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name: "a cascading column drop takes the views of the column and their views",
+			sql:  "ALTER TABLE base DROP COLUMN note CASCADE;\nCREATE TABLE w (id int);\nCREATE TABLE IF NOT EXISTS other (id int);",
+			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{
+				Name:   "public",
+				Tables: []*metadata.TableMetadata{table("base", "id integer", "note text")},
+				Views: []*metadata.ViewMetadata{
+					{Name: "v", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "base", Column: "note"}}},
+					{Name: "w", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "v", Column: "note"}}},
+					{Name: "other", DependencyColumns: []*metadata.DependencyColumn{{Schema: "public", Table: "base", Column: "id"}}},
+				},
+			})}},
+			want: []targetFinding{{1, "CREATE TABLE w (id int)", "creates table w without a primary key", []int{0}}},
+		},
+		{
+			name:    "DROP of a name in another database is refused",
+			sql:     "DROP TABLE other.public.nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
 			name:    "a cascading drop of a parent may drop a child",
 			sql:     "CREATE TABLE child (x int) INHERITS (nokey);\nCREATE TABLE other (x int);\nDROP TABLE nokey CASCADE;",
 			targets: one,
@@ -1030,6 +1077,13 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: one,
 			want:    []targetFinding{{1, "UPDATE n SET id = 3 WHERE id = 1", "prior backup runs before the change, when n does not exist yet", []int{0}}},
+		},
+		{
+			name:    "EXPLAIN ANALYZE of CREATE TABLE AS",
+			sql:     "EXPLAIN ANALYZE CREATE TABLE n AS SELECT 1 AS id;\nUPDATE n SET id = 2 WHERE id = 1;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "UPDATE n SET id = 2 WHERE id = 1", "prior backup runs before the change, when n does not exist yet", []int{0}}},
 		},
 		{
 			name:    "a table the change recreates still exists when the backup runs",

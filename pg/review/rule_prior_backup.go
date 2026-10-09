@@ -165,6 +165,13 @@ func createdRelations(n ast.Node) []backupTable {
 		}
 		return out
 	}
+	// EXPLAIN ANALYZE runs the statement it explains.
+	if v, ok := n.(*ast.ExplainStmt); ok {
+		if explainAnalyzes(v) {
+			return createdRelations(v.Query)
+		}
+		return nil
+	}
 	if t, ok := createdRelation(n); ok {
 		return []backupTable{t}
 	}

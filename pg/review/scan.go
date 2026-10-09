@@ -246,7 +246,7 @@ func commandTag(n ast.Node) string {
 		}
 		return "CREATE TABLE AS"
 	case *ast.SelectStmt:
-		if v.IntoClause != nil {
+		if selectsInto(v) {
 			return "SELECT INTO"
 		}
 	case *ast.ViewStmt:
@@ -498,10 +498,12 @@ type newDependency struct {
 // CTE is visible to the query of its WITH clause and to the CTEs after it,
 // and, under WITH RECURSIVE, to every CTE of the clause.
 func (s *scan) reads(view *ast.RangeVar, query ast.Node) {
-	s.readsIn(view, query, nil)
+	s.dependsIn(&s.newReads, tableRef{view.Schemaname, view.Relname}, query, nil)
 }
 
-func (s *scan) readsIn(view *ast.RangeVar, n ast.Node, visible map[string]bool) {
+// dependsIn records, as dependencies of object, the relations a query or
+// SQL-standard routine body names, CTE names aside.
+func (s *scan) dependsIn(deps *[]newDependency, object tableRef, n ast.Node, visible map[string]bool) {
 	ast.Inspect(n, func(n ast.Node) bool {
 		if w, rest := splitWith(n); w != nil {
 			scope := make(map[string]bool, len(visible))
@@ -522,16 +524,16 @@ func (s *scan) readsIn(view *ast.RangeVar, n ast.Node, visible map[string]bool) 
 				}
 			}
 			for _, c := range ctes {
-				s.readsIn(view, c.Ctequery, scope)
+				s.dependsIn(deps, object, c.Ctequery, scope)
 				scope[c.Ctename] = true
 			}
-			s.readsIn(view, rest, scope)
+			s.dependsIn(deps, object, rest, scope)
 			return false
 		}
 		if rv, ok := n.(*ast.RangeVar); ok && !(rv.Schemaname == "" && visible[rv.Relname]) {
-			s.newReads = append(s.newReads, newDependency{
+			*deps = append(*deps, newDependency{
 				relation: tableRef{s.schemaOf(rv), rv.Relname},
-				object:   tableRef{view.Schemaname, view.Relname},
+				object:   object,
 				path:     s.pathVersion,
 			})
 		}
@@ -597,6 +599,11 @@ func (s *scan) returns(v *ast.CreateFunctionStmt) {
 				types = append(types, p.ArgType)
 			}
 		}
+	}
+	// A SQL-standard body is parsed at creation, and the server records
+	// the relations it names; a string body records nothing.
+	if v.SqlBody != nil {
+		s.dependsIn(&s.newReturns, object, v.SqlBody, nil)
 	}
 	for _, t := range types {
 		if t == nil {
@@ -1222,6 +1229,15 @@ func (s *scan) drop(v *ast.DropStmt) {
 	if !isRelationKind(kind) && kind != ast.OBJECT_TYPE || v.Objects == nil {
 		return
 	}
+	// A name in another database is refused.
+	for _, obj := range v.Objects.Items {
+		if parts := nameParts(listOf(obj)); len(parts) == 3 && (s.index == nil || parts[0] != s.index.database) {
+			if s.index != nil {
+				s.stop()
+			}
+			return
+		}
+	}
 	if !cascade && s.dropRefused(v) || !v.Missing_ok && s.dropsMissing(v) || s.dropsWrongKind(v) {
 		s.stop()
 		return
@@ -1371,6 +1387,18 @@ func (s *scan) dropsWrongKind(v *ast.DropStmt) bool {
 		}
 	}
 	return false
+}
+
+// freeView records that a cascade dropped a synced view. Its name is freed
+// only when the change has not touched it: a view it replaced may no
+// longer depend on what was dropped, and one it renamed is not under that
+// name.
+func (s *scan) freeView(view tableRef) {
+	if s.viewHolds(view) && !s.isTouched(&ast.RangeVar{Schemaname: view.schema, Relname: view.table}) {
+		s.free(view.schema, view.table)
+		return
+	}
+	s.touchName(view.schema, view.table)
 }
 
 // viewHolds reports whether a synced view may still read what the snapshot
@@ -1585,7 +1613,7 @@ func (s *scan) dropDependents(rv *ast.RangeVar, schema string) {
 			}
 			seen[view] = true
 			if schema != "" {
-				s.free(view.schema, view.table)
+				s.freeView(view)
 			} else {
 				s.touchName(view.schema, view.table)
 			}
@@ -1597,9 +1625,10 @@ func (s *scan) dropDependents(rv *ast.RangeVar, schema string) {
 // dropReferences records that foreign keys a cascading drop takes may be
 // gone: those referencing t when the scan resolved it (known), and those
 // referencing a table of that name, in the schema the SQL wrote if any,
-// otherwise. affected, when set, narrows them to the ones that depend on
-// what was dropped.
-func (s *scan) dropReferences(rv *ast.RangeVar, t tableRef, known bool, affected func(foreignKeyRef) bool) {
+// otherwise. affected, when set, narrows them to the ones that may depend
+// on what was dropped, and says which certainly do; those are recorded as
+// dropped.
+func (s *scan) dropReferences(rv *ast.RangeVar, t tableRef, known bool, affected func(foreignKeyRef) (maybe, certainly bool)) {
 	if s.index == nil {
 		return
 	}
@@ -1609,10 +1638,18 @@ func (s *scan) dropReferences(rv *ast.RangeVar, t tableRef, known bool, affected
 			continue
 		case !known && (fk.referenced.table != rv.Relname || rv.Schemaname != "" && fk.referenced.schema != rv.Schemaname):
 			continue
-		case affected != nil && !affected(fk):
+		}
+		maybe, certainly := true, false
+		if affected != nil {
+			maybe, certainly = affected(fk)
+		}
+		if !maybe {
 			continue
 		}
 		s.constraints[[3]string{fk.owner.schema, fk.owner.table, fk.name}] = true
+		if known && certainly {
+			s.dropped[[3]string{fk.owner.schema, fk.owner.table, fk.name}] = true
+		}
 	}
 }
 
