@@ -2,10 +2,15 @@
 // engine side of the contract in github.com/bytebase/omni/review.
 //
 // Review parses the SQL once, evaluates the rules that depend on the SQL
-// alone once, and reports every finding against every target. A syntax
-// error ends the review: the result then holds that one finding and
-// nothing else, because no other rule can be trusted on text the engine
-// could not parse.
+// alone once, and reports every finding against every target. The rules
+// that read a target check the target's synced schema directly, without
+// rebuilding it, and a finding equal across targets is reported once,
+// listing them all. A syntax error ends the review: the result then holds
+// that one finding and nothing else, because no other rule can be trusted
+// on text the engine could not parse.
+//
+// A rule reports only what it can establish. Where the SQL and the
+// target's schema leave the answer open, the rule reports nothing.
 package review
 
 import (
@@ -26,6 +31,9 @@ var Rules = []review.Rule{
 	review.DisallowDropObject,
 	review.DisallowTruncate,
 	review.DisallowRename,
+	review.PriorBackup,
+	review.DisallowDropConstraint,
+	review.RequirePrimaryKey,
 }
 
 // Review evaluates opts.Rules over sql for every target. See the contract
@@ -55,6 +63,9 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 	if on[review.OnlineMigration] {
 		checkOnlineMigration(opts.Change, r)
 	}
+	if on[review.PriorBackup] && opts.Change.PriorBackup {
+		checkPriorBackupSize(sql, opts.Change, r)
+	}
 	for i := range stmts {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -75,6 +86,14 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 		if on[review.DisallowRename] {
 			checkDisallowRename(s, r)
 		}
+	}
+	if backup, scans := targetWork(stmts, on, opts.Change); backup || scans {
+		findings, failures, err := reviewTargets(ctx, stmts, on, backup, scans, targets)
+		if err != nil {
+			return nil, err
+		}
+		r.findings = append(r.findings, findings...)
+		result.Failures = failures
 	}
 	result.Findings = r.sorted()
 	return result, nil
