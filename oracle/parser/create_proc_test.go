@@ -450,6 +450,38 @@ func TestParseCallSpec(t *testing.T) {
 			sql:  "CREATE FUNCTION f(p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS EXTERNAL NAME c_f LIBRARY lib;",
 			want: ast.CallSpec{Language: "C", External: true, Name: "C_F"},
 		},
+		// The superseded EXTERNAL form with its LANGUAGE and CALLING STANDARD
+		// clauses, in the orders Oracle 23ai compiles VALID.
+		{
+			name: "external language c then name and library",
+			sql:  "CREATE OR REPLACE PROCEDURE p AS EXTERNAL LANGUAGE C NAME \"c_p\" LIBRARY lib;",
+			want: ast.CallSpec{Language: "C", External: true, Name: "c_p"},
+		},
+		{
+			name: "external calling standard after name",
+			sql:  "CREATE OR REPLACE PROCEDURE p AS EXTERNAL LIBRARY lib NAME \"c_p\" CALLING STANDARD C;",
+			want: ast.CallSpec{Language: "C", External: true, Name: "c_p", CallingStandard: "C"},
+		},
+		{
+			name: "external calling standard pascal first",
+			sql:  "CREATE OR REPLACE PROCEDURE p AS EXTERNAL CALLING STANDARD PASCAL LIBRARY lib;",
+			want: ast.CallSpec{Language: "C", External: true, CallingStandard: "PASCAL"},
+		},
+		{
+			name: "external parameters before library",
+			sql:  "CREATE OR REPLACE PROCEDURE p(a IN BINARY_INTEGER) AS EXTERNAL PARAMETERS (a INT) LIBRARY lib;",
+			want: ast.CallSpec{Language: "C", External: true},
+		},
+		{
+			name: "external with context then name",
+			sql:  "CREATE OR REPLACE PROCEDURE p AS EXTERNAL LIBRARY lib WITH CONTEXT NAME \"c_p\";",
+			want: ast.CallSpec{Language: "C", External: true, Name: "c_p", WithContext: true},
+		},
+		{
+			name: "language c calling standard before library",
+			sql:  "CREATE OR REPLACE PROCEDURE p AS LANGUAGE C CALLING STANDARD C LIBRARY lib;",
+			want: ast.CallSpec{Language: "C", CallingStandard: "C"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -471,7 +503,8 @@ func TestParseCallSpec(t *testing.T) {
 				t.Fatal("CallSpec = nil")
 			}
 			if spec.Language != tt.want.Language || spec.External != tt.want.External ||
-				spec.Name != tt.want.Name || spec.WithContext != tt.want.WithContext {
+				spec.Name != tt.want.Name || spec.WithContext != tt.want.WithContext ||
+				spec.CallingStandard != tt.want.CallingStandard {
 				t.Fatalf("CallSpec = %+v, want %+v", *spec, tt.want)
 			}
 			if violations := CheckLocations(t, tt.sql); len(violations) > 0 {
@@ -555,6 +588,23 @@ func TestParseCallSpecRejects(t *testing.T) {
 		"CREATE FUNCTION f(p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C LIBRARY lib PARAMETERS ()",
 		"CREATE FUNCTION f(p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C LIBRARY lib WITH",
 		"CREATE FUNCTION f(p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C LIBRARY lib AGENT (p)",
+		// PLS-00103: LANGUAGE takes only C, CALLING STANDARD only C or PASCAL.
+		"CREATE PROCEDURE p AS EXTERNAL LIBRARY lib LANGUAGE PASCAL",
+		"CREATE PROCEDURE p AS EXTERNAL LIBRARY lib CALLING STANDARD",
+		"CREATE PROCEDURE p AS EXTERNAL LIBRARY lib CALLING STANDARD FORTRAN",
+		// PLS-00247: LIBRARY is required.
+		"CREATE PROCEDURE p AS EXTERNAL LANGUAGE C",
+		// PLS-00139, -00140, -00142 through -00145, -00171: each C clause at
+		// most once.
+		"CREATE PROCEDURE p AS EXTERNAL LIBRARY lib NAME \"a\" NAME \"b\"",
+		"CREATE PROCEDURE p AS LANGUAGE C NAME \"c\" LIBRARY lib AGENT IN (x) NAME \"d\"",
+		"CREATE PROCEDURE p AS EXTERNAL LIBRARY lib LIBRARY lib",
+		"CREATE PROCEDURE p(a IN BINARY_INTEGER) AS EXTERNAL LIBRARY lib PARAMETERS (a INT) PARAMETERS (a INT)",
+		"CREATE PROCEDURE p AS EXTERNAL LIBRARY lib LANGUAGE C LANGUAGE C",
+		"CREATE PROCEDURE p AS LANGUAGE C LIBRARY lib LANGUAGE C",
+		"CREATE PROCEDURE p AS EXTERNAL LIBRARY lib CALLING STANDARD C CALLING STANDARD C",
+		"CREATE PROCEDURE p AS EXTERNAL LIBRARY lib WITH CONTEXT WITH CONTEXT",
+		"CREATE PROCEDURE p(a IN BINARY_INTEGER) AS EXTERNAL LIBRARY lib AGENT IN (a) AGENT IN (a)",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {

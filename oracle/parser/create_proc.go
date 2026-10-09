@@ -791,25 +791,54 @@ func (p *Parser) parseSubprogramImplementation() (nodes.StmtNode, *nodes.CallSpe
 	return block, nil, nil
 }
 
-// isCallSpecStart reports whether the tokens after IS|AS open a call spec:
-// LANGUAGE JAVA, LANGUAGE C, or EXTERNAL then NAME or LIBRARY. A declaration
-// of a variable named LANGUAGE or EXTERNAL continues with its type instead.
+// isCallSpecStart reports whether the tokens after IS|AS open a call spec.
+// A declaration of a variable named LANGUAGE or EXTERNAL continues with its
+// type instead.
 func (p *Parser) isCallSpecStart() bool {
-	switch {
-	case p.isIdentLikeStr("LANGUAGE"):
-		next := p.peekNext()
+	return isCallSpecStartTokens(p.cur, p.peekNext())
+}
+
+// isCallSpecStartTokens reports whether tok and next, the two tokens after
+// IS|AS, open a call spec: LANGUAGE JAVA, LANGUAGE C, or EXTERNAL followed by
+// any of its clauses. The splitter and the parser share it so that both end
+// the unit at the same ';'.
+func isCallSpecStartTokens(tok, next Token) bool {
+	if tok.Type != tokIDENT {
+		return false
+	}
+	switch tok.Str {
+	case "LANGUAGE":
 		return next.Type == kwJAVA || (next.Type == tokIDENT && next.Str == "C")
-	case p.isIdentLikeStr("EXTERNAL"):
-		next := p.peekNext()
-		return next.Type == kwNAME || next.Type == kwLIBRARY
+	case "EXTERNAL":
+		return callSpecCClauseOf(next) != ""
 	}
 	return false
+}
+
+// callSpecCClauseOf names the C call spec clause tok starts, or "" when it
+// starts none.
+func callSpecCClauseOf(tok Token) string {
+	switch tok.Type {
+	case kwNAME:
+		return "NAME"
+	case kwLIBRARY:
+		return "LIBRARY"
+	case kwWITH:
+		return "WITH"
+	case tokIDENT:
+		switch tok.Str {
+		case "LANGUAGE", "CALLING", "AGENT", "PARAMETERS":
+			return tok.Str
+		}
+	}
+	return ""
 }
 
 // parseCallSpec parses a call_spec, which publishes a Java method or a C
 // function as the implementation of a procedure or function.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/19/lnpls/call-specification.html
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/19/adfns/external-procedures.html
 //
 //	call_spec ::= LANGUAGE { java_declaration | c_declaration }
 //	java_declaration ::= JAVA NAME string
@@ -818,11 +847,17 @@ func (p *Parser) isCallSpecStart() bool {
 //	    [ WITH CONTEXT ]
 //	    [ PARAMETERS ( external_parameter [, external_parameter ]... ) ]
 //
-// EXTERNAL, the older spelling of LANGUAGE C, is still accepted by Oracle.
+// EXTERNAL, the superseded spelling of LANGUAGE C, is still accepted, with
+// its own LANGUAGE C and CALLING STANDARD { C | PASCAL } clauses. Oracle 23ai
+// takes the C clauses of either form in any order, rejects a repeated one
+// (PLS-00139, -00140, -00142 through -00145, -00171), and requires LIBRARY
+// (PLS-00247).
+//
 // The ';' that ends the call spec is consumed, as parsePLSQLBlock consumes the
 // one after END; Oracle compiles the unit with PLS-00103 without it.
 func (p *Parser) parseCallSpec() (*nodes.CallSpec, error) {
 	spec := &nodes.CallSpec{Loc: nodes.Loc{Start: p.pos()}}
+	seen := make(map[string]bool)
 
 	if p.isIdentLikeStr("EXTERNAL") {
 		spec.Language = "C"
@@ -848,57 +883,62 @@ func (p *Parser) parseCallSpec() (*nodes.CallSpec, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		spec.Language = "C"
+		seen["LANGUAGE"] = true
 		p.advance() // consume C
 	}
 
-	// NAME and LIBRARY come in either order; LIBRARY is required.
 	var err error
-	if p.cur.Type == kwNAME {
-		p.advance() // consume NAME
-		if spec.Name, err = p.parseCallSpecCName(); err != nil {
-			return nil, err
-		}
-	}
-	if p.cur.Type != kwLIBRARY {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance() // consume LIBRARY
-	if spec.Library, err = p.parseObjectName(); err != nil {
-		return nil, err
-	}
-	if spec.Library == nil || spec.Library.Name == "" {
-		return nil, p.syntaxErrorAtCur()
-	}
-	if spec.Name == "" && p.cur.Type == kwNAME {
-		p.advance() // consume NAME
-		if spec.Name, err = p.parseCallSpecCName(); err != nil {
-			return nil, err
-		}
-	}
-
-	if p.isIdentLikeStr("AGENT") {
-		p.advance() // consume AGENT
-		if p.cur.Type != kwIN {
+	for clause := callSpecCClauseOf(p.cur); clause != ""; clause = callSpecCClauseOf(p.cur) {
+		if seen[clause] {
 			return nil, p.syntaxErrorAtCur()
 		}
-		p.advance() // consume IN
-		if spec.AgentIn, err = p.parseCallSpecWordList(); err != nil {
+		seen[clause] = true
+		p.advance() // consume the clause keyword
+		switch clause {
+		case "NAME":
+			spec.Name, err = p.parseCallSpecCName()
+		case "LIBRARY":
+			spec.Library, err = p.parseObjectName()
+			if err == nil && (spec.Library == nil || spec.Library.Name == "") {
+				err = p.syntaxErrorAtCur()
+			}
+		case "LANGUAGE":
+			// Only C follows LANGUAGE here (PLS-00103 for anything else).
+			if p.cur.Type != tokIDENT || p.cur.Str != "C" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume C
+		case "CALLING":
+			if !p.isIdentLikeStr("STANDARD") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume STANDARD
+			if p.cur.Type != tokIDENT || (p.cur.Str != "C" && p.cur.Str != "PASCAL") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			spec.CallingStandard = p.cur.Str
+			p.advance()
+		case "AGENT":
+			if p.cur.Type != kwIN {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume IN
+			spec.AgentIn, err = p.parseCallSpecWordList()
+		case "WITH":
+			if p.cur.Type != kwCONTEXT {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume CONTEXT
+			spec.WithContext = true
+		case "PARAMETERS":
+			spec.Parameters, err = p.parseCallSpecWordList()
+		}
+		if err != nil {
 			return nil, err
 		}
 	}
-	if p.cur.Type == kwWITH {
-		p.advance() // consume WITH
-		if p.cur.Type != kwCONTEXT {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance() // consume CONTEXT
-		spec.WithContext = true
-	}
-	if p.isIdentLikeStr("PARAMETERS") {
-		p.advance() // consume PARAMETERS
-		if spec.Parameters, err = p.parseCallSpecWordList(); err != nil {
-			return nil, err
-		}
+	if !seen["LIBRARY"] {
+		return nil, p.syntaxErrorAtCur()
 	}
 	return p.finishCallSpec(spec), nil
 }

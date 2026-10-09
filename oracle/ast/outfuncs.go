@@ -3339,6 +3339,9 @@ func writeCallSpec(sb *strings.Builder, n *CallSpec) {
 		sb.WriteString(" :parameters ")
 		writeNode(sb, n.Parameters)
 	}
+	if n.CallingStandard != "" {
+		sb.WriteString(fmt.Sprintf(" :callingStandard %q", n.CallingStandard))
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -5115,6 +5118,9 @@ func writePLSQLExecImmediate(sb *strings.Builder, n *PLSQLExecImmediate) {
 	if n.Using != nil {
 		sb.WriteString(" :using ")
 		writeNode(sb, n.Using)
+	}
+	if len(n.UsingModes) > 0 {
+		sb.WriteString(fmt.Sprintf(" :usingModes %q", n.UsingModes))
 	}
 	if n.ReturningInto != nil {
 		sb.WriteString(" :returningInto ")

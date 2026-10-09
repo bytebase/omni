@@ -237,6 +237,15 @@ func TestParseCreateSequenceOptions(t *testing.T) {
 			sql:  "CREATE SEQUENCE s NOSHARD",
 			want: func(s *ast.CreateSequenceStmt) bool { return s.NoShard },
 		},
+		// One EXTEND or NOEXTEND, after either clause, covers SCALE and SHARD.
+		{
+			sql:  "CREATE SEQUENCE s SCALE SHARD EXTEND",
+			want: func(s *ast.CreateSequenceStmt) bool { return s.Scale && s.Shard && s.ShardExtend && !s.ScaleExtend },
+		},
+		{
+			sql:  "CREATE SEQUENCE s SCALE NOEXTEND SHARD",
+			want: func(s *ast.CreateSequenceStmt) bool { return s.ScaleNoExtend && s.Shard && !s.ShardNoExtend },
+		},
 		{
 			sql:  "CREATE SEQUENCE IF NOT EXISTS s SHARING = NONE START WITH 1",
 			want: func(s *ast.CreateSequenceStmt) bool { return s.IfNotExists && s.Sharing == "NONE" },
@@ -277,6 +286,13 @@ func TestParseCreateSequenceRejects(t *testing.T) {
 		"CREATE SEQUENCE s SHARING = ALL",
 		"CREATE SEQUENCE s IF NOT EXISTS",
 		"CREATE SEQUENCE s KEEP 5",
+		// One EXTEND or NOEXTEND covers both SCALE and SHARD; writing it for
+		// each is a "duplicate or conflicting EXTEND clause" parsing error per
+		// the ALTER SEQUENCE reference. A non-sharded Oracle raises ORA-02511
+		// at SHARD first, so these rest on the documentation.
+		"CREATE SEQUENCE s SCALE EXTEND SHARD NOEXTEND",
+		"CREATE SEQUENCE s SCALE EXTEND SHARD EXTEND",
+		"CREATE SEQUENCE s SHARD NOEXTEND SCALE NOEXTEND",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {

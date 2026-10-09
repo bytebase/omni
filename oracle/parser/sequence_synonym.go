@@ -117,6 +117,7 @@ func (p *Parser) sequenceOptionGroup() string {
 // parseSequenceOptions parses the various options for CREATE SEQUENCE.
 func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 	seen := make(map[string]bool)
+	extendSeen := false
 	for {
 		group := p.sequenceOptionGroup()
 		if group == "" {
@@ -214,12 +215,10 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 		case p.isIdentLikeStr("SCALE"):
 			stmt.Scale = true
 			p.advance()
-			if p.isIdentLikeStr("EXTEND") {
-				stmt.ScaleExtend = true
-				p.advance()
-			} else if p.isIdentLikeStr("NOEXTEND") {
-				stmt.ScaleNoExtend = true
-				p.advance()
+			var err error
+			stmt.ScaleExtend, stmt.ScaleNoExtend, err = p.parseSequenceExtendModifier(&extendSeen)
+			if err != nil {
+				return err
 			}
 		case p.isIdentLikeStr("NOSCALE"):
 			stmt.NoScale = true
@@ -227,12 +226,10 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 		case p.isIdentLikeStr("SHARD"):
 			stmt.Shard = true
 			p.advance()
-			if p.isIdentLikeStr("EXTEND") {
-				stmt.ShardExtend = true
-				p.advance()
-			} else if p.isIdentLikeStr("NOEXTEND") {
-				stmt.ShardNoExtend = true
-				p.advance()
+			var err error
+			stmt.ShardExtend, stmt.ShardNoExtend, err = p.parseSequenceExtendModifier(&extendSeen)
+			if err != nil {
+				return err
 			}
 		case p.isIdentLikeStr("NOSHARD"):
 			stmt.NoShard = true
@@ -245,6 +242,28 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 			p.advance()
 		}
 	}
+}
+
+// parseSequenceExtendModifier consumes the EXTEND or NOEXTEND that may follow
+// SCALE or SHARD in CREATE and ALTER SEQUENCE and reports which it was. With
+// both SCALE and SHARD, one modifier applies to both; writing it for each,
+// with the same or a different value, is a parsing error ("duplicate or
+// conflicting EXTEND clause"). seen records a modifier already consumed.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-SEQUENCE.html
+// (Sequence with SHARD and SCALE). A non-sharded Oracle raises ORA-02511 at
+// SHARD before reaching this check, so the rule rests on the documentation.
+func (p *Parser) parseSequenceExtendModifier(seen *bool) (extend, noExtend bool, err error) {
+	if !p.isIdentLikeStr("EXTEND") && !p.isIdentLikeStr("NOEXTEND") {
+		return false, false, nil
+	}
+	if *seen {
+		return false, false, p.syntaxErrorAtCur()
+	}
+	*seen = true
+	extend = p.cur.Str == "EXTEND"
+	p.advance() // consume EXTEND or NOEXTEND
+	return extend, !extend, nil
 }
 
 // parseCreateSynonymStmt parses a CREATE [OR REPLACE] [PUBLIC] SYNONYM statement.

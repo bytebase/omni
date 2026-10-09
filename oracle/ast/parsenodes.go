@@ -2022,9 +2022,10 @@ func (n *CreateProcedureStmt) stmtNode() {}
 // implementation is a Java method or a C function instead of a PL/SQL body.
 //
 //	LANGUAGE JAVA NAME 'signature'
-//	{ LANGUAGE C | EXTERNAL } [ NAME name ] LIBRARY lib [ NAME name ]
-//	    [ AGENT IN ( argument [, ...] ) ] [ WITH CONTEXT ]
-//	    [ PARAMETERS ( external_parameter [, ...] ) ]
+//	{ LANGUAGE C | EXTERNAL } c_clause...
+//	c_clause ::= NAME name | LIBRARY lib | AGENT IN ( argument [, ...] )
+//	    | WITH CONTEXT | PARAMETERS ( external_parameter [, ...] )
+//	    | LANGUAGE C | CALLING STANDARD { C | PASCAL }   (EXTERNAL form)
 type CallSpec struct {
 	Language    string      // JAVA or C; C for the EXTERNAL form too
 	External    bool        // EXTERNAL instead of LANGUAGE C
@@ -2033,7 +2034,9 @@ type CallSpec struct {
 	AgentIn     *List       // AGENT IN arguments (list of *String)
 	WithContext bool        // WITH CONTEXT
 	Parameters  *List       // PARAMETERS external parameters (list of *String)
-	Loc         Loc
+	// CallingStandard is C or PASCAL from CALLING STANDARD, or "".
+	CallingStandard string
+	Loc             Loc
 }
 
 func (n *CallSpec) nodeTag() {}
@@ -2452,6 +2455,7 @@ type PLSQLExecImmediate struct {
 	Into          *List    // INTO variable list
 	Bulk          bool     // BULK COLLECT INTO
 	Using         *List    // USING bind variable list
+	UsingModes    []string // bind argument modes parallel to Using: "", "IN", "OUT", or "IN OUT"
 	ReturningInto *List    // RETURNING INTO variable list (dynamic_returning_clause)
 	ReturningBulk bool     // RETURNING BULK COLLECT INTO
 	Loc           Loc

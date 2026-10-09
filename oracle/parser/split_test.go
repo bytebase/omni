@@ -444,6 +444,27 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			},
 		},
 		{
+			// Every clause of the EXTERNAL form can open it; the unit ends at
+			// its ';' instead of swallowing the statements after it.
+			name: "external call specs with legacy clauses",
+			sql: "CREATE OR REPLACE PROCEDURE p1 AS EXTERNAL LANGUAGE C NAME \"c_p\" LIBRARY lib;\n" +
+				"CREATE OR REPLACE PROCEDURE p2 AS EXTERNAL CALLING STANDARD PASCAL LIBRARY lib;\n" +
+				"CREATE OR REPLACE PROCEDURE p3(a IN BINARY_INTEGER) AS EXTERNAL PARAMETERS (a INT) LIBRARY lib;\n" +
+				"CREATE OR REPLACE PROCEDURE p4 AS EXTERNAL WITH CONTEXT LIBRARY lib;\n" +
+				"CREATE OR REPLACE PROCEDURE p5(a IN BINARY_INTEGER) AS EXTERNAL AGENT IN (a) LIBRARY lib;\n" +
+				"CREATE TABLE t2 (a NUMBER);\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE PROCEDURE p1 AS EXTERNAL LANGUAGE C NAME \"c_p\" LIBRARY lib;",
+				"\nCREATE OR REPLACE PROCEDURE p2 AS EXTERNAL CALLING STANDARD PASCAL LIBRARY lib;",
+				"\nCREATE OR REPLACE PROCEDURE p3(a IN BINARY_INTEGER) AS EXTERNAL PARAMETERS (a INT) LIBRARY lib;",
+				"\nCREATE OR REPLACE PROCEDURE p4 AS EXTERNAL WITH CONTEXT LIBRARY lib;",
+				"\nCREATE OR REPLACE PROCEDURE p5(a IN BINARY_INTEGER) AS EXTERNAL AGENT IN (a) LIBRARY lib;",
+				"\nCREATE TABLE t2 (a NUMBER)",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
 			name: "parameter and variable named like call spec words",
 			sql: "CREATE FUNCTION f(language IN VARCHAR2, external NUMBER, wrapped NUMBER) RETURN NUMBER IS\n" +
 				"  language NUMBER;\n" +

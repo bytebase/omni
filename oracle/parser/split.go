@@ -186,7 +186,7 @@ type splitPLSQLFrame struct {
 	headDepth int
 	isAs      bool
 	// afterIsAs and callSpecWord look at the two tokens after IS|AS for a
-	// call spec: LANGUAGE JAVA|C or EXTERNAL NAME|LIBRARY.
+	// call spec, as isCallSpecStartTokens decides it.
 	afterIsAs    bool
 	callSpecWord string
 	// callSpec marks an implementation that is a call spec: it has no END,
@@ -405,8 +405,7 @@ func (s *splitState) observeSubprogramHead(top *splitPLSQLFrame, tok Token) {
 	case top.callSpecWord != "":
 		word := top.callSpecWord
 		top.callSpecWord = ""
-		if (word == "LANGUAGE" && (tok.Type == kwJAVA || (tok.Type == tokIDENT && tok.Str == "C"))) ||
-			(word == "EXTERNAL" && (tok.Type == kwNAME || tok.Type == kwLIBRARY)) {
+		if isCallSpecStartTokens(Token{Type: tokIDENT, Str: word}, tok) {
 			top.callSpec = true
 			if len(s.frames) == 1 {
 				s.callSpecStarted = true

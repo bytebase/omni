@@ -160,3 +160,28 @@ func TestParseAlterMaterializedViewUsingIndex(t *testing.T) {
 		t.Errorf("expected action USING_INDEX, got %q", stmt.Action)
 	}
 }
+
+// TestParseAlterSequenceSharedExtend: with both SCALE and SHARD, one EXTEND or
+// NOEXTEND applies to both, and writing it for each is a parsing error
+// (ALTER SEQUENCE reference, "Sequence with SHARD and SCALE"). A non-sharded
+// Oracle raises ORA-02511 at SHARD first, so the rule rests on the reference.
+func TestParseAlterSequenceSharedExtend(t *testing.T) {
+	for _, sql := range []string{
+		"ALTER SEQUENCE s SCALE EXTEND SHARD NOEXTEND",
+		"ALTER SEQUENCE s SCALE EXTEND SHARD EXTEND",
+		"ALTER SEQUENCE s SHARD EXTEND SCALE EXTEND",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseShouldFail(t, sql)
+		})
+	}
+	for _, sql := range []string{
+		"ALTER SEQUENCE s SCALE SHARD EXTEND",
+		"ALTER SEQUENCE s SCALE EXTEND SHARD",
+		"ALTER SEQUENCE s SCALE NOEXTEND",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}

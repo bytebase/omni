@@ -1009,7 +1009,7 @@ func (p *Parser) parsePLSQLExecImmediate() (*nodes.PLSQLExecImmediate, error) {
 	if p.cur.Type == kwUSING {
 		p.advance()
 		var parseErr870 error
-		stmt.Using, parseErr870 = p.parsePLSQLVarList()
+		stmt.Using, stmt.UsingModes, parseErr870 = p.parsePLSQLBindArgList()
 		if parseErr870 != nil {
 			return nil, parseErr870
 		}
@@ -1283,6 +1283,9 @@ func (p *Parser) parsePLSQLExceptionName() (string, error) {
 }
 
 // parsePLSQLVarList parses a comma-separated list of variable references.
+//
+// The list holds at least one target, and no entry may be empty: Oracle
+// rejects `INTO;`, `USING;`, and `INTO a,,b` with PLS-00103.
 func (p *Parser) parsePLSQLVarList() (*nodes.List, error) {
 	list := &nodes.List{}
 
@@ -1291,9 +1294,10 @@ func (p *Parser) parsePLSQLVarList() (*nodes.List, error) {
 		if parseErr880 != nil {
 			return nil, parseErr880
 		}
-		if expr != nil {
-			list.Items = append(list.Items, expr)
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
+		list.Items = append(list.Items, expr)
 		if p.cur.Type != ',' {
 			break
 		}
@@ -1301,6 +1305,48 @@ func (p *Parser) parsePLSQLVarList() (*nodes.List, error) {
 	}
 
 	return list, nil
+}
+
+// parsePLSQLBindArgList parses the bind arguments of a USING clause, each
+// with an optional mode, and returns the modes ("", "IN", "OUT", or
+// "IN OUT") parallel to the arguments.
+//
+//	using_clause ::= USING [ IN | OUT | IN OUT ] bind_argument
+//	    [, [ IN | OUT | IN OUT ] bind_argument ]...
+func (p *Parser) parsePLSQLBindArgList() (*nodes.List, []string, error) {
+	list := &nodes.List{}
+	var modes []string
+
+	for {
+		mode := ""
+		switch p.cur.Type {
+		case kwIN:
+			p.advance() // consume IN
+			mode = "IN"
+			if p.cur.Type == kwOUT {
+				p.advance() // consume OUT
+				mode = "IN OUT"
+			}
+		case kwOUT:
+			p.advance() // consume OUT
+			mode = "OUT"
+		}
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, nil, err
+		}
+		if expr == nil {
+			return nil, nil, p.syntaxErrorAtCur()
+		}
+		list.Items = append(list.Items, expr)
+		modes = append(modes, mode)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ,
+	}
+
+	return list, modes, nil
 }
 
 // parsePLSQLArgList parses a parenthesized argument list.

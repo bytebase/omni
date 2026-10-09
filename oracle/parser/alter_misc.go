@@ -3021,6 +3021,7 @@ func (p *Parser) parseAlterSequenceStmt(start int) (nodes.StmtNode, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 
+	extendSeen := false
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
 		switch {
 		case p.cur.Type == kwINCREMENT:
@@ -3125,12 +3126,10 @@ func (p *Parser) parseAlterSequenceStmt(start int) (nodes.StmtNode, error) {
 		case p.isIdentLikeStr("SCALE"):
 			stmt.Scale = true
 			p.advance() // consume SCALE
-			if p.isIdentLikeStr("EXTEND") {
-				stmt.ScaleExtend = true
-				p.advance()
-			} else if p.isIdentLikeStr("NOEXTEND") {
-				stmt.ScaleNoExtend = true
-				p.advance()
+			var err error
+			stmt.ScaleExtend, stmt.ScaleNoExtend, err = p.parseSequenceExtendModifier(&extendSeen)
+			if err != nil {
+				return nil, err
 			}
 
 		case p.isIdentLikeStr("NOSCALE"):
@@ -3140,12 +3139,10 @@ func (p *Parser) parseAlterSequenceStmt(start int) (nodes.StmtNode, error) {
 		case p.isIdentLikeStr("SHARD"):
 			stmt.Shard = true
 			p.advance() // consume SHARD
-			if p.isIdentLikeStr("EXTEND") {
-				stmt.ShardExtend = true
-				p.advance()
-			} else if p.isIdentLikeStr("NOEXTEND") {
-				stmt.ShardNoExtend = true
-				p.advance()
+			var err error
+			stmt.ShardExtend, stmt.ShardNoExtend, err = p.parseSequenceExtendModifier(&extendSeen)
+			if err != nil {
+				return nil, err
 			}
 
 		case p.isIdentLikeStr("NOSHARD"):

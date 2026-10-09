@@ -53,3 +53,10 @@ ref_051	plsql_body	accept	CREATE OR REPLACE PACKAGE omni_jpk_{run} AS FUNCTION f
 ref_052	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_cfn_{run} (p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C LIBRARY omni_lib NAME "c_f" WITH CONTEXT PARAMETERS (CONTEXT, p INT, RETURN INT);	C call spec; the missing library is a semantic error
 ref_053	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_jfn_{run} RETURN VARCHAR2 AS LANGUAGE JAVA NAME "X.y() return java.lang.String";	Java call spec signature must be a string
 ref_054	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_cfn_{run} (p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C LIBRARY omni_lib PARAMETERS ();	empty C call spec PARAMETERS
+ref_055	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_extp_{run} AS EXTERNAL LANGUAGE C NAME "c_p" LIBRARY omni_lib;	EXTERNAL call spec opened by LANGUAGE C
+ref_056	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_extq_{run} AS EXTERNAL CALLING STANDARD PASCAL LIBRARY omni_lib;	EXTERNAL call spec opened by CALLING STANDARD
+ref_057	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_extp_{run} AS EXTERNAL LIBRARY omni_lib LANGUAGE PASCAL;	EXTERNAL LANGUAGE takes only C
+ref_058	plsql	reject	DECLARE TYPE nt IS TABLE OF NUMBER; x nt; BEGIN EXECUTE IMMEDIATE 'SELECT a FROM t' BULK COLLECT INTO; END;	BULK COLLECT INTO without a target
+ref_059	plsql	reject	DECLARE v NUMBER; BEGIN EXECUTE IMMEDIATE 'SELECT a FROM t' INTO; END;	INTO without a target
+ref_060	plsql	reject	DECLARE v NUMBER; BEGIN EXECUTE IMMEDIATE 'BEGIN NULL; END;' USING; END;	USING without a bind argument
+ref_061	plsql	accept	DECLARE v NUMBER := 1; w NUMBER; BEGIN EXECUTE IMMEDIATE 'BEGIN :1 := :2 + 1; END;' USING OUT w, IN v; END;	USING bind argument modes
