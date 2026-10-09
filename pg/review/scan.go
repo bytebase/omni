@@ -49,6 +49,10 @@ type scan struct {
 	// what they name. touchedName lists the same names alone.
 	touched     map[[2]string]bool
 	touchedName map[string]bool
+	// lastTouch numbers, by name, the last statement that touched it, as
+	// touches counts them.
+	lastTouch map[string]int
+	touches   int
 	// freed lists the (schema, name) a drop the scan resolved removed for
 	// certain, until a statement uses the name again.
 	freed map[[2]string]bool
@@ -95,6 +99,10 @@ type scan struct {
 	// sequences, by name, whose owner ALTER SEQUENCE changed.
 	replacedViews map[tableRef]bool
 	reowned       map[[2]string]bool
+	// newKeys lists the (schema, table), with "" for a schema the scan
+	// could not tell, a statement may have given a primary key, a unique
+	// constraint, or a unique index.
+	newKeys map[[2]string]bool
 	// generated marks that a statement made relations under names the
 	// server generates (an unnamed index, a key's index, a serial or
 	// identity column's sequence), which the scan does not derive.
@@ -116,6 +124,7 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		session:        target.SessionUser,
 		touched:        make(map[[2]string]bool),
 		touchedName:    make(map[string]bool),
+		lastTouch:      make(map[string]int),
 		unsettled:      make(map[[2]string]bool),
 		freed:          make(map[[2]string]bool),
 		constraints:    make(map[[3]string]bool),
@@ -130,6 +139,7 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		newFunctions:     make(map[tableRef]int),
 		replacedViews:    make(map[tableRef]bool),
 		reowned:          make(map[[2]string]bool),
+		newKeys:          make(map[[2]string]bool),
 	}
 	if target.Schema != nil {
 		s.index = newSchemaIndex(target.Schema)
@@ -159,10 +169,11 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 }
 
 // eventTriggerFires reports whether an enabled event trigger of the target
-// fires on a statement of the change the scan follows: one with no tag
-// filter, or one whose tags name the statement's command. Its function may
-// run more DDL or reject the statement, so what the statement does is no
-// longer what it says.
+// may fire on a statement of the change: one with no tag filter, or one
+// whose tags name the statement's command, or any tag-filtered trigger for
+// a DDL statement whose command tag the scan does not name. Its function
+// may run more DDL or reject the statement, so what the statement does is
+// no longer what it says.
 func eventTriggerFires(schema *metadata.DatabaseSchemaMetadata, stmts []statement) bool {
 	var triggers []*metadata.EventTriggerMetadata
 	for _, t := range schema.GetEventTriggers() {
@@ -173,58 +184,131 @@ func eventTriggerFires(schema *metadata.DatabaseSchemaMetadata, stmts []statemen
 	if len(triggers) == 0 {
 		return false
 	}
-	// The tags of the statements that may raise each event: every DDL
-	// command raises ddl_command_start and ddl_command_end, a command
-	// that may drop objects sql_drop, and ALTER TABLE or ALTER TYPE
-	// table_rewrite.
-	all := make(map[string]bool)
-	drops := make(map[string]bool)
-	rewrites := make(map[string]bool)
+	// The events each DDL statement may raise: every one raises
+	// ddl_command_start and ddl_command_end, one that may drop objects
+	// sql_drop, and one that may rewrite a table table_rewrite.
+	type raised struct {
+		tags            []string
+		drops, rewrites bool
+	}
+	var events []raised
 	for i := range stmts {
-		tag := commandTag(stmts[i].node)
-		if tag == "" {
+		n := stmts[i].node
+		if !isDDL(n) {
 			continue
 		}
-		tags := []string{tag}
-		// CREATE FUNCTION and CREATE PROCEDURE share a node.
-		if tag == "CREATE FUNCTION" {
-			tags = append(tags, "CREATE PROCEDURE")
-		}
-		for _, t := range tags {
-			all[t] = true
-			if strings.HasPrefix(t, "DROP ") || strings.HasPrefix(t, "ALTER ") {
-				drops[t] = true
-			}
-			if t == "ALTER TABLE" || t == "ALTER TYPE" {
-				rewrites[t] = true
+		e := raised{drops: mayDrop(n), rewrites: mayRewrite(n)}
+		if tag := commandTag(n); tag != "" {
+			e.tags = []string{tag}
+			// CREATE FUNCTION and CREATE PROCEDURE share a node.
+			if tag == "CREATE FUNCTION" {
+				e.tags = append(e.tags, "CREATE PROCEDURE")
 			}
 		}
+		events = append(events, e)
 	}
 	for _, t := range triggers {
-		tags := all
-		switch strings.ToUpper(t.GetEvent()) {
-		case "SQL_DROP":
-			tags = drops
-		case "TABLE_REWRITE":
-			tags = rewrites
-		}
-		if len(tags) == 0 {
-			continue
-		}
-		if len(t.GetTags()) == 0 {
-			return true
-		}
-		for _, tag := range t.GetTags() {
-			if tags[strings.ToUpper(tag)] {
+		for _, e := range events {
+			switch strings.ToUpper(t.GetEvent()) {
+			case "SQL_DROP":
+				if !e.drops {
+					continue
+				}
+			case "TABLE_REWRITE":
+				if !e.rewrites {
+					continue
+				}
+			}
+			if len(t.GetTags()) == 0 || len(e.tags) == 0 {
 				return true
+			}
+			for _, tag := range t.GetTags() {
+				if slices.Contains(e.tags, strings.ToUpper(tag)) {
+					return true
+				}
 			}
 		}
 	}
 	return false
 }
 
-// commandTag is the command tag of a statement the scan follows, as an
-// event trigger's tag filter names it, or "" for one it does not follow.
+// isDDL reports whether a statement may raise an event trigger's event:
+// any statement but a query, DML, and the session, transaction, and
+// maintenance commands event triggers do not fire on.
+//
+// pg: doc/src/sgml/event-trigger.sgml — Event Trigger Firing Matrix
+func isDDL(n ast.Node) bool {
+	switch v := n.(type) {
+	case *ast.SelectStmt:
+		return selectsInto(v)
+	case *ast.ExplainStmt:
+		// EXPLAIN ANALYZE runs what it explains.
+		if explainAnalyzes(v) {
+			return isDDL(v.Query)
+		}
+		return false
+	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt,
+		*ast.VariableSetStmt, *ast.VariableShowStmt, *ast.TransactionStmt,
+		*ast.CopyStmt, *ast.LockStmt, *ast.PrepareStmt, *ast.ExecuteStmt, *ast.DeallocateStmt,
+		*ast.NotifyStmt, *ast.ListenStmt, *ast.UnlistenStmt, *ast.CheckPointStmt, *ast.VacuumStmt,
+		*ast.ConstraintsSetStmt, *ast.DiscardStmt, *ast.LoadStmt, *ast.DoStmt, *ast.CallStmt:
+		return false
+	}
+	return true
+}
+
+// mayDrop reports whether a DDL statement may drop an object, which raises
+// sql_drop: a DROP, an ALTER TABLE with a subcommand that may, or a
+// statement the scan does not know not to.
+func mayDrop(n ast.Node) bool {
+	switch v := n.(type) {
+	case *ast.CreateStmt, *ast.CreateForeignTableStmt, *ast.CreateTableAsStmt, *ast.SelectStmt, *ast.ViewStmt,
+		*ast.CreateSeqStmt, *ast.CompositeTypeStmt, *ast.IndexStmt, *ast.CreateSchemaStmt,
+		*ast.RenameStmt, *ast.AlterObjectSchemaStmt, *ast.AlterSeqStmt, *ast.CommentStmt, *ast.GrantStmt:
+		return false
+	case *ast.AlterTableStmt:
+		if v.Cmds == nil {
+			return false
+		}
+		for _, item := range v.Cmds.Items {
+			cmd, ok := item.(*ast.AlterTableCmd)
+			if !ok || !keepsObjects(cmd) {
+				return true
+			}
+		}
+		return false
+	}
+	return true
+}
+
+// keepsObjects reports whether an ALTER TABLE subcommand drops nothing an
+// sql_drop trigger sees. Replacing a default or rewriting the table
+// deletes catalog rows internally, which the trigger does not see.
+func keepsObjects(cmd *ast.AlterTableCmd) bool {
+	switch ast.AlterTableType(cmd.Subtype) {
+	case ast.AT_AddColumn, ast.AT_AddConstraint, ast.AT_AddIndexConstraint, ast.AT_SetNotNull,
+		ast.AT_SetStatistics, ast.AT_ChangeOwner, ast.AT_ValidateConstraint,
+		ast.AT_EnableRowSecurity, ast.AT_DisableRowSecurity:
+		return true
+	case ast.AT_ColumnDefault:
+		// SET DEFAULT replaces; DROP DEFAULT drops.
+		return cmd.Def != nil
+	}
+	return false
+}
+
+// mayRewrite reports whether a DDL statement may rewrite a table, which
+// raises table_rewrite: an ALTER TABLE of any kind of relation or ALTER
+// TYPE, or a statement the scan does not name.
+func mayRewrite(n ast.Node) bool {
+	if _, ok := n.(*ast.AlterTableStmt); ok {
+		return true
+	}
+	return commandTag(n) == ""
+}
+
+// commandTag is the command tag of a statement, as an event trigger's tag
+// filter names it, or "" for one the scan does not name.
 //
 // pg: src/include/tcop/cmdtaglist.h
 func commandTag(n ast.Node) string {
@@ -301,6 +385,23 @@ func commandTag(n ast.Node) string {
 		return prefixed("ALTER", v.ObjectType)
 	case *ast.DropStmt:
 		return prefixed("DROP", ast.ObjectType(v.RemoveType))
+	case *ast.CommentStmt:
+		return "COMMENT"
+	case *ast.GrantStmt:
+		if v.IsGrant {
+			return "GRANT"
+		}
+		return "REVOKE"
+	case *ast.CreateEnumStmt:
+		return "CREATE TYPE"
+	case *ast.AlterEnumStmt:
+		return "ALTER TYPE"
+	case *ast.CreateDomainStmt:
+		return "CREATE DOMAIN"
+	case *ast.CreateTrigStmt:
+		return "CREATE TRIGGER"
+	case *ast.CreateExtensionStmt:
+		return "CREATE EXTENSION"
 	}
 	return ""
 }
@@ -369,6 +470,9 @@ func (s *scan) statement(st *statement) {
 	case *ast.CompositeTypeStmt:
 		s.touch(v.Typevar)
 	case *ast.IndexStmt:
+		if (v.Unique || v.Primary) && v.Relation != nil {
+			s.newKey(v.Relation)
+		}
 		if v.Idxname == "" {
 			s.generated = true
 		} else if v.Relation != nil {
@@ -417,6 +521,12 @@ func (s *scan) statement(st *statement) {
 	case *ast.DoStmt, *ast.CallStmt:
 		// Procedural code may run any DDL.
 		s.stop()
+	case *ast.CreateExtensionStmt:
+		// An extension's script may create any object. IF NOT EXISTS of an
+		// extension the target has does nothing.
+		if !v.IfNotExists || s.index == nil || !s.index.extensions[v.Extname] {
+			s.stop()
+		}
 	case *ast.DropOwnedStmt, *ast.ImportForeignSchemaStmt, *ast.AlterExtensionStmt, *ast.DiscardStmt, *ast.LoadStmt:
 		// What these drop, create, or reset is not in the statement.
 		s.stop()
@@ -517,6 +627,10 @@ type newDependency struct {
 	retired  bool
 	// signature is a new function's argument types, as written.
 	signature string
+	// home is the synced schema a new view was made in, "" when unknown,
+	// and made numbers the touch that made it.
+	home string
+	made int
 }
 
 // reads records the relations a new view's query names. An unqualified
@@ -524,7 +638,36 @@ type newDependency struct {
 // CTE is visible to the query of its WITH clause and to the CTEs after it,
 // and, under WITH RECURSIVE, to every CTE of the clause.
 func (s *scan) reads(view *ast.RangeVar, query ast.Node) {
+	first := len(s.newReads)
 	s.dependsIn(&s.newReads, tableRef{view.Schemaname, view.Relname}, query, nil)
+	home, _ := s.creationSchema(view)
+	for i := first; i < len(s.newReads); i++ {
+		s.newReads[i].home = home
+		s.newReads[i].made = s.lastTouch[view.Relname]
+	}
+}
+
+// dropNewReaders records the views the change created that a cascading
+// drop of a relation certainly takes: those whose query named it, resolved
+// to it. A view whose name no statement used since it was made is freed in
+// the schema it was made in, and the views reading it go too.
+func (s *scan) dropNewReaders(t tableRef) {
+	for i := range s.newReads {
+		d := s.newReads[i]
+		if d.retired || d.relation != t {
+			continue
+		}
+		for j := range s.newReads {
+			if o := &s.newReads[j]; o.object == d.object && o.path == d.path && o.made == d.made {
+				o.retired = true
+			}
+		}
+		if d.home != "" && s.lastTouch[d.object.table] == d.made {
+			view := tableRef{d.home, d.object.table}
+			s.free(view.schema, view.table)
+			s.dropNewReaders(view)
+		}
+	}
 }
 
 // dependsIn records, as dependencies of object, the relations a query or
@@ -805,6 +948,10 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 	if v.SchemaElts == nil {
 		return
 	}
+	if elementsCollide(name, v.SchemaElts) {
+		s.stop()
+		return
+	}
 	in := func(rv *ast.RangeVar) *ast.RangeVar {
 		if rv == nil || rv.Schemaname != "" {
 			return rv
@@ -836,6 +983,59 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 	}
 }
 
+// elementsCollide reports whether the server may refuse CREATE SCHEMA for
+// its elements, which run as one statement: an element in another schema,
+// two elements of one name, or an element named like a name the server
+// generates (for a table's key, serial column, or unnamed index) while an
+// element may generate one.
+//
+// pg: src/backend/parser/parse_utilcmd.c — transformCreateSchemaStmtElements
+func elementsCollide(schema string, elts *ast.List) bool {
+	names := make(map[string]bool)
+	generates := false
+	for _, elt := range elts.Items {
+		var rv *ast.RangeVar
+		name := ""
+		switch e := elt.(type) {
+		case *ast.CreateStmt:
+			rv, generates = e.Relation, true
+		case *ast.ViewStmt:
+			rv = e.View
+		case *ast.CreateSeqStmt:
+			rv = e.Sequence
+		case *ast.IndexStmt:
+			rv, name = e.Relation, e.Idxname
+			if name == "" {
+				generates = true
+			}
+		}
+		if rv == nil {
+			continue
+		}
+		if rv.Schemaname != "" && rv.Schemaname != schema {
+			return true
+		}
+		if _, ok := elt.(*ast.IndexStmt); !ok {
+			name = rv.Relname
+		}
+		if name == "" {
+			continue
+		}
+		if names[name] {
+			return true
+		}
+		names[name] = true
+	}
+	if generates {
+		for name := range names {
+			if generatedName(name) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // touch records a relation name a statement creates.
 func (s *scan) touch(rv *ast.RangeVar) {
 	if rv != nil {
@@ -848,6 +1048,8 @@ func (s *scan) touch(rv *ast.RangeVar) {
 func (s *scan) touchName(schema, name string) {
 	s.touched[[2]string{schema, name}] = true
 	s.touchedName[name] = true
+	s.touches++
+	s.lastTouch[name] = s.touches
 	for key := range s.freed {
 		if key[1] == name && (schema == "" || key[0] == schema) {
 			delete(s.freed, key)
@@ -859,6 +1061,12 @@ func (s *scan) touchName(schema, name string) {
 func (s *scan) free(schema, name string) {
 	s.touchName(schema, name)
 	s.freed[[2]string{schema, name}] = true
+}
+
+// newKey records a table a statement may have given a key or a unique
+// index.
+func (s *scan) newKey(rv *ast.RangeVar) {
+	s.newKeys[[2]string{s.schemaOf(rv), rv.Relname}] = true
 }
 
 // unsettle records a table whose columns or constraints changed in a way
@@ -1345,6 +1553,9 @@ func (s *scan) drop(v *ast.DropStmt) {
 		s.dropOwned(rv, schema, resolved && relKind == kindTable)
 		if cascade {
 			s.dropDependents(rv, schema)
+			if resolved {
+				s.dropNewReaders(tableRef{schema, rv.Relname})
+			}
 		}
 	}
 	if cascade && (kind == ast.OBJECT_TABLE || kind == ast.OBJECT_FOREIGN_TABLE) {
@@ -1492,6 +1703,7 @@ func (s *scan) cascadeViews(certain, maybe []tableRef) {
 			seen[view] = true
 			if s.freeView(view) {
 				certain = append(certain, s.index.readers[view]...)
+				s.dropNewReaders(view)
 			} else {
 				maybe = append(maybe, s.index.readers[view]...)
 			}

@@ -27,6 +27,8 @@ type schemaIndex struct {
 	functions  map[tableRef]int
 	// constraintIndexes marks the indexes a constraint owns.
 	constraintIndexes map[tableRef]bool
+	// extensions lists the installed extensions by name.
+	extensions map[string]bool
 }
 
 // namespace is one schema: the kind of every name in its relation
@@ -83,6 +85,10 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		functions:   make(map[tableRef]int),
 
 		constraintIndexes: make(map[tableRef]bool),
+		extensions:        make(map[string]bool),
+	}
+	for _, e := range db.GetExtensions() {
+		idx.extensions[e.GetName()] = true
 	}
 	for _, s := range db.GetSchemas() {
 		ns := &namespace{

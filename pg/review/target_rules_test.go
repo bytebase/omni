@@ -74,6 +74,11 @@ func withEventTrigger(db *metadata.DatabaseSchemaMetadata, enabled bool, tags ..
 	return db
 }
 
+func withEvent(db *metadata.DatabaseSchemaMetadata, event string, tags ...string) *metadata.DatabaseSchemaMetadata {
+	db.EventTriggers = append(db.EventTriggers, &metadata.EventTriggerMetadata{Name: "et", Event: event, Tags: tags, Enabled: true})
+	return db
+}
+
 func withForeignKey(t *metadata.TableMetadata, name, column, refTable, refColumn string) *metadata.TableMetadata {
 	t.ForeignKeys = append(t.ForeignKeys, &metadata.ForeignKeyMetadata{Name: name, Columns: []string{column}, ReferencedSchema: "public", ReferencedTable: refTable, ReferencedColumns: []string{refColumn}})
 	return t
@@ -355,6 +360,58 @@ func TestDisallowDropConstraint(t *testing.T) {
 			targets: []review.Target{{Schema: withEventTrigger(shop(), true, "SELECT INTO"), SessionUser: "alice"}},
 		},
 		{
+			name:    "an added foreign key to a missing column refuses the statement",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT bad FOREIGN KEY (p_id) REFERENCES p (nope);",
+			targets: one,
+		},
+		{
+			name:    "an added foreign key to a table without a primary key refuses the statement",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT bad FOREIGN KEY (n) REFERENCES nokey;",
+			targets: one,
+		},
+		{
+			name:    "an added foreign key to columns without a unique index refuses the statement",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT bad FOREIGN KEY (code) REFERENCES p (note);",
+			targets: one,
+		},
+		{
+			name:    "an added foreign key of another column count refuses the statement",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT bad FOREIGN KEY (p_id, n) REFERENCES p (id);",
+			targets: one,
+		},
+		{
+			name:    "an added foreign key to a missing table refuses the statement",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT bad FOREIGN KEY (p_id) REFERENCES missing_table;",
+			targets: one,
+		},
+		{
+			name:    "an added foreign key to a key the table has",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT good FOREIGN KEY (p_id) REFERENCES p (id), ADD CONSTRAINT good2 FOREIGN KEY (n) REFERENCES p;",
+			targets: one,
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+		},
+		{
+			name:    "an added foreign key to a unique index the change made",
+			sql:     "CREATE UNIQUE INDEX ON p (note);\nALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT good FOREIGN KEY (code) REFERENCES p (note);",
+			targets: one,
+			want:    []targetFinding{{1, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+		},
+		{
+			name:    "an added foreign key to a key the change dropped refuses the statement",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_p_fk;\nALTER TABLE p DROP CONSTRAINT p_pkey;\nALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT bad FOREIGN KEY (p_id) REFERENCES p (id);",
+			targets: one,
+			want: []targetFinding{
+				{0, "DROP CONSTRAINT t_p_fk", "drops foreign key t_p_fk of t", []int{0}},
+				{1, "DROP CONSTRAINT p_pkey", "drops primary key p_pkey of p", []int{0}},
+			},
+		},
+		{
+			name:    "an added foreign key to its own table",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT self FOREIGN KEY (p_id) REFERENCES t (id);",
+			targets: one,
+			want:    []targetFinding{{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
+		},
+		{
 			name:    "an added key on a missing column refuses the statement",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD CONSTRAINT replacement UNIQUE (nope);",
 			targets: one,
@@ -537,12 +594,58 @@ func TestRequirePrimaryKey(t *testing.T) {
 		},
 		{
 			name:    "the tables of CREATE SCHEMA",
-			sql:     "CREATE SCHEMA z CREATE TABLE t (id int) CREATE TABLE k (id int PRIMARY KEY) CREATE TABLE s.q (id int);",
+			sql:     "CREATE SCHEMA z CREATE TABLE t (id int) CREATE TABLE k (id int PRIMARY KEY) CREATE TABLE z.q (id int);",
 			targets: one,
 			want: []targetFinding{
 				{0, "CREATE TABLE t (id int)", "creates table z.t without a primary key", []int{0}},
-				{0, "CREATE TABLE s.q (id int)", "creates table s.q without a primary key", []int{0}},
+				{0, "CREATE TABLE z.q (id int)", "creates table z.q without a primary key", []int{0}},
 			},
+		},
+		{
+			name:    "CREATE SCHEMA with an element in another schema is refused",
+			sql:     "CREATE SCHEMA z CREATE TABLE t (id int) CREATE TABLE s.q (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE SCHEMA with two elements of one name is refused",
+			sql:     "CREATE SCHEMA z CREATE TABLE x (id int) CREATE VIEW x AS SELECT 1;",
+			targets: one,
+		},
+		{
+			name:    "CREATE SCHEMA with an element named like a generated name",
+			sql:     "CREATE SCHEMA z CREATE TABLE x (id int UNIQUE) CREATE TABLE x_id_key (id int);",
+			targets: one,
+		},
+		{
+			name:    "a cascading drop takes a view the change made",
+			sql:     "CREATE VIEW w AS SELECT * FROM nokey;\nDROP TABLE nokey CASCADE;\nCREATE TABLE w (id int);",
+			targets: one,
+			want:    []targetFinding{{2, "CREATE TABLE w (id int)", "creates table w without a primary key", []int{0}}},
+		},
+		{
+			name:    "a cascading drop takes the views reading a view the change made",
+			sql:     "CREATE VIEW w AS SELECT * FROM nokey;\nCREATE VIEW w2 AS SELECT * FROM public.w;\nDROP TABLE nokey CASCADE;\nCREATE TABLE w2 (id int);",
+			targets: one,
+			want:    []targetFinding{{3, "CREATE TABLE w2 (id int)", "creates table w2 without a primary key", []int{0}}},
+		},
+		{
+			name:    "a view renamed after it was made keeps its name uncertain",
+			sql:     "CREATE VIEW w AS SELECT * FROM nokey;\nALTER VIEW public.w RENAME TO w2;\nCREATE TABLE w (id int);\nDROP TABLE nokey CASCADE;\nCREATE TABLE w (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE EXTENSION ends the scan",
+			sql:     "CREATE EXTENSION e;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name: "CREATE EXTENSION IF NOT EXISTS of an installed extension does nothing",
+			sql:  "CREATE EXTENSION IF NOT EXISTS pgcrypto;\nCREATE TABLE n (id int);\nCREATE EXTENSION IF NOT EXISTS citext;\nCREATE TABLE m (id int);",
+			targets: []review.Target{{Schema: func() *metadata.DatabaseSchemaMetadata {
+				db := shop()
+				db.Extensions = []*metadata.ExtensionMetadata{{Name: "pgcrypto", Schema: "public"}}
+				return db
+			}(), SessionUser: "alice"}},
 		},
 		{
 			name:    "a new view of a table in another schema does not block a drop",
@@ -905,6 +1008,33 @@ func TestRequirePrimaryKey(t *testing.T) {
 				&metadata.SchemaMetadata{Name: "s", Sequences: []*metadata.SequenceMetadata{{Name: "q"}}},
 			)}},
 			want: []targetFinding{{2, "CREATE TABLE public.q (id int)", "creates table public.q without a primary key", []int{0}}},
+		},
+		{
+			name:    "an sql_drop event trigger does not fire on an ALTER TABLE that drops nothing",
+			sql:     "ALTER TABLE t ADD COLUMN x int, ALTER COLUMN n SET DEFAULT 1;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withEvent(shop(), "SQL_DROP"), SessionUser: "alice"}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "an sql_drop event trigger fires on DROP DEFAULT",
+			sql:     "ALTER TABLE t ALTER COLUMN n DROP DEFAULT;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withEvent(shop(), "SQL_DROP"), SessionUser: "alice"}},
+		},
+		{
+			name:    "an sql_drop event trigger fires on a DROP the scan does not name",
+			sql:     "DROP DOMAIN d;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withEvent(shop(), "SQL_DROP", "DROP TABLE"), SessionUser: "alice"}},
+		},
+		{
+			name:    "a tag filter fires on DDL the scan has no tag for",
+			sql:     "CREATE POLICY pol ON t USING (true);\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withEvent(shop(), "DDL_COMMAND_END", "CREATE INDEX"), SessionUser: "alice"}},
+		},
+		{
+			name:    "a tag filter matches the tags the scan names",
+			sql:     "COMMENT ON TABLE t IS 'x';\nGRANT SELECT ON t TO PUBLIC;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withEvent(shop(), "DDL_COMMAND_END", "CREATE INDEX"), SessionUser: "alice"}},
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
 		},
 		{
 			name: "an sql_drop event trigger does not fire on CREATE TABLE",

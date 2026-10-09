@@ -2,6 +2,7 @@ package review
 
 import (
 	"slices"
+	"strings"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/pg/ast"
@@ -174,6 +175,9 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				if c.Contype == ast.CONSTR_PRIMARY {
 					s.keyed(v.Relation)
 				}
+				if c.Contype == ast.CONSTR_PRIMARY || c.Contype == ast.CONSTR_UNIQUE {
+					s.newKey(v.Relation)
+				}
 				s.references(v.Relation, c)
 			}
 		case ast.AT_AddColumn:
@@ -194,6 +198,9 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 					if c.Contype == ast.CONSTR_PRIMARY {
 						s.keyed(v.Relation)
 					}
+					if c.Contype == ast.CONSTR_PRIMARY || c.Contype == ast.CONSTR_UNIQUE {
+						s.newKey(v.Relation)
+					}
 				}
 				s.references(v.Relation, constraintsOf(cd.Constraints)...)
 			}
@@ -204,6 +211,9 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				s.renamedKeys[idx.Idxname] = true
 				if idx.Primary {
 					s.keyed(v.Relation)
+				}
+				if idx.Primary || idx.Unique {
+					s.newKey(v.Relation)
 				}
 			}
 		case ast.AT_AttachPartition:
@@ -428,6 +438,9 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedConstraints map[string
 				}
 			}
 		}
+		if c.Contype == ast.CONSTR_FOREIGN && s.refusesReference(t, c, func(column string) bool { return has(column) || addedColumns[column] }) {
+			return true
+		}
 		if c.Conname != "" {
 			if uses(c.Conname) || addedNames[c.Conname] {
 				return true
@@ -484,6 +497,84 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedConstraints map[string
 		}
 	}
 	return false
+}
+
+// refusesReference reports whether the server certainly refuses a foreign
+// key the statement adds to t for what it references: a relation the
+// target lacks or that is not a table, a referenced column the table
+// lacks, a count of referenced columns unlike the referencing ones, or,
+// on a table no statement of the change may have given a key, no primary
+// key, or no unique index on exactly the columns named. own says whether
+// t has a column once the statement's own drops and additions ran, for a
+// foreign key referencing its own table.
+//
+// pg: src/backend/commands/tablecmds.c — ATAddForeignKeyConstraint,
+// transformFkeyGetPrimaryKey, transformFkeyCheckAttrs
+func (s *scan) refusesReference(t tableRef, c *ast.Constraint, own func(string) bool) bool {
+	if c.Pktable == nil {
+		return false
+	}
+	columns := nameParts(c.PkAttrs)
+	// A foreign key of a column names no referencing columns: it is the one.
+	local := max(len(nameParts(c.FkAttrs)), 1)
+	if len(columns) > 0 && len(columns) != local {
+		return true
+	}
+	if s.missing(c.Pktable) {
+		return true
+	}
+	schema, kind, ok := s.lookup(c.Pktable)
+	if !ok {
+		return false
+	}
+	ref := tableRef{schema, c.Pktable.Relname}
+	if ref == t {
+		// Its key may be one the statement adds.
+		return slices.ContainsFunc(columns, func(column string) bool { return !own(column) })
+	}
+	switch kind {
+	case kindTable:
+	case kindView, kindMatView, kindForeignTable, kindSequence, kindIndex, kindCompositeType:
+		return true
+	default:
+		return false
+	}
+	if s.isUnsettled(ref) {
+		return false
+	}
+	if slices.ContainsFunc(columns, func(column string) bool { return !s.hasColumn(ref, column) }) {
+		return true
+	}
+	if s.newKeys[[2]string{ref.schema, ref.table}] || s.newKeys[[2]string{"", ref.table}] {
+		return false
+	}
+	table := s.index.schemas[ref.schema].tables[ref.table]
+	if len(columns) == 0 {
+		pk := primaryKey(table)
+		if pk == nil || !s.indexHolds(ref, pk) {
+			return true
+		}
+		key := keyColumns(pk)
+		return key != nil && len(key) != local
+	}
+	for _, i := range table.GetIndexes() {
+		// A partial index is no key a foreign key can reference.
+		if !i.GetUnique() && !i.GetPrimary() || !s.indexHolds(ref, i) || strings.Contains(strings.ToUpper(i.GetDefinition()), " WHERE ") {
+			continue
+		}
+		if key := keyColumns(i); key != nil && len(key) == len(columns) && !slices.ContainsFunc(columns, func(column string) bool { return !slices.Contains(key, column) }) {
+			return false
+		}
+	}
+	return true
+}
+
+// indexHolds reports whether a synced table's index is still there as
+// synced: no statement dropped its constraint, or changed or reused its
+// name.
+func (s *scan) indexHolds(t tableRef, i *metadata.IndexMetadata) bool {
+	return !s.dropped[[3]string{t.schema, t.table, i.GetName()}] && s.constraintKnown(t, i.GetName()) &&
+		!s.isTouched(&ast.RangeVar{Schemaname: t.schema, Relname: i.GetName()})
 }
 
 // hasColumn reports whether the synced table has the column after the
