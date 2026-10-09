@@ -112,6 +112,12 @@ func TestScanRulesAgainstPostgres(t *testing.T) {
 		{"a new foreign key on the primary key", "CREATE TABLE c2 (t_id int REFERENCES t);\nALTER TABLE r DROP CONSTRAINT r_t_fk;\nALTER TABLE t DROP CONSTRAINT t_pkey;", true},
 		{"a view a new view reads", "CREATE VIEW tv2 AS SELECT code FROM tv;\nDROP VIEW tv;\nCREATE TABLE n (id int);", true},
 		{"a qualified move of a new table", "CREATE TABLE public.n (id int);\nCREATE SCHEMA x;\nCREATE TABLE x.n (id int);\nALTER TABLE public.n SET SCHEMA s;\nALTER TABLE x.n ADD PRIMARY KEY (id);", true},
+		{"a new foreign key dropped with its table", "ALTER TABLE r DROP CONSTRAINT r_t_fk;\nCREATE TABLE c (t_id int REFERENCES t (id));\nDROP TABLE c;\nALTER TABLE t DROP CONSTRAINT t_pkey;", true},
+		{"a new foreign key dropped by name", "ALTER TABLE r DROP CONSTRAINT r_t_fk;\nCREATE TABLE c (t_id int CONSTRAINT c_fk REFERENCES t (id));\nALTER TABLE c DROP CONSTRAINT c_fk;\nALTER TABLE t DROP CONSTRAINT t_pkey;", true},
+		{"a new view on a table of the same name elsewhere", "CREATE VIEW v AS SELECT * FROM s.t;\nDROP TABLE r;\nDROP VIEW tv;\nDROP TABLE public.t;\nCREATE TABLE n (id int);", true},
+		{"dropping a missing table", "DROP TABLE nope;\nCREATE TABLE n (id int);", true},
+		{"a column added twice", "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD COLUMN x int, ADD COLUMN x int;", true},
+		{"tables of CREATE SCHEMA", "CREATE SCHEMA z CREATE TABLE zt (id int) CREATE TABLE zk (id int PRIMARY KEY);", true},
 		{"quoted names", "ALTER TABLE \"Quoted\" DROP CONSTRAINT \"Quoted_pkey\";\nCREATE TABLE \"New\" (\"Id\" int);", true},
 		{"new tables", "CREATE TABLE n (id int);\nCREATE TABLE k (id int PRIMARY KEY);\nCREATE TABLE k2 (a int, b int, CONSTRAINT k2_pk PRIMARY KEY (a, b));\nCREATE UNLOGGED TABLE ul (a int);\nCREATE TABLE \"Mixed\" (a int);", true},
 		{"keys added later", "CREATE TABLE n (id int);\nALTER TABLE n RENAME TO m;\nALTER TABLE m ADD PRIMARY KEY (id);\nCREATE TABLE o (id int NOT NULL);\nCREATE UNIQUE INDEX o_id ON o (id);\nALTER TABLE o ADD CONSTRAINT o_pkey PRIMARY KEY USING INDEX o_id;\nCREATE TABLE q (id int);\nALTER TABLE q ADD COLUMN k serial PRIMARY KEY;", true},
@@ -367,6 +373,8 @@ func (a *textArray) Scan(src any) error {
 
 // oracleTable is a table as the server's catalogs describe it.
 type oracleTable struct {
+	schema    string
+	name      string
 	kind      string
 	partition bool
 	keyName   string
@@ -388,7 +396,7 @@ func walkTruth(t *testing.T, conn *sql.Conn, change string) ([]string, int) {
 	ctx := context.Background()
 	tables := func() map[int64]oracleTable {
 		out := make(map[int64]oracleTable)
-		rows, err := conn.QueryContext(ctx, `SELECT c.oid, c.relkind::text, c.relispartition, coalesce(k.conname, ''),
+		rows, err := conn.QueryContext(ctx, `SELECT c.oid, n.nspname, c.relname, c.relkind::text, c.relispartition, coalesce(k.conname, ''),
 				coalesce(ARRAY(SELECT a.attname FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attnum = ANY(k.conkey))::text[], '{}')
 			FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace LEFT JOIN pg_constraint k ON k.conrelid = c.oid AND k.contype = 'p'
 			WHERE c.relkind IN ('r', 'p') AND n.nspname NOT LIKE 'pg\_%' AND n.nspname <> 'information_schema'`)
@@ -399,7 +407,7 @@ func walkTruth(t *testing.T, conn *sql.Conn, change string) ([]string, int) {
 		for rows.Next() {
 			var oid int64
 			var tb oracleTable
-			if err := rows.Scan(&oid, &tb.kind, &tb.partition, &tb.keyName, (*textArray)(&tb.keyCols)); err != nil {
+			if err := rows.Scan(&oid, &tb.schema, &tb.name, &tb.kind, &tb.partition, &tb.keyName, (*textArray)(&tb.keyCols)); err != nil {
 				t.Fatal(err)
 			}
 			out[oid] = tb
@@ -500,6 +508,19 @@ func walkTruth(t *testing.T, conn *sql.Conn, change string) ([]string, int) {
 			for oid := range tablesAfter {
 				if _, existed := tablesBefore[oid]; !existed {
 					created[oid] = fmt.Sprintf("%d %s %q: creates table %s without a primary key", i, review.RequirePrimaryKey, at(rangeOf(create.Loc)), relation(create.Relation))
+				}
+			}
+		}
+		// CREATE SCHEMA ... CREATE TABLE names the table in the new schema.
+		if schema, ok := node.(*ast.CreateSchemaStmt); ok && schema.SchemaElts != nil {
+			for oid, tb := range tablesAfter {
+				if _, existed := tablesBefore[oid]; existed {
+					continue
+				}
+				for _, elt := range schema.SchemaElts.Items {
+					if create, ok := elt.(*ast.CreateStmt); ok && create.Partbound == nil && create.Relation.Relname == tb.name {
+						created[oid] = fmt.Sprintf("%d %s %q: creates table %s without a primary key", i, review.RequirePrimaryKey, at(rangeOf(create.Loc)), relation(&ast.RangeVar{Schemaname: tb.schema, Relname: tb.name}))
+					}
 				}
 			}
 		}

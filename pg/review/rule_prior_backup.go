@@ -63,8 +63,16 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 	mixed := make(map[backupTable]bool)
 	// created lists the relations the change creates, by name as written:
 	// an unqualified one under an empty schema.
+	// The backup runs before the whole change, so a relation the change
+	// creates anywhere in it is not there yet.
 	created := make(map[backupTable]bool)
 	createdNames := make(map[string]bool)
+	for i := range stmts {
+		for _, t := range createdRelations(stmts[i].node) {
+			created[t] = true
+			createdNames[t.name] = true
+		}
+	}
 	backsUp := false
 	for i := range stmts {
 		s := &stmts[i]
@@ -81,10 +89,6 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 			}
 			continue
 		default:
-			for _, t := range createdRelations(s.node) {
-				created[t] = true
-				createdNames[t.name] = true
-			}
 			continue
 		}
 		if rv == nil {

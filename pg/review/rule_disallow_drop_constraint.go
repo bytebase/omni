@@ -72,6 +72,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				withhold = true
 			}
 			droppedNames[cmd.Name] = true
+			s.retireReferences(v.Relation, cmd.Name)
 			if known && s.constraintKnown(t, cmd.Name) && s.dropConstraint(st, v, cmd, t, cascade, &out) {
 				s.stop()
 				return
@@ -128,7 +129,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				if c.Contype == ast.CONSTR_PRIMARY {
 					s.keyed(v.Relation)
 				}
-				s.references(c)
+				s.references(v.Relation, c)
 			}
 		case ast.AT_AddColumn:
 			if cd, ok := cmd.Def.(*ast.ColumnDef); ok {
@@ -141,7 +142,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 						s.keyed(v.Relation)
 					}
 				}
-				s.references(constraintsOf(cd.Constraints)...)
+				s.references(v.Relation, constraintsOf(cd.Constraints)...)
 			}
 		case ast.AT_AddIndexConstraint, ast.AT_AddIndex:
 			if idx, ok := cmd.Def.(*ast.IndexStmt); ok {
@@ -240,7 +241,7 @@ func (s *scan) dropColumn(cmd *ast.AlterTableCmd, t tableRef, cascade bool, out 
 		pkColumns = keyColumns(pk)
 	}
 	if !cascade && (s.index.referencesColumn(t, cmd.Name, s.dropped) || s.index.readsColumn[columnRef{t.schema, t.table, cmd.Name}] ||
-		s.newlyReferencedColumn(t, cmd.Name, pkColumns, pk != nil) || s.readByChange[t.table]) {
+		s.newlyReferencedColumn(t, cmd.Name, pkColumns, pk != nil) || s.readByChange[[2]string{t.schema, t.table}] || s.readByChange[[2]string{"", t.table}]) {
 		return true
 	}
 	if pk == nil || !s.constraintKnown(t, pk.GetName()) {
@@ -347,9 +348,28 @@ func (s *scan) refuses(t tableRef, drops, others []*ast.AlterTableCmd) bool {
 		_, ok := constraint(table, name)
 		return ok
 	}
+	// What the statement's own additions add counts too.
+	addedColumns := make(map[string]bool)
+	addedNames := make(map[string]bool)
+	addedKey := false
 	keyed := func() bool {
 		pk := primaryKey(table)
-		return pk != nil && uses(pk.GetName())
+		return addedKey || pk != nil && uses(pk.GetName())
+	}
+	addKey := func(c *ast.Constraint) bool {
+		if c.Conname != "" {
+			if uses(c.Conname) || addedNames[c.Conname] {
+				return true
+			}
+			addedNames[c.Conname] = true
+		}
+		if c.Contype == ast.CONSTR_PRIMARY {
+			if keyed() {
+				return true
+			}
+			addedKey = true
+		}
+		return false
 	}
 	for _, cmd := range others {
 		switch ast.AlterTableType(cmd.Subtype) {
@@ -358,18 +378,21 @@ func (s *scan) refuses(t tableRef, drops, others []*ast.AlterTableCmd) bool {
 			if !ok {
 				continue
 			}
-			if has(cd.Colname) && !cmd.Missing_ok {
+			if (has(cd.Colname) || addedColumns[cd.Colname]) && !cmd.Missing_ok {
 				return true
 			}
+			addedColumns[cd.Colname] = true
 			for _, c := range constraintsOf(cd.Constraints) {
-				if c.Contype == ast.CONSTR_PRIMARY && keyed() {
+				if addKey(c) {
 					return true
 				}
 			}
 		case ast.AT_ColumnDefault, ast.AT_DropNotNull, ast.AT_SetNotNull, ast.AT_AlterColumnType,
 			ast.AT_SetStatistics, ast.AT_SetStorage, ast.AT_SetCompression, ast.AT_SetOptions, ast.AT_ResetOptions,
 			ast.AT_AddIdentity, ast.AT_SetIdentity, ast.AT_DropIdentity, ast.AT_SetExpression, ast.AT_DropExpression:
-			if cmd.Name == "" {
+			// A column the statement adds may or may not exist when this
+			// subcommand's pass runs.
+			if cmd.Name == "" || addedColumns[cmd.Name] {
 				continue
 			}
 			if !has(cmd.Name) {
@@ -380,7 +403,7 @@ func (s *scan) refuses(t tableRef, drops, others []*ast.AlterTableCmd) bool {
 			if !ok {
 				continue
 			}
-			if c.Conname != "" && uses(c.Conname) || c.Contype == ast.CONSTR_PRIMARY && keyed() {
+			if addKey(c) {
 				return true
 			}
 		}

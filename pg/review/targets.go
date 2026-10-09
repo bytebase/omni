@@ -30,8 +30,9 @@ func targetWork(stmts []statement, on map[review.Rule]bool, change review.Change
 }
 
 // needsScan reports whether a statement of the change can give the scan
-// something to report: a CREATE TABLE for RequirePrimaryKey, or an ALTER
-// TABLE dropping a constraint or a column for either rule.
+// something to report: a CREATE TABLE, alone or in CREATE SCHEMA, for
+// RequirePrimaryKey, or an ALTER TABLE dropping a constraint or a column
+// for either rule.
 func needsScan(stmts []statement, on map[review.Rule]bool) bool {
 	if !on[review.DisallowDropConstraint] && !on[review.RequirePrimaryKey] {
 		return false
@@ -40,6 +41,13 @@ func needsScan(stmts []statement, on map[review.Rule]bool) bool {
 		switch v := stmts[i].node.(type) {
 		case *ast.CreateStmt:
 			if on[review.RequirePrimaryKey] {
+				return true
+			}
+		case *ast.CreateSchemaStmt:
+			if on[review.RequirePrimaryKey] && v.SchemaElts != nil && slices.ContainsFunc(v.SchemaElts.Items, func(n ast.Node) bool {
+				_, ok := n.(*ast.CreateStmt)
+				return ok
+			}) {
 				return true
 			}
 		case *ast.AlterTableStmt:

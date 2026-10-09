@@ -51,6 +51,15 @@ func withCheck(t *metadata.TableMetadata, name, expr string) *metadata.TableMeta
 	return t
 }
 
+func withFunctionReturning(db *metadata.DatabaseSchemaMetadata, schema, table string) *metadata.DatabaseSchemaMetadata {
+	for _, s := range db.Schemas {
+		if s.Name == schema {
+			s.Functions = append(s.Functions, &metadata.FunctionMetadata{Name: "f", DependencyTables: []*metadata.DependencyTable{{Schema: schema, Table: table}}})
+		}
+	}
+	return db
+}
+
 func withEventTrigger(db *metadata.DatabaseSchemaMetadata, enabled bool, tags ...string) *metadata.DatabaseSchemaMetadata {
 	db.EventTriggers = append(db.EventTriggers, &metadata.EventTriggerMetadata{Name: "et", Event: "DDL_COMMAND_END", Tags: tags, Enabled: enabled})
 	return db
@@ -283,6 +292,17 @@ func TestDisallowDropConstraint(t *testing.T) {
 			want: []targetFinding{{0, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{2, 3}}},
 		},
 		{
+			name:    "a new foreign key goes with its table or its name",
+			sql:     "CREATE TABLE c (t_id int REFERENCES t (id));\nDROP TABLE c;\nCREATE TABLE c2 (t_id int CONSTRAINT c2_fk REFERENCES t (id));\nALTER TABLE c2 DROP CONSTRAINT c2_fk;\nALTER TABLE t DROP CONSTRAINT t_pkey;",
+			targets: one,
+			want:    []targetFinding{{4, "DROP CONSTRAINT t_pkey", "drops primary key t_pkey of t", []int{0}}},
+		},
+		{
+			name:    "a column added twice refuses the statement",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD COLUMN x int, ADD COLUMN x int;",
+			targets: one,
+		},
+		{
 			name:    "a cascading drop of anything but a relation ends the scan",
 			sql:     "DROP FUNCTION f() CASCADE;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
 			targets: one,
@@ -446,6 +466,37 @@ func TestRequirePrimaryKey(t *testing.T) {
 				},
 			})}},
 			want: []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "the tables of CREATE SCHEMA",
+			sql:     "CREATE SCHEMA z CREATE TABLE t (id int) CREATE TABLE k (id int PRIMARY KEY) CREATE TABLE s.q (id int);",
+			targets: one,
+			want: []targetFinding{
+				{0, "CREATE TABLE t (id int)", "creates table z.t without a primary key", []int{0}},
+				{0, "CREATE TABLE s.q (id int)", "creates table s.q without a primary key", []int{0}},
+			},
+		},
+		{
+			name:    "a new view of a table in another schema does not block a drop",
+			sql:     "CREATE VIEW v AS SELECT * FROM s.t;\nDROP TABLE public.t;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{2, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "dropping a table the target lacks is refused without IF EXISTS",
+			sql:     "DROP TABLE public.nope;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "IF EXISTS drops nothing",
+			sql:     "DROP TABLE IF EXISTS public.nope, nope2;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "dropping a table a function returns is refused without CASCADE",
+			sql:     "DROP TABLE nokey;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withFunctionReturning(shop(), "public", "nokey"), SessionUser: "alice"}},
 		},
 		{
 			name:    "a cascading drop of a parent may drop a child",
@@ -648,6 +699,13 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: one,
 			want:    []targetFinding{{1, "UPDATE public.n SET id = 1 WHERE id = 2", "prior backup runs before the change, when public.n does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a table the change creates after the statement",
+			sql:     "UPDATE n SET id = 1 WHERE id = 2;\nCREATE TABLE n (id int);",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{0, "UPDATE n SET id = 1 WHERE id = 2", "prior backup runs before the change, when n does not exist yet", []int{0}}},
 		},
 		{
 			name:    "a table the change recreates still exists when the backup runs",

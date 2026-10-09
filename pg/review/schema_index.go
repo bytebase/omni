@@ -19,6 +19,8 @@ type schemaIndex struct {
 	// it, and readsColumn marks the columns they read.
 	readers     map[tableRef][]tableRef
 	readsColumn map[columnRef]bool
+	// returnedBy marks the relations whose row type a function returns.
+	returnedBy map[tableRef]bool
 }
 
 // namespace is one schema: the kind of every name in its relation
@@ -61,6 +63,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		schemas:     make(map[string]*namespace),
 		readers:     make(map[tableRef][]tableRef),
 		readsColumn: make(map[columnRef]bool),
+		returnedBy:  make(map[tableRef]bool),
 	}
 	for _, s := range db.GetSchemas() {
 		ns := &namespace{
@@ -108,6 +111,11 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		}
 		for _, c := range s.GetCompositeTypes() {
 			ns.add(c.GetName(), kindOther)
+		}
+		for _, f := range s.GetFunctions() {
+			for _, d := range f.GetDependencyTables() {
+				idx.returnedBy[tableRef{d.GetSchema(), d.GetTable()}] = true
+			}
 		}
 	}
 	return idx

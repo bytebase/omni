@@ -19,6 +19,14 @@ import (
 // whose effect the scan cannot bound (procedural code, a rollback, a
 // cascading drop of anything but a relation) ends it. Every way the scan
 // can be unsure leads to no finding.
+//
+// A DDL statement the server refuses for a reason the SQL and the synced
+// schema show (a missing object, a dependent object without CASCADE)
+// reports nothing and ends the scan. What user code does when it runs,
+// a trigger fired by DML or a function a query calls, is outside what a
+// static check can bound, and the scan does not predict it: findings
+// describe the change as written, and a change that fails at run time
+// fails before they matter.
 type scan struct {
 	on    map[review.Rule]bool
 	r     *reporter
@@ -65,7 +73,10 @@ type scan struct {
 	// reference, and readByChange the relations, by name, its views read,
 	// neither of which the synced schema records.
 	newReferences []newReference
-	readByChange  map[string]bool
+	readByChange  map[[2]string]bool
+	// pathVersion counts search path changes, so two unqualified names
+	// are known to resolve alike only under the same path.
+	pathVersion int
 
 	// pending are the tables RequirePrimaryKey reports at the end unless a
 	// later statement settles them.
@@ -93,7 +104,7 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		renamedTo:   make(map[[3]string]bool),
 		schemas:     make(map[string]bool),
 
-		readByChange: make(map[string]bool),
+		readByChange: make(map[[2]string]bool),
 	}
 	if target.Schema != nil {
 		s.index = newSchemaIndex(target.Schema)
@@ -244,18 +255,7 @@ func (s *scan) statement(st *statement) {
 	case *ast.AlterTableStmt:
 		s.alterTable(st, v)
 	case *ast.CreateStmt:
-		s.createTable(st, v)
-		s.touch(v.Relation)
-		if v.TableElts != nil {
-			for _, item := range v.TableElts.Items {
-				switch e := item.(type) {
-				case *ast.ColumnDef:
-					s.references(constraintsOf(e.Constraints)...)
-				case *ast.Constraint:
-					s.references(e)
-				}
-			}
-		}
+		s.create(st, v)
 	case *ast.CreateForeignTableStmt:
 		s.touch(v.Base.Relation)
 	case *ast.CreateTableAsStmt:
@@ -314,15 +314,7 @@ func (s *scan) statement(st *statement) {
 	case *ast.DropStmt:
 		s.drop(v)
 	case *ast.CreateSchemaStmt:
-		if v.SchemaElts != nil && len(v.SchemaElts.Items) > 0 {
-			s.stop()
-			return
-		}
-		// A schema named after its owner leaves no name to record; it holds
-		// only what the change creates in it.
-		if v.Schemaname != "" {
-			s.schemas[v.Schemaname] = true
-		}
+		s.createSchema(st, v)
 	case *ast.DoStmt, *ast.CallStmt:
 		// Procedural code may run any DDL.
 		s.stop()
@@ -343,19 +335,44 @@ func (s *scan) statement(st *statement) {
 	}
 }
 
-// newReference is the key a foreign key the change created references:
-// the table as written, "" for a schema left to the search path, and the
-// columns, nil for the primary key.
+// newReference is a foreign key the change created: the key it references,
+// by the table as written, "" for a schema left to the search path, and
+// the columns, nil for the primary key; and the table that owns it, as
+// written, with the search path it was written under, and its name, ""
+// when generated.
 type newReference struct {
 	schema, table string
 	columns       []string
+
+	owner     tableRef
+	ownerPath int
+	name      string
+	retired   bool
 }
 
-// references records the keys new foreign keys reference.
-func (s *scan) references(constraints ...*ast.Constraint) {
+// references records the keys new foreign keys of the owner reference.
+func (s *scan) references(owner *ast.RangeVar, constraints ...*ast.Constraint) {
 	for _, c := range constraints {
 		if c.Contype == ast.CONSTR_FOREIGN && c.Pktable != nil {
-			s.newReferences = append(s.newReferences, newReference{c.Pktable.Schemaname, c.Pktable.Relname, nameParts(c.PkAttrs)})
+			s.newReferences = append(s.newReferences, newReference{
+				schema: c.Pktable.Schemaname, table: c.Pktable.Relname, columns: nameParts(c.PkAttrs),
+				owner: tableRef{owner.Schemaname, owner.Relname}, ownerPath: s.pathVersion, name: c.Conname,
+			})
+		}
+	}
+}
+
+// retireReferences records that a statement dropped the new foreign keys of
+// a table, or the one of that name when name is set. Only a table named
+// as the foreign key's owner was, under the same search path when neither
+// is qualified, is known to be that owner.
+func (s *scan) retireReferences(owner *ast.RangeVar, name string) {
+	for i := range s.newReferences {
+		r := &s.newReferences[i]
+		same := r.owner.table == owner.Relname && r.owner.schema == owner.Schemaname &&
+			(owner.Schemaname != "" || r.ownerPath == s.pathVersion)
+		if same && (name == "" || r.name == name) {
+			r.retired = true
 		}
 	}
 }
@@ -365,7 +382,7 @@ func (s *scan) references(constraints ...*ast.Constraint) {
 // read; primary tells whether the key is the primary key.
 func (s *scan) newlyReferenced(t tableRef, columns []string, primary bool) bool {
 	for _, r := range s.newReferences {
-		if r.table != t.table || r.schema != "" && r.schema != t.schema {
+		if r.retired || r.table != t.table || r.schema != "" && r.schema != t.schema {
 			continue
 		}
 		if columns == nil || r.columns == nil && primary || r.columns != nil && sameColumns(r.columns, columns) {
@@ -380,7 +397,7 @@ func (s *scan) newlyReferenced(t tableRef, columns []string, primary bool) bool 
 // table's primary key columns, nil when it has none or they cannot be read.
 func (s *scan) newlyReferencedColumn(t tableRef, column string, keyColumns []string, hasKey bool) bool {
 	for _, r := range s.newReferences {
-		if r.table != t.table || r.schema != "" && r.schema != t.schema {
+		if r.retired || r.table != t.table || r.schema != "" && r.schema != t.schema {
 			continue
 		}
 		if r.columns != nil && slices.Contains(r.columns, column) || r.columns == nil && hasKey && (keyColumns == nil || slices.Contains(keyColumns, column)) {
@@ -390,14 +407,81 @@ func (s *scan) newlyReferencedColumn(t tableRef, column string, keyColumns []str
 	return false
 }
 
-// reads records the relations a new view's query names.
+// reads records the relations a new view's query names, in the schema
+// the name resolves to, the one written, or "" when neither is known.
 func (s *scan) reads(query ast.Node) {
 	ast.Inspect(query, func(n ast.Node) bool {
 		if rv, ok := n.(*ast.RangeVar); ok {
-			s.readByChange[rv.Relname] = true
+			s.readByChange[[2]string{s.schemaOf(rv), rv.Relname}] = true
 		}
 		return true
 	})
+}
+
+// create follows CREATE TABLE.
+func (s *scan) create(st *statement, v *ast.CreateStmt) {
+	s.createTable(st, v)
+	s.touch(v.Relation)
+	if v.TableElts == nil {
+		return
+	}
+	for _, item := range v.TableElts.Items {
+		switch e := item.(type) {
+		case *ast.ColumnDef:
+			s.references(v.Relation, constraintsOf(e.Constraints)...)
+		case *ast.Constraint:
+			s.references(v.Relation, e)
+		}
+	}
+}
+
+// createSchema follows CREATE SCHEMA and the statements it holds, each in
+// the new schema unless it names another. A schema named after its owner
+// takes the owner's name.
+func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
+	name := v.Schemaname
+	if name == "" && v.Authrole != nil {
+		name = v.Authrole.Rolename
+	}
+	if name == "" {
+		if v.SchemaElts != nil && len(v.SchemaElts.Items) > 0 {
+			s.stop()
+		}
+		return
+	}
+	s.schemas[name] = true
+	if v.SchemaElts == nil {
+		return
+	}
+	in := func(rv *ast.RangeVar) *ast.RangeVar {
+		if rv == nil || rv.Schemaname != "" {
+			return rv
+		}
+		c := *rv
+		c.Schemaname = name
+		return &c
+	}
+	for _, elt := range v.SchemaElts.Items {
+		switch e := elt.(type) {
+		case *ast.CreateStmt:
+			c := *e
+			c.Relation = in(e.Relation)
+			s.create(st, &c)
+		case *ast.ViewStmt:
+			s.touch(in(e.View))
+			s.reads(e.Query)
+		case *ast.CreateSeqStmt:
+			s.touch(in(e.Sequence))
+		case *ast.IndexStmt:
+			if e.Idxname != "" && e.Relation != nil {
+				s.touchName(in(e.Relation).Schemaname, e.Idxname)
+			}
+		case *ast.CreateTrigStmt, *ast.GrantStmt:
+		default:
+			s.stop()
+			return
+		}
+	}
 }
 
 // touch records a relation name a statement creates.
@@ -547,10 +631,12 @@ func (s *scan) table(rv *ast.RangeVar) (tableRef, bool) {
 func (s *scan) setting(v *ast.VariableSetStmt) {
 	if v.Kind == ast.VAR_RESET_ALL {
 		s.path = nil
+		s.pathVersion++
 		return
 	}
 	switch v.Name {
 	case "search_path":
+		s.pathVersion++
 		if v.Kind != ast.VAR_SET_VALUE || v.IsLocal || !plainNames(v.Args) {
 			s.path = nil
 			return
@@ -561,6 +647,7 @@ func (s *scan) setting(v *ast.VariableSetStmt) {
 			s.path = append(s.path, name)
 		}
 	case "role":
+		s.pathVersion++
 		switch {
 		case v.IsLocal:
 			s.user = ""
@@ -576,6 +663,7 @@ func (s *scan) setting(v *ast.VariableSetStmt) {
 			s.user = ""
 		}
 	case "session_authorization":
+		s.pathVersion++
 		s.user, s.session = "", ""
 	}
 }
@@ -612,6 +700,7 @@ func (s *scan) data(n ast.Node) {
 	if len(calls) == 0 {
 		return
 	}
+	s.pathVersion++
 	s.path = nil
 	if path, ok := dumpSearchPath(n, calls); ok {
 		// An empty path is a known path that finds nothing.
@@ -799,7 +888,7 @@ func (s *scan) drop(v *ast.DropStmt) {
 	if !isRelationKind(kind) && kind != ast.OBJECT_TYPE || v.Objects == nil {
 		return
 	}
-	if !cascade && s.dropRefused(v) {
+	if !cascade && s.dropRefused(v) || !v.Missing_ok && s.dropsMissing(v) {
 		s.stop()
 		return
 	}
@@ -825,6 +914,9 @@ func (s *scan) drop(v *ast.DropStmt) {
 		for _, p := range s.matching(rv) {
 			p.settled = true
 		}
+		if kind == ast.OBJECT_TABLE {
+			s.retireReferences(rv, "")
+		}
 		s.dropOwned(rv, schema, resolved && relKind == kindTable)
 		if cascade {
 			s.dropDependents(rv, schema)
@@ -840,10 +932,69 @@ func (s *scan) drop(v *ast.DropStmt) {
 	}
 }
 
+// dropsMissing reports whether a DROP without IF EXISTS names a relation
+// the target certainly lacks: no statement of the change made the name,
+// and the schema the SQL wrote, or every schema of a known search path,
+// holds no relation of that name.
+func (s *scan) dropsMissing(v *ast.DropStmt) bool {
+	if s.index == nil || v.Objects == nil || !isRelationKind(ast.ObjectType(v.RemoveType)) {
+		return false
+	}
+	for _, obj := range v.Objects.Items {
+		parts := nameParts(listOf(obj))
+		if len(parts) == 0 || len(parts) > 2 {
+			continue
+		}
+		rv := &ast.RangeVar{Relname: parts[len(parts)-1]}
+		if len(parts) == 2 {
+			rv.Schemaname = parts[0]
+		}
+		if s.missing(rv) {
+			return true
+		}
+	}
+	return false
+}
+
+// missing reports whether the target certainly has no relation of that
+// name where the name resolves.
+func (s *scan) missing(rv *ast.RangeVar) bool {
+	if s.isTouched(rv) {
+		return false
+	}
+	if rv.Schemaname != "" {
+		ns := s.index.schemas[rv.Schemaname]
+		if ns == nil || s.schemas[rv.Schemaname] {
+			return false
+		}
+		_, ok := ns.relations[rv.Relname]
+		return !ok
+	}
+	if strings.HasPrefix(rv.Relname, "pg_") {
+		return false
+	}
+	path, ok := s.searchPath()
+	if !ok {
+		return false
+	}
+	for _, name := range path {
+		if s.schemas[name] || name == "information_schema" {
+			return false
+		}
+		if ns := s.index.schemas[name]; ns != nil {
+			if _, ok := ns.relations[rv.Relname]; ok {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // dropRefused reports whether the server refuses a DROP without CASCADE of
 // relations the scan resolves: a view the statement does not drop reads
-// one, or, for a table, a foreign key of a table the statement does not
-// drop references it, as the synced schema or the change itself records.
+// one, a function returns its row type, or, for a table, a foreign key of
+// a table the statement does not drop references it, as the synced schema
+// or the change itself records.
 func (s *scan) dropRefused(v *ast.DropStmt) bool {
 	kind := ast.ObjectType(v.RemoveType)
 	if s.index == nil || kind != ast.OBJECT_TABLE && kind != ast.OBJECT_VIEW && kind != ast.OBJECT_MATVIEW && kind != ast.OBJECT_FOREIGN_TABLE {
@@ -864,7 +1015,7 @@ func (s *scan) dropRefused(v *ast.DropStmt) bool {
 		}
 	}
 	for _, t := range dropped {
-		if s.readByChange[t.table] {
+		if s.readByChange[[2]string{t.schema, t.table}] || s.readByChange[[2]string{"", t.table}] || s.index.returnedBy[t] {
 			return true
 		}
 		for _, view := range s.index.readers[t] {
