@@ -39,8 +39,8 @@ type pendingTable struct {
 	// key names the primary key a statement of the change added, or the
 	// CREATE gave, that settles the table, when that is all that settles
 	// it; dropping it leaves the table keyless again. keyColumns are the
-	// columns of the key the CREATE declared, while no statement but one
-	// that only drops named the table since: dropping one drops the key.
+	// key's columns, while no statement but one that only drops named the
+	// table since: dropping one drops the key.
 	key        string
 	keyColumns []string
 
@@ -139,14 +139,14 @@ func (p *pendingTable) settle() {
 }
 
 // keyed settles the pending tables a statement may give a primary key,
-// recording the key's name, "" when unknown, on the one it certainly
-// names.
-func (s *scan) keyed(rv *ast.RangeVar, name string) {
+// recording the key's name, "" when unknown, and its columns, nil when
+// unknown, on the one it certainly names.
+func (s *scan) keyed(rv *ast.RangeVar, name string, columns []string) {
 	for _, p := range s.matching(rv) {
 		settled := p.settled
 		p.settle()
 		if !settled && name != "" && s.namesPending(p, rv) {
-			p.key = name
+			p.key, p.keyColumns = name, columns
 		}
 	}
 }

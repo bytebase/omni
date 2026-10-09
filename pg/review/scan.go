@@ -643,6 +643,51 @@ func tempOutsideTemp(n ast.Node) bool {
 	return rv != nil && rv.Relpersistence == 't' && rv.Schemaname != "" && rv.Schemaname != "pg_temp" && !strings.HasPrefix(rv.Schemaname, "pg_temp_")
 }
 
+// constraintAttrsRefused reports whether CREATE or ALTER TABLE gives a
+// constraint an attribute its kind cannot take: NOT VALID or NO INHERIT on
+// a key or exclusion constraint, DEFERRABLE on a check, NO INHERIT on a
+// foreign key, or NOT VALID on a column's constraint.
+//
+// pg: src/backend/parser/gram.y — processCASbits, ColConstraint
+func constraintAttrsRefused(n ast.Node) bool {
+	switch n.(type) {
+	case *ast.CreateStmt, *ast.AlterTableStmt, *ast.CreateSchemaStmt, *ast.CreateForeignTableStmt:
+	default:
+		return false
+	}
+	refused := func(c *ast.Constraint, column bool) bool {
+		switch c.Contype {
+		case ast.CONSTR_PRIMARY, ast.CONSTR_UNIQUE, ast.CONSTR_EXCLUSION:
+			if c.SkipValidation || c.IsNoInherit {
+				return true
+			}
+		case ast.CONSTR_CHECK:
+			if c.Deferrable || c.Initdeferred {
+				return true
+			}
+		case ast.CONSTR_FOREIGN:
+			if c.IsNoInherit {
+				return true
+			}
+		}
+		return column && c.SkipValidation
+	}
+	found := false
+	ast.Inspect(n, func(m ast.Node) bool {
+		switch v := m.(type) {
+		case *ast.ColumnDef:
+			for _, c := range constraintsOf(v.Constraints) {
+				found = found || refused(c, true)
+			}
+			return false
+		case *ast.Constraint:
+			found = found || refused(v, false)
+		}
+		return !found
+	})
+	return found
+}
+
 // typeSchemaMissing reports whether a statement other than a DROP names a
 // type in a schema the target certainly lacks, which the server refuses
 // when it resolves the type. A system schema is not in the snapshot, but
@@ -1118,7 +1163,7 @@ func (s *scan) statement(st *statement) {
 	// A CREATE in a schema that certainly does not exist is refused, and
 	// so is a statement on a relation the target certainly lacks.
 	if schema := createdIn(st.node); schema != "" && s.schemaMissing(&ast.RangeVar{Schemaname: schema}) || s.namesMissing(st.node) ||
-		tempOutsideTemp(st.node) || s.typeSchemaMissing(st.node) {
+		tempOutsideTemp(st.node) || s.typeSchemaMissing(st.node) || constraintAttrsRefused(st.node) {
 		s.stop()
 		return
 	}
@@ -1328,6 +1373,14 @@ func (s *scan) statement(st *statement) {
 		if s.copyRefused(v) {
 			s.stop()
 		}
+	case *ast.ReindexStmt:
+		if s.reindexRefused(v) {
+			s.stop()
+		}
+	case *ast.AlterFunctionStmt:
+		if fn, ok := routineOf(v.Func); ok && s.routineRefused(fn, v.Func, v.Objtype) {
+			s.stop()
+		}
 	case *ast.ExplainStmt:
 		// EXPLAIN plans the query, which needs its relations.
 		switch q := v.Query.(type) {
@@ -1535,6 +1588,54 @@ func (s *scan) dependsIn(deps *[]newDependency, object tableRef, n ast.Node, vis
 			path:     s.pathVersion,
 		})
 	})
+}
+
+// reindexRefused reports whether the server certainly refuses a REINDEX:
+// of a relation the target lacks or of a kind it does not take (TABLE
+// takes a table or materialized view, INDEX an index), or of a schema the
+// target lacks.
+//
+// pg: src/backend/commands/indexcmds.c — RangeVarCallbackForReindexIndex,
+// ReindexTable
+func (s *scan) reindexRefused(v *ast.ReindexStmt) bool {
+	if s.index == nil {
+		return false
+	}
+	switch v.Kind {
+	case ast.REINDEX_OBJECT_SCHEMA:
+		return !strings.HasPrefix(v.Name, "pg_") && v.Name != "information_schema" && s.schemaMissing(&ast.RangeVar{Schemaname: v.Name})
+	case ast.REINDEX_OBJECT_TABLE, ast.REINDEX_OBJECT_INDEX:
+	default:
+		return false
+	}
+	if v.Relation == nil {
+		return false
+	}
+	if s.missing(v.Relation) {
+		return true
+	}
+	kind := relationKind(0)
+	if _, k, ok := s.lookup(v.Relation); ok {
+		kind = k
+	} else if c, made := s.madeAt(v.Relation); made {
+		kind = c.kind
+	}
+	switch {
+	case kind == 0 || kind == kindAmbiguous:
+		return false
+	case v.Kind == ast.REINDEX_OBJECT_INDEX:
+		return kind != kindIndex
+	}
+	return kind != kindTable && kind != kindPartition && kind != kindMatView
+}
+
+// routineRefused reports whether ALTER FUNCTION, PROCEDURE, or ROUTINE
+// certainly names no one routine of its kind: a name alone that several
+// routines have, a name no routine of the kind has, or a signature none
+// has.
+func (s *scan) routineRefused(fn tableRef, owa *ast.ObjectWithArgs, kind ast.ObjectType) bool {
+	return owa.ArgsUnspecified && (s.routinesOf(fn) > 1 || fn.schema == "" && len(s.newSignatures[fn]) > 1) ||
+		s.routineMissing(fn, kind) || s.signatureMissing(fn, owa)
 }
 
 // copyRefused reports whether the server certainly refuses a COPY for the

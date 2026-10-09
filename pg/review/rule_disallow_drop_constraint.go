@@ -258,7 +258,13 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 					s.renamedKeys[c.Indexname] = true
 				}
 				if c.Contype == ast.CONSTR_PRIMARY {
-					s.keyed(v.Relation, s.keyName(v.Relation, c))
+					// A key on an index the statement names has the index's
+					// columns, which the scan does not read.
+					var columns []string
+					if c.Indexname == "" {
+						columns = nameParts(c.Keys)
+					}
+					s.keyed(v.Relation, s.keyName(v.Relation, c), columns)
 				}
 				if c.Contype == ast.CONSTR_PRIMARY || c.Contype == ast.CONSTR_UNIQUE {
 					s.newKey(v.Relation)
@@ -293,7 +299,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 						s.touchName(v.Relation.Schemaname, c.Conname)
 					}
 					if c.Contype == ast.CONSTR_PRIMARY {
-						s.keyed(v.Relation, "")
+						s.keyed(v.Relation, s.keyName(v.Relation, c), []string{cd.Colname})
 					}
 					if c.Contype == ast.CONSTR_PRIMARY || c.Contype == ast.CONSTR_UNIQUE {
 						s.newKey(v.Relation)
@@ -307,7 +313,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 			if idx, ok := cmd.Def.(*ast.IndexStmt); ok {
 				s.renamedKeys[idx.Idxname] = true
 				if idx.Primary {
-					s.keyed(v.Relation, "")
+					s.keyed(v.Relation, "", nil)
 				}
 				if idx.Primary || idx.Unique {
 					s.newKey(v.Relation)

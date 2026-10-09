@@ -2663,6 +2663,61 @@ func TestRequirePrimaryKey(t *testing.T) {
 			want:    []targetFinding{{1, "CREATE TABLE s.n (id int)", "creates table s.n without a primary key", []int{0}}},
 		},
 		{
+			name:    "a key added with its column, then dropped",
+			sql:     "CREATE TABLE n (x int);\nALTER TABLE n ADD COLUMN id int CONSTRAINT n_pk PRIMARY KEY;\nALTER TABLE n DROP CONSTRAINT n_pk;",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE n (x int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a key added to a new table, then its column dropped",
+			sql:     "CREATE TABLE n (id int, x int);\nALTER TABLE n ADD PRIMARY KEY (id);\nALTER TABLE n DROP COLUMN id;",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE n (id int, x int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "REINDEX of a relation the target lacks is refused",
+			sql:     "REINDEX TABLE public.missing;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "REINDEX INDEX of a table is refused",
+			sql:     "REINDEX INDEX public.t;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "REINDEX of a table goes on",
+			sql:     "REINDEX TABLE public.t;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "ALTER FUNCTION of a signature the target lacks is refused",
+			sql:     "ALTER FUNCTION public.f(text) IMMUTABLE;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
+		},
+		{
+			name:    "ALTER PROCEDURE of a function is refused",
+			sql:     "ALTER PROCEDURE public.f(integer) SECURITY DEFINER;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
+		},
+		{
+			name:    "ALTER FUNCTION of a synced function goes on",
+			sql:     "ALTER FUNCTION public.f(integer) IMMUTABLE;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "NOT VALID on a table's primary key is refused",
+			sql:     "CREATE TABLE n (id int, PRIMARY KEY (id) NOT VALID);\nCREATE TABLE m (id int);",
+			targets: one,
+		},
+		{
+			name:    "NOT VALID on a table's check goes on",
+			sql:     "CREATE TABLE n (id int, CHECK (id > 0) NOT VALID);",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE n (id int, CHECK (id > 0) NOT VALID)", "creates table n without a primary key", []int{0}}},
+		},
+		{
 			name:    "CREATE SCHEMA makes its tables before their indexes",
 			sql:     "CREATE SCHEMA z CREATE INDEX i ON x (id) CREATE TABLE x (id int);",
 			targets: one,
