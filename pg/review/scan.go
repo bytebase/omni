@@ -1159,12 +1159,15 @@ func (s *scan) signatureTaken(v *ast.CreateFunctionStmt) bool {
 	if slices.Contains(s.newSignatures[object], signature) {
 		return true
 	}
-	if signature != "" || s.index == nil || s.movedRoutines[object.table] {
+	if s.index == nil || s.movedRoutines[object.table] {
 		return false
 	}
 	schema, ok := s.creationSchema(&ast.RangeVar{Schemaname: object.schema, Relname: object.table})
 	fn := tableRef{schema, object.table}
-	return ok && s.index.noArgs[fn] && !s.droppedFunctions[fn]
+	if !ok || s.droppedFunctions[fn] {
+		return false
+	}
+	return signature == "" && s.index.noArgs[fn] || slices.Contains(s.index.signatures[fn], signature)
 }
 
 // replaces records a CREATE OR REPLACE FUNCTION that certainly redefines
@@ -1530,6 +1533,19 @@ func (s *scan) indexRefused(v *ast.IndexStmt) bool {
 	switch kind {
 	case kindView, kindSequence, kindIndex, kindCompositeType, kindForeignTable:
 		return true
+	}
+	// A plain column the index names must be the table's.
+	if t, known := s.table(v.Relation); known {
+		for _, list := range []*ast.List{v.IndexParams, v.IndexIncludingParams} {
+			if list == nil {
+				continue
+			}
+			for _, item := range list.Items {
+				if e, ok := item.(*ast.IndexElem); ok && e.Name != "" && !s.hasColumn(t, e.Name) {
+					return true
+				}
+			}
+		}
 	}
 	return v.Idxname != "" && !v.IfNotExists && (s.nameTaken(schema, v.Idxname) || s.madeHere(&ast.RangeVar{Schemaname: schema, Relname: v.Idxname}))
 }
@@ -2368,6 +2384,10 @@ func (s *scan) rename(v *ast.RenameStmt) {
 	}
 	switch {
 	case isRelationKind(v.RenameType) && v.Relation != nil:
+		if s.alterKindRefused(v.RenameType, v.Relation) {
+			s.stop()
+			return
+		}
 		schema, _, resolved := s.lookup(v.Relation)
 		// A name its schema holds is refused.
 		if resolved && s.nameTaken(schema, v.Newname) {
@@ -2463,6 +2483,29 @@ func (s *scan) renameConstraintRefused(t tableRef, from, to string) bool {
 		return true
 	}
 	return s.index.constraintIndexes[tableRef{t.schema, from}] && s.constraintKnown(t, from) && s.nameTaken(t.schema, to)
+}
+
+// alterKindRefused reports whether ALTER of an object type certainly names
+// a relation of another kind, as the snapshot or the change's own creation
+// tells: ALTER VIEW, MATERIALIZED VIEW, SEQUENCE, or FOREIGN TABLE takes
+// only its own kind, ALTER TABLE any relation but a composite type, and
+// ALTER INDEX ... RENAME any relation at all.
+//
+// pg: src/backend/commands/tablecmds.c — RangeVarCallbackForAlterRelation
+func (s *scan) alterKindRefused(t ast.ObjectType, rv *ast.RangeVar) bool {
+	kind := relationKind(0)
+	if _, k, ok := s.lookup(rv); ok {
+		kind = k
+	} else if c, made := s.madeAt(rv); made {
+		kind = c.kind
+	}
+	switch {
+	case kind == 0 || kind == kindAmbiguous || t == ast.OBJECT_INDEX:
+		return false
+	case t == ast.OBJECT_TABLE:
+		return kind == kindCompositeType || kind == kindType
+	}
+	return !dropKindMatches(t, kind)
 }
 
 // renamedRelation is a relation of the synced schema a rename or a move
@@ -2593,6 +2636,10 @@ func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 			if !v.MissingOk {
 				s.stop()
 			}
+			return
+		}
+		if s.alterKindRefused(v.ObjectType, v.Relation) {
+			s.stop()
 			return
 		}
 		schema, _, resolved := s.lookup(v.Relation)
@@ -2810,6 +2857,12 @@ func (s *scan) dropFunctions(v *ast.DropStmt) {
 		if len(parts) == 2 {
 			fn.schema = parts[0]
 		}
+		// A name alone that several routines have is refused, IF EXISTS
+		// or not.
+		if owa.ArgsUnspecified && s.routinesOf(fn) > 1 {
+			s.stop()
+			return
+		}
 		// A routine the target certainly lacks is not there to drop; IF
 		// EXISTS then drops nothing.
 		if s.routineMissing(fn, ast.ObjectType(v.RemoveType)) {
@@ -2880,6 +2933,17 @@ func (s *scan) syncedFunctions(fn tableRef) int {
 		}
 	}
 	return n
+}
+
+// routinesOf counts the routines a qualified name certainly has: the
+// synced ones of the name, none dropped or renamed by the change, and the
+// signatures the change created under the name as written. It is 0 for a
+// name the scan cannot count.
+func (s *scan) routinesOf(fn tableRef) int {
+	if s.index == nil || fn.schema == "" || s.movedRoutines[fn.table] || s.droppedFunctions[fn] || s.schemas[fn.schema] {
+		return 0
+	}
+	return s.index.functions[fn] + len(s.newSignatures[fn])
 }
 
 // routineMissing reports whether no routine of that name certainly exists

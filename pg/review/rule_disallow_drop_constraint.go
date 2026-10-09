@@ -1,7 +1,6 @@
 package review
 
 import (
-	"maps"
 	"slices"
 	"strings"
 
@@ -21,18 +20,22 @@ import (
 //
 // The server runs every DROP subcommand of the statement before the
 // others, so the scan does too, and the statement succeeds or fails as a
-// whole, so what the drops find is reported only when no subcommand is
-// known to fail.
+// whole, so what the drops find is reported only when every subcommand is
+// known to run. A statement the server may refuse ends the scan: what
+// follows it is not known.
 //
 // pg: src/backend/commands/tablecmds.c — ATController (AT_PASS_DROP first)
 func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 	if v.Cmds == nil || v.Relation == nil {
 		return
 	}
-	// ALTER of a relation the target certainly lacks is refused, and so
-	// is ALTER TABLE of a relation that is no table.
-	if !v.Missing_ok && s.index != nil && s.missing(v.Relation) {
-		s.stop()
+	// ALTER of a relation the target certainly lacks is refused, and
+	// under IF EXISTS does nothing; ALTER TABLE of a relation that is no
+	// table is refused.
+	if s.index != nil && s.missing(v.Relation) {
+		if !v.Missing_ok {
+			s.stop()
+		}
 		return
 	}
 	if ast.ObjectType(v.ObjType) == ast.OBJECT_TABLE {
@@ -68,13 +71,9 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 	schema := s.schemaOf(v.Relation)
 	before, knownBefore := s.table(v.Relation)
 	// What the drops find is kept until every subcommand is known to run:
-	// a statement the server refuses drops nothing. A DROP the server may
-	// refuse withholds the statement's findings without ending the scan.
+	// a statement the server refuses drops nothing.
 	var out droppedKeys
 	withhold := false
-	// What the statement records as dropped stays tentative until it is
-	// known to run.
-	prior := maps.Clone(s.dropped)
 	// droppedColumns names the dropped columns as the statement does, and
 	// droppedOrigins as the synced table does, "" for one the scan cannot
 	// follow there.
@@ -181,38 +180,22 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 		}
 		withhold = withhold || uncertain
 	}
+	// A statement the server may refuse leaves what follows unknown.
 	if withhold {
-		// The constraints the statement drops may still be there.
-		for key := range s.dropped {
-			if !prior[key] {
-				delete(s.dropped, key)
-			}
-		}
+		s.stop()
+		return
 	}
 	if droppedAColumn {
 		s.unsettled[[2]string{schema, name}] = true
-		// Columns a statement that may not run drops may still be there.
-		if !withhold {
-			for column := range droppedColumns {
-				s.setColumn(schema, name, column, false, false)
-			}
+		for column := range droppedColumns {
+			s.setColumn(schema, name, column, false, false)
 		}
 	}
-	if !withhold {
-		for _, p := range reopened {
-			p.settled, p.key = false, ""
-		}
+	for _, p := range reopened {
+		p.settled, p.key = false, ""
 	}
 	for _, name := range out.freed {
-		// What a statement that may not run drops may still be there.
-		if withhold {
-			s.touchName(schema, name)
-		} else {
-			s.free(schema, name)
-		}
-	}
-	if withhold {
-		out = droppedKeys{}
+		s.free(schema, name)
 	}
 	for _, f := range out.findings {
 		s.r.add(f)
@@ -775,6 +758,11 @@ func (s *scan) refusesReference(t tableRef, c *ast.Constraint, own func(string) 
 	}
 	schema, kind, ok := s.lookup(c.Pktable)
 	if !ok {
+		// A table the change created and said all of is checked against
+		// what its CREATE gave it.
+		if def, made := s.madeDef(c.Pktable); made {
+			return def.refusedBy(columns, local), false
+		}
 		return false, true
 	}
 	ref := tableRef{schema, c.Pktable.Relname}

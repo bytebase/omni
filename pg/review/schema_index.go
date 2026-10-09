@@ -32,8 +32,10 @@ type schemaIndex struct {
 	extensions   map[string]bool
 	routineKinds map[tableRef]routineKind
 	// noArgs marks the functions, by (schema, name), whose signature takes
-	// no arguments.
-	noArgs map[tableRef]bool
+	// no arguments, and signatures lists the argument signatures the scan
+	// can read, written as argSignature writes them.
+	noArgs     map[tableRef]bool
+	signatures map[tableRef][]string
 	// ownedSequences lists the sequences a column owns, which go with it.
 	ownedSequences map[columnRef][]string
 }
@@ -98,6 +100,7 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		extensions:        make(map[string]bool),
 		routineKinds:      make(map[tableRef]routineKind),
 		noArgs:            make(map[tableRef]bool),
+		signatures:        make(map[tableRef][]string),
 		ownedSequences:    make(map[columnRef][]string),
 	}
 	for _, e := range db.GetExtensions() {
@@ -174,6 +177,9 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 			if f.GetSignature() == f.GetName()+"()" {
 				idx.noArgs[fn] = true
 			}
+			if sig, ok := syncedSignature(f); ok {
+				idx.signatures[fn] = append(idx.signatures[fn], sig)
+			}
 			for _, d := range f.GetDependencyTables() {
 				t := tableRef{d.GetSchema(), d.GetTable()}
 				idx.returnedBy[t] = append(idx.returnedBy[t], fn)
@@ -181,6 +187,68 @@ func newSchemaIndex(db *metadata.DatabaseSchemaMetadata) *schemaIndex {
 		}
 	}
 	return idx
+}
+
+// syncedSignature reads a synced routine's signature, the name and the
+// identity arguments PostgreSQL writes (each an optional mode, an optional
+// name, and a type), into the form argSignature gives a statement's. ok is
+// false for an argument it cannot read.
+//
+// bytebase: backend/plugin/db/pg/sync.go — getFunctions (Signature)
+func syncedSignature(f *metadata.FunctionMetadata) (string, bool) {
+	sig := f.GetSignature()
+	if !strings.HasPrefix(sig, f.GetName()+"(") || !strings.HasSuffix(sig, ")") {
+		return "", false
+	}
+	args := strings.TrimSuffix(strings.TrimPrefix(sig, f.GetName()+"("), ")")
+	if args == "" {
+		return "", true
+	}
+	var out []string
+	for _, arg := range strings.Split(args, ", ") {
+		t, ok := argType(arg)
+		if !ok {
+			return "", false
+		}
+		out = append(out, t)
+	}
+	return strings.Join(out, ","), true
+}
+
+// sqlTypes maps the names PostgreSQL writes built-in types under to the
+// ones the parser gives them.
+var sqlTypes = map[string]string{
+	"integer": "int4", "bigint": "int8", "smallint": "int2", "boolean": "bool", "real": "float4",
+	"double precision": "float8", "character varying": "varchar", "character": "bpchar",
+	"timestamp without time zone": "timestamp", "timestamp with time zone": "timestamptz",
+	"time without time zone": "time", "time with time zone": "timetz", "bit varying": "varbit",
+	"numeric": "numeric", "text": "text", "uuid": "uuid", "date": "date", "interval": "interval",
+	"json": "json", "jsonb": "jsonb", "bytea": "bytea",
+}
+
+// argType reads one identity argument into a type as argSignature writes
+// it: a built-in type it knows, with an array marker. ok is false for any
+// other.
+func argType(arg string) (string, bool) {
+	words := strings.Fields(arg)
+	if len(words) > 0 && (words[0] == "IN" || words[0] == "INOUT" || words[0] == "VARIADIC") {
+		words = words[1:]
+	}
+	array := false
+	if n := len(words); n > 0 && strings.HasSuffix(words[n-1], "[]") {
+		words[n-1] = strings.TrimSuffix(words[n-1], "[]")
+		array = true
+	}
+	// The type is the whole rest, or the rest after an argument name.
+	for _, rest := range [][]string{words, words[min(1, len(words)):]} {
+		if t, ok := sqlTypes[strings.Join(rest, " ")]; ok && len(rest) > 0 {
+			if array {
+				t += "[]"
+			}
+			return t, true
+		}
+	}
+	return "", false
 }
 
 // routineKind is a set of kinds of routine.

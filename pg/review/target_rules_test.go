@@ -100,6 +100,12 @@ func withSyncedProcedure() *metadata.DatabaseSchemaMetadata {
 	return db
 }
 
+// withSignature is db with a public function of that name and signature.
+func withSignature(db *metadata.DatabaseSchemaMetadata, name, signature string) *metadata.DatabaseSchemaMetadata {
+	db.Schemas[0].Functions = append(db.Schemas[0].Functions, &metadata.FunctionMetadata{Name: name, Signature: signature, Definition: "CREATE OR REPLACE FUNCTION"})
+	return db
+}
+
 func withView(db *metadata.DatabaseSchemaMetadata, schema, view string) *metadata.DatabaseSchemaMetadata {
 	for _, s := range db.Schemas {
 		if s.Name == schema {
@@ -323,10 +329,10 @@ func TestDisallowDropConstraint(t *testing.T) {
 			targets: one,
 		},
 		{
-			name:    "a drop of a constraint a column drop may have taken withholds the statement",
+			// The statement may fail, so what follows it is not known.
+			name:    "a drop of a constraint a column drop may have taken ends the scan",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_code_key, DROP COLUMN n, DROP CONSTRAINT t_n_check;\nALTER TABLE s.t DROP CONSTRAINT t_pkey;",
 			targets: one,
-			want:    []targetFinding{{1, "DROP CONSTRAINT t_pkey", "drops unique constraint t_pkey of s.t", []int{0}}},
 		},
 		{
 			name:    "a new foreign key blocks only the key it references",
@@ -383,10 +389,11 @@ func TestDisallowDropConstraint(t *testing.T) {
 			want:    []targetFinding{{1, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
 		},
 		{
-			name:    "a constraint the snapshot lacks does not end the scan",
+			// The snapshot leaves out NOT NULL constraints, so the drop may
+			// fail, and what follows it is not known.
+			name:    "a constraint the snapshot lacks ends the scan",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_nn;\nALTER TABLE t DROP CONSTRAINT t_n_check;",
 			targets: one,
-			want:    []targetFinding{{1, "DROP CONSTRAINT t_n_check", "drops check constraint t_n_check of t", []int{0}}},
 		},
 		{
 			name:    "a foreign key a cascade took is not there to drop",
@@ -430,6 +437,12 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name:    "an added key naming a column twice refuses the statement",
 			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD UNIQUE (id, id);",
 			targets: one,
+		},
+		{
+			name:    "ALTER TABLE IF EXISTS of a table the target lacks does nothing",
+			sql:     "ALTER TABLE IF EXISTS public.missing ADD CONSTRAINT fk FOREIGN KEY (x) REFERENCES public.t (id);\nALTER TABLE public.t DROP CONSTRAINT t_code_key;",
+			targets: one,
+			want:    []targetFinding{{1, "DROP CONSTRAINT t_code_key", "drops unique constraint t_code_key of public.t", []int{0}}},
 		},
 		{
 			name:    "ADD CONSTRAINT USING INDEX of a missing index refuses the statement",
@@ -1988,6 +2001,57 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "DROP TABLE of a table the change made that a new view reads is refused",
 			sql:     "CREATE TABLE public.x (id int PRIMARY KEY);\nCREATE VIEW public.w AS SELECT * FROM public.x;\nDROP TABLE public.x;\nCREATE TABLE n (id int);",
 			targets: one,
+		},
+		{
+			name:    "a statement that may fail ends the scan",
+			sql:     "ALTER TABLE t DROP CONSTRAINT nope, ADD CONSTRAINT x CHECK (n > 0);\nALTER TABLE t DROP CONSTRAINT x;\nCREATE TABLE fresh (id int);",
+			targets: one,
+		},
+		{
+			name:    "an added foreign key to a table the change made is checked against its CREATE",
+			sql:     "CREATE TABLE a (id int PRIMARY KEY);\nALTER TABLE t ADD CONSTRAINT t_a_fk FOREIGN KEY (n) REFERENCES a;\nCREATE TABLE b (id int);",
+			targets: one,
+			want: []targetFinding{
+				{2, "CREATE TABLE b (id int)", "creates table b without a primary key", []int{0}},
+			},
+		},
+		{
+			name:    "CREATE FUNCTION of a synced signature with arguments is refused",
+			sql:     "CREATE FUNCTION public.f(integer) RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
+		},
+		{
+			name:    "CREATE FUNCTION of another signature",
+			sql:     "CREATE FUNCTION public.f(text) RETURNS int LANGUAGE sql AS 'SELECT 1';\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "ALTER SEQUENCE RENAME of a table is refused",
+			sql:     "ALTER SEQUENCE public.t RENAME TO x;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			// The server takes ALTER INDEX ... RENAME of any relation.
+			name:    "ALTER INDEX RENAME of a table renames it",
+			sql:     "ALTER INDEX public.nokey RENAME TO x;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "ALTER VIEW SET SCHEMA of a table is refused",
+			sql:     "ALTER VIEW public.nokey SET SCHEMA s;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE INDEX on a column the table lacks is refused",
+			sql:     "CREATE INDEX i ON t (missing);\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "DROP FUNCTION by a name several routines have is refused",
+			sql:     "DROP FUNCTION public.f;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(withSignature(shop(), "f", "f(a integer)"), "f", "f(text)"), SessionUser: "alice"}},
 		},
 		{
 			name: "a cascade does not go past a view the change replaced",
