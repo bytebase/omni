@@ -655,6 +655,14 @@ func (s *scan) refuses(t tableRef, droppedColumns, droppedOrigins, droppedConstr
 			if !has(cmd.Name) {
 				return true, false
 			}
+			// A column of the primary key the table keeps stays NOT NULL.
+			if ast.AlterTableType(cmd.Subtype) == ast.AT_DropNotNull {
+				if pk := primaryKey(table); pk != nil && uses(pk.GetName()) {
+					if origin, ok := s.originOf(t, cmd.Name); ok && origin != "" && slices.Contains(keyColumns(pk), origin) {
+						return true, false
+					}
+				}
+			}
 		}
 	}
 	for _, c := range constraints {

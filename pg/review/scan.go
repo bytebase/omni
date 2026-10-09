@@ -624,6 +624,9 @@ func (s *scan) statement(st *statement) {
 		}
 		taken := s.existsWhereCreated(rel) || s.madeHere(rel)
 		switch {
+		case duplicateNames(&v.Base) || checksRefused(&v.Base) || s.sourceRefused(&v.Base):
+			s.stop()
+			return
 		case s.typeExists(rel) || taken && !v.Base.IfNotExists:
 			s.stop()
 			return
@@ -945,14 +948,19 @@ func (s *scan) dependsIn(deps *[]newDependency, object tableRef, n ast.Node, vis
 }
 
 // readsMissing reports whether a query names a relation the target
-// certainly lacks, CTE names aside.
+// certainly lacks, or one a query cannot read (an index or a composite
+// type), CTE names aside.
 func (s *scan) readsMissing(n ast.Node) bool {
 	if s.index == nil {
 		return false
 	}
 	missing := false
 	relationsIn(n, nil, func(rv *ast.RangeVar) {
-		missing = missing || s.missing(rv)
+		if s.missing(rv) {
+			missing = true
+		} else if _, kind, ok := s.lookup(rv); ok && (kind == kindIndex || kind == kindCompositeType) {
+			missing = true
+		}
 	})
 	return missing
 }
@@ -1380,6 +1388,12 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 			s.touch(in(e.Sequence))
 			s.made(in(e.Sequence), kindSequence)
 		case *ast.IndexStmt:
+			c := *e
+			c.Relation = in(e.Relation)
+			if s.indexRefused(&c) {
+				s.stop()
+				return
+			}
 			if e.Idxname != "" && e.Relation != nil {
 				s.touchName(in(e.Relation).Schemaname, e.Idxname)
 			}
@@ -2405,6 +2419,10 @@ func (s *scan) rename(v *ast.RenameStmt) {
 		s.setColumn(schema, v.Relation.Relname, v.Subname, false, false)
 		s.setColumn(schema, v.Relation.Relname, v.Newname, true, true)
 	case v.RenameType == ast.OBJECT_FUNCTION || v.RenameType == ast.OBJECT_PROCEDURE || v.RenameType == ast.OBJECT_ROUTINE:
+		if fn, ok := routineOf(v.Object); ok && s.routineMissing(fn, v.RenameType) {
+			s.stop()
+			return
+		}
 		s.renameRoutine(v)
 	case v.RenameType == ast.OBJECT_SCHEMA:
 		s.stop()
@@ -2590,6 +2608,12 @@ func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 			s.touchName("", parts[len(parts)-1])
 		}
 	case v.ObjectType == ast.OBJECT_FUNCTION || v.ObjectType == ast.OBJECT_PROCEDURE || v.ObjectType == ast.OBJECT_ROUTINE:
+		if fn, ok := routineOf(v.Object); ok && s.routineMissing(fn, v.ObjectType) {
+			if !v.MissingOk {
+				s.stop()
+			}
+			return
+		}
 		if owa, ok := v.Object.(*ast.ObjectWithArgs); ok {
 			if parts := nameParts(owa.Objname); len(parts) > 0 {
 				s.madeRoutines[parts[len(parts)-1]] = true
@@ -2865,6 +2889,23 @@ func (s *scan) routineMissing(fn tableRef, kind ast.ObjectType) bool {
 	return true
 }
 
+// routineOf returns the routine an ALTER names, as written.
+func routineOf(n ast.Node) (tableRef, bool) {
+	owa, ok := n.(*ast.ObjectWithArgs)
+	if !ok {
+		return tableRef{}, false
+	}
+	parts := nameParts(owa.Objname)
+	if len(parts) == 0 || len(parts) > 2 {
+		return tableRef{}, false
+	}
+	fn := tableRef{table: parts[len(parts)-1]}
+	if len(parts) == 2 {
+		fn.schema = parts[0]
+	}
+	return fn, true
+}
+
 // renameRoutine follows ALTER FUNCTION, PROCEDURE, or ROUTINE ... RENAME:
 // the change's own function the statement certainly names keeps its
 // dependencies under the new name.
@@ -3134,6 +3175,11 @@ func (s *scan) missing(rv *ast.RangeVar) bool {
 		return false
 	}
 	if rv.Schemaname != "" {
+		// A schema the change created started empty: what no statement
+		// named in it, and no generated name may be, is not there.
+		if s.schemas[rv.Schemaname] && !s.schemaGone[rv.Schemaname] {
+			return !s.generated[rv.Schemaname] && !s.generated[""]
+		}
 		ns := s.index.schemas[rv.Schemaname]
 		if ns == nil || s.schemas[rv.Schemaname] {
 			return false

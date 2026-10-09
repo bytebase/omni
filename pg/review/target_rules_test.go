@@ -1895,6 +1895,53 @@ func TestRequirePrimaryKey(t *testing.T) {
 			targets: one,
 		},
 		{
+			name:    "CREATE VIEW reading an index is refused",
+			sql:     "CREATE VIEW v AS SELECT * FROM public.t_pkey;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE SCHEMA with an index on a table it lacks is refused",
+			sql:     "CREATE SCHEMA z CREATE INDEX i ON missing (id);\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE SCHEMA with an index on its table",
+			sql:     "CREATE SCHEMA z CREATE TABLE x (id int PRIMARY KEY) CREATE INDEX i ON x (id);\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE FOREIGN TABLE with a column twice is refused",
+			sql:     "CREATE FOREIGN TABLE x (a int, a int) SERVER s;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "ALTER FUNCTION RENAME of a function the target lacks is refused",
+			sql:     "ALTER FUNCTION public.missing() RENAME TO f;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "ALTER PROCEDURE RENAME of a procedure the target lacks is refused",
+			sql:     "ALTER PROCEDURE public.missing() RENAME TO f;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "ALTER FUNCTION SET SCHEMA of a function the target lacks is refused",
+			sql:     "ALTER FUNCTION public.missing() SET SCHEMA s;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "DROP NOT NULL of a primary key column is refused",
+			sql:     "ALTER TABLE t ALTER COLUMN id DROP NOT NULL;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "DROP NOT NULL of another column",
+			sql:     "ALTER TABLE t ALTER COLUMN n DROP NOT NULL;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
 			name: "a cascade does not go past a view the change replaced",
 			sql:  "CREATE OR REPLACE VIEW v AS SELECT 1 AS id;\nDROP TABLE base CASCADE;\nCREATE TABLE w (id int);",
 			targets: []review.Target{{Schema: database("public", &metadata.SchemaMetadata{
