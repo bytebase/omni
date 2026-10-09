@@ -345,6 +345,9 @@ func (s *scan) statement(st *statement) {
 		case *ast.CreateTableAsStmt:
 			if q.Into != nil {
 				s.touch(q.Into.Rel)
+				if q.Objtype == ast.OBJECT_MATVIEW {
+					s.reads(q.Into.Rel, q.Query)
+				}
 			}
 		case *ast.SelectStmt:
 			if q.IntoClause != nil || selectsInto(q) {
@@ -1099,11 +1102,22 @@ func (s *scan) drop(v *ast.DropStmt) {
 	}
 	if kind == ast.OBJECT_SCHEMA && v.Objects != nil {
 		// Without CASCADE the schema must be empty; its name may then be
-		// created again.
+		// created again. A schema the target lacks and the change did not
+		// create is not there to drop: IF EXISTS drops nothing, and
+		// without it the statement is refused.
 		for _, obj := range v.Objects.Items {
-			if parts := nameParts(listOf(obj)); len(parts) == 1 {
-				s.schemas[parts[0]] = true
+			parts := nameParts(listOf(obj))
+			if len(parts) != 1 {
+				continue
 			}
+			if s.index != nil && s.index.schemas[parts[0]] == nil && !s.schemas[parts[0]] {
+				if !v.Missing_ok {
+					s.stop()
+					return
+				}
+				continue
+			}
+			s.schemas[parts[0]] = true
 		}
 		return
 	}

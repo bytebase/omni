@@ -679,6 +679,33 @@ func TestRequirePrimaryKey(t *testing.T) {
 			want: []targetFinding{{1, "CREATE TABLE IF NOT EXISTS p1_idx (id int)", "creates table p1_idx without a primary key", []int{0}}},
 		},
 		{
+			name:    "DROP SCHEMA IF EXISTS of a missing schema leaves it missing",
+			sql:     "DROP SCHEMA IF EXISTS missing;\nCREATE TABLE missing.n (id int);",
+			targets: one,
+		},
+		{
+			name:    "DROP SCHEMA of a missing schema is refused",
+			sql:     "DROP SCHEMA missing;\nCREATE TABLE m (id int);",
+			targets: one,
+		},
+		{
+			name:    "a skipped ADD COLUMN adds no second key",
+			sql:     "ALTER TABLE t ADD COLUMN IF NOT EXISTS id int PRIMARY KEY;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "every column drop of a statement sees the table",
+			sql:     "ALTER TABLE t DROP COLUMN code, DROP COLUMN id;",
+			targets: one,
+			want:    []targetFinding{{0, "DROP COLUMN id", "removes the primary key of t, and the change adds none back", []int{0}}},
+		},
+		{
+			name:    "EXPLAIN ANALYZE of CREATE MATERIALIZED VIEW makes the view",
+			sql:     "EXPLAIN ANALYZE CREATE MATERIALIZED VIEW mv AS SELECT * FROM nokey;\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
 			name:    "a cascading drop of a parent may drop a child",
 			sql:     "CREATE TABLE child (x int) INHERITS (nokey);\nCREATE TABLE other (x int);\nDROP TABLE nokey CASCADE;",
 			targets: one,
@@ -893,6 +920,13 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: one,
 			want:    []targetFinding{{1, "UPDATE bob.t SET id = 1 WHERE id = 2", "prior backup runs before the change, when bob.t does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a name qualified with the current database",
+			sql:     "CREATE TABLE db.public.n (id int);\nUPDATE db.public.n SET id = 1 WHERE id = 2;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "UPDATE db.public.n SET id = 1 WHERE id = 2", "prior backup runs before the change, when db.public.n does not exist yet", []int{0}}},
 		},
 		{
 			name:    "a table the change recreates still exists when the backup runs",

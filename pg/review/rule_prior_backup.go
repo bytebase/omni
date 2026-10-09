@@ -107,7 +107,7 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 				}
 				continue
 			}
-		} else if rv.Catalogname == "" && (created[table] || created[backupTable{name: rv.Relname}]) && !hasBackupRelation(findSchema(schema, rv.Schemaname), rv.Relname) {
+		} else if (rv.Catalogname == "" || rv.Catalogname == schema.GetName()) && (created[table] || created[backupTable{name: rv.Relname}]) && !hasBackupRelation(findSchema(schema, rv.Schemaname), rv.Relname) {
 			// An unqualified creation may be in this schema; either way
 			// the table is not there when the backup runs.
 			reportNotYetCreated(s, rv, r)

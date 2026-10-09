@@ -61,10 +61,12 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 	withhold := false
 	droppedColumns := make(map[string]bool)
 	droppedNames := make(map[string]bool)
+	// Every drop of the statement sees the table as it was before the
+	// statement; a column drop leaves it unsettled only after them all.
+	droppedAColumn := false
 	for _, cmd := range drops {
 		cascade := cmd.Behavior == int(ast.DROP_CASCADE)
-		t, known := s.table(v.Relation)
-		known = known && isTable
+		t, known := before, knownBefore && isTable
 		switch ast.AlterTableType(cmd.Subtype) {
 		case ast.AT_DropConstraint:
 			// A second drop of the same constraint fails, and so may a drop
@@ -96,7 +98,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				s.stop()
 				return
 			}
-			s.unsettled[[2]string{schema, name}] = true
+			droppedAColumn = true
 			if cascade {
 				s.dropReaders(t, v.Relation)
 				s.dropReferences(v.Relation, t, known, func(fk foreignKeyRef) bool {
@@ -104,6 +106,9 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 				})
 			}
 		}
+	}
+	if droppedAColumn {
+		s.unsettled[[2]string{schema, name}] = true
 	}
 	if withhold || knownBefore && isTable && s.refuses(before, drops, others) {
 		if !withhold {
@@ -389,6 +394,10 @@ func (s *scan) refuses(t tableRef, drops, others []*ast.AlterTableCmd) bool {
 		case ast.AT_AddColumn:
 			cd, ok := cmd.Def.(*ast.ColumnDef)
 			if !ok {
+				continue
+			}
+			if cmd.Missing_ok && has(cd.Colname) {
+				// The column exists: the subcommand does nothing.
 				continue
 			}
 			if (has(cd.Colname) || addedColumns[cd.Colname]) && !cmd.Missing_ok {
