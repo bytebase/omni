@@ -36,9 +36,9 @@ type pendingTable struct {
 
 	// made numbers the touch that created a table the change made.
 	made int
-	// key names the primary key a statement of the change added that
-	// settles the table, when that is all that settles it; dropping it
-	// leaves the table keyless again.
+	// key names the primary key a statement of the change added, or the
+	// CREATE gave, that settles the table, when that is all that settles
+	// it; dropping it leaves the table keyless again.
 	key string
 
 	statement int
@@ -138,6 +138,30 @@ func (s *scan) keyed(rv *ast.RangeVar, name string) {
 	}
 }
 
+// declaredKeyName returns the name of the primary key a CREATE TABLE
+// declares: the one written, or the one the server generates when the
+// scan knows it free; "" when the key comes from LIKE or is not known.
+func (s *scan) declaredKeyName(v *ast.CreateStmt) string {
+	if v.TableElts == nil {
+		return ""
+	}
+	for _, item := range v.TableElts.Items {
+		var cs []*ast.Constraint
+		switch e := item.(type) {
+		case *ast.ColumnDef:
+			cs = constraintsOf(e.Constraints)
+		case *ast.Constraint:
+			cs = []*ast.Constraint{e}
+		}
+		for _, c := range cs {
+			if c.Contype == ast.CONSTR_PRIMARY {
+				return s.keyName(v.Relation, c)
+			}
+		}
+	}
+	return ""
+}
+
 // keyName returns the name of a primary key ADD CONSTRAINT gives a table
 // the change made: the one written, or the one the server generates when
 // the scan knows it free.
@@ -217,6 +241,23 @@ func (s *scan) createTable(st *statement, v *ast.CreateStmt) {
 		return
 	}
 	keyed, known := s.createsKey(v)
+	if keyed && known {
+		// A table made with a key the scan can name is keyless again when
+		// a later statement drops it.
+		if name := s.declaredKeyName(v); name != "" && !s.mayBeGenerated(v.Relation) {
+			s.pending = append(s.pending, &pendingTable{
+				names:     map[string]bool{v.Relation.Relname: true},
+				schema:    s.pendingSchema(v.Relation),
+				parents:   s.inheritsFrom(v),
+				settled:   true,
+				key:       name,
+				statement: st.index,
+				rng:       rangeOf(v.Loc),
+				message:   "creates table " + relation(v.Relation) + " without a primary key",
+			})
+		}
+		return
+	}
 	if keyed || !known || s.mayBeGenerated(v.Relation) {
 		return
 	}

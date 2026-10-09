@@ -134,6 +134,8 @@ type scan struct {
 	// renamed, on whichever table.
 	triggers        []*metadata.EventTriggerMetadata
 	triggersChanged map[string]bool
+	// createdTriggers lists the triggers the change created, by relation.
+	createdTriggers map[string]bool
 
 	// pending are the tables RequirePrimaryKey reports at the end unless a
 	// later statement settles them.
@@ -167,6 +169,7 @@ func scanTarget(ctx context.Context, stmts []statement, on map[review.Rule]bool,
 		newFunctions:     make(map[tableRef]int),
 		madeRoutines:     make(map[string]bool),
 		triggersChanged:  make(map[string]bool),
+		createdTriggers:  make(map[string]bool),
 		movedRoutines:    make(map[string]bool),
 		newSignatures:    make(map[tableRef][]string),
 		renamedFrom:      make(map[string]renamedRelation),
@@ -542,10 +545,10 @@ func (s *scan) namesMissing(n ast.Node) bool {
 	}
 	switch v := n.(type) {
 	case *ast.CreateTrigStmt:
-		if fn, ok := routineOf(&ast.ObjectWithArgs{Objname: v.Funcname}); ok && s.routineMissing(fn, ast.OBJECT_FUNCTION) {
+		if fn, ok := routineOf(&ast.ObjectWithArgs{Objname: v.Funcname}); ok && (s.routineMissing(fn, ast.OBJECT_FUNCTION) || s.noTriggerFunction(fn)) {
 			return true
 		}
-		if !v.Replace && v.Relation != nil && s.triggerTaken(v.Relation, v.Trigname) {
+		if !v.Replace && v.Relation != nil && (s.triggerTaken(v.Relation, v.Trigname) || s.createdTriggers[triggerKey(s.schemaOf(v.Relation), v.Relation.Relname, v.Trigname)]) {
 			return true
 		}
 		if v.Relation != nil {
@@ -619,12 +622,36 @@ func (s *scan) namesMissing(n ast.Node) bool {
 	return missing
 }
 
+// triggerKey names a trigger of a relation.
+func triggerKey(schema, table, trigger string) string {
+	return schema + "\x00" + table + "\x00" + trigger
+}
+
+// noTriggerFunction reports whether a trigger's function name certainly
+// has no routine without arguments, which a trigger calls: every routine
+// of the name, the change's and the snapshot's, takes some.
+func (s *scan) noTriggerFunction(fn tableRef) bool {
+	if s.index == nil || s.madeRoutines[fn.table] || s.movedRoutines[fn.table] {
+		return false
+	}
+	schema, ok := s.routineSchema(fn)
+	if !ok {
+		return false
+	}
+	synced := tableRef{schema, fn.table}
+	n := s.index.functions[synced]
+	return n > 0 && len(s.index.signatures[synced]) == n && !s.index.noArgs[synced] && !slices.Contains(s.index.signatures[synced], "")
+}
+
 // noteTriggers records the trigger names a statement creates, drops, or
-// renames.
+// renames, and the triggers the change created, by relation.
 func (s *scan) noteTriggers(n ast.Node) {
 	switch v := n.(type) {
 	case *ast.CreateTrigStmt:
 		s.triggersChanged[v.Trigname] = true
+		if v.Relation != nil {
+			s.createdTriggers[triggerKey(s.schemaOf(v.Relation), v.Relation.Relname, v.Trigname)] = true
+		}
 	case *ast.RenameStmt:
 		if v.RenameType == ast.OBJECT_TRIGGER {
 			s.triggersChanged[v.Subname] = true
@@ -633,8 +660,18 @@ func (s *scan) noteTriggers(n ast.Node) {
 	case *ast.DropStmt:
 		if ast.ObjectType(v.RemoveType) == ast.OBJECT_TRIGGER && v.Objects != nil {
 			for _, obj := range v.Objects.Items {
-				if parts := nameParts(listOf(obj)); len(parts) > 0 {
-					s.triggersChanged[parts[len(parts)-1]] = true
+				parts := nameParts(listOf(obj))
+				if len(parts) == 0 {
+					continue
+				}
+				trigger := parts[len(parts)-1]
+				s.triggersChanged[trigger] = true
+				// A trigger the change dropped from its relation may be
+				// created there again.
+				for key := range s.createdTriggers {
+					if strings.HasSuffix(key, "\x00"+trigger) {
+						delete(s.createdTriggers, key)
+					}
 				}
 			}
 		}
@@ -1118,12 +1155,32 @@ func (s *scan) statement(st *statement) {
 			s.createAs(v.IntoClause.Rel, false, &q, false)
 		case selectsInto(v):
 			s.stop()
+		case s.readsMissing(v):
+			// A query of a relation the target lacks is refused.
+			s.stop()
 		default:
 			s.data(v)
 		}
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt:
+		if s.readsMissing(v) {
+			s.stop()
+			return
+		}
 		s.data(v)
 	case *ast.ExplainStmt:
+		// EXPLAIN plans the query, which needs its relations.
+		switch q := v.Query.(type) {
+		case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt:
+			if s.readsMissing(q) {
+				s.stop()
+				return
+			}
+		case *ast.SelectStmt:
+			if q.IntoClause == nil && s.readsMissing(q) {
+				s.stop()
+				return
+			}
+		}
 		if !explainAnalyzes(v) {
 			return
 		}
@@ -1675,6 +1732,11 @@ func (s *scan) create(st *statement, v *ast.CreateStmt) {
 	if !v.IfNotExists || s.createsNew(v.Relation) {
 		s.made(v.Relation, kindTable)
 		if def, _, complete := defOf(v); complete {
+			// The name the server gives an unnamed primary key, when the
+			// scan knows it free, is the table's too.
+			if name := s.declaredKeyName(v); name != "" {
+				def.constraints[name] = true
+			}
 			if c, ok := s.madeAt(v.Relation); ok {
 				c.def = &def
 			}
@@ -1764,6 +1826,10 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 			s.made(in(e.View), kindView)
 			s.reads(in(e.View), e.Query)
 		case *ast.CreateSeqStmt:
+			if s.ownedByRefused(e.Options) {
+				s.stop()
+				return
+			}
 			s.touch(in(e.Sequence))
 			s.made(in(e.Sequence), kindSequence)
 		case *ast.IndexStmt:
@@ -1915,14 +1981,19 @@ func (s *scan) indexRefused(v *ast.IndexStmt) bool {
 	case kindView, kindSequence, kindIndex, kindCompositeType, kindForeignTable:
 		return true
 	}
-	// A plain column the index names must be the table's.
+	// A column the index names, plainly or in an expression, must be the
+	// table's.
 	if t, known := s.table(v.Relation); known {
 		for _, list := range []*ast.List{v.IndexParams, v.IndexIncludingParams} {
 			if list == nil {
 				continue
 			}
 			for _, item := range list.Items {
-				if e, ok := item.(*ast.IndexElem); ok && e.Name != "" && !s.hasColumn(t, e.Name) {
+				e, ok := item.(*ast.IndexElem)
+				if !ok {
+					continue
+				}
+				if e.Name != "" && !s.hasColumn(t, e.Name) || e.Expr != nil && slices.ContainsFunc(columnsIn(e.Expr), func(c string) bool { return !s.hasColumn(t, c) }) {
 					return true
 				}
 			}
@@ -3108,9 +3179,16 @@ func (s *scan) setSchema(v *ast.AlterObjectSchemaStmt) {
 			return
 		}
 		schema, _, resolved := s.lookup(v.Relation)
-		// A schema that lacks the name must exist to take it.
+		// A schema that lacks the name must exist to take it, and the
+		// names of what moves with the relation.
 		if s.index != nil && (s.index.schemas[v.Newschema] == nil && !s.schemas[v.Newschema] || s.schemaGone[v.Newschema]) ||
 			resolved && s.nameTaken(v.Newschema, v.Relation.Relname) {
+			s.stop()
+			return
+		}
+		if resolved && slices.ContainsFunc(s.movesWith(schema, v.Relation.Relname), func(d string) bool {
+			return s.nameTaken(v.Newschema, d) || s.madeHere(&ast.RangeVar{Schemaname: v.Newschema, Relname: d})
+		}) {
 			s.stop()
 			return
 		}

@@ -31,6 +31,13 @@ import (
 // itself. It matters when an UPDATE or DELETE touches a table that only
 // the change creates: the backup reads that table before the change has
 // created it.
+//
+// A name the synced schema cannot resolve, and the change does not
+// create, is not reported. The schema the review sees may predate an
+// earlier spec of the same plan, which may create the table; Bytebase
+// syncs again before this spec's backup, which then finds it. A name no
+// spec creates fails the UPDATE or DELETE itself, which is WalkThrough's
+// to report.
 
 // backupSchema is where Bytebase writes a PostgreSQL prior backup.
 const backupSchema = "bbdataarchive"

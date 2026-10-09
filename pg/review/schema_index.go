@@ -364,10 +364,13 @@ func (idx *schemaIndex) rowTypesIn(name, sig string) []tableRef {
 			continue
 		}
 		words := strings.Fields(arg)
-		typ := strings.TrimSuffix(words[len(words)-1], "[]")
-		schema, table := "", typ
-		if i := strings.LastIndex(typ, "."); i >= 0 {
-			schema, table = typ[:i], typ[i+1:]
+		parts := identifierParts(strings.TrimSuffix(words[len(words)-1], "[]"))
+		if len(parts) == 0 || len(parts) > 2 {
+			continue
+		}
+		schema, table := "", parts[len(parts)-1]
+		if len(parts) == 2 {
+			schema = parts[0]
 		}
 		for sn, ns := range idx.schemas {
 			if _, ok := ns.tables[table]; ok && (schema == "" || schema == sn) {
@@ -376,6 +379,30 @@ func (idx *schemaIndex) rowTypesIn(name, sig string) []tableRef {
 		}
 	}
 	return out
+}
+
+// identifierParts splits a qualified name as PostgreSQL writes it into its
+// identifiers, a quoted one unquoted.
+func identifierParts(s string) []string {
+	var parts []string
+	var cur strings.Builder
+	quoted := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c == '"' && quoted && i+1 < len(s) && s[i+1] == '"':
+			cur.WriteByte('"')
+			i++
+		case c == '"':
+			quoted = !quoted
+		case c == '.' && !quoted:
+			parts = append(parts, cur.String())
+			cur.Reset()
+		default:
+			cur.WriteByte(c)
+		}
+	}
+	return append(parts, cur.String())
 }
 
 // readSignature reads a synced routine's signature, the name and the

@@ -724,11 +724,6 @@ func TestRequirePrimaryKey(t *testing.T) {
 			targets: one,
 		},
 		{
-			name:    "a key the table was created with is not followed",
-			sql:     "CREATE TABLE n (id int PRIMARY KEY);\nALTER TABLE n DROP CONSTRAINT n_pkey;",
-			targets: one,
-		},
-		{
 			name:    "a key added in the same statement that drops one",
 			sql:     "ALTER TABLE t ADD PRIMARY KEY (code), DROP CONSTRAINT t_pkey CASCADE;",
 			targets: one,
@@ -2379,6 +2374,80 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name:    "CREATE TABLE with a generated column of a column it lacks is refused",
 			sql:     "CREATE TABLE public.x (id int PRIMARY KEY, g int GENERATED ALWAYS AS (missing + 1) STORED);\nCREATE TABLE n (id int);",
 			targets: one,
+		},
+		{
+			name:    "CREATE SCHEMA with a sequence owned by a table it lacks is refused",
+			sql:     "CREATE SCHEMA z CREATE SEQUENCE q OWNED BY z.missing.id;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a second CREATE TRIGGER of a name on a table is refused",
+			sql:     "CREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.tf();\nCREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.tf();\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "tf", "tf()"), SessionUser: "alice"}},
+		},
+		{
+			name:    "CREATE TRIGGER after the change dropped the trigger",
+			sql:     "CREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.tf();\nDROP TRIGGER tr ON public.t;\nCREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.tf();\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "tf", "tf()"), SessionUser: "alice"}},
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE TRIGGER of a function only with arguments is refused",
+			sql:     "CREATE TRIGGER tr BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.tf();\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: withSignature(shop(), "tf", "tf(a integer)"), SessionUser: "alice"}},
+		},
+		{
+			name:    "dropping the key a table the change made was made with",
+			sql:     "CREATE TABLE n (id int PRIMARY KEY);\nALTER TABLE n DROP CONSTRAINT n_pkey;",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE n (id int PRIMARY KEY)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "dropping the named key a table the change made was made with",
+			sql:     "CREATE TABLE n (id int CONSTRAINT n_pk PRIMARY KEY);\nALTER TABLE n DROP CONSTRAINT n_pk;",
+			targets: one,
+			want:    []targetFinding{{0, "CREATE TABLE n (id int CONSTRAINT n_pk PRIMARY KEY)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "UPDATE of a table the target lacks is refused",
+			sql:     "UPDATE public.missing SET id = 1;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "SELECT of a table the target lacks is refused",
+			sql:     "SELECT * FROM public.missing;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "UPDATE of a table the target has",
+			sql:     "UPDATE t SET n = 1;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE INDEX on an expression of a column the table lacks is refused",
+			sql:     "CREATE INDEX i ON public.t ((missing + 1));\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "CREATE INDEX on an expression of a column the table has",
+			sql:     "CREATE INDEX i ON public.t ((n + 1));\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "SET SCHEMA where the table's index name is taken is refused",
+			sql:     "ALTER TABLE public.k SET SCHEMA s;\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: database("public", schema("public", withPrimaryKey(table("k", "id integer"), "k_pkey", "id")), schema("s", table("k_pkey", "id integer")))}},
+		},
+		{
+			name: "a procedure of a quoted table's row type holds its drop",
+			sql:  "DROP TABLE public.\"NoKey\";\nCREATE TABLE n (id int);",
+			targets: []review.Target{{Schema: func() *metadata.DatabaseSchemaMetadata {
+				db := database("public", schema("public", table("NoKey", "id integer")))
+				db.Schemas[0].Procedures = []*metadata.ProcedureMetadata{{Name: "p", Signature: `p(x public."NoKey")`}}
+				return db
+			}()}},
 		},
 		{
 			name: "a cascade does not go past a view the change replaced",
