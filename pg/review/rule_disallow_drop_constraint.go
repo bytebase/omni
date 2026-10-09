@@ -27,6 +27,11 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 	if v.Cmds == nil || v.Relation == nil {
 		return
 	}
+	// ALTER of a relation the target certainly lacks is refused.
+	if !v.Missing_ok && s.index != nil && s.missing(v.Relation) {
+		s.stop()
+		return
+	}
 	isTable := ast.ObjectType(v.ObjType) == ast.OBJECT_TABLE
 	var drops, others []*ast.AlterTableCmd
 	for _, item := range v.Cmds.Items {
@@ -100,7 +105,7 @@ func (s *scan) alterTable(st *statement, v *ast.AlterTableStmt) {
 			}
 		}
 	}
-	if withhold || (len(out.findings) > 0 || out.lost != nil) && knownBefore && s.refuses(before, drops, others) {
+	if withhold || knownBefore && isTable && s.refuses(before, drops, others) {
 		if !withhold {
 			s.stop()
 			return

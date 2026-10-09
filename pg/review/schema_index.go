@@ -1,6 +1,7 @@
 package review
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -150,15 +151,27 @@ func (ns *namespace) add(name string, kind relationKind) {
 	ns.relations[name] = kind
 }
 
+// addPartitions records a table's partitions, at any depth, with their
+// indexes, as what goes with the table and with each partition above
+// them.
 func (ns *namespace) addPartitions(table string, partitions []*metadata.TablePartitionMetadata) {
+	ns.addPartitionsUnder([]string{table}, partitions)
+}
+
+func (ns *namespace) addPartitionsUnder(owners []string, partitions []*metadata.TablePartitionMetadata) {
 	for _, p := range partitions {
 		ns.add(p.GetName(), kindPartition)
-		ns.dependents[table] = append(ns.dependents[table], p.GetName())
+		names := []string{p.GetName()}
 		for _, i := range p.GetIndexes() {
 			ns.add(i.GetName(), kindIndex)
-			ns.dependents[table] = append(ns.dependents[table], i.GetName())
+			names = append(names, i.GetName())
 		}
-		ns.addPartitions(table, p.GetSubpartitions())
+		for _, owner := range owners {
+			ns.dependents[owner] = append(ns.dependents[owner], names...)
+		}
+		// The partition's own indexes go with it too.
+		ns.dependents[p.GetName()] = append(ns.dependents[p.GetName()], names[1:]...)
+		ns.addPartitionsUnder(append(slices.Clone(owners), p.GetName()), p.GetSubpartitions())
 	}
 }
 

@@ -632,6 +632,53 @@ func TestRequirePrimaryKey(t *testing.T) {
 			want:    []targetFinding{{1, "CREATE TABLE gone (id int)", "creates table gone without a primary key", []int{0}}},
 		},
 		{
+			name:    "DROP FUNCTION IF EXISTS may drop nothing",
+			sql:     "CREATE FUNCTION g(integer) RETURNS SETOF nokey LANGUAGE sql AS 'SELECT * FROM nokey';\nDROP FUNCTION IF EXISTS g(text);\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "a view the change created and replaced no longer reads the table",
+			sql:     "CREATE VIEW v AS SELECT * FROM nokey;\nCREATE OR REPLACE VIEW v AS SELECT 1 AS a;\nDROP TABLE nokey;\nCREATE TABLE n (id int);",
+			targets: one,
+			want:    []targetFinding{{3, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
+		},
+		{
+			name:    "a table in another database",
+			sql:     "CREATE TABLE other.public.n (id int);\nCREATE TABLE m (id int);",
+			targets: one,
+		},
+		{
+			name:    "an ALTER refused for a subcommand, with only this rule on",
+			sql:     "ALTER TABLE t DROP CONSTRAINT t_n_check, ADD COLUMN id int;\nCREATE TABLE n (id int);",
+			targets: one,
+		},
+		{
+			name:    "ALTER TABLE of a table the target lacks",
+			sql:     "ALTER TABLE nope DROP CONSTRAINT x;\nCREATE TABLE n (id int);\nALTER TABLE IF EXISTS nope DROP CONSTRAINT x;\nCREATE TABLE m (id int);",
+			targets: one,
+		},
+		{
+			name:    "ALTER TABLE IF EXISTS of a table the target lacks",
+			sql:     "ALTER TABLE IF EXISTS nope DROP CONSTRAINT x;\nCREATE TABLE m (id int);",
+			targets: one,
+			want:    []targetFinding{{1, "CREATE TABLE m (id int)", "creates table m without a primary key", []int{0}}},
+		},
+		{
+			name:    "CREATE SCHEMA of an existing schema",
+			sql:     "CREATE SCHEMA s CREATE TABLE t2 (id int);",
+			targets: one,
+		},
+		{
+			name: "a dropped partition takes its own indexes",
+			sql:  "DROP TABLE p1;\nCREATE TABLE IF NOT EXISTS p1_idx (id int);",
+			targets: []review.Target{{Schema: database("public", schema("public", &metadata.TableMetadata{
+				Name:       "pt",
+				Columns:    []*metadata.ColumnMetadata{{Name: "id", Type: "integer"}},
+				Partitions: []*metadata.TablePartitionMetadata{{Name: "p1", Indexes: []*metadata.IndexMetadata{{Name: "p1_idx"}}}},
+			}))}},
+			want: []targetFinding{{1, "CREATE TABLE IF NOT EXISTS p1_idx (id int)", "creates table p1_idx without a primary key", []int{0}}},
+		},
+		{
 			name:    "a cascading drop of a parent may drop a child",
 			sql:     "CREATE TABLE child (x int) INHERITS (nokey);\nCREATE TABLE other (x int);\nDROP TABLE nokey CASCADE;",
 			targets: one,
@@ -714,7 +761,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 		},
 		{
 			name:    "a statement on another table leaves a new one as it is",
-			sql:     "CREATE TABLE n (id int);\nALTER TABLE nope ADD COLUMN a int;\nALTER TABLE n ADD COLUMN b int, ADD CONSTRAINT n_b UNIQUE (b);",
+			sql:     "CREATE TABLE n (id int);\nALTER TABLE IF EXISTS nope ADD COLUMN a int;\nALTER TABLE n ADD COLUMN b int, ADD CONSTRAINT n_b UNIQUE (b);",
 			targets: one,
 			want:    []targetFinding{{0, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
 		},

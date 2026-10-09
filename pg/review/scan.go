@@ -303,6 +303,7 @@ func (s *scan) statement(st *statement) {
 			if schema, kind, ok := s.lookup(v.View); ok && kind == kindView {
 				s.replacedViews[tableRef{schema, v.View.Relname}] = true
 			}
+			s.retire(s.newReads, tableRef{v.View.Schemaname, v.View.Relname})
 		}
 		s.touch(v.View)
 		s.reads(v.View, v.Query)
@@ -606,6 +607,13 @@ func (s *scan) retire(deps []newDependency, object tableRef) {
 func (s *scan) create(st *statement, v *ast.CreateStmt) {
 	exists := s.existsWhereCreated(v.Relation)
 	switch {
+	case v.Relation != nil && v.Relation.Catalogname != "" && (s.index == nil || v.Relation.Catalogname != s.index.database):
+		// A table in another database is refused; without a schema the
+		// database name is not known, and nothing is followed.
+		if s.index != nil {
+			s.stop()
+		}
+		return
 	case s.schemaMissing(v.Relation) || exists && !v.IfNotExists:
 		s.stop()
 		return
@@ -651,6 +659,12 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 		if v.SchemaElts != nil && len(v.SchemaElts.Items) > 0 {
 			s.stop()
 		}
+		return
+	}
+	// CREATE SCHEMA of a schema the target has, and the change did not
+	// drop, is refused.
+	if !v.IfNotExists && s.index != nil && s.index.schemas[name] != nil && !s.schemas[name] {
+		s.stop()
 		return
 	}
 	s.schemas[name] = true
@@ -1151,7 +1165,10 @@ func (s *scan) drop(v *ast.DropStmt) {
 // scan resolves to one function, and a function the change created, no
 // longer hold the relation whose row type they return.
 func (s *scan) dropFunctions(v *ast.DropStmt) {
-	if v.Objects == nil {
+	// IF EXISTS may name a signature no function has, and then drops
+	// nothing; without it, a signature that does not match fails the
+	// statement.
+	if v.Objects == nil || v.Missing_ok {
 		return
 	}
 	for _, obj := range v.Objects.Items {
