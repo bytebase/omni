@@ -154,7 +154,7 @@ func (p *Parser) parseUpdateStmt() (*nodes.UpdateStmt, error) {
 
 	if p.cur.Type == kwRETURNING || p.cur.Type == kwRETURN {
 		var parseErr1135 error
-		stmt.Returning, parseErr1135 = p.parseReturningClause()
+		stmt.Returning, stmt.ReturningBulk, parseErr1135 = p.parseReturningClause()
 		if parseErr1135 !=
 
 			// LOG ERRORS
@@ -620,7 +620,7 @@ func (p *Parser) parseDeleteStmt() (*nodes.DeleteStmt, error) {
 
 	if p.cur.Type == kwRETURNING || p.cur.Type == kwRETURN {
 		var parseErr1149 error
-		stmt.Returning, parseErr1149 = p.parseReturningClause()
+		stmt.Returning, stmt.ReturningBulk, parseErr1149 = p.parseReturningClause()
 		if parseErr1149 !=
 
 			// LOG ERRORS

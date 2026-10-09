@@ -703,6 +703,7 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Name)
 		}
 		walkList(v, n.Attributes)
+		walkList(v, n.Methods)
 		if n.AsTable != nil {
 			Walk(v, n.AsTable)
 		}

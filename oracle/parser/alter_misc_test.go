@@ -170,6 +170,9 @@ func TestParseAlterSequenceSharedExtend(t *testing.T) {
 		"ALTER SEQUENCE s SCALE EXTEND SHARD NOEXTEND",
 		"ALTER SEQUENCE s SCALE EXTEND SHARD EXTEND",
 		"ALTER SEQUENCE s SHARD EXTEND SCALE EXTEND",
+		// A quoted word is an identifier, not an option keyword.
+		`ALTER SEQUENCE s "NOKEEP"`,
+		`ALTER SEQUENCE s SCALE "EXTEND"`,
 	} {
 		t.Run(sql, func(t *testing.T) {
 			ParseShouldFail(t, sql)

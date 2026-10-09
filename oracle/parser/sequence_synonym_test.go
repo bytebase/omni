@@ -293,6 +293,13 @@ func TestParseCreateSequenceRejects(t *testing.T) {
 		"CREATE SEQUENCE s SCALE EXTEND SHARD NOEXTEND",
 		"CREATE SEQUENCE s SCALE EXTEND SHARD EXTEND",
 		"CREATE SEQUENCE s SHARD NOEXTEND SCALE NOEXTEND",
+		// A quoted word is an identifier, not an option keyword (ORA-03049,
+		// ORA-65014 for SHARING = "NONE").
+		`CREATE SEQUENCE s "NOKEEP"`,
+		`CREATE SEQUENCE s "SCALE" "EXTEND"`,
+		`CREATE SEQUENCE s SCALE "EXTEND"`,
+		`CREATE SEQUENCE s "SHARING" = NONE`,
+		`CREATE SEQUENCE s SHARING = "NONE"`,
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {

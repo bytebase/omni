@@ -1387,24 +1387,25 @@ func (n *RollupClause) exprNode() {}
 // InsertStmt represents an INSERT statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/INSERT.html
 type InsertStmt struct {
-	InsertType   InsertType          // single, ALL, FIRST
-	Table        *ObjectName         // target table (for single insert)
-	PartitionExt *PartitionExtClause // PARTITION/SUBPARTITION extension
-	Dblink       string              // @dblink name
-	Alias        *Alias              // table alias
-	Columns      *List               // column list (list of *ColumnRef)
-	Values       *List               // VALUES list (list of expressions)
-	ValuesRecord ExprNode            // VALUES record form (PL/SQL record/collection element)
-	SetClauses   *List               // INSERT SET col=expr form (list of *SetClause)
-	ByName       bool                // BY NAME subquery
-	ByPosition   bool                // BY POSITION subquery
-	Select       *SelectStmt         // subquery source
-	MultiTable   *List               // for INSERT ALL/FIRST: list of *InsertIntoClause
-	Subquery     StmtNode            // source subquery for multi-table insert
-	Returning    *List               // RETURNING clause
-	ErrorLog     *ErrorLogClause     // LOG ERRORS
-	Hints        *List               // optimizer hints
-	Loc          Loc                 // start location
+	InsertType    InsertType          // single, ALL, FIRST
+	Table         *ObjectName         // target table (for single insert)
+	PartitionExt  *PartitionExtClause // PARTITION/SUBPARTITION extension
+	Dblink        string              // @dblink name
+	Alias         *Alias              // table alias
+	Columns       *List               // column list (list of *ColumnRef)
+	Values        *List               // VALUES list (list of expressions)
+	ValuesRecord  ExprNode            // VALUES record form (PL/SQL record/collection element)
+	SetClauses    *List               // INSERT SET col=expr form (list of *SetClause)
+	ByName        bool                // BY NAME subquery
+	ByPosition    bool                // BY POSITION subquery
+	Select        *SelectStmt         // subquery source
+	MultiTable    *List               // for INSERT ALL/FIRST: list of *InsertIntoClause
+	Subquery      StmtNode            // source subquery for multi-table insert
+	Returning     *List               // RETURNING clause
+	ReturningBulk bool                // RETURNING ... BULK COLLECT INTO
+	ErrorLog      *ErrorLogClause     // LOG ERRORS
+	Hints         *List               // optimizer hints
+	Loc           Loc                 // start location
 }
 
 func (n *InsertStmt) nodeTag()  {}
@@ -1438,18 +1439,19 @@ func (n *ErrorLogClause) nodeTag() {}
 // UpdateStmt represents an UPDATE statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/UPDATE.html
 type UpdateStmt struct {
-	Target       TableExpr           // table, inline view, or table collection target
-	Table        *ObjectName         // table to update
-	PartitionExt *PartitionExtClause // PARTITION/SUBPARTITION extension
-	Dblink       string              // @dblink name
-	Alias        *Alias              // table alias
-	SetClauses   *List               // list of *SetClause
-	FromClause   *List               // FROM clause (list of table references)
-	WhereClause  ExprNode            // WHERE condition
-	Returning    *List               // RETURNING INTO
-	ErrorLog     *ErrorLogClause     // LOG ERRORS
-	Hints        *List               // optimizer hints
-	Loc          Loc                 // start location
+	Target        TableExpr           // table, inline view, or table collection target
+	Table         *ObjectName         // table to update
+	PartitionExt  *PartitionExtClause // PARTITION/SUBPARTITION extension
+	Dblink        string              // @dblink name
+	Alias         *Alias              // table alias
+	SetClauses    *List               // list of *SetClause
+	FromClause    *List               // FROM clause (list of table references)
+	WhereClause   ExprNode            // WHERE condition
+	Returning     *List               // RETURNING INTO
+	ReturningBulk bool                // RETURNING ... BULK COLLECT INTO
+	ErrorLog      *ErrorLogClause     // LOG ERRORS
+	Hints         *List               // optimizer hints
+	Loc           Loc                 // start location
 }
 
 func (n *UpdateStmt) nodeTag()  {}
@@ -1472,16 +1474,17 @@ func (n *SetClause) nodeTag() {}
 // DeleteStmt represents a DELETE statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/26/sqlrf/DELETE.html
 type DeleteStmt struct {
-	Target       TableExpr           // table, inline view, or table collection target
-	Table        *ObjectName         // table to delete from
-	PartitionExt *PartitionExtClause // PARTITION/SUBPARTITION extension
-	Dblink       string              // @dblink name
-	Alias        *Alias              // table alias
-	WhereClause  ExprNode            // WHERE condition
-	Returning    *List               // RETURNING INTO
-	ErrorLog     *ErrorLogClause     // LOG ERRORS
-	Hints        *List               // optimizer hints
-	Loc          Loc                 // start location
+	Target        TableExpr           // table, inline view, or table collection target
+	Table         *ObjectName         // table to delete from
+	PartitionExt  *PartitionExtClause // PARTITION/SUBPARTITION extension
+	Dblink        string              // @dblink name
+	Alias         *Alias              // table alias
+	WhereClause   ExprNode            // WHERE condition
+	Returning     *List               // RETURNING INTO
+	ReturningBulk bool                // RETURNING ... BULK COLLECT INTO
+	ErrorLog      *ErrorLogClause     // LOG ERRORS
+	Hints         *List               // optimizer hints
+	Loc           Loc                 // start location
 }
 
 func (n *DeleteStmt) nodeTag()  {}
@@ -1942,6 +1945,8 @@ type CreateTypeStmt struct {
 	NonEditionable bool        // NONEDITIONABLE
 	Name           *ObjectName // type name
 	Attributes     *List       // list of *ColumnDef (for object types)
+	Methods        *List       // object type spec methods (*TypeBodyMember) and RESTRICT_REFERENCES pragmas (*PLSQLPragma)
+	Modifiers      []string    // [NOT] FINAL | INSTANTIABLE | PERSISTABLE after the element list
 	AsTable        *TypeName   // TABLE OF type (nested table)
 	AsVarray       *TypeName   // VARRAY(n) OF type
 	VarraySize     ExprNode    // varray size limit
@@ -1967,9 +1972,10 @@ const (
 // TypeBodyMember represents a single member definition inside a CREATE TYPE BODY.
 // It wraps a procedure or function with its kind qualifier.
 type TypeBodyMember struct {
-	Kind    TypeBodyMemberKind // MEMBER, STATIC, MAP, ORDER, CONSTRUCTOR
-	Subprog Node               // *CreateProcedureStmt or *CreateFunctionStmt
-	Loc     Loc
+	Kind      TypeBodyMemberKind // MEMBER, STATIC, MAP, ORDER, CONSTRUCTOR
+	Modifiers []string           // [NOT] OVERRIDING | FINAL | INSTANTIABLE | PERSISTABLE (type spec)
+	Subprog   Node               // *CreateProcedureStmt or *CreateFunctionStmt
+	Loc       Loc
 }
 
 func (n *TypeBodyMember) nodeTag() {}

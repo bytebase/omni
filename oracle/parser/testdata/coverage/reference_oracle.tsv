@@ -61,3 +61,13 @@ ref_059	plsql	reject	DECLARE v NUMBER; BEGIN EXECUTE IMMEDIATE 'SELECT a FROM t'
 ref_060	plsql	reject	DECLARE v NUMBER; BEGIN EXECUTE IMMEDIATE 'BEGIN NULL; END;' USING; END;	USING without a bind argument
 ref_061	plsql	accept	DECLARE v NUMBER := 1; w NUMBER; BEGIN EXECUTE IMMEDIATE 'BEGIN :1 := :2 + 1; END;' USING OUT w, IN v; END;	USING bind argument modes
 ref_062	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_nosemi_jfn_{run} RETURN VARCHAR2 AS LANGUAGE JAVA NAME 'X.y() return java.lang.String'	call spec without its terminating semicolon
+ref_063	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_extpa_{run} (x IN BINARY_INTEGER) AS LANGUAGE C LIBRARY omni_lib PARAMETERS (x, x INDICATOR IN INT, x LENGTH BY VALUE INT);	external parameters with property, mode, and BY VALUE
+ref_064	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_extpa_{run} (x IN OUT BINARY_INTEGER) AS LANGUAGE C LIBRARY omni_lib PARAMETERS (x BY REFERENCE BY REFERENCE INT);	repeated BY REFERENCE in an external parameter
+ref_065	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_agent_{run} (x IN BINARY_INTEGER, y IN BINARY_INTEGER) AS LANGUAGE C LIBRARY omni_lib AGENT IN (x, y);	AGENT IN takes one argument
+ref_066	plsql_body	accept	CREATE OR REPLACE TYPE omni_tsm_{run} AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int', STATIC PROCEDURE s, PRAGMA RESTRICT_REFERENCES (f, WNDS)) NOT FINAL	object type spec methods with a call spec
+ref_067	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tsm_{run} AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END)	PL/SQL body in an object type spec
+ref_068	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tsn_{run} AS OBJECT (map NUMBER)	unquoted MAP opens a method, not an attribute
+ref_069	sequence	reject	CREATE SEQUENCE omni_seq_{run}_q "NOKEEP"	quoted sequence option keyword
+ref_070	sequence	reject	CREATE SEQUENCE omni_seq_{run}_r SCALE "EXTEND"	quoted EXTEND modifier
+ref_071	ddl	reject	CREATE JAVA "SOURCE" NAMED omni_jq_{run} AS class X {}	quoted CREATE JAVA kind keyword
+ref_072	ddl	reject	CREATE JAVA SOURCE NAMED omni_jg_{run} garbage AS class X {}	unknown word in the CREATE JAVA head

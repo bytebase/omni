@@ -516,17 +516,90 @@ func TestParseCallSpec(t *testing.T) {
 
 func TestParseCallSpecCClauses(t *testing.T) {
 	sql := "CREATE FUNCTION f(p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C " +
-		"NAME \"c_f\" LIBRARY s.lib AGENT IN (p, q) PARAMETERS (CONTEXT, p INDICATOR STRUCT, RETURN INT);"
+		"NAME \"c_f\" LIBRARY s.lib AGENT IN (p) PARAMETERS (CONTEXT, p INDICATOR STRUCT, RETURN INT);"
 	result := ParseAndCheck(t, sql)
 	spec := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateFunctionStmt).CallSpec
 	if spec.Library == nil || spec.Library.Schema != "S" || spec.Library.Name != "LIB" {
 		t.Fatalf("Library = %+v, want S.LIB", spec.Library)
 	}
-	if got := callSpecWords(spec.AgentIn); got != "P,Q" {
-		t.Fatalf("AgentIn = %q, want P,Q", got)
+	if got := callSpecWords(spec.AgentIn); got != "P" {
+		t.Fatalf("AgentIn = %q, want P", got)
 	}
 	if got := callSpecWords(spec.Parameters); got != "CONTEXT,P INDICATOR STRUCT,RETURN INT" {
 		t.Fatalf("Parameters = %q", got)
+	}
+}
+
+// TestParseCallSpecExternalParameters covers the external_parameter shapes
+// Oracle 23ai parses. Some of them fail a later check for the parameter they
+// name (PLS-00235, PLS-00250, PLS-00253); none is a syntax error.
+func TestParseCallSpecExternalParameters(t *testing.T) {
+	for _, param := range []string{
+		"x",
+		"x INT",
+		"x UNSIGNED INT",
+		"x BY REFERENCE",
+		"x BY REFERENCE UNSIGNED INT",
+		"x BY VALUE INT",
+		"x INDICATOR",
+		"x INDICATOR STRUCT",
+		"x INDICATOR IN INT",
+		"x INDICATOR OUT INT",
+		"x INDICATOR BY REFERENCE INT",
+		"x LENGTH INT",
+		"x LENGTH BY VALUE INT",
+		"x MAXLEN INT",
+		"x CHARSETID UB4",
+		"x CHARSETFORM UB1",
+		"x DURATION OCIDURATION",
+		"x TDO",
+		"x NATIVE INT",
+		"x NATIVE",
+		"x ARRAY",
+		"x STRING",
+		"x OCISTRING",
+		"\"X\" INT",
+		"CONTEXT",
+		"CONTEXT INT",
+		"SELF",
+		"SELF TDO",
+		"RETURN",
+		"RETURN INDICATOR SHORT",
+	} {
+		sql := "CREATE PROCEDURE p(x IN BINARY_INTEGER) AS LANGUAGE C LIBRARY lib PARAMETERS (" + param + ");"
+		t.Run(param, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// TestParseCallSpecExternalParameterRejects lists external parameters and
+// AGENT IN arguments Oracle 23ai rejects with PLS-00103.
+func TestParseCallSpecExternalParameterRejects(t *testing.T) {
+	for _, clause := range []string{
+		"PARAMETERS (x BY REFERENCE BY REFERENCE INT)",
+		"PARAMETERS (x INT INT)",
+		"PARAMETERS (x FOO)",
+		"PARAMETERS (x UB8)",
+		"PARAMETERS (x \"INT\")",
+		"PARAMETERS (x UNSIGNED)",
+		"PARAMETERS (x LONG RAW)",
+		"PARAMETERS (x INDICATOR INDICATOR)",
+		"PARAMETERS (x LENGTH LENGTH)",
+		"PARAMETERS (x INDICATOR STRUCT STRUCT)",
+		"PARAMETERS (x INDICATOR STRUCT BY REFERENCE INT)",
+		"PARAMETERS (x INDICATOR TDO)",
+		"PARAMETERS (x IN INT)",
+		"PARAMETERS (x ARRAY INT)",
+		"PARAMETERS (x BY INT)",
+		"AGENT IN (x y)",
+		"AGENT IN (x, y)",
+		"AGENT IN ()",
+	} {
+		sql := "CREATE PROCEDURE p(x IN BINARY_INTEGER, y IN BINARY_INTEGER) AS LANGUAGE C LIBRARY lib " + clause + ";"
+		t.Run(clause, func(t *testing.T) {
+			ParseShouldFail(t, sql)
+		})
 	}
 }
 
@@ -598,6 +671,7 @@ func TestParseCallSpecRejects(t *testing.T) {
 		"CREATE PROCEDURE p AS EXTERNAL LIBRARY lib LANGUAGE PASCAL;",
 		"CREATE PROCEDURE p AS EXTERNAL LIBRARY lib CALLING STANDARD;",
 		"CREATE PROCEDURE p AS EXTERNAL LIBRARY lib CALLING STANDARD FORTRAN;",
+		"CREATE PROCEDURE p AS EXTERNAL LIBRARY lib CALLING \"STANDARD\" C;",
 		// PLS-00247: LIBRARY is required.
 		"CREATE PROCEDURE p AS EXTERNAL LANGUAGE C;",
 		// PLS-00139, -00140, -00142 through -00145, -00171: each C clause at

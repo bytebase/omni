@@ -2420,6 +2420,9 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 		sb.WriteString(" :returning ")
 		writeNode(sb, n.Returning)
 	}
+	if n.ReturningBulk {
+		sb.WriteString(" :returningBulk true")
+	}
 	if n.ErrorLog != nil {
 		sb.WriteString(" :errorLog ")
 		writeNode(sb, n.ErrorLog)
@@ -2470,6 +2473,9 @@ func writeUpdateStmt(sb *strings.Builder, n *UpdateStmt) {
 		sb.WriteString(" :returning ")
 		writeNode(sb, n.Returning)
 	}
+	if n.ReturningBulk {
+		sb.WriteString(" :returningBulk true")
+	}
 	if n.ErrorLog != nil {
 		sb.WriteString(" :errorLog ")
 		writeNode(sb, n.ErrorLog)
@@ -2511,6 +2517,9 @@ func writeDeleteStmt(sb *strings.Builder, n *DeleteStmt) {
 	if n.Returning != nil {
 		sb.WriteString(" :returning ")
 		writeNode(sb, n.Returning)
+	}
+	if n.ReturningBulk {
+		sb.WriteString(" :returningBulk true")
 	}
 	if n.ErrorLog != nil {
 		sb.WriteString(" :errorLog ")
@@ -3149,6 +3158,13 @@ func writeCreateTypeStmt(sb *strings.Builder, n *CreateTypeStmt) {
 		sb.WriteString(" :body ")
 		writeNode(sb, n.Body)
 	}
+	if n.Methods != nil {
+		sb.WriteString(" :methods ")
+		writeNode(sb, n.Methods)
+	}
+	if len(n.Modifiers) > 0 {
+		sb.WriteString(fmt.Sprintf(" :modifiers %q", n.Modifiers))
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -3167,6 +3183,9 @@ func writeTypeBodyMember(sb *strings.Builder, n *TypeBodyMember) {
 		kindStr = "CONSTRUCTOR"
 	}
 	sb.WriteString(fmt.Sprintf(" :kind %q", kindStr))
+	if len(n.Modifiers) > 0 {
+		sb.WriteString(fmt.Sprintf(" :modifiers %q", n.Modifiers))
+	}
 	if n.Subprog != nil {
 		sb.WriteString(" :subprog ")
 		writeNode(sb, n.Subprog)

@@ -3106,11 +3106,11 @@ func (p *Parser) parseAlterSequenceStmt(start int) (nodes.StmtNode, error) {
 			stmt.Keep = true
 			p.advance()
 
-		case p.isIdentLikeStr("NOKEEP"):
+		case p.isKeywordStr("NOKEEP"):
 			stmt.NoKeep = true
 			p.advance()
 
-		case p.isIdentLikeStr("RESTART"):
+		case p.isKeywordStr("RESTART"):
 			stmt.Restart = true
 			p.advance() // consume RESTART
 			if p.cur.Type == kwWITH {
@@ -3123,7 +3123,7 @@ func (p *Parser) parseAlterSequenceStmt(start int) (nodes.StmtNode, error) {
 				}
 			}
 
-		case p.isIdentLikeStr("SCALE"):
+		case p.isKeywordStr("SCALE"):
 			stmt.Scale = true
 			p.advance() // consume SCALE
 			var err error
@@ -3132,11 +3132,11 @@ func (p *Parser) parseAlterSequenceStmt(start int) (nodes.StmtNode, error) {
 				return nil, err
 			}
 
-		case p.isIdentLikeStr("NOSCALE"):
+		case p.isKeywordStr("NOSCALE"):
 			stmt.NoScale = true
 			p.advance()
 
-		case p.isIdentLikeStr("SHARD"):
+		case p.isKeywordStr("SHARD"):
 			stmt.Shard = true
 			p.advance() // consume SHARD
 			var err error
@@ -3145,7 +3145,7 @@ func (p *Parser) parseAlterSequenceStmt(start int) (nodes.StmtNode, error) {
 				return nil, err
 			}
 
-		case p.isIdentLikeStr("NOSHARD"):
+		case p.isKeywordStr("NOSHARD"):
 			stmt.NoShard = true
 			p.advance()
 

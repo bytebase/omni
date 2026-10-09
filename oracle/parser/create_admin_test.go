@@ -94,3 +94,57 @@ func TestParseCreateJavaSourceRequiresSource(t *testing.T) {
 	ParseShouldFail(t, "CREATE JAVA SOURCE NAMED q AS")
 	ParseShouldFail(t, "CREATE JAVA SOURCE NAMED q AS \n  ")
 }
+
+// TestParseCreateJavaHead pins the CREATE JAVA head to Oracle 23ai. The image
+// has no Java VM, so a statement whose head Oracle accepts fails later with
+// ORA-29538 (or ORA-65021 for SHARING outside an application container); a
+// rejected head reports a syntax error first, quoted keywords included.
+func TestParseCreateJavaHead(t *testing.T) {
+	accept := []string{
+		"CREATE JAVA SOURCE NAMED j AS class X {}",
+		"CREATE JAVA CLASS USING BFILE (d, 'x.class')",
+		"CREATE JAVA RESOURCE NAMED j USING BLOB (SELECT NULL FROM dual)",
+		"CREATE JAVA SOURCE NAMED j USING CLOB (SELECT 'x' FROM dual)",
+		"CREATE JAVA SOURCE NAMED j USING CLOB SELECT 'x' FROM dual",
+		"CREATE JAVA CLASS SCHEMA p1 USING BFILE (d, 'x.class')",
+		`CREATE JAVA CLASS SCHEMA "P1" USING BFILE (d, 'x.class')`,
+		"CREATE JAVA SOURCE NAMED j SHARING = METADATA AS class X {}",
+		"CREATE JAVA SOURCE NAMED j AUTHID CURRENT_USER AS class X {}",
+		"CREATE JAVA SOURCE NAMED j RESOLVER ((* public)(* -)) AS class X {}",
+		"CREATE JAVA RESOURCE NAMED j USING 'key'",
+		"CREATE OR REPLACE AND COMPILE NOFORCE JAVA SOURCE NAMED j AS class X {}",
+		"CREATE JAVA SOURCE NAMED j USING BFILE (d, 'x.java')",
+		"CREATE JAVA CLASS USING CLOB (SELECT 'x' FROM dual)",
+	}
+	for _, sql := range accept {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+			if violations := CheckLocations(t, sql); len(violations) > 0 {
+				t.Fatalf("Loc violations: %v", violations)
+			}
+		})
+	}
+	reject := []string{
+		`CREATE JAVA "SOURCE" NAMED j AS class X {}`,
+		`CREATE JAVA SOURCE "NAMED" j AS class X {}`,
+		"CREATE JAVA SOURCE NAMED j garbage AS class X {}",
+		"CREATE JAVA SOURCE NAMED j",
+		"CREATE JAVA SOURCE j AS class X {}",
+		"CREATE JAVA CLASS NAMED j USING BFILE (d, 'x.class')",
+		"CREATE JAVA NAMED j AS class X {}",
+		"CREATE JAVA SOURCE NAMED j SHARING METADATA AS class X {}",
+		"CREATE JAVA SOURCE NAMED j AUTHID nobody AS class X {}",
+		"CREATE JAVA CLASS USING BFILE (d)",
+		"CREATE JAVA CLASS USING BFILE (d, 'x', 'y')",
+		"CREATE JAVA CLASS USING BFILE (SELECT BFILENAME('D', 'x') FROM dual)",
+		"CREATE JAVA SOURCE NAMED j RESOLVER ((* public)) AUTHID CURRENT_USER AS class X {}",
+		"CREATE JAVA SOURCE NAMED j AUTHID DEFINER SHARING = NONE AS class X {}",
+		"CREATE AND RESOLVE TABLE t (a NUMBER)",
+		"CREATE AND JAVA SOURCE NAMED j AS class X {}",
+	}
+	for _, sql := range reject {
+		t.Run(sql, func(t *testing.T) {
+			ParseShouldFail(t, sql)
+		})
+	}
+}

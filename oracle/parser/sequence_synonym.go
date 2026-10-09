@@ -56,13 +56,13 @@ func (p *Parser) parseCreateSequenceStmt(start int) (*nodes.CreateSequenceStmt, 
 		return nil, p.syntaxErrorAtCur()
 	}
 
-	if p.isIdentLikeStr("SHARING") {
+	if p.isKeywordStr("SHARING") {
 		p.advance() // consume SHARING
 		if p.cur.Type != '=' {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance() // consume =
-		if !p.isIdentLikeStr("METADATA") && !p.isIdentLikeStr("DATA") && !p.isIdentLikeStr("NONE") {
+		if !p.isKeywordStr("METADATA") && !p.isKeywordStr("DATA") && !p.isKeywordStr("NONE") {
 			return nil, p.syntaxErrorAtCur()
 		}
 		stmt.Sharing = p.cur.Str
@@ -104,11 +104,11 @@ func (p *Parser) sequenceOptionGroup() string {
 		return "SESSION"
 	}
 	switch {
-	case p.isIdentLikeStr("NOKEEP"):
+	case p.isKeywordStr("NOKEEP"):
 		return "KEEP"
-	case p.isIdentLikeStr("SCALE"), p.isIdentLikeStr("NOSCALE"):
+	case p.isKeywordStr("SCALE"), p.isKeywordStr("NOSCALE"):
 		return "SCALE"
-	case p.isIdentLikeStr("SHARD"), p.isIdentLikeStr("NOSHARD"):
+	case p.isKeywordStr("SHARD"), p.isKeywordStr("NOSHARD"):
 		return "SHARD"
 	}
 	return ""
@@ -209,10 +209,10 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 		case p.cur.Type == kwKEEP:
 			stmt.Keep = true
 			p.advance()
-		case p.isIdentLikeStr("NOKEEP"):
+		case p.isKeywordStr("NOKEEP"):
 			stmt.NoKeep = true
 			p.advance()
-		case p.isIdentLikeStr("SCALE"):
+		case p.isKeywordStr("SCALE"):
 			stmt.Scale = true
 			p.advance()
 			var err error
@@ -220,10 +220,10 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 			if err != nil {
 				return err
 			}
-		case p.isIdentLikeStr("NOSCALE"):
+		case p.isKeywordStr("NOSCALE"):
 			stmt.NoScale = true
 			p.advance()
-		case p.isIdentLikeStr("SHARD"):
+		case p.isKeywordStr("SHARD"):
 			stmt.Shard = true
 			p.advance()
 			var err error
@@ -231,7 +231,7 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 			if err != nil {
 				return err
 			}
-		case p.isIdentLikeStr("NOSHARD"):
+		case p.isKeywordStr("NOSHARD"):
 			stmt.NoShard = true
 			p.advance()
 		case p.cur.Type == kwSESSION:
@@ -254,7 +254,7 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 // (Sequence with SHARD and SCALE). A non-sharded Oracle raises ORA-02511 at
 // SHARD before reaching this check, so the rule rests on the documentation.
 func (p *Parser) parseSequenceExtendModifier(seen *bool) (extend, noExtend bool, err error) {
-	if !p.isIdentLikeStr("EXTEND") && !p.isIdentLikeStr("NOEXTEND") {
+	if !p.isKeywordStr("EXTEND") && !p.isKeywordStr("NOEXTEND") {
 		return false, false, nil
 	}
 	if *seen {

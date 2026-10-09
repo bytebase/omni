@@ -762,6 +762,20 @@ func TestSelectAliasBulk(t *testing.T) {
 	}
 }
 
+// TestDMLReturningBulkCollectAST: DML RETURNING records BULK COLLECT.
+func TestDMLReturningBulkCollectAST(t *testing.T) {
+	result := ParseAndCheck(t, "DECLARE TYPE nt IS TABLE OF NUMBER; x nt; v NUMBER; BEGIN "+
+		"DELETE FROM t RETURNING a BULK COLLECT INTO x; "+
+		"UPDATE t SET a = 1 RETURN a BULK COLLECT INTO x; "+
+		"INSERT INTO t (a) VALUES (1) RETURNING a BULK COLLECT INTO x; "+
+		"DELETE FROM t WHERE a = 2 RETURNING a INTO v; END;")
+	stmts := result.Items[0].(*ast.RawStmt).Stmt.(*ast.PLSQLBlock).Statements.Items
+	if !stmts[0].(*ast.DeleteStmt).ReturningBulk || !stmts[1].(*ast.UpdateStmt).ReturningBulk ||
+		!stmts[2].(*ast.InsertStmt).ReturningBulk || stmts[3].(*ast.DeleteStmt).ReturningBulk {
+		t.Fatalf("ReturningBulk not recorded as written: %s", ast.NodeToString(result))
+	}
+}
+
 // TestPLSQLTargetListsRejectEmpty: INTO, BULK COLLECT INTO, USING, and
 // RETURNING INTO need at least one target and no empty entry. Oracle 23ai
 // rejects each case with PLS-00103.
