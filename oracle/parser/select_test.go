@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/oracle/ast"
@@ -413,10 +415,11 @@ func TestParseOffsetColumnNameAST(t *testing.T) {
 	}
 }
 
-// TestParseCaseBooleanSelector: a simple CASE selector may start with NOT
-// (a Boolean selector), NULLS, or LIKEC, while a column named CASE is
-// followed by NOT only in NOT IN / NOT BETWEEN / NOT LIKE and by NULLS only
-// in NULLS FIRST / NULLS LAST. Oracle 23ai accepts all of these.
+// TestParseCaseBooleanSelector: CASE opens an expression when WHEN follows it
+// or follows an expression after it; the selector may start with NOT, NULLS,
+// or LIKEC and may be a Boolean comparison. Otherwise CASE is a column:
+// case NOT IN (...), ORDER BY case NULLS FIRST, case LIKEC '...', and a column
+// with an alias. Oracle 23ai accepts all of these.
 func TestParseCaseBooleanSelector(t *testing.T) {
 	result := ParseAndCheck(t, "SELECT CASE NOT TRUE WHEN TRUE THEN 1 ELSE 0 END FROM t")
 	target := result.Items[0].(*ast.RawStmt).Stmt.(*ast.SelectStmt).TargetList.Items[0].(*ast.ResTarget)
@@ -428,6 +431,9 @@ func TestParseCaseBooleanSelector(t *testing.T) {
 		"SELECT CASE nulls + 1 WHEN 1 THEN 2 END FROM t",
 		"SELECT CASE likec WHEN 'x' THEN 2 END FROM t",
 		"SELECT CASE like2 || 'a' WHEN 'xa' THEN 2 END FROM t",
+		"SELECT CASE likec = 'x' WHEN TRUE THEN 1 ELSE 0 END FROM t",
+		"SELECT CASE likec IN ('x', 'y') WHEN TRUE THEN 1 ELSE 0 END FROM t",
+		"SELECT CASE case IS NULL WHEN TRUE THEN 1 ELSE 0 END FROM t",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			result := ParseAndCheck(t, sql)
@@ -444,6 +450,7 @@ func TestParseCaseBooleanSelector(t *testing.T) {
 		"SELECT a FROM t ORDER BY case NULLS FIRST",
 		"SELECT a FROM t ORDER BY case DESC NULLS LAST",
 		"SELECT a FROM t WHERE case LIKEC '1%'",
+		"SELECT case a2 FROM t",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)
@@ -475,4 +482,30 @@ func TestParseKeywordColumnOuterJoin(t *testing.T) {
 	}
 	// A qualified reference is a column even for a pseudo-column word.
 	ParseAndCheck(t, "SELECT 1 FROM t, u WHERE t.systimestamp(+) = u.a")
+}
+
+// TestParseCaseExpressionErrorPosition: deciding between a CASE expression
+// and a column named CASE probes the selector without consuming it, so an
+// error inside a real CASE expression is still reported where it occurs.
+func TestParseCaseExpressionErrorPosition(t *testing.T) {
+	tests := []struct {
+		sql  string
+		near string
+	}{
+		{"SELECT CASE x WHEN 1 THEN (1 + ) END FROM t", ")"},
+		{"SELECT CASE WHEN a = 1 THEN 1 FROM t", "FROM"},
+		{"SELECT CASE likec = 'x' WHEN TRUE THEN (1 + ) END FROM t", ")"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			_, err := Parse(tt.sql)
+			var pe *ParseError
+			if !errors.As(err, &pe) {
+				t.Fatalf("Parse error = %v, want a ParseError", err)
+			}
+			if want := strings.Index(tt.sql, tt.near); pe.Position != want {
+				t.Fatalf("error at %d (%q), want %d (%q)", pe.Position, tt.sql[pe.Position:], want, tt.near)
+			}
+		})
+	}
 }

@@ -356,6 +356,25 @@ func (p *Parser) peekAhead(n int) []Token {
 	return toks
 }
 
+// parserState is a snapshot of everything the parser advances, so a probe can
+// parse ahead and then put the parser back where it was.
+type parserState struct {
+	lexer   Lexer
+	cur     Token
+	prev    Token
+	nextBuf Token
+	hasNext bool
+}
+
+func (p *Parser) saveState() parserState {
+	return parserState{lexer: *p.lexer, cur: p.cur, prev: p.prev, nextBuf: p.nextBuf, hasNext: p.hasNext}
+}
+
+func (p *Parser) restoreState(s parserState) {
+	*p.lexer = s.lexer
+	p.cur, p.prev, p.nextBuf, p.hasNext = s.cur, s.prev, s.nextBuf, s.hasNext
+}
+
 // peek returns the current token without consuming it.
 func (p *Parser) peek() Token {
 	return p.cur
