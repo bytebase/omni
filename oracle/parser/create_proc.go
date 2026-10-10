@@ -279,6 +279,7 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 	var notPolymorphic, notMacro, macroTok *Token
 	var partTok Token
 	var streamToks []Token
+	var resultCacheTok *Token
 	note := func() {
 		tok := p.cur
 		if notPolymorphic == nil {
@@ -308,6 +309,15 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 		}
 		if err := p.checkCharsetSources(stmt.Parameters, stmt.ReturnType); err != nil {
 			return err
+		}
+		// RESULT_CACHE takes no OUT or IN OUT parameter (PLS-00999 on
+		// Oracle 23ai, documented among the clause's restrictions).
+		if resultCacheTok != nil && stmt.Parameters != nil {
+			for _, item := range stmt.Parameters.Items {
+				if pr, ok := item.(*nodes.Parameter); ok && strings.Contains(pr.Mode, "OUT") {
+					return p.syntaxErrorAtTok(*resultCacheTok)
+				}
+			}
 		}
 		return p.checkParallelArguments(stmt, partTok, streamToks)
 	}
@@ -382,6 +392,8 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 				return err
 			}
 			note()
+			rcTok := p.cur
+			resultCacheTok = &rcTok
 			stmt.ResultCache = true
 			p.advance()
 			if p.isKeywordStr("RELIES_ON") {

@@ -3849,6 +3849,7 @@ func (p *Parser) parseAlterTypeAddDrop(stmt *nodes.AlterTypeStmt, action string)
 }
 
 func (p *Parser) parseAlterTypeMethodSig(stmt *nodes.AlterTypeStmt) error {
+	var params *nodes.List
 	// FUNCTION or PROCEDURE
 	if p.cur.Type == kwFUNCTION {
 		stmt.MethodType = "FUNCTION"
@@ -3869,7 +3870,8 @@ func (p *Parser) parseAlterTypeMethodSig(stmt *nodes.AlterTypeStmt) error {
 	}
 
 	if p.cur.Type == '(' {
-		params, parseErr126 := p.parseParameterList()
+		var parseErr126 error
+		params, parseErr126 = p.parseParameterList()
 		if parseErr126 != nil {
 			return parseErr126
 		}
@@ -3899,18 +3901,22 @@ func (p *Parser) parseAlterTypeMethodSig(stmt *nodes.AlterTypeStmt) error {
 			}
 		} else {
 			var parseErr127 error
-			stmt.MethodReturn, parseErr127 = p.parseTypeName()
-			if parseErr127 !=
-
-				// parseAlterTypeAttributes parses ( attribute [datatype] [, ...] ).
-				nil {
+			stmt.MethodReturn, parseErr127 = p.parsePLSQLDatatype(typeModsNone, charsetFlexible)
+			if parseErr127 != nil {
 				return parseErr127
 			}
 		}
 	}
-	return nil
+	// A method signature takes the heading checks of CREATE TYPE methods:
+	// no TABLE or COLUMNS pseudo-type (PLS-00765), and item%CHARSET from a
+	// character parameter (PLS-00550).
+	if tn := p.tablePseudoType(params, stmt.MethodReturn); tn != nil {
+		return p.syntaxErrorAtType(tn)
+	}
+	return p.checkCharsetSources(params, stmt.MethodReturn)
 }
 
+// parseAlterTypeAttributes parses ( attribute [datatype] [, ...] ).
 func (p *Parser) parseAlterTypeAttributes(withDatatype bool) ([]*nodes.TypeAttribute, error) {
 	var attrs []*nodes.TypeAttribute
 

@@ -348,6 +348,14 @@ func (p *Parser) parseTypeBodyProcedure(inSpec bool) (*nodes.CreateProcedureStmt
 			return nil, parseErr583
 		}
 	}
+	// The heading checks of other procedures hold for a method too
+	// (PLS-00765, PLS-00550 on Oracle 23ai).
+	if tn := p.tablePseudoType(stmt.Parameters, nil); tn != nil {
+		return nil, p.syntaxErrorAtType(tn)
+	}
+	if err := p.checkCharsetSources(stmt.Parameters, nil); err != nil {
+		return nil, err
+	}
 
 	if inSpec {
 		var err error
