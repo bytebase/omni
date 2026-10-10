@@ -266,6 +266,9 @@ func (p *Parser) parsePLSQLCursorDecl() (*nodes.PLSQLCursorDecl, error) {
 			nil {
 			return nil, parseErr839
 		}
+		if err := p.checkCharsetSources(decl.Parameters, nil); err != nil {
+			return nil, err
+		}
 	}
 
 	if p.cur.Type == kwIS {

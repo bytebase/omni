@@ -185,3 +185,5 @@ ref_183	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_qaid_{run} AUTHID "CU
 ref_184	plsql_body	accept	CREATE OR REPLACE PACKAGE omni_quoted_{run} AS SUBTYPE "NUMBER" IS VARCHAR2(100); FUNCTION m RETURN "NUMBER" SQL_MACRO; SUBTYPE "CLOB" IS NUMBER; FUNCTION r RETURN "CLOB" RESULT_CACHE; END;	quoted names of predefined types are user types
 ref_185	plsql	reject	DECLARE FUNCTION f RETURN NUMBER RESULT_CACHE IS BEGIN RETURN 1; END; BEGIN NULL; END;	RESULT_CACHE on a subprogram in an anonymous block (PLS-00999)
 ref_186	plsql	reject	DECLARE FUNCTION f RETURN NUMBER PARALLEL_ENABLE IS BEGIN RETURN 1; END; BEGIN NULL; END;	PARALLEL_ENABLE on a nested function (PLS-00712)
+ref_187	plsql	reject	DECLARE CURSOR c (a NUMBER, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;	cursor parameter %CHARSET from a numeric parameter (PLS-00550)
+ref_188	plsql	accept	DECLARE CURSOR c (a VARCHAR2, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;	cursor parameter %CHARSET from a character parameter

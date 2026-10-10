@@ -477,10 +477,21 @@ func (p *Parser) checkCharsetSources(params *nodes.List, result *nodes.TypeName)
 	if params == nil {
 		return nil
 	}
-	byName := map[string]*nodes.Parameter{}
+	// params holds subprogram parameters (*Parameter) or cursor parameters
+	// (*PLSQLVarDecl); Oracle 23ai applies the rule to both.
+	formal := func(item nodes.Node) (string, *nodes.TypeName, bool) {
+		switch f := item.(type) {
+		case *nodes.Parameter:
+			return f.Name, f.TypeName, true
+		case *nodes.PLSQLVarDecl:
+			return f.Name, f.TypeName, true
+		}
+		return "", nil, false
+	}
+	byName := map[string]*nodes.TypeName{}
 	for _, item := range params.Items {
-		if pr, ok := item.(*nodes.Parameter); ok {
-			byName[pr.Name] = pr
+		if name, tn, ok := formal(item); ok {
+			byName[name] = tn
 		}
 	}
 	check := func(tn *nodes.TypeName) error {
@@ -490,14 +501,14 @@ func (p *Parser) checkCharsetSources(params *nodes.List, result *nodes.TypeName)
 		if tn == nil || !tn.IsPercCharset || p.qualifiedCharsets[tn] {
 			return nil
 		}
-		if src, ok := byName[tn.CharacterSet]; ok && !p.mayBeCharacterType(src.TypeName) {
+		if src, ok := byName[tn.CharacterSet]; ok && !p.mayBeCharacterType(src) {
 			return p.syntaxErrorAtType(tn)
 		}
 		return nil
 	}
 	for _, item := range params.Items {
-		if pr, ok := item.(*nodes.Parameter); ok {
-			if err := check(pr.TypeName); err != nil {
+		if _, tn, ok := formal(item); ok {
+			if err := check(tn); err != nil {
 				return err
 			}
 		}
