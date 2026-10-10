@@ -846,12 +846,16 @@ func canStartCaseSelector(tok Token) bool {
 }
 
 // expectsOperandAfter reports whether an operand must follow tok, so an END
-// right after it is a column named END rather than the end of a CASE.
+// right after it is a column named END rather than the end of a CASE. Only
+// tokens that work at expression level matter: an END inside parentheses is
+// skipped with its group. The unary PRIOR and CONNECT_BY_ROOT, ESCAPE, OF
+// (MEMBER OF, SUBMULTISET OF), and ZONE (AT TIME ZONE) all take an operand.
 func expectsOperandAfter(tok Token) bool {
 	switch tok.Type {
 	case '+', '-', '*', '/', '=', '<', '>', '(', ',', '.',
 		tokCONCAT, tokEXPON, tokLESSEQ, tokGREATEQ, tokNOTEQ,
-		kwCASE, kwWHEN, kwTHEN, kwELSE, kwAND, kwOR, kwNOT, kwPRIOR,
+		kwCASE, kwWHEN, kwTHEN, kwELSE, kwAND, kwOR, kwNOT,
+		kwPRIOR, kwCONNECT_BY_ROOT, kwESCAPE, kwOF, kwZONE,
 		kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4, kwBETWEEN,
 		kwSELECT, kwWHERE, kwBY, kwHAVING, kwON, kwSET, kwRETURN:
 		return true

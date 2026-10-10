@@ -440,6 +440,9 @@ func TestParseCaseBooleanSelector(t *testing.T) {
 		"SELECT CASE 1 + end WHEN 2 THEN 3 END FROM t",
 		"SELECT CASE t.case WHEN 1 THEN 2 END FROM t",
 		"SELECT CASE a WHEN 1 THEN end ELSE 0 END FROM t",
+		"SELECT CASE CONNECT_BY_ROOT end WHEN 1 THEN 2 END FROM t CONNECT BY PRIOR id = pid",
+		"SELECT CASE PRIOR end WHEN 1 THEN 2 END FROM t CONNECT BY PRIOR id = pid",
+		"SELECT CASE a LIKE 'x' ESCAPE end WHEN TRUE THEN 1 END FROM t",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			result := ParseAndCheck(t, sql)
