@@ -153,7 +153,7 @@ ref_151	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_agg_{run} (x NUMBER) R
 ref_152	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_pip_{run} (c SYS_REFCURSOR) RETURN omni_tab PIPELINED PARALLEL_ENABLE (PARTITION c BY ANY) USING omni_impl;	PIPELINED ... USING implementation type
 ref_153	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_agg_{run} (x NUMBER) RETURN NUMBER AGGREGATE USING omni_impl IS BEGIN RETURN 1; END;	body after AGGREGATE USING
 ref_154	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_pip_{run} RETURN omni_tab USING omni_impl PIPELINED;	clause after USING implementation type
-ref_155	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_par_{run} (c SYS_REFCURSOR) RETURN omni_tab PIPELINED PARALLEL_ENABLE (PARTITION c BY HASH (a, b)) ORDER c BY (a) CLUSTER c BY (b) IS BEGIN RETURN; END;	PARALLEL_ENABLE partitioning with streaming clauses
+ref_155	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_par_{run} (c omni_rcpkg.rc) RETURN omni_tab PIPELINED PARALLEL_ENABLE (PARTITION c BY HASH (a, b)) ORDER c BY (a) CLUSTER c BY (b) IS BEGIN RETURN; END;	PARALLEL_ENABLE partitioning with streaming clauses
 ref_156	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_par_{run} (c SYS_REFCURSOR) RETURN omni_tab PARALLEL_ENABLE (PARTITION c BY LIST (a)) IS BEGIN RETURN; END;	unknown PARALLEL_ENABLE partitioning
 ref_157	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_ptf_{run} (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC USING omni_pkg;	polymorphic table function
 ref_158	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_rc_{run} RETURN NUMBER RESULT_CACHE RELIES_ON (omni_t1, omni_s.omni_t2) IS BEGIN RETURN 1; END;	RESULT_CACHE RELIES_ON

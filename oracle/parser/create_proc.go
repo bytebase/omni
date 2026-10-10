@@ -65,6 +65,9 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 	if tn := tablePseudoType(stmt.Parameters, nil); tn != nil {
 		return nil, p.syntaxErrorAtType(tn)
 	}
+	if err := p.checkCharsetSources(stmt.Parameters, nil); err != nil {
+		return nil, err
+	}
 	if err := p.parseProcedureProperties(stmt, subprogramSchema); err != nil {
 		return nil, err
 	}
@@ -293,13 +296,18 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			return p.syntaxErrorAtTok(*notPolymorphic)
 		case stmt.SqlMacro && notMacro != nil:
 			return p.syntaxErrorAtTok(*notMacro)
-		case stmt.SqlMacro && !isMacroResultType(stmt.ReturnType):
+		case stmt.SqlMacro && !mayBeCharacterType(stmt.ReturnType):
 			return p.syntaxErrorAtTok(*macroTok)
 		}
 		if stmt.Polymorphic == "" {
 			if tn := tablePseudoType(stmt.Parameters, stmt.ReturnType); tn != nil {
 				return p.syntaxErrorAtType(tn)
 			}
+		} else if err := p.checkPolymorphicSignature(stmt); err != nil {
+			return err
+		}
+		if err := p.checkCharsetSources(stmt.Parameters, stmt.ReturnType); err != nil {
+			return err
 		}
 		return p.checkParallelArguments(stmt, partTok, streamToks)
 	}
@@ -464,11 +472,12 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 	}
 }
 
-// isMacroResultType reports whether tn may be a SQL macro's result type: not
-// a predefined non-character type (the national character types are
-// character types here) and not a %ROWTYPE record. A name the text does not
-// settle is left to the engine.
-func isMacroResultType(tn *nodes.TypeName) bool {
+// mayBeCharacterType reports whether tn may hold character data: it is not a
+// predefined non-character type (the national character types count as
+// character types) and not a %ROWTYPE record. A SQL macro returns such a
+// type (PLS-00776), and item%CHARSET takes its character set from one
+// (PLS-00550). A name the text does not settle is left to the engine.
+func mayBeCharacterType(tn *nodes.TypeName) bool {
 	if tn == nil {
 		return true
 	}
@@ -745,6 +754,9 @@ func (p *Parser) parsePackageProcDecl(level subprogramLevel) (*nodes.CreateProce
 	}
 	if tn := tablePseudoType(stmt.Parameters, nil); tn != nil {
 		return nil, p.syntaxErrorAtType(tn)
+	}
+	if err := p.checkCharsetSources(stmt.Parameters, nil); err != nil {
+		return nil, err
 	}
 	if err := p.parseProcedureProperties(stmt, level); err != nil {
 		return nil, err

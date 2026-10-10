@@ -408,6 +408,16 @@ func (s *splitState) observePLSQL(tok Token) {
 			// A nested call spec has no END; its ';' closes it.
 			s.frames = s.frames[:n-1]
 		}
+		if len(s.frames) == 1 && s.frames[0].kind == splitPLSQLStoredUnit &&
+			!s.frames[0].isAs && s.frames[0].headDepth == 0 && !s.callSpecStarted {
+			top := &s.frames[0]
+			// A ';' in a stored unit's head, before any IS|AS, ends a unit
+			// that has no body: a malformed heading such as AGGREGATE
+			// without USING ends here rather than running on to the next
+			// END, and keeps its ';' as a type-implemented function does.
+			top.callSpec = true
+			s.callSpecStarted = true
+		}
 		return
 	}
 

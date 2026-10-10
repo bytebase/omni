@@ -354,6 +354,17 @@ func (p *Parser) checkParallelArguments(stmt *nodes.CreateFunctionStmt, partTok 
 	if param == nil || (param.Mode != "" && param.Mode != "IN") {
 		return p.syntaxErrorAtTok(partTok)
 	}
+	// The partitioned argument is a REF CURSOR, strongly typed unless
+	// partitioned BY ANY without a streaming clause (PLS-00627): a
+	// predefined non-cursor type never qualifies, nor SYS_REFCURSOR with
+	// HASH, RANGE, VALUE, ORDER BY, or CLUSTER BY. A named type is left to
+	// the engine.
+	if name, ok := predefinedTypeName(param.TypeName); ok {
+		weakAllowed := name == "SYS_REFCURSOR" && stmt.ParallelSpec.PartitionBy == "ANY" && len(streamToks) == 0
+		if !weakAllowed {
+			return p.syntaxErrorAtTok(partTok)
+		}
+	}
 	if stmt.Streaming != nil {
 		for i, item := range stmt.Streaming.Items {
 			if item.(*nodes.StreamingClause).Argument != stmt.ParallelSpec.Argument {
@@ -364,29 +375,113 @@ func (p *Parser) checkParallelArguments(stmt *nodes.CreateFunctionStmt, partTok 
 	return nil
 }
 
+// predefinedTypeName returns the name of tn when it is a predefined datatype
+// that is not a REF CURSOR of the program's own: SYS_REFCURSOR, or a scalar,
+// character, LOB, or %ROWTYPE record type.
+func predefinedTypeName(tn *nodes.TypeName) (string, bool) {
+	if tn == nil {
+		return "", false
+	}
+	if tn.IsPercRowtype {
+		return "%ROWTYPE", true
+	}
+	if tn.IsPercType || tn.Names.Len() != 1 {
+		return "", false
+	}
+	s, ok := tn.Names.Items[0].(*nodes.String)
+	if !ok {
+		return "", false
+	}
+	switch s.Str {
+	case "CHAR", "CHARACTER", "VARCHAR2", "VARCHAR", "STRING", "CLOB":
+		return s.Str, true
+	}
+	return s.Str, plsqlNonCharacterTypes[s.Str]
+}
+
+// checkPolymorphicSignature checks a polymorphic table function's signature
+// as Oracle 23ai does from the text: it returns TABLE (PLS-00767) and takes
+// exactly one TABLE parameter (PLS-00773, PLS-00766).
+func (p *Parser) checkPolymorphicSignature(stmt *nodes.CreateFunctionStmt) error {
+	if !isTablePseudoType(stmt.ReturnType) {
+		return p.syntaxErrorAtType(stmt.ReturnType)
+	}
+	tables := 0
+	if stmt.Parameters != nil {
+		for _, item := range stmt.Parameters.Items {
+			if pr, ok := item.(*nodes.Parameter); ok && isTablePseudoType(pr.TypeName) {
+				tables++
+				if tables > 1 {
+					return p.syntaxErrorAtType(pr.TypeName)
+				}
+			}
+		}
+	}
+	if tables == 0 {
+		return p.syntaxErrorAtType(stmt.ReturnType)
+	}
+	return nil
+}
+
+// checkCharsetSources checks each item%CHARSET in a subprogram heading that
+// names one of its own parameters: Oracle 23ai rejects one whose parameter
+// has a non-character type, such as NUMBER or DATE (PLS-00550). A CHAR,
+// VARCHAR2, CLOB, or national character parameter qualifies with or
+// without ANY_CS; an item outside the heading is left to the engine.
+func (p *Parser) checkCharsetSources(params *nodes.List, result *nodes.TypeName) error {
+	if params == nil {
+		return nil
+	}
+	byName := map[string]*nodes.Parameter{}
+	for _, item := range params.Items {
+		if pr, ok := item.(*nodes.Parameter); ok {
+			byName[pr.Name] = pr
+		}
+	}
+	check := func(tn *nodes.TypeName) error {
+		if tn == nil || !tn.IsPercCharset {
+			return nil
+		}
+		if src, ok := byName[tn.CharacterSet]; ok && !mayBeCharacterType(src.TypeName) {
+			return p.syntaxErrorAtType(tn)
+		}
+		return nil
+	}
+	for _, item := range params.Items {
+		if pr, ok := item.(*nodes.Parameter); ok {
+			if err := check(pr.TypeName); err != nil {
+				return err
+			}
+		}
+	}
+	return check(result)
+}
+
 // tablePseudoType returns the TABLE pseudo-type among a subprogram's
 // parameter types and its result type, or nil. TABLE stands only in a
 // polymorphic table function: Oracle 23ai rejects it elsewhere with
 // PLS-00765, in a procedure, an ordinary function, or a SQL macro alike.
 func tablePseudoType(params *nodes.List, result *nodes.TypeName) *nodes.TypeName {
-	isTable := func(tn *nodes.TypeName) bool {
-		if tn == nil || tn.IsPercType || tn.IsPercRowtype || tn.Names.Len() != 1 {
-			return false
-		}
-		s, ok := tn.Names.Items[0].(*nodes.String)
-		return ok && s.Str == "TABLE"
-	}
 	if params != nil {
 		for _, item := range params.Items {
-			if pr, ok := item.(*nodes.Parameter); ok && isTable(pr.TypeName) {
+			if pr, ok := item.(*nodes.Parameter); ok && isTablePseudoType(pr.TypeName) {
 				return pr.TypeName
 			}
 		}
 	}
-	if isTable(result) {
+	if isTablePseudoType(result) {
 		return result
 	}
 	return nil
+}
+
+// isTablePseudoType reports whether tn is the TABLE pseudo-type.
+func isTablePseudoType(tn *nodes.TypeName) bool {
+	if tn == nil || tn.IsPercType || tn.IsPercRowtype || tn.Names.Len() != 1 {
+		return false
+	}
+	s, ok := tn.Names.Items[0].(*nodes.String)
+	return ok && s.Str == "TABLE"
 }
 
 // syntaxErrorAtType returns a syntax error at datatype tn.

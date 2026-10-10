@@ -436,6 +436,17 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			},
 		},
 		{
+			// A ';' in a function's head, before IS|AS, ends it even when the
+			// heading is malformed (AGGREGATE without USING).
+			name: "malformed bodyless heading",
+			sql: "CREATE FUNCTION f (x NUMBER) RETURN NUMBER AGGREGATE;\n" +
+				"CREATE TABLE t (x NUMBER);",
+			want: []string{
+				"CREATE FUNCTION f (x NUMBER) RETURN NUMBER AGGREGATE;",
+				"\nCREATE TABLE t (x NUMBER)",
+			},
+		},
+		{
 			// USING ends a function only after AGGREGATE or PIPELINED: a
 			// function or parameter named USING compiles on Oracle 23ai.
 			name: "function named using",
