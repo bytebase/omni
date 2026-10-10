@@ -249,23 +249,24 @@ func (p *Parser) parsePackageProperties(stmt *nodes.CreatePackageStmt) error {
 // Oracle 23ai rejects an empty partitioning, PARTITION without BY, other
 // methods (LIST), and an empty column list with PLS-00103. That VALUE takes a
 // single column is checked when the unit compiles.
-func (p *Parser) parseParallelEnableSpec() (*nodes.ParallelEnableClause, error) {
+func (p *Parser) parseParallelEnableSpec() (*nodes.ParallelEnableClause, Token, error) {
 	spec := &nodes.ParallelEnableClause{Loc: nodes.Loc{Start: p.pos()}}
 	p.advance() // consume '('
 	if p.cur.Type != kwPARTITION {
-		return nil, p.syntaxErrorAtCur()
+		return nil, Token{}, p.syntaxErrorAtCur()
 	}
 	p.advance()
 	if !p.isIdentLike() {
-		return nil, p.syntaxErrorAtCur()
+		return nil, Token{}, p.syntaxErrorAtCur()
 	}
+	argTok := p.cur
 	arg, err := p.parseIdentifier()
 	if err != nil {
-		return nil, err
+		return nil, Token{}, err
 	}
 	spec.Argument = arg
 	if p.cur.Type != kwBY {
-		return nil, p.syntaxErrorAtCur()
+		return nil, Token{}, p.syntaxErrorAtCur()
 	}
 	p.advance()
 	switch {
@@ -282,49 +283,115 @@ func (p *Parser) parseParallelEnableSpec() (*nodes.ParallelEnableClause, error) 
 		p.advance()
 		cols, err := p.parseParenExprList()
 		if err != nil {
-			return nil, err
+			return nil, Token{}, err
 		}
 		spec.Columns = cols
 	default:
-		return nil, p.syntaxErrorAtCur()
+		return nil, Token{}, p.syntaxErrorAtCur()
 	}
 	if p.cur.Type != ')' {
-		return nil, p.syntaxErrorAtCur()
+		return nil, Token{}, p.syntaxErrorAtCur()
 	}
 	p.advance()
 	spec.Loc.End = p.prev.End
-	return spec, nil
+	return spec, argTok, nil
 }
 
 // parseStreamingClause parses { ORDER | CLUSTER } argument BY ( expr [, expr ]... ),
 // the current token at ORDER or CLUSTER. Oracle 23ai takes it anywhere in a
 // function's clause list, with or without PARALLEL_ENABLE, and requires a
 // plain parameter name (ORDER c.x BY is PLS-00103).
-func (p *Parser) parseStreamingClause() (*nodes.StreamingClause, error) {
+func (p *Parser) parseStreamingClause() (*nodes.StreamingClause, Token, error) {
 	clause := &nodes.StreamingClause{Kind: "ORDER", Loc: nodes.Loc{Start: p.pos()}}
 	if p.cur.Type == kwCLUSTER {
 		clause.Kind = "CLUSTER"
 	}
 	p.advance()
 	if !p.isIdentLike() {
-		return nil, p.syntaxErrorAtCur()
+		return nil, Token{}, p.syntaxErrorAtCur()
 	}
+	argTok := p.cur
 	arg, err := p.parseIdentifier()
 	if err != nil {
-		return nil, err
+		return nil, Token{}, err
 	}
 	clause.Argument = arg
 	if p.cur.Type != kwBY {
-		return nil, p.syntaxErrorAtCur()
+		return nil, Token{}, p.syntaxErrorAtCur()
 	}
 	p.advance()
 	cols, err := p.parseParenExprList()
 	if err != nil {
-		return nil, err
+		return nil, Token{}, err
 	}
 	clause.Columns = cols
 	clause.Loc.End = p.prev.End
-	return clause, nil
+	return clause, argTok, nil
+}
+
+// checkParallelArguments checks the arguments PARALLEL_ENABLE partitions and
+// the streaming clauses order or cluster, each from the function's own text
+// as Oracle 23ai does: the partitioned argument is one of the function's IN
+// parameters (PLS-00626, PLS-00625); a streaming clause needs a PARTITION BY
+// (PLS-00654, PLS-00665) on the same argument (PLS-00631). partTok and
+// streamToks are the argument tokens, for the error position.
+func (p *Parser) checkParallelArguments(stmt *nodes.CreateFunctionStmt, partTok Token, streamToks []Token) error {
+	if stmt.ParallelSpec == nil {
+		if len(streamToks) > 0 {
+			return p.syntaxErrorAtTok(streamToks[0])
+		}
+		return nil
+	}
+	var param *nodes.Parameter
+	if stmt.Parameters != nil {
+		for _, item := range stmt.Parameters.Items {
+			if pr, ok := item.(*nodes.Parameter); ok && pr.Name == stmt.ParallelSpec.Argument {
+				param = pr
+				break
+			}
+		}
+	}
+	if param == nil || (param.Mode != "" && param.Mode != "IN") {
+		return p.syntaxErrorAtTok(partTok)
+	}
+	if stmt.Streaming != nil {
+		for i, item := range stmt.Streaming.Items {
+			if item.(*nodes.StreamingClause).Argument != stmt.ParallelSpec.Argument {
+				return p.syntaxErrorAtTok(streamToks[i])
+			}
+		}
+	}
+	return nil
+}
+
+// tablePseudoType returns the TABLE pseudo-type among a subprogram's
+// parameter types and its result type, or nil. TABLE stands only in a
+// polymorphic table function: Oracle 23ai rejects it elsewhere with
+// PLS-00765, in a procedure, an ordinary function, or a SQL macro alike.
+func tablePseudoType(params *nodes.List, result *nodes.TypeName) *nodes.TypeName {
+	isTable := func(tn *nodes.TypeName) bool {
+		if tn == nil || tn.IsPercType || tn.IsPercRowtype || tn.Names.Len() != 1 {
+			return false
+		}
+		s, ok := tn.Names.Items[0].(*nodes.String)
+		return ok && s.Str == "TABLE"
+	}
+	if params != nil {
+		for _, item := range params.Items {
+			if pr, ok := item.(*nodes.Parameter); ok && isTable(pr.TypeName) {
+				return pr.TypeName
+			}
+		}
+	}
+	if isTable(result) {
+		return result
+	}
+	return nil
+}
+
+// syntaxErrorAtType returns a syntax error at datatype tn.
+func (p *Parser) syntaxErrorAtType(tn *nodes.TypeName) *ParseError {
+	return p.syntaxErrorAtTok(Token{Type: tokIDENT, Loc: tn.Loc.Start, End: tn.Loc.End})
 }
 
 // parseParenExprList parses ( expr [, expr ]... ) with at least one

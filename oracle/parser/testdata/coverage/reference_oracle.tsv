@@ -150,7 +150,7 @@ ref_148	plsql_body	accept	CREATE OR REPLACE PACKAGE omni_abk_{run} ACCESSIBLE BY
 ref_149	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_ab_{run} ACCESSIBLE BY (PACKAGE) IS BEGIN NULL; END;	accessor with a unit kind and no name
 ref_150	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_abl_{run} RETURN NUMBER ACCESSIBLE BY (omni_x@omni_lnk) IS BEGIN RETURN 1; END;	accessor with a database link
 ref_151	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_agg_{run} (x NUMBER) RETURN NUMBER DETERMINISTIC AGGREGATE USING omni_s.omni_impl;	AGGREGATE USING implementation type, no body
-ref_152	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_pip_{run} RETURN omni_tab PIPELINED PARALLEL_ENABLE (PARTITION c BY ANY) USING omni_impl;	PIPELINED ... USING implementation type
+ref_152	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_pip_{run} (c SYS_REFCURSOR) RETURN omni_tab PIPELINED PARALLEL_ENABLE (PARTITION c BY ANY) USING omni_impl;	PIPELINED ... USING implementation type
 ref_153	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_agg_{run} (x NUMBER) RETURN NUMBER AGGREGATE USING omni_impl IS BEGIN RETURN 1; END;	body after AGGREGATE USING
 ref_154	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_pip_{run} RETURN omni_tab USING omni_impl PIPELINED;	clause after USING implementation type
 ref_155	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_par_{run} (c SYS_REFCURSOR) RETURN omni_tab PIPELINED PARALLEL_ENABLE (PARTITION c BY HASH (a, b)) ORDER c BY (a) CLUSTER c BY (b) IS BEGIN RETURN; END;	PARALLEL_ENABLE partitioning with streaming clauses

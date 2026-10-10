@@ -62,6 +62,9 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 		}
 	}
 
+	if tn := tablePseudoType(stmt.Parameters, nil); tn != nil {
+		return nil, p.syntaxErrorAtType(tn)
+	}
 	if err := p.parseProcedureProperties(stmt, subprogramSchema); err != nil {
 		return nil, err
 	}
@@ -271,6 +274,8 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 	// %ROWTYPE result is PLS-00776, while CHAR, VARCHAR2, CLOB, and the
 	// national types compile.
 	var notPolymorphic, notMacro, macroTok *Token
+	var partTok Token
+	var streamToks []Token
 	note := func() {
 		tok := p.cur
 		if notPolymorphic == nil {
@@ -291,7 +296,12 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 		case stmt.SqlMacro && !isMacroResultType(stmt.ReturnType):
 			return p.syntaxErrorAtTok(*macroTok)
 		}
-		return nil
+		if stmt.Polymorphic == "" {
+			if tn := tablePseudoType(stmt.Parameters, stmt.ReturnType); tn != nil {
+				return p.syntaxErrorAtType(tn)
+			}
+		}
+		return p.checkParallelArguments(stmt, partTok, streamToks)
 	}
 	for {
 		switch {
@@ -334,11 +344,12 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			stmt.Parallel = true
 			p.advance()
 			if p.cur.Type == '(' {
-				spec, err := p.parseParallelEnableSpec()
+				spec, argTok, err := p.parseParallelEnableSpec()
 				if err != nil {
 					return err
 				}
 				stmt.ParallelSpec = spec
+				partTok = argTok
 			}
 		case p.cur.Type == kwORDER, p.cur.Type == kwCLUSTER:
 			kind := "ORDER BY"
@@ -349,10 +360,11 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 				return err
 			}
 			note()
-			clause, err := p.parseStreamingClause()
+			clause, argTok, err := p.parseStreamingClause()
 			if err != nil {
 				return err
 			}
+			streamToks = append(streamToks, argTok)
 			if stmt.Streaming == nil {
 				stmt.Streaming = &nodes.List{}
 			}
@@ -402,6 +414,10 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 		case p.isKeywordStr("SQL_MACRO"):
 			if err := p.firstClause(seen, "SQL_MACRO"); err != nil {
 				return err
+			}
+			// A type method is not a SQL macro (PLS-00781).
+			if level == subprogramMethod {
+				return p.syntaxErrorAtCur()
 			}
 			tok := p.cur
 			macroTok = &tok
@@ -726,6 +742,9 @@ func (p *Parser) parsePackageProcDecl(level subprogramLevel) (*nodes.CreateProce
 			nil {
 			return nil, parseErr474
 		}
+	}
+	if tn := tablePseudoType(stmt.Parameters, nil); tn != nil {
+		return nil, p.syntaxErrorAtType(tn)
 	}
 	if err := p.parseProcedureProperties(stmt, level); err != nil {
 		return nil, err
