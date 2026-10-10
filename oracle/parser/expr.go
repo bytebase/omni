@@ -751,7 +751,14 @@ func decideCaseTokens(source string, start, end int) map[int]bool {
 	kinds := make(map[int]bool)
 	for i := n - 1; i >= 0; i-- {
 		tok := toks[i]
+		// A word after '.' is a name component (t.case, t.end), and END where
+		// an operand must start is a column named END (1 + end, THEN end):
+		// neither opens nor closes anything for the scan.
+		plain := i > 0 && (toks[i-1].Type == '.' ||
+			tok.Type == kwEND && expectsOperandAfter(toks[i-1]))
 		switch {
+		case plain:
+			stop[i] = after(i)
 		case isCaseScanStop(tok):
 			stop[i] = i
 		case tok.Type == '(':
@@ -765,8 +772,6 @@ func decideCaseTokens(source string, start, end int) map[int]bool {
 			case toks[i+1].Type == kwWHEN:
 				s = i + 1
 			case !canStartCaseSelector(toks[i+1]):
-			case toks[i+1].Type == kwEND:
-				s = after(i + 1) // a column named END as the selector
 			default:
 				s = after(i)
 			}
@@ -838,6 +843,20 @@ func canStartCaseSelector(tok Token) bool {
 		return true
 	}
 	return !isCaseScanStop(tok)
+}
+
+// expectsOperandAfter reports whether an operand must follow tok, so an END
+// right after it is a column named END rather than the end of a CASE.
+func expectsOperandAfter(tok Token) bool {
+	switch tok.Type {
+	case '+', '-', '*', '/', '=', '<', '>', '(', ',', '.',
+		tokCONCAT, tokEXPON, tokLESSEQ, tokGREATEQ, tokNOTEQ,
+		kwCASE, kwWHEN, kwTHEN, kwELSE, kwAND, kwOR, kwNOT, kwPRIOR,
+		kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4, kwBETWEEN,
+		kwSELECT, kwWHERE, kwBY, kwHAVING, kwON, kwSET, kwRETURN:
+		return true
+	}
+	return false
 }
 
 // isCaseScanStop reports the tokens that end an operand for decideCaseTokens.

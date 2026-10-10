@@ -435,6 +435,11 @@ func TestParseCaseBooleanSelector(t *testing.T) {
 		"SELECT CASE likec = 'x' WHEN TRUE THEN 1 ELSE 0 END FROM t",
 		"SELECT CASE likec IN ('x', 'y') WHEN TRUE THEN 1 ELSE 0 END FROM t",
 		"SELECT CASE case IS NULL WHEN TRUE THEN 1 ELSE 0 END FROM t",
+		"SELECT CASE end WHEN 1 THEN 2 END FROM t",
+		"SELECT CASE t.end WHEN 1 THEN 2 END FROM t",
+		"SELECT CASE 1 + end WHEN 2 THEN 3 END FROM t",
+		"SELECT CASE t.case WHEN 1 THEN 2 END FROM t",
+		"SELECT CASE a WHEN 1 THEN end ELSE 0 END FROM t",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			result := ParseAndCheck(t, sql)
