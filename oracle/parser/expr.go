@@ -687,36 +687,168 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 
 // parseCaseOrColumn parses CASE as Oracle reads it, since Oracle does not
 // reserve the word: a CASE expression when WHEN follows it (searched CASE) or
-// when an expression follows and is itself followed by WHEN (simple CASE,
-// whose selector may be any expression, Boolean ones included in 23ai), and
-// a column named CASE otherwise (ORDER BY case NULLS FIRST,
-// WHERE case LIKEC 'x%').
-//
-// The selector is parsed once. When WHEN follows, it is kept and the CASE
-// expression continues from there, so nested CASE selectors stay linear and
-// errors inside the expression keep their positions. Otherwise the parser
-// state is restored and the offset recorded in caseColumns, so the reparse
-// of what follows does not probe this CASE again.
+// follows the selector expression after it (simple CASE, whose selector may
+// be any expression, Boolean ones included in 23ai), and a column named CASE
+// otherwise (ORDER BY case NULLS FIRST, WHERE case LIKEC 'x%', case + 1).
+// decideCaseTokens settles every CASE of the range in one linear pass, so no
+// expression is parsed twice to decide.
 func (p *Parser) parseCaseOrColumn() (nodes.ExprNode, error) {
-	start := p.pos()
-	if p.peekNext().Type == kwWHEN {
-		return p.parseCaseExpr()
+	if p.caseKinds == nil {
+		p.caseKinds = decideCaseTokens(p.source, p.cur.Loc, p.lexer.end)
 	}
-	if p.caseColumns[start] {
+	opensExpression, decided := p.caseKinds[p.cur.Loc]
+	if decided && !opensExpression {
 		return p.parseIdentExpr()
 	}
-	saved := p.saveState()
-	p.advance() // consume CASE
-	selector, err := p.parseExpr()
-	if err == nil && selector != nil && p.cur.Type == kwWHEN {
-		return p.parseCaseWhens(start, selector)
+	return p.parseCaseExpr()
+}
+
+// decideCaseTokens lexes source[start:end] and reports, for each CASE token,
+// whether it opens a CASE expression. A CASE opens one when the first token
+// after it that can end an operand at its own depth is WHEN: the scan skips
+// parenthesized groups and the CASE expressions that start after it, and
+// stops at WHEN, THEN, ELSE, END, ')', ',', ';', and the reserved words that
+// begin a clause. Deciding right to left with a jump table (stop) visits each
+// token a constant number of times.
+func decideCaseTokens(source string, start, end int) map[int]bool {
+	lexer := NewLexerRange(source, start, end)
+	var toks []Token
+	for {
+		tok := lexer.NextToken()
+		if tok.Type == tokEOF || lexer.Err != nil {
+			break
+		}
+		toks = append(toks, tok)
 	}
-	p.restoreState(saved)
-	if p.caseColumns == nil {
-		p.caseColumns = make(map[int]bool)
+	n := len(toks)
+
+	// closing[i] is the index of the ')' that closes the '(' at i, or n.
+	closing := make([]int, n)
+	var open []int
+	for i, tok := range toks {
+		switch tok.Type {
+		case '(':
+			closing[i] = n
+			open = append(open, i)
+		case ')':
+			if len(open) > 0 {
+				closing[open[len(open)-1]] = i
+				open = open[:len(open)-1]
+			}
+		}
 	}
-	p.caseColumns[start] = true
-	return p.parseIdentExpr()
+
+	// stop[i] is the index of the first token from i on, at i's depth, that
+	// ends an operand; n stands for the end of the range.
+	stop := make([]int, n+1)
+	stop[n] = n
+	after := func(i int) int {
+		if i+1 >= n {
+			return n
+		}
+		return stop[i+1]
+	}
+	kinds := make(map[int]bool)
+	for i := n - 1; i >= 0; i-- {
+		tok := toks[i]
+		switch {
+		case isCaseScanStop(tok):
+			stop[i] = i
+		case tok.Type == '(':
+			stop[i] = after(closing[i])
+		case tok.Type == kwCASE:
+			// s is where the scan for WHEN stops; -1 when the token after
+			// CASE cannot start a selector, so CASE is a column (case IS NULL).
+			s := -1
+			switch {
+			case i+1 >= n:
+			case toks[i+1].Type == kwWHEN:
+				s = i + 1
+			case !canStartCaseSelector(toks[i+1]):
+			case toks[i+1].Type == kwEND:
+				s = after(i + 1) // a column named END as the selector
+			default:
+				s = after(i)
+			}
+			if s >= 0 && s < n && toks[s].Type == kwWHEN {
+				kinds[tok.Loc] = true
+				if e := caseExprEnd(toks, stop, s); e >= 0 {
+					stop[i] = after(e)
+				} else {
+					stop[i] = s
+				}
+			} else {
+				kinds[tok.Loc] = false
+				stop[i] = after(i)
+			}
+		default:
+			stop[i] = after(i)
+		}
+	}
+	return kinds
+}
+
+// caseExprEnd follows WHEN ... THEN ... [WHEN ... THEN ...]... [ELSE ...] END
+// from the WHEN at w through the stop table and returns the index of END, or
+// -1 when the CASE expression is malformed.
+func caseExprEnd(toks []Token, stop []int, w int) int {
+	n := len(toks)
+	next := func(i int) int {
+		if i+1 >= n {
+			return n
+		}
+		return stop[i+1]
+	}
+	for {
+		then := next(w)
+		if then >= n || toks[then].Type != kwTHEN {
+			return -1
+		}
+		r := next(then)
+		if r >= n {
+			return -1
+		}
+		switch toks[r].Type {
+		case kwWHEN:
+			w = r
+		case kwELSE:
+			if e := next(r); e < n && toks[e].Type == kwEND {
+				return e
+			}
+			return -1
+		case kwEND:
+			return r
+		default:
+			return -1
+		}
+	}
+}
+
+// canStartCaseSelector reports whether tok can begin the selector of a simple
+// CASE. Operators and keywords that only follow an operand (=, IS, IN, AND,
+// ...) and the clause words that end one cannot; END can, as a column named
+// END, which Oracle accepts there.
+func canStartCaseSelector(tok Token) bool {
+	switch tok.Type {
+	case '=', '<', '>', '*', '/', '.', tokLESSEQ, tokGREATEQ, tokNOTEQ,
+		tokCONCAT, tokEXPON, kwIS, kwIN, kwLIKE, kwBETWEEN, kwAND, kwOR,
+		kwASC, kwDESC:
+		return false
+	case kwEND:
+		return true
+	}
+	return !isCaseScanStop(tok)
+}
+
+// isCaseScanStop reports the tokens that end an operand for decideCaseTokens.
+func isCaseScanStop(tok Token) bool {
+	switch tok.Type {
+	case kwWHEN, kwTHEN, kwELSE, kwEND, ')', ',', ';',
+		kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwUNION, kwINTERSECT,
+		kwMINUS, kwINTO, kwAS, kwCONNECT, kwSTART, kwSET, kwVALUES, kwFOR:
+		return true
+	}
+	return false
 }
 
 // keepsConstructBeforeOuterJoin reports the non-reserved keywords Oracle

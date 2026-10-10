@@ -23,10 +23,10 @@ type Parser struct {
 	nextBuf Token  // buffered next token for 2-token lookahead
 	hasNext bool   // whether nextBuf is valid
 
-	// caseColumns holds the offsets of CASE tokens parseCaseOrColumn has
-	// found to name a column, so a reparse after a failed probe does not
-	// probe the same CASE again.
-	caseColumns map[int]bool
+	// caseKinds tells, for each CASE token from the first one parsePrimary
+	// met to the end of the range, whether it opens a CASE expression (true)
+	// or names a column (false). decideCaseTokens fills it in one pass.
+	caseKinds map[int]bool
 }
 
 // Parse parses a SQL string into an AST list.
@@ -359,25 +359,6 @@ func (p *Parser) peekAhead(n int) []Token {
 		toks = append(toks, lexer.NextToken())
 	}
 	return toks
-}
-
-// parserState is a snapshot of everything the parser advances, so a probe can
-// parse ahead and then put the parser back where it was.
-type parserState struct {
-	lexer   Lexer
-	cur     Token
-	prev    Token
-	nextBuf Token
-	hasNext bool
-}
-
-func (p *Parser) saveState() parserState {
-	return parserState{lexer: *p.lexer, cur: p.cur, prev: p.prev, nextBuf: p.nextBuf, hasNext: p.hasNext}
-}
-
-func (p *Parser) restoreState(s parserState) {
-	*p.lexer = s.lexer
-	p.cur, p.prev, p.nextBuf, p.hasNext = s.cur, s.prev, s.nextBuf, s.hasNext
 }
 
 // peek returns the current token without consuming it.

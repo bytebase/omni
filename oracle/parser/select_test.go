@@ -511,27 +511,30 @@ func TestParseCaseExpressionErrorPosition(t *testing.T) {
 	}
 }
 
-// TestParseNestedCaseStaysFast guards parseCaseOrColumn against reparsing:
-// a CASE whose selector is another simple CASE, and a column named CASE
-// compared with an operand holding another such column, each nested 60
-// deep. Parsing either twice per level is exponential (seconds by 20 levels);
-// both take milliseconds.
-func TestParseNestedCaseStaysFast(t *testing.T) {
-	const depth = 60
+// TestParseCaseDecisionStaysLinear guards how CASE is told apart from a column
+// named CASE: deciding by parsing what follows each CASE made nested simple
+// CASE selectors exponential and long sums of CASE columns quadratic. Each
+// shape below takes tens of milliseconds when linear, and seconds to minutes
+// otherwise.
+func TestParseCaseDecisionStaysLinear(t *testing.T) {
+	const depth = 4000
 	selector := "1"
 	column := "'1%'"
 	for i := 0; i < depth; i++ {
 		selector = "CASE " + selector + " WHEN 1 THEN 1 END"
 		column = "case LIKEC (" + column + ")"
 	}
-	for _, sql := range []string{
-		"SELECT " + selector + " FROM dual",
-		"SELECT a FROM t WHERE " + column,
+	for name, sql := range map[string]string{
+		"nested CASE selectors":          "SELECT " + selector + " FROM dual",
+		"nested CASE columns":            "SELECT a FROM t WHERE " + column,
+		"sum of 20000 CASE column terms": "SELECT " + strings.Repeat("case + ", 20000) + "1 FROM t",
 	} {
 		start := time.Now()
-		_, _ = Parse(sql)
+		if _, err := Parse(sql); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
 		if elapsed := time.Since(start); elapsed > 5*time.Second {
-			t.Fatalf("parsing %d nested CASE levels took %s: %.60q...", depth, elapsed, sql)
+			t.Fatalf("%s took %s", name, elapsed)
 		}
 	}
 }
