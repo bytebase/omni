@@ -174,3 +174,6 @@ ref_172	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_ror_{run} RETURN N
 ref_173	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_abn_{run} ACCESSIBLE BY (loop, "SELECT") IS BEGIN NULL; END;	unreserved and quoted accessor names
 ref_174	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_agg2_{run} (a NUMBER, b IN OUT NUMBER) RETURN NUMBER AGGREGATE USING omni_impl;	aggregate with several parameters
 ref_175	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_smn_{run} RETURN NVARCHAR2 SQL_MACRO IS BEGIN RETURN NULL; END;	SQL macro returning a national character type
+ref_176	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_ptk_{run} (t TABLE) RETURN TABLE PIPELINED POLYMORPHIC USING omni_pkg;	POLYMORPHIC without its row kind
+ref_177	plsql	accept	DECLARE FUNCTION f (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC IS BEGIN RETURN NULL; END; BEGIN NULL; END;	nested polymorphic table function
+ref_178	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_sma_{run} (a VARCHAR2) RETURN VARCHAR2 SQL_MACRO AGGREGATE USING omni_impl;	SQL macro with AGGREGATE USING

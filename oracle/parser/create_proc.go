@@ -313,6 +313,12 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			stmt.Pipelined = true
 			p.advance()
 			if (p.cur.Type == kwROW || p.cur.Type == kwTABLE) && p.isIdentLikeStrAt(p.peekNext(), "POLYMORPHIC") {
+				// The row kind is required (PIPELINED POLYMORPHIC is
+				// PLS-00103), and an object type method is not polymorphic
+				// (PLS-00765); a nested function may be.
+				if level == subprogramMethod {
+					return p.syntaxErrorAtCur()
+				}
 				stmt.Polymorphic = "ROW"
 				if p.cur.Type == kwTABLE {
 					stmt.Polymorphic = "TABLE"
@@ -367,6 +373,12 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			}
 		case p.isKeywordStr("AGGREGATE"):
 			aggTok := p.cur
+			// PIPELINED and AGGREGATE exclude each other (PLS-00371), unless
+			// the function is polymorphic: Oracle 23ai compiles PIPELINED
+			// ROW POLYMORPHIC AGGREGATE USING type, and SQL_MACRO with it.
+			if stmt.Pipelined && stmt.Polymorphic == "" {
+				return p.syntaxErrorAtCur()
+			}
 			stmt.Aggregate = true
 			p.advance() // consume AGGREGATE
 			if p.cur.Type != kwUSING {
