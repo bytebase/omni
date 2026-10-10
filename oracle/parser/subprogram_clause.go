@@ -391,31 +391,25 @@ func predefinedTypeName(tn *nodes.TypeName) (string, bool) {
 	if tn.IsPercRowtype {
 		return "%ROWTYPE", true
 	}
-	if tn.IsPercType || tn.Names.Len() != 1 {
-		return "", false
-	}
-	s, ok := tn.Names.Items[0].(*nodes.String)
-	if !ok {
-		return "", false
-	}
-	switch s.Str {
+	switch lead := predefinedTypeLead(tn); lead {
 	case "CHAR", "CHARACTER", "VARCHAR2", "VARCHAR", "STRING", "CLOB":
-		return s.Str, true
+		return lead, true
+	default:
+		return lead, plsqlNonCharacterTypes[lead]
 	}
-	return s.Str, plsqlNonCharacterTypes[s.Str]
 }
 
 // checkPolymorphicSignature checks a polymorphic table function's signature
 // as Oracle 23ai does from the text: it returns TABLE (PLS-00767) and takes
 // exactly one TABLE parameter (PLS-00773, PLS-00766).
 func (p *Parser) checkPolymorphicSignature(stmt *nodes.CreateFunctionStmt) error {
-	if !p.isTablePseudoType(stmt.ReturnType) {
+	if p.pseudoType(stmt.ReturnType) != "TABLE" {
 		return p.syntaxErrorAtType(stmt.ReturnType)
 	}
 	tables := 0
 	if stmt.Parameters != nil {
 		for _, item := range stmt.Parameters.Items {
-			if pr, ok := item.(*nodes.Parameter); ok && p.isTablePseudoType(pr.TypeName) {
+			if pr, ok := item.(*nodes.Parameter); ok && p.pseudoType(pr.TypeName) == "TABLE" {
 				tables++
 				if tables > 1 {
 					return p.syntaxErrorAtType(pr.TypeName)
@@ -463,36 +457,41 @@ func (p *Parser) checkCharsetSources(params *nodes.List, result *nodes.TypeName)
 	return check(result)
 }
 
-// tablePseudoType returns the TABLE pseudo-type among a subprogram's
-// parameter types and its result type, or nil. TABLE stands only in a
-// polymorphic table function: Oracle 23ai rejects it elsewhere with
+// tablePseudoType returns the first TABLE or COLUMNS pseudo-type among a
+// subprogram's parameter types and its result type, or nil. Both stand only
+// in a polymorphic table function: Oracle 23ai rejects them elsewhere with
 // PLS-00765, in a procedure, an ordinary function, or a SQL macro alike.
 func (p *Parser) tablePseudoType(params *nodes.List, result *nodes.TypeName) *nodes.TypeName {
 	if params != nil {
 		for _, item := range params.Items {
-			if pr, ok := item.(*nodes.Parameter); ok && p.isTablePseudoType(pr.TypeName) {
+			if pr, ok := item.(*nodes.Parameter); ok && p.pseudoType(pr.TypeName) != "" {
 				return pr.TypeName
 			}
 		}
 	}
-	if p.isTablePseudoType(result) {
+	if p.pseudoType(result) != "" {
 		return result
 	}
 	return nil
 }
 
-// isTablePseudoType reports whether tn is the TABLE pseudo-type: the
-// unquoted reserved word. A quoted "TABLE" names a user type, which a
-// procedure or function parameter may have (Oracle 23ai compiles one).
-func (p *Parser) isTablePseudoType(tn *nodes.TypeName) bool {
+// pseudoType returns TABLE or COLUMNS when tn is that polymorphic table
+// function pseudo-type, "" otherwise. Only the unquoted word is the
+// pseudo-type: a quoted "TABLE" or "COLUMNS" names a user type, which a
+// procedure or function parameter may have, while no type can be named
+// COLUMNS unquoted (CREATE TYPE columns is PLS-00103 on Oracle 23ai).
+func (p *Parser) pseudoType(tn *nodes.TypeName) string {
 	if tn == nil || tn.IsPercType || tn.IsPercRowtype || tn.Names.Len() != 1 {
-		return false
+		return ""
 	}
 	if tn.Loc.Start >= 0 && tn.Loc.Start < len(p.source) && p.source[tn.Loc.Start] == '"' {
-		return false
+		return ""
 	}
 	s, ok := tn.Names.Items[0].(*nodes.String)
-	return ok && s.Str == "TABLE"
+	if !ok || (s.Str != "TABLE" && s.Str != "COLUMNS") {
+		return ""
+	}
+	return s.Str
 }
 
 // syntaxErrorAtType returns a syntax error at datatype tn.

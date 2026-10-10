@@ -228,6 +228,33 @@ var plsqlNonCharacterTypes = map[string]bool{
 	"MLSLABEL": true, "SYS_REFCURSOR": true, "NCHAR": true, "NVARCHAR2": true, "NCLOB": true,
 }
 
+// predefinedTypeLead returns the name of the predefined datatype tn spells,
+// "" for a name the text does not settle (a subtype, a schema-qualified
+// type, t%TYPE). Multiword predefined types answer their first word:
+// TIMESTAMP WITH [LOCAL] TIME ZONE, INTERVAL DAY|YEAR TO ..., LONG RAW.
+func predefinedTypeLead(tn *nodes.TypeName) string {
+	if tn == nil || tn.IsPercType || tn.IsPercRowtype || tn.Names.Len() == 0 {
+		return ""
+	}
+	word := func(i int) string {
+		s, _ := tn.Names.Items[i].(*nodes.String)
+		if s == nil {
+			return ""
+		}
+		return s.Str
+	}
+	if tn.Names.Len() == 1 {
+		return word(0)
+	}
+	switch first, second := word(0), word(1); {
+	case first == "TIMESTAMP" && second == "WITH",
+		first == "INTERVAL" && (second == "DAY" || second == "YEAR"),
+		first == "LONG" && second == "RAW":
+		return first
+	}
+	return ""
+}
+
 // parsePLSQLCharacterSet parses CHARACTER SET { character_set | item%CHARSET }
 // after the datatype tn, the current token at CHARACTER. Each check below
 // follows from the text alone and was confirmed on Oracle 23ai; whether a
@@ -237,10 +264,8 @@ func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse)
 	if tn.IsPercRowtype {
 		return p.syntaxErrorAtCur()
 	}
-	if !tn.IsPercType && tn.Names.Len() > 0 {
-		if first, ok := tn.Names.Items[0].(*nodes.String); ok && plsqlNonCharacterTypes[first.Str] {
-			return p.syntaxErrorAtCur()
-		}
+	if plsqlNonCharacterTypes[predefinedTypeLead(tn)] {
+		return p.syntaxErrorAtCur()
 	}
 	p.advance() // consume CHARACTER
 	p.advance() // consume SET

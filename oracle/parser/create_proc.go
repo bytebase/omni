@@ -484,18 +484,12 @@ func mayBeCharacterType(tn *nodes.TypeName) bool {
 	if tn.IsPercRowtype {
 		return false
 	}
-	if tn.IsPercType || tn.Names.Len() != 1 {
-		return true
-	}
-	first, ok := tn.Names.Items[0].(*nodes.String)
-	if !ok {
-		return true
-	}
-	switch first.Str {
+	switch lead := predefinedTypeLead(tn); lead {
 	case "NCHAR", "NVARCHAR2", "NCLOB":
 		return true
+	default:
+		return !plsqlNonCharacterTypes[lead]
 	}
-	return !plsqlNonCharacterTypes[first.Str]
 }
 
 // parseImplementationType parses USING [ schema. ] implementation_type
