@@ -413,9 +413,10 @@ func TestParseOffsetColumnNameAST(t *testing.T) {
 	}
 }
 
-// TestParseCaseBooleanSelector: a simple CASE may test a Boolean selector
-// that starts with NOT (Oracle 23ai), while a column named CASE is followed
-// by NOT only in NOT IN, NOT BETWEEN, and NOT LIKE. Oracle 23ai accepts all.
+// TestParseCaseBooleanSelector: a simple CASE selector may start with NOT
+// (a Boolean selector), NULLS, or LIKEC, while a column named CASE is
+// followed by NOT only in NOT IN / NOT BETWEEN / NOT LIKE and by NULLS only
+// in NULLS FIRST / NULLS LAST. Oracle 23ai accepts all of these.
 func TestParseCaseBooleanSelector(t *testing.T) {
 	result := ParseAndCheck(t, "SELECT CASE NOT TRUE WHEN TRUE THEN 1 ELSE 0 END FROM t")
 	target := result.Items[0].(*ast.RawStmt).Stmt.(*ast.SelectStmt).TargetList.Items[0].(*ast.ResTarget)
@@ -423,9 +424,26 @@ func TestParseCaseBooleanSelector(t *testing.T) {
 		t.Fatalf("target = %T, want *ast.CaseExpr", target.Expr)
 	}
 	for _, sql := range []string{
+		"SELECT CASE nulls WHEN 1 THEN 2 END FROM t",
+		"SELECT CASE nulls + 1 WHEN 1 THEN 2 END FROM t",
+		"SELECT CASE likec WHEN 'x' THEN 2 END FROM t",
+		"SELECT CASE like2 || 'a' WHEN 'xa' THEN 2 END FROM t",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			target := result.Items[0].(*ast.RawStmt).Stmt.(*ast.SelectStmt).TargetList.Items[0].(*ast.ResTarget)
+			if _, ok := target.Expr.(*ast.CaseExpr); !ok {
+				t.Fatalf("target = %T, want *ast.CaseExpr", target.Expr)
+			}
+		})
+	}
+	for _, sql := range []string{
 		"SELECT a FROM t WHERE case NOT IN (1, 2)",
 		"SELECT a FROM t WHERE case NOT BETWEEN 1 AND 2",
 		"SELECT a FROM t WHERE case NOT LIKE 'x%'",
+		"SELECT a FROM t ORDER BY case NULLS FIRST",
+		"SELECT a FROM t ORDER BY case DESC NULLS LAST",
+		"SELECT a FROM t WHERE case LIKEC '1%'",
 	} {
 		t.Run(sql, func(t *testing.T) {
 			ParseAndCheck(t, sql)

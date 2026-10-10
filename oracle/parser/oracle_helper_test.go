@@ -224,6 +224,8 @@ func setupOracleSchema(o *oracleDB) {
 		`CREATE TABLE j_purchaseorder (po_document CLOB)`,
 		// OFFSET and PARTITION are not reserved and name columns in practice.
 		`CREATE TABLE t_offset (a NUMBER, offset NUMBER, partition NUMBER)`,
+		// CASE, NULLS, and LIKEC are not reserved either.
+		`CREATE TABLE t_kwcol (a NUMBER, case NUMBER, nulls NUMBER, likec VARCHAR2(10))`,
 	}
 
 	for _, ddl := range ddls {

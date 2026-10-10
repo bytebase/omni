@@ -693,22 +693,36 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 // a CASE expression always continues with WHEN or an operand, never with a
 // token that ends an operand or joins two of them.
 //
-// NOT needs one more token: a simple CASE may test a Boolean selector
-// (CASE NOT flag WHEN TRUE ..., Oracle 23ai), while a column named CASE is
-// followed by NOT only in NOT IN, NOT BETWEEN, and NOT LIKE.
+// The words below that Oracle does not reserve need one more token, because
+// they can also open a simple CASE selector (Oracle 23ai accepts each form):
+// NOT starts a Boolean selector unless NOT IN / NOT BETWEEN / NOT LIKE
+// follows; NULLS is a column named NULLS unless NULLS FIRST / NULLS LAST
+// orders the column CASE; LIKEC, LIKE2, and LIKE4 are a selector when WHEN
+// or an operator follows, and compare the column CASE otherwise.
 func (p *Parser) caseNamesColumn() bool {
 	switch p.peekNext().Type {
 	case tokEOF, ';', ',', ')', '.', '=', '<', '>', '*', '/',
 		tokLESSEQ, tokGREATEQ, tokNOTEQ, tokCONCAT,
 		kwFROM, kwWHERE, kwGROUP, kwORDER, kwHAVING, kwINTO, kwAS,
-		kwIS, kwIN, kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4, kwBETWEEN,
-		kwAND, kwOR, kwASC, kwDESC, kwNULLS, kwUNION, kwINTERSECT, kwMINUS:
+		kwIS, kwIN, kwLIKE, kwBETWEEN,
+		kwAND, kwOR, kwASC, kwDESC, kwUNION, kwINTERSECT, kwMINUS:
 		return true
 	case kwNOT:
 		switch p.peekAhead(2)[1].Type {
 		case kwIN, kwBETWEEN, kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4:
 			return true
 		}
+	case kwNULLS:
+		switch p.peekAhead(2)[1].Type {
+		case kwFIRST, kwLAST:
+			return true
+		}
+	case kwLIKEC, kwLIKE2, kwLIKE4:
+		switch p.peekAhead(2)[1].Type {
+		case kwWHEN, '+', '-', '*', '/', '.', tokCONCAT, tokEXPON:
+			return false
+		}
+		return true
 	}
 	return false
 }

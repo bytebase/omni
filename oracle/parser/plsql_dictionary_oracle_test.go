@@ -33,10 +33,11 @@ type dictionaryUnit struct {
 // of code the engine compiled. Each unit goes through Split and ParseRange,
 // as Bytebase runs a script, and must come out as one segment that parses.
 //
-// The units that fail today are recorded with a category in
-// plsql_dictionary_known_failures.tsv. A unit that starts failing is a
-// regression; a recorded unit that now parses must leave the manifest, so the
-// list only shrinks. Regenerate it with -update and review the diff. The
+// The units that fail today are recorded with a category, the line:column of
+// the first error, and its message in plsql_dictionary_known_failures.tsv. A
+// unit that starts failing is a regression, and so is a recorded unit that
+// now fails earlier; one that fails later or parses must be re-recorded or
+// leave the manifest, so the list only shrinks. Regenerate it with -update and review the diff. The
 // source text itself is Oracle's and is read at test time, never committed.
 func TestOraclePLSQLDictionary(t *testing.T) {
 	units := loadOracleDictionaryUnits(t)
@@ -60,7 +61,7 @@ func TestOraclePLSQLDictionary(t *testing.T) {
 	}
 	var failures []failure
 	byCategory := map[string]int{}
-	var newFailures, fixed int
+	var newFailures, changed, fixed int
 	for _, u := range units {
 		category, where, message, ok := parseDictionaryUnit(u)
 		if ok {
@@ -72,15 +73,32 @@ func TestOraclePLSQLDictionary(t *testing.T) {
 		}
 		failures = append(failures, failure{unit: u, category: category, where: where, message: message})
 		byCategory[category]++
-		if _, wasKnown := known[u.key]; !wasKnown && !*update {
+		if *update {
+			continue
+		}
+		row, wasKnown := known[u.key]
+		if !wasKnown {
 			newFailures++
 			t.Errorf("NEW FAILURE %s at %s: %s (%s)", u.key, where, message, category)
+			continue
+		}
+		// A known unit must still fail at the recorded place for the
+		// recorded reason: failing earlier is a regression hidden inside
+		// it, failing later is progress the manifest has to record.
+		if row.Fields["position"] != where || row.Fields["error"] != message {
+			changed++
+			direction := "later (progress)"
+			if lineColBefore(where, row.Fields["position"]) {
+				direction = "EARLIER (regression)"
+			}
+			t.Errorf("CHANGED %s now fails %s: at %s: %s (%s), recorded at %s: %s. Rerun with -update if intended.",
+				u.key, direction, where, message, category, row.Fields["position"], row.Fields["error"])
 		}
 	}
 
-	t.Logf("Oracle %s dictionary: %d units, %d fail (%.1f%%), %d new, %d fixed",
+	t.Logf("Oracle %s dictionary: %d units, %d fail (%.1f%%), %d new, %d changed, %d fixed",
 		oracleDictionaryVersion, len(units), len(failures),
-		100*float64(len(failures))/float64(len(units)), newFailures, fixed)
+		100*float64(len(failures))/float64(len(units)), newFailures, changed, fixed)
 	var categories []string
 	for c := range byCategory {
 		categories = append(categories, c)
@@ -252,4 +270,16 @@ func classifyDictionaryFailure(u dictionaryUnit, line string) string {
 		}
 	}
 	return "unclassified"
+}
+
+// lineColBefore reports whether position a ("line:col") comes before b.
+func lineColBefore(a, b string) bool {
+	var al, ac, bl, bc int
+	if _, err := fmt.Sscanf(a, "%d:%d", &al, &ac); err != nil {
+		return false
+	}
+	if _, err := fmt.Sscanf(b, "%d:%d", &bl, &bc); err != nil {
+		return false
+	}
+	return al < bl || (al == bl && ac < bc)
 }

@@ -95,3 +95,8 @@ ref_093	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_fovr_{run} AS OBJECT (
 ref_094	plsql_body	accept	CREATE OR REPLACE TYPE omni_ninf_{run} AS OBJECT (a NUMBER, NOT INSTANTIABLE NOT FINAL MEMBER FUNCTION f RETURN NUMBER) NOT FINAL NOT INSTANTIABLE	NOT INSTANTIABLE NOT FINAL method spec
 ref_095	select	accept	SELECT CASE NOT TRUE WHEN TRUE THEN 1 ELSE 0 END FROM dual	simple CASE with a Boolean NOT selector
 ref_096	select	reject	SELECT 1 FROM t, s WHERE systimestamp(+) = s.x	pseudo-column with the outer-join marker (ORA-30088)
+ref_097	select	accept	SELECT a FROM t_kwcol ORDER BY case NULLS FIRST	column named CASE ordered NULLS FIRST
+ref_098	select	accept	SELECT a FROM t_kwcol ORDER BY case DESC NULLS LAST	column named CASE ordered DESC NULLS LAST
+ref_099	select	accept	SELECT a FROM t_kwcol WHERE case LIKEC '1%'	column named CASE compared with LIKEC
+ref_100	select	accept	SELECT CASE nulls WHEN 1 THEN 2 END FROM t_kwcol	column named NULLS as a simple CASE selector
+ref_101	select	accept	SELECT CASE likec WHEN 'x' THEN 2 END FROM t_kwcol	column named LIKEC as a simple CASE selector
