@@ -80,12 +80,15 @@ func (p *Parser) parsePLSQLBlock() (*nodes.PLSQLBlock, error) {
 	}
 	p.advance() // consume END
 	// Optional label after END
-	if p.isIdentLike() && p.cur.Type != ';' && p.cur.Type != tokEOF {
+	if p.atEndName() {
 		p.advance() // consume label
 	}
-	if p.cur.Type == ';' {
-		p.advance() // consume ;
+	// END [label] ends with ';', for a nested block and for a whole unit
+	// alike: Oracle compiles BEGIN NULL; END with PLS-00103.
+	if p.cur.Type != ';' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance() // consume ;
 
 	block.Loc.End = p.prev.End
 	return block, nil
@@ -103,6 +106,10 @@ func (p *Parser) parsePLSQLDeclarations() (*nodes.List, error) {
 		}
 		if decl == nil {
 			break
+		}
+		if p.prev.Type != ';' {
+			// Every declaration ends with ';' (PLS-00103 otherwise).
+			return nil, p.syntaxErrorAtCur()
 		}
 		decls.Items = append(decls.Items, decl)
 	}
@@ -128,6 +135,10 @@ func (p *Parser) parsePLSQLDeclaration() (nodes.Node, error) {
 		if next.Type != kwBODY { // not CREATE TYPE BODY
 			return p.parsePLSQLTypeDecl()
 		}
+	}
+
+	if p.cur.Type == kwSUBTYPE {
+		return p.parsePLSQLSubtypeDecl()
 	}
 
 	// Local subprogram declaration or definition. The package-item parser
@@ -178,7 +189,7 @@ func (p *Parser) parsePLSQLVarDecl() (*nodes.PLSQLVarDecl, error) {
 	var parseErr835 error
 
 	// Type name
-	decl.TypeName, parseErr835 = p.parseTypeName()
+	decl.TypeName, parseErr835 = p.parsePLSQLTypeName()
 	if parseErr835 !=
 
 		// Optional NOT NULL
@@ -369,6 +380,12 @@ func (p *Parser) parsePLSQLStatements() (*nodes.List, error) {
 		if stmt == nil {
 			return stmts, nil
 		}
+		// Every PL/SQL statement ends with ';' (PLS-00103 otherwise). Without
+		// this check the words after a statement that stopped early parsed
+		// as further procedure calls.
+		if p.prev.Type != ';' {
+			return nil, p.syntaxErrorAtCur()
+		}
 		stmts.Items = append(stmts.Items, stmt)
 	}
 	return nil,
@@ -488,6 +505,24 @@ func (p *Parser) parsePLSQLStatement() (nodes.StmtNode, error) {
 	case kwCASE:
 		return p.parsePLSQLCaseStmt()
 
+	// SQL statements PL/SQL runs as they are, each ended by its ';'.
+	case kwCOMMIT:
+		return p.parsePLSQLSQLStmt(p.parseCommitStmt)
+	case kwROLLBACK:
+		return p.parsePLSQLSQLStmt(p.parseRollbackStmt)
+	case kwSAVEPOINT:
+		return p.parsePLSQLSQLStmt(p.parseSavepointStmt)
+	case kwLOCK:
+		return p.parsePLSQLSQLStmt(p.parseLockTableStmt)
+	case kwSET:
+		if p.peekNext().Type == kwTRANSACTION {
+			return p.parsePLSQLSQLStmt(p.parseSetTransactionAtSet)
+		}
+		return nil, p.syntaxErrorAtCur()
+
+	case kwPRAGMA:
+		return p.parsePLSQLPragmaStmt()
+
 	case kwMERGE:
 		stmt, parseErr846 := p.parseMergeStmt()
 		if parseErr846 != nil {
@@ -547,6 +582,34 @@ func (p *Parser) parsePLSQLStatement() (nodes.StmtNode, error) {
 		}
 		return nil, nil
 	}
+}
+
+// parsePLSQLSQLStmt parses a SQL statement in a PL/SQL body with parse and
+// consumes the ';' that ends it.
+func (p *Parser) parsePLSQLSQLStmt(parse func() (nodes.StmtNode, error)) (nodes.StmtNode, error) {
+	stmt, err := parse()
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type == ';' {
+		p.advance()
+	}
+	return stmt, nil
+}
+
+// parsePLSQLPragmaStmt parses a pragma that stands as a statement. Oracle
+// 23ai accepts INLINE, COVERAGE, DEPRECATE, and SUPPRESSES_WARNING_6009 there;
+// the others belong to a declarative section or a package and fail in a body
+// (AUTONOMOUS_TRANSACTION, UDF: PLS-00710; SERIALLY_REUSABLE: PLS-00708;
+// EXCEPTION_INIT: PLS-00700; RESTRICT_REFERENCES: PLS-00115).
+func (p *Parser) parsePLSQLPragmaStmt() (nodes.StmtNode, error) {
+	switch p.peekNext().Str {
+	case "INLINE", "COVERAGE", "DEPRECATE", "SUPPRESSES_WARNING_6009":
+	default:
+		p.advance() // consume PRAGMA
+		return nil, p.syntaxErrorAtCur()
+	}
+	return p.parsePLSQLPragma()
 }
 
 // parsePLSQLAssignOrCall parses an assignment statement (target := expr ;)
@@ -865,7 +928,7 @@ func (p *Parser) consumeEndLoop() error {
 	}
 	p.advance()
 	// Optional label after END LOOP
-	if p.isIdentLike() && p.cur.Type != ';' && p.cur.Type != tokEOF {
+	if p.atEndName() {
 		p.advance()
 	}
 	return nil
@@ -1689,10 +1752,80 @@ func (p *Parser) parsePLSQLCaseStmt() (nodes.StmtNode, error) {
 	return stmt, nil
 }
 
+// parsePLSQLSubtypeDecl parses a SUBTYPE declaration, the current token at
+// SUBTYPE.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/block.html (subtype_definition)
+//
+//	SUBTYPE subtype IS base_type
+//	    [ constraint | CHARACTER SET character_set ] [ NOT NULL ] ;
+//	constraint ::= { precision [, scale ] | RANGE low_value .. high_value }
+//
+// Precision and scale are written in parentheses as part of base_type:
+// Oracle 23ai rejects SUBTYPE s IS NUMBER 8, 2 (PLS-00103). CHARACTER SET is
+// not parsed; Oracle allows it only on a subprogram parameter (PLS-00551).
+func (p *Parser) parsePLSQLSubtypeDecl() (*nodes.PLSQLSubtypeDecl, error) {
+	decl := &nodes.PLSQLSubtypeDecl{Loc: nodes.Loc{Start: p.pos()}}
+	p.advance() // consume SUBTYPE
+
+	if !p.isPLSQLIdentifier() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	name, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	decl.Name = name
+	if p.cur.Type != kwIS {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+
+	decl.BaseType, err = p.parsePLSQLTypeName()
+	if err != nil {
+		return nil, err
+	}
+	if decl.BaseType.Names.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	if p.cur.Type == kwRANGE {
+		p.advance()
+		if decl.RangeLow, err = p.parseExpr(); err != nil {
+			return nil, err
+		}
+		if p.cur.Type != tokDOTDOT {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if decl.RangeHigh, err = p.parseExpr(); err != nil {
+			return nil, err
+		}
+	}
+	decl.NotNull = p.consumeNotNull()
+
+	if p.cur.Type != ';' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	decl.Loc.End = p.prev.End
+	return decl, nil
+}
+
+// consumeNotNull consumes NOT NULL and reports whether it was there.
+func (p *Parser) consumeNotNull() bool {
+	if p.cur.Type != kwNOT || p.peekNext().Type != kwNULL {
+		return false
+	}
+	p.advance() // consume NOT
+	p.advance() // consume NULL
+	return true
+}
+
 // parsePLSQLTypeDecl parses a PL/SQL TYPE declaration.
 //
-//	TYPE name IS TABLE OF type [INDEX BY type] ;
-//	TYPE name IS VARRAY(n) OF type ;
+//	TYPE name IS TABLE OF type [NOT NULL] [INDEX BY type] ;
+//	TYPE name IS VARRAY(n) OF type [NOT NULL] ;
 //	TYPE name IS RECORD (field type [,...]) ;
 //	TYPE name IS REF CURSOR [RETURN type] ;
 func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
@@ -1723,7 +1856,7 @@ func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
 			p.advance()
 		}
 		var parseErr894 error
-		decl.ElementType, parseErr894 = p.parseTypeName()
+		decl.ElementType, parseErr894 = p.parsePLSQLTypeName()
 		if parseErr894 !=
 			// INDEX BY
 			nil {
@@ -1732,6 +1865,7 @@ func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
 		if decl.ElementType == nil || decl.ElementType.Names.Len() == 0 {
 			return nil, p.syntaxErrorAtCur()
 		}
+		decl.ElementNotNull = p.consumeNotNull()
 
 		if p.cur.Type == kwINDEX {
 			p.advance()
@@ -1739,7 +1873,7 @@ func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
 				p.advance()
 			}
 			var parseErr895 error
-			decl.IndexBy, parseErr895 = p.parseTypeName()
+			decl.IndexBy, parseErr895 = p.parsePLSQLTypeName()
 			if parseErr895 != nil {
 				return nil, parseErr895
 			}
@@ -1768,13 +1902,14 @@ func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
 			p.advance()
 		}
 		var parseErr897 error
-		decl.ElementType, parseErr897 = p.parseTypeName()
+		decl.ElementType, parseErr897 = p.parsePLSQLTypeName()
 		if parseErr897 != nil {
 			return nil, parseErr897
 		}
 		if decl.ElementType == nil || decl.ElementType.Names.Len() == 0 {
 			return nil, p.syntaxErrorAtCur()
 		}
+		decl.ElementNotNull = p.consumeNotNull()
 
 	case p.isIdentLike() && p.cur.Str == "RECORD":
 		decl.Kind = "RECORD"

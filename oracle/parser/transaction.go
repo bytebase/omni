@@ -151,6 +151,20 @@ func (p *Parser) parseSavepointStmt() (nodes.StmtNode, error) {
 	return stmt, nil
 }
 
+// parseSetTransactionAtSet parses SET TRANSACTION ... with the current token
+// at SET.
+func (p *Parser) parseSetTransactionAtSet() (nodes.StmtNode, error) {
+	start := p.pos()
+	p.advance() // consume SET
+	p.advance() // consume TRANSACTION
+	stmt, err := p.parseSetTransactionStmt()
+	if err != nil {
+		return nil, err
+	}
+	stmt.(*nodes.SetTransactionStmt).Loc.Start = start
+	return stmt, nil
+}
+
 // parseSetTransactionStmt parses a SET TRANSACTION statement.
 //
 // BNF: oracle/parser/bnf/SET-TRANSACTION.bnf

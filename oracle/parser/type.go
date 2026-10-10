@@ -139,10 +139,80 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 	return tn, nil
 }
 
+// parsePLSQLTypeName parses the datatype of a PL/SQL declaration. Where SQL
+// takes an integer literal for a length, precision, or scale, PL/SQL takes a
+// static expression: VARCHAR2(ORA_MAX_NAME_LEN + 2), NUMBER(pkg.p, 2). That
+// the expression is static is checked when the unit compiles (PLS-00491 on
+// Oracle 23ai), not when it parses, so any expression parses here.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/plsql-language-fundamentals.html (Static Expressions)
+func (p *Parser) parsePLSQLTypeName() (*nodes.TypeName, error) {
+	saved := p.plsqlTypeMods
+	p.plsqlTypeMods = true
+	tn, err := p.parseTypeName()
+	p.plsqlTypeMods = saved
+	return tn, err
+}
+
+// parsePLSQLTypeMods parses the parenthesized modifiers of a datatype in a
+// PL/SQL declaration, the current token at '(':
+//
+//	( { expr | * } [ , expr ] )    precision and scale (sized is false)
+//	( expr [ BYTE | CHAR ] )       size and length semantics (sized is true)
+//
+// An integer literal is recorded as *Integer, as in SQL; any other modifier
+// is recorded as its expression.
+func (p *Parser) parsePLSQLTypeMods(tn *nodes.TypeName, sized bool) error {
+	p.advance() // consume '('
+	if !sized && p.cur.Type == '*' {
+		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.String{Str: "*"})
+		p.advance()
+	} else if err := p.parsePLSQLTypeMod(tn); err != nil {
+		return err
+	}
+	switch {
+	case sized && p.isIdentLikeStr("BYTE"):
+		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.String{Str: "BYTE"})
+		p.advance()
+	case sized && p.cur.Type == kwCHAR:
+		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.String{Str: "CHAR"})
+		p.advance()
+	case !sized && p.cur.Type == ',':
+		p.advance()
+		if err := p.parsePLSQLTypeMod(tn); err != nil {
+			return err
+		}
+	}
+	if p.cur.Type != ')' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
+}
+
+func (p *Parser) parsePLSQLTypeMod(tn *nodes.TypeName) error {
+	expr, err := p.parseExpr()
+	if err != nil {
+		return err
+	}
+	if expr == nil {
+		return p.syntaxErrorAtCur()
+	}
+	if lit, ok := expr.(*nodes.NumberLiteral); ok && !lit.IsFloat {
+		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.Integer{Ival: lit.Ival})
+	} else {
+		tn.TypeMods.Items = append(tn.TypeMods.Items, expr)
+	}
+	return nil
+}
+
 // parseOptionalPrecisionScale parses optional ( precision [, scale ] ).
 func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 	if p.cur.Type != '(' {
 		return nil
+	}
+	if p.plsqlTypeMods {
+		return p.parsePLSQLTypeMods(tn, false)
 	}
 	p.advance() // consume '('
 
@@ -175,6 +245,9 @@ func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 func (p *Parser) parseOptionalSizeWithSemantic(tn *nodes.TypeName) error {
 	if p.cur.Type != '(' {
 		return nil
+	}
+	if p.plsqlTypeMods {
+		return p.parsePLSQLTypeMods(tn, true)
 	}
 	p.advance() // consume '('
 

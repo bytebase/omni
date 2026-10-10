@@ -103,3 +103,27 @@ ref_101	select	accept	SELECT CASE likec WHEN 'x' THEN 2 END FROM t_kwcol	column 
 ref_102	select	accept	SELECT CASE likec = 'x' WHEN TRUE THEN 1 ELSE 0 END FROM t_kwcol	simple CASE with a Boolean comparison selector
 ref_103	select	accept	SELECT k, j, v FROM (SELECT 1 k, 1 j, 10 v FROM dual) MODEL DIMENSION BY (k, j) MEASURES (v) RULES (v[2, 1] = CASE v[1, 1] WHEN 10 THEN 20 END)	MODEL cell reference as a simple CASE selector
 ref_104	select	accept	SELECT k, case FROM (SELECT 1 k, 10 v FROM dual) MODEL DIMENSION BY (k) MEASURES (v case) RULES (case[2] = CASE case[1] WHEN 10 THEN 20 END)	MODEL measure named CASE
+ref_105	plsql	accept	BEGIN SAVEPOINT s; ROLLBACK TO SAVEPOINT s; ROLLBACK WORK; COMMIT WORK; SET TRANSACTION READ ONLY; COMMIT; END;	transaction statements in a block
+ref_106	plsql	accept	BEGIN LOCK TABLE t IN EXCLUSIVE MODE NOWAIT; ROLLBACK; END;	LOCK TABLE in a block
+ref_107	plsql	accept	DECLARE PROCEDURE pr (x VARCHAR2) IS BEGIN NULL; END; BEGIN PRAGMA INLINE (pr, 'YES'); pr('a'); PRAGMA COVERAGE ('NOT_FEASIBLE'); NULL; END;	INLINE and COVERAGE pragmas as statements
+ref_108	plsql	reject	BEGIN PRAGMA AUTONOMOUS_TRANSACTION; NULL; END;	AUTONOMOUS_TRANSACTION is a declaration, not a statement
+ref_109	plsql	reject	BEGIN NULL END;	statement without its semicolon
+ref_110	plsql	reject	BEGIN IF 1 = 1 THEN NULL; END IF END;	END IF without its semicolon
+ref_111	plsql	reject	BEGIN BEGIN NULL; END END;	inner block END without its semicolon
+ref_112	plsql	reject	BEGIN NULL;; END;	stray semicolon between statements
+ref_113	plsql	reject	DECLARE x NUMBER y NUMBER; BEGIN NULL; END;	declaration without its semicolon
+ref_114	plsql	reject	DECLARE x NUMBER;; BEGIN NULL; END;	stray semicolon between declarations
+ref_115	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_nosemi_p_{run} AS BEGIN NULL; END	procedure END without its semicolon
+ref_116	plsql_body	reject	CREATE OR REPLACE PACKAGE omni_nosemi_pk_{run} AS PROCEDURE q; END	package END without its semicolon
+ref_117	plsql_body	reject	CREATE OR REPLACE PACKAGE omni_semi_pk_{run} AS c CONSTANT PLS_INTEGER := 1;; END;	stray semicolon between package items
+ref_118	plsql_body	reject	CREATE OR REPLACE PACKAGE omni_noitem_pk_{run} AS c CONSTANT PLS_INTEGER := 1; 42; END;	package item that is not a declaration
+ref_119	plsql	accept	DECLARE SUBTYPE s IS PLS_INTEGER RANGE 0 .. 3 NOT NULL; SUBTYPE v IS VARCHAR2(10); SUBTYPE n IS NUMBER(8, 2); x s := 1; BEGIN NULL; END;	SUBTYPE declarations
+ref_120	plsql	reject	DECLARE SUBTYPE n IS NUMBER 8, 2; BEGIN NULL; END;	SUBTYPE precision outside parentheses
+ref_121	plsql	reject	DECLARE SUBTYPE s IS PLS_INTEGER RANGE 1; BEGIN NULL; END;	SUBTYPE RANGE without its upper bound
+ref_122	plsql	accept	DECLARE v VARCHAR2(ORA_MAX_NAME_LEN + 2); r RAW(2 * 8); c CHAR(ORA_MAX_NAME_LEN BYTE); BEGIN NULL; END;	static expressions as PL/SQL type lengths
+ref_123	plsql	reject	DECLARE v VARCHAR2(10 x); BEGIN NULL; END;	PL/SQL type length followed by a stray word
+ref_124	plsql	accept	DECLARE TYPE a IS TABLE OF NUMBER NOT NULL INDEX BY PLS_INTEGER; TYPE b IS VARRAY(3) OF BLOB NOT NULL; TYPE c IS TABLE OF VARCHAR2(ORA_MAX_NAME_LEN) NOT NULL; BEGIN NULL; END;	collection element types with NOT NULL
+ref_125	plsql_body	accept	CREATE OR REPLACE PACKAGE omni_subtype_pk_{run} AS SUBTYPE s IS PLS_INTEGER RANGE 1 .. 31; c CONSTANT PLS_INTEGER := 10; TYPE r IS RECORD (a VARCHAR2(c), b NUMBER(c, 2)); END;	package with SUBTYPE and constant type lengths
+ref_126	plsql	reject	DECLARE TYPE e IS (a, b); BEGIN NULL; END;	enumeration type outside STANDARD (PLS-00505)
+ref_127	plsql	accept	BEGIN <<l>> BEGIN NULL; END l; <<m>> LOOP EXIT; END LOOP m; BEGIN NULL; END loop; BEGIN NULL; END type; END;	labels after END, including unreserved keywords
+ref_128	plsql	reject	BEGIN BEGIN NULL; END if; END;	reserved word as the label after END

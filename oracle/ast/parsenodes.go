@@ -2561,7 +2561,8 @@ type PLSQLPragma struct {
 	Loc  Loc
 }
 
-func (n *PLSQLPragma) nodeTag() {}
+func (n *PLSQLPragma) nodeTag()  {}
+func (n *PLSQLPragma) stmtNode() {} // INLINE and COVERAGE also stand as statements
 
 // PLSQLCase represents a PL/SQL CASE statement (distinct from CASE expression).
 type PLSQLCase struct {
@@ -2590,17 +2591,32 @@ func (n *PLSQLWhen) nodeTag() {}
 //	TYPE name IS RECORD (field type [,...])
 //	TYPE name IS REF CURSOR [RETURN type]
 type PLSQLTypeDecl struct {
-	Name        string    // type name
-	Kind        string    // TABLE, VARRAY, RECORD, REF_CURSOR
-	ElementType *TypeName // element type (TABLE OF/VARRAY OF)
-	IndexBy     *TypeName // INDEX BY type (associative arrays)
-	Limit       ExprNode  // VARRAY limit
-	Fields      *List     // RECORD fields
-	ReturnType  *TypeName // REF CURSOR RETURN type
-	Loc         Loc
+	Name           string    // type name
+	Kind           string    // TABLE, VARRAY, RECORD, REF_CURSOR
+	ElementType    *TypeName // element type (TABLE OF/VARRAY OF)
+	ElementNotNull bool      // TABLE OF/VARRAY OF type NOT NULL
+	IndexBy        *TypeName // INDEX BY type (associative arrays)
+	Limit          ExprNode  // VARRAY limit
+	Fields         *List     // RECORD fields
+	ReturnType     *TypeName // REF CURSOR RETURN type
+	Loc            Loc
 }
 
 func (n *PLSQLTypeDecl) nodeTag() {}
+
+// PLSQLSubtypeDecl represents a PL/SQL SUBTYPE declaration.
+//
+//	SUBTYPE name IS base_type [RANGE low .. high] [NOT NULL]
+type PLSQLSubtypeDecl struct {
+	Name      string    // subtype name
+	BaseType  *TypeName // base type, with its precision, scale, or size
+	RangeLow  ExprNode  // RANGE lower bound, nil without RANGE
+	RangeHigh ExprNode  // RANGE upper bound, nil without RANGE
+	NotNull   bool      // NOT NULL
+	Loc       Loc
+}
+
+func (n *PLSQLSubtypeDecl) nodeTag() {}
 
 // PLSQLCall represents a PL/SQL standalone procedure call statement.
 type PLSQLCall struct {

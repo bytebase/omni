@@ -80,7 +80,7 @@ func TestParseCreateTypeVarray(t *testing.T) {
 func TestParseCreateTypeBody(t *testing.T) {
 	// A type body holds subprogram definitions and ends with END; Oracle
 	// rejects a body without it (PLS-00103), and so does omni.
-	p := newTestParser("TYPE BODY my_type IS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END my_type")
+	p := newTestParser("TYPE BODY my_type IS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END my_type;")
 	stmt, parseErr5 := p.parseCreateTypeStmt(0, false, false, false, false)
 	if parseErr5 != nil {
 		t.Fatalf("parse: %v", parseErr5)

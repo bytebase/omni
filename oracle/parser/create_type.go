@@ -153,12 +153,13 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 			}
 			p.advance()
 			// Optional type name after END
-			if p.isIdentLike() && p.cur.Type != ';' && p.cur.Type != tokEOF {
+			if p.atEndName() {
 				p.advance()
 			}
-			if p.cur.Type == ';' {
-				p.advance()
+			if p.cur.Type != ';' {
+				return nil, p.syntaxErrorAtCur()
 			}
+			p.advance()
 		}
 	}
 
