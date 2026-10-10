@@ -259,12 +259,31 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 // limits AUTHID, ACCESSIBLE BY, and DEFAULT COLLATION as subprogramLevel says.
 func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level subprogramLevel) error {
 	seen := clauseSeen{}
+	// notPolymorphic is the first clause a polymorphic table function does
+	// not take: Oracle 23ai rejects DETERMINISTIC, PARALLEL_ENABLE, ORDER
+	// BY, CLUSTER BY, and AUTHID on one with PLS-00760, and RESULT_CACHE
+	// with PLS-00999 (its TABLE parameter), before or after PIPELINED ...
+	// POLYMORPHIC.
+	var notPolymorphic *Token
+	note := func() {
+		if notPolymorphic == nil {
+			tok := p.cur
+			notPolymorphic = &tok
+		}
+	}
+	checkPolymorphic := func(err error) error {
+		if err == nil && stmt.Polymorphic != "" && notPolymorphic != nil {
+			return p.syntaxErrorAtTok(*notPolymorphic)
+		}
+		return err
+	}
 	for {
 		switch {
 		case p.cur.Type == kwDETERMINISTIC:
 			if err := p.firstClause(seen, "DETERMINISTIC"); err != nil {
 				return err
 			}
+			note()
 			stmt.Deterministic = true
 			p.advance()
 		case p.cur.Type == kwPIPELINED:
@@ -285,6 +304,7 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			if err := p.firstClause(seen, "PARALLEL_ENABLE"); err != nil {
 				return err
 			}
+			note()
 			stmt.Parallel = true
 			p.advance()
 			if p.cur.Type == '(' {
@@ -302,6 +322,7 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			if err := p.firstClause(seen, kind); err != nil {
 				return err
 			}
+			note()
 			clause, err := p.parseStreamingClause()
 			if err != nil {
 				return err
@@ -314,6 +335,7 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			if err := p.firstClause(seen, "RESULT_CACHE"); err != nil {
 				return err
 			}
+			note()
 			stmt.ResultCache = true
 			p.advance()
 			if p.isKeywordStr("RELIES_ON") {
@@ -329,12 +351,12 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			if p.cur.Type != kwUSING {
 				return p.syntaxErrorAtCur()
 			}
-			return p.parseImplementationType(stmt)
+			return checkPolymorphic(p.parseImplementationType(stmt))
 		case p.cur.Type == kwUSING:
 			if !stmt.Pipelined {
 				return p.syntaxErrorAtCur()
 			}
-			return p.parseImplementationType(stmt)
+			return checkPolymorphic(p.parseImplementationType(stmt))
 		case p.isKeywordStr("SQL_MACRO"):
 			if err := p.firstClause(seen, "SQL_MACRO"); err != nil {
 				return err
@@ -352,6 +374,7 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			if err := p.firstClause(seen, "AUTHID"); err != nil {
 				return err
 			}
+			note()
 			authID, err := p.parseOptionalAuthID()
 			if err != nil {
 				return err
@@ -370,11 +393,13 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			if err := p.firstClause(seen, "DEFAULT COLLATION"); err != nil {
 				return err
 			}
-			if err := p.parseDefaultCollationClause(); err != nil {
+			collation, err := p.parseDefaultCollationClause()
+			if err != nil {
 				return err
 			}
+			stmt.DefaultCollation = collation
 		default:
-			return nil
+			return checkPolymorphic(nil)
 		}
 	}
 }

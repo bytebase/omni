@@ -3236,6 +3236,9 @@ func writeCreatePackageStmt(sb *strings.Builder, n *CreatePackageStmt) {
 		sb.WriteString(" :accessibleBy ")
 		writeNode(sb, n.AccessibleBy)
 	}
+	if n.DefaultCollation != "" {
+		sb.WriteString(fmt.Sprintf(" :defaultCollation %q", n.DefaultCollation))
+	}
 	if n.IsBody {
 		sb.WriteString(" :isBody true")
 	}
@@ -3278,6 +3281,9 @@ func writeCreateProcedureStmt(sb *strings.Builder, n *CreateProcedureStmt) {
 	if n.AccessibleBy != nil {
 		sb.WriteString(" :accessibleBy ")
 		writeNode(sb, n.AccessibleBy)
+	}
+	if n.DefaultCollation != "" {
+		sb.WriteString(fmt.Sprintf(" :defaultCollation %q", n.DefaultCollation))
 	}
 	if n.Wrapped {
 		sb.WriteString(" :wrapped true")
@@ -3372,6 +3378,9 @@ func writeCreateFunctionStmt(sb *strings.Builder, n *CreateFunctionStmt) {
 	if n.AccessibleBy != nil {
 		sb.WriteString(" :accessibleBy ")
 		writeNode(sb, n.AccessibleBy)
+	}
+	if n.DefaultCollation != "" {
+		sb.WriteString(fmt.Sprintf(" :defaultCollation %q", n.DefaultCollation))
 	}
 	if n.Body != nil {
 		sb.WriteString(" :body ")

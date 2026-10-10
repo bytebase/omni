@@ -1988,17 +1988,18 @@ func (n *TypeBodyMember) nodeTag() {}
 
 // CreatePackageStmt represents a CREATE PACKAGE statement.
 type CreatePackageStmt struct {
-	OrReplace      bool        // OR REPLACE
-	IfNotExists    bool        // IF NOT EXISTS
-	Editionable    bool        // EDITIONABLE
-	NonEditionable bool        // NONEDITIONABLE
-	Sharing        string      // SHARING = METADATA | NONE
-	Name           *ObjectName // package name
-	AuthID         string      // AUTHID CURRENT_USER | DEFINER
-	AccessibleBy   *List       // ACCESSIBLE BY accessors (list of *Accessor)
-	IsBody         bool        // PACKAGE BODY
-	Body           *List       // package body declarations
-	Loc            Loc         // start location
+	OrReplace        bool        // OR REPLACE
+	IfNotExists      bool        // IF NOT EXISTS
+	Editionable      bool        // EDITIONABLE
+	NonEditionable   bool        // NONEDITIONABLE
+	Sharing          string      // SHARING = METADATA | NONE
+	Name             *ObjectName // package name
+	AuthID           string      // AUTHID CURRENT_USER | DEFINER
+	AccessibleBy     *List       // ACCESSIBLE BY accessors (list of *Accessor)
+	DefaultCollation string      // DEFAULT COLLATION option
+	IsBody           bool        // PACKAGE BODY
+	Body             *List       // package body declarations
+	Loc              Loc         // start location
 }
 
 func (n *CreatePackageStmt) nodeTag()  {}
@@ -2010,20 +2011,21 @@ func (n *CreatePackageStmt) stmtNode() {}
 
 // CreateProcedureStmt represents a CREATE PROCEDURE statement.
 type CreateProcedureStmt struct {
-	OrReplace      bool        // OR REPLACE
-	IfNotExists    bool        // IF NOT EXISTS
-	Editionable    bool        // EDITIONABLE
-	NonEditionable bool        // NONEDITIONABLE
-	Sharing        string      // SHARING = METADATA | NONE
-	AuthID         string      // AUTHID CURRENT_USER | DEFINER
-	Name           *ObjectName // procedure name
-	Parameters     *List       // parameter list (list of *Parameter)
-	AccessibleBy   *List       // ACCESSIBLE BY accessors (list of *Accessor)
-	Wrapped        bool        // WRAPPED procedure body
-	WrappedSource  string      // raw text from WRAPPED through the wrapped payload
-	Body           StmtNode    // procedure body (PL/SQL block); nil for a call spec
-	CallSpec       *CallSpec   // call spec implementing the procedure in Java or C
-	Loc            Loc         // start location
+	OrReplace        bool        // OR REPLACE
+	IfNotExists      bool        // IF NOT EXISTS
+	Editionable      bool        // EDITIONABLE
+	NonEditionable   bool        // NONEDITIONABLE
+	Sharing          string      // SHARING = METADATA | NONE
+	AuthID           string      // AUTHID CURRENT_USER | DEFINER
+	Name             *ObjectName // procedure name
+	Parameters       *List       // parameter list (list of *Parameter)
+	AccessibleBy     *List       // ACCESSIBLE BY accessors (list of *Accessor)
+	DefaultCollation string      // DEFAULT COLLATION option
+	Wrapped          bool        // WRAPPED procedure body
+	WrappedSource    string      // raw text from WRAPPED through the wrapped payload
+	Body             StmtNode    // procedure body (PL/SQL block); nil for a call spec
+	CallSpec         *CallSpec   // call spec implementing the procedure in Java or C
+	Loc              Loc         // start location
 }
 
 func (n *CreateProcedureStmt) nodeTag()  {}
@@ -2061,31 +2063,32 @@ func (n *CallSpec) nodeTag() {}
 
 // CreateFunctionStmt represents a CREATE FUNCTION statement.
 type CreateFunctionStmt struct {
-	OrReplace      bool                  // OR REPLACE
-	IfNotExists    bool                  // IF NOT EXISTS
-	Editionable    bool                  // EDITIONABLE
-	NonEditionable bool                  // NONEDITIONABLE
-	Sharing        string                // SHARING = METADATA | NONE
-	Name           *ObjectName           // function name
-	Parameters     *List                 // parameter list (list of *Parameter)
-	ReturnType     *TypeName             // RETURN type
-	Deterministic  bool                  // DETERMINISTIC
-	Pipelined      bool                  // PIPELINED
-	Polymorphic    string                // PIPELINED ROW or TABLE POLYMORPHIC: ROW or TABLE
-	Parallel       bool                  // PARALLEL_ENABLE
-	ParallelSpec   *ParallelEnableClause // PARALLEL_ENABLE ( PARTITION ... ), nil without one
-	Streaming      *List                 // ORDER and CLUSTER streaming clauses (list of *StreamingClause)
-	ResultCache    bool                  // RESULT_CACHE
-	ReliesOn       *List                 // RESULT_CACHE RELIES_ON data sources (list of *ObjectName)
-	Aggregate      bool                  // AGGREGATE USING
-	Implementation *ObjectName           // AGGREGATE or PIPELINED USING implementation type; the function then has no body
-	SqlMacro       bool                  // SQL_MACRO
-	SqlMacroType   string                // SQL_MACRO ( SCALAR | TABLE ), "" without the parenthesized type
-	AuthID         string                // AUTHID CURRENT_USER | DEFINER
-	AccessibleBy   *List                 // ACCESSIBLE BY accessors (list of *Accessor)
-	Body           StmtNode              // function body (PL/SQL block); nil for a call spec
-	CallSpec       *CallSpec             // call spec implementing the function in Java or C
-	Loc            Loc                   // start location
+	OrReplace        bool                  // OR REPLACE
+	IfNotExists      bool                  // IF NOT EXISTS
+	Editionable      bool                  // EDITIONABLE
+	NonEditionable   bool                  // NONEDITIONABLE
+	Sharing          string                // SHARING = METADATA | NONE
+	Name             *ObjectName           // function name
+	Parameters       *List                 // parameter list (list of *Parameter)
+	ReturnType       *TypeName             // RETURN type
+	Deterministic    bool                  // DETERMINISTIC
+	Pipelined        bool                  // PIPELINED
+	Polymorphic      string                // PIPELINED ROW or TABLE POLYMORPHIC: ROW or TABLE
+	Parallel         bool                  // PARALLEL_ENABLE
+	ParallelSpec     *ParallelEnableClause // PARALLEL_ENABLE ( PARTITION ... ), nil without one
+	Streaming        *List                 // ORDER and CLUSTER streaming clauses (list of *StreamingClause)
+	ResultCache      bool                  // RESULT_CACHE
+	ReliesOn         *List                 // RESULT_CACHE RELIES_ON data sources (list of *ObjectName)
+	Aggregate        bool                  // AGGREGATE USING
+	Implementation   *ObjectName           // AGGREGATE or PIPELINED USING implementation type; the function then has no body
+	SqlMacro         bool                  // SQL_MACRO
+	SqlMacroType     string                // SQL_MACRO ( SCALAR | TABLE ), "" without the parenthesized type
+	AuthID           string                // AUTHID CURRENT_USER | DEFINER
+	AccessibleBy     *List                 // ACCESSIBLE BY accessors (list of *Accessor)
+	DefaultCollation string                // DEFAULT COLLATION option
+	Body             StmtNode              // function body (PL/SQL block); nil for a call spec
+	CallSpec         *CallSpec             // call spec implementing the function in Java or C
+	Loc              Loc                   // start location
 }
 
 func (n *CreateFunctionStmt) nodeTag()  {}

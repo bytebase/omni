@@ -57,6 +57,8 @@ func TestSubprogramHeadingClauses(t *testing.T) {
 		// Oracle 23ai), and an implementation type a dotted database link.
 		"CREATE FUNCTION f (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC IS BEGIN RETURN NULL; END;",
 		"CREATE FUNCTION f RETURN t PIPELINED USING impl@lnk.dom;",
+		"CREATE FUNCTION f (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC ACCESSIBLE BY (y) USING pkg;",
+		"CREATE PROCEDURE p ACCESSIBLE BY (loop, \"SELECT\") IS BEGIN NULL; END;",
 		"CREATE FUNCTION f RETURN pipelined.using IS BEGIN RETURN NULL; END;",
 		// USING as a name, not an implementation clause.
 		"CREATE FUNCTION using RETURN NUMBER IS BEGIN RETURN 1; END;",
@@ -113,6 +115,21 @@ func TestSubprogramHeadingClauses(t *testing.T) {
 		"CREATE FUNCTION f RETURN VARCHAR2 SQL_MACRO SQL_MACRO IS BEGIN RETURN 'x'; END;",         // PLS-00371
 		"CREATE FUNCTION f RETURN NUMBER AUTHID DEFINER AUTHID DEFINER IS BEGIN RETURN 1; END;",   // PLS-00371
 		"CREATE FUNCTION f RETURN NUMBER RESULT_CACHE RELIES_ON (t1,) IS BEGIN RETURN 1; END;",
+		// A polymorphic table function takes none of these (PLS-00760, and
+		// PLS-00999 for RESULT_CACHE), before or after POLYMORPHIC.
+		"CREATE FUNCTION f (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC DETERMINISTIC USING pkg;",
+		"CREATE FUNCTION f (t TABLE) RETURN TABLE DETERMINISTIC PIPELINED TABLE POLYMORPHIC USING pkg;",
+		"CREATE FUNCTION f (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC PARALLEL_ENABLE USING pkg;",
+		"CREATE FUNCTION f (t TABLE) RETURN TABLE AUTHID DEFINER PIPELINED ROW POLYMORPHIC USING pkg;",
+		"CREATE FUNCTION f (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC RESULT_CACHE USING pkg;",
+		"CREATE FUNCTION f (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC ORDER t BY (a) USING pkg;",
+		"CREATE FUNCTION f (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC DETERMINISTIC IS BEGIN RETURN NULL; END;",
+		// Names are not PL/SQL reserved words (PLS-00103).
+		"CREATE PROCEDURE p ACCESSIBLE BY (SELECT) IS BEGIN NULL; END;",
+		"CREATE PROCEDURE p ACCESSIBLE BY (BEGIN) IS BEGIN NULL; END;",
+		"CREATE PROCEDURE p ACCESSIBLE BY (PACKAGE SELECT) IS BEGIN NULL; END;",
+		"CREATE PROCEDURE p ACCESSIBLE BY (sys.select) IS BEGIN NULL; END;",
+		"CREATE FUNCTION f RETURN NUMBER RESULT_CACHE RELIES_ON (BEGIN) IS BEGIN RETURN 1; END;",
 		// Clause keywords are unquoted words.
 		"CREATE PROCEDURE p \"ACCESSIBLE\" BY (x) IS BEGIN NULL; END;",
 		"CREATE PROCEDURE p \"AUTHID\" DEFINER IS BEGIN NULL; END;",
@@ -177,9 +194,17 @@ func TestSubprogramHeadingClausesAST(t *testing.T) {
 		t.Errorf("accessors = %+v %+v, want PACKAGE S.K and F", first, second)
 	}
 
-	pkg := parseOne[*ast.CreatePackageStmt](t, "CREATE PACKAGE k AUTHID CURRENT_USER ACCESSIBLE BY (x) AS PROCEDURE p; END;")
-	if pkg.AuthID != "CURRENT_USER" || pkg.AccessibleBy == nil || pkg.AccessibleBy.Len() != 1 {
-		t.Errorf("package AuthID %q, AccessibleBy %v", pkg.AuthID, pkg.AccessibleBy)
+	pkg := parseOne[*ast.CreatePackageStmt](t, "CREATE PACKAGE k AUTHID CURRENT_USER ACCESSIBLE BY (x) DEFAULT COLLATION USING_NLS_COMP AS PROCEDURE p; END;")
+	if pkg.AuthID != "CURRENT_USER" || pkg.AccessibleBy == nil || pkg.AccessibleBy.Len() != 1 || pkg.DefaultCollation != "USING_NLS_COMP" {
+		t.Errorf("package AuthID %q, AccessibleBy %v, DefaultCollation %q", pkg.AuthID, pkg.AccessibleBy, pkg.DefaultCollation)
+	}
+	coll := parseOne[*ast.CreateProcedureStmt](t, "CREATE PROCEDURE p DEFAULT COLLATION USING_NLS_COMP IS BEGIN NULL; END;")
+	if coll.DefaultCollation != "USING_NLS_COMP" {
+		t.Errorf("procedure DefaultCollation = %q, want USING_NLS_COMP", coll.DefaultCollation)
+	}
+	fcoll := parseOne[*ast.CreateFunctionStmt](t, "CREATE FUNCTION f RETURN NUMBER DEFAULT COLLATION USING_NLS_COMP IS BEGIN RETURN 1; END;")
+	if fcoll.DefaultCollation != "USING_NLS_COMP" {
+		t.Errorf("function DefaultCollation = %q, want USING_NLS_COMP", fcoll.DefaultCollation)
 	}
 
 	agg := parseOne[*ast.CreateFunctionStmt](t, "CREATE FUNCTION f (x NUMBER) RETURN NUMBER AGGREGATE USING s.impl;")

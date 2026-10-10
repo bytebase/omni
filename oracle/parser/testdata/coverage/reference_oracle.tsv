@@ -169,3 +169,6 @@ ref_167	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_qab_{run} "ACCESS
 ref_168	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_impl_{run} (x NUMBER) RETURN NUMBER AGGREGATE USING omni_impl.;	implementation type with an empty name part
 ref_169	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_ptfb_{run} (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC IS BEGIN RETURN NULL; END;	polymorphic table function with a body
 ref_170	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_retdt_{run} RETURN pipelined.using IS BEGIN RETURN NULL; END;	result datatype named pipelined.using
+ref_171	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_abr_{run} ACCESSIBLE BY (SELECT) IS BEGIN NULL; END;	reserved word as an accessor
+ref_172	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_ror_{run} RETURN NUMBER RESULT_CACHE RELIES_ON (BEGIN) IS BEGIN RETURN 1; END;	PL/SQL reserved word as a RELIES_ON data source
+ref_173	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_abn_{run} ACCESSIBLE BY (loop, "SELECT") IS BEGIN NULL; END;	unreserved and quoted accessor names

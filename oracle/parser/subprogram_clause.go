@@ -96,10 +96,13 @@ func (p *Parser) parseAccessibleByClause() (*nodes.List, error) {
 	return list, nil
 }
 
-// parseUnitName parses [ schema. ] name, without a database link.
+// parseUnitName parses [ schema. ] name, without a database link. Neither
+// part may be an unquoted PL/SQL reserved word: Oracle 23ai rejects
+// ACCESSIBLE BY (SELECT), (BEGIN), and (sys.select), and RELIES_ON (BEGIN),
+// with PLS-00103, and accepts (loop).
 func (p *Parser) parseUnitName() (*nodes.ObjectName, error) {
 	start := p.pos()
-	if !p.isIdentLike() {
+	if !p.isPLSQLIdentifier() {
 		return nil, p.syntaxErrorAtCur()
 	}
 	first, err := p.parseIdentifier()
@@ -109,7 +112,7 @@ func (p *Parser) parseUnitName() (*nodes.ObjectName, error) {
 	name := &nodes.ObjectName{Name: first, Loc: nodes.Loc{Start: start}}
 	if p.cur.Type == '.' {
 		p.advance()
-		if !p.isIdentLike() {
+		if !p.isPLSQLIdentifier() {
 			return nil, p.syntaxErrorAtCur()
 		}
 		second, err := p.parseIdentifier()
@@ -123,15 +126,14 @@ func (p *Parser) parseUnitName() (*nodes.ObjectName, error) {
 }
 
 // parseDefaultCollationClause parses DEFAULT COLLATION collation_option, the
-// current token at DEFAULT.
-func (p *Parser) parseDefaultCollationClause() error {
+// current token at DEFAULT, and returns the option (USING_NLS_COMP).
+func (p *Parser) parseDefaultCollationClause() (string, error) {
 	p.advance() // consume DEFAULT
 	p.advance() // consume COLLATION
 	if !p.isIdentLike() {
-		return p.syntaxErrorAtCur()
+		return "", p.syntaxErrorAtCur()
 	}
-	p.advance() // consume the collation option (USING_NLS_COMP)
-	return nil
+	return p.parseIdentifier()
 }
 
 // atDefaultCollation reports whether the current tokens are DEFAULT COLLATION.
@@ -172,9 +174,11 @@ func (p *Parser) parseProcedureProperties(stmt *nodes.CreateProcedureStmt, level
 			if err := p.firstClause(seen, "DEFAULT COLLATION"); err != nil {
 				return err
 			}
-			if err := p.parseDefaultCollationClause(); err != nil {
+			collation, err := p.parseDefaultCollationClause()
+			if err != nil {
 				return err
 			}
+			stmt.DefaultCollation = collation
 		default:
 			return nil
 		}
@@ -213,9 +217,11 @@ func (p *Parser) parsePackageProperties(stmt *nodes.CreatePackageStmt) error {
 			if err := p.firstClause(seen, "DEFAULT COLLATION"); err != nil {
 				return err
 			}
-			if err := p.parseDefaultCollationClause(); err != nil {
+			collation, err := p.parseDefaultCollationClause()
+			if err != nil {
 				return err
 			}
+			stmt.DefaultCollation = collation
 		default:
 			return nil
 		}
