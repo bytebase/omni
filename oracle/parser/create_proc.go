@@ -279,7 +279,7 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 	var notPolymorphic, notMacro, macroTok *Token
 	var partTok Token
 	var streamToks []Token
-	var resultCacheTok *Token
+	var resultCacheTok, pipelinedTok *Token
 	note := func() {
 		tok := p.cur
 		if notPolymorphic == nil {
@@ -309,6 +309,17 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 		}
 		if err := p.checkCharsetSources(stmt.Parameters, stmt.ReturnType); err != nil {
 			return err
+		}
+		// An ordinary pipelined function returns a collection (PLS-00630 for a
+		// predefined scalar or %ROWTYPE result) and is not result-cached
+		// (PLS-00999); a named result type is left to the engine.
+		if stmt.Pipelined && stmt.Polymorphic == "" {
+			if _, scalar := p.predefinedTypeName(stmt.ReturnType); scalar {
+				return p.syntaxErrorAtTok(*pipelinedTok)
+			}
+			if resultCacheTok != nil {
+				return p.syntaxErrorAtTok(*resultCacheTok)
+			}
 		}
 		// RESULT_CACHE takes no OUT or IN OUT parameter, and no parameter or
 		// result of a LOB, BFILE, or REF CURSOR type (PLS-00999 on Oracle
@@ -345,6 +356,8 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 				tok := p.cur
 				notMacro = &tok
 			}
+			ptok := p.cur
+			pipelinedTok = &ptok
 			stmt.Pipelined = true
 			p.advance()
 			if (p.cur.Type == kwROW || p.cur.Type == kwTABLE) && p.isIdentLikeStrAt(p.peekNext(), "POLYMORPHIC") {
@@ -670,6 +683,15 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 		// END [name] ;
 		nil {
 		return nil, parseErr469
+	}
+	// A package holding a SQL macro has definer's rights: Oracle 23ai
+	// rejects AUTHID CURRENT_USER on one with PLS-00782.
+	if stmt.AuthID == "CURRENT_USER" && stmt.Body != nil {
+		for _, item := range stmt.Body.Items {
+			if fn, ok := item.(*nodes.CreateFunctionStmt); ok && fn.SqlMacro {
+				return nil, p.syntaxErrorAtTok(Token{Type: kwFUNCTION, Loc: fn.Loc.Start, End: fn.Loc.Start + len("FUNCTION")})
+			}
+		}
 	}
 
 	if p.cur.Type != kwEND {

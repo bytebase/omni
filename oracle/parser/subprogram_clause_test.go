@@ -75,6 +75,11 @@ func TestSubprogramHeadingClauses(t *testing.T) {
 		"CREATE FUNCTION f (a DATE, b VARCHAR2, c BOOLEAN) RETURN NUMBER RESULT_CACHE IS BEGIN RETURN 1; END;",
 		"CREATE PROCEDURE p AUTHID \"CURRENT_USER\" IS BEGIN NULL; END;",
 		"CREATE FUNCTION f (c pkg.rc) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY HASH (\"A\", b)) IS BEGIN RETURN; END;",
+		// Nested SQL macros and result-cached functions compile, and a
+		// definer's rights package may hold a SQL macro.
+		"CREATE PROCEDURE p IS FUNCTION f RETURN VARCHAR2 SQL_MACRO IS BEGIN RETURN NULL; END; BEGIN NULL; END;",
+		"CREATE PROCEDURE p IS FUNCTION f RETURN NUMBER RESULT_CACHE IS BEGIN RETURN 1; END; BEGIN NULL; END;",
+		"CREATE PACKAGE k AUTHID DEFINER AS FUNCTION f RETURN VARCHAR2 SQL_MACRO; END;",
 		// A quoted name is a user type, not the predefined one: Oracle 23ai
 		// compiles this package.
 		"CREATE PACKAGE k AS SUBTYPE \"NUMBER\" IS VARCHAR2(100); FUNCTION m RETURN \"NUMBER\" SQL_MACRO; " +
@@ -247,6 +252,15 @@ func TestSubprogramHeadingClauses(t *testing.T) {
 		"CREATE FUNCTION f (c pkg.rc) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY ANY) ORDER c BY (lower(a)) IS BEGIN RETURN; END;",
 		"CREATE FUNCTION f (c pkg.rc) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY HASH (c.a)) IS BEGIN RETURN; END;",
 		"CREATE FUNCTION f (c pkg.rc) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY RANGE (1)) IS BEGIN RETURN; END;",
+		// An ordinary pipelined function returns a collection (PLS-00630) and
+		// is not result-cached (PLS-00999); a package holding a SQL macro is
+		// not AUTHID CURRENT_USER (PLS-00782).
+		"CREATE FUNCTION f RETURN NUMBER PIPELINED IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f RETURN VARCHAR2 PIPELINED IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f RETURN dual%ROWTYPE PIPELINED IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f RETURN NUMBER PIPELINED USING impl;",
+		"CREATE FUNCTION f RETURN t PIPELINED RESULT_CACHE IS BEGIN RETURN; END;",
+		"CREATE PACKAGE k AUTHID CURRENT_USER AS FUNCTION f RETURN VARCHAR2 SQL_MACRO; END;",
 		// VALUE partitioning takes one column (PLS-00757); BOOL is BOOLEAN
 		// (PLS-00550); clause keywords are unquoted (PLS-00103).
 		"CREATE FUNCTION f (c pkg.rc) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY VALUE (a, b)) IS BEGIN RETURN; END;",
@@ -371,7 +385,7 @@ func TestSubprogramHeadingClausesAST(t *testing.T) {
 		t.Errorf("polymorphic function = %+v", ptf)
 	}
 
-	par := parseOne[*ast.CreateFunctionStmt](t, "CREATE FUNCTION f (c pkg.rc) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY HASH (a, b)) CLUSTER c BY (a) RESULT_CACHE RELIES_ON (t1) IS BEGIN RETURN; END;")
+	par := parseOne[*ast.CreateFunctionStmt](t, "CREATE FUNCTION f (c pkg.rc) RETURN t PARALLEL_ENABLE (PARTITION c BY HASH (a, b)) CLUSTER c BY (a) RESULT_CACHE RELIES_ON (t1) IS BEGIN RETURN NULL; END;")
 	if spec := par.ParallelSpec; spec == nil || spec.Argument != "C" || spec.PartitionBy != "HASH" || spec.Columns.Len() != 2 {
 		t.Errorf("parallel spec = %+v", par.ParallelSpec)
 	}
