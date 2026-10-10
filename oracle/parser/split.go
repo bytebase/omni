@@ -214,6 +214,9 @@ type splitPLSQLFrame struct {
 	returnType  bool
 	afterDot    bool
 	implClause  bool
+	// afterStream marks the token after ORDER or CLUSTER, the argument a
+	// streaming clause names, which may be a parameter named USING.
+	afterStream bool
 }
 
 type splitState struct {
@@ -506,6 +509,8 @@ func (s *splitState) observeSubprogramHead(top *splitPLSQLFrame, tok Token) {
 		top.afterDot = tok.Type == '.'
 		inType := top.returnType
 		top.returnType = false
+		afterStream := top.afterStream
+		top.afterStream = top.headDepth == 0 && (tok.Type == kwORDER || tok.Type == kwCLUSTER)
 		switch {
 		case tok.Type == '(':
 			top.headDepth++
@@ -525,7 +530,7 @@ func (s *splitState) observeSubprogramHead(top *splitPLSQLFrame, tok Token) {
 			// '.': RETURN pipelined.using names a type.
 		case top.afterReturn && (tok.Type == kwPIPELINED || tok.Type == tokIDENT && tok.Str == "AGGREGATE"):
 			top.implClause = true
-		case tok.Type == kwUSING && top.implClause && len(s.frames) == 1:
+		case tok.Type == kwUSING && top.implClause && !afterStream && len(s.frames) == 1:
 			// AGGREGATE USING type or PIPELINED ... USING type: a type
 			// implements the function, which has no IS|AS body and, like a
 			// call spec, ends at its ';'. SQL*Plus buffers either up to a "/"

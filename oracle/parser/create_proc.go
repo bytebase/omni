@@ -87,6 +87,9 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 	if parseErr456 != nil {
 		return nil, parseErr456
 	}
+	if err := p.checkBodyCharsetSources(stmt.Parameters, stmt.Body); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -238,6 +241,9 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 	stmt.Body, stmt.CallSpec, parseErr461 = p.parseSubprogramImplementation()
 	if parseErr461 != nil {
 		return nil, parseErr461
+	}
+	if err := p.checkBodyCharsetSources(stmt.Parameters, stmt.Body); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -449,8 +455,15 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			if p.cur.Type != kwUSING {
 				return p.syntaxErrorAtCur()
 			}
+			implTok := p.cur
 			if err := p.parseImplementationType(stmt); err != nil {
 				return err
+			}
+			// An aggregate's implementation type is local: Oracle 23ai
+			// rejects one over a database link with PLS-00331, while a
+			// polymorphic function's package may be remote.
+			if stmt.Implementation.DBLink != "" {
+				return p.syntaxErrorAtTok(implTok)
 			}
 			// An aggregate takes an argument: Oracle 23ai rejects one
 			// without parameters (PLS-00652) and compiles one with two, or
@@ -545,6 +558,41 @@ func (p *Parser) mayBeCharacterType(tn *nodes.TypeName) bool {
 	default:
 		return !plsqlNonCharacterTypes[lead]
 	}
+}
+
+// checkBodyCharsetSources applies checkCharsetSources to the declarations
+// of a subprogram body's own declaration section: a local item%CHARSET
+// whose source is a formal, or a preceding local variable, of a
+// non-character type is PLS-00550 on Oracle 23ai. A local cannot redeclare
+// a formal there (PLS-00410). Nested blocks and subprograms are left to the
+// engine.
+func (p *Parser) checkBodyCharsetSources(params *nodes.List, body nodes.StmtNode) error {
+	block, ok := body.(*nodes.PLSQLBlock)
+	if !ok || block.Declarations == nil {
+		return nil
+	}
+	scope := &nodes.List{}
+	if params != nil {
+		scope.Items = append(scope.Items, params.Items...)
+	}
+	for _, item := range block.Declarations.Items {
+		var tn *nodes.TypeName
+		switch d := item.(type) {
+		case *nodes.PLSQLVarDecl:
+			tn = d.TypeName
+		case *nodes.PLSQLSubtypeDecl:
+			tn = d.BaseType
+		default:
+			continue
+		}
+		if err := p.checkCharsetSources(scope, tn); err != nil {
+			return err
+		}
+		if d, ok := item.(*nodes.PLSQLVarDecl); ok {
+			scope.Items = append(scope.Items, d)
+		}
+	}
+	return nil
 }
 
 // parseImplementationType parses USING [ schema. ] implementation_type
@@ -822,6 +870,9 @@ func (p *Parser) parsePackageProcDecl(level subprogramLevel) (*nodes.CreateProce
 		if parseErr475 != nil {
 			return nil, parseErr475
 		}
+		if err := p.checkBodyCharsetSources(stmt.Parameters, stmt.Body); err != nil {
+			return nil, err
+		}
 	} else if p.cur.Type == ';' {
 		p.advance()
 	} else {
@@ -897,6 +948,9 @@ func (p *Parser) parsePackageFuncDecl(level subprogramLevel) (*nodes.CreateFunct
 		stmt.Body, stmt.CallSpec, parseErr480 = p.parseSubprogramImplementation()
 		if parseErr480 != nil {
 			return nil, parseErr480
+		}
+		if err := p.checkBodyCharsetSources(stmt.Parameters, stmt.Body); err != nil {
+			return nil, err
 		}
 	} else if p.cur.Type == ';' {
 		p.advance()
