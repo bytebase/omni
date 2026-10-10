@@ -297,7 +297,7 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			return p.syntaxErrorAtTok(*notPolymorphic)
 		case stmt.SqlMacro && notMacro != nil:
 			return p.syntaxErrorAtTok(*notMacro)
-		case stmt.SqlMacro && !mayBeCharacterType(stmt.ReturnType):
+		case stmt.SqlMacro && !p.mayBeCharacterType(stmt.ReturnType):
 			return p.syntaxErrorAtTok(*macroTok)
 		}
 		if stmt.Polymorphic == "" {
@@ -315,12 +315,12 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 		// 23ai, documented among the clause's restrictions). Object and
 		// record types are left to the engine.
 		if resultCacheTok != nil {
-			if notResultCacheable(stmt.ReturnType) {
+			if p.notResultCacheable(stmt.ReturnType) {
 				return p.syntaxErrorAtTok(*resultCacheTok)
 			}
 			if stmt.Parameters != nil {
 				for _, item := range stmt.Parameters.Items {
-					if pr, ok := item.(*nodes.Parameter); ok && (strings.Contains(pr.Mode, "OUT") || notResultCacheable(pr.TypeName)) {
+					if pr, ok := item.(*nodes.Parameter); ok && (strings.Contains(pr.Mode, "OUT") || p.notResultCacheable(pr.TypeName)) {
 						return p.syntaxErrorAtTok(*resultCacheTok)
 					}
 				}
@@ -493,8 +493,8 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 
 // notResultCacheable reports whether tn is a predefined type a RESULT_CACHE
 // function cannot take or return: a LOB, BFILE, or SYS_REFCURSOR.
-func notResultCacheable(tn *nodes.TypeName) bool {
-	switch predefinedTypeLead(tn) {
+func (p *Parser) notResultCacheable(tn *nodes.TypeName) bool {
+	switch p.predefinedTypeLead(tn) {
 	case "BLOB", "CLOB", "NCLOB", "BFILE", "SYS_REFCURSOR":
 		return true
 	}
@@ -506,14 +506,14 @@ func notResultCacheable(tn *nodes.TypeName) bool {
 // character types) and not a %ROWTYPE record. A SQL macro returns such a
 // type (PLS-00776), and item%CHARSET takes its character set from one
 // (PLS-00550). A name the text does not settle is left to the engine.
-func mayBeCharacterType(tn *nodes.TypeName) bool {
+func (p *Parser) mayBeCharacterType(tn *nodes.TypeName) bool {
 	if tn == nil {
 		return true
 	}
 	if tn.IsPercRowtype {
 		return false
 	}
-	switch lead := predefinedTypeLead(tn); lead {
+	switch lead := p.predefinedTypeLead(tn); lead {
 	case "NCHAR", "NVARCHAR2", "NCLOB":
 		return true
 	default:

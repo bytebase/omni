@@ -230,10 +230,15 @@ var plsqlNonCharacterTypes = map[string]bool{
 
 // predefinedTypeLead returns the name of the predefined datatype tn spells,
 // "" for a name the text does not settle (a subtype, a schema-qualified
-// type, t%TYPE). Multiword predefined types answer their first word:
-// TIMESTAMP WITH [LOCAL] TIME ZONE, INTERVAL DAY|YEAR TO ..., LONG RAW.
-func predefinedTypeLead(tn *nodes.TypeName) string {
+// type, t%TYPE, or a quoted name: "NUMBER" may be a user subtype of
+// VARCHAR2, and Oracle 23ai compiles one as a SQL macro result). Multiword
+// predefined types answer their first word: TIMESTAMP WITH [LOCAL] TIME
+// ZONE, INTERVAL DAY|YEAR TO ..., LONG RAW.
+func (p *Parser) predefinedTypeLead(tn *nodes.TypeName) string {
 	if tn == nil || tn.IsPercType || tn.IsPercRowtype || tn.Names.Len() == 0 {
+		return ""
+	}
+	if tn.Loc.Start >= 0 && tn.Loc.Start < len(p.source) && p.source[tn.Loc.Start] == '"' {
 		return ""
 	}
 	word := func(i int) string {
@@ -264,7 +269,7 @@ func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse)
 	if tn.IsPercRowtype {
 		return p.syntaxErrorAtCur()
 	}
-	if plsqlNonCharacterTypes[predefinedTypeLead(tn)] {
+	if plsqlNonCharacterTypes[p.predefinedTypeLead(tn)] {
 		return p.syntaxErrorAtCur()
 	}
 	p.advance() // consume CHARACTER

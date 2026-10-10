@@ -393,7 +393,7 @@ func (p *Parser) checkParallelArguments(stmt *nodes.CreateFunctionStmt, partTok 
 	// predefined non-cursor type never qualifies, nor SYS_REFCURSOR with
 	// HASH, RANGE, VALUE, ORDER BY, or CLUSTER BY. A named type is left to
 	// the engine.
-	if name, ok := predefinedTypeName(param.TypeName); ok {
+	if name, ok := p.predefinedTypeName(param.TypeName); ok {
 		weakAllowed := name == "SYS_REFCURSOR" && stmt.ParallelSpec.PartitionBy == "ANY" && len(streamToks) == 0
 		if !weakAllowed {
 			return p.syntaxErrorAtTok(partTok)
@@ -412,14 +412,14 @@ func (p *Parser) checkParallelArguments(stmt *nodes.CreateFunctionStmt, partTok 
 // predefinedTypeName returns the name of tn when it is a predefined datatype
 // that is not a REF CURSOR of the program's own: SYS_REFCURSOR, or a scalar,
 // character, LOB, or %ROWTYPE record type.
-func predefinedTypeName(tn *nodes.TypeName) (string, bool) {
+func (p *Parser) predefinedTypeName(tn *nodes.TypeName) (string, bool) {
 	if tn == nil {
 		return "", false
 	}
 	if tn.IsPercRowtype {
 		return "%ROWTYPE", true
 	}
-	switch lead := predefinedTypeLead(tn); lead {
+	switch lead := p.predefinedTypeLead(tn); lead {
 	case "CHAR", "CHARACTER", "VARCHAR2", "VARCHAR", "STRING", "CLOB":
 		return lead, true
 	default:
@@ -484,7 +484,7 @@ func (p *Parser) checkCharsetSources(params *nodes.List, result *nodes.TypeName)
 		if tn == nil || !tn.IsPercCharset {
 			return nil
 		}
-		if src, ok := byName[tn.CharacterSet]; ok && !mayBeCharacterType(src.TypeName) {
+		if src, ok := byName[tn.CharacterSet]; ok && !p.mayBeCharacterType(src.TypeName) {
 			return p.syntaxErrorAtType(tn)
 		}
 		return nil
