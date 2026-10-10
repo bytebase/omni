@@ -32,3 +32,64 @@ ref_030	plsql_body	reject	CREATE TYPE BODY omni_obj_{run} AS MEMBER FUNCTION f R
 ref_031	modern	unsafe	CREATE DOMAIN omni_domain_{run} AS NUMBER	valid modern DDL is version dependent and may create catalog state
 ref_032	modern	reject	CREATE DOMAIN AS NUMBER	missing domain name
 ref_033	keyword	reject	CREATE ANALYTIC VIEW USING sales_fact	clause keyword cannot stand in for required object name
+ref_034	sequence	accept	CREATE SEQUENCE omni_seq_{run}_a START WITH 1 INCREMENT BY 1 CACHE 20 NOORDER NOCYCLE NOKEEP NOSCALE GLOBAL	KEEP, SCALE, and GLOBAL options after NOORDER
+ref_035	sequence	accept	CREATE SEQUENCE omni_seq_{run}_b KEEP SCALE EXTEND SESSION	KEEP, SCALE EXTEND, and SESSION options
+ref_036	sequence	accept	CREATE SEQUENCE IF NOT EXISTS omni_seq_{run}_c SHARING = NONE START WITH 1	IF NOT EXISTS before the name and SHARING first
+ref_037	sequence	reject	CREATE SEQUENCE omni_seq_{run}_d KEEP NOKEEP	conflicting KEEP and NOKEEP
+ref_038	sequence	reject	CREATE SEQUENCE omni_seq_{run}_e CACHE 5 NOCACHE	conflicting CACHE and NOCACHE
+ref_039	sequence	reject	CREATE SEQUENCE omni_seq_{run}_f START WITH 1 SHARING = NONE	SHARING after another option
+ref_040	sequence	reject	CREATE SEQUENCE omni_seq_{run}_g IF NOT EXISTS	IF NOT EXISTS after the name
+ref_041	select	accept	SELECT offset, partition FROM t_offset	OFFSET as a column name in the select list
+ref_042	select	accept	SELECT t.offset FROM t_offset t WHERE offset > 0 ORDER BY offset OFFSET 1 ROWS	OFFSET column beside the row limiting clause
+ref_043	dml	accept	UPDATE t_offset SET offset = 1 WHERE offset > 0	OFFSET column in a predicate
+ref_044	ddl	accept	CREATE INDEX omni_idx_off_{run} ON t_offset (a, offset)	OFFSET column in an index
+ref_045	plsql	accept	DECLARE TYPE nt IS TABLE OF NUMBER; x nt; y nt; BEGIN SELECT a, b BULK COLLECT INTO x, y FROM t; END;	SELECT BULK COLLECT INTO several collections
+ref_046	plsql	accept	DECLARE TYPE nt IS TABLE OF NUMBER; x nt; y nt; BEGIN DELETE FROM t RETURNING a, b BULK COLLECT INTO x, y; END;	RETURNING BULK COLLECT INTO
+ref_047	plsql	accept	DECLARE TYPE nt IS TABLE OF NUMBER; x nt; y nt; BEGIN EXECUTE IMMEDIATE 'SELECT a, b FROM t' BULK COLLECT INTO x, y; END;	EXECUTE IMMEDIATE BULK COLLECT INTO
+ref_048	plsql	accept	DECLARE TYPE nt IS TABLE OF NUMBER; y nt; BEGIN EXECUTE IMMEDIATE 'DELETE FROM t WHERE a = :1 RETURNING b INTO :2' USING 1 RETURNING BULK COLLECT INTO y; END;	dynamic RETURNING BULK COLLECT INTO
+ref_049	plsql	reject	DECLARE TYPE nt IS TABLE OF NUMBER; x nt; BEGIN SELECT a BULK COLLECT x FROM t; END;	BULK COLLECT without INTO
+ref_050	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_jfn_{run} (p IN VARCHAR2) RETURN VARCHAR2 AS LANGUAGE JAVA NAME 'X.y(java.lang.String) return java.lang.String';	Java call spec
+ref_051	plsql_body	accept	CREATE OR REPLACE PACKAGE omni_jpk_{run} AS FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int'; PROCEDURE p; END;	Java call spec in a package
+ref_052	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_cfn_{run} (p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C LIBRARY omni_lib NAME "c_f" WITH CONTEXT PARAMETERS (CONTEXT, p INT, RETURN INT);	C call spec; the missing library is a semantic error
+ref_053	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_jfn_{run} RETURN VARCHAR2 AS LANGUAGE JAVA NAME "X.y() return java.lang.String";	Java call spec signature must be a string
+ref_054	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_cfn_{run} (p IN BINARY_INTEGER) RETURN BINARY_INTEGER AS LANGUAGE C LIBRARY omni_lib PARAMETERS ();	empty C call spec PARAMETERS
+ref_055	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_extp_{run} AS EXTERNAL LANGUAGE C NAME "c_p" LIBRARY omni_lib;	EXTERNAL call spec opened by LANGUAGE C
+ref_056	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_extq_{run} AS EXTERNAL CALLING STANDARD PASCAL LIBRARY omni_lib;	EXTERNAL call spec opened by CALLING STANDARD
+ref_057	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_extp_{run} AS EXTERNAL LIBRARY omni_lib LANGUAGE PASCAL;	EXTERNAL LANGUAGE takes only C
+ref_058	plsql	reject	DECLARE TYPE nt IS TABLE OF NUMBER; x nt; BEGIN EXECUTE IMMEDIATE 'SELECT a FROM t' BULK COLLECT INTO; END;	BULK COLLECT INTO without a target
+ref_059	plsql	reject	DECLARE v NUMBER; BEGIN EXECUTE IMMEDIATE 'SELECT a FROM t' INTO; END;	INTO without a target
+ref_060	plsql	reject	DECLARE v NUMBER; BEGIN EXECUTE IMMEDIATE 'BEGIN NULL; END;' USING; END;	USING without a bind argument
+ref_061	plsql	accept	DECLARE v NUMBER := 1; w NUMBER; BEGIN EXECUTE IMMEDIATE 'BEGIN :1 := :2 + 1; END;' USING OUT w, IN v; END;	USING bind argument modes
+ref_062	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_nosemi_jfn_{run} RETURN VARCHAR2 AS LANGUAGE JAVA NAME 'X.y() return java.lang.String'	call spec without its terminating semicolon
+ref_063	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_extpa_{run} (x IN BINARY_INTEGER) AS LANGUAGE C LIBRARY omni_lib PARAMETERS (x, x INDICATOR IN INT, x LENGTH BY VALUE INT);	external parameters with property, mode, and BY VALUE
+ref_064	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_extpa_{run} (x IN OUT BINARY_INTEGER) AS LANGUAGE C LIBRARY omni_lib PARAMETERS (x BY REFERENCE BY REFERENCE INT);	repeated BY REFERENCE in an external parameter
+ref_065	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_agent_{run} (x IN BINARY_INTEGER, y IN BINARY_INTEGER) AS LANGUAGE C LIBRARY omni_lib AGENT IN (x, y);	AGENT IN takes one argument
+ref_066	plsql_body	accept	CREATE OR REPLACE TYPE omni_tsm_{run} AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int', STATIC PROCEDURE s, PRAGMA RESTRICT_REFERENCES (f, WNDS)) NOT FINAL	object type spec methods with a call spec
+ref_067	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tsm_{run} AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END)	PL/SQL body in an object type spec
+ref_068	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tsn_{run} AS OBJECT (map NUMBER)	unquoted MAP opens a method, not an attribute
+ref_069	sequence	reject	CREATE SEQUENCE omni_seq_{run}_q "NOKEEP"	quoted sequence option keyword
+ref_070	sequence	reject	CREATE SEQUENCE omni_seq_{run}_r SCALE "EXTEND"	quoted EXTEND modifier
+ref_071	ddl	reject	CREATE JAVA "SOURCE" NAMED omni_jq_{run} AS class X {}	quoted CREATE JAVA kind keyword
+ref_072	ddl	reject	CREATE JAVA SOURCE NAMED omni_jg_{run} garbage AS class X {}	unknown word in the CREATE JAVA head
+ref_073	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_mle_mod_{run} RETURN NUMBER AS MLE MODULE omni_missing_mod ENV omni_missing_env SIGNATURE 'f()';	MLE module call spec; the absent module is PLS-00201
+ref_074	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_mle_sig_{run} RETURN NUMBER AS MLE MODULE omni_missing_mod;	MLE module call spec without SIGNATURE
+ref_075	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_mle_end_{run} RETURN NUMBER AS MLE MODULE omni_missing_mod SIGNATURE 'f()'	MLE call spec without its terminating semicolon
+ref_076	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_mle_var_{run} RETURN NUMBER IS mle NUMBER; BEGIN mle := 1; RETURN mle; END;	unquoted MLE after IS opens a call spec, not a declaration
+ref_077	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_ext_var_{run} RETURN NUMBER IS external NUMBER; BEGIN external := 1; RETURN external; END;	unquoted EXTERNAL after IS opens a call spec, not a declaration
+ref_078	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_mle_qvar_{run} RETURN NUMBER IS "MLE" NUMBER; BEGIN "MLE" := 1; RETURN "MLE"; END;	quoted MLE after IS declares a variable
+ref_079	plsql_body	accept	CREATE OR REPLACE TYPE omni_tsmle_{run} AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS MLE MODULE omni_missing_mod SIGNATURE 'f()')	MLE module call spec in an object type spec
+ref_080	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tse_{run} AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS EXTERNAL LIBRARY omni_lib)	EXTERNAL call spec in an object type spec
+ref_081	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tsr_{run} AS OBJECT (a NUMBER, MEMBER FUNCTION f)	object type spec function without RETURN
+ref_082	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tsp_{run} AS OBJECT (a NUMBER, MEMBER PROCEDURE)	object type spec method without a name
+ref_083	ddl	reject	CREATE JAVA IF NOT EXISTS SOURCE NAMED omni_jine_{run} AS class X {}	no IF NOT EXISTS after CREATE JAVA
+ref_084	ddl	reject	CREATE IF NOT EXISTS JAVA SOURCE NAMED omni_jinb_{run} AS class X {}	no IF NOT EXISTS before JAVA
+ref_085	ddl	reject	CREATE JAVA CLASS SCHEMA omni_s IF NOT EXISTS USING BFILE (omni_d, 'x.class')	IF NOT EXISTS after SCHEMA in CREATE JAVA
+ref_086	ddl	reject	CREATE JAVA SOURCE IF EXISTS NAMED omni_jie_{run} AS class X {}	IF EXISTS in CREATE JAVA
+ref_087	ddl	reject	CREATE OR REPLACE JAVA SOURCE IF NOT EXISTS NAMED omni_jor_{run} AS class X {}	OR REPLACE beside IF NOT EXISTS in CREATE JAVA
+ref_088	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_ctor_{run} AS OBJECT (a NUMBER, CONSTRUCTOR FUNCTION omni_bad_ctor_{run} RETURN SELF)	constructor spec without AS RESULT
+ref_089	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_ctas_{run} AS OBJECT (a NUMBER, CONSTRUCTOR FUNCTION omni_bad_ctas_{run} RETURN SELF AS)	constructor spec without RESULT
+ref_090	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_lang_{run} AS LANGUAGE PYTHON;	call spec in an unknown language
+ref_091	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_cs_names_{run} (language IN VARCHAR2, wrapped NUMBER) RETURN NUMBER IS x NUMBER; external NUMBER; mle NUMBER; BEGIN RETURN 1; END;	later declarations named like call spec words
+ref_092	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_novr_{run} AS OBJECT (a NUMBER, NOT OVERRIDING MEMBER FUNCTION f RETURN NUMBER) NOT FINAL	NOT OVERRIDING in a method spec
+ref_093	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_fovr_{run} AS OBJECT (a NUMBER, FINAL OVERRIDING MEMBER FUNCTION f RETURN NUMBER)	OVERRIDING after another inheritance clause
+ref_094	plsql_body	accept	CREATE OR REPLACE TYPE omni_ninf_{run} AS OBJECT (a NUMBER, NOT INSTANTIABLE NOT FINAL MEMBER FUNCTION f RETURN NUMBER) NOT FINAL NOT INSTANTIABLE	NOT INSTANTIABLE NOT FINAL method spec

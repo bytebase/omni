@@ -260,7 +260,7 @@ func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
 
 	if p.cur.Type == kwRETURNING || p.cur.Type == kwRETURN {
 		var parseErr784 error
-		stmt.Returning, parseErr784 = p.parseReturningClause()
+		stmt.Returning, stmt.ReturningBulk, parseErr784 = p.parseReturningClause()
 		if parseErr784 !=
 
 			// LOG ERRORS clause
@@ -488,27 +488,33 @@ func (p *Parser) parseParenColumnList() (*nodes.List, error) {
 //	returning_clause::=
 //	    { RETURNING | RETURN } expr [, expr ]...
 //	    INTO data_item [, data_item ]...
-func (p *Parser) parseReturningClause() (*nodes.List, error) {
+func (p *Parser) parseReturningClause() (*nodes.List, bool, error) {
 	p.advance() // consume RETURNING or RETURN
 	list, parseErr796 := p.parseExprList()
 	if parseErr796 !=
 		// INTO bind variables
 		nil {
-		return nil, parseErr796
+		return nil, false, parseErr796
 	}
 
+	// { INTO | BULK COLLECT INTO } targets, appended to the returned list;
+	// bulk reports BULK COLLECT.
+	bulk, err := p.parseOptionalBulkCollect()
+	if err != nil {
+		return nil, false, err
+	}
 	if p.cur.Type == kwINTO {
 		p.advance()
 		binds, parseErr797 := p.parseExprList()
 		if parseErr797 !=
 			// Append the INTO targets to the returning list
 			nil {
-			return nil, parseErr797
+			return nil, false, parseErr797
 		}
 
 		list.Items = append(list.Items, binds.Items...)
 	}
-	return list, nil
+	return list, bulk, nil
 }
 
 // parseErrorLogClause parses LOG ERRORS [INTO table] [(tag)] [REJECT LIMIT {n|UNLIMITED}].

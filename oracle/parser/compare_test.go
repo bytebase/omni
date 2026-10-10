@@ -8667,9 +8667,10 @@ func TestBatch105_SmallObjectsBundle(t *testing.T) {
 		}
 	})
 
-	// CREATE OR REPLACE JAVA CLASS
+	// CREATE OR REPLACE JAVA CLASS. CLASS takes no NAMED: Oracle 23ai raises
+	// ORA-29500 (NAMED keyword is invalid in CREATE JAVA CLASS).
 	t.Run("create_or_replace_java_class", func(t *testing.T) {
-		result := ParseAndCheck(t, "CREATE OR REPLACE AND RESOLVE JAVA CLASS NAMED my_class USING BFILE (data_dir, 'MyClass.class')")
+		result := ParseAndCheck(t, "CREATE OR REPLACE AND RESOLVE JAVA CLASS USING BFILE (data_dir, 'MyClass.class')")
 		raw := result.Items[0].(*ast.RawStmt)
 		stmt, ok := raw.Stmt.(*ast.AdminDDLStmt)
 		if !ok {
@@ -8678,6 +8679,7 @@ func TestBatch105_SmallObjectsBundle(t *testing.T) {
 		if !stmt.OrReplace {
 			t.Errorf("expected OrReplace=true")
 		}
+		ParseShouldFail(t, "CREATE OR REPLACE AND RESOLVE JAVA CLASS NAMED my_class USING BFILE (data_dir, 'MyClass.class')")
 	})
 
 	// ALTER JAVA SOURCE

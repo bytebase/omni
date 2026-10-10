@@ -181,7 +181,7 @@ func (p *Parser) parseCreateAdminObject(start int, orReplace bool) (nodes.StmtNo
 		return p.parseCreateClusterStmt(start)
 	case kwJAVA:
 		p.advance()
-		return p.parseCreateJavaStmt(start, orReplace)
+		return p.parseCreateJavaStmt(start, orReplace, nil)
 	case kwLIBRARY:
 		p.advance()
 		return p.parseCreateLibraryStmt(start, orReplace)
@@ -6120,22 +6120,34 @@ func (p *Parser) parseAlterOutlineStmt(start int) (*nodes.AlterOutlineStmt, erro
 // Batch 105 — small objects bundle
 // ---------------------------------------------------------------------------
 
-// parseCreateJavaStmt parses a CREATE JAVA statement.
-// Called after CREATE [OR REPLACE] [IF NOT EXISTS] JAVA has been consumed.
+// parseCreateJavaStmt parses a CREATE JAVA statement. It is called after
+// JAVA; mods holds the AND { RESOLVE | COMPILE } and NOFORCE options the CREATE
+// dispatcher consumed before JAVA.
 //
-// BNF:
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/CREATE-JAVA.html
 //
-//	CREATE [ OR REPLACE | IF NOT EXISTS ] [ AND { RESOLVE | COMPILE } ] [ NOFORCE ]
-//	    JAVA { SOURCE | CLASS | RESOURCE }
-//	    [ NAMED [ schema. ] primary_name ]
+//	CREATE [ OR REPLACE ] [ AND { RESOLVE | COMPILE } ] [ NOFORCE ]
+//	    JAVA { { SOURCE | RESOURCE } [ IF NOT EXISTS ] NAMED [ schema. ] primary_name
+//	         | CLASS [ IF NOT EXISTS ] [ SCHEMA schema ] }
 //	    [ SHARING = { METADATA | NONE } ]
-//	    [ invoker_rights_clause ]
-//	    [ resolver_clause ]
+//	    [ AUTHID { CURRENT_USER | DEFINER } ]
+//	    [ RESOLVER ( ( match_string [,] { schema_name | - } )... ) ]
 //	    { USING { BFILE ( directory_object_name , server_file_name )
 //	            | { CLOB | BLOB | BFILE } subquery
-//	            | key_for_BLOB }
+//	            | 'key_for_BLOB' }
 //	    | AS source_char }
-func (p *Parser) parseCreateJavaStmt(start int, orReplace bool) (nodes.StmtNode, error) {
+//
+// Oracle 23ai takes IF NOT EXISTS only where shown: after the kind, not after
+// JAVA (ORA-00905), before it (ORA-00901, refused by the CREATE dispatcher),
+// or after SCHEMA (ORA-00922).
+//
+// Oracle 23ai checks this head before it looks for a Java VM (ORA-29538). It
+// rejects a missing kind (ORA-00905); NAMED missing after SOURCE or RESOURCE,
+// or given after CLASS (ORA-00922, ORA-29500); SHARING, AUTHID, and RESOLVER
+// out of the order above, or any other word (ORA-00922); and a statement with
+// neither USING nor AS (ORA-00922). BFILE followed by '(' takes the directory
+// and file name (ORA-22929 for a subquery there).
+func (p *Parser) parseCreateJavaStmt(start int, orReplace bool, mods []*nodes.DDLOption) (nodes.StmtNode, error) {
 	stmt := &nodes.AdminDDLStmt{
 		Action:     "CREATE",
 		ObjectType: nodes.OBJECT_JAVA,
@@ -6143,91 +6155,256 @@ func (p *Parser) parseCreateJavaStmt(start int, orReplace bool) (nodes.StmtNode,
 		Loc:        nodes.Loc{Start: start},
 	}
 	opts := &nodes.List{}
+	for _, mod := range mods {
+		opts.Items = append(opts.Items, mod)
+	}
+	// addOption records an option that started at optStart and ends at the
+	// last consumed token.
+	addOption := func(key, value string, optStart int, items *nodes.List) {
+		opts.Items = append(opts.Items, &nodes.DDLOption{
+			Key:   key,
+			Value: value,
+			Items: items,
+			Loc:   nodes.Loc{Start: optStart, End: p.prev.End},
+		})
+	}
 
-	// [ AND { RESOLVE | COMPILE } ]
-	if p.isIdentLike() && p.cur.Str == "AND" {
+	// { SOURCE | RESOURCE } NAMED [ schema. ] primary_name | CLASS [ SCHEMA schema ]
+	optStart := p.pos()
+	switch {
+	case p.isKeywordStr("SOURCE"), p.isKeywordStr("RESOURCE"):
+		value := p.cur.Str
 		p.advance()
-		if p.isIdentLike() && (p.cur.Str == "RESOLVE" || p.cur.Str == "COMPILE") {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AND", Value: p.cur.Str})
-			p.advance()
+		addOption("JAVA_TYPE", value, optStart, nil)
+		if err := p.parseJavaIfNotExists(stmt); err != nil {
+			return nil, err
 		}
-	}
-
-	// [ NOFORCE ]
-	if p.isIdentLike() && p.cur.Str == "NOFORCE" {
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "NOFORCE"})
-		p.advance()
-	}
-
-	// { SOURCE | CLASS | RESOURCE }
-	if p.isIdentLike() && (p.cur.Str == "SOURCE" || p.cur.Str == "CLASS" || p.cur.Str == "RESOURCE") {
-		opts.Items = append(opts.Items, &nodes.DDLOption{Key: "JAVA_TYPE", Value: p.cur.Str})
-		p.advance()
-	}
-
-	// [ NAMED [ schema. ] primary_name ]
-	if p.isIdentLike() && p.cur.Str == "NAMED" {
-		p.advance()
-		var parseErr383 error
-		stmt.Name, parseErr383 = p.parseObjectName()
-		if parseErr383 !=
-
-			// Parse remaining clauses until ; or EOF
-			nil {
-			return nil, parseErr383
+		if !p.isKeywordStr("NAMED") {
+			return nil, p.syntaxErrorAtCur()
 		}
-	}
-
-	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() && p.cur.Str == "SHARING" {
-			p.advance()
-			if p.cur.Type == '=' {
-				p.advance()
-			}
-			if p.isIdentLike() || p.cur.Type == tokIDENT {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "SHARING", Value: p.cur.Str})
-				p.advance()
-			}
-		} else if p.isIdentLike() && p.cur.Str == "AUTHID" {
-			p.advance()
-			if p.isIdentLike() || p.cur.Type == tokIDENT {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AUTHID", Value: p.cur.Str})
-				p.advance()
-			}
-		} else if p.isIdentLike() && p.cur.Str == "RESOLVER" {
-			p.advance()
-			if p.cur.Type == '(' {
-				p.skipParenthesized()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "RESOLVER"})
-		} else if p.isIdentLike() && p.cur.Str == "USING" {
-			p.advance()
-			val := ""
-			if p.isIdentLike() || p.cur.Type == tokIDENT {
-				val = p.cur.Str
-				p.advance()
-			}
-			if p.cur.Type == '(' {
-				p.skipParenthesized()
-			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "USING", Value: val})
-		} else if p.cur.Type == kwAS {
-			p.advance()
-			// source_char — typically a string constant
-			if p.cur.Type == tokSCONST {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AS", Value: p.cur.Str})
-				p.advance()
-			}
-		} else {
-			p.advance()
+		p.advance() // consume NAMED
+		var err error
+		stmt.Name, err = p.parseObjectName()
+		if err != nil {
+			return nil, err
 		}
+		if stmt.Name == nil || stmt.Name.Name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+	case p.isKeywordStr("CLASS"):
+		p.advance()
+		addOption("JAVA_TYPE", "CLASS", optStart, nil)
+		if err := p.parseJavaIfNotExists(stmt); err != nil {
+			return nil, err
+		}
+		if p.isKeywordStr("SCHEMA") {
+			schemaStart := p.pos()
+			p.advance() // consume SCHEMA
+			schema, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			if schema == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			addOption("SCHEMA", schema, schemaStart, nil)
+		}
+	default:
+		return nil, p.syntaxErrorAtCur()
 	}
 
-	if len(opts.Items) > 0 {
-		stmt.Options = opts
+	// [ SHARING = { METADATA | NONE } ]
+	if p.isKeywordStr("SHARING") {
+		optStart := p.pos()
+		p.advance() // consume SHARING
+		if p.cur.Type != '=' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume =
+		if !p.isKeywordStr("METADATA") && !p.isKeywordStr("NONE") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		value := p.cur.Str
+		p.advance()
+		addOption("SHARING", value, optStart, nil)
 	}
+
+	// [ AUTHID { CURRENT_USER | DEFINER } ]
+	if p.isKeywordStr("AUTHID") {
+		optStart := p.pos()
+		p.advance() // consume AUTHID
+		if !p.isKeywordStr("CURRENT_USER") && !p.isKeywordStr("DEFINER") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		value := p.cur.Str
+		p.advance()
+		addOption("AUTHID", value, optStart, nil)
+	}
+
+	// [ RESOLVER ( ... ) ]
+	if p.isKeywordStr("RESOLVER") {
+		optStart := p.pos()
+		p.advance() // consume RESOLVER
+		if p.cur.Type != '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.skipParenthesized()
+		addOption("RESOLVER", "", optStart, nil)
+	}
+
+	switch {
+	case p.cur.Type == kwUSING:
+		if err := p.parseJavaUsingClause(addOption); err != nil {
+			return nil, err
+		}
+	case p.cur.Type == kwAS:
+		// source_char is Java source, not SQL, and runs to the end of the
+		// parsed range; see javaSourceHead. Take it verbatim.
+		if err := p.parseSourceText(opts); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	stmt.Options = opts
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseJavaIfNotExists parses the optional IF NOT EXISTS that follows SOURCE,
+// RESOURCE, or CLASS in CREATE JAVA. Oracle 23ai rejects any other spelling,
+// IF EXISTS or a quoted "EXISTS" included (ORA-11543), and OR REPLACE beside
+// it (ORA-11541).
+func (p *Parser) parseJavaIfNotExists(stmt *nodes.AdminDDLStmt) error {
+	if p.cur.Type != kwIF {
+		return nil
+	}
+	p.advance() // consume IF
+	if p.cur.Type != kwNOT {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // consume NOT
+	if p.cur.Type != kwEXISTS || stmt.OrReplace {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // consume EXISTS
+	stmt.IfNotExists = true
+	return nil
+}
+
+// parseJavaUsingClause parses the USING clause of CREATE JAVA:
+//
+//	USING { BFILE ( directory_object_name , server_file_name )
+//	      | { CLOB | BLOB | BFILE } subquery
+//	      | 'key_for_BLOB' }
+//
+// The subquery may stand bare or in parentheses, and may omit the SELECT
+// keyword for backward compatibility (USING CLOB text FROM t, accepted by
+// Oracle 23ai). addOption records the clause as a USING option: its value is
+// BFILE, CLOB, or BLOB, or the key string, and its items hold the directory
+// and file names or the subquery.
+func (p *Parser) parseJavaUsingClause(addOption func(key, value string, optStart int, items *nodes.List)) error {
+	optStart := p.pos()
+	p.advance() // consume USING
+	switch {
+	case p.cur.Type == tokSCONST:
+		key := p.cur.Str
+		p.advance()
+		addOption("USING", key, optStart, nil)
+	case p.isKeywordStr("BFILE") && p.peekNext().Type == '(':
+		p.advance() // consume BFILE
+		p.advance() // consume (
+		dir, err := p.parseIdentifier()
+		if err != nil {
+			return err
+		}
+		if dir == "" || p.cur.Type != ',' {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance() // consume ,
+		if p.cur.Type != tokSCONST {
+			return p.syntaxErrorAtCur()
+		}
+		file := p.cur.Str
+		p.advance()
+		if p.cur.Type != ')' {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance() // consume )
+		addOption("USING", "BFILE", optStart, &nodes.List{Items: []nodes.Node{&nodes.String{Str: dir}, &nodes.String{Str: file}}})
+	case p.isKeywordStr("CLOB"), p.isKeywordStr("BLOB"), p.isKeywordStr("BFILE"):
+		kind := p.cur.Str
+		p.advance()
+		parens := p.cur.Type == '('
+		if parens {
+			p.advance() // consume (
+		}
+		var sub *nodes.SelectStmt
+		var err error
+		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+			sub, err = p.parseSelectStmt()
+		} else {
+			// The legacy subquery without the SELECT keyword.
+			sub, err = p.parseSelectAfterKeyword(&nodes.SelectStmt{
+				TargetList: &nodes.List{},
+				Loc:        nodes.Loc{Start: p.pos()},
+			})
+		}
+		if err != nil {
+			return err
+		}
+		if parens {
+			if p.cur.Type != ')' {
+				return p.syntaxErrorAtCur()
+			}
+			p.advance() // consume )
+		}
+		addOption("USING", kind, optStart, &nodes.List{Items: []nodes.Node{sub}})
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	return nil
+}
+
+// parseSourceText records the source text after the current AS of a CREATE
+// JAVA or CREATE MLE MODULE statement and moves the parser to the end of the
+// parsed range, without lexing the Java or JavaScript text. The text runs from
+// its first non-blank byte through the end of the range, trailing blanks
+// included, as Split keeps it: Split already leaves out the line break and
+// "/" that frame it.
+func (p *Parser) parseSourceText(opts *nodes.List) error {
+	asTok := p.cur
+	srcStart := skipSpace(p.source, asTok.End, p.lexer.end)
+	srcEnd := p.lexer.end
+	if srcStart >= trimRightSpace(p.source, srcEnd) {
+		p.advance() // consume AS; the source is missing
+		return p.syntaxErrorAtCur()
+	}
+	opts.Items = append(opts.Items, &nodes.DDLOption{
+		Key:   "AS",
+		Value: p.source[srcStart:srcEnd],
+		Loc:   nodes.Loc{Start: asTok.Loc, End: srcEnd},
+	})
+	p.prev = Token{Type: tokIDENT, Loc: srcStart, End: srcEnd}
+	p.hasNext = false
+	p.lexer.pos = p.lexer.end
+	p.cur = Token{Type: tokEOF, Loc: p.lexer.end, End: p.lexer.end}
+	return nil
+}
+
+// skipSpace returns the first offset in source[pos:end] that is not
+// whitespace, or end.
+func skipSpace(source string, pos, end int) int {
+	for pos < end {
+		switch source[pos] {
+		case ' ', '\t', '\n', '\r', '\f':
+			pos++
+		default:
+			return pos
+		}
+	}
+	return pos
 }
 
 // parseAlterJavaStmt parses an ALTER JAVA statement.
@@ -6691,26 +6868,30 @@ func (p *Parser) parseCreateMLEModuleStmt(start int, orReplace bool) (nodes.Stmt
 		return nil, parseErr392
 	}
 
-	if p.isIdentLike() && p.cur.Str == "LANGUAGE" {
+	if p.isKeywordStr("LANGUAGE") {
+		optStart := p.pos()
 		p.advance()
-		if p.isIdentLike() && p.cur.Str == "JAVASCRIPT" {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "LANGUAGE", Value: "JAVASCRIPT"})
+		if p.isKeywordStr("JAVASCRIPT") {
 			p.advance()
+			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "LANGUAGE", Value: "JAVASCRIPT", Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
 		}
 	}
 
 	// [ VERSION version_string ]
-	if p.isIdentLike() && p.cur.Str == "VERSION" {
+	if p.isKeywordStr("VERSION") {
+		optStart := p.pos()
 		p.advance()
 		if p.cur.Type == tokSCONST {
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "VERSION", Value: p.cur.Str})
+			value := p.cur.Str
 			p.advance()
+			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "VERSION", Value: value, Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
 		}
 	}
 
 	// USING or AS
 	for p.cur.Type != ';' && p.cur.Type != tokEOF {
-		if p.isIdentLike() && p.cur.Str == "USING" {
+		if p.cur.Type == kwUSING {
+			optStart := p.pos()
 			p.advance()
 			val := ""
 			if p.isIdentLike() || p.cur.Type == tokIDENT {
@@ -6720,12 +6901,12 @@ func (p *Parser) parseCreateMLEModuleStmt(start int, orReplace bool) (nodes.Stmt
 			if p.cur.Type == '(' {
 				p.skipParenthesized()
 			}
-			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "USING", Value: val})
+			opts.Items = append(opts.Items, &nodes.DDLOption{Key: "USING", Value: val, Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
 		} else if p.cur.Type == kwAS {
-			p.advance()
-			if p.cur.Type == tokSCONST {
-				opts.Items = append(opts.Items, &nodes.DDLOption{Key: "AS", Value: p.cur.Str})
-				p.advance()
+			// module_text is JavaScript source, not SQL; see
+			// embeddedSourceHead. Take it verbatim.
+			if err := p.parseSourceText(opts); err != nil {
+				return nil, err
 			}
 		} else {
 			p.advance()

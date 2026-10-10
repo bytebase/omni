@@ -92,12 +92,29 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 func validateBalancedDelimiters(sql string, start, end int) error {
 	lexer := NewLexerRange(sql, start, end)
 	depth := 0
+	var javaHead embeddedSourceHead
+	var prev1, prev2, prev3 Token
 	for {
 		tok := lexer.NextToken()
 		if lexer.Err != nil {
 			return nil
 		}
+		if javaHead.observe(tok) {
+			// The rest of the range is Java or JavaScript source, not SQL.
+			return nil
+		}
+		if (prev3.Type == kwIS || prev3.Type == kwAS) &&
+			prev2.Type == tokIDENT && prev2.Str == "MLE" && prev1.Type == tokIDENT && prev1.Str == "LANGUAGE" {
+			// tok names the language of an inline MLE call spec; its
+			// delimited code is not SQL.
+			if _, codeEnd, _, ok := mleInlineCodeEnd(sql, tok.End, end); ok {
+				lexer.pos = codeEnd
+			}
+		}
+		prev3, prev2, prev1 = prev2, prev1, tok
 		switch tok.Type {
+		case ';':
+			javaHead = embeddedSourceHead{}
 		case tokEOF:
 			if depth > 0 {
 				return &ParseError{Message: "syntax error at end of input", Position: tok.Loc}

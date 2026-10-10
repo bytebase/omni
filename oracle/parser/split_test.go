@@ -391,12 +391,112 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			want: []string{"ALTER DATABASE BEGIN BACKUP", "\nALTER DATABASE END BACKUP"},
 		},
 		{
+			// The ';' belongs to the call spec: Oracle compiles the unit with
+			// PLS-00103 (INVALID) when the text sent ends without it.
 			name: "procedure call spec without end",
 			sql: "CREATE PROCEDURE p AS LANGUAGE JAVA NAME 'Pkg.p()';\n" +
 				"CREATE TABLE t (id NUMBER);",
 			want: []string{
-				"CREATE PROCEDURE p AS LANGUAGE JAVA NAME 'Pkg.p()'",
+				"CREATE PROCEDURE p AS LANGUAGE JAVA NAME 'Pkg.p()';",
 				"\nCREATE TABLE t (id NUMBER)",
+			},
+		},
+		{
+			name: "function call spec with repeated slash separators",
+			sql: "CREATE OR REPLACE EDITIONABLE FUNCTION \"S\".\"F\" (p IN BLOB) RETURN VARCHAR2\n" +
+				"AS LANGUAGE JAVA\n" +
+				"NAME 'Signer.check(oracle.sql.BLOB) return java.lang.String';\n" +
+				"/\n" +
+				"/\n" +
+				"\n" +
+				"  CREATE OR REPLACE FUNCTION g (p IN BINARY_INTEGER) RETURN BINARY_INTEGER\n" +
+				"AS EXTERNAL NAME \"c_g\" LIBRARY lib;\n" +
+				"/\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE EDITIONABLE FUNCTION \"S\".\"F\" (p IN BLOB) RETURN VARCHAR2\nAS LANGUAGE JAVA\nNAME 'Signer.check(oracle.sql.BLOB) return java.lang.String';",
+				"\n\n  CREATE OR REPLACE FUNCTION g (p IN BINARY_INTEGER) RETURN BINARY_INTEGER\nAS EXTERNAL NAME \"c_g\" LIBRARY lib;",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
+			name: "package with call spec members",
+			sql: "CREATE OR REPLACE PACKAGE BODY pk AS\n" +
+				"  FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int';\n" +
+				"  PROCEDURE p IS BEGIN NULL; END;\n" +
+				"  PROCEDURE q AS LANGUAGE C LIBRARY lib;\n" +
+				"END pk;\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE PACKAGE BODY pk AS\n  FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int';\n  PROCEDURE p IS BEGIN NULL; END;\n  PROCEDURE q AS LANGUAGE C LIBRARY lib;\nEND pk;",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
+			name: "nested call spec in a declare section",
+			sql: "DECLARE\n" +
+				"  FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int';\n" +
+				"BEGIN NULL; END;\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"DECLARE\n  FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int';\nBEGIN NULL; END;",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
+			// Every clause of the EXTERNAL form can open it; the unit ends at
+			// its ';' instead of swallowing the statements after it.
+			name: "external call specs with legacy clauses",
+			sql: "CREATE OR REPLACE PROCEDURE p1 AS EXTERNAL LANGUAGE C NAME \"c_p\" LIBRARY lib;\n" +
+				"CREATE OR REPLACE PROCEDURE p2 AS EXTERNAL CALLING STANDARD PASCAL LIBRARY lib;\n" +
+				"CREATE OR REPLACE PROCEDURE p3(a IN BINARY_INTEGER) AS EXTERNAL PARAMETERS (a INT) LIBRARY lib;\n" +
+				"CREATE OR REPLACE PROCEDURE p4 AS EXTERNAL WITH CONTEXT LIBRARY lib;\n" +
+				"CREATE OR REPLACE PROCEDURE p5(a IN BINARY_INTEGER) AS EXTERNAL AGENT IN (a) LIBRARY lib;\n" +
+				"CREATE TABLE t2 (a NUMBER);\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE PROCEDURE p1 AS EXTERNAL LANGUAGE C NAME \"c_p\" LIBRARY lib;",
+				"\nCREATE OR REPLACE PROCEDURE p2 AS EXTERNAL CALLING STANDARD PASCAL LIBRARY lib;",
+				"\nCREATE OR REPLACE PROCEDURE p3(a IN BINARY_INTEGER) AS EXTERNAL PARAMETERS (a INT) LIBRARY lib;",
+				"\nCREATE OR REPLACE PROCEDURE p4 AS EXTERNAL WITH CONTEXT LIBRARY lib;",
+				"\nCREATE OR REPLACE PROCEDURE p5(a IN BINARY_INTEGER) AS EXTERNAL AGENT IN (a) LIBRARY lib;",
+				"\nCREATE TABLE t2 (a NUMBER)",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
+			// Oracle 23ai compiles this VALID: only the word right after
+			// IS|AS opens a call spec.
+			name: "parameter and variable named like call spec words",
+			sql: "CREATE FUNCTION f(language IN VARCHAR2, wrapped NUMBER) RETURN NUMBER IS\n" +
+				"  x NUMBER;\n" +
+				"  external NUMBER;\n" +
+				"  mle NUMBER;\n" +
+				"BEGIN RETURN 1; END;\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"CREATE FUNCTION f(language IN VARCHAR2, wrapped NUMBER) RETURN NUMBER IS\n  x NUMBER;\n  external NUMBER;\n  mle NUMBER;\nBEGIN RETURN 1; END;",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
+			// The word after IS|AS commits to a call spec, as it does for
+			// Oracle and the parser, so a malformed one still ends at its
+			// ';' instead of swallowing the next statement.
+			name: "malformed call specs end at their semicolon",
+			sql: "CREATE PROCEDURE p AS LANGUAGE PYTHON;\n" +
+				"SELECT 1 FROM dual;\n" +
+				"CREATE PROCEDURE q AS EXTERNAL;\n" +
+				"SELECT 2 FROM dual;\n" +
+				"CREATE FUNCTION f RETURN NUMBER IS mle NUMBER;\n" +
+				"SELECT 3 FROM dual;",
+			want: []string{
+				"CREATE PROCEDURE p AS LANGUAGE PYTHON;",
+				"\nSELECT 1 FROM dual",
+				"\nCREATE PROCEDURE q AS EXTERNAL;",
+				"\nSELECT 2 FROM dual",
+				"\nCREATE FUNCTION f RETURN NUMBER IS mle NUMBER;",
+				"\nSELECT 3 FROM dual",
 			},
 		},
 		{
@@ -463,6 +563,202 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			for i := range got {
 				if got[i] != tt.want[i] {
 					t.Fatalf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+// TestSplitEmbeddedSource pins CREATE JAVA ... AS source_char and CREATE MLE
+// MODULE ... AS module_text as SQL*Plus reads them: the text after AS runs to
+// a line holding only "/", whatever it contains. Verified with SQL*Plus
+// against Oracle 23ai: a SELECT after such source without a "/" line is sent
+// as part of the statement. The delimited code of an inline MLE call spec
+// ends at its closing delimiter instead, and the unit at the ';' after it.
+func TestSplitEmbeddedSource(t *testing.T) {
+	const sqlKind, srcKind = SegmentSQL, SegmentEmbeddedSource
+	tests := []struct {
+		name      string
+		sql       string
+		want      []string
+		wantKinds []SegmentKind
+	}{
+		{
+			name: "java sources with internal semicolons and repeated slashes",
+			sql: "   CREATE JAVA SOURCE NAMED \"S\".\"Signer\" AS\n" +
+				"import java.io.InputStream;import java.util.Base64;public final class Signer {    private Signer() { }    static int f() { int a = 1; return a; } }\n" +
+				"/\n" +
+				"/\n" +
+				" \n" +
+				"   CREATE JAVA SOURCE NAMED \"S\".\"Normalizer\" AS\n" +
+				"import java.text.Normalizer;public final class Normalizer { }\n" +
+				"/\n" +
+				"/\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"   CREATE JAVA SOURCE NAMED \"S\".\"Signer\" AS\nimport java.io.InputStream;import java.util.Base64;public final class Signer {    private Signer() { }    static int f() { int a = 1; return a; } }",
+				"\n \n   CREATE JAVA SOURCE NAMED \"S\".\"Normalizer\" AS\nimport java.text.Normalizer;public final class Normalizer { }",
+				"\nSELECT 1 FROM dual",
+			},
+			wantKinds: []SegmentKind{srcKind, srcKind, sqlKind},
+		},
+		{
+			name: "java text the SQL lexer would misread",
+			sql: "CREATE OR REPLACE AND COMPILE JAVA SOURCE NAMED \"Q\" AS\n" +
+				"public class Q {\n" +
+				"  // don't split (here; a stray quote and paren\n" +
+				"  static char c = '\\'';\n" +
+				"  static String s = \"it's /\";\n" +
+				"  static int g(int i) { i--; return i / 2; }\n" +
+				"  /* SELECT 1 FROM dual; */\n" +
+				"}\n" +
+				"/\n" +
+				"SELECT 2 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE AND COMPILE JAVA SOURCE NAMED \"Q\" AS\npublic class Q {\n  // don't split (here; a stray quote and paren\n  static char c = '\\'';\n  static String s = \"it's /\";\n  static int g(int i) { i--; return i / 2; }\n  /* SELECT 1 FROM dual; */\n}",
+				"\nSELECT 2 FROM dual",
+			},
+			wantKinds: []SegmentKind{srcKind, sqlKind},
+		},
+		{
+			name: "and resolve noforce java source without a slash runs to the end",
+			sql: "CREATE OR REPLACE AND RESOLVE NOFORCE JAVA SOURCE NAMED r AS public class R { int a; }\n" +
+				"SELECT 3 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE AND RESOLVE NOFORCE JAVA SOURCE NAMED r AS public class R { int a; }\nSELECT 3 FROM dual;",
+			},
+			wantKinds: []SegmentKind{srcKind},
+		},
+		{
+			// Only the line break before the "/" line is framing; trailing
+			// blanks and blank lines are part of source_char.
+			name: "trailing blanks of the java source are kept",
+			sql:  "CREATE JAVA SOURCE NAMED t AS\r\npublic class T { }  \t\r\n\r\n  /\r\nSELECT 5 FROM dual;",
+			want: []string{
+				"CREATE JAVA SOURCE NAMED t AS\r\npublic class T { }  \t\r\n",
+				"\r\nSELECT 5 FROM dual",
+			},
+			wantKinds: []SegmentKind{srcKind, sqlKind},
+		},
+		{
+			name: "java statements without source text end at semicolons",
+			sql: "CREATE JAVA CLASS USING BFILE (dir, 'X.class');\n" +
+				"CREATE JAVA SOURCE NAMED s USING CLOB (SELECT src AS text FROM t);\n" +
+				"SELECT 4 FROM dual;",
+			want: []string{
+				"CREATE JAVA CLASS USING BFILE (dir, 'X.class')",
+				"\nCREATE JAVA SOURCE NAMED s USING CLOB (SELECT src AS text FROM t)",
+				"\nSELECT 4 FROM dual",
+			},
+			wantKinds: []SegmentKind{sqlKind, sqlKind, sqlKind},
+		},
+		{
+			name: "mle module source runs to the slash line",
+			sql: "CREATE OR REPLACE MLE MODULE m LANGUAGE JAVASCRIPT AS\n" +
+				"export function f(a) {\n" +
+				"  // don't split; here\n" +
+				"  let s = \"it's /\";\n" +
+				"  return a--;\n" +
+				"}\n" +
+				"/\n" +
+				"SELECT 6 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE MLE MODULE m LANGUAGE JAVASCRIPT AS\nexport function f(a) {\n  // don't split; here\n  let s = \"it's /\";\n  return a--;\n}",
+				"\nSELECT 6 FROM dual",
+			},
+			wantKinds: []SegmentKind{srcKind, sqlKind},
+		},
+		{
+			name: "mle module without source text ends at its semicolon",
+			sql: "CREATE MLE MODULE m LANGUAGE JAVASCRIPT USING BFILE (dir, 'm.js');\n" +
+				"SELECT 7 FROM dual;",
+			want: []string{
+				"CREATE MLE MODULE m LANGUAGE JAVASCRIPT USING BFILE (dir, 'm.js')",
+				"\nSELECT 7 FROM dual",
+			},
+			wantKinds: []SegmentKind{sqlKind, sqlKind},
+		},
+		{
+			name: "inline mle call spec ends at the semicolon after its code",
+			sql: "CREATE OR REPLACE FUNCTION f(a IN NUMBER) RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{\n" +
+				"  // don't split; here\n" +
+				"  let s = \"it's\"; return a--;\n" +
+				"}};\n" +
+				"SELECT 8 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE FUNCTION f(a IN NUMBER) RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{\n  // don't split; here\n  let s = \"it's\"; return a--;\n}};",
+				"\nSELECT 8 FROM dual",
+			},
+			wantKinds: []SegmentKind{srcKind, sqlKind},
+		},
+		{
+			name: "inline mle call spec with a quote delimiter",
+			sql: "CREATE PROCEDURE p AS MLE LANGUAGE JAVASCRIPT PURE 'q console.log(1); 'q;\n" +
+				"SELECT 9 FROM dual;",
+			want: []string{
+				"CREATE PROCEDURE p AS MLE LANGUAGE JAVASCRIPT PURE 'q console.log(1); 'q;",
+				"\nSELECT 9 FROM dual",
+			},
+			wantKinds: []SegmentKind{srcKind, sqlKind},
+		},
+		{
+			name: "inline mle call spec in a package body",
+			sql: "CREATE OR REPLACE PACKAGE BODY pk AS\n" +
+				"  FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT ## return \"a;b\"; -- x ##;\n" +
+				"  PROCEDURE z IS BEGIN NULL; END;\n" +
+				"END;\n" +
+				"/\n" +
+				"SELECT 10 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE PACKAGE BODY pk AS\n  FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT ## return \"a;b\"; -- x ##;\n  PROCEDURE z IS BEGIN NULL; END;\nEND;",
+				"\nSELECT 10 FROM dual",
+			},
+			wantKinds: []SegmentKind{srcKind, sqlKind},
+		},
+		{
+			// A type specification ends at its ';' like SQL, but not at one
+			// inside the inline code of a method's MLE call spec.
+			name: "inline mle call spec in an object type spec",
+			sql: "CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{ s = \"--\"; return 1; }}, MEMBER PROCEDURE p);\n" +
+				"CREATE TYPE u AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{ return 1; }})\n" +
+				"/\n" +
+				"SELECT 12 FROM dual;",
+			want: []string{
+				"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{ s = \"--\"; return 1; }}, MEMBER PROCEDURE p)",
+				"\nCREATE TYPE u AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS MLE LANGUAGE JAVASCRIPT {{ return 1; }})",
+				"\nSELECT 12 FROM dual",
+			},
+			wantKinds: []SegmentKind{srcKind, srcKind, sqlKind},
+		},
+		{
+			name: "mle module call spec holds no embedded code",
+			sql: "CREATE FUNCTION f RETURN NUMBER AS MLE MODULE m ENV e SIGNATURE 'f()';\n" +
+				"SELECT 11 FROM dual;",
+			want: []string{
+				"CREATE FUNCTION f RETURN NUMBER AS MLE MODULE m ENV e SIGNATURE 'f()';",
+				"\nSELECT 11 FROM dual",
+			},
+			wantKinds: []SegmentKind{sqlKind, sqlKind},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := splitTexts(Split(tt.sql))
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %d segments %q, want %d %q", len(got), got, len(tt.want), tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("segment[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+			for i, seg := range Split(tt.sql) {
+				if seg.Kind != tt.wantKinds[i] {
+					t.Fatalf("segment[%d] kind = %v, want %v", i, seg.Kind, tt.wantKinds[i])
+				}
+				if _, err := ParseRange(tt.sql, seg.ByteStart, seg.ByteEnd); err != nil {
+					t.Fatalf("ParseRange(%q): %v", seg.Text, err)
 				}
 			}
 		})

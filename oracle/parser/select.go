@@ -73,7 +73,14 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		return sel, nil
 	}
 	p.advance() // consume SELECT
+	return p.parseSelectAfterKeyword(sel)
+}
 
+// parseSelectAfterKeyword parses the rest of a query block into sel, from the
+// token after the SELECT keyword: hints, the select list, and the clauses that
+// follow. CREATE JAVA ... USING calls it directly for the legacy subquery that
+// omits the SELECT keyword.
+func (p *Parser) parseSelectAfterKeyword(sel *nodes.SelectStmt) (*nodes.SelectStmt, error) {
 	// Hints
 	if p.cur.Type == tokHINT {
 		tok := p.cur
@@ -112,6 +119,13 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 		// INTO (PL/SQL SELECT ... INTO variable_list FROM ...)
 		)
 	}
+
+	// BULK COLLECT INTO (PL/SQL SELECT ... BULK COLLECT INTO collection_list FROM ...)
+	bulk, err := p.parseOptionalBulkCollect()
+	if err != nil {
+		return nil, err
+	}
+	sel.BulkCollect = bulk
 
 	if p.cur.Type == kwINTO {
 		p.advance()
@@ -372,10 +386,13 @@ func (p *Parser) parseSelectList() (*nodes.List, error) {
 	return list, nil
 }
 
+// isSelectListTerminator reports whether the current token ends the select
+// list where an item would start. OFFSET is absent: an item can be a column
+// named OFFSET, and the row_limiting_clause never follows an empty list.
 func (p *Parser) isSelectListTerminator() bool {
 	switch p.cur.Type {
 	case tokEOF, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwUNION,
-		kwINTERSECT, kwMINUS, kwFOR, kwCONNECT, kwSTART, kwFETCH, kwOFFSET:
+		kwINTERSECT, kwMINUS, kwFOR, kwCONNECT, kwSTART, kwFETCH:
 		return true
 	default:
 		return false
@@ -424,6 +441,11 @@ func (p *Parser) isAliasCandidate() bool {
 	if p.cur.Type == tokIDENT || p.cur.Type == tokQIDENT {
 		return true
 	}
+	// BULK is a valid alias, but BULK COLLECT starts the PL/SQL
+	// bulk_collect_into_clause after the select list.
+	if p.isBulkCollect() {
+		return false
+	}
 	// Disallow clause-starting keywords as implicit aliases
 	switch p.cur.Type {
 	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwUNION, kwINTERSECT,
@@ -438,6 +460,12 @@ func (p *Parser) isAliasCandidate() bool {
 	return p.cur.Type >= 2000 &&
 		!isOracleSQLReservedKeyword(p.cur) &&
 		!isOracleClauseStarterKeyword(p.cur.Type)
+}
+
+// isBulkCollect reports whether the current tokens are BULK COLLECT, the
+// start of a PL/SQL bulk_collect_into_clause.
+func (p *Parser) isBulkCollect() bool {
+	return p.cur.Type == kwBULK && p.peekNext().Type == kwCOLLECT
 }
 
 // parseExprList parses a comma-separated list of expressions.

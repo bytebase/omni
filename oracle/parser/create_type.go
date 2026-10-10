@@ -12,8 +12,8 @@ import (
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/CREATE-TYPE-BODY-statement.html
 //
 //	CREATE [ OR REPLACE ] TYPE [ schema. ] type_name AS OBJECT (
-//	    attribute_name datatype [, ...]
-//	)
+//	    attribute_name datatype [, ...] [, element_spec ]...
+//	) [ [ NOT ] { FINAL | INSTANTIABLE | PERSISTABLE } ]...
 //	CREATE [ OR REPLACE ] TYPE [ schema. ] type_name AS TABLE OF datatype
 //	CREATE [ OR REPLACE ] TYPE [ schema. ] type_name AS VARRAY ( n ) OF datatype
 //	CREATE [ OR REPLACE ] TYPE BODY [ schema. ] type_name { IS | AS }
@@ -72,15 +72,18 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
-		var parseErr574 error
-		stmt.Attributes, parseErr574 = p.parseTypeAttributeList()
-		if parseErr574 != nil {
+		if parseErr574 := p.parseObjectTypeElements(stmt); parseErr574 != nil {
 			return nil, parseErr574
 		}
 		if p.cur.Type != ')' {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
+		var parseErr574 error
+		stmt.Modifiers, parseErr574 = p.parseTypeModifiers(objectTypeModifiers)
+		if parseErr574 != nil {
+			return nil, parseErr574
+		}
 
 	case p.cur.Type == kwTABLE:
 		p.advance()
@@ -185,7 +188,7 @@ func (p *Parser) parseTypeBodyMembers() (*nodes.List, error) {
 			continue
 		}
 
-		member, parseErr579 := p.parseTypeBodyMember()
+		member, parseErr579 := p.parseTypeBodyMember(false)
 		if parseErr579 != nil {
 			return nil, parseErr579
 		}
@@ -208,13 +211,32 @@ func (p *Parser) parseTypeBodyMembers() (*nodes.List, error) {
 //	  | CONSTRUCTOR FUNCTION type_name
 //	    [ ( [ SELF IN OUT [NOCOPY] type_name , ] parameter [, ...] ) ]
 //	    RETURN SELF AS RESULT IS|AS plsql_block
-func (p *Parser) parseTypeBodyMember() (*nodes.TypeBodyMember, error) {
+//
+// With inSpec it parses an element_spec of an object type specification
+// instead: inheritance clauses may come first, MAP and ORDER need MEMBER, and
+// the implementation is optional and can only be a call spec.
+func (p *Parser) parseTypeBodyMember(inSpec bool) (*nodes.TypeBodyMember, error) {
 	start := p.pos()
 	member := &nodes.TypeBodyMember{
 		Loc: nodes.Loc{Start: start},
 	}
 
+	if inSpec {
+		// OVERRIDING comes first, once, and takes no NOT (PLS-00103 on
+		// Oracle 23ai for NOT OVERRIDING or OVERRIDING after another clause).
+		if p.isKeywordStr("OVERRIDING") {
+			member.Modifiers = append(member.Modifiers, "OVERRIDING")
+			p.advance() // consume OVERRIDING
+		}
+		mods, err := p.parseTypeModifiers(methodInheritanceClauses)
+		if err != nil {
+			return nil, err
+		}
+		member.Modifiers = append(member.Modifiers, mods...)
+	}
+
 	// Determine the kind prefix
+	kindTok := p.cur
 	switch {
 	case p.isIdentLikeStr("MEMBER"):
 		member.Kind = nodes.TYPE_BODY_MEMBER
@@ -230,6 +252,8 @@ func (p *Parser) parseTypeBodyMember() (*nodes.TypeBodyMember, error) {
 		// Expect MEMBER
 		if p.isIdentLikeStr("MEMBER") {
 			p.advance()
+		} else if inSpec {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 	case p.cur.Type == kwORDER:
@@ -238,6 +262,8 @@ func (p *Parser) parseTypeBodyMember() (*nodes.TypeBodyMember, error) {
 		// Expect MEMBER
 		if p.isIdentLikeStr("MEMBER") {
 			p.advance()
+		} else if inSpec {
+			return nil, p.syntaxErrorAtCur()
 		}
 
 	case p.isIdentLikeStr("CONSTRUCTOR"):
@@ -245,24 +271,38 @@ func (p *Parser) parseTypeBodyMember() (*nodes.TypeBodyMember, error) {
 		p.advance() // consume CONSTRUCTOR
 
 	default:
+		if inSpec {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return nil, nil
 	}
+	if inSpec && methodModifiersConflict(member.Modifiers, member.Kind) {
+		return nil, p.syntaxErrorAtTok(kindTok)
+	}
 
-	// Parse the subprogram (PROCEDURE or FUNCTION)
+	// Parse the subprogram (PROCEDURE or FUNCTION). A constructor is a
+	// function, and so are MAP and ORDER methods in a spec (PLS-00155 on
+	// Oracle 23ai; a body that defines one as a procedure fails only to
+	// match its spec, PLS-00538).
+	procedureAllowed := member.Kind != nodes.TYPE_BODY_CONSTRUCTOR &&
+		(!inSpec || member.Kind == nodes.TYPE_BODY_MEMBER || member.Kind == nodes.TYPE_BODY_STATIC)
 	switch {
-	case p.cur.Type == kwPROCEDURE:
+	case p.cur.Type == kwPROCEDURE && procedureAllowed:
 		var parseErr580 error
-		member.Subprog, parseErr580 = p.parseTypeBodyProcedure()
+		member.Subprog, parseErr580 = p.parseTypeBodyProcedure(inSpec)
 		if parseErr580 != nil {
 			return nil, parseErr580
 		}
 	case p.cur.Type == kwFUNCTION:
 		var parseErr581 error
-		member.Subprog, parseErr581 = p.parseTypeBodyFunction(member.Kind == nodes.TYPE_BODY_CONSTRUCTOR)
+		member.Subprog, parseErr581 = p.parseTypeBodyFunction(member.Kind == nodes.TYPE_BODY_CONSTRUCTOR, inSpec)
 		if parseErr581 != nil {
 			return nil, parseErr581
 		}
 	default:
+		if inSpec {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return nil, nil
 	}
 
@@ -275,7 +315,7 @@ func (p *Parser) parseTypeBodyMember() (*nodes.TypeBodyMember, error) {
 //	PROCEDURE proc_name [ ( parameter [, ...] ) ]
 //	  { IS | AS }
 //	  [ declare_section ] BEGIN statements [ EXCEPTION handlers ] END [ name ] ;
-func (p *Parser) parseTypeBodyProcedure() (*nodes.CreateProcedureStmt, error) {
+func (p *Parser) parseTypeBodyProcedure(inSpec bool) (*nodes.CreateProcedureStmt, error) {
 	start := p.pos()
 	p.advance() // consume PROCEDURE
 
@@ -284,12 +324,17 @@ func (p *Parser) parseTypeBodyProcedure() (*nodes.CreateProcedureStmt, error) {
 	}
 	var parseErr582 error
 
+	// A method needs a name (PLS-00103 on Oracle 23ai): the words that
+	// follow one in the head do not stand for it.
+	if p.cur.Type == kwIS || p.cur.Type == kwAS || p.cur.Type == kwRETURN {
+		return nil, p.syntaxErrorAtCur()
+	}
 	stmt.Name, parseErr582 = p.parseObjectName()
-	if parseErr582 !=
-
-		// Optional parameter list
-		nil {
+	if parseErr582 != nil {
 		return nil, parseErr582
+	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.cur.Type == '(' {
@@ -303,13 +348,26 @@ func (p *Parser) parseTypeBodyProcedure() (*nodes.CreateProcedureStmt, error) {
 		}
 	}
 
-	if p.cur.Type == kwIS || p.cur.Type == kwAS {
-		p.advance()
+	if inSpec {
+		var err error
+		stmt.CallSpec, err = p.parseTypeSpecImplementation()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
+
+	// IS | AS is required before the PL/SQL block or call spec (PLS-00103
+	// on Oracle 23ai).
+	if p.cur.Type != kwIS && p.cur.Type != kwAS {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume IS or AS
 	var parseErr584 error
 
-	// PL/SQL block body
-	stmt.Body, parseErr584 = p.parsePLSQLBlock()
+	// PL/SQL block body or call spec
+	stmt.Body, stmt.CallSpec, parseErr584 = p.parseSubprogramImplementation()
 	if parseErr584 != nil {
 		return nil, parseErr584
 	}
@@ -332,7 +390,7 @@ func (p *Parser) parseTypeBodyProcedure() (*nodes.CreateProcedureStmt, error) {
 //	  RETURN SELF AS RESULT
 //	  { IS | AS }
 //	  [ declare_section ] BEGIN statements [ EXCEPTION handlers ] END [ name ] ;
-func (p *Parser) parseTypeBodyFunction(isConstructor bool) (*nodes.CreateFunctionStmt, error) {
+func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.CreateFunctionStmt, error) {
 	start := p.pos()
 	p.advance() // consume FUNCTION
 
@@ -341,12 +399,17 @@ func (p *Parser) parseTypeBodyFunction(isConstructor bool) (*nodes.CreateFunctio
 	}
 	var parseErr585 error
 
+	// A method needs a name (PLS-00103 on Oracle 23ai): the words that
+	// follow one in the head do not stand for it.
+	if p.cur.Type == kwIS || p.cur.Type == kwAS || p.cur.Type == kwRETURN {
+		return nil, p.syntaxErrorAtCur()
+	}
 	stmt.Name, parseErr585 = p.parseObjectName()
-	if parseErr585 !=
-
-		// Optional parameter list
-		nil {
+	if parseErr585 != nil {
 		return nil, parseErr585
+	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	if p.cur.Type == '(' {
@@ -362,29 +425,42 @@ func (p *Parser) parseTypeBodyFunction(isConstructor bool) (*nodes.CreateFunctio
 
 	if p.cur.Type == kwRETURN {
 		p.advance() // consume RETURN
-		if isConstructor && p.isIdentLikeStr("SELF") {
-			// RETURN SELF AS RESULT
+		if isConstructor {
+			// A constructor returns SELF AS RESULT, all three words required
+			// (PLS-00103 on Oracle 23ai for a partial phrase, PLS-00659 for
+			// another return type).
+			selfStart := p.pos()
+			if !p.isKeywordStr("SELF") {
+				return nil, p.syntaxErrorAtCur()
+			}
 			p.advance() // consume SELF
-			if p.cur.Type == kwAS {
-				p.advance() // consume AS
+			if p.cur.Type != kwAS {
+				return nil, p.syntaxErrorAtCur()
 			}
-			if p.isIdentLikeStr("RESULT") {
-				p.advance() // consume RESULT
+			p.advance() // consume AS
+			if !p.isKeywordStr("RESULT") {
+				return nil, p.syntaxErrorAtCur()
 			}
+			p.advance() // consume RESULT
 			// Set return type to indicate SELF AS RESULT
 			stmt.ReturnType = &nodes.TypeName{
 				Names: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "SELF AS RESULT"}}},
+				Loc:   nodes.Loc{Start: selfStart, End: p.prev.End},
 			}
 		} else {
 			var parseErr587 error
 			stmt.ReturnType, parseErr587 = p.parseTypeName()
-			if parseErr587 !=
-
-				// Optional function properties
-				nil {
+			if parseErr587 != nil {
 				return nil, parseErr587
 			}
+			if stmt.ReturnType == nil || stmt.ReturnType.Names.Len() == 0 {
+				return nil, p.syntaxErrorAtCur()
+			}
 		}
+	} else {
+		// A method function needs RETURN, in a spec and a body alike
+		// (PLS-00103 on Oracle 23ai).
+		return nil, p.syntaxErrorAtCur()
 	}
 	parseErr588 := p.parseFunctionProperties(stmt)
 	if parseErr588 !=
@@ -394,13 +470,26 @@ func (p *Parser) parseTypeBodyFunction(isConstructor bool) (*nodes.CreateFunctio
 		return nil, parseErr588
 	}
 
-	if p.cur.Type == kwIS || p.cur.Type == kwAS {
-		p.advance()
+	if inSpec {
+		var err error
+		stmt.CallSpec, err = p.parseTypeSpecImplementation()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
 	}
+
+	// IS | AS is required before the PL/SQL block or call spec (PLS-00103
+	// on Oracle 23ai).
+	if p.cur.Type != kwIS && p.cur.Type != kwAS {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume IS or AS
 	var parseErr589 error
 
-	// PL/SQL block body
-	stmt.Body, parseErr589 = p.parsePLSQLBlock()
+	// PL/SQL block body or call spec
+	stmt.Body, stmt.CallSpec, parseErr589 = p.parseSubprogramImplementation()
 	if parseErr589 != nil {
 		return nil, parseErr589
 	}
@@ -409,43 +498,295 @@ func (p *Parser) parseTypeBodyFunction(isConstructor bool) (*nodes.CreateFunctio
 	return stmt, nil
 }
 
-// parseTypeAttributeList parses a comma-separated list of type attributes
-// (attribute_name datatype).
-func (p *Parser) parseTypeAttributeList() (*nodes.List, error) {
-	list := &nodes.List{}
+// parseObjectTypeElements parses the parenthesized elements of an object type
+// specification: attributes, then method specifications and RESTRICT_REFERENCES
+// pragmas. It fills stmt.Attributes and stmt.Methods.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/19/lnpls/CREATE-TYPE-statement.html
+//
+//	element ::= attribute datatype | element_spec | restrict_references_pragma
+//	inheritance_clauses ::= [ OVERRIDING ] { [ NOT ] FINAL | [ NOT ] INSTANTIABLE }...
+//	element_spec ::= [ inheritance_clauses ]
+//	    { { MEMBER | STATIC } { procedure_spec | function_spec }
+//	    | [ FINAL ] [ INSTANTIABLE ] CONSTRUCTOR function_spec
+//	    | { MAP | ORDER } MEMBER function_spec }
+//	procedure_spec ::= PROCEDURE name [ ( parameters ) ] [ { IS | AS } call_spec ]
+//	function_spec ::= FUNCTION name [ ( parameters ) ] RETURN datatype [ { IS | AS } call_spec ]
+//
+// Verified on Oracle 23ai: an unquoted MEMBER, STATIC, CONSTRUCTOR, MAP,
+// ORDER, NOT, OVERRIDING, FINAL, INSTANTIABLE, PERSISTABLE, or PRAGMA at the
+// start of an element always opens a method or pragma (an attribute with such
+// a name is a syntax error unless quoted); attributes come first, and at least
+// one is required (PLS-00589).
+func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt) error {
+	stmt.Attributes = &nodes.List{}
+	hasComparison := false
 	for {
-		if p.cur.Type == ')' || p.cur.Type == tokEOF {
-			break
+		switch {
+		case p.isObjectTypeMethodStart():
+			methodTok := p.cur
+			member, err := p.parseTypeBodyMember(true)
+			if err != nil {
+				return err
+			}
+			if err := p.checkObjectTypeMethod(stmt, member, &hasComparison, methodTok); err != nil {
+				return err
+			}
+			stmt.Methods = appendListItem(stmt.Methods, member)
+		case p.isKeywordStr("PRAGMA"):
+			pragma, err := p.parseRestrictReferencesPragma()
+			if err != nil {
+				return err
+			}
+			stmt.Methods = appendListItem(stmt.Methods, pragma)
+		default:
+			if stmt.Methods != nil {
+				// An attribute after a method (PLS-00589).
+				return p.syntaxErrorAtCur()
+			}
+			attr, err := p.parseTypeAttribute()
+			if err != nil {
+				return err
+			}
+			stmt.Attributes.Items = append(stmt.Attributes.Items, attr)
 		}
-
-		start := p.pos()
-		name, parseErr590 := p.parseIdentifier()
-		if parseErr590 != nil {
-			return nil, parseErr590
-		}
-		if name == "" {
-			break
-		}
-
-		typeName, parseErr591 := p.parseTypeName()
-		if parseErr591 != nil {
-			return nil, parseErr591
-		}
-		if typeName == nil || typeName.Names.Len() == 0 {
-			return nil, p.syntaxErrorAtCur()
-		}
-
-		colDef := &nodes.ColumnDef{
-			Name:     name,
-			TypeName: typeName,
-			Loc:      nodes.Loc{Start: start, End: p.prev.End},
-		}
-		list.Items = append(list.Items, colDef)
-
 		if p.cur.Type != ',' {
 			break
 		}
 		p.advance() // consume ','
 	}
-	return list, nil
+	if stmt.Attributes.Len() == 0 {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
+}
+
+// appendListItem appends item to list, creating the list when it is nil.
+func appendListItem(list *nodes.List, item nodes.Node) *nodes.List {
+	if list == nil {
+		list = &nodes.List{}
+	}
+	list.Items = append(list.Items, item)
+	return list
+}
+
+// isObjectTypeMethodStart reports whether the current token opens an
+// element_spec of an object type specification.
+func (p *Parser) isObjectTypeMethodStart() bool {
+	if p.cur.Type == kwORDER || p.cur.Type == kwNOT {
+		return true
+	}
+	for _, word := range []string{"MEMBER", "STATIC", "CONSTRUCTOR", "MAP", "OVERRIDING", "FINAL", "INSTANTIABLE", "PERSISTABLE"} {
+		if p.isKeywordStr(word) {
+			return true
+		}
+	}
+	return false
+}
+
+// objectTypeModifiers and methodInheritanceClauses are the words that
+// parseTypeModifiers takes after an object type's element list and before a
+// method specification, where OVERRIDING may precede them. [ NOT ] PERSISTABLE
+// is a type modifier only (PLS-00771 before a method on Oracle 23ai), though
+// an unquoted PERSISTABLE still cannot name an attribute.
+var (
+	objectTypeModifiers      = []string{"FINAL", "INSTANTIABLE", "PERSISTABLE"}
+	methodInheritanceClauses = []string{"FINAL", "INSTANTIABLE"}
+)
+
+// methodModifiersConflict reports whether a method spec's inheritance clauses
+// conflict with each other or with its kind. Oracle 23ai rejects NOT
+// INSTANTIABLE with FINAL, STATIC, or CONSTRUCTOR, and OVERRIDING with STATIC
+// (PLS-00169).
+func methodModifiersConflict(mods []string, kind nodes.TypeBodyMemberKind) bool {
+	has := func(mod string) bool {
+		for _, m := range mods {
+			if m == mod {
+				return true
+			}
+		}
+		return false
+	}
+	if has("NOT INSTANTIABLE") && (has("FINAL") || kind == nodes.TYPE_BODY_STATIC || kind == nodes.TYPE_BODY_CONSTRUCTOR) {
+		return true
+	}
+	return has("OVERRIDING") && kind == nodes.TYPE_BODY_STATIC
+}
+
+// checkObjectTypeMethod applies the rules Oracle 23ai checks on a method spec
+// from the statement's own text: a constructor bears its type's name
+// (PLS-00658), a MAP method takes no parameter besides SELF (PLS-00520), an
+// ORDER method takes exactly one (PLS-00521), and a type has at most one MAP
+// or ORDER method (PLS-00154). hasComparison tracks the last rule. The rules
+// on MAP and ORDER return and parameter types (PLS-00522 through PLS-00524)
+// need the types resolved and are left to the engine. tok is where the
+// method starts, for the error position.
+func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes.TypeBodyMember, hasComparison *bool, tok Token) error {
+	fn, isFunction := member.Subprog.(*nodes.CreateFunctionStmt)
+	switch member.Kind {
+	case nodes.TYPE_BODY_CONSTRUCTOR:
+		if isFunction && stmt.Name != nil && fn.Name.Name != stmt.Name.Name {
+			return p.syntaxErrorAtTok(tok)
+		}
+	case nodes.TYPE_BODY_MAP, nodes.TYPE_BODY_ORDER:
+		if *hasComparison {
+			return p.syntaxErrorAtTok(tok)
+		}
+		*hasComparison = true
+		want := 0
+		if member.Kind == nodes.TYPE_BODY_ORDER {
+			want = 1
+		}
+		if isFunction && parametersBesidesSelf(fn.Parameters) != want {
+			return p.syntaxErrorAtTok(tok)
+		}
+	}
+	return nil
+}
+
+// parametersBesidesSelf counts the parameters in params not named SELF.
+func parametersBesidesSelf(params *nodes.List) int {
+	n := 0
+	if params == nil {
+		return 0
+	}
+	for _, item := range params.Items {
+		if param, ok := item.(*nodes.Parameter); !ok || param.Name != "SELF" {
+			n++
+		}
+	}
+	return n
+}
+
+// parseTypeModifiers parses { [ NOT ] word }... for the given words and
+// returns each as written ("FINAL", "NOT FINAL"). A word may appear once,
+// with or without NOT; a repeat is PLS-00168 (duplicate modifier).
+func (p *Parser) parseTypeModifiers(words []string) ([]string, error) {
+	var mods []string
+	seen := make(map[string]bool)
+	for {
+		not := p.cur.Type == kwNOT
+		if not {
+			if !isOneOfKeywords(p.peekNext(), words) {
+				return mods, nil
+			}
+			p.advance() // consume NOT
+		}
+		if !isOneOfKeywords(p.cur, words) {
+			if not {
+				return nil, p.syntaxErrorAtCur()
+			}
+			return mods, nil
+		}
+		word := p.cur.Str
+		if seen[word] {
+			return nil, p.syntaxErrorAtCur()
+		}
+		seen[word] = true
+		p.advance()
+		if not {
+			word = "NOT " + word
+		}
+		mods = append(mods, word)
+	}
+}
+
+// isOneOfKeywords reports whether tok is one of words, unquoted.
+func isOneOfKeywords(tok Token, words []string) bool {
+	if tok.Type != tokIDENT && tok.Type < 2000 {
+		return false
+	}
+	for _, word := range words {
+		if tok.Str == word {
+			return true
+		}
+	}
+	return false
+}
+
+// parseTypeSpecImplementation parses the optional { IS | AS } call_spec of a
+// method specification in an object type specification. A PL/SQL body is not
+// allowed there, nor the EXTERNAL form (Oracle 23ai expects LANGUAGE or MLE
+// after IS), and no ';' ends the call spec.
+func (p *Parser) parseTypeSpecImplementation() (*nodes.CallSpec, error) {
+	if p.cur.Type != kwIS && p.cur.Type != kwAS {
+		return nil, nil
+	}
+	p.advance() // consume IS or AS
+	if !p.isCallSpecWord("LANGUAGE", "MLE") {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return p.parseCallSpec(false)
+}
+
+// parseRestrictReferencesPragma parses the pragma an object type
+// specification allows among its methods.
+//
+//	PRAGMA RESTRICT_REFERENCES ( { method_name | DEFAULT } ,
+//	    { RNDS | WNDS | RNPS | WNPS | TRUST } [, ...] )
+func (p *Parser) parseRestrictReferencesPragma() (*nodes.PLSQLPragma, error) {
+	start := p.pos()
+	p.advance() // consume PRAGMA
+	if !p.isKeywordStr("RESTRICT_REFERENCES") {
+		// Any other pragma is PLS-00127 (not a supported pragma).
+		return nil, p.syntaxErrorAtCur()
+	}
+	pragma := &nodes.PLSQLPragma{Name: p.cur.Str, Args: &nodes.List{}, Loc: nodes.Loc{Start: start}}
+	p.advance() // consume RESTRICT_REFERENCES
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume (
+	if p.cur.Type == kwDEFAULT {
+		pragma.Args.Items = append(pragma.Args.Items, &nodes.String{Str: "DEFAULT"})
+		p.advance()
+	} else {
+		name, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		pragma.Args.Items = append(pragma.Args.Items, &nodes.String{Str: name})
+	}
+	for p.cur.Type == ',' {
+		p.advance() // consume ,
+		if !isOneOfKeywords(p.cur, []string{"RNDS", "WNDS", "RNPS", "WNPS", "TRUST"}) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		pragma.Args.Items = append(pragma.Args.Items, &nodes.String{Str: p.cur.Str})
+		p.advance()
+	}
+	if pragma.Args.Len() < 2 || p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume )
+	pragma.Loc.End = p.prev.End
+	return pragma, nil
+}
+
+// parseTypeAttribute parses one attribute of an object type specification:
+// attribute_name datatype.
+func (p *Parser) parseTypeAttribute() (*nodes.ColumnDef, error) {
+	start := p.pos()
+	name, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	if name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+	typeName, err := p.parseTypeName()
+	if err != nil {
+		return nil, err
+	}
+	if typeName == nil || typeName.Names.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return &nodes.ColumnDef{
+		Name:     name,
+		TypeName: typeName,
+		Loc:      nodes.Loc{Start: start, End: p.prev.End},
+	}, nil
 }

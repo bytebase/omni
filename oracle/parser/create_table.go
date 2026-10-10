@@ -97,19 +97,34 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		p.advance()
 	}
 
-	// [ AND { RESOLVE | COMPILE } ] [ NOFORCE ] — only for CREATE [OR REPLACE] JAVA
-	// These modifiers appear before the JAVA keyword. Consume them and dispatch.
+	// [ AND { RESOLVE | COMPILE } ] [ NOFORCE ] — only for CREATE [OR REPLACE]
+	// JAVA, before the JAVA keyword. Record them for the JAVA statement.
+	var javaMods []*nodes.DDLOption
 	if p.cur.Type == kwAND {
+		optStart := p.pos()
 		p.advance() // consume AND
-		if p.isIdentLike() && (p.cur.Str == "RESOLVE" || p.cur.Str == "COMPILE") {
-			p.advance()
+		if !p.isKeywordStr("RESOLVE") && !p.isKeywordStr("COMPILE") {
+			return nil, p.syntaxErrorAtCur()
 		}
+		value := p.cur.Str
+		p.advance()
+		javaMods = append(javaMods, &nodes.DDLOption{Key: "AND", Value: value, Loc: nodes.Loc{Start: optStart, End: p.prev.End}})
 	}
-	if p.isIdentLike() && p.cur.Str == "NOFORCE" {
-		next := p.peekNext()
-		if next.Type == kwJAVA {
-			p.advance() // consume NOFORCE
+	if p.isKeywordStr("NOFORCE") && p.peekNext().Type == kwJAVA {
+		javaMods = append(javaMods, &nodes.DDLOption{Key: "NOFORCE", Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}})
+		p.advance() // consume NOFORCE
+	}
+	if ifNotExists && (len(javaMods) > 0 || p.cur.Type == kwJAVA) {
+		// CREATE JAVA takes IF NOT EXISTS after its kind, not before JAVA
+		// (ORA-00901 on Oracle 23ai).
+		return nil, p.syntaxErrorAtCur()
+	}
+	if len(javaMods) > 0 {
+		if p.cur.Type != kwJAVA {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance() // consume JAVA
+		return p.parseCreateJavaStmt(start, orReplace, javaMods)
 	}
 
 	switch p.cur.Type {

@@ -7,22 +7,25 @@ import (
 // parseCreateSequenceStmt parses a CREATE SEQUENCE statement.
 // The CREATE keyword has already been consumed. The current token is SEQUENCE.
 //
-// BNF: oracle/parser/bnf/CREATE-SEQUENCE.bnf
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/19/sqlrf/CREATE-SEQUENCE.html
 //
-//	CREATE SEQUENCE [ schema. ] sequence
-//	    [ IF NOT EXISTS ]
+//	CREATE SEQUENCE [ IF NOT EXISTS ] [ schema. ] sequence
 //	    [ SHARING = { METADATA | DATA | NONE } ]
-//	    [ INCREMENT BY integer ]
-//	    [ START WITH integer ]
-//	    [ { MAXVALUE integer | NOMAXVALUE } ]
-//	    [ { MINVALUE integer | NOMINVALUE } ]
-//	    [ { CYCLE | NOCYCLE } ]
-//	    [ { CACHE integer | NOCACHE } ]
-//	    [ { ORDER | NOORDER } ]
-//	    [ { KEEP | NOKEEP } ]
-//	    [ { SCALE { EXTEND | NOEXTEND } | NOSCALE } ]
-//	    [ { SESSION | GLOBAL } ]
-//	    [ SHARD ] ;
+//	    [ { INCREMENT BY | START WITH } integer
+//	    | { MAXVALUE integer | NOMAXVALUE }
+//	    | { MINVALUE integer | NOMINVALUE }
+//	    | { CYCLE | NOCYCLE }
+//	    | { CACHE integer | NOCACHE }
+//	    | { ORDER | NOORDER }
+//	    | { KEEP | NOKEEP }
+//	    | { SCALE [ EXTEND | NOEXTEND ] | NOSCALE }
+//	    | { SHARD [ EXTEND | NOEXTEND ] | NOSHARD }
+//	    | { SESSION | GLOBAL }
+//	    ]... ;
+//
+// The BNF file places IF NOT EXISTS after the name; Oracle 23ai rejects that
+// position (ORA-03049) and accepts it before the name. SHARING must come
+// first: after any other option Oracle raises ORA-03049.
 func (p *Parser) parseCreateSequenceStmt(start int) (*nodes.CreateSequenceStmt, error) {
 	stmt := &nodes.CreateSequenceStmt{
 		Loc: nodes.Loc{Start: start},
@@ -32,19 +35,40 @@ func (p *Parser) parseCreateSequenceStmt(start int) (*nodes.CreateSequenceStmt, 
 	if p.cur.Type == kwSEQUENCE {
 		p.advance()
 	}
+
+	if p.cur.Type == kwIF && p.peekNext().Type == kwNOT {
+		p.advance() // consume IF
+		p.advance() // consume NOT
+		if p.cur.Type != kwEXISTS {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume EXISTS
+		stmt.IfNotExists = true
+	}
 	var parseErr1098 error
 
 	// Sequence name
 	stmt.Name, parseErr1098 = p.parseReservedCheckedObjectName()
-	if parseErr1098 !=
-
-		// Parse sequence options
-		nil {
+	if parseErr1098 != nil {
 		return nil, parseErr1098
 	}
 	if stmt.Name == nil || stmt.Name.Name == "" {
 		return nil, p.syntaxErrorAtCur()
 	}
+
+	if p.isKeywordStr("SHARING") {
+		p.advance() // consume SHARING
+		if p.cur.Type != '=' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume =
+		if !p.isKeywordStr("METADATA") && !p.isKeywordStr("DATA") && !p.isKeywordStr("NONE") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		stmt.Sharing = p.cur.Str
+		p.advance()
+	}
+
 	parseErr1099 := p.parseSequenceOptions(stmt)
 	if parseErr1099 != nil {
 		return nil, parseErr1099
@@ -54,11 +78,58 @@ func (p *Parser) parseCreateSequenceStmt(start int) (*nodes.CreateSequenceStmt, 
 	return stmt, nil
 }
 
+// sequenceOptionGroup names the CREATE SEQUENCE option group the current
+// token starts, or "" when it starts none. Oracle accepts each group at most
+// once and rejects a repeated or conflicting one (ORA-02278 through ORA-02285,
+// ORA-03178, ORA-41415, ORA-64600).
+func (p *Parser) sequenceOptionGroup() string {
+	switch p.cur.Type {
+	case kwINCREMENT:
+		return "INCREMENT"
+	case kwSTART:
+		return "START"
+	case kwMAXVALUE, kwNOMAXVALUE:
+		return "MAXVALUE"
+	case kwMINVALUE, kwNOMINVALUE:
+		return "MINVALUE"
+	case kwCYCLE, kwNOCYCLE:
+		return "CYCLE"
+	case kwCACHE, kwNOCACHE:
+		return "CACHE"
+	case kwORDER, kwNOORDER:
+		return "ORDER"
+	case kwKEEP:
+		return "KEEP"
+	case kwSESSION, kwGLOBAL:
+		return "SESSION"
+	}
+	switch {
+	case p.isKeywordStr("NOKEEP"):
+		return "KEEP"
+	case p.isKeywordStr("SCALE"), p.isKeywordStr("NOSCALE"):
+		return "SCALE"
+	case p.isKeywordStr("SHARD"), p.isKeywordStr("NOSHARD"):
+		return "SHARD"
+	}
+	return ""
+}
+
 // parseSequenceOptions parses the various options for CREATE SEQUENCE.
 func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
+	seen := make(map[string]bool)
+	extendSeen := false
 	for {
-		switch p.cur.Type {
-		case kwINCREMENT:
+		group := p.sequenceOptionGroup()
+		if group == "" {
+			return nil
+		}
+		if seen[group] {
+			return p.syntaxErrorAtCur()
+		}
+		seen[group] = true
+
+		switch {
+		case p.cur.Type == kwINCREMENT:
 			p.advance()
 			if p.cur.Type == kwBY {
 				p.advance()
@@ -71,7 +142,7 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 			if stmt.IncrementBy == nil {
 				return p.syntaxErrorAtCur()
 			}
-		case kwSTART:
+		case p.cur.Type == kwSTART:
 			p.advance()
 			if p.cur.Type == kwWITH {
 				p.advance()
@@ -84,7 +155,7 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 			if stmt.StartWith == nil {
 				return p.syntaxErrorAtCur()
 			}
-		case kwMAXVALUE:
+		case p.cur.Type == kwMAXVALUE:
 			p.advance()
 			var parseErr1102 error
 			stmt.MaxValue, parseErr1102 = p.parseExpr()
@@ -94,10 +165,10 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 			if stmt.MaxValue == nil {
 				return p.syntaxErrorAtCur()
 			}
-		case kwNOMAXVALUE:
+		case p.cur.Type == kwNOMAXVALUE:
 			stmt.NoMaxValue = true
 			p.advance()
-		case kwMINVALUE:
+		case p.cur.Type == kwMINVALUE:
 			p.advance()
 			var parseErr1103 error
 			stmt.MinValue, parseErr1103 = p.parseExpr()
@@ -107,16 +178,16 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 			if stmt.MinValue == nil {
 				return p.syntaxErrorAtCur()
 			}
-		case kwNOMINVALUE:
+		case p.cur.Type == kwNOMINVALUE:
 			stmt.NoMinValue = true
 			p.advance()
-		case kwCYCLE:
+		case p.cur.Type == kwCYCLE:
 			stmt.Cycle = true
 			p.advance()
-		case kwNOCYCLE:
+		case p.cur.Type == kwNOCYCLE:
 			stmt.NoCycle = true
 			p.advance()
-		case kwCACHE:
+		case p.cur.Type == kwCACHE:
 			p.advance()
 			var parseErr1104 error
 			stmt.Cache, parseErr1104 = p.parseExpr()
@@ -126,20 +197,73 @@ func (p *Parser) parseSequenceOptions(stmt *nodes.CreateSequenceStmt) error {
 			if stmt.Cache == nil {
 				return p.syntaxErrorAtCur()
 			}
-		case kwNOCACHE:
+		case p.cur.Type == kwNOCACHE:
 			stmt.NoCache = true
 			p.advance()
-		case kwORDER:
+		case p.cur.Type == kwORDER:
 			stmt.Order = true
 			p.advance()
-		case kwNOORDER:
+		case p.cur.Type == kwNOORDER:
 			stmt.NoOrder = true
 			p.advance()
-		default:
-			return nil
+		case p.cur.Type == kwKEEP:
+			stmt.Keep = true
+			p.advance()
+		case p.isKeywordStr("NOKEEP"):
+			stmt.NoKeep = true
+			p.advance()
+		case p.isKeywordStr("SCALE"):
+			stmt.Scale = true
+			p.advance()
+			var err error
+			stmt.ScaleExtend, stmt.ScaleNoExtend, err = p.parseSequenceExtendModifier(&extendSeen)
+			if err != nil {
+				return err
+			}
+		case p.isKeywordStr("NOSCALE"):
+			stmt.NoScale = true
+			p.advance()
+		case p.isKeywordStr("SHARD"):
+			stmt.Shard = true
+			p.advance()
+			var err error
+			stmt.ShardExtend, stmt.ShardNoExtend, err = p.parseSequenceExtendModifier(&extendSeen)
+			if err != nil {
+				return err
+			}
+		case p.isKeywordStr("NOSHARD"):
+			stmt.NoShard = true
+			p.advance()
+		case p.cur.Type == kwSESSION:
+			stmt.Session = true
+			p.advance()
+		case p.cur.Type == kwGLOBAL:
+			stmt.Global = true
+			p.advance()
 		}
 	}
-	return nil
+}
+
+// parseSequenceExtendModifier consumes the EXTEND or NOEXTEND that may follow
+// SCALE or SHARD in CREATE and ALTER SEQUENCE and reports which it was. With
+// both SCALE and SHARD, one modifier applies to both; writing it for each,
+// with the same or a different value, is a parsing error ("duplicate or
+// conflicting EXTEND clause"). seen records a modifier already consumed.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/ALTER-SEQUENCE.html
+// (Sequence with SHARD and SCALE). A non-sharded Oracle raises ORA-02511 at
+// SHARD before reaching this check, so the rule rests on the documentation.
+func (p *Parser) parseSequenceExtendModifier(seen *bool) (extend, noExtend bool, err error) {
+	if !p.isKeywordStr("EXTEND") && !p.isKeywordStr("NOEXTEND") {
+		return false, false, nil
+	}
+	if *seen {
+		return false, false, p.syntaxErrorAtCur()
+	}
+	*seen = true
+	extend = p.cur.Str == "EXTEND"
+	p.advance() // consume EXTEND or NOEXTEND
+	return extend, !extend, nil
 }
 
 // parseCreateSynonymStmt parses a CREATE [OR REPLACE] [PUBLIC] SYNONYM statement.

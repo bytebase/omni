@@ -698,3 +698,127 @@ func TestPLSQLMultipleStatements(t *testing.T) {
 		t.Fatalf("expected 3 statements, got %d", block.Statements.Len())
 	}
 }
+
+// TestPLSQLBulkCollectInto covers bulk_collect_into_clause wherever PL/SQL
+// allows it. Oracle 23ai compiles each block.
+func TestPLSQLBulkCollectInto(t *testing.T) {
+	decl := "DECLARE TYPE nt IS TABLE OF NUMBER; x nt; y nt; "
+	tests := []string{
+		decl + "BEGIN SELECT a, b BULK COLLECT INTO x, y FROM t; END;",
+		decl + "BEGIN SELECT a BULK COLLECT INTO x FROM t WHERE ROWNUM <= 10; END;",
+		decl + "BEGIN SELECT a, b BULK COLLECT INTO x, y FROM (SELECT a, b FROM t ORDER BY a) WHERE ROWNUM <= 10; END;",
+		decl + "BEGIN DELETE FROM t RETURNING a, b BULK COLLECT INTO x, y; END;",
+		decl + "BEGIN UPDATE t SET a = 1 RETURN a BULK COLLECT INTO x; END;",
+		decl + "BEGIN FORALL i IN 1..x.COUNT DELETE FROM t WHERE a = x(i) RETURNING b BULK COLLECT INTO y; END;",
+		decl + "BEGIN EXECUTE IMMEDIATE 'SELECT a, b FROM t' BULK COLLECT INTO x, y; END;",
+		decl + "BEGIN EXECUTE IMMEDIATE 'DELETE FROM t WHERE a = :1 RETURNING b INTO :2' USING 1 RETURNING BULK COLLECT INTO y; END;",
+		"DECLARE y NUMBER; BEGIN EXECUTE IMMEDIATE 'DELETE FROM t WHERE a = 1 RETURNING b INTO :1' RETURNING INTO y; END;",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+			if violations := CheckLocations(t, sql); len(violations) > 0 {
+				t.Fatalf("Loc violations: %v", violations)
+			}
+		})
+	}
+}
+
+func TestPLSQLBulkCollectIntoAST(t *testing.T) {
+	result := ParseAndCheck(t, "DECLARE TYPE nt IS TABLE OF NUMBER; x nt; y nt; BEGIN "+
+		"SELECT a, b BULK COLLECT INTO x, y FROM t; "+
+		"EXECUTE IMMEDIATE 'SELECT a FROM t' BULK COLLECT INTO x; "+
+		"EXECUTE IMMEDIATE 'DELETE FROM t RETURNING a INTO :1' RETURNING BULK COLLECT INTO y; END;")
+	block := result.Items[0].(*ast.RawStmt).Stmt.(*ast.PLSQLBlock)
+	sel := block.Statements.Items[0].(*ast.SelectStmt)
+	if !sel.BulkCollect || sel.IntoVars.Len() != 2 {
+		t.Fatalf("SELECT BulkCollect = %v, IntoVars = %d; want true, 2", sel.BulkCollect, sel.IntoVars.Len())
+	}
+	if sel.TargetList.Len() != 2 {
+		t.Fatalf("SELECT targets = %d, want 2", sel.TargetList.Len())
+	}
+	exec := block.Statements.Items[1].(*ast.PLSQLExecImmediate)
+	if !exec.Bulk || exec.Into.Len() != 1 {
+		t.Fatalf("EXECUTE IMMEDIATE Bulk = %v, Into = %v", exec.Bulk, exec.Into)
+	}
+	ret := block.Statements.Items[2].(*ast.PLSQLExecImmediate)
+	if !ret.ReturningBulk || ret.ReturningInto.Len() != 1 || ret.Into != nil {
+		t.Fatalf("RETURNING ReturningBulk = %v, ReturningInto = %v, Into = %v", ret.ReturningBulk, ret.ReturningInto, ret.Into)
+	}
+}
+
+// TestPLSQLBulkCollectRequiresInto: Oracle raises ORA-00925 (missing INTO).
+func TestPLSQLBulkCollectRequiresInto(t *testing.T) {
+	ParseShouldFail(t, "DECLARE TYPE nt IS TABLE OF NUMBER; x nt; BEGIN SELECT a BULK COLLECT x FROM t; END;")
+	ParseShouldFail(t, "DECLARE TYPE nt IS TABLE OF NUMBER; x nt; BEGIN EXECUTE IMMEDIATE 'SELECT a FROM t' BULK COLLECT x; END;")
+}
+
+// TestSelectAliasBulk keeps BULK usable as a column alias.
+func TestSelectAliasBulk(t *testing.T) {
+	result := ParseAndCheck(t, "SELECT a bulk FROM t")
+	sel := result.Items[0].(*ast.RawStmt).Stmt.(*ast.SelectStmt)
+	if rt := sel.TargetList.Items[0].(*ast.ResTarget); rt.Name != "BULK" || sel.BulkCollect {
+		t.Fatalf("alias = %q, BulkCollect = %v", rt.Name, sel.BulkCollect)
+	}
+}
+
+// TestDMLReturningBulkCollectAST: DML RETURNING records BULK COLLECT.
+func TestDMLReturningBulkCollectAST(t *testing.T) {
+	result := ParseAndCheck(t, "DECLARE TYPE nt IS TABLE OF NUMBER; x nt; v NUMBER; BEGIN "+
+		"DELETE FROM t RETURNING a BULK COLLECT INTO x; "+
+		"UPDATE t SET a = 1 RETURN a BULK COLLECT INTO x; "+
+		"INSERT INTO t (a) VALUES (1) RETURNING a BULK COLLECT INTO x; "+
+		"DELETE FROM t WHERE a = 2 RETURNING a INTO v; END;")
+	stmts := result.Items[0].(*ast.RawStmt).Stmt.(*ast.PLSQLBlock).Statements.Items
+	if !stmts[0].(*ast.DeleteStmt).ReturningBulk || !stmts[1].(*ast.UpdateStmt).ReturningBulk ||
+		!stmts[2].(*ast.InsertStmt).ReturningBulk || stmts[3].(*ast.DeleteStmt).ReturningBulk {
+		t.Fatalf("ReturningBulk not recorded as written: %s", ast.NodeToString(result))
+	}
+}
+
+// TestPLSQLTargetListsRejectEmpty: INTO, BULK COLLECT INTO, USING, and
+// RETURNING INTO need at least one target and no empty entry. Oracle 23ai
+// rejects each case with PLS-00103.
+func TestPLSQLTargetListsRejectEmpty(t *testing.T) {
+	decl := "DECLARE TYPE nt IS TABLE OF NUMBER; x nt; v NUMBER; a NUMBER; b NUMBER; CURSOR c IS SELECT a, b FROM t; "
+	tests := []string{
+		decl + "BEGIN EXECUTE IMMEDIATE 'SELECT 1 FROM dual' BULK COLLECT INTO; END;",
+		decl + "BEGIN EXECUTE IMMEDIATE 'DELETE FROM t RETURNING a INTO :1' RETURNING BULK COLLECT INTO; END;",
+		decl + "BEGIN EXECUTE IMMEDIATE 'DELETE FROM t RETURNING a INTO :1' RETURNING INTO; END;",
+		decl + "BEGIN EXECUTE IMMEDIATE 'SELECT 1 FROM dual' INTO; END;",
+		decl + "BEGIN EXECUTE IMMEDIATE 'SELECT 1, 2 FROM dual' INTO a,,b; END;",
+		decl + "BEGIN EXECUTE IMMEDIATE 'BEGIN NULL; END;' USING; END;",
+		decl + "BEGIN EXECUTE IMMEDIATE 'BEGIN NULL; END;' USING IN; END;",
+		decl + "BEGIN OPEN c; FETCH c INTO; END;",
+		decl + "BEGIN OPEN c; FETCH c INTO a,,b; END;",
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseShouldFail(t, sql)
+		})
+	}
+}
+
+// TestPLSQLUsingBindModes: USING bind arguments take IN, OUT, or IN OUT, as
+// Oracle 23ai accepts.
+func TestPLSQLUsingBindModes(t *testing.T) {
+	sql := "DECLARE v NUMBER := 1; w NUMBER; BEGIN " +
+		"EXECUTE IMMEDIATE 'BEGIN :1 := :2 + 1; :3 := 0; END;' USING OUT w, IN v, IN OUT v, 5; END;"
+	result := ParseAndCheck(t, sql)
+	block := result.Items[0].(*ast.RawStmt).Stmt.(*ast.PLSQLBlock)
+	exec := block.Statements.Items[0].(*ast.PLSQLExecImmediate)
+	want := []string{"OUT", "IN", "IN OUT", ""}
+	if exec.Using.Len() != len(want) || len(exec.UsingModes) != len(want) {
+		t.Fatalf("Using = %d args, modes %q; want %d", exec.Using.Len(), exec.UsingModes, len(want))
+	}
+	for i := range want {
+		if exec.UsingModes[i] != want[i] {
+			t.Fatalf("UsingModes = %q, want %q", exec.UsingModes, want)
+		}
+	}
+	if violations := CheckLocations(t, sql); len(violations) > 0 {
+		t.Fatalf("Loc violations: %v", violations)
+	}
+	ParseAndCheck(t, "DECLARE TYPE nt IS TABLE OF NUMBER; y nt; BEGIN "+
+		"EXECUTE IMMEDIATE 'DELETE FROM t WHERE a = :1 RETURNING b INTO :2' USING IN 1 RETURNING BULK COLLECT INTO y; END;")
+}

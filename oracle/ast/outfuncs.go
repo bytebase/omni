@@ -303,6 +303,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCreateProcedureStmt(sb, n)
 	case *CreateFunctionStmt:
 		writeCreateFunctionStmt(sb, n)
+	case *CallSpec:
+		writeCallSpec(sb, n)
 	case *Parameter:
 		writeParameter(sb, n)
 	case *CreateTriggerStmt:
@@ -2288,6 +2290,9 @@ func writeSelectStmt(sb *strings.Builder, n *SelectStmt) {
 		sb.WriteString(" :intoVars ")
 		writeNode(sb, n.IntoVars)
 	}
+	if n.BulkCollect {
+		sb.WriteString(" :bulkCollect true")
+	}
 	if n.FromClause != nil {
 		sb.WriteString(" :fromClause ")
 		writeNode(sb, n.FromClause)
@@ -2415,6 +2420,9 @@ func writeInsertStmt(sb *strings.Builder, n *InsertStmt) {
 		sb.WriteString(" :returning ")
 		writeNode(sb, n.Returning)
 	}
+	if n.ReturningBulk {
+		sb.WriteString(" :returningBulk true")
+	}
 	if n.ErrorLog != nil {
 		sb.WriteString(" :errorLog ")
 		writeNode(sb, n.ErrorLog)
@@ -2465,6 +2473,9 @@ func writeUpdateStmt(sb *strings.Builder, n *UpdateStmt) {
 		sb.WriteString(" :returning ")
 		writeNode(sb, n.Returning)
 	}
+	if n.ReturningBulk {
+		sb.WriteString(" :returningBulk true")
+	}
 	if n.ErrorLog != nil {
 		sb.WriteString(" :errorLog ")
 		writeNode(sb, n.ErrorLog)
@@ -2506,6 +2517,9 @@ func writeDeleteStmt(sb *strings.Builder, n *DeleteStmt) {
 	if n.Returning != nil {
 		sb.WriteString(" :returning ")
 		writeNode(sb, n.Returning)
+	}
+	if n.ReturningBulk {
+		sb.WriteString(" :returningBulk true")
 	}
 	if n.ErrorLog != nil {
 		sb.WriteString(" :errorLog ")
@@ -3016,6 +3030,45 @@ func writeCreateSequenceStmt(sb *strings.Builder, n *CreateSequenceStmt) {
 	if n.NoOrder {
 		sb.WriteString(" :noOrder true")
 	}
+	if n.Keep {
+		sb.WriteString(" :keep true")
+	}
+	if n.NoKeep {
+		sb.WriteString(" :noKeep true")
+	}
+	if n.Scale {
+		sb.WriteString(" :scale true")
+	}
+	if n.ScaleExtend {
+		sb.WriteString(" :scaleExtend true")
+	}
+	if n.ScaleNoExtend {
+		sb.WriteString(" :scaleNoExtend true")
+	}
+	if n.NoScale {
+		sb.WriteString(" :noScale true")
+	}
+	if n.Shard {
+		sb.WriteString(" :shard true")
+	}
+	if n.ShardExtend {
+		sb.WriteString(" :shardExtend true")
+	}
+	if n.ShardNoExtend {
+		sb.WriteString(" :shardNoExtend true")
+	}
+	if n.NoShard {
+		sb.WriteString(" :noShard true")
+	}
+	if n.Session {
+		sb.WriteString(" :session true")
+	}
+	if n.Global {
+		sb.WriteString(" :global true")
+	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
+	}
 	if n.IfNotExists {
 		sb.WriteString(" :ifNotExists true")
 	}
@@ -3105,6 +3158,13 @@ func writeCreateTypeStmt(sb *strings.Builder, n *CreateTypeStmt) {
 		sb.WriteString(" :body ")
 		writeNode(sb, n.Body)
 	}
+	if n.Methods != nil {
+		sb.WriteString(" :methods ")
+		writeNode(sb, n.Methods)
+	}
+	if len(n.Modifiers) > 0 {
+		sb.WriteString(fmt.Sprintf(" :modifiers %q", n.Modifiers))
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -3123,6 +3183,9 @@ func writeTypeBodyMember(sb *strings.Builder, n *TypeBodyMember) {
 		kindStr = "CONSTRUCTOR"
 	}
 	sb.WriteString(fmt.Sprintf(" :kind %q", kindStr))
+	if len(n.Modifiers) > 0 {
+		sb.WriteString(fmt.Sprintf(" :modifiers %q", n.Modifiers))
+	}
 	if n.Subprog != nil {
 		sb.WriteString(" :subprog ")
 		writeNode(sb, n.Subprog)
@@ -3201,6 +3264,10 @@ func writeCreateProcedureStmt(sb *strings.Builder, n *CreateProcedureStmt) {
 		sb.WriteString(" :body ")
 		writeNode(sb, n.Body)
 	}
+	if n.CallSpec != nil {
+		sb.WriteString(" :callSpec ")
+		writeNode(sb, n.CallSpec)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -3258,6 +3325,58 @@ func writeCreateFunctionStmt(sb *strings.Builder, n *CreateFunctionStmt) {
 	if n.Body != nil {
 		sb.WriteString(" :body ")
 		writeNode(sb, n.Body)
+	}
+	if n.CallSpec != nil {
+		sb.WriteString(" :callSpec ")
+		writeNode(sb, n.CallSpec)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeCallSpec(sb *strings.Builder, n *CallSpec) {
+	sb.WriteString("{CALLSPEC")
+	sb.WriteString(fmt.Sprintf(" :language %q", n.Language))
+	if n.External {
+		sb.WriteString(" :external true")
+	}
+	if n.Name != "" {
+		sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	}
+	if n.Library != nil {
+		sb.WriteString(" :library ")
+		writeNode(sb, n.Library)
+	}
+	if n.AgentIn != nil {
+		sb.WriteString(" :agentIn ")
+		writeNode(sb, n.AgentIn)
+	}
+	if n.WithContext {
+		sb.WriteString(" :withContext true")
+	}
+	if n.Parameters != nil {
+		sb.WriteString(" :parameters ")
+		writeNode(sb, n.Parameters)
+	}
+	if n.CallingStandard != "" {
+		sb.WriteString(fmt.Sprintf(" :callingStandard %q", n.CallingStandard))
+	}
+	if n.MLE {
+		sb.WriteString(" :mle true")
+	}
+	if n.Module != nil {
+		sb.WriteString(" :module ")
+		writeNode(sb, n.Module)
+	}
+	if n.Env != nil {
+		sb.WriteString(" :env ")
+		writeNode(sb, n.Env)
+	}
+	if n.Pure {
+		sb.WriteString(" :pure true")
+	}
+	if n.Code != "" {
+		sb.WriteString(fmt.Sprintf(" :code %q", n.Code))
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -4158,6 +4277,9 @@ func writeAdminDDLStmt(sb *strings.Builder, n *AdminDDLStmt) {
 	if n.IfExists {
 		sb.WriteString(" :ifExists true")
 	}
+	if n.IfNotExists {
+		sb.WriteString(" :ifNotExists true")
+	}
 	if n.Options != nil && len(n.Options.Items) > 0 {
 		sb.WriteString(" :options ")
 		writeNode(sb, n.Options)
@@ -5029,9 +5151,22 @@ func writePLSQLExecImmediate(sb *strings.Builder, n *PLSQLExecImmediate) {
 		sb.WriteString(" :into ")
 		writeNode(sb, n.Into)
 	}
+	if n.Bulk {
+		sb.WriteString(" :bulk true")
+	}
 	if n.Using != nil {
 		sb.WriteString(" :using ")
 		writeNode(sb, n.Using)
+	}
+	if len(n.UsingModes) > 0 {
+		sb.WriteString(fmt.Sprintf(" :usingModes %q", n.UsingModes))
+	}
+	if n.ReturningInto != nil {
+		sb.WriteString(" :returningInto ")
+		writeNode(sb, n.ReturningInto)
+	}
+	if n.ReturningBulk {
+		sb.WriteString(" :returningBulk true")
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

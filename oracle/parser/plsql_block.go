@@ -959,7 +959,16 @@ func (p *Parser) parsePLSQLNull() (*nodes.PLSQLNull, error) {
 	}, nil
 }
 
-// parsePLSQLExecImmediate parses EXECUTE IMMEDIATE expr [INTO vars] [USING vars] ;
+// parsePLSQLExecImmediate parses an EXECUTE IMMEDIATE statement.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/19/lnpls/EXECUTE-IMMEDIATE-statement.html
+//
+//	EXECUTE IMMEDIATE dynamic_sql_stmt
+//	    [ { into_clause | bulk_collect_into_clause } [ using_clause ]
+//	    | using_clause [ dynamic_returning_clause ]
+//	    | dynamic_returning_clause
+//	    ] ;
+//	dynamic_returning_clause ::= { RETURNING | RETURN } { into_clause | bulk_collect_into_clause }
 func (p *Parser) parsePLSQLExecImmediate() (*nodes.PLSQLExecImmediate, error) {
 	start := p.pos()
 	p.advance() // consume EXECUTE
@@ -975,24 +984,24 @@ func (p *Parser) parsePLSQLExecImmediate() (*nodes.PLSQLExecImmediate, error) {
 	var parseErr868 error
 
 	stmt.SQL, parseErr868 = p.parseExpr()
-	if parseErr868 !=
-
-		// INTO
-		nil {
+	if parseErr868 != nil {
 		return nil, parseErr868
 	}
 	if stmt.SQL == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
 
+	// { INTO | BULK COLLECT INTO } variables
+	bulk, err := p.parseOptionalBulkCollect()
+	if err != nil {
+		return nil, err
+	}
 	if p.cur.Type == kwINTO {
+		stmt.Bulk = bulk
 		p.advance()
 		var parseErr869 error
 		stmt.Into, parseErr869 = p.parsePLSQLVarList()
-		if parseErr869 !=
-
-			// USING
-			nil {
+		if parseErr869 != nil {
 			return nil, parseErr869
 		}
 	}
@@ -1000,9 +1009,26 @@ func (p *Parser) parsePLSQLExecImmediate() (*nodes.PLSQLExecImmediate, error) {
 	if p.cur.Type == kwUSING {
 		p.advance()
 		var parseErr870 error
-		stmt.Using, parseErr870 = p.parsePLSQLVarList()
+		stmt.Using, stmt.UsingModes, parseErr870 = p.parsePLSQLBindArgList()
 		if parseErr870 != nil {
 			return nil, parseErr870
+		}
+	}
+
+	// dynamic_returning_clause, only without an into_clause
+	if stmt.Into == nil && (p.cur.Type == kwRETURNING || p.cur.Type == kwRETURN) {
+		p.advance() // consume RETURNING or RETURN
+		stmt.ReturningBulk, err = p.parseOptionalBulkCollect()
+		if err != nil {
+			return nil, err
+		}
+		if p.cur.Type != kwINTO {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume INTO
+		stmt.ReturningInto, err = p.parsePLSQLVarList()
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -1012,6 +1038,20 @@ func (p *Parser) parsePLSQLExecImmediate() (*nodes.PLSQLExecImmediate, error) {
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseOptionalBulkCollect consumes BULK COLLECT when it starts a
+// bulk_collect_into_clause and reports whether it did. INTO must follow.
+func (p *Parser) parseOptionalBulkCollect() (bool, error) {
+	if !p.isBulkCollect() {
+		return false, nil
+	}
+	p.advance() // consume BULK
+	p.advance() // consume COLLECT
+	if p.cur.Type != kwINTO {
+		return false, p.syntaxErrorAtCur()
+	}
+	return true, nil
 }
 
 // parsePLSQLOpen parses OPEN cursor [(args)] [FOR query|dynamic_sql [USING args]] ;
@@ -1243,6 +1283,9 @@ func (p *Parser) parsePLSQLExceptionName() (string, error) {
 }
 
 // parsePLSQLVarList parses a comma-separated list of variable references.
+//
+// The list holds at least one target, and no entry may be empty: Oracle
+// rejects `INTO;`, `USING;`, and `INTO a,,b` with PLS-00103.
 func (p *Parser) parsePLSQLVarList() (*nodes.List, error) {
 	list := &nodes.List{}
 
@@ -1251,9 +1294,10 @@ func (p *Parser) parsePLSQLVarList() (*nodes.List, error) {
 		if parseErr880 != nil {
 			return nil, parseErr880
 		}
-		if expr != nil {
-			list.Items = append(list.Items, expr)
+		if expr == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
+		list.Items = append(list.Items, expr)
 		if p.cur.Type != ',' {
 			break
 		}
@@ -1261,6 +1305,48 @@ func (p *Parser) parsePLSQLVarList() (*nodes.List, error) {
 	}
 
 	return list, nil
+}
+
+// parsePLSQLBindArgList parses the bind arguments of a USING clause, each
+// with an optional mode, and returns the modes ("", "IN", "OUT", or
+// "IN OUT") parallel to the arguments.
+//
+//	using_clause ::= USING [ IN | OUT | IN OUT ] bind_argument
+//	    [, [ IN | OUT | IN OUT ] bind_argument ]...
+func (p *Parser) parsePLSQLBindArgList() (*nodes.List, []string, error) {
+	list := &nodes.List{}
+	var modes []string
+
+	for {
+		mode := ""
+		switch p.cur.Type {
+		case kwIN:
+			p.advance() // consume IN
+			mode = "IN"
+			if p.cur.Type == kwOUT {
+				p.advance() // consume OUT
+				mode = "IN OUT"
+			}
+		case kwOUT:
+			p.advance() // consume OUT
+			mode = "OUT"
+		}
+		expr, err := p.parseExpr()
+		if err != nil {
+			return nil, nil, err
+		}
+		if expr == nil {
+			return nil, nil, p.syntaxErrorAtCur()
+		}
+		list.Items = append(list.Items, expr)
+		modes = append(modes, mode)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ,
+	}
+
+	return list, modes, nil
 }
 
 // parsePLSQLArgList parses a parenthesized argument list.

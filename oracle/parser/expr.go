@@ -641,8 +641,11 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 			return p.parsePseudoColumn()
 		}
 
-		// Identifier — could be column ref, function call, or keyword-as-identifier
-		if isOracleClauseStarterKeyword(p.cur.Type) {
+		// Identifier — could be column ref, function call, or keyword-as-identifier.
+		// OFFSET is not reserved in Oracle and names columns in practice; it
+		// starts the row_limiting_clause only after a complete expression or
+		// table reference, never where an operand begins.
+		if isOracleClauseStarterKeyword(p.cur.Type) && p.cur.Type != kwOFFSET {
 			return nil, nil
 		}
 		if p.isIdentLike() {

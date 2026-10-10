@@ -199,3 +199,111 @@ func TestParseCreateDatabaseLinkLoc(t *testing.T) {
 		t.Errorf("expected Loc.End > Loc.Start, got %d", stmt.Loc.End)
 	}
 }
+
+// TestParseCreateSequenceOptions covers every CREATE SEQUENCE option group in
+// any order, as Oracle 23ai accepts them.
+func TestParseCreateSequenceOptions(t *testing.T) {
+	tests := []struct {
+		sql  string
+		want func(*ast.CreateSequenceStmt) bool
+	}{
+		{
+			sql: "CREATE SEQUENCE app.seq_search\n    START WITH 1 INCREMENT BY 1 CACHE 20 NOORDER NOCYCLE NOKEEP NOSCALE GLOBAL",
+			want: func(s *ast.CreateSequenceStmt) bool {
+				return s.NoOrder && s.NoCycle && s.NoKeep && s.NoScale && s.Global && s.Cache != nil
+			},
+		},
+		{
+			sql: "CREATE SEQUENCE s KEEP SCALE EXTEND SESSION",
+			want: func(s *ast.CreateSequenceStmt) bool {
+				return s.Keep && s.Scale && s.ScaleExtend && s.Session
+			},
+		},
+		{
+			sql:  "CREATE SEQUENCE s SCALE NOEXTEND",
+			want: func(s *ast.CreateSequenceStmt) bool { return s.Scale && s.ScaleNoExtend },
+		},
+		{
+			sql:  "CREATE SEQUENCE s SCALE START WITH 5",
+			want: func(s *ast.CreateSequenceStmt) bool { return s.Scale && !s.ScaleExtend && s.StartWith != nil },
+		},
+		// Oracle parses SHARD and NOSHARD, then raises ORA-02511 outside a
+		// sharded database.
+		{
+			sql:  "CREATE SEQUENCE s SHARD EXTEND",
+			want: func(s *ast.CreateSequenceStmt) bool { return s.Shard && s.ShardExtend },
+		},
+		{
+			sql:  "CREATE SEQUENCE s NOSHARD",
+			want: func(s *ast.CreateSequenceStmt) bool { return s.NoShard },
+		},
+		// One EXTEND or NOEXTEND, after either clause, covers SCALE and SHARD.
+		{
+			sql:  "CREATE SEQUENCE s SCALE SHARD EXTEND",
+			want: func(s *ast.CreateSequenceStmt) bool { return s.Scale && s.Shard && s.ShardExtend && !s.ScaleExtend },
+		},
+		{
+			sql:  "CREATE SEQUENCE s SCALE NOEXTEND SHARD",
+			want: func(s *ast.CreateSequenceStmt) bool { return s.ScaleNoExtend && s.Shard && !s.ShardNoExtend },
+		},
+		{
+			sql:  "CREATE SEQUENCE IF NOT EXISTS s SHARING = NONE START WITH 1",
+			want: func(s *ast.CreateSequenceStmt) bool { return s.IfNotExists && s.Sharing == "NONE" },
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tt.sql)
+			stmt := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CreateSequenceStmt)
+			if !tt.want(stmt) {
+				t.Fatalf("unexpected options: %s", ast.NodeToString(stmt))
+			}
+			if violations := CheckLocations(t, tt.sql); len(violations) > 0 {
+				t.Fatalf("Loc violations: %v", violations)
+			}
+		})
+	}
+}
+
+// TestParseCreateSequenceRejects lists forms Oracle 23ai rejects: a repeated
+// or conflicting option group (ORA-02278 through ORA-02285, ORA-03178,
+// ORA-41415, ORA-64600), SHARING or IF NOT EXISTS out of place (ORA-03049),
+// and KEEP with a value (ORA-03047).
+func TestParseCreateSequenceRejects(t *testing.T) {
+	tests := []string{
+		"CREATE SEQUENCE s INCREMENT BY 1 INCREMENT BY 2",
+		"CREATE SEQUENCE s START WITH 1 START WITH 2",
+		"CREATE SEQUENCE s MAXVALUE 5 NOMAXVALUE",
+		"CREATE SEQUENCE s MINVALUE 1 MINVALUE 2",
+		"CREATE SEQUENCE s CYCLE NOCYCLE",
+		"CREATE SEQUENCE s CACHE 5 NOCACHE",
+		"CREATE SEQUENCE s ORDER NOORDER",
+		"CREATE SEQUENCE s KEEP NOKEEP",
+		"CREATE SEQUENCE s NOSCALE SCALE",
+		"CREATE SEQUENCE s SESSION GLOBAL",
+		"CREATE SEQUENCE s NOSHARD SHARD",
+		"CREATE SEQUENCE s START WITH 1 SHARING = NONE",
+		"CREATE SEQUENCE s SHARING = ALL",
+		"CREATE SEQUENCE s IF NOT EXISTS",
+		"CREATE SEQUENCE s KEEP 5",
+		// One EXTEND or NOEXTEND covers both SCALE and SHARD; writing it for
+		// each is a "duplicate or conflicting EXTEND clause" parsing error per
+		// the ALTER SEQUENCE reference. A non-sharded Oracle raises ORA-02511
+		// at SHARD first, so these rest on the documentation.
+		"CREATE SEQUENCE s SCALE EXTEND SHARD NOEXTEND",
+		"CREATE SEQUENCE s SCALE EXTEND SHARD EXTEND",
+		"CREATE SEQUENCE s SHARD NOEXTEND SCALE NOEXTEND",
+		// A quoted word is an identifier, not an option keyword (ORA-03049,
+		// ORA-65014 for SHARING = "NONE").
+		`CREATE SEQUENCE s "NOKEEP"`,
+		`CREATE SEQUENCE s "SCALE" "EXTEND"`,
+		`CREATE SEQUENCE s SCALE "EXTEND"`,
+		`CREATE SEQUENCE s "SHARING" = NONE`,
+		`CREATE SEQUENCE s SHARING = "NONE"`,
+	}
+	for _, sql := range tests {
+		t.Run(sql, func(t *testing.T) {
+			ParseShouldFail(t, sql)
+		})
+	}
+}

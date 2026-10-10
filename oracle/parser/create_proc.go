@@ -77,8 +77,8 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 	}
 	p.advance()
 
-	// PL/SQL block body (BEGIN ... END)
-	stmt.Body, parseErr456 = p.parsePLSQLBlock()
+	// PL/SQL block body (BEGIN ... END) or call spec
+	stmt.Body, stmt.CallSpec, parseErr456 = p.parseSubprogramImplementation()
 	if parseErr456 != nil {
 		return nil, parseErr456
 	}
@@ -226,8 +226,8 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 	p.advance()
 	var parseErr461 error
 
-	// PL/SQL block body (BEGIN ... END)
-	stmt.Body, parseErr461 = p.parsePLSQLBlock()
+	// PL/SQL block body (BEGIN ... END) or call spec
+	stmt.Body, stmt.CallSpec, parseErr461 = p.parseSubprogramImplementation()
 	if parseErr461 != nil {
 		return nil, parseErr461
 	}
@@ -568,7 +568,7 @@ func (p *Parser) parsePackageProcDecl() (*nodes.CreateProcedureStmt, error) {
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
 		p.advance()
 		var parseErr475 error
-		stmt.Body, parseErr475 = p.parsePLSQLBlock()
+		stmt.Body, stmt.CallSpec, parseErr475 = p.parseSubprogramImplementation()
 		if parseErr475 != nil {
 			return nil, parseErr475
 		}
@@ -641,7 +641,7 @@ func (p *Parser) parsePackageFuncDecl() (*nodes.CreateFunctionStmt, error) {
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
 		p.advance()
 		var parseErr480 error
-		stmt.Body, parseErr480 = p.parsePLSQLBlock()
+		stmt.Body, stmt.CallSpec, parseErr480 = p.parseSubprogramImplementation()
 		if parseErr480 != nil {
 			return nil, parseErr480
 		}
@@ -772,4 +772,409 @@ func (p *Parser) parseParameterMode() (string, error) {
 		return "OUT", nil
 	}
 	return "", nil
+}
+
+// parseSubprogramImplementation parses what follows the IS|AS of a procedure
+// or function: a call spec, or a PL/SQL block. Exactly one result is non-nil.
+func (p *Parser) parseSubprogramImplementation() (nodes.StmtNode, *nodes.CallSpec, error) {
+	if p.isCallSpecWord("LANGUAGE", "EXTERNAL", "MLE") {
+		spec, err := p.parseCallSpec(true)
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, spec, nil
+	}
+	block, err := p.parsePLSQLBlock()
+	if err != nil {
+		return nil, nil, err
+	}
+	return block, nil, nil
+}
+
+// isCallSpecWord reports whether the current token, the first after IS|AS,
+// is one of words unquoted; see isCallSpecWordToken.
+func (p *Parser) isCallSpecWord(words ...string) bool {
+	return isCallSpecWordToken(p.cur, words...)
+}
+
+// isCallSpecWordToken reports whether tok, the first token after IS|AS, is
+// one of words unquoted. Oracle 23ai commits to a call spec on that word
+// alone: a first declaration of a variable named LANGUAGE, EXTERNAL, or MLE
+// is PLS-00103 in a standalone, nested, package, or type body subprogram
+// alike, while a quoted "MLE" declares one. The parser and the splitter both
+// decide by it, so that both end the unit at the same ';'.
+func isCallSpecWordToken(tok Token, words ...string) bool {
+	if tok.Type != tokIDENT {
+		return false
+	}
+	for _, word := range words {
+		if tok.Str == word {
+			return true
+		}
+	}
+	return false
+}
+
+// callSpecCClauseOf names the C call spec clause tok starts, or "" when it
+// starts none.
+func callSpecCClauseOf(tok Token) string {
+	switch tok.Type {
+	case kwNAME:
+		return "NAME"
+	case kwLIBRARY:
+		return "LIBRARY"
+	case kwWITH:
+		return "WITH"
+	case tokIDENT:
+		switch tok.Str {
+		case "LANGUAGE", "CALLING", "AGENT", "PARAMETERS":
+			return tok.Str
+		}
+	}
+	return ""
+}
+
+// parseCallSpec parses a call_spec, which publishes a Java method or a C
+// function as the implementation of a procedure or function.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/19/lnpls/call-specification.html
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/19/adfns/external-procedures.html
+//
+//	call_spec ::= LANGUAGE { java_declaration | c_declaration }
+//	java_declaration ::= JAVA NAME string
+//	c_declaration ::= C { [ NAME name ] LIBRARY lib_name | LIBRARY lib_name [ NAME name ] }
+//	    [ AGENT IN ( argument [, argument ]... ) ]
+//	    [ WITH CONTEXT ]
+//	    [ PARAMETERS ( external_parameter [, external_parameter ]... ) ]
+//
+// EXTERNAL, the superseded spelling of LANGUAGE C, is still accepted, with
+// its own LANGUAGE C and CALLING STANDARD { C | PASCAL } clauses. Oracle 23ai
+// takes the C clauses of either form in any order, rejects a repeated one
+// (PLS-00139, -00140, -00142 through -00145, -00171), and requires LIBRARY
+// (PLS-00247).
+//
+// terminated says whether a ';' must end the call spec; see finishCallSpec.
+func (p *Parser) parseCallSpec(terminated bool) (*nodes.CallSpec, error) {
+	spec := &nodes.CallSpec{Loc: nodes.Loc{Start: p.pos()}}
+	if p.isKeywordStr("MLE") {
+		return p.parseMLECallSpec(spec, terminated)
+	}
+	seen := make(map[string]bool)
+
+	if p.isKeywordStr("EXTERNAL") {
+		spec.Language = "C"
+		spec.External = true
+		p.advance() // consume EXTERNAL
+	} else {
+		p.advance() // consume LANGUAGE
+		if p.cur.Type == kwJAVA {
+			spec.Language = "JAVA"
+			p.advance() // consume JAVA
+			if p.cur.Type != kwNAME {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume NAME
+			if p.cur.Type != tokSCONST {
+				return nil, p.syntaxErrorAtCur()
+			}
+			spec.Name = p.cur.Str
+			p.advance()
+			return p.finishCallSpec(spec, terminated)
+		}
+		if p.cur.Type != tokIDENT || p.cur.Str != "C" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		spec.Language = "C"
+		seen["LANGUAGE"] = true
+		p.advance() // consume C
+	}
+
+	var err error
+	for clause := callSpecCClauseOf(p.cur); clause != ""; clause = callSpecCClauseOf(p.cur) {
+		if seen[clause] {
+			return nil, p.syntaxErrorAtCur()
+		}
+		seen[clause] = true
+		p.advance() // consume the clause keyword
+		switch clause {
+		case "NAME":
+			spec.Name, err = p.parseCallSpecCName()
+		case "LIBRARY":
+			spec.Library, err = p.parseObjectName()
+			if err == nil && (spec.Library == nil || spec.Library.Name == "") {
+				err = p.syntaxErrorAtCur()
+			}
+		case "LANGUAGE":
+			// Only C follows LANGUAGE here (PLS-00103 for anything else).
+			if p.cur.Type != tokIDENT || p.cur.Str != "C" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume C
+		case "CALLING":
+			if !p.isKeywordStr("STANDARD") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume STANDARD
+			if p.cur.Type != tokIDENT || (p.cur.Str != "C" && p.cur.Str != "PASCAL") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			spec.CallingStandard = p.cur.Str
+			p.advance()
+		case "AGENT":
+			if p.cur.Type != kwIN {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume IN
+			spec.AgentIn, err = p.parseCallSpecAgentIn()
+		case "WITH":
+			if p.cur.Type != kwCONTEXT {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume CONTEXT
+			spec.WithContext = true
+		case "PARAMETERS":
+			spec.Parameters, err = p.parseCallSpecParameters()
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	if !seen["LIBRARY"] {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return p.finishCallSpec(spec, terminated)
+}
+
+// parseMLECallSpec parses an MLE call spec, which publishes a JavaScript
+// function as the implementation of a procedure or function. The current
+// token is MLE.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/mlejs/call-specifications-functions.html
+//
+//	MLE MODULE [ schema. ] module [ ENV [ schema. ] env ] SIGNATURE 'signature'
+//	MLE LANGUAGE language_name [ PURE ] delimited_code
+//
+// Verified on Oracle 23ai: SIGNATURE is required and takes a string, PURE
+// does not belong to the MODULE form, and both forms end with a required ';'
+// (PLS-00103). The inline code is taken verbatim; see mleInlineCodeEnd.
+func (p *Parser) parseMLECallSpec(spec *nodes.CallSpec, terminated bool) (*nodes.CallSpec, error) {
+	spec.MLE = true
+	p.advance() // consume MLE
+	if p.isKeywordStr("MODULE") {
+		p.advance() // consume MODULE
+		var err error
+		if spec.Module, err = p.parseObjectName(); err != nil {
+			return nil, err
+		}
+		if spec.Module == nil || spec.Module.Name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if p.isKeywordStr("ENV") {
+			p.advance() // consume ENV
+			if spec.Env, err = p.parseObjectName(); err != nil {
+				return nil, err
+			}
+			if spec.Env == nil || spec.Env.Name == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
+		if !p.isKeywordStr("SIGNATURE") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume SIGNATURE
+		if p.cur.Type != tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		spec.Name = p.cur.Str
+		p.advance()
+		return p.finishCallSpec(spec, terminated)
+	}
+
+	if !p.isKeywordStr("LANGUAGE") {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume LANGUAGE
+	if !p.isIdentLike() {
+		return nil, p.syntaxErrorAtCur()
+	}
+	langTok := p.cur
+	spec.Language = langTok.Str
+	codeStart, codeEnd, pure, ok := mleInlineCodeEnd(p.source, langTok.End, p.lexer.end)
+	if !ok {
+		return nil, &ParseError{
+			Message:  "syntax error: missing closing delimiter for MLE language code",
+			Position: codeStart,
+		}
+	}
+	spec.Pure = pure
+	spec.Code = p.source[codeStart:codeEnd]
+	// Resume lexing after the closing delimiter.
+	p.hasNext = false
+	p.lexer.pos = codeEnd
+	p.prev = Token{Type: tokIDENT, Loc: codeStart, End: codeEnd}
+	p.cur = p.lexer.NextToken()
+	return p.finishCallSpec(spec, terminated)
+}
+
+// parseCallSpecCName parses the C function name of a C call spec, an
+// identifier whose case is kept when it is quoted.
+func (p *Parser) parseCallSpecCName() (string, error) {
+	if !p.isIdentLike() {
+		return "", p.syntaxErrorAtCur()
+	}
+	return p.parseIdentifier()
+}
+
+// parseCallSpecAgentIn parses the parenthesized argument of AGENT IN: the
+// name of the one parameter that carries the agent name. Oracle 23ai rejects a
+// second argument with PLS-00103 although the reference shows a list.
+func (p *Parser) parseCallSpecAgentIn() (*nodes.List, error) {
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume (
+	name, err := p.parseCallSpecCName()
+	if err != nil {
+		return nil, err
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume )
+	return &nodes.List{Items: []nodes.Node{&nodes.String{Str: name}}}, nil
+}
+
+// parseCallSpecParameters parses the parenthesized external parameters of a C
+// call spec. Each entry is kept as its words joined by spaces.
+func (p *Parser) parseCallSpecParameters() (*nodes.List, error) {
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume (
+	list := &nodes.List{}
+	for {
+		param, err := p.parseExternalParameter()
+		if err != nil {
+			return nil, err
+		}
+		list.Items = append(list.Items, &nodes.String{Str: param})
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance() // consume ,
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume )
+	return list, nil
+}
+
+// parseExternalParameter parses one external_parameter of a C call spec and
+// returns its words joined by spaces.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/19/adfns/external-procedures.html
+//
+//	external_parameter ::= { CONTEXT | SELF | RETURN | parameter_name }
+//	    [ NATIVE | property [ IN | OUT ] | INDICATOR STRUCT ]
+//	    [ BY { REFERENCE | VALUE } ] [ external_datatype ]
+//	property ::= INDICATOR | LENGTH | MAXLEN | DURATION | CHARSETID | CHARSETFORM | TDO
+//
+// The shape follows the token sets Oracle 23ai expects at each position
+// (PLS-00103): one property at most, INDICATOR STRUCT ends the entry, IN and
+// OUT only after a property, one BY clause, and one datatype from a fixed set.
+// Whether a combination suits the parameter is a later check (PLS-00235,
+// PLS-00250, PLS-00253), not a syntax rule.
+func (p *Parser) parseExternalParameter() (string, error) {
+	var words []string
+	take := func() {
+		words = append(words, p.cur.Str)
+		p.advance()
+	}
+
+	// The head: CONTEXT, SELF, RETURN, or a parameter name.
+	if !p.isIdentLike() {
+		return "", p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == tokQIDENT {
+		name, err := p.parseIdentifier()
+		if err != nil {
+			return "", err
+		}
+		words = append(words, name)
+	} else {
+		take()
+	}
+
+	switch {
+	case p.isKeywordStr("NATIVE"):
+		take()
+	case p.isKeywordStr("INDICATOR"):
+		take()
+		if p.isKeywordStr("STRUCT") {
+			take()
+			return strings.Join(words, " "), nil
+		}
+		if p.cur.Type == kwIN || p.cur.Type == kwOUT {
+			take()
+		}
+	case p.isKeywordStr("LENGTH"), p.isKeywordStr("MAXLEN"), p.isKeywordStr("DURATION"),
+		p.isKeywordStr("CHARSETID"), p.isKeywordStr("CHARSETFORM"), p.isKeywordStr("TDO"):
+		take()
+		if p.cur.Type == kwIN || p.cur.Type == kwOUT {
+			take()
+		}
+	}
+
+	if p.cur.Type == kwBY {
+		take()
+		if !p.isKeywordStr("REFERENCE") && !p.isKeywordStr("VALUE") {
+			return "", p.syntaxErrorAtCur()
+		}
+		take()
+	}
+
+	switch {
+	case p.isKeywordStr("UNSIGNED"):
+		take()
+		if !p.isKeywordStr("LONG") && !p.isKeywordStr("CHAR") && !p.isKeywordStr("SHORT") && !p.isKeywordStr("INT") {
+			return "", p.syntaxErrorAtCur()
+		}
+		take()
+	case p.cur.Type != tokQIDENT && p.isIdentLike() && externalDatatypes[p.cur.Str]:
+		take()
+	}
+	return strings.Join(words, " "), nil
+}
+
+// externalDatatypes holds the external datatypes of a C call spec parameter,
+// as Oracle 23ai lists them in its PLS-00103 message; UNSIGNED takes LONG,
+// CHAR, SHORT, or INT and is handled apart.
+var externalDatatypes = map[string]bool{
+	"ARRAY": true, "CHAR": true, "DOUBLE": true, "FLOAT": true, "INT": true,
+	"LONG": true, "OCICOLL": true, "OCIDATE": true, "OCIDATETIME": true,
+	"OCIDURATION": true, "OCIINTERVAL": true, "OCILOBLOCATOR": true,
+	"OCINUMBER": true, "OCIRAW": true, "OCIREF": true, "OCIREFCURSOR": true,
+	"OCIROWID": true, "OCISTRING": true, "OCITYPE": true, "ORLANY": true,
+	"ORLVARY": true, "RAW": true, "SB1": true, "SB2": true, "SB4": true,
+	"SHORT": true, "SIZE_T": true, "STRING": true, "STRUCT": true, "UB1": true,
+	"UB2": true, "UB4": true, "VALIST": true, "VOID": true,
+}
+
+// finishCallSpec closes the call spec's Loc at its last token. A call spec
+// that implements a stored subprogram, a package member, or a type body method
+// is PL/SQL text ended by a required ';' (Oracle compiles the unit with
+// PLS-00103 without it), which is consumed. In an object type specification
+// (terminated false) the ',' or ')' after it ends it instead, and a ';' there
+// is a syntax error.
+func (p *Parser) finishCallSpec(spec *nodes.CallSpec, terminated bool) (*nodes.CallSpec, error) {
+	spec.Loc.End = p.prev.End
+	if !terminated {
+		return spec, nil
+	}
+	if p.cur.Type != ';' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance() // consume ;
+	return spec, nil
 }

@@ -298,3 +298,10 @@ func (p *Parser) parseUserDefinedType(tn *nodes.TypeName) error {
 func (p *Parser) isIdentLikeStr(s string) bool {
 	return p.isIdentLike() && p.cur.Str == s
 }
+
+// isKeywordStr reports whether the current token is the unquoted word s.
+// Unlike isIdentLikeStr it never matches a quoted identifier: Oracle reads
+// "NOKEEP" as an identifier, not as the NOKEEP keyword (ORA-03049).
+func (p *Parser) isKeywordStr(s string) bool {
+	return p.cur.Type != tokQIDENT && p.isIdentLikeStr(s)
+}

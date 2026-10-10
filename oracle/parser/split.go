@@ -15,6 +15,12 @@ type SegmentKind int
 const (
 	SegmentSQL SegmentKind = iota
 	SegmentSQLPlusCommand
+	// SegmentEmbeddedSource is a statement whose text embeds Java or
+	// JavaScript source: CREATE JAVA ... AS, CREATE MLE MODULE ... AS, or a
+	// unit with an inline MLE call spec. It executes like SegmentSQL, but its
+	// text must not be read with the SQL lexer: Java's and JavaScript's "--"
+	// decrement, "//" comments, and quotes lex as SQL comments and strings.
+	SegmentEmbeddedSource
 )
 
 // Empty returns true if the segment contains only whitespace, semicolons, and
@@ -80,7 +86,7 @@ func Split(sql string) []Segment {
 							stmtStart = lineEndAfterBreak(sql, tok.End)
 						}
 					} else {
-						segments = appendSegment(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc))
+						segments = appendSegmentWithKind(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc), state.segmentKind())
 						stmtStart = lineEndBeforeBreak(sql, tok.End)
 					}
 					lexer.pos = lineEndAfterBreak(sql, tok.End)
@@ -92,7 +98,7 @@ func Split(sql string) []Segment {
 						nextStart := lineEndAfterBreak(sql, tok.End)
 						commandStart := stmtStart
 						if !prefixEmpty {
-							segments = appendSegment(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc))
+							segments = appendSegmentWithKind(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc), state.segmentKind())
 							commandStart = lineStartOffset(sql, tok.Loc)
 						}
 						segments = appendSegmentWithKind(segments, sql, commandStart, lineEnd, SegmentSQLPlusCommand)
@@ -107,28 +113,50 @@ func Split(sql string) []Segment {
 
 		state.observe(tok)
 
+		if state.mleCodeFrom > 0 {
+			// tok is the language name of an inline MLE call spec: skip its
+			// delimited code, which is not SQL, up to the closing delimiter.
+			if _, end, _, ok := mleInlineCodeEnd(sql, state.mleCodeFrom, len(sql)); ok {
+				lexer.pos = end
+				state.embeddedCode = true
+			}
+			state.mleCodeFrom = 0
+		}
+
+		if !state.inPLSQL && state.sourceHead.observe(tok) {
+			// tok is the AS of CREATE JAVA ... AS or CREATE MLE MODULE ... AS.
+			// The source after it runs to the next line holding only "/"; its
+			// ';' ends nothing.
+			end, next := javaSourceEnd(sql, tok.End)
+			segments = appendSegmentWithKind(segments, sql, stmtStart, end, SegmentEmbeddedSource)
+			stmtStart = slashNextSegmentStart(sql, next)
+			lexer.pos = next
+			state.reset()
+			continue
+		}
+
 		switch tok.Type {
 		case ';':
 			if state.inPLSQL {
 				if state.plsqlCanEndAtSemicolon() {
 					end := tok.End
-					if !state.endPending {
+					if !state.endPending && !state.callSpecKeepsSemicolon() {
 						end = tok.Loc
 					}
-					segments = appendSegment(segments, sql, stmtStart, end)
+					segments = appendSegmentWithKind(segments, sql, stmtStart, end, state.segmentKind())
 					stmtStart = tok.End
 					state.reset()
 				} else {
 					state.afterPLSQLSemicolon()
 				}
 			} else {
-				segments = appendSegment(segments, sql, stmtStart, tok.Loc)
+				segments = appendSegmentWithKind(segments, sql, stmtStart, tok.Loc, state.segmentKind())
 				stmtStart = tok.End
 				state.reset()
 			}
 		case '/':
 			if (!state.inPLSQL || state.plsqlCanEndAtSlashDelimiter()) && isSlashDelimiterLine(sql, tok.Loc, tok.End) {
-				segments = appendSegment(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc))
+				segments = appendSegmentWithKind(segments, sql, stmtStart, trimRightSpace(sql, tok.Loc), state.segmentKind())
 				stmtStart = slashNextSegmentStart(sql, tok.End)
 				state.reset()
 			}
@@ -139,7 +167,7 @@ func Split(sql string) []Segment {
 		}
 	}
 
-	segments = appendSegment(segments, sql, stmtStart, len(sql))
+	segments = appendSegmentWithKind(segments, sql, stmtStart, len(sql), state.segmentKind())
 	if len(segments) == 0 {
 		return nil
 	}
@@ -163,6 +191,20 @@ type splitPLSQLFrame struct {
 	kind        splitPLSQLKind
 	bodyStarted bool
 	compound    bool
+
+	// A stored unit's head runs to the IS|AS that opens its implementation;
+	// headDepth tracks the parameter list's parentheses before it. A nested
+	// subprogram frame is pushed at its IS|AS.
+	headDepth int
+	isAs      bool
+	// afterIsAs marks the token after IS|AS, whose word decides a call spec
+	// as isCallSpecWordToken does for the parser; afterMLE marks the token
+	// after an MLE call spec's MLE, which is LANGUAGE for inline code.
+	afterIsAs bool
+	afterMLE  bool
+	// callSpec marks an implementation that is a call spec: it has no END,
+	// and its ';' ends it.
+	callSpec bool
 }
 
 type splitState struct {
@@ -178,6 +220,29 @@ type splitState struct {
 
 	endPending      bool
 	closedOutermost bool
+
+	sourceHead embeddedSourceHead
+
+	// mleLanguagePending marks that the next token is the language name of
+	// an inline MLE call spec; mleCodeFrom is then the offset past that name,
+	// where the delimited code starts. embeddedCode records that the segment
+	// holds such code.
+	mleLanguagePending bool
+	mleCodeFrom        int
+	embeddedCode       bool
+
+	// typeSpec marks a CREATE TYPE specification; typeSpecMLE counts how
+	// much of IS|AS MLE LANGUAGE its last tokens spell.
+	typeSpec    bool
+	typeSpecMLE int
+}
+
+// segmentKind classifies the segment that ends now.
+func (s *splitState) segmentKind() SegmentKind {
+	if s.embeddedCode {
+		return SegmentEmbeddedSource
+	}
+	return SegmentSQL
 }
 
 func (s *splitState) reset() {
@@ -186,6 +251,12 @@ func (s *splitState) reset() {
 
 func (s *splitState) observe(tok Token) {
 	if tok.Type == tokEOF {
+		return
+	}
+
+	if s.mleLanguagePending {
+		s.mleLanguagePending = false
+		s.mleCodeFrom = tok.End
 		return
 	}
 
@@ -220,6 +291,10 @@ func (s *splitState) observeTopLevel(tok Token) {
 			return
 		}
 		s.pendingCreateType = false
+		s.typeSpec = true
+	}
+	if s.typeSpec {
+		s.observeTypeSpecCallSpec(tok)
 	}
 
 	switch tok.Type {
@@ -273,6 +348,24 @@ func (s *splitState) observeTopLevel(tok Token) {
 	}
 }
 
+// observeTypeSpecCallSpec follows the method specs of a CREATE TYPE
+// specification for IS|AS MLE LANGUAGE language_name, the head of an inline
+// MLE call spec, whose code may hold ';'. A type specification is not a
+// PL/SQL unit here: it ends at its ';' like SQL.
+func (s *splitState) observeTypeSpecCallSpec(tok Token) {
+	switch {
+	case tok.Type == kwIS || tok.Type == kwAS:
+		s.typeSpecMLE = 1
+	case s.typeSpecMLE == 1 && tok.Type == tokIDENT && tok.Str == "MLE":
+		s.typeSpecMLE = 2
+	case s.typeSpecMLE == 2 && tok.Type == tokIDENT && tok.Str == "LANGUAGE":
+		s.typeSpecMLE = 0
+		s.mleLanguagePending = true
+	default:
+		s.typeSpecMLE = 0
+	}
+}
+
 func (s *splitState) startPLSQL(kind splitPLSQLKind) {
 	s.inPLSQL = true
 	s.frames = []splitPLSQLFrame{{kind: kind}}
@@ -302,12 +395,19 @@ func (s *splitState) observePLSQL(tok Token) {
 
 	if tok.Type == ';' {
 		s.pendingSubprogram = false
+		if n := len(s.frames); n > 1 && s.frames[n-1].callSpec {
+			// A nested call spec has no END; its ';' closes it.
+			s.frames = s.frames[:n-1]
+		}
 		return
 	}
 
 	if s.pendingSubprogram {
 		if tok.Type == kwIS || tok.Type == kwAS {
 			s.pushFrame(splitPLSQLSubprogram, false)
+			top := &s.frames[len(s.frames)-1]
+			top.isAs = true
+			top.afterIsAs = true
 			s.pendingSubprogram = false
 			return
 		}
@@ -323,14 +423,12 @@ func (s *splitState) observePLSQL(tok Token) {
 		top.compound = true
 		return
 	}
-	if len(s.frames) == 1 && !top.bodyStarted {
+	if !top.bodyStarted {
 		switch top.kind {
-		case splitPLSQLStoredUnit:
-			if tok.Str == "LANGUAGE" || tok.Str == "EXTERNAL" || tok.Str == "WRAPPED" {
-				s.callSpecStarted = true
-			}
+		case splitPLSQLStoredUnit, splitPLSQLSubprogram:
+			s.observeSubprogramHead(top, tok)
 		case splitPLSQLTrigger:
-			if tok.Type == kwCALL {
+			if len(s.frames) == 1 && tok.Type == kwCALL {
 				s.callSpecStarted = true
 			}
 		}
@@ -357,6 +455,53 @@ func (s *splitState) observePLSQL(tok Token) {
 	case kwEND:
 		s.closePLSQLFrame()
 	}
+}
+
+// observeSubprogramHead follows a stored unit or nested subprogram up to its
+// implementation. A call spec right after IS|AS replaces BEGIN ... END and
+// ends at its ';'. WRAPPED replaces IS|AS in a wrapped stored unit. Both are
+// recognized only outside the parameter list, so a parameter named LANGUAGE,
+// EXTERNAL, or WRAPPED does not end the unit early. Like Oracle and the
+// parser, the splitter takes the word after IS|AS alone for a call spec, so
+// a malformed one still ends at its ';'.
+func (s *splitState) observeSubprogramHead(top *splitPLSQLFrame, tok Token) {
+	switch {
+	case top.afterMLE:
+		top.afterMLE = false
+		if tok.Type == tokIDENT && tok.Str == "LANGUAGE" {
+			s.mleLanguagePending = true
+		}
+	case top.afterIsAs:
+		top.afterIsAs = false
+		if isCallSpecWordToken(tok, "LANGUAGE", "EXTERNAL", "MLE") {
+			top.callSpec = true
+			top.afterMLE = tok.Str == "MLE"
+			if len(s.frames) == 1 {
+				s.callSpecStarted = true
+			}
+		}
+	case !top.isAs:
+		switch {
+		case tok.Type == '(':
+			top.headDepth++
+		case tok.Type == ')':
+			top.headDepth--
+		case top.headDepth > 0:
+		case tok.Type == kwIS || tok.Type == kwAS:
+			top.isAs = true
+			top.afterIsAs = true
+		case tok.Type == tokIDENT && tok.Str == "WRAPPED" && len(s.frames) == 1:
+			s.callSpecStarted = true
+		}
+	}
+}
+
+// callSpecKeepsSemicolon reports whether the stored unit being split is
+// implemented by a call spec, whose ';' belongs to the unit: Oracle compiles
+// it with PLS-00103 without one. A trigger's CALL routine and a wrapped unit
+// end before their ';' instead, which Oracle would reject in the text.
+func (s *splitState) callSpecKeepsSemicolon() bool {
+	return len(s.frames) == 1 && s.frames[0].callSpec
 }
 
 func (s *splitState) plsqlCanEndAtSemicolon() bool {
@@ -681,10 +826,6 @@ func lineEndAfterBreak(sql string, pos int) int {
 		pos++
 	}
 	return pos
-}
-
-func appendSegment(segments []Segment, sql string, start, end int) []Segment {
-	return appendSegmentWithKind(segments, sql, start, end, SegmentSQL)
 }
 
 func appendSegmentWithKind(segments []Segment, sql string, start, end int, kind SegmentKind) []Segment {
