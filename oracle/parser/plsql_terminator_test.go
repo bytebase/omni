@@ -41,6 +41,24 @@ func TestPLSQLTerminatorsRequired(t *testing.T) {
 		{"CREATE PACKAGE BODY k AS PROCEDURE q IS BEGIN NULL; END; END", ""},
 		{"CREATE TYPE BODY ty AS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END", ""},
 		{"CREATE TRIGGER trg FOR INSERT ON t COMPOUND TRIGGER BEFORE STATEMENT IS BEGIN NULL; END BEFORE STATEMENT; END trg", ""},
+		{"BEGIN CASE WHEN 1 = 1 THEN NULL x := 1; END CASE; END;", "x := 1; END CASE; END;"},
+		{"BEGIN CASE 1 WHEN 1 THEN NULL WHEN 2 THEN NULL; END CASE; END;", "WHEN 2 THEN NULL; END CASE; END;"},
+		{"BEGIN CASE 1 WHEN 1 THEN NULL; END; END;", "; END;"},
+		{"BEGIN CASE 1 ELSE NULL; END CASE; END;", "ELSE NULL; END CASE; END;"},
+		{"BEGIN IF 1 = 1 THEN NULL; END; END;", "; END;"},
+		{"BEGIN IF 1 = 1 THEN NULL; END IF IF; END;", "IF; END;"},
+		{"BEGIN END;", "END;"},
+		{"BEGIN IF 1 = 1 THEN END IF; END;", "END IF; END;"},
+		{"BEGIN IF 1 = 1 THEN NULL; ELSE END IF; END;", "END IF; END;"},
+		{"BEGIN CASE 1 WHEN 1 THEN WHEN 2 THEN NULL; END CASE; END;", "WHEN 2 THEN NULL; END CASE; END;"},
+		{"BEGIN CASE 1 WHEN 1 THEN NULL; ELSE END CASE; END;", "END CASE; END;"},
+		{"BEGIN WHILE 1 = 0 LOOP END LOOP; END;", "END LOOP; END;"},
+		{"BEGIN NULL; EXCEPTION WHEN OTHERS THEN END;", "END;"},
+		{"BEGIN NULL; EXCEPTION WHEN OTHERS NULL; END;", "NULL; END;"},
+		{"DECLARE SUBTYPE s IS PLS_INTEGER RANGE 1 .. ; BEGIN NULL; END;", "; BEGIN NULL; END;"},
+		{"DECLARE SUBTYPE s IS PLS_INTEGER RANGE .. 3; BEGIN NULL; END;", ".. 3; BEGIN NULL; END;"},
+		{"BEGIN LOCK t IN EXCLUSIVE MODE; END;", "t IN EXCLUSIVE MODE; END;"},
+		{"LOCK t IN EXCLUSIVE MODE", "t IN EXCLUSIVE MODE"},
 	}
 	for _, tc := range cases {
 		_, err := Parse(tc.sql)
@@ -93,6 +111,33 @@ func TestPLSQLTransactionStatements(t *testing.T) {
 		if got[i] != want[i] {
 			t.Fatalf("statements = %v, want %v", got, want)
 		}
+	}
+	if violations := CheckLocations(t, sql); len(violations) > 0 {
+		t.Errorf("Loc violations: %v", violations)
+	}
+}
+
+// TestPLSQLCaseAndIfStatementEnds checks that the arms of a CASE statement
+// keep every statement, and that END CASE and END IF take a label, as on
+// Oracle 23ai (ref_135).
+func TestPLSQLCaseAndIfStatementEnds(t *testing.T) {
+	sql := "DECLARE x NUMBER; BEGIN <<l>> CASE WHEN 1 = 1 THEN NULL; x := 1; ELSE x := 2; NULL; END CASE l; " +
+		"<<m>> IF x = 1 THEN NULL; END IF m; IF x = 2 THEN NULL; END IF foo; END;"
+	result := ParseAndCheck(t, sql)
+	block := result.Items[0].(*ast.RawStmt).Stmt.(*ast.PLSQLBlock)
+	labeled, ok := block.Statements.Items[0].(*ast.PLSQLLabeledStatement)
+	if !ok {
+		t.Fatalf("first statement = %T, want the labeled CASE", block.Statements.Items[0])
+	}
+	cs, ok := labeled.Statement.(*ast.PLSQLCase)
+	if !ok {
+		t.Fatalf("labeled statement = %T, want PLSQLCase", labeled.Statement)
+	}
+	if len(cs.Whens) != 1 || len(cs.Whens[0].Stmts) != 2 || len(cs.Else) != 2 {
+		t.Errorf("CASE arms = %d WHEN with %v, ELSE %v; want one WHEN and ELSE with 2 statements each", len(cs.Whens), cs.Whens, cs.Else)
+	}
+	if got := sql[cs.Loc.Start:cs.Loc.End]; got[len(got)-len("END CASE l;"):] != "END CASE l;" {
+		t.Errorf("CASE Loc covers %q, want it to end at END CASE l;", got)
 	}
 	if violations := CheckLocations(t, sql); len(violations) > 0 {
 		t.Errorf("Loc violations: %v", violations)
@@ -171,6 +216,8 @@ func TestPLSQLTypeLengthExpressions(t *testing.T) {
 		"DECLARE v VARCHAR2(); BEGIN NULL; END;",
 		"CREATE TABLE t (c VARCHAR2(n))",
 		"CREATE TABLE t (c VARCHAR2(10 + 2))",
+		// A datatype nested in a modifier follows the SQL rules (ref_138).
+		"DECLARE v VARCHAR2(CAST(1 AS NUMBER(foo))); BEGIN NULL; END;",
 	} {
 		ParseShouldFail(t, bad)
 	}

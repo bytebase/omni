@@ -32,9 +32,12 @@ func (p *Parser) parseLockTableStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume LOCK
 
-	if p.cur.Type == kwTABLE {
-		p.advance()
+	// TABLE is required: LOCK t IN EXCLUSIVE MODE is ORA-00966 (missing
+	// TABLE keyword) on Oracle 23ai, in SQL and in PL/SQL alike.
+	if p.cur.Type != kwTABLE {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	stmt := &nodes.LockTableStmt{
 		Loc: nodes.Loc{Start: start},

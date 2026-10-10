@@ -370,7 +370,7 @@ func (p *Parser) parsePLSQLStatements() (*nodes.List, error) {
 		// Check for terminators
 		switch p.cur.Type {
 		case kwEND, kwEXCEPTION, kwELSIF, kwELSE, kwWHEN, tokEOF:
-			return stmts, nil
+			return stmts, p.requirePLSQLStatement(stmts)
 		}
 
 		stmt, parseErr845 := p.parsePLSQLStatement()
@@ -378,7 +378,7 @@ func (p *Parser) parsePLSQLStatements() (*nodes.List, error) {
 			return nil, parseErr845
 		}
 		if stmt == nil {
-			return stmts, nil
+			return stmts, p.requirePLSQLStatement(stmts)
 		}
 		// Every PL/SQL statement ends with ';' (PLS-00103 otherwise). Without
 		// this check the words after a statement that stopped early parsed
@@ -392,6 +392,18 @@ func (p *Parser) parsePLSQLStatements() (*nodes.List, error) {
 
 		// parsePLSQLStatement parses a single PL/SQL statement.
 		nil
+}
+
+// requirePLSQLStatement reports a syntax error at the current token when
+// stmts is empty. A block body, a branch of IF or CASE, a loop body, and an
+// exception handler each hold at least one statement; Oracle 23ai rejects
+// BEGIN END; and IF c THEN END IF; with PLS-00103 (NULL; is the empty
+// statement).
+func (p *Parser) requirePLSQLStatement(stmts *nodes.List) error {
+	if stmts.Len() == 0 {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
 }
 
 func (p *Parser) parsePLSQLStatement() (nodes.StmtNode, error) {
@@ -732,14 +744,8 @@ func (p *Parser) parsePLSQLIf() (*nodes.PLSQLIf, error) {
 		}
 	}
 
-	if p.cur.Type == kwEND {
-		p.advance()
-	}
-	if p.cur.Type == kwIF {
-		p.advance()
-	}
-	if p.cur.Type == ';' {
-		p.advance()
+	if err := p.consumeEndKeyword(kwIF); err != nil {
+		return nil, err
 	}
 
 	ifStmt.Loc.End = p.prev.End
@@ -1314,9 +1320,10 @@ func (p *Parser) parsePLSQLExceptionHandlers() (*nodes.List, error) {
 		}
 
 		// THEN
-		if p.cur.Type == kwTHEN {
-			p.advance()
+		if p.cur.Type != kwTHEN {
+			return nil, p.syntaxErrorAtCur()
 		}
+		p.advance()
 		var parseErr879 error
 
 		handler.Statements, parseErr879 = p.parsePLSQLStatements()
@@ -1707,49 +1714,66 @@ func (p *Parser) parsePLSQLCaseStmt() (nodes.StmtNode, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
-		// Statements until next WHEN, ELSE, or END
-		for p.cur.Type != kwWHEN && p.cur.Type != kwELSE && p.cur.Type != kwEND && p.cur.Type != tokEOF {
-			s, parseErr892 := p.parsePLSQLStatement()
-			if parseErr892 != nil {
-				return nil, parseErr892
-			}
-			if s == nil {
-				break
-			}
-			when.Stmts = append(when.Stmts, s)
+		// Statements until next WHEN, ELSE, or END, each ended by ';'
+		stmts, parseErr892 := p.parsePLSQLStatements()
+		if parseErr892 != nil {
+			return nil, parseErr892
 		}
+		when.Stmts = plsqlStmtNodes(stmts)
 		when.Loc.End = p.prev.End
 		stmt.Whens = append(stmt.Whens, when)
 	}
 
 	// ELSE
+	if len(stmt.Whens) == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
 	if p.cur.Type == kwELSE {
 		p.advance()
-		for p.cur.Type != kwEND && p.cur.Type != tokEOF {
-			s, parseErr893 := p.parsePLSQLStatement()
-			if parseErr893 != nil {
-				return nil, parseErr893
-			}
-			if s == nil {
-				break
-			}
-			stmt.Else = append(stmt.Else, s)
+		stmts, parseErr893 := p.parsePLSQLStatements()
+		if parseErr893 != nil {
+			return nil, parseErr893
 		}
+		stmt.Else = plsqlStmtNodes(stmts)
 	}
 
-	// END CASE ;
-	if p.cur.Type == kwEND {
-		p.advance()
-	}
-	if p.cur.Type == kwCASE {
-		p.advance()
-	}
-	if p.cur.Type == ';' {
-		p.advance()
+	if err := p.consumeEndKeyword(kwCASE); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// consumeEndKeyword consumes END kw [label] ; that closes an IF or CASE
+// statement. Oracle 23ai requires the keyword after END (IF c THEN NULL; END;
+// is PLS-00103) and accepts a label after it (END IF l;, END CASE l;).
+func (p *Parser) consumeEndKeyword(kw int) error {
+	if p.cur.Type != kwEND {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type != kw {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.atEndName() {
+		p.advance() // consume label
+	}
+	if p.cur.Type != ';' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
+}
+
+// plsqlStmtNodes returns the statements of a list parsePLSQLStatements built.
+func plsqlStmtNodes(list *nodes.List) []nodes.StmtNode {
+	out := make([]nodes.StmtNode, 0, list.Len())
+	for _, item := range list.Items {
+		out = append(out, item.(nodes.StmtNode))
+	}
+	return out
 }
 
 // parsePLSQLSubtypeDecl parses a SUBTYPE declaration, the current token at
@@ -1794,12 +1818,15 @@ func (p *Parser) parsePLSQLSubtypeDecl() (*nodes.PLSQLSubtypeDecl, error) {
 		if decl.RangeLow, err = p.parseExpr(); err != nil {
 			return nil, err
 		}
-		if p.cur.Type != tokDOTDOT {
+		if decl.RangeLow == nil || p.cur.Type != tokDOTDOT {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
 		if decl.RangeHigh, err = p.parseExpr(); err != nil {
 			return nil, err
+		}
+		if decl.RangeHigh == nil {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 	decl.NotNull = p.consumeNotNull()

@@ -190,8 +190,12 @@ func (p *Parser) parsePLSQLTypeMods(tn *nodes.TypeName, sized bool) error {
 	return nil
 }
 
+// parsePLSQLTypeMod parses one modifier expression. A datatype nested in
+// it, as in CAST(x AS NUMBER(5)), follows the SQL rules again.
 func (p *Parser) parsePLSQLTypeMod(tn *nodes.TypeName) error {
+	p.plsqlTypeMods = false
 	expr, err := p.parseExpr()
+	p.plsqlTypeMods = true
 	if err != nil {
 		return err
 	}

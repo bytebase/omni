@@ -127,3 +127,14 @@ ref_125	plsql_body	accept	CREATE OR REPLACE PACKAGE omni_subtype_pk_{run} AS SUB
 ref_126	plsql	reject	DECLARE TYPE e IS (a, b); BEGIN NULL; END;	enumeration type outside STANDARD (PLS-00505)
 ref_127	plsql	accept	BEGIN <<l>> BEGIN NULL; END l; <<m>> LOOP EXIT; END LOOP m; BEGIN NULL; END loop; BEGIN NULL; END type; END;	labels after END, including unreserved keywords
 ref_128	plsql	reject	BEGIN BEGIN NULL; END if; END;	reserved word as the label after END
+ref_129	plsql	reject	DECLARE x NUMBER; BEGIN CASE WHEN 1 = 1 THEN NULL x := 1; END CASE; END;	CASE arm statement without its semicolon
+ref_130	plsql	reject	BEGIN CASE 1 WHEN 1 THEN NULL; END; END;	CASE statement closed by END without CASE
+ref_131	plsql	reject	BEGIN IF 1 = 1 THEN NULL; END; END;	IF statement closed by END without IF
+ref_132	plsql	reject	BEGIN END;	block without a statement
+ref_133	plsql	reject	BEGIN IF 1 = 1 THEN NULL; ELSE END IF; END;	ELSE branch without a statement
+ref_134	plsql	reject	BEGIN NULL; EXCEPTION WHEN OTHERS NULL; END;	exception handler without THEN
+ref_135	plsql	accept	DECLARE x NUMBER; BEGIN <<l>> CASE WHEN 1 = 1 THEN NULL; x := 1; ELSE x := 2; END CASE l; <<m>> IF x = 1 THEN NULL; END IF m; END;	labels after END CASE and END IF
+ref_136	plsql	reject	BEGIN LOCK t IN EXCLUSIVE MODE; END;	LOCK without TABLE in a block (ORA-00966)
+ref_137	dml	reject	LOCK t IN EXCLUSIVE MODE	LOCK without TABLE (ORA-00966)
+ref_138	plsql	reject	DECLARE v VARCHAR2(CAST(1 AS NUMBER(foo))); BEGIN NULL; END;	SQL datatype nested in a PL/SQL type length
+ref_139	plsql	reject	DECLARE SUBTYPE s IS PLS_INTEGER RANGE 1 .. ; BEGIN NULL; END;	SUBTYPE RANGE without its upper bound expression
