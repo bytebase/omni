@@ -564,10 +564,10 @@ func (p *Parser) isTableConstraintStart() bool {
 	case kwCONSTRAINT:
 		next := p.peekNext()
 		return !isOracleTypeToken(next.Type)
-	case kwPRIMARY:
-		return true
-	case kwFOREIGN:
-		return true
+	case kwPRIMARY, kwFOREIGN:
+		// PRIMARY and FOREIGN are not reserved: without KEY they start a
+		// column definition (engine-checked by TestOracleNonReservedKeywordsAsColumns).
+		return p.peekNext().Type == kwKEY
 	case kwUNIQUE:
 		// UNIQUE could be a column constraint when it follows a type,
 		// but at the top level of the column list it's a table constraint

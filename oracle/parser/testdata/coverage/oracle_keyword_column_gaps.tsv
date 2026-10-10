@@ -1,0 +1,2 @@
+case	oracle_accepts	omni_accepts	sql
+XMLELEMENT:index	false	true	CREATE INDEX t_i ON t (XMLELEMENT)

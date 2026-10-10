@@ -138,11 +138,14 @@ func (p *Parser) isIncompleteStatementEnd(stmt nodes.StmtNode) bool {
 		return true
 	}
 
+	// Keywords Oracle does not reserve (CONTENT, JOIN, USING) are left out: a
+	// statement can end with a column of that name, and a clause they open
+	// without its operand ("FROM t JOIN") fails in the clause's own parser.
 	switch stmt.(type) {
 	case *nodes.SelectStmt:
 		switch p.prev.Type {
-		case kwAND, kwAS, kwBY, kwCONTENT, kwFROM, kwGROUP, kwHAVING,
-			kwIS, kwJOIN, kwNOT, kwON, kwOR, kwORDER, kwTHEN, kwUNION,
+		case kwAND, kwAS, kwBY, kwFROM, kwGROUP, kwHAVING,
+			kwIS, kwNOT, kwON, kwOR, kwORDER, kwTHEN, kwUNION,
 			kwWHERE:
 			return true
 		}
@@ -154,7 +157,7 @@ func (p *Parser) isIncompleteStatementEnd(stmt nodes.StmtNode) bool {
 		return p.prev.Type == kwFROM || p.prev.Type == kwWHERE
 	case *nodes.MergeStmt:
 		switch p.prev.Type {
-		case kwINTO, kwON, kwSET, kwTHEN, kwUSING, kwWHERE:
+		case kwINTO, kwON, kwSET, kwTHEN, kwWHERE:
 			return true
 		}
 	case *nodes.CreateTableStmt:

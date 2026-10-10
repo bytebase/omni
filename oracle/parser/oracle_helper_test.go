@@ -37,7 +37,7 @@ func startOracleDB(t *testing.T) *oracleDB {
 		ctx := context.Background()
 
 		req := testcontainers.ContainerRequest{
-			Image:        "gvenzl/oracle-free:23-slim-faststart",
+			Image:        "gvenzl/oracle-free:23.26.3-slim-faststart",
 			ExposedPorts: []string{"1521/tcp"},
 			Env: map[string]string{
 				"ORACLE_PASSWORD":   "testpass",

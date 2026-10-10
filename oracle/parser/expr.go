@@ -583,9 +583,17 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		return p.parseParenExpr()
 
 	case kwCASE:
+		if p.caseNamesColumn() {
+			return p.parseIdentExpr()
+		}
 		return p.parseCaseExpr()
 
+	// CAST, DECODE, and INTERVAL are not reserved; without the '(' or the
+	// string literal that opens the function or literal, they name a column.
 	case kwCAST:
+		if p.peekNext().Type != '(' {
+			return p.parseIdentExpr()
+		}
 		return p.parseCastExpr()
 
 	case kwDATE, kwTIMESTAMP:
@@ -595,6 +603,9 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		return p.parseIdentExpr()
 
 	case kwDECODE:
+		if p.peekNext().Type != '(' {
+			return p.parseIdentExpr()
+		}
 		return p.parseDecodeExpr()
 
 	case kwEXISTS:
@@ -633,6 +644,9 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		return p.parseJsonPathFunc("JSON_MERGEPATCH")
 
 	case kwINTERVAL:
+		if p.peekNext().Type != tokSCONST {
+			return p.parseIdentExpr()
+		}
 		return p.parseIntervalExpr()
 
 	default:
@@ -642,10 +656,12 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		}
 
 		// Identifier — could be column ref, function call, or keyword-as-identifier.
-		// OFFSET is not reserved in Oracle and names columns in practice; it
-		// starts the row_limiting_clause only after a complete expression or
-		// table reference, never where an operand begins.
-		if isOracleClauseStarterKeyword(p.cur.Type) && p.cur.Type != kwOFFSET {
+		// A clause keyword Oracle reserves (FROM, WHERE, ...) ends the operand.
+		// The ones it does not reserve (FETCH, JOIN, MODEL, OFFSET, USING) name
+		// columns in practice and start their clauses only after a complete
+		// expression or table reference, never where an operand begins.
+		// TestOracleNonReservedKeywordsAsColumns checks them on the engine.
+		if isOracleClauseStarterKeyword(p.cur.Type) && isOracleSQLReservedKeyword(p.cur) {
 			return nil, nil
 		}
 		if p.isIdentLike() {
@@ -654,6 +670,22 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 
 		return nil, nil
 	}
+}
+
+// caseNamesColumn reports whether CASE at the current token is a column
+// reference rather than a CASE expression. Oracle does not reserve CASE, and
+// a CASE expression always continues with WHEN or an operand, never with a
+// token that ends an operand or joins two of them.
+func (p *Parser) caseNamesColumn() bool {
+	switch p.peekNext().Type {
+	case tokEOF, ';', ',', ')', '.', '=', '<', '>', '*', '/',
+		tokLESSEQ, tokGREATEQ, tokNOTEQ, tokCONCAT,
+		kwFROM, kwWHERE, kwGROUP, kwORDER, kwHAVING, kwINTO, kwAS,
+		kwIS, kwIN, kwNOT, kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4, kwBETWEEN,
+		kwAND, kwOR, kwASC, kwDESC, kwNULLS, kwUNION, kwINTERSECT, kwMINUS:
+		return true
+	}
+	return false
 }
 
 // parseDateTimeLiteral parses ANSI datetime literals such as DATE '2020-01-01'.

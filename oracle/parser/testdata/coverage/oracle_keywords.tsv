@@ -44,7 +44,7 @@ kw_042	CONNECT_BY_ROOT	2036	nonreserved	allow	allow	skip	allow	skip	skip	lexer k
 kw_043	CONSTANT	2037	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_044	CONSTRAINT	2038	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_045	CONSTRAINTS	2039	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
-kw_046	CONTENT	2309	context	allow	allow	skip	reject	skip	skip	lexer keyword classified by local Oracle parser policy
+kw_046	CONTENT	2309	context	allow	allow	skip	allow	skip	skip	engine-checked: Oracle accepts it as a schema-qualified table name
 kw_047	CONTEXT	2325	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_048	CONTINUE	2040	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_049	CREATE	2041	reserved	reject	reject	skip	reject	skip	skip	lexer keyword classified by local Oracle parser policy
@@ -95,7 +95,7 @@ kw_093	FOLLOWING	2290	context	allow	allow	skip	allow	skip	skip	lexer keyword cla
 kw_094	FOR	2079	reserved	reject	reject	skip	reject	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_095	FORALL	2080	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_096	FORCE	2081	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
-kw_097	FOREIGN	2082	nonreserved	allow	reject	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
+kw_097	FOREIGN	2082	nonreserved	allow	allow	skip	allow	skip	skip	engine-checked: not reserved in V$RESERVED_WORDS; Oracle accepts it as an identifier
 kw_098	FORMAT	2331	context	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_099	FROM	2083	clause-starter	reject	reject	skip	reject	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_100	FULL	2084	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
@@ -131,7 +131,7 @@ kw_129	IS	2111	reserved	reject	reject	skip	reject	skip	skip	lexer keyword classi
 kw_130	ISOLATION	2112	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_131	ITERATE	2280	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_132	JAVA	2327	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
-kw_133	JOIN	2113	clause-starter	allow	allow	skip	reject	skip	skip	lexer keyword classified by local Oracle parser policy
+kw_133	JOIN	2113	clause-starter	allow	allow	skip	allow	skip	skip	engine-checked: Oracle accepts it as a schema-qualified table name
 kw_134	JSON	2332	context	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_135	JSON_ARRAY	2333	function	allow	allow	skip	allow	allow	skip	lexer keyword classified by local Oracle parser policy
 kw_136	JSON_EXISTS	2334	function	allow	allow	skip	allow	allow	skip	lexer keyword classified by local Oracle parser policy
@@ -225,10 +225,10 @@ kw_223	PIVOT	2184	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword cla
 kw_224	PLAN	2185	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_225	PRAGMA	2186	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_226	PRECEDING	2292	context	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
-kw_227	PRIMARY	2187	nonreserved	allow	reject	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
+kw_227	PRIMARY	2187	nonreserved	allow	allow	skip	allow	skip	skip	engine-checked: not reserved in V$RESERVED_WORDS; Oracle accepts it as an identifier
 kw_228	PRIOR	2188	reserved	reject	reject	skip	reject	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_229	PRIVATE	2189	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
-kw_230	PRIVILEGES	2190	reserved	reject	reject	skip	reject	skip	skip	lexer keyword classified by local Oracle parser policy
+kw_230	PRIVILEGES	2190	nonreserved	allow	allow	skip	allow	skip	skip	engine-checked: not reserved in V$RESERVED_WORDS; Oracle accepts it as an identifier
 kw_231	PROCEDURE	2191	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_232	PROFILE	2329	nonreserved	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_233	PUBLIC	2192	reserved	reject	reject	skip	reject	skip	skip	lexer keyword classified by local Oracle parser policy

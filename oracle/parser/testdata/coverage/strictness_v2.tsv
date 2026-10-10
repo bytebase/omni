@@ -36,7 +36,7 @@ expr_010	expression	error	syntax error	SELECT PRIOR
 expr_011	expression	error	syntax error	SELECT CONNECT_BY_ROOT
 expr_012	expression	error	syntax error	SELECT (1
 expr_013	expression	error	syntax error	SELECT (1 +
-expr_014	expression	error	syntax error	SELECT CASE
+expr_014	expression	error	syntax error	SELECT CASE 1
 expr_015	expression	error	syntax error	SELECT CASE WHEN
 expr_016	expression	error	syntax error	SELECT CASE WHEN 1 = 1 THEN
 expr_017	expression	error	syntax error	SELECT CASE WHEN 1 = 1 THEN 2 ELSE
