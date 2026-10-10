@@ -589,6 +589,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writePLSQLWhen(sb, n)
 	case *PLSQLTypeDecl:
 		writePLSQLTypeDecl(sb, n)
+	case *PLSQLSubtypeDecl:
+		writePLSQLSubtypeDecl(sb, n)
 	case *PLSQLCall:
 		writePLSQLCall(sb, n)
 
@@ -5344,6 +5346,9 @@ func writePLSQLTypeDecl(sb *strings.Builder, n *PLSQLTypeDecl) {
 		sb.WriteString(" :elementType ")
 		writeNode(sb, n.ElementType)
 	}
+	if n.ElementNotNull {
+		sb.WriteString(" :elementNotNull true")
+	}
 	if n.IndexBy != nil {
 		sb.WriteString(" :indexBy ")
 		writeNode(sb, n.IndexBy)
@@ -5359,6 +5364,28 @@ func writePLSQLTypeDecl(sb *strings.Builder, n *PLSQLTypeDecl) {
 	if n.ReturnType != nil {
 		sb.WriteString(" :returnType ")
 		writeNode(sb, n.ReturnType)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLSubtypeDecl(sb *strings.Builder, n *PLSQLSubtypeDecl) {
+	sb.WriteString("{PLSQLSUBTYPEDECL")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.BaseType != nil {
+		sb.WriteString(" :baseType ")
+		writeNode(sb, n.BaseType)
+	}
+	if n.RangeLow != nil {
+		sb.WriteString(" :rangeLow ")
+		writeNode(sb, n.RangeLow)
+	}
+	if n.RangeHigh != nil {
+		sb.WriteString(" :rangeHigh ")
+		writeNode(sb, n.RangeHigh)
+	}
+	if n.NotNull {
+		sb.WriteString(" :notNull true")
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

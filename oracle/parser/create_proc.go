@@ -462,12 +462,13 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 	}
 	p.advance() // consume END
 	// Optional package name after END
-	if p.isIdentLike() && p.cur.Type != ';' && p.cur.Type != tokEOF {
+	if p.atEndName() {
 		p.advance() // consume name
 	}
-	if p.cur.Type == ';' {
-		p.advance() // consume ;
+	if p.cur.Type != ';' {
+		return nil, p.syntaxErrorAtCur()
 	}
+	p.advance() // consume ;
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -479,12 +480,6 @@ func (p *Parser) parsePackageBody() (*nodes.List, error) {
 	decls := &nodes.List{}
 
 	for p.cur.Type != kwEND && p.cur.Type != tokEOF {
-		// Skip standalone semicolons
-		if p.cur.Type == ';' {
-			p.advance()
-			continue
-		}
-
 		// PROCEDURE declaration/definition in package
 		if p.cur.Type == kwPROCEDURE {
 			decl, parseErr470 := p.parsePackageProcDecl()
@@ -514,18 +509,14 @@ func (p *Parser) parsePackageBody() (*nodes.List, error) {
 			break
 		}
 
-		// Variable/type/cursor declarations
+		// Variable/type/cursor declarations. Each ends with ';', and a
+		// stray ';' between items is PLS-00103 on Oracle 23ai.
 		decl, parseErr472 := p.parsePLSQLDeclaration()
 		if parseErr472 != nil {
-			return nil,
-
-				// If we can't parse anything, skip a token to avoid infinite loop
-				parseErr472
+			return nil, parseErr472
 		}
-		if decl == nil {
-
-			p.advance()
-			continue
+		if decl == nil || p.prev.Type != ';' {
+			return nil, p.syntaxErrorAtCur()
 		}
 		decls.Items = append(decls.Items, decl)
 	}

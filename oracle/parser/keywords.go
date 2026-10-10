@@ -126,6 +126,49 @@ func isOracleContextKeyword(tokenType int) bool {
 	}
 }
 
+// plsqlReservedWords are the words Oracle 23ai rejects, unquoted, where
+// PL/SQL expects a name, such as the label after END (PLS-00103). They were
+// found by compiling BEGIN BEGIN NULL; END word; END; for each word of the
+// documented PL/SQL reserved words, each SQL reserved word, and each PL/SQL
+// statement keyword; the engine, not the list, decides.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/plsql-reserved-words-keywords.html
+var plsqlReservedWords = map[string]bool{
+	"ALL": true, "ALTER": true, "AND": true, "ANY": true, "AS": true, "ASC": true, "AT": true,
+	"BEGIN": true, "BETWEEN": true, "BY": true, "CASE": true, "CHECK": true, "CLUSTER": true,
+	"CLUSTERS": true, "COLAUTH": true, "COLUMNS": true, "COMPRESS": true, "CONNECT": true,
+	"CRASH": true, "CREATE": true, "CURRENT": true, "DECLARE": true, "DEFAULT": true,
+	"DELETE": true, "DESC": true, "DISTINCT": true, "DROP": true, "ELSE": true, "END": true,
+	"EXCEPTION": true, "EXCLUSIVE": true, "EXISTS": true, "FETCH": true, "FOR": true,
+	"FROM": true, "GOTO": true, "GRANT": true, "GROUP": true, "HAVING": true,
+	"IDENTIFIED": true, "IF": true, "IN": true, "INDEX": true, "INDEXES": true, "INSERT": true,
+	"INTERSECT": true, "INTO": true, "IS": true, "LIKE": true, "LOCK": true, "MINUS": true,
+	"MODE": true, "NOCOMPRESS": true, "NOT": true, "NOWAIT": true, "NULL": true, "OF": true,
+	"ON": true, "OPTION": true, "OR": true, "ORDER": true, "OVERLAPS": true, "PRIOR": true,
+	"PROCEDURE": true, "PUBLIC": true, "RESOURCE": true, "REVOKE": true, "SELECT": true,
+	"SHARE": true, "SIZE": true, "SQL": true, "START": true, "TABAUTH": true, "TABLE": true,
+	"THEN": true, "TO": true, "UNION": true, "UNIQUE": true, "UPDATE": true, "VALUES": true,
+	"VIEW": true, "VIEWS": true, "WHEN": true, "WHERE": true, "WITH": true,
+}
+
+// isPLSQLIdentifier reports whether the current token can name a PL/SQL
+// item: a quoted identifier, or a word that is not PL/SQL reserved. SUBTYPE
+// loop IS NUMBER compiles on Oracle 23ai; SUBTYPE prior IS NUMBER does not.
+func (p *Parser) isPLSQLIdentifier() bool {
+	if p.cur.Type == tokQIDENT {
+		return true
+	}
+	return p.isIdentLike() && !plsqlReservedWords[p.cur.Str]
+}
+
+// atEndName reports whether the current token, just after END or END LOOP,
+// is the optional label or unit name. A PL/SQL reserved word is not: in
+// END LOOP END; the second END closes the enclosing block, and Oracle reports
+// the missing ';' at it.
+func (p *Parser) atEndName() bool {
+	return p.isPLSQLIdentifier()
+}
+
 // isOracleSQLReservedKeyword returns true when tok is an Oracle SQL reserved word
 // that cannot be used as a nonquoted object or column identifier.
 func isOracleSQLReservedKeyword(tok Token) bool {

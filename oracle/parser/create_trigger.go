@@ -164,11 +164,16 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 				if depth > 0 {
 					depth--
 				} else {
-					// Outer END — consume END, optional name, done.
+					// Outer END — consume END, optional name, and the ';'
+					// that ends the trigger (PLS-00103 without it).
 					p.advance() // consume END
-					if p.isIdentLike() {
+					if p.atEndName() {
 						p.advance() // consume trigger name
 					}
+					if p.cur.Type != ';' {
+						return nil, p.syntaxErrorAtCur()
+					}
+					p.advance() // consume ;
 					break
 				}
 			}

@@ -248,7 +248,7 @@ var dictionaryCategories = []struct {
 	{"PARALLEL_ENABLE (PARTITION ...)", "", regexp.MustCompile(`(?i)parallel_enable\s*\(`)},
 	{"package initialization section", "PACKAGE BODY", regexp.MustCompile(`(?i)^\s*begin\b`)},
 	{"REF type", "", regexp.MustCompile(`(?i)\bref\s`)},
-	{"Oracle-internal syntax (PRAGMA INTERFACE, ... parameters)", "", regexp.MustCompile(`(?i)pragma\s+interface|\.\.\.`)},
+	{"Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration types)", "", regexp.MustCompile(`(?i)pragma\s+interface|\.\.\.|^\s*type\s+\w+\s+is\s*\(`)},
 	{"JSON function clause", "", regexp.MustCompile(`(?i)\breturning\b|json_|^\s*key\b`)},
 	{"trigger CALL with arguments", "TRIGGER", regexp.MustCompile(`(?i)^\s*call\b|\(\s*:(new|old)\.`)},
 	{"qualified expression (=>)", "", regexp.MustCompile(`=>`)},

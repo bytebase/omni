@@ -27,6 +27,11 @@ type Parser struct {
 	// met to the end of the range, whether it opens a CASE expression (true)
 	// or names a column (false). decideCaseTokens fills it in one pass.
 	caseKinds map[int]bool
+
+	// plsqlTypeMods is set while parsePLSQLTypeName parses the datatype of
+	// a PL/SQL declaration, where a length, precision, or scale may be an
+	// expression rather than an integer literal.
+	plsqlTypeMods bool
 }
 
 // Parse parses a SQL string into an AST list.
@@ -252,15 +257,7 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 	case kwSET:
 		next := p.peekNext()
 		if next.Type == kwTRANSACTION {
-			start := p.pos()
-			p.advance() // consume SET
-			p.advance() // consume TRANSACTION
-			stmt, parseErr828 := p.parseSetTransactionStmt()
-			if parseErr828 != nil {
-				return nil, parseErr828
-			}
-			stmt.(*nodes.SetTransactionStmt).Loc.Start = start
-			return stmt, nil
+			return p.parseSetTransactionAtSet()
 		}
 		if next.Type == kwROLE {
 			return p.parseSetRoleStmt()

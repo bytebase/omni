@@ -1201,6 +1201,12 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.Args)
 	case *PLSQLReturn:
 		Walk(v, n.Expr)
+	case *PLSQLSubtypeDecl:
+		if n.BaseType != nil {
+			Walk(v, n.BaseType)
+		}
+		Walk(v, n.RangeLow)
+		Walk(v, n.RangeHigh)
 	case *PLSQLTypeDecl:
 		if n.ElementType != nil {
 			Walk(v, n.ElementType)
