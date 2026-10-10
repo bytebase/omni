@@ -87,7 +87,7 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 	if parseErr456 != nil {
 		return nil, parseErr456
 	}
-	if err := p.checkBodyCharsetSources(stmt.Parameters, stmt.Body); err != nil {
+	if err := p.checkCharsetScopes(stmt.Parameters, stmt.Body); err != nil {
 		return nil, err
 	}
 
@@ -242,7 +242,7 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 	if parseErr461 != nil {
 		return nil, parseErr461
 	}
-	if err := p.checkBodyCharsetSources(stmt.Parameters, stmt.Body); err != nil {
+	if err := p.checkCharsetScopes(stmt.Parameters, stmt.Body); err != nil {
 		return nil, err
 	}
 
@@ -560,41 +560,6 @@ func (p *Parser) mayBeCharacterType(tn *nodes.TypeName) bool {
 	}
 }
 
-// checkBodyCharsetSources applies checkCharsetSources to the declarations
-// of a subprogram body's own declaration section: a local item%CHARSET
-// whose source is a formal, or a preceding local variable, of a
-// non-character type is PLS-00550 on Oracle 23ai. A local cannot redeclare
-// a formal there (PLS-00410). Nested blocks and subprograms are left to the
-// engine.
-func (p *Parser) checkBodyCharsetSources(params *nodes.List, body nodes.StmtNode) error {
-	block, ok := body.(*nodes.PLSQLBlock)
-	if !ok || block.Declarations == nil {
-		return nil
-	}
-	scope := &nodes.List{}
-	if params != nil {
-		scope.Items = append(scope.Items, params.Items...)
-	}
-	for _, item := range block.Declarations.Items {
-		var tn *nodes.TypeName
-		switch d := item.(type) {
-		case *nodes.PLSQLVarDecl:
-			tn = d.TypeName
-		case *nodes.PLSQLSubtypeDecl:
-			tn = d.BaseType
-		default:
-			continue
-		}
-		if err := p.checkCharsetSources(scope, tn); err != nil {
-			return err
-		}
-		if d, ok := item.(*nodes.PLSQLVarDecl); ok {
-			scope.Items = append(scope.Items, d)
-		}
-	}
-	return nil
-}
-
 // parseImplementationType parses USING [ schema. ] implementation_type
 // [ @dblink ], the current token at USING. Every part needs its name: Oracle
 // 23ai rejects USING impl. and USING impl@ (PLS-00103), and takes a dotted
@@ -745,6 +710,9 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 		nil {
 		return nil, parseErr469
 	}
+	if err := p.checkPackageCharsetScopes(stmt.Body); err != nil {
+		return nil, err
+	}
 	// A package holding a SQL macro has definer's rights: Oracle 23ai
 	// rejects AUTHID CURRENT_USER on one with PLS-00782.
 	if stmt.AuthID == "CURRENT_USER" && stmt.Body != nil {
@@ -870,9 +838,6 @@ func (p *Parser) parsePackageProcDecl(level subprogramLevel) (*nodes.CreateProce
 		if parseErr475 != nil {
 			return nil, parseErr475
 		}
-		if err := p.checkBodyCharsetSources(stmt.Parameters, stmt.Body); err != nil {
-			return nil, err
-		}
 	} else if p.cur.Type == ';' {
 		p.advance()
 	} else {
@@ -948,9 +913,6 @@ func (p *Parser) parsePackageFuncDecl(level subprogramLevel) (*nodes.CreateFunct
 		stmt.Body, stmt.CallSpec, parseErr480 = p.parseSubprogramImplementation()
 		if parseErr480 != nil {
 			return nil, parseErr480
-		}
-		if err := p.checkBodyCharsetSources(stmt.Parameters, stmt.Body); err != nil {
-			return nil, err
 		}
 	} else if p.cur.Type == ';' {
 		p.advance()

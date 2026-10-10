@@ -516,6 +516,152 @@ func (p *Parser) checkCharsetSources(params *nodes.List, result *nodes.TypeName)
 	return check(result)
 }
 
+// charsetScopes checks the item%CHARSET source of each declaration in a
+// unit against the declarations in scope, innermost first, as Oracle 23ai
+// resolves it: a source of a non-character type is PLS-00550, from a
+// package item, an outer block, or an enclosing subprogram alike, while an
+// inner declaration of the same name shadows the outer one. A unit is
+// walked once, each scope's map filled as its declarations are read.
+type charsetScopes struct {
+	p      *Parser
+	scopes []map[string]*nodes.TypeName
+}
+
+// checkCharsetScopes walks a subprogram body (or an anonymous block, with
+// no parameters): the formals and the body's declarations share a scope.
+func (p *Parser) checkCharsetScopes(params *nodes.List, body nodes.StmtNode) error {
+	c := &charsetScopes{p: p}
+	return c.subprogram(params, body)
+}
+
+// checkPackageCharsetScopes walks the items of a package specification or
+// body, and the subprograms among them.
+func (p *Parser) checkPackageCharsetScopes(items *nodes.List) error {
+	if items == nil {
+		return nil
+	}
+	c := &charsetScopes{p: p}
+	c.push()
+	return c.declarations(items)
+}
+
+func (c *charsetScopes) push() {
+	c.scopes = append(c.scopes, map[string]*nodes.TypeName{})
+}
+
+func (c *charsetScopes) pop() {
+	c.scopes = c.scopes[:len(c.scopes)-1]
+}
+
+// declare enters name in the innermost scope; tn is nil for an item that
+// is not a typed variable (a cursor, a type, a subprogram), which shadows
+// an outer name without being a %CHARSET source the text can judge.
+func (c *charsetScopes) declare(name string, tn *nodes.TypeName) {
+	c.scopes[len(c.scopes)-1][name] = tn
+}
+
+func (c *charsetScopes) check(tn *nodes.TypeName) error {
+	if tn == nil || !tn.IsPercCharset || c.p.qualifiedCharsets[tn] {
+		return nil
+	}
+	for i := len(c.scopes) - 1; i >= 0; i-- {
+		if src, ok := c.scopes[i][tn.CharacterSet]; ok {
+			if src != nil && !c.p.mayBeCharacterType(src) {
+				return c.p.syntaxErrorAtType(tn)
+			}
+			return nil
+		}
+	}
+	return nil
+}
+
+func (c *charsetScopes) subprogram(params *nodes.List, body nodes.StmtNode) error {
+	block, ok := body.(*nodes.PLSQLBlock)
+	if !ok || block == nil {
+		return nil
+	}
+	c.push()
+	defer c.pop()
+	if params != nil {
+		for _, item := range params.Items {
+			if pr, ok := item.(*nodes.Parameter); ok {
+				c.declare(pr.Name, pr.TypeName)
+			}
+		}
+	}
+	return c.blockContents(block)
+}
+
+func (c *charsetScopes) block(b *nodes.PLSQLBlock) error {
+	c.push()
+	defer c.pop()
+	return c.blockContents(b)
+}
+
+// blockContents walks a block's declarations, then each block nested in its
+// statements and handlers, without descending into those blocks twice.
+func (c *charsetScopes) blockContents(b *nodes.PLSQLBlock) error {
+	if b.Declarations != nil {
+		if err := c.declarations(b.Declarations); err != nil {
+			return err
+		}
+	}
+	var err error
+	visit := func(n nodes.Node) bool {
+		if err != nil {
+			return false
+		}
+		if nested, ok := n.(*nodes.PLSQLBlock); ok {
+			err = c.block(nested)
+			return false
+		}
+		return true
+	}
+	if b.Statements != nil {
+		nodes.Inspect(b.Statements, visit)
+	}
+	if b.Exceptions != nil {
+		nodes.Inspect(b.Exceptions, visit)
+	}
+	return err
+}
+
+func (c *charsetScopes) declarations(items *nodes.List) error {
+	for _, item := range items.Items {
+		switch d := item.(type) {
+		case *nodes.PLSQLVarDecl:
+			if err := c.check(d.TypeName); err != nil {
+				return err
+			}
+			c.declare(d.Name, d.TypeName)
+		case *nodes.PLSQLSubtypeDecl:
+			if err := c.check(d.BaseType); err != nil {
+				return err
+			}
+			c.declare(d.Name, nil)
+		case *nodes.PLSQLCursorDecl:
+			c.declare(d.Name, nil)
+		case *nodes.PLSQLTypeDecl:
+			c.declare(d.Name, nil)
+		case *nodes.CreateProcedureStmt:
+			if d.Name != nil {
+				c.declare(d.Name.Name, nil)
+			}
+			if err := c.subprogram(d.Parameters, d.Body); err != nil {
+				return err
+			}
+		case *nodes.CreateFunctionStmt:
+			if d.Name != nil {
+				c.declare(d.Name.Name, nil)
+			}
+			if err := c.subprogram(d.Parameters, d.Body); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // tablePseudoType returns the first TABLE or COLUMNS pseudo-type among a
 // subprogram's parameter types and its result type, or nil. Both stand only
 // in a polymorphic table function: Oracle 23ai rejects them elsewhere with

@@ -201,6 +201,9 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 		if parseErr571 != nil {
 			return nil, parseErr571
 		}
+		if err := p.checkCharsetScopes(nil, stmt.Body); err != nil {
+			return nil, err
+		}
 	}
 
 	stmt.Loc.End = p.prev.End

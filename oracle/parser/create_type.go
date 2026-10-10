@@ -380,6 +380,11 @@ func (p *Parser) parseTypeBodyProcedure(inSpec bool) (*nodes.CreateProcedureStmt
 	if parseErr584 != nil {
 		return nil, parseErr584
 	}
+	// A method's formals and locals shadow the type's attributes, so a
+	// %CHARSET source found among them is the one Oracle 23ai resolves.
+	if err := p.checkCharsetScopes(stmt.Parameters, stmt.Body); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -501,6 +506,11 @@ func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.Creat
 	stmt.Body, stmt.CallSpec, parseErr589 = p.parseSubprogramImplementation()
 	if parseErr589 != nil {
 		return nil, parseErr589
+	}
+	// A method's formals and locals shadow the type's attributes, so a
+	// %CHARSET source found among them is the one Oracle 23ai resolves.
+	if err := p.checkCharsetScopes(stmt.Parameters, stmt.Body); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prev.End

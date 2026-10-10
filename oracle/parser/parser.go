@@ -52,6 +52,9 @@ func (p *Parser) parseAnonymousBlock() (nodes.StmtNode, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := p.checkCharsetScopes(nil, block); err != nil {
+		return nil, err
+	}
 	return block, nil
 }
 
