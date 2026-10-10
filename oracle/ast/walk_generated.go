@@ -6,6 +6,10 @@ package ast
 // for each child. This function is generated from parsenodes.go.
 func walkChildren(v Visitor, node Node) {
 	switch n := node.(type) {
+	case *Accessor:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
 	case *AdminDDLStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -503,6 +507,15 @@ func walkChildren(v Visitor, node Node) {
 		if n.ReturnType != nil {
 			Walk(v, n.ReturnType)
 		}
+		if n.ParallelSpec != nil {
+			Walk(v, n.ParallelSpec)
+		}
+		walkList(v, n.Streaming)
+		walkList(v, n.ReliesOn)
+		if n.Implementation != nil {
+			Walk(v, n.Implementation)
+		}
+		walkList(v, n.AccessibleBy)
 		Walk(v, n.Body)
 		if n.CallSpec != nil {
 			Walk(v, n.CallSpec)
@@ -594,12 +607,14 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+		walkList(v, n.AccessibleBy)
 		walkList(v, n.Body)
 	case *CreateProcedureStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
 		walkList(v, n.Parameters)
+		walkList(v, n.AccessibleBy)
 		Walk(v, n.Body)
 		if n.CallSpec != nil {
 			Walk(v, n.CallSpec)
@@ -1229,6 +1244,8 @@ func walkChildren(v Visitor, node Node) {
 		for _, item := range n.Stmts {
 			Walk(v, item)
 		}
+	case *ParallelEnableClause:
+		walkList(v, n.Columns)
 	case *Parameter:
 		if n.TypeName != nil {
 			Walk(v, n.TypeName)
@@ -1355,6 +1372,8 @@ func walkChildren(v Visitor, node Node) {
 		}
 	case *SortBy:
 		Walk(v, n.Expr)
+	case *StreamingClause:
+		walkList(v, n.Columns)
 	case *SubqueryExpr:
 		Walk(v, n.Subquery)
 	case *SubqueryRef:

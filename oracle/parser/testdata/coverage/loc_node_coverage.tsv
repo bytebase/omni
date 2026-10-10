@@ -235,6 +235,9 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.PLSQLCursorDecl	plsql	covered	DECLARE CURSOR c IS SELECT 1 FROM dual; BEGIN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.PLSQLTypeDecl	plsql	covered	DECLARE TYPE nt IS TABLE OF NUMBER; BEGIN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.PLSQLSubtypeDecl	plsql	covered	DECLARE SUBTYPE s IS PLS_INTEGER RANGE 1 .. 31 NOT NULL; BEGIN NULL; END;	direct parser fixture for SUBTYPE declarations	none	covered	keep_regression_guard
+*nodes.Accessor	plsql	covered	CREATE PROCEDURE p ACCESSIBLE BY (PACKAGE s.k, f) AS BEGIN NULL; END;	direct parser fixture for ACCESSIBLE BY accessors	none	covered	keep_regression_guard
+*nodes.ParallelEnableClause	plsql	covered	CREATE FUNCTION f (c pkg.rc) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY HASH (a, b)) IS BEGIN RETURN; END;	direct parser fixture for PARALLEL_ENABLE partitioning	none	covered	keep_regression_guard
+*nodes.StreamingClause	plsql	covered	CREATE FUNCTION f (c pkg.rc) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY ANY) ORDER c BY (a, b) IS BEGIN RETURN; END;	direct parser fixture for ORDER and CLUSTER streaming clauses	none	covered	keep_regression_guard
 *nodes.PLSQLAssign	plsql	covered	BEGIN x := 1; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.PLSQLIf	plsql	covered	BEGIN IF 1 = 1 THEN NULL; END IF; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.PLSQLElsIf	plsql	covered	BEGIN IF 1 = 0 THEN NULL; ELSIF 1 = 1 THEN NULL; END IF; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
@@ -253,7 +256,7 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.PLSQLFetch	plsql	covered	DECLARE CURSOR c IS SELECT 1 FROM dual; x NUMBER; BEGIN OPEN c; FETCH c INTO x; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.PLSQLClose	plsql	covered	DECLARE CURSOR c IS SELECT 1 FROM dual; BEGIN OPEN c; CLOSE c; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.PLSQLExecImmediate	plsql	covered	BEGIN EXECUTE IMMEDIATE 'SELECT 1 FROM dual'; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
-*nodes.PLSQLPipeRow	plsql	covered	CREATE FUNCTION f RETURN NUMBER PIPELINED IS BEGIN PIPE ROW (1); RETURN; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLPipeRow	plsql	covered	CREATE FUNCTION f RETURN num_tab PIPELINED IS BEGIN PIPE ROW (1); RETURN; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.PLSQLPragma	plsql	covered	DECLARE PRAGMA AUTONOMOUS_TRANSACTION; BEGIN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.ExceptionHandler	plsql	covered	BEGIN RAISE; EXCEPTION WHEN OTHERS THEN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.PLSQLLabeledStatement	plsql	covered	BEGIN <<a>> <<b>> x := 1; END;	labeled statement wrapper span (BYT-9909 label support)	none	covered	keep_regression_guard

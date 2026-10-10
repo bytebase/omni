@@ -420,6 +420,52 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			},
 		},
 		{
+			// A type implements the function, which has no body: like a call
+			// spec, it ends at its ';', which it keeps.
+			name: "functions implemented by a type",
+			sql: "CREATE OR REPLACE FUNCTION agg (x NUMBER) RETURN NUMBER AGGREGATE USING agg_impl;\n" +
+				"CREATE FUNCTION pip RETURN t PIPELINED PARALLEL_ENABLE USING s.pip_impl;\n" +
+				"/\n" +
+				"CREATE FUNCTION f (u NUMBER DEFAULT 1) RETURN NUMBER IS BEGIN RETURN u; END;\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE FUNCTION agg (x NUMBER) RETURN NUMBER AGGREGATE USING agg_impl;",
+				"\nCREATE FUNCTION pip RETURN t PIPELINED PARALLEL_ENABLE USING s.pip_impl;",
+				"\nCREATE FUNCTION f (u NUMBER DEFAULT 1) RETURN NUMBER IS BEGIN RETURN u; END;",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
+			// A ';' in a function's head, before IS|AS, ends it even when the
+			// heading is malformed (AGGREGATE without USING).
+			name: "malformed bodyless heading",
+			sql: "CREATE FUNCTION f (x NUMBER) RETURN NUMBER AGGREGATE;\n" +
+				"CREATE TABLE t (x NUMBER);",
+			want: []string{
+				"CREATE FUNCTION f (x NUMBER) RETURN NUMBER AGGREGATE;",
+				"\nCREATE TABLE t (x NUMBER)",
+			},
+		},
+		{
+			// USING ends a function only after AGGREGATE or PIPELINED: a
+			// function or parameter named USING compiles on Oracle 23ai.
+			name: "function named using",
+			sql: "CREATE FUNCTION using RETURN NUMBER IS BEGIN RETURN 1; END;\n" +
+				"CREATE FUNCTION g (using NUMBER) RETURN NUMBER IS BEGIN RETURN using; END;\n" +
+				"CREATE FUNCTION h RETURN pipelined.using IS BEGIN RETURN NULL; END;\n" +
+				"CREATE FUNCTION k RETURN t PIPELINED DEFAULT COLLATION USING_NLS_COMP IS BEGIN RETURN; END;\n" +
+				"CREATE FUNCTION m (using pkg.rc) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION using BY HASH (a)) ORDER using BY (a) IS BEGIN NULL; END;\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"CREATE FUNCTION using RETURN NUMBER IS BEGIN RETURN 1; END;",
+				"\nCREATE FUNCTION g (using NUMBER) RETURN NUMBER IS BEGIN RETURN using; END;",
+				"\nCREATE FUNCTION h RETURN pipelined.using IS BEGIN RETURN NULL; END;",
+				"\nCREATE FUNCTION k RETURN t PIPELINED DEFAULT COLLATION USING_NLS_COMP IS BEGIN RETURN; END;",
+				"\nCREATE FUNCTION m (using pkg.rc) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION using BY HASH (a)) ORDER using BY (a) IS BEGIN NULL; END;",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
 			name: "package with call spec members",
 			sql: "CREATE OR REPLACE PACKAGE BODY pk AS\n" +
 				"  FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int';\n" +

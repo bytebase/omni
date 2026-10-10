@@ -348,6 +348,14 @@ func (p *Parser) parseTypeBodyProcedure(inSpec bool) (*nodes.CreateProcedureStmt
 			return nil, parseErr583
 		}
 	}
+	// The heading checks of other procedures hold for a method too
+	// (PLS-00765, PLS-00550 on Oracle 23ai).
+	if tn := p.tablePseudoType(stmt.Parameters, nil); tn != nil {
+		return nil, p.syntaxErrorAtType(tn)
+	}
+	if err := p.checkCharsetSources(stmt.Parameters, nil); err != nil {
+		return nil, err
+	}
 
 	if inSpec {
 		var err error
@@ -371,6 +379,12 @@ func (p *Parser) parseTypeBodyProcedure(inSpec bool) (*nodes.CreateProcedureStmt
 	stmt.Body, stmt.CallSpec, parseErr584 = p.parseSubprogramImplementation()
 	if parseErr584 != nil {
 		return nil, parseErr584
+	}
+	// A method's formals and locals shadow the type's attributes, so a
+	// %CHARSET source found among them, or qualified by the method name, is
+	// the one Oracle 23ai resolves.
+	if err := p.checkCharsetScopes(subprogramName(stmt.Name), stmt.Parameters, nil, stmt.Body); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -450,7 +464,7 @@ func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.Creat
 			}
 		} else {
 			var parseErr587 error
-			stmt.ReturnType, parseErr587 = p.parseTypeName()
+			stmt.ReturnType, parseErr587 = p.parsePLSQLDatatype(typeModsNone, charsetFlexible)
 			if parseErr587 != nil {
 				return nil, parseErr587
 			}
@@ -463,7 +477,7 @@ func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.Creat
 		// (PLS-00103 on Oracle 23ai).
 		return nil, p.syntaxErrorAtCur()
 	}
-	parseErr588 := p.parseFunctionProperties(stmt)
+	parseErr588 := p.parseFunctionProperties(stmt, subprogramMethod)
 	if parseErr588 !=
 
 		// IS | AS
@@ -493,6 +507,12 @@ func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.Creat
 	stmt.Body, stmt.CallSpec, parseErr589 = p.parseSubprogramImplementation()
 	if parseErr589 != nil {
 		return nil, parseErr589
+	}
+	// A method's formals and locals shadow the type's attributes, so a
+	// %CHARSET source found among them, or qualified by the method name, is
+	// the one Oracle 23ai resolves.
+	if err := p.checkCharsetScopes(subprogramName(stmt.Name), stmt.Parameters, stmt.ReturnType, stmt.Body); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prev.End

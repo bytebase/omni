@@ -62,10 +62,14 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 		}
 	}
 
-	var parseErr456 error
-	stmt.AuthID, parseErr456 = p.parseOptionalAuthID()
-	if parseErr456 != nil {
-		return nil, parseErr456
+	if tn := p.tablePseudoType(stmt.Parameters, nil); tn != nil {
+		return nil, p.syntaxErrorAtType(tn)
+	}
+	if err := p.checkCharsetSources(stmt.Parameters, nil); err != nil {
+		return nil, err
+	}
+	if err := p.parseProcedureProperties(stmt, subprogramSchema); err != nil {
+		return nil, err
 	}
 
 	if p.isIdentLikeStr("WRAPPED") {
@@ -78,9 +82,13 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 	p.advance()
 
 	// PL/SQL block body (BEGIN ... END) or call spec
+	var parseErr456 error
 	stmt.Body, stmt.CallSpec, parseErr456 = p.parseSubprogramImplementation()
 	if parseErr456 != nil {
 		return nil, parseErr456
+	}
+	if err := p.checkCharsetScopes(subprogramName(stmt.Name), stmt.Parameters, nil, stmt.Body); err != nil {
+		return nil, err
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -191,7 +199,7 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 	}
 	p.advance()
 	var parseErr459 error
-	stmt.ReturnType, parseErr459 = p.parseTypeName()
+	stmt.ReturnType, parseErr459 = p.parsePLSQLDatatype(typeModsNone, charsetFlexible)
 	if parseErr459 != nil {
 		return nil, parseErr459
 	}
@@ -212,12 +220,15 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 	parseErr460 :=
 
 		// Optional function properties (can appear in any order before IS/AS)
-		p.parseFunctionProperties(stmt)
+		p.parseFunctionProperties(stmt, subprogramSchema)
 	if parseErr460 !=
 
 		// IS | AS
 		nil {
 		return nil, parseErr460
+	}
+	if stmt.Implementation != nil {
+		return p.finishTypeImplementedFunction(stmt)
 	}
 
 	if p.cur.Type != kwIS && p.cur.Type != kwAS {
@@ -231,95 +242,370 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 	if parseErr461 != nil {
 		return nil, parseErr461
 	}
+	if err := p.checkCharsetScopes(subprogramName(stmt.Name), stmt.Parameters, stmt.ReturnType, stmt.Body); err != nil {
+		return nil, err
+	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }
 
-// parseFunctionProperties parses optional DETERMINISTIC, PIPELINED, PARALLEL_ENABLE, RESULT_CACHE,
-// AGGREGATE USING, SQL_MACRO, AUTHID, and other function property clauses.
-func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) error {
+// parseFunctionProperties parses the clauses between a function's RETURN
+// type and its IS | AS or ';', in any order, each at most once (PLS-00371).
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/CREATE-FUNCTION-statement.html
+//
+//	[ { invoker_rights_clause | accessible_by_clause | default_collation_clause
+//	  | deterministic_clause | parallel_enable_clause | result_cache_clause
+//	  | aggregate_clause | pipelined_clause | sql_macro_clause
+//	  | streaming_clause }... ]
+//	pipelined_clause    ::= PIPELINED [ { ROW | TABLE } POLYMORPHIC ]
+//	result_cache_clause ::= RESULT_CACHE [ RELIES_ON ( [ data_source [, data_source ]... ] ) ]
+//	sql_macro_clause    ::= SQL_MACRO [ ( [ TYPE => ] { SCALAR | TABLE } ) ]
+//	aggregate_clause    ::= AGGREGATE USING [ schema. ] implementation_type
+//
+// A type can implement the function: AGGREGATE USING type, or USING type
+// after PIPELINED. The clause list ends there and the function has no IS | AS
+// body; Oracle 23ai rejects a following IS or clause (PLS-00103), USING
+// without PIPELINED (PLS-00624), and AGGREGATE without USING after it. level
+// limits AUTHID, ACCESSIBLE BY, and DEFAULT COLLATION as subprogramLevel says.
+func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level subprogramLevel) error {
+	seen := clauseSeen{}
+	// notPolymorphic is the first clause a polymorphic table function does
+	// not take: Oracle 23ai rejects DETERMINISTIC, PARALLEL_ENABLE, ORDER
+	// BY, CLUSTER BY, and AUTHID on one with PLS-00760, and RESULT_CACHE
+	// with PLS-00999 (its TABLE parameter), before or after PIPELINED ...
+	// POLYMORPHIC.
+	//
+	// notMacro is the first clause a SQL macro does not take: those, and
+	// PIPELINED, whose collection result a macro cannot return (PLS-00778,
+	// PLS-00630). A macro returns a character type: NUMBER, LONG, or a
+	// %ROWTYPE result is PLS-00776, while CHAR, VARCHAR2, CLOB, and the
+	// national types compile.
+	var notPolymorphic, notMacro, macroTok *Token
+	var partTok Token
+	var streamToks []Token
+	var resultCacheTok, pipelinedTok *Token
+	note := func() {
+		tok := p.cur
+		if notPolymorphic == nil {
+			notPolymorphic = &tok
+		}
+		if notMacro == nil {
+			notMacro = &tok
+		}
+	}
+	checkPolymorphic := func(err error) error {
+		switch {
+		case err != nil:
+			return err
+		case stmt.Polymorphic != "" && notPolymorphic != nil:
+			return p.syntaxErrorAtTok(*notPolymorphic)
+		case stmt.SqlMacro && notMacro != nil:
+			return p.syntaxErrorAtTok(*notMacro)
+		case stmt.SqlMacro && !p.mayBeCharacterType(stmt.ReturnType):
+			return p.syntaxErrorAtTok(*macroTok)
+		}
+		if stmt.Polymorphic == "" {
+			if tn := p.tablePseudoType(stmt.Parameters, stmt.ReturnType); tn != nil {
+				return p.syntaxErrorAtType(tn)
+			}
+		} else if err := p.checkPolymorphicSignature(stmt); err != nil {
+			return err
+		}
+		if err := p.checkCharsetSources(stmt.Parameters, stmt.ReturnType); err != nil {
+			return err
+		}
+		// An ordinary pipelined function returns a collection (PLS-00630 for a
+		// predefined scalar or %ROWTYPE result) and is not result-cached
+		// (PLS-00999); a named result type is left to the engine.
+		if stmt.Pipelined && stmt.Polymorphic == "" {
+			if _, scalar := p.predefinedTypeName(stmt.ReturnType); scalar {
+				return p.syntaxErrorAtTok(*pipelinedTok)
+			}
+			if resultCacheTok != nil {
+				return p.syntaxErrorAtTok(*resultCacheTok)
+			}
+		}
+		// RESULT_CACHE takes no OUT or IN OUT parameter, no parameter or
+		// result of a LOB, BFILE, or REF CURSOR type, and no %ROWTYPE record
+		// parameter (PLS-00999 on Oracle 23ai, documented among the clause's
+		// restrictions); a %ROWTYPE result compiles. Object types are left
+		// to the engine.
+		if resultCacheTok != nil {
+			if p.notResultCacheable(stmt.ReturnType) {
+				return p.syntaxErrorAtTok(*resultCacheTok)
+			}
+			if stmt.Parameters != nil {
+				for _, item := range stmt.Parameters.Items {
+					if pr, ok := item.(*nodes.Parameter); ok && (strings.Contains(pr.Mode, "OUT") || p.notResultCacheable(pr.TypeName) ||
+						(pr.TypeName != nil && pr.TypeName.IsPercRowtype)) {
+						return p.syntaxErrorAtTok(*resultCacheTok)
+					}
+				}
+			}
+		}
+		return p.checkParallelArguments(stmt, partTok, streamToks)
+	}
 	for {
 		switch {
 		case p.cur.Type == kwDETERMINISTIC:
+			if err := p.firstClause(seen, "DETERMINISTIC"); err != nil {
+				return err
+			}
+			note()
 			stmt.Deterministic = true
 			p.advance()
 		case p.cur.Type == kwPIPELINED:
+			if err := p.firstClause(seen, "PIPELINED"); err != nil {
+				return err
+			}
+			if notMacro == nil {
+				tok := p.cur
+				notMacro = &tok
+			}
+			ptok := p.cur
+			pipelinedTok = &ptok
 			stmt.Pipelined = true
 			p.advance()
+			if (p.cur.Type == kwROW || p.cur.Type == kwTABLE) && p.isIdentLikeStrAt(p.peekNext(), "POLYMORPHIC") {
+				// The row kind is required (PIPELINED POLYMORPHIC is
+				// PLS-00103), and an object type method is not polymorphic
+				// (PLS-00765); a nested function may be.
+				if level == subprogramMethod {
+					return p.syntaxErrorAtCur()
+				}
+				stmt.Polymorphic = "ROW"
+				if p.cur.Type == kwTABLE {
+					stmt.Polymorphic = "TABLE"
+				}
+				p.advance() // consume ROW or TABLE
+				p.advance() // consume POLYMORPHIC
+			}
 		case p.cur.Type == kwPARALLEL_ENABLE:
+			if err := p.firstClause(seen, "PARALLEL_ENABLE"); err != nil {
+				return err
+			}
+			// A nested function is not parallel-enabled (PLS-00712 on
+			// Oracle 23ai); a private package body function may be.
+			if level == subprogramNested {
+				return p.syntaxErrorAtCur()
+			}
+			note()
 			stmt.Parallel = true
 			p.advance()
+			if p.cur.Type == '(' {
+				spec, argTok, err := p.parseParallelEnableSpec()
+				if err != nil {
+					return err
+				}
+				stmt.ParallelSpec = spec
+				partTok = argTok
+			}
+		case p.cur.Type == kwORDER, p.cur.Type == kwCLUSTER:
+			kind := "ORDER BY"
+			if p.cur.Type == kwCLUSTER {
+				kind = "CLUSTER BY"
+			}
+			if err := p.firstClause(seen, kind); err != nil {
+				return err
+			}
+			note()
+			clause, argTok, err := p.parseStreamingClause()
+			if err != nil {
+				return err
+			}
+			streamToks = append(streamToks, argTok)
+			if stmt.Streaming == nil {
+				stmt.Streaming = &nodes.List{}
+			}
+			stmt.Streaming.Items = append(stmt.Streaming.Items, clause)
 		case p.cur.Type == kwRESULT_CACHE:
+			if err := p.firstClause(seen, "RESULT_CACHE"); err != nil {
+				return err
+			}
+			// No subprogram in a top-level anonymous block is result-cached
+			// (PLS-00999); one nested in a stored unit, even in a DECLARE
+			// block there, compiles.
+			if p.inAnonymousBlock {
+				return p.syntaxErrorAtCur()
+			}
+			note()
+			rcTok := p.cur
+			resultCacheTok = &rcTok
 			stmt.ResultCache = true
 			p.advance()
-		case p.isIdentLikeStr("AGGREGATE"):
+			if p.isKeywordStr("RELIES_ON") {
+				list, err := p.parseResultCacheReliesOn()
+				if err != nil {
+					return err
+				}
+				stmt.ReliesOn = list
+			}
+		case p.isKeywordStr("AGGREGATE"):
+			aggTok := p.cur
+			// PIPELINED and AGGREGATE exclude each other (PLS-00371), unless
+			// the function is polymorphic: Oracle 23ai compiles PIPELINED
+			// ROW POLYMORPHIC AGGREGATE USING type, and SQL_MACRO with it.
+			if stmt.Pipelined && stmt.Polymorphic == "" {
+				return p.syntaxErrorAtCur()
+			}
 			stmt.Aggregate = true
 			p.advance() // consume AGGREGATE
-			if p.cur.Type == kwUSING {
-				p.advance()
-				parseDiscard463, // consume USING
-					parseErr462 := p.parseObjectName()
-				_ = // consume implementation type
-					parseDiscard463
-				if parseErr462 != nil {
-					return parseErr462
-				}
+			if p.cur.Type != kwUSING {
+				return p.syntaxErrorAtCur()
 			}
-		case p.isIdentLikeStr("SQL_MACRO"):
+			implTok := p.cur
+			if err := p.parseImplementationType(stmt); err != nil {
+				return err
+			}
+			// An aggregate's implementation type is local: Oracle 23ai
+			// rejects one over a database link with PLS-00331, while a
+			// polymorphic function's package may be remote.
+			if stmt.Implementation.DBLink != "" {
+				return p.syntaxErrorAtTok(implTok)
+			}
+			// An aggregate takes an argument: Oracle 23ai rejects one
+			// without parameters (PLS-00652) and compiles one with two, or
+			// with an OUT parameter, against its implementation type.
+			if stmt.Parameters == nil || stmt.Parameters.Len() == 0 {
+				return p.syntaxErrorAtTok(aggTok)
+			}
+			return checkPolymorphic(nil)
+		case p.cur.Type == kwUSING:
+			if !stmt.Pipelined {
+				return p.syntaxErrorAtCur()
+			}
+			return checkPolymorphic(p.parseImplementationType(stmt))
+		case p.isKeywordStr("SQL_MACRO"):
+			if err := p.firstClause(seen, "SQL_MACRO"); err != nil {
+				return err
+			}
+			// A type method is not a SQL macro (PLS-00781).
+			if level == subprogramMethod {
+				return p.syntaxErrorAtCur()
+			}
+			tok := p.cur
+			macroTok = &tok
 			stmt.SqlMacro = true
 			p.advance() // consume SQL_MACRO
-			// Optional ( SCALAR | TABLE )
 			if p.cur.Type == '(' {
-				p.advance()
-				if p.isIdentLike() {
-					p.advance() // consume SCALAR or TABLE
+				kind, err := p.parseSqlMacroType()
+				if err != nil {
+					return err
 				}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
+				stmt.SqlMacroType = kind
 			}
-		case p.isIdentLikeStr("AUTHID"):
-			authID, parseErr464 := p.parseOptionalAuthID()
-			if parseErr464 != nil {
-				return parseErr464
+		case p.isKeywordStr("AUTHID") && level == subprogramSchema:
+			if err := p.firstClause(seen, "AUTHID"); err != nil {
+				return err
+			}
+			note()
+			authID, err := p.parseOptionalAuthID()
+			if err != nil {
+				return err
 			}
 			stmt.AuthID = authID
-		case p.isIdentLikeStr("ACCESSIBLE"):
-			// accessible_by_clause: ACCESSIBLE BY ( accessor [, ...] )
-			p.advance() // consume ACCESSIBLE
-			if p.cur.Type == kwBY {
-				p.advance() // consume BY
+		case p.isKeywordStr("ACCESSIBLE") && level.takesAccessibleBy():
+			if err := p.firstClause(seen, "ACCESSIBLE BY"); err != nil {
+				return err
 			}
-			if p.cur.Type == '(' {
-				p.advance()
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					parseDiscard465, parseErr464 := p.parseObjectName()
-					_ = parseDiscard465
-					if parseErr464 != nil {
-						return parseErr464
-					}
-					if p.cur.Type != ',' {
-						break
-					}
-					p.advance()
-				}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
+			list, err := p.parseAccessibleByClause()
+			if err != nil {
+				return err
 			}
-		case p.cur.Type == kwDEFAULT && p.isIdentLikeStrAt(p.peekNext(), "COLLATION"):
-			// default_collation_clause: DEFAULT COLLATION collation_name
-			p.advance() // consume DEFAULT
-			p.advance() // consume COLLATION
-			if p.isIdentLike() {
-				p.advance() // consume collation name
+			stmt.AccessibleBy = list
+		case p.atDefaultCollation() && level == subprogramSchema:
+			if err := p.firstClause(seen, "DEFAULT COLLATION"); err != nil {
+				return err
 			}
+			collation, err := p.parseDefaultCollationClause()
+			if err != nil {
+				return err
+			}
+			stmt.DefaultCollation = collation
 		default:
-			return nil
+			return checkPolymorphic(nil)
 		}
 	}
+}
+
+// notResultCacheable reports whether tn is a predefined type a RESULT_CACHE
+// function cannot take or return: a LOB, BFILE, or SYS_REFCURSOR.
+func (p *Parser) notResultCacheable(tn *nodes.TypeName) bool {
+	switch p.predefinedTypeLead(tn) {
+	case "BLOB", "CLOB", "NCLOB", "BFILE", "SYS_REFCURSOR":
+		return true
+	}
+	return false
+}
+
+// mayBeCharacterType reports whether tn may hold character data: it is not a
+// predefined non-character type (the national character types count as
+// character types) and not a %ROWTYPE record. A SQL macro returns such a
+// type (PLS-00776), and item%CHARSET takes its character set from one
+// (PLS-00550). A name the text does not settle is left to the engine.
+func (p *Parser) mayBeCharacterType(tn *nodes.TypeName) bool {
+	if tn == nil {
+		return true
+	}
+	if tn.IsPercRowtype {
+		return false
+	}
+	switch lead := p.predefinedTypeLead(tn); lead {
+	case "NCHAR", "NVARCHAR2", "NCLOB":
+		return true
+	default:
+		return !plsqlNonCharacterTypes[lead]
+	}
+}
+
+// parseImplementationType parses USING [ schema. ] implementation_type
+// [ @dblink ], the current token at USING. Every part needs its name: Oracle
+// 23ai rejects USING impl. and USING impl@ (PLS-00103), and takes a dotted
+// database link name (impl@lnk.dom).
+func (p *Parser) parseImplementationType(stmt *nodes.CreateFunctionStmt) error {
+	p.advance() // consume USING
+	name, err := p.parseUnitName()
+	if err != nil {
+		return err
+	}
+	if p.cur.Type == '@' {
+		p.advance()
+		if !p.isIdentLike() {
+			return p.syntaxErrorAtCur()
+		}
+		link, err := p.parseIdentifier()
+		if err != nil {
+			return err
+		}
+		for p.cur.Type == '.' {
+			p.advance()
+			if !p.isIdentLike() {
+				return p.syntaxErrorAtCur()
+			}
+			part, err := p.parseIdentifier()
+			if err != nil {
+				return err
+			}
+			link += "." + part
+		}
+		name.DBLink = link
+		name.Loc.End = p.prev.End
+	}
+	stmt.Implementation = name
 	return nil
+}
+
+// finishTypeImplementedFunction ends a function a type implements, whose
+// clause list ends at the type name: only its ';' follows.
+func (p *Parser) finishTypeImplementedFunction(stmt *nodes.CreateFunctionStmt) (*nodes.CreateFunctionStmt, error) {
+	if p.cur.Type != ';' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 func (p *Parser) parseOptionalAuthID() (string, error) {
@@ -327,15 +613,10 @@ func (p *Parser) parseOptionalAuthID() (string, error) {
 		return "", nil
 	}
 	p.advance()
+	// CURRENT_USER is one word: Oracle 23ai rejects AUTHID CURRENT and
+	// AUTHID CURRENT USER with PLS-00103.
 	if p.isIdentLikeStr("CURRENT_USER") {
 		p.advance()
-		return "CURRENT_USER", nil
-	}
-	if p.cur.Type == kwCURRENT {
-		p.advance()
-		if p.isIdentLikeStr("USER") {
-			p.advance()
-		}
 		return "CURRENT_USER", nil
 	}
 	if p.isIdentLikeStr("DEFINER") {
@@ -406,38 +687,11 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 		}
 	}
 
-	// Optional ACCESSIBLE BY ( ... ) — skip for package body
-	if !stmt.IsBody && p.isIdentLikeStr("ACCESSIBLE") {
-		p.advance() // consume ACCESSIBLE
-		if p.cur.Type == kwBY {
-			p.advance() // consume BY
-		}
-		if p.cur.Type == '(' {
-			p.advance()
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				parseDiscard468,
-					// Each accessor: [ unit_kind ] [ schema. ] unit_name
-					parseErr467 := p.parseObjectName()
-				_ = parseDiscard468
-				if parseErr467 != nil {
-					return nil, parseErr467
-				}
-				if p.cur.Type != ',' {
-					break
-				}
-				p.advance()
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-		}
-	}
-
-	// Optional invoker_rights_clause: AUTHID { CURRENT_USER | DEFINER }
-	if !stmt.IsBody && p.isIdentLikeStr("AUTHID") {
-		p.advance() // consume AUTHID
-		if p.isIdentLike() {
-			p.advance() // consume CURRENT_USER or DEFINER
+	// ACCESSIBLE BY, AUTHID, and DEFAULT COLLATION head a specification,
+	// in any order; a body takes none of them.
+	if !stmt.IsBody {
+		if err := p.parsePackageProperties(stmt); err != nil {
+			return nil, err
 		}
 	}
 
@@ -449,12 +703,29 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 	var parseErr469 error
 
 	// Package declarations/body - collect everything until END
+	savedInBody := p.inPackageBody
+	p.inPackageBody = stmt.IsBody
+	p.typeScopes = append(p.typeScopes, map[string]bool{})
 	stmt.Body, parseErr469 = p.parsePackageBody()
+	p.typeScopes = p.typeScopes[:len(p.typeScopes)-1]
+	p.inPackageBody = savedInBody
 	if parseErr469 !=
 
 		// END [name] ;
 		nil {
 		return nil, parseErr469
+	}
+	if err := p.checkPackageCharsetScopes(subprogramName(stmt.Name), stmt.Body); err != nil {
+		return nil, err
+	}
+	// A package holding a SQL macro has definer's rights: Oracle 23ai
+	// rejects AUTHID CURRENT_USER on one with PLS-00782.
+	if stmt.AuthID == "CURRENT_USER" && stmt.Body != nil {
+		for _, item := range stmt.Body.Items {
+			if fn, ok := item.(*nodes.CreateFunctionStmt); ok && fn.SqlMacro {
+				return nil, p.syntaxErrorAtTok(Token{Type: kwFUNCTION, Loc: fn.Loc.Start, End: fn.Loc.Start + len("FUNCTION")})
+			}
+		}
 	}
 
 	if p.cur.Type != kwEND {
@@ -482,7 +753,7 @@ func (p *Parser) parsePackageBody() (*nodes.List, error) {
 	for p.cur.Type != kwEND && p.cur.Type != tokEOF {
 		// PROCEDURE declaration/definition in package
 		if p.cur.Type == kwPROCEDURE {
-			decl, parseErr470 := p.parsePackageProcDecl()
+			decl, parseErr470 := p.parsePackageProcDecl(subprogramPackaged)
 			if parseErr470 != nil {
 				return nil, parseErr470
 			}
@@ -494,7 +765,7 @@ func (p *Parser) parsePackageBody() (*nodes.List, error) {
 
 		// FUNCTION declaration/definition in package
 		if p.cur.Type == kwFUNCTION {
-			decl, parseErr471 := p.parsePackageFuncDecl()
+			decl, parseErr471 := p.parsePackageFuncDecl(subprogramPackaged)
 			if parseErr471 != nil {
 				return nil, parseErr471
 			}
@@ -528,7 +799,7 @@ func (p *Parser) parsePackageBody() (*nodes.List, error) {
 //
 //	PROCEDURE name [(params)] ;                    -- specification
 //	PROCEDURE name [(params)] IS|AS body ;         -- body definition
-func (p *Parser) parsePackageProcDecl() (*nodes.CreateProcedureStmt, error) {
+func (p *Parser) parsePackageProcDecl(level subprogramLevel) (*nodes.CreateProcedureStmt, error) {
 	start := p.pos()
 	p.advance() // consume PROCEDURE
 
@@ -555,6 +826,15 @@ func (p *Parser) parsePackageProcDecl() (*nodes.CreateProcedureStmt, error) {
 			return nil, parseErr474
 		}
 	}
+	if tn := p.tablePseudoType(stmt.Parameters, nil); tn != nil {
+		return nil, p.syntaxErrorAtType(tn)
+	}
+	if err := p.checkCharsetSources(stmt.Parameters, nil); err != nil {
+		return nil, err
+	}
+	if err := p.parseProcedureProperties(stmt, level); err != nil {
+		return nil, err
+	}
 
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
 		p.advance()
@@ -577,7 +857,7 @@ func (p *Parser) parsePackageProcDecl() (*nodes.CreateProcedureStmt, error) {
 //
 //	FUNCTION name [(params)] RETURN type ;                    -- specification
 //	FUNCTION name [(params)] RETURN type IS|AS body ;         -- body definition
-func (p *Parser) parsePackageFuncDecl() (*nodes.CreateFunctionStmt, error) {
+func (p *Parser) parsePackageFuncDecl(level subprogramLevel) (*nodes.CreateFunctionStmt, error) {
 	start := p.pos()
 	p.advance() // consume FUNCTION
 
@@ -608,7 +888,7 @@ func (p *Parser) parsePackageFuncDecl() (*nodes.CreateFunctionStmt, error) {
 	if p.cur.Type == kwRETURN {
 		p.advance()
 		var parseErr478 error
-		stmt.ReturnType, parseErr478 = p.parseTypeName()
+		stmt.ReturnType, parseErr478 = p.parsePLSQLDatatype(typeModsNone, charsetFlexible)
 		if parseErr478 !=
 
 			// Optional function properties
@@ -621,12 +901,15 @@ func (p *Parser) parsePackageFuncDecl() (*nodes.CreateFunctionStmt, error) {
 	} else {
 		return nil, p.syntaxErrorAtCur()
 	}
-	parseErr479 := p.parseFunctionProperties(stmt)
+	parseErr479 := p.parseFunctionProperties(stmt, level)
 	if parseErr479 !=
 
 		// Check for IS|AS (definition) or ; (declaration)
 		nil {
 		return nil, parseErr479
+	}
+	if stmt.Implementation != nil {
+		return p.finishTypeImplementedFunction(stmt)
 	}
 
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
@@ -703,7 +986,8 @@ func (p *Parser) parseParameter() (*nodes.Parameter, error) {
 	param.Mode = mode
 	var parseErr484 error
 
-	param.TypeName, parseErr484 = p.parseTypeName()
+	// A parameter type is unconstrained and may name ANY_CS.
+	param.TypeName, parseErr484 = p.parsePLSQLDatatype(typeModsNone, charsetAnyCS)
 	if parseErr484 !=
 
 		// Optional default value: := expr or DEFAULT expr

@@ -196,11 +196,14 @@ func (p *Parser) parseCreateTriggerStmt(start int, orReplace, ifNotExists, editi
 			Loc:   callName.Loc,
 		}
 	} else if p.cur.Type == kwDECLARE || p.cur.Type == kwBEGIN || p.cur.Type == tokLABELOPEN {
-		var parseErr571 error
-		stmt.Body, parseErr571 = p.parsePLSQLBlock()
+		block, parseErr571 := p.parsePLSQLBlock()
 		if parseErr571 != nil {
 			return nil, parseErr571
 		}
+		if err := p.checkBlockCharsetScopes(block); err != nil {
+			return nil, err
+		}
+		stmt.Body = block
 	}
 
 	stmt.Loc.End = p.prev.End

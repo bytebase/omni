@@ -205,6 +205,18 @@ type splitPLSQLFrame struct {
 	// callSpec marks an implementation that is a call spec: it has no END,
 	// and its ';' ends it.
 	callSpec bool
+	// afterReturn marks a function head past its RETURN; returnType marks
+	// the datatype's first word, which no clause follows yet; afterDot marks
+	// a token after '.', a name part. implClause marks AGGREGATE or
+	// PIPELINED in the clause list, after which USING names an
+	// implementation type.
+	afterReturn bool
+	returnType  bool
+	afterDot    bool
+	implClause  bool
+	// afterStream marks the token after ORDER or CLUSTER, the argument a
+	// streaming clause names, which may be a parameter named USING.
+	afterStream bool
 }
 
 type splitState struct {
@@ -399,6 +411,16 @@ func (s *splitState) observePLSQL(tok Token) {
 			// A nested call spec has no END; its ';' closes it.
 			s.frames = s.frames[:n-1]
 		}
+		if len(s.frames) == 1 && s.frames[0].kind == splitPLSQLStoredUnit &&
+			!s.frames[0].isAs && s.frames[0].headDepth == 0 && !s.callSpecStarted {
+			top := &s.frames[0]
+			// A ';' in a stored unit's head, before any IS|AS, ends a unit
+			// that has no body: a malformed heading such as AGGREGATE
+			// without USING ends here rather than running on to the next
+			// END, and keeps its ';' as a type-implemented function does.
+			top.callSpec = true
+			s.callSpecStarted = true
+		}
 		return
 	}
 
@@ -459,9 +481,11 @@ func (s *splitState) observePLSQL(tok Token) {
 
 // observeSubprogramHead follows a stored unit or nested subprogram up to its
 // implementation. A call spec right after IS|AS replaces BEGIN ... END and
-// ends at its ';'. WRAPPED replaces IS|AS in a wrapped stored unit. Both are
-// recognized only outside the parameter list, so a parameter named LANGUAGE,
-// EXTERNAL, or WRAPPED does not end the unit early. Like Oracle and the
+// ends at its ';'. WRAPPED replaces IS|AS in a wrapped stored unit, and USING
+// an implementation type replaces it in a function a type implements. All
+// are recognized only outside the parameter list, so a parameter named
+// LANGUAGE, EXTERNAL, or WRAPPED, or a default using USING, does not end the
+// unit early. Like Oracle and the
 // parser, the splitter takes the word after IS|AS alone for a call spec, so
 // a malformed one still ends at its ';'.
 func (s *splitState) observeSubprogramHead(top *splitPLSQLFrame, tok Token) {
@@ -481,6 +505,12 @@ func (s *splitState) observeSubprogramHead(top *splitPLSQLFrame, tok Token) {
 			}
 		}
 	case !top.isAs:
+		afterDot := top.afterDot
+		top.afterDot = tok.Type == '.'
+		inType := top.returnType
+		top.returnType = false
+		afterStream := top.afterStream
+		top.afterStream = top.headDepth == 0 && (tok.Type == kwORDER || tok.Type == kwCLUSTER)
 		switch {
 		case tok.Type == '(':
 			top.headDepth++
@@ -491,6 +521,22 @@ func (s *splitState) observeSubprogramHead(top *splitPLSQLFrame, tok Token) {
 			top.isAs = true
 			top.afterIsAs = true
 		case tok.Type == tokIDENT && tok.Str == "WRAPPED" && len(s.frames) == 1:
+			s.callSpecStarted = true
+		case tok.Type == kwRETURN:
+			top.afterReturn = true
+			top.returnType = true
+		case inType || afterDot:
+			// The first word of the result datatype, or a name part after
+			// '.': RETURN pipelined.using names a type.
+		case top.afterReturn && (tok.Type == kwPIPELINED || tok.Type == tokIDENT && tok.Str == "AGGREGATE"):
+			top.implClause = true
+		case tok.Type == kwUSING && top.implClause && !afterStream && len(s.frames) == 1:
+			// AGGREGATE USING type or PIPELINED ... USING type: a type
+			// implements the function, which has no IS|AS body and, like a
+			// call spec, ends at its ';'. SQL*Plus buffers either up to a "/"
+			// line; the splitter ends both where the parser does. USING
+			// elsewhere, as a function or parameter name, ends nothing.
+			top.callSpec = true
 			s.callSpecStarted = true
 		}
 	}

@@ -145,3 +145,45 @@ ref_143	dml	reject	LOCK TABLE t IN EXCLUSIVE MODE WAIT 2.5	WAIT interval that is
 ref_144	dml	reject	LOCK TABLE t PARTITION (p1, p2) IN EXCLUSIVE MODE	PARTITION with more than one name (ORA-01738)
 ref_145	plsql	accept	BEGIN LOCK TABLE t IN SHARE UPDATE MODE WAIT 5; ROLLBACK; END;	LOCK TABLE with WAIT in a block
 ref_146	plsql	reject	BEGIN LOCK TABLE t IN FOO MODE; END;	unknown lock mode in a block
+ref_147	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_ab_{run} (a NUMBER) AUTHID DEFINER ACCESSIBLE BY (PACKAGE omni_x, PROCEDURE omni_y, FUNCTION omni_z, TRIGGER omni_t, TYPE omni_ty, omni_plain, omni_s.omni_q) IS BEGIN NULL; END;	ACCESSIBLE BY with every unit kind
+ref_148	plsql_body	accept	CREATE OR REPLACE PACKAGE omni_abk_{run} ACCESSIBLE BY (omni_x) AUTHID CURRENT_USER AS PROCEDURE p ACCESSIBLE BY (PACKAGE omni_x); FUNCTION f RETURN NUMBER ACCESSIBLE BY (omni_y); END;	ACCESSIBLE BY on a package and its subprograms
+ref_149	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_ab_{run} ACCESSIBLE BY (PACKAGE) IS BEGIN NULL; END;	accessor with a unit kind and no name
+ref_150	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_abl_{run} RETURN NUMBER ACCESSIBLE BY (omni_x@omni_lnk) IS BEGIN RETURN 1; END;	accessor with a database link
+ref_151	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_agg_{run} (x NUMBER) RETURN NUMBER DETERMINISTIC AGGREGATE USING omni_s.omni_impl;	AGGREGATE USING implementation type, no body
+ref_152	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_pip_{run} (c SYS_REFCURSOR) RETURN omni_tab PIPELINED PARALLEL_ENABLE (PARTITION c BY ANY) USING omni_impl;	PIPELINED ... USING implementation type
+ref_153	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_agg_{run} (x NUMBER) RETURN NUMBER AGGREGATE USING omni_impl IS BEGIN RETURN 1; END;	body after AGGREGATE USING
+ref_154	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_pip_{run} RETURN omni_tab USING omni_impl PIPELINED;	clause after USING implementation type
+ref_155	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_par_{run} (c omni_rcpkg.rc) RETURN omni_tab PIPELINED PARALLEL_ENABLE (PARTITION c BY HASH (a, b)) ORDER c BY (a) CLUSTER c BY (b) IS BEGIN RETURN; END;	PARALLEL_ENABLE partitioning with streaming clauses
+ref_156	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_par_{run} (c SYS_REFCURSOR) RETURN omni_tab PARALLEL_ENABLE (PARTITION c BY LIST (a)) IS BEGIN RETURN; END;	unknown PARALLEL_ENABLE partitioning
+ref_157	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_ptf_{run} (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC USING omni_pkg;	polymorphic table function
+ref_158	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_rc_{run} RETURN NUMBER RESULT_CACHE RELIES_ON (omni_t1, omni_s.omni_t2) IS BEGIN RETURN 1; END;	RESULT_CACHE RELIES_ON
+ref_159	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_sm_{run} RETURN VARCHAR2 SQL_MACRO (foo) IS BEGIN RETURN 'x'; END;	unknown SQL_MACRO type
+ref_160	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_cs_{run} (p IN VARCHAR2 CHARACTER SET ANY_CS, q IN OUT NOCOPY CLOB CHARACTER SET ANY_CS) RETURN VARCHAR2 CHARACTER SET p%CHARSET IS v VARCHAR2(10) CHARACTER SET p%CHARSET; BEGIN RETURN p; END;	CHARACTER SET ANY_CS and %CHARSET
+ref_161	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_cs_{run} (p VARCHAR2 CHARACTER SET p%TYPE) IS BEGIN NULL; END;	CHARACTER SET with %TYPE
+ref_162	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_len_{run} (p VARCHAR2(10)) IS BEGIN NULL; END;	constrained parameter type
+ref_163	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_ret_{run} RETURN NUMBER(5) IS BEGIN RETURN 1; END;	constrained result type
+ref_164	plsql	reject	DECLARE CURSOR c (q VARCHAR2(10)) IS SELECT 1 FROM dual; BEGIN NULL; END;	constrained cursor parameter type
+ref_165	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_unc_{run} (p TIMESTAMP WITH TIME ZONE, q INTERVAL DAY TO SECOND, r LONG RAW, s RAW) IS BEGIN NULL; END;	unconstrained parameter types
+ref_166	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_ro_{run} RETURN NUMBER RESULT_CACHE RELIES_ON (omni_t1,) IS BEGIN RETURN 1; END;	RELIES_ON with a trailing comma
+ref_167	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_qab_{run} "ACCESSIBLE" BY (omni_x) IS BEGIN NULL; END;	quoted ACCESSIBLE is an identifier, not the clause
+ref_168	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_impl_{run} (x NUMBER) RETURN NUMBER AGGREGATE USING omni_impl.;	implementation type with an empty name part
+ref_169	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_ptfb_{run} (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC IS BEGIN RETURN NULL; END;	polymorphic table function with a body
+ref_170	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_retdt_{run} RETURN pipelined.using IS BEGIN RETURN NULL; END;	result datatype named pipelined.using
+ref_171	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_abr_{run} ACCESSIBLE BY (SELECT) IS BEGIN NULL; END;	reserved word as an accessor
+ref_172	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_ror_{run} RETURN NUMBER RESULT_CACHE RELIES_ON (BEGIN) IS BEGIN RETURN 1; END;	PL/SQL reserved word as a RELIES_ON data source
+ref_173	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_abn_{run} ACCESSIBLE BY (loop, "SELECT") IS BEGIN NULL; END;	unreserved and quoted accessor names
+ref_174	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_agg2_{run} (a NUMBER, b IN OUT NUMBER) RETURN NUMBER AGGREGATE USING omni_impl;	aggregate with several parameters
+ref_175	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_smn_{run} RETURN NVARCHAR2 SQL_MACRO IS BEGIN RETURN NULL; END;	SQL macro returning a national character type
+ref_176	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_ptk_{run} (t TABLE) RETURN TABLE PIPELINED POLYMORPHIC USING omni_pkg;	POLYMORPHIC without its row kind
+ref_177	plsql	accept	DECLARE FUNCTION f (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC IS BEGIN RETURN NULL; END; BEGIN NULL; END;	nested polymorphic table function
+ref_178	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_sma_{run} (a VARCHAR2) RETURN VARCHAR2 SQL_MACRO AGGREGATE USING omni_impl;	SQL macro with AGGREGATE USING
+ref_179	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_qpoly_{run} (t TABLE) RETURN TABLE PIPELINED ROW "POLYMORPHIC" USING omni_pkg;	quoted POLYMORPHIC is an identifier
+ref_180	plsql_body	reject	CREATE OR REPLACE PACKAGE omni_bad_qcoll_{run} DEFAULT "COLLATION" USING_NLS_COMP AS PROCEDURE p; END;	quoted COLLATION is an identifier
+ref_181	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_qtab_{run} (a "TABLE") IS BEGIN NULL; END;	quoted TABLE names a user type
+ref_182	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_aid_{run} AUTHID CURRENT USER IS BEGIN NULL; END;	AUTHID CURRENT_USER written as two words
+ref_183	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_qaid_{run} AUTHID "CURRENT_USER" IS BEGIN NULL; END;	quoted AUTHID value
+ref_184	plsql_body	accept	CREATE OR REPLACE PACKAGE omni_quoted_{run} AS SUBTYPE "NUMBER" IS VARCHAR2(100); FUNCTION m RETURN "NUMBER" SQL_MACRO; SUBTYPE "CLOB" IS NUMBER; FUNCTION r RETURN "CLOB" RESULT_CACHE; END;	quoted names of predefined types are user types
+ref_185	plsql	reject	DECLARE FUNCTION f RETURN NUMBER RESULT_CACHE IS BEGIN RETURN 1; END; BEGIN NULL; END;	RESULT_CACHE on a subprogram in an anonymous block (PLS-00999)
+ref_186	plsql	reject	DECLARE FUNCTION f RETURN NUMBER PARALLEL_ENABLE IS BEGIN RETURN 1; END; BEGIN NULL; END;	PARALLEL_ENABLE on a nested function (PLS-00712)
+ref_187	plsql	reject	DECLARE CURSOR c (a NUMBER, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;	cursor parameter %CHARSET from a numeric parameter (PLS-00550)
+ref_188	plsql	accept	DECLARE CURSOR c (a VARCHAR2, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;	cursor parameter %CHARSET from a character parameter

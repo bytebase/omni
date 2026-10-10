@@ -591,6 +591,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		writePLSQLTypeDecl(sb, n)
 	case *PLSQLSubtypeDecl:
 		writePLSQLSubtypeDecl(sb, n)
+	case *Accessor:
+		writeAccessor(sb, n)
+	case *ParallelEnableClause:
+		writeParallelEnableClause(sb, n)
+	case *StreamingClause:
+		writeStreamingClause(sb, n)
 	case *PLSQLCall:
 		writePLSQLCall(sb, n)
 
@@ -669,6 +675,12 @@ func writeTypeName(sb *strings.Builder, n *TypeName) {
 	if n.ArrayBounds != nil {
 		sb.WriteString(" :arrayBounds ")
 		writeNode(sb, n.ArrayBounds)
+	}
+	if n.CharacterSet != "" {
+		sb.WriteString(fmt.Sprintf(" :characterSet %q", n.CharacterSet))
+	}
+	if n.IsPercCharset {
+		sb.WriteString(" :pctCharset true")
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -3217,6 +3229,16 @@ func writeCreatePackageStmt(sb *strings.Builder, n *CreatePackageStmt) {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
 	}
+	if n.AuthID != "" {
+		sb.WriteString(fmt.Sprintf(" :authID %q", n.AuthID))
+	}
+	if n.AccessibleBy != nil {
+		sb.WriteString(" :accessibleBy ")
+		writeNode(sb, n.AccessibleBy)
+	}
+	if n.DefaultCollation != "" {
+		sb.WriteString(fmt.Sprintf(" :defaultCollation %q", n.DefaultCollation))
+	}
 	if n.IsBody {
 		sb.WriteString(" :isBody true")
 	}
@@ -3255,6 +3277,13 @@ func writeCreateProcedureStmt(sb *strings.Builder, n *CreateProcedureStmt) {
 	if n.Parameters != nil {
 		sb.WriteString(" :parameters ")
 		writeNode(sb, n.Parameters)
+	}
+	if n.AccessibleBy != nil {
+		sb.WriteString(" :accessibleBy ")
+		writeNode(sb, n.AccessibleBy)
+	}
+	if n.DefaultCollation != "" {
+		sb.WriteString(fmt.Sprintf(" :defaultCollation %q", n.DefaultCollation))
 	}
 	if n.Wrapped {
 		sb.WriteString(" :wrapped true")
@@ -3309,20 +3338,49 @@ func writeCreateFunctionStmt(sb *strings.Builder, n *CreateFunctionStmt) {
 	if n.Pipelined {
 		sb.WriteString(" :pipelined true")
 	}
+	if n.Polymorphic != "" {
+		sb.WriteString(fmt.Sprintf(" :polymorphic %q", n.Polymorphic))
+	}
 	if n.Parallel {
 		sb.WriteString(" :parallel true")
+	}
+	if n.ParallelSpec != nil {
+		sb.WriteString(" :parallelSpec ")
+		writeNode(sb, n.ParallelSpec)
+	}
+	if n.Streaming != nil {
+		sb.WriteString(" :streaming ")
+		writeNode(sb, n.Streaming)
 	}
 	if n.ResultCache {
 		sb.WriteString(" :resultCache true")
 	}
+	if n.ReliesOn != nil {
+		sb.WriteString(" :reliesOn ")
+		writeNode(sb, n.ReliesOn)
+	}
 	if n.Aggregate {
 		sb.WriteString(" :aggregate true")
+	}
+	if n.Implementation != nil {
+		sb.WriteString(" :implementation ")
+		writeNode(sb, n.Implementation)
 	}
 	if n.SqlMacro {
 		sb.WriteString(" :sqlMacro true")
 	}
+	if n.SqlMacroType != "" {
+		sb.WriteString(fmt.Sprintf(" :sqlMacroType %q", n.SqlMacroType))
+	}
 	if n.AuthID != "" {
 		sb.WriteString(fmt.Sprintf(" :authID %q", n.AuthID))
+	}
+	if n.AccessibleBy != nil {
+		sb.WriteString(" :accessibleBy ")
+		writeNode(sb, n.AccessibleBy)
+	}
+	if n.DefaultCollation != "" {
+		sb.WriteString(fmt.Sprintf(" :defaultCollation %q", n.DefaultCollation))
 	}
 	if n.Body != nil {
 		sb.WriteString(" :body ")
@@ -5386,6 +5444,41 @@ func writePLSQLSubtypeDecl(sb *strings.Builder, n *PLSQLSubtypeDecl) {
 	}
 	if n.NotNull {
 		sb.WriteString(" :notNull true")
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAccessor(sb *strings.Builder, n *Accessor) {
+	sb.WriteString("{ACCESSOR")
+	if n.UnitKind != "" {
+		sb.WriteString(fmt.Sprintf(" :unitKind %q", n.UnitKind))
+	}
+	if n.Name != nil {
+		sb.WriteString(" :name ")
+		writeNode(sb, n.Name)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeParallelEnableClause(sb *strings.Builder, n *ParallelEnableClause) {
+	sb.WriteString("{PARALLELENABLE")
+	sb.WriteString(fmt.Sprintf(" :argument %q :partitionBy %q", n.Argument, n.PartitionBy))
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeStreamingClause(sb *strings.Builder, n *StreamingClause) {
+	sb.WriteString("{STREAMING")
+	sb.WriteString(fmt.Sprintf(" :kind %q :argument %q", n.Kind, n.Argument))
+	if n.Columns != nil {
+		sb.WriteString(" :columns ")
+		writeNode(sb, n.Columns)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

@@ -190,7 +190,9 @@ func TestParseCreateFunctionDeterministic(t *testing.T) {
 }
 
 func TestParseCreateFunctionPipelined(t *testing.T) {
-	sql := `CREATE FUNCTION pipe_fn RETURN NUMBER PIPELINED IS BEGIN NULL; END;`
+	// A pipelined function returns a collection: Oracle 23ai rejects a
+	// NUMBER result with PLS-00630.
+	sql := `CREATE FUNCTION pipe_fn RETURN num_tab PIPELINED IS BEGIN NULL; END;`
 	result, err := Parse(sql)
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
