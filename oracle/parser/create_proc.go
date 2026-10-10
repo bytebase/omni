@@ -62,10 +62,8 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 		}
 	}
 
-	var parseErr456 error
-	stmt.AuthID, parseErr456 = p.parseOptionalAuthID()
-	if parseErr456 != nil {
-		return nil, parseErr456
+	if err := p.parseProcedureProperties(stmt); err != nil {
+		return nil, err
 	}
 
 	if p.isIdentLikeStr("WRAPPED") {
@@ -78,6 +76,7 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 	p.advance()
 
 	// PL/SQL block body (BEGIN ... END) or call spec
+	var parseErr456 error
 	stmt.Body, stmt.CallSpec, parseErr456 = p.parseSubprogramImplementation()
 	if parseErr456 != nil {
 		return nil, parseErr456
@@ -191,7 +190,7 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 	}
 	p.advance()
 	var parseErr459 error
-	stmt.ReturnType, parseErr459 = p.parseTypeName()
+	stmt.ReturnType, parseErr459 = p.parsePLSQLDatatype(typeModsNone, charsetFlexible)
 	if parseErr459 != nil {
 		return nil, parseErr459
 	}
@@ -219,6 +218,9 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 		nil {
 		return nil, parseErr460
 	}
+	if stmt.Implementation != nil {
+		return p.finishTypeImplementedFunction(stmt)
+	}
 
 	if p.cur.Type != kwIS && p.cur.Type != kwAS {
 		return nil, p.syntaxErrorAtCur()
@@ -236,90 +238,170 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 	return stmt, nil
 }
 
-// parseFunctionProperties parses optional DETERMINISTIC, PIPELINED, PARALLEL_ENABLE, RESULT_CACHE,
-// AGGREGATE USING, SQL_MACRO, AUTHID, and other function property clauses.
+// parseFunctionProperties parses the clauses between a function's RETURN
+// type and its IS | AS or ';', in any order, each at most once (PLS-00371).
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/CREATE-FUNCTION-statement.html
+//
+//	[ { invoker_rights_clause | accessible_by_clause | default_collation_clause
+//	  | deterministic_clause | parallel_enable_clause | result_cache_clause
+//	  | aggregate_clause | pipelined_clause | sql_macro_clause
+//	  | streaming_clause }... ]
+//	pipelined_clause    ::= PIPELINED [ { ROW | TABLE } POLYMORPHIC ]
+//	result_cache_clause ::= RESULT_CACHE [ RELIES_ON ( [ data_source [, data_source ]... ] ) ]
+//	sql_macro_clause    ::= SQL_MACRO [ ( [ TYPE => ] { SCALAR | TABLE } ) ]
+//	aggregate_clause    ::= AGGREGATE USING [ schema. ] implementation_type
+//
+// A type can implement the function: AGGREGATE USING type, or USING type
+// after PIPELINED. The clause list ends there and the function has no IS | AS
+// body; Oracle 23ai rejects a following IS or clause (PLS-00103), USING
+// without PIPELINED (PLS-00624), and AGGREGATE without USING after it.
 func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) error {
+	seen := clauseSeen{}
 	for {
 		switch {
 		case p.cur.Type == kwDETERMINISTIC:
+			if err := p.firstClause(seen, "DETERMINISTIC"); err != nil {
+				return err
+			}
 			stmt.Deterministic = true
 			p.advance()
 		case p.cur.Type == kwPIPELINED:
+			if err := p.firstClause(seen, "PIPELINED"); err != nil {
+				return err
+			}
 			stmt.Pipelined = true
 			p.advance()
+			if (p.cur.Type == kwROW || p.cur.Type == kwTABLE) && p.isIdentLikeStrAt(p.peekNext(), "POLYMORPHIC") {
+				stmt.Polymorphic = "ROW"
+				if p.cur.Type == kwTABLE {
+					stmt.Polymorphic = "TABLE"
+				}
+				p.advance() // consume ROW or TABLE
+				p.advance() // consume POLYMORPHIC
+			}
 		case p.cur.Type == kwPARALLEL_ENABLE:
+			if err := p.firstClause(seen, "PARALLEL_ENABLE"); err != nil {
+				return err
+			}
 			stmt.Parallel = true
 			p.advance()
+			if p.cur.Type == '(' {
+				spec, err := p.parseParallelEnableSpec()
+				if err != nil {
+					return err
+				}
+				stmt.ParallelSpec = spec
+			}
+		case p.cur.Type == kwORDER, p.cur.Type == kwCLUSTER:
+			kind := "ORDER BY"
+			if p.cur.Type == kwCLUSTER {
+				kind = "CLUSTER BY"
+			}
+			if err := p.firstClause(seen, kind); err != nil {
+				return err
+			}
+			clause, err := p.parseStreamingClause()
+			if err != nil {
+				return err
+			}
+			if stmt.Streaming == nil {
+				stmt.Streaming = &nodes.List{}
+			}
+			stmt.Streaming.Items = append(stmt.Streaming.Items, clause)
 		case p.cur.Type == kwRESULT_CACHE:
+			if err := p.firstClause(seen, "RESULT_CACHE"); err != nil {
+				return err
+			}
 			stmt.ResultCache = true
 			p.advance()
-		case p.isIdentLikeStr("AGGREGATE"):
+			if p.isKeywordStr("RELIES_ON") {
+				list, err := p.parseResultCacheReliesOn()
+				if err != nil {
+					return err
+				}
+				stmt.ReliesOn = list
+			}
+		case p.isKeywordStr("AGGREGATE"):
 			stmt.Aggregate = true
 			p.advance() // consume AGGREGATE
-			if p.cur.Type == kwUSING {
-				p.advance()
-				parseDiscard463, // consume USING
-					parseErr462 := p.parseObjectName()
-				_ = // consume implementation type
-					parseDiscard463
-				if parseErr462 != nil {
-					return parseErr462
-				}
+			if p.cur.Type != kwUSING {
+				return p.syntaxErrorAtCur()
 			}
-		case p.isIdentLikeStr("SQL_MACRO"):
+			return p.parseImplementationType(stmt)
+		case p.cur.Type == kwUSING:
+			if !stmt.Pipelined {
+				return p.syntaxErrorAtCur()
+			}
+			return p.parseImplementationType(stmt)
+		case p.isKeywordStr("SQL_MACRO"):
+			if err := p.firstClause(seen, "SQL_MACRO"); err != nil {
+				return err
+			}
 			stmt.SqlMacro = true
 			p.advance() // consume SQL_MACRO
-			// Optional ( SCALAR | TABLE )
 			if p.cur.Type == '(' {
-				p.advance()
-				if p.isIdentLike() {
-					p.advance() // consume SCALAR or TABLE
+				kind, err := p.parseSqlMacroType()
+				if err != nil {
+					return err
 				}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
+				stmt.SqlMacroType = kind
 			}
 		case p.isIdentLikeStr("AUTHID"):
-			authID, parseErr464 := p.parseOptionalAuthID()
-			if parseErr464 != nil {
-				return parseErr464
+			if err := p.firstClause(seen, "AUTHID"); err != nil {
+				return err
+			}
+			authID, err := p.parseOptionalAuthID()
+			if err != nil {
+				return err
 			}
 			stmt.AuthID = authID
 		case p.isIdentLikeStr("ACCESSIBLE"):
-			// accessible_by_clause: ACCESSIBLE BY ( accessor [, ...] )
-			p.advance() // consume ACCESSIBLE
-			if p.cur.Type == kwBY {
-				p.advance() // consume BY
+			if err := p.firstClause(seen, "ACCESSIBLE BY"); err != nil {
+				return err
 			}
-			if p.cur.Type == '(' {
-				p.advance()
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					parseDiscard465, parseErr464 := p.parseObjectName()
-					_ = parseDiscard465
-					if parseErr464 != nil {
-						return parseErr464
-					}
-					if p.cur.Type != ',' {
-						break
-					}
-					p.advance()
-				}
-				if p.cur.Type == ')' {
-					p.advance()
-				}
+			list, err := p.parseAccessibleByClause()
+			if err != nil {
+				return err
 			}
-		case p.cur.Type == kwDEFAULT && p.isIdentLikeStrAt(p.peekNext(), "COLLATION"):
-			// default_collation_clause: DEFAULT COLLATION collation_name
-			p.advance() // consume DEFAULT
-			p.advance() // consume COLLATION
-			if p.isIdentLike() {
-				p.advance() // consume collation name
+			stmt.AccessibleBy = list
+		case p.atDefaultCollation():
+			if err := p.firstClause(seen, "DEFAULT COLLATION"); err != nil {
+				return err
+			}
+			if err := p.parseDefaultCollationClause(); err != nil {
+				return err
 			}
 		default:
 			return nil
 		}
 	}
+}
+
+// parseImplementationType parses USING [ schema. ] implementation_type
+// [ @dblink ], the current token at USING.
+func (p *Parser) parseImplementationType(stmt *nodes.CreateFunctionStmt) error {
+	p.advance() // consume USING
+	name, err := p.parseObjectName()
+	if err != nil {
+		return err
+	}
+	if name == nil || name.Name == "" {
+		return p.syntaxErrorAtCur()
+	}
+	stmt.Implementation = name
 	return nil
+}
+
+// finishTypeImplementedFunction ends a function a type implements, whose
+// clause list ends at the type name: only its ';' follows.
+func (p *Parser) finishTypeImplementedFunction(stmt *nodes.CreateFunctionStmt) (*nodes.CreateFunctionStmt, error) {
+	if p.cur.Type != ';' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
 }
 
 func (p *Parser) parseOptionalAuthID() (string, error) {
@@ -406,38 +488,11 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 		}
 	}
 
-	// Optional ACCESSIBLE BY ( ... ) — skip for package body
-	if !stmt.IsBody && p.isIdentLikeStr("ACCESSIBLE") {
-		p.advance() // consume ACCESSIBLE
-		if p.cur.Type == kwBY {
-			p.advance() // consume BY
-		}
-		if p.cur.Type == '(' {
-			p.advance()
-			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				parseDiscard468,
-					// Each accessor: [ unit_kind ] [ schema. ] unit_name
-					parseErr467 := p.parseObjectName()
-				_ = parseDiscard468
-				if parseErr467 != nil {
-					return nil, parseErr467
-				}
-				if p.cur.Type != ',' {
-					break
-				}
-				p.advance()
-			}
-			if p.cur.Type == ')' {
-				p.advance()
-			}
-		}
-	}
-
-	// Optional invoker_rights_clause: AUTHID { CURRENT_USER | DEFINER }
-	if !stmt.IsBody && p.isIdentLikeStr("AUTHID") {
-		p.advance() // consume AUTHID
-		if p.isIdentLike() {
-			p.advance() // consume CURRENT_USER or DEFINER
+	// ACCESSIBLE BY, AUTHID, and DEFAULT COLLATION head a specification,
+	// in any order; a body takes none of them.
+	if !stmt.IsBody {
+		if err := p.parsePackageProperties(stmt); err != nil {
+			return nil, err
 		}
 	}
 
@@ -555,6 +610,9 @@ func (p *Parser) parsePackageProcDecl() (*nodes.CreateProcedureStmt, error) {
 			return nil, parseErr474
 		}
 	}
+	if err := p.parseProcedureProperties(stmt); err != nil {
+		return nil, err
+	}
 
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
 		p.advance()
@@ -608,7 +666,7 @@ func (p *Parser) parsePackageFuncDecl() (*nodes.CreateFunctionStmt, error) {
 	if p.cur.Type == kwRETURN {
 		p.advance()
 		var parseErr478 error
-		stmt.ReturnType, parseErr478 = p.parseTypeName()
+		stmt.ReturnType, parseErr478 = p.parsePLSQLDatatype(typeModsNone, charsetFlexible)
 		if parseErr478 !=
 
 			// Optional function properties
@@ -627,6 +685,9 @@ func (p *Parser) parsePackageFuncDecl() (*nodes.CreateFunctionStmt, error) {
 		// Check for IS|AS (definition) or ; (declaration)
 		nil {
 		return nil, parseErr479
+	}
+	if stmt.Implementation != nil {
+		return p.finishTypeImplementedFunction(stmt)
 	}
 
 	if p.cur.Type == kwIS || p.cur.Type == kwAS {
@@ -703,7 +764,8 @@ func (p *Parser) parseParameter() (*nodes.Parameter, error) {
 	param.Mode = mode
 	var parseErr484 error
 
-	param.TypeName, parseErr484 = p.parseTypeName()
+	// A parameter type is unconstrained and may name ANY_CS.
+	param.TypeName, parseErr484 = p.parsePLSQLDatatype(typeModsNone, charsetAnyCS)
 	if parseErr484 !=
 
 		// Optional default value: := expr or DEFAULT expr

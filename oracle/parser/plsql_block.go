@@ -160,14 +160,15 @@ func (p *Parser) parsePLSQLDeclaration() (nodes.Node, error) {
 
 	// Variable declaration: name [CONSTANT] type [NOT NULL] [:= | DEFAULT expr] ;
 	if p.isIdentLike() {
-		return p.parsePLSQLVarDecl()
+		return p.parsePLSQLVarDecl(charsetFlexible)
 	}
 
 	return nil, nil
 }
 
-// parsePLSQLVarDecl parses a variable declaration.
-func (p *Parser) parsePLSQLVarDecl() (*nodes.PLSQLVarDecl, error) {
+// parsePLSQLVarDecl parses a variable declaration, or a record field when
+// charset is charsetFixed.
+func (p *Parser) parsePLSQLVarDecl(charset plsqlCharsetUse) (*nodes.PLSQLVarDecl, error) {
 	start := p.pos()
 	decl := &nodes.PLSQLVarDecl{
 		Loc: nodes.Loc{Start: start},
@@ -189,7 +190,7 @@ func (p *Parser) parsePLSQLVarDecl() (*nodes.PLSQLVarDecl, error) {
 	var parseErr835 error
 
 	// Type name
-	decl.TypeName, parseErr835 = p.parsePLSQLTypeName()
+	decl.TypeName, parseErr835 = p.parsePLSQLDatatype(typeModsPLSQL, charset)
 	if parseErr835 !=
 
 		// Optional NOT NULL
@@ -323,7 +324,7 @@ func (p *Parser) parsePLSQLCursorParams() (*nodes.List, error) {
 			p.advance()
 		}
 		var parseErr842 error
-		paramDecl.TypeName, parseErr842 = p.parseTypeName()
+		paramDecl.TypeName, parseErr842 = p.parsePLSQLDatatype(typeModsNone, charsetFlexible)
 		if parseErr842 !=
 
 			// Optional default
@@ -1786,8 +1787,8 @@ func plsqlStmtNodes(list *nodes.List) []nodes.StmtNode {
 //	constraint ::= { precision [, scale ] | RANGE low_value .. high_value }
 //
 // Precision and scale are written in parentheses as part of base_type:
-// Oracle 23ai rejects SUBTYPE s IS NUMBER 8, 2 (PLS-00103). CHARACTER SET is
-// not parsed; Oracle allows it only on a subprogram parameter (PLS-00551).
+// Oracle 23ai rejects SUBTYPE s IS NUMBER 8, 2 (PLS-00103). The character set
+// may be named or item%CHARSET, but not ANY_CS (PLS-00551).
 func (p *Parser) parsePLSQLSubtypeDecl() (*nodes.PLSQLSubtypeDecl, error) {
 	decl := &nodes.PLSQLSubtypeDecl{Loc: nodes.Loc{Start: p.pos()}}
 	p.advance() // consume SUBTYPE
@@ -1805,7 +1806,7 @@ func (p *Parser) parsePLSQLSubtypeDecl() (*nodes.PLSQLSubtypeDecl, error) {
 	}
 	p.advance()
 
-	decl.BaseType, err = p.parsePLSQLTypeName()
+	decl.BaseType, err = p.parsePLSQLDatatype(typeModsPLSQL, charsetFlexible)
 	if err != nil {
 		return nil, err
 	}
@@ -1883,7 +1884,7 @@ func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
 			p.advance()
 		}
 		var parseErr894 error
-		decl.ElementType, parseErr894 = p.parsePLSQLTypeName()
+		decl.ElementType, parseErr894 = p.parsePLSQLDatatype(typeModsPLSQL, charsetFixed)
 		if parseErr894 !=
 			// INDEX BY
 			nil {
@@ -1929,7 +1930,7 @@ func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
 			p.advance()
 		}
 		var parseErr897 error
-		decl.ElementType, parseErr897 = p.parsePLSQLTypeName()
+		decl.ElementType, parseErr897 = p.parsePLSQLDatatype(typeModsPLSQL, charsetFixed)
 		if parseErr897 != nil {
 			return nil, parseErr897
 		}
@@ -1946,7 +1947,7 @@ func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
 			p.advance()
 			decl.Fields = &nodes.List{}
 			for p.cur.Type != ')' && p.cur.Type != tokEOF {
-				field, parseErr898 := p.parsePLSQLVarDecl()
+				field, parseErr898 := p.parsePLSQLVarDecl(charsetFixed)
 				if parseErr898 != nil {
 					return nil, parseErr898
 				}
@@ -1974,7 +1975,7 @@ func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
 		if p.cur.Type == kwRETURN {
 			p.advance()
 			var parseErr899 error
-			decl.ReturnType, parseErr899 = p.parseTypeName()
+			decl.ReturnType, parseErr899 = p.parsePLSQLDatatype(typeModsNone, charsetNone)
 			if parseErr899 != nil {
 				return nil, parseErr899
 			}

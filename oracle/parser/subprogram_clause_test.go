@@ -1,0 +1,195 @@
+package parser
+
+import (
+	"testing"
+
+	"github.com/bytebase/omni/oracle/ast"
+)
+
+// TestSubprogramHeadingClauses checks the clauses of procedure, function,
+// and package headings against Oracle 23ai: every accepted form compiles
+// there (or fails only on names it cannot resolve), and every rejected one
+// fails with the error noted beside it. Rows ref_147 to ref_165 run the
+// PLS-00103 cases against the engine; the others are errors Oracle reports
+// from the text alone after parsing, which the reference harness counts as
+// accepted.
+func TestSubprogramHeadingClauses(t *testing.T) {
+	for _, sql := range []string{
+		// ACCESSIBLE BY with every unit kind, in any order with AUTHID.
+		"CREATE PROCEDURE p ACCESSIBLE BY (PACKAGE x, PROCEDURE y, FUNCTION z, TRIGGER t, TYPE ty, plain, s.q) IS BEGIN NULL; END;",
+		"CREATE PROCEDURE p (a NUMBER) AUTHID DEFINER ACCESSIBLE BY (x) IS BEGIN NULL; END;",
+		"CREATE FUNCTION f RETURN NUMBER ACCESSIBLE BY (x) DETERMINISTIC IS BEGIN RETURN 1; END;",
+		"CREATE PACKAGE k AUTHID DEFINER ACCESSIBLE BY (PACKAGE x) AS PROCEDURE p; END;",
+		"CREATE PACKAGE k ACCESSIBLE BY (x) AUTHID CURRENT_USER AS PROCEDURE p ACCESSIBLE BY (PACKAGE x); FUNCTION f RETURN NUMBER ACCESSIBLE BY (y); END;",
+		"CREATE PACKAGE BODY k AS PROCEDURE p ACCESSIBLE BY (PACKAGE x) IS BEGIN NULL; END; END;",
+		"CREATE PROCEDURE p ACCESSIBLE BY (PACKAGE \"X\", s.x) IS BEGIN NULL; END;",
+		// A type implements the function, which then has no body.
+		"CREATE FUNCTION f (x NUMBER) RETURN NUMBER AGGREGATE USING impl;",
+		"CREATE FUNCTION f (x NUMBER) RETURN NUMBER DETERMINISTIC AGGREGATE USING s.impl;",
+		"CREATE FUNCTION f RETURN t PIPELINED USING impl;",
+		"CREATE FUNCTION f RETURN t PIPELINED PARALLEL_ENABLE USING impl@lnk;",
+		"CREATE FUNCTION f RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY ANY) USING impl;",
+		"CREATE FUNCTION f (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC USING pkg;",
+		"CREATE FUNCTION f (t TABLE) RETURN TABLE PIPELINED TABLE POLYMORPHIC USING pkg;",
+		"CREATE PACKAGE k AS FUNCTION f (x NUMBER) RETURN NUMBER AGGREGATE USING impl; FUNCTION g RETURN t PIPELINED USING impl; END;",
+		// PARALLEL_ENABLE partitioning and streaming clauses.
+		"CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY ANY) IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY HASH (a, b)) IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY RANGE (a)) IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY VALUE (a)) IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY HASH (a + 1, b.c)) ORDER c BY (a, b) IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY HASH (a)) ORDER c BY (a) CLUSTER c BY (b) IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t ORDER c BY (a) IS BEGIN RETURN; END;",
+		// RESULT_CACHE RELIES_ON and SQL_MACRO.
+		"CREATE FUNCTION f RETURN NUMBER RESULT_CACHE RELIES_ON (t1, s.t2) IS BEGIN RETURN 1; END;",
+		"CREATE FUNCTION f RETURN NUMBER RESULT_CACHE RELIES_ON () IS BEGIN RETURN 1; END;",
+		"CREATE FUNCTION f RETURN VARCHAR2 SQL_MACRO (TYPE => TABLE) IS BEGIN RETURN 'x'; END;",
+		"CREATE FUNCTION f RETURN VARCHAR2 SQL_MACRO (SCALAR) IS BEGIN RETURN 'x'; END;",
+		"CREATE FUNCTION f RETURN VARCHAR2 SQL_MACRO IS BEGIN RETURN 'x'; END;",
+		// CHARACTER SET on parameters, results, and declarations.
+		"CREATE PROCEDURE p (a VARCHAR2 CHARACTER SET ANY_CS, b IN OUT NOCOPY CLOB CHARACTER SET ANY_CS, c CHAR CHARACTER SET ANY_CS DEFAULT 'x') IS BEGIN NULL; END;",
+		"CREATE FUNCTION f (a VARCHAR2 CHARACTER SET ANY_CS) RETURN VARCHAR2 CHARACTER SET a%CHARSET IS v VARCHAR2(10) CHARACTER SET a%CHARSET; BEGIN RETURN a; END;",
+		"CREATE PROCEDURE p (a VARCHAR2 CHARACTER SET CHAR_CS, b VARCHAR2 CHARACTER SET NCHAR_CS) IS BEGIN NULL; END;",
+		"CREATE PROCEDURE p (a VARCHAR2 CHARACTER SET ANY_CS) IS c CONSTANT VARCHAR2(10) CHARACTER SET a%CHARSET NOT NULL := 'x'; SUBTYPE s IS VARCHAR2(10) CHARACTER SET a%CHARSET; TYPE r IS RECORD (f VARCHAR2(10) CHARACTER SET CHAR_CS); CURSOR cu (q VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;",
+		"CREATE FUNCTION f RETURN VARCHAR2 CHARACTER SET CHAR_CS IS BEGIN RETURN NULL; END;",
+		// Unconstrained parameter and result types.
+		"CREATE PROCEDURE p (a TIMESTAMP WITH TIME ZONE, b INTERVAL DAY TO SECOND, c INTERVAL YEAR TO MONTH, d LONG RAW, e RAW) IS BEGIN NULL; END;",
+	} {
+		ParseAndCheck(t, sql)
+		if violations := CheckLocations(t, sql); len(violations) > 0 {
+			t.Errorf("Parse(%q) Loc violations: %v", sql, violations)
+		}
+	}
+
+	for _, sql := range []string{
+		// ACCESSIBLE BY (PLS-00103 unless noted).
+		"CREATE PROCEDURE p ACCESSIBLE BY () IS BEGIN NULL; END;",
+		"CREATE PROCEDURE p ACCESSIBLE BY x IS BEGIN NULL; END;",
+		"CREATE PROCEDURE p ACCESSIBLE BY (PACKAGE) IS BEGIN NULL; END;",
+		"CREATE PROCEDURE p ACCESSIBLE BY (VIEW x) IS BEGIN NULL; END;",
+		"CREATE FUNCTION f RETURN NUMBER ACCESSIBLE BY (x@lnk) IS BEGIN RETURN 1; END;",
+		"CREATE PROCEDURE p ACCESSIBLE BY (x) AUTHID DEFINER ACCESSIBLE BY (y) IS BEGIN NULL; END;", // PLS-00371
+		"CREATE PACKAGE k ACCESSIBLE BY (x) ACCESSIBLE BY (y) AS PROCEDURE p; END;",                 // PLS-00371
+		"CREATE PACKAGE k AUTHID DEFINER AUTHID DEFINER AS PROCEDURE p; END;",                       // PLS-00371
+		"CREATE PROCEDURE p AUTHID DEFINER AUTHID CURRENT_USER IS BEGIN NULL; END;",                 // PLS-00371
+		// A type implements the function: nothing may follow but ';'.
+		"CREATE FUNCTION f (x NUMBER) RETURN NUMBER AGGREGATE USING impl IS BEGIN RETURN 1; END;",
+		"CREATE FUNCTION f RETURN t PIPELINED USING impl IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f (x NUMBER) RETURN NUMBER AGGREGATE USING impl DETERMINISTIC;",
+		"CREATE FUNCTION f RETURN t USING impl PIPELINED;",
+		"CREATE FUNCTION f (x NUMBER) RETURN NUMBER AGGREGATE PARALLEL_ENABLE USING impl;",
+		"CREATE FUNCTION f RETURN t PIPELINED USING;",
+		"CREATE FUNCTION f (x NUMBER) RETURN NUMBER AGGREGATE USING impl",
+		"CREATE FUNCTION f RETURN NUMBER USING impl;",           // PLS-00624
+		"CREATE FUNCTION f (x NUMBER) RETURN NUMBER AGGREGATE;", // PLS-00220
+		// PARALLEL_ENABLE and streaming clauses.
+		"CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t PARALLEL_ENABLE () IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t PARALLEL_ENABLE (PARTITION c) IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t PARALLEL_ENABLE (PARTITION c BY LIST (a)) IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t PARALLEL_ENABLE (PARTITION c BY HASH ()) IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t PARALLEL_ENABLE (PARTITION c BY ANY) ORDER c BY () IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t PARALLEL_ENABLE (PARTITION c BY ANY) ORDER c.x BY (a) IS BEGIN RETURN; END;",
+		"CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t ORDER c BY (a) ORDER c BY (b) IS BEGIN RETURN; END;",     // PLS-00371
+		"CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t CLUSTER c BY (a) CLUSTER c BY (b) IS BEGIN RETURN; END;", // PLS-00371
+		// SQL_MACRO and repeated clauses.
+		"CREATE FUNCTION f RETURN VARCHAR2 SQL_MACRO () IS BEGIN RETURN 'x'; END;",
+		"CREATE FUNCTION f RETURN VARCHAR2 SQL_MACRO (foo) IS BEGIN RETURN 'x'; END;",
+		"CREATE FUNCTION f RETURN VARCHAR2 SQL_MACRO (TYPE => foo) IS BEGIN RETURN 'x'; END;",
+		"CREATE FUNCTION f RETURN NUMBER DETERMINISTIC DETERMINISTIC IS BEGIN RETURN 1; END;",     // PLS-00371
+		"CREATE FUNCTION f RETURN t PIPELINED PIPELINED IS BEGIN RETURN; END;",                    // PLS-00371
+		"CREATE FUNCTION f RETURN NUMBER RESULT_CACHE RESULT_CACHE IS BEGIN RETURN 1; END;",       // PLS-00371
+		"CREATE FUNCTION f RETURN NUMBER PARALLEL_ENABLE PARALLEL_ENABLE IS BEGIN RETURN 1; END;", // PLS-00371
+		"CREATE FUNCTION f RETURN VARCHAR2 SQL_MACRO SQL_MACRO IS BEGIN RETURN 'x'; END;",         // PLS-00371
+		"CREATE FUNCTION f RETURN NUMBER AUTHID DEFINER AUTHID DEFINER IS BEGIN RETURN 1; END;",   // PLS-00371
+		// CHARACTER SET.
+		"CREATE PROCEDURE p (a VARCHAR2 CHARACTER SET) IS BEGIN NULL; END;",
+		"CREATE PROCEDURE p (a VARCHAR2 CHARACTER SET a%TYPE) IS BEGIN NULL; END;",
+		"CREATE PROCEDURE p (a NUMBER CHARACTER SET ANY_CS) IS BEGIN NULL; END;",                                                              // PLS-00550
+		"CREATE PROCEDURE p (a NVARCHAR2 CHARACTER SET ANY_CS) IS BEGIN NULL; END;",                                                           // PLS-00554
+		"CREATE PROCEDURE p (a LONG CHARACTER SET ANY_CS) IS BEGIN NULL; END;",                                                                // PLS-00554
+		"CREATE PROCEDURE p IS v VARCHAR2(10) CHARACTER SET ANY_CS; BEGIN NULL; END;",                                                         // PLS-00551
+		"CREATE FUNCTION f RETURN VARCHAR2 CHARACTER SET ANY_CS IS BEGIN RETURN NULL; END;",                                                   // PLS-00551
+		"CREATE PROCEDURE p IS CURSOR c (q VARCHAR2 CHARACTER SET ANY_CS) IS SELECT 1 FROM dual; BEGIN NULL; END;",                            // PLS-00551
+		"CREATE PROCEDURE p (a VARCHAR2 CHARACTER SET ANY_CS) IS TYPE r IS RECORD (f VARCHAR2(10) CHARACTER SET a%CHARSET); BEGIN NULL; END;", // PLS-00552
+		"CREATE PROCEDURE p (a VARCHAR2 CHARACTER SET ANY_CS) IS TYPE t IS TABLE OF VARCHAR2(10) CHARACTER SET a%CHARSET; BEGIN NULL; END;",   // PLS-00552
+		"CREATE TABLE t (c VARCHAR2(10) CHARACTER SET ANY_CS)",
+		// Constrained parameter and result types.
+		"CREATE PROCEDURE p (a VARCHAR2(10)) IS BEGIN NULL; END;",
+		"CREATE PROCEDURE p (a NUMBER(5)) IS BEGIN NULL; END;",
+		"CREATE PROCEDURE p (a TIMESTAMP(3)) IS BEGIN NULL; END;",
+		"CREATE PROCEDURE p (a INTERVAL DAY(2) TO SECOND(6)) IS BEGIN NULL; END;",
+		"CREATE PROCEDURE p (a FLOAT(5)) IS BEGIN NULL; END;",
+		"CREATE FUNCTION f RETURN VARCHAR2(10) IS BEGIN RETURN NULL; END;",
+		"CREATE FUNCTION f RETURN NUMBER(5) IS BEGIN RETURN 1; END;",
+		"CREATE PACKAGE k AS PROCEDURE p (a VARCHAR2(10)); END;",
+		"CREATE TYPE ty AS OBJECT (a NUMBER, MEMBER FUNCTION f (x VARCHAR2(10)) RETURN NUMBER)",
+		"CREATE TYPE ty AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN VARCHAR2(10))",
+		"CREATE PROCEDURE p IS CURSOR c (q VARCHAR2(10)) IS SELECT 1 FROM dual; BEGIN NULL; END;",
+		"CREATE PROCEDURE p IS FUNCTION f (x NUMBER(5)) RETURN NUMBER IS BEGIN RETURN 1; END; BEGIN NULL; END;",
+		"CREATE PROCEDURE p IS TYPE rc IS REF CURSOR RETURN VARCHAR2(10); BEGIN NULL; END;",
+	} {
+		ParseShouldFail(t, sql)
+	}
+}
+
+// TestSubprogramHeadingClausesAST checks what the heading clauses record.
+func TestSubprogramHeadingClausesAST(t *testing.T) {
+	proc := parseOne[*ast.CreateProcedureStmt](t, "CREATE PROCEDURE p AUTHID DEFINER ACCESSIBLE BY (PACKAGE s.k, f) IS BEGIN NULL; END;")
+	if proc.AuthID != "DEFINER" || proc.AccessibleBy == nil || proc.AccessibleBy.Len() != 2 {
+		t.Fatalf("procedure AuthID %q, AccessibleBy %v", proc.AuthID, proc.AccessibleBy)
+	}
+	first := proc.AccessibleBy.Items[0].(*ast.Accessor)
+	second := proc.AccessibleBy.Items[1].(*ast.Accessor)
+	if first.UnitKind != "PACKAGE" || first.Name.Schema != "S" || first.Name.Name != "K" || second.UnitKind != "" || second.Name.Name != "F" {
+		t.Errorf("accessors = %+v %+v, want PACKAGE S.K and F", first, second)
+	}
+
+	pkg := parseOne[*ast.CreatePackageStmt](t, "CREATE PACKAGE k AUTHID CURRENT_USER ACCESSIBLE BY (x) AS PROCEDURE p; END;")
+	if pkg.AuthID != "CURRENT_USER" || pkg.AccessibleBy == nil || pkg.AccessibleBy.Len() != 1 {
+		t.Errorf("package AuthID %q, AccessibleBy %v", pkg.AuthID, pkg.AccessibleBy)
+	}
+
+	agg := parseOne[*ast.CreateFunctionStmt](t, "CREATE FUNCTION f (x NUMBER) RETURN NUMBER AGGREGATE USING s.impl;")
+	if !agg.Aggregate || agg.Implementation == nil || agg.Implementation.Schema != "S" || agg.Implementation.Name != "IMPL" || agg.Body != nil {
+		t.Errorf("aggregate function = %+v", agg)
+	}
+
+	ptf := parseOne[*ast.CreateFunctionStmt](t, "CREATE FUNCTION f (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC USING pkg;")
+	if !ptf.Pipelined || ptf.Polymorphic != "ROW" || ptf.Implementation == nil || ptf.Implementation.Name != "PKG" {
+		t.Errorf("polymorphic function = %+v", ptf)
+	}
+
+	par := parseOne[*ast.CreateFunctionStmt](t, "CREATE FUNCTION f (c SYS_REFCURSOR) RETURN t PIPELINED PARALLEL_ENABLE (PARTITION c BY HASH (a, b)) CLUSTER c BY (a) RESULT_CACHE RELIES_ON (t1) SQL_MACRO (TYPE => TABLE) IS BEGIN RETURN; END;")
+	if spec := par.ParallelSpec; spec == nil || spec.Argument != "C" || spec.PartitionBy != "HASH" || spec.Columns.Len() != 2 {
+		t.Errorf("parallel spec = %+v", par.ParallelSpec)
+	}
+	if par.Streaming == nil || par.Streaming.Len() != 1 {
+		t.Fatalf("streaming = %v", par.Streaming)
+	}
+	if s := par.Streaming.Items[0].(*ast.StreamingClause); s.Kind != "CLUSTER" || s.Argument != "C" || s.Columns.Len() != 1 {
+		t.Errorf("streaming clause = %+v", s)
+	}
+	if par.ReliesOn == nil || par.ReliesOn.Len() != 1 || par.SqlMacroType != "TABLE" {
+		t.Errorf("RELIES_ON %v, SQL_MACRO type %q", par.ReliesOn, par.SqlMacroType)
+	}
+
+	cs := parseOne[*ast.CreateFunctionStmt](t, "CREATE FUNCTION f (a VARCHAR2 CHARACTER SET ANY_CS) RETURN VARCHAR2 CHARACTER SET a%CHARSET IS BEGIN RETURN a; END;")
+	param := cs.Parameters.Items[0].(*ast.Parameter)
+	if param.TypeName.CharacterSet != "ANY_CS" || param.TypeName.IsPercCharset {
+		t.Errorf("parameter character set = %q (%%CHARSET %v), want ANY_CS", param.TypeName.CharacterSet, param.TypeName.IsPercCharset)
+	}
+	if cs.ReturnType.CharacterSet != "A" || !cs.ReturnType.IsPercCharset {
+		t.Errorf("result character set = %q (%%CHARSET %v), want A%%CHARSET", cs.ReturnType.CharacterSet, cs.ReturnType.IsPercCharset)
+	}
+}
+
+// parseOne parses sql, which must hold one statement of type T.
+func parseOne[T ast.Node](t *testing.T, sql string) T {
+	t.Helper()
+	result := ParseAndCheck(t, sql)
+	stmt, ok := result.Items[0].(*ast.RawStmt).Stmt.(T)
+	if !ok {
+		t.Fatalf("Parse(%q) = %T", sql, result.Items[0].(*ast.RawStmt).Stmt)
+	}
+	return stmt
+}

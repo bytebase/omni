@@ -420,6 +420,22 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			},
 		},
 		{
+			// A type implements the function, which has no body: like a call
+			// spec, it ends at its ';', which it keeps.
+			name: "functions implemented by a type",
+			sql: "CREATE OR REPLACE FUNCTION agg (x NUMBER) RETURN NUMBER AGGREGATE USING agg_impl;\n" +
+				"CREATE FUNCTION pip RETURN t PIPELINED PARALLEL_ENABLE USING s.pip_impl;\n" +
+				"/\n" +
+				"CREATE FUNCTION f (u NUMBER DEFAULT 1) RETURN NUMBER IS BEGIN RETURN u; END;\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"CREATE OR REPLACE FUNCTION agg (x NUMBER) RETURN NUMBER AGGREGATE USING agg_impl;",
+				"\nCREATE FUNCTION pip RETURN t PIPELINED PARALLEL_ENABLE USING s.pip_impl;",
+				"\nCREATE FUNCTION f (u NUMBER DEFAULT 1) RETURN NUMBER IS BEGIN RETURN u; END;",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
 			name: "package with call spec members",
 			sql: "CREATE OR REPLACE PACKAGE BODY pk AS\n" +
 				"  FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int';\n" +

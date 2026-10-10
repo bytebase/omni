@@ -450,7 +450,7 @@ func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.Creat
 			}
 		} else {
 			var parseErr587 error
-			stmt.ReturnType, parseErr587 = p.parseTypeName()
+			stmt.ReturnType, parseErr587 = p.parsePLSQLDatatype(typeModsNone, charsetFlexible)
 			if parseErr587 != nil {
 				return nil, parseErr587
 			}

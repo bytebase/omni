@@ -487,6 +487,12 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *PLSQLSubtypeDecl:
 		return v.Loc
+	case *Accessor:
+		return v.Loc
+	case *ParallelEnableClause:
+		return v.Loc
+	case *StreamingClause:
+		return v.Loc
 	case *PLSQLAssign:
 		return v.Loc
 	case *PLSQLIf:

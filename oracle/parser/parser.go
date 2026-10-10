@@ -28,10 +28,9 @@ type Parser struct {
 	// or names a column (false). decideCaseTokens fills it in one pass.
 	caseKinds map[int]bool
 
-	// plsqlTypeMods is set while parsePLSQLTypeName parses the datatype of
-	// a PL/SQL declaration, where a length, precision, or scale may be an
-	// expression rather than an integer literal.
-	plsqlTypeMods bool
+	// typeMods says what the parenthesized modifiers of the datatype being
+	// parsed may hold; parsePLSQLDatatype sets it for PL/SQL datatypes.
+	typeMods typeModMode
 }
 
 // Parse parses a SQL string into an AST list.

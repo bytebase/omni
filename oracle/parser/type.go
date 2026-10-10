@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -139,19 +141,138 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 	return tn, nil
 }
 
-// parsePLSQLTypeName parses the datatype of a PL/SQL declaration. Where SQL
-// takes an integer literal for a length, precision, or scale, PL/SQL takes a
-// static expression: VARCHAR2(ORA_MAX_NAME_LEN + 2), NUMBER(pkg.p, 2). That
-// the expression is static is checked when the unit compiles (PLS-00491 on
-// Oracle 23ai), not when it parses, so any expression parses here.
-//
-// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/plsql-language-fundamentals.html (Static Expressions)
+// typeModMode says what the parenthesized modifiers of a datatype (length,
+// precision, scale) may hold.
+type typeModMode int
+
+const (
+	// typeModsSQL takes integer literals, as SQL does.
+	typeModsSQL typeModMode = iota
+	// typeModsPLSQL takes expressions: the datatype of a PL/SQL declaration.
+	// Where SQL takes an integer literal, PL/SQL takes a static expression,
+	// VARCHAR2(ORA_MAX_NAME_LEN + 2) or NUMBER(pkg.p, 2). That the expression
+	// is static is checked when the unit compiles (PLS-00491 on Oracle 23ai),
+	// not when it parses, so any expression parses.
+	//
+	// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/plsql-language-fundamentals.html (Static Expressions)
+	typeModsPLSQL
+	// typeModsNone takes no modifiers: the type of a parameter or of a
+	// function result is unconstrained. Oracle 23ai rejects p VARCHAR2(10),
+	// RETURN NUMBER(5), and INTERVAL DAY(2) TO SECOND there with PLS-00103,
+	// in standalone, package, local, and object type subprograms and cursor
+	// parameters alike.
+	typeModsNone
+)
+
+// plsqlCharsetUse says which CHARACTER SET clause a PL/SQL datatype takes.
+type plsqlCharsetUse int
+
+const (
+	// charsetNone takes no CHARACTER SET clause.
+	charsetNone plsqlCharsetUse = iota
+	// charsetFixed takes a named character set only: a record field or a
+	// collection element (PLS-00552 for ANY_CS or item%CHARSET).
+	charsetFixed
+	// charsetFlexible also takes item%CHARSET: a declaration, a subtype, a
+	// function result, or a cursor parameter.
+	charsetFlexible
+	// charsetAnyCS also takes ANY_CS: a subprogram parameter, the one place
+	// Oracle allows it (PLS-00551 elsewhere).
+	charsetAnyCS
+)
+
+// parsePLSQLTypeName parses the datatype of a PL/SQL declaration whose
+// modifiers may be expressions and which takes no CHARACTER SET clause.
 func (p *Parser) parsePLSQLTypeName() (*nodes.TypeName, error) {
-	saved := p.plsqlTypeMods
-	p.plsqlTypeMods = true
+	return p.parsePLSQLDatatype(typeModsPLSQL, charsetNone)
+}
+
+// parsePLSQLDatatype parses a PL/SQL datatype: mods says what its modifiers
+// may hold, use which CHARACTER SET clause may follow it.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/datatype-attribute.html
+//
+//	datatype [ CHARACTER SET { character_set | item%CHARSET } ]
+func (p *Parser) parsePLSQLDatatype(mods typeModMode, use plsqlCharsetUse) (*nodes.TypeName, error) {
+	saved := p.typeMods
+	p.typeMods = mods
 	tn, err := p.parseTypeName()
-	p.plsqlTypeMods = saved
-	return tn, err
+	p.typeMods = saved
+	if err != nil {
+		return nil, err
+	}
+	if use != charsetNone && p.cur.Type == tokIDENT && p.cur.Str == "CHARACTER" && p.peekNext().Type == kwSET {
+		if err := p.parsePLSQLCharacterSet(tn, use); err != nil {
+			return nil, err
+		}
+	}
+	return tn, nil
+}
+
+// plsqlNonCharacterTypes are the built-in datatypes parseTypeName names that
+// take no CHARACTER SET clause: Oracle 23ai rejects NUMBER CHARACTER SET
+// ANY_CS with PLS-00550, and NCHAR, NVARCHAR2, NCLOB, and LONG ones, whose
+// character set is fixed, with PLS-00554. A type the text does not settle,
+// such as a subtype or t%TYPE, is left to the engine.
+var plsqlNonCharacterTypes = map[string]bool{
+	"NUMBER": true, "INTEGER": true, "SMALLINT": true, "DECIMAL": true, "FLOAT": true,
+	"NUMERIC": true, "DATE": true, "TIMESTAMP": true, "INTERVAL": true, "RAW": true,
+	"LONG": true, "ROWID": true, "BLOB": true, "JSON": true, "NCHAR": true,
+	"NVARCHAR2": true, "NCLOB": true,
+}
+
+// parsePLSQLCharacterSet parses CHARACTER SET { character_set | item%CHARSET }
+// after the datatype tn, the current token at CHARACTER. Each check below
+// follows from the text alone and was confirmed on Oracle 23ai; whether a
+// name is a known character set (PLS-00553) is left to the engine.
+func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse) error {
+	if !tn.IsPercType && !tn.IsPercRowtype && tn.Names.Len() > 0 {
+		if first, ok := tn.Names.Items[0].(*nodes.String); ok && plsqlNonCharacterTypes[first.Str] {
+			return p.syntaxErrorAtCur()
+		}
+	}
+	p.advance() // consume CHARACTER
+	p.advance() // consume SET
+	nameTok := p.cur
+	if !p.isIdentLike() {
+		return p.syntaxErrorAtCur()
+	}
+	name, err := p.parseIdentifier()
+	if err != nil {
+		return err
+	}
+	for p.cur.Type == '.' {
+		p.advance()
+		if !p.isIdentLike() {
+			return p.syntaxErrorAtCur()
+		}
+		part, err := p.parseIdentifier()
+		if err != nil {
+			return err
+		}
+		name += "." + part
+	}
+	if p.cur.Type == '%' {
+		p.advance()
+		if !p.isIdentLikeStr("CHARSET") {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		tn.IsPercCharset = true
+	} else if strings.Contains(name, ".") {
+		return p.syntaxErrorAtCur()
+	}
+	switch {
+	case tn.IsPercCharset && use == charsetFixed:
+		// PLS-00552: flexible character set is not allowed on component element
+		return p.syntaxErrorAtTok(nameTok)
+	case !tn.IsPercCharset && nameTok.Type != tokQIDENT && name == "ANY_CS" && use != charsetAnyCS:
+		// PLS-00551: character set ANY_CS is only allowed on a subprogram parameter
+		return p.syntaxErrorAtTok(nameTok)
+	}
+	tn.CharacterSet = name
+	tn.Loc.End = p.prev.End
+	return nil
 }
 
 // parsePLSQLTypeMods parses the parenthesized modifiers of a datatype in a
@@ -193,9 +314,9 @@ func (p *Parser) parsePLSQLTypeMods(tn *nodes.TypeName, sized bool) error {
 // parsePLSQLTypeMod parses one modifier expression. A datatype nested in
 // it, as in CAST(x AS NUMBER(5)), follows the SQL rules again.
 func (p *Parser) parsePLSQLTypeMod(tn *nodes.TypeName) error {
-	p.plsqlTypeMods = false
+	p.typeMods = typeModsSQL
 	expr, err := p.parseExpr()
-	p.plsqlTypeMods = true
+	p.typeMods = typeModsPLSQL
 	if err != nil {
 		return err
 	}
@@ -215,8 +336,11 @@ func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 	if p.cur.Type != '(' {
 		return nil
 	}
-	if p.plsqlTypeMods {
+	switch p.typeMods {
+	case typeModsPLSQL:
 		return p.parsePLSQLTypeMods(tn, false)
+	case typeModsNone:
+		return p.syntaxErrorAtCur()
 	}
 	p.advance() // consume '('
 
@@ -250,8 +374,11 @@ func (p *Parser) parseOptionalSizeWithSemantic(tn *nodes.TypeName) error {
 	if p.cur.Type != '(' {
 		return nil
 	}
-	if p.plsqlTypeMods {
+	switch p.typeMods {
+	case typeModsPLSQL:
 		return p.parsePLSQLTypeMods(tn, true)
+	case typeModsNone:
+		return p.syntaxErrorAtCur()
 	}
 	p.advance() // consume '('
 

@@ -459,9 +459,11 @@ func (s *splitState) observePLSQL(tok Token) {
 
 // observeSubprogramHead follows a stored unit or nested subprogram up to its
 // implementation. A call spec right after IS|AS replaces BEGIN ... END and
-// ends at its ';'. WRAPPED replaces IS|AS in a wrapped stored unit. Both are
-// recognized only outside the parameter list, so a parameter named LANGUAGE,
-// EXTERNAL, or WRAPPED does not end the unit early. Like Oracle and the
+// ends at its ';'. WRAPPED replaces IS|AS in a wrapped stored unit, and USING
+// an implementation type replaces it in a function a type implements. All
+// are recognized only outside the parameter list, so a parameter named
+// LANGUAGE, EXTERNAL, or WRAPPED, or a default using USING, does not end the
+// unit early. Like Oracle and the
 // parser, the splitter takes the word after IS|AS alone for a call spec, so
 // a malformed one still ends at its ';'.
 func (s *splitState) observeSubprogramHead(top *splitPLSQLFrame, tok Token) {
@@ -491,6 +493,13 @@ func (s *splitState) observeSubprogramHead(top *splitPLSQLFrame, tok Token) {
 			top.isAs = true
 			top.afterIsAs = true
 		case tok.Type == tokIDENT && tok.Str == "WRAPPED" && len(s.frames) == 1:
+			s.callSpecStarted = true
+		case tok.Type == kwUSING && len(s.frames) == 1:
+			// AGGREGATE USING type or PIPELINED ... USING type: a type
+			// implements the function, which has no IS|AS body and, like a
+			// call spec, ends at its ';'. SQL*Plus buffers either up to a "/"
+			// line; the splitter ends both where the parser does.
+			top.callSpec = true
 			s.callSpecStarted = true
 		}
 	}
