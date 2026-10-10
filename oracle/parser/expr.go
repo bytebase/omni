@@ -836,11 +836,12 @@ func caseExprEnd(toks []Token, stop []int, w int) int {
 
 // canStartCaseSelector reports whether tok can begin the selector of a simple
 // CASE. Operators and keywords that only follow an operand (=, IS, IN, AND,
-// ...) and the clause words that end one cannot; END can, as a column named
-// END, which Oracle accepts there.
+// ...), '[' (case[1] is a MODEL cell of a measure named CASE), and the clause
+// words that end one cannot; END can, as a column named END, which Oracle
+// accepts there.
 func canStartCaseSelector(tok Token) bool {
 	switch tok.Type {
-	case '=', '<', '>', '*', '/', '.', tokLESSEQ, tokGREATEQ, tokNOTEQ,
+	case '=', '<', '>', '*', '/', '.', '[', tokLESSEQ, tokGREATEQ, tokNOTEQ,
 		tokCONCAT, tokEXPON, kwIS, kwIN, kwLIKE, kwBETWEEN, kwAND, kwOR,
 		kwASC, kwDESC:
 		return false
