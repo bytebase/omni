@@ -232,7 +232,11 @@ var plsqlNonCharacterTypes = map[string]bool{
 // follows from the text alone and was confirmed on Oracle 23ai; whether a
 // name is a known character set (PLS-00553) is left to the engine.
 func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse) error {
-	if !tn.IsPercType && !tn.IsPercRowtype && tn.Names.Len() > 0 {
+	// A %ROWTYPE record is never a character type (PLS-00550).
+	if tn.IsPercRowtype {
+		return p.syntaxErrorAtCur()
+	}
+	if !tn.IsPercType && tn.Names.Len() > 0 {
 		if first, ok := tn.Names.Items[0].(*nodes.String); ok && plsqlNonCharacterTypes[first.Str] {
 			return p.syntaxErrorAtCur()
 		}

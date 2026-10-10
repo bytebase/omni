@@ -264,18 +264,34 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 	// BY, CLUSTER BY, and AUTHID on one with PLS-00760, and RESULT_CACHE
 	// with PLS-00999 (its TABLE parameter), before or after PIPELINED ...
 	// POLYMORPHIC.
-	var notPolymorphic *Token
+	//
+	// notMacro is the first clause a SQL macro does not take: those, and
+	// PIPELINED, whose collection result a macro cannot return (PLS-00778,
+	// PLS-00630). A macro returns a character type: NUMBER, LONG, or a
+	// %ROWTYPE result is PLS-00776, while CHAR, VARCHAR2, CLOB, and the
+	// national types compile.
+	var notPolymorphic, notMacro, macroTok *Token
 	note := func() {
+		tok := p.cur
 		if notPolymorphic == nil {
-			tok := p.cur
 			notPolymorphic = &tok
+		}
+		if notMacro == nil {
+			notMacro = &tok
 		}
 	}
 	checkPolymorphic := func(err error) error {
-		if err == nil && stmt.Polymorphic != "" && notPolymorphic != nil {
+		switch {
+		case err != nil:
+			return err
+		case stmt.Polymorphic != "" && notPolymorphic != nil:
 			return p.syntaxErrorAtTok(*notPolymorphic)
+		case stmt.SqlMacro && notMacro != nil:
+			return p.syntaxErrorAtTok(*notMacro)
+		case stmt.SqlMacro && !isMacroResultType(stmt.ReturnType):
+			return p.syntaxErrorAtTok(*macroTok)
 		}
-		return err
+		return nil
 	}
 	for {
 		switch {
@@ -289,6 +305,10 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 		case p.cur.Type == kwPIPELINED:
 			if err := p.firstClause(seen, "PIPELINED"); err != nil {
 				return err
+			}
+			if notMacro == nil {
+				tok := p.cur
+				notMacro = &tok
 			}
 			stmt.Pipelined = true
 			p.advance()
@@ -346,12 +366,22 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 				stmt.ReliesOn = list
 			}
 		case p.isKeywordStr("AGGREGATE"):
+			aggTok := p.cur
 			stmt.Aggregate = true
 			p.advance() // consume AGGREGATE
 			if p.cur.Type != kwUSING {
 				return p.syntaxErrorAtCur()
 			}
-			return checkPolymorphic(p.parseImplementationType(stmt))
+			if err := p.parseImplementationType(stmt); err != nil {
+				return err
+			}
+			// An aggregate takes an argument: Oracle 23ai rejects one
+			// without parameters (PLS-00652) and compiles one with two, or
+			// with an OUT parameter, against its implementation type.
+			if stmt.Parameters == nil || stmt.Parameters.Len() == 0 {
+				return p.syntaxErrorAtTok(aggTok)
+			}
+			return checkPolymorphic(nil)
 		case p.cur.Type == kwUSING:
 			if !stmt.Pipelined {
 				return p.syntaxErrorAtCur()
@@ -361,6 +391,8 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			if err := p.firstClause(seen, "SQL_MACRO"); err != nil {
 				return err
 			}
+			tok := p.cur
+			macroTok = &tok
 			stmt.SqlMacro = true
 			p.advance() // consume SQL_MACRO
 			if p.cur.Type == '(' {
@@ -380,7 +412,7 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 				return err
 			}
 			stmt.AuthID = authID
-		case p.isKeywordStr("ACCESSIBLE") && level != subprogramMethod:
+		case p.isKeywordStr("ACCESSIBLE") && level.takesAccessibleBy():
 			if err := p.firstClause(seen, "ACCESSIBLE BY"); err != nil {
 				return err
 			}
@@ -402,6 +434,31 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			return checkPolymorphic(nil)
 		}
 	}
+}
+
+// isMacroResultType reports whether tn may be a SQL macro's result type: not
+// a predefined non-character type (the national character types are
+// character types here) and not a %ROWTYPE record. A name the text does not
+// settle is left to the engine.
+func isMacroResultType(tn *nodes.TypeName) bool {
+	if tn == nil {
+		return true
+	}
+	if tn.IsPercRowtype {
+		return false
+	}
+	if tn.IsPercType || tn.Names.Len() != 1 {
+		return true
+	}
+	first, ok := tn.Names.Items[0].(*nodes.String)
+	if !ok {
+		return true
+	}
+	switch first.Str {
+	case "NCHAR", "NVARCHAR2", "NCLOB":
+		return true
+	}
+	return !plsqlNonCharacterTypes[first.Str]
 }
 
 // parseImplementationType parses USING [ schema. ] implementation_type
@@ -585,7 +642,7 @@ func (p *Parser) parsePackageBody() (*nodes.List, error) {
 	for p.cur.Type != kwEND && p.cur.Type != tokEOF {
 		// PROCEDURE declaration/definition in package
 		if p.cur.Type == kwPROCEDURE {
-			decl, parseErr470 := p.parsePackageProcDecl()
+			decl, parseErr470 := p.parsePackageProcDecl(subprogramPackaged)
 			if parseErr470 != nil {
 				return nil, parseErr470
 			}
@@ -597,7 +654,7 @@ func (p *Parser) parsePackageBody() (*nodes.List, error) {
 
 		// FUNCTION declaration/definition in package
 		if p.cur.Type == kwFUNCTION {
-			decl, parseErr471 := p.parsePackageFuncDecl()
+			decl, parseErr471 := p.parsePackageFuncDecl(subprogramPackaged)
 			if parseErr471 != nil {
 				return nil, parseErr471
 			}
@@ -631,7 +688,7 @@ func (p *Parser) parsePackageBody() (*nodes.List, error) {
 //
 //	PROCEDURE name [(params)] ;                    -- specification
 //	PROCEDURE name [(params)] IS|AS body ;         -- body definition
-func (p *Parser) parsePackageProcDecl() (*nodes.CreateProcedureStmt, error) {
+func (p *Parser) parsePackageProcDecl(level subprogramLevel) (*nodes.CreateProcedureStmt, error) {
 	start := p.pos()
 	p.advance() // consume PROCEDURE
 
@@ -658,7 +715,7 @@ func (p *Parser) parsePackageProcDecl() (*nodes.CreateProcedureStmt, error) {
 			return nil, parseErr474
 		}
 	}
-	if err := p.parseProcedureProperties(stmt, subprogramPackaged); err != nil {
+	if err := p.parseProcedureProperties(stmt, level); err != nil {
 		return nil, err
 	}
 
@@ -683,7 +740,7 @@ func (p *Parser) parsePackageProcDecl() (*nodes.CreateProcedureStmt, error) {
 //
 //	FUNCTION name [(params)] RETURN type ;                    -- specification
 //	FUNCTION name [(params)] RETURN type IS|AS body ;         -- body definition
-func (p *Parser) parsePackageFuncDecl() (*nodes.CreateFunctionStmt, error) {
+func (p *Parser) parsePackageFuncDecl(level subprogramLevel) (*nodes.CreateFunctionStmt, error) {
 	start := p.pos()
 	p.advance() // consume FUNCTION
 
@@ -727,7 +784,7 @@ func (p *Parser) parsePackageFuncDecl() (*nodes.CreateFunctionStmt, error) {
 	} else {
 		return nil, p.syntaxErrorAtCur()
 	}
-	parseErr479 := p.parseFunctionProperties(stmt, subprogramPackaged)
+	parseErr479 := p.parseFunctionProperties(stmt, level)
 	if parseErr479 !=
 
 		// Check for IS|AS (definition) or ; (declaration)

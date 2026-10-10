@@ -172,3 +172,5 @@ ref_170	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_retdt_{run} RETURN pip
 ref_171	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_abr_{run} ACCESSIBLE BY (SELECT) IS BEGIN NULL; END;	reserved word as an accessor
 ref_172	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_ror_{run} RETURN NUMBER RESULT_CACHE RELIES_ON (BEGIN) IS BEGIN RETURN 1; END;	PL/SQL reserved word as a RELIES_ON data source
 ref_173	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_abn_{run} ACCESSIBLE BY (loop, "SELECT") IS BEGIN NULL; END;	unreserved and quoted accessor names
+ref_174	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_agg2_{run} (a NUMBER, b IN OUT NUMBER) RETURN NUMBER AGGREGATE USING omni_impl;	aggregate with several parameters
+ref_175	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_smn_{run} RETURN NVARCHAR2 SQL_MACRO IS BEGIN RETURN NULL; END;	SQL macro returning a national character type

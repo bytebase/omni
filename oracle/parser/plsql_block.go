@@ -152,10 +152,10 @@ func (p *Parser) parsePLSQLDeclaration() (nodes.Node, error) {
 	// item declarations to precede subprograms (PLS-00103); order is not
 	// enforced here.
 	if p.cur.Type == kwPROCEDURE {
-		return p.parsePackageProcDecl()
+		return p.parsePackageProcDecl(subprogramNested)
 	}
 	if p.cur.Type == kwFUNCTION {
-		return p.parsePackageFuncDecl()
+		return p.parsePackageFuncDecl(subprogramNested)
 	}
 
 	// Variable declaration: name [CONSTANT] type [NOT NULL] [:= | DEFAULT expr] ;

@@ -16,17 +16,24 @@ type clauseSeen map[string]bool
 // subprogramLevel says where a subprogram heading stands, which decides the
 // clauses it takes. On Oracle 23ai AUTHID stands only on a schema-level unit
 // (PLS-00157 on a packaged, nested, or object type method), and ACCESSIBLE
-// BY not on an object type method (PLS-00262). DEFAULT COLLATION is
-// documented for schema-level units only.
+// BY only on a schema-level unit or a package subprogram (PLS-00262 on a
+// type method, PLS-00262 or PLS-00263 on a nested subprogram). DEFAULT
+// COLLATION is documented for schema-level units only.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/DEFAULT-COLLATION-clause.html
 type subprogramLevel int
 
 const (
 	subprogramSchema   subprogramLevel = iota // CREATE PROCEDURE or FUNCTION
-	subprogramPackaged                        // in a package, or nested in a block
+	subprogramPackaged                        // in a package specification or body
+	subprogramNested                          // declared in a block or another subprogram
 	subprogramMethod                          // an object type method
 )
+
+// takesAccessibleBy reports whether a heading at level takes ACCESSIBLE BY.
+func (l subprogramLevel) takesAccessibleBy() bool {
+	return l == subprogramSchema || l == subprogramPackaged
+}
 
 // firstClause reports a syntax error at the current token, which starts clause,
 // when the heading already has that clause.
@@ -125,15 +132,19 @@ func (p *Parser) parseUnitName() (*nodes.ObjectName, error) {
 	return name, nil
 }
 
-// parseDefaultCollationClause parses DEFAULT COLLATION collation_option, the
-// current token at DEFAULT, and returns the option (USING_NLS_COMP).
+// parseDefaultCollationClause parses DEFAULT COLLATION USING_NLS_COMP, the
+// current token at DEFAULT, and returns the option. USING_NLS_COMP, unquoted,
+// is the one option a PL/SQL unit takes.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/DEFAULT-COLLATION-clause.html
 func (p *Parser) parseDefaultCollationClause() (string, error) {
 	p.advance() // consume DEFAULT
 	p.advance() // consume COLLATION
-	if !p.isIdentLike() {
+	if !p.isKeywordStr("USING_NLS_COMP") {
 		return "", p.syntaxErrorAtCur()
 	}
-	return p.parseIdentifier()
+	p.advance()
+	return "USING_NLS_COMP", nil
 }
 
 // atDefaultCollation reports whether the current tokens are DEFAULT COLLATION.
@@ -161,7 +172,7 @@ func (p *Parser) parseProcedureProperties(stmt *nodes.CreateProcedureStmt, level
 				return err
 			}
 			stmt.AuthID = authID
-		case p.isKeywordStr("ACCESSIBLE") && level != subprogramMethod:
+		case p.isKeywordStr("ACCESSIBLE") && level.takesAccessibleBy():
 			if err := p.firstClause(seen, "ACCESSIBLE BY"); err != nil {
 				return err
 			}
