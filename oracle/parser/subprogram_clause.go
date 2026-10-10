@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strings"
-
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -486,10 +484,10 @@ func (p *Parser) checkCharsetSources(params *nodes.List, result *nodes.TypeName)
 		}
 	}
 	check := func(tn *nodes.TypeName) error {
-		// A dotted source (k.c%CHARSET) names an item outside the heading,
-		// even when a quoted formal is spelled "K.C": Oracle 23ai compiles
-		// that function.
-		if tn == nil || !tn.IsPercCharset || strings.Contains(tn.CharacterSet, ".") {
+		// A qualified source (k.c%CHARSET) names an item outside the
+		// heading, even when a quoted formal is spelled "K.C" (Oracle 23ai
+		// compiles that function); a single quoted "K.C" names the formal.
+		if tn == nil || !tn.IsPercCharset || p.qualifiedCharsets[tn] {
 			return nil
 		}
 		if src, ok := byName[tn.CharacterSet]; ok && !p.mayBeCharacterType(src.TypeName) {

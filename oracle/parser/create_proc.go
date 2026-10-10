@@ -413,6 +413,12 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			if err := p.firstClause(seen, "RESULT_CACHE"); err != nil {
 				return err
 			}
+			// No subprogram in a top-level anonymous block is result-cached
+			// (PLS-00999); one nested in a stored unit, even in a DECLARE
+			// block there, compiles.
+			if p.inAnonymousBlock {
+				return p.syntaxErrorAtCur()
+			}
 			note()
 			rcTok := p.cur
 			resultCacheTok = &rcTok

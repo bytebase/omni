@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strings"
-
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -282,6 +280,7 @@ func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse)
 	if err != nil {
 		return err
 	}
+	qualified := false
 	for p.cur.Type == '.' {
 		p.advance()
 		if !p.isIdentLike() {
@@ -292,6 +291,7 @@ func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse)
 			return err
 		}
 		name += "." + part
+		qualified = true
 	}
 	if p.cur.Type == '%' {
 		p.advance()
@@ -301,7 +301,13 @@ func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse)
 		}
 		p.advance()
 		tn.IsPercCharset = true
-	} else if strings.Contains(name, ".") {
+		if qualified {
+			if p.qualifiedCharsets == nil {
+				p.qualifiedCharsets = map[*nodes.TypeName]bool{}
+			}
+			p.qualifiedCharsets[tn] = true
+		}
+	} else if qualified {
 		return p.syntaxErrorAtCur()
 	}
 	switch {

@@ -183,3 +183,4 @@ ref_181	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_qtab_{run} (a "TABLE"
 ref_182	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_aid_{run} AUTHID CURRENT USER IS BEGIN NULL; END;	AUTHID CURRENT_USER written as two words
 ref_183	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_qaid_{run} AUTHID "CURRENT_USER" IS BEGIN NULL; END;	quoted AUTHID value
 ref_184	plsql_body	accept	CREATE OR REPLACE PACKAGE omni_quoted_{run} AS SUBTYPE "NUMBER" IS VARCHAR2(100); FUNCTION m RETURN "NUMBER" SQL_MACRO; SUBTYPE "CLOB" IS NUMBER; FUNCTION r RETURN "CLOB" RESULT_CACHE; END;	quoted names of predefined types are user types
+ref_185	plsql	reject	DECLARE FUNCTION f RETURN NUMBER RESULT_CACHE IS BEGIN RETURN 1; END; BEGIN NULL; END;	RESULT_CACHE on a subprogram in an anonymous block (PLS-00999)

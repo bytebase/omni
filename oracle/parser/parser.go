@@ -31,6 +31,28 @@ type Parser struct {
 	// typeMods says what the parenthesized modifiers of the datatype being
 	// parsed may hold; parsePLSQLDatatype sets it for PL/SQL datatypes.
 	typeMods typeModMode
+
+	// qualifiedCharsets records the datatypes whose item%CHARSET source is a
+	// qualified name (k.c), as opposed to one identifier that may itself be
+	// a quoted "K.C".
+	qualifiedCharsets map[*nodes.TypeName]bool
+
+	// inAnonymousBlock is set while a top-level anonymous block is parsed:
+	// Oracle 23ai rejects RESULT_CACHE on any subprogram in one (PLS-00999).
+	inAnonymousBlock bool
+}
+
+// parseAnonymousBlock parses a top-level anonymous block, noting that its
+// subprograms are in one.
+func (p *Parser) parseAnonymousBlock() (nodes.StmtNode, error) {
+	saved := p.inAnonymousBlock
+	p.inAnonymousBlock = true
+	block, err := p.parsePLSQLBlock()
+	p.inAnonymousBlock = saved
+	if err != nil {
+		return nil, err
+	}
+	return block, nil
 }
 
 // Parse parses a SQL string into an AST list.
@@ -304,10 +326,8 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 		return p.parseRevokeStmt()
 	case kwCREATE:
 		return p.parseCreateStmt()
-	case kwDECLARE, kwBEGIN:
-		return p.parsePLSQLBlock()
-	case tokLABELOPEN:
-		return p.parsePLSQLBlock()
+	case kwDECLARE, kwBEGIN, tokLABELOPEN:
+		return p.parseAnonymousBlock()
 	default:
 		// Handle identifier-based statements
 		if p.isIdentLike() {
