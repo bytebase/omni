@@ -205,6 +205,11 @@ type splitPLSQLFrame struct {
 	// callSpec marks an implementation that is a call spec: it has no END,
 	// and its ';' ends it.
 	callSpec bool
+	// afterReturn marks a function head past its RETURN, where the clause
+	// list starts; implClause marks AGGREGATE or PIPELINED in that list,
+	// after which USING names an implementation type.
+	afterReturn bool
+	implClause  bool
 }
 
 type splitState struct {
@@ -494,11 +499,16 @@ func (s *splitState) observeSubprogramHead(top *splitPLSQLFrame, tok Token) {
 			top.afterIsAs = true
 		case tok.Type == tokIDENT && tok.Str == "WRAPPED" && len(s.frames) == 1:
 			s.callSpecStarted = true
-		case tok.Type == kwUSING && len(s.frames) == 1:
+		case tok.Type == kwRETURN:
+			top.afterReturn = true
+		case top.afterReturn && (tok.Type == kwPIPELINED || tok.Type == tokIDENT && tok.Str == "AGGREGATE"):
+			top.implClause = true
+		case tok.Type == kwUSING && top.implClause && len(s.frames) == 1:
 			// AGGREGATE USING type or PIPELINED ... USING type: a type
 			// implements the function, which has no IS|AS body and, like a
 			// call spec, ends at its ';'. SQL*Plus buffers either up to a "/"
-			// line; the splitter ends both where the parser does.
+			// line; the splitter ends both where the parser does. USING
+			// elsewhere, as a function or parameter name, ends nothing.
 			top.callSpec = true
 			s.callSpecStarted = true
 		}

@@ -209,16 +209,22 @@ func (p *Parser) parsePLSQLDatatype(mods typeModMode, use plsqlCharsetUse) (*nod
 	return tn, nil
 }
 
-// plsqlNonCharacterTypes are the built-in datatypes parseTypeName names that
-// take no CHARACTER SET clause: Oracle 23ai rejects NUMBER CHARACTER SET
-// ANY_CS with PLS-00550, and NCHAR, NVARCHAR2, NCLOB, and LONG ones, whose
-// character set is fixed, with PLS-00554. A type the text does not settle,
-// such as a subtype or t%TYPE, is left to the engine.
+// plsqlNonCharacterTypes are the predefined datatypes, SQL and PL/SQL, that
+// take no CHARACTER SET clause: Oracle 23ai rejects BOOLEAN or NUMBER
+// CHARACTER SET ANY_CS with PLS-00550, and NCHAR, NVARCHAR2, NCLOB, and LONG
+// ones, whose character set is fixed, with PLS-00554. CHAR, CHARACTER,
+// VARCHAR2, VARCHAR, STRING, and CLOB take one. A name the text does not
+// settle, such as a subtype, an object type, or t%TYPE, is left to the
+// engine.
 var plsqlNonCharacterTypes = map[string]bool{
-	"NUMBER": true, "INTEGER": true, "SMALLINT": true, "DECIMAL": true, "FLOAT": true,
-	"NUMERIC": true, "DATE": true, "TIMESTAMP": true, "INTERVAL": true, "RAW": true,
-	"LONG": true, "ROWID": true, "BLOB": true, "JSON": true, "NCHAR": true,
-	"NVARCHAR2": true, "NCLOB": true,
+	"NUMBER": true, "INTEGER": true, "INT": true, "SMALLINT": true, "DECIMAL": true,
+	"DEC": true, "NUMERIC": true, "FLOAT": true, "REAL": true, "DOUBLE": true,
+	"BINARY_FLOAT": true, "BINARY_DOUBLE": true, "SIMPLE_FLOAT": true, "SIMPLE_DOUBLE": true,
+	"PLS_INTEGER": true, "BINARY_INTEGER": true, "SIMPLE_INTEGER": true, "NATURAL": true,
+	"NATURALN": true, "POSITIVE": true, "POSITIVEN": true, "SIGNTYPE": true, "BOOLEAN": true,
+	"DATE": true, "TIMESTAMP": true, "INTERVAL": true, "RAW": true, "LONG": true,
+	"ROWID": true, "UROWID": true, "BLOB": true, "BFILE": true, "JSON": true, "VECTOR": true,
+	"MLSLABEL": true, "SYS_REFCURSOR": true, "NCHAR": true, "NVARCHAR2": true, "NCLOB": true,
 }
 
 // parsePLSQLCharacterSet parses CHARACTER SET { character_set | item%CHARSET }
@@ -254,7 +260,8 @@ func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse)
 	}
 	if p.cur.Type == '%' {
 		p.advance()
-		if !p.isIdentLikeStr("CHARSET") {
+		// %CHARSET is an attribute keyword: Oracle 23ai rejects a%"CHARSET".
+		if !p.isKeywordStr("CHARSET") {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()

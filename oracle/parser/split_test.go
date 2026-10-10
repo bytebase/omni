@@ -436,6 +436,19 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			},
 		},
 		{
+			// USING ends a function only after AGGREGATE or PIPELINED: a
+			// function or parameter named USING compiles on Oracle 23ai.
+			name: "function named using",
+			sql: "CREATE FUNCTION using RETURN NUMBER IS BEGIN RETURN 1; END;\n" +
+				"CREATE FUNCTION g (using NUMBER) RETURN NUMBER IS BEGIN RETURN using; END;\n" +
+				"SELECT 1 FROM dual;",
+			want: []string{
+				"CREATE FUNCTION using RETURN NUMBER IS BEGIN RETURN 1; END;",
+				"\nCREATE FUNCTION g (using NUMBER) RETURN NUMBER IS BEGIN RETURN using; END;",
+				"\nSELECT 1 FROM dual",
+			},
+		},
+		{
 			name: "package with call spec members",
 			sql: "CREATE OR REPLACE PACKAGE BODY pk AS\n" +
 				"  FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'X.f() return int';\n" +
