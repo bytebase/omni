@@ -267,7 +267,9 @@ func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse)
 	if tn.IsPercRowtype {
 		return p.syntaxErrorAtCur()
 	}
-	if plsqlNonCharacterTypes[p.predefinedTypeLead(tn)] {
+	// Neither is a predefined non-character type, nor is the TABLE or
+	// COLUMNS pseudo-type of a polymorphic table function (PLS-00550).
+	if plsqlNonCharacterTypes[p.predefinedTypeLead(tn)] || p.pseudoType(tn) != "" {
 		return p.syntaxErrorAtCur()
 	}
 	p.advance() // consume CHARACTER

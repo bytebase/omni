@@ -380,6 +380,11 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			if err := p.firstClause(seen, "PARALLEL_ENABLE"); err != nil {
 				return err
 			}
+			// A nested function is not parallel-enabled (PLS-00712 on
+			// Oracle 23ai); a private package body function may be.
+			if level == subprogramNested {
+				return p.syntaxErrorAtCur()
+			}
 			note()
 			stmt.Parallel = true
 			p.advance()
