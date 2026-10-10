@@ -70,6 +70,24 @@ func TestReview(t *testing.T) {
 			},
 		},
 		{
+			name:    "a check a grammar rule makes is a syntax finding",
+			sql:     "DELETE FROM t WHERE a = 1; CREATE SCHEMA IF NOT EXISTS z CREATE TABLE n (id int);",
+			targets: 1,
+			want: func(t *testing.T, sql string) []finding {
+				at := strings.Index(sql, "CREATE TABLE")
+				return []finding{{review.Syntax, 1, review.Range{Start: at, End: at}, "CREATE SCHEMA IF NOT EXISTS cannot include schema elements"}}
+			},
+		},
+		{
+			name:    "a constraint attribute its kind cannot take is a syntax finding",
+			sql:     "DELETE FROM t WHERE a = 1; CREATE TABLE n (id int, PRIMARY KEY (id) NOT VALID);",
+			targets: 1,
+			want: func(t *testing.T, sql string) []finding {
+				at := strings.Index(sql, "NOT VALID")
+				return []finding{{review.Syntax, 1, review.Range{Start: at, End: at}, "PRIMARY KEY constraints cannot be marked NOT VALID"}}
+			},
+		},
+		{
 			name:    "unterminated string",
 			sql:     "'unterminated",
 			targets: 1,

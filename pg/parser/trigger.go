@@ -73,7 +73,10 @@ func (p *Parser) parseCreateConstraintTrigger(replace bool) (*nodes.CreateTrigSt
 		fromNames, _ := p.parseQualifiedName()
 		constrrel = makeRangeVarFromAnyName(fromNames)
 	}
-	casBits := p.parseConstraintAttributeSpec()
+	casBits, err := p.parseKindAttributes("TRIGGER", true, false, false)
+	if err != nil {
+		return nil, err
+	}
 	deferrable := (casBits & int64(nodes.CAS_DEFERRABLE)) != 0
 	initdeferred := (casBits & int64(nodes.CAS_INITIALLY_DEFERRED)) != 0
 	if _, err := p.expect(FOR); err != nil {

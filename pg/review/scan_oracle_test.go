@@ -155,7 +155,6 @@ func TestScanRulesAgainstPostgres(t *testing.T) {
 		{"a skipped ADD COLUMN", "ALTER TABLE t ADD COLUMN IF NOT EXISTS id int PRIMARY KEY;\nCREATE TABLE n (id int);", true},
 		{"two column drops", "ALTER TABLE r DROP CONSTRAINT r_t_fk;\nALTER TABLE t DROP COLUMN n, DROP COLUMN id;", true},
 		{"EXPLAIN ANALYZE of CREATE MATERIALIZED VIEW", "EXPLAIN ANALYZE CREATE MATERIALIZED VIEW mv AS SELECT * FROM nokey;\nDROP TABLE nokey;\nCREATE TABLE n (id int);", true},
-		{"CREATE SCHEMA IF NOT EXISTS with elements", "CREATE SCHEMA IF NOT EXISTS s CREATE TABLE zt (id int);", true},
 		{"CREATE VIEW of an existing name", "CREATE VIEW public.nokey AS SELECT 1 AS a;\nCREATE TABLE n (id int);", true},
 		{"CREATE VIEW in the session user's schema", "CREATE VIEW nokey AS SELECT 1 AS a;\nCREATE TABLE n (id int);", true},
 		{"a new function takes the table's row type", "CREATE FUNCTION g(x nokey) RETURNS integer LANGUAGE sql AS 'SELECT 1';\nDROP TABLE nokey;\nCREATE TABLE n (id int);", true},
@@ -425,10 +424,6 @@ func TestScanRulesAgainstPostgres(t *testing.T) {
 		{"ALTER FUNCTION of a routine the target lacks", "ALTER FUNCTION public.missing() IMMUTABLE;\nCREATE TABLE n (id int);", true},
 		{"ALTER FUNCTION of a signature the change did not make", "CREATE FUNCTION public.g(integer) RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER FUNCTION public.g(text) IMMUTABLE;\nCREATE TABLE n (id int);", true},
 		{"ALTER FUNCTION of a routine the change made", "CREATE FUNCTION public.g(integer) RETURNS int LANGUAGE sql AS 'SELECT 1';\nALTER FUNCTION public.g(integer) IMMUTABLE;\nCREATE TABLE n (id int);", true},
-		{"NOT VALID on a table's primary key", "CREATE TABLE n (id int, PRIMARY KEY (id) NOT VALID);\nCREATE TABLE m (id int);", true},
-		{"NOT VALID on a column's foreign key", "CREATE TABLE n (id int REFERENCES t NOT VALID);\nCREATE TABLE m (id int);", true},
-		{"NO INHERIT on a foreign key", "CREATE TABLE n (id int, FOREIGN KEY (id) REFERENCES t NO INHERIT);\nCREATE TABLE m (id int);", true},
-		{"DEFERRABLE on a check", "ALTER TABLE t ADD CONSTRAINT x CHECK (n > 0) DEFERRABLE, DROP CONSTRAINT t_n_check;", true},
 		{"NOT VALID on a table's check", "CREATE TABLE n (id int, CHECK (id > 0) NOT VALID);", true},
 		{"a new table shadowing another on the path", "SET search_path = public, s;\nCREATE TABLE s.n (id int);\nCREATE TABLE public.n (id int PRIMARY KEY);\nDROP TABLE n;", true},
 	}
