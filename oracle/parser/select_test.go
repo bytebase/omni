@@ -1,7 +1,10 @@
 package parser
 
 import (
+	"errors"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/bytebase/omni/oracle/ast"
 )
@@ -410,5 +413,138 @@ func TestParseOffsetColumnNameAST(t *testing.T) {
 	}
 	if sel.FetchFirst == nil || sel.FetchFirst.Offset == nil {
 		t.Fatalf("row limiting clause missing: %s", ast.NodeToString(sel))
+	}
+}
+
+// TestParseCaseBooleanSelector: CASE opens an expression when WHEN follows it
+// or follows an expression after it; the selector may start with NOT, NULLS,
+// or LIKEC and may be a Boolean comparison. Otherwise CASE is a column:
+// case NOT IN (...), ORDER BY case NULLS FIRST, case LIKEC '...', and a column
+// with an alias. Oracle 23ai accepts all of these.
+func TestParseCaseBooleanSelector(t *testing.T) {
+	result := ParseAndCheck(t, "SELECT CASE NOT TRUE WHEN TRUE THEN 1 ELSE 0 END FROM t")
+	target := result.Items[0].(*ast.RawStmt).Stmt.(*ast.SelectStmt).TargetList.Items[0].(*ast.ResTarget)
+	if _, ok := target.Expr.(*ast.CaseExpr); !ok {
+		t.Fatalf("target = %T, want *ast.CaseExpr", target.Expr)
+	}
+	for _, sql := range []string{
+		"SELECT CASE nulls WHEN 1 THEN 2 END FROM t",
+		"SELECT CASE nulls + 1 WHEN 1 THEN 2 END FROM t",
+		"SELECT CASE likec WHEN 'x' THEN 2 END FROM t",
+		"SELECT CASE like2 || 'a' WHEN 'xa' THEN 2 END FROM t",
+		"SELECT CASE likec = 'x' WHEN TRUE THEN 1 ELSE 0 END FROM t",
+		"SELECT CASE likec IN ('x', 'y') WHEN TRUE THEN 1 ELSE 0 END FROM t",
+		"SELECT CASE case IS NULL WHEN TRUE THEN 1 ELSE 0 END FROM t",
+		"SELECT CASE end WHEN 1 THEN 2 END FROM t",
+		"SELECT CASE t.end WHEN 1 THEN 2 END FROM t",
+		"SELECT CASE 1 + end WHEN 2 THEN 3 END FROM t",
+		"SELECT CASE t.case WHEN 1 THEN 2 END FROM t",
+		"SELECT CASE a WHEN 1 THEN end ELSE 0 END FROM t",
+		"SELECT CASE CONNECT_BY_ROOT end WHEN 1 THEN 2 END FROM t CONNECT BY PRIOR id = pid",
+		"SELECT CASE PRIOR end WHEN 1 THEN 2 END FROM t CONNECT BY PRIOR id = pid",
+		"SELECT CASE a LIKE 'x' ESCAPE end WHEN TRUE THEN 1 END FROM t",
+		"SELECT CASE sales['Mouse Pad', 1998] WHEN 1 THEN 2 END FROM t",
+		"SELECT CASE case[1] WHEN 10 THEN 20 END FROM t",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			target := result.Items[0].(*ast.RawStmt).Stmt.(*ast.SelectStmt).TargetList.Items[0].(*ast.ResTarget)
+			if _, ok := target.Expr.(*ast.CaseExpr); !ok {
+				t.Fatalf("target = %T, want *ast.CaseExpr", target.Expr)
+			}
+		})
+	}
+	for _, sql := range []string{
+		"SELECT a FROM t WHERE case NOT IN (1, 2)",
+		"SELECT a FROM t WHERE case NOT BETWEEN 1 AND 2",
+		"SELECT a FROM t WHERE case NOT LIKE 'x%'",
+		"SELECT a FROM t ORDER BY case NULLS FIRST",
+		"SELECT a FROM t ORDER BY case DESC NULLS LAST",
+		"SELECT a FROM t WHERE case LIKEC '1%'",
+		"SELECT case a2 FROM t",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// TestParseKeywordColumnOuterJoin: a non-reserved keyword followed by the
+// legacy outer-join marker (+) is a column, except for the words Oracle still
+// reads as their construct (it rejects JSON_VALUE(+) and XMLELEMENT(+)) and
+// for pseudo-columns (SYSTIMESTAMP(+) is ORA-30088 even with such a column).
+func TestParseKeywordColumnOuterJoin(t *testing.T) {
+	for _, word := range []string{"cast", "decode", "case", "interval", "xmlagg"} {
+		sql := "SELECT 1 FROM t, u WHERE " + word + "(+) = u.a"
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			where := result.Items[0].(*ast.RawStmt).Stmt.(*ast.SelectStmt).WhereClause.(*ast.BinaryExpr)
+			col, ok := where.Left.(*ast.ColumnRef)
+			if !ok || !col.OuterJoin {
+				t.Fatalf("left = %s, want an outer-joined column", ast.NodeToString(where.Left))
+			}
+			if violations := CheckLocations(t, sql); len(violations) > 0 {
+				t.Fatalf("Loc violations: %v", violations)
+			}
+		})
+	}
+	for _, word := range []string{"json_value", "xmlelement", "treat", "json", "systimestamp"} {
+		ParseShouldFail(t, "SELECT 1 FROM t, u WHERE "+word+"(+) = u.a")
+	}
+	// A qualified reference is a column even for a pseudo-column word.
+	ParseAndCheck(t, "SELECT 1 FROM t, u WHERE t.systimestamp(+) = u.a")
+}
+
+// TestParseCaseExpressionErrorPosition: deciding between a CASE expression
+// and a column named CASE probes the selector without consuming it, so an
+// error inside a real CASE expression is still reported where it occurs.
+func TestParseCaseExpressionErrorPosition(t *testing.T) {
+	tests := []struct {
+		sql  string
+		near string
+	}{
+		{"SELECT CASE x WHEN 1 THEN (1 + ) END FROM t", ")"},
+		{"SELECT CASE WHEN a = 1 THEN 1 FROM t", "FROM"},
+		{"SELECT CASE likec = 'x' WHEN TRUE THEN (1 + ) END FROM t", ")"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.sql, func(t *testing.T) {
+			_, err := Parse(tt.sql)
+			var pe *ParseError
+			if !errors.As(err, &pe) {
+				t.Fatalf("Parse error = %v, want a ParseError", err)
+			}
+			if want := strings.Index(tt.sql, tt.near); pe.Position != want {
+				t.Fatalf("error at %d (%q), want %d (%q)", pe.Position, tt.sql[pe.Position:], want, tt.near)
+			}
+		})
+	}
+}
+
+// TestParseCaseDecisionStaysLinear guards how CASE is told apart from a column
+// named CASE: deciding by parsing what follows each CASE made nested simple
+// CASE selectors exponential and long sums of CASE columns quadratic. Each
+// shape below takes tens of milliseconds when linear, and seconds to minutes
+// otherwise.
+func TestParseCaseDecisionStaysLinear(t *testing.T) {
+	const depth = 4000
+	selector := "1"
+	column := "'1%'"
+	for i := 0; i < depth; i++ {
+		selector = "CASE " + selector + " WHEN 1 THEN 1 END"
+		column = "case LIKEC (" + column + ")"
+	}
+	for name, sql := range map[string]string{
+		"nested CASE selectors":          "SELECT " + selector + " FROM dual",
+		"nested CASE columns":            "SELECT a FROM t WHERE " + column,
+		"sum of 20000 CASE column terms": "SELECT " + strings.Repeat("case + ", 20000) + "1 FROM t",
+	} {
+		start := time.Now()
+		if _, err := Parse(sql); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if elapsed := time.Since(start); elapsed > 5*time.Second {
+			t.Fatalf("%s took %s", name, elapsed)
+		}
 	}
 }

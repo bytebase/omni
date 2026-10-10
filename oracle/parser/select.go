@@ -387,12 +387,13 @@ func (p *Parser) parseSelectList() (*nodes.List, error) {
 }
 
 // isSelectListTerminator reports whether the current token ends the select
-// list where an item would start. OFFSET is absent: an item can be a column
-// named OFFSET, and the row_limiting_clause never follows an empty list.
+// list where an item would start. FETCH and OFFSET are absent: an item can be
+// a column of that name, and the row_limiting_clause never follows an empty
+// list.
 func (p *Parser) isSelectListTerminator() bool {
 	switch p.cur.Type {
 	case tokEOF, kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwUNION,
-		kwINTERSECT, kwMINUS, kwFOR, kwCONNECT, kwSTART, kwFETCH:
+		kwINTERSECT, kwMINUS, kwFOR, kwCONNECT, kwSTART:
 		return true
 	default:
 		return false

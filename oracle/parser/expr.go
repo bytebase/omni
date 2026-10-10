@@ -532,6 +532,22 @@ func (p *Parser) parsePrefix() (nodes.ExprNode, error) {
 func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	start := p.pos()
 
+	// A keyword Oracle does not reserve, followed by the legacy outer-join
+	// marker (+), is a column, whatever construct the word would otherwise
+	// open: WHERE cast(+) = u.a. A few words Oracle still reads as their
+	// construct, and it rejects the + inside it. Pseudo-columns stay
+	// pseudo-columns: Oracle reads SYSTIMESTAMP(+) as SYSTIMESTAMP(precision)
+	// and rejects it (ORA-30088) even when the table has such a column.
+	if p.cur.Type >= 2000 && !isOracleSQLReservedKeyword(p.cur) &&
+		!isOraclePseudoColumnKeyword(p.cur.Type) && p.nextIsOuterJoinMarker() {
+		if keepsConstructBeforeOuterJoin(p.cur.Type) {
+			p.advance() // consume the keyword
+			p.advance() // consume (
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseIdentExpr()
+	}
+
 	switch p.cur.Type {
 	case tokICONST:
 		tok := p.advance()
@@ -583,9 +599,14 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		return p.parseParenExpr()
 
 	case kwCASE:
-		return p.parseCaseExpr()
+		return p.parseCaseOrColumn()
 
+	// CAST, DECODE, and INTERVAL are not reserved; without the '(' or the
+	// string literal that opens the function or literal, they name a column.
 	case kwCAST:
+		if p.peekNext().Type != '(' {
+			return p.parseIdentExpr()
+		}
 		return p.parseCastExpr()
 
 	case kwDATE, kwTIMESTAMP:
@@ -595,6 +616,9 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		return p.parseIdentExpr()
 
 	case kwDECODE:
+		if p.peekNext().Type != '(' {
+			return p.parseIdentExpr()
+		}
 		return p.parseDecodeExpr()
 
 	case kwEXISTS:
@@ -633,6 +657,9 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		return p.parseJsonPathFunc("JSON_MERGEPATCH")
 
 	case kwINTERVAL:
+		if p.peekNext().Type != tokSCONST {
+			return p.parseIdentExpr()
+		}
 		return p.parseIntervalExpr()
 
 	default:
@@ -642,10 +669,12 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		}
 
 		// Identifier — could be column ref, function call, or keyword-as-identifier.
-		// OFFSET is not reserved in Oracle and names columns in practice; it
-		// starts the row_limiting_clause only after a complete expression or
-		// table reference, never where an operand begins.
-		if isOracleClauseStarterKeyword(p.cur.Type) && p.cur.Type != kwOFFSET {
+		// A clause keyword Oracle reserves (FROM, WHERE, ...) ends the operand.
+		// The ones it does not reserve (FETCH, JOIN, MODEL, OFFSET, USING) name
+		// columns in practice and start their clauses only after a complete
+		// expression or table reference, never where an operand begins.
+		// TestOracleNonReservedKeywordsAsColumns checks them on the engine.
+		if isOracleClauseStarterKeyword(p.cur.Type) && isOracleSQLReservedKeyword(p.cur) {
 			return nil, nil
 		}
 		if p.isIdentLike() {
@@ -654,6 +683,222 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 
 		return nil, nil
 	}
+}
+
+// parseCaseOrColumn parses CASE as Oracle reads it, since Oracle does not
+// reserve the word: a CASE expression when WHEN follows it (searched CASE) or
+// follows the selector expression after it (simple CASE, whose selector may
+// be any expression, Boolean ones included in 23ai), and a column named CASE
+// otherwise (ORDER BY case NULLS FIRST, WHERE case LIKEC 'x%', case + 1).
+// decideCaseTokens settles every CASE of the range in one linear pass, so no
+// expression is parsed twice to decide.
+func (p *Parser) parseCaseOrColumn() (nodes.ExprNode, error) {
+	if p.caseKinds == nil {
+		p.caseKinds = decideCaseTokens(p.source, p.cur.Loc, p.lexer.end)
+	}
+	opensExpression, decided := p.caseKinds[p.cur.Loc]
+	if decided && !opensExpression {
+		return p.parseIdentExpr()
+	}
+	return p.parseCaseExpr()
+}
+
+// decideCaseTokens lexes source[start:end] and reports, for each CASE token,
+// whether it opens a CASE expression. A CASE opens one when the first token
+// after it that can end an operand at its own depth is WHEN: the scan skips
+// parenthesized groups and the CASE expressions that start after it, and
+// stops at WHEN, THEN, ELSE, END, ')', ',', ';', and the reserved words that
+// begin a clause. Deciding right to left with a jump table (stop) visits each
+// token a constant number of times.
+func decideCaseTokens(source string, start, end int) map[int]bool {
+	lexer := NewLexerRange(source, start, end)
+	var toks []Token
+	for {
+		tok := lexer.NextToken()
+		if tok.Type == tokEOF || lexer.Err != nil {
+			break
+		}
+		toks = append(toks, tok)
+	}
+	n := len(toks)
+
+	// closing[i] is the index of the ')' or ']' that closes the '(' or '['
+	// at i (a MODEL cell reference such as s['Mouse Pad', 1998]), or n.
+	closing := make([]int, n)
+	var open []int
+	for i, tok := range toks {
+		switch tok.Type {
+		case '(', '[':
+			closing[i] = n
+			open = append(open, i)
+		case ')', ']':
+			want := '('
+			if tok.Type == ']' {
+				want = '['
+			}
+			if len(open) > 0 && toks[open[len(open)-1]].Type == int(want) {
+				closing[open[len(open)-1]] = i
+				open = open[:len(open)-1]
+			}
+		}
+	}
+
+	// stop[i] is the index of the first token from i on, at i's depth, that
+	// ends an operand; n stands for the end of the range.
+	stop := make([]int, n+1)
+	stop[n] = n
+	after := func(i int) int {
+		if i+1 >= n {
+			return n
+		}
+		return stop[i+1]
+	}
+	kinds := make(map[int]bool)
+	for i := n - 1; i >= 0; i-- {
+		tok := toks[i]
+		// A word after '.' is a name component (t.case, t.end), and END where
+		// an operand must start is a column named END (1 + end, THEN end):
+		// neither opens nor closes anything for the scan.
+		plain := i > 0 && (toks[i-1].Type == '.' ||
+			tok.Type == kwEND && expectsOperandAfter(toks[i-1]))
+		switch {
+		case plain:
+			stop[i] = after(i)
+		case isCaseScanStop(tok):
+			stop[i] = i
+		case tok.Type == '(' || tok.Type == '[':
+			stop[i] = after(closing[i])
+		case tok.Type == kwCASE:
+			// s is where the scan for WHEN stops; -1 when the token after
+			// CASE cannot start a selector, so CASE is a column (case IS NULL).
+			s := -1
+			switch {
+			case i+1 >= n:
+			case toks[i+1].Type == kwWHEN:
+				s = i + 1
+			case !canStartCaseSelector(toks[i+1]):
+			default:
+				s = after(i)
+			}
+			if s >= 0 && s < n && toks[s].Type == kwWHEN {
+				kinds[tok.Loc] = true
+				if e := caseExprEnd(toks, stop, s); e >= 0 {
+					stop[i] = after(e)
+				} else {
+					stop[i] = s
+				}
+			} else {
+				kinds[tok.Loc] = false
+				stop[i] = after(i)
+			}
+		default:
+			stop[i] = after(i)
+		}
+	}
+	return kinds
+}
+
+// caseExprEnd follows WHEN ... THEN ... [WHEN ... THEN ...]... [ELSE ...] END
+// from the WHEN at w through the stop table and returns the index of END, or
+// -1 when the CASE expression is malformed.
+func caseExprEnd(toks []Token, stop []int, w int) int {
+	n := len(toks)
+	next := func(i int) int {
+		if i+1 >= n {
+			return n
+		}
+		return stop[i+1]
+	}
+	for {
+		then := next(w)
+		if then >= n || toks[then].Type != kwTHEN {
+			return -1
+		}
+		r := next(then)
+		if r >= n {
+			return -1
+		}
+		switch toks[r].Type {
+		case kwWHEN:
+			w = r
+		case kwELSE:
+			if e := next(r); e < n && toks[e].Type == kwEND {
+				return e
+			}
+			return -1
+		case kwEND:
+			return r
+		default:
+			return -1
+		}
+	}
+}
+
+// canStartCaseSelector reports whether tok can begin the selector of a simple
+// CASE. Operators and keywords that only follow an operand (=, IS, IN, AND,
+// ...), '[' (case[1] is a MODEL cell of a measure named CASE), and the clause
+// words that end one cannot; END can, as a column named END, which Oracle
+// accepts there.
+func canStartCaseSelector(tok Token) bool {
+	switch tok.Type {
+	case '=', '<', '>', '*', '/', '.', '[', tokLESSEQ, tokGREATEQ, tokNOTEQ,
+		tokCONCAT, tokEXPON, kwIS, kwIN, kwLIKE, kwBETWEEN, kwAND, kwOR,
+		kwASC, kwDESC:
+		return false
+	case kwEND:
+		return true
+	}
+	return !isCaseScanStop(tok)
+}
+
+// expectsOperandAfter reports whether an operand must follow tok, so an END
+// right after it is a column named END rather than the end of a CASE. Only
+// tokens that work at expression level matter: an END inside parentheses is
+// skipped with its group. The unary PRIOR and CONNECT_BY_ROOT, ESCAPE, OF
+// (MEMBER OF, SUBMULTISET OF), and ZONE (AT TIME ZONE) all take an operand.
+func expectsOperandAfter(tok Token) bool {
+	switch tok.Type {
+	case '+', '-', '*', '/', '=', '<', '>', '(', ',', '.',
+		tokCONCAT, tokEXPON, tokLESSEQ, tokGREATEQ, tokNOTEQ,
+		kwCASE, kwWHEN, kwTHEN, kwELSE, kwAND, kwOR, kwNOT,
+		kwPRIOR, kwCONNECT_BY_ROOT, kwESCAPE, kwOF, kwZONE,
+		kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4, kwBETWEEN,
+		kwSELECT, kwWHERE, kwBY, kwHAVING, kwON, kwSET, kwRETURN:
+		return true
+	}
+	return false
+}
+
+// isCaseScanStop reports the tokens that end an operand for decideCaseTokens.
+func isCaseScanStop(tok Token) bool {
+	switch tok.Type {
+	case kwWHEN, kwTHEN, kwELSE, kwEND, ')', ']', ',', ';',
+		kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwUNION, kwINTERSECT,
+		kwMINUS, kwINTO, kwAS, kwCONNECT, kwSTART, kwSET, kwVALUES, kwFOR:
+		return true
+	}
+	return false
+}
+
+// keepsConstructBeforeOuterJoin reports the non-reserved keywords Oracle
+// parses as their own construct even when (+) follows, rejecting word(+)
+// (ORA-00931, ORA-00936), so they cannot name an outer-joined column
+// unquoted. Engine-checked by TestOracleNonReservedKeywordsAsColumns.
+func keepsConstructBeforeOuterJoin(tokenType int) bool {
+	switch tokenType {
+	case kwJSON, kwJSON_ARRAY, kwJSON_EXISTS, kwJSON_MERGEPATCH, kwJSON_OBJECT,
+		kwJSON_QUERY, kwJSON_TABLE, kwJSON_VALUE, kwTREAT,
+		kwXMLELEMENT, kwXMLFOREST, kwXMLROOT:
+		return true
+	}
+	return false
+}
+
+// nextIsOuterJoinMarker reports whether the tokens after the current one are
+// the legacy outer-join marker (+).
+func (p *Parser) nextIsOuterJoinMarker() bool {
+	toks := p.peekAhead(3)
+	return toks[0].Type == '(' && toks[1].Type == '+' && toks[2].Type == ')'
 }
 
 // parseDateTimeLiteral parses ANSI datetime literals such as DATE '2020-01-01'.
@@ -1615,22 +1860,30 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume CASE
 
-	ce := &nodes.CaseExpr{
-		Whens: &nodes.List{},
-		Loc:   nodes.Loc{Start: start},
-	}
-
 	// Simple CASE: CASE expr WHEN ...
 	// Searched CASE: CASE WHEN ...
+	var arg nodes.ExprNode
 	if p.cur.Type != kwWHEN {
 		var parseErr730 error
-		ce.Arg, parseErr730 = p.parseExpr()
+		arg, parseErr730 = p.parseExpr()
 		if parseErr730 != nil {
 			return nil, parseErr730
 		}
-		if ce.Arg == nil {
+		if arg == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
+	}
+	return p.parseCaseWhens(start, arg)
+}
+
+// parseCaseWhens parses the WHEN ... [ELSE ...] END of a CASE expression that
+// starts at start, after CASE and the selector arg (nil for a searched CASE)
+// have been consumed.
+func (p *Parser) parseCaseWhens(start int, arg nodes.ExprNode) (nodes.ExprNode, error) {
+	ce := &nodes.CaseExpr{
+		Arg:   arg,
+		Whens: &nodes.List{},
+		Loc:   nodes.Loc{Start: start},
 	}
 
 	for p.cur.Type == kwWHEN {

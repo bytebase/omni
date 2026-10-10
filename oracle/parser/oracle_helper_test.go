@@ -37,7 +37,7 @@ func startOracleDB(t *testing.T) *oracleDB {
 		ctx := context.Background()
 
 		req := testcontainers.ContainerRequest{
-			Image:        "gvenzl/oracle-free:23-slim-faststart",
+			Image:        "gvenzl/oracle-free:23.26.3-slim-faststart",
 			ExposedPorts: []string{"1521/tcp"},
 			Env: map[string]string{
 				"ORACLE_PASSWORD":   "testpass",
@@ -224,6 +224,8 @@ func setupOracleSchema(o *oracleDB) {
 		`CREATE TABLE j_purchaseorder (po_document CLOB)`,
 		// OFFSET and PARTITION are not reserved and name columns in practice.
 		`CREATE TABLE t_offset (a NUMBER, offset NUMBER, partition NUMBER)`,
+		// CASE, NULLS, and LIKEC are not reserved either.
+		`CREATE TABLE t_kwcol (a NUMBER, case NUMBER, nulls NUMBER, likec VARCHAR2(10))`,
 	}
 
 	for _, ddl := range ddls {

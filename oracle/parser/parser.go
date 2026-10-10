@@ -22,6 +22,11 @@ type Parser struct {
 	prev    Token  // previous token (for error reporting)
 	nextBuf Token  // buffered next token for 2-token lookahead
 	hasNext bool   // whether nextBuf is valid
+
+	// caseKinds tells, for each CASE token from the first one parsePrimary
+	// met to the end of the range, whether it opens a CASE expression (true)
+	// or names a column (false). decideCaseTokens fills it in one pass.
+	caseKinds map[int]bool
 }
 
 // Parse parses a SQL string into an AST list.
@@ -138,11 +143,14 @@ func (p *Parser) isIncompleteStatementEnd(stmt nodes.StmtNode) bool {
 		return true
 	}
 
+	// Keywords Oracle does not reserve (CONTENT, JOIN, USING) are left out: a
+	// statement can end with a column of that name, and a clause they open
+	// without its operand ("FROM t JOIN") fails in the clause's own parser.
 	switch stmt.(type) {
 	case *nodes.SelectStmt:
 		switch p.prev.Type {
-		case kwAND, kwAS, kwBY, kwCONTENT, kwFROM, kwGROUP, kwHAVING,
-			kwIS, kwJOIN, kwNOT, kwON, kwOR, kwORDER, kwTHEN, kwUNION,
+		case kwAND, kwAS, kwBY, kwFROM, kwGROUP, kwHAVING,
+			kwIS, kwNOT, kwON, kwOR, kwORDER, kwTHEN, kwUNION,
 			kwWHERE:
 			return true
 		}
@@ -154,7 +162,7 @@ func (p *Parser) isIncompleteStatementEnd(stmt nodes.StmtNode) bool {
 		return p.prev.Type == kwFROM || p.prev.Type == kwWHERE
 	case *nodes.MergeStmt:
 		switch p.prev.Type {
-		case kwINTO, kwON, kwSET, kwTHEN, kwUSING, kwWHERE:
+		case kwINTO, kwON, kwSET, kwTHEN, kwWHERE:
 			return true
 		}
 	case *nodes.CreateTableStmt:
@@ -335,6 +343,22 @@ func (p *Parser) peekNext() Token {
 		p.hasNext = true
 	}
 	return p.nextBuf
+}
+
+// peekAhead returns the n tokens after cur without consuming them; tokens
+// past the end of input are tokEOF. It lexes a copy of the lexer, so the
+// parser's position is untouched.
+func (p *Parser) peekAhead(n int) []Token {
+	toks := make([]Token, 0, n)
+	if n == 0 {
+		return toks
+	}
+	toks = append(toks, p.peekNext())
+	lexer := *p.lexer
+	for len(toks) < n {
+		toks = append(toks, lexer.NextToken())
+	}
+	return toks
 }
 
 // peek returns the current token without consuming it.
