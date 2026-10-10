@@ -1072,11 +1072,6 @@ func TestRequirePrimaryKey(t *testing.T) {
 			targets: one,
 		},
 		{
-			name:    "CREATE SCHEMA IF NOT EXISTS with elements is refused",
-			sql:     "CREATE SCHEMA IF NOT EXISTS z CREATE TABLE n (id int);",
-			targets: one,
-		},
-		{
 			name:    "CREATE VIEW of a name its schema holds is refused",
 			sql:     "CREATE VIEW public.nokey AS SELECT 1 AS a;\nCREATE TABLE n (id int);",
 			targets: one,
@@ -2705,11 +2700,6 @@ func TestRequirePrimaryKey(t *testing.T) {
 			sql:     "ALTER FUNCTION public.f(integer) IMMUTABLE;\nCREATE TABLE n (id int);",
 			targets: []review.Target{{Schema: withSignature(shop(), "f", "f(a integer)"), SessionUser: "alice"}},
 			want:    []targetFinding{{1, "CREATE TABLE n (id int)", "creates table n without a primary key", []int{0}}},
-		},
-		{
-			name:    "NOT VALID on a table's primary key is refused",
-			sql:     "CREATE TABLE n (id int, PRIMARY KEY (id) NOT VALID);\nCREATE TABLE m (id int);",
-			targets: one,
 		},
 		{
 			name:    "NOT VALID on a table's check goes on",

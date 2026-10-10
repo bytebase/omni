@@ -1047,7 +1047,10 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 
 	if p.isTableConstraintStart() {
 		// ADD TableConstraint
-		constr, _ := p.parseTableConstraint()
+		constr, err := p.parseTableConstraint()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_AddConstraint),
 			Def:     constr,
@@ -1064,7 +1067,10 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 			p.expect(EXISTS)
 			missingOk = true
 		}
-		coldef, _ := p.parseColumnDef()
+		coldef, err := p.parseColumnDef()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype:    int(nodes.AT_AddColumn),
 			Def:        coldef,
@@ -1078,7 +1084,10 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 			return p.parseRedshiftAlterTableAddPartition(true)
 		}
 		// ADD IF NOT EXISTS columnDef (without COLUMN keyword)
-		coldef, _ := p.parseColumnDef()
+		coldef, err := p.parseColumnDef()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype:    int(nodes.AT_AddColumn),
 			Def:        coldef,
@@ -1088,7 +1097,10 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		// ADD columnDef (without COLUMN keyword)
 		// Try to distinguish between column def and constraint.
 		// If current token looks like a column name followed by a type, it's a column def.
-		coldef, _ := p.parseColumnDef()
+		coldef, err := p.parseColumnDef()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_AddColumn),
 			Def:     coldef,
@@ -1217,8 +1229,11 @@ func (p *Parser) parseAlterTableAlter() (*nodes.AlterTableCmd, error) {
 			return nil, nil
 		}
 		name, _ := p.parseName()
-		// ConstraintAttributeSpec (we consume but don't store — matches yacc behavior)
-		p.parseConstraintAttributeSpec()
+		// ConstraintAttributeSpec (we consume but don't store — matches
+		// yacc behavior). Only a foreign key's deferrability changes.
+		if _, err := p.parseKindAttributes("FOREIGN KEY", true, false, false); err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_AlterConstraint),
 			Name:    name,

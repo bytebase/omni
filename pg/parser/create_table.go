@@ -139,7 +139,11 @@ func (p *Parser) parseCreateStmtPartitionOf(stmt *nodes.CreateStmt, relpersisten
 	// Optional '(' TypedTableElementList ')'
 	if p.cur.Type == '(' {
 		p.advance()
-		stmt.TableElts = p.parseTypedTableElementList()
+		elts, err := p.parseTypedTableElementList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.TableElts = elts
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -183,7 +187,11 @@ func (p *Parser) parseCreateStmtOf(stmt *nodes.CreateStmt) (*nodes.CreateStmt, e
 	// OptTypedTableElementList: '(' TypedTableElementList ')' | EMPTY
 	if p.cur.Type == '(' {
 		p.advance()
-		stmt.TableElts = p.parseTypedTableElementList()
+		elts, err := p.parseTypedTableElementList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.TableElts = elts
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
@@ -359,6 +367,11 @@ func (p *Parser) parseColConstraint() (nodes.Node, error) {
 				Contype: nodes.CONSTR_ATTR_NOT_DEFERRABLE,
 				Loc:     nodes.NoLoc(),
 			}, nil
+		}
+		// Nothing else follows NOT in a column's constraint list, which
+		// takes no NOT VALID.
+		if !p.collectMode() {
+			return nil, p.syntaxErrorAtTok(next)
 		}
 		return nil, nil
 	case NULL_P:
@@ -545,7 +558,13 @@ func (p *Parser) parseColConstraintElem() (nodes.Node, error) {
 			return nil, err
 		}
 		updAction, delAction, delSetCols := p.parseKeyActions()
-		attrs := p.parseConstraintAttributeSpec()
+		// The column's DEFERRABLE and INITIALLY clauses that follow are
+		// kept on the key; NOT VALID and NO INHERIT do not follow a
+		// column's constraint.
+		attrs, _, err := p.parseConstraintAttrs(false)
+		if err != nil {
+			return nil, err
+		}
 		n := &nodes.Constraint{
 			Contype:        nodes.CONSTR_FOREIGN,
 			Pktable:        refRv,
@@ -707,7 +726,10 @@ func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 					return nil, nil
 				}
 				idxName, _ := p.parseName()
-				attrs := p.parseConstraintAttributeSpec()
+				attrs, err := p.parseKindAttributes("UNIQUE", true, false, false)
+				if err != nil {
+					return nil, err
+				}
 				n := &nodes.Constraint{
 					Contype:        nodes.CONSTR_UNIQUE,
 					Indexname:      idxName,
@@ -725,7 +747,10 @@ func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 		including := p.parseOptCInclude()
 		options := p.parseOptDefinition()
 		indexspace := p.parseOptConsTableSpace()
-		attrs := p.parseConstraintAttributeSpec()
+		attrs, err := p.parseKindAttributes("UNIQUE", true, false, false)
+		if err != nil {
+			return nil, err
+		}
 		n := &nodes.Constraint{
 			Contype:          nodes.CONSTR_UNIQUE,
 			NullsNotDistinct: nullsNotDistinct,
@@ -754,7 +779,10 @@ func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 					return nil, nil
 				}
 				idxName, _ := p.parseName()
-				attrs := p.parseConstraintAttributeSpec()
+				attrs, err := p.parseKindAttributes("PRIMARY KEY", true, false, false)
+				if err != nil {
+					return nil, err
+				}
 				n := &nodes.Constraint{
 					Contype:        nodes.CONSTR_PRIMARY,
 					Indexname:      idxName,
@@ -772,7 +800,10 @@ func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 		including := p.parseOptCInclude()
 		options := p.parseOptDefinition()
 		indexspace := p.parseOptConsTableSpace()
-		attrs := p.parseConstraintAttributeSpec()
+		attrs, err := p.parseKindAttributes("PRIMARY KEY", true, false, false)
+		if err != nil {
+			return nil, err
+		}
 		n := &nodes.Constraint{
 			Contype:        nodes.CONSTR_PRIMARY,
 			Keys:           keys,
@@ -790,7 +821,10 @@ func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 		p.expect('(')
 		expr, _ := p.parseAExpr(0)
 		p.expect(')')
-		attrs := p.parseConstraintAttributeSpec()
+		attrs, err := p.parseKindAttributes("CHECK", false, true, true)
+		if err != nil {
+			return nil, err
+		}
 		n := &nodes.Constraint{
 			Contype:        nodes.CONSTR_CHECK,
 			RawExpr:        expr,
@@ -815,7 +849,10 @@ func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 			return nil, err
 		}
 		updAction, delAction, delSetCols := p.parseKeyActions()
-		attrs := p.parseConstraintAttributeSpec()
+		attrs, err := p.parseKindAttributes("FOREIGN KEY", true, true, false)
+		if err != nil {
+			return nil, err
+		}
 		n := &nodes.Constraint{
 			Contype:        nodes.CONSTR_FOREIGN,
 			FkAttrs:        fkAttrs,
@@ -832,13 +869,13 @@ func (p *Parser) parseConstraintElem() (*nodes.Constraint, error) {
 		return n, nil
 
 	case EXCLUDE:
-		return p.parseExclusionConstraint(), nil
+		return p.parseExclusionConstraint()
 	}
 	return nil, nil
 }
 
 // parseExclusionConstraint parses EXCLUDE constraint.
-func (p *Parser) parseExclusionConstraint() *nodes.Constraint {
+func (p *Parser) parseExclusionConstraint() (*nodes.Constraint, error) {
 	p.advance() // EXCLUDE
 	am := p.parseAccessMethodClause()
 	p.expect('(')
@@ -848,7 +885,10 @@ func (p *Parser) parseExclusionConstraint() *nodes.Constraint {
 	options := p.parseOptDefinition()
 	indexspace := p.parseOptConsTableSpace()
 	where := p.parseWhereClauseOpt()
-	attrs := p.parseConstraintAttributeSpec()
+	attrs, err := p.parseKindAttributes("EXCLUDE", true, false, false)
+	if err != nil {
+		return nil, err
+	}
 	n := &nodes.Constraint{
 		Contype:        nodes.CONSTR_EXCLUSION,
 		AccessMethod:   am,
@@ -861,7 +901,7 @@ func (p *Parser) parseExclusionConstraint() *nodes.Constraint {
 		InitiallyValid: true,
 	}
 	applyConstraintAttrs(n, attrs)
-	return n
+	return n, nil
 }
 
 // parseAccessMethodClause parses access_method_clause.
@@ -1044,41 +1084,51 @@ func (p *Parser) parseTableLikeOption() uint32 {
 }
 
 // parseTypedTableElementList parses a TypedTableElementList.
-func (p *Parser) parseTypedTableElementList() *nodes.List {
-	elem := p.parseTypedTableElement()
-	if elem == nil {
-		return nil
+func (p *Parser) parseTypedTableElementList() (*nodes.List, error) {
+	elem, err := p.parseTypedTableElement()
+	if err != nil || elem == nil {
+		return nil, err
 	}
 	items := []nodes.Node{elem}
 	for p.cur.Type == ',' {
 		p.advance()
-		elem = p.parseTypedTableElement()
+		elem, err = p.parseTypedTableElement()
+		if err != nil {
+			return nil, err
+		}
 		if elem == nil {
 			break
 		}
 		items = append(items, elem)
 	}
-	return &nodes.List{Items: items}
+	return &nodes.List{Items: items}, nil
 }
 
 // parseTypedTableElement parses a single TypedTableElement.
 //
 //	TypedTableElement: columnOptions | TableConstraint
-func (p *Parser) parseTypedTableElement() nodes.Node {
+func (p *Parser) parseTypedTableElement() (nodes.Node, error) {
 	if p.isTableConstraintStart() {
-		c, _ := p.parseTableConstraint()
-		return c
+		c, err := p.parseTableConstraint()
+		if err != nil || c == nil {
+			return nil, err
+		}
+		return c, nil
 	}
-	return p.parseColumnOptions()
+	c, err := p.parseColumnOptions()
+	if err != nil || c == nil {
+		return nil, err
+	}
+	return c, nil
 }
 
 // parseColumnOptions parses columnOptions.
 //
 //	columnOptions: ColId opt_column_constraints | ColId WITH OPTIONS opt_column_constraints
-func (p *Parser) parseColumnOptions() *nodes.ColumnDef {
+func (p *Parser) parseColumnOptions() (*nodes.ColumnDef, error) {
 	colname, err := p.parseColId()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	n := &nodes.ColumnDef{
@@ -1095,11 +1145,11 @@ func (p *Parser) parseColumnOptions() *nodes.ColumnDef {
 
 	qualList, err := p.parseOptColumnConstraints()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	splitColQualList(qualList, n)
 
-	return n
+	return n, nil
 }
 
 // splitColQualList distributes constraint items to a ColumnDef.
@@ -1265,52 +1315,119 @@ func (p *Parser) parseKeyActionType(setCols **nodes.List) byte {
 	}
 }
 
-// parseConstraintAttributeSpec parses ConstraintAttributeSpec.
+// parseConstraintAttributeSpec parses ConstraintAttributeSpec and returns
+// its CAS bits and where it begins, -1 when it is empty.
 //
 //	ConstraintAttributeSpec: /* EMPTY */ | ConstraintAttributeSpec ConstraintAttributeElem
-func (p *Parser) parseConstraintAttributeSpec() int64 {
+func (p *Parser) parseConstraintAttributeSpec() (int64, int, error) {
+	return p.parseConstraintAttrs(true)
+}
+
+// parseConstraintAttrs parses constraint attributes. validity tells whether
+// NOT VALID and NO INHERIT belong to the production; when they do not, they
+// end it. Like gram.y's ConstraintAttributeSpec, it refuses INITIALLY
+// DEFERRED with NOT DEFERRABLE, and DEFERRABLE with NOT DEFERRABLE or
+// INITIALLY IMMEDIATE with INITIALLY DEFERRED, at the attribute that
+// conflicts.
+//
+// pg: src/backend/parser/gram.y — ConstraintAttributeSpec
+func (p *Parser) parseConstraintAttrs(validity bool) (int64, int, error) {
 	var attrs int64
+	start := -1
 	for {
+		loc := p.cur.Loc
+		var bit int64
 		switch p.cur.Type {
 		case NOT:
-			next := p.peekNext()
-			switch next.Type {
+			switch p.peekNext().Type {
 			case DEFERRABLE:
-				p.advance()
-				p.advance()
-				attrs |= int64(nodes.CAS_NOT_DEFERRABLE)
+				bit = int64(nodes.CAS_NOT_DEFERRABLE)
 			case VALID:
-				p.advance()
-				p.advance()
-				attrs |= int64(nodes.CAS_NOT_VALID)
+				if !validity {
+					return attrs, start, nil
+				}
+				bit = int64(nodes.CAS_NOT_VALID)
 			default:
-				return attrs
+				return attrs, start, nil
 			}
+			p.advance()
+			p.advance()
 		case DEFERRABLE:
 			p.advance()
-			attrs |= int64(nodes.CAS_DEFERRABLE)
+			bit = int64(nodes.CAS_DEFERRABLE)
 		case INITIALLY:
 			p.advance()
-			if p.cur.Type == IMMEDIATE {
-				p.advance()
-				attrs |= int64(nodes.CAS_INITIALLY_IMMEDIATE)
-			} else if p.cur.Type == DEFERRED {
-				p.advance()
-				attrs |= int64(nodes.CAS_INITIALLY_DEFERRED)
+			switch p.cur.Type {
+			case IMMEDIATE:
+				bit = int64(nodes.CAS_INITIALLY_IMMEDIATE)
+			case DEFERRED:
+				bit = int64(nodes.CAS_INITIALLY_DEFERRED)
+			default:
+				if p.collectMode() {
+					return attrs, start, nil
+				}
+				return 0, -1, p.syntaxErrorAtCur()
 			}
+			p.advance()
 		case NO:
-			next := p.peekNext()
-			if next.Type == INHERIT {
-				p.advance()
-				p.advance()
-				attrs |= int64(nodes.CAS_NO_INHERIT)
-			} else {
-				return attrs
+			if !validity || p.peekNext().Type != INHERIT {
+				return attrs, start, nil
 			}
+			p.advance()
+			p.advance()
+			bit = int64(nodes.CAS_NO_INHERIT)
 		default:
-			return attrs
+			return attrs, start, nil
+		}
+		if start < 0 {
+			start = loc
+		}
+		attrs |= bit
+		notDeferrable, deferrable := int64(nodes.CAS_NOT_DEFERRABLE), int64(nodes.CAS_DEFERRABLE)
+		immediate, deferred := int64(nodes.CAS_INITIALLY_IMMEDIATE), int64(nodes.CAS_INITIALLY_DEFERRED)
+		switch {
+		case attrs&(notDeferrable|deferred) == notDeferrable|deferred:
+			return 0, -1, &ParseError{Message: "constraint declared INITIALLY DEFERRED must be DEFERRABLE", Position: loc}
+		case attrs&(notDeferrable|deferrable) == notDeferrable|deferrable, attrs&(immediate|deferred) == immediate|deferred:
+			return 0, -1, &ParseError{Message: "conflicting constraint properties", Position: loc}
 		}
 	}
+}
+
+// processCASbits refuses the attributes a constraint of the kind cannot
+// take: deferrable, notValid, and noInherit tell which it can. The server
+// reports no position for these; the error points at the attribute list.
+//
+// pg: src/backend/parser/gram.y — processCASbits
+func (p *Parser) processCASbits(attrs int64, loc int, constrType string, deferrable, notValid, noInherit bool) error {
+	if p.collectMode() {
+		return nil
+	}
+	refuse := func(what string) error {
+		return &ParseError{Code: "0A000", Message: constrType + " constraints cannot be marked " + what, Position: loc}
+	}
+	switch {
+	case !deferrable && attrs&int64(nodes.CAS_DEFERRABLE|nodes.CAS_INITIALLY_DEFERRED) != 0:
+		return refuse("DEFERRABLE")
+	case !notValid && attrs&int64(nodes.CAS_NOT_VALID) != 0:
+		return refuse("NOT VALID")
+	case !noInherit && attrs&int64(nodes.CAS_NO_INHERIT) != 0:
+		return refuse("NO INHERIT")
+	}
+	return nil
+}
+
+// parseKindAttributes parses the ConstraintAttributeSpec of a constraint of
+// the kind and refuses the attributes the kind cannot take.
+func (p *Parser) parseKindAttributes(constrType string, deferrable, notValid, noInherit bool) (int64, error) {
+	attrs, loc, err := p.parseConstraintAttributeSpec()
+	if err != nil {
+		return 0, err
+	}
+	if err := p.processCASbits(attrs, loc, constrType, deferrable, notValid, noInherit); err != nil {
+		return 0, err
+	}
+	return attrs, nil
 }
 
 // applyConstraintAttrs applies constraint attribute flags to a Constraint node.

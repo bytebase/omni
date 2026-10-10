@@ -737,7 +737,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 	var err error
 	switch p.cur.Type {
 	case ADD_P:
-		cmd, err = p.parseAlterTableAdd(), nil
+		cmd, err = p.parseAlterTableAdd()
 	case DROP:
 		cmd, err = p.parseAlterTableDrop(), nil
 	case ALTER:
@@ -787,7 +787,7 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 }
 
 // parseAlterTableAdd handles ADD ... subcommands.
-func (p *Parser) parseAlterTableAdd() *nodes.AlterTableCmd {
+func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume ADD
 
 	if p.collectMode() {
@@ -801,16 +801,19 @@ func (p *Parser) parseAlterTableAdd() *nodes.AlterTableCmd {
 			// Also valid: column name (for ADD column_def without COLUMN keyword)
 			p.addRuleCandidate("columnref")
 		})
-		return nil
+		return nil, nil
 	}
 
 	if p.isTableConstraintStart() {
 		// ADD TableConstraint
-		constr, _ := p.parseTableConstraint()
+		constr, err := p.parseTableConstraint()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_AddConstraint),
 			Def:     constr,
-		}
+		}, nil
 	}
 	switch p.cur.Type {
 	case COLUMN:
@@ -823,32 +826,41 @@ func (p *Parser) parseAlterTableAdd() *nodes.AlterTableCmd {
 			p.expect(EXISTS)
 			missingOk = true
 		}
-		coldef, _ := p.parseColumnDef()
+		coldef, err := p.parseColumnDef()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype:    int(nodes.AT_AddColumn),
 			Def:        coldef,
 			Missing_ok: missingOk,
-		}
+		}, nil
 	case IF_P:
 		// ADD IF NOT EXISTS columnDef (without COLUMN keyword)
 		p.advance()
 		p.expect(NOT)
 		p.expect(EXISTS)
-		coldef, _ := p.parseColumnDef()
+		coldef, err := p.parseColumnDef()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype:    int(nodes.AT_AddColumn),
 			Def:        coldef,
 			Missing_ok: true,
-		}
+		}, nil
 	default:
 		// ADD columnDef (without COLUMN keyword)
 		// Try to distinguish between column def and constraint.
 		// If current token looks like a column name followed by a type, it's a column def.
-		coldef, _ := p.parseColumnDef()
+		coldef, err := p.parseColumnDef()
+		if err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_AddColumn),
 			Def:     coldef,
-		}
+		}, nil
 	}
 }
 
@@ -965,8 +977,11 @@ func (p *Parser) parseAlterTableAlter() (*nodes.AlterTableCmd, error) {
 			return nil, nil
 		}
 		name, _ := p.parseName()
-		// ConstraintAttributeSpec (we consume but don't store — matches yacc behavior)
-		p.parseConstraintAttributeSpec()
+		// ConstraintAttributeSpec (we consume but don't store — matches
+		// yacc behavior). Only a foreign key's deferrability changes.
+		if _, err := p.parseKindAttributes("FOREIGN KEY", true, false, false); err != nil {
+			return nil, err
+		}
 		return &nodes.AlterTableCmd{
 			Subtype: int(nodes.AT_AlterConstraint),
 			Name:    name,

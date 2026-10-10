@@ -35,7 +35,7 @@ func (p *Parser) parseCreateSchemaStmt(stmtLoc int) (nodes.Node, error) {
 	if p.cur.Type == AUTHORIZATION {
 		p.advance() // consume AUTHORIZATION
 		stmt.Authrole = p.parseRoleSpec()
-		elts, err := p.parseOptSchemaEltList()
+		elts, err := p.parseSchemaElts(stmt.IfNotExists)
 		if err != nil {
 			return nil, err
 		}
@@ -55,13 +55,29 @@ func (p *Parser) parseCreateSchemaStmt(stmtLoc int) (nodes.Node, error) {
 		stmt.Authrole = p.parseRoleSpec()
 	}
 
-	elts, err := p.parseOptSchemaEltList()
+	elts, err := p.parseSchemaElts(stmt.IfNotExists)
 	if err != nil {
 		return nil, err
 	}
 	stmt.SchemaElts = elts
 	stmt.Loc = nodes.Loc{Start: stmtLoc, End: p.prev.End}
 	return stmt, nil
+}
+
+// parseSchemaElts parses the schema elements of CREATE SCHEMA, which the
+// IF NOT EXISTS forms cannot carry: the error points at the first one.
+//
+// pg: src/backend/parser/gram.y — CreateSchemaStmt
+func (p *Parser) parseSchemaElts(ifNotExists bool) (*nodes.List, error) {
+	start := p.cur.Loc
+	elts, err := p.parseOptSchemaEltList()
+	if err != nil {
+		return nil, err
+	}
+	if ifNotExists && elts != nil && !p.collectMode() {
+		return nil, &ParseError{Code: "0A000", Message: "CREATE SCHEMA IF NOT EXISTS cannot include schema elements", Position: start}
+	}
+	return elts, nil
 }
 
 // parseOptSchemaEltList parses an optional list of schema elements.

@@ -643,51 +643,6 @@ func tempOutsideTemp(n ast.Node) bool {
 	return rv != nil && rv.Relpersistence == 't' && rv.Schemaname != "" && rv.Schemaname != "pg_temp" && !strings.HasPrefix(rv.Schemaname, "pg_temp_")
 }
 
-// constraintAttrsRefused reports whether CREATE or ALTER TABLE gives a
-// constraint an attribute its kind cannot take: NOT VALID or NO INHERIT on
-// a key or exclusion constraint, DEFERRABLE on a check, NO INHERIT on a
-// foreign key, or NOT VALID on a column's constraint.
-//
-// pg: src/backend/parser/gram.y — processCASbits, ColConstraint
-func constraintAttrsRefused(n ast.Node) bool {
-	switch n.(type) {
-	case *ast.CreateStmt, *ast.AlterTableStmt, *ast.CreateSchemaStmt, *ast.CreateForeignTableStmt:
-	default:
-		return false
-	}
-	refused := func(c *ast.Constraint, column bool) bool {
-		switch c.Contype {
-		case ast.CONSTR_PRIMARY, ast.CONSTR_UNIQUE, ast.CONSTR_EXCLUSION:
-			if c.SkipValidation || c.IsNoInherit {
-				return true
-			}
-		case ast.CONSTR_CHECK:
-			if c.Deferrable || c.Initdeferred {
-				return true
-			}
-		case ast.CONSTR_FOREIGN:
-			if c.IsNoInherit {
-				return true
-			}
-		}
-		return column && c.SkipValidation
-	}
-	found := false
-	ast.Inspect(n, func(m ast.Node) bool {
-		switch v := m.(type) {
-		case *ast.ColumnDef:
-			for _, c := range constraintsOf(v.Constraints) {
-				found = found || refused(c, true)
-			}
-			return false
-		case *ast.Constraint:
-			found = found || refused(v, false)
-		}
-		return !found
-	})
-	return found
-}
-
 // typeSchemaMissing reports whether a statement other than a DROP names a
 // type in a schema the target certainly lacks, which the server refuses
 // when it resolves the type. A system schema is not in the snapshot, but
@@ -1163,7 +1118,7 @@ func (s *scan) statement(st *statement) {
 	// A CREATE in a schema that certainly does not exist is refused, and
 	// so is a statement on a relation the target certainly lacks.
 	if schema := createdIn(st.node); schema != "" && s.schemaMissing(&ast.RangeVar{Schemaname: schema}) || s.namesMissing(st.node) ||
-		tempOutsideTemp(st.node) || s.typeSchemaMissing(st.node) || constraintAttrsRefused(st.node) {
+		tempOutsideTemp(st.node) || s.typeSchemaMissing(st.node) {
 		s.stop()
 		return
 	}
@@ -2169,11 +2124,6 @@ func (s *scan) createSchema(st *statement, v *ast.CreateSchemaStmt) {
 		if v.SchemaElts != nil && len(v.SchemaElts.Items) > 0 {
 			s.stop()
 		}
-		return
-	}
-	// IF NOT EXISTS cannot carry schema elements: the server refuses it.
-	if v.IfNotExists && v.SchemaElts != nil && len(v.SchemaElts.Items) > 0 {
-		s.stop()
 		return
 	}
 	// CREATE SCHEMA of a schema the target has, and the change did not

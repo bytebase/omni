@@ -736,7 +736,18 @@ func (p *Parser) parseDomainConstraintForAlter(typname *nodes.List) (*nodes.Alte
 		return nil, p.syntaxErrorAtCur()
 	}
 
-	attrs := p.parseConstraintAttributeSpec()
+	// A domain's check takes NOT VALID and NO INHERIT, its NOT NULL only
+	// NO INHERIT.
+	var attrs int64
+	var err error
+	if constraint.Contype == nodes.CONSTR_CHECK {
+		attrs, err = p.parseKindAttributes("CHECK", false, true, true)
+	} else {
+		attrs, err = p.parseKindAttributes("NOT NULL", false, false, true)
+	}
+	if err != nil {
+		return nil, err
+	}
 	applyConstraintAttrs(constraint, attrs)
 	return &nodes.AlterDomainStmt{
 		Subtype: 'C',
