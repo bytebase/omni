@@ -435,7 +435,8 @@ func TestParseCaseBooleanSelector(t *testing.T) {
 
 // TestParseKeywordColumnOuterJoin: a non-reserved keyword followed by the
 // legacy outer-join marker (+) is a column, except for the words Oracle still
-// reads as their construct (it rejects JSON_VALUE(+) and XMLELEMENT(+)).
+// reads as their construct (it rejects JSON_VALUE(+) and XMLELEMENT(+)) and
+// for pseudo-columns (SYSTIMESTAMP(+) is ORA-30088 even with such a column).
 func TestParseKeywordColumnOuterJoin(t *testing.T) {
 	for _, word := range []string{"cast", "decode", "case", "interval", "xmlagg"} {
 		sql := "SELECT 1 FROM t, u WHERE " + word + "(+) = u.a"
@@ -451,7 +452,9 @@ func TestParseKeywordColumnOuterJoin(t *testing.T) {
 			}
 		})
 	}
-	for _, word := range []string{"json_value", "xmlelement", "treat", "json"} {
+	for _, word := range []string{"json_value", "xmlelement", "treat", "json", "systimestamp"} {
 		ParseShouldFail(t, "SELECT 1 FROM t, u WHERE "+word+"(+) = u.a")
 	}
+	// A qualified reference is a column even for a pseudo-column word.
+	ParseAndCheck(t, "SELECT 1 FROM t, u WHERE t.systimestamp(+) = u.a")
 }

@@ -94,3 +94,4 @@ ref_092	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_novr_{run} AS OBJECT (
 ref_093	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_fovr_{run} AS OBJECT (a NUMBER, FINAL OVERRIDING MEMBER FUNCTION f RETURN NUMBER)	OVERRIDING after another inheritance clause
 ref_094	plsql_body	accept	CREATE OR REPLACE TYPE omni_ninf_{run} AS OBJECT (a NUMBER, NOT INSTANTIABLE NOT FINAL MEMBER FUNCTION f RETURN NUMBER) NOT FINAL NOT INSTANTIABLE	NOT INSTANTIABLE NOT FINAL method spec
 ref_095	select	accept	SELECT CASE NOT TRUE WHEN TRUE THEN 1 ELSE 0 END FROM dual	simple CASE with a Boolean NOT selector
+ref_096	select	reject	SELECT 1 FROM t, s WHERE systimestamp(+) = s.x	pseudo-column with the outer-join marker (ORA-30088)

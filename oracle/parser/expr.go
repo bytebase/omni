@@ -535,8 +535,11 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	// A keyword Oracle does not reserve, followed by the legacy outer-join
 	// marker (+), is a column, whatever construct the word would otherwise
 	// open: WHERE cast(+) = u.a. A few words Oracle still reads as their
-	// construct, and it rejects the + inside it.
-	if p.cur.Type >= 2000 && !isOracleSQLReservedKeyword(p.cur) && p.nextIsOuterJoinMarker() {
+	// construct, and it rejects the + inside it. Pseudo-columns stay
+	// pseudo-columns: Oracle reads SYSTIMESTAMP(+) as SYSTIMESTAMP(precision)
+	// and rejects it (ORA-30088) even when the table has such a column.
+	if p.cur.Type >= 2000 && !isOracleSQLReservedKeyword(p.cur) &&
+		!isOraclePseudoColumnKeyword(p.cur.Type) && p.nextIsOuterJoinMarker() {
 		if keepsConstructBeforeOuterJoin(p.cur.Type) {
 			p.advance() // consume the keyword
 			p.advance() // consume (
