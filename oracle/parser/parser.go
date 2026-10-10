@@ -340,6 +340,22 @@ func (p *Parser) peekNext() Token {
 	return p.nextBuf
 }
 
+// peekAhead returns the n tokens after cur without consuming them; tokens
+// past the end of input are tokEOF. It lexes a copy of the lexer, so the
+// parser's position is untouched.
+func (p *Parser) peekAhead(n int) []Token {
+	toks := make([]Token, 0, n)
+	if n == 0 {
+		return toks
+	}
+	toks = append(toks, p.peekNext())
+	lexer := *p.lexer
+	for len(toks) < n {
+		toks = append(toks, lexer.NextToken())
+	}
+	return toks
+}
+
 // peek returns the current token without consuming it.
 func (p *Parser) peek() Token {
 	return p.cur

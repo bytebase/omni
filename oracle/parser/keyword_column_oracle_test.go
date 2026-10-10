@@ -20,16 +20,19 @@ var keywordColumnContexts = []struct {
 }{
 	{"select list", "SELECT %[2]s FROM %[1]s"},
 	{"where", "SELECT a FROM %[1]s WHERE %[2]s IS NULL"},
+	{"not in", "SELECT a FROM %[1]s WHERE %[2]s NOT IN (1, 2)"},
 	{"order by", "SELECT a FROM %[1]s ORDER BY %[2]s"},
 	{"update", "UPDATE %[1]s SET %[2]s = NULL WHERE %[2]s IS NULL"},
 	{"insert columns", "INSERT INTO %[1]s (%[2]s) VALUES (1)"},
 	{"index", "CREATE INDEX %[1]s_i ON %[1]s (%[2]s)"},
+	{"outer join marker", "SELECT d.dummy FROM dual d, %[1]s WHERE %[2]s(+) = LENGTH(d.dummy)"},
 }
 
 // TestOracleNonReservedKeywordsAsColumns checks every word omni lexes as a
 // keyword that Oracle does not reserve (V$RESERVED_WORDS) as a column name:
-// defined by CREATE TABLE, then referenced from a select list, a WHERE
-// predicate, ORDER BY, UPDATE, an INSERT column list, and an index. omni must
+// defined by CREATE TABLE, then referenced from a select list, WHERE
+// predicates (IS NULL, NOT IN), ORDER BY, UPDATE, an INSERT column list, an
+// index, and with the legacy outer-join marker (+). omni must
 // accept or reject each statement exactly as Oracle does. The keyword
 // manifest's column_name context covers only the definition; OFFSET, FETCH,
 // JOIN, MODEL, and USING failed in the references alone.

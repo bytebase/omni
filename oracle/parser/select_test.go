@@ -412,3 +412,46 @@ func TestParseOffsetColumnNameAST(t *testing.T) {
 		t.Fatalf("row limiting clause missing: %s", ast.NodeToString(sel))
 	}
 }
+
+// TestParseCaseBooleanSelector: a simple CASE may test a Boolean selector
+// that starts with NOT (Oracle 23ai), while a column named CASE is followed
+// by NOT only in NOT IN, NOT BETWEEN, and NOT LIKE. Oracle 23ai accepts all.
+func TestParseCaseBooleanSelector(t *testing.T) {
+	result := ParseAndCheck(t, "SELECT CASE NOT TRUE WHEN TRUE THEN 1 ELSE 0 END FROM t")
+	target := result.Items[0].(*ast.RawStmt).Stmt.(*ast.SelectStmt).TargetList.Items[0].(*ast.ResTarget)
+	if _, ok := target.Expr.(*ast.CaseExpr); !ok {
+		t.Fatalf("target = %T, want *ast.CaseExpr", target.Expr)
+	}
+	for _, sql := range []string{
+		"SELECT a FROM t WHERE case NOT IN (1, 2)",
+		"SELECT a FROM t WHERE case NOT BETWEEN 1 AND 2",
+		"SELECT a FROM t WHERE case NOT LIKE 'x%'",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			ParseAndCheck(t, sql)
+		})
+	}
+}
+
+// TestParseKeywordColumnOuterJoin: a non-reserved keyword followed by the
+// legacy outer-join marker (+) is a column, except for the words Oracle still
+// reads as their construct (it rejects JSON_VALUE(+) and XMLELEMENT(+)).
+func TestParseKeywordColumnOuterJoin(t *testing.T) {
+	for _, word := range []string{"cast", "decode", "case", "interval", "xmlagg"} {
+		sql := "SELECT 1 FROM t, u WHERE " + word + "(+) = u.a"
+		t.Run(sql, func(t *testing.T) {
+			result := ParseAndCheck(t, sql)
+			where := result.Items[0].(*ast.RawStmt).Stmt.(*ast.SelectStmt).WhereClause.(*ast.BinaryExpr)
+			col, ok := where.Left.(*ast.ColumnRef)
+			if !ok || !col.OuterJoin {
+				t.Fatalf("left = %s, want an outer-joined column", ast.NodeToString(where.Left))
+			}
+			if violations := CheckLocations(t, sql); len(violations) > 0 {
+				t.Fatalf("Loc violations: %v", violations)
+			}
+		})
+	}
+	for _, word := range []string{"json_value", "xmlelement", "treat", "json"} {
+		ParseShouldFail(t, "SELECT 1 FROM t, u WHERE "+word+"(+) = u.a")
+	}
+}

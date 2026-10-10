@@ -1,2 +1,3 @@
 case	oracle_accepts	omni_accepts	sql
+CONNECT_BY_ROOT:not in	false	true	SELECT a FROM t WHERE CONNECT_BY_ROOT NOT IN (1, 2)
 XMLELEMENT:index	false	true	CREATE INDEX t_i ON t (XMLELEMENT)

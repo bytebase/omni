@@ -532,6 +532,19 @@ func (p *Parser) parsePrefix() (nodes.ExprNode, error) {
 func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	start := p.pos()
 
+	// A keyword Oracle does not reserve, followed by the legacy outer-join
+	// marker (+), is a column, whatever construct the word would otherwise
+	// open: WHERE cast(+) = u.a. A few words Oracle still reads as their
+	// construct, and it rejects the + inside it.
+	if p.cur.Type >= 2000 && !isOracleSQLReservedKeyword(p.cur) && p.nextIsOuterJoinMarker() {
+		if keepsConstructBeforeOuterJoin(p.cur.Type) {
+			p.advance() // consume the keyword
+			p.advance() // consume (
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseIdentExpr()
+	}
+
 	switch p.cur.Type {
 	case tokICONST:
 		tok := p.advance()
@@ -676,16 +689,46 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 // reference rather than a CASE expression. Oracle does not reserve CASE, and
 // a CASE expression always continues with WHEN or an operand, never with a
 // token that ends an operand or joins two of them.
+//
+// NOT needs one more token: a simple CASE may test a Boolean selector
+// (CASE NOT flag WHEN TRUE ..., Oracle 23ai), while a column named CASE is
+// followed by NOT only in NOT IN, NOT BETWEEN, and NOT LIKE.
 func (p *Parser) caseNamesColumn() bool {
 	switch p.peekNext().Type {
 	case tokEOF, ';', ',', ')', '.', '=', '<', '>', '*', '/',
 		tokLESSEQ, tokGREATEQ, tokNOTEQ, tokCONCAT,
 		kwFROM, kwWHERE, kwGROUP, kwORDER, kwHAVING, kwINTO, kwAS,
-		kwIS, kwIN, kwNOT, kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4, kwBETWEEN,
+		kwIS, kwIN, kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4, kwBETWEEN,
 		kwAND, kwOR, kwASC, kwDESC, kwNULLS, kwUNION, kwINTERSECT, kwMINUS:
+		return true
+	case kwNOT:
+		switch p.peekAhead(2)[1].Type {
+		case kwIN, kwBETWEEN, kwLIKE, kwLIKEC, kwLIKE2, kwLIKE4:
+			return true
+		}
+	}
+	return false
+}
+
+// keepsConstructBeforeOuterJoin reports the non-reserved keywords Oracle
+// parses as their own construct even when (+) follows, rejecting word(+)
+// (ORA-00931, ORA-00936), so they cannot name an outer-joined column
+// unquoted. Engine-checked by TestOracleNonReservedKeywordsAsColumns.
+func keepsConstructBeforeOuterJoin(tokenType int) bool {
+	switch tokenType {
+	case kwJSON, kwJSON_ARRAY, kwJSON_EXISTS, kwJSON_MERGEPATCH, kwJSON_OBJECT,
+		kwJSON_QUERY, kwJSON_TABLE, kwJSON_VALUE, kwTREAT,
+		kwXMLELEMENT, kwXMLFOREST, kwXMLROOT:
 		return true
 	}
 	return false
+}
+
+// nextIsOuterJoinMarker reports whether the tokens after the current one are
+// the legacy outer-join marker (+).
+func (p *Parser) nextIsOuterJoinMarker() bool {
+	toks := p.peekAhead(3)
+	return toks[0].Type == '(' && toks[1].Type == '+' && toks[2].Type == ')'
 }
 
 // parseDateTimeLiteral parses ANSI datetime literals such as DATE '2020-01-01'.
