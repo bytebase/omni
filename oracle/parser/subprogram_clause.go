@@ -285,6 +285,12 @@ func (p *Parser) parseParallelEnableSpec() (*nodes.ParallelEnableClause, Token, 
 		if err != nil {
 			return nil, Token{}, err
 		}
+		// VALUE partitioning takes one column (PLS-00757); HASH and RANGE
+		// take several.
+		if spec.PartitionBy == "VALUE" && cols.Len() > 1 {
+			loc := nodes.NodeLoc(cols.Items[1])
+			return nil, Token{}, p.syntaxErrorAtTok(Token{Type: tokIDENT, Loc: loc.Start, End: loc.End})
+		}
 		spec.Columns = cols
 	default:
 		return nil, Token{}, p.syntaxErrorAtCur()
@@ -403,13 +409,13 @@ func predefinedTypeName(tn *nodes.TypeName) (string, bool) {
 // as Oracle 23ai does from the text: it returns TABLE (PLS-00767) and takes
 // exactly one TABLE parameter (PLS-00773, PLS-00766).
 func (p *Parser) checkPolymorphicSignature(stmt *nodes.CreateFunctionStmt) error {
-	if !isTablePseudoType(stmt.ReturnType) {
+	if !p.isTablePseudoType(stmt.ReturnType) {
 		return p.syntaxErrorAtType(stmt.ReturnType)
 	}
 	tables := 0
 	if stmt.Parameters != nil {
 		for _, item := range stmt.Parameters.Items {
-			if pr, ok := item.(*nodes.Parameter); ok && isTablePseudoType(pr.TypeName) {
+			if pr, ok := item.(*nodes.Parameter); ok && p.isTablePseudoType(pr.TypeName) {
 				tables++
 				if tables > 1 {
 					return p.syntaxErrorAtType(pr.TypeName)
@@ -461,23 +467,28 @@ func (p *Parser) checkCharsetSources(params *nodes.List, result *nodes.TypeName)
 // parameter types and its result type, or nil. TABLE stands only in a
 // polymorphic table function: Oracle 23ai rejects it elsewhere with
 // PLS-00765, in a procedure, an ordinary function, or a SQL macro alike.
-func tablePseudoType(params *nodes.List, result *nodes.TypeName) *nodes.TypeName {
+func (p *Parser) tablePseudoType(params *nodes.List, result *nodes.TypeName) *nodes.TypeName {
 	if params != nil {
 		for _, item := range params.Items {
-			if pr, ok := item.(*nodes.Parameter); ok && isTablePseudoType(pr.TypeName) {
+			if pr, ok := item.(*nodes.Parameter); ok && p.isTablePseudoType(pr.TypeName) {
 				return pr.TypeName
 			}
 		}
 	}
-	if isTablePseudoType(result) {
+	if p.isTablePseudoType(result) {
 		return result
 	}
 	return nil
 }
 
-// isTablePseudoType reports whether tn is the TABLE pseudo-type.
-func isTablePseudoType(tn *nodes.TypeName) bool {
+// isTablePseudoType reports whether tn is the TABLE pseudo-type: the
+// unquoted reserved word. A quoted "TABLE" names a user type, which a
+// procedure or function parameter may have (Oracle 23ai compiles one).
+func (p *Parser) isTablePseudoType(tn *nodes.TypeName) bool {
 	if tn == nil || tn.IsPercType || tn.IsPercRowtype || tn.Names.Len() != 1 {
+		return false
+	}
+	if tn.Loc.Start >= 0 && tn.Loc.Start < len(p.source) && p.source[tn.Loc.Start] == '"' {
 		return false
 	}
 	s, ok := tn.Names.Items[0].(*nodes.String)

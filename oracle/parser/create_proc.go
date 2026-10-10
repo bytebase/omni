@@ -62,7 +62,7 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 		}
 	}
 
-	if tn := tablePseudoType(stmt.Parameters, nil); tn != nil {
+	if tn := p.tablePseudoType(stmt.Parameters, nil); tn != nil {
 		return nil, p.syntaxErrorAtType(tn)
 	}
 	if err := p.checkCharsetSources(stmt.Parameters, nil); err != nil {
@@ -300,7 +300,7 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			return p.syntaxErrorAtTok(*macroTok)
 		}
 		if stmt.Polymorphic == "" {
-			if tn := tablePseudoType(stmt.Parameters, stmt.ReturnType); tn != nil {
+			if tn := p.tablePseudoType(stmt.Parameters, stmt.ReturnType); tn != nil {
 				return p.syntaxErrorAtType(tn)
 			}
 		} else if err := p.checkPolymorphicSignature(stmt); err != nil {
@@ -752,7 +752,7 @@ func (p *Parser) parsePackageProcDecl(level subprogramLevel) (*nodes.CreateProce
 			return nil, parseErr474
 		}
 	}
-	if tn := tablePseudoType(stmt.Parameters, nil); tn != nil {
+	if tn := p.tablePseudoType(stmt.Parameters, nil); tn != nil {
 		return nil, p.syntaxErrorAtType(tn)
 	}
 	if err := p.checkCharsetSources(stmt.Parameters, nil); err != nil {

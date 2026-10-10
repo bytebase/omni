@@ -222,6 +222,7 @@ var plsqlNonCharacterTypes = map[string]bool{
 	"BINARY_FLOAT": true, "BINARY_DOUBLE": true, "SIMPLE_FLOAT": true, "SIMPLE_DOUBLE": true,
 	"PLS_INTEGER": true, "BINARY_INTEGER": true, "SIMPLE_INTEGER": true, "NATURAL": true,
 	"NATURALN": true, "POSITIVE": true, "POSITIVEN": true, "SIGNTYPE": true, "BOOLEAN": true,
+	"BOOL": true,
 	"DATE": true, "TIMESTAMP": true, "INTERVAL": true, "RAW": true, "LONG": true,
 	"ROWID": true, "UROWID": true, "BLOB": true, "BFILE": true, "JSON": true, "VECTOR": true,
 	"MLSLABEL": true, "SYS_REFCURSOR": true, "NCHAR": true, "NVARCHAR2": true, "NCLOB": true,
