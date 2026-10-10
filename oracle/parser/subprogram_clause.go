@@ -288,8 +288,10 @@ func (p *Parser) parseParallelEnableSpec() (*nodes.ParallelEnableClause, Token, 
 		// VALUE partitioning takes one column (PLS-00757); HASH and RANGE
 		// take several.
 		if spec.PartitionBy == "VALUE" && cols.Len() > 1 {
-			loc := nodes.NodeLoc(cols.Items[1])
-			return nil, Token{}, p.syntaxErrorAtTok(Token{Type: tokIDENT, Loc: loc.Start, End: loc.End})
+			return nil, Token{}, p.syntaxErrorAtNode(cols.Items[1])
+		}
+		if err := p.checkColumnNames(cols); err != nil {
+			return nil, Token{}, err
 		}
 		spec.Columns = cols
 	default:
@@ -330,9 +332,35 @@ func (p *Parser) parseStreamingClause() (*nodes.StreamingClause, Token, error) {
 	if err != nil {
 		return nil, Token{}, err
 	}
+	if err := p.checkColumnNames(cols); err != nil {
+		return nil, Token{}, err
+	}
 	clause.Columns = cols
 	clause.Loc.End = p.prev.End
 	return clause, argTok, nil
+}
+
+// checkColumnNames checks that each item of a PARALLEL_ENABLE partitioning
+// or a streaming clause is a simple column name: Oracle 23ai rejects an
+// expression, a qualified name (c.a), or a literal with PLS-00670, and
+// accepts a quoted name.
+func (p *Parser) checkColumnNames(list *nodes.List) error {
+	if list == nil {
+		return nil
+	}
+	for _, item := range list.Items {
+		ref, ok := item.(*nodes.ColumnRef)
+		if !ok || ref.Table != "" || ref.Schema != "" || ref.Column == "*" || ref.OuterJoin {
+			return p.syntaxErrorAtNode(item)
+		}
+	}
+	return nil
+}
+
+// syntaxErrorAtNode returns a syntax error at node n.
+func (p *Parser) syntaxErrorAtNode(n nodes.Node) *ParseError {
+	loc := nodes.NodeLoc(n)
+	return p.syntaxErrorAtTok(Token{Type: tokIDENT, Loc: loc.Start, End: loc.End})
 }
 
 // checkParallelArguments checks the arguments PARALLEL_ENABLE partitions and
@@ -401,7 +429,9 @@ func predefinedTypeName(tn *nodes.TypeName) (string, bool) {
 
 // checkPolymorphicSignature checks a polymorphic table function's signature
 // as Oracle 23ai does from the text: it returns TABLE (PLS-00767) and takes
-// exactly one TABLE parameter (PLS-00773, PLS-00766).
+// exactly one TABLE parameter (PLS-00773, PLS-00766), which has no default
+// (PLS-00768), while a COLUMNS parameter defaults to NULL if at all
+// (PLS-00769).
 func (p *Parser) checkPolymorphicSignature(stmt *nodes.CreateFunctionStmt) error {
 	if p.pseudoType(stmt.ReturnType) != "TABLE" {
 		return p.syntaxErrorAtType(stmt.ReturnType)
@@ -409,10 +439,22 @@ func (p *Parser) checkPolymorphicSignature(stmt *nodes.CreateFunctionStmt) error
 	tables := 0
 	if stmt.Parameters != nil {
 		for _, item := range stmt.Parameters.Items {
-			if pr, ok := item.(*nodes.Parameter); ok && p.pseudoType(pr.TypeName) == "TABLE" {
+			pr, ok := item.(*nodes.Parameter)
+			if !ok {
+				continue
+			}
+			switch p.pseudoType(pr.TypeName) {
+			case "TABLE":
 				tables++
 				if tables > 1 {
 					return p.syntaxErrorAtType(pr.TypeName)
+				}
+				if pr.Default != nil {
+					return p.syntaxErrorAtNode(pr.Default)
+				}
+			case "COLUMNS":
+				if _, isNull := pr.Default.(*nodes.NullLiteral); pr.Default != nil && !isNull {
+					return p.syntaxErrorAtNode(pr.Default)
 				}
 			}
 		}

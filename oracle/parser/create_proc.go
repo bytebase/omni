@@ -310,12 +310,19 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 		if err := p.checkCharsetSources(stmt.Parameters, stmt.ReturnType); err != nil {
 			return err
 		}
-		// RESULT_CACHE takes no OUT or IN OUT parameter (PLS-00999 on
-		// Oracle 23ai, documented among the clause's restrictions).
-		if resultCacheTok != nil && stmt.Parameters != nil {
-			for _, item := range stmt.Parameters.Items {
-				if pr, ok := item.(*nodes.Parameter); ok && strings.Contains(pr.Mode, "OUT") {
-					return p.syntaxErrorAtTok(*resultCacheTok)
+		// RESULT_CACHE takes no OUT or IN OUT parameter, and no parameter or
+		// result of a LOB, BFILE, or REF CURSOR type (PLS-00999 on Oracle
+		// 23ai, documented among the clause's restrictions). Object and
+		// record types are left to the engine.
+		if resultCacheTok != nil {
+			if notResultCacheable(stmt.ReturnType) {
+				return p.syntaxErrorAtTok(*resultCacheTok)
+			}
+			if stmt.Parameters != nil {
+				for _, item := range stmt.Parameters.Items {
+					if pr, ok := item.(*nodes.Parameter); ok && (strings.Contains(pr.Mode, "OUT") || notResultCacheable(pr.TypeName)) {
+						return p.syntaxErrorAtTok(*resultCacheTok)
+					}
 				}
 			}
 		}
@@ -484,6 +491,16 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 	}
 }
 
+// notResultCacheable reports whether tn is a predefined type a RESULT_CACHE
+// function cannot take or return: a LOB, BFILE, or SYS_REFCURSOR.
+func notResultCacheable(tn *nodes.TypeName) bool {
+	switch predefinedTypeLead(tn) {
+	case "BLOB", "CLOB", "NCLOB", "BFILE", "SYS_REFCURSOR":
+		return true
+	}
+	return false
+}
+
 // mayBeCharacterType reports whether tn may hold character data: it is not a
 // predefined non-character type (the national character types count as
 // character types) and not a %ROWTYPE record. A SQL macro returns such a
@@ -557,15 +574,10 @@ func (p *Parser) parseOptionalAuthID() (string, error) {
 		return "", nil
 	}
 	p.advance()
+	// CURRENT_USER is one word: Oracle 23ai rejects AUTHID CURRENT and
+	// AUTHID CURRENT USER with PLS-00103.
 	if p.isIdentLikeStr("CURRENT_USER") {
 		p.advance()
-		return "CURRENT_USER", nil
-	}
-	if p.cur.Type == kwCURRENT {
-		p.advance()
-		if p.isIdentLikeStr("USER") {
-			p.advance()
-		}
 		return "CURRENT_USER", nil
 	}
 	if p.isIdentLikeStr("DEFINER") {

@@ -180,3 +180,5 @@ ref_178	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_sma_{run} (a VARCHAR2)
 ref_179	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_qpoly_{run} (t TABLE) RETURN TABLE PIPELINED ROW "POLYMORPHIC" USING omni_pkg;	quoted POLYMORPHIC is an identifier
 ref_180	plsql_body	reject	CREATE OR REPLACE PACKAGE omni_bad_qcoll_{run} DEFAULT "COLLATION" USING_NLS_COMP AS PROCEDURE p; END;	quoted COLLATION is an identifier
 ref_181	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_qtab_{run} (a "TABLE") IS BEGIN NULL; END;	quoted TABLE names a user type
+ref_182	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_aid_{run} AUTHID CURRENT USER IS BEGIN NULL; END;	AUTHID CURRENT_USER written as two words
+ref_183	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_qaid_{run} AUTHID "CURRENT_USER" IS BEGIN NULL; END;	quoted AUTHID value
