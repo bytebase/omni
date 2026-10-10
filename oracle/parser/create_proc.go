@@ -87,7 +87,7 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 	if parseErr456 != nil {
 		return nil, parseErr456
 	}
-	if err := p.checkCharsetScopes(stmt.Parameters, stmt.Body); err != nil {
+	if err := p.checkCharsetScopes(subprogramName(stmt.Name), stmt.Parameters, nil, stmt.Body); err != nil {
 		return nil, err
 	}
 
@@ -242,7 +242,7 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 	if parseErr461 != nil {
 		return nil, parseErr461
 	}
-	if err := p.checkCharsetScopes(stmt.Parameters, stmt.Body); err != nil {
+	if err := p.checkCharsetScopes(subprogramName(stmt.Name), stmt.Parameters, stmt.ReturnType, stmt.Body); err != nil {
 		return nil, err
 	}
 
@@ -703,14 +703,19 @@ func (p *Parser) parseCreatePackageStmt(start int, orReplace, ifNotExists, editi
 	var parseErr469 error
 
 	// Package declarations/body - collect everything until END
+	savedInBody := p.inPackageBody
+	p.inPackageBody = stmt.IsBody
+	p.typeScopes = append(p.typeScopes, map[string]bool{})
 	stmt.Body, parseErr469 = p.parsePackageBody()
+	p.typeScopes = p.typeScopes[:len(p.typeScopes)-1]
+	p.inPackageBody = savedInBody
 	if parseErr469 !=
 
 		// END [name] ;
 		nil {
 		return nil, parseErr469
 	}
-	if err := p.checkPackageCharsetScopes(stmt.Body); err != nil {
+	if err := p.checkPackageCharsetScopes(subprogramName(stmt.Name), stmt.Body); err != nil {
 		return nil, err
 	}
 	// A package holding a SQL macro has definer's rights: Oracle 23ai

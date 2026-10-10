@@ -498,7 +498,7 @@ func (p *Parser) checkCharsetSources(params *nodes.List, result *nodes.TypeName)
 		// A qualified source (k.c%CHARSET) names an item outside the
 		// heading, even when a quoted formal is spelled "K.C" (Oracle 23ai
 		// compiles that function); a single quoted "K.C" names the formal.
-		if tn == nil || !tn.IsPercCharset || p.qualifiedCharsets[tn] {
+		if tn == nil || !tn.IsPercCharset || p.qualifiedCharsets[tn] != nil {
 			return nil
 		}
 		if src, ok := byName[tn.CharacterSet]; ok && !p.mayBeCharacterType(src) {
@@ -516,84 +516,152 @@ func (p *Parser) checkCharsetSources(params *nodes.List, result *nodes.TypeName)
 	return check(result)
 }
 
-// charsetScopes checks the item%CHARSET source of each declaration in a
-// unit against the declarations in scope, innermost first, as Oracle 23ai
-// resolves it: a source of a non-character type is PLS-00550, from a
-// package item, an outer block, or an enclosing subprogram alike, while an
-// inner declaration of the same name shadows the outer one. A unit is
-// walked once, each scope's map filled as its declarations are read.
+// charsetScopes checks the item%CHARSET source of each datatype in a unit
+// against the declarations in scope, as Oracle 23ai resolves it: a source
+// of a non-character type is PLS-00550, whether it is a package item, a
+// variable of an outer block, or a formal of an enclosing subprogram, and
+// whether the datatype belongs to a declaration, a cursor formal, or a
+// subprogram heading. A simple name resolves innermost first, so an inner
+// declaration of the same name shadows the outer one. A source qualified
+// by the name of an enclosing subprogram, package, or labeled block names
+// an item of that scope (p.a). A unit is walked once, each scope's map
+// filled as its declarations are read.
 type charsetScopes struct {
 	p      *Parser
-	scopes []map[string]*nodes.TypeName
+	scopes []charsetScope
 }
 
-// checkCharsetScopes walks a subprogram body (or an anonymous block, with
-// no parameters): the formals and the body's declarations share a scope.
-func (p *Parser) checkCharsetScopes(params *nodes.List, body nodes.StmtNode) error {
+// charsetScope is one declaration scope: the name that qualifies its items
+// ("" for none) and the datatype of each item declared so far, nil for an
+// item that is not a typed variable (a cursor, a type, a subprogram), which
+// shadows an outer name without being a source the text can judge.
+type charsetScope struct {
+	name  string
+	items map[string]*nodes.TypeName
+}
+
+// checkCharsetScopes walks a standalone or type-body subprogram named name:
+// its heading, then its body.
+func (p *Parser) checkCharsetScopes(name string, params *nodes.List, result *nodes.TypeName, body nodes.StmtNode) error {
 	c := &charsetScopes{p: p}
-	return c.subprogram(params, body)
+	return c.subprogram(name, params, result, body)
+}
+
+// checkBlockCharsetScopes walks an anonymous block or a trigger body.
+func (p *Parser) checkBlockCharsetScopes(b *nodes.PLSQLBlock) error {
+	if b == nil {
+		return nil
+	}
+	c := &charsetScopes{p: p}
+	return c.block(b)
 }
 
 // checkPackageCharsetScopes walks the items of a package specification or
-// body, and the subprograms among them.
-func (p *Parser) checkPackageCharsetScopes(items *nodes.List) error {
+// body named name, and the subprograms among them.
+func (p *Parser) checkPackageCharsetScopes(name string, items *nodes.List) error {
 	if items == nil {
 		return nil
 	}
 	c := &charsetScopes{p: p}
-	c.push()
+	c.push(name)
 	return c.declarations(items)
 }
 
-func (c *charsetScopes) push() {
-	c.scopes = append(c.scopes, map[string]*nodes.TypeName{})
+func (c *charsetScopes) push(name string) {
+	c.scopes = append(c.scopes, charsetScope{name: name, items: map[string]*nodes.TypeName{}})
 }
 
 func (c *charsetScopes) pop() {
 	c.scopes = c.scopes[:len(c.scopes)-1]
 }
 
-// declare enters name in the innermost scope; tn is nil for an item that
-// is not a typed variable (a cursor, a type, a subprogram), which shadows
-// an outer name without being a %CHARSET source the text can judge.
 func (c *charsetScopes) declare(name string, tn *nodes.TypeName) {
-	c.scopes[len(c.scopes)-1][name] = tn
+	c.scopes[len(c.scopes)-1].items[name] = tn
 }
 
-func (c *charsetScopes) check(tn *nodes.TypeName) error {
-	if tn == nil || !tn.IsPercCharset || c.p.qualifiedCharsets[tn] {
-		return nil
+// lookup resolves an item%CHARSET source to the datatype of the item it
+// names, if the unit declares one. A qualifier is first sought as an item
+// (a record, say, whose field the text does not show), then as the name of
+// the scope itself, innermost first.
+func (c *charsetScopes) lookup(tn *nodes.TypeName) *nodes.TypeName {
+	parts := c.p.qualifiedCharsets[tn]
+	if parts == nil {
+		parts = []string{tn.CharacterSet}
 	}
 	for i := len(c.scopes) - 1; i >= 0; i-- {
-		if src, ok := c.scopes[i][tn.CharacterSet]; ok {
-			if src != nil && !c.p.mayBeCharacterType(src) {
-				return c.p.syntaxErrorAtType(tn)
-			}
+		scope := c.scopes[i]
+		src, ok := scope.items[parts[0]]
+		switch {
+		case len(parts) == 1 && ok:
+			return src
+		case len(parts) == 2 && ok:
 			return nil
+		case len(parts) == 2 && scope.name == parts[0]:
+			return scope.items[parts[1]]
 		}
 	}
 	return nil
 }
 
-func (c *charsetScopes) subprogram(params *nodes.List, body nodes.StmtNode) error {
-	block, ok := body.(*nodes.PLSQLBlock)
-	if !ok || block == nil {
+func (c *charsetScopes) check(tn *nodes.TypeName) error {
+	if tn == nil || !tn.IsPercCharset {
 		return nil
 	}
-	c.push()
-	defer c.pop()
-	if params != nil {
-		for _, item := range params.Items {
-			if pr, ok := item.(*nodes.Parameter); ok {
-				c.declare(pr.Name, pr.TypeName)
-			}
+	if src := c.lookup(tn); src != nil && !c.p.mayBeCharacterType(src) {
+		return c.p.syntaxErrorAtType(tn)
+	}
+	return nil
+}
+
+// formals declares a parameter list in the innermost scope, then checks
+// each parameter's datatype, so a formal may take its character set from
+// another.
+func (c *charsetScopes) formals(params *nodes.List) error {
+	if params == nil {
+		return nil
+	}
+	for _, item := range params.Items {
+		switch f := item.(type) {
+		case *nodes.Parameter:
+			c.declare(f.Name, f.TypeName)
+		case *nodes.PLSQLVarDecl:
+			c.declare(f.Name, f.TypeName)
 		}
 	}
-	return c.blockContents(block)
+	for _, item := range params.Items {
+		var err error
+		switch f := item.(type) {
+		case *nodes.Parameter:
+			err = c.check(f.TypeName)
+		case *nodes.PLSQLVarDecl:
+			err = c.check(f.TypeName)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// subprogram walks a subprogram's heading and, if it has one, its body:
+// the formals and the body's declarations share a scope.
+func (c *charsetScopes) subprogram(name string, params *nodes.List, result *nodes.TypeName, body nodes.StmtNode) error {
+	c.push(name)
+	defer c.pop()
+	if err := c.formals(params); err != nil {
+		return err
+	}
+	if err := c.check(result); err != nil {
+		return err
+	}
+	if block, ok := body.(*nodes.PLSQLBlock); ok && block != nil {
+		return c.blockContents(block)
+	}
+	return nil
 }
 
 func (c *charsetScopes) block(b *nodes.PLSQLBlock) error {
-	c.push()
+	c.push(b.Label)
 	defer c.pop()
 	return c.blockContents(b)
 }
@@ -640,26 +708,40 @@ func (c *charsetScopes) declarations(items *nodes.List) error {
 			}
 			c.declare(d.Name, nil)
 		case *nodes.PLSQLCursorDecl:
+			// A cursor's formals scope its own parameter list; the cursor
+			// name does not qualify them (PLS-00320 on Oracle 23ai).
+			c.push("")
+			err := c.formals(d.Parameters)
+			c.pop()
+			if err != nil {
+				return err
+			}
 			c.declare(d.Name, nil)
 		case *nodes.PLSQLTypeDecl:
 			c.declare(d.Name, nil)
 		case *nodes.CreateProcedureStmt:
-			if d.Name != nil {
-				c.declare(d.Name.Name, nil)
-			}
-			if err := c.subprogram(d.Parameters, d.Body); err != nil {
+			name := subprogramName(d.Name)
+			c.declare(name, nil)
+			if err := c.subprogram(name, d.Parameters, nil, d.Body); err != nil {
 				return err
 			}
 		case *nodes.CreateFunctionStmt:
-			if d.Name != nil {
-				c.declare(d.Name.Name, nil)
-			}
-			if err := c.subprogram(d.Parameters, d.Body); err != nil {
+			name := subprogramName(d.Name)
+			c.declare(name, nil)
+			if err := c.subprogram(name, d.Parameters, d.ReturnType, d.Body); err != nil {
 				return err
 			}
 		}
 	}
 	return nil
+}
+
+// subprogramName returns the unqualified name of a subprogram, "" if none.
+func subprogramName(name *nodes.ObjectName) string {
+	if name == nil {
+		return ""
+	}
+	return name.Name
 }
 
 // tablePseudoType returns the first TABLE or COLUMNS pseudo-type among a

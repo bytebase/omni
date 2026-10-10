@@ -32,10 +32,24 @@ type Parser struct {
 	// parsed may hold; parsePLSQLDatatype sets it for PL/SQL datatypes.
 	typeMods typeModMode
 
-	// qualifiedCharsets records the datatypes whose item%CHARSET source is a
-	// qualified name (k.c), as opposed to one identifier that may itself be
-	// a quoted "K.C".
-	qualifiedCharsets map[*nodes.TypeName]bool
+	// qualifiedCharsets holds the components of each item%CHARSET source
+	// that is a qualified name (k.c), as opposed to one identifier that may
+	// itself be a quoted "K.C".
+	qualifiedCharsets map[*nodes.TypeName][]string
+
+	// typeScopes holds, for each open PL/SQL declaration scope, the names
+	// its TYPE and SUBTYPE declarations have declared so far. Oracle 23ai
+	// lets one redeclare a predefined type name, NUMBER or SYS_REFCURSOR
+	// alike, and the redeclaration then shadows STANDARD's type.
+	typeScopes []map[string]bool
+
+	// inPackageBody is set while a package body's items are parsed: its
+	// specification may redeclare any predefined type name out of sight.
+	inPackageBody bool
+
+	// shadowedTypes records the datatypes spelled as a predefined type
+	// where a redeclaration of that name is, or may be, in scope.
+	shadowedTypes map[*nodes.TypeName]bool
 
 	// inAnonymousBlock is set while a top-level anonymous block is parsed:
 	// Oracle 23ai rejects RESULT_CACHE on any subprogram in one (PLS-00999).
@@ -52,7 +66,7 @@ func (p *Parser) parseAnonymousBlock() (nodes.StmtNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := p.checkCharsetScopes(nil, block); err != nil {
+	if err := p.checkBlockCharsetScopes(block); err != nil {
 		return nil, err
 	}
 	return block, nil

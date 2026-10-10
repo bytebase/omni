@@ -136,6 +136,7 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 	}
 
 	tn.Loc.End = p.prev.End
+	p.noteShadowedType(tn)
 	return tn, nil
 }
 
@@ -231,8 +232,53 @@ var plsqlNonCharacterTypes = map[string]bool{
 // type, t%TYPE, or a quoted name: "NUMBER" may be a user subtype of
 // VARCHAR2, and Oracle 23ai compiles one as a SQL macro result). Multiword
 // predefined types answer their first word: TIMESTAMP WITH [LOCAL] TIME
-// ZONE, INTERVAL DAY|YEAR TO ..., LONG RAW.
+// ZONE, INTERVAL DAY|YEAR TO ..., LONG RAW. A spelling a TYPE or SUBTYPE
+// declaration may shadow answers "" too; see noteShadowedType.
 func (p *Parser) predefinedTypeLead(tn *nodes.TypeName) string {
+	if p.shadowedTypes[tn] {
+		return ""
+	}
+	return p.predefinedTypeSpelling(tn)
+}
+
+// noteShadowedType records tn, just parsed, as shadowed when it spells a
+// predefined type whose name a TYPE or SUBTYPE declaration in an open
+// scope has redeclared, or any predefined type in a package body, whose
+// specification may redeclare one. Oracle 23ai then resolves the name to
+// the user's type: after SUBTYPE sys_refcursor IS NUMBER, a function taking
+// a sys_refcursor may be RESULT_CACHE, and after SUBTYPE number IS
+// VARCHAR2, a number parameter takes CHARACTER SET ANY_CS. A schema-level
+// type of such a name does not shadow STANDARD's.
+func (p *Parser) noteShadowedType(tn *nodes.TypeName) {
+	if len(p.typeScopes) == 0 && !p.inPackageBody {
+		return
+	}
+	lead := p.predefinedTypeSpelling(tn)
+	if lead == "" {
+		return
+	}
+	shadowed := p.inPackageBody
+	for _, scope := range p.typeScopes {
+		shadowed = shadowed || scope[lead]
+	}
+	if shadowed {
+		if p.shadowedTypes == nil {
+			p.shadowedTypes = map[*nodes.TypeName]bool{}
+		}
+		p.shadowedTypes[tn] = true
+	}
+}
+
+// declareTypeName enters the name of a TYPE or SUBTYPE declaration in the
+// innermost open declaration scope.
+func (p *Parser) declareTypeName(name string) {
+	if n := len(p.typeScopes); n > 0 {
+		p.typeScopes[n-1][name] = true
+	}
+}
+
+// predefinedTypeSpelling is predefinedTypeLead without regard to scope.
+func (p *Parser) predefinedTypeSpelling(tn *nodes.TypeName) string {
 	if tn == nil || tn.IsPercType || tn.IsPercRowtype || tn.Names.Len() == 0 {
 		return ""
 	}
@@ -282,7 +328,7 @@ func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse)
 	if err != nil {
 		return err
 	}
-	qualified := false
+	parts := []string{name}
 	for p.cur.Type == '.' {
 		p.advance()
 		if !p.isIdentLike() {
@@ -293,8 +339,9 @@ func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse)
 			return err
 		}
 		name += "." + part
-		qualified = true
+		parts = append(parts, part)
 	}
+	qualified := len(parts) > 1
 	if p.cur.Type == '%' {
 		p.advance()
 		// %CHARSET is an attribute keyword: Oracle 23ai rejects a%"CHARSET".
@@ -305,9 +352,9 @@ func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse)
 		tn.IsPercCharset = true
 		if qualified {
 			if p.qualifiedCharsets == nil {
-				p.qualifiedCharsets = map[*nodes.TypeName]bool{}
+				p.qualifiedCharsets = map[*nodes.TypeName][]string{}
 			}
-			p.qualifiedCharsets[tn] = true
+			p.qualifiedCharsets[tn] = parts
 		}
 	} else if qualified {
 		return p.syntaxErrorAtCur()

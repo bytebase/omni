@@ -8,6 +8,8 @@ import (
 //
 //	[<<label>>] [DECLARE declarations] BEGIN statements [EXCEPTION handlers] END [label] ;
 func (p *Parser) parsePLSQLBlock() (*nodes.PLSQLBlock, error) {
+	p.typeScopes = append(p.typeScopes, map[string]bool{})
+	defer func() { p.typeScopes = p.typeScopes[:len(p.typeScopes)-1] }()
 	start := p.pos()
 	block := &nodes.PLSQLBlock{
 		Loc: nodes.Loc{Start: start},
@@ -133,12 +135,22 @@ func (p *Parser) parsePLSQLDeclaration() (nodes.Node, error) {
 	if p.cur.Type == kwTYPE {
 		next := p.peekNext()
 		if next.Type != kwBODY { // not CREATE TYPE BODY
-			return p.parsePLSQLTypeDecl()
+			decl, err := p.parsePLSQLTypeDecl()
+			if err != nil {
+				return nil, err
+			}
+			p.declareTypeName(decl.Name)
+			return decl, nil
 		}
 	}
 
 	if p.cur.Type == kwSUBTYPE {
-		return p.parsePLSQLSubtypeDecl()
+		decl, err := p.parsePLSQLSubtypeDecl()
+		if err != nil {
+			return nil, err
+		}
+		p.declareTypeName(decl.Name)
+		return decl, nil
 	}
 
 	// Local subprogram declaration or definition. The package-item parser
