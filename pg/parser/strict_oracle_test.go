@@ -68,7 +68,9 @@ const rawParsePrefix = "SELECT 1/0;\n"
 // with, or nil when it accepts it. The statement follows SELECT 1/0 in one
 // simple query: the server parses the whole string before it runs any of
 // it, so a division by zero means the statement parsed, and any other
-// error is the parser's, whatever its SQLSTATE.
+// error is the parser's, whatever its SQLSTATE. The query carries no
+// arguments, which pgx always sends over the simple protocol, the one
+// that takes several statements (pgx v5 Conn.exec).
 func (o *firstSetOracle) rawParse(t *testing.T, sqlStr string) *pgconn.PgError {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(o.ctx, 5*time.Second)
