@@ -62,7 +62,7 @@ func (p *Parser) parseCreateProcedureStmt(start int, orReplace, ifNotExists, edi
 		}
 	}
 
-	if err := p.parseProcedureProperties(stmt); err != nil {
+	if err := p.parseProcedureProperties(stmt, subprogramSchema); err != nil {
 		return nil, err
 	}
 
@@ -211,7 +211,7 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 	parseErr460 :=
 
 		// Optional function properties (can appear in any order before IS/AS)
-		p.parseFunctionProperties(stmt)
+		p.parseFunctionProperties(stmt, subprogramSchema)
 	if parseErr460 !=
 
 		// IS | AS
@@ -255,8 +255,9 @@ func (p *Parser) parseCreateFunctionStmt(start int, orReplace, ifNotExists, edit
 // A type can implement the function: AGGREGATE USING type, or USING type
 // after PIPELINED. The clause list ends there and the function has no IS | AS
 // body; Oracle 23ai rejects a following IS or clause (PLS-00103), USING
-// without PIPELINED (PLS-00624), and AGGREGATE without USING after it.
-func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) error {
+// without PIPELINED (PLS-00624), and AGGREGATE without USING after it. level
+// limits AUTHID, ACCESSIBLE BY, and DEFAULT COLLATION as subprogramLevel says.
+func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level subprogramLevel) error {
 	seen := clauseSeen{}
 	for {
 		switch {
@@ -347,7 +348,7 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) error {
 				}
 				stmt.SqlMacroType = kind
 			}
-		case p.isIdentLikeStr("AUTHID"):
+		case p.isKeywordStr("AUTHID") && level == subprogramSchema:
 			if err := p.firstClause(seen, "AUTHID"); err != nil {
 				return err
 			}
@@ -356,7 +357,7 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) error {
 				return err
 			}
 			stmt.AuthID = authID
-		case p.isIdentLikeStr("ACCESSIBLE"):
+		case p.isKeywordStr("ACCESSIBLE") && level != subprogramMethod:
 			if err := p.firstClause(seen, "ACCESSIBLE BY"); err != nil {
 				return err
 			}
@@ -365,7 +366,7 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) error {
 				return err
 			}
 			stmt.AccessibleBy = list
-		case p.atDefaultCollation():
+		case p.atDefaultCollation() && level == subprogramSchema:
 			if err := p.firstClause(seen, "DEFAULT COLLATION"); err != nil {
 				return err
 			}
@@ -379,15 +380,37 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt) error {
 }
 
 // parseImplementationType parses USING [ schema. ] implementation_type
-// [ @dblink ], the current token at USING.
+// [ @dblink ], the current token at USING. Every part needs its name: Oracle
+// 23ai rejects USING impl. and USING impl@ (PLS-00103), and takes a dotted
+// database link name (impl@lnk.dom).
 func (p *Parser) parseImplementationType(stmt *nodes.CreateFunctionStmt) error {
 	p.advance() // consume USING
-	name, err := p.parseObjectName()
+	name, err := p.parseUnitName()
 	if err != nil {
 		return err
 	}
-	if name == nil || name.Name == "" {
-		return p.syntaxErrorAtCur()
+	if p.cur.Type == '@' {
+		p.advance()
+		if !p.isIdentLike() {
+			return p.syntaxErrorAtCur()
+		}
+		link, err := p.parseIdentifier()
+		if err != nil {
+			return err
+		}
+		for p.cur.Type == '.' {
+			p.advance()
+			if !p.isIdentLike() {
+				return p.syntaxErrorAtCur()
+			}
+			part, err := p.parseIdentifier()
+			if err != nil {
+				return err
+			}
+			link += "." + part
+		}
+		name.DBLink = link
+		name.Loc.End = p.prev.End
 	}
 	stmt.Implementation = name
 	return nil
@@ -610,7 +633,7 @@ func (p *Parser) parsePackageProcDecl() (*nodes.CreateProcedureStmt, error) {
 			return nil, parseErr474
 		}
 	}
-	if err := p.parseProcedureProperties(stmt); err != nil {
+	if err := p.parseProcedureProperties(stmt, subprogramPackaged); err != nil {
 		return nil, err
 	}
 
@@ -679,7 +702,7 @@ func (p *Parser) parsePackageFuncDecl() (*nodes.CreateFunctionStmt, error) {
 	} else {
 		return nil, p.syntaxErrorAtCur()
 	}
-	parseErr479 := p.parseFunctionProperties(stmt)
+	parseErr479 := p.parseFunctionProperties(stmt, subprogramPackaged)
 	if parseErr479 !=
 
 		// Check for IS|AS (definition) or ; (declaration)

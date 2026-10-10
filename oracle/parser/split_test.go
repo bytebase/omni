@@ -441,10 +441,12 @@ func TestSplitPLSQLBlocks(t *testing.T) {
 			name: "function named using",
 			sql: "CREATE FUNCTION using RETURN NUMBER IS BEGIN RETURN 1; END;\n" +
 				"CREATE FUNCTION g (using NUMBER) RETURN NUMBER IS BEGIN RETURN using; END;\n" +
+				"CREATE FUNCTION h RETURN pipelined.using IS BEGIN RETURN NULL; END;\n" +
 				"SELECT 1 FROM dual;",
 			want: []string{
 				"CREATE FUNCTION using RETURN NUMBER IS BEGIN RETURN 1; END;",
 				"\nCREATE FUNCTION g (using NUMBER) RETURN NUMBER IS BEGIN RETURN using; END;",
+				"\nCREATE FUNCTION h RETURN pipelined.using IS BEGIN RETURN NULL; END;",
 				"\nSELECT 1 FROM dual",
 			},
 		},

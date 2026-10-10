@@ -463,7 +463,7 @@ func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.Creat
 		// (PLS-00103 on Oracle 23ai).
 		return nil, p.syntaxErrorAtCur()
 	}
-	parseErr588 := p.parseFunctionProperties(stmt)
+	parseErr588 := p.parseFunctionProperties(stmt, subprogramMethod)
 	if parseErr588 !=
 
 		// IS | AS

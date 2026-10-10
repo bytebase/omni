@@ -13,6 +13,21 @@ import (
 // clauseSeen records the clauses a heading has used, for the PLS-00371 check.
 type clauseSeen map[string]bool
 
+// subprogramLevel says where a subprogram heading stands, which decides the
+// clauses it takes. On Oracle 23ai AUTHID stands only on a schema-level unit
+// (PLS-00157 on a packaged, nested, or object type method), and ACCESSIBLE
+// BY not on an object type method (PLS-00262). DEFAULT COLLATION is
+// documented for schema-level units only.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/DEFAULT-COLLATION-clause.html
+type subprogramLevel int
+
+const (
+	subprogramSchema   subprogramLevel = iota // CREATE PROCEDURE or FUNCTION
+	subprogramPackaged                        // in a package, or nested in a block
+	subprogramMethod                          // an object type method
+)
+
 // firstClause reports a syntax error at the current token, which starts clause,
 // when the heading already has that clause.
 func (p *Parser) firstClause(seen clauseSeen, clause string) error {
@@ -125,16 +140,17 @@ func (p *Parser) atDefaultCollation() bool {
 }
 
 // parseProcedureProperties parses the clauses between a procedure's
-// parameters and its IS | AS or ';', in any order.
+// parameters and its IS | AS or ';', in any order; level limits them as
+// subprogramLevel says.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/CREATE-PROCEDURE-statement.html
 //
 //	[ { invoker_rights_clause | accessible_by_clause | default_collation_clause }... ]
-func (p *Parser) parseProcedureProperties(stmt *nodes.CreateProcedureStmt) error {
+func (p *Parser) parseProcedureProperties(stmt *nodes.CreateProcedureStmt, level subprogramLevel) error {
 	seen := clauseSeen{}
 	for {
 		switch {
-		case p.isIdentLikeStr("AUTHID"):
+		case p.isKeywordStr("AUTHID") && level == subprogramSchema:
 			if err := p.firstClause(seen, "AUTHID"); err != nil {
 				return err
 			}
@@ -143,7 +159,7 @@ func (p *Parser) parseProcedureProperties(stmt *nodes.CreateProcedureStmt) error
 				return err
 			}
 			stmt.AuthID = authID
-		case p.isIdentLikeStr("ACCESSIBLE"):
+		case p.isKeywordStr("ACCESSIBLE") && level != subprogramMethod:
 			if err := p.firstClause(seen, "ACCESSIBLE BY"); err != nil {
 				return err
 			}
@@ -152,7 +168,7 @@ func (p *Parser) parseProcedureProperties(stmt *nodes.CreateProcedureStmt) error
 				return err
 			}
 			stmt.AccessibleBy = list
-		case p.atDefaultCollation():
+		case p.atDefaultCollation() && level == subprogramSchema:
 			if err := p.firstClause(seen, "DEFAULT COLLATION"); err != nil {
 				return err
 			}
@@ -175,7 +191,7 @@ func (p *Parser) parsePackageProperties(stmt *nodes.CreatePackageStmt) error {
 	seen := clauseSeen{}
 	for {
 		switch {
-		case p.isIdentLikeStr("AUTHID"):
+		case p.isKeywordStr("AUTHID"):
 			if err := p.firstClause(seen, "AUTHID"); err != nil {
 				return err
 			}
@@ -184,7 +200,7 @@ func (p *Parser) parsePackageProperties(stmt *nodes.CreatePackageStmt) error {
 				return err
 			}
 			stmt.AuthID = authID
-		case p.isIdentLikeStr("ACCESSIBLE"):
+		case p.isKeywordStr("ACCESSIBLE"):
 			if err := p.firstClause(seen, "ACCESSIBLE BY"); err != nil {
 				return err
 			}
@@ -333,18 +349,19 @@ func (p *Parser) parseResultCacheReliesOn() (*nodes.List, error) {
 	p.advance()
 	list := &nodes.List{}
 	for p.cur.Type != ')' {
-		name, err := p.parseObjectName()
+		// A ',' needs a data source after it: RELIES_ON (t1,) is PLS-00103.
+		name, err := p.parseUnitName()
 		if err != nil {
 			return nil, err
-		}
-		if name == nil || name.Name == "" {
-			return nil, p.syntaxErrorAtCur()
 		}
 		list.Items = append(list.Items, name)
 		if p.cur.Type != ',' {
 			break
 		}
 		p.advance()
+		if p.cur.Type == ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 	if p.cur.Type != ')' {
 		return nil, p.syntaxErrorAtCur()

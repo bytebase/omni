@@ -164,3 +164,8 @@ ref_162	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_len_{run} (p VARC
 ref_163	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_ret_{run} RETURN NUMBER(5) IS BEGIN RETURN 1; END;	constrained result type
 ref_164	plsql	reject	DECLARE CURSOR c (q VARCHAR2(10)) IS SELECT 1 FROM dual; BEGIN NULL; END;	constrained cursor parameter type
 ref_165	plsql_body	accept	CREATE OR REPLACE PROCEDURE omni_unc_{run} (p TIMESTAMP WITH TIME ZONE, q INTERVAL DAY TO SECOND, r LONG RAW, s RAW) IS BEGIN NULL; END;	unconstrained parameter types
+ref_166	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_ro_{run} RETURN NUMBER RESULT_CACHE RELIES_ON (omni_t1,) IS BEGIN RETURN 1; END;	RELIES_ON with a trailing comma
+ref_167	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_bad_qab_{run} "ACCESSIBLE" BY (omni_x) IS BEGIN NULL; END;	quoted ACCESSIBLE is an identifier, not the clause
+ref_168	plsql_body	reject	CREATE OR REPLACE FUNCTION omni_bad_impl_{run} (x NUMBER) RETURN NUMBER AGGREGATE USING omni_impl.;	implementation type with an empty name part
+ref_169	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_ptfb_{run} (t TABLE) RETURN TABLE PIPELINED ROW POLYMORPHIC IS BEGIN RETURN NULL; END;	polymorphic table function with a body
+ref_170	plsql_body	accept	CREATE OR REPLACE FUNCTION omni_retdt_{run} RETURN pipelined.using IS BEGIN RETURN NULL; END;	result datatype named pipelined.using

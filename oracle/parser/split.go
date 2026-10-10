@@ -205,10 +205,14 @@ type splitPLSQLFrame struct {
 	// callSpec marks an implementation that is a call spec: it has no END,
 	// and its ';' ends it.
 	callSpec bool
-	// afterReturn marks a function head past its RETURN, where the clause
-	// list starts; implClause marks AGGREGATE or PIPELINED in that list,
-	// after which USING names an implementation type.
+	// afterReturn marks a function head past its RETURN; returnType marks
+	// the datatype's first word, which no clause follows yet; afterDot marks
+	// a token after '.', a name part. implClause marks AGGREGATE or
+	// PIPELINED in the clause list, after which USING names an
+	// implementation type.
 	afterReturn bool
+	returnType  bool
+	afterDot    bool
 	implClause  bool
 }
 
@@ -488,6 +492,10 @@ func (s *splitState) observeSubprogramHead(top *splitPLSQLFrame, tok Token) {
 			}
 		}
 	case !top.isAs:
+		afterDot := top.afterDot
+		top.afterDot = tok.Type == '.'
+		inType := top.returnType
+		top.returnType = false
 		switch {
 		case tok.Type == '(':
 			top.headDepth++
@@ -501,6 +509,10 @@ func (s *splitState) observeSubprogramHead(top *splitPLSQLFrame, tok Token) {
 			s.callSpecStarted = true
 		case tok.Type == kwRETURN:
 			top.afterReturn = true
+			top.returnType = true
+		case inType || afterDot:
+			// The first word of the result datatype, or a name part after
+			// '.': RETURN pipelined.using names a type.
 		case top.afterReturn && (tok.Type == kwPIPELINED || tok.Type == tokIDENT && tok.Str == "AGGREGATE"):
 			top.implClause = true
 		case tok.Type == kwUSING && top.implClause && len(s.frames) == 1:
