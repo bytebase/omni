@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -350,7 +352,10 @@ func (p *Parser) checkColumnNames(list *nodes.List) error {
 	}
 	for _, item := range list.Items {
 		ref, ok := item.(*nodes.ColumnRef)
-		if !ok || ref.Table != "" || ref.Schema != "" || ref.Column == "*" || ref.OuterJoin {
+		quoted := ok && ref.Loc.Start >= 0 && ref.Loc.Start < len(p.source) && p.source[ref.Loc.Start] == '"'
+		// A quoted "*" names a column (Oracle 23ai compiles HASH ("*"));
+		// only the unquoted * is the wildcard.
+		if !ok || ref.Table != "" || ref.Schema != "" || (ref.Column == "*" && !quoted) || ref.OuterJoin {
 			return p.syntaxErrorAtNode(item)
 		}
 	}
@@ -481,7 +486,10 @@ func (p *Parser) checkCharsetSources(params *nodes.List, result *nodes.TypeName)
 		}
 	}
 	check := func(tn *nodes.TypeName) error {
-		if tn == nil || !tn.IsPercCharset {
+		// A dotted source (k.c%CHARSET) names an item outside the heading,
+		// even when a quoted formal is spelled "K.C": Oracle 23ai compiles
+		// that function.
+		if tn == nil || !tn.IsPercCharset || strings.Contains(tn.CharacterSet, ".") {
 			return nil
 		}
 		if src, ok := byName[tn.CharacterSet]; ok && !p.mayBeCharacterType(src.TypeName) {

@@ -321,17 +321,19 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 				return p.syntaxErrorAtTok(*resultCacheTok)
 			}
 		}
-		// RESULT_CACHE takes no OUT or IN OUT parameter, and no parameter or
-		// result of a LOB, BFILE, or REF CURSOR type (PLS-00999 on Oracle
-		// 23ai, documented among the clause's restrictions). Object and
-		// record types are left to the engine.
+		// RESULT_CACHE takes no OUT or IN OUT parameter, no parameter or
+		// result of a LOB, BFILE, or REF CURSOR type, and no %ROWTYPE record
+		// parameter (PLS-00999 on Oracle 23ai, documented among the clause's
+		// restrictions); a %ROWTYPE result compiles. Object types are left
+		// to the engine.
 		if resultCacheTok != nil {
 			if p.notResultCacheable(stmt.ReturnType) {
 				return p.syntaxErrorAtTok(*resultCacheTok)
 			}
 			if stmt.Parameters != nil {
 				for _, item := range stmt.Parameters.Items {
-					if pr, ok := item.(*nodes.Parameter); ok && (strings.Contains(pr.Mode, "OUT") || p.notResultCacheable(pr.TypeName)) {
+					if pr, ok := item.(*nodes.Parameter); ok && (strings.Contains(pr.Mode, "OUT") || p.notResultCacheable(pr.TypeName) ||
+						(pr.TypeName != nil && pr.TypeName.IsPercRowtype)) {
 						return p.syntaxErrorAtTok(*resultCacheTok)
 					}
 				}
