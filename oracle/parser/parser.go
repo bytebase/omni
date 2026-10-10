@@ -22,6 +22,11 @@ type Parser struct {
 	prev    Token  // previous token (for error reporting)
 	nextBuf Token  // buffered next token for 2-token lookahead
 	hasNext bool   // whether nextBuf is valid
+
+	// caseColumns holds the offsets of CASE tokens parseCaseOrColumn has
+	// found to name a column, so a reparse after a failed probe does not
+	// probe the same CASE again.
+	caseColumns map[int]bool
 }
 
 // Parse parses a SQL string into an AST list.

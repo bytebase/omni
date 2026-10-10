@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bytebase/omni/oracle/ast"
 )
@@ -507,5 +508,30 @@ func TestParseCaseExpressionErrorPosition(t *testing.T) {
 				t.Fatalf("error at %d (%q), want %d (%q)", pe.Position, tt.sql[pe.Position:], want, tt.near)
 			}
 		})
+	}
+}
+
+// TestParseNestedCaseStaysFast guards parseCaseOrColumn against reparsing:
+// a CASE whose selector is another simple CASE, and a column named CASE
+// compared with an operand holding another such column, each nested 60
+// deep. Parsing either twice per level is exponential (seconds by 20 levels);
+// both take milliseconds.
+func TestParseNestedCaseStaysFast(t *testing.T) {
+	const depth = 60
+	selector := "1"
+	column := "'1%'"
+	for i := 0; i < depth; i++ {
+		selector = "CASE " + selector + " WHEN 1 THEN 1 END"
+		column = "case LIKEC (" + column + ")"
+	}
+	for _, sql := range []string{
+		"SELECT " + selector + " FROM dual",
+		"SELECT a FROM t WHERE " + column,
+	} {
+		start := time.Now()
+		_, _ = Parse(sql)
+		if elapsed := time.Since(start); elapsed > 5*time.Second {
+			t.Fatalf("parsing %d nested CASE levels took %s: %.60q...", depth, elapsed, sql)
+		}
 	}
 }

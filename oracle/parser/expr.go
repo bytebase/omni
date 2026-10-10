@@ -599,10 +599,7 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		return p.parseParenExpr()
 
 	case kwCASE:
-		if p.caseNamesColumn() {
-			return p.parseIdentExpr()
-		}
-		return p.parseCaseExpr()
+		return p.parseCaseOrColumn()
 
 	// CAST, DECODE, and INTERVAL are not reserved; without the '(' or the
 	// string literal that opens the function or literal, they name a column.
@@ -688,23 +685,38 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 	}
 }
 
-// caseNamesColumn reports whether CASE at the current token is a column
-// reference rather than a CASE expression. Oracle does not reserve CASE: it
-// reads a CASE expression when WHEN follows (searched CASE) or when an
-// expression follows and is itself followed by WHEN (simple CASE, whose
-// selector may be any expression, Boolean ones included in 23ai), and a
-// column otherwise (ORDER BY case NULLS FIRST, WHERE case LIKEC 'x%'). The
-// selector is parsed on a probe whose state is then discarded, so a CASE
-// expression is parsed once more for real and keeps its own errors.
-func (p *Parser) caseNamesColumn() bool {
+// parseCaseOrColumn parses CASE as Oracle reads it, since Oracle does not
+// reserve the word: a CASE expression when WHEN follows it (searched CASE) or
+// when an expression follows and is itself followed by WHEN (simple CASE,
+// whose selector may be any expression, Boolean ones included in 23ai), and
+// a column named CASE otherwise (ORDER BY case NULLS FIRST,
+// WHERE case LIKEC 'x%').
+//
+// The selector is parsed once. When WHEN follows, it is kept and the CASE
+// expression continues from there, so nested CASE selectors stay linear and
+// errors inside the expression keep their positions. Otherwise the parser
+// state is restored and the offset recorded in caseColumns, so the reparse
+// of what follows does not probe this CASE again.
+func (p *Parser) parseCaseOrColumn() (nodes.ExprNode, error) {
+	start := p.pos()
 	if p.peekNext().Type == kwWHEN {
-		return false
+		return p.parseCaseExpr()
+	}
+	if p.caseColumns[start] {
+		return p.parseIdentExpr()
 	}
 	saved := p.saveState()
-	defer p.restoreState(saved)
 	p.advance() // consume CASE
 	selector, err := p.parseExpr()
-	return err != nil || selector == nil || p.cur.Type != kwWHEN
+	if err == nil && selector != nil && p.cur.Type == kwWHEN {
+		return p.parseCaseWhens(start, selector)
+	}
+	p.restoreState(saved)
+	if p.caseColumns == nil {
+		p.caseColumns = make(map[int]bool)
+	}
+	p.caseColumns[start] = true
+	return p.parseIdentExpr()
 }
 
 // keepsConstructBeforeOuterJoin reports the non-reserved keywords Oracle
@@ -1687,22 +1699,30 @@ func (p *Parser) parseCaseExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume CASE
 
-	ce := &nodes.CaseExpr{
-		Whens: &nodes.List{},
-		Loc:   nodes.Loc{Start: start},
-	}
-
 	// Simple CASE: CASE expr WHEN ...
 	// Searched CASE: CASE WHEN ...
+	var arg nodes.ExprNode
 	if p.cur.Type != kwWHEN {
 		var parseErr730 error
-		ce.Arg, parseErr730 = p.parseExpr()
+		arg, parseErr730 = p.parseExpr()
 		if parseErr730 != nil {
 			return nil, parseErr730
 		}
-		if ce.Arg == nil {
+		if arg == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
+	}
+	return p.parseCaseWhens(start, arg)
+}
+
+// parseCaseWhens parses the WHEN ... [ELSE ...] END of a CASE expression that
+// starts at start, after CASE and the selector arg (nil for a searched CASE)
+// have been consumed.
+func (p *Parser) parseCaseWhens(start int, arg nodes.ExprNode) (nodes.ExprNode, error) {
+	ce := &nodes.CaseExpr{
+		Arg:   arg,
+		Whens: &nodes.List{},
+		Loc:   nodes.Loc{Start: start},
 	}
 
 	for p.cur.Type == kwWHEN {
