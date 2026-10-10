@@ -138,3 +138,10 @@ ref_136	plsql	reject	BEGIN LOCK t IN EXCLUSIVE MODE; END;	LOCK without TABLE in 
 ref_137	dml	reject	LOCK t IN EXCLUSIVE MODE	LOCK without TABLE (ORA-00966)
 ref_138	plsql	reject	DECLARE v VARCHAR2(CAST(1 AS NUMBER(foo))); BEGIN NULL; END;	SQL datatype nested in a PL/SQL type length
 ref_139	plsql	reject	DECLARE SUBTYPE s IS PLS_INTEGER RANGE 1 .. ; BEGIN NULL; END;	SUBTYPE RANGE without its upper bound expression
+ref_140	dml	reject	LOCK TABLE t IN FOO MODE	unknown lock mode (ORA-01737)
+ref_141	dml	reject	LOCK TABLE t IN SHARE EXCLUSIVE MODE	lock mode words in an invalid order (ORA-01739)
+ref_142	dml	reject	LOCK TABLE t IN EXCLUSIVE MODE WAIT	WAIT without its interval (ORA-30005)
+ref_143	dml	reject	LOCK TABLE t IN EXCLUSIVE MODE WAIT 2.5	WAIT interval that is not an integer (ORA-02017)
+ref_144	dml	reject	LOCK TABLE t PARTITION (p1, p2) IN EXCLUSIVE MODE	PARTITION with more than one name (ORA-01738)
+ref_145	plsql	accept	BEGIN LOCK TABLE t IN SHARE UPDATE MODE WAIT 5; ROLLBACK; END;	LOCK TABLE with WAIT in a block
+ref_146	plsql	reject	BEGIN LOCK TABLE t IN FOO MODE; END;	unknown lock mode in a block

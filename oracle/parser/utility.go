@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -77,21 +79,8 @@ func (p *Parser) parseLockTableStmt() (nodes.StmtNode, error) {
 				item.PartitionFor = true
 				p.advance()
 			}
-			if p.cur.Type == '(' {
-				p.advance() // consume '('
-				// Collect partition name/value as a string
-				name := ""
-				for p.cur.Type != ')' && p.cur.Type != tokEOF {
-					if name != "" {
-						name += " "
-					}
-					name += p.cur.Str
-					p.advance()
-				}
-				item.PartitionName = name
-				if p.cur.Type == ')' {
-					p.advance() // consume ')'
-				}
+			if err := p.parseLockPartitionSpec(item); err != nil {
+				return nil, err
 			}
 		}
 
@@ -110,49 +99,123 @@ func (p *Parser) parseLockTableStmt() (nodes.StmtNode, error) {
 	}
 	p.advance()
 
-	// Lock mode: collect words until MODE
-	mode := ""
-	for p.cur.Type != kwMODE && p.cur.Type != tokEOF && p.cur.Type != ';' {
-		if mode != "" {
-			mode += " "
-		}
-		if p.cur.Type == kwSHARE {
-			mode += "SHARE"
-		} else if p.cur.Type == kwROW {
-			mode += "ROW"
-		} else if p.cur.Type == kwEXCLUSIVE {
-			mode += "EXCLUSIVE"
-		} else if p.isIdentLike() {
-			mode += p.cur.Str
-		}
-		p.advance()
+	mode, err := p.parseLockMode()
+	if err != nil {
+		return nil, err
 	}
 	stmt.LockMode = mode
-	if stmt.LockMode == "" {
-		return nil, p.syntaxErrorAtCur()
-	}
 
-	// MODE
-	if p.cur.Type != kwMODE {
-		return nil, p.syntaxErrorAtCur()
-	}
-	p.advance()
-
-	// NOWAIT or WAIT n
+	// NOWAIT or WAIT integer. The interval is an unsigned integer literal:
+	// Oracle 23ai rejects WAIT alone and WAIT -1 (ORA-30005), WAIT 2.5
+	// (ORA-02017), WAIT 1 + 1, and, in PL/SQL, WAIT with a constant.
 	if p.cur.Type == kwNOWAIT {
 		stmt.Nowait = true
 		p.advance()
 	} else if p.cur.Type == kwWAIT {
 		p.advance()
-		var parseErr1152 error
-		stmt.Wait, parseErr1152 = p.parseExpr()
-		if parseErr1152 != nil {
-			return nil, parseErr1152
+		if p.cur.Type != tokICONST {
+			return nil, p.syntaxErrorAtCur()
 		}
+		tok := p.advance()
+		stmt.Wait = &nodes.NumberLiteral{Val: tok.Str, Ival: tok.Ival, Loc: nodes.Loc{Start: tok.Loc, End: tok.End}}
 	}
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseLockPartitionSpec parses the parenthesized part of a LOCK TABLE
+// partition_extension_clause, after PARTITION or SUBPARTITION and an
+// optional FOR:
+//
+//	( partition )                                  item.PartitionFor false
+//	( partition_key_value [, partition_key_value ]... )   item.PartitionFor true
+//
+// Oracle 23ai rejects PARTITION () and PARTITION (p1, p2) (ORA-01738).
+func (p *Parser) parseLockPartitionSpec(item *nodes.LockTableItem) error {
+	if p.cur.Type != '(' {
+		return p.syntaxErrorAtCur()
+	}
+	open := p.advance()
+	if !item.PartitionFor {
+		if !p.isIdentLike() {
+			return p.syntaxErrorAtCur()
+		}
+		name, err := p.parseIdentifier()
+		if err != nil {
+			return err
+		}
+		item.PartitionName = name
+	} else {
+		for {
+			value, err := p.parseExpr()
+			if err != nil {
+				return err
+			}
+			if value == nil {
+				return p.syntaxErrorAtCur()
+			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance()
+		}
+		item.PartitionName = strings.TrimSpace(p.source[open.End:p.cur.Loc])
+	}
+	if p.cur.Type != ')' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
+}
+
+// parseLockMode parses lockmode MODE.
+//
+//	lockmode ::= ROW SHARE | ROW EXCLUSIVE | SHARE UPDATE | SHARE
+//	           | SHARE ROW EXCLUSIVE | EXCLUSIVE
+//
+// Oracle 23ai rejects any other sequence: IN FOO MODE and IN ROW MODE are
+// ORA-01737, IN SHARE EXCLUSIVE MODE is ORA-01739.
+func (p *Parser) parseLockMode() (string, error) {
+	var mode string
+	switch p.cur.Type {
+	case kwROW:
+		p.advance()
+		switch p.cur.Type {
+		case kwSHARE:
+			mode = "ROW SHARE"
+		case kwEXCLUSIVE:
+			mode = "ROW EXCLUSIVE"
+		default:
+			return "", p.syntaxErrorAtCur()
+		}
+		p.advance()
+	case kwSHARE:
+		p.advance()
+		mode = "SHARE"
+		switch p.cur.Type {
+		case kwUPDATE:
+			mode = "SHARE UPDATE"
+			p.advance()
+		case kwROW:
+			p.advance()
+			if p.cur.Type != kwEXCLUSIVE {
+				return "", p.syntaxErrorAtCur()
+			}
+			mode = "SHARE ROW EXCLUSIVE"
+			p.advance()
+		}
+	case kwEXCLUSIVE:
+		mode = "EXCLUSIVE"
+		p.advance()
+	default:
+		return "", p.syntaxErrorAtCur()
+	}
+	if p.cur.Type != kwMODE {
+		return "", p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return mode, nil
 }
 
 // parseCallStmt parses a CALL statement.
