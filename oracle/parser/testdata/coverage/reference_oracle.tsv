@@ -101,3 +101,4 @@ ref_099	select	accept	SELECT a FROM t_kwcol WHERE case LIKEC '1%'	column named C
 ref_100	select	accept	SELECT CASE nulls WHEN 1 THEN 2 END FROM t_kwcol	column named NULLS as a simple CASE selector
 ref_101	select	accept	SELECT CASE likec WHEN 'x' THEN 2 END FROM t_kwcol	column named LIKEC as a simple CASE selector
 ref_102	select	accept	SELECT CASE likec = 'x' WHEN TRUE THEN 1 ELSE 0 END FROM t_kwcol	simple CASE with a Boolean comparison selector
+ref_103	select	accept	SELECT k, j, v FROM (SELECT 1 k, 1 j, 10 v FROM dual) MODEL DIMENSION BY (k, j) MEASURES (v) RULES (v[2, 1] = CASE v[1, 1] WHEN 10 THEN 20 END)	MODEL cell reference as a simple CASE selector

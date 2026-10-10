@@ -722,16 +722,21 @@ func decideCaseTokens(source string, start, end int) map[int]bool {
 	}
 	n := len(toks)
 
-	// closing[i] is the index of the ')' that closes the '(' at i, or n.
+	// closing[i] is the index of the ')' or ']' that closes the '(' or '['
+	// at i (a MODEL cell reference such as s['Mouse Pad', 1998]), or n.
 	closing := make([]int, n)
 	var open []int
 	for i, tok := range toks {
 		switch tok.Type {
-		case '(':
+		case '(', '[':
 			closing[i] = n
 			open = append(open, i)
-		case ')':
-			if len(open) > 0 {
+		case ')', ']':
+			want := '('
+			if tok.Type == ']' {
+				want = '['
+			}
+			if len(open) > 0 && toks[open[len(open)-1]].Type == int(want) {
 				closing[open[len(open)-1]] = i
 				open = open[:len(open)-1]
 			}
@@ -761,7 +766,7 @@ func decideCaseTokens(source string, start, end int) map[int]bool {
 			stop[i] = after(i)
 		case isCaseScanStop(tok):
 			stop[i] = i
-		case tok.Type == '(':
+		case tok.Type == '(' || tok.Type == '[':
 			stop[i] = after(closing[i])
 		case tok.Type == kwCASE:
 			// s is where the scan for WHEN stops; -1 when the token after
@@ -866,7 +871,7 @@ func expectsOperandAfter(tok Token) bool {
 // isCaseScanStop reports the tokens that end an operand for decideCaseTokens.
 func isCaseScanStop(tok Token) bool {
 	switch tok.Type {
-	case kwWHEN, kwTHEN, kwELSE, kwEND, ')', ',', ';',
+	case kwWHEN, kwTHEN, kwELSE, kwEND, ')', ']', ',', ';',
 		kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwUNION, kwINTERSECT,
 		kwMINUS, kwINTO, kwAS, kwCONNECT, kwSTART, kwSET, kwVALUES, kwFOR:
 		return true
