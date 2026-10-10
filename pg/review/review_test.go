@@ -155,6 +155,7 @@ func TestReview(t *testing.T) {
 		{
 			name:    "require is null looks at predicates only",
 			sql:     "SELECT a = NULL AS c, CASE WHEN b = NULL THEN 1 END, CASE d WHEN NULL THEN 1 END, count(*) FILTER (WHERE e = NULL), JSON_ARRAYAGG(x) FILTER (WHERE ee = NULL), (SELECT f = NULL FROM u WHERE g = NULL) FROM t JOIN u ON h = NULL WHERE i IN (SELECT j = NULL FROM v WHERE k = NULL) GROUP BY 1 HAVING l = NULL;\nCREATE TABLE n (x int CHECK (x <> NULL)); CREATE INDEX i ON t (a) WHERE m = NULL; INSERT INTO t VALUES (1) ON CONFLICT (a) WHERE o = NULL DO UPDATE SET a = 1 WHERE p = NULL; UPDATE t SET q = NULL WHERE r = NULL;\nCREATE TABLE d (a boolean DEFAULT (NULL = NULL), b boolean GENERATED ALWAYS AS (NULL = NULL) STORED); CREATE TRIGGER tg BEFORE UPDATE ON t FOR EACH ROW WHEN (NEW.s = NULL) EXECUTE FUNCTION f(); CREATE PUBLICATION pub FOR TABLE t WHERE (u = NULL);\nSELECT 1 WHERE (SELECT v = NULL FROM t LIMIT 1) AND NOT (SELECT w = NULL FROM t) OR (SELECT x = NULL FROM t) IS TRUE OR y = (SELECT z = NULL FROM t) OR EXISTS (SELECT aa = NULL FROM t) OR (SELECT bb = NULL FROM t WHERE cc = NULL) OR COALESCE((SELECT dd = NULL FROM t), false) OR (SELECT ee = NULL FROM t)::boolean;",
+			opts:    review.Options{Rules: []review.Rule{review.RequireIsNull}},
 			targets: 1,
 			want: func(t *testing.T, sql string) []finding {
 				var out []finding

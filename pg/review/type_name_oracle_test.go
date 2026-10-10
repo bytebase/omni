@@ -21,7 +21,7 @@ import (
 // when the search path finds a type of that name before pg_catalog.
 func TestTypeNameMatchesFormatType(t *testing.T) {
 	ctx := context.Background()
-	db := startTypeNameOracle(t)
+	db := startPostgres(t)
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		t.Fatalf("conn: %v", err)
@@ -94,7 +94,8 @@ func assertFormatType(t *testing.T, conn *sql.Conn, spellings []string) {
 	}
 }
 
-func startTypeNameOracle(t *testing.T) *sql.DB {
+// startPostgres starts the PostgreSQL the oracle tests of this package ask.
+func startPostgres(t *testing.T) *sql.DB {
 	t.Helper()
 	ctx := context.Background()
 	var container *tcpg.PostgresContainer
@@ -119,7 +120,7 @@ func startTypeNameOracle(t *testing.T) *sql.DB {
 		}
 	}()
 	if setupErr != nil {
-		t.Fatalf("type name oracle unavailable: %v", setupErr)
+		t.Fatalf("postgres oracle unavailable: %v", setupErr)
 	}
 	t.Cleanup(func() { _ = testcontainers.TerminateContainer(container) })
 
