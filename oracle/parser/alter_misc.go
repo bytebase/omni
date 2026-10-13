@@ -3747,12 +3747,16 @@ func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 // comma-separated list, each item with its own ADD, DROP, or MODIFY: Oracle
 // 23ai takes ADD m1, ADD m2 and ADD ATTRIBUTE a, MODIFY ATTRIBUTE b, and
 // rejects a list that mixes methods and attributes or an item without its
-// verb (ORA-06545).
+// verb (ORA-06545). It also rejects, with ORA-22324, a list that adds two MAP
+// or ORDER methods or names one attribute twice: DROP ATTRIBUTE a, DROP
+// ATTRIBUTE a and DROP ATTRIBUTE a, MODIFY ATTRIBUTE a both fail.
 //
 //	{ ADD | DROP } method_spec [, { ADD | DROP } method_spec ]...
 //	| { { ADD | MODIFY } ATTRIBUTE attributes | DROP ATTRIBUTE attributes } [, ...]
 func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 	attributes := false
+	addsComparison := false
+	seenAttrs := map[string]bool{}
 	for i := 0; ; i++ {
 		var verb string
 		switch {
@@ -3787,6 +3791,10 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 				return err
 			}
 			for _, attr := range attrs {
+				if seenAttrs[attr.Name] {
+					return p.syntaxErrorAtNode(attr)
+				}
+				seenAttrs[attr.Name] = true
 				attr.Action = verb
 			}
 			stmt.Attributes = append(stmt.Attributes, attrs...)
@@ -3794,6 +3802,12 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 			method, err := p.parseAlterTypeMethod(verb, subprogramName(stmt.Name))
 			if err != nil {
 				return err
+			}
+			if verb == "ADD" && (method.Kind == "MAP MEMBER" || method.Kind == "ORDER MEMBER") {
+				if addsComparison {
+					return p.syntaxErrorAtNode(method)
+				}
+				addsComparison = true
 			}
 			stmt.Methods = append(stmt.Methods, method)
 		}
@@ -3922,16 +3936,29 @@ func (p *Parser) parseAlterTypeMethod(verb, typeName string) (*nodes.AlterTypeMe
 			if err != nil {
 				return nil, err
 			}
+			if method.Return == nil || method.Return.Names.Len() == 0 {
+				return nil, p.syntaxErrorAtCur()
+			}
 		}
 	}
 	// A method signature takes the heading checks of CREATE TYPE methods:
-	// no TABLE or COLUMNS pseudo-type (PLS-00765), and item%CHARSET from a
-	// character parameter (PLS-00550).
+	// no TABLE or COLUMNS pseudo-type (PLS-00765), item%CHARSET from a
+	// character parameter (PLS-00550), no parameter besides SELF in a MAP
+	// method (PLS-00520), and exactly one in an ORDER method (PLS-00521).
 	if tn := p.tablePseudoType(params, method.Return); tn != nil {
 		return nil, p.syntaxErrorAtType(tn)
 	}
 	if err := p.checkCharsetSources(params, method.Return); err != nil {
 		return nil, err
+	}
+	if method.Kind == "MAP MEMBER" || method.Kind == "ORDER MEMBER" {
+		want := 0
+		if method.Kind == "ORDER MEMBER" {
+			want = 1
+		}
+		if parametersBesidesSelf(params) != want {
+			return nil, p.syntaxErrorAtTok(kindTok)
+		}
 	}
 	method.Loc.End = p.prev.End
 	return method, nil
