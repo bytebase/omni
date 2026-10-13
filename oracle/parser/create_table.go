@@ -1331,7 +1331,10 @@ func (p *Parser) parseIdentityOptions(identity *nodes.IdentityClause) error {
 	return nil
 }
 
-// parseColumnConstraint parses a named column constraint: CONSTRAINT name <constraint_body>.
+// parseColumnConstraint parses a named column constraint: CONSTRAINT name
+// <constraint_body>. A [ NOT ] NULL body is left to the caller; no other
+// clause follows a name (ORA-02253 on Oracle 23ai for CONSTRAINT c DEFAULT
+// 1, ORA-22890 for CONSTRAINT c SCOPE IS t and CONSTRAINT c WITH ROWID).
 func (p *Parser) parseColumnConstraint() (*nodes.ColumnConstraint, error) {
 	start := p.pos()
 	p.advance() // consume CONSTRAINT
@@ -1349,6 +1352,9 @@ func (p *Parser) parseColumnConstraint() (*nodes.ColumnConstraint, error) {
 		return nil, parseErr524
 	}
 	if cc == nil {
+		if p.cur.Type != kwNULL && (p.cur.Type != kwNOT || p.peekNext().Type != kwNULL) {
+			return nil, p.syntaxErrorAtCur()
+		}
 		return nil, nil
 	}
 	cc.Name = name

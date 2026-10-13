@@ -393,9 +393,12 @@ func (p *Parser) checkParallelArguments(stmt *nodes.CreateFunctionStmt, partTok 
 	}
 	// The partitioned argument is a REF CURSOR, strongly typed unless
 	// partitioned BY ANY without a streaming clause (PLS-00627): a
-	// predefined non-cursor type never qualifies, nor SYS_REFCURSOR with
-	// HASH, RANGE, VALUE, ORDER BY, or CLUSTER BY. A named type is left to
-	// the engine.
+	// predefined non-cursor type or an object REF never qualifies, nor
+	// SYS_REFCURSOR with HASH, RANGE, VALUE, ORDER BY, or CLUSTER BY. A
+	// named type is left to the engine.
+	if param.TypeName != nil && param.TypeName.IsRef {
+		return p.syntaxErrorAtTok(partTok)
+	}
 	if name, ok := p.predefinedTypeName(param.TypeName); ok {
 		weakAllowed := name == "SYS_REFCURSOR" && stmt.ParallelSpec.PartitionBy == "ANY" && len(streamToks) == 0
 		if !weakAllowed {

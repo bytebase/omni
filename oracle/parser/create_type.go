@@ -898,9 +898,10 @@ func methodModifiersConflict(mods []string, kind nodes.TypeBodyMemberKind) bool 
 // from the statement's own text: a constructor bears its type's name
 // (PLS-00658), a MAP method takes no parameter besides SELF (PLS-00520), an
 // ORDER method takes exactly one (PLS-00521), and a type has at most one MAP
-// or ORDER method (PLS-00154). hasComparison tracks the last rule. The rules
-// on MAP and ORDER return and parameter types (PLS-00522 through PLS-00524)
-// need the types resolved and are left to the engine. A subtype has no
+// or ORDER method (PLS-00154). hasComparison tracks the last rule. Neither
+// returns a REF (PLS-00522, PLS-00523); the other rules on MAP and ORDER
+// return and parameter types (PLS-00522 through PLS-00524) need the types
+// resolved and are left to the engine. A subtype has no
 // ORDER method: Oracle 23ai rejects one with PLS-00646 under a supertype
 // without MAP or ORDER and with PLS-00154 under one with either. A
 // subtype's MAP method overrides its supertype's: Oracle 23ai rejects one
@@ -940,6 +941,9 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 			return p.syntaxErrorAtTok(tok)
 		}
 		if isFunction && member.Kind == nodes.TYPE_BODY_ORDER && !orderParameterIn(listParameters(fn.Parameters)) {
+			return p.syntaxErrorAtTok(tok)
+		}
+		if isFunction && fn.ReturnType != nil && fn.ReturnType.IsRef {
 			return p.syntaxErrorAtTok(tok)
 		}
 	}

@@ -411,6 +411,41 @@ func TestANSIDatatypes(t *testing.T) {
 	ParseAndCheck(t, "CREATE TABLE r (c REF t WITH ROWID NOT NULL WITH ROWID)")
 	ParseAndCheck(t, "CREATE TABLE r (c REF t, REF (c) WITH ROWID, REF (c) WITH ROWID)")
 	ParseAndCheck(t, "ALTER TABLE r ADD (d REF t WITH ROWID WITH ROWID)")
+	// A constraint name comes before a REFERENCES, NOT NULL, or other
+	// constraint body only (ORA-22890 before SCOPE and WITH ROWID, ORA-02253
+	// before DEFAULT or nothing).
+	for _, sql := range []string{
+		"CREATE TABLE r (c REF t CONSTRAINT x SCOPE IS o)",
+		"CREATE TABLE r (c REF t CONSTRAINT x WITH ROWID)",
+		"CREATE TABLE r (c NUMBER CONSTRAINT x DEFAULT 1)",
+		"CREATE TABLE r (c NUMBER CONSTRAINT x VISIBLE)",
+		"CREATE TABLE r (c NUMBER CONSTRAINT x)",
+		"ALTER TABLE r MODIFY (d CONSTRAINT x DEFAULT 2)",
+	} {
+		ParseShouldFail(t, sql)
+	}
+	for _, sql := range []string{
+		"CREATE TABLE r (c REF t CONSTRAINT x REFERENCES o)",
+		"CREATE TABLE r (c REF t CONSTRAINT x NOT NULL SCOPE IS o)",
+		"CREATE TABLE r (c REF t SCOPE IS o CONSTRAINT x NOT NULL)",
+		"CREATE TABLE r (c NUMBER CONSTRAINT x NULL)",
+		"ALTER TABLE r MODIFY (d CONSTRAINT x NOT NULL)",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	// A MAP or ORDER method returns no REF (PLS-00522, PLS-00523), and a
+	// REF parameter is no REF CURSOR to partition by (PLS-00627).
+	for _, sql := range []string{
+		"CREATE TYPE t AS OBJECT (a NUMBER, ORDER MEMBER FUNCTION o (x t) RETURN REF u)",
+		"CREATE TYPE t AS OBJECT (a NUMBER, MAP MEMBER FUNCTION m RETURN REF u)",
+		"ALTER TYPE t ADD MAP MEMBER FUNCTION m RETURN REF u CASCADE",
+		"ALTER TYPE t ADD ORDER MEMBER FUNCTION o (x t) RETURN REF u CASCADE",
+		"CREATE FUNCTION f (c REF t) RETURN u PIPELINED PARALLEL_ENABLE (PARTITION c BY ANY) IS BEGIN RETURN; END;",
+	} {
+		ParseShouldFail(t, sql)
+	}
+	ParseAndCheck(t, "CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN REF u)")
+	ParseAndCheck(t, "CREATE FUNCTION f (c SYS_REFCURSOR) RETURN u PIPELINED PARALLEL_ENABLE (PARTITION c BY ANY) IS BEGIN RETURN; END;")
 	// A REF column takes a CHECK constraint.
 	ParseAndCheck(t, "CREATE TABLE r (c REF t CHECK (c IS NOT NULL), d REF t CONSTRAINT ck CHECK (1 = 1))")
 	// A column named CONSTRAINT takes a reserved datatype word alone.

@@ -4060,7 +4060,8 @@ func (p *Parser) parseAlterTypeMethod(verb string, verbStart int, typeName strin
 	// no TABLE or COLUMNS pseudo-type (PLS-00765), item%CHARSET from a
 	// character parameter (PLS-00550), no parameter besides SELF in a MAP
 	// method (PLS-00520), and exactly one in an ORDER method (PLS-00521),
-	// with IN mode (PLS-00528).
+	// with IN mode (PLS-00528), and no REF result from either (PLS-00522,
+	// PLS-00523).
 	if tn := p.tablePseudoType(params, method.Return); tn != nil {
 		return nil, p.syntaxErrorAtType(tn)
 	}
@@ -4077,7 +4078,8 @@ func (p *Parser) parseAlterTypeMethod(verb string, verbStart int, typeName strin
 		if method.Kind == "ORDER MEMBER" {
 			want = 1
 		}
-		if parametersBesidesSelf(params) != want || !orderParameterIn(method.Params) {
+		if parametersBesidesSelf(params) != want || !orderParameterIn(method.Params) ||
+			method.Return != nil && method.Return.IsRef {
 			return nil, p.syntaxErrorAtTok(kindTok)
 		}
 	}
