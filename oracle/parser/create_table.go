@@ -1049,7 +1049,13 @@ func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt) error
 					return p.syntaxErrorAtNode(tc)
 				}
 			}
-			c.keys = append(c.keys, target{name: column.Str, attribute: parts != nil})
+			// An attribute is keyed by its names, which a quoted one may
+			// join with dots alike: o."R.X" is not "O.R".x.
+			key := target{name: column.Str}
+			if parts != nil {
+				key = target{name: strings.Join(parts, "\x00"), attribute: true}
+			}
+			c.keys = append(c.keys, key)
 		}
 		constraints = append(constraints, c)
 	}

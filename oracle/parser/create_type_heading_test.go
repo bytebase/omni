@@ -367,6 +367,7 @@ func TestANSIDatatypes(t *testing.T) {
 		// An attribute path is not the quoted column that spells it.
 		`o h, "O.R" NUMBER, SCOPE FOR (o.r) IS x`, `o h, "O.R" NUMBER, REF (o.r) WITH ROWID`,
 		`o h, "O.R" REF t, SCOPE FOR (o.r) IS x, SCOPE FOR ("O.R") IS x`,
+		`o h, "O.R" h, SCOPE FOR (o."R.X") IS x, SCOPE FOR ("O.R".x) IS x`,
 		// An attribute is a REF where a SCOPE or WITH ROWID says so; a
 		// scalar one takes a referenced column list and keys.
 		"o h, FOREIGN KEY (o.n) REFERENCES u (a)", "o h, REF (o.r) WITH ROWID, FOREIGN KEY (o.r) REFERENCES x",
