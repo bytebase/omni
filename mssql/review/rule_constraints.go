@@ -87,7 +87,8 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 					made = append(made, defined{v.Name, c.Name, c.Type})
 				}
 			}
-			if on[review.RequirePrimaryKey] && judgedTable(v.Name) && !createsPrimaryKey(v) && !settledAfter(stmts, pos, v.Name) {
+			// A FileTable has a primary key in its fixed schema.
+			if on[review.RequirePrimaryKey] && judgedTable(v.Name) && !v.IsFileTable && !createsPrimaryKey(v) && !settledAfter(stmts, pos, v.Name) {
 				r.report(review.RequirePrimaryKey, s.index, rangeOf(loc), "creates table "+object(v.Name)+" without a primary key")
 			}
 		case *ast.AlterTableStmt:
@@ -108,6 +109,9 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 					drop(pos, s, v, a, false)
 				}
 			}
+		case *ast.UseStmt:
+			// What the change defined before is of another database.
+			made = nil
 		case *ast.CreateSchemaStmt:
 			if v.Elements != nil {
 				for _, e := range v.Elements.Items {

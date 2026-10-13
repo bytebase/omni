@@ -167,6 +167,11 @@ func TestRequireIsNull(t *testing.T) {
 			want: []finding{{3, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
 		},
 		{
+			name: "IIF",
+			sql:  "SELECT IIF(n = NULL, 1, 0) FROM t;",
+			want: []finding{{0, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
+		},
+		{
 			name: "MERGE conditions",
 			sql:  "MERGE t USING p ON t.id = NULL WHEN MATCHED AND p.note <> NULL THEN UPDATE SET n = 1;",
 			want: []finding{
@@ -208,6 +213,11 @@ func TestDisallowDropObject(t *testing.T) {
 				{0, "DROP SENSITIVITY CLASSIFICATION FROM dbo.t.n", "drops sensitivity classification of dbo.t.n", []int{0}},
 				{1, "DROP SIGNATURE FROM pr BY CERTIFICATE c1", "drops signature of pr", []int{0}},
 			},
+		},
+		{
+			name: "a name with a part left out",
+			sql:  "DROP TABLE shop..t;",
+			want: []finding{{0, "DROP TABLE shop..t", "drops table shop..t", []int{0}}},
 		},
 	})
 }
@@ -261,6 +271,10 @@ func TestDisallowDropConstraint(t *testing.T) {
 			want: []finding{{1, "ck_a", "drops check constraint ck_a of nokey", []int{0}}},
 		},
 		{
+			name: "a constraint the change defined, then a USE",
+			sql:  "ALTER TABLE nokey ADD CONSTRAINT ck_a CHECK (a > 0);\nUSE other;\nALTER TABLE nokey DROP CONSTRAINT ck_a;",
+		},
+		{
 			name: "a unique index, not a constraint",
 			sql:  "ALTER TABLE t DROP CONSTRAINT ux_n;",
 		},
@@ -290,6 +304,10 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name: "a primary key dropped and not added back",
 			sql:  "ALTER TABLE t DROP CONSTRAINT pk_t;\nALTER TABLE p DROP CONSTRAINT pk_p;\nALTER TABLE p ADD CONSTRAINT pk_p2 PRIMARY KEY (id, note);",
 			want: []finding{{0, "pk_t", "removes the primary key of t, and the change adds none back", []int{0}}},
+		},
+		{
+			name: "a FileTable, whose fixed schema has a primary key",
+			sql:  "CREATE TABLE files AS FILETABLE;",
 		},
 		{
 			name: "in a CREATE SCHEMA",

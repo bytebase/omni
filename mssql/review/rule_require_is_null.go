@@ -94,8 +94,8 @@ func isNull(n ast.Node) bool {
 
 // predicates lists the expressions of the statement that are evaluated
 // for truth: WHERE and HAVING, join conditions, MERGE conditions, the
-// conditions of a searched CASE, CHECK expressions, and the conditions of
-// IF and WHILE.
+// conditions of a searched CASE and of IIF, CHECK expressions, and the
+// conditions of IF and WHILE.
 // Subqueries are visited too, so their own predicates are listed.
 func predicates(root ast.Node) []ast.Node {
 	var roots []ast.Node
@@ -130,6 +130,10 @@ func predicates(root ast.Node) []ast.Node {
 				add(v.OnCondition)
 			}
 		case *ast.MergeWhenClause:
+			if v.Condition != nil {
+				add(v.Condition)
+			}
+		case *ast.IifExpr:
 			if v.Condition != nil {
 				add(v.Condition)
 			}

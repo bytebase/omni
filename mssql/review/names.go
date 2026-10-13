@@ -41,10 +41,14 @@ func object(ref *ast.TableRef) string {
 	if ref == nil {
 		return ""
 	}
+	// A part left out below a named one keeps its place: shop..t.
 	var parts []string
 	for _, p := range []string{ref.Server, ref.Database, ref.Schema} {
-		if p != "" {
+		switch {
+		case p != "":
 			parts = append(parts, ident(p))
+		case len(parts) > 0:
+			parts = append(parts, "")
 		}
 	}
 	return strings.Join(append(parts, ident(ref.Object)), ".")
