@@ -775,8 +775,12 @@ func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt, subtype boo
 			}
 			// A method of the kind and signature of an earlier one is
 			// PLS-00305 on Oracle 23ai; a MEMBER and a STATIC method may
-			// share a signature.
-			sig := strconv.Itoa(int(member.Kind)) + " " + p.subprogramSignature(member.Subprog)
+			// share a signature. A MAP or ORDER method is a MEMBER one.
+			kind := member.Kind
+			if kind == nodes.TYPE_BODY_MAP || kind == nodes.TYPE_BODY_ORDER {
+				kind = nodes.TYPE_BODY_MEMBER
+			}
+			sig := strconv.Itoa(int(kind)) + " " + p.subprogramSignature(member.Subprog)
 			if seenMethods[sig] {
 				return p.syntaxErrorAtTok(methodTok)
 			}

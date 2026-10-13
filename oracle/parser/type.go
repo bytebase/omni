@@ -171,11 +171,17 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 
 	case kwREF:
 		// REF [ schema. ] object_type, no attribute (ORA-00911, PLS-00103
-		// for %TYPE) and no third component (ORA-03099).
+		// for %TYPE) and no third component (ORA-03099). A predefined
+		// datatype is no object type (ORA-02302, PLS-00532 for REF NUMBER),
+		// unless a declaration in scope redeclares its name.
 		p.advance() // consume REF
+		nameStart := p.pos()
 		name, err := p.parseUnitName()
 		if err != nil {
 			return nil, err
+		}
+		if name.Schema == "" && nameStart < len(p.source) && p.source[nameStart] != '"' && p.predefinedScalar(name.Name) {
+			return nil, p.syntaxErrorAtNode(name)
 		}
 		if name.Schema != "" {
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: name.Schema})
@@ -427,6 +433,27 @@ func (p *Parser) requireVaryingSize() error {
 	return nil
 }
 
+// predefinedScalar reports whether name, unquoted, spells a predefined
+// datatype that no declaration in scope may redeclare.
+func (p *Parser) predefinedScalar(name string) bool {
+	switch name {
+	case "CHAR", "CHARACTER", "VARCHAR2", "VARCHAR", "STRING", "CLOB", "NATIONAL":
+	default:
+		if !plsqlNonCharacterTypes[name] {
+			return false
+		}
+	}
+	if p.inPackageBody {
+		return false
+	}
+	for _, scope := range p.typeScopes {
+		if scope[name] {
+			return false
+		}
+	}
+	return true
+}
+
 // predefinedTypeLead returns the name of the predefined datatype tn spells,
 // "" for a name the text does not settle (a subtype, a schema-qualified
 // type, t%TYPE, or a quoted name: "NUMBER" may be a user subtype of
@@ -653,8 +680,9 @@ func (p *Parser) parsePLSQLTypeMod(tn *nodes.TypeName) error {
 // there (ORA-00907, or the range errors ORA-00910, ORA-01727, ORA-01728,
 // and ORA-30088). The ranges are checked as Oracle 23ai does: a NUMBER
 // precision is 1 to 38 (ORA-01727) and its scale -84 to 127 (ORA-01728), a
-// FLOAT precision is 1 to 126 (ORA-01724), and a fractional-second or
-// leading-field precision is 0 to 9 (ORA-30088).
+// FLOAT precision is 1 to 126 (ORA-01724), a fractional-second or
+// leading-field precision is 0 to 9 (ORA-30088), and a RAW size is 1 to
+// 32767.
 func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 	if p.cur.Type != '(' {
 		return nil
@@ -677,6 +705,10 @@ func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 			minPrecision, maxPrecision = 1, 126
 		case "TIMESTAMP", "YEAR", "DAY", "SECOND":
 			minPrecision, maxPrecision = 0, 9
+		case "RAW":
+			// ORA-01723 for RAW(0); past 32767, ORA-00910 whatever
+			// MAX_STRING_SIZE.
+			minPrecision, maxPrecision = 1, 32767
 		case "INTEGER", "SMALLINT", "MONTH":
 			return p.syntaxErrorAtCur()
 		}
@@ -740,8 +772,20 @@ func (p *Parser) parseOptionalSizeWithSemantic(tn *nodes.TypeName) error {
 	p.advance() // consume '('
 
 	// size, which SQL requires (ORA-00910 on Oracle 23ai for VARCHAR2()
-	// and VARCHAR2(BYTE))
+	// and VARCHAR2(BYTE)), from 1 (ORA-01723 for CHAR(0)) to 2000 for a
+	// fixed-length type and 32767 for a varying one (ORA-00910), whatever
+	// MAX_STRING_SIZE and the length semantics
 	if p.cur.Type != tokICONST {
+		return p.syntaxErrorAtCur()
+	}
+	maxSize := int64(32767)
+	if word, ok := tn.Names.Items[tn.Names.Len()-1].(*nodes.String); ok {
+		switch word.Str {
+		case "CHAR", "CHARACTER", "NCHAR":
+			maxSize = 2000
+		}
+	}
+	if p.cur.Ival < 1 || p.cur.Ival > maxSize {
 		return p.syntaxErrorAtCur()
 	}
 	tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.Integer{Ival: p.cur.Ival})

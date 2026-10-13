@@ -195,6 +195,9 @@ func TestCreateTypeHeading(t *testing.T) {
 		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER, MEMBER FUNCTION f RETURN NUMBER)",
 		"CREATE TYPE c UNDER p (MEMBER FUNCTION f RETURN NUMBER, MEMBER FUNCTION f RETURN NUMBER)",
 		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'A', MEMBER FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME 'B')",
+		// A MAP or ORDER method is a MEMBER one.
+		"CREATE TYPE t AS OBJECT (a NUMBER, MAP MEMBER FUNCTION f RETURN NUMBER, MEMBER FUNCTION f RETURN NUMBER)",
+		"CREATE TYPE t AS OBJECT (a NUMBER, ORDER MEMBER FUNCTION f (o t) RETURN NUMBER, MEMBER FUNCTION f (o t) RETURN NUMBER)",
 		// A constructor is FINAL and overrides nothing (PLS-00169).
 		"CREATE TYPE t AS OBJECT (a NUMBER, NOT FINAL CONSTRUCTOR FUNCTION t RETURN SELF AS RESULT) NOT FINAL",
 		"CREATE TYPE t AS OBJECT (a NUMBER, OVERRIDING CONSTRUCTOR FUNCTION t RETURN SELF AS RESULT) NOT FINAL",
@@ -276,6 +279,29 @@ func TestANSIDatatypes(t *testing.T) {
 	// DOUBLE takes PRECISION (ORA-02000, PLS-00103).
 	ParseShouldFail(t, "CREATE TABLE t (x DOUBLE)")
 	ParseShouldFail(t, "DECLARE x DOUBLE; BEGIN NULL; END;")
+	// A MAP method and a STATIC one may share a signature.
+	ParseAndCheck(t, "CREATE TYPE t AS OBJECT (a NUMBER, MAP MEMBER FUNCTION f RETURN NUMBER, STATIC FUNCTION f RETURN NUMBER)")
+	// A REF targets no predefined datatype (ORA-02302, PLS-00532) but one a
+	// declaration in scope redeclares.
+	for _, datatype := range []string{"REF NUMBER", "REF DATE", "REF VARCHAR2", "REF BLOB"} {
+		ParseShouldFail(t, "CREATE TABLE t (x "+datatype+")")
+	}
+	for _, datatype := range []string{"REF DATE", "REF PLS_INTEGER", "REF SYS_REFCURSOR"} {
+		ParseShouldFail(t, "DECLARE x "+datatype+"; BEGIN NULL; END;")
+	}
+	ParseShouldFail(t, "CREATE TYPE t AS OBJECT (x REF NUMBER)")
+	ParseAndCheck(t, "CREATE TABLE t (x REF s.number_t, y REF date_t)")
+	// A SQL size is 1 or more (ORA-01723) and at most 2000 for a fixed-length
+	// type, 32767 for a varying one or RAW (ORA-00910).
+	ParseAndCheck(t, "CREATE TABLE t (a CHAR(2000), b NCHAR(1000), c CHAR(2000 CHAR), d VARCHAR2(1), e RAW(1))")
+	for _, datatype := range []string{
+		"CHAR(0)", "CHARACTER(0)", "CHARACTER VARYING(0)", "NATIONAL CHARACTER VARYING(0)", "VARCHAR2(0)", "NCHAR(0)",
+		"NVARCHAR2(0)", "RAW(0)", "CHAR(2001)", "CHAR(2001 CHAR)", "NCHAR(2001)", "VARCHAR2(32768)", "VARCHAR2(32768 CHAR)",
+		"NVARCHAR2(32768)", "RAW(32768)",
+	} {
+		ParseShouldFail(t, "CREATE TABLE t (x "+datatype+")")
+		ParseShouldFail(t, "SELECT CAST('a' AS "+datatype+") FROM dual")
+	}
 	// DEC is DECIMAL's ANSI spelling, in SQL and PL/SQL.
 	ParseAndCheck(t, "CREATE TABLE t (x DEC(10,2), y DEC, z DEC(5), w DEC(*,2))")
 	ParseAndCheck(t, "DECLARE x DEC(10,2); BEGIN NULL; END;")
