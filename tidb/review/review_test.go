@@ -110,6 +110,7 @@ func shop() *metadata.DatabaseSchemaMetadata {
 					Indexes: []*metadata.IndexMetadata{{Name: "uk_email", Unique: true, Expressions: []string{"email"}}},
 				},
 			},
+			Views: []*metadata.ViewMetadata{{Name: "pv"}},
 		}},
 	}
 }
@@ -274,6 +275,10 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:  "CREATE UNIQUE INDEX ux ON T (c);\nDROP INDEX ux ON t;\nCREATE PROCEDURE pr() CREATE UNIQUE INDEX uy ON nokey (a);\nDROP INDEX uy ON nokey;",
 		},
 		{
+			name: "CREATE UNIQUE INDEX IF NOT EXISTS, which may leave the index as it was",
+			sql:  "CREATE UNIQUE INDEX IF NOT EXISTS idx_n ON t (n);\nDROP INDEX idx_n ON t;",
+		},
+		{
 			name: "an index of a table CREATE TABLE IF NOT EXISTS leaves",
 			sql:  "CREATE TABLE IF NOT EXISTS t (id INT);\nDROP INDEX uk_code ON t;",
 			want: []finding{{1, "DROP INDEX uk_code ON t", "drops unique key uk_code of t", []int{0}}},
@@ -397,6 +402,15 @@ func TestPriorBackup(t *testing.T) {
 			sql:    "ALTER TABLE t ADD COLUMN note INT;\nUPDATE t JOIN p USING (note) SET t.n = 1 WHERE t.id = 1;\nUPDATE t JOIN p USING (id) SET t.n = 1 WHERE t.id = 2;\nUPDATE t JOIN (SELECT 1 AS note) d ON d.note = t.id JOIN p USING (note) SET t.n = 1 WHERE t.id = 3;",
 			change: backup,
 			want:   []finding{{1, "UPDATE t JOIN p USING (note) SET t.n = 1 WHERE t.id = 1", "prior backup runs before the change, when column note of t does not exist yet", []int{0}}},
+		},
+		{
+			name:   "a view as the target",
+			sql:    "UPDATE pv SET note = 'z' WHERE id = 1;\nDELETE FROM other.pv WHERE id = 2;",
+			change: backup,
+			want: []finding{
+				{0, "UPDATE pv SET note = 'z' WHERE id = 1", "prior backup copies tables with CREATE TABLE ... LIKE, which refuses view pv", []int{0}},
+				{1, "DELETE FROM other.pv WHERE id = 2", "prior backup does not support an UPDATE or DELETE of other.pv, a table of another database", []int{0}},
+			},
 		},
 		{
 			name:   "statements before a USE",

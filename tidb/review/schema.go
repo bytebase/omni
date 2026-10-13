@@ -73,6 +73,26 @@ func (x schemaIndex) hasRelation(name string) bool {
 	return false
 }
 
+// isView reports whether the synced schema holds a view of the name, and
+// no table of it, in the target's database.
+func (x schemaIndex) isView(name string) bool {
+	if x.schema == nil {
+		return false
+	}
+	view := false
+	for _, s := range x.schema.GetSchemas() {
+		for _, t := range s.GetTables() {
+			if x.same(t.GetName(), name) {
+				return false
+			}
+		}
+		for _, v := range s.GetViews() {
+			view = view || x.same(v.GetName(), name)
+		}
+	}
+	return view
+}
+
 // uniqueIndex reports whether the synced table has a unique or primary
 // index of the name; index names compare without case.
 func uniqueIndex(t *metadata.TableMetadata, name string) (unique, found bool) {

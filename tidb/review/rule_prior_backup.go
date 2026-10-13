@@ -316,6 +316,18 @@ func checkPriorBackupTarget(sql string, stmts []statement, t review.Target, x sc
 	if x.schema == nil {
 		return
 	}
+	// The backup copies a table with CREATE TABLE ... LIKE, which refuses
+	// a view. A name without a database means the task's, whatever a USE
+	// does.
+	for i := range stmts {
+		s := &stmts[i]
+		refs, _ := backupTargets(s)
+		for _, ref := range refs {
+			if x.inDatabase(ref) && x.isView(ref.Name) {
+				r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup copies tables with CREATE TABLE ... LIKE, which refuses view "+table(ref))
+			}
+		}
+	}
 	for i := range stmts[:beforeUse(stmts)] {
 		s := &stmts[i]
 		var loc ast.Loc

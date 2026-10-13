@@ -24,8 +24,9 @@ type droppedIndex struct {
 // the check constraint of the name, and DROP INDEX of the
 // primary key, at top level or inside a routine body. A DROP INDEX of
 // another name drops a unique key when the change made a unique key of
-// that name on the table earlier. One of a name the change has not
-// touched before is returned, for the target's synced schema to settle;
+// that name on the table earlier, without IF NOT EXISTS. One of a name the
+// change has not touched before is returned, for the target's synced
+// schema to settle;
 // one the change created, renamed, or dropped before is not judged, and
 // neither is one on a table the change creates, without IF NOT EXISTS, or
 // renames to, whose indexes are not the synced table's. A table named in
@@ -86,7 +87,7 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 	for pos := range stmts {
 		s := &stmts[pos]
 		switch s.node.(type) {
-		case *ast.CreateFunctionStmt, *ast.CreateTriggerStmt, *ast.CreateEventStmt:
+		case *ast.CreateFunctionStmt, *ast.CreateTriggerStmt, *ast.CreateEventStmt, *ast.AlterEventStmt:
 			body = true
 		default:
 			body = false
@@ -103,7 +104,10 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 					}
 				}
 			case *ast.CreateIndexStmt:
-				touch(v.Table, v.IndexName, v.Unique)
+				// IF NOT EXISTS may leave an index of the name as it was.
+				if !v.IfNotExists {
+					touch(v.Table, v.IndexName, v.Unique)
+				}
 			case *ast.RenameTableStmt:
 				for _, pair := range v.Pairs {
 					if pair != nil {
