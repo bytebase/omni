@@ -893,6 +893,10 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 			if p.isIdentLike() {
 				switch p.cur.Str {
 				case "SCOPE":
+					// The keyword, not a quoted "SCOPE" (ORA-03062 on Oracle 23ai).
+					if !p.isKeywordStr("SCOPE") {
+						return p.syntaxErrorAtCur()
+					}
 					if err := p.parseInlineRefConstraint(col); err != nil {
 						return err
 					}

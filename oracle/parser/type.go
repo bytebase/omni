@@ -249,7 +249,60 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 
 	tn.Loc.End = p.prev.End
 	p.noteShadowedType(tn)
+	if p.typeMods == typeModsPLSQL {
+		if err := p.checkPLSQLTypeMods(tn); err != nil {
+			return nil, err
+		}
+	}
 	return tn, nil
+}
+
+// checkPLSQLTypeMods checks the literal modifiers of a PL/SQL datatype as
+// Oracle 23ai checks a predefined one: a length of 1 to 32767 (PLS-00215,
+// for LONG and LONG RAW too), a NUMBER precision of 1 to 38 (PLS-00216)
+// and scale of -84 to 127 (PLS-00217), a FLOAT precision of 1 to 126
+// (PLS-00623), and a datetime or interval precision of 0 to 9
+// (PLS-00260). A name a declaration may shadow is left to the engine:
+// after SUBTYPE number IS VARCHAR2(10), number(100) compiles.
+func (p *Parser) checkPLSQLTypeMods(tn *nodes.TypeName) error {
+	var bounds [][2]int64
+	switch p.predefinedTypeLead(tn) {
+	case "VARCHAR2", "VARCHAR", "CHAR", "CHARACTER", "NCHAR", "NVARCHAR2", "STRING", "RAW", "LONG":
+		bounds = [][2]int64{{1, 32767}}
+	case "NUMBER", "DECIMAL", "DEC", "NUMERIC":
+		bounds = [][2]int64{{1, 38}, {-84, 127}}
+	case "FLOAT":
+		bounds = [][2]int64{{1, 126}}
+	case "TIMESTAMP", "INTERVAL":
+		bounds = [][2]int64{{0, 9}, {0, 9}}
+	}
+	for i, item := range tn.TypeMods.Items {
+		if i >= len(bounds) {
+			break
+		}
+		v, ok := literalInteger(item)
+		if ok && (v < bounds[i][0] || v > bounds[i][1]) {
+			return p.syntaxErrorAtNode(tn)
+		}
+	}
+	return nil
+}
+
+// literalInteger returns the value of an integer literal, possibly signed.
+func literalInteger(node nodes.Node) (int64, bool) {
+	switch n := node.(type) {
+	case *nodes.Integer:
+		return n.Ival, true
+	case *nodes.NumberLiteral:
+		return n.Ival, !n.IsFloat
+	case *nodes.UnaryExpr:
+		v, ok := literalInteger(n.Operand)
+		if n.Op == "-" {
+			v = -v
+		}
+		return v, ok && (n.Op == "-" || n.Op == "+")
+	}
+	return 0, false
 }
 
 // typeModMode says what the parenthesized modifiers of a datatype (length,
@@ -537,17 +590,18 @@ func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse)
 // parsePLSQLTypeMods parses the parenthesized modifiers of a datatype in a
 // PL/SQL declaration, the current token at '(':
 //
-//	( { expr | * } [ , expr ] )    precision and scale (sized is false)
+//	( expr [ , expr ] )            precision and scale (sized is false)
 //	( expr [ BYTE | CHAR ] )       size and length semantics (sized is true)
 //
 // An integer literal is recorded as *Integer, as in SQL; any other modifier
 // is recorded as its expression.
 func (p *Parser) parsePLSQLTypeMods(tn *nodes.TypeName, sized bool) error {
 	p.advance() // consume '('
-	if !sized && p.cur.Type == '*' {
-		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.String{Str: "*"})
-		p.advance()
-	} else if err := p.parsePLSQLTypeMod(tn); err != nil {
+	// PL/SQL has no NUMBER(*) (PLS-00201 on Oracle 23ai for NUMBER(*, 2)).
+	if p.cur.Type == '*' {
+		return p.syntaxErrorAtCur()
+	}
+	if err := p.parsePLSQLTypeMod(tn); err != nil {
 		return err
 	}
 	switch {

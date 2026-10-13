@@ -285,6 +285,23 @@ func TestANSIDatatypes(t *testing.T) {
 	// (ORA-30088).
 	ParseAndCheck(t, "CREATE TABLE t (a NUMBER(38), b DEC(1), c NUMBER(5,-84), d NUMERIC(5,127), e NUMBER(*,127), f FLOAT(126), g FLOAT(1))")
 	ParseAndCheck(t, "CREATE TABLE t (a TIMESTAMP(9), b TIMESTAMP(0) WITH TIME ZONE, c INTERVAL DAY(9) TO SECOND(9), d INTERVAL YEAR(0) TO MONTH)")
+	// PL/SQL, an object type's attributes, and a collection's elements bound
+	// a literal length to 1 through 32767 (PLS-00215, LONG and LONG RAW
+	// among them), a NUMBER precision and scale (PLS-00216, PLS-00217), a
+	// FLOAT precision (PLS-00623), and a datetime or interval precision
+	// (PLS-00260); a type a declaration shadows is the engine's.
+	ParseAndCheck(t, "DECLARE a LONG(32767); b LONG RAW(32767); c VARCHAR2(32767 CHAR); d NUMBER(38, -84); e FLOAT(126); f TIMESTAMP(9); g INTERVAL DAY(9) TO SECOND(9); BEGIN NULL; END;")
+	ParseAndCheck(t, "DECLARE SUBTYPE number IS VARCHAR2(10); x number(100); BEGIN NULL; END;")
+	ParseAndCheck(t, "DECLARE x NUMBER(5.5); y VARCHAR2(1e1); BEGIN NULL; END;")
+	for _, decl := range []string{
+		"LONG(0)", "LONG RAW(0)", "VARCHAR2(32768)", "VARCHAR2(0)", "NVARCHAR2(0)", "CHAR(32768)", "STRING(32768)",
+		"RAW(32768)", "VARCHAR2(32768 CHAR)", "NUMBER(0)", "NUMBER(5, -85)", "DECIMAL(39)", "FLOAT(0)",
+		"TIMESTAMP(10)", "INTERVAL DAY(10) TO SECOND", "INTERVAL DAY TO SECOND(10)", "INTERVAL YEAR(10) TO MONTH",
+	} {
+		ParseShouldFail(t, "DECLARE x "+decl+"; BEGIN NULL; END;")
+	}
+	ParseShouldFail(t, "CREATE TYPE t AS OBJECT (a NUMBER(39))")
+	ParseShouldFail(t, "CREATE TYPE t AS VARRAY(2) OF TIMESTAMP(10)")
 	for _, datatype := range []string{
 		"NUMBER(0)", "NUMBER(39)", "DEC(0)", "DEC(39)", "DECIMAL(0)", "NUMERIC(39)", "NUMBER(5,-85)", "NUMBER(5,128)",
 		"NUMBER(*,128)", "DECIMAL(5,128)", "FLOAT(0)", "FLOAT(127)", "TIMESTAMP(10)", "TIMESTAMP(10) WITH TIME ZONE",
@@ -342,6 +359,8 @@ func TestANSIDatatypes(t *testing.T) {
 		// The scope table is local (ORA-25124).
 		"c REF t SCOPE IS o@lnk", "c REF t, SCOPE FOR (c) IS o@lnk",
 		`o h, "O.R" NUMBER, SCOPE FOR ("O.R") IS x`, "o h, SCOPE FOR (o.r) IS x, SCOPE FOR (o.r) IS x",
+		// SCOPE is a keyword there (ORA-03062, ORA-00902).
+		`c REF t "SCOPE" IS o`, `c REF t, "SCOPE" FOR (c) IS o`, `c REF t WITH "ROWID"`,
 		// Not both a SCOPE and a referential constraint, whatever the tables
 		// (ORA-22896), and one referential constraint (ORA-30771).
 		"c REF t SCOPE IS o REFERENCES o", "c REF t SCOPE IS o REFERENCES p", "c REF t REFERENCES p SCOPE IS o",
