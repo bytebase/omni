@@ -56,8 +56,9 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 		// %ROWTYPE takes a type from, or a record whose field it does:
 		// Oracle 23ai compiles DECLARE integer NUMBER; x integer%TYPE and
 		// DECLARE integer r; x integer.f%TYPE, as for SMALLINT, DECIMAL,
-		// FLOAT, DEC, and NUMERIC.
-		if next := p.peekNext().Type; p.cur.Type != kwNUMBER && (next == '%' || next == '.') {
+		// FLOAT, DEC, and NUMERIC (anchoredName). Otherwise it is the
+		// datatype, dotted or not (ORA-03099, PLS-00487 for integer.foo).
+		if p.cur.Type != kwNUMBER && p.anchoredName() {
 			if err := p.parseUserDefinedType(tn); err != nil {
 				return nil, err
 			}
@@ -258,7 +259,7 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 			p.advance() // consume PRECISION
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "DOUBLE"}, &nodes.String{Str: "PRECISION"})
 		// DEC and NUMERIC may name an item or a record, as INTEGER does.
-		case next.Type != '%' && next.Type != '.' && (p.isIdentLikeStr("NUMERIC") || p.isKeywordStr("DEC")):
+		case !p.anchoredName() && (p.isIdentLikeStr("NUMERIC") || p.isKeywordStr("DEC")):
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 			p.advance()
 			parseErr1121 := p.parseOptionalPrecisionScale(tn)
@@ -282,6 +283,34 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 		}
 	}
 	return tn, nil
+}
+
+// anchoredName reports whether the word at cur starts a name %TYPE or
+// %ROWTYPE anchors to: the word itself, or a record and its fields
+// (word.f%TYPE, word.f.g%TYPE).
+func (p *Parser) anchoredName() bool {
+	switch p.peekNext().Type {
+	case '%':
+		return true
+	case '.':
+	default:
+		return false
+	}
+	lexer := *p.lexer
+	for {
+		// A field name, then '%' or another '.'; single-character tokens
+		// are their own types, below the named token types.
+		if tok := lexer.NextToken(); tok.Type < tokICONST {
+			return false
+		}
+		switch lexer.NextToken().Type {
+		case '%':
+			return true
+		case '.':
+		default:
+			return false
+		}
+	}
 }
 
 // checkPLSQLTypeMods checks the literal modifiers of a PL/SQL datatype as

@@ -543,9 +543,14 @@ func TestANSIDatatypes(t *testing.T) {
 	// takes; CHARACTER, NATIONAL, and DOUBLE name no item, record, or
 	// schema, even with a schema of that name owning the type (PLS-00103,
 	// ORA-02000, ORA-03099, ORA-00902 on Oracle 23ai).
-	for _, word := range []string{"dec", "numeric", "integer"} {
+	for _, word := range []string{"dec", "numeric", "integer", "decimal"} {
 		ParseAndCheck(t, "DECLARE TYPE r IS RECORD (f NUMBER); "+word+" r; x "+word+".f%TYPE; BEGIN NULL; END;")
+		// Otherwise the word is the datatype, dotted or not (ORA-03099,
+		// PLS-00487).
+		ParseShouldFail(t, "DECLARE x "+word+".foo; BEGIN NULL; END;")
+		ParseShouldFail(t, "CREATE TABLE t (x "+word+".foo)")
 	}
+	ParseAndCheck(t, "DECLARE TYPE q IS RECORD (g NUMBER); TYPE r IS RECORD (f q); numeric r; x numeric.f.g%TYPE; BEGIN NULL; END;")
 	for _, word := range []string{"character", "double", "national"} {
 		ParseShouldFail(t, "DECLARE TYPE r IS RECORD (f NUMBER); "+word+" r; x "+word+".f%TYPE; BEGIN NULL; END;")
 		ParseShouldFail(t, "DECLARE x "+word+".foo; BEGIN NULL; END;")
