@@ -531,6 +531,23 @@ SELECT 1 FROM dual;
 		t.Fatalf("Split = %q", got)
 	}
 
+	// Tokenize keeps a hint a directive stands before, as the preprocessed
+	// text does.
+	for _, sql := range []string{
+		"SELECT $IF TRUE $THEN $END /*+ FULL(t) */ 1 FROM t",
+		"SELECT $IF TRUE $THEN /*+ FULL(t) */ 1 $END FROM t",
+	} {
+		hints := 0
+		for _, tok := range Tokenize(sql) {
+			if tok.Type == tokHINT {
+				hints++
+			}
+		}
+		if hints != 1 {
+			t.Errorf("Tokenize(%q) keeps %d hints, want 1", sql, hints)
+		}
+	}
+
 	// Tokenize keeps every branch.
 	found := false
 	for _, tok := range Tokenize("BEGIN $IF $$debug $THEN NULL; $ELSE SELECT * FROM emp; $END END;") {
@@ -698,6 +715,14 @@ func TestConditionalCompilationSelections(t *testing.T) {
 		t.Errorf("Parse through 20 undecided directives took %v", elapsed)
 	}
 
+	// Ten undecided two-way directives are searched exhaustively: here only
+	// the last of their 1024 selections balances the parentheses.
+	var opens strings.Builder
+	for i := range 10 {
+		fmt.Fprintf(&opens, "$IF $$x%d $THEN $ELSE ( $END ", i)
+	}
+	ParseAndCheck(t, "DECLARE x NUMBER; BEGIN x := "+opens.String()+"1"+strings.Repeat(")", 10)+"; END;")
+
 	// The bound grows with the undecided directives: 200 groups whose
 	// first branches fail each take an attempt, and parse.
 	var groups strings.Builder
@@ -729,6 +754,8 @@ func TestConditionalCompilationSelections(t *testing.T) {
 	} {
 		ParseAndCheck(t, sql)
 	}
+	// On one line, $$PLSQL_LINE has one value, its own or PLSQL_CCFLAGS'.
+	ParseShouldFail(t, "BEGIN $IF $$PLSQL_LINE = 1 $THEN NULL; $ELSE garbage garbage; $END $IF $$PLSQL_LINE = 1 $THEN garbage garbage; $ELSE NULL; $END END;")
 }
 
 // TestConditionalCompilationLimits checks, against Oracle 23ai, that

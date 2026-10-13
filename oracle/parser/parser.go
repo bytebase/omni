@@ -243,13 +243,17 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 }
 
 // The branch selections parseStmtSelections tries for one statement are
-// bounded: ccMinAttempts, and ccAttemptsPerDecision more for each
-// undecided $IF an attempt met, while the attempts past ccMinAttempts have
-// read no more than ccMaxSearchBytes of text in all. A failure the search
-// can place takes one attempt per $IF to vary, so the bound grows with
-// them, and the byte budget keeps the search's time linear in the text.
+// bounded: ccMinAttempts, then up to ccExhaustiveAttempts or
+// ccAttemptsPerDecision for each undecided $IF an attempt met, whichever
+// is more, while those attempts have read no more than ccMaxSearchBytes of
+// text in all. The selections grow exponentially with the undecided $IF
+// directives, so some bound is needed. Within it, a statement with up to
+// ten undecided two-way $IF directives is searched exhaustively, a failure
+// the search can place takes one attempt per $IF to vary, and the byte
+// budget keeps the search's time linear in the text.
 const (
 	ccMinAttempts         = 64
+	ccExhaustiveAttempts  = 1024
 	ccAttemptsPerDecision = 2
 	ccMaxSearchBytes      = 64 << 20
 )
@@ -288,7 +292,7 @@ func (p *Parser) parseStmtSelections(textStart, stmtLoc int) (nodes.StmtNode, er
 	var failure error
 	furthest := -1
 	pending := []ccSelection{{}}
-	limit, read := ccMinAttempts, 0
+	limit, read := ccExhaustiveAttempts, 0
 	for attempt := 0; len(pending) > 0 && attempt < limit; attempt++ {
 		if attempt >= ccMinAttempts && read > ccMaxSearchBytes {
 			break

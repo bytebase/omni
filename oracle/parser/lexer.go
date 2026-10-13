@@ -105,8 +105,11 @@ type Lexer struct {
 	ccSkipEnd int
 
 	// prevType is the type of the last token lexed, which says whether a
-	// /*+ ... */ comment is a hint.
-	prevType int
+	// /*+ ... */ comment is a hint. ccRawDirective is set while nextRaw is
+	// in the condition of an $IF or $ELSIF or the message of an $ERROR,
+	// which leave prevType as the directive does.
+	prevType       int
+	ccRawDirective bool
 
 	// literalLimit, when set, is the most bytes a string literal holds: the
 	// parser's lexer fails past it, in code a directive skips too (PLS-00172
@@ -467,13 +470,11 @@ func (l *Lexer) selectBranch(tok Token) bool {
 // its $THEN, recording it for the parser, and returns its value when the
 // text settles it (staticCondition), and its tokens, which identify it
 // among the conditions of a unit (ccFact). $$PLSQL_LINE differs from line
-// to line, so a condition that reads it has none. It reports false after
-// setting Err.
+// to line, so its line is part of it. It reports false after setting Err.
 func (l *Lexer) skipCondition(tok Token) (ccValue, string, bool) {
 	cond := nodes.Loc{Start: -1, End: -1}
 	tokens := 0
 	var key []Token
-	keyed := true
 	for {
 		next := l.nextRaw()
 		switch {
@@ -505,9 +506,6 @@ func (l *Lexer) skipCondition(tok Token) (ccValue, string, bool) {
 				l.failDirective(at, "a static boolean expression must be used")
 				return ccUnknown, "", false
 			}
-			if !keyed {
-				return value, "", true
-			}
 			return value, conditionKey(key), true
 		case next.Type == tokDIRECTIVE:
 			l.failDirective(next, fmt.Sprintf("unexpected preprocessor token '%s'", next.Str))
@@ -516,7 +514,8 @@ func (l *Lexer) skipCondition(tok Token) (ccValue, string, bool) {
 			l.cc.noteBind(next.Loc)
 		}
 		if next.Type == tokINQUIRY && next.Str == "$$PLSQL_LINE" {
-			keyed = false
+			// The line it stands on, by where that starts.
+			next.Str += "@" + strconv.Itoa(strings.LastIndexByte(l.input[:next.Loc], '\n'))
 		}
 		key = append(key, next)
 		if tokens == 0 {
@@ -737,7 +736,22 @@ func (l *Lexer) nextRaw() Token {
 			return l.nextRaw()
 		}
 	}
-	l.prevType = tok.Type
+	// A directive, with the condition or message after it, leaves the
+	// token before it last, as the preprocessed text does: SELECT $IF TRUE
+	// $THEN /*+ FULL(t) */ and SELECT $IF TRUE $THEN $END /*+ FULL(t) */
+	// keep their hints.
+	if tok.Type == tokDIRECTIVE {
+		switch tok.Str {
+		case "$IF", "$ELSIF", "$ERROR":
+			l.ccRawDirective = true
+		case "$THEN", "$END":
+			l.ccRawDirective = false
+		}
+		return tok
+	}
+	if !l.ccRawDirective {
+		l.prevType = tok.Type
+	}
 	return tok
 }
 
