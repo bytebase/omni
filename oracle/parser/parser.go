@@ -28,6 +28,11 @@ type Parser struct {
 	// or names a column (false). decideCaseTokens fills it in one pass.
 	caseKinds map[int]bool
 
+	// parenQueries tells, for each '(' from the first one a query lookup
+	// met to the end of the range, how its group reads as a query.
+	// decideParenQueries fills it in one pass.
+	parenQueries map[int]parenQuery
+
 	// typeMods says what the parenthesized modifiers of the datatype being
 	// parsed may hold; parsePLSQLDatatype sets it for PL/SQL datatypes.
 	typeMods typeModMode
@@ -274,7 +279,7 @@ func selectTargetListContainsStar(list *nodes.List) bool {
 // fail at the earliest invalid token while preserving partial-node Loc data.
 func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 	switch p.cur.Type {
-	case kwSELECT, kwWITH:
+	case kwSELECT, kwWITH, '(':
 		return p.parseSelectStmt()
 	case kwINSERT:
 		return p.parseInsertStmt()

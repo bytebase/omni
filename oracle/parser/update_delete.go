@@ -391,7 +391,7 @@ func (p *Parser) parseDMLTargetAlias(target *nodes.TableRef) error {
 
 func (p *Parser) parseDMLSubqueryTarget(start int) (*nodes.SubqueryRef, error) {
 	p.advance() // consume '('
-	if p.cur.Type != kwSELECT && p.cur.Type != kwWITH {
+	if !p.atQuery() {
 		return nil, p.syntaxErrorAtCur()
 	}
 	parsedSubquery, parseErr1152 := p.parseSelectStmt()

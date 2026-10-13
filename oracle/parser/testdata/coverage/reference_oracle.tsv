@@ -187,3 +187,15 @@ ref_185	plsql	reject	DECLARE FUNCTION f RETURN NUMBER RESULT_CACHE IS BEGIN RETU
 ref_186	plsql	reject	DECLARE FUNCTION f RETURN NUMBER PARALLEL_ENABLE IS BEGIN RETURN 1; END; BEGIN NULL; END;	PARALLEL_ENABLE on a nested function (PLS-00712)
 ref_187	plsql	reject	DECLARE CURSOR c (a NUMBER, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;	cursor parameter %CHARSET from a numeric parameter (PLS-00550)
 ref_188	plsql	accept	DECLARE CURSOR c (a VARCHAR2, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;	cursor parameter %CHARSET from a character parameter
+ref_225	select	accept	(SELECT 1 FROM dual) UNION ALL (SELECT 2 FROM dual) ORDER BY 1	parenthesized set operands
+ref_226	select	accept	SELECT * FROM ((SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual)) x	parenthesized set operation as an inline view
+ref_227	select	accept	SELECT 1 FROM dual WHERE 1 IN ((SELECT 1 FROM dual) UNION (SELECT 2 FROM dual))	parenthesized set operation as an IN subquery
+ref_228	select	accept	SELECT 1 FROM dual EXCEPT ALL SELECT 2 FROM dual	EXCEPT ALL
+ref_229	ddl	accept	CREATE TABLE omni_ctas_{run} AS (SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual)	CTAS with parenthesized set operands
+ref_230	plsql	accept	DECLARE CURSOR c IS (SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual); BEGIN NULL; END;	cursor with parenthesized set operands
+ref_231	plsql	accept	BEGIN FOR r IN ((SELECT 1 a FROM dual) UNION ALL (SELECT 2 FROM dual)) LOOP NULL; END LOOP; END;	cursor FOR loop over a parenthesized set operation
+ref_232	select	reject	(SELECT 1 a FROM dual ORDER BY 1)	ORDER BY inside a parenthesized query (ORA-00907)
+ref_233	select	reject	(WITH w AS (SELECT 1 a FROM dual) SELECT a FROM w) UNION SELECT 1 FROM dual	WITH inside a parenthesized set operand (ORA-32034)
+ref_234	select	reject	SELECT 1 FROM dual ORDER BY 1 UNION SELECT 2 FROM dual	set operator after ORDER BY (ORA-03048)
+ref_235	select	reject	SELECT 1 except FROM dual	EXCEPT where an alias would stand (ORA-00928)
+ref_236	ddl	reject	CREATE TABLE omni_bad_ctas_{run} AS (SELECT 1 a FROM dual ORDER BY 1)	CTAS with ORDER BY inside the parentheses (ORA-00907)

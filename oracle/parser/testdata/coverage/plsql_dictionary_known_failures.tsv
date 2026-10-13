@@ -15,7 +15,6 @@ SYS.STANDARD:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, e
 SYS.UTL_LMS:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration types)	59:33	syntax error at or near ".."
 SYS.UTL_RECOMP:PACKAGE	conditional compilation ($IF/$END)	1:1	split into 18 segments
 SYS.CDBVIEW_INTERNAL:PACKAGE BODY	qualified expression (=>)	12:57	syntax error at or near "=>"
-SYS.DBMS_HADOOP_INTERNAL:PACKAGE BODY	unclassified	254:7	syntax error at or near "union"
 SYS.HTP:PACKAGE BODY	package initialization section	1798:1	syntax error at or near "begin"
 SYS.OWA_COOKIE:PACKAGE BODY	package initialization section	221:1	syntax error at or near "begin"
 SYS.OWA_CUSTOM:PACKAGE BODY	package initialization section	15:1	syntax error at or near "begin"

@@ -376,7 +376,7 @@ func (p *Parser) parseQuantifiedComparisonOperand() (nodes.ExprNode, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+	if p.atQueryStart() {
 		subquery, err := p.parseSelectStmt()
 		if err != nil {
 			return nil, err
@@ -1784,8 +1784,8 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume '('
 
-	// Detect scalar subquery: (SELECT ...)
-	if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+	// Detect a subquery: (SELECT ...), or ((SELECT ...) UNION ...)
+	if p.atQueryStart() {
 		sub, parseErr728 := p.parseSelectStmt()
 		if parseErr728 != nil {
 			return nil, parseErr728
@@ -2056,8 +2056,8 @@ func (p *Parser) parseExistsExpr() (nodes.ExprNode, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	// Parse the inner SELECT statement.
-	if p.cur.Type != kwSELECT && p.cur.Type != kwWITH {
+	// Parse the inner query.
+	if !p.atQuery() {
 		return nil, p.syntaxErrorAtCur()
 	}
 	var parseErr739 error
@@ -2226,8 +2226,8 @@ func (p *Parser) parseInExpr(left nodes.ExprNode, not bool) (nodes.ExprNode, err
 
 	if p.cur.Type == '(' {
 		p.advance()
-		// IN (SELECT ...) or IN (WITH ...) — subquery
-		if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
+		// IN (SELECT ...), IN (WITH ...), or IN ((SELECT ...) UNION ...)
+		if p.atQueryStart() {
 			sub, parseErr742 := p.parseSelectStmt()
 			if parseErr742 != nil {
 				return nil, parseErr742

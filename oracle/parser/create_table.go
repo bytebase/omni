@@ -516,7 +516,14 @@ func (p *Parser) parseCreateTableStmt(start int, orReplace, global, private, sha
 
 func selectStmtHasTargets(stmt nodes.StmtNode) bool {
 	selectStmt, ok := stmt.(*nodes.SelectStmt)
-	return ok && selectStmt.TargetList != nil && selectStmt.TargetList.Len() > 0
+	if !ok {
+		return false
+	}
+	// A query around a parenthesized subquery has its targets there.
+	if selectStmt.Larg != nil {
+		return true
+	}
+	return selectStmt.TargetList != nil && selectStmt.TargetList.Len() > 0
 }
 
 // parseColumnDefsAndConstraints parses the contents inside the parentheses of a CREATE TABLE.

@@ -287,24 +287,13 @@ func (p *Parser) parsePLSQLCursorDecl() (*nodes.PLSQLCursorDecl, error) {
 		p.advance()
 	}
 
-	// SELECT statement
-	if p.cur.Type == '(' && (p.peekNext().Type == kwSELECT || p.peekNext().Type == kwWITH) {
-		p.advance()
+	// The query: SELECT, WITH, or a parenthesized subquery, which may be
+	// an operand of a set operator: CURSOR c IS (SELECT ...) UNION (SELECT
+	// ...) compiles on Oracle 23ai.
+	if p.atQuery() {
 		var parseErr840 error
 		decl.Query, parseErr840 = p.parseSelectStmt()
 		if parseErr840 != nil {
-			return nil, parseErr840
-		}
-		if p.cur.Type == ')' {
-			p.advance()
-		}
-	} else if p.cur.Type == kwSELECT || p.cur.Type == kwWITH {
-		var parseErr840 error
-		decl.Query, parseErr840 = p.parseSelectStmt()
-		if parseErr840 !=
-
-			// Semicolon
-			nil {
 			return nil, parseErr840
 		}
 	}
