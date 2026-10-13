@@ -53,8 +53,8 @@ func checkPriorBackupSize(sql string, change review.Change, r *reporter) {
 // and a DELETE of the change both touch, written the same way, a name
 // without a database taken as one of the target's, db, as Bytebase fills
 // it in. db is "" when the target's name is not known: then only names
-// written alike are compared. Only a statement on one table is judged,
-// whose target is certain.
+// written alike are compared. Only a statement whose targets are certain
+// is judged.
 //
 // bytebase: backend/plugin/parser/mysql/backup.go — collectSingleTables,
 // generateSQL
@@ -63,43 +63,88 @@ func checkPriorBackupMixed(stmts []statement, db string, r *reporter) {
 	reported := make(map[string]bool)
 	for i := range stmts {
 		s := &stmts[i]
-		ref, kind := backupTarget(s.node)
-		if ref == nil {
-			continue
-		}
-		key := ref.Schema
-		if key == "" {
-			key = db
-		}
-		key += "." + ref.Name
-		first, seen := kinds[key]
-		if !seen {
-			kinds[key] = kind
-			continue
-		}
-		if first != kind && !reported[key] {
-			reported[key] = true
-			r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup cannot back up both UPDATE and DELETE on "+table(ref))
+		refs, kind := backupTargets(s)
+		for _, ref := range refs {
+			key := ref.Schema
+			if key == "" {
+				key = db
+			}
+			key += "." + ref.Name
+			first, seen := kinds[key]
+			if !seen {
+				kinds[key] = kind
+				continue
+			}
+			if first != kind && !reported[key] {
+				reported[key] = true
+				r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup cannot back up both UPDATE and DELETE on "+table(ref))
+			}
 		}
 	}
 }
 
-// backupTarget returns the table an UPDATE or DELETE of one table backs
-// up, with the statement's kind, nil for another statement.
-func backupTarget(n ast.Node) (*ast.TableRef, string) {
-	switch v := n.(type) {
+// backupTargets returns the tables an UPDATE or DELETE backs up, with the
+// statement's kind: the table of a single-table UPDATE or DELETE, and
+// each target of a multi-table DELETE, as the table its name means in the
+// FROM list, matched as Bytebase matches it. A multi-table UPDATE, whose
+// targets depend on its SET columns, and a multi-table DELETE after a WITH
+// clause, whose targets may be its queries, give none.
+//
+// bytebase: backend/plugin/parser/mysql/backup.go — extractTablesFromDelete,
+// collectSingleTables
+func backupTargets(s *statement) ([]*ast.TableRef, string) {
+	switch v := s.node.(type) {
 	case *ast.UpdateStmt:
 		if len(v.Tables) == 1 {
 			if ref, ok := v.Tables[0].(*ast.TableRef); ok {
-				return ref, "UPDATE"
+				return []*ast.TableRef{ref}, "UPDATE"
 			}
 		}
 	case *ast.DeleteStmt:
-		if len(v.Using) == 0 && len(v.Tables) == 1 {
-			if ref, ok := v.Tables[0].(*ast.TableRef); ok {
-				return ref, "DELETE"
+		if len(v.Using) == 0 {
+			if len(v.Tables) == 1 {
+				if ref, ok := v.Tables[0].(*ast.TableRef); ok {
+					return []*ast.TableRef{ref}, "DELETE"
+				}
+			}
+			return nil, ""
+		}
+		if v.Loc.Start > s.loc.Start {
+			return nil, ""
+		}
+		from := make(map[string]*ast.TableRef)
+		var collect func(e ast.TableExpr)
+		collect = func(e ast.TableExpr) {
+			switch t := e.(type) {
+			case *ast.TableRef:
+				key := t.Name
+				if t.Alias != "" {
+					key = t.Alias
+				}
+				from[key] = t
+			case *ast.JoinClause:
+				collect(t.Left)
+				collect(t.Right)
 			}
 		}
+		for _, e := range v.Using {
+			collect(e)
+		}
+		var refs []*ast.TableRef
+		for _, e := range v.Tables {
+			target, ok := e.(*ast.TableRef)
+			if !ok {
+				continue
+			}
+			key := target.Name
+			if target.Alias != "" {
+				key = target.Alias
+			}
+			if ref, ok := from[key]; ok {
+				refs = append(refs, ref)
+			}
+		}
+		return refs, "DELETE"
 	}
 	return nil, ""
 }

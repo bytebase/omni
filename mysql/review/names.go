@@ -9,12 +9,13 @@ import (
 
 // ident writes an identifier as MySQL would need it in a statement:
 // bare when it is a plain name that is not a reserved word, otherwise
-// quoted in backticks, with a backtick inside doubled.
+// quoted in backticks, with a backtick inside doubled and a line break
+// written as \n or \r, so a message stays one line.
 func ident(name string) string {
 	if plainIdent(name) && !parser.IsReservedKeyword(name) {
 		return name
 	}
-	return "`" + strings.ReplaceAll(name, "`", "``") + "`"
+	return "`" + escapeLines(strings.ReplaceAll(name, "`", "``")) + "`"
 }
 
 // plainIdent reports whether a name needs no quoting: letters, digits,

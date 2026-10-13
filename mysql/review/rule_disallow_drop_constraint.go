@@ -27,8 +27,8 @@ type droppedIndex struct {
 // that name on the table earlier. One of a name the change has not
 // touched before is returned, for the target's synced schema to settle;
 // one the change created, renamed, or dropped before is not judged, and
-// neither is one on a table the change creates or renames to, whose
-// indexes are not the synced table's.
+// neither is one on a table the change creates, without IF NOT EXISTS, or
+// renames to, whose indexes are not the synced table's.
 func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []droppedIndex {
 	type index struct {
 		table  *ast.TableRef
@@ -74,7 +74,9 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 		ast.Inspect(s.node, func(n ast.Node) bool {
 			switch v := n.(type) {
 			case *ast.CreateTableStmt:
-				replaced = append(replaced, v.Table)
+				if !v.IfNotExists {
+					replaced = append(replaced, v.Table)
+				}
 				for _, c := range v.Constraints {
 					if c != nil && (c.Type == ast.ConstrUnique || c.Type == ast.ConstrPrimaryKey) {
 						touch(v.Table, c.Name, c.Type == ast.ConstrUnique)

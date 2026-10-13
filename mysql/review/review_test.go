@@ -190,6 +190,11 @@ func TestDisallowDropObject(t *testing.T) {
 			name: "constraints belong to DisallowDropConstraint",
 			sql:  "ALTER TABLE t DROP PRIMARY KEY, DROP FOREIGN KEY fk_p, DROP CHECK ck_n, DROP CONSTRAINT uk_code;\nDROP INDEX `PRIMARY` ON t;",
 		},
+		{
+			name: "a name with a line break",
+			sql:  "DROP TABLE `a\nb`;",
+			want: []finding{{0, "DROP TABLE `a\nb`", "drops table `a\\nb`", []int{0}}},
+		},
 	})
 }
 
@@ -253,6 +258,11 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name: "an index the change touched before, or after a USE",
 			sql:  "ALTER TABLE t DROP INDEX uk_code, ADD INDEX uk_code (code);\nALTER TABLE t DROP INDEX uk_code;\nUSE other;\nDROP INDEX uk_code ON t;",
 			want: []finding{{0, "DROP INDEX uk_code", "drops unique key uk_code of t", []int{0}}},
+		},
+		{
+			name: "an index of a table CREATE TABLE IF NOT EXISTS leaves",
+			sql:  "CREATE TABLE IF NOT EXISTS t (id INT);\nDROP INDEX uk_code ON t;",
+			want: []finding{{1, "DROP INDEX uk_code ON t", "drops unique key uk_code of t", []int{0}}},
 		},
 		{
 			name: "an index of a table the change creates or renames to",
@@ -393,6 +403,15 @@ func TestPriorBackup(t *testing.T) {
 				{1, "UPDATE t SET n = 1 WHERE gone = 1", "prior backup runs before the change, when column gone of t does not exist yet", []int{0}},
 				{2, "UPDATE t SET n = 2 WHERE t.gone = 2 ORDER BY id", "prior backup runs before the change, when column gone of t does not exist yet", []int{0}},
 				{4, "UPDATE t JOIN p ON p.memo = t.code SET t.n = 1 WHERE t.id = 3", "prior backup runs before the change, when column memo of p does not exist yet", []int{0}},
+			},
+		},
+		{
+			name:   "UPDATE and DELETE on one table, a DELETE of several tables",
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nDELETE t FROM t JOIN p ON p.id = t.p_id WHERE t.id = 2;\nUPDATE plain SET v = 1 WHERE id = 1;\nDELETE x FROM plain AS x JOIN p ON p.id = x.id WHERE x.id = 2;",
+			change: backup,
+			want: []finding{
+				{1, "DELETE t FROM t JOIN p ON p.id = t.p_id WHERE t.id = 2", "prior backup cannot back up both UPDATE and DELETE on t", []int{0}},
+				{3, "DELETE x FROM plain AS x JOIN p ON p.id = x.id WHERE x.id = 2", "prior backup cannot back up both UPDATE and DELETE on plain", []int{0}},
 			},
 		},
 		{
