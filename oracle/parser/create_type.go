@@ -742,6 +742,7 @@ func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.Creat
 func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt, subtype bool) error {
 	stmt.Attributes = &nodes.List{}
 	hasComparison := false
+	seenAttrs := map[string]bool{}
 	for {
 		switch {
 		case p.isObjectTypeMethodStart():
@@ -769,6 +770,13 @@ func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt, subtype boo
 			if err != nil {
 				return err
 			}
+			// Attribute names are unique in the statement (PLS-00410 on
+			// Oracle 23ai, for a subtype too); a clash with a supertype's
+			// attribute needs the supertype and is left to the engine.
+			if seenAttrs[attr.Name] {
+				return p.syntaxErrorAtNode(attr)
+			}
+			seenAttrs[attr.Name] = true
 			stmt.Attributes.Items = append(stmt.Attributes.Items, attr)
 		}
 		if p.cur.Type != ',' {

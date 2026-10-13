@@ -1,6 +1,9 @@
 package parser
 
 import (
+	"strconv"
+	"strings"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -3748,8 +3751,9 @@ func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 // 23ai takes ADD m1, ADD m2 and ADD ATTRIBUTE a, MODIFY ATTRIBUTE b, and
 // rejects a list that mixes methods and attributes or an item without its
 // verb (ORA-06545). It also rejects, with ORA-22324, a list that adds two MAP
-// or ORDER methods or names one attribute twice: DROP ATTRIBUTE a, DROP
-// ATTRIBUTE a and DROP ATTRIBUTE a, MODIFY ATTRIBUTE a both fail.
+// or ORDER methods, or names one attribute or one method signature twice:
+// DROP ATTRIBUTE a, MODIFY ATTRIBUTE a and DROP MEMBER FUNCTION g RETURN
+// NUMBER, ADD MEMBER FUNCTION g RETURN NUMBER both fail.
 //
 //	{ ADD | DROP } method_spec [, { ADD | DROP } method_spec ]...
 //	| { { ADD | MODIFY } ATTRIBUTE attributes | DROP ATTRIBUTE attributes } [, ...]
@@ -3757,6 +3761,7 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 	attributes := false
 	addsComparison := false
 	seenAttrs := map[string]bool{}
+	seenMethods := map[string]bool{}
 	for i := 0; ; i++ {
 		var verb string
 		switch {
@@ -3809,6 +3814,11 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 				}
 				addsComparison = true
 			}
+			sig := p.alterTypeMethodSignature(method)
+			if seenMethods[sig] {
+				return p.syntaxErrorAtNode(method)
+			}
+			seenMethods[sig] = true
 			stmt.Methods = append(stmt.Methods, method)
 		}
 		if p.cur.Type != ',' {
@@ -3817,6 +3827,33 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 		p.advance() // consume ,
 	}
 	return p.parseAlterTypeDependentHandling(stmt)
+}
+
+// alterTypeMethodSignature returns the tokens of method from its FUNCTION or
+// PROCEDURE keyword on: the name, the parameters, and the return type that
+// identify it in an ALTER TYPE list. Oracle 23ai takes overloads that differ
+// in a parameter name or type or in the return type, and counts a MEMBER and
+// a STATIC method of one signature as the same method. A quoted name equals
+// the unquoted one it spells.
+func (p *Parser) alterTypeMethodSignature(method *nodes.AlterTypeMethod) string {
+	lex := NewLexerRange(p.source, method.Loc.Start, method.Loc.End)
+	var sig strings.Builder
+	started := false
+	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
+		if !started && tok.Type != kwFUNCTION && tok.Type != kwPROCEDURE {
+			continue
+		}
+		started = true
+		typ := tok.Type
+		if typ == tokQIDENT {
+			typ = tokIDENT
+		}
+		sig.WriteString(strconv.Itoa(typ))
+		sig.WriteByte(':')
+		sig.WriteString(tok.Str)
+		sig.WriteByte(' ')
+	}
+	return sig.String()
 }
 
 // parseAlterTypeMethod parses one method specification of ALTER TYPE ADD
