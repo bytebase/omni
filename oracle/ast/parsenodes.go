@@ -1949,7 +1949,7 @@ type CreateTypeStmt struct {
 	Editionable      bool        // EDITIONABLE
 	NonEditionable   bool        // NONEDITIONABLE
 	Name             *ObjectName // type name
-	Sharing          string      // SHARING = METADATA | DATA | NONE
+	Sharing          string      // SHARING = METADATA | NONE
 	Force            bool        // FORCE
 	OID              string      // OID 'object_identifier'
 	DefaultCollation string      // DEFAULT COLLATION option

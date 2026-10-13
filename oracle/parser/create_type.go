@@ -99,7 +99,7 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/CREATE-TYPE-statement.html
 //
-//	[ SHARING = { METADATA | DATA | NONE } ]
+//	[ SHARING = { METADATA | NONE } ]
 //	[ FORCE ] [ OID 'object_identifier' ]
 //	[ { DEFAULT COLLATION USING_NLS_COMP | AUTHID { CURRENT_USER | DEFINER }
 //	  | ACCESSIBLE BY ( accessor [, ...] ) }... ]
@@ -125,7 +125,7 @@ func (p *Parser) parseTypeSpecSource(stmt *nodes.CreateTypeStmt) error {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance() // consume =
-		if !isOneOfKeywords(p.cur, []string{"METADATA", "DATA", "NONE"}) {
+		if !isOneOfKeywords(p.cur, []string{"METADATA", "NONE"}) {
 			return p.syntaxErrorAtCur()
 		}
 		stmt.Sharing = p.cur.Str
@@ -771,7 +771,7 @@ func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt, subtype boo
 			// A method of the kind and signature of an earlier one is
 			// PLS-00305 on Oracle 23ai; a MEMBER and a STATIC method may
 			// share a signature.
-			sig := strconv.Itoa(int(member.Kind)) + " " + p.methodSignature(methodTok.Loc, p.prev.End)
+			sig := strconv.Itoa(int(member.Kind)) + " " + p.subprogramSignature(member.Subprog)
 			if seenMethods[sig] {
 				return p.syntaxErrorAtTok(methodTok)
 			}
@@ -902,6 +902,9 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 		if isFunction && parametersBesidesSelf(fn.Parameters) != want {
 			return p.syntaxErrorAtTok(tok)
 		}
+		if isFunction && member.Kind == nodes.TYPE_BODY_ORDER && !orderParameterIn(listParameters(fn.Parameters)) {
+			return p.syntaxErrorAtTok(tok)
+		}
 	}
 	return nil
 }
@@ -914,6 +917,30 @@ func hasModifier(mods []string, mod string) bool {
 		}
 	}
 	return false
+}
+
+// orderParameterIn reports whether the parameters of an ORDER method
+// besides SELF have IN mode (PLS-00528 on Oracle 23ai for OUT or IN OUT).
+func orderParameterIn(params []*nodes.Parameter) bool {
+	for _, param := range params {
+		if param.Name != "SELF" && param.Mode != "" && param.Mode != "IN" {
+			return false
+		}
+	}
+	return true
+}
+
+// listParameters returns the parameters in list.
+func listParameters(list *nodes.List) []*nodes.Parameter {
+	var params []*nodes.Parameter
+	if list != nil {
+		for _, item := range list.Items {
+			if param, ok := item.(*nodes.Parameter); ok {
+				params = append(params, param)
+			}
+		}
+	}
+	return params
 }
 
 // parametersBesidesSelf counts the parameters in params not named SELF.

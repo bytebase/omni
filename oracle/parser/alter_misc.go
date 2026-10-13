@@ -3674,7 +3674,9 @@ func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 				p.advance() // consume TYPE
 			}
 			// The element type of a collection, as in CREATE TYPE AS TABLE OF:
-			// Oracle 23ai takes MODIFY ELEMENT TYPE CHARACTER VARYING.
+			// Oracle 23ai takes MODIFY ELEMENT TYPE CHARACTER VARYING. The
+			// clause widens a scalar element, so no REF, and none of the
+			// types no collection element takes (ORA-22324).
 			var parseErr113 error
 			stmt.ElementType, parseErr113 = p.parsePLSQLDatatype(typeModsPLSQL, charsetFixed)
 			if parseErr113 != nil {
@@ -3682,6 +3684,9 @@ func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 			}
 			if stmt.ElementType == nil || stmt.ElementType.Names.Len() == 0 {
 				return nil, p.syntaxErrorAtCur()
+			}
+			if stmt.ElementType.IsRef || elementAlwaysIllegal[p.predefinedTypeLead(stmt.ElementType)] {
+				return nil, p.syntaxErrorAtType(stmt.ElementType)
 			}
 			parseErr114 := p.parseAlterTypeDependentHandling(stmt)
 			if parseErr114 != nil {
@@ -3821,7 +3826,7 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 			}
 			// ALTER TYPE counts a MEMBER and a STATIC method of one signature
 			// as the same method.
-			sig := p.methodSignature(method.Loc.Start, method.Loc.End)
+			sig := p.methodSignature(method.Type, method.Name, method.Params, method.Return)
 			if seenMethods[sig] {
 				return p.syntaxErrorAtNode(method)
 			}
@@ -3836,29 +3841,44 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 	return p.parseAlterTypeDependentHandling(stmt)
 }
 
-// methodSignature returns the tokens of the method spec at
-// source[start:end] from its FUNCTION or PROCEDURE keyword up to its call
-// specification: the name, the parameters, and the return type that
-// identify it among its type's methods. Oracle 23ai takes overloads that
-// differ in a parameter name or type or in the return type, and not ones
-// that differ in their call specifications alone (PLS-00305). A quoted name
-// equals the unquoted one it spells.
-func (p *Parser) methodSignature(start, end int) string {
-	lex := NewLexerRange(p.source, start, end)
-	var toks []Token
-	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
-		toks = append(toks, tok)
+// methodSignature returns what identifies a method among its type's
+// methods: FUNCTION or PROCEDURE, the name, each parameter's name, mode,
+// and datatype, and the return type. Oracle 23ai takes overloads that
+// differ in any of them, a parameter's mode among them, and not ones that
+// differ in a default, a function property, or a call specification alone
+// (PLS-00305). A quoted name equals the unquoted one it spells, and an
+// omitted mode is IN.
+func (p *Parser) methodSignature(kind, name string, params []*nodes.Parameter, ret *nodes.TypeName) string {
+	var sig strings.Builder
+	sig.WriteString(kind)
+	sig.WriteByte(' ')
+	sig.WriteString(name)
+	sig.WriteByte('(')
+	for _, param := range params {
+		mode := strings.TrimSpace(strings.ReplaceAll(param.Mode, "NOCOPY", ""))
+		if mode == "" {
+			mode = "IN"
+		}
+		sig.WriteString(param.Name)
+		sig.WriteByte(' ')
+		sig.WriteString(mode)
+		sig.WriteByte(' ')
+		sig.WriteString(p.typeSignature(param.TypeName))
+		sig.WriteByte(',')
+	}
+	sig.WriteByte(')')
+	sig.WriteString(p.typeSignature(ret))
+	return sig.String()
+}
+
+// typeSignature returns the tokens that spell tn, or "" for none.
+func (p *Parser) typeSignature(tn *nodes.TypeName) string {
+	if tn == nil || tn.Loc.Start < 0 || tn.Loc.End > len(p.source) || tn.Loc.End <= tn.Loc.Start {
+		return ""
 	}
 	var sig strings.Builder
-	started := false
-	for i, tok := range toks {
-		if !started && tok.Type != kwFUNCTION && tok.Type != kwPROCEDURE {
-			continue
-		}
-		started = true
-		if (tok.Type == kwIS || tok.Type == kwAS) && i+1 < len(toks) && isOneOfKeywords(toks[i+1], []string{"LANGUAGE", "MLE", "EXTERNAL"}) {
-			break
-		}
+	lex := NewLexerRange(p.source, tn.Loc.Start, tn.Loc.End)
+	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
 		typ := tok.Type
 		if typ == tokQIDENT {
 			typ = tokIDENT
@@ -3869,6 +3889,18 @@ func (p *Parser) methodSignature(start, end int) string {
 		sig.WriteByte(' ')
 	}
 	return sig.String()
+}
+
+// subprogramSignature returns methodSignature for the subprogram of a type
+// specification's method.
+func (p *Parser) subprogramSignature(subprog nodes.Node) string {
+	switch s := subprog.(type) {
+	case *nodes.CreateFunctionStmt:
+		return p.methodSignature("FUNCTION", subprogramName(s.Name), listParameters(s.Parameters), s.ReturnType)
+	case *nodes.CreateProcedureStmt:
+		return p.methodSignature("PROCEDURE", subprogramName(s.Name), listParameters(s.Parameters), nil)
+	}
+	return ""
 }
 
 // parseAlterTypeMethod parses one method specification of ALTER TYPE ADD
@@ -3996,7 +4028,8 @@ func (p *Parser) parseAlterTypeMethod(verb, typeName string) (*nodes.AlterTypeMe
 	// A method signature takes the heading checks of CREATE TYPE methods:
 	// no TABLE or COLUMNS pseudo-type (PLS-00765), item%CHARSET from a
 	// character parameter (PLS-00550), no parameter besides SELF in a MAP
-	// method (PLS-00520), and exactly one in an ORDER method (PLS-00521).
+	// method (PLS-00520), and exactly one in an ORDER method (PLS-00521),
+	// with IN mode (PLS-00528).
 	if tn := p.tablePseudoType(params, method.Return); tn != nil {
 		return nil, p.syntaxErrorAtType(tn)
 	}
@@ -4013,7 +4046,7 @@ func (p *Parser) parseAlterTypeMethod(verb, typeName string) (*nodes.AlterTypeMe
 		if method.Kind == "ORDER MEMBER" {
 			want = 1
 		}
-		if parametersBesidesSelf(params) != want {
+		if parametersBesidesSelf(params) != want || !orderParameterIn(method.Params) {
 			return nil, p.syntaxErrorAtTok(kindTok)
 		}
 	}

@@ -986,20 +986,57 @@ func (p *Parser) parseRefScopeTable() (*nodes.ObjectName, error) {
 	return table, nil
 }
 
-// checkOutOfLineRefConstraints checks that each out-of-line REF constraint
-// of stmt naming a column of the table names a REF column (ORA-22893 on
-// Oracle 23ai); the column may come before or after it. An attribute of an
-// object column, or a name the table does not declare, is the engine's to
-// resolve.
+// checkOutOfLineRefConstraints checks the REF constraints of stmt that
+// span its relational properties, as Oracle 23ai does: an out-of-line REF
+// constraint naming a column of the table names a REF column (ORA-22893),
+// which may come before or after it; a REF column has one SCOPE, inline or
+// out of line (ORA-22888); and a referential constraint on a REF column
+// names the object table alone (ORA-30726 for a column list). An
+// attribute of an object column, or a name the table does not declare, is
+// the engine's to resolve.
 func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt) error {
+	columns := map[string]*nodes.ColumnDef{}
+	scopes := map[string]int{}
+	for _, item := range stmt.Columns.Items {
+		col, ok := item.(*nodes.ColumnDef)
+		if !ok {
+			continue
+		}
+		columns[col.Name] = col
+		isRef := col.TypeName != nil && col.TypeName.IsRef
+		for _, cItem := range col.Constraints.Items {
+			cc, ok := cItem.(*nodes.ColumnConstraint)
+			if !ok {
+				continue
+			}
+			if cc.Type == nodes.CONSTRAINT_SCOPE {
+				scopes[col.Name]++
+			}
+			if isRef && cc.Type == nodes.CONSTRAINT_FOREIGN && cc.RefColumns != nil && cc.RefColumns.Len() > 0 {
+				return p.syntaxErrorAtNode(cc)
+			}
+		}
+	}
 	for _, item := range stmt.Constraints.Items {
 		tc, ok := item.(*nodes.TableConstraint)
-		if !ok || tc.Type != nodes.CONSTRAINT_SCOPE && tc.Type != nodes.CONSTRAINT_WITH_ROWID || tc.Columns.Len() != 1 {
+		if !ok || tc.Columns == nil || tc.Columns.Len() != 1 {
 			continue
 		}
 		name := tc.Columns.Items[0].(*nodes.String).Str
-		for _, colItem := range stmt.Columns.Items {
-			if col, ok := colItem.(*nodes.ColumnDef); ok && col.Name == name && (col.TypeName == nil || !col.TypeName.IsRef) {
+		col := columns[name]
+		isRef := col != nil && col.TypeName != nil && col.TypeName.IsRef
+		switch tc.Type {
+		case nodes.CONSTRAINT_SCOPE, nodes.CONSTRAINT_WITH_ROWID:
+			if col != nil && !isRef {
+				return p.syntaxErrorAtNode(tc)
+			}
+			if tc.Type == nodes.CONSTRAINT_SCOPE {
+				if scopes[name]++; scopes[name] > 1 {
+					return p.syntaxErrorAtNode(tc)
+				}
+			}
+		case nodes.CONSTRAINT_FOREIGN:
+			if isRef && tc.RefColumns != nil && tc.RefColumns.Len() > 0 {
 				return p.syntaxErrorAtNode(tc)
 			}
 		}
