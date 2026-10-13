@@ -48,7 +48,7 @@ func (p *Parser) parseJSONAggregateOrSerialize(fc *nodes.FuncCallExpr) (nodes.Ex
 	}
 	// The key of JSON_OBJECTAGG is a scalar, not * or t.* (ORA-00936,
 	// ORA-01747).
-	if name == "JSON_OBJECTAGG" && isWildcard(arg) {
+	if name == "JSON_OBJECTAGG" && p.isWildcard(arg) {
 		return nil, p.syntaxErrorAtNode(arg)
 	}
 	fc.Args.Items = append(fc.Args.Items, arg)
@@ -219,13 +219,16 @@ func (p *Parser) parseJSONSerializeClauses() error {
 	return nil
 }
 
-// isWildcard reports whether expr is * or t.*.
-func isWildcard(expr nodes.ExprNode) bool {
+// isWildcard reports whether expr is * or t.*. A quoted "*" or t."*" names
+// a column (Oracle 23ai takes JSON_OBJECTAGG("*" VALUE 1)), so the
+// reference must end in the * itself.
+func (p *Parser) isWildcard(expr nodes.ExprNode) bool {
 	switch e := expr.(type) {
 	case *nodes.Star:
 		return true
 	case *nodes.ColumnRef:
-		return e.Column == "*"
+		end := e.Loc.End
+		return e.Column == "*" && end > 0 && end <= len(p.source) && p.source[end-1] == '*'
 	}
 	return false
 }

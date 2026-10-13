@@ -201,3 +201,5 @@ ref_253	select	accept	SELECT JSON_OBJECT(* RETURNING CLOB) FROM dual	JSON_OBJECT
 ref_254	select	accept	SELECT JSON_OBJECT(KEY 'VALUE' VALUE 1) FROM dual	literal key spelled VALUE
 ref_255	select	reject	SELECT JSON_ARRAYAGG(dummy ORDER BY dummy,) FROM dual	trailing comma in JSON_ARRAYAGG ORDER BY (ORA-00936)
 ref_256	select	reject	SELECT JSON_OBJECTAGG(* VALUE 1) FROM dual	wildcard JSON_OBJECTAGG key (ORA-00936)
+ref_258	select	reject	SELECT JSON_SERIALIZE('{}' RETURNING VARCHAR2()) FROM dual	RETURNING datatype without its size (ORA-00910)
+ref_259	select	accept	SELECT JSON_OBJECTAGG("*" VALUE 1) FROM (SELECT 'k' "*" FROM dual)	quoted "*" column as a JSON_OBJECTAGG key

@@ -10,8 +10,8 @@ import (
 // JSON_OBJECTAGG, and JSON_SERIALIZE against Oracle 23ai: every accepted
 // form parses there (or fails only on a datatype it checks after parsing,
 // ORA-40449 or ORA-00932), and every rejected one fails with the error noted
-// beside it. Rows ref_237 to ref_246 and ref_253 to ref_256 run them
-// against the engine.
+// beside it. Rows ref_237 to ref_246, ref_253 to ref_256, and ref_258 to
+// ref_259 run them against the engine.
 func TestJSONConstructors(t *testing.T) {
 	for _, sql := range []string{
 		// JSON_OBJECT entries: KEY, VALUE, IS, ':', a column, a star.
@@ -101,6 +101,9 @@ func TestJSONConstructors(t *testing.T) {
 		"SELECT JSON_SERIALIZE('{}' EMPTY ARRAY ON ERROR) FROM dual",
 		"SELECT JSON_SERIALIZE('{}' EMPTY OBJECT ON ERROR) FROM dual",
 		"SELECT JSON_SERIALIZE('{}' RETURNING VARCHAR2) FROM dual",
+		// A quoted "*" names a column, so it is a scalar key.
+		`SELECT JSON_OBJECTAGG("*" VALUE 1) FROM (SELECT 'k' "*" FROM dual)`,
+		`SELECT JSON_OBJECTAGG(d."*" VALUE 1) FROM (SELECT 'k' "*" FROM dual) d`,
 	} {
 		ParseAndCheck(t, sql)
 	}
@@ -176,6 +179,12 @@ func TestJSONConstructors(t *testing.T) {
 		"SELECT JSON_SERIALIZE('{}' ASCII ORDERED PRETTY) FROM dual",
 		"SELECT JSON_SERIALIZE('{}' NULL ON ERROR ERROR ON ERROR) FROM dual",
 		"SELECT JSON_SERIALIZE('{}' DEFAULT 'x' ON ERROR) FROM dual",
+		// A RETURNING datatype has its size or precision (ORA-00910,
+		// ORA-40449).
+		"SELECT JSON_SERIALIZE('{}' RETURNING VARCHAR2()) FROM dual",
+		"SELECT JSON_ARRAYAGG(1 RETURNING RAW()) FROM dual",
+		"SELECT JSON_OBJECT('a' VALUE 1 RETURNING NUMBER(,)) FROM dual",
+		"SELECT JSON_OBJECT('a' VALUE 1 RETURNING NUMBER(5,)) FROM dual",
 	} {
 		ParseShouldFail(t, sql)
 	}

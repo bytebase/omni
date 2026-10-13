@@ -428,7 +428,14 @@ func (p *Parser) parsePLSQLTypeMod(tn *nodes.TypeName) error {
 	return nil
 }
 
-// parseOptionalPrecisionScale parses optional ( precision [, scale ] ).
+// parseOptionalPrecisionScale parses optional ( precision [, scale ] ) after
+// the type word last added to tn. In SQL the type decides the shape, as on
+// Oracle 23ai: NUMBER, DECIMAL, and NUMERIC take a precision or * and a
+// scale, which may be negative; FLOAT takes a precision or *; TIMESTAMP,
+// RAW, and the leading INTERVAL field take a number; INTEGER, SMALLINT, and
+// MONTH take nothing. Anything else, an empty modifier among them, fails
+// there (ORA-00907, or the range errors ORA-00910, ORA-01727, ORA-01728,
+// and ORA-30088).
 func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 	if p.cur.Type != '(' {
 		return nil
@@ -439,30 +446,53 @@ func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 	case typeModsNone:
 		return p.syntaxErrorAtCur()
 	}
+	star, scale := false, false
+	if word, ok := tn.Names.Items[tn.Names.Len()-1].(*nodes.String); ok {
+		switch word.Str {
+		case "NUMBER", "DECIMAL", "NUMERIC":
+			star, scale = true, true
+		case "FLOAT":
+			star = true
+		case "INTEGER", "SMALLINT", "MONTH":
+			return p.syntaxErrorAtCur()
+		}
+	}
 	p.advance() // consume '('
 
 	// precision
-	if p.cur.Type == tokICONST {
+	switch {
+	case p.cur.Type == tokICONST:
 		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.Integer{Ival: p.cur.Ival})
-		p.advance()
-	} else if p.cur.Type == '*' {
+	case star && p.cur.Type == '*':
 		// NUMBER(*) or NUMBER(*,s)
 		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.String{Str: "*"})
-		p.advance()
+	default:
+		return p.syntaxErrorAtCur()
 	}
+	p.advance()
 
 	// optional scale
-	if p.cur.Type == ',' {
+	if scale && p.cur.Type == ',' {
 		p.advance()
-		if p.cur.Type == tokICONST {
-			tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.Integer{Ival: p.cur.Ival})
+		negative := p.cur.Type == '-'
+		if negative {
 			p.advance()
 		}
-	}
-
-	if p.cur.Type == ')' {
+		if p.cur.Type != tokICONST {
+			return p.syntaxErrorAtCur()
+		}
+		ival := p.cur.Ival
+		if negative {
+			ival = -ival
+		}
+		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.Integer{Ival: ival})
 		p.advance()
 	}
+
+	if p.cur.Type != ')' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
 	return nil
 }
 
@@ -479,11 +509,13 @@ func (p *Parser) parseOptionalSizeWithSemantic(tn *nodes.TypeName) error {
 	}
 	p.advance() // consume '('
 
-	// size
-	if p.cur.Type == tokICONST {
-		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.Integer{Ival: p.cur.Ival})
-		p.advance()
+	// size, which SQL requires (ORA-00910 on Oracle 23ai for VARCHAR2()
+	// and VARCHAR2(BYTE))
+	if p.cur.Type != tokICONST {
+		return p.syntaxErrorAtCur()
 	}
+	tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.Integer{Ival: p.cur.Ival})
+	p.advance()
 
 	// optional BYTE or CHAR semantic
 	if p.isIdentLikeStr("BYTE") {
@@ -494,9 +526,10 @@ func (p *Parser) parseOptionalSizeWithSemantic(tn *nodes.TypeName) error {
 		p.advance()
 	}
 
-	if p.cur.Type == ')' {
-		p.advance()
+	if p.cur.Type != ')' {
+		return p.syntaxErrorAtCur()
 	}
+	p.advance()
 	return nil
 }
 
