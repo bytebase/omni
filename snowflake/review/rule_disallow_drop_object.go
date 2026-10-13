@@ -19,14 +19,27 @@ import (
 // restores an object and is not a drop. Dropping a constraint belongs to
 // DisallowDropConstraint; dropping a clustering key, a search optimization,
 // or a row access policy from a table removes no object.
-func checkDisallowDropObject(s *statement, r *reporter) {
+func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 	report := func(rng review.Range, kind, name string) {
 		r.report(review.DisallowDropObject, s.index, rng, "drops "+kind+" "+name)
 	}
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		switch v := n.(type) {
 		case *ast.DropStmt:
-			report(anchor(s, v, v.Loc), strings.ToLower(v.Kind.String()), object(v.Name))
+			name := object(v.Name)
+			// An overloaded function or procedure is named by its signature.
+			if v.HasArgs {
+				args := make([]string, len(v.ArgTypes))
+				for i, t := range v.ArgTypes {
+					if t != nil && t.Loc.Start >= 0 && t.Loc.End <= len(sql) && t.Loc.Start < t.Loc.End {
+						args[i] = oneLine(sql[t.Loc.Start:t.Loc.End])
+					} else if t != nil {
+						args[i] = t.Name
+					}
+				}
+				name += "(" + strings.Join(args, ", ") + ")"
+			}
+			report(anchor(s, v, v.Loc), strings.ToLower(v.Kind.String()), name)
 		case *ast.DropDatabaseStmt:
 			report(anchor(s, v, v.Loc), "database", object(v.Name))
 		case *ast.DropSchemaStmt:

@@ -273,6 +273,15 @@ func TestRequireIsNull(t *testing.T) {
 			name: "a value, IS NULL, a cast, and a comparison inside another",
 			sql:  "SELECT n = NULL FROM t WHERE n IS NULL AND code IS NOT NULL;\nSELECT * FROM t WHERE n = NULL::INT;\nSELECT * FROM t WHERE (n = NULL) = FALSE;",
 		},
+		{
+			name: "a task's WHEN, MATCH_RECOGNIZE DEFINE, and quoted text kept as written",
+			sql:  "CREATE TASK tk WAREHOUSE = w WHEN SYSTEM$STREAM_HAS_DATA('s') = NULL AS DELETE FROM t WHERE id = 1;\nSELECT * FROM t MATCH_RECOGNIZE (PATTERN (a) DEFINE a AS a.n = NULL);\nSELECT * FROM t WHERE \"a  b\" = NULL;",
+			want: []finding{
+				{0, "SYSTEM$STREAM_HAS_DATA('s') = NULL", `"SYSTEM$STREAM_HAS_DATA('s') = NULL" is never true; use IS NULL`, []int{0}},
+				{1, "a.n = NULL", `"a.n = NULL" is never true; use IS NULL`, []int{0}},
+				{2, "\"a  b\" = NULL", `""a  b" = NULL" is never true; use IS NULL`, []int{0}},
+			},
+		},
 	})
 }
 
@@ -292,8 +301,8 @@ func TestDisallowDropObject(t *testing.T) {
 				{7, "DROP TASK tk", "drops task tk", []int{0}},
 				{8, "DROP PIPE pp", "drops pipe pp", []int{0}},
 				{9, "DROP SEQUENCE sq", "drops sequence sq", []int{0}},
-				{10, "DROP FUNCTION f(NUMBER)", "drops function f", []int{0}},
-				{11, "DROP PROCEDURE pr()", "drops procedure pr", []int{0}},
+				{10, "DROP FUNCTION f(NUMBER)", "drops function f(NUMBER)", []int{0}},
+				{11, "DROP PROCEDURE pr()", "drops procedure pr()", []int{0}},
 				{12, "DROP USER u", "drops user u", []int{0}},
 				{13, "DROP ROLE r", "drops role r", []int{0}},
 				{14, "DROP WAREHOUSE w", "drops warehouse w", []int{0}},
@@ -464,6 +473,18 @@ func TestRequirePrimaryKey(t *testing.T) {
 		{
 			name: "settled by a later key, drop, rename, swap, or create",
 			sql:  "CREATE TABLE a (id INT NOT NULL);\nALTER TABLE a ADD PRIMARY KEY (id);\nCREATE TABLE b (id INT);\nDROP TABLE b;\nCREATE TABLE c (id INT);\nALTER TABLE c RENAME TO c2;\nCREATE TABLE d (id INT);\nALTER TABLE p SWAP WITH d;\nCREATE TABLE e (id INT);\nCREATE OR REPLACE TABLE e (id INT PRIMARY KEY);\nCREATE TABLE s2.f (id INT);\nDROP SCHEMA s2;\nCREATE TABLE g (id INT);\nALTER TABLE g ADD COLUMN k INT PRIMARY KEY;",
+		},
+		{
+			name: "a column declared PRIMARY KEY with another inline constraint",
+			sql:  "CREATE TABLE a (id INT PRIMARY KEY UNIQUE NOT NULL);",
+		},
+		{
+			name: "not settled by IF NOT EXISTS or a temporary table of its name",
+			sql:  "CREATE TABLE a (id INT);\nCREATE TABLE IF NOT EXISTS a (id INT PRIMARY KEY);\nCREATE TABLE b (id INT);\nCREATE TEMPORARY TABLE b (id INT PRIMARY KEY);",
+			want: []finding{
+				{0, "CREATE TABLE a (id INT)", "creates table a without a primary key", []int{0}},
+				{2, "CREATE TABLE b (id INT)", "creates table b without a primary key", []int{0}},
+			},
 		},
 		{
 			name: "not settled by another table or a column rename",

@@ -121,7 +121,7 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 			checkRequireWhere(s, r)
 		}
 		if on[review.DisallowDropObject] {
-			checkDisallowDropObject(s, r)
+			checkDisallowDropObject(sql, s, r)
 		}
 		if on[review.DisallowTruncate] {
 			checkDisallowTruncate(s, r)
@@ -132,7 +132,7 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 	}
 	var drops []droppedConstraint
 	if on[review.DisallowDropConstraint] || on[review.RequirePrimaryKey] {
-		drops = checkConstraints(stmts, on, r)
+		drops = checkConstraints(sql, stmts, on, r)
 	}
 	if len(drops) > 0 {
 		findings, failures, err := reviewTargets(ctx, drops, on, targets)

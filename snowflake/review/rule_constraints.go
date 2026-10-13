@@ -1,8 +1,11 @@
 package review
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/snowflake/ast"
+	"github.com/bytebase/omni/snowflake/parser"
 )
 
 // constraintKind is what a constraint is, as DisallowDropConstraint names
@@ -155,9 +158,10 @@ func (c *constraintLog) lookup(table *ast.ObjectName, name ast.Ident) (kind cons
 // CONSTRAINT of a name the change did not touch, on a table the change did
 // not replace, before any USE or schema or database drop, is returned, for
 // the target's synced schema to settle.
-func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) []droppedConstraint {
+func checkConstraints(sql string, stmts []statement, on map[review.Rule]bool, r *reporter) []droppedConstraint {
 	var c constraintLog
 	var open []droppedConstraint
+	later := settlersOf(stmts)
 	for pos := range stmts {
 		s := &stmts[pos]
 		ast.Inspect(s.node, func(n ast.Node) bool {
@@ -173,11 +177,11 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 						c.define(v.Name, d.name, d.kind)
 					}
 				}
-				if top && on[review.RequirePrimaryKey] && judgedTable(v) && !createsPrimaryKey(v) && !settledAfter(stmts, pos, v.Name) {
+				if top && on[review.RequirePrimaryKey] && judgedTable(v) && !createsPrimaryKey(v) && !mentionsPrimaryKey(sql, s) && !later.after(pos, v.Name) {
 					r.report(review.RequirePrimaryKey, s.index, rangeOf(s.loc), "creates table "+object(v.Name)+" without a primary key")
 				}
 			case *ast.AlterTableStmt:
-				open = append(open, c.alterTable(stmts, pos, s, v, top, on, r)...)
+				open = append(open, c.alterTable(later, pos, s, v, top, on, r)...)
 			case *ast.DropStmt:
 				if v.Kind == ast.DropTable {
 					c.replace(v.Name)
@@ -201,7 +205,7 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 
 // alterTable reads one ALTER TABLE, action by action: what it defines,
 // renames, or replaces, and what it drops.
-func (c *constraintLog) alterTable(stmts []statement, pos int, s *statement, v *ast.AlterTableStmt, top bool, on map[review.Rule]bool, r *reporter) []droppedConstraint {
+func (c *constraintLog) alterTable(later settlers, pos int, s *statement, v *ast.AlterTableStmt, top bool, on map[review.Rule]bool, r *reporter) []droppedConstraint {
 	// A nested statement may not run: what it defines is not known.
 	defined := func(k constraintKind) constraintKind {
 		if top {
@@ -233,7 +237,7 @@ func (c *constraintLog) alterTable(stmts []statement, pos int, s *statement, v *
 			c.replace(v.Name)
 			c.replace(a.NewName)
 		case ast.AlterTableDropConstraint:
-			judgePK := top && !addsPrimaryKey(v) && !settledAfter(stmts, pos, v.Name)
+			judgePK := top && !addsPrimaryKey(v) && !later.after(pos, v.Name)
 			switch {
 			case a.IsPrimaryKey:
 				if on[review.DisallowDropConstraint] {
@@ -296,6 +300,32 @@ func judgedTable(v *ast.CreateTableStmt) bool {
 	return v.Name != nil && !v.Temporary && !v.Volatile && !v.IfNotExists && !v.OrAlter && v.Like == nil && v.Clone == nil
 }
 
+// mentionsPrimaryKey reports whether a statement's tokens hold PRIMARY KEY.
+// The parser keeps one inline constraint per column, the last, so a
+// column declared PRIMARY KEY UNIQUE reads as UNIQUE; a statement that
+// writes PRIMARY KEY anywhere is not judged keyless.
+func mentionsPrimaryKey(sql string, s *statement) bool {
+	if s.loc.Start < 0 || s.loc.End > len(sql) || s.loc.End <= s.loc.Start {
+		return false
+	}
+	lx := parser.NewLexerWithOffset(sql[s.loc.Start:s.loc.End], s.loc.Start)
+	prev := ""
+	for {
+		tok := lx.NextToken()
+		if parser.TokenName(tok.Type) == "EOF" {
+			return false
+		}
+		word := ""
+		if tok.Loc.Start >= 0 && tok.Loc.End <= len(sql) && tok.Loc.Start < tok.Loc.End {
+			word = sql[tok.Loc.Start:tok.Loc.End]
+		}
+		if strings.EqualFold(prev, "PRIMARY") && strings.EqualFold(word, "KEY") {
+			return true
+		}
+		prev = word
+	}
+}
+
 // createsPrimaryKey reports whether a CREATE TABLE declares a primary key,
 // as a table constraint or on a column.
 func createsPrimaryKey(v *ast.CreateTableStmt) bool {
@@ -335,39 +365,91 @@ func addsPrimaryKey(v *ast.AlterTableStmt) bool {
 	return false
 }
 
-// settledAfter reports whether a statement after the given position, at
-// top level or nested, may give the table a primary key, drop it or its
-// schema or database, rename or swap it, or create a table of its name:
-// then the rule does not follow it further.
-func settledAfter(stmts []statement, pos int, ref *ast.ObjectName) bool {
-	settled := false
-	for i := pos + 1; i < len(stmts) && !settled; i++ {
-		ast.Inspect(stmts[i].node, func(n ast.Node) bool {
+// settler is a statement that may settle a table: give it a primary key,
+// drop it or its schema or database, rename or swap it, or create a table
+// of its name.
+type settler struct {
+	pos int
+	ref *ast.ObjectName
+	// schema and database, for a DROP SCHEMA or DROP DATABASE, settle
+	// every table of the one dropped, and every table naming none.
+	schema, database *ast.ObjectName
+}
+
+// settlers indexes the statements that may settle a table, by the table's
+// name, read once for the whole change.
+type settlers struct {
+	byName map[string][]settler
+	drops  []settler
+}
+
+// settlersOf reads the change's statements, at top level or nested, for
+// what may settle a table. A CREATE TABLE IF NOT EXISTS of a table the
+// change made does nothing, and a temporary table leaves the table of its
+// name as it is, so neither settles it.
+func settlersOf(stmts []statement) settlers {
+	x := settlers{byName: make(map[string][]settler)}
+	add := func(pos int, ref *ast.ObjectName) {
+		if ref != nil {
+			key := ref.Name.Normalize()
+			x.byName[key] = append(x.byName[key], settler{pos: pos, ref: ref})
+		}
+	}
+	for pos := range stmts {
+		ast.Inspect(stmts[pos].node, func(n ast.Node) bool {
 			switch v := n.(type) {
 			case *ast.CreateTableStmt:
-				settled = settled || sameObject(v.Name, ref)
+				if !v.IfNotExists && !v.Temporary && !v.Volatile {
+					add(pos, v.Name)
+				}
 			case *ast.AlterTableStmt:
-				if sameObject(v.Name, ref) && addsPrimaryKey(v) {
-					settled = true
+				if addsPrimaryKey(v) {
+					add(pos, v.Name)
 				}
 				for _, a := range v.Actions {
-					if a != nil && (a.Kind == ast.AlterTableRename || a.Kind == ast.AlterTableSwapWith) &&
-						(sameObject(v.Name, ref) || sameObject(a.NewName, ref)) {
-						settled = true
+					if a != nil && (a.Kind == ast.AlterTableRename || a.Kind == ast.AlterTableSwapWith) {
+						add(pos, v.Name)
+						add(pos, a.NewName)
 					}
 				}
 			case *ast.DropStmt:
-				settled = settled || v.Kind == ast.DropTable && sameObject(v.Name, ref)
-			// A table without a schema or database may be in the one dropped.
+				if v.Kind == ast.DropTable {
+					add(pos, v.Name)
+				}
 			case *ast.DropSchemaStmt:
-				settled = settled || v.Name != nil && (ref.Schema.IsEmpty() || sameName(ref.Schema, v.Name.Name))
+				if v.Name != nil {
+					x.drops = append(x.drops, settler{pos: pos, schema: v.Name})
+				}
 			case *ast.DropDatabaseStmt:
-				settled = settled || v.Name != nil && (ref.Database.IsEmpty() || sameName(ref.Database, v.Name.Name))
+				if v.Name != nil {
+					x.drops = append(x.drops, settler{pos: pos, database: v.Name})
+				}
 			}
-			return !settled
+			return true
 		})
 	}
-	return settled
+	return x
+}
+
+// after reports whether a statement after the given position may settle
+// the table: then the rule does not follow it further.
+func (x settlers) after(pos int, ref *ast.ObjectName) bool {
+	for _, st := range x.byName[ref.Name.Normalize()] {
+		if st.pos > pos && sameObject(st.ref, ref) {
+			return true
+		}
+	}
+	// A table without a schema or database may be in the one dropped.
+	for _, st := range x.drops {
+		switch {
+		case st.pos <= pos:
+		case st.schema != nil && (ref.Schema.IsEmpty() || sameName(ref.Schema, st.schema.Name)):
+			return true
+		case st.database != nil && (ref.Database.IsEmpty() || sameName(ref.Database, st.database.Name)):
+			return true
+		}
+	}
+	return false
 }
 
 // movesNames reports whether a USE moves what a name means: USE DATABASE,

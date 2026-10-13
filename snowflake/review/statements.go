@@ -121,6 +121,35 @@ func anchor(s *statement, n ast.Node, loc ast.Loc) review.Range {
 	return rangeOf(loc)
 }
 
+// oneLine writes source text on one line: whitespace between tokens
+// becomes one space, and text inside quotes is kept as written, with a
+// line break escaped.
+func oneLine(text string) string {
+	var b strings.Builder
+	var quote byte
+	space := false
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		switch {
+		case quote != 0:
+			if c == quote {
+				quote = 0
+			}
+		case c == '\'' || c == '"':
+			quote = c
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f':
+			space = true
+			continue
+		}
+		if space && b.Len() > 0 {
+			b.WriteByte(' ')
+		}
+		space = false
+		b.WriteByte(c)
+	}
+	return escapeLines(b.String())
+}
+
 // escapeLines keeps a message on one line: a line break inside quoted text
 // would otherwise split the comment that carries it.
 func escapeLines(s string) string {

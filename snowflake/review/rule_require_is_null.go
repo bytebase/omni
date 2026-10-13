@@ -1,8 +1,6 @@
 package review
 
 import (
-	"strings"
-
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/snowflake/ast"
 )
@@ -43,9 +41,9 @@ func checkRequireIsNull(sql string, s *statement, r *reporter) {
 				rng := rangeOf(span(v))
 				text := "= NULL"
 				if rng.Start < rng.End && rng.End <= len(sql) {
-					text = strings.Join(strings.Fields(sql[rng.Start:rng.End]), " ")
+					text = oneLine(sql[rng.Start:rng.End])
 				}
-				r.report(review.RequireIsNull, s.index, rng, `"`+escapeLines(text)+`" is never true; use `+fix)
+				r.report(review.RequireIsNull, s.index, rng, `"`+text+`" is never true; use `+fix)
 			}
 		}
 	}
@@ -103,6 +101,12 @@ func predicates(root ast.Node) []ast.Node {
 	}
 	ast.Inspect(root, func(n ast.Node) bool {
 		switch v := n.(type) {
+		case *ast.CreateTaskStmt:
+			add(v.When)
+		case *ast.AlterTaskStmt:
+			add(v.When)
+		case *ast.MatchDefine:
+			add(v.Cond)
 		case *ast.SelectStmt:
 			add(v.Where)
 			add(v.Having)
