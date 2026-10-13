@@ -5215,6 +5215,9 @@ func writeDynamicSQLExpr(sb *strings.Builder, n *DynamicSQLExpr) {
 		sb.WriteString(" :using ")
 		writeNode(sb, n.Using)
 	}
+	if len(n.UsingModes) > 0 {
+		sb.WriteString(fmt.Sprintf(" :usingModes %q", n.UsingModes))
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }

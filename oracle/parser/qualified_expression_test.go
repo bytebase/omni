@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/oracle/ast"
@@ -201,6 +202,12 @@ func TestQualifiedExpressionTree(t *testing.T) {
 	loop = parseOne[*ast.PLSQLBlock](t, "BEGIN FOR r IN c2(1) LOOP NULL; END LOOP; END;").Statements.Items[0].(*ast.PLSQLLoop)
 	if loop.Type != ast.LOOP_CURSOR_FOR || loop.CursorName != "C2" || loop.CursorArgs.Len() != 1 {
 		t.Errorf("cursor loop = %+v", loop)
+	}
+	// The bind modes of dynamic SQL show in the tree's text.
+	plain := ast.NodeToString(parseOne[*ast.PLSQLBlock](t, "BEGIN FOR r rt IN (EXECUTE IMMEDIATE s USING    x) LOOP NULL; END LOOP; END;"))
+	in := ast.NodeToString(parseOne[*ast.PLSQLBlock](t, "BEGIN FOR r rt IN (EXECUTE IMMEDIATE s USING IN x) LOOP NULL; END LOOP; END;"))
+	if plain == in || !strings.Contains(in, `:usingModes ["IN"]`) {
+		t.Errorf("USING x and USING IN x print alike: %s", in)
 	}
 	loop = parseOne[*ast.PLSQLBlock](t, "BEGIN FOR i IN x + 1 LOOP NULL; END LOOP; END;").Statements.Items[0].(*ast.PLSQLLoop)
 	if loop.Type != ast.LOOP_FOR || loop.CursorName != "" {
