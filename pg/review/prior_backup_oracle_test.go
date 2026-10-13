@@ -28,6 +28,9 @@ DO $$ BEGIN CREATE ROLE prior_backup_old SUPERUSER; EXCEPTION WHEN duplicate_obj
 DO $$ BEGIN CREATE ROLE prior_backup_bob; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 CREATE SCHEMA prior_backup_bob AUTHORIZATION prior_backup_bob;
 CREATE TABLE prior_backup_bob.t (id int);
+CREATE TABLE public.pb_src (old int);
+CREATE TABLE s.pb_src (new int);
+CREATE TABLE s.pb_dest (old int);
 CREATE FUNCTION public.old(int) RETURNS bool LANGUAGE sql AS 'SELECT true';
 INSERT INTO p VALUES (1), (2);
 INSERT INTO t (id, p_id, n) VALUES (1, 1, 1), (2, 2, 2);
@@ -137,6 +140,16 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a column an aliased join hides", "ALTER TABLE nokey ADD COLUMN id bool;\nDELETE FROM nokey USING (p JOIN t ON p.id = t.p_id) AS j(c1, c2, c3, c4, c5) WHERE id;", true},
 		{"a column a copied WITH query's WINDOW clause reads", "ALTER TABLE p ADD COLUMN gone int;\nWITH x AS (SELECT id, row_number() OVER w FROM p WINDOW w AS (ORDER BY gone)) DELETE FROM t WHERE EXISTS (SELECT 1 FROM x);", true},
 		{"a column beside a function's column definition list", "ALTER TABLE nokey ADD COLUMN b bool;\nDELETE FROM nokey USING json_to_record('{\"x\":1}') AS g(x int) WHERE b;", true},
+		{"a column an outer source has, named in a subquery a deeper one shadows", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p WHERE EXISTS (SELECT p.gone WHERE EXISTS (SELECT 1 FROM p));", true},
+		{"a column a table the change recreates inherits", "DROP TABLE nokey;\nCREATE TABLE nokey () INHERITS (p);\nDELETE FROM t USING nokey WHERE nokey.id = t.id;", true},
+		{"a column a partition the change creates has", "DROP TABLE nokey;\nCREATE TABLE nokey PARTITION OF pt FOR VALUES FROM (10) TO (20);\nDELETE FROM t USING nokey WHERE nokey.id = t.id;", true},
+		{"a column beside a USING join's alias list", "ALTER TABLE nokey ADD COLUMN b bool;\nDELETE FROM nokey USING (p JOIN t USING (id)) AS j(i, tcode, tpid, tn) WHERE b;", true},
+		{"a column beside a NATURAL join's alias list", "ALTER TABLE nokey ADD COLUMN b bool;\nDELETE FROM nokey USING (p NATURAL JOIN t) AS j(i, tcode, tpid, tn) WHERE b;", true},
+		{"a column a relation the change renames has, found where the rename runs", "SET search_path = public;\nSET search_path = s;\nDROP TABLE s.pb_dest;\nALTER TABLE pb_src RENAME TO pb_dest;\nDELETE FROM public.t USING s.pb_dest WHERE s.pb_dest.new = t.id;", true},
+		{"a column beside XMLTABLE", "ALTER TABLE nokey ADD COLUMN b bool;\nDELETE FROM nokey USING XMLTABLE('/root' PASSING XML '<root><x>1</x></root>' COLUMNS x int PATH 'x') AS g WHERE b;", true},
+		{"a column beside JSON_TABLE", "ALTER TABLE nokey ADD COLUMN b bool;\nDELETE FROM nokey USING JSON_TABLE('{\"x\":1}'::jsonb, '$' COLUMNS (x int PATH '$.x')) AS g WHERE b;", true},
+		{"a column a copied WITH query's star shows", "ALTER TABLE p ADD COLUMN gone int;\nWITH x AS (SELECT p.* FROM p) DELETE FROM t USING x WHERE x.gone = t.id;", true},
+		{"a column a subquery's star shows", "ALTER TABLE p ADD COLUMN gone int;\nDELETE FROM nokey USING (SELECT * FROM p) AS sq WHERE sq.gone = 1;", true},
 		// DROP ... CASCADE may drop relations it does not name: what the
 		// path finds after it is not judged.
 		{"a table after DROP ... CASCADE", "SET search_path = s, public;\nDROP TABLE s.t CASCADE;\nUPDATE t SET n = 1 WHERE id = 2;", false},
