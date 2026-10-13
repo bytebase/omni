@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -202,9 +203,84 @@ func staticNull(source string, expr nodes.ExprNode) (null bool, ok bool) {
 		case len(args) == 1 && (name == "UPPER" || name == "LOWER" || name == "INITCAP" ||
 			name == "TO_CHAR" || name == "TO_NCHAR" || name == "CHR"):
 			return staticNull(source, args[0].(nodes.ExprNode))
+		case (name == "SUBSTR" || name == "SUBSTRB" || name == "SUBSTRC") && (len(args) == 2 || len(args) == 3):
+			return staticSubstrNull(args)
+		case (name == "RPAD" || name == "LPAD") && (len(args) == 2 || len(args) == 3):
+			// NULL when an argument is or the length is under 1.
+			nonNull := true
+			for i, arg := range args {
+				null, ok := staticNull(source, arg.(nodes.ExprNode))
+				if ok && null {
+					return true, true
+				}
+				if i == 1 {
+					if n, ok := staticNumber(arg.(nodes.ExprNode)); ok && n != nil && roundRat(n, "ROUND").Sign() <= 0 {
+						return true, true
+					}
+				}
+				nonNull = nonNull && ok
+			}
+			if nonNull {
+				return false, true
+			}
 		}
 	}
 	return false, false
+}
+
+// staticSubstrNull reports whether SUBSTR(text, position [, length]) is
+// NULL, as Oracle 23ai finds it: position 0 counts as 1 and a negative one
+// from the end, each argument rounds to a whole number (SUBSTR('abc', 3.9)
+// is NULL), and the result is NULL when it starts past either end or the
+// length is under 1. The text is an ASCII literal or an integer, which
+// every character set and SUBSTR variant counts alike.
+func staticSubstrNull(args []nodes.Node) (null bool, ok bool) {
+	var text string
+	switch v := args[0].(type) {
+	case *nodes.StringLiteral:
+		text = v.Val
+	default:
+		n, ok := staticNumber(v.(nodes.ExprNode))
+		if !ok || n == nil || !n.IsInt() {
+			if ok && n == nil {
+				return true, true
+			}
+			return false, false
+		}
+		text = n.Num().String()
+	}
+	for i := 0; i < len(text); i++ {
+		if text[i] >= utf8.RuneSelf {
+			return false, false
+		}
+	}
+	var whole []int64
+	for _, arg := range args[1:] {
+		v, ok := staticNumber(arg.(nodes.ExprNode))
+		switch {
+		case !ok:
+			return false, false
+		case v == nil:
+			return true, true
+		}
+		n := roundRat(v, "ROUND")
+		if !plsInteger(n) {
+			return false, false
+		}
+		whole = append(whole, n.Num().Int64())
+	}
+	length := int64(len(text))
+	start := whole[0] - 1
+	switch {
+	case whole[0] == 0:
+		start = 0
+	case whole[0] < 0:
+		start = length + whole[0]
+	}
+	if start < 0 || start >= length || len(whole) == 2 && whole[1] < 1 {
+		return true, true
+	}
+	return false, true
 }
 
 // staticConcatNull reports whether left || right is NULL: when both are.
@@ -363,7 +439,10 @@ func staticNumericCall(call *nodes.FuncCallExpr) (*big.Rat, bool) {
 	case name == "ABS" && one, name == "SIGN" && one, name == "CEIL" && one, name == "FLOOR" && one,
 		name == "TRUNC" && len(args) <= 2, name == "ROUND" && len(args) <= 2,
 		name == "MOD" && len(args) == 2, name == "POWER" && len(args) == 2,
-		name == "BITAND" && len(args) == 2, name == "REMAINDER" && len(args) == 2:
+		name == "BITAND" && len(args) == 2, name == "REMAINDER" && len(args) == 2,
+		name == "SQRT" && one, name == "EXP" && one, name == "LN" && one, name == "COS" && one,
+		name == "COSH" && one, name == "SIN" && one, name == "TAN" && one, name == "ATAN" && one,
+		name == "SINH" && one, name == "TANH" && one, name == "LOG" && len(args) == 2:
 		if null {
 			return nil, true
 		}
@@ -411,6 +490,38 @@ func staticNumericCall(call *nodes.FuncCallExpr) (*big.Rat, bool) {
 			n.Sub(n, big.NewRat(int64(q.Sign()), 1))
 		}
 		return oracleNumber(args[0].Sub(args[0], n.Mul(n, args[1])))
+	case "SQRT":
+		// The exact root of an exact square (Oracle 23ai finds SQRT(2.25) =
+		// 1.5); any other root is NUMBER's rounding.
+		if args[0].Sign() < 0 {
+			return nil, false
+		}
+		num, den := new(big.Int).Sqrt(args[0].Num()), new(big.Int).Sqrt(args[0].Denom())
+		root := new(big.Rat).SetFrac(num, den)
+		if new(big.Rat).Mul(root, root).Cmp(args[0]) != 0 {
+			return nil, false
+		}
+		return root, true
+	case "EXP", "LN", "COS", "COSH", "SIN", "TAN", "ATAN", "SINH", "TANH", "LOG":
+		// The exact values: EXP(0), COS(0), and COSH(0) are 1; LN(1),
+		// LOG(b, 1), and the others at 0 are 0.
+		x, at := args[0], new(big.Rat)
+		switch name {
+		case "LN":
+			at = big.NewRat(1, 1)
+		case "LOG":
+			x, at = args[1], big.NewRat(1, 1)
+			if args[0].Sign() <= 0 || args[0].Cmp(at) == 0 {
+				return nil, false
+			}
+		}
+		if x.Cmp(at) != 0 {
+			return nil, false
+		}
+		if name == "EXP" || name == "COS" || name == "COSH" {
+			return big.NewRat(1, 1), true
+		}
+		return new(big.Rat), true
 	case "BITAND":
 		// Two's complement over the whole parts, toward zero (Oracle 23ai
 		// finds BITAND(2.9, 3) = 2 and BITAND(-6, -3) = -8).
@@ -794,60 +905,116 @@ func (p *Parser) staticConditionFault(expr nodes.ExprNode) nodes.ExprNode {
 
 // staticRaise returns the operation in expr that certainly raises an
 // exception, which makes the condition no static expression (PLS-00174 on
-// Oracle 23ai for $IF FALSE AND 1 / 0 = 0, short-circuit or not): a
-// division or REMAINDER of a value by zero, zero to a negative power, a
-// negative number to a fractional one, and BITAND past its range. A NULL
-// operand raises nothing (NULL / 0 is NULL).
+// Oracle 23ai for $IF FALSE AND 1 / 0 = 0, short-circuit or not).
 func staticRaise(expr nodes.ExprNode) nodes.ExprNode {
 	var bad nodes.ExprNode
 	nodes.Inspect(expr, func(n nodes.Node) bool {
-		if bad != nil {
-			return false
-		}
-		var left, right nodes.ExprNode
-		op := ""
-		switch e := n.(type) {
-		case *nodes.BinaryExpr:
-			left, right, op = e.Left, e.Right, e.Op
-		case *nodes.FuncCallExpr:
-			if e.Args == nil || e.Args.Len() != 2 {
-				return true
-			}
-			left, right = e.Args.Items[0].(nodes.ExprNode), e.Args.Items[1].(nodes.ExprNode)
-			switch staticFunctionName(e) {
-			case "REMAINDER":
-				op = "/"
-			case "POWER":
-				op = "**"
-			case "BITAND":
-				op = "BITAND"
-			}
-		}
-		if op == "" {
-			return true
-		}
-		a, aok := staticNumber(left)
-		b, bok := staticNumber(right)
-		if !aok || !bok || a == nil || b == nil {
-			return true
-		}
-		switch op {
-		case "/":
-			if b.Sign() == 0 {
-				bad = n.(nodes.ExprNode)
-			}
-		case "**":
-			if a.Sign() == 0 && b.Sign() < 0 || a.Sign() < 0 && !b.IsInt() {
-				bad = n.(nodes.ExprNode)
-			}
-		case "BITAND":
-			if !bitandOperand(a) || !bitandOperand(b) {
-				bad = n.(nodes.ExprNode)
-			}
+		if e, ok := n.(nodes.ExprNode); ok && bad == nil && staticRaises(e) {
+			bad = e
 		}
 		return bad == nil
 	})
 	return bad
+}
+
+// staticRaises reports whether evaluating e raises once the text settles
+// its operands, none of them NULL (NULL / 0 is NULL), as Oracle 23ai finds:
+// a division or REMAINDER by zero; zero to a negative power, a negative
+// number to a fractional one, and a power from 1e126 on; SQRT of a negative
+// number, LN of one not positive, and LOG of either; BITAND past -2^127
+// through 2^127 - 1; CHR of less than 1; a SUBSTR position or length, or an
+// RPAD or LPAD length, past PLS_INTEGER, and a pad past 32767. EXP, SINH,
+// and COSH past NUMBER's range raise nothing.
+func staticRaises(e nodes.ExprNode) bool {
+	var name string
+	var args []nodes.ExprNode
+	switch e := e.(type) {
+	case *nodes.BinaryExpr:
+		switch e.Op {
+		case "/":
+			name = "REMAINDER"
+		case "**":
+			name = "POWER"
+		default:
+			return false
+		}
+		args = []nodes.ExprNode{e.Left, e.Right}
+	case *nodes.FuncCallExpr:
+		if e.Args == nil {
+			return false
+		}
+		name = staticFunctionName(e)
+		for _, item := range e.Args.Items {
+			args = append(args, item.(nodes.ExprNode))
+		}
+	default:
+		return false
+	}
+	// The arguments' values, when the text settles each and none is NULL.
+	values := make([]*big.Rat, len(args))
+	for i, arg := range args {
+		if v, ok := staticNumber(arg); ok && v != nil {
+			values[i] = v
+		} else if null, ok := staticNull("", arg); !ok || null {
+			return false
+		}
+	}
+	one := big.NewRat(1, 1)
+	switch {
+	case (name == "REMAINDER") && len(args) == 2 && values[0] != nil && values[1] != nil:
+		return values[1].Sign() == 0
+	case name == "POWER" && len(args) == 2 && values[0] != nil && values[1] != nil:
+		a, b := values[0], values[1]
+		return a.Sign() == 0 && b.Sign() < 0 || a.Sign() < 0 && !b.IsInt() || powerOverflows(a, b)
+	case name == "SQRT" && len(args) == 1 && values[0] != nil:
+		return values[0].Sign() < 0
+	case name == "LN" && len(args) == 1 && values[0] != nil:
+		return values[0].Sign() <= 0
+	case name == "LOG" && len(args) == 2 && values[0] != nil && values[1] != nil:
+		return values[0].Sign() <= 0 || values[0].Cmp(one) == 0 || values[1].Sign() <= 0
+	case name == "BITAND" && len(args) == 2 && values[0] != nil && values[1] != nil:
+		return !bitandOperand(values[0]) || !bitandOperand(values[1])
+	case name == "CHR" && len(args) == 1 && values[0] != nil:
+		n := roundRat(values[0], "ROUND")
+		return n.Sign() <= 0 || !plsInteger(n)
+	case (name == "SUBSTR" || name == "SUBSTRB" || name == "SUBSTRC") && len(args) >= 2:
+		for _, v := range values[1:] {
+			if v != nil && !plsInteger(roundRat(v, "ROUND")) {
+				return true
+			}
+		}
+	case (name == "RPAD" || name == "LPAD") && len(args) >= 2 && values[1] != nil:
+		n := roundRat(values[1], "ROUND")
+		return !plsInteger(n) || n.Cmp(big.NewRat(32767, 1)) > 0
+	}
+	return false
+}
+
+// plsInteger reports whether the whole number n is a PLS_INTEGER.
+func plsInteger(n *big.Rat) bool {
+	return n.Cmp(big.NewRat(-1<<31, 1)) >= 0 && n.Cmp(big.NewRat(1<<31-1, 1)) <= 0
+}
+
+// powerOverflows reports whether a to the whole power b reaches 1e126,
+// past NUMBER's range (Oracle 23ai raises for POWER(10, 126) and not for
+// POWER(10, 125)); a power the estimate cannot settle is taken not to.
+func powerOverflows(a, b *big.Rat) bool {
+	if !b.IsInt() || a.Sign() == 0 {
+		return false
+	}
+	exp := new(big.Int).Abs(b.Num())
+	if exp.Cmp(big.NewInt(512)) <= 0 {
+		// Exactly, as the boundary needs.
+		num := new(big.Int).Exp(new(big.Int).Abs(a.Num()), exp, nil)
+		den := new(big.Int).Exp(a.Denom(), exp, nil)
+		if b.Sign() < 0 {
+			num, den = den, num
+		}
+		return new(big.Rat).SetFrac(num, den).Cmp(pow10(126)) >= 0
+	}
+	af, _ := new(big.Rat).Abs(a).Float64()
+	bf, _ := b.Float64()
+	return bf*math.Log10(af) >= 126+1e-9
 }
 
 // checkDirectiveCondition parses the condition at loc of an $IF or $ELSIF

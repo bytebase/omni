@@ -122,7 +122,8 @@ func Tokenize(sql string) []Token {
 // with each conditional compilation directive resolved, so that candidates
 // and scope come from one variant of it. Of each $IF it keeps the branch
 // that holds the caret, and otherwise the branch the preprocessor selects,
-// the first whose condition the text does not settle; an $ERROR goes.
+// the first whose condition the text does not settle; an $ERROR goes. A
+// condition or $ERROR message that holds the caret is kept.
 func completionTokens(sql string, caret int) []Token {
 	r := &ccResolver{sql: sql, toks: Tokenize(sql), caret: caret}
 	for r.pos < len(r.toks) {
@@ -167,7 +168,16 @@ func (r *ccResolver) code(emit bool) {
 			r.pos++
 			r.ifGroup(emit)
 		case "$ERROR":
+			// Its message goes, but where the caret is in it.
+			start := r.pos + 1
 			for r.pos++; r.pos < len(r.toks) && !(r.toks[r.pos].Type == tokDIRECTIVE && r.toks[r.pos].Str == "$END"); r.pos++ {
+			}
+			to := len(r.sql)
+			if r.pos < len(r.toks) {
+				to = r.toks[r.pos].Loc
+			}
+			if emit && tok.End <= r.caret && r.caret <= to {
+				r.out = append(r.out, r.toks[start:r.pos]...)
 			}
 			r.pos++
 		default:

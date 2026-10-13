@@ -111,6 +111,19 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF BITAND(6, 3) = 2 AND BITAND(-6, -3) = -8 AND BITAND(2.9, 3) = 2 AND REMAINDER(14, 4) = -2 AND REMAINDER(11, 4) = -1 $THEN NULL; $ELSE garbage garbage; $END END;",
 		"BEGIN $IF POWER(4, -2) = 0.0625 AND 2 ** (-1) = 0.5 AND NULL / 0 IS NULL AND REMAINDER(NULL, 0) IS NULL $THEN NULL; $ELSE garbage garbage; $END END;",
 		"BEGIN $IF TRUE $THEN NULL; $ELSIF 1 / 0 = 0 $THEN NULL; $END END;",
+		// The other admitted functions fold where their value is exact:
+		// SQRT of an exact square, and EXP, LN, LOG, and the trigonometric
+		// functions at 0 or 1.
+		"BEGIN $IF SQRT(4) = 3 $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF SQRT(2.25) = 1.5 AND EXP(0) = 1 AND LN(1) = 0 AND LOG(3, 1) = 0 AND COS(0) = 1 AND COSH(0) = 1 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF SIN(0) = 0 AND TAN(0) = 0 AND ATAN(0) = 0 AND SINH(0) = 0 AND TANH(0) = 0 AND SQRT(NULL) IS NULL $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF EXP(300) > 0 AND POWER(10, 125) > 0 AND POWER(10, -131) = 0 $THEN NULL; $ELSE NULL; $END END;",
+		// SUBSTR, RPAD, and LPAD settle their nullness, the arguments
+		// rounded to whole numbers.
+		"BEGIN $IF SUBSTR('a', 1) IS NULL OR SUBSTR('abc', 0) IS NULL OR SUBSTR('abc', -1) IS NULL OR SUBSTR(123, 2) IS NULL $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF SUBSTR('abc', 5) IS NULL AND SUBSTR('abc', -4) IS NULL AND SUBSTR('abc', 2, 0) IS NULL AND SUBSTR('abc', 3.9) IS NULL $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF SUBSTR('abc', 2, 0.5) IS NULL OR RPAD('a', 0.5) IS NULL OR LPAD('a', 3, 'x') IS NULL OR RPAD(1, 2) IS NULL $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF RPAD('a', 0) IS NULL AND LPAD('a', 3, NULL) IS NULL AND LPAD(NULL, 3, 'x') IS NULL AND SUBSTR('abc', NULL) IS NULL $THEN NULL; $ELSE garbage garbage; $END END;",
 		// A hint anywhere but after SELECT, INSERT, UPDATE, DELETE, or MERGE
 		// is a comment.
 		"BEGIN $IF /*+ ignored */ TRUE /*+ x */ AND TRUE $THEN /*+ y */ NULL; $END END;",
@@ -199,6 +212,21 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF POWER(-8, 1 / 3) < 0 $THEN NULL; $ELSE NULL; $END END;",
 		"BEGIN $IF BITAND(170141183460469231731687303715884105728, 1) = 0 $THEN NULL; $ELSE NULL; $END END;",
 		"BEGIN $IF BITAND(-170141183460469231731687303715884105729, 1) = 0 $THEN NULL; $ELSE NULL; $END END;",
+		// So does SQRT, LN, or LOG out of its domain, a power from 1e126 on,
+		// CHR of less than 1, and SUBSTR, RPAD, or LPAD arguments past
+		// PLS_INTEGER or a pad past 32767.
+		"BEGIN $IF SQRT(-1) = 0 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF LN(0) = 0 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF LOG(1, 2) = 0 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF LOG(2, -4) = 0 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF POWER(10, 126) > 0 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF POWER(-10, 127) < 0 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF CHR(0) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF CHR(-0.4) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF SUBSTR('a', 2147483647.5) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF SUBSTR('a', 1, -2147483649) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF RPAD('a', 32768) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF LPAD('a', 2147483648) IS NULL $THEN NULL; $ELSE NULL; $END END;",
 		// A bind variable after the block's END is the block's too
 		// (PLS-00110), when another statement follows.
 		"BEGIN NULL; END; $IF :x $THEN $END",
@@ -335,6 +363,9 @@ func TestConditionalCompilationTree(t *testing.T) {
 		{"BEGIN NULL; $END END;", "$END"},
 		{"BEGIN $IF $$x $THEN NULL; $ELSE NULL; $ELSE NULL; $END END;", "$ELSE NULL; $END"},
 		{"SELECT 1 FROM dual WHERE $$x IS NULL", "$$x"},
+		// A condition that is no static Boolean fails before its branch.
+		{"BEGIN $IF 1 $THEN garbage garbage; $END END;", "1 $THEN"},
+		{"BEGIN $IF FALSE $THEN NULL; $ELSIF 1 / 0 = 0 $THEN garbage garbage; $END END;", "1 / 0"},
 	} {
 		_, err := Parse(tc.sql)
 		var pe *ParseError
@@ -444,12 +475,14 @@ func TestConditionalCompilationCompletion(t *testing.T) {
 		}
 	}
 
-	// A caret in a condition completes the condition.
+	// A caret in a condition or an $ERROR message completes it.
 	want := CollectCompletion("BEGIN IF pkg.", len("BEGIN IF pkg.")).Intent
 	for _, tc := range [][2]string{
 		{"BEGIN $IF pkg.", ""},
 		{"BEGIN $IF pkg.", " $THEN NULL; $END END;"},
 		{"BEGIN $IF TRUE $THEN NULL; $ELSIF pkg.", " $THEN NULL; $END END;"},
+		{"BEGIN $IF $$x $THEN $ERROR pkg.", " $END $END END;"},
+		{"BEGIN $ERROR 'a' || pkg.", ""},
 	} {
 		if got := CollectCompletion(tc[0]+tc[1], len(tc[0])).Intent; !reflect.DeepEqual(got, want) {
 			t.Errorf("CollectCompletion(%q) intent = %+v, want %+v", tc[0]+tc[1], got, want)

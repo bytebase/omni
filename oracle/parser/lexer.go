@@ -348,10 +348,17 @@ func (l *Lexer) skipCondition(tok Token) (ccValue, bool) {
 			}
 			l.cc.noteCondition(cond)
 			value, valid := staticCondition(l.input, cond)
-			if !valid && l.ccLenient {
+			switch {
+			case !valid && l.ccLenient:
 				// Split lexes on past a condition that is no expression,
 				// as past any malformed directive.
 				l.failDirective(tok, "invalid preprocessor condition")
+				return ccUnknown, false
+			case !valid:
+				// Oracle 23ai reports the condition (PLS-00174, PLS-00382)
+				// before the branch it would select is parsed.
+				at := NewLexerRange(l.input, cond.Start, cond.End).nextRaw()
+				l.failDirective(at, "a static boolean expression must be used")
 				return ccUnknown, false
 			}
 			return value, true
@@ -465,6 +472,7 @@ func (l *Lexer) nextRaw() Token {
 		switch l.prevType {
 		case kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwMERGE:
 		default:
+			l.prevType = 0
 			return l.nextRaw()
 		}
 	}
@@ -485,6 +493,7 @@ func (l *Lexer) lexInitial() Token {
 	// Line comments: --
 	if ch == '-' && l.pos+1 < l.end && l.input[l.pos+1] == '-' {
 		l.skipLineComment()
+		l.prevType = 0 // a hint follows its keyword directly
 		return l.nextRaw()
 	}
 
@@ -664,7 +673,9 @@ func (l *Lexer) lexBlockCommentOrHint() Token {
 		return Token{Type: tokHINT, Str: strings.TrimSpace(buf.String()), Loc: l.start}
 	}
 
-	// Regular comment -- skip and get next token
+	// Regular comment -- skip and get next token. A hint follows its
+	// keyword directly: SELECT /* c */ /*+ FULL(t) */ holds no hint.
+	l.prevType = 0
 	return l.nextRaw()
 }
 

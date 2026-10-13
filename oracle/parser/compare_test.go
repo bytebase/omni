@@ -158,7 +158,7 @@ func TestLexerHints(t *testing.T) {
 	if tok.Str != "FULL(t)" {
 		t.Errorf("str: got %q, want %q", tok.Str, "FULL(t)")
 	}
-	for _, sql := range []string{"/*+ FULL(t) */ 1", "SELECT /*+ a */ /*+ b */ 1", "SELECT 1 /*+ x */ FROM"} {
+	for _, sql := range []string{"/*+ FULL(t) */ 1", "SELECT /*+ a */ /*+ b */ 1", "SELECT 1 /*+ x */ FROM", "SELECT /* c */ /*+ x */ 1", "SELECT -- c\n/*+ x */ 1"} {
 		hints := 0
 		for lex := NewLexer(sql); ; {
 			tok := lex.NextToken()
