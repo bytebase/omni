@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -471,11 +472,14 @@ func (l *Lexer) selectBranch(tok Token) bool {
 func (l *Lexer) skipCondition(tok Token) (ccValue, string, bool) {
 	cond := nodes.Loc{Start: -1, End: -1}
 	tokens := 0
-	var key strings.Builder
+	var key []Token
 	keyed := true
 	for {
 		next := l.nextRaw()
 		switch {
+		case l.Err != nil:
+			l.skippedError(next)
+			return ccUnknown, "", false
 		case next.Type == tokEOF:
 			l.failDirective(tok, fmt.Sprintf("'%s' preprocessor directive does not end properly", tok.Str))
 			return ccUnknown, "", false
@@ -504,7 +508,7 @@ func (l *Lexer) skipCondition(tok Token) (ccValue, string, bool) {
 			if !keyed {
 				return value, "", true
 			}
-			return value, key.String(), true
+			return value, conditionKey(key), true
 		case next.Type == tokDIRECTIVE:
 			l.failDirective(next, fmt.Sprintf("unexpected preprocessor token '%s'", next.Str))
 			return ccUnknown, "", false
@@ -514,13 +518,44 @@ func (l *Lexer) skipCondition(tok Token) (ccValue, string, bool) {
 		if next.Type == tokINQUIRY && next.Str == "$$PLSQL_LINE" {
 			keyed = false
 		}
-		fmt.Fprintf(&key, "%d:%s ", next.Type, next.Str)
+		key = append(key, next)
 		if tokens == 0 {
 			cond.Start = next.Loc
 		}
 		tokens++
 		cond.End = next.End
 	}
+}
+
+// conditionKey returns what identifies the condition of tokens among a
+// unit's conditions: its tokens, without parentheses around the whole of
+// it, so ($$x) is $$x.
+func conditionKey(tokens []Token) string {
+	for len(tokens) > 2 && tokens[0].Type == '(' && tokens[len(tokens)-1].Type == ')' {
+		depth, outer := 0, true
+		for i, tok := range tokens[:len(tokens)-1] {
+			switch tok.Type {
+			case '(':
+				depth++
+			case ')':
+				depth--
+			}
+			if depth == 0 && i > 0 {
+				// The first '(' closes before the end: (a) OR (b).
+				outer = false
+				break
+			}
+		}
+		if !outer {
+			break
+		}
+		tokens = tokens[1 : len(tokens)-1]
+	}
+	var key strings.Builder
+	for _, tok := range tokens {
+		fmt.Fprintf(&key, "%d:%s ", tok.Type, tok.Str)
+	}
+	return key.String()
 }
 
 // skipBranch skips code that is not selected, from the directive at tok in
@@ -532,6 +567,10 @@ func (l *Lexer) skipBranch(tok Token, state ccState, stopAtBranch bool) (Token, 
 	stack := []ccState{state}
 	for {
 		next := l.nextRaw()
+		if l.Err != nil {
+			l.skippedError(next)
+			return next, false
+		}
 		if next.Type == tokEOF {
 			l.failDirective(tok, fmt.Sprintf("'%s' preprocessor directive does not end properly", tok.Str))
 			return next, false
@@ -651,6 +690,17 @@ type directiveError struct {
 }
 
 func (e *directiveError) Error() string { return e.msg }
+
+// skippedError keeps a lexical error met in code a directive skips or a
+// condition, at tok, where it is: it is the first error (a literal past
+// its limit, an unterminated string), not the directive left open.
+func (l *Lexer) skippedError(tok Token) {
+	var directive *directiveError
+	if !errors.As(l.Err, &directive) {
+		l.Err = &directiveError{msg: l.Err.Error(), tok: tok}
+	}
+	l.pos = l.end
+}
 
 // failDirective sets Err for a conditional compilation error at tok and
 // ends the input, returning the EOF token at tok.

@@ -332,7 +332,47 @@ func (p *Parser) parseStmtSelections(textStart, stmtLoc int) (nodes.StmtNode, er
 		}
 		pending = append(pending, nextSelections(decided, sel.from, open)...)
 	}
+	// Outside a PL/SQL unit, a directive is the first error, before its
+	// condition and the code after it (ORA-00911 on Oracle 23ai for SELECT
+	// $IF 1 $THEN 1 $END FROM dual).
+	if cc := p.lexer.cc; cc != nil && len(cc.directives) > snap.directives {
+		if loc := cc.directives[snap.directives]; loc >= stmtLoc && loc < furthest && !startsPreprocessedUnit(p.source, stmtLoc, p.lexer.end) {
+			return nil, p.syntaxErrorAtDirective(loc)
+		}
+	}
 	return nil, failure
+}
+
+// startsPreprocessedUnit reports whether the statement at source[start:end]
+// is a PL/SQL unit Oracle preprocesses (isPreprocessedUnit), by its first
+// words: an anonymous block, or CREATE of a procedure, function, package,
+// trigger, or type body.
+func startsPreprocessedUnit(source string, start, end int) bool {
+	lex := NewLexerRange(source, start, end)
+	word := func(tok Token, w string) bool { return tok.Type != tokQIDENT && tok.Str == w }
+	tok := lex.nextRaw()
+	switch tok.Type {
+	case kwDECLARE, kwBEGIN, tokLABELOPEN:
+		return true
+	case kwCREATE:
+	default:
+		return false
+	}
+	tok = lex.nextRaw()
+	if tok.Type == kwOR {
+		lex.nextRaw() // REPLACE
+		tok = lex.nextRaw()
+	}
+	if word(tok, "EDITIONABLE") || word(tok, "NONEDITIONABLE") {
+		tok = lex.nextRaw()
+	}
+	switch tok.Type {
+	case kwPROCEDURE, kwFUNCTION, kwPACKAGE, kwTRIGGER:
+		return true
+	case kwTYPE:
+		return word(lex.nextRaw(), "BODY")
+	}
+	return false
 }
 
 // nextSelections returns the selections that follow a failed one whose

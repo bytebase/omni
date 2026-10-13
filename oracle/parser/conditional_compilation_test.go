@@ -437,6 +437,16 @@ func TestConditionalCompilationTree(t *testing.T) {
 		// A condition that is no static Boolean fails before its branch.
 		{"BEGIN $IF 1 $THEN garbage garbage; $END END;", "1 $THEN"},
 		{"BEGIN $IF FALSE $THEN NULL; $ELSIF 1 / 0 = 0 $THEN garbage garbage; $END END;", "1 / 0"},
+		// Outside a unit, the directive fails first, before its condition
+		// (ORA-00911 at the $ on Oracle 23ai).
+		{"SELECT $IF 1 $THEN 1 $END FROM dual", "$IF 1"},
+		{"SELECT 1 FROM dual WHERE $IF garbage garbage $THEN 1 = 1 $END", "$IF garbage"},
+		{"SELECT 'x' FROM dual WHERE 1 = $IF TRUE $THEN 1 $END", "$IF TRUE"},
+		// A lexical error in skipped code or a condition fails where it is.
+		{"BEGIN $IF FALSE $THEN x := '" + strings.Repeat("a", 32768) + "'; $END NULL; END;", "'aaa"},
+		{"BEGIN $IF FALSE $THEN x := 'abc; $END NULL; END;", "'abc"},
+		{"BEGIN $IF 'abc $THEN NULL; $END NULL; END;", "'abc"},
+		{"BEGIN $IF FALSE $THEN x := 1; NULL; END;", "$IF FALSE"},
 	} {
 		_, err := Parse(tc.sql)
 		var pe *ParseError
@@ -705,6 +715,10 @@ func TestConditionalCompilationSelections(t *testing.T) {
 	// FALSE, and no value of $$x), but $$PLSQL_LINE, which differs from
 	// line to line.
 	ParseShouldFail(t, "BEGIN $IF $$x $THEN NULL; $ELSE garbage garbage; $END $IF $$x $THEN garbage garbage; $ELSE NULL; $END END;")
+	// Parentheses around the whole of a condition aside.
+	ParseShouldFail(t, "BEGIN $IF $$x $THEN NULL; $ELSE garbage garbage; $END $IF ($$x) $THEN garbage garbage; $ELSE NULL; $END END;")
+	ParseShouldFail(t, "BEGIN $IF ($$x) $THEN NULL; $ELSE garbage garbage; $END $IF (($$x)) $THEN garbage garbage; $ELSE NULL; $END END;")
+	ParseAndCheck(t, "BEGIN $IF ($$x) OR ($$y) $THEN NULL; $ELSE garbage garbage; $END $IF $$x OR $$y $THEN NULL; $ELSE garbage garbage; $END END;")
 	ParseShouldFail(t, "BEGIN $IF $$x $THEN NULL; $END $IF $$x $THEN $ERROR 'e' $END $END END;")
 	for _, sql := range []string{
 		"BEGIN $IF $$x $THEN NULL; $ELSE garbage garbage; $END $IF $$y $THEN garbage garbage; $ELSE NULL; $END END;",
