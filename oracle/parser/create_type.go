@@ -52,6 +52,9 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 	if parseErr573 != nil {
 		return nil, parseErr573
 	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	if !stmt.IsBody {
 		if err := p.parseTypeSpecSource(stmt); err != nil {

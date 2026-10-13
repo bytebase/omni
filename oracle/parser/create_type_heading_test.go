@@ -190,6 +190,9 @@ func TestCreateTypeHeading(t *testing.T) {
 		"CREATE TYPE t AS OBJECT (a DOUBLE)",
 		"CREATE TYPE t AS OBJECT (a LONG VARCHAR)",
 		"CREATE TYPE t AS OBJECT (a VARCHAR2(10) CHARACTER SET ANY_CS)",
+		// A type has a name (ORA-02302).
+		"CREATE TYPE",
+		"CREATE TYPE;",
 		// Attribute names are unique in the statement (PLS-00410).
 		"CREATE TYPE t AS OBJECT (a NUMBER, a DATE)",
 		`CREATE TYPE t AS OBJECT (a NUMBER, "A" DATE)`,
@@ -250,10 +253,11 @@ func TestANSIDatatypes(t *testing.T) {
 	// DOUBLE takes PRECISION (ORA-02000, PLS-00103).
 	ParseShouldFail(t, "CREATE TABLE t (x DOUBLE)")
 	ParseShouldFail(t, "DECLARE x DOUBLE; BEGIN NULL; END;")
-	// A VARYING type has a size in SQL (ORA-00906), not in PL/SQL, an
-	// attribute, or a collection element.
+	// A VARYING type has a size in SQL (ORA-00906, ORA-00910 for empty
+	// parentheses), not in PL/SQL, an attribute, or a collection element.
 	for _, datatype := range []string{"CHARACTER VARYING", "CHAR VARYING", "NCHAR VARYING", "NATIONAL CHARACTER VARYING"} {
 		ParseShouldFail(t, "CREATE TABLE t (x "+datatype+")")
+		ParseShouldFail(t, "CREATE TABLE t (x "+datatype+"())")
 		ParseAndCheck(t, "DECLARE x "+datatype+"; BEGIN NULL; END;")
 	}
 	ParseAndCheck(t, "CREATE TYPE t AS OBJECT (x CHARACTER VARYING)")
