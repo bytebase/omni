@@ -2778,6 +2778,12 @@ func (p *Parser) parseJsonEntry(name string, fc *nodes.FuncCallExpr) error {
 	// named KEY; the keyword's key takes VALUE or IS (ORA-02000 for ':',
 	// ORA-00936 for KEY alone).
 	keyKeyword := p.isKeywordStr("KEY") && !p.atJSONKeyValueSeparator(p.peekNext())
+	// A colon fused to what follows lexes as a bind variable. After KEY it
+	// is the column KEY's separator and value (KEY:1), unless VALUE or IS
+	// follows it as the key's (KEY :b VALUE 1), as Oracle 23ai reads both.
+	if keyKeyword && p.peekNext().Type == tokBIND && !p.atJSONKeyValueSeparator(p.peekAhead(2)[1]) {
+		keyKeyword = false
+	}
 	if keyKeyword {
 		p.advance() // consume KEY
 	}

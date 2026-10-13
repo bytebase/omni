@@ -108,6 +108,10 @@ func TestJSONConstructors(t *testing.T) {
 		"SELECT JSON_OBJECT('a':1) FROM dual",
 		"SELECT JSON_OBJECT('a':dummy, 'b':-1) FROM dual",
 		`SELECT JSON_OBJECT('a':'x', 'b':"DUMMY") FROM dual`,
+		"SELECT JSON_OBJECT(key:1) FROM t",
+		"SELECT JSON_OBJECT(key:dummy) FROM t",
+		"SELECT JSON_OBJECT(KEY :b VALUE 1) FROM dual",
+		"SELECT JSON_OBJECT(KEY :1 IS 1) FROM dual",
 		// WITH TYPENAME, JSON_OBJECT's alone, before or after UNIQUE KEYS.
 		"SELECT JSON_OBJECT(x WITH TYPENAME) FROM t",
 		"SELECT JSON_OBJECT(WITH TYPENAME) FROM dual",
