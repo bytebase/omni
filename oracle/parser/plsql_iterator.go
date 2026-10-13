@@ -13,8 +13,9 @@ import (
 //	iterand: name [ MUTABLE | IMMUTABLE ] [ datatype ]
 //
 // Oracle 23ai checks from the text that a PAIRS OF control has two
-// iterands (PLS-00855) and that two iterands have PAIRS OF controls alone
-// (PLS-00856).
+// iterands (PLS-00855), that two iterands have PAIRS OF controls alone
+// (PLS-00856), and that neither the iterand of INDICES OF nor the index
+// iterand of PAIRS OF is MUTABLE (PLS-00861, PLS-00854).
 func (p *Parser) parseIterator() (*nodes.PLSQLIterator, error) {
 	it := &nodes.PLSQLIterator{
 		Iterands: &nodes.List{},
@@ -44,6 +45,9 @@ func (p *Parser) parseIterator() (*nodes.PLSQLIterator, error) {
 		}
 		if (ctl.Kind == "PAIRS OF") != pairs {
 			return nil, p.syntaxErrorAtNode(ctl)
+		}
+		if first := it.Iterands.Items[0].(*nodes.PLSQLIterand); first.Mutability == "MUTABLE" && (ctl.Kind == "INDICES OF" || ctl.Kind == "PAIRS OF") {
+			return nil, p.syntaxErrorAtNode(first)
 		}
 		it.Controls.Items = append(it.Controls.Items, ctl)
 		if p.cur.Type != ',' {
@@ -85,9 +89,10 @@ func (p *Parser) parseIterand() (*nodes.PLSQLIterand, error) {
 
 // parseIterationControl parses one qualified iteration control. A single
 // expression is also a cursor, a cursor call, or a parenthesized query.
-// Oracle 23ai rejects REVERSE before a single expression, a cursor, or
-// REPEAT (PLS-00857, PLS-00682), BY after anything but a range, and WHILE
-// after WHEN (PLS-00103).
+// Oracle 23ai rejects REVERSE before a single expression, a cursor, REPEAT,
+// or a collection a query returns (PLS-00857, PLS-00682), BY after anything
+// but a range, and WHILE after WHEN (PLS-00103). It rejects EXECUTE
+// IMMEDIATE as a control too (PLS-00103).
 //
 //	[ REVERSE ] { lower .. upper [ BY step ] | expr | REPEAT expr
 //	            | { VALUES | INDICES | PAIRS } OF expr }
@@ -134,7 +139,8 @@ func (p *Parser) parseIterationControl() (*nodes.PLSQLIterationControl, error) {
 	if err != nil {
 		return nil, err
 	}
-	if ctl.Reverse && (ctl.Kind == "EXPR" || ctl.Kind == "REPEAT") {
+	_, query := ctl.Expr.(*nodes.SubqueryExpr)
+	if ctl.Reverse && (ctl.Kind == "EXPR" || ctl.Kind == "REPEAT" || query) {
 		return nil, p.syntaxErrorAtTok(Token{Type: kwREVERSE, Loc: ctl.Loc.Start, End: ctl.Loc.Start + len("REVERSE")})
 	}
 	if p.isKeywordStr("WHILE") {
@@ -196,14 +202,16 @@ func (p *Parser) continuesQualifiedChoice(arg nodes.ExprNode) bool {
 //	choice [ | choice ]... => expr
 //	choice: expr | lower .. upper | OTHERS
 //	FOR iterator [ INDEX expr | SEQUENCE ] => expr
-func (p *Parser) parseChoiceAssoc(first nodes.ExprNode) (nodes.ExprNode, error) {
+func (p *Parser) parseChoiceAssoc(first nodes.ExprNode, firstStart int) (nodes.ExprNode, error) {
 	assoc := &nodes.ChoiceAssocExpr{Loc: nodes.Loc{Start: p.pos()}}
 	var err error
 	switch {
 	case first != nil:
-		assoc.Loc.Start = nodes.NodeLoc(first).Start
+		// A choice starts at its first token, which a binary expression's
+		// Loc does not: it starts at the operator.
+		assoc.Loc.Start = firstStart
 		assoc.Choices = &nodes.List{}
-		choice := first
+		choice, choiceStart := first, firstStart
 		for {
 			if p.cur.Type == tokDOTDOT {
 				p.advance() // consume ..
@@ -214,7 +222,7 @@ func (p *Parser) parseChoiceAssoc(first nodes.ExprNode) (nodes.ExprNode, error) 
 				choice = &nodes.ChoiceRange{
 					Lower: choice,
 					Upper: upper,
-					Loc:   nodes.Loc{Start: nodes.NodeLoc(choice).Start, End: p.prev.End},
+					Loc:   nodes.Loc{Start: choiceStart, End: p.prev.End},
 				}
 			}
 			assoc.Choices.Items = append(assoc.Choices.Items, choice)
@@ -222,6 +230,7 @@ func (p *Parser) parseChoiceAssoc(first nodes.ExprNode) (nodes.ExprNode, error) 
 				break
 			}
 			p.advance() // consume |
+			choiceStart = p.pos()
 			if choice, err = p.parseRequiredExpr(); err != nil {
 				return nil, err
 			}
@@ -240,6 +249,13 @@ func (p *Parser) parseChoiceAssoc(first nodes.ExprNode) (nodes.ExprNode, error) 
 		case p.isKeywordStr("SEQUENCE"):
 			p.advance()
 			assoc.Sequence = true
+		default:
+			// A basic iterator choice takes no PAIRS OF (PLS-00864).
+			for _, item := range assoc.Iterator.Controls.Items {
+				if ctl := item.(*nodes.PLSQLIterationControl); ctl.Kind == "PAIRS OF" {
+					return nil, p.syntaxErrorAtNode(ctl)
+				}
+			}
 		}
 	default: // OTHERS
 		p.advance()

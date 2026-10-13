@@ -1346,15 +1346,20 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 
 	// Arguments. In PL/SQL they are also the explicit choices of a
 	// qualified expression, t('k' => v), t(1..3 => 0), t(FOR i IN 1..3 => i).
-	// A positional argument after a named one or a choice is PLS-00312 on
-	// Oracle 23ai; one after an iterator choice is not.
+	// A positional argument, a SEQUENCE iterator choice among them, after
+	// a named one or an explicit choice is PLS-00312 on Oracle 23ai, and a
+	// choice after OTHERS is PLS-00851.
 	if p.cur.Type != ')' {
-		sawNamed := false
+		sawNamed, sawOthers := false, false
 		for {
 			var arg nodes.ExprNode
 			var parseErr714 error
+			argStart := p.pos()
+			if sawOthers {
+				return nil, p.syntaxErrorAtCur()
+			}
 			if p.plsqlCode && p.atQualifiedChoice() {
-				arg, parseErr714 = p.parseChoiceAssoc(nil)
+				arg, parseErr714 = p.parseChoiceAssoc(nil, argStart)
 			} else {
 				arg, parseErr714 = p.parseExpr()
 			}
@@ -1362,7 +1367,7 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 				return nil, parseErr714
 			}
 			if p.plsqlCode && arg != nil && p.continuesQualifiedChoice(arg) {
-				if arg, parseErr714 = p.parseChoiceAssoc(arg); parseErr714 != nil {
+				if arg, parseErr714 = p.parseChoiceAssoc(arg, argStart); parseErr714 != nil {
 					return nil, parseErr714
 				}
 			} else if p.cur.Type == tokASSOC {
@@ -1372,17 +1377,18 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 				}
 				arg = named
 			}
+			positional := arg != nil
 			switch a := arg.(type) {
 			case *nodes.NamedArgExpr:
-				sawNamed = true
+				positional = false
 			case *nodes.ChoiceAssocExpr:
-				sawNamed = sawNamed || a.Iterator == nil
-			case nil:
-			default:
-				if sawNamed {
-					return nil, p.syntaxErrorAtNode(arg)
-				}
+				positional = a.Sequence
+				sawOthers = a.Others
 			}
+			if positional && sawNamed {
+				return nil, p.syntaxErrorAtNode(arg)
+			}
+			sawNamed = sawNamed || arg != nil && !positional
 			if schema == "" && name == "TRIM" && p.cur.Type == kwFROM {
 				if arg != nil {
 					fc.Args.Items = append(fc.Args.Items, arg)

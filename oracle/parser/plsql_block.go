@@ -874,16 +874,20 @@ func (p *Parser) parsePLSQLForLoop() (*nodes.PLSQLLoop, error) {
 		case "RANGE":
 			loop.LowerBound, loop.UpperBound, loop.Reverse = ctl.Lower, ctl.Upper, ctl.Reverse
 		case "EXPR":
-			loop.Type = nodes.LOOP_CURSOR_FOR
+			// A cursor, a cursor call, or a query; another expression is a
+			// single-expression control of a FOR loop (FOR i IN x + 1).
 			switch cursor := ctl.Expr.(type) {
 			case *nodes.ColumnRef:
+				loop.Type = nodes.LOOP_CURSOR_FOR
 				loop.CursorName = cursor.Column
 			case *nodes.FuncCallExpr:
+				loop.Type = nodes.LOOP_CURSOR_FOR
 				if cursor.FuncName != nil {
 					loop.CursorName = cursor.FuncName.Name
 				}
 				loop.CursorArgs = cursor.Args
 			case *nodes.SubqueryExpr:
+				loop.Type = nodes.LOOP_CURSOR_FOR
 				loop.CursorQuery = cursor.Subquery
 			}
 		}
