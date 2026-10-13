@@ -20,7 +20,11 @@ import (
 const priorBackupRows = `
 CREATE SCHEMA bbdataarchive;
 CREATE TABLE s.ids (id int);
-CREATE SEQUENCE old_seq;
+CREATE SEQUENCE public.old_seq;
+CREATE TABLE public.pt (id int) PARTITION BY RANGE (id);
+CREATE TABLE public.pt1 PARTITION OF public.pt FOR VALUES FROM (0) TO (10);
+INSERT INTO public.pt VALUES (1);
+DO $$ BEGIN CREATE ROLE prior_backup_old SUPERUSER; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 CREATE FUNCTION public.old(int) RETURNS bool LANGUAGE sql AS 'SELECT true';
 INSERT INTO p VALUES (1), (2);
 INSERT INTO t (id, p_id, n) VALUES (1, 1, 1), (2, 2, 2);
@@ -86,6 +90,13 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a column the change adds, as a field of a row", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p WHERE (p).gone;", true},
 		{"a relation named pg_ in a schema of the target", "CREATE TABLE public.pg_ids (id int);\nDELETE FROM t USING public.pg_ids WHERE false;", true},
 		{"SET ROLE of a role the change creates", "CREATE ROLE prior_backup_worker;\nSET ROLE prior_backup_worker;\nUPDATE public.t SET n = 1 WHERE id = 1;", true},
+		{"a column list of an alias", "ALTER TABLE p RENAME COLUMN id TO a;\nDELETE FROM t USING p AS x(a) WHERE x.a = t.p_id;", true},
+		{"a column the change adds, past a column list of an alias", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p AS x(i) WHERE x.gone;", true},
+		{"a column of a table CREATE TABLE AS recreates", "DROP TABLE nokey;\nCREATE TABLE nokey AS SELECT 1 AS b;\nDELETE FROM nokey WHERE b = 1;", true},
+		{"a column named with the database", "ALTER TABLE public.p ADD COLUMN gone bool;\nDELETE FROM t USING omni_review.public.p WHERE omni_review.public.p.gone;", true},
+		{"a column of an aliased join", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING (p JOIN nokey ON true) AS j WHERE j.gone;", true},
+		{"a column the change adds to a partitioned table, through a partition", "ALTER TABLE pt ADD COLUMN flag bool;\nDELETE FROM pt1 WHERE pt1.flag;", true},
+		{"SET ROLE of a role the change recreates", "DROP ROLE prior_backup_old;\nCREATE ROLE prior_backup_old SUPERUSER;\nSET ROLE prior_backup_old;\nUPDATE public.t SET n = 1 WHERE id = 1;", true},
 		// The first CTE stands for p in the second arm, which reads other
 		// rows than the statement's, or not: not judged.
 		{"a later source a WITH query of the first statement shadows", "WITH p AS (SELECT 999 AS id) DELETE FROM t WHERE id = 1;\nDELETE FROM t USING p WHERE t.p_id = p.id;", false},
@@ -103,6 +114,7 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 				t.Fatal(err)
 			}
 			schema := syncSchema(t, conn)
+			syncPartitions(t, conn, schema)
 			result, err := Review(ctx, tt.change, review.Options{
 				Rules:  []review.Rule{review.PriorBackup},
 				Change: review.Change{PriorBackup: true, MaxBackupSize: 1 << 20},
@@ -142,6 +154,41 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// syncPartitions lists each synced table's partitions under it, as
+// Bytebase syncs them, with their own partitions.
+func syncPartitions(t *testing.T, conn *sql.Conn, schema *metadata.DatabaseSchemaMetadata) {
+	t.Helper()
+	ctx := context.Background()
+	var walk func(parent string) []*metadata.TablePartitionMetadata
+	walk = func(parent string) []*metadata.TablePartitionMetadata {
+		rows, err := conn.QueryContext(ctx, `SELECT c.oid::regclass::text, c.relname FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid
+			WHERE i.inhparent = $1::regclass AND c.relispartition ORDER BY 2`, parent)
+		if err != nil {
+			t.Fatal(err)
+		}
+		type child struct{ ref, name string }
+		var children []child
+		for rows.Next() {
+			var c child
+			if err := rows.Scan(&c.ref, &c.name); err != nil {
+				t.Fatal(err)
+			}
+			children = append(children, c)
+		}
+		rows.Close()
+		var out []*metadata.TablePartitionMetadata
+		for _, c := range children {
+			out = append(out, &metadata.TablePartitionMetadata{Name: c.name, Subpartitions: walk(c.ref)})
+		}
+		return out
+	}
+	for _, s := range schema.GetSchemas() {
+		for _, tb := range s.GetTables() {
+			tb.Partitions = walk(fmt.Sprintf("%q.%q", s.GetName(), tb.GetName()))
+		}
 	}
 }
 

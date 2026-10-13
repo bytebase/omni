@@ -215,16 +215,36 @@ func prependedRole(stmts []statement) (*statement, string) {
 	return nil, ""
 }
 
-// madeRoles returns the roles the change creates or gives a name.
+// madeRoles returns the roles the change creates or gives a name, which
+// do not exist before it: none it drops, alters, or renames away before
+// it makes the name, which the role then may have had.
 func madeRoles(stmts []statement) map[string]bool {
 	roles := make(map[string]bool)
+	before := make(map[string]bool)
 	for i := range stmts {
 		switch v := stmts[i].node.(type) {
 		case *ast.CreateRoleStmt:
-			roles[v.Role] = true
+			if !before[v.Role] {
+				roles[v.Role] = true
+			}
 		case *ast.RenameStmt:
 			if v.RenameType == ast.OBJECT_ROLE {
-				roles[v.Newname] = true
+				before[v.Subname] = true
+				if !before[v.Newname] {
+					roles[v.Newname] = true
+				}
+			}
+		case *ast.DropRoleStmt:
+			if v.Roles != nil {
+				for _, item := range v.Roles.Items {
+					if r, ok := item.(*ast.RoleSpec); ok {
+						before[r.Rolename] = true
+					}
+				}
+			}
+		case *ast.AlterRoleStmt:
+			if v.Role != nil {
+				before[v.Role.Rolename] = true
 			}
 		}
 	}
@@ -638,9 +658,17 @@ func hasFunction(s *metadata.SchemaMetadata, name string) bool {
 // relations it may mean and their columns; columns is nil when they are
 // not known.
 type backupSource struct {
+	// name is how the query refers to the source, its alias or its name,
+	// and rv the relation, nil for a join.
+	name    string
 	rv      *ast.RangeVar
 	schemas []string
 	columns map[string]bool
+	// owners are the relations, as the change writes them, whose columns
+	// the source shows: the relation itself, the partitioned table of a
+	// partition, or the relations of a join.
+	owners []backupTable
+	label  string
 }
 
 // columnMissing reports a column the backup's query names that the change
@@ -654,26 +682,51 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 	sources := []backupSource{sourceOf(target, nil, q)}
 	known := sources[0].columns != nil
 	var quals []ast.Node
-	var flatten func(n ast.Node)
-	flatten = func(n ast.Node) {
+	// flatten adds the sources of a FROM item and returns them.
+	var flatten func(n ast.Node) []backupSource
+	flatten = func(n ast.Node) []backupSource {
 		switch v := n.(type) {
 		case *ast.RangeVar:
 			src := sourceOf(v, visible, q)
 			known = known && src.columns != nil
 			sources = append(sources, src)
+			return []backupSource{src}
 		case *ast.RangeTableSample:
-			flatten(v.Relation)
+			return flatten(v.Relation)
 		case *ast.JoinExpr:
-			flatten(v.Larg)
-			flatten(v.Rarg)
+			children := append(flatten(v.Larg), flatten(v.Rarg)...)
 			if v.Quals != nil {
 				quals = append(quals, v.Quals)
 			}
 			if v.IsNatural || v.UsingClause != nil {
 				known = false
 			}
+			// An aliased join shows its relations' columns under its
+			// alias, as named unless the alias renames them.
+			if a := v.Alias; a != nil && a.Aliasname != "" {
+				join := backupSource{name: a.Aliasname, label: ident(a.Aliasname)}
+				columns := make(map[string]bool)
+				for _, c := range children {
+					join.owners = append(join.owners, c.owners...)
+					if c.columns == nil {
+						columns = nil
+					}
+					for name := range c.columns {
+						if columns != nil {
+							columns[name] = true
+						}
+					}
+				}
+				if a.Colnames == nil {
+					join.columns = columns
+				}
+				sources = append(sources, join)
+				return []backupSource{join}
+			}
+			return children
 		default:
 			known = false
+			return nil
 		}
 	}
 	if from != nil {
@@ -684,13 +737,6 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 	if where != nil {
 		quals = append(quals, where)
 	}
-	// name is how the query refers to a source: its alias, or its name.
-	name := func(src backupSource) string {
-		if a := aliasOf(src.rv); a != "" {
-			return a
-		}
-		return src.rv.Relname
-	}
 	has := func(src backupSource, column string) bool {
 		return src.columns == nil || src.columns[column]
 	}
@@ -699,12 +745,11 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 		if has(src, column) {
 			return
 		}
-		makes := m.columns[backupTable{name: src.rv.Relname}][column]
-		for _, s := range src.schemas {
-			makes = makes || m.columns[backupTable{s, src.rv.Relname}][column]
-		}
-		if makes {
-			msg = "prior backup runs before the change, when column " + ident(column) + " of " + relation(src.rv) + " does not exist yet"
+		for _, o := range src.owners {
+			if m.columns[o][column] {
+				msg = "prior backup runs before the change, when column " + ident(column) + " of " + src.label + " does not exist yet"
+				return
+			}
 		}
 	}
 	for _, qual := range quals {
@@ -727,7 +772,7 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 					return true
 				}
 				for _, src := range sources {
-					if name(src) == fields[0] {
+					if src.name == fields[0] {
 						judge(src, field.Str)
 						return false
 					}
@@ -735,6 +780,10 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 				return true
 			case *ast.ColumnRef:
 				fields, ok := columnFields(v)
+				// database.schema.relation.column names the current database.
+				if ok && len(fields) == 4 && fields[0] == q.schema.GetName() {
+					fields = fields[1:]
+				}
 				if !ok || len(fields) > 3 || systemColumn(fields[len(fields)-1]) {
 					return false
 				}
@@ -744,14 +793,14 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 					// schema.relation.column names a source without an
 					// alias in that schema.
 					for _, src := range sources {
-						if aliasOf(src.rv) == "" && src.rv.Relname == fields[1] && slices.Equal(src.schemas, []string{fields[0]}) {
+						if src.rv != nil && aliasOf(src.rv) == "" && src.rv.Relname == fields[1] && slices.Equal(src.schemas, []string{fields[0]}) {
 							judge(src, column)
 							break
 						}
 					}
 				case 2:
 					for _, src := range sources {
-						if name(src) == fields[0] {
+						if src.name == fields[0] {
 							judge(src, column)
 							break
 						}
@@ -761,7 +810,7 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 						return false
 					}
 					for _, src := range sources {
-						if name(src) == column || has(src, column) {
+						if src.name == column || has(src, column) {
 							return false
 						}
 					}
@@ -785,51 +834,81 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 // columns the snapshot does not give: a WITH query, a materialized view,
 // a sequence, or nothing the target holds.
 func sourceOf(rv *ast.RangeVar, visible map[string]bool, q backupQuery) backupSource {
-	src := backupSource{rv: rv}
-	if rv.Catalogname != "" || rv.Schemaname == "" && visible[rv.Relname] {
+	src := backupSource{name: rv.Relname, rv: rv, label: relation(rv)}
+	if a := aliasOf(rv); a != "" {
+		src.name = a
+	}
+	if rv.Catalogname != "" && rv.Catalogname != q.schema.GetName() || rv.Schemaname == "" && visible[rv.Relname] {
 		return src
 	}
+	src.owners = []backupTable{{name: rv.Relname}}
 	src.schemas = q.holders(rv)
 	if len(src.schemas) == 0 {
 		return src
 	}
 	columns := make(map[string]bool)
+	known := true
 	for _, s := range src.schemas {
-		cols, ok := relationColumns(findSchema(q.schema, s), rv.Relname)
-		if !ok {
-			return backupSource{rv: rv, schemas: src.schemas}
+		src.owners = append(src.owners, backupTable{s, rv.Relname})
+		cols, parent, ok := relationColumns(findSchema(q.schema, s), rv.Relname)
+		if parent != "" {
+			src.owners = append(src.owners, backupTable{name: parent}, backupTable{s, parent})
 		}
-		for _, c := range cols {
-			columns[c.GetName()] = true
+		if !ok {
+			known = false
+			continue
+		}
+		names := make([]string, len(cols))
+		for i, c := range cols {
+			names[i] = c.GetName()
+		}
+		// An alias's column list renames the columns in order.
+		if rv.Alias != nil && rv.Alias.Colnames != nil {
+			for i, item := range rv.Alias.Colnames.Items {
+				if alias, ok := item.(*ast.String); ok && i < len(names) {
+					names[i] = alias.Str
+				}
+			}
+		}
+		for _, n := range names {
+			columns[n] = true
 		}
 	}
-	src.columns = columns
+	if known {
+		src.columns = columns
+	}
 	return src
 }
 
-// relationColumns returns the columns the snapshot gives a relation: a
-// table's, a view's, or a foreign table's, ok false for another kind or a
-// view the snapshot gives none.
-func relationColumns(s *metadata.SchemaMetadata, name string) ([]*metadata.ColumnMetadata, bool) {
+// relationColumns returns the columns the snapshot gives a relation, in
+// order: a table's, a partition's, which are its partitioned table's,
+// named as parent, a view's, or a foreign table's; ok is false for
+// another kind or a view the snapshot gives none.
+func relationColumns(s *metadata.SchemaMetadata, name string) (columns []*metadata.ColumnMetadata, parent string, ok bool) {
 	if s == nil {
-		return nil, false
+		return nil, "", false
 	}
 	for _, t := range s.GetTables() {
 		if t.GetName() == name {
-			return t.GetColumns(), true
+			return t.GetColumns(), "", true
+		}
+	}
+	for _, t := range s.GetTables() {
+		if hasPartition(t.GetPartitions(), name) {
+			return t.GetColumns(), t.GetName(), true
 		}
 	}
 	for _, v := range s.GetViews() {
 		if v.GetName() == name {
-			return v.GetColumns(), len(v.GetColumns()) > 0
+			return v.GetColumns(), "", len(v.GetColumns()) > 0
 		}
 	}
 	for _, t := range s.GetExternalTables() {
 		if t.GetName() == name {
-			return t.GetColumns(), len(t.GetColumns()) > 0
+			return t.GetColumns(), "", len(t.GetColumns()) > 0
 		}
 	}
-	return nil, false
+	return nil, "", false
 }
 
 // columnFields returns the names of a column reference, false when it
@@ -995,6 +1074,56 @@ func createdColumns(n ast.Node) []createdColumn {
 				out = append(out, createdColumn{backupTable{v.Relation.Schemaname, v.Relation.Relname}, cd.Colname})
 			}
 		}
+	case *ast.CreateTableAsStmt:
+		if v.IfNotExists || v.Into == nil || v.Into.Rel == nil {
+			return nil
+		}
+		query, _ := v.Query.(*ast.SelectStmt)
+		out = intoColumns(v.Into, query)
+	case *ast.SelectStmt:
+		if into := intoOf(v); into != nil && into.Rel != nil {
+			out = intoColumns(into, v)
+		}
+	}
+	return out
+}
+
+// intoColumns returns the columns CREATE TABLE AS or SELECT INTO gives the
+// table it creates, as far as the statement names them: the column list
+// written, then the names of the query's outputs, an alias or the column
+// an output reads, leftmost in a set operation.
+func intoColumns(into *ast.IntoClause, query *ast.SelectStmt) []createdColumn {
+	table := backupTable{into.Rel.Schemaname, into.Rel.Relname}
+	var names []string
+	if into.ColNames != nil {
+		names = nameParts(into.ColNames)
+	}
+	for query != nil && query.Larg != nil {
+		query = query.Larg
+	}
+	if query != nil && query.TargetList != nil {
+		for i, item := range query.TargetList.Items {
+			if i < len(names) {
+				continue
+			}
+			rt, ok := item.(*ast.ResTarget)
+			if !ok {
+				continue
+			}
+			name := rt.Name
+			if ref, ok := rt.Val.(*ast.ColumnRef); ok && name == "" {
+				if fields, ok := columnFields(ref); ok {
+					name = fields[len(fields)-1]
+				}
+			}
+			if name != "" {
+				names = append(names, name)
+			}
+		}
+	}
+	out := make([]createdColumn, len(names))
+	for i, n := range names {
+		out[i] = createdColumn{table, n}
 	}
 	return out
 }

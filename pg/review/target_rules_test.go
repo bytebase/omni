@@ -3292,6 +3292,59 @@ func TestPriorBackup(t *testing.T) {
 			targets: one,
 		},
 		{
+			name:    "a column list of an alias",
+			sql:     "ALTER TABLE p RENAME COLUMN id TO a;\nDELETE FROM t USING p AS x(a, note) WHERE x.a = t.p_id;\nALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM nokey USING p AS y(i) WHERE y.gone;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{3, "DELETE FROM nokey USING p AS y(i) WHERE y.gone", "prior backup runs before the change, when column gone of p does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a column of a table CREATE TABLE AS or SELECT INTO recreates",
+			sql:     "DROP TABLE nokey;\nCREATE TABLE nokey AS SELECT 1 AS b;\nDELETE FROM nokey WHERE b = 1;\nDROP TABLE p;\nSELECT id AS c INTO p FROM t;\nDELETE FROM p WHERE c = 1;",
+			change:  on,
+			targets: one,
+			want: []targetFinding{
+				{2, "DELETE FROM nokey WHERE b = 1", "prior backup runs before the change, when column b of nokey does not exist yet", []int{0}},
+				{5, "DELETE FROM p WHERE c = 1", "prior backup runs before the change, when column c of p does not exist yet", []int{0}},
+			},
+		},
+		{
+			name:    "a column named with the database",
+			sql:     "ALTER TABLE public.p ADD COLUMN gone bool;\nDELETE FROM t USING db.public.p WHERE db.public.p.gone;\nDELETE FROM nokey USING db.public.p WHERE other.public.p.gone;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "DELETE FROM t USING db.public.p WHERE db.public.p.gone", "prior backup runs before the change, when column gone of db.public.p does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a column of an aliased join",
+			sql:     "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING (p JOIN nokey ON true) AS j WHERE j.gone;\nDELETE FROM nokey USING (p JOIN t ON true) AS k(a, b) WHERE k.gone;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "DELETE FROM t USING (p JOIN nokey ON true) AS j WHERE j.gone", "prior backup runs before the change, when column gone of j does not exist yet", []int{0}}},
+		},
+		{
+			name:   "a column the change adds to a partitioned table, through a partition",
+			sql:    "ALTER TABLE pt ADD COLUMN flag bool;\nDELETE FROM pt1 WHERE pt1.flag;\nDELETE FROM pt2 WHERE pt2.flag;",
+			change: on,
+			targets: []review.Target{{Schema: func() *metadata.DatabaseSchemaMetadata {
+				db := withArchive(shop())
+				pt := table("pt", "id integer")
+				pt.Partitions = []*metadata.TablePartitionMetadata{{Name: "pt1", Subpartitions: []*metadata.TablePartitionMetadata{{Name: "pt2"}}}}
+				db.Schemas[0].Tables = append(db.Schemas[0].Tables, pt)
+				return db
+			}(), SessionUser: "alice"}},
+			want: []targetFinding{
+				{1, "DELETE FROM pt1 WHERE pt1.flag", "prior backup runs before the change, when column flag of pt1 does not exist yet", []int{0}},
+				{2, "DELETE FROM pt2 WHERE pt2.flag", "prior backup runs before the change, when column flag of pt2 does not exist yet", []int{0}},
+			},
+		},
+		{
+			name:    "SET ROLE of a role the change drops, alters, or renames first",
+			sql:     "DROP ROLE worker;\nCREATE ROLE worker;\nSET ROLE worker;\nUPDATE public.t SET n = 1 WHERE id = 1;\nALTER ROLE other RENAME TO worker2;\nCREATE ROLE other;",
+			change:  on,
+			targets: one,
+		},
+		{
 			name:    "no schema, nothing known about the target",
 			sql:     "UPDATE t SET n = 1 WHERE id = 1; DELETE FROM t WHERE id = 2;",
 			change:  on,
