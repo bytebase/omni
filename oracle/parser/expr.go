@@ -153,7 +153,7 @@ func (p *Parser) startsDotPostfix() bool {
 
 func (p *Parser) parseDotPostfix(left nodes.ExprNode) (nodes.ExprNode, error) {
 	// An inquiry directive is a literal: no field or method (PLS-00103 on
-	// Oracle 23ai for $$PLSQL_LINE.y).
+	// Oracle 23ai for $$PLSQL_LINE.y and ($$PLSQL_LINE).y).
 	if p.isInquiryRef(left) {
 		return nil, p.syntaxErrorAtCur()
 	}
@@ -217,7 +217,7 @@ func (p *Parser) isCursorAttributeToken(tok Token) bool {
 
 func (p *Parser) parseCursorAttributePostfix(left nodes.ExprNode) (nodes.ExprNode, error) {
 	// An inquiry directive is a literal, no cursor (PLS-00103 for
-	// $$PLSQL_LINE%FOUND).
+	// $$PLSQL_LINE%FOUND and ($$PLSQL_LINE)%FOUND).
 	if p.isInquiryRef(left) {
 		return nil, p.syntaxErrorAtCur()
 	}

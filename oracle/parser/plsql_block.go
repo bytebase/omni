@@ -1383,6 +1383,11 @@ func (p *Parser) parsePLSQLVarList() (*nodes.List, error) {
 		if expr == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
+		// No parentheses around a FETCH, EXECUTE IMMEDIATE, or RETURNING
+		// target (PLS-00103 on Oracle 23ai for FETCH c INTO (x)).
+		if isParenExpr(expr) {
+			return nil, p.syntaxErrorAtNode(expr)
+		}
 		list.Items = append(list.Items, expr)
 		if p.cur.Type != ',' {
 			break
@@ -1391,6 +1396,12 @@ func (p *Parser) parsePLSQLVarList() (*nodes.List, error) {
 	}
 
 	return list, p.checkTargets(list)
+}
+
+// isParenExpr reports whether expr is a parenthesized expression.
+func isParenExpr(expr nodes.ExprNode) bool {
+	_, ok := expr.(*nodes.ParenExpr)
+	return ok
 }
 
 // checkTargets rejects an inquiry directive among targets, the variables
@@ -1440,8 +1451,8 @@ func (p *Parser) parsePLSQLBindArgList() (*nodes.List, []string, error) {
 			return nil, nil, p.syntaxErrorAtCur()
 		}
 		// An OUT bind assigns its argument, which an inquiry directive's
-		// literal is not (PLS-00103 on Oracle 23ai).
-		if mode != "" && mode != "IN" && p.isInquiryRef(expr) {
+		// literal is not, nor one in parentheses (PLS-00103 on Oracle 23ai).
+		if mode != "" && mode != "IN" && (p.isInquiryRef(expr) || isParenExpr(expr)) {
 			return nil, nil, p.syntaxErrorAtNode(expr)
 		}
 		list.Items = append(list.Items, expr)

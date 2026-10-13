@@ -70,11 +70,11 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF MOD(-11, 4) = -3 $THEN NULL; $ELSE garbage garbage; $END END;",
 		"BEGIN $IF ROUND(-1.5) = -2 AND CEIL(1.2) = 2 AND FLOOR(-1.2) = -2 AND TRUNC(-1.5) = -1 $THEN NULL; $ELSE garbage garbage; $END END;",
 		"BEGIN $IF SIGN(-5) = -1 AND POWER(2, 10) = 1024 $THEN NULL; $ELSE garbage garbage; $END END;",
-		"BEGIN $IF LENGTH('ab') = 2 AND UPPER('a') IS NULL AND ABS($$x) = 1 $THEN NULL; $END END;",
+		"BEGIN $IF LENGTH('ab') = 2 AND UPPER('a') IS NULL AND ABS($$x) = 1 $THEN garbage garbage; $ELSE NULL; $END END;",
 		"BEGIN $IF LENGTH('a') = 2 $THEN garbage garbage; $ELSE NULL; $END END;",
 		// Static comparisons of numbers or Booleans, IS NULL of anything.
 		"BEGIN $IF TRUE = TRUE AND $$x IS NOT NULL AND 1 IS NULL $THEN garbage garbage; $ELSE NULL; $END END;",
-		"BEGIN $IF LENGTH(1) = 1 AND LENGTH(UPPER('a')) = 1 AND CHR(65) || 'b' IS NULL $THEN NULL; $END END;",
+		"BEGIN $IF LENGTH(1) = 1 AND LENGTH(UPPER('a')) = 1 AND CHR(65) || 'b' IS NULL $THEN garbage garbage; $ELSE NULL; $END END;",
 		"BEGIN $IF NVL(1, 2) = NVL(3, 4) AND $$x = 1 + $$y AND NULL = 1 AND NOT NULL $THEN garbage garbage; $ELSE NULL; $END END;",
 		// Booleans compare, FALSE below TRUE, and a comparison with NULL is
 		// NULL.
@@ -93,6 +93,17 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF ROUND(1.24, 1) = 1.3 $THEN garbage garbage; $ELSE NULL; $END END;",
 		"BEGIN $IF ROUND(1.25, 1) = 1.3 AND ROUND(-1.25, 1) = -1.3 AND ROUND(125, -1) = 130 $THEN NULL; $ELSE garbage garbage; $END END;",
 		"BEGIN $IF TRUNC(-1.29, 1) = -1.2 AND TRUNC(129, -1) = 120 AND ROUND(1.25, 1.5) = 1.25 AND TRUNC(1.29, 1.6) = 1.29 $THEN NULL; $ELSE garbage garbage; $END END;",
+		// IS NULL folds a character value too: a literal, ||, CONCAT, NVL,
+		// and the functions that keep their argument's nullness.
+		"BEGIN $IF 'x' IS NULL OR 'a' || NULL IS NULL OR UPPER('a') IS NULL OR CHR(65) IS NULL $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF CONCAT('a', NULL) IS NULL OR NVL($$x, 'a') IS NULL OR $$x || 'a' IS NULL OR 1 || 2 IS NULL $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF NULL || NULL IS NULL AND TO_CHAR(1) IS NOT NULL AND UPPER(NULL) IS NULL $THEN NULL; $ELSE garbage garbage; $END END;",
+		// An inquiry directive's kind is the session's: PLSQL_CCFLAGS may
+		// set $$PLSQL_LINE to TRUE and $$PLSQL_UNIT to 1.
+		"BEGIN $IF $$PLSQL_LINE $THEN NULL; $END END;",
+		"BEGIN $IF $$PLSQL_UNIT = 1 $THEN NULL; $END END;",
+		// Parentheses around a SELECT INTO or DML RETURNING target.
+		"DECLARE x NUMBER; BEGIN SELECT 1 INTO (x) FROM dual; UPDATE t SET a = 1 RETURNING a INTO (x); END;",
 		// A constant is a package's, named through it.
 		"BEGIN $IF pkg.b AND system.pkg.b AND \"PKG\".\"B\" $THEN NULL; $END END;",
 		// An inquiry directive is a value an IN bind or argument takes.
@@ -226,6 +237,17 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN UPDATE t SET a = 1 RETURNING a INTO $$PLSQL_LINE; END;",
 		"BEGIN EXECUTE IMMEDIATE 'BEGIN NULL; END;' USING OUT $$X; END;",
 		"BEGIN EXECUTE IMMEDIATE 'BEGIN NULL; END;' USING IN OUT $$X; END;",
+		// Parenthesized too.
+		"DECLARE x NUMBER; BEGIN x := ($$PLSQL_LINE).y; END;",
+		"BEGIN IF ($$PLSQL_LINE)%FOUND THEN NULL; END IF; END;",
+		"DECLARE x NUMBER; BEGIN SELECT 1 INTO ($$PLSQL_LINE) FROM dual; END;",
+		"BEGIN UPDATE t SET a = 1 RETURNING a INTO (($$PLSQL_LINE)); END;",
+		// No parentheses around a FETCH, EXECUTE IMMEDIATE, or OUT bind
+		// target (PLS-00103).
+		"DECLARE x NUMBER; c SYS_REFCURSOR; BEGIN FETCH c INTO (x); END;",
+		"DECLARE x NUMBER; BEGIN EXECUTE IMMEDIATE 'SELECT 1 FROM dual' INTO (x); END;",
+		"DECLARE x NUMBER; BEGIN EXECUTE IMMEDIATE 'BEGIN NULL; END;' RETURNING INTO (x); END;",
+		"DECLARE x NUMBER; BEGIN EXECUTE IMMEDIATE 'BEGIN :x := 1; END;' USING OUT (x); END;",
 		"BEGIN $$x := 1; END;",
 		"DECLARE x NUMBER; BEGIN x := $$PLSQL_LINE.y; END;",
 		"BEGIN $$plsql_unit(1); END;",

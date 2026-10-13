@@ -94,7 +94,7 @@ func staticTruthOf(source string, expr nodes.ExprNode) staticTruth {
 		if e.Test != "NULL" {
 			return truthUnknown
 		}
-		_, null, ok := staticComparable(source, e.Expr)
+		null, ok := staticNull(source, e.Expr)
 		switch {
 		case !ok:
 			return truthUnknown
@@ -161,6 +161,63 @@ func staticComparable(source string, expr nodes.ExprNode) (value *big.Rat, null 
 		return nil, true, true
 	}
 	return nil, false, false
+}
+
+// staticNull reports whether a static expression is NULL, and false for
+// ok when the text does not settle it. Beyond numbers and Booleans, Oracle
+// 23ai settles it for a string literal (NULL when empty), || and CONCAT
+// (NULL when both operands are), NVL, and the functions that keep their
+// argument's nullness: UPPER, LOWER, INITCAP, TO_CHAR, TO_NCHAR, and CHR
+// ('x' IS NULL and 'a' || NULL IS NULL are FALSE).
+func staticNull(source string, expr nodes.ExprNode) (null bool, ok bool) {
+	if _, null, ok := staticComparable(source, expr); ok {
+		return null, true
+	}
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return staticNull(source, e.Expr)
+	case *nodes.StringLiteral:
+		return e.Val == "", true
+	case *nodes.BinaryExpr:
+		if e.Op == "||" {
+			return staticConcatNull(source, e.Left, e.Right)
+		}
+	case *nodes.FuncCallExpr:
+		if e.Args == nil {
+			return false, false
+		}
+		args := e.Args.Items
+		switch name := staticFunctionName(e); {
+		case name == "CONCAT" && len(args) == 2:
+			return staticConcatNull(source, args[0].(nodes.ExprNode), args[1].(nodes.ExprNode))
+		case name == "NVL" && len(args) == 2:
+			first, firstOK := staticNull(source, args[0].(nodes.ExprNode))
+			second, secondOK := staticNull(source, args[1].(nodes.ExprNode))
+			switch {
+			case firstOK && !first:
+				return false, true
+			case firstOK || secondOK && !second:
+				return second, secondOK
+			}
+		case len(args) == 1 && (name == "UPPER" || name == "LOWER" || name == "INITCAP" ||
+			name == "TO_CHAR" || name == "TO_NCHAR" || name == "CHR"):
+			return staticNull(source, args[0].(nodes.ExprNode))
+		}
+	}
+	return false, false
+}
+
+// staticConcatNull reports whether left || right is NULL: when both are.
+func staticConcatNull(source string, left, right nodes.ExprNode) (null bool, ok bool) {
+	lnull, lok := staticNull(source, left)
+	rnull, rok := staticNull(source, right)
+	switch {
+	case lok && !lnull, rok && !rnull:
+		return false, true
+	case lok && rok:
+		return true, true
+	}
+	return false, false
 }
 
 // staticBoolExpr evaluates NOT, AND, and OR in three-valued logic.
@@ -562,11 +619,10 @@ func (p *Parser) staticKindOf(expr nodes.ExprNode) (staticKind, nodes.ExprNode) 
 			e.Loc.Start >= 0 && e.Loc.Start < len(p.source) && p.source[e.Loc.Start] != '"' {
 			return kindBoolean, nil
 		}
+		// An inquiry directive's kind is not the text's: PLSQL_CCFLAGS may
+		// set even $$PLSQL_LINE or $$PLSQL_UNIT (Oracle 23ai takes
+		// $IF $$PLSQL_LINE under PLSQL_LINE:TRUE).
 		if p.isInquiryRef(e) {
-			switch e.Column {
-			case "$$PLSQL_UNIT", "$$PLSQL_UNIT_OWNER", "$$PLSQL_UNIT_TYPE":
-				return kindCharacter, nil
-			}
 			return kindAny, nil
 		}
 		// A constant is a package's, named through it (PLS-00201 on Oracle
@@ -678,9 +734,13 @@ func (p *Parser) staticKindOf(expr nodes.ExprNode) (staticKind, nodes.ExprNode) 
 	return kindAny, expr
 }
 
-// isInquiryRef reports whether expr is an inquiry directive, $$name, as
-// opposed to a quoted column whose name starts with $$ ("$$X").
+// isInquiryRef reports whether expr is an inquiry directive, $$name,
+// possibly parenthesized, as opposed to a quoted column whose name starts
+// with $$ ("$$X").
 func (p *Parser) isInquiryRef(expr nodes.ExprNode) bool {
+	for paren, ok := expr.(*nodes.ParenExpr); ok; paren, ok = expr.(*nodes.ParenExpr) {
+		expr = paren.Expr
+	}
 	ref, ok := expr.(*nodes.ColumnRef)
 	return ok && ref.Schema == "" && ref.Table == "" && ref.Loc.Start >= 0 &&
 		ref.Loc.Start < len(p.source) && p.source[ref.Loc.Start] == '$'
