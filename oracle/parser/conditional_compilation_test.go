@@ -684,3 +684,88 @@ func TestConditionalCompilationSelections(t *testing.T) {
 		t.Errorf("Parse through 20 undecided directives took %v", elapsed)
 	}
 }
+
+// TestConditionalCompilationLimits checks, against Oracle 23ai, that
+// directives nest without bound, that an INTO clause assigns no value, and
+// the range of numeric literals in code and in conditions.
+func TestConditionalCompilationLimits(t *testing.T) {
+	// Oracle 23ai compiles 5000 nested $IF TRUE levels.
+	for _, n := range []int{65, 100, 5000} {
+		ParseAndCheck(t, "BEGIN "+strings.Repeat("$IF TRUE $THEN ", n)+"NULL; "+strings.Repeat("$END ", n)+"END;")
+		ParseAndCheck(t, "BEGIN "+strings.Repeat("$IF $$x $THEN ", n)+"NULL; "+strings.Repeat("$END ", n)+"END;")
+	}
+
+	// An INTO target is no value, parenthesized or not (ORA-32551,
+	// PLS-00403, PLS-00103).
+	for _, sql := range []string{
+		"DECLARE x NUMBER; BEGIN SELECT 1 INTO $$PLSQL_LINE + x FROM dual; END;",
+		"DECLARE x NUMBER; BEGIN SELECT 1 INTO 1 + x FROM dual; END;",
+		"DECLARE x NUMBER; BEGIN SELECT 1 INTO x + 1 FROM dual; END;",
+		"DECLARE x NUMBER; BEGIN SELECT 1 INTO -x FROM dual; END;",
+		"DECLARE x NUMBER; BEGIN SELECT 1 INTO (x + 1) FROM dual; END;",
+		"DECLARE x NUMBER; BEGIN SELECT 1 INTO (1) FROM dual; END;",
+		"DECLARE x NUMBER; BEGIN SELECT 1 INTO NULL FROM dual; END;",
+		"DECLARE x NUMBER; BEGIN SELECT 1 INTO CASE WHEN 1=1 THEN x END FROM dual; END;",
+		"DECLARE x NUMBER; BEGIN SELECT 1 INTO CAST(x AS NUMBER) FROM dual; END;",
+		"DECLARE x NUMBER; BEGIN EXECUTE IMMEDIATE 'SELECT 1 FROM dual' INTO 1 + x; END;",
+		"DECLARE x NUMBER; c SYS_REFCURSOR; BEGIN FETCH c INTO x + 1; END;",
+		"DECLARE x NUMBER; BEGIN DELETE FROM t RETURNING 1 INTO x || 'a'; END;",
+	} {
+		ParseShouldFail(t, sql)
+	}
+	for _, sql := range []string{
+		"DECLARE x NUMBER; BEGIN SELECT 1 INTO (x) FROM dual; END;",
+		"DECLARE TYPE t IS TABLE OF NUMBER INDEX BY PLS_INTEGER; v t; BEGIN SELECT 1 INTO v(1) FROM dual; END;",
+		"DECLARE TYPE r IS RECORD (f NUMBER); v r; BEGIN SELECT 1 INTO v.f FROM dual; END;",
+		"BEGIN SELECT 1 INTO :b FROM dual; END;",
+	} {
+		ParseAndCheck(t, sql)
+	}
+
+	// A numeric literal past its type's range fails in selected code, SQL,
+	// and conditions (PLS-00569, ORA-01426), not in code a directive skips:
+	// a NUMBER one that rounds to 1e126 or more, where 40 nines and a 5
+	// round up, and a BINARY_FLOAT or BINARY_DOUBLE one that IEEE rounding
+	// makes infinite or, from a nonzero value, zero.
+	nines := func(n int) string { return strings.Repeat("9", n) }
+	for _, sql := range []string{
+		"DECLARE x NUMBER; BEGIN x := 1e126; END;",
+		"DECLARE x NUMBER; BEGIN x := -1e126; END;",
+		"DECLARE x NUMBER; BEGIN x := 9." + nines(39) + "5e125; END;",
+		"DECLARE x NUMBER; BEGIN x := " + nines(127) + "; END;",
+		"DECLARE x NUMBER; BEGIN x := 0." + strings.Repeat("0", 200) + "1e327; END;",
+		"DECLARE x NUMBER; BEGIN $IF 1e126 > 0 $THEN NULL; $ELSE NULL; $END END;",
+		"DECLARE x NUMBER; BEGIN $IF -1e126 < 0 $THEN NULL; $ELSE NULL; $END END;",
+		"SELECT 1e126 FROM dual",
+		"SELECT 1 FROM dual WHERE 1 = 0 AND 9.9999999999999999999999999999999999999999999e125 > 0",
+		"CREATE VIEW v AS SELECT 1e126 x FROM dual",
+		"DECLARE x BINARY_DOUBLE; BEGIN x := 1.7976931348623159e308d; END;",
+		"DECLARE x BINARY_DOUBLE; BEGIN x := 2e-324d; END;",
+		"DECLARE x BINARY_FLOAT; BEGIN x := 3.40282357e38f; END;",
+		"DECLARE x BINARY_FLOAT; BEGIN x := 1e-46f; END;",
+		"DECLARE x NUMBER; BEGIN $IF 1e999d > 0 $THEN NULL; $ELSE NULL; $END END;",
+		"SELECT 1e999d FROM dual",
+		"SELECT 1 FROM dual WHERE 1 = 0 AND 1e39f > 0",
+	} {
+		ParseShouldFail(t, sql)
+	}
+	for _, sql := range []string{
+		"DECLARE x NUMBER; BEGIN x := 9.99e125; END;",
+		"DECLARE x NUMBER; BEGIN x := 9." + nines(38) + "5e125; END;",
+		"DECLARE x NUMBER; BEGIN x := 9." + nines(39) + "4" + nines(10) + "e125; END;",
+		"DECLARE x NUMBER; BEGIN x := 1e-131; END;",
+		"DECLARE x BINARY_DOUBLE; BEGIN x := 1.7976931348623158e308d; END;",
+		"DECLARE x BINARY_DOUBLE; BEGIN x := 5e-324d; END;",
+		"DECLARE x BINARY_DOUBLE; BEGIN x := 0.0e-999d; END;",
+		"DECLARE x BINARY_FLOAT; BEGIN x := 3.40282356e38f; END;",
+		"DECLARE x BINARY_FLOAT; BEGIN x := 1e-40f; END;",
+		"DECLARE x NUMBER; BEGIN $IF FALSE $THEN x := 1e999d; $END NULL; END;",
+		"DECLARE x NUMBER; BEGIN $IF 9.99e125 > 0 $THEN NULL; $ELSE NULL; $END END;",
+		"DECLARE x NUMBER; BEGIN $IF 1e-131 = 0 $THEN NULL; $ELSE NULL; $END END;",
+		"DECLARE x NUMBER; BEGIN $IF FALSE $THEN x := 1e126; $END NULL; END;",
+		"DECLARE x NUMBER; BEGIN $IF $$x $THEN x := 1e126; $END NULL; END;",
+		"SELECT 1e126d FROM dual",
+	} {
+		ParseAndCheck(t, sql)
+	}
+}

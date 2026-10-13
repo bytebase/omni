@@ -3,6 +3,7 @@ package parser
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -56,12 +57,13 @@ type Lexer struct {
 	end   int // exclusive bound of the lexed range within input
 
 	// ccDepth counts the conditional compilation $IF directives whose
-	// selected branch holds the tokens being returned (see NextToken).
-	// Bit d-1 of ccElse says the branch selected at depth d is an $ELSE
-	// branch, and of ccUndecided that its selection is undecided.
+	// selected branch holds the tokens being returned (see NextToken), and
+	// ccLevels holds them, the innermost first. ccUndecided counts those
+	// selected by an undecided selection. Oracle 23ai sets no bound on the
+	// nesting: 5000 levels compile.
 	ccDepth     int
-	ccElse      uint64
-	ccUndecided uint64
+	ccLevels    *ccLevel
+	ccUndecided int
 
 	// ccChoices and ccDecisions let the parser try each branch selection a
 	// condition the text does not settle leaves open (see
@@ -105,6 +107,11 @@ type Lexer struct {
 	// and ORA-01704 on Oracle 23ai past 32767), where Split's and
 	// completion's lexers lex on.
 	literalLimit int
+
+	// numberLimit is set on the parser's lexer, which fails at a numeric
+	// literal past NUMBER's range (numberOverflows) in the code it returns;
+	// Oracle 23ai does not check the code a directive skips.
+	numberLimit bool
 
 	// cc, when set, records the preprocessor tokens the lexer meets. The
 	// copies of the lexer that look ahead share it.
@@ -167,8 +174,9 @@ func (l *Lexer) openDecisions(before int) []int {
 	}
 	decided := *l.ccDecisions
 	var open []int
-	for depth := 1; depth <= l.ccDepth; depth++ {
-		if l.ccUndecided&(1<<uint(depth-1)) == 0 {
+	depth := l.ccDepth
+	for level := l.ccLevels; level != nil; level, depth = level.outer, depth-1 {
+		if !level.undecided {
 			continue
 		}
 		for i := len(decided) - 1; i >= 0; i-- {
@@ -177,6 +185,9 @@ func (l *Lexer) openDecisions(before int) []int {
 				break
 			}
 		}
+	}
+	for i, j := 0, len(open)-1; i < j; i, j = i+1, j-1 {
+		open[i], open[j] = open[j], open[i]
 	}
 	return open
 }
@@ -246,6 +257,9 @@ func (l *Lexer) NextToken() Token {
 			if tok.Type == tokBIND && l.ccDepth > 0 {
 				l.cc.noteBind(tok.Loc)
 			}
+			if (tok.Type == tokICONST || tok.Type == tokFCONST) && l.numberLimit && numberOverflows(tok.Str) {
+				return l.failDirective(tok, "numeric overflow")
+			}
 			return tok
 		}
 		restore, prevType = true, tokPrev
@@ -264,7 +278,7 @@ func (l *Lexer) NextToken() Token {
 			if lenient && l.ccSplit {
 				continue
 			}
-			if !lenient && (l.ccDepth == 0 || l.ccElse&l.ccLevelBit() != 0) {
+			if !lenient && (l.ccDepth == 0 || l.ccLevels.isElse) {
 				return l.failDirective(tok, fmt.Sprintf("unexpected preprocessor token '%s'", tok.Str))
 			}
 			state := ccInElse
@@ -313,39 +327,31 @@ func (l *Lexer) NextToken() Token {
 	}
 }
 
-// ccMaxDepth bounds the nesting of $IF directives, one bit of ccElse per
-// level.
-const ccMaxDepth = 64
-
-// ccLevelBit is the bit of the innermost open level in ccElse.
-func (l *Lexer) ccLevelBit() uint64 {
-	return 1 << uint(l.ccDepth-1)
+// ccLevel is an open level of $IF: whether the branch it selected is an
+// $ELSE branch, and whether an undecided selection selected it. Levels do
+// not change once opened, so the lexer's copies share them.
+type ccLevel struct {
+	isElse, undecided bool
+	outer             *ccLevel
 }
 
 // openLevel opens a level of $IF around the branch it selected, an $ELSE
 // branch or not, by an undecided selection or not.
-func (l *Lexer) openLevel(tok Token, isElse, undecided bool) bool {
-	if l.ccDepth == ccMaxDepth {
-		l.failDirective(tok, "preprocessor directives nested too deeply")
-		return false
-	}
+func (l *Lexer) openLevel(isElse, undecided bool) bool {
+	l.ccLevels = &ccLevel{isElse: isElse, undecided: undecided, outer: l.ccLevels}
 	l.ccDepth++
-	bit := l.ccLevelBit()
-	l.ccElse &^= bit
-	l.ccUndecided &^= bit
-	if isElse {
-		l.ccElse |= bit
-	}
 	if undecided {
-		l.ccUndecided |= bit
+		l.ccUndecided++
 	}
 	return true
 }
 
 // closeLevel closes the innermost level of $IF.
 func (l *Lexer) closeLevel() {
-	l.ccElse &^= l.ccLevelBit()
-	l.ccUndecided &^= l.ccLevelBit()
+	if l.ccLevels.undecided {
+		l.ccUndecided--
+	}
+	l.ccLevels = l.ccLevels.outer
 	l.ccDepth--
 }
 
@@ -388,12 +394,12 @@ func (l *Lexer) selectBranch(tok Token) bool {
 			if undecided {
 				l.noteDecision(at, passed, false)
 			}
-			return l.openLevel(tok, false, undecided)
+			return l.openLevel(false, undecided)
 		case ccUnknown:
 			undecided = true
 			if passed == pass {
 				l.noteDecision(at, passed, true)
-				return l.openLevel(tok, false, true)
+				return l.openLevel(false, true)
 			}
 			passed++
 		}
@@ -411,7 +417,7 @@ func (l *Lexer) selectBranch(tok Token) bool {
 			if undecided {
 				l.noteDecision(at, passed, false)
 			}
-			return l.openLevel(end, true, undecided)
+			return l.openLevel(true, undecided)
 		}
 		tok = end // $ELSIF
 	}
@@ -523,6 +529,64 @@ func (l *Lexer) skipBranch(tok Token, state ccState, stopAtBranch bool) (Token, 
 			stack = append(stack, ccInError)
 		}
 	}
+}
+
+// numberOverflows reports whether the numeric literal val is past the
+// range of its type, as Oracle 23ai finds with PLS-00569 in PL/SQL and
+// ORA-01426 in SQL. A NUMBER literal is when it comes to 1e126 or more once
+// NUMBER rounds it to 40 digits: 1e126, and 9.99...95e125 with 41 digits or
+// more; 1e-131 is 0. A BINARY_FLOAT (f) or BINARY_DOUBLE (d) literal is
+// when IEEE rounding makes it infinite or, from a nonzero value, zero:
+// 3.40282357e38f and 1e-46f, 1.7976931348623159e308d and 2e-324d. Only the
+// leading digits of a NUMBER literal are read, however long.
+func numberOverflows(val string) bool {
+	if val == "" {
+		return false
+	}
+	if suffix := val[len(val)-1]; strings.IndexByte("fFdD", suffix) >= 0 {
+		bits := 64
+		if suffix == 'f' || suffix == 'F' {
+			bits = 32
+		}
+		f, _ := strconv.ParseFloat(val[:len(val)-1], bits)
+		mant, _, _ := strings.Cut(strings.ToLower(val[:len(val)-1]), "e")
+		return math.IsInf(f, 0) || f == 0 && strings.Trim(mant, "0.") != ""
+	}
+	mant, exp := val, 0
+	if i := strings.IndexAny(val, "eE"); i >= 0 {
+		mant = val[:i]
+		e, err := strconv.Atoi(val[i+1:])
+		if err != nil {
+			// An exponent past int: past any bound either way.
+			e = 1 << 40
+			if strings.HasPrefix(val[i+1:], "-") {
+				e = -e
+			}
+		}
+		exp = max(min(e, 1<<40), -1<<40)
+	}
+	whole, frac, _ := strings.Cut(mant, ".")
+	// digits run from the leading nonzero digit, at 10^top.
+	digits := strings.TrimLeft(whole, "0")
+	top := len(digits) - 1 + exp
+	if digits == "" {
+		digits = strings.TrimLeft(frac, "0")
+		if digits == "" {
+			return false
+		}
+		top = exp - (len(frac) - len(digits)) - 1
+	} else {
+		digits += frac
+	}
+	switch {
+	case top > 125:
+		return true
+	case top < 125:
+		return false
+	}
+	// NUMBER keeps the digits from 10^125 down to 10^86, and rounds up to
+	// 10^126 only from 40 nines followed by a 5 on.
+	return len(digits) > 40 && strings.TrimLeft(digits[:40], "9") == "" && digits[40] >= '5'
 }
 
 // directiveError is a lexical error at a token: a conditional compilation

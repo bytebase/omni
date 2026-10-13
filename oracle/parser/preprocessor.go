@@ -1173,13 +1173,16 @@ func staticRaise(expr nodes.ExprNode) nodes.ExprNode {
 // number to a fractional one, and a power from 1e126 on; SQRT of a negative
 // number, LN of one not positive, and LOG of either; BITAND past -2^127
 // through 2^127 - 1; CHR of less than 1; a SUBSTR position or length, or an
-// RPAD or LPAD length, past PLS_INTEGER, and a pad past 32767; and an
-// empty string as an operand (staticEmpty). EXP, SINH, and COSH past
-// NUMBER's range raise nothing.
+// RPAD or LPAD length, past PLS_INTEGER, and a pad past 32767; an empty
+// string as an operand (staticEmpty); and a numeric literal past NUMBER's
+// range (numberOverflows; PLS-00569 for $IF 1e126 > 0). EXP, SINH, and
+// COSH past NUMBER's range raise nothing.
 func staticRaises(e nodes.ExprNode) bool {
 	var name string
 	var args []nodes.ExprNode
 	switch e := e.(type) {
+	case *nodes.NumberLiteral:
+		return numberOverflows(e.Val)
 	case *nodes.BinaryExpr:
 		switch e.Op {
 		case "/":

@@ -1404,19 +1404,46 @@ func isParenExpr(expr nodes.ExprNode) bool {
 	return ok
 }
 
-// checkTargets rejects an inquiry directive among targets, the variables
-// an INTO clause assigns: Oracle 23ai replaces one with a literal, which
-// no INTO assigns (PLS-00103, ORA-32551, PLS-00308).
+// checkTargets rejects a value among targets, the variables an INTO
+// clause assigns: an inquiry directive, which Oracle 23ai replaces with a
+// literal, a literal, or an operation, predicate, CASE, CAST, subquery, or
+// cursor attribute, parenthesized or not (ORA-32551 for INTO 1 + x and
+// INTO $$PLSQL_LINE + x, PLS-00403 for INTO x + 1, INTO (x + 1), and INTO
+// NULL; PLS-00103 after FETCH or EXECUTE IMMEDIATE). A name, a bind
+// variable, an element, or a field is left to the engine.
 func (p *Parser) checkTargets(targets *nodes.List) error {
 	if targets == nil {
 		return nil
 	}
 	for _, item := range targets.Items {
-		if expr, ok := item.(nodes.ExprNode); ok && p.isInquiryRef(expr) {
+		expr, ok := item.(nodes.ExprNode)
+		if !ok {
+			continue
+		}
+		target := expr
+		for paren, ok := target.(*nodes.ParenExpr); ok; paren, ok = target.(*nodes.ParenExpr) {
+			target = paren.Expr
+		}
+		if p.isInquiryRef(target) || isValueExpr(target) {
 			return p.syntaxErrorAtNode(expr)
 		}
 	}
 	return nil
+}
+
+// isValueExpr reports whether expr is a value no assignment can target: a
+// literal, or an operation, predicate, CASE, CAST, subquery, or cursor
+// attribute.
+func isValueExpr(expr nodes.ExprNode) bool {
+	switch expr.(type) {
+	case *nodes.NullLiteral, *nodes.StringLiteral, *nodes.NumberLiteral, *nodes.DateTimeLiteral,
+		*nodes.IntervalExpr, *nodes.BinaryExpr, *nodes.UnaryExpr, *nodes.BoolExpr,
+		*nodes.CaseExpr, *nodes.DecodeExpr, *nodes.BetweenExpr, *nodes.InExpr, *nodes.LikeExpr,
+		*nodes.IsExpr, *nodes.ExistsExpr, *nodes.CastExpr, *nodes.MultisetExpr,
+		*nodes.CursorExpr, *nodes.SubqueryExpr, *nodes.ExtractExpr, *nodes.CursorAttributeExpr:
+		return true
+	}
+	return false
 }
 
 // parsePLSQLBindArgList parses the bind arguments of a USING clause, each
