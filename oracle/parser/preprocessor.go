@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/oracle/ast"
@@ -174,6 +175,9 @@ func staticNull(source string, expr nodes.ExprNode) (null bool, ok bool) {
 	if _, null, ok := staticComparable(source, expr); ok {
 		return null, true
 	}
+	if _, null, ok := staticText(expr); ok {
+		return null, true
+	}
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
 		return staticNull(source, e.Expr)
@@ -203,8 +207,6 @@ func staticNull(source string, expr nodes.ExprNode) (null bool, ok bool) {
 		case len(args) == 1 && (name == "UPPER" || name == "LOWER" || name == "INITCAP" ||
 			name == "TO_CHAR" || name == "TO_NCHAR" || name == "CHR"):
 			return staticNull(source, args[0].(nodes.ExprNode))
-		case (name == "SUBSTR" || name == "SUBSTRB" || name == "SUBSTRC") && (len(args) == 2 || len(args) == 3):
-			return staticSubstrNull(args)
 		case (name == "RPAD" || name == "LPAD") && (len(args) == 2 || len(args) == 3):
 			// NULL when an argument is or the length is under 1.
 			nonNull := true
@@ -228,59 +230,199 @@ func staticNull(source string, expr nodes.ExprNode) (null bool, ok bool) {
 	return false, false
 }
 
-// staticSubstrNull reports whether SUBSTR(text, position [, length]) is
-// NULL, as Oracle 23ai finds it: position 0 counts as 1 and a negative one
-// from the end, each argument rounds to a whole number (SUBSTR('abc', 3.9)
-// is NULL), and the result is NULL when it starts past either end or the
-// length is under 1. The text is an ASCII literal or an integer, which
-// every character set and SUBSTR variant counts alike.
-func staticSubstrNull(args []nodes.Node) (null bool, ok bool) {
-	var text string
-	switch v := args[0].(type) {
+// staticText returns the value of a static character expression, null
+// when it is NULL, and false for ok when the text does not settle it. It
+// settles ASCII values alone, which every character set and SUBSTR or
+// LENGTH variant counts alike: a string literal, a PLS_INTEGER literal
+// converted, ||, CONCAT, NVL, UPPER, LOWER, INITCAP (a word starts after
+// any character but a letter or digit), TO_CHAR, TO_NCHAR, CHR, SUBSTR
+// (position 0 counts as 1 and a negative one from the end), and RPAD and
+// LPAD (which cut the text to their length); numeric arguments round to
+// whole numbers, as Oracle 23ai rounds them (SUBSTR('abc', 3.9) is NULL).
+func staticText(expr nodes.ExprNode) (text string, null bool, ok bool) {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return staticText(e.Expr)
+	case *nodes.NullLiteral:
+		return "", true, true
 	case *nodes.StringLiteral:
-		text = v.Val
-	default:
-		n, ok := staticNumber(v.(nodes.ExprNode))
-		if !ok || n == nil || !n.IsInt() {
-			if ok && n == nil {
-				return true, true
+		for i := 0; i < len(e.Val); i++ {
+			if e.Val[i] >= utf8.RuneSelf {
+				return "", false, false
 			}
-			return false, false
 		}
-		text = n.Num().String()
-	}
-	for i := 0; i < len(text); i++ {
-		if text[i] >= utf8.RuneSelf {
-			return false, false
+		return e.Val, e.Val == "", true
+	case *nodes.NumberLiteral, *nodes.UnaryExpr:
+		if v, ok := plsIntegerLiteral(e); ok {
+			return strconv.FormatInt(v, 10), false, true
+		}
+	case *nodes.BinaryExpr:
+		if e.Op == "||" {
+			return staticConcat(e.Left, e.Right)
+		}
+	case *nodes.FuncCallExpr:
+		if e.Args == nil {
+			break
+		}
+		var args []nodes.ExprNode
+		for _, item := range e.Args.Items {
+			args = append(args, item.(nodes.ExprNode))
+		}
+		switch name := staticFunctionName(e); {
+		case name == "CONCAT" && len(args) == 2:
+			return staticConcat(args[0], args[1])
+		case name == "NVL" && len(args) == 2:
+			first, null, ok := staticText(args[0])
+			if !ok || !null {
+				return first, null, ok
+			}
+			return staticText(args[1])
+		case (name == "UPPER" || name == "LOWER" || name == "INITCAP" || name == "TO_CHAR" || name == "TO_NCHAR") && len(args) == 1:
+			text, null, ok := staticText(args[0])
+			if !ok || null {
+				return "", null, ok
+			}
+			switch name {
+			case "UPPER":
+				text = strings.ToUpper(text)
+			case "LOWER":
+				text = strings.ToLower(text)
+			case "INITCAP":
+				out := []byte(text)
+				for i, c := range out {
+					word := i > 0 && isASCIIAlnum(out[i-1])
+					if word {
+						out[i] = byte(unicode.ToLower(rune(c)))
+					} else {
+						out[i] = byte(unicode.ToUpper(rune(c)))
+					}
+				}
+				text = string(out)
+			}
+			return text, false, true
+		case name == "CHR" && len(args) == 1:
+			n, null, ok := staticWhole(args[0])
+			if ok && !null && (n < 1 || n >= utf8.RuneSelf) {
+				return "", false, false
+			}
+			return string(rune(n)), null, ok
+		case (name == "SUBSTR" || name == "SUBSTRB" || name == "SUBSTRC") && (len(args) == 2 || len(args) == 3):
+			text, null, ok := staticText(args[0])
+			if !ok || null {
+				return "", null, ok
+			}
+			var whole []int64
+			for _, arg := range args[1:] {
+				n, null, ok := staticWhole(arg)
+				if !ok || null {
+					return "", null, ok
+				}
+				whole = append(whole, n)
+			}
+			length, start := int64(len(text)), whole[0]-1
+			switch {
+			case whole[0] == 0:
+				start = 0
+			case whole[0] < 0:
+				start = length + whole[0]
+			}
+			if start < 0 || start >= length || len(whole) == 2 && whole[1] < 1 {
+				return "", true, true
+			}
+			end := length
+			if len(whole) == 2 && start+whole[1] < end {
+				end = start + whole[1]
+			}
+			return text[start:end], false, true
+		case (name == "RPAD" || name == "LPAD") && (len(args) == 2 || len(args) == 3):
+			text, null, ok := staticText(args[0])
+			if !ok || null {
+				return "", null, ok
+			}
+			n, null, ok := staticWhole(args[1])
+			switch {
+			case !ok || null:
+				return "", null, ok
+			case n < 1:
+				return "", true, true
+			case n > 32767:
+				return "", false, false
+			}
+			pad := " "
+			if len(args) == 3 {
+				if pad, null, ok = staticText(args[2]); !ok || null {
+					return "", null, ok
+				}
+			}
+			if int64(len(text)) >= n {
+				return text[:n], false, true
+			}
+			fill := strings.Repeat(pad, int(n)/len(pad)+1)[:n-int64(len(text))]
+			if name == "RPAD" {
+				return text + fill, false, true
+			}
+			return fill + text, false, true
 		}
 	}
-	var whole []int64
-	for _, arg := range args[1:] {
-		v, ok := staticNumber(arg.(nodes.ExprNode))
+	return "", false, false
+}
+
+// staticConcat returns left || right: NULL when both are.
+func staticConcat(left, right nodes.ExprNode) (text string, null bool, ok bool) {
+	l, lnull, lok := staticText(left)
+	r, rnull, rok := staticText(right)
+	if !lok || !rok {
+		return "", false, false
+	}
+	return l + r, lnull && rnull, true
+}
+
+// staticWhole returns a static number rounded to a whole PLS_INTEGER, as
+// a character function's numeric argument rounds.
+func staticWhole(expr nodes.ExprNode) (n int64, null bool, ok bool) {
+	v, ok := staticNumber(expr)
+	switch {
+	case !ok:
+		return 0, false, false
+	case v == nil:
+		return 0, true, true
+	}
+	w := roundRat(v, "ROUND")
+	if !plsInteger(w) {
+		return 0, false, false
+	}
+	return w.Num().Int64(), false, true
+}
+
+// plsIntegerLiteral returns the value of an integer literal, possibly
+// signed, that is a PLS_INTEGER: the number a character context converts
+// (Oracle 23ai raises for TO_CHAR(0.5), TO_CHAR(1.0), and TO_CHAR(2147483648)).
+func plsIntegerLiteral(expr nodes.ExprNode) (int64, bool) {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return plsIntegerLiteral(e.Expr)
+	case *nodes.NumberLiteral:
+		if e.IsFloat || e.Ival > 1<<31-1 || strings.ContainsAny(e.Val, ".eE") {
+			return 0, false
+		}
+		return e.Ival, true
+	case *nodes.UnaryExpr:
+		v, ok := plsIntegerLiteral(e.Operand)
 		switch {
 		case !ok:
-			return false, false
-		case v == nil:
-			return true, true
+			return 0, false
+		case e.Op == "-":
+			return -v, true
+		case e.Op == "+":
+			return v, true
 		}
-		n := roundRat(v, "ROUND")
-		if !plsInteger(n) {
-			return false, false
-		}
-		whole = append(whole, n.Num().Int64())
 	}
-	length := int64(len(text))
-	start := whole[0] - 1
-	switch {
-	case whole[0] == 0:
-		start = 0
-	case whole[0] < 0:
-		start = length + whole[0]
-	}
-	if start < 0 || start >= length || len(whole) == 2 && whole[1] < 1 {
-		return true, true
-	}
-	return false, true
+	return 0, false
+}
+
+// isASCIIAlnum reports whether c is an ASCII letter or digit.
+func isASCIIAlnum(c byte) bool {
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9'
 }
 
 // staticConcatNull reports whether left || right is NULL: when both are.
@@ -415,23 +557,19 @@ func staticNumericCall(call *nodes.FuncCallExpr) (*big.Rat, bool) {
 		if null, ok := staticNull("", arg); ok && null {
 			return nil, true
 		}
-		lit, ok := arg.(*nodes.StringLiteral)
-		if !ok {
-			return nil, false
-		}
-		ascii := true
-		for i := 0; i < len(lit.Val); i++ {
-			ascii = ascii && lit.Val[i] < utf8.RuneSelf
-		}
-		switch {
-		case name == "LENGTH" || name == "LENGTHC":
+		if lit, ok := arg.(*nodes.StringLiteral); ok && (name == "LENGTH" || name == "LENGTHC") {
 			return big.NewRat(int64(utf8.RuneCountInString(lit.Val)), 1), true
-		case !ascii:
-			return nil, false
-		case name == "LENGTHB":
-			return big.NewRat(int64(len(lit.Val)), 1), true
 		}
-		return big.NewRat(int64(lit.Val[0]), 1), true
+		text, null, ok := staticText(arg)
+		switch {
+		case !ok:
+			return nil, false
+		case null:
+			return nil, true
+		case name == "ASCII":
+			return big.NewRat(int64(text[0]), 1), true
+		}
+		return big.NewRat(int64(len(text)), 1), true
 	}
 	if name == "NVL" && call.Args.Len() == 2 {
 		v, ok := staticNumber(call.Args.Items[0].(nodes.ExprNode))
@@ -979,6 +1117,34 @@ func staticRaises(e nodes.ExprNode) bool {
 			}
 		}
 	}
+	// A character context converts a PLS_INTEGER literal alone (Oracle 23ai
+	// raises for TO_CHAR(0.5), 1e3 || 'a', and UPPER(2147483648)).
+	var converted []nodes.ExprNode
+	switch name {
+	case "TO_CHAR", "TO_NCHAR", "||", "CONCAT", "UPPER", "LOWER", "INITCAP":
+		converted = args
+	case "SUBSTR", "SUBSTRB", "SUBSTRC":
+		converted = args[:1]
+	case "RPAD", "LPAD":
+		converted = args[:1]
+		if len(args) == 3 {
+			converted = append(converted, args[2])
+		}
+	}
+	for _, arg := range converted {
+		if _, isNumber := unparen(arg).(*nodes.NumberLiteral); isNumber {
+			if _, ok := plsIntegerLiteral(arg); !ok {
+				return true
+			}
+		}
+		if u, isUnary := unparen(arg).(*nodes.UnaryExpr); isUnary {
+			if _, isNumber := unparen(u.Operand).(*nodes.NumberLiteral); isNumber {
+				if _, ok := plsIntegerLiteral(arg); !ok {
+					return true
+				}
+			}
+		}
+	}
 	// The arguments' values, when the text settles each and none is NULL.
 	values := make([]*big.Rat, len(args))
 	for i, arg := range args {
@@ -1019,6 +1185,14 @@ func staticRaises(e nodes.ExprNode) bool {
 	return false
 }
 
+// unparen returns expr without its parentheses.
+func unparen(expr nodes.ExprNode) nodes.ExprNode {
+	for paren, ok := expr.(*nodes.ParenExpr); ok; paren, ok = expr.(*nodes.ParenExpr) {
+		expr = paren.Expr
+	}
+	return expr
+}
+
 // staticEmpty reports whether expr is an empty string: an empty literal,
 // plain, q-quoted, or national, or TO_CHAR, TO_NCHAR, or NVL that yield
 // one.
@@ -1040,8 +1214,8 @@ func staticEmpty(expr nodes.ExprNode) bool {
 			if len(args) != 2 {
 				return false
 			}
-			_, null := args[0].(*nodes.NullLiteral)
-			return (null || staticEmpty(args[0].(nodes.ExprNode))) && staticEmpty(args[1].(nodes.ExprNode))
+			null, ok := staticNull("", args[0].(nodes.ExprNode))
+			return ok && null && staticEmpty(args[1].(nodes.ExprNode))
 		}
 	}
 	return false
@@ -1115,9 +1289,10 @@ func (p *Parser) firstDirectiveTooEarly(stmt nodes.StmtNode, loc int) bool {
 	if name == nil || name.Loc.End <= 0 {
 		return false
 	}
-	// Before the name, or the first token after it is the directive itself
-	// (ORA-00911 for PROCEDURE $IF TRUE $THEN p IS $END).
-	return loc < name.Loc.Start || NewLexerRange(p.source, name.Loc.End, len(p.source)).nextRaw().Loc == loc
+	// Before or in the name, or the first token after it is the directive
+	// itself (ORA-00911 for PROCEDURE $IF TRUE $THEN p IS $END and for
+	// PROCEDURE s.$IF TRUE $THEN p IS $END).
+	return loc < name.Loc.End || NewLexerRange(p.source, name.Loc.End, len(p.source)).nextRaw().Loc == loc
 }
 
 // triggerBodyStart returns where the body of trigger stmt starts: its

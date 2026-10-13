@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bytebase/omni/oracle/ast"
 )
@@ -126,6 +127,14 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF SUBSTR('abc', 5) IS NULL AND SUBSTR('abc', -4) IS NULL AND SUBSTR('abc', 2, 0) IS NULL AND SUBSTR('abc', 3.9) IS NULL $THEN NULL; $ELSE garbage garbage; $END END;",
 		"BEGIN $IF SUBSTR('abc', 2, 0.5) IS NULL OR RPAD('a', 0.5) IS NULL OR LPAD('a', 3, 'x') IS NULL OR RPAD(1, 2) IS NULL $THEN garbage garbage; $ELSE NULL; $END END;",
 		"BEGIN $IF RPAD('a', 0) IS NULL AND LPAD('a', 3, NULL) IS NULL AND LPAD(NULL, 3, 'x') IS NULL AND SUBSTR('abc', NULL) IS NULL $THEN NULL; $ELSE garbage garbage; $END END;",
+		// Character calls fold, nested too, over ASCII values.
+		"BEGIN $IF LENGTH(UPPER('a')) = 2 $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF LENGTH('a' || 'bc') = 3 AND ASCII(LOWER('A')) = 97 AND LENGTH(INITCAP('ab cd')) = 5 AND LENGTH(SUBSTR('abc', 2)) = 2 AND LENGTH(RPAD('a', 3)) = 3 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF LENGTH(TO_CHAR(123)) = 3 AND LENGTH(CHR(65) || 'b') = 2 AND LENGTH(NVL(NULL, 'ab')) = 2 AND LENGTH(1 || 2) = 2 AND LENGTH(LPAD('ab', 1)) = 1 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF ASCII(SUBSTR(INITCAP('ab-cd'), 4)) = 67 AND ASCII(SUBSTR(INITCAP('aBC dEF'), 2)) = 98 AND ASCII(SUBSTR(INITCAP('a1b'), 3)) = 98 AND ASCII(SUBSTR(LPAD('a', 4, 'xy'), 2)) = 121 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF ASCII(SUBSTR(INITCAP('a_b'), 3)) = 98 $THEN garbage garbage; $ELSE NULL; $END END;",
+		// Arithmetic past NUMBER's range raises nothing.
+		"BEGIN $IF 1e125 * 10 > 0 AND 9e125 + 9e125 > 0 AND 1e125 / 1e-5 > 0 $THEN NULL; $ELSE NULL; $END END;",
 		// A hint anywhere but after SELECT, INSERT, UPDATE, DELETE, or MERGE
 		// is a comment.
 		"BEGIN $IF /*+ ignored */ TRUE /*+ x */ AND TRUE $THEN /*+ y */ NULL; $END END;",
@@ -237,6 +246,16 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF 'a' || '' IS NULL $THEN NULL; $ELSE NULL; $END END;",
 		"BEGIN $IF SUBSTR('a', '') IS NULL $THEN NULL; $ELSE NULL; $END END;",
 		"BEGIN $IF LENGTH(TO_CHAR(q'[]')) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF LENGTH(NVL((NULL), '')) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		// A character context converts a PLS_INTEGER literal alone.
+		"BEGIN $IF TO_CHAR(0.5) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF TO_CHAR(1.0) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF LENGTH(TO_CHAR(2147483648)) = 10 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF LENGTH(TO_CHAR(-2147483649)) = 11 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF LENGTH(1e3 || 'a') = 5 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF LENGTH(UPPER(0.5)) = 2 $THEN NULL; $ELSE NULL; $END END;",
+		// TO_CHAR takes one argument (PLS-00174 for its format overloads).
+		"BEGIN $IF TO_CHAR(1, '9', 'NLS_NUMERIC_CHARACTERS = ''.,''') IS NULL $THEN NULL; $ELSE NULL; $END END;",
 		// A bind variable after the block's END is the block's too
 		// (PLS-00110), when another statement follows.
 		"BEGIN NULL; END; $IF :x $THEN $END",
@@ -316,6 +335,7 @@ func TestConditionalCompilation(t *testing.T) {
 		// (ORA-00911).
 		"CREATE OR REPLACE PROCEDURE p $IF TRUE $THEN IS $END BEGIN NULL; END;",
 		"CREATE OR REPLACE PROCEDURE $IF TRUE $THEN p IS $END BEGIN NULL; END;",
+		"CREATE OR REPLACE PROCEDURE s.$IF TRUE $THEN p IS $END BEGIN NULL; END;",
 		"CREATE OR REPLACE FUNCTION $IF TRUE $THEN f $END RETURN NUMBER IS BEGIN RETURN 1; END;",
 		"CREATE OR REPLACE PROCEDURE p $IF TRUE $THEN (x NUMBER) $END IS BEGIN NULL; END;",
 		"CREATE OR REPLACE PACKAGE k $IF TRUE $THEN AS $END c NUMBER; END;",
@@ -350,6 +370,23 @@ func TestConditionalCompilationTree(t *testing.T) {
 	block := parseOne[*ast.PLSQLBlock](t, "DECLARE $IF FALSE $THEN a DATE; $ELSE a NUMBER; b NUMBER; $END BEGIN NULL; END;")
 	if block.Declarations.Len() != 2 {
 		t.Fatalf("declarations = %d, want the 2 of the $ELSE branch", block.Declarations.Len())
+	}
+
+	// A removed directive leaves a hint after its SELECT.
+	for _, sql := range []string{
+		"DECLARE x NUMBER; BEGIN SELECT $IF TRUE $THEN $END /*+ FULL(dual) */ 1 INTO x FROM dual; END;",
+		"DECLARE x NUMBER; BEGIN SELECT $IF FALSE $THEN 2 $END /*+ FULL(dual) */ 1 INTO x FROM dual; END;",
+	} {
+		hints := 0
+		ast.Inspect(parseOne[*ast.PLSQLBlock](t, sql), func(n ast.Node) bool {
+			if sel, ok := n.(*ast.SelectStmt); ok && sel.Hints != nil {
+				hints += sel.Hints.Len()
+			}
+			return true
+		})
+		if hints != 1 {
+			t.Errorf("%q keeps %d hints, want 1", sql, hints)
+		}
 	}
 
 	sql := "BEGIN DBMS_OUTPUT.PUT_LINE($$PLSQL_LINE); END;"
@@ -485,6 +522,17 @@ func TestConditionalCompilationCompletion(t *testing.T) {
 		if got := refs(sql, len(tc.before)); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("CollectCompletion(%q) scope = %q, want %q", sql, got, tc.want)
 		}
+	}
+
+	// Nested directives are read once: 5000 levels complete at once.
+	deep := "BEGIN " + strings.Repeat("$IF TRUE $THEN ", 5000) + "SELECT * INTO x FROM t WHERE t." + strings.Repeat(" $END", 5000) + " END;"
+	start := time.Now()
+	flat := "BEGIN SELECT * INTO x FROM t WHERE t. END;"
+	if got, want := refs(deep, strings.Index(deep, "t.")+2), refs(flat, strings.Index(flat, "t.")+2); !reflect.DeepEqual(got, want) {
+		t.Errorf("deep scope = %q, want %q", got, want)
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("completion through 5000 nested directives took %v", elapsed)
 	}
 
 	// A caret in a condition or an $ERROR message completes it.

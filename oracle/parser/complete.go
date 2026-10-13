@@ -134,12 +134,15 @@ func completionTokens(sql string, caret int) []Token {
 }
 
 // ccResolver resolves the directives of raw tokens for completionTokens.
+// It reads each $IF's structure once, into groups, so that resolving the
+// branches nested in a kept one reads no token again.
 type ccResolver struct {
-	sql   string
-	toks  []Token
-	pos   int
-	caret int
-	out   []Token
+	sql    string
+	toks   []Token
+	pos    int
+	caret  int
+	out    []Token
+	groups map[int]*ccGroup
 }
 
 // ccBranch is a branch of an $IF: its condition, unset for $ELSE, and its
@@ -149,6 +152,16 @@ type ccBranch struct {
 	hasCond   bool
 	body, end int
 	from, to  int
+}
+
+// ccGroup is the structure of an $IF: its branches, the token after its
+// $END, the tokens of a condition that holds the caret, and whether a
+// condition is left without its $THEN.
+type ccGroup struct {
+	branches              []ccBranch
+	after                 int
+	caretFrom, caretTo    int
+	unterminatedCondition bool
 }
 
 // code reads code up to the $THEN, $ELSIF, $ELSE, or $END that ends it,
@@ -187,32 +200,52 @@ func (r *ccResolver) code(emit bool) {
 }
 
 // ifGroup reads an $IF after its $IF token, through its $END, emitting the
-// branch it keeps when emit is set.
+// branch it keeps when emit is set: a condition that holds the caret,
+// which stands for the whole $IF, or else the branch choose picks.
 func (r *ccResolver) ifGroup(emit bool) {
-	var branches []ccBranch
+	g := r.group(r.pos)
+	switch {
+	case !emit:
+	case g.caretFrom >= 0:
+		r.out = append(r.out, r.toks[g.caretFrom:g.caretTo]...)
+	case !g.unterminatedCondition:
+		if i := r.choose(g.branches); i >= 0 {
+			r.pos = g.branches[i].body
+			r.code(true)
+		}
+	}
+	r.pos = g.after
+}
+
+// group returns the structure of the $IF whose condition starts at token
+// start, reading it the first time.
+func (r *ccResolver) group(start int) *ccGroup {
+	if g, ok := r.groups[start]; ok {
+		return g
+	}
+	g := &ccGroup{caretFrom: -1}
+	r.pos = start
 	for directive := "$IF"; directive == "$IF" || directive == "$ELSIF" || directive == "$ELSE"; {
 		b := ccBranch{cond: nodes.Loc{Start: -1, End: -1}, hasCond: directive != "$ELSE"}
 		if b.hasCond {
-			start := r.pos
+			from := r.pos
 			for r.pos < len(r.toks) && r.toks[r.pos].Type != tokDIRECTIVE {
 				r.pos++
 			}
-			if r.pos > start {
-				b.cond = nodes.Loc{Start: r.toks[start].Loc, End: r.toks[r.pos-1].End}
+			if r.pos > from {
+				b.cond = nodes.Loc{Start: r.toks[from].Loc, End: r.toks[r.pos-1].End}
 			}
-			// A caret in the condition completes the condition, which stands
-			// for the whole $IF.
 			to := len(r.sql)
 			if r.pos < len(r.toks) {
 				to = r.toks[r.pos].Loc
 			}
-			if emit && r.toks[start-1].End <= r.caret && r.caret <= to {
-				r.out = append(r.out, r.toks[start:r.pos]...)
-				emit = false
+			if g.caretFrom < 0 && r.toks[from-1].End <= r.caret && r.caret <= to {
+				g.caretFrom, g.caretTo = from, r.pos
 			}
 			if r.pos == len(r.toks) || r.toks[r.pos].Str != "$THEN" {
 				// A condition still being written, or a malformed one.
-				return
+				g.unterminatedCondition = true
+				break
 			}
 			r.pos++ // consume $THEN
 		}
@@ -223,14 +256,14 @@ func (r *ccResolver) ifGroup(emit bool) {
 			b.to, directive = r.toks[r.pos].Loc, r.toks[r.pos].Str
 			r.pos++
 		}
-		branches = append(branches, b)
+		g.branches = append(g.branches, b)
 	}
-	after := r.pos
-	if i := r.choose(branches); emit && i >= 0 {
-		r.pos = branches[i].body
-		r.code(true)
+	g.after = r.pos
+	if r.groups == nil {
+		r.groups = map[int]*ccGroup{}
 	}
-	r.pos = after
+	r.groups[start] = g
+	return g
 }
 
 // choose returns the index of the branch to keep, or -1 for none.

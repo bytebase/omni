@@ -170,7 +170,14 @@ func NewLexerRange(input string, start, end int) *Lexer {
 // certainly selected is PLS-00179. An inquiry directive $$name is an
 // identifier.
 func (l *Lexer) NextToken() Token {
+	// A directive and the code it removes leave the token before it last:
+	// SELECT $IF TRUE $THEN $END /*+ FULL(t) */ keeps its hint.
+	restore, prevType := false, 0
 	for {
+		if restore {
+			l.prevType, restore = prevType, false
+		}
+		tokPrev := l.prevType
 		tok := l.nextRaw()
 		if tok.Type == tokEOF {
 			if l.ccDepth > 0 && l.Err == nil && !l.ccLenient {
@@ -184,6 +191,7 @@ func (l *Lexer) NextToken() Token {
 			}
 			return tok
 		}
+		restore, prevType = true, tokPrev
 		if l.ccStray && l.ccDepth == 0 {
 			continue
 		}
