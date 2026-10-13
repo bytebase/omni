@@ -216,3 +216,9 @@ ref_247	plsql_body	accept	CREATE OR REPLACE TYPE omni_np_{run} AS OBJECT (x PLS_
 ref_248	plsql_body	accept	CREATE OR REPLACE TYPE omni_npc_{run} AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE	PL/SQL-only element in a NOT PERSISTABLE collection
 ref_249	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_oid_{run} OID 'ABC' AS OBJECT (a NUMBER)	OID that is not 32 hexadecimal digits (ORA-02304)
 ref_250	ddl	reject	CREATE TABLE omni_bad_nch_{run} (x NCHAR(2 CHAR))	CHAR length semantics on NCHAR in SQL (ORA-00907)
+ref_284	ddl	reject	CREATE TABLE omni_bad_dec_{run} (x DEC(0))	NUMBER precision outside 1 to 38 (ORA-01727)
+ref_285	ddl	reject	CREATE TABLE omni_bad_scale_{run} (x NUMBER(5, 128))	NUMBER scale outside -84 to 127 (ORA-01728)
+ref_286	select	reject	SELECT CAST(1 AS FLOAT(127)) FROM dual	FLOAT precision outside 1 to 126 (ORA-01724)
+ref_287	ddl	reject	CREATE TABLE omni_bad_tsp_{run} (x TIMESTAMP(10))	fractional-second precision outside 0 to 9 (ORA-30088)
+ref_288	ddl	accept	CREATE TABLE omni_numr_{run} (a NUMBER(38), b DEC(1), c NUMBER(5, -84), d NUMERIC(5, 127), e FLOAT(126), f TIMESTAMP(9), g INTERVAL DAY(9) TO SECOND(9))	precision and scale bounds
+ref_289	ddl	reject	CREATE TABLE omni_bad_rlnk_{run} (n NUMBER REFERENCES omni_missing@omni_lnk (a))	referenced table over a database link (ORA-02021)

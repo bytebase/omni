@@ -279,6 +279,20 @@ func TestANSIDatatypes(t *testing.T) {
 	// DEC is DECIMAL's ANSI spelling, in SQL and PL/SQL.
 	ParseAndCheck(t, "CREATE TABLE t (x DEC(10,2), y DEC, z DEC(5), w DEC(*,2))")
 	ParseAndCheck(t, "DECLARE x DEC(10,2); BEGIN NULL; END;")
+	// SQL bounds a NUMBER precision to 1 through 38 (ORA-01727) and its
+	// scale to -84 through 127 (ORA-01728), a FLOAT precision to 1 through
+	// 126 (ORA-01724), and a datetime or interval precision to 0 through 9
+	// (ORA-30088).
+	ParseAndCheck(t, "CREATE TABLE t (a NUMBER(38), b DEC(1), c NUMBER(5,-84), d NUMERIC(5,127), e NUMBER(*,127), f FLOAT(126), g FLOAT(1))")
+	ParseAndCheck(t, "CREATE TABLE t (a TIMESTAMP(9), b TIMESTAMP(0) WITH TIME ZONE, c INTERVAL DAY(9) TO SECOND(9), d INTERVAL YEAR(0) TO MONTH)")
+	for _, datatype := range []string{
+		"NUMBER(0)", "NUMBER(39)", "DEC(0)", "DEC(39)", "DECIMAL(0)", "NUMERIC(39)", "NUMBER(5,-85)", "NUMBER(5,128)",
+		"NUMBER(*,128)", "DECIMAL(5,128)", "FLOAT(0)", "FLOAT(127)", "TIMESTAMP(10)", "TIMESTAMP(10) WITH TIME ZONE",
+		"INTERVAL YEAR(10) TO MONTH", "INTERVAL DAY(9) TO SECOND(10)",
+	} {
+		ParseShouldFail(t, "CREATE TABLE t (x "+datatype+")")
+		ParseShouldFail(t, "SELECT CAST(NULL AS "+datatype+") FROM dual")
+	}
 	// [ NATIONAL ] CHARACTER LARGE OBJECT and NCHAR LARGE OBJECT are PL/SQL's
 	// (ORA-03062 in SQL); NATIONAL CHAR LARGE OBJECT is no type (PLS-00103).
 	ParseAndCheck(t, "DECLARE x NATIONAL CHARACTER LARGE OBJECT; y NCHAR LARGE OBJECT; BEGIN NULL; END;")
@@ -306,6 +320,10 @@ func TestANSIDatatypes(t *testing.T) {
 		"SCOPE FOR (c) IS o, c REF t", "o h, SCOPE FOR (o.r) IS x", "o h, REF (o.r) WITH ROWID",
 		"c REF t WITH ROWID, REF (c) WITH ROWID", "c REF t REFERENCES o",
 		"o h, FOREIGN KEY (o.r) REFERENCES x", "o h, CONSTRAINT k FOREIGN KEY (o.r) REFERENCES x",
+		"c REF t WITH ROWID REFERENCES o", "c REF t, SCOPE FOR (c) IS o, REF (c) WITH ROWID",
+		// An attribute path is not the quoted column that spells it.
+		`o h, "O.R" NUMBER, SCOPE FOR (o.r) IS x`, `o h, "O.R" NUMBER, REF (o.r) WITH ROWID`,
+		`o h, "O.R" REF t, SCOPE FOR (o.r) IS x, SCOPE FOR ("O.R") IS x`,
 	} {
 		ParseAndCheck(t, "CREATE TABLE r ("+cols+")")
 	}
@@ -319,9 +337,23 @@ func TestANSIDatatypes(t *testing.T) {
 		"c REF t REFERENCES o(n)", "c REF t, FOREIGN KEY (c) REFERENCES o(n)",
 		// The scope table is local (ORA-25124).
 		"c REF t SCOPE IS o@lnk", "c REF t, SCOPE FOR (c) IS o@lnk",
+		`o h, "O.R" NUMBER, SCOPE FOR ("O.R") IS x`, "o h, SCOPE FOR (o.r) IS x, SCOPE FOR (o.r) IS x",
+		// Not both a SCOPE and a referential constraint, whatever the tables
+		// (ORA-22896), and one referential constraint (ORA-30771).
+		"c REF t SCOPE IS o REFERENCES o", "c REF t SCOPE IS o REFERENCES p", "c REF t REFERENCES p SCOPE IS o",
+		"c REF t, SCOPE FOR (c) IS o, FOREIGN KEY (c) REFERENCES p", "c REF t REFERENCES p, SCOPE FOR (c) IS o",
+		"SCOPE FOR (c) IS o, c REF t REFERENCES p", "c REF t SCOPE IS o, FOREIGN KEY (c) REFERENCES o",
+		"o h, SCOPE FOR (o.r) IS x, FOREIGN KEY (o.r) REFERENCES y",
+		"c REF t REFERENCES o REFERENCES p", "c REF t REFERENCES o, FOREIGN KEY (c) REFERENCES p",
+		// A referenced table is local (ORA-02021).
+		"c REF t REFERENCES o@lnk", "c REF t, FOREIGN KEY (c) REFERENCES o@lnk",
+		"n NUMBER REFERENCES p@lnk (a)", "n NUMBER, FOREIGN KEY (n) REFERENCES p@lnk (a)",
 	} {
 		ParseShouldFail(t, "CREATE TABLE r ("+cols+")")
 	}
+	ParseShouldFail(t, "ALTER TABLE r ADD CONSTRAINT k FOREIGN KEY (n) REFERENCES p@lnk (a)")
+	ParseShouldFail(t, "ALTER TABLE r MODIFY (n REFERENCES p@lnk (a))")
+	ParseShouldFail(t, "ALTER TABLE r ADD (m NUMBER REFERENCES p@lnk (a))")
 	ParseAndCheck(t, "CREATE TYPE t AS OBJECT (x CHARACTER VARYING)")
 	ParseAndCheck(t, "CREATE TYPE t AS TABLE OF CHAR VARYING")
 	// A REF names an object type, optionally schema-qualified: no %TYPE or
@@ -462,6 +494,14 @@ func TestAlterTypeElements(t *testing.T) {
 	}
 	if m := alter.Methods[1]; m.Action != "ADD" || m.Kind != "MAP MEMBER" || m.Type != "FUNCTION" || m.Return == nil {
 		t.Errorf("second method = %+v", m)
+	}
+
+	// A method's location starts at its verb.
+	const items = "ALTER TYPE s DROP OVERRIDING MEMBER PROCEDURE p (a NUMBER), ADD MAP MEMBER FUNCTION m RETURN NUMBER CASCADE"
+	for i, want := range []string{"DROP OVERRIDING MEMBER PROCEDURE p (a NUMBER)", "ADD MAP MEMBER FUNCTION m RETURN NUMBER"} {
+		if m := parseOne[*ast.AlterTypeStmt](t, items).Methods[i]; items[m.Loc.Start:m.Loc.End] != want {
+			t.Errorf("method %d spans %q, want %q", i, items[m.Loc.Start:m.Loc.End], want)
+		}
 	}
 
 	const ctor = "ALTER TYPE t ADD CONSTRUCTOR FUNCTION t (a NUMBER) RETURN SELF AS RESULT"

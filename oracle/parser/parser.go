@@ -51,6 +51,11 @@ type Parser struct {
 	// where a redeclaration of that name is, or may be, in scope.
 	shadowedTypes map[*nodes.TypeName]bool
 
+	// attributePaths records the constraint columns that name an attribute
+	// of an object column (o.r), which a quoted column name ("O.R") spells
+	// alike.
+	attributePaths map[*nodes.String]bool
+
 	// inAnonymousBlock is set while a top-level anonymous block is parsed:
 	// Oracle 23ai rejects RESULT_CACHE on any subprogram in one (PLS-00999).
 	inAnonymousBlock bool

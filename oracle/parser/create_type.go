@@ -887,8 +887,13 @@ func methodModifiersConflict(mods []string, kind nodes.TypeBodyMemberKind) bool 
 // subtype's MAP method overrides its supertype's: Oracle 23ai rejects one
 // without OVERRIDING with PLS-00636, or PLS-00646 under a supertype without
 // MAP; whether the supertype has a MAP method to override is left to the
-// engine. tok is where the method starts, for the error position.
+// engine. OVERRIDING names a method of a supertype, and a type that is not
+// a subtype has none (PLS-00635). tok is where the method starts, for the
+// error position.
 func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes.TypeBodyMember, hasComparison *bool, tok Token) error {
+	if stmt.Under == nil && hasModifier(member.Modifiers, "OVERRIDING") {
+		return p.syntaxErrorAtTok(tok)
+	}
 	fn, isFunction := member.Subprog.(*nodes.CreateFunctionStmt)
 	switch member.Kind {
 	case nodes.TYPE_BODY_CONSTRUCTOR:

@@ -987,33 +987,63 @@ func (p *Parser) parseRefScopeTable() (*nodes.ObjectName, error) {
 }
 
 // checkOutOfLineRefConstraints checks the REF constraints of stmt that
-// span its relational properties, as Oracle 23ai does: an out-of-line REF
-// constraint naming a column of the table names a REF column (ORA-22893),
-// which may come before or after it; a REF column has one SCOPE, inline or
-// out of line (ORA-22888); and a referential constraint on a REF column
-// names the object table alone (ORA-30726 for a column list). An
-// attribute of an object column, or a name the table does not declare, is
-// the engine's to resolve.
+// span its relational properties, as Oracle 23ai does. A constraint names
+// a column of the table, which may come before or after it, or an
+// attribute of an object column (o.r); a quoted name ("O.R") is a column.
+// A SCOPE or WITH ROWID constraint on a column names a REF column
+// (ORA-22893). A REF column or attribute has one SCOPE (ORA-22888) and not
+// both a SCOPE and a referential constraint (ORA-22896). A REF column has
+// one referential constraint (ORA-30771), which names the object table
+// alone (ORA-30726 for a column list). Whether an attribute is a REF, and
+// a name the table does not declare, are the engine's to resolve.
 func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt) error {
+	type target struct {
+		name      string
+		attribute bool
+	}
 	columns := map[string]*nodes.ColumnDef{}
-	scopes := map[string]int{}
+	for _, item := range stmt.Columns.Items {
+		if col, ok := item.(*nodes.ColumnDef); ok {
+			columns[col.Name] = col
+		}
+	}
+	scoped := map[target]bool{}
+	references := map[target]int{}
+	check := func(node nodes.Node, typ nodes.ConstraintType, key target, refColumns *nodes.List) error {
+		var col *nodes.ColumnDef
+		if !key.attribute {
+			col = columns[key.name]
+		}
+		isRef := col != nil && col.TypeName != nil && col.TypeName.IsRef
+		switch typ {
+		case nodes.CONSTRAINT_SCOPE, nodes.CONSTRAINT_WITH_ROWID:
+			if col != nil && !isRef {
+				return p.syntaxErrorAtNode(node)
+			}
+			if typ == nodes.CONSTRAINT_SCOPE {
+				if scoped[key] || references[key] > 0 {
+					return p.syntaxErrorAtNode(node)
+				}
+				scoped[key] = true
+			}
+		case nodes.CONSTRAINT_FOREIGN:
+			if scoped[key] || isRef && (references[key] > 0 || refColumns != nil && refColumns.Len() > 0) {
+				return p.syntaxErrorAtNode(node)
+			}
+			references[key]++
+		}
+		return nil
+	}
 	for _, item := range stmt.Columns.Items {
 		col, ok := item.(*nodes.ColumnDef)
 		if !ok {
 			continue
 		}
-		columns[col.Name] = col
-		isRef := col.TypeName != nil && col.TypeName.IsRef
 		for _, cItem := range col.Constraints.Items {
-			cc, ok := cItem.(*nodes.ColumnConstraint)
-			if !ok {
-				continue
-			}
-			if cc.Type == nodes.CONSTRAINT_SCOPE {
-				scopes[col.Name]++
-			}
-			if isRef && cc.Type == nodes.CONSTRAINT_FOREIGN && cc.RefColumns != nil && cc.RefColumns.Len() > 0 {
-				return p.syntaxErrorAtNode(cc)
+			if cc, ok := cItem.(*nodes.ColumnConstraint); ok {
+				if err := check(cc, cc.Type, target{name: col.Name}, cc.RefColumns); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -1022,23 +1052,10 @@ func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt) error
 		if !ok || tc.Columns == nil || tc.Columns.Len() != 1 {
 			continue
 		}
-		name := tc.Columns.Items[0].(*nodes.String).Str
-		col := columns[name]
-		isRef := col != nil && col.TypeName != nil && col.TypeName.IsRef
-		switch tc.Type {
-		case nodes.CONSTRAINT_SCOPE, nodes.CONSTRAINT_WITH_ROWID:
-			if col != nil && !isRef {
-				return p.syntaxErrorAtNode(tc)
-			}
-			if tc.Type == nodes.CONSTRAINT_SCOPE {
-				if scopes[name]++; scopes[name] > 1 {
-					return p.syntaxErrorAtNode(tc)
-				}
-			}
-		case nodes.CONSTRAINT_FOREIGN:
-			if isRef && tc.RefColumns != nil && tc.RefColumns.Len() > 0 {
-				return p.syntaxErrorAtNode(tc)
-			}
+		column := tc.Columns.Items[0].(*nodes.String)
+		key := target{name: column.Str, attribute: p.attributePaths[column]}
+		if err := check(tc, tc.Type, key, tc.RefColumns); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -1065,34 +1082,20 @@ func (p *Parser) parseOutOfLineRefConstraint() (*nodes.TableConstraint, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	// A column, or an attribute of an object column (o.ref_attr).
-	var column strings.Builder
-	for {
-		part, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		if part == "" {
-			return nil, p.syntaxErrorAtCur()
-		}
-		column.WriteString(part)
-		if p.cur.Type != '.' {
-			break
-		}
-		column.WriteByte('.')
-		p.advance()
+	column, err := p.parseColumnPath()
+	if err != nil {
+		return nil, err
 	}
 	if p.cur.Type != ')' {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	tc.Columns = &nodes.List{Items: []nodes.Node{&nodes.String{Str: column.String()}}}
+	tc.Columns = &nodes.List{Items: []nodes.Node{column}}
 	if scope {
 		if p.cur.Type != kwIS {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
-		var err error
 		if tc.RefTable, err = p.parseRefScopeTable(); err != nil {
 			return nil, err
 		}
@@ -1327,12 +1330,9 @@ func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) 
 		p.advance() // consume REFERENCES
 		cc.Type = nodes.CONSTRAINT_FOREIGN
 		var parseErr526 error
-		cc.RefTable, parseErr526 = p.parseObjectName()
+		cc.RefTable, parseErr526 = p.parseReferencedTable()
 		if parseErr526 != nil {
 			return nil, parseErr526
-		}
-		if cc.RefTable == nil || cc.RefTable.Name == "" {
-			return nil, p.syntaxErrorAtCur()
 		}
 		if p.cur.Type == '(' {
 			p.advance()
@@ -1507,12 +1507,9 @@ func (p *Parser) parseTableConstraintBody() (*nodes.TableConstraint, error) {
 		}
 		p.advance()
 		var parseErr534 error
-		tc.RefTable, parseErr534 = p.parseObjectName()
+		tc.RefTable, parseErr534 = p.parseReferencedTable()
 		if parseErr534 != nil {
 			return nil, parseErr534
-		}
-		if tc.RefTable == nil || tc.RefTable.Name == "" {
-			return nil, p.syntaxErrorAtCur()
 		}
 		if p.cur.Type == '(' {
 			p.advance()
@@ -1577,28 +1574,66 @@ func (p *Parser) parseIdentifierList() (*nodes.List, error) {
 func (p *Parser) parseColumnPathList() (*nodes.List, error) {
 	list := &nodes.List{}
 	for {
-		var path strings.Builder
-		for {
-			part, err := p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			if part == "" {
-				return nil, p.syntaxErrorAtCur()
-			}
-			path.WriteString(part)
-			if p.cur.Type != '.' {
-				break
-			}
-			path.WriteByte('.')
-			p.advance()
+		column, err := p.parseColumnPath()
+		if err != nil {
+			return nil, err
 		}
-		list.Items = append(list.Items, &nodes.String{Str: path.String()})
+		list.Items = append(list.Items, column)
 		if p.cur.Type != ',' {
 			return list, nil
 		}
 		p.advance() // consume ','
 	}
+}
+
+// parseColumnPath parses a column, or an attribute of an object column
+// (o.r), which it records in p.attributePaths, as a *String of the names
+// joined by dots.
+func (p *Parser) parseColumnPath() (*nodes.String, error) {
+	var path strings.Builder
+	parts := 0
+	for {
+		part, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if part == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if parts++; parts > 1 {
+			path.WriteByte('.')
+		}
+		path.WriteString(part)
+		if p.cur.Type != '.' {
+			break
+		}
+		p.advance()
+	}
+	column := &nodes.String{Str: path.String()}
+	if parts > 1 {
+		if p.attributePaths == nil {
+			p.attributePaths = map[*nodes.String]bool{}
+		}
+		p.attributePaths[column] = true
+	}
+	return column, nil
+}
+
+// parseReferencedTable parses the table a referential constraint
+// references. A referential constraint is DDL on that table, which Oracle
+// 23ai never runs over a database link (ORA-02021).
+func (p *Parser) parseReferencedTable() (*nodes.ObjectName, error) {
+	table, err := p.parseObjectName()
+	if err != nil {
+		return nil, err
+	}
+	if table == nil || table.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if table.DBLink != "" {
+		return nil, p.syntaxErrorAtNode(table)
+	}
+	return table, nil
 }
 
 // parseIdentifierListAsStrings parses a comma-separated list of identifiers,

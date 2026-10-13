@@ -3774,6 +3774,7 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 	seenMethods := map[string]bool{}
 	for i := 0; ; i++ {
 		var verb string
+		verbStart := p.pos()
 		switch {
 		case p.cur.Type == kwADD:
 			verb = "ADD"
@@ -3814,7 +3815,7 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 			}
 			stmt.Attributes = append(stmt.Attributes, attrs...)
 		} else {
-			method, err := p.parseAlterTypeMethod(verb, subprogramName(stmt.Name))
+			method, err := p.parseAlterTypeMethod(verb, verbStart, subprogramName(stmt.Name))
 			if err != nil {
 				return err
 			}
@@ -3904,15 +3905,17 @@ func (p *Parser) subprogramSignature(subprog nodes.Node) string {
 }
 
 // parseAlterTypeMethod parses one method specification of ALTER TYPE ADD
-// or DROP. Inheritance clauses may come first, OVERRIDING before the others:
-// Oracle 23ai adds and drops an OVERRIDING MEMBER method of a subtype.
+// or DROP, after the verb, which starts at verbStart and starts the
+// method's location. Inheritance clauses may come first, OVERRIDING before
+// the others: Oracle 23ai adds and drops an OVERRIDING MEMBER method of a
+// subtype.
 //
 //	[ OVERRIDING ] [ [ NOT ] { FINAL | INSTANTIABLE } ]...
 //	{ MEMBER | STATIC | { MAP | ORDER } MEMBER | CONSTRUCTOR }
 //	{ PROCEDURE name [ ( parameters ) ]
 //	| FUNCTION name [ ( parameters ) ] RETURN { datatype | SELF AS RESULT } }
-func (p *Parser) parseAlterTypeMethod(verb, typeName string) (*nodes.AlterTypeMethod, error) {
-	method := &nodes.AlterTypeMethod{Action: verb, Loc: nodes.Loc{Start: p.pos()}}
+func (p *Parser) parseAlterTypeMethod(verb string, verbStart int, typeName string) (*nodes.AlterTypeMethod, error) {
+	method := &nodes.AlterTypeMethod{Action: verb, Loc: nodes.Loc{Start: verbStart}}
 	if p.isKeywordStr("OVERRIDING") {
 		method.Modifiers = append(method.Modifiers, "OVERRIDING")
 		p.advance()

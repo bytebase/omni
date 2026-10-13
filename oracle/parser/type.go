@@ -597,7 +597,10 @@ func (p *Parser) parsePLSQLTypeMod(tn *nodes.TypeName) error {
 // RAW, and the leading INTERVAL field take a number; INTEGER, SMALLINT, and
 // MONTH take nothing. Anything else, an empty modifier among them, fails
 // there (ORA-00907, or the range errors ORA-00910, ORA-01727, ORA-01728,
-// and ORA-30088).
+// and ORA-30088). The ranges are checked as Oracle 23ai does: a NUMBER
+// precision is 1 to 38 (ORA-01727) and its scale -84 to 127 (ORA-01728), a
+// FLOAT precision is 1 to 126 (ORA-01724), and a fractional-second or
+// leading-field precision is 0 to 9 (ORA-30088).
 func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 	if p.cur.Type != '(' {
 		return nil
@@ -609,12 +612,17 @@ func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 		return p.syntaxErrorAtCur()
 	}
 	star, scale := false, false
+	var minPrecision, maxPrecision int64 = 0, -1
 	if word, ok := tn.Names.Items[tn.Names.Len()-1].(*nodes.String); ok {
 		switch word.Str {
 		case "NUMBER", "DECIMAL", "DEC", "NUMERIC":
 			star, scale = true, true
+			minPrecision, maxPrecision = 1, 38
 		case "FLOAT":
 			star = true
+			minPrecision, maxPrecision = 1, 126
+		case "TIMESTAMP", "YEAR", "DAY", "SECOND":
+			minPrecision, maxPrecision = 0, 9
 		case "INTEGER", "SMALLINT", "MONTH":
 			return p.syntaxErrorAtCur()
 		}
@@ -624,6 +632,9 @@ func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 	// precision
 	switch {
 	case p.cur.Type == tokICONST:
+		if maxPrecision >= 0 && (p.cur.Ival < minPrecision || p.cur.Ival > maxPrecision) {
+			return p.syntaxErrorAtCur()
+		}
 		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.Integer{Ival: p.cur.Ival})
 	case star && p.cur.Type == '*':
 		// NUMBER(*) or NUMBER(*,s)
@@ -646,6 +657,9 @@ func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 		ival := p.cur.Ival
 		if negative {
 			ival = -ival
+		}
+		if ival < -84 || ival > 127 {
+			return p.syntaxErrorAtCur()
 		}
 		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.Integer{Ival: ival})
 		p.advance()
