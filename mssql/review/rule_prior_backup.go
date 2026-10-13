@@ -106,8 +106,9 @@ func backupTable(s *statement) (d dmlTarget, ref *ast.TableRef, refusal string) 
 }
 
 // checkPriorBackupStatements reports, from the SQL alone, what the backup
-// refuses or cannot copy in a statement: what backupTable refuses, and
-// TOP.
+// refuses or cannot copy in a statement: what backupTable refuses, a
+// FROM list that does not name the table copied, which Bytebase's query
+// selects from it, and TOP.
 func checkPriorBackupStatements(stmts []statement, r *reporter) {
 	for i := range stmts {
 		s := &stmts[i]
@@ -115,8 +116,14 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 		switch {
 		case refusal != "":
 			r.report(review.PriorBackup, s.index, rangeOf(s.loc), refusal)
-		case ref != nil && d.top != nil:
-			r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup copies TOP after the select list of its query, which SQL Server rejects")
+		case ref == nil:
+		default:
+			if !fromNames(d.from, ref) {
+				r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup selects "+object(ref)+".* from the statement's FROM list, which does not name it")
+			}
+			if d.top != nil {
+				r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup copies TOP after the select list of its query, which SQL Server rejects")
+			}
 		}
 	}
 }
@@ -174,6 +181,33 @@ func checkPriorBackupGroups(sql string, stmts []statement, db string, r *reporte
 			report("prior backup cannot back up statements on " + object(ref) + " with different WITH clauses")
 		}
 	}
+}
+
+// fromNames reports whether a FROM list may name the table the backup
+// copies, which Bytebase's query selects from it: a table of its name, or
+// an alias of it. A list that holds anything but tables and joins of them
+// may, and so may no list.
+func fromNames(from *ast.List, ref *ast.TableRef) bool {
+	if from == nil || len(from.Items) == 0 {
+		return true
+	}
+	names, plain := false, true
+	var walk func(n ast.Node)
+	walk = func(n ast.Node) {
+		switch v := n.(type) {
+		case *ast.TableRef:
+			names = names || sameName(v.Object, ref.Object) || sameName(v.Alias, ref.Object)
+		case *ast.JoinClause:
+			walk(v.Left)
+			walk(v.Right)
+		default:
+			plain = false
+		}
+	}
+	for _, item := range from.Items {
+		walk(item)
+	}
+	return names || !plain
 }
 
 // backedUp returns the table the backup copies for a target: the table a
@@ -235,11 +269,11 @@ func textOf(sql string, loc ast.Loc) string {
 }
 
 // changeMade is what the change makes, which the backup, run before all of
-// it, cannot see: the tables, views, and synonyms it creates, SELECT INTO
-// CREATE SCHEMA, and BEGIN ... END among them, and the columns it adds or declares on a
-// table it creates,
-// by the table as written. A statement that may make nothing, IF NOT
-// EXISTS, is left out, and so is what the change makes after a USE.
+// it, cannot see: the tables, views, and synonyms it creates, SELECT INTO,
+// CREATE SCHEMA, and BEGIN ... END among them, and the columns it adds,
+// renames to with sp_rename, or declares on a table it creates, by the
+// table as written. A statement that may make nothing, IF NOT EXISTS, is
+// left out, and so is what the change makes after a USE.
 type changeMade struct {
 	relations []*ast.TableRef
 	columns   []madeColumn
@@ -284,6 +318,13 @@ func madeByChange(stmts []statement) changeMade {
 			if v.Elements != nil {
 				for _, e := range v.Elements.Items {
 					visit(e)
+				}
+			}
+		case *ast.ExecStmt:
+			// A column sp_rename renames to, in the target's database.
+			if name, newName, kind, ok := spRename(v); ok && strings.EqualFold(kind, "COLUMN") && v.Name.Database == "" && v.Name.Server == "" {
+				if ref, _ := splitColumn(name); ref != nil {
+					m.columns = append(m.columns, madeColumn{ref, newName})
 				}
 			}
 		case *ast.BeginEndStmt:

@@ -50,6 +50,11 @@ func checkDisallowRename(pos int, s *statement, r *reporter) []renamedObject {
 					r.report(review.DisallowRename, s.index, rangeOf(v.Loc), "renames column "+ident(column)+" of "+object(ref)+" to "+ident(newName))
 				}
 			case "", "OBJECT":
+				// sp_rename called through another database renames an
+				// object there, which the synced schema does not hold.
+				if v.Name.Database != "" || v.Name.Server != "" {
+					break
+				}
 				if ref := parseObjectName(name); ref != nil {
 					open = append(open, renamedObject{s.index, pos, v.Loc, ref, newName})
 				}

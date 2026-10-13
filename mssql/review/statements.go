@@ -84,12 +84,13 @@ func contentLoc(sql string, start, end int) ast.Loc {
 }
 
 // skipTrivia returns the offset of the first byte in [start, end) that is
-// not whitespace or a complete comment. T-SQL block comments nest.
+// not whitespace, a complete comment, or the semicolon of an empty
+// statement before it. T-SQL block comments nest.
 func skipTrivia(sql string, start, end int) int {
 	i := start
 	for i < end {
 		switch {
-		case isSpace(sql[i]):
+		case isSpace(sql[i]), sql[i] == ';':
 			i++
 		case strings.HasPrefix(sql[i:end], "--"):
 			for i < end && sql[i] != '\n' {

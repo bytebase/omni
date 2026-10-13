@@ -225,6 +225,8 @@ func TestPriorBackupAgainstMSSQL(t *testing.T) {
 		{"a column of a table the change recreates", "DROP TABLE nokey;\nCREATE TABLE nokey (b INT);\nDELETE FROM nokey WHERE b = 1;", true},
 		{"a column in a subquery, not judged", "ALTER TABLE t ADD gone INT;\nUPDATE plain SET v = 1 WHERE id IN (SELECT gone FROM t);", false},
 		{"a column the SET clause names, not copied", "ALTER TABLE t ADD gone INT;\nUPDATE t SET gone = 1 WHERE id = 1;", true},
+		{"a column sp_rename renames to", "EXEC sp_rename 'dbo.nokey.a', 'b', 'COLUMN';\nDELETE FROM dbo.nokey WHERE b = 1;", true},
+		{"a FROM list without the target", "UPDATE dbo.t SET n = p.id FROM dbo.p AS p;", true},
 		{"a table a CREATE SCHEMA makes", "CREATE SCHEMA s3 CREATE TABLE s3.n6 (id INT);\nUPDATE s3.n6 SET id = 2 WHERE id = 1;", true},
 		{"a synonym the change creates", "CREATE SYNONYM n5 FOR dbo.t;\nUPDATE n5 SET n = 2 WHERE id = 1;", true},
 		{"a table SELECT INTO makes", "SELECT 1 AS id INTO n4;\nUPDATE n4 SET id = 2 WHERE id = 1;", true},

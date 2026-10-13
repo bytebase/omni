@@ -2,6 +2,7 @@ package review
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -118,6 +119,11 @@ func TestSyntax(t *testing.T) {
 		{
 			name: "one finding for the first error",
 			sql:  "SELECT 1;\nSELEC 2;\nSELEC 3;",
+			want: []finding{{1, "", "syntax error at or near \"SELEC\"", []int{0}}},
+		},
+		{
+			name: "an empty statement before one",
+			sql:  "SELECT 1;; SELEC 2;",
 			want: []finding{{1, "", "syntax error at or near \"SELEC\"", []int{0}}},
 		},
 	})
@@ -255,6 +261,10 @@ func TestDisallowRename(t *testing.T) {
 				{1, "EXEC sp_rename @objname = N't', @newname = N't3'", "renames table t to t3", []int{0}},
 				{2, "EXEC sys.sp_rename 'v', 'v2', 'OBJECT'", "renames view v to v2", []int{0}},
 			},
+		},
+		{
+			name: "sp_rename through another database",
+			sql:  "EXEC other.sys.sp_rename 't', 'x';",
 		},
 		{
 			name: "an object rename after a USE",
@@ -407,6 +417,15 @@ func TestPriorBackup(t *testing.T) {
 			want:   []finding{{1, "UPDATE n4 SET id = 2 WHERE id = 1", "prior backup runs before the change, when n4 does not exist yet", []int{0}}},
 		},
 		{
+			name:   "a column sp_rename renames to, and a FROM list without the target",
+			sql:    "EXEC sp_rename 'dbo.t.n', 'm', 'COLUMN';\nUPDATE dbo.t SET code = '' WHERE m = 1;\nUPDATE dbo.t SET n = p.id FROM dbo.p AS p;\nUPDATE t SET n = 1 FROM t JOIN p ON p.id = t.p_id;",
+			change: backup,
+			want: []finding{
+				{1, "UPDATE dbo.t SET code = '' WHERE m = 1", "prior backup runs before the change, when column m of dbo.t does not exist yet", []int{0}},
+				{2, "UPDATE dbo.t SET n = p.id FROM dbo.p AS p", "prior backup selects dbo.t.* from the statement's FROM list, which does not name it", []int{0}},
+			},
+		},
+		{
 			name:   "a table a BEGIN block makes",
 			sql:    "BEGIN CREATE TABLE n7 (id INT PRIMARY KEY); END;\nUPDATE n7 SET id = 2 WHERE id = 1;",
 			change: backup,
@@ -441,4 +460,20 @@ func TestPriorBackup(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestStatementRanges(t *testing.T) {
+	sql := "SELECT 1;; UPDATE t SET n = 1 WHERE id = 1;\n;\nDELETE FROM t WHERE id = 2"
+	result, err := Review(context.Background(), sql, review.Options{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, rng := range result.Statements {
+		got = append(got, sql[rng.Start:rng.End])
+	}
+	want := []string{"SELECT 1", "UPDATE t SET n = 1 WHERE id = 1", "DELETE FROM t WHERE id = 2"}
+	if !slices.Equal(got, want) {
+		t.Errorf("statements = %q, want %q", got, want)
+	}
 }
