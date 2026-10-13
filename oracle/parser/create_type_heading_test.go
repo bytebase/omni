@@ -322,6 +322,35 @@ func TestANSIDatatypes(t *testing.T) {
 	ParseAndCheck(t, "CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER, MEMBER FUNCTION f (SELF IN OUT t) RETURN NUMBER, MEMBER PROCEDURE p, MEMBER PROCEDURE p (SELF IN t))")
 	ParseShouldFail(t, "ALTER TYPE t ADD MEMBER FUNCTION f RETURN NUMBER, ADD MEMBER FUNCTION f (SELF IN t) RETURN NUMBER CASCADE")
 	ParseShouldFail(t, "ALTER TYPE t ADD STATIC FUNCTION f (SELF IN t) RETURN NUMBER CASCADE")
+	// A SELF is of its type, no predefined datatype (PLS-00382).
+	for _, methods := range []string{
+		"CONSTRUCTOR FUNCTION t (SELF IN OUT NUMBER) RETURN SELF AS RESULT",
+		"MEMBER FUNCTION f (SELF IN NUMBER) RETURN NUMBER",
+		"MEMBER PROCEDURE p (SELF IN OUT VARCHAR2)",
+	} {
+		ParseShouldFail(t, "CREATE TYPE t AS OBJECT (a NUMBER, "+methods+")")
+	}
+	ParseAndCheck(t, "CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f (SELF IN s.t) RETURN NUMBER)")
+	ParseShouldFail(t, "ALTER TYPE t ADD MEMBER FUNCTION f (SELF IN DATE) RETURN NUMBER CASCADE")
+	// A VARRAY limit past any exponent bound fails before it is built
+	// (PLS-00569, PLS-00537).
+	ParseShouldFail(t, "CREATE TYPE t AS VARRAY(1e1000000000) OF NUMBER")
+	ParseShouldFail(t, "CREATE TYPE t AS VARRAY(1e-1000000000) OF NUMBER")
+	// ALTER TABLE ADD lists check their REF constraints against their own
+	// columns (ORA-22893, ORA-22888).
+	ParseShouldFail(t, "ALTER TABLE r ADD (n NUMBER, SCOPE FOR (n) IS o)")
+	ParseShouldFail(t, "ALTER TABLE r ADD (n NUMBER, REF (n) WITH ROWID)")
+	ParseShouldFail(t, "ALTER TABLE r ADD (c REF t SCOPE IS o, SCOPE FOR (c) IS o)")
+	ParseAndCheck(t, "ALTER TABLE r ADD (c REF t, SCOPE FOR (c) IS o)")
+	// A REF column takes a CHECK constraint.
+	ParseAndCheck(t, "CREATE TABLE r (c REF t CHECK (c IS NOT NULL), d REF t CONSTRAINT ck CHECK (1 = 1))")
+	// A column named CONSTRAINT takes a reserved datatype word alone.
+	for _, datatype := range []string{"NUMBER", "CHAR(1)", "VARCHAR2(10)", "VARCHAR(10)", "DATE", "INTEGER", "SMALLINT", "DECIMAL", "FLOAT", "LONG", "LONG RAW", "RAW(1)", "ROWID"} {
+		ParseAndCheck(t, "CREATE TABLE t (constraint "+datatype+")")
+	}
+	for _, datatype := range []string{"CLOB", "BLOB", "NCLOB", "NCHAR(1)", "NVARCHAR2(1)", "TIMESTAMP", "INTERVAL DAY TO SECOND", "JSON", "REF u", "CHARACTER(1)", "DEC(5)", "DOUBLE PRECISION", "NATIONAL CHAR(1)", "NCHAR VARYING(3)"} {
+		ParseShouldFail(t, "CREATE TABLE t (constraint "+datatype+")")
+	}
 	// A REF scope or referenced table names its table after a schema
 	// (ORA-00903), and a literal past int64 is no PL/SQL length (PLS-00325).
 	ParseShouldFail(t, "CREATE TABLE r (c REF t SCOPE IS s.)")

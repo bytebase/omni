@@ -3825,12 +3825,11 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 				}
 				addsComparison = true
 			}
-			// A static method takes no SELF (PLS-00586).
-			if method.Kind == "STATIC" {
-				for _, param := range method.Params {
-					if param.Name == "SELF" {
-						return p.syntaxErrorAtNode(method)
-					}
+			// A static method takes no SELF (PLS-00586), and another
+			// method's SELF is of the type (PLS-00382 for SELF IN NUMBER).
+			for i, param := range method.Params {
+				if param.Name == "SELF" && (method.Kind == "STATIC" || i == 0 && p.predefinedDatatype(param.TypeName)) {
+					return p.syntaxErrorAtNode(method)
 				}
 			}
 			// ALTER TYPE counts a MEMBER and a STATIC method of one signature

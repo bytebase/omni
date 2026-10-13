@@ -913,8 +913,13 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 	if stmt.Under == nil && hasModifier(member.Modifiers, "OVERRIDING") {
 		return p.syntaxErrorAtTok(tok)
 	}
-	// A static method takes no SELF (PLS-00586).
+	// A static method takes no SELF (PLS-00586), and another method's SELF
+	// is of the type, no predefined datatype (PLS-00382 for SELF IN
+	// NUMBER).
 	if member.Kind == nodes.TYPE_BODY_STATIC && declaresSelf(member.Subprog) {
+		return p.syntaxErrorAtTok(tok)
+	}
+	if params := subprogramParameters(member.Subprog); len(params) > 0 && params[0].Name == "SELF" && p.predefinedDatatype(params[0].TypeName) {
 		return p.syntaxErrorAtTok(tok)
 	}
 	fn, isFunction := member.Subprog.(*nodes.CreateFunctionStmt)
@@ -950,19 +955,29 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 // declaresSelf reports whether a method's subprogram declares a parameter
 // named SELF.
 func declaresSelf(subprog nodes.Node) bool {
-	var params *nodes.List
-	switch s := subprog.(type) {
-	case *nodes.CreateFunctionStmt:
-		params = s.Parameters
-	case *nodes.CreateProcedureStmt:
-		params = s.Parameters
-	}
-	for _, param := range listParameters(params) {
+	for _, param := range subprogramParameters(subprog) {
 		if param.Name == "SELF" {
 			return true
 		}
 	}
 	return false
+}
+
+// subprogramParameters returns the parameters of a method's subprogram.
+func subprogramParameters(subprog nodes.Node) []*nodes.Parameter {
+	switch s := subprog.(type) {
+	case *nodes.CreateFunctionStmt:
+		return listParameters(s.Parameters)
+	case *nodes.CreateProcedureStmt:
+		return listParameters(s.Parameters)
+	}
+	return nil
+}
+
+// predefinedDatatype reports whether tn spells a predefined datatype that
+// no declaration in scope redeclares.
+func (p *Parser) predefinedDatatype(tn *nodes.TypeName) bool {
+	return tn != nil && !tn.IsRef && p.predefinedScalar(p.predefinedTypeLead(tn))
 }
 
 // subprogramNameOf returns the name of a method's subprogram.

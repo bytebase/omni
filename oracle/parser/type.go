@@ -3,6 +3,7 @@ package parser
 import (
 	"math"
 	"math/big"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/oracle/ast"
@@ -308,11 +309,20 @@ func (p *Parser) checkVarrayLimit(limit nodes.ExprNode) error {
 		expr, negative = u.Operand, u.Op == "-"
 	}
 	lit, ok := expr.(*nodes.NumberLiteral)
-	if !ok {
+	if !ok || len(lit.Val) > 100 {
 		return nil
 	}
+	// An exponent past any bound is checked before math/big builds the
+	// value: a limit of 1e1000000000 is PLS-00569, of 1e-1000000000
+	// PLS-00537.
+	if i := strings.IndexAny(lit.Val, "eE"); i >= 0 {
+		exp, err := strconv.Atoi(lit.Val[i+1:])
+		if err != nil || exp > 100 || exp < -100 {
+			return p.syntaxErrorAtNode(limit)
+		}
+	}
 	v, ok := new(big.Rat).SetString(lit.Val)
-	if !ok || len(lit.Val) > 100 {
+	if !ok {
 		return nil
 	}
 	// Half away from zero: the whole part of |v| + 1/2.

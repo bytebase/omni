@@ -371,6 +371,15 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance() // consume ')'
+		// The list's REF constraints follow the CREATE TABLE rules over
+		// its own columns (ORA-22893 for ADD (n NUMBER, SCOPE FOR (n) IS t)).
+		listed := &nodes.CreateTableStmt{Columns: cols, Constraints: &nodes.List{}}
+		for _, c := range constraints {
+			listed.Constraints.Items = append(listed.Constraints.Items, c.Constraint)
+		}
+		if err := p.checkOutOfLineRefConstraints(listed); err != nil {
+			return nil, err
+		}
 		options := p.collectAlterTableClauseDetails()
 		if cols.Len() == 0 {
 			// Constraints alone: the first is this action.

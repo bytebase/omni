@@ -568,8 +568,15 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 func (p *Parser) isTableConstraintStart() bool {
 	switch p.cur.Type {
 	case kwCONSTRAINT:
-		next := p.peekNext()
-		return !isOracleTypeToken(next.Type)
+		// A column named CONSTRAINT takes a reserved datatype word alone:
+		// Oracle 23ai reads CONSTRAINT NUMBER as a column and CONSTRAINT
+		// NCHAR(1), CLOB, or REF u as a constraint (ORA-03050, ORA-00931).
+		switch p.peekNext().Type {
+		case kwNUMBER, kwINTEGER, kwSMALLINT, kwDECIMAL, kwFLOAT, kwCHAR, kwVARCHAR2, kwVARCHAR,
+			kwDATE, kwRAW, kwLONG, kwROWID:
+			return false
+		}
+		return true
 	case kwPRIMARY, kwFOREIGN:
 		// PRIMARY and FOREIGN are not reserved: without KEY they start a
 		// column definition (engine-checked by TestOracleNonReservedKeywordsAsColumns).
