@@ -2,6 +2,7 @@ package parser
 
 import (
 	"strconv"
+	"strings"
 
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
@@ -783,7 +784,18 @@ func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt, subtype boo
 			if kind == nodes.TYPE_BODY_MAP || kind == nodes.TYPE_BODY_ORDER {
 				kind = nodes.TYPE_BODY_MEMBER
 			}
-			sig := strconv.Itoa(int(kind)) + " " + p.subprogramSignature(member.Subprog)
+			typ := "FUNCTION"
+			if _, ok := member.Subprog.(*nodes.CreateProcedureStmt); ok {
+				typ = "PROCEDURE"
+			}
+			selfKind := "MEMBER"
+			switch member.Kind {
+			case nodes.TYPE_BODY_STATIC:
+				selfKind = "STATIC"
+			case nodes.TYPE_BODY_CONSTRUCTOR:
+				selfKind = "CONSTRUCTOR"
+			}
+			sig := strconv.Itoa(int(kind)) + " " + p.subprogramSignature(member.Subprog, implicitSelfMode(selfKind, typ))
 			if seenMethods[sig] {
 				return p.syntaxErrorAtTok(methodTok)
 			}
@@ -901,10 +913,19 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 	if stmt.Under == nil && hasModifier(member.Modifiers, "OVERRIDING") {
 		return p.syntaxErrorAtTok(tok)
 	}
+	// A static method takes no SELF (PLS-00586).
+	if member.Kind == nodes.TYPE_BODY_STATIC && declaresSelf(member.Subprog) {
+		return p.syntaxErrorAtTok(tok)
+	}
 	fn, isFunction := member.Subprog.(*nodes.CreateFunctionStmt)
 	switch member.Kind {
 	case nodes.TYPE_BODY_CONSTRUCTOR:
 		if isFunction && stmt.Name != nil && fn.Name.Name != stmt.Name.Name {
+			return p.syntaxErrorAtTok(tok)
+		}
+		// A constructor's SELF is IN OUT (PLS-00660).
+		if params := listParameters(fn.Parameters); isFunction && len(params) > 0 && params[0].Name == "SELF" &&
+			strings.TrimSpace(strings.ReplaceAll(params[0].Mode, "NOCOPY", "")) != "IN OUT" {
 			return p.syntaxErrorAtTok(tok)
 		}
 	case nodes.TYPE_BODY_MAP, nodes.TYPE_BODY_ORDER:
@@ -924,6 +945,24 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 		}
 	}
 	return nil
+}
+
+// declaresSelf reports whether a method's subprogram declares a parameter
+// named SELF.
+func declaresSelf(subprog nodes.Node) bool {
+	var params *nodes.List
+	switch s := subprog.(type) {
+	case *nodes.CreateFunctionStmt:
+		params = s.Parameters
+	case *nodes.CreateProcedureStmt:
+		params = s.Parameters
+	}
+	for _, param := range listParameters(params) {
+		if param.Name == "SELF" {
+			return true
+		}
+	}
+	return false
 }
 
 // subprogramNameOf returns the name of a method's subprogram.

@@ -56,6 +56,11 @@ func (p *Parser) parseAlterTableStmt(start int) (*nodes.AlterTableStmt, error) {
 			break
 		}
 		stmt.Actions.Items = append(stmt.Actions.Items, cmd)
+		// The constraints of an ADD ( ... ) list follow its columns.
+		for _, extra := range p.addedConstraints {
+			stmt.Actions.Items = append(stmt.Actions.Items, extra)
+		}
+		p.addedConstraints = nil
 	}
 
 	stmt.Loc.End = p.prev.End
@@ -218,6 +223,19 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		}, options), nil
 	}
 
+	// SCOPE FOR ( column ) IS table, or REF ( column ) WITH ROWID.
+	if p.isOutOfLineRefConstraintStart() {
+		tc, err := p.parseOutOfLineRefConstraint()
+		if err != nil {
+			return nil, err
+		}
+		return &nodes.AlterTableCmd{
+			Action:     nodes.AT_ADD_CONSTRAINT,
+			Constraint: tc,
+			Loc:        nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
+	}
+
 	// Check if this starts a constraint: CONSTRAINT, PRIMARY, UNIQUE, FOREIGN, CHECK
 	if p.isTableConstraintStart() {
 		tc, parseErr134 := p.parseTableConstraint()
@@ -310,33 +328,57 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 			}, nil
 		}
 
-		// Parse column definitions (one or more)
+		// Column definitions and out-of-line constraints, in any order
+		// (Oracle 23ai adds (m NUMBER, SCOPE FOR (d) IS t)); the
+		// constraints become ADD CONSTRAINT actions after the columns'.
 		cols := &nodes.List{}
-		col, parseErr138 := p.parseColumnDef()
-		if parseErr138 != nil {
-			return nil, parseErr138
+		var col *nodes.ColumnDef
+		var constraints []*nodes.AlterTableCmd
+		for {
+			itemStart := p.pos()
+			var tc *nodes.TableConstraint
+			var err error
+			switch {
+			case p.isOutOfLineRefConstraintStart():
+				tc, err = p.parseOutOfLineRefConstraint()
+			case p.isTableConstraintStart():
+				tc, err = p.parseTableConstraint()
+			default:
+				col, err = p.parseColumnDef()
+				if err == nil && col == nil {
+					err = p.syntaxErrorAtCur()
+				}
+				if err == nil {
+					cols.Items = append(cols.Items, col)
+				}
+			}
+			if err != nil {
+				return nil, err
+			}
+			if tc != nil {
+				constraints = append(constraints, &nodes.AlterTableCmd{
+					Action:     nodes.AT_ADD_CONSTRAINT,
+					Constraint: tc,
+					Loc:        nodes.Loc{Start: itemStart, End: p.prev.End},
+				})
+			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ','
 		}
-		if col == nil {
+		if p.cur.Type != ')' {
 			return nil, p.syntaxErrorAtCur()
 		}
-		cols.Items = append(cols.Items, col)
-		for p.cur.Type == ',' {
-			p.advance()
-			var // consume ','
-			parseErr139 error
-			col, parseErr139 = p.parseColumnDef()
-			if parseErr139 != nil {
-				return nil, parseErr139
-			}
-			if col == nil {
-				return nil, p.syntaxErrorAtCur()
-			}
-			cols.Items = append(cols.Items, col)
-		}
-		if p.cur.Type == ')' {
-			p.advance() // consume ')'
-		}
+		p.advance() // consume ')'
 		options := p.collectAlterTableClauseDetails()
+		if cols.Len() == 0 {
+			// Constraints alone: the first is this action.
+			p.addedConstraints = constraints[1:]
+			constraints[0].Loc.Start = start
+			return constraints[0], nil
+		}
+		p.addedConstraints = constraints
 
 		if len(cols.Items) == 1 {
 			return withAlterTableOptions(&nodes.AlterTableCmd{

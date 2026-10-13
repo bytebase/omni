@@ -981,7 +981,8 @@ func (p *Parser) parseRefScopeTable() (*nodes.ObjectName, error) {
 	if err != nil {
 		return nil, err
 	}
-	if table.Name == "" {
+	// A schema names its table (ORA-00903 for SCOPE IS s.).
+	if table.Name == "" || p.prev.Type == '.' {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if table.DBLink != "" {
@@ -1681,7 +1682,8 @@ func (p *Parser) parseReferencedTable() (*nodes.ObjectName, error) {
 	if err != nil {
 		return nil, err
 	}
-	if table == nil || table.Name == "" {
+	// A schema names its table (ORA-00903 for REFERENCES s.).
+	if table == nil || table.Name == "" || p.prev.Type == '.' {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if table.DBLink != "" {

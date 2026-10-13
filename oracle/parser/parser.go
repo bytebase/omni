@@ -51,6 +51,10 @@ type Parser struct {
 	// where a redeclaration of that name is, or may be, in scope.
 	shadowedTypes map[*nodes.TypeName]bool
 
+	// addedConstraints holds the constraints of the ALTER TABLE ADD ( ... )
+	// list just parsed, actions of their own after its columns'.
+	addedConstraints []*nodes.AlterTableCmd
+
 	// attributePaths records the names of each constraint column that
 	// names an attribute of an object column (o.r), which a quoted column
 	// name ("O.R") spells alike.

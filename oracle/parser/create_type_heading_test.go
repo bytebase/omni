@@ -303,6 +303,48 @@ func TestANSIDatatypes(t *testing.T) {
 	// Overloads that differ in a quoted spelling of an ANSI type alone are
 	// one (PLS-00305), even with a type of that name.
 	ParseShouldFail(t, `CREATE TYPE t AS OBJECT (a NUMBER, MEMBER PROCEDURE p (x CHARACTER), MEMBER PROCEDURE p (x "CHARACTER"))`)
+	// A method's SELF written in the mode of its implicit one is that one
+	// (PLS-00305): IN for a member function, IN OUT for a member procedure
+	// or a constructor, whose SELF is IN OUT (PLS-00660); a static method
+	// has none (PLS-00586).
+	for _, methods := range []string{
+		"MEMBER FUNCTION f RETURN NUMBER, MEMBER FUNCTION f (SELF IN t) RETURN NUMBER",
+		"MEMBER FUNCTION f RETURN NUMBER, MEMBER FUNCTION f (SELF t) RETURN NUMBER",
+		"MEMBER FUNCTION f (x NUMBER) RETURN NUMBER, MEMBER FUNCTION f (SELF IN t, x NUMBER) RETURN NUMBER",
+		"MEMBER PROCEDURE p, MEMBER PROCEDURE p (SELF IN OUT t)",
+		"MAP MEMBER FUNCTION m RETURN NUMBER, MEMBER FUNCTION m (SELF IN t) RETURN NUMBER",
+		"CONSTRUCTOR FUNCTION t RETURN SELF AS RESULT, CONSTRUCTOR FUNCTION t (SELF IN OUT t) RETURN SELF AS RESULT",
+		"CONSTRUCTOR FUNCTION t (SELF IN t) RETURN SELF AS RESULT",
+		"STATIC FUNCTION f (SELF IN t) RETURN NUMBER",
+	} {
+		ParseShouldFail(t, "CREATE TYPE t AS OBJECT (a NUMBER, "+methods+")")
+	}
+	ParseAndCheck(t, "CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER, MEMBER FUNCTION f (SELF IN OUT t) RETURN NUMBER, MEMBER PROCEDURE p, MEMBER PROCEDURE p (SELF IN t))")
+	ParseShouldFail(t, "ALTER TYPE t ADD MEMBER FUNCTION f RETURN NUMBER, ADD MEMBER FUNCTION f (SELF IN t) RETURN NUMBER CASCADE")
+	ParseShouldFail(t, "ALTER TYPE t ADD STATIC FUNCTION f (SELF IN t) RETURN NUMBER CASCADE")
+	// A REF scope or referenced table names its table after a schema
+	// (ORA-00903), and a literal past int64 is no PL/SQL length (PLS-00325).
+	ParseShouldFail(t, "CREATE TABLE r (c REF t SCOPE IS s.)")
+	ParseShouldFail(t, "CREATE TABLE r (c REF t, SCOPE FOR (c) IS s.)")
+	ParseShouldFail(t, "CREATE TABLE r (c REF t REFERENCES s.)")
+	ParseShouldFail(t, "CREATE TYPE t AS OBJECT (a VARCHAR2(9223372036854775808))")
+	ParseShouldFail(t, "DECLARE x NUMBER(99999999999999999999); BEGIN NULL; END;")
+	// ALTER TABLE ADD takes out-of-line REF constraints, alone or in a list
+	// with columns and other constraints.
+	for _, sql := range []string{
+		"ALTER TABLE r ADD SCOPE FOR (c) IS o", "ALTER TABLE r ADD REF (d) WITH ROWID",
+		"ALTER TABLE r ADD (SCOPE FOR (d) IS o)", "ALTER TABLE r ADD (REF (c) WITH ROWID)",
+		"ALTER TABLE r ADD (SCOPE FOR (c) IS o, REF (d) WITH ROWID)", "ALTER TABLE r ADD (m NUMBER, SCOPE FOR (d) IS o)",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	cmds := parseOne[*ast.AlterTableStmt](t, "ALTER TABLE r ADD (m NUMBER, CONSTRAINT pk PRIMARY KEY (n), SCOPE FOR (d) IS o)").Actions
+	if cmds.Len() != 3 || cmds.Items[0].(*ast.AlterTableCmd).ColumnDef == nil ||
+		cmds.Items[1].(*ast.AlterTableCmd).Constraint.Type != ast.CONSTRAINT_PRIMARY ||
+		cmds.Items[2].(*ast.AlterTableCmd).Constraint.Type != ast.CONSTRAINT_SCOPE {
+		t.Errorf("ALTER TABLE ADD list = %s", ast.NodeToString(cmds))
+	}
+	ParseShouldFail(t, "ALTER TABLE r ADD SCOPE FOR (c) IS o@lnk")
 	// A MAP method and a STATIC one may share a signature.
 	ParseAndCheck(t, "CREATE TYPE t AS OBJECT (a NUMBER, MAP MEMBER FUNCTION f RETURN NUMBER, STATIC FUNCTION f RETURN NUMBER)")
 	// A REF targets no predefined datatype (ORA-02302, PLS-00532) but one a

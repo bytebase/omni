@@ -1,7 +1,9 @@
 package parser
 
 import (
+	"math"
 	"math/big"
+	"strings"
 
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
@@ -325,12 +327,17 @@ func (p *Parser) checkVarrayLimit(limit nodes.ExprNode) error {
 	return nil
 }
 
-// literalInteger returns the value of an integer literal, possibly signed.
+// literalInteger returns the value of an integer literal, possibly signed;
+// one past int64, which lexes as a float, answers math.MaxInt64, as far
+// past any bound (PLS-00325 for VARCHAR2(9223372036854775808)).
 func literalInteger(node nodes.Node) (int64, bool) {
 	switch n := node.(type) {
 	case *nodes.Integer:
 		return n.Ival, true
 	case *nodes.NumberLiteral:
+		if n.IsFloat && n.Val != "" && strings.Trim(n.Val, "0123456789") == "" {
+			return math.MaxInt64, true
+		}
 		return n.Ival, !n.IsFloat
 	case *nodes.UnaryExpr:
 		v, ok := literalInteger(n.Operand)

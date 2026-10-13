@@ -3825,9 +3825,17 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 				}
 				addsComparison = true
 			}
+			// A static method takes no SELF (PLS-00586).
+			if method.Kind == "STATIC" {
+				for _, param := range method.Params {
+					if param.Name == "SELF" {
+						return p.syntaxErrorAtNode(method)
+					}
+				}
+			}
 			// ALTER TYPE counts a MEMBER and a STATIC method of one signature
 			// as the same method.
-			sig := p.methodSignature(method.Type, method.Name, method.Params, method.Return)
+			sig := p.methodSignature(method.Type, method.Name, method.Params, method.Return, implicitSelfMode(method.Kind, method.Type))
 			if seenMethods[sig] {
 				return p.syntaxErrorAtNode(method)
 			}
@@ -3848,17 +3856,22 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 // differ in any of them, a parameter's mode among them, and not ones that
 // differ in a default, a function property, or a call specification alone
 // (PLS-00305). A quoted name equals the unquoted one it spells, and an
-// omitted mode is IN.
-func (p *Parser) methodSignature(kind, name string, params []*nodes.Parameter, ret *nodes.TypeName) string {
+// omitted mode is IN. A method's SELF written out in selfMode, the mode of
+// its implicit SELF, is the implicit one (Oracle 23ai: f(SELF IN t) is f,
+// f(SELF IN OUT t) is another).
+func (p *Parser) methodSignature(kind, name string, params []*nodes.Parameter, ret *nodes.TypeName, selfMode string) string {
 	var sig strings.Builder
 	sig.WriteString(kind)
 	sig.WriteByte(' ')
 	sig.WriteString(name)
 	sig.WriteByte('(')
-	for _, param := range params {
+	for i, param := range params {
 		mode := strings.TrimSpace(strings.ReplaceAll(param.Mode, "NOCOPY", ""))
 		if mode == "" {
 			mode = "IN"
+		}
+		if i == 0 && selfMode != "" && param.Name == "SELF" && mode == selfMode {
+			continue
 		}
 		sig.WriteString(param.Name)
 		sig.WriteByte(' ')
@@ -3894,14 +3907,28 @@ func (p *Parser) typeSignature(tn *nodes.TypeName) string {
 
 // subprogramSignature returns methodSignature for the subprogram of a type
 // specification's method.
-func (p *Parser) subprogramSignature(subprog nodes.Node) string {
+func (p *Parser) subprogramSignature(subprog nodes.Node, selfMode string) string {
 	switch s := subprog.(type) {
 	case *nodes.CreateFunctionStmt:
-		return p.methodSignature("FUNCTION", subprogramName(s.Name), listParameters(s.Parameters), s.ReturnType)
+		return p.methodSignature("FUNCTION", subprogramName(s.Name), listParameters(s.Parameters), s.ReturnType, selfMode)
 	case *nodes.CreateProcedureStmt:
-		return p.methodSignature("PROCEDURE", subprogramName(s.Name), listParameters(s.Parameters), nil)
+		return p.methodSignature("PROCEDURE", subprogramName(s.Name), listParameters(s.Parameters), nil, selfMode)
 	}
 	return ""
+}
+
+// implicitSelfMode returns the mode of the SELF a method of kind (MEMBER,
+// STATIC, MAP MEMBER, ORDER MEMBER, or CONSTRUCTOR) and typ (FUNCTION or
+// PROCEDURE) takes implicitly: IN for a member function, IN OUT for a
+// member procedure or a constructor, and none for a static method.
+func implicitSelfMode(kind, typ string) string {
+	switch {
+	case kind == "STATIC":
+		return ""
+	case kind == "CONSTRUCTOR" || typ == "PROCEDURE":
+		return "IN OUT"
+	}
+	return "IN"
 }
 
 // parseAlterTypeMethod parses one method specification of ALTER TYPE ADD
