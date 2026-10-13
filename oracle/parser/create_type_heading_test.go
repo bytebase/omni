@@ -510,6 +510,10 @@ func TestANSIDatatypes(t *testing.T) {
 		t.Errorf("ALTER TYPE method properties = deterministic %v, parallel %v, want both", m.Deterministic, m.Parallel)
 	}
 	ParseShouldFail(t, "DECLARE x LONG(*); BEGIN NULL; END;")
+	// An associative array is indexed by no REF (PLS-00315).
+	ParseShouldFail(t, "DECLARE TYPE a IS TABLE OF NUMBER INDEX BY REF t; BEGIN NULL; END;")
+	ParseShouldFail(t, "CREATE PACKAGE k AS TYPE a IS TABLE OF NUMBER INDEX BY REF t; END;")
+	ParseAndCheck(t, "DECLARE TYPE a IS TABLE OF REF t INDEX BY PLS_INTEGER; BEGIN NULL; END;")
 	ParseShouldFail(t, "DECLARE x LONG RAW(*); BEGIN NULL; END;")
 	ParseShouldFail(t, "CREATE FUNCTION f RETURN REF t PIPELINED IS BEGIN RETURN; END;")
 	ParseAndCheck(t, `CREATE PROCEDURE p (x REF "TABLE") IS BEGIN NULL; END;`)
