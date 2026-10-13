@@ -407,15 +407,31 @@ func staticNumericCall(call *nodes.FuncCallExpr) (*big.Rat, bool) {
 		return nil, false
 	}
 	name := call.FuncName.Name
-	// LENGTH and LENGTHC of a string literal count its characters; '' is
-	// NULL.
-	if (name == "LENGTH" || name == "LENGTHC") && call.Args.Len() == 1 {
-		if lit, ok := call.Args.Items[0].(*nodes.StringLiteral); ok {
-			if lit.Val == "" {
-				return nil, true
-			}
-			return big.NewRat(int64(utf8.RuneCountInString(lit.Val)), 1), true
+	// LENGTH, LENGTHB, LENGTHC, and ASCII are NULL of NULL. LENGTH and
+	// LENGTHC of a string literal count its characters, and LENGTHB and
+	// ASCII read an ASCII one alike in every character set.
+	if (name == "LENGTH" || name == "LENGTHB" || name == "LENGTHC" || name == "ASCII") && call.Args.Len() == 1 {
+		arg := call.Args.Items[0].(nodes.ExprNode)
+		if null, ok := staticNull("", arg); ok && null {
+			return nil, true
 		}
+		lit, ok := arg.(*nodes.StringLiteral)
+		if !ok {
+			return nil, false
+		}
+		ascii := true
+		for i := 0; i < len(lit.Val); i++ {
+			ascii = ascii && lit.Val[i] < utf8.RuneSelf
+		}
+		switch {
+		case name == "LENGTH" || name == "LENGTHC":
+			return big.NewRat(int64(utf8.RuneCountInString(lit.Val)), 1), true
+		case !ascii:
+			return nil, false
+		case name == "LENGTHB":
+			return big.NewRat(int64(len(lit.Val)), 1), true
+		}
+		return big.NewRat(int64(lit.Val[0]), 1), true
 	}
 	if name == "NVL" && call.Args.Len() == 2 {
 		v, ok := staticNumber(call.Args.Items[0].(nodes.ExprNode))
@@ -923,8 +939,9 @@ func staticRaise(expr nodes.ExprNode) nodes.ExprNode {
 // number to a fractional one, and a power from 1e126 on; SQRT of a negative
 // number, LN of one not positive, and LOG of either; BITAND past -2^127
 // through 2^127 - 1; CHR of less than 1; a SUBSTR position or length, or an
-// RPAD or LPAD length, past PLS_INTEGER, and a pad past 32767. EXP, SINH,
-// and COSH past NUMBER's range raise nothing.
+// RPAD or LPAD length, past PLS_INTEGER, and a pad past 32767; and an
+// empty string as an operand (staticEmpty). EXP, SINH, and COSH past
+// NUMBER's range raise nothing.
 func staticRaises(e nodes.ExprNode) bool {
 	var name string
 	var args []nodes.ExprNode
@@ -935,6 +952,8 @@ func staticRaises(e nodes.ExprNode) bool {
 			name = "REMAINDER"
 		case "**":
 			name = "POWER"
+		case "||":
+			name = "||"
 		default:
 			return false
 		}
@@ -949,6 +968,16 @@ func staticRaises(e nodes.ExprNode) bool {
 		}
 	default:
 		return false
+	}
+	// An empty string, a NULL of its own, raises as an operand but of
+	// TO_CHAR, TO_NCHAR, and NVL (Oracle 23ai: UPPER(''), '' || 'a', and
+	// SUBSTR('a', '') raise, TO_CHAR('') IS NULL and UPPER(NULL) do not).
+	if name != "TO_CHAR" && name != "TO_NCHAR" && name != "NVL" {
+		for _, arg := range args {
+			if staticEmpty(arg) {
+				return true
+			}
+		}
 	}
 	// The arguments' values, when the text settles each and none is NULL.
 	values := make([]*big.Rat, len(args))
@@ -986,6 +1015,34 @@ func staticRaises(e nodes.ExprNode) bool {
 	case (name == "RPAD" || name == "LPAD") && len(args) >= 2 && values[1] != nil:
 		n := roundRat(values[1], "ROUND")
 		return !plsInteger(n) || n.Cmp(big.NewRat(32767, 1)) > 0
+	}
+	return false
+}
+
+// staticEmpty reports whether expr is an empty string: an empty literal,
+// plain, q-quoted, or national, or TO_CHAR, TO_NCHAR, or NVL that yield
+// one.
+func staticEmpty(expr nodes.ExprNode) bool {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return staticEmpty(e.Expr)
+	case *nodes.StringLiteral:
+		return e.Val == ""
+	case *nodes.FuncCallExpr:
+		if e.Args == nil {
+			return false
+		}
+		args := e.Args.Items
+		switch staticFunctionName(e) {
+		case "TO_CHAR", "TO_NCHAR":
+			return len(args) == 1 && staticEmpty(args[0].(nodes.ExprNode))
+		case "NVL":
+			if len(args) != 2 {
+				return false
+			}
+			_, null := args[0].(*nodes.NullLiteral)
+			return (null || staticEmpty(args[0].(nodes.ExprNode))) && staticEmpty(args[1].(nodes.ExprNode))
+		}
 	}
 	return false
 }
@@ -1037,9 +1094,10 @@ func (p *Parser) checkDirectiveCondition(loc nodes.Loc) error {
 }
 
 // firstDirectiveTooEarly reports whether the unit stmt's first directive,
-// at loc, stands where Oracle 23ai rejects it with ORA-00911: right after
-// the name of a stored unit, before any token of the unit's own, or before
-// the DECLARE, BEGIN, or COMPOUND TRIGGER of a trigger's body.
+// at loc, stands where Oracle 23ai rejects it with ORA-00911: before or
+// right after the name of a stored unit, before any token of the unit's
+// own, or before the DECLARE, BEGIN, or COMPOUND TRIGGER of a trigger's
+// body.
 func (p *Parser) firstDirectiveTooEarly(stmt nodes.StmtNode, loc int) bool {
 	var name *nodes.ObjectName
 	switch s := stmt.(type) {
@@ -1057,8 +1115,9 @@ func (p *Parser) firstDirectiveTooEarly(stmt nodes.StmtNode, loc int) bool {
 	if name == nil || name.Loc.End <= 0 {
 		return false
 	}
-	// The first token after the name is the directive itself.
-	return NewLexerRange(p.source, name.Loc.End, len(p.source)).nextRaw().Loc == loc
+	// Before the name, or the first token after it is the directive itself
+	// (ORA-00911 for PROCEDURE $IF TRUE $THEN p IS $END).
+	return loc < name.Loc.Start || NewLexerRange(p.source, name.Loc.End, len(p.source)).nextRaw().Loc == loc
 }
 
 // triggerBodyStart returns where the body of trigger stmt starts: its

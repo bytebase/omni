@@ -81,7 +81,9 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF TRUE = FALSE $THEN garbage garbage; $ELSE NULL; $END END;",
 		"BEGIN $IF TRUE > FALSE AND (1 = 2) = (2 = 3) AND TRUE >= TRUE $THEN NULL; $ELSE garbage garbage; $END END;",
 		"BEGIN $IF NULL = TRUE OR NOT (NULL = 1) OR TRUE < FALSE $THEN garbage garbage; $ELSE NULL; $END END;",
-		"BEGIN $IF ROUND(1.25, NULL) IS NULL AND 1 IS NOT NULL AND LENGTH('') IS NULL $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF ROUND(1.25, NULL) IS NULL AND 1 IS NOT NULL AND LENGTH(NULL) IS NULL $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF LENGTH(NULL) IS NOT NULL OR LENGTHB(NULL) = 1 OR ASCII(NULL) = 1 $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF ASCII('a') = 97 AND LENGTHB('ab') = 2 AND TO_CHAR('') IS NULL AND NVL('', 'a') IS NOT NULL AND UPPER(NULL) IS NULL $THEN NULL; $ELSE garbage garbage; $END END;",
 		// NUMBER holds 20 base-100 digits, rounded half away from zero, and
 		// a literal rounds as a result does.
 		"BEGIN $IF 1 / 3 * 3 = 1 $THEN garbage garbage; $ELSE NULL; $END END;",
@@ -227,6 +229,14 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF SUBSTR('a', 1, -2147483649) IS NULL $THEN NULL; $ELSE NULL; $END END;",
 		"BEGIN $IF RPAD('a', 32768) IS NULL $THEN NULL; $ELSE NULL; $END END;",
 		"BEGIN $IF LPAD('a', 2147483648) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		// An empty string raises as an operand but of TO_CHAR, TO_NCHAR,
+		// and NVL.
+		"BEGIN $IF UPPER('') IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF LENGTH('') IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF ASCII('') IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF 'a' || '' IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF SUBSTR('a', '') IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF LENGTH(TO_CHAR(q'[]')) IS NULL $THEN NULL; $ELSE NULL; $END END;",
 		// A bind variable after the block's END is the block's too
 		// (PLS-00110), when another statement follows.
 		"BEGIN NULL; END; $IF :x $THEN $END",
@@ -305,6 +315,8 @@ func TestConditionalCompilation(t *testing.T) {
 		// A directive right after a unit's name, or before a trigger's body
 		// (ORA-00911).
 		"CREATE OR REPLACE PROCEDURE p $IF TRUE $THEN IS $END BEGIN NULL; END;",
+		"CREATE OR REPLACE PROCEDURE $IF TRUE $THEN p IS $END BEGIN NULL; END;",
+		"CREATE OR REPLACE FUNCTION $IF TRUE $THEN f $END RETURN NUMBER IS BEGIN RETURN 1; END;",
 		"CREATE OR REPLACE PROCEDURE p $IF TRUE $THEN (x NUMBER) $END IS BEGIN NULL; END;",
 		"CREATE OR REPLACE PACKAGE k $IF TRUE $THEN AS $END c NUMBER; END;",
 		"CREATE OR REPLACE PACKAGE BODY k $IF TRUE $THEN AS $END PROCEDURE p IS BEGIN NULL; END; END;",
