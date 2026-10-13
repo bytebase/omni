@@ -289,8 +289,11 @@ func TestRequirePrimaryKey(t *testing.T) {
 	runCases(t, review.RequirePrimaryKey, []ruleCase{
 		{
 			name: "CREATE TABLE without a primary key",
-			sql:  "CREATE TABLE a (id INT);\nCREATE TABLE b (id INT PRIMARY KEY);\nCREATE TABLE c (id INT, PRIMARY KEY (id));\nCREATE TEMPORARY TABLE d (id INT);\nCREATE TABLE e LIKE t;\nCREATE TABLE f AS SELECT 1 AS id;\nCREATE TABLE IF NOT EXISTS g (id INT);",
-			want: []finding{{0, "CREATE TABLE a (id INT)", "creates table a without a primary key", []int{0}}},
+			sql:  "CREATE TABLE a (id INT);\nCREATE TABLE b (id INT PRIMARY KEY);\nCREATE TABLE c (id INT, PRIMARY KEY (id));\nCREATE TEMPORARY TABLE d (id INT);\nCREATE TABLE e LIKE t;\nCREATE TABLE f AS SELECT 1 AS id;\nCREATE TABLE IF NOT EXISTS g (id INT);\nCREATE TABLE h (PRIMARY KEY (id)) AS SELECT 1 AS id;",
+			want: []finding{
+				{0, "CREATE TABLE a (id INT)", "creates table a without a primary key", []int{0}},
+				{5, "CREATE TABLE f AS SELECT 1 AS id", "creates table f without a primary key", []int{0}},
+			},
 		},
 		{
 			name: "settled by a later key, drop, or rename",
