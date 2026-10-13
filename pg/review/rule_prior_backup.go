@@ -51,8 +51,11 @@ import (
 // change creates. And the backup copies another table than a statement
 // changes when the change's own statements find the table elsewhere along
 // the search path than Bytebase does: after a RESET, SET ... TO DEFAULT, or
-// set_config of search_path, under $user, or where the change creates a
-// table of the name earlier on the path.
+// set_config of search_path, under $user, or where the change creates,
+// drops, renames, or moves a relation of the name earlier on the path, or
+// creates a temporary one; or when the name holds another relation by the
+// time the statement runs, which the change creates, renames, or moves
+// there in place of the one the backup reads.
 //
 // A name the synced schema cannot resolve, and the change does not
 // create, is not reported. The schema the review sees may predate an
@@ -175,11 +178,6 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 			// An unqualified creation may be in this schema; either way
 			// the table is not there when the backup runs.
 			reportNotYetCreated(s, rv, r)
-		} else if changes := engine.find(rv.Relname); rv.Schemaname == "" && changes != "" && changes != table.schema {
-			// Bytebase follows SET search_path but not RESET, DEFAULT,
-			// set_config, $user, or the tables the change creates: it
-			// backs up another table than the statement changes.
-			r.report(review.PriorBackup, s.index, rangeOf(statementLoc(s.node)), "prior backup backs up "+relation(&ast.RangeVar{Schemaname: table.schema, Relname: rv.Relname})+" for this statement, which changes "+relation(&ast.RangeVar{Schemaname: changes, Relname: rv.Relname}))
 		} else {
 			first, seenFirst := firsts[table]
 			if !seenFirst {
@@ -188,6 +186,12 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 			}
 			if msg := selectionRefused(s.node, table, first, q, made); msg != "" {
 				r.report(review.PriorBackup, s.index, rangeOf(statementLoc(s.node)), msg)
+			} else if at, h, ok := engine.resolve(rv); ok && !h.none() && h != (holding{synced: [2]string{table.schema, rv.Relname}}) {
+				// Bytebase follows SET search_path but not RESET, DEFAULT,
+				// set_config, $user, or what the change does to the
+				// relations of a name: it backs up another table than the
+				// statement changes.
+				r.report(review.PriorBackup, s.index, rangeOf(statementLoc(s.node)), "prior backup backs up "+relation(&ast.RangeVar{Schemaname: table.schema, Relname: rv.Relname})+" for this statement, which changes "+changedRelation(at, h, table))
 			}
 		}
 		first, seen := kinds[table]
@@ -462,7 +466,8 @@ func backupQueryOf(stmts []statement, schema *metadata.DatabaseSchemaMetadata, s
 // enginePath follows the search path the change's statements run under,
 // from the synced one, with $user the session user: SET search_path to
 // names, RESET, DEFAULT, or FROM CURRENT, RESET ALL, and SET ROLE. It
-// stops knowing it at anything else that sets either.
+// stops knowing it at anything else that sets either. It follows as well
+// which relation each name holds as the statements run.
 type enginePath struct {
 	schema  *metadata.DatabaseSchemaMetadata
 	initial []string
@@ -470,12 +475,39 @@ type enginePath struct {
 	session string
 	user    string
 	known   bool
-	// made lists the relations earlier statements created, by (schema,
-	// name), and schemas the schemas they created; unsure lists the names
-	// an earlier statement may have created, dropped, or moved otherwise.
-	made    map[[2]string]bool
+	// schemas are the schemas earlier statements created.
 	schemas map[string]bool
-	unsure  map[string]bool
+	// holds maps a name earlier statements gave a relation or took one
+	// from, by (schema, name), to the relation it then holds; temps are
+	// the temporary relations they created, which the path finds first.
+	holds map[[2]string]held
+	temps map[string]bool
+	// partitioned are the partitioned tables they created.
+	partitioned map[[2]string]bool
+	// lost lists the names, and lostSchemas the schemas, an earlier
+	// statement changed in a way not followed. A statement that may drop
+	// relations it does not name leaves every relation before it unsure:
+	// cascadeAt is the last, -1 for none, and step the statement followed.
+	lost        map[string]bool
+	lostSchemas map[string]bool
+	cascadeAt   int
+	step        int
+}
+
+// holding is the relation a name holds as the change runs: the synced
+// relation of a name before the change, one the change creates, or, the
+// zero holding, none.
+type holding struct {
+	synced [2]string
+	made   bool
+}
+
+func (h holding) none() bool { return !h.made && h.synced == [2]string{} }
+
+// held is a holding, with the statement that gave it.
+type held struct {
+	holding
+	at int
 }
 
 func newEnginePath(schema *metadata.DatabaseSchemaMetadata, sessionUser string) *enginePath {
@@ -484,18 +516,19 @@ func newEnginePath(schema *metadata.DatabaseSchemaMetadata, sessionUser string) 
 		initial = []string{"$user", "public"}
 	}
 	return &enginePath{schema: schema, initial: initial, path: initial, session: sessionUser, user: sessionUser, known: true,
-		made: make(map[[2]string]bool), schemas: make(map[string]bool), unsure: make(map[string]bool)}
+		schemas: make(map[string]bool), holds: make(map[[2]string]held), temps: make(map[string]bool),
+		partitioned: make(map[[2]string]bool), lost: make(map[string]bool), lostSchemas: make(map[string]bool), cascadeAt: -1}
 }
 
 // follow notes what a statement other than SET does to the names the
 // change's later statements find: set_config of search_path, the form
 // pg_dump writes, sets the path, and any other call of it leaves the path
-// unknown; a relation it creates, renames to, or moves in shadows one of
-// the name later on the path; and one it drops or moves away leaves the
-// name unsure.
+// unknown; a relation it creates, renames, moves, or drops changes what
+// the names hold.
 //
 // pg: src/backend/catalog/namespace.c — RangeVarGetCreationNamespace
 func (e *enginePath) follow(n ast.Node) {
+	defer func() { e.step++ }()
 	if calls := searchPathCalls(n); len(calls) > 0 {
 		if path, ok := dumpSearchPath(n, calls); ok {
 			e.path = append([]string{}, path...)
@@ -511,33 +544,296 @@ func (e *enginePath) follow(n ast.Node) {
 		e.schemas[name] = true
 	}
 	switch v := n.(type) {
+	case *ast.DoStmt, *ast.CallStmt:
+		// Code may set the path or change any relation.
+		e.known = false
+		e.cascadeAt = e.step
+		return
+	case *ast.DropOwnedStmt:
+		e.cascadeAt = e.step
+		return
 	case *ast.DropStmt:
-		if v.Objects != nil {
-			for _, obj := range v.Objects.Items {
-				if parts := nameParts(listOf(obj)); len(parts) > 0 {
-					e.unsure[parts[len(parts)-1]] = true
-				}
-			}
-		}
+		e.drop(v)
+		return
 	case *ast.RenameStmt:
-		if v.Relation != nil {
-			e.unsure[v.Relation.Relname] = true
+		switch {
+		case v.RenameType == ast.OBJECT_SCHEMA:
+			e.lostSchemas[v.Subname] = true
+			e.lostSchemas[v.Newname] = true
+		case relationObject(v.RenameType) && v.Relation != nil:
+			e.move(v.Relation, "", v.Newname)
 		}
+		return
 	case *ast.AlterObjectSchemaStmt:
-		if v.Relation != nil {
-			e.unsure[v.Relation.Relname] = true
+		if relationObject(v.ObjectType) && v.Relation != nil {
+			e.move(v.Relation, v.Newschema, v.Relation.Relname)
 		}
+		return
+	}
+	temps := tempRelations(n)
+	for name := range temps {
+		e.temps[name] = true
 	}
 	for _, t := range createdRelations(n) {
+		if t.schema == "pg_temp" || t.schema == "" && temps[t.name] {
+			continue
+		}
 		if t.schema == "" {
 			t.schema = e.creationSchema()
 		}
 		if t.schema == "" {
-			e.unsure[t.name] = true
+			e.lost[t.name] = true
 			continue
 		}
-		e.made[[2]string{t.schema, t.name}] = true
+		e.give([2]string{t.schema, t.name}, holding{made: true})
 	}
+	if v, ok := n.(*ast.CreateStmt); ok && v.Partspec != nil && v.Relation != nil {
+		if at, ok := e.resolveCreation(v.Relation); ok {
+			e.partitioned[at] = true
+		}
+	}
+}
+
+// resolveCreation returns the name a relation CREATE makes takes, false
+// when that is not known.
+func (e *enginePath) resolveCreation(rv *ast.RangeVar) ([2]string, bool) {
+	if rv.Relpersistence == ast.RELPERSISTENCE_TEMP || rv.Schemaname == "pg_temp" {
+		return [2]string{"pg_temp", rv.Relname}, true
+	}
+	schema := rv.Schemaname
+	if schema == "" {
+		schema = e.creationSchema()
+	}
+	return [2]string{schema, rv.Relname}, schema != ""
+}
+
+// give notes that a name holds a relation from this statement on.
+func (e *enginePath) give(name [2]string, h holding) {
+	e.holds[name] = held{h, e.step}
+}
+
+// move follows a rename, to name in the same schema when schema is "", or
+// a move to schema: the new name holds what the old one did, which then
+// holds none.
+func (e *enginePath) move(rv *ast.RangeVar, schema, name string) {
+	from, h, ok := e.resolve(rv)
+	if !ok {
+		e.lost[rv.Relname] = true
+		e.lost[name] = true
+		return
+	}
+	if h.none() {
+		// The statement fails, or IF EXISTS does nothing.
+		return
+	}
+	if from[0] == "pg_temp" {
+		delete(e.temps, rv.Relname)
+		if schema == "" {
+			e.temps[name] = true
+		}
+		return
+	}
+	if schema == "" {
+		schema = from[0]
+	}
+	e.give(from, holding{})
+	e.give([2]string{schema, name}, h)
+}
+
+// drop follows a DROP: the relations it names hold none after it. A
+// dropped schema is not followed. One that may drop relations it does not
+// name, by CASCADE, an extension's, or a partitioned table's partitions,
+// leaves every relation before it unsure.
+func (e *enginePath) drop(v *ast.DropStmt) {
+	kind := ast.ObjectType(v.RemoveType)
+	if v.Objects == nil {
+		return
+	}
+	if kind == ast.OBJECT_SCHEMA {
+		for _, obj := range v.Objects.Items {
+			for _, name := range nameParts(listOf(obj)) {
+				e.lostSchemas[name] = true
+			}
+		}
+		return
+	}
+	if ast.DropBehavior(v.Behavior) == ast.DROP_CASCADE || kind == ast.OBJECT_EXTENSION {
+		e.cascadeAt = e.step
+	}
+	if !relationObject(kind) {
+		return
+	}
+	for _, obj := range v.Objects.Items {
+		parts := nameParts(listOf(obj))
+		if len(parts) == 0 || len(parts) > 3 {
+			continue
+		}
+		rv := &ast.RangeVar{Relname: parts[len(parts)-1]}
+		if len(parts) > 1 {
+			rv.Schemaname = parts[len(parts)-2]
+		}
+		if len(parts) > 2 {
+			rv.Catalogname = parts[0]
+		}
+		at, h, ok := e.resolve(rv)
+		if !ok {
+			e.lost[rv.Relname] = true
+			continue
+		}
+		if h.none() {
+			continue
+		}
+		if at[0] == "pg_temp" {
+			delete(e.temps, rv.Relname)
+			continue
+		}
+		if h.made && e.partitioned[at] || !h.made && partitionedTable(e.schema, h.synced) {
+			e.cascadeAt = e.step
+		}
+		e.give(at, holding{})
+	}
+}
+
+// current returns what a name holds as the next statement runs, false
+// when that is not known.
+func (e *enginePath) current(name [2]string) (holding, bool) {
+	if e.lost[name[1]] || e.lostSchemas[name[0]] {
+		return holding{}, false
+	}
+	if h, ok := e.holds[name]; ok {
+		if !h.none() && h.at < e.cascadeAt {
+			return holding{}, false
+		}
+		return h.holding, true
+	}
+	if !hasBackupRelation(findSchema(e.schema, name[0]), name[1]) {
+		return holding{}, true
+	}
+	if e.cascadeAt >= 0 {
+		return holding{}, false
+	}
+	return holding{synced: name}, true
+}
+
+// resolve returns the name a relation reference of the next statement
+// finds and the relation it holds, the zero holding for none, false when
+// that is not known: the name as written, a temporary relation the change
+// creates, or the first on the path that holds a relation.
+func (e *enginePath) resolve(rv *ast.RangeVar) ([2]string, holding, bool) {
+	if rv.Catalogname != "" && rv.Catalogname != e.schema.GetName() {
+		return [2]string{}, holding{}, false
+	}
+	temp := [2]string{"pg_temp", rv.Relname}
+	if rv.Schemaname == "pg_temp" {
+		if e.temps[rv.Relname] {
+			return temp, holding{made: true}, true
+		}
+		return [2]string{}, holding{}, false
+	}
+	if rv.Schemaname != "" {
+		name := [2]string{rv.Schemaname, rv.Relname}
+		h, ok := e.current(name)
+		return name, h, ok
+	}
+	if e.lost[rv.Relname] {
+		return [2]string{}, holding{}, false
+	}
+	if !e.known || strings.HasPrefix(rv.Relname, "pg_") {
+		return [2]string{}, holding{}, false
+	}
+	// The temporary schema comes first unless the path names it.
+	if e.temps[rv.Relname] && !slices.Contains(e.path, "pg_temp") {
+		return temp, holding{made: true}, true
+	}
+	for _, p := range e.path {
+		if p == "$user" {
+			if e.user == "" {
+				return [2]string{}, holding{}, false
+			}
+			p = e.user
+		}
+		if p == "pg_temp" {
+			if e.temps[rv.Relname] {
+				return temp, holding{made: true}, true
+			}
+			continue
+		}
+		name := [2]string{p, rv.Relname}
+		h, ok := e.current(name)
+		if !ok {
+			return [2]string{}, holding{}, false
+		}
+		if !h.none() {
+			return name, h, true
+		}
+	}
+	return [2]string{}, holding{}, true
+}
+
+// changedRelation describes the relation a statement changes, at the name
+// it finds, which is not table, the one the backup copies.
+func changedRelation(at [2]string, h holding, table backupTable) string {
+	name := relation(&ast.RangeVar{Schemaname: at[0], Relname: at[1]})
+	switch {
+	case at[0] == "pg_temp":
+		return "the temporary table " + ident(at[1]) + " the change creates"
+	case h.made && at == [2]string{table.schema, table.name}:
+		return "the relation the change creates as " + name
+	case !h.made && h.synced != at:
+		return relation(&ast.RangeVar{Schemaname: h.synced[0], Relname: h.synced[1]}) + ", which the change renames or moves to " + name
+	}
+	return name
+}
+
+// relationObject reports whether DDL of the object type names a relation
+// a DML statement may find.
+func relationObject(t ast.ObjectType) bool {
+	switch t {
+	case ast.OBJECT_TABLE, ast.OBJECT_FOREIGN_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW, ast.OBJECT_SEQUENCE:
+		return true
+	}
+	return false
+}
+
+// partitionedTable reports whether the synced schema has the table
+// partitioned.
+func partitionedTable(schema *metadata.DatabaseSchemaMetadata, name [2]string) bool {
+	for _, t := range findSchema(schema, name[0]).GetTables() {
+		if t.GetName() == name[1] && len(t.GetPartitions()) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// tempRelations returns the temporary relations a statement creates, IF
+// NOT EXISTS or not.
+func tempRelations(n ast.Node) map[string]bool {
+	var rv *ast.RangeVar
+	switch v := n.(type) {
+	case *ast.ExplainStmt:
+		if explainAnalyzes(v) {
+			return tempRelations(v.Query)
+		}
+	case *ast.CreateStmt:
+		rv = v.Relation
+	case *ast.CreateSeqStmt:
+		rv = v.Sequence
+	case *ast.CreateTableAsStmt:
+		if v.Into != nil {
+			rv = v.Into.Rel
+		}
+	case *ast.SelectStmt:
+		if into := intoOf(v); into != nil {
+			rv = into.Rel
+		}
+	case *ast.ViewStmt:
+		rv = v.View
+	}
+	if rv == nil || rv.Relpersistence != ast.RELPERSISTENCE_TEMP && rv.Schemaname != "pg_temp" {
+		return nil
+	}
+	return map[string]bool{rv.Relname: true}
 }
 
 // creationSchema returns the schema an unqualified CREATE puts a relation
@@ -553,7 +849,7 @@ func (e *enginePath) creationSchema() string {
 			}
 			p = e.user
 		}
-		if strings.HasPrefix(p, "pg_") {
+		if strings.HasPrefix(p, "pg_") || e.lostSchemas[p] {
 			return ""
 		}
 		if findSchema(e.schema, p) != nil || e.schemas[p] {
@@ -614,26 +910,6 @@ func (e *enginePath) set(v *ast.VariableSetStmt) {
 	default:
 		e.known = false
 	}
-}
-
-// find returns the synced schema an unqualified relation name means for
-// the statement, "" when the path is not known or holds none.
-func (e *enginePath) find(name string) string {
-	if !e.known || strings.HasPrefix(name, "pg_") || e.unsure[name] {
-		return ""
-	}
-	for _, p := range e.path {
-		if p == "$user" {
-			if e.user == "" {
-				return ""
-			}
-			p = e.user
-		}
-		if e.made[[2]string{p, name}] || hasBackupRelation(findSchema(e.schema, p), name) {
-			return p
-		}
-	}
-	return ""
 }
 
 // holders returns the schemas a relation reference of the backup's query
@@ -939,7 +1215,8 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 // withColumnMissing reports a column a query of a copied WITH clause names
 // that the change makes on one of the query's relations, which none of
 // them has before the change: read in its select list, WHERE, GROUP BY, or
-// HAVING clause, among its own FROM list and the WITH queries before it.
+// HAVING clause, among its own FROM list and the WITH queries before it,
+// in each branch of a set operation.
 func withColumnMissing(w *ast.WithClause, q backupQuery, m made) string {
 	if w == nil || w.Ctes == nil {
 		return ""
@@ -957,27 +1234,43 @@ func withColumnMissing(w *ast.WithClause, q backupQuery, m made) string {
 		if !ok {
 			continue
 		}
-		if sel, ok := c.Ctequery.(*ast.SelectStmt); ok && sel.Larg == nil && sel.WithClause == nil {
-			var exprs, qualified []ast.Node
-			for _, n := range []ast.Node{sel.TargetList, sel.WhereClause, sel.HavingClause, sel.LimitCount, sel.LimitOffset} {
-				if n != nil && !isNilList(n) {
-					exprs = append(exprs, n)
-				}
-			}
-			// An unqualified name of GROUP BY, ORDER BY, DISTINCT ON, or
-			// WINDOW may mean an output of the query.
-			for _, n := range []ast.Node{sel.GroupClause, sel.SortClause, sel.DistinctClause, sel.WindowClause} {
-				if n != nil && !isNilList(n) {
-					qualified = append(qualified, n)
-				}
-			}
-			if msg := columnsMissing(nil, sel.FromClause, exprs, qualified, maps.Clone(visible), q, m); msg != "" {
+		if sel, ok := c.Ctequery.(*ast.SelectStmt); ok {
+			if msg := selectColumnMissing(sel, visible, q, m); msg != "" {
 				return msg
 			}
 		}
 		visible[c.Ctename] = true
 	}
 	return ""
+}
+
+// selectColumnMissing is withColumnMissing for one query of the clause,
+// each branch of a set operation among its own FROM list. A query with a
+// WITH clause of its own is not judged.
+func selectColumnMissing(sel *ast.SelectStmt, visible map[string]bool, q backupQuery, m made) string {
+	if sel == nil || sel.WithClause != nil {
+		return ""
+	}
+	if sel.Op != ast.SETOP_NONE {
+		if msg := selectColumnMissing(sel.Larg, visible, q, m); msg != "" {
+			return msg
+		}
+		return selectColumnMissing(sel.Rarg, visible, q, m)
+	}
+	var exprs, qualified []ast.Node
+	for _, n := range []ast.Node{sel.TargetList, sel.WhereClause, sel.HavingClause, sel.LimitCount, sel.LimitOffset} {
+		if n != nil && !isNilList(n) {
+			exprs = append(exprs, n)
+		}
+	}
+	// An unqualified name of GROUP BY, ORDER BY, DISTINCT ON, or WINDOW
+	// may mean an output of the query.
+	for _, n := range []ast.Node{sel.GroupClause, sel.SortClause, sel.DistinctClause, sel.WindowClause} {
+		if n != nil && !isNilList(n) {
+			qualified = append(qualified, n)
+		}
+	}
+	return columnsMissing(nil, sel.FromClause, exprs, qualified, maps.Clone(visible), q, m)
 }
 
 // innerNames returns every name a subquery may give a relation of its own:
@@ -1174,6 +1467,40 @@ func columnsMissing(target *ast.RangeVar, from *ast.List, exprs, qualifiedOnly [
 		onlyQualified[len(quals)] = true
 		quals = append(quals, n)
 	}
+	// qualifiedFields returns the names of a column reference, with a
+	// database.schema.relation.column one of the current database as
+	// schema.relation.column; false for a system column or one of another
+	// database.
+	qualifiedFields := func(ref *ast.ColumnRef) ([]string, bool) {
+		fields, ok := columnFields(ref)
+		if ok && len(fields) == 4 && fields[0] == q.schema.GetName() {
+			fields = fields[1:]
+		}
+		if !ok || len(fields) > 3 || systemColumn(fields[len(fields)-1]) {
+			return nil, false
+		}
+		return fields, true
+	}
+	// named returns the source a qualified column reference names: by its
+	// alias or name, or, schema.relation.column, a source without an alias
+	// in that schema.
+	named := func(fields []string) (backupSource, bool) {
+		switch len(fields) {
+		case 3:
+			for _, src := range sources {
+				if src.rv != nil && aliasOf(src.rv) == "" && src.rv.Relname == fields[1] && slices.Equal(src.schemas, []string{fields[0]}) {
+					return src, true
+				}
+			}
+		case 2:
+			for _, src := range sources {
+				if src.name == fields[0] {
+					return src, true
+				}
+			}
+		}
+		return backupSource{}, false
+	}
 	// An alias's column list that names more columns than the relation has
 	// before the change, which adds one.
 	for _, src := range sources {
@@ -1206,15 +1533,12 @@ func columnsMissing(target *ast.RangeVar, from *ast.List, exprs, qualifiedOnly [
 					if msg != "" || !ok {
 						return msg == ""
 					}
-					fields, ok := columnFields(ref)
-					if !ok || len(fields) != 2 || inner[fields[0]] || systemColumn(fields[1]) {
+					fields, ok := qualifiedFields(ref)
+					if !ok || len(fields) < 2 || inner[fields[len(fields)-2]] {
 						return false
 					}
-					for _, src := range sources {
-						if src.name == fields[0] {
-							judge(src, fields[1])
-							break
-						}
+					if src, ok := named(fields); ok {
+						judge(src, fields[len(fields)-1])
 					}
 					return false
 				})
@@ -1238,31 +1562,15 @@ func columnsMissing(target *ast.RangeVar, from *ast.List, exprs, qualifiedOnly [
 				}
 				return true
 			case *ast.ColumnRef:
-				fields, ok := columnFields(v)
-				// database.schema.relation.column names the current database.
-				if ok && len(fields) == 4 && fields[0] == q.schema.GetName() {
-					fields = fields[1:]
-				}
-				if !ok || len(fields) > 3 || systemColumn(fields[len(fields)-1]) {
+				fields, ok := qualifiedFields(v)
+				if !ok {
 					return false
 				}
 				column := fields[len(fields)-1]
 				switch len(fields) {
-				case 3:
-					// schema.relation.column names a source without an
-					// alias in that schema.
-					for _, src := range sources {
-						if src.rv != nil && aliasOf(src.rv) == "" && src.rv.Relname == fields[1] && slices.Equal(src.schemas, []string{fields[0]}) {
-							judge(src, column)
-							break
-						}
-					}
-				case 2:
-					for _, src := range sources {
-						if src.name == fields[0] {
-							judge(src, column)
-							break
-						}
+				case 3, 2:
+					if src, ok := named(fields); ok {
+						judge(src, column)
 					}
 				default:
 					if !known || onlyQualified[qi] {

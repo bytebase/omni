@@ -118,6 +118,16 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a join alias's column list longer than the join", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING (p JOIN nokey ON true) AS j(i, a, g) WHERE false;", true},
 		{"a table the change creates earlier on the path", "SET search_path = s, public;\nCREATE TABLE s.p (id int);\nUPDATE p SET id = 1 WHERE id = 2;", true},
 		{"a search path set_config sets", "SELECT pg_catalog.set_config('search_path', 's, public', false);\nUPDATE t SET id = 1 WHERE id = 2;", true},
+		{"a column a branch of a copied WITH query's set operation reads", "ALTER TABLE p ADD COLUMN gone int;\nWITH x AS (SELECT p.gone FROM p UNION ALL SELECT 1) DELETE FROM t WHERE id IN (SELECT gone FROM x);", true},
+		{"a schema-qualified column an outer source has, named in a subquery", "ALTER TABLE public.p ADD COLUMN gone bool;\nDELETE FROM t USING public.p WHERE EXISTS (SELECT 1 WHERE public.p.gone);", true},
+		{"a table the change moves into the target's place", "DROP TABLE s.t;\nALTER TABLE public.t SET SCHEMA s;\nUPDATE s.t SET n = 1 WHERE id = 1;", true},
+		{"a table the change recreates in the target's place", "DROP TABLE s.t;\nCREATE TABLE s.t (id int);\nUPDATE s.t SET id = 1 WHERE id = 1;", true},
+		{"a table the change renames away and back", "ALTER TABLE s.t RENAME TO t_old;\nALTER TABLE s.t_old RENAME TO t;\nUPDATE s.t SET id = 1 WHERE id = 1;", true},
+		{"a table the change drops earlier on the path", "SET search_path = s, public;\nDROP TABLE s.t;\nUPDATE t SET n = 1 WHERE id = 2;", true},
+		{"a temporary table the change creates", "CREATE TEMP TABLE t (id int);\nUPDATE t SET id = 1 WHERE id = 2;", true},
+		// DROP ... CASCADE may drop relations it does not name: what the
+		// path finds after it is not judged.
+		{"a table after DROP ... CASCADE", "SET search_path = s, public;\nDROP TABLE s.t CASCADE;\nUPDATE t SET n = 1 WHERE id = 2;", false},
 		// The first CTE stands for p in the second arm, which reads other
 		// rows than the statement's, or not: not judged.
 		{"a later source a WITH query of the first statement shadows", "WITH p AS (SELECT 999 AS id) DELETE FROM t WHERE id = 1;\nDELETE FROM t USING p WHERE t.p_id = p.id;", false},

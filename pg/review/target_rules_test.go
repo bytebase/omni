@@ -2993,7 +2993,7 @@ func TestPriorBackup(t *testing.T) {
 			targets: []review.Target{{Schema: withArchive(database(`"$user", s, public`, shop().Schemas...)), SessionUser: "public"}},
 			// The query itself runs with $user, the session user's schema.
 			want: []targetFinding{
-				{0, "UPDATE t SET id = 1 WHERE id = 1", "prior backup backs up s.t for this statement, which changes public.t", []int{0}},
+				{0, "UPDATE t SET id = 1 WHERE id = 1", "prior backup reads t along the search path it runs under, where it means public.t, not s.t", []int{0}},
 				{1, "DELETE FROM s.t WHERE id = 2", "prior backup cannot back up both UPDATE and DELETE on s.t", []int{0}},
 			},
 		},
@@ -3068,10 +3068,11 @@ func TestPriorBackup(t *testing.T) {
 			want:    []targetFinding{{1, "UPDATE n SET id = 2 WHERE id = 1", "prior backup runs before the change, when n does not exist yet", []int{0}}},
 		},
 		{
-			name:    "a table the change recreates still exists when the backup runs",
+			name:    "a table the change recreates exists when the backup runs, as another table",
 			sql:     "DROP TABLE t;\nCREATE TABLE t (id int);\nDELETE FROM t WHERE id = 1;",
 			change:  on,
 			targets: one,
+			want:    []targetFinding{{2, "DELETE FROM t WHERE id = 1", "prior backup backs up public.t for this statement, which changes the relation the change creates as public.t", []int{0}}},
 		},
 		{
 			name:    "a table the target lacks that the change does not create is left to the server",
@@ -3489,7 +3490,65 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "SET search_path = s, public;\nCREATE TABLE s.p (id int);\nUPDATE p SET id = 1 WHERE id = 2;\nCREATE TABLE nokey2 (id int);\nDROP TABLE s.t;\nUPDATE t SET id = 1 WHERE id = 2;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{2, "UPDATE p SET id = 1 WHERE id = 2", "prior backup backs up public.p for this statement, which changes s.p", []int{0}}},
+			want: []targetFinding{
+				{2, "UPDATE p SET id = 1 WHERE id = 2", "prior backup backs up public.p for this statement, which changes s.p", []int{0}},
+				{5, "UPDATE t SET id = 1 WHERE id = 2", "prior backup backs up s.t for this statement, which changes public.t", []int{0}},
+			},
+		},
+		{
+			name:    "a table the change moves or renames into the target's place",
+			sql:     "DROP TABLE s.t;\nALTER TABLE public.t SET SCHEMA s;\nUPDATE s.t SET id = 1 WHERE id = 1;\nDROP TABLE nokey;\nALTER TABLE p RENAME TO nokey;\nDELETE FROM nokey WHERE true;",
+			change:  on,
+			targets: one,
+			want: []targetFinding{
+				{2, "UPDATE s.t SET id = 1 WHERE id = 1", "prior backup backs up s.t for this statement, which changes public.t, which the change renames or moves to s.t", []int{0}},
+				{5, "DELETE FROM nokey WHERE true", "prior backup backs up public.nokey for this statement, which changes public.p, which the change renames or moves to public.nokey", []int{0}},
+			},
+		},
+		{
+			name:    "a table the change renames away and back",
+			sql:     "ALTER TABLE s.t RENAME TO t_old;\nALTER TABLE s.t_old RENAME TO t;\nUPDATE s.t SET id = 1 WHERE id = 1;",
+			change:  on,
+			targets: one,
+		},
+		{
+			name:    "a temporary table the change creates",
+			sql:     "CREATE TEMP TABLE t (id int);\nUPDATE t SET id = 1 WHERE id = 2;\nCREATE TABLE pg_temp.nokey (a int);\nDELETE FROM nokey WHERE a = 1;\nDELETE FROM public.nokey WHERE a = 2;",
+			change:  on,
+			targets: one,
+			want: []targetFinding{
+				{1, "UPDATE t SET id = 1 WHERE id = 2", "prior backup backs up public.t for this statement, which changes the temporary table t the change creates", []int{0}},
+				{3, "DELETE FROM nokey WHERE a = 1", "prior backup backs up public.nokey for this statement, which changes the temporary table nokey the change creates", []int{0}},
+			},
+		},
+		{
+			// CASCADE may drop relations it does not name, and DO may run
+			// anything.
+			name:    "a relation after DROP ... CASCADE or DO is not judged",
+			sql:     "SET search_path = s, public;\nDROP VIEW public.v CASCADE;\nDROP TABLE s.t;\nUPDATE t SET id = 1 WHERE id = 2;\nDROP TABLE s.p;\nCREATE TABLE s.p (id int);\nUPDATE s.p SET id = 1 WHERE id = 2;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{6, "UPDATE s.p SET id = 1 WHERE id = 2", "prior backup runs before the change, when s.p does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a relation after DO is not judged",
+			sql:     "SET search_path = s, public;\nDO $$ BEGIN END $$;\nDROP TABLE s.t;\nUPDATE t SET id = 1 WHERE id = 2;",
+			change:  on,
+			targets: one,
+		},
+		{
+			name:    "a column a branch of a copied WITH query's set operation reads",
+			sql:     "ALTER TABLE p ADD COLUMN gone int;\nWITH x AS (SELECT p.gone FROM p UNION ALL SELECT 1) DELETE FROM t WHERE id IN (SELECT gone FROM x);",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "WITH x AS (SELECT p.gone FROM p UNION ALL SELECT 1) DELETE FROM t WHERE id IN (SELECT gone FROM x)", "prior backup runs before the change, when column gone of p does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a schema-qualified column an outer source has, named in a subquery",
+			sql:     "ALTER TABLE public.p ADD COLUMN gone bool;\nDELETE FROM t USING public.p WHERE EXISTS (SELECT 1 WHERE public.p.gone);\nDELETE FROM nokey USING public.p WHERE EXISTS (SELECT 1 FROM public.p WHERE public.p.gone);",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "DELETE FROM t USING public.p WHERE EXISTS (SELECT 1 WHERE public.p.gone)", "prior backup runs before the change, when column gone of public.p does not exist yet", []int{0}}},
 		},
 		{
 			name:    "a search path set_config sets",
