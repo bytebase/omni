@@ -172,6 +172,11 @@ func TestRequireIsNull(t *testing.T) {
 			want: []finding{{8, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
 		},
 		{
+			name: "ANSI_NULLS set back ON in a block after a condition",
+			sql:  "BEGIN IF @x = 1 SET ANSI_NULLS OFF; SET ANSI_NULLS ON; END;\nSELECT * FROM t WHERE n = NULL;",
+			want: []finding{{1, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
+		},
+		{
 			name: "IIF",
 			sql:  "SELECT IIF(n = NULL, 1, 0) FROM t;",
 			want: []finding{{0, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
@@ -274,6 +279,18 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name: "constraints the change defined",
 			sql:  "ALTER TABLE nokey ADD CONSTRAINT ck_a CHECK (a > 0);\nALTER TABLE nokey DROP CONSTRAINT ck_a;\nALTER TABLE nokey ADD CONSTRAINT df_a DEFAULT 0 FOR a;\nALTER TABLE nokey DROP CONSTRAINT df_a;",
 			want: []finding{{1, "ck_a", "drops check constraint ck_a of nokey", []int{0}}},
+		},
+		{
+			name: "a constraint on a column the change adds, or of the database named",
+			sql:  "ALTER TABLE nokey ADD extra INT CONSTRAINT ck_extra CHECK (extra >= 0);\nALTER TABLE nokey DROP CONSTRAINT ck_extra;\nALTER TABLE other.dbo.t ADD CONSTRAINT ck_y CHECK (n > 0);\nALTER TABLE dbo.t ADD CONSTRAINT ck_y CHECK (n > 0);\nALTER TABLE other.dbo.t DROP CONSTRAINT ck_y;",
+			want: []finding{
+				{1, "ck_extra", "drops check constraint ck_extra of nokey", []int{0}},
+				{4, "ck_y", "drops check constraint ck_y of other.dbo.t", []int{0}},
+			},
+		},
+		{
+			name: "a USE in a block",
+			sql:  "BEGIN USE other; END;\nALTER TABLE t DROP CONSTRAINT ck_n;",
 		},
 		{
 			name: "a constraint defined on a table of another database",
@@ -388,6 +405,12 @@ func TestPriorBackup(t *testing.T) {
 			sql:    "SELECT 1 AS id INTO n4;\nUPDATE n4 SET id = 2 WHERE id = 1;",
 			change: backup,
 			want:   []finding{{1, "UPDATE n4 SET id = 2 WHERE id = 1", "prior backup runs before the change, when n4 does not exist yet", []int{0}}},
+		},
+		{
+			name:   "a table a BEGIN block makes",
+			sql:    "BEGIN CREATE TABLE n7 (id INT PRIMARY KEY); END;\nUPDATE n7 SET id = 2 WHERE id = 1;",
+			change: backup,
+			want:   []finding{{1, "UPDATE n7 SET id = 2 WHERE id = 1", "prior backup runs before the change, when n7 does not exist yet", []int{0}}},
 		},
 		{
 			name:   "a table a CREATE SCHEMA makes",

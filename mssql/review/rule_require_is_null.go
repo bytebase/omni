@@ -57,40 +57,51 @@ func checkRequireIsNull(sql string, s *statement, ansiNullsOff bool, r *reporter
 	}
 }
 
-// ansiNullsSets returns the ANSI_NULLS settings a top-level statement
-// makes, in the order they run: the statement itself, or the statements
-// of a BEGIN ... END block, which run in order. conditional is true when a
-// SET sits where it may or may not run, under IF, WHILE, or TRY; then the
-// setting after the statement is not known. A routine body runs under the
+// ansiNulls is the ANSI_NULLS setting as the change runs: known is false
+// once a SET may or may not have run.
+type ansiNulls struct {
+	known bool
+	off   bool
+}
+
+// after returns the setting after a top-level statement runs, and whether
+// the statement may set it: a SET itself, the statements of a BEGIN ...
+// END block in the order they run, and a SET under IF, WHILE, or TRY,
+// after which the setting is not known. A routine body runs under the
 // setting of its creation, so a SET in it does not count.
-func ansiNullsSets(n ast.Node) (sets []bool, conditional bool) {
+func (a ansiNulls) after(n ast.Node) (ansiNulls, bool) {
 	if set, ok := ansiNullsSet(n); ok {
-		return []bool{set}, false
+		return ansiNulls{known: true, off: !set}, true
 	}
 	switch v := n.(type) {
 	case *ast.BeginEndStmt:
+		sets := false
 		if v.Stmts != nil {
 			for _, item := range v.Stmts.Items {
-				s, c := ansiNullsSets(item)
-				sets = append(sets, s...)
-				conditional = conditional || c
+				var s bool
+				a, s = a.after(item)
+				sets = sets || s
 			}
 		}
-		return sets, conditional
+		return a, sets
 	case *ast.CreateProcedureStmt, *ast.CreateFunctionStmt, *ast.CreateTriggerStmt:
-		return nil, false
+		return a, false
 	}
+	sets := false
 	ast.Inspect(n, func(m ast.Node) bool {
 		switch m.(type) {
 		case *ast.CreateProcedureStmt, *ast.CreateFunctionStmt, *ast.CreateTriggerStmt:
 			return false
 		}
 		if _, ok := ansiNullsSet(m); ok {
-			conditional = true
+			sets = true
 		}
-		return !conditional
+		return !sets
 	})
-	return nil, conditional
+	if sets {
+		return ansiNulls{}, true
+	}
+	return a, false
 }
 
 // ansiNullsSet returns the ANSI_NULLS setting a statement makes: SET

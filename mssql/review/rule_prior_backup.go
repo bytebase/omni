@@ -236,7 +236,7 @@ func textOf(sql string, loc ast.Loc) string {
 
 // changeMade is what the change makes, which the backup, run before all of
 // it, cannot see: the tables, views, and synonyms it creates, SELECT INTO
-// and CREATE SCHEMA among them, and the columns it adds or declares on a
+// CREATE SCHEMA, and BEGIN ... END among them, and the columns it adds or declares on a
 // table it creates,
 // by the table as written. A statement that may make nothing, IF NOT
 // EXISTS, is left out, and so is what the change makes after a USE.
@@ -283,6 +283,13 @@ func madeByChange(stmts []statement) changeMade {
 			// The elements of CREATE SCHEMA run as the statement does.
 			if v.Elements != nil {
 				for _, e := range v.Elements.Items {
+					visit(e)
+				}
+			}
+		case *ast.BeginEndStmt:
+			// So do the statements of a BEGIN ... END block.
+			if v.Stmts != nil {
+				for _, e := range v.Stmts.Items {
 					visit(e)
 				}
 			}

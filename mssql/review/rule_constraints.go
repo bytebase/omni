@@ -56,27 +56,33 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 		kind  ast.ConstraintType
 	}
 	var made []defined
-	find := func(ref *ast.TableRef, name string) (defined, bool) {
+	// find returns the latest definition of the name on the table, by a
+	// reference naming the same server and database. ambiguous is true
+	// when only a definition naming another, or none where the reference
+	// names one, matches: it may be another database's table.
+	find := func(ref *ast.TableRef, name string) (d defined, found, ambiguous bool) {
 		for i := len(made) - 1; i >= 0; i-- {
-			if sameObject(made[i].table, ref) && sameName(made[i].name, name) {
-				return made[i], true
+			if !sameObject(made[i].table, ref) || !sameName(made[i].name, name) {
+				continue
 			}
+			if sameQualifiers(made[i].table, ref) {
+				return made[i], true, false
+			}
+			ambiguous = true
 		}
-		return defined{}, false
+		return defined{}, false, ambiguous
 	}
 	var open []droppedConstraint
 	drop := func(pos int, s *statement, v *ast.AlterTableStmt, a *ast.AlterTableAction, nested bool) {
 		if a.Constraint == nil || a.Constraint.Name == "" {
 			return
 		}
-		d, ok := find(v.Name, a.Constraint.Name)
-		if !ok {
-			open = append(open, droppedConstraint{s.index, pos, a.Loc, v, a.Constraint.Name, nested})
+		d, found, ambiguous := find(v.Name, a.Constraint.Name)
+		switch {
+		case ambiguous && !found:
 			return
-		}
-		// A name with a database or server the definition did not write,
-		// or without one it wrote, may mean another database's table.
-		if !sameQualifiers(d.table, v.Name) {
+		case !found:
+			open = append(open, droppedConstraint{s.index, pos, a.Loc, v, a.Constraint.Name, nested})
 			return
 		}
 		reportDrop(stmts, pos, s, a.Loc, v, d.kind, a.Constraint.Name, nested, on, r)
@@ -110,6 +116,14 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 					if a.Constraint != nil && a.Constraint.Name != "" {
 						made = append(made, defined{v.Name, a.Constraint.Name, a.Constraint.Type})
 					}
+				case ast.ATAddColumn:
+					if a.Column != nil && a.Column.Constraints != nil {
+						for _, item := range a.Column.Constraints.Items {
+							if c, ok := item.(*ast.ConstraintDef); ok && c.Name != "" {
+								made = append(made, defined{v.Name, c.Name, c.Type})
+							}
+						}
+					}
 				case ast.ATDropConstraint:
 					drop(pos, s, v, a, false)
 				}
@@ -141,6 +155,11 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 		}
 	}
 	for pos := range stmts {
+		// What the change defined before a USE, here or in a block, is of
+		// another database.
+		if hasUse(stmts[pos].node) {
+			made = nil
+		}
 		visit(pos, &stmts[pos], stmts[pos].node, stmts[pos].loc)
 	}
 	return open

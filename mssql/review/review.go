@@ -69,22 +69,17 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 		checkPriorBackupStatements(stmts, r)
 	}
 	work := targetWork{sql: sql, on: on, backup: on[review.PriorBackup] && opts.Change.PriorBackup}
-	ansiNullsOff := false
+	ansi := ansiNulls{known: true}
 	for i := range stmts {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		s := &stmts[i]
-		sets, conditional := ansiNullsSets(s.node)
+		next, sets := ansi.after(s.node)
 		if on[review.RequireIsNull] {
-			checkRequireIsNull(sql, s, ansiNullsOff || len(sets) > 0 || conditional, r)
+			checkRequireIsNull(sql, s, !ansi.known || ansi.off || sets, r)
 		}
-		switch {
-		case conditional:
-			ansiNullsOff = true
-		case len(sets) > 0:
-			ansiNullsOff = !sets[len(sets)-1]
-		}
+		ansi = next
 		if on[review.RequireWhere] {
 			checkRequireWhere(s, r)
 		}

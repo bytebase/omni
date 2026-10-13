@@ -139,7 +139,7 @@ func constraintKind(t *metadata.TableMetadata, name string) (ast.ConstraintType,
 // database by a name without one.
 func beforeUse(stmts []statement) int {
 	for i := range stmts {
-		if _, ok := stmts[i].node.(*ast.UseStmt); ok {
+		if hasUse(stmts[i].node) {
 			return i
 		}
 	}
@@ -150,9 +150,22 @@ func beforeUse(stmts []statement) int {
 // USE, which moves the database names mean.
 func usesDatabase(stmts []statement, before int) bool {
 	for i := 0; i < before && i < len(stmts); i++ {
-		if _, ok := stmts[i].node.(*ast.UseStmt); ok {
+		if hasUse(stmts[i].node) {
 			return true
 		}
 	}
 	return false
+}
+
+// hasUse reports whether a statement is or holds a USE, in a block or
+// anywhere it may run.
+func hasUse(n ast.Node) bool {
+	found := false
+	ast.Inspect(n, func(m ast.Node) bool {
+		if _, ok := m.(*ast.UseStmt); ok {
+			found = true
+		}
+		return !found
+	})
+	return found
 }
