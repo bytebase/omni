@@ -220,7 +220,7 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.AuditActionEntry	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.AuditComponentAction	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.JoinGroupMember	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
-*nodes.TypeAttribute	ast	deferred		direct fixture attempted in strict audit but parser AST shape does not currently produce this node	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
+*nodes.TypeAttribute	ast	covered	ALTER TYPE t ADD ATTRIBUTE (a NUMBER, b VARCHAR2(10)), MODIFY ATTRIBUTE c DATE CASCADE	direct parser fixture for ALTER TYPE attribute clauses	none	covered	keep_regression_guard
 *nodes.TypeBodyMember	ast	covered	CREATE TYPE BODY typ AS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.AttrDimSourceClause	clause	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.AttrDimAttribute	ast	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
@@ -260,3 +260,4 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.PLSQLPragma	plsql	covered	DECLARE PRAGMA AUTONOMOUS_TRANSACTION; BEGIN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.ExceptionHandler	plsql	covered	BEGIN RAISE; EXCEPTION WHEN OTHERS THEN NULL; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.PLSQLLabeledStatement	plsql	covered	BEGIN <<a>> <<b>> x := 1; END;	labeled statement wrapper span (BYT-9909 label support)	none	covered	keep_regression_guard
+*nodes.AlterTypeMethod	plsql	covered	ALTER TYPE t ADD OVERRIDING MEMBER FUNCTION f (x NUMBER) RETURN NUMBER, DROP MEMBER PROCEDURE p CASCADE	direct parser fixture for ALTER TYPE method specifications	none	covered	keep_regression_guard

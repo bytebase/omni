@@ -49,122 +49,311 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 
 	// Type name
 	stmt.Name, parseErr573 = p.parseObjectName()
-	if parseErr573 !=
-
-		// AS or IS
-		nil {
+	if parseErr573 != nil {
 		return nil, parseErr573
 	}
 
-	if p.cur.Type == kwAS || p.cur.Type == kwIS {
+	if !stmt.IsBody {
+		if err := p.parseTypeSpecSource(stmt); err != nil {
+			return nil, err
+		}
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+
+	// IS | AS is required before the members (PLS-00103 on Oracle 23ai).
+	if p.cur.Type != kwAS && p.cur.Type != kwIS {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	var parseErr578 error
+	stmt.Body, parseErr578 = p.parseTypeBodyMembers()
+	if parseErr578 != nil {
+		return nil, parseErr578
+	}
+
+	// END [type_name] ;
+	if p.cur.Type != kwEND {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.atEndName() {
+		p.advance()
+	}
+	if p.cur.Type != ';' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseTypeSpecSource parses what follows the name in a type specification,
+// the plsql_type_source of CREATE TYPE.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/CREATE-TYPE-statement.html
+//
+//	[ SHARING = { METADATA | DATA | NONE } ]
+//	[ FORCE ] [ OID 'object_identifier' ] [ DEFAULT COLLATION USING_NLS_COMP ]
+//	[ { AUTHID { CURRENT_USER | DEFINER } | ACCESSIBLE BY ( accessor [, ...] ) }... ]
+//	[ { IS | AS } { OBJECT ( element [, ...] ) [ [ NOT ] { FINAL | INSTANTIABLE | PERSISTABLE } ]...
+//	              | TABLE OF collection_element
+//	              | { VARRAY | [ VARYING ] ARRAY } ( size_limit ) OF collection_element }
+//	| UNDER [ schema. ] supertype ( [ element [, ...] ] ) [ [ NOT ] { FINAL | INSTANTIABLE } ]... ]
+//
+// Oracle 23ai takes SHARING first, with its '=' (ORA-02000) and one of
+// those values (ORA-65014); then FORCE and OID, in either order; then AUTHID
+// and ACCESSIBLE BY, in either order. Each comes once (PLS-00103, PLS-00371
+// for AUTHID and ACCESSIBLE BY), and FORCE or OID after AUTHID or ACCESSIBLE
+// BY is PLS-00103. Where DEFAULT COLLATION goes is not checked: an image
+// whose MAX_STRING_SIZE is STANDARD rejects the clause (ORA-43929) before it
+// parses the rest, so it is taken once anywhere among them. With none of
+// the alternatives the type is incomplete, which takes SHARING and OID only
+// (PLS-00103). AUTHID and ACCESSIBLE BY are PLS-00262 on a collection type;
+// UNDER takes no IS or AS (PLS-00103) and no PERSISTABLE (PLS-00772).
+func (p *Parser) parseTypeSpecSource(stmt *nodes.CreateTypeStmt) error {
+	if p.isKeywordStr("SHARING") {
+		p.advance() // consume SHARING
+		if p.cur.Type != '=' {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance() // consume =
+		if !isOneOfKeywords(p.cur, []string{"METADATA", "DATA", "NONE"}) {
+			return p.syntaxErrorAtCur()
+		}
+		stmt.Sharing = p.cur.Str
 		p.advance()
 	}
 
-	// Determine what kind of type:
-	// - OBJECT ( ... )
-	// - TABLE OF type
-	// - VARRAY ( n ) OF type
-	// - TYPE BODY members
+	seen := clauseSeen{}
+properties:
+	for {
+		switch {
+		case p.cur.Type == kwFORCE, p.isKeywordStr("OID"):
+			word := p.cur.Str
+			if seen["AUTHID"] || seen["ACCESSIBLE BY"] {
+				return p.syntaxErrorAtCur()
+			}
+			if err := p.firstClause(seen, word); err != nil {
+				return err
+			}
+			p.advance()
+			if word == "FORCE" {
+				stmt.Force = true
+				continue
+			}
+			// The identifier is a string literal (ORA-01780).
+			if p.cur.Type != tokSCONST {
+				return p.syntaxErrorAtCur()
+			}
+			stmt.OID = p.cur.Str
+			p.advance()
+		case p.isKeywordStr("AUTHID"):
+			if err := p.firstClause(seen, "AUTHID"); err != nil {
+				return err
+			}
+			authID, err := p.parseOptionalAuthID()
+			if err != nil {
+				return err
+			}
+			stmt.AuthID = authID
+		case p.isKeywordStr("ACCESSIBLE"):
+			if err := p.firstClause(seen, "ACCESSIBLE BY"); err != nil {
+				return err
+			}
+			list, err := p.parseAccessibleByClause()
+			if err != nil {
+				return err
+			}
+			stmt.AccessibleBy = list
+		case p.atDefaultCollation():
+			if err := p.firstClause(seen, "DEFAULT COLLATION"); err != nil {
+				return err
+			}
+			collation, err := p.parseDefaultCollationClause()
+			if err != nil {
+				return err
+			}
+			stmt.DefaultCollation = collation
+		default:
+			break properties
+		}
+	}
+
+	role := seen["AUTHID"] || seen["ACCESSIBLE BY"]
 	switch {
-	case p.isIdentLikeStr("OBJECT"):
+	case p.isStatementEnd():
+		if stmt.Force || role {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	case p.cur.Type == kwUNDER:
+		return p.parseObjectSubtype(stmt)
+	case p.cur.Type == kwAS || p.cur.Type == kwIS:
+		p.advance()
+	default:
+		return p.syntaxErrorAtCur()
+	}
+
+	if p.isIdentLikeStr("OBJECT") {
 		p.advance()
 		if p.cur.Type != '(' {
-			return nil, p.syntaxErrorAtCur()
+			return p.syntaxErrorAtCur()
 		}
 		p.advance()
-		if parseErr574 := p.parseObjectTypeElements(stmt); parseErr574 != nil {
-			return nil, parseErr574
+		if err := p.parseObjectTypeElements(stmt, false); err != nil {
+			return err
 		}
+		if p.cur.Type != ')' {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		return p.parseObjectTypeModifiers(stmt, objectTypeModifiers)
+	}
+
+	collectionTok := p.cur
+	switch {
+	case p.cur.Type == kwTABLE:
+		p.advance()
+		if p.cur.Type != kwOF {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		tn, err := p.parseCollectionElement(stmt)
+		if err != nil {
+			return err
+		}
+		stmt.AsTable = tn
+
+	case p.cur.Type == kwVARRAY || p.isKeywordStr("VARYING") || p.isKeywordStr("ARRAY"):
+		if p.isKeywordStr("VARYING") {
+			p.advance()
+			if !p.isKeywordStr("ARRAY") {
+				return p.syntaxErrorAtCur()
+			}
+		}
+		p.advance() // consume VARRAY or ARRAY
+		// ( size_limit )
+		if p.cur.Type != '(' {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		size, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if size == nil || p.cur.Type != ')' {
+			return p.syntaxErrorAtCur()
+		}
+		stmt.VarraySize = size
+		p.advance()
+		if p.cur.Type != kwOF {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		tn, err := p.parseCollectionElement(stmt)
+		if err != nil {
+			return err
+		}
+		stmt.AsVarray = tn
+
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	if role {
+		// PLS-00262: incorrect placement of AUTHID (or ACCESSIBLE BY) clause
+		return p.syntaxErrorAtTok(collectionTok)
+	}
+	return nil
+}
+
+// parseObjectSubtype parses the object_subtype_def of a type specification,
+// the current token at UNDER. The element list may be empty or hold methods
+// only; the supertype takes no database link (PLS-00103 on Oracle 23ai).
+//
+//	UNDER [ schema. ] supertype ( [ element [, element ]... ] )
+//	    [ [ NOT ] { FINAL | INSTANTIABLE } ]...
+func (p *Parser) parseObjectSubtype(stmt *nodes.CreateTypeStmt) error {
+	p.advance() // consume UNDER
+	under, err := p.parseUnitName()
+	if err != nil {
+		return err
+	}
+	stmt.Under = under
+	if p.cur.Type != '(' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type == ')' {
+		stmt.Attributes = &nodes.List{}
+	} else if err := p.parseObjectTypeElements(stmt, true); err != nil {
+		return err
+	}
+	if p.cur.Type != ')' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return p.parseObjectTypeModifiers(stmt, methodInheritanceClauses)
+}
+
+// parseObjectTypeModifiers parses the modifiers after an object type's
+// element list. A FINAL type cannot be NOT INSTANTIABLE (PLS-00614 on
+// Oracle 23ai), and an object type is FINAL unless it says NOT FINAL.
+func (p *Parser) parseObjectTypeModifiers(stmt *nodes.CreateTypeStmt, words []string) error {
+	modsTok := p.cur
+	mods, err := p.parseTypeModifiers(words)
+	if err != nil {
+		return err
+	}
+	stmt.Modifiers = mods
+	notInstantiable, notFinal := false, false
+	for _, mod := range mods {
+		notInstantiable = notInstantiable || mod == "NOT INSTANTIABLE"
+		notFinal = notFinal || mod == "NOT FINAL"
+	}
+	if notInstantiable && !notFinal {
+		return p.syntaxErrorAtTok(modsTok)
+	}
+	return nil
+}
+
+// parseCollectionElement parses the element type of a nested table or
+// varray type. PERSISTABLE needs the parentheses, and NOT NULL then goes
+// inside them; CHARACTER SET precedes NOT NULL (PLS-00103 on Oracle 23ai).
+// Sizes are PL/SQL expressions, as in an attribute.
+//
+//	datatype [ NOT NULL ]
+//	| ( datatype [ NOT NULL ] ) [ [ NOT ] PERSISTABLE ]
+func (p *Parser) parseCollectionElement(stmt *nodes.CreateTypeStmt) (*nodes.TypeName, error) {
+	paren := p.cur.Type == '('
+	if paren {
+		p.advance()
+	}
+	tn, err := p.parsePLSQLDatatype(typeModsPLSQL, charsetFixed)
+	if err != nil {
+		return nil, err
+	}
+	if tn == nil || tn.Names.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type == kwNOT && p.peekNext().Type == kwNULL {
+		p.advance()
+		p.advance()
+		stmt.ElementNotNull = true
+	}
+	if paren {
 		if p.cur.Type != ')' {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
-		var parseErr574 error
-		stmt.Modifiers, parseErr574 = p.parseTypeModifiers(objectTypeModifiers)
-		if parseErr574 != nil {
-			return nil, parseErr574
+		mods, err := p.parseTypeModifiers([]string{"PERSISTABLE"})
+		if err != nil {
+			return nil, err
 		}
-
-	case p.cur.Type == kwTABLE:
-		p.advance()
-		if p.cur.Type != kwOF {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		var parseErr575 error
-		stmt.AsTable, parseErr575 = p.parseTypeName()
-		if parseErr575 != nil {
-			return nil, parseErr575
-		}
-		if stmt.AsTable == nil || stmt.AsTable.Names.Len() == 0 {
-			return nil, p.syntaxErrorAtCur()
-		}
-
-	case p.cur.Type == kwVARRAY || p.isIdentLikeStr("VARYING"):
-		p.advance()
-		// Handle VARYING ARRAY
-		if p.isIdentLikeStr("ARRAY") {
-			p.advance()
-		}
-		// ( size_limit )
-		if p.cur.Type != '(' {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		var parseErr576 error
-		stmt.VarraySize, parseErr576 = p.parseExpr()
-		if parseErr576 != nil {
-			return nil, parseErr576
-		}
-		if stmt.VarraySize == nil || p.cur.Type != ')' {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		if p.cur.Type != kwOF {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		var parseErr577 error
-		stmt.AsVarray, parseErr577 = p.parseTypeName()
-		if parseErr577 !=
-
-			// For TYPE BODY, parse structured members.
-			nil {
-			return nil, parseErr577
-		}
-		if stmt.AsVarray == nil || stmt.AsVarray.Names.Len() == 0 {
-			return nil, p.syntaxErrorAtCur()
-		}
-
-	default:
-
-		if stmt.IsBody {
-			var parseErr578 error
-			stmt.Body, parseErr578 = p.parseTypeBodyMembers()
-			if parseErr578 !=
-
-				// END [type_name] ;
-				nil {
-				return nil, parseErr578
-			}
-
-			if p.cur.Type != kwEND {
-				return nil, p.syntaxErrorAtCur()
-			}
-			p.advance()
-			// Optional type name after END
-			if p.atEndName() {
-				p.advance()
-			}
-			if p.cur.Type != ';' {
-				return nil, p.syntaxErrorAtCur()
-			}
-			p.advance()
-		}
+		stmt.Modifiers = mods
 	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
+	return tn, nil
 }
 
 // parseTypeBodyMembers parses the member definitions inside a CREATE TYPE BODY.
@@ -539,7 +728,7 @@ func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.Creat
 // start of an element always opens a method or pragma (an attribute with such
 // a name is a syntax error unless quoted); attributes come first, and at least
 // one is required (PLS-00589).
-func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt) error {
+func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt, subtype bool) error {
 	stmt.Attributes = &nodes.List{}
 	hasComparison := false
 	for {
@@ -576,7 +765,9 @@ func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt) error {
 		}
 		p.advance() // consume ','
 	}
-	if stmt.Attributes.Len() == 0 {
+	// An object type has at least one attribute (PLS-00589); a subtype
+	// inherits its supertype's and may add methods only.
+	if stmt.Attributes.Len() == 0 && !subtype {
 		return p.syntaxErrorAtCur()
 	}
 	return nil
@@ -798,7 +989,10 @@ func (p *Parser) parseTypeAttribute() (*nodes.ColumnDef, error) {
 	if name == "" {
 		return nil, p.syntaxErrorAtCur()
 	}
-	typeName, err := p.parseTypeName()
+	// An attribute takes PL/SQL size expressions (VARCHAR2(ORA_MAX_NAME_LEN)
+	// on Oracle 23ai) and a named CHARACTER SET (NCHAR_CS), not ANY_CS
+	// (PLS-00551) or item%CHARSET.
+	typeName, err := p.parsePLSQLDatatype(typeModsPLSQL, charsetFixed)
 	if err != nil {
 		return nil, err
 	}

@@ -12,7 +12,12 @@ import (
 //	    NUMBER [ ( precision [, scale] ) ]
 //	  | FLOAT [ ( precision ) ]
 //	  | INTEGER | SMALLINT | DECIMAL [ ( precision [, scale] ) ]
-//	  | CHAR [ ( size [ BYTE | CHAR ] ) ]
+//	  | { CHAR | CHARACTER } [ VARYING ] [ ( size [ BYTE | CHAR ] ) ]
+//	  | NATIONAL { CHAR | CHARACTER } [ VARYING ] [ ( size ) ]
+//	  | NCHAR VARYING ( size )
+//	  | CHARACTER LARGE OBJECT          -- PL/SQL only
+//	  | LONG VARCHAR                    -- SQL only
+//	  | DOUBLE PRECISION
 //	  | VARCHAR2 ( size [ BYTE | CHAR ] )
 //	  | VARCHAR ( size [ BYTE | CHAR ] )
 //	  | NCHAR [ ( size ) ]
@@ -23,10 +28,15 @@ import (
 //	  | INTERVAL YEAR [ ( precision ) ] TO MONTH
 //	  | INTERVAL DAY [ ( precision ) ] TO SECOND [ ( precision ) ]
 //	  | RAW ( size )
-//	  | LONG [ RAW ]
+//	  | LONG [ RAW ] [ ( size ) ]         -- size in PL/SQL only
 //	  | ROWID
 //	  | ref%TYPE | ref%ROWTYPE
+//	  | REF [ schema . ] object_type
 //	  | [ schema . ] type_name
+//
+// The ANSI spellings (CHARACTER VARYING, NATIONAL CHARACTER, DOUBLE
+// PRECISION) and REF types compile in SQL and PL/SQL alike on Oracle 23ai;
+// DOUBLE takes PRECISION (ORA-02000, PLS-00103).
 func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 	start := p.pos()
 	tn := &nodes.TypeName{
@@ -45,8 +55,13 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 		}
 
 	case kwCHAR, kwVARCHAR2, kwVARCHAR, kwNCHAR, kwNVARCHAR2:
+		varying := p.cur.Type == kwCHAR || p.cur.Type == kwNCHAR
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 		p.advance()
+		if varying && p.isKeywordStr("VARYING") {
+			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "VARYING"})
+			p.advance()
+		}
 		parseErr1117 := p.parseOptionalSizeWithSemantic(tn)
 		if parseErr1117 != nil {
 			return nil, parseErr1117
@@ -111,24 +126,79 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 		if p.cur.Type == kwRAW {
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "RAW"})
 			p.advance()
+		} else if p.cur.Type == kwVARCHAR && p.typeMods == typeModsSQL {
+			// LONG VARCHAR is SQL's alone (PLS-00103 in PL/SQL).
+			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "VARCHAR"})
+			p.advance()
+		}
+		// PL/SQL takes a size, LONG(100) or LONG RAW(32767); SQL does not
+		// (ORA-03074).
+		if p.typeMods != typeModsSQL {
+			if err := p.parseOptionalPrecisionScale(tn); err != nil {
+				return nil, err
+			}
 		}
 
 	case kwROWID:
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "ROWID"})
 		p.advance()
 
+	case kwREF:
+		p.advance() // consume REF
+		if !p.isIdentLike() {
+			return nil, p.syntaxErrorAtCur()
+		}
+		if err := p.parseUserDefinedType(tn); err != nil {
+			return nil, err
+		}
+		tn.IsRef = true
+
 	default:
-		if p.isIdentLikeStr("NUMERIC") {
+		// The ANSI spellings, unless the word is a schema qualifier.
+		ansi := p.peekNext().Type != '.'
+		next := p.peekNext()
+		switch {
+		case ansi && p.isKeywordStr("CHARACTER"),
+			ansi && p.isKeywordStr("NATIONAL") && (next.Type == kwCHAR || next.Type != tokQIDENT && next.Str == "CHARACTER"):
+			if p.cur.Str == "NATIONAL" {
+				tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "NATIONAL"})
+				p.advance()
+			}
+			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
+			p.advance()
+			if p.isKeywordStr("VARYING") {
+				tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "VARYING"})
+				p.advance()
+			} else if tn.Names.Len() == 1 && p.typeMods != typeModsSQL && p.isKeywordStr("LARGE") {
+				// CHARACTER LARGE OBJECT is PL/SQL's alone (ORA-03062 in SQL).
+				p.advance() // consume LARGE
+				if !p.isKeywordStr("OBJECT") {
+					return nil, p.syntaxErrorAtCur()
+				}
+				p.advance() // consume OBJECT
+				tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "LARGE"}, &nodes.String{Str: "OBJECT"})
+				break
+			}
+			if err := p.parseOptionalSizeWithSemantic(tn); err != nil {
+				return nil, err
+			}
+		case ansi && p.isKeywordStr("DOUBLE"):
+			p.advance() // consume DOUBLE
+			if !p.isKeywordStr("PRECISION") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume PRECISION
+			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "DOUBLE"}, &nodes.String{Str: "PRECISION"})
+		case p.isIdentLikeStr("NUMERIC"):
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 			p.advance()
 			parseErr1121 := p.parseOptionalPrecisionScale(tn)
 			if parseErr1121 != nil {
 				return nil, parseErr1121
 			}
-		} else {
-			parseErr1121 :=
-				// User-defined type or %TYPE/%ROWTYPE reference
-				p.parseUserDefinedType(tn)
+		default:
+			// User-defined type or %TYPE/%ROWTYPE reference
+			parseErr1121 := p.parseUserDefinedType(tn)
 			if parseErr1121 != nil {
 				return nil, parseErr1121
 			}
@@ -279,7 +349,7 @@ func (p *Parser) declareTypeName(name string) {
 
 // predefinedTypeSpelling is predefinedTypeLead without regard to scope.
 func (p *Parser) predefinedTypeSpelling(tn *nodes.TypeName) string {
-	if tn == nil || tn.IsPercType || tn.IsPercRowtype || tn.Names.Len() == 0 {
+	if tn == nil || tn.IsPercType || tn.IsPercRowtype || tn.IsRef || tn.Names.Len() == 0 {
 		return ""
 	}
 	if tn.Loc.Start >= 0 && tn.Loc.Start < len(p.source) && p.source[tn.Loc.Start] == '"' {
@@ -298,8 +368,16 @@ func (p *Parser) predefinedTypeSpelling(tn *nodes.TypeName) string {
 	switch first, second := word(0), word(1); {
 	case first == "TIMESTAMP" && second == "WITH",
 		first == "INTERVAL" && (second == "DAY" || second == "YEAR"),
-		first == "LONG" && second == "RAW":
+		first == "LONG" && second == "RAW",
+		first == "LONG" && second == "VARCHAR",
+		first == "DOUBLE" && second == "PRECISION",
+		(first == "CHAR" || first == "CHARACTER") && second == "VARYING":
 		return first
+	case first == "CHARACTER" && second == "LARGE":
+		return "CLOB"
+	case first == "NCHAR" && second == "VARYING",
+		first == "NATIONAL" && (second == "CHAR" || second == "CHARACTER"):
+		return "NCHAR"
 	}
 	return ""
 }

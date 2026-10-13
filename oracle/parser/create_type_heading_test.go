@@ -1,0 +1,301 @@
+package parser
+
+import (
+	"reflect"
+	"testing"
+
+	"github.com/bytebase/omni/oracle/ast"
+)
+
+// TestCreateTypeHeading checks the heading clauses, subtypes, incomplete
+// types, and collection elements of CREATE TYPE against Oracle 23ai: every
+// accepted form compiles there (or fails only on names it cannot resolve or
+// on the instance's settings), and every rejected one fails with the error
+// noted beside it. Rows ref_189 to ref_208 run the PLS-00103 and ORA cases
+// against the engine; the others are errors Oracle reports from the text
+// alone after parsing, which the reference harness counts as accepted.
+func TestCreateTypeHeading(t *testing.T) {
+	for _, sql := range []string{
+		// FORCE and OID in either order, then AUTHID and ACCESSIBLE BY in
+		// either order; SHARING first.
+		"CREATE TYPE t FORCE AS OBJECT (a NUMBER)",
+		"CREATE OR REPLACE TYPE t FORCE AS VARRAY(10) OF NUMBER",
+		"CREATE TYPE t OID '1234567890ABCDEF1234567890ABCDEF' AS OBJECT (a NUMBER)",
+		"CREATE TYPE t FORCE OID '1234567890ABCDEF1234567890ABCDEF' AS OBJECT (a NUMBER)",
+		"CREATE TYPE t OID '1234567890ABCDEF1234567890ABCDEF' FORCE AS OBJECT (a NUMBER)",
+		"CREATE TYPE t OID '1234567890ABCDEF1234567890ABCDEF' AS VARRAY(3) OF NUMBER",
+		"CREATE TYPE t AUTHID CURRENT_USER AS OBJECT (a NUMBER)",
+		"CREATE TYPE t AUTHID DEFINER ACCESSIBLE BY (PROCEDURE p) AS OBJECT (a NUMBER)",
+		"CREATE TYPE t ACCESSIBLE BY (PROCEDURE p) AUTHID DEFINER AS OBJECT (a NUMBER) NOT FINAL",
+		"CREATE TYPE t SHARING = NONE FORCE OID '1234567890ABCDEF1234567890ABCDEF' AUTHID DEFINER ACCESSIBLE BY (PROCEDURE p) AS OBJECT (a NUMBER)",
+		"CREATE TYPE t SHARING = NONE OID '1234567890ABCDEF1234567890ABCDEF' AS OBJECT (a NUMBER)",
+		// METADATA and DATA are illegal outside an application root
+		// (ORA-65021); DEFAULT COLLATION needs MAX_STRING_SIZE = EXTENDED
+		// (ORA-43929).
+		"CREATE TYPE t SHARING = METADATA AS OBJECT (a NUMBER)",
+		"CREATE TYPE t SHARING = DATA AS OBJECT (a NUMBER)",
+		"CREATE TYPE t DEFAULT COLLATION USING_NLS_COMP AS OBJECT (a NUMBER)",
+		"CREATE TYPE t AUTHID DEFINER DEFAULT COLLATION USING_NLS_COMP AS OBJECT (a NUMBER)",
+		"CREATE TYPE t IS OBJECT (a NUMBER)",
+		"CREATE TYPE t IS TABLE OF NUMBER",
+		// An incomplete type takes SHARING and OID only.
+		"CREATE TYPE t",
+		"CREATE TYPE t;",
+		"CREATE TYPE t OID '1234567890ABCDEF1234567890ABCDEF'",
+		"CREATE TYPE t SHARING = NONE",
+		// A subtype: no IS or AS, a parenthesized element list that may be
+		// empty or hold methods only, FINAL and INSTANTIABLE modifiers.
+		"CREATE TYPE t UNDER base (b NUMBER)",
+		"CREATE TYPE t UNDER s.base (b NUMBER, MEMBER FUNCTION f RETURN NUMBER) NOT FINAL NOT INSTANTIABLE",
+		"CREATE TYPE t UNDER base ()",
+		"CREATE TYPE t UNDER base (MEMBER FUNCTION f RETURN NUMBER)",
+		"CREATE TYPE t UNDER base (PRAGMA RESTRICT_REFERENCES (DEFAULT, WNDS))",
+		"CREATE TYPE t UNDER base (b NUMBER) FINAL",
+		"CREATE TYPE t FORCE UNDER base (b NUMBER)",
+		"CREATE TYPE t ACCESSIBLE BY (PROCEDURE p) UNDER base (b NUMBER)",
+		// The supertype's AUTHID decides (PLS-00722 when they differ).
+		"CREATE TYPE t AUTHID DEFINER UNDER base (b NUMBER)",
+		// Collection elements: NOT NULL bare, or PERSISTABLE after a
+		// parenthesized element with NOT NULL inside.
+		"CREATE TYPE t AS TABLE OF NUMBER NOT NULL",
+		"CREATE TYPE t AS TABLE OF NUMBER(5) NOT NULL",
+		"CREATE TYPE t AS TABLE OF (NUMBER)",
+		"CREATE TYPE t AS TABLE OF (u) NOT PERSISTABLE",
+		"CREATE TYPE t AS TABLE OF (NUMBER NOT NULL)",
+		"CREATE TYPE t AS TABLE OF (NUMBER NOT NULL) NOT PERSISTABLE",
+		"CREATE TYPE t AS VARRAY(3) OF (NUMBER) PERSISTABLE",
+		"CREATE TYPE t AS VARRAY(3) OF NUMBER NOT NULL",
+		"CREATE TYPE t AS VARRAY(3) OF (NUMBER NOT NULL) NOT PERSISTABLE",
+		"CREATE TYPE t AS VARYING ARRAY(3) OF NUMBER",
+		"CREATE TYPE t AS ARRAY(3) OF NUMBER",
+		"CREATE TYPE t AS TABLE OF REF u",
+		"CREATE TYPE t AS VARRAY(3) OF REF u",
+		"CREATE TYPE t AS TABLE OF (REF u) NOT PERSISTABLE",
+		"CREATE TYPE t AS TABLE OF VARCHAR2(10) CHARACTER SET NCHAR_CS",
+		"CREATE TYPE t AS TABLE OF (VARCHAR2(10) CHARACTER SET NCHAR_CS NOT NULL) NOT PERSISTABLE",
+		"CREATE TYPE t AS TABLE OF VARCHAR2(ORA_MAX_NAME_LEN)",
+		"CREATE TYPE t AS VARRAY(3) OF VARCHAR2(ORA_MAX_NAME_LEN)",
+		// Attributes: ANSI and REF datatypes, a named character set, and
+		// PL/SQL size expressions. LONG RAW is PLS-00530, after parsing.
+		"CREATE TYPE t AS OBJECT (a CHARACTER(1 BYTE), b CHAR(2 CHAR), c CHARACTER VARYING(3), d DOUBLE PRECISION, e NATIONAL CHARACTER(2), f CHARACTER(2 CHAR))",
+		"CREATE TYPE t AS OBJECT (a CHARACTER LARGE OBJECT)",
+		"CREATE TYPE t AS OBJECT (a REF u, b REF s.u)",
+		"CREATE TYPE t AS OBJECT (a VARCHAR2(10) CHARACTER SET NCHAR_CS)",
+		"CREATE TYPE t AS OBJECT (a VARCHAR2(ORA_MAX_NAME_LEN), b VARCHAR2(10+2), c NUMBER(5+1, 2))",
+		"CREATE TYPE t AS OBJECT (a LONG RAW(32767))",
+		"CREATE TYPE t AS OBJECT (a NUMBER) NOT PERSISTABLE NOT FINAL",
+		"CREATE TYPE t AS OBJECT (a NUMBER) NOT INSTANTIABLE NOT FINAL",
+		"CREATE TYPE t AS OBJECT (a NUMBER) INSTANTIABLE FINAL",
+		"CREATE TYPE BODY t IS MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;",
+	} {
+		ParseAndCheck(t, sql)
+	}
+
+	for _, sql := range []string{
+		// Each clause once, FORCE and OID before AUTHID and ACCESSIBLE BY,
+		// SHARING first (PLS-00103), AUTHID and ACCESSIBLE BY once
+		// (PLS-00371).
+		"CREATE TYPE t FORCE FORCE AS OBJECT (a NUMBER)",
+		"CREATE TYPE t OID '1234567890ABCDEF1234567890ABCDE5' OID '1234567890ABCDEF1234567890ABCDE6' AS OBJECT (a NUMBER)",
+		"CREATE TYPE t AUTHID DEFINER FORCE AS OBJECT (a NUMBER)",
+		"CREATE TYPE t ACCESSIBLE BY (PROCEDURE p) OID '1234567890ABCDEF1234567890ABCDEF' AS OBJECT (a NUMBER)",
+		"CREATE TYPE t AUTHID DEFINER AUTHID DEFINER AS OBJECT (a NUMBER)",
+		"CREATE TYPE t ACCESSIBLE BY (PROCEDURE p) ACCESSIBLE BY (PROCEDURE q) AS OBJECT (a NUMBER)",
+		"CREATE TYPE t FORCE SHARING = NONE AS OBJECT (a NUMBER)",
+		"CREATE TYPE t OID '1234567890ABCDEF1234567890ABCDEF' SHARING = NONE AS OBJECT (a NUMBER)",
+		"CREATE TYPE t AUTHID DEFINER SHARING = NONE AS OBJECT (a NUMBER)",
+		"CREATE TYPE t AS OBJECT (a NUMBER) NOT FINAL AUTHID DEFINER",
+		// OID takes a string literal (ORA-01780); SHARING its '='
+		// (ORA-02000) and a valid value (ORA-65014).
+		"CREATE TYPE t OID 123 AS OBJECT (a NUMBER)",
+		"CREATE TYPE t SHARING NONE AS OBJECT (a NUMBER)",
+		"CREATE TYPE t SHARING = FOO AS OBJECT (a NUMBER)",
+		"CREATE TYPE t SHARING = EXTENDED DATA AS OBJECT (a NUMBER)",
+		// IS or AS is required, except before UNDER (PLS-00103).
+		"CREATE TYPE t OBJECT (a NUMBER)",
+		"CREATE TYPE t TABLE OF NUMBER",
+		"CREATE TYPE t AS UNDER base (b NUMBER)",
+		"CREATE TYPE BODY t MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;",
+		// An incomplete type takes no FORCE, AUTHID, or ACCESSIBLE BY.
+		"CREATE TYPE t FORCE",
+		"CREATE TYPE t AUTHID DEFINER",
+		"CREATE TYPE t ACCESSIBLE BY (PROCEDURE p)",
+		"CREATE TYPE t FORCE OID '1234567890ABCDEF1234567890ABCDEF'",
+		"CREATE TYPE t OID '1234567890ABCDEF1234567890ABCDEF' FORCE",
+		// AUTHID and ACCESSIBLE BY on a collection type (PLS-00262).
+		"CREATE TYPE t AUTHID CURRENT_USER AS TABLE OF NUMBER",
+		"CREATE TYPE t ACCESSIBLE BY (PROCEDURE p) AS TABLE OF NUMBER",
+		"CREATE TYPE t AUTHID CURRENT_USER AS VARRAY(3) OF NUMBER",
+		// A subtype needs its element list (PLS-00103), takes no database
+		// link (PLS-00103), no PERSISTABLE (PLS-00772), and no attribute
+		// after a method (PLS-00311).
+		"CREATE TYPE t UNDER base",
+		"CREATE TYPE t UNDER base NOT FINAL",
+		"CREATE TYPE t UNDER base@lnk (b NUMBER)",
+		"CREATE TYPE t UNDER base (b NUMBER,)",
+		"CREATE TYPE t UNDER base (b NUMBER) NOT PERSISTABLE",
+		"CREATE TYPE t UNDER base (MEMBER FUNCTION f RETURN NUMBER, b NUMBER)",
+		// An object type is FINAL unless it says NOT FINAL, and a FINAL type
+		// cannot be NOT INSTANTIABLE (PLS-00614).
+		"CREATE TYPE t AS OBJECT (a NUMBER) NOT INSTANTIABLE",
+		"CREATE TYPE t AS OBJECT (a NUMBER) FINAL NOT INSTANTIABLE",
+		"CREATE TYPE t UNDER base (b NUMBER) NOT INSTANTIABLE",
+		"CREATE TYPE t UNDER base (b NUMBER) NOT INSTANTIABLE FINAL",
+		// Collection elements (PLS-00103): PERSISTABLE only after a
+		// parenthesized element, NOT NULL inside the parentheses, once each,
+		// and no object type modifiers.
+		"CREATE TYPE t AS TABLE OF NUMBER NOT FINAL",
+		"CREATE TYPE t AS TABLE OF u NOT PERSISTABLE",
+		"CREATE TYPE t AS TABLE OF NUMBER PERSISTABLE",
+		"CREATE TYPE t AS VARRAY(3) OF NUMBER NOT PERSISTABLE",
+		"CREATE TYPE t AS TABLE OF (NUMBER) NOT NULL",
+		"CREATE TYPE t AS TABLE OF (NUMBER) PERSISTABLE NOT NULL",
+		"CREATE TYPE t AS TABLE OF ((NUMBER))",
+		"CREATE TYPE t AS TABLE OF (NUMBER) NOT PERSISTABLE NOT PERSISTABLE",
+		"CREATE TYPE t AS TABLE OF VARCHAR2(10) NOT NULL CHARACTER SET NCHAR_CS",
+		"CREATE TYPE t AS TABLE OF REF (u)",
+		"CREATE TYPE t AS VARYING (3) OF NUMBER",
+		// Attribute datatypes (PLS-00103, PLS-00551).
+		"CREATE TYPE t AS OBJECT (a REF)",
+		"CREATE TYPE t AS OBJECT (a DOUBLE)",
+		"CREATE TYPE t AS OBJECT (a LONG VARCHAR)",
+		"CREATE TYPE t AS OBJECT (a VARCHAR2(10) CHARACTER SET ANY_CS)",
+	} {
+		ParseShouldFail(t, sql)
+	}
+}
+
+// TestCreateTypeHeadingAST checks what the heading clauses, a subtype, and a
+// collection element record.
+func TestCreateTypeHeadingAST(t *testing.T) {
+	ty := parseOne[*ast.CreateTypeStmt](t, "CREATE OR REPLACE TYPE s.t SHARING = NONE FORCE OID 'ABC' AUTHID CURRENT_USER ACCESSIBLE BY (PACKAGE k) AS OBJECT (a NUMBER, b REF s.u) NOT FINAL")
+	if ty.Sharing != "NONE" || !ty.Force || ty.OID != "ABC" || ty.AuthID != "CURRENT_USER" || ty.AccessibleBy.Len() != 1 {
+		t.Errorf("heading = sharing %q force %v oid %q authid %q accessible %v", ty.Sharing, ty.Force, ty.OID, ty.AuthID, ty.AccessibleBy)
+	}
+	if b := ty.Attributes.Items[1].(*ast.ColumnDef).TypeName; !b.IsRef || b.Names.Len() != 2 {
+		t.Errorf("attribute b = REF %v, %d names; want a REF to s.u", b.IsRef, b.Names.Len())
+	}
+
+	sub := parseOne[*ast.CreateTypeStmt](t, "CREATE TYPE t UNDER s.base (c DATE) NOT FINAL")
+	if sub.Under == nil || sub.Under.Schema != "S" || sub.Under.Name != "BASE" || sub.Attributes.Len() != 1 ||
+		!reflect.DeepEqual(sub.Modifiers, []string{"NOT FINAL"}) {
+		t.Errorf("subtype = under %v, %d attributes, modifiers %q", sub.Under, sub.Attributes.Len(), sub.Modifiers)
+	}
+
+	coll := parseOne[*ast.CreateTypeStmt](t, "CREATE TYPE t AS TABLE OF (VARCHAR2(10) NOT NULL) NOT PERSISTABLE")
+	if coll.AsTable == nil || !coll.ElementNotNull || !reflect.DeepEqual(coll.Modifiers, []string{"NOT PERSISTABLE"}) {
+		t.Errorf("collection = %v, not null %v, modifiers %q", coll.AsTable, coll.ElementNotNull, coll.Modifiers)
+	}
+
+	if incomplete := parseOne[*ast.CreateTypeStmt](t, "CREATE TYPE t OID 'ABC'"); incomplete.OID != "ABC" ||
+		incomplete.Attributes != nil || incomplete.AsTable != nil || incomplete.AsVarray != nil || incomplete.Under != nil {
+		t.Errorf("incomplete type = %+v", incomplete)
+	}
+}
+
+// TestANSIDatatypes checks the ANSI spellings of the character and floating
+// types, and REF types, in SQL and PL/SQL against Oracle 23ai.
+func TestANSIDatatypes(t *testing.T) {
+	both := []string{
+		"CHARACTER", "CHARACTER(1 BYTE)", "CHARACTER(2 CHAR)", "CHARACTER VARYING(3)", "CHARACTER VARYING(3 CHAR)",
+		"CHAR VARYING(3)", "NATIONAL CHARACTER(2)", "NATIONAL CHAR(2)", "NATIONAL CHARACTER VARYING(3)",
+		"NATIONAL CHAR VARYING(3)", "NCHAR VARYING(3)", "NATIONAL CHARACTER", "DOUBLE PRECISION", "REF u", "REF s.u",
+	}
+	for _, datatype := range both {
+		ParseAndCheck(t, "CREATE TABLE t (x "+datatype+")")
+		ParseAndCheck(t, "DECLARE x "+datatype+"; BEGIN NULL; END;")
+	}
+	// Each context has spellings of its own.
+	ParseAndCheck(t, "CREATE TABLE t (x LONG VARCHAR)")
+	ParseShouldFail(t, "DECLARE x LONG VARCHAR; BEGIN NULL; END;")
+	ParseAndCheck(t, "DECLARE x CHARACTER LARGE OBJECT; BEGIN NULL; END;")
+	ParseShouldFail(t, "CREATE TABLE t (x CHARACTER LARGE OBJECT)")
+	ParseAndCheck(t, "DECLARE x LONG RAW(32767); y LONG(100); BEGIN NULL; END;")
+	ParseShouldFail(t, "CREATE TABLE t (x LONG RAW(10))")
+	ParseShouldFail(t, "CREATE TABLE t (x LONG(10))")
+	// DOUBLE takes PRECISION (ORA-02000, PLS-00103).
+	ParseShouldFail(t, "CREATE TABLE t (x DOUBLE)")
+	ParseShouldFail(t, "DECLARE x DOUBLE; BEGIN NULL; END;")
+
+	tn := parseOne[*ast.CreateTableStmt](t, "CREATE TABLE t (x NATIONAL CHARACTER VARYING(3))").Columns.Items[0].(*ast.ColumnDef).TypeName
+	if got := typeNameWords(tn); !reflect.DeepEqual(got, []string{"NATIONAL", "CHARACTER", "VARYING"}) || tn.TypeMods.Len() != 1 {
+		t.Errorf("NATIONAL CHARACTER VARYING(3) = %q with %d modifiers", got, tn.TypeMods.Len())
+	}
+}
+
+// TestAlterTypeElements checks the attribute and method lists of ALTER TYPE
+// against Oracle 23ai: each item has its own ADD, DROP, or MODIFY, a list
+// holds methods or attributes but not both, and a method may carry
+// inheritance clauses. The rejected forms fail with ORA-06545.
+func TestAlterTypeElements(t *testing.T) {
+	for _, sql := range []string{
+		"ALTER TYPE t MODIFY ATTRIBUTE b VARCHAR2(20) CASCADE",
+		"ALTER TYPE t MODIFY ATTRIBUTE b VARCHAR2(ORA_MAX_NAME_LEN) CASCADE",
+		"ALTER TYPE t ADD ATTRIBUTE c NUMBER CASCADE",
+		"ALTER TYPE t ADD ATTRIBUTE (d NUMBER, e DATE) CASCADE",
+		"ALTER TYPE t ADD ATTRIBUTE g REF u CASCADE",
+		"ALTER TYPE t DROP ATTRIBUTE e CASCADE",
+		"ALTER TYPE t DROP ATTRIBUTE (d, e) CASCADE",
+		"ALTER TYPE t ADD ATTRIBUTE c NUMBER, MODIFY ATTRIBUTE b VARCHAR2(30) CASCADE",
+		"ALTER TYPE t DROP ATTRIBUTE e, DROP ATTRIBUTE d CASCADE",
+		"ALTER TYPE t ADD MEMBER FUNCTION g RETURN NUMBER, ADD MEMBER FUNCTION h RETURN NUMBER CASCADE",
+		"ALTER TYPE t DROP MEMBER FUNCTION g RETURN NUMBER, DROP MEMBER FUNCTION h RETURN NUMBER CASCADE",
+		"ALTER TYPE t ADD MEMBER FUNCTION g RETURN NUMBER, DROP MEMBER FUNCTION f RETURN NUMBER CASCADE",
+		"ALTER TYPE s ADD OVERRIDING MEMBER FUNCTION f RETURN NUMBER CASCADE",
+		"ALTER TYPE s DROP OVERRIDING MEMBER PROCEDURE p (a IN NUMBER, b IN OUT NOCOPY CLOB), DROP OVERRIDING MEMBER PROCEDURE q CASCADE",
+		"ALTER TYPE t ADD NOT FINAL MEMBER FUNCTION nf RETURN NUMBER CASCADE",
+		"ALTER TYPE t ADD STATIC FUNCTION s RETURN NUMBER CASCADE",
+		"ALTER TYPE t ADD MAP MEMBER FUNCTION m RETURN NUMBER CASCADE",
+		"ALTER TYPE t ADD CONSTRUCTOR FUNCTION t (a NUMBER) RETURN SELF AS RESULT CASCADE",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	for _, sql := range []string{
+		"ALTER TYPE t ADD MEMBER FUNCTION g RETURN NUMBER, ADD ATTRIBUTE d NUMBER CASCADE",
+		"ALTER TYPE t ADD ATTRIBUTE e NUMBER, ADD MEMBER FUNCTION k RETURN NUMBER CASCADE",
+		"ALTER TYPE t ADD MEMBER FUNCTION m RETURN NUMBER, MEMBER FUNCTION n RETURN NUMBER CASCADE",
+		"ALTER TYPE t ADD ATTRIBUTE",
+		"ALTER TYPE t MODIFY ATTRIBUTE (b VARCHAR2(30) CASCADE",
+		"ALTER TYPE t ADD MAP FUNCTION m RETURN NUMBER CASCADE",
+		"ALTER TYPE t ADD MEMBER g RETURN NUMBER CASCADE",
+		"ALTER TYPE t ADD MEMBER PROCEDURE p RETURN NUMBER CASCADE",
+		"ALTER TYPE t ADD MEMBER FUNCTION g CASCADE",
+		"ALTER TYPE t ADD CONSTRUCTOR FUNCTION t (a NUMBER) RETURN SELF CASCADE",
+		"ALTER TYPE t ADD CONSTRUCTOR PROCEDURE p CASCADE",
+		"ALTER TYPE t ADD NOT OVERRIDING MEMBER FUNCTION no RETURN NUMBER CASCADE",
+		"ALTER TYPE t ADD FINAL OVERRIDING MEMBER FUNCTION fo RETURN NUMBER CASCADE",
+		"ALTER TYPE t ADD OVERRIDING ATTRIBUTE z NUMBER CASCADE",
+	} {
+		ParseShouldFail(t, sql)
+	}
+
+	alter := parseOne[*ast.AlterTypeStmt](t, "ALTER TYPE s DROP OVERRIDING MEMBER PROCEDURE p (a NUMBER), ADD MAP MEMBER FUNCTION m RETURN NUMBER CASCADE")
+	if alter.Action != "DROP_METHOD" || len(alter.Methods) != 2 || !alter.Cascade {
+		t.Fatalf("ALTER TYPE = action %q, %d methods, cascade %v", alter.Action, len(alter.Methods), alter.Cascade)
+	}
+	if m := alter.Methods[0]; m.Action != "DROP" || !reflect.DeepEqual(m.Modifiers, []string{"OVERRIDING"}) || m.Kind != "MEMBER" ||
+		m.Type != "PROCEDURE" || m.Name != "P" || len(m.Params) != 1 {
+		t.Errorf("first method = %+v", m)
+	}
+	if m := alter.Methods[1]; m.Action != "ADD" || m.Kind != "MAP MEMBER" || m.Type != "FUNCTION" || m.Return == nil {
+		t.Errorf("second method = %+v", m)
+	}
+
+	attrs := parseOne[*ast.AlterTypeStmt](t, "ALTER TYPE t ADD ATTRIBUTE (c NUMBER, d DATE), MODIFY ATTRIBUTE b VARCHAR2(30), DROP ATTRIBUTE e")
+	var got []string
+	for _, attr := range attrs.Attributes {
+		got = append(got, attr.Action+" "+attr.Name)
+	}
+	if want := []string{"ADD C", "ADD D", "MODIFY B", "DROP E"}; attrs.Action != "ADD_ATTRIBUTE" || !reflect.DeepEqual(got, want) {
+		t.Errorf("ALTER TYPE attributes = %q %q, want ADD_ATTRIBUTE %q", attrs.Action, got, want)
+	}
+}
+
+// typeNameWords returns the words of a datatype's name.
+func typeNameWords(tn *ast.TypeName) []string {
+	var words []string
+	for _, item := range tn.Names.Items {
+		words = append(words, item.(*ast.String).Str)
+	}
+	return words
+}

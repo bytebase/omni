@@ -647,7 +647,8 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 
 // isTypeName returns true if the current token can begin a type name.
 func (p *Parser) isTypeName() bool {
-	if isOracleTypeToken(p.cur.Type) {
+	// REF object_type is a column datatype (Oracle 23ai).
+	if isOracleTypeToken(p.cur.Type) || p.cur.Type == kwREF {
 		return true
 	}
 	// User-defined type: identifier that is NOT a constraint keyword

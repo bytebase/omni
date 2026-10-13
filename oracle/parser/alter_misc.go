@@ -3643,38 +3643,15 @@ func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 			return nil, parseErr106
 		}
 
-	case p.cur.Type == kwADD:
-		p.advance()
-		parseErr107 := // consume ADD
-			p.parseAlterTypeAddDrop(stmt, "ADD")
-		if parseErr107 != nil {
-			return nil, parseErr107
-		}
-
-	case p.cur.Type == kwDROP:
-		p.advance()
-		parseErr108 := // consume DROP
-			p.parseAlterTypeAddDrop(stmt, "DROP")
-		if parseErr108 != nil {
-			return nil, parseErr108
+	case p.cur.Type == kwADD, p.cur.Type == kwDROP,
+		p.isIdentLikeStr("MODIFY") && p.peekNext().Type != tokQIDENT && p.peekNext().Str == "ATTRIBUTE":
+		if err := p.parseAlterTypeElements(stmt); err != nil {
+			return nil, err
 		}
 
 	case p.isIdentLikeStr("MODIFY"):
 		p.advance() // consume MODIFY
-		if p.isIdentLikeStr("ATTRIBUTE") {
-			stmt.Action = "MODIFY_ATTRIBUTE"
-			p.advance()
-			var // consume ATTRIBUTE
-			parseErr109 error
-			stmt.Attributes, parseErr109 = p.parseAlterTypeAttributes(true)
-			if parseErr109 != nil {
-				return nil, parseErr109
-			}
-			parseErr110 := p.parseAlterTypeDependentHandling(stmt)
-			if parseErr110 != nil {
-				return nil, parseErr110
-			}
-		} else if p.isIdentLikeStr("LIMIT") {
+		if p.isIdentLikeStr("LIMIT") {
 			stmt.Action = "MODIFY_LIMIT"
 			p.advance()
 			var // consume LIMIT
@@ -3764,194 +3741,224 @@ func (p *Parser) parseAlterTypeStmt(start int) (nodes.StmtNode, error) {
 	return stmt, nil
 }
 
-// parseAlterTypeAddDrop handles ADD/DROP ATTRIBUTE or ADD/DROP method.
-func (p *Parser) parseAlterTypeAddDrop(stmt *nodes.AlterTypeStmt, action string) error {
-	switch {
-	case p.isIdentLikeStr("ATTRIBUTE"):
-		if action == "ADD" {
-			stmt.Action = "ADD_ATTRIBUTE"
+// parseAlterTypeElements parses the alter_method_spec or the
+// alter_attribute_definition of ALTER TYPE, the current token at ADD, DROP,
+// or MODIFY ATTRIBUTE, and the dependent handling after it. Either is a
+// comma-separated list, each item with its own ADD, DROP, or MODIFY: Oracle
+// 23ai takes ADD m1, ADD m2 and ADD ATTRIBUTE a, MODIFY ATTRIBUTE b, and
+// rejects a list that mixes methods and attributes or an item without its
+// verb (ORA-06545).
+//
+//	{ ADD | DROP } method_spec [, { ADD | DROP } method_spec ]...
+//	| { { ADD | MODIFY } ATTRIBUTE attributes | DROP ATTRIBUTE attributes } [, ...]
+func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
+	attributes := false
+	for i := 0; ; i++ {
+		var verb string
+		switch {
+		case p.cur.Type == kwADD:
+			verb = "ADD"
+		case p.cur.Type == kwDROP:
+			verb = "DROP"
+		case p.isKeywordStr("MODIFY"):
+			verb = "MODIFY"
+		default:
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		attribute := p.isKeywordStr("ATTRIBUTE")
+		action := verb + "_METHOD"
+		if attribute {
+			action = verb + "_ATTRIBUTE"
+		}
+		switch {
+		case verb == "MODIFY" && !attribute:
+			return p.syntaxErrorAtCur()
+		case i == 0:
+			stmt.Action = action
+			attributes = attribute
+		case attribute != attributes:
+			return p.syntaxErrorAtCur()
+		}
+		if attribute {
+			p.advance() // consume ATTRIBUTE
+			attrs, err := p.parseAlterTypeAttributes(verb != "DROP")
+			if err != nil {
+				return err
+			}
+			for _, attr := range attrs {
+				attr.Action = verb
+			}
+			stmt.Attributes = append(stmt.Attributes, attrs...)
 		} else {
-			stmt.Action = "DROP_ATTRIBUTE"
+			method, err := p.parseAlterTypeMethod(verb)
+			if err != nil {
+				return err
+			}
+			stmt.Methods = append(stmt.Methods, method)
 		}
-		p.advance() // consume ATTRIBUTE
-		needDatatype := action == "ADD"
-		var parseErr117 error
-		stmt.Attributes, parseErr117 = p.parseAlterTypeAttributes(needDatatype)
-		if parseErr117 != nil {
-			return parseErr117
+		if p.cur.Type != ',' {
+			break
 		}
-		parseErr118 := p.parseAlterTypeDependentHandling(stmt)
-		if parseErr118 != nil {
-			return parseErr118
-		}
-
-	case p.isIdentLikeStr("MEMBER"), p.isIdentLikeStr("STATIC"):
-		kind := p.cur.Str
-		p.advance() // consume MEMBER/STATIC
-		if action == "ADD" {
-			stmt.Action = "ADD_METHOD"
-		} else {
-			stmt.Action = "DROP_METHOD"
-		}
-		stmt.MethodKind = kind
-		parseErr119 := p.parseAlterTypeMethodSig(stmt)
-		if parseErr119 != nil {
-			return parseErr119
-		}
-		parseErr120 := p.parseAlterTypeDependentHandling(stmt)
-		if parseErr120 != nil {
-			return parseErr120
-		}
-
-	case p.isIdentLikeStr("MAP"), p.isIdentLikeStr("ORDER"):
-		kind := p.cur.Str
-		p.advance() // consume MAP/ORDER
-		if p.isIdentLikeStr("MEMBER") {
-			kind += " MEMBER"
-			p.advance() // consume MEMBER
-		}
-		if action == "ADD" {
-			stmt.Action = "ADD_METHOD"
-		} else {
-			stmt.Action = "DROP_METHOD"
-		}
-		stmt.MethodKind = kind
-		parseErr121 := p.parseAlterTypeMethodSig(stmt)
-		if parseErr121 != nil {
-			return parseErr121
-		}
-		parseErr122 := p.parseAlterTypeDependentHandling(stmt)
-		if parseErr122 != nil {
-			return parseErr122
-		}
-
-	case p.isIdentLikeStr("CONSTRUCTOR"):
-		p.advance() // consume CONSTRUCTOR
-		if action == "ADD" {
-			stmt.Action = "ADD_METHOD"
-		} else {
-			stmt.Action = "DROP_METHOD"
-		}
-		stmt.MethodKind = "CONSTRUCTOR"
-		parseErr123 := p.parseAlterTypeMethodSig(stmt)
-		if parseErr123 != nil {
-			return parseErr123
-		}
-		parseErr124 := p.parseAlterTypeDependentHandling(stmt)
-		if parseErr124 !=
-
-			// parseAlterTypeMethodSig parses a method signature: FUNCTION/PROCEDURE name [(params)] [RETURN type].
-			nil {
-			return parseErr124
-		}
+		p.advance() // consume ,
 	}
-	return nil
+	return p.parseAlterTypeDependentHandling(stmt)
 }
 
-func (p *Parser) parseAlterTypeMethodSig(stmt *nodes.AlterTypeStmt) error {
+// parseAlterTypeMethod parses one method specification of ALTER TYPE ADD
+// or DROP. Inheritance clauses may come first, OVERRIDING before the others:
+// Oracle 23ai adds and drops an OVERRIDING MEMBER method of a subtype.
+//
+//	[ OVERRIDING ] [ [ NOT ] { FINAL | INSTANTIABLE } ]...
+//	{ MEMBER | STATIC | { MAP | ORDER } MEMBER | CONSTRUCTOR }
+//	{ PROCEDURE name [ ( parameters ) ]
+//	| FUNCTION name [ ( parameters ) ] RETURN { datatype | SELF AS RESULT } }
+func (p *Parser) parseAlterTypeMethod(verb string) (*nodes.AlterTypeMethod, error) {
+	method := &nodes.AlterTypeMethod{Action: verb, Loc: nodes.Loc{Start: p.pos()}}
+	if p.isKeywordStr("OVERRIDING") {
+		method.Modifiers = append(method.Modifiers, "OVERRIDING")
+		p.advance()
+	}
+	mods, err := p.parseTypeModifiers(methodInheritanceClauses)
+	if err != nil {
+		return nil, err
+	}
+	method.Modifiers = append(method.Modifiers, mods...)
+
+	switch {
+	case p.isKeywordStr("MEMBER"), p.isKeywordStr("STATIC"), p.isKeywordStr("CONSTRUCTOR"):
+		method.Kind = p.cur.Str
+		p.advance()
+	case p.isKeywordStr("MAP"), p.cur.Type == kwORDER:
+		method.Kind = p.cur.Str + " MEMBER"
+		p.advance()
+		if !p.isKeywordStr("MEMBER") {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	switch p.cur.Type {
+	case kwFUNCTION:
+		method.Type = "FUNCTION"
+	case kwPROCEDURE:
+		if method.Kind != "MEMBER" && method.Kind != "STATIC" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		method.Type = "PROCEDURE"
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+
+	method.Name, err = p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	if method.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 	var params *nodes.List
-	// FUNCTION or PROCEDURE
-	if p.cur.Type == kwFUNCTION {
-		stmt.MethodType = "FUNCTION"
-		p.advance()
-	} else if p.cur.Type == kwPROCEDURE {
-		stmt.MethodType = "PROCEDURE"
-		p.advance()
-	}
-	var parseErr125 error
-
-	// Method name
-	stmt.MethodName, parseErr125 = p.parseIdentifier()
-	if parseErr125 !=
-
-		// Optional parameter list
-		nil {
-		return parseErr125
-	}
-
 	if p.cur.Type == '(' {
-		var parseErr126 error
-		params, parseErr126 = p.parseParameterList()
-		if parseErr126 != nil {
-			return parseErr126
+		params, err = p.parseParameterList()
+		if err != nil {
+			return nil, err
 		}
 		if params != nil {
 			for _, item := range params.Items {
 				if param, ok := item.(*nodes.Parameter); ok {
-					stmt.MethodParams = append(stmt.MethodParams, param)
+					method.Params = append(method.Params, param)
 				}
 			}
 		}
 	}
 
-	// Optional RETURN type
-	if p.cur.Type == kwRETURN {
+	if method.Type == "FUNCTION" {
+		if p.cur.Type != kwRETURN {
+			return nil, p.syntaxErrorAtCur()
+		}
 		p.advance() // consume RETURN
-		// SELF AS RESULT
-		if p.isIdentLikeStr("SELF") {
+		if method.Kind == "CONSTRUCTOR" {
+			// RETURN SELF AS RESULT, all three words (PLS-00103 on Oracle
+			// 23ai for a partial phrase).
+			if !p.isKeywordStr("SELF") || p.peekNext().Type != kwAS {
+				return nil, p.syntaxErrorAtCur()
+			}
 			p.advance() // consume SELF
-			if p.cur.Type == kwAS {
-				p.advance() // consume AS
+			p.advance() // consume AS
+			if !p.isKeywordStr("RESULT") {
+				return nil, p.syntaxErrorAtCur()
 			}
-			if p.isIdentLikeStr("RESULT") {
-				p.advance() // consume RESULT
-			}
-			stmt.MethodReturn = &nodes.TypeName{
+			p.advance() // consume RESULT
+			method.Return = &nodes.TypeName{
 				Names: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "SELF AS RESULT"}}},
 			}
 		} else {
-			var parseErr127 error
-			stmt.MethodReturn, parseErr127 = p.parsePLSQLDatatype(typeModsNone, charsetFlexible)
-			if parseErr127 != nil {
-				return parseErr127
+			method.Return, err = p.parsePLSQLDatatype(typeModsNone, charsetFlexible)
+			if err != nil {
+				return nil, err
 			}
 		}
 	}
 	// A method signature takes the heading checks of CREATE TYPE methods:
 	// no TABLE or COLUMNS pseudo-type (PLS-00765), and item%CHARSET from a
 	// character parameter (PLS-00550).
-	if tn := p.tablePseudoType(params, stmt.MethodReturn); tn != nil {
-		return p.syntaxErrorAtType(tn)
+	if tn := p.tablePseudoType(params, method.Return); tn != nil {
+		return nil, p.syntaxErrorAtType(tn)
 	}
-	return p.checkCharsetSources(params, stmt.MethodReturn)
+	if err := p.checkCharsetSources(params, method.Return); err != nil {
+		return nil, err
+	}
+	method.Loc.End = p.prev.End
+	return method, nil
 }
 
-// parseAlterTypeAttributes parses ( attribute [datatype] [, ...] ).
+// parseAlterTypeAttributes parses the attributes of ADD, MODIFY, or DROP
+// ATTRIBUTE: one attribute, or a parenthesized list. A datatype takes PL/SQL
+// size expressions, as in CREATE TYPE (VARCHAR2(ORA_MAX_NAME_LEN) on Oracle
+// 23ai).
+//
+//	{ attribute [ datatype ] | ( attribute [ datatype ] [, ...] ) }
 func (p *Parser) parseAlterTypeAttributes(withDatatype bool) ([]*nodes.TypeAttribute, error) {
-	var attrs []*nodes.TypeAttribute
-
-	if p.cur.Type == '(' {
+	paren := p.cur.Type == '('
+	if paren {
 		p.advance() // consume (
-		for {
-			attrStart := p.pos()
-			parseValue1, parseErr2 := p.parseIdentifier()
-			if parseErr2 != nil {
-				return nil, parseErr2
+	}
+	var attrs []*nodes.TypeAttribute
+	for {
+		attrStart := p.pos()
+		name, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		attr := &nodes.TypeAttribute{
+			Name: name,
+			Loc:  nodes.Loc{Start: attrStart},
+		}
+		if withDatatype {
+			attr.DataType, err = p.parsePLSQLDatatype(typeModsPLSQL, charsetFixed)
+			if err != nil {
+				return nil, err
 			}
-			attr := &nodes.TypeAttribute{
-				Name: parseValue1,
-				Loc:  nodes.Loc{Start: attrStart},
-			}
-			if withDatatype {
-				var parseErr128 error
-				attr.DataType, parseErr128 = p.parseTypeName()
-				if parseErr128 != nil {
-					return nil, parseErr128
-				}
-			}
-			attr.Loc.End = p.prev.End
-			attrs = append(attrs, attr)
-			if p.cur.Type == ',' {
-				p.advance() // consume ,
-				continue
-			}
+		}
+		attr.Loc.End = p.prev.End
+		attrs = append(attrs, attr)
+		if !paren || p.cur.Type != ',' {
 			break
 		}
-		if p.cur.Type == ')' {
-			p.advance() // consume )
-		}
+		p.advance() // consume ,
 	}
-
+	if paren {
+		if p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume )
+	}
 	return attrs, nil
 }
 
