@@ -8,7 +8,8 @@ import (
 
 // qualifiedDecls declares the types the qualified expressions below build.
 const qualifiedDecls = "TYPE r IS RECORD (a NUMBER, b NUMBER); TYPE aa IS TABLE OF BOOLEAN INDEX BY VARCHAR2(30); " +
-	"TYPE ai IS TABLE OF NUMBER INDEX BY PLS_INTEGER; TYPE nt IS TABLE OF NUMBER; "
+	"TYPE ai IS TABLE OF NUMBER INDEX BY PLS_INTEGER; TYPE nt IS TABLE OF NUMBER; TYPE rt IS RECORD (x NUMBER); " +
+	"TYPE rtt IS TABLE OF rt; s VARCHAR2(100) := 'SELECT 1 x FROM dual'; "
 
 // TestQualifiedExpressions checks the choices of PL/SQL qualified
 // expressions and Oracle 21c's FOR iterators against Oracle 23ai: every
@@ -35,6 +36,8 @@ func TestQualifiedExpressions(t *testing.T) {
 		"x nt := nt(9, FOR i IN 1..3 SEQUENCE => i, 10);",
 		"x ai := ai(FOR i, j IN PAIRS OF a INDEX i => j);",
 		"x nt := nt(FOR i, j IN PAIRS OF a SEQUENCE => j);",
+		"x rtt := rtt(FOR r rt IN (EXECUTE IMMEDIATE s) SEQUENCE => r);",
+		`TYPE "TRIM" IS TABLE OF NUMBER INDEX BY PLS_INTEGER; y "TRIM" := "TRIM"(1 => 2);`,
 	} {
 		ParseAndCheck(t, "DECLARE "+qualifiedDecls+decl+" BEGIN NULL; END;")
 	}
@@ -59,6 +62,10 @@ func TestQualifiedExpressions(t *testing.T) {
 		"BEGIN FOR i, j MUTABLE IN PAIRS OF a LOOP NULL; END LOOP; END;",
 		"BEGIN FOR i MUTABLE IN VALUES OF v LOOP NULL; END LOOP; END;",
 		"BEGIN FOR i IN REVERSE VALUES OF v LOOP NULL; END LOOP; END;",
+		// Dynamic SQL in parentheses, with a typed iterand.
+		"BEGIN FOR r rt IN (EXECUTE IMMEDIATE s) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r rt IN (EXECUTE IMMEDIATE 'SELECT 1 x FROM dual' USING 1) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r rt IN VALUES OF (EXECUTE IMMEDIATE s USING IN 1, 2) LOOP NULL; END LOOP; END;",
 		// A qualified expression in a statement, a RETURN, a call, and a
 		// parameter's default.
 		"CREATE PROCEDURE p (x pkg.ai := pkg.ai(1 => 2)) IS BEGIN NULL; END;",
@@ -80,6 +87,9 @@ func TestQualifiedExpressions(t *testing.T) {
 		"DECLARE " + qualifiedDecls + "x nt := nt(1 => 1, FOR i IN 1..3 SEQUENCE => i); BEGIN NULL; END;",
 		"DECLARE " + qualifiedDecls + "x r := r(OTHERS => 0, a => 1); BEGIN NULL; END;",
 		"DECLARE " + qualifiedDecls + "x ai := ai(FOR i, j IN PAIRS OF a => j); BEGIN NULL; END;",
+		// OTHERS stands alone (PLS-00851, PLS-00750).
+		"DECLARE " + qualifiedDecls + "x r := r(a | OTHERS => 0); BEGIN NULL; END;",
+		"DECLARE " + qualifiedDecls + "x ai := ai(1 | OTHERS => 0); BEGIN NULL; END;",
 		// MUTABLE takes no INDICES OF iterand nor PAIRS OF index iterand
 		// (PLS-00861, PLS-00854); REVERSE no collection a query returns
 		// (PLS-00682); EXECUTE IMMEDIATE is no control (PLS-00103).
@@ -88,6 +98,10 @@ func TestQualifiedExpressions(t *testing.T) {
 		"BEGIN FOR i IN REVERSE VALUES OF (SELECT 1 FROM dual) LOOP NULL; END LOOP; END;",
 		"BEGIN FOR i, j IN REVERSE PAIRS OF (SELECT 1, 2 FROM dual) LOOP NULL; END LOOP; END;",
 		"BEGIN FOR q rt IN EXECUTE IMMEDIATE s LOOP NULL; END LOOP; END;",
+		// Dynamic SQL needs a typed iterand (PLS-00858) and takes no REVERSE
+		// (PLS-00682).
+		"BEGIN FOR i IN VALUES OF (EXECUTE IMMEDIATE s) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r rt IN REVERSE (EXECUTE IMMEDIATE s) LOOP NULL; END LOOP; END;",
 		// INDEX takes an expression, and not with SEQUENCE (PLS-00103).
 		"DECLARE " + qualifiedDecls + "x ai := ai(FOR i IN 1..3 SEQUENCE INDEX i => i); BEGIN NULL; END;",
 		"DECLARE " + qualifiedDecls + "x ai := ai(FOR i IN 1..3 INDEX => i); BEGIN NULL; END;",
@@ -161,8 +175,19 @@ func TestQualifiedExpressionTree(t *testing.T) {
 	}
 
 	loop := parseOne[*ast.PLSQLBlock](t, "BEGIN FOR i IN REVERSE 1..3 LOOP NULL; END LOOP; END;").Statements.Items[0].(*ast.PLSQLLoop)
-	if loop.Type != ast.LOOP_FOR || loop.Iterator != "I" || !loop.Reverse || loop.LowerBound == nil || loop.UpperBound == nil || loop.Iteration == nil {
+	if loop.Type != ast.LOOP_FOR || loop.Iterator != "I" || !loop.Reverse || loop.LowerBound == nil || loop.UpperBound == nil || loop.Iteration != nil {
 		t.Errorf("range loop = %+v", loop)
+	}
+	// Each node of a loop is walked once, whichever fields hold it.
+	calls := 0
+	ast.Inspect(parseOne[*ast.PLSQLBlock](t, "BEGIN FOR i IN f()..g() LOOP NULL; END LOOP; END;"), func(n ast.Node) bool {
+		if _, ok := n.(*ast.FuncCallExpr); ok {
+			calls++
+		}
+		return true
+	})
+	if calls != 2 {
+		t.Errorf("walk meets %d calls in FOR i IN f()..g(), want 2", calls)
 	}
 	loop = parseOne[*ast.PLSQLBlock](t, "BEGIN FOR r IN c2(1) LOOP NULL; END LOOP; END;").Statements.Items[0].(*ast.PLSQLLoop)
 	if loop.Type != ast.LOOP_CURSOR_FOR || loop.CursorName != "C2" || loop.CursorArgs.Len() != 1 {

@@ -515,6 +515,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *PLSQLIterationControl:
 		return v.Loc
+	case *DynamicSQLExpr:
+		return v.Loc
 	case *PLSQLForall:
 		return v.Loc
 	case *PLSQLReturn:

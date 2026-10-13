@@ -15,7 +15,8 @@ import (
 // Oracle 23ai checks from the text that a PAIRS OF control has two
 // iterands (PLS-00855), that two iterands have PAIRS OF controls alone
 // (PLS-00856), and that neither the iterand of INDICES OF nor the index
-// iterand of PAIRS OF is MUTABLE (PLS-00861, PLS-00854).
+// iterand of PAIRS OF is MUTABLE (PLS-00861, PLS-00854), and that dynamic
+// SQL has a typed iterand (PLS-00858).
 func (p *Parser) parseIterator() (*nodes.PLSQLIterator, error) {
 	it := &nodes.PLSQLIterator{
 		Iterands: &nodes.List{},
@@ -46,8 +47,13 @@ func (p *Parser) parseIterator() (*nodes.PLSQLIterator, error) {
 		if (ctl.Kind == "PAIRS OF") != pairs {
 			return nil, p.syntaxErrorAtNode(ctl)
 		}
-		if first := it.Iterands.Items[0].(*nodes.PLSQLIterand); first.Mutability == "MUTABLE" && (ctl.Kind == "INDICES OF" || ctl.Kind == "PAIRS OF") {
+		first := it.Iterands.Items[0].(*nodes.PLSQLIterand)
+		if first.Mutability == "MUTABLE" && (ctl.Kind == "INDICES OF" || ctl.Kind == "PAIRS OF") {
 			return nil, p.syntaxErrorAtNode(first)
+		}
+		// Dynamic SQL needs the iterand's type (PLS-00858).
+		if _, dynamic := ctl.Expr.(*nodes.DynamicSQLExpr); dynamic && first.DataType == nil {
+			return nil, p.syntaxErrorAtNode(ctl)
 		}
 		it.Controls.Items = append(it.Controls.Items, ctl)
 		if p.cur.Type != ',' {
@@ -113,7 +119,10 @@ func (p *Parser) parseIterationControl() (*nodes.PLSQLIterationControl, error) {
 		ctl.Kind = p.cur.Str + " OF"
 		p.advance() // consume VALUES, INDICES, or PAIRS
 		p.advance() // consume OF
-		ctl.Expr, err = p.parseRequiredExpr()
+		ctl.Expr, err = p.parseIterationSource()
+	case p.atDynamicSQLSource():
+		ctl.Kind = "EXPR"
+		ctl.Expr, err = p.parseDynamicSQLSource()
 	default:
 		var expr nodes.ExprNode
 		expr, err = p.parseRequiredExpr()
@@ -140,7 +149,8 @@ func (p *Parser) parseIterationControl() (*nodes.PLSQLIterationControl, error) {
 		return nil, err
 	}
 	_, query := ctl.Expr.(*nodes.SubqueryExpr)
-	if ctl.Reverse && (ctl.Kind == "EXPR" || ctl.Kind == "REPEAT" || query) {
+	_, dynamic := ctl.Expr.(*nodes.DynamicSQLExpr)
+	if ctl.Reverse && (ctl.Kind == "EXPR" || ctl.Kind == "REPEAT" || query || dynamic) {
 		return nil, p.syntaxErrorAtTok(Token{Type: kwREVERSE, Loc: ctl.Loc.Start, End: ctl.Loc.Start + len("REVERSE")})
 	}
 	if p.isKeywordStr("WHILE") {
@@ -159,6 +169,50 @@ func (p *Parser) parseIterationControl() (*nodes.PLSQLIterationControl, error) {
 	return ctl, nil
 }
 
+// parseIterationSource parses the collection of a VALUES OF, INDICES OF,
+// or PAIRS OF control: an expression, a query, or dynamic SQL.
+func (p *Parser) parseIterationSource() (nodes.ExprNode, error) {
+	if p.atDynamicSQLSource() {
+		return p.parseDynamicSQLSource()
+	}
+	return p.parseRequiredExpr()
+}
+
+// atDynamicSQLSource reports whether ( EXECUTE IMMEDIATE starts here.
+func (p *Parser) atDynamicSQLSource() bool {
+	return p.cur.Type == '(' && p.peekNext().Type == kwEXECUTE
+}
+
+// parseDynamicSQLSource parses the dynamic SQL of an iteration control
+// (Oracle 23ai iterates FOR r rec_t IN (EXECUTE IMMEDIATE s)).
+//
+//	( EXECUTE IMMEDIATE dynamic_sql_stmt [ USING bind_argument [, ...] ] )
+func (p *Parser) parseDynamicSQLSource() (nodes.ExprNode, error) {
+	dyn := &nodes.DynamicSQLExpr{Loc: nodes.Loc{Start: p.pos()}}
+	p.advance() // consume (
+	p.advance() // consume EXECUTE
+	if p.cur.Type != kwIMMEDIATE {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	var err error
+	if dyn.SQL, err = p.parseRequiredExpr(); err != nil {
+		return nil, err
+	}
+	if p.cur.Type == kwUSING {
+		p.advance()
+		if dyn.Using, dyn.UsingModes, err = p.parsePLSQLBindArgList(); err != nil {
+			return nil, err
+		}
+	}
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	dyn.Loc.End = p.prev.End
+	return dyn, nil
+}
+
 // parseRequiredExpr parses an expression that must be there.
 func (p *Parser) parseRequiredExpr() (nodes.ExprNode, error) {
 	expr, err := p.parseExpr()
@@ -175,6 +229,13 @@ func (p *Parser) parseRequiredExpr() (nodes.ExprNode, error) {
 // with an iterator choice or the OTHERS choice.
 func (p *Parser) atQualifiedChoice() bool {
 	return p.cur.Type == kwFOR || p.isKeywordStr("OTHERS") && p.peekNext().Type == tokASSOC
+}
+
+// isOthersChoice reports whether choice is the word OTHERS, unquoted.
+func (p *Parser) isOthersChoice(choice nodes.ExprNode) bool {
+	ref, ok := choice.(*nodes.ColumnRef)
+	return ok && ref.Schema == "" && ref.Table == "" && ref.Column == "OTHERS" &&
+		ref.Loc.Start >= 0 && ref.Loc.Start < len(p.source) && p.source[ref.Loc.Start] != '"'
 }
 
 // continuesQualifiedChoice reports whether the argument arg, just parsed,
@@ -224,6 +285,10 @@ func (p *Parser) parseChoiceAssoc(first nodes.ExprNode, firstStart int) (nodes.E
 					Upper: upper,
 					Loc:   nodes.Loc{Start: choiceStart, End: p.prev.End},
 				}
+			}
+			// OTHERS stands alone (PLS-00851, PLS-00750 for a | OTHERS).
+			if p.isOthersChoice(choice) {
+				return nil, p.syntaxErrorAtNode(choice)
 			}
 			assoc.Choices.Items = append(assoc.Choices.Items, choice)
 			if p.cur.Type != '|' {

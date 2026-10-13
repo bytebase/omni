@@ -2466,7 +2466,7 @@ type PLSQLLoop struct {
 	CursorName  string         // cursor name (for cursor FOR loop)
 	CursorArgs  *List          // cursor arguments
 	CursorQuery StmtNode       // query source for cursor FOR loop
-	Iteration   *PLSQLIterator // FOR iterands and iteration controls, every form
+	Iteration   *PLSQLIterator // FOR iterator the fields above cannot hold (Oracle 21c)
 	Statements  *List          // loop body
 	Loc         Loc            // start location
 }
@@ -2509,6 +2509,18 @@ type PLSQLIterationControl struct {
 }
 
 func (n *PLSQLIterationControl) nodeTag() {}
+
+// DynamicSQLExpr is the dynamic SQL an iteration control iterates over:
+// ( EXECUTE IMMEDIATE dynamic_sql_stmt [ USING bind_argument [, ...] ] ).
+type DynamicSQLExpr struct {
+	SQL        ExprNode // the statement text
+	Using      *List    // USING bind arguments
+	UsingModes []string // IN, OUT, IN OUT, or empty, parallel to Using
+	Loc        Loc
+}
+
+func (n *DynamicSQLExpr) nodeTag()  {}
+func (n *DynamicSQLExpr) exprNode() {}
 
 // PLSQLReturn represents a RETURN statement.
 type PLSQLReturn struct {

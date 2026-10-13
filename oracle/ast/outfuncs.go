@@ -561,6 +561,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writePLSQLIterand(sb, n)
 	case *PLSQLIterationControl:
 		writePLSQLIterationControl(sb, n)
+	case *DynamicSQLExpr:
+		writeDynamicSQLExpr(sb, n)
 	case *PLSQLReturn:
 		writePLSQLReturn(sb, n)
 	case *PLSQLGoto:
@@ -5198,6 +5200,20 @@ func writePLSQLIterand(sb *strings.Builder, n *PLSQLIterand) {
 	if n.DataType != nil {
 		sb.WriteString(" :dataType ")
 		writeNode(sb, n.DataType)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeDynamicSQLExpr(sb *strings.Builder, n *DynamicSQLExpr) {
+	sb.WriteString("{DYNAMICSQL")
+	if n.SQL != nil {
+		sb.WriteString(" :sql ")
+		writeNode(sb, n.SQL)
+	}
+	if n.Using != nil {
+		sb.WriteString(" :using ")
+		writeNode(sb, n.Using)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

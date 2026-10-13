@@ -1334,7 +1334,10 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 		p.advance()
 	}
 
-	if schema == "" && name == "TRIM" {
+	// A quoted "TRIM" names a type or function of the user's (Oracle 23ai
+	// compiles "TRIM"(1 => 2) for a local collection type "TRIM").
+	builtinTrim := schema == "" && name == "TRIM" && (start >= len(p.source) || p.source[start] != '"')
+	if builtinTrim {
 		if err := p.parseTrimFuncArgs(fc); err != nil {
 			return nil, err
 		}
@@ -1389,7 +1392,7 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 				return nil, p.syntaxErrorAtNode(arg)
 			}
 			sawNamed = sawNamed || arg != nil && !positional
-			if schema == "" && name == "TRIM" && p.cur.Type == kwFROM {
+			if builtinTrim && p.cur.Type == kwFROM {
 				if arg != nil {
 					fc.Args.Items = append(fc.Args.Items, arg)
 				}

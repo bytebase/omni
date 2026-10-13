@@ -860,6 +860,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *DynamicSQLExpr:
+		Walk(v, n.SQL)
+		walkList(v, n.Using)
 	case *ErrorLogClause:
 		if n.Into != nil {
 			Walk(v, n.Into)
