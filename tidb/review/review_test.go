@@ -344,10 +344,11 @@ func TestRequirePrimaryKey(t *testing.T) {
 		},
 		{
 			name: "not settled by IF NOT EXISTS or a temporary table of its name",
-			sql:  "CREATE TABLE a (id INT);\nCREATE TABLE IF NOT EXISTS a (id INT PRIMARY KEY);\nCREATE TABLE b (id INT);\nCREATE TEMPORARY TABLE b (id INT PRIMARY KEY);",
+			sql:  "CREATE TABLE a (id INT);\nCREATE TABLE IF NOT EXISTS a (id INT PRIMARY KEY);\nCREATE TABLE b (id INT);\nCREATE TEMPORARY TABLE b (id INT PRIMARY KEY);\nCREATE TABLE c (id INT);\nDROP TEMPORARY TABLE IF EXISTS c;",
 			want: []finding{
 				{0, "CREATE TABLE a (id INT)", "creates table a without a primary key", []int{0}},
 				{2, "CREATE TABLE b (id INT)", "creates table b without a primary key", []int{0}},
+				{4, "CREATE TABLE c (id INT)", "creates table c without a primary key", []int{0}},
 			},
 		},
 		{
