@@ -30,8 +30,10 @@ type droppedIndex struct {
 // one the change created, renamed, or dropped before is not judged, and
 // neither is one on a table the change creates, without IF NOT EXISTS, or
 // renames to, whose indexes are not the synced table's. A table named in
-// another case than the earlier statement wrote it is not judged: where
-// table names are case-sensitive, it is another table. What a routine,
+// another case, or with a database where the earlier statement named
+// none or another, than the earlier statement wrote it is not judged:
+// where table names are case-sensitive, or the database differs, it is
+// another table. What a routine,
 // trigger, or event body does runs only when it runs, so the body's own
 // drops are reported, but its statements touch no index the rest of the
 // change reads.
@@ -131,7 +133,9 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 					}
 					switch cmd.Type {
 					case ast.ATAddConstraint, ast.ATAddIndex:
-						if cmd.Constraint != nil {
+						// A check constraint makes no index; its name is
+						// another namespace's.
+						if cmd.Constraint != nil && cmd.Constraint.Type != ast.ConstrCheck {
 							touch(v.Table, cmd.Constraint.Name, cmd.Constraint.Type == ast.ConstrUnique)
 						}
 					case ast.ATRenameIndex:

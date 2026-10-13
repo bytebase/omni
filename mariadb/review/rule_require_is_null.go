@@ -85,6 +85,11 @@ func predicates(root ast.Node) []ast.Node {
 	}
 	ast.Inspect(root, func(n ast.Node) bool {
 		switch v := n.(type) {
+		case *ast.FuncCallExpr:
+			// IF(condition, a, b) tests its first argument.
+			if v.Schema == "" && strings.EqualFold(v.Name, "IF") && len(v.Args) == 3 {
+				add(v.Args[0])
+			}
 		case *ast.SelectStmt:
 			if v.Where != nil {
 				add(v.Where)
