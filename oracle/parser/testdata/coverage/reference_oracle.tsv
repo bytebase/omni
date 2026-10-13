@@ -201,3 +201,8 @@ ref_274	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_ccp_{run} $IF TRUE $T
 ref_281	plsql	accept	BEGIN $IF 1 + 1 = 3 $THEN garbage garbage; $ELSE NULL; $END END;	arithmetic folded in a static condition
 ref_282	plsql	reject	BEGIN $IF ABS(1) $THEN NULL; $END END;	numeric function as a condition (PLS-00382)
 ref_283	plsql	reject	BEGIN $IF TRUE $THEN :n := 1; $END END;	bind variable inside a directive (PLS-00110)
+ref_290	plsql	accept	BEGIN $IF 1 / 3 * 3 = 1 $THEN garbage garbage; $ELSE NULL; $END END;	NUMBER rounding in a static comparison
+ref_291	plsql	accept	BEGIN $IF TRUE = FALSE OR ROUND(1.24, 1) = 1.3 $THEN garbage garbage; $ELSE NULL; $END END;	Boolean comparison and ROUND to a scale folded
+ref_292	plsql	reject	BEGIN $IF debug $THEN NULL; $END END;	unqualified name in a static condition (PLS-00201)
+ref_293	plsql	reject	DECLARE PROCEDURE p(a NUMBER) IS BEGIN NULL; END; BEGIN p($$PLSQL_LINE => 1); END;	inquiry directive as a parameter name (PLS-00306)
+ref_294	plsql	reject	DECLARE x NUMBER; BEGIN SELECT 1 INTO $$PLSQL_LINE FROM dual; END;	inquiry directive as an INTO target (ORA-32551)

@@ -1482,8 +1482,10 @@ func (p *Parser) isTrimModeArg(arg nodes.ExprNode) bool {
 }
 
 func (p *Parser) parseNamedArgExpr(arg nodes.ExprNode) (nodes.ExprNode, error) {
+	// An inquiry directive is a literal, no parameter name ($$PLSQL_LINE
+	// => 1 is PLS-00306 on Oracle 23ai).
 	ref, ok := arg.(*nodes.ColumnRef)
-	if !ok || ref.Schema != "" || ref.Table != "" || ref.Column == "" {
+	if !ok || ref.Schema != "" || ref.Table != "" || ref.Column == "" || p.isInquiryRef(ref) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	start := ref.Loc.Start

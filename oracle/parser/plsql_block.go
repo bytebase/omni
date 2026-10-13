@@ -1390,7 +1390,22 @@ func (p *Parser) parsePLSQLVarList() (*nodes.List, error) {
 		p.advance() // consume ,
 	}
 
-	return list, nil
+	return list, p.checkTargets(list)
+}
+
+// checkTargets rejects an inquiry directive among targets, the variables
+// an INTO clause assigns: Oracle 23ai replaces one with a literal, which
+// no INTO assigns (PLS-00103, ORA-32551, PLS-00308).
+func (p *Parser) checkTargets(targets *nodes.List) error {
+	if targets == nil {
+		return nil
+	}
+	for _, item := range targets.Items {
+		if expr, ok := item.(nodes.ExprNode); ok && p.isInquiryRef(expr) {
+			return p.syntaxErrorAtNode(expr)
+		}
+	}
+	return nil
 }
 
 // parsePLSQLBindArgList parses the bind arguments of a USING clause, each
@@ -1423,6 +1438,11 @@ func (p *Parser) parsePLSQLBindArgList() (*nodes.List, []string, error) {
 		}
 		if expr == nil {
 			return nil, nil, p.syntaxErrorAtCur()
+		}
+		// An OUT bind assigns its argument, which an inquiry directive's
+		// literal is not (PLS-00103 on Oracle 23ai).
+		if mode != "" && mode != "IN" && p.isInquiryRef(expr) {
+			return nil, nil, p.syntaxErrorAtNode(expr)
 		}
 		list.Items = append(list.Items, expr)
 		modes = append(modes, mode)

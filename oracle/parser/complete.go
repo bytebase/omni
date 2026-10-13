@@ -3,6 +3,8 @@ package parser
 import (
 	"sort"
 	"strings"
+
+	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
 // Exported token aliases used by completion callers and tests.
@@ -116,6 +118,119 @@ func Tokenize(sql string) []Token {
 	return tokens
 }
 
+// completionTokens returns the tokens completion at caret reads: the code
+// with each conditional compilation directive resolved, so that candidates
+// and scope come from one variant of it. Of each $IF it keeps the branch
+// that holds the caret, and otherwise the branch the preprocessor selects,
+// the first whose condition the text does not settle; an $ERROR goes.
+func completionTokens(sql string, caret int) []Token {
+	r := &ccResolver{sql: sql, toks: Tokenize(sql), caret: caret}
+	for r.pos < len(r.toks) {
+		r.code(true)
+		r.pos++ // a stray $THEN, $ELSIF, $ELSE, or $END
+	}
+	return r.out
+}
+
+// ccResolver resolves the directives of raw tokens for completionTokens.
+type ccResolver struct {
+	sql   string
+	toks  []Token
+	pos   int
+	caret int
+	out   []Token
+}
+
+// ccBranch is a branch of an $IF: its condition, unset for $ELSE, and its
+// body, the tokens toks[body:end] at bytes from to to.
+type ccBranch struct {
+	cond      nodes.Loc
+	hasCond   bool
+	body, end int
+	from, to  int
+}
+
+// code reads code up to the $THEN, $ELSIF, $ELSE, or $END that ends it,
+// emitting its tokens when emit is set.
+func (r *ccResolver) code(emit bool) {
+	for r.pos < len(r.toks) {
+		tok := r.toks[r.pos]
+		if tok.Type != tokDIRECTIVE {
+			if emit {
+				r.out = append(r.out, tok)
+			}
+			r.pos++
+			continue
+		}
+		switch tok.Str {
+		case "$IF":
+			r.pos++
+			r.ifGroup(emit)
+		case "$ERROR":
+			for r.pos++; r.pos < len(r.toks) && !(r.toks[r.pos].Type == tokDIRECTIVE && r.toks[r.pos].Str == "$END"); r.pos++ {
+			}
+			r.pos++
+		default:
+			return
+		}
+	}
+}
+
+// ifGroup reads an $IF after its $IF token, through its $END, emitting the
+// branch it keeps when emit is set.
+func (r *ccResolver) ifGroup(emit bool) {
+	var branches []ccBranch
+	for directive := "$IF"; directive == "$IF" || directive == "$ELSIF" || directive == "$ELSE"; {
+		b := ccBranch{cond: nodes.Loc{Start: -1, End: -1}, hasCond: directive != "$ELSE"}
+		if b.hasCond {
+			start := r.pos
+			for r.pos < len(r.toks) && r.toks[r.pos].Type != tokDIRECTIVE {
+				r.pos++
+			}
+			if r.pos > start {
+				b.cond = nodes.Loc{Start: r.toks[start].Loc, End: r.toks[r.pos-1].End}
+			}
+			if r.pos == len(r.toks) || r.toks[r.pos].Str != "$THEN" {
+				// A condition the caret is in, or a malformed one.
+				return
+			}
+			r.pos++ // consume $THEN
+		}
+		b.body, b.from = r.pos, r.toks[r.pos-1].End
+		r.code(false)
+		b.end, b.to, directive = r.pos, len(r.sql), ""
+		if r.pos < len(r.toks) {
+			b.to, directive = r.toks[r.pos].Loc, r.toks[r.pos].Str
+			r.pos++
+		}
+		branches = append(branches, b)
+	}
+	after := r.pos
+	if i := r.choose(branches); emit && i >= 0 {
+		r.pos = branches[i].body
+		r.code(true)
+	}
+	r.pos = after
+}
+
+// choose returns the index of the branch to keep, or -1 for none.
+func (r *ccResolver) choose(branches []ccBranch) int {
+	for i, b := range branches {
+		if b.from <= r.caret && r.caret <= b.to {
+			return i
+		}
+	}
+	for i, b := range branches {
+		if !b.hasCond || b.cond.Start < 0 {
+			return i
+		}
+		if value, ok := staticCondition(r.sql, b.cond); !ok || value != ccFalse {
+			return i
+		}
+	}
+	return -1
+}
+
 // RuleCandidate represents a grammar rule candidate at the completion cursor.
 type RuleCandidate struct {
 	Rule string
@@ -183,7 +298,7 @@ func Collect(sql string, cursorOffset int) *CandidateSet {
 
 	prefix := completionPrefix(sql, cursorOffset)
 	collectOffset := cursorOffset - len(prefix)
-	cs, _ := collectOracleCandidates(sql, Tokenize(sql), collectOffset, prefix)
+	cs, _ := collectOracleCandidates(sql, completionTokens(sql, cursorOffset), collectOffset, prefix)
 	return cs
 }
 

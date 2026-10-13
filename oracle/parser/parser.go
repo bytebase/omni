@@ -90,11 +90,13 @@ func (p *Parser) checkConditionalCompilation(stmt nodes.StmtNode, start, first, 
 	}
 	p.ccAfterUnit = unit
 	// An anonymous block takes no bind variable inside a directive
-	// (PLS-00110), in a selected branch or not.
+	// (PLS-00110), in a selected branch or not; one before stmt's first
+	// token is in the text of the statement before it.
+	afterBlock := p.ccAfterBlock
 	_, block := stmt.(*nodes.PLSQLBlock)
 	p.ccAfterBlock = block
 	for ; p.ccBind < len(cc.binds) && cc.binds[p.ccBind] < end; p.ccBind++ {
-		if loc := cc.binds[p.ccBind]; block && loc >= start {
+		if loc := cc.binds[p.ccBind]; loc < first && afterBlock || loc >= first && block {
 			return p.syntaxErrorAtTok(NewLexerRange(p.source, loc, len(p.source)).nextRaw())
 		}
 	}

@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -72,9 +73,30 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF LENGTH('ab') = 2 AND UPPER('a') IS NULL AND ABS($$x) = 1 $THEN NULL; $END END;",
 		"BEGIN $IF LENGTH('a') = 2 $THEN garbage garbage; $ELSE NULL; $END END;",
 		// Static comparisons of numbers or Booleans, IS NULL of anything.
-		"BEGIN $IF TRUE = TRUE AND $$x IS NOT NULL AND 1 IS NULL $THEN NULL; $END END;",
+		"BEGIN $IF TRUE = TRUE AND $$x IS NOT NULL AND 1 IS NULL $THEN garbage garbage; $ELSE NULL; $END END;",
 		"BEGIN $IF LENGTH(1) = 1 AND LENGTH(UPPER('a')) = 1 AND CHR(65) || 'b' IS NULL $THEN NULL; $END END;",
-		"BEGIN $IF NVL(1, 2) = NVL(3, 4) AND $$x = 1 + $$y AND NULL = 1 AND NOT NULL $THEN NULL; $END END;",
+		"BEGIN $IF NVL(1, 2) = NVL(3, 4) AND $$x = 1 + $$y AND NULL = 1 AND NOT NULL $THEN garbage garbage; $ELSE NULL; $END END;",
+		// Booleans compare, FALSE below TRUE, and a comparison with NULL is
+		// NULL.
+		"BEGIN $IF TRUE = FALSE $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF TRUE > FALSE AND (1 = 2) = (2 = 3) AND TRUE >= TRUE $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF NULL = TRUE OR NOT (NULL = 1) OR TRUE < FALSE $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF ROUND(1.25, NULL) IS NULL AND 1 IS NOT NULL AND LENGTH('') IS NULL $THEN NULL; $ELSE garbage garbage; $END END;",
+		// NUMBER holds 20 base-100 digits, rounded half away from zero, and
+		// a literal rounds as a result does.
+		"BEGIN $IF 1 / 3 * 3 = 1 $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF 2 / 3 * 3 = 2 AND 1 / 3 = 0.3333333333333333333333333333333333333333 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF 1 / 3 = 0.333333333333333333333333333333333333333 $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF 10 / 3 = 3.333333333333333333333333333333333333333 AND 1.00000000000000000000000000000000000000001 = 1 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF 99999999999999999999999999999999999999995 = 1e41 AND 1e-130 / 10 = 0 $THEN NULL; $ELSE garbage garbage; $END END;",
+		// ROUND and TRUNC to a scale, which rounds to a whole number.
+		"BEGIN $IF ROUND(1.24, 1) = 1.3 $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF ROUND(1.25, 1) = 1.3 AND ROUND(-1.25, 1) = -1.3 AND ROUND(125, -1) = 130 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF TRUNC(-1.29, 1) = -1.2 AND TRUNC(129, -1) = 120 AND ROUND(1.25, 1.5) = 1.25 AND TRUNC(1.29, 1.6) = 1.29 $THEN NULL; $ELSE garbage garbage; $END END;",
+		// A constant is a package's, named through it.
+		"BEGIN $IF pkg.b AND system.pkg.b AND \"PKG\".\"B\" $THEN NULL; $END END;",
+		// An inquiry directive is a value an IN bind or argument takes.
+		"BEGIN p(a => $$PLSQL_LINE); EXECUTE IMMEDIATE 'BEGIN NULL; END;' USING IN $$PLSQL_LINE; END;",
 		// A quoted column named $$X is no inquiry directive.
 		`DECLARE x NUMBER; BEGIN SELECT 1 INTO x FROM dual t WHERE t."$$X"(+) = 1; END;`,
 		// A label before the block's BEGIN does not count as its first token.
@@ -144,8 +166,16 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF CASE WHEN 1 = 1 THEN 1 END = 1 $THEN NULL; $END END;",
 		"BEGIN $IF CAST(1 AS NUMBER) = 1 $THEN NULL; $END END;",
 		// A bind variable after the block's END is the block's too
-		// (PLS-00110).
+		// (PLS-00110), when another statement follows.
 		"BEGIN NULL; END; $IF :x $THEN $END",
+		"BEGIN NULL; END; $IF :x $THEN $END SELECT 1 FROM dual;",
+		// A constant is a package's, named through it (PLS-00201), in the
+		// package's own body too.
+		"BEGIN $IF debug $THEN NULL; $END END;",
+		`BEGIN $IF "DEBUG" $THEN NULL; $END END;`,
+		"BEGIN $IF TRUE AND debug $THEN NULL; $END END;",
+		"BEGIN $IF debug = 1 $THEN NULL; $END END;",
+		"CREATE OR REPLACE PACKAGE BODY pkg AS $IF b $THEN x NUMBER; $END END;",
 		// A trigger named COMPOUND does not start its body.
 		"CREATE TRIGGER compound FOR INSERT ON t $IF TRUE $THEN COMPOUND TRIGGER $END BEFORE STATEMENT IS BEGIN NULL; END BEFORE STATEMENT; END;",
 		// The static grammar: no IN, BETWEEN, LIKE, or EXISTS (PLS-00174,
@@ -184,8 +214,18 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF TRUE $THEN :n := 1; $END END;",
 		"BEGIN $IF FALSE $THEN :n := 1; $ELSE NULL; $END END;",
 		"BEGIN $IF :x $THEN NULL; $END END;",
-		// An inquiry directive is a literal, not a name (PLS-00103).
+		// An inquiry directive is a literal, not a name (PLS-00103): no
+		// parameter name (PLS-00306), INTO target (PLS-00103, ORA-32551,
+		// PLS-00308), or OUT bind.
 		"DECLARE $$PLSQL_LINE NUMBER; BEGIN NULL; END;",
+		"BEGIN p($$PLSQL_LINE => 1); END;",
+		"DECLARE x NUMBER; BEGIN SELECT 1 INTO $$PLSQL_LINE FROM dual; END;",
+		"DECLARE x NUMBER; BEGIN SELECT 1 INTO x, $$X FROM dual; END;",
+		"BEGIN EXECUTE IMMEDIATE 'SELECT 1 FROM dual' INTO $$PLSQL_LINE; END;",
+		"DECLARE c SYS_REFCURSOR; BEGIN FETCH c INTO $$PLSQL_LINE; END;",
+		"BEGIN UPDATE t SET a = 1 RETURNING a INTO $$PLSQL_LINE; END;",
+		"BEGIN EXECUTE IMMEDIATE 'BEGIN NULL; END;' USING OUT $$X; END;",
+		"BEGIN EXECUTE IMMEDIATE 'BEGIN NULL; END;' USING IN OUT $$X; END;",
 		"BEGIN $$x := 1; END;",
 		"DECLARE x NUMBER; BEGIN x := $$PLSQL_LINE.y; END;",
 		"BEGIN $$plsql_unit(1); END;",
@@ -310,12 +350,46 @@ SELECT 1 FROM dual;
 		t.Fatalf("Split = %q", got)
 	}
 
-	// Completion sees every branch.
+	// Nor a stray $ERROR.
+	got = splitTexts(Split("SELECT 1 FROM dual; $ERROR 'x'; SELECT 2 FROM dual; $END SELECT 3 FROM dual;"))
+	if len(got) != 4 || strings.TrimSpace(got[2]) != "SELECT 2 FROM dual" || !strings.HasSuffix(got[3], "SELECT 3 FROM dual") {
+		t.Fatalf("Split = %q", got)
+	}
+
+	// Tokenize keeps every branch.
 	found := false
 	for _, tok := range Tokenize("BEGIN $IF $$debug $THEN NULL; $ELSE SELECT * FROM emp; $END END;") {
 		found = found || tok.Str == "EMP"
 	}
 	if !found {
 		t.Errorf("Tokenize drops the $ELSE branch")
+	}
+}
+
+// TestConditionalCompilationCompletion checks that completion reads one
+// variant of the code: the branch that holds the caret, and elsewhere the
+// branch the preprocessor selects.
+func TestConditionalCompilationCompletion(t *testing.T) {
+	refs := func(sql string, caret int) []string {
+		var names []string
+		for _, ref := range CollectCompletion(sql, caret).Scope.LocalReferences {
+			names = append(names, ref.Name+" "+ref.Alias)
+		}
+		return names
+	}
+	for _, tc := range []struct {
+		before, after string
+		want          []string
+	}{
+		{"BEGIN SELECT * INTO x FROM $IF $$x $THEN emp $ELSE dept d WHERE d.", " $END; END;", []string{"DEPT D"}},
+		{"BEGIN SELECT * INTO x FROM $IF $$x $THEN emp e WHERE e.", " $ELSE dept d $END; END;", []string{"EMP E"}},
+		{"BEGIN SELECT * INTO x FROM $IF FALSE $THEN emp $ELSE dept $END d WHERE d.", "; END;", []string{"DEPT D"}},
+		{"BEGIN SELECT * INTO x FROM $IF $$x $THEN emp $ELSE dept $END d WHERE d.", "; END;", []string{"EMP D"}},
+		{"BEGIN SELECT * INTO x FROM $IF $$x $THEN emp $ELSIF $$y $THEN dept d WHERE d.", "", []string{"DEPT D"}},
+	} {
+		sql := tc.before + tc.after
+		if got := refs(sql, len(tc.before)); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("CollectCompletion(%q) scope = %q, want %q", sql, got, tc.want)
+		}
 	}
 }

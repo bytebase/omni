@@ -74,7 +74,8 @@ type Lexer struct {
 
 	// ccSplit is set on Split's lexer, where a directive is stray only in
 	// malformed input: Split drops it and lexes the code after it, an
-	// $ELSIF or $ELSE branch too, to keep every statement boundary.
+	// $ELSIF or $ELSE branch or an $ERROR message too, to keep every
+	// statement boundary.
 	ccSplit bool
 
 	// ccSkipEnd is where the last directive construct NextToken skipped
@@ -204,6 +205,9 @@ func (l *Lexer) NextToken() Token {
 			}
 			l.closeLevel()
 		case "$ERROR":
+			if l.ccDepth == 0 && l.ccSplit {
+				continue
+			}
 			if l.ccGuess == 0 && !l.ccLenient {
 				return l.failDirective(tok, "$ERROR directive in a branch that is always selected")
 			}

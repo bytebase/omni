@@ -2,6 +2,7 @@ package parser
 
 import (
 	"math/big"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -11,9 +12,10 @@ import (
 // staticCondition evaluates the conditional compilation condition at
 // source[loc.Start:loc.End] as far as the text settles it. Oracle 23ai
 // folds the Boolean operators over TRUE, FALSE, and NULL, short-circuiting
-// past what it cannot settle (TRUE OR $$x is TRUE), and compares numeric
-// literals and arithmetic over them in decimal (0.1 + 0.2 = 0.3); inquiry
-// directives and package constants have values the text does not hold.
+// past what it cannot settle (TRUE OR $$x is TRUE), compares numbers as
+// its NUMBER holds them (0.1 + 0.2 = 0.3) and Booleans (FALSE < TRUE), and
+// finds a comparison with NULL NULL; inquiry directives and package
+// constants have values the text does not hold.
 //
 // It reports false for a condition that is no static Boolean expression,
 // which the parser rejects and Split lexes past.
@@ -88,11 +90,26 @@ func staticTruthOf(source string, expr nodes.ExprNode) staticTruth {
 			}
 			return truthFalse
 		}
-	case *nodes.BinaryExpr:
-		left, lok := staticNumber(e.Left)
-		right, rok := staticNumber(e.Right)
-		if !lok || !rok {
+	case *nodes.IsExpr:
+		if e.Test != "NULL" {
 			return truthUnknown
+		}
+		_, null, ok := staticComparable(source, e.Expr)
+		switch {
+		case !ok:
+			return truthUnknown
+		case null != e.Not:
+			return truthTrue
+		}
+		return truthFalse
+	case *nodes.BinaryExpr:
+		left, lnull, lok := staticComparable(source, e.Left)
+		right, rnull, rok := staticComparable(source, e.Right)
+		switch {
+		case !isComparison(e.Op) || !lok || !rok:
+			return truthUnknown
+		case lnull || rnull:
+			return truthNull
 		}
 		var holds bool
 		switch cmp := left.Cmp(right); e.Op {
@@ -117,6 +134,33 @@ func staticTruthOf(source string, expr nodes.ExprNode) staticTruth {
 		return truthFalse
 	}
 	return truthUnknown
+}
+
+// isComparison reports whether op compares its operands.
+func isComparison(op string) bool {
+	switch op {
+	case "=", "!=", "<>", "~=", "^=", "<", ">", "<=", ">=":
+		return true
+	}
+	return false
+}
+
+// staticComparable returns the value of a static number or Boolean that
+// a comparison or IS NULL tests, a Boolean as 0 for FALSE and 1 for TRUE;
+// null when it is NULL; and false when the text does not settle it.
+func staticComparable(source string, expr nodes.ExprNode) (value *big.Rat, null bool, ok bool) {
+	if v, ok := staticNumber(expr); ok {
+		return v, v == nil, true
+	}
+	switch staticTruthOf(source, expr) {
+	case truthTrue:
+		return big.NewRat(1, 1), false, true
+	case truthFalse:
+		return new(big.Rat), false, true
+	case truthNull:
+		return nil, true, true
+	}
+	return nil, false, false
 }
 
 // staticBoolExpr evaluates NOT, AND, and OR in three-valued logic.
@@ -157,67 +201,69 @@ func staticBoolExpr(source string, e *nodes.BoolExpr) staticTruth {
 	return result
 }
 
-// staticNumber returns the value of a numeric literal, possibly signed, or
-// of arithmetic over them (Oracle 23ai selects the $ELSE of $IF 1 + 1 = 3).
-// Values are exact decimals, as Oracle's NUMBER holds them; a quotient
-// that no decimal holds exactly (1 / 3) is left unknown, since NUMBER
-// rounds it (Oracle 23ai finds 1 / 3 * 3 = 1 FALSE).
+// staticNumber returns the value of a static numeric expression, nil for
+// NULL, or false when the text does not settle it: a numeric literal,
+// arithmetic over values it settles (Oracle 23ai selects the $ELSE of
+// $IF 1 + 1 = 3), or a static numeric function (staticNumericCall). Each
+// value is rounded as Oracle's NUMBER holds it (oracleNumber).
 func staticNumber(expr nodes.ExprNode) (*big.Rat, bool) {
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
 		return staticNumber(e.Expr)
+	case *nodes.NullLiteral:
+		return nil, true
 	case *nodes.NumberLiteral:
-		return new(big.Rat).SetString(e.Val)
+		return staticLiteral(e.Val)
 	case *nodes.UnaryExpr:
 		v, ok := staticNumber(e.Operand)
 		switch {
-		case !ok:
+		case !ok || e.Op != "-" && e.Op != "+":
 			return nil, false
-		case e.Op == "-":
-			return v.Neg(v), true
-		case e.Op == "+":
+		case v == nil || e.Op == "+":
 			return v, true
 		}
+		return v.Neg(v), true
 	case *nodes.FuncCallExpr:
 		return staticNumericCall(e)
 	case *nodes.BinaryExpr:
+		switch e.Op {
+		case "+", "-", "*", "/", "**":
+		default:
+			return nil, false
+		}
 		left, lok := staticNumber(e.Left)
 		right, rok := staticNumber(e.Right)
-		if !lok || !rok {
+		switch {
+		case !lok || !rok:
 			return nil, false
+		case left == nil || right == nil:
+			return nil, true
 		}
 		switch e.Op {
 		case "+":
-			return left.Add(left, right), true
+			return oracleNumber(left.Add(left, right))
 		case "-":
-			return left.Sub(left, right), true
+			return oracleNumber(left.Sub(left, right))
 		case "*":
-			return left.Mul(left, right), true
+			return oracleNumber(left.Mul(left, right))
 		case "/":
 			if right.Sign() == 0 {
 				return nil, false
 			}
-			q := left.Quo(left, right)
-			return q, terminatingDecimal(q)
-		case "**":
-			// A small whole power, exact.
-			if !right.IsInt() || right.Sign() < 0 || right.Num().Cmp(big.NewInt(64)) > 0 {
-				return nil, false
-			}
-			result := big.NewRat(1, 1)
-			for i := right.Num().Int64(); i > 0; i-- {
-				result.Mul(result, left)
-			}
-			return result, true
+			return oracleNumber(left.Quo(left, right))
 		}
+		return staticPower(left, right)
 	}
 	return nil, false
 }
 
-// staticNumericCall folds the static numeric functions whose exact value
-// the text settles: ABS, SIGN, CEIL, FLOOR, TRUNC and ROUND of one
-// argument, MOD (Oracle's, with the dividend's sign), and POWER to a whole
-// exponent (Oracle 23ai selects the $ELSE of $IF ABS(-1) = 2).
+// staticNumericCall folds the static numeric functions whose value the
+// text settles: ABS, SIGN, CEIL, FLOOR, TRUNC and ROUND (to a scale, which
+// rounds to a whole number: Oracle 23ai finds ROUND(1.25, 1.5) = 1.25),
+// MOD (Oracle's, with the dividend's sign), POWER to a whole exponent,
+// LENGTH and LENGTHC of a string literal, and NVL of numbers. A NULL
+// argument makes each NULL (Oracle 23ai selects the $ELSE of
+// $IF ABS(-1) = 2).
 func staticNumericCall(call *nodes.FuncCallExpr) (*big.Rat, bool) {
 	if call.FuncName == nil || call.Args == nil {
 		return nil, false
@@ -227,46 +273,161 @@ func staticNumericCall(call *nodes.FuncCallExpr) (*big.Rat, bool) {
 	default:
 		return nil, false
 	}
-	// LENGTH and LENGTHC of a string literal count its characters.
-	if name := call.FuncName.Name; (name == "LENGTH" || name == "LENGTHC") && call.Args.Len() == 1 {
-		if lit, ok := call.Args.Items[0].(*nodes.StringLiteral); ok && lit.Val != "" {
+	name := call.FuncName.Name
+	// LENGTH and LENGTHC of a string literal count its characters; '' is
+	// NULL.
+	if (name == "LENGTH" || name == "LENGTHC") && call.Args.Len() == 1 {
+		if lit, ok := call.Args.Items[0].(*nodes.StringLiteral); ok {
+			if lit.Val == "" {
+				return nil, true
+			}
 			return big.NewRat(int64(utf8.RuneCountInString(lit.Val)), 1), true
 		}
 	}
+	if name == "NVL" && call.Args.Len() == 2 {
+		v, ok := staticNumber(call.Args.Items[0].(nodes.ExprNode))
+		if !ok || v != nil {
+			return v, ok
+		}
+		return staticNumber(call.Args.Items[1].(nodes.ExprNode))
+	}
 	var args []*big.Rat
+	null := false
 	for _, item := range call.Args.Items {
 		v, ok := staticNumber(item.(nodes.ExprNode))
 		if !ok {
 			return nil, false
 		}
+		null = null || v == nil
 		args = append(args, v)
 	}
 	one := len(args) == 1
-	switch name := call.FuncName.Name; {
-	case name == "ABS" && one:
+	switch {
+	case name == "ABS" && one, name == "SIGN" && one, name == "CEIL" && one, name == "FLOOR" && one,
+		name == "TRUNC" && len(args) <= 2, name == "ROUND" && len(args) <= 2,
+		name == "MOD" && len(args) == 2, name == "POWER" && len(args) == 2:
+		if null {
+			return nil, true
+		}
+	default:
+		return nil, false
+	}
+	switch name {
+	case "ABS":
 		return args[0].Abs(args[0]), true
-	case name == "SIGN" && one:
+	case "SIGN":
 		return big.NewRat(int64(args[0].Sign()), 1), true
-	case name == "CEIL" && one, name == "FLOOR" && one, name == "TRUNC" && one, name == "ROUND" && one:
-		return roundRat(args[0], name), true
-	case name == "MOD" && len(args) == 2:
+	case "CEIL", "FLOOR":
+		return oracleNumber(roundRat(args[0], name))
+	case "TRUNC", "ROUND":
+		if one {
+			return oracleNumber(roundRat(args[0], name))
+		}
+		scale := roundRat(args[1], "ROUND")
+		switch {
+		case scale.Cmp(big.NewRat(200, 1)) > 0:
+			// Finer than any NUMBER.
+			return args[0], true
+		case scale.Cmp(big.NewRat(-200, 1)) < 0:
+			// Coarser than any NUMBER.
+			return new(big.Rat), true
+		}
+		unit := pow10(int(scale.Num().Int64()))
+		v := roundRat(new(big.Rat).Mul(args[0], unit), name)
+		return oracleNumber(v.Quo(v, unit))
+	case "MOD":
 		if args[1].Sign() == 0 {
 			return args[0], true
 		}
 		q := roundRat(new(big.Rat).Quo(args[0], args[1]), "TRUNC")
-		return args[0].Sub(args[0], q.Mul(q, args[1])), true
-	case name == "POWER" && len(args) == 2:
-		exp := args[1]
-		if !exp.IsInt() || exp.Sign() < 0 || exp.Num().Cmp(big.NewInt(64)) > 0 {
+		return oracleNumber(args[0].Sub(args[0], q.Mul(q, args[1])))
+	}
+	return staticPower(args[0], args[1])
+}
+
+// staticPower raises base to a whole exponent of at most 64, when NUMBER
+// holds the exact power; past that, Oracle's rounding of the steps is not
+// the text's to settle.
+func staticPower(base, exp *big.Rat) (*big.Rat, bool) {
+	if !exp.IsInt() || exp.Sign() < 0 || exp.Num().Cmp(big.NewInt(64)) > 0 {
+		return nil, false
+	}
+	result := big.NewRat(1, 1)
+	for i := exp.Num().Int64(); i > 0; i-- {
+		result.Mul(result, base)
+	}
+	if rounded, ok := oracleNumber(new(big.Rat).Set(result)); !ok || rounded.Cmp(result) != 0 {
+		return nil, false
+	}
+	return result, true
+}
+
+// staticLiteral returns the value of a numeric literal as NUMBER holds it,
+// or false for a binary floating-point literal (1.5f) or one too long or
+// far out of range to build exactly.
+func staticLiteral(val string) (*big.Rat, bool) {
+	if len(val) > 1000 {
+		return nil, false
+	}
+	if i := strings.IndexAny(val, "eE"); i >= 0 {
+		exp, err := strconv.Atoi(val[i+1:])
+		if err != nil || exp > 1000 || exp < -1000 {
 			return nil, false
 		}
-		result := big.NewRat(1, 1)
-		for i := exp.Num().Int64(); i > 0; i-- {
-			result.Mul(result, args[0])
-		}
-		return result, true
 	}
-	return nil, false
+	r, ok := new(big.Rat).SetString(val)
+	if !ok {
+		return nil, false
+	}
+	return oracleNumber(r)
+}
+
+// oracleNumber rounds r as Oracle's NUMBER holds a value: to 20 base-100
+// digits, half away from zero, and to zero below 1e-130. Oracle 23ai finds
+// 1 / 3 = 0.3333333333333333333333333333333333333333 (40 digits), 1 / 3 *
+// 3 = 1 FALSE, and 2 / 3 * 3 = 2 TRUE; a literal rounds the same way. It
+// reports false from 1e126 on, past NUMBER's range.
+func oracleNumber(r *big.Rat) (*big.Rat, bool) {
+	if r.Sign() == 0 {
+		return r, true
+	}
+	abs := new(big.Rat).Abs(r)
+	if abs.Cmp(pow10(-130)) < 0 {
+		return new(big.Rat), true
+	}
+	if abs.Cmp(pow10(126)) >= 0 {
+		return nil, false
+	}
+	// 10^e <= abs < 10^(e+1); the leading base-100 digit is 100^floor(e/2).
+	e := len(abs.Num().String()) - len(abs.Denom().String())
+	for abs.Cmp(pow10(e)) < 0 {
+		e--
+	}
+	for abs.Cmp(pow10(e+1)) >= 0 {
+		e++
+	}
+	lead := e / 2
+	if e < 0 && e%2 != 0 {
+		lead--
+	}
+	unit := pow10(2*lead - 38)
+	n := roundRat(abs.Quo(abs, unit), "ROUND")
+	n.Mul(n, unit)
+	if n.Cmp(pow10(126)) >= 0 {
+		return nil, false
+	}
+	if r.Sign() < 0 {
+		n.Neg(n)
+	}
+	return n, true
+}
+
+// pow10 returns 10^e.
+func pow10(e int) *big.Rat {
+	if e < 0 {
+		return new(big.Rat).Inv(pow10(-e))
+	}
+	return new(big.Rat).SetInt(new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(e)), nil))
 }
 
 // roundRat rounds r to a whole number the way CEIL, FLOOR, TRUNC, or ROUND
@@ -292,23 +453,6 @@ func roundRat(r *big.Rat, mode string) *big.Rat {
 		}
 	}
 	return new(big.Rat).SetInt(q)
-}
-
-// terminatingDecimal reports whether a decimal holds r exactly: its reduced
-// denominator has no prime factor but 2 and 5.
-func terminatingDecimal(r *big.Rat) bool {
-	d := new(big.Int).Set(r.Denom())
-	for _, f := range []int64{2, 5} {
-		factor, rem := big.NewInt(f), new(big.Int)
-		for {
-			q, m := new(big.Int).QuoRem(d, factor, rem)
-			if m.Sign() != 0 {
-				break
-			}
-			d = q
-		}
-	}
-	return d.Cmp(big.NewInt(1)) == 0
 }
 
 // isStaticBooleanFunction reports whether call is STANDARD's NVL or XOR,
@@ -398,7 +542,7 @@ var staticFunctions = map[string]staticSignature{
 // staticKindOf classifies expr as Oracle 23ai's static expressions are
 // typed, returning its kind and, when expr is no static expression, the
 // node at fault. The grammar takes literals, NULL, TRUE and FALSE,
-// constants and inquiry directives, arithmetic and || , comparisons of
+// package constants and inquiry directives, arithmetic and || , comparisons of
 // numbers or of Booleans (no character values: PLS-00174 for 'a' = 'a'
 // and $$PLSQL_UNIT = 'P'), NOT, AND, OR, IS [ NOT ] NULL, and the static
 // functions; IN, BETWEEN, LIKE, EXISTS, CASE, DECODE, CAST, a
@@ -423,6 +567,13 @@ func (p *Parser) staticKindOf(expr nodes.ExprNode) (staticKind, nodes.ExprNode) 
 			case "$$PLSQL_UNIT", "$$PLSQL_UNIT_OWNER", "$$PLSQL_UNIT_TYPE":
 				return kindCharacter, nil
 			}
+			return kindAny, nil
+		}
+		// A constant is a package's, named through it (PLS-00201 on Oracle
+		// 23ai for $IF debug, a local constant or one of the unit's own
+		// package specification among them).
+		if e.Table == "" {
+			return kindAny, expr
 		}
 		return kindAny, nil
 	case *nodes.UnaryExpr:
