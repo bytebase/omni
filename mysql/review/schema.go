@@ -103,6 +103,18 @@ func uniqueIndex(t *metadata.TableMetadata, name string) (unique, found bool) {
 	return false, false
 }
 
+// beforeUse returns the position of the change's first USE, the number of
+// statements when it has none: what runs from there may mean another
+// database by a name without one.
+func beforeUse(stmts []statement) int {
+	for i := range stmts {
+		if _, ok := stmts[i].node.(*ast.UseStmt); ok {
+			return i
+		}
+	}
+	return len(stmts)
+}
+
 // usesDatabase reports whether a statement before the given one is USE,
 // which moves the database unqualified names mean.
 func usesDatabase(stmts []statement, before int) bool {

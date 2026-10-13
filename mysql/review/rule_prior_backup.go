@@ -25,12 +25,13 @@ import (
 //     INSERT INTO it SELECT … FROM the statement's tables, as written, and
 //     its WHERE, ORDER BY, and LIMIT, as written.
 //   - It refuses UPDATE and DELETE on the same table, written the same
-//     way, and fails on a table the synced schema does not hold.
+//     way once a name without a database takes the task's, and fails on a
+//     table the synced schema does not hold.
 //
 // So the backup fails on a name the change makes, which does not exist
 // yet when it runs: a table the statement reads, or a column the change
 // adds, renames to, or declares on a table it creates, read in the WHERE
-// clause, a join condition, or ORDER BY.
+// clause, a join condition or USING list, or ORDER BY.
 //
 // A name the synced schema does not hold, and the change does not make, is
 // not reported: the schema the review sees may predate an earlier spec of
@@ -48,13 +49,16 @@ func checkPriorBackupSize(sql string, change review.Change, r *reporter) {
 	}
 }
 
-// checkPriorBackupStatements reports, from the SQL alone, a table the
-// backup refuses: one an UPDATE and a DELETE of the change both touch,
-// written the same way. Only a statement on one table is judged, whose
-// target is certain.
+// checkPriorBackupMixed reports a table the backup refuses: one an UPDATE
+// and a DELETE of the change both touch, written the same way, a name
+// without a database taken as one of the target's, db, as Bytebase fills
+// it in. db is "" when the target's name is not known: then only names
+// written alike are compared. Only a statement on one table is judged,
+// whose target is certain.
 //
-// bytebase: backend/plugin/parser/mysql/backup.go — generateSQL
-func checkPriorBackupStatements(stmts []statement, r *reporter) {
+// bytebase: backend/plugin/parser/mysql/backup.go — collectSingleTables,
+// generateSQL
+func checkPriorBackupMixed(stmts []statement, db string, r *reporter) {
 	kinds := make(map[string]string)
 	reported := make(map[string]bool)
 	for i := range stmts {
@@ -63,7 +67,11 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 		if ref == nil {
 			continue
 		}
-		key := ref.Schema + "." + ref.Name
+		key := ref.Schema
+		if key == "" {
+			key = db
+		}
+		key += "." + ref.Name
 		first, seen := kinds[key]
 		if !seen {
 			kinds[key] = kind
@@ -100,7 +108,7 @@ func backupTarget(n ast.Node) (*ast.TableRef, string) {
 // it, cannot see: the tables and views it creates or renames to, and the
 // columns it adds, renames to, or declares on a table it creates, by the
 // table as written. A statement that may make nothing, IF NOT EXISTS or OR
-// REPLACE, is left out.
+// REPLACE, is left out, and so is what the change makes after a USE.
 type changeMade struct {
 	relations []*ast.TableRef
 	columns   []madeColumn
@@ -113,7 +121,7 @@ type madeColumn struct {
 
 func madeByChange(stmts []statement) changeMade {
 	var m changeMade
-	for i := range stmts {
+	for i := range stmts[:beforeUse(stmts)] {
 		switch v := stmts[i].node.(type) {
 		case *ast.CreateTableStmt:
 			if v.IfNotExists || v.Table == nil {
@@ -174,16 +182,16 @@ func madeByChange(stmts []statement) changeMade {
 
 // checkPriorBackupTarget reports the target-dependent reasons the backup
 // fails: a missing bbdataarchive database, which Bytebase looks up before
-// anything else, and a name the backup's query reads that only the change
-// makes.
+// anything else, and a name the backup's query of a statement before the
+// change's first USE reads that only the change makes.
 func checkPriorBackupTarget(sql string, stmts []statement, t review.Target, x schemaIndex, m changeMade, r *reporter) {
 	if !t.BackupDatabaseExists {
 		r.report(review.PriorBackup, -1, review.Range{}, "prior backup needs database "+backupDatabase+", which does not exist")
 	}
-	if x.schema == nil || usesDatabase(stmts, len(stmts)) {
+	if x.schema == nil {
 		return
 	}
-	for i := range stmts {
+	for i := range stmts[:beforeUse(stmts)] {
 		s := &stmts[i]
 		var loc ast.Loc
 		switch v := s.node.(type) {
@@ -253,8 +261,8 @@ func (x schemaIndex) inDatabase(ref *ast.TableRef) bool {
 // fails on a name the change makes, "" for none: a table of the statement,
 // or of a subquery of its WHERE clause, the synced schema does not hold;
 // or a column the change makes that none of the statement's tables has
-// before the change, read in the WHERE clause, a join condition, or ORDER
-// BY.
+// before the change, read in the WHERE clause, a join condition or USING
+// list, or ORDER BY.
 func backupReadsMade(n ast.Node, x schemaIndex, m changeMade) string {
 	var from []ast.TableExpr
 	var quals []ast.Node
@@ -329,8 +337,16 @@ type backupSource struct {
 func columnMissing(from []ast.TableExpr, quals []ast.Node, x schemaIndex, m changeMade) string {
 	var sources []backupSource
 	known := true
-	var flatten func(e ast.TableExpr)
-	flatten = func(e ast.TableExpr) {
+	// using is the columns a JOIN ... USING names, each with the sources
+	// of one side, every one of which may hold it.
+	type usingColumn struct {
+		column string
+		side   []backupSource
+	}
+	var using []usingColumn
+	// flatten adds the sources of a table expression and returns them.
+	var flatten func(e ast.TableExpr) []backupSource
+	flatten = func(e ast.TableExpr) []backupSource {
 		switch v := e.(type) {
 		case *ast.TableRef:
 			src := backupSource{name: v.Name, ref: v}
@@ -346,14 +362,24 @@ func columnMissing(from []ast.TableExpr, quals []ast.Node, x schemaIndex, m chan
 				known = false
 			}
 			sources = append(sources, src)
+			return []backupSource{src}
 		case *ast.JoinClause:
-			flatten(v.Left)
-			flatten(v.Right)
-			if on, ok := v.Condition.(*ast.OnCondition); ok && on.Expr != nil {
-				quals = append(quals, on.Expr)
+			left, right := flatten(v.Left), flatten(v.Right)
+			switch c := v.Condition.(type) {
+			case *ast.OnCondition:
+				if c.Expr != nil {
+					quals = append(quals, c.Expr)
+				}
+			case *ast.UsingCondition:
+				for _, column := range c.Columns {
+					using = append(using, usingColumn{column, left}, usingColumn{column, right})
+				}
 			}
+			return append(left, right...)
 		default:
+			// A source whose columns are not known, which may hold any.
 			known = false
+			return []backupSource{{}}
 		}
 	}
 	for _, e := range from {
@@ -366,6 +392,19 @@ func columnMissing(from []ast.TableExpr, quals []ast.Node, x schemaIndex, m chan
 		}
 		if m.madeColumnOn(x, src.ref, column) {
 			msg = "prior backup runs before the change, when column " + ident(column) + " of " + table(src.ref) + " does not exist yet"
+		}
+	}
+	// USING names a column each side has: one no source of a side may
+	// hold is missing there.
+	for _, u := range using {
+		has := false
+		for _, src := range u.side {
+			has = has || src.columns == nil || src.columns[strings.ToLower(u.column)]
+		}
+		for _, src := range u.side {
+			if !has && msg == "" {
+				judge(src, u.column)
+			}
 		}
 	}
 	for _, q := range quals {

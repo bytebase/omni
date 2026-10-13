@@ -137,6 +137,7 @@ func reviewGroup(sql string, stmts []statement, work targetWork, g targetGroup) 
 		checkOnlineMigrationTarget(stmts, t, x, r)
 	}
 	if work.backup {
+		checkPriorBackupMixed(stmts, t.Schema.GetName(), r)
 		checkPriorBackupTarget(sql, stmts, t, x, work.made, r)
 	}
 	for _, d := range work.drops {

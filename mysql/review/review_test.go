@@ -254,6 +254,10 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:  "ALTER TABLE t DROP INDEX uk_code, ADD INDEX uk_code (code);\nALTER TABLE t DROP INDEX uk_code;\nUSE other;\nDROP INDEX uk_code ON t;",
 			want: []finding{{0, "DROP INDEX uk_code", "drops unique key uk_code of t", []int{0}}},
 		},
+		{
+			name: "an index of a table the change creates or renames to",
+			sql:  "RENAME TABLE t TO t_old, plain TO t;\nDROP INDEX uk_code ON t;\nDROP TABLE t;\nCREATE TABLE t (code INT, KEY uk_code (code));\nALTER TABLE t DROP INDEX uk_code;",
+		},
 	})
 }
 
@@ -261,12 +265,12 @@ func TestRequirePrimaryKey(t *testing.T) {
 	runCases(t, review.RequirePrimaryKey, []ruleCase{
 		{
 			name: "CREATE TABLE without a primary key",
-			sql:  "CREATE TABLE a (id INT);\nCREATE TABLE b (id INT PRIMARY KEY);\nCREATE TABLE c (id INT, PRIMARY KEY (id));\nCREATE TEMPORARY TABLE d (id INT);\nCREATE TABLE e LIKE t;\nCREATE TABLE f AS SELECT 1 AS id;",
+			sql:  "CREATE TABLE a (id INT);\nCREATE TABLE b (id INT PRIMARY KEY);\nCREATE TABLE c (id INT, PRIMARY KEY (id));\nCREATE TEMPORARY TABLE d (id INT);\nCREATE TABLE e LIKE t;\nCREATE TABLE f AS SELECT 1 AS id;\nCREATE TABLE IF NOT EXISTS g (id INT);",
 			want: []finding{{0, "CREATE TABLE a (id INT)", "creates table a without a primary key", []int{0}}},
 		},
 		{
 			name: "settled by a later key, drop, or rename",
-			sql:  "CREATE TABLE a (id INT);\nALTER TABLE a ADD PRIMARY KEY (id);\nCREATE TABLE b (id INT);\nDROP TABLE b;\nCREATE TABLE c (id INT);\nRENAME TABLE c TO c2;",
+			sql:  "CREATE TABLE a (id INT);\nALTER TABLE a ADD PRIMARY KEY (id);\nCREATE TABLE b (id INT);\nDROP TABLE b;\nCREATE TABLE c (id INT);\nRENAME TABLE c TO c2;\nCREATE DATABASE d;\nCREATE TABLE d.e (id INT);\nDROP DATABASE d;",
 		},
 		{
 			name: "a primary key dropped and not added back",
@@ -307,6 +311,12 @@ func TestOnlineMigration(t *testing.T) {
 				{-1, "", `online migration does not support gh-ost flag "include-triggers"`, []int{0}},
 				{0, "ALTER TABLE trig ADD COLUMN m INT", "online migration does not support trig, which has a trigger", []int{0}},
 			},
+		},
+		{
+			name:   "a rename of the table",
+			sql:    "ALTER TABLE plain ADD COLUMN m INT, RENAME TO plain2;",
+			change: ghost,
+			want:   []finding{{0, "RENAME TO plain2", "gh-ost does not rename the table it migrates", []int{0}}},
 		},
 		{
 			name:   "tables gh-ost refuses",
@@ -358,10 +368,13 @@ func TestPriorBackup(t *testing.T) {
 			want:   []finding{{-1, "", "the change is 32 bytes, over the 10-byte limit of prior backup", []int{0}}},
 		},
 		{
-			name:   "UPDATE and DELETE on one table, written the same",
-			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM t WHERE id = 2;\nDELETE FROM shop.p WHERE id = 1;\nUPDATE p SET note = '' WHERE id = 1;",
+			name:   "UPDATE and DELETE on one table, a name without a database the target's",
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM t WHERE id = 2;\nDELETE FROM shop.p WHERE id = 1;\nUPDATE p SET note = '' WHERE id = 1;\nDELETE FROM other.plain WHERE id = 1;\nUPDATE plain SET v = 1 WHERE id = 1;",
 			change: backup,
-			want:   []finding{{1, "DELETE FROM t WHERE id = 2", "prior backup cannot back up both UPDATE and DELETE on t", []int{0}}},
+			want: []finding{
+				{1, "DELETE FROM t WHERE id = 2", "prior backup cannot back up both UPDATE and DELETE on t", []int{0}},
+				{3, "UPDATE p SET note = '' WHERE id = 1", "prior backup cannot back up both UPDATE and DELETE on p", []int{0}},
+			},
 		},
 		{
 			name:   "a table the change creates",
@@ -381,6 +394,18 @@ func TestPriorBackup(t *testing.T) {
 				{2, "UPDATE t SET n = 2 WHERE t.gone = 2 ORDER BY id", "prior backup runs before the change, when column gone of t does not exist yet", []int{0}},
 				{4, "UPDATE t JOIN p ON p.memo = t.code SET t.n = 1 WHERE t.id = 3", "prior backup runs before the change, when column memo of p does not exist yet", []int{0}},
 			},
+		},
+		{
+			name:   "a column USING names",
+			sql:    "ALTER TABLE t ADD COLUMN note INT;\nUPDATE t JOIN p USING (note) SET t.n = 1 WHERE t.id = 1;\nUPDATE t JOIN p USING (id) SET t.n = 1 WHERE t.id = 2;\nUPDATE t JOIN (SELECT 1 AS note) d ON d.note = t.id JOIN p USING (note) SET t.n = 1 WHERE t.id = 3;",
+			change: backup,
+			want:   []finding{{1, "UPDATE t JOIN p USING (note) SET t.n = 1 WHERE t.id = 1", "prior backup runs before the change, when column note of t does not exist yet", []int{0}}},
+		},
+		{
+			name:   "statements before a USE",
+			sql:    "ALTER TABLE t ADD COLUMN gone INT;\nUPDATE t SET n = 1 WHERE gone = 1;\nUPDATE n3 SET id = 1 WHERE id = 2;\nUSE other;\nCREATE TABLE n3 (id INT PRIMARY KEY);\nUPDATE t SET n = 2 WHERE gone = 2;",
+			change: backup,
+			want:   []finding{{1, "UPDATE t SET n = 1 WHERE gone = 1", "prior backup runs before the change, when column gone of t does not exist yet", []int{0}}},
 		},
 		{
 			name:   "what the rule cannot tell",

@@ -11,13 +11,14 @@ import (
 // DROP PRIMARY KEY only runs on a table that has one, so neither needs the
 // synced schema, and a table that had none before the change is never
 // reported. A table made by CREATE TABLE ... LIKE or AS SELECT, whose
-// columns and keys come from elsewhere, and a temporary table are not
-// judged, and neither is a statement inside a routine body, which runs
-// only when called.
+// columns and keys come from elsewhere, a CREATE TABLE IF NOT EXISTS,
+// which may make nothing, and a temporary table are not judged, and
+// neither is a statement inside a routine body, which runs only when
+// called.
 //
 // Without simulating the change, the rule follows the table by name. A
-// later statement that may give it a key, drop it, rename it, or create a
-// table of its name settles it, and it is not reported.
+// later statement that may give it a key, drop it or its database, rename
+// it, or create a table of its name settles it, and it is not reported.
 func checkRequirePrimaryKey(stmts []statement, r *reporter) {
 	type pending struct {
 		ref     *ast.TableRef
@@ -39,7 +40,7 @@ func checkRequirePrimaryKey(stmts []statement, r *reporter) {
 		switch v := s.node.(type) {
 		case *ast.CreateTableStmt:
 			settle(v.Table)
-			if v.Table == nil || v.Temporary || v.Like != nil || v.Select != nil || createsPrimaryKey(v) {
+			if v.Table == nil || v.Temporary || v.IfNotExists || v.Like != nil || v.Select != nil || createsPrimaryKey(v) {
 				continue
 			}
 			list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(s.loc), message: "creates table " + table(v.Table) + " without a primary key"})
@@ -82,6 +83,13 @@ func checkRequirePrimaryKey(stmts []statement, r *reporter) {
 				if pair != nil {
 					settle(pair.Old)
 					settle(pair.New)
+				}
+			}
+		case *ast.DropDatabaseStmt:
+			// A table without a database may be in the one dropped.
+			for _, p := range list {
+				if p.ref != nil && (p.ref.Schema == "" || sameName(p.ref.Schema, v.Name)) {
+					p.settled = true
 				}
 			}
 		}

@@ -48,8 +48,10 @@ var ghostFlagKinds = map[string]string{
 
 // checkOnlineMigration reports, from the SQL alone, what fails a change
 // that asks for online migration before gh-ost starts: a directive whose
-// flags Bytebase cannot read, and a sheet that is not one ALTER TABLE
-// statement.
+// flags Bytebase cannot read, a sheet that is not one ALTER TABLE
+// statement, and an ALTER TABLE that renames the table, which gh-ost
+// refuses (gh-ost go/logic/migrator.go, validateAlterStatement; renaming
+// the staged table instead would fail the cut-over).
 func checkOnlineMigration(sql string, stmts []statement, r *reporter) {
 	if msg := ghostFlagsRefused(sql); msg != "" {
 		r.report(review.OnlineMigration, -1, review.Range{}, msg)
@@ -58,8 +60,16 @@ func checkOnlineMigration(sql string, stmts []statement, r *reporter) {
 	case len(stmts) != 1:
 		r.report(review.OnlineMigration, -1, review.Range{}, fmt.Sprintf("online migration runs the change as one ALTER TABLE statement, and the change has %d statements", len(stmts)))
 	default:
-		if _, ok := stmts[0].node.(*ast.AlterTableStmt); !ok {
+		v, ok := stmts[0].node.(*ast.AlterTableStmt)
+		if !ok {
 			r.report(review.OnlineMigration, stmts[0].index, rangeOf(stmts[0].loc), "online migration runs only an ALTER TABLE statement")
+			break
+		}
+		for _, cmd := range v.Commands {
+			if cmd != nil && cmd.Type == ast.ATRenameTable {
+				r.report(review.OnlineMigration, stmts[0].index, rangeOf(cmd.Loc), "gh-ost does not rename the table it migrates")
+				break
+			}
 		}
 	}
 }
