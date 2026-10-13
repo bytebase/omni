@@ -96,10 +96,15 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 		}
 		ast.Inspect(s.node, func(n ast.Node) bool {
 			switch v := n.(type) {
+			case *ast.UseStmt:
+				// What the change touched before is of another database.
+				touched, replaced = nil, nil
 			case *ast.CreateTableStmt:
-				if !v.IfNotExists {
-					replace(v.Table)
+				// IF NOT EXISTS may leave the table of the name as it was.
+				if v.IfNotExists {
+					break
 				}
+				replace(v.Table)
 				for _, c := range v.Constraints {
 					if c != nil && (c.Type == ast.ConstrUnique || c.Type == ast.ConstrPrimaryKey) {
 						touch(v.Table, c.Name, c.Type == ast.ConstrUnique)
