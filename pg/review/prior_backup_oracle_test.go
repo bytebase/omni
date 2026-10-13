@@ -97,6 +97,11 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a column of an aliased join", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING (p JOIN nokey ON true) AS j WHERE j.gone;", true},
 		{"a column the change adds to a partitioned table, through a partition", "ALTER TABLE pt ADD COLUMN flag bool;\nDELETE FROM pt1 WHERE pt1.flag;", true},
 		{"SET ROLE of a role the change recreates", "DROP ROLE prior_backup_old;\nCREATE ROLE prior_backup_old SUPERUSER;\nSET ROLE prior_backup_old;\nUPDATE public.t SET n = 1 WHERE id = 1;", true},
+		{"a column a join's USING names", "ALTER TABLE p ADD COLUMN gone bool;\nALTER TABLE nokey ADD COLUMN gone bool;\nDELETE FROM t USING p JOIN nokey USING (gone) WHERE false;", true},
+		{"an alias's column list longer than the relation", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p AS x(i, g) WHERE false;", true},
+		{"a column of a table CREATE TABLE LIKE recreates", "DROP TABLE nokey;\nCREATE TABLE nokey (LIKE p);\nDELETE FROM nokey WHERE id = 1;", true},
+		{"a column of the table beside a VALUES list", "ALTER TABLE nokey ADD COLUMN b bool;\nDELETE FROM nokey USING (VALUES (1)) AS q(x) WHERE b;", true},
+		{"a relation after SET ROLE DEFAULT", "CREATE TABLE public.ids (id int);\nSET role TO DEFAULT;\nDELETE FROM t USING ids WHERE t.id = ids.id;", true},
 		// The first CTE stands for p in the second arm, which reads other
 		// rows than the statement's, or not: not judged.
 		{"a later source a WITH query of the first statement shadows", "WITH p AS (SELECT 999 AS id) DELETE FROM t WHERE id = 1;\nDELETE FROM t USING p WHERE t.p_id = p.id;", false},
