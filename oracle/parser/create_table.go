@@ -990,75 +990,123 @@ func (p *Parser) parseRefScopeTable() (*nodes.ObjectName, error) {
 // span its relational properties, as Oracle 23ai does. A constraint names
 // a column of the table, which may come before or after it, or an
 // attribute of an object column (o.r); a quoted name ("O.R") is a column.
-// A SCOPE or WITH ROWID constraint on a column names a REF column
-// (ORA-22893). A REF column or attribute has one SCOPE (ORA-22888) and not
-// both a SCOPE and a referential constraint (ORA-22896). A REF column has
-// one referential constraint (ORA-30771), which names the object table
-// alone (ORA-30726 for a column list). Whether an attribute is a REF, and
-// a name the table does not declare, are the engine's to resolve.
+// An attribute's column is of an object type (ORA-02337 for a scalar or
+// REF one). A SCOPE or WITH ROWID constraint names a REF (ORA-22893), and
+// a REF column or attribute has one SCOPE (ORA-22888) and not both a SCOPE
+// and a referential constraint (ORA-22896). A REF is in no key (ORA-02329,
+// ORA-02267 for a composite foreign key), has one referential constraint
+// (ORA-30771), and that one names the object table alone (ORA-30726 for a
+// column list). An attribute counts as a REF where a SCOPE or WITH ROWID
+// constraint names it; otherwise its type, and a name the table does not
+// declare, are the engine's to resolve.
 func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt) error {
 	type target struct {
 		name      string
 		attribute bool
 	}
+	type constraint struct {
+		node       nodes.Node
+		typ        nodes.ConstraintType
+		keys       []target
+		refColumns *nodes.List
+	}
 	columns := map[string]*nodes.ColumnDef{}
-	for _, item := range stmt.Columns.Items {
-		if col, ok := item.(*nodes.ColumnDef); ok {
-			columns[col.Name] = col
-		}
-	}
-	scoped := map[target]bool{}
-	references := map[target]int{}
-	check := func(node nodes.Node, typ nodes.ConstraintType, key target, refColumns *nodes.List) error {
-		var col *nodes.ColumnDef
-		if !key.attribute {
-			col = columns[key.name]
-		}
-		isRef := col != nil && col.TypeName != nil && col.TypeName.IsRef
-		switch typ {
-		case nodes.CONSTRAINT_SCOPE, nodes.CONSTRAINT_WITH_ROWID:
-			if col != nil && !isRef {
-				return p.syntaxErrorAtNode(node)
-			}
-			if typ == nodes.CONSTRAINT_SCOPE {
-				if scoped[key] || references[key] > 0 {
-					return p.syntaxErrorAtNode(node)
-				}
-				scoped[key] = true
-			}
-		case nodes.CONSTRAINT_FOREIGN:
-			if scoped[key] || isRef && (references[key] > 0 || refColumns != nil && refColumns.Len() > 0) {
-				return p.syntaxErrorAtNode(node)
-			}
-			references[key]++
-		}
-		return nil
-	}
+	refs := map[target]bool{}
+	var constraints []constraint
 	for _, item := range stmt.Columns.Items {
 		col, ok := item.(*nodes.ColumnDef)
 		if !ok {
 			continue
 		}
+		columns[col.Name] = col
+		key := target{name: col.Name}
+		refs[key] = col.TypeName != nil && col.TypeName.IsRef
 		for _, cItem := range col.Constraints.Items {
 			if cc, ok := cItem.(*nodes.ColumnConstraint); ok {
-				if err := check(cc, cc.Type, target{name: col.Name}, cc.RefColumns); err != nil {
-					return err
-				}
+				constraints = append(constraints, constraint{cc, cc.Type, []target{key}, cc.RefColumns})
 			}
 		}
 	}
 	for _, item := range stmt.Constraints.Items {
 		tc, ok := item.(*nodes.TableConstraint)
-		if !ok || tc.Columns == nil || tc.Columns.Len() != 1 {
+		if !ok || tc.Columns == nil {
 			continue
 		}
-		column := tc.Columns.Items[0].(*nodes.String)
-		key := target{name: column.Str, attribute: p.attributePaths[column]}
-		if err := check(tc, tc.Type, key, tc.RefColumns); err != nil {
-			return err
+		c := constraint{node: tc, typ: tc.Type, refColumns: tc.RefColumns}
+		for _, cItem := range tc.Columns.Items {
+			column, ok := cItem.(*nodes.String)
+			if !ok {
+				continue
+			}
+			parts := p.attributePaths[column]
+			if parts != nil {
+				// The attribute of a column of a type that has none.
+				if root := columns[parts[0]]; root != nil && p.scalarColumn(root) {
+					return p.syntaxErrorAtNode(tc)
+				}
+			}
+			c.keys = append(c.keys, target{name: column.Str, attribute: parts != nil})
+		}
+		constraints = append(constraints, c)
+	}
+	for _, c := range constraints {
+		if (c.typ == nodes.CONSTRAINT_SCOPE || c.typ == nodes.CONSTRAINT_WITH_ROWID) && len(c.keys) == 1 {
+			refs[c.keys[0]] = true
+		}
+	}
+	scoped := map[target]bool{}
+	references := map[target]int{}
+	for _, c := range constraints {
+		if len(c.keys) != 1 {
+			// No REF in a composite key.
+			if c.typ == nodes.CONSTRAINT_PRIMARY || c.typ == nodes.CONSTRAINT_UNIQUE || c.typ == nodes.CONSTRAINT_FOREIGN {
+				for _, key := range c.keys {
+					if refs[key] {
+						return p.syntaxErrorAtNode(c.node)
+					}
+				}
+			}
+			continue
+		}
+		key := c.keys[0]
+		col := columns[key.name]
+		if key.attribute {
+			col = nil
+		}
+		switch c.typ {
+		case nodes.CONSTRAINT_PRIMARY, nodes.CONSTRAINT_UNIQUE:
+			if refs[key] {
+				return p.syntaxErrorAtNode(c.node)
+			}
+		case nodes.CONSTRAINT_SCOPE, nodes.CONSTRAINT_WITH_ROWID:
+			if col != nil && (col.TypeName == nil || !col.TypeName.IsRef) {
+				return p.syntaxErrorAtNode(c.node)
+			}
+			if c.typ == nodes.CONSTRAINT_SCOPE {
+				if scoped[key] || references[key] > 0 {
+					return p.syntaxErrorAtNode(c.node)
+				}
+				scoped[key] = true
+			}
+		case nodes.CONSTRAINT_FOREIGN:
+			if scoped[key] || refs[key] && (references[key] > 0 || c.refColumns != nil && c.refColumns.Len() > 0) {
+				return p.syntaxErrorAtNode(c.node)
+			}
+			references[key]++
 		}
 	}
 	return nil
+}
+
+// scalarColumn reports whether col is of a datatype the text shows to
+// have no attributes: a REF, or a predefined SQL datatype.
+func (p *Parser) scalarColumn(col *nodes.ColumnDef) bool {
+	if col.TypeName == nil {
+		return false
+	}
+	lead := p.predefinedTypeSpelling(col.TypeName)
+	return col.TypeName.IsRef || plsqlNonCharacterTypes[lead] || lead == "CHAR" || lead == "CHARACTER" ||
+		lead == "VARCHAR2" || lead == "VARCHAR" || lead == "CLOB"
 }
 
 // isOutOfLineRefConstraintStart reports whether a table's relational
@@ -1587,11 +1635,10 @@ func (p *Parser) parseColumnPathList() (*nodes.List, error) {
 }
 
 // parseColumnPath parses a column, or an attribute of an object column
-// (o.r), which it records in p.attributePaths, as a *String of the names
-// joined by dots.
+// (o.r), whose names it records in p.attributePaths, as a *String of the
+// names joined by dots.
 func (p *Parser) parseColumnPath() (*nodes.String, error) {
-	var path strings.Builder
-	parts := 0
+	var parts []string
 	for {
 		part, err := p.parseIdentifier()
 		if err != nil {
@@ -1600,21 +1647,18 @@ func (p *Parser) parseColumnPath() (*nodes.String, error) {
 		if part == "" {
 			return nil, p.syntaxErrorAtCur()
 		}
-		if parts++; parts > 1 {
-			path.WriteByte('.')
-		}
-		path.WriteString(part)
+		parts = append(parts, part)
 		if p.cur.Type != '.' {
 			break
 		}
 		p.advance()
 	}
-	column := &nodes.String{Str: path.String()}
-	if parts > 1 {
+	column := &nodes.String{Str: strings.Join(parts, ".")}
+	if len(parts) > 1 {
 		if p.attributePaths == nil {
-			p.attributePaths = map[*nodes.String]bool{}
+			p.attributePaths = map[*nodes.String][]string{}
 		}
-		p.attributePaths[column] = true
+		p.attributePaths[column] = parts
 	}
 	return column, nil
 }

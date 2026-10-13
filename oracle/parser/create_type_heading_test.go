@@ -324,6 +324,10 @@ func TestANSIDatatypes(t *testing.T) {
 		// An attribute path is not the quoted column that spells it.
 		`o h, "O.R" NUMBER, SCOPE FOR (o.r) IS x`, `o h, "O.R" NUMBER, REF (o.r) WITH ROWID`,
 		`o h, "O.R" REF t, SCOPE FOR (o.r) IS x, SCOPE FOR ("O.R") IS x`,
+		// An attribute is a REF where a SCOPE or WITH ROWID says so; a
+		// scalar one takes a referenced column list and keys.
+		"o h, FOREIGN KEY (o.n) REFERENCES u (a)", "o h, REF (o.r) WITH ROWID, FOREIGN KEY (o.r) REFERENCES x",
+		"c REF t WITH ROWID, d NUMBER, PRIMARY KEY (d)", "o h, d NUMBER, FOREIGN KEY (o.n, d) REFERENCES p (a, b)",
 	} {
 		ParseAndCheck(t, "CREATE TABLE r ("+cols+")")
 	}
@@ -345,6 +349,18 @@ func TestANSIDatatypes(t *testing.T) {
 		"SCOPE FOR (c) IS o, c REF t REFERENCES p", "c REF t SCOPE IS o, FOREIGN KEY (c) REFERENCES o",
 		"o h, SCOPE FOR (o.r) IS x, FOREIGN KEY (o.r) REFERENCES y",
 		"c REF t REFERENCES o REFERENCES p", "c REF t REFERENCES o, FOREIGN KEY (c) REFERENCES p",
+		// An attribute's column is of an object type (ORA-02337).
+		"n NUMBER, SCOPE FOR (n.x) IS o", "n NUMBER, FOREIGN KEY (n.x) REFERENCES o", "n NUMBER, REF (n.x) WITH ROWID",
+		"c REF t, SCOPE FOR (c.n) IS o", "v VARCHAR2(10), SCOPE FOR (v.x) IS o", "d DATE, REF (d.x) WITH ROWID",
+		"n NUMBER, d NUMBER, FOREIGN KEY (n.x, d) REFERENCES p (a, b)",
+		// A REF is in no key (ORA-02329), a composite foreign key among them
+		// (ORA-02267).
+		"c REF t PRIMARY KEY", "c REF t UNIQUE", "c REF t, d NUMBER, PRIMARY KEY (c, d)", "c REF t, d NUMBER, UNIQUE (c, d)",
+		"c REF t, d NUMBER, FOREIGN KEY (c, d) REFERENCES p (a, b)", "c REF t, d NUMBER, FOREIGN KEY (d, c) REFERENCES p",
+		"o h, REF (o.r) WITH ROWID, d NUMBER, FOREIGN KEY (o.r, d) REFERENCES p (a, b)",
+		// The REF rules hold for an attribute a WITH ROWID shows to be one.
+		"o h, REF (o.r) WITH ROWID, FOREIGN KEY (o.r) REFERENCES x (n)",
+		"o h, REF (o.r) WITH ROWID, FOREIGN KEY (o.r) REFERENCES x, FOREIGN KEY (o.r) REFERENCES y",
 		// A referenced table is local (ORA-02021).
 		"c REF t REFERENCES o@lnk", "c REF t, FOREIGN KEY (c) REFERENCES o@lnk",
 		"n NUMBER REFERENCES p@lnk (a)", "n NUMBER, FOREIGN KEY (n) REFERENCES p@lnk (a)",
