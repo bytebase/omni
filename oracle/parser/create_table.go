@@ -1709,7 +1709,9 @@ func (p *Parser) parseReferencedTable() (*nodes.ObjectName, error) {
 	if table == nil || table.Name == "" || p.prev.Type == '.' {
 		return nil, p.syntaxErrorAtCur()
 	}
-	if table.DBLink != "" {
+	// The table is local, with no database link and no bare @ (ORA-02021
+	// for REFERENCES o@ on Oracle 23ai).
+	if table.DBLink != "" || p.prev.Type == '@' {
 		return nil, p.syntaxErrorAtNode(table)
 	}
 	return table, nil

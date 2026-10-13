@@ -455,11 +455,16 @@ func TestANSIDatatypes(t *testing.T) {
 		ParseShouldFail(t, "ALTER TYPE t ADD "+methods+" CASCADE")
 	}
 	ParseAndCheck(t, "CREATE TYPE t AS OBJECT (a NUMBER, ORDER MEMBER FUNCTION o (x t) RETURN NUMBER)")
-	// A SCOPE table is local: no @ without a database link (ORA-01729).
+	// A SCOPE table is local: no @ without a database link (ORA-01729),
+	// as is a referenced one (ORA-02021).
 	for _, sql := range []string{
 		"CREATE TABLE r (c REF t SCOPE IS o@)",
 		"CREATE TABLE r (c REF t, SCOPE FOR (c) IS o@)",
 		"ALTER TABLE r ADD SCOPE FOR (c) IS o@",
+		"CREATE TABLE r (c REF t REFERENCES o@)",
+		"CREATE TABLE r (n NUMBER REFERENCES o@)",
+		"CREATE TABLE r (n NUMBER, FOREIGN KEY (n) REFERENCES o@)",
+		"ALTER TABLE r ADD FOREIGN KEY (n) REFERENCES o@",
 	} {
 		ParseShouldFail(t, sql)
 	}
