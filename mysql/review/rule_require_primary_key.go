@@ -81,6 +81,10 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) {
 				list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(s.loc), message: "removes the primary key of " + table(v.Table) + ", and the change adds none back"})
 			}
 		case *ast.DropTableStmt:
+			// DROP TEMPORARY TABLE drops no permanent table.
+			if v.Temporary {
+				break
+			}
 			for _, ref := range v.Tables {
 				settle(ref)
 			}
