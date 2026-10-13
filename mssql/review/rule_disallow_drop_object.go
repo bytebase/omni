@@ -1,0 +1,108 @@
+package review
+
+import (
+	"strings"
+
+	"github.com/bytebase/omni/mssql/ast"
+	"github.com/bytebase/omni/review"
+)
+
+// dropKinds names the object kinds of a DROP statement.
+var dropKinds = map[ast.DropObjectType]string{
+	ast.DropTable:               "table",
+	ast.DropView:                "view",
+	ast.DropIndex:               "index",
+	ast.DropProcedure:           "procedure",
+	ast.DropFunction:            "function",
+	ast.DropDatabase:            "database",
+	ast.DropSchema:              "schema",
+	ast.DropTrigger:             "trigger",
+	ast.DropType:                "type",
+	ast.DropSequence:            "sequence",
+	ast.DropSynonym:             "synonym",
+	ast.DropAssembly:            "assembly",
+	ast.DropPartitionFunction:   "partition function",
+	ast.DropPartitionScheme:     "partition scheme",
+	ast.DropStatistics:          "statistics",
+	ast.DropDefault:             "default",
+	ast.DropRule:                "rule",
+	ast.DropXmlSchemaCollection: "XML schema collection",
+	ast.DropFulltextIndex:       "fulltext index",
+	ast.DropFulltextCatalog:     "fulltext catalog",
+	ast.DropMaterializedView:    "materialized view",
+}
+
+// checkDisallowDropObject reports every DROP: the DROP statement of any
+// object kind, the DROP of a principal, a key, a Service Broker object, a
+// security policy, an aggregate, a stoplist, a search property list, or a
+// federation, and ALTER TABLE ... DROP COLUMN, which anchors the column.
+// IF EXISTS does not exempt a statement, and neither does a routine body
+// or a control-of-flow block around it. Dropping a constraint belongs to
+// DisallowDropConstraint.
+func checkDisallowDropObject(s *statement, r *reporter) {
+	report := func(loc ast.Loc, kind string, names ...string) {
+		msg := "drops " + kind
+		if len(names) > 0 {
+			msg += " " + strings.Join(names, ", ")
+		}
+		r.report(review.DisallowDropObject, s.index, rangeOf(loc), msg)
+	}
+	ast.Inspect(s.node, func(n ast.Node) bool {
+		switch v := n.(type) {
+		case *ast.DropStmt:
+			kind, ok := dropKinds[v.ObjectType]
+			if !ok {
+				kind = "object"
+			}
+			var names []string
+			if v.Names != nil {
+				for _, item := range v.Names.Items {
+					if ref, ok := item.(*ast.TableRef); ok {
+						names = append(names, object(ref))
+					}
+				}
+			}
+			report(v.Loc, kind, names...)
+		case *ast.SecurityStmt:
+			if strings.EqualFold(v.Action, "DROP") {
+				report(v.Loc, strings.ToLower(v.ObjectType), ident(v.Name))
+			}
+		case *ast.ServiceBrokerStmt:
+			if strings.EqualFold(v.Action, "DROP") {
+				report(v.Loc, strings.ToLower(v.ObjectType), ident(v.Name))
+			}
+		case *ast.SecurityKeyStmt:
+			if strings.EqualFold(v.Action, "DROP") {
+				names := []string{}
+				if v.Name != "" {
+					names = append(names, ident(v.Name))
+				}
+				report(v.Loc, strings.ToLower(v.ObjectType), names...)
+			}
+		case *ast.SecurityPolicyStmt:
+			if strings.EqualFold(v.Action, "DROP") {
+				report(v.Loc, "security policy", object(v.Name))
+			}
+		case *ast.DropStatisticsStmt:
+			report(v.Loc, "statistics")
+		case *ast.DropAggregateStmt:
+			report(v.Loc, "aggregate", object(v.Name))
+		case *ast.DropFulltextStoplistStmt:
+			report(v.Loc, "fulltext stoplist", ident(v.Name))
+		case *ast.DropSearchPropertyListStmt:
+			report(v.Loc, "search property list", ident(v.Name))
+		case *ast.DropFederationStmt:
+			report(v.Loc, "federation", ident(v.Name))
+		case *ast.AlterTableStmt:
+			if v.Actions == nil {
+				return true
+			}
+			for _, item := range v.Actions.Items {
+				if a, ok := item.(*ast.AlterTableAction); ok && a.Type == ast.ATDropColumn {
+					report(a.Loc, "column", ident(a.ColName)+" of "+object(v.Name))
+				}
+			}
+		}
+		return true
+	})
+}
