@@ -46,7 +46,7 @@ func checkRequireIsNull(sql string, s *statement, r *reporter) {
 					text = "<> NULL"
 				}
 				if rng.Start < rng.End && rng.End <= len(sql) {
-					text = strings.Join(strings.Fields(sql[rng.Start:rng.End]), " ")
+					text = oneLine(sql[rng.Start:rng.End])
 				}
 				r.report(review.RequireIsNull, s.index, rng, `"`+text+`" is never true; use `+fix)
 			}
