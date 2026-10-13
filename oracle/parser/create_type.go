@@ -850,8 +850,8 @@ var (
 // methodModifiersConflict reports whether a method spec's inheritance clauses
 // conflict with each other or with its kind. Oracle 23ai rejects NOT
 // INSTANTIABLE with FINAL, STATIC, or CONSTRUCTOR, NOT FINAL with
-// CONSTRUCTOR, and OVERRIDING with STATIC (PLS-00169; ORA-06545 in ALTER
-// TYPE).
+// CONSTRUCTOR, and OVERRIDING with STATIC or CONSTRUCTOR (PLS-00169;
+// ORA-06545 in ALTER TYPE).
 func methodModifiersConflict(mods []string, kind nodes.TypeBodyMemberKind) bool {
 	has := func(mod string) bool {
 		for _, m := range mods {
@@ -867,7 +867,7 @@ func methodModifiersConflict(mods []string, kind nodes.TypeBodyMemberKind) bool 
 	if has("NOT FINAL") && kind == nodes.TYPE_BODY_CONSTRUCTOR {
 		return true
 	}
-	return has("OVERRIDING") && kind == nodes.TYPE_BODY_STATIC
+	return has("OVERRIDING") && (kind == nodes.TYPE_BODY_STATIC || kind == nodes.TYPE_BODY_CONSTRUCTOR)
 }
 
 // checkObjectTypeMethod applies the rules Oracle 23ai checks on a method spec
