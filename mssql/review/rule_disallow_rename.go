@@ -11,7 +11,10 @@ import (
 // classify: it renames a table or a view only if the object is one, which
 // the rule looks up in the target's synced schema.
 type renamedObject struct {
+	// statement is the index in Result.Statements, and position the
+	// statement's place in the parsed list.
 	statement int
+	position  int
 	loc       ast.Loc
 	name      *ast.TableRef
 	newName   string
@@ -25,7 +28,7 @@ type renamedObject struct {
 // Renaming an index, statistics, a database, or a type is not in scope.
 //
 // sql: https://learn.microsoft.com/sql/relational-databases/system-stored-procedures/sp-rename-transact-sql
-func checkDisallowRename(s *statement, r *reporter) []renamedObject {
+func checkDisallowRename(pos int, s *statement, r *reporter) []renamedObject {
 	var open []renamedObject
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		switch v := n.(type) {
@@ -48,7 +51,7 @@ func checkDisallowRename(s *statement, r *reporter) []renamedObject {
 				}
 			case "", "OBJECT":
 				if ref := parseObjectName(name); ref != nil {
-					open = append(open, renamedObject{s.index, v.Loc, ref, newName})
+					open = append(open, renamedObject{s.index, pos, v.Loc, ref, newName})
 				}
 			}
 		}

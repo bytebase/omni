@@ -75,8 +75,8 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 			return nil, err
 		}
 		s := &stmts[i]
-		if on, ok := ansiNullsSet(s.node); ok {
-			ansiNullsOff = !on
+		if set, ok := ansiNullsSet(s.node); ok {
+			ansiNullsOff = !set
 		}
 		if on[review.RequireIsNull] {
 			checkRequireIsNull(sql, s, ansiNullsOff, r)
@@ -91,7 +91,7 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 			checkDisallowTruncate(s, r)
 		}
 		if on[review.DisallowRename] {
-			work.renames = append(work.renames, checkDisallowRename(s, r)...)
+			work.renames = append(work.renames, checkDisallowRename(i, s, r)...)
 		}
 	}
 	if on[review.DisallowDropConstraint] || on[review.RequirePrimaryKey] {

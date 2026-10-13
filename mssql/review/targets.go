@@ -149,6 +149,9 @@ func reviewGroup(stmts []statement, work targetWork, g targetGroup) (findings []
 			reportDrop(stmts, d.position, &stmts[d.position], d.loc, d.alter, kind, d.name, d.nested, work.on, r)
 		}
 		for _, rn := range work.renames {
+			if usesDatabase(stmts, rn.position) {
+				continue
+			}
 			if kind := x.relationKind(rn.name); kind != "" {
 				r.report(review.DisallowRename, rn.statement, rangeOf(rn.loc), "renames "+kind+" "+object(rn.name)+" to "+ident(rn.newName))
 			}

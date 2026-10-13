@@ -235,10 +235,10 @@ func textOf(sql string, loc ast.Loc) string {
 }
 
 // changeMade is what the change makes, which the backup, run before all of
-// it, cannot see: the tables and views it creates, SELECT INTO among them,
-// and the columns it adds or declares on a table it creates, by the table
-// as written. A statement that may make nothing, IF NOT EXISTS, is left
-// out, and so is what the change makes after a USE.
+// it, cannot see: the tables, views, and synonyms it creates, SELECT INTO
+// among them, and the columns it adds or declares on a table it creates,
+// by the table as written. A statement that may make nothing, IF NOT
+// EXISTS, is left out, and so is what the change makes after a USE.
 type changeMade struct {
 	relations []*ast.TableRef
 	columns   []madeColumn
@@ -272,6 +272,10 @@ func madeByChange(stmts []statement) changeMade {
 		case *ast.SelectStmt:
 			if v.IntoTable != nil {
 				m.relations = append(m.relations, v.IntoTable)
+			}
+		case *ast.CreateSynonymStmt:
+			if v.Name != nil {
+				m.relations = append(m.relations, v.Name)
 			}
 		case *ast.AlterTableStmt:
 			if v.Actions == nil {

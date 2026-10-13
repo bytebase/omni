@@ -201,6 +201,14 @@ func TestDisallowDropObject(t *testing.T) {
 			sql:  "DROP TABLE [a\nb];",
 			want: []finding{{0, "DROP TABLE [a\nb]", "drops table [a\\nb]", []int{0}}},
 		},
+		{
+			name: "DROP SENSITIVITY CLASSIFICATION and DROP SIGNATURE",
+			sql:  "DROP SENSITIVITY CLASSIFICATION FROM dbo.t.n;\nDROP SIGNATURE FROM pr BY CERTIFICATE c1;",
+			want: []finding{
+				{0, "DROP SENSITIVITY CLASSIFICATION FROM dbo.t.n", "drops sensitivity classification of dbo.t.n", []int{0}},
+				{1, "DROP SIGNATURE FROM pr BY CERTIFICATE c1", "drops signature of pr", []int{0}},
+			},
+		},
 	})
 }
 
@@ -227,6 +235,10 @@ func TestDisallowRename(t *testing.T) {
 				{1, "EXEC sp_rename @objname = N't', @newname = N't3'", "renames table t to t3", []int{0}},
 				{2, "EXEC sys.sp_rename 'v', 'v2', 'OBJECT'", "renames view v to v2", []int{0}},
 			},
+		},
+		{
+			name: "an object rename after a USE",
+			sql:  "USE other;\nEXEC sp_rename 't', 'x';",
 		},
 	})
 }
@@ -278,6 +290,11 @@ func TestRequirePrimaryKey(t *testing.T) {
 			name: "a primary key dropped and not added back",
 			sql:  "ALTER TABLE t DROP CONSTRAINT pk_t;\nALTER TABLE p DROP CONSTRAINT pk_p;\nALTER TABLE p ADD CONSTRAINT pk_p2 PRIMARY KEY (id, note);",
 			want: []finding{{0, "pk_t", "removes the primary key of t, and the change adds none back", []int{0}}},
+		},
+		{
+			name: "in a CREATE SCHEMA",
+			sql:  "CREATE SCHEMA s2 CREATE TABLE s2.k (id INT);",
+			want: []finding{{0, "CREATE TABLE s2.k (id INT)", "creates table s2.k without a primary key", []int{0}}},
 		},
 		{
 			name: "not settled by a column rename, nor judged in a routine body",
@@ -340,6 +357,12 @@ func TestPriorBackup(t *testing.T) {
 			sql:    "SELECT 1 AS id INTO n4;\nUPDATE n4 SET id = 2 WHERE id = 1;",
 			change: backup,
 			want:   []finding{{1, "UPDATE n4 SET id = 2 WHERE id = 1", "prior backup runs before the change, when n4 does not exist yet", []int{0}}},
+		},
+		{
+			name:   "a synonym the change creates",
+			sql:    "CREATE SYNONYM n5 FOR dbo.t;\nUPDATE n5 SET n = 2 WHERE id = 1;",
+			change: backup,
+			want:   []finding{{1, "UPDATE n5 SET n = 2 WHERE id = 1", "prior backup runs before the change, when n5 does not exist yet", []int{0}}},
 		},
 		{
 			name:   "statements before a USE",

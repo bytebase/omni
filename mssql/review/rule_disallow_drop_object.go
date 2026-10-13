@@ -83,6 +83,26 @@ func checkDisallowDropObject(s *statement, r *reporter) {
 			if strings.EqualFold(v.Action, "DROP") {
 				report(v.Loc, "security policy", object(v.Name))
 			}
+		case *ast.SensitivityClassificationStmt:
+			if strings.EqualFold(v.Action, "DROP") {
+				var names []string
+				if v.Columns != nil {
+					for _, item := range v.Columns.Items {
+						if ref, ok := item.(*ast.TableRef); ok {
+							names = append(names, object(ref))
+						}
+					}
+				}
+				report(v.Loc, "sensitivity classification of", names...)
+			}
+		case *ast.SignatureStmt:
+			if strings.EqualFold(v.Action, "DROP") {
+				kind := "signature of"
+				if v.IsCounter {
+					kind = "counter signature of"
+				}
+				report(v.Loc, kind, object(v.ModuleName))
+			}
 		case *ast.DropStatisticsStmt:
 			report(v.Loc, "statistics")
 		case *ast.DropAggregateStmt:

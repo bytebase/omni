@@ -39,10 +39,11 @@ type droppedConstraint struct {
 //     primary key, unique, foreign key, or check constraint the change
 //     defined by that name on the table earlier, at top level or inside a
 //     routine body or a control-flow statement.
-//   - RequirePrimaryKey: a CREATE TABLE without a primary key, and the drop
-//     of a primary key the change defined, each when the change does not
-//     settle the table later by giving it a key, dropping it or its
-//     database, renaming it, or creating a table of its name. A temporary table, a table variable,
+//   - RequirePrimaryKey: a CREATE TABLE without a primary key, at top
+//     level or in a CREATE SCHEMA, and the drop of a primary key the
+//     change defined, each when the change does not settle the table later
+//     by giving it a key, dropping it or its database, renaming it, or
+//     creating a table of its name. A temporary table, a table variable,
 //     and a table SELECT INTO or CREATE TABLE AS SELECT makes are not
 //     judged, and neither is a statement inside a routine body.
 //
@@ -75,9 +76,11 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 		}
 		reportDrop(stmts, pos, s, a.Loc, v, d.kind, a.Constraint.Name, nested, on, r)
 	}
-	for pos := range stmts {
-		s := &stmts[pos]
-		switch v := s.node.(type) {
+	// visit reads a statement, or an element of a CREATE SCHEMA, which runs
+	// as the statement does; loc is what a finding on it anchors.
+	var visit func(pos int, s *statement, n ast.Node, loc ast.Loc)
+	visit = func(pos int, s *statement, n ast.Node, loc ast.Loc) {
+		switch v := n.(type) {
 		case *ast.CreateTableStmt:
 			for _, c := range tableConstraints(v) {
 				if c.Name != "" {
@@ -85,11 +88,11 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 				}
 			}
 			if on[review.RequirePrimaryKey] && judgedTable(v.Name) && !createsPrimaryKey(v) && !settledAfter(stmts, pos, v.Name) {
-				r.report(review.RequirePrimaryKey, s.index, rangeOf(s.loc), "creates table "+object(v.Name)+" without a primary key")
+				r.report(review.RequirePrimaryKey, s.index, rangeOf(loc), "creates table "+object(v.Name)+" without a primary key")
 			}
 		case *ast.AlterTableStmt:
 			if v.Actions == nil {
-				continue
+				return
 			}
 			for _, item := range v.Actions.Items {
 				a, ok := item.(*ast.AlterTableAction)
@@ -105,10 +108,16 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 					drop(pos, s, v, a, false)
 				}
 			}
+		case *ast.CreateSchemaStmt:
+			if v.Elements != nil {
+				for _, e := range v.Elements.Items {
+					visit(pos, s, e, ast.NodeLoc(e))
+				}
+			}
 		default:
 			// What a routine body or a control-flow statement adds runs
 			// only when it runs, so only its drops are read.
-			ast.Inspect(s.node, func(n ast.Node) bool {
+			ast.Inspect(n, func(n ast.Node) bool {
 				v, ok := n.(*ast.AlterTableStmt)
 				if !ok || v.Actions == nil {
 					return true
@@ -121,6 +130,9 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 				return true
 			})
 		}
+	}
+	for pos := range stmts {
+		visit(pos, &stmts[pos], stmts[pos].node, stmts[pos].loc)
 	}
 	return open
 }
