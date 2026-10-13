@@ -353,10 +353,11 @@ func TestRequirePrimaryKey(t *testing.T) {
 		},
 		{
 			name: "not settled by IF NOT EXISTS or a temporary table of its name",
-			sql:  "CREATE TABLE a (id INT);\nCREATE TABLE IF NOT EXISTS a (id INT PRIMARY KEY);\nCREATE TABLE b (id INT);\nCREATE TEMPORARY TABLE b (id INT PRIMARY KEY);",
+			sql:  "CREATE TABLE a (id INT);\nCREATE TABLE IF NOT EXISTS a (id INT PRIMARY KEY);\nCREATE TABLE b (id INT);\nCREATE TEMPORARY TABLE b (id INT PRIMARY KEY);\nCREATE TABLE c (id INT);\nDROP TEMPORARY TABLE IF EXISTS c;",
 			want: []finding{
 				{0, "CREATE TABLE a (id INT)", "creates table a without a primary key", []int{0}},
 				{2, "CREATE TABLE b (id INT)", "creates table b without a primary key", []int{0}},
+				{4, "CREATE TABLE c (id INT)", "creates table c without a primary key", []int{0}},
 			},
 		},
 		{
@@ -420,6 +421,12 @@ func TestOnlineMigration(t *testing.T) {
 			sql:    "-- gh-ost = {\"max-load\":\"Threads_running\"}\nALTER TABLE plain ADD COLUMN m INT;",
 			change: ghost,
 			want:   []finding{{-1, "", `online migration cannot read gh-ost flag "max-load" as load map: "Threads_running"`, []int{0}}},
+		},
+		{
+			name:   "flag values gh-ost's setters refuse",
+			sql:    "-- gh-ost = {\"cut-over-lock-timeout-seconds\":\"0\",\"exponential-backoff-max-interval\":\"1\"}\nALTER TABLE plain ADD COLUMN m INT;",
+			change: ghost,
+			want:   []finding{{-1, "", `online migration cannot take gh-ost flag "cut-over-lock-timeout-seconds" = 0, outside 1 to 10`, []int{0}}},
 		},
 		{
 			name:   "flag values gh-ost reads",

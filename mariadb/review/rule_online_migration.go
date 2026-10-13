@@ -3,6 +3,7 @@ package review
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"regexp"
 	"slices"
 	"strconv"
@@ -126,11 +127,35 @@ func ghostFlagsRefused(sql string) string {
 		if err != nil {
 			return fmt.Sprintf("online migration cannot read gh-ost flag %q as %s: %q", k, kind, v)
 		}
+		if lo, hi, ok := ghostFlagRange(k); ok {
+			if n, _ := strconv.ParseInt(v, 10, 64); n < lo || n > hi {
+				bound := fmt.Sprintf("below %d", lo)
+				if hi < math.MaxInt64 {
+					bound = fmt.Sprintf("outside %d to %d", lo, hi)
+				}
+				return fmt.Sprintf("online migration cannot take gh-ost flag %q = %d, %s", k, n, bound)
+			}
+		}
 	}
 	if isTrue(flags["switch-to-rbr"]) && isTrue(flags["assume-rbr"]) {
 		return "online migration cannot take gh-ost flags switch-to-rbr and assume-rbr together"
 	}
 	return ""
+}
+
+// ghostFlagRange returns the bounds gh-ost's setter of an integer flag
+// holds a value to, failing Bytebase's migration context outside them.
+//
+// gh-ost (bytebase/gh-ost2): go/base/context.go —
+// SetCutOverLockTimeoutSeconds, SetExponentialBackoffMaxInterval.
+func ghostFlagRange(flag string) (lo, hi int64, ok bool) {
+	switch flag {
+	case "cut-over-lock-timeout-seconds":
+		return 1, 10, true
+	case "exponential-backoff-max-interval":
+		return 2, math.MaxInt64, true
+	}
+	return 0, 0, false
 }
 
 // parseLoadMap reads a max-load value as gh-ost's ParseLoadMap does:
