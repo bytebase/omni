@@ -36,6 +36,7 @@ const (
 	tokOP         // generic operator
 	tokHINT       // /*+ hint text */
 	tokDIRECTIVE  // $IF, $THEN, $ELSIF, $ELSE, $END, or $ERROR; never returned by NextToken
+	tokINQUIRY    // $$name inquiry directive, a literal the compiler substitutes
 )
 
 // Token represents a lexical token.
@@ -89,6 +90,7 @@ type Lexer struct {
 type ccRecord struct {
 	directives []int       // start offsets of $IF ... $ERROR and $$name
 	conditions []nodes.Loc // the expressions between an evaluated $IF or $ELSIF and its $THEN
+	binds      []int       // start offsets of the bind variables inside a directive
 }
 
 // noteDirective records a preprocessor token at loc. Offsets arrive in
@@ -96,6 +98,13 @@ type ccRecord struct {
 func (r *ccRecord) noteDirective(loc int) {
 	if r != nil && (len(r.directives) == 0 || loc > r.directives[len(r.directives)-1]) {
 		r.directives = append(r.directives, loc)
+	}
+}
+
+// noteBind records a bind variable inside a directive at loc.
+func (r *ccRecord) noteBind(loc int) {
+	if r != nil && (len(r.binds) == 0 || loc > r.binds[len(r.binds)-1]) {
+		r.binds = append(r.binds, loc)
 	}
 }
 
@@ -154,6 +163,9 @@ func (l *Lexer) NextToken() Token {
 			return tok
 		}
 		if tok.Type != tokDIRECTIVE {
+			if tok.Type == tokBIND && l.ccDepth > 0 {
+				l.cc.noteBind(tok.Loc)
+			}
 			return tok
 		}
 		before := *l
@@ -314,6 +326,8 @@ func (l *Lexer) skipCondition(tok Token) (ccValue, bool) {
 		case next.Type == tokDIRECTIVE:
 			l.failDirective(next, fmt.Sprintf("unexpected preprocessor token '%s'", next.Str))
 			return ccUnknown, false
+		case next.Type == tokBIND:
+			l.cc.noteBind(next.Loc)
 		}
 		if tokens == 0 {
 			cond.Start = next.Loc
@@ -337,6 +351,9 @@ func (l *Lexer) skipBranch(tok Token, state ccState, stopAtBranch bool) (Token, 
 			return next, false
 		}
 		if next.Type != tokDIRECTIVE {
+			if next.Type == tokBIND {
+				l.cc.noteBind(next.Loc)
+			}
 			continue
 		}
 		top := &stack[len(stack)-1]
@@ -812,8 +829,8 @@ func (l *Lexer) lexIdentOrKeyword() Token {
 }
 
 // lexPreprocessorToken lexes the PL/SQL preprocessor token at '$': a
-// directive, as a tokDIRECTIVE token, or an inquiry directive $$name, as an
-// identifier. Any other '$' is left to lex as itself.
+// directive, as a tokDIRECTIVE token, or an inquiry directive $$name, as a
+// tokINQUIRY token. Any other '$' is left to lex as itself.
 func (l *Lexer) lexPreprocessorToken() (Token, bool) {
 	start := l.pos
 	if l.pos+2 < l.end && l.input[l.pos+1] == '$' && isIdentStart(l.input[l.pos+2]) {
@@ -822,7 +839,7 @@ func (l *Lexer) lexPreprocessorToken() (Token, bool) {
 			l.pos++
 		}
 		l.cc.noteDirective(start)
-		return Token{Type: tokIDENT, Str: "$$" + strings.ToUpper(l.input[start+2:l.pos]), Loc: start}, true
+		return Token{Type: tokINQUIRY, Str: "$$" + strings.ToUpper(l.input[start+2:l.pos]), Loc: start}, true
 	}
 	end := start + 1
 	for end < l.end && isIdentCont(l.input[end]) {

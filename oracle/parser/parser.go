@@ -56,11 +56,13 @@ type Parser struct {
 	// Oracle 23ai rejects RESULT_CACHE on any subprogram in one (PLS-00999).
 	inAnonymousBlock bool
 
-	// ccDirective and ccCondition index the first entries of the lexer's
-	// conditional compilation record that no statement has checked yet;
+	// ccDirective, ccCondition, and ccBind index the first entries of the
+	// lexer's conditional compilation record that no statement has checked
+	// yet;
 	// ccAfterUnit says the last statement parsed is a PL/SQL unit.
 	ccDirective int
 	ccCondition int
+	ccBind      int
 	ccAfterUnit bool
 }
 
@@ -86,6 +88,14 @@ func (p *Parser) checkConditionalCompilation(stmt nodes.StmtNode, start, first, 
 		}
 	}
 	p.ccAfterUnit = unit
+	// An anonymous block takes no bind variable inside a directive
+	// (PLS-00110), in a selected branch or not.
+	_, block := stmt.(*nodes.PLSQLBlock)
+	for ; p.ccBind < len(cc.binds) && cc.binds[p.ccBind] < end; p.ccBind++ {
+		if loc := cc.binds[p.ccBind]; block && loc >= start {
+			return p.syntaxErrorAtTok(NewLexerRange(p.source, loc, len(p.source)).nextRaw())
+		}
+	}
 	return p.checkDirectiveConditions(end)
 }
 

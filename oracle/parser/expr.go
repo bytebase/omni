@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -152,6 +154,11 @@ func (p *Parser) startsDotPostfix() bool {
 }
 
 func (p *Parser) parseDotPostfix(left nodes.ExprNode) (nodes.ExprNode, error) {
+	// An inquiry directive is a literal: no field or method (PLS-00103 on
+	// Oracle 23ai for $$PLSQL_LINE.y).
+	if ref, ok := left.(*nodes.ColumnRef); ok && strings.HasPrefix(ref.Column, "$$") {
+		return nil, p.syntaxErrorAtCur()
+	}
 	start := exprLocStart(left, p.pos())
 	p.advance() // consume '.'
 	memberStart := p.pos()
@@ -588,6 +595,15 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 
 	case tokBIND:
 		return p.parseBindVariable()
+
+	case tokINQUIRY:
+		// An inquiry directive is a literal the compiler substitutes
+		// ($$PLSQL_LINE, $$PLSQL_UNIT): no name, no call, no field.
+		tok := p.advance()
+		return &nodes.ColumnRef{
+			Column: tok.Str,
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+		}, nil
 
 	case '*':
 		p.advance()

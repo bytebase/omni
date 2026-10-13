@@ -10,8 +10,8 @@ import (
 
 // TestConditionalCompilation checks PL/SQL conditional compilation against
 // Oracle 23ai: every accepted form compiles there, and every rejected one
-// fails with the error noted beside it. Rows ref_264 to ref_274 run them
-// against the engine.
+// fails with the error noted beside it. Rows ref_264 to ref_274 and ref_281
+// to ref_283 run them against the engine.
 func TestConditionalCompilation(t *testing.T) {
 	for _, sql := range []string{
 		// Selection directives around declarations, statements, and
@@ -52,6 +52,13 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF FALSE AND $$x $THEN garbage garbage; $ELSE NULL; $END END;",
 		"BEGIN $IF 1 = 1 $THEN NULL; $ELSE garbage garbage; $END END;",
 		"BEGIN $IF 1 = 2 $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF 1 + 1 = 3 $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF 1 - 1 = 0 AND 10 / 2 > 4 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF NVL(NULL, TRUE) $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF XOR(TRUE, TRUE) $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF ABS(-1) = 1 AND pkg.c $THEN NULL; $END END;",
+		// A label before the block's BEGIN does not count as its first token.
+		"<<l>> $IF TRUE $THEN BEGIN $END NULL; END;",
 		// A unit's first directive follows a token of its own; a trigger's
 		// follows the start of its body.
 		"CREATE OR REPLACE PROCEDURE p (x NUMBER) $IF TRUE $THEN IS $ELSE AS $END BEGIN NULL; END;",
@@ -93,6 +100,27 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF 1 + 2 $THEN NULL; $END END;",
 		"BEGIN $IF $$x + 1 $THEN NULL; $END END;",
 		"BEGIN NULL; END; $IF 1 + $THEN $END",
+		// A call is no static Boolean but STANDARD's NVL and XOR (PLS-00382,
+		// PLS-00174, PLS-00306), nor are CASE and DECODE.
+		"BEGIN $IF ABS(1) $THEN NULL; $END END;",
+		"BEGIN $IF TO_CHAR(1) $THEN NULL; $END END;",
+		"BEGIN $IF NOT ABS(1) $THEN NULL; $END END;",
+		"BEGIN $IF f(1) $THEN NULL; $END END;",
+		"BEGIN $IF NVL2(TRUE, TRUE, FALSE) $THEN NULL; $END END;",
+		"BEGIN $IF CASE WHEN 1 = 1 THEN TRUE ELSE FALSE END $THEN NULL; $END END;",
+		"BEGIN $IF DECODE(1, 1, TRUE, FALSE) $THEN NULL; $END END;",
+		// The selected code is parsed: here, an empty block (PLS-00103).
+		"BEGIN $IF NOT NVL(TRUE, FALSE) $THEN NULL; $END END;",
+		// An anonymous block takes no bind variable inside a directive
+		// (PLS-00110).
+		"BEGIN $IF TRUE $THEN :n := 1; $END END;",
+		"BEGIN $IF FALSE $THEN :n := 1; $ELSE NULL; $END END;",
+		"BEGIN $IF :x $THEN NULL; $END END;",
+		// An inquiry directive is a literal, not a name (PLS-00103).
+		"DECLARE $$PLSQL_LINE NUMBER; BEGIN NULL; END;",
+		"BEGIN $$x := 1; END;",
+		"DECLARE x NUMBER; BEGIN x := $$PLSQL_LINE.y; END;",
+		"BEGIN $$plsql_unit(1); END;",
 		// A directive right after a unit's name, or before a trigger's body
 		// (ORA-00911).
 		"CREATE OR REPLACE PROCEDURE p $IF TRUE $THEN IS $END BEGIN NULL; END;",

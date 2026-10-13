@@ -58,6 +58,31 @@ func staticTruthOf(source string, expr nodes.ExprNode) staticTruth {
 		}
 	case *nodes.BoolExpr:
 		return staticBoolExpr(source, e)
+	case *nodes.FuncCallExpr:
+		// STANDARD's NVL and XOR, the Boolean functions a static
+		// expression may call.
+		if e.FuncName == nil || e.Args == nil || e.Args.Len() != 2 {
+			return truthUnknown
+		}
+		a := staticTruthOf(source, e.Args.Items[0].(nodes.ExprNode))
+		b := staticTruthOf(source, e.Args.Items[1].(nodes.ExprNode))
+		switch e.FuncName.Name {
+		case "NVL":
+			if a == truthNull {
+				return b
+			}
+			return a
+		case "XOR":
+			switch {
+			case a == truthUnknown || b == truthUnknown:
+				return truthUnknown
+			case a == truthNull || b == truthNull:
+				return truthNull
+			case a != b:
+				return truthTrue
+			}
+			return truthFalse
+		}
 	case *nodes.BinaryExpr:
 		left, lok := staticNumber(e.Left)
 		right, rok := staticNumber(e.Right)
@@ -127,7 +152,8 @@ func staticBoolExpr(source string, e *nodes.BoolExpr) staticTruth {
 	return result
 }
 
-// staticNumber returns the value of a numeric literal, possibly signed.
+// staticNumber returns the value of a numeric literal, possibly signed, or
+// of arithmetic over them (Oracle 23ai selects the $ELSE of $IF 1 + 1 = 3).
 func staticNumber(expr nodes.ExprNode) (float64, bool) {
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
@@ -145,34 +171,71 @@ func staticNumber(expr nodes.ExprNode) (float64, bool) {
 		case e.Op == "+":
 			return v, true
 		}
+	case *nodes.BinaryExpr:
+		left, lok := staticNumber(e.Left)
+		right, rok := staticNumber(e.Right)
+		if !lok || !rok {
+			return 0, false
+		}
+		switch e.Op {
+		case "+":
+			return left + right, true
+		case "-":
+			return left - right, true
+		case "*":
+			return left * right, true
+		case "/":
+			if right == 0 {
+				return 0, false
+			}
+			return left / right, true
+		}
 	}
 	return 0, false
 }
 
-// nonBooleanCondition reports whether a condition is a number or a string
-// whatever its operands hold: a literal, a sign, or an arithmetic or
-// concatenation operator at its top. Oracle 23ai rejects $IF 'x', $IF 1 + 2,
-// and $IF $$x + 1 with PLS-00382.
-func nonBooleanCondition(expr nodes.ExprNode) bool {
+// nonBooleanOperand returns the first operand in a Boolean position of a
+// condition, the condition itself or an operand of NOT, AND, or OR, that
+// cannot be a static Boolean whatever its operands hold, or nil. Oracle 23ai
+// rejects a number or a string (PLS-00382 for $IF 'x', $IF 1 + 2, $IF $$x +
+// 1), and a call to anything but the STANDARD functions NVL and XOR: a
+// numeric or character one (PLS-00382 for $IF ABS(1)) or one that is not
+// static (PLS-00174 for a Boolean function of the user's), and CASE and
+// DECODE (PLS-00174, PLS-00306).
+func nonBooleanOperand(expr nodes.ExprNode) nodes.ExprNode {
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
-		return nonBooleanCondition(e.Expr)
-	case *nodes.NumberLiteral, *nodes.StringLiteral:
-		return true
+		return nonBooleanOperand(e.Expr)
+	case *nodes.NumberLiteral, *nodes.StringLiteral, *nodes.CaseExpr, *nodes.DecodeExpr:
+		return expr
 	case *nodes.UnaryExpr:
-		return e.Op == "-" || e.Op == "+"
+		if e.Op == "-" || e.Op == "+" {
+			return expr
+		}
 	case *nodes.BinaryExpr:
 		switch e.Op {
 		case "+", "-", "*", "/", "**", "||":
-			return true
+			return expr
+		}
+	case *nodes.FuncCallExpr:
+		if e.FuncName == nil || e.FuncName.Name != "NVL" && e.FuncName.Name != "XOR" {
+			return expr
+		}
+	case *nodes.BoolExpr:
+		if e.Args != nil {
+			for _, item := range e.Args.Items {
+				if bad := nonBooleanOperand(item.(nodes.ExprNode)); bad != nil {
+					return bad
+				}
+			}
 		}
 	}
-	return false
+	return nil
 }
 
 // checkDirectiveCondition parses the condition at loc of an $IF or $ELSIF
-// the lexer evaluated: an expression (PLS-00103), not a number or a string
-// (PLS-00382).
+// the lexer evaluated: an expression (PLS-00103) whose Boolean operands can
+// be static Booleans (nonBooleanOperand).
 func (p *Parser) checkDirectiveCondition(loc nodes.Loc) error {
 	sub := &Parser{lexer: NewLexerRange(p.source, loc.Start, loc.End), source: p.source}
 	sub.advance()
@@ -183,8 +246,8 @@ func (p *Parser) checkDirectiveCondition(loc nodes.Loc) error {
 	if expr == nil || sub.cur.Type != tokEOF {
 		return sub.syntaxErrorAtCur()
 	}
-	if nonBooleanCondition(expr) {
-		return p.syntaxErrorAtNode(expr)
+	if bad := nonBooleanOperand(expr); bad != nil {
+		return p.syntaxErrorAtNode(bad)
 	}
 	return nil
 }
