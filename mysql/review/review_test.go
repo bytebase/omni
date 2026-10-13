@@ -299,6 +299,10 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:  "CREATE UNIQUE INDEX ux ON T (c);\nDROP INDEX ux ON t;\nCREATE PROCEDURE pr() CREATE UNIQUE INDEX uy ON nokey (a);\nDROP INDEX uy ON nokey;\nALTER EVENT ev DO CREATE UNIQUE INDEX uz ON nokey (a);\nDROP INDEX uz ON nokey;",
 		},
 		{
+			name: "a key CREATE TABLE IF NOT EXISTS declares, or one touched before a USE",
+			sql:  "CREATE TABLE IF NOT EXISTS t (n INT, UNIQUE KEY idx_n (n));\nDROP INDEX idx_n ON t;\nCREATE UNIQUE INDEX ux ON nokey (a);\nUSE other;\nDROP INDEX ux ON nokey;",
+		},
+		{
 			name: "an index of a table CREATE TABLE IF NOT EXISTS leaves",
 			sql:  "CREATE TABLE IF NOT EXISTS t (id INT);\nDROP INDEX uk_code ON t;",
 			want: []finding{{1, "DROP INDEX uk_code ON t", "drops unique key uk_code of t", []int{0}}},
@@ -318,6 +322,14 @@ func TestRequirePrimaryKey(t *testing.T) {
 			want: []finding{
 				{0, "CREATE TABLE a (id INT)", "creates table a without a primary key", []int{0}},
 				{5, "CREATE TABLE f AS SELECT 1 AS id", "creates table f without a primary key", []int{0}},
+			},
+		},
+		{
+			name: "not settled by IF NOT EXISTS or a temporary table of its name",
+			sql:  "CREATE TABLE a (id INT);\nCREATE TABLE IF NOT EXISTS a (id INT PRIMARY KEY);\nCREATE TABLE b (id INT);\nCREATE TEMPORARY TABLE b (id INT PRIMARY KEY);",
+			want: []finding{
+				{0, "CREATE TABLE a (id INT)", "creates table a without a primary key", []int{0}},
+				{2, "CREATE TABLE b (id INT)", "creates table b without a primary key", []int{0}},
 			},
 		},
 		{
