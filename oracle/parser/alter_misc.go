@@ -3791,7 +3791,7 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 			}
 			stmt.Attributes = append(stmt.Attributes, attrs...)
 		} else {
-			method, err := p.parseAlterTypeMethod(verb)
+			method, err := p.parseAlterTypeMethod(verb, subprogramName(stmt.Name))
 			if err != nil {
 				return err
 			}
@@ -3813,7 +3813,7 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 //	{ MEMBER | STATIC | { MAP | ORDER } MEMBER | CONSTRUCTOR }
 //	{ PROCEDURE name [ ( parameters ) ]
 //	| FUNCTION name [ ( parameters ) ] RETURN { datatype | SELF AS RESULT } }
-func (p *Parser) parseAlterTypeMethod(verb string) (*nodes.AlterTypeMethod, error) {
+func (p *Parser) parseAlterTypeMethod(verb, typeName string) (*nodes.AlterTypeMethod, error) {
 	method := &nodes.AlterTypeMethod{Action: verb, Loc: nodes.Loc{Start: p.pos()}}
 	if p.isKeywordStr("OVERRIDING") {
 		method.Modifiers = append(method.Modifiers, "OVERRIDING")
@@ -3867,12 +3867,18 @@ func (p *Parser) parseAlterTypeMethod(verb string) (*nodes.AlterTypeMethod, erro
 	}
 	p.advance()
 
+	nameTok := p.cur
 	method.Name, err = p.parseIdentifier()
 	if err != nil {
 		return nil, err
 	}
 	if method.Name == "" {
 		return nil, p.syntaxErrorAtCur()
+	}
+	// A constructor bears its type's name (PLS-00658, reported by Oracle
+	// 23ai as ORA-22324).
+	if method.Kind == "CONSTRUCTOR" && typeName != "" && method.Name != typeName {
+		return nil, p.syntaxErrorAtTok(nameTok)
 	}
 	var params *nodes.List
 	if p.cur.Type == '(' {
@@ -3957,8 +3963,9 @@ func (p *Parser) parseAlterTypeAttributes(withDatatype bool) ([]*nodes.TypeAttri
 			Loc:  nodes.Loc{Start: attrStart},
 		}
 		if withDatatype {
-			// ADD and MODIFY name the datatype (ORA-06545 without one), which
-			// is one an attribute may have, as in CREATE TYPE.
+			// ADD and MODIFY name the datatype (ORA-06545 without one). The
+			// type's persistability is not in the statement, so only the
+			// datatypes no attribute takes are rejected.
 			attr.DataType, err = p.parsePLSQLDatatype(typeModsPLSQL, charsetFixed)
 			if err != nil {
 				return nil, err
@@ -3966,7 +3973,7 @@ func (p *Parser) parseAlterTypeAttributes(withDatatype bool) ([]*nodes.TypeAttri
 			if attr.DataType == nil || attr.DataType.Names.Len() == 0 {
 				return nil, p.syntaxErrorAtCur()
 			}
-			if objectAttributeIllegal[p.predefinedTypeLead(attr.DataType)] {
+			if attributeAlwaysIllegal[p.predefinedTypeLead(attr.DataType)] {
 				return nil, p.syntaxErrorAtType(attr.DataType)
 			}
 		}

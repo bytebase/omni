@@ -56,6 +56,7 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 
 	case kwCHAR, kwVARCHAR2, kwVARCHAR, kwNCHAR, kwNVARCHAR2:
 		varying := p.cur.Type == kwCHAR || p.cur.Type == kwNCHAR
+		national := p.cur.Type == kwNCHAR || p.cur.Type == kwNVARCHAR2
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 		p.advance()
 		if varying && p.isKeywordStr("VARYING") {
@@ -68,6 +69,11 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 		parseErr1117 := p.parseOptionalSizeWithSemantic(tn)
 		if parseErr1117 != nil {
 			return nil, parseErr1117
+		}
+		if national {
+			if err := p.checkNationalLength(tn); err != nil {
+				return nil, err
+			}
 		}
 
 	case kwCLOB, kwBLOB, kwNCLOB, kwJSON:
@@ -203,6 +209,11 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 			if err := p.parseOptionalSizeWithSemantic(tn); err != nil {
 				return nil, err
 			}
+			if tn.Names.Items[0].(*nodes.String).Str == "NATIONAL" {
+				if err := p.checkNationalLength(tn); err != nil {
+					return nil, err
+				}
+			}
 		case ansi && p.isKeywordStr("DOUBLE"):
 			p.advance() // consume DOUBLE
 			if !p.isKeywordStr("PRECISION") {
@@ -316,6 +327,19 @@ var plsqlNonCharacterTypes = map[string]bool{
 	"DATE": true, "TIMESTAMP": true, "INTERVAL": true, "RAW": true, "LONG": true,
 	"ROWID": true, "UROWID": true, "BLOB": true, "BFILE": true, "JSON": true, "VECTOR": true,
 	"MLSLABEL": true, "SYS_REFCURSOR": true, "NCHAR": true, "NVARCHAR2": true, "NCLOB": true,
+}
+
+// checkNationalLength rejects the length semantics a national character
+// type does not take: BYTE anywhere (ORA-00907 in SQL, PLS-00639 in
+// PL/SQL), and CHAR in SQL (ORA-00907), which PL/SQL and a type attribute
+// take, on Oracle 23ai.
+func (p *Parser) checkNationalLength(tn *nodes.TypeName) error {
+	for _, mod := range tn.TypeMods.Items {
+		if s, ok := mod.(*nodes.String); ok && (s.Str == "BYTE" || s.Str == "CHAR" && p.typeMods == typeModsSQL) {
+			return p.syntaxErrorAtType(tn)
+		}
+	}
+	return nil
 }
 
 // requireVaryingSize checks that the size of a VARYING character type

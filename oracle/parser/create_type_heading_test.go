@@ -11,10 +11,10 @@ import (
 // types, and collection elements of CREATE TYPE against Oracle 23ai: every
 // accepted form compiles there (or fails only on names it cannot resolve or
 // on the instance's settings), and every rejected one fails with the error
-// noted beside it. Rows ref_189 to ref_208, ref_216 to ref_218, and ref_223
-// to ref_224 run the PLS-00103 and ORA cases against the engine; the others
-// are errors Oracle reports from the text alone after parsing, which the
-// reference harness counts as accepted.
+// noted beside it. Rows ref_189 to ref_208, ref_216 to ref_218, ref_223 to
+// ref_224, and ref_247 to ref_250 run the PLS-00103 and ORA cases against
+// the engine; the others are errors Oracle reports from the text alone after
+// parsing, which the reference harness counts as accepted.
 func TestCreateTypeHeading(t *testing.T) {
 	for _, sql := range []string{
 		// FORCE and OID in either order, then AUTHID and ACCESSIBLE BY in
@@ -121,9 +121,14 @@ func TestCreateTypeHeading(t *testing.T) {
 		"CREATE TYPE t DEFAULT COLLATION USING_NLS_COMP DEFAULT COLLATION USING_NLS_COMP AS OBJECT (a NUMBER)",
 		// Program unit collation is USING_NLS_COMP (PLS-00761).
 		"CREATE TYPE t DEFAULT COLLATION BINARY AS OBJECT (a NUMBER)",
-		// OID takes a string literal (ORA-01780); SHARING its '='
-		// (ORA-02000) and a valid value (ORA-65014).
+		// OID takes a string literal (ORA-01780) of 32 hexadecimal digits
+		// (ORA-02304); SHARING its '=' (ORA-02000) and a valid value
+		// (ORA-65014).
 		"CREATE TYPE t OID 123 AS OBJECT (a NUMBER)",
+		"CREATE TYPE t OID 'ABC' AS OBJECT (a NUMBER)",
+		"CREATE TYPE t OID '1234567890ABCDEF1234567890ABCDEG' AS OBJECT (a NUMBER)",
+		"CREATE TYPE t OID '1234567890ABCDEF1234567890ABCD1' AS OBJECT (a NUMBER)",
+		"CREATE TYPE t OID '1234567890ABCDEF1234567890ABCD123' AS OBJECT (a NUMBER)",
 		"CREATE TYPE t SHARING NONE AS OBJECT (a NUMBER)",
 		"CREATE TYPE t SHARING = FOO AS OBJECT (a NUMBER)",
 		"CREATE TYPE t SHARING = EXTENDED DATA AS OBJECT (a NUMBER)",
@@ -193,8 +198,8 @@ func TestCreateTypeHeading(t *testing.T) {
 // TestCreateTypeHeadingAST checks what the heading clauses, a subtype, and a
 // collection element record.
 func TestCreateTypeHeadingAST(t *testing.T) {
-	ty := parseOne[*ast.CreateTypeStmt](t, "CREATE OR REPLACE TYPE s.t SHARING = NONE FORCE OID 'ABC' AUTHID CURRENT_USER ACCESSIBLE BY (PACKAGE k) AS OBJECT (a NUMBER, b REF s.u) NOT FINAL")
-	if ty.Sharing != "NONE" || !ty.Force || ty.OID != "ABC" || ty.AuthID != "CURRENT_USER" || ty.AccessibleBy.Len() != 1 {
+	ty := parseOne[*ast.CreateTypeStmt](t, "CREATE OR REPLACE TYPE s.t SHARING = NONE FORCE OID '1234567890abcdef1234567890ABCDEF' AUTHID CURRENT_USER ACCESSIBLE BY (PACKAGE k) AS OBJECT (a NUMBER, b REF s.u) NOT FINAL")
+	if ty.Sharing != "NONE" || !ty.Force || ty.OID != "1234567890abcdef1234567890ABCDEF" || ty.AuthID != "CURRENT_USER" || ty.AccessibleBy.Len() != 1 {
 		t.Errorf("heading = sharing %q force %v oid %q authid %q accessible %v", ty.Sharing, ty.Force, ty.OID, ty.AuthID, ty.AccessibleBy)
 	}
 	if b := ty.Attributes.Items[1].(*ast.ColumnDef).TypeName; !b.IsRef || b.Names.Len() != 2 {
@@ -212,7 +217,7 @@ func TestCreateTypeHeadingAST(t *testing.T) {
 		t.Errorf("collection = %v, not null %v, modifiers %q", coll.AsTable, coll.ElementNotNull, coll.Modifiers)
 	}
 
-	if incomplete := parseOne[*ast.CreateTypeStmt](t, "CREATE TYPE t OID 'ABC'"); incomplete.OID != "ABC" ||
+	if incomplete := parseOne[*ast.CreateTypeStmt](t, "CREATE TYPE t OID '1234567890ABCDEF1234567890ABCDEF'"); incomplete.OID != "1234567890ABCDEF1234567890ABCDEF" ||
 		incomplete.Attributes != nil || incomplete.AsTable != nil || incomplete.AsVarray != nil || incomplete.Under != nil {
 		t.Errorf("incomplete type = %+v", incomplete)
 	}
@@ -310,6 +315,9 @@ func TestAlterTypeElements(t *testing.T) {
 		"ALTER TYPE t ADD NOT INSTANTIABLE STATIC FUNCTION h RETURN NUMBER CASCADE",
 		"ALTER TYPE t ADD NOT INSTANTIABLE FINAL MEMBER FUNCTION k RETURN NUMBER CASCADE",
 		"ALTER TYPE t ADD NOT INSTANTIABLE CONSTRUCTOR FUNCTION t (x NUMBER) RETURN SELF AS RESULT CASCADE",
+		// A constructor bears its type's name (ORA-22324 on PLS-00658).
+		"ALTER TYPE t ADD CONSTRUCTOR FUNCTION wrong (x NUMBER) RETURN SELF AS RESULT CASCADE",
+		"ALTER TYPE t ADD MEMBER FUNCTION g RETURN NUMBER, ADD CONSTRUCTOR FUNCTION wrong RETURN SELF AS RESULT CASCADE",
 	} {
 		ParseShouldFail(t, sql)
 	}
@@ -354,21 +362,45 @@ func typeNameWords(tn *ast.TypeName) []string {
 // TestTypeAttributeAndElementTypes checks the predefined types Oracle 23ai
 // refuses as an object type attribute (PLS-00530, PLS-00218, PLS-00989) and
 // as a collection element (PLS-00531, PLS-00990), for every user, SYS
-// included.
+// included. The PL/SQL-only types are legal in a NOT PERSISTABLE type.
 func TestTypeAttributeAndElementTypes(t *testing.T) {
+	// Refused in a persistable type, legal in a NOT PERSISTABLE one. ALTER
+	// TYPE does not show the type's persistability, so it takes them.
 	for _, datatype := range []string{
-		"LONG", "LONG RAW", "LONG(100)", "LONG RAW(32767)", "PLS_INTEGER", "BINARY_INTEGER", "SIMPLE_INTEGER",
-		"NATURAL", "NATURALN", "POSITIVE", "POSITIVEN", "SIGNTYPE", "STRING(10)", "ROWID", "UROWID",
-		"MLSLABEL", "JSON", "VECTOR", "SYS_REFCURSOR",
+		"LONG", "LONG RAW", "LONG(100)", "LONG RAW(32767)", "PLS_INTEGER", "BINARY_INTEGER",
+		"NATURAL", "POSITIVE", "SIGNTYPE", "ROWID", "UROWID", "MLSLABEL",
 	} {
 		ParseShouldFail(t, "CREATE TYPE t AS OBJECT (x "+datatype+")")
+		ParseShouldFail(t, "CREATE TYPE t AS OBJECT (x "+datatype+") PERSISTABLE")
 		ParseShouldFail(t, "CREATE TYPE t AS TABLE OF "+datatype)
+		ParseShouldFail(t, "CREATE TYPE t AS TABLE OF ("+datatype+") PERSISTABLE")
+		ParseAndCheck(t, "CREATE TYPE t AS OBJECT (x "+datatype+") NOT PERSISTABLE")
+		ParseAndCheck(t, "CREATE TYPE t AS OBJECT (x "+datatype+") NOT FINAL NOT PERSISTABLE")
+		ParseAndCheck(t, "CREATE TYPE t AS TABLE OF ("+datatype+") NOT PERSISTABLE")
+		ParseAndCheck(t, "CREATE TYPE t AS VARRAY(3) OF ("+datatype+") NOT PERSISTABLE")
+		ParseAndCheck(t, "ALTER TYPE t ADD ATTRIBUTE x "+datatype+" CASCADE")
+		// A subtype's persistability is its supertype's.
+		ParseAndCheck(t, "CREATE TYPE t UNDER base (x "+datatype+")")
+	}
+	// Refused everywhere.
+	for _, datatype := range []string{"JSON", "VECTOR", "SYS_REFCURSOR"} {
+		ParseShouldFail(t, "CREATE TYPE t AS OBJECT (x "+datatype+") NOT PERSISTABLE")
+		ParseShouldFail(t, "CREATE TYPE t AS TABLE OF ("+datatype+") NOT PERSISTABLE")
+		ParseShouldFail(t, "CREATE TYPE t UNDER base (x "+datatype+")")
 		ParseShouldFail(t, "ALTER TYPE t ADD ATTRIBUTE x "+datatype+" CASCADE")
 	}
-	// SIMPLE_FLOAT and SIMPLE_DOUBLE are refused as attributes (PLS-00218)
-	// but not as elements.
+	// The NOT NULL subtypes are refused as attributes (PLS-00218) but not as
+	// elements of a NOT PERSISTABLE collection; SIMPLE_FLOAT and
+	// SIMPLE_DOUBLE are elements of any collection.
+	for _, datatype := range []string{"SIMPLE_INTEGER", "NATURALN", "POSITIVEN", "SIMPLE_FLOAT", "SIMPLE_DOUBLE"} {
+		ParseShouldFail(t, "CREATE TYPE t AS OBJECT (x "+datatype+") NOT PERSISTABLE")
+		ParseShouldFail(t, "ALTER TYPE t ADD ATTRIBUTE x "+datatype+" CASCADE")
+		ParseAndCheck(t, "CREATE TYPE t AS TABLE OF ("+datatype+") NOT PERSISTABLE")
+	}
+	for _, datatype := range []string{"SIMPLE_INTEGER", "NATURALN", "POSITIVEN"} {
+		ParseShouldFail(t, "CREATE TYPE t AS TABLE OF "+datatype)
+	}
 	for _, datatype := range []string{"SIMPLE_FLOAT", "SIMPLE_DOUBLE"} {
-		ParseShouldFail(t, "CREATE TYPE t AS OBJECT (x "+datatype+")")
 		ParseAndCheck(t, "CREATE TYPE t AS TABLE OF "+datatype)
 	}
 	for _, datatype := range []string{
@@ -387,4 +419,21 @@ func TestTypeAttributeAndElementTypes(t *testing.T) {
 	ParseShouldFail(t, "DECLARE x LONG RAW(10 BYTE); BEGIN NULL; END;")
 	ParseShouldFail(t, "DECLARE x REF u CHARACTER SET NCHAR_CS; BEGIN NULL; END;")
 	ParseAndCheck(t, "DECLARE x LONG(100); y LONG RAW(32767); BEGIN NULL; END;")
+	// A national type takes no BYTE (ORA-00907, PLS-00639), and CHAR only
+	// outside SQL.
+	for _, datatype := range []string{"NCHAR(2 CHAR)", "NVARCHAR2(2 CHAR)", "NATIONAL CHARACTER(2 CHAR)", "NCHAR VARYING(2 CHAR)"} {
+		ParseShouldFail(t, "CREATE TABLE t (x "+datatype+")")
+		ParseAndCheck(t, "DECLARE x "+datatype+"; BEGIN NULL; END;")
+		ParseAndCheck(t, "CREATE TYPE t AS OBJECT (x "+datatype+")")
+	}
+	for _, datatype := range []string{"NCHAR(2 BYTE)", "NVARCHAR2(2 BYTE)", "NATIONAL CHARACTER(2 BYTE)", "NATIONAL CHAR VARYING(2 BYTE)"} {
+		ParseShouldFail(t, "CREATE TABLE t (x "+datatype+")")
+		ParseShouldFail(t, "DECLARE x "+datatype+"; BEGIN NULL; END;")
+		ParseShouldFail(t, "CREATE TYPE t AS OBJECT (x "+datatype+")")
+	}
+	// DOUBLE takes PRECISION even where a subtype or type named DOUBLE is in
+	// scope (PLS-00103); only a quoted "DOUBLE" names it.
+	ParseShouldFail(t, "DECLARE SUBTYPE double IS NUMBER; x double; BEGIN NULL; END;")
+	ParseShouldFail(t, "CREATE PACKAGE BODY k AS x double; END;")
+	ParseAndCheck(t, "DECLARE SUBTYPE double IS NUMBER; x \"DOUBLE\"; BEGIN NULL; END;")
 }

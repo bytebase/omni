@@ -144,8 +144,9 @@ properties:
 				stmt.Force = true
 				continue
 			}
-			// The identifier is a string literal (ORA-01780).
-			if p.cur.Type != tokSCONST {
+			// The identifier is a string literal (ORA-01780) of 32
+			// hexadecimal digits (ORA-02304).
+			if p.cur.Type != tokSCONST || !isObjectIdentifier(p.cur.Str) {
 				return p.syntaxErrorAtCur()
 			}
 			stmt.OID = p.cur.Str
@@ -210,7 +211,10 @@ properties:
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
-		return p.parseObjectTypeModifiers(stmt, objectTypeModifiers)
+		if err := p.parseObjectTypeModifiers(stmt, objectTypeModifiers); err != nil {
+			return err
+		}
+		return p.checkPersistableAttributes(stmt)
 	}
 
 	collectionTok := p.cur
@@ -338,7 +342,7 @@ func (p *Parser) parseCollectionElement(stmt *nodes.CreateTypeStmt) (*nodes.Type
 	if tn == nil || tn.Names.Len() == 0 {
 		return nil, p.syntaxErrorAtCur()
 	}
-	if collectionElementIllegal[p.predefinedTypeLead(tn)] {
+	if elementAlwaysIllegal[p.predefinedTypeLead(tn)] {
 		return nil, p.syntaxErrorAtType(tn)
 	}
 	if p.cur.Type == kwNOT && p.peekNext().Type == kwNULL {
@@ -356,6 +360,9 @@ func (p *Parser) parseCollectionElement(stmt *nodes.CreateTypeStmt) (*nodes.Type
 			return nil, err
 		}
 		stmt.Modifiers = mods
+	}
+	if !notPersistable(stmt.Modifiers) && elementPersistableIllegal[p.predefinedTypeLead(tn)] {
+		return nil, p.syntaxErrorAtType(tn)
 	}
 	return tn, nil
 }
@@ -985,25 +992,57 @@ func (p *Parser) parseRestrictReferencesPragma() (*nodes.PLSQLPragma, error) {
 	return pragma, nil
 }
 
-// objectAttributeIllegal and collectionElementIllegal are the predefined
-// types that Oracle 23ai refuses as an object type attribute (PLS-00530;
-// PLS-00218 for the NOT NULL subtypes, PLS-00989 for SYS_REFCURSOR) and as
-// the element of a nested table or varray type (PLS-00531, PLS-00990).
-// BOOLEAN, the LOBs, BFILE, and the ANSI numeric names are allowed in both.
+// The predefined types Oracle 23ai refuses as an object type attribute
+// (PLS-00530; PLS-00218 for the NOT NULL subtypes, PLS-00989 for
+// SYS_REFCURSOR) and as the element of a nested table or varray type
+// (PLS-00531, PLS-00990), for every user, SYS included. The PL/SQL-only
+// types become legal in a NOT PERSISTABLE type; JSON, VECTOR, SYS_REFCURSOR,
+// and as attributes the NOT NULL subtypes stay illegal. BOOLEAN, the LOBs,
+// BFILE, and the ANSI numeric names are allowed everywhere.
 var (
-	objectAttributeIllegal = map[string]bool{
-		"LONG": true, "PLS_INTEGER": true, "BINARY_INTEGER": true, "SIMPLE_INTEGER": true,
-		"NATURAL": true, "NATURALN": true, "POSITIVE": true, "POSITIVEN": true, "SIGNTYPE": true,
-		"SIMPLE_FLOAT": true, "SIMPLE_DOUBLE": true, "STRING": true, "ROWID": true, "UROWID": true,
-		"MLSLABEL": true, "JSON": true, "VECTOR": true, "SYS_REFCURSOR": true,
+	attributeAlwaysIllegal = map[string]bool{
+		"JSON": true, "VECTOR": true, "SYS_REFCURSOR": true, "SIMPLE_INTEGER": true, "NATURALN": true,
+		"POSITIVEN": true, "SIMPLE_FLOAT": true, "SIMPLE_DOUBLE": true,
 	}
-	collectionElementIllegal = map[string]bool{
-		"LONG": true, "PLS_INTEGER": true, "BINARY_INTEGER": true, "SIMPLE_INTEGER": true,
-		"NATURAL": true, "NATURALN": true, "POSITIVE": true, "POSITIVEN": true, "SIGNTYPE": true,
-		"STRING": true, "ROWID": true, "UROWID": true, "MLSLABEL": true, "JSON": true,
-		"VECTOR": true, "SYS_REFCURSOR": true,
+	attributePersistableIllegal = map[string]bool{
+		"LONG": true, "PLS_INTEGER": true, "BINARY_INTEGER": true, "NATURAL": true, "POSITIVE": true,
+		"SIGNTYPE": true, "STRING": true, "ROWID": true, "UROWID": true, "MLSLABEL": true,
+	}
+	elementAlwaysIllegal = map[string]bool{
+		"JSON": true, "VECTOR": true, "SYS_REFCURSOR": true,
+	}
+	elementPersistableIllegal = map[string]bool{
+		"LONG": true, "PLS_INTEGER": true, "BINARY_INTEGER": true, "SIMPLE_INTEGER": true, "NATURAL": true,
+		"NATURALN": true, "POSITIVE": true, "POSITIVEN": true, "SIGNTYPE": true, "STRING": true,
+		"ROWID": true, "UROWID": true, "MLSLABEL": true,
 	}
 )
+
+// notPersistable reports whether modifiers make a type NOT PERSISTABLE.
+func notPersistable(mods []string) bool {
+	for _, mod := range mods {
+		if mod == "NOT PERSISTABLE" {
+			return true
+		}
+	}
+	return false
+}
+
+// checkPersistableAttributes rejects the attributes of an object type that
+// only a NOT PERSISTABLE type takes, once its modifiers are known. A
+// subtype's persistability is its supertype's, which the text does not
+// show, so its attributes meet only the rules for every type.
+func (p *Parser) checkPersistableAttributes(stmt *nodes.CreateTypeStmt) error {
+	if stmt.Under != nil || notPersistable(stmt.Modifiers) {
+		return nil
+	}
+	for _, item := range stmt.Attributes.Items {
+		if col, ok := item.(*nodes.ColumnDef); ok && attributePersistableIllegal[p.predefinedTypeLead(col.TypeName)] {
+			return p.syntaxErrorAtType(col.TypeName)
+		}
+	}
+	return nil
+}
 
 // parseTypeAttribute parses one attribute of an object type specification:
 // attribute_name datatype.
@@ -1026,7 +1065,7 @@ func (p *Parser) parseTypeAttribute() (*nodes.ColumnDef, error) {
 	if typeName == nil || typeName.Names.Len() == 0 {
 		return nil, p.syntaxErrorAtCur()
 	}
-	if objectAttributeIllegal[p.predefinedTypeLead(typeName)] {
+	if attributeAlwaysIllegal[p.predefinedTypeLead(typeName)] {
 		return nil, p.syntaxErrorAtType(typeName)
 	}
 	return &nodes.ColumnDef{
@@ -1034,4 +1073,18 @@ func (p *Parser) parseTypeAttribute() (*nodes.ColumnDef, error) {
 		TypeName: typeName,
 		Loc:      nodes.Loc{Start: start, End: p.prev.End},
 	}, nil
+}
+
+// isObjectIdentifier reports whether s is an object identifier literal: 32
+// hexadecimal digits, in either case.
+func isObjectIdentifier(s string) bool {
+	if len(s) != 32 {
+		return false
+	}
+	for _, c := range s {
+		if !('0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F') {
+			return false
+		}
+	}
+	return true
 }
