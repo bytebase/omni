@@ -31,6 +31,7 @@ CREATE TABLE prior_backup_bob.t (id int);
 CREATE TABLE public.pb_src (old int);
 CREATE TABLE s.pb_src (new int);
 CREATE TABLE s.pb_dest (old int);
+CREATE SCHEMA pb_empty;
 CREATE FUNCTION public.old(int) RETURNS bool LANGUAGE sql AS 'SELECT true';
 INSERT INTO p VALUES (1), (2);
 INSERT INTO t (id, p_id, n) VALUES (1, 1, 1), (2, 2, 2);
@@ -150,6 +151,14 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a column beside JSON_TABLE", "ALTER TABLE nokey ADD COLUMN b bool;\nDELETE FROM nokey USING JSON_TABLE('{\"x\":1}'::jsonb, '$' COLUMNS (x int PATH '$.x')) AS g WHERE b;", true},
 		{"a column a copied WITH query's star shows", "ALTER TABLE p ADD COLUMN gone int;\nWITH x AS (SELECT p.* FROM p) DELETE FROM t USING x WHERE x.gone = t.id;", true},
 		{"a column a subquery's star shows", "ALTER TABLE p ADD COLUMN gone int;\nDELETE FROM nokey USING (SELECT * FROM p) AS sq WHERE sq.gone = 1;", true},
+		{"a table RESET ALL finds under the role it keeps", "SET search_path = public;\nSET ROLE prior_backup_bob;\nSELECT set_config('search_path', current_setting('search_path'), false);\nRESET ALL;\nUPDATE t SET id = 1 WHERE id = 2;", true},
+		{"a column an outer source has, which a subquery's aliased join hides", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p WHERE EXISTS (SELECT p.gone FROM (p JOIN nokey ON true) AS j);", true},
+		{"a column a subquery's star shows through its own WITH clause", "ALTER TABLE p ADD COLUMN gone int;\nDELETE FROM nokey USING (WITH z AS (SELECT 1) SELECT p.* FROM p) AS sq WHERE sq.gone = 1;", true},
+		{"a column copied through a table the change creates", "CREATE TABLE pb_x (LIKE p);\nDROP TABLE nokey;\nCREATE TABLE nokey (LIKE pb_x);\nDELETE FROM t USING nokey WHERE nokey.id = t.id;", true},
+		{"a relation the change rolls back", "SET search_path = pb_empty, public;\nBEGIN;\nCREATE TABLE pb_empty.t (id int);\nROLLBACK;\nUPDATE t SET n = 1 WHERE id = 2;", true},
+		{"a relation the change commits", "SET search_path = pb_empty, public;\nBEGIN;\nCREATE TABLE pb_empty.t (id int);\nCOMMIT;\nUPDATE t SET n = 1 WHERE id = 2;", true},
+		{"a column named like its table, read as a boolean", "ALTER TABLE nokey ADD COLUMN nokey bool;\nDELETE FROM nokey WHERE nokey;", true},
+		{"a column a LATERAL subquery reads of a source before it", "ALTER TABLE p ADD COLUMN gone int;\nDELETE FROM t USING p, LATERAL (SELECT p.gone AS x) AS sq WHERE false;", true},
 		// DROP ... CASCADE may drop relations it does not name: what the
 		// path finds after it is not judged.
 		{"a table after DROP ... CASCADE", "SET search_path = s, public;\nDROP TABLE s.t CASCADE;\nUPDATE t SET n = 1 WHERE id = 2;", false},
@@ -303,14 +312,28 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 		node := list.Items[0].(*ast.RawStmt).Stmt
 		// The statements before an UPDATE or DELETE run, as the change
 		// runs them, so the server resolves its table as the change does.
-		// After one fails, the transaction is aborted and the server's
-		// resolution is not asked again.
-		switch node.(type) {
+		// The change's own transaction runs as a savepoint of the one the
+		// pass rolls back. After one fails, the transaction is aborted and
+		// the server's resolution is not asked again.
+		switch v := node.(type) {
 		case *ast.UpdateStmt, *ast.DeleteStmt:
 		default:
-			if engineKnown {
-				if _, err := etx.ExecContext(ctx, change[seg.ByteStart:seg.ByteEnd]); err != nil {
-					engineKnown = false
+			run := []string{change[seg.ByteStart:seg.ByteEnd]}
+			if tx, ok := v.(*ast.TransactionStmt); ok {
+				switch tx.Kind {
+				case ast.TRANS_STMT_BEGIN, ast.TRANS_STMT_START:
+					run = []string{"SAVEPOINT change_tx"}
+				case ast.TRANS_STMT_COMMIT:
+					run = []string{"RELEASE SAVEPOINT change_tx"}
+				case ast.TRANS_STMT_ROLLBACK:
+					run = []string{"ROLLBACK TO SAVEPOINT change_tx", "RELEASE SAVEPOINT change_tx"}
+				}
+			}
+			for _, stmt := range run {
+				if engineKnown {
+					if _, err := etx.ExecContext(ctx, stmt); err != nil {
+						engineKnown = false
+					}
 				}
 			}
 		}

@@ -130,6 +130,17 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 	q := backupQueryOf(stmts, schema, sessionUser)
 	// engine is the search path the change's own statements run under.
 	engine := newEnginePath(schema, sessionUser)
+	// undoable is the last rollback of the change: what a statement
+	// before it changes, it may undo.
+	undoable := -1
+	for i := range stmts {
+		if v, ok := stmts[i].node.(*ast.TransactionStmt); ok {
+			switch v.Kind {
+			case ast.TRANS_STMT_ROLLBACK, ast.TRANS_STMT_ROLLBACK_TO, ast.TRANS_STMT_PREPARE:
+				undoable = i
+			}
+		}
+	}
 	// firsts is the first statement on each table, whose WITH clause and
 	// alias the backup's query of the table carries.
 	firsts := make(map[backupTable]ast.Node)
@@ -188,7 +199,7 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 			}
 			if msg := selectionRefused(s.node, table, first, q, made); msg != "" {
 				r.report(review.PriorBackup, s.index, rangeOf(statementLoc(s.node)), msg)
-			} else if at, h, ok := engine.resolve(rv); ok && !h.none() && h != (holding{synced: [2]string{table.schema, rv.Relname}}) {
+			} else if at, h, ok := engine.resolve(rv); i > undoable && ok && !h.none() && h != (holding{synced: [2]string{table.schema, rv.Relname}}) {
 				// Bytebase follows SET search_path but not RESET, DEFAULT,
 				// set_config, $user, or what the change does to the
 				// relations of a name: it backs up another table than the
@@ -294,6 +305,39 @@ type made struct {
 	// gives the name, each as the change's statement finds it: the synced
 	// relation it holds, or one the change makes as written.
 	copies map[backupTable][]*ast.RangeVar
+}
+
+// makes reports whether the change makes the column on a relation, by the
+// relation as written: adds it, renames to it, declares it, or copies it
+// from a relation that has it before the change, or that the change makes
+// it on, following the copies. seen guards against a cycle.
+func (m made) makes(t backupTable, column string, q backupQuery, seen map[backupTable]bool) bool {
+	if m.columns[t][column] {
+		return true
+	}
+	if seen[t] {
+		return false
+	}
+	seen = withTable(seen, t)
+	for _, from := range m.copies[t] {
+		if c := sourceOf(from, nil, q).columns; c != nil && c[column] {
+			return true
+		}
+		if m.makes(backupTable{from.Schemaname, from.Relname}, column, q, seen) {
+			return true
+		}
+	}
+	return false
+}
+
+// withTable returns seen with a table added.
+func withTable(seen map[backupTable]bool, t backupTable) map[backupTable]bool {
+	out := maps.Clone(seen)
+	if out == nil {
+		out = make(map[backupTable]bool)
+	}
+	out[t] = true
+	return out
 }
 
 func changeMade(stmts []statement, schema *metadata.DatabaseSchemaMetadata, sessionUser string) made {
@@ -488,18 +532,26 @@ type enginePath struct {
 	initial []string
 	path    []string
 	// login is the user the change connects as, session the session
-	// user, and user the current user, which $user means.
-	login   string
-	session string
-	user    string
-	known   bool
+	// user, and user the current user, which $user means; each known
+	// flag says whether the change has left it known.
+	login        string
+	session      string
+	user         string
+	pathKnown    bool
+	sessionKnown bool
+	userKnown    bool
+	// triggers are the target's enabled event triggers.
+	triggers []*metadata.EventTriggerMetadata
 	// schemas are the schemas earlier statements created.
 	schemas map[string]bool
 	// holds maps a name earlier statements gave a relation or took one
 	// from, by (schema, name), to the relation it then holds; temps are
-	// the temporary relations they created, which the path finds first.
-	holds map[[2]string]held
-	temps map[string]bool
+	// the temporary relations they created, which the path finds first,
+	// with the statement, and tempsClearedAt the last that dropped them
+	// all.
+	holds          map[[2]string]held
+	temps          map[string]int
+	tempsClearedAt int
 	// partitioned are the partitioned tables they created.
 	partitioned map[[2]string]bool
 	// schemaFrom maps a name a schema rename gave to the synced schema
@@ -512,11 +564,13 @@ type enginePath struct {
 	// statement changed in a way not followed, with the last such
 	// statement; what a later one gives a name holds. A statement that may
 	// drop relations it does not name leaves every relation before it
-	// unsure: cascadeAt is the last, -1 for none, and step the statement
-	// followed.
+	// unsure: cascadeAt is the last, -1 for none. One that may run any
+	// code leaves every name before it unknown: opaqueAt is the last, -1
+	// for none. step is the statement followed.
 	lost        map[string]int
 	lostSchemas map[string]int
 	cascadeAt   int
+	opaqueAt    int
 	step        int
 }
 
@@ -541,27 +595,71 @@ func newEnginePath(schema *metadata.DatabaseSchemaMetadata, sessionUser string) 
 	if strings.TrimSpace(schema.GetSearchPath()) == "" {
 		initial = []string{"$user", "public"}
 	}
-	return &enginePath{schema: schema, initial: initial, path: initial, login: sessionUser, session: sessionUser, user: sessionUser, known: true,
-		schemas: make(map[string]bool), holds: make(map[[2]string]held), temps: make(map[string]bool),
+	return &enginePath{schema: schema, initial: initial, path: initial, login: sessionUser, session: sessionUser, user: sessionUser,
+		pathKnown: true, sessionKnown: true, userKnown: true, triggers: enabledTriggers(schema),
+		schemas: make(map[string]bool), holds: make(map[[2]string]held), temps: make(map[string]int), tempsClearedAt: -1,
 		partitioned: make(map[[2]string]bool), schemaFrom: make(map[string]string), goneSchemas: make(map[string]bool),
-		lost: make(map[string]int), lostSchemas: make(map[string]int), cascadeAt: -1}
+		lost: make(map[string]int), lostSchemas: make(map[string]int), cascadeAt: -1, opaqueAt: -1}
+}
+
+// opaque notes a statement that may run any code: what every name holds,
+// the path, and the users are not known after it.
+func (e *enginePath) opaque() {
+	e.opaqueAt = e.step
+	e.pathKnown, e.sessionKnown, e.userKnown = false, false, false
+}
+
+// triggerMayFire reports whether an enabled event trigger of the target
+// may fire on the statement, as the scan judges it, counting every DROP
+// that may drop.
+func triggerMayFire(triggers []*metadata.EventTriggerMetadata, n ast.Node) bool {
+	return len(triggers) > 0 && (&scan{triggers: triggers}).triggerFires(n)
+}
+
+// userCalls reports whether a statement calls set_config of the role or
+// the session user, or of a setting it does not name.
+func userCalls(n ast.Node) bool {
+	found := false
+	ast.Inspect(n, func(x ast.Node) bool {
+		fc, ok := x.(*ast.FuncCall)
+		if found || !ok {
+			return !found
+		}
+		parts := nameParts(fc.Funcname)
+		builtin := len(parts) == 1 || len(parts) == 2 && parts[0] == "pg_catalog"
+		if !builtin || parts[len(parts)-1] != "set_config" {
+			return true
+		}
+		name, ok := constString(firstArg(fc))
+		found = !ok || strings.EqualFold(name, "role") || strings.EqualFold(name, "session_authorization")
+		return !found
+	})
+	return found
 }
 
 // follow notes what a statement other than SET does to the names the
 // change's later statements find: set_config of search_path, the form
 // pg_dump writes, sets the path, and any other call of it leaves the path
-// unknown; a relation it creates, renames, moves, or drops changes what
-// the names hold.
+// unknown, as one of the role leaves the users; a relation it creates,
+// renames, moves, or drops changes what the names hold. A statement an
+// event trigger may fire on, code, extension DDL, and ROLLBACK, which may
+// undo what came before, leave every name unknown.
 //
 // pg: src/backend/catalog/namespace.c — RangeVarGetCreationNamespace
 func (e *enginePath) follow(n ast.Node) {
 	defer func() { e.step++ }()
+	if triggerMayFire(e.triggers, n) {
+		defer e.opaque()
+	}
 	if calls := searchPathCalls(n); len(calls) > 0 {
 		if path, ok := dumpSearchPath(n, calls); ok {
-			e.path = append([]string{}, path...)
+			e.path, e.pathKnown = append([]string{}, path...), true
 		} else {
-			e.known = false
+			e.pathKnown = false
 		}
+	}
+	if userCalls(n) {
+		e.sessionKnown, e.userKnown = false, false
 	}
 	if v, ok := n.(*ast.CreateSchemaStmt); ok {
 		name := v.Schemaname
@@ -573,15 +671,24 @@ func (e *enginePath) follow(n ast.Node) {
 	switch v := n.(type) {
 	case *ast.DoStmt, *ast.CallStmt:
 		// Code may set the path or change any relation.
-		e.known = false
-		e.cascadeAt = e.step
+		e.opaque()
+		return
+	case *ast.TransactionStmt:
+		// A rollback undoes what the statements before it did as far as
+		// the transaction they ran in reaches, which the change does not
+		// say when Bytebase runs it in one.
+		switch v.Kind {
+		case ast.TRANS_STMT_ROLLBACK, ast.TRANS_STMT_ROLLBACK_TO, ast.TRANS_STMT_PREPARE, ast.TRANS_STMT_COMMIT_PREPARED, ast.TRANS_STMT_ROLLBACK_PREPARED:
+			e.opaque()
+		}
 		return
 	case *ast.DropOwnedStmt:
 		e.cascadeAt = e.step
 		return
 	case *ast.CreateExtensionStmt, *ast.AlterExtensionStmt:
-		// An extension's relations are not named.
-		e.known = false
+		// An extension's script, or an update, may create, drop, or move
+		// relations it does not name; it keeps the path and the users.
+		e.opaqueAt = e.step
 		return
 	case *ast.ImportForeignSchemaStmt:
 		e.lostSchemas[v.LocalSchema] = e.step
@@ -589,9 +696,11 @@ func (e *enginePath) follow(n ast.Node) {
 	case *ast.DiscardStmt:
 		if v.Target == ast.DISCARD_ALL {
 			e.session, e.user, e.path = e.login, e.login, e.initial
+			e.pathKnown, e.sessionKnown, e.userKnown = true, true, true
 		}
 		if v.Target == ast.DISCARD_ALL || v.Target == ast.DISCARD_TEMP {
 			clear(e.temps)
+			e.tempsClearedAt = e.step
 		}
 		return
 	case *ast.DropStmt:
@@ -608,7 +717,8 @@ func (e *enginePath) follow(n ast.Node) {
 	case *ast.AlterObjectSchemaStmt:
 		switch {
 		case v.ObjectType == ast.OBJECT_EXTENSION:
-			e.known = false
+			// The extension's relations move, which it does not name.
+			e.opaqueAt = e.step
 		case relationObject(v.ObjectType) && v.Relation != nil:
 			e.move(v.Relation, v.Newschema, v.Relation.Relname)
 		}
@@ -616,7 +726,7 @@ func (e *enginePath) follow(n ast.Node) {
 	}
 	temps := tempRelations(n)
 	for name := range temps {
-		e.temps[name] = true
+		e.temps[name] = e.step
 	}
 	for _, t := range createdRelations(n) {
 		if t.schema == "pg_temp" || t.schema == "" && temps[t.name] {
@@ -673,7 +783,7 @@ func (e *enginePath) move(rv *ast.RangeVar, schema, name string) {
 	if from[0] == "pg_temp" {
 		delete(e.temps, rv.Relname)
 		if schema == "" {
-			e.temps[name] = true
+			e.temps[name] = e.step
 		}
 		return
 	}
@@ -795,6 +905,9 @@ func (e *enginePath) current(name [2]string) (holding, bool) {
 	if at, ok := e.lostSchemas[name[0]]; ok && at > since {
 		since = at
 	}
+	if e.opaqueAt > since {
+		since = e.opaqueAt
+	}
 	if h, ok := e.holds[name]; ok && h.at > since {
 		if !h.none() && h.at < e.cascadeAt {
 			return holding{}, false
@@ -827,7 +940,7 @@ func (e *enginePath) resolve(rv *ast.RangeVar) ([2]string, holding, bool) {
 	}
 	temp := [2]string{"pg_temp", rv.Relname}
 	if rv.Schemaname == "pg_temp" {
-		if e.temps[rv.Relname] {
+		if isTemp, known := e.temp(rv.Relname); known && isTemp {
 			return temp, holding{made: true}, true
 		}
 		return [2]string{}, holding{}, false
@@ -837,22 +950,32 @@ func (e *enginePath) resolve(rv *ast.RangeVar) ([2]string, holding, bool) {
 		h, ok := e.current(name)
 		return name, h, ok
 	}
-	if !e.known || strings.HasPrefix(rv.Relname, "pg_") {
+	if !e.pathKnown || strings.HasPrefix(rv.Relname, "pg_") {
 		return [2]string{}, holding{}, false
 	}
 	// The temporary schema comes first unless the path names it.
-	if e.temps[rv.Relname] && !slices.Contains(e.path, "pg_temp") {
-		return temp, holding{made: true}, true
+	if !slices.Contains(e.path, "pg_temp") {
+		isTemp, known := e.temp(rv.Relname)
+		if !known {
+			return [2]string{}, holding{}, false
+		}
+		if isTemp {
+			return temp, holding{made: true}, true
+		}
 	}
 	for _, p := range e.path {
 		if p == "$user" {
-			if e.user == "" {
+			if !e.userKnown || e.user == "" {
 				return [2]string{}, holding{}, false
 			}
 			p = e.user
 		}
 		if p == "pg_temp" {
-			if e.temps[rv.Relname] {
+			isTemp, known := e.temp(rv.Relname)
+			if !known {
+				return [2]string{}, holding{}, false
+			}
+			if isTemp {
 				return temp, holding{made: true}, true
 			}
 			continue
@@ -867,6 +990,15 @@ func (e *enginePath) resolve(rv *ast.RangeVar) ([2]string, holding, bool) {
 		}
 	}
 	return [2]string{}, holding{}, true
+}
+
+// temp reports whether a temporary relation of the name exists, and
+// whether that is known: not after code may have created or dropped one.
+func (e *enginePath) temp(name string) (bool, bool) {
+	if at, ok := e.temps[name]; ok {
+		return true, at > e.opaqueAt
+	}
+	return false, e.opaqueAt < e.tempsClearedAt || e.opaqueAt < 0
 }
 
 // run follows a statement other than UPDATE or DELETE.
@@ -971,12 +1103,12 @@ func tempRelations(n ast.Node) map[string]bool {
 // creationSchema returns the schema an unqualified CREATE puts a relation
 // in: the first of the path that exists, "" when that is not known.
 func (e *enginePath) creationSchema() string {
-	if !e.known {
+	if !e.pathKnown {
 		return ""
 	}
 	for _, p := range e.path {
 		if p == "$user" {
-			if e.user == "" {
+			if !e.userKnown || e.user == "" {
 				return ""
 			}
 			p = e.user
@@ -999,7 +1131,7 @@ func (e *enginePath) creationSchema() string {
 // (GUC_NO_RESET_ALL)
 func (e *enginePath) set(v *ast.VariableSetStmt) {
 	if v.Kind == ast.VAR_RESET_ALL {
-		e.path = e.initial
+		e.path, e.pathKnown = e.initial, true
 		return
 	}
 	isPath, isRole := strings.EqualFold(v.Name, "search_path"), strings.EqualFold(v.Name, "role")
@@ -1007,26 +1139,38 @@ func (e *enginePath) set(v *ast.VariableSetStmt) {
 	if !isPath && !isRole && !isAuth {
 		return
 	}
+	// unknown notes that the setting is not known.
+	unknown := func() {
+		switch {
+		case isPath:
+			e.pathKnown = false
+		case isAuth:
+			e.sessionKnown, e.userKnown = false, false
+		default:
+			e.userKnown = false
+		}
+	}
 	if v.IsLocal {
-		e.known = false
+		unknown()
 		return
 	}
 	switch v.Kind {
 	case ast.VAR_SET_DEFAULT, ast.VAR_RESET:
 		switch {
 		case isPath:
-			e.path = e.initial
+			e.path, e.pathKnown = e.initial, true
 		case isAuth:
 			e.session, e.user = e.login, e.login
+			e.sessionKnown, e.userKnown = true, true
 		default:
-			e.user = e.session
+			e.user, e.userKnown = e.session, e.sessionKnown
 		}
 		return
 	case ast.VAR_SET_CURRENT:
 		return
 	case ast.VAR_SET_VALUE:
 	default:
-		e.known = false
+		unknown()
 		return
 	}
 	var values []string
@@ -1034,7 +1178,7 @@ func (e *enginePath) set(v *ast.VariableSetStmt) {
 		for _, item := range v.Args.Items {
 			s, ok := constString(item)
 			if !ok {
-				e.known = false
+				unknown()
 				return
 			}
 			values = append(values, s)
@@ -1042,17 +1186,17 @@ func (e *enginePath) set(v *ast.VariableSetStmt) {
 	}
 	switch {
 	case isPath && len(values) > 0:
-		e.path = values
+		e.path, e.pathKnown = values, true
+	case isRole && len(values) == 1 && strings.EqualFold(values[0], "none"):
+		e.user, e.userKnown = e.session, e.sessionKnown
 	case isRole && len(values) == 1:
-		e.user = values[0]
-		if strings.EqualFold(e.user, "none") {
-			e.user = e.session
-		}
+		e.user, e.userKnown = values[0], true
 	case isAuth && len(values) == 1:
 		// The session user changes, and the current user with it.
 		e.session, e.user = values[0], values[0]
+		e.sessionKnown, e.userKnown = true, true
 	default:
-		e.known = false
+		unknown()
 	}
 }
 
@@ -1346,7 +1490,7 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 	if where != nil {
 		exprs = append(exprs, where)
 	}
-	return columnsMissing(target, from, exprs, nil, visible, q, m)
+	return columnsMissing(target, from, exprs, nil, exprs, visible, q, m)
 }
 
 // withColumnMissing reports a column a query of a copied WITH clause names
@@ -1446,13 +1590,45 @@ func selectColumnMissing(sel *ast.SelectStmt, visible map[string]bool, q backupQ
 			qualified = append(qualified, n)
 		}
 	}
-	return columnsMissing(nil, sel.FromClause, exprs, qualified, maps.Clone(visible), q, m)
+	var conditions []ast.Node
+	for _, n := range []ast.Node{sel.WhereClause, sel.HavingClause} {
+		if n != nil {
+			conditions = append(conditions, n)
+		}
+	}
+	return columnsMissing(nil, sel.FromClause, exprs, qualified, conditions, maps.Clone(visible), q, m)
 }
 
-// levelNames returns the names a query's own FROM list gives relations:
-// the alias of a FROM item, the name of a relation or a function without
-// one, and the relations of a join whatever its alias hides.
+// levelNames returns the names a query's own FROM list shows.
 func levelNames(sel *ast.SelectStmt) map[string]bool {
+	names := make(map[string]bool)
+	if sel.FromClause != nil {
+		for _, item := range sel.FromClause.Items {
+			for name := range exposedNames(item) {
+				names[name] = true
+			}
+		}
+	}
+	return names
+}
+
+// withNames returns bound with the names of each set added.
+func withNames(bound map[string]bool, sets ...map[string]bool) map[string]bool {
+	out := maps.Clone(bound)
+	if out == nil {
+		out = make(map[string]bool)
+	}
+	for _, set := range sets {
+		for name := range set {
+			out[name] = true
+		}
+	}
+	return out
+}
+
+// exposedNames returns the names a FROM item shows: its alias, the name
+// of a relation or a function without one, and an unaliased join's sides'.
+func exposedNames(n ast.Node) map[string]bool {
 	names := make(map[string]bool)
 	// exposed records the alias, or the names, a FROM item shows.
 	exposed := func(a *ast.Alias, otherwise ...string) {
@@ -1489,16 +1665,15 @@ func levelNames(sel *ast.SelectStmt) map[string]bool {
 		case *ast.JsonTable:
 			exposed(v.Alias, "json_table")
 		case *ast.JoinExpr:
-			exposed(v.Alias)
+			if v.Alias != nil && v.Alias.Aliasname != "" {
+				exposed(v.Alias)
+				return
+			}
 			add(v.Larg)
 			add(v.Rarg)
 		}
 	}
-	if sel.FromClause != nil {
-		for _, item := range sel.FromClause.Items {
-			add(item)
-		}
-	}
+	add(n)
 	return names
 }
 
@@ -1511,7 +1686,11 @@ func isNilList(n ast.Node) bool {
 // columnsMissing is columnMissing for a query of a table, nil for none,
 // a FROM list, the expressions it reads, and the ones of which it judges
 // only qualified names.
-func columnsMissing(target *ast.RangeVar, from *ast.List, exprs, qualifiedOnly []ast.Node, visible map[string]bool, q backupQuery, m made) string {
+//
+// conditions are the expressions of exprs a boolean is read from, where a
+// bare name a source is named after cannot mean its whole row, which is
+// no boolean.
+func columnsMissing(target *ast.RangeVar, from *ast.List, exprs, qualifiedOnly, conditions []ast.Node, visible map[string]bool, q backupQuery, m made) string {
 	var sources []backupSource
 	known := true
 	if target != nil {
@@ -1527,16 +1706,8 @@ func columnsMissing(target *ast.RangeVar, from *ast.List, exprs, qualifiedOnly [
 	// relation a synced relation's columns, by LIKE, a rename, or a move.
 	makes := func(src backupSource, column string) bool {
 		for _, o := range src.owners {
-			if m.columns[o][column] {
+			if m.makes(o, column, q, nil) {
 				return true
-			}
-			for _, from := range m.copies[o] {
-				if c := sourceOf(from, nil, q).columns; c != nil && c[column] {
-					return true
-				}
-				if m.columns[backupTable{from.Schemaname, from.Relname}][column] {
-					return true
-				}
 			}
 		}
 		return false
@@ -1580,6 +1751,10 @@ func columnsMissing(target *ast.RangeVar, from *ast.List, exprs, qualifiedOnly [
 		case *ast.RangeTableSample:
 			return flatten(v.Relation)
 		case *ast.RangeSubselect:
+			// A LATERAL subquery may read the sources before it.
+			if v.Lateral && v.Subquery != nil {
+				quals = append(quals, &ast.SubLink{Subselect: v.Subquery})
+			}
 			src := subquerySource(v, visible, q)
 			known = known && src.columns != nil
 			sources = append(sources, src)
@@ -1659,6 +1834,7 @@ func columnsMissing(target *ast.RangeVar, from *ast.List, exprs, qualifiedOnly [
 			children := append(slices.Clone(left), right...)
 			if v.Quals != nil {
 				quals = append(quals, v.Quals)
+				conditions = append(conditions, v.Quals)
 			}
 			// USING names a column each side has.
 			for _, column := range nameParts(v.UsingClause) {
@@ -1761,6 +1937,25 @@ func columnsMissing(target *ast.RangeVar, from *ast.List, exprs, qualifiedOnly [
 		}
 	}
 	quals = append(quals, exprs...)
+	// asBoolean are the bare names read as a boolean: a condition, or an
+	// operand of AND, OR, or NOT in one.
+	asBoolean := make(map[*ast.ColumnRef]bool)
+	var mark func(n ast.Node)
+	mark = func(n ast.Node) {
+		switch v := n.(type) {
+		case *ast.ColumnRef:
+			asBoolean[v] = true
+		case *ast.BoolExpr:
+			if v.Args != nil {
+				for _, arg := range v.Args.Items {
+					mark(arg)
+				}
+			}
+		}
+	}
+	for _, c := range conditions {
+		mark(c)
+	}
 	onlyQualified := make(map[int]bool)
 	for _, n := range qualifiedOnly {
 		onlyQualified[len(quals)] = true
@@ -1807,14 +2002,19 @@ func columnsMissing(target *ast.RangeVar, from *ast.List, exprs, qualifiedOnly [
 	// gives a relation of their own.
 	var correlated func(n ast.Node, bound map[string]bool)
 	correlated = func(n ast.Node, bound map[string]bool) {
-		if sel, ok := n.(*ast.SelectStmt); ok {
-			bound = maps.Clone(bound)
-			if bound == nil {
-				bound = make(map[string]bool)
+		switch v := n.(type) {
+		case *ast.SelectStmt:
+			bound = withNames(bound, levelNames(v))
+		case *ast.JoinExpr:
+			// A join's own condition, and its relations, see the names
+			// its sides show, which an alias hides from the rest.
+			inner := withNames(bound, exposedNames(v.Larg), exposedNames(v.Rarg))
+			for _, part := range []ast.Node{v.Larg, v.Rarg, v.Quals} {
+				if part != nil {
+					correlated(part, inner)
+				}
 			}
-			for name := range levelNames(sel) {
-				bound[name] = true
-			}
+			return
 		}
 		ast.Inspect(n, func(y ast.Node) bool {
 			if msg != "" {
@@ -1824,7 +2024,7 @@ func columnsMissing(target *ast.RangeVar, from *ast.List, exprs, qualifiedOnly [
 				return true
 			}
 			switch w := y.(type) {
-			case *ast.SelectStmt:
+			case *ast.SelectStmt, *ast.JoinExpr:
 				correlated(w, bound)
 				return false
 			case *ast.ColumnRef:
@@ -1903,7 +2103,7 @@ func columnsMissing(target *ast.RangeVar, from *ast.List, exprs, qualifiedOnly [
 						return false
 					}
 					for _, src := range scope {
-						if src.name == column || has(src, column) {
+						if src.name == column && !asBoolean[v] || has(src, column) {
 							return false
 						}
 					}
@@ -2095,10 +2295,15 @@ func queryShape(query *ast.SelectStmt, colnames *ast.List, visible map[string]bo
 	if query == nil {
 		return src
 	}
-	scoped := query.WithClause != nil
+	// A WITH clause of the query's own stands for relations of its names.
+	if query.WithClause != nil {
+		_, visible, q = withScope(query.WithClause, visible, q, nil)
+	}
 	for query.Larg != nil {
 		query = query.Larg
-		scoped = scoped || query.WithClause != nil
+		if query.WithClause != nil {
+			_, visible, q = withScope(query.WithClause, visible, q, nil)
+		}
 	}
 	var names []string
 	switch {
@@ -2125,11 +2330,6 @@ func queryShape(query *ast.SelectStmt, colnames *ast.List, visible map[string]bo
 				return backupSource{}
 			}
 			if _, star := ref.Fields.Items[len(ref.Fields.Items)-1].(*ast.A_Star); star {
-				// A WITH clause of the query's own may stand for a
-				// relation the star names.
-				if scoped {
-					return backupSource{}
-				}
 				qualifier := nameParts(&ast.List{Items: ref.Fields.Items[:len(ref.Fields.Items)-1]})
 				expanded, ok := expandStar(qualifier, len(ref.Fields.Items)-1, query.FromClause, visible, q)
 				if !ok {
