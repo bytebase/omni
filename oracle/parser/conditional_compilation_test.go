@@ -70,6 +70,11 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF ROUND(-1.5) = -2 AND CEIL(1.2) = 2 AND FLOOR(-1.2) = -2 AND TRUNC(-1.5) = -1 $THEN NULL; $ELSE garbage garbage; $END END;",
 		"BEGIN $IF SIGN(-5) = -1 AND POWER(2, 10) = 1024 $THEN NULL; $ELSE garbage garbage; $END END;",
 		"BEGIN $IF LENGTH('ab') = 2 AND UPPER('a') IS NULL AND ABS($$x) = 1 $THEN NULL; $END END;",
+		"BEGIN $IF LENGTH('a') = 2 $THEN garbage garbage; $ELSE NULL; $END END;",
+		// Static comparisons of numbers or Booleans, IS NULL of anything.
+		"BEGIN $IF TRUE = TRUE AND $$x IS NOT NULL AND 1 IS NULL $THEN NULL; $END END;",
+		"BEGIN $IF LENGTH(1) = 1 AND LENGTH(UPPER('a')) = 1 AND CHR(65) || 'b' IS NULL $THEN NULL; $END END;",
+		"BEGIN $IF NVL(1, 2) = NVL(3, 4) AND $$x = 1 + $$y AND NULL = 1 AND NOT NULL $THEN NULL; $END END;",
 		// A quoted column named $$X is no inquiry directive.
 		`DECLARE x NUMBER; BEGIN SELECT 1 INTO x FROM dual t WHERE t."$$X"(+) = 1; END;`,
 		// A label before the block's BEGIN does not count as its first token.
@@ -143,6 +148,28 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN NULL; END; $IF :x $THEN $END",
 		// A trigger named COMPOUND does not start its body.
 		"CREATE TRIGGER compound FOR INSERT ON t $IF TRUE $THEN COMPOUND TRIGGER $END BEFORE STATEMENT IS BEGIN NULL; END BEFORE STATEMENT; END;",
+		// The static grammar: no IN, BETWEEN, LIKE, or EXISTS (PLS-00174,
+		// PLS-00204), each static function with its arguments (PLS-00306,
+		// PLS-00174), and kinds that agree (PLS-00306, PLS-00382).
+		"BEGIN $IF 1 IN (1, 2) $THEN NULL; $END END;",
+		"BEGIN $IF 1 BETWEEN 0 AND 2 $THEN NULL; $END END;",
+		"BEGIN $IF 'a' LIKE 'a' $THEN NULL; $END END;",
+		"BEGIN $IF EXISTS (SELECT 1 FROM dual) $THEN NULL; $END END;",
+		"BEGIN $IF ABS(TRUE) = 1 $THEN NULL; $END END;",
+		"BEGIN $IF ABS(1, 2) = 1 $THEN NULL; $END END;",
+		"BEGIN $IF ABS('1') = 1 $THEN NULL; $END END;",
+		"BEGIN $IF TO_CHAR(1, '9') IS NULL $THEN NULL; $END END;",
+		"BEGIN $IF ROUND(1, 2, 3) = 1 $THEN NULL; $END END;",
+		"BEGIN $IF SUBSTR('a') IS NULL $THEN NULL; $END END;",
+		"BEGIN $IF NVL(1, TRUE) = 1 $THEN NULL; $END END;",
+		"BEGIN $IF 1 + TRUE = 1 $THEN NULL; $END END;",
+		"BEGIN $IF NOT 1 $THEN NULL; $END END;",
+		"BEGIN $IF TRUE AND 1 $THEN NULL; $END END;",
+		"BEGIN $IF 1 < TRUE $THEN NULL; $END END;",
+		"BEGIN $IF TO_CHAR(1) = TO_CHAR(1) $THEN NULL; $END END;",
+		"BEGIN $IF UPPER('a') = 'A' $THEN NULL; $END END;",
+		// An inquiry directive is no cursor (PLS-00103).
+		"BEGIN IF $$PLSQL_LINE%FOUND THEN NULL; END IF; END;",
 		// A static comparison compares no character values (PLS-00174).
 		"BEGIN $IF $$PLSQL_UNIT = 'P' $THEN NULL; $END END;",
 		"BEGIN $IF $$PLSQL_UNIT_TYPE = 'X' $THEN NULL; $END END;",
@@ -274,6 +301,12 @@ SELECT 1 FROM dual;
 	}
 	got = splitTexts(Split("SELECT 1 FROM dual; $IF broken; SELECT 2 FROM dual; $THEN SELECT 3 FROM dual; $END SELECT 4 FROM dual;"))
 	if len(got) != 5 || !strings.HasSuffix(got[4], "SELECT 4 FROM dual") {
+		t.Fatalf("Split = %q", got)
+	}
+
+	// Nor one whose condition is no static Boolean.
+	got = splitTexts(Split("SELECT 1 FROM dual; $IF 1 $THEN SELECT 2 FROM dual; $ELSE SELECT 3 FROM dual; $END SELECT 4 FROM dual;"))
+	if len(got) != 4 || !strings.HasSuffix(got[3], "SELECT 4 FROM dual") {
 		t.Fatalf("Split = %q", got)
 	}
 

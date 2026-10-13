@@ -72,6 +72,11 @@ type Lexer struct {
 	// skipped. The parser's own lexer checks the structure.
 	ccLenient bool
 
+	// ccSplit is set on Split's lexer, where a directive is stray only in
+	// malformed input: Split drops it and lexes the code after it, an
+	// $ELSIF or $ELSE branch too, to keep every statement boundary.
+	ccSplit bool
+
 	// ccSkipEnd is where the last directive construct NextToken skipped
 	// ends, for Split to keep directives after a unit's END with the unit.
 	ccSkipEnd int
@@ -177,6 +182,9 @@ func (l *Lexer) NextToken() Token {
 			// The selected branch ends; skip the rest of its $IF. No branch
 			// follows an $ELSE.
 			lenient := l.ccDepth == 0 && l.ccLenient
+			if lenient && l.ccSplit {
+				continue
+			}
 			if !lenient && (l.ccDepth == 0 || l.ccElse&l.ccLevelBit() != 0) {
 				return l.failDirective(tok, fmt.Sprintf("unexpected preprocessor token '%s'", tok.Str))
 			}

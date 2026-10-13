@@ -2,6 +2,8 @@ package parser
 
 import (
 	"math/big"
+	"strings"
+	"unicode/utf8"
 
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
@@ -13,13 +15,13 @@ import (
 // literals and arithmetic over them in decimal (0.1 + 0.2 = 0.3); inquiry
 // directives and package constants have values the text does not hold.
 //
-// It reports false for a condition that is no expression, which the
-// parser rejects and Split lexes past.
+// It reports false for a condition that is no static Boolean expression,
+// which the parser rejects and Split lexes past.
 func staticCondition(source string, loc nodes.Loc) (ccValue, bool) {
 	sub := &Parser{lexer: NewLexerRange(source, loc.Start, loc.End), source: source}
 	sub.advance()
 	expr, err := sub.parseExpr()
-	if err != nil || expr == nil || sub.cur.Type != tokEOF {
+	if err != nil || expr == nil || sub.cur.Type != tokEOF || sub.staticConditionFault(expr) != nil {
 		return ccUnknown, false
 	}
 	switch staticTruthOf(source, expr) {
@@ -225,6 +227,12 @@ func staticNumericCall(call *nodes.FuncCallExpr) (*big.Rat, bool) {
 	default:
 		return nil, false
 	}
+	// LENGTH and LENGTHC of a string literal count its characters.
+	if name := call.FuncName.Name; (name == "LENGTH" || name == "LENGTHC") && call.Args.Len() == 1 {
+		if lit, ok := call.Args.Items[0].(*nodes.StringLiteral); ok && lit.Val != "" {
+			return big.NewRat(int64(utf8.RuneCountInString(lit.Val)), 1), true
+		}
+	}
 	var args []*big.Rat
 	for _, item := range call.Args.Items {
 		v, ok := staticNumber(item.(nodes.ExprNode))
@@ -303,134 +311,220 @@ func terminatingDecimal(r *big.Rat) bool {
 	return d.Cmp(big.NewInt(1)) == 0
 }
 
-// nonBooleanOperand returns the first operand in a Boolean position of a
-// condition, the condition itself or an operand of NOT, AND, or OR, that
-// cannot be a static Boolean whatever its operands hold, or nil. Oracle 23ai
-// rejects a number or a string (PLS-00382 for $IF 'x', $IF 1 + 2, $IF $$x +
-// 1), and a call to anything but the STANDARD functions NVL and XOR: a
-// numeric or character one (PLS-00382 for $IF ABS(1)) or one that is not
-// static (PLS-00174 for a Boolean function of the user's), and CASE and
-// DECODE (PLS-00174, PLS-00306).
-func nonBooleanOperand(expr nodes.ExprNode) nodes.ExprNode {
-	switch e := expr.(type) {
-	case *nodes.ParenExpr:
-		return nonBooleanOperand(e.Expr)
-	case *nodes.NumberLiteral, *nodes.StringLiteral, *nodes.CaseExpr, *nodes.DecodeExpr:
-		return expr
-	case *nodes.UnaryExpr:
-		if e.Op == "-" || e.Op == "+" {
-			return expr
-		}
-	case *nodes.BinaryExpr:
-		switch e.Op {
-		case "+", "-", "*", "/", "**", "||":
-			return expr
-		}
-		// A static comparison compares no character values (PLS-00174 for
-		// 'a' = 'a', $$x = 'a', and $$PLSQL_UNIT = 'P').
-		if characterOperand(e.Left) || characterOperand(e.Right) {
-			return expr
-		}
-	case *nodes.FuncCallExpr:
-		if !isStaticBooleanFunction(e) {
-			return expr
-		}
-		// NVL and XOR are Boolean over Boolean operands (PLS-00382 for
-		// NVL(1, 2), PLS-00306 for NVL(TRUE, 1)).
-		for _, item := range e.Args.Items {
-			if bad := nonBooleanOperand(item.(nodes.ExprNode)); bad != nil {
-				return bad
-			}
-		}
-	case *nodes.BoolExpr:
-		if e.Args != nil {
-			for _, item := range e.Args.Items {
-				if bad := nonBooleanOperand(item.(nodes.ExprNode)); bad != nil {
-					return bad
-				}
-			}
-		}
-	}
-	return nil
-}
-
 // isStaticBooleanFunction reports whether call is STANDARD's NVL or XOR,
 // with two arguments: the Boolean functions a static expression may call.
 func isStaticBooleanFunction(call *nodes.FuncCallExpr) bool {
 	if call.FuncName == nil || call.Args == nil || call.Args.Len() != 2 {
 		return false
 	}
-	switch call.FuncName.Schema {
-	case "", "STANDARD", "SYS.STANDARD":
-	default:
-		return false
-	}
-	return call.FuncName.Name == "NVL" || call.FuncName.Name == "XOR"
+	return staticFunctionName(call) == "NVL" || staticFunctionName(call) == "XOR"
 }
 
-// characterOperand reports whether expr is character data in a static
-// expression: a string literal, a concatenation, or the inquiry directive
-// $$PLSQL_UNIT, $$PLSQL_UNIT_OWNER, or $$PLSQL_UNIT_TYPE.
-func characterOperand(expr nodes.ExprNode) bool {
-	switch e := expr.(type) {
-	case *nodes.ParenExpr:
-		return characterOperand(e.Expr)
-	case *nodes.StringLiteral:
-		return true
-	case *nodes.BinaryExpr:
-		return e.Op == "||"
-	case *nodes.ColumnRef:
-		switch e.Column {
-		case "$$PLSQL_UNIT", "$$PLSQL_UNIT_OWNER", "$$PLSQL_UNIT_TYPE":
-			return true
-		}
+// staticFunctionName returns the name of call when it may name a STANDARD
+// function: unqualified, or qualified by STANDARD or SYS.STANDARD.
+func staticFunctionName(call *nodes.FuncCallExpr) string {
+	if call.FuncName == nil {
+		return ""
 	}
-	return false
+	switch call.FuncName.Schema {
+	case "", "STANDARD", "SYS.STANDARD":
+		return call.FuncName.Name
+	}
+	return ""
+}
+
+// staticKind is the datatype family of a static expression.
+type staticKind int
+
+const (
+	kindAny       staticKind = iota // NULL, a constant, or an inquiry directive: the text does not say
+	kindBoolean                     // TRUE, FALSE, a comparison, NOT, AND, OR, IS NULL
+	kindNumber                      // a numeric literal, arithmetic, a numeric function
+	kindCharacter                   // a string literal, ||, a character function
+)
+
+// letter is the letter staticSignature spells kind with.
+func (k staticKind) letter() string {
+	switch k {
+	case kindBoolean:
+		return "b"
+	case kindNumber:
+		return "n"
+	case kindCharacter:
+		return "c"
+	}
+	return ""
+}
+
+// staticSignature is a static function's arity and what it takes and
+// returns; args lists each argument's accepted kinds as a string of
+// "n" (number), "c" (character), or "b" (Boolean), the last repeated up
+// to max arguments. NVL returns its arguments' kind.
+type staticSignature struct {
+	min, max int
+	args     []string
+	result   staticKind
 }
 
 // staticFunctions are the functions Oracle 23ai lets a static expression
-// call; any other call, a builtin such as INSTR, GREATEST, or TO_NUMBER or
-// a function of the user's, is PLS-00174 (or PLS-00201, PLS-00204).
-var staticFunctions = map[string]bool{
-	"ABS": true, "CEIL": true, "FLOOR": true, "ROUND": true, "TRUNC": true, "POWER": true,
-	"SQRT": true, "MOD": true, "REMAINDER": true, "SIGN": true, "EXP": true, "LN": true,
-	"LOG": true, "BITAND": true, "ATAN": true, "COS": true, "SIN": true, "TAN": true,
-	"COSH": true, "SINH": true, "TANH": true, "LENGTH": true, "LENGTHB": true, "LENGTHC": true,
-	"SUBSTR": true, "SUBSTRB": true, "SUBSTRC": true, "LOWER": true, "UPPER": true,
-	"INITCAP": true, "ASCII": true, "CHR": true, "CONCAT": true, "RPAD": true, "LPAD": true,
-	"TO_CHAR": true, "TO_NCHAR": true, "NVL": true, "XOR": true,
+// call, with the signatures it checks (PLS-00306 for ABS(TRUE) or
+// ABS(1, 2), PLS-00174 for ABS('1') or TO_CHAR(1, '9')). Any other call,
+// a builtin such as INSTR, GREATEST, or TO_NUMBER or a function of the
+// user's, is PLS-00174 (or PLS-00201, PLS-00204).
+var staticFunctions = map[string]staticSignature{
+	"ABS": {1, 1, []string{"n"}, kindNumber}, "CEIL": {1, 1, []string{"n"}, kindNumber},
+	"FLOOR": {1, 1, []string{"n"}, kindNumber}, "SQRT": {1, 1, []string{"n"}, kindNumber},
+	"SIGN": {1, 1, []string{"n"}, kindNumber}, "EXP": {1, 1, []string{"n"}, kindNumber},
+	"LN": {1, 1, []string{"n"}, kindNumber}, "ATAN": {1, 1, []string{"n"}, kindNumber},
+	"COS": {1, 1, []string{"n"}, kindNumber}, "SIN": {1, 1, []string{"n"}, kindNumber},
+	"TAN": {1, 1, []string{"n"}, kindNumber}, "COSH": {1, 1, []string{"n"}, kindNumber},
+	"SINH": {1, 1, []string{"n"}, kindNumber}, "TANH": {1, 1, []string{"n"}, kindNumber},
+	"ROUND": {1, 2, []string{"n", "n"}, kindNumber}, "TRUNC": {1, 2, []string{"n", "n"}, kindNumber},
+	"POWER": {2, 2, []string{"n", "n"}, kindNumber}, "MOD": {2, 2, []string{"n", "n"}, kindNumber},
+	"REMAINDER": {2, 2, []string{"n", "n"}, kindNumber}, "LOG": {2, 2, []string{"n", "n"}, kindNumber},
+	"BITAND": {2, 2, []string{"n", "n"}, kindNumber},
+	"LENGTH": {1, 1, []string{"nc"}, kindNumber}, "LENGTHB": {1, 1, []string{"nc"}, kindNumber},
+	"LENGTHC": {1, 1, []string{"nc"}, kindNumber}, "ASCII": {1, 1, []string{"nc"}, kindNumber},
+	"SUBSTR": {2, 3, []string{"nc", "n", "n"}, kindCharacter}, "SUBSTRB": {2, 3, []string{"nc", "n", "n"}, kindCharacter},
+	"SUBSTRC": {2, 3, []string{"nc", "n", "n"}, kindCharacter},
+	"LOWER":   {1, 1, []string{"nc"}, kindCharacter}, "UPPER": {1, 1, []string{"nc"}, kindCharacter},
+	"INITCAP": {1, 1, []string{"nc"}, kindCharacter}, "CHR": {1, 1, []string{"n"}, kindCharacter},
+	"CONCAT": {2, 2, []string{"nc", "nc"}, kindCharacter},
+	"RPAD":   {2, 3, []string{"nc", "n", "nc"}, kindCharacter}, "LPAD": {2, 3, []string{"nc", "n", "nc"}, kindCharacter},
+	"TO_CHAR": {1, 1, []string{"nc"}, kindCharacter}, "TO_NCHAR": {1, 1, []string{"nc"}, kindCharacter},
+	"NVL": {2, 2, []string{"nbc", "nbc"}, kindAny}, "XOR": {2, 2, []string{"b", "b"}, kindBoolean},
 }
 
-// nonStaticCall returns the first call in expr that no static expression
-// may make, or nil: a function outside staticFunctions, a pseudo-column
-// (SYSDATE, USER), DECODE, CASE, or CAST (PLS-00174 on Oracle 23ai).
-func nonStaticCall(expr nodes.ExprNode) nodes.ExprNode {
-	var bad nodes.ExprNode
-	nodes.Inspect(expr, func(n nodes.Node) bool {
+// staticKindOf classifies expr as Oracle 23ai's static expressions are
+// typed, returning its kind and, when expr is no static expression, the
+// node at fault. The grammar takes literals, NULL, TRUE and FALSE,
+// constants and inquiry directives, arithmetic and || , comparisons of
+// numbers or of Booleans (no character values: PLS-00174 for 'a' = 'a'
+// and $$PLSQL_UNIT = 'P'), NOT, AND, OR, IS [ NOT ] NULL, and the static
+// functions; IN, BETWEEN, LIKE, EXISTS, CASE, DECODE, CAST, a
+// pseudo-column, and a subquery are PLS-00174.
+func (p *Parser) staticKindOf(expr nodes.ExprNode) (staticKind, nodes.ExprNode) {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return p.staticKindOf(e.Expr)
+	case *nodes.NullLiteral:
+		return kindAny, nil
+	case *nodes.NumberLiteral:
+		return kindNumber, nil
+	case *nodes.StringLiteral:
+		return kindCharacter, nil
+	case *nodes.ColumnRef:
+		if e.Schema == "" && e.Table == "" && (e.Column == "TRUE" || e.Column == "FALSE") &&
+			e.Loc.Start >= 0 && e.Loc.Start < len(p.source) && p.source[e.Loc.Start] != '"' {
+			return kindBoolean, nil
+		}
+		if p.isInquiryRef(e) {
+			switch e.Column {
+			case "$$PLSQL_UNIT", "$$PLSQL_UNIT_OWNER", "$$PLSQL_UNIT_TYPE":
+				return kindCharacter, nil
+			}
+		}
+		return kindAny, nil
+	case *nodes.UnaryExpr:
+		kind, bad := p.staticKindOf(e.Operand)
 		if bad != nil {
-			return false
+			return kind, bad
 		}
-		switch e := n.(type) {
-		case *nodes.PseudoColumn, *nodes.DecodeExpr, *nodes.CaseExpr, *nodes.CastExpr:
-			bad = e.(nodes.ExprNode)
-			return false
+		switch e.Op {
+		case "-", "+":
+			if kind != kindNumber && kind != kindAny {
+				return kind, expr
+			}
+			return kindNumber, nil
+		case "NOT":
+			if kind != kindBoolean && kind != kindAny {
+				return kind, expr
+			}
+			return kindBoolean, nil
 		}
-		if call, ok := n.(*nodes.FuncCallExpr); ok {
-			name := ""
-			if call.FuncName != nil {
-				switch call.FuncName.Schema {
-				case "", "STANDARD", "SYS.STANDARD":
-					name = call.FuncName.Name
+		return kind, expr
+	case *nodes.BoolExpr:
+		if e.Args != nil {
+			for _, item := range e.Args.Items {
+				kind, bad := p.staticKindOf(item.(nodes.ExprNode))
+				if bad != nil {
+					return kind, bad
+				}
+				if kind != kindBoolean && kind != kindAny {
+					return kind, item.(nodes.ExprNode)
 				}
 			}
-			if !staticFunctions[name] {
-				bad = call
-				return false
+		}
+		return kindBoolean, nil
+	case *nodes.IsExpr:
+		if _, bad := p.staticKindOf(e.Expr); bad != nil {
+			return kindBoolean, bad
+		}
+		if e.Test != "NULL" {
+			return kindBoolean, expr
+		}
+		return kindBoolean, nil
+	case *nodes.BinaryExpr:
+		left, bad := p.staticKindOf(e.Left)
+		if bad != nil {
+			return left, bad
+		}
+		right, bad := p.staticKindOf(e.Right)
+		if bad != nil {
+			return right, bad
+		}
+		switch e.Op {
+		case "+", "-", "*", "/", "**":
+			if left != kindNumber && left != kindAny || right != kindNumber && right != kindAny {
+				return kindNumber, expr
+			}
+			return kindNumber, nil
+		case "||":
+			if left == kindBoolean || right == kindBoolean {
+				return kindCharacter, expr
+			}
+			return kindCharacter, nil
+		case "=", "!=", "<>", "~=", "^=", "<", ">", "<=", ">=":
+			if left == kindCharacter || right == kindCharacter ||
+				left != kindAny && right != kindAny && left != right {
+				return kindBoolean, expr
+			}
+			return kindBoolean, nil
+		}
+		return kindAny, expr
+	case *nodes.FuncCallExpr:
+		sig, ok := staticFunctions[staticFunctionName(e)]
+		n := 0
+		if e.Args != nil {
+			n = e.Args.Len()
+		}
+		if !ok || n < sig.min || n > sig.max {
+			return kindAny, expr
+		}
+		result := sig.result
+		for i := 0; i < n; i++ {
+			kind, bad := p.staticKindOf(e.Args.Items[i].(nodes.ExprNode))
+			if bad != nil {
+				return kind, bad
+			}
+			accepted := sig.args[len(sig.args)-1]
+			if i < len(sig.args) {
+				accepted = sig.args[i]
+			}
+			if kind != kindAny && !strings.Contains(accepted, kind.letter()) {
+				return kindAny, expr
+			}
+			// NVL takes and returns one kind.
+			if sig.result == kindAny && kind != kindAny {
+				if result != kindAny && result != kind {
+					return kindAny, expr
+				}
+				result = kind
 			}
 		}
-		return true
-	})
-	return bad
+		return result, nil
+	}
+	return kindAny, expr
 }
 
 // isInquiryRef reports whether expr is an inquiry directive, $$name, as
@@ -441,9 +535,23 @@ func (p *Parser) isInquiryRef(expr nodes.ExprNode) bool {
 		ref.Loc.Start < len(p.source) && p.source[ref.Loc.Start] == '$'
 }
 
+// staticConditionFault returns the node at fault when expr is no static
+// Boolean expression: one staticKindOf rejects, or a number or a string
+// (PLS-00382 for $IF 1 or $IF 'x'), or nil.
+func (p *Parser) staticConditionFault(expr nodes.ExprNode) nodes.ExprNode {
+	kind, bad := p.staticKindOf(expr)
+	if bad != nil {
+		return bad
+	}
+	if kind != kindBoolean && kind != kindAny {
+		return expr
+	}
+	return nil
+}
+
 // checkDirectiveCondition parses the condition at loc of an $IF or $ELSIF
-// the lexer evaluated: an expression (PLS-00103) whose Boolean operands can
-// be static Booleans (nonBooleanOperand).
+// the lexer evaluated: an expression (PLS-00103) that is a static Boolean
+// expression (staticConditionFault).
 func (p *Parser) checkDirectiveCondition(loc nodes.Loc) error {
 	sub := &Parser{lexer: NewLexerRange(p.source, loc.Start, loc.End), source: p.source}
 	sub.advance()
@@ -454,10 +562,7 @@ func (p *Parser) checkDirectiveCondition(loc nodes.Loc) error {
 	if expr == nil || sub.cur.Type != tokEOF {
 		return sub.syntaxErrorAtCur()
 	}
-	if bad := nonBooleanOperand(expr); bad != nil {
-		return p.syntaxErrorAtNode(bad)
-	}
-	if bad := nonStaticCall(expr); bad != nil {
+	if bad := p.staticConditionFault(expr); bad != nil {
 		return p.syntaxErrorAtNode(bad)
 	}
 	return nil

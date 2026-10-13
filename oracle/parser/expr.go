@@ -216,6 +216,11 @@ func (p *Parser) isCursorAttributeToken(tok Token) bool {
 }
 
 func (p *Parser) parseCursorAttributePostfix(left nodes.ExprNode) (nodes.ExprNode, error) {
+	// An inquiry directive is a literal, no cursor (PLS-00103 for
+	// $$PLSQL_LINE%FOUND).
+	if p.isInquiryRef(left) {
+		return nil, p.syntaxErrorAtCur()
+	}
 	start := exprLocStart(left, p.pos())
 	p.advance() // consume '%'
 	attr, err := p.parseIdentifier()
