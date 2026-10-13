@@ -46,6 +46,11 @@ func (p *Parser) parseJSONAggregateOrSerialize(fc *nodes.FuncCallExpr) (nodes.Ex
 	if arg == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
+	// The key of JSON_OBJECTAGG is a scalar, not * or t.* (ORA-00936,
+	// ORA-01747).
+	if name == "JSON_OBJECTAGG" && isWildcard(arg) {
+		return nil, p.syntaxErrorAtNode(arg)
+	}
 	fc.Args.Items = append(fc.Args.Items, arg)
 
 	if name == "JSON_OBJECTAGG" {
@@ -80,7 +85,8 @@ func (p *Parser) parseJSONAggregateOrSerialize(fc *nodes.FuncCallExpr) (nodes.Ex
 			if err != nil {
 				return nil, err
 			}
-			if fc.OrderBy.Len() == 0 {
+			// An item follows each comma (ORA-00936).
+			if fc.OrderBy.Len() == 0 || p.prev.Type == ',' {
 				return nil, p.syntaxErrorAtCur()
 			}
 		}
@@ -108,7 +114,7 @@ func (p *Parser) parseJSONAggregateOrSerialize(fc *nodes.FuncCallExpr) (nodes.Ex
 // atJSONKeyValueSeparator reports whether tok separates a JSON key from its
 // value: VALUE, IS, or ':'. A KEY before one is a column named KEY.
 func (p *Parser) atJSONKeyValueSeparator(tok Token) bool {
-	return tok.Type == ':' || tok.Type == kwIS || tok.Type != tokQIDENT && tok.Str == "VALUE"
+	return tok.Type == ':' || tok.Type == kwIS || isOneOfKeywords(tok, []string{"VALUE"})
 }
 
 // parseJSONConstructorClauses parses the clauses that end the arguments of
@@ -211,4 +217,15 @@ func (p *Parser) parseJSONSerializeClauses() error {
 	}
 	p.advance()
 	return nil
+}
+
+// isWildcard reports whether expr is * or t.*.
+func isWildcard(expr nodes.ExprNode) bool {
+	switch e := expr.(type) {
+	case *nodes.Star:
+		return true
+	case *nodes.ColumnRef:
+		return e.Column == "*"
+	}
+	return false
 }

@@ -10,7 +10,8 @@ import (
 // JSON_OBJECTAGG, and JSON_SERIALIZE against Oracle 23ai: every accepted
 // form parses there (or fails only on a datatype it checks after parsing,
 // ORA-40449 or ORA-00932), and every rejected one fails with the error noted
-// beside it. Rows ref_237 to ref_246 run them against the engine.
+// beside it. Rows ref_237 to ref_246 and ref_253 to ref_256 run them
+// against the engine.
 func TestJSONConstructors(t *testing.T) {
 	for _, sql := range []string{
 		// JSON_OBJECT entries: KEY, VALUE, IS, ':', a column, a star.
@@ -21,6 +22,16 @@ func TestJSONConstructors(t *testing.T) {
 		"SELECT JSON_OBJECT(KEY 'a' IS 1) FROM dual",
 		"SELECT JSON_OBJECT() FROM dual",
 		"SELECT JSON_OBJECT(*) FROM dual",
+		"SELECT JSON_OBJECT(* RETURNING CLOB) FROM dual",
+		"SELECT JSON_OBJECT(* NULL ON NULL STRICT WITH UNIQUE KEYS) FROM dual",
+		"SELECT JSON_OBJECT(KEY 'VALUE' VALUE 1) FROM dual",
+		"SELECT JSON_OBJECTAGG(KEY 'VALUE' VALUE 1) FROM dual",
+		// TRUNCATE is a column name before VALUE (ORA-00932 only on the
+		// key's datatype); STRICT is not, below.
+		"SELECT JSON_OBJECT(truncate VALUE 1) FROM t",
+		"SELECT JSON_OBJECT(truncate) FROM t",
+		"SELECT JSON_ARRAY(truncate) FROM t",
+		"SELECT JSON_ARRAY(strict) FROM t",
 		"SELECT JSON_OBJECT(d.*) FROM dual d",
 		"SELECT JSON_OBJECT(dummy) FROM dual",
 		"SELECT JSON_OBJECT(d.dummy, d.*) FROM dual d",
@@ -109,6 +120,7 @@ func TestJSONConstructors(t *testing.T) {
 		"SELECT JSON_OBJECT(key) FROM (SELECT 'k' key FROM dual)",
 		"SELECT JSON_OBJECT(KEY 'a' : 1) FROM dual",
 		"SELECT JSON_OBJECT('a' FORMAT JSON VALUE 1) FROM dual",
+		"SELECT JSON_OBJECT(strict VALUE 1) FROM t",
 		// The clauses come in their order (ORA-02000).
 		"SELECT JSON_OBJECT('a' VALUE 1 STRICT RETURNING CLOB) FROM dual",
 		"SELECT JSON_OBJECT('a' VALUE 1 RETURNING CLOB NULL ON NULL) FROM dual",
@@ -132,6 +144,7 @@ func TestJSONConstructors(t *testing.T) {
 		"SELECT JSON_ARRAYAGG(dummy STRICT TRUNCATE) FROM dual",
 		"SELECT JSON_ARRAYAGG(dummy WITH UNIQUE KEYS) FROM dual",
 		"SELECT JSON_ARRAYAGG(dummy ORDER BY 1 ORDER BY 1) FROM dual",
+		"SELECT JSON_ARRAYAGG(dummy ORDER BY dummy,) FROM dual",
 		"SELECT JSON_ARRAYAGG(dummy) OVER () FROM dual",
 		"SELECT JSON_ARRAYAGG(dummy) KEEP (DENSE_RANK FIRST ORDER BY 1) FROM dual",
 		"SELECT JSON_OBJECTAGG(dummy : 1) FROM dual",
@@ -140,6 +153,11 @@ func TestJSONConstructors(t *testing.T) {
 		"SELECT JSON_OBJECTAGG(dummy VALUE 1, 'b' VALUE 2) FROM dual",
 		"SELECT JSON_OBJECTAGG(dummy VALUE 1 STRICT RETURNING CLOB) FROM dual",
 		"SELECT JSON_OBJECTAGG(dummy VALUE 1) OVER () FROM dual",
+		"SELECT JSON_OBJECTAGG(* VALUE 1) FROM dual",
+		"SELECT JSON_OBJECTAGG(d.* VALUE 1) FROM dual d",
+		// An unqualified quoted name is the built-in too (ORA-06552 for a
+		// user function's arguments); only a qualified one is generic.
+		"SELECT \"JSON_SERIALIZE\"(1, 2) FROM dual",
 		// JSON_SERIALIZE: one argument, each flag once and in its place, one
 		// ON ERROR clause without DEFAULT (ORA-00907, ORA-00939, ORA-40450).
 		"SELECT JSON_SERIALIZE() FROM dual",

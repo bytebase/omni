@@ -2742,14 +2742,18 @@ func (p *Parser) parseJsonObjectOrArray(name string) (nodes.ExprNode, error) {
 
 // atJSONConstructorClause reports whether the current token starts a clause
 // of a JSON constructor rather than an entry: NULL ON or ABSENT ON,
-// RETURNING, TRUNCATE, STRICT, WITH or WITHOUT UNIQUE.
+// RETURNING, STRICT, TRUNCATE before what may follow it, WITH or WITHOUT
+// UNIQUE. Oracle 23ai reads STRICT there as the clause even before VALUE
+// (ORA-02000 for JSON_OBJECT(strict VALUE 1)) but TRUNCATE VALUE as an
+// entry keyed by a column named TRUNCATE.
 func (p *Parser) atJSONConstructorClause() bool {
 	next := p.peekNext()
 	switch {
 	case (p.cur.Type == kwNULL || p.isKeywordStr("ABSENT")) && next.Type == kwON,
 		p.cur.Type == kwRETURNING,
-		(p.isKeywordStr("TRUNCATE") || p.isKeywordStr("STRICT")) && (next.Type == ')' || next.Type == tokIDENT || next.Type == kwWITH),
-		(p.cur.Type == kwWITH || p.isKeywordStr("WITHOUT")) && next.Type != tokQIDENT && next.Str == "UNIQUE":
+		p.isKeywordStr("STRICT"),
+		p.isKeywordStr("TRUNCATE") && (next.Type == ')' || next.Type == kwWITH || isOneOfKeywords(next, []string{"STRICT", "WITHOUT"})),
+		(p.cur.Type == kwWITH || p.isKeywordStr("WITHOUT")) && isOneOfKeywords(next, []string{"UNIQUE"}):
 		return true
 	}
 	return false
@@ -2808,7 +2812,8 @@ func (p *Parser) parseJsonEntry(name string, fc *nodes.FuncCallExpr) error {
 		}
 		return p.parseOptionalFormatJSON()
 	case *nodes.Star:
-		if keyKeyword || len(fc.Args.Items) > 1 || p.cur.Type != ')' {
+		// * stands alone, its clauses after it (ORA-02000 for another entry).
+		if keyKeyword || len(fc.Args.Items) > 1 || p.cur.Type != ')' && !p.atJSONConstructorClause() {
 			return p.syntaxErrorAtCur()
 		}
 		return nil
