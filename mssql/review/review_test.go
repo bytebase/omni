@@ -240,6 +240,11 @@ func TestDisallowDropObject(t *testing.T) {
 			sql:  "DROP TABLE shop..t;",
 			want: []finding{{0, "DROP TABLE shop..t", "drops table shop..t", []int{0}}},
 		},
+		{
+			name: "DROP STATISTICS names each",
+			sql:  "DROP STATISTICS t.s1, dbo.t.s2;",
+			want: []finding{{0, "DROP STATISTICS t.s1, dbo.t.s2", "drops statistics t.s1, dbo.t.s2", []int{0}}},
+		},
 	})
 }
 
@@ -302,6 +307,11 @@ func TestDisallowDropConstraint(t *testing.T) {
 				{1, "ck_extra", "drops check constraint ck_extra of nokey", []int{0}},
 				{4, "ck_y", "drops check constraint ck_y of other.dbo.t", []int{0}},
 			},
+		},
+		{
+			name: "a constraint added and dropped in a block, or defined on a table of a named schema",
+			sql:  "BEGIN ALTER TABLE nokey ADD CONSTRAINT ck_b CHECK (a > 0); ALTER TABLE nokey DROP CONSTRAINT ck_b; END;\nALTER TABLE s.t2 ADD CONSTRAINT ck_z CHECK (id > 0);\nALTER TABLE t2 DROP CONSTRAINT ck_z;",
+			want: []finding{{0, "ck_b", "drops check constraint ck_b of nokey", []int{0}}},
 		},
 		{
 			name: "a USE in a block",
@@ -428,6 +438,15 @@ func TestPriorBackup(t *testing.T) {
 			want: []finding{
 				{1, "UPDATE dbo.t SET code = '' WHERE m = 1", "prior backup runs before the change, when column m of dbo.t does not exist yet", []int{0}},
 				{2, "UPDATE dbo.t SET n = p.id FROM dbo.p AS p", "prior backup selects dbo.t.* from the statement's FROM list, which does not name it", []int{0}},
+			},
+		},
+		{
+			name:   "a table sp_rename renames to, and FROM lists by alias",
+			sql:    "EXEC sp_rename 'dbo.nokey', 'n8';\nUPDATE dbo.n8 SET a = 2 WHERE a = 1;\nUPDATE dbo.t SET n = s.n FROM audit.t AS s;\nUPDATE x SET n = 1 FROM t AS x;",
+			change: backup,
+			want: []finding{
+				{1, "UPDATE dbo.n8 SET a = 2 WHERE a = 1", "prior backup runs before the change, when dbo.n8 does not exist yet", []int{0}},
+				{2, "UPDATE dbo.t SET n = s.n FROM audit.t AS s", "prior backup selects dbo.t.* from the statement's FROM list, which does not name it", []int{0}},
 			},
 		},
 		{

@@ -104,7 +104,15 @@ func checkDisallowDropObject(s *statement, r *reporter) {
 				report(v.Loc, kind, object(v.ModuleName))
 			}
 		case *ast.DropStatisticsStmt:
-			report(v.Loc, "statistics")
+			var names []string
+			if v.Names != nil {
+				for _, item := range v.Names.Items {
+					if name, ok := item.(*ast.String); ok {
+						names = append(names, escapeLines(name.Str))
+					}
+				}
+			}
+			report(v.Loc, "statistics", names...)
 		case *ast.DropAggregateStmt:
 			report(v.Loc, "aggregate", object(v.Name))
 		case *ast.DropFulltextStoplistStmt:

@@ -89,8 +89,11 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 	}
 	// visit reads a statement, or an element of a CREATE SCHEMA, which runs
 	// as the statement does; loc is what a finding on it anchors.
-	var visit func(pos int, s *statement, n ast.Node, loc ast.Loc)
-	visit = func(pos int, s *statement, n ast.Node, loc ast.Loc) {
+	// block is whether the statement sits in a BEGIN ... END block, which
+	// runs it as the change does, but whose later siblings the rule does
+	// not follow: RequirePrimaryKey does not judge it.
+	var visit func(pos int, s *statement, n ast.Node, loc ast.Loc, block bool)
+	visit = func(pos int, s *statement, n ast.Node, loc ast.Loc, block bool) {
 		switch v := n.(type) {
 		case *ast.CreateTableStmt:
 			for _, c := range tableConstraints(v) {
@@ -99,7 +102,7 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 				}
 			}
 			// A FileTable has a primary key in its fixed schema.
-			if on[review.RequirePrimaryKey] && judgedTable(v.Name) && !v.IsFileTable && !createsPrimaryKey(v) && !settledAfter(stmts, pos, v.Name) {
+			if on[review.RequirePrimaryKey] && !block && judgedTable(v.Name) && !v.IsFileTable && !createsPrimaryKey(v) && !settledAfter(stmts, pos, v.Name) {
 				r.report(review.RequirePrimaryKey, s.index, rangeOf(loc), "creates table "+object(v.Name)+" without a primary key")
 			}
 		case *ast.AlterTableStmt:
@@ -125,7 +128,13 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 						}
 					}
 				case ast.ATDropConstraint:
-					drop(pos, s, v, a, false)
+					drop(pos, s, v, a, block)
+				}
+			}
+		case *ast.BeginEndStmt:
+			if v.Stmts != nil {
+				for _, e := range v.Stmts.Items {
+					visit(pos, s, e, ast.NodeLoc(e), true)
 				}
 			}
 		case *ast.UseStmt:
@@ -134,7 +143,7 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 		case *ast.CreateSchemaStmt:
 			if v.Elements != nil {
 				for _, e := range v.Elements.Items {
-					visit(pos, s, e, ast.NodeLoc(e))
+					visit(pos, s, e, ast.NodeLoc(e), block)
 				}
 			}
 		default:
@@ -160,7 +169,7 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 		if hasUse(stmts[pos].node) {
 			made = nil
 		}
-		visit(pos, &stmts[pos], stmts[pos].node, stmts[pos].loc)
+		visit(pos, &stmts[pos], stmts[pos].node, stmts[pos].loc, false)
 	}
 	return open
 }

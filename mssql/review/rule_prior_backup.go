@@ -196,7 +196,16 @@ func fromNames(from *ast.List, ref *ast.TableRef) bool {
 	walk = func(n ast.Node) {
 		switch v := n.(type) {
 		case *ast.TableRef:
-			names = names || sameName(v.Object, ref.Object) || sameName(v.Alias, ref.Object)
+			// An aliased table exposes its alias only; one without exposes
+			// its name, which may be the target's when the schemas agree.
+			switch {
+			case v == ref:
+				names = true
+			case v.Alias != "":
+				names = names || sameName(v.Alias, ref.Object)
+			default:
+				names = names || sameObject(v, ref)
+			}
 		case *ast.JoinClause:
 			walk(v.Left)
 			walk(v.Right)
@@ -270,8 +279,8 @@ func textOf(sql string, loc ast.Loc) string {
 
 // changeMade is what the change makes, which the backup, run before all of
 // it, cannot see: the tables, views, and synonyms it creates, SELECT INTO,
-// CREATE SCHEMA, and BEGIN ... END among them, and the columns it adds,
-// renames to with sp_rename, or declares on a table it creates, by the
+// CREATE SCHEMA, BEGIN ... END, and sp_rename among them, and the columns
+// it adds, renames to with sp_rename, or declares on a table it creates, by the
 // table as written. A statement that may make nothing, IF NOT EXISTS, is
 // left out, and so is what the change makes after a USE.
 type changeMade struct {
@@ -321,10 +330,22 @@ func madeByChange(stmts []statement) changeMade {
 				}
 			}
 		case *ast.ExecStmt:
-			// A column sp_rename renames to, in the target's database.
-			if name, newName, kind, ok := spRename(v); ok && strings.EqualFold(kind, "COLUMN") && v.Name.Database == "" && v.Name.Server == "" {
+			// A column or an object sp_rename renames to, in the target's
+			// database.
+			name, newName, kind, ok := spRename(v)
+			if !ok || v.Name.Database != "" || v.Name.Server != "" {
+				return
+			}
+			switch strings.ToUpper(kind) {
+			case "COLUMN":
 				if ref, _ := splitColumn(name); ref != nil {
 					m.columns = append(m.columns, madeColumn{ref, newName})
+				}
+			case "", "OBJECT":
+				if ref := parseObjectName(name); ref != nil {
+					to := *ref
+					to.Object = newName
+					m.relations = append(m.relations, &to)
 				}
 			}
 		case *ast.BeginEndStmt:
