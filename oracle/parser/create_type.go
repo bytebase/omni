@@ -338,6 +338,9 @@ func (p *Parser) parseCollectionElement(stmt *nodes.CreateTypeStmt) (*nodes.Type
 	if tn == nil || tn.Names.Len() == 0 {
 		return nil, p.syntaxErrorAtCur()
 	}
+	if collectionElementIllegal[p.predefinedTypeLead(tn)] {
+		return nil, p.syntaxErrorAtType(tn)
+	}
 	if p.cur.Type == kwNOT && p.peekNext().Type == kwNULL {
 		p.advance()
 		p.advance()
@@ -832,8 +835,11 @@ func methodModifiersConflict(mods []string, kind nodes.TypeBodyMemberKind) bool 
 // ORDER method takes exactly one (PLS-00521), and a type has at most one MAP
 // or ORDER method (PLS-00154). hasComparison tracks the last rule. The rules
 // on MAP and ORDER return and parameter types (PLS-00522 through PLS-00524)
-// need the types resolved and are left to the engine. tok is where the
-// method starts, for the error position.
+// need the types resolved and are left to the engine. A subtype has no
+// ORDER method: Oracle 23ai rejects one with PLS-00646 under a supertype
+// without MAP or ORDER and with PLS-00154 under one with either. Whether a
+// subtype's MAP method is valid depends on its supertype's, and is left to
+// the engine too. tok is where the method starts, for the error position.
 func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes.TypeBodyMember, hasComparison *bool, tok Token) error {
 	fn, isFunction := member.Subprog.(*nodes.CreateFunctionStmt)
 	switch member.Kind {
@@ -842,7 +848,7 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 			return p.syntaxErrorAtTok(tok)
 		}
 	case nodes.TYPE_BODY_MAP, nodes.TYPE_BODY_ORDER:
-		if *hasComparison {
+		if *hasComparison || member.Kind == nodes.TYPE_BODY_ORDER && stmt.Under != nil {
 			return p.syntaxErrorAtTok(tok)
 		}
 		*hasComparison = true
@@ -979,6 +985,26 @@ func (p *Parser) parseRestrictReferencesPragma() (*nodes.PLSQLPragma, error) {
 	return pragma, nil
 }
 
+// objectAttributeIllegal and collectionElementIllegal are the predefined
+// types that Oracle 23ai refuses as an object type attribute (PLS-00530;
+// PLS-00218 for the NOT NULL subtypes, PLS-00989 for SYS_REFCURSOR) and as
+// the element of a nested table or varray type (PLS-00531, PLS-00990).
+// BOOLEAN, the LOBs, BFILE, and the ANSI numeric names are allowed in both.
+var (
+	objectAttributeIllegal = map[string]bool{
+		"LONG": true, "PLS_INTEGER": true, "BINARY_INTEGER": true, "SIMPLE_INTEGER": true,
+		"NATURAL": true, "NATURALN": true, "POSITIVE": true, "POSITIVEN": true, "SIGNTYPE": true,
+		"SIMPLE_FLOAT": true, "SIMPLE_DOUBLE": true, "STRING": true, "ROWID": true, "UROWID": true,
+		"MLSLABEL": true, "JSON": true, "VECTOR": true, "SYS_REFCURSOR": true,
+	}
+	collectionElementIllegal = map[string]bool{
+		"LONG": true, "PLS_INTEGER": true, "BINARY_INTEGER": true, "SIMPLE_INTEGER": true,
+		"NATURAL": true, "NATURALN": true, "POSITIVE": true, "POSITIVEN": true, "SIGNTYPE": true,
+		"STRING": true, "ROWID": true, "UROWID": true, "MLSLABEL": true, "JSON": true,
+		"VECTOR": true, "SYS_REFCURSOR": true,
+	}
+)
+
 // parseTypeAttribute parses one attribute of an object type specification:
 // attribute_name datatype.
 func (p *Parser) parseTypeAttribute() (*nodes.ColumnDef, error) {
@@ -999,6 +1025,9 @@ func (p *Parser) parseTypeAttribute() (*nodes.ColumnDef, error) {
 	}
 	if typeName == nil || typeName.Names.Len() == 0 {
 		return nil, p.syntaxErrorAtCur()
+	}
+	if objectAttributeIllegal[p.predefinedTypeLead(typeName)] {
+		return nil, p.syntaxErrorAtType(typeName)
 	}
 	return &nodes.ColumnDef{
 		Name:     name,

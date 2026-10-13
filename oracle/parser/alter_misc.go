@@ -3957,9 +3957,17 @@ func (p *Parser) parseAlterTypeAttributes(withDatatype bool) ([]*nodes.TypeAttri
 			Loc:  nodes.Loc{Start: attrStart},
 		}
 		if withDatatype {
+			// ADD and MODIFY name the datatype (ORA-06545 without one), which
+			// is one an attribute may have, as in CREATE TYPE.
 			attr.DataType, err = p.parsePLSQLDatatype(typeModsPLSQL, charsetFixed)
 			if err != nil {
 				return nil, err
+			}
+			if attr.DataType == nil || attr.DataType.Names.Len() == 0 {
+				return nil, p.syntaxErrorAtCur()
+			}
+			if objectAttributeIllegal[p.predefinedTypeLead(attr.DataType)] {
+				return nil, p.syntaxErrorAtType(attr.DataType)
 			}
 		}
 		attr.Loc.End = p.prev.End

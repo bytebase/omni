@@ -134,12 +134,23 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "VARCHAR"})
 			p.advance()
 		}
-		// PL/SQL takes a size, LONG(100) or LONG RAW(32767); SQL does not
-		// (ORA-03074).
-		if p.typeMods != typeModsSQL {
-			if err := p.parseOptionalPrecisionScale(tn); err != nil {
+		// PL/SQL takes one length, LONG(100) or LONG RAW(32767), with no
+		// scale or BYTE/CHAR (PLS-00572); SQL takes none (ORA-03074), and
+		// neither does an unconstrained parameter (PLS-00103).
+		if p.typeMods != typeModsSQL && p.cur.Type == '(' {
+			if p.typeMods == typeModsNone {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume '('
+			size, err := p.parseExpr()
+			if err != nil {
 				return nil, err
 			}
+			if size == nil || p.cur.Type != ')' {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume ')'
+			tn.TypeMods.Items = append(tn.TypeMods.Items, size)
 		}
 
 	case kwROWID:
@@ -407,8 +418,9 @@ func (p *Parser) predefinedTypeSpelling(tn *nodes.TypeName) string {
 // follows from the text alone and was confirmed on Oracle 23ai; whether a
 // name is a known character set (PLS-00553) is left to the engine.
 func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse) error {
-	// A %ROWTYPE record is never a character type (PLS-00550).
-	if tn.IsPercRowtype {
+	// Neither a %ROWTYPE record nor an object reference is a character type
+	// (PLS-00550).
+	if tn.IsPercRowtype || tn.IsRef {
 		return p.syntaxErrorAtCur()
 	}
 	// Neither is a predefined non-character type, nor is the TABLE or

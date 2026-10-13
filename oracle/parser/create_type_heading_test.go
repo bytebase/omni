@@ -11,10 +11,10 @@ import (
 // types, and collection elements of CREATE TYPE against Oracle 23ai: every
 // accepted form compiles there (or fails only on names it cannot resolve or
 // on the instance's settings), and every rejected one fails with the error
-// noted beside it. Rows ref_189 to ref_208 and ref_216 to ref_218 run the
-// PLS-00103 and ORA cases against the engine; the others are errors Oracle
-// reports from the text alone after parsing, which the reference harness
-// counts as accepted.
+// noted beside it. Rows ref_189 to ref_208, ref_216 to ref_218, and ref_223
+// to ref_224 run the PLS-00103 and ORA cases against the engine; the others
+// are errors Oracle reports from the text alone after parsing, which the
+// reference harness counts as accepted.
 func TestCreateTypeHeading(t *testing.T) {
 	for _, sql := range []string{
 		// FORCE and OID in either order, then AUTHID and ACCESSIBLE BY in
@@ -59,6 +59,9 @@ func TestCreateTypeHeading(t *testing.T) {
 		"CREATE TYPE t UNDER base (MEMBER FUNCTION f RETURN NUMBER)",
 		"CREATE TYPE t UNDER base (PRAGMA RESTRICT_REFERENCES (DEFAULT, WNDS))",
 		"CREATE TYPE t UNDER base (b NUMBER) FINAL",
+		// A subtype's MAP method depends on the supertype's (PLS-00636,
+		// PLS-00646), which the text does not show.
+		"CREATE TYPE t UNDER base (OVERRIDING MAP MEMBER FUNCTION m RETURN NUMBER)",
 		"CREATE TYPE t FORCE UNDER base (b NUMBER)",
 		"CREATE TYPE t ACCESSIBLE BY (PROCEDURE p) UNDER base (b NUMBER)",
 		// The supertype's AUTHID decides (PLS-00722 when they differ).
@@ -84,13 +87,12 @@ func TestCreateTypeHeading(t *testing.T) {
 		"CREATE TYPE t AS TABLE OF VARCHAR2(ORA_MAX_NAME_LEN)",
 		"CREATE TYPE t AS VARRAY(3) OF VARCHAR2(ORA_MAX_NAME_LEN)",
 		// Attributes: ANSI and REF datatypes, a named character set, and
-		// PL/SQL size expressions. LONG RAW is PLS-00530, after parsing.
+		// PL/SQL size expressions.
 		"CREATE TYPE t AS OBJECT (a CHARACTER(1 BYTE), b CHAR(2 CHAR), c CHARACTER VARYING(3), d DOUBLE PRECISION, e NATIONAL CHARACTER(2), f CHARACTER(2 CHAR))",
 		"CREATE TYPE t AS OBJECT (a CHARACTER LARGE OBJECT)",
 		"CREATE TYPE t AS OBJECT (a REF u, b REF s.u)",
 		"CREATE TYPE t AS OBJECT (a VARCHAR2(10) CHARACTER SET NCHAR_CS)",
 		"CREATE TYPE t AS OBJECT (a VARCHAR2(ORA_MAX_NAME_LEN), b VARCHAR2(10+2), c NUMBER(5+1, 2))",
-		"CREATE TYPE t AS OBJECT (a LONG RAW(32767))",
 		"CREATE TYPE t AS OBJECT (a NUMBER) NOT PERSISTABLE NOT FINAL",
 		"CREATE TYPE t AS OBJECT (a NUMBER) NOT INSTANTIABLE NOT FINAL",
 		"CREATE TYPE t AS OBJECT (a NUMBER) INSTANTIABLE FINAL",
@@ -152,6 +154,10 @@ func TestCreateTypeHeading(t *testing.T) {
 		"CREATE TYPE t UNDER base (b NUMBER,)",
 		"CREATE TYPE t UNDER base (b NUMBER) NOT PERSISTABLE",
 		"CREATE TYPE t UNDER base (MEMBER FUNCTION f RETURN NUMBER, b NUMBER)",
+		// A subtype has no ORDER method (PLS-00646, or PLS-00154 under a
+		// supertype with MAP or ORDER).
+		"CREATE TYPE t UNDER base (ORDER MEMBER FUNCTION o (x t) RETURN NUMBER)",
+		"CREATE TYPE t UNDER base (b NUMBER, OVERRIDING ORDER MEMBER FUNCTION o (x t) RETURN NUMBER)",
 		// An object type is FINAL unless it says NOT FINAL, and a FINAL type
 		// cannot be NOT INSTANTIABLE (PLS-00614).
 		"CREATE TYPE t AS OBJECT (a NUMBER) NOT INSTANTIABLE",
@@ -172,7 +178,9 @@ func TestCreateTypeHeading(t *testing.T) {
 		"CREATE TYPE t AS TABLE OF VARCHAR2(10) NOT NULL CHARACTER SET NCHAR_CS",
 		"CREATE TYPE t AS TABLE OF REF (u)",
 		"CREATE TYPE t AS VARYING (3) OF NUMBER",
-		// Attribute datatypes (PLS-00103, PLS-00551).
+		// Attribute datatypes (PLS-00103, PLS-00551, PLS-00550 for a REF
+		// with a character set).
+		"CREATE TYPE t AS OBJECT (a REF u CHARACTER SET NCHAR_CS)",
 		"CREATE TYPE t AS OBJECT (a REF)",
 		"CREATE TYPE t AS OBJECT (a DOUBLE)",
 		"CREATE TYPE t AS OBJECT (a LONG VARCHAR)",
@@ -341,4 +349,42 @@ func typeNameWords(tn *ast.TypeName) []string {
 		words = append(words, item.(*ast.String).Str)
 	}
 	return words
+}
+
+// TestTypeAttributeAndElementTypes checks the predefined types Oracle 23ai
+// refuses as an object type attribute (PLS-00530, PLS-00218, PLS-00989) and
+// as a collection element (PLS-00531, PLS-00990), for every user, SYS
+// included.
+func TestTypeAttributeAndElementTypes(t *testing.T) {
+	for _, datatype := range []string{
+		"LONG", "LONG RAW", "LONG(100)", "LONG RAW(32767)", "PLS_INTEGER", "BINARY_INTEGER", "SIMPLE_INTEGER",
+		"NATURAL", "NATURALN", "POSITIVE", "POSITIVEN", "SIGNTYPE", "STRING(10)", "ROWID", "UROWID",
+		"MLSLABEL", "JSON", "VECTOR", "SYS_REFCURSOR",
+	} {
+		ParseShouldFail(t, "CREATE TYPE t AS OBJECT (x "+datatype+")")
+		ParseShouldFail(t, "CREATE TYPE t AS TABLE OF "+datatype)
+		ParseShouldFail(t, "ALTER TYPE t ADD ATTRIBUTE x "+datatype+" CASCADE")
+	}
+	// SIMPLE_FLOAT and SIMPLE_DOUBLE are refused as attributes (PLS-00218)
+	// but not as elements.
+	for _, datatype := range []string{"SIMPLE_FLOAT", "SIMPLE_DOUBLE"} {
+		ParseShouldFail(t, "CREATE TYPE t AS OBJECT (x "+datatype+")")
+		ParseAndCheck(t, "CREATE TYPE t AS TABLE OF "+datatype)
+	}
+	for _, datatype := range []string{
+		"BOOLEAN", "BOOL", "CHARACTER LARGE OBJECT", "BINARY_FLOAT", "REAL", "INT", "DEC", "NUMERIC",
+		"TIMESTAMP WITH LOCAL TIME ZONE", "XMLTYPE", "CLOB", "NCLOB", "BFILE",
+	} {
+		ParseAndCheck(t, "CREATE TYPE t AS OBJECT (x "+datatype+")")
+		ParseAndCheck(t, "CREATE TYPE t AS TABLE OF "+datatype)
+	}
+	// ADD and MODIFY ATTRIBUTE name the datatype (ORA-06545).
+	ParseShouldFail(t, "ALTER TYPE t ADD ATTRIBUTE c")
+	ParseShouldFail(t, "ALTER TYPE t MODIFY ATTRIBUTE b")
+	ParseShouldFail(t, "ALTER TYPE t ADD ATTRIBUTE (c)")
+	// LONG takes one length (PLS-00572); a REF no character set (PLS-00550).
+	ParseShouldFail(t, "DECLARE x LONG(10, 2); BEGIN NULL; END;")
+	ParseShouldFail(t, "DECLARE x LONG RAW(10 BYTE); BEGIN NULL; END;")
+	ParseShouldFail(t, "DECLARE x REF u CHARACTER SET NCHAR_CS; BEGIN NULL; END;")
+	ParseAndCheck(t, "DECLARE x LONG(100); y LONG RAW(32767); BEGIN NULL; END;")
 }

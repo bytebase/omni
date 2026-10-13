@@ -278,7 +278,10 @@ var dictionaryCategories = []struct {
 	{"PARALLEL_ENABLE (PARTITION ...)", "", regexp.MustCompile(`(?i)parallel_enable\s*\(`)},
 	{"package initialization section", "PACKAGE BODY", regexp.MustCompile(`(?i)^\s*begin\b`)},
 	{"REF type", "", regexp.MustCompile(`(?i)\bref\s`)},
-	{"Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types)", "", regexp.MustCompile(`(?i)pragma\s+interface|\.\.\.|^\s*type\s+\w+\s+is\s*\(|\bopaque\s+(varying|fixed)\b`)},
+	{"Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, PL/SQL-only attributes)", "", regexp.MustCompile(`(?i)pragma\s+interface|\.\.\.|^\s*type\s+\w+\s+is\s*\(|\bopaque\s+(varying|fixed)\b`)},
+	// A type attribute of a PL/SQL-only type is PLS-00530 for every user,
+	// SYS included; SYS.AQ$_BND has some all the same.
+	{"Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, PL/SQL-only attributes)", "TYPE", regexp.MustCompile(`(?i)\b(pls_integer|binary_integer|long\s+raw)\b`)},
 	{"JSON function clause", "", regexp.MustCompile(`(?i)\breturning\b|json_|^\s*key\b`)},
 	{"trigger CALL with arguments", "TRIGGER", regexp.MustCompile(`(?i)^\s*call\b|\(\s*:(new|old)\.`)},
 	{"qualified expression (=>)", "", regexp.MustCompile(`=>`)},
