@@ -179,6 +179,11 @@ func TestRequireIsNull(t *testing.T) {
 			sql:  "SELECT IF(n = NULL, 1, 0) FROM t;",
 			want: []finding{{0, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
 		},
+		{
+			name: "SHOW ... WHERE",
+			sql:  "SHOW INDEX FROM t WHERE Key_name = NULL;",
+			want: []finding{{0, "Key_name = NULL", `"Key_name = NULL" is never true; use IS NULL`, []int{0}}},
+		},
 	})
 }
 
