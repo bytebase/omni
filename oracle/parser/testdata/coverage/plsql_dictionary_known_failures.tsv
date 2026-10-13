@@ -5,7 +5,6 @@ GSMADMIN_INTERNAL.CAT_ROLLBACK_TRIGGER:TRIGGER	trigger CALL with arguments	3:40	
 GSMADMIN_INTERNAL.DONE_TRIGGER:TRIGGER	trigger CALL with arguments	3:40	syntax error at or near "("
 GSMADMIN_INTERNAL.REQUEST_DELETE_TRIGGER:TRIGGER	trigger CALL with arguments	3:36	syntax error at or near "("
 SYS.DBMS_REPORT:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration types)	175:22	syntax error at or near ".."
-SYS.DBMS_SQL:PACKAGE	REF type	1481:40	syntax error at or near "\"<ADT_1>\""
 SYS.PLITBLM:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration types)	20:29	syntax error at or near ")"
 SYS.STANDARD:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration types)	4:19	syntax error at or near "("
 SYS.UTL_LMS:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration types)	59:33	syntax error at or near ".."

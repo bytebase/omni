@@ -570,3 +570,86 @@ func TestConditionalCompilationCompletion(t *testing.T) {
 		}
 	}
 }
+
+// TestConditionalCompilationSelections checks that a condition the text
+// does not settle leaves its branches to the environment: a unit parses
+// when any selection of them does, and fails when every selection does,
+// as Oracle 23ai compiles it under whichever selection its database
+// version, PLSQL_CCFLAGS, and package constants settle.
+func TestConditionalCompilationSelections(t *testing.T) {
+	for _, sql := range []string{
+		"BEGIN $IF $$x $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF $$x $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF $$x $THEN garbage garbage; $ELSIF $$y $THEN garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF $$x $THEN garbage garbage; $END NULL; END;",
+		"BEGIN $IF $$x $THEN $ERROR 'x' $END $END NULL; END;",
+		"BEGIN $IF $$x $THEN $ERROR 'x' $END $ELSIF $$y $THEN $ERROR 'y' $END $END NULL; END;",
+		"BEGIN $IF $$a $THEN $IF $$b $THEN garbage garbage; $ELSE NULL; $END $ELSE garbage garbage; $END END;",
+		"BEGIN $IF $$a $THEN NULL; $END $IF $$b $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF $$a $THEN garbage garbage; $ELSE NULL; $END $IF $$b $THEN NULL; $END END;",
+		// Whatever the text cannot settle: an inexact function, arithmetic
+		// past NUMBER's range.
+		"BEGIN $IF SQRT(2) < 0 $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF 1e125 * 10 < 0 $THEN garbage garbage; $ELSE NULL; $END END;",
+		// A selection that leaves the delimiters unbalanced or the unit
+		// heading broken is passed over.
+		"BEGIN $IF $$x $THEN f( $ELSE NULL; $END END;",
+		"CREATE OR REPLACE PROCEDURE p (x NUMBER) $IF $$x $THEN garbage $ELSE IS $END BEGIN NULL; END;",
+		"DECLARE $IF $$x $THEN a NUMBER NUMBER; $ELSE a NUMBER; $END BEGIN NULL; END;",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	for _, sql := range []string{
+		"BEGIN $IF $$x $THEN $ERROR 'x' $END $ELSE $ERROR 'y' $END $END NULL; END;",
+		"BEGIN $IF $$x $THEN garbage garbage; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF $$x $THEN $ERROR 'x' $END $ELSIF $$y $THEN garbage garbage; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF $$a $THEN $IF $$b $THEN garbage garbage; $ELSE garbage garbage; $END $ELSE garbage garbage; $END END;",
+		// A settled condition is no selection: FALSE passes its branch.
+		"BEGIN $IF TRUE $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF $$x $THEN NULL; $END garbage garbage; END;",
+	} {
+		ParseShouldFail(t, sql)
+	}
+
+	// The tree is the selection that parsed.
+	block := parseOne[*ast.PLSQLBlock](t, "DECLARE $IF $$x $THEN a NUMBER NUMBER; $ELSE a NUMBER; b DATE; $END BEGIN NULL; END;")
+	if block.Declarations.Len() != 2 {
+		t.Errorf("declarations = %d, want the 2 of the $ELSE branch", block.Declarations.Len())
+	}
+
+	// When every selection fails, the error is the one that got furthest.
+	const sql = "BEGIN $IF $$x $THEN garbage garbage; $ELSE NULL; NULL $END END;"
+	_, err := Parse(sql)
+	var pe *ParseError
+	if !errors.As(err, &pe) || !strings.HasPrefix(sql[pe.Position:], "$END END") && !strings.HasPrefix(sql[pe.Position:], "END;") {
+		t.Errorf("Parse(%q) = %v, want the $ELSE branch's error", sql, err)
+	}
+
+	// A string literal holds 32767 bytes, in code a directive skips too
+	// (PLS-00172, ORA-01704), and a static concatenation as many (PLS-00174).
+	long := strings.Repeat("a", 32767)
+	ParseAndCheck(t, "BEGIN $IF '"+long+"' IS NULL $THEN NULL; $ELSE NULL; $END END;")
+	for _, sql := range []string{
+		"BEGIN $IF '" + long + "a' IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"DECLARE x CLOB; BEGIN x := '" + long + "a'; END;",
+		"BEGIN $IF $$x $THEN NULL; $ELSE x := '" + long + "a'; $END END;",
+		"SELECT '" + long + "a' FROM dual",
+		"BEGIN $IF '" + long + "' || 'b' IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF RPAD('a', 32767) || 'b' IS NULL $THEN NULL; $ELSE NULL; $END END;",
+	} {
+		ParseShouldFail(t, sql)
+	}
+	ParseAndCheck(t, "BEGIN NULL; /* "+long+"a */ END;")
+	if got := splitTexts(Split("SELECT '" + long + "a' FROM dual; SELECT 1 FROM dual;")); len(got) != 2 {
+		t.Errorf("Split past a long literal = %d segments, want 2", len(got))
+	}
+
+	// The selections tried are bounded: twenty undecided directives before
+	// an error fail at once.
+	many := "BEGIN " + strings.Repeat("$IF $$x $THEN NULL; $END ", 20) + "garbage garbage; END;"
+	start := time.Now()
+	ParseShouldFail(t, many)
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("Parse through 20 undecided directives took %v", elapsed)
+	}
+}

@@ -173,6 +173,8 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 		source: source,
 	}
 	p.lexer.cc = &ccRecord{}
+	p.lexer.ccDecisions = &[]ccDecision{}
+	p.lexer.literalLimit = 32767
 	p.advance()
 
 	var stmts []nodes.Node
@@ -195,20 +197,8 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 		}
 
 		stmtLoc := p.pos()
-		stmt, err := p.parseStmt()
+		stmt, err := p.parseStmtSelections(textStart, stmtLoc)
 		if err != nil {
-			return nil, err
-		}
-		if p.lexer.Err != nil {
-			return nil, p.lexerError()
-		}
-		if p.cur.Type == tokEOF && (p.isIncompleteStatementEnd(stmt) || isIncompleteParsedStmt(stmt)) {
-			return nil, p.syntaxErrorAtCur()
-		}
-		if stmt == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-		if err := p.checkConditionalCompilation(stmt, textStart, stmtLoc, p.prev.End); err != nil {
 			return nil, err
 		}
 		textStart = p.prev.End
@@ -243,8 +233,132 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 	return &nodes.List{Items: stmts}, nil
 }
 
+// ccMaxAttempts bounds the branch selections parseStmtSelections tries
+// for one statement.
+const ccMaxAttempts = 64
+
+// parseStmtSelections parses the statement at the current token, with the
+// checks that follow it, under each selection of the conditional
+// compilation branches whose conditions the text does not settle, until
+// one parses. Oracle 23ai compiles a unit under the selection its
+// environment settles (the database version, PLSQL_CCFLAGS, package
+// constants), which may be any of them, so a unit fails only when every
+// selection does: $IF $$x $THEN garbage $ELSE NULL; $END parses, and
+// $IF $$x $THEN $ERROR 'a' $END $ELSE $ERROR 'b' $END $END fails. The
+// first selection takes each undecided $IF's first undecided branch; the
+// next ones pass over more of them, the last $IF met first. Of the
+// failures, the one that got furthest is reported.
+func (p *Parser) parseStmtSelections(textStart, stmtLoc int) (nodes.StmtNode, error) {
+	snap := p.snapshot()
+	defer func() { p.lexer.ccChoices = nil }()
+	var failure error
+	furthest := -1
+	for attempt := 1; ; attempt++ {
+		stmt, err := p.parseCheckedStmt(textStart, stmtLoc)
+		if err == nil {
+			return stmt, nil
+		}
+		var pe *ParseError
+		switch {
+		case errors.As(err, &pe) && pe.Position > furthest:
+			failure, furthest = err, pe.Position
+		case failure == nil:
+			failure = err
+		}
+		choices := nextSelection((*p.lexer.ccDecisions)[snap.decisions:])
+		if choices == nil || attempt == ccMaxAttempts {
+			return nil, failure
+		}
+		p.restore(snap)
+		p.lexer.ccChoices = choices
+	}
+}
+
+// parseCheckedStmt parses one statement and checks it: its lexing, its
+// end, its conditional compilation, and that a ';' or the end follows.
+func (p *Parser) parseCheckedStmt(textStart, stmtLoc int) (nodes.StmtNode, error) {
+	stmt, err := p.parseStmt()
+	if err != nil {
+		return nil, err
+	}
+	if p.lexer.Err != nil {
+		return nil, p.lexerError()
+	}
+	if p.cur.Type == tokEOF && (p.isIncompleteStatementEnd(stmt) || isIncompleteParsedStmt(stmt)) {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if stmt == nil {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if err := p.checkConditionalCompilation(stmt, textStart, stmtLoc, p.prev.End); err != nil {
+		return nil, err
+	}
+	if p.cur.Type != ';' && p.cur.Type != tokEOF {
+		return nil, p.syntaxErrorAtCur()
+	}
+	return stmt, nil
+}
+
+// nextSelection returns the branch choices of the selection that follows
+// the one whose undecided $IF directives decided records in order, or nil
+// when none is left: the last $IF that can pass over one more undecided
+// branch does, those before it keep their choices, and those after it,
+// which the new choice may move or remove, start over.
+func nextSelection(decided []ccDecision) map[int]int {
+	for i := len(decided) - 1; i >= 0; i-- {
+		if decided[i].more {
+			choices := map[int]int{decided[i].at: decided[i].passed + 1}
+			for _, d := range decided[:i] {
+				choices[d.at] = d.passed
+			}
+			return choices
+		}
+	}
+	return nil
+}
+
+// parseSnapshot is the parser's state at the start of a statement, for
+// parseStmtSelections to parse it again.
+type parseSnapshot struct {
+	parser                        Parser
+	lexer                         Lexer
+	directives, conditions, binds int
+	decisions                     int
+}
+
+// snapshot returns the parser's state.
+func (p *Parser) snapshot() parseSnapshot {
+	s := parseSnapshot{parser: *p, lexer: *p.lexer}
+	if cc := p.lexer.cc; cc != nil {
+		s.directives, s.conditions, s.binds = len(cc.directives), len(cc.conditions), len(cc.binds)
+	}
+	if d := p.lexer.ccDecisions; d != nil {
+		s.decisions = len(*d)
+	}
+	return s
+}
+
+// restore returns the parser to the state s.
+func (p *Parser) restore(s parseSnapshot) {
+	lexer := p.lexer
+	*p = s.parser
+	p.lexer = lexer
+	*lexer = s.lexer
+	if cc := lexer.cc; cc != nil {
+		cc.directives, cc.conditions, cc.binds = cc.directives[:s.directives], cc.conditions[:s.conditions], cc.binds[:s.binds]
+	}
+	if d := lexer.ccDecisions; d != nil {
+		*d = (*d)[:s.decisions]
+	}
+}
+
 func validateBalancedDelimiters(sql string, start, end int) error {
+	// Under a selection of undecided branches the delimiters need not
+	// balance, as under another they may: the statement's own parse,
+	// which tries them all, settles it.
+	var decided []ccDecision
 	lexer := NewLexerRange(sql, start, end)
+	lexer.ccDecisions = &decided
 	depth := 0
 	var javaHead embeddedSourceHead
 	var prev1, prev2, prev3 Token
@@ -270,7 +384,7 @@ func validateBalancedDelimiters(sql string, start, end int) error {
 		case ';':
 			javaHead = embeddedSourceHead{}
 		case tokEOF:
-			if depth > 0 {
+			if depth > 0 && len(decided) == 0 {
 				return &ParseError{Message: "syntax error at end of input", Position: tok.Loc}
 			}
 			return nil
@@ -278,7 +392,7 @@ func validateBalancedDelimiters(sql string, start, end int) error {
 			depth++
 		case ')':
 			depth--
-			if depth < 0 {
+			if depth < 0 && len(decided) == 0 {
 				text := ")"
 				return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", text), Position: tok.Loc}
 			}

@@ -374,11 +374,12 @@ func staticText(expr nodes.ExprNode) (text string, null bool, ok bool) {
 	return "", false, false
 }
 
-// staticConcat returns left || right: NULL when both are.
+// staticConcat returns left || right: NULL when both are. Past 32767
+// bytes it raises (staticRaises) and is no value.
 func staticConcat(left, right nodes.ExprNode) (text string, null bool, ok bool) {
 	l, lnull, lok := staticText(left)
 	r, rnull, rok := staticText(right)
-	if !lok || !rok {
+	if !lok || !rok || len(l)+len(r) > 32767 {
 		return "", false, false
 	}
 	return l + r, lnull && rnull, true
@@ -1233,6 +1234,15 @@ func staticRaises(e nodes.ExprNode) bool {
 	}
 	// PLS_INTEGER arithmetic stays in 32 bits (Oracle 23ai raises for
 	// 2147483647 + 1).
+	// A static character value holds 32767 bytes at most (Oracle 23ai raises
+	// for RPAD('a', 32767) || 'b').
+	if (name == "||" || name == "CONCAT") && len(args) == 2 {
+		l, _, lok := staticText(args[0])
+		r, _, rok := staticText(args[1])
+		if lok && rok && len(l)+len(r) > 32767 {
+			return true
+		}
+	}
 	if (name == "+" || name == "-" || name == "*") && staticNumType(args[0]) == numPLSInteger && staticNumType(args[1]) == numPLSInteger {
 		a, aok := staticNumber(args[0])
 		b, bok := staticNumber(args[1])

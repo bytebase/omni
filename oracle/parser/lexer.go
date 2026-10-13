@@ -58,11 +58,18 @@ type Lexer struct {
 	// ccDepth counts the conditional compilation $IF directives whose
 	// selected branch holds the tokens being returned (see NextToken).
 	// Bit d-1 of ccElse says the branch selected at depth d is an $ELSE
-	// branch, and of ccGuess that it was selected without knowing its
-	// condition.
+	// branch.
 	ccDepth int
 	ccElse  uint64
-	ccGuess uint64
+
+	// ccChoices and ccDecisions let the parser try each branch selection a
+	// condition the text does not settle leaves open (see
+	// Parser.parseStmtSelections). ccChoices maps the offset of an $IF to
+	// how many of its undecided branches to pass over; ccDecisions, shared
+	// by the lexer's copies, records each $IF that held an undecided
+	// branch, in order.
+	ccChoices   map[int]int
+	ccDecisions *[]ccDecision
 
 	// ccLenient is set on a lexer that must not stop at a misplaced
 	// directive: a pre-scan that starts inside the text, at the token the
@@ -91,6 +98,12 @@ type Lexer struct {
 	// prevType is the type of the last token lexed, which says whether a
 	// /*+ ... */ comment is a hint.
 	prevType int
+
+	// literalLimit, when set, is the most bytes a string literal holds: the
+	// parser's lexer fails past it, in code a directive skips too (PLS-00172
+	// and ORA-01704 on Oracle 23ai past 32767), where Split's and
+	// completion's lexers lex on.
+	literalLimit int
 
 	// cc, when set, records the preprocessor tokens the lexer meets. The
 	// copies of the lexer that look ahead share it.
@@ -121,6 +134,23 @@ func (r *ccRecord) noteDirective(loc int) {
 func (r *ccRecord) noteBind(loc int) {
 	if r != nil && (len(r.binds) == 0 || loc > r.binds[len(r.binds)-1]) {
 		r.binds = append(r.binds, loc)
+	}
+}
+
+// ccDecision is the selection the lexer made at an $IF one of whose
+// conditions the text does not settle: it passed over that many undecided
+// branches, and more says another selection could pass over one more.
+type ccDecision struct {
+	at     int
+	passed int
+	more   bool
+}
+
+// noteDecision records the selection made at the $IF at offset at, once
+// whichever copy of the lexer makes it first.
+func (l *Lexer) noteDecision(at, passed int, more bool) {
+	if d := l.ccDecisions; d != nil && (len(*d) == 0 || at > (*d)[len(*d)-1].at) {
+		*d = append(*d, ccDecision{at: at, passed: passed, more: more})
 	}
 }
 
@@ -229,8 +259,10 @@ func (l *Lexer) NextToken() Token {
 			if l.ccDepth == 0 && l.ccSplit {
 				continue
 			}
-			if l.ccGuess == 0 && !l.ccLenient {
-				return l.failDirective(tok, "$ERROR directive in a branch that is always selected")
+			// An $ERROR in a selected branch fails it (PLS-00179); when the
+			// selection was undecided, the parser tries the others.
+			if !l.ccLenient {
+				return l.failDirective(tok, "$ERROR directive in a selected branch")
 			}
 			_, ok = l.skipBranch(tok, ccInError, false)
 		default: // $THEN
@@ -252,18 +284,18 @@ func (l *Lexer) NextToken() Token {
 	}
 }
 
-// ccMaxDepth bounds the nesting of $IF directives, one bit of ccElse and
-// ccGuess per level.
+// ccMaxDepth bounds the nesting of $IF directives, one bit of ccElse per
+// level.
 const ccMaxDepth = 64
 
-// ccLevelBit is the bit of the innermost open level in ccElse and ccGuess.
+// ccLevelBit is the bit of the innermost open level in ccElse.
 func (l *Lexer) ccLevelBit() uint64 {
 	return 1 << uint(l.ccDepth-1)
 }
 
-// openLevel opens a level of $IF around the branch it selected: an $ELSE
-// branch, or one chosen without knowing its condition (guess).
-func (l *Lexer) openLevel(tok Token, isElse, guess bool) bool {
+// openLevel opens a level of $IF around the branch it selected, an $ELSE
+// branch or not.
+func (l *Lexer) openLevel(tok Token, isElse bool) bool {
 	if l.ccDepth == ccMaxDepth {
 		l.failDirective(tok, "preprocessor directives nested too deeply")
 		return false
@@ -271,21 +303,15 @@ func (l *Lexer) openLevel(tok Token, isElse, guess bool) bool {
 	l.ccDepth++
 	bit := l.ccLevelBit()
 	l.ccElse &^= bit
-	l.ccGuess &^= bit
 	if isElse {
 		l.ccElse |= bit
-	}
-	if guess {
-		l.ccGuess |= bit
 	}
 	return true
 }
 
 // closeLevel closes the innermost level of $IF.
 func (l *Lexer) closeLevel() {
-	bit := l.ccLevelBit()
-	l.ccElse &^= bit
-	l.ccGuess &^= bit
+	l.ccElse &^= l.ccLevelBit()
 	l.ccDepth--
 }
 
@@ -310,16 +336,32 @@ const (
 
 // selectBranch selects the branch of the $IF at tok that Oracle compiles,
 // skipping the branches before it, and opens its level; when it selects
-// none, the input resumes after the $END. It reports false after setting
-// Err.
+// none, the input resumes after the $END. A branch whose condition the
+// text does not settle is one Oracle may compile or pass over: the lexer
+// takes the first such branch past the number ccChoices names, and records
+// the decision for the parser to try the others. It reports false after
+// setting Err.
 func (l *Lexer) selectBranch(tok Token) bool {
+	at, pass := tok.Loc, l.ccChoices[tok.Loc]
+	undecided, passed := false, 0
 	for {
 		value, ok := l.skipCondition(tok)
 		if !ok {
 			return false
 		}
-		if value != ccFalse {
-			return l.openLevel(tok, false, value == ccUnknown)
+		switch value {
+		case ccTrue:
+			if undecided {
+				l.noteDecision(at, passed, false)
+			}
+			return l.openLevel(tok, false)
+		case ccUnknown:
+			undecided = true
+			if passed == pass {
+				l.noteDecision(at, passed, true)
+				return l.openLevel(tok, false)
+			}
+			passed++
 		}
 		end, ok := l.skipBranch(tok, ccInThen, true)
 		if !ok {
@@ -327,9 +369,15 @@ func (l *Lexer) selectBranch(tok Token) bool {
 		}
 		switch end.Str {
 		case "$END":
+			if undecided {
+				l.noteDecision(at, passed, false)
+			}
 			return true
 		case "$ELSE":
-			return l.openLevel(end, true, false)
+			if undecided {
+				l.noteDecision(at, passed, false)
+			}
+			return l.openLevel(end, true)
 		}
 		tok = end // $ELSIF
 	}
@@ -443,8 +491,8 @@ func (l *Lexer) skipBranch(tok Token, state ccState, stopAtBranch bool) (Token, 
 	}
 }
 
-// directiveError is a conditional compilation error at a preprocessor
-// token.
+// directiveError is a lexical error at a token: a conditional compilation
+// error at a preprocessor token, or a literal past its limit.
 type directiveError struct {
 	msg string
 	tok Token
@@ -473,6 +521,9 @@ func (l *Lexer) nextRaw() Token {
 	// For recursive calls (e.g., skipping comments), the inner NextToken
 	// sets End correctly on its own returned token.
 	tok.End = l.pos
+	if (tok.Type == tokSCONST || tok.Type == tokNCHARLIT) && l.literalLimit > 0 && len(tok.Str) > l.literalLimit {
+		return l.failDirective(tok, "string literal too long")
+	}
 	// A hint stands right after SELECT, INSERT, UPDATE, DELETE, or MERGE;
 	// anywhere else it is a comment (Oracle 23ai runs BEGIN /*+ x */ NULL;
 	// END; and SELECT 1 /*+ x */ FROM dual).
