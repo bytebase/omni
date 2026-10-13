@@ -1012,13 +1012,15 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 				Loc:    nodes.Loc{Start: start, End: p.prev.End},
 			})
 		}
-		if name1 == "EXTRACT" {
+		// A quoted name is the user's, never the special function it spells
+		// (ORA-00907 on Oracle 23ai for "EXTRACT"(YEAR FROM SYSDATE)).
+		switch {
+		case p.quotedAt(start):
+		case name1 == "EXTRACT":
 			return p.parseExtractExpr(start)
-		}
-		if name1 == "XMLQUERY" {
+		case name1 == "XMLQUERY":
 			return p.parseXMLQueryExpr(start)
-		}
-		if name1 == "XMLCAST" {
+		case name1 == "XMLCAST":
 			return p.parseXMLCastExpr(start)
 		}
 		// But first check if this looks like a schema-qualified function: name.name(
@@ -1297,6 +1299,11 @@ func (p *Parser) parseOuterJoinIfPresent(expr nodes.ExprNode) (nodes.ExprNode, e
 	return cr, nil
 }
 
+// quotedAt reports whether the source has a quoted identifier at offset.
+func (p *Parser) quotedAt(offset int) bool {
+	return offset >= 0 && offset < len(p.source) && p.source[offset] == '"'
+}
+
 // parseFuncCall parses a function call after the name has been consumed.
 // The opening '(' is the current token.
 func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, error) {
@@ -1336,7 +1343,7 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 
 	// A quoted "TRIM" names a type or function of the user's (Oracle 23ai
 	// compiles "TRIM"(1 => 2) for a local collection type "TRIM").
-	builtinTrim := schema == "" && name == "TRIM" && (start >= len(p.source) || p.source[start] != '"')
+	builtinTrim := schema == "" && name == "TRIM" && !p.quotedAt(start)
 	if builtinTrim {
 		if err := p.parseTrimFuncArgs(fc); err != nil {
 			return nil, err
@@ -2362,6 +2369,11 @@ func (p *Parser) parseCursorExpr() (nodes.ExprNode, error) {
 		return &nodes.CursorExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
 	}
 	p.advance() // consume '('
+	// PL/SQL has no cursor expression outside the SQL it embeds (PLS-00103
+	// on Oracle 23ai at the SELECT, PLS-00405 for a positional argument).
+	if p.plsqlCode {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	subSel, parseErr746 := p.parseSelectStmt()
 	if parseErr746 != nil {

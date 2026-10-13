@@ -39,6 +39,9 @@ func TestQualifiedExpressions(t *testing.T) {
 		"x nt := nt(FOR i, j IN PAIRS OF a SEQUENCE => j);",
 		"x rtt := rtt(FOR r rt IN (EXECUTE IMMEDIATE s) SEQUENCE => r);",
 		`TYPE "TRIM" IS TABLE OF NUMBER INDEX BY PLS_INTEGER; y "TRIM" := "TRIM"(1 => 2);`,
+		`TYPE "EXTRACT" IS TABLE OF NUMBER INDEX BY PLS_INTEGER; y "EXTRACT" := "EXTRACT"(1 => 2);`,
+		`TYPE "XMLQUERY" IS TABLE OF NUMBER INDEX BY PLS_INTEGER; y "XMLQUERY" := "XMLQUERY"(1 => 2);`,
+		`TYPE "XMLCAST" IS TABLE OF NUMBER INDEX BY PLS_INTEGER; y "XMLCAST" := "XMLCAST"(1, 2);`,
 	} {
 		ParseAndCheck(t, "DECLARE "+qualifiedDecls+decl+" BEGIN NULL; END;")
 	}
@@ -58,6 +61,10 @@ func TestQualifiedExpressions(t *testing.T) {
 		"BEGIN FOR i IN VALUES OF (SELECT 1 FROM dual) LOOP NULL; END LOOP; END;",
 		"BEGIN FOR r IN c WHEN r.a > 0 LOOP NULL; END LOOP; END;",
 		"BEGIN FOR r IN c2(1) LOOP NULL; END LOOP; END;",
+		// A cursor expression stands in the SQL a PL/SQL unit embeds.
+		"DECLARE CURSOR k IS SELECT CURSOR(SELECT 1 FROM dual) c FROM dual; BEGIN NULL; END;",
+		"DECLARE c SYS_REFCURSOR; BEGIN OPEN c FOR SELECT CURSOR(SELECT 1 FROM dual) FROM dual; END;",
+		"SELECT EXTRACT(YEAR FROM SYSDATE), XMLCAST(XMLTYPE('<a>1</a>') AS NUMBER) FROM dual",
 		"BEGIN FOR r IN (SELECT 1 a FROM dual) LOOP NULL; END LOOP; END;",
 		"BEGIN FOR i IN x + 1 LOOP NULL; END LOOP; END;",
 		"BEGIN FOR i, j MUTABLE IN PAIRS OF a LOOP NULL; END LOOP; END;",
@@ -112,6 +119,21 @@ func TestQualifiedExpressions(t *testing.T) {
 		"BEGIN FOR r rt IN (EXECUTE IMMEDIATE s USING OUT v) LOOP NULL; END LOOP; END;",
 		"BEGIN FOR r rt IN (EXECUTE IMMEDIATE s USING IN OUT v) LOOP NULL; END LOOP; END;",
 		"BEGIN FOR r rt IN REVERSE (EXECUTE IMMEDIATE s) LOOP NULL; END LOOP; END;",
+		// PL/SQL code has no cursor expression, in an iteration control or
+		// anywhere else (PLS-00103, PLS-00405 as a positional argument).
+		"BEGIN FOR r IN VALUES OF CURSOR(SELECT 1 FROM dual) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r IN REVERSE VALUES OF CURSOR(SELECT 1 FROM dual) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r IN REVERSE INDICES OF CURSOR(SELECT 1 FROM dual) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i, r IN REVERSE PAIRS OF CURSOR(SELECT 1 FROM dual) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r IN CURSOR(SELECT 1 FROM dual) LOOP NULL; END LOOP; END;",
+		"DECLARE c SYS_REFCURSOR; BEGIN c := CURSOR(SELECT 1 FROM dual); END;",
+		"DECLARE c SYS_REFCURSOR := CURSOR(SELECT 1 FROM dual); BEGIN NULL; END;",
+		"BEGIN p(CURSOR(SELECT 1 FROM dual)); END;",
+		"BEGIN p(c => CURSOR(SELECT 1 FROM dual)); END;",
+		// A quoted name is no special function (ORA-00907).
+		`SELECT "EXTRACT"(YEAR FROM SYSDATE) FROM dual`,
+		`SELECT "XMLCAST"(XMLTYPE('<a>1</a>') AS NUMBER) FROM dual`,
+		`SELECT "XMLQUERY"('1' RETURNING CONTENT) FROM dual`,
 		// INDEX takes an expression, and not with SEQUENCE (PLS-00103).
 		"DECLARE " + qualifiedDecls + "x ai := ai(FOR i IN 1..3 SEQUENCE INDEX i => i); BEGIN NULL; END;",
 		"DECLARE " + qualifiedDecls + "x ai := ai(FOR i IN 1..3 INDEX => i); BEGIN NULL; END;",
