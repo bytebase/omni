@@ -187,3 +187,10 @@ ref_185	plsql	reject	DECLARE FUNCTION f RETURN NUMBER RESULT_CACHE IS BEGIN RETU
 ref_186	plsql	reject	DECLARE FUNCTION f RETURN NUMBER PARALLEL_ENABLE IS BEGIN RETURN 1; END; BEGIN NULL; END;	PARALLEL_ENABLE on a nested function (PLS-00712)
 ref_187	plsql	reject	DECLARE CURSOR c (a NUMBER, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;	cursor parameter %CHARSET from a numeric parameter (PLS-00550)
 ref_188	plsql	accept	DECLARE CURSOR c (a VARCHAR2, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;	cursor parameter %CHARSET from a character parameter
+ref_209	plsql_body	accept	CREATE OR REPLACE PACKAGE BODY omni_pi_{run} AS PROCEDURE p IS BEGIN NULL; END; BEGIN NULL; EXCEPTION WHEN OTHERS THEN NULL; END;	package body initialization section
+ref_210	plsql_body	reject	CREATE OR REPLACE PACKAGE BODY omni_bad_pi_{run} AS PROCEDURE p IS BEGIN NULL; END; BEGIN END;	empty package initialization section
+ref_211	plsql_body	reject	CREATE OR REPLACE PACKAGE omni_bad_pis_{run} AS c NUMBER; BEGIN NULL; END;	initialization section in a package specification
+ref_212	plsql_body	accept	CREATE OR REPLACE TYPE BODY omni_tbm_{run} AS FINAL INSTANTIABLE CONSTRUCTOR FUNCTION omni_tbm_{run} (x NUMBER) RETURN SELF AS RESULT IS BEGIN RETURN; END; END;	inheritance clauses on a type body method
+ref_213	plsql_body	reject	CREATE OR REPLACE TYPE BODY omni_bad_tbm_{run} AS FINAL END;	type body modifier without a method
+ref_214	plsql	accept	DECLARE n NUMBER; BEGIN FOR i IN 1..SQL%BULK_EXCEPTIONS.COUNT LOOP n := SQL%BULK_EXCEPTIONS(i).ERROR_CODE + SQL%BULK_ROWCOUNT(i); END LOOP; END;	bulk cursor attributes
+ref_215	plsql	reject	DECLARE n NUMBER; BEGIN n := SQL%BULK_EXCEPTIONS(1, 2).ERROR_CODE; END;	bulk cursor attribute with two indexes (PLS-00431)

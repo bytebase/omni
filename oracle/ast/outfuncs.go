@@ -789,6 +789,10 @@ func writeCursorAttributeExpr(sb *strings.Builder, n *CursorAttributeExpr) {
 		writeNode(sb, n.Cursor)
 	}
 	sb.WriteString(fmt.Sprintf(" :attribute %q", n.Attribute))
+	if n.Index != nil {
+		sb.WriteString(" :index ")
+		writeNode(sb, n.Index)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -3245,6 +3249,10 @@ func writeCreatePackageStmt(sb *strings.Builder, n *CreatePackageStmt) {
 	if n.Body != nil {
 		sb.WriteString(" :body ")
 		writeNode(sb, n.Body)
+	}
+	if n.InitBlock != nil {
+		sb.WriteString(" :initBlock ")
+		writeNode(sb, n.InitBlock)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

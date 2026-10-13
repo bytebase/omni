@@ -455,6 +455,7 @@ func (n *FieldAccessExpr) exprNode() {}
 type CursorAttributeExpr struct {
 	Cursor    ExprNode
 	Attribute string
+	Index     ExprNode // the element of SQL%BULK_ROWCOUNT(i) or SQL%BULK_EXCEPTIONS(i)
 	Loc       Loc
 }
 
@@ -1999,6 +2000,7 @@ type CreatePackageStmt struct {
 	DefaultCollation string      // DEFAULT COLLATION option
 	IsBody           bool        // PACKAGE BODY
 	Body             *List       // package body declarations
+	InitBlock        *PLSQLBlock // initialization section of a body: BEGIN statements [EXCEPTION handlers]
 	Loc              Loc         // start location
 }
 

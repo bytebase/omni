@@ -557,14 +557,20 @@ func (p *Parser) checkBlockCharsetScopes(b *nodes.PLSQLBlock) error {
 }
 
 // checkPackageCharsetScopes walks the items of a package specification or
-// body named name, and the subprograms among them.
-func (p *Parser) checkPackageCharsetScopes(name string, items *nodes.List) error {
-	if items == nil {
-		return nil
-	}
+// body named name, the subprograms among them, and the blocks nested in a
+// body's initialization section.
+func (p *Parser) checkPackageCharsetScopes(name string, items *nodes.List, init *nodes.PLSQLBlock) error {
 	c := &charsetScopes{p: p}
 	c.push(name)
-	return c.declarations(items)
+	if items != nil {
+		if err := c.declarations(items); err != nil {
+			return err
+		}
+	}
+	if init != nil {
+		return c.blockContents(init)
+	}
+	return nil
 }
 
 func (c *charsetScopes) push(name string) {
