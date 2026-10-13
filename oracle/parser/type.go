@@ -53,10 +53,11 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 	switch p.cur.Type {
 	case kwNUMBER, kwINTEGER, kwSMALLINT, kwDECIMAL, kwFLOAT:
 		// But for NUMBER (PLS-00320), the word may name the item %TYPE or
-		// %ROWTYPE takes a type from: Oracle 23ai compiles DECLARE integer
-		// NUMBER; x integer%TYPE, as for SMALLINT, DECIMAL, FLOAT, DEC, and
-		// NUMERIC.
-		if p.cur.Type != kwNUMBER && p.peekNext().Type == '%' {
+		// %ROWTYPE takes a type from, or a record whose field it does:
+		// Oracle 23ai compiles DECLARE integer NUMBER; x integer%TYPE and
+		// DECLARE integer r; x integer.f%TYPE, as for SMALLINT, DECIMAL,
+		// FLOAT, DEC, and NUMERIC.
+		if next := p.peekNext().Type; p.cur.Type != kwNUMBER && (next == '%' || next == '.') {
 			if err := p.parseUserDefinedType(tn); err != nil {
 				return nil, err
 			}
@@ -209,17 +210,17 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 		tn.IsRef = true
 
 	default:
-		// The ANSI spellings, unless the word is a schema qualifier.
-		ansi := p.peekNext().Type != '.'
+		// The ANSI spellings. CHARACTER, NATIONAL, and DOUBLE name no item
+		// or schema: Oracle 23ai rejects x national%TYPE, x double.f%TYPE,
+		// and x character.t, the last with a schema CHARACTER owning type T
+		// (PLS-00103, ORA-02000, ORA-03099).
 		next := p.peekNext()
-		// NATIONAL names no item to take %TYPE from (PLS-00103 on Oracle
-		// 23ai), as CHARACTER and DOUBLE name none.
-		if ansi && next.Type == '%' && p.isKeywordStr("NATIONAL") {
+		if (next.Type == '%' || next.Type == '.') && p.isKeywordStr("NATIONAL") {
 			return nil, p.syntaxErrorAtTok(next)
 		}
 		switch {
-		case ansi && p.isKeywordStr("CHARACTER"),
-			ansi && p.isKeywordStr("NATIONAL") && (next.Type == kwCHAR || next.Type != tokQIDENT && next.Str == "CHARACTER"):
+		case p.isKeywordStr("CHARACTER"),
+			p.isKeywordStr("NATIONAL") && (next.Type == kwCHAR || next.Type != tokQIDENT && next.Str == "CHARACTER"):
 			if p.cur.Str == "NATIONAL" {
 				tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "NATIONAL"})
 				p.advance()
@@ -249,14 +250,15 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 					return nil, err
 				}
 			}
-		case ansi && p.isKeywordStr("DOUBLE"):
+		case p.isKeywordStr("DOUBLE"):
 			p.advance() // consume DOUBLE
 			if !p.isKeywordStr("PRECISION") {
 				return nil, p.syntaxErrorAtCur()
 			}
 			p.advance() // consume PRECISION
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "DOUBLE"}, &nodes.String{Str: "PRECISION"})
-		case next.Type != '%' && (p.isIdentLikeStr("NUMERIC") || ansi && p.isKeywordStr("DEC")):
+		// DEC and NUMERIC may name an item or a record, as INTEGER does.
+		case next.Type != '%' && next.Type != '.' && (p.isIdentLikeStr("NUMERIC") || p.isKeywordStr("DEC")):
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 			p.advance()
 			parseErr1121 := p.parseOptionalPrecisionScale(tn)

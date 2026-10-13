@@ -539,6 +539,18 @@ func TestANSIDatatypes(t *testing.T) {
 		ParseAndCheck(t, "DECLARE "+word+" NUMBER; x "+word+"%TYPE; BEGIN NULL; END;")
 	}
 	ParseShouldFail(t, "DECLARE number NUMBER; x number%TYPE; BEGIN NULL; END;")
+	// A numeric word but NUMBER may also name a record whose field %TYPE
+	// takes; CHARACTER, NATIONAL, and DOUBLE name no item, record, or
+	// schema, even with a schema of that name owning the type (PLS-00103,
+	// ORA-02000, ORA-03099, ORA-00902 on Oracle 23ai).
+	for _, word := range []string{"dec", "numeric", "integer"} {
+		ParseAndCheck(t, "DECLARE TYPE r IS RECORD (f NUMBER); "+word+" r; x "+word+".f%TYPE; BEGIN NULL; END;")
+	}
+	for _, word := range []string{"character", "double", "national"} {
+		ParseShouldFail(t, "DECLARE TYPE r IS RECORD (f NUMBER); "+word+" r; x "+word+".f%TYPE; BEGIN NULL; END;")
+		ParseShouldFail(t, "DECLARE x "+word+".foo; BEGIN NULL; END;")
+		ParseShouldFail(t, "CREATE TABLE t (x "+word+".foo)")
+	}
 	ParseAndCheck(t, "CREATE FUNCTION f (c SYS_REFCURSOR) RETURN u PIPELINED PARALLEL_ENABLE (PARTITION c BY ANY) IS BEGIN RETURN; END;")
 	// A REF column takes a CHECK constraint.
 	ParseAndCheck(t, "CREATE TABLE r (c REF t CHECK (c IS NOT NULL), d REF t CONSTRAINT ck CHECK (1 = 1))")
