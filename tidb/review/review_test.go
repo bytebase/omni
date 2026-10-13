@@ -197,6 +197,11 @@ func TestRequireIsNull(t *testing.T) {
 			sql:  "CREATE PROCEDURE pr() BEGIN CASE WHEN @n = NULL THEN SELECT 1; END CASE; END;",
 			want: []finding{{0, "@n = NULL", `"@n = NULL" is never true; use IS NULL`, []int{0}}},
 		},
+		{
+			name: "quoted text kept as written",
+			sql:  "SELECT * FROM t WHERE `a  b` = NULL;",
+			want: []finding{{0, "`a  b` = NULL", "\"`a  b` = NULL\" is never true; use IS NULL", []int{0}}},
+		},
 	})
 }
 
