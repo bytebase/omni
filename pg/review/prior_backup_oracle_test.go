@@ -102,6 +102,12 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a column of a table CREATE TABLE LIKE recreates", "DROP TABLE nokey;\nCREATE TABLE nokey (LIKE p);\nDELETE FROM nokey WHERE id = 1;", true},
 		{"a column of the table beside a VALUES list", "ALTER TABLE nokey ADD COLUMN b bool;\nDELETE FROM nokey USING (VALUES (1)) AS q(x) WHERE b;", true},
 		{"a relation after SET ROLE DEFAULT", "CREATE TABLE public.ids (id int);\nSET role TO DEFAULT;\nDELETE FROM t USING ids WHERE t.id = ids.id;", true},
+		{"a column of a table a rename gives the name", "DROP TABLE nokey;\nALTER TABLE t RENAME TO nokey;\nDELETE FROM nokey WHERE code = 'x';", true},
+		{"a column of a table EXPLAIN ANALYZE recreates", "DROP TABLE nokey;\nEXPLAIN ANALYZE CREATE TABLE nokey AS SELECT 1 AS b;\nDELETE FROM nokey WHERE b = 1;", true},
+		{"a column a copied WITH query reads", "ALTER TABLE p ADD COLUMN gone int;\nWITH x AS (SELECT p.gone FROM p) DELETE FROM t WHERE id IN (SELECT gone FROM x);", true},
+		{"a column beside a join's USING", "ALTER TABLE nokey ADD COLUMN b bool;\nDELETE FROM nokey USING p JOIN t USING (id) WHERE b;", true},
+		{"a column a function of the FROM list reads", "ALTER TABLE p ADD COLUMN gone int;\nDELETE FROM t USING p, generate_series(1, p.gone) AS g WHERE false;", true},
+		{"a relation after SET search_path FROM CURRENT", "CREATE TABLE public.ids (id int);\nSET search_path FROM CURRENT;\nDELETE FROM t USING ids WHERE t.id = ids.id;", true},
 		// The first CTE stands for p in the second arm, which reads other
 		// rows than the statement's, or not: not judged.
 		{"a later source a WITH query of the first statement shadows", "WITH p AS (SELECT 999 AS id) DELETE FROM t WHERE id = 1;\nDELETE FROM t USING p WHERE t.p_id = p.id;", false},

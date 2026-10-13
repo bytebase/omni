@@ -2,6 +2,7 @@ package review
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -266,9 +267,10 @@ type made struct {
 	relationNames map[string]bool
 	columns       map[backupTable]map[string]bool
 	functions     map[backupTable]bool
-	// likes are the relations CREATE TABLE ... LIKE copies the columns of
-	// into a table the change creates, by the table as written.
-	likes map[backupTable][]*ast.RangeVar
+	// copies are the relations whose columns a relation the change makes
+	// has, by that relation as written: the source of CREATE TABLE ...
+	// LIKE, and the relation a rename or a move gives the name.
+	copies map[backupTable][]*ast.RangeVar
 }
 
 func changeMade(stmts []statement) made {
@@ -277,7 +279,7 @@ func changeMade(stmts []statement) made {
 		relationNames: make(map[string]bool),
 		columns:       make(map[backupTable]map[string]bool),
 		functions:     make(map[backupTable]bool),
-		likes:         make(map[backupTable][]*ast.RangeVar),
+		copies:        make(map[backupTable][]*ast.RangeVar),
 	}
 	column := func(t backupTable, name string) {
 		if m.columns[t] == nil {
@@ -308,7 +310,25 @@ func changeMade(stmts []statement) made {
 			column(c.table, c.column)
 		}
 		for _, l := range createdLikes(stmts[i].node) {
-			m.likes[l.table] = append(m.likes[l.table], l.source)
+			m.copies[l.table] = append(m.copies[l.table], l.source)
+		}
+		switch v := stmts[i].node.(type) {
+		case *ast.RenameStmt:
+			switch v.RenameType {
+			case ast.OBJECT_TABLE, ast.OBJECT_FOREIGN_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW:
+				if v.Relation != nil {
+					t := backupTable{v.Relation.Schemaname, v.Newname}
+					m.copies[t] = append(m.copies[t], v.Relation)
+				}
+			}
+		case *ast.AlterObjectSchemaStmt:
+			switch v.ObjectType {
+			case ast.OBJECT_TABLE, ast.OBJECT_FOREIGN_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW:
+				if v.Relation != nil {
+					t := backupTable{v.Newschema, v.Relation.Relname}
+					m.copies[t] = append(m.copies[t], v.Relation)
+				}
+			}
 		}
 		switch v := stmts[i].node.(type) {
 		case *ast.AlterTableStmt:
@@ -377,8 +397,9 @@ func backupQueryOf(stmts []statement, schema *metadata.DatabaseSchemaMetadata, s
 			return q
 		}
 		// SET role TO DEFAULT and RESET ROLE return to the session user,
-		// and the same of search_path to the synced path.
-		if v.Kind == ast.VAR_SET_DEFAULT || v.Kind == ast.VAR_RESET {
+		// and the same of search_path, or SET search_path FROM CURRENT,
+		// leave the synced path.
+		if v.Kind == ast.VAR_SET_DEFAULT || v.Kind == ast.VAR_RESET || v.Kind == ast.VAR_SET_CURRENT {
 			break
 		}
 		if v.Kind != ast.VAR_SET_VALUE || v.Args == nil {
@@ -601,6 +622,11 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 	if msg := columnMissing(target, from, where, visible, q, m); msg != "" {
 		return msg
 	}
+	if isFirst {
+		if msg := withColumnMissing(with, q, m); msg != "" {
+			return msg
+		}
+	}
 	// A routine named with its schema, which the schema does not hold.
 	var fn string
 	inspect := func(node ast.Node) {
@@ -697,22 +723,82 @@ type backupSource struct {
 // source whose columns are not known, a whole-row reference, or a system
 // column.
 func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible map[string]bool, q backupQuery, m made) string {
-	sources := []backupSource{sourceOf(target, nil, q)}
-	known := sources[0].columns != nil
+	var exprs []ast.Node
+	if where != nil {
+		exprs = append(exprs, where)
+	}
+	return columnsMissing(target, from, exprs, visible, q, m)
+}
+
+// withColumnMissing reports a column a query of a copied WITH clause names
+// that the change makes on one of the query's relations, which none of
+// them has before the change: read in its select list, WHERE, GROUP BY, or
+// HAVING clause, among its own FROM list and the WITH queries before it.
+func withColumnMissing(w *ast.WithClause, q backupQuery, m made) string {
+	if w == nil || w.Ctes == nil {
+		return ""
+	}
+	visible := make(map[string]bool)
+	if w.Recursive {
+		for _, item := range w.Ctes.Items {
+			if c, ok := item.(*ast.CommonTableExpr); ok {
+				visible[c.Ctename] = true
+			}
+		}
+	}
+	for _, item := range w.Ctes.Items {
+		c, ok := item.(*ast.CommonTableExpr)
+		if !ok {
+			continue
+		}
+		if sel, ok := c.Ctequery.(*ast.SelectStmt); ok && sel.Larg == nil && sel.WithClause == nil {
+			var exprs []ast.Node
+			for _, n := range []ast.Node{sel.TargetList, sel.WhereClause, sel.GroupClause, sel.HavingClause} {
+				if n != nil && !isNilList(n) {
+					exprs = append(exprs, n)
+				}
+			}
+			if msg := columnsMissing(nil, sel.FromClause, exprs, maps.Clone(visible), q, m); msg != "" {
+				return msg
+			}
+		}
+		visible[c.Ctename] = true
+	}
+	return ""
+}
+
+// isNilList reports whether a node is a nil *ast.List.
+func isNilList(n ast.Node) bool {
+	l, ok := n.(*ast.List)
+	return ok && l == nil
+}
+
+// columnsMissing is columnMissing for a query of a table, nil for none,
+// a FROM list, and the expressions it reads.
+func columnsMissing(target *ast.RangeVar, from *ast.List, exprs []ast.Node, visible map[string]bool, q backupQuery, m made) string {
+	var sources []backupSource
+	known := true
+	if target != nil {
+		sources = []backupSource{sourceOf(target, nil, q)}
+		known = sources[0].columns != nil
+	}
 	var quals []ast.Node
 	has := func(src backupSource, column string) bool {
 		return src.columns == nil || src.columns[column]
 	}
 	// makes reports whether the change makes the column on a relation the
-	// source shows: adds it, renames to it, declares it, or copies it with
-	// LIKE from a synced relation.
+	// source shows: adds it, renames to it, declares it, or gives the
+	// relation a synced relation's columns, by LIKE, a rename, or a move.
 	makes := func(src backupSource, column string) bool {
 		for _, o := range src.owners {
 			if m.columns[o][column] {
 				return true
 			}
-			for _, like := range m.likes[o] {
-				if c := sourceOf(like, nil, q).columns; c != nil && c[column] {
+			for _, from := range m.copies[o] {
+				if c := sourceOf(from, nil, q).columns; c != nil && c[column] {
+					return true
+				}
+				if m.columns[backupTable{from.Schemaname, from.Relname}][column] {
 					return true
 				}
 			}
@@ -756,14 +842,22 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 			known = known && src.columns != nil
 			sources = append(sources, src)
 			return []backupSource{src}
+		case *ast.RangeFunction:
+			// The function's arguments may read the sources before it; what
+			// it returns is not known.
+			quals = append(quals, v.Functions)
+			known = false
+			src := backupSource{}
+			if v.Alias != nil {
+				src.name, src.label = v.Alias.Aliasname, ident(v.Alias.Aliasname)
+			}
+			sources = append(sources, src)
+			return []backupSource{src}
 		case *ast.JoinExpr:
 			left, right := flatten(v.Larg), flatten(v.Rarg)
 			children := append(slices.Clone(left), right...)
 			if v.Quals != nil {
 				quals = append(quals, v.Quals)
-			}
-			if v.IsNatural || v.UsingClause != nil {
-				known = false
 			}
 			// USING names a column each side has.
 			for _, column := range nameParts(v.UsingClause) {
@@ -806,15 +900,13 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 			flatten(item)
 		}
 	}
-	if where != nil {
-		quals = append(quals, where)
-	}
+	quals = append(quals, exprs...)
 	// An alias's column list that names more columns than the relation has
 	// before the change, which adds one.
 	for _, src := range sources {
 		if msg == "" && src.overflow {
 			for _, o := range src.owners {
-				if len(m.columns[o]) > 0 || len(m.likes[o]) > 0 {
+				if len(m.columns[o]) > 0 || len(m.copies[o]) > 0 {
 					msg = "prior backup runs before the change, when " + src.label + " has fewer columns than alias " + ident(src.name) + " names"
 					break
 				}
@@ -1195,6 +1287,11 @@ type createdColumn struct {
 func createdColumns(n ast.Node) []createdColumn {
 	var out []createdColumn
 	switch v := n.(type) {
+	case *ast.ExplainStmt:
+		// EXPLAIN ANALYZE runs the statement it explains.
+		if explainAnalyzes(v) {
+			return createdColumns(v.Query)
+		}
 	case *ast.CreateSchemaStmt:
 		name := v.Schemaname
 		if name == "" && v.Authrole != nil {
@@ -1245,6 +1342,10 @@ type createdLike struct {
 func createdLikes(n ast.Node) []createdLike {
 	var out []createdLike
 	switch v := n.(type) {
+	case *ast.ExplainStmt:
+		if explainAnalyzes(v) {
+			return createdLikes(v.Query)
+		}
 	case *ast.CreateSchemaStmt:
 		name := v.Schemaname
 		if name == "" && v.Authrole != nil {
