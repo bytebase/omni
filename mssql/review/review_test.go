@@ -196,6 +196,11 @@ func TestDisallowDropObject(t *testing.T) {
 			},
 		},
 		{name: "a constraint belongs to DisallowDropConstraint", sql: "ALTER TABLE t DROP CONSTRAINT ck_n;"},
+		{
+			name: "a name with a line break",
+			sql:  "DROP TABLE [a\nb];",
+			want: []finding{{0, "DROP TABLE [a\nb]", "drops table [a\\nb]", []int{0}}},
+		},
 	})
 }
 

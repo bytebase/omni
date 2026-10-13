@@ -8,12 +8,13 @@ import (
 
 // ident writes an identifier as SQL Server would need it in a statement:
 // bare when it is a regular identifier, otherwise in brackets, with a
-// closing bracket inside doubled.
+// closing bracket inside doubled and a line break written as \n or \r, so
+// a message stays one line.
 func ident(name string) string {
 	if regularIdent(name) {
 		return name
 	}
-	return "[" + strings.ReplaceAll(name, "]", "]]") + "]"
+	return "[" + escapeLines(strings.ReplaceAll(name, "]", "]]")) + "]"
 }
 
 // regularIdent reports whether a name needs no delimiters: a letter, an
