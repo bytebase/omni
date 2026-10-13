@@ -232,9 +232,22 @@ func TestQualifiedExpressionTree(t *testing.T) {
 	if calls != 2 {
 		t.Errorf("walk meets %d calls in FOR i IN f()..g(), want 2", calls)
 	}
-	loop = parseOne[*ast.PLSQLBlock](t, "BEGIN FOR r IN c2(1) LOOP NULL; END LOOP; END;").Statements.Items[0].(*ast.PLSQLLoop)
-	if loop.Type != ast.LOOP_CURSOR_FOR || loop.CursorName != "C2" || loop.CursorArgs.Len() != 1 {
-		t.Errorf("cursor loop = %+v", loop)
+	// A plain name or call may be a cursor or a scalar: the loop is a
+	// cursor FOR loop over it and keeps the control as written.
+	for _, src := range []string{"c2(1)", "x"} {
+		sql := "BEGIN FOR r IN " + src + " LOOP NULL; END LOOP; END;"
+		loop = parseOne[*ast.PLSQLBlock](t, sql).Statements.Items[0].(*ast.PLSQLLoop)
+		if loop.Type != ast.LOOP_CURSOR_FOR || loop.CursorName != strings.ToUpper(strings.TrimSuffix(src, "(1)")) || loop.Iteration == nil {
+			t.Errorf("FOR r IN %s loop = %+v", src, loop)
+			continue
+		}
+		if ctl := loop.Iteration.Controls.Items[0].(*ast.PLSQLIterationControl); sql[ast.NodeLoc(ctl.Expr).Start:ast.NodeLoc(ctl.Expr).End] != src {
+			t.Errorf("FOR r IN %s control spans %q", src, sql[ast.NodeLoc(ctl.Expr).Start:ast.NodeLoc(ctl.Expr).End])
+		}
+	}
+	loop = parseOne[*ast.PLSQLBlock](t, "BEGIN FOR r IN (SELECT 1 a FROM dual) LOOP NULL; END LOOP; END;").Statements.Items[0].(*ast.PLSQLLoop)
+	if loop.Type != ast.LOOP_CURSOR_FOR || loop.CursorQuery == nil || loop.Iteration != nil {
+		t.Errorf("query loop = %+v", loop)
 	}
 	// The bind modes of dynamic SQL show in the tree's text.
 	plain := ast.NodeToString(parseOne[*ast.PLSQLBlock](t, "BEGIN FOR r rt IN (EXECUTE IMMEDIATE s USING    x) LOOP NULL; END LOOP; END;"))

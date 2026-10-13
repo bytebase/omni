@@ -859,9 +859,12 @@ func (p *Parser) parsePLSQLForLoop() (*nodes.PLSQLLoop, error) {
 		Loc: nodes.Loc{Start: start},
 	}
 	// The iterator, Oracle 21c's iterands and iteration controls. A classic
-	// form fills the loop's own fields: one plain iterand over a range, or
-	// over a cursor, a cursor call, or a query, without WHILE or WHEN. Any
-	// other form is the loop's Iteration, so a walk meets each node once.
+	// form fills the loop's own fields: one plain iterand over a range or a
+	// query, without WHILE or WHEN. Any other form is the loop's Iteration,
+	// so a walk meets each node once. A plain name or call, FOR r IN c or
+	// FOR r IN c(1), names a cursor or a scalar expression of one value,
+	// which the text does not tell apart: the loop is a cursor FOR loop
+	// over that name and keeps the iterator in Iteration too.
 	it, err := p.parseIterator()
 	if err != nil {
 		return nil, err
@@ -883,16 +886,11 @@ func (p *Parser) parsePLSQLForLoop() (*nodes.PLSQLLoop, error) {
 			if ctl.Kind == "EXPR" && plain {
 				loop.Type = nodes.LOOP_CURSOR_FOR
 				loop.CursorName = cursor.Column
-				classic = true
 			}
 		case *nodes.FuncCallExpr:
-			if ctl.Kind == "EXPR" && plain {
+			if ctl.Kind == "EXPR" && plain && cursor.FuncName != nil {
 				loop.Type = nodes.LOOP_CURSOR_FOR
-				if cursor.FuncName != nil {
-					loop.CursorName = cursor.FuncName.Name
-				}
-				loop.CursorArgs = cursor.Args
-				classic = true
+				loop.CursorName = cursor.FuncName.Name
 			}
 		case *nodes.SubqueryExpr:
 			if ctl.Kind == "EXPR" && plain {
