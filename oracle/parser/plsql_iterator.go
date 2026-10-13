@@ -181,9 +181,15 @@ func (p *Parser) parseIterationSource() (nodes.ExprNode, error) {
 	return p.parseRequiredExpr()
 }
 
-// atDynamicSQLSource reports whether ( EXECUTE IMMEDIATE starts here.
+// atDynamicSQLSource reports whether ( EXECUTE IMMEDIATE starts here, not
+// a parenthesized variable named EXECUTE (Oracle 23ai compiles FOR i IN
+// (execute) for one).
 func (p *Parser) atDynamicSQLSource() bool {
-	return p.cur.Type == '(' && p.peekNext().Type == kwEXECUTE
+	if p.cur.Type != '(' {
+		return false
+	}
+	next := p.peekNext()
+	return next.Type == kwEXECUTE && NewLexerRange(p.source, next.End, p.lexer.end).NextToken().Type == kwIMMEDIATE
 }
 
 // parseDynamicSQLSource parses the dynamic SQL of an iteration control

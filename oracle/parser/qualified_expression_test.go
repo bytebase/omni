@@ -67,6 +67,9 @@ func TestQualifiedExpressions(t *testing.T) {
 		"BEGIN FOR i IN VALUES OF (SELECT 1 FROM dual) LOOP NULL; END LOOP; END;",
 		"BEGIN FOR r IN c WHEN r.a > 0 LOOP NULL; END LOOP; END;",
 		"BEGIN FOR r IN c2(1) LOOP NULL; END LOOP; END;",
+		// A parenthesized variable named EXECUTE is no dynamic SQL.
+		"DECLARE execute NUMBER := 1; BEGIN FOR i IN (execute) LOOP NULL; END LOOP; END;",
+		"DECLARE execute NUMBER := 1; BEGIN FOR i IN (execute + 1), VALUES OF (execute) LOOP NULL; END LOOP; END;",
 		// A cursor expression stands in the SQL a PL/SQL unit embeds.
 		"DECLARE CURSOR k IS SELECT CURSOR(SELECT 1 FROM dual) c FROM dual; BEGIN NULL; END;",
 		"DECLARE c SYS_REFCURSOR; BEGIN OPEN c FOR SELECT CURSOR(SELECT 1 FROM dual) FROM dual; END;",
@@ -141,6 +144,10 @@ func TestQualifiedExpressions(t *testing.T) {
 		// PLS-00122).
 		"DECLARE x XMLTYPE; BEGIN x := XMLQUERY('1' RETURNING CONTENT); END;",
 		"DECLARE n NUMBER; BEGIN n := XMLCAST(XMLTYPE('<a>1</a>') AS NUMBER); END;",
+		// LEADING, TRAILING, or BOTH first makes TRIM's own syntax, even
+		// before => (PLS-00103 for trim(leading => 1) with a local record
+		// type trim).
+		"DECLARE TYPE trim IS RECORD (leading NUMBER); x trim := trim(leading => 1); BEGIN NULL; END;",
 		// A quoted name is no special function (ORA-00907).
 		`SELECT "EXTRACT"(YEAR FROM SYSDATE) FROM dual`,
 		`SELECT "XMLCAST"(XMLTYPE('<a>1</a>') AS NUMBER) FROM dual`,
