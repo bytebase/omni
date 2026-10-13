@@ -32,6 +32,7 @@ CREATE TABLE public.pb_src (old int);
 CREATE TABLE s.pb_src (new int);
 CREATE TABLE s.pb_dest (old int);
 CREATE SCHEMA pb_empty;
+CREATE PROCEDURE public.pb_proc(int) LANGUAGE sql AS 'SELECT 1';
 CREATE FUNCTION public.old(int) RETURNS bool LANGUAGE sql AS 'SELECT true';
 INSERT INTO p VALUES (1), (2);
 INSERT INTO t (id, p_id, n) VALUES (1, 1, 1), (2, 2, 2);
@@ -108,8 +109,8 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a column of an aliased join", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING (p JOIN nokey ON true) AS j WHERE j.gone;", false},
 		{"a column the change adds to a partitioned table, through a partition", "ALTER TABLE pt ADD COLUMN flag bool;\nDELETE FROM pt1 WHERE pt1.flag;", true},
 		{"SET ROLE of a role the change recreates", "DROP ROLE prior_backup_old;\nCREATE ROLE prior_backup_old SUPERUSER;\nSET ROLE prior_backup_old;\nUPDATE public.t SET n = 1 WHERE id = 1;", true},
-		{"a column a join's USING names", "ALTER TABLE p ADD COLUMN gone bool;\nALTER TABLE nokey ADD COLUMN gone bool;\nDELETE FROM t USING p JOIN nokey USING (gone) WHERE false;", false},
-		{"an alias's column list longer than the relation", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p AS x(i, g) WHERE false;", false},
+		{"a column a join's USING names", "ALTER TABLE p ADD COLUMN gone bool;\nALTER TABLE nokey ADD COLUMN gone bool;\nDELETE FROM t USING p JOIN nokey USING (gone) WHERE false;", true},
+		{"an alias's column list longer than the relation", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p AS x(i, g) WHERE false;", true},
 		{"a column of a table CREATE TABLE LIKE recreates", "DROP TABLE nokey;\nCREATE TABLE nokey (LIKE p);\nDELETE FROM nokey WHERE id = 1;", false},
 		{"a column of the table beside a VALUES list", "ALTER TABLE nokey ADD COLUMN b bool;\nDELETE FROM nokey USING (VALUES (1)) AS q(x) WHERE b;", false},
 		{"a relation after SET ROLE DEFAULT", "CREATE TABLE public.ids (id int);\nSET role TO DEFAULT;\nDELETE FROM t USING ids WHERE t.id = ids.id;", true},
@@ -163,6 +164,10 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a relation the change commits", "SET search_path = pb_empty, public;\nBEGIN;\nCREATE TABLE pb_empty.t (id int);\nCOMMIT;\nUPDATE t SET n = 1 WHERE id = 2;", false},
 		{"a column named like its table, read as a boolean", "ALTER TABLE nokey ADD COLUMN nokey bool;\nDELETE FROM nokey WHERE nokey;", false},
 		{"a column a LATERAL subquery reads of a source before it", "ALTER TABLE p ADD COLUMN gone int;\nDELETE FROM t USING p, LATERAL (SELECT p.gone AS x) AS sq WHERE false;", false},
+		{"a column an aliased join's own condition reads", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING (p JOIN nokey ON p.gone) AS j WHERE false;", true},
+		{"a column both sides of a join's USING gain", "ALTER TABLE p ADD COLUMN gone bool;\nALTER TABLE nokey ADD COLUMN gone bool;\nDELETE FROM t USING p JOIN nokey USING (gone) WHERE false;", true},
+		{"an alias's column list a column the change adds makes fit", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p AS x(i, g) WHERE false;", true},
+		{"a function the change creates, named like a procedure", "CREATE FUNCTION public.pb_proc() RETURNS bool LANGUAGE sql AS 'SELECT true';\nDELETE FROM nokey WHERE public.pb_proc();", true},
 		// DROP ... CASCADE may drop relations it does not name: what the
 		// path finds after it is not judged.
 		{"a table after DROP ... CASCADE", "SET search_path = s, public;\nDROP TABLE s.t CASCADE;\nUPDATE t SET n = 1 WHERE id = 2;", false},

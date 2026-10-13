@@ -3403,6 +3403,50 @@ func TestPriorBackup(t *testing.T) {
 			targets: one,
 		},
 		{
+			name:    "a column an aliased join's own condition reads",
+			sql:     "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING (p JOIN nokey ON p.gone) AS j WHERE false;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "DELETE FROM t USING (p JOIN nokey ON p.gone) AS j WHERE false", "prior backup runs before the change, when column gone of p does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a column a join's USING names",
+			sql:     "ALTER TABLE p ADD COLUMN gone bool;\nALTER TABLE nokey ADD COLUMN gone bool;\nDELETE FROM t USING p JOIN nokey USING (gone) WHERE false;\nDELETE FROM r USING p JOIN t USING (id) WHERE false;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{2, "DELETE FROM t USING p JOIN nokey USING (gone) WHERE false", "prior backup runs before the change, when column gone of p does not exist yet", []int{0}}},
+		},
+		{
+			name:    "an alias's column list longer than the relation, which the change gives a column",
+			sql:     "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p AS x(i, n, g) WHERE false;\nDELETE FROM nokey USING t AS y(a, b, c, d, e) WHERE false;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "DELETE FROM t USING p AS x(i, n, g) WHERE false", "prior backup runs before the change, when p has fewer columns than alias x names", []int{0}}},
+		},
+		{
+			name:   "a column of a foreign table the change recreates",
+			sql:    "DROP FOREIGN TABLE ft;\nCREATE FOREIGN TABLE ft (b int) SERVER srv;\nDELETE FROM t USING ft WHERE ft.b = t.id;",
+			change: on,
+			targets: func() []review.Target {
+				db := withArchive(shop())
+				db.Schemas[0].ExternalTables = append(db.Schemas[0].ExternalTables, &metadata.ExternalTableMetadata{Name: "ft", Columns: []*metadata.ColumnMetadata{{Name: "a"}}})
+				return []review.Target{{Schema: db, SessionUser: "alice"}}
+			}(),
+			want: []targetFinding{{2, "DELETE FROM t USING ft WHERE ft.b = t.id", "prior backup runs before the change, when column b of ft does not exist yet", []int{0}}},
+		},
+		{
+			// A call cannot mean a procedure.
+			name:   "a function the change creates, named like a procedure",
+			sql:    "CREATE FUNCTION public.f() RETURNS bool LANGUAGE sql AS 'SELECT true';\nDELETE FROM nokey WHERE public.f();",
+			change: on,
+			targets: func() []review.Target {
+				db := withArchive(shop())
+				db.Schemas[0].Procedures = append(db.Schemas[0].Procedures, &metadata.ProcedureMetadata{Name: "f", Signature: "f(integer)"})
+				return []review.Target{{Schema: db, SessionUser: "alice"}}
+			}(),
+			want: []targetFinding{{1, "DELETE FROM nokey WHERE public.f()", "prior backup runs before the change, when function public.f does not exist yet", []int{0}}},
+		},
+		{
 			name:    "no schema, nothing known about the target",
 			sql:     "UPDATE t SET n = 1 WHERE id = 1; DELETE FROM t WHERE id = 2;",
 			change:  on,

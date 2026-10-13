@@ -40,8 +40,8 @@ import (
 // makes, which does not exist yet when the query runs: the table, a
 // relation of the FROM or USING list, a subquery, or the WITH clause, a
 // column the change adds, renames to, or declares on a table it creates,
-// read in the WHERE clause or a join condition, or a routine named with
-// its schema. The query also fails on a later statement that does not use
+// read in the WHERE clause or a join condition, ON or USING, or needed by
+// an alias's column list, or a function named with its schema. The query also fails on a later statement that does not use
 // the first one's alias, reads a WITH query named like the table in its
 // place, reads another table, or none, when the search path it runs under
 // finds the statement's table elsewhere than Bytebase grouped it, cannot
@@ -655,18 +655,14 @@ func systemSchema(name string) bool {
 	return strings.HasPrefix(name, "pg_") || name == "information_schema"
 }
 
-// hasFunction reports whether a synced schema holds a routine of that name.
+// hasFunction reports whether a synced schema holds a function of that
+// name, which a call may mean; a procedure it cannot.
 func hasFunction(s *metadata.SchemaMetadata, name string) bool {
 	if s == nil {
 		return false
 	}
 	for _, f := range s.GetFunctions() {
 		if f.GetName() == name {
-			return true
-		}
-	}
-	for _, p := range s.GetProcedures() {
-		if p.GetName() == name {
 			return true
 		}
 	}
@@ -688,52 +684,42 @@ type backupSource struct {
 	// table of a partition.
 	owners []backupTable
 	label  string
+	// overflow marks an alias's column list longer than the relation's
+	// columns before the change.
+	overflow bool
 }
 
 // columnMissing reports a column the backup's query names in the WHERE
-// clause or a join condition that the change adds to, renames to, or
-// declares on one of the statement's relations, and that none of them has
-// before the change. Only a name that can mean nothing else is judged: a
-// column qualified by a relation of the statement, or an unqualified one
-// when every source is a relation whose columns the snapshot gives and
-// none has it. Subqueries are not read, and neither are whole-row
-// references, system columns, or an aliased join, which hides its
-// relations.
+// clause or a join condition, ON or USING, that the change adds to,
+// renames to, or declares on one of the statement's relations, and that
+// none of them has before the change; or an alias's column list longer
+// than a relation's columns before the change adds one. Only a name that
+// can mean nothing else is judged: a column qualified by a relation of
+// the statement, or an unqualified one when every source is a relation
+// whose columns the snapshot gives and none has it. Subqueries are not
+// read, and neither are whole-row references or system columns. An
+// aliased join hides its relations from the rest of the statement; its
+// own condition reads them.
 func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible map[string]bool, q backupQuery, m made) string {
-	sources := []backupSource{sourceOf(target, visible, q)}
-	known := sources[0].columns != nil
+	var items []ast.Node
+	if from != nil {
+		items = from.Items
+	}
+	return columnsMissing(target, items, where, visible, q, m)
+}
+
+// columnsMissing is columnMissing for a table, nil for none, the FROM
+// items beside it, and a condition.
+func columnsMissing(target *ast.RangeVar, items []ast.Node, where ast.Node, visible map[string]bool, q backupQuery, m made) string {
+	var sources []backupSource
+	known := true
+	if target != nil {
+		sources = append(sources, sourceOf(target, visible, q))
+		known = sources[0].columns != nil
+	}
 	var quals []ast.Node
 	if where != nil {
 		quals = append(quals, where)
-	}
-	var flatten func(n ast.Node)
-	flatten = func(n ast.Node) {
-		switch v := n.(type) {
-		case *ast.RangeVar:
-			src := sourceOf(v, visible, q)
-			known = known && src.columns != nil
-			sources = append(sources, src)
-		case *ast.RangeTableSample:
-			flatten(v.Relation)
-		case *ast.JoinExpr:
-			if v.Alias != nil && v.Alias.Aliasname != "" {
-				known = false
-				sources = append(sources, backupSource{name: v.Alias.Aliasname})
-				return
-			}
-			flatten(v.Larg)
-			flatten(v.Rarg)
-			if v.Quals != nil {
-				quals = append(quals, v.Quals)
-			}
-		default:
-			known = false
-		}
-	}
-	if from != nil {
-		for _, item := range from.Items {
-			flatten(item)
-		}
 	}
 	var msg string
 	judge := func(src backupSource, column string) {
@@ -744,6 +730,69 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 			if m.columns[o][column] {
 				msg = "prior backup runs before the change, when column " + ident(column) + " of " + src.label + " does not exist yet"
 				return
+			}
+		}
+	}
+	// flatten adds the sources of a FROM item and returns them.
+	var flatten func(n ast.Node) []backupSource
+	flatten = func(n ast.Node) []backupSource {
+		switch v := n.(type) {
+		case *ast.RangeVar:
+			src := sourceOf(v, visible, q)
+			known = known && src.columns != nil
+			sources = append(sources, src)
+			return []backupSource{src}
+		case *ast.RangeTableSample:
+			return flatten(v.Relation)
+		case *ast.JoinExpr:
+			if v.Alias != nil && v.Alias.Aliasname != "" {
+				inner := *v
+				inner.Alias = nil
+				if msg == "" {
+					msg = columnsMissing(nil, []ast.Node{&inner}, nil, visible, q, m)
+				}
+				known = false
+				src := backupSource{name: v.Alias.Aliasname}
+				sources = append(sources, src)
+				return []backupSource{src}
+			}
+			left, right := flatten(v.Larg), flatten(v.Rarg)
+			if v.Quals != nil {
+				quals = append(quals, v.Quals)
+			}
+			// USING names a column each side has.
+			for _, column := range nameParts(v.UsingClause) {
+				for _, side := range [][]backupSource{left, right} {
+					has := false
+					for _, src := range side {
+						has = has || src.columns == nil || src.columns[column]
+					}
+					for _, src := range side {
+						if !has && msg == "" {
+							judge(src, column)
+						}
+					}
+				}
+			}
+			return append(left, right...)
+		default:
+			known = false
+			return nil
+		}
+	}
+	for _, item := range items {
+		flatten(item)
+	}
+	// An alias's column list longer than the relation, which the change
+	// gives more columns.
+	for _, src := range sources {
+		if msg != "" || !src.overflow {
+			continue
+		}
+		for _, o := range src.owners {
+			if len(m.columns[o]) > 0 {
+				msg = "prior backup runs before the change, when " + src.label + " has fewer columns than alias " + ident(src.name) + " names"
+				break
 			}
 		}
 	}
@@ -840,6 +889,7 @@ func sourceOf(rv *ast.RangeVar, visible map[string]bool, q backupQuery) backupSo
 		// An alias's column list renames the columns in order.
 		if rv.Alias != nil && rv.Alias.Colnames != nil {
 			if len(rv.Alias.Colnames.Items) > len(names) {
+				src.overflow = len(src.schemas) == 1
 				return src
 			}
 			for i, item := range rv.Alias.Colnames.Items {
@@ -1013,8 +1063,9 @@ type createdColumn struct {
 	column string
 }
 
-// createdColumns returns the columns CREATE TABLE declares for the table
-// it creates, the tables of CREATE SCHEMA in the new schema.
+// createdColumns returns the columns CREATE TABLE or CREATE FOREIGN TABLE
+// declares for the table it creates, the tables of CREATE SCHEMA in the
+// new schema.
 func createdColumns(n ast.Node) []createdColumn {
 	var out []createdColumn
 	switch v := n.(type) {
@@ -1034,6 +1085,8 @@ func createdColumns(n ast.Node) []createdColumn {
 				out = append(out, c)
 			}
 		}
+	case *ast.CreateForeignTableStmt:
+		return createdColumns(&v.Base)
 	case *ast.CreateStmt:
 		if v.IfNotExists || v.Relation == nil || v.TableElts == nil {
 			return nil
