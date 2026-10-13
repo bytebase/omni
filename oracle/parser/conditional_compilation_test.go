@@ -57,6 +57,13 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF NVL(NULL, TRUE) $THEN NULL; $ELSE garbage garbage; $END END;",
 		"BEGIN $IF XOR(TRUE, TRUE) $THEN garbage garbage; $ELSE NULL; $END END;",
 		"BEGIN $IF ABS(-1) = 1 AND pkg.c $THEN NULL; $END END;",
+		// Decimal arithmetic and whole powers, as NUMBER computes them.
+		"BEGIN $IF 0.1 + 0.2 = 0.3 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF 2 ** 3 = 8 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF 2 ** 3 = 9 $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF NVL(1, 2) = 1 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF $$PLSQL_UNIT_OWNER IS NULL $THEN NULL; $END END;",
+		"BEGIN $IF $$PLSQL_LINE = 1 $THEN NULL; $END END;",
 		// A label before the block's BEGIN does not count as its first token.
 		"<<l>> $IF TRUE $THEN BEGIN $END NULL; END;",
 		// A unit's first directive follows a token of its own; a trigger's
@@ -109,6 +116,16 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF NVL2(TRUE, TRUE, FALSE) $THEN NULL; $END END;",
 		"BEGIN $IF CASE WHEN 1 = 1 THEN TRUE ELSE FALSE END $THEN NULL; $END END;",
 		"BEGIN $IF DECODE(1, 1, TRUE, FALSE) $THEN NULL; $END END;",
+		"BEGIN $IF NVL(1, 2) $THEN NULL; $END END;",
+		"BEGIN $IF NVL(TRUE, 1) $THEN NULL; $END END;",
+		"BEGIN $IF pkg.NVL(TRUE, FALSE) $THEN NULL; $END END;",
+		// A static comparison compares no character values (PLS-00174).
+		"BEGIN $IF $$PLSQL_UNIT = 'P' $THEN NULL; $END END;",
+		"BEGIN $IF $$PLSQL_UNIT_TYPE = 'X' $THEN NULL; $END END;",
+		"BEGIN $IF 'a' = 'a' $THEN NULL; $END END;",
+		"BEGIN $IF $$x = 'a' $THEN NULL; $END END;",
+		// No outer join on an inquiry directive (ORA-03048).
+		"DECLARE x NUMBER; BEGIN SELECT 1 INTO x FROM dual t WHERE $$PLSQL_LINE(+) = 1; END;",
 		// The selected code is parsed: here, an empty block (PLS-00103).
 		"BEGIN $IF NOT NVL(TRUE, FALSE) $THEN NULL; $END END;",
 		// An anonymous block takes no bind variable inside a directive
@@ -225,9 +242,23 @@ SELECT 1 FROM dual;
 	}
 	ParseAndCheck(t, got[0])
 
-	// A malformed directive ends no statement early: Split lexes on past it.
+	// A malformed directive ends no statement early: Split lexes on past it,
+	// past one whose condition is no expression too.
 	got = splitTexts(Split("SELECT 1 FROM dual; $IF broken\nSELECT 2 FROM dual;\nSELECT 3 FROM dual;"))
 	if len(got) != 3 || strings.TrimSpace(got[2]) != "SELECT 3 FROM dual" {
 		t.Fatalf("Split = %q", got)
+	}
+	got = splitTexts(Split("SELECT 1 FROM dual; $IF broken; SELECT 2 FROM dual; $THEN SELECT 3 FROM dual; $END SELECT 4 FROM dual;"))
+	if len(got) != 5 || !strings.HasSuffix(got[4], "SELECT 4 FROM dual") {
+		t.Fatalf("Split = %q", got)
+	}
+
+	// Completion sees every branch.
+	found := false
+	for _, tok := range Tokenize("BEGIN $IF $$debug $THEN NULL; $ELSE SELECT * FROM emp; $END END;") {
+		found = found || tok.Str == "EMP"
+	}
+	if !found {
+		t.Errorf("Tokenize drops the $ELSE branch")
 	}
 }

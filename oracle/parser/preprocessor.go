@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"strconv"
+	"math/big"
 
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
@@ -10,22 +10,25 @@ import (
 // source[loc.Start:loc.End] as far as the text settles it. Oracle 23ai
 // folds the Boolean operators over TRUE, FALSE, and NULL, short-circuiting
 // past what it cannot settle (TRUE OR $$x is TRUE), and compares numeric
-// literals (1 = 1); inquiry directives and package constants have values
-// the text does not hold.
-func staticCondition(source string, loc nodes.Loc) ccValue {
+// literals and arithmetic over them in decimal (0.1 + 0.2 = 0.3); inquiry
+// directives and package constants have values the text does not hold.
+//
+// It reports false for a condition that is no expression, which the
+// parser rejects and Split lexes past.
+func staticCondition(source string, loc nodes.Loc) (ccValue, bool) {
 	sub := &Parser{lexer: NewLexerRange(source, loc.Start, loc.End), source: source}
 	sub.advance()
 	expr, err := sub.parseExpr()
 	if err != nil || expr == nil || sub.cur.Type != tokEOF {
-		return ccUnknown
+		return ccUnknown, false
 	}
 	switch staticTruthOf(source, expr) {
 	case truthTrue:
-		return ccTrue
+		return ccTrue, true
 	case truthFalse, truthNull:
-		return ccFalse
+		return ccFalse, true
 	}
-	return ccUnknown
+	return ccUnknown, true
 }
 
 // staticTruth is the three-valued truth of a static condition, or unknown.
@@ -61,7 +64,7 @@ func staticTruthOf(source string, expr nodes.ExprNode) staticTruth {
 	case *nodes.FuncCallExpr:
 		// STANDARD's NVL and XOR, the Boolean functions a static
 		// expression may call.
-		if e.FuncName == nil || e.Args == nil || e.Args.Len() != 2 {
+		if !isStaticBooleanFunction(e) {
 			return truthUnknown
 		}
 		a := staticTruthOf(source, e.Args.Items[0].(nodes.ExprNode))
@@ -90,19 +93,19 @@ func staticTruthOf(source string, expr nodes.ExprNode) staticTruth {
 			return truthUnknown
 		}
 		var holds bool
-		switch e.Op {
+		switch cmp := left.Cmp(right); e.Op {
 		case "=":
-			holds = left == right
+			holds = cmp == 0
 		case "!=", "<>", "~=", "^=":
-			holds = left != right
+			holds = cmp != 0
 		case "<":
-			holds = left < right
+			holds = cmp < 0
 		case ">":
-			holds = left > right
+			holds = cmp > 0
 		case "<=":
-			holds = left <= right
+			holds = cmp <= 0
 		case ">=":
-			holds = left >= right
+			holds = cmp >= 0
 		default:
 			return truthUnknown
 		}
@@ -154,20 +157,22 @@ func staticBoolExpr(source string, e *nodes.BoolExpr) staticTruth {
 
 // staticNumber returns the value of a numeric literal, possibly signed, or
 // of arithmetic over them (Oracle 23ai selects the $ELSE of $IF 1 + 1 = 3).
-func staticNumber(expr nodes.ExprNode) (float64, bool) {
+// Values are exact decimals, as Oracle's NUMBER holds them; a quotient
+// that no decimal holds exactly (1 / 3) is left unknown, since NUMBER
+// rounds it (Oracle 23ai finds 1 / 3 * 3 = 1 FALSE).
+func staticNumber(expr nodes.ExprNode) (*big.Rat, bool) {
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
 		return staticNumber(e.Expr)
 	case *nodes.NumberLiteral:
-		v, err := strconv.ParseFloat(e.Val, 64)
-		return v, err == nil
+		return new(big.Rat).SetString(e.Val)
 	case *nodes.UnaryExpr:
 		v, ok := staticNumber(e.Operand)
 		switch {
 		case !ok:
-			return 0, false
+			return nil, false
 		case e.Op == "-":
-			return -v, true
+			return v.Neg(v), true
 		case e.Op == "+":
 			return v, true
 		}
@@ -175,23 +180,51 @@ func staticNumber(expr nodes.ExprNode) (float64, bool) {
 		left, lok := staticNumber(e.Left)
 		right, rok := staticNumber(e.Right)
 		if !lok || !rok {
-			return 0, false
+			return nil, false
 		}
 		switch e.Op {
 		case "+":
-			return left + right, true
+			return left.Add(left, right), true
 		case "-":
-			return left - right, true
+			return left.Sub(left, right), true
 		case "*":
-			return left * right, true
+			return left.Mul(left, right), true
 		case "/":
-			if right == 0 {
-				return 0, false
+			if right.Sign() == 0 {
+				return nil, false
 			}
-			return left / right, true
+			q := left.Quo(left, right)
+			return q, terminatingDecimal(q)
+		case "**":
+			// A small whole power, exact.
+			if !right.IsInt() || right.Sign() < 0 || right.Num().Cmp(big.NewInt(64)) > 0 {
+				return nil, false
+			}
+			result := big.NewRat(1, 1)
+			for i := right.Num().Int64(); i > 0; i-- {
+				result.Mul(result, left)
+			}
+			return result, true
 		}
 	}
-	return 0, false
+	return nil, false
+}
+
+// terminatingDecimal reports whether a decimal holds r exactly: its reduced
+// denominator has no prime factor but 2 and 5.
+func terminatingDecimal(r *big.Rat) bool {
+	d := new(big.Int).Set(r.Denom())
+	for _, f := range []int64{2, 5} {
+		factor, rem := big.NewInt(f), new(big.Int)
+		for {
+			q, m := new(big.Int).QuoRem(d, factor, rem)
+			if m.Sign() != 0 {
+				break
+			}
+			d = q
+		}
+	}
+	return d.Cmp(big.NewInt(1)) == 0
 }
 
 // nonBooleanOperand returns the first operand in a Boolean position of a
@@ -217,9 +250,21 @@ func nonBooleanOperand(expr nodes.ExprNode) nodes.ExprNode {
 		case "+", "-", "*", "/", "**", "||":
 			return expr
 		}
-	case *nodes.FuncCallExpr:
-		if e.FuncName == nil || e.FuncName.Name != "NVL" && e.FuncName.Name != "XOR" {
+		// A static comparison compares no character values (PLS-00174 for
+		// 'a' = 'a', $$x = 'a', and $$PLSQL_UNIT = 'P').
+		if characterOperand(e.Left) || characterOperand(e.Right) {
 			return expr
+		}
+	case *nodes.FuncCallExpr:
+		if !isStaticBooleanFunction(e) {
+			return expr
+		}
+		// NVL and XOR are Boolean over Boolean operands (PLS-00382 for
+		// NVL(1, 2), PLS-00306 for NVL(TRUE, 1)).
+		for _, item := range e.Args.Items {
+			if bad := nonBooleanOperand(item.(nodes.ExprNode)); bad != nil {
+				return bad
+			}
 		}
 	case *nodes.BoolExpr:
 		if e.Args != nil {
@@ -231,6 +276,40 @@ func nonBooleanOperand(expr nodes.ExprNode) nodes.ExprNode {
 		}
 	}
 	return nil
+}
+
+// isStaticBooleanFunction reports whether call is STANDARD's NVL or XOR,
+// with two arguments: the Boolean functions a static expression may call.
+func isStaticBooleanFunction(call *nodes.FuncCallExpr) bool {
+	if call.FuncName == nil || call.Args == nil || call.Args.Len() != 2 {
+		return false
+	}
+	switch call.FuncName.Schema {
+	case "", "STANDARD", "SYS.STANDARD":
+	default:
+		return false
+	}
+	return call.FuncName.Name == "NVL" || call.FuncName.Name == "XOR"
+}
+
+// characterOperand reports whether expr is character data in a static
+// expression: a string literal, a concatenation, or the inquiry directive
+// $$PLSQL_UNIT, $$PLSQL_UNIT_OWNER, or $$PLSQL_UNIT_TYPE.
+func characterOperand(expr nodes.ExprNode) bool {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return characterOperand(e.Expr)
+	case *nodes.StringLiteral:
+		return true
+	case *nodes.BinaryExpr:
+		return e.Op == "||"
+	case *nodes.ColumnRef:
+		switch e.Column {
+		case "$$PLSQL_UNIT", "$$PLSQL_UNIT_OWNER", "$$PLSQL_UNIT_TYPE":
+			return true
+		}
+	}
+	return false
 }
 
 // checkDirectiveCondition parses the condition at loc of an $IF or $ELSIF

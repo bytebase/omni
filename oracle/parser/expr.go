@@ -1304,6 +1304,11 @@ func (p *Parser) parseOuterJoinIfPresent(expr nodes.ExprNode) (nodes.ExprNode, e
 	if next.Type != '+' {
 		return expr, nil
 	}
+	// An inquiry directive is a literal, no column (ORA-03048 on Oracle
+	// 23ai for $$PLSQL_LINE(+)).
+	if strings.HasPrefix(cr.Column, "$$") {
+		return nil, p.syntaxErrorAtCur()
+	}
 	p.advance() // consume '('
 	p.advance() // consume '+'
 	if p.cur.Type == ')' {

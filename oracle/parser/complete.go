@@ -102,11 +102,12 @@ func IsReservedKeyword(word string) bool {
 
 // Tokenize runs the Oracle lexer and returns all non-EOF tokens.
 func Tokenize(sql string) []Token {
+	// Completion sees every branch of a conditional compilation directive:
+	// the caret may stand in one the preprocessor would not select.
 	lex := NewLexer(sql)
-	lex.ccLenient = true
 	var tokens []Token
 	for {
-		tok := lex.NextToken()
+		tok := lex.nextRaw()
 		if tok.Type == tokEOF {
 			break
 		}

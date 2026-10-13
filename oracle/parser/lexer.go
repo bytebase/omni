@@ -67,9 +67,9 @@ type Lexer struct {
 	// ccLenient is set on a lexer that must not stop at a misplaced
 	// directive: a pre-scan that starts inside the text, at the token the
 	// parser stands on, where the branch holding it may end in an $ELSIF,
-	// $ELSE, or $END with no $IF before it; and Split and Tokenize, which
-	// are soft-fail. Such a directive skips to the end of its construct, and
-	// an $ERROR is skipped. The parser's own lexer checks the structure.
+	// $ELSE, or $END with no $IF before it; and Split, which is soft-fail.
+	// Such a directive skips to the end of its construct, and an $ERROR is
+	// skipped. The parser's own lexer checks the structure.
 	ccLenient bool
 
 	// ccSkipEnd is where the last directive construct NextToken skipped
@@ -322,7 +322,14 @@ func (l *Lexer) skipCondition(tok Token) (ccValue, bool) {
 				return ccUnknown, false
 			}
 			l.cc.noteCondition(cond)
-			return staticCondition(l.input, cond), true
+			value, valid := staticCondition(l.input, cond)
+			if !valid && l.ccLenient {
+				// Split lexes on past a condition that is no expression,
+				// as past any malformed directive.
+				l.failDirective(tok, "invalid preprocessor condition")
+				return ccUnknown, false
+			}
+			return value, true
 		case next.Type == tokDIRECTIVE:
 			l.failDirective(next, fmt.Sprintf("unexpected preprocessor token '%s'", next.Str))
 			return ccUnknown, false
