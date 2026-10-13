@@ -242,9 +242,17 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 	return &nodes.List{Items: stmts}, nil
 }
 
-// ccMaxAttempts bounds the branch selections parseStmtSelections tries
-// for one statement.
-const ccMaxAttempts = 64
+// The branch selections parseStmtSelections tries for one statement are
+// bounded: ccMinAttempts, and ccAttemptsPerDecision more for each
+// undecided $IF an attempt met, while the attempts past ccMinAttempts have
+// read no more than ccMaxSearchBytes of text in all. A failure the search
+// can place takes one attempt per $IF to vary, so the bound grows with
+// them, and the byte budget keeps the search's time linear in the text.
+const (
+	ccMinAttempts         = 64
+	ccAttemptsPerDecision = 2
+	ccMaxSearchBytes      = 64 << 20
+)
 
 // ccSelection is a branch selection for parseStmtSelections to try: the
 // choices to make, and the first decision it may vary for the selections
@@ -261,23 +269,30 @@ type ccSelection struct {
 // environment settles (the database version, PLSQL_CCFLAGS, package
 // constants), which may be any of them, so a unit fails only when every
 // selection does: $IF $$x $THEN garbage $ELSE NULL; $END parses, and
-// $IF $$x $THEN $ERROR 'a' $END $ELSE $ERROR 'b' $END $END fails.
+// $IF $$x $THEN $ERROR 'a' $END $ELSE $ERROR 'b' $END $END fails. One
+// environment gives a condition one value, so a selection decides a
+// repeated condition once (ccFact).
 //
 // The selections form a tree, searched depth first: the first takes each
 // undecided $IF's first undecided branch, and a failed one leads to those
 // that pass over one more branch of one of its decisions, keeping the
-// choices before it. Those whose selected branches hold the failure come
-// first, innermost first, then the others, the last decision first. Every
-// selection that keeps the decisions around an $ERROR meets it, so a
-// failure at one leads to none that do. Of the failures, the one that got
-// furthest is reported.
+// choices before it. Those that the selections of the levels holding the
+// failure depend on come first, the last first, then the others, the last
+// first. Every selection that keeps those decisions meets an $ERROR the
+// levels hold, so a failure at one leads to none that vary only later
+// decisions. Of the failures, the one that got furthest is reported.
 func (p *Parser) parseStmtSelections(textStart, stmtLoc int) (nodes.StmtNode, error) {
+	p.lexer.ccFacts = nil
 	snap := p.snapshot()
 	defer func() { p.lexer.ccChoices = nil }()
 	var failure error
 	furthest := -1
 	pending := []ccSelection{{}}
-	for attempt := 0; len(pending) > 0 && attempt < ccMaxAttempts; attempt++ {
+	limit, read := ccMinAttempts, 0
+	for attempt := 0; len(pending) > 0 && attempt < limit; attempt++ {
+		if attempt >= ccMinAttempts && read > ccMaxSearchBytes {
+			break
+		}
 		sel := pending[len(pending)-1]
 		pending = pending[:len(pending)-1]
 		if attempt > 0 {
@@ -300,19 +315,20 @@ func (p *Parser) parseStmtSelections(textStart, stmtLoc int) (nodes.StmtNode, er
 		case failure == nil:
 			failure = err
 		}
+		read += max(p.prev.End-stmtLoc, 0)
 		decided := (*p.lexer.ccDecisions)[snap.decisions:]
-		var open []int
+		limit = max(limit, ccMinAttempts+ccAttemptsPerDecision*len(decided))
+		open := p.lexer.openDecisions()
 		if de, ok := p.lexer.Err.(*directiveError); ok && de.raised {
-			open = p.lexer.openDecisions(de.tok.Loc)
+			last := -1
+			for _, at := range open {
+				last = max(last, at)
+			}
 			n := 0
-			if len(open) > 0 {
-				for n < len(decided) && decided[n].at <= open[len(open)-1] {
-					n++
-				}
+			for n < len(decided) && decided[n].at <= last {
+				n++
 			}
 			decided = decided[:n]
-		} else {
-			open = p.lexer.openDecisions(p.lexer.pos)
 		}
 		pending = append(pending, nextSelections(decided, sel.from, open)...)
 	}
@@ -324,9 +340,9 @@ func (p *Parser) parseStmtSelections(textStart, stmtLoc int) (nodes.StmtNode, er
 // from on: for each decision that can pass over one more undecided branch,
 // the selection that does, keeping the choices before it; those after it,
 // which the new choice may move or remove, start over. They come in the
-// reverse of the order to try them: the decisions at offsets open, whose
-// selected branches hold the failure, are tried first, the last of them
-// first, then the others, the last first.
+// reverse of the order to try them: the decisions at offsets open, which
+// the selections of the levels holding the failure depend on, are tried
+// first, the last of them first, then the others, the last first.
 func nextSelections(decided []ccDecision, from int, open []int) []ccSelection {
 	isOpen := make(map[int]bool, len(open))
 	for _, at := range open {

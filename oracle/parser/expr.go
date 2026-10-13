@@ -718,7 +718,7 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 // expression is parsed twice to decide.
 func (p *Parser) parseCaseOrColumn() (nodes.ExprNode, error) {
 	if p.caseKinds == nil {
-		p.caseKinds = decideCaseTokens(p.source, p.cur.Loc, p.lexer.end, p.lexer.ccChoices)
+		p.caseKinds = decideCaseTokens(p.source, p.cur.Loc, p.lexer.end, p.lexer.ccChoices, p.lexer.ccFacts)
 	}
 	opensExpression, decided := p.caseKinds[p.cur.Loc]
 	if decided && !opensExpression {
@@ -728,17 +728,19 @@ func (p *Parser) parseCaseOrColumn() (nodes.ExprNode, error) {
 }
 
 // decideCaseTokens lexes source[start:end], under the selection of
-// conditional compilation branches choices names, and reports, for each
-// CASE token, whether it opens a CASE expression. A CASE opens one when the first token
+// conditional compilation branches choices names and the facts it made
+// before start, and reports, for each CASE token, whether it opens a CASE
+// expression. A CASE opens one when the first token
 // after it that can end an operand at its own depth is WHEN: the scan skips
 // parenthesized groups and the CASE expressions that start after it, and
 // stops at WHEN, THEN, ELSE, END, ')', ',', ';', and the reserved words that
 // begin a clause. Deciding right to left with a jump table (stop) visits each
 // token a constant number of times.
-func decideCaseTokens(source string, start, end int, choices map[int]int) map[int]bool {
+func decideCaseTokens(source string, start, end int, choices map[int]int, facts *ccFact) map[int]bool {
 	lexer := NewLexerRange(source, start, end)
 	lexer.ccLenient = true
 	lexer.ccChoices = choices
+	lexer.ccFacts = facts
 	var toks []Token
 	for {
 		tok := lexer.NextToken()

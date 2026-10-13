@@ -59,11 +59,16 @@ type Lexer struct {
 	// ccDepth counts the conditional compilation $IF directives whose
 	// selected branch holds the tokens being returned (see NextToken), and
 	// ccLevels holds them, the innermost first. ccUndecided counts those
-	// selected by an undecided selection. Oracle 23ai sets no bound on the
-	// nesting: 5000 levels compile.
+	// whose selection depends on an undecided one. Oracle 23ai sets no
+	// bound on the nesting: 5000 levels compile.
 	ccDepth     int
 	ccLevels    *ccLevel
 	ccUndecided int
+
+	// ccFacts records what the selection so far made of the conditions the
+	// text does not settle, for a later $IF with the same condition to
+	// select alike (see ccFact).
+	ccFacts *ccFact
 
 	// ccChoices and ccDecisions let the parser try each branch selection a
 	// condition the text does not settle leaves open (see
@@ -147,49 +152,65 @@ func (r *ccRecord) noteBind(loc int) {
 
 // ccDecision is the selection the lexer made at an $IF one of whose
 // conditions the text does not settle: it passed over that many undecided
-// branches, and more says another selection could pass over one more. The
-// branch it selected, if any, is at nesting depth depth.
+// branches, and more says another selection could pass over one more.
 type ccDecision struct {
 	at     int
 	passed int
 	more   bool
-	depth  int
 }
 
 // noteDecision records the selection made at the $IF at offset at, once
 // whichever copy of the lexer makes it first.
 func (l *Lexer) noteDecision(at, passed int, more bool) {
 	if d := l.ccDecisions; d != nil && (len(*d) == 0 || at > (*d)[len(*d)-1].at) {
-		*d = append(*d, ccDecision{at: at, passed: passed, more: more, depth: l.ccDepth + 1})
+		*d = append(*d, ccDecision{at: at, passed: passed, more: more})
 	}
 }
 
-// openDecisions returns the offsets of the $IF directives whose undecided
-// selections hold the lexer's position, outermost first. Of the recorded
-// decisions, only those before offset before count: a copy of the lexer
-// that looked ahead may have recorded later ones.
-func (l *Lexer) openDecisions(before int) []int {
-	if l.ccDecisions == nil || l.ccUndecided == 0 {
+// openDecisions returns the offsets of the $IF directives whose decisions
+// the selections of the open levels depend on, the latest for each.
+func (l *Lexer) openDecisions() []int {
+	if l.ccUndecided == 0 {
 		return nil
 	}
-	decided := *l.ccDecisions
 	var open []int
-	depth := l.ccDepth
-	for level := l.ccLevels; level != nil; level, depth = level.outer, depth-1 {
-		if !level.undecided {
-			continue
+	for level := l.ccLevels; level != nil; level = level.outer {
+		if level.dep >= 0 {
+			open = append(open, level.dep)
 		}
-		for i := len(decided) - 1; i >= 0; i-- {
-			if d := decided[i]; d.depth == depth && d.at < before {
-				open = append(open, d.at)
-				break
-			}
-		}
-	}
-	for i, j := 0, len(open)-1; i < j; i, j = i+1, j-1 {
-		open[i], open[j] = open[j], open[i]
 	}
 	return open
+}
+
+// ccFact is what a selection made of a condition the text does not settle,
+// identified by its tokens: that it holds (is TRUE) or not, as decided at
+// the $IF at offset by. Oracle 23ai compiles a unit under one environment,
+// where a condition has one value: $IF $$x $THEN NULL; $ELSE garbage $END
+// $IF $$x $THEN garbage $ELSE NULL; $END fails whatever $$x is. Facts do
+// not change once made, so the lexer's copies share them.
+type ccFact struct {
+	cond  string
+	holds bool
+	by    int
+	next  *ccFact
+}
+
+// fact returns the fact about the condition cond, or nil.
+func (l *Lexer) fact(cond string) *ccFact {
+	for f := l.ccFacts; f != nil; f = f.next {
+		if f.cond == cond {
+			return f
+		}
+	}
+	return nil
+}
+
+// noteFact records that the condition cond holds or not, as decided at the
+// $IF at offset by.
+func (l *Lexer) noteFact(cond string, holds bool, by int) {
+	if cond != "" {
+		l.ccFacts = &ccFact{cond: cond, holds: holds, by: by, next: l.ccFacts}
+	}
 }
 
 // noteCondition records the condition of an evaluated $IF or $ELSIF.
@@ -328,19 +349,21 @@ func (l *Lexer) NextToken() Token {
 }
 
 // ccLevel is an open level of $IF: whether the branch it selected is an
-// $ELSE branch, and whether an undecided selection selected it. Levels do
-// not change once opened, so the lexer's copies share them.
+// $ELSE branch, and the offset of the $IF whose decision its selection
+// depends on, the latest of them, or -1 for none. Levels do not change once
+// opened, so the lexer's copies share them.
 type ccLevel struct {
-	isElse, undecided bool
-	outer             *ccLevel
+	isElse bool
+	dep    int
+	outer  *ccLevel
 }
 
 // openLevel opens a level of $IF around the branch it selected, an $ELSE
-// branch or not, by an undecided selection or not.
-func (l *Lexer) openLevel(isElse, undecided bool) bool {
-	l.ccLevels = &ccLevel{isElse: isElse, undecided: undecided, outer: l.ccLevels}
+// branch or not, depending on the decision at dep, or on none for -1.
+func (l *Lexer) openLevel(isElse bool, dep int) bool {
+	l.ccLevels = &ccLevel{isElse: isElse, dep: dep, outer: l.ccLevels}
 	l.ccDepth++
-	if undecided {
+	if dep >= 0 {
 		l.ccUndecided++
 	}
 	return true
@@ -348,7 +371,7 @@ func (l *Lexer) openLevel(isElse, undecided bool) bool {
 
 // closeLevel closes the innermost level of $IF.
 func (l *Lexer) closeLevel() {
-	if l.ccLevels.undecided {
+	if l.ccLevels.dep >= 0 {
 		l.ccUndecided--
 	}
 	l.ccLevels = l.ccLevels.outer
@@ -379,28 +402,43 @@ const (
 // none, the input resumes after the $END. A branch whose condition the
 // text does not settle is one Oracle may compile or pass over: the lexer
 // takes the first such branch past the number ccChoices names, and records
-// the decision for the parser to try the others. It reports false after
-// setting Err.
+// the decision for the parser to try the others; a condition the selection
+// already decided (ccFact) is decided alike. It reports false after setting
+// Err.
 func (l *Lexer) selectBranch(tok Token) bool {
 	at, pass := tok.Loc, l.ccChoices[tok.Loc]
 	undecided, passed := false, 0
+	// dep is the latest decision the selection depends on.
+	dep := -1
 	for {
-		value, ok := l.skipCondition(tok)
+		value, cond, ok := l.skipCondition(tok)
 		if !ok {
 			return false
+		}
+		if value == ccUnknown && cond != "" {
+			if f := l.fact(cond); f != nil {
+				value = ccFalse
+				if f.holds {
+					value = ccTrue
+				}
+				dep = max(dep, f.by)
+			}
 		}
 		switch value {
 		case ccTrue:
 			if undecided {
 				l.noteDecision(at, passed, false)
+				dep = at
 			}
-			return l.openLevel(false, undecided)
+			return l.openLevel(false, dep)
 		case ccUnknown:
 			undecided = true
 			if passed == pass {
 				l.noteDecision(at, passed, true)
-				return l.openLevel(false, true)
+				l.noteFact(cond, true, at)
+				return l.openLevel(false, at)
 			}
+			l.noteFact(cond, false, at)
 			passed++
 		}
 		end, ok := l.skipBranch(tok, ccInThen, true)
@@ -416,8 +454,9 @@ func (l *Lexer) selectBranch(tok Token) bool {
 		case "$ELSE":
 			if undecided {
 				l.noteDecision(at, passed, false)
+				dep = at
 			}
-			return l.openLevel(true, undecided)
+			return l.openLevel(true, dep)
 		}
 		tok = end // $ELSIF
 	}
@@ -425,22 +464,27 @@ func (l *Lexer) selectBranch(tok Token) bool {
 
 // skipCondition skips the condition after the $IF or $ELSIF at tok up to
 // its $THEN, recording it for the parser, and returns its value when the
-// text settles it (staticCondition). It reports false after setting Err.
-func (l *Lexer) skipCondition(tok Token) (ccValue, bool) {
+// text settles it (staticCondition), and its tokens, which identify it
+// among the conditions of a unit (ccFact). $$PLSQL_LINE differs from line
+// to line, so a condition that reads it has none. It reports false after
+// setting Err.
+func (l *Lexer) skipCondition(tok Token) (ccValue, string, bool) {
 	cond := nodes.Loc{Start: -1, End: -1}
 	tokens := 0
+	var key strings.Builder
+	keyed := true
 	for {
 		next := l.nextRaw()
 		switch {
 		case next.Type == tokEOF:
 			l.failDirective(tok, fmt.Sprintf("'%s' preprocessor directive does not end properly", tok.Str))
-			return ccUnknown, false
+			return ccUnknown, "", false
 		case next.Type == tokDIRECTIVE && next.Str == "$THEN":
 			if tokens == 0 {
 				// An empty condition is not a static boolean expression
 				// (PLS-00174).
 				l.failDirective(next, "a static boolean expression must be used")
-				return ccUnknown, false
+				return ccUnknown, "", false
 			}
 			l.cc.noteCondition(cond)
 			value, valid := staticCondition(l.input, cond)
@@ -449,21 +493,28 @@ func (l *Lexer) skipCondition(tok Token) (ccValue, bool) {
 				// Split lexes on past a condition that is no expression,
 				// as past any malformed directive.
 				l.failDirective(tok, "invalid preprocessor condition")
-				return ccUnknown, false
+				return ccUnknown, "", false
 			case !valid:
 				// Oracle 23ai reports the condition (PLS-00174, PLS-00382)
 				// before the branch it would select is parsed.
 				at := NewLexerRange(l.input, cond.Start, cond.End).nextRaw()
 				l.failDirective(at, "a static boolean expression must be used")
-				return ccUnknown, false
+				return ccUnknown, "", false
 			}
-			return value, true
+			if !keyed {
+				return value, "", true
+			}
+			return value, key.String(), true
 		case next.Type == tokDIRECTIVE:
 			l.failDirective(next, fmt.Sprintf("unexpected preprocessor token '%s'", next.Str))
-			return ccUnknown, false
+			return ccUnknown, "", false
 		case next.Type == tokBIND:
 			l.cc.noteBind(next.Loc)
 		}
+		if next.Type == tokINQUIRY && next.Str == "$$PLSQL_LINE" {
+			keyed = false
+		}
+		fmt.Fprintf(&key, "%d:%s ", next.Type, next.Str)
 		if tokens == 0 {
 			cond.Start = next.Loc
 		}

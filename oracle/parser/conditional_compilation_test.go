@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -677,11 +678,42 @@ func TestConditionalCompilationSelections(t *testing.T) {
 
 	// The selections tried are bounded: twenty undecided directives before
 	// an error fail at once.
-	many := "BEGIN " + strings.Repeat("$IF $$x $THEN NULL; $END ", 20) + "garbage garbage; END;"
+	var many strings.Builder
+	for i := range 20 {
+		fmt.Fprintf(&many, "$IF $$x%d $THEN NULL; $END ", i)
+	}
 	start := time.Now()
-	ParseShouldFail(t, many)
+	ParseShouldFail(t, "BEGIN "+many.String()+"garbage garbage; END;")
 	if elapsed := time.Since(start); elapsed > 2*time.Second {
 		t.Errorf("Parse through 20 undecided directives took %v", elapsed)
+	}
+
+	// The bound grows with the undecided directives: 200 groups whose
+	// first branches fail each take an attempt, and parse.
+	var groups strings.Builder
+	for i := range 200 {
+		fmt.Fprintf(&groups, "$IF $$x%d $THEN garbage garbage; $ELSE NULL; $END ", i)
+	}
+	start = time.Now()
+	ParseAndCheck(t, "BEGIN "+groups.String()+"END;")
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("Parse through 200 failing first branches took %v", elapsed)
+	}
+
+	// One environment gives a condition one value: a selection decides a
+	// repeated one once (Oracle 23ai rejects the first block under TRUE,
+	// FALSE, and no value of $$x), but $$PLSQL_LINE, which differs from
+	// line to line.
+	ParseShouldFail(t, "BEGIN $IF $$x $THEN NULL; $ELSE garbage garbage; $END $IF $$x $THEN garbage garbage; $ELSE NULL; $END END;")
+	ParseShouldFail(t, "BEGIN $IF $$x $THEN NULL; $END $IF $$x $THEN $ERROR 'e' $END $END END;")
+	for _, sql := range []string{
+		"BEGIN $IF $$x $THEN NULL; $ELSE garbage garbage; $END $IF $$y $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF $$x $THEN NULL; $ELSE NULL; $END $IF $$x $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF $$x $THEN NULL; $ELSE garbage garbage; $END $IF $$y $THEN NULL; $ELSIF $$x $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF $$x $THEN NULL; $END $IF $$x $THEN $ERROR 'e' $END $END NULL; END;",
+		"BEGIN $IF $$PLSQL_LINE = 1 $THEN NULL; $ELSE garbage garbage; $END\n$IF $$PLSQL_LINE = 1 $THEN garbage garbage; $ELSE NULL; $END END;",
+	} {
+		ParseAndCheck(t, sql)
 	}
 }
 
