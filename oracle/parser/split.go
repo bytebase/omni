@@ -67,8 +67,10 @@ func Split(sql string) []Segment {
 	var segments []Segment
 	state := splitState{}
 	// unitSegment is the segment of a PL/SQL unit that ended at its ';'.
-	// Directives right after it are the unit's: Oracle 23ai compiles
-	// BEGIN NULL; END; $IF TRUE $THEN $END as one block.
+	// Directives right after it are the unit's, to their $END with the
+	// code they select: Oracle 23ai compiles BEGIN NULL; END; $IF TRUE
+	// $THEN $END as one block, and rejects BEGIN NULL; END; $IF TRUE $THEN
+	// NULL; $END at NULL (PLS-00103).
 	unitSegment := -1
 
 	for {
@@ -77,6 +79,9 @@ func Split(sql string) []Segment {
 		lexer.ccStray = !state.inPLSQL && unitSegment < 0
 		tok := lexer.NextToken()
 		if unitSegment >= 0 {
+			for lexer.ccDepth > 0 && tok.Type != tokEOF && lexer.Err == nil {
+				tok = lexer.NextToken()
+			}
 			if end := lexer.ccSkipEnd; end > stmtStart && end <= tok.Loc {
 				seg := &segments[unitSegment]
 				seg.ByteEnd = end

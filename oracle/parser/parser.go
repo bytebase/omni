@@ -65,6 +65,12 @@ type Parser struct {
 	ccBind       int
 	ccAfterUnit  bool
 	ccAfterBlock bool
+
+	// ccDelimiters is set when the parentheses of the input balance under
+	// no single selection of conditional compilation branches the text
+	// settles, so each statement checks them under the selection it parses
+	// with.
+	ccDelimiters bool
 }
 
 // checkConditionalCompilation checks the conditional compilation of stmt,
@@ -164,13 +170,15 @@ func Parse(sql string) (*nodes.List, error) {
 // is an offset into source, so a caller that split a script can parse each
 // segment with absolute positions without copying or padding the text.
 func ParseRange(source string, start, end int) (*nodes.List, error) {
-	if err := validateBalancedDelimiters(source, start, end); err != nil {
+	undecided, err := validateBalancedDelimiters(source, start, end)
+	if err != nil {
 		return nil, err
 	}
 
 	p := &Parser{
-		lexer:  NewLexerRange(source, start, end),
-		source: source,
+		lexer:        NewLexerRange(source, start, end),
+		source:       source,
+		ccDelimiters: undecided,
 	}
 	p.lexer.cc = &ccRecord{}
 	p.lexer.ccDecisions = &[]ccDecision{}
@@ -237,6 +245,14 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 // for one statement.
 const ccMaxAttempts = 64
 
+// ccSelection is a branch selection for parseStmtSelections to try: the
+// choices to make, and the first decision it may vary for the selections
+// after it. The ones before are its ancestors' to vary.
+type ccSelection struct {
+	choices map[int]int
+	from    int
+}
+
 // parseStmtSelections parses the statement at the current token, with the
 // checks that follow it, under each selection of the conditional
 // compilation branches whose conditions the text does not settle, until
@@ -244,17 +260,35 @@ const ccMaxAttempts = 64
 // environment settles (the database version, PLSQL_CCFLAGS, package
 // constants), which may be any of them, so a unit fails only when every
 // selection does: $IF $$x $THEN garbage $ELSE NULL; $END parses, and
-// $IF $$x $THEN $ERROR 'a' $END $ELSE $ERROR 'b' $END $END fails. The
-// first selection takes each undecided $IF's first undecided branch; the
-// next ones pass over more of them, the last $IF met first. Of the
-// failures, the one that got furthest is reported.
+// $IF $$x $THEN $ERROR 'a' $END $ELSE $ERROR 'b' $END $END fails.
+//
+// The selections form a tree, searched depth first: the first takes each
+// undecided $IF's first undecided branch, and a failed one leads to those
+// that pass over one more branch of one of its decisions, keeping the
+// choices before it. Those whose selected branches hold the failure come
+// first, innermost first, then the others, the last decision first. Every
+// selection that keeps the decisions around an $ERROR meets it, so a
+// failure at one leads to none that do. Of the failures, the one that got
+// furthest is reported.
 func (p *Parser) parseStmtSelections(textStart, stmtLoc int) (nodes.StmtNode, error) {
 	snap := p.snapshot()
 	defer func() { p.lexer.ccChoices = nil }()
 	var failure error
 	furthest := -1
-	for attempt := 1; ; attempt++ {
+	pending := []ccSelection{{}}
+	for attempt := 0; len(pending) > 0 && attempt < ccMaxAttempts; attempt++ {
+		sel := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if attempt > 0 {
+			p.restore(snap)
+			p.lexer.ccChoices = sel.choices
+			// The CASE pre-scan read another selection.
+			p.caseKinds = nil
+		}
 		stmt, err := p.parseCheckedStmt(textStart, stmtLoc)
+		if err == nil && p.ccDelimiters {
+			err = checkSelectionDelimiters(p.source, stmtLoc, p.prev.End, sel.choices)
+		}
 		if err == nil {
 			return stmt, nil
 		}
@@ -265,13 +299,54 @@ func (p *Parser) parseStmtSelections(textStart, stmtLoc int) (nodes.StmtNode, er
 		case failure == nil:
 			failure = err
 		}
-		choices := nextSelection((*p.lexer.ccDecisions)[snap.decisions:])
-		if choices == nil || attempt == ccMaxAttempts {
-			return nil, failure
+		decided := (*p.lexer.ccDecisions)[snap.decisions:]
+		var open []int
+		if de, ok := p.lexer.Err.(*directiveError); ok && de.raised {
+			open = p.lexer.openDecisions(de.tok.Loc)
+			n := 0
+			if len(open) > 0 {
+				for n < len(decided) && decided[n].at <= open[len(open)-1] {
+					n++
+				}
+			}
+			decided = decided[:n]
+		} else {
+			open = p.lexer.openDecisions(p.lexer.pos)
 		}
-		p.restore(snap)
-		p.lexer.ccChoices = choices
+		pending = append(pending, nextSelections(decided, sel.from, open)...)
 	}
+	return nil, failure
+}
+
+// nextSelections returns the selections that follow a failed one whose
+// undecided $IF directives decided records in order, from the decision
+// from on: for each decision that can pass over one more undecided branch,
+// the selection that does, keeping the choices before it; those after it,
+// which the new choice may move or remove, start over. They come in the
+// reverse of the order to try them: the decisions at offsets open, whose
+// selected branches hold the failure, are tried first, the last of them
+// first, then the others, the last first.
+func nextSelections(decided []ccDecision, from int, open []int) []ccSelection {
+	isOpen := make(map[int]bool, len(open))
+	for _, at := range open {
+		isOpen[at] = true
+	}
+	var others, held []ccSelection
+	for i := from; i < len(decided); i++ {
+		if !decided[i].more {
+			continue
+		}
+		choices := map[int]int{decided[i].at: decided[i].passed + 1}
+		for _, d := range decided[:i] {
+			choices[d.at] = d.passed
+		}
+		if isOpen[decided[i].at] {
+			held = append(held, ccSelection{choices: choices, from: i})
+		} else {
+			others = append(others, ccSelection{choices: choices, from: i})
+		}
+	}
+	return append(others, held...)
 }
 
 // parseCheckedStmt parses one statement and checks it: its lexing, its
@@ -352,13 +427,32 @@ func (p *Parser) restore(s parseSnapshot) {
 	}
 }
 
-func validateBalancedDelimiters(sql string, start, end int) error {
-	// Under a selection of undecided branches the delimiters need not
-	// balance, as under another they may: the statement's own parse,
-	// which tries them all, settles it.
+// validateBalancedDelimiters checks that the parentheses of sql[start:end]
+// balance, under the first selection of conditional compilation branches.
+// Past a condition the text does not settle, they need balance under the
+// selection each statement parses with, which may be another: it reports
+// undecided, and parseStmtSelections checks each statement
+// (checkSelectionDelimiters).
+func validateBalancedDelimiters(sql string, start, end int) (undecided bool, err error) {
 	var decided []ccDecision
 	lexer := NewLexerRange(sql, start, end)
 	lexer.ccDecisions = &decided
+	err = scanDelimiters(lexer, sql, end, func() bool { return len(decided) == 0 })
+	return len(decided) > 0 || lexer.Err != nil, err
+}
+
+// checkSelectionDelimiters checks that the parentheses of the statement at
+// sql[start:end] balance under the selection choices names.
+func checkSelectionDelimiters(sql string, start, end int, choices map[int]int) error {
+	lexer := NewLexerRange(sql, start, end)
+	lexer.ccChoices = choices
+	return scanDelimiters(lexer, sql, end, func() bool { return true })
+}
+
+// scanDelimiters checks the parentheses of the tokens lexer returns up to
+// end, reporting an imbalance only while settled says the selection the
+// lexer reads is the one to check.
+func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) error {
 	depth := 0
 	var javaHead embeddedSourceHead
 	var prev1, prev2, prev3 Token
@@ -384,7 +478,7 @@ func validateBalancedDelimiters(sql string, start, end int) error {
 		case ';':
 			javaHead = embeddedSourceHead{}
 		case tokEOF:
-			if depth > 0 && len(decided) == 0 {
+			if depth > 0 && settled() {
 				return &ParseError{Message: "syntax error at end of input", Position: tok.Loc}
 			}
 			return nil
@@ -392,7 +486,7 @@ func validateBalancedDelimiters(sql string, start, end int) error {
 			depth++
 		case ')':
 			depth--
-			if depth < 0 && len(decided) == 0 {
+			if depth < 0 && settled() {
 				text := ")"
 				return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", text), Position: tok.Loc}
 			}

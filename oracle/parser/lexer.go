@@ -58,9 +58,10 @@ type Lexer struct {
 	// ccDepth counts the conditional compilation $IF directives whose
 	// selected branch holds the tokens being returned (see NextToken).
 	// Bit d-1 of ccElse says the branch selected at depth d is an $ELSE
-	// branch.
-	ccDepth int
-	ccElse  uint64
+	// branch, and of ccUndecided that its selection is undecided.
+	ccDepth     int
+	ccElse      uint64
+	ccUndecided uint64
 
 	// ccChoices and ccDecisions let the parser try each branch selection a
 	// condition the text does not settle leaves open (see
@@ -139,19 +140,45 @@ func (r *ccRecord) noteBind(loc int) {
 
 // ccDecision is the selection the lexer made at an $IF one of whose
 // conditions the text does not settle: it passed over that many undecided
-// branches, and more says another selection could pass over one more.
+// branches, and more says another selection could pass over one more. The
+// branch it selected, if any, is at nesting depth depth.
 type ccDecision struct {
 	at     int
 	passed int
 	more   bool
+	depth  int
 }
 
 // noteDecision records the selection made at the $IF at offset at, once
 // whichever copy of the lexer makes it first.
 func (l *Lexer) noteDecision(at, passed int, more bool) {
 	if d := l.ccDecisions; d != nil && (len(*d) == 0 || at > (*d)[len(*d)-1].at) {
-		*d = append(*d, ccDecision{at: at, passed: passed, more: more})
+		*d = append(*d, ccDecision{at: at, passed: passed, more: more, depth: l.ccDepth + 1})
 	}
+}
+
+// openDecisions returns the offsets of the $IF directives whose undecided
+// selections hold the lexer's position, outermost first. Of the recorded
+// decisions, only those before offset before count: a copy of the lexer
+// that looked ahead may have recorded later ones.
+func (l *Lexer) openDecisions(before int) []int {
+	if l.ccDecisions == nil || l.ccUndecided == 0 {
+		return nil
+	}
+	decided := *l.ccDecisions
+	var open []int
+	for depth := 1; depth <= l.ccDepth; depth++ {
+		if l.ccUndecided&(1<<uint(depth-1)) == 0 {
+			continue
+		}
+		for i := len(decided) - 1; i >= 0; i-- {
+			if d := decided[i]; d.depth == depth && d.at < before {
+				open = append(open, d.at)
+				break
+			}
+		}
+	}
+	return open
 }
 
 // noteCondition records the condition of an evaluated $IF or $ELSIF.
@@ -262,7 +289,9 @@ func (l *Lexer) NextToken() Token {
 			// An $ERROR in a selected branch fails it (PLS-00179); when the
 			// selection was undecided, the parser tries the others.
 			if !l.ccLenient {
-				return l.failDirective(tok, "$ERROR directive in a selected branch")
+				eof := l.failDirective(tok, "$ERROR directive in a selected branch")
+				l.Err.(*directiveError).raised = true
+				return eof
 			}
 			_, ok = l.skipBranch(tok, ccInError, false)
 		default: // $THEN
@@ -294,8 +323,8 @@ func (l *Lexer) ccLevelBit() uint64 {
 }
 
 // openLevel opens a level of $IF around the branch it selected, an $ELSE
-// branch or not.
-func (l *Lexer) openLevel(tok Token, isElse bool) bool {
+// branch or not, by an undecided selection or not.
+func (l *Lexer) openLevel(tok Token, isElse, undecided bool) bool {
 	if l.ccDepth == ccMaxDepth {
 		l.failDirective(tok, "preprocessor directives nested too deeply")
 		return false
@@ -303,8 +332,12 @@ func (l *Lexer) openLevel(tok Token, isElse bool) bool {
 	l.ccDepth++
 	bit := l.ccLevelBit()
 	l.ccElse &^= bit
+	l.ccUndecided &^= bit
 	if isElse {
 		l.ccElse |= bit
+	}
+	if undecided {
+		l.ccUndecided |= bit
 	}
 	return true
 }
@@ -312,6 +345,7 @@ func (l *Lexer) openLevel(tok Token, isElse bool) bool {
 // closeLevel closes the innermost level of $IF.
 func (l *Lexer) closeLevel() {
 	l.ccElse &^= l.ccLevelBit()
+	l.ccUndecided &^= l.ccLevelBit()
 	l.ccDepth--
 }
 
@@ -354,12 +388,12 @@ func (l *Lexer) selectBranch(tok Token) bool {
 			if undecided {
 				l.noteDecision(at, passed, false)
 			}
-			return l.openLevel(tok, false)
+			return l.openLevel(tok, false, undecided)
 		case ccUnknown:
 			undecided = true
 			if passed == pass {
 				l.noteDecision(at, passed, true)
-				return l.openLevel(tok, false)
+				return l.openLevel(tok, false, true)
 			}
 			passed++
 		}
@@ -377,7 +411,7 @@ func (l *Lexer) selectBranch(tok Token) bool {
 			if undecided {
 				l.noteDecision(at, passed, false)
 			}
-			return l.openLevel(end, true)
+			return l.openLevel(end, true, undecided)
 		}
 		tok = end // $ELSIF
 	}
@@ -492,10 +526,13 @@ func (l *Lexer) skipBranch(tok Token, state ccState, stopAtBranch bool) (Token, 
 }
 
 // directiveError is a lexical error at a token: a conditional compilation
-// error at a preprocessor token, or a literal past its limit.
+// error at a preprocessor token, or a literal past its limit. raised says
+// it is an $ERROR in a selected branch, which every selection of the
+// branches holding it meets.
 type directiveError struct {
-	msg string
-	tok Token
+	msg    string
+	tok    Token
+	raised bool
 }
 
 func (e *directiveError) Error() string { return e.msg }

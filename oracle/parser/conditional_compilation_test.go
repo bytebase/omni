@@ -478,6 +478,18 @@ SELECT 1 FROM dual;
 		t.Fatalf("Split = %q", got)
 	}
 	ParseAndCheck(t, got[0])
+	// To their $END, with the code they select, which Oracle 23ai then
+	// rejects (PLS-00103 at SELECT) unless another selection leaves none.
+	got = splitTexts(Split("BEGIN NULL; END; $IF TRUE $THEN SELECT 1 FROM dual; $END\nSELECT 2 FROM dual;"))
+	if len(got) != 2 || got[0] != "BEGIN NULL; END; $IF TRUE $THEN SELECT 1 FROM dual; $END" {
+		t.Fatalf("Split = %q", got)
+	}
+	ParseShouldFail(t, got[0])
+	got = splitTexts(Split("BEGIN NULL; END; $IF $$x $THEN SELECT 1 FROM dual; $ELSE $IF $$y $THEN NULL; $END $END SELECT 2 FROM dual;"))
+	if len(got) != 2 || !strings.HasSuffix(got[0], "$END $END") || strings.TrimSpace(got[1]) != "SELECT 2 FROM dual" {
+		t.Fatalf("Split = %q", got)
+	}
+	ParseAndCheck(t, got[0])
 
 	// A malformed directive ends no statement early: Split lexes on past it,
 	// past one whose condition is no expression too.
@@ -624,6 +636,25 @@ func TestConditionalCompilationSelections(t *testing.T) {
 	if !errors.As(err, &pe) || !strings.HasPrefix(sql[pe.Position:], "$END END") && !strings.HasPrefix(sql[pe.Position:], "END;") {
 		t.Errorf("Parse(%q) = %v, want the $ELSE branch's error", sql, err)
 	}
+
+	// The parentheses balance under the selection that parses: one open
+	// outside every branch fails under all of them (PLS-00103 on Oracle
+	// 23ai).
+	ParseShouldFail(t, "DECLARE x NUMBER; BEGIN $IF $$x $THEN NULL; $END x := (1; END;")
+	ParseShouldFail(t, "DECLARE x NUMBER; BEGIN $IF $$x $THEN NULL; $END x := 1); END;")
+
+	// The $IF whose branch holds the failure varies first, so a selection
+	// past the first 64 in order is found: here the outer $ELSE, after the
+	// 64 selections of six inner $IF directives. An $ERROR is met under
+	// every selection that keeps the branches around it.
+	six := strings.Repeat("$IF $$i $THEN NULL; $END ", 6)
+	ParseAndCheck(t, "BEGIN $IF $$o $THEN "+six+"$ERROR 'e' $END $ELSE NULL; $END END;")
+	ParseAndCheck(t, "BEGIN $IF $$o $THEN "+six+"garbage garbage; $ELSE NULL; $END END;")
+	ParseShouldFail(t, "BEGIN $IF $$o $THEN "+six+"$ERROR 'e' $END $ELSE "+six+"$ERROR 'f' $END $END END;")
+
+	// The CASE pre-scan reads the selection being parsed, where a column
+	// may be named CASE (Oracle 23ai compiles this block).
+	ParseAndCheck(t, "DECLARE x NUMBER; BEGIN x := CASE WHEN 1=1 THEN 1 END; $IF $$flag $THEN $ERROR 'bad' $END $ELSE SELECT case + 1 INTO x FROM t; $END END;")
 
 	// A string literal holds 32767 bytes, in code a directive skips too
 	// (PLS-00172, ORA-01704), and a static concatenation as many (PLS-00174).
