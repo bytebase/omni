@@ -35,6 +35,12 @@ func regularIdent(name string) bool {
 	return true
 }
 
+// sameQualifiers reports whether two references write the same server and
+// database, or both none.
+func sameQualifiers(a, b *ast.TableRef) bool {
+	return sameName(a.Server, b.Server) && sameName(a.Database, b.Database)
+}
+
 // object writes a table reference as written: its server, database, and
 // schema when the statement names them, and its name.
 func object(ref *ast.TableRef) string {

@@ -13,7 +13,8 @@ import (
 // The NULL may sit on either side. Only a comparison the predicate reads
 // as its condition counts: the predicate itself, or an operand of AND,
 // OR, or NOT in it, parenthesized or not. While the change has set
-// ANSI_NULLS OFF, under which = NULL matches a null, nothing is judged.
+// ANSI_NULLS OFF, under which = NULL matches a null, or may have, nothing
+// is judged, and neither is a statement that sets it within.
 func checkRequireIsNull(sql string, s *statement, ansiNullsOff bool, r *reporter) {
 	if ansiNullsOff {
 		return
@@ -54,6 +55,42 @@ func checkRequireIsNull(sql string, s *statement, ansiNullsOff bool, r *reporter
 	for _, p := range predicates(s.node) {
 		visit(p)
 	}
+}
+
+// ansiNullsSets returns the ANSI_NULLS settings a top-level statement
+// makes, in the order they run: the statement itself, or the statements
+// of a BEGIN ... END block, which run in order. conditional is true when a
+// SET sits where it may or may not run, under IF, WHILE, or TRY; then the
+// setting after the statement is not known. A routine body runs under the
+// setting of its creation, so a SET in it does not count.
+func ansiNullsSets(n ast.Node) (sets []bool, conditional bool) {
+	if set, ok := ansiNullsSet(n); ok {
+		return []bool{set}, false
+	}
+	switch v := n.(type) {
+	case *ast.BeginEndStmt:
+		if v.Stmts != nil {
+			for _, item := range v.Stmts.Items {
+				s, c := ansiNullsSets(item)
+				sets = append(sets, s...)
+				conditional = conditional || c
+			}
+		}
+		return sets, conditional
+	case *ast.CreateProcedureStmt, *ast.CreateFunctionStmt, *ast.CreateTriggerStmt:
+		return nil, false
+	}
+	ast.Inspect(n, func(m ast.Node) bool {
+		switch m.(type) {
+		case *ast.CreateProcedureStmt, *ast.CreateFunctionStmt, *ast.CreateTriggerStmt:
+			return false
+		}
+		if _, ok := ansiNullsSet(m); ok {
+			conditional = true
+		}
+		return !conditional
+	})
+	return nil, conditional
 }
 
 // ansiNullsSet returns the ANSI_NULLS setting a statement makes: SET

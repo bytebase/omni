@@ -75,11 +75,15 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 			return nil, err
 		}
 		s := &stmts[i]
-		if set, ok := ansiNullsSet(s.node); ok {
-			ansiNullsOff = !set
-		}
+		sets, conditional := ansiNullsSets(s.node)
 		if on[review.RequireIsNull] {
-			checkRequireIsNull(sql, s, ansiNullsOff, r)
+			checkRequireIsNull(sql, s, ansiNullsOff || len(sets) > 0 || conditional, r)
+		}
+		switch {
+		case conditional:
+			ansiNullsOff = true
+		case len(sets) > 0:
+			ansiNullsOff = !sets[len(sets)-1]
 		}
 		if on[review.RequireWhere] {
 			checkRequireWhere(s, r)

@@ -74,6 +74,11 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 			open = append(open, droppedConstraint{s.index, pos, a.Loc, v, a.Constraint.Name, nested})
 			return
 		}
+		// A name with a database or server the definition did not write,
+		// or without one it wrote, may mean another database's table.
+		if !sameQualifiers(d.table, v.Name) {
+			return
+		}
 		reportDrop(stmts, pos, s, a.Loc, v, d.kind, a.Constraint.Name, nested, on, r)
 	}
 	// visit reads a statement, or an element of a CREATE SCHEMA, which runs
@@ -230,45 +235,47 @@ func addsPrimaryKey(v *ast.AlterTableStmt) bool {
 }
 
 // settledAfter reports whether a statement after the given position may
-// give the table a primary key, drop it or its database, rename it, or
-// create a table of its name: then the rule does not follow it further.
+// give the table a primary key, drop it or its database, rename it, create
+// a table of its name, or roll the change back: then the rule does not
+// follow it further. A statement is read whole, a block or a routine body
+// included, since what may settle the table is enough.
 func settledAfter(stmts []statement, pos int, ref *ast.TableRef) bool {
-	for i := pos + 1; i < len(stmts); i++ {
-		switch v := stmts[i].node.(type) {
-		case *ast.AlterTableStmt:
-			if sameObject(v.Name, ref) && addsPrimaryKey(v) {
-				return true
-			}
-		case *ast.CreateTableStmt:
-			if sameObject(v.Name, ref) {
-				return true
-			}
-		case *ast.DropStmt:
-			if v.Names == nil {
-				continue
-			}
-			for _, item := range v.Names.Items {
-				t, ok := item.(*ast.TableRef)
-				switch {
-				case !ok:
-				case v.ObjectType == ast.DropTable && sameObject(t, ref):
-					return true
-				// A table without a database may be in the one dropped.
-				case v.ObjectType == ast.DropDatabase && (ref.Database == "" || sameName(ref.Database, t.Object)):
-					return true
+	settled := false
+	for i := pos + 1; i < len(stmts) && !settled; i++ {
+		ast.Inspect(stmts[i].node, func(n ast.Node) bool {
+			switch v := n.(type) {
+			case *ast.AlterTableStmt:
+				settled = settled || sameObject(v.Name, ref) && addsPrimaryKey(v)
+			case *ast.CreateTableStmt:
+				settled = settled || sameObject(v.Name, ref)
+			case *ast.DropStmt:
+				if v.Names == nil {
+					break
 				}
-			}
-		case *ast.RenameStmt:
-			if v.ColumnName == "" && sameObject(v.Name, ref) {
-				return true
-			}
-		case *ast.ExecStmt:
-			if name, _, _, ok := spRename(v); ok {
-				if t := parseObjectName(name); t != nil && sameObject(t, ref) {
-					return true
+				for _, item := range v.Names.Items {
+					t, ok := item.(*ast.TableRef)
+					switch {
+					case !ok:
+					case v.ObjectType == ast.DropTable && sameObject(t, ref):
+						settled = true
+					// A table without a database may be in the one dropped.
+					case v.ObjectType == ast.DropDatabase && (ref.Database == "" || sameName(ref.Database, t.Object)):
+						settled = true
+					}
 				}
+			case *ast.RenameStmt:
+				settled = settled || v.ColumnName == "" && sameObject(v.Name, ref)
+			case *ast.ExecStmt:
+				if name, _, _, ok := spRename(v); ok {
+					if t := parseObjectName(name); t != nil && sameObject(t, ref) {
+						settled = true
+					}
+				}
+			case *ast.RollbackTransStmt:
+				settled = true
 			}
-		}
+			return !settled
+		})
 	}
-	return false
+	return settled
 }
