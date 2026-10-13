@@ -301,40 +301,89 @@ func (p *Parser) checkPLSQLTypeMods(tn *nodes.TypeName) error {
 
 // checkVarrayLimit checks the size limit of a VARRAY, which may be any
 // expression (Oracle 23ai compiles VARRAY(1+1) and VARRAY(c)). A numeric
-// literal, rounded half away from zero, is positive (PLS-00537 for 0.4)
-// and a PLS_INTEGER (PLS-00325 for 2147483647.5 and 1e10).
+// literal comes out as varrayLimit computes it, a positive integer
+// (PLS-00537 for 0.4) and a PLS_INTEGER (PLS-00325 for 2147483647.5 and
+// 1e10, PLS-00569 for 1e200).
 func (p *Parser) checkVarrayLimit(limit nodes.ExprNode) error {
 	expr, negative := limit, false
 	if u, ok := expr.(*nodes.UnaryExpr); ok && (u.Op == "-" || u.Op == "+") {
 		expr, negative = u.Operand, u.Op == "-"
 	}
 	lit, ok := expr.(*nodes.NumberLiteral)
-	if !ok || len(lit.Val) > 100 {
-		return nil
-	}
-	// An exponent past any bound is checked before math/big builds the
-	// value: a limit of 1e1000000000 is PLS-00569, of 1e-1000000000
-	// PLS-00537.
-	if i := strings.IndexAny(lit.Val, "eE"); i >= 0 {
-		exp, err := strconv.Atoi(lit.Val[i+1:])
-		if err != nil || exp > 100 || exp < -100 {
-			return p.syntaxErrorAtNode(limit)
-		}
-	}
-	v, ok := new(big.Rat).SetString(lit.Val)
 	if !ok {
 		return nil
 	}
-	// Half away from zero: the whole part of |v| + 1/2.
-	half := new(big.Rat).Add(v, big.NewRat(1, 2))
-	n := new(big.Int).Quo(half.Num(), half.Denom())
-	if negative && n.Sign() != 0 {
-		return p.syntaxErrorAtNode(limit)
-	}
-	if n.Sign() <= 0 || n.Cmp(big.NewInt(1<<31-1)) > 0 {
+	n, ok := varrayLimit(lit.Val)
+	if ok && (negative || n < 1 || n > math.MaxInt32) {
 		return p.syntaxErrorAtNode(limit)
 	}
 	return nil
+}
+
+// varrayLimit returns the integer Oracle 23ai makes of the numeric literal
+// val as a VARRAY limit: val rounded to a NUMBER, 20 base-100 digits half
+// away from zero, then to an integer, half away from zero. So
+// 2147483647.4 followed by 29 nines and a 5 comes out as 2147483648, and
+// 0.4 followed by 46 nines as 1. A value of 1e10 or more comes out as
+// 1e10, and one below 0.1 as 0, which is all a range check needs. ok is
+// false for a BINARY_FLOAT or BINARY_DOUBLE literal (5d, 0.4f), which is
+// left to the engine.
+func varrayLimit(val string) (n int64, ok bool) {
+	if val == "" || strings.ContainsAny(val[len(val)-1:], "fFdD") {
+		return 0, false
+	}
+	mant, exp := val, 0
+	if i := strings.IndexAny(val, "eE"); i >= 0 {
+		mant = val[:i]
+		e, err := strconv.Atoi(val[i+1:])
+		if err != nil {
+			// An exponent past int: past any bound either way.
+			e = 1 << 40
+			if strings.HasPrefix(val[i+1:], "-") {
+				e = -e
+			}
+		}
+		exp = max(min(e, 1<<40), -1<<40)
+	}
+	whole, frac, _ := strings.Cut(mant, ".")
+	digits := strings.TrimLeft(whole+frac, "0")
+	if digits == "" {
+		return 0, true
+	}
+	// The value is digits × 10^exp, its leading digit at 10^top.
+	exp -= len(frac)
+	top := len(digits) - 1 + exp
+	switch {
+	case top >= 10:
+		return 1e10, true
+	case top < -1:
+		return 0, true
+	}
+	// A NUMBER's base-100 digits are aligned on even powers of ten: the
+	// leading one holds 10^lead and the 20th 10^(lead-38).
+	lead := top
+	if lead < 0 {
+		lead--
+	}
+	lead = lead / 2 * 2
+	m, ok := new(big.Int).SetString(digits, 10)
+	if !ok {
+		return 0, false
+	}
+	if keep := top - (lead - 38) + 1; len(digits) > keep {
+		m.SetString(digits[:keep], 10)
+		if digits[keep] >= '5' {
+			m.Add(m, big.NewInt(1))
+		}
+		exp = lead - 38
+	}
+	ten := big.NewInt(10)
+	if exp >= 0 {
+		return m.Mul(m, new(big.Int).Exp(ten, big.NewInt(int64(exp)), nil)).Int64(), true
+	}
+	q := new(big.Int).Exp(ten, big.NewInt(int64(-exp)), nil)
+	m.Add(m, new(big.Int).Rsh(q, 1))
+	return m.Quo(m, q).Int64(), true
 }
 
 // literalInteger returns the value of an integer literal, possibly signed;

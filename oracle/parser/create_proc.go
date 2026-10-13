@@ -542,14 +542,14 @@ func (p *Parser) notResultCacheable(tn *nodes.TypeName) bool {
 
 // mayBeCharacterType reports whether tn may hold character data: it is not a
 // predefined non-character type (the national character types count as
-// character types) and not a %ROWTYPE record. A SQL macro returns such a
+// character types), a REF, or a %ROWTYPE record. A SQL macro returns such a
 // type (PLS-00776), and item%CHARSET takes its character set from one
 // (PLS-00550). A name the text does not settle is left to the engine.
 func (p *Parser) mayBeCharacterType(tn *nodes.TypeName) bool {
 	if tn == nil {
 		return true
 	}
-	if tn.IsPercRowtype {
+	if tn.IsPercRowtype || tn.IsRef {
 		return false
 	}
 	switch lead := p.predefinedTypeLead(tn); lead {

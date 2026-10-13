@@ -2,6 +2,7 @@ package parser
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/oracle/ast"
@@ -336,6 +337,60 @@ func TestANSIDatatypes(t *testing.T) {
 	// (PLS-00569, PLS-00537).
 	ParseShouldFail(t, "CREATE TYPE t AS VARRAY(1e1000000000) OF NUMBER")
 	ParseShouldFail(t, "CREATE TYPE t AS VARRAY(1e-1000000000) OF NUMBER")
+	// A literal limit of any length is a NUMBER first, 20 base-100 digits
+	// rounded half away from zero, and then an integer (Oracle 23ai).
+	nines := func(n int) string { return strings.Repeat("9", n) }
+	zeros := strings.Repeat("0", 100)
+	for _, limit := range []string{
+		zeros + "5", "0." + zeros + "5e101", nines(101) + "e-100", "2147483647.4" + nines(28) + "5",
+		"0.4" + nines(46), "5d", "0.4f",
+	} {
+		ParseAndCheck(t, "CREATE TYPE t AS VARRAY("+limit+") OF NUMBER")
+	}
+	for _, limit := range []string{
+		nines(101), "1e200", "1e-200", "0.0" + zeros + "1e200", "2147483647.4" + nines(29) + "5",
+		"2147483647.4" + nines(46), "0.4" + nines(38) + "5", "0.04" + nines(39) + "5",
+	} {
+		ParseShouldFail(t, "CREATE TYPE t AS VARRAY("+limit+") OF NUMBER")
+	}
+	ParseShouldFail(t, "DECLARE TYPE a IS VARRAY("+nines(101)+") OF NUMBER; BEGIN NULL; END;")
+	// An explicit SELF is the first parameter (PLS-00410, as a duplicate of
+	// the implicit one) and is not OUT (PLS-00594), in CREATE and ALTER TYPE
+	// alike; DROP finds no method to match one (PLS-00717). A quoted "self"
+	// is another name.
+	for _, methods := range []string{
+		"MEMBER FUNCTION f (x NUMBER, SELF IN t) RETURN NUMBER",
+		`MEMBER FUNCTION f (x NUMBER, "SELF" t) RETURN NUMBER`,
+		"MEMBER PROCEDURE p (x NUMBER, SELF IN OUT t)",
+		"CONSTRUCTOR FUNCTION t (a NUMBER, SELF IN OUT t) RETURN SELF AS RESULT",
+		"MEMBER FUNCTION f (SELF OUT t) RETURN NUMBER",
+		"MEMBER FUNCTION f (SELF OUT NOCOPY t) RETURN NUMBER",
+		`MEMBER FUNCTION f ("SELF" OUT t) RETURN NUMBER`,
+		"MEMBER PROCEDURE p (SELF OUT t)",
+		"MAP MEMBER FUNCTION f (SELF OUT t) RETURN NUMBER",
+	} {
+		ParseShouldFail(t, "CREATE TYPE t AS OBJECT (a NUMBER, "+methods+")")
+		ParseShouldFail(t, "ALTER TYPE t ADD "+methods+" CASCADE")
+		ParseShouldFail(t, "ALTER TYPE t DROP "+methods+" CASCADE")
+	}
+	for _, methods := range []string{
+		"MEMBER FUNCTION f (SELF IN OUT NOCOPY t) RETURN NUMBER",
+		"MEMBER FUNCTION f (SELF t, y NUMBER) RETURN NUMBER",
+		`MEMBER FUNCTION f (x NUMBER, "self" t) RETURN NUMBER`,
+	} {
+		ParseAndCheck(t, "CREATE TYPE t AS OBJECT (a NUMBER, "+methods+")")
+		ParseAndCheck(t, "ALTER TYPE t ADD "+methods+" CASCADE")
+	}
+	ParseShouldFail(t, "ALTER TYPE t ADD CONSTRUCTOR FUNCTION t (SELF IN t, b NUMBER) RETURN SELF AS RESULT CASCADE")
+	ParseShouldFail(t, "ALTER TYPE t ADD STATIC FUNCTION s (b NUMBER, SELF IN t) RETURN NUMBER CASCADE")
+	ParseAndCheck(t, "ALTER TYPE t ADD CONSTRUCTOR FUNCTION t (SELF IN OUT t, b NUMBER) RETURN SELF AS RESULT CASCADE")
+	// A REF holds no character data: a SQL macro does not return one
+	// (PLS-00220 on Oracle 23ai, which compiles the function without
+	// SQL_MACRO), and %CHARSET takes no character set from one (PLS-00550).
+	ParseAndCheck(t, "CREATE FUNCTION f RETURN REF t IS BEGIN RETURN NULL; END;")
+	ParseShouldFail(t, "CREATE FUNCTION f RETURN REF t SQL_MACRO IS BEGIN RETURN NULL; END;")
+	ParseShouldFail(t, "CREATE PROCEDURE p (x REF t, y VARCHAR2 CHARACTER SET x%CHARSET) IS BEGIN NULL; END;")
+	ParseShouldFail(t, "DECLARE x REF t; y VARCHAR2(10) CHARACTER SET x%CHARSET; BEGIN NULL; END;")
 	// ALTER TABLE ADD lists check their REF constraints against their own
 	// columns (ORA-22893, ORA-22888).
 	ParseShouldFail(t, "ALTER TABLE r ADD (n NUMBER, SCOPE FOR (n) IS o)")

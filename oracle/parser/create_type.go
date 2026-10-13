@@ -913,10 +913,9 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 	if stmt.Under == nil && hasModifier(member.Modifiers, "OVERRIDING") {
 		return p.syntaxErrorAtTok(tok)
 	}
-	// A static method takes no SELF (PLS-00586), and another method's SELF
-	// is of the type, no predefined datatype (PLS-00382 for SELF IN
-	// NUMBER).
-	if member.Kind == nodes.TYPE_BODY_STATIC && declaresSelf(member.Subprog) {
+	// A method's SELF is where and as Oracle takes it, and of the type, no
+	// predefined datatype (PLS-00382 for SELF IN NUMBER).
+	if selfParameterInvalid(member.Kind == nodes.TYPE_BODY_STATIC, member.Kind == nodes.TYPE_BODY_CONSTRUCTOR, subprogramParameters(member.Subprog)) {
 		return p.syntaxErrorAtTok(tok)
 	}
 	if params := subprogramParameters(member.Subprog); len(params) > 0 && params[0].Name == "SELF" && p.predefinedDatatype(params[0].TypeName) {
@@ -926,11 +925,6 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 	switch member.Kind {
 	case nodes.TYPE_BODY_CONSTRUCTOR:
 		if isFunction && stmt.Name != nil && fn.Name.Name != stmt.Name.Name {
-			return p.syntaxErrorAtTok(tok)
-		}
-		// A constructor's SELF is IN OUT (PLS-00660).
-		if params := listParameters(fn.Parameters); isFunction && len(params) > 0 && params[0].Name == "SELF" &&
-			strings.TrimSpace(strings.ReplaceAll(params[0].Mode, "NOCOPY", "")) != "IN OUT" {
 			return p.syntaxErrorAtTok(tok)
 		}
 	case nodes.TYPE_BODY_MAP, nodes.TYPE_BODY_ORDER:
@@ -952,11 +946,18 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 	return nil
 }
 
-// declaresSelf reports whether a method's subprogram declares a parameter
-// named SELF.
-func declaresSelf(subprog nodes.Node) bool {
-	for _, param := range subprogramParameters(subprog) {
-		if param.Name == "SELF" {
+// selfParameterInvalid reports whether a method's parameters declare SELF
+// where or as Oracle 23ai rejects it: in a static method (PLS-00586), after
+// the first parameter, where it duplicates the implicit SELF (PLS-00410),
+// in OUT mode (PLS-00594), or in a constructor in any mode but IN OUT
+// (PLS-00660).
+func selfParameterInvalid(static, constructor bool, params []*nodes.Parameter) bool {
+	for i, param := range params {
+		if param.Name != "SELF" {
+			continue
+		}
+		mode := strings.TrimSpace(strings.ReplaceAll(param.Mode, "NOCOPY", ""))
+		if static || i > 0 || mode == "OUT" || constructor && mode != "IN OUT" {
 			return true
 		}
 	}
