@@ -25,6 +25,9 @@ CREATE TABLE public.pt (id int) PARTITION BY RANGE (id);
 CREATE TABLE public.pt1 PARTITION OF public.pt FOR VALUES FROM (0) TO (10);
 INSERT INTO public.pt VALUES (1);
 DO $$ BEGIN CREATE ROLE prior_backup_old SUPERUSER; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE ROLE prior_backup_bob; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+CREATE SCHEMA prior_backup_bob AUTHORIZATION prior_backup_bob;
+CREATE TABLE prior_backup_bob.t (id int);
 CREATE FUNCTION public.old(int) RETURNS bool LANGUAGE sql AS 'SELECT true';
 INSERT INTO p VALUES (1), (2);
 INSERT INTO t (id, p_id, n) VALUES (1, 1, 1), (2, 2, 2);
@@ -125,6 +128,15 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a table the change renames away and back", "ALTER TABLE s.t RENAME TO t_old;\nALTER TABLE s.t_old RENAME TO t;\nUPDATE s.t SET id = 1 WHERE id = 1;", true},
 		{"a table the change drops earlier on the path", "SET search_path = s, public;\nDROP TABLE s.t;\nUPDATE t SET n = 1 WHERE id = 2;", true},
 		{"a temporary table the change creates", "CREATE TEMP TABLE t (id int);\nUPDATE t SET id = 1 WHERE id = 2;", true},
+		{"a table SET SESSION AUTHORIZATION finds under $user", "SET SESSION AUTHORIZATION prior_backup_bob;\nUPDATE t SET id = 1 WHERE id = 2;", true},
+		{"a table SET ROLE finds under $user after RESET ALL", "SET search_path = \"$user\", public;\nSET ROLE prior_backup_bob;\nRESET ALL;\nUPDATE t SET id = 1 WHERE id = 2;", true},
+		{"a table a schema rename takes off the path", "SET search_path = s, public;\nALTER SCHEMA s RENAME TO old_s;\nUPDATE t SET n = 1 WHERE id = 2;", true},
+		{"a table a schema rename gives a name", "ALTER SCHEMA s RENAME TO old_s;\nUPDATE old_s.t SET id = 1 WHERE id = 3;", true},
+		{"a column a nested WITH query of a copied one reads", "ALTER TABLE p ADD COLUMN gone int;\nWITH x AS (WITH y AS (SELECT p.gone FROM p) SELECT gone FROM y) DELETE FROM t WHERE id IN (SELECT gone FROM x);", true},
+		{"a column an outer source has, which a subquery's alias leaves visible", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p WHERE EXISTS (SELECT p.gone FROM p AS x);", true},
+		{"a column an aliased join hides", "ALTER TABLE nokey ADD COLUMN id bool;\nDELETE FROM nokey USING (p JOIN t ON p.id = t.p_id) AS j(c1, c2, c3, c4, c5) WHERE id;", true},
+		{"a column a copied WITH query's WINDOW clause reads", "ALTER TABLE p ADD COLUMN gone int;\nWITH x AS (SELECT id, row_number() OVER w FROM p WINDOW w AS (ORDER BY gone)) DELETE FROM t WHERE EXISTS (SELECT 1 FROM x);", true},
+		{"a column beside a function's column definition list", "ALTER TABLE nokey ADD COLUMN b bool;\nDELETE FROM nokey USING json_to_record('{\"x\":1}') AS g(x int) WHERE b;", true},
 		// DROP ... CASCADE may drop relations it does not name: what the
 		// path finds after it is not judged.
 		{"a table after DROP ... CASCADE", "SET search_path = s, public;\nDROP TABLE s.t CASCADE;\nUPDATE t SET n = 1 WHERE id = 2;", false},
