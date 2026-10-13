@@ -514,8 +514,9 @@ func (p *Parser) parseQueryTail(sel *nodes.SelectStmt) error {
 		p.advance()
 	}
 	// A query follows the operator (ORA-00928 on Oracle 23ai for UNION ),
-	// UNION (1), or UNION at the end).
-	if !p.atQuery() {
+	// UNION (1), or UNION at the end), without a WITH clause of its own
+	// (ORA-32034 for UNION WITH w AS (...) SELECT ...).
+	if p.cur.Type == kwWITH || !p.atQuery() {
 		return p.syntaxErrorAtCur()
 	}
 	var err error

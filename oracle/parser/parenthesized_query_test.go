@@ -9,8 +9,8 @@ import (
 // TestParenthesizedQueries checks queries whose operands are parenthesized
 // subqueries, and the EXCEPT and ALL set operators, against Oracle 23ai:
 // every accepted form parses there, and every rejected one fails with the
-// error noted beside it. Rows ref_225 to ref_236, ref_251 to ref_252, and
-// ref_257 run them against the engine.
+// error noted beside it. Rows ref_225 to ref_236, ref_251 to ref_252,
+// ref_257, and ref_260 run them against the engine.
 func TestParenthesizedQueries(t *testing.T) {
 	for _, sql := range []string{
 		// A statement, a set operand, and what may follow the parentheses.
@@ -92,6 +92,9 @@ func TestParenthesizedQueries(t *testing.T) {
 		"(WITH w AS (SELECT 1 a FROM dual) SELECT a FROM w)",
 		"(WITH w AS (SELECT 1 a FROM dual) SELECT a FROM w) UNION SELECT 1 FROM dual",
 		"SELECT 1 FROM dual UNION (WITH w AS (SELECT 1 a FROM dual) SELECT a FROM w)",
+		"SELECT 1 FROM dual UNION WITH w AS (SELECT 2 x FROM dual) SELECT x FROM w",
+		"SELECT 1 FROM dual MINUS ALL WITH w AS (SELECT 2 x FROM dual) SELECT x FROM w",
+		"SELECT 1 FROM dual EXCEPT WITH w AS (SELECT 2 x FROM dual) SELECT x FROM w",
 		"INSERT INTO t (a) (WITH w AS (SELECT 1 a FROM dual) SELECT a FROM w)",
 		// No set operator follows ORDER BY, FOR UPDATE, OFFSET, or FETCH
 		// (ORA-03048).

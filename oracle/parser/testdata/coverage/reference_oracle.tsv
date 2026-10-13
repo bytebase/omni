@@ -202,3 +202,4 @@ ref_236	ddl	reject	CREATE TABLE omni_bad_ctas_{run} AS (SELECT 1 a FROM dual ORD
 ref_251	select	accept	SELECT x.a FROM (((SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual))) x	alias after redundant inline-view parentheses
 ref_252	select	reject	(SELECT 1 FROM dual EXCEPT)	set operator without a right operand (ORA-00928)
 ref_257	select	reject	(SELECT *) UNION SELECT 1 FROM dual	parenthesized operand selecting * without FROM (ORA-54058)
+ref_260	select	reject	SELECT 1 FROM dual MINUS ALL WITH w AS (SELECT 2 x FROM dual) SELECT x FROM w	WITH clause on a set operation branch (ORA-32034)
