@@ -164,6 +164,38 @@ func rangeOf(loc ast.Loc) review.Range {
 	return review.Range{Start: loc.Start, End: loc.End}
 }
 
+// oneLine writes source text on one line: whitespace between tokens
+// becomes one space, and text inside quotes or brackets is kept as
+// written, with a line break escaped.
+func oneLine(text string) string {
+	var b strings.Builder
+	var quote byte
+	space := false
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		switch {
+		case quote != 0:
+			if c == quote {
+				quote = 0
+			}
+		case c == '\'' || c == '"' || c == '[':
+			quote = c
+			if c == '[' {
+				quote = ']'
+			}
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f':
+			space = true
+			continue
+		}
+		if space && b.Len() > 0 {
+			b.WriteByte(' ')
+		}
+		space = false
+		b.WriteByte(c)
+	}
+	return escapeLines(b.String())
+}
+
 // escapeLines keeps a message on one line: a line break inside quoted text
 // would otherwise split the comment that carries it.
 func escapeLines(s string) string {

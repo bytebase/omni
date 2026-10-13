@@ -195,6 +195,11 @@ func TestRequireIsNull(t *testing.T) {
 				{0, "p.note <> NULL", `"p.note <> NULL" is never true; use IS NOT NULL`, []int{0}},
 			},
 		},
+		{
+			name: "quoted text kept as written",
+			sql:  "SELECT * FROM t WHERE [a  b] = NULL;",
+			want: []finding{{0, "[a  b] = NULL", "\"[a  b] = NULL\" is never true; use IS NULL", []int{0}}},
+		},
 	})
 }
 
