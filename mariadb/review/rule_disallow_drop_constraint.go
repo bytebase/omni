@@ -28,7 +28,12 @@ type droppedIndex struct {
 // touched before is returned, for the target's synced schema to settle;
 // one the change created, renamed, or dropped before is not judged, and
 // neither is one on a table the change creates, without IF NOT EXISTS, or
-// renames to, whose indexes are not the synced table's.
+// renames to, whose indexes are not the synced table's. A table named in
+// another case than the earlier statement wrote it is not judged: where
+// table names are case-sensitive, it is another table. What a routine,
+// trigger, or event body does runs only when it runs, so the body's own
+// drops are reported, but its statements touch no index the rest of the
+// change reads.
 func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []droppedIndex {
 	type index struct {
 		table  *ast.TableRef
@@ -44,12 +49,20 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 		}
 		return index{}, false
 	}
+	// body is whether the statement read is a routine, trigger, or event
+	// definition, whose body changes nothing until it runs.
+	body := false
 	touch := func(ref *ast.TableRef, name string, unique bool) {
-		if name != "" {
+		if name != "" && !body {
 			touched = append(touched, index{ref, name, unique})
 		}
 	}
 	var replaced []*ast.TableRef
+	replace := func(ref *ast.TableRef) {
+		if !body {
+			replaced = append(replaced, ref)
+		}
+	}
 	isReplaced := func(ref *ast.TableRef) bool {
 		for _, t := range replaced {
 			if sameTable(t, ref) {
@@ -62,6 +75,7 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 	droppedName := func(pos int, s *statement, loc ast.Loc, ref *ast.TableRef, name string) {
 		i, ok := find(ref, name)
 		switch {
+		case ok && !sameCase(i.table, ref):
 		case ok && i.unique:
 			r.report(review.DisallowDropConstraint, s.index, rangeOf(loc), "drops unique key "+ident(name)+" of "+table(ref))
 		case !ok && !isReplaced(ref):
@@ -71,11 +85,17 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 	}
 	for pos := range stmts {
 		s := &stmts[pos]
+		switch s.node.(type) {
+		case *ast.CreateFunctionStmt, *ast.CreateTriggerStmt, *ast.CreateEventStmt:
+			body = true
+		default:
+			body = false
+		}
 		ast.Inspect(s.node, func(n ast.Node) bool {
 			switch v := n.(type) {
 			case *ast.CreateTableStmt:
 				if !v.IfNotExists {
-					replaced = append(replaced, v.Table)
+					replace(v.Table)
 				}
 				for _, c := range v.Constraints {
 					if c != nil && (c.Type == ast.ConstrUnique || c.Type == ast.ConstrPrimaryKey) {
@@ -87,7 +107,7 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 			case *ast.RenameTableStmt:
 				for _, pair := range v.Pairs {
 					if pair != nil {
-						replaced = append(replaced, pair.New)
+						replace(pair.New)
 					}
 				}
 			case *ast.DropIndexStmt:
@@ -118,7 +138,7 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 						if to == nil {
 							to = &ast.TableRef{Name: cmd.NewName}
 						}
-						replaced = append(replaced, to)
+						replace(to)
 					}
 					var msg string
 					switch dropKindOf(sql, cmd) {

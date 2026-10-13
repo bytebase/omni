@@ -59,9 +59,9 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 		case *ast.DropEventStmt:
 			report(v.Loc, "event", ident(v.Name))
 		case *ast.DropUserStmt:
-			report(v.Loc, "user", v.Users...)
+			report(v.Loc, "user", accounts(v.Users)...)
 		case *ast.DropRoleStmt:
-			report(v.Loc, "role", v.Roles...)
+			report(v.Loc, "role", accounts(v.Roles)...)
 		case *ast.DropTablespaceStmt:
 			kind := "tablespace"
 			if v.Undo {
@@ -101,4 +101,14 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 		}
 		return true
 	})
+}
+
+// accounts writes account names as the statement gave them, with a line
+// break written as \n or \r, so a message stays one line.
+func accounts(names []string) []string {
+	out := make([]string, len(names))
+	for i, name := range names {
+		out[i] = escapeLines(name)
+	}
+	return out
 }

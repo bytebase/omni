@@ -79,6 +79,12 @@ func tableExprs(exprs []ast.TableExpr) string {
 	return strings.Join(names, ", ")
 }
 
+// sameCase reports whether two references of one table, as sameTable
+// matches them, write its name, and any database both name, alike.
+func sameCase(a, b *ast.TableRef) bool {
+	return a.Name == b.Name && (a.Schema == "" || b.Schema == "" || a.Schema == b.Schema)
+}
+
 // sameName reports whether two names may name the same object. MariaDB
 // compares column, index, and constraint names, and on most servers
 // table names too, without regard to case; comparing that way never
