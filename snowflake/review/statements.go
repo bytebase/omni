@@ -132,7 +132,12 @@ func oneLine(text string) string {
 		c := text[i]
 		switch {
 		case quote != 0:
-			if c == quote {
+			// A backslash escapes the next character of a string literal.
+			if c == '\\' && quote == '\'' && i+1 < len(text) {
+				b.WriteByte(c)
+				i++
+				c = text[i]
+			} else if c == quote {
 				quote = 0
 			}
 		case c == '\'' || c == '"':

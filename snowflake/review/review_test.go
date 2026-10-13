@@ -282,6 +282,11 @@ func TestRequireIsNull(t *testing.T) {
 				{2, "\"a  b\" = NULL", `""a  b" = NULL" is never true; use IS NULL`, []int{0}},
 			},
 		},
+		{
+			name: "a backslash-escaped quote in a string",
+			sql:  "SELECT * FROM t WHERE 'a\\'  b' = NULL;",
+			want: []finding{{0, "'a\\'  b' = NULL", "\"'a\\'  b' = NULL\" is never true; use IS NULL", []int{0}}},
+		},
 	})
 }
 
