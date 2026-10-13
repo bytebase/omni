@@ -203,3 +203,6 @@ ref_255	select	reject	SELECT JSON_ARRAYAGG(dummy ORDER BY dummy,) FROM dual	trai
 ref_256	select	reject	SELECT JSON_OBJECTAGG(* VALUE 1) FROM dual	wildcard JSON_OBJECTAGG key (ORA-00936)
 ref_258	select	reject	SELECT JSON_SERIALIZE('{}' RETURNING VARCHAR2()) FROM dual	RETURNING datatype without its size (ORA-00910)
 ref_259	select	accept	SELECT JSON_OBJECTAGG("*" VALUE 1) FROM (SELECT 'k' "*" FROM dual)	quoted "*" column as a JSON_OBJECTAGG key
+ref_261	select	accept	SELECT JSON_OBJECT('a':dummy) FROM dual	colon separator right before the value
+ref_262	select	accept	SELECT JSON_OBJECT('a' VALUE 1 STRICT WITH UNIQUE KEYS WITH TYPENAME) FROM dual	WITH TYPENAME after the unique-keys clause
+ref_263	select	reject	SELECT JSON_OBJECT(dummy STRICT) FROM dual	STRICT right after a column entry (ORA-02000)

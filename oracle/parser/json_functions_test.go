@@ -10,8 +10,8 @@ import (
 // JSON_OBJECTAGG, and JSON_SERIALIZE against Oracle 23ai: every accepted
 // form parses there (or fails only on a datatype it checks after parsing,
 // ORA-40449 or ORA-00932), and every rejected one fails with the error noted
-// beside it. Rows ref_237 to ref_246, ref_253 to ref_256, and ref_258 to
-// ref_259 run them against the engine.
+// beside it. Rows ref_237 to ref_246, ref_253 to ref_256, ref_258 to
+// ref_259, and ref_261 to ref_263 run them against the engine.
 func TestJSONConstructors(t *testing.T) {
 	for _, sql := range []string{
 		// JSON_OBJECT entries: KEY, VALUE, IS, ':', a column, a star.
@@ -104,6 +104,29 @@ func TestJSONConstructors(t *testing.T) {
 		// A quoted "*" names a column, so it is a scalar key.
 		`SELECT JSON_OBJECTAGG("*" VALUE 1) FROM (SELECT 'k' "*" FROM dual)`,
 		`SELECT JSON_OBJECTAGG(d."*" VALUE 1) FROM (SELECT 'k' "*" FROM dual) d`,
+		// A colon right before the value, which the lexer reads as a bind.
+		"SELECT JSON_OBJECT('a':1) FROM dual",
+		"SELECT JSON_OBJECT('a':dummy, 'b':-1) FROM dual",
+		`SELECT JSON_OBJECT('a':'x', 'b':"DUMMY") FROM dual`,
+		// WITH TYPENAME, JSON_OBJECT's alone, before or after UNIQUE KEYS.
+		"SELECT JSON_OBJECT(x WITH TYPENAME) FROM t",
+		"SELECT JSON_OBJECT(WITH TYPENAME) FROM dual",
+		"SELECT JSON_OBJECT(x RETURNING CLOB WITH TYPENAME) FROM t",
+		"SELECT JSON_OBJECT('a' VALUE 1 TRUNCATE WITH TYPENAME) FROM dual",
+		"SELECT JSON_OBJECT('a' VALUE 1 STRICT WITH TYPENAME WITH UNIQUE KEYS) FROM dual",
+		"SELECT JSON_OBJECT('a' VALUE 1 WITHOUT TYPENAME WITH UNIQUE KEYS) FROM dual",
+		"SELECT JSON_OBJECT('a' VALUE 1 RETURNING VARCHAR2(10) TRUNCATE STRICT WITH UNIQUE KEYS WITH TYPENAME) FROM dual",
+		"SELECT JSON_OBJECT(x WITHOUT UNIQUE KEYS WITH TYPENAME) FROM t",
+		// An object instance alone, from a call, CAST, or TREAT.
+		"SELECT JSON_OBJECT(t(1) WITH TYPENAME) FROM dual",
+		"SELECT JSON_OBJECT(CAST(NULL AS t)) FROM dual",
+		"SELECT JSON_OBJECT(TREAT(x AS t)) FROM s",
+		// Whether a call returns an object is the engine's to resolve:
+		// Oracle 23ai rejects this one on UPPER's type (ORA-02000).
+		"SELECT JSON_OBJECT(UPPER(dummy)) FROM dual",
+		// STRICT after table.*, *, or FORMAT JSON.
+		"SELECT JSON_OBJECT(dummy FORMAT JSON STRICT) FROM dual",
+		"SELECT JSON_OBJECT(d.* STRICT) FROM dual d",
 	} {
 		ParseAndCheck(t, sql)
 	}
@@ -114,7 +137,6 @@ func TestJSONConstructors(t *testing.T) {
 		"SELECT JSON_OBJECT('a' 1) FROM dual",
 		"SELECT JSON_OBJECT(1) FROM dual",
 		"SELECT JSON_OBJECT('a') FROM dual",
-		"SELECT JSON_OBJECT(UPPER(dummy)) FROM dual",
 		"SELECT JSON_OBJECT('name', dummy) FROM dual",
 		"SELECT JSON_OBJECT('a' VALUE 1,) FROM dual",
 		"SELECT JSON_OBJECT('a' VALUE) FROM dual",
@@ -185,6 +207,27 @@ func TestJSONConstructors(t *testing.T) {
 		"SELECT JSON_ARRAYAGG(1 RETURNING RAW()) FROM dual",
 		"SELECT JSON_OBJECT('a' VALUE 1 RETURNING NUMBER(,)) FROM dual",
 		"SELECT JSON_OBJECT('a' VALUE 1 RETURNING NUMBER(5,)) FROM dual",
+		// A KEY takes VALUE, and an entry one value (ORA-02000).
+		"SELECT JSON_OBJECT(KEY 'a':1) FROM dual",
+		"SELECT JSON_OBJECT('a':1:2) FROM dual",
+		// One TYPENAME clause, in its place, on JSON_OBJECT alone (ORA-02000,
+		// ORA-48503).
+		"SELECT JSON_OBJECT(x WITH TYPENAME RETURNING CLOB) FROM t",
+		"SELECT JSON_OBJECT('a' VALUE 1 WITH TYPENAME STRICT) FROM dual",
+		"SELECT JSON_OBJECT('a' VALUE 1 WITH TYPENAME ABSENT ON NULL) FROM dual",
+		"SELECT JSON_OBJECT('a' VALUE 1 WITH TYPENAME WITHOUT UNIQUE KEYS) FROM dual",
+		"SELECT JSON_OBJECT('a' VALUE 1 WITH UNIQUE KEYS WITHOUT TYPENAME) FROM dual",
+		"SELECT JSON_OBJECT('a' VALUE 1 WITH TYPENAME WITH UNIQUE KEYS WITH TYPENAME) FROM dual",
+		"SELECT JSON_ARRAY(1 WITH TYPENAME) FROM dual",
+		"SELECT JSON_ARRAYAGG(1 WITH TYPENAME) FROM dual",
+		"SELECT JSON_OBJECTAGG('k' VALUE 1 WITH TYPENAME) FROM dual",
+		"SELECT JSON_OBJECT(1 WITH TYPENAME) FROM dual",
+		// STRICT or TRUNCATE right after a column entry (ORA-02000).
+		"SELECT JSON_OBJECT(dummy STRICT) FROM dual",
+		"SELECT JSON_OBJECT(dummy TRUNCATE) FROM dual",
+		"SELECT JSON_OBJECT('a' VALUE 1, dummy STRICT) FROM dual",
+		// An object instance stands alone (ORA-02000).
+		"SELECT JSON_OBJECT(t(1), t(2)) FROM dual",
 	} {
 		ParseShouldFail(t, sql)
 	}

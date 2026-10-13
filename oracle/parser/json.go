@@ -90,11 +90,11 @@ func (p *Parser) parseJSONAggregateOrSerialize(fc *nodes.FuncCallExpr) (nodes.Ex
 				return nil, p.syntaxErrorAtCur()
 			}
 		}
-		if err := p.parseJSONConstructorClauses(false); err != nil {
+		if err := p.parseJSONConstructorClauses(false, false); err != nil {
 			return nil, err
 		}
 	case "JSON_OBJECTAGG":
-		if err := p.parseJSONConstructorClauses(true); err != nil {
+		if err := p.parseJSONConstructorClauses(true, false); err != nil {
 			return nil, err
 		}
 	case "JSON_SERIALIZE":
@@ -122,11 +122,18 @@ func (p *Parser) atJSONKeyValueSeparator(tok Token) bool {
 // (ORA-02000 for any other).
 //
 //	[ { NULL | ABSENT } ON NULL ] [ RETURNING datatype ] [ TRUNCATE ] [ STRICT ]
-//	[ { WITH | WITHOUT } UNIQUE KEYS ]   -- with uniqueKeys only
+//	[ { WITH | WITHOUT } TYPENAME ]        -- with typename only
+//	[ { WITH | WITHOUT } UNIQUE KEYS ]     -- with uniqueKeys only
+//	[ WITH TYPENAME ]                      -- with typename only
 //
-// Which datatypes RETURNING takes, and whether one takes TRUNCATE, is
-// checked when the statement is analyzed (ORA-40449, ORA-40779).
-func (p *Parser) parseJSONConstructorClauses(uniqueKeys bool) error {
+// JSON_OBJECT takes one TYPENAME clause, before or after the UNIQUE KEYS
+// one: Oracle 23ai takes WITH TYPENAME WITH UNIQUE KEYS and WITH UNIQUE
+// KEYS WITH TYPENAME, and rejects WITH TYPENAME WITHOUT UNIQUE KEYS, WITH
+// UNIQUE KEYS WITHOUT TYPENAME (ORA-02000), and a second TYPENAME clause
+// (ORA-48503). Which datatypes RETURNING takes, and whether one takes
+// TRUNCATE, is checked when the statement is analyzed (ORA-40449,
+// ORA-40779).
+func (p *Parser) parseJSONConstructorClauses(uniqueKeys, typename bool) error {
 	if (p.cur.Type == kwNULL || p.isKeywordStr("ABSENT")) && p.peekNext().Type == kwON {
 		p.advance() // consume NULL or ABSENT
 		p.advance() // consume ON
@@ -144,7 +151,13 @@ func (p *Parser) parseJSONConstructorClauses(uniqueKeys bool) error {
 	if p.isKeywordStr("STRICT") {
 		p.advance()
 	}
-	if uniqueKeys && (p.cur.Type == kwWITH || p.isKeywordStr("WITHOUT")) {
+	hasTypename := false
+	if typename && (p.cur.Type == kwWITH || p.isKeywordStr("WITHOUT")) && isOneOfKeywords(p.peekNext(), []string{"TYPENAME"}) {
+		p.advance() // consume WITH or WITHOUT
+		p.advance() // consume TYPENAME
+		hasTypename = true
+	}
+	if uniqueKeys && (p.cur.Type == kwWITH || p.isKeywordStr("WITHOUT") && !hasTypename) {
 		p.advance()
 		if !p.isKeywordStr("UNIQUE") {
 			return p.syntaxErrorAtCur()
@@ -154,6 +167,10 @@ func (p *Parser) parseJSONConstructorClauses(uniqueKeys bool) error {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
+		if typename && !hasTypename && p.cur.Type == kwWITH && isOneOfKeywords(p.peekNext(), []string{"TYPENAME"}) {
+			p.advance() // consume WITH
+			p.advance() // consume TYPENAME
+		}
 	}
 	return nil
 }
