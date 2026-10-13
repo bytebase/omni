@@ -25,8 +25,11 @@ type droppedConstraint struct {
 	statement int
 	position  int
 	loc       ast.Loc
-	table     *ast.TableRef
+	alter     *ast.AlterTableStmt
 	name      string
+	// nested is a drop inside a routine body or a control-flow statement,
+	// which RequirePrimaryKey does not judge.
+	nested bool
 }
 
 // checkConstraints reports, from the SQL alone, what DisallowDropConstraint
@@ -34,11 +37,12 @@ type droppedConstraint struct {
 //
 //   - DisallowDropConstraint: an ALTER TABLE ... DROP CONSTRAINT of a
 //     primary key, unique, foreign key, or check constraint the change
-//     defined by that name on the table earlier.
+//     defined by that name on the table earlier, at top level or inside a
+//     routine body or a control-flow statement.
 //   - RequirePrimaryKey: a CREATE TABLE without a primary key, and the drop
 //     of a primary key the change defined, each when the change does not
-//     settle the table later by giving it a key, dropping or renaming it,
-//     or creating a table of its name. A temporary table, a table variable,
+//     settle the table later by giving it a key, dropping it or its
+//     database, renaming it, or creating a table of its name. A temporary table, a table variable,
 //     and a table SELECT INTO or CREATE TABLE AS SELECT makes are not
 //     judged, and neither is a statement inside a routine body.
 //
@@ -60,6 +64,17 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 		return defined{}, false
 	}
 	var open []droppedConstraint
+	drop := func(pos int, s *statement, v *ast.AlterTableStmt, a *ast.AlterTableAction, nested bool) {
+		if a.Constraint == nil || a.Constraint.Name == "" {
+			return
+		}
+		d, ok := find(v.Name, a.Constraint.Name)
+		if !ok {
+			open = append(open, droppedConstraint{s.index, pos, a.Loc, v, a.Constraint.Name, nested})
+			return
+		}
+		reportDrop(stmts, pos, s, a.Loc, v, d.kind, a.Constraint.Name, nested, on, r)
+	}
 	for pos := range stmts {
 		s := &stmts[pos]
 		switch v := s.node.(type) {
@@ -87,17 +102,24 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 						made = append(made, defined{v.Name, a.Constraint.Name, a.Constraint.Type})
 					}
 				case ast.ATDropConstraint:
-					if a.Constraint == nil || a.Constraint.Name == "" {
-						continue
-					}
-					d, ok := find(v.Name, a.Constraint.Name)
-					if !ok {
-						open = append(open, droppedConstraint{s.index, pos, a.Loc, v.Name, a.Constraint.Name})
-						continue
-					}
-					reportDrop(stmts, pos, s, a.Loc, v, d.kind, a.Constraint.Name, on, r)
+					drop(pos, s, v, a, false)
 				}
 			}
+		default:
+			// What a routine body or a control-flow statement adds runs
+			// only when it runs, so only its drops are read.
+			ast.Inspect(s.node, func(n ast.Node) bool {
+				v, ok := n.(*ast.AlterTableStmt)
+				if !ok || v.Actions == nil {
+					return true
+				}
+				for _, item := range v.Actions.Items {
+					if a, ok := item.(*ast.AlterTableAction); ok && a.Type == ast.ATDropConstraint {
+						drop(pos, s, v, a, true)
+					}
+				}
+				return true
+			})
 		}
 	}
 	return open
@@ -105,9 +127,9 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 
 // reportDrop reports the drop of a constraint of a known kind: under
 // DisallowDropConstraint when the kind is one it covers, and under
-// RequirePrimaryKey when it is the primary key and the change does not
-// settle the table later.
-func reportDrop(stmts []statement, pos int, s *statement, loc ast.Loc, v *ast.AlterTableStmt, kind ast.ConstraintType, name string, on map[review.Rule]bool, r *reporter) {
+// RequirePrimaryKey when it is the primary key, the drop is not nested,
+// and the change does not settle the table later.
+func reportDrop(stmts []statement, pos int, s *statement, loc ast.Loc, v *ast.AlterTableStmt, kind ast.ConstraintType, name string, nested bool, on map[review.Rule]bool, r *reporter) {
 	label, ok := constraintKinds[kind]
 	if !ok {
 		return
@@ -115,7 +137,7 @@ func reportDrop(stmts []statement, pos int, s *statement, loc ast.Loc, v *ast.Al
 	if on[review.DisallowDropConstraint] {
 		r.report(review.DisallowDropConstraint, s.index, rangeOf(loc), "drops "+label+" "+ident(name)+" of "+object(v.Name))
 	}
-	if on[review.RequirePrimaryKey] && kind == ast.ConstraintPrimaryKey && !addsPrimaryKey(v) && !settledAfter(stmts, pos, v.Name) {
+	if on[review.RequirePrimaryKey] && !nested && kind == ast.ConstraintPrimaryKey && !addsPrimaryKey(v) && !settledAfter(stmts, pos, v.Name) {
 		r.report(review.RequirePrimaryKey, s.index, rangeOf(loc), "removes the primary key of "+object(v.Name)+", and the change adds none back")
 	}
 }
@@ -192,8 +214,8 @@ func addsPrimaryKey(v *ast.AlterTableStmt) bool {
 }
 
 // settledAfter reports whether a statement after the given position may
-// give the table a primary key, drop it, rename it, or create a table of
-// its name: then the rule does not follow it further.
+// give the table a primary key, drop it or its database, rename it, or
+// create a table of its name: then the rule does not follow it further.
 func settledAfter(stmts []statement, pos int, ref *ast.TableRef) bool {
 	for i := pos + 1; i < len(stmts); i++ {
 		switch v := stmts[i].node.(type) {
@@ -206,15 +228,22 @@ func settledAfter(stmts []statement, pos int, ref *ast.TableRef) bool {
 				return true
 			}
 		case *ast.DropStmt:
-			if v.ObjectType == ast.DropTable && v.Names != nil {
-				for _, item := range v.Names.Items {
-					if t, ok := item.(*ast.TableRef); ok && sameObject(t, ref) {
-						return true
-					}
+			if v.Names == nil {
+				continue
+			}
+			for _, item := range v.Names.Items {
+				t, ok := item.(*ast.TableRef)
+				switch {
+				case !ok:
+				case v.ObjectType == ast.DropTable && sameObject(t, ref):
+					return true
+				// A table without a database may be in the one dropped.
+				case v.ObjectType == ast.DropDatabase && (ref.Database == "" || sameName(ref.Database, t.Object)):
+					return true
 				}
 			}
 		case *ast.RenameStmt:
-			if sameObject(v.Name, ref) {
+			if v.ColumnName == "" && sameObject(v.Name, ref) {
 				return true
 			}
 		case *ast.ExecStmt:

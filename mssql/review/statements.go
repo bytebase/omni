@@ -23,18 +23,14 @@ type statement struct {
 // parseReview parses the text with mssql.Parse, the entry Bytebase parses
 // SQL Server with, and returns the statements and their ranges. T-SQL has
 // no lexical splitter: statements need not end with a semicolon, so only
-// the parser tells where one ends. A text that does not parse is one
-// range, its whole text, and its Syntax finding: nothing after a syntax
+// the parser tells where one ends. A text that does not parse is split at
+// its semicolons, and gets its Syntax finding: nothing after a syntax
 // error can be trusted, and one finding per sheet is the contract. A GO
 // batch separator is a statement of its own, which no rule reads.
 func parseReview(sql string) ([]review.Range, []statement, *review.Finding) {
 	parsed, err := mssql.Parse(sql)
 	if err != nil {
-		whole := contentLoc(sql, 0, len(sql))
-		var ranges []review.Range
-		if whole.End > whole.Start {
-			ranges = []review.Range{{Start: whole.Start, End: whole.End}}
-		}
+		ranges := semicolonRanges(sql)
 		return ranges, nil, syntaxFinding(err, ranges)
 	}
 	var ranges []review.Range
@@ -52,6 +48,29 @@ func parseReview(sql string) ([]review.Range, []statement, *review.Finding) {
 		stmts = append(stmts, statement{index: index, node: p.AST, loc: loc})
 	}
 	return ranges, stmts, nil
+}
+
+// semicolonRanges splits a text that does not parse at its semicolons, as
+// Bytebase does then, so the review lists the statements Bytebase lists.
+// Without a tree, nothing better tells where a T-SQL statement ends.
+//
+// bytebase: backend/plugin/parser/tsql/split.go — SplitSQL
+func semicolonRanges(sql string) []review.Range {
+	var ranges []review.Range
+	add := func(start, end int) {
+		if loc := contentLoc(sql, start, end); loc.End > loc.Start {
+			ranges = append(ranges, review.Range{Start: loc.Start, End: loc.End})
+		}
+	}
+	start := 0
+	for _, tok := range parser.Tokenize(sql) {
+		if tok.Type == ';' {
+			add(start, tok.Loc+1)
+			start = tok.Loc + 1
+		}
+	}
+	add(start, len(sql))
+	return ranges
 }
 
 // contentLoc is the range of a statement's text without the whitespace

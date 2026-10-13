@@ -87,6 +87,7 @@ func shop() *metadata.DatabaseSchemaMetadata {
 							{Name: "pk_t", Primary: true, Unique: true},
 							{Name: "uk_code", Unique: true, IsConstraint: true},
 							{Name: "ix_n"},
+							{Name: "ux_n", Unique: true},
 						},
 						ForeignKeys:      []*metadata.ForeignKeyMetadata{{Name: "fk_p", ReferencedTable: "p"}},
 						CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "ck_n"}},
@@ -117,7 +118,7 @@ func TestSyntax(t *testing.T) {
 		{
 			name: "one finding for the first error",
 			sql:  "SELECT 1;\nSELEC 2;\nSELEC 3;",
-			want: []finding{{0, "", "syntax error at or near \"SELEC\"", []int{0}}},
+			want: []finding{{1, "", "syntax error at or near \"SELEC\"", []int{0}}},
 		},
 	})
 }
@@ -159,6 +160,19 @@ func TestRequireIsNull(t *testing.T) {
 		{
 			name: "a value, IS NULL, and after SET ANSI_NULLS OFF",
 			sql:  "SELECT CASE WHEN 1 = 1 THEN 1 END FROM t WHERE n IS NULL;\nSET ANSI_NULLS OFF;\nSELECT * FROM t WHERE n = NULL;",
+		},
+		{
+			name: "ANSI_NULLS set back ON",
+			sql:  "SET ANSI_NULLS OFF;\nSELECT * FROM t WHERE n = NULL;\nSET ANSI_NULLS ON;\nSELECT * FROM t WHERE n = NULL;\nSET ANSI_DEFAULTS OFF;\nSELECT * FROM t WHERE n = NULL;",
+			want: []finding{{3, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
+		},
+		{
+			name: "MERGE conditions",
+			sql:  "MERGE t USING p ON t.id = NULL WHEN MATCHED AND p.note <> NULL THEN UPDATE SET n = 1;",
+			want: []finding{
+				{0, "t.id = NULL", `"t.id = NULL" is never true; use IS NULL`, []int{0}},
+				{0, "p.note <> NULL", `"p.note <> NULL" is never true; use IS NOT NULL`, []int{0}},
+			},
 		},
 	})
 }
@@ -229,6 +243,18 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:  "ALTER TABLE nokey ADD CONSTRAINT ck_a CHECK (a > 0);\nALTER TABLE nokey DROP CONSTRAINT ck_a;\nALTER TABLE nokey ADD CONSTRAINT df_a DEFAULT 0 FOR a;\nALTER TABLE nokey DROP CONSTRAINT df_a;",
 			want: []finding{{1, "ck_a", "drops check constraint ck_a of nokey", []int{0}}},
 		},
+		{
+			name: "a unique index, not a constraint",
+			sql:  "ALTER TABLE t DROP CONSTRAINT ux_n;",
+		},
+		{
+			name: "inside a routine body or IF",
+			sql:  "IF 1 = 1 ALTER TABLE t DROP CONSTRAINT fk_p;\nGO\nCREATE PROCEDURE pr AS ALTER TABLE t DROP CONSTRAINT ck_n;",
+			want: []finding{
+				{0, "fk_p", "drops foreign key fk_p of t", []int{0}},
+				{2, "ck_n", "drops check constraint ck_n of t", []int{0}},
+			},
+		},
 	})
 }
 
@@ -241,12 +267,17 @@ func TestRequirePrimaryKey(t *testing.T) {
 		},
 		{
 			name: "settled by a later key, drop, or rename",
-			sql:  "CREATE TABLE a (id INT NOT NULL);\nALTER TABLE a ADD CONSTRAINT pk_a PRIMARY KEY (id);\nCREATE TABLE b (id INT);\nDROP TABLE b;\nCREATE TABLE c (id INT);\nEXEC sp_rename 'c', 'c2';",
+			sql:  "CREATE TABLE a (id INT NOT NULL);\nALTER TABLE a ADD CONSTRAINT pk_a PRIMARY KEY (id);\nCREATE TABLE b (id INT);\nDROP TABLE b;\nCREATE TABLE c (id INT);\nEXEC sp_rename 'c', 'c2';\nCREATE DATABASE d;\nCREATE TABLE d.dbo.e (id INT);\nDROP DATABASE d;",
 		},
 		{
 			name: "a primary key dropped and not added back",
 			sql:  "ALTER TABLE t DROP CONSTRAINT pk_t;\nALTER TABLE p DROP CONSTRAINT pk_p;\nALTER TABLE p ADD CONSTRAINT pk_p2 PRIMARY KEY (id, note);",
 			want: []finding{{0, "pk_t", "removes the primary key of t, and the change adds none back", []int{0}}},
+		},
+		{
+			name: "not settled by a column rename, nor judged in a routine body",
+			sql:  "CREATE TABLE f (id INT);\nRENAME OBJECT f COLUMN id TO id2;\nGO\nCREATE PROCEDURE pr AS ALTER TABLE t DROP CONSTRAINT pk_t;",
+			want: []finding{{0, "CREATE TABLE f (id INT)", "creates table f without a primary key", []int{0}}},
 		},
 	})
 }
@@ -292,6 +323,24 @@ func TestPriorBackup(t *testing.T) {
 				{1, "DELETE FROM dbo.t WHERE id = 2", "prior backup cannot back up both UPDATE and DELETE on dbo.t", []int{0}},
 				{3, "UPDATE p SET note = 'x' WHERE id = 2", "prior backup cannot back up statements on p with different WITH clauses", []int{0}},
 			},
+		},
+		{
+			name:   "a name without a database, the target's",
+			sql:    "DELETE FROM shop.dbo.p WHERE id = 1;\nUPDATE p SET note = '' WHERE id = 1;\nDELETE FROM other.dbo.nokey WHERE a = 1;\nUPDATE nokey SET a = 2 WHERE a = 1;",
+			change: backup,
+			want:   []finding{{1, "UPDATE p SET note = '' WHERE id = 1", "prior backup cannot back up both UPDATE and DELETE on p", []int{0}}},
+		},
+		{
+			name:   "a table SELECT INTO makes",
+			sql:    "SELECT 1 AS id INTO n4;\nUPDATE n4 SET id = 2 WHERE id = 1;",
+			change: backup,
+			want:   []finding{{1, "UPDATE n4 SET id = 2 WHERE id = 1", "prior backup runs before the change, when n4 does not exist yet", []int{0}}},
+		},
+		{
+			name:   "statements before a USE",
+			sql:    "ALTER TABLE nokey ADD gone INT;\nDELETE FROM nokey WHERE gone = 1;\nUPDATE n3 SET id = 1 WHERE id = 2;\nUSE other;\nCREATE TABLE n3 (id INT PRIMARY KEY);\nDELETE FROM nokey WHERE gone = 2;",
+			change: backup,
+			want:   []finding{{1, "DELETE FROM nokey WHERE gone = 1", "prior backup runs before the change, when column gone of nokey does not exist yet", []int{0}}},
 		},
 		{
 			name:   "a table or column the change makes",

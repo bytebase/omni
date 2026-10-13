@@ -66,17 +66,17 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 	}
 	if on[review.PriorBackup] && opts.Change.PriorBackup {
 		checkPriorBackupSize(sql, opts.Change, r)
-		checkPriorBackupStatements(sql, stmts, r)
+		checkPriorBackupStatements(stmts, r)
 	}
-	work := targetWork{on: on, backup: on[review.PriorBackup] && opts.Change.PriorBackup}
+	work := targetWork{sql: sql, on: on, backup: on[review.PriorBackup] && opts.Change.PriorBackup}
 	ansiNullsOff := false
 	for i := range stmts {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		s := &stmts[i]
-		if setsAnsiNullsOff(s.node) {
-			ansiNullsOff = true
+		if on, ok := ansiNullsSet(s.node); ok {
+			ansiNullsOff = !on
 		}
 		if on[review.RequireIsNull] {
 			checkRequireIsNull(sql, s, ansiNullsOff, r)

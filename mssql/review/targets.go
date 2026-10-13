@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"github.com/bytebase/omni/metadata"
-	"github.com/bytebase/omni/mssql/ast"
 	"github.com/bytebase/omni/review"
 )
 
@@ -17,6 +16,7 @@ import (
 // sp_rename statements the SQL alone cannot classify. The other rules
 // depend on the SQL alone and run once for every target.
 type targetWork struct {
+	sql     string
 	on      map[review.Rule]bool
 	backup  bool
 	made    changeMade
@@ -130,6 +130,7 @@ func reviewGroup(stmts []statement, work targetWork, g targetGroup) (findings []
 	r := &reporter{targets: g.indices}
 	x := schemaIndex{schema: g.target.Schema}
 	if work.backup {
+		checkPriorBackupGroups(work.sql, stmts, g.target.Schema.GetName(), r)
 		checkPriorBackupTarget(stmts, g.target.BackupDatabaseExists, x, work.made, r)
 	}
 	if x.schema != nil {
@@ -137,7 +138,7 @@ func reviewGroup(stmts []statement, work targetWork, g targetGroup) (findings []
 			if usesDatabase(stmts, d.position) {
 				continue
 			}
-			t := x.table(d.table)
+			t := x.table(d.alter.Name)
 			if t == nil {
 				continue
 			}
@@ -145,11 +146,7 @@ func reviewGroup(stmts []statement, work targetWork, g targetGroup) (findings []
 			if !ok {
 				continue
 			}
-			v, _ := stmts[d.position].node.(*ast.AlterTableStmt)
-			if v == nil {
-				continue
-			}
-			reportDrop(stmts, d.position, &stmts[d.position], d.loc, v, kind, d.name, work.on, r)
+			reportDrop(stmts, d.position, &stmts[d.position], d.loc, d.alter, kind, d.name, d.nested, work.on, r)
 		}
 		for _, rn := range work.renames {
 			if kind := x.relationKind(rn.name); kind != "" {

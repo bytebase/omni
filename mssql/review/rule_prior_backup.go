@@ -26,8 +26,9 @@ import (
 //     OPTION clauses.
 //   - It refuses a table variable or a WITH query as the target, UPDATE
 //     and DELETE on one table, WITH XMLNAMESPACES, statements on one table
-//     with different WITH clauses, and WHERE CURRENT OF. A temporary table
-//     is not backed up.
+//     with different WITH clauses, and WHERE CURRENT OF, a name without a
+//     database or schema taking the task's database and dbo. A temporary
+//     table is not backed up.
 //
 // So the backup also fails on TOP, which it writes after the select list,
 // and on a name the change makes, which does not exist yet when it runs:
@@ -38,7 +39,8 @@ import (
 // not reported: the schema the review sees may predate an earlier spec of
 // the same plan. Neither is a name of another database, an unqualified
 // name more than one schema holds, which resolves by the session's
-// default schema, a column inside a subquery, or anything after a USE.
+// default schema, a column inside a subquery, or anything from the
+// change's first USE on.
 
 // checkPriorBackupSize reports a change longer than prior backup takes.
 // It needs the SQL alone.
@@ -69,16 +71,66 @@ func dmlOf(n ast.Node) (dmlTarget, bool) {
 	return dmlTarget{}, false
 }
 
-// checkPriorBackupStatements reports, from the SQL alone, what the backup
-// refuses or cannot copy: a table variable or a WITH query as the target,
-// WHERE CURRENT OF, WITH XMLNAMESPACES, TOP, UPDATE and DELETE on one
-// table, and statements on one table with different WITH clauses. The
-// table is keyed as Bytebase keys it: the database and schema written, or
-// the task's database and dbo, and the name, as written.
+// backupTable returns the DML of a statement and the table its backup
+// copies, or why the backup refuses the statement: a table variable or a
+// WITH query as the target, WHERE CURRENT OF, or WITH XMLNAMESPACES. ref
+// is nil, with no refusal, for a statement the backup skips, a temporary
+// table's, or one whose target the rule does not know.
 //
 // bytebase: backend/plugin/parser/tsql/backup.go — prepareTransformation,
-// generateSQL, generateSQLForTable
-func checkPriorBackupStatements(sql string, stmts []statement, r *reporter) {
+// generateSQLForTable
+func backupTable(s *statement) (d dmlTarget, ref *ast.TableRef, refusal string) {
+	d, ok := dmlOf(s.node)
+	if !ok {
+		return d, nil, ""
+	}
+	switch t := d.target.(type) {
+	case *ast.TableVarRef:
+		return d, nil, "prior backup does not support the table variable " + t.Name + " as the target"
+	case *ast.TableRef:
+		ref = backedUp(t, d.from)
+	}
+	switch {
+	case ref == nil || strings.HasPrefix(ref.Object, "#"):
+		return d, nil, ""
+	case ref.Schema == "" && ref.Database == "" && withNames(d.with)[strings.ToLower(ref.Object)]:
+		return d, nil, "prior backup does not support the WITH query " + ident(ref.Object) + " as the target"
+	}
+	if _, ok := d.where.(*ast.CurrentOfExpr); ok {
+		return d, nil, "prior backup does not support WHERE CURRENT OF"
+	}
+	if d.with != nil && d.with.XmlNamespaces != nil && len(d.with.XmlNamespaces.Items) > 0 {
+		return d, nil, "prior backup does not support WITH XMLNAMESPACES"
+	}
+	return d, ref, ""
+}
+
+// checkPriorBackupStatements reports, from the SQL alone, what the backup
+// refuses or cannot copy in a statement: what backupTable refuses, and
+// TOP.
+func checkPriorBackupStatements(stmts []statement, r *reporter) {
+	for i := range stmts {
+		s := &stmts[i]
+		d, ref, refusal := backupTable(s)
+		switch {
+		case refusal != "":
+			r.report(review.PriorBackup, s.index, rangeOf(s.loc), refusal)
+		case ref != nil && d.top != nil:
+			r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup copies TOP after the select list of its query, which SQL Server rejects")
+		}
+	}
+}
+
+// checkPriorBackupGroups reports the tables the backup refuses to group:
+// one both an UPDATE and a DELETE touch, and one statements with different
+// WITH clauses touch. The table is keyed as Bytebase keys it: the database
+// and schema written, or the target's database, db, and dbo, and the name,
+// as written. db is "" when the target's name is not known: then a name
+// without a database matches only another without one.
+//
+// bytebase: backend/plugin/parser/tsql/backup.go — prepareTransformation,
+// generateSQL
+func checkPriorBackupGroups(sql string, stmts []statement, db string, r *reporter) {
 	type group struct {
 		kind     string
 		with     string
@@ -87,44 +139,22 @@ func checkPriorBackupStatements(sql string, stmts []statement, r *reporter) {
 	groups := make(map[string]*group)
 	for i := range stmts {
 		s := &stmts[i]
-		d, ok := dmlOf(s.node)
-		if !ok {
+		d, ref, refusal := backupTable(s)
+		if ref == nil || refusal != "" {
 			continue
 		}
 		report := func(msg string) {
 			r.report(review.PriorBackup, s.index, rangeOf(s.loc), msg)
 		}
-		var ref *ast.TableRef
-		switch t := d.target.(type) {
-		case *ast.TableVarRef:
-			report("prior backup does not support the table variable " + t.Name + " as the target")
-			continue
-		case *ast.TableRef:
-			ref = backedUp(t, d.from)
-		}
-		if ref == nil || strings.HasPrefix(ref.Object, "#") {
-			continue
-		}
-		if ref.Schema == "" && ref.Database == "" && withNames(d.with)[strings.ToLower(ref.Object)] {
-			report("prior backup does not support the WITH query " + ident(ref.Object) + " as the target")
-			continue
-		}
-		if _, ok := d.where.(*ast.CurrentOfExpr); ok {
-			report("prior backup does not support WHERE CURRENT OF")
-			continue
-		}
-		if d.with != nil && d.with.XmlNamespaces != nil && len(d.with.XmlNamespaces.Items) > 0 {
-			report("prior backup does not support WITH XMLNAMESPACES")
-			continue
-		}
-		if d.top != nil {
-			report("prior backup copies TOP after the select list of its query, which SQL Server rejects")
+		database := ref.Database
+		if database == "" {
+			database = db
 		}
 		schema := ref.Schema
 		if schema == "" {
 			schema = "dbo"
 		}
-		key := ref.Database + "." + schema + "." + ref.Object
+		key := database + "." + schema + "." + ref.Object
 		with := ""
 		if d.with != nil {
 			with = textOf(sql, d.with.Loc)
@@ -205,9 +235,10 @@ func textOf(sql string, loc ast.Loc) string {
 }
 
 // changeMade is what the change makes, which the backup, run before all of
-// it, cannot see: the tables and views it creates, and the columns it adds
-// or declares on a table it creates, by the table as written. A statement
-// that may make nothing, IF NOT EXISTS, is left out.
+// it, cannot see: the tables and views it creates, SELECT INTO among them,
+// and the columns it adds or declares on a table it creates, by the table
+// as written. A statement that may make nothing, IF NOT EXISTS, is left
+// out, and so is what the change makes after a USE.
 type changeMade struct {
 	relations []*ast.TableRef
 	columns   []madeColumn
@@ -220,7 +251,7 @@ type madeColumn struct {
 
 func madeByChange(stmts []statement) changeMade {
 	var m changeMade
-	for i := range stmts {
+	for i := range stmts[:beforeUse(stmts)] {
 		switch v := stmts[i].node.(type) {
 		case *ast.CreateTableStmt:
 			if v.IfNotExists || v.Name == nil {
@@ -237,6 +268,10 @@ func madeByChange(stmts []statement) changeMade {
 		case *ast.CreateViewStmt:
 			if v.Name != nil && !v.OrAlter {
 				m.relations = append(m.relations, v.Name)
+			}
+		case *ast.SelectStmt:
+			if v.IntoTable != nil {
+				m.relations = append(m.relations, v.IntoTable)
 			}
 		case *ast.AlterTableStmt:
 			if v.Actions == nil {
@@ -272,16 +307,16 @@ func (m changeMade) madeColumnOn(ref *ast.TableRef, column string) bool {
 
 // checkPriorBackupTarget reports the target-dependent reasons the backup
 // fails: a missing bbdataarchive database, which Bytebase looks up before
-// anything else, and a name the backup's query reads that only the change
-// makes.
+// anything else, and a name the backup's query of a statement before the
+// change's first USE reads that only the change makes.
 func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex, m changeMade, r *reporter) {
 	if !backupExists {
 		r.report(review.PriorBackup, -1, review.Range{}, "prior backup needs database "+backupDatabase+", which does not exist")
 	}
-	if x.schema == nil || usesDatabase(stmts, len(stmts)) {
+	if x.schema == nil {
 		return
 	}
-	for i := range stmts {
+	for i := range stmts[:beforeUse(stmts)] {
 		s := &stmts[i]
 		d, ok := dmlOf(s.node)
 		if !ok || d.with != nil {

@@ -108,14 +108,15 @@ func (x schemaIndex) holdsRelation(ref *ast.TableRef) bool {
 // constraintKind returns the kind of the synced table's constraint of the
 // name: the primary key or a unique constraint, by its index, a foreign
 // key, or a check; ok is false when the table has none of the name, which
-// may be a default constraint.
+// may be a default constraint. A unique index that is not a constraint is
+// none: DROP CONSTRAINT refuses it.
 func constraintKind(t *metadata.TableMetadata, name string) (ast.ConstraintType, bool) {
 	for _, idx := range t.GetIndexes() {
 		if strings.EqualFold(idx.GetName(), name) {
 			switch {
 			case idx.GetPrimary():
 				return ast.ConstraintPrimaryKey, true
-			case idx.GetUnique():
+			case idx.GetUnique() && idx.GetIsConstraint():
 				return ast.ConstraintUnique, true
 			}
 		}
@@ -131,6 +132,18 @@ func constraintKind(t *metadata.TableMetadata, name string) (ast.ConstraintType,
 		}
 	}
 	return 0, false
+}
+
+// beforeUse returns the position of the change's first USE, the number of
+// statements when it has none: what runs from there may mean another
+// database by a name without one.
+func beforeUse(stmts []statement) int {
+	for i := range stmts {
+		if _, ok := stmts[i].node.(*ast.UseStmt); ok {
+			return i
+		}
+	}
+	return len(stmts)
 }
 
 // usesDatabase reports whether a statement before the given position is

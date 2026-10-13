@@ -12,8 +12,8 @@ import (
 // the server's default, it is unknown for every row and so never true.
 // The NULL may sit on either side. Only a comparison the predicate reads
 // as its condition counts: the predicate itself, or an operand of AND,
-// OR, or NOT in it, parenthesized or not. Once the change sets ANSI_NULLS
-// OFF, under which = NULL matches a null, nothing after is judged.
+// OR, or NOT in it, parenthesized or not. While the change has set
+// ANSI_NULLS OFF, under which = NULL matches a null, nothing is judged.
 func checkRequireIsNull(sql string, s *statement, ansiNullsOff bool, r *reporter) {
 	if ansiNullsOff {
 		return
@@ -56,19 +56,28 @@ func checkRequireIsNull(sql string, s *statement, ansiNullsOff bool, r *reporter
 	}
 }
 
-// setsAnsiNullsOff reports whether a statement is SET ANSI_NULLS OFF.
-func setsAnsiNullsOff(n ast.Node) bool {
-	v, ok := n.(*ast.SetOptionStmt)
-	if !ok || !strings.EqualFold(v.Option, "ANSI_NULLS") {
-		return false
+// ansiNullsSet returns the ANSI_NULLS setting a statement makes: SET
+// ANSI_NULLS, or SET ANSI_DEFAULTS, which sets it too. ok is false for
+// another statement.
+func ansiNullsSet(n ast.Node) (on, ok bool) {
+	v, isSet := n.(*ast.SetOptionStmt)
+	if !isSet || !strings.EqualFold(v.Option, "ANSI_NULLS") && !strings.EqualFold(v.Option, "ANSI_DEFAULTS") {
+		return false, false
 	}
+	var value string
 	switch val := v.Value.(type) {
 	case *ast.ColumnRef:
-		return strings.EqualFold(val.Column, "OFF")
+		value = val.Column
 	case *ast.Literal:
-		return strings.EqualFold(val.Str, "OFF")
+		value = val.Str
 	}
-	return false
+	switch {
+	case strings.EqualFold(value, "ON"):
+		return true, true
+	case strings.EqualFold(value, "OFF"):
+		return false, true
+	}
+	return false, false
 }
 
 // isNull reports whether an expression is the NULL literal, parenthesized
@@ -84,8 +93,9 @@ func isNull(n ast.Node) bool {
 }
 
 // predicates lists the expressions of the statement that are evaluated
-// for truth: WHERE and HAVING, join conditions, the conditions of a
-// searched CASE, CHECK expressions, and the conditions of IF and WHILE.
+// for truth: WHERE and HAVING, join conditions, MERGE conditions, the
+// conditions of a searched CASE, CHECK expressions, and the conditions of
+// IF and WHILE.
 // Subqueries are visited too, so their own predicates are listed.
 func predicates(root ast.Node) []ast.Node {
 	var roots []ast.Node
@@ -112,6 +122,14 @@ func predicates(root ast.Node) []ast.Node {
 				add(v.WhereClause)
 			}
 		case *ast.JoinClause:
+			if v.Condition != nil {
+				add(v.Condition)
+			}
+		case *ast.MergeStmt:
+			if v.OnCondition != nil {
+				add(v.OnCondition)
+			}
+		case *ast.MergeWhenClause:
 			if v.Condition != nil {
 				add(v.Condition)
 			}
