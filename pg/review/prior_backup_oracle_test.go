@@ -19,6 +19,8 @@ import (
 // changes data shows it.
 const priorBackupRows = `
 CREATE SCHEMA bbdataarchive;
+CREATE TABLE s.ids (id int);
+CREATE FUNCTION public.old(int) RETURNS bool LANGUAGE sql AS 'SELECT true';
 INSERT INTO p VALUES (1), (2);
 INSERT INTO t (id, p_id, n) VALUES (1, 1, 1), (2, 2, 2);
 INSERT INTO r VALUES (1), (2);
@@ -27,9 +29,10 @@ INSERT INTO nokey VALUES (1), (2);
 
 // TestPriorBackupAgainstPostgres builds each table's backup query as
 // Bytebase does and runs it on PostgreSQL before the change, as Bytebase
-// does. A PriorBackup finding on a statement must mean that query fails or
-// changes data; where the rule follows the whole change (complete), every
-// table whose query does so must have a finding.
+// does. A PriorBackup finding on a statement must mean that query fails,
+// changes data, or backs up rows the table does not have; where the rule
+// follows the whole change (complete), every table whose query does so
+// must have a finding.
 func TestPriorBackupAgainstPostgres(t *testing.T) {
 	db := startPostgres(t)
 	tests := []struct {
@@ -56,6 +59,18 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a later statement's WITH the first one defines too", "WITH x AS (SELECT 1 AS a) DELETE FROM nokey WHERE a IN (SELECT a FROM x);\nWITH x AS (SELECT 2 AS a) DELETE FROM nokey WHERE a IN (SELECT a FROM x);", true},
 		{"a WITH query shadowing a table", "WITH nokey AS (SELECT 1 AS a) DELETE FROM t WHERE id IN (SELECT a FROM nokey);", true},
 		{"after SET search_path", "SET search_path = s, public;\nALTER TABLE t ADD COLUMN x int;\nDELETE FROM t WHERE x = 1;", true},
+		{"a WITH query named like the table", "WITH nokey AS (SELECT 1 AS a) DELETE FROM nokey WHERE a = 1;", true},
+		{"a WITH query named like the table, through an alias", "WITH nokey AS (SELECT 9 AS a) DELETE FROM nokey AS x WHERE x.a = 9;", true},
+		{"aliases that differ between statements", "UPDATE nokey AS x SET a = 1 WHERE x.a = 1;\nUPDATE nokey AS y SET a = 2 WHERE y.a = 2;", true},
+		{"an alias, then none", "DELETE FROM nokey AS x WHERE x.a = 1;\nDELETE FROM nokey WHERE a = 2;", true},
+		{"none, then an alias", "DELETE FROM nokey WHERE a = 1;\nDELETE FROM nokey AS x WHERE x.a = 2;", true},
+		{"the same alias", "UPDATE nokey AS x SET a = 1 WHERE x.a = 1;\nUPDATE nokey AS x SET a = 2 WHERE x.a = 2;", true},
+		{"a column named with its schema", "ALTER TABLE public.p ADD COLUMN gone bool;\nDELETE FROM t USING public.p WHERE t.p_id = public.p.id AND public.p.gone;", true},
+		{"a sequence the change creates", "CREATE SEQUENCE ids;\nDELETE FROM t USING ids WHERE false;", true},
+		{"a table the change creates, of a name a schema off the path holds", "CREATE TABLE public.ids (id int);\nDELETE FROM t USING ids WHERE t.id = ids.id;", true},
+		{"a view column the change renames to", "ALTER VIEW tv RENAME COLUMN code TO c;\nDELETE FROM t USING tv WHERE tv.c = t.code;", true},
+		{"a routine the change renames to", "ALTER FUNCTION public.old(int) RENAME TO stale;\nDELETE FROM nokey WHERE public.stale(a);", true},
+		{"a column the change adds to a table of that name in another schema", "ALTER TABLE s.t ADD COLUMN b int;\nDELETE FROM public.t AS x WHERE x.b;", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -187,7 +202,11 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 	for n, key := range order {
 		items := byTable[key]
 		var b strings.Builder
-		fmt.Fprintf(&b, "CREATE TABLE \"bbdataarchive\".\"bk_%d\" AS\n", n)
+		backup := fmt.Sprintf("\"bbdataarchive\".\"bk_%d\"", n)
+		fmt.Fprintf(&b, "CREATE TABLE %s AS\n", backup)
+		// Every arm selects through the first statement's alias.
+		firstTarget, _, _ := dmlParts(items[0].node)
+		alias := aliasOf(firstTarget)
 		if w := withOf(items[0].node); w != nil {
 			b.WriteString(text(w.Loc) + "\n")
 		}
@@ -206,8 +225,8 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 			case *ast.DeleteStmt:
 				rv, from, where = v.Relation, v.UsingClause, v.WhereClause
 			}
-			if rv.Alias != nil && rv.Alias.Aliasname != "" {
-				fmt.Fprintf(&b, "  SELECT \"%s\".* ", rv.Alias.Aliasname)
+			if alias != "" {
+				fmt.Fprintf(&b, "  SELECT \"%s\".* ", alias)
 			} else {
 				fmt.Fprintf(&b, "  SELECT %s.* ", key)
 			}
@@ -220,16 +239,16 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 			}
 		}
 		b.WriteString(";")
-		g.outcome = runBackup(t, conn, prepend, b.String())
+		g.outcome = runBackup(t, conn, prepend, b.String(), backup, key)
 		groups = append(groups, g)
 	}
 	return groups
 }
 
 // runBackup runs one backup query in a transaction it rolls back, and
-// says how it went: "" when it ran and left every table's rows as they
-// were.
-func runBackup(t *testing.T, conn *sql.Conn, prepend, query string) string {
+// says how it went: "" when it ran, left every table's rows as they were,
+// and backed up only rows the table has.
+func runBackup(t *testing.T, conn *sql.Conn, prepend, query, backup, table string) string {
 	t.Helper()
 	ctx := context.Background()
 	tx, err := conn.BeginTx(ctx, nil)
@@ -276,6 +295,13 @@ func runBackup(t *testing.T, conn *sql.Conn, prepend, query string) string {
 		if after[name] != n {
 			return "changes the rows of " + name
 		}
+	}
+	var foreign int
+	if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM (SELECT * FROM "+backup+" EXCEPT ALL SELECT * FROM "+table+") x").Scan(&foreign); err != nil {
+		return "backs up rows of another shape than " + table + ": " + err.Error()
+	}
+	if foreign > 0 {
+		return "backs up rows " + table + " does not have"
 	}
 	return ""
 }

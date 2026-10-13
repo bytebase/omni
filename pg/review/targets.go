@@ -175,7 +175,7 @@ func reviewGroup(ctx context.Context, stmts []statement, on map[review.Rule]bool
 	}()
 	r := &reporter{targets: g.indices}
 	if backup {
-		checkPriorBackupTarget(stmts, g.target.Schema, r)
+		checkPriorBackupTarget(stmts, g.target.Schema, g.target.SessionUser, r)
 	}
 	if scans {
 		if err := scanTarget(ctx, stmts, on, g.target, r); err != nil {
