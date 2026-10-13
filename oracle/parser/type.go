@@ -366,16 +366,18 @@ func varrayLimit(val string) (n int64, ok bool) {
 		lead--
 	}
 	lead = lead / 2 * 2
+	// Only the digits the NUMBER keeps are built, and the one after them
+	// read, however long the literal.
+	roundUp := false
+	if keep := top - (lead - 38) + 1; len(digits) > keep {
+		digits, roundUp, exp = digits[:keep], digits[keep] >= '5', lead-38
+	}
 	m, ok := new(big.Int).SetString(digits, 10)
 	if !ok {
 		return 0, false
 	}
-	if keep := top - (lead - 38) + 1; len(digits) > keep {
-		m.SetString(digits[:keep], 10)
-		if digits[keep] >= '5' {
-			m.Add(m, big.NewInt(1))
-		}
-		exp = lead - 38
+	if roundUp {
+		m.Add(m, big.NewInt(1))
 	}
 	ten := big.NewInt(10)
 	if exp >= 0 {

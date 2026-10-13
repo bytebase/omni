@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bytebase/omni/oracle/ast"
 )
@@ -354,6 +355,13 @@ func TestANSIDatatypes(t *testing.T) {
 		ParseShouldFail(t, "CREATE TYPE t AS VARRAY("+limit+") OF NUMBER")
 	}
 	ParseShouldFail(t, "DECLARE TYPE a IS VARRAY("+nines(101)+") OF NUMBER; BEGIN NULL; END;")
+	// Only the digits a NUMBER keeps are converted: a limit of a million
+	// digits, which its exponent brings back to 1.1, checks at once.
+	start := time.Now()
+	ParseAndCheck(t, "CREATE TYPE t AS VARRAY("+strings.Repeat("1", 1000001)+"e-1000000) OF NUMBER")
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Errorf("a VARRAY limit of a million digits took %v", elapsed)
+	}
 	// An explicit SELF is the first parameter (PLS-00410, as a duplicate of
 	// the implicit one) and is not OUT (PLS-00594), in CREATE and ALTER TYPE
 	// alike; DROP finds no method to match one (PLS-00717). A quoted "self"
@@ -397,6 +405,12 @@ func TestANSIDatatypes(t *testing.T) {
 	ParseShouldFail(t, "ALTER TABLE r ADD (n NUMBER, REF (n) WITH ROWID)")
 	ParseShouldFail(t, "ALTER TABLE r ADD (c REF t SCOPE IS o, SCOPE FOR (c) IS o)")
 	ParseAndCheck(t, "ALTER TABLE r ADD (c REF t, SCOPE FOR (c) IS o)")
+	// WITH ROWID may repeat, inline and out of line (Oracle 23ai creates
+	// these tables), where SCOPE may not.
+	ParseAndCheck(t, "CREATE TABLE r (c REF t WITH ROWID WITH ROWID)")
+	ParseAndCheck(t, "CREATE TABLE r (c REF t WITH ROWID NOT NULL WITH ROWID)")
+	ParseAndCheck(t, "CREATE TABLE r (c REF t, REF (c) WITH ROWID, REF (c) WITH ROWID)")
+	ParseAndCheck(t, "ALTER TABLE r ADD (d REF t WITH ROWID WITH ROWID)")
 	// A REF column takes a CHECK constraint.
 	ParseAndCheck(t, "CREATE TABLE r (c REF t CHECK (c IS NOT NULL), d REF t CONSTRAINT ck CHECK (1 = 1))")
 	// A column named CONSTRAINT takes a reserved datatype word alone.
