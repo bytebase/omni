@@ -525,7 +525,13 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 	for p.cur.Type != ')' && p.cur.Type != tokEOF {
 		before := stmt.Columns.Len() + stmt.Constraints.Len()
 		// Check if this is a table-level constraint
-		if p.isTableConstraintStart() {
+		if p.isOutOfLineRefConstraintStart() {
+			tc, err := p.parseOutOfLineRefConstraint()
+			if err != nil {
+				return err
+			}
+			stmt.Constraints.Items = append(stmt.Constraints.Items, tc)
+		} else if p.isTableConstraintStart() {
 			tc, parseErr495 := p.parseTableConstraint()
 			if parseErr495 != nil {
 				return parseErr495
@@ -818,6 +824,14 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 			p.advance()
 			col.Invisible = true
 
+		case kwWITH:
+			if p.peekNext().Type != kwROWID {
+				return nil
+			}
+			if err := p.parseInlineRefConstraint(col); err != nil {
+				return err
+			}
+
 		case kwCONSTRAINT:
 			cc, parseErr504 := p.parseColumnConstraint()
 			if parseErr504 != nil {
@@ -878,6 +892,10 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 			// Handle SORT, VISIBLE, ENCRYPT, DECRYPT, COLLATE as identifier-like keywords
 			if p.isIdentLike() {
 				switch p.cur.Str {
+				case "SCOPE":
+					if err := p.parseInlineRefConstraint(col); err != nil {
+						return err
+					}
 				case "SORT":
 					p.advance()
 					col.Sort = true
@@ -913,6 +931,100 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 		}
 	}
 	return nil
+}
+
+// parseInlineRefConstraint parses the SCOPE IS or WITH ROWID constraint of
+// a REF column. Oracle 23ai rejects one on another column (ORA-22893) and
+// a second SCOPE (ORA-22888).
+//
+//	SCOPE IS [ schema . ] scope_table | WITH ROWID
+func (p *Parser) parseInlineRefConstraint(col *nodes.ColumnDef) error {
+	if col.TypeName == nil || !col.TypeName.IsRef {
+		return p.syntaxErrorAtCur()
+	}
+	cc := &nodes.ColumnConstraint{Loc: nodes.Loc{Start: p.pos()}}
+	if p.cur.Type == kwWITH {
+		p.advance() // consume WITH
+		p.advance() // consume ROWID
+		cc.Type = nodes.CONSTRAINT_WITH_ROWID
+	} else {
+		for _, item := range col.Constraints.Items {
+			if other, ok := item.(*nodes.ColumnConstraint); ok && other.Type == nodes.CONSTRAINT_SCOPE {
+				return p.syntaxErrorAtCur()
+			}
+		}
+		p.advance() // consume SCOPE
+		if p.cur.Type != kwIS {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		table, err := p.parseObjectName()
+		if err != nil {
+			return err
+		}
+		if table.Name == "" {
+			return p.syntaxErrorAtCur()
+		}
+		cc.Type = nodes.CONSTRAINT_SCOPE
+		cc.RefTable = table
+	}
+	cc.Loc.End = p.prev.End
+	col.Constraints.Items = append(col.Constraints.Items, cc)
+	return nil
+}
+
+// isOutOfLineRefConstraintStart reports whether a table's relational
+// property here is SCOPE FOR ( column ) or REF ( column ).
+func (p *Parser) isOutOfLineRefConstraintStart() bool {
+	return p.isKeywordStr("SCOPE") && p.peekNext().Type == kwFOR || p.cur.Type == kwREF && p.peekNext().Type == '('
+}
+
+// parseOutOfLineRefConstraint parses the out-of-line constraint of a REF
+// column.
+//
+//	SCOPE FOR ( column ) IS [ schema . ] scope_table | REF ( column ) WITH ROWID
+func (p *Parser) parseOutOfLineRefConstraint() (*nodes.TableConstraint, error) {
+	tc := &nodes.TableConstraint{Loc: nodes.Loc{Start: p.pos()}}
+	scope := p.cur.Type != kwREF
+	p.advance() // consume SCOPE or REF
+	if scope {
+		p.advance() // consume FOR
+	}
+	if p.cur.Type != '(' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	column, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	if column == "" || p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	tc.Columns = &nodes.List{Items: []nodes.Node{&nodes.String{Str: column}}}
+	if scope {
+		if p.cur.Type != kwIS {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if tc.RefTable, err = p.parseObjectName(); err != nil {
+			return nil, err
+		}
+		if tc.RefTable.Name == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		tc.Type = nodes.CONSTRAINT_SCOPE
+	} else {
+		if p.cur.Type != kwWITH || p.peekNext().Type != kwROWID {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume WITH
+		p.advance() // consume ROWID
+		tc.Type = nodes.CONSTRAINT_WITH_ROWID
+	}
+	tc.Loc.End = p.prev.End
+	return tc, nil
 }
 
 func (p *Parser) parseVirtualColumnExpression(col *nodes.ColumnDef) error {

@@ -3990,6 +3990,11 @@ func (p *Parser) parseAlterTypeMethod(verb, typeName string) (*nodes.AlterTypeMe
 	if err := p.checkCharsetSources(params, method.Return); err != nil {
 		return nil, err
 	}
+	// A call specification, as in CREATE TYPE (Oracle 23ai adds MEMBER
+	// FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME '...').
+	if method.CallSpec, err = p.parseTypeSpecImplementation(); err != nil {
+		return nil, err
+	}
 	if method.Kind == "MAP MEMBER" || method.Kind == "ORDER MEMBER" {
 		want := 0
 		if method.Kind == "ORDER MEMBER" {

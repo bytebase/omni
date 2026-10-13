@@ -246,6 +246,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Return != nil {
 			Walk(v, n.Return)
 		}
+		if n.CallSpec != nil {
+			Walk(v, n.CallSpec)
+		}
 	case *AlterTypeStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)

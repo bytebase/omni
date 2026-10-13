@@ -136,6 +136,8 @@ const (
 	CONSTRAINT_PRIMARY
 	CONSTRAINT_UNIQUE
 	CONSTRAINT_FOREIGN
+	CONSTRAINT_SCOPE      // SCOPE IS table of a REF column; RefTable is the table
+	CONSTRAINT_WITH_ROWID // WITH ROWID of a REF column
 )
 
 // PartitionType represents partition types.
@@ -4238,6 +4240,7 @@ type AlterTypeMethod struct {
 	Name      string       // method name
 	Params    []*Parameter // method parameters
 	Return    *TypeName    // function return type; SELF AS RESULT for a constructor
+	CallSpec  *CallSpec    // IS | AS call specification
 	Loc       Loc
 }
 

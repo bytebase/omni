@@ -6783,6 +6783,10 @@ func writeAlterTypeMethod(sb *strings.Builder, n *AlterTypeMethod) {
 		sb.WriteString(" :return ")
 		writeNode(sb, n.Return)
 	}
+	if n.CallSpec != nil {
+		sb.WriteString(" :callSpec ")
+		writeNode(sb, n.CallSpec)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
