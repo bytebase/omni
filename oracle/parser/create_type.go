@@ -95,23 +95,24 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/CREATE-TYPE-statement.html
 //
 //	[ SHARING = { METADATA | DATA | NONE } ]
-//	[ FORCE ] [ OID 'object_identifier' ] [ DEFAULT COLLATION USING_NLS_COMP ]
-//	[ { AUTHID { CURRENT_USER | DEFINER } | ACCESSIBLE BY ( accessor [, ...] ) }... ]
+//	[ FORCE ] [ OID 'object_identifier' ]
+//	[ { DEFAULT COLLATION USING_NLS_COMP | AUTHID { CURRENT_USER | DEFINER }
+//	  | ACCESSIBLE BY ( accessor [, ...] ) }... ]
 //	[ { IS | AS } { OBJECT ( element [, ...] ) [ [ NOT ] { FINAL | INSTANTIABLE | PERSISTABLE } ]...
 //	              | TABLE OF collection_element
 //	              | { VARRAY | [ VARYING ] ARRAY } ( size_limit ) OF collection_element }
 //	| UNDER [ schema. ] supertype ( [ element [, ...] ] ) [ [ NOT ] { FINAL | INSTANTIABLE } ]... ]
 //
 // Oracle 23ai takes SHARING first, with its '=' (ORA-02000) and one of
-// those values (ORA-65014); then FORCE and OID, in either order; then AUTHID
-// and ACCESSIBLE BY, in either order. Each comes once (PLS-00103, PLS-00371
-// for AUTHID and ACCESSIBLE BY), and FORCE or OID after AUTHID or ACCESSIBLE
-// BY is PLS-00103. Where DEFAULT COLLATION goes is not checked: an image
-// whose MAX_STRING_SIZE is STANDARD rejects the clause (ORA-43929) before it
-// parses the rest, so it is taken once anywhere among them. With none of
-// the alternatives the type is incomplete, which takes SHARING and OID only
-// (PLS-00103). AUTHID and ACCESSIBLE BY are PLS-00262 on a collection type;
-// UNDER takes no IS or AS (PLS-00103) and no PERSISTABLE (PLS-00772).
+// those values (ORA-65014); then FORCE and OID, in either order; then
+// DEFAULT COLLATION, AUTHID, and ACCESSIBLE BY, in any order. Each comes
+// once (PLS-00103, PLS-00371 for the last three), and FORCE or OID after any
+// of the last three is PLS-00103 (checked with MAX_STRING_SIZE = EXTENDED;
+// with STANDARD, DEFAULT COLLATION is ORA-43929). With none of the
+// alternatives the type is incomplete, which takes SHARING and OID only
+// (PLS-00103). AUTHID and ACCESSIBLE BY are PLS-00262 on a collection type,
+// which takes DEFAULT COLLATION; UNDER takes no IS or AS (PLS-00103) and no
+// PERSISTABLE (PLS-00772).
 func (p *Parser) parseTypeSpecSource(stmt *nodes.CreateTypeStmt) error {
 	if p.isKeywordStr("SHARING") {
 		p.advance() // consume SHARING
@@ -132,7 +133,7 @@ properties:
 		switch {
 		case p.cur.Type == kwFORCE, p.isKeywordStr("OID"):
 			word := p.cur.Str
-			if seen["AUTHID"] || seen["ACCESSIBLE BY"] {
+			if seen["AUTHID"] || seen["ACCESSIBLE BY"] || seen["DEFAULT COLLATION"] {
 				return p.syntaxErrorAtCur()
 			}
 			if err := p.firstClause(seen, word); err != nil {
@@ -184,7 +185,7 @@ properties:
 	role := seen["AUTHID"] || seen["ACCESSIBLE BY"]
 	switch {
 	case p.isStatementEnd():
-		if stmt.Force || role {
+		if stmt.Force || role || stmt.DefaultCollation != "" {
 			return p.syntaxErrorAtCur()
 		}
 		return nil

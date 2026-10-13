@@ -3825,9 +3825,17 @@ func (p *Parser) parseAlterTypeMethod(verb string) (*nodes.AlterTypeMethod, erro
 	}
 	method.Modifiers = append(method.Modifiers, mods...)
 
+	kindTok := p.cur
+	kind := nodes.TYPE_BODY_MEMBER
 	switch {
 	case p.isKeywordStr("MEMBER"), p.isKeywordStr("STATIC"), p.isKeywordStr("CONSTRUCTOR"):
 		method.Kind = p.cur.Str
+		switch method.Kind {
+		case "STATIC":
+			kind = nodes.TYPE_BODY_STATIC
+		case "CONSTRUCTOR":
+			kind = nodes.TYPE_BODY_CONSTRUCTOR
+		}
 		p.advance()
 	case p.isKeywordStr("MAP"), p.cur.Type == kwORDER:
 		method.Kind = p.cur.Str + " MEMBER"
@@ -3838,6 +3846,12 @@ func (p *Parser) parseAlterTypeMethod(verb string) (*nodes.AlterTypeMethod, erro
 		p.advance()
 	default:
 		return nil, p.syntaxErrorAtCur()
+	}
+	// The inheritance clauses conflict with each other and with the kind as
+	// in CREATE TYPE: Oracle 23ai rejects ADD OVERRIDING STATIC and NOT
+	// INSTANTIABLE STATIC, FINAL, or CONSTRUCTOR methods.
+	if methodModifiersConflict(method.Modifiers, kind) {
+		return nil, p.syntaxErrorAtTok(kindTok)
 	}
 
 	switch p.cur.Type {
@@ -3883,6 +3897,7 @@ func (p *Parser) parseAlterTypeMethod(verb string) (*nodes.AlterTypeMethod, erro
 		if method.Kind == "CONSTRUCTOR" {
 			// RETURN SELF AS RESULT, all three words (PLS-00103 on Oracle
 			// 23ai for a partial phrase).
+			selfStart := p.pos()
 			if !p.isKeywordStr("SELF") || p.peekNext().Type != kwAS {
 				return nil, p.syntaxErrorAtCur()
 			}
@@ -3894,6 +3909,7 @@ func (p *Parser) parseAlterTypeMethod(verb string) (*nodes.AlterTypeMethod, erro
 			p.advance() // consume RESULT
 			method.Return = &nodes.TypeName{
 				Names: &nodes.List{Items: []nodes.Node{&nodes.String{Str: "SELF AS RESULT"}}},
+				Loc:   nodes.Loc{Start: selfStart, End: p.prev.End},
 			}
 		} else {
 			method.Return, err = p.parsePLSQLDatatype(typeModsNone, charsetFlexible)

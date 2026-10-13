@@ -61,6 +61,9 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 		if varying && p.isKeywordStr("VARYING") {
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "VARYING"})
 			p.advance()
+			if err := p.requireVaryingSize(); err != nil {
+				return nil, err
+			}
 		}
 		parseErr1117 := p.parseOptionalSizeWithSemantic(tn)
 		if parseErr1117 != nil {
@@ -144,13 +147,17 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 		p.advance()
 
 	case kwREF:
+		// REF [ schema. ] object_type, no attribute (ORA-00911, PLS-00103
+		// for %TYPE) and no third component (ORA-03099).
 		p.advance() // consume REF
-		if !p.isIdentLike() {
-			return nil, p.syntaxErrorAtCur()
-		}
-		if err := p.parseUserDefinedType(tn); err != nil {
+		name, err := p.parseUnitName()
+		if err != nil {
 			return nil, err
 		}
+		if name.Schema != "" {
+			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: name.Schema})
+		}
+		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: name.Name})
 		tn.IsRef = true
 
 	default:
@@ -169,6 +176,9 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 			if p.isKeywordStr("VARYING") {
 				tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "VARYING"})
 				p.advance()
+				if err := p.requireVaryingSize(); err != nil {
+					return nil, err
+				}
 			} else if tn.Names.Len() == 1 && p.typeMods != typeModsSQL && p.isKeywordStr("LARGE") {
 				// CHARACTER LARGE OBJECT is PL/SQL's alone (ORA-03062 in SQL).
 				p.advance() // consume LARGE
@@ -295,6 +305,16 @@ var plsqlNonCharacterTypes = map[string]bool{
 	"DATE": true, "TIMESTAMP": true, "INTERVAL": true, "RAW": true, "LONG": true,
 	"ROWID": true, "UROWID": true, "BLOB": true, "BFILE": true, "JSON": true, "VECTOR": true,
 	"MLSLABEL": true, "SYS_REFCURSOR": true, "NCHAR": true, "NVARCHAR2": true, "NCLOB": true,
+}
+
+// requireVaryingSize checks that the size of a VARYING character type
+// follows, as SQL requires (ORA-00906 on Oracle 23ai for CHARACTER VARYING
+// alone); PL/SQL, a type attribute, and a collection element take none.
+func (p *Parser) requireVaryingSize() error {
+	if p.typeMods == typeModsSQL && p.cur.Type != '(' {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
 }
 
 // predefinedTypeLead returns the name of the predefined datatype tn spells,

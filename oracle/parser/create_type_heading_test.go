@@ -11,9 +11,10 @@ import (
 // types, and collection elements of CREATE TYPE against Oracle 23ai: every
 // accepted form compiles there (or fails only on names it cannot resolve or
 // on the instance's settings), and every rejected one fails with the error
-// noted beside it. Rows ref_189 to ref_208 run the PLS-00103 and ORA cases
-// against the engine; the others are errors Oracle reports from the text
-// alone after parsing, which the reference harness counts as accepted.
+// noted beside it. Rows ref_189 to ref_208 and ref_216 to ref_218 run the
+// PLS-00103 and ORA cases against the engine; the others are errors Oracle
+// reports from the text alone after parsing, which the reference harness
+// counts as accepted.
 func TestCreateTypeHeading(t *testing.T) {
 	for _, sql := range []string{
 		// FORCE and OID in either order, then AUTHID and ACCESSIBLE BY in
@@ -30,12 +31,19 @@ func TestCreateTypeHeading(t *testing.T) {
 		"CREATE TYPE t SHARING = NONE FORCE OID '1234567890ABCDEF1234567890ABCDEF' AUTHID DEFINER ACCESSIBLE BY (PROCEDURE p) AS OBJECT (a NUMBER)",
 		"CREATE TYPE t SHARING = NONE OID '1234567890ABCDEF1234567890ABCDEF' AS OBJECT (a NUMBER)",
 		// METADATA and DATA are illegal outside an application root
-		// (ORA-65021); DEFAULT COLLATION needs MAX_STRING_SIZE = EXTENDED
-		// (ORA-43929).
+		// (ORA-65021).
 		"CREATE TYPE t SHARING = METADATA AS OBJECT (a NUMBER)",
 		"CREATE TYPE t SHARING = DATA AS OBJECT (a NUMBER)",
+		// DEFAULT COLLATION, checked with MAX_STRING_SIZE = EXTENDED: after
+		// SHARING, FORCE, and OID, in any order with AUTHID and ACCESSIBLE BY,
+		// and on a collection or a subtype too.
 		"CREATE TYPE t DEFAULT COLLATION USING_NLS_COMP AS OBJECT (a NUMBER)",
 		"CREATE TYPE t AUTHID DEFINER DEFAULT COLLATION USING_NLS_COMP AS OBJECT (a NUMBER)",
+		"CREATE TYPE t DEFAULT COLLATION USING_NLS_COMP AUTHID DEFINER AS OBJECT (a NUMBER)",
+		"CREATE TYPE t ACCESSIBLE BY (PROCEDURE p) DEFAULT COLLATION USING_NLS_COMP AS OBJECT (a NUMBER)",
+		"CREATE TYPE t SHARING = NONE FORCE OID '1234567890ABCDEF1234567890ABCDEF' DEFAULT COLLATION USING_NLS_COMP AS OBJECT (a NUMBER)",
+		"CREATE TYPE t DEFAULT COLLATION USING_NLS_COMP AS TABLE OF NUMBER",
+		"CREATE TYPE t DEFAULT COLLATION USING_NLS_COMP UNDER base (b NUMBER)",
 		"CREATE TYPE t IS OBJECT (a NUMBER)",
 		"CREATE TYPE t IS TABLE OF NUMBER",
 		// An incomplete type takes SHARING and OID only.
@@ -105,6 +113,12 @@ func TestCreateTypeHeading(t *testing.T) {
 		"CREATE TYPE t OID '1234567890ABCDEF1234567890ABCDEF' SHARING = NONE AS OBJECT (a NUMBER)",
 		"CREATE TYPE t AUTHID DEFINER SHARING = NONE AS OBJECT (a NUMBER)",
 		"CREATE TYPE t AS OBJECT (a NUMBER) NOT FINAL AUTHID DEFINER",
+		"CREATE TYPE t DEFAULT COLLATION USING_NLS_COMP FORCE AS OBJECT (a NUMBER)",
+		"CREATE TYPE t DEFAULT COLLATION USING_NLS_COMP OID '1234567890ABCDEF1234567890ABCDEF' AS OBJECT (a NUMBER)",
+		"CREATE TYPE t DEFAULT COLLATION USING_NLS_COMP SHARING = NONE AS OBJECT (a NUMBER)",
+		"CREATE TYPE t DEFAULT COLLATION USING_NLS_COMP DEFAULT COLLATION USING_NLS_COMP AS OBJECT (a NUMBER)",
+		// Program unit collation is USING_NLS_COMP (PLS-00761).
+		"CREATE TYPE t DEFAULT COLLATION BINARY AS OBJECT (a NUMBER)",
 		// OID takes a string literal (ORA-01780); SHARING its '='
 		// (ORA-02000) and a valid value (ORA-65014).
 		"CREATE TYPE t OID 123 AS OBJECT (a NUMBER)",
@@ -116,8 +130,11 @@ func TestCreateTypeHeading(t *testing.T) {
 		"CREATE TYPE t TABLE OF NUMBER",
 		"CREATE TYPE t AS UNDER base (b NUMBER)",
 		"CREATE TYPE BODY t MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;",
-		// An incomplete type takes no FORCE, AUTHID, or ACCESSIBLE BY.
+		// An incomplete type takes no FORCE, DEFAULT COLLATION, AUTHID, or
+		// ACCESSIBLE BY.
 		"CREATE TYPE t FORCE",
+		"CREATE TYPE t DEFAULT COLLATION USING_NLS_COMP",
+		"CREATE TYPE t OID '1234567890ABCDEF1234567890ABCDEF' DEFAULT COLLATION USING_NLS_COMP",
 		"CREATE TYPE t AUTHID DEFINER",
 		"CREATE TYPE t ACCESSIBLE BY (PROCEDURE p)",
 		"CREATE TYPE t FORCE OID '1234567890ABCDEF1234567890ABCDEF'",
@@ -216,6 +233,20 @@ func TestANSIDatatypes(t *testing.T) {
 	// DOUBLE takes PRECISION (ORA-02000, PLS-00103).
 	ParseShouldFail(t, "CREATE TABLE t (x DOUBLE)")
 	ParseShouldFail(t, "DECLARE x DOUBLE; BEGIN NULL; END;")
+	// A VARYING type has a size in SQL (ORA-00906), not in PL/SQL, an
+	// attribute, or a collection element.
+	for _, datatype := range []string{"CHARACTER VARYING", "CHAR VARYING", "NCHAR VARYING", "NATIONAL CHARACTER VARYING"} {
+		ParseShouldFail(t, "CREATE TABLE t (x "+datatype+")")
+		ParseAndCheck(t, "DECLARE x "+datatype+"; BEGIN NULL; END;")
+	}
+	ParseAndCheck(t, "CREATE TYPE t AS OBJECT (x CHARACTER VARYING)")
+	ParseAndCheck(t, "CREATE TYPE t AS TABLE OF CHAR VARYING")
+	// A REF names an object type, optionally schema-qualified: no %TYPE or
+	// %ROWTYPE (ORA-00911, PLS-00103) and no third component (ORA-03099).
+	ParseShouldFail(t, "CREATE TABLE t (x REF u%TYPE)")
+	ParseShouldFail(t, "CREATE TABLE t (x REF s.u.a)")
+	ParseShouldFail(t, "DECLARE x REF u%TYPE; BEGIN NULL; END;")
+	ParseShouldFail(t, "CREATE TYPE t AS OBJECT (x REF u%ROWTYPE)")
 
 	tn := parseOne[*ast.CreateTableStmt](t, "CREATE TABLE t (x NATIONAL CHARACTER VARYING(3))").Columns.Items[0].(*ast.ColumnDef).TypeName
 	if got := typeNameWords(tn); !reflect.DeepEqual(got, []string{"NATIONAL", "CHARACTER", "VARYING"}) || tn.TypeMods.Len() != 1 {
@@ -265,6 +296,12 @@ func TestAlterTypeElements(t *testing.T) {
 		"ALTER TYPE t ADD NOT OVERRIDING MEMBER FUNCTION no RETURN NUMBER CASCADE",
 		"ALTER TYPE t ADD FINAL OVERRIDING MEMBER FUNCTION fo RETURN NUMBER CASCADE",
 		"ALTER TYPE t ADD OVERRIDING ATTRIBUTE z NUMBER CASCADE",
+		// Inheritance clauses that conflict with each other or the method
+		// kind (ORA-22324 or ORA-06545 on the PLS-00169 rule).
+		"ALTER TYPE t ADD OVERRIDING STATIC FUNCTION g RETURN NUMBER CASCADE",
+		"ALTER TYPE t ADD NOT INSTANTIABLE STATIC FUNCTION h RETURN NUMBER CASCADE",
+		"ALTER TYPE t ADD NOT INSTANTIABLE FINAL MEMBER FUNCTION k RETURN NUMBER CASCADE",
+		"ALTER TYPE t ADD NOT INSTANTIABLE CONSTRUCTOR FUNCTION t (x NUMBER) RETURN SELF AS RESULT CASCADE",
 	} {
 		ParseShouldFail(t, sql)
 	}
@@ -279,6 +316,12 @@ func TestAlterTypeElements(t *testing.T) {
 	}
 	if m := alter.Methods[1]; m.Action != "ADD" || m.Kind != "MAP MEMBER" || m.Type != "FUNCTION" || m.Return == nil {
 		t.Errorf("second method = %+v", m)
+	}
+
+	const ctor = "ALTER TYPE t ADD CONSTRUCTOR FUNCTION t (a NUMBER) RETURN SELF AS RESULT"
+	ret := parseOne[*ast.AlterTypeStmt](t, ctor).Methods[0].Return
+	if got := ctor[ret.Loc.Start:ret.Loc.End]; got != "SELF AS RESULT" {
+		t.Errorf("constructor return spans %q, want SELF AS RESULT", got)
 	}
 
 	attrs := parseOne[*ast.AlterTypeStmt](t, "ALTER TYPE t ADD ATTRIBUTE (c NUMBER, d DATE), MODIFY ATTRIBUTE b VARCHAR2(30), DROP ATTRIBUTE e")

@@ -207,3 +207,6 @@ ref_205	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_tyd_{run} AS OBJECT (a
 ref_206	plsql_body	reject	CREATE OR REPLACE TYPE BODY omni_bad_tyb_{run} MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;	type body without IS or AS
 ref_207	ddl	reject	CREATE TABLE omni_bad_long_{run} (a LONG RAW(10))	size on a LONG RAW column (ORA-03074)
 ref_208	ddl	reject	CREATE TABLE omni_bad_clo_{run} (a CHARACTER LARGE OBJECT)	CHARACTER LARGE OBJECT column (ORA-03062)
+ref_216	ddl	reject	CREATE TABLE omni_bad_refty_{run} (x REF omni_u%TYPE)	REF to an attribute (ORA-00911)
+ref_217	ddl	reject	CREATE TABLE omni_bad_vary_{run} (x CHARACTER VARYING)	CHARACTER VARYING column without a size (ORA-00906)
+ref_218	plsql_body	accept	CREATE OR REPLACE TYPE omni_tyvs_{run} AS OBJECT (x CHARACTER VARYING, y NATIONAL CHARACTER VARYING)	VARYING attribute without a size
