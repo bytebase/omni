@@ -268,13 +268,12 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 		node := list.Items[0].(*ast.RawStmt).Stmt
 		// The statements before an UPDATE or DELETE run, as the change
 		// runs them, so the server resolves its table as the change does.
+		// After one fails, the transaction is aborted and the server's
+		// resolution is not asked again.
 		switch node.(type) {
 		case *ast.UpdateStmt, *ast.DeleteStmt:
 		default:
 			if engineKnown {
-				if _, err := etx.ExecContext(ctx, "SAVEPOINT step"); err != nil {
-					t.Fatal(err)
-				}
 				if _, err := etx.ExecContext(ctx, change[seg.ByteStart:seg.ByteEnd]); err != nil {
 					engineKnown = false
 				}
