@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mysql/ast"
@@ -28,7 +29,7 @@ var ghostDirective = regexp.MustCompile(`(?im)^\s*--\s*gh-ost\s*=\s*(\{[^}]*\})\
 // ghostFlagKinds are the flags Bytebase passes to gh-ost, by the type it
 // reads each as.
 var ghostFlagKinds = map[string]string{
-	"max-load":                         "string",
+	"max-load":                         "load map",
 	"chunk-size":                       "int",
 	"dml-batch-size":                   "int",
 	"default-retries":                  "int",
@@ -40,7 +41,7 @@ var ghostFlagKinds = map[string]string{
 	"assume-rbr":                       "bool",
 	"heartbeat-interval-millis":        "int",
 	"nice-ratio":                       "float",
-	"throttle-control-replicas":        "string",
+	"throttle-control-replicas":        "host list",
 	"attempt-instant-ddl":              "bool",
 	"assume-master-host":               "bool",
 	"skip-metadata-lock-check":         "bool",
@@ -49,9 +50,12 @@ var ghostFlagKinds = map[string]string{
 // checkOnlineMigration reports, from the SQL alone, what fails a change
 // that asks for online migration before gh-ost starts: a directive whose
 // flags Bytebase cannot read, a sheet that is not one ALTER TABLE
-// statement, and an ALTER TABLE that renames the table, which gh-ost
-// refuses (gh-ost go/logic/migrator.go, validateAlterStatement; renaming
-// the staged table instead would fail the cut-over).
+// statement, and an ALTER TABLE gh-ost refuses (gh-ost go/logic/migrator.go,
+// validateAlterStatement): one that renames the table, and one that renames
+// a column by CHANGE, which gh-ost takes only with approve-renamed-columns
+// or skip-renamed-columns, flags Bytebase does not pass. gh-ost compares
+// the two names of a CHANGE exactly; a name with a space in it, which its
+// pattern cannot read, is not judged.
 func checkOnlineMigration(sql string, stmts []statement, r *reporter) {
 	if msg := ghostFlagsRefused(sql); msg != "" {
 		r.report(review.OnlineMigration, -1, review.Range{}, msg)
@@ -66,9 +70,15 @@ func checkOnlineMigration(sql string, stmts []statement, r *reporter) {
 			break
 		}
 		for _, cmd := range v.Commands {
-			if cmd != nil && cmd.Type == ast.ATRenameTable {
+			if cmd == nil {
+				continue
+			}
+			switch {
+			case cmd.Type == ast.ATRenameTable:
 				r.report(review.OnlineMigration, stmts[0].index, rangeOf(cmd.Loc), "gh-ost does not rename the table it migrates")
-				break
+			case cmd.Type == ast.ATChangeColumn && cmd.Column != nil && cmd.Name != cmd.Column.Name &&
+				!strings.ContainsAny(cmd.Name+cmd.Column.Name, " \t\r\n"):
+				r.report(review.OnlineMigration, stmts[0].index, rangeOf(cmd.Loc), "gh-ost renames column "+ident(cmd.Name)+" to "+ident(cmd.Column.Name)+" only with approve-renamed-columns, which Bytebase does not pass")
 			}
 		}
 	}
@@ -77,8 +87,9 @@ func checkOnlineMigration(sql string, stmts []statement, r *reporter) {
 // ghostFlagsRefused returns why Bytebase cannot read the flags of the
 // sheet's gh-ost directive, "" when it can: a flag object that is not
 // JSON of strings, a flag it does not pass, a value it cannot read as its
-// type, or switch-to-rbr with assume-rbr. The value of max-load is checked
-// by gh-ost, and is not judged.
+// type, or switch-to-rbr with assume-rbr. max-load and
+// throttle-control-replicas are read as gh-ost reads them (go/base,
+// ParseLoadMap; go/mysql, ReadCommaDelimitedList).
 func ghostFlagsRefused(sql string) string {
 	match := ghostDirective.FindStringSubmatch(sql)
 	if len(match) < 2 {
@@ -107,6 +118,10 @@ func ghostFlagsRefused(sql string) string {
 			_, err = strconv.ParseBool(v)
 		case "float":
 			_, err = strconv.ParseFloat(v, 64)
+		case "load map":
+			err = parseLoadMap(v)
+		case "host list":
+			err = parseHostList(v)
 		}
 		if err != nil {
 			return fmt.Sprintf("online migration cannot read gh-ost flag %q as %s: %q", k, kind, v)
@@ -116,6 +131,51 @@ func ghostFlagsRefused(sql string) string {
 		return "online migration cannot take gh-ost flags switch-to-rbr and assume-rbr together"
 	}
 	return ""
+}
+
+// parseLoadMap reads a max-load value as gh-ost's ParseLoadMap does:
+// comma-separated status=number pairs.
+func parseLoadMap(v string) error {
+	if v == "" {
+		return nil
+	}
+	for _, cond := range strings.Split(v, ",") {
+		kv := strings.Split(cond, "=")
+		if len(kv) != 2 || kv[0] == "" {
+			return fmt.Errorf("bad condition %q", cond)
+		}
+		if _, err := strconv.ParseInt(kv[1], 10, 0); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ghostHost matches one host of a throttle-control-replicas value as
+// gh-ost's NewRawInstanceKey does: host, host:port, [ipv6]:port, or ipv6.
+var ghostHost = regexp.MustCompile(`^(?:[^:]+(?::([0-9]+))?|\[[:0-9a-fA-F]+\]:([0-9]+)|[:0-9a-fA-F]+)$`)
+
+// parseHostList reads a throttle-control-replicas value as gh-ost's
+// ReadCommaDelimitedList does.
+func parseHostList(v string) error {
+	if v == "" {
+		return nil
+	}
+	for _, host := range strings.Split(v, ",") {
+		m := ghostHost.FindStringSubmatch(host)
+		if m == nil {
+			return fmt.Errorf("cannot parse address %q", host)
+		}
+		for _, port := range m[1:] {
+			if port == "" {
+				continue
+			}
+			if _, err := strconv.Atoi(port); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func isTrue(v string) bool {
@@ -132,6 +192,11 @@ func isTrue(v string) bool {
 // gh-ost (bytebase/gh-ost2): go/logic/inspect.go —
 // InspectTableColumnsAndUniqueKeys, validateTableForeignKeys,
 // validateTableTriggers.
+//
+// gh-ost also refuses a table whose only unique keys hold a nullable
+// column: it takes the primary key, else a unique key without one, first,
+// and bails out on a nullable key without allow-nullable-unique-key, a
+// flag Bytebase does not pass.
 func checkOnlineMigrationTarget(stmts []statement, t review.Target, x schemaIndex, r *reporter) {
 	if !t.BackupDatabaseExists {
 		r.report(review.OnlineMigration, -1, review.Range{}, "online migration needs database "+backupDatabase+", which does not exist")
@@ -143,8 +208,10 @@ func checkOnlineMigrationTarget(stmts []statement, t review.Target, x schemaInde
 	if !ok {
 		return
 	}
-	// gh-ost migrates the table of the task's database.
-	tbl := x.table(v.Table, false)
+	// gh-ost migrates the table of the name in the task's database, which
+	// Bytebase passes as gh-ost's DatabaseName whatever database the ALTER
+	// names (backend/component/ghost, NewMigrationContext).
+	tbl := x.table(&ast.TableRef{Name: v.Table.Name}, false)
 	if tbl == nil {
 		return
 	}
@@ -152,8 +219,11 @@ func checkOnlineMigrationTarget(stmts []statement, t review.Target, x schemaInde
 		r.report(review.OnlineMigration, stmts[0].index, rangeOf(stmts[0].loc), msg)
 	}
 	name := table(v.Table)
-	if !slices.ContainsFunc(tbl.GetIndexes(), func(i *metadata.IndexMetadata) bool { return i.GetPrimary() || i.GetUnique() }) {
+	switch {
+	case !slices.ContainsFunc(tbl.GetIndexes(), func(i *metadata.IndexMetadata) bool { return i.GetPrimary() || i.GetUnique() }):
 		at("online migration needs a primary or unique key on " + name + ", which has none")
+	case !slices.ContainsFunc(tbl.GetIndexes(), func(i *metadata.IndexMetadata) bool { return i.GetPrimary() || i.GetUnique() && !nullableKey(tbl, i) }):
+		at("online migration needs a primary key or a unique key of NOT NULL columns on " + name + ", which has none")
 	}
 	if len(tbl.GetForeignKeys()) > 0 {
 		at("online migration does not support " + name + ", which has a foreign key")
@@ -163,4 +233,18 @@ func checkOnlineMigrationTarget(stmts []statement, t review.Target, x schemaInde
 	if len(tbl.GetTriggers()) > 0 {
 		at("online migration does not support " + name + ", which has a trigger")
 	}
+}
+
+// nullableKey reports whether an index certainly holds a nullable column:
+// one of its parts names a column of the table that is nullable. A part
+// that names no column, an expression, is not judged.
+func nullableKey(t *metadata.TableMetadata, idx *metadata.IndexMetadata) bool {
+	for _, part := range idx.GetExpressions() {
+		for _, c := range t.GetColumns() {
+			if strings.EqualFold(c.GetName(), part) && c.GetNullable() {
+				return true
+			}
+		}
+	}
+	return false
 }

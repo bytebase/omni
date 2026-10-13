@@ -104,6 +104,11 @@ func shop() *metadata.DatabaseSchemaMetadata {
 					Indexes:  []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}}},
 					Triggers: []*metadata.TriggerMetadata{{Name: "trig_bi"}},
 				},
+				{
+					Name:    "nul",
+					Columns: []*metadata.ColumnMetadata{{Name: "email", Nullable: true}, {Name: "code"}},
+					Indexes: []*metadata.IndexMetadata{{Name: "uk_email", Unique: true, Expressions: []string{"email"}}},
+				},
 			},
 		}},
 	}
@@ -195,6 +200,11 @@ func TestDisallowDropObject(t *testing.T) {
 			sql:  "DROP TABLE `a\nb`;",
 			want: []finding{{0, "DROP TABLE `a\nb`", "drops table `a\\nb`", []int{0}}},
 		},
+		{
+			name: "an account with a line break",
+			sql:  "DROP USER 'a\nb'@'%';",
+			want: []finding{{0, "DROP USER 'a\nb'@'%'", "drops user a\\nb@%", []int{0}}},
+		},
 	})
 }
 
@@ -258,6 +268,10 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name: "an index the change touched before, or after a USE",
 			sql:  "ALTER TABLE t DROP INDEX uk_code, ADD INDEX uk_code (code);\nALTER TABLE t DROP INDEX uk_code;\nUSE other;\nDROP INDEX uk_code ON t;",
 			want: []finding{{0, "DROP INDEX uk_code", "drops unique key uk_code of t", []int{0}}},
+		},
+		{
+			name: "a table named in another case, or a routine body's index",
+			sql:  "CREATE UNIQUE INDEX ux ON T (c);\nDROP INDEX ux ON t;\nCREATE PROCEDURE pr() CREATE UNIQUE INDEX uy ON nokey (a);\nDROP INDEX uy ON nokey;",
 		},
 		{
 			name: "an index of a table CREATE TABLE IF NOT EXISTS leaves",
@@ -327,6 +341,35 @@ func TestOnlineMigration(t *testing.T) {
 			sql:    "ALTER TABLE plain ADD COLUMN m INT, RENAME TO plain2;",
 			change: ghost,
 			want:   []finding{{0, "RENAME TO plain2", "gh-ost does not rename the table it migrates", []int{0}}},
+		},
+		{
+			name:   "a column renamed by CHANGE",
+			sql:    "ALTER TABLE plain CHANGE COLUMN v w INT, CHANGE id id BIGINT;",
+			change: ghost,
+			want:   []finding{{0, "CHANGE COLUMN v w INT", "gh-ost renames column v to w only with approve-renamed-columns, which Bytebase does not pass", []int{0}}},
+		},
+		{
+			name:   "flag values gh-ost cannot read",
+			sql:    "-- gh-ost = {\"max-load\":\"Threads_running\"}\nALTER TABLE plain ADD COLUMN m INT;",
+			change: ghost,
+			want:   []finding{{-1, "", `online migration cannot read gh-ost flag "max-load" as load map: "Threads_running"`, []int{0}}},
+		},
+		{
+			name:   "flag values gh-ost reads",
+			sql:    "-- gh-ost = {\"max-load\":\"Threads_running=25,Threads_connected=100\",\"throttle-control-replicas\":\"r1:3306,r2,[::1]:3307\"}\nALTER TABLE plain ADD COLUMN m INT;",
+			change: ghost,
+		},
+		{
+			name:   "only a nullable unique key",
+			sql:    "ALTER TABLE nul ADD COLUMN m INT;",
+			change: ghost,
+			want:   []finding{{0, "ALTER TABLE nul ADD COLUMN m INT", "online migration needs a primary key or a unique key of NOT NULL columns on nul, which has none", []int{0}}},
+		},
+		{
+			name:   "the table of the task's database, whatever the ALTER names",
+			sql:    "ALTER TABLE other.nokey ADD COLUMN m INT;",
+			change: ghost,
+			want:   []finding{{0, "ALTER TABLE other.nokey ADD COLUMN m INT", "online migration needs a primary or unique key on other.nokey, which has none", []int{0}}},
 		},
 		{
 			name:   "tables gh-ost refuses",
