@@ -199,3 +199,5 @@ ref_233	select	reject	(WITH w AS (SELECT 1 a FROM dual) SELECT a FROM w) UNION S
 ref_234	select	reject	SELECT 1 FROM dual ORDER BY 1 UNION SELECT 2 FROM dual	set operator after ORDER BY (ORA-03048)
 ref_235	select	reject	SELECT 1 except FROM dual	EXCEPT where an alias would stand (ORA-00928)
 ref_236	ddl	reject	CREATE TABLE omni_bad_ctas_{run} AS (SELECT 1 a FROM dual ORDER BY 1)	CTAS with ORDER BY inside the parentheses (ORA-00907)
+ref_251	select	accept	SELECT x.a FROM (((SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual))) x	alias after redundant inline-view parentheses
+ref_252	select	reject	(SELECT 1 FROM dual EXCEPT)	set operator without a right operand (ORA-00928)

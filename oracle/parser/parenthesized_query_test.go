@@ -9,8 +9,8 @@ import (
 // TestParenthesizedQueries checks queries whose operands are parenthesized
 // subqueries, and the EXCEPT and ALL set operators, against Oracle 23ai:
 // every accepted form parses there, and every rejected one fails with the
-// error noted beside it. Rows ref_225 to ref_236 run them against the
-// engine.
+// error noted beside it. Rows ref_225 to ref_236 and ref_251 to ref_252 run
+// them against the engine.
 func TestParenthesizedQueries(t *testing.T) {
 	for _, sql := range []string{
 		// A statement, a set operand, and what may follow the parentheses.
@@ -41,6 +41,10 @@ func TestParenthesizedQueries(t *testing.T) {
 		"SELECT * FROM ((SELECT 1 a FROM dual ORDER BY 1))",
 		"SELECT * FROM ((SELECT 1 a FROM dual) x JOIN (SELECT 1 a FROM dual) y ON x.a = y.a)",
 		"SELECT * FROM (WITH w AS (SELECT 1 a FROM dual) SELECT a FROM w)",
+		// Redundant parentheses around an inline view, its alias after them.
+		"SELECT * FROM ((SELECT 1 a FROM dual)) x",
+		"SELECT * FROM (((SELECT 1 a FROM dual))) x",
+		"SELECT x.a FROM (((SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual))) x",
 		// In expressions, likewise a query or a parenthesized expression.
 		"SELECT 1 FROM dual WHERE 1 IN ((SELECT 1 FROM dual) UNION (SELECT 2 FROM dual))",
 		"SELECT 1 FROM dual WHERE (1, 2) NOT IN ((SELECT 1, 2 FROM dual) UNION ALL (SELECT 3, 4 FROM dual))",
@@ -97,6 +101,11 @@ func TestParenthesizedQueries(t *testing.T) {
 		"( SELECT 1 FROM dual ) x",
 		"SELECT 1 except FROM dual",
 		"(1)",
+		// A query follows a set operator (ORA-00928).
+		"(SELECT 1 FROM dual EXCEPT)",
+		"(SELECT 1 FROM dual MINUS ALL)",
+		"SELECT 1 FROM dual UNION",
+		"SELECT 1 FROM dual UNION (1)",
 	} {
 		ParseShouldFail(t, sql)
 	}
@@ -106,9 +115,13 @@ func TestParenthesizedQueries(t *testing.T) {
 // recorded: alone it is the query itself; with a set operator, a clause
 // after it, or a WITH clause before it, a query around it holds it as Larg.
 func TestParenthesizedQueryAST(t *testing.T) {
-	plain := parseOne[*ast.SelectStmt](t, "(SELECT a FROM t)")
+	const bare = "((SELECT a FROM t))"
+	plain := parseOne[*ast.SelectStmt](t, bare)
 	if plain.Larg != nil || plain.TargetList.Len() != 1 {
-		t.Errorf("(SELECT a FROM t) = Larg %v, %d targets; want the query itself", plain.Larg, plain.TargetList.Len())
+		t.Errorf("%s = Larg %v, %d targets; want the query itself", bare, plain.Larg, plain.TargetList.Len())
+	}
+	if plain.Loc.Start != 0 || plain.Loc.End != len(bare) {
+		t.Errorf("%s spans %d:%d, want its parentheses, 0:%d", bare, plain.Loc.Start, plain.Loc.End, len(bare))
 	}
 
 	union := parseOne[*ast.SelectStmt](t, "(SELECT a FROM t) UNION ALL (SELECT b FROM u)")

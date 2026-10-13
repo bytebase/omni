@@ -95,6 +95,7 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 // query is the subquery itself; otherwise sel is a wrapper whose Larg is
 // the subquery.
 func (p *Parser) parseParenthesizedQuery(sel *nodes.SelectStmt) (*nodes.SelectStmt, error) {
+	open := p.pos()
 	p.advance() // consume '('
 	if p.cur.Type != kwSELECT && p.cur.Type != '(' {
 		return nil, p.syntaxErrorAtCur()
@@ -115,6 +116,9 @@ func (p *Parser) parseParenthesizedQuery(sel *nodes.SelectStmt) (*nodes.SelectSt
 		return nil, err
 	}
 	if sel.WithClause == nil && sel.OrderBy == nil && sel.ForUpdate == nil && sel.FetchFirst == nil && sel.Op == nodes.SETOP_NONE {
+		// The query spans its parentheses, so a consumer that edits or
+		// quotes it by position keeps them.
+		inner.Loc = nodes.Loc{Start: open, End: p.prev.End}
 		return inner, nil
 	}
 	sel.Larg = inner
@@ -509,7 +513,9 @@ func (p *Parser) parseQueryTail(sel *nodes.SelectStmt) error {
 		sel.SetAll = true
 		p.advance()
 	}
-	if p.cur.Type == tokEOF {
+	// A query follows the operator (ORA-00928 on Oracle 23ai for UNION ),
+	// UNION (1), or UNION at the end).
+	if !p.atQuery() {
 		return p.syntaxErrorAtCur()
 	}
 	var err error
@@ -1085,6 +1091,25 @@ func (p *Parser) parseParenthesizedTableRef(start int) (nodes.TableExpr, error) 
 		return p.parsePivotSuffix(tref)
 	}
 
+	// An inline view inside redundant parentheses takes its alias after
+	// them: FROM ((SELECT ...)) x and FROM (((q) UNION (q))) x compile on
+	// Oracle 23ai.
+	if sub, ok := tref.(*nodes.SubqueryRef); ok && sub.Alias == nil {
+		if p.cur.Type == kwAS {
+			p.advance()
+			alias, err := p.parseAlias()
+			if err != nil {
+				return nil, err
+			}
+			sub.Alias = alias
+		} else if p.isTableAliasCandidate() {
+			alias, err := p.parseAlias()
+			if err != nil {
+				return nil, err
+			}
+			sub.Alias = alias
+		}
+	}
 	if aliasable, ok := tref.(*nodes.TableRef); ok {
 		if p.cur.Type == kwAS {
 			p.advance()
