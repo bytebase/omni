@@ -109,6 +109,15 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a column a function of the FROM list reads", "ALTER TABLE p ADD COLUMN gone int;\nDELETE FROM t USING p, generate_series(1, p.gone) AS g WHERE false;", true},
 		{"a relation after SET search_path FROM CURRENT", "CREATE TABLE public.ids (id int);\nSET search_path FROM CURRENT;\nDELETE FROM t USING ids WHERE t.id = ids.id;", true},
 		{"a table RESET search_path moves", "SET search_path = s, public;\nUPDATE t SET id = 1 WHERE id = 1;\nRESET search_path;\nUPDATE t SET n = 1 WHERE id = 1;", true},
+		{"a first alias the later statement's table answers to", "DELETE FROM nokey AS nokey WHERE a = 1;\nDELETE FROM nokey WHERE a = 2;", true},
+		{"no first alias, then the table's name as an alias", "DELETE FROM nokey WHERE a = 1;\nDELETE FROM nokey AS nokey WHERE a = 2;", true},
+		{"a column of a view the change recreates", "DROP VIEW tv;\nCREATE VIEW tv AS SELECT 1 AS b;\nDELETE FROM t USING tv WHERE tv.b = t.id;", true},
+		{"a column an outer source has, named in a subquery", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p WHERE EXISTS (SELECT 1 WHERE p.gone);", true},
+		{"a column a copied WITH query orders by", "ALTER TABLE p ADD COLUMN gone int;\nWITH x AS (SELECT p.id FROM p ORDER BY p.gone) DELETE FROM t WHERE id IN (SELECT id FROM x);", true},
+		{"an output a copied WITH query orders by", "ALTER TABLE p ADD COLUMN gone int;\nWITH y AS (SELECT p.id AS gone FROM p ORDER BY gone) DELETE FROM nokey WHERE a IN (SELECT gone FROM y);", true},
+		{"a join alias's column list longer than the join", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING (p JOIN nokey ON true) AS j(i, a, g) WHERE false;", true},
+		{"a table the change creates earlier on the path", "SET search_path = s, public;\nCREATE TABLE s.p (id int);\nUPDATE p SET id = 1 WHERE id = 2;", true},
+		{"a search path set_config sets", "SELECT pg_catalog.set_config('search_path', 's, public', false);\nUPDATE t SET id = 1 WHERE id = 2;", true},
 		// The first CTE stands for p in the second arm, which reads other
 		// rows than the statement's, or not: not judged.
 		{"a later source a WITH query of the first statement shadows", "WITH p AS (SELECT 999 AS id) DELETE FROM t WHERE id = 1;\nDELETE FROM t USING p WHERE t.p_id = p.id;", false},
@@ -257,14 +266,23 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 			t.Fatalf("parse: %v", err)
 		}
 		node := list.Items[0].(*ast.RawStmt).Stmt
-		var rv *ast.RangeVar
-		switch v := node.(type) {
-		case *ast.VariableSetStmt:
+		// The statements before an UPDATE or DELETE run, as the change
+		// runs them, so the server resolves its table as the change does.
+		switch node.(type) {
+		case *ast.UpdateStmt, *ast.DeleteStmt:
+		default:
 			if engineKnown {
+				if _, err := etx.ExecContext(ctx, "SAVEPOINT step"); err != nil {
+					t.Fatal(err)
+				}
 				if _, err := etx.ExecContext(ctx, change[seg.ByteStart:seg.ByteEnd]); err != nil {
 					engineKnown = false
 				}
 			}
+		}
+		var rv *ast.RangeVar
+		switch v := node.(type) {
+		case *ast.VariableSetStmt:
 			if prepend == "" && (strings.EqualFold(v.Name, "role") || strings.EqualFold(v.Name, "search_path")) {
 				prepend = strings.TrimSuffix(strings.TrimSpace(change[seg.ByteStart:seg.ByteEnd]), ";") + ";"
 				prependAt = i

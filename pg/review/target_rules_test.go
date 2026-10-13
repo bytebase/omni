@@ -3320,7 +3320,12 @@ func TestPriorBackup(t *testing.T) {
 			sql:     "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING (p JOIN nokey ON true) AS j WHERE j.gone;\nDELETE FROM nokey USING (p JOIN t ON true) AS k(a, b) WHERE k.gone;",
 			change:  on,
 			targets: one,
-			want:    []targetFinding{{1, "DELETE FROM t USING (p JOIN nokey ON true) AS j WHERE j.gone", "prior backup runs before the change, when column gone of j does not exist yet", []int{0}}},
+			// k(a, b) renames p's id and note; gone, which the change adds
+			// after them, is the join's third column only after the change.
+			want: []targetFinding{
+				{1, "DELETE FROM t USING (p JOIN nokey ON true) AS j WHERE j.gone", "prior backup runs before the change, when column gone of j does not exist yet", []int{0}},
+				{2, "DELETE FROM nokey USING (p JOIN t ON true) AS k(a, b) WHERE k.gone", "prior backup runs before the change, when column gone of k does not exist yet", []int{0}},
+			},
 		},
 		{
 			name:   "a column the change adds to a partitioned table, through a partition",
@@ -3443,6 +3448,55 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: one,
 			want:    []targetFinding{{3, "UPDATE t SET n = 1 WHERE id = 1", "prior backup backs up s.t for this statement, which changes public.t", []int{0}}},
+		},
+		{
+			name:    "a first alias the later statement's table answers to",
+			sql:     "DELETE FROM nokey AS nokey WHERE a = 1;\nDELETE FROM nokey WHERE a = 2;\nDELETE FROM p WHERE id = 1;\nDELETE FROM p AS p WHERE id = 2;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{3, "DELETE FROM p AS p WHERE id = 2", "prior backup selects the rows of every statement on public.p through the first one's alias, which this statement does not use", []int{0}}},
+		},
+		{
+			name:    "a column of a view the change recreates",
+			sql:     "DROP VIEW v;\nCREATE VIEW v AS SELECT 1 AS b;\nDELETE FROM t USING v WHERE v.b = t.id;\nDROP VIEW w;\nCREATE VIEW w (c) AS SELECT 1;\nDELETE FROM p USING w WHERE w.c = p.id;",
+			change:  on,
+			targets: []review.Target{{Schema: withViews(), SessionUser: "alice"}},
+			want:    []targetFinding{{2, "DELETE FROM t USING v WHERE v.b = t.id", "prior backup runs before the change, when column b of v does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a column an outer source has, named in a subquery",
+			sql:     "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p WHERE EXISTS (SELECT 1 WHERE p.gone);\nDELETE FROM nokey USING p WHERE EXISTS (SELECT 1 FROM p WHERE p.gone);",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "DELETE FROM t USING p WHERE EXISTS (SELECT 1 WHERE p.gone)", "prior backup runs before the change, when column gone of p does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a column a copied WITH query orders by, or names as an output",
+			sql:     "ALTER TABLE p ADD COLUMN gone int;\nWITH x AS (SELECT p.id FROM p ORDER BY p.gone) DELETE FROM t WHERE id IN (SELECT id FROM x);\nWITH y AS (SELECT p.id AS gone FROM p ORDER BY gone) DELETE FROM nokey WHERE a IN (SELECT gone FROM y);",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "WITH x AS (SELECT p.id FROM p ORDER BY p.gone) DELETE FROM t WHERE id IN (SELECT id FROM x)", "prior backup runs before the change, when column gone of p does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a join alias's column list longer than the join",
+			sql:     "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING (p JOIN nokey ON true) AS j(i, n, a, g) WHERE false;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "DELETE FROM t USING (p JOIN nokey ON true) AS j(i, n, a, g) WHERE false", "prior backup runs before the change, when the join has fewer columns than alias j names", []int{0}}},
+		},
+		{
+			name:    "a table the change creates earlier on the path",
+			sql:     "SET search_path = s, public;\nCREATE TABLE s.p (id int);\nUPDATE p SET id = 1 WHERE id = 2;\nCREATE TABLE nokey2 (id int);\nDROP TABLE s.t;\nUPDATE t SET id = 1 WHERE id = 2;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{2, "UPDATE p SET id = 1 WHERE id = 2", "prior backup backs up public.p for this statement, which changes s.p", []int{0}}},
+		},
+		{
+			name:    "a search path set_config sets",
+			sql:     "SELECT pg_catalog.set_config('search_path', 's, public', false);\nUPDATE t SET id = 1 WHERE id = 2;\nSELECT set_config('search_path', current_setting('x'), false);\nUPDATE p SET id = 1 WHERE id = 2;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "UPDATE t SET id = 1 WHERE id = 2", "prior backup backs up public.t for this statement, which changes s.t", []int{0}}},
 		},
 		{
 			name:    "no schema, nothing known about the target",

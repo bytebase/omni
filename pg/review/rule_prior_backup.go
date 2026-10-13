@@ -140,6 +140,7 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 			engine.set(v)
 			continue
 		default:
+			engine.follow(s.node)
 			continue
 		}
 		if rv == nil {
@@ -463,6 +464,12 @@ type enginePath struct {
 	session string
 	user    string
 	known   bool
+	// made lists the relations earlier statements created, by (schema,
+	// name), and schemas the schemas they created; unsure lists the names
+	// an earlier statement may have created, dropped, or moved otherwise.
+	made    map[[2]string]bool
+	schemas map[string]bool
+	unsure  map[string]bool
 }
 
 func newEnginePath(schema *metadata.DatabaseSchemaMetadata, sessionUser string) *enginePath {
@@ -470,7 +477,84 @@ func newEnginePath(schema *metadata.DatabaseSchemaMetadata, sessionUser string) 
 	if strings.TrimSpace(schema.GetSearchPath()) == "" {
 		initial = []string{"$user", "public"}
 	}
-	return &enginePath{schema: schema, initial: initial, path: initial, session: sessionUser, user: sessionUser, known: true}
+	return &enginePath{schema: schema, initial: initial, path: initial, session: sessionUser, user: sessionUser, known: true,
+		made: make(map[[2]string]bool), schemas: make(map[string]bool), unsure: make(map[string]bool)}
+}
+
+// follow notes what a statement other than SET does to the names the
+// change's later statements find: set_config of search_path, the form
+// pg_dump writes, sets the path, and any other call of it leaves the path
+// unknown; a relation it creates, renames to, or moves in shadows one of
+// the name later on the path; and one it drops or moves away leaves the
+// name unsure.
+//
+// pg: src/backend/catalog/namespace.c — RangeVarGetCreationNamespace
+func (e *enginePath) follow(n ast.Node) {
+	if calls := searchPathCalls(n); len(calls) > 0 {
+		if path, ok := dumpSearchPath(n, calls); ok {
+			e.path = append([]string{}, path...)
+		} else {
+			e.known = false
+		}
+	}
+	if v, ok := n.(*ast.CreateSchemaStmt); ok {
+		name := v.Schemaname
+		if name == "" && v.Authrole != nil {
+			name = v.Authrole.Rolename
+		}
+		e.schemas[name] = true
+	}
+	switch v := n.(type) {
+	case *ast.DropStmt:
+		if v.Objects != nil {
+			for _, obj := range v.Objects.Items {
+				if parts := nameParts(listOf(obj)); len(parts) > 0 {
+					e.unsure[parts[len(parts)-1]] = true
+				}
+			}
+		}
+	case *ast.RenameStmt:
+		if v.Relation != nil {
+			e.unsure[v.Relation.Relname] = true
+		}
+	case *ast.AlterObjectSchemaStmt:
+		if v.Relation != nil {
+			e.unsure[v.Relation.Relname] = true
+		}
+	}
+	for _, t := range createdRelations(n) {
+		if t.schema == "" {
+			t.schema = e.creationSchema()
+		}
+		if t.schema == "" {
+			e.unsure[t.name] = true
+			continue
+		}
+		e.made[[2]string{t.schema, t.name}] = true
+	}
+}
+
+// creationSchema returns the schema an unqualified CREATE puts a relation
+// in: the first of the path that exists, "" when that is not known.
+func (e *enginePath) creationSchema() string {
+	if !e.known {
+		return ""
+	}
+	for _, p := range e.path {
+		if p == "$user" {
+			if e.user == "" {
+				return ""
+			}
+			p = e.user
+		}
+		if strings.HasPrefix(p, "pg_") {
+			return ""
+		}
+		if findSchema(e.schema, p) != nil || e.schemas[p] {
+			return p
+		}
+	}
+	return ""
 }
 
 // set follows a SET or RESET.
@@ -529,7 +613,7 @@ func (e *enginePath) set(v *ast.VariableSetStmt) {
 // find returns the synced schema an unqualified relation name means for
 // the statement, "" when the path is not known or holds none.
 func (e *enginePath) find(name string) string {
-	if !e.known || strings.HasPrefix(name, "pg_") {
+	if !e.known || strings.HasPrefix(name, "pg_") || e.unsure[name] {
 		return ""
 	}
 	for _, p := range e.path {
@@ -539,7 +623,7 @@ func (e *enginePath) find(name string) string {
 			}
 			p = e.user
 		}
-		if hasBackupRelation(findSchema(e.schema, p), name) {
+		if e.made[[2]string{p, name}] || hasBackupRelation(findSchema(e.schema, p), name) {
 			return p
 		}
 	}
@@ -597,6 +681,17 @@ func dmlParts(n ast.Node) (*ast.RangeVar, *ast.List, ast.Node) {
 	return nil, nil, nil
 }
 
+// exposesFirst reports whether a later statement's table answers to the
+// name the backup selects every arm through: the first statement's alias,
+// which the later one gives too or, unaliased, is named; or, with none,
+// the table's own name, which an alias would hide.
+func exposesFirst(first, later *ast.RangeVar) bool {
+	if a := aliasOf(first); a != "" {
+		return aliasOf(later) == a || aliasOf(later) == "" && later.Relname == a
+	}
+	return aliasOf(later) == ""
+}
+
 // aliasOf returns the alias a statement gives its table, "" for none.
 func aliasOf(rv *ast.RangeVar) string {
 	if rv != nil && rv.Alias != nil {
@@ -633,7 +728,7 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 	with := withOf(first)
 	firstTarget, _, _ := dmlParts(first)
 	name := relation(&ast.RangeVar{Schemaname: table.schema, Relname: table.name})
-	if !isFirst && aliasOf(target) != aliasOf(firstTarget) {
+	if !isFirst && !exposesFirst(firstTarget, target) {
 		return "prior backup selects the rows of every statement on " + name + " through the first one's alias, which this statement does not use"
 	}
 	visible := make(map[string]bool)
@@ -815,6 +910,9 @@ type backupSource struct {
 	// overflow marks an alias's column list longer than every relation
 	// the name may mean has columns before the change.
 	overflow bool
+	// ordered are the columns in order, as a join's alias list renames
+	// them, nil when not known.
+	ordered []string
 }
 
 // columnMissing reports a column the backup's query names that the change
@@ -829,7 +927,7 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 	if where != nil {
 		exprs = append(exprs, where)
 	}
-	return columnsMissing(target, from, exprs, visible, q, m)
+	return columnsMissing(target, from, exprs, nil, visible, q, m)
 }
 
 // withColumnMissing reports a column a query of a copied WITH clause names
@@ -854,19 +952,54 @@ func withColumnMissing(w *ast.WithClause, q backupQuery, m made) string {
 			continue
 		}
 		if sel, ok := c.Ctequery.(*ast.SelectStmt); ok && sel.Larg == nil && sel.WithClause == nil {
-			var exprs []ast.Node
-			for _, n := range []ast.Node{sel.TargetList, sel.WhereClause, sel.GroupClause, sel.HavingClause} {
+			var exprs, qualified []ast.Node
+			for _, n := range []ast.Node{sel.TargetList, sel.WhereClause, sel.HavingClause, sel.LimitCount, sel.LimitOffset} {
 				if n != nil && !isNilList(n) {
 					exprs = append(exprs, n)
 				}
 			}
-			if msg := columnsMissing(nil, sel.FromClause, exprs, maps.Clone(visible), q, m); msg != "" {
+			// An unqualified name of GROUP BY, ORDER BY, DISTINCT ON, or
+			// WINDOW may mean an output of the query.
+			for _, n := range []ast.Node{sel.GroupClause, sel.SortClause, sel.DistinctClause, sel.WindowClause} {
+				if n != nil && !isNilList(n) {
+					qualified = append(qualified, n)
+				}
+			}
+			if msg := columnsMissing(nil, sel.FromClause, exprs, qualified, maps.Clone(visible), q, m); msg != "" {
 				return msg
 			}
 		}
 		visible[c.Ctename] = true
 	}
 	return ""
+}
+
+// innerNames returns every name a subquery may give a relation of its own:
+// the relations, aliases, and WITH queries anywhere in it.
+func innerNames(n ast.Node) map[string]bool {
+	names := make(map[string]bool)
+	alias := func(a *ast.Alias) {
+		if a != nil {
+			names[a.Aliasname] = true
+		}
+	}
+	ast.Inspect(n, func(x ast.Node) bool {
+		switch v := x.(type) {
+		case *ast.RangeVar:
+			names[v.Relname] = true
+			alias(v.Alias)
+		case *ast.RangeSubselect:
+			alias(v.Alias)
+		case *ast.RangeFunction:
+			alias(v.Alias)
+		case *ast.JoinExpr:
+			alias(v.Alias)
+		case *ast.CommonTableExpr:
+			names[v.Ctename] = true
+		}
+		return true
+	})
+	return names
 }
 
 // isNilList reports whether a node is a nil *ast.List.
@@ -876,8 +1009,9 @@ func isNilList(n ast.Node) bool {
 }
 
 // columnsMissing is columnMissing for a query of a table, nil for none,
-// a FROM list, and the expressions it reads.
-func columnsMissing(target *ast.RangeVar, from *ast.List, exprs []ast.Node, visible map[string]bool, q backupQuery, m made) string {
+// a FROM list, the expressions it reads, and the ones of which it judges
+// only qualified names.
+func columnsMissing(target *ast.RangeVar, from *ast.List, exprs, qualifiedOnly []ast.Node, visible map[string]bool, q backupQuery, m made) string {
 	var sources []backupSource
 	known := true
 	if target != nil {
@@ -974,6 +1108,8 @@ func columnsMissing(target *ast.RangeVar, from *ast.List, exprs []ast.Node, visi
 			if a := v.Alias; a != nil && a.Aliasname != "" {
 				join := backupSource{name: a.Aliasname, label: ident(a.Aliasname)}
 				columns := make(map[string]bool)
+				var ordered []string
+				orderKnown := !v.IsNatural && v.UsingClause == nil
 				for _, c := range children {
 					join.owners = append(join.owners, c.owners...)
 					if c.columns == nil {
@@ -984,9 +1120,33 @@ func columnsMissing(target *ast.RangeVar, from *ast.List, exprs []ast.Node, visi
 							columns[name] = true
 						}
 					}
+					if c.ordered == nil {
+						orderKnown = false
+					}
+					ordered = append(ordered, c.ordered...)
 				}
-				if a.Colnames == nil {
+				switch {
+				case a.Colnames == nil:
 					join.columns = columns
+					if orderKnown {
+						join.ordered = ordered
+					}
+				case orderKnown && columns != nil:
+					// The alias's list renames the join's columns in order.
+					if len(a.Colnames.Items) > len(ordered) {
+						join.overflow = true
+					}
+					names := slices.Clone(ordered)
+					for i, item := range a.Colnames.Items {
+						if alias, ok := item.(*ast.String); ok && i < len(names) {
+							names[i] = alias.Str
+						}
+					}
+					join.columns = make(map[string]bool)
+					for _, n := range names {
+						join.columns[n] = true
+					}
+					join.ordered = names
 				}
 				sources = append(sources, join)
 				return []backupSource{join}
@@ -1003,25 +1163,55 @@ func columnsMissing(target *ast.RangeVar, from *ast.List, exprs []ast.Node, visi
 		}
 	}
 	quals = append(quals, exprs...)
+	onlyQualified := make(map[int]bool)
+	for _, n := range qualifiedOnly {
+		onlyQualified[len(quals)] = true
+		quals = append(quals, n)
+	}
 	// An alias's column list that names more columns than the relation has
 	// before the change, which adds one.
 	for _, src := range sources {
 		if msg == "" && src.overflow {
 			for _, o := range src.owners {
 				if len(m.columns[o]) > 0 || len(m.copies[o]) > 0 {
-					msg = "prior backup runs before the change, when " + src.label + " has fewer columns than alias " + ident(src.name) + " names"
+					what := src.label
+					if src.rv == nil {
+						what = "the join"
+					}
+					msg = "prior backup runs before the change, when " + what + " has fewer columns than alias " + ident(src.name) + " names"
 					break
 				}
 			}
 		}
 	}
-	for _, qual := range quals {
+	for qi, qual := range quals {
 		ast.Inspect(qual, func(x ast.Node) bool {
 			if msg != "" {
 				return false
 			}
 			switch v := x.(type) {
 			case *ast.SubLink:
+				// A subquery's own relations hide outer ones of their
+				// names; a qualified name of another outer source is that
+				// source's.
+				inner := innerNames(v.Subselect)
+				ast.Inspect(v.Subselect, func(y ast.Node) bool {
+					ref, ok := y.(*ast.ColumnRef)
+					if msg != "" || !ok {
+						return msg == ""
+					}
+					fields, ok := columnFields(ref)
+					if !ok || len(fields) != 2 || inner[fields[0]] || systemColumn(fields[1]) {
+						return false
+					}
+					for _, src := range sources {
+						if src.name == fields[0] {
+							judge(src, fields[1])
+							break
+						}
+					}
+					return false
+				})
 				return false
 			case *ast.A_Indirection:
 				// (source).column selects a field of a source's row.
@@ -1069,7 +1259,7 @@ func columnsMissing(target *ast.RangeVar, from *ast.List, exprs []ast.Node, visi
 						}
 					}
 				default:
-					if !known {
+					if !known || onlyQualified[qi] {
 						return false
 					}
 					for _, src := range sources {
@@ -1142,10 +1332,15 @@ func sourceOf(rv *ast.RangeVar, visible map[string]bool, q backupQuery) backupSo
 		for _, n := range names {
 			columns[n] = true
 		}
+		if len(src.schemas) == 1 {
+			src.ordered = names
+		}
 	}
 	if known {
 		src.columns = columns
 		src.overflow = overflow && !fits
+	} else {
+		src.ordered = nil
 	}
 	return src
 }
@@ -1425,6 +1620,12 @@ func createdColumns(n ast.Node) []createdColumn {
 		}
 		query, _ := v.Query.(*ast.SelectStmt)
 		out = intoColumns(v.Into, query)
+	case *ast.ViewStmt:
+		if v.Replace || v.View == nil {
+			return nil
+		}
+		query, _ := v.Query.(*ast.SelectStmt)
+		out = intoColumns(&ast.IntoClause{Rel: v.View, ColNames: v.Aliases}, query)
 	case *ast.SelectStmt:
 		if into := intoOf(v); into != nil && into.Rel != nil {
 			out = intoColumns(into, v)
