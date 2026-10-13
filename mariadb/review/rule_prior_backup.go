@@ -210,8 +210,10 @@ func backupTargets(s *statement) ([]*ast.TableRef, string) {
 // changeMade is what the change makes, which the backup, run before all of
 // it, cannot see: the tables and views it creates or renames to, and the
 // columns it adds, renames to, or declares on a table it creates, by the
-// table as written. A statement that may make nothing, IF NOT EXISTS or OR
-// REPLACE, is left out, and so is what the change makes after a USE.
+// table as written. A relation counts only where the synced schema lacks
+// it, so IF NOT EXISTS and OR REPLACE make theirs; the columns of a CREATE
+// TABLE IF NOT EXISTS, which may keep the table it finds, do not count.
+// What the change makes after a USE is left out.
 type changeMade struct {
 	relations []*ast.TableRef
 	columns   []madeColumn
@@ -227,17 +229,23 @@ func madeByChange(stmts []statement) changeMade {
 	for i := range stmts[:beforeUse(stmts)] {
 		switch v := stmts[i].node.(type) {
 		case *ast.CreateTableStmt:
-			if v.IfNotExists || v.Table == nil {
+			if v.Table == nil {
 				continue
 			}
+			// IF NOT EXISTS makes the table when the synced schema lacks
+			// it, which the reader checks, but may keep another one's
+			// columns.
 			m.relations = append(m.relations, v.Table)
+			if v.IfNotExists {
+				continue
+			}
 			for _, col := range v.Columns {
 				if col != nil {
 					m.columns = append(m.columns, madeColumn{v.Table, col.Name})
 				}
 			}
 		case *ast.CreateViewStmt:
-			if !v.OrReplace && v.Name != nil {
+			if v.Name != nil {
 				m.relations = append(m.relations, v.Name)
 			}
 		case *ast.RenameTableStmt:

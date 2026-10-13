@@ -20,7 +20,7 @@ import (
 // Without simulating the change, the rule follows the table by name. A
 // later statement that may give it a key, drop it or its database, rename
 // it, or create a table of its name settles it, and it is not reported.
-func checkRequirePrimaryKey(stmts []statement, r *reporter) {
+func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) {
 	type pending struct {
 		ref     *ast.TableRef
 		index   int
@@ -64,8 +64,9 @@ func checkRequirePrimaryKey(stmts []statement, r *reporter) {
 					adds = true
 				case cmd.Type == ast.ATRenameTable:
 					renames = true
-				case dropped == nil && cmd.Type == ast.ATDropConstraint && sameName(cmd.Name, "PRIMARY"),
-					dropped == nil && cmd.Type == ast.ATDropIndex && sameName(cmd.Name, "PRIMARY"):
+				// DROP PRIMARY KEY, or DROP INDEX `PRIMARY`; a check or foreign
+				// key quoted as PRIMARY is not the primary key.
+				case dropped == nil && dropKindOf(sql, cmd) == dropPrimaryKey:
 					dropped = cmd
 				}
 			}
