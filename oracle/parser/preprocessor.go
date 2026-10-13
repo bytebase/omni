@@ -176,6 +176,8 @@ func staticNumber(expr nodes.ExprNode) (*big.Rat, bool) {
 		case e.Op == "+":
 			return v, true
 		}
+	case *nodes.FuncCallExpr:
+		return staticNumericCall(e)
 	case *nodes.BinaryExpr:
 		left, lok := staticNumber(e.Left)
 		right, rok := staticNumber(e.Right)
@@ -208,6 +210,80 @@ func staticNumber(expr nodes.ExprNode) (*big.Rat, bool) {
 		}
 	}
 	return nil, false
+}
+
+// staticNumericCall folds the static numeric functions whose exact value
+// the text settles: ABS, SIGN, CEIL, FLOOR, TRUNC and ROUND of one
+// argument, MOD (Oracle's, with the dividend's sign), and POWER to a whole
+// exponent (Oracle 23ai selects the $ELSE of $IF ABS(-1) = 2).
+func staticNumericCall(call *nodes.FuncCallExpr) (*big.Rat, bool) {
+	if call.FuncName == nil || call.Args == nil {
+		return nil, false
+	}
+	switch call.FuncName.Schema {
+	case "", "STANDARD", "SYS.STANDARD":
+	default:
+		return nil, false
+	}
+	var args []*big.Rat
+	for _, item := range call.Args.Items {
+		v, ok := staticNumber(item.(nodes.ExprNode))
+		if !ok {
+			return nil, false
+		}
+		args = append(args, v)
+	}
+	one := len(args) == 1
+	switch name := call.FuncName.Name; {
+	case name == "ABS" && one:
+		return args[0].Abs(args[0]), true
+	case name == "SIGN" && one:
+		return big.NewRat(int64(args[0].Sign()), 1), true
+	case name == "CEIL" && one, name == "FLOOR" && one, name == "TRUNC" && one, name == "ROUND" && one:
+		return roundRat(args[0], name), true
+	case name == "MOD" && len(args) == 2:
+		if args[1].Sign() == 0 {
+			return args[0], true
+		}
+		q := roundRat(new(big.Rat).Quo(args[0], args[1]), "TRUNC")
+		return args[0].Sub(args[0], q.Mul(q, args[1])), true
+	case name == "POWER" && len(args) == 2:
+		exp := args[1]
+		if !exp.IsInt() || exp.Sign() < 0 || exp.Num().Cmp(big.NewInt(64)) > 0 {
+			return nil, false
+		}
+		result := big.NewRat(1, 1)
+		for i := exp.Num().Int64(); i > 0; i-- {
+			result.Mul(result, args[0])
+		}
+		return result, true
+	}
+	return nil, false
+}
+
+// roundRat rounds r to a whole number the way CEIL, FLOOR, TRUNC, or ROUND
+// (half away from zero) does.
+func roundRat(r *big.Rat, mode string) *big.Rat {
+	num, den := r.Num(), r.Denom()
+	q, m := new(big.Int).QuoRem(num, den, new(big.Int)) // truncates toward zero
+	if m.Sign() != 0 {
+		switch mode {
+		case "CEIL":
+			if r.Sign() > 0 {
+				q.Add(q, big.NewInt(1))
+			}
+		case "FLOOR":
+			if r.Sign() < 0 {
+				q.Sub(q, big.NewInt(1))
+			}
+		case "ROUND":
+			twice := new(big.Int).Mul(new(big.Int).Abs(m), big.NewInt(2))
+			if twice.Cmp(den) >= 0 {
+				q.Add(q, big.NewInt(int64(r.Sign())))
+			}
+		}
+	}
+	return new(big.Rat).SetInt(q)
 }
 
 // terminatingDecimal reports whether a decimal holds r exactly: its reduced
@@ -312,6 +388,59 @@ func characterOperand(expr nodes.ExprNode) bool {
 	return false
 }
 
+// staticFunctions are the functions Oracle 23ai lets a static expression
+// call; any other call, a builtin such as INSTR, GREATEST, or TO_NUMBER or
+// a function of the user's, is PLS-00174 (or PLS-00201, PLS-00204).
+var staticFunctions = map[string]bool{
+	"ABS": true, "CEIL": true, "FLOOR": true, "ROUND": true, "TRUNC": true, "POWER": true,
+	"SQRT": true, "MOD": true, "REMAINDER": true, "SIGN": true, "EXP": true, "LN": true,
+	"LOG": true, "BITAND": true, "ATAN": true, "COS": true, "SIN": true, "TAN": true,
+	"COSH": true, "SINH": true, "TANH": true, "LENGTH": true, "LENGTHB": true, "LENGTHC": true,
+	"SUBSTR": true, "SUBSTRB": true, "SUBSTRC": true, "LOWER": true, "UPPER": true,
+	"INITCAP": true, "ASCII": true, "CHR": true, "CONCAT": true, "RPAD": true, "LPAD": true,
+	"TO_CHAR": true, "TO_NCHAR": true, "NVL": true, "XOR": true,
+}
+
+// nonStaticCall returns the first call in expr that no static expression
+// may make, or nil: a function outside staticFunctions, a pseudo-column
+// (SYSDATE, USER), DECODE, CASE, or CAST (PLS-00174 on Oracle 23ai).
+func nonStaticCall(expr nodes.ExprNode) nodes.ExprNode {
+	var bad nodes.ExprNode
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if bad != nil {
+			return false
+		}
+		switch e := n.(type) {
+		case *nodes.PseudoColumn, *nodes.DecodeExpr, *nodes.CaseExpr, *nodes.CastExpr:
+			bad = e.(nodes.ExprNode)
+			return false
+		}
+		if call, ok := n.(*nodes.FuncCallExpr); ok {
+			name := ""
+			if call.FuncName != nil {
+				switch call.FuncName.Schema {
+				case "", "STANDARD", "SYS.STANDARD":
+					name = call.FuncName.Name
+				}
+			}
+			if !staticFunctions[name] {
+				bad = call
+				return false
+			}
+		}
+		return true
+	})
+	return bad
+}
+
+// isInquiryRef reports whether expr is an inquiry directive, $$name, as
+// opposed to a quoted column whose name starts with $$ ("$$X").
+func (p *Parser) isInquiryRef(expr nodes.ExprNode) bool {
+	ref, ok := expr.(*nodes.ColumnRef)
+	return ok && ref.Schema == "" && ref.Table == "" && ref.Loc.Start >= 0 &&
+		ref.Loc.Start < len(p.source) && p.source[ref.Loc.Start] == '$'
+}
+
 // checkDirectiveCondition parses the condition at loc of an $IF or $ELSIF
 // the lexer evaluated: an expression (PLS-00103) whose Boolean operands can
 // be static Booleans (nonBooleanOperand).
@@ -326,6 +455,9 @@ func (p *Parser) checkDirectiveCondition(loc nodes.Loc) error {
 		return sub.syntaxErrorAtCur()
 	}
 	if bad := nonBooleanOperand(expr); bad != nil {
+		return p.syntaxErrorAtNode(bad)
+	}
+	if bad := nonStaticCall(expr); bad != nil {
 		return p.syntaxErrorAtNode(bad)
 	}
 	return nil
@@ -360,11 +492,14 @@ func (p *Parser) firstDirectiveTooEarly(stmt nodes.StmtNode, loc int) bool {
 // DECLARE or BEGIN, or the COMPOUND of COMPOUND TRIGGER.
 func (p *Parser) triggerBodyStart(stmt *nodes.CreateTriggerStmt) int {
 	if stmt.Compound {
+		// COMPOUND TRIGGER, not a trigger, table, or column named COMPOUND.
 		lex := NewLexerRange(p.source, stmt.Loc.Start, stmt.Loc.End)
+		prev := Token{}
 		for tok := lex.nextRaw(); tok.Type != tokEOF; tok = lex.nextRaw() {
-			if tok.Type != tokQIDENT && tok.Str == "COMPOUND" {
-				return tok.Loc
+			if prev.Type != tokQIDENT && prev.Str == "COMPOUND" && tok.Type == kwTRIGGER {
+				return prev.Loc
 			}
+			prev = tok
 		}
 	}
 	if stmt.Body == nil {

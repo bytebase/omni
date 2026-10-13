@@ -58,12 +58,13 @@ type Parser struct {
 
 	// ccDirective, ccCondition, and ccBind index the first entries of the
 	// lexer's conditional compilation record that no statement has checked
-	// yet;
-	// ccAfterUnit says the last statement parsed is a PL/SQL unit.
-	ccDirective int
-	ccCondition int
-	ccBind      int
-	ccAfterUnit bool
+	// yet; ccAfterUnit says the last statement parsed is a PL/SQL unit, and
+	// ccAfterBlock that it is an anonymous block.
+	ccDirective  int
+	ccCondition  int
+	ccBind       int
+	ccAfterUnit  bool
+	ccAfterBlock bool
 }
 
 // checkConditionalCompilation checks the conditional compilation of stmt,
@@ -91,6 +92,7 @@ func (p *Parser) checkConditionalCompilation(stmt nodes.StmtNode, start, first, 
 	// An anonymous block takes no bind variable inside a directive
 	// (PLS-00110), in a selected branch or not.
 	_, block := stmt.(*nodes.PLSQLBlock)
+	p.ccAfterBlock = block
 	for ; p.ccBind < len(cc.binds) && cc.binds[p.ccBind] < end; p.ccBind++ {
 		if loc := cc.binds[p.ccBind]; block && loc >= start {
 			return p.syntaxErrorAtTok(NewLexerRange(p.source, loc, len(p.source)).nextRaw())
@@ -225,6 +227,12 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 	}
 	if err := p.checkDirectiveConditions(end); err != nil {
 		return nil, err
+	}
+	// So are its bind variables, which an anonymous block takes none of
+	// inside a directive (PLS-00110).
+	if cc := p.lexer.cc; p.ccAfterBlock && p.ccBind < len(cc.binds) {
+		loc := cc.binds[p.ccBind]
+		return nil, p.syntaxErrorAtTok(NewLexerRange(p.source, loc, len(p.source)).nextRaw())
 	}
 
 	if len(stmts) == 0 {

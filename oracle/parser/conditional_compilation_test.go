@@ -64,6 +64,14 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF NVL(1, 2) = 1 $THEN NULL; $ELSE garbage garbage; $END END;",
 		"BEGIN $IF $$PLSQL_UNIT_OWNER IS NULL $THEN NULL; $END END;",
 		"BEGIN $IF $$PLSQL_LINE = 1 $THEN NULL; $END END;",
+		// The static functions fold too, MOD with the dividend's sign.
+		"BEGIN $IF ABS(-1) = 2 $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF MOD(-11, 4) = -3 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF ROUND(-1.5) = -2 AND CEIL(1.2) = 2 AND FLOOR(-1.2) = -2 AND TRUNC(-1.5) = -1 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF SIGN(-5) = -1 AND POWER(2, 10) = 1024 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF LENGTH('ab') = 2 AND UPPER('a') IS NULL AND ABS($$x) = 1 $THEN NULL; $END END;",
+		// A quoted column named $$X is no inquiry directive.
+		`DECLARE x NUMBER; BEGIN SELECT 1 INTO x FROM dual t WHERE t."$$X"(+) = 1; END;`,
 		// A label before the block's BEGIN does not count as its first token.
 		"<<l>> $IF TRUE $THEN BEGIN $END NULL; END;",
 		// A unit's first directive follows a token of its own; a trigger's
@@ -119,6 +127,22 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF NVL(1, 2) $THEN NULL; $END END;",
 		"BEGIN $IF NVL(TRUE, 1) $THEN NULL; $END END;",
 		"BEGIN $IF pkg.NVL(TRUE, FALSE) $THEN NULL; $END END;",
+		// A static expression calls the static functions alone (PLS-00174,
+		// PLS-00201): no INSTR, GREATEST, TO_NUMBER, function of the user's,
+		// pseudo-column, DECODE, CASE, or CAST.
+		"BEGIN $IF f() = 1 $THEN NULL; $END END;",
+		"BEGIN $IF INSTR('ab', 'b') = 2 $THEN NULL; $END END;",
+		"BEGIN $IF GREATEST(1, 2) = 2 $THEN NULL; $END END;",
+		"BEGIN $IF TO_NUMBER('1') = 1 $THEN NULL; $END END;",
+		"BEGIN $IF SYSDATE IS NULL $THEN NULL; $END END;",
+		"BEGIN $IF DECODE(1, 1, 1, 2) = 1 $THEN NULL; $END END;",
+		"BEGIN $IF CASE WHEN 1 = 1 THEN 1 END = 1 $THEN NULL; $END END;",
+		"BEGIN $IF CAST(1 AS NUMBER) = 1 $THEN NULL; $END END;",
+		// A bind variable after the block's END is the block's too
+		// (PLS-00110).
+		"BEGIN NULL; END; $IF :x $THEN $END",
+		// A trigger named COMPOUND does not start its body.
+		"CREATE TRIGGER compound FOR INSERT ON t $IF TRUE $THEN COMPOUND TRIGGER $END BEFORE STATEMENT IS BEGIN NULL; END BEFORE STATEMENT; END;",
 		// A static comparison compares no character values (PLS-00174).
 		"BEGIN $IF $$PLSQL_UNIT = 'P' $THEN NULL; $END END;",
 		"BEGIN $IF $$PLSQL_UNIT_TYPE = 'X' $THEN NULL; $END END;",
