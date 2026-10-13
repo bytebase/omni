@@ -3826,12 +3826,12 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 				addsComparison = true
 			}
 			// A method's SELF is where and as Oracle takes it, and of the
-			// type (PLS-00382 for SELF IN NUMBER). No method declares
-			// another SELF, so DROP finds none to match (PLS-00717).
+			// type (invalidSelfType). No method declares another SELF, so
+			// DROP finds none to match (PLS-00717).
 			if selfParameterInvalid(method.Kind == "STATIC", method.Kind == "CONSTRUCTOR", method.Params) {
 				return p.syntaxErrorAtNode(method)
 			}
-			if len(method.Params) > 0 && method.Params[0].Name == "SELF" && p.predefinedDatatype(method.Params[0].TypeName) {
+			if len(method.Params) > 0 && method.Params[0].Name == "SELF" && p.invalidSelfType(method.Params[0].TypeName) {
 				return p.syntaxErrorAtNode(method)
 			}
 			// ALTER TYPE counts a MEMBER and a STATIC method of one signature

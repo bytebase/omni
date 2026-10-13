@@ -914,12 +914,12 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 	if stmt.Under == nil && hasModifier(member.Modifiers, "OVERRIDING") {
 		return p.syntaxErrorAtTok(tok)
 	}
-	// A method's SELF is where and as Oracle takes it, and of the type, no
-	// predefined datatype (PLS-00382 for SELF IN NUMBER).
+	// A method's SELF is where and as Oracle takes it, and of the type
+	// (invalidSelfType).
 	if selfParameterInvalid(member.Kind == nodes.TYPE_BODY_STATIC, member.Kind == nodes.TYPE_BODY_CONSTRUCTOR, subprogramParameters(member.Subprog)) {
 		return p.syntaxErrorAtTok(tok)
 	}
-	if params := subprogramParameters(member.Subprog); len(params) > 0 && params[0].Name == "SELF" && p.predefinedDatatype(params[0].TypeName) {
+	if params := subprogramParameters(member.Subprog); len(params) > 0 && params[0].Name == "SELF" && p.invalidSelfType(params[0].TypeName) {
 		return p.syntaxErrorAtTok(tok)
 	}
 	fn, isFunction := member.Subprog.(*nodes.CreateFunctionStmt)
@@ -979,6 +979,13 @@ func subprogramParameters(subprog nodes.Node) []*nodes.Parameter {
 	return nil
 }
 
+// invalidSelfType reports whether tn is a datatype an explicit SELF is not
+// of, the type itself: a REF (PLS-00546 on Oracle 23ai for SELF IN REF t)
+// or a predefined datatype (PLS-00382 for SELF IN NUMBER).
+func (p *Parser) invalidSelfType(tn *nodes.TypeName) bool {
+	return tn != nil && tn.IsRef || p.predefinedDatatype(tn)
+}
+
 // predefinedDatatype reports whether tn spells a predefined datatype that
 // no declaration in scope redeclares.
 func (p *Parser) predefinedDatatype(tn *nodes.TypeName) bool {
@@ -1007,10 +1014,14 @@ func hasModifier(mods []string, mod string) bool {
 }
 
 // orderParameterIn reports whether the parameters of an ORDER method
-// besides SELF have IN mode (PLS-00528 on Oracle 23ai for OUT or IN OUT).
+// besides SELF have IN mode (PLS-00528 on Oracle 23ai for OUT or IN OUT)
+// and are no REF (PLS-00524: the parameter is of the type itself).
 func orderParameterIn(params []*nodes.Parameter) bool {
 	for _, param := range params {
-		if param.Name != "SELF" && param.Mode != "" && param.Mode != "IN" {
+		if param.Name == "SELF" {
+			continue
+		}
+		if param.Mode != "" && param.Mode != "IN" || param.TypeName != nil && param.TypeName.IsRef {
 			return false
 		}
 	}

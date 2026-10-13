@@ -377,7 +377,7 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 		for _, c := range constraints {
 			listed.Constraints.Items = append(listed.Constraints.Items, c.Constraint)
 		}
-		if err := p.checkOutOfLineRefConstraints(listed); err != nil {
+		if err := p.checkOutOfLineRefConstraints(listed, false); err != nil {
 			return nil, err
 		}
 		options := p.collectAlterTableClauseDetails()

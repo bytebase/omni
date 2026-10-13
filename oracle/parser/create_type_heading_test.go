@@ -445,6 +445,56 @@ func TestANSIDatatypes(t *testing.T) {
 		ParseShouldFail(t, sql)
 	}
 	ParseAndCheck(t, "CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN REF u)")
+	// An explicit SELF is no REF (PLS-00546), nor is an ORDER method's
+	// parameter (PLS-00524), in CREATE and ALTER TYPE.
+	for _, methods := range []string{
+		"MEMBER FUNCTION f (SELF IN REF t) RETURN NUMBER",
+		"ORDER MEMBER FUNCTION o (x REF t) RETURN NUMBER",
+	} {
+		ParseShouldFail(t, "CREATE TYPE t AS OBJECT (a NUMBER, "+methods+")")
+		ParseShouldFail(t, "ALTER TYPE t ADD "+methods+" CASCADE")
+	}
+	ParseAndCheck(t, "CREATE TYPE t AS OBJECT (a NUMBER, ORDER MEMBER FUNCTION o (x t) RETURN NUMBER)")
+	// A SCOPE table is local: no @ without a database link (ORA-01729).
+	for _, sql := range []string{
+		"CREATE TABLE r (c REF t SCOPE IS o@)",
+		"CREATE TABLE r (c REF t, SCOPE FOR (c) IS o@)",
+		"ALTER TABLE r ADD SCOPE FOR (c) IS o@",
+	} {
+		ParseShouldFail(t, sql)
+	}
+	// CREATE TABLE declares the column a REF constraint names, or the
+	// root of its attribute (ORA-00904); ALTER TABLE ADD may name one the
+	// table has.
+	for _, sql := range []string{
+		"CREATE TABLE r (c REF t, SCOPE FOR (missing) IS o)",
+		"CREATE TABLE r (c REF t, REF (missing) WITH ROWID)",
+		"CREATE TABLE r (c REF t, SCOPE FOR (missing.r) IS o)",
+	} {
+		ParseShouldFail(t, sql)
+	}
+	ParseAndCheck(t, "CREATE TABLE r (SCOPE FOR (c) IS o, c REF t)")
+	ParseAndCheck(t, "ALTER TABLE r ADD (d NUMBER, SCOPE FOR (c) IS o)")
+	// A PL/SQL datatype modifier rounds half away from zero before its
+	// bounds apply (PLS-00215, PLS-00216, PLS-00260, PLS-00325).
+	for _, decl := range []string{
+		"x VARCHAR2(0.0)", "x VARCHAR2(0.4)", "x VARCHAR2(32767.5)", "x LONG(1e100)", "x LONG(0.0)",
+		"x CHARACTER(0.0)", "x NUMBER(38.5)", "x TIMESTAMP(9.5)",
+	} {
+		ParseShouldFail(t, "DECLARE "+decl+"; BEGIN NULL; END;")
+	}
+	for _, decl := range []string{
+		"x VARCHAR2(0.5)", "x VARCHAR2(1.5)", "x VARCHAR2(1e1)", "x VARCHAR2(32767.4)", "x NUMBER(38.4)",
+		"x NUMBER(10, 127.4)",
+	} {
+		ParseAndCheck(t, "DECLARE "+decl+"; BEGIN NULL; END;")
+	}
+	// A numeric datatype word but NUMBER may name the item of a %TYPE
+	// (Oracle 23ai; PLS-00320 for number%TYPE).
+	for _, word := range []string{"dec", "int", "integer", "numeric", "decimal", "real", "smallint", "float"} {
+		ParseAndCheck(t, "DECLARE "+word+" NUMBER; x "+word+"%TYPE; BEGIN NULL; END;")
+	}
+	ParseShouldFail(t, "DECLARE number NUMBER; x number%TYPE; BEGIN NULL; END;")
 	ParseAndCheck(t, "CREATE FUNCTION f (c SYS_REFCURSOR) RETURN u PIPELINED PARALLEL_ENABLE (PARTITION c BY ANY) IS BEGIN RETURN; END;")
 	// A REF column takes a CHECK constraint.
 	ParseAndCheck(t, "CREATE TABLE r (c REF t CHECK (c IS NOT NULL), d REF t CONSTRAINT ck CHECK (1 = 1))")

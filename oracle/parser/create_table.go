@@ -561,7 +561,7 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 			return p.syntaxErrorAtCur()
 		}
 	}
-	return p.checkOutOfLineRefConstraints(stmt)
+	return p.checkOutOfLineRefConstraints(stmt, true)
 }
 
 // isTableConstraintStart checks if the current position starts a table-level constraint.
@@ -988,8 +988,9 @@ func (p *Parser) parseRefScopeTable() (*nodes.ObjectName, error) {
 	if err != nil {
 		return nil, err
 	}
-	// A schema names its table (ORA-00903 for SCOPE IS s.).
-	if table.Name == "" || p.prev.Type == '.' {
+	// A schema names its table (ORA-00903 for SCOPE IS s.), and an @ its
+	// database link (ORA-01729 for SCOPE IS o@).
+	if table.Name == "" || p.prev.Type == '.' || p.prev.Type == '@' {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if table.DBLink != "" {
@@ -1009,9 +1010,12 @@ func (p *Parser) parseRefScopeTable() (*nodes.ObjectName, error) {
 // ORA-02267 for a composite foreign key), has one referential constraint
 // (ORA-30771), and that one names the object table alone (ORA-30726 for a
 // column list). An attribute counts as a REF where a SCOPE or WITH ROWID
-// constraint names it; otherwise its type, and a name the table does not
-// declare, are the engine's to resolve.
-func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt) error {
+// constraint names it; otherwise its type is the engine's to resolve. When
+// stmt holds every column of the table, complete, as a CREATE TABLE does,
+// a SCOPE or WITH ROWID constraint names one of them, or an attribute of
+// one (ORA-00904 on Oracle 23ai for SCOPE FOR (missing) and for
+// missing.r); ALTER TABLE ADD may name a column the table already has.
+func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt, complete bool) error {
 	type target struct {
 		name      string
 		attribute bool
@@ -1098,6 +1102,9 @@ func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt) error
 			}
 		case nodes.CONSTRAINT_SCOPE, nodes.CONSTRAINT_WITH_ROWID:
 			if col != nil && (col.TypeName == nil || !col.TypeName.IsRef) {
+				return p.syntaxErrorAtNode(c.node)
+			}
+			if root, _, _ := strings.Cut(key.name, "\x00"); complete && columns[root] == nil {
 				return p.syntaxErrorAtNode(c.node)
 			}
 			if c.typ == nodes.CONSTRAINT_SCOPE {

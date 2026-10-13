@@ -52,6 +52,16 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 
 	switch p.cur.Type {
 	case kwNUMBER, kwINTEGER, kwSMALLINT, kwDECIMAL, kwFLOAT:
+		// But for NUMBER (PLS-00320), the word may name the item %TYPE or
+		// %ROWTYPE takes a type from: Oracle 23ai compiles DECLARE integer
+		// NUMBER; x integer%TYPE, as for SMALLINT, DECIMAL, FLOAT, DEC, and
+		// NUMERIC.
+		if p.cur.Type != kwNUMBER && p.peekNext().Type == '%' {
+			if err := p.parseUserDefinedType(tn); err != nil {
+				return nil, err
+			}
+			break
+		}
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 		p.advance()
 		parseErr1116 := p.parseOptionalPrecisionScale(tn)
@@ -242,7 +252,7 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 			}
 			p.advance() // consume PRECISION
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "DOUBLE"}, &nodes.String{Str: "PRECISION"})
-		case p.isIdentLikeStr("NUMERIC"), ansi && p.isKeywordStr("DEC"):
+		case next.Type != '%' && (p.isIdentLikeStr("NUMERIC") || ansi && p.isKeywordStr("DEC")):
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 			p.advance()
 			parseErr1121 := p.parseOptionalPrecisionScale(tn)
@@ -273,8 +283,11 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 // for LONG and LONG RAW too), a NUMBER precision of 1 to 38 (PLS-00216)
 // and scale of -84 to 127 (PLS-00217), a FLOAT precision of 1 to 126
 // (PLS-00623), and a datetime or interval precision of 0 to 9
-// (PLS-00260). A name a declaration may shadow is left to the engine:
-// after SUBTYPE number IS VARCHAR2(10), number(100) compiles.
+// (PLS-00260), each rounded as roundedInteger does: VARCHAR2(0.4) and
+// NUMBER(38.5) fail, VARCHAR2(0.5) and NUMBER(38.4) compile, and
+// LONG(1e100) fails (PLS-00325). A name a declaration may shadow is left
+// to the engine: after SUBTYPE number IS VARCHAR2(10), number(100)
+// compiles.
 func (p *Parser) checkPLSQLTypeMods(tn *nodes.TypeName) error {
 	var bounds [][2]int64
 	switch p.predefinedTypeLead(tn) {
@@ -291,7 +304,7 @@ func (p *Parser) checkPLSQLTypeMods(tn *nodes.TypeName) error {
 		if i >= len(bounds) {
 			break
 		}
-		v, ok := literalInteger(item)
+		v, ok := roundedInteger(item)
 		if ok && (v < bounds[i][0] || v > bounds[i][1]) {
 			return p.syntaxErrorAtNode(tn)
 		}
@@ -301,34 +314,45 @@ func (p *Parser) checkPLSQLTypeMods(tn *nodes.TypeName) error {
 
 // checkVarrayLimit checks the size limit of a VARRAY, which may be any
 // expression (Oracle 23ai compiles VARRAY(1+1) and VARRAY(c)). A numeric
-// literal comes out as varrayLimit computes it, a positive integer
-// (PLS-00537 for 0.4) and a PLS_INTEGER (PLS-00325 for 2147483647.5 and
-// 1e10, PLS-00569 for 1e200).
+// literal comes out as roundedInteger computes it, a positive integer
+// (PLS-00537 for 0.4 and -0.4) and a PLS_INTEGER (PLS-00325 for
+// 2147483647.5 and 1e10, PLS-00569 for 1e200).
 func (p *Parser) checkVarrayLimit(limit nodes.ExprNode) error {
-	expr, negative := limit, false
-	if u, ok := expr.(*nodes.UnaryExpr); ok && (u.Op == "-" || u.Op == "+") {
-		expr, negative = u.Operand, u.Op == "-"
-	}
-	lit, ok := expr.(*nodes.NumberLiteral)
-	if !ok {
-		return nil
-	}
-	n, ok := varrayLimit(lit.Val)
-	if ok && (negative || n < 1 || n > math.MaxInt32) {
+	n, ok := roundedInteger(limit)
+	if ok && (n < 1 || n > math.MaxInt32) {
 		return p.syntaxErrorAtNode(limit)
 	}
 	return nil
 }
 
-// varrayLimit returns the integer Oracle 23ai makes of the numeric literal
-// val as a VARRAY limit: val rounded to a NUMBER, 20 base-100 digits half
-// away from zero, then to an integer, half away from zero. So
-// 2147483647.4 followed by 29 nines and a 5 comes out as 2147483648, and
-// 0.4 followed by 46 nines as 1. A value of 1e10 or more comes out as
-// 1e10, and one below 0.1 as 0, which is all a range check needs. ok is
-// false for a BINARY_FLOAT or BINARY_DOUBLE literal (5d, 0.4f), which is
-// left to the engine.
-func varrayLimit(val string) (n int64, ok bool) {
+// roundedInteger returns the integer Oracle 23ai makes of a numeric
+// literal, possibly signed, where it takes an integer, a VARRAY limit or a
+// PL/SQL datatype modifier (roundedLiteral), or false for anything else.
+func roundedInteger(node nodes.Node) (int64, bool) {
+	switch n := node.(type) {
+	case *nodes.Integer:
+		return n.Ival, true
+	case *nodes.NumberLiteral:
+		return roundedLiteral(n.Val)
+	case *nodes.UnaryExpr:
+		v, ok := roundedInteger(n.Operand)
+		if n.Op == "-" {
+			v = -v
+		}
+		return v, ok && (n.Op == "-" || n.Op == "+")
+	}
+	return 0, false
+}
+
+// roundedLiteral returns the integer Oracle 23ai makes of the numeric
+// literal val where it takes an integer: val rounded to a NUMBER, 20
+// base-100 digits half away from zero, then to an integer, half away from
+// zero. So 2147483647.4 followed by 29 nines and a 5 comes out as
+// 2147483648, and 0.4 followed by 46 nines as 1. A value of 1e10 or more
+// comes out as 1e10, and one below 0.1 as 0, which is all a range check
+// needs. ok is false for a BINARY_FLOAT or BINARY_DOUBLE literal (5d,
+// 0.4f), which is left to the engine.
+func roundedLiteral(val string) (n int64, ok bool) {
 	if val == "" || strings.ContainsAny(val[len(val)-1:], "fFdD") {
 		return 0, false
 	}
