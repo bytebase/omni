@@ -3216,6 +3216,26 @@ func TestPriorBackup(t *testing.T) {
 			},
 		},
 		{
+			name:    "a column of a table the change recreates",
+			sql:     "DROP TABLE nokey;\nCREATE TABLE nokey (b int);\nDELETE FROM nokey WHERE b = 1;\nCREATE SCHEMA z CREATE TABLE p (gone bool);\nDELETE FROM t USING p WHERE p.gone;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{2, "DELETE FROM nokey WHERE b = 1", "prior backup runs before the change, when column b of nokey does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a routine the change creates in another schema",
+			sql:     "CREATE FUNCTION s.stale(int) RETURNS bool LANGUAGE sql AS 'SELECT true';\nDELETE FROM nokey WHERE public.stale(a);\nCREATE FUNCTION stale2(int) RETURNS bool LANGUAGE sql AS 'SELECT true';\nDELETE FROM nokey WHERE public.stale2(a);",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{3, "DELETE FROM nokey WHERE public.stale2(a)", "prior backup runs before the change, when function public.stale2 does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a later statement's WITH the first one defines otherwise is not judged",
+			sql:     "WITH x AS (SELECT 1 AS a) DELETE FROM nokey WHERE a IN (SELECT a FROM x);\nWITH x AS (SELECT 2 AS a) DELETE FROM nokey WHERE a IN (SELECT a FROM x);",
+			change:  on,
+			targets: one,
+		},
+		{
 			name:    "no schema, nothing known about the target",
 			sql:     "UPDATE t SET n = 1 WHERE id = 1; DELETE FROM t WHERE id = 2;",
 			change:  on,

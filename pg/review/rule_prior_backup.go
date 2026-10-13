@@ -165,7 +165,7 @@ type made struct {
 	relations     map[backupTable]bool
 	relationNames map[string]bool
 	columns       map[backupTable]map[string]bool
-	functions     map[string]bool
+	functions     map[backupTable]bool
 }
 
 func changeMade(stmts []statement) made {
@@ -173,14 +173,22 @@ func changeMade(stmts []statement) made {
 		relations:     make(map[backupTable]bool),
 		relationNames: make(map[string]bool),
 		columns:       make(map[backupTable]map[string]bool),
-		functions:     make(map[string]bool),
+		functions:     make(map[backupTable]bool),
 	}
-	column := func(rv *ast.RangeVar, name string) {
-		t := backupTable{schema: rv.Schemaname, name: rv.Relname}
+	column := func(t backupTable, name string) {
 		if m.columns[t] == nil {
 			m.columns[t] = make(map[string]bool)
 		}
 		m.columns[t][name] = true
+	}
+	// function records a routine name, in the schema written, or "" for
+	// whichever an unqualified name means.
+	function := func(parts []string, name string) {
+		t := backupTable{name: name}
+		if len(parts) == 2 {
+			t.schema = parts[0]
+		}
+		m.functions[t] = true
 	}
 	routine := func(t ast.ObjectType) bool {
 		return t == ast.OBJECT_FUNCTION || t == ast.OBJECT_PROCEDURE || t == ast.OBJECT_ROUTINE
@@ -189,6 +197,11 @@ func changeMade(stmts []statement) made {
 		for _, t := range createdRelations(stmts[i].node) {
 			m.relations[t] = true
 			m.relationNames[t.name] = true
+		}
+		// A table the change creates has the columns it declares, which a
+		// table of that name the backup reads may lack.
+		for _, c := range createdColumns(stmts[i].node) {
+			column(c.table, c.column)
 		}
 		switch v := stmts[i].node.(type) {
 		case *ast.AlterTableStmt:
@@ -201,25 +214,27 @@ func changeMade(stmts []statement) made {
 					continue
 				}
 				if cd, ok := cmd.Def.(*ast.ColumnDef); ok {
-					column(v.Relation, cd.Colname)
+					column(backupTable{v.Relation.Schemaname, v.Relation.Relname}, cd.Colname)
 				}
 			}
 		case *ast.RenameStmt:
 			switch {
 			case v.RenameType == ast.OBJECT_COLUMN && v.Relation != nil:
-				column(v.Relation, v.Newname)
+				column(backupTable{v.Relation.Schemaname, v.Relation.Relname}, v.Newname)
 			case routine(v.RenameType):
-				m.functions[v.Newname] = true
+				if owa, ok := v.Object.(*ast.ObjectWithArgs); ok {
+					function(nameParts(owa.Objname), v.Newname)
+				}
 			}
 		case *ast.AlterObjectSchemaStmt:
 			if owa, ok := v.Object.(*ast.ObjectWithArgs); ok && routine(v.ObjectType) {
 				if parts := nameParts(owa.Objname); len(parts) > 0 {
-					m.functions[parts[len(parts)-1]] = true
+					function([]string{v.Newschema, ""}, parts[len(parts)-1])
 				}
 			}
 		case *ast.CreateFunctionStmt:
-			if parts := nameParts(v.Funcname); len(parts) > 0 && !v.IsOrReplace {
-				m.functions[parts[len(parts)-1]] = true
+			if parts := nameParts(v.Funcname); len(parts) > 0 && len(parts) <= 2 && !v.IsOrReplace {
+				function(parts, parts[len(parts)-1])
 			}
 		}
 	}
@@ -406,6 +421,9 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 		parts = append(parts, where)
 	}
 	// A later statement's own WITH queries are not in the backup's query.
+	// A name of one that nothing else defines fails it. One the first
+	// statement defines too, or a relation holds, reads other rows, which
+	// may or may not be the statement's: that is not judged.
 	if !isFirst {
 		if own := withOf(n); own != nil && own.Ctes != nil {
 			for _, item := range own.Ctes.Items {
@@ -463,7 +481,7 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 			if !ok || fn != "" {
 				return fn == ""
 			}
-			if p := nameParts(call.Funcname); len(p) == 2 && !systemSchema(p[0]) && m.functions[p[1]] && !hasFunction(findSchema(q.schema, p[0]), p[1]) {
+			if p := nameParts(call.Funcname); len(p) == 2 && !systemSchema(p[0]) && (m.functions[backupTable{p[0], p[1]}] || m.functions[backupTable{name: p[1]}]) && !hasFunction(findSchema(q.schema, p[0]), p[1]) {
 				fn = ident(p[0]) + "." + ident(p[1])
 			}
 			return true
@@ -826,6 +844,46 @@ func createdRelation(n ast.Node) (backupTable, bool) {
 		return backupTable{}, false
 	}
 	return backupTable{schema: rv.Schemaname, name: rv.Relname}, true
+}
+
+// createdColumn is a column a table the change creates declares.
+type createdColumn struct {
+	table  backupTable
+	column string
+}
+
+// createdColumns returns the columns CREATE TABLE declares for the table
+// it creates, the tables of CREATE SCHEMA in the new schema.
+func createdColumns(n ast.Node) []createdColumn {
+	var out []createdColumn
+	switch v := n.(type) {
+	case *ast.CreateSchemaStmt:
+		name := v.Schemaname
+		if name == "" && v.Authrole != nil {
+			name = v.Authrole.Rolename
+		}
+		if name == "" || v.SchemaElts == nil {
+			return nil
+		}
+		for _, elt := range v.SchemaElts.Items {
+			for _, c := range createdColumns(elt) {
+				if c.table.schema == "" {
+					c.table.schema = name
+				}
+				out = append(out, c)
+			}
+		}
+	case *ast.CreateStmt:
+		if v.IfNotExists || v.Relation == nil || v.TableElts == nil {
+			return nil
+		}
+		for _, item := range v.TableElts.Items {
+			if cd, ok := item.(*ast.ColumnDef); ok {
+				out = append(out, createdColumn{backupTable{v.Relation.Schemaname, v.Relation.Relname}, cd.Colname})
+			}
+		}
+	}
+	return out
 }
 
 // intoOf returns the INTO clause of a SELECT or of a branch of its set

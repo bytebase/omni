@@ -30,9 +30,9 @@ INSERT INTO nokey VALUES (1), (2);
 // TestPriorBackupAgainstPostgres builds each table's backup query as
 // Bytebase does and runs it on PostgreSQL before the change, as Bytebase
 // does. A PriorBackup finding on a statement must mean that query fails,
-// changes data, or backs up rows the table does not have; where the rule
-// follows the whole change (complete), every table whose query does so
-// must have a finding.
+// changes data, backs up rows the table does not have, or misses rows a
+// statement of the table selects; where the rule follows the whole change
+// (complete), every table whose query does so must have a finding.
 func TestPriorBackupAgainstPostgres(t *testing.T) {
 	db := startPostgres(t)
 	tests := []struct {
@@ -56,7 +56,10 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a function the change creates, unqualified", "CREATE FUNCTION stale(int) RETURNS bool LANGUAGE sql AS 'SELECT true';\nDELETE FROM nokey WHERE stale(a);", false},
 		{"a data-modifying WITH", "WITH d AS (DELETE FROM r RETURNING t_id) UPDATE t SET n = 5 WHERE id IN (SELECT t_id FROM d);", true},
 		{"a later statement's own WITH", "DELETE FROM nokey WHERE a = 1;\nWITH x AS (SELECT 2 AS a) DELETE FROM nokey WHERE a IN (SELECT a FROM x);", true},
-		{"a later statement's WITH the first one defines too", "WITH x AS (SELECT 1 AS a) DELETE FROM nokey WHERE a IN (SELECT a FROM x);\nWITH x AS (SELECT 2 AS a) DELETE FROM nokey WHERE a IN (SELECT a FROM x);", true},
+		// The backup reads the second statement's rows through the first x,
+		// which here misses them, and elsewhere may not: not judged.
+		{"a later statement's WITH the first one defines otherwise", "WITH x AS (SELECT 1 AS a) DELETE FROM nokey WHERE a IN (SELECT a FROM x);\nWITH x AS (SELECT 2 AS a) DELETE FROM nokey WHERE a IN (SELECT a FROM x);", false},
+		{"a later statement's WITH the first one defines alike", "WITH x AS (SELECT 1 AS a) DELETE FROM nokey WHERE a IN (SELECT a FROM x);\nWITH x AS (SELECT 1 AS a) DELETE FROM nokey WHERE a IN (SELECT a FROM x);", true},
 		{"a WITH query shadowing a table", "WITH nokey AS (SELECT 1 AS a) DELETE FROM t WHERE id IN (SELECT a FROM nokey);", true},
 		{"after SET search_path", "SET search_path = s, public;\nALTER TABLE t ADD COLUMN x int;\nDELETE FROM t WHERE x = 1;", true},
 		{"a WITH query named like the table", "WITH nokey AS (SELECT 1 AS a) DELETE FROM nokey WHERE a = 1;", true},
@@ -71,6 +74,8 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a view column the change renames to", "ALTER VIEW tv RENAME COLUMN code TO c;\nDELETE FROM t USING tv WHERE tv.c = t.code;", true},
 		{"a routine the change renames to", "ALTER FUNCTION public.old(int) RENAME TO stale;\nDELETE FROM nokey WHERE public.stale(a);", true},
 		{"a column the change adds to a table of that name in another schema", "ALTER TABLE s.t ADD COLUMN b int;\nDELETE FROM public.t AS x WHERE x.b;", false},
+		{"a column of a table the change recreates", "DROP TABLE nokey;\nCREATE TABLE nokey (b int);\nDELETE FROM nokey WHERE b = 1;", true},
+		{"a routine the change creates in another schema", "CREATE FUNCTION s.stale(int) RETURNS bool LANGUAGE sql AS 'SELECT true';\nDELETE FROM nokey WHERE public.stale(a);", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -211,6 +216,9 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 			b.WriteString(text(w.Loc) + "\n")
 		}
 		g := backupGroup{table: key}
+		// owns are the statements' own queries of their rows, with their
+		// own WITH clause and alias, which the backup must hold.
+		var owns []string
 		for j, it := range items {
 			g.statements = append(g.statements, it.index)
 			if j > 0 {
@@ -237,9 +245,25 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 			if where != nil {
 				b.WriteString(" WHERE " + text(ast.NodeLoc(where)))
 			}
+			own := ""
+			if w := withOf(it.node); w != nil {
+				own = text(w.Loc) + " "
+			}
+			sel := key
+			if a := aliasOf(rv); a != "" {
+				sel = fmt.Sprintf("%q", a)
+			}
+			own += "SELECT " + sel + ".* FROM " + text(rv.Loc)
+			if from != nil && len(from.Items) > 0 {
+				own += ", " + text(ast.ListSpan(from))
+			}
+			if where != nil {
+				own += " WHERE " + text(ast.NodeLoc(where))
+			}
+			owns = append(owns, own)
 		}
 		b.WriteString(";")
-		g.outcome = runBackup(t, conn, prepend, b.String(), backup, key)
+		g.outcome = runBackup(t, conn, prepend, b.String(), backup, key, owns)
 		groups = append(groups, g)
 	}
 	return groups
@@ -247,8 +271,9 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 
 // runBackup runs one backup query in a transaction it rolls back, and
 // says how it went: "" when it ran, left every table's rows as they were,
-// and backed up only rows the table has.
-func runBackup(t *testing.T, conn *sql.Conn, prepend, query, backup, table string) string {
+// backed up only rows the table has, and every row each of the
+// statements' own queries selects, where those run.
+func runBackup(t *testing.T, conn *sql.Conn, prepend, query, backup, table string, owns []string) string {
 	t.Helper()
 	ctx := context.Background()
 	tx, err := conn.BeginTx(ctx, nil)
@@ -302,6 +327,21 @@ func runBackup(t *testing.T, conn *sql.Conn, prepend, query, backup, table strin
 	}
 	if foreign > 0 {
 		return "backs up rows " + table + " does not have"
+	}
+	for k, own := range owns {
+		if _, err := tx.ExecContext(ctx, "SAVEPOINT own"); err != nil {
+			t.Fatal(err)
+		}
+		var missed int
+		if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM (("+own+") EXCEPT (SELECT * FROM "+backup+")) x").Scan(&missed); err != nil {
+			if _, err := tx.ExecContext(ctx, "ROLLBACK TO SAVEPOINT own"); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		if missed > 0 {
+			return fmt.Sprintf("misses rows its statement %d selects", k)
+		}
 	}
 	return ""
 }
