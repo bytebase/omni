@@ -1012,9 +1012,10 @@ func (p *Parser) parseRefScopeTable() (*nodes.ObjectName, error) {
 // column list). An attribute counts as a REF where a SCOPE or WITH ROWID
 // constraint names it; otherwise its type is the engine's to resolve. When
 // stmt holds every column of the table, complete, as a CREATE TABLE does,
-// a SCOPE or WITH ROWID constraint names one of them, or an attribute of
-// one (ORA-00904 on Oracle 23ai for SCOPE FOR (missing) and for
-// missing.r); ALTER TABLE ADD may name a column the table already has.
+// a table constraint names one of them, or an attribute of one (ORA-00904
+// on Oracle 23ai for SCOPE FOR (missing), FOREIGN KEY (missing), and
+// UNIQUE (missing.x)); ALTER TABLE ADD may name a column the table already
+// has.
 func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt, complete bool) error {
 	type target struct {
 		name      string
@@ -1055,11 +1056,16 @@ func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt, compl
 				continue
 			}
 			parts := p.attributePaths[column]
+			root := column.Str
 			if parts != nil {
-				// The attribute of a column of a type that has none.
-				if root := columns[parts[0]]; root != nil && p.scalarColumn(root) {
-					return p.syntaxErrorAtNode(tc)
-				}
+				root = parts[0]
+			}
+			if complete && columns[root] == nil {
+				return p.syntaxErrorAtNode(tc)
+			}
+			// The attribute of a column of a type that has none.
+			if parts != nil && columns[root] != nil && p.scalarColumn(columns[root]) {
+				return p.syntaxErrorAtNode(tc)
 			}
 			// An attribute is keyed by its names, which a quoted one may
 			// join with dots alike: o."R.X" is not "O.R".x.
@@ -1102,9 +1108,6 @@ func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt, compl
 			}
 		case nodes.CONSTRAINT_SCOPE, nodes.CONSTRAINT_WITH_ROWID:
 			if col != nil && (col.TypeName == nil || !col.TypeName.IsRef) {
-				return p.syntaxErrorAtNode(c.node)
-			}
-			if root, _, _ := strings.Cut(key.name, "\x00"); complete && columns[root] == nil {
 				return p.syntaxErrorAtNode(c.node)
 			}
 			if c.typ == nodes.CONSTRAINT_SCOPE {

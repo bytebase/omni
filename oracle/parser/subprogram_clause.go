@@ -769,9 +769,10 @@ func (p *Parser) tablePseudoType(params *nodes.List, result *nodes.TypeName) *no
 // function pseudo-type, "" otherwise. Only the unquoted word is the
 // pseudo-type: a quoted "TABLE" or "COLUMNS" names a user type, which a
 // procedure or function parameter may have, while no type can be named
-// COLUMNS unquoted (CREATE TYPE columns is PLS-00103 on Oracle 23ai).
+// COLUMNS unquoted (CREATE TYPE columns is PLS-00103 on Oracle 23ai). A
+// REF names an object type, REF "TABLE" too.
 func (p *Parser) pseudoType(tn *nodes.TypeName) string {
-	if tn == nil || tn.IsPercType || tn.IsPercRowtype || tn.Names.Len() != 1 {
+	if tn == nil || tn.IsRef || tn.IsPercType || tn.IsPercRowtype || tn.Names.Len() != 1 {
 		return ""
 	}
 	if tn.Loc.Start >= 0 && tn.Loc.Start < len(p.source) && p.source[tn.Loc.Start] == '"' {

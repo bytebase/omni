@@ -317,10 +317,10 @@ func (p *Parser) parseFunctionProperties(stmt *nodes.CreateFunctionStmt, level s
 			return err
 		}
 		// An ordinary pipelined function returns a collection (PLS-00630 for a
-		// predefined scalar or %ROWTYPE result) and is not result-cached
+		// predefined scalar, REF, or %ROWTYPE result) and is not result-cached
 		// (PLS-00999); a named result type is left to the engine.
 		if stmt.Pipelined && stmt.Polymorphic == "" {
-			if _, scalar := p.predefinedTypeName(stmt.ReturnType); scalar {
+			if _, scalar := p.predefinedTypeName(stmt.ReturnType); scalar || stmt.ReturnType != nil && stmt.ReturnType.IsRef {
 				return p.syntaxErrorAtTok(*pipelinedTok)
 			}
 			if resultCacheTok != nil {

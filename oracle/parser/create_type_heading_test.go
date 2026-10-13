@@ -474,6 +474,23 @@ func TestANSIDatatypes(t *testing.T) {
 		ParseShouldFail(t, sql)
 	}
 	ParseAndCheck(t, "CREATE TABLE r (SCOPE FOR (c) IS o, c REF t)")
+	for _, sql := range []string{
+		"CREATE TABLE r (o h, FOREIGN KEY (missing.x) REFERENCES p)",
+		"CREATE TABLE r (o h, FOREIGN KEY (missing) REFERENCES p)",
+		"CREATE TABLE r (o h, PRIMARY KEY (missing))",
+	} {
+		ParseShouldFail(t, sql)
+	}
+	ParseAndCheck(t, "CREATE TABLE r (FOREIGN KEY (o.x) REFERENCES p, o h)")
+	ParseAndCheck(t, "ALTER TABLE r ADD (d NUMBER, FOREIGN KEY (o.x) REFERENCES p)")
+	// LONG takes a length, not NUMBER's * (PLS-00201); a pipelined
+	// function returns no REF (PLS-00630); and REF "TABLE" names an object
+	// type, not the polymorphic pseudo-type (Oracle 23ai compiles it).
+	ParseShouldFail(t, "DECLARE x LONG(*); BEGIN NULL; END;")
+	ParseShouldFail(t, "DECLARE x LONG RAW(*); BEGIN NULL; END;")
+	ParseShouldFail(t, "CREATE FUNCTION f RETURN REF t PIPELINED IS BEGIN RETURN; END;")
+	ParseAndCheck(t, `CREATE PROCEDURE p (x REF "TABLE") IS BEGIN NULL; END;`)
+	ParseAndCheck(t, `CREATE PROCEDURE p (x REF "COLUMNS") IS BEGIN NULL; END;`)
 	ParseAndCheck(t, "ALTER TABLE r ADD (d NUMBER, SCOPE FOR (c) IS o)")
 	// A PL/SQL datatype modifier rounds half away from zero before its
 	// bounds apply (PLS-00215, PLS-00216, PLS-00260, PLS-00325).

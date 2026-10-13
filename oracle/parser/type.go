@@ -169,6 +169,10 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			p.advance() // consume '('
+			// A length, not NUMBER's * (PLS-00201 for LONG(*)).
+			if p.cur.Type == '*' {
+				return nil, p.syntaxErrorAtCur()
+			}
 			size, err := p.parseExpr()
 			if err != nil {
 				return nil, err
