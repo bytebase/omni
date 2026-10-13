@@ -135,6 +135,15 @@ func predicates(root ast.Node) []ast.Node {
 			if v.Cond != nil {
 				add(v.Cond)
 			}
+		case *ast.CaseStmtNode:
+			// Only a searched CASE statement tests its WHEN conditions.
+			if v.Operand == nil {
+				for _, w := range v.Whens {
+					if w != nil && w.Cond != nil {
+						add(w.Cond)
+					}
+				}
+			}
 		case *ast.ElseIf:
 			if v.Cond != nil {
 				add(v.Cond)

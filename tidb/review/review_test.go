@@ -192,6 +192,11 @@ func TestRequireIsNull(t *testing.T) {
 			sql:  "SHOW INDEX FROM t WHERE Key_name = NULL;",
 			want: []finding{{0, "Key_name = NULL", `"Key_name = NULL" is never true; use IS NULL`, []int{0}}},
 		},
+		{
+			name: "a searched CASE statement",
+			sql:  "CREATE PROCEDURE pr() BEGIN CASE WHEN @n = NULL THEN SELECT 1; END CASE; END;",
+			want: []finding{{0, "@n = NULL", `"@n = NULL" is never true; use IS NULL`, []int{0}}},
+		},
 	})
 }
 
@@ -334,6 +339,10 @@ func TestRequirePrimaryKey(t *testing.T) {
 			want: []finding{{0, "CREATE TABLE a (id INT)", "creates table a without a primary key", []int{0}}},
 		},
 		{
+			name: "a constraint named PRIMARY",
+			sql:  "ALTER TABLE t DROP FOREIGN KEY `PRIMARY`;",
+		},
+		{
 			name: "not settled by IF NOT EXISTS or a temporary table of its name",
 			sql:  "CREATE TABLE a (id INT);\nCREATE TABLE IF NOT EXISTS a (id INT PRIMARY KEY);\nCREATE TABLE b (id INT);\nCREATE TEMPORARY TABLE b (id INT PRIMARY KEY);",
 			want: []finding{
@@ -461,6 +470,12 @@ func TestPriorBackup(t *testing.T) {
 			sql:    "DELETE T FROM t WHERE id = 1;\nDELETE y FROM t AS x WHERE x.id = 2;",
 			change: backup,
 			want:   []finding{{1, "DELETE y FROM t AS x WHERE x.id = 2", "prior backup does not find DELETE target y in the FROM list", []int{0}}},
+		},
+		{
+			name:   "a view OR REPLACE makes, or a table IF NOT EXISTS makes",
+			sql:    "CREATE OR REPLACE VIEW nv AS SELECT 1 AS id;\nUPDATE nv SET id = 2 WHERE id = 1;\nCREATE TABLE IF NOT EXISTS t (gone INT);\nUPDATE t SET n = 1 WHERE gone = 1;",
+			change: backup,
+			want:   []finding{{1, "UPDATE nv SET id = 2 WHERE id = 1", "prior backup runs before the change, when nv does not exist yet", []int{0}}},
 		},
 		{
 			name:   "statements before a USE",
