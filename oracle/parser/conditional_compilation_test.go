@@ -133,6 +133,14 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF LENGTH(TO_CHAR(123)) = 3 AND LENGTH(CHR(65) || 'b') = 2 AND LENGTH(NVL(NULL, 'ab')) = 2 AND LENGTH(1 || 2) = 2 AND LENGTH(LPAD('ab', 1)) = 1 $THEN NULL; $ELSE garbage garbage; $END END;",
 		"BEGIN $IF ASCII(SUBSTR(INITCAP('ab-cd'), 4)) = 67 AND ASCII(SUBSTR(INITCAP('aBC dEF'), 2)) = 98 AND ASCII(SUBSTR(INITCAP('a1b'), 3)) = 98 AND ASCII(SUBSTR(LPAD('a', 4, 'xy'), 2)) = 121 $THEN NULL; $ELSE garbage garbage; $END END;",
 		"BEGIN $IF ASCII(SUBSTR(INITCAP('a_b'), 3)) = 98 $THEN garbage garbage; $ELSE NULL; $END END;",
+		// A whole power folds exactly whatever its exponent, and TO_CHAR and
+		// || convert a PLS_INTEGER: an integer literal, +, -, and * of
+		// them, and ABS, SIGN, BITAND, NVL, LENGTH, and ASCII.
+		"BEGIN $IF 1 ** 65 = 2 $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF POWER(1, 65) = 1 AND (-1) ** 65 = -1 AND 0 ** 65 = 0 AND 2 ** 100 = 1267650600228229401496703205376 AND POWER(-1, -65) = -1 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF TO_CHAR(1 + 1) IS NULL OR TO_CHAR(2 * 3) IS NULL OR TO_CHAR(ABS(-1)) IS NULL OR TO_CHAR(LENGTH('ab')) IS NULL OR TO_CHAR(-(1)) IS NULL $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF TO_CHAR(1 - 2) IS NULL OR TO_CHAR(NVL(1, 2)) IS NULL OR 1 + 1 || 'a' IS NULL OR TO_CHAR(SIGN(-1)) IS NULL OR TO_CHAR(BITAND(6, 3)) IS NULL OR UPPER(1 + 1) IS NULL $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF TO_CHAR(NULL + 1) IS NULL AND LENGTH(TO_CHAR(2 * 3 - 1)) = 1 $THEN NULL; $ELSE garbage garbage; $END END;",
 		// Arithmetic past NUMBER's range raises nothing.
 		"BEGIN $IF 1e125 * 10 > 0 AND 9e125 + 9e125 > 0 AND 1e125 / 1e-5 > 0 $THEN NULL; $ELSE NULL; $END END;",
 		// A hint anywhere but after SELECT, INSERT, UPDATE, DELETE, or MERGE
@@ -254,6 +262,19 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF LENGTH(TO_CHAR(-2147483649)) = 11 $THEN NULL; $ELSE NULL; $END END;",
 		"BEGIN $IF LENGTH(1e3 || 'a') = 5 $THEN NULL; $ELSE NULL; $END END;",
 		"BEGIN $IF LENGTH(UPPER(0.5)) = 2 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF TO_CHAR(0.5 + 0) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF TO_CHAR(4 / 2) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF TO_CHAR(MOD(5, 2)) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF TO_CHAR(2 ** 2) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF TO_CHAR(ROUND(1.5)) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF TO_CHAR(-2147483648) IS NOT NULL $THEN NULL; $END END;",
+		// PLS_INTEGER arithmetic past 32 bits raises.
+		"BEGIN $IF 2147483647 + 1 > 0 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF 2147483647 * 2 > 0 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF TO_CHAR(2147483647 + 1) IS NULL $THEN NULL; $ELSE NULL; $END END;",
+		// ** takes no signed operand (PLS-00103).
+		"BEGIN $IF 2 ** -1 = 0.5 $THEN NULL; $ELSE NULL; $END END;",
+		"DECLARE x NUMBER; BEGIN x := 2 ** -1; END;",
 		// TO_CHAR takes one argument (PLS-00174 for its format overloads).
 		"BEGIN $IF TO_CHAR(1, '9', 'NLS_NUMERIC_CHARACTERS = ''.,''') IS NULL $THEN NULL; $ELSE NULL; $END END;",
 		// A bind variable after the block's END is the block's too

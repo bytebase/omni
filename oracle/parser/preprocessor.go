@@ -252,15 +252,22 @@ func staticText(expr nodes.ExprNode) (text string, null bool, ok bool) {
 			}
 		}
 		return e.Val, e.Val == "", true
-	case *nodes.NumberLiteral, *nodes.UnaryExpr:
-		if v, ok := plsIntegerLiteral(e); ok {
-			return strconv.FormatInt(v, 10), false, true
+	case *nodes.NumberLiteral, *nodes.UnaryExpr, *nodes.BinaryExpr:
+		if b, ok := e.(*nodes.BinaryExpr); ok && b.Op == "||" {
+			return staticConcat(b.Left, b.Right)
 		}
-	case *nodes.BinaryExpr:
-		if e.Op == "||" {
-			return staticConcat(e.Left, e.Right)
+		if staticNumType(e) != numPLSInteger {
+			break
+		}
+		if v, ok := staticNumber(e); ok && v != nil && plsInteger(v) {
+			return strconv.FormatInt(v.Num().Int64(), 10), false, true
 		}
 	case *nodes.FuncCallExpr:
+		if staticNumType(e) == numPLSInteger {
+			if v, ok := staticNumber(e); ok && v != nil && plsInteger(v) {
+				return strconv.FormatInt(v.Num().Int64(), 10), false, true
+			}
+		}
 		if e.Args == nil {
 			break
 		}
@@ -394,9 +401,78 @@ func staticWhole(expr nodes.ExprNode) (n int64, null bool, ok bool) {
 	return w.Num().Int64(), false, true
 }
 
+// numType is the static datatype of a numeric expression.
+type numType int
+
+const (
+	numUnknown    numType = iota // NULL, a constant, or an inquiry directive
+	numPLSInteger                // the PLS_INTEGER a character context converts
+	numNumber                    // NUMBER, which it does not
+)
+
+// staticNumType types a static numeric expression as Oracle 23ai does: an
+// integer literal up to 2147483647 is a PLS_INTEGER, and so are +, -, and
+// * of PLS_INTEGERs, ABS, SIGN, BITAND, and NVL of them, and LENGTH and
+// ASCII; any other literal, /, **, MOD, ROUND, and the other functions are
+// NUMBER (TO_CHAR(1 + 1) and TO_CHAR(LENGTH('ab')) compile, TO_CHAR(4 / 2),
+// TO_CHAR(MOD(5, 2)), and TO_CHAR(-2147483648) raise).
+func staticNumType(expr nodes.ExprNode) numType {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return staticNumType(e.Expr)
+	case *nodes.NumberLiteral:
+		if _, ok := plsIntegerLiteral(e); ok {
+			return numPLSInteger
+		}
+		return numNumber
+	case *nodes.UnaryExpr:
+		if e.Op == "-" || e.Op == "+" {
+			return staticNumType(e.Operand)
+		}
+	case *nodes.BinaryExpr:
+		switch e.Op {
+		case "+", "-", "*":
+			return joinNumTypes(staticNumType(e.Left), staticNumType(e.Right))
+		case "/", "**":
+			return numNumber
+		}
+	case *nodes.FuncCallExpr:
+		if e.Args == nil {
+			return numUnknown
+		}
+		args := e.Args.Items
+		switch name := staticFunctionName(e); name {
+		case "LENGTH", "LENGTHB", "LENGTHC", "ASCII":
+			return numPLSInteger
+		case "ABS", "SIGN", "BITAND", "NVL":
+			t := staticNumType(args[0].(nodes.ExprNode))
+			for _, arg := range args[1:] {
+				t = joinNumTypes(t, staticNumType(arg.(nodes.ExprNode)))
+			}
+			return t
+		default:
+			if _, ok := staticFunctions[name]; ok && staticFunctions[name].result == kindNumber {
+				return numNumber
+			}
+		}
+	}
+	return numUnknown
+}
+
+// joinNumTypes types an operation over operands of types a and b.
+func joinNumTypes(a, b numType) numType {
+	switch {
+	case a == numNumber || b == numNumber:
+		return numNumber
+	case a == numPLSInteger && b == numPLSInteger:
+		return numPLSInteger
+	}
+	return numUnknown
+}
+
 // plsIntegerLiteral returns the value of an integer literal, possibly
-// signed, that is a PLS_INTEGER: the number a character context converts
-// (Oracle 23ai raises for TO_CHAR(0.5), TO_CHAR(1.0), and TO_CHAR(2147483648)).
+// signed, that is a PLS_INTEGER (Oracle 23ai raises for TO_CHAR(0.5),
+// TO_CHAR(1.0), TO_CHAR(2147483648), and TO_CHAR(-2147483648)).
 func plsIntegerLiteral(expr nodes.ExprNode) (int64, bool) {
 	switch e := expr.(type) {
 	case *nodes.ParenExpr:
@@ -695,18 +771,37 @@ func bitandOperand(v *big.Rat) bool {
 	return v.Cmp(new(big.Rat).Neg(limit)) >= 0 && v.Cmp(limit) < 0
 }
 
-// staticPower raises base to a whole exponent of at most 64 either way
-// (Oracle 23ai finds POWER(4, -2) = 0.0625), when NUMBER holds the exact
-// power; past that, Oracle's rounding of the steps is not the text's to
-// settle.
+// staticPower raises base to a whole exponent (Oracle 23ai finds
+// POWER(4, -2) = 0.0625, 1 ** 65 = 1, and 2 ** 100 exact) when NUMBER
+// holds the exact power; past that, Oracle's rounding of the steps is not
+// the text's to settle.
 func staticPower(base, exp *big.Rat) (*big.Rat, bool) {
-	if !exp.IsInt() || exp.Num().CmpAbs(big.NewInt(64)) > 0 || exp.Sign() < 0 && base.Sign() == 0 {
+	if !exp.IsInt() || exp.Sign() < 0 && base.Sign() == 0 {
 		return nil, false
 	}
-	result := big.NewRat(1, 1)
-	for i := new(big.Int).Abs(exp.Num()).Int64(); i > 0; i-- {
-		result.Mul(result, base)
+	abs := new(big.Rat).Abs(base)
+	odd := exp.Num().Bit(0) == 1
+	switch {
+	case base.Sign() == 0:
+		if exp.Sign() == 0 {
+			return big.NewRat(1, 1), true
+		}
+		return new(big.Rat), true
+	case abs.Cmp(big.NewRat(1, 1)) == 0:
+		if base.Sign() < 0 && odd {
+			return big.NewRat(-1, 1), true
+		}
+		return big.NewRat(1, 1), true
 	}
+	// Any other base outgrows NUMBER's 40 digits or its range long before
+	// the bound: 2 ** 4096 is far past 1e126.
+	n := new(big.Int).Abs(exp.Num())
+	if n.Cmp(big.NewInt(4096)) > 0 {
+		return nil, false
+	}
+	num := new(big.Int).Exp(base.Num(), n, nil)
+	den := new(big.Int).Exp(base.Denom(), n, nil)
+	result := new(big.Rat).SetFrac(num, den)
 	if exp.Sign() < 0 {
 		result.Inv(result)
 	}
@@ -1090,8 +1185,8 @@ func staticRaises(e nodes.ExprNode) bool {
 			name = "REMAINDER"
 		case "**":
 			name = "POWER"
-		case "||":
-			name = "||"
+		case "||", "+", "-", "*":
+			name = e.Op
 		default:
 			return false
 		}
@@ -1117,8 +1212,8 @@ func staticRaises(e nodes.ExprNode) bool {
 			}
 		}
 	}
-	// A character context converts a PLS_INTEGER literal alone (Oracle 23ai
-	// raises for TO_CHAR(0.5), 1e3 || 'a', and UPPER(2147483648)).
+	// A character context converts a PLS_INTEGER alone (Oracle 23ai raises
+	// for TO_CHAR(0.5), TO_CHAR(4 / 2), 1e3 || 'a', and UPPER(2147483648)).
 	var converted []nodes.ExprNode
 	switch name {
 	case "TO_CHAR", "TO_NCHAR", "||", "CONCAT", "UPPER", "LOWER", "INITCAP":
@@ -1132,17 +1227,24 @@ func staticRaises(e nodes.ExprNode) bool {
 		}
 	}
 	for _, arg := range converted {
-		if _, isNumber := unparen(arg).(*nodes.NumberLiteral); isNumber {
-			if _, ok := plsIntegerLiteral(arg); !ok {
-				return true
-			}
+		if staticNumType(arg) == numNumber {
+			return true
 		}
-		if u, isUnary := unparen(arg).(*nodes.UnaryExpr); isUnary {
-			if _, isNumber := unparen(u.Operand).(*nodes.NumberLiteral); isNumber {
-				if _, ok := plsIntegerLiteral(arg); !ok {
-					return true
-				}
+	}
+	// PLS_INTEGER arithmetic stays in 32 bits (Oracle 23ai raises for
+	// 2147483647 + 1).
+	if (name == "+" || name == "-" || name == "*") && staticNumType(args[0]) == numPLSInteger && staticNumType(args[1]) == numPLSInteger {
+		a, aok := staticNumber(args[0])
+		b, bok := staticNumber(args[1])
+		if aok && bok && a != nil && b != nil {
+			exact := new(big.Rat).Mul(a, b)
+			switch name {
+			case "+":
+				exact = new(big.Rat).Add(a, b)
+			case "-":
+				exact = new(big.Rat).Sub(a, b)
 			}
+			return !plsInteger(exact)
 		}
 	}
 	// The arguments' values, when the text settles each and none is NULL.

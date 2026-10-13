@@ -351,10 +351,15 @@ func (p *Parser) parseBinaryInfix(left nodes.ExprNode, prec int, op string) (nod
 		}, nil
 	}
 
-	// Right-associative for exponentiation
+	// Right-associative for exponentiation, whose right operand takes no
+	// sign of its own (PLS-00103 on Oracle 23ai for 2 ** -1; 2 ** (-1)
+	// compiles).
 	nextPrec := prec + 1
 	if op == "**" {
 		nextPrec = prec
+		if p.cur.Type == '-' || p.cur.Type == '+' {
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	right, parseErr702 := p.parseExprPrec(nextPrec)
