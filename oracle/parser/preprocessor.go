@@ -362,7 +362,8 @@ func staticNumericCall(call *nodes.FuncCallExpr) (*big.Rat, bool) {
 	switch {
 	case name == "ABS" && one, name == "SIGN" && one, name == "CEIL" && one, name == "FLOOR" && one,
 		name == "TRUNC" && len(args) <= 2, name == "ROUND" && len(args) <= 2,
-		name == "MOD" && len(args) == 2, name == "POWER" && len(args) == 2:
+		name == "MOD" && len(args) == 2, name == "POWER" && len(args) == 2,
+		name == "BITAND" && len(args) == 2, name == "REMAINDER" && len(args) == 2:
 		if null {
 			return nil, true
 		}
@@ -398,20 +399,51 @@ func staticNumericCall(call *nodes.FuncCallExpr) (*big.Rat, bool) {
 		}
 		q := roundRat(new(big.Rat).Quo(args[0], args[1]), "TRUNC")
 		return oracleNumber(args[0].Sub(args[0], q.Mul(q, args[1])))
+	case "REMAINDER":
+		// n2 - n1 * N, N the integer nearest n2 / n1, the even one at a
+		// tie (Oracle 23ai finds REMAINDER(14, 4) = -2).
+		if args[1].Sign() == 0 {
+			return nil, false
+		}
+		q := new(big.Rat).Quo(args[0], args[1])
+		n := roundRat(q, "ROUND")
+		if diff := new(big.Rat).Sub(q, roundRat(q, "TRUNC")); diff.Abs(diff).Cmp(big.NewRat(1, 2)) == 0 && n.Num().Bit(0) == 1 {
+			n.Sub(n, big.NewRat(int64(q.Sign()), 1))
+		}
+		return oracleNumber(args[0].Sub(args[0], n.Mul(n, args[1])))
+	case "BITAND":
+		// Two's complement over the whole parts, toward zero (Oracle 23ai
+		// finds BITAND(2.9, 3) = 2 and BITAND(-6, -3) = -8).
+		if !bitandOperand(args[0]) || !bitandOperand(args[1]) {
+			return nil, false
+		}
+		a, b := roundRat(args[0], "TRUNC").Num(), roundRat(args[1], "TRUNC").Num()
+		return new(big.Rat).SetInt(new(big.Int).And(a, b)), true
 	}
 	return staticPower(args[0], args[1])
 }
 
-// staticPower raises base to a whole exponent of at most 64, when NUMBER
-// holds the exact power; past that, Oracle's rounding of the steps is not
-// the text's to settle.
+// bitandOperand reports whether BITAND takes v: -2^127 through 2^127 - 1
+// (PLS-00174 on Oracle 23ai past them).
+func bitandOperand(v *big.Rat) bool {
+	limit := new(big.Rat).SetInt(new(big.Int).Lsh(big.NewInt(1), 127))
+	return v.Cmp(new(big.Rat).Neg(limit)) >= 0 && v.Cmp(limit) < 0
+}
+
+// staticPower raises base to a whole exponent of at most 64 either way
+// (Oracle 23ai finds POWER(4, -2) = 0.0625), when NUMBER holds the exact
+// power; past that, Oracle's rounding of the steps is not the text's to
+// settle.
 func staticPower(base, exp *big.Rat) (*big.Rat, bool) {
-	if !exp.IsInt() || exp.Sign() < 0 || exp.Num().Cmp(big.NewInt(64)) > 0 {
+	if !exp.IsInt() || exp.Num().CmpAbs(big.NewInt(64)) > 0 || exp.Sign() < 0 && base.Sign() == 0 {
 		return nil, false
 	}
 	result := big.NewRat(1, 1)
-	for i := exp.Num().Int64(); i > 0; i-- {
+	for i := new(big.Int).Abs(exp.Num()).Int64(); i > 0; i-- {
 		result.Mul(result, base)
+	}
+	if exp.Sign() < 0 {
+		result.Inv(result)
 	}
 	if rounded, ok := oracleNumber(new(big.Rat).Set(result)); !ok || rounded.Cmp(result) != 0 {
 		return nil, false
@@ -757,7 +789,65 @@ func (p *Parser) staticConditionFault(expr nodes.ExprNode) nodes.ExprNode {
 	if kind != kindBoolean && kind != kindAny {
 		return expr
 	}
-	return nil
+	return staticRaise(expr)
+}
+
+// staticRaise returns the operation in expr that certainly raises an
+// exception, which makes the condition no static expression (PLS-00174 on
+// Oracle 23ai for $IF FALSE AND 1 / 0 = 0, short-circuit or not): a
+// division or REMAINDER of a value by zero, zero to a negative power, a
+// negative number to a fractional one, and BITAND past its range. A NULL
+// operand raises nothing (NULL / 0 is NULL).
+func staticRaise(expr nodes.ExprNode) nodes.ExprNode {
+	var bad nodes.ExprNode
+	nodes.Inspect(expr, func(n nodes.Node) bool {
+		if bad != nil {
+			return false
+		}
+		var left, right nodes.ExprNode
+		op := ""
+		switch e := n.(type) {
+		case *nodes.BinaryExpr:
+			left, right, op = e.Left, e.Right, e.Op
+		case *nodes.FuncCallExpr:
+			if e.Args == nil || e.Args.Len() != 2 {
+				return true
+			}
+			left, right = e.Args.Items[0].(nodes.ExprNode), e.Args.Items[1].(nodes.ExprNode)
+			switch staticFunctionName(e) {
+			case "REMAINDER":
+				op = "/"
+			case "POWER":
+				op = "**"
+			case "BITAND":
+				op = "BITAND"
+			}
+		}
+		if op == "" {
+			return true
+		}
+		a, aok := staticNumber(left)
+		b, bok := staticNumber(right)
+		if !aok || !bok || a == nil || b == nil {
+			return true
+		}
+		switch op {
+		case "/":
+			if b.Sign() == 0 {
+				bad = n.(nodes.ExprNode)
+			}
+		case "**":
+			if a.Sign() == 0 && b.Sign() < 0 || a.Sign() < 0 && !b.IsInt() {
+				bad = n.(nodes.ExprNode)
+			}
+		case "BITAND":
+			if !bitandOperand(a) || !bitandOperand(b) {
+				bad = n.(nodes.ExprNode)
+			}
+		}
+		return bad == nil
+	})
+	return bad
 }
 
 // checkDirectiveCondition parses the condition at loc of an $IF or $ELSIF

@@ -72,6 +72,9 @@ func Split(sql string) []Segment {
 	unitSegment := -1
 
 	for {
+		// A directive outside a unit is stray, but for the ones right after
+		// a unit's END.
+		lexer.ccStray = !state.inPLSQL && unitSegment < 0
 		tok := lexer.NextToken()
 		if unitSegment >= 0 {
 			if end := lexer.ccSkipEnd; end > stmtStart && end <= tok.Loc {

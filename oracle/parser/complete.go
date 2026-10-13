@@ -190,8 +190,18 @@ func (r *ccResolver) ifGroup(emit bool) {
 			if r.pos > start {
 				b.cond = nodes.Loc{Start: r.toks[start].Loc, End: r.toks[r.pos-1].End}
 			}
+			// A caret in the condition completes the condition, which stands
+			// for the whole $IF.
+			to := len(r.sql)
+			if r.pos < len(r.toks) {
+				to = r.toks[r.pos].Loc
+			}
+			if emit && r.toks[start-1].End <= r.caret && r.caret <= to {
+				r.out = append(r.out, r.toks[start:r.pos]...)
+				emit = false
+			}
 			if r.pos == len(r.toks) || r.toks[r.pos].Str != "$THEN" {
-				// A condition the caret is in, or a malformed one.
+				// A condition still being written, or a malformed one.
 				return
 			}
 			r.pos++ // consume $THEN

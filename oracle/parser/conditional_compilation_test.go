@@ -104,6 +104,16 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF $$PLSQL_UNIT = 1 $THEN NULL; $END END;",
 		// Parentheses around a SELECT INTO or DML RETURNING target.
 		"DECLARE x NUMBER; BEGIN SELECT 1 INTO (x) FROM dual; UPDATE t SET a = 1 RETURNING a INTO (x); END;",
+		// BITAND (two's complement, toward zero), REMAINDER (to the nearest
+		// even quotient), and negative whole powers fold; a NULL operand
+		// raises nothing, nor does a condition Oracle does not evaluate.
+		"BEGIN $IF BITAND(1, 1) = 0 $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF BITAND(6, 3) = 2 AND BITAND(-6, -3) = -8 AND BITAND(2.9, 3) = 2 AND REMAINDER(14, 4) = -2 AND REMAINDER(11, 4) = -1 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF POWER(4, -2) = 0.0625 AND 2 ** (-1) = 0.5 AND NULL / 0 IS NULL AND REMAINDER(NULL, 0) IS NULL $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF TRUE $THEN NULL; $ELSIF 1 / 0 = 0 $THEN NULL; $END END;",
+		// A hint anywhere but after SELECT, INSERT, UPDATE, DELETE, or MERGE
+		// is a comment.
+		"BEGIN $IF /*+ ignored */ TRUE /*+ x */ AND TRUE $THEN /*+ y */ NULL; $END END;",
 		// A constant is a package's, named through it.
 		"BEGIN $IF pkg.b AND system.pkg.b AND \"PKG\".\"B\" $THEN NULL; $END END;",
 		// An inquiry directive is a value an IN bind or argument takes.
@@ -176,6 +186,19 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF DECODE(1, 1, 1, 2) = 1 $THEN NULL; $END END;",
 		"BEGIN $IF CASE WHEN 1 = 1 THEN 1 END = 1 $THEN NULL; $END END;",
 		"BEGIN $IF CAST(1 AS NUMBER) = 1 $THEN NULL; $END END;",
+		// An operation that raises makes no static expression, evaluated
+		// or not (PLS-00174): a division or REMAINDER by zero, zero to a
+		// negative power, a negative number to a fractional one, and BITAND
+		// past -2^127 through 2^127 - 1.
+		"BEGIN $IF 1 / 0 = 0 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF FALSE AND 1 / 0 = 0 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF TRUE OR 1 / (1 - 1) = 0 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF FALSE $THEN NULL; $ELSIF 1 / 0 = 0 $THEN NULL; $END END;",
+		"BEGIN $IF REMAINDER(1, 0) = 1 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF POWER(0, -1) = 1 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF POWER(-8, 1 / 3) < 0 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF BITAND(170141183460469231731687303715884105728, 1) = 0 $THEN NULL; $ELSE NULL; $END END;",
+		"BEGIN $IF BITAND(-170141183460469231731687303715884105729, 1) = 0 $THEN NULL; $ELSE NULL; $END END;",
 		// A bind variable after the block's END is the block's too
 		// (PLS-00110), when another statement follows.
 		"BEGIN NULL; END; $IF :x $THEN $END",
@@ -372,6 +395,12 @@ SELECT 1 FROM dual;
 		t.Fatalf("Split = %q", got)
 	}
 
+	// Outside a unit, a directive is stray however well formed.
+	got = splitTexts(Split("SELECT 1 FROM dual; $IF TRUE $THEN SELECT 2 FROM dual; $ELSE SELECT 3 FROM dual; $END SELECT 4 FROM dual;"))
+	if len(got) != 4 || strings.TrimSpace(got[2]) != "$ELSE SELECT 3 FROM dual" || !strings.HasSuffix(got[3], "SELECT 4 FROM dual") {
+		t.Fatalf("Split = %q", got)
+	}
+
 	// Nor a stray $ERROR.
 	got = splitTexts(Split("SELECT 1 FROM dual; $ERROR 'x'; SELECT 2 FROM dual; $END SELECT 3 FROM dual;"))
 	if len(got) != 4 || strings.TrimSpace(got[2]) != "SELECT 2 FROM dual" || !strings.HasSuffix(got[3], "SELECT 3 FROM dual") {
@@ -412,6 +441,18 @@ func TestConditionalCompilationCompletion(t *testing.T) {
 		sql := tc.before + tc.after
 		if got := refs(sql, len(tc.before)); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("CollectCompletion(%q) scope = %q, want %q", sql, got, tc.want)
+		}
+	}
+
+	// A caret in a condition completes the condition.
+	want := CollectCompletion("BEGIN IF pkg.", len("BEGIN IF pkg.")).Intent
+	for _, tc := range [][2]string{
+		{"BEGIN $IF pkg.", ""},
+		{"BEGIN $IF pkg.", " $THEN NULL; $END END;"},
+		{"BEGIN $IF TRUE $THEN NULL; $ELSIF pkg.", " $THEN NULL; $END END;"},
+	} {
+		if got := CollectCompletion(tc[0]+tc[1], len(tc[0])).Intent; !reflect.DeepEqual(got, want) {
+			t.Errorf("CollectCompletion(%q) intent = %+v, want %+v", tc[0]+tc[1], got, want)
 		}
 	}
 }

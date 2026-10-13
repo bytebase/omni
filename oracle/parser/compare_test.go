@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/oracle/ast"
@@ -145,15 +146,32 @@ func TestLexerNCharLiteral(t *testing.T) {
 	}
 }
 
-// TestLexerHints tests hint lexing.
+// TestLexerHints tests hint lexing: a hint follows SELECT, INSERT, UPDATE,
+// DELETE, or MERGE, and is a comment anywhere else, as on Oracle 23ai.
 func TestLexerHints(t *testing.T) {
-	lex := NewLexer("/*+ FULL(t) */")
+	lex := NewLexer("SELECT /*+ FULL(t) */")
+	lex.NextToken()
 	tok := lex.NextToken()
 	if tok.Type != tokHINT {
 		t.Errorf("type: got %d, want %d", tok.Type, tokHINT)
 	}
 	if tok.Str != "FULL(t)" {
 		t.Errorf("str: got %q, want %q", tok.Str, "FULL(t)")
+	}
+	for _, sql := range []string{"/*+ FULL(t) */ 1", "SELECT /*+ a */ /*+ b */ 1", "SELECT 1 /*+ x */ FROM"} {
+		hints := 0
+		for lex := NewLexer(sql); ; {
+			tok := lex.NextToken()
+			if tok.Type == tokEOF {
+				break
+			}
+			if tok.Type == tokHINT {
+				hints++
+			}
+		}
+		if want := strings.Count(sql, "SELECT /*+"); hints != want {
+			t.Errorf("%q lexes %d hints, want %d", sql, hints, want)
+		}
 	}
 }
 

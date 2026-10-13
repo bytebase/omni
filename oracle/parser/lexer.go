@@ -78,9 +78,19 @@ type Lexer struct {
 	// statement boundary.
 	ccSplit bool
 
+	// ccStray is set by Split outside a PL/SQL unit, where any directive is
+	// stray, as Oracle preprocesses a unit alone: the lexer drops it and
+	// lexes on, a branch's code and condition too, to keep every statement
+	// boundary.
+	ccStray bool
+
 	// ccSkipEnd is where the last directive construct NextToken skipped
 	// ends, for Split to keep directives after a unit's END with the unit.
 	ccSkipEnd int
+
+	// prevType is the type of the last token lexed, which says whether a
+	// /*+ ... */ comment is a hint.
+	prevType int
 
 	// cc, when set, records the preprocessor tokens the lexer meets. The
 	// copies of the lexer that look ahead share it.
@@ -173,6 +183,9 @@ func (l *Lexer) NextToken() Token {
 				l.cc.noteBind(tok.Loc)
 			}
 			return tok
+		}
+		if l.ccStray && l.ccDepth == 0 {
+			continue
 		}
 		before := *l
 		ok := true
@@ -445,6 +458,17 @@ func (l *Lexer) nextRaw() Token {
 	// For recursive calls (e.g., skipping comments), the inner NextToken
 	// sets End correctly on its own returned token.
 	tok.End = l.pos
+	// A hint stands right after SELECT, INSERT, UPDATE, DELETE, or MERGE;
+	// anywhere else it is a comment (Oracle 23ai runs BEGIN /*+ x */ NULL;
+	// END; and SELECT 1 /*+ x */ FROM dual).
+	if tok.Type == tokHINT {
+		switch l.prevType {
+		case kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwMERGE:
+		default:
+			return l.nextRaw()
+		}
+	}
+	l.prevType = tok.Type
 	return tok
 }
 
