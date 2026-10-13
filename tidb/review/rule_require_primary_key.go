@@ -39,7 +39,11 @@ func checkRequirePrimaryKey(stmts []statement, r *reporter) {
 		s := &stmts[i]
 		switch v := s.node.(type) {
 		case *ast.CreateTableStmt:
-			settle(v.Table)
+			// IF NOT EXISTS of a table the change made does nothing, and a
+			// temporary table leaves the table of its name as it is.
+			if !v.IfNotExists && !v.Temporary {
+				settle(v.Table)
+			}
 			if v.Table == nil || v.Temporary || v.IfNotExists || v.Like != nil || v.Select != nil || createsPrimaryKey(v) {
 				continue
 			}
