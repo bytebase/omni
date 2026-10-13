@@ -193,7 +193,8 @@ func isTrue(v string) bool {
 // InspectTableColumnsAndUniqueKeys, validateTableForeignKeys,
 // validateTableTriggers.
 //
-// gh-ost also refuses a table whose only unique keys hold a nullable
+// gh-ost also refuses a view, and a table whose unique keys are all of
+// expressions, which its key query cannot see, or all hold a nullable
 // column: it takes the primary key, else a unique key without one, first,
 // and bails out on a nullable key without allow-nullable-unique-key, a
 // flag Bytebase does not pass.
@@ -213,6 +214,10 @@ func checkOnlineMigrationTarget(stmts []statement, t review.Target, x schemaInde
 	// names (backend/component/ghost, NewMigrationContext).
 	tbl := x.table(&ast.TableRef{Name: v.Table.Name}, false)
 	if tbl == nil {
+		// gh-ost's validateTable refuses a view.
+		if x.isView(v.Table.Name) {
+			r.report(review.OnlineMigration, stmts[0].index, rangeOf(stmts[0].loc), "online migration needs a table, and "+table(v.Table)+" is a view")
+		}
 		return
 	}
 	at := func(msg string) {
@@ -220,7 +225,7 @@ func checkOnlineMigrationTarget(stmts []statement, t review.Target, x schemaInde
 	}
 	name := table(v.Table)
 	switch {
-	case !slices.ContainsFunc(tbl.GetIndexes(), func(i *metadata.IndexMetadata) bool { return i.GetPrimary() || i.GetUnique() }):
+	case !slices.ContainsFunc(tbl.GetIndexes(), func(i *metadata.IndexMetadata) bool { return i.GetPrimary() || i.GetUnique() && !functionalKey(tbl, i) }):
 		at("online migration needs a primary or unique key on " + name + ", which has none")
 	case !slices.ContainsFunc(tbl.GetIndexes(), func(i *metadata.IndexMetadata) bool { return i.GetPrimary() || i.GetUnique() && !nullableKey(tbl, i) }):
 		at("online migration needs a primary key or a unique key of NOT NULL columns on " + name + ", which has none")
@@ -233,6 +238,22 @@ func checkOnlineMigrationTarget(stmts []statement, t review.Target, x schemaInde
 	if len(tbl.GetTriggers()) > 0 {
 		at("online migration does not support " + name + ", which has a trigger")
 	}
+}
+
+// functionalKey reports whether every part of an index is an expression,
+// one naming no column of the table: gh-ost finds its keys by their
+// columns in information_schema.STATISTICS, where such a part has none.
+func functionalKey(t *metadata.TableMetadata, idx *metadata.IndexMetadata) bool {
+	parts := idx.GetExpressions()
+	if len(parts) == 0 {
+		return false
+	}
+	for _, part := range parts {
+		if slices.ContainsFunc(t.GetColumns(), func(c *metadata.ColumnMetadata) bool { return strings.EqualFold(c.GetName(), part) }) {
+			return false
+		}
+	}
+	return true
 }
 
 // nullableKey reports whether an index certainly holds a nullable column:

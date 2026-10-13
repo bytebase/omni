@@ -80,9 +80,10 @@ func tableExprs(exprs []ast.TableExpr) string {
 }
 
 // sameCase reports whether two references of one table, as sameTable
-// matches them, write its name, and any database both name, alike.
+// matches them, write its name and its database, or the lack of one,
+// alike.
 func sameCase(a, b *ast.TableRef) bool {
-	return a.Name == b.Name && (a.Schema == "" || b.Schema == "" || a.Schema == b.Schema)
+	return a.Name == b.Name && a.Schema == b.Schema
 }
 
 // sameName reports whether two names may name the same object. MySQL

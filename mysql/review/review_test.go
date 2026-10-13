@@ -109,6 +109,11 @@ func shop() *metadata.DatabaseSchemaMetadata {
 					Columns: []*metadata.ColumnMetadata{{Name: "email", Nullable: true}, {Name: "code"}},
 					Indexes: []*metadata.IndexMetadata{{Name: "uk_email", Unique: true, Expressions: []string{"email"}}},
 				},
+				{
+					Name:    "fkey",
+					Columns: columns("id", "code"),
+					Indexes: []*metadata.IndexMetadata{{Name: "uk_f", Unique: true, Expressions: []string{"lower(`code`)"}}},
+				},
 			},
 			Views: []*metadata.ViewMetadata{{Name: "pv"}},
 		}},
@@ -168,6 +173,11 @@ func TestRequireIsNull(t *testing.T) {
 		{
 			name: "a value, the null-safe operator, and IS NULL",
 			sql:  "SELECT n = NULL FROM t;\nSELECT * FROM t WHERE n <=> NULL;\nSELECT * FROM t WHERE n IS NULL;\nSELECT * FROM t WHERE IFNULL(n = NULL, 1);",
+		},
+		{
+			name: "IF's condition",
+			sql:  "SELECT IF(n = NULL, 1, 0) FROM t;",
+			want: []finding{{0, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
 		},
 	})
 }
@@ -269,6 +279,15 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name: "an index the change touched before, or after a USE",
 			sql:  "ALTER TABLE t DROP INDEX uk_code, ADD INDEX uk_code (code);\nALTER TABLE t DROP INDEX uk_code;\nUSE other;\nDROP INDEX uk_code ON t;",
 			want: []finding{{0, "DROP INDEX uk_code", "drops unique key uk_code of t", []int{0}}},
+		},
+		{
+			name: "a check constraint of an index's name",
+			sql:  "ALTER TABLE t ADD CONSTRAINT uk_code CHECK (n > 0);\nDROP INDEX uk_code ON t;",
+			want: []finding{{1, "DROP INDEX uk_code ON t", "drops unique key uk_code of t", []int{0}}},
+		},
+		{
+			name: "an index of another database's table",
+			sql:  "CREATE UNIQUE INDEX idx_n ON other.t (n);\nDROP INDEX idx_n ON t;",
 		},
 		{
 			name: "a table named in another case, or a routine body's index",
@@ -376,6 +395,18 @@ func TestOnlineMigration(t *testing.T) {
 			want:   []finding{{0, "ALTER TABLE other.nokey ADD COLUMN m INT", "online migration needs a primary or unique key on other.nokey, which has none", []int{0}}},
 		},
 		{
+			name:   "a view",
+			sql:    "ALTER TABLE pv ADD COLUMN m INT;",
+			change: ghost,
+			want:   []finding{{0, "ALTER TABLE pv ADD COLUMN m INT", "online migration needs a table, and pv is a view", []int{0}}},
+		},
+		{
+			name:   "a table whose only unique key is of expressions",
+			sql:    "ALTER TABLE fkey ADD COLUMN m INT;",
+			change: ghost,
+			want:   []finding{{0, "ALTER TABLE fkey ADD COLUMN m INT", "online migration needs a primary or unique key on fkey, which has none", []int{0}}},
+		},
+		{
 			name:   "tables gh-ost refuses",
 			sql:    "ALTER TABLE nokey ADD COLUMN m INT;",
 			change: ghost,
@@ -472,6 +503,12 @@ func TestPriorBackup(t *testing.T) {
 			sql:    "UPDATE pv SET note = 'z' WHERE id = 1;\nDELETE FROM other.pv WHERE id = 2;",
 			change: backup,
 			want:   []finding{{0, "UPDATE pv SET note = 'z' WHERE id = 1", "prior backup copies tables with CREATE TABLE ... LIKE, which refuses view pv", []int{0}}},
+		},
+		{
+			name:   "a DELETE target the FROM list does not name the same way",
+			sql:    "DELETE T FROM t WHERE id = 1;\nDELETE x FROM t AS x WHERE x.id = 2;",
+			change: backup,
+			want:   []finding{{0, "DELETE T FROM t WHERE id = 1", "prior backup does not find DELETE target T in the FROM list, written the same way", []int{0}}},
 		},
 		{
 			name:   "statements before a USE",

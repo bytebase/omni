@@ -83,6 +83,61 @@ func checkPriorBackupMixed(stmts []statement, db string, r *reporter) {
 	}
 }
 
+// checkPriorBackupStatements reports, from the SQL alone, a multi-table
+// DELETE whose target the backup cannot find in the statement's FROM
+// list, which Bytebase matches by name or alias exactly, case included;
+// it then refuses the change. A DELETE after a WITH clause, whose targets
+// may be its queries, is not judged.
+//
+// bytebase: backend/plugin/parser/mysql/backup.go — extractTablesFromDelete
+func checkPriorBackupStatements(stmts []statement, r *reporter) {
+	for i := range stmts {
+		s := &stmts[i]
+		v, ok := s.node.(*ast.DeleteStmt)
+		if !ok || len(v.Using) == 0 || v.Loc.Start > s.loc.Start {
+			continue
+		}
+		from := fromNames(v.Using)
+		for _, e := range v.Tables {
+			target, ok := e.(*ast.TableRef)
+			if !ok {
+				continue
+			}
+			name := target.Name
+			if target.Alias != "" {
+				name = target.Alias
+			}
+			if !from[name] {
+				r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup does not find DELETE target "+ident(name)+" in the FROM list, written the same way")
+			}
+		}
+	}
+}
+
+// fromNames returns the names a FROM list gives its tables: the alias, or
+// the table's name.
+func fromNames(exprs []ast.TableExpr) map[string]bool {
+	names := make(map[string]bool)
+	var collect func(e ast.TableExpr)
+	collect = func(e ast.TableExpr) {
+		switch t := e.(type) {
+		case *ast.TableRef:
+			if t.Alias != "" {
+				names[t.Alias] = true
+			} else {
+				names[t.Name] = true
+			}
+		case *ast.JoinClause:
+			collect(t.Left)
+			collect(t.Right)
+		}
+	}
+	for _, e := range exprs {
+		collect(e)
+	}
+	return names
+}
+
 // backupTargets returns the tables an UPDATE or DELETE backs up, with the
 // statement's kind: the table of a single-table UPDATE or DELETE, and
 // each target of a multi-table DELETE, as the table its name means in the
