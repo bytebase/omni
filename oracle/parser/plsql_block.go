@@ -1351,6 +1351,11 @@ func (p *Parser) parsePLSQLExceptionHandlers() (*nodes.List, error) {
 		handlers.Items = append(handlers.Items, handler)
 	}
 
+	// EXCEPTION takes at least one handler (PLS-00103 on Oracle 23ai for
+	// EXCEPTION END).
+	if handlers.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
 	return handlers, nil
 }
 

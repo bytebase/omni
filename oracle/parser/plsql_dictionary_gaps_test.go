@@ -9,8 +9,8 @@ import (
 // The tests below cover constructs Oracle's own PL/SQL uses, checked against
 // Oracle 23ai: every accepted form compiles there (or fails only on names it
 // cannot resolve, or at run time), and every rejected one fails with the
-// error noted beside it. Rows ref_209 to ref_215 run them against the
-// engine where a standalone statement can.
+// error noted beside it. Rows ref_209 to ref_215 and ref_219 to ref_222
+// run them against the engine where a standalone statement can.
 
 // TestPackageInitialization checks the initialization section of a package
 // body.
@@ -26,6 +26,7 @@ func TestPackageInitialization(t *testing.T) {
 		// The section holds a statement (PLS-00103), the package ends with
 		// ';' (PLS-00103), and a specification has none (PLS-00103).
 		"CREATE PACKAGE BODY k AS PROCEDURE p IS BEGIN NULL; END; BEGIN END;",
+		"CREATE PACKAGE BODY k AS PROCEDURE p IS BEGIN NULL; END; BEGIN NULL; EXCEPTION END;",
 		"CREATE PACKAGE BODY k AS PROCEDURE p IS BEGIN NULL; END; BEGIN NULL; END k",
 		"CREATE PACKAGE k AS c NUMBER; BEGIN NULL; END;",
 	} {
@@ -47,13 +48,17 @@ func TestTriggerCallBody(t *testing.T) {
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(x => 1, y => 'x')",
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(:old.a + 1, UPPER(:new.b))",
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p",
+		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(1, y => 'a')",
 	} {
 		ParseAndCheck(t, sql)
 	}
 	for _, sql := range []string{
-		// An argument list holds an argument (ORA-00936), and the call takes
-		// no INTO (ORA-00911).
+		// An argument list holds an argument (ORA-00936), the call takes no
+		// INTO (ORA-00911), the routine has a name (ORA-03050), and no
+		// positional argument follows a named one (PLS-00312).
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p()",
+		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL (1)",
+		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(x => 1, 'a')",
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(1,)",
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(:old.a, :new.b) INTO :x",
 	} {
@@ -86,6 +91,9 @@ func TestTypeBodyMethodModifiers(t *testing.T) {
 		"CREATE TYPE BODY t AS FINAL FINAL MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;",
 		"CREATE TYPE BODY t AS NOT INSTANTIABLE CONSTRUCTOR FUNCTION t (x NUMBER) RETURN SELF AS RESULT IS BEGIN RETURN; END; END;",
 		"CREATE TYPE BODY t AS FINAL END;",
+		"CREATE TYPE BODY t AS FINAL MEMBER END;",
+		"CREATE TYPE BODY t AS MEMBER END;",
+		"CREATE TYPE BODY t AS OVERRIDING CONSTRUCTOR END;",
 		"CREATE TYPE BODY t AS NOT OVERRIDING MEMBER FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; END;",
 	} {
 		ParseShouldFail(t, sql)
@@ -97,8 +105,11 @@ func TestBulkCursorAttributes(t *testing.T) {
 	for _, sql := range []string{
 		"DECLARE n NUMBER; BEGIN FOR i IN 1..SQL%BULK_EXCEPTIONS.COUNT LOOP n := SQL%BULK_EXCEPTIONS(i).ERROR_CODE; END LOOP; END;",
 		"DECLARE n NUMBER; BEGIN n := SQL%BULK_EXCEPTIONS(1).ERROR_INDEX + SQL%BULK_ROWCOUNT(1); END;",
-		// A named cursor's bulk attribute compiles; it fails at run time.
+		// A named cursor's bulk attribute compiles; it fails at run time. A
+		// bare one parses; assigning it to a number fails on its type
+		// (PLS-00382).
 		"DECLARE CURSOR c IS SELECT 1 FROM dual; n NUMBER; BEGIN n := c%BULK_ROWCOUNT(1); END;",
+		"DECLARE n NUMBER; BEGIN n := SQL%BULK_ROWCOUNT; END;",
 	} {
 		ParseAndCheck(t, sql)
 	}
@@ -115,5 +126,26 @@ func TestBulkCursorAttributes(t *testing.T) {
 	attr, ok := assign.Value.(*ast.CursorAttributeExpr)
 	if !ok || attr.Attribute != "BULK_ROWCOUNT" || attr.Index == nil {
 		t.Fatalf("assigned value = %#v", assign.Value)
+	}
+}
+
+// TestCallArgumentsAndHandlers checks two rules of every call and block:
+// no positional argument follows a named one (PLS-00312, in SQL and PL/SQL
+// calls alike), and EXCEPTION takes at least one handler (PLS-00103).
+func TestCallArgumentsAndHandlers(t *testing.T) {
+	for _, sql := range []string{
+		"BEGIN p(1, y => 'a'); END;",
+		"SELECT f(1, y => 2) FROM dual",
+		"BEGIN NULL; EXCEPTION WHEN OTHERS THEN NULL; END;",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	for _, sql := range []string{
+		"BEGIN p(x => 1, 'a'); END;",
+		"SELECT f(x => 1, 2) FROM dual",
+		"DECLARE n NUMBER; BEGIN n := f(x => 1, 2); END;",
+		"BEGIN NULL; EXCEPTION END;",
+	} {
+		ParseShouldFail(t, sql)
 	}
 }

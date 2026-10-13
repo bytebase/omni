@@ -310,9 +310,14 @@ func (p *Parser) parseTriggerCall() (*nodes.CallStmt, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The routine has a name (ORA-03050 for CALL (1)).
+	if name == nil || name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 	call.Name = name
 	if p.cur.Type == '(' {
 		p.advance() // consume (
+		named := false
 		for {
 			arg, err := p.parseExpr()
 			if err != nil {
@@ -325,6 +330,11 @@ func (p *Parser) parseTriggerCall() (*nodes.CallStmt, error) {
 				if arg, err = p.parseNamedArgExpr(arg); err != nil {
 					return nil, err
 				}
+				named = true
+			} else if named {
+				// PLS-00312: a positional parameter association may not
+				// follow a named association
+				return nil, p.syntaxErrorAtNode(arg)
 			}
 			call.Args.Items = append(call.Args.Items, arg)
 			if p.cur.Type != ',' {

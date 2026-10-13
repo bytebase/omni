@@ -1361,8 +1361,10 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 		return p.parseFuncCallPostfix(fc)
 	}
 
-	// Arguments
+	// Arguments. A positional argument after a named one is PLS-00312 on
+	// Oracle 23ai, in SQL and PL/SQL calls alike.
 	if p.cur.Type != ')' {
+		sawNamed := false
 		for {
 			arg, parseErr714 := p.parseExpr()
 			if parseErr714 != nil {
@@ -1374,6 +1376,9 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 					return nil, err
 				}
 				arg = named
+				sawNamed = true
+			} else if sawNamed && arg != nil {
+				return nil, p.syntaxErrorAtNode(arg)
 			}
 			if schema == "" && name == "TRIM" && p.cur.Type == kwFROM {
 				if arg != nil {

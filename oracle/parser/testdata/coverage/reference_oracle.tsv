@@ -194,3 +194,7 @@ ref_212	plsql_body	accept	CREATE OR REPLACE TYPE BODY omni_tbm_{run} AS FINAL IN
 ref_213	plsql_body	reject	CREATE OR REPLACE TYPE BODY omni_bad_tbm_{run} AS FINAL END;	type body modifier without a method
 ref_214	plsql	accept	DECLARE n NUMBER; BEGIN FOR i IN 1..SQL%BULK_EXCEPTIONS.COUNT LOOP n := SQL%BULK_EXCEPTIONS(i).ERROR_CODE + SQL%BULK_ROWCOUNT(i); END LOOP; END;	bulk cursor attributes
 ref_215	plsql	reject	DECLARE n NUMBER; BEGIN n := SQL%BULK_EXCEPTIONS(1, 2).ERROR_CODE; END;	bulk cursor attribute with two indexes (PLS-00431)
+ref_219	plsql	reject	BEGIN NULL; EXCEPTION END;	EXCEPTION without a handler
+ref_220	plsql	reject	BEGIN DBMS_OUTPUT.PUT_LINE(a => 'x', 'y'); END;	positional argument after a named one (PLS-00312)
+ref_221	plsql_body	reject	CREATE OR REPLACE TYPE BODY omni_bad_tbk_{run} AS MEMBER END;	type body method kind without a subprogram
+ref_222	plsql_body	reject	CREATE OR REPLACE PACKAGE BODY omni_bad_pie_{run} AS PROCEDURE p IS BEGIN NULL; END; BEGIN NULL; EXCEPTION END;	package initialization EXCEPTION without a handler

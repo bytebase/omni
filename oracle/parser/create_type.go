@@ -301,10 +301,9 @@ func (p *Parser) parseTypeBodyMember(inSpec bool) (*nodes.TypeBodyMember, error)
 			return nil, parseErr581
 		}
 	default:
-		if inSpec {
-			return nil, p.syntaxErrorAtCur()
-		}
-		return nil, nil
+		// A method kind, in a specification or a body, is followed by its
+		// subprogram (PLS-00103 on Oracle 23ai for MEMBER END).
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	member.Loc.End = p.prev.End
