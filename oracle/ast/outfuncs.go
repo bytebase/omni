@@ -96,6 +96,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeFuncCallExpr(sb, n)
 	case *NamedArgExpr:
 		writeNamedArgExpr(sb, n)
+	case *ChoiceAssocExpr:
+		writeChoiceAssocExpr(sb, n)
+	case *ChoiceRange:
+		writeChoiceRange(sb, n)
 	case *FieldAccessExpr:
 		writeFieldAccessExpr(sb, n)
 	case *CursorAttributeExpr:
@@ -551,6 +555,12 @@ func writeNode(sb *strings.Builder, node Node) {
 		writePLSQLElsIf(sb, n)
 	case *PLSQLLoop:
 		writePLSQLLoop(sb, n)
+	case *PLSQLIterator:
+		writePLSQLIterator(sb, n)
+	case *PLSQLIterand:
+		writePLSQLIterand(sb, n)
+	case *PLSQLIterationControl:
+		writePLSQLIterationControl(sb, n)
 	case *PLSQLReturn:
 		writePLSQLReturn(sb, n)
 	case *PLSQLGoto:
@@ -766,6 +776,48 @@ func writeNamedArgExpr(sb *strings.Builder, n *NamedArgExpr) {
 	if n.Expr != nil {
 		sb.WriteString(" :expr ")
 		writeNode(sb, n.Expr)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeChoiceAssocExpr(sb *strings.Builder, n *ChoiceAssocExpr) {
+	sb.WriteString("{CHOICEASSOC")
+	if n.Choices != nil {
+		sb.WriteString(" :choices ")
+		writeNode(sb, n.Choices)
+	}
+	if n.Others {
+		sb.WriteString(" :others true")
+	}
+	if n.Iterator != nil {
+		sb.WriteString(" :iterator ")
+		writeNode(sb, n.Iterator)
+	}
+	if n.Index != nil {
+		sb.WriteString(" :index ")
+		writeNode(sb, n.Index)
+	}
+	if n.Sequence {
+		sb.WriteString(" :sequence true")
+	}
+	if n.Value != nil {
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeChoiceRange(sb *strings.Builder, n *ChoiceRange) {
+	sb.WriteString("{CHOICERANGE")
+	if n.Lower != nil {
+		sb.WriteString(" :lower ")
+		writeNode(sb, n.Lower)
+	}
+	if n.Upper != nil {
+		sb.WriteString(" :upper ")
+		writeNode(sb, n.Upper)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -5111,9 +5163,60 @@ func writePLSQLLoop(sb *strings.Builder, n *PLSQLLoop) {
 		sb.WriteString(" :cursorQuery ")
 		writeNode(sb, n.CursorQuery)
 	}
+	if n.Iteration != nil {
+		sb.WriteString(" :iteration ")
+		writeNode(sb, n.Iteration)
+	}
 	if n.Statements != nil {
 		sb.WriteString(" :statements ")
 		writeNode(sb, n.Statements)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLIterator(sb *strings.Builder, n *PLSQLIterator) {
+	sb.WriteString("{PLSQLITERATOR")
+	if n.Iterands != nil {
+		sb.WriteString(" :iterands ")
+		writeNode(sb, n.Iterands)
+	}
+	if n.Controls != nil {
+		sb.WriteString(" :controls ")
+		writeNode(sb, n.Controls)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLIterand(sb *strings.Builder, n *PLSQLIterand) {
+	sb.WriteString("{PLSQLITERAND")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.Mutability != "" {
+		sb.WriteString(fmt.Sprintf(" :mutability %q", n.Mutability))
+	}
+	if n.DataType != nil {
+		sb.WriteString(" :dataType ")
+		writeNode(sb, n.DataType)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLIterationControl(sb *strings.Builder, n *PLSQLIterationControl) {
+	sb.WriteString("{PLSQLITERATIONCONTROL")
+	sb.WriteString(fmt.Sprintf(" :kind %q", n.Kind))
+	if n.Reverse {
+		sb.WriteString(" :reverse true")
+	}
+	for _, field := range []struct {
+		name string
+		expr ExprNode
+	}{{"lower", n.Lower}, {"upper", n.Upper}, {"step", n.Step}, {"expr", n.Expr}, {"while", n.While}, {"when", n.When}} {
+		if field.expr != nil {
+			sb.WriteString(" :" + field.name + " ")
+			writeNode(sb, field.expr)
+		}
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

@@ -35,6 +35,8 @@ import (
 //	    [ ( simple_expression ) ]
 //	    [ REJECT LIMIT { integer | UNLIMITED } ]
 func (p *Parser) parseMergeStmt() (*nodes.MergeStmt, error) {
+	defer p.restorePLSQLCode(p.setPLSQLCode(false))
+
 	start := p.pos()
 	p.advance() // consume MERGE
 

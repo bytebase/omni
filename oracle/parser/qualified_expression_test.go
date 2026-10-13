@@ -1,0 +1,150 @@
+package parser
+
+import (
+	"testing"
+
+	"github.com/bytebase/omni/oracle/ast"
+)
+
+// qualifiedDecls declares the types the qualified expressions below build.
+const qualifiedDecls = "TYPE r IS RECORD (a NUMBER, b NUMBER); TYPE aa IS TABLE OF BOOLEAN INDEX BY VARCHAR2(30); " +
+	"TYPE ai IS TABLE OF NUMBER INDEX BY PLS_INTEGER; TYPE nt IS TABLE OF NUMBER; "
+
+// TestQualifiedExpressions checks the choices of PL/SQL qualified
+// expressions and Oracle 21c's FOR iterators against Oracle 23ai: every
+// accepted form compiles there, and every rejected one fails with the
+// error noted beside it. Rows ref_275 to ref_280 run them against the
+// engine.
+func TestQualifiedExpressions(t *testing.T) {
+	for _, decl := range []string{
+		"x r := r(a => 1, b => 2);",
+		"x r := r(a => 1, OTHERS => 0);",
+		"x aa := aa('a' => TRUE, 'b'=>FALSE);",
+		"x aa := aa(UPPER('a') => TRUE, ('b') => FALSE);",
+		"x ai := ai(1 => 10, 1+1 => 20, -1 => 30);",
+		"x ai := ai(1|2 => 5, 4..6 => 7, 8 .. 9 | 11 => 0);",
+		"x ai := ai(1, 2 => 20);",
+		"x ai := ai(FOR i IN 1..3 => i*2);",
+		"x ai := ai(FOR i IN 1..3 INDEX i+10 => i);",
+		"x nt := nt(FOR i IN 1..3 SEQUENCE => i, 9);",
+		"x ai := ai(FOR i IN 1..3 => i, FOR j IN 5..6 => j, 10 => 0);",
+		"x ai := ai(FOR i IN 1..3, 5..6 => i);",
+		"x ai := ai(FOR i IN REVERSE 1..3 BY 2 WHEN i > 1 => i);",
+		"x ai := ai(1 => 1, FOR i IN 1..3 => i);",
+		"x ai := ai();",
+	} {
+		ParseAndCheck(t, "DECLARE "+qualifiedDecls+decl+" BEGIN NULL; END;")
+	}
+	for _, sql := range []string{
+		// Oracle 21c iteration controls in FOR loops.
+		"BEGIN FOR i IN 1..10 BY 2 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN 1..3, 7..9 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN 1..3 WHILE i < 3 WHEN i > 1 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN REVERSE 1..3, REVERSE 5..6 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN 1, 5, 7 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN 1, REPEAT i*2 WHILE i < 100 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN VALUES OF v LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN REVERSE INDICES OF a WHEN i > 0 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i PLS_INTEGER, j NUMBER IN PAIRS OF a LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i MUTABLE PLS_INTEGER IN 1..3 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i NUMBER(5,2) IN 1..3 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN VALUES OF (SELECT 1 FROM dual) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r IN c WHEN r.a > 0 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r IN c2(1) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r IN (SELECT 1 a FROM dual) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN x + 1 LOOP NULL; END LOOP; END;",
+		// A qualified expression in a statement, a RETURN, and a call.
+		"BEGIN v := nt(FOR i IN VALUES OF w SEQUENCE => i); END;",
+		"CREATE FUNCTION f RETURN ai IS BEGIN RETURN ai(1 => 1, 2 => 2); END;",
+		"BEGIN p(aa('k' => TRUE)); END;",
+	} {
+		ParseAndCheck(t, sql)
+	}
+
+	for _, sql := range []string{
+		// A positional value after a choice (PLS-00312).
+		"DECLARE " + qualifiedDecls + "x ai := ai(1 => 10, 20); BEGIN NULL; END;",
+		// INDEX takes an expression, and not with SEQUENCE (PLS-00103).
+		"DECLARE " + qualifiedDecls + "x ai := ai(FOR i IN 1..3 SEQUENCE INDEX i => i); BEGIN NULL; END;",
+		"DECLARE " + qualifiedDecls + "x ai := ai(FOR i IN 1..3 INDEX => i); BEGIN NULL; END;",
+		"DECLARE " + qualifiedDecls + "x ai := ai(1 | => 5); BEGIN NULL; END;",
+		"DECLARE " + qualifiedDecls + "x ai := ai(1.. => 5); BEGIN NULL; END;",
+		// SQL takes no choices (ORA-01748, ORA-00907).
+		"SELECT t(1 => 1) FROM dual",
+		"SELECT t('A' => 1) FROM dual",
+		"SELECT UPPER(1 => 'x') FROM dual",
+		"BEGIN SELECT t(1 => 1) INTO x FROM dual; END;",
+		// Two iterands take PAIRS OF, which takes two (PLS-00856,
+		// PLS-00855); no third (PLS-00103).
+		"BEGIN FOR i, j IN 1..3 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i, j IN VALUES OF v LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i, j IN PAIRS OF a, 1..3 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN PAIRS OF a LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i, j, k IN PAIRS OF a LOOP NULL; END LOOP; END;",
+		// REVERSE takes no single expression, cursor, or REPEAT (PLS-00857,
+		// PLS-00682).
+		"BEGIN FOR i IN REVERSE x LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r IN REVERSE c LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r IN REVERSE (SELECT 1 a FROM dual) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN REVERSE REPEAT i+1 LOOP EXIT; END LOOP; END;",
+		// BY after a range, once; WHILE before WHEN, once each; a control
+		// after each comma; OF after VALUES (PLS-00103).
+		"BEGIN FOR i IN 1 BY 2 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN 1..3 BY 2 BY 3 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN VALUES OF v BY 2 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN 1..3 WHEN i > 1 WHILE i < 3 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN 1..3 WHEN i > 1 WHEN i < 3 LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN 1..3, LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN VALUES v LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN repeat LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i 1..3 LOOP NULL; END LOOP; END;",
+	} {
+		ParseShouldFail(t, sql)
+	}
+}
+
+// TestQualifiedExpressionTree checks the nodes built for choices and
+// iterators, and that a classic FOR loop keeps its own fields.
+func TestQualifiedExpressionTree(t *testing.T) {
+	sql := "BEGIN x := ai('a' | 'b' => 1, 3..5 => 2, OTHERS => 0, FOR i IN 1..3 INDEX i => i); END;"
+	block := parseOne[*ast.PLSQLBlock](t, sql)
+	var call *ast.FuncCallExpr
+	ast.Inspect(block, func(n ast.Node) bool {
+		if fc, ok := n.(*ast.FuncCallExpr); ok && call == nil {
+			call = fc
+		}
+		return true
+	})
+	if call == nil || call.Args.Len() != 4 {
+		t.Fatalf("call = %+v", call)
+	}
+	list := call.Args.Items[0].(*ast.ChoiceAssocExpr)
+	if list.Choices.Len() != 2 || sql[list.Loc.Start:list.Loc.End] != "'a' | 'b' => 1" {
+		t.Errorf("choice list = %+v, spans %q", list, sql[list.Loc.Start:list.Loc.End])
+	}
+	rng := call.Args.Items[1].(*ast.ChoiceAssocExpr).Choices.Items[0].(*ast.ChoiceRange)
+	if sql[rng.Loc.Start:rng.Loc.End] != "3..5" {
+		t.Errorf("range spans %q", sql[rng.Loc.Start:rng.Loc.End])
+	}
+	if others := call.Args.Items[2].(*ast.ChoiceAssocExpr); !others.Others || others.Choices != nil {
+		t.Errorf("OTHERS choice = %+v", others)
+	}
+	iter := call.Args.Items[3].(*ast.ChoiceAssocExpr)
+	if iter.Iterator == nil || iter.Index == nil || iter.Sequence || sql[iter.Loc.Start:iter.Loc.End] != "FOR i IN 1..3 INDEX i => i" {
+		t.Errorf("iterator choice = %+v", iter)
+	}
+
+	loop := parseOne[*ast.PLSQLBlock](t, "BEGIN FOR i IN REVERSE 1..3 LOOP NULL; END LOOP; END;").Statements.Items[0].(*ast.PLSQLLoop)
+	if loop.Type != ast.LOOP_FOR || loop.Iterator != "I" || !loop.Reverse || loop.LowerBound == nil || loop.UpperBound == nil || loop.Iteration == nil {
+		t.Errorf("range loop = %+v", loop)
+	}
+	loop = parseOne[*ast.PLSQLBlock](t, "BEGIN FOR r IN c2(1) LOOP NULL; END LOOP; END;").Statements.Items[0].(*ast.PLSQLLoop)
+	if loop.Type != ast.LOOP_CURSOR_FOR || loop.CursorName != "C2" || loop.CursorArgs.Len() != 1 {
+		t.Errorf("cursor loop = %+v", loop)
+	}
+	loop = parseOne[*ast.PLSQLBlock](t, "BEGIN FOR i, v IN PAIRS OF t LOOP NULL; END LOOP; END;").Statements.Items[0].(*ast.PLSQLLoop)
+	ctl := loop.Iteration.Controls.Items[0].(*ast.PLSQLIterationControl)
+	if loop.Iteration.Iterands.Len() != 2 || ctl.Kind != "PAIRS OF" || ctl.Expr == nil || loop.LowerBound != nil {
+		t.Errorf("pairs loop = %+v, control %+v", loop, ctl)
+	}
+}

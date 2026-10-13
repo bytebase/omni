@@ -121,6 +121,8 @@ func (p *Parser) parsePLSQLDeclarations() (*nodes.List, error) {
 
 // parsePLSQLDeclaration parses a single declaration.
 func (p *Parser) parsePLSQLDeclaration() (nodes.Node, error) {
+	defer p.restorePLSQLCode(p.setPLSQLCode(true))
+
 	// CURSOR declaration
 	if p.cur.Type == kwCURSOR {
 		return p.parsePLSQLCursorDecl()
@@ -423,6 +425,8 @@ func (p *Parser) requirePLSQLStatement(stmts *nodes.List) error {
 }
 
 func (p *Parser) parsePLSQLStatement() (nodes.StmtNode, error) {
+	defer p.restorePLSQLCode(p.setPLSQLCode(true))
+
 	// One or more <<label>> prefixes may precede ANY statement (engine-
 	// verified), not only blocks: consume them all, parse the statement,
 	// then attach — blocks and loops keep their first label on their own
@@ -842,8 +846,11 @@ func (p *Parser) parsePLSQLWhileLoop() (*nodes.PLSQLLoop, error) {
 
 // parsePLSQLForLoop parses a FOR LOOP statement.
 //
-//	FOR var IN [REVERSE] lower..upper LOOP statements END LOOP [label] ;
-//	FOR rec IN cursor [(args)] LOOP statements END LOOP [label] ;
+//	FOR iterator LOOP statements END LOOP [label] ;
+//
+// The iterator is Oracle 21c's (parseIterator): FOR i IN 1..10 BY 2 WHEN
+// MOD(i, 3) = 0, FOR i, v IN PAIRS OF t, and the classic range and cursor
+// forms.
 func (p *Parser) parsePLSQLForLoop() (*nodes.PLSQLLoop, error) {
 	start := p.pos()
 	p.advance() // consume FOR
@@ -851,68 +858,33 @@ func (p *Parser) parsePLSQLForLoop() (*nodes.PLSQLLoop, error) {
 	loop := &nodes.PLSQLLoop{
 		Loc: nodes.Loc{Start: start},
 	}
-	var parseErr861 error
-
-	// Iterator variable
-	loop.Iterator, parseErr861 = p.parseIdentifier()
-	if parseErr861 !=
-
-		// IN
-		nil {
-		return nil, parseErr861
+	// The iterator, Oracle 21c's iterands and iteration controls. The
+	// classic forms also fill the loop's own fields: one iterand over a
+	// range, or a cursor, a cursor call, or a query.
+	it, err := p.parseIterator()
+	if err != nil {
+		return nil, err
 	}
-
-	if p.cur.Type == kwIN {
-		p.advance()
-	}
-
-	// REVERSE (optional)
-	if p.cur.Type == kwREVERSE {
-		loop.Reverse = true
-		p.advance()
-	}
-
-	// Determine: numeric range (lower..upper) or cursor FOR loop
-	// Parse first expression
-	expr1, parseErr862 := p.parseExpr()
-	if parseErr862 != nil {
-		return nil, parseErr862
-
-		// Numeric FOR loop: lower..upper
-	}
-
-	if p.cur.Type == tokDOTDOT {
-
-		loop.Type = nodes.LOOP_FOR
-		loop.LowerBound = expr1
-		p.advance()
-		var // consume ..
-		parseErr863 error
-		loop.UpperBound, parseErr863 = p.parseExpr()
-		if parseErr863 !=
-
-			// Cursor FOR loop: cursor_name [(args)]
-			nil {
-			return nil, parseErr863
-		}
-	} else {
-
-		loop.Type = nodes.LOOP_CURSOR_FOR
-		// Extract cursor name from expr1
-		if colRef, ok := expr1.(*nodes.ColumnRef); ok {
-			loop.CursorName = colRef.Column
-		} else if subquery, ok := expr1.(*nodes.SubqueryExpr); ok {
-			loop.CursorQuery = subquery.Subquery
-		}
-		// Optional cursor arguments
-		if p.cur.Type == '(' {
-			var parseErr864 error
-			loop.CursorArgs, parseErr864 = p.parsePLSQLArgList()
-			if parseErr864 !=
-
-				// LOOP
-				nil {
-				return nil, parseErr864
+	loop.Iteration = it
+	loop.Iterator = it.Iterands.Items[0].(*nodes.PLSQLIterand).Name
+	loop.Type = nodes.LOOP_FOR
+	if it.Controls.Len() == 1 {
+		ctl := it.Controls.Items[0].(*nodes.PLSQLIterationControl)
+		switch ctl.Kind {
+		case "RANGE":
+			loop.LowerBound, loop.UpperBound, loop.Reverse = ctl.Lower, ctl.Upper, ctl.Reverse
+		case "EXPR":
+			loop.Type = nodes.LOOP_CURSOR_FOR
+			switch cursor := ctl.Expr.(type) {
+			case *nodes.ColumnRef:
+				loop.CursorName = cursor.Column
+			case *nodes.FuncCallExpr:
+				if cursor.FuncName != nil {
+					loop.CursorName = cursor.FuncName.Name
+				}
+				loop.CursorArgs = cursor.Args
+			case *nodes.SubqueryExpr:
+				loop.CursorQuery = cursor.Subquery
 			}
 		}
 	}

@@ -80,6 +80,8 @@ import (
 //	    [ ( simple_expression ) ]
 //	    [ REJECT LIMIT { integer | UNLIMITED } ]
 func (p *Parser) parseInsertStmt() (*nodes.InsertStmt, error) {
+	defer p.restorePLSQLCode(p.setPLSQLCode(false))
+
 	start := p.pos()
 	stmt := &nodes.InsertStmt{
 		Loc: nodes.Loc{Start: start},

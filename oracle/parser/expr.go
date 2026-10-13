@@ -1344,19 +1344,44 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 		return p.parseFuncCallPostfix(fc)
 	}
 
-	// Arguments
+	// Arguments. In PL/SQL they are also the explicit choices of a
+	// qualified expression, t('k' => v), t(1..3 => 0), t(FOR i IN 1..3 => i).
+	// A positional argument after a named one or a choice is PLS-00312 on
+	// Oracle 23ai; one after an iterator choice is not.
 	if p.cur.Type != ')' {
+		sawNamed := false
 		for {
-			arg, parseErr714 := p.parseExpr()
+			var arg nodes.ExprNode
+			var parseErr714 error
+			if p.plsqlCode && p.atQualifiedChoice() {
+				arg, parseErr714 = p.parseChoiceAssoc(nil)
+			} else {
+				arg, parseErr714 = p.parseExpr()
+			}
 			if parseErr714 != nil {
 				return nil, parseErr714
 			}
-			if p.cur.Type == tokASSOC {
+			if p.plsqlCode && arg != nil && p.continuesQualifiedChoice(arg) {
+				if arg, parseErr714 = p.parseChoiceAssoc(arg); parseErr714 != nil {
+					return nil, parseErr714
+				}
+			} else if p.cur.Type == tokASSOC {
 				named, err := p.parseNamedArgExpr(arg)
 				if err != nil {
 					return nil, err
 				}
 				arg = named
+			}
+			switch a := arg.(type) {
+			case *nodes.NamedArgExpr:
+				sawNamed = true
+			case *nodes.ChoiceAssocExpr:
+				sawNamed = sawNamed || a.Iterator == nil
+			case nil:
+			default:
+				if sawNamed {
+					return nil, p.syntaxErrorAtNode(arg)
+				}
 			}
 			if schema == "" && name == "TRIM" && p.cur.Type == kwFROM {
 				if arg != nil {

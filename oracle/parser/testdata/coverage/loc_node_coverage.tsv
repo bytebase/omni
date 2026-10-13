@@ -107,6 +107,8 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.ColumnRef	expression	covered	SELECT a FROM t	column reference span	none	covered	keep_regression_guard
 *nodes.FuncCallExpr	expression	covered	SELECT f(1) FROM dual	function call span	none	covered	keep_regression_guard
 *nodes.NamedArgExpr	expression	covered	SELECT f(p => 1) FROM dual	named function argument span	none	covered	keep_regression_guard
+*nodes.ChoiceAssocExpr	expression	covered	DECLARE x t := t('a' | 'b' => 1, 3..5 => 2); BEGIN NULL; END;	qualified expression choice span	none	covered	keep_regression_guard
+*nodes.ChoiceRange	expression	covered	DECLARE x t := t(3..5 => 2); BEGIN NULL; END;	qualified expression index range span	none	covered	keep_regression_guard
 *nodes.FieldAccessExpr	expression	covered	BEGIN rows(i).status := 'READY'; END;	field access expression span	none	covered	keep_regression_guard
 *nodes.CursorAttributeExpr	expression	covered	BEGIN count_rows := c%ROWCOUNT; END;	cursor attribute expression span	none	covered	keep_regression_guard
 *nodes.ExtractExpr	expression	covered	SELECT EXTRACT(YEAR FROM d) FROM t	EXTRACT datetime expression span	none	covered	keep_regression_guard
@@ -244,6 +246,9 @@ node_type	family	status	fixture	notes	debt_class	approval	next_action
 *nodes.PLSQLCase	plsql	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.PLSQLWhen	plsql	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.PLSQLLoop	plsql	covered	BEGIN LOOP EXIT; END LOOP; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
+*nodes.PLSQLIterator	plsql	covered	BEGIN FOR i, v IN PAIRS OF t LOOP NULL; END LOOP; END;	FOR iterator span	none	covered	keep_regression_guard
+*nodes.PLSQLIterand	plsql	covered	BEGIN FOR i MUTABLE PLS_INTEGER IN 1..3 LOOP NULL; END LOOP; END;	FOR iterand span	none	covered	keep_regression_guard
+*nodes.PLSQLIterationControl	plsql	covered	BEGIN FOR i IN REVERSE 1..9 BY 2 WHILE i > 0 WHEN i > 1 LOOP NULL; END LOOP; END;	iteration control span	none	covered	keep_regression_guard
 *nodes.PLSQLForall	plsql	deferred		Loc-bearing AST node classified; fixture expansion deferred	loc_fixture_deferred	oracle-parser-strict-audit-2026-04-28	add_direct_fixture_or_reclassify_node_support
 *nodes.PLSQLReturn	plsql	covered	CREATE FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard
 *nodes.PLSQLCall	plsql	covered	BEGIN p(); END;	direct parser fixture added by strict Loc audit	none	covered	keep_regression_guard

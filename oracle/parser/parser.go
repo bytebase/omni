@@ -54,6 +54,24 @@ type Parser struct {
 	// inAnonymousBlock is set while a top-level anonymous block is parsed:
 	// Oracle 23ai rejects RESULT_CACHE on any subprogram in one (PLS-00999).
 	inAnonymousBlock bool
+
+	// plsqlCode is set while a PL/SQL declaration or statement is parsed,
+	// and cleared in the SQL statements it embeds: the expressions of
+	// PL/SQL alone take the choices of a qualified expression.
+	plsqlCode bool
+}
+
+// setPLSQLCode sets plsqlCode and returns its previous value, for
+// restorePLSQLCode: defer p.restorePLSQLCode(p.setPLSQLCode(true)).
+func (p *Parser) setPLSQLCode(plsql bool) bool {
+	saved := p.plsqlCode
+	p.plsqlCode = plsql
+	return saved
+}
+
+// restorePLSQLCode restores plsqlCode to what setPLSQLCode returned.
+func (p *Parser) restorePLSQLCode(saved bool) {
+	p.plsqlCode = saved
 }
 
 // parseAnonymousBlock parses a top-level anonymous block, noting that its
