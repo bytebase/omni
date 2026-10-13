@@ -10,11 +10,11 @@ import (
 // table whose primary key an ALTER TABLE drops without adding one back. A
 // DROP PRIMARY KEY only runs on a table that has one, so neither needs the
 // synced schema, and a table that had none before the change is never
-// reported. A table made by CREATE TABLE ... LIKE or AS SELECT, whose
-// columns and keys come from elsewhere, a CREATE TABLE IF NOT EXISTS,
-// which may make nothing, and a temporary table are not judged, and
-// neither is a statement inside a routine body, which runs only when
-// called.
+// reported. A table made by CREATE TABLE ... LIKE, whose keys come from
+// the table it copies, CREATE TABLE ... AS SELECT, which TiDB does not
+// implement, a CREATE TABLE IF NOT EXISTS, which may make nothing, and a
+// temporary table are not judged, and neither is a statement inside a
+// routine body, which runs only when called.
 //
 // Without simulating the change, the rule follows the table by name. A
 // later statement that may give it a key, drop it or its database, rename

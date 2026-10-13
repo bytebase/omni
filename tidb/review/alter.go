@@ -17,8 +17,8 @@ const (
 	dropPrimaryKey
 	dropForeignKey
 	dropCheck
-	// dropConstraint is DROP CONSTRAINT, which drops the foreign key,
-	// unique key, or check constraint of the name.
+	// dropConstraint is DROP CONSTRAINT, which in TiDB drops the check
+	// constraint of the name.
 	dropConstraint
 	dropPartition
 )

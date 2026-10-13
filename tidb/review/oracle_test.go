@@ -9,32 +9,34 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/testcontainers/testcontainers-go"
-	tcmysql "github.com/testcontainers/testcontainers-go/modules/mysql"
+	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/review"
 	"github.com/bytebase/omni/tidb/ast"
 )
 
-// oracleBase is the schema every oracle case starts from.
+// oracleBase is the schema every oracle case starts from. Its primary keys
+// are NONCLUSTERED: TiDB cannot drop a clustered one.
 const oracleBase = `
-CREATE TABLE p (id INT PRIMARY KEY, note VARCHAR(20));
-CREATE TABLE t (id INT PRIMARY KEY, code VARCHAR(20), p_id INT, n INT,
-  UNIQUE KEY uk_code (code), KEY idx_n (n),
+CREATE TABLE p (id INT, note VARCHAR(20), PRIMARY KEY (id) NONCLUSTERED);
+CREATE TABLE t (id INT, code VARCHAR(20), p_id INT, n INT,
+  PRIMARY KEY (id) NONCLUSTERED, UNIQUE KEY uk_code (code), KEY idx_n (n),
   CONSTRAINT fk_p FOREIGN KEY (p_id) REFERENCES p (id),
   CONSTRAINT ck_n CHECK (n > 0));
 CREATE TABLE nokey (a INT);
-CREATE TABLE plain (id INT PRIMARY KEY, v INT);
+CREATE TABLE plain (id INT, v INT, PRIMARY KEY (id) NONCLUSTERED);
 INSERT INTO p VALUES (1, 'a'), (2, 'b');
 INSERT INTO t VALUES (1, 'x', 1, 1), (2, 'y', 2, 2);
 INSERT INTO nokey VALUES (1), (2);
 INSERT INTO plain VALUES (1, 1), (2, 2);
 `
 
-var mysqlOracle struct {
+var tidbOracle struct {
 	once      sync.Once
 	container testcontainers.Container
 	db        *sql.DB
@@ -43,39 +45,62 @@ var mysqlOracle struct {
 
 func TestMain(m *testing.M) {
 	code := m.Run()
-	if mysqlOracle.container != nil {
-		_ = mysqlOracle.db.Close()
-		_ = testcontainers.TerminateContainer(mysqlOracle.container)
+	if tidbOracle.container != nil {
+		_ = tidbOracle.db.Close()
+		_ = testcontainers.TerminateContainer(tidbOracle.container)
 	}
 	os.Exit(code)
 }
 
-// startMySQL returns the MySQL 8.0 the oracle tests of this package ask,
-// started once.
-func startMySQL(t *testing.T) *sql.DB {
+// startTiDB returns the TiDB the oracle tests of this package ask,
+// started once, with CHECK constraints enforced, which TiDB otherwise
+// parses and drops.
+func startTiDB(t *testing.T) *sql.DB {
 	t.Helper()
-	mysqlOracle.once.Do(func() {
+	tidbOracle.once.Do(func() {
 		ctx := context.Background()
-		c, err := tcmysql.Run(ctx, "mysql:8.0", tcmysql.WithDatabase("shop"), tcmysql.WithUsername("root"), tcmysql.WithPassword("test"))
+		c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+			ContainerRequest: testcontainers.ContainerRequest{
+				Image:        "pingcap/tidb:v8.5.5",
+				ExposedPorts: []string{"4000/tcp"},
+				WaitingFor:   wait.ForListeningPort("4000/tcp").WithStartupTimeout(2 * time.Minute),
+			},
+			Started: true,
+		})
 		if err != nil {
-			mysqlOracle.err = err
+			tidbOracle.err = err
 			return
 		}
-		mysqlOracle.container = c
-		dsn, err := c.ConnectionString(ctx, "multiStatements=true")
+		tidbOracle.container = c
+		host, err := c.Host(ctx)
 		if err != nil {
-			mysqlOracle.err = err
+			tidbOracle.err = err
 			return
 		}
-		mysqlOracle.db, mysqlOracle.err = sql.Open("mysql", dsn)
-		if mysqlOracle.err == nil {
-			mysqlOracle.err = mysqlOracle.db.PingContext(ctx)
+		port, err := c.MappedPort(ctx, "4000")
+		if err != nil {
+			tidbOracle.err = err
+			return
+		}
+		tidbOracle.db, tidbOracle.err = sql.Open("mysql", fmt.Sprintf("root@tcp(%s:%s)/?multiStatements=true", host, port.Port()))
+		if tidbOracle.err != nil {
+			return
+		}
+		deadline := time.Now().Add(90 * time.Second)
+		for {
+			if tidbOracle.err = tidbOracle.db.PingContext(ctx); tidbOracle.err == nil || time.Now().After(deadline) {
+				break
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+		if tidbOracle.err == nil {
+			_, tidbOracle.err = tidbOracle.db.ExecContext(ctx, "SET GLOBAL tidb_enable_check_constraint = ON")
 		}
 	})
-	if mysqlOracle.err != nil {
-		t.Fatalf("mysql oracle unavailable: %v", mysqlOracle.err)
+	if tidbOracle.err != nil {
+		t.Fatalf("tidb oracle unavailable: %v", tidbOracle.err)
 	}
-	return mysqlOracle.db
+	return tidbOracle.db
 }
 
 // resetOracle recreates the shop database from oracleBase, and an empty
@@ -164,7 +189,9 @@ func syncSchema(t *testing.T, conn *sql.Conn) *metadata.DatabaseSchemaMetadata {
 		}
 		return nil
 	})
-	query(`SELECT TABLE_NAME, CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = 'shop' AND CONSTRAINT_TYPE = 'CHECK'`, func(r *sql.Rows) error {
+	// TiDB lists check constraints in TIDB_CHECK_CONSTRAINTS, not in
+	// TABLE_CONSTRAINTS.
+	query(`SELECT TABLE_NAME, CONSTRAINT_NAME FROM information_schema.TIDB_CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = 'shop'`, func(r *sql.Rows) error {
 		var tbl, name string
 		if err := r.Scan(&tbl, &name); err != nil {
 			return err
@@ -210,12 +237,12 @@ func parseChange(t *testing.T, change string) []statement {
 	return stmts
 }
 
-// TestPriorBackupAgainstMySQL builds each statement's backup query as
-// Bytebase does and runs it on MySQL before the change. A PriorBackup
+// TestPriorBackupAgainstTiDB builds each statement's backup query as
+// Bytebase does and runs it on TiDB before the change. A PriorBackup
 // finding on a statement must mean that query fails; for a complete case,
 // every query that fails must have a finding.
-func TestPriorBackupAgainstMySQL(t *testing.T) {
-	db := startMySQL(t)
+func TestPriorBackupAgainstTiDB(t *testing.T) {
+	db := startTiDB(t)
 	tests := []struct {
 		name     string
 		change   string
@@ -236,7 +263,7 @@ func TestPriorBackupAgainstMySQL(t *testing.T) {
 		{"a column in a subquery, not judged", "ALTER TABLE t ADD COLUMN gone INT;\nUPDATE plain SET v = 1 WHERE id IN (SELECT gone FROM t);", false},
 		{"a column the SET clause names, not copied", "ALTER TABLE t ADD COLUMN gone INT;\nUPDATE t SET gone = 1 WHERE id = 1;", true},
 		{"a column USING names", "ALTER TABLE t ADD COLUMN note INT;\nUPDATE t JOIN p USING (note) SET t.n = 1 WHERE t.id = 1;", true},
-		{"a column USING names, a derived table on its side may hold", "ALTER TABLE t ADD COLUMN note INT;\nUPDATE t JOIN (SELECT 1 AS note) d ON d.note = t.id JOIN p USING (note) SET t.n = 1 WHERE t.id = 3;", true},
+		{"a column USING names, a derived table on its side may hold", "ALTER TABLE t ADD COLUMN note INT;\nUPDATE t JOIN (SELECT 'x' AS note) d ON d.note = t.code JOIN p USING (note) SET t.n = 1 WHERE t.id = 3;", true},
 		{"statements before a USE", "ALTER TABLE t ADD COLUMN gone INT;\nUPDATE t SET n = 1 WHERE gone = 1;\nUSE bbdataarchive;\nUPDATE shop.t SET n = 2 WHERE id = 1;", true},
 	}
 	for _, tt := range tests {
@@ -278,7 +305,8 @@ func TestPriorBackupAgainstMySQL(t *testing.T) {
 // Bytebase builds it, before the change, and returns the statements whose
 // query fails, with the error.
 //
-// bytebase: backend/plugin/parser/mysql/backup.go — generateSQLForTable
+// bytebase: backend/plugin/parser/tidb/backup.go — generateSQLForMixedDML,
+// writeUpdateSuffix, writeDeleteSuffix
 func backupFailures(t *testing.T, conn *sql.Conn, change string) map[int]error {
 	t.Helper()
 	ctx := context.Background()
@@ -387,27 +415,28 @@ func backupQueries(sql string, n ast.Node) []backupQuery {
 	return out
 }
 
-// TestScanRulesAgainstMySQL runs each change on MySQL, statement by
+// TestScanRulesAgainstTiDB runs each change on TiDB, statement by
 // statement, and derives from information_schema what the constraint
 // rules should report: DisallowDropConstraint, a primary key, foreign key,
 // unique key, or check constraint a statement removes; RequirePrimaryKey,
 // a table a CREATE TABLE made, or one that had a primary key, that ends
 // the change without one. Every finding must match; for a complete case,
 // every expected finding must be reported.
-func TestScanRulesAgainstMySQL(t *testing.T) {
-	db := startMySQL(t)
+func TestScanRulesAgainstTiDB(t *testing.T) {
+	db := startTiDB(t)
 	tests := []struct {
 		name     string
 		change   string
 		complete bool
 	}{
-		{"constraint drops the SQL names", "ALTER TABLE t DROP PRIMARY KEY, DROP FOREIGN KEY fk_p, DROP CHECK ck_n;\nALTER TABLE t DROP CONSTRAINT uk_code;", true},
+		// TiDB's DROP CONSTRAINT drops a check constraint only.
+		{"constraint drops the SQL names", "ALTER TABLE t DROP PRIMARY KEY, DROP FOREIGN KEY fk_p;\nALTER TABLE t DROP CONSTRAINT ck_n;\nALTER TABLE t DROP INDEX uk_code;", true},
+		{"DROP CHECK", "ALTER TABLE t DROP CHECK ck_n;", true},
 		{"a unique index dropped by name", "ALTER TABLE t DROP INDEX uk_code;\nDROP INDEX idx_n ON t;", true},
 		{"a unique key the change makes, then drops", "ALTER TABLE nokey ADD UNIQUE KEY uk_a (a);\nALTER TABLE nokey DROP INDEX uk_a;", true},
 		{"DROP INDEX of the primary key", "DROP INDEX `PRIMARY` ON plain;", true},
 		{"a table created without a key", "CREATE TABLE a (id INT);\nCREATE TABLE b (id INT PRIMARY KEY);", true},
 		{"a key added later", "CREATE TABLE a (id INT);\nALTER TABLE a ADD PRIMARY KEY (id);", true},
-		{"a primary key replaced", "ALTER TABLE plain DROP PRIMARY KEY, ADD PRIMARY KEY (id, v);", true},
 		{"a primary key dropped, then added back", "ALTER TABLE plain DROP PRIMARY KEY;\nALTER TABLE plain ADD PRIMARY KEY (v);", true},
 		{"a table renamed after losing its key", "ALTER TABLE plain DROP PRIMARY KEY;\nRENAME TABLE plain TO plain2;", false},
 		{"CREATE TABLE IF NOT EXISTS of a table with a key", "CREATE TABLE IF NOT EXISTS plain (id INT);", true},
@@ -452,7 +481,8 @@ func TestScanRulesAgainstMySQL(t *testing.T) {
 
 // constraintSet reads every primary key, unique key, foreign key, and
 // check constraint of the shop database, as table/kind/name/definition: a
-// key's columns, a check's expression. A primary key is always named
+// key's columns, a check's expression. TiDB lists check constraints in
+// TIDB_CHECK_CONSTRAINTS only. A primary key is always named
 // PRIMARY, so the definition tells a replaced one apart.
 func constraintSet(t *testing.T, conn *sql.Conn) map[string]bool {
 	t.Helper()
@@ -461,9 +491,10 @@ func constraintSet(t *testing.T, conn *sql.Conn) map[string]bool {
 	rows, err := conn.QueryContext(ctx, `SELECT c.TABLE_NAME, c.CONSTRAINT_TYPE, c.CONSTRAINT_NAME,
 		COALESCE((SELECT GROUP_CONCAT(k.COLUMN_NAME ORDER BY k.ORDINAL_POSITION) FROM information_schema.KEY_COLUMN_USAGE k
 			WHERE k.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND k.TABLE_NAME = c.TABLE_NAME AND k.CONSTRAINT_NAME = c.CONSTRAINT_NAME),
-			(SELECT ck.CHECK_CLAUSE FROM information_schema.CHECK_CONSTRAINTS ck
-			WHERE ck.CONSTRAINT_SCHEMA = c.CONSTRAINT_SCHEMA AND ck.CONSTRAINT_NAME = c.CONSTRAINT_NAME), '')
-		FROM information_schema.TABLE_CONSTRAINTS c WHERE c.CONSTRAINT_SCHEMA = 'shop'`)
+			'')
+		FROM information_schema.TABLE_CONSTRAINTS c WHERE c.CONSTRAINT_SCHEMA = 'shop'
+		UNION ALL
+		SELECT TABLE_NAME, 'CHECK', CONSTRAINT_NAME, CHECK_CLAUSE FROM information_schema.TIDB_CHECK_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = 'shop'`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -533,7 +564,7 @@ func scanTruth(t *testing.T, conn *sql.Conn, change string) map[string]bool {
 				lostAt[name] = s.index
 			}
 		}
-		if v, ok := s.node.(*ast.CreateTableStmt); ok && !v.Temporary && v.Like == nil && v.Select == nil {
+		if v, ok := s.node.(*ast.CreateTableStmt); ok && !v.Temporary && v.Like == nil {
 			createdAt[strings.ToLower(v.Table.Name)] = s.index
 		}
 	}

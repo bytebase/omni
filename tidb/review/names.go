@@ -7,7 +7,7 @@ import (
 	"github.com/bytebase/omni/tidb/parser"
 )
 
-// ident writes an identifier as MySQL would need it in a statement:
+// ident writes an identifier as TiDB would need it in a statement:
 // bare when it is a plain name that is not a reserved word, otherwise
 // quoted in backticks, with a backtick inside doubled and a line break
 // written as \n or \r, so a message stays one line.
@@ -79,7 +79,13 @@ func tableExprs(exprs []ast.TableExpr) string {
 	return strings.Join(names, ", ")
 }
 
-// sameName reports whether two names may name the same object. MySQL
+// sameCase reports whether two references of one table, as sameTable
+// matches them, write its name, and any database both name, alike.
+func sameCase(a, b *ast.TableRef) bool {
+	return a.Name == b.Name && (a.Schema == "" || b.Schema == "" || a.Schema == b.Schema)
+}
+
+// sameName reports whether two names may name the same object. TiDB
 // compares column, index, and constraint names, and on most servers
 // table names too, without regard to case; comparing that way never
 // misses a match.

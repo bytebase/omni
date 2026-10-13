@@ -9,29 +9,32 @@ import (
 )
 
 // PriorBackup reports what certainly makes Bytebase's prior backup of a
-// MySQL change fail, which fails the task before any of the change runs,
+// TiDB change fail, which fails the task before any of the change runs,
 // judged from the SQL and the synced schema alone. The backup works like
 // this (bytebase backend/runner/taskrun/database_migrate_executor.go,
-// backupData, and backend/plugin/parser/mysql/backup.go,
+// backupData, and backend/plugin/parser/tidb/backup.go,
 // TransformDMLToSelect):
 //
 //   - It runs before the change, on the database the change runs in, with
 //     the schema Bytebase last synced; a USE in the change does not move
-//     it.
+//     it, and a name without a database takes the task's.
 //   - It needs the bbdataarchive database, which it looks up before
 //     anything else, and refuses a change longer than the size limit.
-//   - It copies the rows each top-level UPDATE and DELETE would touch, one
-//     table at a time: CREATE TABLE bbdataarchive.… LIKE the table, then
-//     INSERT INTO it SELECT … FROM the statement's tables, as written, and
-//     its WHERE, ORDER BY, and LIMIT, as written.
-//   - It refuses UPDATE and DELETE on the same table, written the same
-//     way once a name without a database takes the task's, and fails on a
-//     table the synced schema does not hold.
+//   - It refuses a BATCH statement, a REPLACE or INSERT ... ON DUPLICATE
+//     KEY UPDATE, EXPLAIN ANALYZE of any of those or of an UPDATE or
+//     DELETE, and an UPDATE or DELETE of another database's table.
+//   - It copies the rows each top-level UPDATE and DELETE would touch:
+//     CREATE TABLE bbdataarchive.… LIKE the table, then INSERT INTO it
+//     SELECT … FROM the statement's tables, as written, and its WHERE,
+//     ORDER BY, and LIMIT, as written. Up to five tables to copy, each
+//     gets its own copy; past five, they must all be one table, copied by
+//     one query, which takes no WITH clause.
+//   - It fails on a table the synced schema does not hold.
 //
-// So the backup fails on a name the change makes, which does not exist
-// yet when it runs: a table the statement reads, or a column the change
-// adds, renames to, or declares on a table it creates, read in the WHERE
-// clause, a join condition or USING list, or ORDER BY.
+// So the backup also fails on a name the change makes, which does not
+// exist yet when it runs: a table the statement reads, or a column the
+// change adds, renames to, or declares on a table it creates, read in the
+// WHERE clause, a join condition or USING list, or ORDER BY.
 //
 // A name the synced schema does not hold, and the change does not make, is
 // not reported: the schema the review sees may predate an earlier spec of
@@ -49,36 +52,115 @@ func checkPriorBackupSize(sql string, change review.Change, r *reporter) {
 	}
 }
 
-// checkPriorBackupMixed reports a table the backup refuses: one an UPDATE
-// and a DELETE of the change both touch, written the same way, a name
-// without a database taken as one of the target's, db, as Bytebase fills
-// it in. db is "" when the target's name is not known: then only names
-// written alike are compared. Only a statement whose targets are certain
-// is judged.
+// maxMixedTables is how many tables to copy the backup copies one by one;
+// past it, it copies them as one table.
+const maxMixedTables = 5
+
+// checkPriorBackupStatements reports, from the SQL alone, a top-level
+// statement the backup refuses: BATCH, REPLACE or INSERT ... ON DUPLICATE
+// KEY UPDATE, and EXPLAIN ANALYZE of an UPDATE, a DELETE, or either of
+// those, which runs the statement.
 //
-// bytebase: backend/plugin/parser/mysql/backup.go — collectSingleTables,
-// generateSQL
-func checkPriorBackupMixed(stmts []statement, db string, r *reporter) {
-	kinds := make(map[string]string)
-	reported := make(map[string]bool)
+// bytebase: backend/plugin/parser/tidb/backup.go — extractTables
+func checkPriorBackupStatements(stmts []statement, r *reporter) {
 	for i := range stmts {
 		s := &stmts[i]
-		refs, kind := backupTargets(s)
+		msg := ""
+		switch v := s.node.(type) {
+		case *ast.BatchStmt:
+			msg = "prior backup does not support TiDB BATCH (non-transactional DML) statements"
+		case *ast.InsertStmt:
+			if overwrites(v) {
+				msg = "prior backup does not support REPLACE or INSERT ... ON DUPLICATE KEY UPDATE statements"
+			}
+		case *ast.ExplainStmt:
+			if !v.Analyze {
+				break
+			}
+			switch w := v.Stmt.(type) {
+			case *ast.UpdateStmt, *ast.DeleteStmt, *ast.BatchStmt:
+				msg = "prior backup does not support EXPLAIN ANALYZE of an UPDATE, DELETE, or BATCH statement"
+			case *ast.InsertStmt:
+				if overwrites(w) {
+					msg = "prior backup does not support EXPLAIN ANALYZE of a REPLACE or INSERT ... ON DUPLICATE KEY UPDATE statement"
+				}
+			}
+		}
+		if msg != "" {
+			r.report(review.PriorBackup, s.index, rangeOf(s.loc), msg)
+		}
+	}
+}
+
+// overwrites reports whether an INSERT may overwrite or delete rows:
+// REPLACE, or INSERT ... ON DUPLICATE KEY UPDATE.
+func overwrites(v *ast.InsertStmt) bool {
+	return v.IsReplace || len(v.OnDuplicateKey) > 0
+}
+
+// checkPriorBackupTables reports what the backup refuses of the tables it
+// copies, on a target whose database is db: an UPDATE or DELETE of a table
+// of another database, and, past maxMixedTables tables to copy, a second
+// table, or a statement with a WITH clause, at the first such statement
+// in order. Only a statement whose tables to copy are certain is judged,
+// and the count only when every statement's are; db is "" when the
+// target's name is not known, and then nothing here is judged.
+//
+// bytebase: backend/plugin/parser/tidb/backup.go — prepareTransformation,
+// generateSQLForSingleTable
+func checkPriorBackupTables(stmts []statement, db string, r *reporter) {
+	if db == "" {
+		return
+	}
+	type copied struct {
+		s    *statement
+		db   string
+		name string
+		with bool
+	}
+	var all []copied
+	certain := true
+	for i := range stmts {
+		s := &stmts[i]
+		var loc ast.Loc
+		switch v := s.node.(type) {
+		case *ast.UpdateStmt:
+			loc = v.Loc
+		case *ast.DeleteStmt:
+			loc = v.Loc
+		default:
+			continue
+		}
+		refs, _ := backupTargets(s)
+		if len(refs) == 0 {
+			certain = false
+			continue
+		}
 		for _, ref := range refs {
-			key := ref.Schema
-			if key == "" {
-				key = db
+			in := ref.Schema
+			if in == "" {
+				in = db
 			}
-			key += "." + ref.Name
-			first, seen := kinds[key]
-			if !seen {
-				kinds[key] = kind
-				continue
+			if !strings.EqualFold(in, db) {
+				r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup does not support an UPDATE or DELETE of "+table(ref)+", a table of another database")
 			}
-			if first != kind && !reported[key] {
-				reported[key] = true
-				r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup cannot back up both UPDATE and DELETE on "+table(ref))
-			}
+			// A WITH clause before the statement, which the parser does
+			// not keep, starts the statement's range before its node.
+			all = append(all, copied{s, in, ref.Name, loc.Start > s.loc.Start})
+		}
+	}
+	if !certain || len(all) <= maxMixedTables {
+		return
+	}
+	first := all[0]
+	for _, c := range all {
+		switch {
+		case !strings.EqualFold(c.db, first.db) || !strings.EqualFold(c.name, first.name):
+			r.report(review.PriorBackup, c.s.index, rangeOf(c.s.loc), fmt.Sprintf("prior backup cannot back up more than %d statements over more than one table", maxMixedTables))
+			return
+		case c.with:
+			r.report(review.PriorBackup, c.s.index, rangeOf(c.s.loc), fmt.Sprintf("prior backup does not support a WITH clause when more than %d statements change one table", maxMixedTables))
+			return
 		}
 	}
 }
@@ -86,12 +168,12 @@ func checkPriorBackupMixed(stmts []statement, db string, r *reporter) {
 // backupTargets returns the tables an UPDATE or DELETE backs up, with the
 // statement's kind: the table of a single-table UPDATE or DELETE, and
 // each target of a multi-table DELETE, as the table its name means in the
-// FROM list, matched as Bytebase matches it. A multi-table UPDATE, whose
-// targets depend on its SET columns, and a multi-table DELETE after a WITH
-// clause, whose targets may be its queries, give none.
+// FROM list, matched as Bytebase matches it, without case. A multi-table
+// UPDATE, whose targets depend on its SET columns, and a multi-table
+// DELETE after a WITH clause, whose targets may be its queries, give none.
 //
-// bytebase: backend/plugin/parser/mysql/backup.go — extractTablesFromDelete,
-// collectSingleTables
+// bytebase: backend/plugin/parser/tidb/backup.go — extractTablesFromDelete,
+// collectSingleTables, identifierKey
 func backupTargets(s *statement) ([]*ast.TableRef, string) {
 	switch v := s.node.(type) {
 	case *ast.UpdateStmt:
@@ -121,7 +203,7 @@ func backupTargets(s *statement) ([]*ast.TableRef, string) {
 				if t.Alias != "" {
 					key = t.Alias
 				}
-				from[key] = t
+				from[strings.ToLower(key)] = t
 			case *ast.JoinClause:
 				collect(t.Left)
 				collect(t.Right)
@@ -140,7 +222,7 @@ func backupTargets(s *statement) ([]*ast.TableRef, string) {
 			if target.Alias != "" {
 				key = target.Alias
 			}
-			if ref, ok := from[key]; ok {
+			if ref, ok := from[strings.ToLower(key)]; ok {
 				refs = append(refs, ref)
 			}
 		}

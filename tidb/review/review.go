@@ -1,4 +1,4 @@
-// Package review implements Bytebase SQL Review V2 for MySQL: the engine
+// Package review implements Bytebase SQL Review V2 for TiDB: the engine
 // side of the contract in github.com/bytebase/omni/review.
 //
 // Review parses the SQL once, evaluates the rules that depend on the SQL
@@ -45,7 +45,7 @@ var Rules = []review.Rule{
 func Review(ctx context.Context, sql string, opts review.Options, targets []review.Target) (result *review.Result, err error) {
 	defer func() {
 		if p := recover(); p != nil {
-			result, err = nil, fmt.Errorf("mysql/review: panic: %v", p)
+			result, err = nil, fmt.Errorf("tidb/review: panic: %v", p)
 		}
 	}()
 	if err := ctx.Err(); err != nil {
@@ -63,10 +63,11 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 
 	on := enabled(opts.Rules)
 	if on[review.OnlineMigration] && opts.Change.OnlineMigration {
-		checkOnlineMigration(sql, stmts, r)
+		checkOnlineMigration(r)
 	}
 	if on[review.PriorBackup] && opts.Change.PriorBackup {
 		checkPriorBackupSize(sql, opts.Change, r)
+		checkPriorBackupStatements(stmts, r)
 	}
 	for i := range stmts {
 		if err := ctx.Err(); err != nil {
@@ -89,10 +90,7 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 			checkDisallowRename(s, r)
 		}
 	}
-	work := targetWork{
-		backup: on[review.PriorBackup] && opts.Change.PriorBackup,
-		online: on[review.OnlineMigration] && opts.Change.OnlineMigration,
-	}
+	work := targetWork{backup: on[review.PriorBackup] && opts.Change.PriorBackup}
 	if on[review.DisallowDropConstraint] {
 		work.drops = checkDisallowDropConstraint(sql, stmts, r)
 	}

@@ -12,18 +12,17 @@ import (
 )
 
 // targetWork is what the rules that read a target have to look at in
-// this change: the prior backup and online migration a change asks for,
-// and the DROP INDEX statements the SQL alone cannot classify. The other
-// rules depend on the SQL alone and run once for every target.
+// this change: the prior backup a change asks for, and the DROP INDEX
+// statements the SQL alone cannot classify. The other rules depend on the
+// SQL alone and run once for every target.
 type targetWork struct {
 	backup bool
 	made   changeMade
-	online bool
 	drops  []droppedIndex
 }
 
 func (w targetWork) any() bool {
-	return w.backup || w.online || len(w.drops) > 0
+	return w.backup || len(w.drops) > 0
 }
 
 // schemaTarget is what the rules read of a target.
@@ -133,11 +132,8 @@ func reviewGroup(sql string, stmts []statement, work targetWork, g targetGroup) 
 	r := &reporter{targets: g.indices}
 	t := g.target
 	x := newSchemaIndex(schemaTarget{t.Schema, t.BackupDatabaseExists, t.LowerCaseTableNames})
-	if work.online {
-		checkOnlineMigrationTarget(stmts, t, x, r)
-	}
 	if work.backup {
-		checkPriorBackupMixed(stmts, t.Schema.GetName(), r)
+		checkPriorBackupTables(stmts, t.Schema.GetName(), r)
 		checkPriorBackupTarget(sql, stmts, t, x, work.made, r)
 	}
 	for _, d := range work.drops {

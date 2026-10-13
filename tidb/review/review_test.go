@@ -104,6 +104,11 @@ func shop() *metadata.DatabaseSchemaMetadata {
 					Indexes:  []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}}},
 					Triggers: []*metadata.TriggerMetadata{{Name: "trig_bi"}},
 				},
+				{
+					Name:    "nul",
+					Columns: []*metadata.ColumnMetadata{{Name: "email", Nullable: true}, {Name: "code"}},
+					Indexes: []*metadata.IndexMetadata{{Name: "uk_email", Unique: true, Expressions: []string{"email"}}},
+				},
 			},
 		}},
 	}
@@ -170,16 +175,16 @@ func TestDisallowDropObject(t *testing.T) {
 	runCases(t, review.DisallowDropObject, []ruleCase{
 		{
 			name: "every DROP",
-			sql:  "DROP TABLE IF EXISTS t, p;\nDROP VIEW v;\nDROP DATABASE d;\nDROP INDEX idx_n ON t;\nDROP PROCEDURE pr;\nDROP FUNCTION f;\nDROP TRIGGER tr;\nDROP EVENT e;\nDROP USER u;\nALTER TABLE t DROP COLUMN n, DROP INDEX idx_n, DROP PARTITION p0;",
+			sql:  "DROP TABLE IF EXISTS t, p;\nDROP VIEW v;\nDROP DATABASE d;\nDROP INDEX idx_n ON t;\nDROP PROCEDURE pr;\nDROP PLACEMENT POLICY pp;\nDROP RESOURCE GROUP rg;\nDROP ROLE r1;\nDROP USER u;\nALTER TABLE t DROP COLUMN n, DROP INDEX idx_n, DROP PARTITION p0;",
 			want: []finding{
 				{0, "DROP TABLE IF EXISTS t, p", "drops table t, p", []int{0}},
 				{1, "DROP VIEW v", "drops view v", []int{0}},
 				{2, "DROP DATABASE d", "drops database d", []int{0}},
 				{3, "DROP INDEX idx_n ON t", "drops index idx_n of t", []int{0}},
 				{4, "DROP PROCEDURE pr", "drops procedure pr", []int{0}},
-				{5, "DROP FUNCTION f", "drops function f", []int{0}},
-				{6, "DROP TRIGGER tr", "drops trigger tr", []int{0}},
-				{7, "DROP EVENT e", "drops event e", []int{0}},
+				{5, "DROP PLACEMENT POLICY pp", "drops placement policy pp", []int{0}},
+				{6, "DROP RESOURCE GROUP rg", "drops resource group rg", []int{0}},
+				{7, "DROP ROLE r1", "drops role r1", []int{0}},
 				{8, "DROP USER u", "drops user u", []int{0}},
 				{9, "DROP COLUMN n", "drops column n of t", []int{0}},
 				{9, "DROP INDEX idx_n", "drops index idx_n of t", []int{0}},
@@ -194,6 +199,11 @@ func TestDisallowDropObject(t *testing.T) {
 			name: "a name with a line break",
 			sql:  "DROP TABLE `a\nb`;",
 			want: []finding{{0, "DROP TABLE `a\nb`", "drops table `a\\nb`", []int{0}}},
+		},
+		{
+			name: "an account with a line break",
+			sql:  "DROP USER 'a\nb'@'%';",
+			want: []finding{{0, "DROP USER 'a\nb'@'%'", "drops user a\\nb@%", []int{0}}},
 		},
 	})
 }
@@ -260,6 +270,10 @@ func TestDisallowDropConstraint(t *testing.T) {
 			want: []finding{{0, "DROP INDEX uk_code", "drops unique key uk_code of t", []int{0}}},
 		},
 		{
+			name: "a table named in another case, or a routine body's index",
+			sql:  "CREATE UNIQUE INDEX ux ON T (c);\nDROP INDEX ux ON t;\nCREATE PROCEDURE pr() CREATE UNIQUE INDEX uy ON nokey (a);\nDROP INDEX uy ON nokey;",
+		},
+		{
 			name: "an index of a table CREATE TABLE IF NOT EXISTS leaves",
 			sql:  "CREATE TABLE IF NOT EXISTS t (id INT);\nDROP INDEX uk_code ON t;",
 			want: []finding{{1, "DROP INDEX uk_code ON t", "drops unique key uk_code of t", []int{0}}},
@@ -275,7 +289,7 @@ func TestRequirePrimaryKey(t *testing.T) {
 	runCases(t, review.RequirePrimaryKey, []ruleCase{
 		{
 			name: "CREATE TABLE without a primary key",
-			sql:  "CREATE TABLE a (id INT);\nCREATE TABLE b (id INT PRIMARY KEY);\nCREATE TABLE c (id INT, PRIMARY KEY (id));\nCREATE TEMPORARY TABLE d (id INT);\nCREATE TABLE e LIKE t;\nCREATE TABLE f AS SELECT 1 AS id;\nCREATE TABLE IF NOT EXISTS g (id INT);",
+			sql:  "CREATE TABLE a (id INT);\nCREATE TABLE b (id INT PRIMARY KEY);\nCREATE TABLE c (id INT, PRIMARY KEY (id));\nCREATE TEMPORARY TABLE d (id INT);\nCREATE TABLE e LIKE t;\nCREATE TABLE f AS SELECT 1 AS id;\nCREATE TABLE IF NOT EXISTS g (id INT);\nCREATE TABLE h (PRIMARY KEY (id)) AS SELECT 1 AS id;",
 			want: []finding{{0, "CREATE TABLE a (id INT)", "creates table a without a primary key", []int{0}}},
 		},
 		{
@@ -291,70 +305,13 @@ func TestRequirePrimaryKey(t *testing.T) {
 }
 
 func TestOnlineMigration(t *testing.T) {
-	ghost := review.Change{OnlineMigration: true}
 	runCases(t, review.OnlineMigration, []ruleCase{
-		{name: "one ALTER TABLE of a table gh-ost can copy", sql: "-- gh-ost = {\"chunk-size\":\"500\"}\nALTER TABLE plain ADD COLUMN m INT;", change: ghost},
-		{name: "not asked for", sql: "UPDATE t SET n = 1; UPDATE t SET n = 2;"},
+		{name: "not asked for", sql: "ALTER TABLE t ADD COLUMN m INT;"},
 		{
-			name:   "more than one statement",
-			sql:    "ALTER TABLE t ADD COLUMN m INT;\nALTER TABLE p ADD COLUMN m INT;",
-			change: ghost,
-			want:   []finding{{-1, "", "online migration runs the change as one ALTER TABLE statement, and the change has 2 statements", []int{0}}},
-		},
-		{
-			name:   "not an ALTER TABLE",
-			sql:    "CREATE INDEX i ON t (n);",
-			change: ghost,
-			want:   []finding{{0, "CREATE INDEX i ON t (n)", "online migration runs only an ALTER TABLE statement", []int{0}}},
-		},
-		{
-			name:   "flags Bytebase cannot read",
-			sql:    "-- gh-ost = {\"chunk-size\":\"many\",\"no-such-flag\":\"1\"}\nALTER TABLE plain ADD COLUMN m INT;",
-			change: ghost,
-			want:   []finding{{-1, "", `online migration cannot read gh-ost flag "chunk-size" as int: "many"`, []int{0}}},
-		},
-		{
-			name:   "an unknown flag",
-			sql:    "-- gh-ost = {\"include-triggers\":\"true\"}\nALTER TABLE trig ADD COLUMN m INT;",
-			change: ghost,
-			want: []finding{
-				{-1, "", `online migration does not support gh-ost flag "include-triggers"`, []int{0}},
-				{0, "ALTER TABLE trig ADD COLUMN m INT", "online migration does not support trig, which has a trigger", []int{0}},
-			},
-		},
-		{
-			name:   "a rename of the table",
-			sql:    "ALTER TABLE plain ADD COLUMN m INT, RENAME TO plain2;",
-			change: ghost,
-			want:   []finding{{0, "RENAME TO plain2", "gh-ost does not rename the table it migrates", []int{0}}},
-		},
-		{
-			name:   "tables gh-ost refuses",
-			sql:    "ALTER TABLE nokey ADD COLUMN m INT;",
-			change: ghost,
-			want:   []finding{{0, "ALTER TABLE nokey ADD COLUMN m INT", "online migration needs a primary or unique key on nokey, which has none", []int{0}}},
-		},
-		{
-			name:   "a foreign key of its own",
-			sql:    "ALTER TABLE t ADD COLUMN m INT;",
-			change: ghost,
-			want:   []finding{{0, "ALTER TABLE t ADD COLUMN m INT", "online migration does not support t, which has a foreign key", []int{0}}},
-		},
-		{
-			name:   "a foreign key to it",
-			sql:    "ALTER TABLE p ADD COLUMN m INT;",
-			change: ghost,
-			want:   []finding{{0, "ALTER TABLE p ADD COLUMN m INT", "online migration does not support p, which a foreign key references", []int{0}}},
-		},
-		{
-			name:    "no bbdataarchive",
-			sql:     "ALTER TABLE trig ENGINE = InnoDB;",
-			change:  ghost,
-			targets: []review.Target{{Schema: shop(), BackupDatabaseExists: false}},
-			want: []finding{
-				{-1, "", "online migration needs database bbdataarchive, which does not exist", []int{0}},
-				{0, "ALTER TABLE trig ENGINE = InnoDB", "online migration does not support trig, which has a trigger", []int{0}},
-			},
+			name:   "asked for",
+			sql:    "-- gh-ost = {}\nALTER TABLE plain ADD COLUMN m INT;",
+			change: review.Change{OnlineMigration: true},
+			want:   []finding{{-1, "", "the change requests online migration, which runs gh-ost, and TiDB has no binary log for gh-ost to read", []int{0}}},
 		},
 	})
 }
@@ -378,13 +335,43 @@ func TestPriorBackup(t *testing.T) {
 			want:   []finding{{-1, "", "the change is 32 bytes, over the 10-byte limit of prior backup", []int{0}}},
 		},
 		{
-			name:   "UPDATE and DELETE on one table, a name without a database the target's",
-			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM t WHERE id = 2;\nDELETE FROM shop.p WHERE id = 1;\nUPDATE p SET note = '' WHERE id = 1;\nDELETE FROM other.plain WHERE id = 1;\nUPDATE plain SET v = 1 WHERE id = 1;",
+			name:   "UPDATE and DELETE on one table, which TiDB's backup takes",
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM t WHERE id = 2;",
+			change: backup,
+		},
+		{
+			name:   "statements the backup refuses",
+			sql:    "BATCH ON id LIMIT 2 DELETE FROM t WHERE n > 0;\nREPLACE INTO p VALUES (3, 'c');\nINSERT INTO p VALUES (1, 'a') ON DUPLICATE KEY UPDATE note = 'b';\nEXPLAIN ANALYZE UPDATE t SET n = 1 WHERE id = 1;\nEXPLAIN UPDATE t SET n = 1 WHERE id = 1;\nINSERT INTO p VALUES (4, 'd');",
 			change: backup,
 			want: []finding{
-				{1, "DELETE FROM t WHERE id = 2", "prior backup cannot back up both UPDATE and DELETE on t", []int{0}},
-				{3, "UPDATE p SET note = '' WHERE id = 1", "prior backup cannot back up both UPDATE and DELETE on p", []int{0}},
+				{0, "BATCH ON id LIMIT 2 DELETE FROM t WHERE n > 0", "prior backup does not support TiDB BATCH (non-transactional DML) statements", []int{0}},
+				{1, "REPLACE INTO p VALUES (3, 'c')", "prior backup does not support REPLACE or INSERT ... ON DUPLICATE KEY UPDATE statements", []int{0}},
+				{2, "INSERT INTO p VALUES (1, 'a') ON DUPLICATE KEY UPDATE note = 'b'", "prior backup does not support REPLACE or INSERT ... ON DUPLICATE KEY UPDATE statements", []int{0}},
+				{3, "EXPLAIN ANALYZE UPDATE t SET n = 1 WHERE id = 1", "prior backup does not support EXPLAIN ANALYZE of an UPDATE, DELETE, or BATCH statement", []int{0}},
 			},
+		},
+		{
+			name:   "a table of another database",
+			sql:    "UPDATE other.t SET n = 1 WHERE id = 1;\nDELETE FROM SHOP.p WHERE id = 2;",
+			change: backup,
+			want:   []finding{{0, "UPDATE other.t SET n = 1 WHERE id = 1", "prior backup does not support an UPDATE or DELETE of other.t, a table of another database", []int{0}}},
+		},
+		{
+			name:   "more than five statements over two tables",
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nUPDATE t SET n = 2 WHERE id = 2;\nDELETE FROM shop.t WHERE id = 3;\nUPDATE t SET n = 4 WHERE id = 4;\nUPDATE t SET n = 5 WHERE id = 5;\nUPDATE p SET note = '' WHERE id = 1;",
+			change: backup,
+			want:   []finding{{5, "UPDATE p SET note = '' WHERE id = 1", "prior backup cannot back up more than 5 statements over more than one table", []int{0}}},
+		},
+		{
+			name:   "more than five statements on one table, one with WITH",
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nUPDATE t SET n = 2 WHERE id = 2;\nWITH x AS (SELECT 3 AS id) UPDATE t SET n = 3 WHERE id IN (SELECT id FROM x);\nUPDATE t SET n = 4 WHERE id = 4;\nUPDATE t SET n = 5 WHERE id = 5;\nUPDATE t SET n = 6 WHERE id = 6;",
+			change: backup,
+			want:   []finding{{2, "WITH x AS (SELECT 3 AS id) UPDATE t SET n = 3 WHERE id IN (SELECT id FROM x)", "prior backup does not support a WITH clause when more than 5 statements change one table", []int{0}}},
+		},
+		{
+			name:   "five statements over five tables, or a multi-table UPDATE",
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nUPDATE p SET note = '' WHERE id = 1;\nUPDATE plain SET v = 1 WHERE id = 1;\nDELETE FROM nokey WHERE a = 1;\nUPDATE trig SET id = 2 WHERE id = 1;\nUPDATE t JOIN p ON p.id = t.p_id SET t.n = 1 WHERE t.id = 2;",
+			change: backup,
 		},
 		{
 			name:   "a table the change creates",
@@ -403,15 +390,6 @@ func TestPriorBackup(t *testing.T) {
 				{1, "UPDATE t SET n = 1 WHERE gone = 1", "prior backup runs before the change, when column gone of t does not exist yet", []int{0}},
 				{2, "UPDATE t SET n = 2 WHERE t.gone = 2 ORDER BY id", "prior backup runs before the change, when column gone of t does not exist yet", []int{0}},
 				{4, "UPDATE t JOIN p ON p.memo = t.code SET t.n = 1 WHERE t.id = 3", "prior backup runs before the change, when column memo of p does not exist yet", []int{0}},
-			},
-		},
-		{
-			name:   "UPDATE and DELETE on one table, a DELETE of several tables",
-			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nDELETE t FROM t JOIN p ON p.id = t.p_id WHERE t.id = 2;\nUPDATE plain SET v = 1 WHERE id = 1;\nDELETE x FROM plain AS x JOIN p ON p.id = x.id WHERE x.id = 2;",
-			change: backup,
-			want: []finding{
-				{1, "DELETE t FROM t JOIN p ON p.id = t.p_id WHERE t.id = 2", "prior backup cannot back up both UPDATE and DELETE on t", []int{0}},
-				{3, "DELETE x FROM plain AS x JOIN p ON p.id = x.id WHERE x.id = 2", "prior backup cannot back up both UPDATE and DELETE on plain", []int{0}},
 			},
 		},
 		{

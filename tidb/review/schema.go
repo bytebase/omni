@@ -7,12 +7,12 @@ import (
 	"github.com/bytebase/omni/tidb/ast"
 )
 
-// backupDatabase is the database where Bytebase writes a MySQL prior
+// backupDatabase is the database where Bytebase writes a TiDB prior
 // backup and stages gh-ost's tables.
 const backupDatabase = "bbdataarchive"
 
 // schemaIndex looks tables up in a target's synced schema, the database
-// the change runs in, as MySQL resolves their names.
+// the change runs in, as TiDB resolves their names.
 type schemaIndex struct {
 	schema *metadata.DatabaseSchemaMetadata
 	// caseSensitive is lower_case_table_names = 0: table and database
@@ -67,25 +67,6 @@ func (x schemaIndex) hasRelation(name string) bool {
 		for _, v := range s.GetViews() {
 			if x.same(v.GetName(), name) {
 				return true
-			}
-		}
-	}
-	return false
-}
-
-// referenced reports whether a foreign key of a table of the synced
-// schema references the table of the name in the same database.
-func (x schemaIndex) referenced(name string) bool {
-	if x.schema == nil {
-		return false
-	}
-	for _, s := range x.schema.GetSchemas() {
-		for _, t := range s.GetTables() {
-			for _, fk := range t.GetForeignKeys() {
-				db := fk.GetReferencedSchema()
-				if (db == "" || x.same(db, x.schema.GetName())) && x.same(fk.GetReferencedTable(), name) {
-					return true
-				}
 			}
 		}
 	}

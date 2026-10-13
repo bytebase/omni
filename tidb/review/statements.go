@@ -75,7 +75,7 @@ func parse(sql string, ranges []review.Range) ([]statement, *review.Finding) {
 	return stmts, nil
 }
 
-// nodeLoc reads a statement node's Loc field. The MySQL AST gives its
+// nodeLoc reads a statement node's Loc field. The TiDB AST gives its
 // nodes no common accessor; every statement struct carries one.
 func nodeLoc(n ast.Node) ast.Loc {
 	v := reflect.ValueOf(n)
@@ -98,7 +98,7 @@ func nodeLoc(n ast.Node) ast.Loc {
 
 // contentLoc is the range of a statement's text without the whitespace
 // and comments before it, and the whitespace and semicolon after it. A
-// /*! ... */ comment is not skipped: MySQL runs the text inside it.
+// /*! ... */ comment is not skipped: TiDB runs the text inside it.
 func contentLoc(sql string, start, end int) ast.Loc {
 	start = skipTrivia(sql, start, end)
 	for end > start && (isSpace(sql[end-1]) || sql[end-1] == ';') {
@@ -139,7 +139,7 @@ func isSpace(c byte) bool {
 
 // syntaxFinding turns a parse failure into the Syntax finding. A parser
 // error carries the byte offset of the offending token and the message
-// MySQL would print; the finding's range starts and ends at that offset,
+// TiDB would print; the finding's range starts and ends at that offset,
 // which the caller anchors to its line. Any other error, which the parser
 // does not produce today, addresses the whole change.
 func syntaxFinding(err error, ranges []review.Range) *review.Finding {
