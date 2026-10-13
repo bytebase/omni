@@ -181,6 +181,11 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 		// The ANSI spellings, unless the word is a schema qualifier.
 		ansi := p.peekNext().Type != '.'
 		next := p.peekNext()
+		// NATIONAL names no item to take %TYPE from (PLS-00103 on Oracle
+		// 23ai), as CHARACTER and DOUBLE name none.
+		if ansi && next.Type == '%' && p.isKeywordStr("NATIONAL") {
+			return nil, p.syntaxErrorAtTok(next)
+		}
 		switch {
 		case ansi && p.isKeywordStr("CHARACTER"),
 			ansi && p.isKeywordStr("NATIONAL") && (next.Type == kwCHAR || next.Type != tokQIDENT && next.Str == "CHARACTER"):
@@ -375,7 +380,10 @@ func (p *Parser) predefinedTypeLead(tn *nodes.TypeName) string {
 // VARCHAR2, a number parameter takes CHARACTER SET ANY_CS. A schema-level
 // type of such a name does not shadow STANDARD's.
 func (p *Parser) noteShadowedType(tn *nodes.TypeName) {
-	if len(p.typeScopes) == 0 && !p.inPackageBody {
+	// A declaration names one word: DOUBLE PRECISION or LONG RAW is the
+	// predefined type wherever it stands (PLS-00550 on Oracle 23ai for
+	// DOUBLE PRECISION CHARACTER SET in a package body).
+	if len(p.typeScopes) == 0 && !p.inPackageBody || tn.Names.Len() != 1 {
 		return
 	}
 	lead := p.predefinedTypeSpelling(tn)

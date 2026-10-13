@@ -561,7 +561,7 @@ func (p *Parser) parseColumnDefsAndConstraints(stmt *nodes.CreateTableStmt) erro
 			return p.syntaxErrorAtCur()
 		}
 	}
-	return nil
+	return p.checkOutOfLineRefConstraints(stmt)
 }
 
 // isTableConstraintStart checks if the current position starts a table-level constraint.
@@ -958,18 +958,52 @@ func (p *Parser) parseInlineRefConstraint(col *nodes.ColumnDef) error {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
-		table, err := p.parseObjectName()
+		table, err := p.parseRefScopeTable()
 		if err != nil {
 			return err
-		}
-		if table.Name == "" {
-			return p.syntaxErrorAtCur()
 		}
 		cc.Type = nodes.CONSTRAINT_SCOPE
 		cc.RefTable = table
 	}
 	cc.Loc.End = p.prev.End
 	col.Constraints.Items = append(col.Constraints.Items, cc)
+	return nil
+}
+
+// parseRefScopeTable parses the scope table of a REF column, which is
+// local (ORA-25124 on Oracle 23ai for one over a database link).
+func (p *Parser) parseRefScopeTable() (*nodes.ObjectName, error) {
+	table, err := p.parseObjectName()
+	if err != nil {
+		return nil, err
+	}
+	if table.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if table.DBLink != "" {
+		return nil, p.syntaxErrorAtNode(table)
+	}
+	return table, nil
+}
+
+// checkOutOfLineRefConstraints checks that each out-of-line REF constraint
+// of stmt naming a column of the table names a REF column (ORA-22893 on
+// Oracle 23ai); the column may come before or after it. An attribute of an
+// object column, or a name the table does not declare, is the engine's to
+// resolve.
+func (p *Parser) checkOutOfLineRefConstraints(stmt *nodes.CreateTableStmt) error {
+	for _, item := range stmt.Constraints.Items {
+		tc, ok := item.(*nodes.TableConstraint)
+		if !ok || tc.Type != nodes.CONSTRAINT_SCOPE && tc.Type != nodes.CONSTRAINT_WITH_ROWID || tc.Columns.Len() != 1 {
+			continue
+		}
+		name := tc.Columns.Items[0].(*nodes.String).Str
+		for _, colItem := range stmt.Columns.Items {
+			if col, ok := colItem.(*nodes.ColumnDef); ok && col.Name == name && (col.TypeName == nil || !col.TypeName.IsRef) {
+				return p.syntaxErrorAtNode(tc)
+			}
+		}
+	}
 	return nil
 }
 
@@ -994,25 +1028,36 @@ func (p *Parser) parseOutOfLineRefConstraint() (*nodes.TableConstraint, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	column, err := p.parseIdentifier()
-	if err != nil {
-		return nil, err
+	// A column, or an attribute of an object column (o.ref_attr).
+	var column strings.Builder
+	for {
+		part, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		if part == "" {
+			return nil, p.syntaxErrorAtCur()
+		}
+		column.WriteString(part)
+		if p.cur.Type != '.' {
+			break
+		}
+		column.WriteByte('.')
+		p.advance()
 	}
-	if column == "" || p.cur.Type != ')' {
+	if p.cur.Type != ')' {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()
-	tc.Columns = &nodes.List{Items: []nodes.Node{&nodes.String{Str: column}}}
+	tc.Columns = &nodes.List{Items: []nodes.Node{&nodes.String{Str: column.String()}}}
 	if scope {
 		if p.cur.Type != kwIS {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
-		if tc.RefTable, err = p.parseObjectName(); err != nil {
+		var err error
+		if tc.RefTable, err = p.parseRefScopeTable(); err != nil {
 			return nil, err
-		}
-		if tc.RefTable.Name == "" {
-			return nil, p.syntaxErrorAtCur()
 		}
 		tc.Type = nodes.CONSTRAINT_SCOPE
 	} else {
