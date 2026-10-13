@@ -66,6 +66,11 @@ func TestQualifiedExpressions(t *testing.T) {
 		"BEGIN FOR r rt IN (EXECUTE IMMEDIATE s) LOOP NULL; END LOOP; END;",
 		"BEGIN FOR r rt IN (EXECUTE IMMEDIATE 'SELECT 1 x FROM dual' USING 1) LOOP NULL; END LOOP; END;",
 		"BEGIN FOR r rt IN VALUES OF (EXECUTE IMMEDIATE s USING IN 1, 2) LOOP NULL; END LOOP; END;",
+		// The first control types a later dynamic one; PAIRS OF types its
+		// value iterand.
+		"BEGIN FOR r IN (SELECT 1 x FROM dual), (EXECUTE IMMEDIATE s) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r IN 1..2, (EXECUTE IMMEDIATE s) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i, r rt IN PAIRS OF (EXECUTE IMMEDIATE s) LOOP NULL; END LOOP; END;",
 		// A qualified expression in a statement, a RETURN, a call, and a
 		// parameter's default.
 		"CREATE PROCEDURE p (x pkg.ai := pkg.ai(1 => 2)) IS BEGIN NULL; END;",
@@ -101,6 +106,10 @@ func TestQualifiedExpressions(t *testing.T) {
 		// Dynamic SQL needs a typed iterand (PLS-00858) and takes no REVERSE
 		// (PLS-00682).
 		"BEGIN FOR i IN VALUES OF (EXECUTE IMMEDIATE s) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i PLS_INTEGER, r IN PAIRS OF (EXECUTE IMMEDIATE s) LOOP NULL; END LOOP; END;",
+		// A query's binds are IN alone (PLS-00254).
+		"BEGIN FOR r rt IN (EXECUTE IMMEDIATE s USING OUT v) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r rt IN (EXECUTE IMMEDIATE s USING IN OUT v) LOOP NULL; END LOOP; END;",
 		"BEGIN FOR r rt IN REVERSE (EXECUTE IMMEDIATE s) LOOP NULL; END LOOP; END;",
 		// INDEX takes an expression, and not with SEQUENCE (PLS-00103).
 		"DECLARE " + qualifiedDecls + "x ai := ai(FOR i IN 1..3 SEQUENCE INDEX i => i); BEGIN NULL; END;",

@@ -16,7 +16,7 @@ import (
 // iterands (PLS-00855), that two iterands have PAIRS OF controls alone
 // (PLS-00856), and that neither the iterand of INDICES OF nor the index
 // iterand of PAIRS OF is MUTABLE (PLS-00861, PLS-00854), and that dynamic
-// SQL has a typed iterand (PLS-00858).
+// SQL as the first control has a typed value iterand (PLS-00858).
 func (p *Parser) parseIterator() (*nodes.PLSQLIterator, error) {
 	it := &nodes.PLSQLIterator{
 		Iterands: &nodes.List{},
@@ -51,8 +51,11 @@ func (p *Parser) parseIterator() (*nodes.PLSQLIterator, error) {
 		if first.Mutability == "MUTABLE" && (ctl.Kind == "INDICES OF" || ctl.Kind == "PAIRS OF") {
 			return nil, p.syntaxErrorAtNode(first)
 		}
-		// Dynamic SQL needs the iterand's type (PLS-00858).
-		if _, dynamic := ctl.Expr.(*nodes.DynamicSQLExpr); dynamic && first.DataType == nil {
+		// Dynamic SQL as the first control needs the iterand's type, the
+		// value iterand's for PAIRS OF (PLS-00858); a later control takes
+		// the type from the first.
+		valueIterand := it.Iterands.Items[it.Iterands.Len()-1].(*nodes.PLSQLIterand)
+		if _, dynamic := ctl.Expr.(*nodes.DynamicSQLExpr); dynamic && it.Controls.Len() == 0 && valueIterand.DataType == nil {
 			return nil, p.syntaxErrorAtNode(ctl)
 		}
 		it.Controls.Items = append(it.Controls.Items, ctl)
@@ -200,9 +203,19 @@ func (p *Parser) parseDynamicSQLSource() (nodes.ExprNode, error) {
 		return nil, err
 	}
 	if p.cur.Type == kwUSING {
+		usingStart := p.pos()
 		p.advance()
 		if dyn.Using, dyn.UsingModes, err = p.parsePLSQLBindArgList(); err != nil {
 			return nil, err
+		}
+		// A query's binds are IN alone (PLS-00254 for OUT and IN OUT).
+		for i, mode := range dyn.UsingModes {
+			if mode == "OUT" || mode == "IN OUT" {
+				if bind, ok := dyn.Using.Items[i].(nodes.ExprNode); ok {
+					return nil, p.syntaxErrorAtNode(bind)
+				}
+				return nil, p.syntaxErrorAtTok(Token{Type: kwUSING, Loc: usingStart, End: usingStart + len("USING")})
+			}
 		}
 	}
 	if p.cur.Type != ')' {
