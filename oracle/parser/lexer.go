@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
 // Token types returned by the lexer.
@@ -33,6 +35,7 @@ const (
 	tokLABELCLOSE // >>
 	tokOP         // generic operator
 	tokHINT       // /*+ hint text */
+	tokDIRECTIVE  // $IF, $THEN, $ELSIF, $ELSE, $END, or $ERROR; never returned by NextToken
 )
 
 // Token represents a lexical token.
@@ -51,8 +54,52 @@ type Lexer struct {
 	start int
 	end   int // exclusive bound of the lexed range within input
 
+	// ccDepth counts the conditional compilation $IF directives whose
+	// selected branch holds the tokens being returned (see NextToken).
+	// Bit d-1 of ccElse says the branch selected at depth d is an $ELSE
+	// branch, and of ccGuess that it was selected without knowing its
+	// condition.
+	ccDepth int
+	ccElse  uint64
+	ccGuess uint64
+
+	// ccLenient is set on a lexer that must not stop at a misplaced
+	// directive: a pre-scan that starts inside the text, at the token the
+	// parser stands on, where the branch holding it may end in an $ELSIF,
+	// $ELSE, or $END with no $IF before it; and Split and Tokenize, which
+	// are soft-fail. Such a directive skips to the end of its construct, and
+	// an $ERROR is skipped. The parser's own lexer checks the structure.
+	ccLenient bool
+
+	// cc, when set, records the preprocessor tokens the lexer meets. The
+	// copies of the lexer that look ahead share it.
+	cc *ccRecord
+
 	// Error
 	Err error
+}
+
+// ccRecord records where conditional compilation was used, for the checks
+// the parser makes per statement: a directive or inquiry outside PL/SQL,
+// and the condition of each $IF and $ELSIF the lexer evaluated.
+type ccRecord struct {
+	directives []int       // start offsets of $IF ... $ERROR and $$name
+	conditions []nodes.Loc // the expressions between an evaluated $IF or $ELSIF and its $THEN
+}
+
+// noteDirective records a preprocessor token at loc. Offsets arrive in
+// increasing order, whichever copy of the lexer meets one first.
+func (r *ccRecord) noteDirective(loc int) {
+	if r != nil && (len(r.directives) == 0 || loc > r.directives[len(r.directives)-1]) {
+		r.directives = append(r.directives, loc)
+	}
+}
+
+// noteCondition records the condition of an evaluated $IF or $ELSIF.
+func (r *ccRecord) noteCondition(loc nodes.Loc) {
+	if r != nil && (len(r.conditions) == 0 || loc.Start > r.conditions[len(r.conditions)-1].Start) {
+		r.conditions = append(r.conditions, loc)
+	}
 }
 
 // NewLexer creates a new lexer for the given input.
@@ -80,8 +127,275 @@ func NewLexerRange(input string, start, end int) *Lexer {
 	}
 }
 
-// NextToken returns the next token from the input.
+// NextToken returns the next token from the input, after PL/SQL
+// conditional compilation selected the branch of each $IF that Oracle
+// compiles. Oracle 23ai decides by static values, which the text settles
+// only for a TRUE, FALSE, or NULL condition: the lexer selects the first
+// branch whose condition is not one of FALSE and NULL, else the $ELSE
+// branch. It returns the tokens of the selected branch and skips the rest,
+// whose code Oracle 23ai does not parse, and the conditions, which the
+// parser checks as expressions. It checks the directives' structure as
+// Oracle 23ai does, in skipped branches too: a $THEN, $ELSIF, $ELSE, or
+// $END out of place is PLS-00176, an $IF or $ERROR without its $END is
+// PLS-00177, and an $ERROR in a branch certainly selected is PLS-00179. An
+// inquiry directive $$name is an identifier.
 func (l *Lexer) NextToken() Token {
+	for {
+		tok := l.nextRaw()
+		if tok.Type == tokEOF {
+			if l.ccDepth > 0 && l.Err == nil {
+				return l.failDirective(tok, "'$IF' preprocessor directive does not end properly")
+			}
+			return tok
+		}
+		if tok.Type != tokDIRECTIVE {
+			return tok
+		}
+		ok := true
+		switch tok.Str {
+		case "$IF":
+			ok = l.selectBranch(tok)
+		case "$ELSIF", "$ELSE":
+			// The selected branch ends; skip the rest of its $IF. No branch
+			// follows an $ELSE.
+			lenient := l.ccDepth == 0 && l.ccLenient
+			if !lenient && (l.ccDepth == 0 || l.ccElse&l.ccLevelBit() != 0) {
+				return l.failDirective(tok, fmt.Sprintf("unexpected preprocessor token '%s'", tok.Str))
+			}
+			state := ccInElse
+			if tok.Str == "$ELSIF" {
+				state = ccInCondition
+			}
+			if _, ok = l.skipBranch(tok, state, false); ok && !lenient {
+				l.closeLevel()
+			}
+		case "$END":
+			if l.ccDepth == 0 {
+				if l.ccLenient {
+					continue
+				}
+				return l.failDirective(tok, "unexpected preprocessor token '$END'")
+			}
+			l.closeLevel()
+		case "$ERROR":
+			if l.ccGuess == 0 && !l.ccLenient {
+				return l.failDirective(tok, "$ERROR directive in a branch that is always selected")
+			}
+			_, ok = l.skipBranch(tok, ccInError, false)
+		default: // $THEN
+			if l.ccLenient {
+				continue
+			}
+			return l.failDirective(tok, "unexpected preprocessor token '$THEN'")
+		}
+		if !ok {
+			return Token{Type: tokEOF, Loc: l.pos, End: l.pos}
+		}
+	}
+}
+
+// ccMaxDepth bounds the nesting of $IF directives, one bit of ccElse and
+// ccGuess per level.
+const ccMaxDepth = 64
+
+// ccLevelBit is the bit of the innermost open level in ccElse and ccGuess.
+func (l *Lexer) ccLevelBit() uint64 {
+	return 1 << uint(l.ccDepth-1)
+}
+
+// openLevel opens a level of $IF around the branch it selected: an $ELSE
+// branch, or one chosen without knowing its condition (guess).
+func (l *Lexer) openLevel(tok Token, isElse, guess bool) bool {
+	if l.ccDepth == ccMaxDepth {
+		l.failDirective(tok, "preprocessor directives nested too deeply")
+		return false
+	}
+	l.ccDepth++
+	bit := l.ccLevelBit()
+	l.ccElse &^= bit
+	l.ccGuess &^= bit
+	if isElse {
+		l.ccElse |= bit
+	}
+	if guess {
+		l.ccGuess |= bit
+	}
+	return true
+}
+
+// closeLevel closes the innermost level of $IF.
+func (l *Lexer) closeLevel() {
+	bit := l.ccLevelBit()
+	l.ccElse &^= bit
+	l.ccGuess &^= bit
+	l.ccDepth--
+}
+
+// ccState is where a skipped conditional compilation construct stands.
+type ccState int
+
+const (
+	ccInCondition ccState = iota // after $IF or $ELSIF, before $THEN
+	ccInThen                     // in a $THEN branch
+	ccInElse                     // in an $ELSE branch
+	ccInError                    // after $ERROR, before its $END
+)
+
+// ccValue is what the text settles of a condition.
+type ccValue int
+
+const (
+	ccUnknown ccValue = iota
+	ccTrue
+	ccFalse
+)
+
+// selectBranch selects the branch of the $IF at tok that Oracle compiles,
+// skipping the branches before it, and opens its level; when it selects
+// none, the input resumes after the $END. It reports false after setting
+// Err.
+func (l *Lexer) selectBranch(tok Token) bool {
+	for {
+		value, ok := l.skipCondition(tok)
+		if !ok {
+			return false
+		}
+		if value != ccFalse {
+			return l.openLevel(tok, false, value == ccUnknown)
+		}
+		end, ok := l.skipBranch(tok, ccInThen, true)
+		if !ok {
+			return false
+		}
+		switch end.Str {
+		case "$END":
+			return true
+		case "$ELSE":
+			return l.openLevel(end, true, false)
+		}
+		tok = end // $ELSIF
+	}
+}
+
+// skipCondition skips the condition after the $IF or $ELSIF at tok up to
+// its $THEN, recording it for the parser, and returns its value when the
+// text settles it. It reports false after setting Err.
+func (l *Lexer) skipCondition(tok Token) (ccValue, bool) {
+	cond := nodes.Loc{Start: -1, End: -1}
+	var only Token
+	tokens := 0
+	for {
+		next := l.nextRaw()
+		switch {
+		case next.Type == tokEOF:
+			l.failDirective(tok, fmt.Sprintf("'%s' preprocessor directive does not end properly", tok.Str))
+			return ccUnknown, false
+		case next.Type == tokDIRECTIVE && next.Str == "$THEN":
+			if tokens == 0 {
+				// An empty condition is not a static boolean expression
+				// (PLS-00174).
+				l.failDirective(next, "a static boolean expression must be used")
+				return ccUnknown, false
+			}
+			l.cc.noteCondition(cond)
+			switch {
+			case tokens > 1:
+				return ccUnknown, true
+			case only.Type == tokIDENT && only.Str == "TRUE":
+				return ccTrue, true
+			case only.Type == tokIDENT && only.Str == "FALSE", only.Type == kwNULL:
+				return ccFalse, true
+			}
+			return ccUnknown, true
+		case next.Type == tokDIRECTIVE:
+			l.failDirective(next, fmt.Sprintf("unexpected preprocessor token '%s'", next.Str))
+			return ccUnknown, false
+		}
+		if tokens == 0 {
+			cond.Start = next.Loc
+			only = next
+		}
+		tokens++
+		cond.End = next.End
+	}
+}
+
+// skipBranch skips code that is not selected, from the directive at tok in
+// the given state, checking the structure of the constructs nested in it.
+// It stops after the $END that closes the construct or, with stopAtBranch,
+// at the $ELSIF, $ELSE, or $END that ends a $THEN branch, which it returns.
+// It reports false after setting Err.
+func (l *Lexer) skipBranch(tok Token, state ccState, stopAtBranch bool) (Token, bool) {
+	stack := []ccState{state}
+	for {
+		next := l.nextRaw()
+		if next.Type == tokEOF {
+			l.failDirective(tok, fmt.Sprintf("'%s' preprocessor directive does not end properly", tok.Str))
+			return next, false
+		}
+		if next.Type != tokDIRECTIVE {
+			continue
+		}
+		top := &stack[len(stack)-1]
+		ok := true
+		switch next.Str {
+		case "$THEN":
+			ok = *top == ccInCondition
+			*top = ccInThen
+		case "$ELSIF":
+			ok = *top == ccInThen
+			*top = ccInCondition
+		case "$ELSE":
+			ok = *top == ccInThen
+			*top = ccInElse
+		case "$END":
+			ok = *top != ccInCondition
+		case "$IF":
+			ok = *top == ccInThen || *top == ccInElse
+		case "$ERROR":
+			ok = *top == ccInThen || *top == ccInElse
+		}
+		if !ok {
+			l.failDirective(next, fmt.Sprintf("unexpected preprocessor token '%s'", next.Str))
+			return next, false
+		}
+		if stopAtBranch && len(stack) == 1 && (next.Str == "$ELSIF" || next.Str == "$ELSE" || next.Str == "$END") {
+			return next, true
+		}
+		switch next.Str {
+		case "$END":
+			stack = stack[:len(stack)-1]
+			if len(stack) == 0 {
+				return next, true
+			}
+		case "$IF":
+			stack = append(stack, ccInCondition)
+		case "$ERROR":
+			stack = append(stack, ccInError)
+		}
+	}
+}
+
+// directiveError is a conditional compilation error at a preprocessor
+// token.
+type directiveError struct {
+	msg string
+	tok Token
+}
+
+func (e *directiveError) Error() string { return e.msg }
+
+// failDirective sets Err for a conditional compilation error at tok and
+// ends the input, returning the EOF token at tok.
+func (l *Lexer) failDirective(tok Token, msg string) Token {
+	l.Err = &directiveError{msg: msg, tok: tok}
+	l.pos = l.end
+	return Token{Type: tokEOF, Loc: tok.Loc, End: tok.Loc}
+}
+
+// nextRaw returns the next token before conditional compilation: directives
+// are tokDIRECTIVE tokens.
+func (l *Lexer) nextRaw() Token {
 	if l.pos >= l.end {
 		return Token{Type: tokEOF, Loc: l.pos, End: l.pos}
 	}
@@ -108,7 +422,7 @@ func (l *Lexer) lexInitial() Token {
 	// Line comments: --
 	if ch == '-' && l.pos+1 < l.end && l.input[l.pos+1] == '-' {
 		l.skipLineComment()
-		return l.NextToken()
+		return l.nextRaw()
 	}
 
 	// Block comments: /* */ and hints: /*+ */
@@ -212,6 +526,14 @@ func (l *Lexer) lexInitial() Token {
 		return l.lexIdentOrKeyword()
 	}
 
+	// Conditional compilation: a selection or error directive, or an
+	// inquiry directive $$name.
+	if ch == '$' {
+		if tok, ok := l.lexPreprocessorToken(); ok {
+			return tok
+		}
+	}
+
 	// Self-delimiting single characters
 	l.pos++
 	return Token{Type: int(ch), Str: string(ch), Loc: l.start}
@@ -280,7 +602,7 @@ func (l *Lexer) lexBlockCommentOrHint() Token {
 	}
 
 	// Regular comment -- skip and get next token
-	return l.NextToken()
+	return l.nextRaw()
 }
 
 // lexSingleQuotedString handles '...' strings with ” escape.
@@ -484,6 +806,32 @@ func (l *Lexer) lexIdentOrKeyword() Token {
 	// Return as identifier (Oracle unquoted identifiers are case-insensitive;
 	// we store them uppercased per Oracle convention)
 	return Token{Type: tokIDENT, Str: upper, Loc: l.start}
+}
+
+// lexPreprocessorToken lexes the PL/SQL preprocessor token at '$': a
+// directive, as a tokDIRECTIVE token, or an inquiry directive $$name, as an
+// identifier. Any other '$' is left to lex as itself.
+func (l *Lexer) lexPreprocessorToken() (Token, bool) {
+	start := l.pos
+	if l.pos+2 < l.end && l.input[l.pos+1] == '$' && isIdentStart(l.input[l.pos+2]) {
+		l.pos += 2
+		for l.pos < l.end && isIdentCont(l.input[l.pos]) {
+			l.pos++
+		}
+		l.cc.noteDirective(start)
+		return Token{Type: tokIDENT, Str: "$$" + strings.ToUpper(l.input[start+2:l.pos]), Loc: start}, true
+	}
+	end := start + 1
+	for end < l.end && isIdentCont(l.input[end]) {
+		end++
+	}
+	switch word := strings.ToUpper(l.input[start+1 : end]); word {
+	case "IF", "THEN", "ELSIF", "ELSE", "END", "ERROR":
+		l.pos = end
+		l.cc.noteDirective(start)
+		return Token{Type: tokDIRECTIVE, Str: "$" + word, Loc: start}, true
+	}
+	return Token{}, false
 }
 
 // Character classification functions.

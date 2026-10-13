@@ -4,16 +4,11 @@ GSMADMIN_INTERNAL.DBMS_SHARDING_DIRECTORY:PACKAGE	Oracle-internal syntax (PRAGMA
 GSMADMIN_INTERNAL.CAT_ROLLBACK_TRIGGER:TRIGGER	trigger CALL with arguments	3:40	syntax error at or near "("
 GSMADMIN_INTERNAL.DONE_TRIGGER:TRIGGER	trigger CALL with arguments	3:40	syntax error at or near "("
 GSMADMIN_INTERNAL.REQUEST_DELETE_TRIGGER:TRIGGER	trigger CALL with arguments	3:36	syntax error at or near "("
-SYS.DBMS_HCS_LOG:PACKAGE	conditional compilation ($IF/$END)	1:1	split into 23 segments
-SYS.DBMS_LOB:PACKAGE	conditional compilation ($IF/$END)	1:1	split into 219 segments
-SYS.DBMS_MLE:PACKAGE	conditional compilation ($IF/$END)	1:1	split into 96 segments
 SYS.DBMS_REPORT:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration types)	175:22	syntax error at or near ".."
-SYS.DBMS_SQL:PACKAGE	conditional compilation ($IF/$END)	1:1	split into 600 segments
-SYS.DBMS_UTILITY:PACKAGE	conditional compilation ($IF/$END)	1:1	split into 99 segments
+SYS.DBMS_SQL:PACKAGE	REF type	1481:40	syntax error at or near "\"<ADT_1>\""
 SYS.PLITBLM:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration types)	20:29	syntax error at or near ")"
 SYS.STANDARD:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration types)	4:19	syntax error at or near "("
 SYS.UTL_LMS:PACKAGE	Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration types)	59:33	syntax error at or near ".."
-SYS.UTL_RECOMP:PACKAGE	conditional compilation ($IF/$END)	1:1	split into 18 segments
 SYS.CDBVIEW_INTERNAL:PACKAGE BODY	qualified expression (=>)	12:57	syntax error at or near "=>"
 SYS.DBMS_HADOOP_INTERNAL:PACKAGE BODY	unclassified	254:7	syntax error at or near "union"
 SYS.HTP:PACKAGE BODY	package initialization section	1798:1	syntax error at or near "begin"
@@ -27,7 +22,6 @@ SYS.DBMS_FEATURE_JOB_CLOUDSQL:PROCEDURE	JSON function clause	54:13	syntax error 
 SYS.DBMS_FEATURE_MLE:PROCEDURE	JSON function clause	29:28	syntax error at or near "RETURNING"
 SYS.DBMS_FEATURE_SQL_FIREWALL:PROCEDURE	JSON function clause	56:5	syntax error at or near "returning"
 SYS.OBJNUM_REUSE_HOLES:PROCEDURE	SQL%BULK_EXCEPTIONS	107:30	syntax error at or near "%"
-SYS.DBMS_KAFKA_DROP_USER:TRIGGER	conditional compilation ($IF/$END)	57:7	syntax error at or near "$"
 SYS.JDOM_T:TYPE BODY	unclassified	420:28	syntax error at or near "NATIVE"
 SYS.WRR$_ASH_TIME_PERIOD:TYPE BODY	type body method modifiers	3:3	syntax error at or near "FINAL"
 XDB.DBMS_XDB:PACKAGE	REF type	234:37	syntax error at or near "SYS"

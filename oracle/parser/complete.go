@@ -103,6 +103,7 @@ func IsReservedKeyword(word string) bool {
 // Tokenize runs the Oracle lexer and returns all non-EOF tokens.
 func Tokenize(sql string) []Token {
 	lex := NewLexer(sql)
+	lex.ccLenient = true
 	var tokens []Token
 	for {
 		tok := lex.NextToken()

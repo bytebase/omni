@@ -4,6 +4,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 
 	nodes "github.com/bytebase/omni/oracle/ast"
@@ -54,6 +55,72 @@ type Parser struct {
 	// inAnonymousBlock is set while a top-level anonymous block is parsed:
 	// Oracle 23ai rejects RESULT_CACHE on any subprogram in one (PLS-00999).
 	inAnonymousBlock bool
+
+	// ccDirective and ccCondition index the first entries of the lexer's
+	// conditional compilation record that no statement has checked yet;
+	// ccAfterUnit says the last statement parsed is a PL/SQL unit.
+	ccDirective int
+	ccCondition int
+	ccAfterUnit bool
+}
+
+// checkConditionalCompilation checks the conditional compilation of stmt,
+// whose text runs from start, after the previous statement, to end, its
+// first token at first. Oracle preprocesses a PL/SQL unit alone, whose text
+// runs on after its END: Oracle 23ai takes BEGIN NULL; END; $IF TRUE $THEN
+// $END. It rejects a directive or an inquiry directive in any other
+// statement, or before one, with ORA-00911, and one in an object type
+// specification with PLS-00180. In a unit, the condition of each $IF the
+// lexer evaluated is an expression (PLS-00103).
+func (p *Parser) checkConditionalCompilation(stmt nodes.StmtNode, start, first, end int) error {
+	cc := p.lexer.cc
+	if cc == nil {
+		return nil
+	}
+	unit := isPreprocessedUnit(stmt)
+	for ; p.ccDirective < len(cc.directives) && cc.directives[p.ccDirective] < end; p.ccDirective++ {
+		loc := cc.directives[p.ccDirective]
+		if loc < first && !p.ccAfterUnit || loc >= first && !unit {
+			return p.syntaxErrorAtDirective(loc)
+		}
+	}
+	p.ccAfterUnit = unit
+	for ; p.ccCondition < len(cc.conditions) && cc.conditions[p.ccCondition].Start < end; p.ccCondition++ {
+		cond := cc.conditions[p.ccCondition]
+		sub := &Parser{lexer: NewLexerRange(p.source, cond.Start, cond.End), source: p.source}
+		sub.advance()
+		expr, err := sub.parseExpr()
+		if err != nil {
+			return err
+		}
+		if expr == nil || sub.cur.Type != tokEOF {
+			return sub.syntaxErrorAtCur()
+		}
+	}
+	return nil
+}
+
+// isPreprocessedUnit reports whether stmt is a PL/SQL unit, whose text
+// Oracle preprocesses before compiling it.
+func isPreprocessedUnit(stmt nodes.StmtNode) bool {
+	switch s := stmt.(type) {
+	case *nodes.PLSQLBlock, *nodes.CreateProcedureStmt, *nodes.CreateFunctionStmt,
+		*nodes.CreatePackageStmt, *nodes.CreateTriggerStmt:
+		return true
+	case *nodes.CreateTypeStmt:
+		return s.IsBody
+	}
+	return false
+}
+
+// syntaxErrorAtDirective returns a syntax error at the preprocessor token
+// that starts at loc.
+func (p *Parser) syntaxErrorAtDirective(loc int) *ParseError {
+	end := loc + 1
+	for end < len(p.source) && (p.source[end] == '$' || isIdentCont(p.source[end])) {
+		end++
+	}
+	return p.syntaxErrorAtTok(Token{Type: tokIDENT, Loc: loc, End: end})
 }
 
 // parseAnonymousBlock parses a top-level anonymous block, noting that its
@@ -90,15 +157,19 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 		lexer:  NewLexerRange(source, start, end),
 		source: source,
 	}
+	p.lexer.cc = &ccRecord{}
 	p.advance()
 
 	var stmts []nodes.Node
 	needSeparator := false
+	// textStart is where the text of the next statement begins.
+	textStart := start
 	for p.cur.Type != tokEOF {
 		// Skip semicolons
 		if p.cur.Type == ';' {
 			p.advance()
 			needSeparator = false
+			textStart = p.prev.End
 			continue
 		}
 		if needSeparator {
@@ -122,6 +193,10 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 		if stmt == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
+		if err := p.checkConditionalCompilation(stmt, textStart, stmtLoc, p.prev.End); err != nil {
+			return nil, err
+		}
+		textStart = p.prev.End
 
 		raw := &nodes.RawStmt{
 			Stmt: stmt,
@@ -129,6 +204,13 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 		}
 		stmts = append(stmts, raw)
 		needSeparator = true
+	}
+	if p.lexer.Err != nil {
+		return nil, p.lexerError()
+	}
+	// A directive after the last statement belongs to it, if it is a unit.
+	if cc := p.lexer.cc; p.ccDirective < len(cc.directives) && !p.ccAfterUnit {
+		return nil, p.syntaxErrorAtDirective(cc.directives[p.ccDirective])
 	}
 
 	if len(stmts) == 0 {
@@ -500,6 +582,10 @@ func (p *Parser) lexerError() *ParseError {
 	tok := p.cur
 	if tok.Type == tokEOF && p.prev.Type != 0 {
 		tok = p.prev
+	}
+	var directive *directiveError
+	if errors.As(p.lexer.Err, &directive) {
+		tok = directive.tok
 	}
 	text := p.tokenText(tok)
 	msg := p.lexer.Err.Error()

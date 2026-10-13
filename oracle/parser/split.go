@@ -61,6 +61,7 @@ func Split(sql string) []Segment {
 	}
 
 	lexer := NewLexer(sql)
+	lexer.ccLenient = true
 	stmtStart := 0
 	var segments []Segment
 	state := splitState{}

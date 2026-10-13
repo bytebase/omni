@@ -187,3 +187,11 @@ ref_185	plsql	reject	DECLARE FUNCTION f RETURN NUMBER RESULT_CACHE IS BEGIN RETU
 ref_186	plsql	reject	DECLARE FUNCTION f RETURN NUMBER PARALLEL_ENABLE IS BEGIN RETURN 1; END; BEGIN NULL; END;	PARALLEL_ENABLE on a nested function (PLS-00712)
 ref_187	plsql	reject	DECLARE CURSOR c (a NUMBER, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;	cursor parameter %CHARSET from a numeric parameter (PLS-00550)
 ref_188	plsql	accept	DECLARE CURSOR c (a VARCHAR2, b VARCHAR2 CHARACTER SET a%CHARSET) IS SELECT 1 FROM dual; BEGIN NULL; END;	cursor parameter %CHARSET from a character parameter
+ref_264	plsql	accept	DECLARE $IF DBMS_DB_VERSION.VERSION >= 12 $THEN a NUMBER; $ELSE a VARCHAR2(10); $END BEGIN NULL; END;	conditional compilation around declarations
+ref_265	plsql	accept	BEGIN $IF FALSE $THEN garbage garbage; $ELSE NULL; $END END;	code of a branch not selected is not parsed
+ref_266	plsql	accept	BEGIN DBMS_OUTPUT.PUT_LINE($$PLSQL_LINE || $$PLSQL_UNIT); END;	inquiry directives in an expression
+ref_267	plsql_body	accept	CREATE OR REPLACE PACKAGE omni_cc_{run} AUTHID $IF TRUE $THEN DEFINER $ELSE CURRENT_USER $END AS c NUMBER; END;	conditional compilation in a package heading
+ref_268	plsql	reject	BEGIN NULL; $END END;	$END outside $IF (PLS-00176)
+ref_269	plsql	reject	BEGIN $IF $$x $THEN NULL; $ELSE NULL; $ELSE NULL; $END END;	second $ELSE (PLS-00176)
+ref_270	plsql	reject	BEGIN $IF TRUE $THEN $ERROR 'x' $END $END NULL; END;	$ERROR in a selected branch (PLS-00179)
+ref_271	select	reject	SELECT 1 FROM dual WHERE $$x IS NULL	inquiry directive outside PL/SQL (ORA-00911)

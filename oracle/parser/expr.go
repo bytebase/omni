@@ -712,6 +712,7 @@ func (p *Parser) parseCaseOrColumn() (nodes.ExprNode, error) {
 // token a constant number of times.
 func decideCaseTokens(source string, start, end int) map[int]bool {
 	lexer := NewLexerRange(source, start, end)
+	lexer.ccLenient = true
 	var toks []Token
 	for {
 		tok := lexer.NextToken()
