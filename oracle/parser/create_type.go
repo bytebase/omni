@@ -768,6 +768,11 @@ func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt, subtype boo
 			if err := p.checkObjectTypeMethod(stmt, member, &hasComparison, methodTok); err != nil {
 				return err
 			}
+			// A method bears no attribute's name (PLS-00305 on Oracle 23ai,
+			// "A" for a too).
+			if fn := subprogramNameOf(member.Subprog); seenAttrs[fn] {
+				return p.syntaxErrorAtTok(methodTok)
+			}
 			// A method of the kind and signature of an earlier one is
 			// PLS-00305 on Oracle 23ai; a MEMBER and a STATIC method may
 			// share a signature.
@@ -907,6 +912,17 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 		}
 	}
 	return nil
+}
+
+// subprogramNameOf returns the name of a method's subprogram.
+func subprogramNameOf(subprog nodes.Node) string {
+	switch s := subprog.(type) {
+	case *nodes.CreateFunctionStmt:
+		return subprogramName(s.Name)
+	case *nodes.CreateProcedureStmt:
+		return subprogramName(s.Name)
+	}
+	return ""
 }
 
 // hasModifier reports whether mods holds mod.

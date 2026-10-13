@@ -1491,8 +1491,10 @@ func (p *Parser) parseTableConstraintBody() (*nodes.TableConstraint, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
+		// A column, or an attribute of an object column (o.ref_attr), as in
+		// the out-of-line REF constraint.
 		var parseErr533 error
-		tc.Columns, parseErr533 = p.parseIdentifierListAsStrings()
+		tc.Columns, parseErr533 = p.parseColumnPathList()
 		if parseErr533 != nil {
 			return nil, parseErr533
 		}
@@ -1568,6 +1570,35 @@ func (p *Parser) parseIdentifierList() (*nodes.List, error) {
 		p.advance() // consume ','
 	}
 	return list, nil
+}
+
+// parseColumnPathList parses a comma-separated list of columns, each
+// possibly a dotted attribute path (o.r), as *String nodes.
+func (p *Parser) parseColumnPathList() (*nodes.List, error) {
+	list := &nodes.List{}
+	for {
+		var path strings.Builder
+		for {
+			part, err := p.parseIdentifier()
+			if err != nil {
+				return nil, err
+			}
+			if part == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			path.WriteString(part)
+			if p.cur.Type != '.' {
+				break
+			}
+			path.WriteByte('.')
+			p.advance()
+		}
+		list.Items = append(list.Items, &nodes.String{Str: path.String()})
+		if p.cur.Type != ',' {
+			return list, nil
+		}
+		p.advance() // consume ','
+	}
 }
 
 // parseIdentifierListAsStrings parses a comma-separated list of identifiers,

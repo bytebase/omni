@@ -65,6 +65,12 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 			if err := p.requireVaryingSize(); err != nil {
 				return nil, err
 			}
+		} else if p.prev.Type == kwNCHAR && p.typeMods != typeModsSQL && p.isKeywordStr("LARGE") {
+			// NCHAR LARGE OBJECT, PL/SQL's NCLOB.
+			if err := p.parseLargeObjectWords(tn); err != nil {
+				return nil, err
+			}
+			break
 		}
 		parseErr1117 := p.parseOptionalSizeWithSemantic(tn)
 		if parseErr1117 != nil {
@@ -201,14 +207,13 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 				if err := p.requireVaryingSize(); err != nil {
 					return nil, err
 				}
-			} else if tn.Names.Len() == 1 && p.typeMods != typeModsSQL && p.isKeywordStr("LARGE") {
-				// CHARACTER LARGE OBJECT is PL/SQL's alone (ORA-03062 in SQL).
-				p.advance() // consume LARGE
-				if !p.isKeywordStr("OBJECT") {
-					return nil, p.syntaxErrorAtCur()
+			} else if p.prev.Str == "CHARACTER" && p.typeMods != typeModsSQL && p.isKeywordStr("LARGE") {
+				// [ NATIONAL ] CHARACTER LARGE OBJECT is PL/SQL's alone
+				// (ORA-03062 in SQL); NATIONAL CHAR LARGE OBJECT is no type
+				// (PLS-00103).
+				if err := p.parseLargeObjectWords(tn); err != nil {
+					return nil, err
 				}
-				p.advance() // consume OBJECT
-				tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "LARGE"}, &nodes.String{Str: "OBJECT"})
 				break
 			}
 			if err := p.parseOptionalSizeWithSemantic(tn); err != nil {
@@ -226,7 +231,7 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 			}
 			p.advance() // consume PRECISION
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "DOUBLE"}, &nodes.String{Str: "PRECISION"})
-		case p.isIdentLikeStr("NUMERIC"):
+		case p.isIdentLikeStr("NUMERIC"), ansi && p.isKeywordStr("DEC"):
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 			p.advance()
 			parseErr1121 := p.parseOptionalPrecisionScale(tn)
@@ -347,6 +352,18 @@ func (p *Parser) checkNationalLength(tn *nodes.TypeName) error {
 	return nil
 }
 
+// parseLargeObjectWords parses the LARGE OBJECT of a PL/SQL [ NATIONAL ]
+// CHARACTER LARGE OBJECT or NCHAR LARGE OBJECT, at LARGE.
+func (p *Parser) parseLargeObjectWords(tn *nodes.TypeName) error {
+	p.advance() // consume LARGE
+	if !p.isKeywordStr("OBJECT") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // consume OBJECT
+	tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "LARGE"}, &nodes.String{Str: "OBJECT"})
+	return nil
+}
+
 // requireVaryingSize checks that the size of a VARYING character type
 // follows, as SQL requires (ORA-00906 on Oracle 23ai for CHARACTER VARYING
 // alone); PL/SQL, a type attribute, and a collection element take none.
@@ -438,6 +455,9 @@ func (p *Parser) predefinedTypeSpelling(tn *nodes.TypeName) string {
 		return first
 	case first == "CHARACTER" && second == "LARGE":
 		return "CLOB"
+	case first == "NCHAR" && second == "LARGE",
+		first == "NATIONAL" && tn.Names.Len() > 2 && word(2) == "LARGE":
+		return "NCLOB"
 	case first == "NCHAR" && second == "VARYING",
 		first == "NATIONAL" && (second == "CHAR" || second == "CHARACTER"):
 		return "NCHAR"
@@ -591,7 +611,7 @@ func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 	star, scale := false, false
 	if word, ok := tn.Names.Items[tn.Names.Len()-1].(*nodes.String); ok {
 		switch word.Str {
-		case "NUMBER", "DECIMAL", "NUMERIC":
+		case "NUMBER", "DECIMAL", "DEC", "NUMERIC":
 			star, scale = true, true
 		case "FLOAT":
 			star = true

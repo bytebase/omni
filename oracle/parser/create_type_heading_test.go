@@ -206,6 +206,10 @@ func TestCreateTypeHeading(t *testing.T) {
 		"CREATE TYPE t SHARING = DATA AS OBJECT (a NUMBER)",
 		// An ORDER method's parameter has IN mode (PLS-00528).
 		"CREATE TYPE t AS OBJECT (a NUMBER, ORDER MEMBER FUNCTION o (x OUT t) RETURN NUMBER)",
+		// A method bears no attribute's name (PLS-00305).
+		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION a RETURN NUMBER)",
+		`CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION "A" RETURN NUMBER)`,
+		"CREATE TYPE c UNDER p (a NUMBER, MEMBER PROCEDURE a)",
 		// A default or a function property makes no overload (PLS-00305).
 		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER PROCEDURE p (x NUMBER), MEMBER PROCEDURE p (x NUMBER := 1))",
 		"CREATE TYPE t AS OBJECT (a NUMBER, MEMBER FUNCTION f RETURN NUMBER, MEMBER FUNCTION f RETURN NUMBER DETERMINISTIC)",
@@ -272,6 +276,14 @@ func TestANSIDatatypes(t *testing.T) {
 	// DOUBLE takes PRECISION (ORA-02000, PLS-00103).
 	ParseShouldFail(t, "CREATE TABLE t (x DOUBLE)")
 	ParseShouldFail(t, "DECLARE x DOUBLE; BEGIN NULL; END;")
+	// DEC is DECIMAL's ANSI spelling, in SQL and PL/SQL.
+	ParseAndCheck(t, "CREATE TABLE t (x DEC(10,2), y DEC, z DEC(5), w DEC(*,2))")
+	ParseAndCheck(t, "DECLARE x DEC(10,2); BEGIN NULL; END;")
+	// [ NATIONAL ] CHARACTER LARGE OBJECT and NCHAR LARGE OBJECT are PL/SQL's
+	// (ORA-03062 in SQL); NATIONAL CHAR LARGE OBJECT is no type (PLS-00103).
+	ParseAndCheck(t, "DECLARE x NATIONAL CHARACTER LARGE OBJECT; y NCHAR LARGE OBJECT; BEGIN NULL; END;")
+	ParseShouldFail(t, "DECLARE x NATIONAL CHAR LARGE OBJECT; BEGIN NULL; END;")
+	ParseShouldFail(t, "CREATE TABLE t (x NATIONAL CHARACTER LARGE OBJECT)")
 	// NATIONAL names no item for %TYPE (PLS-00103), and DOUBLE PRECISION
 	// is numeric in a package body too (PLS-00550).
 	ParseShouldFail(t, "DECLARE national NUMBER; x national%TYPE; BEGIN NULL; END;")
@@ -293,6 +305,7 @@ func TestANSIDatatypes(t *testing.T) {
 		"c REF t, SCOPE FOR (c) IS o, d NUMBER", "c REF t, REF (c) WITH ROWID",
 		"SCOPE FOR (c) IS o, c REF t", "o h, SCOPE FOR (o.r) IS x", "o h, REF (o.r) WITH ROWID",
 		"c REF t WITH ROWID, REF (c) WITH ROWID", "c REF t REFERENCES o",
+		"o h, FOREIGN KEY (o.r) REFERENCES x", "o h, CONSTRAINT k FOREIGN KEY (o.r) REFERENCES x",
 	} {
 		ParseAndCheck(t, "CREATE TABLE r ("+cols+")")
 	}
