@@ -1937,6 +1937,9 @@ func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
 			if parseErr896 != nil {
 				return nil, parseErr896
 			}
+			if err := p.checkVarrayLimit(decl.Limit); err != nil {
+				return nil, err
+			}
 			if p.cur.Type == ')' {
 				p.advance()
 			}

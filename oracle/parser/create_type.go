@@ -256,6 +256,9 @@ properties:
 		if size == nil || p.cur.Type != ')' {
 			return p.syntaxErrorAtCur()
 		}
+		if err := p.checkVarrayLimit(size); err != nil {
+			return err
+		}
 		stmt.VarraySize = size
 		p.advance()
 		if p.cur.Type != kwOF {

@@ -279,6 +279,19 @@ func TestANSIDatatypes(t *testing.T) {
 	// DOUBLE takes PRECISION (ORA-02000, PLS-00103).
 	ParseShouldFail(t, "CREATE TABLE t (x DOUBLE)")
 	ParseShouldFail(t, "DECLARE x DOUBLE; BEGIN NULL; END;")
+	// A VARRAY limit is any expression; a literal one is from 1 through
+	// 2147483647 (PLS-00537, PLS-00325).
+	ParseAndCheck(t, "CREATE TYPE t AS ARRAY(1+1) OF NUMBER")
+	ParseAndCheck(t, "CREATE TYPE t AS VARRAY(2147483647) OF NUMBER")
+	ParseAndCheck(t, "DECLARE c CONSTANT PLS_INTEGER := 3; TYPE a IS VARRAY(c) OF NUMBER; TYPE b IS VARRAY(1+1) OF NUMBER; BEGIN NULL; END;")
+	for _, limit := range []string{"ARRAY(0)", "ARRAY(-1)", "ARRAY(2147483648)", "VARRAY(0)", "VARRAY(2147483648)", "VARYING ARRAY(0)"} {
+		ParseShouldFail(t, "CREATE TYPE t AS "+limit+" OF NUMBER")
+	}
+	ParseShouldFail(t, "DECLARE TYPE a IS VARRAY(0) OF NUMBER; BEGIN NULL; END;")
+	ParseShouldFail(t, "DECLARE TYPE a IS VARRAY(-1) OF NUMBER; BEGIN NULL; END;")
+	// Overloads that differ in a quoted spelling of an ANSI type alone are
+	// one (PLS-00305), even with a type of that name.
+	ParseShouldFail(t, `CREATE TYPE t AS OBJECT (a NUMBER, MEMBER PROCEDURE p (x CHARACTER), MEMBER PROCEDURE p (x "CHARACTER"))`)
 	// A MAP method and a STATIC one may share a signature.
 	ParseAndCheck(t, "CREATE TYPE t AS OBJECT (a NUMBER, MAP MEMBER FUNCTION f RETURN NUMBER, STATIC FUNCTION f RETURN NUMBER)")
 	// A REF targets no predefined datatype (ORA-02302, PLS-00532) but one a

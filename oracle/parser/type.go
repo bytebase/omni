@@ -294,6 +294,16 @@ func (p *Parser) checkPLSQLTypeMods(tn *nodes.TypeName) error {
 	return nil
 }
 
+// checkVarrayLimit checks the size limit of a VARRAY, which may be any
+// expression (Oracle 23ai compiles VARRAY(1+1) and VARRAY(c)); a literal is
+// positive (PLS-00537) and a PLS_INTEGER (PLS-00325).
+func (p *Parser) checkVarrayLimit(limit nodes.ExprNode) error {
+	if v, ok := literalInteger(limit); ok && (v < 1 || v > 1<<31-1) {
+		return p.syntaxErrorAtNode(limit)
+	}
+	return nil
+}
+
 // literalInteger returns the value of an integer literal, possibly signed.
 func literalInteger(node nodes.Node) (int64, bool) {
 	switch n := node.(type) {
