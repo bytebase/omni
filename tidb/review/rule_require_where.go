@@ -6,13 +6,16 @@ import (
 )
 
 // checkRequireWhere reports an UPDATE or DELETE without a WHERE clause,
-// wherever it sits: top level, or the body of a routine, trigger, or
-// event. A statement under EXPLAIN is not judged.
+// wherever it sits: top level, the body of a routine, trigger, or event,
+// a BATCH, or EXPLAIN ANALYZE, which runs the statement. A statement under
+// a plain EXPLAIN, or a BATCH dry run, which runs nothing, is not judged.
 func checkRequireWhere(s *statement, r *reporter) {
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		switch v := n.(type) {
 		case *ast.ExplainStmt:
-			return false
+			return v.Analyze
+		case *ast.BatchStmt:
+			return v.DryRun == ast.BatchDryRunNone
 		case *ast.UpdateStmt:
 			if v.Where == nil {
 				r.report(review.RequireWhere, s.index, rangeOf(v.Loc), "UPDATE "+tableExprs(v.Tables)+" has no WHERE clause")

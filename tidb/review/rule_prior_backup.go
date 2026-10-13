@@ -58,8 +58,9 @@ const maxMixedTables = 5
 
 // checkPriorBackupStatements reports, from the SQL alone, a top-level
 // statement the backup refuses: BATCH, REPLACE or INSERT ... ON DUPLICATE
-// KEY UPDATE, and EXPLAIN ANALYZE of an UPDATE, a DELETE, or either of
-// those, which runs the statement.
+// KEY UPDATE, EXPLAIN ANALYZE of an UPDATE, a DELETE, or either of those,
+// which runs the statement, and a multi-table DELETE whose target the FROM
+// list does not name.
 //
 // bytebase: backend/plugin/parser/tidb/backup.go — extractTables
 func checkPriorBackupStatements(stmts []statement, r *reporter) {
@@ -69,6 +70,43 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 		switch v := s.node.(type) {
 		case *ast.BatchStmt:
 			msg = "prior backup does not support TiDB BATCH (non-transactional DML) statements"
+		case *ast.DeleteStmt:
+			// The backup matches each target of a multi-table DELETE to the
+			// FROM list, without case, and refuses one it cannot.
+			if len(v.Using) == 0 || v.Loc.Start > s.loc.Start {
+				break
+			}
+			from := make(map[string]bool)
+			var collect func(e ast.TableExpr)
+			collect = func(e ast.TableExpr) {
+				switch t := e.(type) {
+				case *ast.TableRef:
+					if t.Alias != "" {
+						from[strings.ToLower(t.Alias)] = true
+					} else {
+						from[strings.ToLower(t.Name)] = true
+					}
+				case *ast.JoinClause:
+					collect(t.Left)
+					collect(t.Right)
+				}
+			}
+			for _, e := range v.Using {
+				collect(e)
+			}
+			for _, e := range v.Tables {
+				target, ok := e.(*ast.TableRef)
+				if !ok {
+					continue
+				}
+				name := target.Name
+				if target.Alias != "" {
+					name = target.Alias
+				}
+				if !from[strings.ToLower(name)] && msg == "" {
+					msg = "prior backup does not find DELETE target " + ident(name) + " in the FROM list"
+				}
+			}
 		case *ast.InsertStmt:
 			if overwrites(v) {
 				msg = "prior backup does not support REPLACE or INSERT ... ON DUPLICATE KEY UPDATE statements"

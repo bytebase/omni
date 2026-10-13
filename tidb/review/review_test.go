@@ -109,6 +109,11 @@ func shop() *metadata.DatabaseSchemaMetadata {
 					Columns: []*metadata.ColumnMetadata{{Name: "email", Nullable: true}, {Name: "code"}},
 					Indexes: []*metadata.IndexMetadata{{Name: "uk_email", Unique: true, Expressions: []string{"email"}}},
 				},
+				{
+					Name:    "fkey",
+					Columns: columns("id", "code"),
+					Indexes: []*metadata.IndexMetadata{{Name: "uk_f", Unique: true, Expressions: []string{"lower(`code`)"}}},
+				},
 			},
 			Views: []*metadata.ViewMetadata{{Name: "pv"}},
 		}},
@@ -150,6 +155,14 @@ func TestRequireWhere(t *testing.T) {
 			sql:  "CREATE PROCEDURE pr() BEGIN DELETE FROM t; END;\nEXPLAIN DELETE FROM t;",
 			want: []finding{{0, "DELETE FROM t", "DELETE FROM t has no WHERE clause", []int{0}}},
 		},
+		{
+			name: "EXPLAIN ANALYZE runs the statement, a BATCH dry run does not",
+			sql:  "EXPLAIN ANALYZE DELETE FROM t;\nEXPLAIN DELETE FROM t;\nBATCH ON id LIMIT 2 DELETE FROM t;\nBATCH ON id LIMIT 2 DRY RUN DELETE FROM t;",
+			want: []finding{
+				{0, "DELETE FROM t", "DELETE FROM t has no WHERE clause", []int{0}},
+				{2, "DELETE FROM t", "DELETE FROM t has no WHERE clause", []int{0}},
+			},
+		},
 	})
 }
 
@@ -168,6 +181,11 @@ func TestRequireIsNull(t *testing.T) {
 		{
 			name: "a value, the null-safe operator, and IS NULL",
 			sql:  "SELECT n = NULL FROM t;\nSELECT * FROM t WHERE n <=> NULL;\nSELECT * FROM t WHERE n IS NULL;\nSELECT * FROM t WHERE IFNULL(n = NULL, 1);",
+		},
+		{
+			name: "IF's condition",
+			sql:  "SELECT IF(n = NULL, 1, 0) FROM t;",
+			want: []finding{{0, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
 		},
 	})
 }
@@ -269,6 +287,15 @@ func TestDisallowDropConstraint(t *testing.T) {
 			name: "an index the change touched before, or after a USE",
 			sql:  "ALTER TABLE t DROP INDEX uk_code, ADD INDEX uk_code (code);\nALTER TABLE t DROP INDEX uk_code;\nUSE other;\nDROP INDEX uk_code ON t;",
 			want: []finding{{0, "DROP INDEX uk_code", "drops unique key uk_code of t", []int{0}}},
+		},
+		{
+			name: "a check constraint of an index's name",
+			sql:  "ALTER TABLE t ADD CONSTRAINT uk_code CHECK (n > 0);\nDROP INDEX uk_code ON t;",
+			want: []finding{{1, "DROP INDEX uk_code ON t", "drops unique key uk_code of t", []int{0}}},
+		},
+		{
+			name: "an index of another database's table",
+			sql:  "CREATE UNIQUE INDEX idx_n ON other.t (n);\nDROP INDEX idx_n ON t;",
 		},
 		{
 			name: "a table named in another case, or a routine body's index",
@@ -411,6 +438,12 @@ func TestPriorBackup(t *testing.T) {
 				{0, "UPDATE pv SET note = 'z' WHERE id = 1", "prior backup copies tables with CREATE TABLE ... LIKE, which refuses view pv", []int{0}},
 				{1, "DELETE FROM other.pv WHERE id = 2", "prior backup does not support an UPDATE or DELETE of other.pv, a table of another database", []int{0}},
 			},
+		},
+		{
+			name:   "a DELETE target the FROM list does not name",
+			sql:    "DELETE T FROM t WHERE id = 1;\nDELETE y FROM t AS x WHERE x.id = 2;",
+			change: backup,
+			want:   []finding{{1, "DELETE y FROM t AS x WHERE x.id = 2", "prior backup does not find DELETE target y in the FROM list", []int{0}}},
 		},
 		{
 			name:   "statements before a USE",
