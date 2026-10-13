@@ -12,8 +12,9 @@ import (
 )
 
 // PriorBackup reports what makes Bytebase's prior backup of a PostgreSQL
-// change fail, and only that: a failed backup fails the task before any
-// of the change runs. The backup works like this (bytebase
+// change fail, or copy other rows than the change touches, and only that.
+// A failed backup fails the task before any of the change runs. The
+// backup works like this (bytebase
 // backend/runner/taskrun/database_migrate_executor.go, backupData, and
 // backend/plugin/parser/pg/backup.go, TransformDMLToSelect):
 //
@@ -47,7 +48,11 @@ import (
 // under finds the statement's table elsewhere than Bytebase grouped it,
 // cannot take WHERE CURRENT OF, and leaves out a later statement's own
 // WITH queries. The SET ROLE it runs first fails when the role is one the
-// change creates.
+// change creates. And the backup copies another table than a statement
+// changes when the change's own statements find the table elsewhere along
+// the search path than Bytebase does: after a RESET, SET ... TO DEFAULT, or
+// set_config of search_path, under $user, or where the change creates a
+// table of the name earlier on the path.
 //
 // A name the synced schema cannot resolve, and the change does not
 // create, is not reported. The schema the review sees may predate an
@@ -57,9 +62,10 @@ import (
 // to report. Neither is what the backup's query may mean otherwise: an
 // unqualified function or a type, which the system catalogs may hold, a
 // routine call an overload of another signature may take, a column a
-// subquery names, a column whose type the change alters, or a WITH query
-// of the first statement standing for a later one's own WITH query or
-// relation, which reads rows that may or may not be the statement's.
+// subquery names that its own FROM list may hold, a column whose type the
+// change alters, or a WITH query of the first statement standing for a
+// later one's own WITH query or relation, which reads rows that may or
+// may not be the statement's.
 
 // backupSchema is where Bytebase writes a PostgreSQL prior backup.
 const backupSchema = "bbdataarchive"
@@ -105,8 +111,8 @@ type backupTable struct {
 }
 
 // checkPriorBackupTarget reports the target-dependent reasons the backup
-// fails. Without a schema nothing is known about the target, and nothing
-// is reported. sessionUser is the user the backup connects as.
+// fails or copies another table. Without a schema nothing is known about
+// the target, and nothing is reported. sessionUser is the user the backup connects as.
 func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMetadata, sessionUser string, r *reporter) {
 	if schema == nil {
 		return
@@ -170,9 +176,9 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 			// the table is not there when the backup runs.
 			reportNotYetCreated(s, rv, r)
 		} else if changes := engine.find(rv.Relname); rv.Schemaname == "" && changes != "" && changes != table.schema {
-			// Bytebase follows SET search_path but not RESET or DEFAULT,
-			// nor $user: it backs up another table than the statement
-			// changes.
+			// Bytebase follows SET search_path but not RESET, DEFAULT,
+			// set_config, $user, or the tables the change creates: it
+			// backs up another table than the statement changes.
 			r.report(review.PriorBackup, s.index, rangeOf(statementLoc(s.node)), "prior backup backs up "+relation(&ast.RangeVar{Schemaname: table.schema, Relname: rv.Relname})+" for this statement, which changes "+relation(&ast.RangeVar{Schemaname: changes, Relname: rv.Relname}))
 		} else {
 			first, seenFirst := firsts[table]
