@@ -1013,14 +1013,19 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			})
 		}
 		// A quoted name is the user's, never the special function it spells
-		// (ORA-00907 on Oracle 23ai for "EXTRACT"(YEAR FROM SYSDATE)).
+		// (ORA-00907 on Oracle 23ai for "EXTRACT"(YEAR FROM SYSDATE)). An
+		// unquoted one is special in its own syntax alone: EXTRACT in its
+		// datetime form, and XMLQUERY and XMLCAST in SQL, which PL/SQL code
+		// does not call (PLS-00306, PLS-00122). Otherwise the call may
+		// construct a local type of that name, as Oracle 23ai compiles
+		// TYPE extract IS TABLE OF NUMBER ...; x extract := extract(1 => 2).
 		switch {
 		case p.quotedAt(start):
-		case name1 == "EXTRACT":
+		case name1 == "EXTRACT" && p.atExtractDatetime():
 			return p.parseExtractExpr(start)
-		case name1 == "XMLQUERY":
+		case name1 == "XMLQUERY" && !p.plsqlCode:
 			return p.parseXMLQueryExpr(start)
-		case name1 == "XMLCAST":
+		case name1 == "XMLCAST" && !p.plsqlCode:
 			return p.parseXMLCastExpr(start)
 		}
 		// But first check if this looks like a schema-qualified function: name.name(
@@ -1115,6 +1120,50 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	}, nil
 }
 
+// atExtractDatetime reports whether the arguments after the current '('
+// are EXTRACT's datetime form: a field, then FROM.
+func (p *Parser) atExtractDatetime() bool {
+	field := p.peekNext()
+	if field.Type == tokQIDENT {
+		return false
+	}
+	switch field.Str {
+	case "YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND",
+		"TIMEZONE_HOUR", "TIMEZONE_MINUTE", "TIMEZONE_REGION", "TIMEZONE_ABBR":
+		return NewLexerRange(p.source, field.End, p.lexer.end).NextToken().Type == kwFROM
+	}
+	return false
+}
+
+// atTrimSyntax reports whether the arguments of a call, from the current
+// token after its '(', take TRIM's own syntax: LEADING, TRAILING, or BOTH
+// first, or a FROM among them. TRIM(x) reads alike either way.
+func (p *Parser) atTrimSyntax() bool {
+	if p.cur.Type != tokQIDENT {
+		switch p.cur.Str {
+		case "LEADING", "TRAILING", "BOTH":
+			return true
+		}
+	}
+	lex := NewLexerRange(p.source, p.cur.Loc, p.lexer.end)
+	depth := 1
+	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
+		switch tok.Type {
+		case '(':
+			depth++
+		case ')':
+			if depth--; depth == 0 {
+				return false
+			}
+		case kwFROM:
+			if depth == 1 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // parseExtractExpr parses Oracle EXTRACT(datetime_field FROM expr).
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/EXTRACT-datetime.html
@@ -1122,36 +1171,6 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 //	EXTRACT({ YEAR | MONTH | DAY | HOUR | MINUTE | SECOND } FROM expr)
 func (p *Parser) parseExtractExpr(start int) (nodes.ExprNode, error) {
 	p.advance() // consume '('
-
-	if !(p.isIntervalField() && p.peekNext().Type == kwFROM) {
-		fc := &nodes.FuncCallExpr{
-			FuncName: &nodes.ObjectName{Name: "EXTRACT", Loc: nodes.Loc{Start: start, End: p.prev.End}},
-			Args:     &nodes.List{},
-			Loc:      nodes.Loc{Start: start},
-		}
-		if p.cur.Type != ')' {
-			for {
-				arg, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if arg == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				fc.Args.Items = append(fc.Args.Items, arg)
-				if p.cur.Type != ',' {
-					break
-				}
-				p.advance()
-			}
-		}
-		if p.cur.Type != ')' {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		fc.Loc.End = p.prev.End
-		return p.parseFuncCallPostfix(fc)
-	}
 
 	field, parseErr713 := p.parseIdentifier()
 	if parseErr713 != nil {
@@ -1341,9 +1360,10 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 		p.advance()
 	}
 
-	// A quoted "TRIM" names a type or function of the user's (Oracle 23ai
-	// compiles "TRIM"(1 => 2) for a local collection type "TRIM").
-	builtinTrim := schema == "" && name == "TRIM" && !p.quotedAt(start)
+	// TRIM's own syntax makes the builtin; otherwise the call may name a
+	// type or function of the user's (Oracle 23ai compiles TRIM(1 => 2)
+	// and "TRIM"(1 => 2) for a local collection type of that name).
+	builtinTrim := schema == "" && name == "TRIM" && !p.quotedAt(start) && p.atTrimSyntax()
 	if builtinTrim {
 		if err := p.parseTrimFuncArgs(fc); err != nil {
 			return nil, err
@@ -1399,21 +1419,6 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 				return nil, p.syntaxErrorAtNode(arg)
 			}
 			sawNamed = sawNamed || arg != nil && !positional
-			if builtinTrim && p.cur.Type == kwFROM {
-				if arg != nil {
-					fc.Args.Items = append(fc.Args.Items, arg)
-				}
-				p.advance()
-				source, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if source == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				fc.Args.Items = append(fc.Args.Items, source)
-				break
-			}
 			if arg != nil {
 				fc.Args.Items = append(fc.Args.Items, arg)
 			}

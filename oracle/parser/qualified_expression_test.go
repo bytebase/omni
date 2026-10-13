@@ -42,6 +42,12 @@ func TestQualifiedExpressions(t *testing.T) {
 		`TYPE "EXTRACT" IS TABLE OF NUMBER INDEX BY PLS_INTEGER; y "EXTRACT" := "EXTRACT"(1 => 2);`,
 		`TYPE "XMLQUERY" IS TABLE OF NUMBER INDEX BY PLS_INTEGER; y "XMLQUERY" := "XMLQUERY"(1 => 2);`,
 		`TYPE "XMLCAST" IS TABLE OF NUMBER INDEX BY PLS_INTEGER; y "XMLCAST" := "XMLCAST"(1, 2);`,
+		// Unquoted, as their own syntax does not follow them.
+		"TYPE extract IS TABLE OF NUMBER INDEX BY PLS_INTEGER; y extract := extract(1 => 2);",
+		"TYPE trim IS TABLE OF NUMBER INDEX BY PLS_INTEGER; y trim := trim(1 => 2);",
+		"TYPE xmlquery IS TABLE OF NUMBER INDEX BY PLS_INTEGER; y xmlquery := xmlquery(1 => 2);",
+		"TYPE xmlcast IS TABLE OF NUMBER INDEX BY PLS_INTEGER; y xmlcast := xmlcast(1, 2);",
+		"TYPE extract IS TABLE OF NUMBER INDEX BY PLS_INTEGER; y extract; n NUMBER := EXTRACT(YEAR FROM SYSDATE);",
 	} {
 		ParseAndCheck(t, "DECLARE "+qualifiedDecls+decl+" BEGIN NULL; END;")
 	}
@@ -65,6 +71,7 @@ func TestQualifiedExpressions(t *testing.T) {
 		"DECLARE CURSOR k IS SELECT CURSOR(SELECT 1 FROM dual) c FROM dual; BEGIN NULL; END;",
 		"DECLARE c SYS_REFCURSOR; BEGIN OPEN c FOR SELECT CURSOR(SELECT 1 FROM dual) FROM dual; END;",
 		"SELECT EXTRACT(YEAR FROM SYSDATE), XMLCAST(XMLTYPE('<a>1</a>') AS NUMBER) FROM dual",
+		"SELECT EXTRACT(TIMEZONE_HOUR FROM SYSTIMESTAMP), TRIM(LEADING 'x' FROM 'xab'), TRIM('x' FROM 'xa'), TRIM(' a ') FROM dual",
 		"BEGIN FOR r IN (SELECT 1 a FROM dual) LOOP NULL; END LOOP; END;",
 		"BEGIN FOR i IN x + 1 LOOP NULL; END LOOP; END;",
 		"BEGIN FOR i, j MUTABLE IN PAIRS OF a LOOP NULL; END LOOP; END;",
@@ -130,6 +137,10 @@ func TestQualifiedExpressions(t *testing.T) {
 		"DECLARE c SYS_REFCURSOR := CURSOR(SELECT 1 FROM dual); BEGIN NULL; END;",
 		"BEGIN p(CURSOR(SELECT 1 FROM dual)); END;",
 		"BEGIN p(c => CURSOR(SELECT 1 FROM dual)); END;",
+		// PL/SQL code calls no XMLQUERY or XMLCAST of SQL's (PLS-00306,
+		// PLS-00122).
+		"DECLARE x XMLTYPE; BEGIN x := XMLQUERY('1' RETURNING CONTENT); END;",
+		"DECLARE n NUMBER; BEGIN n := XMLCAST(XMLTYPE('<a>1</a>') AS NUMBER); END;",
 		// A quoted name is no special function (ORA-00907).
 		`SELECT "EXTRACT"(YEAR FROM SYSDATE) FROM dual`,
 		`SELECT "XMLCAST"(XMLTYPE('<a>1</a>') AS NUMBER) FROM dual`,
