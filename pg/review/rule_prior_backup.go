@@ -40,9 +40,12 @@ import (
 // column the change adds or renames to, or a routine named with its
 // schema. The query also fails on a later statement that does not use
 // the first one's alias, reads a WITH query named like the table in its
-// place, runs a data-modifying WITH query of a table's first statement
-// before the change and without backing up its rows, and leaves out a
-// later statement's own WITH queries.
+// place, reads another table, or none, when the search path it runs
+// under finds the statement's table elsewhere than Bytebase grouped it,
+// cannot take WHERE CURRENT OF, runs a data-modifying WITH query of a
+// table's first statement before the change and without backing up its
+// rows, and leaves out a later statement's own WITH queries. The SET ROLE
+// it runs first fails when the role is one the change creates.
 //
 // A name the synced schema cannot resolve, and the change does not
 // create, is not reported. The schema the review sees may predate an
@@ -51,7 +54,10 @@ import (
 // spec creates fails the UPDATE or DELETE itself, which is WalkThrough's
 // to report. Neither is what the backup's query may mean otherwise: an
 // unqualified function or a type, which the system catalogs may hold, a
-// column a subquery names, or a column whose type the change alters.
+// routine call an overload of another signature may take, a column a
+// subquery names, a column whose type the change alters, or a WITH query
+// of the first statement standing for a later one's own WITH query or
+// relation, which reads rows that may or may not be the statement's.
 
 // backupSchema is where Bytebase writes a PostgreSQL prior backup.
 const backupSchema = "bbdataarchive"
@@ -149,6 +155,48 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 	if backsUp && findSchema(schema, backupSchema) == nil {
 		r.report(review.PriorBackup, -1, review.Range{}, "prior backup needs schema "+backupSchema+", which does not exist")
 	}
+	if backsUp {
+		if s, role := prependedRole(stmts); s != nil && madeRoles(stmts)[role] {
+			r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup runs this SET ROLE before the change, which creates role "+ident(role))
+		}
+	}
+}
+
+// prependedRole returns the statement Bytebase runs before the backup's
+// queries, the change's first SET role or search_path, when it is SET
+// ROLE of a role, with the role.
+func prependedRole(stmts []statement) (*statement, string) {
+	for i := range stmts {
+		v, ok := stmts[i].node.(*ast.VariableSetStmt)
+		if !ok || !strings.EqualFold(v.Name, "role") && !strings.EqualFold(v.Name, "search_path") {
+			continue
+		}
+		if !strings.EqualFold(v.Name, "role") || v.Kind != ast.VAR_SET_VALUE || v.Args == nil || len(v.Args.Items) != 1 {
+			return nil, ""
+		}
+		role, ok := constString(v.Args.Items[0])
+		if !ok || strings.EqualFold(role, "none") {
+			return nil, ""
+		}
+		return &stmts[i], role
+	}
+	return nil, ""
+}
+
+// madeRoles returns the roles the change creates or gives a name.
+func madeRoles(stmts []statement) map[string]bool {
+	roles := make(map[string]bool)
+	for i := range stmts {
+		switch v := stmts[i].node.(type) {
+		case *ast.CreateRoleStmt:
+			roles[v.Role] = true
+		case *ast.RenameStmt:
+			if v.RenameType == ast.OBJECT_ROLE {
+				roles[v.Newname] = true
+			}
+		}
+	}
+	return roles
 }
 
 func reportNotYetCreated(s *statement, rv *ast.RangeVar, r *reporter) {
@@ -412,6 +460,21 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 	if target.Schemaname == "" && visible[target.Relname] {
 		return "prior backup copies the WITH clause of the first statement on " + name + ", whose query " + ident(target.Relname) + " then stands for the table"
 	}
+	if _, ok := where.(*ast.CurrentOfExpr); ok {
+		return "prior backup copies WHERE CURRENT OF, which only UPDATE and DELETE take, into its query"
+	}
+	// The server finds the statement's table as written, along the path
+	// the query runs under, which need not be the one Bytebase grouped it
+	// by: the query then reads another table, or none.
+	if target.Schemaname == "" && q.known {
+		if h := q.holders(target); len(h) != 1 || h[0] != table.schema {
+			found := "where it does not exist"
+			if len(h) == 1 {
+				found = "where it means " + relation(&ast.RangeVar{Schemaname: h[0], Relname: target.Relname})
+			}
+			return "prior backup reads " + ident(target.Relname) + " along the search path it runs under, " + found + ", not " + name
+		}
+	}
 	// The parts the backup copies, beside the table.
 	var parts []ast.Node
 	if from != nil {
@@ -446,7 +509,8 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 	// A relation the change makes, which the query cannot find.
 	var missing *ast.RangeVar
 	check := func(rv *ast.RangeVar) {
-		if missing != nil || rv == target || rv.Catalogname != "" && rv.Catalogname != q.schema.GetName() || systemSchema(rv.Schemaname) || strings.HasPrefix(rv.Relname, "pg_") {
+		if missing != nil || rv == target || rv.Catalogname != "" && rv.Catalogname != q.schema.GetName() || systemSchema(rv.Schemaname) ||
+			rv.Schemaname == "" && strings.HasPrefix(rv.Relname, "pg_") {
 			return
 		}
 		if rv.Schemaname != "" {
@@ -568,6 +632,8 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 			src := sourceOf(v, visible, q)
 			known = known && src.columns != nil
 			sources = append(sources, src)
+		case *ast.RangeTableSample:
+			flatten(v.Relation)
 		case *ast.JoinExpr:
 			flatten(v.Larg)
 			flatten(v.Rarg)
@@ -620,6 +686,24 @@ func columnMissing(target *ast.RangeVar, from *ast.List, where ast.Node, visible
 			switch v := x.(type) {
 			case *ast.SubLink:
 				return false
+			case *ast.A_Indirection:
+				// (source).column selects a field of a source's row.
+				ref, ok := v.Arg.(*ast.ColumnRef)
+				if !ok || v.Indirection == nil || len(v.Indirection.Items) == 0 {
+					return true
+				}
+				fields, ok := columnFields(ref)
+				field, isField := v.Indirection.Items[0].(*ast.String)
+				if !ok || len(fields) != 1 || !isField {
+					return true
+				}
+				for _, src := range sources {
+					if name(src) == fields[0] {
+						judge(src, field.Str)
+						return false
+					}
+				}
+				return true
 			case *ast.ColumnRef:
 				fields, ok := columnFields(v)
 				if !ok || len(fields) > 3 || systemColumn(fields[len(fields)-1]) {
@@ -827,14 +911,14 @@ func createdRelation(n ast.Node) (backupTable, bool) {
 		}
 	case *ast.RenameStmt:
 		switch v.RenameType {
-		case ast.OBJECT_TABLE, ast.OBJECT_FOREIGN_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW:
+		case ast.OBJECT_TABLE, ast.OBJECT_FOREIGN_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW, ast.OBJECT_SEQUENCE:
 			if v.Relation != nil {
 				return backupTable{schema: v.Relation.Schemaname, name: v.Newname}, true
 			}
 		}
 	case *ast.AlterObjectSchemaStmt:
 		switch v.ObjectType {
-		case ast.OBJECT_TABLE, ast.OBJECT_FOREIGN_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW:
+		case ast.OBJECT_TABLE, ast.OBJECT_FOREIGN_TABLE, ast.OBJECT_VIEW, ast.OBJECT_MATVIEW, ast.OBJECT_SEQUENCE:
 			if v.Relation != nil {
 				return backupTable{schema: v.Newschema, name: v.Relation.Relname}, true
 			}

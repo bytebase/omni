@@ -2978,17 +2978,24 @@ func TestPriorBackup(t *testing.T) {
 			},
 		},
 		{
-			name:    "SET search_path moves the lookup",
-			sql:     "UPDATE t SET id = 1 WHERE id = 1;\nSET search_path = s;\nDELETE FROM t WHERE id = 2;",
+			name: "SET search_path moves the lookup",
+			sql:  "UPDATE t SET id = 1 WHERE id = 1;\nSET search_path = s;\nDELETE FROM t WHERE id = 2;",
+			// Bytebase runs the SET before every backup query, where the
+			// first statement's t means s.t.
 			change:  on,
 			targets: one,
+			want:    []targetFinding{{0, "UPDATE t SET id = 1 WHERE id = 1", "prior backup reads t along the search path it runs under, where it means s.t, not public.t", []int{0}}},
 		},
 		{
 			name:    "the lookup follows the synced path, not the session user",
 			sql:     "UPDATE t SET id = 1 WHERE id = 1;\nDELETE FROM s.t WHERE id = 2;",
 			change:  on,
 			targets: []review.Target{{Schema: withArchive(database(`"$user", s, public`, shop().Schemas...)), SessionUser: "public"}},
-			want:    []targetFinding{{1, "DELETE FROM s.t WHERE id = 2", "prior backup cannot back up both UPDATE and DELETE on s.t", []int{0}}},
+			// The query itself runs with $user, the session user's schema.
+			want: []targetFinding{
+				{0, "UPDATE t SET id = 1 WHERE id = 1", "prior backup reads t along the search path it runs under, where it means public.t, not s.t", []int{0}},
+				{1, "DELETE FROM s.t WHERE id = 2", "prior backup cannot back up both UPDATE and DELETE on s.t", []int{0}},
+			},
 		},
 		{
 			name:    "a table the change creates",
@@ -3232,6 +3239,53 @@ func TestPriorBackup(t *testing.T) {
 		{
 			name:    "a later statement's WITH the first one defines otherwise is not judged",
 			sql:     "WITH x AS (SELECT 1 AS a) DELETE FROM nokey WHERE a IN (SELECT a FROM x);\nWITH x AS (SELECT 2 AS a) DELETE FROM nokey WHERE a IN (SELECT a FROM x);",
+			change:  on,
+			targets: one,
+		},
+		{
+			name:    "a sequence the change renames to or moves",
+			sql:     "ALTER SEQUENCE old_seq RENAME TO ids;\nDELETE FROM t USING ids WHERE false;\nALTER SEQUENCE other_seq SET SCHEMA s;\nDELETE FROM p USING s.other_seq WHERE false;",
+			change:  on,
+			targets: one,
+			want: []targetFinding{
+				{1, "DELETE FROM t USING ids WHERE false", "prior backup runs before the change, when ids does not exist yet", []int{0}},
+				{3, "DELETE FROM p USING s.other_seq WHERE false", "prior backup runs before the change, when s.other_seq does not exist yet", []int{0}},
+			},
+		},
+		{
+			name:    "a column the change adds, under TABLESAMPLE or as a field of a row",
+			sql:     "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p TABLESAMPLE SYSTEM (100) WHERE p.gone;\nDELETE FROM nokey USING p WHERE (p).gone;",
+			change:  on,
+			targets: one,
+			want: []targetFinding{
+				{1, "DELETE FROM t USING p TABLESAMPLE SYSTEM (100) WHERE p.gone", "prior backup runs before the change, when column gone of p does not exist yet", []int{0}},
+				{2, "DELETE FROM nokey USING p WHERE (p).gone", "prior backup runs before the change, when column gone of p does not exist yet", []int{0}},
+			},
+		},
+		{
+			name:    "a relation named pg_ in a schema of the target",
+			sql:     "CREATE TABLE public.pg_ids (id int);\nDELETE FROM t USING public.pg_ids WHERE false;\nCREATE TABLE pg_more (id int);\nDELETE FROM p USING pg_more WHERE false;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "DELETE FROM t USING public.pg_ids WHERE false", "prior backup runs before the change, when public.pg_ids does not exist yet", []int{0}}},
+		},
+		{
+			name:    "WHERE CURRENT OF",
+			sql:     "UPDATE t SET n = 1 WHERE CURRENT OF c;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{0, "UPDATE t SET n = 1 WHERE CURRENT OF c", "prior backup copies WHERE CURRENT OF, which only UPDATE and DELETE take, into its query", []int{0}}},
+		},
+		{
+			name:    "SET ROLE of a role the change creates",
+			sql:     "CREATE ROLE worker;\nSET ROLE worker;\nUPDATE public.t SET n = 1 WHERE id = 1;\nSET ROLE alice;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{1, "SET ROLE worker", "prior backup runs this SET ROLE before the change, which creates role worker", []int{0}}},
+		},
+		{
+			name:    "SET ROLE of a role the change creates, with nothing to back up",
+			sql:     "CREATE ROLE worker;\nSET ROLE worker;\nINSERT INTO t (id) VALUES (3);",
 			change:  on,
 			targets: one,
 		},

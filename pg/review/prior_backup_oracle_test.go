@@ -20,6 +20,7 @@ import (
 const priorBackupRows = `
 CREATE SCHEMA bbdataarchive;
 CREATE TABLE s.ids (id int);
+CREATE SEQUENCE old_seq;
 CREATE FUNCTION public.old(int) RETURNS bool LANGUAGE sql AS 'SELECT true';
 INSERT INTO p VALUES (1), (2);
 INSERT INTO t (id, p_id, n) VALUES (1, 1, 1), (2, 2, 2);
@@ -76,6 +77,17 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a column the change adds to a table of that name in another schema", "ALTER TABLE s.t ADD COLUMN b int;\nDELETE FROM public.t AS x WHERE x.b;", false},
 		{"a column of a table the change recreates", "DROP TABLE nokey;\nCREATE TABLE nokey (b int);\nDELETE FROM nokey WHERE b = 1;", true},
 		{"a routine the change creates in another schema", "CREATE FUNCTION s.stale(int) RETURNS bool LANGUAGE sql AS 'SELECT true';\nDELETE FROM nokey WHERE public.stale(a);", false},
+		{"a table the first SET search_path moves", "UPDATE t SET n = 1 WHERE id = 1;\nSET search_path = s, public;\nDELETE FROM t WHERE id = 2;", true},
+		{"a table the first SET search_path moves, through an alias", "UPDATE t AS x SET n = 1 WHERE x.id = 1;\nSET search_path = s, public;\nDELETE FROM t AS y WHERE y.id = 2;", true},
+		{"WHERE CURRENT OF", "UPDATE t SET n = 1 WHERE CURRENT OF c;", true},
+		{"a sequence the change renames to", "ALTER SEQUENCE old_seq RENAME TO ids;\nDELETE FROM t USING ids WHERE false;", true},
+		{"a column the change adds, under TABLESAMPLE", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p TABLESAMPLE SYSTEM (100) WHERE p.gone;", true},
+		{"a column the change adds, as a field of a row", "ALTER TABLE p ADD COLUMN gone bool;\nDELETE FROM t USING p WHERE (p).gone;", true},
+		{"a relation named pg_ in a schema of the target", "CREATE TABLE public.pg_ids (id int);\nDELETE FROM t USING public.pg_ids WHERE false;", true},
+		{"SET ROLE of a role the change creates", "CREATE ROLE prior_backup_worker;\nSET ROLE prior_backup_worker;\nUPDATE public.t SET n = 1 WHERE id = 1;", true},
+		// The first CTE stands for p in the second arm, which reads other
+		// rows than the statement's, or not: not judged.
+		{"a later source a WITH query of the first statement shadows", "WITH p AS (SELECT 999 AS id) DELETE FROM t WHERE id = 1;\nDELETE FROM t USING p WHERE t.p_id = p.id;", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -107,7 +119,10 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 					// query's to judge.
 					continue
 				}
-				i := slices.IndexFunc(groups, func(g backupGroup) bool { return slices.Contains(g.statements, f.Statement) })
+				i := slices.IndexFunc(groups, func(g backupGroup) bool { return slices.Contains(g.statements, f.Statement) && g.outcome != "" })
+				if i < 0 {
+					i = slices.IndexFunc(groups, func(g backupGroup) bool { return slices.Contains(g.statements, f.Statement) })
+				}
 				if i < 0 || groups[i].outcome == "" {
 					t.Errorf("reported what the server contradicts, the backup of the statement's table runs: %d %s", f.Statement, f.Message)
 				}
@@ -116,7 +131,9 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 				return
 			}
 			for _, g := range groups {
-				if g.outcome == "" {
+				// A table's query that the prepended SET fails is the SET's
+				// to report.
+				if g.outcome == "" || strings.HasPrefix(g.outcome, "prepend fails") && g.table != prependedSet {
 					continue
 				}
 				if !slices.ContainsFunc(result.Findings, func(f review.Finding) bool { return slices.Contains(g.statements, f.Statement) }) {
@@ -126,6 +143,10 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		})
 	}
 }
+
+// prependedSet names the group of the SET Bytebase runs before the
+// backup's queries.
+const prependedSet = "the prepended SET"
 
 // backupGroup is the statements the backup copies into one query, the
 // table's, and how running that query went: "" when it ran and changed
@@ -151,6 +172,7 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 	}
 	path := backupSearchPath(schema.GetSearchPath())
 	prepend := ""
+	prependAt := -1
 	byTable := make(map[string][]item)
 	var order []string
 	var unresolved []backupGroup
@@ -171,6 +193,7 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 		case *ast.VariableSetStmt:
 			if prepend == "" && (strings.EqualFold(v.Name, "role") || strings.EqualFold(v.Name, "search_path")) {
 				prepend = strings.TrimSuffix(strings.TrimSpace(change[seg.ByteStart:seg.ByteEnd]), ";") + ";"
+				prependAt = i
 			}
 			if p, ok := backupSetSearchPath(v); ok {
 				path = p
@@ -204,6 +227,11 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 		return strings.TrimSpace(change[loc.Start:loc.End])
 	}
 	groups := unresolved
+	if prepend != "" && len(order) > 0 {
+		// The SET Bytebase runs before the queries, on its own.
+		outcome := runBackup(t, conn, prepend, "SELECT 1", "", "", nil)
+		groups = append(groups, backupGroup{table: prependedSet, statements: []int{prependAt}, outcome: outcome})
+	}
 	for n, key := range order {
 		items := byTable[key]
 		var b strings.Builder
@@ -283,8 +311,11 @@ func runBackup(t *testing.T, conn *sql.Conn, prepend, query, backup, table strin
 	defer func() { _ = tx.Rollback() }()
 	if prepend != "" {
 		if _, err := tx.ExecContext(ctx, prepend); err != nil {
-			return "fails: " + err.Error()
+			return "prepend fails: " + err.Error()
 		}
+	}
+	if backup == "" {
+		return ""
 	}
 	counts := func() map[string]int {
 		out := make(map[string]int)
