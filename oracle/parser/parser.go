@@ -238,7 +238,7 @@ func (p *Parser) isIncompleteStatementEnd(stmt nodes.StmtNode) bool {
 func isIncompleteParsedStmt(stmt nodes.StmtNode) bool {
 	switch s := stmt.(type) {
 	case *nodes.SelectStmt:
-		return (s.FromClause == nil || s.FromClause.Len() == 0) && selectTargetListContainsStar(s.TargetList)
+		return querySelectsSourcelessStar(s)
 	case *nodes.DropStmt:
 		if s.ObjectType == nodes.OBJECT_DATABASE && (s.Names == nil || s.Names.Len() == 0) {
 			return false
@@ -256,6 +256,24 @@ func isIncompleteParsedStmt(stmt nodes.StmtNode) bool {
 	default:
 		return false
 	}
+}
+
+// querySelectsSourcelessStar reports whether a query block of query selects
+// * without a FROM clause, which Oracle 23ai rejects with ORA-54058. A set
+// operation's operands and a parenthesized operand's wrapper are searched:
+// (SELECT *) UNION SELECT 1 FROM dual fails like SELECT * alone.
+func querySelectsSourcelessStar(query *nodes.SelectStmt) bool {
+	if query == nil {
+		return false
+	}
+	if query.Larg != nil {
+		if querySelectsSourcelessStar(query.Larg) {
+			return true
+		}
+	} else if (query.FromClause == nil || query.FromClause.Len() == 0) && selectTargetListContainsStar(query.TargetList) {
+		return true
+	}
+	return querySelectsSourcelessStar(query.Rarg)
 }
 
 func selectTargetListContainsStar(list *nodes.List) bool {

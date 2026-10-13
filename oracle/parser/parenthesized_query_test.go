@@ -9,8 +9,8 @@ import (
 // TestParenthesizedQueries checks queries whose operands are parenthesized
 // subqueries, and the EXCEPT and ALL set operators, against Oracle 23ai:
 // every accepted form parses there, and every rejected one fails with the
-// error noted beside it. Rows ref_225 to ref_236 and ref_251 to ref_252 run
-// them against the engine.
+// error noted beside it. Rows ref_225 to ref_236, ref_251 to ref_252, and
+// ref_257 run them against the engine.
 func TestParenthesizedQueries(t *testing.T) {
 	for _, sql := range []string{
 		// A statement, a set operand, and what may follow the parentheses.
@@ -68,6 +68,11 @@ func TestParenthesizedQueries(t *testing.T) {
 		"BEGIN FOR r IN ((SELECT 1 a FROM dual) UNION ALL (SELECT 2 FROM dual)) LOOP NULL; END LOOP; END;",
 		"BEGIN FOR r IN (SELECT 1 a FROM dual UNION ALL (SELECT 2 FROM dual)) LOOP NULL; END LOOP; END;",
 		"BEGIN FOR r IN ((SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual) ORDER BY 1) LOOP NULL; END LOOP; END;",
+		// A multi-column SET takes its arity from the first operand, and a
+		// * leaves it to the engine.
+		"UPDATE t SET (a, b) = ((SELECT 1, 2 FROM dual) UNION (SELECT 1, 2 FROM dual))",
+		"UPDATE t SET (a, b) = (SELECT * FROM t2)",
+		"UPDATE t SET (a, b) = (SELECT x.* FROM t2 x)",
 	} {
 		ParseAndCheck(t, sql)
 	}
@@ -106,6 +111,13 @@ func TestParenthesizedQueries(t *testing.T) {
 		"(SELECT 1 FROM dual MINUS ALL)",
 		"SELECT 1 FROM dual UNION",
 		"SELECT 1 FROM dual UNION (1)",
+		// No operand selects * without FROM (ORA-54058).
+		"(SELECT *) ORDER BY 1",
+		"(SELECT *) UNION SELECT 1 FROM dual",
+		"((SELECT *)) UNION SELECT 1 FROM dual",
+		"SELECT 1 FROM dual UNION (SELECT *)",
+		// A multi-column SET gets as many values as columns (ORA-00947).
+		"UPDATE t SET (a, b) = ((SELECT 1 FROM dual) UNION (SELECT 1 FROM dual))",
 	} {
 		ParseShouldFail(t, sql)
 	}

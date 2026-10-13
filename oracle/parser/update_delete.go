@@ -516,10 +516,38 @@ func countSubquerySetArity(sc *nodes.SetClause) (targetCount int, valueCount int
 		return 0, 0, false
 	}
 	selectStmt, ok := subquery.Subquery.(*nodes.SelectStmt)
-	if !ok || selectStmt.TargetList == nil {
+	if !ok {
+		return 0, 0, false
+	}
+	// A parenthesized operand followed by a set operator or ORDER BY is a
+	// wrapper; the query in its Larg gives the columns. A * expands to
+	// columns only the catalog knows.
+	for selectStmt.Larg != nil {
+		selectStmt = selectStmt.Larg
+	}
+	if selectStmt.TargetList == nil || selectListHasStar(selectStmt.TargetList) {
 		return 0, 0, false
 	}
 	return sc.Columns.Len(), selectStmt.TargetList.Len(), true
+}
+
+// selectListHasStar reports whether list selects * or table.*.
+func selectListHasStar(list *nodes.List) bool {
+	for _, item := range list.Items {
+		target, ok := item.(*nodes.ResTarget)
+		if !ok {
+			continue
+		}
+		switch e := target.Expr.(type) {
+		case *nodes.Star:
+			return true
+		case *nodes.ColumnRef:
+			if e.Column == "*" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // parseDeleteStmt parses a DELETE statement.
