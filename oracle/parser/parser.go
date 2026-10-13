@@ -69,9 +69,10 @@ type Parser struct {
 // first token at first. Oracle preprocesses a PL/SQL unit alone, whose text
 // runs on after its END: Oracle 23ai takes BEGIN NULL; END; $IF TRUE $THEN
 // $END. It rejects a directive or an inquiry directive in any other
-// statement, or before one, with ORA-00911, and one in an object type
-// specification with PLS-00180. In a unit, the condition of each $IF the
-// lexer evaluated is an expression (PLS-00103).
+// statement, before one, or too early in one (firstDirectiveTooEarly) with
+// ORA-00911, and one in an object type specification with PLS-00180. In a
+// unit, the condition of each $IF and $ELSIF the lexer evaluated is a
+// Boolean expression (checkDirectiveCondition).
 func (p *Parser) checkConditionalCompilation(stmt nodes.StmtNode, start, first, end int) error {
 	cc := p.lexer.cc
 	if cc == nil {
@@ -80,21 +81,21 @@ func (p *Parser) checkConditionalCompilation(stmt nodes.StmtNode, start, first, 
 	unit := isPreprocessedUnit(stmt)
 	for ; p.ccDirective < len(cc.directives) && cc.directives[p.ccDirective] < end; p.ccDirective++ {
 		loc := cc.directives[p.ccDirective]
-		if loc < first && !p.ccAfterUnit || loc >= first && !unit {
+		if loc < first && !p.ccAfterUnit || loc >= first && (!unit || p.firstDirectiveTooEarly(stmt, loc)) {
 			return p.syntaxErrorAtDirective(loc)
 		}
 	}
 	p.ccAfterUnit = unit
+	return p.checkDirectiveConditions(end)
+}
+
+// checkDirectiveConditions checks the recorded conditions that start
+// before end.
+func (p *Parser) checkDirectiveConditions(end int) error {
+	cc := p.lexer.cc
 	for ; p.ccCondition < len(cc.conditions) && cc.conditions[p.ccCondition].Start < end; p.ccCondition++ {
-		cond := cc.conditions[p.ccCondition]
-		sub := &Parser{lexer: NewLexerRange(p.source, cond.Start, cond.End), source: p.source}
-		sub.advance()
-		expr, err := sub.parseExpr()
-		if err != nil {
+		if err := p.checkDirectiveCondition(cc.conditions[p.ccCondition]); err != nil {
 			return err
-		}
-		if expr == nil || sub.cur.Type != tokEOF {
-			return sub.syntaxErrorAtCur()
 		}
 	}
 	return nil
@@ -211,6 +212,9 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 	// A directive after the last statement belongs to it, if it is a unit.
 	if cc := p.lexer.cc; p.ccDirective < len(cc.directives) && !p.ccAfterUnit {
 		return nil, p.syntaxErrorAtDirective(cc.directives[p.ccDirective])
+	}
+	if err := p.checkDirectiveConditions(end); err != nil {
+		return nil, err
 	}
 
 	if len(stmts) == 0 {

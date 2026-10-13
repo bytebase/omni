@@ -195,3 +195,6 @@ ref_268	plsql	reject	BEGIN NULL; $END END;	$END outside $IF (PLS-00176)
 ref_269	plsql	reject	BEGIN $IF $$x $THEN NULL; $ELSE NULL; $ELSE NULL; $END END;	second $ELSE (PLS-00176)
 ref_270	plsql	reject	BEGIN $IF TRUE $THEN $ERROR 'x' $END $END NULL; END;	$ERROR in a selected branch (PLS-00179)
 ref_271	select	reject	SELECT 1 FROM dual WHERE $$x IS NULL	inquiry directive outside PL/SQL (ORA-00911)
+ref_272	plsql	accept	BEGIN $IF NOT TRUE $THEN garbage garbage; $ELSE NULL; $END END;	static Boolean condition folded to FALSE
+ref_273	plsql	reject	BEGIN $IF 1 + 2 $THEN NULL; $END END;	numeric conditional compilation condition (PLS-00382)
+ref_274	plsql_body	reject	CREATE OR REPLACE PROCEDURE omni_ccp_{run} $IF TRUE $THEN IS $END BEGIN NULL; END;	directive right after a unit's name (ORA-00911)

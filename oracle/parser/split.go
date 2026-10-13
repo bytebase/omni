@@ -65,9 +65,22 @@ func Split(sql string) []Segment {
 	stmtStart := 0
 	var segments []Segment
 	state := splitState{}
+	// unitSegment is the segment of a PL/SQL unit that ended at its ';'.
+	// Directives right after it are the unit's: Oracle 23ai compiles
+	// BEGIN NULL; END; $IF TRUE $THEN $END as one block.
+	unitSegment := -1
 
 	for {
 		tok := lexer.NextToken()
+		if unitSegment >= 0 {
+			if end := lexer.ccSkipEnd; end > stmtStart && end <= tok.Loc {
+				seg := &segments[unitSegment]
+				seg.ByteEnd = end
+				seg.Text = sql[seg.ByteStart:end]
+				stmtStart = end
+			}
+			unitSegment = -1
+		}
 		if tok.Type == tokEOF {
 			break
 		}
@@ -144,9 +157,13 @@ func Split(sql string) []Segment {
 					if !state.endPending && !state.callSpecKeepsSemicolon() {
 						end = tok.Loc
 					}
+					before := len(segments)
 					segments = appendSegmentWithKind(segments, sql, stmtStart, end, state.segmentKind())
 					stmtStart = tok.End
 					state.reset()
+					if len(segments) > before {
+						unitSegment = len(segments) - 1
+					}
 				} else {
 					state.afterPLSQLSemicolon()
 				}

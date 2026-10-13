@@ -10,7 +10,7 @@ import (
 
 // TestConditionalCompilation checks PL/SQL conditional compilation against
 // Oracle 23ai: every accepted form compiles there, and every rejected one
-// fails with the error noted beside it. Rows ref_264 to ref_271 run them
+// fails with the error noted beside it. Rows ref_264 to ref_274 run them
 // against the engine.
 func TestConditionalCompilation(t *testing.T) {
 	for _, sql := range []string{
@@ -42,6 +42,22 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF TRUE $THEN NULL; $ELSIF garbage garbage $THEN NULL; $END END;",
 		"BEGIN $IF TRUE $THEN NULL; $ELSE $IF garbage $THEN x $ELSE y $END $END END;",
 		"BEGIN $IF TRUE $THEN NULL; $ELSE NULL $END END;",
+		// Oracle 23ai folds static Boolean expressions and literal
+		// comparisons, short-circuiting past what the text does not settle.
+		"BEGIN $IF NOT TRUE $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF TRUE AND FALSE $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF FALSE OR (TRUE AND NOT FALSE) $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF NOT NULL $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF TRUE OR $$x $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF FALSE AND $$x $THEN garbage garbage; $ELSE NULL; $END END;",
+		"BEGIN $IF 1 = 1 $THEN NULL; $ELSE garbage garbage; $END END;",
+		"BEGIN $IF 1 = 2 $THEN garbage garbage; $ELSE NULL; $END END;",
+		// A unit's first directive follows a token of its own; a trigger's
+		// follows the start of its body.
+		"CREATE OR REPLACE PROCEDURE p (x NUMBER) $IF TRUE $THEN IS $ELSE AS $END BEGIN NULL; END;",
+		"CREATE OR REPLACE FUNCTION f RETURN NUMBER $IF TRUE $THEN IS $END BEGIN RETURN 1; END;",
+		"CREATE OR REPLACE TRIGGER trg BEFORE INSERT ON t DECLARE $IF TRUE $THEN x NUMBER; $END BEGIN NULL; END;",
+		"CREATE OR REPLACE TRIGGER trg FOR INSERT ON t COMPOUND TRIGGER $IF TRUE $THEN BEFORE STATEMENT IS BEGIN NULL; END BEFORE STATEMENT; $END END;",
 		// $ERROR in a branch that may not be selected.
 		"BEGIN $IF FALSE $THEN $ERROR 'unsupported' $END $END NULL; END;",
 		"BEGIN $IF $$x $THEN $ERROR 'unsupported ' || $$PLSQL_UNIT $END $END NULL; END;",
@@ -71,6 +87,20 @@ func TestConditionalCompilation(t *testing.T) {
 		"BEGIN $IF $THEN NULL; $END END;",
 		"BEGIN $IF garbage garbage $THEN NULL; $END END;",
 		"BEGIN $IF FALSE $THEN NULL; $ELSIF garbage garbage $THEN NULL; $END END;",
+		// A condition is Boolean (PLS-00382), after the unit's END too.
+		"BEGIN $IF 1 $THEN NULL; $END END;",
+		"BEGIN $IF 'x' $THEN NULL; $END END;",
+		"BEGIN $IF 1 + 2 $THEN NULL; $END END;",
+		"BEGIN $IF $$x + 1 $THEN NULL; $END END;",
+		"BEGIN NULL; END; $IF 1 + $THEN $END",
+		// A directive right after a unit's name, or before a trigger's body
+		// (ORA-00911).
+		"CREATE OR REPLACE PROCEDURE p $IF TRUE $THEN IS $END BEGIN NULL; END;",
+		"CREATE OR REPLACE PROCEDURE p $IF TRUE $THEN (x NUMBER) $END IS BEGIN NULL; END;",
+		"CREATE OR REPLACE PACKAGE k $IF TRUE $THEN AS $END c NUMBER; END;",
+		"CREATE OR REPLACE PACKAGE BODY k $IF TRUE $THEN AS $END PROCEDURE p IS BEGIN NULL; END; END;",
+		"CREATE OR REPLACE TRIGGER trg BEFORE INSERT ON t $IF TRUE $THEN FOR EACH ROW $END BEGIN NULL; END;",
+		"CREATE OR REPLACE TRIGGER trg BEFORE INSERT ON t $IF TRUE $THEN BEGIN NULL; END; $END",
 		// An $ERROR certainly reached (PLS-00179).
 		"BEGIN $ERROR 'x' $END NULL; END;",
 		"BEGIN $IF TRUE $THEN $ERROR 'x' $END $END NULL; END;",
@@ -159,4 +189,17 @@ SELECT 1 FROM dual;
 		t.Fatalf("Split = %q", got)
 	}
 	ParseAndCheck(t, got[0])
+
+	// Directives after a unit's END are the unit's.
+	got = splitTexts(Split("BEGIN NULL; END; $IF TRUE $THEN $END\nSELECT 1 FROM dual;"))
+	if len(got) != 2 || got[0] != "BEGIN NULL; END; $IF TRUE $THEN $END" {
+		t.Fatalf("Split = %q", got)
+	}
+	ParseAndCheck(t, got[0])
+
+	// A malformed directive ends no statement early: Split lexes on past it.
+	got = splitTexts(Split("SELECT 1 FROM dual; $IF broken\nSELECT 2 FROM dual;\nSELECT 3 FROM dual;"))
+	if len(got) != 3 || strings.TrimSpace(got[2]) != "SELECT 3 FROM dual" {
+		t.Fatalf("Split = %q", got)
+	}
 }

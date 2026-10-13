@@ -71,6 +71,10 @@ type Lexer struct {
 	// an $ERROR is skipped. The parser's own lexer checks the structure.
 	ccLenient bool
 
+	// ccSkipEnd is where the last directive construct NextToken skipped
+	// ends, for Split to keep directives after a unit's END with the unit.
+	ccSkipEnd int
+
 	// cc, when set, records the preprocessor tokens the lexer meets. The
 	// copies of the lexer that look ahead share it.
 	cc *ccRecord
@@ -129,21 +133,22 @@ func NewLexerRange(input string, start, end int) *Lexer {
 
 // NextToken returns the next token from the input, after PL/SQL
 // conditional compilation selected the branch of each $IF that Oracle
-// compiles. Oracle 23ai decides by static values, which the text settles
-// only for a TRUE, FALSE, or NULL condition: the lexer selects the first
-// branch whose condition is not one of FALSE and NULL, else the $ELSE
-// branch. It returns the tokens of the selected branch and skips the rest,
-// whose code Oracle 23ai does not parse, and the conditions, which the
-// parser checks as expressions. It checks the directives' structure as
-// Oracle 23ai does, in skipped branches too: a $THEN, $ELSIF, $ELSE, or
-// $END out of place is PLS-00176, an $IF or $ERROR without its $END is
-// PLS-00177, and an $ERROR in a branch certainly selected is PLS-00179. An
-// inquiry directive $$name is an identifier.
+// compiles. Oracle 23ai decides by static values; where the text settles a
+// condition (staticCondition), the lexer selects the branch Oracle does,
+// and otherwise the first branch whose condition the text does not settle
+// as FALSE or NULL, else the $ELSE branch. It returns the tokens of the
+// selected branch and skips the rest, whose code Oracle 23ai does not
+// parse, and the conditions, which the parser checks. It checks the
+// directives' structure as Oracle 23ai does, in skipped branches too: a
+// $THEN, $ELSIF, $ELSE, or $END out of place is PLS-00176, an $IF or
+// $ERROR without its $END is PLS-00177, and an $ERROR in a branch
+// certainly selected is PLS-00179. An inquiry directive $$name is an
+// identifier.
 func (l *Lexer) NextToken() Token {
 	for {
 		tok := l.nextRaw()
 		if tok.Type == tokEOF {
-			if l.ccDepth > 0 && l.Err == nil {
+			if l.ccDepth > 0 && l.Err == nil && !l.ccLenient {
 				return l.failDirective(tok, "'$IF' preprocessor directive does not end properly")
 			}
 			return tok
@@ -151,6 +156,7 @@ func (l *Lexer) NextToken() Token {
 		if tok.Type != tokDIRECTIVE {
 			return tok
 		}
+		before := *l
 		ok := true
 		switch tok.Str {
 		case "$IF":
@@ -189,8 +195,15 @@ func (l *Lexer) NextToken() Token {
 			return l.failDirective(tok, "unexpected preprocessor token '$THEN'")
 		}
 		if !ok {
+			if l.ccLenient {
+				// Lex on after the malformed directive, as if it were not
+				// there.
+				*l = before
+				continue
+			}
 			return Token{Type: tokEOF, Loc: l.pos, End: l.pos}
 		}
+		l.ccSkipEnd = l.pos
 	}
 }
 
@@ -279,10 +292,9 @@ func (l *Lexer) selectBranch(tok Token) bool {
 
 // skipCondition skips the condition after the $IF or $ELSIF at tok up to
 // its $THEN, recording it for the parser, and returns its value when the
-// text settles it. It reports false after setting Err.
+// text settles it (staticCondition). It reports false after setting Err.
 func (l *Lexer) skipCondition(tok Token) (ccValue, bool) {
 	cond := nodes.Loc{Start: -1, End: -1}
-	var only Token
 	tokens := 0
 	for {
 		next := l.nextRaw()
@@ -298,22 +310,13 @@ func (l *Lexer) skipCondition(tok Token) (ccValue, bool) {
 				return ccUnknown, false
 			}
 			l.cc.noteCondition(cond)
-			switch {
-			case tokens > 1:
-				return ccUnknown, true
-			case only.Type == tokIDENT && only.Str == "TRUE":
-				return ccTrue, true
-			case only.Type == tokIDENT && only.Str == "FALSE", only.Type == kwNULL:
-				return ccFalse, true
-			}
-			return ccUnknown, true
+			return staticCondition(l.input, cond), true
 		case next.Type == tokDIRECTIVE:
 			l.failDirective(next, fmt.Sprintf("unexpected preprocessor token '%s'", next.Str))
 			return ccUnknown, false
 		}
 		if tokens == 0 {
 			cond.Start = next.Loc
-			only = next
 		}
 		tokens++
 		cond.End = next.End

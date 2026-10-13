@@ -1,0 +1,232 @@
+package parser
+
+import (
+	"strconv"
+
+	nodes "github.com/bytebase/omni/oracle/ast"
+)
+
+// staticCondition evaluates the conditional compilation condition at
+// source[loc.Start:loc.End] as far as the text settles it. Oracle 23ai
+// folds the Boolean operators over TRUE, FALSE, and NULL, short-circuiting
+// past what it cannot settle (TRUE OR $$x is TRUE), and compares numeric
+// literals (1 = 1); inquiry directives and package constants have values
+// the text does not hold.
+func staticCondition(source string, loc nodes.Loc) ccValue {
+	sub := &Parser{lexer: NewLexerRange(source, loc.Start, loc.End), source: source}
+	sub.advance()
+	expr, err := sub.parseExpr()
+	if err != nil || expr == nil || sub.cur.Type != tokEOF {
+		return ccUnknown
+	}
+	switch staticTruthOf(source, expr) {
+	case truthTrue:
+		return ccTrue
+	case truthFalse, truthNull:
+		return ccFalse
+	}
+	return ccUnknown
+}
+
+// staticTruth is the three-valued truth of a static condition, or unknown.
+type staticTruth int
+
+const (
+	truthUnknown staticTruth = iota
+	truthTrue
+	truthFalse
+	truthNull
+)
+
+// staticTruthOf evaluates expr as a static Boolean expression.
+func staticTruthOf(source string, expr nodes.ExprNode) staticTruth {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return staticTruthOf(source, e.Expr)
+	case *nodes.NullLiteral:
+		return truthNull
+	case *nodes.ColumnRef:
+		// TRUE and FALSE, not a quoted "TRUE".
+		if e.Schema != "" || e.Table != "" || e.Loc.Start < 0 || e.Loc.Start >= len(source) || source[e.Loc.Start] == '"' {
+			return truthUnknown
+		}
+		switch e.Column {
+		case "TRUE":
+			return truthTrue
+		case "FALSE":
+			return truthFalse
+		}
+	case *nodes.BoolExpr:
+		return staticBoolExpr(source, e)
+	case *nodes.BinaryExpr:
+		left, lok := staticNumber(e.Left)
+		right, rok := staticNumber(e.Right)
+		if !lok || !rok {
+			return truthUnknown
+		}
+		var holds bool
+		switch e.Op {
+		case "=":
+			holds = left == right
+		case "!=", "<>", "~=", "^=":
+			holds = left != right
+		case "<":
+			holds = left < right
+		case ">":
+			holds = left > right
+		case "<=":
+			holds = left <= right
+		case ">=":
+			holds = left >= right
+		default:
+			return truthUnknown
+		}
+		if holds {
+			return truthTrue
+		}
+		return truthFalse
+	}
+	return truthUnknown
+}
+
+// staticBoolExpr evaluates NOT, AND, and OR in three-valued logic.
+func staticBoolExpr(source string, e *nodes.BoolExpr) staticTruth {
+	if e.Args == nil || e.Args.Len() == 0 {
+		return truthUnknown
+	}
+	if e.Boolop == nodes.BOOL_NOT {
+		switch staticTruthOf(source, e.Args.Items[0].(nodes.ExprNode)) {
+		case truthTrue:
+			return truthFalse
+		case truthFalse:
+			return truthTrue
+		case truthNull:
+			return truthNull
+		}
+		return truthUnknown
+	}
+	// AND is FALSE when an operand is, OR is TRUE when one is; otherwise
+	// an unknown operand leaves it unknown, and a NULL one makes it NULL.
+	dominant, other := truthFalse, truthTrue
+	if e.Boolop == nodes.BOOL_OR {
+		dominant, other = truthTrue, truthFalse
+	}
+	result := other
+	for _, item := range e.Args.Items {
+		switch v := staticTruthOf(source, item.(nodes.ExprNode)); v {
+		case dominant:
+			return dominant
+		case truthUnknown:
+			result = truthUnknown
+		case truthNull:
+			if result != truthUnknown {
+				result = truthNull
+			}
+		}
+	}
+	return result
+}
+
+// staticNumber returns the value of a numeric literal, possibly signed.
+func staticNumber(expr nodes.ExprNode) (float64, bool) {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return staticNumber(e.Expr)
+	case *nodes.NumberLiteral:
+		v, err := strconv.ParseFloat(e.Val, 64)
+		return v, err == nil
+	case *nodes.UnaryExpr:
+		v, ok := staticNumber(e.Operand)
+		switch {
+		case !ok:
+			return 0, false
+		case e.Op == "-":
+			return -v, true
+		case e.Op == "+":
+			return v, true
+		}
+	}
+	return 0, false
+}
+
+// nonBooleanCondition reports whether a condition is a number or a string
+// whatever its operands hold: a literal, a sign, or an arithmetic or
+// concatenation operator at its top. Oracle 23ai rejects $IF 'x', $IF 1 + 2,
+// and $IF $$x + 1 with PLS-00382.
+func nonBooleanCondition(expr nodes.ExprNode) bool {
+	switch e := expr.(type) {
+	case *nodes.ParenExpr:
+		return nonBooleanCondition(e.Expr)
+	case *nodes.NumberLiteral, *nodes.StringLiteral:
+		return true
+	case *nodes.UnaryExpr:
+		return e.Op == "-" || e.Op == "+"
+	case *nodes.BinaryExpr:
+		switch e.Op {
+		case "+", "-", "*", "/", "**", "||":
+			return true
+		}
+	}
+	return false
+}
+
+// checkDirectiveCondition parses the condition at loc of an $IF or $ELSIF
+// the lexer evaluated: an expression (PLS-00103), not a number or a string
+// (PLS-00382).
+func (p *Parser) checkDirectiveCondition(loc nodes.Loc) error {
+	sub := &Parser{lexer: NewLexerRange(p.source, loc.Start, loc.End), source: p.source}
+	sub.advance()
+	expr, err := sub.parseExpr()
+	if err != nil {
+		return err
+	}
+	if expr == nil || sub.cur.Type != tokEOF {
+		return sub.syntaxErrorAtCur()
+	}
+	if nonBooleanCondition(expr) {
+		return p.syntaxErrorAtNode(expr)
+	}
+	return nil
+}
+
+// firstDirectiveTooEarly reports whether the unit stmt's first directive,
+// at loc, stands where Oracle 23ai rejects it with ORA-00911: right after
+// the name of a stored unit, before any token of the unit's own, or before
+// the DECLARE, BEGIN, or COMPOUND TRIGGER of a trigger's body.
+func (p *Parser) firstDirectiveTooEarly(stmt nodes.StmtNode, loc int) bool {
+	var name *nodes.ObjectName
+	switch s := stmt.(type) {
+	case *nodes.CreateProcedureStmt:
+		name = s.Name
+	case *nodes.CreateFunctionStmt:
+		name = s.Name
+	case *nodes.CreatePackageStmt:
+		name = s.Name
+	case *nodes.CreateTypeStmt:
+		name = s.Name
+	case *nodes.CreateTriggerStmt:
+		return loc < p.triggerBodyStart(s)
+	}
+	if name == nil || name.Loc.End <= 0 {
+		return false
+	}
+	// The first token after the name is the directive itself.
+	return NewLexerRange(p.source, name.Loc.End, len(p.source)).nextRaw().Loc == loc
+}
+
+// triggerBodyStart returns where the body of trigger stmt starts: its
+// DECLARE or BEGIN, or the COMPOUND of COMPOUND TRIGGER.
+func (p *Parser) triggerBodyStart(stmt *nodes.CreateTriggerStmt) int {
+	if stmt.Compound {
+		lex := NewLexerRange(p.source, stmt.Loc.Start, stmt.Loc.End)
+		for tok := lex.nextRaw(); tok.Type != tokEOF; tok = lex.nextRaw() {
+			if tok.Type != tokQIDENT && tok.Str == "COMPOUND" {
+				return tok.Loc
+			}
+		}
+	}
+	if stmt.Body == nil {
+		return stmt.Loc.End
+	}
+	return nodes.NodeLoc(stmt.Body).Start
+}
