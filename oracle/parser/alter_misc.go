@@ -4068,6 +4068,25 @@ func (p *Parser) parseAlterTypeMethod(verb string, verbStart int, typeName strin
 	if err := p.checkCharsetSources(params, method.Return); err != nil {
 		return nil, err
 	}
+	// A function's properties, as in CREATE TYPE (Oracle 23ai adds and
+	// drops MEMBER FUNCTION f RETURN NUMBER DETERMINISTIC PARALLEL_ENABLE,
+	// and rejects a repeated one with PLS-00371).
+	if method.Type == "FUNCTION" {
+		fn := &nodes.CreateFunctionStmt{
+			Name:       &nodes.ObjectName{Name: method.Name, Loc: nodes.Loc{Start: nameTok.Loc, End: nameTok.End}},
+			Parameters: params,
+			ReturnType: method.Return,
+			Loc:        method.Loc,
+		}
+		if err := p.parseFunctionProperties(fn, subprogramMethod); err != nil {
+			return nil, err
+		}
+		method.Deterministic, method.Pipelined, method.Polymorphic = fn.Deterministic, fn.Pipelined, fn.Polymorphic
+		method.Parallel, method.ParallelSpec, method.Streaming = fn.Parallel, fn.ParallelSpec, fn.Streaming
+		method.ResultCache, method.ReliesOn = fn.ResultCache, fn.ReliesOn
+		method.Aggregate, method.Implementation = fn.Aggregate, fn.Implementation
+		method.SqlMacro, method.SqlMacroType = fn.SqlMacro, fn.SqlMacroType
+	}
 	// A call specification, as in CREATE TYPE (Oracle 23ai adds MEMBER
 	// FUNCTION f RETURN NUMBER AS LANGUAGE JAVA NAME '...').
 	if method.CallSpec, err = p.parseTypeSpecImplementation(); err != nil {

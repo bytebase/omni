@@ -486,6 +486,24 @@ func TestANSIDatatypes(t *testing.T) {
 	// LONG takes a length, not NUMBER's * (PLS-00201); a pipelined
 	// function returns no REF (PLS-00630); and REF "TABLE" names an object
 	// type, not the polymorphic pseudo-type (Oracle 23ai compiles it).
+	// ALTER TYPE takes a function's properties as CREATE TYPE does, ADD and
+	// DROP alike, each once (PLS-00371).
+	for _, method := range []string{
+		"ADD MEMBER FUNCTION f RETURN NUMBER DETERMINISTIC",
+		"ADD MEMBER FUNCTION f RETURN NUMBER PARALLEL_ENABLE",
+		"ADD MEMBER FUNCTION f RETURN NUMBER DETERMINISTIC PARALLEL_ENABLE",
+		"ADD STATIC FUNCTION f RETURN NUMBER DETERMINISTIC",
+		"ADD MAP MEMBER FUNCTION m RETURN NUMBER DETERMINISTIC",
+		`ADD MEMBER FUNCTION f RETURN NUMBER DETERMINISTIC AS LANGUAGE C NAME "x" LIBRARY l`,
+		"DROP MEMBER FUNCTION f RETURN NUMBER DETERMINISTIC",
+	} {
+		ParseAndCheck(t, "ALTER TYPE t "+method+" CASCADE")
+	}
+	ParseShouldFail(t, "ALTER TYPE t ADD MEMBER FUNCTION f RETURN NUMBER DETERMINISTIC DETERMINISTIC CASCADE")
+	alter := parseOne[*ast.AlterTypeStmt](t, "ALTER TYPE t ADD MEMBER FUNCTION f RETURN NUMBER DETERMINISTIC PARALLEL_ENABLE CASCADE")
+	if m := alter.Methods[0]; !m.Deterministic || !m.Parallel {
+		t.Errorf("ALTER TYPE method properties = deterministic %v, parallel %v, want both", m.Deterministic, m.Parallel)
+	}
 	ParseShouldFail(t, "DECLARE x LONG(*); BEGIN NULL; END;")
 	ParseShouldFail(t, "DECLARE x LONG RAW(*); BEGIN NULL; END;")
 	ParseShouldFail(t, "CREATE FUNCTION f RETURN REF t PIPELINED IS BEGIN RETURN; END;")

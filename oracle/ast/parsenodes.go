@@ -4240,8 +4240,21 @@ type AlterTypeMethod struct {
 	Name      string       // method name
 	Params    []*Parameter // method parameters
 	Return    *TypeName    // function return type; SELF AS RESULT for a constructor
-	CallSpec  *CallSpec    // IS | AS call specification
-	Loc       Loc
+	// A function's properties, as on CreateFunctionStmt.
+	Deterministic  bool                  // DETERMINISTIC
+	Pipelined      bool                  // PIPELINED
+	Polymorphic    string                // PIPELINED ROW or TABLE POLYMORPHIC: ROW or TABLE
+	Parallel       bool                  // PARALLEL_ENABLE
+	ParallelSpec   *ParallelEnableClause // PARALLEL_ENABLE ( PARTITION ... ), nil without one
+	Streaming      *List                 // ORDER and CLUSTER streaming clauses (list of *StreamingClause)
+	ResultCache    bool                  // RESULT_CACHE
+	ReliesOn       *List                 // RESULT_CACHE RELIES_ON data sources (list of *ObjectName)
+	Aggregate      bool                  // AGGREGATE USING
+	Implementation *ObjectName           // AGGREGATE or PIPELINED USING implementation type
+	SqlMacro       bool                  // SQL_MACRO
+	SqlMacroType   string                // SQL_MACRO ( SCALAR | TABLE ), "" without the parenthesized type
+	CallSpec       *CallSpec             // IS | AS call specification
+	Loc            Loc
 }
 
 func (n *AlterTypeMethod) nodeTag() {}

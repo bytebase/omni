@@ -246,6 +246,14 @@ func walkChildren(v Visitor, node Node) {
 		if n.Return != nil {
 			Walk(v, n.Return)
 		}
+		if n.ParallelSpec != nil {
+			Walk(v, n.ParallelSpec)
+		}
+		walkList(v, n.Streaming)
+		walkList(v, n.ReliesOn)
+		if n.Implementation != nil {
+			Walk(v, n.Implementation)
+		}
 		if n.CallSpec != nil {
 			Walk(v, n.CallSpec)
 		}

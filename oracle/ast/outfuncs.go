@@ -6783,6 +6783,46 @@ func writeAlterTypeMethod(sb *strings.Builder, n *AlterTypeMethod) {
 		sb.WriteString(" :return ")
 		writeNode(sb, n.Return)
 	}
+	if n.Deterministic {
+		sb.WriteString(" :deterministic true")
+	}
+	if n.Pipelined {
+		sb.WriteString(" :pipelined true")
+	}
+	if n.Polymorphic != "" {
+		sb.WriteString(fmt.Sprintf(" :polymorphic %q", n.Polymorphic))
+	}
+	if n.Parallel {
+		sb.WriteString(" :parallel true")
+	}
+	if n.ParallelSpec != nil {
+		sb.WriteString(" :parallelSpec ")
+		writeNode(sb, n.ParallelSpec)
+	}
+	if n.Streaming != nil && n.Streaming.Len() > 0 {
+		sb.WriteString(" :streaming ")
+		writeNode(sb, n.Streaming)
+	}
+	if n.ResultCache {
+		sb.WriteString(" :resultCache true")
+	}
+	if n.ReliesOn != nil && n.ReliesOn.Len() > 0 {
+		sb.WriteString(" :reliesOn ")
+		writeNode(sb, n.ReliesOn)
+	}
+	if n.Aggregate {
+		sb.WriteString(" :aggregate true")
+	}
+	if n.Implementation != nil {
+		sb.WriteString(" :implementation ")
+		writeNode(sb, n.Implementation)
+	}
+	if n.SqlMacro {
+		sb.WriteString(" :sqlMacro true")
+	}
+	if n.SqlMacroType != "" {
+		sb.WriteString(fmt.Sprintf(" :sqlMacroType %q", n.SqlMacroType))
+	}
 	if n.CallSpec != nil {
 		sb.WriteString(" :callSpec ")
 		writeNode(sb, n.CallSpec)
