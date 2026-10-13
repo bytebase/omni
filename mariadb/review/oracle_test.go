@@ -32,6 +32,7 @@ INSERT INTO p VALUES (1, 'a'), (2, 'b');
 INSERT INTO t VALUES (1, 'x', 1, 1), (2, 'y', 2, 2);
 INSERT INTO nokey VALUES (1), (2);
 INSERT INTO plain VALUES (1, 1), (2, 2);
+CREATE VIEW pv AS SELECT id, note FROM p;
 `
 
 var mariadbOracle struct {
@@ -234,6 +235,7 @@ func TestPriorBackupAgainstMariaDB(t *testing.T) {
 		{"a column of a joined table", "ALTER TABLE p ADD COLUMN gone INT;\nUPDATE t JOIN p ON p.gone = t.n SET t.n = 1 WHERE t.id = 3;", true},
 		{"a column of a table the change recreates", "DROP TABLE nokey;\nCREATE TABLE nokey (b INT);\nDELETE FROM nokey WHERE b = 1;", true},
 		{"a column in a subquery, not judged", "ALTER TABLE t ADD COLUMN gone INT;\nUPDATE plain SET v = 1 WHERE id IN (SELECT gone FROM t);", false},
+		{"a view as the target", "UPDATE pv SET note = 'z' WHERE id = 1;", true},
 		{"a column the SET clause names, not copied", "ALTER TABLE t ADD COLUMN gone INT;\nUPDATE t SET gone = 1 WHERE id = 1;", true},
 		{"a column USING names", "ALTER TABLE t ADD COLUMN note INT;\nUPDATE t JOIN p USING (note) SET t.n = 1 WHERE t.id = 1;", true},
 		{"a column USING names, a derived table on its side may hold", "ALTER TABLE t ADD COLUMN note INT;\nUPDATE t JOIN (SELECT 1 AS note) d ON d.note = t.id JOIN p USING (note) SET t.n = 1 WHERE t.id = 3;", true},
