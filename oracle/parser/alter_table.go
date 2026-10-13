@@ -411,6 +411,13 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 	if col == nil {
 		return nil, p.syntaxErrorAtCur()
 	}
+	// Its REF constraints follow the rules of a list's (ORA-02329 for ADD c
+	// REF t PRIMARY KEY, ORA-30726 for REFERENCES o (n), ORA-22896 for
+	// SCOPE and REFERENCES).
+	single := &nodes.CreateTableStmt{Columns: &nodes.List{Items: []nodes.Node{col}}, Constraints: &nodes.List{}}
+	if err := p.checkOutOfLineRefConstraints(single, false); err != nil {
+		return nil, err
+	}
 	return &nodes.AlterTableCmd{
 		Action:    nodes.AT_ADD_COLUMN,
 		ColumnDef: col,

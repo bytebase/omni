@@ -488,6 +488,17 @@ func TestANSIDatatypes(t *testing.T) {
 	}
 	ParseAndCheck(t, "CREATE TABLE r (FOREIGN KEY (o.x) REFERENCES p, o h)")
 	ParseAndCheck(t, "ALTER TABLE r ADD (d NUMBER, FOREIGN KEY (o.x) REFERENCES p)")
+	// ALTER TABLE ADD without parentheses checks a REF column's own
+	// constraints as a list does (ORA-02329, ORA-30726, ORA-22896).
+	for _, column := range []string{
+		"c REF t PRIMARY KEY", "c REF t UNIQUE", "c REF t REFERENCES o (a)",
+		"c REF t SCOPE IS o REFERENCES o", "c REF t SCOPE IS o SCOPE IS o",
+	} {
+		ParseShouldFail(t, "ALTER TABLE r ADD "+column)
+		ParseShouldFail(t, "ALTER TABLE r ADD ("+column+")")
+	}
+	ParseAndCheck(t, "ALTER TABLE r ADD c REF t REFERENCES o")
+	ParseAndCheck(t, "ALTER TABLE r ADD c REF t SCOPE IS o")
 	// LONG takes a length, not NUMBER's * (PLS-00201); a pipelined
 	// function returns no REF (PLS-00630); and REF "TABLE" names an object
 	// type, not the polymorphic pseudo-type (Oracle 23ai compiles it).
