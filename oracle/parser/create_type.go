@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strconv"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -322,6 +324,14 @@ func (p *Parser) parseObjectTypeModifiers(stmt *nodes.CreateTypeStmt, words []st
 	}
 	if notInstantiable && !notFinal {
 		return p.syntaxErrorAtTok(modsTok)
+	}
+	// A type with a NOT INSTANTIABLE method is NOT INSTANTIABLE (PLS-00634).
+	if !notInstantiable && stmt.Methods != nil {
+		for _, item := range stmt.Methods.Items {
+			if member, ok := item.(*nodes.TypeBodyMember); ok && hasModifier(member.Modifiers, "NOT INSTANTIABLE") {
+				return p.syntaxErrorAtNode(member)
+			}
+		}
 	}
 	return nil
 }
@@ -746,6 +756,7 @@ func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt, subtype boo
 	stmt.Attributes = &nodes.List{}
 	hasComparison := false
 	seenAttrs := map[string]bool{}
+	seenMethods := map[string]bool{}
 	for {
 		switch {
 		case p.isObjectTypeMethodStart():
@@ -757,6 +768,14 @@ func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt, subtype boo
 			if err := p.checkObjectTypeMethod(stmt, member, &hasComparison, methodTok); err != nil {
 				return err
 			}
+			// A method of the kind and signature of an earlier one is
+			// PLS-00305 on Oracle 23ai; a MEMBER and a STATIC method may
+			// share a signature.
+			sig := strconv.Itoa(int(member.Kind)) + " " + p.methodSignature(methodTok.Loc, p.prev.End)
+			if seenMethods[sig] {
+				return p.syntaxErrorAtTok(methodTok)
+			}
+			seenMethods[sig] = true
 			stmt.Methods = appendListItem(stmt.Methods, member)
 		case p.isKeywordStr("PRAGMA"):
 			pragma, err := p.parseRestrictReferencesPragma()
@@ -830,8 +849,9 @@ var (
 
 // methodModifiersConflict reports whether a method spec's inheritance clauses
 // conflict with each other or with its kind. Oracle 23ai rejects NOT
-// INSTANTIABLE with FINAL, STATIC, or CONSTRUCTOR, and OVERRIDING with STATIC
-// (PLS-00169).
+// INSTANTIABLE with FINAL, STATIC, or CONSTRUCTOR, NOT FINAL with
+// CONSTRUCTOR, and OVERRIDING with STATIC (PLS-00169; ORA-06545 in ALTER
+// TYPE).
 func methodModifiersConflict(mods []string, kind nodes.TypeBodyMemberKind) bool {
 	has := func(mod string) bool {
 		for _, m := range mods {
@@ -842,6 +862,9 @@ func methodModifiersConflict(mods []string, kind nodes.TypeBodyMemberKind) bool 
 		return false
 	}
 	if has("NOT INSTANTIABLE") && (has("FINAL") || kind == nodes.TYPE_BODY_STATIC || kind == nodes.TYPE_BODY_CONSTRUCTOR) {
+		return true
+	}
+	if has("NOT FINAL") && kind == nodes.TYPE_BODY_CONSTRUCTOR {
 		return true
 	}
 	return has("OVERRIDING") && kind == nodes.TYPE_BODY_STATIC
@@ -855,9 +878,11 @@ func methodModifiersConflict(mods []string, kind nodes.TypeBodyMemberKind) bool 
 // on MAP and ORDER return and parameter types (PLS-00522 through PLS-00524)
 // need the types resolved and are left to the engine. A subtype has no
 // ORDER method: Oracle 23ai rejects one with PLS-00646 under a supertype
-// without MAP or ORDER and with PLS-00154 under one with either. Whether a
-// subtype's MAP method is valid depends on its supertype's, and is left to
-// the engine too. tok is where the method starts, for the error position.
+// without MAP or ORDER and with PLS-00154 under one with either. A
+// subtype's MAP method overrides its supertype's: Oracle 23ai rejects one
+// without OVERRIDING with PLS-00636, or PLS-00646 under a supertype without
+// MAP; whether the supertype has a MAP method to override is left to the
+// engine. tok is where the method starts, for the error position.
 func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes.TypeBodyMember, hasComparison *bool, tok Token) error {
 	fn, isFunction := member.Subprog.(*nodes.CreateFunctionStmt)
 	switch member.Kind {
@@ -866,7 +891,7 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 			return p.syntaxErrorAtTok(tok)
 		}
 	case nodes.TYPE_BODY_MAP, nodes.TYPE_BODY_ORDER:
-		if *hasComparison || member.Kind == nodes.TYPE_BODY_ORDER && stmt.Under != nil {
+		if *hasComparison || stmt.Under != nil && (member.Kind == nodes.TYPE_BODY_ORDER || !hasModifier(member.Modifiers, "OVERRIDING")) {
 			return p.syntaxErrorAtTok(tok)
 		}
 		*hasComparison = true
@@ -879,6 +904,16 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 		}
 	}
 	return nil
+}
+
+// hasModifier reports whether mods holds mod.
+func hasModifier(mods []string, mod string) bool {
+	for _, m := range mods {
+		if m == mod {
+			return true
+		}
+	}
+	return false
 }
 
 // parametersBesidesSelf counts the parameters in params not named SELF.

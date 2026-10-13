@@ -3814,7 +3814,9 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 				}
 				addsComparison = true
 			}
-			sig := p.alterTypeMethodSignature(method)
+			// ALTER TYPE counts a MEMBER and a STATIC method of one signature
+			// as the same method.
+			sig := p.methodSignature(method.Loc.Start, method.Loc.End)
 			if seenMethods[sig] {
 				return p.syntaxErrorAtNode(method)
 			}
@@ -3829,14 +3831,14 @@ func (p *Parser) parseAlterTypeElements(stmt *nodes.AlterTypeStmt) error {
 	return p.parseAlterTypeDependentHandling(stmt)
 }
 
-// alterTypeMethodSignature returns the tokens of method from its FUNCTION or
-// PROCEDURE keyword on: the name, the parameters, and the return type that
-// identify it in an ALTER TYPE list. Oracle 23ai takes overloads that differ
-// in a parameter name or type or in the return type, and counts a MEMBER and
-// a STATIC method of one signature as the same method. A quoted name equals
-// the unquoted one it spells.
-func (p *Parser) alterTypeMethodSignature(method *nodes.AlterTypeMethod) string {
-	lex := NewLexerRange(p.source, method.Loc.Start, method.Loc.End)
+// methodSignature returns the tokens of the method spec at
+// source[start:end] from its FUNCTION or PROCEDURE keyword on: the name, the
+// parameters, and the return type that identify it among its type's
+// methods. Oracle 23ai takes overloads that differ in a parameter name or
+// type or in the return type. A quoted name equals the unquoted one it
+// spells.
+func (p *Parser) methodSignature(start, end int) string {
+	lex := NewLexerRange(p.source, start, end)
 	var sig strings.Builder
 	started := false
 	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
