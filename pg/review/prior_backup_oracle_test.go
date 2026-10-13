@@ -108,6 +108,7 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a column beside a join's USING", "ALTER TABLE nokey ADD COLUMN b bool;\nDELETE FROM nokey USING p JOIN t USING (id) WHERE b;", true},
 		{"a column a function of the FROM list reads", "ALTER TABLE p ADD COLUMN gone int;\nDELETE FROM t USING p, generate_series(1, p.gone) AS g WHERE false;", true},
 		{"a relation after SET search_path FROM CURRENT", "CREATE TABLE public.ids (id int);\nSET search_path FROM CURRENT;\nDELETE FROM t USING ids WHERE t.id = ids.id;", true},
+		{"a table RESET search_path moves", "SET search_path = s, public;\nUPDATE t SET id = 1 WHERE id = 1;\nRESET search_path;\nUPDATE t SET n = 1 WHERE id = 1;", true},
 		// The first CTE stands for p in the second arm, which reads other
 		// rows than the statement's, or not: not judged.
 		{"a later source a WITH query of the first statement shadows", "WITH p AS (SELECT 999 AS id) DELETE FROM t WHERE id = 1;\nDELETE FROM t USING p WHERE t.p_id = p.id;", false},
@@ -232,6 +233,15 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 	path := backupSearchPath(schema.GetSearchPath())
 	prepend := ""
 	prependAt := -1
+	// changes is the table each UPDATE or DELETE changes, as the server
+	// resolves it after the change's SETs before it, 0 when unknown.
+	changes := make(map[int]int64)
+	ctx := context.Background()
+	etx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	engineKnown := true
 	byTable := make(map[string][]item)
 	var order []string
 	var unresolved []backupGroup
@@ -250,6 +260,11 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 		var rv *ast.RangeVar
 		switch v := node.(type) {
 		case *ast.VariableSetStmt:
+			if engineKnown {
+				if _, err := etx.ExecContext(ctx, change[seg.ByteStart:seg.ByteEnd]); err != nil {
+					engineKnown = false
+				}
+			}
 			if prepend == "" && (strings.EqualFold(v.Name, "role") || strings.EqualFold(v.Name, "search_path")) {
 				prepend = strings.TrimSuffix(strings.TrimSpace(change[seg.ByteStart:seg.ByteEnd]), ";") + ";"
 				prependAt = i
@@ -264,6 +279,18 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 			rv = v.Relation
 		default:
 			continue
+		}
+		if engineKnown {
+			name := fmt.Sprintf("%q", rv.Relname)
+			if rv.Schemaname != "" {
+				name = fmt.Sprintf("%q.%q", rv.Schemaname, rv.Relname)
+			}
+			var oid sql.NullInt64
+			if err := etx.QueryRowContext(ctx, "SELECT to_regclass($1)::oid::int8", name).Scan(&oid); err != nil {
+				engineKnown = false
+			} else {
+				changes[i] = oid.Int64
+			}
 		}
 		// Bytebase refuses the statement before it runs any query.
 		if names := dataModifyingCTEs(withOf(node)); len(names) > 0 {
@@ -283,6 +310,9 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 			order = append(order, key)
 		}
 		byTable[key] = append(byTable[key], item{i, node})
+	}
+	if err := etx.Rollback(); err != nil {
+		t.Fatal(err)
 	}
 	text := func(loc ast.Loc) string {
 		if loc.Start < 0 || loc.End <= loc.Start || loc.End > len(change) {
@@ -356,6 +386,17 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 		}
 		b.WriteString(";")
 		g.outcome = runBackup(t, conn, prepend, b.String(), backup, key, owns)
+		if g.outcome == "" {
+			var oid sql.NullInt64
+			if err := conn.QueryRowContext(ctx, "SELECT to_regclass($1)::oid::int8", key).Scan(&oid); err != nil {
+				t.Fatal(err)
+			}
+			for _, i := range g.statements {
+				if c := changes[i]; c != 0 && c != oid.Int64 {
+					g.outcome = fmt.Sprintf("backs up %s for statement %d, which changes another table", key, i)
+				}
+			}
+		}
 		groups = append(groups, g)
 	}
 	return groups

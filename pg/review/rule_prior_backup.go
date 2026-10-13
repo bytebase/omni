@@ -118,6 +118,8 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 	mixed := make(map[backupTable]bool)
 	made := changeMade(stmts)
 	q := backupQueryOf(stmts, schema, sessionUser)
+	// engine is the search path the change's own statements run under.
+	engine := newEnginePath(schema, sessionUser)
 	// firsts is the first statement on each table, whose WITH clause and
 	// alias the backup's query of the table carries.
 	firsts := make(map[backupTable]ast.Node)
@@ -135,6 +137,7 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 			if p, ok := backupSetSearchPath(v); ok {
 				path = p
 			}
+			engine.set(v)
 			continue
 		default:
 			continue
@@ -165,6 +168,11 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 			// An unqualified creation may be in this schema; either way
 			// the table is not there when the backup runs.
 			reportNotYetCreated(s, rv, r)
+		} else if changes := engine.find(rv.Relname); rv.Schemaname == "" && changes != "" && changes != table.schema {
+			// Bytebase follows SET search_path but not RESET or DEFAULT,
+			// nor $user: it backs up another table than the statement
+			// changes.
+			r.report(review.PriorBackup, s.index, rangeOf(statementLoc(s.node)), "prior backup backs up "+relation(&ast.RangeVar{Schemaname: table.schema, Relname: rv.Relname})+" for this statement, which changes "+relation(&ast.RangeVar{Schemaname: changes, Relname: rv.Relname}))
 		} else {
 			first, seenFirst := firsts[table]
 			if !seenFirst {
@@ -442,6 +450,100 @@ func backupQueryOf(stmts []statement, schema *metadata.DatabaseSchemaMetadata, s
 		}
 	}
 	return q
+}
+
+// enginePath follows the search path the change's statements run under,
+// from the synced one, with $user the session user: SET search_path to
+// names, RESET, DEFAULT, or FROM CURRENT, RESET ALL, and SET ROLE. It
+// stops knowing it at anything else that sets either.
+type enginePath struct {
+	schema  *metadata.DatabaseSchemaMetadata
+	initial []string
+	path    []string
+	session string
+	user    string
+	known   bool
+}
+
+func newEnginePath(schema *metadata.DatabaseSchemaMetadata, sessionUser string) *enginePath {
+	initial := parseSearchPath(schema.GetSearchPath())
+	if strings.TrimSpace(schema.GetSearchPath()) == "" {
+		initial = []string{"$user", "public"}
+	}
+	return &enginePath{schema: schema, initial: initial, path: initial, session: sessionUser, user: sessionUser, known: true}
+}
+
+// set follows a SET or RESET.
+func (e *enginePath) set(v *ast.VariableSetStmt) {
+	if v.Kind == ast.VAR_RESET_ALL {
+		e.path, e.user = e.initial, e.session
+		return
+	}
+	isPath, isRole := strings.EqualFold(v.Name, "search_path"), strings.EqualFold(v.Name, "role")
+	if !isPath && !isRole {
+		return
+	}
+	if v.IsLocal {
+		e.known = false
+		return
+	}
+	switch v.Kind {
+	case ast.VAR_SET_DEFAULT, ast.VAR_RESET:
+		if isPath {
+			e.path = e.initial
+		} else {
+			e.user = e.session
+		}
+		return
+	case ast.VAR_SET_CURRENT:
+		return
+	case ast.VAR_SET_VALUE:
+	default:
+		e.known = false
+		return
+	}
+	var values []string
+	if v.Args != nil {
+		for _, item := range v.Args.Items {
+			s, ok := constString(item)
+			if !ok {
+				e.known = false
+				return
+			}
+			values = append(values, s)
+		}
+	}
+	switch {
+	case isPath && len(values) > 0:
+		e.path = values
+	case isRole && len(values) == 1:
+		e.user = values[0]
+		if strings.EqualFold(e.user, "none") {
+			e.user = e.session
+		}
+	default:
+		e.known = false
+	}
+}
+
+// find returns the synced schema an unqualified relation name means for
+// the statement, "" when the path is not known or holds none.
+func (e *enginePath) find(name string) string {
+	if !e.known || strings.HasPrefix(name, "pg_") {
+		return ""
+	}
+	for _, p := range e.path {
+		if p == "$user" {
+			if e.user == "" {
+				return ""
+			}
+			p = e.user
+		}
+		if hasBackupRelation(findSchema(e.schema, p), name) {
+			return p
+		}
+	}
+	return ""
 }
 
 // holders returns the schemas a relation reference of the backup's query

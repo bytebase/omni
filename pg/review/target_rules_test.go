@@ -2993,7 +2993,7 @@ func TestPriorBackup(t *testing.T) {
 			targets: []review.Target{{Schema: withArchive(database(`"$user", s, public`, shop().Schemas...)), SessionUser: "public"}},
 			// The query itself runs with $user, the session user's schema.
 			want: []targetFinding{
-				{0, "UPDATE t SET id = 1 WHERE id = 1", "prior backup reads t along the search path it runs under, where it means public.t, not s.t", []int{0}},
+				{0, "UPDATE t SET id = 1 WHERE id = 1", "prior backup backs up s.t for this statement, which changes public.t", []int{0}},
 				{1, "DELETE FROM s.t WHERE id = 2", "prior backup cannot back up both UPDATE and DELETE on s.t", []int{0}},
 			},
 		},
@@ -3436,6 +3436,13 @@ func TestPriorBackup(t *testing.T) {
 			change:  on,
 			targets: []review.Target{{Schema: withIDs(), SessionUser: "alice"}},
 			want:    []targetFinding{{2, "DELETE FROM t USING ids WHERE t.id = ids.id", "prior backup runs before the change, when ids does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a table RESET search_path moves, which Bytebase does not follow",
+			sql:     "SET search_path = s, public;\nUPDATE t SET id = 1 WHERE id = 1;\nRESET search_path;\nUPDATE t SET n = 1 WHERE id = 1;\nSET search_path TO DEFAULT;\nDELETE FROM p WHERE id = 1;",
+			change:  on,
+			targets: one,
+			want:    []targetFinding{{3, "UPDATE t SET n = 1 WHERE id = 1", "prior backup backs up s.t for this statement, which changes public.t", []int{0}}},
 		},
 		{
 			name:    "no schema, nothing known about the target",
