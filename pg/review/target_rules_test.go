@@ -3137,12 +3137,14 @@ func TestPriorBackup(t *testing.T) {
 			want:    []targetFinding{{1, "DELETE FROM nokey WHERE public.stale(a)", "prior backup runs before the change, when function public.stale does not exist yet", []int{0}}},
 		},
 		{
-			name:    "a data-modifying WITH runs in the backup",
-			sql:     "WITH d AS (DELETE FROM p RETURNING id) UPDATE t SET n = 5 WHERE p_id IN (SELECT id FROM d);\nWITH d AS (DELETE FROM p RETURNING id) UPDATE t SET n = 6 WHERE p_id IN (SELECT id FROM d);",
+			name:    "a data-modifying WITH query is refused, whatever the target",
+			sql:     "WITH d AS (DELETE FROM p RETURNING id) UPDATE t SET n = 5 WHERE p_id IN (SELECT id FROM d);\nWITH d AS (DELETE FROM p RETURNING id), e AS (INSERT INTO nokey VALUES (1) RETURNING a) DELETE FROM nope WHERE id IN (SELECT id FROM d);\nWITH v AS (VALUES (1)) DELETE FROM nokey WHERE a IN (SELECT * FROM v);\nWITH d AS (DELETE FROM p RETURNING id) INSERT INTO nokey SELECT id FROM d;",
 			change:  on,
-			targets: one,
-			want: []targetFinding{{0, "WITH d AS (DELETE FROM p RETURNING id) UPDATE t SET n = 5 WHERE p_id IN (SELECT id FROM d)",
-				"prior backup runs the data-modifying WITH query of this statement before the change, and backs up none of the rows it changes", []int{0}}},
+			targets: []review.Target{{Schema: withArchive(shop()), SessionUser: "alice"}, {}},
+			want: []targetFinding{
+				{0, "WITH d AS (DELETE FROM p RETURNING id) UPDATE t SET n = 5 WHERE p_id IN (SELECT id FROM d)", "prior backup refuses the data-modifying WITH query d of this statement", []int{0, 1}},
+				{1, "WITH d AS (DELETE FROM p RETURNING id), e AS (INSERT INTO nokey VALUES (1) RETURNING a) DELETE FROM nope WHERE id IN (SELECT id FROM d)", "prior backup refuses the data-modifying WITH query d, e of this statement", []int{0, 1}},
+			},
 		},
 		{
 			name:    "a later statement's own WITH",

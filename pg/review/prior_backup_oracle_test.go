@@ -56,6 +56,7 @@ func TestPriorBackupAgainstPostgres(t *testing.T) {
 		{"a function the change creates, named with its schema", "CREATE FUNCTION public.stale(int) RETURNS bool LANGUAGE sql AS 'SELECT true';\nDELETE FROM nokey WHERE public.stale(a);", true},
 		{"a function the change creates, unqualified", "CREATE FUNCTION stale(int) RETURNS bool LANGUAGE sql AS 'SELECT true';\nDELETE FROM nokey WHERE stale(a);", false},
 		{"a data-modifying WITH", "WITH d AS (DELETE FROM r RETURNING t_id) UPDATE t SET n = 5 WHERE id IN (SELECT t_id FROM d);", true},
+		{"a data-modifying WITH of a later statement", "DELETE FROM t WHERE id = 1;\nWITH d AS (DELETE FROM r RETURNING t_id) DELETE FROM t WHERE id IN (SELECT t_id FROM d);", true},
 		{"a later statement's own WITH", "DELETE FROM nokey WHERE a = 1;\nWITH x AS (SELECT 2 AS a) DELETE FROM nokey WHERE a IN (SELECT a FROM x);", true},
 		// The backup reads the second statement's rows through the first x,
 		// which here misses them, and elsewhere may not: not judged.
@@ -204,6 +205,11 @@ func backupTruth(t *testing.T, conn *sql.Conn, change string, schema *metadata.D
 		case *ast.DeleteStmt:
 			rv = v.Relation
 		default:
+			continue
+		}
+		// Bytebase refuses the statement before it runs any query.
+		if names := dataModifyingCTEs(withOf(node)); len(names) > 0 {
+			unresolved = append(unresolved, backupGroup{table: rv.Relname, statements: []int{i}, outcome: "fails in Bytebase: a data-modifying WITH query"})
 			continue
 		}
 		table := rv.Schemaname

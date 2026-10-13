@@ -26,7 +26,9 @@ import (
 //     qualifies it, and otherwise looks it up in the synced schema along
 //     the synced search path, or along the last SET search_path before
 //     the statement; a name it cannot find fails the backup.
-//   - It refuses a table touched by both UPDATE and DELETE.
+//   - It refuses a table touched by both UPDATE and DELETE, and a
+//     statement whose WITH clause holds an INSERT, UPDATE, DELETE, or
+//     MERGE, before it runs anything.
 //   - It reads the rows with one query per table, which copies, as
 //     written, the WITH clause of the table's first statement and each
 //     statement's table, FROM or USING list, and WHERE clause, selects
@@ -42,10 +44,9 @@ import (
 // the first one's alias, reads a WITH query named like the table in its
 // place, reads another table, or none, when the search path it runs
 // under finds the statement's table elsewhere than Bytebase grouped it,
-// cannot take WHERE CURRENT OF, runs a data-modifying WITH query of a
-// table's first statement before the change and without backing up its
-// rows, and leaves out a later statement's own WITH queries. The SET ROLE
-// it runs first fails when the role is one the change creates.
+// cannot take WHERE CURRENT OF, and leaves out a later statement's own
+// WITH queries. The SET ROLE it runs first fails when the role is one the
+// change creates.
 //
 // A name the synced schema cannot resolve, and the change does not
 // create, is not reported. The schema the review sees may predate an
@@ -61,6 +62,32 @@ import (
 
 // backupSchema is where Bytebase writes a PostgreSQL prior backup.
 const backupSchema = "bbdataarchive"
+
+// checkPriorBackupStatements reports the top-level UPDATE and DELETE
+// statements the backup refuses whatever the target: one whose WITH
+// clause holds a query other than a SELECT, which copied into the backup
+// would change data before the change does. It needs the SQL alone.
+//
+// bytebase: backend/plugin/parser/pg/backup.go — rejectDataModifyingCTE
+func checkPriorBackupStatements(stmts []statement, r *reporter) {
+	for i := range stmts {
+		s := &stmts[i]
+		switch s.node.(type) {
+		case *ast.UpdateStmt, *ast.DeleteStmt:
+		default:
+			continue
+		}
+		names := dataModifyingCTEs(withOf(s.node))
+		if len(names) == 0 {
+			continue
+		}
+		quoted := make([]string, len(names))
+		for j, name := range names {
+			quoted[j] = ident(name)
+		}
+		r.report(review.PriorBackup, s.index, rangeOf(statementLoc(s.node)), "prior backup refuses the data-modifying WITH query "+strings.Join(quoted, ", ")+" of this statement")
+	}
+}
 
 // checkPriorBackupSize reports a change longer than prior backup takes.
 // It needs the SQL alone.
@@ -115,6 +142,11 @@ func checkPriorBackupTarget(stmts []statement, schema *metadata.DatabaseSchemaMe
 			continue
 		}
 		backsUp = true
+		// The backup refuses the statement outright, which
+		// checkPriorBackupStatements reports.
+		if len(dataModifyingCTEs(withOf(s.node))) > 0 {
+			continue
+		}
 		table := backupTable{schema: rv.Schemaname, name: rv.Relname}
 		if rv.Schemaname == "" {
 			table.schema = searchBackupRelation(schema, path, rv.Relname)
@@ -424,8 +456,8 @@ func aliasOf(rv *ast.RangeVar) string {
 //
 //	CREATE TABLE bbdataarchive."…" AS [WITH …] SELECT a.* FROM t AS a[, …] [WHERE …] UNION …
 //
-// So the query runs a data-modifying WITH query of the first statement;
-// it fails on a later statement that does not use the first one's alias;
+// So the query fails on a later statement that does not use the first
+// one's alias;
 // a WITH query named like the table stands for it; a later statement's
 // own WITH queries are left out; and it fails on a name the change makes,
 // which does not exist yet: a relation, a column of one of the
@@ -443,9 +475,6 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 	with := withOf(first)
 	firstTarget, _, _ := dmlParts(first)
 	name := relation(&ast.RangeVar{Schemaname: table.schema, Relname: table.name})
-	if isFirst && with != nil && modifiesData(with) {
-		return "prior backup runs the data-modifying WITH query of this statement before the change, and backs up none of the rows it changes"
-	}
 	if !isFirst && aliasOf(target) != aliasOf(firstTarget) {
 		return "prior backup selects the rows of every statement on " + name + " through the first one's alias, which this statement does not use"
 	}
@@ -563,21 +592,21 @@ func selectionRefused(n ast.Node, table backupTable, first ast.Node, q backupQue
 	return ""
 }
 
-// modifiesData reports whether a WITH clause holds an INSERT, UPDATE,
-// DELETE, or MERGE, which runs wherever the clause is copied.
-func modifiesData(w *ast.WithClause) bool {
-	if w.Ctes == nil {
-		return false
+// dataModifyingCTEs returns the names of a WITH clause's queries that are
+// not a SELECT: an INSERT, UPDATE, DELETE, or MERGE.
+func dataModifyingCTEs(w *ast.WithClause) []string {
+	if w == nil || w.Ctes == nil {
+		return nil
 	}
+	var names []string
 	for _, item := range w.Ctes.Items {
 		if c, ok := item.(*ast.CommonTableExpr); ok {
-			switch c.Ctequery.(type) {
-			case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt:
-				return true
+			if _, isSelect := c.Ctequery.(*ast.SelectStmt); !isSelect {
+				names = append(names, c.Ctename)
 			}
 		}
 	}
-	return false
+	return names
 }
 
 // systemSchema reports whether a schema is one the snapshot leaves out but
