@@ -284,7 +284,18 @@ func TestANSIDatatypes(t *testing.T) {
 	ParseAndCheck(t, "CREATE TYPE t AS ARRAY(1+1) OF NUMBER")
 	ParseAndCheck(t, "CREATE TYPE t AS VARRAY(2147483647) OF NUMBER")
 	ParseAndCheck(t, "DECLARE c CONSTANT PLS_INTEGER := 3; TYPE a IS VARRAY(c) OF NUMBER; TYPE b IS VARRAY(1+1) OF NUMBER; BEGIN NULL; END;")
-	for _, limit := range []string{"ARRAY(0)", "ARRAY(-1)", "ARRAY(2147483648)", "VARRAY(0)", "VARRAY(2147483648)", "VARYING ARRAY(0)"} {
+	// A numeric literal rounds half away from zero first.
+	for _, limit := range []string{"ARRAY(0.5)", "ARRAY(0.9)", "ARRAY(2147483647.4)", "ARRAY(1e1)"} {
+		ParseAndCheck(t, "CREATE TYPE t AS "+limit+" OF NUMBER")
+	}
+	ParseShouldFail(t, "DECLARE TYPE a IS VARRAY(0.4) OF NUMBER; BEGIN NULL; END;")
+	// AUTHID takes its values quoted too.
+	ParseAndCheck(t, `CREATE TYPE t AUTHID "DEFINER" AS OBJECT (a NUMBER)`)
+	ParseAndCheck(t, `CREATE TYPE t AUTHID "CURRENT_USER" AS OBJECT (a NUMBER)`)
+	for _, limit := range []string{
+		"ARRAY(0)", "ARRAY(-1)", "ARRAY(2147483648)", "VARRAY(0)", "VARRAY(2147483648)", "VARYING ARRAY(0)",
+		"ARRAY(0.0)", "ARRAY(-1.0)", "ARRAY(2147483648.0)", "ARRAY(0.4)", "ARRAY(-0.4)", "ARRAY(2147483647.5)", "ARRAY(1e10)",
+	} {
 		ParseShouldFail(t, "CREATE TYPE t AS "+limit+" OF NUMBER")
 	}
 	ParseShouldFail(t, "DECLARE TYPE a IS VARRAY(0) OF NUMBER; BEGIN NULL; END;")

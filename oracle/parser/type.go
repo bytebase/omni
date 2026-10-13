@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"math/big"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -295,10 +297,29 @@ func (p *Parser) checkPLSQLTypeMods(tn *nodes.TypeName) error {
 }
 
 // checkVarrayLimit checks the size limit of a VARRAY, which may be any
-// expression (Oracle 23ai compiles VARRAY(1+1) and VARRAY(c)); a literal is
-// positive (PLS-00537) and a PLS_INTEGER (PLS-00325).
+// expression (Oracle 23ai compiles VARRAY(1+1) and VARRAY(c)). A numeric
+// literal, rounded half away from zero, is positive (PLS-00537 for 0.4)
+// and a PLS_INTEGER (PLS-00325 for 2147483647.5 and 1e10).
 func (p *Parser) checkVarrayLimit(limit nodes.ExprNode) error {
-	if v, ok := literalInteger(limit); ok && (v < 1 || v > 1<<31-1) {
+	expr, negative := limit, false
+	if u, ok := expr.(*nodes.UnaryExpr); ok && (u.Op == "-" || u.Op == "+") {
+		expr, negative = u.Operand, u.Op == "-"
+	}
+	lit, ok := expr.(*nodes.NumberLiteral)
+	if !ok {
+		return nil
+	}
+	v, ok := new(big.Rat).SetString(lit.Val)
+	if !ok || len(lit.Val) > 100 {
+		return nil
+	}
+	// Half away from zero: the whole part of |v| + 1/2.
+	half := new(big.Rat).Add(v, big.NewRat(1, 2))
+	n := new(big.Int).Quo(half.Num(), half.Denom())
+	if negative && n.Sign() != 0 {
+		return p.syntaxErrorAtNode(limit)
+	}
+	if n.Sign() <= 0 || n.Cmp(big.NewInt(1<<31-1)) > 0 {
 		return p.syntaxErrorAtNode(limit)
 	}
 	return nil
