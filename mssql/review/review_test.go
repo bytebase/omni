@@ -392,6 +392,10 @@ func TestDisallowDropConstraint(t *testing.T) {
 			want: []finding{{0, "ck_n", "drops check constraint ck_n of t", []int{0}}},
 		},
 		{
+			name: "a table recreated in control flow with a constraint of the name",
+			sql:  "DROP TABLE dbo.t;\nIF 1 = 1 CREATE TABLE dbo.t (n INT CONSTRAINT ck_n DEFAULT 0);\nALTER TABLE dbo.t DROP CONSTRAINT ck_n;",
+		},
+		{
 			name: "a constraint added back on a new column in control flow",
 			sql:  "IF 1 = 1 BEGIN ALTER TABLE t DROP CONSTRAINT ck_n; ALTER TABLE t ADD n2 INT CONSTRAINT ck_n DEFAULT 0; ALTER TABLE t DROP CONSTRAINT ck_n; END;",
 			want: []finding{{0, "ck_n", "drops check constraint ck_n of t", []int{0}}},

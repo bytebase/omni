@@ -178,6 +178,16 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 					}
 					return true
 				}
+				if v, ok := n.(*ast.CreateTableStmt); ok {
+					// A later drop of a name it declares is of this table's
+					// constraint or the one before, as the flow runs.
+					for _, c := range tableConstraints(v) {
+						if c.Name != "" {
+							made = append(made, defined{table: v.Name, name: c.Name, kind: c.Type, unsure: true})
+						}
+					}
+					return true
+				}
 				v, ok := n.(*ast.AlterTableStmt)
 				if !ok || v.Actions == nil {
 					return true
