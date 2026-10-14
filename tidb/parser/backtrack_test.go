@@ -33,8 +33,8 @@ func TestSnapshotRestore_RoundTrip(t *testing.T) {
 	assertSameTokens(t, first, collectToEOF(p))
 }
 
-// A conditional comment /*!NNNNN ... */ is spliced into l.input in place during
-// lexing. Restore (which reverts l.input) must yield an identical rescan.
+// The lexer steps into and out of a conditional comment /*!NNNNN ... */ while
+// lexing. Restore (which rewinds that state) must yield an identical rescan.
 func TestSnapshotRestore_AcrossConditionalComment(t *testing.T) {
 	p := &Parser{lexer: NewLexerWithOffset("(SELECT /*!40000 a */ FROM t)", 0)}
 	p.advance() // cur = '('

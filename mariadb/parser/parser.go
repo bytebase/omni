@@ -144,7 +144,8 @@ func (p *Parser) pos() int {
 	return p.cur.Loc
 }
 
-// inputText returns a substring of the original input between start and end byte positions.
+// inputText returns the input between start and end byte positions, without the
+// executable-comment syntax (/*!NNNNN, */) the lexer stepped over in that range.
 // start and end are absolute (include baseOffset), so we subtract it to index into the segment text.
 func (p *Parser) inputText(start, end int) string {
 	start -= p.lexer.baseOffset
@@ -158,7 +159,7 @@ func (p *Parser) inputText(start, end int) string {
 	if start >= end {
 		return ""
 	}
-	return p.lexer.input[start:end]
+	return p.lexer.expandedText(start, end)
 }
 
 // ParseError represents a parse error with position information.

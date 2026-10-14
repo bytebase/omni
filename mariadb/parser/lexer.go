@@ -1723,6 +1723,90 @@ type Lexer struct {
 	prevToken    int // type of the previously emitted token
 	prevTokenEnd int // end position of the previously emitted token (for adjacency checks)
 	baseOffset   int // added to all token Loc values for absolute positioning
+
+	// execStack holds every executable comment (/*! ... */) the lexer is inside,
+	// innermost last. The lexer reads a comment's body in place rather than
+	// copying it into a new buffer, so every token keeps its byte offset in the
+	// input; skipWhitespaceAndComments steps over a comment's closing "*/" when it
+	// reaches it. A push never writes into a shared backing array, so a saved
+	// copy of the stack stays intact.
+	execStack []execComment
+
+	// execMarkers records, in input order, the comment syntax the lexer stepped
+	// over to read an executable comment's body: each "/*!NNNNN" opener and each
+	// closing "*/". expandedText leaves these bytes out.
+	execMarkers []execMarker
+}
+
+// execComment is an executable comment the lexer is inside: start is the offset
+// of its "/*!", close the offset of its closing "*/".
+type execComment struct {
+	start, close int
+}
+
+// execMarker is a run of executable-comment syntax, [start, end) in l.input.
+type execMarker struct {
+	start, end int
+}
+
+// enterExecComment steps over the opener [l.pos, bodyStart) of an executable
+// comment whose closing "*/" starts at closeStart, leaving the lexer at the
+// first byte of the body.
+func (l *Lexer) enterExecComment(bodyStart, closeStart int) {
+	l.execMarkers = append(l.execMarkers, execMarker{l.pos, bodyStart})
+	n := len(l.execStack)
+	l.execStack = append(l.execStack[:n:n], execComment{l.pos, closeStart})
+	l.pos = bodyStart
+}
+
+// skipExecClose steps over the "*/" that closes the innermost executable comment
+// when the lexer stands on it, and reports whether it did. A close the lexer has
+// already passed was swallowed by a token (a string or a line comment holding
+// the "*/"); it no longer ends anything and is dropped.
+func (l *Lexer) skipExecClose() bool {
+	for n := len(l.execStack); n > 0; n-- {
+		c := l.execStack[n-1]
+		if c.close > l.pos {
+			return false
+		}
+		l.execStack = l.execStack[:n-1]
+		if c.close < l.pos {
+			continue
+		}
+		l.execMarkers = append(l.execMarkers, execMarker{c.close, c.close + 2})
+		l.pos += 2
+		return true
+	}
+	return false
+}
+
+// expandedText returns l.input[start:end] as the server reads it: without the
+// executable-comment syntax the lexer stepped over in that range. Body text
+// captured across an executable comment (a view's SELECT, a trigger body from
+// mysqldump) therefore holds only the SQL inside it.
+func (l *Lexer) expandedText(start, end int) string {
+	var sb strings.Builder
+	cut := false
+	for _, m := range l.execMarkers {
+		if m.start >= end {
+			break
+		}
+		if m.end <= start {
+			continue
+		}
+		cut = true
+		if m.start > start {
+			sb.WriteString(l.input[start:m.start])
+		}
+		start = m.end
+	}
+	if !cut {
+		return l.input[start:end]
+	}
+	if start < end {
+		sb.WriteString(l.input[start:end])
+	}
+	return sb.String()
 }
 
 // NewLexer creates a new MySQL lexer for the given input.
@@ -1853,7 +1937,13 @@ func (l *Lexer) nextToken() Token {
 }
 
 func (l *Lexer) skipWhitespaceAndComments() {
-	for l.pos < len(l.input) {
+	for {
+		if len(l.execStack) > 0 && l.skipExecClose() {
+			continue
+		}
+		if l.pos >= len(l.input) {
+			return
+		}
 		ch := l.input[l.pos]
 
 		// Whitespace
@@ -1914,11 +2004,14 @@ func (l *Lexer) skipWhitespaceAndComments() {
 						end++
 					}
 				}
-				// Extract the inner content and splice it into the input,
-				// replacing the conditional comment with its content.
-				inner := l.input[vpos:end]
-				l.input = l.input[:l.pos] + inner + l.input[end+2:]
-				// Don't advance l.pos — re-scan from the start of the inner content.
+				// If comment is unclosed (no matching */), treat as regular block comment.
+				if depth > 0 {
+					l.pos = len(l.input)
+					continue
+				}
+				// Lex the body in place: step over "/*!NNNNN" and remember where
+				// the comment closes, so tokens keep their offsets in the input.
+				l.enterExecComment(vpos, end)
 				continue
 			}
 
