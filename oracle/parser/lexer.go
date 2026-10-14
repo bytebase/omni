@@ -489,9 +489,15 @@ func (l *Lexer) selectBranch(tok Token) bool {
 			// A branch that opens with $ERROR raises whenever it is
 			// selected, so no selection that compiles takes it: it is
 			// passed over as if its condition were FALSE, with no
-			// decision to vary. $IF DBMS_DB_VERSION.VER_LE_12 $THEN
-			// $ERROR 'unsupported' $END $END costs no retry.
+			// decision to vary, and the condition does not hold where
+			// it recurs. $IF DBMS_DB_VERSION.VER_LE_12 $THEN $ERROR
+			// 'unsupported' $END $END costs no retry.
 			if l.branchOpensWithError() {
+				by := dep
+				if undecided {
+					by = at
+				}
+				l.noteFact(cond, false, by)
 				break
 			}
 			undecided = true

@@ -787,6 +787,11 @@ func TestConditionalCompilationSelections(t *testing.T) {
 		}
 	}
 	ParseShouldFail(t, "BEGIN $IF $$x $THEN $ERROR 'x' $END $ELSIF $$y $THEN $ERROR 'y' $END $ELSE $ERROR 'z' $END $END NULL; END;")
+	// The condition of a passed-over $ERROR branch does not hold where it
+	// recurs: no environment compiles this block.
+	ParseShouldFail(t, "BEGIN $IF $$x $THEN $ERROR 'bad' $END $END $IF $$x $THEN NULL; $ELSE garbage garbage; $END END;")
+	ParseAndCheck(t, "BEGIN $IF $$x $THEN $ERROR 'bad' $END $END $IF $$x $THEN garbage garbage; $ELSE NULL; $END END;")
+	ParseAndCheck(t, "BEGIN $IF $$y $THEN NULL; $ELSIF $$x $THEN $ERROR 'bad' $END $END $IF $$x $THEN NULL; $ELSE garbage garbage; $END END;")
 	ParseAndCheck(t, "BEGIN $IF $$x $THEN $ERROR 'x' $END $ELSIF $$y $THEN NULL; $END NULL; END;")
 
 	// One environment gives a condition one value: a selection decides a
