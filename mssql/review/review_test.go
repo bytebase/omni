@@ -216,6 +216,11 @@ func TestRequireIsNull(t *testing.T) {
 func TestDisallowDropObject(t *testing.T) {
 	runCases(t, review.DisallowDropObject, []ruleCase{
 		{
+			name: "a user, whose name is one part",
+			sql:  "DROP USER [a. b];",
+			want: []finding{{0, "DROP USER [a. b]", "drops user [a. b]", []int{0}}},
+		},
+		{
 			name: "Service Broker objects, whose names are one part",
 			sql:  "DROP MESSAGE TYPE [//Adventure-Works.com/Expenses];\nDROP QUEUE dbo.q;",
 			want: []finding{
@@ -311,6 +316,11 @@ func TestDisallowRename(t *testing.T) {
 			name: "sp_rename of a column whose name keeps spaces inside brackets",
 			sql:  "EXEC sp_rename N'dbo.t.[ c ]', N'd', 'COLUMN';",
 			want: []finding{{0, "EXEC sp_rename N'dbo.t.[ c ]', N'd', 'COLUMN'", "renames column [ c ] of dbo.t to d", []int{0}}},
+		},
+		{
+			name: "sp_rename of a name the change renamed away and reused",
+			sql:  "EXEC sp_rename 'dbo.t', 'moved', 'OBJECT';\nGO\nCREATE VIEW dbo.t AS SELECT 1 AS n;\nGO\nEXEC sp_rename 'dbo.t', 'new', 'OBJECT';",
+			want: []finding{{0, "EXEC sp_rename 'dbo.t', 'moved', 'OBJECT'", "renames table dbo.t to moved", []int{0}}},
 		},
 		{
 			name: "sp_rename of a name the change dropped and reused",

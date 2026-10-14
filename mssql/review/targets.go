@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/bytebase/omni/metadata"
@@ -168,19 +169,28 @@ func reviewGroup(stmts []statement, work targetWork, g targetGroup) (findings []
 }
 
 // droppedBefore reports whether a statement before pos drops an object
-// the reference may mean, so that the synced schema no longer tells what
-// the name holds.
+// the reference may mean, or renames it away, so that the synced schema
+// no longer tells what the name holds.
 func droppedBefore(stmts []statement, pos int, ref *ast.TableRef) bool {
 	dropped := false
 	for i := 0; i < pos && !dropped; i++ {
 		ast.Inspect(stmts[i].node, func(n ast.Node) bool {
-			v, ok := n.(*ast.DropStmt)
-			if !ok || v.Names == nil {
-				return !dropped
-			}
-			for _, item := range v.Names.Items {
-				if t, ok := item.(*ast.TableRef); ok && sameObject(t, ref) {
-					dropped = true
+			switch v := n.(type) {
+			case *ast.DropStmt:
+				if v.Names != nil {
+					for _, item := range v.Names.Items {
+						if t, ok := item.(*ast.TableRef); ok && sameObject(t, ref) {
+							dropped = true
+						}
+					}
+				}
+			case *ast.RenameStmt:
+				dropped = dropped || v.ColumnName == "" && sameObject(v.Name, ref)
+			case *ast.ExecStmt:
+				if name, _, kind, ok := spRename(v); ok && (kind == "" || strings.EqualFold(kind, "OBJECT")) {
+					if t := parseObjectName(name); t != nil && sameObject(t, ref) {
+						dropped = true
+					}
 				}
 			}
 			return !dropped

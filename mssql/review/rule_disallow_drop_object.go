@@ -74,13 +74,19 @@ func checkDisallowDropObject(s *statement, r *reporter) {
 			report(v.Loc, kind, names...)
 		case *ast.SecurityStmt:
 			if strings.EqualFold(v.Action, "DROP") {
-				names := []string{dotted(v.Name)}
+				// A principal, endpoint, audit, or pool has a one-part
+				// name, which may hold a dot.
+				render := dotted
+				if onePartKinds[strings.ToUpper(v.ObjectType)] {
+					render = ident
+				}
+				names := []string{render(v.Name)}
 				// DROP EVENT NOTIFICATION n1, n2 keeps the rest apart.
 				if v.Options != nil {
 					for _, item := range v.Options.Items {
 						if o, ok := item.(*ast.EventNotificationOption); ok {
 							for _, extra := range o.ExtraNames {
-								names = append(names, dotted(extra))
+								names = append(names, render(extra))
 							}
 						}
 					}
@@ -159,4 +165,28 @@ func checkDisallowDropObject(s *statement, r *reporter) {
 		}
 		return true
 	})
+}
+
+// onePartKinds are the security object kinds whose names have no schema
+// or database part.
+var onePartKinds = map[string]bool{
+	"APPLICATION ROLE":             true,
+	"AVAILABILITY GROUP":           true,
+	"DATABASE AUDIT SPECIFICATION": true,
+	"ENDPOINT":                     true,
+	"EVENT NOTIFICATION":           true,
+	"EVENT SESSION":                true,
+	"EXTERNAL DATA SOURCE":         true,
+	"EXTERNAL FILE FORMAT":         true,
+	"EXTERNAL LANGUAGE":            true,
+	"EXTERNAL RESOURCE POOL":       true,
+	"LOGIN":                        true,
+	"RESOURCE POOL":                true,
+	"ROLE":                         true,
+	"SERVER AUDIT":                 true,
+	"SERVER AUDIT SPECIFICATION":   true,
+	"SERVER ROLE":                  true,
+	"USER":                         true,
+	"WORKLOAD CLASSIFIER":          true,
+	"WORKLOAD GROUP":               true,
 }
