@@ -136,6 +136,8 @@ const (
 	CONSTRAINT_PRIMARY
 	CONSTRAINT_UNIQUE
 	CONSTRAINT_FOREIGN
+	CONSTRAINT_SCOPE      // SCOPE IS table of a REF column; RefTable is the table
+	CONSTRAINT_WITH_ROWID // WITH ROWID of a REF column
 )
 
 // PartitionType represents partition types.
@@ -373,6 +375,7 @@ type TypeName struct {
 	TypeMods      *List  // type modifiers (precision, scale)
 	IsPercType    bool   // %TYPE
 	IsPercRowtype bool   // %ROWTYPE
+	IsRef         bool   // REF object_type
 	ArrayBounds   *List  // array bounds if any
 	CharacterSet  string // PL/SQL CHARACTER SET name, or the item named by item%CHARSET
 	IsPercCharset bool   // CHARACTER SET item%CHARSET
@@ -1969,20 +1972,28 @@ func (n *CreateDatabaseLinkStmt) stmtNode() {}
 // CreateTypeStmt represents a CREATE TYPE statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-TYPE.html
 type CreateTypeStmt struct {
-	OrReplace      bool        // OR REPLACE
-	IfNotExists    bool        // IF NOT EXISTS
-	Editionable    bool        // EDITIONABLE
-	NonEditionable bool        // NONEDITIONABLE
-	Name           *ObjectName // type name
-	Attributes     *List       // list of *ColumnDef (for object types)
-	Methods        *List       // object type spec methods (*TypeBodyMember) and RESTRICT_REFERENCES pragmas (*PLSQLPragma)
-	Modifiers      []string    // [NOT] FINAL | INSTANTIABLE | PERSISTABLE after the element list
-	AsTable        *TypeName   // TABLE OF type (nested table)
-	AsVarray       *TypeName   // VARRAY(n) OF type
-	VarraySize     ExprNode    // varray size limit
-	IsBody         bool        // CREATE TYPE BODY
-	Body           *List       // type body members (list of *TypeBodyMember)
-	Loc            Loc         // start location
+	OrReplace        bool        // OR REPLACE
+	IfNotExists      bool        // IF NOT EXISTS
+	Editionable      bool        // EDITIONABLE
+	NonEditionable   bool        // NONEDITIONABLE
+	Name             *ObjectName // type name
+	Sharing          string      // SHARING = METADATA | NONE
+	Force            bool        // FORCE
+	OID              string      // OID 'object_identifier'
+	DefaultCollation string      // DEFAULT COLLATION option
+	AuthID           string      // AUTHID CURRENT_USER | DEFINER
+	AccessibleBy     *List       // ACCESSIBLE BY accessors (list of *Accessor)
+	Under            *ObjectName // UNDER supertype (object subtype)
+	Attributes       *List       // list of *ColumnDef (for object types)
+	Methods          *List       // object type spec methods (*TypeBodyMember) and RESTRICT_REFERENCES pragmas (*PLSQLPragma)
+	Modifiers        []string    // [NOT] FINAL | INSTANTIABLE | PERSISTABLE after the element list
+	AsTable          *TypeName   // TABLE OF type (nested table)
+	AsVarray         *TypeName   // VARRAY(n) OF type
+	VarraySize       ExprNode    // varray size limit
+	ElementNotNull   bool        // TABLE OF or VARRAY OF datatype NOT NULL
+	IsBody           bool        // CREATE TYPE BODY
+	Body             *List       // type body members (list of *TypeBodyMember)
+	Loc              Loc         // start location
 }
 
 func (n *CreateTypeStmt) nodeTag()  {}
@@ -4269,37 +4280,61 @@ type AlterTypeStmt struct {
 	// "ADD_METHOD", "DROP_METHOD", "NOT_INSTANTIABLE", "INSTANTIABLE",
 	// "NOT_FINAL", "FINAL", "MODIFY_LIMIT", "MODIFY_ELEMENT_TYPE",
 	// "RESET", "EDITIONABLE", "NONEDITIONABLE"
-	CompileTarget  string           // "SPECIFICATION", "BODY", "" (for COMPILE)
-	Debug          bool             // COMPILE DEBUG
-	ReuseSettings  bool             // REUSE SETTINGS
-	CompilerParams []*SetParam      // compiler_parameters_clause
-	Attributes     []*TypeAttribute // for ADD/DROP/MODIFY ATTRIBUTE
-	MethodSpec     string           // raw method signature text for ADD/DROP method
-	MethodKind     string           // "MEMBER", "STATIC", "MAP MEMBER", "ORDER MEMBER", "CONSTRUCTOR"
-	MethodType     string           // "FUNCTION" or "PROCEDURE"
-	MethodName     string           // method name
-	MethodParams   []*Parameter     // method parameters
-	MethodReturn   *TypeName        // method return type
-	LimitValue     ExprNode         // for MODIFY LIMIT
-	ElementType    *TypeName        // for MODIFY ELEMENT TYPE
-	Invalidate     bool             // INVALIDATE
-	Cascade        bool             // CASCADE
-	IncludeData    *bool            // CASCADE INCLUDING TABLE DATA (true) / NOT INCLUDING TABLE DATA (false) / nil (not specified)
-	ConvertToSubst bool             // CASCADE CONVERT TO SUBSTITUTABLE
-	Force          bool             // FORCE (exceptions_clause)
-	Editionable    bool             // EDITIONABLE
-	NonEditionable bool             // NONEDITIONABLE
+	CompileTarget  string             // "SPECIFICATION", "BODY", "" (for COMPILE)
+	Debug          bool               // COMPILE DEBUG
+	ReuseSettings  bool               // REUSE SETTINGS
+	CompilerParams []*SetParam        // compiler_parameters_clause
+	Attributes     []*TypeAttribute   // for ADD/DROP/MODIFY ATTRIBUTE
+	Methods        []*AlterTypeMethod // ADD or DROP method specifications
+	LimitValue     ExprNode           // for MODIFY LIMIT
+	ElementType    *TypeName          // for MODIFY ELEMENT TYPE
+	Invalidate     bool               // INVALIDATE
+	Cascade        bool               // CASCADE
+	IncludeData    *bool              // CASCADE INCLUDING TABLE DATA (true) / NOT INCLUDING TABLE DATA (false) / nil (not specified)
+	ConvertToSubst bool               // CASCADE CONVERT TO SUBSTITUTABLE
+	Force          bool               // FORCE (exceptions_clause)
+	Editionable    bool               // EDITIONABLE
+	NonEditionable bool               // NONEDITIONABLE
 	Loc            Loc
 }
 
 // TypeAttribute represents an attribute name with optional datatype in ALTER TYPE.
 type TypeAttribute struct {
+	Action   string    // "ADD", "MODIFY", or "DROP"
 	Name     string    // attribute name
 	DataType *TypeName // datatype (nil for DROP ATTRIBUTE)
 	Loc      Loc
 }
 
 func (n *TypeAttribute) nodeTag() {}
+
+// AlterTypeMethod is one method specification of ALTER TYPE ADD or DROP.
+type AlterTypeMethod struct {
+	Action    string       // "ADD" or "DROP"
+	Modifiers []string     // OVERRIDING, [NOT] FINAL, [NOT] INSTANTIABLE
+	Kind      string       // "MEMBER", "STATIC", "MAP MEMBER", "ORDER MEMBER", "CONSTRUCTOR"
+	Type      string       // "FUNCTION" or "PROCEDURE"
+	Name      string       // method name
+	Params    []*Parameter // method parameters
+	Return    *TypeName    // function return type; SELF AS RESULT for a constructor
+	// A function's properties, as on CreateFunctionStmt.
+	Deterministic  bool                  // DETERMINISTIC
+	Pipelined      bool                  // PIPELINED
+	Polymorphic    string                // PIPELINED ROW or TABLE POLYMORPHIC: ROW or TABLE
+	Parallel       bool                  // PARALLEL_ENABLE
+	ParallelSpec   *ParallelEnableClause // PARALLEL_ENABLE ( PARTITION ... ), nil without one
+	Streaming      *List                 // ORDER and CLUSTER streaming clauses (list of *StreamingClause)
+	ResultCache    bool                  // RESULT_CACHE
+	ReliesOn       *List                 // RESULT_CACHE RELIES_ON data sources (list of *ObjectName)
+	Aggregate      bool                  // AGGREGATE USING
+	Implementation *ObjectName           // AGGREGATE or PIPELINED USING implementation type
+	SqlMacro       bool                  // SQL_MACRO
+	SqlMacroType   string                // SQL_MACRO ( SCALAR | TABLE ), "" without the parenthesized type
+	CallSpec       *CallSpec             // IS | AS call specification
+	Loc            Loc
+}
+
+func (n *AlterTypeMethod) nodeTag() {}
 
 func (n *AlterTypeStmt) nodeTag()  {}
 func (n *AlterTypeStmt) stmtNode() {}
