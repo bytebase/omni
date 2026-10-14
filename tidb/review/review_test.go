@@ -332,6 +332,11 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:  "CREATE UNIQUE INDEX ux ON nokey (a);\nDROP TABLE nokey;\nCREATE TABLE nokey (a INT, KEY ux (a));\nDROP INDEX ux ON nokey;",
 		},
 		{
+			name: "a temporary table dropped, which leaves the table of the name as it was",
+			sql:  "DROP TEMPORARY TABLE IF EXISTS t;\nDROP INDEX uk_code ON t;",
+			want: []finding{{1, "DROP INDEX uk_code ON t", "drops unique key uk_code of t", []int{0}}},
+		},
+		{
 			name: "a unique index the change renames",
 			sql:  "CREATE UNIQUE INDEX ux ON nokey (a);\nALTER TABLE nokey RENAME INDEX ux TO uy;\nDROP INDEX uy ON nokey;",
 			want: []finding{{2, "DROP INDEX uy ON nokey", "drops unique key uy of nokey", []int{0}}},
@@ -452,6 +457,12 @@ func TestPriorBackup(t *testing.T) {
 			sql:    "UPDATE other.t SET n = 1 WHERE id = 1;\nDELETE FROM SHOP.p WHERE id = 2;",
 			change: backup,
 			want:   []finding{{0, "UPDATE other.t SET n = 1 WHERE id = 1", "prior backup does not support an UPDATE or DELETE of other.t, a table of another database", []int{0}}},
+		},
+		{
+			name:   "a table of another database deleted from twice",
+			sql:    "DELETE a, b FROM other.t AS a JOIN other.t AS b ON a.id = b.id WHERE a.id = 1;",
+			change: backup,
+			want:   []finding{{0, "DELETE a, b FROM other.t AS a JOIN other.t AS b ON a.id = b.id WHERE a.id = 1", "prior backup does not support an UPDATE or DELETE of other.t, a table of another database", []int{0}}},
 		},
 		{
 			name:   "more than five statements over two tables",
