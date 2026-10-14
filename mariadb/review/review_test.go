@@ -570,11 +570,12 @@ func TestPriorBackup(t *testing.T) {
 		{name: "not asked for", sql: "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM t WHERE id = 2;"},
 		{
 			name:   "a statement with RETURNING",
-			sql:    "DELETE FROM t WHERE id = 1 RETURNING id;\nINSERT INTO p (id) VALUES (3) RETURNING id;\nDELETE FROM p WHERE id = 2;",
+			sql:    "DELETE FROM t WHERE id = 1 RETURNING id;\nINSERT INTO p (id) VALUES (3) RETURNING id;\nDELETE FROM p WHERE id = 2;\nDELIMITER //\nCREATE PROCEDURE pr() BEGIN DELETE FROM t WHERE id = 1 RETURNING id; END//\nDELIMITER ;",
 			change: backup,
 			want: []finding{
 				{0, "DELETE FROM t WHERE id = 1 RETURNING id", "prior backup reads the change as MySQL, which has no RETURNING clause", []int{0}},
 				{1, "INSERT INTO p (id) VALUES (3) RETURNING id", "prior backup reads the change as MySQL, which has no RETURNING clause", []int{0}},
+				{3, "CREATE PROCEDURE pr() BEGIN DELETE FROM t WHERE id = 1 RETURNING id; END", "prior backup reads the change as MySQL, which has no RETURNING clause", []int{0}},
 			},
 		},
 		{

@@ -87,8 +87,9 @@ func checkPriorBackupMixed(stmts []statement, db string, r *reporter) {
 }
 
 // checkPriorBackupStatements reports, from the SQL alone, what makes
-// Bytebase refuse the change: a statement with RETURNING, which the MySQL
-// parser Bytebase reads every statement of a MariaDB change with rejects,
+// Bytebase refuse the change: a statement with RETURNING, at top level or
+// in a routine, trigger, or event body, which the MySQL parser Bytebase
+// reads every statement of a MariaDB change with rejects,
 // and a multi-table DELETE whose target the backup cannot find in the
 // statement's FROM list, which Bytebase matches by name or alias exactly,
 // case included. A DELETE after a WITH clause, whose targets may be its
@@ -99,15 +100,18 @@ func checkPriorBackupMixed(stmts []statement, db string, r *reporter) {
 func checkPriorBackupStatements(stmts []statement, r *reporter) {
 	for i := range stmts {
 		s := &stmts[i]
-		switch v := s.node.(type) {
-		case *ast.InsertStmt:
-			if len(v.Returning) > 0 {
-				r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup reads the change as MySQL, which has no RETURNING clause")
+		returning := false
+		ast.Inspect(s.node, func(n ast.Node) bool {
+			switch v := n.(type) {
+			case *ast.InsertStmt:
+				returning = returning || len(v.Returning) > 0
+			case *ast.DeleteStmt:
+				returning = returning || len(v.Returning) > 0
 			}
-		case *ast.DeleteStmt:
-			if len(v.Returning) > 0 {
-				r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup reads the change as MySQL, which has no RETURNING clause")
-			}
+			return !returning
+		})
+		if returning {
+			r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup reads the change as MySQL, which has no RETURNING clause")
 		}
 		v, ok := s.node.(*ast.DeleteStmt)
 		if !ok || len(v.Using) == 0 || v.Loc.Start > s.loc.Start {
