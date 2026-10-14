@@ -101,6 +101,10 @@ func predicates(root ast.Node) []ast.Node {
 			if v.Where != nil {
 				add(v.Where)
 			}
+		case *ast.HandlerReadStmt:
+			if v.Where != nil {
+				add(v.Where)
+			}
 		case *ast.UpdateStmt:
 			if v.Where != nil {
 				add(v.Where)

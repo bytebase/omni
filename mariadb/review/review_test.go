@@ -115,6 +115,14 @@ func shop() *metadata.DatabaseSchemaMetadata {
 					Indexes: []*metadata.IndexMetadata{{Name: "uk_f", Unique: true, Expressions: []string{"lower(`code`)"}}},
 				},
 				{
+					Name:    "mixk",
+					Columns: []*metadata.ColumnMetadata{{Name: "email", Nullable: true}, {Name: "code"}},
+					Indexes: []*metadata.IndexMetadata{
+						{Name: "uk_email", Unique: true, Expressions: []string{"email"}},
+						{Name: "uk_f", Unique: true, Expressions: []string{"lower(`code`)"}},
+					},
+				},
+				{
 					Name:    "fl",
 					Columns: []*metadata.ColumnMetadata{{Name: "f", Type: "float"}},
 					Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"f"}}},
@@ -203,6 +211,11 @@ func TestRequireIsNull(t *testing.T) {
 			name: "a backslash-escaped quote in a string",
 			sql:  "SELECT * FROM t WHERE 'a\\'  b' = NULL;",
 			want: []finding{{0, "'a\\'  b' = NULL", "\"'a\\'  b' = NULL\" is never true; use IS NULL", []int{0}}},
+		},
+		{
+			name: "HANDLER ... READ WHERE",
+			sql:  "HANDLER t READ NEXT WHERE id = NULL;",
+			want: []finding{{0, "id = NULL", "\"id = NULL\" is never true; use IS NULL", []int{0}}},
 		},
 	})
 }
@@ -483,6 +496,12 @@ func TestOnlineMigration(t *testing.T) {
 			want:   []finding{{0, "ALTER TABLE fkey ADD COLUMN m INT", "online migration needs a primary or unique key on fkey, which has none", []int{0}}},
 		},
 		{
+			name:   "a nullable unique key and a functional one, neither usable",
+			sql:    "ALTER TABLE mixk ADD COLUMN m INT;",
+			change: ghost,
+			want:   []finding{{0, "ALTER TABLE mixk ADD COLUMN m INT", "online migration needs a primary key or a unique key of NOT NULL columns, none of them FLOAT or JSON, on mixk, which has none", []int{0}}},
+		},
+		{
 			name:   "a primary key of a FLOAT column",
 			sql:    "ALTER TABLE fl ADD COLUMN m INT;",
 			change: ghost,
@@ -597,6 +616,16 @@ func TestPriorBackup(t *testing.T) {
 			sql:    "CREATE OR REPLACE VIEW nv AS SELECT 1 AS id;\nUPDATE nv SET id = 2 WHERE id = 1;\nCREATE TABLE IF NOT EXISTS t (gone INT);\nUPDATE t SET n = 1 WHERE gone = 1;",
 			change: backup,
 			want:   []finding{{1, "UPDATE nv SET id = 2 WHERE id = 1", "prior backup runs before the change, when nv does not exist yet", []int{0}}},
+		},
+		{
+			name:    "a target without a synced schema",
+			sql:     "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM t WHERE id = 2;",
+			change:  backup,
+			targets: []review.Target{{Schema: nil}},
+			want: []finding{
+				{-1, "", "prior backup needs database bbdataarchive, which does not exist", []int{0}},
+				{1, "DELETE FROM t WHERE id = 2", "prior backup cannot back up both UPDATE and DELETE on t", []int{0}},
+			},
 		},
 		{
 			name:   "statements before a USE",
