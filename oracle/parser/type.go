@@ -1,6 +1,11 @@
 package parser
 
 import (
+	"math"
+	"math/big"
+	"strconv"
+	"strings"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -12,7 +17,12 @@ import (
 //	    NUMBER [ ( precision [, scale] ) ]
 //	  | FLOAT [ ( precision ) ]
 //	  | INTEGER | SMALLINT | DECIMAL [ ( precision [, scale] ) ]
-//	  | CHAR [ ( size [ BYTE | CHAR ] ) ]
+//	  | { CHAR | CHARACTER } [ VARYING ] [ ( size [ BYTE | CHAR ] ) ]
+//	  | NATIONAL { CHAR | CHARACTER } [ VARYING ] [ ( size ) ]
+//	  | NCHAR VARYING ( size )
+//	  | CHARACTER LARGE OBJECT          -- PL/SQL only
+//	  | LONG VARCHAR                    -- SQL only
+//	  | DOUBLE PRECISION
 //	  | VARCHAR2 ( size [ BYTE | CHAR ] )
 //	  | VARCHAR ( size [ BYTE | CHAR ] )
 //	  | NCHAR [ ( size ) ]
@@ -23,10 +33,15 @@ import (
 //	  | INTERVAL YEAR [ ( precision ) ] TO MONTH
 //	  | INTERVAL DAY [ ( precision ) ] TO SECOND [ ( precision ) ]
 //	  | RAW ( size )
-//	  | LONG [ RAW ]
+//	  | LONG [ RAW ] [ ( size ) ]         -- size in PL/SQL only
 //	  | ROWID
 //	  | ref%TYPE | ref%ROWTYPE
+//	  | REF [ schema . ] object_type
 //	  | [ schema . ] type_name
+//
+// The ANSI spellings (CHARACTER VARYING, NATIONAL CHARACTER, DOUBLE
+// PRECISION) and REF types compile in SQL and PL/SQL alike on Oracle 23ai;
+// DOUBLE takes PRECISION (ORA-02000, PLS-00103).
 func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 	start := p.pos()
 	tn := &nodes.TypeName{
@@ -37,6 +52,18 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 
 	switch p.cur.Type {
 	case kwNUMBER, kwINTEGER, kwSMALLINT, kwDECIMAL, kwFLOAT:
+		// But for NUMBER (PLS-00320), the word may name the item %TYPE or
+		// %ROWTYPE takes a type from, or a record whose field it does:
+		// Oracle 23ai compiles DECLARE integer NUMBER; x integer%TYPE and
+		// DECLARE integer r; x integer.f%TYPE, as for SMALLINT, DECIMAL,
+		// FLOAT, DEC, and NUMERIC (anchoredName). Otherwise it is the
+		// datatype, dotted or not (ORA-03099, PLS-00487 for integer.foo).
+		if p.cur.Type != kwNUMBER && p.anchoredName() {
+			if err := p.parseUserDefinedType(tn); err != nil {
+				return nil, err
+			}
+			break
+		}
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 		p.advance()
 		parseErr1116 := p.parseOptionalPrecisionScale(tn)
@@ -45,11 +72,31 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 		}
 
 	case kwCHAR, kwVARCHAR2, kwVARCHAR, kwNCHAR, kwNVARCHAR2:
+		varying := p.cur.Type == kwCHAR || p.cur.Type == kwNCHAR
+		national := p.cur.Type == kwNCHAR || p.cur.Type == kwNVARCHAR2
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 		p.advance()
+		if varying && p.isKeywordStr("VARYING") {
+			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "VARYING"})
+			p.advance()
+			if err := p.requireVaryingSize(); err != nil {
+				return nil, err
+			}
+		} else if p.prev.Type == kwNCHAR && p.typeMods != typeModsSQL && p.isKeywordStr("LARGE") {
+			// NCHAR LARGE OBJECT, PL/SQL's NCLOB.
+			if err := p.parseLargeObjectWords(tn); err != nil {
+				return nil, err
+			}
+			break
+		}
 		parseErr1117 := p.parseOptionalSizeWithSemantic(tn)
 		if parseErr1117 != nil {
 			return nil, parseErr1117
+		}
+		if national {
+			if err := p.checkNationalLength(tn); err != nil {
+				return nil, err
+			}
 		}
 
 	case kwCLOB, kwBLOB, kwNCLOB, kwJSON:
@@ -111,24 +158,117 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 		if p.cur.Type == kwRAW {
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "RAW"})
 			p.advance()
+		} else if p.cur.Type == kwVARCHAR && p.typeMods == typeModsSQL {
+			// LONG VARCHAR is SQL's alone (PLS-00103 in PL/SQL).
+			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "VARCHAR"})
+			p.advance()
+		}
+		// PL/SQL takes one length, LONG(100) or LONG RAW(32767), with no
+		// scale or BYTE/CHAR (PLS-00572); SQL takes none (ORA-03074), and
+		// neither does an unconstrained parameter (PLS-00103).
+		if p.typeMods != typeModsSQL && p.cur.Type == '(' {
+			if p.typeMods == typeModsNone {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume '('
+			// A length, not NUMBER's * (PLS-00201 for LONG(*)).
+			if p.cur.Type == '*' {
+				return nil, p.syntaxErrorAtCur()
+			}
+			size, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if size == nil || p.cur.Type != ')' {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume ')'
+			tn.TypeMods.Items = append(tn.TypeMods.Items, size)
 		}
 
 	case kwROWID:
 		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "ROWID"})
 		p.advance()
 
+	case kwREF:
+		// REF [ schema. ] object_type, no attribute (ORA-00911, PLS-00103
+		// for %TYPE) and no third component (ORA-03099). A predefined
+		// datatype is no object type (ORA-02302, PLS-00532 for REF NUMBER),
+		// unless a declaration in scope redeclares its name.
+		p.advance() // consume REF
+		nameStart := p.pos()
+		name, err := p.parseUnitName()
+		if err != nil {
+			return nil, err
+		}
+		if name.Schema == "" && nameStart < len(p.source) && p.source[nameStart] != '"' && p.predefinedScalar(name.Name) {
+			return nil, p.syntaxErrorAtNode(name)
+		}
+		if name.Schema != "" {
+			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: name.Schema})
+		}
+		tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: name.Name})
+		tn.IsRef = true
+
 	default:
-		if p.isIdentLikeStr("NUMERIC") {
+		// The ANSI spellings. CHARACTER, NATIONAL, and DOUBLE name no item
+		// or schema: Oracle 23ai rejects x national%TYPE, x double.f%TYPE,
+		// and x character.t, the last with a schema CHARACTER owning type T
+		// (PLS-00103, ORA-02000, ORA-03099).
+		next := p.peekNext()
+		if (next.Type == '%' || next.Type == '.') && p.isKeywordStr("NATIONAL") {
+			return nil, p.syntaxErrorAtTok(next)
+		}
+		switch {
+		case p.isKeywordStr("CHARACTER"),
+			p.isKeywordStr("NATIONAL") && (next.Type == kwCHAR || next.Type != tokQIDENT && next.Str == "CHARACTER"):
+			if p.cur.Str == "NATIONAL" {
+				tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "NATIONAL"})
+				p.advance()
+			}
+			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
+			p.advance()
+			if p.isKeywordStr("VARYING") {
+				tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "VARYING"})
+				p.advance()
+				if err := p.requireVaryingSize(); err != nil {
+					return nil, err
+				}
+			} else if p.prev.Str == "CHARACTER" && p.typeMods != typeModsSQL && p.isKeywordStr("LARGE") {
+				// [ NATIONAL ] CHARACTER LARGE OBJECT is PL/SQL's alone
+				// (ORA-03062 in SQL); NATIONAL CHAR LARGE OBJECT is no type
+				// (PLS-00103).
+				if err := p.parseLargeObjectWords(tn); err != nil {
+					return nil, err
+				}
+				break
+			}
+			if err := p.parseOptionalSizeWithSemantic(tn); err != nil {
+				return nil, err
+			}
+			if tn.Names.Items[0].(*nodes.String).Str == "NATIONAL" {
+				if err := p.checkNationalLength(tn); err != nil {
+					return nil, err
+				}
+			}
+		case p.isKeywordStr("DOUBLE"):
+			p.advance() // consume DOUBLE
+			if !p.isKeywordStr("PRECISION") {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // consume PRECISION
+			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "DOUBLE"}, &nodes.String{Str: "PRECISION"})
+		// DEC and NUMERIC may name an item or a record, as INTEGER does.
+		case !p.anchoredName() && (p.isIdentLikeStr("NUMERIC") || p.isKeywordStr("DEC")):
 			tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: p.cur.Str})
 			p.advance()
 			parseErr1121 := p.parseOptionalPrecisionScale(tn)
 			if parseErr1121 != nil {
 				return nil, parseErr1121
 			}
-		} else {
-			parseErr1121 :=
-				// User-defined type or %TYPE/%ROWTYPE reference
-				p.parseUserDefinedType(tn)
+		default:
+			// User-defined type or %TYPE/%ROWTYPE reference
+			parseErr1121 := p.parseUserDefinedType(tn)
 			if parseErr1121 != nil {
 				return nil, parseErr1121
 			}
@@ -137,7 +277,196 @@ func (p *Parser) parseTypeName() (*nodes.TypeName, error) {
 
 	tn.Loc.End = p.prev.End
 	p.noteShadowedType(tn)
+	if p.typeMods == typeModsPLSQL {
+		if err := p.checkPLSQLTypeMods(tn); err != nil {
+			return nil, err
+		}
+	}
 	return tn, nil
+}
+
+// anchoredName reports whether the word at cur starts a name %TYPE or
+// %ROWTYPE anchors to: the word itself, or a record and its fields
+// (word.f%TYPE, word.f.g%TYPE).
+func (p *Parser) anchoredName() bool {
+	switch p.peekNext().Type {
+	case '%':
+		return true
+	case '.':
+	default:
+		return false
+	}
+	lexer := *p.lexer
+	for {
+		// A field name, then '%' or another '.'; single-character tokens
+		// are their own types, below the named token types.
+		if tok := lexer.NextToken(); tok.Type < tokICONST {
+			return false
+		}
+		switch lexer.NextToken().Type {
+		case '%':
+			return true
+		case '.':
+		default:
+			return false
+		}
+	}
+}
+
+// checkPLSQLTypeMods checks the literal modifiers of a PL/SQL datatype as
+// Oracle 23ai checks a predefined one: a length of 1 to 32767 (PLS-00215,
+// for LONG and LONG RAW too), a NUMBER precision of 1 to 38 (PLS-00216)
+// and scale of -84 to 127 (PLS-00217), a FLOAT precision of 1 to 126
+// (PLS-00623), and a datetime or interval precision of 0 to 9
+// (PLS-00260), each rounded as roundedInteger does: VARCHAR2(0.4) and
+// NUMBER(38.5) fail, VARCHAR2(0.5) and NUMBER(38.4) compile, and
+// LONG(1e100) fails (PLS-00325). A name a declaration may shadow is left
+// to the engine: after SUBTYPE number IS VARCHAR2(10), number(100)
+// compiles.
+func (p *Parser) checkPLSQLTypeMods(tn *nodes.TypeName) error {
+	var bounds [][2]int64
+	switch p.predefinedTypeLead(tn) {
+	case "VARCHAR2", "VARCHAR", "CHAR", "CHARACTER", "NCHAR", "NVARCHAR2", "STRING", "RAW", "LONG":
+		bounds = [][2]int64{{1, 32767}}
+	case "NUMBER", "DECIMAL", "DEC", "NUMERIC":
+		bounds = [][2]int64{{1, 38}, {-84, 127}}
+	case "FLOAT":
+		bounds = [][2]int64{{1, 126}}
+	case "TIMESTAMP", "INTERVAL":
+		bounds = [][2]int64{{0, 9}, {0, 9}}
+	}
+	for i, item := range tn.TypeMods.Items {
+		if i >= len(bounds) {
+			break
+		}
+		v, ok := roundedInteger(item)
+		if ok && (v < bounds[i][0] || v > bounds[i][1]) {
+			return p.syntaxErrorAtNode(tn)
+		}
+	}
+	return nil
+}
+
+// checkVarrayLimit checks the size limit of a VARRAY, which may be any
+// expression (Oracle 23ai compiles VARRAY(1+1) and VARRAY(c)). A numeric
+// literal comes out as roundedInteger computes it, a positive integer
+// (PLS-00537 for 0.4 and -0.4) and a PLS_INTEGER (PLS-00325 for
+// 2147483647.5 and 1e10, PLS-00569 for 1e200).
+func (p *Parser) checkVarrayLimit(limit nodes.ExprNode) error {
+	n, ok := roundedInteger(limit)
+	if ok && (n < 1 || n > math.MaxInt32) {
+		return p.syntaxErrorAtNode(limit)
+	}
+	return nil
+}
+
+// roundedInteger returns the integer Oracle 23ai makes of a numeric
+// literal, possibly signed, where it takes an integer, a VARRAY limit or a
+// PL/SQL datatype modifier (roundedLiteral), or false for anything else.
+func roundedInteger(node nodes.Node) (int64, bool) {
+	switch n := node.(type) {
+	case *nodes.Integer:
+		return n.Ival, true
+	case *nodes.NumberLiteral:
+		return roundedLiteral(n.Val)
+	case *nodes.UnaryExpr:
+		v, ok := roundedInteger(n.Operand)
+		if n.Op == "-" {
+			v = -v
+		}
+		return v, ok && (n.Op == "-" || n.Op == "+")
+	}
+	return 0, false
+}
+
+// roundedLiteral returns the integer Oracle 23ai makes of the numeric
+// literal val where it takes an integer: val rounded to a NUMBER, 20
+// base-100 digits half away from zero, then to an integer, half away from
+// zero. So 2147483647.4 followed by 29 nines and a 5 comes out as
+// 2147483648, and 0.4 followed by 46 nines as 1. A value of 1e10 or more
+// comes out as 1e10, and one below 0.1 as 0, which is all a range check
+// needs. ok is false for a BINARY_FLOAT or BINARY_DOUBLE literal (5d,
+// 0.4f), which is left to the engine.
+func roundedLiteral(val string) (n int64, ok bool) {
+	if val == "" || strings.ContainsAny(val[len(val)-1:], "fFdD") {
+		return 0, false
+	}
+	mant, exp := val, 0
+	if i := strings.IndexAny(val, "eE"); i >= 0 {
+		mant = val[:i]
+		e, err := strconv.Atoi(val[i+1:])
+		if err != nil {
+			// An exponent past int: past any bound either way.
+			e = 1 << 40
+			if strings.HasPrefix(val[i+1:], "-") {
+				e = -e
+			}
+		}
+		exp = max(min(e, 1<<40), -1<<40)
+	}
+	whole, frac, _ := strings.Cut(mant, ".")
+	digits := strings.TrimLeft(whole+frac, "0")
+	if digits == "" {
+		return 0, true
+	}
+	// The value is digits × 10^exp, its leading digit at 10^top.
+	exp -= len(frac)
+	top := len(digits) - 1 + exp
+	switch {
+	case top >= 10:
+		return 1e10, true
+	case top < -1:
+		return 0, true
+	}
+	// A NUMBER's base-100 digits are aligned on even powers of ten: the
+	// leading one holds 10^lead and the 20th 10^(lead-38).
+	lead := top
+	if lead < 0 {
+		lead--
+	}
+	lead = lead / 2 * 2
+	// Only the digits the NUMBER keeps are built, and the one after them
+	// read, however long the literal.
+	roundUp := false
+	if keep := top - (lead - 38) + 1; len(digits) > keep {
+		digits, roundUp, exp = digits[:keep], digits[keep] >= '5', lead-38
+	}
+	m, ok := new(big.Int).SetString(digits, 10)
+	if !ok {
+		return 0, false
+	}
+	if roundUp {
+		m.Add(m, big.NewInt(1))
+	}
+	ten := big.NewInt(10)
+	if exp >= 0 {
+		return m.Mul(m, new(big.Int).Exp(ten, big.NewInt(int64(exp)), nil)).Int64(), true
+	}
+	q := new(big.Int).Exp(ten, big.NewInt(int64(-exp)), nil)
+	m.Add(m, new(big.Int).Rsh(q, 1))
+	return m.Quo(m, q).Int64(), true
+}
+
+// literalInteger returns the value of an integer literal, possibly signed;
+// one past int64, which lexes as a float, answers math.MaxInt64, as far
+// past any bound (PLS-00325 for VARCHAR2(9223372036854775808)).
+func literalInteger(node nodes.Node) (int64, bool) {
+	switch n := node.(type) {
+	case *nodes.Integer:
+		return n.Ival, true
+	case *nodes.NumberLiteral:
+		if n.IsFloat && n.Val != "" && strings.Trim(n.Val, "0123456789") == "" {
+			return math.MaxInt64, true
+		}
+		return n.Ival, !n.IsFloat
+	case *nodes.UnaryExpr:
+		v, ok := literalInteger(n.Operand)
+		if n.Op == "-" {
+			v = -v
+		}
+		return v, ok && (n.Op == "-" || n.Op == "+")
+	}
+	return 0, false
 }
 
 // typeModMode says what the parenthesized modifiers of a datatype (length,
@@ -227,6 +556,62 @@ var plsqlNonCharacterTypes = map[string]bool{
 	"MLSLABEL": true, "SYS_REFCURSOR": true, "NCHAR": true, "NVARCHAR2": true, "NCLOB": true,
 }
 
+// checkNationalLength rejects the length semantics a national character
+// type does not take: BYTE anywhere (ORA-00907 in SQL, PLS-00639 in
+// PL/SQL), and CHAR in SQL (ORA-00907), which PL/SQL and a type attribute
+// take, on Oracle 23ai.
+func (p *Parser) checkNationalLength(tn *nodes.TypeName) error {
+	for _, mod := range tn.TypeMods.Items {
+		if s, ok := mod.(*nodes.String); ok && (s.Str == "BYTE" || s.Str == "CHAR" && p.typeMods == typeModsSQL) {
+			return p.syntaxErrorAtType(tn)
+		}
+	}
+	return nil
+}
+
+// parseLargeObjectWords parses the LARGE OBJECT of a PL/SQL [ NATIONAL ]
+// CHARACTER LARGE OBJECT or NCHAR LARGE OBJECT, at LARGE.
+func (p *Parser) parseLargeObjectWords(tn *nodes.TypeName) error {
+	p.advance() // consume LARGE
+	if !p.isKeywordStr("OBJECT") {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance() // consume OBJECT
+	tn.Names.Items = append(tn.Names.Items, &nodes.String{Str: "LARGE"}, &nodes.String{Str: "OBJECT"})
+	return nil
+}
+
+// requireVaryingSize checks that the size of a VARYING character type
+// follows, as SQL requires (ORA-00906 on Oracle 23ai for CHARACTER VARYING
+// alone); PL/SQL, a type attribute, and a collection element take none.
+func (p *Parser) requireVaryingSize() error {
+	if p.typeMods == typeModsSQL && p.cur.Type != '(' {
+		return p.syntaxErrorAtCur()
+	}
+	return nil
+}
+
+// predefinedScalar reports whether name, unquoted, spells a predefined
+// datatype that no declaration in scope may redeclare.
+func (p *Parser) predefinedScalar(name string) bool {
+	switch name {
+	case "CHAR", "CHARACTER", "VARCHAR2", "VARCHAR", "STRING", "CLOB", "NATIONAL":
+	default:
+		if !plsqlNonCharacterTypes[name] {
+			return false
+		}
+	}
+	if p.inPackageBody {
+		return false
+	}
+	for _, scope := range p.typeScopes {
+		if scope[name] {
+			return false
+		}
+	}
+	return true
+}
+
 // predefinedTypeLead returns the name of the predefined datatype tn spells,
 // "" for a name the text does not settle (a subtype, a schema-qualified
 // type, t%TYPE, or a quoted name: "NUMBER" may be a user subtype of
@@ -250,7 +635,10 @@ func (p *Parser) predefinedTypeLead(tn *nodes.TypeName) string {
 // VARCHAR2, a number parameter takes CHARACTER SET ANY_CS. A schema-level
 // type of such a name does not shadow STANDARD's.
 func (p *Parser) noteShadowedType(tn *nodes.TypeName) {
-	if len(p.typeScopes) == 0 && !p.inPackageBody {
+	// A declaration names one word: DOUBLE PRECISION or LONG RAW is the
+	// predefined type wherever it stands (PLS-00550 on Oracle 23ai for
+	// DOUBLE PRECISION CHARACTER SET in a package body).
+	if len(p.typeScopes) == 0 && !p.inPackageBody || tn.Names.Len() != 1 {
 		return
 	}
 	lead := p.predefinedTypeSpelling(tn)
@@ -279,7 +667,7 @@ func (p *Parser) declareTypeName(name string) {
 
 // predefinedTypeSpelling is predefinedTypeLead without regard to scope.
 func (p *Parser) predefinedTypeSpelling(tn *nodes.TypeName) string {
-	if tn == nil || tn.IsPercType || tn.IsPercRowtype || tn.Names.Len() == 0 {
+	if tn == nil || tn.IsPercType || tn.IsPercRowtype || tn.IsRef || tn.Names.Len() == 0 {
 		return ""
 	}
 	if tn.Loc.Start >= 0 && tn.Loc.Start < len(p.source) && p.source[tn.Loc.Start] == '"' {
@@ -298,8 +686,19 @@ func (p *Parser) predefinedTypeSpelling(tn *nodes.TypeName) string {
 	switch first, second := word(0), word(1); {
 	case first == "TIMESTAMP" && second == "WITH",
 		first == "INTERVAL" && (second == "DAY" || second == "YEAR"),
-		first == "LONG" && second == "RAW":
+		first == "LONG" && second == "RAW",
+		first == "LONG" && second == "VARCHAR",
+		first == "DOUBLE" && second == "PRECISION",
+		(first == "CHAR" || first == "CHARACTER") && second == "VARYING":
 		return first
+	case first == "CHARACTER" && second == "LARGE":
+		return "CLOB"
+	case first == "NCHAR" && second == "LARGE",
+		first == "NATIONAL" && tn.Names.Len() > 2 && word(2) == "LARGE":
+		return "NCLOB"
+	case first == "NCHAR" && second == "VARYING",
+		first == "NATIONAL" && (second == "CHAR" || second == "CHARACTER"):
+		return "NCHAR"
 	}
 	return ""
 }
@@ -309,8 +708,9 @@ func (p *Parser) predefinedTypeSpelling(tn *nodes.TypeName) string {
 // follows from the text alone and was confirmed on Oracle 23ai; whether a
 // name is a known character set (PLS-00553) is left to the engine.
 func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse) error {
-	// A %ROWTYPE record is never a character type (PLS-00550).
-	if tn.IsPercRowtype {
+	// Neither a %ROWTYPE record nor an object reference is a character type
+	// (PLS-00550).
+	if tn.IsPercRowtype || tn.IsRef {
 		return p.syntaxErrorAtCur()
 	}
 	// Neither is a predefined non-character type, nor is the TABLE or
@@ -375,17 +775,18 @@ func (p *Parser) parsePLSQLCharacterSet(tn *nodes.TypeName, use plsqlCharsetUse)
 // parsePLSQLTypeMods parses the parenthesized modifiers of a datatype in a
 // PL/SQL declaration, the current token at '(':
 //
-//	( { expr | * } [ , expr ] )    precision and scale (sized is false)
+//	( expr [ , expr ] )            precision and scale (sized is false)
 //	( expr [ BYTE | CHAR ] )       size and length semantics (sized is true)
 //
 // An integer literal is recorded as *Integer, as in SQL; any other modifier
 // is recorded as its expression.
 func (p *Parser) parsePLSQLTypeMods(tn *nodes.TypeName, sized bool) error {
 	p.advance() // consume '('
-	if !sized && p.cur.Type == '*' {
-		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.String{Str: "*"})
-		p.advance()
-	} else if err := p.parsePLSQLTypeMod(tn); err != nil {
+	// PL/SQL has no NUMBER(*) (PLS-00201 on Oracle 23ai for NUMBER(*, 2)).
+	if p.cur.Type == '*' {
+		return p.syntaxErrorAtCur()
+	}
+	if err := p.parsePLSQLTypeMod(tn); err != nil {
 		return err
 	}
 	switch {
@@ -435,7 +836,11 @@ func (p *Parser) parsePLSQLTypeMod(tn *nodes.TypeName) error {
 // RAW, and the leading INTERVAL field take a number; INTEGER, SMALLINT, and
 // MONTH take nothing. Anything else, an empty modifier among them, fails
 // there (ORA-00907, or the range errors ORA-00910, ORA-01727, ORA-01728,
-// and ORA-30088).
+// and ORA-30088). The ranges are checked as Oracle 23ai does: a NUMBER
+// precision is 1 to 38 (ORA-01727) and its scale -84 to 127 (ORA-01728), a
+// FLOAT precision is 1 to 126 (ORA-01724), a fractional-second or
+// leading-field precision is 0 to 9 (ORA-30088), and a RAW size is 1 to
+// 32767.
 func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 	if p.cur.Type != '(' {
 		return nil
@@ -447,12 +852,21 @@ func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 		return p.syntaxErrorAtCur()
 	}
 	star, scale := false, false
+	var minPrecision, maxPrecision int64 = 0, -1
 	if word, ok := tn.Names.Items[tn.Names.Len()-1].(*nodes.String); ok {
 		switch word.Str {
-		case "NUMBER", "DECIMAL", "NUMERIC":
+		case "NUMBER", "DECIMAL", "DEC", "NUMERIC":
 			star, scale = true, true
+			minPrecision, maxPrecision = 1, 38
 		case "FLOAT":
 			star = true
+			minPrecision, maxPrecision = 1, 126
+		case "TIMESTAMP", "YEAR", "DAY", "SECOND":
+			minPrecision, maxPrecision = 0, 9
+		case "RAW":
+			// ORA-01723 for RAW(0); past 32767, ORA-00910 whatever
+			// MAX_STRING_SIZE.
+			minPrecision, maxPrecision = 1, 32767
 		case "INTEGER", "SMALLINT", "MONTH":
 			return p.syntaxErrorAtCur()
 		}
@@ -462,6 +876,9 @@ func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 	// precision
 	switch {
 	case p.cur.Type == tokICONST:
+		if maxPrecision >= 0 && (p.cur.Ival < minPrecision || p.cur.Ival > maxPrecision) {
+			return p.syntaxErrorAtCur()
+		}
 		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.Integer{Ival: p.cur.Ival})
 	case star && p.cur.Type == '*':
 		// NUMBER(*) or NUMBER(*,s)
@@ -484,6 +901,9 @@ func (p *Parser) parseOptionalPrecisionScale(tn *nodes.TypeName) error {
 		ival := p.cur.Ival
 		if negative {
 			ival = -ival
+		}
+		if ival < -84 || ival > 127 {
+			return p.syntaxErrorAtCur()
 		}
 		tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.Integer{Ival: ival})
 		p.advance()
@@ -510,8 +930,20 @@ func (p *Parser) parseOptionalSizeWithSemantic(tn *nodes.TypeName) error {
 	p.advance() // consume '('
 
 	// size, which SQL requires (ORA-00910 on Oracle 23ai for VARCHAR2()
-	// and VARCHAR2(BYTE))
+	// and VARCHAR2(BYTE)), from 1 (ORA-01723 for CHAR(0)) to 2000 for a
+	// fixed-length type and 32767 for a varying one (ORA-00910), whatever
+	// MAX_STRING_SIZE and the length semantics
 	if p.cur.Type != tokICONST {
+		return p.syntaxErrorAtCur()
+	}
+	maxSize := int64(32767)
+	if word, ok := tn.Names.Items[tn.Names.Len()-1].(*nodes.String); ok {
+		switch word.Str {
+		case "CHAR", "CHARACTER", "NCHAR":
+			maxSize = 2000
+		}
+	}
+	if p.cur.Ival < 1 || p.cur.Ival > maxSize {
 		return p.syntaxErrorAtCur()
 	}
 	tn.TypeMods.Items = append(tn.TypeMods.Items, &nodes.Integer{Ival: p.cur.Ival})

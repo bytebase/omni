@@ -1920,6 +1920,11 @@ func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
 			if parseErr895 != nil {
 				return nil, parseErr895
 			}
+			// An associative array is indexed by an integer or a string,
+			// never a REF (PLS-00315 on Oracle 23ai).
+			if decl.IndexBy != nil && decl.IndexBy.IsRef {
+				return nil, p.syntaxErrorAtType(decl.IndexBy)
+			}
 		}
 
 	case p.isIdentLike() && p.cur.Str == "VARRAY" || p.isIdentLike() && p.cur.Str == "VARYING":
@@ -1936,6 +1941,9 @@ func (p *Parser) parsePLSQLTypeDecl() (*nodes.PLSQLTypeDecl, error) {
 			decl.Limit, parseErr896 = p.parseExpr()
 			if parseErr896 != nil {
 				return nil, parseErr896
+			}
+			if err := p.checkVarrayLimit(decl.Limit); err != nil {
+				return nil, err
 			}
 			if p.cur.Type == ')' {
 				p.advance()

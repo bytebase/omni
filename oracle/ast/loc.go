@@ -455,6 +455,8 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *TypeAttribute:
 		return v.Loc
+	case *AlterTypeMethod:
+		return v.Loc
 	case *TypeBodyMember:
 		return v.Loc
 	case *AttrDimSourceClause:
