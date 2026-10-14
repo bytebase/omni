@@ -77,8 +77,8 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 	}
 	// rolledBack marks every definition so far unsure: a rollback may
 	// undo all of them, or, to a savepoint or after a BEGIN TRAN the
-	// change runs later, only some, and a rename may move a constraint or
-	// its table to another name.
+	// change runs later, only some, and a rename or a schema transfer may
+	// move a constraint or its table to another name.
 	rolledBack := func() {
 		for i := range made {
 			made[i].unsure = true
@@ -160,6 +160,11 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 			}
 		case *ast.RenameStmt:
 			rolledBack()
+		case *ast.AlterSchemaStmt:
+			// A transfer moves a table, and its constraints, to another name.
+			if v.TransferEntity != "" {
+				rolledBack()
+			}
 		case *ast.RollbackTransStmt:
 			rolledBack()
 		case *ast.CreateSchemaStmt:
@@ -182,6 +187,11 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 				switch v := n.(type) {
 				case *ast.RollbackTransStmt, *ast.RenameStmt:
 					if !routine {
+						rolledBack()
+					}
+					return true
+				case *ast.AlterSchemaStmt:
+					if v.TransferEntity != "" && !routine {
 						rolledBack()
 					}
 					return true

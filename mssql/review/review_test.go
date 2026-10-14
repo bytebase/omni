@@ -401,6 +401,10 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:  "CREATE TABLE dbo.a (n INT CONSTRAINT ck CHECK (n > 0));\nEXEC sp_rename 'dbo.a.ck', 'old_ck', 'OBJECT';\nCREATE TABLE dbo.b (n INT CONSTRAINT ck DEFAULT 0);\nEXEC sp_rename 'dbo.a', 'old_a', 'OBJECT';\nEXEC sp_rename 'dbo.b', 'a', 'OBJECT';\nALTER TABLE dbo.a DROP CONSTRAINT ck;",
 		},
 		{
+			name: "a table the change made, moved away and replaced by a transfer",
+			sql:  "CREATE TABLE dbo.a (n INT CONSTRAINT ck CHECK (n > 0));\nALTER SCHEMA archive TRANSFER dbo.a;\nALTER SCHEMA dbo TRANSFER staging.a;\nALTER TABLE dbo.a DROP CONSTRAINT ck;",
+		},
+		{
 			name: "a table of the name moved in from another schema",
 			sql:  "ALTER SCHEMA archive TRANSFER dbo.t;\nALTER SCHEMA dbo TRANSFER staging.t;\nALTER TABLE dbo.t DROP CONSTRAINT ck_n;",
 		},
