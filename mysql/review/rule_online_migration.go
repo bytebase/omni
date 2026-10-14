@@ -55,8 +55,9 @@ var ghostFlagKinds = map[string]string{
 // validateAlterStatement): one that renames the table, and one that renames
 // a column by CHANGE, which gh-ost takes only with approve-renamed-columns
 // or skip-renamed-columns, flags Bytebase does not pass. gh-ost compares
-// the two names of a CHANGE exactly; a name with a space in it, which its
-// pattern cannot read, is not judged. It also reports RENAME COLUMN, which
+// the two names of a CHANGE exactly, and splits a name at whitespace, so
+// two different names are a rename to it either way. It also reports
+// RENAME COLUMN, which
 // gh-ost does not recognize as a rename (go/sql/parser.go,
 // renameColumnRegexp reads only CHANGE): it copies no rows into the new
 // name, and the cut-over loses the column's data.
@@ -80,8 +81,7 @@ func checkOnlineMigration(sql string, stmts []statement, r *reporter) {
 			switch {
 			case cmd.Type == ast.ATRenameTable:
 				r.report(review.OnlineMigration, stmts[0].index, rangeOf(cmd.Loc), "gh-ost does not rename the table it migrates")
-			case cmd.Type == ast.ATChangeColumn && cmd.Column != nil && cmd.Name != cmd.Column.Name &&
-				!strings.ContainsAny(cmd.Name+cmd.Column.Name, " \t\r\n"):
+			case cmd.Type == ast.ATChangeColumn && cmd.Column != nil && cmd.Name != cmd.Column.Name:
 				r.report(review.OnlineMigration, stmts[0].index, rangeOf(cmd.Loc), "gh-ost renames column "+ident(cmd.Name)+" to "+ident(cmd.Column.Name)+" only with approve-renamed-columns, which Bytebase does not pass")
 			case cmd.Type == ast.ATRenameColumn:
 				r.report(review.OnlineMigration, stmts[0].index, rangeOf(cmd.Loc), "gh-ost does not read RENAME COLUMN as a rename, and the migrated table loses the data of column "+ident(cmd.Name))
