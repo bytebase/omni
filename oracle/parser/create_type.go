@@ -1,6 +1,9 @@
 package parser
 
 import (
+	"strconv"
+	"strings"
+
 	nodes "github.com/bytebase/omni/oracle/ast"
 )
 
@@ -49,122 +52,336 @@ func (p *Parser) parseCreateTypeStmt(start int, orReplace, ifNotExists, editiona
 
 	// Type name
 	stmt.Name, parseErr573 = p.parseObjectName()
-	if parseErr573 !=
-
-		// AS or IS
-		nil {
+	if parseErr573 != nil {
 		return nil, parseErr573
 	}
+	if stmt.Name == nil || stmt.Name.Name == "" {
+		return nil, p.syntaxErrorAtCur()
+	}
 
-	if p.cur.Type == kwAS || p.cur.Type == kwIS {
+	if !stmt.IsBody {
+		if err := p.parseTypeSpecSource(stmt); err != nil {
+			return nil, err
+		}
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+
+	// IS | AS is required before the members (PLS-00103 on Oracle 23ai).
+	if p.cur.Type != kwAS && p.cur.Type != kwIS {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	var parseErr578 error
+	stmt.Body, parseErr578 = p.parseTypeBodyMembers()
+	if parseErr578 != nil {
+		return nil, parseErr578
+	}
+
+	// END [type_name] ;
+	if p.cur.Type != kwEND {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.atEndName() {
+		p.advance()
+	}
+	if p.cur.Type != ';' {
+		return nil, p.syntaxErrorAtCur()
+	}
+	p.advance()
+
+	stmt.Loc.End = p.prev.End
+	return stmt, nil
+}
+
+// parseTypeSpecSource parses what follows the name in a type specification,
+// the plsql_type_source of CREATE TYPE.
+//
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/CREATE-TYPE-statement.html
+//
+//	[ SHARING = { METADATA | NONE } ]
+//	[ FORCE ] [ OID 'object_identifier' ]
+//	[ { DEFAULT COLLATION USING_NLS_COMP | AUTHID { CURRENT_USER | DEFINER }
+//	  | ACCESSIBLE BY ( accessor [, ...] ) }... ]
+//	[ { IS | AS } { OBJECT ( element [, ...] ) [ [ NOT ] { FINAL | INSTANTIABLE | PERSISTABLE } ]...
+//	              | TABLE OF collection_element
+//	              | { VARRAY | [ VARYING ] ARRAY } ( size_limit ) OF collection_element }
+//	| UNDER [ schema. ] supertype ( [ element [, ...] ] ) [ [ NOT ] { FINAL | INSTANTIABLE } ]... ]
+//
+// Oracle 23ai takes SHARING first, with its '=' (ORA-02000) and one of
+// those values (ORA-65014); then FORCE and OID, in either order; then
+// DEFAULT COLLATION, AUTHID, and ACCESSIBLE BY, in any order. Each comes
+// once (PLS-00103, PLS-00371 for the last three), and FORCE or OID after any
+// of the last three is PLS-00103 (checked with MAX_STRING_SIZE = EXTENDED;
+// with STANDARD, DEFAULT COLLATION is ORA-43929). With none of the
+// alternatives the type is incomplete, which takes SHARING and OID only
+// (PLS-00103). AUTHID and ACCESSIBLE BY are PLS-00262 on a collection type,
+// which takes DEFAULT COLLATION; UNDER takes no IS or AS (PLS-00103) and no
+// PERSISTABLE (PLS-00772).
+func (p *Parser) parseTypeSpecSource(stmt *nodes.CreateTypeStmt) error {
+	if p.isKeywordStr("SHARING") {
+		p.advance() // consume SHARING
+		if p.cur.Type != '=' {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance() // consume =
+		if !isOneOfKeywords(p.cur, []string{"METADATA", "NONE"}) {
+			return p.syntaxErrorAtCur()
+		}
+		stmt.Sharing = p.cur.Str
 		p.advance()
 	}
 
-	// Determine what kind of type:
-	// - OBJECT ( ... )
-	// - TABLE OF type
-	// - VARRAY ( n ) OF type
-	// - TYPE BODY members
+	seen := clauseSeen{}
+properties:
+	for {
+		switch {
+		case p.cur.Type == kwFORCE, p.isKeywordStr("OID"):
+			word := p.cur.Str
+			if seen["AUTHID"] || seen["ACCESSIBLE BY"] || seen["DEFAULT COLLATION"] {
+				return p.syntaxErrorAtCur()
+			}
+			if err := p.firstClause(seen, word); err != nil {
+				return err
+			}
+			p.advance()
+			if word == "FORCE" {
+				stmt.Force = true
+				continue
+			}
+			// The identifier is a string literal (ORA-01780) of 32
+			// hexadecimal digits (ORA-02304).
+			if p.cur.Type != tokSCONST || !isObjectIdentifier(p.cur.Str) {
+				return p.syntaxErrorAtCur()
+			}
+			stmt.OID = p.cur.Str
+			p.advance()
+		case p.isKeywordStr("AUTHID"):
+			if err := p.firstClause(seen, "AUTHID"); err != nil {
+				return err
+			}
+			authID, err := p.parseOptionalAuthID()
+			if err != nil {
+				return err
+			}
+			stmt.AuthID = authID
+		case p.isKeywordStr("ACCESSIBLE"):
+			if err := p.firstClause(seen, "ACCESSIBLE BY"); err != nil {
+				return err
+			}
+			list, err := p.parseAccessibleByClause()
+			if err != nil {
+				return err
+			}
+			stmt.AccessibleBy = list
+		case p.atDefaultCollation():
+			if err := p.firstClause(seen, "DEFAULT COLLATION"); err != nil {
+				return err
+			}
+			collation, err := p.parseDefaultCollationClause()
+			if err != nil {
+				return err
+			}
+			stmt.DefaultCollation = collation
+		default:
+			break properties
+		}
+	}
+
+	role := seen["AUTHID"] || seen["ACCESSIBLE BY"]
 	switch {
-	case p.isIdentLikeStr("OBJECT"):
+	case p.isStatementEnd():
+		if stmt.Force || role || stmt.DefaultCollation != "" {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	case p.cur.Type == kwUNDER:
+		return p.parseObjectSubtype(stmt)
+	case p.cur.Type == kwAS || p.cur.Type == kwIS:
+		p.advance()
+	default:
+		return p.syntaxErrorAtCur()
+	}
+
+	if p.isIdentLikeStr("OBJECT") {
 		p.advance()
 		if p.cur.Type != '(' {
-			return nil, p.syntaxErrorAtCur()
+			return p.syntaxErrorAtCur()
 		}
 		p.advance()
-		if parseErr574 := p.parseObjectTypeElements(stmt); parseErr574 != nil {
-			return nil, parseErr574
+		if err := p.parseObjectTypeElements(stmt, false); err != nil {
+			return err
 		}
+		if p.cur.Type != ')' {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		if err := p.parseObjectTypeModifiers(stmt, objectTypeModifiers); err != nil {
+			return err
+		}
+		return p.checkPersistableAttributes(stmt)
+	}
+
+	collectionTok := p.cur
+	switch {
+	case p.cur.Type == kwTABLE:
+		p.advance()
+		if p.cur.Type != kwOF {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		tn, err := p.parseCollectionElement(stmt)
+		if err != nil {
+			return err
+		}
+		stmt.AsTable = tn
+
+	case p.cur.Type == kwVARRAY || p.isKeywordStr("VARYING") || p.isKeywordStr("ARRAY"):
+		if p.isKeywordStr("VARYING") {
+			p.advance()
+			if !p.isKeywordStr("ARRAY") {
+				return p.syntaxErrorAtCur()
+			}
+		}
+		p.advance() // consume VARRAY or ARRAY
+		// ( size_limit )
+		if p.cur.Type != '(' {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		size, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if size == nil || p.cur.Type != ')' {
+			return p.syntaxErrorAtCur()
+		}
+		if err := p.checkVarrayLimit(size); err != nil {
+			return err
+		}
+		stmt.VarraySize = size
+		p.advance()
+		if p.cur.Type != kwOF {
+			return p.syntaxErrorAtCur()
+		}
+		p.advance()
+		tn, err := p.parseCollectionElement(stmt)
+		if err != nil {
+			return err
+		}
+		stmt.AsVarray = tn
+
+	default:
+		return p.syntaxErrorAtCur()
+	}
+	if role {
+		// PLS-00262: incorrect placement of AUTHID (or ACCESSIBLE BY) clause
+		return p.syntaxErrorAtTok(collectionTok)
+	}
+	return nil
+}
+
+// parseObjectSubtype parses the object_subtype_def of a type specification,
+// the current token at UNDER. The element list may be empty or hold methods
+// only; the supertype takes no database link (PLS-00103 on Oracle 23ai).
+//
+//	UNDER [ schema. ] supertype ( [ element [, element ]... ] )
+//	    [ [ NOT ] { FINAL | INSTANTIABLE } ]...
+func (p *Parser) parseObjectSubtype(stmt *nodes.CreateTypeStmt) error {
+	p.advance() // consume UNDER
+	under, err := p.parseUnitName()
+	if err != nil {
+		return err
+	}
+	stmt.Under = under
+	if p.cur.Type != '(' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	if p.cur.Type == ')' {
+		stmt.Attributes = &nodes.List{}
+	} else if err := p.parseObjectTypeElements(stmt, true); err != nil {
+		return err
+	}
+	if p.cur.Type != ')' {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return p.parseObjectTypeModifiers(stmt, methodInheritanceClauses)
+}
+
+// parseObjectTypeModifiers parses the modifiers after an object type's
+// element list. A FINAL type cannot be NOT INSTANTIABLE (PLS-00614 on
+// Oracle 23ai), and an object type is FINAL unless it says NOT FINAL.
+func (p *Parser) parseObjectTypeModifiers(stmt *nodes.CreateTypeStmt, words []string) error {
+	modsTok := p.cur
+	mods, err := p.parseTypeModifiers(words)
+	if err != nil {
+		return err
+	}
+	stmt.Modifiers = mods
+	notInstantiable, notFinal := false, false
+	for _, mod := range mods {
+		notInstantiable = notInstantiable || mod == "NOT INSTANTIABLE"
+		notFinal = notFinal || mod == "NOT FINAL"
+	}
+	if notInstantiable && !notFinal {
+		return p.syntaxErrorAtTok(modsTok)
+	}
+	// A type with a NOT INSTANTIABLE method is NOT INSTANTIABLE (PLS-00634).
+	if !notInstantiable && stmt.Methods != nil {
+		for _, item := range stmt.Methods.Items {
+			if member, ok := item.(*nodes.TypeBodyMember); ok && hasModifier(member.Modifiers, "NOT INSTANTIABLE") {
+				return p.syntaxErrorAtNode(member)
+			}
+		}
+	}
+	return nil
+}
+
+// parseCollectionElement parses the element type of a nested table or
+// varray type. PERSISTABLE needs the parentheses, and NOT NULL then goes
+// inside them; CHARACTER SET precedes NOT NULL (PLS-00103 on Oracle 23ai).
+// Sizes are PL/SQL expressions, as in an attribute.
+//
+//	datatype [ NOT NULL ]
+//	| ( datatype [ NOT NULL ] ) [ [ NOT ] PERSISTABLE ]
+func (p *Parser) parseCollectionElement(stmt *nodes.CreateTypeStmt) (*nodes.TypeName, error) {
+	paren := p.cur.Type == '('
+	if paren {
+		p.advance()
+	}
+	tn, err := p.parsePLSQLDatatype(typeModsPLSQL, charsetFixed)
+	if err != nil {
+		return nil, err
+	}
+	if tn == nil || tn.Names.Len() == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if elementAlwaysIllegal[p.predefinedTypeLead(tn)] {
+		return nil, p.syntaxErrorAtType(tn)
+	}
+	if p.cur.Type == kwNOT && p.peekNext().Type == kwNULL {
+		p.advance()
+		p.advance()
+		stmt.ElementNotNull = true
+	}
+	if paren {
 		if p.cur.Type != ')' {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
-		var parseErr574 error
-		stmt.Modifiers, parseErr574 = p.parseTypeModifiers(objectTypeModifiers)
-		if parseErr574 != nil {
-			return nil, parseErr574
+		mods, err := p.parseTypeModifiers([]string{"PERSISTABLE"})
+		if err != nil {
+			return nil, err
 		}
-
-	case p.cur.Type == kwTABLE:
-		p.advance()
-		if p.cur.Type != kwOF {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		var parseErr575 error
-		stmt.AsTable, parseErr575 = p.parseTypeName()
-		if parseErr575 != nil {
-			return nil, parseErr575
-		}
-		if stmt.AsTable == nil || stmt.AsTable.Names.Len() == 0 {
-			return nil, p.syntaxErrorAtCur()
-		}
-
-	case p.cur.Type == kwVARRAY || p.isIdentLikeStr("VARYING"):
-		p.advance()
-		// Handle VARYING ARRAY
-		if p.isIdentLikeStr("ARRAY") {
-			p.advance()
-		}
-		// ( size_limit )
-		if p.cur.Type != '(' {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		var parseErr576 error
-		stmt.VarraySize, parseErr576 = p.parseExpr()
-		if parseErr576 != nil {
-			return nil, parseErr576
-		}
-		if stmt.VarraySize == nil || p.cur.Type != ')' {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		if p.cur.Type != kwOF {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		var parseErr577 error
-		stmt.AsVarray, parseErr577 = p.parseTypeName()
-		if parseErr577 !=
-
-			// For TYPE BODY, parse structured members.
-			nil {
-			return nil, parseErr577
-		}
-		if stmt.AsVarray == nil || stmt.AsVarray.Names.Len() == 0 {
-			return nil, p.syntaxErrorAtCur()
-		}
-
-	default:
-
-		if stmt.IsBody {
-			var parseErr578 error
-			stmt.Body, parseErr578 = p.parseTypeBodyMembers()
-			if parseErr578 !=
-
-				// END [type_name] ;
-				nil {
-				return nil, parseErr578
-			}
-
-			if p.cur.Type != kwEND {
-				return nil, p.syntaxErrorAtCur()
-			}
-			p.advance()
-			// Optional type name after END
-			if p.atEndName() {
-				p.advance()
-			}
-			if p.cur.Type != ';' {
-				return nil, p.syntaxErrorAtCur()
-			}
-			p.advance()
-		}
+		stmt.Modifiers = mods
 	}
-
-	stmt.Loc.End = p.prev.End
-	return stmt, nil
+	if !notPersistable(stmt.Modifiers) && elementPersistableIllegal[p.predefinedTypeLead(tn)] {
+		return nil, p.syntaxErrorAtType(tn)
+	}
+	return tn, nil
 }
 
 // parseTypeBodyMembers parses the member definitions inside a CREATE TYPE BODY.
@@ -539,9 +756,11 @@ func (p *Parser) parseTypeBodyFunction(isConstructor, inSpec bool) (*nodes.Creat
 // start of an element always opens a method or pragma (an attribute with such
 // a name is a syntax error unless quoted); attributes come first, and at least
 // one is required (PLS-00589).
-func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt) error {
+func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt, subtype bool) error {
 	stmt.Attributes = &nodes.List{}
 	hasComparison := false
+	seenAttrs := map[string]bool{}
+	seenMethods := map[string]bool{}
 	for {
 		switch {
 		case p.isObjectTypeMethodStart():
@@ -553,6 +772,34 @@ func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt) error {
 			if err := p.checkObjectTypeMethod(stmt, member, &hasComparison, methodTok); err != nil {
 				return err
 			}
+			// A method bears no attribute's name (PLS-00305 on Oracle 23ai,
+			// "A" for a too).
+			if fn := subprogramNameOf(member.Subprog); seenAttrs[fn] {
+				return p.syntaxErrorAtTok(methodTok)
+			}
+			// A method of the kind and signature of an earlier one is
+			// PLS-00305 on Oracle 23ai; a MEMBER and a STATIC method may
+			// share a signature. A MAP or ORDER method is a MEMBER one.
+			kind := member.Kind
+			if kind == nodes.TYPE_BODY_MAP || kind == nodes.TYPE_BODY_ORDER {
+				kind = nodes.TYPE_BODY_MEMBER
+			}
+			typ := "FUNCTION"
+			if _, ok := member.Subprog.(*nodes.CreateProcedureStmt); ok {
+				typ = "PROCEDURE"
+			}
+			selfKind := "MEMBER"
+			switch member.Kind {
+			case nodes.TYPE_BODY_STATIC:
+				selfKind = "STATIC"
+			case nodes.TYPE_BODY_CONSTRUCTOR:
+				selfKind = "CONSTRUCTOR"
+			}
+			sig := strconv.Itoa(int(kind)) + " " + p.subprogramSignature(member.Subprog, implicitSelfMode(selfKind, typ))
+			if seenMethods[sig] {
+				return p.syntaxErrorAtTok(methodTok)
+			}
+			seenMethods[sig] = true
 			stmt.Methods = appendListItem(stmt.Methods, member)
 		case p.isKeywordStr("PRAGMA"):
 			pragma, err := p.parseRestrictReferencesPragma()
@@ -569,6 +816,13 @@ func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt) error {
 			if err != nil {
 				return err
 			}
+			// Attribute names are unique in the statement (PLS-00410 on
+			// Oracle 23ai, for a subtype too); a clash with a supertype's
+			// attribute needs the supertype and is left to the engine.
+			if seenAttrs[attr.Name] {
+				return p.syntaxErrorAtNode(attr)
+			}
+			seenAttrs[attr.Name] = true
 			stmt.Attributes.Items = append(stmt.Attributes.Items, attr)
 		}
 		if p.cur.Type != ',' {
@@ -576,7 +830,9 @@ func (p *Parser) parseObjectTypeElements(stmt *nodes.CreateTypeStmt) error {
 		}
 		p.advance() // consume ','
 	}
-	if stmt.Attributes.Len() == 0 {
+	// An object type has at least one attribute (PLS-00589); a subtype
+	// inherits its supertype's and may add methods only.
+	if stmt.Attributes.Len() == 0 && !subtype {
 		return p.syntaxErrorAtCur()
 	}
 	return nil
@@ -617,8 +873,9 @@ var (
 
 // methodModifiersConflict reports whether a method spec's inheritance clauses
 // conflict with each other or with its kind. Oracle 23ai rejects NOT
-// INSTANTIABLE with FINAL, STATIC, or CONSTRUCTOR, and OVERRIDING with STATIC
-// (PLS-00169).
+// INSTANTIABLE with FINAL, STATIC, or CONSTRUCTOR, NOT FINAL with
+// CONSTRUCTOR, and OVERRIDING with STATIC or CONSTRUCTOR (PLS-00169;
+// ORA-06545 in ALTER TYPE).
 func methodModifiersConflict(mods []string, kind nodes.TypeBodyMemberKind) bool {
 	has := func(mod string) bool {
 		for _, m := range mods {
@@ -631,18 +888,40 @@ func methodModifiersConflict(mods []string, kind nodes.TypeBodyMemberKind) bool 
 	if has("NOT INSTANTIABLE") && (has("FINAL") || kind == nodes.TYPE_BODY_STATIC || kind == nodes.TYPE_BODY_CONSTRUCTOR) {
 		return true
 	}
-	return has("OVERRIDING") && kind == nodes.TYPE_BODY_STATIC
+	if has("NOT FINAL") && kind == nodes.TYPE_BODY_CONSTRUCTOR {
+		return true
+	}
+	return has("OVERRIDING") && (kind == nodes.TYPE_BODY_STATIC || kind == nodes.TYPE_BODY_CONSTRUCTOR)
 }
 
 // checkObjectTypeMethod applies the rules Oracle 23ai checks on a method spec
 // from the statement's own text: a constructor bears its type's name
 // (PLS-00658), a MAP method takes no parameter besides SELF (PLS-00520), an
 // ORDER method takes exactly one (PLS-00521), and a type has at most one MAP
-// or ORDER method (PLS-00154). hasComparison tracks the last rule. The rules
-// on MAP and ORDER return and parameter types (PLS-00522 through PLS-00524)
-// need the types resolved and are left to the engine. tok is where the
-// method starts, for the error position.
+// or ORDER method (PLS-00154). hasComparison tracks the last rule. Neither
+// returns a REF (PLS-00522, PLS-00523); the other rules on MAP and ORDER
+// return and parameter types (PLS-00522 through PLS-00524) need the types
+// resolved and are left to the engine. A subtype has no
+// ORDER method: Oracle 23ai rejects one with PLS-00646 under a supertype
+// without MAP or ORDER and with PLS-00154 under one with either. A
+// subtype's MAP method overrides its supertype's: Oracle 23ai rejects one
+// without OVERRIDING with PLS-00636, or PLS-00646 under a supertype without
+// MAP; whether the supertype has a MAP method to override is left to the
+// engine. OVERRIDING names a method of a supertype, and a type that is not
+// a subtype has none (PLS-00635). tok is where the method starts, for the
+// error position.
 func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes.TypeBodyMember, hasComparison *bool, tok Token) error {
+	if stmt.Under == nil && hasModifier(member.Modifiers, "OVERRIDING") {
+		return p.syntaxErrorAtTok(tok)
+	}
+	// A method's SELF is where and as Oracle takes it, and of the type
+	// (invalidSelfType).
+	if selfParameterInvalid(member.Kind == nodes.TYPE_BODY_STATIC, member.Kind == nodes.TYPE_BODY_CONSTRUCTOR, subprogramParameters(member.Subprog)) {
+		return p.syntaxErrorAtTok(tok)
+	}
+	if params := subprogramParameters(member.Subprog); len(params) > 0 && params[0].Name == "SELF" && p.invalidSelfType(params[0].TypeName) {
+		return p.syntaxErrorAtTok(tok)
+	}
 	fn, isFunction := member.Subprog.(*nodes.CreateFunctionStmt)
 	switch member.Kind {
 	case nodes.TYPE_BODY_CONSTRUCTOR:
@@ -650,7 +929,7 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 			return p.syntaxErrorAtTok(tok)
 		}
 	case nodes.TYPE_BODY_MAP, nodes.TYPE_BODY_ORDER:
-		if *hasComparison {
+		if *hasComparison || stmt.Under != nil && (member.Kind == nodes.TYPE_BODY_ORDER || !hasModifier(member.Modifiers, "OVERRIDING")) {
 			return p.syntaxErrorAtTok(tok)
 		}
 		*hasComparison = true
@@ -661,8 +940,105 @@ func (p *Parser) checkObjectTypeMethod(stmt *nodes.CreateTypeStmt, member *nodes
 		if isFunction && parametersBesidesSelf(fn.Parameters) != want {
 			return p.syntaxErrorAtTok(tok)
 		}
+		if isFunction && member.Kind == nodes.TYPE_BODY_ORDER && !orderParameterIn(listParameters(fn.Parameters)) {
+			return p.syntaxErrorAtTok(tok)
+		}
+		if isFunction && fn.ReturnType != nil && fn.ReturnType.IsRef {
+			return p.syntaxErrorAtTok(tok)
+		}
 	}
 	return nil
+}
+
+// selfParameterInvalid reports whether a method's parameters declare SELF
+// where or as Oracle 23ai rejects it: in a static method (PLS-00586), after
+// the first parameter, where it duplicates the implicit SELF (PLS-00410),
+// in OUT mode (PLS-00594), or in a constructor in any mode but IN OUT
+// (PLS-00660).
+func selfParameterInvalid(static, constructor bool, params []*nodes.Parameter) bool {
+	for i, param := range params {
+		if param.Name != "SELF" {
+			continue
+		}
+		mode := strings.TrimSpace(strings.ReplaceAll(param.Mode, "NOCOPY", ""))
+		if static || i > 0 || mode == "OUT" || constructor && mode != "IN OUT" {
+			return true
+		}
+	}
+	return false
+}
+
+// subprogramParameters returns the parameters of a method's subprogram.
+func subprogramParameters(subprog nodes.Node) []*nodes.Parameter {
+	switch s := subprog.(type) {
+	case *nodes.CreateFunctionStmt:
+		return listParameters(s.Parameters)
+	case *nodes.CreateProcedureStmt:
+		return listParameters(s.Parameters)
+	}
+	return nil
+}
+
+// invalidSelfType reports whether tn is a datatype an explicit SELF is not
+// of, the type itself: a REF (PLS-00546 on Oracle 23ai for SELF IN REF t)
+// or a predefined datatype (PLS-00382 for SELF IN NUMBER).
+func (p *Parser) invalidSelfType(tn *nodes.TypeName) bool {
+	return tn != nil && tn.IsRef || p.predefinedDatatype(tn)
+}
+
+// predefinedDatatype reports whether tn spells a predefined datatype that
+// no declaration in scope redeclares.
+func (p *Parser) predefinedDatatype(tn *nodes.TypeName) bool {
+	return tn != nil && !tn.IsRef && p.predefinedScalar(p.predefinedTypeLead(tn))
+}
+
+// subprogramNameOf returns the name of a method's subprogram.
+func subprogramNameOf(subprog nodes.Node) string {
+	switch s := subprog.(type) {
+	case *nodes.CreateFunctionStmt:
+		return subprogramName(s.Name)
+	case *nodes.CreateProcedureStmt:
+		return subprogramName(s.Name)
+	}
+	return ""
+}
+
+// hasModifier reports whether mods holds mod.
+func hasModifier(mods []string, mod string) bool {
+	for _, m := range mods {
+		if m == mod {
+			return true
+		}
+	}
+	return false
+}
+
+// orderParameterIn reports whether the parameters of an ORDER method
+// besides SELF have IN mode (PLS-00528 on Oracle 23ai for OUT or IN OUT)
+// and are no REF (PLS-00524: the parameter is of the type itself).
+func orderParameterIn(params []*nodes.Parameter) bool {
+	for _, param := range params {
+		if param.Name == "SELF" {
+			continue
+		}
+		if param.Mode != "" && param.Mode != "IN" || param.TypeName != nil && param.TypeName.IsRef {
+			return false
+		}
+	}
+	return true
+}
+
+// listParameters returns the parameters in list.
+func listParameters(list *nodes.List) []*nodes.Parameter {
+	var params []*nodes.Parameter
+	if list != nil {
+		for _, item := range list.Items {
+			if param, ok := item.(*nodes.Parameter); ok {
+				params = append(params, param)
+			}
+		}
+	}
+	return params
 }
 
 // parametersBesidesSelf counts the parameters in params not named SELF.
@@ -787,6 +1163,58 @@ func (p *Parser) parseRestrictReferencesPragma() (*nodes.PLSQLPragma, error) {
 	return pragma, nil
 }
 
+// The predefined types Oracle 23ai refuses as an object type attribute
+// (PLS-00530; PLS-00218 for the NOT NULL subtypes, PLS-00989 for
+// SYS_REFCURSOR) and as the element of a nested table or varray type
+// (PLS-00531, PLS-00990), for every user, SYS included. The PL/SQL-only
+// types become legal in a NOT PERSISTABLE type; JSON, VECTOR, SYS_REFCURSOR,
+// and as attributes the NOT NULL subtypes stay illegal. BOOLEAN, the LOBs,
+// BFILE, and the ANSI numeric names are allowed everywhere.
+var (
+	attributeAlwaysIllegal = map[string]bool{
+		"JSON": true, "VECTOR": true, "SYS_REFCURSOR": true, "SIMPLE_INTEGER": true, "NATURALN": true,
+		"POSITIVEN": true, "SIMPLE_FLOAT": true, "SIMPLE_DOUBLE": true,
+	}
+	attributePersistableIllegal = map[string]bool{
+		"LONG": true, "PLS_INTEGER": true, "BINARY_INTEGER": true, "NATURAL": true, "POSITIVE": true,
+		"SIGNTYPE": true, "STRING": true, "ROWID": true, "UROWID": true, "MLSLABEL": true,
+	}
+	elementAlwaysIllegal = map[string]bool{
+		"JSON": true, "VECTOR": true, "SYS_REFCURSOR": true,
+	}
+	elementPersistableIllegal = map[string]bool{
+		"LONG": true, "PLS_INTEGER": true, "BINARY_INTEGER": true, "SIMPLE_INTEGER": true, "NATURAL": true,
+		"NATURALN": true, "POSITIVE": true, "POSITIVEN": true, "SIGNTYPE": true, "STRING": true,
+		"ROWID": true, "UROWID": true, "MLSLABEL": true,
+	}
+)
+
+// notPersistable reports whether modifiers make a type NOT PERSISTABLE.
+func notPersistable(mods []string) bool {
+	for _, mod := range mods {
+		if mod == "NOT PERSISTABLE" {
+			return true
+		}
+	}
+	return false
+}
+
+// checkPersistableAttributes rejects the attributes of an object type that
+// only a NOT PERSISTABLE type takes, once its modifiers are known. A
+// subtype's persistability is its supertype's, which the text does not
+// show, so its attributes meet only the rules for every type.
+func (p *Parser) checkPersistableAttributes(stmt *nodes.CreateTypeStmt) error {
+	if stmt.Under != nil || notPersistable(stmt.Modifiers) {
+		return nil
+	}
+	for _, item := range stmt.Attributes.Items {
+		if col, ok := item.(*nodes.ColumnDef); ok && attributePersistableIllegal[p.predefinedTypeLead(col.TypeName)] {
+			return p.syntaxErrorAtType(col.TypeName)
+		}
+	}
+	return nil
+}
+
 // parseTypeAttribute parses one attribute of an object type specification:
 // attribute_name datatype.
 func (p *Parser) parseTypeAttribute() (*nodes.ColumnDef, error) {
@@ -798,16 +1226,36 @@ func (p *Parser) parseTypeAttribute() (*nodes.ColumnDef, error) {
 	if name == "" {
 		return nil, p.syntaxErrorAtCur()
 	}
-	typeName, err := p.parseTypeName()
+	// An attribute takes PL/SQL size expressions (VARCHAR2(ORA_MAX_NAME_LEN)
+	// on Oracle 23ai) and a named CHARACTER SET (NCHAR_CS), not ANY_CS
+	// (PLS-00551) or item%CHARSET.
+	typeName, err := p.parsePLSQLDatatype(typeModsPLSQL, charsetFixed)
 	if err != nil {
 		return nil, err
 	}
 	if typeName == nil || typeName.Names.Len() == 0 {
 		return nil, p.syntaxErrorAtCur()
 	}
+	if attributeAlwaysIllegal[p.predefinedTypeLead(typeName)] {
+		return nil, p.syntaxErrorAtType(typeName)
+	}
 	return &nodes.ColumnDef{
 		Name:     name,
 		TypeName: typeName,
 		Loc:      nodes.Loc{Start: start, End: p.prev.End},
 	}, nil
+}
+
+// isObjectIdentifier reports whether s is an object identifier literal: 32
+// hexadecimal digits, in either case.
+func isObjectIdentifier(s string) bool {
+	if len(s) != 32 {
+		return false
+	}
+	for _, c := range s {
+		if !('0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F') {
+			return false
+		}
+	}
+	return true
 }

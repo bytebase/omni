@@ -65,6 +65,7 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 	}
 	if on[review.PriorBackup] && opts.Change.PriorBackup {
 		checkPriorBackupSize(sql, opts.Change, r)
+		checkPriorBackupStatements(stmts, r)
 	}
 	for i := range stmts {
 		if err := ctx.Err(); err != nil {
