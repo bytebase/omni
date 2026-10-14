@@ -131,8 +131,11 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 		ast.Inspect(s.node, func(n ast.Node) bool {
 			switch v := n.(type) {
 			case *ast.UseStmt:
-				// What the change touched before is of another database.
-				touched, replaced = nil, nil
+				// What the change touched before on a table named without a
+				// database is of another database; one named with its
+				// database still is what it was.
+				touched = slices.DeleteFunc(touched, func(i index) bool { return i.table.Schema == "" })
+				replaced = slices.DeleteFunc(replaced, func(t *ast.TableRef) bool { return t.Schema == "" })
 			case *ast.CreateTableStmt:
 				// IF NOT EXISTS may leave the table of the name as it was.
 				if v.IfNotExists {
