@@ -292,8 +292,14 @@ func functionalKey(t *metadata.TableMetadata, idx *metadata.IndexMetadata) bool 
 func floatOrJSONKey(t *metadata.TableMetadata, idx *metadata.IndexMetadata) bool {
 	for _, part := range idx.GetExpressions() {
 		for _, c := range t.GetColumns() {
+			// gh-ost reads ENUM and BINARY types after FLOAT and JSON, so
+			// ENUM('float') is an ENUM.
 			typ := strings.ToLower(c.GetType())
-			if strings.EqualFold(c.GetName(), part) && (strings.Contains(typ, "float") || strings.Contains(typ, "json")) {
+			typed := strings.Contains(typ, "float") || strings.Contains(typ, "json")
+			if strings.HasPrefix(typ, "enum") || strings.HasPrefix(typ, "binary") {
+				typed = false
+			}
+			if strings.EqualFold(c.GetName(), part) && typed {
 				return true
 			}
 		}

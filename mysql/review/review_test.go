@@ -123,8 +123,13 @@ func shop() *metadata.DatabaseSchemaMetadata {
 					},
 				},
 				{
+					Name:    "en",
+					Columns: []*metadata.ColumnMetadata{{Name: "e", Type: "enum('float','json')"}},
+					Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"e"}}},
+				},
+				{
 					Name:    "fl",
-					Columns: []*metadata.ColumnMetadata{{Name: "f", Type: "float"}},
+					Columns: []*metadata.ColumnMetadata{{Name: "f", Type: "float"}, {Name: "e", Type: "enum('float','other')"}},
 					Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"f"}}},
 				},
 			},
@@ -482,6 +487,11 @@ func TestOnlineMigration(t *testing.T) {
 			sql:    "ALTER TABLE mixk ADD COLUMN m INT;",
 			change: ghost,
 			want:   []finding{{0, "ALTER TABLE mixk ADD COLUMN m INT", "online migration needs a primary key or a unique key of NOT NULL columns, none of them FLOAT or JSON, on mixk, which has none", []int{0}}},
+		},
+		{
+			name:   "a unique key of an ENUM naming float",
+			sql:    "ALTER TABLE en ADD COLUMN m INT;",
+			change: ghost,
 		},
 		{
 			name:   "a primary key of a FLOAT column",
