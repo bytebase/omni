@@ -111,6 +111,12 @@ type Lexer struct {
 	prevType       int
 	ccRawDirective bool
 
+	// ccRawIfs holds, for each $IF nextRaw is inside, the type of the token
+	// before it, which an $ELSIF or $ELSE branch follows in the
+	// preprocessed text: SELECT $IF FALSE $THEN 1 $ELSE /*+ FULL(t) */ 2
+	// $END keeps its hint.
+	ccRawIfs *ccRawIf
+
 	// literalLimit, when set, is the most bytes a string literal holds: the
 	// parser's lexer fails past it, in code a directive skips too (PLS-00172
 	// and ORA-01704 on Oracle 23ai past 32767), where Split's and
@@ -876,9 +882,23 @@ func (l *Lexer) nextRaw() Token {
 	// keep their hints.
 	if tok.Type == tokDIRECTIVE {
 		switch tok.Str {
-		case "$IF", "$ELSIF", "$ERROR":
+		case "$IF":
+			l.ccRawIfs = &ccRawIf{prevType: l.prevType, outer: l.ccRawIfs}
 			l.ccRawDirective = true
-		case "$THEN", "$END":
+		case "$ELSIF", "$ELSE":
+			if l.ccRawIfs != nil {
+				l.prevType = l.ccRawIfs.prevType
+			}
+			l.ccRawDirective = tok.Str == "$ELSIF"
+		case "$ERROR":
+			l.ccRawDirective = true
+		case "$THEN":
+			l.ccRawDirective = false
+		case "$END":
+			// The $END of an $ERROR message closes no $IF.
+			if !l.ccRawDirective && l.ccRawIfs != nil {
+				l.ccRawIfs = l.ccRawIfs.outer
+			}
 			l.ccRawDirective = false
 		}
 		return tok
@@ -887,6 +907,12 @@ func (l *Lexer) nextRaw() Token {
 		l.prevType = tok.Type
 	}
 	return tok
+}
+
+// ccRawIf is an $IF nextRaw is inside (Lexer.ccRawIfs).
+type ccRawIf struct {
+	prevType int
+	outer    *ccRawIf
 }
 
 // clearPrevType records that a comment came after the last token, so a

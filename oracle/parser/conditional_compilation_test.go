@@ -542,6 +542,11 @@ SELECT 1 FROM dual;
 		"SELECT $IF /*c*/ TRUE $THEN $END /*+ FULL(t) */ 1 FROM t",
 		"SELECT $IF TRUE /*c*/ $THEN $END /*+ FULL(t) */ 1 FROM t",
 		"SELECT $IF TRUE -- c\n$THEN $END /*+ FULL(t) */ 1 FROM t",
+		// An $ELSIF or $ELSE branch follows the token before its $IF.
+		"SELECT $IF FALSE $THEN 1 $ELSE /*+ FULL(t) */ 2 $END FROM t",
+		"SELECT $IF $$a $THEN 1 $ELSIF $$b $THEN /*+ FULL(t) */ 2 $END FROM t",
+		"SELECT $IF $$a $THEN $IF $$b $THEN 1 $END $ELSE /*+ FULL(t) */ 2 $END FROM t",
+		"SELECT $IF $$a $THEN $ERROR 'x' $END $ELSE /*+ FULL(t) */ 2 $END FROM t",
 	} {
 		hints := 0
 		for _, tok := range Tokenize(sql) {
