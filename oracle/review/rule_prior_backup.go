@@ -220,11 +220,19 @@ func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex,
 	}
 }
 
-// longColumns returns the LONG and LONG RAW columns of the synced table a
-// key names.
+// longColumns returns the LONG and LONG RAW columns of the synced table,
+// or updatable view, a key names.
 func longColumns(x schemaIndex, k tableKey) []string {
+	columns := x.table(k).GetColumns()
+	if columns == nil {
+		for _, v := range x.schemaOf(k).GetViews() {
+			if v.GetName() == k.name {
+				columns = v.GetColumns()
+			}
+		}
+	}
 	var out []string
-	for _, c := range x.table(k).GetColumns() {
+	for _, c := range columns {
 		switch strings.ToUpper(strings.TrimSpace(c.GetType())) {
 		case "LONG", "LONG RAW":
 			out = append(out, ident(c.GetName()))

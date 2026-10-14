@@ -137,6 +137,14 @@ func relationKindAt(stmts []statement, schemas []string, pos int, k tableKey, x 
 			if kind, ok := found(matchKey(v.Name, cur, k), kind); ok {
 				return kind
 			}
+		case *ast.CreateJsonDualityViewStmt:
+			kind := "view"
+			if v.IfNotExists {
+				kind = ""
+			}
+			if kind, ok := found(matchKey(v.Name, cur, k), kind); ok {
+				return kind
+			}
 		case *ast.CreateSequenceStmt:
 			if kind, ok := found(matchKey(v.Name, cur, k), ""); ok {
 				return kind

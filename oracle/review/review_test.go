@@ -100,7 +100,7 @@ func shop() *metadata.DatabaseSchemaMetadata {
 					Indexes: []*metadata.IndexMetadata{{Name: "PK_LONGT", Primary: true, Unique: true, IsConstraint: true}},
 				},
 			},
-			Views:             []*metadata.ViewMetadata{{Name: "V"}},
+			Views:             []*metadata.ViewMetadata{{Name: "V"}, {Name: "LONGV", Columns: []*metadata.ColumnMetadata{{Name: "BODY", Type: "LONG"}}}},
 			MaterializedViews: []*metadata.MaterializedViewMetadata{{Name: "MV"}},
 			Sequences:         []*metadata.SequenceMetadata{{Name: "SEQ"}},
 		}},
@@ -486,6 +486,12 @@ func TestPriorBackup(t *testing.T) {
 			want: []finding{{-1, "", "prior backup writes the database name S'HOP unescaped into a quoted comment, which its single quote breaks", []int{0}}},
 		},
 		{
+			name:   "an updatable view with a LONG column",
+			sql:    "UPDATE longv SET body = NULL WHERE ROWNUM = 1;",
+			change: backup,
+			want:   []finding{{0, "UPDATE longv SET body = NULL WHERE ROWNUM = 1", "prior backup copies LONGV with CREATE TABLE AS SELECT, which rejects its LONG or LONG RAW column BODY (ORA-00997)", []int{0}}},
+		},
+		{
 			name:    "no BBDATAARCHIVE",
 			sql:     "UPDATE t SET n = 1 WHERE id = 1;",
 			change:  backup,
@@ -609,6 +615,11 @@ func TestConstraintScanLosesTrack(t *testing.T) {
 		{
 			name: "a renamed table keeps the names of its constraints",
 			sql:  "ALTER TABLE nokey ADD CONSTRAINT c1 CHECK (a > 0);\nRENAME nokey TO nk;\nCREATE TABLE nokey (a NUMBER CONSTRAINT c1 CHECK (a > 0));\nALTER TABLE nokey DROP CONSTRAINT c1;",
+		},
+		{
+			name: "IF NOT EXISTS of a table the change made keeps what it defined",
+			sql:  "CREATE TABLE a (id NUMBER, CONSTRAINT ck_a CHECK (id > 0));\nCREATE TABLE IF NOT EXISTS a (id NUMBER);\nALTER TABLE a DROP CONSTRAINT ck_a;",
+			want: []finding{{2, "DROP CONSTRAINT ck_a", "drops check constraint CK_A of A", []int{0}}},
 		},
 		{
 			name: "FLASHBACK TABLE to a time, and DROP USER without CASCADE, keep the scan",

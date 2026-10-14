@@ -208,7 +208,10 @@ func (s *constraintScan) createTable(st *statement, v *ast.CreateTableStmt, rng 
 	k := keyIn(v.Name, cur)
 	declared := tableConstraints(v)
 	// IF NOT EXISTS of a table the change made does nothing, so it does not
-	// settle the table.
+	// settle the table, nor touch what the scan knows of it.
+	if t, ok := s.tables[k]; ok && v.IfNotExists && t.created && !t.unsure {
+		return
+	}
 	if v.IfNotExists {
 		s.touch(k, func(t *tableState) { t.replaced, t.unsure = true, true })
 		for _, c := range declared {
