@@ -174,6 +174,11 @@ func oneLine(text string) string {
 	for i := 0; i < len(text); i++ {
 		c := text[i]
 		switch {
+		case quote == ']' && c == ']' && i+1 < len(text) && text[i+1] == ']':
+			// ]] is a ] inside a bracketed name: both are kept, and the name
+			// stays open.
+			b.WriteByte(c)
+			i++
 		case quote != 0:
 			if c == quote {
 				quote = 0
