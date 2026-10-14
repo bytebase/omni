@@ -457,6 +457,17 @@ func TestOnlineMigration(t *testing.T) {
 			},
 		},
 		{
+			name:   "a table of another database, which gh-ost would take from the task's",
+			sql:    "ALTER TABLE other.plain ADD COLUMN m INT;\n",
+			change: ghost,
+			want:   []finding{{0, "ALTER TABLE other.plain ADD COLUMN m INT", "gh-ost migrates plain of the task's database shop, not other.plain as the ALTER names it", []int{0}}},
+		},
+		{
+			name:   "a table named with the task's database",
+			sql:    "ALTER TABLE SHOP.plain ADD COLUMN m INT;",
+			change: ghost,
+		},
+		{
 			name:   "a rename of the table",
 			sql:    "ALTER TABLE plain ADD COLUMN m INT, RENAME TO plain2;",
 			change: ghost,
@@ -508,12 +519,6 @@ func TestOnlineMigration(t *testing.T) {
 			sql:    "ALTER TABLE nul ADD COLUMN m INT;",
 			change: ghost,
 			want:   []finding{{0, "ALTER TABLE nul ADD COLUMN m INT", "online migration needs a primary key or a unique key of NOT NULL columns, none of them FLOAT or JSON, on nul, which has none", []int{0}}},
-		},
-		{
-			name:   "the table of the task's database, whatever the ALTER names",
-			sql:    "ALTER TABLE other.nokey ADD COLUMN m INT;",
-			change: ghost,
-			want:   []finding{{0, "ALTER TABLE other.nokey ADD COLUMN m INT", "online migration needs a primary or unique key on other.nokey, which has none", []int{0}}},
 		},
 		{
 			name:   "a view",
