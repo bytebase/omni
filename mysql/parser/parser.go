@@ -14,11 +14,6 @@ type Parser struct {
 	nextBuf Token // buffered next token for 2-token lookahead
 	hasNext bool  // whether nextBuf is valid
 
-	// parenRunStart and parenRunPast cache the last firstTokenPastParens scan:
-	// the offset of the run's first '(' and the first token past the run.
-	parenRunStart int
-	parenRunPast  Token
-
 	// Completion mode fields.
 	completing bool          // true when collecting completion candidates
 	cursorOff  int           // byte offset of the cursor in source
