@@ -211,6 +211,11 @@ func TestRequireIsNull(t *testing.T) {
 			sql:  "SELECT * FROM t WHERE 'a\\'  b' = NULL;",
 			want: []finding{{0, "'a\\'  b' = NULL", "\"'a\\'  b' = NULL\" is never true; use IS NULL", []int{0}}},
 		},
+		{
+			name: "HANDLER ... READ WHERE",
+			sql:  "HANDLER t READ NEXT WHERE id = NULL;",
+			want: []finding{{0, "id = NULL", "\"id = NULL\" is never true; use IS NULL", []int{0}}},
+		},
 	})
 }
 
@@ -450,6 +455,12 @@ func TestPriorBackup(t *testing.T) {
 			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nUPDATE t SET n = 2 WHERE id = 2;\nWITH x AS (SELECT 3 AS id) UPDATE t SET n = 3 WHERE id IN (SELECT id FROM x);\nUPDATE t SET n = 4 WHERE id = 4;\nUPDATE t SET n = 5 WHERE id = 5;\nUPDATE t SET n = 6 WHERE id = 6;",
 			change: backup,
 			want:   []finding{{2, "WITH x AS (SELECT 3 AS id) UPDATE t SET n = 3 WHERE id IN (SELECT id FROM x)", "prior backup does not support a WITH clause when more than 5 statements change one table", []int{0}}},
+		},
+		{
+			name:   "past the limit with a WITH clause on a statement not certain",
+			sql:    "UPDATE t SET n = 1 WHERE id = 1;\nUPDATE t SET n = 2 WHERE id = 2;\nUPDATE t SET n = 3 WHERE id = 3;\nUPDATE t SET n = 4 WHERE id = 4;\nUPDATE t SET n = 5 WHERE id = 5;\nWITH x AS (SELECT 1 AS id) UPDATE t JOIN p ON p.id = t.p_id SET t.n = 1 WHERE t.id IN (SELECT id FROM x);",
+			change: backup,
+			want:   []finding{{-1, "", "prior backup does not support a WITH clause when it backs up more than 5 statements", []int{0}}},
 		},
 		{
 			name:   "five statements over five tables",

@@ -196,13 +196,19 @@ func checkPriorBackupTables(stmts []statement, db string, r *reporter) {
 		return
 	}
 	// With some tables not certain, which statement Bytebase's check stops
-	// at is not known, but two certain tables past the limit fail it, when
-	// no statement's WITH clause may fail it first.
+	// at is not known, but past the limit two certain tables fail it, and
+	// so does any WITH clause; the message names what may.
 	if uncertain > 0 {
-		if !with && slices.ContainsFunc(all, func(c copied) bool {
+		tables := slices.ContainsFunc(all, func(c copied) bool {
 			return !strings.EqualFold(c.db, all[0].db) || !strings.EqualFold(c.name, all[0].name)
-		}) {
+		})
+		switch {
+		case tables && with:
+			r.report(review.PriorBackup, -1, review.Range{}, fmt.Sprintf("prior backup cannot back up more than %d statements over more than one table, or with a WITH clause", maxMixedTables))
+		case tables:
 			r.report(review.PriorBackup, -1, review.Range{}, fmt.Sprintf("prior backup cannot back up more than %d statements over more than one table", maxMixedTables))
+		case with:
+			r.report(review.PriorBackup, -1, review.Range{}, fmt.Sprintf("prior backup does not support a WITH clause when it backs up more than %d statements", maxMixedTables))
 		}
 		return
 	}
