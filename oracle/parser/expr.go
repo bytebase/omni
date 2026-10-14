@@ -1952,10 +1952,14 @@ func (p *Parser) parseParenExpr() (nodes.ExprNode, error) {
 		if p.cur.Type == ')' {
 			p.advance()
 		}
-		return &nodes.SubqueryExpr{
+		expr := &nodes.SubqueryExpr{
 			Subquery: sub,
 			Loc:      nodes.Loc{Start: start, End: p.prev.End},
-		}, nil
+		}
+		if iterand {
+			p.iterandQuery, p.iterandAfter = expr, p.cur
+		}
+		return expr, nil
 	}
 
 	inner, parseErr729 := p.parseExpr()

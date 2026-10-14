@@ -42,8 +42,12 @@ type Parser struct {
 	// queryIterand is set while the iteration control of a FOR loop that
 	// opens with '(' is parsed: a query there is a cursor's, which may end
 	// in a plain ORDER BY (Oracle 23ai runs FOR r IN (SELECT a FROM t ORDER
-	// BY a) LOOP). parseParenExpr takes it for its own parentheses alone.
+	// BY a) LOOP). parseParenExpr takes it for its own parentheses alone,
+	// and records the query in iterandQuery and the token after it in
+	// iterandAfter, for parseIterandExpr to check it stands alone.
 	queryIterand bool
+	iterandQuery *nodes.SubqueryExpr
+	iterandAfter Token
 
 	// typeMods says what the parenthesized modifiers of the datatype being
 	// parsed may hold; parsePLSQLDatatype sets it for PL/SQL datatypes.
@@ -419,20 +423,11 @@ func querySelectsSourcelessStar(query *nodes.SelectStmt) bool {
 	return querySelectsSourcelessStar(query.Rarg)
 }
 
+// selectTargetListContainsStar reports whether list selects * or table.*:
+// Oracle 23ai rejects (SELECT x.*) as it does (SELECT *) (ORA-00904), and
+// runs EXISTS (SELECT x.*).
 func selectTargetListContainsStar(list *nodes.List) bool {
-	if list == nil {
-		return false
-	}
-	for _, item := range list.Items {
-		target, ok := item.(*nodes.ResTarget)
-		if !ok {
-			continue
-		}
-		if _, ok := target.Expr.(*nodes.Star); ok {
-			return true
-		}
-	}
-	return false
+	return list != nil && selectListHasStar(list)
 }
 
 // parseStmt dispatches to statement-specific parsers.

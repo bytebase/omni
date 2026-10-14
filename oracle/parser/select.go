@@ -202,6 +202,10 @@ func decideParenQueries(source string, start, end int) map[int]parenQuery {
 			switch toks[c+1].Type {
 			case kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT, kwORDER, kwOFFSET, kwFETCH:
 				q.continues = true
+			case kwFOR:
+				// FOR UPDATE, of a cursor's query: FOR r IN ((SELECT a
+				// FROM t) FOR UPDATE) LOOP.
+				q.continues = c+2 < n && toks[c+2].Type == kwUPDATE
 			}
 		}
 		queries[tok.Loc] = q

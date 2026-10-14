@@ -206,8 +206,23 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		"DECLARE n NUMBER; BEGIN SELECT a INTO n FROM t FOR UPDATE; END;",
 		"BEGIN FOR r IN (SELECT a FROM t FOR UPDATE) LOOP NULL; END LOOP; END;",
 		"BEGIN FOR i IN VALUES OF (SELECT a FROM t FOR UPDATE) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR r IN ((SELECT a FROM t) FOR UPDATE) LOOP NULL; END LOOP; END;",
 	} {
 		ParseAndCheck(t, sql)
+	}
+	// A FOR loop's query stands alone, the whole of its iteration control
+	// (PLS-00103 at what follows it).
+	for _, tc := range []struct{ sql, at string }{
+		{"BEGIN FOR i IN (SELECT 1 FROM dual) + 1 LOOP NULL; END LOOP; END;", "+ 1"},
+		{"BEGIN FOR i IN (SELECT 1 FROM dual ORDER BY 1) + 1 LOOP NULL; END LOOP; END;", "+ 1"},
+		{"BEGIN FOR i IN (SELECT 1 FROM dual ORDER BY 1) .. 3 LOOP NULL; END LOOP; END;", ".. 3"},
+		{"BEGIN FOR i IN VALUES OF (SELECT 1 FROM dual) + 1 LOOP NULL; END LOOP; END;", "+ 1"},
+	} {
+		_, err := Parse(tc.sql)
+		var pe *ParseError
+		if !errors.As(err, &pe) || !strings.HasPrefix(tc.sql[pe.Position:], tc.at) {
+			t.Errorf("Parse(%q) = %v, want an error at %q", tc.sql, err, tc.at)
+		}
 	}
 	// No set operation takes a FOR UPDATE (ORA-01786 at FOR).
 	for _, sql := range []string{
@@ -300,6 +315,19 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 			t.Errorf("Parse(%q) fails at %q, want at SELECT *", sql, at)
 		}
 	}
+	// So does table.*, correlated or not (ORA-00904).
+	for _, sql := range []string{
+		"CREATE VIEW v AS (SELECT x.*)",
+		"SELECT (SELECT d.*) FROM dual d",
+		"SELECT 1 FROM dual d WHERE 'X' IN (SELECT d.*)",
+		"SELECT 1 FROM dual WHERE EXISTS (SELECT x.* UNION SELECT 1 FROM dual)",
+	} {
+		_, err := Parse(sql)
+		var pe *ParseError
+		if !errors.As(err, &pe) || !strings.HasPrefix(sql[pe.Position:], "SELECT ") {
+			t.Errorf("Parse(%q) = %v, want an error at its SELECT", sql, err)
+		}
+	}
 	// A block with a WITH clause starts there, where Oracle reports it.
 	const withStar = "CREATE VIEW v AS WITH w AS (SELECT 1 FROM dual) SELECT * ORDER BY 1"
 	var pe *ParseError
@@ -313,6 +341,8 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		"DECLARE n NUMBER; BEGIN SELECT 1 INTO n FROM dual WHERE EXISTS (SELECT *); END;",
 		"SELECT 1 FROM dual WHERE EXISTS ((SELECT *))",
 		"SELECT 1 FROM dual WHERE EXISTS (WITH w AS (SELECT 1 c FROM dual) SELECT *)",
+		"SELECT 1 FROM dual WHERE EXISTS (SELECT x.*)",
+		"SELECT 1 FROM dual d WHERE EXISTS (SELECT d.*)",
 		"SELECT 1 FROM dual WHERE EXISTS (WITH w AS (SELECT 1 c FROM dual) (SELECT *))",
 	} {
 		ParseAndCheck(t, sql)

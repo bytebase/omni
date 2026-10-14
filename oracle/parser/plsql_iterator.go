@@ -128,9 +128,7 @@ func (p *Parser) parseIterationControl() (*nodes.PLSQLIterationControl, error) {
 		ctl.Expr, err = p.parseDynamicSQLSource()
 	default:
 		var expr nodes.ExprNode
-		p.queryIterand = p.cur.Type == '('
-		expr, err = p.parseRequiredExpr()
-		p.queryIterand = false
+		expr, err = p.parseIterandExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -180,9 +178,26 @@ func (p *Parser) parseIterationSource() (nodes.ExprNode, error) {
 	if p.atDynamicSQLSource() {
 		return p.parseDynamicSQLSource()
 	}
-	p.queryIterand = p.cur.Type == '('
-	defer func() { p.queryIterand = false }()
-	return p.parseRequiredExpr()
+	return p.parseIterandExpr()
+}
+
+// parseIterandExpr parses the expression of an iteration control, which
+// may be a cursor's query in parentheses (queryIterand). The query stands
+// alone: Oracle 23ai rejects FOR i IN (SELECT ...) + 1 and FOR i IN
+// (SELECT ...) .. 3 at what follows it (PLS-00103), as no other operand
+// takes a query in PL/SQL.
+func (p *Parser) parseIterandExpr() (nodes.ExprNode, error) {
+	p.queryIterand, p.iterandQuery = p.cur.Type == '(', nil
+	expr, err := p.parseRequiredExpr()
+	query, after := p.iterandQuery, p.iterandAfter
+	p.queryIterand, p.iterandQuery = false, nil
+	if err != nil {
+		return nil, err
+	}
+	if query != nil && (expr != nodes.ExprNode(query) || p.cur.Type == tokDOTDOT) {
+		return nil, p.syntaxErrorAtTok(after)
+	}
+	return expr, nil
 }
 
 // atDynamicSQLSource reports whether ( EXECUTE IMMEDIATE starts here, not

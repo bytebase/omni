@@ -287,3 +287,7 @@ ref_304	select	accept	SELECT 1 FROM dual WHERE EXISTS (WITH w AS (SELECT 1 c FRO
 ref_305	select	reject	SELECT 1 FROM dual WHERE EXISTS ((SELECT dummy FROM dual) FOR UPDATE)	FOR UPDATE in an expression subquery (ORA-00907)
 ref_306	select	reject	WITH w AS (SELECT dummy FROM dual FOR UPDATE) SELECT * FROM w	FOR UPDATE in a WITH element (ORA-00907)
 ref_307	plsql	accept	BEGIN FOR r IN (SELECT dummy FROM dual FOR UPDATE) LOOP NULL; END LOOP; END;	FOR UPDATE in a cursor FOR loop query
+ref_308	plsql	accept	BEGIN FOR r IN ((SELECT dummy FROM dual) FOR UPDATE) LOOP NULL; END LOOP; END;	FOR UPDATE after a parenthesized cursor FOR loop query
+ref_309	plsql	reject	BEGIN FOR i IN (SELECT 1 FROM dual) + 1 LOOP NULL; END LOOP; END;	a FOR loop query stands alone (PLS-00103)
+ref_310	select	reject	SELECT (SELECT d.*) FROM dual d	table.* without FROM (ORA-00904)
+ref_311	select	accept	SELECT 1 FROM dual d WHERE EXISTS (SELECT d.*)	table.* without FROM in EXISTS
