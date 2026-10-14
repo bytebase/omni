@@ -136,7 +136,7 @@ kw_134	JSON	2332	context	allow	allow	skip	allow	skip	skip	lexer keyword classifi
 kw_135	JSON_ARRAY	2333	function	allow	allow	skip	allow	allow	skip	lexer keyword classified by local Oracle parser policy
 kw_136	JSON_EXISTS	2334	function	allow	allow	skip	allow	allow	skip	lexer keyword classified by local Oracle parser policy
 kw_137	JSON_MERGEPATCH	2335	function	allow	allow	skip	allow	allow	skip	lexer keyword classified by local Oracle parser policy
-kw_138	JSON_OBJECT	2336	function	allow	allow	skip	allow	allow	skip	lexer keyword classified by local Oracle parser policy
+kw_138	JSON_OBJECT	2336	function	allow	allow	skip	allow	reject	skip	JSON_OBJECT(1) is ORA-02000 on Oracle 23ai: an entry is a key and VALUE, a column, or a star
 kw_139	JSON_QUERY	2337	function	allow	allow	skip	allow	allow	skip	lexer keyword classified by local Oracle parser policy
 kw_140	JSON_TABLE	2300	context	allow	allow	skip	allow	skip	skip	lexer keyword classified by local Oracle parser policy
 kw_141	JSON_VALUE	2338	function	allow	allow	skip	allow	allow	skip	lexer keyword classified by local Oracle parser policy

@@ -1408,6 +1408,11 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 
 	p.advance() // consume '('
 
+	switch {
+	case schema == "" && (name == "JSON_ARRAYAGG" || name == "JSON_OBJECTAGG" || name == "JSON_SERIALIZE"):
+		return p.parseJSONAggregateOrSerialize(fc)
+	}
+
 	// COUNT(*) special case
 	if p.cur.Type == '*' {
 		p.advance()
@@ -2822,9 +2827,20 @@ func (p *Parser) parseXmlContentFunc(name string) (nodes.ExprNode, error) {
 // parseJsonObjectOrArray parses JSON_OBJECT or JSON_ARRAY expressions.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/JSON_OBJECT.html
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/JSON_ARRAY.html
 //
-//	JSON_OBJECT ( [ key_expr VALUE value_expr | key:value ] [, ...] )
-//	JSON_ARRAY ( [ expr [, ...] ] )
+//	JSON_OBJECT ( [ entry [, entry ]... ] [ JSON_on_null_clause ] [ JSON_returning_clause ]
+//	    [ TRUNCATE ] [ STRICT ] [ { WITH | WITHOUT } UNIQUE KEYS ] )
+//	entry ::= [ KEY ] key_expr { VALUE | IS | : } expr [ FORMAT JSON ]
+//	        | column [ FORMAT JSON ] | table.* | *
+//	JSON_ARRAY ( [ expr [ FORMAT JSON ] [, ...] ] [ JSON_on_null_clause ]
+//	    [ JSON_returning_clause ] [ TRUNCATE ] [ STRICT ] )
+//	JSON_ARRAY ( subquery [ NULL ON NULL ] [ STRICT ] )
+//
+// Oracle 23ai takes the clauses in that order only (ORA-02000), an entry
+// without VALUE for a column or a star alone (ORA-02000), and no empty
+// entry (ORA-00936). Which datatypes RETURNING takes, and whether FORMAT
+// JSON fits its value, is checked when the statement is analyzed.
 func (p *Parser) parseJsonObjectOrArray(name string) (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume keyword
@@ -2841,54 +2857,179 @@ func (p *Parser) parseJsonObjectOrArray(name string) (nodes.ExprNode, error) {
 	}
 	p.advance() // consume '('
 
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		var arg nodes.ExprNode
-		var parseErr757 error
-		if name == "JSON_OBJECT" {
-			arg, parseErr757 = p.parseExprPrec(precComp)
-		} else {
-			arg, parseErr757 = p.parseExpr()
+	if name == "JSON_ARRAY" && (p.cur.Type == kwSELECT || p.cur.Type == kwWITH) {
+		sub, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
 		}
-		if parseErr757 != nil {
-			return nil, parseErr757
-		}
-		if arg != nil {
-			fc.Args.Items = append(fc.Args.Items, arg)
-		}
-		// Skip VALUE/IS keyword (JSON_OBJECT key VALUE val or key IS val syntax)
-		if p.isIdentLikeStr("VALUE") || (name == "JSON_OBJECT" && p.cur.Type == kwIS) {
+		fc.Args.Items = append(fc.Args.Items, &nodes.SubqueryExpr{
+			Subquery: sub,
+			Loc:      nodes.Loc{Start: sub.Loc.Start, End: p.prev.End},
+		})
+		if p.cur.Type == kwNULL && p.peekNext().Type == kwON {
+			p.advance() // consume NULL
+			p.advance() // consume ON
+			if p.cur.Type != kwNULL {
+				return nil, p.syntaxErrorAtCur()
+			}
 			p.advance()
-			val, parseErr758 := p.parseExpr()
-			if parseErr758 != nil {
-				return nil, parseErr758
-			}
-			if val != nil {
-				fc.Args.Items = append(fc.Args.Items, val)
-			}
 		}
-		// Skip FORMAT JSON
-		if p.cur.Type == kwFORMAT {
+		if p.isKeywordStr("STRICT") {
 			p.advance()
-			if p.cur.Type == kwJSON {
-				p.advance()
+		}
+	} else if p.cur.Type != ')' && !p.atJSONConstructorClause() {
+		for {
+			if err := p.parseJsonEntry(name, fc); err != nil {
+				return nil, err
 			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ','
 		}
-		if p.cur.Type != ',' {
-			break
+		if err := p.parseJSONConstructorClauses(name == "JSON_OBJECT", name == "JSON_OBJECT"); err != nil {
+			return nil, err
 		}
-		p.advance()
+	} else if err := p.parseJSONConstructorClauses(name == "JSON_OBJECT", name == "JSON_OBJECT"); err != nil {
+		return nil, err
 	}
 
-	// Skip trailing keywords: NULL ON NULL, ABSENT ON NULL, RETURNING clause, STRICT/LAX
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		p.advance()
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
 	}
-
-	if p.cur.Type == ')' {
-		p.advance()
-	}
-
+	p.advance()
+	fc.Loc.End = p.prev.End
 	return p.parseFuncCallPostfix(fc)
+}
+
+// atJSONConstructorClause reports whether the current token starts a clause
+// of a JSON constructor rather than an entry: NULL ON or ABSENT ON,
+// RETURNING, STRICT, TRUNCATE before what may follow it, WITH or WITHOUT
+// UNIQUE. Oracle 23ai reads STRICT there as the clause even before VALUE
+// (ORA-02000 for JSON_OBJECT(strict VALUE 1)) but TRUNCATE VALUE as an
+// entry keyed by a column named TRUNCATE.
+func (p *Parser) atJSONConstructorClause() bool {
+	next := p.peekNext()
+	switch {
+	case (p.cur.Type == kwNULL || p.isKeywordStr("ABSENT")) && next.Type == kwON,
+		p.cur.Type == kwRETURNING,
+		p.isKeywordStr("STRICT"),
+		p.isKeywordStr("TRUNCATE") && (next.Type == ')' || next.Type == kwWITH || isOneOfKeywords(next, []string{"STRICT", "WITHOUT"})),
+		(p.cur.Type == kwWITH || p.isKeywordStr("WITHOUT")) && isOneOfKeywords(next, []string{"UNIQUE", "TYPENAME"}):
+		return true
+	}
+	return false
+}
+
+// parseJsonEntry parses one entry of JSON_OBJECT or element of JSON_ARRAY
+// into fc: a key and its value, or a single expression.
+func (p *Parser) parseJsonEntry(name string, fc *nodes.FuncCallExpr) error {
+	if name == "JSON_ARRAY" {
+		elem, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if elem == nil {
+			return p.syntaxErrorAtCur()
+		}
+		fc.Args.Items = append(fc.Args.Items, elem)
+		return p.parseOptionalFormatJSON()
+	}
+
+	// KEY introduces a key, unless VALUE, IS, or ':' follows it as a column
+	// named KEY; the keyword's key takes VALUE or IS (ORA-02000 for ':',
+	// ORA-00936 for KEY alone).
+	keyKeyword := p.isKeywordStr("KEY") && !p.atJSONKeyValueSeparator(p.peekNext())
+	// A colon fused to what follows lexes as a bind variable. After KEY it
+	// is the column KEY's separator and value (KEY:1), unless VALUE or IS
+	// follows it as the key's (KEY :b VALUE 1), as Oracle 23ai reads both.
+	if keyKeyword && p.peekNext().Type == tokBIND && !p.atJSONKeyValueSeparator(p.peekAhead(2)[1]) {
+		keyKeyword = false
+	}
+	if keyKeyword {
+		p.advance() // consume KEY
+	}
+	key, err := p.parseExprPrec(precComp)
+	if err != nil {
+		return err
+	}
+	if key == nil {
+		return p.syntaxErrorAtCur()
+	}
+	fc.Args.Items = append(fc.Args.Items, key)
+
+	// The lexer reads a colon and the name or number right after it as a
+	// bind variable; after a key they are the separator and the value
+	// (Oracle 23ai reads JSON_OBJECT('a':dummy) as the column DUMMY).
+	if p.cur.Type == tokBIND && !keyKeyword {
+		p.splitBindColon()
+	}
+	if p.isKeywordStr("VALUE") || p.cur.Type == kwIS || p.cur.Type == ':' && !keyKeyword {
+		p.advance()
+		value, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if value == nil {
+			return p.syntaxErrorAtCur()
+		}
+		fc.Args.Items = append(fc.Args.Items, value)
+		return p.parseOptionalFormatJSON()
+	}
+
+	// An entry without a value is a column, which names its key, or a star:
+	// table.* among other entries, * alone (ORA-02000 otherwise).
+	switch key.(type) {
+	case *nodes.ColumnRef:
+		if keyKeyword {
+			return p.syntaxErrorAtCur()
+		}
+		// Oracle 23ai rejects STRICT or TRUNCATE right after a column entry
+		// (ORA-02000), and takes them after table.* or FORMAT JSON.
+		if p.cur.Type != kwFORMAT && !p.isWildcard(key) && (p.isKeywordStr("STRICT") || p.isKeywordStr("TRUNCATE")) {
+			return p.syntaxErrorAtCur()
+		}
+		return p.parseOptionalFormatJSON()
+	case *nodes.FuncCallExpr, *nodes.CastExpr, *nodes.TreatExpr:
+		// An object instance names its own keys, so a call, CAST, or TREAT
+		// that may return one stands alone, its clauses after it: Oracle
+		// 23ai takes JSON_OBJECT(t(1)) for an object type t and rejects
+		// JSON_OBJECT(UPPER('a')) on the type (ORA-02000), and rejects two
+		// such entries.
+		if keyKeyword || len(fc.Args.Items) > 1 || p.cur.Type != ')' && !p.atJSONConstructorClause() {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	case *nodes.Star:
+		// * stands alone, its clauses after it (ORA-02000 for another entry).
+		if keyKeyword || len(fc.Args.Items) > 1 || p.cur.Type != ')' && !p.atJSONConstructorClause() {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	}
+	return p.syntaxErrorAtCur()
+}
+
+// splitBindColon makes the ':' that starts the bind variable at cur the
+// current token, and resumes lexing right after it.
+func (p *Parser) splitBindColon() {
+	colon := p.cur.Loc
+	p.hasNext = false
+	p.lexer.pos = colon + 1
+	p.cur = Token{Type: ':', Str: ":", Loc: colon, End: colon + 1}
+}
+
+// parseOptionalFormatJSON parses an optional FORMAT JSON.
+func (p *Parser) parseOptionalFormatJSON() error {
+	if p.cur.Type != kwFORMAT {
+		return nil
+	}
+	p.advance()
+	if p.cur.Type != kwJSON {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
 }
 
 // parseJsonPathFunc parses JSON path functions: JSON_VALUE, JSON_QUERY, JSON_EXISTS, JSON_MERGEPATCH.

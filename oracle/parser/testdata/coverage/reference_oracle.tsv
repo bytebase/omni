@@ -235,14 +235,33 @@ ref_233	select	reject	(WITH w AS (SELECT 1 a FROM dual) SELECT a FROM w) UNION S
 ref_234	select	reject	SELECT 1 FROM dual ORDER BY 1 UNION SELECT 2 FROM dual	set operator after ORDER BY (ORA-03048)
 ref_235	select	reject	SELECT 1 except FROM dual	EXCEPT where an alias would stand (ORA-00928)
 ref_236	ddl	reject	CREATE TABLE omni_bad_ctas_{run} AS (SELECT 1 a FROM dual ORDER BY 1)	CTAS with ORDER BY inside the parentheses (ORA-00907)
+ref_237	select	accept	SELECT JSON_OBJECT(KEY 'a' VALUE 1, KEY 'b' VALUE 'x' RETURNING VARCHAR2(100) STRICT WITH UNIQUE KEYS) FROM dual	JSON_OBJECT with KEY entries and every clause
+ref_238	select	accept	SELECT JSON_ARRAYAGG(dummy ORDER BY dummy DESC NULL ON NULL RETURNING CLOB STRICT) FROM dual	JSON_ARRAYAGG with ORDER BY and clauses
+ref_239	select	accept	SELECT JSON_OBJECTAGG(KEY dummy VALUE 1 ABSENT ON NULL RETURNING CLOB) FROM dual	JSON_OBJECTAGG with KEY and clauses
+ref_240	select	accept	SELECT JSON_SERIALIZE('{}' RETURNING CLOB PRETTY ASCII ORDERED NULL ON ERROR) FROM dual	JSON_SERIALIZE with its flags
+ref_241	select	accept	SELECT JSON_ARRAY(SELECT 1 FROM dual NULL ON NULL) FROM dual	JSON_ARRAY of a subquery
+ref_242	select	reject	SELECT JSON_OBJECT('a' 1) FROM dual	JSON_OBJECT entry without VALUE (ORA-02000)
+ref_243	select	reject	SELECT JSON_OBJECT('a' VALUE 1 STRICT RETURNING CLOB) FROM dual	JSON_OBJECT clauses out of order (ORA-02000)
+ref_244	select	reject	SELECT JSON_ARRAYAGG(dummy RETURNING CLOB ORDER BY dummy) FROM dual	JSON_ARRAYAGG ORDER BY after RETURNING (ORA-02000)
+ref_245	select	reject	SELECT JSON_SERIALIZE('{}' PRETTY RETURNING CLOB) FROM dual	JSON_SERIALIZE RETURNING after PRETTY (ORA-00907)
+ref_246	select	reject	SELECT JSON_OBJECTAGG(dummy VALUE 1, 'b' VALUE 2) FROM dual	JSON_OBJECTAGG with two entries (ORA-02000)
 ref_247	plsql_body	accept	CREATE OR REPLACE TYPE omni_np_{run} AS OBJECT (x PLS_INTEGER, y LONG) NOT PERSISTABLE	PL/SQL-only attributes in a NOT PERSISTABLE type
 ref_248	plsql_body	accept	CREATE OR REPLACE TYPE omni_npc_{run} AS TABLE OF (PLS_INTEGER) NOT PERSISTABLE	PL/SQL-only element in a NOT PERSISTABLE collection
 ref_249	plsql_body	reject	CREATE OR REPLACE TYPE omni_bad_oid_{run} OID 'ABC' AS OBJECT (a NUMBER)	OID that is not 32 hexadecimal digits (ORA-02304)
 ref_250	ddl	reject	CREATE TABLE omni_bad_nch_{run} (x NCHAR(2 CHAR))	CHAR length semantics on NCHAR in SQL (ORA-00907)
 ref_251	select	accept	SELECT x.a FROM (((SELECT 1 a FROM dual) UNION (SELECT 2 FROM dual))) x	alias after redundant inline-view parentheses
 ref_252	select	reject	(SELECT 1 FROM dual EXCEPT)	set operator without a right operand (ORA-00928)
+ref_253	select	accept	SELECT JSON_OBJECT(* RETURNING CLOB) FROM dual	JSON_OBJECT(*) with a clause
+ref_254	select	accept	SELECT JSON_OBJECT(KEY 'VALUE' VALUE 1) FROM dual	literal key spelled VALUE
+ref_255	select	reject	SELECT JSON_ARRAYAGG(dummy ORDER BY dummy,) FROM dual	trailing comma in JSON_ARRAYAGG ORDER BY (ORA-00936)
+ref_256	select	reject	SELECT JSON_OBJECTAGG(* VALUE 1) FROM dual	wildcard JSON_OBJECTAGG key (ORA-00936)
 ref_257	select	reject	(SELECT *) UNION SELECT 1 FROM dual	parenthesized operand selecting * without FROM (ORA-54058)
+ref_258	select	reject	SELECT JSON_SERIALIZE('{}' RETURNING VARCHAR2()) FROM dual	RETURNING datatype without its size (ORA-00910)
+ref_259	select	accept	SELECT JSON_OBJECTAGG("*" VALUE 1) FROM (SELECT 'k' "*" FROM dual)	quoted "*" column as a JSON_OBJECTAGG key
 ref_260	select	reject	SELECT 1 FROM dual MINUS ALL WITH w AS (SELECT 2 x FROM dual) SELECT x FROM w	WITH clause on a set operation branch (ORA-32034)
+ref_261	select	accept	SELECT JSON_OBJECT('a':dummy) FROM dual	colon separator right before the value
+ref_262	select	accept	SELECT JSON_OBJECT('a' VALUE 1 STRICT WITH UNIQUE KEYS WITH TYPENAME) FROM dual	WITH TYPENAME after the unique-keys clause
+ref_263	select	reject	SELECT JSON_OBJECT(dummy STRICT) FROM dual	STRICT right after a column entry (ORA-02000)
 ref_275	plsql	accept	DECLARE TYPE t IS TABLE OF BOOLEAN INDEX BY VARCHAR2(30); x t := t('A' => TRUE, 'B' => FALSE); BEGIN NULL; END;	qualified expression with string keys
 ref_276	plsql	accept	DECLARE TYPE t IS TABLE OF NUMBER INDEX BY PLS_INTEGER; x t := t(1|2 => 5, 4..6 => 7, FOR i IN 10..12 => i); BEGIN NULL; END;	choice list, range, and iterator choices
 ref_277	plsql	accept	BEGIN FOR i IN 1..10 BY 2 WHEN i > 3 LOOP NULL; END LOOP; END;	FOR loop with BY and WHEN
