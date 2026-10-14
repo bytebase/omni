@@ -42,7 +42,17 @@ var Rules = []review.Rule{
 // package for the meaning of each input and of the result. A panic in the
 // parser or a rule is returned as an error: the review could not be
 // evaluated, and the caller's goroutine survives.
-func Review(ctx context.Context, sql string, opts review.Options, targets []review.Target) (result *review.Result, err error) {
+func Review(ctx context.Context, sql string, opts review.Options, targets []review.Target) (*review.Result, error) {
+	return reviewDialect(ctx, sql, opts, targets, dialect{})
+}
+
+// dialect is what the engine a change is for alters in the rules.
+type dialect struct {
+	// oceanBase is OceanBase's MySQL mode: see ReviewOceanBase.
+	oceanBase bool
+}
+
+func reviewDialect(ctx context.Context, sql string, opts review.Options, targets []review.Target, d dialect) (result *review.Result, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			result, err = nil, fmt.Errorf("mysql/review: panic: %v", p)
@@ -62,10 +72,15 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 	}
 
 	on := enabled(opts.Rules)
+	backup := on[review.PriorBackup] && opts.Change.PriorBackup
+	if backup && d.oceanBase {
+		checkPriorBackupOceanBase(r)
+		backup = false
+	}
 	if on[review.OnlineMigration] && opts.Change.OnlineMigration {
 		checkOnlineMigration(sql, stmts, r)
 	}
-	if on[review.PriorBackup] && opts.Change.PriorBackup {
+	if backup {
 		checkPriorBackupSize(sql, opts.Change, r)
 		checkPriorBackupStatements(stmts, r)
 	}
@@ -91,7 +106,7 @@ func Review(ctx context.Context, sql string, opts review.Options, targets []revi
 		}
 	}
 	work := targetWork{
-		backup: on[review.PriorBackup] && opts.Change.PriorBackup,
+		backup: backup,
 		online: on[review.OnlineMigration] && opts.Change.OnlineMigration,
 	}
 	if on[review.DisallowDropConstraint] {
