@@ -324,7 +324,14 @@ func sourcelessStar(stmt nodes.Node) *nodes.SelectStmt {
 		}
 		switch n := n.(type) {
 		case *nodes.ExistsExpr:
-			if sel, ok := n.Subquery.(*nodes.SelectStmt); ok && sel.Larg == nil && sel.Op == nodes.SETOP_NONE && sel.FetchFirst == nil {
+			sel, ok := n.Subquery.(*nodes.SelectStmt)
+			// A WITH clause before a parenthesized block wraps it, one
+			// block still: Oracle 23ai runs EXISTS (WITH w AS (...)
+			// (SELECT *)).
+			for ok && sel.Larg != nil && sel.Op == nodes.SETOP_NONE && sel.FetchFirst == nil {
+				sel = sel.Larg
+			}
+			if ok && sel.Larg == nil && sel.Op == nodes.SETOP_NONE && sel.FetchFirst == nil {
 				exempt[sel] = true
 			}
 		case *nodes.SelectStmt:

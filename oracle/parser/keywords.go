@@ -102,7 +102,7 @@ func isOracleFunctionKeyword(tokenType int) bool {
 
 func isOracleClauseStarterKeyword(tokenType int) bool {
 	switch tokenType {
-	case kwCONNECT, kwFETCH, kwFROM, kwGROUP, kwHAVING, kwINTERSECT, kwJOIN,
+	case kwCONNECT, kwEXCEPT, kwFETCH, kwFROM, kwGROUP, kwHAVING, kwINTERSECT, kwJOIN,
 		kwMINUS, kwMODEL, kwOFFSET, kwON, kwORDER, kwSTART, kwUNION,
 		kwUSING, kwWHERE, kwWITH:
 		return true
@@ -177,7 +177,7 @@ func isOracleSQLReservedKeyword(tok Token) bool {
 		kwAUDIT, kwBETWEEN, kwBY, kwCHAR, kwCHECK, kwCLUSTER, kwCOLUMN, kwCOLUMN_VALUE,
 		kwCOMMENT, kwCOMPRESS, kwCONNECT, kwCREATE, kwCURRENT, kwDATE,
 		kwDECIMAL, kwDEFAULT, kwDELETE, kwDESC, kwDISTINCT, kwDROP,
-		kwELSE, kwEXCLUSIVE, kwEXISTS, kwFILE, kwFLOAT, kwFOR, kwFROM,
+		kwELSE, kwEXCEPT, kwEXCLUSIVE, kwEXISTS, kwFILE, kwFLOAT, kwFOR, kwFROM,
 		kwGRANT, kwGROUP, kwHAVING, kwIDENTIFIED, kwIMMEDIATE, kwIN,
 		kwINCREMENT, kwINDEX, kwINITIAL, kwINSERT, kwINTEGER, kwINTERSECT,
 		kwINTO, kwIS, kwLEVEL, kwLIKE, kwLOCK, kwLONG, kwMAXEXTENTS,

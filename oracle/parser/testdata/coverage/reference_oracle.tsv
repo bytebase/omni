@@ -280,3 +280,7 @@ ref_297	select	reject	SELECT ((SELECT 1 FROM dual) ORDER BY 1) FROM dual	ORDER B
 ref_298	select	accept	SELECT 1 FROM dual WHERE 1 IN ((SELECT 1 FROM dual) ORDER BY 1 FETCH FIRST 1 ROWS ONLY)	row-limited ORDER BY in a condition subquery
 ref_299	plsql	accept	BEGIN FOR r IN ((SELECT 1 a FROM dual) ORDER BY 1) LOOP NULL; END LOOP; END;	ORDER BY in a cursor FOR loop query
 ref_300	select	reject	SELECT 1 FROM dual WHERE EXISTS (SELECT * FETCH FIRST 1 ROWS ONLY)	row-limited star without FROM in EXISTS (ORA-54058)
+ref_301	select	reject	SELECT 1 + except FROM dual	EXCEPT is reserved in SQL (ORA-00936)
+ref_302	select	reject	SELECT * FROM except	EXCEPT as a table name (ORA-00903)
+ref_303	plsql	accept	DECLARE except NUMBER := 1; x NUMBER; BEGIN x := except + 1; except := x; END;	PL/SQL does not reserve EXCEPT
+ref_304	select	accept	SELECT 1 FROM dual WHERE EXISTS (WITH w AS (SELECT 1 c FROM dual) (SELECT *))	star without FROM in EXISTS behind a WITH clause

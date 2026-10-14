@@ -694,7 +694,10 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		// columns in practice and start their clauses only after a complete
 		// expression or table reference, never where an operand begins.
 		// TestOracleNonReservedKeywordsAsColumns checks them on the engine.
-		if isOracleClauseStarterKeyword(p.cur.Type) && isOracleSQLReservedKeyword(p.cur) {
+		// PL/SQL does not reserve EXCEPT, SQL's set operator alone: Oracle
+		// 23ai compiles x := except + 1 for a variable except.
+		if isOracleClauseStarterKeyword(p.cur.Type) && isOracleSQLReservedKeyword(p.cur) &&
+			(p.cur.Type != kwEXCEPT || !p.plsqlCode) {
 			return nil, nil
 		}
 		if p.isIdentLike() {

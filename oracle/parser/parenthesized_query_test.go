@@ -111,6 +111,15 @@ func TestParenthesizedQueries(t *testing.T) {
 		"( SELECT 1 FROM dual ) x",
 		"SELECT 1 except FROM dual",
 		"(1)",
+		// SQL reserves EXCEPT as it does MINUS: no operand, column, table,
+		// or alias (ORA-00936, ORA-00903, ORA-03050), in static SQL too.
+		"SELECT 1 + except FROM dual",
+		"SELECT 1 FROM dual WHERE except = 1",
+		"SELECT * FROM except",
+		"SELECT 1 FROM sys.except",
+		"SELECT except.a FROM t except",
+		"CREATE TABLE t (except NUMBER)",
+		"DECLARE n NUMBER; BEGIN SELECT 1 INTO n FROM dual WHERE except = 1; END;",
 		// A query follows a set operator (ORA-00928).
 		"(SELECT 1 FROM dual EXCEPT)",
 		"(SELECT 1 FROM dual MINUS ALL)",
@@ -268,6 +277,7 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		"DECLARE n NUMBER; BEGIN SELECT 1 INTO n FROM dual WHERE EXISTS (SELECT *); END;",
 		"SELECT 1 FROM dual WHERE EXISTS ((SELECT *))",
 		"SELECT 1 FROM dual WHERE EXISTS (WITH w AS (SELECT 1 c FROM dual) SELECT *)",
+		"SELECT 1 FROM dual WHERE EXISTS (WITH w AS (SELECT 1 c FROM dual) (SELECT *))",
 	} {
 		ParseAndCheck(t, sql)
 	}
@@ -283,6 +293,17 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 			t.Errorf("CollectCompletion(%q) scope = %+v, want X with LEFT_NAME", sql, scope)
 		}
 	}
+
+	// PL/SQL does not reserve EXCEPT: Oracle 23ai compiles each of these.
+	for _, sql := range []string{
+		"DECLARE except NUMBER := 1; x NUMBER; BEGIN x := except + 1; except := x; p(except); p(a => except); END;",
+		"DECLARE TYPE r IS RECORD (a NUMBER); except r; BEGIN except.a := 1; IF except.a > 0 THEN NULL; END IF; END;",
+		"BEGIN FOR except IN 1..3 LOOP NULL; END LOOP; END;",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	// Reserved, EXCEPT still follows MULTISET.
+	ParseAndCheck(t, "SELECT a MULTISET EXCEPT b FROM t")
 
 	// Completion takes EXCEPT as the set operator it is, as MINUS.
 	for _, op := range []string{"EXCEPT", "MINUS"} {
