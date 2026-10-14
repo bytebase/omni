@@ -1395,16 +1395,14 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 	// qualified expression, t('k' => v), t(1..3 => 0), t(FOR i IN 1..3 => i).
 	// A positional argument, a SEQUENCE iterator choice among them, after
 	// a named one or an explicit choice is PLS-00312 on Oracle 23ai, and a
-	// choice after OTHERS is PLS-00851.
+	// choice after OTHERS is PLS-00851; a named argument after OTHERS =>
+	// makes OTHERS a parameter's name.
 	if p.cur.Type != ')' {
 		sawNamed, sawOthers := false, false
 		for {
 			var arg nodes.ExprNode
 			var parseErr714 error
 			argStart := p.pos()
-			if sawOthers {
-				return nil, p.syntaxErrorAtCur()
-			}
 			if p.plsqlCode && p.atQualifiedChoice() {
 				arg, parseErr714 = p.parseChoiceAssoc(nil, argStart)
 			} else {
@@ -1423,6 +1421,19 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 					return nil, err
 				}
 				arg = named
+			}
+			if sawOthers {
+				// After OTHERS =>, a named argument says OTHERS named a
+				// parameter, as Oracle 23ai calls p(others => 1, b => 2);
+				// any other argument follows the OTHERS choice of a
+				// qualified expression (PLS-00851).
+				if _, named := arg.(*nodes.NamedArgExpr); !named {
+					return nil, p.syntaxErrorAtNode(arg)
+				}
+				last := len(fc.Args.Items) - 1
+				others := fc.Args.Items[last].(*nodes.ChoiceAssocExpr)
+				fc.Args.Items[last] = &nodes.NamedArgExpr{Name: "OTHERS", Expr: others.Value, Loc: others.Loc}
+				sawOthers = false
 			}
 			positional := arg != nil
 			switch a := arg.(type) {

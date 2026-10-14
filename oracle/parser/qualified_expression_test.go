@@ -96,6 +96,12 @@ func TestQualifiedExpressions(t *testing.T) {
 		"BEGIN v := nt(FOR i IN VALUES OF w SEQUENCE => i); END;",
 		"CREATE FUNCTION f RETURN ai IS BEGIN RETURN ai(1 => 1, 2 => 2); END;",
 		"BEGIN p(aa('k' => TRUE)); END;",
+		// A named argument after OTHERS => makes OTHERS a parameter's name,
+		// as Oracle 23ai calls p(others => 1, b => 2). The text does not
+		// tell a record constructor from such a call, so r(OTHERS => 0,
+		// a => 1), PLS-00851 for a record r, is left to the engine.
+		"DECLARE PROCEDURE p (others NUMBER, b NUMBER) IS BEGIN NULL; END; BEGIN p(others => 1, b => 2); END;",
+		"DECLARE " + qualifiedDecls + "x r := r(OTHERS => 0, a => 1); BEGIN NULL; END;",
 	} {
 		ParseAndCheck(t, sql)
 	}
@@ -108,7 +114,9 @@ func TestQualifiedExpressions(t *testing.T) {
 		"DECLARE " + qualifiedDecls + "x ai := ai(FOR i IN 1..3 => i, 9); BEGIN NULL; END;",
 		"DECLARE " + qualifiedDecls + "x ai := ai(FOR i IN 1..3 INDEX i => i, 9); BEGIN NULL; END;",
 		"DECLARE " + qualifiedDecls + "x nt := nt(1 => 1, FOR i IN 1..3 SEQUENCE => i); BEGIN NULL; END;",
-		"DECLARE " + qualifiedDecls + "x r := r(OTHERS => 0, a => 1); BEGIN NULL; END;",
+		"DECLARE " + qualifiedDecls + "x ai := ai(OTHERS => 0, 1 => 2); BEGIN NULL; END;",
+		"DECLARE " + qualifiedDecls + "x ai := ai(OTHERS => 0, 1..3 => 2); BEGIN NULL; END;",
+		"DECLARE " + qualifiedDecls + "x ai := ai(OTHERS => 0, 5); BEGIN NULL; END;",
 		"DECLARE " + qualifiedDecls + "x ai := ai(FOR i, j IN PAIRS OF a => j); BEGIN NULL; END;",
 		// OTHERS stands alone (PLS-00851, PLS-00750).
 		"DECLARE " + qualifiedDecls + "x r := r(a | OTHERS => 0); BEGIN NULL; END;",
