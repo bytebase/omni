@@ -300,13 +300,14 @@ func (p *Parser) parseTriggerEvent(stmt *nodes.CreateTriggerStmt) error {
 // CALL. The arguments are expressions, :OLD and :NEW references among them,
 // in positional or named notation. Oracle 23ai rejects an empty argument
 // list (ORA-00936), an INTO clause (ORA-00911), and a ';' after the call
-// (PLS-00103).
+// (PLS-00103), takes schema.package.routine, and rejects a database link
+// (ORA-00911 for CALL p@lnk).
 //
-//	CALL routine [ ( argument [, argument ]... ) ]
+//	CALL [ schema . ] [ package . ] routine [ ( argument [, argument ]... ) ]
 func (p *Parser) parseTriggerCall() (*nodes.CallStmt, error) {
 	call := &nodes.CallStmt{Args: &nodes.List{}, Loc: nodes.Loc{Start: p.pos()}}
 	p.advance() // consume CALL
-	name, err := p.parseObjectName()
+	name, pkg, err := p.parseRoutineName()
 	if err != nil {
 		return nil, err
 	}
@@ -314,7 +315,10 @@ func (p *Parser) parseTriggerCall() (*nodes.CallStmt, error) {
 	if name == nil || name.Name == "" {
 		return nil, p.syntaxErrorAtCur()
 	}
-	call.Name = name
+	if name.DBLink != "" {
+		return nil, p.syntaxErrorAtNode(name)
+	}
+	call.Name, call.Package = name, pkg
 	if p.cur.Type == '(' {
 		p.advance() // consume (
 		named := false

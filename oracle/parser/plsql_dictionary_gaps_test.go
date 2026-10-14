@@ -49,6 +49,9 @@ func TestTriggerCallBody(t *testing.T) {
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(:old.a + 1, UPPER(:new.b))",
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p",
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(1, y => 'a')",
+		// A packaged routine with its owner (Oracle 23ai creates both).
+		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL app.audit_pkg.record_change(1)",
+		"CREATE TRIGGER t AFTER UPDATE ON tab CALL app.audit_pkg.record_change(1)",
 	} {
 		ParseAndCheck(t, sql)
 	}
@@ -61,8 +64,79 @@ func TestTriggerCallBody(t *testing.T) {
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(x => 1, 'a')",
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(1,)",
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(:old.a, :new.b) INTO :x",
+		// Nor a database link (ORA-00911), nor a dangling component.
+		"CREATE TRIGGER t AFTER UPDATE ON tab CALL app.audit_pkg.record_change@lnk(1)",
+		"CREATE TRIGGER t AFTER UPDATE ON tab CALL k.p@lnk(1)",
+		"CREATE TRIGGER t AFTER UPDATE ON tab CALL app.audit_pkg.(1)",
 	} {
 		ParseShouldFail(t, sql)
+	}
+
+	// The middle component of schema.package.routine is the package, in a
+	// trigger and a CALL statement alike.
+	full := parseOne[*ast.CreateTriggerStmt](t, "CREATE TRIGGER t AFTER UPDATE ON tab CALL app.audit_pkg.record_change(1)")
+	if call, ok := full.Body.(*ast.CallStmt); !ok || call.Name.Schema != "APP" || call.Package != "AUDIT_PKG" || call.Name.Name != "RECORD_CHANGE" {
+		t.Errorf("trigger body = %#v", full.Body)
+	}
+	if call := parseOne[*ast.CallStmt](t, "CALL app.audit_pkg.record_change(1)"); call.Name.Schema != "APP" || call.Package != "AUDIT_PKG" || call.Name.Name != "RECORD_CHANGE" {
+		t.Errorf("CALL = %#v", call)
+	}
+}
+
+// TestCallStmtArguments checks the argument list of a CALL statement
+// against Oracle 23ai: it is in parentheses even when empty (ORA-06576 for
+// CALL k.p), in positional, named, or mixed notation, with no positional
+// argument after a named one (PLS-00312) and none left out (ORA-00936).
+func TestCallStmtArguments(t *testing.T) {
+	for _, sql := range []string{
+		"CALL app.audit_pkg.record_change()",
+		"CALL app.audit_pkg.record_change(1, 2)",
+		"CALL app.audit_pkg.record_change(x => 1)",
+		"CALL app.audit_pkg.record_change(1, y => 2)",
+		"CALL k.p(y => 2)",
+		"CALL f(1) INTO :x",
+		// A database link's name may hold dots (ORA-04054 only for a
+		// link that does not exist).
+		"CALL app.pkg.proc@remote.example.com()",
+		"CALL pkg.proc@remote.example.com()",
+		"CALL app.pkg.f() INTO :v",
+		`CALL app.pkg."SELECT"()`,
+		"CALL app.pkg.proc@remote.example.com@instance()",
+		"CALL pkg.proc@remote@inst()",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	for _, sql := range []string{
+		"CALL app.audit_pkg.record_change",
+		"CALL k.p",
+		"CALL app.audit_pkg.record_change(1,)",
+		"CALL app.audit_pkg.record_change(,1)",
+		"CALL app.audit_pkg.record_change(1,,2)",
+		"CALL app.audit_pkg.record_change(x => 1, 2)",
+		"CALL k.p(1",
+		// The INTO target is a host variable (ORA-00921, ORA-01745), no
+		// component a reserved word unquoted (ORA-01747), and a link
+		// follows every @ (ORA-01729).
+		"CALL app.pkg.f() INTO",
+		"CALL app.pkg.f() INTO 1",
+		"CALL app.pkg.SELECT()",
+		"CALL app.pkg@.proc()",
+		"CREATE TRIGGER t AFTER UPDATE ON tab CALL app.pkg@.proc",
+		"CREATE TRIGGER t AFTER UPDATE ON tab CALL app.pkg.SELECT(1)",
+		// A name follows every dot (ORA-03050).
+		"CALL app.@remote.example()",
+		"CALL app.@link()",
+		"CALL pkg.proc@remote@()",
+		"CALL app. .proc()",
+		"CALL app.(1)",
+		"CALL app.pkg.proc@remote.()",
+		"CREATE TRIGGER t AFTER UPDATE ON tab CALL app. /*x*/ .proc",
+	} {
+		ParseShouldFail(t, sql)
+	}
+	call := parseOne[*ast.CallStmt](t, "CALL k.p(1, y => 2)")
+	if named, ok := call.Args.Items[1].(*ast.NamedArgExpr); !ok || named.Name != "Y" {
+		t.Errorf("second argument = %#v, want named argument Y", call.Args.Items[1])
 	}
 
 	trigger := parseOne[*ast.CreateTriggerStmt](t, "CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(:old.a, y => 'x')")

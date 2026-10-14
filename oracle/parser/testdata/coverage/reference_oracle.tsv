@@ -246,6 +246,12 @@ ref_259	select	accept	SELECT JSON_OBJECTAGG("*" VALUE 1) FROM (SELECT 'k' "*" FR
 ref_261	select	accept	SELECT JSON_OBJECT('a':dummy) FROM dual	colon separator right before the value
 ref_262	select	accept	SELECT JSON_OBJECT('a' VALUE 1 STRICT WITH UNIQUE KEYS WITH TYPENAME) FROM dual	WITH TYPENAME after the unique-keys clause
 ref_263	select	reject	SELECT JSON_OBJECT(dummy STRICT) FROM dual	STRICT right after a column entry (ORA-02000)
+ref_275	plsql	accept	DECLARE TYPE t IS TABLE OF BOOLEAN INDEX BY VARCHAR2(30); x t := t('A' => TRUE, 'B' => FALSE); BEGIN NULL; END;	qualified expression with string keys
+ref_276	plsql	accept	DECLARE TYPE t IS TABLE OF NUMBER INDEX BY PLS_INTEGER; x t := t(1|2 => 5, 4..6 => 7, FOR i IN 10..12 => i); BEGIN NULL; END;	choice list, range, and iterator choices
+ref_277	plsql	accept	BEGIN FOR i IN 1..10 BY 2 WHEN i > 3 LOOP NULL; END LOOP; END;	FOR loop with BY and WHEN
+ref_278	plsql	reject	BEGIN FOR i, j IN 1..3 LOOP NULL; END LOOP; END;	two iterands without PAIRS OF (PLS-00856)
+ref_279	select	reject	SELECT UPPER(1 => 'x') FROM dual	choice in a SQL call (ORA-00907)
+ref_280	plsql	reject	DECLARE TYPE t IS TABLE OF NUMBER INDEX BY PLS_INTEGER; x t := t(1 => 10, 20); BEGIN NULL; END;	positional value after a choice (PLS-00312)
 ref_284	ddl	reject	CREATE TABLE omni_bad_dec_{run} (x DEC(0))	NUMBER precision outside 1 to 38 (ORA-01727)
 ref_285	ddl	reject	CREATE TABLE omni_bad_scale_{run} (x NUMBER(5, 128))	NUMBER scale outside -84 to 127 (ORA-01728)
 ref_286	select	reject	SELECT CAST(1 AS FLOAT(127)) FROM dual	FLOAT precision outside 1 to 126 (ORA-01724)

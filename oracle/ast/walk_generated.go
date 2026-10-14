@@ -401,6 +401,16 @@ func walkChildren(v Visitor, node Node) {
 		if n.TypeName != nil {
 			Walk(v, n.TypeName)
 		}
+	case *ChoiceAssocExpr:
+		walkList(v, n.Choices)
+		if n.Iterator != nil {
+			Walk(v, n.Iterator)
+		}
+		Walk(v, n.Index)
+		Walk(v, n.Value)
+	case *ChoiceRange:
+		Walk(v, n.Lower)
+		Walk(v, n.Upper)
 	case *ClusterColumn:
 		if n.DataType != nil {
 			Walk(v, n.DataType)
@@ -875,6 +885,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Name != nil {
 			Walk(v, n.Name)
 		}
+	case *DynamicSQLExpr:
+		Walk(v, n.SQL)
+		walkList(v, n.Using)
 	case *ErrorLogClause:
 		if n.Into != nil {
 			Walk(v, n.Into)
@@ -1221,6 +1234,20 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.Then)
 		walkList(v, n.ElsIfs)
 		walkList(v, n.Else)
+	case *PLSQLIterand:
+		if n.DataType != nil {
+			Walk(v, n.DataType)
+		}
+	case *PLSQLIterationControl:
+		Walk(v, n.Lower)
+		Walk(v, n.Upper)
+		Walk(v, n.Step)
+		Walk(v, n.Expr)
+		Walk(v, n.While)
+		Walk(v, n.When)
+	case *PLSQLIterator:
+		walkList(v, n.Iterands)
+		walkList(v, n.Controls)
 	case *PLSQLLabeledStatement:
 		Walk(v, n.Statement)
 	case *PLSQLLoop:
@@ -1229,6 +1256,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.UpperBound)
 		walkList(v, n.CursorArgs)
 		Walk(v, n.CursorQuery)
+		if n.Iteration != nil {
+			Walk(v, n.Iteration)
+		}
 		walkList(v, n.Statements)
 	case *PLSQLOpen:
 		walkList(v, n.Args)
