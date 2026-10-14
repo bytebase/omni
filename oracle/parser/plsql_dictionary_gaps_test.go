@@ -101,6 +101,8 @@ func TestCallStmtArguments(t *testing.T) {
 		"CALL pkg.proc@remote.example.com()",
 		"CALL app.pkg.f() INTO :v",
 		`CALL app.pkg."SELECT"()`,
+		"CALL app.pkg.proc@remote.example.com@instance()",
+		"CALL pkg.proc@remote@inst()",
 	} {
 		ParseAndCheck(t, sql)
 	}
@@ -122,6 +124,9 @@ func TestCallStmtArguments(t *testing.T) {
 		"CREATE TRIGGER t AFTER UPDATE ON tab CALL app.pkg@.proc",
 		"CREATE TRIGGER t AFTER UPDATE ON tab CALL app.pkg.SELECT(1)",
 		// A name follows every dot (ORA-03050).
+		"CALL app.@remote.example()",
+		"CALL app.@link()",
+		"CALL pkg.proc@remote@()",
 		"CALL app. .proc()",
 		"CALL app.(1)",
 		"CALL app.pkg.proc@remote.()",

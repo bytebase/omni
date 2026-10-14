@@ -225,6 +225,11 @@ func (p *Parser) parseLockMode() (string, error) {
 //
 //	[ schema . ] [ { type_name | package_name } . ] routine_name [ @dblink_name ]
 func (p *Parser) parseRoutineName() (*nodes.ObjectName, string, error) {
+	// A name follows the dot before an @ too (ORA-03050 for CALL
+	// app.@link()).
+	if ahead := p.peekAhead(2); ahead[0].Type == '.' && ahead[1].Type == '@' {
+		return nil, "", p.syntaxErrorAtTok(ahead[1])
+	}
 	// No component is a reserved word unquoted (ORA-01747 for CALL
 	// app.pkg.SELECT()).
 	name, err := p.parseReservedCheckedObjectName()
@@ -257,9 +262,10 @@ func (p *Parser) parseRoutineName() (*nodes.ObjectName, string, error) {
 			}
 		}
 	}
-	// A database link's name may hold dots: Oracle 23ai parses CALL
-	// app.pkg.proc@remote.example.com(), and reports a missing link only
-	// then (ORA-04054).
+	// A database link's name may hold dots and end in a connection
+	// qualifier: Oracle 23ai parses CALL app.pkg.proc@remote.example.com()
+	// and ...@remote@instance(), and reports a missing link only then
+	// (ORA-04054).
 	for name.DBLink != "" && p.cur.Type == '.' {
 		p.advance() // consume .
 		part, err := p.parseIdentifier()
@@ -270,6 +276,17 @@ func (p *Parser) parseRoutineName() (*nodes.ObjectName, string, error) {
 			return nil, "", p.syntaxErrorAtCur()
 		}
 		name.DBLink += "." + part
+	}
+	if name.DBLink != "" && p.cur.Type == '@' {
+		p.advance() // consume @
+		qualifier, err := p.parseIdentifier()
+		if err != nil {
+			return nil, "", err
+		}
+		if qualifier == "" {
+			return nil, "", p.syntaxErrorAtCur()
+		}
+		name.DBLink += "@" + qualifier
 	}
 	name.Loc.End = p.prev.End
 	return name, pkg, nil
