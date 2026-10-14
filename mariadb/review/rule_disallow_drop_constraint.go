@@ -62,9 +62,19 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 	}
 	var replaced []*ast.TableRef
 	replace := func(ref *ast.TableRef) {
-		if !body {
-			replaced = append(replaced, ref)
+		if body {
+			return
 		}
+		replaced = append(replaced, ref)
+		// What the change touched on a table of the name before is gone
+		// with it.
+		kept := touched[:0]
+		for _, i := range touched {
+			if !sameTable(i.table, ref) {
+				kept = append(kept, i)
+			}
+		}
+		touched = kept
 	}
 	isReplaced := func(ref *ast.TableRef) bool {
 		for _, t := range replaced {
@@ -109,6 +119,10 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 					if c != nil && (c.Type == ast.ConstrUnique || c.Type == ast.ConstrPrimaryKey) {
 						touch(v.Table, c.Name, c.Type == ast.ConstrUnique)
 					}
+				}
+			case *ast.DropTableStmt:
+				for _, ref := range v.Tables {
+					replace(ref)
 				}
 			case *ast.CreateIndexStmt:
 				// IF NOT EXISTS may leave an index of the name as it was.
