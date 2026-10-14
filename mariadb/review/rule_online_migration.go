@@ -244,7 +244,12 @@ func checkOnlineMigrationTarget(stmts []statement, t review.Target, x schemaInde
 	}
 	// gh-ost migrates the table of the name in the task's database, which
 	// Bytebase passes as gh-ost's DatabaseName whatever database the ALTER
-	// names (backend/component/ghost, NewMigrationContext).
+	// names (backend/component/ghost, NewMigrationContext): an ALTER of
+	// another database's table would change the task database's instead.
+	if db := t.Schema.GetName(); v.Table.Schema != "" && db != "" && !strings.EqualFold(v.Table.Schema, db) {
+		r.report(review.OnlineMigration, stmts[0].index, rangeOf(stmts[0].loc), "gh-ost migrates "+ident(v.Table.Name)+" of the task's database "+ident(db)+", not "+table(v.Table)+" as the ALTER names it")
+		return
+	}
 	tbl := x.table(&ast.TableRef{Name: v.Table.Name}, false)
 	if tbl == nil {
 		// gh-ost's validateTable refuses a view.
