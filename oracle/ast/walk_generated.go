@@ -626,6 +626,9 @@ func walkChildren(v Visitor, node Node) {
 		}
 		walkList(v, n.AccessibleBy)
 		walkList(v, n.Body)
+		if n.InitBlock != nil {
+			Walk(v, n.InitBlock)
+		}
 	case *CreateProcedureStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -787,6 +790,7 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.Args)
 	case *CursorAttributeExpr:
 		Walk(v, n.Cursor)
+		Walk(v, n.Index)
 	case *CursorExpr:
 		Walk(v, n.Subquery)
 	case *DDLOption:
