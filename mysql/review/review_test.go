@@ -333,7 +333,11 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:  "CREATE UNIQUE INDEX ux ON nokey (a);\nDROP TABLE nokey;\nCREATE TABLE nokey (a INT, KEY ux (a));\nDROP INDEX ux ON nokey;",
 		},
 		{
-			name: "a routine body's own DDL, read by its later drops and by nothing after it",
+			name: "a unique index made in one branch of a routine body and dropped in another",
+			sql:  "DELIMITER //\nCREATE PROCEDURE pr() BEGIN IF 1 THEN CREATE UNIQUE INDEX ux ON nokey (a); ELSE DROP INDEX ux ON nokey; END IF; END//\nDELIMITER ;",
+		},
+		{
+			name: "a routine body's own DDL, which keeps its later drops from being judged and touches nothing after it",
 			sql:  "DELIMITER //\nCREATE PROCEDURE pr() BEGIN CREATE TEMPORARY TABLE t (id INT, KEY uk_code (id)); DROP INDEX uk_code ON t; END//\nDELIMITER ;\nDROP INDEX uk_code ON t;",
 			want: []finding{{1, "DROP INDEX uk_code ON t", "drops unique key uk_code of t", []int{0}}},
 		},
