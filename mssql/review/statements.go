@@ -183,6 +183,33 @@ func oneLine(text string) string {
 			if c == quote {
 				quote = 0
 			}
+		case c == '/' && i+1 < len(text) && text[i+1] == '*':
+			// A block comment, nested as T-SQL nests it, is kept as written.
+			if space && b.Len() > 0 {
+				b.WriteByte(' ')
+			}
+			depth := 0
+			for i < len(text) {
+				switch {
+				case text[i] == '/' && i+1 < len(text) && text[i+1] == '*':
+					depth++
+					b.WriteString("/*")
+					i += 2
+				case text[i] == '*' && i+1 < len(text) && text[i+1] == '/':
+					depth--
+					b.WriteString("*/")
+					i += 2
+				default:
+					b.WriteByte(text[i])
+					i++
+				}
+				if depth == 0 {
+					break
+				}
+			}
+			i--
+			space = false
+			continue
 		case c == '-' && i+1 < len(text) && text[i+1] == '-':
 			// A line comment would swallow what follows it on one line:
 			// it is left out, and its line break is a space.

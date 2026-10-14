@@ -169,6 +169,11 @@ func TestRequireIsNull(t *testing.T) {
 			},
 		},
 		{
+			name: "a comparison with a block comment holding dashes",
+			sql:  "SELECT * FROM t WHERE n /* -- note */ = NULL;",
+			want: []finding{{0, "n /* -- note */ = NULL", `"n /* -- note */ = NULL" is never true; use IS NULL`, []int{0}}},
+		},
+		{
 			name: "a comparison with a line comment inside it",
 			sql:  "SELECT * FROM t WHERE n -- note\n = NULL;",
 			want: []finding{{0, "n -- note\n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
@@ -392,6 +397,10 @@ func TestDisallowDropConstraint(t *testing.T) {
 			want: []finding{{0, "ck_n", "drops check constraint ck_n of t", []int{0}}},
 		},
 		{
+			name: "constraints and tables the change renames",
+			sql:  "CREATE TABLE dbo.a (n INT CONSTRAINT ck CHECK (n > 0));\nEXEC sp_rename 'dbo.a.ck', 'old_ck', 'OBJECT';\nCREATE TABLE dbo.b (n INT CONSTRAINT ck DEFAULT 0);\nEXEC sp_rename 'dbo.a', 'old_a', 'OBJECT';\nEXEC sp_rename 'dbo.b', 'a', 'OBJECT';\nALTER TABLE dbo.a DROP CONSTRAINT ck;",
+		},
+		{
 			name: "a table of the name moved in from another schema",
 			sql:  "ALTER SCHEMA archive TRANSFER dbo.t;\nALTER SCHEMA dbo TRANSFER staging.t;\nALTER TABLE dbo.t DROP CONSTRAINT ck_n;",
 		},
@@ -519,6 +528,11 @@ func TestOnlineMigration(t *testing.T) {
 func TestPriorBackup(t *testing.T) {
 	backup := review.Change{PriorBackup: true, MaxBackupSize: 1 << 20}
 	runCases(t, review.PriorBackup, []ruleCase{
+		{
+			name:   "a temporary target, whose backup Bytebase skips",
+			sql:    "CREATE TABLE n2 (id INT);\nCREATE TABLE #tmp (id INT);\nUPDATE x SET id = n2.id FROM #tmp AS x JOIN n2 ON n2.id = x.id;",
+			change: backup,
+		},
 		{
 			name:   "a table the change makes in another database, or in place of a synonym it drops",
 			sql:    "CREATE TABLE other.dbo.n (id INT);\nUPDATE n SET id = 2 WHERE id = 1;\nDROP SYNONYM n3;\nCREATE TABLE n3 (id INT);\nUPDATE n3 SET id = 2 WHERE id = 1;",

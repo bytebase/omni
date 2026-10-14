@@ -77,7 +77,8 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 	}
 	// rolledBack marks every definition so far unsure: a rollback may
 	// undo all of them, or, to a savepoint or after a BEGIN TRAN the
-	// change runs later, only some.
+	// change runs later, only some, and a rename may move a constraint or
+	// its table to another name.
 	rolledBack := func() {
 		for i := range made {
 			made[i].unsure = true
@@ -153,6 +154,12 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 		case *ast.UseStmt:
 			// What the change defined before is of another database.
 			made = nil
+		case *ast.ExecStmt:
+			if _, _, _, ok := spRename(v); ok {
+				rolledBack()
+			}
+		case *ast.RenameStmt:
+			rolledBack()
 		case *ast.RollbackTransStmt:
 			rolledBack()
 		case *ast.CreateSchemaStmt:
@@ -172,8 +179,14 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 				routine = true
 			}
 			ast.Inspect(n, func(n ast.Node) bool {
-				if _, ok := n.(*ast.RollbackTransStmt); ok {
+				switch v := n.(type) {
+				case *ast.RollbackTransStmt, *ast.RenameStmt:
 					if !routine {
+						rolledBack()
+					}
+					return true
+				case *ast.ExecStmt:
+					if _, _, _, ok := spRename(v); ok && !routine {
 						rolledBack()
 					}
 					return true

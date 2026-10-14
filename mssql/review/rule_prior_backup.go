@@ -442,8 +442,9 @@ func checkPriorBackupTarget(stmts []statement, backupExists bool, x schemaIndex,
 	}
 	for i := range stmts[:beforeUse(stmts)] {
 		s := &stmts[i]
-		d, ok := dmlOf(s.node)
-		if !ok || d.with != nil {
+		// Only a statement the backup copies a table for runs its query.
+		d, ref, refusal := backupTable(s)
+		if ref == nil || refusal != "" || d.with != nil {
 			continue
 		}
 		if msg := backupReadsMade(d, x, m); msg != "" {
