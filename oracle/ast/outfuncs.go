@@ -4040,6 +4040,9 @@ func writeCallStmt(sb *strings.Builder, n *CallStmt) {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
 	}
+	if n.Package != "" {
+		sb.WriteString(fmt.Sprintf(" :package %q", n.Package))
+	}
 	if n.Args != nil {
 		sb.WriteString(" :args ")
 		writeNode(sb, n.Args)

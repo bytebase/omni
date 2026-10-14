@@ -218,6 +218,42 @@ func (p *Parser) parseLockMode() (string, error) {
 	return mode, nil
 }
 
+// parseRoutineName parses the routine a CALL names, with up to three
+// components: Oracle 23ai calls schema.package.routine as package.routine.
+// The middle one is the package or type, returned apart from name, which
+// holds the schema and the routine.
+//
+//	[ schema . ] [ { type_name | package_name } . ] routine_name [ @dblink_name ]
+func (p *Parser) parseRoutineName() (*nodes.ObjectName, string, error) {
+	name, err := p.parseObjectName()
+	if err != nil || name == nil || name.Name == "" || name.DBLink != "" || p.cur.Type != '.' {
+		return name, "", err
+	}
+	p.advance() // consume .
+	routine, err := p.parseIdentifier()
+	if err != nil {
+		return nil, "", err
+	}
+	if routine == "" {
+		return nil, "", p.syntaxErrorAtCur()
+	}
+	pkg := name.Name
+	name.Name = routine
+	if p.cur.Type == '@' {
+		p.advance() // consume @
+		link, err := p.parseIdentifier()
+		if err != nil {
+			return nil, "", err
+		}
+		if link == "" {
+			return nil, "", p.syntaxErrorAtCur()
+		}
+		name.DBLink = link
+	}
+	name.Loc.End = p.prev.End
+	return name, pkg, nil
+}
+
 // parseCallStmt parses a CALL statement.
 //
 // BNF: oracle/parser/bnf/CALL.bnf
@@ -242,7 +278,7 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 	}
 	var parseErr1153 error
 
-	stmt.Name, parseErr1153 = p.parseObjectName()
+	stmt.Name, stmt.Package, parseErr1153 = p.parseRoutineName()
 	if parseErr1153 !=
 
 		// Arguments
