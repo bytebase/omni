@@ -150,6 +150,20 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 	} {
 		ParseShouldFail(t, sql)
 	}
+	// Nor does a FOR UPDATE end one, operand or not (ORA-00907 at FOR); a
+	// parenthesized query takes one after it.
+	for _, sql := range []string{
+		"(SELECT a FROM t FOR UPDATE) UNION SELECT a FROM t",
+		"(SELECT a FROM t FOR UPDATE)",
+		"SELECT * FROM ((SELECT a FROM t FOR UPDATE) UNION SELECT a FROM t)",
+	} {
+		_, err := Parse(sql)
+		var pe *ParseError
+		if !errors.As(err, &pe) || !strings.HasPrefix(sql[pe.Position:], "FOR UPDATE") {
+			t.Errorf("Parse(%q) = %v, want an error at FOR UPDATE", sql, err)
+		}
+	}
+	ParseAndCheck(t, "(SELECT a FROM t) FOR UPDATE")
 
 	// No query block selects * without FROM, wherever it stands, and the
 	// error is at its SELECT (ORA-54058); but for the one block of an
@@ -178,6 +192,12 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 			t.Errorf("Parse(%q) fails at %q, want at SELECT *", sql, at)
 		}
 	}
+	// A block with a WITH clause starts there, where Oracle reports it.
+	const withStar = "CREATE VIEW v AS WITH w AS (SELECT 1 FROM dual) SELECT * ORDER BY 1"
+	var pe *ParseError
+	if _, err := Parse(withStar); !errors.As(err, &pe) || !strings.HasPrefix(withStar[pe.Position:], "WITH w") {
+		t.Errorf("Parse(%q) = %v, want an error at WITH", withStar, err)
+	}
 	for _, sql := range []string{
 		"SELECT 1 FROM dual WHERE EXISTS (SELECT *)",
 		"SELECT 1 FROM dual WHERE NOT EXISTS (SELECT *)",
@@ -185,6 +205,18 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		"DECLARE n NUMBER; BEGIN SELECT 1 INTO n FROM dual WHERE EXISTS (SELECT *); END;",
 	} {
 		ParseAndCheck(t, sql)
+	}
+
+	// An inline view whose first operand is parenthesized exposes that
+	// operand's columns, as an unparenthesized one does.
+	for _, sql := range []string{
+		"SELECT x. FROM ((SELECT c1 AS left_name FROM t) UNION (SELECT c2 FROM u)) x",
+		"SELECT x. FROM (SELECT c1 AS left_name FROM t UNION SELECT c2 FROM u) x",
+	} {
+		scope := CollectCompletion(sql, len("SELECT x.")).Scope
+		if scope == nil || len(scope.LocalReferences) != 1 || len(scope.LocalReferences[0].Columns) != 1 || scope.LocalReferences[0].Columns[0] != "LEFT_NAME" {
+			t.Errorf("CollectCompletion(%q) scope = %+v, want X with LEFT_NAME", sql, scope)
+		}
 	}
 
 	// Completion takes EXCEPT as the set operator it is, as MINUS.

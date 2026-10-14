@@ -137,7 +137,8 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		if sel := sourcelessStar(stmt); sel != nil {
-			// At the block's SELECT, past the parentheses its span takes.
+			// At the block's start, its SELECT or its WITH, past the
+			// parentheses its span takes.
 			lex := NewLexerRange(p.source, sel.Loc.Start, sel.Loc.End)
 			tok := lex.NextToken()
 			for tok.Type == '(' {
@@ -278,7 +279,7 @@ func isIncompleteParsedStmt(stmt nodes.StmtNode) bool {
 
 // sourcelessStar returns the first query block in stmt that selects *
 // without a FROM clause, which Oracle 23ai rejects with ORA-54058 at the
-// block's SELECT wherever it stands: CREATE TABLE ... AS (SELECT *), a view,
+// block's start, its SELECT or its WITH, wherever it stands: CREATE TABLE ... AS (SELECT *), a view,
 // an INSERT, a subquery, an inline view, a WITH element, MERGE USING, or a
 // cursor FOR loop. The subquery of EXISTS is the exception when it is one
 // query block, as Oracle does not expand its select list: WHERE EXISTS

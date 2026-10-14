@@ -1082,6 +1082,13 @@ func extractOracleSelectListColumns(tokens []Token, ctes map[string]RangeReferen
 		}
 	}
 	if selectIdx < 0 {
+		// A query whose first operand is parenthesized, ((SELECT c1 FROM t)
+		// UNION (SELECT c2 FROM u)), takes that operand's columns.
+		if len(tokens) > 0 && tokens[0].Type == '(' {
+			if closeIdx := oracleMatchingParen(tokens, 0); closeIdx > 0 {
+				return extractOracleSelectListColumns(tokens[1:closeIdx], ctes)
+			}
+		}
 		return nil
 	}
 	var names []string

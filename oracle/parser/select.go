@@ -88,10 +88,11 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 //	( subquery ) [ order_by_clause ] [ for_update_clause ] [ row_limiting_clause ]
 //	| ( subquery ) { UNION [ ALL ] | INTERSECT [ ALL ] | MINUS [ ALL ] | EXCEPT [ ALL ] } subquery
 //
-// Oracle 23ai rejects a WITH clause inside the parentheses (ORA-32034) and
-// an ORDER BY that ends the parenthesized subquery with no row-limiting
-// clause after it (ORA-00907, for ... ORDER BY 1 FOR UPDATE too), wherever
-// the parenthesized subquery stands; an inline view in FROM is a table
+// Oracle 23ai rejects a WITH clause inside the parentheses (ORA-32034), an
+// ORDER BY that ends the parenthesized subquery with no row-limiting clause
+// after it (ORA-00907, for ... ORDER BY 1 FOR UPDATE too), and a FOR UPDATE
+// that ends it (ORA-00907 for (SELECT a FROM t FOR UPDATE) UNION ...),
+// wherever the parenthesized subquery stands; an inline view in FROM is a table
 // reference, which takes both. Without anything around the parentheses the
 // query is the subquery itself; otherwise sel is a wrapper whose Larg is
 // the subquery.
@@ -107,6 +108,9 @@ func (p *Parser) parseParenthesizedQuery(sel *nodes.SelectStmt) (*nodes.SelectSt
 	}
 	if sort := trailingOrderBy(inner); sort != nil {
 		return nil, p.syntaxErrorAtNode(sort)
+	}
+	if lock := trailingForUpdate(inner); lock != nil {
+		return nil, p.syntaxErrorAtNode(lock)
 	}
 	if p.cur.Type != ')' {
 		return nil, p.syntaxErrorAtCur()
@@ -233,6 +237,21 @@ func (p *Parser) atQuery() bool {
 		return p.parenQueryAt(p.cur.Loc).leads
 	}
 	return false
+}
+
+// trailingForUpdate returns the FOR UPDATE clause that ends query, its own
+// or that of the last operand of its set operation, or nil.
+func trailingForUpdate(query *nodes.SelectStmt) nodes.Node {
+	for query != nil {
+		if query.ForUpdate != nil {
+			return query.ForUpdate
+		}
+		if query.Op == nodes.SETOP_NONE {
+			return nil
+		}
+		query = query.Rarg
+	}
+	return nil
 }
 
 // trailingOrderBy returns the first item of the ORDER BY that ends query, if
