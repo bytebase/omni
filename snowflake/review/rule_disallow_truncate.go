@@ -12,6 +12,10 @@ import (
 // action. IF EXISTS does not exempt a statement.
 func checkDisallowTruncate(s *statement, r *reporter) {
 	ast.Inspect(s.node, func(n ast.Node) bool {
+		if _, ok := n.(*ast.ExplainStmt); ok {
+			// EXPLAIN compiles its statement without running it.
+			return false
+		}
 		if v, ok := n.(*ast.TruncateStmt); ok {
 			what := object(v.Name)
 			switch {

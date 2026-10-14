@@ -25,6 +25,9 @@ func checkDisallowDropObject(sql string, s *statement, r *reporter) {
 	}
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		switch v := n.(type) {
+		case *ast.ExplainStmt:
+			// EXPLAIN compiles its statement without running it.
+			return false
 		case *ast.DropStmt:
 			name := object(v.Name)
 			// An overloaded function or procedure is named by its signature.

@@ -309,6 +309,7 @@ func TestRequireIsNull(t *testing.T) {
 
 func TestDisallowDropObject(t *testing.T) {
 	runCases(t, review.DisallowDropObject, []ruleCase{
+		{name: "a statement under EXPLAIN, which does not run it", sql: "EXPLAIN DROP TABLE t;"},
 		{
 			name: "every DROP",
 			sql:  "DROP TABLE IF EXISTS t;\nDROP VIEW v;\nDROP MATERIALIZED VIEW mv;\nDROP DYNAMIC TABLE dt;\nDROP EXTERNAL TABLE et;\nDROP STAGE st;\nDROP STREAM sm;\nDROP TASK tk;\nDROP PIPE pp;\nDROP SEQUENCE sq;\nDROP FUNCTION f(NUMBER);\nDROP PROCEDURE pr();\nDROP USER u;\nDROP ROLE r;\nDROP WAREHOUSE w;\nDROP SCHEMA s CASCADE;\nDROP DATABASE d;",
@@ -364,6 +365,7 @@ func TestDisallowDropObject(t *testing.T) {
 
 func TestDisallowTruncate(t *testing.T) {
 	runCases(t, review.DisallowTruncate, []ruleCase{
+		{name: "a statement under EXPLAIN, which does not run it", sql: "EXPLAIN TRUNCATE TABLE t;"},
 		{
 			name: "every form",
 			sql:  "TRUNCATE TABLE t;\nTRUNCATE IF EXISTS public.p;\nTRUNCATE MATERIALIZED VIEW mv;\nTRUNCATE ERROR_TABLE(t);\nBEGIN\n  TRUNCATE t;\nEND",
@@ -381,6 +383,7 @@ func TestDisallowTruncate(t *testing.T) {
 
 func TestDisallowRename(t *testing.T) {
 	runCases(t, review.DisallowRename, []ruleCase{
+		{name: "a statement under EXPLAIN, which does not run it", sql: "EXPLAIN ALTER TABLE t RENAME TO u;"},
 		{
 			name: "tables, views, and columns",
 			sql:  "ALTER TABLE t RENAME TO s.t3;\nALTER TABLE IF EXISTS t SWAP WITH p;\nALTER TABLE t RENAME COLUMN n TO \"N2\";\nALTER VIEW v RENAME TO v2;\nALTER MATERIALIZED VIEW mv RENAME TO mv2;\nALTER DYNAMIC TABLE dt RENAME TO dt2;\nALTER DYNAMIC TABLE dt SWAP WITH dt3;\nALTER SEMANTIC VIEW sv RENAME TO sv2;",
@@ -409,6 +412,7 @@ func TestDisallowRename(t *testing.T) {
 
 func TestDisallowDropConstraint(t *testing.T) {
 	runCases(t, review.DisallowDropConstraint, []ruleCase{
+		{name: "a statement under EXPLAIN, which does not run it", sql: "EXPLAIN ALTER TABLE t DROP PRIMARY KEY;"},
 		{
 			name: "from the SQL alone",
 			sql:  "ALTER TABLE t DROP PRIMARY KEY;\nALTER TABLE t DROP UNIQUE (code);\nALTER TABLE t DROP FOREIGN KEY (p_id) CASCADE;",
@@ -475,6 +479,7 @@ func TestDisallowDropConstraint(t *testing.T) {
 
 func TestRequirePrimaryKey(t *testing.T) {
 	runCases(t, review.RequirePrimaryKey, []ruleCase{
+		{name: "a statement under EXPLAIN, which does not run it", sql: "EXPLAIN CREATE TABLE x (id INT);"},
 		{
 			name: "CREATE TABLE without a primary key",
 			sql:  "CREATE TABLE a (id INT);\nCREATE TABLE b (id INT PRIMARY KEY);\nCREATE TABLE c (id INT, CONSTRAINT pk_c PRIMARY KEY (id));\nCREATE OR REPLACE TRANSIENT TABLE d (id INT UNIQUE);\nCREATE HYBRID TABLE e (id INT, CONSTRAINT pk_e PRIMARY KEY (id));",

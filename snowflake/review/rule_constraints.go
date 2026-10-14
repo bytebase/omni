@@ -167,6 +167,9 @@ func checkConstraints(sql string, stmts []statement, on map[review.Rule]bool, r 
 		ast.Inspect(s.node, func(n ast.Node) bool {
 			top := n == s.node
 			switch v := n.(type) {
+			case *ast.ExplainStmt:
+				// EXPLAIN compiles its statement without running it.
+				return false
 			case *ast.CreateTableStmt:
 				if v.IfNotExists {
 					return true

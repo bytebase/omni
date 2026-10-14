@@ -33,6 +33,9 @@ func checkDisallowRename(s *statement, r *reporter) {
 	}
 	ast.Inspect(s.node, func(n ast.Node) bool {
 		switch v := n.(type) {
+		case *ast.ExplainStmt:
+			// EXPLAIN compiles its statement without running it.
+			return false
 		case *ast.AlterTableStmt:
 			for _, a := range v.Actions {
 				if a == nil {
