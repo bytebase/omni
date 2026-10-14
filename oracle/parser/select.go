@@ -120,6 +120,11 @@ func (p *Parser) parseParenthesizedQuery(sel *nodes.SelectStmt) (*nodes.SelectSt
 	if err := p.parseQueryTail(sel); err != nil {
 		return nil, err
 	}
+	// A set operation locks no rows, parenthesized whole too (ORA-01786
+	// at FOR for (SELECT a FROM t UNION SELECT a FROM t) FOR UPDATE).
+	if sel.ForUpdate != nil && isSetQuery(inner) {
+		return nil, p.syntaxErrorAtNode(sel.ForUpdate)
+	}
 	if sel.WithClause == nil && sel.OrderBy == nil && sel.ForUpdate == nil && sel.FetchFirst == nil && sel.Op == nodes.SETOP_NONE {
 		// The query spans its parentheses, so a consumer that edits or
 		// quotes it by position keeps them.
@@ -235,6 +240,17 @@ func (p *Parser) atQuery() bool {
 		return true
 	case '(':
 		return p.parenQueryAt(p.cur.Loc).leads
+	}
+	return false
+}
+
+// isSetQuery reports whether query is a set operation, possibly wrapped in
+// parentheses.
+func isSetQuery(query *nodes.SelectStmt) bool {
+	for ; query != nil; query = query.Larg {
+		if query.Op != nodes.SETOP_NONE {
+			return true
+		}
 	}
 	return false
 }

@@ -170,6 +170,9 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		"SELECT a FROM t UNION SELECT a FROM t FOR UPDATE",
 		"SELECT a FROM t MINUS ALL SELECT a FROM t FOR UPDATE OF a",
 		"(SELECT a FROM t) UNION (SELECT a FROM t) FOR UPDATE",
+		"(SELECT a FROM t UNION SELECT a FROM t) FOR UPDATE",
+		"(SELECT a FROM t EXCEPT SELECT a FROM t) FOR UPDATE",
+		"((SELECT a FROM t) UNION (SELECT a FROM t)) FOR UPDATE",
 	} {
 		_, err := Parse(sql)
 		var pe *ParseError
