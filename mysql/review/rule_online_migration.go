@@ -252,8 +252,9 @@ func checkOnlineMigrationTarget(stmts []statement, t review.Target, x schemaInde
 	switch {
 	case !slices.ContainsFunc(tbl.GetIndexes(), func(i *metadata.IndexMetadata) bool { return i.GetPrimary() || i.GetUnique() && !functionalKey(tbl, i) }):
 		at("online migration needs a primary or unique key on " + name + ", which has none")
+	// One key must be all of these at once.
 	case !slices.ContainsFunc(tbl.GetIndexes(), func(i *metadata.IndexMetadata) bool {
-		return (i.GetPrimary() || i.GetUnique() && !nullableKey(tbl, i)) && !floatOrJSONKey(tbl, i)
+		return (i.GetPrimary() || i.GetUnique() && !nullableKey(tbl, i)) && !functionalKey(tbl, i) && !floatOrJSONKey(tbl, i)
 	}):
 		at("online migration needs a primary key or a unique key of NOT NULL columns, none of them FLOAT or JSON, on " + name + ", which has none")
 	}
