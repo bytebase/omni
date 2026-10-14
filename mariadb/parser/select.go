@@ -410,8 +410,54 @@ func (p *Parser) isQueryExpressionStart() bool {
 	if p.cur.Type != '(' {
 		return false
 	}
-	next := p.peekNext()
-	return isQueryPrimaryStartToken(next.Type) || next.Type == '('
+	// A leading run of '(' may open either a parenthesized query expression
+	// — `((SELECT ...))`, `((SELECT 1) UNION (SELECT 2))` — or a parenthesized
+	// scalar expression — `(((a = b) AND (c = d)))`, as written by hand or
+	// copied from a MySQL view definition. A fixed one-token lookahead cannot
+	// tell them apart; scan past the run of '(' to the first non-'(' token — a
+	// query primary (SELECT/WITH/TABLE/VALUES) means a query expression,
+	// anything else means a scalar expression or, in a FROM clause, a
+	// parenthesized join group.
+	return isQueryPrimaryStartToken(p.firstTokenPastParens().Type)
+}
+
+// scanState captures the full lexical scan position so a speculative lookahead
+// can rewind without consuming input. The Lexer is a flat value (string + ints),
+// so a shallow copy snapshots its position; the buffered next token and the
+// current/previous tokens complete the parser's scan cursor. The completion
+// `collecting` latch is position-derived (it arms when the scan reaches the
+// cursor offset), so rewinding the scan rewinds it too.
+type scanState struct {
+	lexer      Lexer
+	cur        Token
+	prev       Token
+	nextBuf    Token
+	hasNext    bool
+	collecting bool
+}
+
+func (p *Parser) saveScan() scanState {
+	return scanState{lexer: *p.lexer, cur: p.cur, prev: p.prev, nextBuf: p.nextBuf, hasNext: p.hasNext, collecting: p.collecting}
+}
+
+func (p *Parser) restoreScan(s scanState) {
+	*p.lexer = s.lexer
+	p.cur = s.cur
+	p.prev = s.prev
+	p.nextBuf = s.nextBuf
+	p.hasNext = s.hasNext
+	p.collecting = s.collecting
+}
+
+// firstTokenPastParens returns the first token at or after the current position
+// that is not an opening parenthesis, without consuming input.
+func (p *Parser) firstTokenPastParens() Token {
+	saved := p.saveScan()
+	defer p.restoreScan(saved)
+	for p.cur.Type == '(' {
+		p.advance()
+	}
+	return p.cur
 }
 
 // parseSelectWithParens parses a parenthesized query expression (PostgreSQL's
