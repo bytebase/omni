@@ -333,6 +333,11 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:  "CREATE UNIQUE INDEX ux ON nokey (a);\nDROP TABLE nokey;\nCREATE TABLE nokey (a INT, KEY ux (a));\nDROP INDEX ux ON nokey;",
 		},
 		{
+			name: "a temporary table dropped, which leaves the table of the name as it was",
+			sql:  "DROP TEMPORARY TABLE IF EXISTS t;\nDROP INDEX uk_code ON t;",
+			want: []finding{{1, "DROP INDEX uk_code ON t", "drops unique key uk_code of t", []int{0}}},
+		},
+		{
 			name: "a unique index the change renames",
 			sql:  "CREATE UNIQUE INDEX ux ON nokey (a);\nALTER TABLE nokey RENAME INDEX ux TO uy;\nDROP INDEX uy ON nokey;",
 			want: []finding{{2, "DROP INDEX uy ON nokey", "drops unique key uy of nokey", []int{0}}},
@@ -444,6 +449,12 @@ func TestOnlineMigration(t *testing.T) {
 			sql:    "ALTER TABLE plain CHANGE COLUMN v w INT, CHANGE id id BIGINT;",
 			change: ghost,
 			want:   []finding{{0, "CHANGE COLUMN v w INT", "gh-ost renames column v to w only with approve-renamed-columns, which Bytebase does not pass", []int{0}}},
+		},
+		{
+			name:   "a column renamed by RENAME COLUMN",
+			sql:    "ALTER TABLE plain RENAME COLUMN v TO w;",
+			change: ghost,
+			want:   []finding{{0, "RENAME COLUMN v TO w", "gh-ost does not read RENAME COLUMN as a rename, and the migrated table loses the data of column v", []int{0}}},
 		},
 		{
 			name:   "flag values gh-ost cannot read",
