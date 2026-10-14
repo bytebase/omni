@@ -1461,7 +1461,12 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 			if parseErr714 != nil {
 				return nil, parseErr714
 			}
-			if p.plsqlCode && arg != nil && p.continuesQualifiedChoice(arg) {
+			if arg == nil {
+				// An argument left out, as in f(1,) or f(,1): Oracle 23ai
+				// rejects both (ORA-00936 in SQL, PLS-00103 in PL/SQL).
+				return nil, p.syntaxErrorAtCur()
+			}
+			if p.plsqlCode && p.continuesQualifiedChoice(arg) {
 				if arg, parseErr714 = p.parseChoiceAssoc(arg, argStart); parseErr714 != nil {
 					return nil, parseErr714
 				}
@@ -1485,7 +1490,7 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 				fc.Args.Items[last] = &nodes.NamedArgExpr{Name: "OTHERS", Expr: others.Value, Loc: others.Loc}
 				sawOthers = false
 			}
-			positional := arg != nil
+			positional := true
 			switch a := arg.(type) {
 			case *nodes.NamedArgExpr:
 				positional = false
@@ -1496,10 +1501,8 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 			if positional && sawNamed {
 				return nil, p.syntaxErrorAtNode(arg)
 			}
-			sawNamed = sawNamed || arg != nil && !positional
-			if arg != nil {
-				fc.Args.Items = append(fc.Args.Items, arg)
-			}
+			sawNamed = sawNamed || !positional
+			fc.Args.Items = append(fc.Args.Items, arg)
 			if p.cur.Type != ',' {
 				break
 			}

@@ -295,3 +295,26 @@ func TestNestedTrimCost(t *testing.T) {
 	ParseAndCheck(t, "SELECT TRIM(TRIM(LEADING 'x' FROM TRIM('x' FROM 'xa')) FROM 'b') FROM dual")
 	ParseAndCheck(t, "BEGIN v := trim(1 => 2); END;")
 }
+
+// TestLeftOutArgument checks that an argument left out of a call fails at
+// the token after the gap, where Oracle 23ai reports ORA-00936 and
+// PLS-00103, also after an OTHERS choice.
+func TestLeftOutArgument(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT ABS(1,) FROM dual",
+		"SELECT ABS(,1) FROM dual",
+		"BEGIN p(1,); END;",
+		"BEGIN p(,1); END;",
+		"BEGIN p(OTHERS => 0,); END;",
+		"DECLARE " + qualifiedDecls + "x ai := ai(1 => 2, OTHERS => 0,); BEGIN NULL; END;",
+	} {
+		gap := strings.Index(sql, ",)")
+		if gap < 0 {
+			gap = strings.Index(sql, "(,")
+		}
+		_, err := Parse(sql)
+		if pe, ok := err.(*ParseError); !ok || pe.Position != gap+1 {
+			t.Errorf("Parse(%q) = %v, want a ParseError at %d", sql, err, gap+1)
+		}
+	}
+}
