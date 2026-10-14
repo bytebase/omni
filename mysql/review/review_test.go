@@ -463,9 +463,16 @@ func TestOnlineMigration(t *testing.T) {
 			want:   []finding{{0, "ALTER TABLE other.plain ADD COLUMN m INT", "gh-ost migrates plain of the task's database shop, not other.plain as the ALTER names it", []int{0}}},
 		},
 		{
-			name:   "a table named with the task's database",
+			name:    "a table named with the task's database, in another case where names fold",
+			sql:     "ALTER TABLE SHOP.plain ADD COLUMN m INT;",
+			change:  ghost,
+			targets: []review.Target{{Schema: shop(), BackupDatabaseExists: true, LowerCaseTableNames: 1}},
+		},
+		{
+			name:   "a database named in another case where names are case-sensitive",
 			sql:    "ALTER TABLE SHOP.plain ADD COLUMN m INT;",
 			change: ghost,
+			want:   []finding{{0, "ALTER TABLE SHOP.plain ADD COLUMN m INT", "gh-ost migrates plain of the task's database shop, not SHOP.plain as the ALTER names it", []int{0}}},
 		},
 		{
 			name:   "a rename of the table",
