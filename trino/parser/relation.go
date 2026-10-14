@@ -835,7 +835,27 @@ func (p *Parser) parseLateral() (Relation, error) {
 //     matching ')'), rewind and parse a relation.
 //   - anything else (an identifier table name, UNNEST, LATERAL, TABLE(func)) →
 //     a relation.
+//
+// The outcome is recorded by the offset of the '(' and replayed when the parse
+// is tried there again (see parenRelation): a speculation one level up that
+// rewinds over this relation would otherwise parse it, and every relation
+// nested in it, once more.
 func (p *Parser) parseParenRelationOrSubquery() (Relation, error) {
+	start := p.cur.Loc.Start
+	before := p.beginParenAttempt()
+	if a, ok := p.parenRelation[start]; ok {
+		p.replayParenAttempt(a)
+		return a.rel, a.err
+	}
+	rel, err := p.parseParenRelationOrSubqueryAt()
+	if p.parenRelation == nil {
+		p.parenRelation = make(map[int]*parenAttempt)
+	}
+	p.parenRelation[start] = p.endParenAttempt(before, rel, err)
+	return rel, err
+}
+
+func (p *Parser) parseParenRelationOrSubqueryAt() (Relation, error) {
 	openTok := p.advance() // consume '('
 
 	switch {

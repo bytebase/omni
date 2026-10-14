@@ -55,6 +55,17 @@ type Parser struct {
 	// restore truncates it, so an abandoned speculative parse leaves nothing
 	// behind.
 	rawQueries []rawQuery
+
+	// parenQueryFail and parenRelation record parses that began at a '(', by
+	// the offset of that '(' (see parenAttempt). parseParenRelationOrSubquery
+	// speculates a query before it parses a relation and rewinds when the
+	// query fails or is not followed by ')'. In `FROM ((((t))))` each level
+	// down fails again on the same tokens, n parens costing O(n²) without
+	// parenQueryFail; in `FROM ((SELECT * FROM ((SELECT * FROM t) x)) x)`
+	// the rewound query holds the next level's relation, and parsing it again
+	// doubled the work at every level without parenRelation.
+	parenQueryFail map[int]*parenAttempt // parseParenQuery failures
+	parenRelation  map[int]*parenAttempt // parseParenRelationOrSubquery outcomes
 }
 
 // rawQuery is a query body captured as raw text: the text and the absolute
@@ -62,6 +73,53 @@ type Parser struct {
 type rawQuery struct {
 	text  string
 	start int
+}
+
+// parenAttempt is the recorded outcome of a parse that began at a '(': the
+// relation it built (nil for a query), its error, the parser state it stopped
+// in, and the lex errors and raw query bodies it collected on the way. The
+// outcome depends only on where the parse began, so replaying it leaves the
+// parser as parsing again would. A recorded relation is returned again only
+// after the speculation that first received it was rewound, and callers wrap a
+// relation primary without modifying it, so the tree that is kept holds the
+// node once and as it was built.
+type parenAttempt struct {
+	rel        Relation
+	err        error
+	end        parserCheckpoint
+	lexErrs    []LexError
+	rawQueries []rawQuery
+}
+
+// beginParenAttempt returns the state a parse at the current '(' records
+// from. It lexes the token after '(' first, so that what an attempt collects
+// does not depend on whether a caller had peeked that token.
+func (p *Parser) beginParenAttempt() parserCheckpoint {
+	p.peekNext()
+	return p.checkpoint()
+}
+
+// endParenAttempt records the outcome of the parse begun at before.
+func (p *Parser) endParenAttempt(before parserCheckpoint, rel Relation, err error) *parenAttempt {
+	return &parenAttempt{
+		rel:        rel,
+		err:        err,
+		end:        p.checkpoint(),
+		lexErrs:    append([]LexError(nil), p.lexer.errors[before.lexErrs:]...),
+		rawQueries: append([]rawQuery(nil), p.rawQueries[before.rawqs:]...),
+	}
+}
+
+// replayParenAttempt leaves the parser as the recorded attempt left it.
+func (p *Parser) replayParenAttempt(a *parenAttempt) {
+	p.lexer.pos = a.end.lexPos
+	p.lexer.start = a.end.lexStart
+	p.lexer.errors = append(p.lexer.errors, a.lexErrs...)
+	p.cur = a.end.cur
+	p.prev = a.end.prev
+	p.nextBuf = a.end.nextBuf
+	p.hasNext = a.end.hasNext
+	p.rawQueries = append(p.rawQueries, a.rawQueries...)
 }
 
 // advance consumes the current token and moves to the next one. Returns the

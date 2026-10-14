@@ -175,7 +175,27 @@ func (p *Parser) parseValuesQuery() (*ValuesQuery, error) {
 // A WITH inside the parentheses is NOT a queryNoWith, so it is reported as a
 // syntax error (Trino rejects `(WITH … SELECT …)` in this position; a CTE there
 // must be a relation subquery `( query )`, handled in relation.go).
+//
+// A failure is recorded by the offset of the '(' and replayed when the parse
+// is tried there again (see parenQueryFail).
 func (p *Parser) parseParenQuery() (*ParenQuery, error) {
+	start := p.cur.Loc.Start
+	before := p.beginParenAttempt()
+	if a, ok := p.parenQueryFail[start]; ok {
+		p.replayParenAttempt(a)
+		return nil, a.err
+	}
+	q, err := p.parseParenQueryAt()
+	if err != nil {
+		if p.parenQueryFail == nil {
+			p.parenQueryFail = make(map[int]*parenAttempt)
+		}
+		p.parenQueryFail[start] = p.endParenAttempt(before, nil, err)
+	}
+	return q, err
+}
+
+func (p *Parser) parseParenQueryAt() (*ParenQuery, error) {
 	openTok := p.advance() // consume '('
 	inner, err := p.parseQueryNoWith(nil, p.cur.Loc.Start)
 	if err != nil {
