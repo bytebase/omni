@@ -332,6 +332,10 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:  "CREATE UNIQUE INDEX ux ON nokey (a);\nDROP TABLE nokey;\nCREATE TABLE nokey (a INT, KEY ux (a));\nDROP INDEX ux ON nokey;",
 		},
 		{
+			name: "a routine of another database, whose body resolves a bare table there",
+			sql:  "CREATE PROCEDURE other.pr() DROP INDEX uk_code ON t;",
+		},
+		{
 			name: "a unique index made in one branch of a routine body and dropped in another",
 			sql:  "DELIMITER //\nCREATE PROCEDURE pr() BEGIN IF 1 THEN CREATE UNIQUE INDEX ux ON nokey (a); ELSE DROP INDEX ux ON nokey; END IF; END//\nDELIMITER ;",
 		},
@@ -550,7 +554,7 @@ func TestPriorBackup(t *testing.T) {
 		},
 		{
 			name:   "a DELETE after a WITH clause, whose targets may be its queries",
-			sql:    "WITH w AS (SELECT 1 AS id) DELETE y FROM t AS x WHERE x.id = 2;\n/*!80000 WITH w AS (SELECT 1 AS id) DELETE y FROM t AS x WHERE x.id = 2 */;\n/*T! WITH w AS (SELECT 1 AS id) DELETE y FROM t AS x WHERE x.id = 2 */;",
+			sql:    "WITH w AS (SELECT 1 AS id) DELETE y FROM t AS x WHERE x.id = 2;\n/*!80000 WITH w AS (SELECT 1 AS id) DELETE y FROM t AS x WHERE x.id = 2 */;\n/*T! WITH w AS (SELECT 1 AS id) DELETE y FROM t AS x WHERE x.id = 2 */;\n/*!80000 -- note\n WITH w AS (SELECT 1 AS id) DELETE y FROM t AS x WHERE x.id = 2 */;",
 			change: backup,
 		},
 		{

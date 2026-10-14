@@ -114,15 +114,18 @@ func contentLoc(sql string, start, end int) ast.Loc {
 }
 
 // startsWithWith reports whether a statement's text starts with the WITH
-// keyword, inside a /*! ... */ comment after its version number, or a
+// keyword, inside a /*! ... */ comment after its version number and any
+// comment, or a
 // TiDB /*T! ... */ one. A /*T![feature] ... */ gate, which runs its text
 // only where TiDB supports the feature, is not read.
 func startsWithWith(text string) bool {
 	switch {
 	case strings.HasPrefix(text, "/*!"):
-		text = strings.TrimLeft(strings.TrimLeft(text[3:], "0123456789"), " \t\n\r\f\v")
+		text = strings.TrimLeft(text[3:], "0123456789")
+		text = text[skipTrivia(text, 0, len(text)):]
 	case strings.HasPrefix(text, "/*T!") && !strings.HasPrefix(text, "/*T!["):
-		text = strings.TrimLeft(text[4:], " \t\n\r\f\v")
+		text = text[4:]
+		text = text[skipTrivia(text, 0, len(text)):]
 	}
 	return len(text) >= 4 && strings.EqualFold(text[:4], "WITH") && (len(text) == 4 || !isWordByte(text[4]))
 }
