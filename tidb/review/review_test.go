@@ -540,6 +540,11 @@ func TestPriorBackup(t *testing.T) {
 			want:   []finding{{1, "DELETE y FROM t AS x WHERE x.id = 2", "prior backup does not find DELETE target y in the FROM list", []int{0}}},
 		},
 		{
+			name:   "a DELETE after a WITH clause, whose targets may be its queries",
+			sql:    "WITH w AS (SELECT 1 AS id) DELETE y FROM t AS x WHERE x.id = 2;\n/*!80000 WITH w AS (SELECT 1 AS id) DELETE y FROM t AS x WHERE x.id = 2 */;",
+			change: backup,
+		},
+		{
 			name:   "a view OR REPLACE makes, or a table IF NOT EXISTS makes",
 			sql:    "CREATE OR REPLACE VIEW nv AS SELECT 1 AS id;\nUPDATE nv SET id = 2 WHERE id = 1;\nCREATE TABLE IF NOT EXISTS t (gone INT);\nUPDATE t SET n = 1 WHERE gone = 1;",
 			change: backup,

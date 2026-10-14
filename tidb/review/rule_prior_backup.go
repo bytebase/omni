@@ -74,7 +74,7 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 		case *ast.DeleteStmt:
 			// The backup matches each target of a multi-table DELETE to the
 			// FROM list, without case, and refuses one it cannot.
-			if len(v.Using) == 0 || v.Loc.Start > s.loc.Start {
+			if len(v.Using) == 0 || s.with {
 				break
 			}
 			from := make(map[string]bool)
@@ -164,16 +164,12 @@ func checkPriorBackupTables(stmts []statement, db string, r *reporter) {
 	uncertain, with := 0, false
 	for i := range stmts {
 		s := &stmts[i]
-		var loc ast.Loc
-		switch v := s.node.(type) {
-		case *ast.UpdateStmt:
-			loc = v.Loc
-		case *ast.DeleteStmt:
-			loc = v.Loc
+		switch s.node.(type) {
+		case *ast.UpdateStmt, *ast.DeleteStmt:
 		default:
 			continue
 		}
-		with = with || loc.Start > s.loc.Start
+		with = with || s.with
 		refs, _ := backupTargets(s)
 		if len(refs) == 0 {
 			uncertain++
@@ -187,9 +183,7 @@ func checkPriorBackupTables(stmts []statement, db string, r *reporter) {
 			if !strings.EqualFold(in, db) {
 				r.report(review.PriorBackup, s.index, rangeOf(s.loc), "prior backup does not support an UPDATE or DELETE of "+table(ref)+", a table of another database")
 			}
-			// A WITH clause before the statement, which the parser does
-			// not keep, starts the statement's range before its node.
-			all = append(all, copied{s, in, ref.Name, loc.Start > s.loc.Start})
+			all = append(all, copied{s, in, ref.Name, s.with})
 		}
 	}
 	if len(all)+uncertain <= maxMixedTables {
@@ -251,7 +245,7 @@ func backupTargets(s *statement) ([]*ast.TableRef, string) {
 			}
 			return nil, ""
 		}
-		if v.Loc.Start > s.loc.Start {
+		if s.with {
 			return nil, ""
 		}
 		from := make(map[string]*ast.TableRef)
@@ -398,18 +392,14 @@ func checkPriorBackupTarget(sql string, stmts []statement, t review.Target, x sc
 	}
 	for i := range stmts[:beforeUse(stmts)] {
 		s := &stmts[i]
-		var loc ast.Loc
-		switch v := s.node.(type) {
-		case *ast.UpdateStmt:
-			loc = v.Loc
-		case *ast.DeleteStmt:
-			loc = v.Loc
+		switch s.node.(type) {
+		case *ast.UpdateStmt, *ast.DeleteStmt:
 		default:
 			continue
 		}
 		// A WITH clause before the statement, which the parser does not
 		// keep, may name queries the statement reads.
-		if loc.Start > s.loc.Start {
+		if s.with {
 			continue
 		}
 		if msg := backupReadsMade(s.node, x, m); msg != "" {
