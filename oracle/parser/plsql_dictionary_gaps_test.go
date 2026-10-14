@@ -49,6 +49,9 @@ func TestTriggerCallBody(t *testing.T) {
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(:old.a + 1, UPPER(:new.b))",
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p",
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(1, y => 'a')",
+		// A packaged routine with its owner (Oracle 23ai creates both).
+		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL app.audit_pkg.record_change(1)",
+		"CREATE TRIGGER t AFTER UPDATE ON tab CALL app.audit_pkg.record_change(1)",
 	} {
 		ParseAndCheck(t, sql)
 	}
@@ -61,8 +64,22 @@ func TestTriggerCallBody(t *testing.T) {
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(x => 1, 'a')",
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(1,)",
 		"CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(:old.a, :new.b) INTO :x",
+		// Nor a database link (ORA-00911), nor a dangling component.
+		"CREATE TRIGGER t AFTER UPDATE ON tab CALL app.audit_pkg.record_change@lnk(1)",
+		"CREATE TRIGGER t AFTER UPDATE ON tab CALL k.p@lnk(1)",
+		"CREATE TRIGGER t AFTER UPDATE ON tab CALL app.audit_pkg.(1)",
 	} {
 		ParseShouldFail(t, sql)
+	}
+
+	// The middle component of schema.package.routine is the package, in a
+	// trigger and a CALL statement alike.
+	full := parseOne[*ast.CreateTriggerStmt](t, "CREATE TRIGGER t AFTER UPDATE ON tab CALL app.audit_pkg.record_change(1)")
+	if call, ok := full.Body.(*ast.CallStmt); !ok || call.Name.Schema != "APP" || call.Package != "AUDIT_PKG" || call.Name.Name != "RECORD_CHANGE" {
+		t.Errorf("trigger body = %#v", full.Body)
+	}
+	if call := parseOne[*ast.CallStmt](t, "CALL app.audit_pkg.record_change(1)"); call.Name.Schema != "APP" || call.Package != "AUDIT_PKG" || call.Name.Name != "RECORD_CHANGE" {
+		t.Errorf("CALL = %#v", call)
 	}
 
 	trigger := parseOne[*ast.CreateTriggerStmt](t, "CREATE TRIGGER t AFTER UPDATE ON tab FOR EACH ROW CALL k.p(:old.a, y => 'x')")

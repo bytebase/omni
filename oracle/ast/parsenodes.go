@@ -2809,10 +2809,11 @@ func (n *LockTableStmt) stmtNode() {}
 //
 //	CALL [schema.]routine_name ( [args] ) [INTO :bind_variable]
 type CallStmt struct {
-	Name *ObjectName // routine name
-	Args *List       // argument list
-	Into ExprNode    // INTO bind variable
-	Loc  Loc
+	Name    *ObjectName // routine name, with its schema
+	Package string      // package or type of the routine, for schema.package.routine; "" otherwise
+	Args    *List       // argument list
+	Into    ExprNode    // INTO bind variable
+	Loc     Loc
 }
 
 func (n *CallStmt) nodeTag()  {}
