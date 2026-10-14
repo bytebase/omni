@@ -1810,10 +1810,14 @@ func TestComplete_5_2_AlterTable(t *testing.T) {
 	// Scenario 5: ALTER TABLE t DROP | → DROP keywords
 	t.Run("alter_table_drop_keywords", func(t *testing.T) {
 		candidates := Complete("ALTER TABLE t DROP ", 19, cat)
-		for _, kw := range []string{"COLUMN", "INDEX", "KEY", "FOREIGN", "PRIMARY", "CHECK", "CONSTRAINT", "PARTITION"} {
+		for _, kw := range []string{"COLUMN", "INDEX", "KEY", "FOREIGN", "PRIMARY", "CONSTRAINT", "PARTITION"} {
 			if !containsCandidate(candidates, kw, CandidateKeyword) {
 				t.Errorf("missing keyword %q; got %v", kw, candidates)
 			}
+		}
+		// DROP CHECK is MySQL 8.0 syntax; MariaDB drops a CHECK with DROP CONSTRAINT.
+		if containsCandidate(candidates, "CHECK", CandidateKeyword) {
+			t.Errorf("CHECK offered after DROP; got %v", candidates)
 		}
 	})
 

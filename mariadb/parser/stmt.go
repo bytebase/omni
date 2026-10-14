@@ -438,7 +438,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 	switch p.cur.Type {
 	case kwTABLE:
-		return p.parseCreateTableStmt(temporary)
+		return p.parseCreateTableStmt(start, orReplace, temporary)
 
 	case kwSEQUENCE:
 		return p.parseCreateSequenceStmt(orReplace, temporary)

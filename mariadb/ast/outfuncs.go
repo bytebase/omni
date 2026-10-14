@@ -798,6 +798,9 @@ func writeForPortionOf(sb *strings.Builder, n *ForPortionOf) {
 func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 	sb.WriteString("{CREATE_TABLE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.OrReplace {
+		sb.WriteString(" :or_replace true")
+	}
 	if n.IfNotExists {
 		sb.WriteString(" :if_not_exists true")
 	}

@@ -2657,6 +2657,7 @@ func parseCreateTable(t *testing.T, input string) *ast.CreateTableStmt {
 	t.Helper()
 	p := &Parser{lexer: NewLexer(input)}
 	p.advance() // prime lexer
+	start := p.pos()
 	p.advance() // skip CREATE
 	temporary := false
 	// handle CREATE TEMPORARY TABLE
@@ -2664,7 +2665,7 @@ func parseCreateTable(t *testing.T, input string) *ast.CreateTableStmt {
 		p.advance()
 		temporary = true
 	}
-	stmt, err := p.parseCreateTableStmt(temporary)
+	stmt, err := p.parseCreateTableStmt(start, false, temporary)
 	if err != nil {
 		t.Fatalf("parseCreateTableStmt(%q) error: %v", input, err)
 	}
@@ -9585,7 +9586,6 @@ func TestParseAlterCheckEnforced(t *testing.T) {
 func TestParseAlterTableDropConstraint(t *testing.T) {
 	tests := []string{
 		"ALTER TABLE t DROP CONSTRAINT con1",
-		"ALTER TABLE t DROP CHECK chk1",
 		"ALTER TABLE t DROP FOREIGN KEY fk1",
 	}
 	for _, sql := range tests {
