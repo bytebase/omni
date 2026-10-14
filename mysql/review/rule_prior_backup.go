@@ -94,7 +94,7 @@ func checkPriorBackupStatements(stmts []statement, r *reporter) {
 	for i := range stmts {
 		s := &stmts[i]
 		v, ok := s.node.(*ast.DeleteStmt)
-		if !ok || len(v.Using) == 0 || v.Loc.Start > s.loc.Start {
+		if !ok || len(v.Using) == 0 || s.with {
 			continue
 		}
 		from := fromNames(v.Using)
@@ -164,7 +164,7 @@ func backupTargets(s *statement) ([]*ast.TableRef, string) {
 			}
 			return nil, ""
 		}
-		if v.Loc.Start > s.loc.Start {
+		if s.with {
 			return nil, ""
 		}
 		from := make(map[string]*ast.TableRef)
@@ -318,18 +318,14 @@ func checkPriorBackupTarget(sql string, stmts []statement, t review.Target, x sc
 	}
 	for i := range stmts[:beforeUse(stmts)] {
 		s := &stmts[i]
-		var loc ast.Loc
-		switch v := s.node.(type) {
-		case *ast.UpdateStmt:
-			loc = v.Loc
-		case *ast.DeleteStmt:
-			loc = v.Loc
+		switch s.node.(type) {
+		case *ast.UpdateStmt, *ast.DeleteStmt:
 		default:
 			continue
 		}
 		// A WITH clause before the statement, which the parser does not
 		// keep, may name queries the statement reads.
-		if loc.Start > s.loc.Start {
+		if s.with {
 			continue
 		}
 		if msg := backupReadsMade(s.node, x, m); msg != "" {
