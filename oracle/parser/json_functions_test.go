@@ -131,6 +131,12 @@ func TestJSONConstructors(t *testing.T) {
 		// STRICT after table.*, *, or FORMAT JSON.
 		"SELECT JSON_OBJECT(dummy FORMAT JSON STRICT) FROM dual",
 		"SELECT JSON_OBJECT(d.* STRICT) FROM dual d",
+		// A returned CLOB or BLOB may say how: VALUE or REFERENCE.
+		"SELECT JSON_OBJECT('a' VALUE 1 RETURNING CLOB VALUE) FROM dual",
+		"SELECT JSON_ARRAY(1 RETURNING BLOB REFERENCE) FROM dual",
+		"SELECT JSON_SERIALIZE('{\"a\":1}' RETURNING CLOB VALUE) FROM dual",
+		"SELECT JSON_ARRAYAGG(1 RETURNING CLOB VALUE) FROM dual",
+		"SELECT JSON_OBJECTAGG('a' VALUE 1 RETURNING CLOB REFERENCE) FROM dual",
 	} {
 		ParseAndCheck(t, sql)
 	}
@@ -232,6 +238,10 @@ func TestJSONConstructors(t *testing.T) {
 		"SELECT JSON_OBJECT('a' VALUE 1, dummy STRICT) FROM dual",
 		// An object instance stands alone (ORA-02000).
 		"SELECT JSON_OBJECT(t(1), t(2)) FROM dual",
+		// Only a LOB takes VALUE or REFERENCE (ORA-02000), and WITH
+		// TYPENAME follows a bare object instance (ORA-03050 for (o)).
+		"SELECT JSON_OBJECT('a' VALUE 1 RETURNING VARCHAR2(100) VALUE) FROM dual",
+		"SELECT JSON_OBJECT((o) WITH TYPENAME) FROM t",
 	} {
 		ParseShouldFail(t, sql)
 	}

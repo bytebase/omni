@@ -175,18 +175,28 @@ func (p *Parser) parseJSONConstructorClauses(uniqueKeys, typename bool) error {
 	return nil
 }
 
-// parseJSONReturningClause parses an optional RETURNING datatype.
+// parseJSONReturningClause parses an optional RETURNING datatype. A CLOB or
+// BLOB may say how the LOB is returned, VALUE or REFERENCE (Oracle 23ai runs
+// JSON_OBJECT('a' VALUE 1 RETURNING CLOB VALUE); after VARCHAR2 it is
+// ORA-02000).
+//
+//	RETURNING datatype [ { VALUE | REFERENCE } ]
 func (p *Parser) parseJSONReturningClause() error {
 	if p.cur.Type != kwRETURNING {
 		return nil
 	}
 	p.advance()
+	start := p.cur
 	tn, err := p.parseTypeName()
 	if err != nil {
 		return err
 	}
 	if tn == nil || tn.Names.Len() == 0 {
 		return p.syntaxErrorAtCur()
+	}
+	if tn.Names.Len() == 1 && start.Type != tokQIDENT && (start.Type == kwCLOB || start.Type == kwBLOB) &&
+		(p.isKeywordStr("VALUE") || p.isKeywordStr("REFERENCE")) {
+		p.advance() // consume VALUE or REFERENCE
 	}
 	return nil
 }
