@@ -99,6 +99,8 @@ func TestCallStmtArguments(t *testing.T) {
 		// link that does not exist).
 		"CALL app.pkg.proc@remote.example.com()",
 		"CALL pkg.proc@remote.example.com()",
+		"CALL app.pkg.f() INTO :v",
+		`CALL app.pkg."SELECT"()`,
 	} {
 		ParseAndCheck(t, sql)
 	}
@@ -110,6 +112,15 @@ func TestCallStmtArguments(t *testing.T) {
 		"CALL app.audit_pkg.record_change(1,,2)",
 		"CALL app.audit_pkg.record_change(x => 1, 2)",
 		"CALL k.p(1",
+		// The INTO target is a host variable (ORA-00921, ORA-01745), no
+		// component a reserved word unquoted (ORA-01747), and a link
+		// follows every @ (ORA-01729).
+		"CALL app.pkg.f() INTO",
+		"CALL app.pkg.f() INTO 1",
+		"CALL app.pkg.SELECT()",
+		"CALL app.pkg@.proc()",
+		"CREATE TRIGGER t AFTER UPDATE ON tab CALL app.pkg@.proc",
+		"CREATE TRIGGER t AFTER UPDATE ON tab CALL app.pkg.SELECT(1)",
 		// A name follows every dot (ORA-03050).
 		"CALL app. .proc()",
 		"CALL app.(1)",

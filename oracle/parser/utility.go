@@ -225,18 +225,21 @@ func (p *Parser) parseLockMode() (string, error) {
 //
 //	[ schema . ] [ { type_name | package_name } . ] routine_name [ @dblink_name ]
 func (p *Parser) parseRoutineName() (*nodes.ObjectName, string, error) {
-	name, err := p.parseObjectName()
+	// No component is a reserved word unquoted (ORA-01747 for CALL
+	// app.pkg.SELECT()).
+	name, err := p.parseReservedCheckedObjectName()
 	if err != nil || name == nil || name.Name == "" {
 		return name, "", err
 	}
-	// A name follows every dot (ORA-03050 for CALL app. .proc()).
-	if p.prev.Type == '.' {
+	// A name follows every dot (ORA-03050 for CALL app. .proc()) and a
+	// database link every @ (ORA-01729 for CALL app.pkg@.proc()).
+	if p.prev.Type == '.' || p.prev.Type == '@' {
 		return nil, "", p.syntaxErrorAtCur()
 	}
 	pkg := ""
 	if name.DBLink == "" && p.cur.Type == '.' {
 		p.advance() // consume .
-		routine, err := p.parseIdentifier()
+		routine, err := p.parseObjectNameIdentifier()
 		if err != nil {
 			return nil, "", err
 		}
@@ -342,13 +345,20 @@ func (p *Parser) parseCallStmt() (nodes.StmtNode, error) {
 		p.advance()
 	}
 
-	// INTO :bind_variable
+	// INTO :bind_variable, a host variable alone (ORA-00921 for INTO
+	// with nothing, ORA-01745 for INTO 1).
 	if p.cur.Type == kwINTO {
 		p.advance()
 		var parseErr1155 error
 		stmt.Into, parseErr1155 = p.parseExpr()
 		if parseErr1155 != nil {
 			return nil, parseErr1155
+		}
+		if _, ok := stmt.Into.(*nodes.BindVariable); !ok {
+			if stmt.Into == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			return nil, p.syntaxErrorAtNode(stmt.Into)
 		}
 	}
 
