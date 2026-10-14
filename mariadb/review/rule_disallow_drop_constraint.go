@@ -60,14 +60,12 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 			touched = append(touched, index{ref, name, unique})
 		}
 	}
-	var replaced []*ast.TableRef
-	replace := func(ref *ast.TableRef) {
+	// forget drops what the change touched on a table of the name, which
+	// is gone with the table.
+	forget := func(ref *ast.TableRef) {
 		if body {
 			return
 		}
-		replaced = append(replaced, ref)
-		// What the change touched on a table of the name before is gone
-		// with it.
 		kept := touched[:0]
 		for _, i := range touched {
 			if !sameTable(i.table, ref) {
@@ -75,6 +73,14 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 			}
 		}
 		touched = kept
+	}
+	var replaced []*ast.TableRef
+	replace := func(ref *ast.TableRef) {
+		if body {
+			return
+		}
+		replaced = append(replaced, ref)
+		forget(ref)
 	}
 	isReplaced := func(ref *ast.TableRef) bool {
 		for _, t := range replaced {
@@ -121,8 +127,14 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 					}
 				}
 			case *ast.DropTableStmt:
+				// DROP TEMPORARY drops only a temporary table, which may
+				// have hidden the table of the name: that table is as it was.
 				for _, ref := range v.Tables {
-					replace(ref)
+					if v.Temporary {
+						forget(ref)
+					} else {
+						replace(ref)
+					}
 				}
 			case *ast.CreateIndexStmt:
 				// IF NOT EXISTS may leave an index of the name as it was.

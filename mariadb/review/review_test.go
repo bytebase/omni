@@ -342,6 +342,11 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:  "CREATE UNIQUE INDEX ux ON nokey (a);\nDROP TABLE nokey;\nCREATE TABLE nokey (a INT, KEY ux (a));\nDROP INDEX ux ON nokey;",
 		},
 		{
+			name: "a temporary table dropped, which leaves the table of the name as it was",
+			sql:  "DROP TEMPORARY TABLE IF EXISTS t;\nDROP INDEX uk_code ON t;",
+			want: []finding{{1, "DROP INDEX uk_code ON t", "drops unique key uk_code of t", []int{0}}},
+		},
+		{
 			name: "a unique index the change renames",
 			sql:  "CREATE UNIQUE INDEX ux ON nokey (a);\nALTER TABLE nokey RENAME INDEX ux TO uy;\nDROP INDEX uy ON nokey;",
 			want: []finding{{2, "DROP INDEX uy ON nokey", "drops unique key uy of nokey", []int{0}}},
@@ -464,6 +469,12 @@ func TestOnlineMigration(t *testing.T) {
 			want:   []finding{{0, "CHANGE COLUMN v w INT", "gh-ost renames column v to w only with approve-renamed-columns, which Bytebase does not pass", []int{0}}},
 		},
 		{
+			name:   "a column renamed by RENAME COLUMN",
+			sql:    "ALTER TABLE plain RENAME COLUMN v TO w;",
+			change: ghost,
+			want:   []finding{{0, "RENAME COLUMN v TO w", "gh-ost does not read RENAME COLUMN as a rename, and the migrated table loses the data of column v", []int{0}}},
+		},
+		{
 			name:   "flag values gh-ost cannot read",
 			sql:    "-- gh-ost = {\"max-load\":\"Threads_running\"}\nALTER TABLE plain ADD COLUMN m INT;",
 			change: ghost,
@@ -557,6 +568,15 @@ func TestPriorBackup(t *testing.T) {
 	runCases(t, review.PriorBackup, []ruleCase{
 		{name: "a plain backup", sql: "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM p WHERE id = 2;", change: backup},
 		{name: "not asked for", sql: "UPDATE t SET n = 1 WHERE id = 1;\nDELETE FROM t WHERE id = 2;"},
+		{
+			name:   "a statement with RETURNING",
+			sql:    "DELETE FROM t WHERE id = 1 RETURNING id;\nINSERT INTO p (id) VALUES (3) RETURNING id;\nDELETE FROM p WHERE id = 2;",
+			change: backup,
+			want: []finding{
+				{0, "DELETE FROM t WHERE id = 1 RETURNING id", "prior backup reads the change as MySQL, which has no RETURNING clause", []int{0}},
+				{1, "INSERT INTO p (id) VALUES (3) RETURNING id", "prior backup reads the change as MySQL, which has no RETURNING clause", []int{0}},
+			},
+		},
 		{
 			name:    "no bbdataarchive, with or without DML",
 			sql:     "ALTER TABLE t ADD COLUMN m INT;",

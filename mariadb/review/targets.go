@@ -115,8 +115,10 @@ func reviewTargets(ctx context.Context, sql string, stmts []statement, work targ
 			findings = append(findings, f)
 		}
 	}
+	// A group may report a finding twice; each target is listed once.
 	for i := range findings {
 		slices.Sort(findings[i].Targets)
+		findings[i].Targets = slices.Compact(findings[i].Targets)
 	}
 	slices.SortFunc(failures, func(a, b review.TargetFailure) int { return a.Target - b.Target })
 	return findings, failures, nil
