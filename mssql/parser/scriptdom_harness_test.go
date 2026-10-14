@@ -1,5 +1,5 @@
 // Run with: go test ./mssql/parser/ -run TestScriptDOMDiff. The .NET harness builds
-// and runs inside the dotnet/sdk:8.0 image, so only Docker is needed.
+// and runs inside the dotnet/sdk image (scriptdomImage), so only Docker is needed.
 //
 // This test compares omni's AST shape against SqlScriptDOM by shelling out
 // to the .NET harness at harness/mssql-scriptdom. The harness parses with
@@ -25,6 +25,12 @@ import (
 	"github.com/bytebase/omni/mssql/ast"
 	"github.com/google/go-cmp/cmp"
 )
+
+// scriptdomImage is pinned: the floating sdk:8.0 tag moved to 8.0.426
+// (runtime 8.0.32) on 2026-10-13, whose first-run NuGet-Migrations mutex
+// fails for a --user uid that has no /etc/passwd entry in the image, which is
+// every host uid. Rerun TestScriptDOMDiff as a non-root user before moving it.
+const scriptdomImage = "mcr.microsoft.com/dotnet/sdk:8.0.425"
 
 type scriptdomHarness struct {
 	cmd    *exec.Cmd
@@ -54,7 +60,9 @@ func getHarness(t *testing.T) *scriptdomHarness {
 		// Build and run the .NET harness inside the official SDK image, so the
 		// only host requirement is Docker. --user keeps bin/, obj/ and the NuGet
 		// cache owned by the invoking user; the cache dir persists across runs.
-		cache := filepath.Join(os.TempDir(), "omni-scriptdom-nuget")
+		// It is per uid because CI runners and developers share one host's /tmp,
+		// and a 0755 dir another user created first fails restore here.
+		cache := filepath.Join(os.TempDir(), fmt.Sprintf("omni-scriptdom-nuget-%d", os.Getuid()))
 		if err := os.MkdirAll(cache, 0o755); err != nil {
 			harnessInitErr = err
 			return
@@ -64,7 +72,7 @@ func getHarness(t *testing.T) *scriptdomHarness {
 			"-v", projDir+":/src", "-v", cache+":/nuget", "-w", "/src",
 			"-e", "HOME=/tmp", "-e", "DOTNET_CLI_HOME=/tmp", "-e", "NUGET_PACKAGES=/nuget",
 			"-e", "DOTNET_CLI_TELEMETRY_OPTOUT=1", "-e", "DOTNET_NOLOGO=1", "-e", "MSSQL_HARNESS_LINE=1",
-			"mcr.microsoft.com/dotnet/sdk:8.0", "sh", "-c",
+			scriptdomImage, "sh", "-c",
 			"dotnet build -c Release -v quiet --nologo 1>&2 && exec dotnet bin/Release/net8.0/mssql-scriptdom-harness.dll")
 		stdin, err := cmd.StdinPipe()
 		if err != nil {
