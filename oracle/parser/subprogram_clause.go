@@ -393,9 +393,12 @@ func (p *Parser) checkParallelArguments(stmt *nodes.CreateFunctionStmt, partTok 
 	}
 	// The partitioned argument is a REF CURSOR, strongly typed unless
 	// partitioned BY ANY without a streaming clause (PLS-00627): a
-	// predefined non-cursor type never qualifies, nor SYS_REFCURSOR with
-	// HASH, RANGE, VALUE, ORDER BY, or CLUSTER BY. A named type is left to
-	// the engine.
+	// predefined non-cursor type or an object REF never qualifies, nor
+	// SYS_REFCURSOR with HASH, RANGE, VALUE, ORDER BY, or CLUSTER BY. A
+	// named type is left to the engine.
+	if param.TypeName != nil && param.TypeName.IsRef {
+		return p.syntaxErrorAtTok(partTok)
+	}
 	if name, ok := p.predefinedTypeName(param.TypeName); ok {
 		weakAllowed := name == "SYS_REFCURSOR" && stmt.ParallelSpec.PartitionBy == "ANY" && len(streamToks) == 0
 		if !weakAllowed {
@@ -557,14 +560,20 @@ func (p *Parser) checkBlockCharsetScopes(b *nodes.PLSQLBlock) error {
 }
 
 // checkPackageCharsetScopes walks the items of a package specification or
-// body named name, and the subprograms among them.
-func (p *Parser) checkPackageCharsetScopes(name string, items *nodes.List) error {
-	if items == nil {
-		return nil
-	}
+// body named name, the subprograms among them, and the blocks nested in a
+// body's initialization section.
+func (p *Parser) checkPackageCharsetScopes(name string, items *nodes.List, init *nodes.PLSQLBlock) error {
 	c := &charsetScopes{p: p}
 	c.push(name)
-	return c.declarations(items)
+	if items != nil {
+		if err := c.declarations(items); err != nil {
+			return err
+		}
+	}
+	if init != nil {
+		return c.blockContents(init)
+	}
+	return nil
 }
 
 func (c *charsetScopes) push(name string) {
@@ -766,9 +775,10 @@ func (p *Parser) tablePseudoType(params *nodes.List, result *nodes.TypeName) *no
 // function pseudo-type, "" otherwise. Only the unquoted word is the
 // pseudo-type: a quoted "TABLE" or "COLUMNS" names a user type, which a
 // procedure or function parameter may have, while no type can be named
-// COLUMNS unquoted (CREATE TYPE columns is PLS-00103 on Oracle 23ai).
+// COLUMNS unquoted (CREATE TYPE columns is PLS-00103 on Oracle 23ai). A
+// REF names an object type, REF "TABLE" too.
 func (p *Parser) pseudoType(tn *nodes.TypeName) string {
-	if tn == nil || tn.IsPercType || tn.IsPercRowtype || tn.Names.Len() != 1 {
+	if tn == nil || tn.IsRef || tn.IsPercType || tn.IsPercRowtype || tn.Names.Len() != 1 {
 		return ""
 	}
 	if tn.Loc.Start >= 0 && tn.Loc.Start < len(p.source) && p.source[tn.Loc.Start] == '"' {

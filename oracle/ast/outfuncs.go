@@ -96,6 +96,10 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeFuncCallExpr(sb, n)
 	case *NamedArgExpr:
 		writeNamedArgExpr(sb, n)
+	case *ChoiceAssocExpr:
+		writeChoiceAssocExpr(sb, n)
+	case *ChoiceRange:
+		writeChoiceRange(sb, n)
 	case *FieldAccessExpr:
 		writeFieldAccessExpr(sb, n)
 	case *CursorAttributeExpr:
@@ -401,6 +405,8 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeAlterTypeStmt(sb, n)
 	case *TypeAttribute:
 		writeTypeAttribute(sb, n)
+	case *AlterTypeMethod:
+		writeAlterTypeMethod(sb, n)
 	case *SetRoleStmt:
 		writeSetRoleStmt(sb, n)
 	case *SetConstraintsStmt:
@@ -551,6 +557,14 @@ func writeNode(sb *strings.Builder, node Node) {
 		writePLSQLElsIf(sb, n)
 	case *PLSQLLoop:
 		writePLSQLLoop(sb, n)
+	case *PLSQLIterator:
+		writePLSQLIterator(sb, n)
+	case *PLSQLIterand:
+		writePLSQLIterand(sb, n)
+	case *PLSQLIterationControl:
+		writePLSQLIterationControl(sb, n)
+	case *DynamicSQLExpr:
+		writeDynamicSQLExpr(sb, n)
 	case *PLSQLReturn:
 		writePLSQLReturn(sb, n)
 	case *PLSQLGoto:
@@ -672,6 +686,9 @@ func writeTypeName(sb *strings.Builder, n *TypeName) {
 	if n.IsPercRowtype {
 		sb.WriteString(" :pctRowtype true")
 	}
+	if n.IsRef {
+		sb.WriteString(" :ref true")
+	}
 	if n.ArrayBounds != nil {
 		sb.WriteString(" :arrayBounds ")
 		writeNode(sb, n.ArrayBounds)
@@ -771,6 +788,48 @@ func writeNamedArgExpr(sb *strings.Builder, n *NamedArgExpr) {
 	sb.WriteString("}")
 }
 
+func writeChoiceAssocExpr(sb *strings.Builder, n *ChoiceAssocExpr) {
+	sb.WriteString("{CHOICEASSOC")
+	if n.Choices != nil {
+		sb.WriteString(" :choices ")
+		writeNode(sb, n.Choices)
+	}
+	if n.Others {
+		sb.WriteString(" :others true")
+	}
+	if n.Iterator != nil {
+		sb.WriteString(" :iterator ")
+		writeNode(sb, n.Iterator)
+	}
+	if n.Index != nil {
+		sb.WriteString(" :index ")
+		writeNode(sb, n.Index)
+	}
+	if n.Sequence {
+		sb.WriteString(" :sequence true")
+	}
+	if n.Value != nil {
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeChoiceRange(sb *strings.Builder, n *ChoiceRange) {
+	sb.WriteString("{CHOICERANGE")
+	if n.Lower != nil {
+		sb.WriteString(" :lower ")
+		writeNode(sb, n.Lower)
+	}
+	if n.Upper != nil {
+		sb.WriteString(" :upper ")
+		writeNode(sb, n.Upper)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
 func writeFieldAccessExpr(sb *strings.Builder, n *FieldAccessExpr) {
 	sb.WriteString("{FIELDACCESS")
 	if n.Expr != nil {
@@ -789,6 +848,10 @@ func writeCursorAttributeExpr(sb *strings.Builder, n *CursorAttributeExpr) {
 		writeNode(sb, n.Cursor)
 	}
 	sb.WriteString(fmt.Sprintf(" :attribute %q", n.Attribute))
+	if n.Index != nil {
+		sb.WriteString(" :index ")
+		writeNode(sb, n.Index)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -3149,6 +3212,29 @@ func writeCreateTypeStmt(sb *strings.Builder, n *CreateTypeStmt) {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
 	}
+	if n.Sharing != "" {
+		sb.WriteString(fmt.Sprintf(" :sharing %q", n.Sharing))
+	}
+	if n.Force {
+		sb.WriteString(" :force true")
+	}
+	if n.OID != "" {
+		sb.WriteString(fmt.Sprintf(" :oid %q", n.OID))
+	}
+	if n.DefaultCollation != "" {
+		sb.WriteString(fmt.Sprintf(" :defaultCollation %q", n.DefaultCollation))
+	}
+	if n.AuthID != "" {
+		sb.WriteString(fmt.Sprintf(" :authid %q", n.AuthID))
+	}
+	if n.AccessibleBy != nil {
+		sb.WriteString(" :accessibleBy ")
+		writeNode(sb, n.AccessibleBy)
+	}
+	if n.Under != nil {
+		sb.WriteString(" :under ")
+		writeNode(sb, n.Under)
+	}
 	if n.Attributes != nil {
 		sb.WriteString(" :attributes ")
 		writeNode(sb, n.Attributes)
@@ -3164,6 +3250,9 @@ func writeCreateTypeStmt(sb *strings.Builder, n *CreateTypeStmt) {
 	if n.VarraySize != nil {
 		sb.WriteString(" :varraySize ")
 		writeNode(sb, n.VarraySize)
+	}
+	if n.ElementNotNull {
+		sb.WriteString(" :elementNotNull true")
 	}
 	if n.IsBody {
 		sb.WriteString(" :isBody true")
@@ -3245,6 +3334,10 @@ func writeCreatePackageStmt(sb *strings.Builder, n *CreatePackageStmt) {
 	if n.Body != nil {
 		sb.WriteString(" :body ")
 		writeNode(sb, n.Body)
+	}
+	if n.InitBlock != nil {
+		sb.WriteString(" :initBlock ")
+		writeNode(sb, n.InitBlock)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -4000,6 +4093,9 @@ func writeCallStmt(sb *strings.Builder, n *CallStmt) {
 	if n.Name != nil {
 		sb.WriteString(" :name ")
 		writeNode(sb, n.Name)
+	}
+	if n.Package != "" {
+		sb.WriteString(fmt.Sprintf(" :package %q", n.Package))
 	}
 	if n.Args != nil {
 		sb.WriteString(" :args ")
@@ -5111,9 +5207,77 @@ func writePLSQLLoop(sb *strings.Builder, n *PLSQLLoop) {
 		sb.WriteString(" :cursorQuery ")
 		writeNode(sb, n.CursorQuery)
 	}
+	if n.Iteration != nil {
+		sb.WriteString(" :iteration ")
+		writeNode(sb, n.Iteration)
+	}
 	if n.Statements != nil {
 		sb.WriteString(" :statements ")
 		writeNode(sb, n.Statements)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLIterator(sb *strings.Builder, n *PLSQLIterator) {
+	sb.WriteString("{PLSQLITERATOR")
+	if n.Iterands != nil {
+		sb.WriteString(" :iterands ")
+		writeNode(sb, n.Iterands)
+	}
+	if n.Controls != nil {
+		sb.WriteString(" :controls ")
+		writeNode(sb, n.Controls)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLIterand(sb *strings.Builder, n *PLSQLIterand) {
+	sb.WriteString("{PLSQLITERAND")
+	sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
+	if n.Mutability != "" {
+		sb.WriteString(fmt.Sprintf(" :mutability %q", n.Mutability))
+	}
+	if n.DataType != nil {
+		sb.WriteString(" :dataType ")
+		writeNode(sb, n.DataType)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeDynamicSQLExpr(sb *strings.Builder, n *DynamicSQLExpr) {
+	sb.WriteString("{DYNAMICSQL")
+	if n.SQL != nil {
+		sb.WriteString(" :sql ")
+		writeNode(sb, n.SQL)
+	}
+	if n.Using != nil {
+		sb.WriteString(" :using ")
+		writeNode(sb, n.Using)
+	}
+	if len(n.UsingModes) > 0 {
+		sb.WriteString(fmt.Sprintf(" :usingModes %q", n.UsingModes))
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writePLSQLIterationControl(sb *strings.Builder, n *PLSQLIterationControl) {
+	sb.WriteString("{PLSQLITERATIONCONTROL")
+	sb.WriteString(fmt.Sprintf(" :kind %q", n.Kind))
+	if n.Reverse {
+		sb.WriteString(" :reverse true")
+	}
+	for _, field := range []struct {
+		name string
+		expr ExprNode
+	}{{"lower", n.Lower}, {"upper", n.Upper}, {"step", n.Step}, {"expr", n.Expr}, {"while", n.While}, {"when", n.When}} {
+		if field.expr != nil {
+			sb.WriteString(" :" + field.name + " ")
+			writeNode(sb, field.expr)
+		}
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
@@ -6668,28 +6832,15 @@ func writeAlterTypeStmt(sb *strings.Builder, n *AlterTypeStmt) {
 		}
 		sb.WriteString(")")
 	}
-	if n.MethodKind != "" {
-		sb.WriteString(fmt.Sprintf(" :methodKind %q", n.MethodKind))
-	}
-	if n.MethodType != "" {
-		sb.WriteString(fmt.Sprintf(" :methodType %q", n.MethodType))
-	}
-	if n.MethodName != "" {
-		sb.WriteString(fmt.Sprintf(" :methodName %q", n.MethodName))
-	}
-	if len(n.MethodParams) > 0 {
-		sb.WriteString(" :methodParams (")
-		for i, p := range n.MethodParams {
+	if len(n.Methods) > 0 {
+		sb.WriteString(" :methods (")
+		for i, m := range n.Methods {
 			if i > 0 {
 				sb.WriteString(" ")
 			}
-			writeNode(sb, p)
+			writeNode(sb, m)
 		}
 		sb.WriteString(")")
-	}
-	if n.MethodReturn != nil {
-		sb.WriteString(" :methodReturn ")
-		writeNode(sb, n.MethodReturn)
 	}
 	if n.LimitValue != nil {
 		sb.WriteString(" :limitValue ")
@@ -6730,12 +6881,84 @@ func writeAlterTypeStmt(sb *strings.Builder, n *AlterTypeStmt) {
 
 func writeTypeAttribute(sb *strings.Builder, n *TypeAttribute) {
 	sb.WriteString("{TYPE_ATTR")
+	if n.Action != "" {
+		sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
+	}
 	if n.Name != "" {
 		sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
 	}
 	if n.DataType != nil {
 		sb.WriteString(" :dataType ")
 		writeNode(sb, n.DataType)
+	}
+	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
+	sb.WriteString("}")
+}
+
+func writeAlterTypeMethod(sb *strings.Builder, n *AlterTypeMethod) {
+	sb.WriteString("{ALTER_TYPE_METHOD")
+	sb.WriteString(fmt.Sprintf(" :action %q", n.Action))
+	if len(n.Modifiers) > 0 {
+		sb.WriteString(fmt.Sprintf(" :modifiers %q", n.Modifiers))
+	}
+	sb.WriteString(fmt.Sprintf(" :kind %q :type %q :name %q", n.Kind, n.Type, n.Name))
+	if len(n.Params) > 0 {
+		sb.WriteString(" :params (")
+		for i, p := range n.Params {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, p)
+		}
+		sb.WriteString(")")
+	}
+	if n.Return != nil {
+		sb.WriteString(" :return ")
+		writeNode(sb, n.Return)
+	}
+	if n.Deterministic {
+		sb.WriteString(" :deterministic true")
+	}
+	if n.Pipelined {
+		sb.WriteString(" :pipelined true")
+	}
+	if n.Polymorphic != "" {
+		sb.WriteString(fmt.Sprintf(" :polymorphic %q", n.Polymorphic))
+	}
+	if n.Parallel {
+		sb.WriteString(" :parallel true")
+	}
+	if n.ParallelSpec != nil {
+		sb.WriteString(" :parallelSpec ")
+		writeNode(sb, n.ParallelSpec)
+	}
+	if n.Streaming != nil && n.Streaming.Len() > 0 {
+		sb.WriteString(" :streaming ")
+		writeNode(sb, n.Streaming)
+	}
+	if n.ResultCache {
+		sb.WriteString(" :resultCache true")
+	}
+	if n.ReliesOn != nil && n.ReliesOn.Len() > 0 {
+		sb.WriteString(" :reliesOn ")
+		writeNode(sb, n.ReliesOn)
+	}
+	if n.Aggregate {
+		sb.WriteString(" :aggregate true")
+	}
+	if n.Implementation != nil {
+		sb.WriteString(" :implementation ")
+		writeNode(sb, n.Implementation)
+	}
+	if n.SqlMacro {
+		sb.WriteString(" :sqlMacro true")
+	}
+	if n.SqlMacroType != "" {
+		sb.WriteString(fmt.Sprintf(" :sqlMacroType %q", n.SqlMacroType))
+	}
+	if n.CallSpec != nil {
+		sb.WriteString(" :callSpec ")
+		writeNode(sb, n.CallSpec)
 	}
 	sb.WriteString(fmt.Sprintf(" :loc_start %d :loc_end %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")

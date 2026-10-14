@@ -252,7 +252,8 @@ func TestParseObjectNameLoc(t *testing.T) {
 // newTestParser creates a parser for testing helper functions.
 func newTestParser(sql string) *Parser {
 	p := &Parser{
-		lexer: NewLexer(sql),
+		lexer:  NewLexer(sql),
+		source: sql,
 	}
 	p.advance()
 	return p

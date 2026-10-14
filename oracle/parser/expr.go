@@ -201,9 +201,13 @@ func (p *Parser) startsCursorAttributePostfix() bool {
 	return p.isCursorAttributeToken(next)
 }
 
+// isCursorAttributeToken reports whether tok names a cursor attribute. The
+// bulk attributes of the implicit cursor are collections:
+// SQL%BULK_ROWCOUNT(i), SQL%BULK_EXCEPTIONS(i).ERROR_CODE, and
+// SQL%BULK_EXCEPTIONS.COUNT parse on Oracle 23ai.
 func (p *Parser) isCursorAttributeToken(tok Token) bool {
 	switch tok.Str {
-	case "FOUND", "ISOPEN", "NOTFOUND", "ROWCOUNT":
+	case "FOUND", "ISOPEN", "NOTFOUND", "ROWCOUNT", "BULK_ROWCOUNT", "BULK_EXCEPTIONS":
 		return tok.Type == tokIDENT || tok.Type == tokQIDENT || tok.Type >= 2000
 	default:
 		return false
@@ -220,11 +224,24 @@ func (p *Parser) parseCursorAttributePostfix(left nodes.ExprNode) (nodes.ExprNod
 	if attr == "" {
 		return nil, p.syntaxErrorAtCur()
 	}
-	return &nodes.CursorAttributeExpr{
+	expr := &nodes.CursorAttributeExpr{
 		Cursor:    left,
 		Attribute: attr,
-		Loc:       nodes.Loc{Start: start, End: p.prev.End},
-	}, nil
+		Loc:       nodes.Loc{Start: start},
+	}
+	if (attr == "BULK_ROWCOUNT" || attr == "BULK_EXCEPTIONS") && p.cur.Type == '(' {
+		p.advance() // consume '('
+		expr.Index, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if expr.Index == nil || p.cur.Type != ')' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume ')'
+	}
+	expr.Loc.End = p.prev.End
+	return expr, nil
 }
 
 func (p *Parser) startsAtTimeZoneExpr() bool {
@@ -1012,13 +1029,20 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 				Loc:    nodes.Loc{Start: start, End: p.prev.End},
 			})
 		}
-		if name1 == "EXTRACT" {
+		// A quoted name is the user's, never the special function it spells
+		// (ORA-00907 on Oracle 23ai for "EXTRACT"(YEAR FROM SYSDATE)). An
+		// unquoted one is special in its own syntax alone: EXTRACT in its
+		// datetime form, and XMLQUERY and XMLCAST in SQL, which PL/SQL code
+		// does not call (PLS-00306, PLS-00122). Otherwise the call may
+		// construct a local type of that name, as Oracle 23ai compiles
+		// TYPE extract IS TABLE OF NUMBER ...; x extract := extract(1 => 2).
+		switch {
+		case p.quotedAt(start):
+		case name1 == "EXTRACT" && p.atExtractDatetime():
 			return p.parseExtractExpr(start)
-		}
-		if name1 == "XMLQUERY" {
+		case name1 == "XMLQUERY" && !p.plsqlCode:
 			return p.parseXMLQueryExpr(start)
-		}
-		if name1 == "XMLCAST" {
+		case name1 == "XMLCAST" && !p.plsqlCode:
 			return p.parseXMLCastExpr(start)
 		}
 		// But first check if this looks like a schema-qualified function: name.name(
@@ -1113,6 +1137,100 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 	}, nil
 }
 
+// atExtractDatetime reports whether the arguments after the current '('
+// are EXTRACT's datetime form: a field, then FROM.
+func (p *Parser) atExtractDatetime() bool {
+	field := p.peekNext()
+	if field.Type == tokQIDENT {
+		return false
+	}
+	switch field.Str {
+	case "YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND",
+		"TIMEZONE_HOUR", "TIMEZONE_MINUTE", "TIMEZONE_REGION", "TIMEZONE_ABBR":
+		return NewLexerRange(p.source, field.End, p.lexer.end).NextToken().Type == kwFROM
+	}
+	return false
+}
+
+// atTrimSyntax reports whether the arguments of a call, from the current
+// token after its '(', take TRIM's own syntax: LEADING, TRAILING, or BOTH
+// first, or a FROM among them. TRIM(x) reads alike either way.
+func (p *Parser) atTrimSyntax() bool {
+	if p.cur.Type != tokQIDENT {
+		switch p.cur.Str {
+		case "LEADING", "TRAILING", "BOTH":
+			return true
+		}
+	}
+	// Nested calls ask about nested groups: one pass over the rest of the
+	// range answers them all, which scanning each call's group anew would
+	// make quadratic in the nesting.
+	if p.prev.Type == '(' {
+		if _, ok := p.groupFroms[p.cur.Loc]; !ok {
+			p.groupFroms = decideGroupFroms(p.source, p.prev.Loc, p.lexer.end)
+		}
+		if from, ok := p.groupFroms[p.cur.Loc]; ok {
+			return from
+		}
+	}
+	lex := NewLexerRange(p.source, p.cur.Loc, p.lexer.end)
+	depth := 1
+	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
+		switch tok.Type {
+		case '(':
+			depth++
+		case ')':
+			if depth--; depth == 0 {
+				return false
+			}
+		case kwFROM:
+			if depth == 1 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// decideGroupFroms lexes source[start:end] and reports, for each
+// parenthesized group, by the offset of the token after its '(', whether a
+// FROM stands at the group's own depth before its ')'.
+func decideGroupFroms(source string, start, end int) map[int]bool {
+	type group struct {
+		key  int
+		from bool
+	}
+	froms := map[int]bool{}
+	var open []group
+	lex := NewLexerRange(source, start, end)
+	opened := false
+	for tok := lex.NextToken(); tok.Type != tokEOF; tok = lex.NextToken() {
+		if opened {
+			open[len(open)-1].key = tok.Loc
+			opened = false
+		}
+		switch tok.Type {
+		case '(':
+			open = append(open, group{key: -1})
+			opened = true
+		case ')':
+			if len(open) == 0 {
+				return froms
+			}
+			g := open[len(open)-1]
+			open = open[:len(open)-1]
+			if g.key >= 0 {
+				froms[g.key] = g.from
+			}
+		case kwFROM:
+			if len(open) > 0 {
+				open[len(open)-1].from = true
+			}
+		}
+	}
+	return froms
+}
+
 // parseExtractExpr parses Oracle EXTRACT(datetime_field FROM expr).
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/EXTRACT-datetime.html
@@ -1120,36 +1238,6 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 //	EXTRACT({ YEAR | MONTH | DAY | HOUR | MINUTE | SECOND } FROM expr)
 func (p *Parser) parseExtractExpr(start int) (nodes.ExprNode, error) {
 	p.advance() // consume '('
-
-	if !(p.isIntervalField() && p.peekNext().Type == kwFROM) {
-		fc := &nodes.FuncCallExpr{
-			FuncName: &nodes.ObjectName{Name: "EXTRACT", Loc: nodes.Loc{Start: start, End: p.prev.End}},
-			Args:     &nodes.List{},
-			Loc:      nodes.Loc{Start: start},
-		}
-		if p.cur.Type != ')' {
-			for {
-				arg, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if arg == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				fc.Args.Items = append(fc.Args.Items, arg)
-				if p.cur.Type != ',' {
-					break
-				}
-				p.advance()
-			}
-		}
-		if p.cur.Type != ')' {
-			return nil, p.syntaxErrorAtCur()
-		}
-		p.advance()
-		fc.Loc.End = p.prev.End
-		return p.parseFuncCallPostfix(fc)
-	}
 
 	field, parseErr713 := p.parseIdentifier()
 	if parseErr713 != nil {
@@ -1297,6 +1385,11 @@ func (p *Parser) parseOuterJoinIfPresent(expr nodes.ExprNode) (nodes.ExprNode, e
 	return cr, nil
 }
 
+// quotedAt reports whether the source has a quoted identifier at offset.
+func (p *Parser) quotedAt(offset int) bool {
+	return offset >= 0 && offset < len(p.source) && p.source[offset] == '"'
+}
+
 // parseFuncCall parses a function call after the name has been consumed.
 // The opening '(' is the current token.
 func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, error) {
@@ -1311,6 +1404,11 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 	}
 
 	p.advance() // consume '('
+
+	switch {
+	case schema == "" && (name == "JSON_ARRAYAGG" || name == "JSON_OBJECTAGG" || name == "JSON_SERIALIZE"):
+		return p.parseJSONAggregateOrSerialize(fc)
+	}
 
 	// COUNT(*) special case
 	if p.cur.Type == '*' {
@@ -1334,7 +1432,11 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 		p.advance()
 	}
 
-	if schema == "" && name == "TRIM" {
+	// TRIM's own syntax makes the builtin; otherwise the call may name a
+	// type or function of the user's (Oracle 23ai compiles TRIM(1 => 2)
+	// and "TRIM"(1 => 2) for a local collection type of that name).
+	builtinTrim := schema == "" && name == "TRIM" && !p.quotedAt(start) && p.atTrimSyntax()
+	if builtinTrim {
 		if err := p.parseTrimFuncArgs(fc); err != nil {
 			return nil, err
 		}
@@ -1344,38 +1446,68 @@ func (p *Parser) parseFuncCall(name, schema string, start int) (nodes.ExprNode, 
 		return p.parseFuncCallPostfix(fc)
 	}
 
-	// Arguments
+	// Arguments. In PL/SQL they are also the explicit choices of a
+	// qualified expression, t('k' => v), t(1..3 => 0), t(FOR i IN 1..3 => i).
+	// A positional argument, a SEQUENCE iterator choice among them, after
+	// a named one or an explicit choice is PLS-00312 on Oracle 23ai, and a
+	// choice after OTHERS is PLS-00851; a named argument after OTHERS =>
+	// makes OTHERS a parameter's name.
 	if p.cur.Type != ')' {
+		sawNamed, sawOthers := false, false
 		for {
-			arg, parseErr714 := p.parseExpr()
+			var arg nodes.ExprNode
+			var parseErr714 error
+			argStart := p.pos()
+			if p.plsqlCode && p.atQualifiedChoice() {
+				arg, parseErr714 = p.parseChoiceAssoc(nil, argStart)
+			} else {
+				arg, parseErr714 = p.parseExpr()
+			}
 			if parseErr714 != nil {
 				return nil, parseErr714
 			}
-			if p.cur.Type == tokASSOC {
+			if arg == nil {
+				// An argument left out, as in f(1,) or f(,1): Oracle 23ai
+				// rejects both (ORA-00936 in SQL, PLS-00103 in PL/SQL).
+				return nil, p.syntaxErrorAtCur()
+			}
+			if p.plsqlCode && p.continuesQualifiedChoice(arg) {
+				if arg, parseErr714 = p.parseChoiceAssoc(arg, argStart); parseErr714 != nil {
+					return nil, parseErr714
+				}
+			} else if p.cur.Type == tokASSOC {
 				named, err := p.parseNamedArgExpr(arg)
 				if err != nil {
 					return nil, err
 				}
 				arg = named
 			}
-			if schema == "" && name == "TRIM" && p.cur.Type == kwFROM {
-				if arg != nil {
-					fc.Args.Items = append(fc.Args.Items, arg)
+			if sawOthers {
+				// After OTHERS =>, a named argument says OTHERS named a
+				// parameter, as Oracle 23ai calls p(others => 1, b => 2);
+				// any other argument follows the OTHERS choice of a
+				// qualified expression (PLS-00851).
+				if _, named := arg.(*nodes.NamedArgExpr); !named {
+					return nil, p.syntaxErrorAtNode(arg)
 				}
-				p.advance()
-				source, err := p.parseExpr()
-				if err != nil {
-					return nil, err
-				}
-				if source == nil {
-					return nil, p.syntaxErrorAtCur()
-				}
-				fc.Args.Items = append(fc.Args.Items, source)
-				break
+				last := len(fc.Args.Items) - 1
+				others := fc.Args.Items[last].(*nodes.ChoiceAssocExpr)
+				fc.Args.Items[last] = &nodes.NamedArgExpr{Name: "OTHERS", Expr: others.Value, Loc: others.Loc}
+				sawOthers = false
 			}
-			if arg != nil {
-				fc.Args.Items = append(fc.Args.Items, arg)
+			positional := true
+			switch a := arg.(type) {
+			case *nodes.NamedArgExpr:
+				positional = false
+			case *nodes.ChoiceAssocExpr:
+				positional = a.Sequence
+				sawOthers = a.Others
 			}
+			if positional && sawNamed {
+				return nil, p.syntaxErrorAtNode(arg)
+			}
+			sawNamed = sawNamed || !positional
+			fc.Args.Items = append(fc.Args.Items, arg)
 			if p.cur.Type != ',' {
 				break
 			}
@@ -2328,6 +2460,11 @@ func (p *Parser) parseCursorExpr() (nodes.ExprNode, error) {
 		return &nodes.CursorExpr{Loc: nodes.Loc{Start: start, End: p.prev.End}}, nil
 	}
 	p.advance() // consume '('
+	// PL/SQL has no cursor expression outside the SQL it embeds (PLS-00103
+	// on Oracle 23ai at the SELECT, PLS-00405 for a positional argument).
+	if p.plsqlCode {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	subSel, parseErr746 := p.parseSelectStmt()
 	if parseErr746 != nil {
@@ -2660,9 +2797,20 @@ func (p *Parser) parseXmlContentFunc(name string) (nodes.ExprNode, error) {
 // parseJsonObjectOrArray parses JSON_OBJECT or JSON_ARRAY expressions.
 //
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/JSON_OBJECT.html
+// Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/JSON_ARRAY.html
 //
-//	JSON_OBJECT ( [ key_expr VALUE value_expr | key:value ] [, ...] )
-//	JSON_ARRAY ( [ expr [, ...] ] )
+//	JSON_OBJECT ( [ entry [, entry ]... ] [ JSON_on_null_clause ] [ JSON_returning_clause ]
+//	    [ TRUNCATE ] [ STRICT ] [ { WITH | WITHOUT } UNIQUE KEYS ] )
+//	entry ::= [ KEY ] key_expr { VALUE | IS | : } expr [ FORMAT JSON ]
+//	        | column [ FORMAT JSON ] | table.* | *
+//	JSON_ARRAY ( [ expr [ FORMAT JSON ] [, ...] ] [ JSON_on_null_clause ]
+//	    [ JSON_returning_clause ] [ TRUNCATE ] [ STRICT ] )
+//	JSON_ARRAY ( subquery [ NULL ON NULL ] [ STRICT ] )
+//
+// Oracle 23ai takes the clauses in that order only (ORA-02000), an entry
+// without VALUE for a column or a star alone (ORA-02000), and no empty
+// entry (ORA-00936). Which datatypes RETURNING takes, and whether FORMAT
+// JSON fits its value, is checked when the statement is analyzed.
 func (p *Parser) parseJsonObjectOrArray(name string) (nodes.ExprNode, error) {
 	start := p.pos()
 	p.advance() // consume keyword
@@ -2679,54 +2827,179 @@ func (p *Parser) parseJsonObjectOrArray(name string) (nodes.ExprNode, error) {
 	}
 	p.advance() // consume '('
 
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		var arg nodes.ExprNode
-		var parseErr757 error
-		if name == "JSON_OBJECT" {
-			arg, parseErr757 = p.parseExprPrec(precComp)
-		} else {
-			arg, parseErr757 = p.parseExpr()
+	if name == "JSON_ARRAY" && (p.cur.Type == kwSELECT || p.cur.Type == kwWITH) {
+		sub, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
 		}
-		if parseErr757 != nil {
-			return nil, parseErr757
-		}
-		if arg != nil {
-			fc.Args.Items = append(fc.Args.Items, arg)
-		}
-		// Skip VALUE/IS keyword (JSON_OBJECT key VALUE val or key IS val syntax)
-		if p.isIdentLikeStr("VALUE") || (name == "JSON_OBJECT" && p.cur.Type == kwIS) {
+		fc.Args.Items = append(fc.Args.Items, &nodes.SubqueryExpr{
+			Subquery: sub,
+			Loc:      nodes.Loc{Start: sub.Loc.Start, End: p.prev.End},
+		})
+		if p.cur.Type == kwNULL && p.peekNext().Type == kwON {
+			p.advance() // consume NULL
+			p.advance() // consume ON
+			if p.cur.Type != kwNULL {
+				return nil, p.syntaxErrorAtCur()
+			}
 			p.advance()
-			val, parseErr758 := p.parseExpr()
-			if parseErr758 != nil {
-				return nil, parseErr758
-			}
-			if val != nil {
-				fc.Args.Items = append(fc.Args.Items, val)
-			}
 		}
-		// Skip FORMAT JSON
-		if p.cur.Type == kwFORMAT {
+		if p.isKeywordStr("STRICT") {
 			p.advance()
-			if p.cur.Type == kwJSON {
-				p.advance()
+		}
+	} else if p.cur.Type != ')' && !p.atJSONConstructorClause() {
+		for {
+			if err := p.parseJsonEntry(name, fc); err != nil {
+				return nil, err
 			}
+			if p.cur.Type != ',' {
+				break
+			}
+			p.advance() // consume ','
 		}
-		if p.cur.Type != ',' {
-			break
+		if err := p.parseJSONConstructorClauses(name == "JSON_OBJECT", name == "JSON_OBJECT"); err != nil {
+			return nil, err
 		}
-		p.advance()
+	} else if err := p.parseJSONConstructorClauses(name == "JSON_OBJECT", name == "JSON_OBJECT"); err != nil {
+		return nil, err
 	}
 
-	// Skip trailing keywords: NULL ON NULL, ABSENT ON NULL, RETURNING clause, STRICT/LAX
-	for p.cur.Type != ')' && p.cur.Type != tokEOF {
-		p.advance()
+	if p.cur.Type != ')' {
+		return nil, p.syntaxErrorAtCur()
 	}
-
-	if p.cur.Type == ')' {
-		p.advance()
-	}
-
+	p.advance()
+	fc.Loc.End = p.prev.End
 	return p.parseFuncCallPostfix(fc)
+}
+
+// atJSONConstructorClause reports whether the current token starts a clause
+// of a JSON constructor rather than an entry: NULL ON or ABSENT ON,
+// RETURNING, STRICT, TRUNCATE before what may follow it, WITH or WITHOUT
+// UNIQUE. Oracle 23ai reads STRICT there as the clause even before VALUE
+// (ORA-02000 for JSON_OBJECT(strict VALUE 1)) but TRUNCATE VALUE as an
+// entry keyed by a column named TRUNCATE.
+func (p *Parser) atJSONConstructorClause() bool {
+	next := p.peekNext()
+	switch {
+	case (p.cur.Type == kwNULL || p.isKeywordStr("ABSENT")) && next.Type == kwON,
+		p.cur.Type == kwRETURNING,
+		p.isKeywordStr("STRICT"),
+		p.isKeywordStr("TRUNCATE") && (next.Type == ')' || next.Type == kwWITH || isOneOfKeywords(next, []string{"STRICT", "WITHOUT"})),
+		(p.cur.Type == kwWITH || p.isKeywordStr("WITHOUT")) && isOneOfKeywords(next, []string{"UNIQUE", "TYPENAME"}):
+		return true
+	}
+	return false
+}
+
+// parseJsonEntry parses one entry of JSON_OBJECT or element of JSON_ARRAY
+// into fc: a key and its value, or a single expression.
+func (p *Parser) parseJsonEntry(name string, fc *nodes.FuncCallExpr) error {
+	if name == "JSON_ARRAY" {
+		elem, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if elem == nil {
+			return p.syntaxErrorAtCur()
+		}
+		fc.Args.Items = append(fc.Args.Items, elem)
+		return p.parseOptionalFormatJSON()
+	}
+
+	// KEY introduces a key, unless VALUE, IS, or ':' follows it as a column
+	// named KEY; the keyword's key takes VALUE or IS (ORA-02000 for ':',
+	// ORA-00936 for KEY alone).
+	keyKeyword := p.isKeywordStr("KEY") && !p.atJSONKeyValueSeparator(p.peekNext())
+	// A colon fused to what follows lexes as a bind variable. After KEY it
+	// is the column KEY's separator and value (KEY:1), unless VALUE or IS
+	// follows it as the key's (KEY :b VALUE 1), as Oracle 23ai reads both.
+	if keyKeyword && p.peekNext().Type == tokBIND && !p.atJSONKeyValueSeparator(p.peekAhead(2)[1]) {
+		keyKeyword = false
+	}
+	if keyKeyword {
+		p.advance() // consume KEY
+	}
+	key, err := p.parseExprPrec(precComp)
+	if err != nil {
+		return err
+	}
+	if key == nil {
+		return p.syntaxErrorAtCur()
+	}
+	fc.Args.Items = append(fc.Args.Items, key)
+
+	// The lexer reads a colon and the name or number right after it as a
+	// bind variable; after a key they are the separator and the value
+	// (Oracle 23ai reads JSON_OBJECT('a':dummy) as the column DUMMY).
+	if p.cur.Type == tokBIND && !keyKeyword {
+		p.splitBindColon()
+	}
+	if p.isKeywordStr("VALUE") || p.cur.Type == kwIS || p.cur.Type == ':' && !keyKeyword {
+		p.advance()
+		value, err := p.parseExpr()
+		if err != nil {
+			return err
+		}
+		if value == nil {
+			return p.syntaxErrorAtCur()
+		}
+		fc.Args.Items = append(fc.Args.Items, value)
+		return p.parseOptionalFormatJSON()
+	}
+
+	// An entry without a value is a column, which names its key, or a star:
+	// table.* among other entries, * alone (ORA-02000 otherwise).
+	switch key.(type) {
+	case *nodes.ColumnRef:
+		if keyKeyword {
+			return p.syntaxErrorAtCur()
+		}
+		// Oracle 23ai rejects STRICT or TRUNCATE right after a column entry
+		// (ORA-02000), and takes them after table.* or FORMAT JSON.
+		if p.cur.Type != kwFORMAT && !p.isWildcard(key) && (p.isKeywordStr("STRICT") || p.isKeywordStr("TRUNCATE")) {
+			return p.syntaxErrorAtCur()
+		}
+		return p.parseOptionalFormatJSON()
+	case *nodes.FuncCallExpr, *nodes.CastExpr, *nodes.TreatExpr:
+		// An object instance names its own keys, so a call, CAST, or TREAT
+		// that may return one stands alone, its clauses after it: Oracle
+		// 23ai takes JSON_OBJECT(t(1)) for an object type t and rejects
+		// JSON_OBJECT(UPPER('a')) on the type (ORA-02000), and rejects two
+		// such entries.
+		if keyKeyword || len(fc.Args.Items) > 1 || p.cur.Type != ')' && !p.atJSONConstructorClause() {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	case *nodes.Star:
+		// * stands alone, its clauses after it (ORA-02000 for another entry).
+		if keyKeyword || len(fc.Args.Items) > 1 || p.cur.Type != ')' && !p.atJSONConstructorClause() {
+			return p.syntaxErrorAtCur()
+		}
+		return nil
+	}
+	return p.syntaxErrorAtCur()
+}
+
+// splitBindColon makes the ':' that starts the bind variable at cur the
+// current token, and resumes lexing right after it.
+func (p *Parser) splitBindColon() {
+	colon := p.cur.Loc
+	p.hasNext = false
+	p.lexer.pos = colon + 1
+	p.cur = Token{Type: ':', Str: ":", Loc: colon, End: colon + 1}
+}
+
+// parseOptionalFormatJSON parses an optional FORMAT JSON.
+func (p *Parser) parseOptionalFormatJSON() error {
+	if p.cur.Type != kwFORMAT {
+		return nil
+	}
+	p.advance()
+	if p.cur.Type != kwJSON {
+		return p.syntaxErrorAtCur()
+	}
+	p.advance()
+	return nil
 }
 
 // parseJsonPathFunc parses JSON path functions: JSON_VALUE, JSON_QUERY, JSON_EXISTS, JSON_MERGEPATCH.

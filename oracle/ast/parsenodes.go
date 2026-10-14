@@ -136,6 +136,8 @@ const (
 	CONSTRAINT_PRIMARY
 	CONSTRAINT_UNIQUE
 	CONSTRAINT_FOREIGN
+	CONSTRAINT_SCOPE      // SCOPE IS table of a REF column; RefTable is the table
+	CONSTRAINT_WITH_ROWID // WITH ROWID of a REF column
 )
 
 // PartitionType represents partition types.
@@ -373,6 +375,7 @@ type TypeName struct {
 	TypeMods      *List  // type modifiers (precision, scale)
 	IsPercType    bool   // %TYPE
 	IsPercRowtype bool   // %ROWTYPE
+	IsRef         bool   // REF object_type
 	ArrayBounds   *List  // array bounds if any
 	CharacterSet  string // PL/SQL CHARACTER SET name, or the item named by item%CHARSET
 	IsPercCharset bool   // CHARACTER SET item%CHARSET
@@ -441,6 +444,34 @@ type NamedArgExpr struct {
 func (n *NamedArgExpr) nodeTag()  {}
 func (n *NamedArgExpr) exprNode() {}
 
+// ChoiceAssocExpr is an explicit choice of a PL/SQL qualified expression,
+// an argument of the type's constructor: choices => value, or an iterator
+// choice FOR iterator [ INDEX expr | SEQUENCE ] => value. A choice naming
+// one identifier (a => 1) is a NamedArgExpr.
+type ChoiceAssocExpr struct {
+	Choices  *List          // index or key expressions and *ChoiceRange, joined by |
+	Others   bool           // OTHERS
+	Iterator *PLSQLIterator // FOR iterator of an iterator choice
+	Index    ExprNode       // INDEX expr of an index iterator choice
+	Sequence bool           // SEQUENCE iterator choice
+	Value    ExprNode
+	Loc      Loc
+}
+
+func (n *ChoiceAssocExpr) nodeTag()  {}
+func (n *ChoiceAssocExpr) exprNode() {}
+
+// ChoiceRange is a range of indexes, lower .. upper, in a qualified
+// expression's choice.
+type ChoiceRange struct {
+	Lower ExprNode
+	Upper ExprNode
+	Loc   Loc
+}
+
+func (n *ChoiceRange) nodeTag()  {}
+func (n *ChoiceRange) exprNode() {}
+
 // FieldAccessExpr represents field access on an expression (e.g., collection(i).field).
 type FieldAccessExpr struct {
 	Expr  ExprNode
@@ -455,6 +486,7 @@ func (n *FieldAccessExpr) exprNode() {}
 type CursorAttributeExpr struct {
 	Cursor    ExprNode
 	Attribute string
+	Index     ExprNode // the element of SQL%BULK_ROWCOUNT(i) or SQL%BULK_EXCEPTIONS(i)
 	Loc       Loc
 }
 
@@ -1941,20 +1973,28 @@ func (n *CreateDatabaseLinkStmt) stmtNode() {}
 // CreateTypeStmt represents a CREATE TYPE statement.
 // Ref: https://docs.oracle.com/en/database/oracle/oracle-database/23/sqlrf/CREATE-TYPE.html
 type CreateTypeStmt struct {
-	OrReplace      bool        // OR REPLACE
-	IfNotExists    bool        // IF NOT EXISTS
-	Editionable    bool        // EDITIONABLE
-	NonEditionable bool        // NONEDITIONABLE
-	Name           *ObjectName // type name
-	Attributes     *List       // list of *ColumnDef (for object types)
-	Methods        *List       // object type spec methods (*TypeBodyMember) and RESTRICT_REFERENCES pragmas (*PLSQLPragma)
-	Modifiers      []string    // [NOT] FINAL | INSTANTIABLE | PERSISTABLE after the element list
-	AsTable        *TypeName   // TABLE OF type (nested table)
-	AsVarray       *TypeName   // VARRAY(n) OF type
-	VarraySize     ExprNode    // varray size limit
-	IsBody         bool        // CREATE TYPE BODY
-	Body           *List       // type body members (list of *TypeBodyMember)
-	Loc            Loc         // start location
+	OrReplace        bool        // OR REPLACE
+	IfNotExists      bool        // IF NOT EXISTS
+	Editionable      bool        // EDITIONABLE
+	NonEditionable   bool        // NONEDITIONABLE
+	Name             *ObjectName // type name
+	Sharing          string      // SHARING = METADATA | NONE
+	Force            bool        // FORCE
+	OID              string      // OID 'object_identifier'
+	DefaultCollation string      // DEFAULT COLLATION option
+	AuthID           string      // AUTHID CURRENT_USER | DEFINER
+	AccessibleBy     *List       // ACCESSIBLE BY accessors (list of *Accessor)
+	Under            *ObjectName // UNDER supertype (object subtype)
+	Attributes       *List       // list of *ColumnDef (for object types)
+	Methods          *List       // object type spec methods (*TypeBodyMember) and RESTRICT_REFERENCES pragmas (*PLSQLPragma)
+	Modifiers        []string    // [NOT] FINAL | INSTANTIABLE | PERSISTABLE after the element list
+	AsTable          *TypeName   // TABLE OF type (nested table)
+	AsVarray         *TypeName   // VARRAY(n) OF type
+	VarraySize       ExprNode    // varray size limit
+	ElementNotNull   bool        // TABLE OF or VARRAY OF datatype NOT NULL
+	IsBody           bool        // CREATE TYPE BODY
+	Body             *List       // type body members (list of *TypeBodyMember)
+	Loc              Loc         // start location
 }
 
 func (n *CreateTypeStmt) nodeTag()  {}
@@ -1999,6 +2039,7 @@ type CreatePackageStmt struct {
 	DefaultCollation string      // DEFAULT COLLATION option
 	IsBody           bool        // PACKAGE BODY
 	Body             *List       // package body declarations
+	InitBlock        *PLSQLBlock // initialization section of a body: BEGIN statements [EXCEPTION handlers]
 	Loc              Loc         // start location
 }
 
@@ -2428,22 +2469,71 @@ func (n *PLSQLElsIf) nodeTag() {}
 
 // PLSQLLoop represents a LOOP/WHILE/FOR statement.
 type PLSQLLoop struct {
-	Type        PLSQLLoopType // loop type
-	Label       string        // loop label
-	Condition   ExprNode      // WHILE condition
-	Iterator    string        // FOR iterator variable
-	LowerBound  ExprNode      // FOR lower bound
-	UpperBound  ExprNode      // FOR upper bound
-	Reverse     bool          // REVERSE
-	CursorName  string        // cursor name (for cursor FOR loop)
-	CursorArgs  *List         // cursor arguments
-	CursorQuery StmtNode      // query source for cursor FOR loop
-	Statements  *List         // loop body
-	Loc         Loc           // start location
+	Type        PLSQLLoopType  // loop type
+	Label       string         // loop label
+	Condition   ExprNode       // WHILE condition
+	Iterator    string         // FOR iterator variable
+	LowerBound  ExprNode       // FOR lower bound
+	UpperBound  ExprNode       // FOR upper bound
+	Reverse     bool           // REVERSE
+	CursorName  string         // cursor name (for cursor FOR loop)
+	CursorArgs  *List          // cursor arguments
+	CursorQuery StmtNode       // query source for cursor FOR loop
+	Iteration   *PLSQLIterator // FOR iterator the fields above cannot hold (Oracle 21c)
+	Statements  *List          // loop body
+	Loc         Loc            // start location
 }
 
 func (n *PLSQLLoop) nodeTag()  {}
 func (n *PLSQLLoop) stmtNode() {}
+
+// PLSQLIterator is the iterator of a FOR loop or of an iterator choice:
+// iterand [, iterand] IN iteration_control [, iteration_control]...
+type PLSQLIterator struct {
+	Iterands *List // *PLSQLIterand
+	Controls *List // *PLSQLIterationControl
+	Loc      Loc
+}
+
+func (n *PLSQLIterator) nodeTag() {}
+
+// PLSQLIterand declares a FOR iterand: name [ MUTABLE | IMMUTABLE ] [ datatype ].
+type PLSQLIterand struct {
+	Name       string
+	Mutability string    // MUTABLE, IMMUTABLE, or empty
+	DataType   *TypeName // nil when not declared
+	Loc        Loc
+}
+
+func (n *PLSQLIterand) nodeTag() {}
+
+// PLSQLIterationControl is one qualified iteration control of a FOR
+// iterator: [ REVERSE ] control [ WHILE condition ] [ WHEN condition ].
+type PLSQLIterationControl struct {
+	Kind    string   // RANGE, EXPR (a single expression or a cursor), REPEAT, VALUES OF, INDICES OF, or PAIRS OF
+	Reverse bool     // REVERSE
+	Lower   ExprNode // RANGE lower bound
+	Upper   ExprNode // RANGE upper bound
+	Step    ExprNode // RANGE BY step
+	Expr    ExprNode // the expression, cursor, or collection of the other kinds
+	While   ExprNode // WHILE condition
+	When    ExprNode // WHEN condition
+	Loc     Loc
+}
+
+func (n *PLSQLIterationControl) nodeTag() {}
+
+// DynamicSQLExpr is the dynamic SQL an iteration control iterates over:
+// ( EXECUTE IMMEDIATE dynamic_sql_stmt [ USING bind_argument [, ...] ] ).
+type DynamicSQLExpr struct {
+	SQL        ExprNode // the statement text
+	Using      *List    // USING bind arguments
+	UsingModes []string // IN, OUT, IN OUT, or empty, parallel to Using
+	Loc        Loc
+}
+
+func (n *DynamicSQLExpr) nodeTag()  {}
+func (n *DynamicSQLExpr) exprNode() {}
 
 // PLSQLReturn represents a RETURN statement.
 type PLSQLReturn struct {
@@ -2796,10 +2886,11 @@ func (n *LockTableStmt) stmtNode() {}
 //
 //	CALL [schema.]routine_name ( [args] ) [INTO :bind_variable]
 type CallStmt struct {
-	Name *ObjectName // routine name
-	Args *List       // argument list
-	Into ExprNode    // INTO bind variable
-	Loc  Loc
+	Name    *ObjectName // routine name, with its schema
+	Package string      // package or type of the routine, for schema.package.routine; "" otherwise
+	Args    *List       // argument list
+	Into    ExprNode    // INTO bind variable
+	Loc     Loc
 }
 
 func (n *CallStmt) nodeTag()  {}
@@ -4192,37 +4283,61 @@ type AlterTypeStmt struct {
 	// "ADD_METHOD", "DROP_METHOD", "NOT_INSTANTIABLE", "INSTANTIABLE",
 	// "NOT_FINAL", "FINAL", "MODIFY_LIMIT", "MODIFY_ELEMENT_TYPE",
 	// "RESET", "EDITIONABLE", "NONEDITIONABLE"
-	CompileTarget  string           // "SPECIFICATION", "BODY", "" (for COMPILE)
-	Debug          bool             // COMPILE DEBUG
-	ReuseSettings  bool             // REUSE SETTINGS
-	CompilerParams []*SetParam      // compiler_parameters_clause
-	Attributes     []*TypeAttribute // for ADD/DROP/MODIFY ATTRIBUTE
-	MethodSpec     string           // raw method signature text for ADD/DROP method
-	MethodKind     string           // "MEMBER", "STATIC", "MAP MEMBER", "ORDER MEMBER", "CONSTRUCTOR"
-	MethodType     string           // "FUNCTION" or "PROCEDURE"
-	MethodName     string           // method name
-	MethodParams   []*Parameter     // method parameters
-	MethodReturn   *TypeName        // method return type
-	LimitValue     ExprNode         // for MODIFY LIMIT
-	ElementType    *TypeName        // for MODIFY ELEMENT TYPE
-	Invalidate     bool             // INVALIDATE
-	Cascade        bool             // CASCADE
-	IncludeData    *bool            // CASCADE INCLUDING TABLE DATA (true) / NOT INCLUDING TABLE DATA (false) / nil (not specified)
-	ConvertToSubst bool             // CASCADE CONVERT TO SUBSTITUTABLE
-	Force          bool             // FORCE (exceptions_clause)
-	Editionable    bool             // EDITIONABLE
-	NonEditionable bool             // NONEDITIONABLE
+	CompileTarget  string             // "SPECIFICATION", "BODY", "" (for COMPILE)
+	Debug          bool               // COMPILE DEBUG
+	ReuseSettings  bool               // REUSE SETTINGS
+	CompilerParams []*SetParam        // compiler_parameters_clause
+	Attributes     []*TypeAttribute   // for ADD/DROP/MODIFY ATTRIBUTE
+	Methods        []*AlterTypeMethod // ADD or DROP method specifications
+	LimitValue     ExprNode           // for MODIFY LIMIT
+	ElementType    *TypeName          // for MODIFY ELEMENT TYPE
+	Invalidate     bool               // INVALIDATE
+	Cascade        bool               // CASCADE
+	IncludeData    *bool              // CASCADE INCLUDING TABLE DATA (true) / NOT INCLUDING TABLE DATA (false) / nil (not specified)
+	ConvertToSubst bool               // CASCADE CONVERT TO SUBSTITUTABLE
+	Force          bool               // FORCE (exceptions_clause)
+	Editionable    bool               // EDITIONABLE
+	NonEditionable bool               // NONEDITIONABLE
 	Loc            Loc
 }
 
 // TypeAttribute represents an attribute name with optional datatype in ALTER TYPE.
 type TypeAttribute struct {
+	Action   string    // "ADD", "MODIFY", or "DROP"
 	Name     string    // attribute name
 	DataType *TypeName // datatype (nil for DROP ATTRIBUTE)
 	Loc      Loc
 }
 
 func (n *TypeAttribute) nodeTag() {}
+
+// AlterTypeMethod is one method specification of ALTER TYPE ADD or DROP.
+type AlterTypeMethod struct {
+	Action    string       // "ADD" or "DROP"
+	Modifiers []string     // OVERRIDING, [NOT] FINAL, [NOT] INSTANTIABLE
+	Kind      string       // "MEMBER", "STATIC", "MAP MEMBER", "ORDER MEMBER", "CONSTRUCTOR"
+	Type      string       // "FUNCTION" or "PROCEDURE"
+	Name      string       // method name
+	Params    []*Parameter // method parameters
+	Return    *TypeName    // function return type; SELF AS RESULT for a constructor
+	// A function's properties, as on CreateFunctionStmt.
+	Deterministic  bool                  // DETERMINISTIC
+	Pipelined      bool                  // PIPELINED
+	Polymorphic    string                // PIPELINED ROW or TABLE POLYMORPHIC: ROW or TABLE
+	Parallel       bool                  // PARALLEL_ENABLE
+	ParallelSpec   *ParallelEnableClause // PARALLEL_ENABLE ( PARTITION ... ), nil without one
+	Streaming      *List                 // ORDER and CLUSTER streaming clauses (list of *StreamingClause)
+	ResultCache    bool                  // RESULT_CACHE
+	ReliesOn       *List                 // RESULT_CACHE RELIES_ON data sources (list of *ObjectName)
+	Aggregate      bool                  // AGGREGATE USING
+	Implementation *ObjectName           // AGGREGATE or PIPELINED USING implementation type
+	SqlMacro       bool                  // SQL_MACRO
+	SqlMacroType   string                // SQL_MACRO ( SCALAR | TABLE ), "" without the parenthesized type
+	CallSpec       *CallSpec             // IS | AS call specification
+	Loc            Loc
+}
+
+func (n *AlterTypeMethod) nodeTag() {}
 
 func (n *AlterTypeStmt) nodeTag()  {}
 func (n *AlterTypeStmt) stmtNode() {}

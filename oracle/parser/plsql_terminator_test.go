@@ -187,7 +187,7 @@ func TestPLSQLSubtypeDecl(t *testing.T) {
 // expression for a length, precision, or scale, while SQL keeps to integer
 // literals (ref_122, ref_123).
 func TestPLSQLTypeLengthExpressions(t *testing.T) {
-	sql := "DECLARE v VARCHAR2(ORA_MAX_NAME_LEN + 2); w NUMBER(k.p, 2); c CHAR(k.n BYTE); z NUMBER(*, 2); BEGIN NULL; END;"
+	sql := "DECLARE v VARCHAR2(ORA_MAX_NAME_LEN + 2); w NUMBER(k.p, 2); c CHAR(k.n BYTE); BEGIN NULL; END;"
 	result := ParseAndCheck(t, sql)
 	decls := result.Items[0].(*ast.RawStmt).Stmt.(*ast.PLSQLBlock).Declarations
 	mods := func(i int) []ast.Node {
@@ -204,15 +204,16 @@ func TestPLSQLTypeLengthExpressions(t *testing.T) {
 	} else if s, ok := m[1].(*ast.String); !ok || s.Str != "BYTE" {
 		t.Errorf("CHAR(k.n BYTE) length semantics = %#v, want BYTE", m[1])
 	}
-	if m := mods(3); len(m) != 2 || !isIntegerMod(m[1]) {
-		t.Errorf("NUMBER(*, 2) mods = %#v, want * and an integer", m)
-	}
 	if violations := CheckLocations(t, sql); len(violations) > 0 {
 		t.Errorf("Loc violations: %v", violations)
 	}
 
 	for _, bad := range []string{
 		"DECLARE v VARCHAR2(10 x); BEGIN NULL; END;",
+		// No * precision in PL/SQL (PLS-00201 on Oracle 23ai).
+		"DECLARE z NUMBER(*, 2); BEGIN NULL; END;",
+		"DECLARE z FLOAT(*); BEGIN NULL; END;",
+		"CREATE TYPE t AS OBJECT (a NUMBER(*, 2))",
 		"DECLARE v VARCHAR2(); BEGIN NULL; END;",
 		"CREATE TABLE t (c VARCHAR2(n))",
 		"CREATE TABLE t (c VARCHAR2(10 + 2))",

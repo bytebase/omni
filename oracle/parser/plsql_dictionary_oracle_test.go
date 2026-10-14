@@ -28,10 +28,13 @@ type dictionaryUnit struct {
 }
 
 // TestOraclePLSQLDictionary parses the PL/SQL that ships with Oracle: every
-// unwrapped, VALID procedure, function, package, package body, type body, and
-// trigger of an Oracle-maintained schema in the pinned image, about 875 units
-// of code the engine compiled. Each unit goes through Split and ParseRange,
-// as Bytebase runs a script, and must come out as one segment that parses.
+// unwrapped, VALID procedure, function, package, package body, type, type
+// body, and trigger of an Oracle-maintained schema in the pinned image, about
+// 2,945 units of code the engine compiled. Each unit goes through Split and
+// ParseRange, as Bytebase runs a script, and must come out as one segment
+// that parses. A type's source also holds the ALTER TYPE statements that
+// evolved it, appended with no ';' or '/' between them, so a type is cut
+// before each and every piece must parse; see dictionaryStatements.
 //
 // The units that fail today are recorded with a category, the line:column of
 // the first error, and its message in plsql_dictionary_known_failures.tsv. A
@@ -41,8 +44,8 @@ type dictionaryUnit struct {
 // source text itself is Oracle's and is read at test time, never committed.
 func TestOraclePLSQLDictionary(t *testing.T) {
 	units := loadOracleDictionaryUnits(t)
-	if len(units) < 800 {
-		t.Fatalf("read %d dictionary units, want at least 800: the DBA_SOURCE query no longer matches the image", len(units))
+	if len(units) < 2800 {
+		t.Fatalf("read %d dictionary units, want at least 2800: the DBA_SOURCE query no longer matches the image", len(units))
 	}
 
 	known := map[string]coverageRow{}
@@ -149,7 +152,7 @@ func loadOracleDictionaryUnits(t *testing.T) []dictionaryUnit {
 	rows, err := o.adminDB.QueryContext(o.ctx, `
 SELECT s.owner, s.name, s.type, s.line, s.text
   FROM dba_source s
- WHERE s.type IN ('PROCEDURE', 'FUNCTION', 'PACKAGE', 'PACKAGE BODY', 'TYPE BODY', 'TRIGGER')
+ WHERE s.type IN ('PROCEDURE', 'FUNCTION', 'PACKAGE', 'PACKAGE BODY', 'TYPE', 'TYPE BODY', 'TRIGGER')
    AND s.owner IN (SELECT username FROM dba_users WHERE oracle_maintained = 'Y')
    AND (s.owner, s.name, s.type) IN
        (SELECT owner, object_name, object_type FROM dba_objects WHERE status = 'VALID')
@@ -197,26 +200,53 @@ SELECT s.owner, s.name, s.type, s.line, s.text
 	return units
 }
 
-// parseDictionaryUnit splits and parses one unit. On failure it returns the
-// category of the construct at the error, the error's line:column within the
-// unit, and the message.
+// typeHistory matches the start of an ALTER TYPE statement that DBA_SOURCE
+// appends to a type's source for each evolution of the type.
+var typeHistory = regexp.MustCompile(`(?im)^[ \t]*alter[ \t]+type\b`)
+
+// dictionaryStatements returns the byte ranges of the statements in a unit's
+// text: the whole text, or for a type its CREATE and each ALTER TYPE after it.
+func dictionaryStatements(u dictionaryUnit) [][2]int {
+	if u.kind != "TYPE" {
+		return [][2]int{{0, len(u.text)}}
+	}
+	var spans [][2]int
+	start := 0
+	for _, m := range typeHistory.FindAllStringIndex(u.text, -1) {
+		spans = append(spans, [2]int{start, m[0]})
+		start = m[0]
+	}
+	return append(spans, [2]int{start, len(u.text)})
+}
+
+// parseDictionaryUnit splits and parses each statement of one unit. On
+// failure it returns the category of the construct at the error, the error's
+// line:column within the unit, and the message.
 func parseDictionaryUnit(u dictionaryUnit) (category, where, message string, ok bool) {
-	var segments []Segment
-	for _, seg := range Split(u.text) {
-		if !seg.Empty() {
-			segments = append(segments, seg)
+	for _, span := range dictionaryStatements(u) {
+		var segments []Segment
+		for _, seg := range Split(u.text[span[0]:span[1]]) {
+			if !seg.Empty() {
+				segments = append(segments, seg)
+			}
+		}
+		if len(segments) != 1 {
+			return classifyDictionaryFailure(u, ""), "1:1", fmt.Sprintf("split into %d segments", len(segments)), false
+		}
+		_, err := ParseRange(u.text, span[0]+segments[0].ByteStart, span[0]+segments[0].ByteEnd)
+		if err != nil {
+			category, where, message = dictionaryFailure(u, err)
+			return category, where, message, false
 		}
 	}
-	if len(segments) != 1 {
-		return classifyDictionaryFailure(u, ""), "1:1", fmt.Sprintf("split into %d segments", len(segments)), false
-	}
-	_, err := ParseRange(u.text, segments[0].ByteStart, segments[0].ByteEnd)
-	if err == nil {
-		return "", "", "", true
-	}
+	return "", "", "", true
+}
+
+// dictionaryFailure describes a parse error in a unit's text.
+func dictionaryFailure(u dictionaryUnit, err error) (category, where, message string) {
 	var pe *ParseError
 	if !errors.As(err, &pe) {
-		return "unclassified", "1:1", err.Error(), false
+		return "unclassified", "1:1", err.Error()
 	}
 	pos := pe.Position
 	if pos < 0 || pos > len(u.text) {
@@ -231,7 +261,7 @@ func parseDictionaryUnit(u dictionaryUnit) (category, where, message string, ok 
 	}
 	line := strings.Count(u.text[:pos], "\n") + 1
 	where = fmt.Sprintf("%d:%d", line, len([]rune(u.text[lineStart:pos]))+1)
-	return classifyDictionaryFailure(u, u.text[lineStart:lineEnd]), where, pe.Message, false
+	return classifyDictionaryFailure(u, u.text[lineStart:lineEnd]), where, pe.Message
 }
 
 // dictionaryCategories name the construct behind a failure from the source
@@ -248,7 +278,7 @@ var dictionaryCategories = []struct {
 	{"PARALLEL_ENABLE (PARTITION ...)", "", regexp.MustCompile(`(?i)parallel_enable\s*\(`)},
 	{"package initialization section", "PACKAGE BODY", regexp.MustCompile(`(?i)^\s*begin\b`)},
 	{"REF type", "", regexp.MustCompile(`(?i)\bref\s`)},
-	{"Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration types)", "", regexp.MustCompile(`(?i)pragma\s+interface|\.\.\.|^\s*type\s+\w+\s+is\s*\(`)},
+	{"Oracle-internal syntax (PRAGMA INTERFACE, ... parameters, enumeration and OPAQUE types, quoted function names, NATIVE C types)", "", regexp.MustCompile(`(?i)pragma\s+interface|\.\.\.|^\s*type\s+\w+\s+is\s*\(|\bopaque\s+(varying|fixed)\b|\bfunction\s+'|\s(float|double)\s+native\b`)},
 	{"JSON function clause", "", regexp.MustCompile(`(?i)\breturning\b|json_|^\s*key\b`)},
 	{"trigger CALL with arguments", "TRIGGER", regexp.MustCompile(`(?i)^\s*call\b|\(\s*:(new|old)\.`)},
 	{"qualified expression (=>)", "", regexp.MustCompile(`=>`)},
