@@ -1,6 +1,10 @@
 package parser
 
-import "testing"
+import (
+	"strings"
+	"testing"
+	"time"
+)
 
 // parenOracleSchema is the schema every parenthesized-expression oracle case
 // runs against: the BYT-10316 report's tables a and b, plus t and u for the
@@ -79,6 +83,32 @@ func TestParenthesizedExprOracle(t *testing.T) {
 		_, err := Parse(tc.sql)
 		if omniAccepts := err == nil; omniAccepts != tc.want {
 			t.Errorf("omni accepts=%v, want %v, for %q: %v", omniAccepts, tc.want, tc.sql, err)
+		}
+	}
+}
+
+// TestNestedParenRunStaysLinear guards the cache in firstTokenPastParens: the
+// parser asks for the token past a run of '(' at every nesting level, and
+// rescanning the rest of the run each time made 10,000 nested parens take two
+// seconds. Each shape below takes milliseconds when linear.
+func TestNestedParenRunStaysLinear(t *testing.T) {
+	const depth = 20000
+	open, closing := strings.Repeat("(", depth), strings.Repeat(")", depth)
+	for _, tc := range []struct {
+		name    string
+		sql     string
+		wantErr bool
+	}{
+		{"scalar", "SELECT " + open + "1" + closing, false},
+		{"unclosed scalar", "SELECT " + open + "1", true},
+		{"join group", "SELECT * FROM " + open + "t" + closing, false},
+	} {
+		start := time.Now()
+		if _, err := Parse(tc.sql); (err != nil) != tc.wantErr {
+			t.Fatalf("%s: Parse error = %v, want error %v", tc.name, err, tc.wantErr)
+		}
+		if elapsed := time.Since(start); elapsed > 2*time.Second {
+			t.Errorf("%s: Parse through %d nested parens took %v", tc.name, depth, elapsed)
 		}
 	}
 }

@@ -1,7 +1,9 @@
 package parser
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	ast "github.com/bytebase/omni/mysql/ast"
 )
@@ -226,5 +228,31 @@ func TestParenthesizedDerivedTableStillSubquery(t *testing.T) {
 				t.Errorf("expected *SubqueryExpr, got %T", sel.From[0])
 			}
 		})
+	}
+}
+
+// TestNestedParenRunStaysLinear guards the cache in firstTokenPastParens: the
+// parser asks for the token past a run of '(' at every nesting level, and
+// rescanning the rest of the run each time made 10,000 nested parens take two
+// seconds. Each shape below takes milliseconds when linear.
+func TestNestedParenRunStaysLinear(t *testing.T) {
+	const depth = 20000
+	open, closing := strings.Repeat("(", depth), strings.Repeat(")", depth)
+	for _, tc := range []struct {
+		name    string
+		sql     string
+		wantErr bool
+	}{
+		{"scalar", "SELECT " + open + "1" + closing, false},
+		{"unclosed scalar", "SELECT " + open + "1", true},
+		{"join group", "SELECT * FROM " + open + "t" + closing, false},
+	} {
+		start := time.Now()
+		if _, err := Parse(tc.sql); (err != nil) != tc.wantErr {
+			t.Fatalf("%s: Parse error = %v, want error %v", tc.name, err, tc.wantErr)
+		}
+		if elapsed := time.Since(start); elapsed > 2*time.Second {
+			t.Errorf("%s: Parse through %d nested parens took %v", tc.name, depth, elapsed)
+		}
 	}
 }

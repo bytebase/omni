@@ -451,12 +451,22 @@ func (p *Parser) restoreScan(s scanState) {
 
 // firstTokenPastParens returns the first token at or after the current position
 // that is not an opening parenthesis, without consuming input.
+//
+// Every '(' of a run shares the run's answer, and the parser asks again at each
+// nesting level as it descends, so the last scan is cached: a '(' starting
+// between the run's first '(' and the token past it is in that run. Without
+// the cache, n nested parens cost O(n²) token scans.
 func (p *Parser) firstTokenPastParens() Token {
+	if p.cur.Type == '(' && p.cur.Loc >= p.parenRunStart && p.cur.Loc < p.parenRunPast.Loc {
+		return p.parenRunPast
+	}
 	saved := p.saveScan()
 	defer p.restoreScan(saved)
+	start := p.cur.Loc
 	for p.cur.Type == '(' {
 		p.advance()
 	}
+	p.parenRunStart, p.parenRunPast = start, p.cur
 	return p.cur
 }
 
