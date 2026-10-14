@@ -157,7 +157,7 @@ func reviewGroup(stmts []statement, work targetWork, g targetGroup) (findings []
 			}
 			// An object the change dropped before may have been replaced
 			// by one of another kind.
-			if droppedBefore(stmts, rn.position, rn.name) {
+			if droppedBefore(stmts, rn.position, rn.loc.Start, rn.name) {
 				continue
 			}
 			if kind := x.relationKind(rn.name); kind != "" {
@@ -168,13 +168,17 @@ func reviewGroup(stmts []statement, work targetWork, g targetGroup) (findings []
 	return r.findings, nil
 }
 
-// droppedBefore reports whether a statement before pos drops an object
-// the reference may mean, or renames it away, so that the synced schema
-// no longer tells what the name holds.
-func droppedBefore(stmts []statement, pos int, ref *ast.TableRef) bool {
+// droppedBefore reports whether the change, before offset at in statement
+// pos, drops an object the reference may mean, or renames it away, so
+// that the synced schema no longer tells what the name holds.
+func droppedBefore(stmts []statement, pos, at int, ref *ast.TableRef) bool {
 	dropped := false
-	for i := 0; i < pos && !dropped; i++ {
+	for i := 0; i <= pos && !dropped; i++ {
 		ast.Inspect(stmts[i].node, func(n ast.Node) bool {
+			if i == pos && ast.NodeLoc(n).End > at {
+				// Not before the rename: only what it holds may be.
+				return !dropped
+			}
 			switch v := n.(type) {
 			case *ast.DropStmt:
 				if v.Names != nil {

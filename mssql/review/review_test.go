@@ -221,6 +221,11 @@ func TestDisallowDropObject(t *testing.T) {
 			want: []finding{{0, "DROP USER [a. b]", "drops user [a. b]", []int{0}}},
 		},
 		{
+			name: "an external library, whose name is one part",
+			sql:  "DROP EXTERNAL LIBRARY [a. b];",
+			want: []finding{{0, "DROP EXTERNAL LIBRARY [a. b]", "drops external library [a. b]", []int{0}}},
+		},
+		{
 			name: "Service Broker objects, whose names are one part",
 			sql:  "DROP MESSAGE TYPE [//Adventure-Works.com/Expenses];\nDROP QUEUE dbo.q;",
 			want: []finding{
@@ -323,6 +328,11 @@ func TestDisallowRename(t *testing.T) {
 			want: []finding{{0, "EXEC sp_rename 'dbo.t', 'moved', 'OBJECT'", "renames table dbo.t to moved", []int{0}}},
 		},
 		{
+			name: "sp_rename of a name renamed away and reused in the same block",
+			sql:  "BEGIN EXEC sp_rename 'dbo.v', 'moved', 'OBJECT'; CREATE TABLE dbo.v (id INT); EXEC sp_rename 'dbo.v', 'new', 'OBJECT'; END;",
+			want: []finding{{0, "EXEC sp_rename 'dbo.v', 'moved', 'OBJECT'", "renames view dbo.v to moved", []int{0}}},
+		},
+		{
 			name: "sp_rename of a name the change dropped and reused",
 			sql:  "DROP TABLE dbo.t;\nGO\nCREATE PROCEDURE dbo.t AS SELECT 1;\nGO\nEXEC sp_rename 'dbo.t', 'new', 'OBJECT';",
 		},
@@ -374,6 +384,11 @@ func TestDisallowDropConstraint(t *testing.T) {
 		{
 			name: "a constraint dropped, added back as another kind, and dropped again in control flow",
 			sql:  "IF 1 = 1 BEGIN ALTER TABLE t DROP CONSTRAINT ck_n; ALTER TABLE t ADD CONSTRAINT ck_n DEFAULT 0 FOR n; ALTER TABLE t DROP CONSTRAINT ck_n; END;\nALTER TABLE t DROP CONSTRAINT ck_n;",
+			want: []finding{{0, "ck_n", "drops check constraint ck_n of t", []int{0}}},
+		},
+		{
+			name: "a constraint added back on a new column in control flow",
+			sql:  "IF 1 = 1 BEGIN ALTER TABLE t DROP CONSTRAINT ck_n; ALTER TABLE t ADD n2 INT CONSTRAINT ck_n DEFAULT 0; ALTER TABLE t DROP CONSTRAINT ck_n; END;",
 			want: []finding{{0, "ck_n", "drops check constraint ck_n of t", []int{0}}},
 		},
 		{

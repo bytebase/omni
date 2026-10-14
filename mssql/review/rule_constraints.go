@@ -192,6 +192,12 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 						// A later drop of the name is of this definition or
 						// the one before, as the flow runs.
 						made = append(made, defined{table: v.Name, name: a.Constraint.Name, kind: a.Constraint.Type, unsure: true})
+					case a.Type == ast.ATAddColumn && a.Column != nil && a.Column.Constraints != nil:
+						for _, item := range a.Column.Constraints.Items {
+							if c, ok := item.(*ast.ConstraintDef); ok && c.Name != "" {
+								made = append(made, defined{table: v.Name, name: c.Name, kind: c.Type, unsure: true})
+							}
+						}
 					}
 				}
 				return true
