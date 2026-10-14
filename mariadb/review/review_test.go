@@ -355,6 +355,11 @@ func TestDisallowDropConstraint(t *testing.T) {
 			want: []finding{{1, "DROP INDEX uk_code ON t", "drops unique key uk_code of t", []int{0}}},
 		},
 		{
+			name: "an index named with its database, across a USE",
+			sql:  "DROP INDEX uk_code ON shop.t;\nCREATE INDEX uk_code ON shop.t (code);\nUSE other;\nDROP INDEX uk_code ON shop.t;",
+			want: []finding{{0, "DROP INDEX uk_code ON shop.t", "drops unique key uk_code of shop.t", []int{0}}},
+		},
+		{
 			name: "a temporary table dropped, which leaves the table of the name as it was",
 			sql:  "DROP TEMPORARY TABLE IF EXISTS t;\nDROP INDEX uk_code ON t;",
 			want: []finding{{1, "DROP INDEX uk_code ON t", "drops unique key uk_code of t", []int{0}}},
