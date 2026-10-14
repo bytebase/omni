@@ -1478,8 +1478,10 @@ func (p *Parser) parsePLSQLBindArgList() (*nodes.List, []string, error) {
 			return nil, nil, p.syntaxErrorAtCur()
 		}
 		// An OUT bind assigns its argument, which an inquiry directive's
-		// literal is not, nor one in parentheses (PLS-00103 on Oracle 23ai).
-		if mode != "" && mode != "IN" && (p.isInquiryRef(expr) || isParenExpr(expr)) {
+		// literal is not, nor one in parentheses, nor any other value: a
+		// literal or an operation (PLS-00103 on Oracle 23ai for USING OUT
+		// x + 1, OUT -x, and IN OUT 1).
+		if mode != "" && mode != "IN" && (p.isInquiryRef(expr) || isParenExpr(expr) || isValueExpr(expr)) {
 			return nil, nil, p.syntaxErrorAtNode(expr)
 		}
 		list.Items = append(list.Items, expr)
