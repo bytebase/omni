@@ -536,6 +536,11 @@ SELECT 1 FROM dual;
 	for _, sql := range []string{
 		"SELECT $IF TRUE $THEN $END /*+ FULL(t) */ 1 FROM t",
 		"SELECT $IF TRUE $THEN /*+ FULL(t) */ 1 $END FROM t",
+		// A comment in the condition, which the preprocessed text leaves
+		// out, leaves the hint too.
+		"SELECT $IF /*c*/ TRUE $THEN $END /*+ FULL(t) */ 1 FROM t",
+		"SELECT $IF TRUE /*c*/ $THEN $END /*+ FULL(t) */ 1 FROM t",
+		"SELECT $IF TRUE -- c\n$THEN $END /*+ FULL(t) */ 1 FROM t",
 	} {
 		hints := 0
 		for _, tok := range Tokenize(sql) {

@@ -732,7 +732,7 @@ func (l *Lexer) nextRaw() Token {
 		switch l.prevType {
 		case kwSELECT, kwINSERT, kwUPDATE, kwDELETE, kwMERGE:
 		default:
-			l.prevType = 0
+			l.clearPrevType()
 			return l.nextRaw()
 		}
 	}
@@ -755,6 +755,16 @@ func (l *Lexer) nextRaw() Token {
 	return tok
 }
 
+// clearPrevType records that a comment came after the last token, so a
+// hint after it is a comment too. In a directive's condition or message,
+// which the preprocessed text leaves out, it does not: SELECT $IF /*c*/
+// TRUE $THEN $END /*+ FULL(t) */ keeps its hint.
+func (l *Lexer) clearPrevType() {
+	if !l.ccRawDirective {
+		l.prevType = 0
+	}
+}
+
 // lexInitial handles tokens in the initial state.
 func (l *Lexer) lexInitial() Token {
 	l.skipWhitespace()
@@ -768,7 +778,7 @@ func (l *Lexer) lexInitial() Token {
 	// Line comments: --
 	if ch == '-' && l.pos+1 < l.end && l.input[l.pos+1] == '-' {
 		l.skipLineComment()
-		l.prevType = 0 // a hint follows its keyword directly
+		l.clearPrevType() // a hint follows its keyword directly
 		return l.nextRaw()
 	}
 
@@ -950,7 +960,7 @@ func (l *Lexer) lexBlockCommentOrHint() Token {
 
 	// Regular comment -- skip and get next token. A hint follows its
 	// keyword directly: SELECT /* c */ /*+ FULL(t) */ holds no hint.
-	l.prevType = 0
+	l.clearPrevType()
 	return l.nextRaw()
 }
 
