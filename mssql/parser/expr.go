@@ -253,7 +253,9 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			if err != nil {
 				return nil, err
 			}
-			_, _ = p.expect(')')
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 			return &nodes.InExpr{
 				Expr:     left,
 				Subquery: &nodes.SubqueryExpr{Query: sub, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}},
@@ -353,7 +355,9 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 				if err != nil {
 					return nil, err
 				}
-				_, _ = p.expect(')')
+				if _, err := p.expect(')'); err != nil {
+					return nil, err
+				}
 				return &nodes.SubqueryComparisonExpr{
 					Left:       left,
 					Op:         op,
@@ -710,7 +714,9 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 			if err != nil {
 				return nil, err
 			}
-			_, _ = p.expect(')')
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 			return &nodes.SubqueryExpr{
 				Query: sub,
 				Loc:   nodes.Loc{Start: loc, End: p.prevEnd()},
@@ -720,7 +726,9 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
-		_, _ = p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		return &nodes.ParenExpr{
 			Expr: expr,
 			Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
@@ -838,7 +846,9 @@ func (p *Parser) parseCast() (nodes.ExprNode, error) {
 	if dt == nil {
 		return nil, p.unexpectedToken()
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.CastExpr{
 		Expr:     expr,
 		DataType: dt,
@@ -885,7 +895,9 @@ func (p *Parser) parseTryCast() (nodes.ExprNode, error) {
 	if dt == nil {
 		return nil, p.unexpectedToken()
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.TryCastExpr{
 		Expr:     expr,
 		DataType: dt,
@@ -940,7 +952,9 @@ func (p *Parser) parseConvert() (nodes.ExprNode, error) {
 			return nil, err
 		}
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.ConvertExpr{
 		DataType: dt,
 		Expr:     expr,
@@ -996,7 +1010,9 @@ func (p *Parser) parseTryConvert() (nodes.ExprNode, error) {
 			return nil, err
 		}
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.TryConvertExpr{
 		DataType: dt,
 		Expr:     expr,
@@ -1134,7 +1150,9 @@ func (p *Parser) parseCoalesce() (nodes.ExprNode, error) {
 			return nil, errCollecting
 		}
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.CoalesceExpr{
 		Args: &nodes.List{Items: args},
 		Loc:  nodes.Loc{Start: loc, End: p.prevEnd()},
@@ -1172,7 +1190,9 @@ func (p *Parser) parseNullif() (nodes.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.NullifExpr{
 		Left:  left,
 		Right: right,
@@ -1218,7 +1238,9 @@ func (p *Parser) parseIif() (nodes.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.IifExpr{
 		Condition: cond,
 		TrueVal:   trueVal,
@@ -1250,7 +1272,9 @@ func (p *Parser) parseExists() (nodes.ExprNode, error) {
 	if query == nil {
 		return nil, p.unexpectedToken()
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.ExistsExpr{
 		Subquery: query,
 		Loc:      nodes.Loc{Start: loc, End: p.prevEnd()},
@@ -1351,7 +1375,9 @@ func (p *Parser) parseFuncCall(name string, loc int) (nodes.ExprNode, error) {
 	if p.cur.Type == '*' {
 		p.advance()
 		fc.Star = true
-		_, _ = p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 		fc.Loc.End = p.prevEnd()
 		if p.cur.Type == kwOVER {
 			var err error
@@ -1755,11 +1781,9 @@ func (p *Parser) parseWithinGroupClause() (*nodes.List, error) {
 	}
 	// Expect ORDER BY
 	if _, err := p.expect(kwORDER); err != nil {
-		_, _ = p.expect(')')
 		return nil, err
 	}
 	if _, err := p.expect(kwBY); err != nil {
-		_, _ = p.expect(')')
 		return nil, err
 	}
 
@@ -1785,7 +1809,9 @@ func (p *Parser) parseWithinGroupClause() (*nodes.List, error) {
 			break
 		}
 	}
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	return &nodes.List{Items: orders}, nil
 }
 
@@ -1922,7 +1948,9 @@ func (p *Parser) parseOverClause() (*nodes.OverClause, error) {
 		}
 	}
 
-	_, _ = p.expect(')')
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
 	over.Loc.End = p.prevEnd()
 	return over, nil
 }

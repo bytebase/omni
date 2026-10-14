@@ -198,7 +198,10 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 						cols = append(cols, idx)
 					}
 				} else {
-					col, _ := p.parseColumnDef()
+					col, err := p.parseColumnDef()
+					if err != nil {
+						return nil, err
+					}
 					if col != nil {
 						cols = append(cols, col)
 					}
@@ -207,7 +210,9 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 					break
 				}
 			}
-			_, _ = p.expect(')')
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 			vd.TableDef = &nodes.List{Items: cols}
 		}
 		vd.Loc.End = p.prevEnd()
@@ -235,7 +240,11 @@ func (p *Parser) parseVariableDecl() (*nodes.VariableDecl, error) {
 	// Optional default value
 	if p.cur.Type == '=' {
 		p.advance()
-		vd.Default, _ = p.parseExpr()
+		var err error
+		vd.Default, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	vd.Loc.End = p.prevEnd()
@@ -512,7 +521,11 @@ func (p *Parser) parseSetOptionStmt(loc int) (*nodes.SetOptionStmt, error) {
 		stmt.Value = onOff
 	} else if p.cur.Type != ';' && p.cur.Type != tokEOF && p.cur.Type != kwGO {
 		// Could be SET ROWCOUNT n, SET LANGUAGE ..., SET DATEFORMAT ..., etc.
-		stmt.Value, _ = p.parseExpr()
+		var err error
+		stmt.Value, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	stmt.Loc.End = p.prevEnd()

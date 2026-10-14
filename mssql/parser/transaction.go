@@ -132,7 +132,9 @@ func (p *Parser) parseCommitStmt() (*nodes.CommitTransStmt, error) {
 					p.advance()
 				}
 			}
-			p.match(')')
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		}
 	}
 

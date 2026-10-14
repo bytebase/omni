@@ -81,7 +81,11 @@ func (p *Parser) parseExecStmt() (*nodes.ExecStmt, error) {
 
 	// Check for EXEC ('string') syntax -- execute character string
 	if p.cur.Type == '(' {
-		stmt.ExecString = p.parseExecString()
+		execString, err := p.parseExecString()
+		if err != nil {
+			return nil, err
+		}
+		stmt.ExecString = execString
 
 		// AS { LOGIN | USER } = 'name'
 		p.parseExecAsContext(stmt)
@@ -128,7 +132,10 @@ func (p *Parser) parseExecStmt() (*nodes.ExecStmt, error) {
 		!p.isStatementStart() && !p.isExecWithOption() {
 		var args []nodes.Node
 		for {
-			arg := p.parseExecArg()
+			arg, err := p.parseExecArg()
+			if err != nil {
+				return nil, err
+			}
 			if arg == nil {
 				break
 			}
@@ -154,17 +161,24 @@ func (p *Parser) parseExecStmt() (*nodes.ExecStmt, error) {
 
 // parseExecString parses the EXEC ('string' + ...) form.
 // Returns the string expression (possibly concatenated).
-func (p *Parser) parseExecString() nodes.ExprNode {
+func (p *Parser) parseExecString() (nodes.ExprNode, error) {
 	p.advance() // consume '('
-	expr, _ := p.parseExpr()
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
 	// Parse additional comma-separated parameters for linked server pass-through
 	// ( 'string', param1, param2 )
 	for p.cur.Type == ',' {
 		p.advance() // consume ','
-		p.parseExpr()
+		if _, err := p.parseExpr(); err != nil {
+			return nil, err
+		}
 	}
-	_, _ = p.expect(')')
-	return expr
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return expr, nil
 }
 
 // parseExecAsContext parses AS { LOGIN | USER } = 'name'.
@@ -296,7 +310,7 @@ func (p *Parser) parseExecOption() *nodes.String {
 // parseExecArg parses a single EXEC argument.
 //
 //	exec_arg = [@param =] { expr | DEFAULT } [OUTPUT|OUT]
-func (p *Parser) parseExecArg() *nodes.ExecArg {
+func (p *Parser) parseExecArg() (*nodes.ExecArg, error) {
 	loc := p.pos()
 
 	arg := &nodes.ExecArg{
@@ -308,7 +322,7 @@ func (p *Parser) parseExecArg() *nodes.ExecArg {
 		arg.IsDefault = true
 		p.advance()
 		arg.Loc.End = p.prevEnd()
-		return arg
+		return arg, nil
 	}
 
 	// Check for named argument: @param = value
@@ -322,22 +336,26 @@ func (p *Parser) parseExecArg() *nodes.ExecArg {
 			if p.collectMode() {
 				p.addRuleCandidate("columnref")
 				p.addRuleCandidate("func_name")
-				return nil
+				return nil, nil
 			}
 			// Check for DEFAULT after @param =
 			if p.cur.Type == kwDEFAULT {
 				arg.IsDefault = true
 				p.advance()
 				arg.Loc.End = p.prevEnd()
-				return arg
+				return arg, nil
 			}
 		}
 	}
 
 	// Parse value expression
-	arg.Value, _ = p.parseExpr()
+	var err error
+	arg.Value, err = p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
 	if arg.Value == nil {
-		return nil
+		return nil, nil
 	}
 
 	// Check for OUTPUT/OUT
@@ -347,7 +365,7 @@ func (p *Parser) parseExecArg() *nodes.ExecArg {
 	}
 
 	arg.Loc.End = p.prevEnd()
-	return arg
+	return arg, nil
 }
 
 // isStatementStart returns true if the current token starts a new statement.

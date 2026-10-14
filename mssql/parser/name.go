@@ -270,7 +270,10 @@ func (p *Parser) parseIdentExpr() (nodes.ExprNode, error) {
 			var args []nodes.Node
 			if p.cur.Type != ')' {
 				for {
-					arg, _ := p.parseExpr()
+					arg, err := p.parseExpr()
+					if err != nil {
+						return nil, err
+					}
 					args = append(args, arg)
 					if _, ok := p.match(','); !ok {
 						break
@@ -540,7 +543,10 @@ func (p *Parser) parseQualifiedRef(first string, loc int) (nodes.ExprNode, error
 					var args []nodes.Node
 					if p.cur.Type != ')' {
 						for {
-							arg, _ := p.parseExpr()
+							arg, err := p.parseExpr()
+							if err != nil {
+								return nil, err
+							}
 							args = append(args, arg)
 							if _, ok := p.match(','); !ok {
 								break
@@ -608,7 +614,11 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 		}
 		fc.Loc.End = p.prevEnd()
 		if p.cur.Type == kwOVER {
-			fc.Over, _ = p.parseOverClause()
+			var err error
+			fc.Over, err = p.parseOverClause()
+			if err != nil {
+				return nil, err
+			}
 			fc.Loc.End = p.prevEnd()
 		}
 		return fc, nil
@@ -623,7 +633,11 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 		p.advance()
 		fc.Loc.End = p.prevEnd()
 		if p.cur.Type == kwOVER {
-			fc.Over, _ = p.parseOverClause()
+			var err error
+			fc.Over, err = p.parseOverClause()
+			if err != nil {
+				return nil, err
+			}
 			fc.Loc.End = p.prevEnd()
 		}
 		return fc, nil
@@ -669,7 +683,11 @@ func (p *Parser) parseFuncCallWithSchema(schema, funcName string, loc int) (node
 
 	// Check for OVER clause
 	if p.cur.Type == kwOVER {
-		fc.Over, _ = p.parseOverClause()
+		var err error
+		fc.Over, err = p.parseOverClause()
+		if err != nil {
+			return nil, err
+		}
 		fc.Loc.End = p.prevEnd()
 	}
 

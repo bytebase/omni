@@ -99,16 +99,28 @@ func (p *Parser) parseRaiseErrorStmt() (*nodes.RaiseErrorStmt, error) {
 			return nil, errCollecting
 		}
 		// Message
-		stmt.Message, _ = p.parseExpr()
+		var err error
+		stmt.Message, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 
 		// Severity
 		if _, ok := p.match(','); ok {
-			stmt.Severity, _ = p.parseExpr()
+			var err error
+			stmt.Severity, err = p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// State
 		if _, ok := p.match(','); ok {
-			stmt.State, _ = p.parseExpr()
+			var err error
+			stmt.State, err = p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		// Optional args
@@ -117,14 +129,19 @@ func (p *Parser) parseRaiseErrorStmt() (*nodes.RaiseErrorStmt, error) {
 			if _, ok := p.match(','); !ok {
 				break
 			}
-			arg, _ := p.parseExpr()
+			arg, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
 			args = append(args, arg)
 		}
 		if len(args) > 0 {
 			stmt.Args = &nodes.List{Items: args}
 		}
 
-		_, _ = p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	}
 
 	// WITH options (LOG, NOWAIT, SETERROR)
@@ -182,16 +199,28 @@ func (p *Parser) parseThrowStmt() (*nodes.ThrowStmt, error) {
 	}
 
 	// Error number
-	stmt.ErrorNumber, _ = p.parseExpr()
+	var err error
+	stmt.ErrorNumber, err = p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
 
 	// Message
 	if _, ok := p.match(','); ok {
-		stmt.Message, _ = p.parseExpr()
+		var err error
+		stmt.Message, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// State
 	if _, ok := p.match(','); ok {
-		stmt.State, _ = p.parseExpr()
+		var err error
+		stmt.State, err = p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	stmt.Loc.End = p.prevEnd()
@@ -582,7 +611,7 @@ func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	stmt.Table , _ = p.parseTableRef()
+	stmt.Table, _ = p.parseTableRef()
 
 	// WITH ( PARTITIONS ( range [,...n] ) )
 	if p.cur.Type == kwWITH {
@@ -597,7 +626,7 @@ func (p *Parser) parseTruncateStmt() (*nodes.TruncateStmt, error) {
 						expr, _ := p.parseExpr()
 						// Check for TO (range)
 						if p.cur.Type == kwTO {
-							p.advance() // consume TO
+							p.advance()   // consume TO
 							p.parseExpr() // end of range (consumed but range stored as start expr)
 						}
 						parts = append(parts, expr)
@@ -922,7 +951,7 @@ func (p *Parser) parseEnableDisableTriggerStmt(enable bool) (*nodes.EnableDisabl
 				stmt.OnAllServer = true
 			}
 		} else {
-			stmt.OnObject , _ = p.parseTableRef()
+			stmt.OnObject, _ = p.parseTableRef()
 		}
 	}
 
@@ -1002,7 +1031,7 @@ func (p *Parser) parseCopyIntoStmt() (*nodes.CopyIntoStmt, error) {
 	}
 
 	// Table name (possibly qualified: schema.table)
-	stmt.Table , _ = p.parseTableRef()
+	stmt.Table, _ = p.parseTableRef()
 
 	// Optional column list: ( Column_name [ DEFAULT value ] [ field_number ] [,...n] )
 	if p.cur.Type == '(' {
@@ -1178,7 +1207,7 @@ func (p *Parser) parseRenameStmt() (*nodes.RenameStmt, error) {
 	}
 
 	// Object/table/database name
-	stmt.Name , _ = p.parseTableRef()
+	stmt.Name, _ = p.parseTableRef()
 
 	// Check for COLUMN rename variant
 	if p.cur.Type == kwCOLUMN {
@@ -1235,7 +1264,7 @@ func (p *Parser) parseCreateExternalTableAsSelectStmt() (*nodes.CreateExternalTa
 	}
 
 	// Table name
-	stmt.Name , _ = p.parseTableRef()
+	stmt.Name, _ = p.parseTableRef()
 
 	// Optional column list: parse as structured ColumnDef nodes
 	if p.cur.Type == '(' {
@@ -1316,7 +1345,7 @@ func (p *Parser) parseCreateTableCloneStmt(name *nodes.TableRef) (*nodes.CreateT
 	p.matchIdentCI("OF")
 
 	// Source table name
-	stmt.SourceName , _ = p.parseTableRef()
+	stmt.SourceName, _ = p.parseTableRef()
 
 	// Optional AT 'point_in_time'
 	if p.cur.Type == kwAT {
@@ -1445,7 +1474,7 @@ func (p *Parser) parsePredictColumnDef() *nodes.ColumnDef {
 	p.advance()
 
 	// data_type
-	dt , _ := p.parseDataType()
+	dt, _ := p.parseDataType()
 
 	col := &nodes.ColumnDef{
 		Name:     colName,
@@ -1503,7 +1532,7 @@ func (p *Parser) parseCreateRemoteTableAsSelectStmt() (*nodes.CreateRemoteTableA
 	}
 
 	// Table name: { database_name.schema_name.table_name | schema_name.table_name | table_name }
-	stmt.Name , _ = p.parseTableRef()
+	stmt.Name, _ = p.parseTableRef()
 
 	// AT ('<connection_string>')
 	if p.cur.Type == kwAT {
@@ -1575,7 +1604,7 @@ func (p *Parser) parseCreateFederationStmt() (*nodes.CreateFederationStmt, error
 		stmt.DistributionName = name
 	}
 	// data_type - parse as type reference string
-	stmt.DataType , _ = p.parseDataType()
+	stmt.DataType, _ = p.parseDataType()
 	// RANGE
 	p.matchIdentCI("RANGE")
 	p.match(')')
@@ -1732,7 +1761,7 @@ func (p *Parser) parseInsertBulkStmt() (*nodes.InsertBulkStmt, error) {
 	}
 
 	// table name (three-part name)
-	stmt.Table , _ = p.parseTableRef()
+	stmt.Table, _ = p.parseTableRef()
 
 	// optional column definition list
 	if p.cur.Type == '(' {
@@ -1791,7 +1820,7 @@ func (p *Parser) parseInsertBulkColumnDef() *nodes.InsertBulkColumnDef {
 		col.Name = name
 	}
 
-	col.DataType , _ = p.parseDataType()
+	col.DataType, _ = p.parseDataType()
 
 	// Optional NULL / NOT NULL
 	if p.cur.Type == kwNOT {

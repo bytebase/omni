@@ -931,7 +931,9 @@ func (p *Parser) parseIdentitySpec() (*nodes.IdentitySpec, error) {
 				p.advance()
 			}
 		}
-		_, _ = p.expect(')')
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	}
 
 	spec.Loc.End = p.prevEnd()
@@ -1011,7 +1013,9 @@ func (p *Parser) parseInlineConstraint(name string) (*nodes.ConstraintDef, error
 			if cd.Expr == nil {
 				return nil, p.unexpectedToken()
 			}
-			_, _ = p.expect(')')
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		}
 	case kwDEFAULT:
 		p.advance()
@@ -1186,7 +1190,9 @@ func (p *Parser) parseTableConstraint() (*nodes.ConstraintDef, error) {
 			if exprErr != nil {
 				return nil, exprErr
 			}
-			_, _ = p.expect(')')
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
 		}
 	case kwFOREIGN:
 		p.advance() // FOREIGN
