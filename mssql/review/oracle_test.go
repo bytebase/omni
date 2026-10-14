@@ -231,7 +231,6 @@ func TestPriorBackupAgainstMSSQL(t *testing.T) {
 		{"a FROM list with the target's name under an alias", "UPDATE dbo.t SET n = s.id FROM dbo.p AS t2 JOIN s.t2 AS s ON s.id = t2.id;", true},
 		{"a table sp_rename renames to", "EXEC sp_rename 'dbo.nokey', 'n8';\nUPDATE dbo.n8 SET a = 2 WHERE a = 1;", true},
 		{"a table a CREATE SCHEMA makes", "CREATE SCHEMA s3 CREATE TABLE s3.n6 (id INT);\nUPDATE s3.n6 SET id = 2 WHERE id = 1;", true},
-		{"a synonym the change creates", "CREATE SYNONYM n5 FOR dbo.t;\nUPDATE n5 SET n = 2 WHERE id = 1;", true},
 		{"a table SELECT INTO makes", "SELECT 1 AS id INTO n4;\nUPDATE n4 SET id = 2 WHERE id = 1;", true},
 		{"statements before a USE", "ALTER TABLE nokey ADD gone INT;\nDELETE FROM nokey WHERE gone = 1;\nUSE master;\nDELETE FROM shop.dbo.nokey WHERE a = 2;", true},
 	}

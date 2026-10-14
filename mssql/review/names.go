@@ -73,8 +73,11 @@ func object(ref *ast.TableRef) string {
 
 // tableExpr writes the table an UPDATE or DELETE names as its target.
 func tableExpr(e ast.TableExpr) string {
-	if ref, ok := e.(*ast.TableRef); ok {
-		return object(ref)
+	switch v := e.(type) {
+	case *ast.TableRef:
+		return object(v)
+	case *ast.TableVarRef:
+		return escapeLines(v.Name)
 	}
 	return "the target"
 }

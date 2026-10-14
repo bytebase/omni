@@ -140,6 +140,9 @@ func checkConstraints(stmts []statement, on map[review.Rule]bool, r *reporter) [
 		case *ast.UseStmt:
 			// What the change defined before is of another database.
 			made = nil
+		case *ast.RollbackTransStmt:
+			// A rollback may undo what the change defined.
+			made = nil
 		case *ast.CreateSchemaStmt:
 			if v.Elements != nil {
 				for _, e := range v.Elements.Items {

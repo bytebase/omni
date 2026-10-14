@@ -148,6 +148,11 @@ func TestRequireWhere(t *testing.T) {
 				{2, "UPDATE t SET n = 1", "UPDATE t has no WHERE clause", []int{0}},
 			},
 		},
+		{
+			name: "a table variable",
+			sql:  "DECLARE @rows TABLE (n INT);\nDELETE FROM @rows;",
+			want: []finding{{1, "DELETE FROM @rows", "DELETE FROM @rows has no WHERE clause", []int{0}}},
+		},
 	})
 }
 
@@ -323,6 +328,10 @@ func TestDisallowDropConstraint(t *testing.T) {
 			want: []finding{{0, "ck_b", "drops check constraint ck_b of nokey", []int{0}}},
 		},
 		{
+			name: "a definition a rollback may undo",
+			sql:  "BEGIN TRAN;\nALTER TABLE t ADD CONSTRAINT df_x CHECK (n >= 0);\nROLLBACK;\nALTER TABLE t DROP CONSTRAINT df_x;",
+		},
+		{
 			name: "a USE in a block",
 			sql:  "BEGIN USE other; END;\nALTER TABLE t DROP CONSTRAINT ck_n;",
 		},
@@ -493,10 +502,9 @@ func TestPriorBackup(t *testing.T) {
 			want:   []finding{{1, "UPDATE s3.n6 SET id = 2 WHERE id = 1", "prior backup runs before the change, when s3.n6 does not exist yet", []int{0}}},
 		},
 		{
-			name:   "a synonym the change creates",
-			sql:    "CREATE SYNONYM n5 FOR dbo.t;\nUPDATE n5 SET n = 2 WHERE id = 1;",
+			name:   "a synonym, which the synced schema does not tell of",
+			sql:    "DROP SYNONYM n5;\nCREATE SYNONYM n5 FOR dbo.t;\nUPDATE n5 SET n = 2 WHERE id = 1;",
 			change: backup,
-			want:   []finding{{1, "UPDATE n5 SET n = 2 WHERE id = 1", "prior backup runs before the change, when n5 does not exist yet", []int{0}}},
 		},
 		{
 			name:   "statements before a USE",

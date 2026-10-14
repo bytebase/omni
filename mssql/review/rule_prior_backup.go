@@ -279,7 +279,7 @@ func textOf(sql string, loc ast.Loc) string {
 }
 
 // changeMade is what the change makes, which the backup, run before all of
-// it, cannot see: the tables, views, and synonyms it creates, SELECT INTO,
+// it, cannot see: the tables and views it creates, SELECT INTO,
 // CREATE SCHEMA, BEGIN ... END, sp_rename, and RENAME OBJECT among them,
 // and the columns it adds, renames to, or declares on a table it creates,
 // by the table as written. A statement that may make nothing, IF NOT
@@ -318,10 +318,6 @@ func madeByChange(stmts []statement) changeMade {
 		case *ast.SelectStmt:
 			if v.IntoTable != nil {
 				m.relations = append(m.relations, v.IntoTable)
-			}
-		case *ast.CreateSynonymStmt:
-			if v.Name != nil {
-				m.relations = append(m.relations, v.Name)
 			}
 		case *ast.CreateTableAsSelectStmt:
 			// CREATE TABLE AS SELECT of Azure Synapse.
