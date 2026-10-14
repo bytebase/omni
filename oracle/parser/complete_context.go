@@ -108,7 +108,7 @@ func CollectCompletion(sql string, cursorOffset int) *CompletionContext {
 	}
 	prefix := completionPrefix(sql, cursorOffset)
 	collectOffset := cursorOffset - len(prefix)
-	tokens := Tokenize(sql)
+	tokens := multisetOperatorsAsWords(Tokenize(sql))
 	candidates, intent := collectOracleCandidates(sql, tokens, collectOffset, prefix)
 	scope, ctes := collectOracleScopeAndCTEs(tokens, cursorOffset)
 	stmtLoc := oracleCompletionStatementLoc(sql, tokens, cursorOffset)

@@ -166,6 +166,9 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 		if stmt == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
+		if lock := lockedSubquery(stmt); lock != nil {
+			return nil, p.syntaxErrorAtNode(lock)
+		}
 		if sel := sourcelessStar(stmt); sel != nil {
 			// At the block's start, its SELECT or its WITH, past the
 			// parentheses its span takes.
@@ -345,6 +348,57 @@ func sourcelessStar(stmt nodes.Node) *nodes.SelectStmt {
 		return true
 	})
 	return bad
+}
+
+// lockedSubquery returns the FOR UPDATE clause that ends a subquery in
+// stmt. Oracle 23ai locks rows for a top-level query and a cursor's alone:
+// it rejects FOR UPDATE in an expression subquery, an inline view or a
+// DML target, a WITH element, MERGE USING, CURSOR(...), INSERT ... SELECT,
+// and CREATE TABLE or VIEW ... AS (ORA-00907, ORA-03048), and runs it in a
+// cursor declaration, OPEN FOR, and a FOR loop's query, VALUES OF (...)
+// too. A subquery it does not list keeps its FOR UPDATE.
+func lockedSubquery(stmt nodes.Node) nodes.Node {
+	var lock nodes.Node
+	check := func(query nodes.StmtNode) {
+		if sel, ok := query.(*nodes.SelectStmt); ok && lock == nil {
+			lock = trailingForUpdate(sel)
+		}
+	}
+	iterands := map[*nodes.SubqueryExpr]bool{}
+	nodes.Inspect(stmt, func(n nodes.Node) bool {
+		if lock != nil {
+			return false
+		}
+		switch n := n.(type) {
+		case *nodes.PLSQLIterationControl:
+			if sub, ok := n.Expr.(*nodes.SubqueryExpr); ok {
+				iterands[sub] = true
+			}
+		case *nodes.SubqueryExpr:
+			if !iterands[n] {
+				check(n.Subquery)
+			}
+		case *nodes.ExistsExpr:
+			check(n.Subquery)
+		case *nodes.CursorExpr:
+			check(n.Subquery)
+		case *nodes.SubqueryRef:
+			check(n.Subquery)
+		case *nodes.CTE:
+			check(n.Query)
+		case *nodes.InsertStmt:
+			if n.Select != nil {
+				check(n.Select)
+			}
+			check(n.Subquery)
+		case *nodes.CreateTableStmt:
+			check(n.AsQuery)
+		case *nodes.CreateViewStmt:
+			check(n.Query)
+		}
+		return true
+	})
+	return lock
 }
 
 // querySelectsSourcelessStar reports whether a query block of query selects

@@ -173,6 +173,42 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 		}
 	}
 	ParseAndCheck(t, "(SELECT a FROM t) FOR UPDATE")
+	// Nor does any subquery but a cursor's lock rows (ORA-00907, ORA-03048
+	// at FOR): Oracle 23ai takes FOR UPDATE on a top-level query, a cursor
+	// declaration, OPEN FOR, and a FOR loop's query alone.
+	for _, sql := range []string{
+		"SELECT 1 FROM dual WHERE EXISTS ((SELECT a FROM t) FOR UPDATE)",
+		"SELECT 1 FROM dual WHERE EXISTS (SELECT a FROM t FOR UPDATE)",
+		"SELECT 1 FROM dual WHERE 1 IN (SELECT a FROM t FOR UPDATE)",
+		"SELECT (SELECT a FROM t FOR UPDATE) FROM dual",
+		"SELECT * FROM (SELECT a FROM t FOR UPDATE)",
+		"WITH w AS (SELECT a FROM t FOR UPDATE) SELECT * FROM w",
+		"MERGE INTO t USING (SELECT a FROM t FOR UPDATE) s ON (t.a = s.a) WHEN MATCHED THEN UPDATE SET t.a = 1",
+		"INSERT INTO t SELECT a FROM t FOR UPDATE",
+		"SELECT CURSOR(SELECT a FROM t FOR UPDATE) FROM dual",
+		"CREATE VIEW v AS SELECT a FROM t FOR UPDATE",
+		"CREATE TABLE c AS SELECT a FROM t FOR UPDATE",
+		"UPDATE (SELECT a FROM t FOR UPDATE) SET a = 1",
+		"DELETE FROM (SELECT a FROM t FOR UPDATE)",
+		"UPDATE t SET a = (SELECT 1 FROM dual FOR UPDATE)",
+	} {
+		_, err := Parse(sql)
+		var pe *ParseError
+		if !errors.As(err, &pe) || !strings.HasPrefix(sql[pe.Position:], "FOR UPDATE") {
+			t.Errorf("Parse(%q) = %v, want an error at FOR UPDATE", sql, err)
+		}
+	}
+	for _, sql := range []string{
+		"SELECT * FROM (SELECT a FROM t) FOR UPDATE",
+		"SELECT a FROM t WHERE a IN (SELECT a FROM t) FOR UPDATE",
+		"DECLARE CURSOR c IS SELECT a FROM t FOR UPDATE; BEGIN NULL; END;",
+		"DECLARE c SYS_REFCURSOR; BEGIN OPEN c FOR SELECT a FROM t FOR UPDATE; CLOSE c; END;",
+		"DECLARE n NUMBER; BEGIN SELECT a INTO n FROM t FOR UPDATE; END;",
+		"BEGIN FOR r IN (SELECT a FROM t FOR UPDATE) LOOP NULL; END LOOP; END;",
+		"BEGIN FOR i IN VALUES OF (SELECT a FROM t FOR UPDATE) LOOP NULL; END LOOP; END;",
+	} {
+		ParseAndCheck(t, sql)
+	}
 	// No set operation takes a FOR UPDATE (ORA-01786 at FOR).
 	for _, sql := range []string{
 		"SELECT a FROM t EXCEPT SELECT a FROM t FOR UPDATE",
@@ -284,9 +320,12 @@ func TestParenthesizedQueryLimits(t *testing.T) {
 
 	// An inline view whose first operand is parenthesized exposes that
 	// operand's columns, as an unparenthesized one does.
+	// MULTISET EXCEPT is an operator inside the select list, not a set
+	// operator ending it.
 	for _, sql := range []string{
 		"SELECT x. FROM ((SELECT c1 AS left_name FROM t) UNION (SELECT c2 FROM u)) x",
 		"SELECT x. FROM (SELECT c1 AS left_name FROM t UNION SELECT c2 FROM u) x",
+		"SELECT x. FROM (SELECT a MULTISET EXCEPT b AS left_name FROM t) x",
 	} {
 		scope := CollectCompletion(sql, len("SELECT x.")).Scope
 		if scope == nil || len(scope.LocalReferences) != 1 || len(scope.LocalReferences[0].Columns) != 1 || scope.LocalReferences[0].Columns[0] != "LEFT_NAME" {

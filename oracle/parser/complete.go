@@ -181,8 +181,21 @@ func Collect(sql string, cursorOffset int) *CandidateSet {
 
 	prefix := completionPrefix(sql, cursorOffset)
 	collectOffset := cursorOffset - len(prefix)
-	cs, _ := collectOracleCandidates(sql, Tokenize(sql), collectOffset, prefix)
+	cs, _ := collectOracleCandidates(sql, multisetOperatorsAsWords(Tokenize(sql)), collectOffset, prefix)
 	return cs
+}
+
+// multisetOperatorsAsWords retypes the EXCEPT of MULTISET EXCEPT, an
+// operator inside an expression, as a word, so the scans that end a select
+// list or a query at a set operator pass over it: SELECT a MULTISET EXCEPT
+// b AS c FROM t names its column C.
+func multisetOperatorsAsWords(tokens []Token) []Token {
+	for i := 1; i < len(tokens); i++ {
+		if tokens[i].Type == kwEXCEPT && tokens[i-1].Type == kwMULTISET {
+			tokens[i].Type = tokIDENT
+		}
+	}
+	return tokens
 }
 
 func collectOracleCandidates(_ string, allTokens []Token, collectOffset int, prefix string) (*CandidateSet, *CompletionIntent) {
