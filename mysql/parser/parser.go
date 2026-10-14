@@ -14,6 +14,18 @@ type Parser struct {
 	nextBuf Token // buffered next token for 2-token lookahead
 	hasNext bool  // whether nextBuf is valid
 
+	// parenRunStart and parenRunPast cache the last firstTokenPastParens scan:
+	// the offset of the run's first '(' and the first token past the run.
+	parenRunStart int
+	parenRunPast  Token
+
+	// parenQueryFail holds every parseSelectWithParens failure by the offset
+	// of its '('. parseSubqueryHead speculates a query at each level of a
+	// nested `((((SELECT 1) = 0) = 0) = 0)` and rewinds when it fails, and the
+	// next level down fails on the same tokens; recording the failures keeps
+	// that linear.
+	parenQueryFail map[int]error
+
 	// Completion mode fields.
 	completing bool          // true when collecting completion candidates
 	cursorOff  int           // byte offset of the cursor in source

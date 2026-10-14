@@ -478,12 +478,22 @@ func (p *Parser) restoreScan(s scanState) {
 // In each case MySQL's grammar distinguishes by whether the innermost head is a
 // query primary (SELECT/WITH/TABLE/VALUES) or not; a fixed one-token lookahead
 // on '(' cannot, so we scan past the parens speculatively and rewind.
+//
+// Every '(' of a run shares the run's answer, and the parser asks again at each
+// nesting level as it descends, so the last scan is cached: a '(' starting
+// between the run's first '(' and the token past it is in that run. Without
+// the cache, n nested parens cost O(n²) token scans.
 func (p *Parser) firstTokenPastParens() Token {
+	if p.cur.Type == '(' && p.cur.Loc >= p.parenRunStart && p.cur.Loc < p.parenRunPast.Loc {
+		return p.parenRunPast
+	}
 	saved := p.saveScan()
 	defer p.restoreScan(saved)
+	start := p.cur.Loc
 	for p.cur.Type == '(' {
 		p.advance()
 	}
+	p.parenRunStart, p.parenRunPast = start, p.cur
 	return p.cur
 }
 
@@ -496,8 +506,26 @@ func (p *Parser) firstTokenPastParens() Token {
 // 2" — so the parens materialize as a real node. The unconditional delegation to
 // parseSelectNoParens left-factors the grammar so a nested "((...))" and a
 // parenthesized set-op operand are parsed by the same path.
+//
+// The result depends only on where the parse starts, so a failure is recorded
+// (see parenQueryFail) and returned again without reparsing. Completion mode
+// collects candidates along the way and always reparses.
 func (p *Parser) parseSelectWithParens() (*nodes.SelectStmt, error) {
 	start := p.pos()
+	if err, ok := p.parenQueryFail[start]; ok {
+		return nil, err
+	}
+	sel, err := p.parseSelectWithParensAt(start)
+	if err != nil && !p.completing {
+		if p.parenQueryFail == nil {
+			p.parenQueryFail = make(map[int]error)
+		}
+		p.parenQueryFail[start] = err
+	}
+	return sel, err
+}
+
+func (p *Parser) parseSelectWithParensAt(start int) (*nodes.SelectStmt, error) {
 	if _, err := p.expect('('); err != nil {
 		return nil, err
 	}

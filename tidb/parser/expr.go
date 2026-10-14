@@ -1079,55 +1079,92 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 // lookaheadParenContentIsSubquery reports whether the content just inside an
 // already-consumed '(' (p.cur is at the content's leading '(') is a query
 // expression (subquery) rather than an expression / value list. It classifies
-// WITHOUT consuming: snapshot, flat depth-scan, restore. Only invoked when
-// p.cur == '(' — simple (SELECT ...)/(WITH ...) bodies are caught by the cheaper
-// peek before this. Ported from pg/parser/expr.go lookaheadParenContentIsSubquery.
+// WITHOUT consuming. Only invoked when p.cur == '(' — simple (SELECT ...)/(WITH
+// ...) bodies are caught by the cheaper peek before this. Ported from
+// pg/parser/expr.go lookaheadParenContentIsSubquery.
+//
+// The deciding token is the first one at depth 0 (relative to the consumed
+// outer '(') past the balanced groups the content opens with. A ',' commits to
+// a value list; a set-op or ORDER/LIMIT commits to a subquery; the matching ')'
+// means a single element, a subquery iff the first token past its leading run
+// of '(' starts a SELECT.
 func (p *Parser) lookaheadParenContentIsSubquery() bool {
 	if p.cur.Type != '(' {
 		return false
 	}
+	next := p.cur
+	for next.Type == '(' {
+		after, ok := p.parenAfter[next.Loc]
+		if !ok {
+			next = p.scanParenGroups()
+			break
+		}
+		next = after
+	}
+	switch next.Type {
+	case ')':
+		// Single element. FOR is excluded (TiDB rejects `IN ((SELECT 1) FOR
+		// UPDATE)`); VALUES/TABLE excluded (deferred backlog).
+		return isSelectStartToken(p.firstTokenPastParens().Type)
+	case kwUNION, kwINTERSECT, kwEXCEPT, kwORDER, kwLIMIT:
+		return true // query-expression continuation
+	default:
+		// A value list, e.g. IN ((SELECT 1), (SELECT 2)); an ordinary
+		// expression, e.g. ((SELECT 1) + 1); or EOF before the matching ')',
+		// where the value-list branch reports the error.
+		return false
+	}
+}
+
+// scanParenGroups returns the first token at depth 0 past the balanced groups
+// that start at p.cur, without consuming input. On the way it records in
+// parenAfter, for every '(' it passes, the token after its matching ')' (EOF
+// for a '(' never closed).
+func (p *Parser) scanParenGroups() Token {
 	snap := p.snapshotTokenStream()
 	defer p.restoreTokenStream(snap)
-
-	// Pass 1: first event at depth 0 (relative to the consumed outer '('). A
-	// top-level ',' commits to a value list; a top-level set-op or ORDER/LIMIT
-	// commits to a subquery; the matching ')' means a single element → pass 2.
-	depth := 0
-	for p.cur.Type != tokEOF {
-		switch p.cur.Type {
-		case '(':
-			depth++
-		case ')':
-			if depth == 0 {
-				goto singleElement
+	if p.parenAfter == nil {
+		p.parenAfter = make(map[int]Token)
+	}
+	var open []int
+	for {
+		switch {
+		case p.cur.Type == '(':
+			open = append(open, p.cur.Loc)
+		case p.cur.Type == tokEOF:
+			for _, loc := range open {
+				p.parenAfter[loc] = p.cur
 			}
-			depth--
-		case ',':
-			if depth == 0 {
-				return false // value list, e.g. IN ((SELECT 1), (SELECT 2))
-			}
-		case kwUNION, kwINTERSECT, kwEXCEPT, kwORDER, kwLIMIT:
-			if depth == 0 {
-				return true // query-expression continuation
-			}
-		default:
-			if depth == 0 {
-				return false // ordinary expression, e.g. ((SELECT 1) + 1)
-			}
+			return p.cur
+		case len(open) == 0:
+			return p.cur
+		case p.cur.Type == ')':
+			loc := open[len(open)-1]
+			open = open[:len(open)-1]
+			p.advance()
+			p.parenAfter[loc] = p.cur
+			continue
 		}
 		p.advance()
 	}
-	return false // EOF before matching ')': malformed → value-list branch errors
+}
 
-singleElement:
-	// Walk past leading '(' and probe the element's first non-'(' token.
-	// Subquery iff SELECT-start. FOR is excluded (TiDB rejects
-	// `IN ((SELECT 1) FOR UPDATE)`); VALUES/TABLE excluded (deferred backlog).
-	p.restoreTokenStream(snap)
+// firstTokenPastParens returns the first token at or after p.cur that is not
+// '(', without consuming input. Every '(' of a run shares the answer, so the
+// last scan is cached: a '(' starting between the run's first '(' and the
+// token past it is in that run.
+func (p *Parser) firstTokenPastParens() Token {
+	if p.cur.Type == '(' && p.cur.Loc >= p.parenRunStart && p.cur.Loc < p.parenRunPast.Loc {
+		return p.parenRunPast
+	}
+	snap := p.snapshotTokenStream()
+	defer p.restoreTokenStream(snap)
+	start := p.cur.Loc
 	for p.cur.Type == '(' {
 		p.advance()
 	}
-	return isSelectStartToken(p.cur.Type)
+	p.parenRunStart, p.parenRunPast = start, p.cur
+	return p.cur
 }
 
 // isSelectStartToken reports whether tok begins a parsable query-expression

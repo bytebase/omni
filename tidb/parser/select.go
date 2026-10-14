@@ -1005,6 +1005,9 @@ func (p *Parser) parenBeginsSubquery() bool {
 	if p.cur.Type != '(' {
 		return false
 	}
+	if isSubquery, ok := p.parenIsSubquery[p.cur.Loc]; ok {
+		return isSubquery
+	}
 	snap := p.snapshotTokenStream()
 	defer p.restoreTokenStream(snap)
 	return p.consumeMatchedParenIsSubquery()
@@ -1018,10 +1021,14 @@ func (p *Parser) parenBeginsSubquery() bool {
 // by what follows the nested block: ')' or a set-op keyword inherits the nested
 // verdict; anything else (e.g. a JOIN keyword) means the nested block is a join
 // operand, not a wrapped subquery. Must run inside a snapshot/restore scope.
+//
+// Every '(' in the block is classified on the way and its verdict recorded in
+// parenIsSubquery, so asking again at a '(' inside the block costs nothing.
 func (p *Parser) consumeMatchedParenIsSubquery() bool {
 	if p.cur.Type != '(' {
 		return false
 	}
+	open := p.cur.Loc
 	p.advance() // consume '('
 
 	var isSubquery bool
@@ -1049,20 +1056,20 @@ func (p *Parser) consumeMatchedParenIsSubquery() bool {
 		isSubquery = false
 	}
 
-	depth := 1
-	for depth > 0 && p.cur.Type != tokEOF {
-		switch p.cur.Type {
-		case '(':
-			depth++
-		case ')':
-			depth--
-			if depth == 0 {
-				p.advance()
-				return isSubquery
-			}
+	for p.cur.Type != ')' && p.cur.Type != tokEOF {
+		if p.cur.Type == '(' {
+			p.consumeMatchedParenIsSubquery()
+			continue
 		}
 		p.advance()
 	}
+	if p.cur.Type == ')' {
+		p.advance()
+	}
+	if p.parenIsSubquery == nil {
+		p.parenIsSubquery = make(map[int]bool)
+	}
+	p.parenIsSubquery[open] = isSubquery
 	return isSubquery
 }
 
@@ -1893,6 +1900,7 @@ func (p *Parser) parseNamedWindowList() ([]*nodes.WindowDef, error) {
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/table.html
 //
 //	TABLE table_name [ORDER BY column_name] [LIMIT number [OFFSET number]]
+//
 // parseTableStmt parses a TABLE statement.
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/table.html
