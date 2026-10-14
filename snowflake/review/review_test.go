@@ -287,6 +287,14 @@ func TestRequireIsNull(t *testing.T) {
 			sql:  "SELECT * FROM t WHERE 'a\\'  b' = NULL;",
 			want: []finding{{0, "'a\\'  b' = NULL", "\"'a\\'  b' = NULL\" is never true; use IS NULL", []int{0}}},
 		},
+		{
+			name: "a row access policy's body and a dynamic table's IMMUTABLE WHERE",
+			sql:  "CREATE ROW ACCESS POLICY rp AS (n INT) RETURNS BOOLEAN -> n = NULL;\nCREATE DYNAMIC TABLE dt TARGET_LAG = '1 minute' WAREHOUSE = w IMMUTABLE WHERE (n = NULL) AS SELECT n FROM t;",
+			want: []finding{
+				{0, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}},
+				{1, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}},
+			},
+		},
 	})
 }
 
@@ -478,6 +486,15 @@ func TestRequirePrimaryKey(t *testing.T) {
 		{
 			name: "settled by a later key, drop, rename, swap, or create",
 			sql:  "CREATE TABLE a (id INT NOT NULL);\nALTER TABLE a ADD PRIMARY KEY (id);\nCREATE TABLE b (id INT);\nDROP TABLE b;\nCREATE TABLE c (id INT);\nALTER TABLE c RENAME TO c2;\nCREATE TABLE d (id INT);\nALTER TABLE p SWAP WITH d;\nCREATE TABLE e (id INT);\nCREATE OR REPLACE TABLE e (id INT PRIMARY KEY);\nCREATE TABLE s2.f (id INT);\nDROP SCHEMA s2;\nCREATE TABLE g (id INT);\nALTER TABLE g ADD COLUMN k INT PRIMARY KEY;",
+		},
+		{
+			name: "settled by a column added PRIMARY KEY with another inline constraint",
+			sql:  "CREATE TABLE a (x INT);\nALTER TABLE a ADD COLUMN id INT PRIMARY KEY UNIQUE;",
+		},
+		{
+			name: "not settled by a schema of another database",
+			sql:  "CREATE TABLE db1.s.a (id INT);\nDROP SCHEMA db2.s;",
+			want: []finding{{0, "CREATE TABLE db1.s.a (id INT)", "creates table db1.s.a without a primary key", []int{0}}},
 		},
 		{
 			name: "a column declared PRIMARY KEY with another inline constraint",

@@ -161,7 +161,7 @@ func (c *constraintLog) lookup(table *ast.ObjectName, name ast.Ident) (kind cons
 func checkConstraints(sql string, stmts []statement, on map[review.Rule]bool, r *reporter) []droppedConstraint {
 	var c constraintLog
 	var open []droppedConstraint
-	later := settlersOf(stmts)
+	later := settlersOf(sql, stmts)
 	for pos := range stmts {
 		s := &stmts[pos]
 		ast.Inspect(s.node, func(n ast.Node) bool {
@@ -342,6 +342,16 @@ func createsPrimaryKey(v *ast.CreateTableStmt) bool {
 	return false
 }
 
+// addsColumn reports whether an ALTER TABLE adds a column.
+func addsColumn(v *ast.AlterTableStmt) bool {
+	for _, a := range v.Actions {
+		if a != nil && a.Kind == ast.AlterTableAddColumn {
+			return true
+		}
+	}
+	return false
+}
+
 // addsPrimaryKey reports whether an ALTER TABLE may give the table a
 // primary key: ADD PRIMARY KEY, or a column added with PRIMARY KEY.
 func addsPrimaryKey(v *ast.AlterTableStmt) bool {
@@ -387,7 +397,7 @@ type settlers struct {
 // what may settle a table. A CREATE TABLE IF NOT EXISTS of a table the
 // change made does nothing, and a temporary table leaves the table of its
 // name as it is, so neither settles it.
-func settlersOf(stmts []statement) settlers {
+func settlersOf(sql string, stmts []statement) settlers {
 	x := settlers{byName: make(map[string][]settler)}
 	add := func(pos int, ref *ast.ObjectName) {
 		if ref != nil {
@@ -403,7 +413,10 @@ func settlersOf(stmts []statement) settlers {
 					add(pos, v.Name)
 				}
 			case *ast.AlterTableStmt:
-				if addsPrimaryKey(v) {
+				// The parser keeps one inline constraint per column, so a
+				// column added PRIMARY KEY UNIQUE reads as UNIQUE: an ALTER
+				// that adds a column and writes PRIMARY KEY may add a key.
+				if addsPrimaryKey(v) || n == stmts[pos].node && addsColumn(v) && mentionsPrimaryKey(sql, &stmts[pos]) {
 					add(pos, v.Name)
 				}
 				for _, a := range v.Actions {
@@ -443,7 +456,8 @@ func (x settlers) after(pos int, ref *ast.ObjectName) bool {
 	for _, st := range x.drops {
 		switch {
 		case st.pos <= pos:
-		case st.schema != nil && (ref.Schema.IsEmpty() || sameName(ref.Schema, st.schema.Name)):
+		case st.schema != nil && (ref.Schema.IsEmpty() || sameName(ref.Schema, st.schema.Name)) &&
+			(ref.Database.IsEmpty() || st.schema.Schema.IsEmpty() || sameName(ref.Database, st.schema.Schema)):
 			return true
 		case st.database != nil && (ref.Database.IsEmpty() || sameName(ref.Database, st.database.Name)):
 			return true

@@ -101,6 +101,17 @@ func predicates(root ast.Node) []ast.Node {
 	}
 	ast.Inspect(root, func(n ast.Node) bool {
 		switch v := n.(type) {
+		case *ast.CreatePolicyStmt:
+			// A row access policy's body decides, for truth, which rows show.
+			if v.Kind == ast.PolicyRowAccess {
+				add(v.Body)
+			}
+		case *ast.AlterPolicyStmt:
+			if v.Kind == ast.PolicyRowAccess {
+				add(v.Body)
+			}
+		case *ast.CreateDynamicTableStmt:
+			add(v.ImmutableWhere)
 		case *ast.CreateTaskStmt:
 			add(v.When)
 		case *ast.AlterTaskStmt:
