@@ -259,19 +259,21 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 // directives, so some bound is needed. Within it, a statement with up to
 // ten undecided two-way $IF directives is searched exhaustively, a failure
 // the search can place takes one attempt per $IF to vary, and the byte
-// budget keeps the search's time linear in the text.
+// budget keeps the search's time linear in the text: about a second and a
+// half for a statement of a thousand undecided $IF directives that no
+// selection parses.
 const (
 	ccMinAttempts         = 64
 	ccExhaustiveAttempts  = 1024
 	ccAttemptsPerDecision = 2
-	ccMaxSearchBytes      = 64 << 20
+	ccMaxSearchBytes      = 16 << 20
 )
 
 // ccSelection is a branch selection for parseStmtSelections to try: the
 // choices to make, and the first decision it may vary for the selections
 // after it. The ones before are its ancestors' to vary.
 type ccSelection struct {
-	choices map[int]int
+	choices *ccChoices
 	from    int
 }
 
@@ -298,6 +300,8 @@ func (p *Parser) parseStmtSelections(textStart, stmtLoc int) (nodes.StmtNode, er
 	p.lexer.ccFacts = nil
 	snap := p.snapshot()
 	defer func() { p.lexer.ccChoices = nil }()
+	// Each attempt records its own facts, which the lexer's copies share.
+	p.lexer.ccFacts = &ccFacts{byCond: map[string]ccFact{}}
 	var failure error
 	furthest := -1
 	pending := []ccSelection{{}}
@@ -311,6 +315,7 @@ func (p *Parser) parseStmtSelections(textStart, stmtLoc int) (nodes.StmtNode, er
 		if attempt > 0 {
 			p.restore(snap)
 			p.lexer.ccChoices = sel.choices
+			p.lexer.ccFacts = &ccFacts{byCond: map[string]ccFact{}}
 			// The CASE pre-scan read another selection.
 			p.caseKinds = nil
 		}
@@ -401,15 +406,15 @@ func nextSelections(decided []ccDecision, from int, open []int) []ccSelection {
 	for _, at := range open {
 		isOpen[at] = true
 	}
+	// The decisions are recorded once, for every selection to share; the
+	// lexer reuses the slice it records them in.
+	decided = append([]ccDecision(nil), decided...)
 	var others, held []ccSelection
 	for i := from; i < len(decided); i++ {
 		if !decided[i].more {
 			continue
 		}
-		choices := map[int]int{decided[i].at: decided[i].passed + 1}
-		for _, d := range decided[:i] {
-			choices[d.at] = d.passed
-		}
+		choices := &ccChoices{decided: decided[:i], at: decided[i].at, pass: decided[i].passed + 1}
 		if isOpen[decided[i].at] {
 			held = append(held, ccSelection{choices: choices, from: i})
 		} else {
@@ -513,7 +518,7 @@ func validateBalancedDelimiters(sql string, start, end int) (undecided bool, err
 
 // checkSelectionDelimiters checks that the parentheses of the statement at
 // sql[start:end] balance under the selection choices names.
-func checkSelectionDelimiters(sql string, start, end int, choices map[int]int) error {
+func checkSelectionDelimiters(sql string, start, end int, choices *ccChoices) error {
 	lexer := NewLexerRange(sql, start, end)
 	lexer.ccChoices = choices
 	return scanDelimiters(lexer, sql, end, func() bool { return true })

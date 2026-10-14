@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -68,16 +69,15 @@ type Lexer struct {
 
 	// ccFacts records what the selection so far made of the conditions the
 	// text does not settle, for a later $IF with the same condition to
-	// select alike (see ccFact).
-	ccFacts *ccFact
+	// select alike (see ccFact). The lexer's copies share it.
+	ccFacts *ccFacts
 
 	// ccChoices and ccDecisions let the parser try each branch selection a
 	// condition the text does not settle leaves open (see
-	// Parser.parseStmtSelections). ccChoices maps the offset of an $IF to
-	// how many of its undecided branches to pass over; ccDecisions, shared
-	// by the lexer's copies, records each $IF that held an undecided
-	// branch, in order.
-	ccChoices   map[int]int
+	// Parser.parseStmtSelections). ccChoices says how many of an $IF's
+	// undecided branches to pass over; ccDecisions, shared by the lexer's
+	// copies, records each $IF that held an undecided branch, in order.
+	ccChoices   *ccChoices
 	ccDecisions *[]ccDecision
 
 	// ccLenient is set on a lexer that must not stop at a misplaced
@@ -186,35 +186,85 @@ func (l *Lexer) openDecisions() []int {
 	return open
 }
 
-// ccFact is what a selection made of a condition the text does not settle,
-// identified by its tokens: that it holds (is TRUE) or not, as decided at
-// the $IF at offset by. Oracle 23ai compiles a unit under one environment,
-// where a condition has one value: $IF $$x $THEN NULL; $ELSE garbage $END
-// $IF $$x $THEN garbage $ELSE NULL; $END fails whatever $$x is. Facts do
-// not change once made, so the lexer's copies share them.
+// ccFact is what a selection made of a condition the text does not settle:
+// that it holds (is TRUE) or not, as decided at the $IF at offset by.
+// Oracle 23ai compiles a unit under one environment, where a condition has
+// one value: $IF $$x $THEN NULL; $ELSE garbage $END $IF $$x $THEN garbage
+// $ELSE NULL; $END fails whatever $$x is.
 type ccFact struct {
-	cond  string
 	holds bool
 	by    int
-	next  *ccFact
 }
 
-// fact returns the fact about the condition cond, or nil.
-func (l *Lexer) fact(cond string) *ccFact {
-	for f := l.ccFacts; f != nil; f = f.next {
-		if f.cond == cond {
-			return f
-		}
+// ccFacts holds the facts a selection made, by condition, identified by its
+// tokens. A fact follows from the selection's choices and where its $IF
+// stands, so the lexer's copies that look ahead share the table: a fact one
+// records is the one the others would.
+type ccFacts struct {
+	byCond map[string]ccFact
+}
+
+// clone returns a copy of the facts, for a lexer that records no decisions
+// to read and add to apart: one that recorded a fact without its decision
+// would leave the parser no decision to vary.
+func (f *ccFacts) clone() *ccFacts {
+	if f == nil {
+		return nil
 	}
-	return nil
+	c := &ccFacts{byCond: make(map[string]ccFact, len(f.byCond))}
+	for cond, fact := range f.byCond {
+		c.byCond[cond] = fact
+	}
+	return c
+}
+
+// fact returns the fact about the condition cond.
+func (l *Lexer) fact(cond string) (ccFact, bool) {
+	if l.ccFacts == nil {
+		return ccFact{}, false
+	}
+	f, ok := l.ccFacts.byCond[cond]
+	return f, ok
 }
 
 // noteFact records that the condition cond holds or not, as decided at the
-// $IF at offset by.
+// $IF at offset by, unless a fact about it is recorded.
 func (l *Lexer) noteFact(cond string, holds bool, by int) {
-	if cond != "" {
-		l.ccFacts = &ccFact{cond: cond, holds: holds, by: by, next: l.ccFacts}
+	if cond == "" {
+		return
 	}
+	if l.ccFacts == nil {
+		l.ccFacts = &ccFacts{byCond: map[string]ccFact{}}
+	}
+	if _, ok := l.ccFacts.byCond[cond]; !ok {
+		l.ccFacts.byCond[cond] = ccFact{holds: holds, by: by}
+	}
+}
+
+// ccChoices is a branch selection to make: the $IF at offset at passes over
+// pass undecided branches, those decided records keep the choices recorded
+// there, in order of offset, and every other passes over none. A failed
+// selection's decisions are recorded once, and each selection after it
+// shares them.
+type ccChoices struct {
+	decided  []ccDecision
+	at, pass int
+}
+
+// passFor returns how many undecided branches the $IF at offset at passes
+// over.
+func (c *ccChoices) passFor(at int) int {
+	if c == nil {
+		return 0
+	}
+	if at == c.at {
+		return c.pass
+	}
+	i := sort.Search(len(c.decided), func(i int) bool { return c.decided[i].at >= at })
+	if i < len(c.decided) && c.decided[i].at == at {
+		return c.decided[i].passed
+	}
+	return 0
 }
 
 // noteCondition records the condition of an evaluated $IF or $ELSIF.
@@ -410,7 +460,7 @@ const (
 // already decided (ccFact) is decided alike. It reports false after setting
 // Err.
 func (l *Lexer) selectBranch(tok Token) bool {
-	at, pass := tok.Loc, l.ccChoices[tok.Loc]
+	at, pass := tok.Loc, l.ccChoices.passFor(tok.Loc)
 	undecided, passed := false, 0
 	// dep is the latest decision the selection depends on.
 	dep := -1
@@ -420,7 +470,7 @@ func (l *Lexer) selectBranch(tok Token) bool {
 			return false
 		}
 		if value == ccUnknown && cond != "" {
-			if f := l.fact(cond); f != nil {
+			if f, ok := l.fact(cond); ok {
 				value = ccFalse
 				if f.holds {
 					value = ccTrue

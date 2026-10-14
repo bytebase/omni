@@ -736,11 +736,11 @@ func (p *Parser) parseCaseOrColumn() (nodes.ExprNode, error) {
 // stops at WHEN, THEN, ELSE, END, ')', ',', ';', and the reserved words that
 // begin a clause. Deciding right to left with a jump table (stop) visits each
 // token a constant number of times.
-func decideCaseTokens(source string, start, end int, choices map[int]int, facts *ccFact) map[int]bool {
+func decideCaseTokens(source string, start, end int, choices *ccChoices, facts *ccFacts) map[int]bool {
 	lexer := NewLexerRange(source, start, end)
 	lexer.ccLenient = true
 	lexer.ccChoices = choices
-	lexer.ccFacts = facts
+	lexer.ccFacts = facts.clone()
 	var toks []Token
 	for {
 		tok := lexer.NextToken()

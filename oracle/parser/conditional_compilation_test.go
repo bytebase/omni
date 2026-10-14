@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -738,6 +739,31 @@ func TestConditionalCompilationSelections(t *testing.T) {
 	ParseAndCheck(t, "BEGIN "+groups.String()+"END;")
 	if elapsed := time.Since(start); elapsed > 2*time.Second {
 		t.Errorf("Parse through 200 failing first branches took %v", elapsed)
+	}
+
+	// The search's cost stays linear in the statement: facts are looked up
+	// by condition, and the selections after a failure share its decisions.
+	// 20,000 distinct conditions took 4.6 s and 1,000 failing groups 1.3 GB
+	// before.
+	var distinct strings.Builder
+	for i := range 20000 {
+		fmt.Fprintf(&distinct, "$IF $$x%d $THEN NULL; $END ", i)
+	}
+	start = time.Now()
+	ParseAndCheck(t, "BEGIN "+distinct.String()+"NULL; END;")
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("Parse through 20,000 distinct conditions took %v", elapsed)
+	}
+	var failing strings.Builder
+	for i := range 1000 {
+		fmt.Fprintf(&failing, "$IF $$x%d $THEN NULL; $END ", i)
+	}
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	ParseShouldFail(t, "BEGIN "+failing.String()+"garbage garbage; END;")
+	runtime.ReadMemStats(&after)
+	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 800<<20 {
+		t.Errorf("Parse through 1,000 failing groups allocated %d MB", allocated>>20)
 	}
 
 	// One environment gives a condition one value: a selection decides a
