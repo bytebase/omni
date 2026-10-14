@@ -89,8 +89,9 @@ func (p *Parser) parseSelectStmt() (*nodes.SelectStmt, error) {
 //	| ( subquery ) { UNION [ ALL ] | INTERSECT [ ALL ] | MINUS [ ALL ] | EXCEPT [ ALL ] } subquery
 //
 // Oracle 23ai rejects a WITH clause inside the parentheses (ORA-32034) and
-// an ORDER BY that ends the parenthesized subquery (ORA-00907), wherever the
-// parenthesized subquery stands; an inline view in FROM is a table
+// an ORDER BY that ends the parenthesized subquery with no row-limiting
+// clause after it (ORA-00907, for ... ORDER BY 1 FOR UPDATE too), wherever
+// the parenthesized subquery stands; an inline view in FROM is a table
 // reference, which takes both. Without anything around the parentheses the
 // query is the subquery itself; otherwise sel is a wrapper whose Larg is
 // the subquery.
@@ -240,6 +241,12 @@ func (p *Parser) atQuery() bool {
 func trailingOrderBy(query *nodes.SelectStmt) nodes.Node {
 	for query != nil {
 		if query.OrderBy != nil && query.OrderBy.Len() > 0 {
+			// One a row-limiting clause follows is that clause's: Oracle
+			// 23ai runs (SELECT ... ORDER BY d FETCH FIRST 10 ROWS ONLY)
+			// UNION ALL ..., with OFFSET too.
+			if query.FetchFirst != nil {
+				return nil
+			}
 			return query.OrderBy.Items[0]
 		}
 		if query.Op == nodes.SETOP_NONE {

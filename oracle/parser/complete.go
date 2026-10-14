@@ -915,7 +915,7 @@ func oracleCursorInOrderingExpression(tokens []Token, offset int) bool {
 		switch before[i].Type {
 		case kwGROUP, kwORDER:
 			return i+1 < len(before) && before[i+1].Type == kwBY
-		case kwWHERE, kwFROM, kwJOIN, kwHAVING, kwON, kwUNION, kwINTERSECT, kwMINUS:
+		case kwWHERE, kwFROM, kwJOIN, kwHAVING, kwON, kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT:
 			return false
 		}
 	}
@@ -981,7 +981,7 @@ func oracleCursorInTableRef(tokens []Token, offset int) bool {
 		case kwFROM, kwJOIN:
 			lastClause = tokens[i].Type
 		case kwWHERE, kwON, kwGROUP, kwHAVING, kwORDER, kwCONNECT, kwSTART,
-			kwUNION, kwINTERSECT, kwMINUS, kwOFFSET, kwFETCH:
+			kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT, kwOFFSET, kwFETCH:
 			lastClause = tokens[i].Type
 		}
 	}
@@ -1031,7 +1031,7 @@ func oracleCursorAfterFromRelation(tokens []Token, offset int) bool {
 		case kwFROM, kwJOIN:
 			lastFromOrJoin = i
 			lastBoundary = -1
-		case kwWHERE, kwON, kwUSING, kwGROUP, kwHAVING, kwORDER, kwUNION, kwINTERSECT, kwMINUS:
+		case kwWHERE, kwON, kwUSING, kwGROUP, kwHAVING, kwORDER, kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT:
 			lastBoundary = i
 		}
 	}

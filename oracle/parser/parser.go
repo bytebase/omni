@@ -136,6 +136,15 @@ func ParseRange(source string, start, end int) (*nodes.List, error) {
 		if stmt == nil {
 			return nil, p.syntaxErrorAtCur()
 		}
+		if sel := sourcelessStar(stmt); sel != nil {
+			// At the block's SELECT, past the parentheses its span takes.
+			lex := NewLexerRange(p.source, sel.Loc.Start, sel.Loc.End)
+			tok := lex.NextToken()
+			for tok.Type == '(' {
+				tok = lex.NextToken()
+			}
+			return nil, p.syntaxErrorAtTok(tok)
+		}
 
 		raw := &nodes.RawStmt{
 			Stmt: stmt,
@@ -265,6 +274,38 @@ func isIncompleteParsedStmt(stmt nodes.StmtNode) bool {
 	default:
 		return false
 	}
+}
+
+// sourcelessStar returns the first query block in stmt that selects *
+// without a FROM clause, which Oracle 23ai rejects with ORA-54058 at the
+// block's SELECT wherever it stands: CREATE TABLE ... AS (SELECT *), a view,
+// an INSERT, a subquery, an inline view, a WITH element, MERGE USING, or a
+// cursor FOR loop. The subquery of EXISTS is the exception when it is one
+// query block, as Oracle does not expand its select list: WHERE EXISTS
+// (SELECT *) runs, and EXISTS (SELECT * UNION SELECT 1 FROM dual) fails.
+func sourcelessStar(stmt nodes.Node) *nodes.SelectStmt {
+	exempt := map[*nodes.SelectStmt]bool{}
+	var bad *nodes.SelectStmt
+	nodes.Inspect(stmt, func(n nodes.Node) bool {
+		if bad != nil {
+			return false
+		}
+		switch n := n.(type) {
+		case *nodes.ExistsExpr:
+			if sel, ok := n.Subquery.(*nodes.SelectStmt); ok && sel.Larg == nil && sel.Op == nodes.SETOP_NONE {
+				exempt[sel] = true
+			}
+		case *nodes.SelectStmt:
+			// A set operation holds its first block itself, Larg nil, or
+			// wraps a parenthesized one in Larg.
+			if n.Larg == nil && !exempt[n] &&
+				(n.FromClause == nil || n.FromClause.Len() == 0) && selectTargetListContainsStar(n.TargetList) {
+				bad = n
+			}
+		}
+		return true
+	})
+	return bad
 }
 
 // querySelectsSourcelessStar reports whether a query block of query selects

@@ -465,7 +465,7 @@ func markOracleUnsupportedTransform(tokens []Token, ref RangeReference, start in
 			ref.UnsupportedReason = "model"
 			return ref
 		case ',', kwJOIN, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwCONNECT, kwSTART,
-			kwUNION, kwINTERSECT, kwMINUS, kwOFFSET, kwFETCH:
+			kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT, kwOFFSET, kwFETCH:
 			return ref
 		}
 	}
@@ -514,7 +514,7 @@ func oracleSelectArmBounds(tokens []Token, selectIdx int, selectDepth int) (int,
 			if depth > 0 {
 				depth--
 			}
-		case kwUNION, kwINTERSECT, kwMINUS:
+		case kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT:
 			if depth == selectDepth {
 				start = i + 1
 			}
@@ -530,7 +530,7 @@ func oracleSelectArmBounds(tokens []Token, selectIdx int, selectDepth int) (int,
 		}
 		if i > selectIdx && depth == selectDepth {
 			switch tok.Type {
-			case kwUNION, kwINTERSECT, kwMINUS:
+			case kwUNION, kwINTERSECT, kwMINUS, kwEXCEPT:
 				end = i
 				return start, end
 			}
@@ -1100,7 +1100,7 @@ func extractOracleSelectListColumns(tokens []Token, ctes map[string]RangeReferen
 			}
 			continue
 		}
-		if depth == 0 && (tok.Type == kwFROM || tok.Type == kwUNION || tok.Type == kwINTERSECT || tok.Type == kwMINUS) {
+		if depth == 0 && (tok.Type == kwFROM || tok.Type == kwUNION || tok.Type == kwINTERSECT || tok.Type == kwMINUS || tok.Type == kwEXCEPT) {
 			names = append(names, extractOracleTargetColumn(tokens[targetStart:i], tokens, selectIdx, ctes)...)
 			closedTargetList = true
 			break
@@ -1223,7 +1223,7 @@ func oracleTokenIsIdentLikeStr(tok Token, value string) bool {
 func oracleIsFromClauseBoundary(tokenType int) bool {
 	switch tokenType {
 	case kwWHERE, kwGROUP, kwHAVING, kwORDER, kwCONNECT, kwSTART, kwUNION,
-		kwINTERSECT, kwMINUS, kwOFFSET, kwFETCH, kwMODEL, kwPIVOT, kwUNPIVOT:
+		kwINTERSECT, kwMINUS, kwEXCEPT, kwOFFSET, kwFETCH, kwMODEL, kwPIVOT, kwUNPIVOT:
 		return true
 	default:
 		return false
@@ -1233,7 +1233,7 @@ func oracleIsFromClauseBoundary(tokenType int) bool {
 func isOracleCompletionClauseBoundary(tokenType int) bool {
 	switch tokenType {
 	case kwWHERE, kwGROUP, kwHAVING, kwORDER, kwCONNECT, kwSTART, kwUNION,
-		kwINTERSECT, kwMINUS, kwOFFSET, kwFETCH, kwJOIN, kwON, kwUSING,
+		kwINTERSECT, kwMINUS, kwEXCEPT, kwOFFSET, kwFETCH, kwJOIN, kwON, kwUSING,
 		kwLEFT, kwRIGHT, kwFULL, kwCROSS, kwINNER, kwOUTER, kwMODEL, kwPIVOT, kwUNPIVOT:
 		return true
 	default:

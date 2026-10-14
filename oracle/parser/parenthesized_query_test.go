@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/oracle/ast"
@@ -123,6 +125,75 @@ func TestParenthesizedQueries(t *testing.T) {
 		"UPDATE t SET (a, b) = ((SELECT 1 FROM dual) UNION (SELECT 1 FROM dual))",
 	} {
 		ParseShouldFail(t, sql)
+	}
+}
+
+// TestParenthesizedQueryLimits checks against Oracle 23ai where a
+// parenthesized operand takes an ORDER BY, and where a query block selects
+// * without FROM.
+func TestParenthesizedQueryLimits(t *testing.T) {
+	// An ORDER BY a row-limiting clause follows belongs to it, so the
+	// parenthesized operand takes it; a bare one, or one before FOR UPDATE,
+	// fails (ORA-00907).
+	for _, sql := range []string{
+		"(SELECT deptno FROM emp ORDER BY deptno FETCH FIRST 10 ROWS ONLY) UNION ALL SELECT deptno FROM emp",
+		"(SELECT deptno FROM emp ORDER BY deptno OFFSET 1 ROWS) UNION ALL SELECT deptno FROM emp",
+		"(SELECT 1 a FROM dual UNION SELECT 2 FROM dual ORDER BY 1 FETCH FIRST 1 ROWS ONLY) UNION ALL SELECT 3 FROM dual",
+		"SELECT * FROM dual WHERE 1 IN (SELECT 1 FROM dual ORDER BY 1 FETCH FIRST 1 ROWS ONLY)",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	for _, sql := range []string{
+		"(SELECT deptno FROM emp ORDER BY deptno) UNION ALL SELECT deptno FROM emp",
+		"(SELECT 1 a FROM dual UNION SELECT 2 FROM dual ORDER BY 1) UNION ALL SELECT 3 FROM dual",
+		"(SELECT 1 a FROM dual ORDER BY 1 FOR UPDATE) UNION ALL SELECT 3 FROM dual",
+	} {
+		ParseShouldFail(t, sql)
+	}
+
+	// No query block selects * without FROM, wherever it stands, and the
+	// error is at its SELECT (ORA-54058); but for the one block of an
+	// EXISTS subquery, whose select list Oracle does not expand.
+	for _, sql := range []string{
+		"CREATE TABLE t AS (SELECT *)",
+		"CREATE VIEW v AS (SELECT *)",
+		"INSERT INTO t (SELECT *)",
+		"SELECT (SELECT * ) FROM dual",
+		"SELECT 1 FROM dual WHERE 1 IN (SELECT *)",
+		"SELECT * FROM (SELECT *)",
+		"WITH w AS (SELECT *) SELECT 1 FROM dual",
+		"SELECT 1 FROM dual WHERE EXISTS (SELECT * UNION SELECT 1 FROM dual)",
+		"SELECT 1 FROM dual WHERE EXISTS (SELECT 1 FROM dual UNION SELECT *)",
+		"SELECT 1 FROM dual WHERE EXISTS (SELECT * FROM (SELECT *))",
+		"MERGE INTO t USING (SELECT *) s ON (1 = 1) WHEN MATCHED THEN UPDATE SET t.a = 1",
+		"BEGIN FOR r IN (SELECT *) LOOP NULL; END LOOP; END;",
+	} {
+		_, err := Parse(sql)
+		var pe *ParseError
+		if !errors.As(err, &pe) {
+			t.Errorf("Parse(%q) = %v, want a ParseError", sql, err)
+			continue
+		}
+		if at := sql[pe.Position:]; !strings.HasPrefix(at, "SELECT *") {
+			t.Errorf("Parse(%q) fails at %q, want at SELECT *", sql, at)
+		}
+	}
+	for _, sql := range []string{
+		"SELECT 1 FROM dual WHERE EXISTS (SELECT *)",
+		"SELECT 1 FROM dual WHERE NOT EXISTS (SELECT *)",
+		"INSERT INTO t SELECT 1 FROM dual WHERE EXISTS (SELECT *)",
+		"DECLARE n NUMBER; BEGIN SELECT 1 INTO n FROM dual WHERE EXISTS (SELECT *); END;",
+	} {
+		ParseAndCheck(t, sql)
+	}
+
+	// Completion takes EXCEPT as the set operator it is, as MINUS.
+	for _, op := range []string{"EXCEPT", "MINUS"} {
+		before := "SELECT * FROM t " + op + " SELECT u."
+		got := CollectCompletion(before+" FROM u", len(before)).Intent
+		if got == nil || got.Qualifier.Object != "U" || got.Qualifier.Schema != "" {
+			t.Errorf("CollectCompletion after %s = %+v, want the columns of U", op, got)
+		}
 	}
 }
 
