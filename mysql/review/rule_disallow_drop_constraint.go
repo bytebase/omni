@@ -1,6 +1,8 @@
 package review
 
 import (
+	"slices"
+
 	"github.com/bytebase/omni/mysql/ast"
 	"github.com/bytebase/omni/review"
 )
@@ -35,8 +37,8 @@ type droppedIndex struct {
 // where table names are case-sensitive, or the database differs, it is
 // another table. What a routine,
 // trigger, or event body does runs only when it runs, so the body's own
-// drops are reported, but its statements touch no index the rest of the
-// change reads.
+// drops are reported, read against what the body did before them, but the
+// body touches no index the rest of the change reads.
 func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []droppedIndex {
 	type index struct {
 		table  *ast.TableRef
@@ -52,20 +54,14 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 		}
 		return index{}, false
 	}
-	// body is whether the statement read is a routine, trigger, or event
-	// definition, whose body changes nothing until it runs.
-	body := false
 	touch := func(ref *ast.TableRef, name string, unique bool) {
-		if name != "" && !body {
+		if name != "" {
 			touched = append(touched, index{ref, name, unique})
 		}
 	}
 	// forget drops what the change touched on a table of the name, which
 	// is gone with the table.
 	forget := func(ref *ast.TableRef) {
-		if body {
-			return
-		}
 		kept := touched[:0]
 		for _, i := range touched {
 			if !sameTable(i.table, ref) {
@@ -76,9 +72,6 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 	}
 	var replaced []*ast.TableRef
 	replace := func(ref *ast.TableRef) {
-		if body {
-			return
-		}
 		replaced = append(replaced, ref)
 		forget(ref)
 	}
@@ -104,11 +97,16 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 	}
 	for pos := range stmts {
 		s := &stmts[pos]
+		// A routine, trigger, or event definition changes nothing until
+		// its body runs: what the body does is followed through the body,
+		// then forgotten.
+		body := false
+		var keptTouched []index
+		var keptReplaced []*ast.TableRef
 		switch s.node.(type) {
 		case *ast.CreateFunctionStmt, *ast.CreateTriggerStmt, *ast.CreateEventStmt, *ast.AlterEventStmt:
 			body = true
-		default:
-			body = false
+			keptTouched, keptReplaced = slices.Clone(touched), slices.Clone(replaced)
 		}
 		ast.Inspect(s.node, func(n ast.Node) bool {
 			switch v := n.(type) {
@@ -206,6 +204,9 @@ func checkDisallowDropConstraint(sql string, stmts []statement, r *reporter) []d
 			}
 			return true
 		})
+		if body {
+			touched, replaced = keptTouched, keptReplaced
+		}
 	}
 	return open
 }
