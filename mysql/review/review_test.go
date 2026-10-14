@@ -114,6 +114,11 @@ func shop() *metadata.DatabaseSchemaMetadata {
 					Columns: columns("id", "code"),
 					Indexes: []*metadata.IndexMetadata{{Name: "uk_f", Unique: true, Expressions: []string{"lower(`code`)"}}},
 				},
+				{
+					Name:    "fl",
+					Columns: []*metadata.ColumnMetadata{{Name: "f", Type: "float"}},
+					Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"f"}}},
+				},
 			},
 			Views: []*metadata.ViewMetadata{{Name: "pv"}},
 		}},
@@ -301,6 +306,16 @@ func TestDisallowDropConstraint(t *testing.T) {
 			want: []finding{{0, "DROP INDEX uk_code", "drops unique key uk_code of t", []int{0}}},
 		},
 		{
+			name: "a table of another database renamed to a synced table's name",
+			sql:  "ALTER TABLE other.src RENAME TO t;\nDROP INDEX uk_code ON shop.t;",
+			want: []finding{{1, "DROP INDEX uk_code ON shop.t", "drops unique key uk_code of shop.t", []int{0}}},
+		},
+		{
+			name: "a unique index the change renames",
+			sql:  "CREATE UNIQUE INDEX ux ON nokey (a);\nALTER TABLE nokey RENAME INDEX ux TO uy;\nDROP INDEX uy ON nokey;",
+			want: []finding{{2, "DROP INDEX uy ON nokey", "drops unique key uy of nokey", []int{0}}},
+		},
+		{
 			name: "a check constraint of an index's name",
 			sql:  "ALTER TABLE t ADD CONSTRAINT uk_code CHECK (n > 0);\nDROP INDEX uk_code ON t;",
 			want: []finding{{1, "DROP INDEX uk_code ON t", "drops unique key uk_code of t", []int{0}}},
@@ -429,7 +444,7 @@ func TestOnlineMigration(t *testing.T) {
 			name:   "only a nullable unique key",
 			sql:    "ALTER TABLE nul ADD COLUMN m INT;",
 			change: ghost,
-			want:   []finding{{0, "ALTER TABLE nul ADD COLUMN m INT", "online migration needs a primary key or a unique key of NOT NULL columns on nul, which has none", []int{0}}},
+			want:   []finding{{0, "ALTER TABLE nul ADD COLUMN m INT", "online migration needs a primary key or a unique key of NOT NULL columns, none of them FLOAT or JSON, on nul, which has none", []int{0}}},
 		},
 		{
 			name:   "the table of the task's database, whatever the ALTER names",
@@ -448,6 +463,12 @@ func TestOnlineMigration(t *testing.T) {
 			sql:    "ALTER TABLE fkey ADD COLUMN m INT;",
 			change: ghost,
 			want:   []finding{{0, "ALTER TABLE fkey ADD COLUMN m INT", "online migration needs a primary or unique key on fkey, which has none", []int{0}}},
+		},
+		{
+			name:   "a primary key of a FLOAT column",
+			sql:    "ALTER TABLE fl ADD COLUMN m INT;",
+			change: ghost,
+			want:   []finding{{0, "ALTER TABLE fl ADD COLUMN m INT", "online migration needs a primary key or a unique key of NOT NULL columns, none of them FLOAT or JSON, on fl, which has none", []int{0}}},
 		},
 		{
 			name:   "tables gh-ost refuses",

@@ -262,7 +262,12 @@ func madeByChange(stmts []statement) changeMade {
 				switch cmd.Type {
 				case ast.ATRenameTable:
 					if cmd.NewTable != nil {
-						m.relations = append(m.relations, cmd.NewTable)
+						// A new name without a database stays in the table's.
+						to := *cmd.NewTable
+						if to.Schema == "" {
+							to.Schema = v.Table.Schema
+						}
+						m.relations = append(m.relations, &to)
 					} else if cmd.NewName != "" {
 						m.relations = append(m.relations, &ast.TableRef{Schema: v.Table.Schema, Name: cmd.NewName})
 					}
