@@ -198,6 +198,11 @@ func TestRequireIsNull(t *testing.T) {
 			want: []finding{{8, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
 		},
 		{
+			name: "ANSI_NULLS set in a list of options",
+			sql:  "SET QUOTED_IDENTIFIER, ANSI_NULLS OFF;\nSELECT * FROM t WHERE n = NULL;\nSET ANSI_PADDING, ANSI_NULLS ON;\nSELECT * FROM t WHERE n = NULL;\nSET ANSI_PADDING, ANSI_DEFAULTS OFF;\nSELECT * FROM t WHERE n = NULL;",
+			want: []finding{{3, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
+		},
+		{
 			name: "ANSI_NULLS set back ON in a block after a condition",
 			sql:  "BEGIN IF @x = 1 SET ANSI_NULLS OFF; SET ANSI_NULLS ON; END;\nSELECT * FROM t WHERE n = NULL;",
 			want: []finding{{1, "n = NULL", `"n = NULL" is never true; use IS NULL`, []int{0}}},
