@@ -20,21 +20,22 @@ func IsReservedKeyword(name string) bool {
 	return ok && keywordReserved[t]
 }
 
-// keywordName returns the upper-case name of a keyword token. Used by
-// TokenName for debug output. Builds a reverse-lookup map on first use.
-//
-// The map is constructed lazily and cached. It does not need to be
-// thread-safe — TokenName is only called from tests and debug paths.
-var keywordNameCache map[int]string
+// keywordNames maps a keyword token to its upper-case name. It is built at
+// package init and only read afterwards, so concurrent callers of TokenName
+// need no locking.
+var keywordNames = buildKeywordNames()
 
-func keywordName(t int) (string, bool) {
-	if keywordNameCache == nil {
-		keywordNameCache = make(map[int]string, len(keywordMap))
-		for name, tok := range keywordMap {
-			keywordNameCache[tok] = strings.ToUpper(name)
-		}
+func buildKeywordNames() map[int]string {
+	m := make(map[int]string, len(keywordMap))
+	for name, tok := range keywordMap {
+		m[tok] = strings.ToUpper(name)
 	}
-	name, ok := keywordNameCache[t]
+	return m
+}
+
+// keywordName returns the upper-case name of a keyword token, for TokenName.
+func keywordName(t int) (string, bool) {
+	name, ok := keywordNames[t]
 	return name, ok
 }
 

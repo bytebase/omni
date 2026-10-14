@@ -7,11 +7,6 @@ import (
 	"github.com/bytebase/omni/oracle/parser"
 )
 
-// The parser's reserved-word lookup fills a keyword table on first use,
-// without a lock; the first call here, before any review runs targets
-// concurrently, keeps that write out of the goroutines.
-var _ = parser.IsReservedKeyword("SELECT")
-
 // ident writes an identifier as Oracle needs it in a statement: bare when
 // it is a nonquoted identifier Oracle would fold to this very name, upper
 // case and not reserved, and otherwise in double quotes, with a line break

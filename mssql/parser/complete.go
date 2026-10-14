@@ -1,17 +1,22 @@
 package parser
 
-import "strings"
+import (
+	"strings"
+	"sync"
+)
 
-// reverseKeywordMap maps token type → uppercase keyword name.
-// Built once from keywordMap on first call to TokenName.
-var reverseKeywordMap map[int]string
-
-func initReverseKeywordMap() {
-	reverseKeywordMap = make(map[int]string, len(keywordMap))
+// reverseKeywordMap maps token type → uppercase keyword name. keywordMap is
+// filled by an init function, which runs after package-level variables are
+// initialized, so the reverse map is built on first use under sync.OnceValue
+// rather than as a variable initializer. Concurrent callers of TokenName are
+// safe.
+var reverseKeywordMap = sync.OnceValue(func() map[int]string {
+	m := make(map[int]string, len(keywordMap))
 	for name, tok := range keywordMap {
-		reverseKeywordMap[tok] = strings.ToUpper(name)
+		m[tok] = strings.ToUpper(name)
 	}
-}
+	return m
+})
 
 // TokenName returns the SQL keyword string for a token type, or "" if not a keyword.
 func TokenName(tokenType int) string {
@@ -19,11 +24,7 @@ func TokenName(tokenType int) string {
 	if tokenType > 0 && tokenType < 256 {
 		return string(rune(tokenType))
 	}
-	// Build reverse map once
-	if reverseKeywordMap == nil {
-		initReverseKeywordMap()
-	}
-	if name, ok := reverseKeywordMap[tokenType]; ok {
+	if name, ok := reverseKeywordMap()[tokenType]; ok {
 		return name
 	}
 	// Non-keyword tokens (identifiers, literals, operators)
