@@ -56,10 +56,19 @@ func checkDisallowDropObject(s *statement, r *reporter) {
 			}
 			var names []string
 			if v.Names != nil {
-				for _, item := range v.Names.Items {
-					if ref, ok := item.(*ast.TableRef); ok {
-						names = append(names, object(ref))
+				for i, item := range v.Names.Items {
+					ref, ok := item.(*ast.TableRef)
+					if !ok {
+						continue
 					}
+					name := object(ref)
+					// An index name is unique only on its table.
+					if v.OnTables != nil && i < len(v.OnTables.Items) {
+						if on, ok := v.OnTables.Items[i].(*ast.TableRef); ok && on != nil {
+							name += " on " + object(on)
+						}
+					}
+					names = append(names, name)
 				}
 			}
 			report(v.Loc, kind, names...)

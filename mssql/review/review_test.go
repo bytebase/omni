@@ -216,12 +216,20 @@ func TestRequireIsNull(t *testing.T) {
 func TestDisallowDropObject(t *testing.T) {
 	runCases(t, review.DisallowDropObject, []ruleCase{
 		{
+			name: "indexes of the same name on two tables",
+			sql:  "DROP INDEX ix ON dbo.t, ix ON dbo.p;\nDROP INDEX t.ix_n;",
+			want: []finding{
+				{0, "DROP INDEX ix ON dbo.t, ix ON dbo.p", "drops index ix on dbo.t, ix on dbo.p", []int{0}},
+				{1, "DROP INDEX t.ix_n", "drops index t.ix_n", []int{0}},
+			},
+		},
+		{
 			name: "every DROP",
 			sql:  "DROP TABLE IF EXISTS t, dbo.p;\nDROP VIEW v;\nDROP INDEX ix_n ON t;\nDROP PROCEDURE pr;\nDROP FUNCTION f;\nDROP SCHEMA s;\nDROP DATABASE d;\nDROP USER u;\nALTER TABLE t DROP COLUMN n, code;",
 			want: []finding{
 				{0, "DROP TABLE IF EXISTS t, dbo.p", "drops table t, dbo.p", []int{0}},
 				{1, "DROP VIEW v", "drops view v", []int{0}},
-				{2, "DROP INDEX ix_n ON t", "drops index ix_n", []int{0}},
+				{2, "DROP INDEX ix_n ON t", "drops index ix_n on t", []int{0}},
 				{3, "DROP PROCEDURE pr", "drops procedure pr", []int{0}},
 				{4, "DROP FUNCTION f", "drops function f", []int{0}},
 				{5, "DROP SCHEMA s", "drops schema s", []int{0}},
@@ -390,6 +398,11 @@ func TestRequirePrimaryKey(t *testing.T) {
 		{
 			name: "settled by a later key, drop, or rename",
 			sql:  "CREATE TABLE a (id INT NOT NULL);\nALTER TABLE a ADD CONSTRAINT pk_a PRIMARY KEY (id);\nCREATE TABLE b (id INT);\nDROP TABLE b;\nCREATE TABLE c (id INT);\nEXEC sp_rename 'c', 'c2';\nCREATE DATABASE d;\nCREATE TABLE d.dbo.e (id INT);\nDROP DATABASE d;",
+		},
+		{
+			name: "a column rename, which does not move a table named like it",
+			sql:  "CREATE TABLE [t].[id] (x INT);\nEXEC sp_rename 't.id', 'id2', 'COLUMN';",
+			want: []finding{{0, "CREATE TABLE [t].[id] (x INT)", "creates table t.id without a primary key", []int{0}}},
 		},
 		{
 			name: "a primary key dropped and not added back",

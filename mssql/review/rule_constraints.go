@@ -302,7 +302,9 @@ func settledAfter(stmts []statement, pos int, ref *ast.TableRef) bool {
 			case *ast.RenameStmt:
 				settled = settled || v.ColumnName == "" && sameObject(v.Name, ref)
 			case *ast.ExecStmt:
-				if name, _, _, ok := spRename(v); ok {
+				// Only an object rename moves a table; a column's or an
+				// index's name starts with its table.
+				if name, _, kind, ok := spRename(v); ok && (kind == "" || strings.EqualFold(kind, "OBJECT")) {
 					if t := parseObjectName(name); t != nil && sameObject(t, ref) {
 						settled = true
 					}
